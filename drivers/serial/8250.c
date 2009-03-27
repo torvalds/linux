@@ -2083,6 +2083,20 @@ static int serial8250_startup(struct uart_port *port)
 
 	serial8250_set_mctrl(&up->port, up->port.mctrl);
 
+	/* Serial over Lan (SoL) hack:
+	   Intel 8257x Gigabit ethernet chips have a
+	   16550 emulation, to be used for Serial Over Lan.
+	   Those chips take a longer time than a normal
+	   serial device to signalize that a transmission
+	   data was queued. Due to that, the above test generally
+	   fails. One solution would be to delay the reading of
+	   iir. However, this is not reliable, since the timeout
+	   is variable. So, let's just don't test if we receive
+	   TX irq. This way, we'll never enable UART_BUG_TXEN.
+	 */
+	if (up->port.flags & UPF_NO_TXEN_TEST)
+		goto dont_test_tx_en;
+
 	/*
 	 * Do a quick test to see if we receive an
 	 * interrupt when we enable the TX irq.
@@ -2102,6 +2116,7 @@ static int serial8250_startup(struct uart_port *port)
 		up->bugs &= ~UART_BUG_TXEN;
 	}
 
+dont_test_tx_en:
 	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	/*

@@ -115,7 +115,7 @@
 
 
 unsigned musb_debug;
-module_param(musb_debug, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, musb_debug, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_AUTHOR "Mentor Graphics, Texas Instruments, Nokia"
@@ -767,8 +767,9 @@ static irqreturn_t musb_stage2_irq(struct musb *musb, u8 int_usb,
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 		case OTG_STATE_A_HOST:
 		case OTG_STATE_A_SUSPEND:
+			usb_hcd_resume_root_hub(musb_to_hcd(musb));
 			musb_root_disconnect(musb);
-			if (musb->a_wait_bcon != 0)
+			if (musb->a_wait_bcon != 0 && is_otg_enabled(musb))
 				musb_platform_try_idle(musb, jiffies
 					+ msecs_to_jiffies(musb->a_wait_bcon));
 			break;
@@ -1815,7 +1816,7 @@ static void musb_free(struct musb *musb)
 #ifdef CONFIG_SYSFS
 	device_remove_file(musb->controller, &dev_attr_mode);
 	device_remove_file(musb->controller, &dev_attr_vbus);
-#ifdef CONFIG_USB_MUSB_OTG
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	device_remove_file(musb->controller, &dev_attr_srp);
 #endif
 #endif
@@ -1824,8 +1825,9 @@ static void musb_free(struct musb *musb)
 	musb_gadget_cleanup(musb);
 #endif
 
-	if (musb->nIrq >= 0 && musb->irq_wake) {
-		disable_irq_wake(musb->nIrq);
+	if (musb->nIrq >= 0) {
+		if (musb->irq_wake)
+			disable_irq_wake(musb->nIrq);
 		free_irq(musb->nIrq, musb);
 	}
 	if (is_dma_capable() && musb->dma_controller) {
@@ -2062,7 +2064,7 @@ fail2:
 #ifdef CONFIG_SYSFS
 	device_remove_file(musb->controller, &dev_attr_mode);
 	device_remove_file(musb->controller, &dev_attr_vbus);
-#ifdef CONFIG_USB_MUSB_OTG
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	device_remove_file(musb->controller, &dev_attr_srp);
 #endif
 #endif
@@ -2242,10 +2244,10 @@ static int __init musb_init(void)
 	return platform_driver_probe(&musb_driver, musb_probe);
 }
 
-/* make us init after usbcore and before usb
- * gadget and host-side drivers start to register
+/* make us init after usbcore and i2c (transceivers, regulators, etc)
+ * and before usb gadget and host-side drivers start to register
  */
-subsys_initcall(musb_init);
+fs_initcall(musb_init);
 
 static void __exit musb_cleanup(void)
 {

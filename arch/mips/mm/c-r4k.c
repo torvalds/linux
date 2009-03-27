@@ -618,15 +618,35 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size)
 			r4k_blast_scache();
-		else
+		else {
+			unsigned long lsize = cpu_scache_line_size();
+			unsigned long almask = ~(lsize - 1);
+
+			/*
+			 * There is no clearly documented alignment requirement
+			 * for the cache instruction on MIPS processors and
+			 * some processors, among them the RM5200 and RM7000
+			 * QED processors will throw an address error for cache
+			 * hit ops with insufficient alignment.  Solved by
+			 * aligning the address to cache line size.
+			 */
+			cache_op(Hit_Writeback_Inv_SD, addr & almask);
+			cache_op(Hit_Writeback_Inv_SD,
+				 (addr + size - 1) & almask);
 			blast_inv_scache_range(addr, addr + size);
+		}
 		return;
 	}
 
 	if (cpu_has_safe_index_cacheops && size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
+		unsigned long lsize = cpu_dcache_line_size();
+		unsigned long almask = ~(lsize - 1);
+
 		R4600_HIT_CACHEOP_WAR_IMPL;
+		cache_op(Hit_Writeback_Inv_D, addr & almask);
+		cache_op(Hit_Writeback_Inv_D, (addr + size - 1)  & almask);
 		blast_inv_dcache_range(addr, addr + size);
 	}
 
@@ -760,7 +780,7 @@ static void __cpuinit probe_pcache(void)
 		c->dcache.ways = 2;
 		c->dcache.waybit = 0;
 
-		c->options |= MIPS_CPU_CACHE_CDEX_P;
+		c->options |= MIPS_CPU_CACHE_CDEX_P | MIPS_CPU_PREFETCH;
 		break;
 
 	case CPU_TX49XX:

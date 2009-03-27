@@ -44,7 +44,7 @@ static DEFINE_SPINLOCK(minicache_lock);
  * instruction.  If your processor does not supply this, you have to write your
  * own copy_user_highpage that does the right thing.
  */
-static void __attribute__((naked))
+static void __naked
 mc_copy_user_page(void *from, void *to)
 {
 	asm volatile(
@@ -68,7 +68,7 @@ mc_copy_user_page(void *from, void *to)
 	: "r" (from), "r" (to), "I" (PAGE_SIZE / 64));
 }
 
-void v4_mc_copy_user_highpage(struct page *from, struct page *to,
+void v4_mc_copy_user_highpage(struct page *to, struct page *from,
 	unsigned long vaddr)
 {
 	void *kto = kmap_atomic(to, KM_USER1);

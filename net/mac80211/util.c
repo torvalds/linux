@@ -41,6 +41,15 @@ const unsigned char rfc1042_header[] __aligned(2) =
 const unsigned char bridge_tunnel_header[] __aligned(2) =
 	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 
+struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy)
+{
+	struct ieee80211_local *local;
+	BUG_ON(!wiphy);
+
+	local = wiphy_priv(wiphy);
+	return &local->hw;
+}
+EXPORT_SYMBOL(wiphy_to_ieee80211_hw);
 
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			enum nl80211_iftype type)
@@ -335,14 +344,35 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	/* we don't need to track ampdu queues */
-	if (queue < ieee80211_num_regular_queues(hw)) {
-		__clear_bit(reason, &local->queue_stop_reasons[queue]);
-
-		if (local->queue_stop_reasons[queue] != 0)
-			/* someone still has this queue stopped */
+	if (queue >= hw->queues) {
+		if (local->ampdu_ac_queue[queue - hw->queues] < 0)
 			return;
+
+		/*
+		 * for virtual aggregation queues, we need to refcount the
+		 * internal mac80211 disable (multiple times!), keep track of
+		 * driver disable _and_ make sure the regular queue is
+		 * actually enabled.
+		 */
+		if (reason == IEEE80211_QUEUE_STOP_REASON_AGGREGATION)
+			local->amdpu_ac_stop_refcnt[queue - hw->queues]--;
+		else
+			__clear_bit(reason, &local->queue_stop_reasons[queue]);
+
+		if (local->queue_stop_reasons[queue] ||
+		    local->amdpu_ac_stop_refcnt[queue - hw->queues])
+			return;
+
+		/* now go on to treat the corresponding regular queue */
+		queue = local->ampdu_ac_queue[queue - hw->queues];
+		reason = IEEE80211_QUEUE_STOP_REASON_AGGREGATION;
 	}
+
+	__clear_bit(reason, &local->queue_stop_reasons[queue]);
+
+	if (local->queue_stop_reasons[queue] != 0)
+		/* someone still has this queue stopped */
+		return;
 
 	if (test_bit(queue, local->queues_pending)) {
 		set_bit(queue, local->queues_pending_run);
@@ -375,9 +405,27 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	/* we don't need to track ampdu queues */
-	if (queue < ieee80211_num_regular_queues(hw))
-		__set_bit(reason, &local->queue_stop_reasons[queue]);
+	if (queue >= hw->queues) {
+		if (local->ampdu_ac_queue[queue - hw->queues] < 0)
+			return;
+
+		/*
+		 * for virtual aggregation queues, we need to refcount the
+		 * internal mac80211 disable (multiple times!), keep track of
+		 * driver disable _and_ make sure the regular queue is
+		 * actually enabled.
+		 */
+		if (reason == IEEE80211_QUEUE_STOP_REASON_AGGREGATION)
+			local->amdpu_ac_stop_refcnt[queue - hw->queues]++;
+		else
+			__set_bit(reason, &local->queue_stop_reasons[queue]);
+
+		/* now go on to treat the corresponding regular queue */
+		queue = local->ampdu_ac_queue[queue - hw->queues];
+		reason = IEEE80211_QUEUE_STOP_REASON_AGGREGATION;
+	}
+
+	__set_bit(reason, &local->queue_stop_reasons[queue]);
 
 	netif_stop_subqueue(local->mdev, queue);
 }
@@ -409,7 +457,7 @@ void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 
-	for (i = 0; i < ieee80211_num_queues(hw); i++)
+	for (i = 0; i < hw->queues; i++)
 		__ieee80211_stop_queue(hw, i, reason);
 
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
@@ -425,6 +473,16 @@ EXPORT_SYMBOL(ieee80211_stop_queues);
 int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	unsigned long flags;
+
+	if (queue >= hw->queues) {
+		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+		queue = local->ampdu_ac_queue[queue - hw->queues];
+		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+		if (queue < 0)
+			return true;
+	}
+
 	return __netif_subqueue_stopped(local->mdev, queue);
 }
 EXPORT_SYMBOL(ieee80211_queue_stopped);
@@ -459,7 +517,7 @@ void ieee80211_iterate_active_interfaces(
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 
-	rtnl_lock();
+	mutex_lock(&local->iflist_mtx);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
@@ -480,7 +538,7 @@ void ieee80211_iterate_active_interfaces(
 				 &sdata->vif);
 	}
 
-	rtnl_unlock();
+	mutex_unlock(&local->iflist_mtx);
 }
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces);
 
@@ -653,6 +711,10 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 			elems->pwr_constr_elem = pos;
 			elems->pwr_constr_elem_len = elen;
 			break;
+		case WLAN_EID_TIMEOUT_INTERVAL:
+			elems->timeout_int = pos;
+			elems->timeout_int_len = elen;
+			break;
 		default:
 			break;
 		}
@@ -686,6 +748,27 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 	for (i = 0; i < local_to_hw(local)->queues; i++)
 		local->ops->conf_tx(local_to_hw(local), i, &qparam);
+}
+
+void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
+				  const size_t supp_rates_len,
+				  const u8 *supp_rates)
+{
+	struct ieee80211_local *local = sdata->local;
+	int i, have_higher_than_11mbit = 0;
+
+	/* cf. IEEE 802.11 9.2.12 */
+	for (i = 0; i < supp_rates_len; i++)
+		if ((supp_rates[i] & 0x7f) * 5 > 110)
+			have_higher_than_11mbit = 1;
+
+	if (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ &&
+	    have_higher_than_11mbit)
+		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
+	else
+		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
+
+	ieee80211_set_wmm_default(sdata);
 }
 
 void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
@@ -727,12 +810,12 @@ int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
 	return ret;
 }
 
-u64 ieee80211_mandatory_rates(struct ieee80211_local *local,
+u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 			      enum ieee80211_band band)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *bitrates;
-	u64 mandatory_rates;
+	u32 mandatory_rates;
 	enum ieee80211_rate_flags mandatory_flag;
 	int i;
 
@@ -753,4 +836,162 @@ u64 ieee80211_mandatory_rates(struct ieee80211_local *local,
 		if (bitrates[i].flags & mandatory_flag)
 			mandatory_rates |= BIT(i);
 	return mandatory_rates;
+}
+
+void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
+			 u16 transaction, u16 auth_alg,
+			 u8 *extra, size_t extra_len,
+			 const u8 *bssid, int encrypt)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	struct ieee80211_mgmt *mgmt;
+	const u8 *ie_auth = NULL;
+	int ie_auth_len = 0;
+
+	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+		ie_auth_len = sdata->u.mgd.ie_auth_len;
+		ie_auth = sdata->u.mgd.ie_auth;
+	}
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
+			    sizeof(*mgmt) + 6 + extra_len + ie_auth_len);
+	if (!skb) {
+		printk(KERN_DEBUG "%s: failed to allocate buffer for auth "
+		       "frame\n", sdata->dev->name);
+		return;
+	}
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24 + 6);
+	memset(mgmt, 0, 24 + 6);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_AUTH);
+	if (encrypt)
+		mgmt->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+	memcpy(mgmt->da, bssid, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(mgmt->bssid, bssid, ETH_ALEN);
+	mgmt->u.auth.auth_alg = cpu_to_le16(auth_alg);
+	mgmt->u.auth.auth_transaction = cpu_to_le16(transaction);
+	mgmt->u.auth.status_code = cpu_to_le16(0);
+	if (extra)
+		memcpy(skb_put(skb, extra_len), extra, extra_len);
+	if (ie_auth)
+		memcpy(skb_put(skb, ie_auth_len), ie_auth, ie_auth_len);
+
+	ieee80211_tx_skb(sdata, skb, encrypt);
+}
+
+void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
+			      u8 *ssid, size_t ssid_len,
+			      u8 *ie, size_t ie_len)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	struct sk_buff *skb;
+	struct ieee80211_mgmt *mgmt;
+	u8 *pos, *supp_rates, *esupp_rates = NULL, *extra_preq_ie = NULL;
+	int i, extra_preq_ie_len = 0;
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+		extra_preq_ie_len = sdata->u.mgd.ie_probereq_len;
+		extra_preq_ie = sdata->u.mgd.ie_probereq;
+		break;
+	default:
+		break;
+	}
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt) + 200 +
+			    ie_len + extra_preq_ie_len);
+	if (!skb) {
+		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
+		       "request\n", sdata->dev->name);
+		return;
+	}
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
+	memset(mgmt, 0, 24);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_PROBE_REQ);
+	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	if (dst) {
+		memcpy(mgmt->da, dst, ETH_ALEN);
+		memcpy(mgmt->bssid, dst, ETH_ALEN);
+	} else {
+		memset(mgmt->da, 0xff, ETH_ALEN);
+		memset(mgmt->bssid, 0xff, ETH_ALEN);
+	}
+	pos = skb_put(skb, 2 + ssid_len);
+	*pos++ = WLAN_EID_SSID;
+	*pos++ = ssid_len;
+	memcpy(pos, ssid, ssid_len);
+
+	supp_rates = skb_put(skb, 2);
+	supp_rates[0] = WLAN_EID_SUPP_RATES;
+	supp_rates[1] = 0;
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		struct ieee80211_rate *rate = &sband->bitrates[i];
+		if (esupp_rates) {
+			pos = skb_put(skb, 1);
+			esupp_rates[1]++;
+		} else if (supp_rates[1] == 8) {
+			esupp_rates = skb_put(skb, 3);
+			esupp_rates[0] = WLAN_EID_EXT_SUPP_RATES;
+			esupp_rates[1] = 1;
+			pos = &esupp_rates[2];
+		} else {
+			pos = skb_put(skb, 1);
+			supp_rates[1]++;
+		}
+		*pos = rate->bitrate / 5;
+	}
+
+	if (ie)
+		memcpy(skb_put(skb, ie_len), ie, ie_len);
+	if (extra_preq_ie)
+		memcpy(skb_put(skb, extra_preq_ie_len), extra_preq_ie,
+		       extra_preq_ie_len);
+
+	ieee80211_tx_skb(sdata, skb, 0);
+}
+
+u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
+			    struct ieee802_11_elems *elems,
+			    enum ieee80211_band band)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_rate *bitrates;
+	size_t num_rates;
+	u32 supp_rates;
+	int i, j;
+	sband = local->hw.wiphy->bands[band];
+
+	if (!sband) {
+		WARN_ON(1);
+		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	}
+
+	bitrates = sband->bitrates;
+	num_rates = sband->n_bitrates;
+	supp_rates = 0;
+	for (i = 0; i < elems->supp_rates_len +
+		     elems->ext_supp_rates_len; i++) {
+		u8 rate = 0;
+		int own_rate;
+		if (i < elems->supp_rates_len)
+			rate = elems->supp_rates[i];
+		else if (elems->ext_supp_rates)
+			rate = elems->ext_supp_rates
+				[i - elems->supp_rates_len];
+		own_rate = 5 * (rate & 0x7f);
+		for (j = 0; j < num_rates; j++)
+			if (bitrates[j].bitrate == own_rate)
+				supp_rates |= BIT(j);
+	}
+	return supp_rates;
 }

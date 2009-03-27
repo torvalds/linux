@@ -447,7 +447,7 @@ static irqreturn_t bfin_t350mcqb_irq_error(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init bfin_t350mcqb_probe(struct platform_device *pdev)
+static int __devinit bfin_t350mcqb_probe(struct platform_device *pdev)
 {
 	struct bfin_t350mcqbfb_info *info;
 	struct fb_info *fbinfo;

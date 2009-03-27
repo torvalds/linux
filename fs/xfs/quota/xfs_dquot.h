@@ -97,6 +97,16 @@ typedef struct xfs_dquot {
 #define dq_hashlist	q_lists.dqm_hashlist
 #define dq_flags	q_lists.dqm_flags
 
+/*
+ * Lock hierachy for q_qlock:
+ *	XFS_QLOCK_NORMAL is the implicit default,
+ * 	XFS_QLOCK_NESTED is the dquot with the higher id in xfs_dqlock2
+ */
+enum {
+	XFS_QLOCK_NORMAL = 0,
+	XFS_QLOCK_NESTED,
+};
+
 #define XFS_DQHOLD(dqp)		((dqp)->q_nrefs++)
 
 #ifdef DEBUG

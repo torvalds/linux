@@ -102,6 +102,18 @@ static struct em28xx_reg_seq em2880_msi_digivox_ad_analog[] = {
 /* Board  - EM2870 Kworld 355u
    Analog - No input analog */
 
+static struct em28xx_reg_seq kworld_330u_analog[] = {
+	{EM28XX_R08_GPIO,	0x6d,	~EM_GPIO_4,	10},
+	{EM2880_R04_GPO,	0x00,	0xff,		10},
+	{ -1,			-1,	-1,		-1},
+};
+
+static struct em28xx_reg_seq kworld_330u_digital[] = {
+	{EM28XX_R08_GPIO,	0x6e,	~EM_GPIO_4,	10},
+	{EM2880_R04_GPO,	0x08,	0xff,		10},
+	{ -1,			-1,	-1,		-1},
+};
+
 /* Callback for the most boards */
 static struct em28xx_reg_seq default_tuner_gpio[] = {
 	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
@@ -1177,29 +1189,33 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
-	[EM2883_BOARD_KWORLD_HYBRID_A316] = {
+	[EM2883_BOARD_KWORLD_HYBRID_330U] = {
 		.name         = "Kworld PlusTV HD Hybrid 330",
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.mts_firmware = 1,
 		.has_dvb      = 1,
-		.dvb_gpio     = default_digital,
+		.dvb_gpio     = kworld_330u_digital,
+		.xclk             = EM28XX_XCLK_FREQUENCY_12MHZ,
+		.i2c_speed        = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_EEPROM_ON_BOARD | EM28XX_I2C_EEPROM_KEY_VALID,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
-			.gpio     = default_analog,
+			.gpio     = kworld_330u_analog,
+			.aout     = EM28XX_AOUT_PCM_IN | EM28XX_AOUT_PCM_STEREO,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
-			.gpio     = hauppauge_wintv_hvr_900_analog,
+			.gpio     = kworld_330u_analog,
+			.aout     = EM28XX_AOUT_PCM_IN | EM28XX_AOUT_PCM_STEREO,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
-			.gpio     = hauppauge_wintv_hvr_900_analog,
+			.gpio     = kworld_330u_analog,
 		} },
 	},
 	[EM2820_BOARD_COMPRO_VIDEOMATE_FORYOU] = {
@@ -1249,7 +1265,7 @@ struct usb_device_id em28xx_id_table [] = {
 	{ USB_DEVICE(0xeb1a, 0xe310),
 			.driver_info = EM2880_BOARD_MSI_DIGIVOX_AD },
 	{ USB_DEVICE(0xeb1a, 0xa316),
-			.driver_info = EM2883_BOARD_KWORLD_HYBRID_A316 },
+			.driver_info = EM2883_BOARD_KWORLD_HYBRID_330U },
 	{ USB_DEVICE(0xeb1a, 0xe320),
 			.driver_info = EM2880_BOARD_MSI_DIGIVOX_AD_II },
 	{ USB_DEVICE(0xeb1a, 0xe323),
@@ -1525,6 +1541,10 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
 		/* FIXME: Better to specify the needed IF */
 		ctl->demod = XC3028_FE_DEFAULT;
+		break;
+	case EM2883_BOARD_KWORLD_HYBRID_330U:
+		ctl->demod = XC3028_FE_CHINA;
+		ctl->fname = XC2028_DEFAULT_FIRMWARE;
 		break;
 	default:
 		ctl->demod = XC3028_FE_OREN538;

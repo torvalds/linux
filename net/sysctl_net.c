@@ -61,7 +61,7 @@ static struct ctl_table_root net_sysctl_root = {
 static int net_ctl_ro_header_perms(struct ctl_table_root *root,
 		struct nsproxy *namespaces, struct ctl_table *table)
 {
-	if (namespaces->net_ns == &init_net)
+	if (net_eq(namespaces->net_ns, &init_net))
 		return table->mode;
 	else
 		return table->mode & ~0222;

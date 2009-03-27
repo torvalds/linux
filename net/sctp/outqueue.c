@@ -428,7 +428,8 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 			 * retransmitting due to T3 timeout.
 			 */
 			if (reason == SCTP_RTXR_T3_RTX &&
-			    (jiffies - chunk->sent_at) < transport->last_rto)
+			    time_before(jiffies, chunk->sent_at +
+						 transport->last_rto))
 				continue;
 
 			/* RFC 2960 6.2.1 Processing a Received SACK
@@ -929,7 +930,6 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 		}
 
 		/* Finally, transmit new packets.  */
-		start_timer = 0;
 		while ((chunk = sctp_outq_dequeue_data(q)) != NULL) {
 			/* RFC 2960 6.5 Every DATA chunk MUST carry a valid
 			 * stream identifier.
@@ -1028,7 +1028,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			list_add_tail(&chunk->transmitted_list,
 				      &transport->transmitted);
 
-			sctp_transport_reset_timers(transport, start_timer-1);
+			sctp_transport_reset_timers(transport, 0);
 
 			q->empty = 0;
 
@@ -1757,6 +1757,9 @@ static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
 	__u32 tsn;
 	struct sctp_chunk *chunk;
 	struct list_head *lchunk, *temp;
+
+	if (!asoc->peer.prsctp_capable)
+		return;
 
 	/* PR-SCTP C1) Let SackCumAck be the Cumulative TSN ACK carried in the
 	 * received SACK.

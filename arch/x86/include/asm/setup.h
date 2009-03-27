@@ -1,27 +1,12 @@
 #ifndef _ASM_X86_SETUP_H
 #define _ASM_X86_SETUP_H
 
+#ifdef __KERNEL__
+
 #define COMMAND_LINE_SIZE 2048
 
 #ifndef __ASSEMBLY__
 
-/* Interrupt control for vSMPowered x86_64 systems */
-void vsmp_init(void);
-
-
-void setup_bios_corruption_check(void);
-
-
-#ifdef CONFIG_X86_VISWS
-extern void visws_early_detect(void);
-extern int is_visws_box(void);
-#else
-static inline void visws_early_detect(void) { }
-static inline int is_visws_box(void) { return 0; }
-#endif
-
-extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
-extern int wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip);
 /*
  * Any setup quirks to be performed?
  */
@@ -48,15 +33,7 @@ struct x86_quirks {
 	int (*update_genapic)(void);
 };
 
-extern struct x86_quirks *x86_quirks;
-extern unsigned long saved_video_mode;
-
-#ifndef CONFIG_PARAVIRT
-#define paravirt_post_allocator_init()	do {} while (0)
-#endif
 #endif /* __ASSEMBLY__ */
-
-#ifdef __KERNEL__
 
 #ifdef __i386__
 
@@ -77,6 +54,28 @@ extern unsigned long saved_video_mode;
 
 #ifndef __ASSEMBLY__
 #include <asm/bootparam.h>
+
+/* Interrupt control for vSMPowered x86_64 systems */
+void vsmp_init(void);
+
+void setup_bios_corruption_check(void);
+
+#ifdef CONFIG_X86_VISWS
+extern void visws_early_detect(void);
+extern int is_visws_box(void);
+#else
+static inline void visws_early_detect(void) { }
+static inline int is_visws_box(void) { return 0; }
+#endif
+
+extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
+extern int wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip);
+extern struct x86_quirks *x86_quirks;
+extern unsigned long saved_video_mode;
+
+#ifndef CONFIG_PARAVIRT
+#define paravirt_post_allocator_init()	do {} while (0)
+#endif
 
 #ifndef _SETUP
 

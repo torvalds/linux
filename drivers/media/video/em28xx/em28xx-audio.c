@@ -62,9 +62,15 @@ static int em28xx_isoc_audio_deinit(struct em28xx *dev)
 
 	dprintk("Stopping isoc\n");
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
-		usb_unlink_urb(dev->adev.urb[i]);
+		if (!irqs_disabled())
+			usb_kill_urb(dev->adev.urb[i]);
+		else
+			usb_unlink_urb(dev->adev.urb[i]);
 		usb_free_urb(dev->adev.urb[i]);
 		dev->adev.urb[i] = NULL;
+
+		kfree(dev->adev.transfer_buffer[i]);
+		dev->adev.transfer_buffer[i] = NULL;
 	}
 
 	return 0;
@@ -389,11 +395,15 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
 						    *substream)
 {
-	struct em28xx *dev;
+       unsigned long flags;
 
+	struct em28xx *dev;
 	snd_pcm_uframes_t hwptr_done;
+
 	dev = snd_pcm_substream_chip(substream);
+       spin_lock_irqsave(&dev->adev.slock, flags);
 	hwptr_done = dev->adev.hwptr_done_capture;
+       spin_unlock_irqrestore(&dev->adev.slock, flags);
 
 	return hwptr_done;
 }
@@ -438,9 +448,10 @@ static int em28xx_audio_init(struct em28xx *dev)
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
 			 "Rechberger\n");
 
-	card = snd_card_new(index[devnr], "Em28xx Audio", THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[devnr], "Em28xx Audio", THIS_MODULE, 0,
+			      &card);
+	if (err < 0)
+		return err;
 
 	spin_lock_init(&adev->slock);
 	err = snd_pcm_new(card, "Em28xx Audio", 0, 0, 1, &pcm);
@@ -453,6 +464,8 @@ static int em28xx_audio_init(struct em28xx *dev)
 	pcm->info_flags = 0;
 	pcm->private_data = dev;
 	strcpy(pcm->name, "Empia 28xx Capture");
+
+	snd_card_set_dev(card, &dev->udev->dev);
 	strcpy(card->driver, "Empia Em28xx Audio");
 	strcpy(card->shortname, "Em28xx Audio");
 	strcpy(card->longname, "Empia Em28xx Audio");

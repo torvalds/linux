@@ -61,7 +61,8 @@
 
 #include "smctr.h"               /* Our Stuff */
 
-static char version[] __initdata = KERN_INFO "smctr.c: v1.4 7/12/00 by jschlst@samba.org\n";
+static const char version[] __initdata =
+	KERN_INFO "smctr.c: v1.4 7/12/00 by jschlst@samba.org\n";
 static const char cardname[] = "smctr";
 
 
@@ -4392,52 +4393,42 @@ static int smctr_ring_status_chg(struct net_device *dev)
         {
                 case RING_RECOVERY:
                         printk(KERN_INFO "%s: Ring Recovery\n", dev->name);
-                        tp->current_ring_status |= RING_RECOVERY;
                         break;
 
                 case SINGLE_STATION:
                         printk(KERN_INFO "%s: Single Statinon\n", dev->name);
-                        tp->current_ring_status |= SINGLE_STATION;
                         break;
 
                 case COUNTER_OVERFLOW:
                         printk(KERN_INFO "%s: Counter Overflow\n", dev->name);
-                        tp->current_ring_status |= COUNTER_OVERFLOW;
                         break;
 
                 case REMOVE_RECEIVED:
                         printk(KERN_INFO "%s: Remove Received\n", dev->name);
-                        tp->current_ring_status |= REMOVE_RECEIVED;
                         break;
 
                 case AUTO_REMOVAL_ERROR:
                         printk(KERN_INFO "%s: Auto Remove Error\n", dev->name);
-                        tp->current_ring_status |= AUTO_REMOVAL_ERROR;
                         break;
 
                 case LOBE_WIRE_FAULT:
                         printk(KERN_INFO "%s: Lobe Wire Fault\n", dev->name);
-                        tp->current_ring_status |= LOBE_WIRE_FAULT;
                         break;
 
                 case TRANSMIT_BEACON:
                         printk(KERN_INFO "%s: Transmit Beacon\n", dev->name);
-                        tp->current_ring_status |= TRANSMIT_BEACON;
                         break;
 
                 case SOFT_ERROR:
                         printk(KERN_INFO "%s: Soft Error\n", dev->name);
-                        tp->current_ring_status |= SOFT_ERROR;
                         break;
 
                 case HARD_ERROR:
                         printk(KERN_INFO "%s: Hard Error\n", dev->name);
-                        tp->current_ring_status |= HARD_ERROR;
                         break;
 
                 case SIGNAL_LOSS:
                         printk(KERN_INFO "%s: Signal Loss\n", dev->name);
-                        tp->current_ring_status |= SIGNAL_LOSS;
                         break;
 
                 default:

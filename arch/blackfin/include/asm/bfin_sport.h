@@ -1,30 +1,9 @@
 /*
- * File:         include/asm-blackfin/bfin_sport.h
- * Based on:
- * Author:       Roy Huang (roy.huang@analog.com)
+ * bfin_sport.h - userspace header for bfin sport driver
  *
- * Created:      Thu Aug. 24 2006
- * Description:
+ * Copyright 2004-2008 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef __BFIN_SPORT_H__
@@ -42,11 +21,10 @@
 #define NORM_FORMAT	0x0
 #define ALAW_FORMAT	0x2
 #define ULAW_FORMAT	0x3
-struct sport_register;
 
 /* Function driver which use sport must initialize the structure */
 struct sport_config {
-	/*TDM (multichannels), I2S or other mode */
+	/* TDM (multichannels), I2S or other mode */
 	unsigned int mode:3;
 
 	/* if TDM mode is selected, channels must be set */
@@ -72,11 +50,17 @@ struct sport_config {
 	int serial_clk;
 	int fsync_clk;
 
-	unsigned int data_format:2;	/*Normal, u-law or a-law */
+	unsigned int data_format:2;	/* Normal, u-law or a-law */
 
 	int word_len;		/* How length of the word in bits, 3-32 bits */
 	int dma_enabled;
 };
+
+/* Userspace interface */
+#define SPORT_IOC_MAGIC		'P'
+#define SPORT_IOC_CONFIG	_IOWR('P', 0x01, struct sport_config)
+
+#ifdef __KERNEL__
 
 struct sport_register {
 	unsigned short tcr1;
@@ -117,9 +101,6 @@ struct sport_register {
 	unsigned long mrcs3;
 };
 
-#define SPORT_IOC_MAGIC		'P'
-#define SPORT_IOC_CONFIG	_IOWR('P', 0x01, struct sport_config)
-
 struct sport_dev {
 	struct cdev cdev;	/* Char device structure */
 
@@ -149,6 +130,8 @@ struct sport_dev {
 	struct sport_config config;
 };
 
+#endif
+
 #define SPORT_TCR1	0
 #define	SPORT_TCR2	1
 #define	SPORT_TCLKDIV	2
@@ -169,4 +152,4 @@ struct sport_dev {
 #define SPORT_MRCS2	22
 #define SPORT_MRCS3	23
 
-#endif				/*__BFIN_SPORT_H__*/
+#endif

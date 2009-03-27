@@ -104,7 +104,7 @@ static int misrouted_irq(int irq)
 	return ok;
 }
 
-static void poll_spurious_irqs(unsigned long dummy)
+static void poll_all_shared_irqs(void)
 {
 	struct irq_desc *desc;
 	int i;
@@ -123,10 +123,22 @@ static void poll_spurious_irqs(unsigned long dummy)
 
 		try_one_irq(i, desc);
 	}
+}
+
+static void poll_spurious_irqs(unsigned long dummy)
+{
+	poll_all_shared_irqs();
 
 	mod_timer(&poll_spurious_irq_timer,
 		  jiffies + POLL_SPURIOUS_IRQ_INTERVAL);
 }
+
+#ifdef CONFIG_DEBUG_SHIRQ
+void debug_poll_all_shared_irqs(void)
+{
+	poll_all_shared_irqs();
+}
+#endif
 
 /*
  * If 99,900 of the previous 100,000 interrupts have not been handled

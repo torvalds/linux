@@ -1846,6 +1846,9 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 	if (hd->timeouts < -1)
 		hd->timeouts++;
 
+	if (mpt_fwfault_debug)
+		mpt_halt_firmware(ioc);
+
 	/* Most important!  Set TaskMsgContext to SCpnt's MsgContext!
 	 * (the IO to be ABORT'd)
 	 *

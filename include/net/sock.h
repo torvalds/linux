@@ -158,7 +158,7 @@ struct sock_common {
   *	@sk_allocation: allocation mode
   *	@sk_sndbuf: size of send buffer in bytes
   *	@sk_flags: %SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE,
-  *		   %SO_OOBINLINE settings
+  *		   %SO_OOBINLINE settings, %SO_TIMESTAMPING settings
   *	@sk_no_check: %SO_NO_CHECK setting, wether or not checkup packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
   *	@sk_gso_type: GSO type (e.g. %SKB_GSO_TCPV4)
@@ -488,6 +488,13 @@ enum sock_flags {
 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
+	SOCK_TIMESTAMPING_TX_HARDWARE,  /* %SOF_TIMESTAMPING_TX_HARDWARE */
+	SOCK_TIMESTAMPING_TX_SOFTWARE,  /* %SOF_TIMESTAMPING_TX_SOFTWARE */
+	SOCK_TIMESTAMPING_RX_HARDWARE,  /* %SOF_TIMESTAMPING_RX_HARDWARE */
+	SOCK_TIMESTAMPING_RX_SOFTWARE,  /* %SOF_TIMESTAMPING_RX_SOFTWARE */
+	SOCK_TIMESTAMPING_SOFTWARE,     /* %SOF_TIMESTAMPING_SOFTWARE */
+	SOCK_TIMESTAMPING_RAW_HARDWARE, /* %SOF_TIMESTAMPING_RAW_HARDWARE */
+	SOCK_TIMESTAMPING_SYS_HARDWARE, /* %SOF_TIMESTAMPING_SYS_HARDWARE */
 };
 
 static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
@@ -860,7 +867,6 @@ static inline void sk_mem_uncharge(struct sock *sk, int size)
 
 static inline void sk_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
 {
-	skb_truesize_check(skb);
 	sock_set_flag(sk, SOCK_QUEUE_SHRUNK);
 	sk->sk_wmem_queued -= skb->truesize;
 	sk_mem_uncharge(sk, skb->truesize);
@@ -945,6 +951,11 @@ extern struct sk_buff 		*sock_alloc_send_skb(struct sock *sk,
 						     unsigned long size,
 						     int noblock,
 						     int *errcode);
+extern struct sk_buff 		*sock_alloc_send_pskb(struct sock *sk,
+						      unsigned long header_len,
+						      unsigned long data_len,
+						      int noblock,
+						      int *errcode);
 extern void *sock_kmalloc(struct sock *sk, int size,
 			  gfp_t priority);
 extern void sock_kfree_s(struct sock *sk, void *mem, int size);
@@ -1308,7 +1319,7 @@ static inline int sock_writeable(const struct sock *sk)
 
 static inline gfp_t gfp_any(void)
 {
-	return in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
+	return in_softirq() ? GFP_ATOMIC : GFP_KERNEL;
 }
 
 static inline long sock_rcvtimeo(const struct sock *sk, int noblock)
@@ -1341,12 +1352,43 @@ static __inline__ void
 sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
 {
 	ktime_t kt = skb->tstamp;
+	struct skb_shared_hwtstamps *hwtstamps = skb_hwtstamps(skb);
 
-	if (sock_flag(sk, SOCK_RCVTSTAMP))
+	/*
+	 * generate control messages if
+	 * - receive time stamping in software requested (SOCK_RCVTSTAMP
+	 *   or SOCK_TIMESTAMPING_RX_SOFTWARE)
+	 * - software time stamp available and wanted
+	 *   (SOCK_TIMESTAMPING_SOFTWARE)
+	 * - hardware time stamps available and wanted
+	 *   (SOCK_TIMESTAMPING_SYS_HARDWARE or
+	 *   SOCK_TIMESTAMPING_RAW_HARDWARE)
+	 */
+	if (sock_flag(sk, SOCK_RCVTSTAMP) ||
+	    sock_flag(sk, SOCK_TIMESTAMPING_RX_SOFTWARE) ||
+	    (kt.tv64 && sock_flag(sk, SOCK_TIMESTAMPING_SOFTWARE)) ||
+	    (hwtstamps->hwtstamp.tv64 &&
+	     sock_flag(sk, SOCK_TIMESTAMPING_RAW_HARDWARE)) ||
+	    (hwtstamps->syststamp.tv64 &&
+	     sock_flag(sk, SOCK_TIMESTAMPING_SYS_HARDWARE)))
 		__sock_recv_timestamp(msg, sk, skb);
 	else
 		sk->sk_stamp = kt;
 }
+
+/**
+ * sock_tx_timestamp - checks whether the outgoing packet is to be time stamped
+ * @msg:	outgoing packet
+ * @sk:		socket sending this packet
+ * @shtx:	filled with instructions for time stamping
+ *
+ * Currently only depends on SOCK_TIMESTAMPING* flags. Returns error code if
+ * parameters are invalid.
+ */
+extern int sock_tx_timestamp(struct msghdr *msg,
+			     struct sock *sk,
+			     union skb_shared_tx *shtx);
+
 
 /**
  * sk_eat_skb - Release a skb if it is no longer needed
@@ -1416,7 +1458,7 @@ static inline struct sock *skb_steal_sock(struct sk_buff *skb)
 	return NULL;
 }
 
-extern void sock_enable_timestamp(struct sock *sk);
+extern void sock_enable_timestamp(struct sock *sk, int flag);
 extern int sock_get_timestamp(struct sock *, struct timeval __user *);
 extern int sock_get_timestampns(struct sock *, struct timespec __user *);
 

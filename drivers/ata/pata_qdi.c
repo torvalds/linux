@@ -12,7 +12,7 @@
  *
  * Probe code based on drivers/ide/legacy/qd65xx.c
  * Rewritten from the work of Colten Edwards <pje120@cs.usask.ca> by
- * Samuel Thibault <samuel.thibault@fnac.net>
+ * Samuel Thibault <samuel.thibault@ens-lyon.org>
  */
 
 #include <linux/kernel.h>
@@ -212,11 +212,11 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 
 	if (type == 6580) {
 		ap->ops = &qdi6580_port_ops;
-		ap->pio_mask = 0x1F;
+		ap->pio_mask = ATA_PIO4;
 		ap->flags |= ATA_FLAG_SLAVE_POSS;
 	} else {
 		ap->ops = &qdi6500_port_ops;
-		ap->pio_mask = 0x07;	/* Actually PIO3 !IORDY is possible */
+		ap->pio_mask = ATA_PIO2; /* Actually PIO3 !IORDY is possible */
 		ap->flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_NO_IORDY;
 	}
 

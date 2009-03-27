@@ -26,8 +26,10 @@
 /*
  * for mixer controls
  */
+#define HDA_COMPOSE_AMP_VAL_OFS(nid,chs,idx,dir,ofs)		\
+	((nid) | ((chs)<<16) | ((dir)<<18) | ((idx)<<19) | ((ofs)<<23))
 #define HDA_COMPOSE_AMP_VAL(nid,chs,idx,dir) \
-	((nid) | ((chs)<<16) | ((dir)<<18) | ((idx)<<19))
+	HDA_COMPOSE_AMP_VAL_OFS(nid, chs, idx, dir, 0)
 /* mono volume with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx,  \
@@ -96,7 +98,7 @@ struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 					    const char *name);
 int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 			unsigned int *tlv, const char **slaves);
-void snd_hda_codec_reset(struct hda_codec *codec);
+int snd_hda_codec_reset(struct hda_codec *codec);
 int snd_hda_codec_configure(struct hda_codec *codec);
 
 /* amp value bits */
@@ -134,7 +136,7 @@ extern struct hda_ctl_ops snd_hda_bind_sw;	/* for bind-switch */
 
 struct hda_bind_ctls {
 	struct hda_ctl_ops *ops;
-	long values[];
+	unsigned long values[];
 };
 
 int snd_hda_mixer_bind_ctls_info(struct snd_kcontrol *kcontrol,
@@ -227,6 +229,7 @@ struct hda_multi_out {
 	hda_nid_t hp_nid;	/* optional DAC for HP, 0 when not exists */
 	hda_nid_t extra_out_nid[3];	/* optional DACs, 0 when not exists */
 	hda_nid_t dig_out_nid;	/* digital out audio widget */
+	hda_nid_t *slave_dig_outs;
 	int max_channels;	/* currently supported analog channels */
 	int dig_out_used;	/* current usage of digital out (HDA_DIG_XXX) */
 	int no_share_stream;	/* don't share a stream with multiple pins */
@@ -251,6 +254,8 @@ int snd_hda_multi_out_dig_prepare(struct hda_codec *codec,
 				  unsigned int stream_tag,
 				  unsigned int format,
 				  struct snd_pcm_substream *substream);
+int snd_hda_multi_out_dig_cleanup(struct hda_codec *codec,
+				  struct hda_multi_out *mout);
 int snd_hda_multi_out_analog_open(struct hda_codec *codec,
 				  struct hda_multi_out *mout,
 				  struct snd_pcm_substream *substream,
@@ -352,9 +357,12 @@ struct auto_pin_cfg {
 	int line_out_type;	/* AUTO_PIN_XXX_OUT */
 	hda_nid_t hp_pins[AUTO_CFG_MAX_OUTS];
 	hda_nid_t input_pins[AUTO_PIN_LAST];
-	hda_nid_t dig_out_pin;
+	int dig_outs;
+	hda_nid_t dig_out_pins[2];
 	hda_nid_t dig_in_pin;
 	hda_nid_t mono_out_pin;
+	int dig_out_type[2]; /* HDA_PCM_TYPE_XXX */
+	int dig_in_type; /* HDA_PCM_TYPE_XXX */
 };
 
 #define get_defcfg_connect(cfg) \
@@ -403,6 +411,7 @@ static inline u32 get_wcaps(struct hda_codec *codec, hda_nid_t nid)
 u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction);
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);
+u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid);
 
 int snd_hda_ctl_add(struct hda_codec *codec, struct snd_kcontrol *kctl);
 void snd_hda_ctls_clear(struct hda_codec *codec);
@@ -422,6 +431,23 @@ int snd_hda_hwdep_add_sysfs(struct hda_codec *codec);
 static inline int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
 {
 	return 0;
+}
+#endif
+
+#ifdef CONFIG_SND_HDA_RECONFIG
+const char *snd_hda_get_hint(struct hda_codec *codec, const char *key);
+int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key);
+#else
+static inline
+const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
+{
+	return NULL;
+}
+
+static inline
+int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
+{
+	return -ENOENT;
 }
 #endif
 
@@ -456,6 +482,7 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 #define get_amp_channels(kc)	(((kc)->private_value >> 16) & 0x3)
 #define get_amp_direction(kc)	(((kc)->private_value >> 18) & 0x1)
 #define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)
+#define get_amp_offset(kc)	(((kc)->private_value >> 23) & 0x3f)
 
 /*
  * CEA Short Audio Descriptor data

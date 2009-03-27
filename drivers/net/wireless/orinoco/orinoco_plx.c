@@ -146,9 +146,8 @@ static int orinoco_plx_hw_init(struct orinoco_pci_card *card)
 	};
 
 	printk(KERN_DEBUG PFX "CIS: ");
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < 16; i++)
 		printk("%02X:", ioread8(card->attr_io + (i << 1)));
-	}
 	printk("\n");
 
 	/* Verify whether a supported PC card is present */

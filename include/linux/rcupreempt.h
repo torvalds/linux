@@ -142,4 +142,19 @@ static inline void rcu_exit_nohz(void)
 #define rcu_exit_nohz()		do { } while (0)
 #endif /* CONFIG_NO_HZ */
 
+/*
+ * A context switch is a grace period for rcupreempt synchronize_rcu()
+ * only during early boot, before the scheduler has been initialized.
+ * So, how the heck do we get a context switch?  Well, if the caller
+ * invokes synchronize_rcu(), they are willing to accept a context
+ * switch, so we simply pretend that one happened.
+ *
+ * After boot, there might be a blocked or preempted task in an RCU
+ * read-side critical section, so we cannot then take the fastpath.
+ */
+static inline int rcu_blocking_is_gp(void)
+{
+	return num_online_cpus() == 1 && !rcu_scheduler_active;
+}
+
 #endif /* __LINUX_RCUPREEMPT_H */

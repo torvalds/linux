@@ -407,7 +407,6 @@ static int context_struct_compute_av(struct context *scontext,
 	 * Initialize the access vectors to the default values.
 	 */
 	avd->allowed = 0;
-	avd->decided = 0xffffffff;
 	avd->auditallow = 0;
 	avd->auditdeny = 0xffffffff;
 	avd->seqno = latest_granting;
@@ -743,7 +742,6 @@ int security_compute_av(u32 ssid,
 
 	if (!ss_initialized) {
 		avd->allowed = 0xffffffff;
-		avd->decided = 0xffffffff;
 		avd->auditallow = 0;
 		avd->auditdeny = 0xffffffff;
 		avd->seqno = latest_granting;

@@ -4,7 +4,7 @@
  * Copyright (c) 2006, Rik Snel <rsnel@cube.dyndns.org>
  *
  * Based on Dr Brian Gladman's (GPL'd) work published at
- * http://fp.gladman.plus.com/cryptography_technology/index.htm
+ * http://gladman.plushost.co.uk/oldsite/cryptography_technology/index.php
  * See the original copyright notice below.
  *
  * This program is free software; you can redistribute it and/or modify it

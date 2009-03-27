@@ -85,6 +85,8 @@ struct netlink_sock {
 
 #define NETLINK_KERNEL_SOCKET	0x1
 #define NETLINK_RECV_PKTINFO	0x2
+#define NETLINK_BROADCAST_SEND_ERROR	0x4
+#define NETLINK_RECV_NO_ENOBUFS	0x8
 
 static inline struct netlink_sock *nlk_sk(struct sock *sk)
 {
@@ -716,10 +718,15 @@ static int netlink_getname(struct socket *sock, struct sockaddr *addr,
 
 static void netlink_overrun(struct sock *sk)
 {
-	if (!test_and_set_bit(0, &nlk_sk(sk)->state)) {
-		sk->sk_err = ENOBUFS;
-		sk->sk_error_report(sk);
+	struct netlink_sock *nlk = nlk_sk(sk);
+
+	if (!(nlk->flags & NETLINK_RECV_NO_ENOBUFS)) {
+		if (!test_and_set_bit(0, &nlk_sk(sk)->state)) {
+			sk->sk_err = ENOBUFS;
+			sk->sk_error_report(sk);
+		}
 	}
+	atomic_inc(&sk->sk_drops);
 }
 
 static struct sock *netlink_getsockbypid(struct sock *ssk, u32 pid)
@@ -950,6 +957,7 @@ struct netlink_broadcast_data {
 	u32 pid;
 	u32 group;
 	int failure;
+	int delivery_failure;
 	int congested;
 	int delivered;
 	gfp_t allocation;
@@ -994,11 +1002,15 @@ static inline int do_one_broadcast(struct sock *sk,
 		netlink_overrun(sk);
 		/* Clone failed. Notify ALL listeners. */
 		p->failure = 1;
+		if (nlk->flags & NETLINK_BROADCAST_SEND_ERROR)
+			p->delivery_failure = 1;
 	} else if (sk_filter(sk, p->skb2)) {
 		kfree_skb(p->skb2);
 		p->skb2 = NULL;
 	} else if ((val = netlink_broadcast_deliver(sk, p->skb2)) < 0) {
 		netlink_overrun(sk);
+		if (nlk->flags & NETLINK_BROADCAST_SEND_ERROR)
+			p->delivery_failure = 1;
 	} else {
 		p->congested |= val;
 		p->delivered = 1;
@@ -1025,6 +1037,7 @@ int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
 	info.pid = pid;
 	info.group = group;
 	info.failure = 0;
+	info.delivery_failure = 0;
 	info.congested = 0;
 	info.delivered = 0;
 	info.allocation = allocation;
@@ -1042,16 +1055,16 @@ int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
 
 	netlink_unlock_table();
 
-	if (info.skb2)
-		kfree_skb(info.skb2);
+	kfree_skb(info.skb2);
+
+	if (info.delivery_failure)
+		return -ENOBUFS;
 
 	if (info.delivered) {
 		if (info.congested && (allocation & __GFP_WAIT))
 			yield();
 		return 0;
 	}
-	if (info.failure)
-		return -ENOBUFS;
 	return -ESRCH;
 }
 EXPORT_SYMBOL(netlink_broadcast);
@@ -1084,6 +1097,13 @@ out:
 	return 0;
 }
 
+/**
+ * netlink_set_err - report error to broadcast listeners
+ * @ssk: the kernel netlink socket, as returned by netlink_kernel_create()
+ * @pid: the PID of a process that we want to skip (if any)
+ * @groups: the broadcast group that will notice the error
+ * @code: error code, must be negative (as usual in kernelspace)
+ */
 void netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 {
 	struct netlink_set_err_data info;
@@ -1093,7 +1113,8 @@ void netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 	info.exclude_sk = ssk;
 	info.pid = pid;
 	info.group = group;
-	info.code = code;
+	/* sk->sk_err wants a positive error value */
+	info.code = -code;
 
 	read_lock(&nl_table_lock);
 
@@ -1102,6 +1123,7 @@ void netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 
 	read_unlock(&nl_table_lock);
 }
+EXPORT_SYMBOL(netlink_set_err);
 
 /* must be called with netlink table grabbed */
 static void netlink_update_socket_mc(struct netlink_sock *nlk,
@@ -1159,6 +1181,22 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 		err = 0;
 		break;
 	}
+	case NETLINK_BROADCAST_ERROR:
+		if (val)
+			nlk->flags |= NETLINK_BROADCAST_SEND_ERROR;
+		else
+			nlk->flags &= ~NETLINK_BROADCAST_SEND_ERROR;
+		err = 0;
+		break;
+	case NETLINK_NO_ENOBUFS:
+		if (val) {
+			nlk->flags |= NETLINK_RECV_NO_ENOBUFS;
+			clear_bit(0, &nlk->state);
+			wake_up_interruptible(&nlk->wait);
+		} else
+			nlk->flags &= ~NETLINK_RECV_NO_ENOBUFS;
+		err = 0;
+		break;
 	default:
 		err = -ENOPROTOOPT;
 	}
@@ -1186,6 +1224,26 @@ static int netlink_getsockopt(struct socket *sock, int level, int optname,
 			return -EINVAL;
 		len = sizeof(int);
 		val = nlk->flags & NETLINK_RECV_PKTINFO ? 1 : 0;
+		if (put_user(len, optlen) ||
+		    put_user(val, optval))
+			return -EFAULT;
+		err = 0;
+		break;
+	case NETLINK_BROADCAST_ERROR:
+		if (len < sizeof(int))
+			return -EINVAL;
+		len = sizeof(int);
+		val = nlk->flags & NETLINK_BROADCAST_SEND_ERROR ? 1 : 0;
+		if (put_user(len, optlen) ||
+		    put_user(val, optval))
+			return -EFAULT;
+		err = 0;
+		break;
+	case NETLINK_NO_ENOBUFS:
+		if (len < sizeof(int))
+			return -EINVAL;
+		len = sizeof(int);
+		val = nlk->flags & NETLINK_RECV_NO_ENOBUFS ? 1 : 0;
 		if (put_user(len, optlen) ||
 		    put_user(val, optval))
 			return -EFAULT;
@@ -1517,8 +1575,7 @@ EXPORT_SYMBOL(netlink_set_nonroot);
 
 static void netlink_destroy_callback(struct netlink_callback *cb)
 {
-	if (cb->skb)
-		kfree_skb(cb->skb);
+	kfree_skb(cb->skb);
 	kfree(cb);
 }
 
@@ -1735,12 +1792,18 @@ int nlmsg_notify(struct sock *sk, struct sk_buff *skb, u32 pid,
 			exclude_pid = pid;
 		}
 
-		/* errors reported via destination sk->sk_err */
-		nlmsg_multicast(sk, skb, exclude_pid, group, flags);
+		/* errors reported via destination sk->sk_err, but propagate
+		 * delivery errors if NETLINK_BROADCAST_ERROR flag is set */
+		err = nlmsg_multicast(sk, skb, exclude_pid, group, flags);
 	}
 
-	if (report)
-		err = nlmsg_unicast(sk, skb, pid);
+	if (report) {
+		int err2;
+
+		err2 = nlmsg_unicast(sk, skb, pid);
+		if (!err || err == -ESRCH)
+			err = err2;
+	}
 
 	return err;
 }
@@ -1841,12 +1904,12 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
 			 "sk       Eth Pid    Groups   "
-			 "Rmem     Wmem     Dump     Locks\n");
+			 "Rmem     Wmem     Dump     Locks     Drops\n");
 	else {
 		struct sock *s = v;
 		struct netlink_sock *nlk = nlk_sk(s);
 
-		seq_printf(seq, "%p %-3d %-6d %08x %-8d %-8d %p %d\n",
+		seq_printf(seq, "%p %-3d %-6d %08x %-8d %-8d %p %-8d %-8d\n",
 			   s,
 			   s->sk_protocol,
 			   nlk->pid,
@@ -1854,7 +1917,8 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 			   atomic_read(&s->sk_rmem_alloc),
 			   atomic_read(&s->sk_wmem_alloc),
 			   nlk->cb,
-			   atomic_read(&s->sk_refcnt)
+			   atomic_read(&s->sk_refcnt),
+			   atomic_read(&s->sk_drops)
 			);
 
 	}

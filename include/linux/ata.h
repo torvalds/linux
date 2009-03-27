@@ -89,6 +89,8 @@ enum {
 	ATA_ID_DLF		= 128,
 	ATA_ID_CSFO		= 129,
 	ATA_ID_CFA_POWER	= 160,
+	ATA_ID_CFA_KEY_MGMT	= 162,
+	ATA_ID_CFA_MODES	= 163,
 	ATA_ID_ROT_SPEED	= 217,
 	ATA_ID_PIO4		= (1 << 1),
 
@@ -106,6 +108,8 @@ enum {
 	ATA_PIO5		= ATA_PIO4 | (1 << 5),
 	ATA_PIO6		= ATA_PIO5 | (1 << 6),
 
+	ATA_PIO4_ONLY		= (1 << 4),
+
 	ATA_SWDMA0		= (1 << 0),
 	ATA_SWDMA1		= ATA_SWDMA0 | (1 << 1),
 	ATA_SWDMA2		= ATA_SWDMA1 | (1 << 2),
@@ -115,6 +119,8 @@ enum {
 	ATA_MWDMA0		= (1 << 0),
 	ATA_MWDMA1		= ATA_MWDMA0 | (1 << 1),
 	ATA_MWDMA2		= ATA_MWDMA1 | (1 << 2),
+	ATA_MWDMA3		= ATA_MWDMA2 | (1 << 3),
+	ATA_MWDMA4		= ATA_MWDMA3 | (1 << 4),
 
 	ATA_MWDMA12_ONLY	= (1 << 1) | (1 << 2),
 	ATA_MWDMA2_ONLY		= (1 << 2),
@@ -128,6 +134,8 @@ enum {
 	ATA_UDMA6		= ATA_UDMA5 | (1 << 6),
 	ATA_UDMA7		= ATA_UDMA6 | (1 << 7),
 	/* ATA_UDMA7 is just for completeness... doesn't exist (yet?).  */
+
+	ATA_UDMA24_ONLY		= (1 << 2) | (1 << 4),
 
 	ATA_UDMA_MASK_40C	= ATA_UDMA2,	/* udma0-2 */
 
@@ -242,8 +250,6 @@ enum {
 	ATA_CMD_MEDIA_UNLOCK	= 0xDF,
 	/* marked obsolete in the ATA/ATAPI-7 spec */
 	ATA_CMD_RESTORE		= 0x10,
-	/* EXABYTE specific */
-	ATA_EXABYTE_ENABLE_NEST	= 0xF0,
 
 	/* READ_LOG_EXT pages */
 	ATA_LOG_SATA_NCQ	= 0x10,
@@ -731,12 +737,17 @@ static inline int ata_id_current_chs_valid(const u16 *id)
 
 static inline int ata_id_is_cfa(const u16 *id)
 {
-	if (id[ATA_ID_CONFIG] == 0x848A)	/* Standard CF */
+	if (id[ATA_ID_CONFIG] == 0x848A)	/* Traditional CF */
 		return 1;
-	/* Could be CF hiding as standard ATA */
-	if (ata_id_major_version(id) >= 3 &&
-	    id[ATA_ID_COMMAND_SET_1] != 0xFFFF &&
-	   (id[ATA_ID_COMMAND_SET_1] & (1 << 2)))
+	/*
+	 * CF specs don't require specific value in the word 0 anymore and yet
+	 * they forbid to report the ATA version in the word 80 and require the
+	 * CFA feature set support to be indicated in the word 83 in this case.
+	 * Unfortunately, some cards only follow either of this requirements,
+	 * and while those that don't indicate CFA feature support need some
+	 * sort of quirk list, it seems impractical for the ones that do...
+	 */
+	if ((id[ATA_ID_COMMAND_SET_2] & 0xC004) == 0x4004)
 		return 1;
 	return 0;
 }

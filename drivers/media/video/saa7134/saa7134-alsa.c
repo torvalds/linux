@@ -990,10 +990,10 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 	if (!enable[devnum])
 		return -ENODEV;
 
-	card = snd_card_new(index[devnum], id[devnum], THIS_MODULE, sizeof(snd_card_saa7134_t));
-
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[devnum], id[devnum], THIS_MODULE,
+			      sizeof(snd_card_saa7134_t), &card);
+	if (err < 0)
+		return err;
 
 	strcpy(card->driver, "SAA7134");
 
@@ -1089,7 +1089,11 @@ static int saa7134_alsa_init(void)
 
 	list_for_each(list,&saa7134_devlist) {
 		dev = list_entry(list, struct saa7134_dev, devlist);
-		alsa_device_init(dev);
+		if (dev->pci->device == PCI_DEVICE_ID_PHILIPS_SAA7130)
+			printk(KERN_INFO "%s/alsa: %s doesn't support digital audio\n",
+				dev->name, saa7134_boards[dev->board].name);
+		else
+			alsa_device_init(dev);
 	}
 
 	if (dev == NULL)

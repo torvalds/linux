@@ -114,7 +114,7 @@ static inline void setmosi(const struct spi_device *spi, int is_on)
 
 static inline int getmiso(const struct spi_device *spi)
 {
-	return gpio_get_value(SPI_MISO_GPIO);
+	return !!gpio_get_value(SPI_MISO_GPIO);
 }
 
 #undef pdata
@@ -191,7 +191,7 @@ static int spi_gpio_setup(struct spi_device *spi)
 		return -EINVAL;
 
 	if (!spi->controller_state) {
-		status = gpio_request(cs, spi->dev.bus_id);
+		status = gpio_request(cs, dev_name(&spi->dev));
 		if (status)
 			return status;
 		status = gpio_direction_output(cs, spi->mode & SPI_CS_HIGH);

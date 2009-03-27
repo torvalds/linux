@@ -101,9 +101,9 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
-static struct bfin5xx_spi_chip spi_mmc_chip_info = {
-	.enable_dma = 1,
+#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+static struct bfin5xx_spi_chip mmc_spi_chip_info = {
+	.enable_dma = 0,
 	.bits_per_word = 8,
 };
 #endif
@@ -129,23 +129,13 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
+#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 	{
-		.modalias = "spi_mmc_dummy",
+		.modalias = "mmc_spi",
 		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = 0,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
-		.mode = SPI_MODE_3,
-	},
-	{
-		.modalias = "spi_mmc",
-		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = CONFIG_SPI_MMC_CS_CHAN,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
+		.chip_select = 5,
+		.controller_data = &mmc_spi_chip_info,
 		.mode = SPI_MODE_3,
 	},
 #endif
@@ -309,10 +299,8 @@ static struct platform_device i2c_gpio_device = {
 };
 #endif
 
-#ifdef CONFIG_I2C_BOARDINFO
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 };
-#endif
 
 static const unsigned int cclk_vlev_datasheet[] =
 {
@@ -390,10 +378,8 @@ static int __init blackstamp_init(void)
 
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 
-#ifdef CONFIG_I2C_BOARDINFO
 	i2c_register_board_info(0, bfin_i2c_board_info,
 				ARRAY_SIZE(bfin_i2c_board_info));
-#endif
 
 	ret = platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	if (ret < 0)

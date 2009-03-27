@@ -16,21 +16,21 @@ extern int pci_mmap_fits(struct pci_dev *pdev, int resno,
 #endif
 
 /**
- * Firmware PM callbacks
+ * struct pci_platform_pm_ops - Firmware PM callbacks
  *
- * @is_manageable - returns 'true' if given device is power manageable by the
- *                  platform firmware
+ * @is_manageable: returns 'true' if given device is power manageable by the
+ *                 platform firmware
  *
- * @set_state - invokes the platform firmware to set the device's power state
+ * @set_state: invokes the platform firmware to set the device's power state
  *
- * @choose_state - returns PCI power state of given device preferred by the
- *                 platform; to be used during system-wide transitions from a
- *                 sleeping state to the working state and vice versa
+ * @choose_state: returns PCI power state of given device preferred by the
+ *                platform; to be used during system-wide transitions from a
+ *                sleeping state to the working state and vice versa
  *
- * @can_wakeup - returns 'true' if given device is capable of waking up the
- *               system from a sleeping state
+ * @can_wakeup: returns 'true' if given device is capable of waking up the
+ *              system from a sleeping state
  *
- * @sleep_wake - enables/disables the system wake up capability of given device
+ * @sleep_wake: enables/disables the system wake up capability of given device
  *
  * If given platform is generally capable of power managing PCI devices, all of
  * these callbacks are mandatory.
@@ -49,6 +49,12 @@ extern void pci_disable_enabled_device(struct pci_dev *dev);
 extern void pci_pm_init(struct pci_dev *dev);
 extern void platform_pci_wakeup_init(struct pci_dev *dev);
 extern void pci_allocate_cap_save_buffers(struct pci_dev *dev);
+extern int pci_restore_standard_config(struct pci_dev *dev);
+
+static inline bool pci_is_bridge(struct pci_dev *pci_dev)
+{
+	return !!(pci_dev->subordinate);
+}
 
 extern int pci_user_read_config_byte(struct pci_dev *dev, int where, u8 *val);
 extern int pci_user_read_config_word(struct pci_dev *dev, int where, u16 *val);

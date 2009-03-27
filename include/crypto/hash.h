@@ -222,13 +222,18 @@ static inline struct crypto_tfm *crypto_shash_tfm(struct crypto_shash *tfm)
 
 static inline void crypto_free_shash(struct crypto_shash *tfm)
 {
-	crypto_free_tfm(crypto_shash_tfm(tfm));
+	crypto_destroy_tfm(tfm, crypto_shash_tfm(tfm));
 }
 
 static inline unsigned int crypto_shash_alignmask(
 	struct crypto_shash *tfm)
 {
 	return crypto_tfm_alg_alignmask(crypto_shash_tfm(tfm));
+}
+
+static inline unsigned int crypto_shash_blocksize(struct crypto_shash *tfm)
+{
+	return crypto_tfm_alg_blocksize(crypto_shash_tfm(tfm));
 }
 
 static inline struct shash_alg *__crypto_shash_alg(struct crypto_alg *alg)

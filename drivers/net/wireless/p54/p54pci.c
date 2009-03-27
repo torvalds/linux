@@ -79,6 +79,12 @@ static int p54p_upload_firmware(struct ieee80211_hw *dev)
 	if (err)
 		return err;
 
+	if (priv->common.fw_interface != FW_LM86) {
+		dev_err(&priv->pdev->dev, "wrong firmware, "
+			"please get a LM86(PCI) firmware a try again.\n");
+		return -EINVAL;
+	}
+
 	data = (__le32 *) priv->firmware->data;
 	remains = priv->firmware->size;
 	device_addr = ISL38XX_DEV_FIRMWARE_ADDR;
@@ -407,8 +413,7 @@ static int p54p_open(struct ieee80211_hw *dev)
 	err = request_irq(priv->pdev->irq, &p54p_interrupt,
 			  IRQF_SHARED, "p54pci", dev);
 	if (err) {
-		printk(KERN_ERR "%s: failed to register IRQ handler\n",
-		       wiphy_name(dev->wiphy));
+		dev_err(&priv->pdev->dev, "failed to register IRQ handler\n");
 		return err;
 	}
 
@@ -470,30 +475,26 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR "%s (p54pci): Cannot enable new PCI device\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "Cannot enable new PCI device\n");
 		return err;
 	}
 
 	mem_addr = pci_resource_start(pdev, 0);
 	mem_len = pci_resource_len(pdev, 0);
 	if (mem_len < sizeof(struct p54p_csr)) {
-		printk(KERN_ERR "%s (p54pci): Too short PCI resources\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "Too short PCI resources\n");
 		goto err_disable_dev;
 	}
 
 	err = pci_request_regions(pdev, "p54pci");
 	if (err) {
-		printk(KERN_ERR "%s (p54pci): Cannot obtain PCI resources\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "Cannot obtain PCI resources\n");
 		goto err_disable_dev;
 	}
 
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) ||
 	    pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
-		printk(KERN_ERR "%s (p54pci): No suitable DMA available\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "No suitable DMA available\n");
 		goto err_free_reg;
 	}
 
@@ -505,8 +506,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
 	dev = p54_init_common(sizeof(*priv));
 	if (!dev) {
-		printk(KERN_ERR "%s (p54pci): ieee80211 alloc failed\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "ieee80211 alloc failed\n");
 		err = -ENOMEM;
 		goto err_free_reg;
 	}
@@ -519,17 +519,15 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
 	priv->map = ioremap(mem_addr, mem_len);
 	if (!priv->map) {
-		printk(KERN_ERR "%s (p54pci): Cannot map device memory\n",
-		       pci_name(pdev));
-		err = -EINVAL;	// TODO: use a better error code?
+		dev_err(&pdev->dev, "Cannot map device memory\n");
+		err = -ENOMEM;
 		goto err_free_dev;
 	}
 
 	priv->ring_control = pci_alloc_consistent(pdev, sizeof(*priv->ring_control),
 						  &priv->ring_control_dma);
 	if (!priv->ring_control) {
-		printk(KERN_ERR "%s (p54pci): Cannot allocate rings\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "Cannot allocate rings\n");
 		err = -ENOMEM;
 		goto err_iounmap;
 	}
@@ -543,8 +541,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	err = request_firmware(&priv->firmware, "isl3886pci",
 			       &priv->pdev->dev);
 	if (err) {
-		printk(KERN_ERR "%s (p54pci): cannot find firmware "
-			"(isl3886pci)\n", pci_name(priv->pdev));
+		dev_err(&pdev->dev, "Cannot find firmware (isl3886pci)\n");
 		err = request_firmware(&priv->firmware, "isl3886",
 				       &priv->pdev->dev);
 		if (err)
@@ -559,12 +556,9 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_free_common;
 
-	err = ieee80211_register_hw(dev);
-	if (err) {
-		printk(KERN_ERR "%s (p54pci): Cannot register netdevice\n",
-		       pci_name(pdev));
+	err = p54_register_common(dev, &pdev->dev);
+	if (err)
 		goto err_free_common;
-	}
 
 	return 0;
 

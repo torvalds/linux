@@ -573,13 +573,13 @@ static char last_unloaded_module[MODULE_NAME_LEN+1];
 /* Init the unload section of the module. */
 static void module_unload_init(struct module *mod)
 {
-	unsigned int i;
+	int cpu;
 
 	INIT_LIST_HEAD(&mod->modules_which_use_me);
-	for (i = 0; i < NR_CPUS; i++)
-		local_set(&mod->ref[i].count, 0);
+	for_each_possible_cpu(cpu)
+		local_set(__module_ref_addr(mod, cpu), 0);
 	/* Hold reference count during initialization. */
-	local_set(&mod->ref[raw_smp_processor_id()].count, 1);
+	local_set(__module_ref_addr(mod, raw_smp_processor_id()), 1);
 	/* Backwards compatibility macros put refcount during init. */
 	mod->waiter = current;
 }
@@ -717,10 +717,11 @@ static int try_stop_module(struct module *mod, int flags, int *forced)
 
 unsigned int module_refcount(struct module *mod)
 {
-	unsigned int i, total = 0;
+	unsigned int total = 0;
+	int cpu;
 
-	for (i = 0; i < NR_CPUS; i++)
-		total += local_read(&mod->ref[i].count);
+	for_each_possible_cpu(cpu)
+		total += local_read(__module_ref_addr(mod, cpu));
 	return total;
 }
 EXPORT_SYMBOL(module_refcount);
@@ -821,7 +822,7 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 	mutex_lock(&module_mutex);
 	/* Store the name of the last unloaded module for diagnostic purposes */
 	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
-	unregister_dynamic_debug_module(mod->name);
+	ddebug_remove_module(mod->name);
 	free_module(mod);
 
  out:
@@ -894,7 +895,7 @@ void module_put(struct module *module)
 {
 	if (module) {
 		unsigned int cpu = get_cpu();
-		local_dec(&module->ref[cpu].count);
+		local_dec(__module_ref_addr(module, cpu));
 		/* Maybe they're waiting for us to drop reference? */
 		if (unlikely(!module_is_live(module)))
 			wake_up_process(module->waiter);
@@ -1464,7 +1465,10 @@ static void free_module(struct module *mod)
 	kfree(mod->args);
 	if (mod->percpu)
 		percpu_modfree(mod->percpu);
-
+#if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
+	if (mod->refptr)
+		percpu_modfree(mod->refptr);
+#endif
 	/* Free lock-classes: */
 	lockdep_free_key_range(mod->module_core, mod->core_size);
 
@@ -1823,19 +1827,13 @@ static inline void add_kallsyms(struct module *mod,
 }
 #endif /* CONFIG_KALLSYMS */
 
-static void dynamic_printk_setup(struct mod_debug *debug, unsigned int num)
+static void dynamic_debug_setup(struct _ddebug *debug, unsigned int num)
 {
-#ifdef CONFIG_DYNAMIC_PRINTK_DEBUG
-	unsigned int i;
-
-	for (i = 0; i < num; i++) {
-		register_dynamic_debug_module(debug[i].modname,
-					      debug[i].type,
-					      debug[i].logical_modname,
-					      debug[i].flag_names,
-					      debug[i].hash, debug[i].hash2);
-	}
-#endif /* CONFIG_DYNAMIC_PRINTK_DEBUG */
+#ifdef CONFIG_DYNAMIC_DEBUG
+	if (ddebug_add_module(debug, num, debug->modname))
+		printk(KERN_ERR "dynamic debug error adding module: %s\n",
+					debug->modname);
+#endif
 }
 
 static void *module_alloc_update_bounds(unsigned long size)
@@ -2070,6 +2068,14 @@ static noinline struct module *load_module(void __user *umod,
 	/* Module has been moved. */
 	mod = (void *)sechdrs[modindex].sh_addr;
 
+#if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
+	mod->refptr = percpu_modalloc(sizeof(local_t), __alignof__(local_t),
+				      mod->name);
+	if (!mod->refptr) {
+		err = -ENOMEM;
+		goto free_init;
+	}
+#endif
 	/* Now we've moved module, initialize linked lists, etc. */
 	module_unload_init(mod);
 
@@ -2201,12 +2207,13 @@ static noinline struct module *load_module(void __user *umod,
 	add_kallsyms(mod, sechdrs, symindex, strindex, secstrings);
 
 	if (!mod->taints) {
-		struct mod_debug *debug;
+		struct _ddebug *debug;
 		unsigned int num_debug;
 
 		debug = section_objs(hdr, sechdrs, secstrings, "__verbose",
 				     sizeof(*debug), &num_debug);
-		dynamic_printk_setup(debug, num_debug);
+		if (debug)
+			dynamic_debug_setup(debug, num_debug);
 	}
 
 	/* sechdrs[0].sh_size is always zero */
@@ -2276,9 +2283,14 @@ static noinline struct module *load_module(void __user *umod,
 	ftrace_release(mod->module_core, mod->core_size);
  free_unload:
 	module_unload_free(mod);
+ free_init:
+#if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
+	percpu_modfree(mod->refptr);
+#endif
 	module_free(mod, mod->module_init);
  free_core:
 	module_free(mod, mod->module_core);
+	/* mod will be freed with core. Don't access it beyond this line! */
  free_percpu:
 	if (percpu)
 		percpu_modfree(percpu);

@@ -614,6 +614,7 @@ struct hda_bus {
 
 	/* unsolicited event queue */
 	struct hda_bus_unsolicited *unsol;
+	char workq_name[16];
 	struct workqueue_struct *workq;	/* common workqueue for codecs */
 
 	/* assigned PCMs */
@@ -738,6 +739,7 @@ struct hda_codec {
 	hda_nid_t mfg;	/* MFG node id */
 
 	/* ids */
+	u32 function_id;
 	u32 vendor_id;
 	u32 subsystem_id;
 	u32 revision_id;
@@ -777,11 +779,14 @@ struct hda_codec {
 	unsigned short spdif_ctls;	/* SPDIF control bits */
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
 	hda_nid_t *slave_dig_outs; /* optional digital out slave widgets */
+	struct snd_array init_pins;	/* initial (BIOS) pin configurations */
+	struct snd_array driver_pins;	/* pin configs set by codec parser */
 
 #ifdef CONFIG_SND_HDA_HWDEP
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
 	struct snd_array init_verbs;	/* additional init verbs */
 	struct snd_array hints;		/* additional hints */
+	struct snd_array user_pins;	/* default pin configs to override */
 #endif
 
 	/* misc flags */
@@ -789,6 +794,9 @@ struct hda_codec {
 					     * status change
 					     * (e.g. Realtek codecs)
 					     */
+	unsigned int pin_amp_workaround:1; /* pin out-amp takes index
+					    * (e.g. Conexant codecs)
+					    */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int power_transition :1; /* power-state in transition */
@@ -853,6 +861,18 @@ void snd_hda_codec_resume_cache(struct hda_codec *codec);
 #define snd_hda_codec_write_cache	snd_hda_codec_write
 #define snd_hda_sequence_write_cache	snd_hda_sequence_write
 #endif
+
+/* the struct for codec->pin_configs */
+struct hda_pincfg {
+	hda_nid_t nid;
+	unsigned int cfg;
+};
+
+unsigned int snd_hda_codec_get_pincfg(struct hda_codec *codec, hda_nid_t nid);
+int snd_hda_codec_set_pincfg(struct hda_codec *codec, hda_nid_t nid,
+			     unsigned int cfg);
+int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
+		       hda_nid_t nid, unsigned int cfg); /* for hwdep */
 
 /*
  * Mixer

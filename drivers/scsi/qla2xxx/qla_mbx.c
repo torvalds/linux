@@ -58,14 +58,11 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	 * seconds. This is to serialize actual issuing of mailbox cmds during
 	 * non ISP abort time.
 	 */
-	if (!abort_active) {
-		if (!wait_for_completion_timeout(&ha->mbx_cmd_comp,
-		    mcp->tov * HZ)) {
-			/* Timeout occurred. Return error. */
-			DEBUG2_3_11(printk("%s(%ld): cmd access timeout. "
-			    "Exiting.\n", __func__, base_vha->host_no));
-			return QLA_FUNCTION_TIMEOUT;
-		}
+	if (!wait_for_completion_timeout(&ha->mbx_cmd_comp, mcp->tov * HZ)) {
+		/* Timeout occurred. Return error. */
+		DEBUG2_3_11(printk("%s(%ld): cmd access timeout. "
+		    "Exiting.\n", __func__, base_vha->host_no));
+		return QLA_FUNCTION_TIMEOUT;
 	}
 
 	ha->flags.mbox_busy = 1;
@@ -265,8 +262,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	}
 
 	/* Allow next mbx cmd to come in. */
-	if (!abort_active)
-		complete(&ha->mbx_cmd_comp);
+	complete(&ha->mbx_cmd_comp);
 
 	if (rval) {
 		DEBUG2_3_11(printk("%s(%ld): **** FAILED. mbx0=%x, mbx1=%x, "
@@ -2689,6 +2685,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	uint16_t stat = le16_to_cpu(rptid_entry->vp_idx);
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *vp;
+	scsi_qla_host_t *tvp;
 
 	if (rptid_entry->entry_status != 0)
 		return;
@@ -2714,7 +2711,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		if (MSB(stat) == 1)
 			return;
 
-		list_for_each_entry(vp, &ha->vp_list, list)
+		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list)
 			if (vp_idx == vp->vp_idx)
 				break;
 		if (!vp)
@@ -3094,8 +3091,7 @@ verify_done:
 }
 
 int
-qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req,
-	uint8_t options)
+qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 {
 	int rval;
 	unsigned long flags;
@@ -3105,7 +3101,7 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req,
 	struct qla_hw_data *ha = vha->hw;
 
 	mcp->mb[0] = MBC_INITIALIZE_MULTIQ;
-	mcp->mb[1] = options;
+	mcp->mb[1] = req->options;
 	mcp->mb[2] = MSW(LSD(req->dma));
 	mcp->mb[3] = LSW(LSD(req->dma));
 	mcp->mb[6] = MSW(MSD(req->dma));
@@ -3132,7 +3128,7 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req,
 	mcp->tov = 60;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	if (!(options & BIT_0)) {
+	if (!(req->options & BIT_0)) {
 		WRT_REG_DWORD(&reg->req_q_in, 0);
 		WRT_REG_DWORD(&reg->req_q_out, 0);
 	}
@@ -3146,8 +3142,7 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req,
 }
 
 int
-qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp,
-	uint8_t options)
+qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 {
 	int rval;
 	unsigned long flags;
@@ -3157,7 +3152,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp,
 	struct qla_hw_data *ha = vha->hw;
 
 	mcp->mb[0] = MBC_INITIALIZE_MULTIQ;
-	mcp->mb[1] = options;
+	mcp->mb[1] = rsp->options;
 	mcp->mb[2] = MSW(LSD(rsp->dma));
 	mcp->mb[3] = LSW(LSD(rsp->dma));
 	mcp->mb[6] = MSW(MSD(rsp->dma));
@@ -3182,7 +3177,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp,
 	mcp->tov = 60;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	if (!(options & BIT_0)) {
+	if (!(rsp->options & BIT_0)) {
 		WRT_REG_DWORD(&reg->rsp_q_out, 0);
 		WRT_REG_DWORD(&reg->rsp_q_in, 0);
 	}
@@ -3197,3 +3192,29 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp,
 	return rval;
 }
 
+int
+qla81xx_idc_ack(scsi_qla_host_t *vha, uint16_t *mb)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
+
+	mcp->mb[0] = MBC_IDC_ACK;
+	memcpy(&mcp->mb[1], mb, QLA_IDC_ACK_REGS * sizeof(uint16_t));
+	mcp->out_mb = MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x (%x).\n", __func__,
+		    vha->host_no, rval, mcp->mb[0]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
+	}
+
+	return rval;
+}

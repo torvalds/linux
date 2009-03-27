@@ -589,7 +589,7 @@ int atari_queue_command(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
 #endif
 
 
-int atari_scsi_detect(struct scsi_host_template *host)
+int __init atari_scsi_detect(struct scsi_host_template *host)
 {
 	static int called = 0;
 	struct Scsi_Host *instance;

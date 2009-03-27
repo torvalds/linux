@@ -60,7 +60,7 @@ int emac_mii_reset_phy(struct mii_phy *phy)
 
 	udelay(300);
 
-	while (limit--) {
+	while (--limit) {
 		val = phy_read(phy, MII_BMCR);
 		if (val >= 0 && (val & BMCR_RESET) == 0)
 			break;
@@ -84,7 +84,7 @@ int emac_mii_reset_gpcs(struct mii_phy *phy)
 
 	udelay(300);
 
-	while (limit--) {
+	while (--limit) {
 		val = gpcs_phy_read(phy, MII_BMCR);
 		if (val >= 0 && (val & BMCR_RESET) == 0)
 			break;

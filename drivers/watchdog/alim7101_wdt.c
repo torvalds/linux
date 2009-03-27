@@ -355,7 +355,8 @@ static int __init alim7101_wdt_init(void)
 	alim7101_pmu = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101,
 		NULL);
 	if (!alim7101_pmu) {
-		printk(KERN_INFO PFX "ALi M7101 PMU not present - WDT not set\n");
+		printk(KERN_INFO PFX
+			"ALi M7101 PMU not present - WDT not set\n");
 		return -EBUSY;
 	}
 
@@ -399,7 +400,8 @@ static int __init alim7101_wdt_init(void)
 
 	rc = misc_register(&wdt_miscdev);
 	if (rc) {
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+		printk(KERN_ERR PFX
+			"cannot register miscdev on minor=%d (err=%d)\n",
 			wdt_miscdev.minor, rc);
 		goto err_out_reboot;
 	}

@@ -49,12 +49,9 @@
 #include <linux/ipv6.h>
 #include <linux/init.h>
 #include <net/inet_ecn.h>
+#include <net/ip.h>
 #include <net/icmp.h>
 #include <net/net_namespace.h>
-
-#ifndef TEST_FRAME
-#include <net/tcp.h>
-#endif /* TEST_FRAME (not defined) */
 
 #include <linux/socket.h> /* for sa_family_t */
 #include <net/sock.h>
@@ -324,14 +321,16 @@ append:
 	switch (chunk->chunk_hdr->type) {
 	    case SCTP_CID_DATA:
 		retval = sctp_packet_append_data(packet, chunk);
+		if (SCTP_XMIT_OK != retval)
+			goto finish;
 		/* Disallow SACK bundling after DATA. */
 		packet->has_sack = 1;
 		/* Disallow AUTH bundling after DATA */
 		packet->has_auth = 1;
 		/* Let it be knows that packet has DATA in it */
 		packet->has_data = 1;
-		if (SCTP_XMIT_OK != retval)
-			goto finish;
+		/* timestamp the chunk for rtx purposes */
+		chunk->sent_at = jiffies;
 		break;
 	    case SCTP_CID_COOKIE_ECHO:
 		packet->has_cookie_echo = 1;
@@ -365,7 +364,6 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	struct sctp_transport *tp = packet->transport;
 	struct sctp_association *asoc = tp->asoc;
 	struct sctphdr *sh;
-	__be32 crc32 = __constant_cpu_to_be32(0);
 	struct sk_buff *nskb;
 	struct sctp_chunk *chunk, *tmp;
 	struct sock *sk;
@@ -470,7 +468,6 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 			} else
 				chunk->resent = 1;
 
-			chunk->sent_at = jiffies;
 			has_data = 1;
 		}
 
@@ -530,16 +527,15 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 * Note: Adler-32 is no longer applicable, as has been replaced
 	 * by CRC32-C as described in <draft-ietf-tsvwg-sctpcsum-02.txt>.
 	 */
-	if (!(dst->dev->features & NETIF_F_NO_CSUM)) {
-		crc32 = sctp_start_cksum((__u8 *)sh, cksum_buf_len);
-		crc32 = sctp_end_cksum(crc32);
+	if (!sctp_checksum_disable && !(dst->dev->features & NETIF_F_NO_CSUM)) {
+		__u32 crc32 = sctp_start_cksum((__u8 *)sh, cksum_buf_len);
+
+		/* 3) Put the resultant value into the checksum field in the
+		 *    common header, and leave the rest of the bits unchanged.
+		 */
+		sh->checksum = sctp_end_cksum(crc32);
 	} else
 		nskb->ip_summed = CHECKSUM_UNNECESSARY;
-
-	/* 3) Put the resultant value into the checksum field in the
-	 *    common header, and leave the rest of the bits unchanged.
-	 */
-	sh->checksum = crc32;
 
 	/* IP layer ECN support
 	 * From RFC 2481

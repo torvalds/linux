@@ -1,7 +1,7 @@
 /*
  *      uvc_status.c  --  USB Video Class driver - Status endpoint
  *
- *      Copyright (C) 2007-2008
+ *      Copyright (C) 2007-2009
  *          Laurent Pinchart (laurent.pinchart@skynet.be)
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
@@ -47,8 +46,8 @@ static int uvc_input_init(struct uvc_device *dev)
 	usb_to_input_id(udev, &input->id);
 	input->dev.parent = &dev->intf->dev;
 
-	set_bit(EV_KEY, input->evbit);
-	set_bit(BTN_0, input->keybit);
+	__set_bit(EV_KEY, input->evbit);
+	__set_bit(KEY_CAMERA, input->keybit);
 
 	if ((ret = input_register_device(input)) < 0)
 		goto error;
@@ -71,8 +70,10 @@ static void uvc_input_cleanup(struct uvc_device *dev)
 static void uvc_input_report_key(struct uvc_device *dev, unsigned int code,
 	int value)
 {
-	if (dev->input)
+	if (dev->input) {
 		input_report_key(dev->input, code, value);
+		input_sync(dev->input);
+	}
 }
 
 #else
@@ -97,7 +98,7 @@ static void uvc_event_streaming(struct uvc_device *dev, __u8 *data, int len)
 			return;
 		uvc_trace(UVC_TRACE_STATUS, "Button (intf %u) %s len %d\n",
 			data[1], data[3] ? "pressed" : "released", len);
-		uvc_input_report_key(dev, BTN_0, data[3]);
+		uvc_input_report_key(dev, KEY_CAMERA, data[3]);
 	} else {
 		uvc_trace(UVC_TRACE_STATUS, "Stream %u error event %02x %02x "
 			"len %d.\n", data[1], data[2], data[3], len);

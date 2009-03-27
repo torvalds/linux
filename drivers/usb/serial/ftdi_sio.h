@@ -844,6 +844,9 @@
 #define TML_VID			0x1B91	/* Vendor ID */
 #define TML_USB_SERIAL_PID	0x0064	/* USB - Serial Converter */
 
+/* NDI Polaris System */
+#define FTDI_NDI_HUC_PID        0xDA70
+
 /* Propox devices */
 #define FTDI_PROPOX_JTAGCABLEII_PID	0xD738
 
@@ -853,6 +856,10 @@
 /* Domintell products  http://www.domintell.com */
 #define FTDI_DOMINTELL_DGQG_PID	0xEF50	/* Master */
 #define FTDI_DOMINTELL_DUSB_PID	0xEF51	/* DUSB01 module */
+
+/* Alti-2 products  http://www.alti-2.com */
+#define ALTI2_VID	0x1BC9
+#define ALTI2_N3_PID	0x6001	/* Neptune 3 */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
@@ -879,6 +886,31 @@
  */
 #define RATOC_VENDOR_ID		0x0584
 #define RATOC_PRODUCT_ID_USB60F	0xb020
+
+/*
+ * DIEBOLD BCS SE923
+ */
+#define DIEBOLD_BCS_SE923_PID	0xfb99
+
+/*
+ * Atmel STK541
+ */
+#define ATMEL_VID		0x03eb /* Vendor ID */
+#define STK541_PID		0x2109 /* Zigbee Controller */
+
+/*
+ * Dresden Elektronic Sensor Terminal Board
+ */
+#define DE_VID			0x1cf1 /* Vendor ID */
+#define STB_PID			0x0001 /* Sensor Terminal Board */
+#define WHT_PID			0x0004 /* Wireless Handheld Terminal */
+
+/*
+ * Blackfin gnICE JTAG
+ * http://docs.blackfin.uclinux.org/doku.php?id=hw:jtag:gnice
+ */
+#define ADI_VID 		0x0456
+#define ADI_GNICE_PID 		0xF000
 
 /*
  *   BmRequestType:  1100 0000b

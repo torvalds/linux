@@ -45,6 +45,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include "tlv320aic3x.h"
 
@@ -165,10 +166,13 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value & 0xff;
-	int shift = (kcontrol->private_value >> 8) & 0x0f;
-	int mask = (kcontrol->private_value >> 16) & 0xff;
-	int invert = (kcontrol->private_value >> 24) & 0x01;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	int max = mc->max;
+	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
 	unsigned short val, val_mask;
 	int ret;
 	struct snd_soc_dapm_path *path;
@@ -247,56 +251,86 @@ static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_DOUBLE(AIC3X_CODEC_DFILT_CTRL, 6, 4, 4, aic3x_adc_hpf),
 };
 
+/*
+ * DAC digital volumes. From -63.5 to 0 dB in 0.5 dB steps
+ */
+static DECLARE_TLV_DB_SCALE(dac_tlv, -6350, 50, 0);
+/* ADC PGA gain volumes. From 0 to 59.5 dB in 0.5 dB steps */
+static DECLARE_TLV_DB_SCALE(adc_tlv, 0, 50, 0);
+/*
+ * Output stage volumes. From -78.3 to 0 dB. Muted below -78.3 dB.
+ * Step size is approximately 0.5 dB over most of the scale but increasing
+ * near the very low levels.
+ * Define dB scale so that it is mostly correct for range about -55 to 0 dB
+ * but having increasing dB difference below that (and where it doesn't count
+ * so much). This setting shows -50 dB (actual is -50.3 dB) for register
+ * value 100 and -58.5 dB (actual is -78.3 dB) for register value 117.
+ */
+static DECLARE_TLV_DB_SCALE(output_stage_tlv, -5900, 50, 1);
+
 static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	/* Output */
-	SOC_DOUBLE_R("PCM Playback Volume", LDAC_VOL, RDAC_VOL, 0, 0x7f, 1),
+	SOC_DOUBLE_R_TLV("PCM Playback Volume",
+			 LDAC_VOL, RDAC_VOL, 0, 0x7f, 1, dac_tlv),
 
-	SOC_DOUBLE_R("Line DAC Playback Volume", DACL1_2_LLOPM_VOL,
-		     DACR1_2_RLOPM_VOL, 0, 0x7f, 1),
+	SOC_DOUBLE_R_TLV("Line DAC Playback Volume",
+			 DACL1_2_LLOPM_VOL, DACR1_2_RLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
 	SOC_SINGLE("LineL Playback Switch", LLOPM_CTRL, 3, 0x01, 0),
 	SOC_SINGLE("LineR Playback Switch", RLOPM_CTRL, 3, 0x01, 0),
-	SOC_DOUBLE_R("LineL DAC Playback Volume", DACL1_2_LLOPM_VOL,
-		     DACR1_2_LLOPM_VOL, 0, 0x7f, 1),
-	SOC_SINGLE("LineL Left PGA Bypass Playback Volume", PGAL_2_LLOPM_VOL,
-		     0, 0x7f, 1),
-	SOC_SINGLE("LineR Right PGA Bypass Playback Volume", PGAR_2_RLOPM_VOL,
-		     0, 0x7f, 1),
-	SOC_DOUBLE_R("LineL Line2 Bypass Playback Volume", LINE2L_2_LLOPM_VOL,
-		     LINE2R_2_LLOPM_VOL, 0, 0x7f, 1),
-	SOC_DOUBLE_R("LineR Line2 Bypass Playback Volume", LINE2L_2_RLOPM_VOL,
-		     LINE2R_2_RLOPM_VOL, 0, 0x7f, 1),
+	SOC_DOUBLE_R_TLV("LineL DAC Playback Volume",
+			 DACL1_2_LLOPM_VOL, DACR1_2_LLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("LineL Left PGA Bypass Playback Volume",
+		       PGAL_2_LLOPM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("LineR Right PGA Bypass Playback Volume",
+		       PGAR_2_RLOPM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("LineL Line2 Bypass Playback Volume",
+			 LINE2L_2_LLOPM_VOL, LINE2R_2_LLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("LineR Line2 Bypass Playback Volume",
+			 LINE2L_2_RLOPM_VOL, LINE2R_2_RLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
 
-	SOC_DOUBLE_R("Mono DAC Playback Volume", DACL1_2_MONOLOPM_VOL,
-		     DACR1_2_MONOLOPM_VOL, 0, 0x7f, 1),
+	SOC_DOUBLE_R_TLV("Mono DAC Playback Volume",
+			 DACL1_2_MONOLOPM_VOL, DACR1_2_MONOLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
 	SOC_SINGLE("Mono DAC Playback Switch", MONOLOPM_CTRL, 3, 0x01, 0),
-	SOC_DOUBLE_R("Mono PGA Bypass Playback Volume", PGAL_2_MONOLOPM_VOL,
-		     PGAR_2_MONOLOPM_VOL, 0, 0x7f, 1),
-	SOC_DOUBLE_R("Mono Line2 Bypass Playback Volume", LINE2L_2_MONOLOPM_VOL,
-		     LINE2R_2_MONOLOPM_VOL, 0, 0x7f, 1),
+	SOC_DOUBLE_R_TLV("Mono PGA Bypass Playback Volume",
+			 PGAL_2_MONOLOPM_VOL, PGAR_2_MONOLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("Mono Line2 Bypass Playback Volume",
+			 LINE2L_2_MONOLOPM_VOL, LINE2R_2_MONOLOPM_VOL,
+			 0, 118, 1, output_stage_tlv),
 
-	SOC_DOUBLE_R("HP DAC Playback Volume", DACL1_2_HPLOUT_VOL,
-		     DACR1_2_HPROUT_VOL, 0, 0x7f, 1),
+	SOC_DOUBLE_R_TLV("HP DAC Playback Volume",
+			 DACL1_2_HPLOUT_VOL, DACR1_2_HPROUT_VOL,
+			 0, 118, 1, output_stage_tlv),
 	SOC_DOUBLE_R("HP DAC Playback Switch", HPLOUT_CTRL, HPROUT_CTRL, 3,
 		     0x01, 0),
-	SOC_DOUBLE_R("HP Right PGA Bypass Playback Volume", PGAR_2_HPLOUT_VOL,
-		     PGAR_2_HPROUT_VOL, 0, 0x7f, 1),
-	SOC_SINGLE("HPL PGA Bypass Playback Volume", PGAL_2_HPLOUT_VOL,
-		     0, 0x7f, 1),
-	SOC_SINGLE("HPR PGA Bypass Playback Volume", PGAL_2_HPROUT_VOL,
-		     0, 0x7f, 1),
-	SOC_DOUBLE_R("HP Line2 Bypass Playback Volume", LINE2L_2_HPLOUT_VOL,
-		     LINE2R_2_HPROUT_VOL, 0, 0x7f, 1),
+	SOC_DOUBLE_R_TLV("HP Right PGA Bypass Playback Volume",
+			 PGAR_2_HPLOUT_VOL, PGAR_2_HPROUT_VOL,
+			 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("HPL PGA Bypass Playback Volume",
+		       PGAL_2_HPLOUT_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("HPR PGA Bypass Playback Volume",
+		       PGAL_2_HPROUT_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("HP Line2 Bypass Playback Volume",
+			 LINE2L_2_HPLOUT_VOL, LINE2R_2_HPROUT_VOL,
+			 0, 118, 1, output_stage_tlv),
 
-	SOC_DOUBLE_R("HPCOM DAC Playback Volume", DACL1_2_HPLCOM_VOL,
-		     DACR1_2_HPRCOM_VOL, 0, 0x7f, 1),
+	SOC_DOUBLE_R_TLV("HPCOM DAC Playback Volume",
+			 DACL1_2_HPLCOM_VOL, DACR1_2_HPRCOM_VOL,
+			 0, 118, 1, output_stage_tlv),
 	SOC_DOUBLE_R("HPCOM DAC Playback Switch", HPLCOM_CTRL, HPRCOM_CTRL, 3,
 		     0x01, 0),
-	SOC_SINGLE("HPLCOM PGA Bypass Playback Volume", PGAL_2_HPLCOM_VOL,
-		     0, 0x7f, 1),
-	SOC_SINGLE("HPRCOM PGA Bypass Playback Volume", PGAL_2_HPRCOM_VOL,
-		     0, 0x7f, 1),
-	SOC_DOUBLE_R("HPCOM Line2 Bypass Playback Volume", LINE2L_2_HPLCOM_VOL,
-		     LINE2R_2_HPRCOM_VOL, 0, 0x7f, 1),
+	SOC_SINGLE_TLV("HPLCOM PGA Bypass Playback Volume",
+		       PGAL_2_HPLCOM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_SINGLE_TLV("HPRCOM PGA Bypass Playback Volume",
+		       PGAL_2_HPRCOM_VOL, 0, 118, 1, output_stage_tlv),
+	SOC_DOUBLE_R_TLV("HPCOM Line2 Bypass Playback Volume",
+			 LINE2L_2_HPLCOM_VOL, LINE2R_2_HPRCOM_VOL,
+			 0, 118, 1, output_stage_tlv),
 
 	/*
 	 * Note: enable Automatic input Gain Controller with care. It can
@@ -305,27 +339,12 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	SOC_DOUBLE_R("AGC Switch", LAGC_CTRL_A, RAGC_CTRL_A, 7, 0x01, 0),
 
 	/* Input */
-	SOC_DOUBLE_R("PGA Capture Volume", LADC_VOL, RADC_VOL, 0, 0x7f, 0),
+	SOC_DOUBLE_R_TLV("PGA Capture Volume", LADC_VOL, RADC_VOL,
+			 0, 119, 0, adc_tlv),
 	SOC_DOUBLE_R("PGA Capture Switch", LADC_VOL, RADC_VOL, 7, 0x01, 1),
 
 	SOC_ENUM("ADC HPF Cut-off", aic3x_enum[ADC_HPF_ENUM]),
 };
-
-/* add non dapm controls */
-static int aic3x_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(aic3x_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&aic3x_snd_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
 
 /* Left DAC Mux */
 static const struct snd_kcontrol_new aic3x_left_dac_mux_controls =
@@ -743,7 +762,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct aic3x_priv *aic3x = codec->private_data;
 	int codec_clk = 0, bypass_pll = 0, fsref, last_clk = 0;
 	u8 data, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
@@ -1069,6 +1088,13 @@ EXPORT_SYMBOL_GPL(aic3x_button_pressed);
 #define AIC3X_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
 
+static struct snd_soc_dai_ops aic3x_dai_ops = {
+	.hw_params	= aic3x_hw_params,
+	.digital_mute	= aic3x_mute,
+	.set_sysclk	= aic3x_set_dai_sysclk,
+	.set_fmt	= aic3x_set_dai_fmt,
+};
+
 struct snd_soc_dai aic3x_dai = {
 	.name = "tlv320aic3x",
 	.playback = {
@@ -1083,19 +1109,14 @@ struct snd_soc_dai aic3x_dai = {
 		.channels_max = 2,
 		.rates = AIC3X_RATES,
 		.formats = AIC3X_FORMATS,},
-	.ops = {
-		.hw_params = aic3x_hw_params,
-		.digital_mute = aic3x_mute,
-		.set_sysclk = aic3x_set_dai_sysclk,
-		.set_fmt = aic3x_set_dai_fmt,
-	}
+	.ops = &aic3x_dai_ops,
 };
 EXPORT_SYMBOL_GPL(aic3x_dai);
 
 static int aic3x_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -1105,7 +1126,7 @@ static int aic3x_suspend(struct platform_device *pdev, pm_message_t state)
 static int aic3x_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u8 data[2];
 	u8 *cache = codec->reg_cache;
@@ -1128,7 +1149,7 @@ static int aic3x_resume(struct platform_device *pdev)
  */
 static int aic3x_init(struct snd_soc_device *socdev)
 {
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct aic3x_setup_data *setup = socdev->codec_data;
 	int reg, ret = 0;
 
@@ -1224,7 +1245,8 @@ static int aic3x_init(struct snd_soc_device *socdev)
 	aic3x_write(codec, AIC3X_GPIO1_REG, (setup->gpio_func[0] & 0xf) << 4);
 	aic3x_write(codec, AIC3X_GPIO2_REG, (setup->gpio_func[1] & 0xf) << 4);
 
-	aic3x_add_controls(codec);
+	snd_soc_add_controls(codec, aic3x_snd_controls,
+				ARRAY_SIZE(aic3x_snd_controls));
 	aic3x_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
@@ -1258,7 +1280,7 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 			   const struct i2c_device_id *id)
 {
 	struct snd_soc_device *socdev = aic3x_socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret;
 
 	i2c_set_clientdata(i2c, codec);
@@ -1363,7 +1385,7 @@ static int aic3x_probe(struct platform_device *pdev)
 	}
 
 	codec->private_data = aic3x;
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
@@ -1389,7 +1411,7 @@ static int aic3x_probe(struct platform_device *pdev)
 static int aic3x_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	/* power down chip */
 	if (codec->control_data)

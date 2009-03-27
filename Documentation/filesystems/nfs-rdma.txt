@@ -251,7 +251,7 @@ NFS/RDMA Setup
 
     Instruct the server to listen on the RDMA transport:
 
-    $ echo rdma 2050 > /proc/fs/nfsd/portlist
+    $ echo rdma 20049 > /proc/fs/nfsd/portlist
 
   - On the client system
 
@@ -263,7 +263,7 @@ NFS/RDMA Setup
     Regardless of how the client was built (module or built-in), use this
     command to mount the NFS/RDMA server:
 
-    $ mount -o rdma,port=2050 <IPoIB-server-name-or-address>:/<export> /mnt
+    $ mount -o rdma,port=20049 <IPoIB-server-name-or-address>:/<export> /mnt
 
     To verify that the mount is using RDMA, run "cat /proc/mounts" and check
     the "proto" field for the given mount.

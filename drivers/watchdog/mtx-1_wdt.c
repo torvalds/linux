@@ -5,7 +5,7 @@
  *							All Rights Reserved.
  *                              http://www.4g-systems.biz
  *
- * 	(C) Copyright 2007 OpenWrt.org, Florian Fainelli <florian@openwrt.org>
+ *	(C) Copyright 2007 OpenWrt.org, Florian Fainelli <florian@openwrt.org>
  *
  *      This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License

@@ -167,7 +167,6 @@ static u64 vcpu_get_itir_on_fault(struct kvm_vcpu *vcpu, u64 ifa)
 	return (rr1.val);
 }
 
-
 /*
  * Set vIFA & vITIR & vIHA, when vPSR.ic =1
  * Parameter:
@@ -222,8 +221,6 @@ void itlb_fault(struct kvm_vcpu *vcpu, u64 vadr)
 	inject_guest_interruption(vcpu, IA64_INST_TLB_VECTOR);
 }
 
-
-
 /*
  * Data Nested TLB Fault
  *  @ Data Nested TLB Vector
@@ -245,7 +242,6 @@ void alt_dtlb(struct kvm_vcpu *vcpu, u64 vadr)
 	inject_guest_interruption(vcpu, IA64_ALT_DATA_TLB_VECTOR);
 }
 
-
 /*
  * Data TLB Fault
  *  @ Data TLB vector
@@ -265,8 +261,6 @@ static void _vhpt_fault(struct kvm_vcpu *vcpu, u64 vadr)
 	/* If vPSR.ic, IFA, ITIR, IHA*/
 	set_ifa_itir_iha(vcpu, vadr, 1, 1, 1);
 	inject_guest_interruption(vcpu, IA64_VHPT_TRANS_VECTOR);
-
-
 }
 
 /*
@@ -279,7 +273,6 @@ void ivhpt_fault(struct kvm_vcpu *vcpu, u64 vadr)
 	_vhpt_fault(vcpu, vadr);
 }
 
-
 /*
  * VHPT Data Fault
  *  @ VHPT Translation vector
@@ -290,8 +283,6 @@ void dvhpt_fault(struct kvm_vcpu *vcpu, u64 vadr)
 	_vhpt_fault(vcpu, vadr);
 }
 
-
-
 /*
  * Deal with:
  *  General Exception vector
@@ -300,7 +291,6 @@ void _general_exception(struct kvm_vcpu *vcpu)
 {
 	inject_guest_interruption(vcpu, IA64_GENEX_VECTOR);
 }
-
 
 /*
  * Illegal Operation Fault
@@ -419,18 +409,15 @@ static void __page_not_present(struct kvm_vcpu *vcpu, u64 vadr)
 	inject_guest_interruption(vcpu, IA64_PAGE_NOT_PRESENT_VECTOR);
 }
 
-
 void data_page_not_present(struct kvm_vcpu *vcpu, u64 vadr)
 {
 	__page_not_present(vcpu, vadr);
 }
 
-
 void inst_page_not_present(struct kvm_vcpu *vcpu, u64 vadr)
 {
 	__page_not_present(vcpu, vadr);
 }
-
 
 /* Deal with
  *  Data access rights vector
@@ -455,13 +442,18 @@ fpswa_ret_t vmm_fp_emulate(int fp_fault, void *bundle, unsigned long *ipsr,
 	if (!vmm_fpswa_interface)
 		return (fpswa_ret_t) {-1, 0, 0, 0};
 
-	/*
-	 * Just let fpswa driver to use hardware fp registers.
-	 * No fp register is valid in memory.
-	 */
 	memset(&fp_state, 0, sizeof(fp_state_t));
 
 	/*
+	 * compute fp_state.  only FP registers f6 - f11 are used by the
+	 * vmm, so set those bits in the mask and set the low volatile
+	 * pointer to point to these registers.
+	 */
+	fp_state.bitmask_low64 = 0xfc0;  /* bit6..bit11 */
+
+	fp_state.fp_state_low_volatile = (fp_state_low_volatile_t *) &regs->f6;
+
+   /*
 	 * unsigned long (*EFI_FPSWA) (
 	 *      unsigned long    trap_type,
 	 *      void             *Bundle,
@@ -545,10 +537,6 @@ void reflect_interruption(u64 ifa, u64 isr, u64 iim,
 		status = vmm_handle_fpu_swa(0, regs, isr);
 		if (!status)
 			return ;
-		else if (-EAGAIN == status) {
-			vcpu_decrement_iip(vcpu);
-			return ;
-		}
 		break;
 	}
 
@@ -562,22 +550,64 @@ void reflect_interruption(u64 ifa, u64 isr, u64 iim,
 	inject_guest_interruption(vcpu, vector);
 }
 
+static unsigned long kvm_trans_pal_call_args(struct kvm_vcpu *vcpu,
+						unsigned long arg)
+{
+	struct thash_data *data;
+	unsigned long gpa, poff;
+
+	if (!is_physical_mode(vcpu)) {
+		/* Depends on caller to provide the DTR or DTC mapping.*/
+		data = vtlb_lookup(vcpu, arg, D_TLB);
+		if (data)
+			gpa = data->page_flags & _PAGE_PPN_MASK;
+		else {
+			data = vhpt_lookup(arg);
+			if (!data)
+				return 0;
+			gpa = data->gpaddr & _PAGE_PPN_MASK;
+		}
+
+		poff = arg & (PSIZE(data->ps) - 1);
+		arg = PAGEALIGN(gpa, data->ps) | poff;
+	}
+	arg = kvm_gpa_to_mpa(arg << 1 >> 1);
+
+	return (unsigned long)__va(arg);
+}
+
 static void set_pal_call_data(struct kvm_vcpu *vcpu)
 {
 	struct exit_ctl_data *p = &vcpu->arch.exit_data;
+	unsigned long gr28 = vcpu_get_gr(vcpu, 28);
+	unsigned long gr29 = vcpu_get_gr(vcpu, 29);
+	unsigned long gr30 = vcpu_get_gr(vcpu, 30);
 
 	/*FIXME:For static and stacked convention, firmware
 	 * has put the parameters in gr28-gr31 before
 	 * break to vmm  !!*/
 
-	p->u.pal_data.gr28 = vcpu_get_gr(vcpu, 28);
-	p->u.pal_data.gr29 = vcpu_get_gr(vcpu, 29);
-	p->u.pal_data.gr30 = vcpu_get_gr(vcpu, 30);
+	switch (gr28) {
+	case PAL_PERF_MON_INFO:
+	case PAL_HALT_INFO:
+		p->u.pal_data.gr29 =  kvm_trans_pal_call_args(vcpu, gr29);
+		p->u.pal_data.gr30 = vcpu_get_gr(vcpu, 30);
+		break;
+	case PAL_BRAND_INFO:
+		p->u.pal_data.gr29 = gr29;;
+		p->u.pal_data.gr30 = kvm_trans_pal_call_args(vcpu, gr30);
+		break;
+	default:
+		p->u.pal_data.gr29 = gr29;;
+		p->u.pal_data.gr30 = vcpu_get_gr(vcpu, 30);
+	}
+	p->u.pal_data.gr28 = gr28;
 	p->u.pal_data.gr31 = vcpu_get_gr(vcpu, 31);
+
 	p->exit_reason = EXIT_REASON_PAL_CALL;
 }
 
-static void set_pal_call_result(struct kvm_vcpu *vcpu)
+static void get_pal_call_result(struct kvm_vcpu *vcpu)
 {
 	struct exit_ctl_data *p = &vcpu->arch.exit_data;
 
@@ -605,7 +635,7 @@ static void set_sal_call_data(struct kvm_vcpu *vcpu)
 	p->exit_reason = EXIT_REASON_SAL_CALL;
 }
 
-static void set_sal_call_result(struct kvm_vcpu *vcpu)
+static void get_sal_call_result(struct kvm_vcpu *vcpu)
 {
 	struct exit_ctl_data *p = &vcpu->arch.exit_data;
 
@@ -628,13 +658,13 @@ void  kvm_ia64_handle_break(unsigned long ifa, struct kvm_pt_regs *regs,
 		if (iim == DOMN_PAL_REQUEST) {
 			set_pal_call_data(v);
 			vmm_transition(v);
-			set_pal_call_result(v);
+			get_pal_call_result(v);
 			vcpu_increment_iip(v);
 			return;
 		} else if (iim == DOMN_SAL_REQUEST) {
 			set_sal_call_data(v);
 			vmm_transition(v);
-			set_sal_call_result(v);
+			get_sal_call_result(v);
 			vcpu_increment_iip(v);
 			return;
 		}
@@ -702,7 +732,6 @@ void vhpi_detection(struct kvm_vcpu *vcpu)
 	}
 }
 
-
 void leave_hypervisor_tail(void)
 {
 	struct kvm_vcpu *v = current_vcpu;
@@ -735,7 +764,6 @@ void leave_hypervisor_tail(void)
 		vhpi_detection(v);
 	}
 }
-
 
 static inline void handle_lds(struct kvm_pt_regs *regs)
 {

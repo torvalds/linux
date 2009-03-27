@@ -313,8 +313,7 @@ static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 	if (one_sk != NULL)
 		err = pfkey_broadcast_one(skb, &skb2, allocation, one_sk);
 
-	if (skb2)
-		kfree_skb(skb2);
+	kfree_skb(skb2);
 	kfree_skb(skb);
 	return err;
 }
@@ -1285,6 +1284,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 				ext_hdrs[SADB_X_EXT_NAT_T_DPORT-1];
 			natt->encap_dport = n_port->sadb_x_nat_t_port_port;
 		}
+		memset(&natt->encap_oa, 0, sizeof(natt->encap_oa));
 	}
 
 	err = xfrm_init_state(x);
@@ -3572,8 +3572,7 @@ static int pfkey_sendmsg(struct kiocb *kiocb,
 out:
 	if (err && hdr && pfkey_error(hdr, err, sk) == 0)
 		err = 0;
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 
 	return err ? : len;
 }

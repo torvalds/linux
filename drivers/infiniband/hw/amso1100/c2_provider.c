@@ -708,26 +708,27 @@ static int c2_pseudo_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 static int c2_pseudo_change_mtu(struct net_device *netdev, int new_mtu)
 {
-	int ret = 0;
-
 	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
 
 	netdev->mtu = new_mtu;
 
 	/* TODO: Tell rnic about new rmda interface mtu */
-	return ret;
+	return 0;
 }
+
+static const struct net_device_ops c2_pseudo_netdev_ops = {
+	.ndo_open 		= c2_pseudo_up,
+	.ndo_stop 		= c2_pseudo_down,
+	.ndo_start_xmit 	= c2_pseudo_xmit_frame,
+	.ndo_change_mtu 	= c2_pseudo_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 static void setup(struct net_device *netdev)
 {
-	netdev->open = c2_pseudo_up;
-	netdev->stop = c2_pseudo_down;
-	netdev->hard_start_xmit = c2_pseudo_xmit_frame;
-	netdev->get_stats = NULL;
-	netdev->tx_timeout = NULL;
-	netdev->set_mac_address = NULL;
-	netdev->change_mtu = c2_pseudo_change_mtu;
+	netdev->netdev_ops = &c2_pseudo_netdev_ops;
+
 	netdev->watchdog_timeo = 0;
 	netdev->type = ARPHRD_ETHER;
 	netdev->mtu = 1500;
@@ -735,7 +736,6 @@ static void setup(struct net_device *netdev)
 	netdev->addr_len = ETH_ALEN;
 	netdev->tx_queue_len = 0;
 	netdev->flags |= IFF_NOARP;
-	return;
 }
 
 static struct net_device *c2_pseudo_netdev_init(struct c2_dev *c2dev)

@@ -28,6 +28,7 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include <sound/jack.h>
 
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
@@ -37,6 +38,8 @@
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
 #include "../codecs/twl4030.h"
+
+static struct snd_soc_card snd_soc_sdp3430;
 
 static int sdp3430_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -81,17 +84,126 @@ static struct snd_soc_ops sdp3430_ops = {
 	.hw_params = sdp3430_hw_params,
 };
 
+/* Headset jack */
+static struct snd_soc_jack hs_jack;
+
+/* Headset jack detection DAPM pins */
+static struct snd_soc_jack_pin hs_jack_pins[] = {
+	{
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+	{
+		.pin = "Headset Stereophone",
+		.mask = SND_JACK_HEADPHONE,
+	},
+};
+
+/* Headset jack detection gpios */
+static struct snd_soc_jack_gpio hs_jack_gpios[] = {
+	{
+		.gpio = (OMAP_MAX_GPIO_LINES + 2),
+		.name = "hsdet-gpio",
+		.report = SND_JACK_HEADSET,
+		.debounce_time = 200,
+	},
+};
+
+/* SDP3430 machine DAPM */
+static const struct snd_soc_dapm_widget sdp3430_twl4030_dapm_widgets[] = {
+	SND_SOC_DAPM_MIC("Ext Mic", NULL),
+	SND_SOC_DAPM_SPK("Ext Spk", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_HP("Headset Stereophone", NULL),
+};
+
+static const struct snd_soc_dapm_route audio_map[] = {
+	/* External Mics: MAINMIC, SUBMIC with bias*/
+	{"MAINMIC", NULL, "Mic Bias 1"},
+	{"SUBMIC", NULL, "Mic Bias 2"},
+	{"Mic Bias 1", NULL, "Ext Mic"},
+	{"Mic Bias 2", NULL, "Ext Mic"},
+
+	/* External Speakers: HFL, HFR */
+	{"Ext Spk", NULL, "HFL"},
+	{"Ext Spk", NULL, "HFR"},
+
+	/* Headset Mic: HSMIC with bias */
+	{"HSMIC", NULL, "Headset Mic Bias"},
+	{"Headset Mic Bias", NULL, "Headset Mic"},
+
+	/* Headset Stereophone (Headphone): HSOL, HSOR */
+	{"Headset Stereophone", NULL, "HSOL"},
+	{"Headset Stereophone", NULL, "HSOR"},
+};
+
+static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
+{
+	int ret;
+
+	/* Add SDP3430 specific widgets */
+	ret = snd_soc_dapm_new_controls(codec, sdp3430_twl4030_dapm_widgets,
+				ARRAY_SIZE(sdp3430_twl4030_dapm_widgets));
+	if (ret)
+		return ret;
+
+	/* Set up SDP3430 specific audio path audio_map */
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+
+	/* SDP3430 connected pins */
+	snd_soc_dapm_enable_pin(codec, "Ext Mic");
+	snd_soc_dapm_enable_pin(codec, "Ext Spk");
+	snd_soc_dapm_disable_pin(codec, "Headset Mic");
+	snd_soc_dapm_disable_pin(codec, "Headset Stereophone");
+
+	/* TWL4030 not connected pins */
+	snd_soc_dapm_nc_pin(codec, "AUXL");
+	snd_soc_dapm_nc_pin(codec, "AUXR");
+	snd_soc_dapm_nc_pin(codec, "CARKITMIC");
+	snd_soc_dapm_nc_pin(codec, "DIGIMIC0");
+	snd_soc_dapm_nc_pin(codec, "DIGIMIC1");
+
+	snd_soc_dapm_nc_pin(codec, "OUTL");
+	snd_soc_dapm_nc_pin(codec, "OUTR");
+	snd_soc_dapm_nc_pin(codec, "EARPIECE");
+	snd_soc_dapm_nc_pin(codec, "PREDRIVEL");
+	snd_soc_dapm_nc_pin(codec, "PREDRIVER");
+	snd_soc_dapm_nc_pin(codec, "CARKITL");
+	snd_soc_dapm_nc_pin(codec, "CARKITR");
+
+	ret = snd_soc_dapm_sync(codec);
+	if (ret)
+		return ret;
+
+	/* Headset jack detection */
+	ret = snd_soc_jack_new(&snd_soc_sdp3430, "Headset Jack",
+				SND_JACK_HEADSET, &hs_jack);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
+				hs_jack_pins);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_jack_add_gpios(&hs_jack, ARRAY_SIZE(hs_jack_gpios),
+				hs_jack_gpios);
+
+	return ret;
+}
+
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link sdp3430_dai = {
 	.name = "TWL4030",
 	.stream_name = "TWL4030",
 	.cpu_dai = &omap_mcbsp_dai[0],
 	.codec_dai = &twl4030_dai,
+	.init = sdp3430_twl4030_init,
 	.ops = &sdp3430_ops,
 };
 
 /* Audio machine driver */
-static struct snd_soc_machine snd_soc_machine_sdp3430 = {
+static struct snd_soc_card snd_soc_sdp3430 = {
 	.name = "SDP3430",
 	.platform = &omap_soc_platform,
 	.dai_link = &sdp3430_dai,
@@ -100,7 +212,7 @@ static struct snd_soc_machine snd_soc_machine_sdp3430 = {
 
 /* Audio subsystem */
 static struct snd_soc_device sdp3430_snd_devdata = {
-	.machine = &snd_soc_machine_sdp3430,
+	.card = &snd_soc_sdp3430,
 	.codec_dev = &soc_codec_dev_twl4030,
 };
 
@@ -142,6 +254,9 @@ module_init(sdp3430_soc_init);
 
 static void __exit sdp3430_soc_exit(void)
 {
+	snd_soc_jack_free_gpios(&hs_jack, ARRAY_SIZE(hs_jack_gpios),
+				hs_jack_gpios);
+
 	platform_device_unregister(sdp3430_snd_device);
 }
 module_exit(sdp3430_soc_exit);

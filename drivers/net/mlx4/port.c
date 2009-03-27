@@ -298,20 +298,17 @@ int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	int err;
-	u8 is_eth = dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
 	memset(mailbox->buf, 0, 256);
-	if (is_eth) {
-		((u8 *) mailbox->buf)[3] = 6;
-		((__be16 *) mailbox->buf)[4] = cpu_to_be16(1 << 15);
-		((__be16 *) mailbox->buf)[6] = cpu_to_be16(1 << 15);
-	} else
-		((__be32 *) mailbox->buf)[1] = dev->caps.ib_port_def_cap[port];
-	err = mlx4_cmd(dev, mailbox->dma, port, is_eth, MLX4_CMD_SET_PORT,
+	if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
+		return 0;
+
+	((__be32 *) mailbox->buf)[1] = dev->caps.ib_port_def_cap[port];
+	err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_PORT,
 		       MLX4_CMD_TIME_CLASS_B);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);

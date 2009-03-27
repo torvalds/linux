@@ -165,7 +165,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Audiowerk2 soundcard.");
 
 static struct pci_device_id snd_aw2_ids[] = {
-	{PCI_VENDOR_ID_SAA7146, PCI_DEVICE_ID_SAA7146, PCI_ANY_ID, PCI_ANY_ID,
+	{PCI_VENDOR_ID_SAA7146, PCI_DEVICE_ID_SAA7146, 0, 0,
 	 0, 0, 0},
 	{0}
 };
@@ -368,9 +368,9 @@ static int __devinit snd_aw2_probe(struct pci_dev *pci,
 	}
 
 	/* (2) Create card instance */
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	/* (3) Create main component */
 	err = snd_aw2_create(card, pci, &chip);

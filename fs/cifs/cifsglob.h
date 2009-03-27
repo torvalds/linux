@@ -164,9 +164,12 @@ struct TCP_Server_Info {
 	/* multiplexed reads or writes */
 	unsigned int maxBuf;	/* maxBuf specifies the maximum */
 	/* message size the server can send or receive for non-raw SMBs */
-	unsigned int maxRw;	/* maxRw specifies the maximum */
+	unsigned int max_rw;	/* maxRw specifies the maximum */
 	/* message size the server can send or receive for */
 	/* SMB_COM_WRITE_RAW or SMB_COM_READ_RAW. */
+	unsigned int max_vcs;	/* maximum number of smb sessions, at least
+				   those that can be specified uniquely with
+				   vcnumbers */
 	char sessid[4];		/* unique token id for this session */
 	/* (returned on Negotiate */
 	int capabilities; /* allow selective disabling of caps by smb sess */
@@ -210,6 +213,7 @@ struct cifsSesInfo {
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	__u16 ipc_tid;		/* special tid for connection to IPC share */
 	__u16 flags;
+	__u16 vcnum;
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
 	char *serverDomain;	/* security realm of server */
@@ -250,6 +254,7 @@ struct cifsTconInfo {
 	atomic_t num_smbs_sent;
 	atomic_t num_writes;
 	atomic_t num_reads;
+	atomic_t num_flushes;
 	atomic_t num_oplock_brks;
 	atomic_t num_opens;
 	atomic_t num_closes;
@@ -294,6 +299,7 @@ struct cifsTconInfo {
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
 	bool local_lease:1; /* check leases (only) on local system not remote */
+	bool broken_posix_open; /* e.g. Samba server versions < 3.3.2, 3.2.9 */
 	bool need_reconnect:1; /* connection reset, tid now invalid */
 	/* BB add field for back pointer to sb struct(s)? */
 };

@@ -8,7 +8,7 @@ config SND_OMAP_SOC_MCBSP
 
 config SND_OMAP_SOC_N810
 	tristate "SoC Audio support for Nokia N810"
-	depends on SND_OMAP_SOC && MACH_NOKIA_N810
+	depends on SND_OMAP_SOC && MACH_NOKIA_N810 && I2C
 	select SND_OMAP_SOC_MCBSP
 	select OMAP_MUX
 	select SND_SOC_TLV320AIC3X
@@ -17,7 +17,7 @@ config SND_OMAP_SOC_N810
 
 config SND_OMAP_SOC_OSK5912
 	tristate "SoC Audio support for omap osk5912"
-	depends on SND_OMAP_SOC && MACH_OMAP_OSK
+	depends on SND_OMAP_SOC && MACH_OMAP_OSK && I2C
 	select SND_OMAP_SOC_MCBSP
 	select SND_SOC_TLV320AIC23
 	help
@@ -55,3 +55,13 @@ config SND_OMAP_SOC_OMAP3_PANDORA
 	select SND_SOC_TWL4030
 	help
 	  Say Y if you want to add support for SoC audio on the OMAP3 Pandora.
+
+config SND_OMAP_SOC_OMAP3_BEAGLE
+	tristate "SoC Audio support for OMAP3 Beagle"
+	depends on TWL4030_CORE && SND_OMAP_SOC && MACH_OMAP3_BEAGLE
+	select SND_OMAP_SOC_MCBSP
+	select SND_SOC_TWL4030
+	help
+	  Say Y if you want to add support for SoC audio on the Beagleboard.
+
+

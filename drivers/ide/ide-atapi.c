@@ -140,10 +140,19 @@ static void ide_queue_pc_head(ide_drive_t *drive, struct gendisk *disk,
 	rq->cmd_flags |= REQ_PREEMPT;
 	rq->buffer = (char *)pc;
 	rq->rq_disk = disk;
+
+	if (pc->req_xfer) {
+		rq->data = pc->buf;
+		rq->data_len = pc->req_xfer;
+	}
+
 	memcpy(rq->cmd, pc->c, 12);
 	if (drive->media == ide_tape)
 		rq->cmd[13] = REQ_IDETAPE_PC1;
-	ide_do_drive_cmd(drive, rq);
+
+	drive->hwif->rq = NULL;
+
+	elv_add_request(drive->queue, rq, ELEVATOR_INSERT_FRONT, 0);
 }
 
 /*
@@ -159,6 +168,12 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->buffer = (char *)pc;
+
+	if (pc->req_xfer) {
+		rq->data = pc->buf;
+		rq->data_len = pc->req_xfer;
+	}
+
 	memcpy(rq->cmd, pc->c, 12);
 	if (drive->media == ide_tape)
 		rq->cmd[13] = REQ_IDETAPE_PC1;
@@ -284,6 +299,21 @@ int ide_cd_get_xferlen(struct request *rq)
 		return 0;
 }
 EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
+
+void ide_read_bcount_and_ireason(ide_drive_t *drive, u16 *bcount, u8 *ireason)
+{
+	ide_task_t task;
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_IN_LBAH | IDE_TFLAG_IN_LBAM |
+			IDE_TFLAG_IN_NSECT;
+
+	drive->hwif->tp_ops->tf_read(drive, &task);
+
+	*bcount = (task.tf.lbah << 8) | task.tf.lbam;
+	*ireason = task.tf.nsect & 3;
+}
+EXPORT_SYMBOL_GPL(ide_read_bcount_and_ireason);
 
 /*
  * This is the usual interrupt handler which will be called during a packet
@@ -442,6 +472,25 @@ next_irq:
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, ide_pc_intr, timeout, NULL);
 	return ide_started;
+}
+
+static void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	ide_task_t task;
+	u8 dma = drive->dma;
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
+			IDE_TFLAG_OUT_FEATURE | tf_flags;
+	task.tf.feature = dma;		/* Use PIO/DMA */
+	task.tf.lbam    = bcount & 0xff;
+	task.tf.lbah    = (bcount >> 8) & 0xff;
+
+	ide_tf_dump(drive->name, &task.tf);
+	hwif->tp_ops->set_irq(hwif, 1);
+	SELECT_MASK(drive, 0);
+	hwif->tp_ops->tf_load(drive, &task);
 }
 
 static u8 ide_read_ireason(ide_drive_t *drive)
@@ -617,7 +666,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 						       : WAIT_TAPE_CMD;
 	}
 
-	ide_pktcmd_tf_load(drive, tf_flags, bcount, drive->dma);
+	ide_pktcmd_tf_load(drive, tf_flags, bcount);
 
 	/* Issue the packet command */
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {

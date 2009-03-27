@@ -176,6 +176,11 @@ struct skb_data {	/* skb->cb is one of these */
 	size_t			length;
 };
 
+extern int usbnet_open (struct net_device *net);
+extern int usbnet_stop (struct net_device *net);
+extern int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net);
+extern void usbnet_tx_timeout (struct net_device *net);
+extern int usbnet_change_mtu (struct net_device *net, int new_mtu);
 
 extern int usbnet_get_endpoints(struct usbnet *, struct usb_interface *);
 extern void usbnet_defer_kevent (struct usbnet *, int);
@@ -197,7 +202,9 @@ extern int usbnet_nway_reset(struct net_device *net);
 #define devdbg(usbnet, fmt, arg...) \
 	printk(KERN_DEBUG "%s: " fmt "\n" , (usbnet)->net->name , ## arg)
 #else
-#define devdbg(usbnet, fmt, arg...) do {} while(0)
+#define devdbg(usbnet, fmt, arg...) \
+	({ if (0) printk(KERN_DEBUG "%s: " fmt "\n" , (usbnet)->net->name , \
+		## arg); 0; })
 #endif
 
 #define deverr(usbnet, fmt, arg...) \

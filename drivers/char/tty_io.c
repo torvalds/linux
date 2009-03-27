@@ -1817,8 +1817,10 @@ got_driver:
 		/* check whether we're reopening an existing tty */
 		tty = tty_driver_lookup_tty(driver, inode, index);
 
-		if (IS_ERR(tty))
+		if (IS_ERR(tty)) {
+			mutex_unlock(&tty_mutex);
 			return PTR_ERR(tty);
+		}
 	}
 
 	if (tty) {
@@ -2160,13 +2162,12 @@ static int fionbio(struct file *file, int __user *p)
 	if (get_user(nonblock, p))
 		return -EFAULT;
 
-	/* file->f_flags is still BKL protected in the fs layer - vomit */
-	lock_kernel();
+	spin_lock(&file->f_lock);
 	if (nonblock)
 		file->f_flags |= O_NONBLOCK;
 	else
 		file->f_flags &= ~O_NONBLOCK;
-	unlock_kernel();
+	spin_unlock(&file->f_lock);
 	return 0;
 }
 

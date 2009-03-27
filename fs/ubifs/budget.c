@@ -689,7 +689,7 @@ long long ubifs_reported_space(const struct ubifs_info *c, long long free)
 }
 
 /**
- * ubifs_get_free_space - return amount of free space.
+ * ubifs_get_free_space_nolock - return amount of free space.
  * @c: UBIFS file-system description object
  *
  * This function calculates amount of free space to report to user-space.
@@ -704,16 +704,14 @@ long long ubifs_reported_space(const struct ubifs_info *c, long long free)
  * traditional file-systems, because they have way less overhead than UBIFS.
  * So, to keep users happy, UBIFS tries to take the overhead into account.
  */
-long long ubifs_get_free_space(struct ubifs_info *c)
+long long ubifs_get_free_space_nolock(struct ubifs_info *c)
 {
-	int min_idx_lebs, rsvd_idx_lebs, lebs;
+	int rsvd_idx_lebs, lebs;
 	long long available, outstanding, free;
 
-	spin_lock(&c->space_lock);
-	min_idx_lebs = c->min_idx_lebs;
-	ubifs_assert(min_idx_lebs == ubifs_calc_min_idx_lebs(c));
+	ubifs_assert(c->min_idx_lebs == ubifs_calc_min_idx_lebs(c));
 	outstanding = c->budg_data_growth + c->budg_dd_growth;
-	available = ubifs_calc_available(c, min_idx_lebs);
+	available = ubifs_calc_available(c, c->min_idx_lebs);
 
 	/*
 	 * When reporting free space to user-space, UBIFS guarantees that it is
@@ -726,19 +724,36 @@ long long ubifs_get_free_space(struct ubifs_info *c)
 	 * Note, the calculations below are similar to what we have in
 	 * 'do_budget_space()', so refer there for comments.
 	 */
-	if (min_idx_lebs > c->lst.idx_lebs)
-		rsvd_idx_lebs = min_idx_lebs - c->lst.idx_lebs;
+	if (c->min_idx_lebs > c->lst.idx_lebs)
+		rsvd_idx_lebs = c->min_idx_lebs - c->lst.idx_lebs;
 	else
 		rsvd_idx_lebs = 0;
 	lebs = c->lst.empty_lebs + c->freeable_cnt + c->idx_gc_cnt -
 	       c->lst.taken_empty_lebs;
 	lebs -= rsvd_idx_lebs;
 	available += lebs * (c->dark_wm - c->leb_overhead);
-	spin_unlock(&c->space_lock);
 
 	if (available > outstanding)
 		free = ubifs_reported_space(c, available - outstanding);
 	else
 		free = 0;
+	return free;
+}
+
+/**
+ * ubifs_get_free_space - return amount of free space.
+ * @c: UBIFS file-system description object
+ *
+ * This function calculates and retuns amount of free space to report to
+ * user-space.
+ */
+long long ubifs_get_free_space(struct ubifs_info *c)
+{
+	long long free;
+
+	spin_lock(&c->space_lock);
+	free = ubifs_get_free_space_nolock(c);
+	spin_unlock(&c->space_lock);
+
 	return free;
 }

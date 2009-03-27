@@ -165,6 +165,9 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
+config GENERIC_HARDIRQS_NO__DO_IRQ
+       def_bool y
+
 config GENERIC_IRQ_PROBE
 	bool
 	default y
@@ -1801,6 +1804,17 @@ config DMAR
 	  These DMA remapping devices are reported via ACPI tables
 	  and include PCI device scope covered by these DMA
 	  remapping devices.
+
+config DMAR_DEFAULT_ON
+	def_bool y
+	prompt "Enable DMA Remapping Devices by default"
+	depends on DMAR
+	help
+	  Selecting this option will enable a DMAR device at boot time if
+	  one is found. If this option is not selected, DMAR support can
+	  be enabled by passing intel_iommu=on to the kernel. It is
+	  recommended you say N here while the DMAR code remains
+	  experimental.
 
 config DMAR_GFX_WA
 	def_bool y

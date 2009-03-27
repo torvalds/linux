@@ -8,6 +8,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/rtnetlink.h>
 #include <linux/seq_file.h>
 #include "efx.h"
 #include "mdio_10g.h"
@@ -67,6 +68,8 @@
 #define PMA_PMD_EXT_CLK312_WIDTH 1
 #define PMA_PMD_EXT_LPOWER_LBN  12
 #define PMA_PMD_EXT_LPOWER_WIDTH 1
+#define PMA_PMD_EXT_ROBUST_LBN	14
+#define PMA_PMD_EXT_ROBUST_WIDTH 1
 #define PMA_PMD_EXT_SSR_LBN	15
 #define PMA_PMD_EXT_SSR_WIDTH	1
 
@@ -155,14 +158,16 @@
 #define PCS_10GBASET_BLKLK_WIDTH 1
 
 /* Boot status register */
-#define PCS_BOOT_STATUS_REG	53248
-#define PCS_BOOT_FATAL_ERR_LBN	(0)
-#define PCS_BOOT_PROGRESS_LBN	(1)
-#define PCS_BOOT_PROGRESS_WIDTH	(2)
-#define PCS_BOOT_COMPLETE_LBN	(3)
-
-#define PCS_BOOT_MAX_DELAY	(100)
-#define PCS_BOOT_POLL_DELAY	(10)
+#define PCS_BOOT_STATUS_REG		53248
+#define PCS_BOOT_FATAL_ERROR_LBN	0
+#define PCS_BOOT_PROGRESS_LBN		1
+#define PCS_BOOT_PROGRESS_WIDTH		2
+#define PCS_BOOT_PROGRESS_INIT		0
+#define PCS_BOOT_PROGRESS_WAIT_MDIO	1
+#define PCS_BOOT_PROGRESS_CHECKSUM	2
+#define PCS_BOOT_PROGRESS_JUMP		3
+#define PCS_BOOT_DOWNLOAD_WAIT_LBN	3
+#define PCS_BOOT_CODE_STARTED_LBN	4
 
 /* 100M/1G PHY registers */
 #define GPHY_XCONTROL_REG	49152
@@ -177,34 +182,23 @@
 #define C22EXT_STATUS_LINK_LBN  2
 #define C22EXT_STATUS_LINK_WIDTH 1
 
-#define C22EXT_MSTSLV_REG       49162
-#define C22EXT_MSTSLV_1000_HD_LBN 10
-#define C22EXT_MSTSLV_1000_HD_WIDTH 1
-#define C22EXT_MSTSLV_1000_FD_LBN 11
-#define C22EXT_MSTSLV_1000_FD_WIDTH 1
+#define C22EXT_MSTSLV_CTRL			49161
+#define C22EXT_MSTSLV_CTRL_ADV_1000_HD_LBN	8
+#define C22EXT_MSTSLV_CTRL_ADV_1000_FD_LBN	9
+
+#define C22EXT_MSTSLV_STATUS			49162
+#define C22EXT_MSTSLV_STATUS_LP_1000_HD_LBN	10
+#define C22EXT_MSTSLV_STATUS_LP_1000_FD_LBN	11
 
 /* Time to wait between powering down the LNPGA and turning off the power
  * rails */
 #define LNPGA_PDOWN_WAIT	(HZ / 5)
 
-static int crc_error_reset_threshold = 100;
-module_param(crc_error_reset_threshold, int, 0644);
-MODULE_PARM_DESC(crc_error_reset_threshold,
-		 "Max number of CRC errors before XAUI reset");
-
 struct tenxpress_phy_data {
 	enum efx_loopback_mode loopback_mode;
-	atomic_t bad_crc_count;
 	enum efx_phy_mode phy_mode;
 	int bad_lp_tries;
 };
-
-void tenxpress_crc_err(struct efx_nic *efx)
-{
-	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	if (phy_data != NULL)
-		atomic_inc(&phy_data->bad_crc_count);
-}
 
 static ssize_t show_phy_short_reach(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -238,40 +232,62 @@ static ssize_t set_phy_short_reach(struct device *dev,
 static DEVICE_ATTR(phy_short_reach, 0644, show_phy_short_reach,
 		   set_phy_short_reach);
 
-/* Check that the C166 has booted successfully */
-static int tenxpress_phy_check(struct efx_nic *efx)
+int sft9001_wait_boot(struct efx_nic *efx)
 {
-	int phy_id = efx->mii.phy_id;
-	int count = PCS_BOOT_MAX_DELAY / PCS_BOOT_POLL_DELAY;
+	unsigned long timeout = jiffies + HZ + 1;
 	int boot_stat;
 
-	/* Wait for the boot to complete (or not) */
-	while (count) {
-		boot_stat = mdio_clause45_read(efx, phy_id,
+	for (;;) {
+		boot_stat = mdio_clause45_read(efx, efx->mii.phy_id,
 					       MDIO_MMD_PCS,
 					       PCS_BOOT_STATUS_REG);
-		if (boot_stat & (1 << PCS_BOOT_COMPLETE_LBN))
-			break;
-		count--;
-		udelay(PCS_BOOT_POLL_DELAY);
-	}
+		if (boot_stat >= 0) {
+			EFX_LOG(efx, "PHY boot status = %#x\n", boot_stat);
+			switch (boot_stat &
+				((1 << PCS_BOOT_FATAL_ERROR_LBN) |
+				 (3 << PCS_BOOT_PROGRESS_LBN) |
+				 (1 << PCS_BOOT_DOWNLOAD_WAIT_LBN) |
+				 (1 << PCS_BOOT_CODE_STARTED_LBN))) {
+			case ((1 << PCS_BOOT_FATAL_ERROR_LBN) |
+			      (PCS_BOOT_PROGRESS_CHECKSUM <<
+			       PCS_BOOT_PROGRESS_LBN)):
+			case ((1 << PCS_BOOT_FATAL_ERROR_LBN) |
+			      (PCS_BOOT_PROGRESS_INIT <<
+			       PCS_BOOT_PROGRESS_LBN) |
+			      (1 << PCS_BOOT_DOWNLOAD_WAIT_LBN)):
+				return -EINVAL;
+			case ((PCS_BOOT_PROGRESS_WAIT_MDIO <<
+			       PCS_BOOT_PROGRESS_LBN) |
+			      (1 << PCS_BOOT_DOWNLOAD_WAIT_LBN)):
+				return (efx->phy_mode & PHY_MODE_SPECIAL) ?
+					0 : -EIO;
+			case ((PCS_BOOT_PROGRESS_JUMP <<
+			       PCS_BOOT_PROGRESS_LBN) |
+			      (1 << PCS_BOOT_CODE_STARTED_LBN)):
+			case ((PCS_BOOT_PROGRESS_JUMP <<
+			       PCS_BOOT_PROGRESS_LBN) |
+			      (1 << PCS_BOOT_DOWNLOAD_WAIT_LBN) |
+			      (1 << PCS_BOOT_CODE_STARTED_LBN)):
+				return (efx->phy_mode & PHY_MODE_SPECIAL) ?
+					-EIO : 0;
+			default:
+				if (boot_stat & (1 << PCS_BOOT_FATAL_ERROR_LBN))
+					return -EIO;
+				break;
+			}
+		}
 
-	if (!count) {
-		EFX_ERR(efx, "%s: PHY boot timed out. Last status "
-			"%x\n", __func__,
-			(boot_stat >> PCS_BOOT_PROGRESS_LBN) &
-			((1 << PCS_BOOT_PROGRESS_WIDTH) - 1));
-		return -ETIMEDOUT;
-	}
+		if (time_after_eq(jiffies, timeout))
+			return -ETIMEDOUT;
 
-	return 0;
+		msleep(50);
+	}
 }
 
 static int tenxpress_init(struct efx_nic *efx)
 {
 	int phy_id = efx->mii.phy_id;
 	int reg;
-	int rc;
 
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
 		/* Enable 312.5 MHz clock */
@@ -284,17 +300,15 @@ static int tenxpress_init(struct efx_nic *efx)
 					 PMA_PMD_XCONTROL_REG);
 		reg |= ((1 << PMA_PMD_EXT_GMII_EN_LBN) |
 			(1 << PMA_PMD_EXT_CLK_OUT_LBN) |
-			(1 << PMA_PMD_EXT_CLK312_LBN));
+			(1 << PMA_PMD_EXT_CLK312_LBN) |
+			(1 << PMA_PMD_EXT_ROBUST_LBN));
+
 		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
 				    PMA_PMD_XCONTROL_REG, reg);
 		mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_C22EXT,
 				       GPHY_XCONTROL_REG, GPHY_ISOLATE_LBN,
 				       false);
 	}
-
-	rc = tenxpress_phy_check(efx);
-	if (rc < 0)
-		return rc;
 
 	/* Set the LEDs up as: Green = Link, Amber = Link/Act, Red = Off */
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
@@ -306,7 +320,7 @@ static int tenxpress_init(struct efx_nic *efx)
 				    PMA_PMD_LED_OVERR_REG, PMA_PMD_LED_DEFAULT);
 	}
 
-	return rc;
+	return 0;
 }
 
 static int tenxpress_phy_init(struct efx_nic *efx)
@@ -346,6 +360,7 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	rc = tenxpress_init(efx);
 	if (rc < 0)
 		goto fail;
+	mdio_clause45_set_pause(efx);
 
 	if (efx->phy_type == PHY_TYPE_SFT9001B) {
 		rc = device_create_file(&efx->pci_dev->dev,
@@ -376,8 +391,8 @@ static int tenxpress_special_reset(struct efx_nic *efx)
 
 	/* The XGMAC clock is driven from the SFC7101/SFT9001 312MHz clock, so
 	 * a special software reset can glitch the XGMAC sufficiently for stats
-	 * requests to fail. Since we don't often special_reset, just lock. */
-	spin_lock(&efx->stats_lock);
+	 * requests to fail. */
+	efx_stats_disable(efx);
 
 	/* Initiate reset */
 	reg = mdio_clause45_read(efx, efx->mii.phy_id,
@@ -392,17 +407,17 @@ static int tenxpress_special_reset(struct efx_nic *efx)
 	rc = mdio_clause45_wait_reset_mmds(efx,
 					   TENXPRESS_REQUIRED_DEVS);
 	if (rc < 0)
-		goto unlock;
+		goto out;
 
 	/* Try and reconfigure the device */
 	rc = tenxpress_init(efx);
 	if (rc < 0)
-		goto unlock;
+		goto out;
 
 	/* Wait for the XGXS state machine to churn */
 	mdelay(10);
-unlock:
-	spin_unlock(&efx->stats_lock);
+out:
+	efx_stats_enable(efx);
 	return rc;
 }
 
@@ -520,7 +535,7 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
 	struct ethtool_cmd ecmd;
-	bool phy_mode_change, loop_reset, loop_toggle, loopback;
+	bool phy_mode_change, loop_reset;
 
 	if (efx->phy_mode & (PHY_MODE_OFF | PHY_MODE_SPECIAL)) {
 		phy_data->phy_mode = efx->phy_mode;
@@ -531,12 +546,10 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 
 	phy_mode_change = (efx->phy_mode == PHY_MODE_NORMAL &&
 			   phy_data->phy_mode != PHY_MODE_NORMAL);
-	loopback = LOOPBACK_MASK(efx) & efx->phy_op->loopbacks;
-	loop_toggle = LOOPBACK_CHANGED(phy_data, efx, efx->phy_op->loopbacks);
 	loop_reset = (LOOPBACK_OUT_OF(phy_data, efx, efx->phy_op->loopbacks) ||
 		      LOOPBACK_CHANGED(phy_data, efx, 1 << LOOPBACK_GPHY));
 
-	if (loop_reset || loop_toggle || loopback || phy_mode_change) {
+	if (loop_reset || phy_mode_change) {
 		int rc;
 
 		efx->phy_op->get_settings(efx, &ecmd);
@@ -549,20 +562,6 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 			 * then xaui will be reset anyway */
 			if (EFX_IS10G(efx))
 				falcon_reset_xaui(efx);
-		}
-
-		if (efx->phy_type != PHY_TYPE_SFX7101) {
-			/* Only change autoneg once, on coming out or
-			 * going into loopback */
-			if (loop_toggle)
-				ecmd.autoneg = !loopback;
-			if (loopback) {
-				ecmd.duplex = DUPLEX_FULL;
-				if (efx->loopback_mode == LOOPBACK_GPHY)
-					ecmd.speed = SPEED_1000;
-				else
-					ecmd.speed = SPEED_10000;
-			}
 		}
 
 		rc = efx->phy_op->set_settings(efx, &ecmd);
@@ -593,15 +592,14 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 static void tenxpress_phy_poll(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	bool change = false, link_ok;
-	unsigned link_fc;
+	bool change = false;
 
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
-		link_ok = sfx7101_link_ok(efx);
+		bool link_ok = sfx7101_link_ok(efx);
 		if (link_ok != efx->link_up) {
 			change = true;
 		} else {
-			link_fc = mdio_clause45_get_pause(efx);
+			unsigned int link_fc = mdio_clause45_get_pause(efx);
 			if (link_fc != efx->link_fc)
 				change = true;
 		}
@@ -623,13 +621,6 @@ static void tenxpress_phy_poll(struct efx_nic *efx)
 
 	if (phy_data->phy_mode != PHY_MODE_NORMAL)
 		return;
-
-	if (EFX_WORKAROUND_10750(efx) &&
-	    atomic_read(&phy_data->bad_crc_count) > crc_error_reset_threshold) {
-		EFX_ERR(efx, "Resetting XAUI due to too many CRC errors\n");
-		falcon_reset_xaui(efx);
-		atomic_set(&phy_data->bad_crc_count, 0);
-	}
 }
 
 static void tenxpress_phy_fini(struct efx_nic *efx)
@@ -708,12 +699,10 @@ static int sft9001_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 {
 	struct ethtool_cmd ecmd;
 	int phy_id = efx->mii.phy_id;
-	int rc = 0, rc2, i, res_reg;
+	int rc = 0, rc2, i, ctrl_reg, res_reg;
 
-	if (!(flags & ETH_TEST_FL_OFFLINE))
-		return 0;
-
-	efx->phy_op->get_settings(efx, &ecmd);
+	if (flags & ETH_TEST_FL_OFFLINE)
+		efx->phy_op->get_settings(efx, &ecmd);
 
 	/* Initialise cable diagnostic results to unknown failure */
 	for (i = 1; i < 9; ++i)
@@ -721,18 +710,22 @@ static int sft9001_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 
 	/* Run cable diagnostics; wait up to 5 seconds for them to complete.
 	 * A cable fault is not a self-test failure, but a timeout is. */
+	ctrl_reg = ((1 << CDIAG_CTRL_IMMED_LBN) |
+		    (CDIAG_CTRL_LEN_METRES << CDIAG_CTRL_LEN_UNIT_LBN));
+	if (flags & ETH_TEST_FL_OFFLINE) {
+		/* Break the link in order to run full diagnostics.  We
+		 * must reset the PHY to resume normal service. */
+		ctrl_reg |= (1 << CDIAG_CTRL_BRK_LINK_LBN);
+	}
 	mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
-			    PMA_PMD_CDIAG_CTRL_REG,
-			    (1 << CDIAG_CTRL_IMMED_LBN) |
-			    (1 << CDIAG_CTRL_BRK_LINK_LBN) |
-			    (CDIAG_CTRL_LEN_METRES << CDIAG_CTRL_LEN_UNIT_LBN));
+			    PMA_PMD_CDIAG_CTRL_REG, ctrl_reg);
 	i = 0;
 	while (mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
 				  PMA_PMD_CDIAG_CTRL_REG) &
 	       (1 << CDIAG_CTRL_IN_PROG_LBN)) {
 		if (++i == 50) {
 			rc = -ETIMEDOUT;
-			goto reset;
+			goto out;
 		}
 		msleep(100);
 	}
@@ -757,122 +750,92 @@ static int sft9001_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 			results[5 + i] = len_reg;
 	}
 
-	/* We must reset to exit cable diagnostic mode.  The BIST will
-	 * also run when we do this. */
-reset:
-	rc2 = tenxpress_special_reset(efx);
-	results[0] = rc2 ? -1 : 1;
-	if (!rc)
-		rc = rc2;
+out:
+	if (flags & ETH_TEST_FL_OFFLINE) {
+		/* Reset, running the BIST and then resuming normal service. */
+		rc2 = tenxpress_special_reset(efx);
+		results[0] = rc2 ? -1 : 1;
+		if (!rc)
+			rc = rc2;
 
-	rc2 = efx->phy_op->set_settings(efx, &ecmd);
-	if (!rc)
-		rc = rc2;
+		rc2 = efx->phy_op->set_settings(efx, &ecmd);
+		if (!rc)
+			rc = rc2;
+	}
 
 	return rc;
 }
 
-static u32 tenxpress_get_xnp_lpa(struct efx_nic *efx)
+static void
+tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	int phy = efx->mii.phy_id;
-	u32 lpa = 0;
+	int phy_id = efx->mii.phy_id;
+	u32 adv = 0, lpa = 0;
 	int reg;
 
 	if (efx->phy_type != PHY_TYPE_SFX7101) {
-		reg = mdio_clause45_read(efx, phy, MDIO_MMD_C22EXT,
-					 C22EXT_MSTSLV_REG);
-		if (reg & (1 << C22EXT_MSTSLV_1000_HD_LBN))
+		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_C22EXT,
+					 C22EXT_MSTSLV_CTRL);
+		if (reg & (1 << C22EXT_MSTSLV_CTRL_ADV_1000_FD_LBN))
+			adv |= ADVERTISED_1000baseT_Full;
+		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_C22EXT,
+					 C22EXT_MSTSLV_STATUS);
+		if (reg & (1 << C22EXT_MSTSLV_STATUS_LP_1000_HD_LBN))
 			lpa |= ADVERTISED_1000baseT_Half;
-		if (reg & (1 << C22EXT_MSTSLV_1000_FD_LBN))
+		if (reg & (1 << C22EXT_MSTSLV_STATUS_LP_1000_FD_LBN))
 			lpa |= ADVERTISED_1000baseT_Full;
 	}
-	reg = mdio_clause45_read(efx, phy, MDIO_MMD_AN, MDIO_AN_10GBT_STATUS);
+	reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
+				 MDIO_AN_10GBT_CTRL);
+	if (reg & (1 << MDIO_AN_10GBT_CTRL_ADV_10G_LBN))
+		adv |= ADVERTISED_10000baseT_Full;
+	reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
+				 MDIO_AN_10GBT_STATUS);
 	if (reg & (1 << MDIO_AN_10GBT_STATUS_LP_10G_LBN))
 		lpa |= ADVERTISED_10000baseT_Full;
-	return lpa;
+
+	mdio_clause45_get_settings_ext(efx, ecmd, adv, lpa);
+
+	if (efx->phy_type != PHY_TYPE_SFX7101)
+		ecmd->supported |= (SUPPORTED_100baseT_Full |
+				    SUPPORTED_1000baseT_Full);
+
+	/* In loopback, the PHY automatically brings up the correct interface,
+	 * but doesn't advertise the correct speed. So override it */
+	if (efx->loopback_mode == LOOPBACK_GPHY)
+		ecmd->speed = SPEED_1000;
+	else if (LOOPBACK_MASK(efx) & efx->phy_op->loopbacks)
+		ecmd->speed = SPEED_10000;
 }
 
-static void sfx7101_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+static int tenxpress_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	mdio_clause45_get_settings_ext(efx, ecmd, ADVERTISED_10000baseT_Full,
-				       tenxpress_get_xnp_lpa(efx));
-	ecmd->supported |= SUPPORTED_10000baseT_Full;
-	ecmd->advertising |= ADVERTISED_10000baseT_Full;
+	if (!ecmd->autoneg)
+		return -EINVAL;
+
+	return mdio_clause45_set_settings(efx, ecmd);
 }
 
-static void sft9001_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+static void sfx7101_set_npage_adv(struct efx_nic *efx, u32 advertising)
 {
-	int phy_id = efx->mii.phy_id;
-	u32 xnp_adv = 0;
-	int reg;
-
-	reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
-				 PMA_PMD_SPEED_ENABLE_REG);
-	if (EFX_WORKAROUND_13204(efx) && (reg & (1 << PMA_PMD_100TX_ADV_LBN)))
-		xnp_adv |= ADVERTISED_100baseT_Full;
-	if (reg & (1 << PMA_PMD_1000T_ADV_LBN))
-		xnp_adv |= ADVERTISED_1000baseT_Full;
-	if (reg & (1 << PMA_PMD_10000T_ADV_LBN))
-		xnp_adv |= ADVERTISED_10000baseT_Full;
-
-	mdio_clause45_get_settings_ext(efx, ecmd, xnp_adv,
-				       tenxpress_get_xnp_lpa(efx));
-
-	ecmd->supported |= (SUPPORTED_100baseT_Half |
-			    SUPPORTED_100baseT_Full |
-			    SUPPORTED_1000baseT_Full);
-
-	/* Use the vendor defined C22ext register for duplex settings */
-	if (ecmd->speed != SPEED_10000 && !ecmd->autoneg) {
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_C22EXT,
-					 GPHY_XCONTROL_REG);
-		ecmd->duplex = (reg & (1 << GPHY_DUPLEX_LBN) ?
-				DUPLEX_FULL : DUPLEX_HALF);
-	}
+	mdio_clause45_set_flag(efx, efx->mii.phy_id, MDIO_MMD_AN,
+			       MDIO_AN_10GBT_CTRL,
+			       MDIO_AN_10GBT_CTRL_ADV_10G_LBN,
+			       advertising & ADVERTISED_10000baseT_Full);
 }
 
-static int sft9001_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+static void sft9001_set_npage_adv(struct efx_nic *efx, u32 advertising)
 {
 	int phy_id = efx->mii.phy_id;
-	int rc;
 
-	rc = mdio_clause45_set_settings(efx, ecmd);
-	if (rc)
-		return rc;
-
-	if (ecmd->speed != SPEED_10000 && !ecmd->autoneg)
-		mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_C22EXT,
-				       GPHY_XCONTROL_REG, GPHY_DUPLEX_LBN,
-				       ecmd->duplex == DUPLEX_FULL);
-
-	return rc;
-}
-
-static bool sft9001_set_xnp_advertise(struct efx_nic *efx, u32 advertising)
-{
-	int phy = efx->mii.phy_id;
-	int reg = mdio_clause45_read(efx, phy, MDIO_MMD_PMAPMD,
-				     PMA_PMD_SPEED_ENABLE_REG);
-	bool enabled;
-
-	reg &= ~((1 << 2) | (1 << 3));
-	if (EFX_WORKAROUND_13204(efx) &&
-	    (advertising & ADVERTISED_100baseT_Full))
-		reg |= 1 << PMA_PMD_100TX_ADV_LBN;
-	if (advertising & ADVERTISED_1000baseT_Full)
-		reg |= 1 << PMA_PMD_1000T_ADV_LBN;
-	if (advertising & ADVERTISED_10000baseT_Full)
-		reg |= 1 << PMA_PMD_10000T_ADV_LBN;
-	mdio_clause45_write(efx, phy, MDIO_MMD_PMAPMD,
-			    PMA_PMD_SPEED_ENABLE_REG, reg);
-
-	enabled = (advertising &
-		   (ADVERTISED_1000baseT_Half |
-		    ADVERTISED_1000baseT_Full |
-		    ADVERTISED_10000baseT_Full));
-	if (EFX_WORKAROUND_13204(efx))
-		enabled |= (advertising & ADVERTISED_100baseT_Full);
-	return enabled;
+	mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_C22EXT,
+			       C22EXT_MSTSLV_CTRL,
+			       C22EXT_MSTSLV_CTRL_ADV_1000_FD_LBN,
+			       advertising & ADVERTISED_1000baseT_Full);
+	mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_AN,
+			       MDIO_AN_10GBT_CTRL,
+			       MDIO_AN_10GBT_CTRL_ADV_10G_LBN,
+			       advertising & ADVERTISED_10000baseT_Full);
 }
 
 struct efx_phy_operations falcon_sfx7101_phy_ops = {
@@ -882,8 +845,9 @@ struct efx_phy_operations falcon_sfx7101_phy_ops = {
 	.poll             = tenxpress_phy_poll,
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = efx_port_dummy_op_void,
-	.get_settings	  = sfx7101_get_settings,
-	.set_settings	  = mdio_clause45_set_settings,
+	.get_settings	  = tenxpress_get_settings,
+	.set_settings	  = tenxpress_set_settings,
+	.set_npage_adv    = sfx7101_set_npage_adv,
 	.num_tests	  = ARRAY_SIZE(sfx7101_test_names),
 	.test_names	  = sfx7101_test_names,
 	.run_tests	  = sfx7101_run_tests,
@@ -898,9 +862,9 @@ struct efx_phy_operations falcon_sft9001_phy_ops = {
 	.poll             = tenxpress_phy_poll,
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = efx_port_dummy_op_void,
-	.get_settings	  = sft9001_get_settings,
-	.set_settings	  = sft9001_set_settings,
-	.set_xnp_advertise = sft9001_set_xnp_advertise,
+	.get_settings	  = tenxpress_get_settings,
+	.set_settings	  = tenxpress_set_settings,
+	.set_npage_adv    = sft9001_set_npage_adv,
 	.num_tests	  = ARRAY_SIZE(sft9001_test_names),
 	.test_names	  = sft9001_test_names,
 	.run_tests	  = sft9001_run_tests,

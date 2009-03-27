@@ -15,8 +15,7 @@ menuconfig X86_PLATFORM_DEVICES
 if X86_PLATFORM_DEVICES
 
 config ACER_WMI
-	tristate "Acer WMI Laptop Extras (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Acer WMI Laptop Extras"
 	depends on ACPI
 	depends on LEDS_CLASS
 	depends on NEW_LEDS
@@ -39,9 +38,10 @@ config ASUS_LAPTOP
 	tristate "Asus Laptop Extras (EXPERIMENTAL)"
 	depends on ACPI
 	depends on EXPERIMENTAL && !ACPI_ASUS
-	depends on LEDS_CLASS
-	depends on NEW_LEDS
-	depends on BACKLIGHT_CLASS_DEVICE
+	select LEDS_CLASS
+	select NEW_LEDS
+	select BACKLIGHT_CLASS_DEVICE
+	depends on INPUT
 	---help---
 	  This is the new Linux driver for Asus laptops. It may also support some
 	  MEDION, JVC or VICTOR laptops. It makes all the extra buttons generate
@@ -53,6 +53,19 @@ config ASUS_LAPTOP
 	  buttons see <http://acpi4asus.sf.net/>.
 
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
+
+config DELL_LAPTOP
+	tristate "Dell Laptop Extras (EXPERIMENTAL)"
+	depends on X86
+	depends on DCDBAS
+	depends on EXPERIMENTAL
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on RFKILL
+	depends on POWER_SUPPLY
+	default n
+	---help---
+	This driver adds support for rfkill and backlight control to Dell
+	laptops.
 
 config FUJITSU_LAPTOP
 	tristate "Fujitsu Laptop Extras"
@@ -171,11 +184,11 @@ config SONYPI_COMPAT
 config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
 	depends on ACPI
+	depends on INPUT
 	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
 	select NVRAM
-	select INPUT
 	select NEW_LEDS
 	select LEDS_CLASS
 	select NET
@@ -191,6 +204,17 @@ config THINKPAD_ACPI
 	  This driver was formerly known as ibm-acpi.
 
 	  If you have an IBM or Lenovo ThinkPad laptop, say Y or M here.
+
+config THINKPAD_ACPI_DEBUGFACILITIES
+	bool "Maintainer debug facilities"
+	depends on THINKPAD_ACPI
+	default n
+	---help---
+	  Enables extra stuff in the thinkpad-acpi which is completely useless
+	  for normal use.  Read the driver source to find out what it does.
+
+	  Say N here, unless you were told by a kernel maintainer to do
+	  otherwise.
 
 config THINKPAD_ACPI_DEBUG
 	bool "Verbose debug mode"
@@ -277,6 +301,7 @@ config INTEL_MENLOW
 config EEEPC_LAPTOP
 	tristate "Eee PC Hotkey Driver (EXPERIMENTAL)"
 	depends on ACPI
+	depends on INPUT
 	depends on EXPERIMENTAL
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
@@ -289,9 +314,8 @@ config EEEPC_LAPTOP
 
 
 config ACPI_WMI
-	tristate "WMI (EXPERIMENTAL)"
+	tristate "WMI"
 	depends on ACPI
-	depends on EXPERIMENTAL
 	help
 	  This driver adds support for the ACPI-WMI (Windows Management
 	  Instrumentation) mapper device (PNP0C14) found on some systems.

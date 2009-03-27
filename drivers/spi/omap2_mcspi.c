@@ -1003,7 +1003,7 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 		goto err1;
 	}
 	if (!request_mem_region(r->start, (r->end - r->start) + 1,
-			pdev->dev.bus_id)) {
+			dev_name(&pdev->dev))) {
 		status = -EBUSY;
 		goto err1;
 	}

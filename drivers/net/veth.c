@@ -19,12 +19,17 @@
 #define DRV_NAME	"veth"
 #define DRV_VERSION	"1.0"
 
+#define MIN_MTU 68		/* Min L3 MTU */
+#define MAX_MTU 65535		/* Max L3 MTU (arbitrary) */
+#define MTU_PAD (ETH_HLEN + 4)  /* Max difference between L2 and L3 size MTU */
+
 struct veth_net_stats {
 	unsigned long	rx_packets;
 	unsigned long	tx_packets;
 	unsigned long	rx_bytes;
 	unsigned long	tx_bytes;
 	unsigned long	tx_dropped;
+	unsigned long	rx_dropped;
 };
 
 struct veth_priv {
@@ -147,7 +152,7 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_device *rcv = NULL;
 	struct veth_priv *priv, *rcv_priv;
-	struct veth_net_stats *stats;
+	struct veth_net_stats *stats, *rcv_stats;
 	int length, cpu;
 
 	skb_orphan(skb);
@@ -158,9 +163,13 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	cpu = smp_processor_id();
 	stats = per_cpu_ptr(priv->stats, cpu);
+	rcv_stats = per_cpu_ptr(rcv_priv->stats, cpu);
 
 	if (!(rcv->flags & IFF_UP))
-		goto outf;
+		goto tx_drop;
+
+	if (skb->len > (rcv->mtu + MTU_PAD))
+		goto rx_drop;
 
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, rcv);
@@ -178,16 +187,20 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	stats->tx_bytes += length;
 	stats->tx_packets++;
 
-	stats = per_cpu_ptr(rcv_priv->stats, cpu);
-	stats->rx_bytes += length;
-	stats->rx_packets++;
+	rcv_stats->rx_bytes += length;
+	rcv_stats->rx_packets++;
 
 	netif_rx(skb);
 	return 0;
 
-outf:
+tx_drop:
 	kfree_skb(skb);
 	stats->tx_dropped++;
+	return 0;
+
+rx_drop:
+	kfree_skb(skb);
+	rcv_stats->rx_dropped++;
 	return 0;
 }
 
@@ -210,6 +223,7 @@ static struct net_device_stats *veth_get_stats(struct net_device *dev)
 	dev_stats->rx_bytes = 0;
 	dev_stats->tx_bytes = 0;
 	dev_stats->tx_dropped = 0;
+	dev_stats->rx_dropped = 0;
 
 	for_each_online_cpu(cpu) {
 		stats = per_cpu_ptr(priv->stats, cpu);
@@ -219,6 +233,7 @@ static struct net_device_stats *veth_get_stats(struct net_device *dev)
 		dev_stats->rx_bytes += stats->rx_bytes;
 		dev_stats->tx_bytes += stats->tx_bytes;
 		dev_stats->tx_dropped += stats->tx_dropped;
+		dev_stats->rx_dropped += stats->rx_dropped;
 	}
 
 	return dev_stats;
@@ -236,6 +251,29 @@ static int veth_open(struct net_device *dev)
 		netif_carrier_on(dev);
 		netif_carrier_on(priv->peer);
 	}
+	return 0;
+}
+
+static int veth_close(struct net_device *dev)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+
+	netif_carrier_off(dev);
+	netif_carrier_off(priv->peer);
+
+	return 0;
+}
+
+static int is_valid_veth_mtu(int new_mtu)
+{
+	return (new_mtu >= MIN_MTU && new_mtu <= MAX_MTU);
+}
+
+static int veth_change_mtu(struct net_device *dev, int new_mtu)
+{
+	if (!is_valid_veth_mtu(new_mtu))
+		return -EINVAL;
+	dev->mtu = new_mtu;
 	return 0;
 }
 
@@ -263,10 +301,13 @@ static void veth_dev_free(struct net_device *dev)
 }
 
 static const struct net_device_ops veth_netdev_ops = {
-	.ndo_init	= veth_dev_init,
-	.ndo_open	= veth_open,
-	.ndo_start_xmit = veth_xmit,
-	.ndo_get_stats	= veth_get_stats,
+	.ndo_init            = veth_dev_init,
+	.ndo_open            = veth_open,
+	.ndo_stop            = veth_close,
+	.ndo_start_xmit      = veth_xmit,
+	.ndo_change_mtu      = veth_change_mtu,
+	.ndo_get_stats       = veth_get_stats,
+	.ndo_set_mac_address = eth_mac_addr,
 };
 
 static void veth_setup(struct net_device *dev)
@@ -279,44 +320,6 @@ static void veth_setup(struct net_device *dev)
 	dev->destructor = veth_dev_free;
 }
 
-static void veth_change_state(struct net_device *dev)
-{
-	struct net_device *peer;
-	struct veth_priv *priv;
-
-	priv = netdev_priv(dev);
-	peer = priv->peer;
-
-	if (netif_carrier_ok(peer)) {
-		if (!netif_carrier_ok(dev))
-			netif_carrier_on(dev);
-	} else {
-		if (netif_carrier_ok(dev))
-			netif_carrier_off(dev);
-	}
-}
-
-static int veth_device_event(struct notifier_block *unused,
-			     unsigned long event, void *ptr)
-{
-	struct net_device *dev = ptr;
-
-	if (dev->netdev_ops->ndo_open != veth_open)
-		goto out;
-
-	switch (event) {
-	case NETDEV_CHANGE:
-		veth_change_state(dev);
-		break;
-	}
-out:
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block veth_notifier_block __read_mostly = {
-	.notifier_call	= veth_device_event,
-};
-
 /*
  * netlink interface
  */
@@ -328,6 +331,10 @@ static int veth_validate(struct nlattr *tb[], struct nlattr *data[])
 			return -EINVAL;
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
 			return -EADDRNOTAVAIL;
+	}
+	if (tb[IFLA_MTU]) {
+		if (!is_valid_veth_mtu(nla_get_u32(tb[IFLA_MTU])))
+			return -EINVAL;
 	}
 	return 0;
 }
@@ -467,14 +474,12 @@ static struct rtnl_link_ops veth_link_ops = {
 
 static __init int veth_init(void)
 {
-	register_netdevice_notifier(&veth_notifier_block);
 	return rtnl_link_register(&veth_link_ops);
 }
 
 static __exit void veth_exit(void)
 {
 	rtnl_link_unregister(&veth_link_ops);
-	unregister_netdevice_notifier(&veth_notifier_block);
 }
 
 module_init(veth_init);

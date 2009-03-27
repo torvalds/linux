@@ -66,11 +66,15 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 {
 	struct drr_sched *q = qdisc_priv(sch);
 	struct drr_class *cl = (struct drr_class *)*arg;
+	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_DRR_MAX + 1];
 	u32 quantum;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_DRR_MAX, tca[TCA_OPTIONS], drr_policy);
+	if (!opt)
+		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_DRR_MAX, opt, drr_policy);
 	if (err < 0)
 		return err;
 
@@ -151,8 +155,11 @@ static int drr_delete_class(struct Qdisc *sch, unsigned long arg)
 	drr_purge_queue(cl);
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
 
-	if (--cl->refcnt == 0)
-		drr_destroy_class(sch, cl);
+	BUG_ON(--cl->refcnt == 0);
+	/*
+	 * This shouldn't happen: we "hold" one cops->get() when called
+	 * from tc_ctl_tclass; the destroy method is done from cops->put().
+	 */
 
 	sch_tree_unlock(sch);
 	return 0;

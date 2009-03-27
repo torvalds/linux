@@ -888,12 +888,7 @@ found:
 
 static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 {
-	int retval;
-
-	retval = fasync_helper(fd, filp, on, &sonypi_device.fifo_async);
-	if (retval < 0)
-		return retval;
-	return 0;
+	return fasync_helper(fd, filp, on, &sonypi_device.fifo_async);
 }
 
 static int sonypi_misc_release(struct inode *inode, struct file *file)

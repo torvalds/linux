@@ -70,10 +70,10 @@
 #define MDIO_MMDREG_STAT1_LPABLE_LBN	(1)
 #define MDIO_MMDREG_STAT1_LPABLE_WIDTH	(1)
 
-/* Bits in ID reg */
-#define MDIO_ID_REV(_id32)	(_id32 & 0xf)
-#define MDIO_ID_MODEL(_id32)	((_id32 >> 4) & 0x3f)
-#define MDIO_ID_OUI(_id32)	(_id32 >> 10)
+/* Bits in combined ID regs */
+static inline unsigned mdio_id_rev(u32 id) { return id & 0xf; }
+static inline unsigned mdio_id_model(u32 id) { return (id >> 4) & 0x3f; }
+extern unsigned mdio_id_oui(u32 id);
 
 /* Bits in MMDREG_DEVS0/1. Someone thoughtfully layed things out
  * so the 'bit present' bit number of an MMD is the number of
@@ -155,7 +155,8 @@
 #define MDIO_AN_XNP			22
 #define MDIO_AN_LPA_XNP			25
 
-#define MDIO_AN_10GBT_ADVERTISE		32
+#define MDIO_AN_10GBT_CTRL		32
+#define MDIO_AN_10GBT_CTRL_ADV_10G_LBN	12
 #define MDIO_AN_10GBT_STATUS		(33)
 #define MDIO_AN_10GBT_STATUS_MS_FLT_LBN (15) /* MASTER/SLAVE config fault */
 #define MDIO_AN_10GBT_STATUS_MS_LBN     (14) /* MASTER/SLAVE config */

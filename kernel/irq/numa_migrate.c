@@ -17,16 +17,11 @@ static void init_copy_kstat_irqs(struct irq_desc *old_desc,
 				 struct irq_desc *desc,
 				 int cpu, int nr)
 {
-	unsigned long bytes;
-
 	init_kstat_irqs(desc, cpu, nr);
 
-	if (desc->kstat_irqs != old_desc->kstat_irqs) {
-		/* Compute how many bytes we need per irq and allocate them */
-		bytes = nr * sizeof(unsigned int);
-
-		memcpy(desc->kstat_irqs, old_desc->kstat_irqs, bytes);
-	}
+	if (desc->kstat_irqs != old_desc->kstat_irqs)
+		memcpy(desc->kstat_irqs, old_desc->kstat_irqs,
+			 nr * sizeof(*desc->kstat_irqs));
 }
 
 static void free_kstat_irqs(struct irq_desc *old_desc, struct irq_desc *desc)
@@ -71,7 +66,7 @@ static struct irq_desc *__real_move_irq_desc(struct irq_desc *old_desc,
 	desc = irq_desc_ptrs[irq];
 
 	if (desc && old_desc != desc)
-			goto out_unlock;
+		goto out_unlock;
 
 	node = cpu_to_node(cpu);
 	desc = kzalloc_node(sizeof(*desc), GFP_ATOMIC, node);
@@ -84,10 +79,15 @@ static struct irq_desc *__real_move_irq_desc(struct irq_desc *old_desc,
 	init_copy_one_irq_desc(irq, old_desc, desc, cpu);
 
 	irq_desc_ptrs[irq] = desc;
+	spin_unlock_irqrestore(&sparse_irq_lock, flags);
 
 	/* free the old one */
 	free_one_irq_desc(old_desc, desc);
+	spin_unlock(&old_desc->lock);
 	kfree(old_desc);
+	spin_lock(&desc->lock);
+
+	return desc;
 
 out_unlock:
 	spin_unlock_irqrestore(&sparse_irq_lock, flags);

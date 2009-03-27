@@ -21,6 +21,8 @@
 #ifndef __UBI_USER_H__
 #define __UBI_USER_H__
 
+#include <linux/types.h>
+
 /*
  * UBI device creation (the same as MTD device attachment)
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -40,37 +42,37 @@
  * UBI volume creation
  * ~~~~~~~~~~~~~~~~~~~
  *
- * UBI volumes are created via the %UBI_IOCMKVOL IOCTL command of UBI character
+ * UBI volumes are created via the %UBI_IOCMKVOL ioctl command of UBI character
  * device. A &struct ubi_mkvol_req object has to be properly filled and a
- * pointer to it has to be passed to the IOCTL.
+ * pointer to it has to be passed to the ioctl.
  *
  * UBI volume deletion
  * ~~~~~~~~~~~~~~~~~~~
  *
- * To delete a volume, the %UBI_IOCRMVOL IOCTL command of the UBI character
+ * To delete a volume, the %UBI_IOCRMVOL ioctl command of the UBI character
  * device should be used. A pointer to the 32-bit volume ID hast to be passed
- * to the IOCTL.
+ * to the ioctl.
  *
  * UBI volume re-size
  * ~~~~~~~~~~~~~~~~~~
  *
- * To re-size a volume, the %UBI_IOCRSVOL IOCTL command of the UBI character
+ * To re-size a volume, the %UBI_IOCRSVOL ioctl command of the UBI character
  * device should be used. A &struct ubi_rsvol_req object has to be properly
- * filled and a pointer to it has to be passed to the IOCTL.
+ * filled and a pointer to it has to be passed to the ioctl.
  *
  * UBI volumes re-name
  * ~~~~~~~~~~~~~~~~~~~
  *
  * To re-name several volumes atomically at one go, the %UBI_IOCRNVOL command
  * of the UBI character device should be used. A &struct ubi_rnvol_req object
- * has to be properly filled and a pointer to it has to be passed to the IOCTL.
+ * has to be properly filled and a pointer to it has to be passed to the ioctl.
  *
  * UBI volume update
  * ~~~~~~~~~~~~~~~~~
  *
- * Volume update should be done via the %UBI_IOCVOLUP IOCTL command of the
+ * Volume update should be done via the %UBI_IOCVOLUP ioctl command of the
  * corresponding UBI volume character device. A pointer to a 64-bit update
- * size should be passed to the IOCTL. After this, UBI expects user to write
+ * size should be passed to the ioctl. After this, UBI expects user to write
  * this number of bytes to the volume character device. The update is finished
  * when the claimed number of bytes is passed. So, the volume update sequence
  * is something like:
@@ -80,14 +82,58 @@
  * write(fd, buf, image_size);
  * close(fd);
  *
- * Atomic eraseblock change
+ * Logical eraseblock erase
  * ~~~~~~~~~~~~~~~~~~~~~~~~
  *
- * Atomic eraseblock change operation is done via the %UBI_IOCEBCH IOCTL
- * command of the corresponding UBI volume character device. A pointer to
- * &struct ubi_leb_change_req has to be passed to the IOCTL. Then the user is
- * expected to write the requested amount of bytes. This is similar to the
- * "volume update" IOCTL.
+ * To erase a logical eraseblock, the %UBI_IOCEBER ioctl command of the
+ * corresponding UBI volume character device should be used. This command
+ * unmaps the requested logical eraseblock, makes sure the corresponding
+ * physical eraseblock is successfully erased, and returns.
+ *
+ * Atomic logical eraseblock change
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * Atomic logical eraseblock change operation is called using the %UBI_IOCEBCH
+ * ioctl command of the corresponding UBI volume character device. A pointer to
+ * a &struct ubi_leb_change_req object has to be passed to the ioctl. Then the
+ * user is expected to write the requested amount of bytes (similarly to what
+ * should be done in case of the "volume update" ioctl).
+ *
+ * Logical eraseblock map
+ * ~~~~~~~~~~~~~~~~~~~~~
+ *
+ * To map a logical eraseblock to a physical eraseblock, the %UBI_IOCEBMAP
+ * ioctl command should be used. A pointer to a &struct ubi_map_req object is
+ * expected to be passed. The ioctl maps the requested logical eraseblock to
+ * a physical eraseblock and returns.  Only non-mapped logical eraseblocks can
+ * be mapped. If the logical eraseblock specified in the request is already
+ * mapped to a physical eraseblock, the ioctl fails and returns error.
+ *
+ * Logical eraseblock unmap
+ * ~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * To unmap a logical eraseblock to a physical eraseblock, the %UBI_IOCEBUNMAP
+ * ioctl command should be used. The ioctl unmaps the logical eraseblocks,
+ * schedules corresponding physical eraseblock for erasure, and returns. Unlike
+ * the "LEB erase" command, it does not wait for the physical eraseblock being
+ * erased. Note, the side effect of this is that if an unclean reboot happens
+ * after the unmap ioctl returns, you may find the LEB mapped again to the same
+ * physical eraseblock after the UBI is run again.
+ *
+ * Check if logical eraseblock is mapped
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * To check if a logical eraseblock is mapped to a physical eraseblock, the
+ * %UBI_IOCEBISMAP ioctl command should be used. It returns %0 if the LEB is
+ * not mapped, and %1 if it is mapped.
+ *
+ * Set an UBI volume property
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * To set an UBI volume property the %UBI_IOCSETPROP ioctl command should be
+ * used. A pointer to a &struct ubi_set_prop_req object is expected to be
+ * passed. The object describes which property should be set, and to which value
+ * it should be set.
  */
 
 /*
@@ -101,38 +147,46 @@
 /* Maximum volume name length */
 #define UBI_MAX_VOLUME_NAME 127
 
-/* IOCTL commands of UBI character devices */
+/* ioctl commands of UBI character devices */
 
 #define UBI_IOC_MAGIC 'o'
 
 /* Create an UBI volume */
 #define UBI_IOCMKVOL _IOW(UBI_IOC_MAGIC, 0, struct ubi_mkvol_req)
 /* Remove an UBI volume */
-#define UBI_IOCRMVOL _IOW(UBI_IOC_MAGIC, 1, int32_t)
+#define UBI_IOCRMVOL _IOW(UBI_IOC_MAGIC, 1, __s32)
 /* Re-size an UBI volume */
 #define UBI_IOCRSVOL _IOW(UBI_IOC_MAGIC, 2, struct ubi_rsvol_req)
 /* Re-name volumes */
 #define UBI_IOCRNVOL _IOW(UBI_IOC_MAGIC, 3, struct ubi_rnvol_req)
 
-/* IOCTL commands of the UBI control character device */
+/* ioctl commands of the UBI control character device */
 
 #define UBI_CTRL_IOC_MAGIC 'o'
 
 /* Attach an MTD device */
 #define UBI_IOCATT _IOW(UBI_CTRL_IOC_MAGIC, 64, struct ubi_attach_req)
 /* Detach an MTD device */
-#define UBI_IOCDET _IOW(UBI_CTRL_IOC_MAGIC, 65, int32_t)
+#define UBI_IOCDET _IOW(UBI_CTRL_IOC_MAGIC, 65, __s32)
 
-/* IOCTL commands of UBI volume character devices */
+/* ioctl commands of UBI volume character devices */
 
 #define UBI_VOL_IOC_MAGIC 'O'
 
 /* Start UBI volume update */
-#define UBI_IOCVOLUP _IOW(UBI_VOL_IOC_MAGIC, 0, int64_t)
-/* An eraseblock erasure command, used for debugging, disabled by default */
-#define UBI_IOCEBER _IOW(UBI_VOL_IOC_MAGIC, 1, int32_t)
-/* An atomic eraseblock change command */
-#define UBI_IOCEBCH _IOW(UBI_VOL_IOC_MAGIC, 2, int32_t)
+#define UBI_IOCVOLUP _IOW(UBI_VOL_IOC_MAGIC, 0, __s64)
+/* LEB erasure command, used for debugging, disabled by default */
+#define UBI_IOCEBER _IOW(UBI_VOL_IOC_MAGIC, 1, __s32)
+/* Atomic LEB change command */
+#define UBI_IOCEBCH _IOW(UBI_VOL_IOC_MAGIC, 2, __s32)
+/* Map LEB command */
+#define UBI_IOCEBMAP _IOW(UBI_VOL_IOC_MAGIC, 3, struct ubi_map_req)
+/* Unmap LEB command */
+#define UBI_IOCEBUNMAP _IOW(UBI_VOL_IOC_MAGIC, 4, __s32)
+/* Check if LEB is mapped command */
+#define UBI_IOCEBISMAP _IOR(UBI_VOL_IOC_MAGIC, 5, __s32)
+/* Set an UBI volume property */
+#define UBI_IOCSETPROP _IOW(UBI_VOL_IOC_MAGIC, 6, struct ubi_set_prop_req)
 
 /* Maximum MTD device name length supported by UBI */
 #define MAX_UBI_MTD_NAME_LEN 127
@@ -168,6 +222,16 @@ enum {
 	UBI_STATIC_VOLUME  = 4,
 };
 
+/*
+ * UBI set property ioctl constants
+ *
+ * @UBI_PROP_DIRECT_WRITE: allow / disallow user to directly write and
+ *                         erase individual eraseblocks on dynamic volumes
+ */
+enum {
+       UBI_PROP_DIRECT_WRITE = 1,
+};
+
 /**
  * struct ubi_attach_req - attach MTD device request.
  * @ubi_num: UBI device number to create
@@ -198,10 +262,10 @@ enum {
  * sub-page of the first page and add needed padding.
  */
 struct ubi_attach_req {
-	int32_t ubi_num;
-	int32_t mtd_num;
-	int32_t vid_hdr_offset;
-	int8_t padding[12];
+	__s32 ubi_num;
+	__s32 mtd_num;
+	__s32 vid_hdr_offset;
+	__s8 padding[12];
 };
 
 /**
@@ -236,13 +300,13 @@ struct ubi_attach_req {
  * BLOBs, without caring about how to properly align them.
  */
 struct ubi_mkvol_req {
-	int32_t vol_id;
-	int32_t alignment;
-	int64_t bytes;
-	int8_t vol_type;
-	int8_t padding1;
-	int16_t name_len;
-	int8_t padding2[4];
+	__s32 vol_id;
+	__s32 alignment;
+	__s64 bytes;
+	__s8 vol_type;
+	__s8 padding1;
+	__s16 name_len;
+	__s8 padding2[4];
 	char name[UBI_MAX_VOLUME_NAME + 1];
 } __attribute__ ((packed));
 
@@ -258,8 +322,8 @@ struct ubi_mkvol_req {
  * zero number of bytes).
  */
 struct ubi_rsvol_req {
-	int64_t bytes;
-	int32_t vol_id;
+	__s64 bytes;
+	__s32 vol_id;
 } __attribute__ ((packed));
 
 /**
@@ -294,29 +358,55 @@ struct ubi_rsvol_req {
  * re-name request.
  */
 struct ubi_rnvol_req {
-	int32_t count;
-	int8_t padding1[12];
+	__s32 count;
+	__s8 padding1[12];
 	struct {
-		int32_t vol_id;
-		int16_t name_len;
-		int8_t  padding2[2];
+		__s32 vol_id;
+		__s16 name_len;
+		__s8  padding2[2];
 		char    name[UBI_MAX_VOLUME_NAME + 1];
 	} ents[UBI_MAX_RNVOL];
 } __attribute__ ((packed));
 
 /**
- * struct ubi_leb_change_req - a data structure used in atomic logical
- *                             eraseblock change requests.
+ * struct ubi_leb_change_req - a data structure used in atomic LEB change
+ *                             requests.
  * @lnum: logical eraseblock number to change
  * @bytes: how many bytes will be written to the logical eraseblock
  * @dtype: data type (%UBI_LONGTERM, %UBI_SHORTTERM, %UBI_UNKNOWN)
  * @padding: reserved for future, not used, has to be zeroed
  */
 struct ubi_leb_change_req {
-	int32_t lnum;
-	int32_t bytes;
-	int8_t  dtype;
-	int8_t  padding[7];
+	__s32 lnum;
+	__s32 bytes;
+	__s8  dtype;
+	__s8  padding[7];
 } __attribute__ ((packed));
+
+/**
+ * struct ubi_map_req - a data structure used in map LEB requests.
+ * @lnum: logical eraseblock number to unmap
+ * @dtype: data type (%UBI_LONGTERM, %UBI_SHORTTERM, %UBI_UNKNOWN)
+ * @padding: reserved for future, not used, has to be zeroed
+ */
+struct ubi_map_req {
+	__s32 lnum;
+	__s8  dtype;
+	__s8  padding[3];
+} __attribute__ ((packed));
+
+
+/**
+ * struct ubi_set_prop_req - a data structure used to set an ubi volume
+ *                           property.
+ * @property: property to set (%UBI_PROP_DIRECT_WRITE)
+ * @padding: reserved for future, not used, has to be zeroed
+ * @value: value to set
+ */
+struct ubi_set_prop_req {
+       __u8  property;
+       __u8  padding[7];
+       __u64 value;
+}  __attribute__ ((packed));
 
 #endif /* __UBI_USER_H__ */

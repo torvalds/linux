@@ -841,7 +841,7 @@ int i2c_attach_client(struct i2c_client *client)
 
 	if (client->driver && !is_newstyle_driver(client->driver)) {
 		client->dev.release = i2c_client_release;
-		client->dev.uevent_suppress = 1;
+		dev_set_uevent_suppress(&client->dev, 1);
 	} else
 		client->dev.release = i2c_client_dev_release;
 
@@ -1831,7 +1831,8 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 	case I2C_SMBUS_QUICK:
 		msg[0].len = 0;
 		/* Special case: The read/write field is used as data */
-		msg[0].flags = flags | (read_write==I2C_SMBUS_READ)?I2C_M_RD:0;
+		msg[0].flags = flags | (read_write == I2C_SMBUS_READ ?
+					I2C_M_RD : 0);
 		num = 1;
 		break;
 	case I2C_SMBUS_BYTE:

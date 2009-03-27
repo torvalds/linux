@@ -224,9 +224,23 @@ static int __init ram_console_init(struct ram_console_buffer *buffer,
 	ram_console_buffer_size =
 		buffer_size - sizeof(struct ram_console_buffer);
 
+	if (ram_console_buffer_size > buffer_size) {
+		pr_err("ram_console: buffer %p, invalid size %d, datasize %d\n",
+		       buffer, buffer_size, ram_console_buffer_size);
+		return 0;
+	}
+
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_ERROR_CORRECTION
 	ram_console_buffer_size -= (DIV_ROUND_UP(ram_console_buffer_size,
 						ECC_BLOCK_SIZE) + 1) * ECC_SIZE;
+
+	if (ram_console_buffer_size > buffer_size) {
+		pr_err("ram_console: buffer %p, invalid size %d, "
+		       "non-ecc datasize %d\n",
+		       buffer, buffer_size, ram_console_buffer_size);
+		return 0;
+	}
+
 	ram_console_par_buffer = buffer->data + ram_console_buffer_size;
 
 

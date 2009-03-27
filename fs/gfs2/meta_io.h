@@ -40,7 +40,6 @@ static inline void gfs2_buffer_copy_tail(struct buffer_head *to_bh,
 struct inode *gfs2_aspace_get(struct gfs2_sbd *sdp);
 void gfs2_aspace_put(struct inode *aspace);
 
-void gfs2_meta_inval(struct gfs2_glock *gl);
 void gfs2_meta_sync(struct gfs2_glock *gl);
 
 struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno);

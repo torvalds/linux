@@ -210,6 +210,7 @@ struct ocfs2_journal;
 struct ocfs2_slot_info;
 struct ocfs2_recovery_map;
 struct ocfs2_quota_recovery;
+struct ocfs2_dentry_lock;
 struct ocfs2_super
 {
 	struct task_struct *commit_task;
@@ -325,6 +326,11 @@ struct ocfs2_super
 	struct list_head blocked_lock_list;
 	unsigned long blocked_lock_count;
 
+	/* List of dentry locks to release. Anyone can add locks to
+	 * the list, ocfs2_wq processes the list  */
+	struct ocfs2_dentry_lock *dentry_lock_list;
+	struct work_struct dentry_lock_work;
+
 	wait_queue_head_t		osb_mount_event;
 
 	/* Truncate log info */
@@ -335,6 +341,9 @@ struct ocfs2_super
 	struct ocfs2_node_map		osb_recovering_orphan_dirs;
 	unsigned int			*osb_orphan_wipes;
 	wait_queue_head_t		osb_wipe_event;
+
+	/* used to protect metaecc calculation check of xattr. */
+	spinlock_t osb_xattr_lock;
 };
 
 #define OCFS2_SB(sb)	    ((struct ocfs2_super *)(sb)->s_fs_info)

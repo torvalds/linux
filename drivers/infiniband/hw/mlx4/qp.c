@@ -71,17 +71,17 @@ enum {
 };
 
 static const __be32 mlx4_ib_opcode[] = {
-	[IB_WR_SEND]			= __constant_cpu_to_be32(MLX4_OPCODE_SEND),
-	[IB_WR_LSO]			= __constant_cpu_to_be32(MLX4_OPCODE_LSO),
-	[IB_WR_SEND_WITH_IMM]		= __constant_cpu_to_be32(MLX4_OPCODE_SEND_IMM),
-	[IB_WR_RDMA_WRITE]		= __constant_cpu_to_be32(MLX4_OPCODE_RDMA_WRITE),
-	[IB_WR_RDMA_WRITE_WITH_IMM]	= __constant_cpu_to_be32(MLX4_OPCODE_RDMA_WRITE_IMM),
-	[IB_WR_RDMA_READ]		= __constant_cpu_to_be32(MLX4_OPCODE_RDMA_READ),
-	[IB_WR_ATOMIC_CMP_AND_SWP]	= __constant_cpu_to_be32(MLX4_OPCODE_ATOMIC_CS),
-	[IB_WR_ATOMIC_FETCH_AND_ADD]	= __constant_cpu_to_be32(MLX4_OPCODE_ATOMIC_FA),
-	[IB_WR_SEND_WITH_INV]		= __constant_cpu_to_be32(MLX4_OPCODE_SEND_INVAL),
-	[IB_WR_LOCAL_INV]		= __constant_cpu_to_be32(MLX4_OPCODE_LOCAL_INVAL),
-	[IB_WR_FAST_REG_MR]		= __constant_cpu_to_be32(MLX4_OPCODE_FMR),
+	[IB_WR_SEND]			= cpu_to_be32(MLX4_OPCODE_SEND),
+	[IB_WR_LSO]			= cpu_to_be32(MLX4_OPCODE_LSO),
+	[IB_WR_SEND_WITH_IMM]		= cpu_to_be32(MLX4_OPCODE_SEND_IMM),
+	[IB_WR_RDMA_WRITE]		= cpu_to_be32(MLX4_OPCODE_RDMA_WRITE),
+	[IB_WR_RDMA_WRITE_WITH_IMM]	= cpu_to_be32(MLX4_OPCODE_RDMA_WRITE_IMM),
+	[IB_WR_RDMA_READ]		= cpu_to_be32(MLX4_OPCODE_RDMA_READ),
+	[IB_WR_ATOMIC_CMP_AND_SWP]	= cpu_to_be32(MLX4_OPCODE_ATOMIC_CS),
+	[IB_WR_ATOMIC_FETCH_AND_ADD]	= cpu_to_be32(MLX4_OPCODE_ATOMIC_FA),
+	[IB_WR_SEND_WITH_INV]		= cpu_to_be32(MLX4_OPCODE_SEND_INVAL),
+	[IB_WR_LOCAL_INV]		= cpu_to_be32(MLX4_OPCODE_LOCAL_INVAL),
+	[IB_WR_FAST_REG_MR]		= cpu_to_be32(MLX4_OPCODE_FMR),
 };
 
 static struct mlx4_ib_sqp *to_msqp(struct mlx4_ib_qp *mqp)
@@ -1462,7 +1462,8 @@ static void __set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ib_sge *sg)
 }
 
 static int build_lso_seg(struct mlx4_wqe_lso_seg *wqe, struct ib_send_wr *wr,
-			 struct mlx4_ib_qp *qp, unsigned *lso_seg_len)
+			 struct mlx4_ib_qp *qp, unsigned *lso_seg_len,
+			 __be32 *lso_hdr_sz)
 {
 	unsigned halign = ALIGN(sizeof *wqe + wr->wr.ud.hlen, 16);
 
@@ -1479,12 +1480,8 @@ static int build_lso_seg(struct mlx4_wqe_lso_seg *wqe, struct ib_send_wr *wr,
 
 	memcpy(wqe->header, wr->wr.ud.header, wr->wr.ud.hlen);
 
-	/* make sure LSO header is written before overwriting stamping */
-	wmb();
-
-	wqe->mss_hdr_size = cpu_to_be32((wr->wr.ud.mss - wr->wr.ud.hlen) << 16 |
-					wr->wr.ud.hlen);
-
+	*lso_hdr_sz  = cpu_to_be32((wr->wr.ud.mss - wr->wr.ud.hlen) << 16 |
+				   wr->wr.ud.hlen);
 	*lso_seg_len = halign;
 	return 0;
 }
@@ -1518,6 +1515,9 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int uninitialized_var(stamp);
 	int uninitialized_var(size);
 	unsigned uninitialized_var(seglen);
+	__be32 dummy;
+	__be32 *lso_wqe;
+	__be32 uninitialized_var(lso_hdr_sz);
 	int i;
 
 	spin_lock_irqsave(&qp->sq.lock, flags);
@@ -1525,6 +1525,8 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	ind = qp->sq_next_wqe;
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
+		lso_wqe = &dummy;
+
 		if (mlx4_wq_overflow(&qp->sq, nreq, qp->ibqp.send_cq)) {
 			err = -ENOMEM;
 			*bad_wr = wr;
@@ -1606,11 +1608,12 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
 
 			if (wr->opcode == IB_WR_LSO) {
-				err = build_lso_seg(wqe, wr, qp, &seglen);
+				err = build_lso_seg(wqe, wr, qp, &seglen, &lso_hdr_sz);
 				if (unlikely(err)) {
 					*bad_wr = wr;
 					goto out;
 				}
+				lso_wqe = (__be32 *) wqe;
 				wqe  += seglen;
 				size += seglen / 16;
 			}
@@ -1652,6 +1655,14 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		for (i = wr->num_sge - 1; i >= 0; --i, --dseg)
 			set_data_seg(dseg, wr->sg_list + i);
 
+		/*
+		 * Possibly overwrite stamping in cacheline with LSO
+		 * segment only after making sure all data segments
+		 * are written.
+		 */
+		wmb();
+		*lso_wqe = lso_hdr_sz;
+
 		ctrl->fence_size = (wr->send_flags & IB_SEND_FENCE ?
 				    MLX4_WQE_CTRL_FENCE : 0) | size;
 
@@ -1686,7 +1697,6 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			stamp_send_wqe(qp, stamp, size * 16);
 			ind = pad_wraparound(qp, ind);
 		}
-
 	}
 
 out:

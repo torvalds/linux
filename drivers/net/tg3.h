@@ -1719,6 +1719,12 @@
 
 #define TG3_OTP_DEFAULT			0x286c1640
 
+/* Hardware Selfboot NVRAM layout */
+#define TG3_NVM_HWSB_CFG1		0x00000004
+#define  TG3_NVM_HWSB_CFG1_MAJMSK	0xf8000000
+#define  TG3_NVM_HWSB_CFG1_MAJSFT	27
+#define  TG3_NVM_HWSB_CFG1_MINMSK	0x07c00000
+#define  TG3_NVM_HWSB_CFG1_MINSFT	22
 
 #define TG3_EEPROM_MAGIC		0x669955aa
 #define TG3_EEPROM_MAGIC_FW		0xa5000000
@@ -1737,6 +1743,10 @@
 #define TG3_NVM_DIRENT_SIZE		0xc
 #define TG3_NVM_DIRTYPE_SHIFT		24
 #define TG3_NVM_DIRTYPE_ASFINI		1
+#define TG3_NVM_PTREV_BCVER		0x94
+#define TG3_NVM_BCVER_MAJMSK		0x0000ff00
+#define TG3_NVM_BCVER_MAJSFT		8
+#define TG3_NVM_BCVER_MINMSK		0x000000ff
 
 #define TG3_EEPROM_SB_F1R0_EDH_OFF	0x10
 #define TG3_EEPROM_SB_F1R2_EDH_OFF	0x14
@@ -1967,6 +1977,14 @@
 /* APE shared memory.  Accessible through BAR1 */
 #define TG3_APE_FW_STATUS		0x400c
 #define  APE_FW_STATUS_READY		 0x00000100
+#define TG3_APE_FW_VERSION		0x4018
+#define  APE_FW_VERSION_MAJMSK		 0xff000000
+#define  APE_FW_VERSION_MAJSFT		 24
+#define  APE_FW_VERSION_MINMSK		 0x00ff0000
+#define  APE_FW_VERSION_MINSFT		 16
+#define  APE_FW_VERSION_REVMSK		 0x0000ff00
+#define  APE_FW_VERSION_REVSFT		 8
+#define  APE_FW_VERSION_BLDMSK		 0x000000ff
 #define TG3_APE_HOST_SEG_SIG		0x4200
 #define  APE_HOST_SEG_SIG_MAGIC		 0x484f5354
 #define TG3_APE_HOST_SEG_LEN		0x4204
@@ -2764,6 +2782,7 @@ struct tg3 {
 	struct ethtool_coalesce		coal;
 
 	/* firmware info */
+	const char			*fw_needed;
 	const struct firmware		*fw;
 	u32				fw_len; /* includes BSS */
 };

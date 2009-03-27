@@ -57,6 +57,7 @@
 #include <linux/scatterlist.h>
 #include <linux/io.h>
 #include <linux/async.h>
+#include <linux/log2.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
@@ -163,6 +164,11 @@ MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+
+static bool ata_sstatus_online(u32 sstatus)
+{
+	return (sstatus & 0xf) == 0x3;
+}
 
 /**
  *	ata_link_next - link iteration helper
@@ -1015,18 +1021,6 @@ static const char *sata_spd_string(unsigned int spd)
 	return spd_str[spd - 1];
 }
 
-void ata_dev_disable(struct ata_device *dev)
-{
-	if (ata_dev_enabled(dev)) {
-		if (ata_msg_drv(dev->link->ap))
-			ata_dev_printk(dev, KERN_WARNING, "disabled\n");
-		ata_acpi_on_disable(dev);
-		ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0 |
-					     ATA_DNXFER_QUIET);
-		dev->class++;
-	}
-}
-
 static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 {
 	struct ata_link *link = dev->link;
@@ -1329,14 +1323,16 @@ static u64 ata_id_n_sectors(const u16 *id)
 {
 	if (ata_id_has_lba(id)) {
 		if (ata_id_has_lba48(id))
-			return ata_id_u64(id, 100);
+			return ata_id_u64(id, ATA_ID_LBA_CAPACITY_2);
 		else
-			return ata_id_u32(id, 60);
+			return ata_id_u32(id, ATA_ID_LBA_CAPACITY);
 	} else {
 		if (ata_id_current_chs_valid(id))
-			return ata_id_u32(id, 57);
+			return id[ATA_ID_CUR_CYLS] * id[ATA_ID_CUR_HEADS] *
+			       id[ATA_ID_CUR_SECTORS];
 		else
-			return id[1] * id[3] * id[6];
+			return id[ATA_ID_CYLS] * id[ATA_ID_HEADS] *
+			       id[ATA_ID_SECTORS];
 	}
 }
 
@@ -2239,6 +2235,40 @@ retry:
 	return rc;
 }
 
+static int ata_do_link_spd_horkage(struct ata_device *dev)
+{
+	struct ata_link *plink = ata_dev_phys_link(dev);
+	u32 target, target_limit;
+
+	if (!sata_scr_valid(plink))
+		return 0;
+
+	if (dev->horkage & ATA_HORKAGE_1_5_GBPS)
+		target = 1;
+	else
+		return 0;
+
+	target_limit = (1 << target) - 1;
+
+	/* if already on stricter limit, no need to push further */
+	if (plink->sata_spd_limit <= target_limit)
+		return 0;
+
+	plink->sata_spd_limit = target_limit;
+
+	/* Request another EH round by returning -EAGAIN if link is
+	 * going faster than the target speed.  Forward progress is
+	 * guaranteed by setting sata_spd_limit to target_limit above.
+	 */
+	if (plink->sata_spd > target) {
+		ata_dev_printk(dev, KERN_INFO,
+			       "applying link speed limit horkage to %s\n",
+			       sata_spd_string(target));
+		return -EAGAIN;
+	}
+	return 0;
+}
+
 static inline u8 ata_dev_knobble(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
@@ -2329,6 +2359,10 @@ int ata_dev_configure(struct ata_device *dev)
 		return 0;
 	}
 
+	rc = ata_do_link_spd_horkage(dev);
+	if (rc)
+		return rc;
+
 	/* let ACPI work its magic */
 	rc = ata_acpi_on_devcfg(dev);
 	if (rc)
@@ -2356,6 +2390,7 @@ int ata_dev_configure(struct ata_device *dev)
 	dev->cylinders = 0;
 	dev->heads = 0;
 	dev->sectors = 0;
+	dev->multi_count = 0;
 
 	/*
 	 * common ATA, ATAPI feature tests
@@ -2393,8 +2428,15 @@ int ata_dev_configure(struct ata_device *dev)
 
 		dev->n_sectors = ata_id_n_sectors(id);
 
-		if (dev->id[59] & 0x100)
-			dev->multi_count = dev->id[59] & 0xff;
+		/* get current R/W Multiple count setting */
+		if ((dev->id[47] >> 8) == 0x80 && (dev->id[59] & 0x100)) {
+			unsigned int max = dev->id[47] & 0xff;
+			unsigned int cnt = dev->id[59] & 0xff;
+			/* only recognize/allow powers of two here */
+			if (is_power_of_2(max) && is_power_of_2(cnt))
+				if (cnt <= max)
+					dev->multi_count = cnt;
+		}
 
 		if (ata_id_has_lba(id)) {
 			const char *lba_desc;
@@ -2784,7 +2826,7 @@ int ata_bus_probe(struct ata_port *ap)
 			/* This is the last chance, better to slow
 			 * down than lose it.
 			 */
-			sata_down_spd_limit(&ap->link);
+			sata_down_spd_limit(&ap->link, 0);
 			ata_down_xfermask_limit(dev, ATA_DNXFER_PIO);
 		}
 	}
@@ -2880,10 +2922,16 @@ void ata_port_disable(struct ata_port *ap)
 /**
  *	sata_down_spd_limit - adjust SATA spd limit downward
  *	@link: Link to adjust SATA spd limit for
+ *	@spd_limit: Additional limit
  *
  *	Adjust SATA spd limit of @link downward.  Note that this
  *	function only adjusts the limit.  The change must be applied
  *	using sata_set_spd().
+ *
+ *	If @spd_limit is non-zero, the speed is limited to equal to or
+ *	lower than @spd_limit if such speed is supported.  If
+ *	@spd_limit is slower than any supported speed, only the lowest
+ *	supported speed is allowed.
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -2891,10 +2939,10 @@ void ata_port_disable(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, negative errno on failure
  */
-int sata_down_spd_limit(struct ata_link *link)
+int sata_down_spd_limit(struct ata_link *link, u32 spd_limit)
 {
 	u32 sstatus, spd, mask;
-	int rc, highbit;
+	int rc, bit;
 
 	if (!sata_scr_valid(link))
 		return -EOPNOTSUPP;
@@ -2903,7 +2951,7 @@ int sata_down_spd_limit(struct ata_link *link)
 	 * If not, use cached value in link->sata_spd.
 	 */
 	rc = sata_scr_read(link, SCR_STATUS, &sstatus);
-	if (rc == 0)
+	if (rc == 0 && ata_sstatus_online(sstatus))
 		spd = (sstatus >> 4) & 0xf;
 	else
 		spd = link->sata_spd;
@@ -2913,8 +2961,8 @@ int sata_down_spd_limit(struct ata_link *link)
 		return -EINVAL;
 
 	/* unconditionally mask off the highest bit */
-	highbit = fls(mask) - 1;
-	mask &= ~(1 << highbit);
+	bit = fls(mask) - 1;
+	mask &= ~(1 << bit);
 
 	/* Mask off all speeds higher than or equal to the current
 	 * one.  Force 1.5Gbps if current SPD is not available.
@@ -2927,6 +2975,15 @@ int sata_down_spd_limit(struct ata_link *link)
 	/* were we already at the bottom? */
 	if (!mask)
 		return -EINVAL;
+
+	if (spd_limit) {
+		if (mask & ((1 << spd_limit) - 1))
+			mask &= (1 << spd_limit) - 1;
+		else {
+			bit = ffs(mask) - 1;
+			mask = 1 << bit;
+		}
+	}
 
 	link->sata_spd_limit = mask;
 
@@ -3029,33 +3086,33 @@ int sata_set_spd(struct ata_link *link)
  */
 
 static const struct ata_timing ata_timing[] = {
-/*	{ XFER_PIO_SLOW, 120, 290, 240, 960, 290, 240, 960,   0 }, */
-	{ XFER_PIO_0,     70, 290, 240, 600, 165, 150, 600,   0 },
-	{ XFER_PIO_1,     50, 290,  93, 383, 125, 100, 383,   0 },
-	{ XFER_PIO_2,     30, 290,  40, 330, 100,  90, 240,   0 },
-	{ XFER_PIO_3,     30,  80,  70, 180,  80,  70, 180,   0 },
-	{ XFER_PIO_4,     25,  70,  25, 120,  70,  25, 120,   0 },
-	{ XFER_PIO_5,     15,  65,  25, 100,  65,  25, 100,   0 },
-	{ XFER_PIO_6,     10,  55,  20,  80,  55,  20,  80,   0 },
+/*	{ XFER_PIO_SLOW, 120, 290, 240, 960, 290, 240, 0,  960,   0 }, */
+	{ XFER_PIO_0,     70, 290, 240, 600, 165, 150, 0,  600,   0 },
+	{ XFER_PIO_1,     50, 290,  93, 383, 125, 100, 0,  383,   0 },
+	{ XFER_PIO_2,     30, 290,  40, 330, 100,  90, 0,  240,   0 },
+	{ XFER_PIO_3,     30,  80,  70, 180,  80,  70, 0,  180,   0 },
+	{ XFER_PIO_4,     25,  70,  25, 120,  70,  25, 0,  120,   0 },
+	{ XFER_PIO_5,     15,  65,  25, 100,  65,  25, 0,  100,   0 },
+	{ XFER_PIO_6,     10,  55,  20,  80,  55,  20, 0,   80,   0 },
 
-	{ XFER_SW_DMA_0, 120,   0,   0,   0, 480, 480, 960,   0 },
-	{ XFER_SW_DMA_1,  90,   0,   0,   0, 240, 240, 480,   0 },
-	{ XFER_SW_DMA_2,  60,   0,   0,   0, 120, 120, 240,   0 },
+	{ XFER_SW_DMA_0, 120,   0,   0,   0, 480, 480, 50, 960,   0 },
+	{ XFER_SW_DMA_1,  90,   0,   0,   0, 240, 240, 30, 480,   0 },
+	{ XFER_SW_DMA_2,  60,   0,   0,   0, 120, 120, 20, 240,   0 },
 
-	{ XFER_MW_DMA_0,  60,   0,   0,   0, 215, 215, 480,   0 },
-	{ XFER_MW_DMA_1,  45,   0,   0,   0,  80,  50, 150,   0 },
-	{ XFER_MW_DMA_2,  25,   0,   0,   0,  70,  25, 120,   0 },
-	{ XFER_MW_DMA_3,  25,   0,   0,   0,  65,  25, 100,   0 },
-	{ XFER_MW_DMA_4,  25,   0,   0,   0,  55,  20,  80,   0 },
+	{ XFER_MW_DMA_0,  60,   0,   0,   0, 215, 215, 20, 480,   0 },
+	{ XFER_MW_DMA_1,  45,   0,   0,   0,  80,  50, 5,  150,   0 },
+	{ XFER_MW_DMA_2,  25,   0,   0,   0,  70,  25, 5,  120,   0 },
+	{ XFER_MW_DMA_3,  25,   0,   0,   0,  65,  25, 5,  100,   0 },
+	{ XFER_MW_DMA_4,  25,   0,   0,   0,  55,  20, 5,   80,   0 },
 
-/*	{ XFER_UDMA_SLOW,  0,   0,   0,   0,   0,   0,   0, 150 }, */
-	{ XFER_UDMA_0,     0,   0,   0,   0,   0,   0,   0, 120 },
-	{ XFER_UDMA_1,     0,   0,   0,   0,   0,   0,   0,  80 },
-	{ XFER_UDMA_2,     0,   0,   0,   0,   0,   0,   0,  60 },
-	{ XFER_UDMA_3,     0,   0,   0,   0,   0,   0,   0,  45 },
-	{ XFER_UDMA_4,     0,   0,   0,   0,   0,   0,   0,  30 },
-	{ XFER_UDMA_5,     0,   0,   0,   0,   0,   0,   0,  20 },
-	{ XFER_UDMA_6,     0,   0,   0,   0,   0,   0,   0,  15 },
+/*	{ XFER_UDMA_SLOW,  0,   0,   0,   0,   0,   0, 0,    0, 150 }, */
+	{ XFER_UDMA_0,     0,   0,   0,   0,   0,   0, 0,    0, 120 },
+	{ XFER_UDMA_1,     0,   0,   0,   0,   0,   0, 0,    0,  80 },
+	{ XFER_UDMA_2,     0,   0,   0,   0,   0,   0, 0,    0,  60 },
+	{ XFER_UDMA_3,     0,   0,   0,   0,   0,   0, 0,    0,  45 },
+	{ XFER_UDMA_4,     0,   0,   0,   0,   0,   0, 0,    0,  30 },
+	{ XFER_UDMA_5,     0,   0,   0,   0,   0,   0, 0,    0,  20 },
+	{ XFER_UDMA_6,     0,   0,   0,   0,   0,   0, 0,    0,  15 },
 
 	{ 0xFF }
 };
@@ -3065,14 +3122,15 @@ static const struct ata_timing ata_timing[] = {
 
 static void ata_timing_quantize(const struct ata_timing *t, struct ata_timing *q, int T, int UT)
 {
-	q->setup   = EZ(t->setup   * 1000,  T);
-	q->act8b   = EZ(t->act8b   * 1000,  T);
-	q->rec8b   = EZ(t->rec8b   * 1000,  T);
-	q->cyc8b   = EZ(t->cyc8b   * 1000,  T);
-	q->active  = EZ(t->active  * 1000,  T);
-	q->recover = EZ(t->recover * 1000,  T);
-	q->cycle   = EZ(t->cycle   * 1000,  T);
-	q->udma    = EZ(t->udma    * 1000, UT);
+	q->setup	= EZ(t->setup      * 1000,  T);
+	q->act8b	= EZ(t->act8b      * 1000,  T);
+	q->rec8b	= EZ(t->rec8b      * 1000,  T);
+	q->cyc8b	= EZ(t->cyc8b      * 1000,  T);
+	q->active	= EZ(t->active     * 1000,  T);
+	q->recover	= EZ(t->recover    * 1000,  T);
+	q->dmack_hold	= EZ(t->dmack_hold * 1000,  T);
+	q->cycle	= EZ(t->cycle      * 1000,  T);
+	q->udma		= EZ(t->udma       * 1000, UT);
 }
 
 void ata_timing_merge(const struct ata_timing *a, const struct ata_timing *b,
@@ -3084,6 +3142,7 @@ void ata_timing_merge(const struct ata_timing *a, const struct ata_timing *b,
 	if (what & ATA_TIMING_CYC8B  ) m->cyc8b   = max(a->cyc8b,   b->cyc8b);
 	if (what & ATA_TIMING_ACTIVE ) m->active  = max(a->active,  b->active);
 	if (what & ATA_TIMING_RECOVER) m->recover = max(a->recover, b->recover);
+	if (what & ATA_TIMING_DMACK_HOLD) m->dmack_hold = max(a->dmack_hold, b->dmack_hold);
 	if (what & ATA_TIMING_CYCLE  ) m->cycle   = max(a->cycle,   b->cycle);
 	if (what & ATA_TIMING_UDMA   ) m->udma    = max(a->udma,    b->udma);
 }
@@ -4213,6 +4272,9 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	/* Devices that do not need bridging limits applied */
 	{ "MTRON MSP-SATA*",		NULL,	ATA_HORKAGE_BRIDGE_OK, },
 
+	/* Devices which aren't very happy with higher link speeds */
+	{ "WD My Book",			NULL,	ATA_HORKAGE_1_5_GBPS, },
+
 	/* End Marker */
 	{ }
 };
@@ -4561,7 +4623,7 @@ void ata_sg_clean(struct ata_queued_cmd *qc)
 	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
 
 	if (qc->n_elem)
-		dma_unmap_sg(ap->dev, sg, qc->n_elem, dir);
+		dma_unmap_sg(ap->dev, sg, qc->orig_n_elem, dir);
 
 	qc->flags &= ~ATA_QCFLAG_DMAMAP;
 	qc->sg = NULL;
@@ -4676,7 +4738,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 		return -1;
 
 	DPRINTK("%d sg elements mapped\n", n_elem);
-
+	qc->orig_n_elem = qc->n_elem;
 	qc->n_elem = n_elem;
 	qc->flags |= ATA_QCFLAG_DMAMAP;
 
@@ -4707,8 +4769,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 
 /**
  *	ata_qc_new - Request an available ATA command, for queueing
- *	@ap: Port associated with device @dev
- *	@dev: Device from whom we request an available command structure
+ *	@ap: target port
  *
  *	LOCKING:
  *	None.
@@ -5173,7 +5234,7 @@ bool ata_phys_link_online(struct ata_link *link)
 	u32 sstatus;
 
 	if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0 &&
-	    (sstatus & 0xf) == 0x3)
+	    ata_sstatus_online(sstatus))
 		return true;
 	return false;
 }
@@ -5197,7 +5258,7 @@ bool ata_phys_link_offline(struct ata_link *link)
 	u32 sstatus;
 
 	if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0 &&
-	    (sstatus & 0xf) != 0x3)
+	    !ata_sstatus_online(sstatus))
 		return true;
 	return false;
 }
@@ -5410,8 +5471,8 @@ void ata_dev_init(struct ata_device *dev)
 	dev->horkage = 0;
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	memset((void *)dev + ATA_DEVICE_CLEAR_OFFSET, 0,
-	       sizeof(*dev) - ATA_DEVICE_CLEAR_OFFSET);
+	memset((void *)dev + ATA_DEVICE_CLEAR_BEGIN, 0,
+	       ATA_DEVICE_CLEAR_END - ATA_DEVICE_CLEAR_BEGIN);
 	dev->pio_mask = UINT_MAX;
 	dev->mwdma_mask = UINT_MAX;
 	dev->udma_mask = UINT_MAX;
@@ -6638,7 +6699,6 @@ EXPORT_SYMBOL_GPL(ata_dev_pair);
 EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
 EXPORT_SYMBOL_GPL(ata_wait_register);
-EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_destroy);
@@ -6658,6 +6718,7 @@ EXPORT_SYMBOL_GPL(ata_id_c_string);
 EXPORT_SYMBOL_GPL(ata_do_dev_read_id);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
+EXPORT_SYMBOL_GPL(ata_pio_queue_task);
 EXPORT_SYMBOL_GPL(ata_pio_need_iordy);
 EXPORT_SYMBOL_GPL(ata_timing_find_mode);
 EXPORT_SYMBOL_GPL(ata_timing_compute);

@@ -11,6 +11,7 @@ config USB_MUSB_HDRC
 	depends on (USB || USB_GADGET) && HAVE_CLK
 	depends on !SUPERH
 	select TWL4030_USB if MACH_OMAP_3430SDP
+	select USB_OTG_UTILS
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
 	help
 	  Say Y here if your system has a dual role high speed USB
@@ -19,8 +20,8 @@ config USB_MUSB_HDRC
 	  it's being used with, including the USB peripheral role,
 	  or the USB host role, or both.
 
-	  Texas Instruments parts using this IP include DaVinci 644x,
-	  OMAP 243x, OMAP 343x, and TUSB 6010.
+	  Texas Instruments familiies using this IP include DaVinci
+	  (35x, 644x ...), OMAP 243x, OMAP 3, and TUSB 6010.
 
 	  Analog Devices parts using this IP include Blackfin BF54x,
 	  BF525 and BF527.
@@ -39,7 +40,7 @@ config USB_MUSB_SOC
 	default y if (BF54x && !BF544)
 	default y if (BF52x && !BF522 && !BF523)
 
-comment "DaVinci 644x USB support"
+comment "DaVinci 35x and 644x USB support"
 	depends on USB_MUSB_HDRC && ARCH_DAVINCI
 
 comment "OMAP 243x high speed USB support"
@@ -49,7 +50,7 @@ comment "OMAP 343x high speed USB support"
 	depends on USB_MUSB_HDRC && ARCH_OMAP34XX
 
 comment "Blackfin high speed USB Support"
-	depends on USB_MUSB_HDRC && (BF54x && !BF544) || (BF52x && !BF522 && !BF523)
+	depends on USB_MUSB_HDRC && ((BF54x && !BF544) || (BF52x && !BF522 && !BF523))
 
 config USB_TUSB6010
 	boolean "TUSB 6010 support"

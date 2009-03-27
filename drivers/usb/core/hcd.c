@@ -279,9 +279,9 @@ static const u8 hs_rh_config_descriptor [] = {
  * helper routine for returning string descriptors in UTF-16LE
  * input can actually be ISO-8859-1; ASCII is its 7-bit subset
  */
-static int ascii2utf (char *s, u8 *utf, int utfmax)
+static unsigned ascii2utf(char *s, u8 *utf, int utfmax)
 {
-	int retval;
+	unsigned retval;
 
 	for (retval = 0; *s && utfmax > 1; utfmax -= 2, retval += 2) {
 		*utf++ = *s++;
@@ -304,19 +304,15 @@ static int ascii2utf (char *s, u8 *utf, int utfmax)
  * Produces either a manufacturer, product or serial number string for the
  * virtual root hub device.
  */
-static int rh_string (
-	int		id,
-	struct usb_hcd	*hcd,
-	u8		*data,
-	int		len
-) {
+static unsigned rh_string(int id, struct usb_hcd *hcd, u8 *data, unsigned len)
+{
 	char buf [100];
 
 	// language ids
 	if (id == 0) {
 		buf[0] = 4;    buf[1] = 3;	/* 4 bytes string data */
 		buf[2] = 0x09; buf[3] = 0x04;	/* MSFT-speak for "en-us" */
-		len = min (len, 4);
+		len = min_t(unsigned, len, 4);
 		memcpy (data, buf, len);
 		return len;
 
@@ -332,10 +328,7 @@ static int rh_string (
 	} else if (id == 3) {
 		snprintf (buf, sizeof buf, "%s %s %s", init_utsname()->sysname,
 			init_utsname()->release, hcd->driver->description);
-
-	// unsupported IDs --> "protocol stall"
-	} else
-		return -EPIPE;
+	}
 
 	switch (len) {		/* All cases fall through */
 	default:
@@ -360,9 +353,8 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	u8		tbuf [sizeof (struct usb_hub_descriptor)]
 		__attribute__((aligned(4)));
 	const u8	*bufp = tbuf;
-	int		len = 0;
+	unsigned	len = 0;
 	int		status;
-	int		n;
 	u8		patch_wakeup = 0;
 	u8		patch_protocol = 0;
 
@@ -456,10 +448,11 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 				patch_wakeup = 1;
 			break;
 		case USB_DT_STRING << 8:
-			n = rh_string (wValue & 0xff, hcd, ubuf, wLength);
-			if (n < 0)
+			if ((wValue & 0xff) < 4)
+				urb->actual_length = rh_string(wValue & 0xff,
+						hcd, ubuf, wLength);
+			else /* unsupported IDs --> "protocol stall" */
 				goto error;
-			urb->actual_length = n;
 			break;
 		default:
 			goto error;
@@ -629,7 +622,7 @@ static int rh_queue_status (struct usb_hcd *hcd, struct urb *urb)
 {
 	int		retval;
 	unsigned long	flags;
-	int		len = 1 + (urb->dev->maxchild / 8);
+	unsigned	len = 1 + (urb->dev->maxchild / 8);
 
 	spin_lock_irqsave (&hcd_root_hub_lock, flags);
 	if (hcd->status_urb || urb->transfer_buffer_length < len) {
@@ -901,7 +894,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 
 	mutex_lock(&usb_bus_list_lock);
 
-	usb_dev->ep0.desc.wMaxPacketSize = __constant_cpu_to_le16(64);
+	usb_dev->ep0.desc.wMaxPacketSize = cpu_to_le16(64);
 	retval = usb_get_device_descriptor(usb_dev, USB_DT_DEVICE_SIZE);
 	if (retval != sizeof usb_dev->descriptor) {
 		mutex_unlock(&usb_bus_list_lock);

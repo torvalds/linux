@@ -511,8 +511,11 @@ InstructionTLBMiss:
 	and	r1,r1,r2		/* writable if _RW and _DIRTY */
 	rlwimi	r3,r3,32-1,30,30	/* _PAGE_USER -> PP msb */
 	rlwimi	r3,r3,32-1,31,31	/* _PAGE_USER -> PP lsb */
-	ori	r1,r1,0xe14		/* clear out reserved bits and M */
+	ori	r1,r1,0xe04		/* clear out reserved bits */
 	andc	r1,r3,r1		/* PP = user? (rw&dirty? 2: 3): 0 */
+BEGIN_FTR_SECTION
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
 	mfspr	r3,SPRN_IMISS
 	tlbli	r3
@@ -585,8 +588,11 @@ DataLoadTLBMiss:
 	and	r1,r1,r2		/* writable if _RW and _DIRTY */
 	rlwimi	r3,r3,32-1,30,30	/* _PAGE_USER -> PP msb */
 	rlwimi	r3,r3,32-1,31,31	/* _PAGE_USER -> PP lsb */
-	ori	r1,r1,0xe14		/* clear out reserved bits and M */
+	ori	r1,r1,0xe04		/* clear out reserved bits */
 	andc	r1,r3,r1		/* PP = user? (rw&dirty? 2: 3): 0 */
+BEGIN_FTR_SECTION
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
 	mfspr	r3,SPRN_DMISS
 	tlbld	r3
@@ -653,8 +659,11 @@ DataStoreTLBMiss:
 	stw	r3,0(r2)		/* update PTE (accessed/dirty bits) */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
 	rlwimi	r3,r3,32-1,30,30	/* _PAGE_USER -> PP msb */
-	li	r1,0xe15		/* clear out reserved bits and M */
+	li	r1,0xe05		/* clear out reserved bits & PP lsb */
 	andc	r1,r3,r1		/* PP = user? 2: 0 */
+BEGIN_FTR_SECTION
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
 	mfspr	r3,SPRN_DMISS
 	tlbld	r3

@@ -35,14 +35,18 @@ extern struct smb_hdr *cifs_buf_get(void);
 extern void cifs_buf_release(void *);
 extern struct smb_hdr *cifs_small_buf_get(void);
 extern void cifs_small_buf_release(void *);
-extern int smb_send(struct socket *, struct smb_hdr *,
-			unsigned int /* length */ , struct sockaddr *, bool);
+extern int smb_send(struct TCP_Server_Info *, struct smb_hdr *,
+			unsigned int /* length */);
 extern unsigned int _GetXid(void);
 extern void _FreeXid(unsigned int);
 #define GetXid() (int)_GetXid(); cFYI(1,("CIFS VFS: in %s as Xid: %d with uid: %d",__func__, xid,current_fsuid()));
 #define FreeXid(curr_xid) {_FreeXid(curr_xid); cFYI(1,("CIFS VFS: leaving %s (xid = %d) rc = %d",__func__,curr_xid,(int)rc));}
 extern char *build_path_from_dentry(struct dentry *);
+extern char *cifs_build_path_to_root(struct cifs_sb_info *cifs_sb);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
+extern char *cifs_compose_mount_options(const char *sb_mountdata,
+		const char *fullpath, const struct dfs_info3_param *ref,
+		char **devname);
 /* extern void renew_parental_timestamps(struct dentry *direntry);*/
 extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct smb_hdr * /* input */ ,
@@ -91,6 +95,12 @@ extern u64 cifs_UnixTimeToNT(struct timespec);
 extern __le64 cnvrtDosCifsTm(__u16 date, __u16 time);
 extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
 
+extern int cifs_posix_open(char *full_path, struct inode **pinode,
+			   struct super_block *sb, int mode, int oflags,
+			   int *poplock, __u16 *pnetfid, int xid);
+extern void posix_fill_in_inode(struct inode *tmp_inode,
+				FILE_UNIX_BASIC_INFO *pData, int isNewInode);
+extern struct inode *cifs_new_inode(struct super_block *sb, __u64 *inum);
 extern int cifs_get_inode_info(struct inode **pinode,
 			const unsigned char *search_path,
 			FILE_ALL_INFO *pfile_info,
@@ -275,6 +285,9 @@ extern int CIFSPOSIXCreate(const int xid, struct cifsTconInfo *tcon,
 			__u32 *pOplock, const char *name,
 			const struct nls_table *nls_codepage, int remap);
 extern int CIFSSMBClose(const int xid, struct cifsTconInfo *tcon,
+			const int smb_file_id);
+
+extern int CIFSSMBFlush(const int xid, struct cifsTconInfo *tcon,
 			const int smb_file_id);
 
 extern int CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,

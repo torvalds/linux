@@ -614,9 +614,11 @@ static inline void __mntput(struct vfsmount *mnt)
 	 */
 	for_each_possible_cpu(cpu) {
 		struct mnt_writer *cpu_writer = &per_cpu(mnt_writers, cpu);
-		if (cpu_writer->mnt != mnt)
-			continue;
 		spin_lock(&cpu_writer->lock);
+		if (cpu_writer->mnt != mnt) {
+			spin_unlock(&cpu_writer->lock);
+			continue;
+		}
 		atomic_add(cpu_writer->count, &mnt->__mnt_writers);
 		cpu_writer->count = 0;
 		/*
@@ -778,6 +780,7 @@ static void show_mnt_opts(struct seq_file *m, struct vfsmount *mnt)
 		{ MNT_NOATIME, ",noatime" },
 		{ MNT_NODIRATIME, ",nodiratime" },
 		{ MNT_RELATIME, ",relatime" },
+		{ MNT_STRICTATIME, ",strictatime" },
 		{ 0, NULL }
 	};
 	const struct proc_fs_info *fs_infop;
@@ -1917,6 +1920,9 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	if (data_page)
 		((char *)data_page)[PAGE_SIZE - 1] = 0;
 
+	/* Default to relatime */
+	mnt_flags |= MNT_RELATIME;
+
 	/* Separate the per-mountpoint flags */
 	if (flags & MS_NOSUID)
 		mnt_flags |= MNT_NOSUID;
@@ -1928,13 +1934,14 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 		mnt_flags |= MNT_NOATIME;
 	if (flags & MS_NODIRATIME)
 		mnt_flags |= MNT_NODIRATIME;
-	if (flags & MS_RELATIME)
-		mnt_flags |= MNT_RELATIME;
+	if (flags & MS_STRICTATIME)
+		mnt_flags &= ~(MNT_RELATIME | MNT_NOATIME);
 	if (flags & MS_RDONLY)
 		mnt_flags |= MNT_READONLY;
 
 	flags &= ~(MS_NOSUID | MS_NOEXEC | MS_NODEV | MS_ACTIVE |
-		   MS_NOATIME | MS_NODIRATIME | MS_RELATIME| MS_KERNMOUNT);
+		   MS_NOATIME | MS_NODIRATIME | MS_RELATIME| MS_KERNMOUNT |
+		   MS_STRICTATIME);
 
 	/* ... and get the mountpoint */
 	retval = kern_path(dir_name, LOOKUP_FOLLOW, &path);

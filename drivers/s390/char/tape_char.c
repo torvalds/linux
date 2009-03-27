@@ -24,8 +24,6 @@
 #include "tape_std.h"
 #include "tape_class.h"
 
-#define PRINTK_HEADER "TAPE_CHAR: "
-
 #define TAPECHAR_MAJOR		0	/* get dynamic major */
 
 /*
@@ -101,8 +99,6 @@ tapechar_check_idalbuffer(struct tape_device *device, size_t block_size)
 
 	if (block_size > MAX_BLOCKSIZE) {
 		DBF_EVENT(3, "Invalid blocksize (%zd > %d)\n",
-			block_size, MAX_BLOCKSIZE);
-		PRINT_ERR("Invalid blocksize (%zd> %d)\n",
 			block_size, MAX_BLOCKSIZE);
 		return -EINVAL;
 	}
@@ -485,7 +481,6 @@ tapechar_init (void)
 		return -1;
 
 	tapechar_major = MAJOR(dev);
-	PRINT_INFO("tape gets major %d for character devices\n", MAJOR(dev));
 
 	return 0;
 }
@@ -496,7 +491,5 @@ tapechar_init (void)
 void
 tapechar_exit(void)
 {
-	PRINT_INFO("tape releases major %d for character devices\n",
-		tapechar_major);
 	unregister_chrdev_region(MKDEV(tapechar_major, 0), 256);
 }

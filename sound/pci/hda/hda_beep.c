@@ -138,6 +138,7 @@ void snd_hda_detach_beep_device(struct hda_codec *codec)
 
 		input_unregister_device(beep->dev);
 		kfree(beep);
+		codec->beep = NULL;
 	}
 }
 EXPORT_SYMBOL_HDA(snd_hda_detach_beep_device);

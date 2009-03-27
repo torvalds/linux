@@ -377,13 +377,13 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 
 	/* handle periodic and alarm irqs */
 	if (request_irq(omap_rtc_timer, rtc_irq, IRQF_DISABLED,
-			rtc->dev.bus_id, rtc)) {
+			dev_name(&rtc->dev), rtc)) {
 		pr_debug("%s: RTC timer interrupt IRQ%d already claimed\n",
 			pdev->name, omap_rtc_timer);
 		goto fail0;
 	}
 	if (request_irq(omap_rtc_alarm, rtc_irq, IRQF_DISABLED,
-			rtc->dev.bus_id, rtc)) {
+			dev_name(&rtc->dev), rtc)) {
 		pr_debug("%s: RTC alarm interrupt IRQ%d already claimed\n",
 			pdev->name, omap_rtc_alarm);
 		goto fail1;

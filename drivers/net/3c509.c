@@ -537,6 +537,21 @@ static struct mca_driver el3_mca_driver = {
 static int mca_registered;
 #endif /* CONFIG_MCA */
 
+static const struct net_device_ops netdev_ops = {
+	.ndo_open 		= el3_open,
+	.ndo_stop	 	= el3_close,
+	.ndo_start_xmit 	= el3_start_xmit,
+	.ndo_get_stats 		= el3_get_stats,
+	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_tx_timeout 	= el3_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= el3_poll_controller,
+#endif
+};
+
 static int __devinit el3_common_init(struct net_device *dev)
 {
 	struct el3_private *lp = netdev_priv(dev);
@@ -553,16 +568,8 @@ static int __devinit el3_common_init(struct net_device *dev)
 	}
 
 	/* The EL3-specific entries in the device structure. */
-	dev->open = &el3_open;
-	dev->hard_start_xmit = &el3_start_xmit;
-	dev->stop = &el3_close;
-	dev->get_stats = &el3_get_stats;
-	dev->set_multicast_list = &set_multicast_list;
-	dev->tx_timeout = el3_tx_timeout;
+	dev->netdev_ops = &netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = el3_poll_controller;
-#endif
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 
 	err = register_netdev(dev);
@@ -1475,6 +1482,7 @@ el3_resume(struct device *pdev)
 	spin_lock_irqsave(&lp->lock, flags);
 
 	outw(PowerUp, ioaddr + EL3_CMD);
+	EL3WINDOW(0);
 	el3_up(dev);
 
 	if (netif_running(dev))

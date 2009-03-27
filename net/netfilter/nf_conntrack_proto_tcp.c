@@ -15,6 +15,7 @@
 #include <linux/skbuff.h>
 #include <linux/ipv6.h>
 #include <net/ip6_checksum.h>
+#include <asm/unaligned.h>
 
 #include <net/tcp.h>
 
@@ -25,6 +26,8 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_log.h>
+#include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
+#include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 
 /* Protects ct->proto.tcp */
 static DEFINE_RWLOCK(tcp_lock);
@@ -466,7 +469,7 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 				for (i = 0;
 				     i < (opsize - TCPOLEN_SACK_BASE);
 				     i += TCPOLEN_SACK_PERBLOCK) {
-					tmp = ntohl(*((__be32 *)(ptr+i)+1));
+					tmp = get_unaligned_be32((__be32 *)(ptr+i)+1);
 
 					if (after(tmp, *sack))
 						*sack = tmp;
@@ -859,7 +862,7 @@ static int tcp_packet(struct nf_conn *ct,
 			 */
 			if (nf_ct_kill(ct))
 				return -NF_REPEAT;
-			return -NF_DROP;
+			return NF_DROP;
 		}
 		/* Fall through */
 	case TCP_CONNTRACK_IGNORE:
@@ -892,7 +895,7 @@ static int tcp_packet(struct nf_conn *ct,
 				nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 					  "nf_ct_tcp: killing out of sync session ");
 			nf_ct_kill(ct);
-			return -NF_DROP;
+			return NF_DROP;
 		}
 		ct->proto.tcp.last_index = index;
 		ct->proto.tcp.last_dir = dir;

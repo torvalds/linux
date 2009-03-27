@@ -262,11 +262,11 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 			BOOTMEM_DEFAULT);
 
 	/*
-	 * reserve physical page 0 - it's a special BIOS page on many boxes,
-	 * enabling clean reboots, SMP operation, laptop functions.
+	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
 	 */
-	reserve_bootmem(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET,
-			BOOTMEM_DEFAULT);
+	if (CONFIG_ZERO_PAGE_OFFSET != 0)
+		reserve_bootmem(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET,
+				BOOTMEM_DEFAULT);
 
 	sparse_memory_present_with_active_regions(0);
 
@@ -432,6 +432,7 @@ static const char *cpu_name[] = {
 	[CPU_SH7763]	= "SH7763",	[CPU_SH7770]	= "SH7770",
 	[CPU_SH7780]	= "SH7780",	[CPU_SH7781]	= "SH7781",
 	[CPU_SH7343]	= "SH7343",	[CPU_SH7785]	= "SH7785",
+	[CPU_SH7786]	= "SH7786",
 	[CPU_SH7722]	= "SH7722",	[CPU_SHX3]	= "SH-X3",
 	[CPU_SH5_101]	= "SH5-101",	[CPU_SH5_103]	= "SH5-103",
 	[CPU_MXG]	= "MX-G",	[CPU_SH7723]	= "SH7723",
@@ -448,7 +449,7 @@ EXPORT_SYMBOL(get_cpu_subtype);
 /* Symbolic CPU flags, keep in sync with asm/cpu-features.h */
 static const char *cpu_flags[] = {
 	"none", "fpu", "p2flush", "mmuassoc", "dsp", "perfctr",
-	"ptea", "llsc", "l2", "op32", NULL
+	"ptea", "llsc", "l2", "op32", "pteaex", NULL
 };
 
 static void show_cpuflags(struct seq_file *m, struct sh_cpuinfo *c)

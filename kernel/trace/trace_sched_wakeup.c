@@ -333,6 +333,7 @@ static void stop_wakeup_tracer(struct trace_array *tr)
 
 static int wakeup_tracer_init(struct trace_array *tr)
 {
+	tracing_max_latency = 0;
 	wakeup_trace = tr;
 	start_wakeup_tracer(tr);
 	return 0;

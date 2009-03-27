@@ -320,9 +320,14 @@ static void ocfs2_schedule_blocked_lock(struct ocfs2_super *osb,
 					struct ocfs2_lock_res *lockres);
 static inline void ocfs2_recover_from_dlm_error(struct ocfs2_lock_res *lockres,
 						int convert);
-#define ocfs2_log_dlm_error(_func, _err, _lockres) do {			\
-	mlog(ML_ERROR, "DLM error %d while calling %s on resource %s\n", \
-	     _err, _func, _lockres->l_name);				\
+#define ocfs2_log_dlm_error(_func, _err, _lockres) do {					\
+	if ((_lockres)->l_type != OCFS2_LOCK_TYPE_DENTRY)				\
+		mlog(ML_ERROR, "DLM error %d while calling %s on resource %s\n",	\
+		     _err, _func, _lockres->l_name);					\
+	else										\
+		mlog(ML_ERROR, "DLM error %d while calling %s on resource %.*s%08x\n",	\
+		     _err, _func, OCFS2_DENTRY_LOCK_INO_START - 1, (_lockres)->l_name,	\
+		     (unsigned int)ocfs2_get_dentry_lock_ino(_lockres));		\
 } while (0)
 static int ocfs2_downconvert_thread(void *arg);
 static void ocfs2_downconvert_on_unlock(struct ocfs2_super *osb,
@@ -2860,6 +2865,10 @@ static void ocfs2_unlock_ast(void *opaque, int error)
 	case OCFS2_UNLOCK_CANCEL_CONVERT:
 		mlog(0, "Cancel convert success for %s\n", lockres->l_name);
 		lockres->l_action = OCFS2_AST_INVALID;
+		/* Downconvert thread may have requeued this lock, we
+		 * need to wake it. */
+		if (lockres->l_flags & OCFS2_LOCK_BLOCKED)
+			ocfs2_wake_downconvert_thread(ocfs2_get_lockres_osb(lockres));
 		break;
 	case OCFS2_UNLOCK_DROP_LOCK:
 		lockres->l_level = DLM_LOCK_IV;

@@ -303,8 +303,10 @@ static void snd_mtpav_output_port_write(struct mtpav *mtp_card,
 
 		snd_mtpav_send_byte(mtp_card, 0xf5);
 		snd_mtpav_send_byte(mtp_card, portp->hwport);
-		//snd_printk("new outport: 0x%x\n", (unsigned int) portp->hwport);
-
+		/*
+		snd_printk(KERN_DEBUG "new outport: 0x%x\n",
+			   (unsigned int) portp->hwport);
+		*/
 		if (!(outbyte & 0x80) && portp->running_status)
 			snd_mtpav_send_byte(mtp_card, portp->running_status);
 	}
@@ -540,7 +542,7 @@ static void snd_mtpav_read_bytes(struct mtpav *mcrd)
 
 	u8 sbyt = snd_mtpav_getreg(mcrd, SREG);
 
-	//printk("snd_mtpav_read_bytes() sbyt: 0x%x\n", sbyt);
+	/* printk(KERN_DEBUG "snd_mtpav_read_bytes() sbyt: 0x%x\n", sbyt); */
 
 	if (!(sbyt & SIGS_BYTE))
 		return;
@@ -585,12 +587,12 @@ static irqreturn_t snd_mtpav_irqh(int irq, void *dev_id)
 static int __devinit snd_mtpav_get_ISA(struct mtpav * mcard)
 {
 	if ((mcard->res_port = request_region(port, 3, "MotuMTPAV MIDI")) == NULL) {
-		snd_printk("MTVAP port 0x%lx is busy\n", port);
+		snd_printk(KERN_ERR "MTVAP port 0x%lx is busy\n", port);
 		return -EBUSY;
 	}
 	mcard->port = port;
 	if (request_irq(irq, snd_mtpav_irqh, IRQF_DISABLED, "MOTU MTPAV", mcard)) {
-		snd_printk("MTVAP IRQ %d busy\n", irq);
+		snd_printk(KERN_ERR "MTVAP IRQ %d busy\n", irq);
 		return -EBUSY;
 	}
 	mcard->irq = irq;
@@ -696,9 +698,9 @@ static int __devinit snd_mtpav_probe(struct platform_device *dev)
 	int err;
 	struct mtpav *mtp_card;
 
-	card = snd_card_new(index, id, THIS_MODULE, sizeof(*mtp_card));
-	if (! card)
-		return -ENOMEM;
+	err = snd_card_create(index, id, THIS_MODULE, sizeof(*mtp_card), &card);
+	if (err < 0)
+		return err;
 
 	mtp_card = card->private_data;
 	spin_lock_init(&mtp_card->spinlock);
@@ -706,7 +708,6 @@ static int __devinit snd_mtpav_probe(struct platform_device *dev)
 	mtp_card->card = card;
 	mtp_card->irq = -1;
 	mtp_card->share_irq = 0;
-	mtp_card->inmidiport = 0xffffffff;
 	mtp_card->inmidistate = 0;
 	mtp_card->outmidihwport = 0xffffffff;
 	init_timer(&mtp_card->timer);
@@ -718,6 +719,8 @@ static int __devinit snd_mtpav_probe(struct platform_device *dev)
 	err = snd_mtpav_get_RAWMIDI(mtp_card);
 	if (err < 0)
 		goto __error;
+
+	mtp_card->inmidiport = mtp_card->num_ports + MTPAV_PIDX_BROADCAST;
 
 	err = snd_mtpav_get_ISA(mtp_card);
 	if (err < 0)

@@ -241,6 +241,8 @@ get_rawmidi_substream(struct snd_ice1712 *ice, unsigned int stream)
 				struct snd_rawmidi_substream, list);
 }
 
+static void enable_midi_irq(struct snd_ice1712 *ice, u8 flag, int enable);
+
 static void vt1724_midi_write(struct snd_ice1712 *ice)
 {
 	struct snd_rawmidi_substream *s;
@@ -254,6 +256,11 @@ static void vt1724_midi_write(struct snd_ice1712 *ice)
 		for (i = 0; i < count; ++i)
 			outb(buffer[i], ICEREG1724(ice, MPU_DATA));
 	}
+	/* mask irq when all bytes have been transmitted.
+	 * enabled again in output_trigger when the new data comes in.
+	 */
+	enable_midi_irq(ice, VT1724_IRQ_MPU_TX,
+			!snd_rawmidi_transmit_empty(s));
 }
 
 static void vt1724_midi_read(struct snd_ice1712 *ice)
@@ -272,31 +279,34 @@ static void vt1724_midi_read(struct snd_ice1712 *ice)
 	}
 }
 
-static void vt1724_enable_midi_irq(struct snd_rawmidi_substream *substream,
-				   u8 flag, int enable)
+/* call with ice->reg_lock */
+static void enable_midi_irq(struct snd_ice1712 *ice, u8 flag, int enable)
 {
-	struct snd_ice1712 *ice = substream->rmidi->private_data;
-	u8 mask;
-
-	spin_lock_irq(&ice->reg_lock);
-	mask = inb(ICEREG1724(ice, IRQMASK));
+	u8 mask = inb(ICEREG1724(ice, IRQMASK));
 	if (enable)
 		mask &= ~flag;
 	else
 		mask |= flag;
 	outb(mask, ICEREG1724(ice, IRQMASK));
+}
+
+static void vt1724_enable_midi_irq(struct snd_rawmidi_substream *substream,
+				   u8 flag, int enable)
+{
+	struct snd_ice1712 *ice = substream->rmidi->private_data;
+
+	spin_lock_irq(&ice->reg_lock);
+	enable_midi_irq(ice, flag, enable);
 	spin_unlock_irq(&ice->reg_lock);
 }
 
 static int vt1724_midi_output_open(struct snd_rawmidi_substream *s)
 {
-	vt1724_enable_midi_irq(s, VT1724_IRQ_MPU_TX, 1);
 	return 0;
 }
 
 static int vt1724_midi_output_close(struct snd_rawmidi_substream *s)
 {
-	vt1724_enable_midi_irq(s, VT1724_IRQ_MPU_TX, 0);
 	return 0;
 }
 
@@ -311,6 +321,7 @@ static void vt1724_midi_output_trigger(struct snd_rawmidi_substream *s, int up)
 		vt1724_midi_write(ice);
 	} else {
 		ice->midi_output = 0;
+		enable_midi_irq(ice, VT1724_IRQ_MPU_TX, 0);
 	}
 	spin_unlock_irqrestore(&ice->reg_lock, flags);
 }
@@ -320,6 +331,7 @@ static void vt1724_midi_output_drain(struct snd_rawmidi_substream *s)
 	struct snd_ice1712 *ice = s->rmidi->private_data;
 	unsigned long timeout;
 
+	vt1724_enable_midi_irq(s, VT1724_IRQ_MPU_TX, 0);
 	/* 32 bytes should be transmitted in less than about 12 ms */
 	timeout = jiffies + msecs_to_jiffies(15);
 	do {
@@ -389,24 +401,24 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
 		status &= status_mask;
 		if (status == 0)
 			break;
+		spin_lock(&ice->reg_lock);
 		if (++timeout > 10) {
 			status = inb(ICEREG1724(ice, IRQSTAT));
 			printk(KERN_ERR "ice1724: Too long irq loop, "
 			       "status = 0x%x\n", status);
 			if (status & VT1724_IRQ_MPU_TX) {
 				printk(KERN_ERR "ice1724: Disabling MPU_TX\n");
-				outb(inb(ICEREG1724(ice, IRQMASK)) |
-				     VT1724_IRQ_MPU_TX,
-				     ICEREG1724(ice, IRQMASK));
+				enable_midi_irq(ice, VT1724_IRQ_MPU_TX, 0);
 			}
+			spin_unlock(&ice->reg_lock);
 			break;
 		}
 		handled = 1;
 		if (status & VT1724_IRQ_MPU_TX) {
-			spin_lock(&ice->reg_lock);
 			if (ice->midi_output)
 				vt1724_midi_write(ice);
-			spin_unlock(&ice->reg_lock);
+			else
+				enable_midi_irq(ice, VT1724_IRQ_MPU_TX, 0);
 			/* Due to mysterical reasons, MPU_TX is always
 			 * generated (and can't be cleared) when a PCM
 			 * playback is going.  So let's ignore at the
@@ -415,15 +427,14 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
 			status_mask &= ~VT1724_IRQ_MPU_TX;
 		}
 		if (status & VT1724_IRQ_MPU_RX) {
-			spin_lock(&ice->reg_lock);
 			if (ice->midi_input)
 				vt1724_midi_read(ice);
 			else
 				vt1724_midi_clear_rx(ice);
-			spin_unlock(&ice->reg_lock);
 		}
 		/* ack MPU irq */
 		outb(status, ICEREG1724(ice, IRQSTAT));
+		spin_unlock(&ice->reg_lock);
 		if (status & VT1724_IRQ_MTPCM) {
 			/*
 			 * Multi-track PCM
@@ -745,7 +756,14 @@ static int snd_vt1724_playback_pro_prepare(struct snd_pcm_substream *substream)
 
 	spin_unlock_irq(&ice->reg_lock);
 
-	/* printk("pro prepare: ch = %d, addr = 0x%x, buffer = 0x%x, period = 0x%x\n", substream->runtime->channels, (unsigned int)substream->runtime->dma_addr, snd_pcm_lib_buffer_bytes(substream), snd_pcm_lib_period_bytes(substream)); */
+	/*
+	printk(KERN_DEBUG "pro prepare: ch = %d, addr = 0x%x, "
+	       "buffer = 0x%x, period = 0x%x\n",
+	       substream->runtime->channels,
+	       (unsigned int)substream->runtime->dma_addr,
+	       snd_pcm_lib_buffer_bytes(substream),
+	       snd_pcm_lib_period_bytes(substream));
+	*/
 	return 0;
 }
 
@@ -2122,7 +2140,9 @@ unsigned char snd_vt1724_read_i2c(struct snd_ice1712 *ice,
 	wait_i2c_busy(ice);
 	val = inb(ICEREG1724(ice, I2C_DATA));
 	mutex_unlock(&ice->i2c_mutex);
-	/* printk("i2c_read: [0x%x,0x%x] = 0x%x\n", dev, addr, val); */
+	/*
+	printk(KERN_DEBUG "i2c_read: [0x%x,0x%x] = 0x%x\n", dev, addr, val);
+	*/
 	return val;
 }
 
@@ -2131,7 +2151,9 @@ void snd_vt1724_write_i2c(struct snd_ice1712 *ice,
 {
 	mutex_lock(&ice->i2c_mutex);
 	wait_i2c_busy(ice);
-	/* printk("i2c_write: [0x%x,0x%x] = 0x%x\n", dev, addr, data); */
+	/*
+	printk(KERN_DEBUG "i2c_write: [0x%x,0x%x] = 0x%x\n", dev, addr, data);
+	*/
 	outb(addr, ICEREG1724(ice, I2C_BYTE_ADDR));
 	outb(data, ICEREG1724(ice, I2C_DATA));
 	outb(dev | VT1724_I2C_WRITE, ICEREG1724(ice, I2C_DEV_ADDR));
@@ -2456,9 +2478,9 @@ static int __devinit snd_vt1724_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	strcpy(card->driver, "ICE1724");
 	strcpy(card->shortname, "ICEnsemble ICE1724");

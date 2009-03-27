@@ -234,8 +234,6 @@ struct ep_pqueue {
 /*
  * Configuration options available inside /proc/sys/fs/epoll/
  */
-/* Maximum number of epoll devices, per user */
-static int max_user_instances __read_mostly;
 /* Maximum number of epoll watched descriptors, per user */
 static int max_user_watches __read_mostly;
 
@@ -260,14 +258,6 @@ static struct kmem_cache *pwq_cache __read_mostly;
 static int zero;
 
 ctl_table epoll_table[] = {
-	{
-		.procname	= "max_user_instances",
-		.data		= &max_user_instances,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.extra1		= &zero,
-	},
 	{
 		.procname	= "max_user_watches",
 		.data		= &max_user_watches,
@@ -427,10 +417,10 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 	ep_unregister_pollwait(ep, epi);
 
 	/* Remove the current item from the list of epoll hooks */
-	spin_lock(&file->f_ep_lock);
+	spin_lock(&file->f_lock);
 	if (ep_is_linked(&epi->fllink))
 		list_del_init(&epi->fllink);
-	spin_unlock(&file->f_ep_lock);
+	spin_unlock(&file->f_lock);
 
 	rb_erase(&epi->rbn, &ep->rbr);
 
@@ -491,7 +481,6 @@ static void ep_free(struct eventpoll *ep)
 
 	mutex_unlock(&epmutex);
 	mutex_destroy(&ep->mtx);
-	atomic_dec(&ep->user->epoll_devs);
 	free_uid(ep->user);
 	kfree(ep);
 }
@@ -549,7 +538,7 @@ void eventpoll_release_file(struct file *file)
 	struct epitem *epi;
 
 	/*
-	 * We don't want to get "file->f_ep_lock" because it is not
+	 * We don't want to get "file->f_lock" because it is not
 	 * necessary. It is not necessary because we're in the "struct file"
 	 * cleanup path, and this means that noone is using this file anymore.
 	 * So, for example, epoll_ctl() cannot hit here sicne if we reach this
@@ -558,6 +547,8 @@ void eventpoll_release_file(struct file *file)
 	 * will correctly serialize the operation. We do need to acquire
 	 * "ep->mtx" after "epmutex" because ep_remove() requires it when called
 	 * from anywhere but ep_free().
+	 *
+	 * Besides, ep_remove() acquires the lock, so we can't hold it here.
 	 */
 	mutex_lock(&epmutex);
 
@@ -581,10 +572,6 @@ static int ep_alloc(struct eventpoll **pep)
 	struct eventpoll *ep;
 
 	user = get_current_user();
-	error = -EMFILE;
-	if (unlikely(atomic_read(&user->epoll_devs) >=
-			max_user_instances))
-		goto free_uid;
 	error = -ENOMEM;
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (unlikely(!ep))
@@ -800,9 +787,9 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 		goto error_unregister;
 
 	/* Add the current item to the list of active epoll hook for this file */
-	spin_lock(&tfile->f_ep_lock);
+	spin_lock(&tfile->f_lock);
 	list_add_tail(&epi->fllink, &tfile->f_ep_links);
-	spin_unlock(&tfile->f_ep_lock);
+	spin_unlock(&tfile->f_lock);
 
 	/*
 	 * Add the current item to the RB tree. All RB tree operations are
@@ -1141,7 +1128,6 @@ SYSCALL_DEFINE1(epoll_create1, int, flags)
 			      flags & O_CLOEXEC);
 	if (fd < 0)
 		ep_free(ep);
-	atomic_inc(&ep->user->epoll_devs);
 
 error_return:
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
@@ -1366,8 +1352,10 @@ static int __init eventpoll_init(void)
 	struct sysinfo si;
 
 	si_meminfo(&si);
-	max_user_instances = 128;
-	max_user_watches = (((si.totalram - si.totalhigh) / 32) << PAGE_SHIFT) /
+	/*
+	 * Allows top 4% of lomem to be allocated for epoll watches (per user).
+	 */
+	max_user_watches = (((si.totalram - si.totalhigh) / 25) << PAGE_SHIFT) /
 		EP_ITEM_COST;
 
 	/* Initialize the structure used to perform safe poll wait head wake ups */

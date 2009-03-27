@@ -17,18 +17,21 @@ obj-$(CONFIG_BONDING) += bonding/
 obj-$(CONFIG_ATL1) += atlx/
 obj-$(CONFIG_ATL2) += atlx/
 obj-$(CONFIG_ATL1E) += atl1e/
+obj-$(CONFIG_ATL1C) += atl1c/
 obj-$(CONFIG_GIANFAR) += gianfar_driver.o
 obj-$(CONFIG_TEHUTI) += tehuti.o
 obj-$(CONFIG_ENIC) += enic/
 obj-$(CONFIG_JME) += jme.o
+obj-$(CONFIG_BE2NET) += benet/
 
 gianfar_driver-objs := gianfar.o \
 		gianfar_ethtool.o \
-		gianfar_mii.o \
 		gianfar_sysfs.o
 
 obj-$(CONFIG_UCC_GETH) += ucc_geth_driver.o
-ucc_geth_driver-objs := ucc_geth.o ucc_geth_mii.o ucc_geth_ethtool.o
+ucc_geth_driver-objs := ucc_geth.o ucc_geth_ethtool.o
+
+obj-$(CONFIG_FSL_PQ_MDIO) += fsl_pq_mdio.o
 
 #
 # link order important here
@@ -230,6 +233,7 @@ obj-$(CONFIG_ENC28J60) += enc28j60.o
 
 obj-$(CONFIG_XTENSA_XT2000_SONIC) += xtsonic.o
 
+obj-$(CONFIG_DNET) += dnet.o
 obj-$(CONFIG_MACB) += macb.o
 
 obj-$(CONFIG_ARM) += arm/

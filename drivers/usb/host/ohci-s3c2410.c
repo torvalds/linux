@@ -21,9 +21,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-
-#include <mach/hardware.h>
-#include <mach/usb-control.h>
+#include <plat/usb-control.h>
 
 #define valid_port(idx) ((idx) == 1 || (idx) == 2)
 
@@ -372,7 +370,7 @@ static int usb_hcd_s3c2410_probe (const struct hc_driver *driver,
 
 	usb_clk = clk_get(&dev->dev, "usb-bus-host");
 	if (IS_ERR(usb_clk)) {
-		dev_err(&dev->dev, "cannot get usb-host clock\n");
+		dev_err(&dev->dev, "cannot get usb-bus-host clock\n");
 		retval = -ENOENT;
 		goto err_clk;
 	}

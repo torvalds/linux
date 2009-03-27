@@ -40,7 +40,7 @@ asmlinkage int sys_sigaction(int, const struct old_sigaction __user *,
 			     struct old_sigaction __user *);
 asmlinkage int sys_sigaltstack(unsigned long);
 asmlinkage unsigned long sys_sigreturn(unsigned long);
-asmlinkage int sys_rt_sigreturn(struct pt_regs);
+asmlinkage int sys_rt_sigreturn(unsigned long);
 
 /* kernel/ioport.c */
 asmlinkage long sys_iopl(unsigned long);
@@ -74,6 +74,7 @@ asmlinkage long sys_vfork(struct pt_regs *);
 asmlinkage long sys_execve(char __user *, char __user * __user *,
 			   char __user * __user *,
 			   struct pt_regs *);
+long sys_arch_prctl(int, unsigned long);
 
 /* kernel/ioport.c */
 asmlinkage long sys_iopl(unsigned int, struct pt_regs *);

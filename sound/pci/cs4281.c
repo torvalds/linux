@@ -834,7 +834,11 @@ static snd_pcm_uframes_t snd_cs4281_pointer(struct snd_pcm_substream *substream)
 	struct cs4281_dma *dma = runtime->private_data;
 	struct cs4281 *chip = snd_pcm_substream_chip(substream);
 
-	// printk("DCC = 0x%x, buffer_size = 0x%x, jiffies = %li\n", snd_cs4281_peekBA0(chip, dma->regDCC), runtime->buffer_size, jiffies);
+	/*
+	printk(KERN_DEBUG "DCC = 0x%x, buffer_size = 0x%x, jiffies = %li\n",
+	       snd_cs4281_peekBA0(chip, dma->regDCC), runtime->buffer_size,
+	       jiffies);
+	*/
 	return runtime->buffer_size -
 	       snd_cs4281_peekBA0(chip, dma->regDCC) - 1;
 }
@@ -1925,9 +1929,9 @@ static int __devinit snd_cs4281_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	if ((err = snd_cs4281_create(card, pci, &chip, dual_codec[dev])) < 0) {
 		snd_card_free(card);

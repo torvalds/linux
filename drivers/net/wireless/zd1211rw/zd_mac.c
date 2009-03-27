@@ -170,10 +170,10 @@ int zd_mac_init_hw(struct ieee80211_hw *hw)
 		goto disable_int;
 
 	r = zd_reg2alpha2(mac->regdomain, alpha2);
-	if (!r)
-		regulatory_hint(hw->wiphy, alpha2);
+	if (r)
+		goto disable_int;
 
-	r = 0;
+	r = regulatory_hint(hw->wiphy, alpha2);
 disable_int:
 	zd_chip_disable_int(chip);
 out:
@@ -575,13 +575,17 @@ static int zd_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	r = fill_ctrlset(mac, skb);
 	if (r)
-		return r;
+		goto fail;
 
 	info->rate_driver_data[0] = hw;
 
 	r = zd_usb_tx(&mac->chip.usb, skb);
 	if (r)
-		return r;
+		goto fail;
+	return 0;
+
+fail:
+	dev_kfree_skb(skb);
 	return 0;
 }
 
@@ -768,13 +772,23 @@ static int zd_op_config_interface(struct ieee80211_hw *hw,
 			if (!beacon)
 				return -ENOMEM;
 			r = zd_mac_config_beacon(hw, beacon);
-			if (r < 0)
-				return r;
-			r = zd_set_beacon_interval(&mac->chip, BCN_MODE_IBSS |
-					hw->conf.beacon_int);
-			if (r < 0)
-				return r;
 			kfree_skb(beacon);
+
+			if (r < 0)
+				return r;
+		}
+
+		if (conf->changed & IEEE80211_IFCC_BEACON_ENABLED) {
+			u32 interval;
+
+			if (conf->enable_beacon)
+				interval = BCN_MODE_IBSS | hw->conf.beacon_int;
+			else
+				interval = 0;
+
+			r = zd_set_beacon_interval(&mac->chip, interval);
+			if (r < 0)
+				return r;
 		}
 	} else
 		associated = is_valid_ether_addr(conf->bssid);
@@ -793,10 +807,9 @@ static void zd_process_intr(struct work_struct *work)
 	struct zd_mac *mac = container_of(work, struct zd_mac, process_intr);
 
 	int_status = le16_to_cpu(*(__le16 *)(mac->intr_buffer+4));
-	if (int_status & INT_CFG_NEXT_BCN) {
-		if (net_ratelimit())
-			dev_dbg_f(zd_mac_dev(mac), "INT_CFG_NEXT_BCN\n");
-	} else
+	if (int_status & INT_CFG_NEXT_BCN)
+		dev_dbg_f_limit(zd_mac_dev(mac), "INT_CFG_NEXT_BCN\n");
+	else
 		dev_dbg_f(zd_mac_dev(mac), "Unsupported interrupt\n");
 
 	zd_chip_enable_hwint(&mac->chip);
@@ -926,6 +939,12 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 }
 
+static u64 zd_op_get_tsf(struct ieee80211_hw *hw)
+{
+	struct zd_mac *mac = zd_hw_mac(hw);
+	return zd_chip_get_tsf(&mac->chip);
+}
+
 static const struct ieee80211_ops zd_ops = {
 	.tx			= zd_op_tx,
 	.start			= zd_op_start,
@@ -936,6 +955,7 @@ static const struct ieee80211_ops zd_ops = {
 	.config_interface	= zd_op_config_interface,
 	.configure_filter	= zd_op_configure_filter,
 	.bss_info_changed	= zd_op_bss_info_changed,
+	.get_tsf		= zd_op_get_tsf,
 };
 
 struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
@@ -967,7 +987,7 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &mac->band;
 
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		    IEEE80211_HW_SIGNAL_DB;
+		    IEEE80211_HW_SIGNAL_UNSPEC;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_MESH_POINT) |

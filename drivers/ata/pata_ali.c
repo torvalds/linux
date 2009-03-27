@@ -41,7 +41,7 @@ static int ali_atapi_dma = 0;
 module_param_named(atapi_dma, ali_atapi_dma, int, 0644);
 MODULE_PARM_DESC(atapi_dma, "Enable ATAPI DMA (0=disable, 1=enable)");
 
-static struct pci_dev *isa_bridge;
+static struct pci_dev *ali_isa_bridge;
 
 /*
  *	Cable special cases
@@ -346,13 +346,13 @@ static void ali_c2_c3_postreset(struct ata_link *link, unsigned int *classes)
 	int port_bit = 4 << link->ap->port_no;
 
 	/* If our bridge is an ALI 1533 then do the extra work */
-	if (isa_bridge) {
+	if (ali_isa_bridge) {
 		/* Tristate and re-enable the bus signals */
-		pci_read_config_byte(isa_bridge, 0x58, &r);
+		pci_read_config_byte(ali_isa_bridge, 0x58, &r);
 		r &= ~port_bit;
-		pci_write_config_byte(isa_bridge, 0x58, r);
+		pci_write_config_byte(ali_isa_bridge, 0x58, r);
 		r |= port_bit;
-		pci_write_config_byte(isa_bridge, 0x58, r);
+		pci_write_config_byte(ali_isa_bridge, 0x58, r);
 	}
 	ata_sff_postreset(link, classes);
 }
@@ -467,14 +467,14 @@ static void ali_init_chipset(struct pci_dev *pdev)
 		pci_write_config_byte(pdev, 0x53, tmp);
 	}
 	north = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
-	if (north && north->vendor == PCI_VENDOR_ID_AL && isa_bridge) {
+	if (north && north->vendor == PCI_VENDOR_ID_AL && ali_isa_bridge) {
 		/* Configure the ALi bridge logic. For non ALi rely on BIOS.
 		   Set the south bridge enable bit */
-		pci_read_config_byte(isa_bridge, 0x79, &tmp);
+		pci_read_config_byte(ali_isa_bridge, 0x79, &tmp);
 		if (pdev->revision == 0xC2)
-			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x04);
+			pci_write_config_byte(ali_isa_bridge, 0x79, tmp | 0x04);
 		else if (pdev->revision > 0xC2 && pdev->revision < 0xC5)
-			pci_write_config_byte(isa_bridge, 0x79, tmp | 0x02);
+			pci_write_config_byte(ali_isa_bridge, 0x79, tmp | 0x02);
 	}
 	pci_dev_put(north);
 	ata_pci_bmdma_clear_simplex(pdev);
@@ -492,53 +492,53 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info_early = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
+		.pio_mask = ATA_PIO4,
 		.port_ops = &ali_early_port_ops
 	};
 	/* Revision 0x20 added DMA */
 	static const struct ata_port_info info_20 = {
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_LBA48,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.port_ops = &ali_20_port_ops
 	};
 	/* Revision 0x20 with support logic added UDMA */
 	static const struct ata_port_info info_20_udma = {
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_LBA48,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
-		.udma_mask = 0x07,	/* UDMA33 */
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
+		.udma_mask = ATA_UDMA2,
 		.port_ops = &ali_20_port_ops
 	};
 	/* Revision 0xC2 adds UDMA66 */
 	static const struct ata_port_info info_c2 = {
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_LBA48,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA4,
 		.port_ops = &ali_c2_port_ops
 	};
 	/* Revision 0xC3 is UDMA66 for now */
 	static const struct ata_port_info info_c3 = {
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_LBA48,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA4,
 		.port_ops = &ali_c2_port_ops
 	};
 	/* Revision 0xC4 is UDMA100 */
 	static const struct ata_port_info info_c4 = {
 		.flags = ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_LBA48,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA5,
 		.port_ops = &ali_c4_port_ops
 	};
 	/* Revision 0xC5 is UDMA133 with LBA48 DMA */
 	static const struct ata_port_info info_c5 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA6,
 		.port_ops = &ali_c5_port_ops
 	};
@@ -571,9 +571,9 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ali_init_chipset(pdev);
 
-	if (isa_bridge && pdev->revision >= 0x20 && pdev->revision < 0xC2) {
+	if (ali_isa_bridge && pdev->revision >= 0x20 && pdev->revision < 0xC2) {
 		/* Are we paired with a UDMA capable chip */
-		pci_read_config_byte(isa_bridge, 0x5E, &tmp);
+		pci_read_config_byte(ali_isa_bridge, 0x5E, &tmp);
 		if ((tmp & 0x1E) == 0x12)
 	        	ppi[0] = &info_20_udma;
 	}
@@ -617,11 +617,11 @@ static struct pci_driver ali_pci_driver = {
 static int __init ali_init(void)
 {
 	int ret;
-	isa_bridge = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
+	ali_isa_bridge = pci_get_device(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M1533, NULL);
 
 	ret = pci_register_driver(&ali_pci_driver);
 	if (ret < 0)
-		pci_dev_put(isa_bridge);
+		pci_dev_put(ali_isa_bridge);
 	return ret;
 }
 
@@ -629,7 +629,7 @@ static int __init ali_init(void)
 static void __exit ali_exit(void)
 {
 	pci_unregister_driver(&ali_pci_driver);
-	pci_dev_put(isa_bridge);
+	pci_dev_put(ali_isa_bridge);
 }
 
 

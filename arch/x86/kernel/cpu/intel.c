@@ -4,6 +4,7 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/smp.h>
+#include <linux/sched.h>
 #include <linux/thread_info.h>
 #include <linux/module.h>
 
@@ -29,6 +30,19 @@
 
 static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 {
+	/* Unmask CPUID levels if masked: */
+	if (c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xd)) {
+		u64 misc_enable;
+
+		rdmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
+
+		if (misc_enable & MSR_IA32_MISC_ENABLE_LIMIT_CPUID) {
+			misc_enable &= ~MSR_IA32_MISC_ENABLE_LIMIT_CPUID;
+			wrmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
+			c->cpuid_level = cpuid_eax(0);
+		}
+	}
+
 	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
 		(c->x86 == 0x6 && c->x86_model >= 0x0e))
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
@@ -43,11 +57,16 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 
 	/*
 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states
+	 * with P/T states and does not stop in deep C-states.
+	 *
+	 * It is also reliable across cores and sockets. (but not across
+	 * cabinets - we turn it off in that case explicitly.)
 	 */
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
+		set_cpu_cap(c, X86_FEATURE_TSC_RELIABLE);
+		sched_clock_stable = 1;
 	}
 
 }
@@ -277,6 +296,9 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_PEBS);
 		ds_init_intel(c);
 	}
+
+	if (c->x86 == 6 && c->x86_model == 29 && cpu_has_clflush)
+		set_cpu_cap(c, X86_FEATURE_CLFLUSH_MONITOR);
 
 #ifdef CONFIG_X86_64
 	if (c->x86 == 15)

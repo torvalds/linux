@@ -419,6 +419,18 @@ static int dm9601_set_mac_address(struct net_device *net, void *p)
 	return 0;
 }
 
+static const struct net_device_ops dm9601_netdev_ops = {
+	.ndo_open		= usbnet_open,
+	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl 		= dm9601_ioctl,
+	.ndo_set_multicast_list = dm9601_set_multicast,
+	.ndo_set_mac_address	= dm9601_set_mac_address,
+};
+
 static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret;
@@ -428,9 +440,7 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (ret)
 		goto out;
 
-	dev->net->do_ioctl = dm9601_ioctl;
-	dev->net->set_multicast_list = dm9601_set_multicast;
-	dev->net->set_mac_address = dm9601_set_mac_address;
+	dev->net->netdev_ops = &dm9601_netdev_ops;
 	dev->net->ethtool_ops = &dm9601_ethtool_ops;
 	dev->net->hard_header_len += DM_TX_OVERHEAD;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
@@ -633,6 +643,10 @@ static const struct usb_device_id products[] = {
 	 },
 	{
 	USB_DEVICE(0x0a47, 0x9601),	/* Hirose USB-100 */
+	.driver_info = (unsigned long)&dm9601_info,
+	 },
+	{
+	USB_DEVICE(0x0fe6, 0x8101),	/* DM9601 USB to Fast Ethernet Adapter */
 	.driver_info = (unsigned long)&dm9601_info,
 	 },
 	{},			// END

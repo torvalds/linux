@@ -187,7 +187,7 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 		return -ENODEV;
 
 	ndfc->mtd.name = kasprintf(GFP_KERNEL, "%s.%s",
-				   ndfc->ofdev->dev.bus_id, flash_np->name);
+			dev_name(&ndfc->ofdev->dev), flash_np->name);
 	if (!ndfc->mtd.name) {
 		ret = -ENOMEM;
 		goto err;

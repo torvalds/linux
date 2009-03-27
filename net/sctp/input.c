@@ -83,14 +83,15 @@ static inline int sctp_rcv_checksum(struct sk_buff *skb)
 {
 	struct sk_buff *list = skb_shinfo(skb)->frag_list;
 	struct sctphdr *sh = sctp_hdr(skb);
-	__be32 cmp = sh->checksum;
-	__be32 val = sctp_start_cksum((__u8 *)sh, skb_headlen(skb));
+	__le32 cmp = sh->checksum;
+	__le32 val;
+	__u32 tmp = sctp_start_cksum((__u8 *)sh, skb_headlen(skb));
 
 	for (; list; list = list->next)
-		val = sctp_update_cksum((__u8 *)list->data, skb_headlen(list),
-					val);
+		tmp = sctp_update_cksum((__u8 *)list->data, skb_headlen(list),
+					tmp);
 
-	val = sctp_end_cksum(val);
+	val = sctp_end_cksum(tmp);
 
 	if (val != cmp) {
 		/* CRC failure, dump it. */
@@ -142,7 +143,8 @@ int sctp_rcv(struct sk_buff *skb)
 	__skb_pull(skb, skb_transport_offset(skb));
 	if (skb->len < sizeof(struct sctphdr))
 		goto discard_it;
-	if (!skb_csum_unnecessary(skb) && sctp_rcv_checksum(skb) < 0)
+	if (!sctp_checksum_disable && !skb_csum_unnecessary(skb) &&
+		  sctp_rcv_checksum(skb) < 0)
 		goto discard_it;
 
 	skb_pull(skb, sizeof(struct sctphdr));
@@ -248,6 +250,19 @@ int sctp_rcv(struct sk_buff *skb)
 	 * so check if it is busy.
 	 */
 	sctp_bh_lock_sock(sk);
+
+	if (sk != rcvr->sk) {
+		/* Our cached sk is different from the rcvr->sk.  This is
+		 * because migrate()/accept() may have moved the association
+		 * to a new socket and released all the sockets.  So now we
+		 * are holding a lock on the old socket while the user may
+		 * be doing something with the new socket.  Switch our veiw
+		 * of the current sk.
+		 */
+		sctp_bh_unlock_sock(sk);
+		sk = rcvr->sk;
+		sctp_bh_lock_sock(sk);
+	}
 
 	if (sock_owned_by_user(sk)) {
 		SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_BACKLOG);

@@ -575,7 +575,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	struct usb_request	*request = &req->request;
 	struct musb_ep		*musb_ep = &musb->endpoints[epnum].ep_out;
 	void __iomem		*epio = musb->endpoints[epnum].regs;
-	u16			fifo_count = 0;
+	unsigned		fifo_count = 0;
 	u16			len = musb_ep->packet_sz;
 
 	csr = musb_readw(epio, MUSB_RXCSR);
@@ -687,7 +687,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 					len, fifo_count,
 					musb_ep->packet_sz);
 
-			fifo_count = min(len, fifo_count);
+			fifo_count = min_t(unsigned, len, fifo_count);
 
 #ifdef	CONFIG_USB_TUSB_OMAP_DMA
 			if (tusb_dma_omap() && musb_ep->dma) {
@@ -874,10 +874,10 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		status = -EBUSY;
 		goto fail;
 	}
-	musb_ep->type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+	musb_ep->type = usb_endpoint_type(desc);
 
 	/* check direction and (later) maxpacket size against endpoint */
-	if ((desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK) != epnum)
+	if (usb_endpoint_num(desc) != epnum)
 		goto fail;
 
 	/* REVISIT this rules out high bandwidth periodic transfers */
@@ -890,7 +890,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 	 * packet size (or fail), set the mode, clear the fifo
 	 */
 	musb_ep_select(mbase, epnum);
-	if (desc->bEndpointAddress & USB_DIR_IN) {
+	if (usb_endpoint_dir_in(desc)) {
 		u16 int_txe = musb_readw(mbase, MUSB_INTRTXE);
 
 		if (hw_ep->is_shared_fifo)

@@ -134,7 +134,7 @@ struct bfin_serial_res bfin_serial_resource[] = {
 	CH_UART_TX,
 	CH_UART_RX,
 #endif
-#ifdef CONFIG_BFIN_UART0_CTSRTS
+#ifdef CONFIG_SERIAL_BFIN_CTSRTS
 	CONFIG_UART0_CTS_PIN,
 	CONFIG_UART0_RTS_PIN,
 #endif
