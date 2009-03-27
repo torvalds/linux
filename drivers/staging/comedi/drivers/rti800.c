@@ -177,7 +177,7 @@ static irqreturn_t rti800_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-// settling delay times in usec for different gains
+/* settling delay times in usec for different gains */
 static const int gaindelay[] = { 10, 20, 40, 80 };
 
 static int rti800_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,

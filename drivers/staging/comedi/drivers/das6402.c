@@ -342,7 +342,7 @@ static int das6402_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 8;
-	//s->trig[2]=das6402_ai_mode2;
+	/* s->trig[2]=das6402_ai_mode2; */
 	s->cancel = das6402_ai_cancel;
 	s->maxdata = (1 << 12) - 1;
 	s->len_chanlist = 16;	/* ? */

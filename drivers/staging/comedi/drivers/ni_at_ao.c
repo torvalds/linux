@@ -229,7 +229,7 @@ static int atao_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 	}
 	dev->iobase = iobase;
 
-	//dev->board_ptr = atao_probe(dev);
+	/* dev->board_ptr = atao_probe(dev); */
 
 	dev->board_name = thisboard->name;
 
@@ -273,7 +273,7 @@ static int atao_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 
 	s = dev->subdevices + 3;
 	/* eeprom subdevice */
-	//s->type=COMEDI_SUBD_EEPROM;
+	/* s->type=COMEDI_SUBD_EEPROM; */
 	s->type = COMEDI_SUBD_UNUSED;
 
 	atao_reset(dev);

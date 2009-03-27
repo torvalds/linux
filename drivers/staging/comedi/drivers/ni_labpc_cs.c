@@ -60,7 +60,7 @@ NI manuals:
 */
 
 #undef LABPC_DEBUG
-//#define LABPC_DEBUG   // enable debugging messages
+/* #define LABPC_DEBUG   /*  enable debugging messages */ */
 
 #include "../comedidev.h"
 
@@ -84,7 +84,7 @@ static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it
 static const struct labpc_board_struct labpc_cs_boards[] = {
 	{
 	      name:	"daqcard-1200",
-	      device_id:0x103,	// 0x10b is manufacturer id, 0x103 is device id
+	      device_id:0x103,	/*  0x10b is manufacturer id, 0x103 is device id */
 	      ai_speed:10000,
 	      bustype:	pcmcia_bustype,
 	      register_layout:labpc_1200_layout,
@@ -136,7 +136,7 @@ static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	if (alloc_private(dev, sizeof(struct labpc_private)) < 0)
 		return -ENOMEM;
 
-	// get base address, irq etc. based on bustype
+	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {
 	case pcmcia_bustype:
 		link = pcmcia_cur_dev;	/* XXX hack */

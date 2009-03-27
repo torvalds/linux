@@ -25,7 +25,7 @@
 
 #include "../comedidev.h"
 
-// forward declarations
+/* forward declarations */
 struct mite_struct;
 struct ni_gpct_device;
 

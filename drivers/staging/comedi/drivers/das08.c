@@ -65,12 +65,12 @@ driver.
 #define PCI_DEVICE_ID_PCIDAS08 0x29
 #define PCIDAS08_SIZE 0x54
 
-// pci configuration registers
+/* pci configuration registers */
 #define INTCSR               0x4c
 #define   INTR1_ENABLE         0x1
 #define   INTR1_HIGH_POLARITY  0x2
 #define   PCI_INTR_ENABLE      0x40
-#define   INTR1_EDGE_TRIG      0x100	// requires high polarity
+#define   INTR1_EDGE_TRIG      0x100	/*  requires high polarity */
 #define CNTRL                0x50
 #define   CNTRL_DIR            0x2
 #define   CNTRL_INTR           0x4
@@ -248,7 +248,7 @@ static const int *const das08_gainlists[] = {
 
 static const struct das08_board_struct das08_boards[] = {
 	{
-	      name:	"isa-das08",	// cio-das08.pdf
+	      name:	"isa-das08",	/*  cio-das08.pdf */
 	      bustype:	isa,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
@@ -261,10 +261,10 @@ static const struct das08_board_struct das08_boards[] = {
 	      do_nchan:4,
 	      i8255_offset:8,
 	      i8254_offset:4,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 	{
-	      name:	"das08-pgm",	// cio-das08pgx.pdf
+	      name:	"das08-pgm",	/*  cio-das08pgx.pdf */
 	      bustype:	isa,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
@@ -276,10 +276,10 @@ static const struct das08_board_struct das08_boards[] = {
 	      do_nchan:4,
 	      i8255_offset:0,
 	      i8254_offset:0x04,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 	{
-	      name:	"das08-pgh",	// cio-das08pgx.pdf
+	      name:	"das08-pgh",	/*  cio-das08pgx.pdf */
 	      bustype:	isa,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
@@ -291,10 +291,10 @@ static const struct das08_board_struct das08_boards[] = {
 	      do_nchan:4,
 	      i8255_offset:0,
 	      i8254_offset:0x04,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 	{
-	      name:	"das08-pgl",	// cio-das08pgx.pdf
+	      name:	"das08-pgl",	/*  cio-das08pgx.pdf */
 	      bustype:	isa,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
@@ -306,58 +306,58 @@ static const struct das08_board_struct das08_boards[] = {
 	      do_nchan:4,
 	      i8255_offset:0,
 	      i8254_offset:0x04,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 	{
-	      name:	"das08-aoh",	// cio-das08_aox.pdf
+	      name:	"das08-aoh",	/*  cio-das08_aox.pdf */
 	      bustype:	isa,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
 	      ai_pg:	das08_pgh,
 	      ai_encoding:das08_encode12,
-	      ao:	das08ao_ao_winsn,	// 8
+	      ao:	das08ao_ao_winsn,	/*  8 */
 	      ao_nbits:12,
 	      di:	das08_di_rbits,
 	      do_:	das08_do_wbits,
 	      do_nchan:4,
 	      i8255_offset:0x0c,
 	      i8254_offset:0x04,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 	{
-	      name:	"das08-aol",	// cio-das08_aox.pdf
+	      name:	"das08-aol",	/*  cio-das08_aox.pdf */
 	      bustype:	isa,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
 	      ai_pg:	das08_pgl,
 	      ai_encoding:das08_encode12,
-	      ao:	das08ao_ao_winsn,	// 8
+	      ao:	das08ao_ao_winsn,	/*  8 */
 	      ao_nbits:12,
 	      di:	das08_di_rbits,
 	      do_:	das08_do_wbits,
 	      do_nchan:4,
 	      i8255_offset:0x0c,
 	      i8254_offset:0x04,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 	{
-	      name:	"das08-aom",	// cio-das08_aox.pdf
+	      name:	"das08-aom",	/*  cio-das08_aox.pdf */
 	      bustype:	isa,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
 	      ai_pg:	das08_pgm,
 	      ai_encoding:das08_encode12,
-	      ao:	das08ao_ao_winsn,	// 8
+	      ao:	das08ao_ao_winsn,	/*  8 */
 	      ao_nbits:12,
 	      di:	das08_di_rbits,
 	      do_:	das08_do_wbits,
 	      do_nchan:4,
 	      i8255_offset:0x0c,
 	      i8254_offset:0x04,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 	{
-	      name:	"das08/jr-ao",	// cio-das08-jr-ao.pdf
+	      name:	"das08/jr-ao",	/*  cio-das08-jr-ao.pdf */
 	      bustype:	isa,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
@@ -370,10 +370,10 @@ static const struct das08_board_struct das08_boards[] = {
 	      do_nchan:8,
 	      i8255_offset:0,
 	      i8254_offset:0,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 	{
-	      name:	"das08jr-16-ao",	// cio-das08jr-16-ao.pdf
+	      name:	"das08jr-16-ao",	/*  cio-das08jr-16-ao.pdf */
 	      bustype:	isa,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:16,
@@ -386,11 +386,11 @@ static const struct das08_board_struct das08_boards[] = {
 	      do_nchan:8,
 	      i8255_offset:0,
 	      i8254_offset:0x04,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 #ifdef CONFIG_COMEDI_PCI
 	{
-	      name:	"das08",	// pci-das08
+	      name:	"das08",	/*  pci-das08 */
 	      id:	PCI_DEVICE_ID_PCIDAS08,
 	      bustype:	pci,
 	      ai:	das08_ai_rinsn,
@@ -421,7 +421,7 @@ static const struct das08_board_struct das08_boards[] = {
 	      do_nchan:4,
 	      i8255_offset:0,
 	      i8254_offset:4,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 #if 0
 	{
@@ -445,14 +445,14 @@ static const struct das08_board_struct das08_boards[] = {
 	      do_nchan:8,
 	      i8255_offset:0,
 	      i8254_offset:0,
-	      iosize:	16,	// unchecked
+	      iosize:	16,	/*  unchecked */
 		},
 #if 0
 	{
-	      name:	"das48-pga",	// cio-das48-pga.pdf
+	      name:	"das48-pga",	/*  cio-das48-pga.pdf */
 		},
 	{
-	      name:	"das08-pga-g2",	// a KM board
+	      name:	"das08-pga-g2",	/*  a KM board */
 		},
 #endif
 };
@@ -461,7 +461,7 @@ static const struct das08_board_struct das08_boards[] = {
 struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 	{
 	      name:	"pcm-das08",
-	      id:	0x0,	// XXX
+	      id:	0x0,	/*  XXX */
 	      bustype:	pcmcia,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
@@ -476,10 +476,10 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 	      i8254_offset:0,
 	      iosize:	16,
 		},
-	// duplicate so driver name can be used also
+	/*  duplicate so driver name can be used also */
 	{
 	      name:	"das08_cs",
-	      id:	0x0,	// XXX
+	      id:	0x0,	/*  XXX */
 	      bustype:	pcmcia,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
@@ -528,7 +528,7 @@ static int das08_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * 
 	inb(dev->iobase + DAS08_MSB);
 
 	/* set multiplexer */
-	spin_lock(&dev->spinlock);	// lock to prevent race with digital output
+	spin_lock(&dev->spinlock);	/*  lock to prevent race with digital output */
 	devpriv->do_mux_bits &= ~DAS08_MUX_MASK;
 	devpriv->do_mux_bits |= DAS08_MUX(chan);
 	outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL);
@@ -593,14 +593,14 @@ static int das08_do_wbits(struct comedi_device * dev, struct comedi_subdevice * 
 {
 	int wbits;
 
-	// get current settings of digital output lines
+	/*  get current settings of digital output lines */
 	wbits = (devpriv->do_mux_bits >> 4) & 0xf;
-	// null bits we are going to set
+	/*  null bits we are going to set */
 	wbits &= ~data[0];
-	// set new bit values
+	/*  set new bit values */
 	wbits |= data[0] & data[1];
-	// remember digital output bits
-	spin_lock(&dev->spinlock);	// prevent race with setting of analog input mux
+	/*  remember digital output bits */
+	spin_lock(&dev->spinlock);	/*  prevent race with setting of analog input mux */
 	devpriv->do_mux_bits &= ~DAS08_DO_MASK;
 	devpriv->do_mux_bits |= DAS08_OP(wbits);
 	outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL);
@@ -623,9 +623,9 @@ static int das08jr_di_rbits(struct comedi_device * dev, struct comedi_subdevice 
 static int das08jr_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	// null bits we are going to set
+	/*  null bits we are going to set */
 	devpriv->do_bits &= ~data[0];
-	// set new bit values
+	/*  set new bit values */
 	devpriv->do_bits |= data[0] & data[1];
 	outb(devpriv->do_bits, dev->iobase + DAS08JR_DIO);
 
@@ -787,9 +787,9 @@ static int das08_counter_read(struct comedi_device * dev, struct comedi_subdevic
 {
 	int chan = insn->chanspec;
 
-	//printk("Reading counter channel %d ",chan);
+	/* printk("Reading counter channel %d ",chan); */
 	data[0] = i8254_read_channel(&devpriv->i8254, chan);
-	//printk("=> 0x%08X\n",data[0]);
+	/* printk("=> 0x%08X\n",data[0]); */
 
 	return 1;
 }
@@ -799,7 +799,7 @@ static int das08_counter_write(struct comedi_device * dev, struct comedi_subdevi
 {
 	int chan = insn->chanspec;
 
-	//printk("Writing counter channel %d with 0x%04X\n",chan,data[0]);
+	/* printk("Writing counter channel %d with 0x%04X\n",chan,data[0]); */
 	i8254_write_channel(&devpriv->i8254, chan, data[0]);
 
 	return 1;
@@ -845,7 +845,7 @@ int das08_common_attach(struct comedi_device * dev, unsigned long iobase)
 	struct comedi_subdevice *s;
 	int ret;
 
-	// allocate ioports for non-pcmcia, non-pci boards
+	/*  allocate ioports for non-pcmcia, non-pci boards */
 	if ((thisboard->bustype != pcmcia) && (thisboard->bustype != pci)) {
 		printk(" iobase 0x%lx\n", iobase);
 		if (!request_region(iobase, thisboard->iosize, DRV_NAME)) {
@@ -880,7 +880,7 @@ int das08_common_attach(struct comedi_device * dev, unsigned long iobase)
 	/* ao */
 	if (thisboard->ao) {
 		s->type = COMEDI_SUBD_AO;
-// XXX lacks read-back insn
+/* XXX lacks read-back insn */
 		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = 2;
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
@@ -965,7 +965,7 @@ static int das08_attach(struct comedi_device * dev, struct comedi_devconfig * it
 		return ret;
 
 	printk("comedi%d: das08: ", dev->minor);
-	// deal with a pci board
+	/*  deal with a pci board */
 	if (thisboard->bustype == pci) {
 #ifdef CONFIG_COMEDI_PCI
 		if (it->options[0] || it->options[1]) {
@@ -973,7 +973,7 @@ static int das08_attach(struct comedi_device * dev, struct comedi_devconfig * it
 				it->options[0], it->options[1]);
 		}
 		printk("\n");
-		// find card
+		/*  find card */
 		for (pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 			pdev != NULL;
 			pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) {
@@ -995,12 +995,12 @@ static int das08_attach(struct comedi_device * dev, struct comedi_devconfig * it
 			return -EIO;
 		}
 		devpriv->pdev = pdev;
-		// enable PCI device and reserve I/O spaces
+		/*  enable PCI device and reserve I/O spaces */
 		if (comedi_pci_enable(pdev, DRV_NAME)) {
 			printk(" Error enabling PCI device and requesting regions\n");
 			return -EIO;
 		}
-		// read base addresses
+		/*  read base addresses */
 		pci_iobase = pci_resource_start(pdev, 1);
 		iobase = pci_resource_start(pdev, 2);
 		printk("pcibase 0x%lx  iobase 0x%lx\n", pci_iobase, iobase);
@@ -1035,7 +1035,7 @@ int das08_common_detach(struct comedi_device * dev)
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 4);
 
-	// deallocate ioports for non-pcmcia, non-pci boards
+	/*  deallocate ioports for non-pcmcia, non-pci boards */
 	if ((thisboard->bustype != pcmcia) && (thisboard->bustype != pci)) {
 		if (dev->iobase)
 			release_region(dev->iobase, thisboard->iosize);

@@ -394,7 +394,7 @@ static int dmm32at_attach(struct comedi_device * dev, struct comedi_devconfig * 
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
  * should already be initialized.
  */
-	//dev->board_ptr = dmm32at_probe(dev);
+	/* dev->board_ptr = dmm32at_probe(dev); */
 
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
@@ -512,7 +512,7 @@ static int dmm32at_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 	chan = CR_CHAN(insn->chanspec) & (s->n_chan - 1);
 	range = CR_RANGE(insn->chanspec);
 
-	//printk("channel=0x%02x, range=%d\n",chan,range);
+	/* printk("channel=0x%02x, range=%d\n",chan,range); */
 
 	/* zero scan and fifo control and reset fifo */
 	dmm_outb(dev, DMM32AT_FIFOCNTRL, DMM32AT_FIFORESET);
@@ -575,7 +575,7 @@ static int dmm32at_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevic
 	int tmp;
 	int start_chan, gain, i;
 
-	//printk("dmmat32 in command test\n");
+	/* printk("dmmat32 in command test\n"); */
 
 	/* cmdtest tests a particular command to see if it is valid.
 	 * Using the cmdtest ioctl, a user can create a valid cmd
@@ -910,7 +910,7 @@ static int dmm32at_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 		lo = data[i] & 0x00ff;
 		/* high byte also contains channel number */
 		hi = (data[i] >> 8) + chan * (1 << 6);
-		//printk("writing 0x%02x  0x%02x\n",hi,lo);
+		/* printk("writing 0x%02x  0x%02x\n",hi,lo); */
 		/* write the low and high values to the board */
 		dmm_outb(dev, DMM32AT_DACLSB, lo);
 		dmm_outb(dev, DMM32AT_DACMSB, hi);
@@ -967,7 +967,7 @@ static int dmm32at_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
 		/* Write out the new digital output lines */
-		//outw(s->state,dev->iobase + DMM32AT_DIO);
+		/* outw(s->state,dev->iobase + DMM32AT_DIO); */
 	}
 
 	/* get access to the DIO regs */
@@ -998,10 +998,10 @@ static int dmm32at_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 
 	/* on return, data[1] contains the value of the digital
 	 * input and output lines. */
-	//data[1]=inw(dev->iobase + DMM32AT_DIO);
+	/* data[1]=inw(dev->iobase + DMM32AT_DIO); */
 	/* or we could just return the software copy of the output values if
 	 * it was a purely digital output subdevice */
-	//data[1]=s->state;
+	/* data[1]=s->state; */
 
 	return 2;
 }

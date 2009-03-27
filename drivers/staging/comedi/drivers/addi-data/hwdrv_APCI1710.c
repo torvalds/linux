@@ -62,11 +62,11 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 	int ret = 0;
 	int n_subdevices = 9;
 
-	//Update-0.7.57->0.7.68dev->n_subdevices = 9;
+	/* Update-0.7.57->0.7.68dev->n_subdevices = 9; */
 	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0)
 		return;
 
-	// Allocate and Initialise Timer Subdevice Structures
+	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = dev->subdevices + 0;
 
 	s->type = COMEDI_SUBD_TIMER;
@@ -80,7 +80,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 	s->insn_config = i_APCI1710_InsnConfigInitTimer;
 	s->insn_bits = i_APCI1710_InsnBitsTimer;
 
-	// Allocate and Initialise DIO Subdevice Structures
+	/*  Allocate and Initialise DIO Subdevice Structures */
 	s = dev->subdevices + 1;
 
 	s->type = COMEDI_SUBD_DIO;
@@ -95,7 +95,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 	s->insn_bits = i_APCI1710_InsnBitsDigitalIOPortOnOff;
 	s->insn_write = i_APCI1710_InsnWriteDigitalIOChlOnOff;
 
-	// Allocate and Initialise Chrono Subdevice Structures
+	/*  Allocate and Initialise Chrono Subdevice Structures */
 	s = dev->subdevices + 2;
 
 	s->type = COMEDI_SUBD_CHRONO;
@@ -109,7 +109,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 	s->insn_config = i_APCI1710_InsnConfigInitChrono;
 	s->insn_bits = i_APCI1710_InsnBitsChronoDigitalIO;
 
-	// Allocate and Initialise PWM Subdevice Structures
+	/*  Allocate and Initialise PWM Subdevice Structures */
 	s = dev->subdevices + 3;
 	s->type = COMEDI_SUBD_PWM;
 	s->subdev_flags =
@@ -118,13 +118,13 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 	s->maxdata = 1;
 	s->len_chanlist = 3;
 	s->range_table = &range_digital;
-	s->io_bits = 0;		//all bits input
+	s->io_bits = 0;		/* all bits input */
 	s->insn_config = i_APCI1710_InsnConfigPWM;
 	s->insn_read = i_APCI1710_InsnReadGetPWMStatus;
 	s->insn_write = i_APCI1710_InsnWritePWM;
 	s->insn_bits = i_APCI1710_InsnBitsReadPWMInterrupt;
 
-	// Allocate and Initialise TTLIO Subdevice Structures
+	/*  Allocate and Initialise TTLIO Subdevice Structures */
 	s = dev->subdevices + 4;
 	s->type = COMEDI_SUBD_TTLIO;
 	s->subdev_flags =
@@ -132,13 +132,13 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 	s->n_chan = 8;
 	s->maxdata = 1;
 	s->len_chanlist = 8;
-	s->range_table = &range_apci1710_ttl;	// to pass arguments in range
+	s->range_table = &range_apci1710_ttl;	/*  to pass arguments in range */
 	s->insn_config = i_APCI1710_InsnConfigInitTTLIO;
 	s->insn_bits = i_APCI1710_InsnBitsReadTTLIO;
 	s->insn_write = i_APCI1710_InsnWriteSetTTLIOChlOnOff;
 	s->insn_read = i_APCI1710_InsnReadTTLIOAllPortValue;
 
-	// Allocate and Initialise TOR Subdevice Structures
+	/*  Allocate and Initialise TOR Subdevice Structures */
 	s = dev->subdevices + 5;
 	s->type = COMEDI_SUBD_TOR;
 	s->subdev_flags =
@@ -147,13 +147,13 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 	s->maxdata = 1;
 	s->len_chanlist = 8;
 	s->range_table = &range_digital;
-	s->io_bits = 0;		//all bits input
+	s->io_bits = 0;		/* all bits input */
 	s->insn_config = i_APCI1710_InsnConfigInitTorCounter;
 	s->insn_read = i_APCI1710_InsnReadGetTorCounterInitialisation;
 	s->insn_write = i_APCI1710_InsnWriteEnableDisableTorCounter;
 	s->insn_bits = i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue;
 
-	// Allocate and Initialise SSI Subdevice Structures
+	/*  Allocate and Initialise SSI Subdevice Structures */
 	s = dev->subdevices + 6;
 	s->type = COMEDI_SUBD_SSI;
 	s->subdev_flags =
@@ -166,7 +166,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 	s->insn_read = i_APCI1710_InsnReadSSIValue;
 	s->insn_bits = i_APCI1710_InsnBitsSSIDigitalIO;
 
-	// Allocate and Initialise PULSEENCODER Subdevice Structures
+	/*  Allocate and Initialise PULSEENCODER Subdevice Structures */
 	s = dev->subdevices + 7;
 	s->type = COMEDI_SUBD_PULSEENCODER;
 	s->subdev_flags =
@@ -180,7 +180,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 	s->insn_bits = i_APCI1710_InsnBitsReadWritePulseEncoder;
 	s->insn_read = i_APCI1710_InsnReadInterruptPulseEncoder;
 
-	// Allocate and Initialise INCREMENTALCOUNTER Subdevice Structures
+	/*  Allocate and Initialise INCREMENTALCOUNTER Subdevice Structures */
 	s = dev->subdevices + 8;
 	s->type = COMEDI_SUBD_INCREMENTALCOUNTER;
 	s->subdev_flags =
@@ -197,7 +197,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device * dev)
 
 int i_APCI1710_Reset(struct comedi_device * dev);
 void v_APCI1710_Interrupt(int irq, void *d);
-//for 1710
+/* for 1710 */
 
 int i_APCI1710_Reset(struct comedi_device * dev)
 {
@@ -219,12 +219,12 @@ int i_APCI1710_Reset(struct comedi_device * dev)
 	ret = inl(devpriv->s_BoardInfos.ui_Address + 252);
 	devpriv->s_BoardInfos.dw_MolduleConfiguration[3] = ret;
 
-	// outl(0x80808082,devpriv->s_BoardInfos.ui_Address+0x60);
+	/*  outl(0x80808082,devpriv->s_BoardInfos.ui_Address+0x60); */
 	outl(0x83838383, devpriv->s_BoardInfos.ui_Address + 0x60);
 
 	devpriv->s_BoardInfos.b_BoardVersion = 1;
 
-	// Enable the interrupt for the controler
+	/*  Enable the interrupt for the controler */
 	dw_Dummy = inl(devpriv->s_BoardInfos.ui_Address + 0x38);
 	outl(dw_Dummy | 0x2000, devpriv->s_BoardInfos.ui_Address + 0x38);
 
@@ -279,7 +279,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 				dw_MolduleConfiguration[b_ModuleCpt] &
 				0xFFFF0000UL) == APCI1710_82X54_TIMER) {
 
-			//printk("TIMER Interrupt Occurred\n");
+			/* printk("TIMER Interrupt Occurred\n"); */
 			ul_82X54InterruptStatus = inl(devpriv->s_BoardInfos.
 				ui_Address + 12 + (64 * b_ModuleCpt));
 
@@ -332,11 +332,11 @@ void v_APCI1710_Interrupt(int irq, void *d)
 			     /**********************/
 				/* Call user function */
 			     /**********************/
-				//Send a signal to from kernel to user space
+				/* Send a signal to from kernel to user space */
 				send_sig(SIGIO, devpriv->tsk_Current, 0);
 
-			}	// if ((ul_82X54InterruptStatus & 0x7) != 0)
-		}		// 82X54 timer
+			}	/*  if ((ul_82X54InterruptStatus & 0x7) != 0) */
+		}		/*  82X54 timer */
 
 		 /***************************/
 		/* Test if increm. counter */
@@ -412,7 +412,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 				/**********************/
 					/* Call user function */
 				/**********************/
-					//Send a signal to from kernel to user space
+					/* Send a signal to from kernel to user space */
 					send_sig(SIGIO, devpriv->tsk_Current,
 						0);
 
@@ -473,7 +473,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 			    /**********************/
 					/* Call user function */
 				/**********************/
-					//Send a signal to from kernel to user space
+					/* Send a signal to from kernel to user space */
 					send_sig(SIGIO, devpriv->tsk_Current,
 						0);
 
@@ -562,7 +562,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 				/**********************/
 					/* Call user function */
 				/**********************/
-					//Send a signal to from kernel to user space
+					/* Send a signal to from kernel to user space */
 					send_sig(SIGIO, devpriv->tsk_Current,
 						0);
 
@@ -628,7 +628,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 				/**********************/
 					/* Call user function */
 				/**********************/
-					//Send a signal to from kernel to user space
+					/* Send a signal to from kernel to user space */
 					send_sig(SIGIO, devpriv->tsk_Current,
 						0);
 
@@ -795,11 +795,11 @@ void v_APCI1710_Interrupt(int irq, void *d)
 			     /**********************/
 				/* Call user function */
 			     /**********************/
-				//Send a signal to from kernel to user space
+				/* Send a signal to from kernel to user space */
 				send_sig(SIGIO, devpriv->tsk_Current, 0);
 
 			}
-		}		// Incremental counter
+		}		/*  Incremental counter */
 
 		 /***************/
 		/* Test if CDA */
@@ -870,14 +870,14 @@ void v_APCI1710_Interrupt(int irq, void *d)
 					/* Call user function */
 				/**********************/
 
-					//Send a signal to from kernel to user space
+					/* Send a signal to from kernel to user space */
 					send_sig(SIGIO, devpriv->tsk_Current,
 						0);
 
-				}	// if (ul_StatusRegister & 1)
+				}	/*  if (ul_StatusRegister & 1) */
 
 			}
-		}		// CDA
+		}		/*  CDA */
 
 		 /***********************/
 		/* Test if PWM counter */
@@ -950,15 +950,15 @@ void v_APCI1710_Interrupt(int irq, void *d)
 				   /**********************/
 						/* Call user function */
 				   /**********************/
-						//Send a signal to from kernel to user space
+						/* Send a signal to from kernel to user space */
 						send_sig(SIGIO,
 							devpriv->tsk_Current,
 							0);
 
-					}	// if (ul_StatusRegister & 0x1)
-				}	// if (APCI1710_ENABLE)
-			}	// for (b_PWMCpt == 0; b_PWMCpt < 0; b_PWMCpt ++)
-		}		// PWM counter
+					}	/*  if (ul_StatusRegister & 0x1) */
+				}	/*  if (APCI1710_ENABLE) */
+			}	/*  for (b_PWMCpt == 0; b_PWMCpt < 0; b_PWMCpt ++) */
+		}		/*  PWM counter */
 
 		 /***********************/
 		/* Test if tor counter */
@@ -1054,14 +1054,14 @@ void v_APCI1710_Interrupt(int irq, void *d)
 						/* Call user function */
 				   /**********************/
 
-						//Send a signal to from kernel to user space
+						/* Send a signal to from kernel to user space */
 						send_sig(SIGIO,
 							devpriv->tsk_Current,
 							0);
-					}	// if (ul_StatusRegister & 0x1)
-				}	// if (APCI1710_ENABLE)
-			}	// for (b_TorCounterCpt == 0; b_TorCounterCpt < 0; b_TorCounterCpt ++)
-		}		// Tor counter
+					}	/*  if (ul_StatusRegister & 0x1) */
+				}	/*  if (APCI1710_ENABLE) */
+			}	/*  for (b_TorCounterCpt == 0; b_TorCounterCpt < 0; b_TorCounterCpt ++) */
+		}		/*  Tor counter */
 
 		 /***********************/
 		/* Test if chronometer */
@@ -1071,7 +1071,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 				dw_MolduleConfiguration[b_ModuleCpt] &
 				0xFFFF0000UL) == APCI1710_CHRONOMETER) {
 
-			//printk("APCI1710 Chrono Interrupt\n");
+			/* printk("APCI1710 Chrono Interrupt\n"); */
 		    /*****************************/
 			/* Read the interrupt status */
 		    /*****************************/
@@ -1163,13 +1163,13 @@ void v_APCI1710_Interrupt(int irq, void *d)
 				/**********************/
 					/* Call user function */
 				/**********************/
-					//Send a signal to from kernel to user space
+					/* Send a signal to from kernel to user space */
 					send_sig(SIGIO, devpriv->tsk_Current,
 						0);
 
 				}
 			}
-		}		// Chronometer
+		}		/*  Chronometer */
 
 		 /*************************/
 		/* Test if pulse encoder */
@@ -1249,7 +1249,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 				   /**********************/
 						/* Call user function */
 				   /**********************/
-						//Send a signal to from kernel to user space
+						/* Send a signal to from kernel to user space */
 						send_sig(SIGIO,
 							devpriv->tsk_Current,
 							0);
@@ -1257,7 +1257,7 @@ void v_APCI1710_Interrupt(int irq, void *d)
 					}
 				}
 			}
-		}		//pulse encoder
+		}		/* pulse encoder */
 
 	}
 	return;

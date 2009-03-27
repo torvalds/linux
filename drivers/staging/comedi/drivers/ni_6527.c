@@ -311,7 +311,7 @@ static int ni6527_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevi
 
 static int ni6527_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	//struct comedi_cmd *cmd = &s->async->cmd;
+	/* struct comedi_cmd *cmd = &s->async->cmd; */
 
 	writeb(ClrEdge | ClrOverflow,
 		devpriv->mite->daq_io_addr + Clear_Register);

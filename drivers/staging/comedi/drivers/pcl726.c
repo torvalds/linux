@@ -116,17 +116,17 @@ static int pcl726_detach(struct comedi_device * dev);
 
 struct pcl726_board {
 
-	const char *name;	// driver name
-	int n_aochan;		// num of D/A chans
-	int num_of_ranges;	// num of ranges
-	unsigned int IRQbits;	// allowed interrupts
-	unsigned int io_range;	// len of IO space
-	char have_dio;		// 1=card have DI/DO ports
-	int di_hi;		// ports for DI/DO operations
+	const char *name;	/*  driver name */
+	int n_aochan;		/*  num of D/A chans */
+	int num_of_ranges;	/*  num of ranges */
+	unsigned int IRQbits;	/*  allowed interrupts */
+	unsigned int io_range;	/*  len of IO space */
+	char have_dio;		/*  1=card have DI/DO ports */
+	int di_hi;		/*  ports for DI/DO operations */
 	int di_lo;
 	int do_hi;
 	int do_lo;
-	const struct comedi_lrange *const *range_type_list;	// list of supported ranges
+	const struct comedi_lrange *const *range_type_list;	/*  list of supported ranges */
 };
 
 
@@ -362,7 +362,7 @@ static int pcl726_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 static int pcl726_detach(struct comedi_device * dev)
 {
-//      printk("comedi%d: pcl726: remove\n",dev->minor);
+/* printk("comedi%d: pcl726: remove\n",dev->minor); */
 
 #ifdef ACL6126_IRQ
 	if (dev->irq) {

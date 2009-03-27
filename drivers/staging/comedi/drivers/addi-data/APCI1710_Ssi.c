@@ -167,7 +167,7 @@ int i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subde
 			/* Test the SSI profile length */
 	      /*******************************/
 
-			// CG 22/03/00 b_SSIProfile >= 2 anstatt b_SSIProfile > 2
+			/*  CG 22/03/00 b_SSIProfile >= 2 anstatt b_SSIProfile > 2 */
 			if (b_SSIProfile >= 2 && b_SSIProfile < 33) {
 		 /*************************************/
 				/* Test the SSI position data length */
@@ -423,11 +423,11 @@ int i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 
 	i_ReturnValue = insn->n;
 	pul_Position1 = (unsigned int *) & data[0];
-// For Read1
+/* For Read1 */
 	pul_TurnCpt1 = (unsigned int *) & data[1];
-// For Read all
-	pul_Position = (unsigned int *) & data[0];	//0-2
-	pul_TurnCpt = (unsigned int *) & data[3];	//3-5
+/* For Read all */
+	pul_Position = (unsigned int *) & data[0];	/* 0-2 */
+	pul_TurnCpt = (unsigned int *) & data[3];	/* 3-5 */
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_SelectedSSI = (unsigned char) CR_CHAN(insn->chanspec);
 	b_ReadType = (unsigned char) CR_RANGE(insn->chanspec);
@@ -667,7 +667,7 @@ int i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 				default:
 					printk("Read Type Inputs Wrong\n");
 
-				}	// switch  ending
+				}	/*  switch  ending */
 
 			} else {
 		 /***********************/
@@ -826,7 +826,7 @@ int i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, struct comedi_su
 			default:
 				printk("IO type wrong\n");
 
-			}	//switch end
+			}	/* switch end */
 		} else {
 	      /**********************************/
 			/* The module is not a SSI module */

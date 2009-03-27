@@ -37,7 +37,7 @@ This is just a wrapper around the 8255.o driver to properly handle
 the PCMCIA interface.
 */
 
-//#define LABPC_DEBUG   // enable debugging messages
+/* #define LABPC_DEBUG   /*  enable debugging messages */ */
 #undef LABPC_DEBUG
 
 #include "../comedidev.h"
@@ -54,7 +54,7 @@ the PCMCIA interface.
 
 static struct pcmcia_device *pcmcia_cur_dev = NULL;
 
-#define DIO24_SIZE 4		// size of io region used by board
+#define DIO24_SIZE 4		/*  size of io region used by board */
 
 static int dio24_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dio24_detach(struct comedi_device * dev);
@@ -63,10 +63,10 @@ enum dio24_bustype { pcmcia_bustype };
 
 struct dio24_board_struct {
 	const char *name;
-	int device_id;		// device id for pcmcia board
-	enum dio24_bustype bustype;	// PCMCIA
-	int have_dio;		// have 8255 chip
-	// function pointers so we can use inb/outb or readb/writeb as appropriate
+	int device_id;		/*  device id for pcmcia board */
+	enum dio24_bustype bustype;	/*  PCMCIA */
+	int have_dio;		/*  have 8255 chip */
+	/*  function pointers so we can use inb/outb or readb/writeb as appropriate */
 	unsigned int (*read_byte) (unsigned int address);
 	void (*write_byte) (unsigned int byte, unsigned int address);
 };
@@ -74,13 +74,13 @@ struct dio24_board_struct {
 static const struct dio24_board_struct dio24_boards[] = {
 	{
 	      name:	"daqcard-dio24",
-	      device_id:0x475c,// 0x10b is manufacturer id, 0x475c is device id
+	      device_id:0x475c,/*  0x10b is manufacturer id, 0x475c is device id */
 	      bustype:	pcmcia_bustype,
 	      have_dio:1,
 		},
 	{
 	      name:	"ni_daq_dio24",
-	      device_id:0x475c,// 0x10b is manufacturer id, 0x475c is device id
+	      device_id:0x475c,/*  0x10b is manufacturer id, 0x475c is device id */
 	      bustype:	pcmcia_bustype,
 	      have_dio:1,
 		},
@@ -122,7 +122,7 @@ static int dio24_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	if (alloc_private(dev, sizeof(struct dio24_private)) < 0)
 		return -ENOMEM;
 
-	// get base address, irq etc. based on bustype
+	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {
 	case pcmcia_bustype:
 		link = pcmcia_cur_dev;	/* XXX hack */
@@ -187,7 +187,7 @@ static int dio24_detach(struct comedi_device * dev)
 	return 0;
 };
 
-// PCMCIA crap
+/* PCMCIA crap */
 
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If

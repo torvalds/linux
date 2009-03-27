@@ -108,10 +108,10 @@ int i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_sub
 	unsigned int dw_WriteConfig = 0;
 
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
-	b_ConfigType = (unsigned char) data[0];	// Memory or  Init
+	b_ConfigType = (unsigned char) data[0];	/*  Memory or  Init */
 	b_ChannelAMode = (unsigned char) data[1];
 	b_ChannelBMode = (unsigned char) data[2];
-	b_MemoryOnOff = (unsigned char) data[1];	// if memory operation
+	b_MemoryOnOff = (unsigned char) data[1];	/*  if memory operation */
 	i_ReturnValue = insn->n;
 
 		/**************************/
@@ -126,7 +126,7 @@ int i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_sub
 	switch (b_ConfigType) {
 	case APCI1710_DIGIO_MEMORYONOFF:
 
-		if (b_MemoryOnOff)	// If Memory ON
+		if (b_MemoryOnOff)	/*  If Memory ON */
 		{
 		 /****************************/
 			/* Set the output memory on */
@@ -140,7 +140,7 @@ int i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_sub
 		 /***************************/
 			devpriv->s_ModuleInfo[b_ModulNbr].
 				s_DigitalIOInfo.dw_OutputMemory = 0;
-		} else		// If memory off
+		} else		/*  If memory off */
 		{
 		 /*****************************/
 			/* Set the output memory off */
@@ -233,7 +233,7 @@ int i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_sub
 			DPRINTK("The module is not a digital I/O module\n");
 			i_ReturnValue = -3;
 		}
-	}			// end of Switch
+	}			/*  end of Switch */
 	printk("Return Value %d\n", i_ReturnValue);
 	return i_ReturnValue;
 }
@@ -288,11 +288,11 @@ int i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_sub
 +----------------------------------------------------------------------------+
 */
 
-//_INT_   i_APCI1710_ReadDigitalIOChlValue      (unsigned char_    b_BoardHandle,
-//                                             unsigned char_    b_ModulNbr,
-//                                             unsigned char_    b_InputChannel,
-//
-//                                             unsigned char *_  pb_ChannelStatus)
+/* _INT_   i_APCI1710_ReadDigitalIOChlValue      (unsigned char_    b_BoardHandle, */
+/*
+* unsigned char_ b_ModulNbr, unsigned char_ b_InputChannel,
+* unsigned char *_ pb_ChannelStatus)
+*/
 int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
@@ -356,7 +356,7 @@ int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 								i_ReturnValue =
 									-6;
 							}
-						}	// if (b_InputChannel == 5)
+						}	/*  if (b_InputChannel == 5) */
 						else {
 			  /***************************/
 							/* Test the channel B mode */
@@ -375,8 +375,8 @@ int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 								i_ReturnValue =
 									-7;
 							}
-						}	// if (b_InputChannel == 5)
-					}	// if (b_InputChannel > 4)
+						}	/*  if (b_InputChannel == 5) */
+					}	/*  if (b_InputChannel > 4) */
 
 		    /***********************/
 					/* Test if error occur */
@@ -387,11 +387,10 @@ int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 						/* Read all digital input */
 		       /**************************/
 
-						//INPDW (ps_APCI1710Variable->
-						//   s_Board [b_BoardHandle].
-						//   s_BoardInfos.
-						//  ui_Address + (64 * b_ModulNbr),
-						// &dw_StatusReg);
+/*
+* INPDW (ps_APCI1710Variable-> s_Board [b_BoardHandle].
+* s_BoardInfos. ui_Address + (64 * b_ModulNbr), &dw_StatusReg);
+*/
 
 						dw_StatusReg =
 							inl(devpriv->
@@ -404,7 +403,7 @@ int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 								0x1C) >>
 							b_InputChannel) & 1;
 
-					}	// if (i_ReturnValue == 0)
+					}	/*  if (i_ReturnValue == 0) */
 				} else {
 		    /*******************************/
 					/* Digital I/O not initialised */
@@ -478,9 +477,10 @@ int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-//_INT_   i_APCI1710_SetDigitalIOChlOn    (unsigned char_ b_BoardHandle,
-//                                       unsigned char_ b_ModulNbr,
-//                                       unsigned char_ b_OutputChannel)
+/*
+* _INT_ i_APCI1710_SetDigitalIOChlOn (unsigned char_ b_BoardHandle,
+* unsigned char_ b_ModulNbr, unsigned char_ b_OutputChannel)
+*/
 int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
@@ -602,7 +602,7 @@ int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
 								1 <<
 								b_OutputChannel;
 						}
-					}	// set channel off
+					}	/*  set channel off */
 					else {
 						if (devpriv->
 							s_ModuleInfo
@@ -627,23 +627,24 @@ int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
 								dw_OutputMemory
 								= dw_WriteValue;
 						} else {
-		       /*****************************/
+							/*****************************/
 							/* Digital Output Memory OFF */
-		       /*****************************/
-							// +Use previously the function "i_APCI1710_SetDigitalIOMemoryOn"
+							/*****************************/
+							/*  +Use previously the function "i_APCI1710_SetDigitalIOMemoryOn" */
 							i_ReturnValue = -8;
 						}
 
 					}
-		    /*******************/
+					/*******************/
 					/* Write the value */
-		    /*******************/
+					/*******************/
 
-					//OUTPDW (ps_APCI1710Variable->
-					//    s_Board [b_BoardHandle].
-					//   s_BoardInfos.
-					//   ui_Address + (64 * b_ModulNbr),
-					//   dw_WriteValue);
+					/* OUTPDW (ps_APCI1710Variable->
+					 * s_Board [b_BoardHandle].
+					 * s_BoardInfos. ui_Address + (64 * b_ModulNbr),
+					 * dw_WriteValue);
+					 */
+*/
 					outl(dw_WriteValue,
 						devpriv->s_BoardInfos.
 						ui_Address + (64 * b_ModulNbr));
@@ -725,9 +726,11 @@ int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-//_INT_   i_APCI1710_SetDigitalIOPortOn   (unsigned char_ b_BoardHandle,
-//                                       unsigned char_ b_ModulNbr,
-//                                       unsigned char_ b_PortValue)
+/*
+ * _INT_ i_APCI1710_SetDigitalIOPortOn (unsigned char_
+ * b_BoardHandle, unsigned char_ b_ModulNbr, unsigned char_
+ * b_PortValue)
+*/
 int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
 {
@@ -740,42 +743,43 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 	unsigned char * pb_PortValue;
 
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
-	b_PortOperation = (unsigned char) data[0];	// Input or output
-	b_PortOnOFF = (unsigned char) data[1];	// if output then On or Off
-	b_PortValue = (unsigned char) data[2];	// if out put then Value
+	b_PortOperation = (unsigned char) data[0];	/*  Input or output */
+	b_PortOnOFF = (unsigned char) data[1];	/*  if output then On or Off */
+	b_PortValue = (unsigned char) data[2];	/*  if out put then Value */
 	i_ReturnValue = insn->n;
 	pb_PortValue = (unsigned char *) & data[0];
-// if input then read value
+/* if input then read value */
 
 	switch (b_PortOperation) {
 	case APCI1710_INPUT:
-	/**************************/
+		/**************************/
 		/* Test the module number */
-	/**************************/
+		/**************************/
 
 		if (b_ModulNbr < 4) {
-	   /*******************************/
+			/*******************************/
 			/* Test if digital I/O counter */
-	   /*******************************/
+			/*******************************/
 
 			if ((devpriv->s_BoardInfos.
 					dw_MolduleConfiguration[b_ModulNbr] &
 					0xFFFF0000UL) == APCI1710_DIGITAL_IO) {
-	      /**********************************************/
+				/**********************************************/
 				/* Test if the digital I/O module initialised */
-	      /**********************************************/
+				/**********************************************/
 
 				if (devpriv->s_ModuleInfo[b_ModulNbr].
 					s_DigitalIOInfo.b_DigitalInit == 1) {
-		 /**************************/
+					/**************************/
 					/* Read all digital input */
-		 /**************************/
+					/**************************/
 
-					//INPDW (ps_APCI1710Variable->
-					//      s_Board [b_BoardHandle].
-					//      s_BoardInfos.
-					//      ui_Address + (64 * b_ModulNbr),
-					//      &dw_StatusReg);
+					/* INPDW (ps_APCI1710Variable->
+					 * s_Board [b_BoardHandle].
+					 * s_BoardInfos.
+					 * ui_Address + (64 * b_ModulNbr),
+					 * &dw_StatusReg);
+					 */
 
 					dw_StatusReg =
 						inl(devpriv->s_BoardInfos.
@@ -784,16 +788,16 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 						(unsigned char) (dw_StatusReg ^ 0x1C);
 
 				} else {
-		 /*******************************/
+					/*******************************/
 					/* Digital I/O not initialised */
-		 /*******************************/
+					/*******************************/
 
 					i_ReturnValue = -4;
 				}
 			} else {
-	      /******************************************/
+				/******************************************/
 				/* The module is not a digital I/O module */
-	      /******************************************/
+				/******************************************/
 
 				i_ReturnValue = -3;
 			}
@@ -853,11 +857,11 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 								i_ReturnValue =
 									-6;
 							}
-						}	// if ((b_PortValue & 2) == 2)
+						}	/*  if ((b_PortValue & 2) == 2) */
 
-		    /**************************/
+						/**************************/
 						/* Test if channel B used */
-		    /**************************/
+						/**************************/
 
 						if ((b_PortValue & 4) == 4) {
 							if (devpriv->
@@ -866,33 +870,33 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 								s_DigitalIOInfo.
 								b_ChannelBMode
 								!= 1) {
-			  /*******************************************/
+								/*******************************************/
 								/* The digital channel B is used for input */
-			  /*******************************************/
+								/*******************************************/
 
 								i_ReturnValue =
 									-7;
 							}
-						}	// if ((b_PortValue & 4) == 4)
+						}	/*  if ((b_PortValue & 4) == 4) */
 
-		    /***********************/
+						/***********************/
 						/* Test if error occur */
-		    /***********************/
+						/***********************/
 
 						if (i_ReturnValue >= 0) {
 
-							//if(data[1])
-							//{
+							/* if(data[1]) { */
+
 							switch (b_PortOnOFF) {
-			   /*********************************/
+								/*********************************/
 								/* Test if set Port ON                   */
-		       /*********************************/
+								/*********************************/
 
 							case APCI1710_ON:
 
-		       /*********************************/
+								/*********************************/
 								/* Test if output memory enabled */
-		       /*********************************/
+								/*********************************/
 
 								if (devpriv->
 									s_ModuleInfo
@@ -924,7 +928,7 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 								}
 								break;
 
-								// If Set PORT  OFF
+								/*  If Set PORT  OFF */
 							case APCI1710_OFF:
 
 			   /*********************************/
@@ -957,25 +961,26 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 										=
 										dw_WriteValue;
 								} else {
-			  /*****************************/
+									/*****************************/
 									/* Digital Output Memory OFF */
-			  /*****************************/
+									/*****************************/
 
 									i_ReturnValue
 										=
 										-8;
 								}
-							}	// switch
+							}	/*  switch */
 
-		       /*******************/
+							/*******************/
 							/* Write the value */
-		       /*******************/
+							/*******************/
 
-							//  OUTPDW (ps_APCI1710Variable->
-							//      s_Board [b_BoardHandle].
-							//      s_BoardInfos.
-							//      ui_Address + (64 * b_ModulNbr),
-							//      dw_WriteValue);
+							/* OUTPDW (ps_APCI1710Variable->
+							 * s_Board [b_BoardHandle].
+							 * s_BoardInfos.
+							 * ui_Address + (64 * b_ModulNbr),
+							 * dw_WriteValue); */
+
 							outl(dw_WriteValue,
 								devpriv->
 								s_BoardInfos.
@@ -983,16 +988,16 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 								(64 * b_ModulNbr));
 						}
 					} else {
-		    /**********************/
+						/**********************/
 						/* Output value wrong */
-		    /**********************/
+						/**********************/
 
 						i_ReturnValue = -4;
 					}
 				} else {
-		 /*******************************/
+					/*******************************/
 					/* Digital I/O not initialised */
-		 /*******************************/
+					/*******************************/
 
 					i_ReturnValue = -5;
 				}
@@ -1015,6 +1020,6 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 	default:
 		i_ReturnValue = -9;
 		DPRINTK("NO INPUT/OUTPUT specified\n");
-	}			//switch INPUT / OUTPUT
+	}			/* switch INPUT / OUTPUT */
 	return (i_ReturnValue);
 }

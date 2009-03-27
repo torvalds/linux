@@ -96,16 +96,16 @@ static int aio_aio12_8_ai_read(struct comedi_device * dev, struct comedi_subdevi
 		ADC_MODE_NORMAL |
 		(CR_RANGE(insn->chanspec) << 3) | CR_CHAN(insn->chanspec);
 
-	//read status to clear EOC latch
+	/* read status to clear EOC latch */
 	inb(dev->iobase + AIO12_8_STATUS);
 
 	for (n = 0; n < insn->n; n++) {
 		int timeout = 5;
 
-		// Setup and start conversion
+		/*  Setup and start conversion */
 		outb(control, dev->iobase + AIO12_8_ADC);
 
-		// Wait for conversion to complete
+		/*  Wait for conversion to complete */
 		while (timeout &&
 			!(inb(dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC)) {
 			timeout--;
@@ -140,12 +140,12 @@ static int aio_aio12_8_ao_write(struct comedi_device * dev, struct comedi_subdev
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned long port = dev->iobase + AIO12_8_DAC_0 + (2 * chan);
 
-	//enable DACs
+	/* enable DACs */
 	outb(0x01, dev->iobase + DAC_ENABLE);
 
 	for (i = 0; i < insn->n; i++) {
-		outb(data[i] & 0xFF, port);	// LSB
-		outb((data[i] >> 8) & 0x0F, port + 1);	// MSB
+		outb(data[i] & 0xFF, port);	/*  LSB */
+		outb((data[i] >> 8) & 0x0F, port + 1);	/*  MSB */
 		devpriv->ao_readback[chan] = data[i];
 	}
 	return insn->n;

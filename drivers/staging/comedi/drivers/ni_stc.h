@@ -521,13 +521,13 @@ enum AO_Personal_Bits {
 	AO_FIFO_Flags_Polarity = 1 << 11,	/* M Series: reserved */
 	AO_TMRDACWR_Pulse_Width = 1 << 12,
 	AO_Fast_CPU = 1 << 13,	/* M Series: reserved */
-	AO_Number_Of_DAC_Packages = 1 << 14,	// 1 for "single" mode, 0 for "dual"
-	AO_Multiple_DACS_Per_Package = 1 << 15	// m-series only
+	AO_Number_Of_DAC_Packages = 1 << 14,	/*  1 for "single" mode, 0 for "dual" */
+	AO_Multiple_DACS_Per_Package = 1 << 15	/*  m-series only */
 };
 #define	RTSI_Trig_A_Output_Register	79
 #define	RTSI_Trig_B_Output_Register	80
 enum RTSI_Trig_B_Output_Bits {
-	RTSI_Sub_Selection_1_Bit = 0x8000	// not for m-series
+	RTSI_Sub_Selection_1_Bit = 0x8000	/*  not for m-series */
 };
 static inline unsigned RTSI_Trig_Output_Bits(unsigned rtsi_channel,
 	unsigned source)
@@ -539,7 +539,7 @@ static inline unsigned RTSI_Trig_Output_Mask(unsigned rtsi_channel)
 	return 0xf << ((rtsi_channel % 4) * 4);
 };
 
-// inverse to RTSI_Trig_Output_Bits()
+/* inverse to RTSI_Trig_Output_Bits() */
 static inline unsigned RTSI_Trig_Output_Source(unsigned rtsi_channel,
 	unsigned bits)
 {
@@ -920,42 +920,42 @@ enum ni_reg_type {
 static const struct comedi_lrange range_ni_E_ao_ext;
 
 enum m_series_register_offsets {
-	M_Offset_CDIO_DMA_Select = 0x7,	// write
-	M_Offset_SCXI_Status = 0x7,	// read
-	M_Offset_AI_AO_Select = 0x9,	// write, same offset as e-series
-	M_Offset_SCXI_Serial_Data_In = 0x9,	// read
-	M_Offset_G0_G1_Select = 0xb,	// write, same offset as e-series
+	M_Offset_CDIO_DMA_Select = 0x7,	/*  write */
+	M_Offset_SCXI_Status = 0x7,	/*  read */
+	M_Offset_AI_AO_Select = 0x9,	/*  write, same offset as e-series */
+	M_Offset_SCXI_Serial_Data_In = 0x9,	/*  read */
+	M_Offset_G0_G1_Select = 0xb,	/*  write, same offset as e-series */
 	M_Offset_Misc_Command = 0xf,
 	M_Offset_SCXI_Serial_Data_Out = 0x11,
 	M_Offset_SCXI_Control = 0x13,
 	M_Offset_SCXI_Output_Enable = 0x15,
 	M_Offset_AI_FIFO_Data = 0x1c,
-	M_Offset_Static_Digital_Output = 0x24,	// write
-	M_Offset_Static_Digital_Input = 0x24,	// read
+	M_Offset_Static_Digital_Output = 0x24,	/*  write */
+	M_Offset_Static_Digital_Input = 0x24,	/*  read */
 	M_Offset_DIO_Direction = 0x28,
 	M_Offset_Cal_PWM = 0x40,
 	M_Offset_AI_Config_FIFO_Data = 0x5e,
-	M_Offset_Interrupt_C_Enable = 0x88,	// write
-	M_Offset_Interrupt_C_Status = 0x88,	// read
+	M_Offset_Interrupt_C_Enable = 0x88,	/*  write */
+	M_Offset_Interrupt_C_Status = 0x88,	/*  read */
 	M_Offset_Analog_Trigger_Control = 0x8c,
 	M_Offset_AO_Serial_Interrupt_Enable = 0xa0,
-	M_Offset_AO_Serial_Interrupt_Ack = 0xa1,	// write
-	M_Offset_AO_Serial_Interrupt_Status = 0xa1,	// read
+	M_Offset_AO_Serial_Interrupt_Ack = 0xa1,	/*  write */
+	M_Offset_AO_Serial_Interrupt_Status = 0xa1,	/*  read */
 	M_Offset_AO_Calibration = 0xa3,
 	M_Offset_AO_FIFO_Data = 0xa4,
 	M_Offset_PFI_Filter = 0xb0,
 	M_Offset_RTSI_Filter = 0xb4,
 	M_Offset_SCXI_Legacy_Compatibility = 0xbc,
-	M_Offset_Interrupt_A_Ack = 0x104,	// write
-	M_Offset_AI_Status_1 = 0x104,	// read
-	M_Offset_Interrupt_B_Ack = 0x106,	// write
-	M_Offset_AO_Status_1 = 0x106,	// read
-	M_Offset_AI_Command_2 = 0x108,	// write
-	M_Offset_G01_Status = 0x108,	// read
+	M_Offset_Interrupt_A_Ack = 0x104,	/*  write */
+	M_Offset_AI_Status_1 = 0x104,	/*  read */
+	M_Offset_Interrupt_B_Ack = 0x106,	/*  write */
+	M_Offset_AO_Status_1 = 0x106,	/*  read */
+	M_Offset_AI_Command_2 = 0x108,	/*  write */
+	M_Offset_G01_Status = 0x108,	/*  read */
 	M_Offset_AO_Command_2 = 0x10a,
-	M_Offset_AO_Status_2 = 0x10c,	// read
-	M_Offset_G0_Command = 0x10c,	// write
-	M_Offset_G1_Command = 0x10e,	// write
+	M_Offset_AO_Status_2 = 0x10c,	/*  read */
+	M_Offset_G0_Command = 0x10c,	/*  write */
+	M_Offset_G1_Command = 0x10e,	/*  write */
 	M_Offset_G0_HW_Save = 0x110,
 	M_Offset_G0_HW_Save_High = 0x110,
 	M_Offset_AI_Command_1 = 0x110,
@@ -973,17 +973,17 @@ enum m_series_register_offsets {
 	M_Offset_G1_Save = 0x11c,
 	M_Offset_G1_Save_High = 0x11c,
 	M_Offset_G1_Save_Low = 0x11e,
-	M_Offset_AI_SI_Load_B = 0x120,	// write
-	M_Offset_AO_UI_Save = 0x120,	// read
-	M_Offset_AI_SC_Load_A = 0x124,	// write
-	M_Offset_AO_BC_Save = 0x124,	// read
-	M_Offset_AI_SC_Load_B = 0x128,	// write
-	M_Offset_AO_UC_Save = 0x128,	//read
+	M_Offset_AI_SI_Load_B = 0x120,	/*  write */
+	M_Offset_AO_UI_Save = 0x120,	/*  read */
+	M_Offset_AI_SC_Load_A = 0x124,	/*  write */
+	M_Offset_AO_BC_Save = 0x124,	/*  read */
+	M_Offset_AI_SC_Load_B = 0x128,	/*  write */
+	M_Offset_AO_UC_Save = 0x128,	/* read */
 	M_Offset_AI_SI2_Load_A = 0x12c,
 	M_Offset_AI_SI2_Load_B = 0x130,
 	M_Offset_G0_Mode = 0x134,
-	M_Offset_G1_Mode = 0x136,	// write
-	M_Offset_Joint_Status_1 = 0x136,	// read
+	M_Offset_G1_Mode = 0x136,	/*  write */
+	M_Offset_Joint_Status_1 = 0x136,	/*  read */
 	M_Offset_G0_Load_A = 0x138,
 	M_Offset_Joint_Status_2 = 0x13a,
 	M_Offset_G0_Load_B = 0x13c,
@@ -1007,10 +1007,10 @@ enum m_series_register_offsets {
 	M_Offset_Analog_Trigger_Etc = 0x17a,
 	M_Offset_AI_START_STOP_Select = 0x17c,
 	M_Offset_AI_Trigger_Select = 0x17e,
-	M_Offset_AI_SI_Save = 0x180,	// read
-	M_Offset_AI_DIV_Load_A = 0x180,	// write
-	M_Offset_AI_SC_Save = 0x184,	// read
-	M_Offset_AO_Start_Select = 0x184,	// write
+	M_Offset_AI_SI_Save = 0x180,	/*  read */
+	M_Offset_AI_DIV_Load_A = 0x180,	/*  write */
+	M_Offset_AI_SC_Save = 0x184,	/*  read */
+	M_Offset_AO_Start_Select = 0x184,	/*  write */
 	M_Offset_AO_Trigger_Select = 0x186,
 	M_Offset_AO_Mode_3 = 0x18c,
 	M_Offset_G0_Autoincrement = 0x188,
@@ -1032,10 +1032,10 @@ enum m_series_register_offsets {
 	M_Offset_G1_Counting_Mode = 0x1b2,
 	M_Offset_G0_Second_Gate = 0x1b4,
 	M_Offset_G1_Second_Gate = 0x1b6,
-	M_Offset_G0_DMA_Config = 0x1b8,	// write
-	M_Offset_G0_DMA_Status = 0x1b8,	// read
-	M_Offset_G1_DMA_Config = 0x1ba,	// write
-	M_Offset_G1_DMA_Status = 0x1ba,	// read
+	M_Offset_G0_DMA_Config = 0x1b8,	/*  write */
+	M_Offset_G0_DMA_Status = 0x1b8,	/*  read */
+	M_Offset_G1_DMA_Config = 0x1ba,	/*  write */
+	M_Offset_G1_DMA_Status = 0x1ba,	/*  read */
 	M_Offset_G0_MSeries_ABZ = 0x1c0,
 	M_Offset_G1_MSeries_ABZ = 0x1c2,
 	M_Offset_Clock_and_Fout2 = 0x1c4,
@@ -1051,10 +1051,10 @@ enum m_series_register_offsets {
 	M_Offset_PFI_DO = 0x1de,
 	M_Offset_AI_Config_FIFO_Bypass = 0x218,
 	M_Offset_SCXI_DIO_Enable = 0x21c,
-	M_Offset_CDI_FIFO_Data = 0x220,	// read
-	M_Offset_CDO_FIFO_Data = 0x220,	// write
-	M_Offset_CDIO_Status = 0x224,	// read
-	M_Offset_CDIO_Command = 0x224,	// write
+	M_Offset_CDI_FIFO_Data = 0x220,	/*  read */
+	M_Offset_CDO_FIFO_Data = 0x220,	/*  write */
+	M_Offset_CDIO_Status = 0x224,	/*  read */
+	M_Offset_CDIO_Command = 0x224,	/*  write */
 	M_Offset_CDI_Mode = 0x228,
 	M_Offset_CDO_Mode = 0x22c,
 	M_Offset_CDI_Mask_Enable = 0x230,
@@ -1122,7 +1122,7 @@ enum MSeries_AI_Config_FIFO_Data_Bits {
 	MSeries_AI_Config_Channel_Type_Ground_Ref_Bits = 0x3 << 6,
 	MSeries_AI_Config_Channel_Type_Aux_Bits = 0x5 << 6,
 	MSeries_AI_Config_Channel_Type_Ghost_Bits = 0x7 << 6,
-	MSeries_AI_Config_Polarity_Bit = 0x1000,	// 0 for 2's complement encoding
+	MSeries_AI_Config_Polarity_Bit = 0x1000,	/*  0 for 2's complement encoding */
 	MSeries_AI_Config_Dither_Bit = 0x2000,
 	MSeries_AI_Config_Last_Channel_Bit = 0x4000,
 };
@@ -1151,8 +1151,8 @@ enum MSeries_Clock_and_Fout2_Bits {
 	MSeries_PLL_In_Source_Select_RTSI7_Bits = 0x1b,
 	MSeries_PLL_In_Source_Select_PXI_Clock10 = 0x1d,
 	MSeries_PLL_In_Source_Select_Mask = 0x1f,
-	MSeries_Timebase1_Select_Bit = 0x20,	// use PLL for timebase 1
-	MSeries_Timebase3_Select_Bit = 0x40,	// use PLL for timebase 3
+	MSeries_Timebase1_Select_Bit = 0x20,	/*  use PLL for timebase 1 */
+	MSeries_Timebase3_Select_Bit = 0x40,	/*  use PLL for timebase 3 */
 	/* use 10MHz instead of 20MHz for RTSI clock frequency.  Appears
 	   to have no effect, at least on pxi-6281, which always uses
 	   20MHz rtsi clock frequency */
@@ -1213,7 +1213,7 @@ enum MSeries_AI_Config_FIFO_Bypass_Bits {
 	MSeries_AO_Bypass_AO_Cal_Sel_Mask = 0x38000,
 	MSeries_AI_Bypass_Gain_Mask = 0x1c0000,
 	MSeries_AI_Bypass_Dither_Bit = 0x200000,
-	MSeries_AI_Bypass_Polarity_Bit = 0x400000,	// 0 for 2's complement encoding
+	MSeries_AI_Bypass_Polarity_Bit = 0x400000,	/*  0 for 2's complement encoding */
 	MSeries_AI_Bypass_Config_FIFO_Bit = 0x80000000
 };
 static inline unsigned MSeries_AI_Bypass_Cal_Sel_Pos_Bits(int
@@ -1239,7 +1239,7 @@ enum MSeries_AO_Config_Bank_Bits {
 	MSeries_AO_DAC_Reference_10V_Internal_Bits = 0x0,
 	MSeries_AO_DAC_Reference_5V_Internal_Bits = 0x8,
 	MSeries_AO_Update_Timed_Bit = 0x40,
-	MSeries_AO_Bipolar_Bit = 0x80	// turns on 2's complement encoding
+	MSeries_AO_Bipolar_Bit = 0x80	/*  turns on 2's complement encoding */
 };
 
 enum MSeries_AO_Reference_Attenuation_Bits {
@@ -1266,7 +1266,7 @@ static inline unsigned MSeries_PFI_Output_Select_Bits(unsigned channel,
 	return (source & 0x1f) << ((channel % 3) * 5);
 };
 
-// inverse to MSeries_PFI_Output_Select_Bits
+/* inverse to MSeries_PFI_Output_Select_Bits */
 static inline unsigned MSeries_PFI_Output_Select_Source(unsigned channel,
 	unsigned bits)
 {
@@ -1338,9 +1338,9 @@ enum CDIO_Command_Bits {
 enum CDI_Mode_Bits {
 	CDI_Sample_Source_Select_Mask = 0x3f,
 	CDI_Halt_On_Error_Bit = 0x200,
-	CDI_Polarity_Bit = 0x400,	// sample clock on falling edge
-	CDI_FIFO_Mode_Bit = 0x800,	// set for half full mode, clear for not empty mode
-	CDI_Data_Lane_Mask = 0x3000,	// data lanes specify which dio channels map to byte or word accesses to the dio fifos
+	CDI_Polarity_Bit = 0x400,	/*  sample clock on falling edge */
+	CDI_FIFO_Mode_Bit = 0x800,	/*  set for half full mode, clear for not empty mode */
+	CDI_Data_Lane_Mask = 0x3000,	/*  data lanes specify which dio channels map to byte or word accesses to the dio fifos */
 	CDI_Data_Lane_0_15_Bits = 0x0,
 	CDI_Data_Lane_16_31_Bits = 0x1000,
 	CDI_Data_Lane_0_7_Bits = 0x0,
@@ -1353,9 +1353,9 @@ enum CDO_Mode_Bits {
 	CDO_Sample_Source_Select_Mask = 0x3f,
 	CDO_Retransmit_Bit = 0x100,
 	CDO_Halt_On_Error_Bit = 0x200,
-	CDO_Polarity_Bit = 0x400,	// sample clock on falling edge
-	CDO_FIFO_Mode_Bit = 0x800,	// set for half full mode, clear for not full mode
-	CDO_Data_Lane_Mask = 0x3000,	// data lanes specify which dio channels map to byte or word accesses to the dio fifos
+	CDO_Polarity_Bit = 0x400,	/*  sample clock on falling edge */
+	CDO_FIFO_Mode_Bit = 0x800,	/*  set for half full mode, clear for not full mode */
+	CDO_Data_Lane_Mask = 0x3000,	/*  data lanes specify which dio channels map to byte or word accesses to the dio fifos */
 	CDO_Data_Lane_0_15_Bits = 0x0,
 	CDO_Data_Lane_16_31_Bits = 0x1000,
 	CDO_Data_Lane_0_7_Bits = 0x0,

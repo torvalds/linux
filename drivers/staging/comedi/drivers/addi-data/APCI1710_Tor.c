@@ -641,7 +641,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 										}
 
 										fpu_end();
-									}	// if (b_PCIInputClock != APCI1710_GATE_INPUT)
+									}	/*  if (b_PCIInputClock != APCI1710_GATE_INPUT) */
 									else {
 				   /*************************************************************/
 										/* 2 Clock used for the overflow and the reload from counter */
@@ -652,7 +652,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 											ul_TimingInterval
 											-
 											2;
-									}	// if (b_PCIInputClock != APCI1710_GATE_INPUT)
+									}	/*  if (b_PCIInputClock != APCI1710_GATE_INPUT) */
 
 				/****************************/
 									/* Save the PCI input clock */
@@ -814,7 +814,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 							DPRINTK("Base timing selection is wrong\n");
 							i_ReturnValue = -7;
 						}
-					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+					}	/*  if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) */
 					else {
 		       /**********************************/
 						/* Timing unit selection is wrong */
@@ -822,8 +822,8 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 						DPRINTK("Timing unit selection is wrong\n");
 						i_ReturnValue = -6;
-					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
+					}	/*  if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) */
+				}	/*  if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ)) */
 				else {
 		    /*****************************************/
 					/* The selected PCI input clock is wrong */
@@ -831,8 +831,8 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 					DPRINTK("The selected PCI input clock is wrong\n");
 					i_ReturnValue = -5;
-				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
-			}	// if (b_TorCounterMode >= 0 && b_TorCounterMode <= 7)
+				}	/*  if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ)) */
+			}	/*  if (b_TorCounterMode >= 0 && b_TorCounterMode <= 7) */
 			else {
 		 /**********************************/
 				/* Tor Counter selection is wrong */
@@ -840,7 +840,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 
 				DPRINTK("Tor Counter selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_TorCounterMode >= 0 && b_TorCounterMode <= 7)
+			}	/*  if (b_TorCounterMode >= 0 && b_TorCounterMode <= 7) */
 		} else {
 	      /******************************************/
 			/* The module is not a tor counter module */
@@ -1002,14 +1002,14 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 	unsigned char b_InterruptEnable;
 
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
-	b_Action = (unsigned char) data[0];	// enable or disable
+	b_Action = (unsigned char) data[0];	/*  enable or disable */
 	b_TorCounter = (unsigned char) data[1];
 	b_InputMode = (unsigned char) data[2];
 	b_ExternGate = (unsigned char) data[3];
 	b_CycleMode = (unsigned char) data[4];
 	b_InterruptEnable = (unsigned char) data[5];
 	i_ReturnValue = insn->n;;
-	devpriv->tsk_Current = current;	// Save the current process task structure
+	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 	/**************************/
 	/* Test the module number */
 	/**************************/
@@ -1027,7 +1027,7 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 	      /**********************************/
 
 			if (b_TorCounter <= 1) {
-				switch (b_Action)	// Enable or Disable
+				switch (b_Action)	/*  Enable or Disable */
 				{
 				case APCI1710_ENABLE:
 		 /***********************************/
@@ -1149,7 +1149,7 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 													|
 													0x780;
 
-											}	// if (b_InputMode == APCI1710_TOR_SIMPLE_MODE)
+											}	/*  if (b_InputMode == APCI1710_TOR_SIMPLE_MODE) */
 
 				      /***********************/
 											/* Test if double mode */
@@ -1166,12 +1166,12 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 													|
 													0x180;
 
-											}	// if (b_InputMode == APCI1710_TOR_DOUBLE_MODE)
+											}	/*  if (b_InputMode == APCI1710_TOR_DOUBLE_MODE) */
 
 											b_InputMode
 												=
 												0;
-										}	// if (b_InputMode > 1)
+										}	/*  if (b_InputMode > 1) */
 
 				   /*******************/
 										/* Set the command */
@@ -1237,7 +1237,7 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 
 										outl(1, devpriv->s_BoardInfos.ui_Address + 8 + (16 * b_TorCounter) + (64 * b_ModulNbr));
 
-									}	// if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
+									}	/*  if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE)) */
 									else {
 				/********************************/
 										/* Interrupt parameter is wrong */
@@ -1247,8 +1247,8 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 										i_ReturnValue
 											=
 											-9;
-									}	// if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
-								}	// if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
+									}	/*  if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE)) */
+								}	/*  if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS)) */
 								else {
 			     /***********************************************/
 									/* Tor counter acquisition mode cycle is wrong */
@@ -1258,8 +1258,8 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 									i_ReturnValue
 										=
 										-8;
-								}	// if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
-							}	// if (b_ExternGate >= 0 && b_ExternGate <= 1)
+								}	/*  if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS)) */
+							}	/*  if (b_ExternGate >= 0 && b_ExternGate <= 1) */
 							else {
 			  /***********************************/
 								/* Extern gate input mode is wrong */
@@ -1268,8 +1268,8 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 								DPRINTK("Extern gate input mode is wrong\n");
 								i_ReturnValue =
 									-7;
-							}	// if (b_ExternGate >= 0 && b_ExternGate <= 1)
-						}	// if (b_InputMode >= 0 && b_InputMode <= 1)
+							}	/*  if (b_ExternGate >= 0 && b_ExternGate <= 1) */
+						}	/*  if (b_InputMode >= 0 && b_InputMode <= 1) */
 						else {
 		       /***************************************/
 							/* Tor input signal selection is wrong */
@@ -1329,7 +1329,7 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 								s_BoardInfos.
 								ui_Address + 8 +
 								(16 * b_TorCounter) + (64 * b_ModulNbr));
-						}	// if (dw_Status & 0x1)
+						}	/*  if (dw_Status & 0x1) */
 						else {
 		       /***************************/
 							/* Tor counter not enabled */
@@ -1337,8 +1337,8 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 
 							DPRINTK("Tor counter not enabled \n");
 							i_ReturnValue = -6;
-						}	// if (dw_Status & 0x1)
-					}	// if (dw_Status & 0x10)
+						}	/*  if (dw_Status & 0x1) */
+					}	/*  if (dw_Status & 0x10) */
 					else {
 		    /*******************************/
 						/* Tor counter not initialised */
@@ -1346,10 +1346,10 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 
 						DPRINTK("Tor counter not initialised\n");
 						i_ReturnValue = -5;
-					}	// // if (dw_Status & 0x10)
+					}	/*  // if (dw_Status & 0x10) */
 
-				}	// switch
-			}	// if (b_TorCounter <= 1)
+				}	/*  switch */
+			}	/*  if (b_TorCounter <= 1) */
 			else {
 		 /**********************************/
 				/* Tor counter selection is wrong */
@@ -1357,7 +1357,7 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 
 				DPRINTK("Tor counter selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_TorCounter <= 1)
+			}	/*  if (b_TorCounter <= 1) */
 		} else {
 	      /******************************************/
 			/* The module is not a tor counter module */
@@ -1569,17 +1569,17 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 								*pb_InputMode =
 									APCI1710_TOR_QUADRUPLE_MODE;
 							}
-						}	// if (dw_Status & 0x400)
+						}	/*  if (dw_Status & 0x400) */
 						else {
 							*pb_InputMode = 1;
-						}	// // if (dw_Status & 0x400)
+						}	/*  // if (dw_Status & 0x400) */
 
 		       /************************/
 						/* Extern gate not used */
 		       /************************/
 
 						*pb_ExternGate = 0;
-					}	// if (dw_Status & 0x600)
+					}	/*  if (dw_Status & 0x600) */
 					else {
 						*pb_InputMode =
 							(unsigned char) ((dw_Status >> 6)
@@ -1587,7 +1587,7 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 						*pb_ExternGate =
 							(unsigned char) ((dw_Status >> 7)
 							& 1);
-					}	// if (dw_Status & 0x600)
+					}	/*  if (dw_Status & 0x600) */
 
 					*pb_TimingUnit =
 						devpriv->
@@ -1611,7 +1611,7 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 					i_ReturnValue = -5;
 				}
 
-			}	// if (b_TorCounter <= 1)
+			}	/*  if (b_TorCounter <= 1) */
 			else {
 		 /**********************************/
 				/* Tor counter selection is wrong */
@@ -1619,7 +1619,7 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 
 				DPRINTK("Tor counter selection is wrong \n");
 				i_ReturnValue = -4;
-			}	// if (b_TorCounter <= 1)
+			}	/*  if (b_TorCounter <= 1) */
 		} else {
 	      /******************************************/
 			/* The module is not a tor counter module */
@@ -1896,7 +1896,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 											+
 											(16 * b_TorCounter) + (64 * b_ModulNbr));
 										break;
-									}	// if ((dw_Status & 4) == 4)
+									}	/*  if ((dw_Status & 4) == 4) */
 									else {
 				/*******************************/
 										/* Test if measurement stopped */
@@ -1927,7 +1927,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 												(16 * b_TorCounter) + (64 * b_ModulNbr));
 
 											break;
-										}	// if ((dw_Status & 2) == 2)
+										}	/*  if ((dw_Status & 2) == 2) */
 										else {
 				   /*******************************/
 											/* Test if measurement started */
@@ -1941,7 +1941,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 												*pb_TorCounterStatus
 													=
 													1;
-											}	// if ((dw_Status & 1) == 1)
+											}	/*  if ((dw_Status & 1) == 1) */
 											else {
 				      /***************************/
 												/* Measurement not started */
@@ -1950,9 +1950,9 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 												*pb_TorCounterStatus
 													=
 													0;
-											}	// if ((dw_Status & 1) == 1)
-										}	// if ((dw_Status & 2) == 2)
-									}	// if ((dw_Status & 8) == 8)
+											}	/*  if ((dw_Status & 1) == 1) */
+										}	/*  if ((dw_Status & 2) == 2) */
+									}	/*  if ((dw_Status & 8) == 8) */
 
 									if (dw_TimeOut == ui_TimeOut) {
 				/*****************/
@@ -1973,7 +1973,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 
 										mdelay(1000);
 									}
-								}	// for (;;)
+								}	/*  for (;;) */
 
 			  /*************************/
 								/* Test if timeout occur */
@@ -2001,8 +2001,8 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 
 						default:
 							printk("Inputs wrong\n");
-						}	// switch end
-					}	// if (dw_Status & 0x1)
+						}	/*  switch end */
+					}	/*  if (dw_Status & 0x1) */
 					else {
 		       /***************************/
 						/* Tor counter not enabled */
@@ -2010,7 +2010,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 
 						DPRINTK("Tor counter not enabled\n");
 						i_ReturnValue = -6;
-					}	// if (dw_Status & 0x1)
+					}	/*  if (dw_Status & 0x1) */
 				} else {
 		    /*******************************/
 					/* Tor counter not initialised */
@@ -2019,7 +2019,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 					DPRINTK("Tor counter not initialised\n");
 					i_ReturnValue = -5;
 				}
-			}	// if (b_TorCounter <= 1)
+			}	/*  if (b_TorCounter <= 1) */
 			else {
 		 /**********************************/
 				/* Tor counter selection is wrong */
@@ -2027,7 +2027,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 
 				DPRINTK("Tor counter selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_TorCounter <= 1)
+			}	/*  if (b_TorCounter <= 1) */
 		} else {
 	      /******************************************/
 			/* The module is not a tor counter module */

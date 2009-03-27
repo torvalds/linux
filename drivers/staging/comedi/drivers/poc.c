@@ -72,7 +72,7 @@ static const struct boarddef_struct boards[] = {
 	{
 	      name:	"dac02",
 	      iosize:	8,
-			//setup:                dac02_setup,
+			/* setup:                dac02_setup, */
 	      type:	COMEDI_SUBD_AO,
 	      n_chan:	2,
 	      n_bits:	12,
@@ -196,7 +196,7 @@ static int dac02_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * 
 	((unsigned int *) dev->private)[chan] = data[0];
 	output = data[0];
 #ifdef wrong
-	// convert to complementary binary if range is bipolar
+	/*  convert to complementary binary if range is bipolar */
 	if ((CR_RANGE(insn->chanspec) & 0x2) == 0)
 		output = ~output;
 #endif

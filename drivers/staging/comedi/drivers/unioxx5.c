@@ -94,7 +94,7 @@ static int __unioxx5_digital_write(struct unioxx5_subd_priv * usp, unsigned int 
 	int channel, int minor);
 static int __unioxx5_digital_read(struct unioxx5_subd_priv * usp, unsigned int * data,
 	int channel, int minor);
-//static void __unioxx5_digital_config(struct unioxx5_subd_priv* usp, int mode);
+/* static void __unioxx5_digital_config(struct unioxx5_subd_priv* usp, int mode); */
 static int __unioxx5_analog_write(struct unioxx5_subd_priv * usp, unsigned int * data,
 	int channel, int minor);
 static int __unioxx5_analog_read(struct unioxx5_subd_priv * usp, unsigned int * data,
@@ -418,7 +418,7 @@ static int __unioxx5_analog_write(struct unioxx5_subd_priv * usp, unsigned int *
 	/* saving major byte */
 	usp->usp_extra_data[module][i] = (unsigned char)((*data & 0xFF00) >> 8);
 
-	//while(!((inb(usp->usp_iobase + 0)) & TxBE));
+	/* while(!((inb(usp->usp_iobase + 0)) & TxBE)); */
 	outb(module + 1, usp->usp_iobase + 5);	/* sending module number to card(1 .. 12) */
 	outb('W', usp->usp_iobase + 6);	/* sends (W)rite command to module */
 

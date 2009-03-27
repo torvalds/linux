@@ -83,16 +83,16 @@ int i_APCI3501_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdev
 	*data = inl(devpriv->iobase + APCI3501_DIGITAL_IP);
 	if (ui_Temp == 0) {
 		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			//if  (ui_Temp==0)
+	}			/* if  (ui_Temp==0) */
 	else {
 		if (ui_Temp == 1) {
 
 			*data = *data & 0x3;
-		}		//if  (ui_Temp==1)
+		}		/* if  (ui_Temp==1) */
 		else {
 			printk("\nSpecified channel not supported \n");
-		}		//elseif  (ui_Temp==1)
-	}			//elseif  (ui_Temp==0)
+		}		/* elseif  (ui_Temp==1) */
+	}			/* elseif  (ui_Temp==0) */
 	return insn->n;
 }
 
@@ -129,13 +129,13 @@ int i_APCI3501_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 		comedi_error(dev,
 			"Not a valid Data !!! ,Data should be 1 or 0\n");
 		return -EINVAL;
-	}			//if  ( (data[0]!=0) && (data[0]!=1) )
+	}			/* if  ( (data[0]!=0) && (data[0]!=1) ) */
 	if (data[0]) {
 		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
-	}			// if  (data[0])
+	}			/*  if  (data[0]) */
 	else {
 		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
-	}			//else if  (data[0])
+	}			/* else if  (data[0]) */
 	return insn->n;
 }
 
@@ -165,29 +165,29 @@ int i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 	struct comedi_insn * insn, unsigned int * data)
 {
 	unsigned int ui_Temp, ui_Temp1;
-	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
+	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
 	if (devpriv->b_OutputMemoryStatus) {
 		ui_Temp = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
-	}			//if(devpriv->b_OutputMemoryStatus )
+	}			/* if(devpriv->b_OutputMemoryStatus ) */
 	else {
 		ui_Temp = 0;
-	}			//if(devpriv->b_OutputMemoryStatus )
+	}			/* if(devpriv->b_OutputMemoryStatus ) */
 	if (data[3] == 0) {
 		if (data[1] == 0) {
 			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
 			outl(data[0], devpriv->iobase + APCI3501_DIGITAL_OP);
-		}		//if(data[1]==0)
+		}		/* if(data[1]==0) */
 		else {
 			if (data[1] == 1) {
 				data[0] = (data[0] << (2 * data[2])) | ui_Temp;
 				outl(data[0],
 					devpriv->iobase + APCI3501_DIGITAL_OP);
-			}	// if(data[1]==1)
+			}	/*  if(data[1]==1) */
 			else {
 				printk("\nSpecified channel not supported\n");
-			}	//else if(data[1]==1)
-		}		//elseif(data[1]==0)
-	}			//if(data[3]==0)
+			}	/* else if(data[1]==1) */
+		}		/* elseif(data[1]==0) */
+	}			/* if(data[3]==0) */
 	else {
 		if (data[3] == 1) {
 			if (data[1] == 0) {
@@ -201,7 +201,7 @@ int i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 				data[0] = data[0] & ui_Temp;
 				outl(data[0],
 					devpriv->iobase + APCI3501_DIGITAL_OP);
-			}	//if(data[1]==0)
+			}	/* if(data[1]==0) */
 			else {
 				if (data[1] == 1) {
 					data[0] = ~data[0] & 0x3;
@@ -215,17 +215,17 @@ int i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 					outl(data[0],
 						devpriv->iobase +
 						APCI3501_DIGITAL_OP);
-				}	// if(data[1]==1)
+				}	/*  if(data[1]==1) */
 				else {
 					printk("\nSpecified channel not supported\n");
-				}	//else if(data[1]==1)
-			}	//elseif(data[1]==0)
-		}		//if(data[3]==1);
+				}	/* else if(data[1]==1) */
+			}	/* elseif(data[1]==0) */
+		}		/* if(data[3]==1); */
 		else {
 			printk("\nSpecified functionality does not exist\n");
 			return -EINVAL;
-		}		//if else data[3]==1)
-	}			//if else data[3]==0)
+		}		/* if else data[3]==1) */
+	}			/* if else data[3]==0) */
 	return insn->n;
 }
 
@@ -259,16 +259,16 @@ int i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 	*data = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
 	if (ui_Temp == 0) {
 		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			// if  (ui_Temp==0)
+	}			/*  if  (ui_Temp==0) */
 	else {
 		if (ui_Temp == 1) {
 			*data = *data & 0x3;
 
-		}		// if  (ui_Temp==1)
+		}		/*  if  (ui_Temp==1) */
 		else {
 			printk("\nSpecified channel not supported \n");
-		}		// else if (ui_Temp==1)
-	}			// else if  (ui_Temp==0)
+		}		/*  else if (ui_Temp==1) */
+	}			/*  else if  (ui_Temp==0) */
 	return insn->n;
 }
 
@@ -349,18 +349,18 @@ int i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subde
 			printk("\nIn WriteAnalogOutput :: Not Valid Data\n");
 		}
 
-	}			// end if(devpriv->b_InterruptMode==MODE1)
+	}			/*  end if(devpriv->b_InterruptMode==MODE1) */
 	else {
 		ul_Polarity = 0;
 		if ((*data < 0) || (*data > 8192)) {
 			printk("\nIn WriteAnalogOutput :: Not Valid Data\n");
 		}
 
-	}			// end else
+	}			/*  end else */
 
 	if ((ul_Channel_no < 0) || (ul_Channel_no > 7)) {
 		printk("\nIn WriteAnalogOutput :: Not Valid Channel\n");
-	}			// end if((ul_Channel_no<0)||(ul_Channel_no>7))
+	}			/*  end if((ul_Channel_no<0)||(ul_Channel_no>7)) */
 
 	ul_DAC_Ready = inl(devpriv->iobase + APCI3501_ANALOG_OUTPUT);
 
@@ -370,7 +370,7 @@ int i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subde
 	}
 
 	if (ul_DAC_Ready) {
-// Output the Value on the output channels.
+/* Output the Value on the output channels. */
 		ul_Command1 =
 			(unsigned int) ((unsigned int) (ul_Channel_no & 0xFF) |
 			(unsigned int) ((*data << 0x8) & 0x7FFFFF00L) |
@@ -418,70 +418,70 @@ int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 	if (data[0] == ADDIDATA_WATCHDOG) {
 
 		devpriv->b_TimerSelectMode = ADDIDATA_WATCHDOG;
-		//Disable the watchdog
-		outl(0x0, devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);	//disable Wa
+		/* Disable the watchdog */
+		outl(0x0, devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);	/* disable Wa */
 
 		if (data[1] == 1) {
-			//Enable TIMER int & DISABLE ALL THE OTHER int SOURCES
+			/* Enable TIMER int & DISABLE ALL THE OTHER int SOURCES */
 			outl(0x02,
 				devpriv->iobase + APCI3501_WATCHDOG +
 				APCI3501_TCW_PROG);
 		} else {
-			outl(0x0, devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);	//disable Timer interrupt
+			outl(0x0, devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);	/* disable Timer interrupt */
 		}
 
-		//Loading the Timebase value
+		/* Loading the Timebase value */
 		outl(data[2],
 			devpriv->iobase + APCI3501_WATCHDOG +
 			APCI3501_TCW_TIMEBASE);
 
-		//Loading the Reload value
+		/* Loading the Reload value */
 		outl(data[3],
 			devpriv->iobase + APCI3501_WATCHDOG +
 			APCI3501_TCW_RELOAD_VALUE);
-		//Set the mode
-		ul_Command1 = inl(devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG) | 0xFFF819E0UL;	//e2->e0
+		/* Set the mode */
+		ul_Command1 = inl(devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG) | 0xFFF819E0UL;	/* e2->e0 */
 		outl(ul_Command1,
 			devpriv->iobase + APCI3501_WATCHDOG +
 			APCI3501_TCW_PROG);
-	}			//end if(data[0]==ADDIDATA_WATCHDOG)
+	}			/* end if(data[0]==ADDIDATA_WATCHDOG) */
 
 	else if (data[0] == ADDIDATA_TIMER) {
-		//First Stop The Timer
+		/* First Stop The Timer */
 		ul_Command1 =
 			inl(devpriv->iobase + APCI3501_WATCHDOG +
 			APCI3501_TCW_PROG);
 		ul_Command1 = ul_Command1 & 0xFFFFF9FEUL;
-		outl(ul_Command1, devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);	//Stop The Timer
+		outl(ul_Command1, devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);	/* Stop The Timer */
 		devpriv->b_TimerSelectMode = ADDIDATA_TIMER;
 		if (data[1] == 1) {
-			//Enable TIMER int & DISABLE ALL THE OTHER int SOURCES
+			/* Enable TIMER int & DISABLE ALL THE OTHER int SOURCES */
 			outl(0x02,
 				devpriv->iobase + APCI3501_WATCHDOG +
 				APCI3501_TCW_PROG);
 		} else {
-			outl(0x0, devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);	//disable Timer interrupt
+			outl(0x0, devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);	/* disable Timer interrupt */
 		}
 
-		// Loading Timebase
+		/*  Loading Timebase */
 		outl(data[2],
 			devpriv->iobase + APCI3501_WATCHDOG +
 			APCI3501_TCW_TIMEBASE);
 
-		//Loading the Reload value
+		/* Loading the Reload value */
 		outl(data[3],
 			devpriv->iobase + APCI3501_WATCHDOG +
 			APCI3501_TCW_RELOAD_VALUE);
 
-		// printk ("\nTimer Address :: %x\n", (devpriv->iobase+APCI3501_WATCHDOG));
+		/*  printk ("\nTimer Address :: %x\n", (devpriv->iobase+APCI3501_WATCHDOG)); */
 		ul_Command1 =
 			inl(devpriv->iobase + APCI3501_WATCHDOG +
 			APCI3501_TCW_PROG);
 		ul_Command1 =
 			(ul_Command1 & 0xFFF719E2UL) | 2UL << 13UL | 0x10UL;
-		outl(ul_Command1, devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);	//mode 2
+		outl(ul_Command1, devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);	/* mode 2 */
 
-	}			//end if(data[0]==ADDIDATA_TIMER)
+	}			/* end if(data[0]==ADDIDATA_TIMER) */
 
 	return insn->n;
 }
@@ -523,15 +523,15 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 				inl(devpriv->iobase + APCI3501_WATCHDOG +
 				APCI3501_TCW_PROG);
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
-			//Enable the Watchdog
+			/* Enable the Watchdog */
 			outl(ul_Command1,
 				devpriv->iobase + APCI3501_WATCHDOG +
 				APCI3501_TCW_PROG);
 		}
 
-		else if (data[1] == 0)	//Stop The Watchdog
+		else if (data[1] == 0)	/* Stop The Watchdog */
 		{
-			//Stop The Watchdog
+			/* Stop The Watchdog */
 			ul_Command1 =
 				inl(devpriv->iobase + APCI3501_WATCHDOG +
 				APCI3501_TCW_PROG);
@@ -547,8 +547,8 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 			outl(ul_Command1,
 				devpriv->iobase + APCI3501_WATCHDOG +
 				APCI3501_TCW_PROG);
-		}		//if(data[1]==2)
-	}			// end if (devpriv->b_TimerSelectMode==ADDIDATA_WATCHDOG)
+		}		/* if(data[1]==2) */
+	}			/*  end if (devpriv->b_TimerSelectMode==ADDIDATA_WATCHDOG) */
 
 	if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
 		if (data[1] == 1) {
@@ -557,12 +557,12 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 				inl(devpriv->iobase + APCI3501_WATCHDOG +
 				APCI3501_TCW_PROG);
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
-			//Enable the Timer
+			/* Enable the Timer */
 			outl(ul_Command1,
 				devpriv->iobase + APCI3501_WATCHDOG +
 				APCI3501_TCW_PROG);
 		} else if (data[1] == 0) {
-			//Stop The Timer
+			/* Stop The Timer */
 			ul_Command1 =
 				inl(devpriv->iobase + APCI3501_WATCHDOG +
 				APCI3501_TCW_PROG);
@@ -573,7 +573,7 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 		}
 
 		else if (data[1] == 2) {
-			//Trigger the Timer
+			/* Trigger the Timer */
 			ul_Command1 =
 				inl(devpriv->iobase + APCI3501_WATCHDOG +
 				APCI3501_TCW_PROG);
@@ -583,7 +583,7 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 				APCI3501_TCW_PROG);
 		}
 
-	}			// end if (devpriv->b_TimerSelectMode==ADDIDATA_TIMER)
+	}			/*  end if (devpriv->b_TimerSelectMode==ADDIDATA_TIMER) */
 	i_Temp = inl(devpriv->iobase + APCI3501_WATCHDOG +
 		APCI3501_TCW_TRIG_STATUS) & 0x1;
 	return insn->n;
@@ -622,14 +622,14 @@ int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device * dev,
 			inl(devpriv->iobase + APCI3501_WATCHDOG +
 			APCI3501_TCW_TRIG_STATUS) & 0x1;
 		data[1] = inl(devpriv->iobase + APCI3501_WATCHDOG);
-	}			// end if  (devpriv->b_TimerSelectMode==ADDIDATA_WATCHDOG)
+	}			/*  end if  (devpriv->b_TimerSelectMode==ADDIDATA_WATCHDOG) */
 
 	else if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
 		data[0] =
 			inl(devpriv->iobase + APCI3501_WATCHDOG +
 			APCI3501_TCW_TRIG_STATUS) & 0x1;
 		data[1] = inl(devpriv->iobase + APCI3501_WATCHDOG);
-	}			// end if  (devpriv->b_TimerSelectMode==ADDIDATA_TIMER)
+	}			/*  end if  (devpriv->b_TimerSelectMode==ADDIDATA_TIMER) */
 
 	else if ((devpriv->b_TimerSelectMode != ADDIDATA_TIMER)
 		&& (devpriv->b_TimerSelectMode != ADDIDATA_WATCHDOG)) {
@@ -674,7 +674,7 @@ int i_APCI3501_Reset(struct comedi_device * dev)
 		}
 
 		if (ul_DAC_Ready) {
-			// Output the Value on the output channels.
+			/*  Output the Value on the output channels. */
 			ul_Command1 =
 				(unsigned int) ((unsigned int) (i_Count & 0xFF) |
 				(unsigned int) ((i_temp << 0x8) & 0x7FFFFF00L) |
@@ -711,7 +711,7 @@ void v_APCI3501_Interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	unsigned int ui_Timer_AOWatchdog;
 	unsigned long ul_Command1;
-	// Disable Interrupt
+	/*  Disable Interrupt */
 	ul_Command1 =
 		inl(devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);
 
@@ -728,8 +728,9 @@ void v_APCI3501_Interrupt(int irq, void *d)
 		return;
 	}
 
-	// Enable Interrupt
-	//Send a signal to from kernel to user space
+/*
+* Enable Interrupt Send a signal to from kernel to user space
+*/
 	send_sig(SIGIO, devpriv->tsk_Current, 0);
 	ul_Command1 =
 		inl(devpriv->iobase + APCI3501_WATCHDOG + APCI3501_TCW_PROG);

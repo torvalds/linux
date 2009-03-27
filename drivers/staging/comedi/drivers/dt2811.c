@@ -313,9 +313,10 @@ static irqreturn_t dt2811_interrupt(int irq, void *d)
 
 static int dt2811_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 {
-	//int i, irq;
-	//unsigned long irqs;
-	//long flags;
+	/* int i, irq; */
+	/* unsigned long irqs; */
+	/* long flags; */
+
 	int ret;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
@@ -531,7 +532,7 @@ int dt2811_adtrig(kdev_t minor, comedi_adtrig * adtrig)
 	case COMEDI_MDEMAND:
 		dev->ntrig = adtrig->n - 1;
 		/*printk("dt2811: AD soft trigger\n"); */
-		/*outb(DT2811_CLRERROR|DT2811_INTENB,dev->iobase+DT2811_ADCSR); *//* not neccessary */
+		/*outb(DT2811_CLRERROR|DT2811_INTENB,dev->iobase+DT2811_ADCSR); */ /* not neccessary */
 		outb(dev->curadchan, dev->iobase + DT2811_ADGCR);
 		do_gettimeofday(&trigtime);
 		break;

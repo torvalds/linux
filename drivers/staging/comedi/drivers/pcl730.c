@@ -31,8 +31,8 @@ static int pcl730_detach(struct comedi_device * dev);
 
 struct pcl730_board {
 
-	const char *name;	// board name
-	unsigned int io_range;	// len of I/O space
+	const char *name;	/*  board name */
+	unsigned int io_range;	/*  len of I/O space */
 };
 
 

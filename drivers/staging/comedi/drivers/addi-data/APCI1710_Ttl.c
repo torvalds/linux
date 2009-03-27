@@ -322,7 +322,7 @@ int i_APCI1710_InsnConfigInitTTLIO(struct comedi_device * dev, struct comedi_sub
 				DPRINTK("\n");
 			default:
 				printk("Bad Config Type\n");
-			}	// switch end
+			}	/*  switch end */
 		} else {
 	      /**********************************/
 			/* The module is not a TTL module */
@@ -610,7 +610,7 @@ int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subde
 			default:
 				printk("Bad ReadType\n");
 
-			}	//End Switch
+			}	/* End Switch */
 		} else {
 	      /**********************************/
 			/* The module is not a TTL module */
@@ -811,7 +811,7 @@ int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,struct comedi
 
   b_ModulNbr	   = CR_AREF(insn->chanspec);
 	b_OutputChannel= CR_CHAN(insn->chanspec);
-	ui_State	   = data[0]; // ON or OFF
+	ui_State	   = data[0]; /*  ON or OFF */
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -837,7 +837,7 @@ int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device * dev,
 	i_ReturnValue = insn->n;
 	b_ModulNbr = CR_AREF(insn->chanspec);
 	b_OutputChannel = CR_CHAN(insn->chanspec);
-	ui_State = data[0];	// ON or OFF
+	ui_State = data[0];	/*  ON or OFF */
 
 	/**************************/
 	/* Test the module number */
@@ -953,7 +953,7 @@ int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device * dev,
 									ui_Address
 									+
 									(64 * b_ModulNbr));
-								if (ui_State)	// ON
+								if (ui_State)	/*  ON */
 								{
 									dw_StatusReg
 										=
@@ -969,7 +969,7 @@ int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device * dev,
 										(b_OutputChannel
 											%
 											8));
-								} else	// Off
+								} else	/*  Off */
 								{
 									dw_StatusReg
 										=

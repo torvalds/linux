@@ -100,7 +100,7 @@ static struct comedi_driver driver_dt2801 = {
 COMEDI_INITCLEANUP(driver_dt2801);
 
 #if 0
-// ignore 'defined but not used' warning
+/* ignore 'defined but not used' warning */
 static const struct comedi_lrange range_dt2801_ai_pgh_bipolar = { 4, {
 			RANGE(-10, 10),
 			RANGE(-5, 5),
@@ -118,7 +118,7 @@ static const struct comedi_lrange range_dt2801_ai_pgl_bipolar = { 4, {
 };
 
 #if 0
-// ignore 'defined but not used' warning
+/* ignore 'defined but not used' warning */
 static const struct comedi_lrange range_dt2801_ai_pgh_unipolar = { 4, {
 			RANGE(0, 10),
 			RANGE(0, 5),
@@ -381,10 +381,10 @@ static int dt2801_reset(struct comedi_device * dev)
 	inb_p(dev->iobase + DT2801_DATA);
 
 	DPRINTK("dt2801: stop\n");
-	//dt2801_writecmd(dev,DT_C_STOP);
+	/* dt2801_writecmd(dev,DT_C_STOP); */
 	outb_p(DT_C_STOP, dev->iobase + DT2801_CMD);
 
-	//dt2801_wait_for_ready(dev);
+	/* dt2801_wait_for_ready(dev); */
 	comedi_udelay(100);
 	timeout = 10000;
 	do {
@@ -395,12 +395,13 @@ static int dt2801_reset(struct comedi_device * dev)
 	if (!timeout) {
 		printk("dt2801: timeout 1 status=0x%02x\n", stat);
 	}
-	//printk("dt2801: reading dummy\n");
-	//dt2801_readdata(dev,&board_code);
+
+	/* printk("dt2801: reading dummy\n"); */
+	/* dt2801_readdata(dev,&board_code); */
 
 	DPRINTK("dt2801: reset\n");
 	outb_p(DT_C_RESET, dev->iobase + DT2801_CMD);
-	//dt2801_writecmd(dev,DT_C_RESET);
+	/* dt2801_writecmd(dev,DT_C_RESET); */
 
 	comedi_udelay(100);
 	timeout = 10000;

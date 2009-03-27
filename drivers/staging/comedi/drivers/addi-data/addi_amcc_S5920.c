@@ -92,15 +92,15 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 		while (dw_eeprom_busy == EEPROM_BUSY);
 
 		for (i_Counter = 0; i_Counter < 2; i_Counter++) {
-			b_SelectedAddressLow = (w_EepromStartAddress + i_Counter) % 256;	//Read the low 8 bit part
-			b_SelectedAddressHigh = (w_EepromStartAddress + i_Counter) / 256;	//Read the high 8 bit part
+			b_SelectedAddressLow = (w_EepromStartAddress + i_Counter) % 256;	/* Read the low 8 bit part */
+			b_SelectedAddressHigh = (w_EepromStartAddress + i_Counter) / 256;	/* Read the high 8 bit part */
 
-			//Select the load low address mode
+			/* Select the load low address mode */
 			outb(NVCMD_LOAD_LOW,
 				dw_PCIBoardEepromAddress + AMCC_OP_REG_MCSR +
 				3);
 
-			//Wait on busy
+			/* Wait on busy */
 			do {
 				dw_eeprom_busy =
 					inl(dw_PCIBoardEepromAddress +
@@ -109,12 +109,12 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 			}
 			while (dw_eeprom_busy == EEPROM_BUSY);
 
-			//Load the low address
+			/* Load the low address */
 			outb(b_SelectedAddressLow,
 				dw_PCIBoardEepromAddress + AMCC_OP_REG_MCSR +
 				2);
 
-			//Wait on busy
+			/* Wait on busy */
 			do {
 				dw_eeprom_busy =
 					inl(dw_PCIBoardEepromAddress +
@@ -123,12 +123,12 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 			}
 			while (dw_eeprom_busy == EEPROM_BUSY);
 
-			//Select the load high address mode
+			/* Select the load high address mode */
 			outb(NVCMD_LOAD_HIGH,
 				dw_PCIBoardEepromAddress + AMCC_OP_REG_MCSR +
 				3);
 
-			//Wait on busy
+			/* Wait on busy */
 			do {
 				dw_eeprom_busy =
 					inl(dw_PCIBoardEepromAddress +
@@ -137,12 +137,12 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 			}
 			while (dw_eeprom_busy == EEPROM_BUSY);
 
-			//Load the high address
+			/* Load the high address */
 			outb(b_SelectedAddressHigh,
 				dw_PCIBoardEepromAddress + AMCC_OP_REG_MCSR +
 				2);
 
-			//Wait on busy
+			/* Wait on busy */
 			do {
 				dw_eeprom_busy =
 					inl(dw_PCIBoardEepromAddress +
@@ -151,12 +151,12 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 			}
 			while (dw_eeprom_busy == EEPROM_BUSY);
 
-			//Select the READ mode
+			/* Select the READ mode */
 			outb(NVCMD_BEGIN_READ,
 				dw_PCIBoardEepromAddress + AMCC_OP_REG_MCSR +
 				3);
 
-			//Wait on busy
+			/* Wait on busy */
 			do {
 				dw_eeprom_busy =
 					inl(dw_PCIBoardEepromAddress +
@@ -165,12 +165,12 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 			}
 			while (dw_eeprom_busy == EEPROM_BUSY);
 
-			//Read data into the EEPROM
+			/* Read data into the EEPROM */
 			*pb_ReadByte =
 				inb(dw_PCIBoardEepromAddress +
 				AMCC_OP_REG_MCSR + 2);
 
-			//Wait on busy
+			/* Wait on busy */
 			do {
 				dw_eeprom_busy =
 					inl(dw_PCIBoardEepromAddress +
@@ -179,14 +179,14 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 			}
 			while (dw_eeprom_busy == EEPROM_BUSY);
 
-			//Select the upper address part
+			/* Select the upper address part */
 			if (i_Counter == 0) {
 				b_ReadLowByte = pb_ReadByte[0];
 			} else {
 				b_ReadHighByte = pb_ReadByte[0];
 			}
 
-			//Sleep
+			/* Sleep */
 			for (i = 0; i < 10000; i++) ;
 
 		}
@@ -196,8 +196,8 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 
 		pw_DataRead[i_WordCounter] = w_ReadWord;
 
-		w_EepromStartAddress += 2;	// to read the next word
+		w_EepromStartAddress += 2;	/*  to read the next word */
 
-	}			// for (...) i_NbOfWordsToRead
+	}			/*  for (...) i_NbOfWordsToRead */
 	return (0);
 }

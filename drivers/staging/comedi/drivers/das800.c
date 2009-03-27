@@ -72,7 +72,7 @@ cmd triggers supported:
 
 #define DAS800_SIZE           8
 #define TIMER_BASE            1000
-#define N_CHAN_AI             8	// number of analog input channels
+#define N_CHAN_AI             8	/*  number of analog input channels */
 
 /* Registers for the das800 */
 
@@ -94,8 +94,8 @@ cmd triggers supported:
 #define   IRQ                   0x8
 #define   BUSY                  0x80
 #define DAS800_GAIN           3
-#define   CIO_FFOV              0x8	// fifo overflow for cio-das802/16
-#define   CIO_ENHF              0x90	// interrupt fifo half full for cio-das802/16
+#define   CIO_FFOV              0x8	/*  fifo overflow for cio-das802/16 */
+#define   CIO_ENHF              0x90	/*  interrupt fifo half full for cio-das802/16 */
 #define   CONTROL1              0x80
 #define   CONV_CONTROL          0xa0
 #define   SCAN_LIMITS           0xc0
@@ -113,7 +113,7 @@ struct das800_board {
 	int resolution;
 };
 
-//analog input ranges
+/* analog input ranges */
 static const struct comedi_lrange range_das800_ai = {
 	1,
 	{
@@ -278,7 +278,7 @@ static int das800_probe(struct comedi_device * dev)
 	unsigned long irq_flags;
 	int board;
 
-	// 'comedi spin lock irqsave' disables even rt interrupts, we use them to protect indirect addressing
+	/*  'comedi spin lock irqsave' disables even rt interrupts, we use them to protect indirect addressing */
 	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(ID, dev->iobase + DAS800_GAIN);	/* select base address + 7 to be ID register */
 	id_bits = inb(dev->iobase + DAS800_ID) & 0x3;	/* get id bits */
@@ -352,8 +352,8 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	struct comedi_async *async;
 	int status;
 	unsigned long irq_flags;
-	static const int max_loops = 128;	// half-fifo size for cio-das802/16
-	// flags
+	static const int max_loops = 128;	/*  half-fifo size for cio-das802/16 */
+	/*  flags */
 	int fifo_empty = 0;
 	int fifo_overflow = 0;
 
@@ -369,7 +369,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	 */
 	async = s->async;
 
-	// if hardware conversions are not enabled, then quit
+	/*  if hardware conversions are not enabled, then quit */
 	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select base address + 7 to be STATUS2 register */
 	status = inb(dev->iobase + DAS800_STATUS2) & STATUS2_HCEN;
@@ -390,7 +390,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 			if (fifo_overflow)
 				break;
 		} else {
-			fifo_empty = 0;	// cio-das802/16 has no fifo empty status bit
+			fifo_empty = 0;	/*  cio-das802/16 has no fifo empty status bit */
 		}
 		if (fifo_empty) {
 			break;
@@ -410,7 +410,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	/* check for fifo overflow */
 	if (thisboard->resolution == 12) {
 		fifo_overflow = dataPoint & FIFO_OVF;
-		// else cio-das802/16
+		/*  else cio-das802/16 */
 	} else {
 		fifo_overflow = inb(dev->iobase + DAS800_GAIN) & CIO_FFOV;
 	}
@@ -564,7 +564,7 @@ static void enable_das800(struct comedi_device * dev)
 {
 	unsigned long irq_flags;
 	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
-	// enable fifo-half full interrupts for cio-das802/16
+	/*  enable fifo-half full interrupts for cio-das802/16 */
 	if (thisboard->resolution == 16)
 		outb(CIO_ENHF, dev->iobase + DAS800_GAIN);
 	outb(CONV_CONTROL, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be conversion control register */
@@ -684,7 +684,7 @@ static int das800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subdev
 	if (err)
 		return 4;
 
-	// check channel/gain list against card's limitations
+	/*  check channel/gain list against card's limitations */
 	if (cmd->chanlist) {
 		gain = CR_RANGE(cmd->chanlist[0]);
 		startChan = CR_CHAN(cmd->chanlist[0]);
@@ -861,7 +861,7 @@ static int das800_do_wbits(struct comedi_device * dev, struct comedi_subdevice *
 	int wbits;
 	unsigned long irq_flags;
 
-	// only set bits that have been masked
+	/*  only set bits that have been masked */
 	data[0] &= 0xf;
 	wbits = devpriv->do_bits >> 4;
 	wbits &= ~data[0];

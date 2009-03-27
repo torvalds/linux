@@ -487,8 +487,8 @@ enum Gi_Counting_Mode_Reg_Bits {
 #define Gi_Source_Select_Shift 2
 #define Gi_Gate_Select_Shift 7
 enum Gi_Input_Select_Bits {
-	Gi_Read_Acknowledges_Irq = 0x1,	// not present on 660x
-	Gi_Write_Acknowledges_Irq = 0x2,	// not present on 660x
+	Gi_Read_Acknowledges_Irq = 0x1,	/*  not present on 660x */
+	Gi_Write_Acknowledges_Irq = 0x2,	/*  not present on 660x */
 	Gi_Source_Select_Mask = 0x7c,
 	Gi_Gate_Select_Mask = 0x1f << Gi_Gate_Select_Shift,
 	Gi_Gate_Select_Load_Source_Bit = 0x1000,
@@ -656,7 +656,7 @@ static inline unsigned Gi_TC_Error_Confirm_Bit(unsigned counter_index)
 	return G0_TC_Error_Confirm_Bit;
 }
 
-// bits that are the same in G0/G2 and G1/G3 interrupt acknowledge registers
+/* bits that are the same in G0/G2 and G1/G3 interrupt acknowledge registers */
 enum Gxx_Interrupt_Acknowledge_Bits {
 	Gi_TC_Interrupt_Ack_Bit = 0x4000,
 	Gi_Gate_Interrupt_Ack_Bit = 0x8000

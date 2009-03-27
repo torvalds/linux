@@ -74,7 +74,6 @@ static const struct dnp_board dnp_boards[] = {	/* we only support one DNP 'board
 /* This structure is for data unique to the DNP driver --------------------- */
 struct dnp_private_data {
 
-	//
 };
 
 
@@ -126,7 +125,7 @@ static int dnp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 
 	/* Autoprobing: this should find out which board we have. Currently only   */
 	/* the 1486 board is supported and autoprobing is not implemented :-)      */
-	//dev->board_ptr = dnp_probe(dev);
+	/* dev->board_ptr = dnp_probe(dev); */
 
 	/* Initialize the name of the board. We can use the "thisboard" macro now. */
 	dev->board_name = thisboard->name;

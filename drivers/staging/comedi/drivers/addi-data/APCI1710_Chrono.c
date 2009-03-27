@@ -736,7 +736,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 							DPRINTK("Base timing selection is wrong\n");
 							i_ReturnValue = -7;
 						}
-					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+					}	/*  if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) */
 					else {
 		       /***********************************/
 						/* Timing unity selection is wrong */
@@ -744,8 +744,8 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 						DPRINTK("Timing unity selection is wrong\n");
 						i_ReturnValue = -6;
-					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
+					}	/*  if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) */
+				}	/*  if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ)) */
 				else {
 		    /*****************************************/
 					/* The selected PCI input clock is wrong */
@@ -753,8 +753,8 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 					DPRINTK("The selected PCI input clock is wrong\n");
 					i_ReturnValue = -5;
-				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
-			}	// if (b_ChronoMode >= 0 && b_ChronoMode <= 7)
+				}	/*  if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ)) */
+			}	/*  if (b_ChronoMode >= 0 && b_ChronoMode <= 7) */
 			else {
 		 /***************************************/
 				/* Chronometer mode selection is wrong */
@@ -762,7 +762,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_su
 
 				DPRINTK("Chronometer mode selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_ChronoMode >= 0 && b_ChronoMode <= 7)
+			}	/*  if (b_ChronoMode >= 0 && b_ChronoMode <= 7) */
 		} else {
 	      /******************************************/
 			/* The module is not a Chronometer module */
@@ -951,7 +951,7 @@ int i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 									ui_Address
 									+ 32 +
 									(64 * b_ModulNbr));
-								devpriv->tsk_Current = current;	// Save the current process task structure
+								devpriv->tsk_Current = current;	/*  Save the current process task structure */
 							}
 
 			  /***********************************/
@@ -980,7 +980,7 @@ int i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 								36 +
 								(64 * b_ModulNbr));
 
-						}	// if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
+						}	/*  if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE)) */
 						else {
 		       /********************************/
 							/* Interrupt parameter is wrong */
@@ -988,8 +988,8 @@ int i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 
 							DPRINTK("Interrupt parameter is wrong\n");
 							i_ReturnValue = -6;
-						}	// if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
-					}	// if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
+						}	/*  if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE)) */
+					}	/*  if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS)) */
 					else {
 		    /***********************************************/
 						/* Chronometer acquisition mode cycle is wrong */
@@ -997,7 +997,7 @@ int i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 
 						DPRINTK("Chronometer acquisition mode cycle is wrong\n");
 						i_ReturnValue = -5;
-					}	// if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
+					}	/*  if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS)) */
 					break;
 
 				case APCI1710_DISABLE:
@@ -1046,7 +1046,7 @@ int i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
 				default:
 					DPRINTK("Inputs wrong! Enable or Disable chrono\n");
 					i_ReturnValue = -8;
-				}	// switch ENABLE/DISABLE
+				}	/*  switch ENABLE/DISABLE */
 			} else {
 		 /*******************************/
 				/* Chronometer not initialised */
@@ -1233,7 +1233,7 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 		    /******************/
 
 					*pb_ChronoStatus = 3;
-				}	// if ((dw_Status & 8) == 8)
+				}	/*  if ((dw_Status & 8) == 8) */
 				else {
 		    /*******************************/
 					/* Test if measurement stopped */
@@ -1245,7 +1245,7 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 		       /***********************/
 
 						*pb_ChronoStatus = 2;
-					}	// if ((dw_Status & 2) == 2)
+					}	/*  if ((dw_Status & 2) == 2) */
 					else {
 		       /*******************************/
 						/* Test if measurement started */
@@ -1257,16 +1257,16 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 			  /************************/
 
 							*pb_ChronoStatus = 1;
-						}	// if ((dw_Status & 1) == 1)
+						}	/*  if ((dw_Status & 1) == 1) */
 						else {
 			  /***************************/
 							/* Measurement not started */
 			  /***************************/
 
 							*pb_ChronoStatus = 0;
-						}	// if ((dw_Status & 1) == 1)
-					}	// if ((dw_Status & 2) == 2)
-				}	// if ((dw_Status & 8) == 8)
+						}	/*  if ((dw_Status & 1) == 1) */
+					}	/*  if ((dw_Status & 2) == 2) */
+				}	/*  if ((dw_Status & 8) == 8) */
 			} else {
 		 /*******************************/
 				/* Chronometer not initialised */
@@ -1430,7 +1430,7 @@ int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 							}
 
 							break;
-						}	// if ((dw_Status & 8) == 8)
+						}	/*  if ((dw_Status & 8) == 8) */
 						else {
 			     /*******************************/
 							/* Test if measurement stopped */
@@ -1464,7 +1464,7 @@ int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 									outl(0, devpriv->s_BoardInfos.ui_Address + 36 + (64 * b_ModulNbr));
 								}
 								break;
-							}	// if ((dw_Status & 2) == 2)
+							}	/*  if ((dw_Status & 2) == 2) */
 							else {
 				/*******************************/
 								/* Test if measurement started */
@@ -1478,7 +1478,7 @@ int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 									*pb_ChronoStatus
 										=
 										1;
-								}	// if ((dw_Status & 1) == 1)
+								}	/*  if ((dw_Status & 1) == 1) */
 								else {
 				   /***************************/
 									/* Measurement not started */
@@ -1487,9 +1487,9 @@ int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 									*pb_ChronoStatus
 										=
 										0;
-								}	// if ((dw_Status & 1) == 1)
-							}	// if ((dw_Status & 2) == 2)
-						}	// if ((dw_Status & 8) == 8)
+								}	/*  if ((dw_Status & 1) == 1) */
+							}	/*  if ((dw_Status & 2) == 2) */
+						}	/*  if ((dw_Status & 8) == 8) */
 
 						if (dw_TimeOut == ui_TimeOut) {
 			     /*****************/
@@ -1507,7 +1507,7 @@ int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 							mdelay(1000);
 
 						}
-					}	// for (;;)
+					}	/*  for (;;) */
 
 		       /*****************************/
 					/* Test if stop signal occur */
@@ -1922,7 +1922,7 @@ int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 							ui_Address + 20 +
 							(b_OutputChannel * 4) +
 							(64 * b_ModulNbr));
-					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					}	/*  if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2)) */
 					else {
 		    /****************************************/
 						/* The selected digital output is wrong */
@@ -1931,7 +1931,7 @@ int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 						DPRINTK("The selected digital output is wrong\n");
 						i_ReturnValue = -4;
 
-					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					}	/*  if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2)) */
 
 					break;
 
@@ -1945,7 +1945,7 @@ int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 							ui_Address + 20 +
 							(b_OutputChannel * 4) +
 							(64 * b_ModulNbr));
-					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					}	/*  if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2)) */
 					else {
 		    /****************************************/
 						/* The selected digital output is wrong */
@@ -1954,7 +1954,7 @@ int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 						DPRINTK("The selected digital output is wrong\n");
 						i_ReturnValue = -4;
 
-					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					}	/*  if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2)) */
 
 					break;
 
@@ -1978,7 +1978,7 @@ int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 							(unsigned char) (((dw_Status >>
 									b_InputChannel)
 								& 1) ^ 1);
-					}	// if ((b_InputChannel >= 0) && (b_InputChannel <= 2))
+					}	/*  if ((b_InputChannel >= 0) && (b_InputChannel <= 2)) */
 					else {
 		    /***************************************/
 						/* The selected digital input is wrong */
@@ -1986,7 +1986,7 @@ int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
 
 						DPRINTK("The selected digital input is wrong\n");
 						i_ReturnValue = -4;
-					}	// if ((b_InputChannel >= 0) && (b_InputChannel <= 2))
+					}	/*  if ((b_InputChannel >= 0) && (b_InputChannel <= 2)) */
 
 					break;
 

@@ -227,10 +227,10 @@ static int cnt_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 	subdevice->insn_read = cnt_rinsn;
 	subdevice->insn_write = cnt_winsn;
 
-	// select 20MHz clock
+	/*  select 20MHz clock */
 	outb(3, dev->iobase + 248);
 
-	// reset all counters
+	/*  reset all counters */
 	outb(0, dev->iobase);
 	outb(0, dev->iobase + 0x20);
 	outb(0, dev->iobase + 0x40);

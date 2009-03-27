@@ -53,10 +53,10 @@ Passing a zero for an option is the same as leaving it unspecified.
  * Some drivers use arrays such as this, other do not.
  */
 struct pcidio_board {
-	const char *name;	// anme of the board
-	int n_8255;		// number of 8255 chips on board
+	const char *name;	/*  anme of the board */
+	int n_8255;		/*  number of 8255 chips on board */
 
-	// indices of base address regions
+	/*  indices of base address regions */
 	int pcicontroler_badrindex;
 	int dioregs_badrindex;
 };
@@ -104,7 +104,7 @@ MODULE_DEVICE_TABLE(pci, pcidio_pci_table);
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct pcidio_private {
-	int data;		// curently unused
+	int data;		/*  curently unused */
 
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
@@ -112,7 +112,7 @@ struct pcidio_private {
 	/* used for DO readback, curently unused */
 	unsigned int do_readback[4];	/* up to 4 unsigned int suffice to hold 96 bits for PCI-DIO96 */
 
-	unsigned long dio_reg_base;	// address of port A of the first 8255 chip on board
+	unsigned long dio_reg_base;	/*  address of port A of the first 8255 chip on board */
 };
 
 /*
@@ -134,8 +134,10 @@ static struct comedi_driver driver_cb_pcidio = {
       module:THIS_MODULE,
       attach:pcidio_attach,
       detach:pcidio_detach,
+
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
+
 	/* Most drivers will support multiple types of boards by
 	 * having an array of board structures.  These were defined
 	 * in pcidio_boards[] above.  Note that the element 'name'
@@ -152,10 +154,15 @@ static struct comedi_driver driver_cb_pcidio = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-// The following fields should NOT be initialized if you are dealing with PCI devices
-//      board_name:     pcidio_boards,
-//      offset:         sizeof(struct pcidio_board),
-//      num_names:      sizeof(pcidio_boards) / sizeof(struct pcidio_board),
+
+/* The following fields should NOT be initialized if you are dealing
+ * with PCI devices
+ *
+ *         board_name:	pcidio_boards,
+ *         offset:	sizeof(struct pcidio_board),
+ *         num_names: 	sizeof(pcidio_boards) / sizeof(structpcidio_board),
+ */
+
 };
 
 /*------------------------------- FUNCTIONS -----------------------------------*/
@@ -192,19 +199,19 @@ static int pcidio_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		// is it not a computer boards card?
+		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_CB)
 			continue;
-		// loop through cards supported by this driver
+		/*  loop through cards supported by this driver */
 		for (index = 0;
 			index < sizeof pcidio_boards / sizeof(struct pcidio_board);
 			index++) {
 			if (pcidio_pci_table[index].device != pcidev->device)
 				continue;
 
-			// was a particular bus/slot requested?
+			/*  was a particular bus/slot requested? */
 			if (it->options[0] || it->options[1]) {
-				// are we on the wrong bus/slot?
+				/*  are we on the wrong bus/slot? */
 				if (pcidev->bus->number != it->options[0] ||
 					PCI_SLOT(pcidev->devfn) !=
 					it->options[1]) {

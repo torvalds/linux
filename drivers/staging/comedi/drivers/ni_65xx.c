@@ -437,12 +437,12 @@ static int ni_65xx_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 			writeb(bits,
 				private(dev)->mite->daq_io_addr +
 				Port_Data(port));
-//                      rt_printk("wrote 0x%x to port %i\n", bits, port);
+/* rt_printk("wrote 0x%x to port %i\n", bits, port); */
 		}
 		port_read_bits =
 			readb(private(dev)->mite->daq_io_addr +
 			Port_Data(port));
-//              rt_printk("read 0x%x from port %i\n", port_read_bits, port);
+/* rt_printk("read 0x%x from port %i\n", port_read_bits, port); */
 		if (bitshift > 0) {
 			port_read_bits <<= bitshift;
 		} else {
@@ -553,7 +553,7 @@ static int ni_65xx_intr_cmdtest(struct comedi_device * dev, struct comedi_subdev
 
 static int ni_65xx_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	//struct comedi_cmd *cmd = &s->async->cmd;
+	/* struct comedi_cmd *cmd = &s->async->cmd; */
 
 	writeb(ClrEdge | ClrOverflow,
 		private(dev)->mite->daq_io_addr + Clear_Register);
@@ -700,7 +700,7 @@ static int ni_65xx_attach(struct comedi_device * dev, struct comedi_devconfig * 
 			return -ENOMEM;
 		sprivate(s)->base_port = 0;
 		for (i = 0; i < board(dev)->num_dio_ports; ++i) {
-			// configure all ports for input
+			/*  configure all ports for input */
 			writeb(0x1,
 				private(dev)->mite->daq_io_addr +
 				Port_Select(i));

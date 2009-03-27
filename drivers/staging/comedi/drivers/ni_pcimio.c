@@ -117,7 +117,7 @@ Bugs:
 #include "ni_stc.h"
 #include "mite.h"
 
-//#define PCI_DEBUG
+/* #define PCI_DEBUG */
 
 #define PCIDMA
 
@@ -218,7 +218,7 @@ static const struct comedi_lrange range_ni_M_622x_ao = { 1, {
 
 static const struct ni_board_struct ni_boards[] = {
 	{
-			.device_id = 0x0162,	// NI also says 0x1620.  typo?
+			.device_id = 0x0162,	/*  NI also says 0x1620.  typo? */
 			.name = "pci-mio-16xe-50",
 			.n_adchan = 16,
 			.adbits = 16,
@@ -238,7 +238,7 @@ static const struct ni_board_struct ni_boards[] = {
 		},
 	{
 			.device_id = 0x1170,
-			.name = "pci-mio-16xe-10",	// aka pci-6030E
+			.name = "pci-mio-16xe-10",	/*  aka pci-6030E */
 			.n_adchan = 16,
 			.adbits = 16,
 			.ai_fifo_depth = 512,
@@ -330,7 +330,7 @@ static const struct ni_board_struct ni_boards[] = {
 			.ao_unipolar = 1,
 			.ao_speed = 1000,
 			.num_p0_dio_channels = 8,
-			.caldac = {ad8804_debug},	// doc says mb88341
+			.caldac = {ad8804_debug},	/*  doc says mb88341 */
 			.has_8255 = 0,
 		},
 	{
@@ -846,7 +846,7 @@ static const struct ni_board_struct ni_boards[] = {
 			.n_adchan = 16,
 			.adbits = 16,
 			.ai_fifo_depth = 512,
-			//FIXME:  guess
+			/* FIXME:  guess */
 			.gainlkup = ai_gain_622x,
 			.ai_speed = 4000,
 			.n_aochan = 0,
@@ -1295,12 +1295,12 @@ static void m_series_stc_writew(struct comedi_device * dev, uint16_t data, int r
 		offset = M_Offset_AI_Personal;
 		break;
 	case AI_SI2_Load_A_Register:
-		// this is actually a 32 bit register on m series boards
+		/*  this is actually a 32 bit register on m series boards */
 		ni_writel(data, M_Offset_AI_SI2_Load_A);
 		return;
 		break;
 	case AI_SI2_Load_B_Register:
-		// this is actually a 32 bit register on m series boards
+		/*  this is actually a 32 bit register on m series boards */
 		ni_writel(data, M_Offset_AI_SI2_Load_B);
 		return;
 		break;
@@ -1581,17 +1581,17 @@ static void m_series_init_eeprom_buffer(struct comedi_device * dev)
 
 static void init_6143(struct comedi_device * dev)
 {
-	// Disable interrupts
+	/*  Disable interrupts */
 	devpriv->stc_writew(dev, 0, Interrupt_Control_Register);
 
-	// Initialise 6143 AI specific bits
-	ni_writeb(0x00, Magic_6143);	// Set G0,G1 DMA mode to E series version
-	ni_writeb(0x80, PipelineDelay_6143);	// Set EOCMode, ADCMode and pipelinedelay
-	ni_writeb(0x00, EOC_Set_6143);	// Set EOC Delay
+	/*  Initialise 6143 AI specific bits */
+	ni_writeb(0x00, Magic_6143);	/*  Set G0,G1 DMA mode to E series version */
+	ni_writeb(0x80, PipelineDelay_6143);	/*  Set EOCMode, ADCMode and pipelinedelay */
+	ni_writeb(0x00, EOC_Set_6143);	/*  Set EOC Delay */
 
-	ni_writel(boardtype.ai_fifo_depth / 2, AIFIFO_Flag_6143);	// Set the FIFO half full level
+	ni_writel(boardtype.ai_fifo_depth / 2, AIFIFO_Flag_6143);	/*  Set the FIFO half full level */
 
-	// Strobe Relay disable bit
+	/*  Strobe Relay disable bit */
 	devpriv->ai_calib_source_enabled = 0;
 	ni_writew(devpriv->ai_calib_source | Calibration_Channel_6143_RelayOff,
 		Calibration_Channel_6143);

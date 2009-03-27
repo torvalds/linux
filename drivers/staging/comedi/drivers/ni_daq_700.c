@@ -53,7 +53,7 @@ IRQ is assigned but not used.
 
 static struct pcmcia_device *pcmcia_cur_dev = NULL;
 
-#define DIO700_SIZE 8		// size of io region used by board
+#define DIO700_SIZE 8		/*  size of io region used by board */
 
 static int dio700_attach(struct comedi_device * dev, struct comedi_devconfig * it);
 static int dio700_detach(struct comedi_device * dev);
@@ -62,11 +62,11 @@ enum dio700_bustype { pcmcia_bustype };
 
 struct dio700_board {
 	const char *name;
-	int device_id;		// device id for pcmcia board
-	enum dio700_bustype bustype;	// PCMCIA
-	int have_dio;		// have daqcard-700 dio
-	// function pointers so we can use inb/outb or readb/writeb
-	// as appropriate
+	int device_id;		/*  device id for pcmcia board */
+	enum dio700_bustype bustype;	/*  PCMCIA */
+	int have_dio;		/*  have daqcard-700 dio */
+	/*  function pointers so we can use inb/outb or readb/writeb */
+	/*  as appropriate */
 	unsigned int (*read_byte) (unsigned int address);
 	void (*write_byte) (unsigned int byte, unsigned int address);
 };
@@ -74,13 +74,13 @@ struct dio700_board {
 static const struct dio700_board dio700_boards[] = {
 	{
 	      name:	"daqcard-700",
-	      device_id:0x4743,// 0x10b is manufacturer id, 0x4743 is device id
+	      device_id:0x4743,/*  0x10b is manufacturer id, 0x4743 is device id */
 	      bustype:	pcmcia_bustype,
 	      have_dio:1,
 		},
 	{
 	      name:	"ni_daq_700",
-	      device_id:0x4743,// 0x10b is manufacturer id, 0x4743 is device id
+	      device_id:0x4743,/*  0x10b is manufacturer id, 0x4743 is device id */
 	      bustype:	pcmcia_bustype,
 	      have_dio:1,
 		},
@@ -365,7 +365,7 @@ static int dio700_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	if (alloc_private(dev, sizeof(struct dio700_private)) < 0)
 		return -ENOMEM;
 
-	// get base address, irq etc. based on bustype
+	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {
 	case pcmcia_bustype:
 		link = pcmcia_cur_dev;	/* XXX hack */
@@ -430,7 +430,7 @@ static int dio700_detach(struct comedi_device * dev)
 	return 0;
 };
 
-// PCMCIA crap
+/* PCMCIA crap */
 
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If

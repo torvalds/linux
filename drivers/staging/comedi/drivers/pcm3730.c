@@ -19,9 +19,9 @@ Configuration options:
 
 #include <linux/ioport.h>
 
-#define PCM3730_SIZE 4		// consecutive io port addresses
+#define PCM3730_SIZE 4		/*  consecutive io port addresses */
 
-#define PCM3730_DOA 0		// offsets for each port
+#define PCM3730_DOA 0		/*  offsets for each port */
 #define PCM3730_DOB 2
 #define PCM3730_DOC 3
 #define PCM3730_DIA 0

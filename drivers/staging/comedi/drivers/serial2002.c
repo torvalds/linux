@@ -62,7 +62,7 @@ static const struct serial2002_board serial2002_boards[] = {
 
 struct serial2002_range_table_t {
 
-	// HACK...
+	/*  HACK... */
 	int length;
 	struct comedi_krange range;
 };
@@ -70,8 +70,8 @@ struct serial2002_range_table_t {
 
 struct serial2002_private {
 
-	int port;		// /dev/ttyS<port>
-	int speed;		// baudrate
+	int port;		/*  /dev/ttyS<port> */
+	int speed;		/*  baudrate */
 	struct file *tty;
 	unsigned int ao_readback[32];
 	unsigned char digital_in_mapping[32];
@@ -238,11 +238,11 @@ static void tty_setspeed(struct file *f, int speed)
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
 	{
-		// Set speed
+		/*  Set speed */
 		struct termios settings;
 
 		tty_ioctl(f, TCGETS, (unsigned long)&settings);
-//    printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX));
+/* printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX)); */
 		settings.c_iflag = 0;
 		settings.c_oflag = 0;
 		settings.c_lflag = 0;
@@ -284,10 +284,10 @@ static void tty_setspeed(struct file *f, int speed)
 			break;
 		}
 		tty_ioctl(f, TCSETS, (unsigned long)&settings);
-//    printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX));
+/* printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX)); */
 	}
 	{
-		// Set low latency
+		/*  Set low latency */
 		struct serial_struct settings;
 
 		tty_ioctl(f, TIOCGSERIAL, (unsigned long)&settings);
@@ -437,7 +437,7 @@ static void serial_2002_open(struct comedi_device * dev)
 		}
 
 		tty_setspeed(devpriv->tty, devpriv->speed);
-		poll_channel(devpriv->tty, 31);	// Start reading configuration
+		poll_channel(devpriv->tty, 31);	/*  Start reading configuration */
 		while (1) {
 			struct serial_data data;
 
@@ -557,7 +557,7 @@ static void serial_2002_open(struct comedi_device * dev)
 			}
 		}
 		for (i = 0; i <= 4; i++) {
-			// Fill in subdev data
+			/*  Fill in subdev data */
 			struct config_t *c;
 			unsigned char *mapping = 0;
 			struct serial2002_range_table_t *range = 0;

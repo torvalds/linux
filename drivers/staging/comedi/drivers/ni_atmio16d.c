@@ -262,7 +262,7 @@ static irqreturn_t atmio16d_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices + 0;
 
-//      printk("atmio16d_interrupt!\n");
+/* printk("atmio16d_interrupt!\n"); */
 
 	comedi_buf_put(s->async, inw(dev->iobase + AD_FIFO_REG));
 
@@ -542,9 +542,9 @@ static int atmio16d_ai_insn_read(struct comedi_device * dev, struct comedi_subde
 	gain = CR_RANGE(insn->chanspec);
 
 	/* reset the Analog input circuitry */
-	//outw( 0, dev->iobase+AD_CLEAR_REG );
+	/* outw( 0, dev->iobase+AD_CLEAR_REG ); */
 	/* reset the Analog Input MUX Counter to 0 */
-	//outw( 0, dev->iobase+MUX_CNTR_REG );
+	/* outw( 0, dev->iobase+MUX_CNTR_REG ); */
 
 	/* set the Input MUX gain */
 	outw(chan | (gain << 6), dev->iobase + MUX_GAIN_REG);

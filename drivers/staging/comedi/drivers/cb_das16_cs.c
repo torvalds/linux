@@ -278,7 +278,7 @@ static int das16cs_detach(struct comedi_device * dev)
 
 static irqreturn_t das16cs_interrupt(int irq, void *d)
 {
-	//struct comedi_device *dev = d;
+	/* struct comedi_device *dev = d; */
 	return IRQ_HANDLED;
 }
 
@@ -973,4 +973,4 @@ void __exit cleanup_module(void)
 
 #else
 COMEDI_INITCLEANUP(driver_das16cs);
-#endif //CONFIG_PCMCIA
+#endif /* CONFIG_PCMCIA */

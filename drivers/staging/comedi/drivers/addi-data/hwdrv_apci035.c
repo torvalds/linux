@@ -124,9 +124,9 @@ int i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subd
 	} else {
 		ui_Mode = 0;
 	}
-//ui_Command = inl(devpriv->iobase+((i_WatchdogNbr-1)*32)+12);
+/* ui_Command = inl(devpriv->iobase+((i_WatchdogNbr-1)*32)+12); */
 	ui_Command = 0;
-//ui_Command = ui_Command & 0xFFFFF9FEUL;
+/* ui_Command = ui_Command & 0xFFFFF9FEUL; */
 	outl(ui_Command, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 	ui_Command = 0;
 	ui_Command = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
@@ -153,7 +153,7 @@ int i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subd
 		ui_Command =
 			(ui_Command & 0xFFF719E2UL) | ui_Mode << 13UL | 0x10UL;
 
-	}			//if (data[0] == ADDIDATA_TIMER)
+	}			/* if (data[0] == ADDIDATA_TIMER) */
 	else {
 		if (data[0] == ADDIDATA_WATCHDOG) {
 
@@ -292,7 +292,7 @@ int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 		ui_Command = (ui_Command & 0xFFFFF9FFUL) | 0x1UL;
 		outl(ui_Command,
 			devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
-	}			// if  (data[0]==1)
+	}			/*  if  (data[0]==1) */
 	if (data[0] == 2) {
 		ui_Command =
 			inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
@@ -304,16 +304,18 @@ int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 			devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 	}
 
-	if (data[0] == 0)	//Stop The Watchdog
+	if (data[0] == 0)	/* Stop The Watchdog */
 	{
-		//Stop The Watchdog
+		/* Stop The Watchdog */
 		ui_Command = 0;
-		//ui_Command = inl(devpriv->iobase+((i_WatchdogNbr-1)*32)+12);
-		//ui_Command = ui_Command & 0xFFFFF9FEUL;
+/*
+* ui_Command = inl(devpriv->iobase+((i_WatchdogNbr-1)*32)+12);
+* ui_Command = ui_Command & 0xFFFFF9FEUL;
+*/
 		outl(ui_Command,
 			devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
-	}			//  if (data[1]==0)
-	if (data[0] == 3)	//stop all Watchdogs
+	}			/*   if (data[1]==0) */
+	if (data[0] == 3)	/* stop all Watchdogs */
 	{
 		ui_Command = 0;
 		for (i_Count = 1; i_Count <= 4; i_Count++) {
@@ -329,7 +331,7 @@ int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 		}
 
 	}
-	if (data[0] == 4)	//start all Watchdogs
+	if (data[0] == 4)	/* start all Watchdogs */
 	{
 		ui_Command = 0;
 		for (i_Count = 1; i_Count <= 4; i_Count++) {
@@ -344,7 +346,7 @@ int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 				0);
 		}
 	}
-	if (data[0] == 5)	//trigger all Watchdogs
+	if (data[0] == 5)	/* trigger all Watchdogs */
 	{
 		ui_Command = 0;
 		for (i_Count = 1; i_Count <= 4; i_Count++) {
@@ -394,7 +396,7 @@ int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 int i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
 	struct comedi_insn * insn, unsigned int * data)
 {
-	unsigned int ui_Status = 0;	// Status register
+	unsigned int ui_Status = 0;	/*  Status register */
 	i_WatchdogNbr = insn->unused[0];
 	      /******************/
 	/* Get the status */
@@ -419,7 +421,7 @@ int i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdev
 	if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
 		data[4] = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);
 
-	}			//  if  (devpriv->b_TimerSelectMode==ADDIDATA_TIMER)
+	}			/*   if  (devpriv->b_TimerSelectMode==ADDIDATA_TIMER) */
 
 	return insn->n;
 }
@@ -524,9 +526,9 @@ int i_APCI035_Reset(struct comedi_device * dev)
 	int i_Count = 0;
 	for (i_Count = 1; i_Count <= 4; i_Count++) {
 		i_WatchdogNbr = i_Count;
-		outl(0x0, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);	//stop all timers
+		outl(0x0, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);	/* stop all timers */
 	}
-	outl(0x0, devpriv->iobase + 128 + 12);	//Disable the warning delay
+	outl(0x0, devpriv->iobase + 128 + 12);	/* Disable the warning delay */
 
 	return 0;
 }
@@ -571,7 +573,7 @@ static void v_APCI035_Interrupt(int irq, void *d)
 	ui_StatusRegister2 =
 		inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 20);
 
-	if ((((ui_StatusRegister1) & 0x8) == 0x8))	//Test if warning relay interrupt
+	if ((((ui_StatusRegister1) & 0x8) == 0x8))	/* Test if warning relay interrupt */
 	{
 	/**********************************/
 		/* Disable the temperature warning */
@@ -587,14 +589,14 @@ static void v_APCI035_Interrupt(int irq, void *d)
 		/* Read the digital temperature value */
 	/**************************************/
 		ui_DigitalTemperature = inl(devpriv->iobase + 128 + 60);
-		send_sig(SIGIO, devpriv->tsk_Current, 0);	// send signal to the sample
-	}			//if (((ui_StatusRegister1 & 0x8) == 0x8))
+		send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
+	}			/* if (((ui_StatusRegister1 & 0x8) == 0x8)) */
 
 	else {
 		if ((ui_StatusRegister2 & 0x1) == 0x1) {
-			send_sig(SIGIO, devpriv->tsk_Current, 0);	// send signal to the sample
+			send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
 		}
-	}			//else if (((ui_StatusRegister1 & 0x8) == 0x8))
+	}			/* else if (((ui_StatusRegister1 & 0x8) == 0x8)) */
 
 	return;
 }

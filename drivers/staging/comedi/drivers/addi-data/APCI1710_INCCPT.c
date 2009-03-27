@@ -84,7 +84,7 @@ int i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdev
 
 	printk("\nINC_CPT");
 
-	devpriv->tsk_Current = current;	// Save the current process task structure
+	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 	switch (ui_ConfigType) {
 	case APCI1710_INCCPT_INITCOUNTER:
 		i_ReturnValue = i_APCI1710_InitCounter(dev,
@@ -902,7 +902,7 @@ int i_APCI1710_InitIndex(struct comedi_device * dev,
 									b_ModeRegister4
 									|
 									APCI1710_ENABLE_LATCH_AND_CLEAR;
-							}	// if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
+							}	/*  if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER) */
 							else {
 				/*****************************************/
 								/* Clear the latch and clear flag (DQ27) */
@@ -975,7 +975,7 @@ int i_APCI1710_InitIndex(struct comedi_device * dev,
 										&
 										(~APCI1710_INDEX_LATCH_COUNTER);
 								}
-							}	// // if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
+							}	/*  // if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER) */
 
 							if (b_AutoMode ==
 								APCI1710_DISABLE)
@@ -1335,7 +1335,7 @@ int i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 					DPRINTK("External strobe level parameter is wrong\n");
 					i_ReturnValue = -5;
 				}
-			}	// if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
+			}	/*  if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1) */
 			else {
 		 /**************************************/
 				/* External strobe selection is wrong */
@@ -1343,7 +1343,7 @@ int i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 
 				DPRINTK("External strobe selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
+			}	/*  if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1) */
 		} else {
 	      /****************************************/
 			/* Counter not initialised see function */
@@ -1637,7 +1637,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 								i_ReturnValue =
 									-7;
 							}
-						}	// if (b_PCIInputClock == APCI1710_40MHZ)
+						}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 
 		       /***************************/
 						/* Test if not error occur */
@@ -1676,7 +1676,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 										b_ModeRegister4
 										|
 										APCI1710_ENABLE_40MHZ_FREQUENCY;
-								}	// if (b_PCIInputClock == APCI1710_40MHZ)
+								}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 								else {
 				   /**********************************/
 									/* Disable the 40MHz quarz (DQ30) */
@@ -1700,7 +1700,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 										&
 										APCI1710_DISABLE_40MHZ_FREQUENCY;
 
-								}	// if (b_PCIInputClock == APCI1710_40MHZ)
+								}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 
 			     /********************************/
 								/* Calculate the division fator */
@@ -1949,7 +1949,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 								i_ReturnValue =
 									-3;
 							}
-						}	// if (i_ReturnValue == 0)
+						}	/*  if (i_ReturnValue == 0) */
 					} else {
 		       /**********************************/
 						/* Base timing selection is wrong */
@@ -1997,7 +1997,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 /*########################################################################### */
 
-							//INSN BITS
+							/* INSN BITS */
 /*########################################################################### */
 
 /*
@@ -2021,7 +2021,7 @@ int i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, struct comedi_subdevic
 	unsigned int ui_BitsType;
 	int i_ReturnValue = 0;
 	ui_BitsType = CR_CHAN(insn->chanspec);
-	devpriv->tsk_Current = current;	// Save the current process task structure
+	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 
 	switch (ui_BitsType) {
 	case APCI1710_INCCPT_CLEARCOUNTERVALUE:
@@ -2365,7 +2365,7 @@ int i_APCI1710_SetInputFilter(struct comedi_device * dev,
 								i_ReturnValue =
 									-6;
 							}
-						}	// if (b_PCIInputClock == APCI1710_40MHZ)
+						}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 
 		       /***************************/
 						/* Test if error not occur */
@@ -2401,7 +2401,7 @@ int i_APCI1710_SetInputFilter(struct comedi_device * dev,
 									|
 									APCI1710_ENABLE_40MHZ_FILTER;
 
-							}	// if (b_PCIInputClock == APCI1710_40MHZ)
+							}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 							else {
 			     /**********************************/
 								/* Disable the 40MHz quarz (DQ31) */
@@ -2425,7 +2425,7 @@ int i_APCI1710_SetInputFilter(struct comedi_device * dev,
 									&
 									APCI1710_DISABLE_40MHZ_FILTER;
 
-							}	// if (b_PCIInputClock == APCI1710_40MHZ)
+							}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 
 			  /************************/
 							/* Set the filter value */
@@ -2486,8 +2486,8 @@ int i_APCI1710_SetInputFilter(struct comedi_device * dev,
 								ui_Address +
 								20 +
 								(64 * b_ModulNbr));
-						}	// if (i_ReturnValue == 0)
-					}	// if (b_Filter < 16)
+						}	/*  if (i_ReturnValue == 0) */
+					}	/*  if (b_Filter < 16) */
 					else {
 		       /**************************************/
 						/* The selected filter value is wrong */
@@ -2495,8 +2495,8 @@ int i_APCI1710_SetInputFilter(struct comedi_device * dev,
 
 						DPRINTK("The selected filter value is wrong\n");
 						i_ReturnValue = -5;
-					}	// if (b_Filter < 16)
-				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ))
+					}	/*  if (b_Filter < 16) */
+				}	/*  if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ)) */
 				else {
 		    /*****************************************/
 					/* The selected PCI input clock is wrong */
@@ -2504,7 +2504,7 @@ int i_APCI1710_SetInputFilter(struct comedi_device * dev,
 
 					DPRINTK("The selected PCI input clock is wrong\n");
 					i_ReturnValue = 4;
-				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ))
+				}	/*  if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ)) */
 			} else {
 		 /**************************************/
 				/* The module is not a counter module */
@@ -2735,7 +2735,7 @@ int i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
 							b_ModeRegister4 &
 							APCI1710_DEFAULT_INDEX_RFERENCE;
 					}
-				}	// if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1)
+				}	/*  if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1) */
 				else {
 		    /*********************************/
 					/* The source selection is wrong */
@@ -2743,7 +2743,7 @@ int i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
 
 					DPRINTK("The source selection is wrong\n");
 					i_ReturnValue = -4;
-				}	// if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1)
+				}	/*  if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1) */
 			} else {
 		 /**************************************/
 				/* The module is not a counter module */
@@ -2934,7 +2934,7 @@ int i_APCI1710_SetDigitalChlOff(struct comedi_device * dev, unsigned char b_Modu
 
 /*########################################################################### */
 
-							// INSN WRITE
+							/*  INSN WRITE */
 /*########################################################################### */
 
 /*
@@ -2958,7 +2958,7 @@ int i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevi
 	int i_ReturnValue = 0;
 
 	ui_WriteType = CR_CHAN(insn->chanspec);
-	devpriv->tsk_Current = current;	// Save the current process task structure
+	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 
 	switch (ui_WriteType) {
 	case APCI1710_INCCPT_ENABLELATCHINTERRUPT:
@@ -3976,9 +3976,9 @@ int i_APCI1710_DisableFrequencyMeasurement(struct comedi_device * dev, unsigned 
 					s_ByteModeRegister.
 					b_ModeRegister3 &
 					APCI1710_DISABLE_FREQUENCY
-					// Begin CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared
+					/*  Begin CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared */
 					& APCI1710_DISABLE_FREQUENCY_INT;
-				// End CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared
+				/*  End CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared */
 
 		 /***************************/
 				/* Write the configuration */
@@ -4031,7 +4031,7 @@ int i_APCI1710_DisableFrequencyMeasurement(struct comedi_device * dev, unsigned 
 
 /*########################################################################### */
 
-							// INSN READ
+							/*  INSN READ */
 
 /*########################################################################### */
 
@@ -4057,7 +4057,7 @@ int i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevic
 
 	ui_ReadType = CR_CHAN(insn->chanspec);
 
-	devpriv->tsk_Current = current;	// Save the current process task structure
+	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 	switch (ui_ReadType) {
 	case APCI1710_INCCPT_READLATCHREGISTERSTATUS:
 		i_ReturnValue = i_APCI1710_ReadLatchRegisterStatus(dev,
@@ -4899,15 +4899,15 @@ int i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 					*pb_CBStatusCounter0 =
 						(unsigned char) ((dw_StatusReg >> 1) &
 						1);
-				}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136)
+				}	/*  if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136) */
 				else {
 		    /****************************/
 					/* Firmware revision error  */
 		    /****************************/
 
 					i_ReturnValue = -5;
-				}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136)
-			}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10)
+				}	/*  if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136) */
+			}	/*  if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10) */
 			else {
 		 /********************************************/
 				/* Counter not initialised to 2*16-bit mode */
@@ -4916,8 +4916,8 @@ int i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 
 				DPRINTK("Counter not initialised\n");
 				i_ReturnValue = -4;
-			}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10)
-		}		// if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1)
+			}	/*  if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10) */
+		}		/*  if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) */
 		else {
 	      /****************************************/
 			/* Counter not initialised see function */
@@ -4926,8 +4926,8 @@ int i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 
 			DPRINTK("Counter not initialised\n");
 			i_ReturnValue = -3;
-		}		// if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1)
-	}			// if (b_ModulNbr < 4)
+		}		/*  if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) */
+	}			/*  if (b_ModulNbr < 4) */
 	else {
 	   /*************************************************/
 		/* The selected module number parameter is wrong */
@@ -4935,7 +4935,7 @@ int i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 
 		DPRINTK("The selected module number parameter is wrong\n");
 		i_ReturnValue = -2;
-	}			// if (b_ModulNbr < 4)
+	}			/*  if (b_ModulNbr < 4) */
 
 	return (i_ReturnValue);
 }

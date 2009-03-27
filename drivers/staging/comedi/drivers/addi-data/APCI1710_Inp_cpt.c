@@ -515,7 +515,7 @@ int i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device * dev,
 									| (1UL
 									<<
 									b_PulseEncoderNbr);
-								devpriv->tsk_Current = current;	// Save the current process task structure
+								devpriv->tsk_Current = current;	/*  Save the current process task structure */
 
 							}
 
@@ -629,7 +629,7 @@ int i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device * dev,
 						(64 * b_ModulNbr));
 
 					break;
-				}	// switch End
+				}	/*  switch End */
 
 			} else {
 		 /*********************************/
@@ -805,7 +805,7 @@ int i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device * dev,
 						(4 * b_PulseEncoderNbr) +
 						(64 * b_ModulNbr));
 
-				}	//end of switch
+				}	/* end of switch */
 			} else {
 		 /*********************************/
 				/* Pulse encoder not initialised */

@@ -149,7 +149,7 @@ static int adl_pci8164_attach(struct comedi_device * dev, struct comedi_devconfi
 			s->n_chan = 4;
 			s->maxdata = 0xffff;
 			s->len_chanlist = 4;
-			//s->range_table = &range_axis;
+			/* s->range_table = &range_axis; */
 			s->insn_read = adl_pci8164_insn_read_msts;
 			s->insn_write = adl_pci8164_insn_write_cmd;
 
@@ -159,7 +159,7 @@ static int adl_pci8164_attach(struct comedi_device * dev, struct comedi_devconfi
 			s->n_chan = 4;
 			s->maxdata = 0xffff;
 			s->len_chanlist = 4;
-			//s->range_table = &range_axis;
+			/* s->range_table = &range_axis; */
 			s->insn_read = adl_pci8164_insn_read_ssts;
 			s->insn_write = adl_pci8164_insn_write_otp;
 
@@ -169,7 +169,7 @@ static int adl_pci8164_attach(struct comedi_device * dev, struct comedi_devconfi
 			s->n_chan = 4;
 			s->maxdata = 0xffff;
 			s->len_chanlist = 4;
-			//s->range_table = &range_axis;
+			/* s->range_table = &range_axis; */
 			s->insn_read = adl_pci8164_insn_read_buf0;
 			s->insn_write = adl_pci8164_insn_write_buf0;
 
@@ -179,7 +179,7 @@ static int adl_pci8164_attach(struct comedi_device * dev, struct comedi_devconfi
 			s->n_chan = 4;
 			s->maxdata = 0xffff;
 			s->len_chanlist = 4;
-			//s->range_table = &range_axis;
+			/* s->range_table = &range_axis; */
 			s->insn_read = adl_pci8164_insn_read_buf1;
 			s->insn_write = adl_pci8164_insn_write_buf1;
 
