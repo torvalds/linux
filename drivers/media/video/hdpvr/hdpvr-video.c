@@ -298,10 +298,19 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 /* function expects dev->io_mutex to be hold by caller */
 static int hdpvr_stop_streaming(struct hdpvr_device *dev)
 {
+	uint actual_length, c = 0;
+	u8 *buf;
+
 	if (dev->status == STATUS_IDLE)
 		return 0;
 	else if (dev->status != STATUS_STREAMING)
 		return -EAGAIN;
+
+	buf = kmalloc(dev->bulk_in_size, GFP_KERNEL);
+	if (!buf)
+		v4l2_err(&dev->v4l2_dev, "failed to allocate temporary buffer "
+			 "for emptying the internal device buffer. "
+			 "Next capture start will be slow\n");
 
 	dev->status = STATUS_SHUTTING_DOWN;
 	hdpvr_config_call(dev, CTRL_STOP_STREAMING_VALUE, 0x00);
@@ -315,6 +324,23 @@ static int hdpvr_stop_streaming(struct hdpvr_device *dev)
 	mutex_lock(&dev->io_mutex);
 	/* kill the still outstanding urbs */
 	hdpvr_cancel_queue(dev);
+
+	/* emptying the device buffer beforeshutting it down */
+	while (buf && ++c < 500 &&
+	       !usb_bulk_msg(dev->udev,
+			     usb_rcvbulkpipe(dev->udev,
+					     dev->bulk_in_endpointAddr),
+			     buf, dev->bulk_in_size, &actual_length,
+			     BULK_URB_TIMEOUT)) {
+		/* wait */
+		msleep(5);
+		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+			 "%2d: got %d bytes\n", c, actual_length);
+	}
+	kfree(buf);
+	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+		 "used %d urbs to empty device buffers\n", c-1);
+	msleep(10);
 
 	dev->status = STATUS_IDLE;
 
