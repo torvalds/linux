@@ -321,35 +321,24 @@ __acquires(musb->lock)
 	spin_lock(&musb->lock);
 }
 
-/* for bulk/interrupt endpoints only */
-static inline void
-musb_save_toggle(struct musb_hw_ep *ep, int is_in, struct urb *urb)
+/* For bulk/interrupt endpoints only */
+static inline void musb_save_toggle(struct musb_qh *qh, int is_in,
+				    struct urb *urb)
 {
-	struct usb_device	*udev = urb->dev;
+	void __iomem		*epio = qh->hw_ep->regs;
 	u16			csr;
-	void __iomem		*epio = ep->regs;
-	struct musb_qh		*qh;
 
-	/* FIXME:  the current Mentor DMA code seems to have
+	/*
+	 * FIXME: the current Mentor DMA code seems to have
 	 * problems getting toggle correct.
 	 */
 
-	if (is_in || ep->is_shared_fifo)
-		qh = ep->in_qh;
+	if (is_in)
+		csr = musb_readw(epio, MUSB_RXCSR) & MUSB_RXCSR_H_DATATOGGLE;
 	else
-		qh = ep->out_qh;
+		csr = musb_readw(epio, MUSB_TXCSR) & MUSB_TXCSR_H_DATATOGGLE;
 
-	if (!is_in) {
-		csr = musb_readw(epio, MUSB_TXCSR);
-		usb_settoggle(udev, qh->epnum, 1,
-			(csr & MUSB_TXCSR_H_DATATOGGLE)
-				? 1 : 0);
-	} else {
-		csr = musb_readw(epio, MUSB_RXCSR);
-		usb_settoggle(udev, qh->epnum, 0,
-			(csr & MUSB_RXCSR_H_DATATOGGLE)
-				? 1 : 0);
-	}
+	usb_settoggle(urb->dev, qh->epnum, !is_in, csr ? 1 : 0);
 }
 
 /* caller owns controller lock, irqs are blocked */
@@ -365,7 +354,7 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 	switch (qh->type) {
 	case USB_ENDPOINT_XFER_BULK:
 	case USB_ENDPOINT_XFER_INT:
-		musb_save_toggle(ep, is_in, urb);
+		musb_save_toggle(qh, is_in, urb);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		if (status == 0 && urb->error_count)
@@ -1427,7 +1416,7 @@ static void musb_bulk_rx_nak_timeout(struct musb *musb, struct musb_hw_ep *ep)
 			urb->actual_length += dma->actual_len;
 			dma->actual_len = 0L;
 		}
-		musb_save_toggle(ep, 1, urb);
+		musb_save_toggle(cur_qh, 1, urb);
 
 		/* move cur_qh to end of queue */
 		list_move_tail(&cur_qh->ring, &musb->in_bulk);
