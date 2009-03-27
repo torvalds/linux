@@ -80,7 +80,7 @@ static void q40ide_input_data(ide_drive_t *drive, struct request *rq,
 	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
 		return insw(data_addr, buf, (len + 1) / 2);
 
-	insw_swapw(data_addr, buf, (len + 1) / 2);
+	raw_insw_swapw((u16 *)data_addr, buf, (len + 1) / 2);
 }
 
 static void q40ide_output_data(ide_drive_t *drive, struct request *rq,
@@ -91,7 +91,7 @@ static void q40ide_output_data(ide_drive_t *drive, struct request *rq,
 	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
 		return outsw(data_addr, buf, (len + 1) / 2);
 
-	outsw_swapw(data_addr, buf, (len + 1) / 2);
+	raw_outsw_swapw((u16 *)data_addr, buf, (len + 1) / 2);
 }
 
 /* Q40 has a byte-swapped IDE interface */
