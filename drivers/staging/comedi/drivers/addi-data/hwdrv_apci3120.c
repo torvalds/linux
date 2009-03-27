@@ -47,7 +47,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include "hwdrv_apci3120.h"
 static unsigned int ui_Temp = 0;
 
-// FUNCTION DEFINITIONS
+/* FUNCTION DEFINITIONS */
 
 /*
 +----------------------------------------------------------------------------+
@@ -82,12 +82,12 @@ int i_APCI3120_InsnConfigAnalogInput(struct comedi_device * dev, struct comedi_s
 	if ((data[0] != APCI3120_EOC_MODE) && (data[0] != APCI3120_EOS_MODE))
 		return -1;
 
-	// Check for Conversion time to be added ??
+	/*  Check for Conversion time to be added ?? */
 	devpriv->ui_EocEosConversionTime = data[2];
 
 	if (data[0] == APCI3120_EOS_MODE) {
 
-		//Test the number of the channel
+		/* Test the number of the channel */
 		for (i = 0; i < data[3]; i++) {
 
 			if (CR_CHAN(data[4 + i]) >= this_board->i_NbrAiChannel) {
@@ -102,14 +102,14 @@ int i_APCI3120_InsnConfigAnalogInput(struct comedi_device * dev, struct comedi_s
 			devpriv->b_EocEosInterrupt = APCI3120_ENABLE;
 		} else
 			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
-		// Copy channel list and Range List to devpriv
+		/*  Copy channel list and Range List to devpriv */
 
 		devpriv->ui_AiNbrofChannels = data[3];
 		for (i = 0; i < devpriv->ui_AiNbrofChannels; i++) {
 			devpriv->ui_AiChannelList[i] = data[4 + i];
 		}
 
-	} else			// EOC
+	} else			/*  EOC */
 	{
 		devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 		if (data[1]) {
@@ -151,22 +151,22 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 	unsigned short us_ConvertTiming, us_TmpValue, i;
 	unsigned char b_Tmp;
 
-	// fix convertion time to 10 us
+	/*  fix convertion time to 10 us */
 	if (!devpriv->ui_EocEosConversionTime) {
 		printk("No timer0 Value using 10 us\n");
 		us_ConvertTiming = 10;
 	} else
-		us_ConvertTiming = (unsigned short) (devpriv->ui_EocEosConversionTime / 1000);	// nano to useconds
+		us_ConvertTiming = (unsigned short) (devpriv->ui_EocEosConversionTime / 1000);	/*  nano to useconds */
 
-	// this_board->i_hwdrv_InsnReadAnalogInput(dev,us_ConvertTiming,insn->n,&insn->chanspec,data,insn->unused[0]);
+	/*  this_board->i_hwdrv_InsnReadAnalogInput(dev,us_ConvertTiming,insn->n,&insn->chanspec,data,insn->unused[0]); */
 
-	// Clear software registers
+	/*  Clear software registers */
 	devpriv->b_TimerSelectMode = 0;
 	devpriv->b_ModeSelectRegister = 0;
 	devpriv->us_OutputRegister = 0;
-//        devpriv->b_DigitalOutputRegister=0;
+/* devpriv->b_DigitalOutputRegister=0; */
 
-	if (insn->unused[0] == 222)	// second insn read
+	if (insn->unused[0] == 222)	/*  second insn read */
 	{
 
 		for (i = 0; i < insn->n; i++) {
@@ -174,14 +174,16 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 		}
 
 	} else {
-		devpriv->tsk_Current = current;	// Save the current process task structure
-		//Testing if board have the new Quartz and calculate the time value
-		//to set in the timer
+		devpriv->tsk_Current = current;	/*  Save the current process task structure */
+/*
+ * Testing if board have the new Quartz and calculate the time value
+ * to set in the timer
+ */
 
 		us_TmpValue =
 			(unsigned short) inw(devpriv->iobase + APCI3120_RD_STATUS);
 
-		//EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001
+		/* EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001 */
 		if ((us_TmpValue & 0x00B0) == 0x00B0
 			|| !strcmp(this_board->pc_DriverName, "apci3001")) {
 			us_ConvertTiming = (us_ConvertTiming * 2) - 2;
@@ -196,19 +198,20 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 
 		case APCI3120_EOC_MODE:
 
-			// Testing the interrupt flag and set the EOC bit
-			// Clears the FIFO
+/*
+ * Testing the interrupt flag and set the EOC bit Clears the FIFO
+ */
 			inw(devpriv->iobase + APCI3120_RESET_FIFO);
 
-			// Initialize the sequence array
+			/*  Initialize the sequence array */
 
-			//if (!i_APCI3120_SetupChannelList(dev,s,1,chanlist,0))  return -EINVAL;
+			/* if (!i_APCI3120_SetupChannelList(dev,s,1,chanlist,0))  return -EINVAL; */
 
 			if (!i_APCI3120_SetupChannelList(dev, s, 1,
 					&insn->chanspec, 0))
 				return -EINVAL;
 
-			//Initialize Timer 0 mode 4
+			/* Initialize Timer 0 mode 4 */
 			devpriv->b_TimerSelectMode =
 				(devpriv->
 				b_TimerSelectMode & 0xFC) |
@@ -216,14 +219,14 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 			outb(devpriv->b_TimerSelectMode,
 				devpriv->iobase + APCI3120_TIMER_CRT1);
 
-			// Reset the scan bit and Disables the  EOS, DMA, EOC interrupt
+			/*  Reset the scan bit and Disables the  EOS, DMA, EOC interrupt */
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister & APCI3120_DISABLE_SCAN;
 
 			if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {
 
-				//Disables the EOS,DMA and enables the EOC interrupt
+				/* Disables the EOS,DMA and enables the EOC interrupt */
 				devpriv->b_ModeSelectRegister =
 					(devpriv->
 					b_ModeSelectRegister &
@@ -241,7 +244,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 			outb(devpriv->b_ModeSelectRegister,
 				devpriv->iobase + APCI3120_WRITE_MODE_SELECT);
 
-			// Sets gate 0
+			/*  Sets gate 0 */
 			devpriv->us_OutputRegister =
 				(devpriv->
 				us_OutputRegister & APCI3120_CLEAR_PA_PR) |
@@ -249,13 +252,13 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 			outw(devpriv->us_OutputRegister,
 				devpriv->iobase + APCI3120_WR_ADDRESS);
 
-			// Select Timer 0
+			/*  Select Timer 0 */
 			b_Tmp = ((devpriv->
 					b_DigitalOutputRegister) & 0xF0) |
 				APCI3120_SELECT_TIMER_0_WORD;
 			outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 
-			//Set the convertion time
+			/* Set the convertion time */
 			outw(us_ConvertTiming,
 				devpriv->iobase + APCI3120_TIMER_VALUE);
 
@@ -265,14 +268,14 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 			if (devpriv->b_EocEosInterrupt == APCI3120_DISABLE) {
 
 				do {
-					// Waiting for the end of conversion
+					/*  Waiting for the end of conversion */
 					us_TmpValue =
 						inw(devpriv->iobase +
 						APCI3120_RD_STATUS);
 				} while ((us_TmpValue & APCI3120_EOC) ==
 					APCI3120_EOC);
 
-				//Read the result in FIFO  and put it in insn data pointer
+				/* Read the result in FIFO  and put it in insn data pointer */
 				us_TmpValue = inw(devpriv->iobase + 0);
 				*data = us_TmpValue;
 
@@ -284,9 +287,9 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 		case APCI3120_EOS_MODE:
 
 			inw(devpriv->iobase);
-			// Clears the FIFO
+			/*  Clears the FIFO */
 			inw(devpriv->iobase + APCI3120_RESET_FIFO);
-			// clear PA PR  and disable timer 0
+			/*  clear PA PR  and disable timer 0 */
 
 			devpriv->us_OutputRegister =
 				(devpriv->
@@ -301,7 +304,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 					devpriv->ui_AiChannelList, 0))
 				return -EINVAL;
 
-			//Initialize Timer 0 mode 2
+			/* Initialize Timer 0 mode 2 */
 			devpriv->b_TimerSelectMode =
 				(devpriv->
 				b_TimerSelectMode & 0xFC) |
@@ -309,26 +312,26 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 			outb(devpriv->b_TimerSelectMode,
 				devpriv->iobase + APCI3120_TIMER_CRT1);
 
-			//Select Timer 0
+			/* Select Timer 0 */
 			b_Tmp = ((devpriv->
 					b_DigitalOutputRegister) & 0xF0) |
 				APCI3120_SELECT_TIMER_0_WORD;
 			outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 
-			//Set the convertion time
+			/* Set the convertion time */
 			outw(us_ConvertTiming,
 				devpriv->iobase + APCI3120_TIMER_VALUE);
 
-			//Set the scan bit
+			/* Set the scan bit */
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister | APCI3120_ENABLE_SCAN;
 			outb(devpriv->b_ModeSelectRegister,
 				devpriv->iobase + APCI3120_WRITE_MODE_SELECT);
 
-			//If Interrupt function is loaded
+			/* If Interrupt function is loaded */
 			if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {
-				//Disables the EOC,DMA and enables the EOS interrupt
+				/* Disables the EOC,DMA and enables the EOS interrupt */
 				devpriv->b_ModeSelectRegister =
 					(devpriv->
 					b_ModeSelectRegister &
@@ -347,7 +350,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 
 			inw(devpriv->iobase + APCI3120_RD_STATUS);
 
-			//Sets gate 0
+			/* Sets gate 0 */
 
 			devpriv->us_OutputRegister =
 				devpriv->
@@ -355,12 +358,12 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 			outw(devpriv->us_OutputRegister,
 				devpriv->iobase + APCI3120_WR_ADDRESS);
 
-			//Start conversion
+			/* Start conversion */
 			outw(0, devpriv->iobase + APCI3120_START_CONVERSION);
 
-			//Waiting of end of convertion if interrupt is not installed
+			/* Waiting of end of convertion if interrupt is not installed */
 			if (devpriv->b_EocEosInterrupt == APCI3120_DISABLE) {
-				//Waiting the end of convertion
+				/* Waiting the end of convertion */
 				do {
 					us_TmpValue =
 						inw(devpriv->iobase +
@@ -371,12 +374,12 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 
 				for (i = 0; i < devpriv->ui_AiNbrofChannels;
 					i++) {
-					//Read the result in FIFO and write them in shared memory
+					/* Read the result in FIFO and write them in shared memory */
 					us_TmpValue = inw(devpriv->iobase);
 					data[i] = (unsigned int) us_TmpValue;
 				}
 
-				devpriv->b_InterruptMode = APCI3120_EOC_MODE;	// Restore defaults.
+				devpriv->b_InterruptMode = APCI3120_EOC_MODE;	/*  Restore defaults. */
 			}
 			break;
 
@@ -384,7 +387,7 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 			printk("inputs wrong\n");
 
 		}
-		devpriv->ui_EocEosConversionTime = 0;	// re initializing the variable;
+		devpriv->ui_EocEosConversionTime = 0;	/*  re initializing the variable; */
 	}
 
 	return insn->n;
@@ -411,36 +414,39 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device * dev, struct comedi_sub
 
 int i_APCI3120_StopCyclicAcquisition(struct comedi_device * dev, struct comedi_subdevice * s)
 {
-	// Disable A2P Fifo write and AMWEN signal
+	/*  Disable A2P Fifo write and AMWEN signal */
 	outw(0, devpriv->i_IobaseAddon + 4);
 
-	//Disable Bus Master ADD ON
+	/* Disable Bus Master ADD ON */
 	outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->i_IobaseAddon + 0);
 	outw(0, devpriv->i_IobaseAddon + 2);
 	outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->i_IobaseAddon + 0);
 	outw(0, devpriv->i_IobaseAddon + 2);
 
-	//Disable BUS Master PCI
+	/* Disable BUS Master PCI */
 	outl(0, devpriv->i_IobaseAmcc + AMCC_OP_REG_MCSR);
 
-	//outl(inl(devpriv->i_IobaseAmcc+AMCC_OP_REG_INTCSR)&(~AINT_WRITE_COMPL), devpriv->i_IobaseAmcc+AMCC_OP_REG_INTCSR);    // stop amcc irqs
-	//outl(inl(devpriv->i_IobaseAmcc+AMCC_OP_REG_MCSR)&(~EN_A2P_TRANSFERS), devpriv->i_IobaseAmcc+AMCC_OP_REG_MCSR); // stop DMA
+	/* outl(inl(devpriv->i_IobaseAmcc+AMCC_OP_REG_INTCSR)&(~AINT_WRITE_COMPL),
+	 * devpriv->i_IobaseAmcc+AMCC_OP_REG_INTCSR);  stop amcc irqs */
 
-	//Disable ext trigger
+	/* outl(inl(devpriv->i_IobaseAmcc+AMCC_OP_REG_MCSR)&(~EN_A2P_TRANSFERS),
+	 * devpriv->i_IobaseAmcc+AMCC_OP_REG_MCSR);  stop DMA */
+
+	/* Disable ext trigger */
 	i_APCI3120_ExttrigDisable(dev);
 
 	devpriv->us_OutputRegister = 0;
-	//stop  counters
+	/* stop  counters */
 	outw(devpriv->
 		us_OutputRegister & APCI3120_DISABLE_TIMER0 &
 		APCI3120_DISABLE_TIMER1, dev->iobase + APCI3120_WR_ADDRESS);
 
 	outw(APCI3120_DISABLE_ALL_TIMER, dev->iobase + APCI3120_WR_ADDRESS);
 
-	//DISABLE_ALL_INTERRUPT
+	/* DISABLE_ALL_INTERRUPT */
 	outb(APCI3120_DISABLE_ALL_INTERRUPT,
 		dev->iobase + APCI3120_WRITE_MODE_SELECT);
-	//Flush FIFO
+	/* Flush FIFO */
 	inb(dev->iobase + APCI3120_RESET_FIFO);
 	inw(dev->iobase + APCI3120_RD_STATUS);
 	devpriv->ui_AiActualScan = 0;
@@ -480,9 +486,9 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_
 	struct comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp;		// divisor1,divisor2;
+	int tmp;		/*  divisor1,divisor2; */
 
-	// step 1: make sure trigger sources are trivially valid
+	/*  step 1: make sure trigger sources are trivially valid */
 
 	tmp = cmd->start_src;
 	cmd->start_src &= TRIG_NOW | TRIG_EXT;
@@ -512,7 +518,7 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_
 	if (err)
 		return 1;
 
-	//step 2: make sure trigger sources are unique and mutually compatible
+	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT) {
 		err++;
@@ -536,14 +542,14 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_
 	if (err)
 		return 2;
 
-	// step 3: make sure arguments are trivially compatible
+	/*  step 3: make sure arguments are trivially compatible */
 
 	if (cmd->start_arg != 0) {
 		cmd->start_arg = 0;
 		err++;
 	}
 
-	if (cmd->scan_begin_src == TRIG_TIMER)	// Test Delay timing
+	if (cmd->scan_begin_src == TRIG_TIMER)	/*  Test Delay timing */
 	{
 		if (cmd->scan_begin_arg < this_board->ui_MinDelaytimeNs) {
 			cmd->scan_begin_arg = this_board->ui_MinDelaytimeNs;
@@ -551,7 +557,7 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_
 		}
 	}
 
-	if (cmd->convert_src == TRIG_TIMER)	// Test Acquisition timing
+	if (cmd->convert_src == TRIG_TIMER)	/*  Test Acquisition timing */
 	{
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			if ((cmd->convert_arg)
@@ -585,7 +591,7 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_
 			cmd->stop_arg = 1;
 			err++;
 		}
-	} else {		// TRIG_NONE
+	} else {		/*  TRIG_NONE */
 		if (cmd->stop_arg != 0) {
 			cmd->stop_arg = 0;
 			err++;
@@ -595,7 +601,7 @@ int i_APCI3120_CommandTestAnalogInput(struct comedi_device * dev, struct comedi_
 	if (err)
 		return 3;
 
-	// step 4: fix up any arguments
+	/*  step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
 
@@ -637,15 +643,15 @@ int i_APCI3120_CommandAnalogInput(struct comedi_device * dev, struct comedi_subd
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	//loading private structure with cmd structure inputs
+	/* loading private structure with cmd structure inputs */
 	devpriv->ui_AiFlags = cmd->flags;
 	devpriv->ui_AiNbrofChannels = cmd->chanlist_len;
 	devpriv->ui_AiScanLength = cmd->scan_end_arg;
 	devpriv->pui_AiChannelList = cmd->chanlist;
 
-	//UPDATE-0.7.57->0.7.68devpriv->AiData=s->async->data;
+	/* UPDATE-0.7.57->0.7.68devpriv->AiData=s->async->data; */
 	devpriv->AiData = s->async->prealloc_buf;
-	//UPDATE-0.7.57->0.7.68devpriv->ui_AiDataLength=s->async->data_len;
+	/* UPDATE-0.7.57->0.7.68devpriv->ui_AiDataLength=s->async->data_len; */
 	devpriv->ui_AiDataLength = s->async->prealloc_bufsz;
 
 	if (cmd->stop_src == TRIG_COUNT) {
@@ -654,11 +660,11 @@ int i_APCI3120_CommandAnalogInput(struct comedi_device * dev, struct comedi_subd
 		devpriv->ui_AiNbrofScans = 0;
 	}
 
-	devpriv->ui_AiTimer0 = 0;	// variables changed to timer0,timer1
+	devpriv->ui_AiTimer0 = 0;	/*  variables changed to timer0,timer1 */
 	devpriv->ui_AiTimer1 = 0;
 	if ((devpriv->ui_AiNbrofScans == 0) || (devpriv->ui_AiNbrofScans == -1))
-		devpriv->b_AiContinuous = 1;	// user want neverending analog acquisition
-	// stopped using cancel
+		devpriv->b_AiContinuous = 1;	/*  user want neverending analog acquisition */
+	/*  stopped using cancel */
 
 	if (cmd->start_src == TRIG_EXT)
 		devpriv->b_ExttrigEnable = APCI3120_ENABLE;
@@ -666,22 +672,22 @@ int i_APCI3120_CommandAnalogInput(struct comedi_device * dev, struct comedi_subd
 		devpriv->b_ExttrigEnable = APCI3120_DISABLE;
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		// mode 1 or 3
+		/*  mode 1 or 3 */
 		if (cmd->convert_src == TRIG_TIMER) {
-			// mode 1
+			/*  mode 1 */
 
-			devpriv->ui_AiTimer0 = cmd->convert_arg;	// timer constant in nano seconds
-			//return this_board->i_hwdrv_CommandAnalogInput(1,dev,s);
+			devpriv->ui_AiTimer0 = cmd->convert_arg;	/*  timer constant in nano seconds */
+			/* return this_board->i_hwdrv_CommandAnalogInput(1,dev,s); */
 			return i_APCI3120_CyclicAnalogInput(1, dev, s);
 		}
 
 	}
 	if ((cmd->scan_begin_src == TRIG_TIMER)
 		&& (cmd->convert_src == TRIG_TIMER)) {
-		// mode 2
+		/*  mode 2 */
 		devpriv->ui_AiTimer1 = cmd->scan_begin_arg;
-		devpriv->ui_AiTimer0 = cmd->convert_arg;	// variable changed timer2 to timer0
-		//return this_board->i_hwdrv_CommandAnalogInput(2,dev,s);
+		devpriv->ui_AiTimer0 = cmd->convert_arg;	/*  variable changed timer2 to timer0 */
+		/* return this_board->i_hwdrv_CommandAnalogInput(2,dev,s); */
 		return i_APCI3120_CyclicAnalogInput(2, dev, s);
 	}
 	return -1;
@@ -716,64 +722,65 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 		0, ui_TimerValue0, ui_ConvertTiming;
 	unsigned short us_TmpValue;
 
-	//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
-	//devpriv->b_AiCyclicAcquisition=APCI3120_ENABLE;
-	//END JK 07.05.04: Comparison between WIN32 and Linux driver
+	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
+	/* devpriv->b_AiCyclicAcquisition=APCI3120_ENABLE; */
+	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
 	/*******************/
 	/* Resets the FIFO */
 	/*******************/
 	inb(dev->iobase + APCI3120_RESET_FIFO);
 
-	//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
-	//inw(dev->iobase+APCI3120_RD_STATUS);
-	//END JK 07.05.04: Comparison between WIN32 and Linux driver
+	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
+	/* inw(dev->iobase+APCI3120_RD_STATUS); */
+	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
 	/***************************/
 	/* Acquisition initialized */
 	/***************************/
-	//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
+	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
 	devpriv->b_AiCyclicAcquisition = APCI3120_ENABLE;
-	//END JK 07.05.04: Comparison between WIN32 and Linux driver
+	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
-	// clear software  registers
+	/*  clear software  registers */
 	devpriv->b_TimerSelectMode = 0;
 	devpriv->us_OutputRegister = 0;
 	devpriv->b_ModeSelectRegister = 0;
-	//devpriv->b_DigitalOutputRegister=0;
+	/* devpriv->b_DigitalOutputRegister=0; */
 
-	//COMMENT JK 07.05.04: Followings calls are in i_APCI3120_StartAnalogInputAcquisition
+	/* COMMENT JK 07.05.04: Followings calls are in i_APCI3120_StartAnalogInputAcquisition */
 
-   /****************************/
+	/****************************/
 	/* Clear Timer Write TC int */
-   /****************************/
+	/****************************/
 	outl(APCI3120_CLEAR_WRITE_TC_INT,
 		devpriv->i_IobaseAmcc + APCI3120_AMCC_OP_REG_INTCSR);
 
-   /************************************/
+	/************************************/
 	/* Clears the timer status register */
-   /************************************/
-	//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
-	//inw(dev->iobase+APCI3120_TIMER_STATUS_REGISTER);
-	inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
-	//END JK 07.05.04: Comparison between WIN32 and Linux driver
+	/************************************/
 
-   /**************************/
+	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
+	/* inw(dev->iobase+APCI3120_TIMER_STATUS_REGISTER); */
+	/* inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER); */
+	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+
+	/**************************/
 	/* Disables All Timer     */
 	/* Sets PR and PA to 0    */
-   /**************************/
+	/**************************/
 	devpriv->us_OutputRegister = devpriv->us_OutputRegister &
 		APCI3120_DISABLE_TIMER0 &
 		APCI3120_DISABLE_TIMER1 & APCI3120_CLEAR_PA_PR;
 
 	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
 
-   /*******************/
+	/*******************/
 	/* Resets the FIFO */
-   /*******************/
-	//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
+	/*******************/
+	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
 	inb(devpriv->iobase + APCI3120_RESET_FIFO);
-	//END JK 07.05.04: Comparison between WIN32 and Linux driver
+	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
 	devpriv->ui_AiActualScan = 0;
 	devpriv->ui_AiActualScanPosition = 0;
@@ -781,7 +788,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 	devpriv->ui_AiBufferPtr = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
-	// value for timer2  minus -2 has to be done .....dunno y??
+	/*  value for timer2  minus -2 has to be done .....dunno y?? */
 	ui_TimerValue2 = devpriv->ui_AiNbrofScans - 2;
 	ui_ConvertTiming = devpriv->ui_AiTimer0;
 
@@ -819,7 +826,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 	}
 ***********************************************************************************************/
 /*** EL241003 Begin : add this section to replace floats calculation by integer calculations **/
-	//EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001
+	/* EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001 */
 	if ((us_TmpValue & 0x00B0) == 0x00B0
 		|| !strcmp(this_board->pc_DriverName, "apci3001")) {
 		ui_TimerValue0 = ui_ConvertTiming * 2 - 2000;
@@ -844,79 +851,82 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 /*** EL241003 End ******************************************************************************/
 
 	if (devpriv->b_ExttrigEnable == APCI3120_ENABLE) {
-		i_APCI3120_ExttrigEnable(dev);	// activate EXT trigger
+		i_APCI3120_ExttrigEnable(dev);	/*  activate EXT trigger */
 	}
 	switch (mode) {
 	case 1:
-		// init timer0 in mode 2
+		/*  init timer0 in mode 2 */
 		devpriv->b_TimerSelectMode =
 			(devpriv->
 			b_TimerSelectMode & 0xFC) | APCI3120_TIMER_0_MODE_2;
 		outb(devpriv->b_TimerSelectMode,
 			dev->iobase + APCI3120_TIMER_CRT1);
 
-		//Select Timer 0
+		/* Select Timer 0 */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_0_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		//Set the convertion time
+		/* Set the convertion time */
 		outw(((unsigned short) ui_TimerValue0),
 			dev->iobase + APCI3120_TIMER_VALUE);
 		break;
 
 	case 2:
-		// init timer1 in mode 2
+		/*  init timer1 in mode 2 */
 		devpriv->b_TimerSelectMode =
 			(devpriv->
 			b_TimerSelectMode & 0xF3) | APCI3120_TIMER_1_MODE_2;
 		outb(devpriv->b_TimerSelectMode,
 			dev->iobase + APCI3120_TIMER_CRT1);
 
-		//Select Timer 1
+		/* Select Timer 1 */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_1_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		//Set the convertion time
+		/* Set the convertion time */
 		outw(((unsigned short) ui_TimerValue1),
 			dev->iobase + APCI3120_TIMER_VALUE);
 
-		// init timer0 in mode 2
+		/*  init timer0 in mode 2 */
 		devpriv->b_TimerSelectMode =
 			(devpriv->
 			b_TimerSelectMode & 0xFC) | APCI3120_TIMER_0_MODE_2;
 		outb(devpriv->b_TimerSelectMode,
 			dev->iobase + APCI3120_TIMER_CRT1);
 
-		//Select Timer 0
+		/* Select Timer 0 */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_0_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
-		//Set the convertion time
+		/* Set the convertion time */
 		outw(((unsigned short) ui_TimerValue0),
 			dev->iobase + APCI3120_TIMER_VALUE);
 		break;
 
 	}
-	//   ##########common for all modes#################
+	/*    ##########common for all modes################# */
 
 	/***********************/
 	/* Clears the SCAN bit */
 	/***********************/
-	//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
-	//devpriv->b_ModeSelectRegister=devpriv->b_ModeSelectRegister | APCI3120_DISABLE_SCAN;
+
+	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
+	/* devpriv->b_ModeSelectRegister=devpriv->b_ModeSelectRegister | APCI3120_DISABLE_SCAN; */
+
 	devpriv->b_ModeSelectRegister = devpriv->b_ModeSelectRegister &
 		APCI3120_DISABLE_SCAN;
-	//END JK 07.05.04: Comparison between WIN32 and Linux driver
+	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+
 	outb(devpriv->b_ModeSelectRegister,
 		dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
-	// If DMA is disabled
+	/*  If DMA is disabled */
 	if (devpriv->us_UseDma == APCI3120_DISABLE) {
-		// disable EOC and enable EOS
+		/*  disable EOC and enable EOS */
 		devpriv->b_InterruptMode = APCI3120_EOS_MODE;
 		devpriv->b_EocEosInterrupt = APCI3120_ENABLE;
 
@@ -928,15 +938,17 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 		if (!devpriv->b_AiContinuous) {
-			// configure Timer2 For counting  EOS
-			//Reset gate 2 of Timer 2 to disable it (Set Bit D14 to 0)
+/*
+ * configure Timer2 For counting EOS Reset gate 2 of Timer 2 to
+ * disable it (Set Bit D14 to 0)
+ */
 			devpriv->us_OutputRegister =
 				devpriv->
 				us_OutputRegister & APCI3120_DISABLE_TIMER2;
 			outw(devpriv->us_OutputRegister,
 				dev->iobase + APCI3120_WR_ADDRESS);
 
-			// DISABLE TIMER intERRUPT
+			/*  DISABLE TIMER intERRUPT */
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister &
@@ -944,7 +956,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			outb(devpriv->b_ModeSelectRegister,
 				dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
-			//(1) Init timer 2 in mode 0 and write timer value
+			/* (1) Init timer 2 in mode 0 and write timer value */
 			devpriv->b_TimerSelectMode =
 				(devpriv->
 				b_TimerSelectMode & 0x0F) |
@@ -952,7 +964,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			outb(devpriv->b_TimerSelectMode,
 				dev->iobase + APCI3120_TIMER_CRT1);
 
-			//Writing LOW unsigned short
+			/* Writing LOW unsigned short */
 			b_Tmp = ((devpriv->
 					b_DigitalOutputRegister) & 0xF0) |
 				APCI3120_SELECT_TIMER_2_LOW_WORD;
@@ -960,7 +972,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			outw(LOWORD(ui_TimerValue2),
 				dev->iobase + APCI3120_TIMER_VALUE);
 
-			//Writing HIGH unsigned short
+			/* Writing HIGH unsigned short */
 			b_Tmp = ((devpriv->
 					b_DigitalOutputRegister) & 0xF0) |
 				APCI3120_SELECT_TIMER_2_HIGH_WORD;
@@ -968,20 +980,20 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			outw(HIWORD(ui_TimerValue2),
 				dev->iobase + APCI3120_TIMER_VALUE);
 
-			//(2) Reset FC_TIMER BIT  Clearing timer status register
+			/* (2) Reset FC_TIMER BIT  Clearing timer status register */
 			inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
-			// enable timer counter and disable watch dog
+			/*  enable timer counter and disable watch dog */
 			devpriv->b_ModeSelectRegister =
 				(devpriv->
 				b_ModeSelectRegister |
 				APCI3120_ENABLE_TIMER_COUNTER) &
 				APCI3120_DISABLE_WATCHDOG;
-			// select EOS clock input for timer 2
+			/*  select EOS clock input for timer 2 */
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister |
 				APCI3120_TIMER2_SELECT_EOS;
-			// Enable timer2  interrupt
+			/*  Enable timer2  interrupt */
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister |
@@ -992,15 +1004,16 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 			devpriv->b_Timer2Interrupt = APCI3120_ENABLE;
 		}
 	} else {
-		// If DMA Enabled
-		//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
-		//inw(dev->iobase+0);// reset EOC bit
-		//END JK 07.05.04: Comparison between WIN32 and Linux driver
+		/* If DMA Enabled */
+
+		/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
+		/* inw(dev->iobase+0); reset EOC bit */
+		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
 
-      /************************************/
+		/************************************/
 		/* Disables the EOC, EOS interrupt  */
-	  /************************************/
+		/************************************/
 		devpriv->b_ModeSelectRegister = devpriv->b_ModeSelectRegister &
 			APCI3120_DISABLE_EOC_INT & APCI3120_DISABLE_EOS_INT;
 
@@ -1012,18 +1025,18 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 
 		if (!devpriv->b_AiContinuous) {
 
-			if (dmalen0 > (devpriv->ui_AiNbrofScans * devpriv->ui_AiScanLength * 2)) {	// must we fill full first buffer?
+			if (dmalen0 > (devpriv->ui_AiNbrofScans * devpriv->ui_AiScanLength * 2)) {	/*  must we fill full first buffer? */
 				dmalen0 =
 					devpriv->ui_AiNbrofScans *
 					devpriv->ui_AiScanLength * 2;
-			} else if (dmalen1 > (devpriv->ui_AiNbrofScans * devpriv->ui_AiScanLength * 2 - dmalen0))	// and must we fill full second buffer when first is once filled?
+			} else if (dmalen1 > (devpriv->ui_AiNbrofScans * devpriv->ui_AiScanLength * 2 - dmalen0))	/*  and must we fill full second buffer when first is once filled? */
 				dmalen1 =
 					devpriv->ui_AiNbrofScans *
 					devpriv->ui_AiScanLength * 2 - dmalen0;
 		}
 
 		if (devpriv->ui_AiFlags & TRIG_WAKE_EOS) {
-			// don't we want wake up every scan?
+			/*  don't we want wake up every scan? */
 			if (dmalen0 > (devpriv->ui_AiScanLength * 2)) {
 				dmalen0 = devpriv->ui_AiScanLength * 2;
 				if (devpriv->ui_AiScanLength & 1)
@@ -1036,7 +1049,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 				if (dmalen1 < 4)
 					dmalen1 = 4;
 			}
-		} else {	// isn't output buff smaller that our DMA buff?
+		} else {	/*  isn't output buff smaller that our DMA buff? */
 			if (dmalen0 > (devpriv->ui_AiDataLength)) {
 				dmalen0 = devpriv->ui_AiDataLength;
 			}
@@ -1047,14 +1060,16 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 		devpriv->ui_DmaBufferUsesize[0] = dmalen0;
 		devpriv->ui_DmaBufferUsesize[1] = dmalen1;
 
-		//Initialize DMA
+		/* Initialize DMA */
 
-		// Set Transfer count enable bit and A2P_fifo reset bit in AGCSTS register
-		//1
+/*
+ * Set Transfer count enable bit and A2P_fifo reset bit in AGCSTS
+ * register 1
+ */
 		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
 		outl(ui_Tmp, devpriv->i_IobaseAmcc + AMCC_OP_REG_AGCSTS);
 
-		// changed  since 16 bit interface for add on
+		/*  changed  since 16 bit interface for add on */
 		/*********************/
 		/* ENABLE BUS MASTER */
 		/*********************/
@@ -1066,78 +1081,95 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH,
 			devpriv->i_IobaseAddon + 2);
 
-		// TO VERIFIED
-		//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
+/*
+ * TO VERIFIED BEGIN JK 07.05.04: Comparison between WIN32 and Linux
+ * driver
+ */
 		outw(0x1000, devpriv->i_IobaseAddon + 2);
-		//END JK 07.05.04: Comparison between WIN32 and Linux driver
+		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
-		//2  No change
-		// A2P FIFO MANAGEMENT
-		// A2P fifo reset  & transfer control enable
-		 /***********************/
+		/* 2 No change */
 		/* A2P FIFO MANAGEMENT */
-		 /***********************/
+		/* A2P fifo reset & transfer control enable */
+
+		/***********************/
+		/* A2P FIFO MANAGEMENT */
+		/***********************/
 		outl(APCI3120_A2P_FIFO_MANAGEMENT, devpriv->i_IobaseAmcc +
 			APCI3120_AMCC_OP_MCSR);
 
-		//3
-		//beginning address of dma buf
-		//The 32 bit address of dma buffer is converted into two 16 bit addresses
-		// Can done by using _attach and put into into an array
-		// array used may be for differnet pages
+/*
+ * 3
+ * beginning address of dma buf The 32 bit address of dma buffer
+ * is converted into two 16 bit addresses Can done by using _attach
+ * and put into into an array array used may be for differnet pages
+ */
 
-		// DMA Start Adress Low
+		/*  DMA Start Adress Low */
 		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->i_IobaseAddon + 0);
 		outw((devpriv->ul_DmaBufferHw[0] & 0xFFFF),
 			devpriv->i_IobaseAddon + 2);
 
-		 /*************************/
+		/*************************/
 		/* DMA Start Adress High */
-		 /*************************/
+		/*************************/
 		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->i_IobaseAddon + 0);
 		outw((devpriv->ul_DmaBufferHw[0] / 65536),
 			devpriv->i_IobaseAddon + 2);
 
-		//4
-		// amount of bytes to be transfered  set transfer count
-		// used ADDON MWTC register
-		//commented testing             outl(devpriv->ui_DmaBufferUsesize[0], devpriv->i_IobaseAddon+AMCC_OP_REG_AMWTC);
+/*
+ * 4
+ * amount of bytes to be transfered set transfer count used ADDON
+ * MWTC register commented testing
+ * outl(devpriv->ui_DmaBufferUsesize[0],
+ * devpriv->i_IobaseAddon+AMCC_OP_REG_AMWTC);
+ */
 
-		 /**************************/
+		/**************************/
 		/* Nbr of acquisition LOW */
-		 /**************************/
+		/**************************/
 		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->i_IobaseAddon + 0);
 		outw((devpriv->ui_DmaBufferUsesize[0] & 0xFFFF),
 			devpriv->i_IobaseAddon + 2);
 
-		 /***************************/
+		/***************************/
 		/* Nbr of acquisition HIGH */
-		 /***************************/
+		/***************************/
 		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->i_IobaseAddon + 0);
 		outw((devpriv->ui_DmaBufferUsesize[0] / 65536),
 			devpriv->i_IobaseAddon + 2);
 
-		//5
-		// To configure A2P FIFO
-		// testing outl( FIFO_ADVANCE_ON_BYTE_2,devpriv->i_IobaseAmcc+AMCC_OP_REG_INTCSR);
+/*
+ * 5
+ * To configure A2P FIFO testing outl(
+ * FIFO_ADVANCE_ON_BYTE_2,devpriv->i_IobaseAmcc+AMCC_OP_REG_INTCSR);
+ */
 
 		/******************/
 		/* A2P FIFO RESET */
 		/******************/
-		// TO VERIFY
-		//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
+/*
+ * TO VERIFY BEGIN JK 07.05.04: Comparison between WIN32 and Linux
+ * driver
+ */
 		outl(0x04000000UL, devpriv->i_IobaseAmcc + AMCC_OP_REG_MCSR);
-		//END JK 07.05.04: Comparison between WIN32 and Linux driver
+		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
-		//6
-		//ENABLE A2P FIFO WRITE AND ENABLE AMWEN
-		// AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
-		//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
-		//outw(3,devpriv->i_IobaseAddon + 4);
-		//END JK 07.05.04: Comparison between WIN32 and Linux driver
+/*
+ * 6
+ * ENABLE A2P FIFO WRITE AND ENABLE AMWEN AMWEN_ENABLE |
+ * A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
+ */
 
-		//7
-		//initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI)
+		/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
+		/* outw(3,devpriv->i_IobaseAddon + 4); */
+		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+
+/*
+ * 7
+ * initialise end of dma interrupt AINT_WRITE_COMPL =
+ * ENABLE_WRITE_TC_INT(ADDI)
+ */
 		/***************************************************/
 		/* A2P FIFO CONFIGURATE, END OF DMA intERRUPT INIT */
 		/***************************************************/
@@ -1145,25 +1177,25 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 				APCI3120_ENABLE_WRITE_TC_INT),
 			devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);
 
-		//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
+		/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
 		/******************************************/
 		/* ENABLE A2P FIFO WRITE AND ENABLE AMWEN */
 		/******************************************/
 		outw(3, devpriv->i_IobaseAddon + 4);
-		//END JK 07.05.04: Comparison between WIN32 and Linux driver
+		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
 		/******************/
 		/* A2P FIFO RESET */
 		/******************/
-		//BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver
+		/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
 		outl(0x04000000UL,
 			devpriv->i_IobaseAmcc + APCI3120_AMCC_OP_MCSR);
-		//END JK 07.05.04: Comparison between WIN32 and Linux driver
+		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 	}
 
 	if ((devpriv->us_UseDma == APCI3120_DISABLE)
 		&& !devpriv->b_AiContinuous) {
-		// set gate 2   to start conversion
+		/*  set gate 2   to start conversion */
 		devpriv->us_OutputRegister =
 			devpriv->us_OutputRegister | APCI3120_ENABLE_TIMER2;
 		outw(devpriv->us_OutputRegister,
@@ -1172,14 +1204,14 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device * dev,
 
 	switch (mode) {
 	case 1:
-		// set gate 0   to start conversion
+		/*  set gate 0   to start conversion */
 		devpriv->us_OutputRegister =
 			devpriv->us_OutputRegister | APCI3120_ENABLE_TIMER0;
 		outw(devpriv->us_OutputRegister,
 			dev->iobase + APCI3120_WR_ADDRESS);
 		break;
 	case 2:
-		// set  gate 0 and gate 1
+		/*  set  gate 0 and gate 1 */
 		devpriv->us_OutputRegister =
 			devpriv->us_OutputRegister | APCI3120_ENABLE_TIMER1;
 		devpriv->us_OutputRegister =
@@ -1226,47 +1258,49 @@ int i_APCI3120_Reset(struct comedi_device * dev)
 	devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
 	devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
-	devpriv->ui_EocEosConversionTime = 0;	// set eoc eos conv time to 0
+	devpriv->ui_EocEosConversionTime = 0;	/*  set eoc eos conv time to 0 */
 	devpriv->b_OutputMemoryStatus = 0;
 
-	// variables used in timer subdevice
+	/*  variables used in timer subdevice */
 	devpriv->b_Timer2Mode = 0;
 	devpriv->b_Timer2Interrupt = 0;
-	devpriv->b_ExttrigEnable = 0;	// Disable ext trigger
+	devpriv->b_ExttrigEnable = 0;	/*  Disable ext trigger */
 
 	/* Disable all interrupts, watchdog for the anolog output */
 	devpriv->b_ModeSelectRegister = 0;
 	outb(devpriv->b_ModeSelectRegister,
 		dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
-	// Disables all counters, ext trigger and clears PA, PR
+	/*  Disables all counters, ext trigger and clears PA, PR */
 	devpriv->us_OutputRegister = 0;
 	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
 
-	//Code to set the all anolog o/p channel to 0v
-	//8191 is decimal value for zero(0 v)volt in bipolar mode(default)
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_1, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	//channel 1
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_2, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	//channel 2
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_3, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	//channel 3
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_4, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	//channel 4
+/*
+ * Code to set the all anolog o/p channel to 0v 8191 is decimal
+ * value for zero(0 v)volt in bipolar mode(default)
+ */
+	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_1, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	/* channel 1 */
+	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_2, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	/* channel 2 */
+	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_3, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	/* channel 3 */
+	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_4, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	/* channel 4 */
 
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_5, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	//channel 5
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_6, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	//channel 6
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_7, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	//channel 7
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_8, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	//channel 8
+	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_5, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	/* channel 5 */
+	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_6, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	/* channel 6 */
+	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_7, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	/* channel 7 */
+	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_8, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	/* channel 8 */
 
-	//  Reset digital output to L0W
+	/*   Reset digital output to L0W */
 
-//ES05  outb(0x0,dev->iobase+APCI3120_DIGITAL_OUTPUT);
+/* ES05  outb(0x0,dev->iobase+APCI3120_DIGITAL_OUTPUT); */
 	udelay(10);
 
-	inw(dev->iobase + 0);	//make a dummy read
-	inb(dev->iobase + APCI3120_RESET_FIFO);	// flush FIFO
-	inw(dev->iobase + APCI3120_RD_STATUS);	// flush A/D status register
+	inw(dev->iobase + 0);	/* make a dummy read */
+	inb(dev->iobase + APCI3120_RESET_FIFO);	/*  flush FIFO */
+	inw(dev->iobase + APCI3120_RD_STATUS);	/*  flush A/D status register */
 
-	//code to reset the RAM sequence
+	/* code to reset the RAM sequence */
 	for (i = 0; i < 16; i++) {
-		us_TmpValue = i << 8;	//select the location
+		us_TmpValue = i << 8;	/* select the location */
 		outw(us_TmpValue, dev->iobase + APCI3120_SEQ_RAM_ADDRESS);
 	}
 	return 0;
@@ -1299,7 +1333,7 @@ int i_APCI3120_Reset(struct comedi_device * dev)
 int i_APCI3120_SetupChannelList(struct comedi_device * dev, struct comedi_subdevice * s,
 	int n_chan, unsigned int *chanlist, char check)
 {
-	unsigned int i;		//, differencial=0, bipolar=0;
+	unsigned int i;		/* , differencial=0, bipolar=0; */
 	unsigned int gain;
 	unsigned short us_TmpValue;
 
@@ -1309,29 +1343,29 @@ int i_APCI3120_SetupChannelList(struct comedi_device * dev, struct comedi_subdev
 			comedi_error(dev, "range/channel list is empty!");
 		return 0;
 	}
-	// All is ok, so we can setup channel/range list
+	/*  All is ok, so we can setup channel/range list */
 	if (check)
 		return 1;
 
-	//Code  to set the PA and PR...Here it set PA to 0..
+	/* Code  to set the PA and PR...Here it set PA to 0.. */
 	devpriv->us_OutputRegister =
 		devpriv->us_OutputRegister & APCI3120_CLEAR_PA_PR;
 	devpriv->us_OutputRegister = ((n_chan - 1) & 0xf) << 8;
 	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
 
 	for (i = 0; i < n_chan; i++) {
-		// store range list to card
-		us_TmpValue = CR_CHAN(chanlist[i]);	// get channel number;
+		/*  store range list to card */
+		us_TmpValue = CR_CHAN(chanlist[i]);	/*  get channel number; */
 
 		if (CR_RANGE(chanlist[i]) < APCI3120_BIPOLAR_RANGES) {
-			us_TmpValue &= ((~APCI3120_UNIPOLAR) & 0xff);	// set bipolar
+			us_TmpValue &= ((~APCI3120_UNIPOLAR) & 0xff);	/*  set bipolar */
 		} else {
-			us_TmpValue |= APCI3120_UNIPOLAR;	// enable unipolar......
+			us_TmpValue |= APCI3120_UNIPOLAR;	/*  enable unipolar...... */
 		}
 
-		gain = CR_RANGE(chanlist[i]);	// get gain number
-		us_TmpValue |= ((gain & 0x03) << 4);	//<<4 for G0 and G1 bit in RAM
-		us_TmpValue |= i << 8;	//To select the RAM LOCATION....
+		gain = CR_RANGE(chanlist[i]);	/*  get gain number */
+		us_TmpValue |= ((gain & 0x03) << 4);	/* <<4 for G0 and G1 bit in RAM */
+		us_TmpValue |= i << 8;	/* To select the RAM LOCATION.... */
 		outw(us_TmpValue, dev->iobase + APCI3120_SEQ_RAM_ADDRESS);
 
 		printk("\n Gain = %i",
@@ -1339,7 +1373,7 @@ int i_APCI3120_SetupChannelList(struct comedi_device * dev, struct comedi_subdev
 		printk("\n Channel = %i", CR_CHAN(chanlist[i]));
 		printk("\n Polarity = %i", us_TmpValue & APCI3120_UNIPOLAR);
 	}
-	return 1;		// we can serve this with scan logic
+	return 1;		/*  we can serve this with scan logic */
 }
 
 /*
@@ -1431,24 +1465,24 @@ void v_APCI3120_Interrupt(int irq, void *d)
 	struct comedi_subdevice *s = dev->subdevices + 0;
 	ui_Check = 1;
 
-	int_daq = inw(dev->iobase + APCI3120_RD_STATUS) & 0xf000;	// get IRQ reasons
-	int_amcc = inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	// get AMCC int register
+	int_daq = inw(dev->iobase + APCI3120_RD_STATUS) & 0xf000;	/*  get IRQ reasons */
+	int_amcc = inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	/*  get AMCC int register */
 
 	if ((!int_daq) && (!(int_amcc & ANY_S593X_INT))) {
 		comedi_error(dev, "IRQ from unknow source");
 		return;
 	}
 
-	outl(int_amcc | 0x00ff0000, devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	// shutdown IRQ reasons in AMCC
+	outl(int_amcc | 0x00ff0000, devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	/*  shutdown IRQ reasons in AMCC */
 
 	int_daq = (int_daq >> 12) & 0xF;
 
 	if (devpriv->b_ExttrigEnable == APCI3120_ENABLE) {
-		//Disable ext trigger
+		/* Disable ext trigger */
 		i_APCI3120_ExttrigDisable(dev);
 		devpriv->b_ExttrigEnable = APCI3120_DISABLE;
 	}
-	//clear the timer 2 interrupt
+	/* clear the timer 2 interrupt */
 	inb(devpriv->i_IobaseAmcc + APCI3120_TIMER_STATUS_REGISTER);
 
 	if (int_amcc & MASTER_ABORT_INT)
@@ -1456,19 +1490,19 @@ void v_APCI3120_Interrupt(int irq, void *d)
 	if (int_amcc & TARGET_ABORT_INT)
 		comedi_error(dev, "AMCC IRQ - TARGET DMA ABORT!");
 
-	// Ckeck if EOC interrupt
+	/*  Ckeck if EOC interrupt */
 	if (((int_daq & 0x8) == 0)
 		&& (devpriv->b_InterruptMode == APCI3120_EOC_MODE)) {
 		if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {
 
-			// Read the AI Value
+			/*  Read the AI Value */
 
 			devpriv->ui_AiReadData[0] =
 				(unsigned int) inw(devpriv->iobase + 0);
 			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
-			send_sig(SIGIO, devpriv->tsk_Current, 0);	// send signal to the sample
+			send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
 		} else {
-			//Disable EOC Interrupt
+			/* Disable EOC Interrupt */
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister & APCI3120_DISABLE_EOC_INT;
@@ -1478,10 +1512,10 @@ void v_APCI3120_Interrupt(int irq, void *d)
 		}
 	}
 
-	// Check If EOS interrupt
+	/*  Check If EOS interrupt */
 	if ((int_daq & 0x2) && (devpriv->b_InterruptMode == APCI3120_EOS_MODE)) {
 
-		if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE)	// enable this in without DMA ???
+		if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE)	/*  enable this in without DMA ??? */
 		{
 
 			if (devpriv->b_AiCyclicAcquisition == APCI3120_ENABLE) {
@@ -1506,7 +1540,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 				devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 				devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 
-				send_sig(SIGIO, devpriv->tsk_Current, 0);	// send signal to the sample
+				send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
 
 			}
 
@@ -1516,12 +1550,12 @@ void v_APCI3120_Interrupt(int irq, void *d)
 				b_ModeSelectRegister & APCI3120_DISABLE_EOS_INT;
 			outb(devpriv->b_ModeSelectRegister,
 				dev->iobase + APCI3120_WRITE_MODE_SELECT);
-			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;	//Default settings
+			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;	/* Default settings */
 			devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 		}
 
 	}
-	//Timer2 interrupt
+	/* Timer2 interrupt */
 	if (int_daq & 0x1) {
 
 		switch (devpriv->b_Timer2Mode) {
@@ -1534,18 +1568,18 @@ void v_APCI3120_Interrupt(int irq, void *d)
 			outb(devpriv->b_ModeSelectRegister,
 				dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
-			// stop timer 2
+			/*  stop timer 2 */
 			devpriv->us_OutputRegister =
 				devpriv->
 				us_OutputRegister & APCI3120_DISABLE_ALL_TIMER;
 			outw(devpriv->us_OutputRegister,
 				dev->iobase + APCI3120_WR_ADDRESS);
 
-			//stop timer 0 and timer 1
+			/* stop timer 0 and timer 1 */
 			i_APCI3120_StopCyclicAcquisition(dev, s);
 			devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
 
-			//UPDATE-0.7.57->0.7.68comedi_done(dev,s);
+			/* UPDATE-0.7.57->0.7.68comedi_done(dev,s); */
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(dev, s);
 
@@ -1553,19 +1587,19 @@ void v_APCI3120_Interrupt(int irq, void *d)
 
 		case APCI3120_TIMER:
 
-			//Send a signal to from kernel to user space
+			/* Send a signal to from kernel to user space */
 			send_sig(SIGIO, devpriv->tsk_Current, 0);
 			break;
 
 		case APCI3120_WATCHDOG:
 
-			//Send a signal to from kernel to user space
+			/* Send a signal to from kernel to user space */
 			send_sig(SIGIO, devpriv->tsk_Current, 0);
 			break;
 
 		default:
 
-			// disable Timer Interrupt
+			/*  disable Timer Interrupt */
 
 			devpriv->b_ModeSelectRegister =
 				devpriv->
@@ -1596,7 +1630,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 			/* Clears the timer status register */
 			/************************************/
 			inw(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
-			v_APCI3120_InterruptDma(irq, d);	// do some data transfer
+			v_APCI3120_InterruptDma(irq, d);	/*  do some data transfer */
 		} else {
 			/* Stops the Timer */
 			outw(devpriv->
@@ -1630,31 +1664,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-/*
- * int i_APCI3120_InterruptHandleEos(struct comedi_device *dev)
-{
-       int n_chan,i;
-       short *data;
-       struct comedi_subdevice *s=dev->subdevices+0;
-       struct comedi_async *async = s->async;
-       data=async->data+async->buf_int_ptr;
-        n_chan=devpriv->ui_AiNbrofChannels;
 
-       for(i=0;i<n_chan;i++)
-         {
-           data[i]=inw(dev->iobase+0);
-         }
-       async->buf_int_count+=n_chan*sizeof(short);
-       async->buf_int_ptr+=n_chan*sizeof(short);
-       comedi_eos(dev,s);
-       if (s->async->buf_int_ptr>=s->async->data_len) //  for buffer rool over
-		         {
-*//* buffer rollover */
-/*	        s->async->buf_int_ptr=0;
-		comedi_eobuf(dev,s);
-         }
- 	return 0;
-}*/
 int i_APCI3120_InterruptHandleEos(struct comedi_device * dev)
 {
 	int n_chan, i;
@@ -1720,20 +1730,20 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 
 		return;
 	}
-	samplesinbuf = samplesinbuf >> 1;	// number of received samples
+	samplesinbuf = samplesinbuf >> 1;	/*  number of received samples */
 	if (devpriv->b_DmaDoubleBuffer) {
-		// switch DMA buffers if is used double buffering
+		/*  switch DMA buffers if is used double buffering */
 		next_dma_buf = 1 - devpriv->ui_DmaActualBuffer;
 
 		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
 		outl(ui_Tmp, devpriv->i_IobaseAddon + AMCC_OP_REG_AGCSTS);
 
-		// changed  since 16 bit interface for add on
+		/*  changed  since 16 bit interface for add on */
 		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->i_IobaseAddon + 0);
 		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW,
 			devpriv->i_IobaseAddon + 2);
 		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->i_IobaseAddon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->i_IobaseAddon + 2);	// 0x1000 is out putted in windows driver
+		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->i_IobaseAddon + 2);	/*  0x1000 is out putted in windows driver */
 
 		var = devpriv->ul_DmaBufferHw[next_dma_buf];
 		low_word = var & 0xffff;
@@ -1761,54 +1771,18 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->i_IobaseAddon + 0);
 		outw(high_word, devpriv->i_IobaseAddon + 2);
 
-		// To configure A2P FIFO
-		// ENABLE A2P FIFO WRITE AND ENABLE AMWEN
-		// AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
+/*
+ * To configure A2P FIFO
+ * ENABLE A2P FIFO WRITE AND ENABLE AMWEN
+ * AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
+ */
 		outw(3, devpriv->i_IobaseAddon + 4);
-		//initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI)
+		/* initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI) */
 		outl((APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
 				APCI3120_ENABLE_WRITE_TC_INT),
 			devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);
 
 	}
-/*UPDATE-0.7.57->0.7.68
-	ptr=(short *)devpriv->ul_DmaBufferVirtual[devpriv->ui_DmaActualBuffer];
-
-
-	// if there is not enough space left in the buffer to copy all data contained in the DMABufferVirtual
-	if(s->async->buf_int_ptr+samplesinbuf*sizeof(short)>=devpriv->ui_AiDataLength)
-	{
-		m=(devpriv->ui_AiDataLength-s->async->buf_int_ptr)/sizeof(short);
-		v_APCI3120_InterruptDmaMoveBlock16bit(dev,s,(void *)ptr,((void *)(devpriv->AiData))+s->async->buf_int_ptr,m);
-		s->async->buf_int_count+=m*sizeof(short);
-		ptr+=m*sizeof(short);
-                samplesinbuf-=m;
-		s->async->buf_int_ptr=0;
-		comedi_eobuf(dev,s);
-	}
-
-	if (samplesinbuf)
-	{
-	        v_APCI3120_InterruptDmaMoveBlock16bit(dev,s,(void *)ptr,((void *)(devpriv->AiData))+s->async->buf_int_ptr,samplesinbuf);
-
-		s->async->buf_int_count+=samplesinbuf*sizeof(short);
-		s->async->buf_int_ptr+=samplesinbuf*sizeof(short);
-		if (!(devpriv->ui_AiFlags & TRIG_WAKE_EOS))
-		{
-			comedi_bufcheck(dev,s);
-                }
-	}
-	if (!devpriv->b_AiContinuous)
-	if ( devpriv->ui_AiActualScan>=devpriv->ui_AiNbrofScans )
-	{
-	    // all data sampled
-	    i_APCI3120_StopCyclicAcquisition(dev,s);
-            devpriv->b_AiCyclicAcquisition=APCI3120_DISABLE;
-	    //DPRINTK("\n Single DMA completed..\n");
-		comedi_done(dev,s);
-            	return;
-	}
-*/
 	if (samplesinbuf) {
 		v_APCI3120_InterruptDmaMoveBlock16bit(dev, s,
 			devpriv->ul_DmaBufferVirtual[devpriv->
@@ -1821,7 +1795,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 	}
 	if (!devpriv->b_AiContinuous)
 		if (devpriv->ui_AiActualScan >= devpriv->ui_AiNbrofScans) {
-			// all data sampled
+			/*  all data sampled */
 			i_APCI3120_StopCyclicAcquisition(dev, s);
 			devpriv->b_AiCyclicAcquisition = APCI3120_DISABLE;
 			s->async->events |= COMEDI_CB_EOA;
@@ -1829,22 +1803,26 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 			return;
 		}
 
-	if (devpriv->b_DmaDoubleBuffer) {	// switch dma buffers
+	if (devpriv->b_DmaDoubleBuffer) {	/*  switch dma buffers */
 		devpriv->ui_DmaActualBuffer = 1 - devpriv->ui_DmaActualBuffer;
 	} else {
-		// restart DMA if is not used double buffering
-		//ADDED REINITIALISE THE DMA
+/*
+ * restart DMA if is not used double buffering
+ * ADDED REINITIALISE THE DMA
+ */
 		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
 		outl(ui_Tmp, devpriv->i_IobaseAddon + AMCC_OP_REG_AGCSTS);
 
-		// changed  since 16 bit interface for add on
+		/*  changed  since 16 bit interface for add on */
 		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->i_IobaseAddon + 0);
 		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW,
 			devpriv->i_IobaseAddon + 2);
 		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->i_IobaseAddon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->i_IobaseAddon + 2);	//
-		// A2P FIFO MANAGEMENT
-		// A2P fifo reset  & transfer control enable
+		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->i_IobaseAddon + 2);	/*  */
+/*
+ * A2P FIFO MANAGEMENT
+ * A2P fifo reset & transfer control enable
+ */
 		outl(APCI3120_A2P_FIFO_MANAGEMENT,
 			devpriv->i_IobaseAmcc + AMCC_OP_REG_MCSR);
 
@@ -1858,7 +1836,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 		outw(high_word, devpriv->i_IobaseAddon + 2);
 
 		var = devpriv->ui_DmaBufferUsesize[0];
-		low_word = var & 0xffff;	//changed
+		low_word = var & 0xffff;	/* changed */
 		var = devpriv->ui_DmaBufferUsesize[0];
 		high_word = var / 65536;
 		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->i_IobaseAddon + 0);
@@ -1866,11 +1844,13 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->i_IobaseAddon + 0);
 		outw(high_word, devpriv->i_IobaseAddon + 2);
 
-		// To configure A2P FIFO
-		//ENABLE A2P FIFO WRITE AND ENABLE AMWEN
-		// AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
+/*
+ * To configure A2P FIFO
+ * ENABLE A2P FIFO WRITE AND ENABLE AMWEN
+ * AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
+ */
 		outw(3, devpriv->i_IobaseAddon + 4);
-		//initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI)
+		/* initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI) */
 		outl((APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
 				APCI3120_ENABLE_WRITE_TC_INT),
 			devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);
@@ -1897,35 +1877,6 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-/*void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,struct comedi_subdevice *s,short *dma,short *data,int n)
-{
-	int i,j,m;
-
-	j=s->async->cur_chan;
-	m=devpriv->ui_AiActualScanPosition;
-        for(i=0;i<n;i++)
-	{
-		*data=*dma;
-   		data++; dma++;
-		j++;
-		if(j>=devpriv->ui_AiNbrofChannels)
-		{
-			m+=j;
-			j=0;
-			if(m>=devpriv->ui_AiScanLength)
-			{
-				m=0;
-			        devpriv->ui_AiActualScan++;
-				if (devpriv->ui_AiFlags & TRIG_WAKE_EOS)
-;//UPDATE-0.7.57->0.7.68					comedi_eos(dev,s);
-			}
-		}
-	}
-        devpriv->ui_AiActualScanPosition=m;
-	s->async->cur_chan=j;
-
-}
-*/
 void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device * dev,
 	struct comedi_subdevice * s, short * dma_buffer, unsigned int num_samples)
 {
@@ -1979,60 +1930,66 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 	if (!data[1])
 		comedi_error(dev, "config:No timer constant !");
 
-	devpriv->b_Timer2Interrupt = (unsigned char) data[2];	// save info whether to enable or disable interrupt
+	devpriv->b_Timer2Interrupt = (unsigned char) data[2];	/*  save info whether to enable or disable interrupt */
 
-	ui_Timervalue2 = data[1] / 1000;	// convert nano seconds  to u seconds
+	ui_Timervalue2 = data[1] / 1000;	/*  convert nano seconds  to u seconds */
 
-	//this_board->i_hwdrv_InsnConfigTimer(dev, ui_Timervalue2,(unsigned char)data[0]);
+	/* this_board->i_hwdrv_InsnConfigTimer(dev, ui_Timervalue2,(unsigned char)data[0]); */
 	us_TmpValue = (unsigned short) inw(devpriv->iobase + APCI3120_RD_STATUS);
 
-	//EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001
-	// and calculate the time value to set in the timer
+/*
+ * EL250804: Testing if board APCI3120 have the new Quartz or if it
+ * is an APCI3001 and calculate the time value to set in the timer
+ */
 	if ((us_TmpValue & 0x00B0) == 0x00B0
 		|| !strcmp(this_board->pc_DriverName, "apci3001")) {
-		//Calculate the time value to set in the timer
+		/* Calculate the time value to set in the timer */
 		ui_Timervalue2 = ui_Timervalue2 / 50;
 	} else {
-		//Calculate the time value to set in the timer
+		/* Calculate the time value to set in the timer */
 		ui_Timervalue2 = ui_Timervalue2 / 70;
 	}
 
-	//Reset gate 2 of Timer 2 to disable it (Set Bit D14 to 0)
+	/* Reset gate 2 of Timer 2 to disable it (Set Bit D14 to 0) */
 	devpriv->us_OutputRegister =
 		devpriv->us_OutputRegister & APCI3120_DISABLE_TIMER2;
 	outw(devpriv->us_OutputRegister, devpriv->iobase + APCI3120_WR_ADDRESS);
 
-	// Disable TIMER Interrupt
+	/*  Disable TIMER Interrupt */
 	devpriv->b_ModeSelectRegister =
 		devpriv->
 		b_ModeSelectRegister & APCI3120_DISABLE_TIMER_INT & 0xEF;
 
-	// Disable Eoc and Eos Interrupts
+	/*  Disable Eoc and Eos Interrupts */
 	devpriv->b_ModeSelectRegister =
 		devpriv->
 		b_ModeSelectRegister & APCI3120_DISABLE_EOC_INT &
 		APCI3120_DISABLE_EOS_INT;
 	outb(devpriv->b_ModeSelectRegister,
 		devpriv->iobase + APCI3120_WRITE_MODE_SELECT);
-	if (data[0] == APCI3120_TIMER)	//initialize timer
+	if (data[0] == APCI3120_TIMER)	/* initialize timer */
 	{
+		/* devpriv->b_ModeSelectRegister=devpriv->b_ModeSelectRegister |
+		 * APCI3120_ENABLE_TIMER_INT; */
 
-		//devpriv->b_ModeSelectRegister=devpriv->b_ModeSelectRegister| APCI3120_ENABLE_TIMER_INT ;
-		//outb(devpriv->b_ModeSelectRegister,devpriv->iobase+APCI3120_WRITE_MODE_SELECT);
+		/* outb(devpriv->b_ModeSelectRegister,devpriv->iobase+APCI3120_WRITE_MODE_SELECT); */
 
-		//Set the Timer 2 in mode 2(Timer)
+		/* Set the Timer 2 in mode 2(Timer) */
 		devpriv->b_TimerSelectMode =
 			(devpriv->
 			b_TimerSelectMode & 0x0F) | APCI3120_TIMER_2_MODE_2;
 		outb(devpriv->b_TimerSelectMode,
 			devpriv->iobase + APCI3120_TIMER_CRT1);
 
-		//Configure the timer 2 for writing the LOW unsigned short of timer is Delay value
-		//You must make a b_tmp variable with DigitalOutPutRegister because at Address_1+APCI3120_TIMER_CRT0
-		//you can set the digital output and configure the timer 2,and if you don't make this, digital output
-		//are erase (Set to 0)
+/*
+ * Configure the timer 2 for writing the LOW unsigned short of timer
+ * is Delay value You must make a b_tmp variable with
+ * DigitalOutPutRegister because at Address_1+APCI3120_TIMER_CRT0
+ * you can set the digital output and configure the timer 2,and if
+ * you don't make this, digital output are erase (Set to 0)
+ */
 
-		//Writing LOW unsigned short
+		/* Writing LOW unsigned short */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
@@ -2040,20 +1997,20 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 		outw(LOWORD(ui_Timervalue2),
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
-		//Writing HIGH unsigned short
+		/* Writing HIGH unsigned short */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, devpriv->iobase + APCI3120_TIMER_CRT0);
 		outw(HIWORD(ui_Timervalue2),
 			devpriv->iobase + APCI3120_TIMER_VALUE);
-		// timer2 in Timer mode enabled
+		/*  timer2 in Timer mode enabled */
 		devpriv->b_Timer2Mode = APCI3120_TIMER;
 
-	} else			// Initialize Watch dog
+	} else			/*  Initialize Watch dog */
 	{
 
-		//Set the Timer 2 in mode 5(Watchdog)
+		/* Set the Timer 2 in mode 5(Watchdog) */
 
 		devpriv->b_TimerSelectMode =
 			(devpriv->
@@ -2061,12 +2018,15 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 		outb(devpriv->b_TimerSelectMode,
 			devpriv->iobase + APCI3120_TIMER_CRT1);
 
-		//Configure the timer 2 for writing the LOW unsigned short of timer is Delay value
-		//You must make a b_tmp variable with DigitalOutPutRegister because at Address_1+APCI3120_TIMER_CRT0
-		//you can set the digital output and configure the timer 2,and if you don't make this, digital output
-		//are erase (Set to 0)
+/*
+ * Configure the timer 2 for writing the LOW unsigned short of timer
+ * is Delay value You must make a b_tmp variable with
+ * DigitalOutPutRegister because at Address_1+APCI3120_TIMER_CRT0
+ * you can set the digital output and configure the timer 2,and if
+ * you don't make this, digital output are erase (Set to 0)
+ */
 
-		//Writing LOW unsigned short
+		/* Writing LOW unsigned short */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
@@ -2074,7 +2034,7 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 		outw(LOWORD(ui_Timervalue2),
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
-		//Writing HIGH unsigned short
+		/* Writing HIGH unsigned short */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
@@ -2082,7 +2042,7 @@ int i_APCI3120_InsnConfigTimer(struct comedi_device * dev, struct comedi_subdevi
 
 		outw(HIWORD(ui_Timervalue2),
 			devpriv->iobase + APCI3120_TIMER_VALUE);
-		//watchdog enabled
+		/* watchdog enabled */
 		devpriv->b_Timer2Mode = APCI3120_WATCHDOG;
 
 	}
@@ -2133,7 +2093,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 		return -EINVAL;
 	}
 
-	if (data[0] == 2)	// write new value
+	if (data[0] == 2)	/*  write new value */
 	{
 		if (devpriv->b_Timer2Mode != APCI3120_TIMER) {
 			comedi_error(dev,
@@ -2147,35 +2107,35 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 			ui_Timervalue2 = 0;
 	}
 
-	//this_board->i_hwdrv_InsnWriteTimer(dev,data[0],ui_Timervalue2);
+	/* this_board->i_hwdrv_InsnWriteTimer(dev,data[0],ui_Timervalue2); */
 
 	switch (data[0]) {
 	case APCI3120_START:
 
-		// Reset FC_TIMER BIT
+		/*  Reset FC_TIMER BIT */
 		inb(devpriv->iobase + APCI3120_TIMER_STATUS_REGISTER);
-		if (devpriv->b_Timer2Mode == APCI3120_TIMER)	//start timer
+		if (devpriv->b_Timer2Mode == APCI3120_TIMER)	/* start timer */
 		{
-			//Enable Timer
+			/* Enable Timer */
 			devpriv->b_ModeSelectRegister =
 				devpriv->b_ModeSelectRegister & 0x0B;
-		} else		//start watch dog
+		} else		/* start watch dog */
 		{
-			//Enable WatchDog
+			/* Enable WatchDog */
 			devpriv->b_ModeSelectRegister =
 				(devpriv->
 				b_ModeSelectRegister & 0x0B) |
 				APCI3120_ENABLE_WATCHDOG;
 		}
 
-		//enable disable interrupt
+		/* enable disable interrupt */
 		if ((devpriv->b_Timer2Interrupt) == APCI3120_ENABLE) {
 
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister |
 				APCI3120_ENABLE_TIMER_INT;
-			// save the task structure to pass info to user
+			/*  save the task structure to pass info to user */
 			devpriv->tsk_Current = current;
 		} else {
 
@@ -2187,9 +2147,9 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 		outb(devpriv->b_ModeSelectRegister,
 			devpriv->iobase + APCI3120_WRITE_MODE_SELECT);
 
-		if (devpriv->b_Timer2Mode == APCI3120_TIMER)	//start timer
+		if (devpriv->b_Timer2Mode == APCI3120_TIMER)	/* start timer */
 		{
-			//For Timer mode is  Gate2 must be activated   **timer started
+			/* For Timer mode is  Gate2 must be activated   **timer started */
 			devpriv->us_OutputRegister =
 				devpriv->
 				us_OutputRegister | APCI3120_ENABLE_TIMER2;
@@ -2201,62 +2161,64 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 
 	case APCI3120_STOP:
 		if (devpriv->b_Timer2Mode == APCI3120_TIMER) {
-			//Disable timer
+			/* Disable timer */
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister &
 				APCI3120_DISABLE_TIMER_COUNTER;
 		} else {
-			//Disable WatchDog
+			/* Disable WatchDog */
 			devpriv->b_ModeSelectRegister =
 				devpriv->
 				b_ModeSelectRegister &
 				APCI3120_DISABLE_WATCHDOG;
 		}
-		// Disable timer interrupt
+		/*  Disable timer interrupt */
 		devpriv->b_ModeSelectRegister =
 			devpriv->
 			b_ModeSelectRegister & APCI3120_DISABLE_TIMER_INT;
 
-		// Write above states  to register
+		/*  Write above states  to register */
 		outb(devpriv->b_ModeSelectRegister,
 			devpriv->iobase + APCI3120_WRITE_MODE_SELECT);
 
-		// Reset Gate 2
+		/*  Reset Gate 2 */
 		devpriv->us_OutputRegister =
 			devpriv->us_OutputRegister & APCI3120_DISABLE_TIMER_INT;
 		outw(devpriv->us_OutputRegister,
 			devpriv->iobase + APCI3120_WR_ADDRESS);
 
-		// Reset FC_TIMER BIT
+		/*  Reset FC_TIMER BIT */
 		inb(devpriv->iobase + APCI3120_TIMER_STATUS_REGISTER);
 
-		// Disable timer
-		//devpriv->b_Timer2Mode=APCI3120_DISABLE;
+		/* Disable timer */
+		/* devpriv->b_Timer2Mode=APCI3120_DISABLE;  */
 
 		break;
 
-	case 2:		//write new value to Timer
+	case 2:		/* write new value to Timer */
 		if (devpriv->b_Timer2Mode != APCI3120_TIMER) {
 			comedi_error(dev,
 				"write :timer2  not configured  in TIMER MODE");
 			return -EINVAL;
 		}
-		// ui_Timervalue2=data[1]; // passed as argument
+		/*  ui_Timervalue2=data[1]; // passed as argument */
 		us_TmpValue =
 			(unsigned short) inw(devpriv->iobase + APCI3120_RD_STATUS);
 
-		//EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001
-		// and calculate the time value to set in the timer
+/*
+ * EL250804: Testing if board APCI3120 have the new Quartz or if it
+ * is an APCI3001 and calculate the time value to set in the timer
+ */
 		if ((us_TmpValue & 0x00B0) == 0x00B0
 			|| !strcmp(this_board->pc_DriverName, "apci3001")) {
-			//Calculate the time value to set in the timer
+			/* Calculate the time value to set in the timer */
 			ui_Timervalue2 = ui_Timervalue2 / 50;
 		} else {
-			//Calculate the time value to set in the timer
+			/* Calculate the time value to set in the timer */
 			ui_Timervalue2 = ui_Timervalue2 / 70;
 		}
-		//Writing LOW unsigned short
+		/* Writing LOW unsigned short */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
@@ -2265,7 +2227,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 		outw(LOWORD(ui_Timervalue2),
 			devpriv->iobase + APCI3120_TIMER_VALUE);
 
-		//Writing HIGH unsigned short
+		/* Writing HIGH unsigned short */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
@@ -2276,7 +2238,7 @@ int i_APCI3120_InsnWriteTimer(struct comedi_device * dev, struct comedi_subdevic
 
 		break;
 	default:
-		return -EINVAL;	// Not a valid input
+		return -EINVAL;	/*  Not a valid input */
 	}
 
 	return insn->n;
@@ -2316,10 +2278,10 @@ int i_APCI3120_InsnReadTimer(struct comedi_device * dev, struct comedi_subdevice
 		comedi_error(dev, "\nread:timer2  not configured ");
 	}
 
-	//this_board->i_hwdrv_InsnReadTimer(dev,data);
+	/* this_board->i_hwdrv_InsnReadTimer(dev,data); */
 	if (devpriv->b_Timer2Mode == APCI3120_TIMER) {
 
-		//Read the LOW unsigned short of Timer 2 register
+		/* Read the LOW unsigned short of Timer 2 register */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
@@ -2327,7 +2289,7 @@ int i_APCI3120_InsnReadTimer(struct comedi_device * dev, struct comedi_subdevice
 
 		us_TmpValue = inw(devpriv->iobase + APCI3120_TIMER_VALUE);
 
-		//Read the HIGH unsigned short of Timer 2 register
+		/* Read the HIGH unsigned short of Timer 2 register */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
@@ -2335,20 +2297,20 @@ int i_APCI3120_InsnReadTimer(struct comedi_device * dev, struct comedi_subdevice
 
 		us_TmpValue_2 = inw(devpriv->iobase + APCI3120_TIMER_VALUE);
 
-		// combining both words
+		/*  combining both words */
 		data[0] = (unsigned int) ((us_TmpValue) | ((us_TmpValue_2) << 16));
 
-	} else			// Read watch dog status
+	} else			/*  Read watch dog status */
 	{
 
 		us_StatusValue = inw(devpriv->iobase + APCI3120_RD_STATUS);
 		us_StatusValue =
 			((us_StatusValue & APCI3120_FC_TIMER) >> 12) & 1;
 		if (us_StatusValue == 1) {
-			// RESET FC_TIMER BIT
+			/*  RESET FC_TIMER BIT */
 			inb(devpriv->iobase + APCI3120_TIMER_STATUS_REGISTER);
 		}
-		data[0] = us_StatusValue;	// when data[0] = 1 then the watch dog has rundown
+		data[0] = us_StatusValue;	/*  when data[0] = 1 then the watch dog has rundown */
 	}
 	return insn->n;
 }
@@ -2386,19 +2348,21 @@ int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev,
 {
 	unsigned int ui_Chan, ui_TmpValue;
 
-	ui_Chan = CR_CHAN(insn->chanspec);	// channel specified
+	ui_Chan = CR_CHAN(insn->chanspec);	/*  channel specified */
 
-	//this_board->i_hwdrv_InsnReadDigitalInput(dev,ui_Chan,data);
+	/* this_board->i_hwdrv_InsnReadDigitalInput(dev,ui_Chan,data); */
 	if (ui_Chan >= 0 && ui_Chan <= 3) {
 		ui_TmpValue = (unsigned int) inw(devpriv->iobase + APCI3120_RD_STATUS);
 
-		//      since only 1 channel reqd  to bring it to last bit it is rotated
-		//  8 +(chan - 1) times then ANDed with 1 for last bit.
+/*
+ * since only 1 channel reqd to bring it to last bit it is rotated 8
+ * +(chan - 1) times then ANDed with 1 for last bit.
+ */
 		*data = (ui_TmpValue >> (ui_Chan + 8)) & 1;
-		//return 0;
+		/* return 0; */
 	} else {
-		//      comedi_error(dev," chan spec wrong");
-		return -EINVAL;	// "sorry channel spec wrong "
+		/*       comedi_error(dev," chan spec wrong"); */
+		return -EINVAL;	/*  "sorry channel spec wrong " */
 	}
 	return insn->n;
 
@@ -2434,7 +2398,7 @@ int i_APCI3120_InsnBitsDigitalInput(struct comedi_device * dev, struct comedi_su
 	*****/
 
 	*data = (ui_TmpValue >> 8) & 0xf;
-	//this_board->i_hwdrv_InsnBitsDigitalInput(dev,data);
+	/* this_board->i_hwdrv_InsnBitsDigitalInput(dev,data); */
 	return insn->n;
 }
 
@@ -2481,7 +2445,7 @@ int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device * dev,
 	if (!devpriv->b_OutputMemoryStatus) {
 		ui_Temp = 0;
 
-	}			//if(!devpriv->b_OutputMemoryStatus )
+	}			/* if(!devpriv->b_OutputMemoryStatus ) */
 
 	return insn->n;
 }
@@ -2530,7 +2494,7 @@ int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device * dev,
 	default:
 		printk("\nThe parameter passed is in error \n");
 		return -EINVAL;
-	}			// switch(data[1])
+	}			/*  switch(data[1]) */
 	outb(data[0], devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
 
 	devpriv->b_DigitalOutputRegister = data[0] & 0xF0;
@@ -2569,7 +2533,7 @@ int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 
 	unsigned int ui_Temp1;
 
-	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	// get the channel
+	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
 
 	if ((data[0] != 0) && (data[0] != 1)) {
 		comedi_error(dev,
@@ -2586,7 +2550,7 @@ int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 	switch (data[1]) {
 	case 1:
 		data[0] = (data[0] << ui_NoOfChannel);
-//ES05                   data[0]=(data[0]<<4)|ui_Temp;
+/* ES05                   data[0]=(data[0]<<4)|ui_Temp; */
 		data[0] = (data[0] << 4) | devpriv->b_DigitalOutputRegister;
 		break;
 
@@ -2595,22 +2559,22 @@ int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 		ui_Temp1 = 1;
 		ui_Temp1 = ui_Temp1 << ui_NoOfChannel;
 		ui_Temp1 = ui_Temp1 << 4;
-//ES05                   ui_Temp=ui_Temp|ui_Temp1;
+/* ES05                   ui_Temp=ui_Temp|ui_Temp1; */
 		devpriv->b_DigitalOutputRegister =
 			devpriv->b_DigitalOutputRegister | ui_Temp1;
 
 		data[0] = (data[0] << ui_NoOfChannel) ^ 0xf;
 		data[0] = data[0] << 4;
-//ES05                   data[0]=data[0]& ui_Temp;
+/* ES05                   data[0]=data[0]& ui_Temp; */
 		data[0] = data[0] & devpriv->b_DigitalOutputRegister;
 		break;
 	default:
 		printk("\nThe parameter passed is in error \n");
 		return -EINVAL;
-	}			// switch(data[1])
+	}			/*  switch(data[1]) */
 	outb(data[0], devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
 
-//ES05        ui_Temp=data[0] & 0xf0;
+/* ES05        ui_Temp=data[0] & 0xf0; */
 	devpriv->b_DigitalOutputRegister = data[0] & 0xf0;
 	return (insn->n);
 
@@ -2652,8 +2616,8 @@ int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 	ui_Range = CR_RANGE(insn->chanspec);
 	ui_Channel = CR_CHAN(insn->chanspec);
 
-	//this_board->i_hwdrv_InsnWriteAnalogOutput(dev, ui_Range, ui_Channel,data[0]);
-	if (ui_Range)		// if 1 then unipolar
+	/* this_board->i_hwdrv_InsnWriteAnalogOutput(dev, ui_Range, ui_Channel,data[0]); */
+	if (ui_Range)		/*  if 1 then unipolar */
 	{
 
 		if (data[0] != 0)
@@ -2665,7 +2629,7 @@ int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 				((((ui_Channel & 0x03) << 14) & 0xC000) | (1 <<
 					13) | 8192);
 
-	} else			// if 0 then   bipolar
+	} else			/*  if 0 then   bipolar */
 	{
 		data[0] =
 			((((ui_Channel & 0x03) << 14) & 0xC000) | (0 << 13) |
@@ -2673,9 +2637,11 @@ int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 
 	}
 
-	//out put n values at the given channel.
-	// rt_printk("\nwaiting for DA_READY BIT");
-	do			//Waiting of DA_READY BIT
+/*
+ * out put n values at the given channel. rt_printk("\nwaiting for
+ * DA_READY BIT");
+ */
+	do			/* Waiting of DA_READY BIT */
 	{
 		us_TmpValue =
 			((unsigned short) inw(devpriv->iobase +
@@ -2683,13 +2649,17 @@ int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 	} while (us_TmpValue != 0x0001);
 
 	if (ui_Channel <= 3)
-		// for channel 0-3 out at  the register 1 (wrDac1-8)
-		// data[i] typecasted to ushort since  word write is to be done
+/*
+ * for channel 0-3 out at the register 1 (wrDac1-8) data[i]
+ * typecasted to ushort since word write is to be done
+ */
 		outw((unsigned short) data[0],
 			devpriv->iobase + APCI3120_ANALOG_OUTPUT_1);
 	else
-		// for channel 4-7 out at the register 2 (wrDac5-8)
-		//data[i] typecasted to ushort since  word write is to be done
+/*
+ * for channel 4-7 out at the register 2 (wrDac5-8) data[i]
+ * typecasted to ushort since word write is to be done
+ */
 		outw((unsigned short) data[0],
 			devpriv->iobase + APCI3120_ANALOG_OUTPUT_2);
 
