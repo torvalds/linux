@@ -23,5 +23,10 @@ extern void nl80211_send_deauth(struct cfg80211_registered_device *rdev,
 extern void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 				  struct net_device *netdev,
 				  const u8 *buf, size_t len);
+extern void
+nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,
+			    struct net_device *netdev, const u8 *addr,
+			    enum nl80211_key_type key_type,
+			    int key_id, const u8 *tsc);
 
 #endif /* __NET_WIRELESS_NL80211_H */

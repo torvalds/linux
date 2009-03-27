@@ -43,3 +43,13 @@ void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len)
 	nl80211_send_disassoc(rdev, dev, buf, len);
 }
 EXPORT_SYMBOL(cfg80211_send_disassoc);
+
+void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
+				  enum nl80211_key_type key_type, int key_id,
+				  const u8 *tsc)
+{
+	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	nl80211_michael_mic_failure(rdev, dev, addr, key_type, key_id, tsc);
+}
+EXPORT_SYMBOL(cfg80211_michael_mic_failure);

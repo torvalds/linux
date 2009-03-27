@@ -1932,7 +1932,7 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 	    !ieee80211_is_auth(hdr->frame_control))
 		goto ignore;
 
-	mac80211_ev_michael_mic_failure(rx->sdata, keyidx, hdr);
+	mac80211_ev_michael_mic_failure(rx->sdata, keyidx, hdr, NULL);
  ignore:
 	dev_kfree_skb(rx->skb);
 	rx->skb = NULL;

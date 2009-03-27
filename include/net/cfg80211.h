@@ -957,4 +957,20 @@ void cfg80211_hold_bss(struct cfg80211_bss *bss);
  */
 void cfg80211_unhold_bss(struct cfg80211_bss *bss);
 
+/**
+ * cfg80211_michael_mic_failure - notification of Michael MIC failure (TKIP)
+ * @dev: network device
+ * @addr: The source MAC address of the frame
+ * @key_type: The key type that the received frame used
+ * @key_id: Key identifier (0..3)
+ * @tsc: The TSC value of the frame that generated the MIC failure (6 octets)
+ *
+ * This function is called whenever the local MAC detects a MIC failure in a
+ * received frame. This matches with MLME-MICHAELMICFAILURE.indication()
+ * primitive.
+ */
+void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
+				  enum nl80211_key_type key_type, int key_id,
+				  const u8 *tsc);
+
 #endif /* __NET_CFG80211_H */

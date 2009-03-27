@@ -199,6 +199,14 @@
  *	NL80211_CMD_AUTHENTICATE but for Disassociation frames (similar to
  *	MLME-DISASSOCIATE.request and MLME-DISASSOCIATE.indication primitives).
  *
+ * @NL80211_CMD_MICHAEL_MIC_FAILURE: notification of a locally detected Michael
+ *	MIC (part of TKIP) failure; sent on the "mlme" multicast group; the
+ *	event includes %NL80211_ATTR_MAC to describe the source MAC address of
+ *	the frame with invalid MIC, %NL80211_ATTR_KEY_TYPE to show the key
+ *	type, %NL80211_ATTR_KEY_IDX to indicate the key identifier, and
+ *	%NL80211_ATTR_KEY_SEQ to indicate the TSC value of the frame; this
+ *	event matches with MLME-MICHAELMICFAILURE.indication() primitive
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -259,6 +267,8 @@ enum nl80211_commands {
 	NL80211_CMD_ASSOCIATE,
 	NL80211_CMD_DEAUTHENTICATE,
 	NL80211_CMD_DISASSOCIATE,
+
+	NL80211_CMD_MICHAEL_MIC_FAILURE,
 
 	/* add new commands above here */
 
@@ -408,6 +418,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_REASON_CODE: ReasonCode for %NL80211_CMD_DEAUTHENTICATE and
  *	%NL80211_CMD_DISASSOCIATE, u16
  *
+ * @NL80211_ATTR_KEY_TYPE: Key Type, see &enum nl80211_key_type, represented as
+ *	a u32
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -491,6 +504,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_SSID,
 	NL80211_ATTR_AUTH_TYPE,
 	NL80211_ATTR_REASON_CODE,
+
+	NL80211_ATTR_KEY_TYPE,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -1062,4 +1077,17 @@ enum nl80211_auth_type {
 	NL80211_AUTHTYPE_FT,
 	NL80211_AUTHTYPE_NETWORK_EAP,
 };
+
+/**
+ * enum nl80211_key_type - Key Type
+ * @NL80211_KEYTYPE_GROUP: Group (broadcast/multicast) key
+ * @NL80211_KEYTYPE_PAIRWISE: Pairwise (unicast/individual) key
+ * @NL80211_KEYTYPE_PEERKEY: PeerKey (DLS)
+ */
+enum nl80211_key_type {
+	NL80211_KEYTYPE_GROUP,
+	NL80211_KEYTYPE_PAIRWISE,
+	NL80211_KEYTYPE_PEERKEY,
+};
+
 #endif /* __LINUX_NL80211_H */
