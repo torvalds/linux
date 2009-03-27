@@ -1287,6 +1287,7 @@ static void cciss_softirq_done(struct request *rq)
 {
 	CommandList_struct *cmd = rq->completion_data;
 	ctlr_info_t *h = hba[cmd->ctlr];
+	unsigned int nr_bytes;
 	unsigned long flags;
 	u64bit temp64;
 	int i, ddir;
@@ -1308,7 +1309,14 @@ static void cciss_softirq_done(struct request *rq)
 	printk("Done with %p\n", rq);
 #endif				/* CCISS_DEBUG */
 
-	if (blk_end_request(rq, (rq->errors == 0) ? 0 : -EIO, blk_rq_bytes(rq)))
+	/*
+	 * Store the full size and set the residual count for pc requests
+	 */
+	nr_bytes = blk_rq_bytes(rq);
+	if (blk_pc_request(rq))
+		rq->data_len = cmd->err_info->ResidualCnt;
+
+	if (blk_end_request(rq, (rq->errors == 0) ? 0 : -EIO, nr_bytes))
 		BUG();
 
 	spin_lock_irqsave(&h->lock, flags);
