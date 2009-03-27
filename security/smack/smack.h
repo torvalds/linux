@@ -132,6 +132,8 @@ struct smack_known {
 #define XATTR_NAME_SMACKIPIN	XATTR_SECURITY_PREFIX XATTR_SMACK_IPIN
 #define XATTR_NAME_SMACKIPOUT	XATTR_SECURITY_PREFIX XATTR_SMACK_IPOUT
 
+#define SMACK_CIPSO_OPTION 	"-CIPSO"
+
 /*
  * How communications on this socket are treated.
  * Usually it's determined by the underlying netlabel code
@@ -199,6 +201,7 @@ u32 smack_to_secid(const char *);
 extern int smack_cipso_direct;
 extern char *smack_net_ambient;
 extern char *smack_onlycap;
+extern const char *smack_cipso_option;
 
 extern struct smack_known smack_known_floor;
 extern struct smack_known smack_known_hat;

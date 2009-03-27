@@ -261,6 +261,9 @@ char *smk_import(const char *string, int len)
 {
 	struct smack_known *skp;
 
+	/* labels cannot begin with a '-' */
+	if (string[0] == '-')
+		return NULL;
 	skp = smk_import_entry(string, len);
 	if (skp == NULL)
 		return NULL;

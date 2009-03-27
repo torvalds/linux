@@ -86,6 +86,9 @@ LIST_HEAD(smack_rule_list);
 
 static int smk_cipso_doi_value = SMACK_CIPSO_DOI_DEFAULT;
 
+const char *smack_cipso_option = SMACK_CIPSO_OPTION;
+
+
 #define	SEQ_READ_FINISHED	1
 
 /*
@@ -565,6 +568,11 @@ static ssize_t smk_write_cipso(struct file *file, const char __user *buf,
 		goto unlockedout;
 	}
 
+	/* labels cannot begin with a '-' */
+	if (data[0] == '-') {
+		rc = -EINVAL;
+		goto unlockedout;
+	}
 	data[count] = '\0';
 	rule = data;
 	/*
@@ -808,9 +816,18 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	if (m > BEBITS)
 		return -EINVAL;
 
-	sp = smk_import(smack, 0);
-	if (sp == NULL)
-		return -EINVAL;
+	/* if smack begins with '-', its an option, don't import it */
+	if (smack[0] != '-') {
+		sp = smk_import(smack, 0);
+		if (sp == NULL)
+			return -EINVAL;
+	} else {
+		/* check known options */
+		if (strcmp(smack, smack_cipso_option) == 0)
+			sp = (char *)smack_cipso_option;
+		else
+			return -EINVAL;
+	}
 
 	for (temp_mask = 0; m > 0; m--) {
 		temp_mask |= mask_bits;
@@ -849,18 +866,23 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 			smk_netlbladdr_insert(skp);
 		}
 	} else {
-		rc = netlbl_cfg_unlbl_static_del(&init_net, NULL,
-			&skp->smk_host.sin_addr, &skp->smk_mask,
-			PF_INET, &audit_info);
+		/* we delete the unlabeled entry, only if the previous label
+		 * wasnt the special CIPSO option */
+		if (skp->smk_label != smack_cipso_option)
+			rc = netlbl_cfg_unlbl_static_del(&init_net, NULL,
+					&skp->smk_host.sin_addr, &skp->smk_mask,
+					PF_INET, &audit_info);
+		else
+			rc = 0;
 		skp->smk_label = sp;
 	}
 
 	/*
 	 * Now tell netlabel about the single label nature of
 	 * this host so that incoming packets get labeled.
+	 * but only if we didn't get the special CIPSO option
 	 */
-
-	if (rc == 0)
+	if (rc == 0 && sp != smack_cipso_option)
 		rc = netlbl_cfg_unlbl_static_add(&init_net, NULL,
 			&skp->smk_host.sin_addr, &skp->smk_mask, PF_INET,
 			smack_to_secid(skp->smk_label), &audit_info);

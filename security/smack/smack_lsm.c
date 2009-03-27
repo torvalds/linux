@@ -609,6 +609,9 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 	    strcmp(name, XATTR_NAME_SMACKIPOUT) == 0) {
 		if (!capable(CAP_MAC_ADMIN))
 			rc = -EPERM;
+		/* a label cannot be void and cannot begin with '-' */
+		if (size == 0 || (size > 0 && ((char *)value)[0] == '-'))
+			rc = -EINVAL;
 	} else
 		rc = cap_inode_setxattr(dentry, name, value, size, flags);
 
@@ -1323,8 +1326,12 @@ static char *smack_host_label(struct sockaddr_in *sip)
 		* so we have found the most specific match
 		*/
 		if ((&snp->smk_host.sin_addr)->s_addr ==
-		    (siap->s_addr & (&snp->smk_mask)->s_addr))
+		    (siap->s_addr & (&snp->smk_mask)->s_addr)) {
+			/* we have found the special CIPSO option */
+			if (snp->smk_label == smack_cipso_option)
+				return NULL;
 			return snp->smk_label;
+		}
 
 	return NULL;
 }
@@ -1486,7 +1493,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 	struct socket *sock;
 	int rc = 0;
 
-	if (value == NULL || size > SMK_LABELLEN)
+	if (value == NULL || size > SMK_LABELLEN || size == 0)
 		return -EACCES;
 
 	sp = smk_import(value, size);
