@@ -202,11 +202,6 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 
 #define MAX_HWIFS	10
 
-/* Currently only m68k, apus and m8xx need it */
-#ifndef IDE_ARCH_ACK_INTR
-# define ide_ack_intr(hwif) (1)
-#endif
-
 /* Currently only Atari needs it */
 #ifndef IDE_ARCH_LOCK
 # define ide_release_lock()			do {} while (0)

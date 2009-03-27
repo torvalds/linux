@@ -739,7 +739,8 @@ void ide_timer_expiry (unsigned long data)
 		} else if (drive_is_ready(drive)) {
 			if (drive->waiting_for_dma)
 				hwif->dma_ops->dma_lost_irq(drive);
-			(void)ide_ack_intr(hwif);
+			if (hwif->ack_intr)
+				hwif->ack_intr(hwif);
 			printk(KERN_WARNING "%s: lost interrupt\n",
 				drive->name);
 			startstop = handler(drive);
@@ -854,7 +855,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 
 	spin_lock_irqsave(&hwif->lock, flags);
 
-	if (!ide_ack_intr(hwif))
+	if (hwif->ack_intr && hwif->ack_intr(hwif) == 0)
 		goto out;
 
 	handler = hwif->handler;
