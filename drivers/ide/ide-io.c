@@ -147,11 +147,22 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 {
 	struct ide_taskfile *tf = &cmd->tf;
 	struct request *rq = cmd->rq;
+	u8 tf_cmd = tf->command;
 
 	tf->error = err;
 	tf->status = stat;
 
 	drive->hwif->tp_ops->tf_read(drive, cmd);
+
+	if ((cmd->tf_flags & IDE_TFLAG_CUSTOM_HANDLER) &&
+	    tf_cmd == ATA_CMD_IDLEIMMEDIATE) {
+		if (tf->lbal != 0xc4) {
+			printk(KERN_ERR "%s: head unload failed!\n",
+			       drive->name);
+			ide_tf_dump(drive->name, tf);
+		} else
+			drive->dev_flags |= IDE_DFLAG_PARKED;
+	}
 
 	if (rq && rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
 		memcpy(rq->special, cmd, sizeof(*cmd));

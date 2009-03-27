@@ -146,15 +146,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 		return ide_error(drive, "task_no_data_intr", stat);
 	}
 
-	if (custom && tf->command == ATA_CMD_IDLEIMMEDIATE) {
-		hwif->tp_ops->tf_read(drive, cmd);
-		if (tf->lbal != 0xc4) {
-			printk(KERN_ERR "%s: head unload failed!\n",
-			       drive->name);
-			ide_tf_dump(drive->name, tf);
-		} else
-			drive->dev_flags |= IDE_DFLAG_PARKED;
-	} else if (custom && tf->command == ATA_CMD_SET_MULTI)
+	if (custom && tf->command == ATA_CMD_SET_MULTI)
 		drive->mult_count = drive->mult_req;
 
 	if (custom == 0 || tf->command == ATA_CMD_IDLEIMMEDIATE) {
@@ -164,7 +156,8 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 		if (blk_pm_request(rq))
 			ide_complete_pm_rq(drive, rq);
 		else {
-			if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
+			if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE ||
+			    tf->command == ATA_CMD_IDLEIMMEDIATE)
 				ide_complete_cmd(drive, cmd, stat, err);
 			ide_complete_rq(drive, err);
 		}
