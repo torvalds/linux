@@ -417,6 +417,7 @@ int netlbl_conn_setattr(struct sock *sk,
 			const struct netlbl_lsm_secattr *secattr);
 int netlbl_req_setattr(struct request_sock *req,
 		       const struct netlbl_lsm_secattr *secattr);
+void netlbl_req_delattr(struct request_sock *req);
 int netlbl_skbuff_setattr(struct sk_buff *skb,
 			  u16 family,
 			  const struct netlbl_lsm_secattr *secattr);
@@ -546,6 +547,10 @@ static inline int netlbl_req_setattr(struct request_sock *req,
 				     const struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;
+}
+static inline void netlbl_req_delattr(struct request_sock *req)
+{
+	return;
 }
 static inline int netlbl_skbuff_setattr(struct sk_buff *skb,
 				      u16 family,
