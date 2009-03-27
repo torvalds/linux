@@ -808,6 +808,12 @@ static void posix_cpu_timers_init_group(struct signal_struct *sig)
 	sig->cputime_expires.virt_exp = cputime_zero;
 	sig->cputime_expires.sched_exp = 0;
 
+	if (sig->rlim[RLIMIT_CPU].rlim_cur != RLIM_INFINITY) {
+		sig->cputime_expires.prof_exp =
+			secs_to_cputime(sig->rlim[RLIMIT_CPU].rlim_cur);
+		sig->cputimer.running = 1;
+	}
+
 	/* The timer lists. */
 	INIT_LIST_HEAD(&sig->cpu_timers[0]);
 	INIT_LIST_HEAD(&sig->cpu_timers[1]);
@@ -823,11 +829,8 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 		atomic_inc(&current->signal->live);
 		return 0;
 	}
+
 	sig = kmem_cache_alloc(signal_cachep, GFP_KERNEL);
-
-	if (sig)
-		posix_cpu_timers_init_group(sig);
-
 	tsk->signal = sig;
 	if (!sig)
 		return -ENOMEM;
@@ -864,6 +867,8 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	task_lock(current->group_leader);
 	memcpy(sig->rlim, current->signal->rlim, sizeof sig->rlim);
 	task_unlock(current->group_leader);
+
+	posix_cpu_timers_init_group(sig);
 
 	acct_init_pacct(&sig->pacct);
 
