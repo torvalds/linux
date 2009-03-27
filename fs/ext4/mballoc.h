@@ -132,12 +132,15 @@ struct ext4_prealloc_space {
 	ext4_lblk_t		pa_lstart;	/* log. block */
 	unsigned short		pa_len;		/* len of preallocated chunk */
 	unsigned short		pa_free;	/* how many blocks are free */
-	unsigned short		pa_linear;	/* consumed in one direction
-						 * strictly, for grp prealloc */
+	unsigned short		pa_type;	/* pa type. inode or group */
 	spinlock_t		*pa_obj_lock;
 	struct inode		*pa_inode;	/* hack, for history only */
 };
 
+enum {
+	MB_INODE_PA = 0,
+	MB_GROUP_PA = 1
+};
 
 struct ext4_free_extent {
 	ext4_lblk_t fe_logical;

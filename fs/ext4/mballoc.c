@@ -3555,8 +3555,11 @@ static void ext4_mb_put_pa(struct ext4_allocation_context *ac,
 	spin_unlock(&pa->pa_lock);
 
 	grp_blk = pa->pa_pstart;
-	/* If linear, pa_pstart may be in the next group when pa is used up */
-	if (pa->pa_linear)
+	/* 
+	 * If doing group-based preallocation, pa_pstart may be in the
+	 * next group when pa is used up
+	 */
+	if (pa->pa_type == MB_GROUP_PA)
 		grp_blk--;
 
 	ext4_get_group_no_and_offset(sb, grp_blk, &grp, NULL);
@@ -3651,7 +3654,7 @@ ext4_mb_new_inode_pa(struct ext4_allocation_context *ac)
 	INIT_LIST_HEAD(&pa->pa_inode_list);
 	INIT_LIST_HEAD(&pa->pa_group_list);
 	pa->pa_deleted = 0;
-	pa->pa_linear = 0;
+	pa->pa_type = MB_INODE_PA;
 
 	mb_debug("new inode pa %p: %llu/%u for %u\n", pa,
 			pa->pa_pstart, pa->pa_len, pa->pa_lstart);
@@ -3714,7 +3717,7 @@ ext4_mb_new_group_pa(struct ext4_allocation_context *ac)
 	INIT_LIST_HEAD(&pa->pa_inode_list);
 	INIT_LIST_HEAD(&pa->pa_group_list);
 	pa->pa_deleted = 0;
-	pa->pa_linear = 1;
+	pa->pa_type = MB_GROUP_PA;
 
 	mb_debug("new group pa %p: %llu/%u for %u\n", pa,
 		 pa->pa_pstart, pa->pa_len, pa->pa_lstart);
@@ -3968,7 +3971,7 @@ repeat:
 		list_del_rcu(&pa->pa_inode_list);
 		spin_unlock(pa->pa_obj_lock);
 
-		if (pa->pa_linear)
+		if (pa->pa_type == MB_GROUP_PA)
 			ext4_mb_release_group_pa(&e4b, pa, ac);
 		else
 			ext4_mb_release_inode_pa(&e4b, bitmap_bh, pa, ac);
@@ -4068,7 +4071,7 @@ repeat:
 	spin_unlock(&ei->i_prealloc_lock);
 
 	list_for_each_entry_safe(pa, tmp, &list, u.pa_tmp_list) {
-		BUG_ON(pa->pa_linear != 0);
+		BUG_ON(pa->pa_type != MB_INODE_PA);
 		ext4_get_group_no_and_offset(sb, pa->pa_pstart, &group, NULL);
 
 		err = ext4_mb_load_buddy(sb, group, &e4b);
@@ -4320,7 +4323,7 @@ ext4_mb_discard_lg_preallocations(struct super_block *sb,
 			continue;
 		}
 		/* only lg prealloc space */
-		BUG_ON(!pa->pa_linear);
+		BUG_ON(pa->pa_type != MB_GROUP_PA);
 
 		/* seems this one can be freed ... */
 		pa->pa_deleted = 1;
@@ -4426,7 +4429,7 @@ static int ext4_mb_release_context(struct ext4_allocation_context *ac)
 {
 	struct ext4_prealloc_space *pa = ac->ac_pa;
 	if (pa) {
-		if (pa->pa_linear) {
+		if (pa->pa_type == MB_GROUP_PA) {
 			/* see comment in ext4_mb_use_group_pa() */
 			spin_lock(&pa->pa_lock);
 			pa->pa_pstart += ac->ac_b_ex.fe_len;
@@ -4446,7 +4449,7 @@ static int ext4_mb_release_context(struct ext4_allocation_context *ac)
 		 * doesn't grow big.  We need to release
 		 * alloc_semp before calling ext4_mb_add_n_trim()
 		 */
-		if (pa->pa_linear && likely(pa->pa_free)) {
+		if ((pa->pa_type == MB_GROUP_PA) && likely(pa->pa_free)) {
 			spin_lock(pa->pa_obj_lock);
 			list_del_rcu(&pa->pa_inode_list);
 			spin_unlock(pa->pa_obj_lock);
