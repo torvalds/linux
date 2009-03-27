@@ -87,6 +87,7 @@ enum {
 	POHMELFS_FLAGS_DEL,     /* Network state control message for DEL */
 	POHMELFS_FLAGS_SHOW,    /* Network state control message for SHOW */
 	POHMELFS_FLAGS_CRYPTO,	/* Crypto data control message */
+	POHMELFS_FLAGS_MODIFY,	/* Network state modification message */
 };
 
 /*
