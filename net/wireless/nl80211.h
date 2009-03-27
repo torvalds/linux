@@ -17,11 +17,11 @@ extern void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
 extern void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
 				  struct net_device *netdev,
 				  const u8 *buf, size_t len);
-extern void nl80211_send_rx_deauth(struct cfg80211_registered_device *rdev,
-				   struct net_device *netdev,
-				   const u8 *buf, size_t len);
-extern void nl80211_send_rx_disassoc(struct cfg80211_registered_device *rdev,
-				     struct net_device *netdev,
-				     const u8 *buf, size_t len);
+extern void nl80211_send_deauth(struct cfg80211_registered_device *rdev,
+				struct net_device *netdev,
+				const u8 *buf, size_t len);
+extern void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
+				  struct net_device *netdev,
+				  const u8 *buf, size_t len);
 
 #endif /* __NET_WIRELESS_NL80211_H */

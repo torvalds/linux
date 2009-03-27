@@ -917,28 +917,28 @@ void cfg80211_send_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
 void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len);
 
 /**
- * cfg80211_send_rx_deauth - notification of processed deauthentication
+ * cfg80211_send_deauth - notification of processed deauthentication
  * @dev: network device
  * @buf: deauthentication frame (header + body)
  * @len: length of the frame data
  *
  * This function is called whenever deauthentication has been processed in
- * station mode.
+ * station mode. This includes both received deauthentication frames and
+ * locally generated ones.
  */
-void cfg80211_send_rx_deauth(struct net_device *dev, const u8 *buf,
-			     size_t len);
+void cfg80211_send_deauth(struct net_device *dev, const u8 *buf, size_t len);
 
 /**
- * cfg80211_send_rx_disassoc - notification of processed disassociation
+ * cfg80211_send_disassoc - notification of processed disassociation
  * @dev: network device
  * @buf: disassociation response frame (header + body)
  * @len: length of the frame data
  *
  * This function is called whenever disassociation has been processed in
- * station mode.
+ * station mode. This includes both received disassociation frames and locally
+ * generated ones.
  */
-void cfg80211_send_rx_disassoc(struct net_device *dev, const u8 *buf,
-			       size_t len);
+void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len);
 
 /**
  * cfg80211_hold_bss - exclude bss from expiration

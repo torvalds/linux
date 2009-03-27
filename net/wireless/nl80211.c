@@ -3415,17 +3415,16 @@ void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
 	nl80211_send_mlme_event(rdev, netdev, buf, len, NL80211_CMD_ASSOCIATE);
 }
 
-void nl80211_send_rx_deauth(struct cfg80211_registered_device *rdev,
-			    struct net_device *netdev, const u8 *buf,
-			    size_t len)
+void nl80211_send_deauth(struct cfg80211_registered_device *rdev,
+			 struct net_device *netdev, const u8 *buf, size_t len)
 {
 	nl80211_send_mlme_event(rdev, netdev, buf, len,
 				NL80211_CMD_DEAUTHENTICATE);
 }
 
-void nl80211_send_rx_disassoc(struct cfg80211_registered_device *rdev,
-			      struct net_device *netdev, const u8 *buf,
-			      size_t len)
+void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
+			   struct net_device *netdev, const u8 *buf,
+			   size_t len)
 {
 	nl80211_send_mlme_event(rdev, netdev, buf, len,
 				NL80211_CMD_DISASSOCIATE);

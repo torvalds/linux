@@ -28,19 +28,18 @@ void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len)
 }
 EXPORT_SYMBOL(cfg80211_send_rx_assoc);
 
-void cfg80211_send_rx_deauth(struct net_device *dev, const u8 *buf, size_t len)
+void cfg80211_send_deauth(struct net_device *dev, const u8 *buf, size_t len)
 {
 	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-	nl80211_send_rx_deauth(rdev, dev, buf, len);
+	nl80211_send_deauth(rdev, dev, buf, len);
 }
-EXPORT_SYMBOL(cfg80211_send_rx_deauth);
+EXPORT_SYMBOL(cfg80211_send_deauth);
 
-void cfg80211_send_rx_disassoc(struct net_device *dev, const u8 *buf,
-			       size_t len)
+void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len)
 {
 	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-	nl80211_send_rx_disassoc(rdev, dev, buf, len);
+	nl80211_send_disassoc(rdev, dev, buf, len);
 }
-EXPORT_SYMBOL(cfg80211_send_rx_disassoc);
+EXPORT_SYMBOL(cfg80211_send_disassoc);

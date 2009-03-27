@@ -325,6 +325,10 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	/* u.deauth.reason_code == u.disassoc.reason_code */
 	mgmt->u.deauth.reason_code = cpu_to_le16(reason);
 
+	if (stype == IEEE80211_STYPE_DEAUTH)
+		cfg80211_send_deauth(sdata->dev, (u8 *) mgmt, skb->len);
+	else
+		cfg80211_send_disassoc(sdata->dev, (u8 *) mgmt, skb->len);
 	ieee80211_tx_skb(sdata, skb, ifmgd->flags & IEEE80211_STA_MFP_ENABLED);
 }
 
@@ -1187,7 +1191,7 @@ static void ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_set_disassoc(sdata, true, false, 0);
 	ifmgd->flags &= ~IEEE80211_STA_AUTHENTICATED;
-	cfg80211_send_rx_deauth(sdata->dev, (u8 *) mgmt, len);
+	cfg80211_send_deauth(sdata->dev, (u8 *) mgmt, len);
 }
 
 
@@ -1218,7 +1222,7 @@ static void ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee80211_set_disassoc(sdata, false, false, reason_code);
-	cfg80211_send_rx_disassoc(sdata->dev, (u8 *) mgmt, len);
+	cfg80211_send_disassoc(sdata->dev, (u8 *) mgmt, len);
 }
 
 
