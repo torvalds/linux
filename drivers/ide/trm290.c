@@ -198,6 +198,7 @@ static int trm290_dma_setup(ide_drive_t *drive)
 		rw = 2;
 
 	if (!(count = ide_build_dmatable(drive, rq))) {
+		ide_map_sg(drive, rq);
 		/* try PIO instead of DMA */
 		trm290_prepare_drive(drive, 0); /* select PIO xfer */
 		return 1;
