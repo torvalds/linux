@@ -44,7 +44,6 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_frame.h>
 #include <scsi/libfcoe.h>
-#include <scsi/fc_transport_fcoe.h>
 
 static int debug_fcoe;
 
@@ -1081,10 +1080,9 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 		rc = -ENODEV;
 		goto out_putdev;
 	}
-	/* pass to transport */
-	rc = fcoe_transport_release(netdev);
+	rc = fcoe_sw_destroy(netdev);
 	if (rc) {
-		printk(KERN_ERR "fcoe: fcoe_transport_release(%s) failed\n",
+		printk(KERN_ERR "fcoe: fcoe_sw_destroy(%s) failed\n",
 		       netdev->name);
 		rc = -EIO;
 		goto out_putdev;
@@ -1121,10 +1119,9 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	}
 	fcoe_ethdrv_get(netdev);
 
-	/* pass to transport */
-	rc = fcoe_transport_attach(netdev);
+	rc = fcoe_sw_create(netdev);
 	if (rc) {
-		printk(KERN_ERR "fcoe: fcoe_transport_attach(%s) failed\n",
+		printk(KERN_ERR "fcoe: fcoe_sw_create(%s) failed\n",
 		       netdev->name);
 		fcoe_ethdrv_put(netdev);
 		rc = -EIO;
@@ -1429,10 +1426,6 @@ EXPORT_SYMBOL_GPL(fcoe_libfc_config);
 /**
  * fcoe_init() - fcoe module loading initialization
  *
- * Initialization routine
- * 1. Will create fc transport software structure
- * 2. initialize the link list of port information structure
- *
  * Returns 0 on success, negative on failure
  */
 static int __init fcoe_init(void)
@@ -1464,9 +1457,6 @@ static int __init fcoe_init(void)
 
 	mod_timer(&fcoe_timer, jiffies + (10 * HZ));
 
-	/* initiatlize the fcoe transport */
-	fcoe_transport_init();
-
 	fcoe_sw_init();
 
 	return 0;
@@ -1495,9 +1485,9 @@ static void __exit fcoe_exit(void)
 	/* Stop the timer */
 	del_timer_sync(&fcoe_timer);
 
-	/* releases the associated fcoe transport for each lport */
+	/* releases the associated fcoe hosts */
 	list_for_each_entry_safe(fc, tmp, &fcoe_hostlist, list)
-		fcoe_transport_release(fc->real_dev);
+		fcoe_sw_destroy(fc->real_dev);
 
 	unregister_hotcpu_notifier(&fcoe_cpu_notifier);
 
@@ -1507,8 +1497,5 @@ static void __exit fcoe_exit(void)
 
 	/* remove sw trasnport */
 	fcoe_sw_exit();
-
-	/* detach the transport */
-	fcoe_transport_exit();
 }
 module_exit(fcoe_exit);

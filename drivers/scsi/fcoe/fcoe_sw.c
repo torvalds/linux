@@ -36,7 +36,6 @@
 
 #include <scsi/libfc.h>
 #include <scsi/libfcoe.h>
-#include <scsi/fc_transport_fcoe.h>
 
 #define FCOE_SW_VERSION	"0.1"
 #define	FCOE_SW_NAME	"fcoesw"
@@ -302,7 +301,7 @@ static inline int fcoe_sw_em_config(struct fc_lport *lp)
  *
  * Returns: 0 if link is OK for use by FCoE.
  */
-static int fcoe_sw_destroy(struct net_device *netdev)
+int fcoe_sw_destroy(struct net_device *netdev)
 {
 	struct fc_lport *lp = NULL;
 	struct fcoe_softc *fc;
@@ -415,7 +414,7 @@ static struct libfc_function_template fcoe_sw_libfc_fcn_templ = {
  *
  * Returns : 0 on success
  */
-static int fcoe_sw_create(struct net_device *netdev)
+int fcoe_sw_create(struct net_device *netdev)
 {
 	int rc;
 	struct fc_lport *lp = NULL;
@@ -494,28 +493,7 @@ out_host_put:
 }
 
 /**
- * fcoe_sw_match() - The FCoE SW transport match function
- *
- * Returns : false always
- */
-static bool fcoe_sw_match(struct net_device *netdev)
-{
-	/* FIXME - for sw transport, always return false */
-	return false;
-}
-
-/* the sw hba fcoe transport */
-struct fcoe_transport fcoe_sw_transport = {
-	.name = "fcoesw",
-	.create = fcoe_sw_create,
-	.destroy = fcoe_sw_destroy,
-	.match = fcoe_sw_match,
-	.vendor = 0x0,
-	.device = 0xffff,
-};
-
-/**
- * fcoe_sw_init() - Registers fcoe_sw_transport
+ * fcoe_sw_init() - attach to scsi transport
  *
  * Returns : 0 on success
  */
@@ -530,23 +508,16 @@ int __init fcoe_sw_init(void)
 		return -ENODEV;
 	}
 
-	mutex_init(&fcoe_sw_transport.devlock);
-	INIT_LIST_HEAD(&fcoe_sw_transport.devlist);
-
-	/* register sw transport */
-	fcoe_transport_register(&fcoe_sw_transport);
 	return 0;
 }
 
 /**
- * fcoe_sw_exit() - Unregisters fcoe_sw_transport
+ * fcoe_sw_exit() - detach from scsi transport
  *
  * Returns : 0 on success
  */
 int __exit fcoe_sw_exit(void)
 {
-	/* dettach the transport */
 	fc_release_transport(scsi_transport_fcoe_sw);
-	fcoe_transport_unregister(&fcoe_sw_transport);
 	return 0;
 }

@@ -149,4 +149,6 @@ int fcoe_libfc_config(struct fc_lport *, struct libfc_function_template *);
 /* fcoe sw hba */
 int __init fcoe_sw_init(void);
 int __exit fcoe_sw_exit(void);
+int fcoe_sw_create(struct net_device *);
+int fcoe_sw_destroy(struct net_device *);
 #endif /* _LIBFCOE_H */
