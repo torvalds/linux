@@ -429,6 +429,11 @@ corrupted:
 #define ext4_ext_check(inode, eh, depth)	\
 	__ext4_ext_check(__func__, inode, eh, depth)
 
+int ext4_ext_check_inode(struct inode *inode)
+{
+	return ext4_ext_check(inode, ext_inode_hdr(inode), ext_depth(inode));
+}
+
 #ifdef EXT_DEBUG
 static void ext4_ext_show_path(struct inode *inode, struct ext4_ext_path *path)
 {
@@ -631,9 +636,6 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 
 	eh = ext_inode_hdr(inode);
 	depth = ext_depth(inode);
-	if (ext4_ext_check(inode, eh, depth))
-		return ERR_PTR(-EIO);
-
 
 	/* account possible depth increase */
 	if (!path) {
@@ -649,6 +651,8 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 	i = depth;
 	/* walk through the tree */
 	while (i) {
+		int need_to_validate = 0;
+
 		ext_debug("depth %d: num %d, max %d\n",
 			  ppos, le16_to_cpu(eh->eh_entries), le16_to_cpu(eh->eh_max));
 
@@ -657,10 +661,17 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 		path[ppos].p_depth = i;
 		path[ppos].p_ext = NULL;
 
-		bh = sb_bread(inode->i_sb, path[ppos].p_block);
-		if (!bh)
+		bh = sb_getblk(inode->i_sb, path[ppos].p_block);
+		if (unlikely(!bh))
 			goto err;
-
+		if (!bh_uptodate_or_lock(bh)) {
+			if (bh_submit_read(bh) < 0) {
+				put_bh(bh);
+				goto err;
+			}
+			/* validate the extent entries */
+			need_to_validate = 1;
+		}
 		eh = ext_block_hdr(bh);
 		ppos++;
 		BUG_ON(ppos > depth);
@@ -668,7 +679,7 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 		path[ppos].p_hdr = eh;
 		i--;
 
-		if (ext4_ext_check(inode, eh, i))
+		if (need_to_validate && ext4_ext_check(inode, eh, i))
 			goto err;
 	}
 

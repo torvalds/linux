@@ -4345,6 +4345,16 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 			(__u64)(le32_to_cpu(raw_inode->i_version_hi)) << 32;
 	}
 
+	if (ei->i_flags & EXT4_EXTENTS_FL) {
+		/* Validate extent which is part of inode */
+		ret = ext4_ext_check_inode(inode);
+		if (ret) {
+			brelse(bh);
+			goto bad_inode;
+		}
+
+	}
+
 	if (S_ISREG(inode->i_mode)) {
 		inode->i_op = &ext4_file_inode_operations;
 		inode->i_fop = &ext4_file_operations;
