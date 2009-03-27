@@ -1325,6 +1325,8 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 
 	if (d) {
 		host->init_chipset = d->init_chipset;
+		host->get_lock     = d->get_lock;
+		host->release_lock = d->release_lock;
 		host->host_flags = d->host_flags;
 	}
 

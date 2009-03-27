@@ -501,8 +501,8 @@ static inline int ide_lock_host(struct ide_host *host, ide_hwif_t *hwif)
 	if (host->host_flags & IDE_HFLAG_SERIALIZE) {
 		rc = test_and_set_bit_lock(IDE_HOST_BUSY, &host->host_busy);
 		if (rc == 0) {
-			/* for atari only */
-			ide_get_lock(ide_intr, hwif);
+			if (host->get_lock)
+				host->get_lock(ide_intr, hwif);
 		}
 	}
 	return rc;
@@ -511,8 +511,8 @@ static inline int ide_lock_host(struct ide_host *host, ide_hwif_t *hwif)
 static inline void ide_unlock_host(struct ide_host *host)
 {
 	if (host->host_flags & IDE_HFLAG_SERIALIZE) {
-		/* for atari only */
-		ide_release_lock();
+		if (host->release_lock)
+			host->release_lock();
 		clear_bit_unlock(IDE_HOST_BUSY, &host->host_busy);
 	}
 }

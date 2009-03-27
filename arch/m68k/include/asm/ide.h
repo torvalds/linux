@@ -36,11 +36,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#ifdef CONFIG_ATARI
-#include <linux/interrupt.h>
-#include <asm/atari_stdma.h>
-#endif
-
 #ifdef CONFIG_MAC
 #include <asm/macints.h>
 #endif
@@ -91,37 +86,6 @@
 #define insw_swapw(port, addr, n)	raw_insw_swapw((u16 *)port, addr, n)
 #define outsw_swapw(port, addr, n)	raw_outsw_swapw((u16 *)port, addr, n)
 #endif
-
-#ifdef CONFIG_BLK_DEV_FALCON_IDE
-#define IDE_ARCH_LOCK
-
-extern int falconide_intr_lock;
-
-static __inline__ void ide_release_lock (void)
-{
-	if (MACH_IS_ATARI) {
-		if (falconide_intr_lock == 0) {
-			printk("ide_release_lock: bug\n");
-			return;
-		}
-		falconide_intr_lock = 0;
-		stdma_release();
-	}
-}
-
-static __inline__ void
-ide_get_lock(irq_handler_t handler, void *data)
-{
-	if (MACH_IS_ATARI) {
-		if (falconide_intr_lock == 0) {
-			if (in_interrupt() > 0)
-				panic( "Falcon IDE hasn't ST-DMA lock in interrupt" );
-			stdma_lock(handler, data);
-			falconide_intr_lock = 1;
-		}
-	}
-}
-#endif /* CONFIG_BLK_DEV_FALCON_IDE */
 
 #endif /* __KERNEL__ */
 #endif /* _M68K_IDE_H */

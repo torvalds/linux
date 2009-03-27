@@ -202,12 +202,6 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 
 #define MAX_HWIFS	10
 
-/* Currently only Atari needs it */
-#ifndef IDE_ARCH_LOCK
-# define ide_release_lock()			do {} while (0)
-# define ide_get_lock(hdlr, data)		do {} while (0)
-#endif /* IDE_ARCH_LOCK */
-
 /*
  * Now for the data we need to maintain per-drive:  ide_drive_t
  */
@@ -845,8 +839,14 @@ struct ide_host {
 	ide_hwif_t	*ports[MAX_HOST_PORTS + 1];
 	unsigned int	n_ports;
 	struct device	*dev[2];
+
 	int		(*init_chipset)(struct pci_dev *);
+
+	void		(*get_lock)(irq_handler_t, void *);
+	void		(*release_lock)(void);
+
 	irq_handler_t	irq_handler;
+
 	unsigned long	host_flags;
 	void		*host_priv;
 	ide_hwif_t	*cur_port;	/* for hosts requiring serialization */
@@ -1358,7 +1358,12 @@ enum {
 
 struct ide_port_info {
 	char			*name;
+
 	int			(*init_chipset)(struct pci_dev *);
+
+	void			(*get_lock)(irq_handler_t, void *);
+	void			(*release_lock)(void);
+
 	void			(*init_iops)(ide_hwif_t *);
 	void                    (*init_hwif)(ide_hwif_t *);
 	int			(*init_dma)(ide_hwif_t *,

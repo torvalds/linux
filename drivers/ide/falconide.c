@@ -40,8 +40,27 @@
      *  which is shared between several drivers.
      */
 
-int falconide_intr_lock;
-EXPORT_SYMBOL(falconide_intr_lock);
+static int falconide_intr_lock;
+
+static void falconide_release_lock(void)
+{
+	if (falconide_intr_lock == 0) {
+		printk(KERN_ERR "%s: bug\n", __func__);
+		return;
+	}
+	falconide_intr_lock = 0;
+	stdma_release();
+}
+
+static void falconide_get_lock(irq_handler_t handler, void *data)
+{
+	if (falconide_intr_lock == 0) {
+		if (in_interrupt() > 0)
+			panic("Falcon IDE hasn't ST-DMA lock in interrupt");
+		stdma_lock(handler, data);
+		falconide_intr_lock = 1;
+	}
+}
 
 static void falconide_input_data(ide_drive_t *drive, struct request *rq,
 				 void *buf, unsigned int len)
@@ -81,6 +100,8 @@ static const struct ide_tp_ops falconide_tp_ops = {
 };
 
 static const struct ide_port_info falconide_port_info = {
+	.get_lock		= falconide_get_lock,
+	.release_lock		= falconide_release_lock,
 	.tp_ops			= &falconide_tp_ops,
 	.host_flags		= IDE_HFLAG_NO_DMA | IDE_HFLAG_SERIALIZE,
 };
@@ -132,9 +153,9 @@ static int __init falconide_init(void)
 		goto err;
 	}
 
-	ide_get_lock(NULL, NULL);
+	falconide_get_lock(NULL, NULL);
 	rc = ide_host_register(host, &falconide_port_info, hws);
-	ide_release_lock();
+	falconide_release_lock();
 
 	if (rc)
 		goto err_free;
