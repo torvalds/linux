@@ -4392,7 +4392,7 @@ static void ext4_mb_add_n_trim(struct ext4_allocation_context *ac)
 						pa_inode_list) {
 		spin_lock(&tmp_pa->pa_lock);
 		if (tmp_pa->pa_deleted) {
-			spin_unlock(&pa->pa_lock);
+			spin_unlock(&tmp_pa->pa_lock);
 			continue;
 		}
 		if (!added && pa->pa_free < tmp_pa->pa_free) {
