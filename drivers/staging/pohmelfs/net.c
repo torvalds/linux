@@ -26,55 +26,6 @@
 
 #include "netfs.h"
 
-static int pohmelfs_ftrans_size = 10240;
-static u32 *pohmelfs_ftrans;
-
-int pohmelfs_ftrans_init(void)
-{
-	pohmelfs_ftrans = vmalloc(pohmelfs_ftrans_size * 4);
-	if (!pohmelfs_ftrans)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void pohmelfs_ftrans_exit(void)
-{
-	vfree(pohmelfs_ftrans);
-}
-
-void pohmelfs_ftrans_clean(u64 id)
-{
-	if (pohmelfs_ftrans) {
-		u32 i = id & 0xffffffff;
-		int idx = i % pohmelfs_ftrans_size;
-
-		pohmelfs_ftrans[idx] = 0;
-	}
-}
-
-void pohmelfs_ftrans_update(u64 id)
-{
-	if (pohmelfs_ftrans) {
-		u32 i = id & 0xffffffff;
-		int idx = i % pohmelfs_ftrans_size;
-
-		pohmelfs_ftrans[idx] = i;
-	}
-}
-
-int pohmelfs_ftrans_check(u64 id)
-{
-	if (pohmelfs_ftrans) {
-		u32 i = id & 0xffffffff;
-		int idx = i % pohmelfs_ftrans_size;
-
-		return (pohmelfs_ftrans[idx] == i);
-	}
-
-	return -1;
-}
-
 /*
  * Async machinery lives here.
  * All commands being sent to server do _not_ require sync reply,
@@ -654,15 +605,12 @@ static int pohmelfs_transaction_response(struct netfs_state *st)
 	if (dst) {
 		netfs_trans_remove_nolock(dst, st);
 		t = dst->trans;
-
-		pohmelfs_ftrans_update(cmd->start);
 	}
 	mutex_unlock(&st->trans_lock);
 
 	if (!t) {
-		int check = pohmelfs_ftrans_check(cmd->start);
-		printk("%s: failed to find transaction: start: %llu: id: %llu, size: %u, ext: %u, double: %d.\n",
-				__func__, cmd->start, cmd->id, cmd->size, cmd->ext, check);
+		printk("%s: failed to find transaction: start: %llu: id: %llu, size: %u, ext: %u.\n",
+				__func__, cmd->start, cmd->id, cmd->size, cmd->ext);
 		err = -EINVAL;
 		goto out;
 	}

@@ -501,8 +501,6 @@ int netfs_trans_finish(struct netfs_trans *t, struct pohmelfs_sb *psb)
 
 	t->gen = atomic_inc_return(&psb->trans_gen);
 
-	pohmelfs_ftrans_clean(t->gen);
-
 	cmd->size = t->iovec.iov_len - sizeof(struct netfs_cmd) +
 		t->attached_size + t->attached_pages * sizeof(struct netfs_cmd);
 	cmd->cmd = NETFS_TRANS;

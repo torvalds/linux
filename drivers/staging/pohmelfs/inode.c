@@ -1343,8 +1343,6 @@ static void pohmelfs_put_super(struct super_block *sb)
 
 	kfree(psb);
 	sb->s_fs_info = NULL;
-
-	pohmelfs_ftrans_exit();
 }
 
 static int pohmelfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -1782,8 +1780,6 @@ static int pohmelfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *root;
 	struct pohmelfs_inode *npi;
 	struct qstr str;
-
-	pohmelfs_ftrans_init();
 
 	psb = kzalloc(sizeof(struct pohmelfs_sb), GFP_KERNEL);
 	if (!psb)

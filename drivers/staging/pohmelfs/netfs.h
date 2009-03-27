@@ -921,12 +921,6 @@ static inline void pohmelfs_mcache_put(struct pohmelfs_sb *psb,
 		pohmelfs_mcache_free(psb, m);
 }
 
-int pohmelfs_ftrans_init(void);
-void pohmelfs_ftrans_exit(void);
-void pohmelfs_ftrans_update(u64 id);
-int pohmelfs_ftrans_check(u64 id);
-void pohmelfs_ftrans_clean(u64 id);
-
 #endif /* __KERNEL__*/
 
 #endif /* __NETFS_H */
