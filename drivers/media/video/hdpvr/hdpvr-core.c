@@ -278,6 +278,13 @@ static int hdpvr_probe(struct usb_interface *interface,
 		err("Out of memory");
 		goto error;
 	}
+
+	/* register v4l2_device early so it can be used for printks */
+	if (v4l2_device_register(&interface->dev, &dev->v4l2_dev)) {
+		err("v4l2_device_register failed");
+		goto error;
+	}
+
 	mutex_init(&dev->io_mutex);
 	mutex_init(&dev->i2c_mutex);
 	mutex_init(&dev->usbc_mutex);
@@ -387,6 +394,7 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 	/* prevent more I/O from starting and stop any ongoing */
 	mutex_lock(&dev->io_mutex);
 	dev->status = STATUS_DISCONNECTED;
+	v4l2_device_disconnect(&dev->v4l2_dev);
 	video_unregister_device(dev->video_dev);
 	wake_up_interruptible(&dev->wait_data);
 	wake_up_interruptible(&dev->wait_buffer);
@@ -413,6 +421,7 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 	printk(KERN_INFO "Hauppauge HD PVR: device /dev/video%d disconnected\n",
 	       minor);
 
+	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev->usbc_buf);
 	kfree(dev);
 }

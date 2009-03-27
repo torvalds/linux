@@ -15,6 +15,8 @@
 #include <linux/workqueue.h>
 #include <linux/videodev2.h>
 
+#include <media/v4l2-device.h>
+
 #define HDPVR_MAJOR_VERSION 0
 #define HDPVR_MINOR_VERSION 2
 #define HDPVR_RELEASE 0
@@ -65,6 +67,8 @@ struct hdpvr_device {
 	struct video_device	*video_dev;
 	/* the usb device for this device */
 	struct usb_device	*udev;
+	/* v4l2-device unused */
+	struct v4l2_device	v4l2_dev;
 
 	/* the max packet size of the bulk endpoint */
 	size_t			bulk_in_size;
