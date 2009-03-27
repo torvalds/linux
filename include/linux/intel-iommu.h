@@ -284,6 +284,14 @@ struct iommu_flush {
 		unsigned int size_order, u64 type, int non_present_entry_flush);
 };
 
+enum {
+	SR_DMAR_FECTL_REG,
+	SR_DMAR_FEDATA_REG,
+	SR_DMAR_FEADDR_REG,
+	SR_DMAR_FEUADDR_REG,
+	MAX_SR_DMAR_REGS
+};
+
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64		cap;
@@ -304,6 +312,8 @@ struct intel_iommu {
 	struct iommu_flush flush;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
+	u32 *iommu_state; /* Store iommu states between suspend and resume.*/
+
 #ifdef CONFIG_INTR_REMAP
 	struct ir_table *ir_table;	/* Interrupt remapping info */
 #endif
@@ -322,6 +332,7 @@ extern int alloc_iommu(struct dmar_drhd_unit *drhd);
 extern void free_iommu(struct intel_iommu *iommu);
 extern int dmar_enable_qi(struct intel_iommu *iommu);
 extern void dmar_disable_qi(struct intel_iommu *iommu);
+extern int dmar_reenable_qi(struct intel_iommu *iommu);
 extern void qi_global_iec(struct intel_iommu *iommu);
 
 extern int qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid,

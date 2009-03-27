@@ -36,6 +36,7 @@
 #include <linux/iova.h>
 #include <linux/iommu.h>
 #include <linux/intel-iommu.h>
+#include <linux/sysdev.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
 #include "pci.h"
@@ -2597,6 +2598,150 @@ static void __init init_no_remapping_devices(void)
 	}
 }
 
+#ifdef CONFIG_SUSPEND
+static int init_iommu_hw(void)
+{
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu = NULL;
+
+	for_each_active_iommu(iommu, drhd)
+		if (iommu->qi)
+			dmar_reenable_qi(iommu);
+
+	for_each_active_iommu(iommu, drhd) {
+		iommu_flush_write_buffer(iommu);
+
+		iommu_set_root_entry(iommu);
+
+		iommu->flush.flush_context(iommu, 0, 0, 0,
+						DMA_CCMD_GLOBAL_INVL, 0);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
+						DMA_TLB_GLOBAL_FLUSH, 0);
+		iommu_disable_protect_mem_regions(iommu);
+		iommu_enable_translation(iommu);
+	}
+
+	return 0;
+}
+
+static void iommu_flush_all(void)
+{
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
+
+	for_each_active_iommu(iommu, drhd) {
+		iommu->flush.flush_context(iommu, 0, 0, 0,
+						DMA_CCMD_GLOBAL_INVL, 0);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
+						DMA_TLB_GLOBAL_FLUSH, 0);
+	}
+}
+
+static int iommu_suspend(struct sys_device *dev, pm_message_t state)
+{
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu = NULL;
+	unsigned long flag;
+
+	for_each_active_iommu(iommu, drhd) {
+		iommu->iommu_state = kzalloc(sizeof(u32) * MAX_SR_DMAR_REGS,
+						 GFP_ATOMIC);
+		if (!iommu->iommu_state)
+			goto nomem;
+	}
+
+	iommu_flush_all();
+
+	for_each_active_iommu(iommu, drhd) {
+		iommu_disable_translation(iommu);
+
+		spin_lock_irqsave(&iommu->register_lock, flag);
+
+		iommu->iommu_state[SR_DMAR_FECTL_REG] =
+			readl(iommu->reg + DMAR_FECTL_REG);
+		iommu->iommu_state[SR_DMAR_FEDATA_REG] =
+			readl(iommu->reg + DMAR_FEDATA_REG);
+		iommu->iommu_state[SR_DMAR_FEADDR_REG] =
+			readl(iommu->reg + DMAR_FEADDR_REG);
+		iommu->iommu_state[SR_DMAR_FEUADDR_REG] =
+			readl(iommu->reg + DMAR_FEUADDR_REG);
+
+		spin_unlock_irqrestore(&iommu->register_lock, flag);
+	}
+	return 0;
+
+nomem:
+	for_each_active_iommu(iommu, drhd)
+		kfree(iommu->iommu_state);
+
+	return -ENOMEM;
+}
+
+static int iommu_resume(struct sys_device *dev)
+{
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu = NULL;
+	unsigned long flag;
+
+	if (init_iommu_hw()) {
+		WARN(1, "IOMMU setup failed, DMAR can not resume!\n");
+		return -EIO;
+	}
+
+	for_each_active_iommu(iommu, drhd) {
+
+		spin_lock_irqsave(&iommu->register_lock, flag);
+
+		writel(iommu->iommu_state[SR_DMAR_FECTL_REG],
+			iommu->reg + DMAR_FECTL_REG);
+		writel(iommu->iommu_state[SR_DMAR_FEDATA_REG],
+			iommu->reg + DMAR_FEDATA_REG);
+		writel(iommu->iommu_state[SR_DMAR_FEADDR_REG],
+			iommu->reg + DMAR_FEADDR_REG);
+		writel(iommu->iommu_state[SR_DMAR_FEUADDR_REG],
+			iommu->reg + DMAR_FEUADDR_REG);
+
+		spin_unlock_irqrestore(&iommu->register_lock, flag);
+	}
+
+	for_each_active_iommu(iommu, drhd)
+		kfree(iommu->iommu_state);
+
+	return 0;
+}
+
+static struct sysdev_class iommu_sysclass = {
+	.name		= "iommu",
+	.resume		= iommu_resume,
+	.suspend	= iommu_suspend,
+};
+
+static struct sys_device device_iommu = {
+	.cls	= &iommu_sysclass,
+};
+
+static int __init init_iommu_sysfs(void)
+{
+	int error;
+
+	error = sysdev_class_register(&iommu_sysclass);
+	if (error)
+		return error;
+
+	error = sysdev_register(&device_iommu);
+	if (error)
+		sysdev_class_unregister(&iommu_sysclass);
+
+	return error;
+}
+
+#else
+static int __init init_iommu_sysfs(void)
+{
+	return 0;
+}
+#endif	/* CONFIG_PM */
+
 int __init intel_iommu_init(void)
 {
 	int ret = 0;
@@ -2632,6 +2777,7 @@ int __init intel_iommu_init(void)
 	init_timer(&unmap_timer);
 	force_iommu = 1;
 	dma_ops = &intel_dma_ops;
+	init_iommu_sysfs();
 
 	register_iommu(&intel_iommu_ops);
 
