@@ -1061,7 +1061,7 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 		hwif->tp_ops = d->tp_ops;
 
 	/* ->set_pio_mode for DTC2278 is currently limited to port 0 */
-	if (hwif->chipset != ide_dtc2278 || hwif->channel == 0)
+	if ((hwif->host_flags & IDE_HFLAG_DTC2278) == 0 || hwif->channel == 0)
 		hwif->port_ops = d->port_ops;
 
 	hwif->swdma_mask = d->swdma_mask;
