@@ -604,7 +604,7 @@ int nf_conntrack_expect_init(struct net *net)
 
 	net->ct.expect_count = 0;
 	net->ct.expect_hash = nf_ct_alloc_hashtable(&nf_ct_expect_hsize,
-						  &net->ct.expect_vmalloc);
+						  &net->ct.expect_vmalloc, 0);
 	if (net->ct.expect_hash == NULL)
 		goto err1;
 

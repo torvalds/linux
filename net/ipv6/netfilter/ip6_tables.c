@@ -89,25 +89,6 @@ ip6t_ext_hdr(u8 nexthdr)
 		 (nexthdr == IPPROTO_DSTOPTS) );
 }
 
-static unsigned long ifname_compare(const char *_a, const char *_b,
-				    const unsigned char *_mask)
-{
-	const unsigned long *a = (const unsigned long *)_a;
-	const unsigned long *b = (const unsigned long *)_b;
-	const unsigned long *mask = (const unsigned long *)_mask;
-	unsigned long ret;
-
-	ret = (a[0] ^ b[0]) & mask[0];
-	if (IFNAMSIZ > sizeof(unsigned long))
-		ret |= (a[1] ^ b[1]) & mask[1];
-	if (IFNAMSIZ > 2 * sizeof(unsigned long))
-		ret |= (a[2] ^ b[2]) & mask[2];
-	if (IFNAMSIZ > 3 * sizeof(unsigned long))
-		ret |= (a[3] ^ b[3]) & mask[3];
-	BUILD_BUG_ON(IFNAMSIZ > 4 * sizeof(unsigned long));
-	return ret;
-}
-
 /* Returns whether matches rule or not. */
 /* Performance critical - called for every packet */
 static inline bool
@@ -138,7 +119,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		return false;
 	}
 
-	ret = ifname_compare(indev, ip6info->iniface, ip6info->iniface_mask);
+	ret = ifname_compare_aligned(indev, ip6info->iniface, ip6info->iniface_mask);
 
 	if (FWINV(ret != 0, IP6T_INV_VIA_IN)) {
 		dprintf("VIA in mismatch (%s vs %s).%s\n",
@@ -147,7 +128,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		return false;
 	}
 
-	ret = ifname_compare(outdev, ip6info->outiface, ip6info->outiface_mask);
+	ret = ifname_compare_aligned(outdev, ip6info->outiface, ip6info->outiface_mask);
 
 	if (FWINV(ret != 0, IP6T_INV_VIA_OUT)) {
 		dprintf("VIA out mismatch (%s vs %s).%s\n",
@@ -536,7 +517,9 @@ mark_source_chains(struct xt_table_info *newinfo,
 			    && unconditional(&e->ipv6)) || visited) {
 				unsigned int oldpos, size;
 
-				if (t->verdict < -NF_MAX_VERDICT - 1) {
+				if ((strcmp(t->target.u.user.name,
+					    IP6T_STANDARD_TARGET) == 0) &&
+				    t->verdict < -NF_MAX_VERDICT - 1) {
 					duprintf("mark_source_chains: bad "
 						"negative verdict (%i)\n",
 								t->verdict);
