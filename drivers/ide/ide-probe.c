@@ -1362,20 +1362,15 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		ide_init_port_hw(hwif, hws[i]);
 		ide_port_apply_params(hwif);
 
-		if (d == NULL) {
-			mate = NULL;
-		} else {
-			if ((i & 1) && mate) {
-				hwif->mate = mate;
-				mate->mate = hwif;
-			}
-
-			mate = (i & 1) ? NULL : hwif;
-
-			ide_init_port(hwif, i & 1, d);
-			ide_port_cable_detect(hwif);
+		if ((i & 1) && mate) {
+			hwif->mate = mate;
+			mate->mate = hwif;
 		}
 
+		mate = (i & 1) ? NULL : hwif;
+
+		ide_init_port(hwif, i & 1, d);
+		ide_port_cable_detect(hwif);
 		ide_port_init_devices(hwif);
 	}
 
