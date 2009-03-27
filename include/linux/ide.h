@@ -234,56 +234,52 @@ typedef enum {
 
 enum {
 	IDE_TFLAG_LBA48			= (1 << 0),
-	IDE_TFLAG_FLAGGED		= (1 << 2),
-	IDE_TFLAG_OUT_DATA		= (1 << 3),
-	IDE_TFLAG_OUT_HOB_FEATURE	= (1 << 4),
-	IDE_TFLAG_OUT_HOB_NSECT		= (1 << 5),
-	IDE_TFLAG_OUT_HOB_LBAL		= (1 << 6),
-	IDE_TFLAG_OUT_HOB_LBAM		= (1 << 7),
-	IDE_TFLAG_OUT_HOB_LBAH		= (1 << 8),
+	IDE_TFLAG_OUT_HOB_FEATURE	= (1 << 1),
+	IDE_TFLAG_OUT_HOB_NSECT		= (1 << 2),
+	IDE_TFLAG_OUT_HOB_LBAL		= (1 << 3),
+	IDE_TFLAG_OUT_HOB_LBAM		= (1 << 4),
+	IDE_TFLAG_OUT_HOB_LBAH		= (1 << 5),
 	IDE_TFLAG_OUT_HOB		= IDE_TFLAG_OUT_HOB_FEATURE |
 					  IDE_TFLAG_OUT_HOB_NSECT |
 					  IDE_TFLAG_OUT_HOB_LBAL |
 					  IDE_TFLAG_OUT_HOB_LBAM |
 					  IDE_TFLAG_OUT_HOB_LBAH,
-	IDE_TFLAG_OUT_FEATURE		= (1 << 9),
-	IDE_TFLAG_OUT_NSECT		= (1 << 10),
-	IDE_TFLAG_OUT_LBAL		= (1 << 11),
-	IDE_TFLAG_OUT_LBAM		= (1 << 12),
-	IDE_TFLAG_OUT_LBAH		= (1 << 13),
+	IDE_TFLAG_OUT_FEATURE		= (1 << 6),
+	IDE_TFLAG_OUT_NSECT		= (1 << 7),
+	IDE_TFLAG_OUT_LBAL		= (1 << 8),
+	IDE_TFLAG_OUT_LBAM		= (1 << 9),
+	IDE_TFLAG_OUT_LBAH		= (1 << 10),
 	IDE_TFLAG_OUT_TF		= IDE_TFLAG_OUT_FEATURE |
 					  IDE_TFLAG_OUT_NSECT |
 					  IDE_TFLAG_OUT_LBAL |
 					  IDE_TFLAG_OUT_LBAM |
 					  IDE_TFLAG_OUT_LBAH,
-	IDE_TFLAG_OUT_DEVICE		= (1 << 14),
-	IDE_TFLAG_WRITE			= (1 << 15),
-	IDE_TFLAG_FLAGGED_SET_IN_FLAGS	= (1 << 16),
-	IDE_TFLAG_IN_DATA		= (1 << 17),
-	IDE_TFLAG_CUSTOM_HANDLER	= (1 << 18),
-	IDE_TFLAG_DMA_PIO_FALLBACK	= (1 << 19),
-	IDE_TFLAG_IN_HOB_FEATURE	= (1 << 20),
-	IDE_TFLAG_IN_HOB_NSECT		= (1 << 21),
-	IDE_TFLAG_IN_HOB_LBAL		= (1 << 22),
-	IDE_TFLAG_IN_HOB_LBAM		= (1 << 23),
-	IDE_TFLAG_IN_HOB_LBAH		= (1 << 24),
+	IDE_TFLAG_OUT_DEVICE		= (1 << 11),
+	IDE_TFLAG_WRITE			= (1 << 12),
+	IDE_TFLAG_CUSTOM_HANDLER	= (1 << 13),
+	IDE_TFLAG_DMA_PIO_FALLBACK	= (1 << 14),
+	IDE_TFLAG_IN_HOB_FEATURE	= (1 << 15),
+	IDE_TFLAG_IN_HOB_NSECT		= (1 << 16),
+	IDE_TFLAG_IN_HOB_LBAL		= (1 << 17),
+	IDE_TFLAG_IN_HOB_LBAM		= (1 << 18),
+	IDE_TFLAG_IN_HOB_LBAH		= (1 << 19),
 	IDE_TFLAG_IN_HOB_LBA		= IDE_TFLAG_IN_HOB_LBAL |
 					  IDE_TFLAG_IN_HOB_LBAM |
 					  IDE_TFLAG_IN_HOB_LBAH,
 	IDE_TFLAG_IN_HOB		= IDE_TFLAG_IN_HOB_FEATURE |
 					  IDE_TFLAG_IN_HOB_NSECT |
 					  IDE_TFLAG_IN_HOB_LBA,
-	IDE_TFLAG_IN_FEATURE		= (1 << 1),
-	IDE_TFLAG_IN_NSECT		= (1 << 25),
-	IDE_TFLAG_IN_LBAL		= (1 << 26),
-	IDE_TFLAG_IN_LBAM		= (1 << 27),
-	IDE_TFLAG_IN_LBAH		= (1 << 28),
+	IDE_TFLAG_IN_FEATURE		= (1 << 20),
+	IDE_TFLAG_IN_NSECT		= (1 << 21),
+	IDE_TFLAG_IN_LBAL		= (1 << 22),
+	IDE_TFLAG_IN_LBAM		= (1 << 23),
+	IDE_TFLAG_IN_LBAH		= (1 << 24),
 	IDE_TFLAG_IN_LBA		= IDE_TFLAG_IN_LBAL |
 					  IDE_TFLAG_IN_LBAM |
 					  IDE_TFLAG_IN_LBAH,
 	IDE_TFLAG_IN_TF			= IDE_TFLAG_IN_NSECT |
 					  IDE_TFLAG_IN_LBA,
-	IDE_TFLAG_IN_DEVICE		= (1 << 29),
+	IDE_TFLAG_IN_DEVICE		= (1 << 25),
 	IDE_TFLAG_HOB			= IDE_TFLAG_OUT_HOB |
 					  IDE_TFLAG_IN_HOB,
 	IDE_TFLAG_TF			= IDE_TFLAG_OUT_TF |
@@ -291,9 +287,16 @@ enum {
 	IDE_TFLAG_DEVICE		= IDE_TFLAG_OUT_DEVICE |
 					  IDE_TFLAG_IN_DEVICE,
 	/* force 16-bit I/O operations */
-	IDE_TFLAG_IO_16BIT		= (1 << 30),
+	IDE_TFLAG_IO_16BIT		= (1 << 26),
 	/* ide_task_t was allocated using kmalloc() */
-	IDE_TFLAG_DYN			= (1 << 31),
+	IDE_TFLAG_DYN			= (1 << 27),
+};
+
+enum {
+	IDE_FTFLAG_FLAGGED		= (1 << 0),
+	IDE_FTFLAG_SET_IN_FLAGS		= (1 << 1),
+	IDE_FTFLAG_OUT_DATA		= (1 << 2),
+	IDE_FTFLAG_IN_DATA		= (1 << 3),
 };
 
 struct ide_taskfile {
@@ -330,6 +333,7 @@ typedef struct ide_task_s {
 		struct ide_taskfile	tf;
 		u8			tf_array[14];
 	};
+	u8			ftf_flags;	/* for TASKFILE ioctl */
 	u32			tf_flags;
 	int			data_phase;
 	struct request		*rq;		/* copy of request */

@@ -96,10 +96,10 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 	else
 		tf_outb = ide_outb;
 
-	if (task->tf_flags & IDE_TFLAG_FLAGGED)
+	if (task->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (task->tf_flags & IDE_TFLAG_OUT_DATA) {
+	if (task->ftf_flags & IDE_FTFLAG_OUT_DATA) {
 		u16 data = (tf->hob_data << 8) | tf->data;
 
 		if (mmio)
@@ -153,7 +153,7 @@ void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 		tf_inb  = ide_inb;
 	}
 
-	if (task->tf_flags & IDE_TFLAG_IN_DATA) {
+	if (task->ftf_flags & IDE_FTFLAG_IN_DATA) {
 		u16 data;
 
 		if (mmio)

@@ -73,8 +73,8 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 		}
 	}
 
-	if (task->tf_flags & IDE_TFLAG_FLAGGED)
-		task->tf_flags |= IDE_TFLAG_FLAGGED_SET_IN_FLAGS;
+	if (task->ftf_flags & IDE_FTFLAG_FLAGGED)
+		task->ftf_flags |= IDE_FTFLAG_SET_IN_FLAGS;
 
 	memcpy(&hwif->task, task, sizeof(*task));
 
@@ -551,10 +551,10 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_IN_HOB);
 
 	if (req_task->out_flags.all) {
-		args.tf_flags |= IDE_TFLAG_FLAGGED;
+		args.ftf_flags |= IDE_FTFLAG_FLAGGED;
 
 		if (req_task->out_flags.b.data)
-			args.tf_flags |= IDE_TFLAG_OUT_DATA;
+			args.ftf_flags |= IDE_FTFLAG_OUT_DATA;
 
 		if (req_task->out_flags.b.nsector_hob)
 			args.tf_flags |= IDE_TFLAG_OUT_HOB_NSECT;
@@ -582,7 +582,7 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	}
 
 	if (req_task->in_flags.b.data)
-		args.tf_flags |= IDE_TFLAG_IN_DATA;
+		args.ftf_flags |= IDE_FTFLAG_IN_DATA;
 
 	switch(req_task->data_phase) {
 		case TASKFILE_MULTI_OUT:
@@ -647,7 +647,7 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	memcpy(req_task->hob_ports, &args.tf_array[0], HDIO_DRIVE_HOB_HDR_SIZE - 2);
 	memcpy(req_task->io_ports, &args.tf_array[6], HDIO_DRIVE_TASK_HDR_SIZE);
 
-	if ((args.tf_flags & IDE_TFLAG_FLAGGED_SET_IN_FLAGS) &&
+	if ((args.ftf_flags & IDE_FTFLAG_SET_IN_FLAGS) &&
 	    req_task->in_flags.all == 0) {
 		req_task->in_flags.all = IDE_TASKFILE_STD_IN_FLAGS;
 		if (drive->dev_flags & IDE_DFLAG_LBA48)

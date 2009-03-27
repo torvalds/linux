@@ -66,7 +66,7 @@ static void superio_tf_read(ide_drive_t *drive, ide_task_t *task)
 	struct ide_io_ports *io_ports = &drive->hwif->io_ports;
 	struct ide_taskfile *tf = &task->tf;
 
-	if (task->tf_flags & IDE_TFLAG_IN_DATA) {
+	if (task->ftf_flags & IDE_FTFLAG_IN_DATA) {
 		u16 data = inw(io_ports->data_addr);
 
 		tf->data = data & 0xff;

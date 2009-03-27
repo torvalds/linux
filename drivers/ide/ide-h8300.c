@@ -51,10 +51,10 @@ static void h8300_tf_load(ide_drive_t *drive, ide_task_t *task)
 	struct ide_taskfile *tf = &task->tf;
 	u8 HIHI = (task->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
 
-	if (task->tf_flags & IDE_TFLAG_FLAGGED)
+	if (task->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (task->tf_flags & IDE_TFLAG_OUT_DATA)
+	if (task->ftf_flags & IDE_FTFLAG_OUT_DATA)
 		mm_outw((tf->hob_data << 8) | tf->data, io_ports->data_addr);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
@@ -90,7 +90,7 @@ static void h8300_tf_read(ide_drive_t *drive, ide_task_t *task)
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	struct ide_taskfile *tf = &task->tf;
 
-	if (task->tf_flags & IDE_TFLAG_IN_DATA) {
+	if (task->ftf_flags & IDE_FTFLAG_IN_DATA) {
 		u16 data = mm_inw(io_ports->data_addr);
 
 		tf->data = data & 0xff;
