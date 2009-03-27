@@ -125,7 +125,7 @@ static int device_authorization(struct hdpvr_device *dev)
 	size_t buf_size = 46;
 	char *print_buf = kzalloc(5*buf_size+1, GFP_KERNEL);
 	if (!print_buf) {
-		dev_err(&dev->udev->dev, "Out of memory");
+		v4l2_err(&dev->v4l2_dev, "Out of memory\n");
 		goto error;
 	}
 #endif
@@ -138,17 +138,17 @@ static int device_authorization(struct hdpvr_device *dev)
 			      dev->usbc_buf, 46,
 			      10000);
 	if (ret != 46) {
-		dev_err(&dev->udev->dev,
-			"unexpected answer of status request, len %d", ret);
+		v4l2_err(&dev->v4l2_dev,
+			 "unexpected answer of status request, len %d\n", ret);
 		goto error;
 	}
 #ifdef HDPVR_DEBUG
 	else {
 		hex_dump_to_buffer(dev->usbc_buf, 46, 16, 1, print_buf,
 				   sizeof(print_buf), 0);
-		dev_dbg(&dev->udev->dev,
-			"Status request returned, len %d: %s\n",
-			ret, print_buf);
+		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+			 "Status request returned, len %d: %s\n",
+			 ret, print_buf);
 	}
 #endif
 	if (dev->usbc_buf[1] == HDPVR_FIRMWARE_VERSION) {
@@ -156,11 +156,11 @@ static int device_authorization(struct hdpvr_device *dev)
 	} else if (dev->usbc_buf[1] == HDPVR_FIRMWARE_VERSION_AC3) {
 		dev->flags |= HDPVR_FLAG_AC3_CAP;
 	} else if (dev->usbc_buf[1] > HDPVR_FIRMWARE_VERSION_AC3) {
-		dev_notice(&dev->udev->dev, "untested firmware version 0x%x, "
-			   "the driver might not work\n", dev->usbc_buf[1]);
+		v4l2_info(&dev->v4l2_dev, "untested firmware version 0x%x, "
+			  "the driver might not work\n", dev->usbc_buf[1]);
 		dev->flags |= HDPVR_FLAG_AC3_CAP;
 	} else {
-		dev_err(&dev->udev->dev, "unknown firmware version 0x%x\n",
+		v4l2_err(&dev->v4l2_dev, "unknown firmware version 0x%x\n",
 			dev->usbc_buf[1]);
 		ret = -EINVAL;
 		goto error;
@@ -169,12 +169,14 @@ static int device_authorization(struct hdpvr_device *dev)
 	response = dev->usbc_buf+38;
 #ifdef HDPVR_DEBUG
 	hex_dump_to_buffer(response, 8, 16, 1, print_buf, sizeof(print_buf), 0);
-	dev_dbg(&dev->udev->dev, "challenge: %s\n", print_buf);
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, "challenge: %s\n",
+		 print_buf);
 #endif
 	challenge(response);
 #ifdef HDPVR_DEBUG
 	hex_dump_to_buffer(response, 8, 16, 1, print_buf, sizeof(print_buf), 0);
-	dev_dbg(&dev->udev->dev, " response: %s\n", print_buf);
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, " response: %s\n",
+		 print_buf);
 #endif
 
 	msleep(100);
@@ -184,7 +186,8 @@ static int device_authorization(struct hdpvr_device *dev)
 			      0x0000, 0x0000,
 			      response, 8,
 			      10000);
-	dev_dbg(&dev->udev->dev, "magic request returned %d\n", ret);
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+		 "magic request returned %d\n", ret);
 	mutex_unlock(&dev->usbc_mutex);
 
 	retval = ret != 8;
@@ -214,12 +217,13 @@ static int hdpvr_device_init(struct hdpvr_device *dev)
 			      CTRL_LOW_PASS_FILTER_VALUE, CTRL_DEFAULT_INDEX,
 			      buf, 4,
 			      1000);
-	dev_dbg(&dev->udev->dev, "control request returned %d\n", ret);
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+		 "control request returned %d\n", ret);
 	mutex_unlock(&dev->usbc_mutex);
 
 	vidinf = get_video_info(dev);
 	if (!vidinf)
-		dev_dbg(&dev->udev->dev,
+		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 			"no valid video signal or device init failed\n");
 	else
 		kfree(vidinf);
@@ -231,7 +235,8 @@ static int hdpvr_device_init(struct hdpvr_device *dev)
 			      usb_sndctrlpipe(dev->udev, 0),
 			      0xd4, 0x38, 0, 0, buf, 1,
 			      1000);
-	dev_dbg(&dev->udev->dev, "control request returned %d\n", ret);
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+		 "control request returned %d\n", ret);
 
 	/* boost analog audio */
 	buf[0] = boost_audio;
@@ -239,7 +244,8 @@ static int hdpvr_device_init(struct hdpvr_device *dev)
 			      usb_sndctrlpipe(dev->udev, 0),
 			      0xd5, 0x38, 0, 0, buf, 1,
 			      1000);
-	dev_dbg(&dev->udev->dev, "control request returned %d\n", ret);
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+		 "control request returned %d\n", ret);
 	mutex_unlock(&dev->usbc_mutex);
 
 	dev->status = STATUS_IDLE;
@@ -290,7 +296,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 	mutex_init(&dev->usbc_mutex);
 	dev->usbc_buf = kmalloc(64, GFP_KERNEL);
 	if (!dev->usbc_buf) {
-		dev_err(&dev->udev->dev, "Out of memory");
+		v4l2_err(&dev->v4l2_dev, "Out of memory\n");
 		goto error;
 	}
 
@@ -332,26 +338,27 @@ static int hdpvr_probe(struct usb_interface *interface,
 
 	}
 	if (!dev->bulk_in_endpointAddr) {
-		err("Could not find bulk-in endpoint");
+		v4l2_err(&dev->v4l2_dev, "Could not find bulk-in endpoint\n");
 		goto error;
 	}
 
 	/* init the device */
 	if (hdpvr_device_init(dev)) {
-		err("device init failed");
+		v4l2_err(&dev->v4l2_dev, "device init failed\n");
 		goto error;
 	}
 
 	mutex_lock(&dev->io_mutex);
 	if (hdpvr_alloc_buffers(dev, NUM_BUFFERS)) {
-		err("allocating transfer buffers failed");
+		v4l2_err(&dev->v4l2_dev,
+			 "allocating transfer buffers failed\n");
 		goto error;
 	}
 	mutex_unlock(&dev->io_mutex);
 
 	if (hdpvr_register_videodev(dev, &interface->dev,
 				    video_nr[atomic_inc_return(&dev_nr)])) {
-		err("registering videodev failed");
+		v4l2_err(&dev->v4l2_dev, "registering videodev failed\n");
 		goto error;
 	}
 
@@ -359,7 +366,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 	/* until i2c is working properly */
 	retval = 0; /* hdpvr_register_i2c_adapter(dev); */
 	if (retval < 0) {
-		err("registering i2c adapter failed");
+		v4l2_err(&dev->v4l2_dev, "registering i2c adapter failed\n");
 		goto error;
 	}
 #endif /* CONFIG_I2C */
@@ -368,7 +375,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, dev);
 
 	/* let the user know what node this device is now attached to */
-	v4l2_info(dev->video_dev, "device now attached to /dev/video%d\n",
+	v4l2_info(&dev->v4l2_dev, "device now attached to /dev/video%d\n",
 		  dev->video_dev->minor);
 	return 0;
 
@@ -418,8 +425,7 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 
 	atomic_dec(&dev_nr);
 
-	printk(KERN_INFO "Hauppauge HD PVR: device /dev/video%d disconnected\n",
-	       minor);
+	v4l2_info(&dev->v4l2_dev, "device /dev/video%d disconnected\n", minor);
 
 	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev->usbc_buf);

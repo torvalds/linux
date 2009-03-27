@@ -40,9 +40,9 @@ int hdpvr_config_call(struct hdpvr_device *dev, uint value, u8 valbuf)
 			      dev->usbc_buf, 1, 10000);
 
 	mutex_unlock(&dev->usbc_mutex);
-	dev_dbg(&dev->udev->dev,
-		"config call request for value 0x%x returned %d\n", value,
-		ret);
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+		 "config call request for value 0x%x returned %d\n", value,
+		 ret);
 
 	return ret < 0 ? ret : 0;
 }
@@ -57,7 +57,7 @@ struct hdpvr_video_info *get_video_info(struct hdpvr_device *dev)
 
 	vidinf = kzalloc(sizeof(struct hdpvr_video_info), GFP_KERNEL);
 	if (!vidinf) {
-		dev_err(&dev->udev->dev, "out of memory");
+		v4l2_err(&dev->v4l2_dev, "out of memory\n");
 		goto err;
 	}
 
@@ -78,8 +78,8 @@ struct hdpvr_video_info *get_video_info(struct hdpvr_device *dev)
 	if (hdpvr_debug & MSG_INFO) {
 		hex_dump_to_buffer(dev->usbc_buf, 5, 16, 1, print_buf,
 				   sizeof(print_buf), 0);
-		dev_dbg(&dev->udev->dev, "get video info returned: %d, %s\n",
-			ret, print_buf);
+		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+			 "get video info returned: %d, %s\n", ret, print_buf);
 	}
 #endif
 	mutex_unlock(&dev->usbc_mutex);
@@ -111,9 +111,9 @@ int get_input_lines_info(struct hdpvr_device *dev)
 	if (hdpvr_debug & MSG_INFO) {
 		hex_dump_to_buffer(dev->usbc_buf, 3, 16, 1, print_buf,
 				   sizeof(print_buf), 0);
-		dev_dbg(&dev->udev->dev,
-			"get input lines info returned: %d, %s\n", ret,
-			print_buf);
+		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+			 "get input lines info returned: %d, %s\n", ret,
+			 print_buf);
 	}
 #endif
 	lines = dev->usbc_buf[1] << 8 | dev->usbc_buf[0];
@@ -155,8 +155,8 @@ int hdpvr_set_audio(struct hdpvr_device *dev, u8 input,
 			dev->usbc_buf[1] = 1;
 		else {
 			mutex_unlock(&dev->usbc_mutex);
-			dev_err(&dev->udev->dev, "invalid audio codec %d\n",
-				codec);
+			v4l2_err(&dev->v4l2_dev, "invalid audio codec %d\n",
+				 codec);
 			ret = -EINVAL;
 			goto error;
 		}

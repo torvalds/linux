@@ -28,11 +28,12 @@
 
 #define BULK_URB_TIMEOUT 1250 /* 1.25 seconds */
 
-#define print_buffer_status() v4l2_dbg(MSG_BUFFER, hdpvr_debug, dev->video_dev,\
-				       "%s:%d buffer stat: %d free, %d proc\n",\
-				       __func__, __LINE__,		\
-				       list_size(&dev->free_buff_list),	\
-				       list_size(&dev->rec_buff_list))
+#define print_buffer_status() { \
+		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,	\
+			 "%s:%d buffer stat: %d free, %d proc\n",	\
+			 __func__, __LINE__,				\
+			 list_size(&dev->free_buff_list),		\
+			 list_size(&dev->rec_buff_list)); }
 
 struct hdpvr_fh {
 	struct hdpvr_device	*dev;
@@ -123,21 +124,21 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 	struct hdpvr_buffer *buf;
 	struct urb *urb;
 
-	v4l2_dbg(MSG_INFO, hdpvr_debug, dev->video_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 		 "allocating %u buffers\n", count);
 
 	for (i = 0; i < count; i++) {
 
 		buf = kzalloc(sizeof(struct hdpvr_buffer), GFP_KERNEL);
 		if (!buf) {
-			err("cannot allocate buffer");
+			v4l2_err(&dev->v4l2_dev, "cannot allocate buffer\n");
 			goto exit;
 		}
 		buf->dev = dev;
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			err("cannot allocate urb");
+			v4l2_err(&dev->v4l2_dev, "cannot allocate urb\n");
 			goto exit;
 		}
 		buf->urb = urb;
@@ -145,7 +146,8 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 		mem = usb_buffer_alloc(dev->udev, dev->bulk_in_size, GFP_KERNEL,
 				       &urb->transfer_dma);
 		if (!mem) {
-			err("cannot allocate usb transfer buffer");
+			v4l2_err(&dev->v4l2_dev,
+				 "cannot allocate usb transfer buffer\n");
 			goto exit;
 		}
 
@@ -178,7 +180,8 @@ static int hdpvr_submit_buffers(struct hdpvr_device *dev)
 		buf = list_entry(dev->free_buff_list.next, struct hdpvr_buffer,
 				 buff_list);
 		if (buf->status != BUFSTAT_AVAILABLE) {
-			err("buffer not marked as availbale");
+			v4l2_err(&dev->v4l2_dev,
+				 "buffer not marked as availbale\n");
 			ret = -EFAULT;
 			goto err;
 		}
@@ -188,7 +191,9 @@ static int hdpvr_submit_buffers(struct hdpvr_device *dev)
 		urb->actual_length = 0;
 		ret = usb_submit_urb(urb, GFP_KERNEL);
 		if (ret) {
-			err("usb_submit_urb in %s returned %d", __func__, ret);
+			v4l2_err(&dev->v4l2_dev,
+				 "usb_submit_urb in %s returned %d\n",
+				 __func__, ret);
 			if (++err_count > 2)
 				break;
 			continue;
@@ -228,7 +233,7 @@ static void hdpvr_transmit_buffers(struct work_struct *work)
 	while (dev->status == STATUS_STREAMING) {
 
 		if (hdpvr_submit_buffers(dev)) {
-			v4l2_err(dev->video_dev, "couldn't submit buffers\n");
+			v4l2_err(&dev->v4l2_dev, "couldn't submit buffers\n");
 			goto error;
 		}
 		if (wait_event_interruptible(dev->wait_buffer,
@@ -237,11 +242,11 @@ static void hdpvr_transmit_buffers(struct work_struct *work)
 			goto error;
 	}
 
-	v4l2_dbg(MSG_INFO, hdpvr_debug, dev->video_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 		 "transmit worker exited\n");
 	return;
 error:
-	v4l2_dbg(MSG_INFO, hdpvr_debug, dev->video_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 		 "transmit buffers errored\n");
 	dev->status = STATUS_ERROR;
 }
@@ -260,7 +265,7 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 	vidinf = get_video_info(dev);
 
 	if (vidinf) {
-		v4l2_dbg(MSG_BUFFER, hdpvr_debug, dev->video_dev,
+		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
 			 "video signal: %dx%d@%dhz\n", vidinf->width,
 			 vidinf->height, vidinf->fps);
 		kfree(vidinf);
@@ -269,7 +274,7 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 		ret = usb_control_msg(dev->udev,
 				      usb_sndctrlpipe(dev->udev, 0),
 				      0xb8, 0x38, 0x1, 0, NULL, 0, 8000);
-		v4l2_dbg(MSG_BUFFER, hdpvr_debug, dev->video_dev,
+		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
 			 "encoder start control request returned %d\n", ret);
 
 		hdpvr_config_call(dev, CTRL_START_STREAMING_VALUE, 0x00);
@@ -277,14 +282,14 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 		INIT_WORK(&dev->worker, hdpvr_transmit_buffers);
 		queue_work(dev->workqueue, &dev->worker);
 
-		v4l2_dbg(MSG_BUFFER, hdpvr_debug, dev->video_dev,
+		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
 			 "streaming started\n");
 		dev->status = STATUS_STREAMING;
 
 		return 0;
 	}
 	msleep(250);
-	v4l2_dbg(MSG_INFO, hdpvr_debug, dev->video_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 		 "no video signal at input %d\n", dev->options.video_input);
 	return -EAGAIN;
 }
@@ -330,14 +335,14 @@ static int hdpvr_open(struct file *file)
 
 	dev = (struct hdpvr_device *)video_get_drvdata(video_devdata(file));
 	if (!dev) {
-		err("open failing with with ENODEV");
+		v4l2_err(&dev->v4l2_dev, "open failing with with ENODEV\n");
 		retval = -ENODEV;
 		goto err;
 	}
 
 	fh = kzalloc(sizeof(struct hdpvr_fh), GFP_KERNEL);
 	if (!fh) {
-		err("Out of memory?");
+		v4l2_err(&dev->v4l2_dev, "Out of memory\n");
 		goto err;
 	}
 	/* lock the device to allow correctly handling errors
@@ -396,8 +401,8 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 	mutex_lock(&dev->io_mutex);
 	if (dev->status == STATUS_IDLE) {
 		if (hdpvr_start_streaming(dev)) {
-			v4l2_dbg(MSG_INFO, hdpvr_debug, dev->video_dev,
-				 "start_streaming failed");
+			v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+				 "start_streaming failed\n");
 			ret = -EIO;
 			msleep(200);
 			dev->status = STATUS_IDLE;
@@ -445,7 +450,7 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 
 		if (copy_to_user(buffer, urb->transfer_buffer + buf->pos,
 				 cnt)) {
-			err("read: copy_to_user failed");
+			v4l2_err(&dev->v4l2_dev, "read: copy_to_user failed\n");
 			if (!ret)
 				ret = -EFAULT;
 			goto err;
@@ -493,8 +498,8 @@ static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 
 	if (dev->status == STATUS_IDLE) {
 		if (hdpvr_start_streaming(dev)) {
-			v4l2_dbg(MSG_BUFFER, hdpvr_debug, dev->video_dev,
-				 "start_streaming failed");
+			v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+				 "start_streaming failed\n");
 			dev->status = STATUS_IDLE;
 		}
 
@@ -1130,7 +1135,7 @@ static int vidioc_encoder_cmd(struct file *filp, void *priv,
 		res = hdpvr_stop_streaming(dev);
 		break;
 	default:
-		v4l2_dbg(MSG_INFO, hdpvr_debug, dev->video_dev,
+		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 			 "Unsupported encoder cmd %d\n", a->cmd);
 		res = -EINVAL;
 	}
@@ -1197,7 +1202,7 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	/* setup and register video device */
 	dev->video_dev = video_device_alloc();
 	if (!dev->video_dev) {
-		err("video_device_alloc() failed");
+		v4l2_err(&dev->v4l2_dev, "video_device_alloc() failed\n");
 		goto error;
 	}
 
@@ -1207,7 +1212,7 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	video_set_drvdata(dev->video_dev, dev);
 
 	if (video_register_device(dev->video_dev, VFL_TYPE_GRABBER, devnum)) {
-		err("V4L2 device registration failed");
+		v4l2_err(&dev->v4l2_dev, "video_device registration failed\n");
 		goto error;
 	}
 
