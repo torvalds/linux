@@ -193,13 +193,6 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 	hw->io_ports.ctl_addr = ctl_addr;
 }
 
-#if defined(CONFIG_ARM) || defined(CONFIG_M68K) || defined(CONFIG_MIPS) || \
-    defined(CONFIG_PARISC) || defined(CONFIG_PPC) || defined(CONFIG_SPARC)
-#include <asm/ide.h>
-#else
-#include <asm-generic/ide_iops.h>
-#endif
-
 #define MAX_HWIFS	10
 
 /*

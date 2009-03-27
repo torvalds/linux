@@ -18,6 +18,8 @@
 #include <linux/io.h>
 #include <linux/scatterlist.h>
 
+#include <asm/ide.h>
+
 #define MODNAME	"tx4939ide"
 
 /* ATA Shadow Registers (8-bit except for Data which is 16-bit) */
