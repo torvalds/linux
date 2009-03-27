@@ -181,6 +181,19 @@ static inline void musb_h_tx_dma_start(struct musb_hw_ep *ep)
 	musb_writew(ep->regs, MUSB_TXCSR, txcsr);
 }
 
+static void musb_ep_set_qh(struct musb_hw_ep *ep, int is_in, struct musb_qh *qh)
+{
+	if (is_in != 0 || ep->is_shared_fifo)
+		ep->in_qh  = qh;
+	if (is_in == 0 || ep->is_shared_fifo)
+		ep->out_qh = qh;
+}
+
+static struct musb_qh *musb_ep_get_qh(struct musb_hw_ep *ep, int is_in)
+{
+	return is_in ? ep->in_qh : ep->out_qh;
+}
+
 /*
  * Start the URB at the front of an endpoint's queue
  * end must be claimed from the caller.
@@ -210,7 +223,6 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 	case USB_ENDPOINT_XFER_CONTROL:
 		/* control transfers always start with SETUP */
 		is_in = 0;
-		hw_ep->out_qh = qh;
 		musb->ep0_stage = MUSB_EP0_START;
 		buf = urb->setup_packet;
 		len = 8;
@@ -239,10 +251,7 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 			epnum, buf + offset, len);
 
 	/* Configure endpoint */
-	if (is_in || hw_ep->is_shared_fifo)
-		hw_ep->in_qh = qh;
-	else
-		hw_ep->out_qh = qh;
+	musb_ep_set_qh(hw_ep, is_in, qh);
 	musb_ep_program(musb, epnum, urb, !is_in, buf, offset, len);
 
 	/* transmit may have more work: start it when it is time */
@@ -377,11 +386,8 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 		else
 			ep->tx_reinit = 1;
 
-		/* clobber old pointers to this qh */
-		if (is_in || ep->is_shared_fifo)
-			ep->in_qh = NULL;
-		else
-			ep->out_qh = NULL;
+		/* Clobber old pointers to this qh */
+		musb_ep_set_qh(ep, is_in, NULL);
 		qh->hep->hcpriv = NULL;
 
 		switch (qh->type) {
@@ -424,12 +430,7 @@ static void
 musb_advance_schedule(struct musb *musb, struct urb *urb,
 		struct musb_hw_ep *hw_ep, int is_in)
 {
-	struct musb_qh	*qh;
-
-	if (is_in || hw_ep->is_shared_fifo)
-		qh = hw_ep->in_qh;
-	else
-		qh = hw_ep->out_qh;
+	struct musb_qh		*qh = musb_ep_get_qh(hw_ep, is_in);
 
 	if (urb->status == -EINPROGRESS)
 		qh = musb_giveback(qh, urb, 0);
@@ -692,15 +693,8 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 	void __iomem		*mbase = musb->mregs;
 	struct musb_hw_ep	*hw_ep = musb->endpoints + epnum;
 	void __iomem		*epio = hw_ep->regs;
-	struct musb_qh		*qh;
-	u16			packet_sz;
-
-	if (!is_out || hw_ep->is_shared_fifo)
-		qh = hw_ep->in_qh;
-	else
-		qh = hw_ep->out_qh;
-
-	packet_sz = qh->maxpacket;
+	struct musb_qh		*qh = musb_ep_get_qh(hw_ep, !is_out);
+	u16			packet_sz = qh->maxpacket;
 
 	DBG(3, "%s hw%d urb %p spd%d dev%d ep%d%s "
 				"h_addr%02x h_port%02x bytes %d\n",
@@ -1118,16 +1112,13 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	u16			tx_csr;
 	size_t			length = 0;
 	size_t			offset = 0;
-	struct urb		*urb;
 	struct musb_hw_ep	*hw_ep = musb->endpoints + epnum;
 	void __iomem		*epio = hw_ep->regs;
-	struct musb_qh		*qh = hw_ep->is_shared_fifo ? hw_ep->in_qh
-							    : hw_ep->out_qh;
+	struct musb_qh		*qh = hw_ep->out_qh;
+	struct urb		*urb = next_urb(qh);
 	u32			status = 0;
 	void __iomem		*mbase = musb->mregs;
 	struct dma_channel	*dma;
-
-	urb = next_urb(qh);
 
 	musb_ep_select(mbase, epnum);
 	tx_csr = musb_readw(epio, MUSB_TXCSR);
@@ -1806,10 +1797,7 @@ static int musb_schedule(
 			epnum++, hw_ep++) {
 		int	diff;
 
-		if (is_in || hw_ep->is_shared_fifo) {
-			if (hw_ep->in_qh  != NULL)
-				continue;
-		} else	if (hw_ep->out_qh != NULL)
+		if (musb_ep_get_qh(hw_ep, is_in) != NULL)
 			continue;
 
 		if (hw_ep == musb->bulk_ep)
