@@ -2029,14 +2029,15 @@ done:
  * called with controller locked, irqs blocked
  * that hardware queue advances to the next transfer, unless prevented
  */
-static int musb_cleanup_urb(struct urb *urb, struct musb_qh *qh, int is_in)
+static int musb_cleanup_urb(struct urb *urb, struct musb_qh *qh)
 {
 	struct musb_hw_ep	*ep = qh->hw_ep;
 	void __iomem		*epio = ep->regs;
 	unsigned		hw_end = ep->epnum;
 	void __iomem		*regs = ep->musb->mregs;
-	u16			csr;
+	int			is_in = usb_pipein(urb->pipe);
 	int			status = 0;
+	u16			csr;
 
 	musb_ep_select(regs, hw_end);
 
@@ -2137,7 +2138,7 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			kfree(qh);
 		}
 	} else
-		ret = musb_cleanup_urb(urb, qh, urb->pipe & USB_DIR_IN);
+		ret = musb_cleanup_urb(urb, qh);
 done:
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return ret;
@@ -2171,7 +2172,7 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 			urb->status = -ESHUTDOWN;
 
 		/* cleanup */
-		musb_cleanup_urb(urb, qh, urb->pipe & USB_DIR_IN);
+		musb_cleanup_urb(urb, qh);
 
 		/* Then nuke all the others ... and advance the
 		 * queue on hw_ep (e.g. bulk ring) when we're done.
