@@ -147,7 +147,7 @@ int ide_complete_rq(ide_drive_t *drive, int error, unsigned int nr_bytes)
 	struct request *rq = hwif->rq;
 	int rc;
 
-	rc = blk_end_request(rq, error, nr_bytes);
+	rc = ide_end_rq(drive, rq, error, nr_bytes);
 	if (rc == 0)
 		hwif->rq = NULL;
 
