@@ -302,16 +302,16 @@ EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
 
 void ide_read_bcount_and_ireason(ide_drive_t *drive, u16 *bcount, u8 *ireason)
 {
-	ide_task_t task;
+	struct ide_cmd cmd;
 
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_IN_LBAH | IDE_TFLAG_IN_LBAM |
-			IDE_TFLAG_IN_NSECT;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf_flags = IDE_TFLAG_IN_LBAH | IDE_TFLAG_IN_LBAM |
+		       IDE_TFLAG_IN_NSECT;
 
-	drive->hwif->tp_ops->tf_read(drive, &task);
+	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
-	*bcount = (task.tf.lbah << 8) | task.tf.lbam;
-	*ireason = task.tf.nsect & 3;
+	*bcount = (cmd.tf.lbah << 8) | cmd.tf.lbam;
+	*ireason = cmd.tf.nsect & 3;
 }
 EXPORT_SYMBOL_GPL(ide_read_bcount_and_ireason);
 
@@ -482,32 +482,32 @@ next_irq:
 static void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_task_t task;
+	struct ide_cmd cmd;
 	u8 dma = drive->dma;
 
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
-			IDE_TFLAG_OUT_FEATURE | tf_flags;
-	task.tf.feature = dma;		/* Use PIO/DMA */
-	task.tf.lbam    = bcount & 0xff;
-	task.tf.lbah    = (bcount >> 8) & 0xff;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf_flags = IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
+		       IDE_TFLAG_OUT_FEATURE | tf_flags;
+	cmd.tf.feature = dma;		/* Use PIO/DMA */
+	cmd.tf.lbam    = bcount & 0xff;
+	cmd.tf.lbah    = (bcount >> 8) & 0xff;
 
-	ide_tf_dump(drive->name, &task.tf);
+	ide_tf_dump(drive->name, &cmd.tf);
 	hwif->tp_ops->set_irq(hwif, 1);
 	SELECT_MASK(drive, 0);
-	hwif->tp_ops->tf_load(drive, &task);
+	hwif->tp_ops->tf_load(drive, &cmd);
 }
 
 static u8 ide_read_ireason(ide_drive_t *drive)
 {
-	ide_task_t task;
+	struct ide_cmd cmd;
 
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_IN_NSECT;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf_flags = IDE_TFLAG_IN_NSECT;
 
-	drive->hwif->tp_ops->tf_read(drive, &task);
+	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
-	return task.tf.nsect & 3;
+	return cmd.tf.nsect & 3;
 }
 
 static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)

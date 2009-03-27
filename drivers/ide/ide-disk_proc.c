@@ -6,33 +6,34 @@
 
 static int smart_enable(ide_drive_t *drive)
 {
-	ide_task_t args;
-	struct ide_taskfile *tf = &args.tf;
+	struct ide_cmd cmd;
+	struct ide_taskfile *tf = &cmd.tf;
 
-	memset(&args, 0, sizeof(ide_task_t));
+	memset(&cmd, 0, sizeof(cmd));
 	tf->feature = ATA_SMART_ENABLE;
 	tf->lbam    = ATA_SMART_LBAM_PASS;
 	tf->lbah    = ATA_SMART_LBAH_PASS;
 	tf->command = ATA_CMD_SMART;
-	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	return ide_no_data_taskfile(drive, &args);
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+
+	return ide_no_data_taskfile(drive, &cmd);
 }
 
 static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
 {
-	ide_task_t args;
-	struct ide_taskfile *tf = &args.tf;
+	struct ide_cmd cmd;
+	struct ide_taskfile *tf = &cmd.tf;
 
-	memset(&args, 0, sizeof(ide_task_t));
+	memset(&cmd, 0, sizeof(cmd));
 	tf->feature = sub_cmd;
 	tf->nsect   = 0x01;
 	tf->lbam    = ATA_SMART_LBAM_PASS;
 	tf->lbah    = ATA_SMART_LBAH_PASS;
 	tf->command = ATA_CMD_SMART;
-	args.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	args.data_phase	= TASKFILE_IN;
+	cmd.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd.data_phase	= TASKFILE_IN;
 
-	return ide_raw_taskfile(drive, &args, buf, 1);
+	return ide_raw_taskfile(drive, &cmd, buf, 1);
 }
 
 static int proc_idedisk_read_cache

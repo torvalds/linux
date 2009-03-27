@@ -144,21 +144,21 @@ int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
 }
 EXPORT_SYMBOL_GPL(ide_end_dequeued_request);
 
-void ide_complete_task(ide_drive_t *drive, ide_task_t *task, u8 stat, u8 err)
+void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 {
-	struct ide_taskfile *tf = &task->tf;
-	struct request *rq = task->rq;
+	struct ide_taskfile *tf = &cmd->tf;
+	struct request *rq = cmd->rq;
 
 	tf->error = err;
 	tf->status = stat;
 
-	drive->hwif->tp_ops->tf_read(drive, task);
+	drive->hwif->tp_ops->tf_read(drive, cmd);
 
 	if (rq && rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
-		memcpy(rq->special, task, sizeof(*task));
+		memcpy(rq->special, cmd, sizeof(*cmd));
 
-	if (task->tf_flags & IDE_TFLAG_DYN)
-		kfree(task);
+	if (cmd->tf_flags & IDE_TFLAG_DYN)
+		kfree(cmd);
 }
 
 void ide_complete_rq(ide_drive_t *drive, u8 err)
@@ -217,20 +217,20 @@ static void ide_tf_set_setmult_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
 static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 {
 	special_t *s = &drive->special;
-	ide_task_t args;
+	struct ide_cmd cmd;
 
-	memset(&args, 0, sizeof(ide_task_t));
-	args.data_phase = TASKFILE_NO_DATA;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.data_phase = TASKFILE_NO_DATA;
 
 	if (s->b.set_geometry) {
 		s->b.set_geometry = 0;
-		ide_tf_set_specify_cmd(drive, &args.tf);
+		ide_tf_set_specify_cmd(drive, &cmd.tf);
 	} else if (s->b.recalibrate) {
 		s->b.recalibrate = 0;
-		ide_tf_set_restore_cmd(drive, &args.tf);
+		ide_tf_set_restore_cmd(drive, &cmd.tf);
 	} else if (s->b.set_multmode) {
 		s->b.set_multmode = 0;
-		ide_tf_set_setmult_cmd(drive, &args.tf);
+		ide_tf_set_setmult_cmd(drive, &cmd.tf);
 	} else if (s->all) {
 		int special = s->all;
 		s->all = 0;
@@ -238,10 +238,10 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 		return ide_stopped;
 	}
 
-	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE |
-			IDE_TFLAG_CUSTOM_HANDLER;
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE |
+		       IDE_TFLAG_CUSTOM_HANDLER;
 
-	do_rw_taskfile(drive, &args);
+	do_rw_taskfile(drive, &cmd);
 
 	return ide_started;
 }
@@ -315,10 +315,10 @@ EXPORT_SYMBOL_GPL(ide_init_sg_cmd);
 static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		struct request *rq)
 {
-	ide_task_t *task = rq->special;
+	struct ide_cmd *cmd = rq->special;
 
-	if (task) {
-		switch (task->data_phase) {
+	if (cmd) {
+		switch (cmd->data_phase) {
 		case TASKFILE_MULTI_OUT:
 		case TASKFILE_OUT:
 		case TASKFILE_MULTI_IN:
@@ -329,7 +329,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 			break;
 		}
 
-		return do_rw_taskfile(drive, task);
+		return do_rw_taskfile(drive, cmd);
 	}
 
  	/*

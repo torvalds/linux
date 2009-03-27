@@ -34,19 +34,19 @@ void ide_toggle_bounce(ide_drive_t *drive, int on)
 static void ide_dump_opcode(ide_drive_t *drive)
 {
 	struct request *rq = drive->hwif->rq;
-	ide_task_t *task = NULL;
+	struct ide_cmd *cmd = NULL;
 
 	if (!rq)
 		return;
 
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
-		task = rq->special;
+		cmd = rq->special;
 
 	printk(KERN_ERR "ide: failed opcode was: ");
-	if (task == NULL)
+	if (cmd == NULL)
 		printk(KERN_CONT "unknown\n");
 	else
-		printk(KERN_CONT "0x%02x\n", task->tf.command);
+		printk(KERN_CONT "0x%02x\n", cmd->tf.command);
 }
 
 u64 ide_get_lba_addr(struct ide_taskfile *tf, int lba48)
@@ -66,18 +66,18 @@ EXPORT_SYMBOL_GPL(ide_get_lba_addr);
 
 static void ide_dump_sector(ide_drive_t *drive)
 {
-	ide_task_t task;
-	struct ide_taskfile *tf = &task.tf;
+	struct ide_cmd cmd;
+	struct ide_taskfile *tf = &cmd.tf;
 	u8 lba48 = !!(drive->dev_flags & IDE_DFLAG_LBA48);
 
-	memset(&task, 0, sizeof(task));
+	memset(&cmd, 0, sizeof(cmd));
 	if (lba48)
-		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_HOB_LBA |
+		cmd.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_HOB_LBA |
 				IDE_TFLAG_LBA48;
 	else
-		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
+		cmd.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
 
-	drive->hwif->tp_ops->tf_read(drive, &task);
+	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
 	if (lba48 || (tf->device & ATA_LBA))
 		printk(KERN_CONT ", LBAsect=%llu",

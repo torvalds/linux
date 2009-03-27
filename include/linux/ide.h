@@ -295,7 +295,7 @@ enum {
 					  IDE_TFLAG_IN_DEVICE,
 	/* force 16-bit I/O operations */
 	IDE_TFLAG_IO_16BIT		= (1 << 26),
-	/* ide_task_t was allocated using kmalloc() */
+	/* struct ide_cmd was allocated using kmalloc() */
 	IDE_TFLAG_DYN			= (1 << 27),
 };
 
@@ -335,7 +335,7 @@ struct ide_taskfile {
 	};
 };
 
-typedef struct ide_task_s {
+struct ide_cmd {
 	union {
 		struct ide_taskfile	tf;
 		u8			tf_array[14];
@@ -345,7 +345,7 @@ typedef struct ide_task_s {
 	int			data_phase;
 	struct request		*rq;		/* copy of request */
 	void			*special;	/* valid_t generally */
-} ide_task_t;
+};
 
 /* ATAPI packet command flags */
 enum {
@@ -652,8 +652,8 @@ struct ide_tp_ops {
 
 	void	(*set_irq)(struct hwif_s *, int);
 
-	void	(*tf_load)(ide_drive_t *, struct ide_task_s *);
-	void	(*tf_read)(ide_drive_t *, struct ide_task_s *);
+	void	(*tf_load)(ide_drive_t *, struct ide_cmd *);
+	void	(*tf_read)(ide_drive_t *, struct ide_cmd *);
 
 	void	(*input_data)(ide_drive_t *, struct request *, void *,
 			      unsigned int);
@@ -775,7 +775,7 @@ typedef struct hwif_s {
 	int orig_sg_nents;
 	int sg_dma_direction;		/* dma transfer direction */
 
-	struct ide_task_s task;		/* current command */
+	struct ide_cmd cmd;		/* current command */
 
 	unsigned int nsect;
 	unsigned int nleft;
@@ -1161,7 +1161,7 @@ extern ide_startstop_t ide_do_reset (ide_drive_t *);
 extern int ide_devset_execute(ide_drive_t *drive,
 			      const struct ide_devset *setting, int arg);
 
-void ide_complete_task(ide_drive_t *, ide_task_t *, u8, u8);
+void ide_complete_cmd(ide_drive_t *, struct ide_cmd *, u8, u8);
 void ide_complete_rq(ide_drive_t *, u8);
 
 void ide_tf_dump(const char *, struct ide_taskfile *);
@@ -1172,8 +1172,8 @@ u8 ide_read_altstatus(ide_hwif_t *);
 
 void ide_set_irq(ide_hwif_t *, int);
 
-void ide_tf_load(ide_drive_t *, ide_task_t *);
-void ide_tf_read(ide_drive_t *, ide_task_t *);
+void ide_tf_load(ide_drive_t *, struct ide_cmd *);
+void ide_tf_read(ide_drive_t *, struct ide_cmd *);
 
 void ide_input_data(ide_drive_t *, struct request *, void *, unsigned int);
 void ide_output_data(ide_drive_t *, struct request *, void *, unsigned int);
@@ -1224,14 +1224,14 @@ int ide_cd_get_xferlen(struct request *);
 
 ide_startstop_t ide_issue_pc(ide_drive_t *);
 
-ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
+ide_startstop_t do_rw_taskfile(ide_drive_t *, struct ide_cmd *);
 
 void task_end_request(ide_drive_t *, struct request *, u8);
 
-int ide_raw_taskfile(ide_drive_t *, ide_task_t *, u8 *, u16);
-int ide_no_data_taskfile(ide_drive_t *, ide_task_t *);
+int ide_raw_taskfile(ide_drive_t *, struct ide_cmd *, u8 *, u16);
+int ide_no_data_taskfile(ide_drive_t *, struct ide_cmd *);
 
-int ide_taskfile_ioctl(ide_drive_t *, unsigned int, unsigned long);
+int ide_taskfile_ioctl(ide_drive_t *, unsigned long);
 
 int ide_dev_read_id(ide_drive_t *, u8, u16 *);
 
