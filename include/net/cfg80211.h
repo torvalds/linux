@@ -10,7 +10,6 @@
 #include <net/iw_handler.h>
 #include <net/genetlink.h>
 /* remove once we remove the wext stuff */
-#include <net/iw_handler.h>
 
 /*
  * 802.11 configuration in-kernel interface
