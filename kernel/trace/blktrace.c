@@ -59,22 +59,39 @@ static void trace_note(struct blk_trace *bt, pid_t pid, int action,
 		       const void *data, size_t len)
 {
 	struct blk_io_trace *t;
+	struct ring_buffer_event *event = NULL;
+	int pc = 0;
+	int cpu = smp_processor_id();
+	bool blk_tracer = blk_tracer_enabled;
+
+	if (blk_tracer) {
+		pc = preempt_count();
+		event = trace_buffer_lock_reserve(blk_tr, TRACE_BLK,
+						  sizeof(*t) + len,
+						  0, pc);
+		if (!event)
+			return;
+		t = ring_buffer_event_data(event);
+		goto record_it;
+	}
 
 	if (!bt->rchan)
 		return;
 
 	t = relay_reserve(bt->rchan, sizeof(*t) + len);
 	if (t) {
-		const int cpu = smp_processor_id();
-
 		t->magic = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION;
 		t->time = ktime_to_ns(ktime_get());
+record_it:
 		t->device = bt->dev;
 		t->action = action;
 		t->pid = pid;
 		t->cpu = cpu;
 		t->pdu_len = len;
 		memcpy((void *) t + sizeof(*t), data, len);
+
+		if (blk_tracer)
+			trace_buffer_unlock_commit(blk_tr, event, 0, pc);
 	}
 }
 
@@ -110,14 +127,8 @@ void __trace_note_message(struct blk_trace *bt, const char *fmt, ...)
 	unsigned long flags;
 	char *buf;
 
-	if (blk_tracer_enabled) {
-		va_start(args, fmt);
-		ftrace_vprintk(fmt, args);
-		va_end(args);
-		return;
-	}
-
-	if (!bt->msg_data)
+	if (unlikely(bt->trace_state != Blktrace_running &&
+		     !blk_tracer_enabled))
 		return;
 
 	local_irq_save(flags);
@@ -168,9 +179,9 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	unsigned long *sequence;
 	pid_t pid;
 	int cpu, pc = 0;
+	bool blk_tracer = blk_tracer_enabled;
 
-	if (unlikely(bt->trace_state != Blktrace_running &&
-		     !blk_tracer_enabled))
+	if (unlikely(bt->trace_state != Blktrace_running && !blk_tracer))
 		return;
 
 	what |= ddir_act[rw & WRITE];
@@ -185,7 +196,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		return;
 	cpu = raw_smp_processor_id();
 
-	if (blk_tracer_enabled) {
+	if (blk_tracer) {
 		tracing_record_cmdline(current);
 
 		pc = preempt_count();
@@ -235,7 +246,7 @@ record_it:
 		if (pdu_len)
 			memcpy((void *) t + sizeof(*t), pdu_data, pdu_len);
 
-		if (blk_tracer_enabled) {
+		if (blk_tracer) {
 			trace_buffer_unlock_commit(blk_tr, event, 0, pc);
 			return;
 		}
@@ -922,6 +933,11 @@ static void fill_rwbs(char *rwbs, const struct blk_io_trace *t)
 	int i = 0;
 	int tc = t->action >> BLK_TC_SHIFT;
 
+	if (t->action == BLK_TN_MESSAGE) {
+		rwbs[i++] = 'N';
+		goto out;
+	}
+
 	if (tc & BLK_TC_DISCARD)
 		rwbs[i++] = 'D';
 	else if (tc & BLK_TC_WRITE)
@@ -939,7 +955,7 @@ static void fill_rwbs(char *rwbs, const struct blk_io_trace *t)
 		rwbs[i++] = 'S';
 	if (tc & BLK_TC_META)
 		rwbs[i++] = 'M';
-
+out:
 	rwbs[i] = '\0';
 }
 
@@ -1074,6 +1090,17 @@ static int blk_log_split(struct trace_seq *s, const struct trace_entry *ent)
 				get_pdu_int(ent), cmd);
 }
 
+static int blk_log_msg(struct trace_seq *s, const struct trace_entry *ent)
+{
+	int ret;
+	const struct blk_io_trace *t = te_blk_io_trace(ent);
+
+	ret = trace_seq_putmem(s, t + 1, t->pdu_len);
+	if (ret)
+		return trace_seq_putc(s, '\n');
+	return ret;
+}
+
 /*
  * struct tracer operations
  */
@@ -1146,6 +1173,13 @@ static enum print_line_t print_one_line(struct trace_iterator *iter,
 	long_act   = !!(trace_flags & TRACE_ITER_VERBOSE);
 	log_action = classic ? &blk_log_action_classic : &blk_log_action;
 
+	if (t->action == BLK_TN_MESSAGE) {
+		ret = log_action(iter, long_act ? "message" : "m");
+		if (ret)
+			ret = blk_log_msg(s, iter->ent);
+		goto out;
+	}
+
 	if (unlikely(what == 0 || what >= ARRAY_SIZE(what2act)))
 		ret = trace_seq_printf(s, "Bad pc action %x\n", what);
 	else {
@@ -1153,7 +1187,7 @@ static enum print_line_t print_one_line(struct trace_iterator *iter,
 		if (ret)
 			ret = what2act[what].print(s, iter->ent);
 	}
-
+out:
 	return ret ? TRACE_TYPE_HANDLED : TRACE_TYPE_PARTIAL_LINE;
 }
 
@@ -1253,10 +1287,15 @@ static int blk_trace_remove_queue(struct request_queue *q)
 static int blk_trace_setup_queue(struct request_queue *q, dev_t dev)
 {
 	struct blk_trace *old_bt, *bt = NULL;
+	int ret = -ENOMEM;
 
 	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
 	if (!bt)
 		return -ENOMEM;
+
+	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG, __alignof__(char));
+	if (!bt->msg_data)
+		goto free_bt;
 
 	bt->dev = dev;
 	bt->act_mask = (u16)-1;
@@ -1265,14 +1304,17 @@ static int blk_trace_setup_queue(struct request_queue *q, dev_t dev)
 	old_bt = xchg(&q->blk_trace, bt);
 	if (old_bt != NULL) {
 		(void)xchg(&q->blk_trace, old_bt);
-		kfree(bt);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto free_bt;
 	}
 
 	if (atomic_inc_return(&blk_probes_ref) == 1)
 		blk_register_tracepoints();
-
 	return 0;
+
+free_bt:
+	blk_trace_free(bt);
+	return ret;
 }
 
 /*
