@@ -1067,9 +1067,16 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
 	/*
 	 * free those over-booking quota for metadata blocks
 	 */
-
 	if (mdb_free)
 		vfs_dq_release_reservation_block(inode, mdb_free);
+
+	/*
+	 * If we have done all the pending block allocations and if
+	 * there aren't any writers on the inode, we can discard the
+	 * inode's preallocations.
+	 */
+	if (!total && (atomic_read(&inode->i_writecount) == 0))
+		ext4_discard_preallocations(inode);
 }
 
 /*
