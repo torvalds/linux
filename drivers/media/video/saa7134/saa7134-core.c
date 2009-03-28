@@ -982,8 +982,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	/* load i2c helpers */
 	if (card_is_empress(dev)) {
 		struct v4l2_subdev *sd =
-			v4l2_i2c_new_subdev(&dev->i2c_adap, "saa6752hs",
-				"saa6752hs", 0x20);
+			v4l2_i2c_new_subdev(&dev->i2c_adap,
+				"saa6752hs", "saa6752hs",
+				saa7134_boards[dev->board].empress_addr);
 
 		if (sd)
 			sd->grp_id = GRP_EMPRESS;

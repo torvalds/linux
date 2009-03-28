@@ -416,8 +416,7 @@ static int empress_g_chip_ident(struct file *file, void *fh,
 	if (chip->match.type == V4L2_CHIP_MATCH_I2C_DRIVER &&
 	    !strcmp(chip->match.name, "saa6752hs"))
 		return saa_call_empress(dev, core, g_chip_ident, chip);
-	if (chip->match.type == V4L2_CHIP_MATCH_I2C_ADDR &&
-	    chip->match.addr == 0x20)
+	if (chip->match.type == V4L2_CHIP_MATCH_I2C_ADDR)
 		return saa_call_empress(dev, core, g_chip_ident, chip);
 	return -EINVAL;
 }
