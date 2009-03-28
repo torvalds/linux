@@ -675,7 +675,6 @@ static int dabusb_release (struct inode *inode, struct file *file)
 
 static long dabusb_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 {
-	lock_kernel();
 	pdabusb_t s = (pdabusb_t) file->private_data;
 	pbulk_transfer_t pbulk;
 	int ret = 0;
@@ -683,6 +682,7 @@ static long dabusb_ioctl (struct file *file, unsigned int cmd, unsigned long arg
 
 	dbg("dabusb_ioctl");
 
+	lock_kernel();
 	if (s->remove_pending) {
 		unlock_kernel();
 		return -EIO;
