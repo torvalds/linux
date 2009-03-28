@@ -2009,6 +2009,9 @@ static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 	/* Disable Rx and Tx */
 	clrbits32(&ug_regs->maccfg1, MACCFG1_ENABLE_RX | MACCFG1_ENABLE_TX);
 
+	phy_disconnect(ugeth->phydev);
+	ugeth->phydev = NULL;
+
 	ucc_geth_memclean(ugeth);
 }
 
@@ -3345,6 +3348,14 @@ static int ucc_geth_open(struct net_device *dev)
 		return -EINVAL;
 	}
 
+	err = init_phy(dev);
+	if (err) {
+		if (netif_msg_ifup(ugeth))
+			ugeth_err("%s: Cannot initialize PHY, aborting.",
+				  dev->name);
+		return err;
+	}
+
 	err = ucc_struct_init(ugeth);
 	if (err) {
 		if (netif_msg_ifup(ugeth))
@@ -3380,13 +3391,6 @@ static int ucc_geth_open(struct net_device *dev)
 				   dev->dev_addr[5],
 				   &ugeth->ug_regs->macstnaddr1,
 				   &ugeth->ug_regs->macstnaddr2);
-
-	err = init_phy(dev);
-	if (err) {
-		if (netif_msg_ifup(ugeth))
-			ugeth_err("%s: Cannot initialize PHY, aborting.", dev->name);
-		goto out_err;
-	}
 
 	phy_start(ugeth->phydev);
 
@@ -3429,9 +3433,6 @@ static int ucc_geth_close(struct net_device *dev)
 	ucc_geth_stop(ugeth);
 
 	free_irq(ugeth->ug_info->uf_info.irq, ugeth->dev);
-
-	phy_disconnect(ugeth->phydev);
-	ugeth->phydev = NULL;
 
 	netif_stop_queue(dev);
 

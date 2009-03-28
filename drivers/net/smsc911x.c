@@ -1680,6 +1680,7 @@ static int smsc911x_eeprom_write_location(struct smsc911x_data *pdata,
 					  u8 address, u8 data)
 {
 	u32 op = E2P_CMD_EPC_CMD_ERASE_ | address;
+	u32 temp;
 	int ret;
 
 	SMSC_TRACE(DRV, "address 0x%x, data 0x%x", address, data);
@@ -1688,6 +1689,10 @@ static int smsc911x_eeprom_write_location(struct smsc911x_data *pdata,
 	if (!ret) {
 		op = E2P_CMD_EPC_CMD_WRITE_ | address;
 		smsc911x_reg_write(pdata, E2P_DATA, (u32)data);
+
+		/* Workaround for hardware read-after-write restriction */
+		temp = smsc911x_reg_read(pdata, BYTE_TEST);
+
 		ret = smsc911x_eeprom_send_cmd(pdata, op);
 	}
 

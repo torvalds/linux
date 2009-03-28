@@ -197,6 +197,14 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	status = WLAN_STATUS_REQUEST_DECLINED;
 
+	if (test_sta_flags(sta, WLAN_STA_SUSPEND)) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "Suspend in progress. "
+		       "Denying ADDBA request\n");
+#endif
+		goto end_no_lock;
+	}
+
 	/* sanity check for incoming parameters:
 	 * check if configuration can support the BA policy
 	 * and if buffer size does not exceeds max value */

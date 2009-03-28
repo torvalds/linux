@@ -328,6 +328,11 @@ static int ipv4_nlattr_to_tuple(struct nlattr *tb[],
 
 	return 0;
 }
+
+static int ipv4_nlattr_tuple_size(void)
+{
+	return nla_policy_len(ipv4_nla_policy, CTA_IP_MAX + 1);
+}
 #endif
 
 static struct nf_sockopt_ops so_getorigdst = {
@@ -347,6 +352,7 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
 	.get_l4proto	 = ipv4_get_l4proto,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nlattr = ipv4_tuple_to_nlattr,
+	.nlattr_tuple_size = ipv4_nlattr_tuple_size,
 	.nlattr_to_tuple = ipv4_nlattr_to_tuple,
 	.nla_policy	 = ipv4_nla_policy,
 #endif

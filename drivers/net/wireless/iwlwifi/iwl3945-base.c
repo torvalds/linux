@@ -485,14 +485,14 @@ static int iwl3945_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	memcpy(priv->stations_39[sta_id].sta.key.key, keyconf->key,
 	       keyconf->keylen);
 
-	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
+	if ((priv->stations_39[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
 			== STA_KEY_FLG_NO_ENC)
-		priv->stations[sta_id].sta.key.key_offset =
+		priv->stations_39[sta_id].sta.key.key_offset =
 				 iwl_get_free_ucode_key_index(priv);
 	/* else, we are overriding an existing key => no need to allocated room
 	* in uCode. */
 
-	WARN(priv->stations[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET,
+	WARN(priv->stations_39[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET,
 		"no space for a new key");
 
 	priv->stations_39[sta_id].sta.key.key_flags = key_flags;
@@ -560,7 +560,7 @@ static int iwl3945_set_dynamic_key(struct iwl_priv *priv,
 		ret = iwl3945_set_wep_dynamic_key_info(priv, keyconf, sta_id);
 		break;
 	default:
-		IWL_ERR(priv,"Unknown alg: %s alg = %d\n", __func__, keyconf->alg);
+		IWL_ERR(priv, "Unknown alg: %s alg = %d\n", __func__, keyconf->alg);
 		ret = -EINVAL;
 	}
 
@@ -1168,7 +1168,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			spin_unlock_irqrestore(&priv->lock, flags);
 		}
 
-		ieee80211_stop_queue(priv->hw, skb_get_queue_mapping(skb));
+		iwl_stop_queue(priv, skb_get_queue_mapping(skb));
 	}
 
 	return 0;
@@ -3773,15 +3773,19 @@ static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed)
 	}
 #endif
 
-	if (conf->radio_enabled && iwl_radio_kill_sw_enable_radio(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - RF-KILL - waiting for uCode\n");
-		goto out;
-	}
+	if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED) {
+		if (conf->radio_enabled &&
+		    iwl_radio_kill_sw_enable_radio(priv)) {
+			IWL_DEBUG_MAC80211(priv, "leave - RF-KILL - "
+						 "waiting for uCode\n");
+			goto out;
+		}
 
-	if (!conf->radio_enabled) {
-		iwl_radio_kill_sw_disable_radio(priv);
-		IWL_DEBUG_MAC80211(priv, "leave - radio disabled\n");
-		goto out;
+		if (!conf->radio_enabled) {
+			iwl_radio_kill_sw_disable_radio(priv);
+			IWL_DEBUG_MAC80211(priv, "leave - radio disabled\n");
+			goto out;
+		}
 	}
 
 	if (iwl_is_rfkill(priv)) {
@@ -4546,11 +4550,6 @@ static ssize_t store_power_level(struct device *d,
 
 	mutex_lock(&priv->mutex);
 
-	if (!iwl_is_ready(priv)) {
-		ret = -EAGAIN;
-		goto out;
-	}
-
 	ret = strict_strtoul(buf, 10, &mode);
 	if (ret)
 		goto out;
@@ -4905,7 +4904,8 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_NOISE_DBM;
+		    IEEE80211_HW_NOISE_DBM |
+		    IEEE80211_HW_SPECTRUM_MGMT;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |

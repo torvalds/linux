@@ -1035,6 +1035,12 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 		sx25.sx25_addr   = x25->dest_addr;
 	}
 
+	/* Sanity check the packet size */
+	if (len > 65535) {
+		rc = -EMSGSIZE;
+		goto out;
+	}
+
 	SOCK_DEBUG(sk, "x25_sendmsg: sendto: Addresses built.\n");
 
 	/* Build a packet */

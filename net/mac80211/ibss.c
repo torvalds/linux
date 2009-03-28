@@ -812,8 +812,9 @@ int ieee80211_ibss_commit(struct ieee80211_sub_if_data *sdata)
 
 	ifibss->ibss_join_req = jiffies;
 	ifibss->state = IEEE80211_IBSS_MLME_SEARCH;
+	set_bit(IEEE80211_IBSS_REQ_RUN, &ifibss->request);
 
-	return ieee80211_sta_find_ibss(sdata);
+	return 0;
 }
 
 int ieee80211_ibss_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len)

@@ -233,7 +233,7 @@ struct iwl3945_eeprom {
 #define PCI_CFG_REV_ID_BIT_RTP                      (0x80)	/* bit 7    */
 
 #define TFD_QUEUE_MIN           0
-#define TFD_QUEUE_MAX           6
+#define TFD_QUEUE_MAX           5	/* 4 DATA + 1 CMD */
 
 #define IWL_NUM_SCAN_RATES         (2)
 

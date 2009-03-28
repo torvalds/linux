@@ -1571,14 +1571,10 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 		    usat->sat_family != AF_APPLETALK)
 			return -EINVAL;
 
-		/* netatalk doesn't implement this check */
+		/* netatalk didn't implement this check */
 		if (usat->sat_addr.s_node == ATADDR_BCAST &&
 		    !sock_flag(sk, SOCK_BROADCAST)) {
-			printk(KERN_INFO "SO_BROADCAST: Fix your netatalk as "
-					 "it will break before 2.2\n");
-#if 0
 			return -EPERM;
-#endif
 		}
 	} else {
 		if (sk->sk_state != TCP_ESTABLISHED)

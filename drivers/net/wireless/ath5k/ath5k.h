@@ -204,9 +204,9 @@
 #define AR5K_TUNE_CWMAX_11B			1023
 #define AR5K_TUNE_CWMAX_XR			7
 #define AR5K_TUNE_NOISE_FLOOR			-72
-#define AR5K_TUNE_MAX_TXPOWER			60
-#define AR5K_TUNE_DEFAULT_TXPOWER		30
-#define AR5K_TUNE_TPC_TXPOWER			true
+#define AR5K_TUNE_MAX_TXPOWER			63
+#define AR5K_TUNE_DEFAULT_TXPOWER		25
+#define AR5K_TUNE_TPC_TXPOWER			false
 #define AR5K_TUNE_ANT_DIVERSITY			true
 #define AR5K_TUNE_HWTXTRIES			4
 
@@ -551,11 +551,11 @@ enum ath5k_pkt_type {
  */
 #define AR5K_TXPOWER_OFDM(_r, _v)	(			\
 	((0 & 1) << ((_v) + 6)) |				\
-	(((ah->ah_txpower.txp_rates[(_r)]) & 0x3f) << (_v))	\
+	(((ah->ah_txpower.txp_rates_power_table[(_r)]) & 0x3f) << (_v))	\
 )
 
 #define AR5K_TXPOWER_CCK(_r, _v)	(			\
-	(ah->ah_txpower.txp_rates[(_r)] & 0x3f) << (_v)	\
+	(ah->ah_txpower.txp_rates_power_table[(_r)] & 0x3f) << (_v)	\
 )
 
 /*
@@ -1085,13 +1085,25 @@ struct ath5k_hw {
 	struct ath5k_gain	ah_gain;
 	u8			ah_offset[AR5K_MAX_RF_BANKS];
 
+
 	struct {
-		u16		txp_pcdac[AR5K_EEPROM_POWER_TABLE_SIZE];
-		u16		txp_rates[AR5K_MAX_RATES];
-		s16		txp_min;
-		s16		txp_max;
+		/* Temporary tables used for interpolation */
+		u8		tmpL[AR5K_EEPROM_N_PD_GAINS]
+					[AR5K_EEPROM_POWER_TABLE_SIZE];
+		u8		tmpR[AR5K_EEPROM_N_PD_GAINS]
+					[AR5K_EEPROM_POWER_TABLE_SIZE];
+		u8		txp_pd_table[AR5K_EEPROM_POWER_TABLE_SIZE * 2];
+		u16		txp_rates_power_table[AR5K_MAX_RATES];
+		u8		txp_min_idx;
 		bool		txp_tpc;
+		/* Values in 0.25dB units */
+		s16		txp_min_pwr;
+		s16		txp_max_pwr;
+		s16		txp_offset;
 		s16		txp_ofdm;
+		/* Values in dB units */
+		s16		txp_cck_ofdm_pwr_delta;
+		s16		txp_cck_ofdm_gainf_delta;
 	} ah_txpower;
 
 	struct {
@@ -1161,6 +1173,7 @@ extern void ath5k_hw_update_mib_counters(struct ath5k_hw *ah, struct ieee80211_l
 
 /* EEPROM access functions */
 extern int ath5k_eeprom_init(struct ath5k_hw *ah);
+extern void ath5k_eeprom_detach(struct ath5k_hw *ah);
 extern int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac);
 extern bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah);
 
@@ -1256,8 +1269,8 @@ extern void ath5k_hw_set_def_antenna(struct ath5k_hw *ah, unsigned int ant);
 extern unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah);
 extern int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* TX power setup */
-extern int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel, unsigned int txpower);
-extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, unsigned int power);
+extern int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel, u8 ee_mode, u8 txpower);
+extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 ee_mode, u8 txpower);
 
 /*
  * Functions used internaly

@@ -16,6 +16,7 @@
  */
 
 #include "be.h"
+#include <asm/div64.h>
 
 MODULE_VERSION(DRV_VER);
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -290,6 +291,17 @@ static struct net_device_stats *be_get_stats(struct net_device *dev)
 	return &adapter->stats.net_stats;
 }
 
+static u32 be_calc_rate(u64 bytes, unsigned long ticks)
+{
+	u64 rate = bytes;
+
+	do_div(rate, ticks / HZ);
+	rate <<= 3;			/* bytes/sec -> bits/sec */
+	do_div(rate, 1000000ul);	/* MB/Sec */
+
+	return rate;
+}
+
 static void be_tx_rate_update(struct be_adapter *adapter)
 {
 	struct be_drvr_stats *stats = drvr_stats(adapter);
@@ -303,11 +315,9 @@ static void be_tx_rate_update(struct be_adapter *adapter)
 
 	/* Update tx rate once in two seconds */
 	if ((now - stats->be_tx_jiffies) > 2 * HZ) {
-		u32 r;
-		r = (stats->be_tx_bytes - stats->be_tx_bytes_prev) /
-			((now - stats->be_tx_jiffies) / HZ);
-		r = r / 1000000;			/* M bytes/s */
-		stats->be_tx_rate = r * 8;	/* M bits/s */
+		stats->be_tx_rate = be_calc_rate(stats->be_tx_bytes
+						  - stats->be_tx_bytes_prev,
+						 now - stats->be_tx_jiffies);
 		stats->be_tx_jiffies = now;
 		stats->be_tx_bytes_prev = stats->be_tx_bytes;
 	}
@@ -599,7 +609,6 @@ static void be_rx_rate_update(struct be_adapter *adapter)
 {
 	struct be_drvr_stats *stats = drvr_stats(adapter);
 	ulong now = jiffies;
-	u32 rate;
 
 	/* Wrapped around */
 	if (time_before(now, stats->be_rx_jiffies)) {
@@ -611,10 +620,9 @@ static void be_rx_rate_update(struct be_adapter *adapter)
 	if ((now - stats->be_rx_jiffies) < 2 * HZ)
 		return;
 
-	rate = (stats->be_rx_bytes - stats->be_rx_bytes_prev) /
-		((now - stats->be_rx_jiffies) / HZ);
-	rate = rate / 1000000;	/* MB/Sec */
-	stats->be_rx_rate = rate * 8; 	/* Mega Bits/Sec */
+	stats->be_rx_rate = be_calc_rate(stats->be_rx_bytes
+					  - stats->be_rx_bytes_prev,
+					 now - stats->be_rx_jiffies);
 	stats->be_rx_jiffies = now;
 	stats->be_rx_bytes_prev = stats->be_rx_bytes;
 }

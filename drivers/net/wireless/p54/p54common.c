@@ -21,9 +21,9 @@
 #include <linux/etherdevice.h>
 
 #include <net/mac80211.h>
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_P54_LEDS
 #include <linux/leds.h>
-#endif /* CONFIG_MAC80211_LEDS */
+#endif /* CONFIG_P54_LEDS */
 
 #include "p54.h"
 #include "p54common.h"
@@ -2420,7 +2420,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 	return 0;
 }
 
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_P54_LEDS
 static void p54_led_brightness_set(struct led_classdev *led_dev,
 				   enum led_brightness brightness)
 {
@@ -2508,7 +2508,7 @@ static void p54_unregister_leds(struct ieee80211_hw *dev)
 	if (priv->assoc_led.registered)
 		led_classdev_unregister(&priv->assoc_led.led_dev);
 }
-#endif /* CONFIG_MAC80211_LEDS */
+#endif /* CONFIG_P54_LEDS */
 
 static const struct ieee80211_ops p54_ops = {
 	.tx			= p54_tx,
@@ -2592,11 +2592,11 @@ int p54_register_common(struct ieee80211_hw *dev, struct device *pdev)
 		return err;
 	}
 
-	#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_P54_LEDS
 	err = p54_init_leds(dev);
 	if (err)
 		return err;
-	#endif /* CONFIG_MAC80211_LEDS */
+#endif /* CONFIG_P54_LEDS */
 
 	dev_info(pdev, "is registered as '%s'\n", wiphy_name(dev->wiphy));
 	return 0;
@@ -2610,9 +2610,9 @@ void p54_free_common(struct ieee80211_hw *dev)
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);
 
-	#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_P54_LEDS
 	p54_unregister_leds(dev);
-	#endif /* CONFIG_MAC80211_LEDS */
+#endif /* CONFIG_P54_LEDS */
 }
 EXPORT_SYMBOL_GPL(p54_free_common);
 

@@ -191,7 +191,8 @@ struct mdio_ops {
 };
 
 struct adapter_info {
-	unsigned char nports;	/* # of ports */
+	unsigned char nports0;        /* # of ports on channel 0 */
+	unsigned char nports1;        /* # of ports on channel 1 */
 	unsigned char phy_base_addr;	/* MDIO PHY base address */
 	unsigned int gpio_out;	/* GPIO output settings */
 	unsigned char gpio_intr[MAX_NPORTS]; /* GPIO PHY IRQ pins */
@@ -422,6 +423,7 @@ struct adapter_params {
 	unsigned short b_wnd[NCCTRL_WIN];
 
 	unsigned int nports;	/* # of ethernet ports */
+	unsigned int chan_map;  /* bitmap of in-use Tx channels */
 	unsigned int stats_update_period;	/* MAC stats accumulation period */
 	unsigned int linkpoll_period;	/* link poll period in 0.1s */
 	unsigned int rev;	/* chip revision */

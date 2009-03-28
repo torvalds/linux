@@ -149,11 +149,6 @@ struct ieee80211_tx_data {
 
 	struct ieee80211_channel *channel;
 
-	/* Extra fragments (in addition to the first fragment
-	 * in skb) */
-	struct sk_buff **extra_frag;
-	int num_extra_frag;
-
 	u16 ethertype;
 	unsigned int flags;
 };
@@ -187,12 +182,6 @@ struct ieee80211_rx_data {
 	int queue;
 	u32 tkip_iv32;
 	u16 tkip_iv16;
-};
-
-struct ieee80211_tx_stored_packet {
-	struct sk_buff *skb;
-	struct sk_buff **extra_frag;
-	int num_extra_frag;
 };
 
 struct beacon_data {
@@ -247,8 +236,9 @@ struct mesh_preq_queue {
 #define IEEE80211_STA_ASSOCIATED	BIT(4)
 #define IEEE80211_STA_PROBEREQ_POLL	BIT(5)
 #define IEEE80211_STA_CREATE_IBSS	BIT(6)
-#define IEEE80211_STA_MIXED_CELL	BIT(7)
+/* hole at 7, please re-use */
 #define IEEE80211_STA_WMM_ENABLED	BIT(8)
+/* hole at 9, please re-use */
 #define IEEE80211_STA_AUTO_SSID_SEL	BIT(10)
 #define IEEE80211_STA_AUTO_BSSID_SEL	BIT(11)
 #define IEEE80211_STA_AUTO_CHANNEL_SEL	BIT(12)
@@ -256,6 +246,7 @@ struct mesh_preq_queue {
 #define IEEE80211_STA_TKIP_WEP_USED	BIT(14)
 #define IEEE80211_STA_CSA_RECEIVED	BIT(15)
 #define IEEE80211_STA_MFP_ENABLED	BIT(16)
+#define IEEE80211_STA_EXT_SME		BIT(17)
 /* flags for MLME request */
 #define IEEE80211_STA_REQ_SCAN 0
 #define IEEE80211_STA_REQ_DIRECT_PROBE 1
@@ -266,12 +257,14 @@ struct mesh_preq_queue {
 #define IEEE80211_AUTH_ALG_OPEN BIT(0)
 #define IEEE80211_AUTH_ALG_SHARED_KEY BIT(1)
 #define IEEE80211_AUTH_ALG_LEAP BIT(2)
+#define IEEE80211_AUTH_ALG_FT BIT(3)
 
 struct ieee80211_if_managed {
 	struct timer_list timer;
 	struct timer_list chswitch_timer;
 	struct work_struct work;
 	struct work_struct chswitch_work;
+	struct work_struct beacon_loss_work;
 
 	u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
 
@@ -305,6 +298,7 @@ struct ieee80211_if_managed {
 	unsigned long request;
 
 	unsigned long last_probe;
+	unsigned long last_beacon;
 
 	unsigned int flags;
 
@@ -321,20 +315,8 @@ struct ieee80211_if_managed {
 	int wmm_last_param_set;
 
 	/* Extra IE data for management frames */
-	u8 *ie_probereq;
-	size_t ie_probereq_len;
-	u8 *ie_proberesp;
-	size_t ie_proberesp_len;
-	u8 *ie_auth;
-	size_t ie_auth_len;
-	u8 *ie_assocreq;
-	size_t ie_assocreq_len;
-	u8 *ie_reassocreq;
-	size_t ie_reassocreq_len;
-	u8 *ie_deauth;
-	size_t ie_deauth_len;
-	u8 *ie_disassoc;
-	size_t ie_disassoc_len;
+	u8 *sme_auth_ie;
+	size_t sme_auth_ie_len;
 };
 
 enum ieee80211_ibss_flags {
@@ -421,7 +403,6 @@ struct ieee80211_if_mesh {
  *
  * @IEEE80211_SDATA_ALLMULTI: interface wants all multicast packets
  * @IEEE80211_SDATA_PROMISC: interface is promisc
- * @IEEE80211_SDATA_USERSPACE_MLME: userspace MLME is active
  * @IEEE80211_SDATA_OPERATING_GMODE: operating in G-only mode
  * @IEEE80211_SDATA_DONT_BRIDGE_PACKETS: bridge packets between
  *	associated stations and deliver multicast frames both
@@ -430,9 +411,8 @@ struct ieee80211_if_mesh {
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
 	IEEE80211_SDATA_PROMISC			= BIT(1),
-	IEEE80211_SDATA_USERSPACE_MLME		= BIT(2),
-	IEEE80211_SDATA_OPERATING_GMODE		= BIT(3),
-	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(4),
+	IEEE80211_SDATA_OPERATING_GMODE		= BIT(2),
+	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 };
 
 struct ieee80211_sub_if_data {
@@ -598,6 +578,8 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_PS,
 	IEEE80211_QUEUE_STOP_REASON_CSA,
 	IEEE80211_QUEUE_STOP_REASON_AGGREGATION,
+	IEEE80211_QUEUE_STOP_REASON_SUSPEND,
+	IEEE80211_QUEUE_STOP_REASON_PENDING,
 };
 
 struct ieee80211_master_priv {
@@ -612,12 +594,7 @@ struct ieee80211_local {
 
 	const struct ieee80211_ops *ops;
 
-	/* AC queue corresponding to each AMPDU queue */
-	s8 ampdu_ac_queue[IEEE80211_MAX_AMPDU_QUEUES];
-	unsigned int amdpu_ac_stop_refcnt[IEEE80211_MAX_AMPDU_QUEUES];
-
-	unsigned long queue_stop_reasons[IEEE80211_MAX_QUEUES +
-					 IEEE80211_MAX_AMPDU_QUEUES];
+	unsigned long queue_stop_reasons[IEEE80211_MAX_QUEUES];
 	/* also used to protect ampdu_ac_queue and amdpu_ac_stop_refcnt */
 	spinlock_t queue_stop_reason_lock;
 
@@ -654,10 +631,16 @@ struct ieee80211_local {
 	struct sta_info *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
 
-	unsigned long queues_pending[BITS_TO_LONGS(IEEE80211_MAX_QUEUES)];
-	unsigned long queues_pending_run[BITS_TO_LONGS(IEEE80211_MAX_QUEUES)];
-	struct ieee80211_tx_stored_packet pending_packet[IEEE80211_MAX_QUEUES];
+	struct sk_buff_head pending[IEEE80211_MAX_QUEUES];
 	struct tasklet_struct tx_pending_tasklet;
+
+	/*
+	 * This lock is used to prevent concurrent A-MPDU
+	 * session start/stop processing, this thus also
+	 * synchronises the ->ampdu_action() callback to
+	 * drivers and limits it to one at a time.
+	 */
+	spinlock_t ampdu_lock;
 
 	/* number of interfaces with corresponding IFF_ flags */
 	atomic_t iff_allmultis, iff_promiscs;
@@ -774,6 +757,7 @@ struct ieee80211_local {
 		struct dentry *total_ps_buffered;
 		struct dentry *wep_iv;
 		struct dentry *tsf;
+		struct dentry *reset;
 		struct dentry *statistics;
 		struct local_debugfsdentries_statsdentries {
 			struct dentry *transmitted_fragment_count;
@@ -969,7 +953,7 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata,
 		  struct sk_buff *skb,
 		  struct ieee80211_rx_status *rx_status);
 int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
-			       char *ie, size_t len);
+			       const char *ie, size_t len);
 
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
 void ieee80211_scan_failed(struct ieee80211_local *local);
@@ -1053,8 +1037,19 @@ void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 				 u8 pwr_constr_elem_len);
 
 /* Suspend/resume */
+#ifdef CONFIG_PM
 int __ieee80211_suspend(struct ieee80211_hw *hw);
 int __ieee80211_resume(struct ieee80211_hw *hw);
+#else
+static inline int __ieee80211_suspend(struct ieee80211_hw *hw)
+{
+	return 0;
+}
+static inline int __ieee80211_resume(struct ieee80211_hw *hw)
+{
+	return 0;
+}
+#endif
 
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */
@@ -1081,6 +1076,9 @@ void ieee80211_dynamic_ps_timer(unsigned long data);
 void ieee80211_send_nullfunc(struct ieee80211_local *local,
 			     struct ieee80211_sub_if_data *sdata,
 			     int powersave);
+void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
+			     struct ieee80211_hdr *hdr);
+void ieee80211_beacon_loss_work(struct work_struct *work);
 
 void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
 				     enum queue_stop_reason reason);

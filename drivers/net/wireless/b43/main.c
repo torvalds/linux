@@ -3993,6 +3993,8 @@ static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 	dev->irq_reason = 0;
 	memset(dev->dma_reason, 0, sizeof(dev->dma_reason));
 	dev->irq_savedstate = B43_IRQ_MASKTEMPLATE;
+	if (b43_modparam_verbose < B43_VERBOSITY_DEBUG)
+		dev->irq_savedstate &= ~B43_IRQ_PHY_TXERR;
 
 	dev->mac_suspended = 1;
 

@@ -341,6 +341,8 @@ void ath5k_hw_detach(struct ath5k_hw *ah)
 	if (ah->ah_rf_banks != NULL)
 		kfree(ah->ah_rf_banks);
 
+	ath5k_eeprom_detach(ah);
+
 	/* assume interrupts are down */
 	kfree(ah);
 }

@@ -269,6 +269,11 @@ static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
 
 	return 0;
 }
+
+static int icmpv6_nlattr_tuple_size(void)
+{
+	return nla_policy_len(icmpv6_nla_policy, CTA_PROTO_MAX + 1);
+}
 #endif
 
 #ifdef CONFIG_SYSCTL
@@ -300,6 +305,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
 	.error			= icmpv6_error,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nlattr	= icmpv6_tuple_to_nlattr,
+	.nlattr_tuple_size	= icmpv6_nlattr_tuple_size,
 	.nlattr_to_tuple	= icmpv6_nlattr_to_tuple,
 	.nla_policy		= icmpv6_nla_policy,
 #endif
