@@ -20,7 +20,7 @@ static int detect_memory_e820(void)
 {
 	int count = 0;
 	u32 next = 0;
-	u32 size, id;
+	u32 size, id, edi;
 	u8 err;
 	struct e820entry *desc = boot_params.e820_map;
 
@@ -29,10 +29,11 @@ static int detect_memory_e820(void)
 
 		/* Important: %edx and %esi are clobbered by some BIOSes,
 		   so they must be either used for the error output
-		   or explicitly marked clobbered. */
-		asm("int $0x15; setc %0"
+		   or explicitly marked clobbered.  Given that, assume there
+		   is something out there clobbering %ebp and %edi, too. */
+		asm("pushl %%ebp; int $0x15; popl %%ebp; setc %0"
 		    : "=d" (err), "+b" (next), "=a" (id), "+c" (size),
-		      "=m" (*desc)
+		      "=D" (edi), "=m" (*desc)
 		    : "D" (desc), "d" (SMAP), "a" (0xe820)
 		    : "esi");
 
