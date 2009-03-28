@@ -867,7 +867,7 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",data_err=abort");
 
 	if (test_opt(sb, NO_AUTO_DA_ALLOC))
-		seq_puts(seq, ",auto_da_alloc=0");
+		seq_puts(seq, ",noauto_da_alloc");
 
 	ext4_show_quota_options(seq, sb);
 	return 0;
@@ -1018,7 +1018,7 @@ enum {
 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic, Opt_err_ro,
 	Opt_nouid32, Opt_debug, Opt_oldalloc, Opt_orlov,
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
-	Opt_auto_da_alloc, Opt_noload, Opt_nobh, Opt_bh,
+	Opt_auto_da_alloc, Opt_noauto_da_alloc, Opt_noload, Opt_nobh, Opt_bh,
 	Opt_commit, Opt_min_batch_time, Opt_max_batch_time,
 	Opt_journal_update, Opt_journal_dev,
 	Opt_journal_checksum, Opt_journal_async_commit,
@@ -1026,8 +1026,8 @@ enum {
 	Opt_data_err_abort, Opt_data_err_ignore,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
-	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
-	Opt_grpquota, Opt_i_version,
+	Opt_ignore, Opt_barrier, Opt_nobarrier, Opt_err, Opt_resize,
+	Opt_usrquota, Opt_grpquota, Opt_i_version,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc,
 	Opt_inode_readahead_blks, Opt_journal_ioprio
 };
@@ -1080,6 +1080,8 @@ static const match_table_t tokens = {
 	{Opt_quota, "quota"},
 	{Opt_usrquota, "usrquota"},
 	{Opt_barrier, "barrier=%u"},
+	{Opt_barrier, "barrier"},
+	{Opt_nobarrier, "nobarrier"},
 	{Opt_i_version, "i_version"},
 	{Opt_stripe, "stripe=%u"},
 	{Opt_resize, "resize"},
@@ -1088,6 +1090,8 @@ static const match_table_t tokens = {
 	{Opt_inode_readahead_blks, "inode_readahead_blks=%u"},
 	{Opt_journal_ioprio, "journal_ioprio=%u"},
 	{Opt_auto_da_alloc, "auto_da_alloc=%u"},
+	{Opt_auto_da_alloc, "auto_da_alloc"},
+	{Opt_noauto_da_alloc, "noauto_da_alloc"},
 	{Opt_err, NULL},
 };
 
@@ -1422,9 +1426,14 @@ set_qf_format:
 		case Opt_abort:
 			set_opt(sbi->s_mount_opt, ABORT);
 			break;
+		case Opt_nobarrier:
+			clear_opt(sbi->s_mount_opt, BARRIER);
+			break;
 		case Opt_barrier:
-			if (match_int(&args[0], &option))
-				return 0;
+			if (match_int(&args[0], &option)) {
+				set_opt(sbi->s_mount_opt, BARRIER);
+				break;
+			}
 			if (option)
 				set_opt(sbi->s_mount_opt, BARRIER);
 			else
@@ -1485,9 +1494,14 @@ set_qf_format:
 			*journal_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE,
 							    option);
 			break;
+		case Opt_noauto_da_alloc:
+			set_opt(sbi->s_mount_opt,NO_AUTO_DA_ALLOC);
+			break;
 		case Opt_auto_da_alloc:
-			if (match_int(&args[0], &option))
-				return 0;
+			if (match_int(&args[0], &option)) {
+				clear_opt(sbi->s_mount_opt, NO_AUTO_DA_ALLOC);
+				break;
+			}
 			if (option)
 				clear_opt(sbi->s_mount_opt, NO_AUTO_DA_ALLOC);
 			else
