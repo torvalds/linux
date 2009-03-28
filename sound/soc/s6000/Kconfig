@@ -8,3 +8,12 @@ config SND_S6000_SOC
 
 config SND_S6000_SOC_I2S
 	tristate
+
+config SND_S6000_SOC_S6IPCAM
+	tristate "SoC Audio support for Stretch 6105 IP Camera"
+	depends on SND_S6000_SOC && XTENSA_PLATFORM_S6105
+	select SND_S6000_SOC_I2S
+	select SND_SOC_TLV320AIC3X
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  Stretch s6105 IP Camera Reference Design.
