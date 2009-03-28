@@ -229,7 +229,7 @@ static struct resource i2c_resources[] = {
 static struct i2c_pca9564_pf_platform_data i2c_platform_data = {
 	.gpio			= 0,
 	.i2c_clock_speed	= I2C_PCA_CON_330kHz,
-	.timeout		= 100,
+	.timeout		= HZ,
 };
 
 static struct platform_device i2c_device = {
