@@ -116,7 +116,7 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 	} else {
 		/* Interrupt mode */
 		result = wait_event_interruptible_timeout(i2c->queue,
-			(i2c->interrupt & CSR_MIF), timeout * HZ);
+			(i2c->interrupt & CSR_MIF), timeout);
 
 		if (unlikely(result < 0)) {
 			pr_debug("I2C: wait interrupted\n");
@@ -311,7 +311,7 @@ static struct i2c_adapter mpc_ops = {
 	.owner = THIS_MODULE,
 	.name = "MPC adapter",
 	.algo = &mpc_algo,
-	.timeout = 1,
+	.timeout = HZ,
 };
 
 static int __devinit fsl_i2c_probe(struct of_device *op, const struct of_device_id *match)
