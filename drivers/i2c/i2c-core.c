@@ -581,7 +581,8 @@ static int i2c_do_del_adapter(struct device_driver *d, void *data)
 	struct i2c_client *client, *_n;
 	int res;
 
-	/* Remove the devices we created ourselves */
+	/* Remove the devices we created ourselves as the result of hardware
+	 * probing (using a driver's detect method) */
 	list_for_each_entry_safe(client, _n, &driver->clients, detected) {
 		if (client->adapter == adapter) {
 			dev_dbg(&adapter->dev, "Removing %s at 0x%x\n",
@@ -749,6 +750,8 @@ static int __detach_adapter(struct device *dev, void *data)
 	struct i2c_driver *driver = data;
 	struct i2c_client *client, *_n;
 
+	/* Remove the devices we created ourselves as the result of hardware
+	 * probing (using a driver's detect method) */
 	list_for_each_entry_safe(client, _n, &driver->clients, detected) {
 		dev_dbg(&adapter->dev, "Removing %s at 0x%x\n",
 			client->name, client->addr);
