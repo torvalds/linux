@@ -802,7 +802,8 @@ int peripheral_request(unsigned short per, const char *label)
 	 */
 	if (unlikely(!check_gpio(ident) &&
 	    reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
-		dump_stack();
+		if (system_state == SYSTEM_BOOTING)
+			dump_stack();
 		printk(KERN_ERR
 		       "%s: Peripheral %d is already reserved as GPIO by %s !\n",
 		       __func__, ident, get_label(ident));
@@ -830,7 +831,8 @@ int peripheral_request(unsigned short per, const char *label)
 			if (cmp_label(ident, label) == 0)
 				goto anyway;
 
-			dump_stack();
+			if (system_state == SYSTEM_BOOTING)
+				dump_stack();
 			printk(KERN_ERR
 			       "%s: Peripheral %d function %d is already reserved by %s !\n",
 			       __func__, ident, P_FUNCT2MUX(per), get_label(ident));
@@ -946,14 +948,16 @@ int bfin_gpio_request(unsigned gpio, const char *label)
 	}
 
 	if (unlikely(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
-		dump_stack();
+		if (system_state == SYSTEM_BOOTING)
+			dump_stack();
 		printk(KERN_ERR "bfin-gpio: GPIO %d is already reserved by %s !\n",
 		       gpio, get_label(gpio));
 		local_irq_restore_hw(flags);
 		return -EBUSY;
 	}
 	if (unlikely(reserved_peri_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
-		dump_stack();
+		if (system_state == SYSTEM_BOOTING)
+			dump_stack();
 		printk(KERN_ERR
 		       "bfin-gpio: GPIO %d is already reserved as Peripheral by %s !\n",
 		       gpio, get_label(gpio));
@@ -993,7 +997,8 @@ void bfin_gpio_free(unsigned gpio)
 	local_irq_save_hw(flags);
 
 	if (unlikely(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)))) {
-		dump_stack();
+		if (system_state == SYSTEM_BOOTING)
+			dump_stack();
 		gpio_error(gpio);
 		local_irq_restore_hw(flags);
 		return;
@@ -1017,7 +1022,8 @@ int bfin_gpio_irq_request(unsigned gpio, const char *label)
 	local_irq_save_hw(flags);
 
 	if (unlikely(reserved_gpio_irq_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
-		dump_stack();
+		if (system_state == SYSTEM_BOOTING)
+			dump_stack();
 		printk(KERN_ERR
 		       "bfin-gpio: GPIO %d is already reserved as gpio-irq !\n",
 		       gpio);
@@ -1025,7 +1031,8 @@ int bfin_gpio_irq_request(unsigned gpio, const char *label)
 		return -EBUSY;
 	}
 	if (unlikely(reserved_peri_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
-		dump_stack();
+		if (system_state == SYSTEM_BOOTING)
+			dump_stack();
 		printk(KERN_ERR
 		       "bfin-gpio: GPIO %d is already reserved as Peripheral by %s !\n",
 		       gpio, get_label(gpio));
@@ -1057,7 +1064,8 @@ void bfin_gpio_irq_free(unsigned gpio)
 	local_irq_save_hw(flags);
 
 	if (unlikely(!(reserved_gpio_irq_map[gpio_bank(gpio)] & gpio_bit(gpio)))) {
-		dump_stack();
+		if (system_state == SYSTEM_BOOTING)
+			dump_stack();
 		gpio_error(gpio);
 		local_irq_restore_hw(flags);
 		return;
