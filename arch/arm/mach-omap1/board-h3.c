@@ -50,6 +50,11 @@
 #include <mach/dma.h>
 #include <mach/common.h>
 
+#include "board-h3.h"
+
+/* In OMAP1710 H3 the Ethernet is directly connected to CS1 */
+#define OMAP1710_ETHR_START		0x04000300
+
 #define H3_TS_GPIO	48
 
 static int h3_keymap[] = {
@@ -418,7 +423,6 @@ static struct omap_lcd_config h3_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel h3_config[] __initdata = {
-	{ OMAP_TAG_USB,		&h3_usb_config },
 	{ OMAP_TAG_UART,	&h3_uart_config },
 	{ OMAP_TAG_LCD,		&h3_lcd_config },
 };
@@ -472,6 +476,7 @@ static void __init h3_init(void)
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, h3_i2c_board_info,
 			      ARRAY_SIZE(h3_i2c_board_info));
+	omap_usb_init(&h3_usb_config);
 	h3_mmc_init();
 }
 

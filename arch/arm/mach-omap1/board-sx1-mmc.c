@@ -17,6 +17,7 @@
 #include <mach/hardware.h>
 #include <mach/mmc.h>
 #include <mach/gpio.h>
+#include <mach/board-sx1.h>
 
 #if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
 

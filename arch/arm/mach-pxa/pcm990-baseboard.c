@@ -31,13 +31,12 @@
 #include <mach/i2c.h>
 #include <mach/camera.h>
 #include <asm/mach/map.h>
-#include <mach/pxa-regs.h>
+#include <mach/pxa27x.h>
 #include <mach/audio.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pcm990_baseboard.h>
 #include <mach/pxafb.h>
-#include <mach/mfp-pxa27x.h>
 
 #include "devices.h"
 #include "generic.h"

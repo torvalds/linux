@@ -44,6 +44,7 @@
     defined(CONFIG_MACH_MAINSTONE) ||\
     defined(CONFIG_MACH_ZYLONITE) ||\
     defined(CONFIG_MACH_LITTLETON) ||\
+    defined(CONFIG_MACH_ZYLONITE2) ||\
     defined(CONFIG_ARCH_VIPER)
 
 #include <asm/mach-types.h>
@@ -494,8 +495,6 @@ struct smc_local {
  */
 #include <linux/dma-mapping.h>
 #include <mach/dma.h>
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 
 #ifdef SMC_insl
 #undef SMC_insl

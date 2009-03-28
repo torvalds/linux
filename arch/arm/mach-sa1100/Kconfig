@@ -71,19 +71,9 @@ config SA1100_H3600
 	  <http://www.handhelds.org/Compaq/index.html#iPAQ_H3600>
 	  <http://www.compaq.com/products/handhelds/pocketpc/>
 
-config SA1100_H3800
-	bool "Compaq iPAQ H3800"
-	help
-	  Say Y here if you intend to run this kernel on the Compaq iPAQ H3800
-	  series handheld computer.  Information about this machine and the
-	  Linux port to this machine can be found at:
-
-	  <http://www.handhelds.org/Compaq/index.html#iPAQ_H3800>
-	  <http://www.compaq.com/products/handhelds/pocketpc/>
-
 config SA1100_H3XXX
 	bool
-	depends on SA1100_H3100 || SA1100_H3600 || SA1100_H3800
+	depends on SA1100_H3100 || SA1100_H3600
 	default y
 
 config SA1100_BADGE4
@@ -156,15 +146,6 @@ config SA1100_SSP
 	  Say Y here to enable support for the generic PIO SSP driver.
 	  This isn't for audio support, but for attached sensors and
 	  other devices, eg for BadgePAD 4 sensor support.
-
-config H3600_SLEEVE
-	tristate "Compaq iPAQ Handheld sleeve support"
-	depends on SA1100_H3100 || SA1100_H3600
-	help
-	  Choose this option to enable support for extension packs (sleeves)
-	  for the Compaq iPAQ H3XXX series of handheld computers.  This option
-	  is required for the CF, PCMCIA, Bluetooth and GSM/GPRS extension
-	  packs.
 
 endmenu
 

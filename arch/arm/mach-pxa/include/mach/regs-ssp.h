@@ -37,7 +37,6 @@
 #if defined(CONFIG_PXA25x)
 #define SSCR0_SCR	(0x0000ff00)	/* Serial Clock Rate (mask) */
 #define SSCR0_SerClkDiv(x) ((((x) - 2)/2) << 8) /* Divisor [2..512] */
-
 #elif defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define SSCR0_SCR	(0x000fff00)	/* Serial Clock Rate (mask) */
 #define SSCR0_SerClkDiv(x) (((x) - 1) << 8) /* Divisor [1..4096] */

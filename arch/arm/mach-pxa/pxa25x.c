@@ -25,9 +25,8 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
+#include <mach/gpio.h>
+#include <mach/pxa25x.h>
 #include <mach/reset.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
@@ -310,14 +309,14 @@ set_pwer:
 void __init pxa25x_init_irq(void)
 {
 	pxa_init_irq(32, pxa25x_set_wake);
-	pxa_init_gpio(85, pxa25x_set_wake);
+	pxa_init_gpio(IRQ_GPIO_2_x, 2, 84, pxa25x_set_wake);
 }
 
 #ifdef CONFIG_CPU_PXA26x
 void __init pxa26x_init_irq(void)
 {
 	pxa_init_irq(32, pxa25x_set_wake);
-	pxa_init_gpio(90, pxa25x_set_wake);
+	pxa_init_gpio(IRQ_GPIO_2_x, 2, 89, pxa25x_set_wake);
 }
 #endif
 
@@ -355,7 +354,7 @@ static int __init pxa25x_init(void)
 
 		clks_register(pxa25x_clkregs, ARRAY_SIZE(pxa25x_clkregs));
 
-		if ((ret = pxa_init_dma(16)))
+		if ((ret = pxa_init_dma(IRQ_DMA, 16)))
 			return ret;
 
 		pxa25x_init_pm();

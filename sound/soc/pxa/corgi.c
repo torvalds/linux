@@ -26,8 +26,6 @@
 #include <sound/soc-dapm.h>
 
 #include <asm/mach-types.h>
-#include <mach/pxa-regs.h>
-#include <mach/hardware.h>
 #include <mach/corgi.h>
 #include <mach/audio.h>
 

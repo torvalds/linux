@@ -506,11 +506,12 @@ static int __init uwire_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, uwire);
 
-	uwire->ck = clk_get(&pdev->dev, "armxor_ck");
-	if (!uwire->ck || IS_ERR(uwire->ck)) {
-		dev_dbg(&pdev->dev, "no mpu_xor_clk ?\n");
+	uwire->ck = clk_get(&pdev->dev, "fck");
+	if (IS_ERR(uwire->ck)) {
+		status = PTR_ERR(uwire->ck);
+		dev_dbg(&pdev->dev, "no functional clock?\n");
 		spi_master_put(master);
-		return -ENODEV;
+		return status;
 	}
 	clk_enable(uwire->ck);
 

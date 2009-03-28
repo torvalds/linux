@@ -40,6 +40,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/traps.h>
+#include <asm/unwind.h>
 
 #include "compat.h"
 #include "atags.h"
@@ -685,6 +686,8 @@ void __init setup_arch(char **cmdline_p)
 	struct machine_desc *mdesc;
 	char *from = default_command_line;
 
+	unwind_init();
+
 	setup_processor();
 	mdesc = setup_machine(machine_arch_type);
 	machine_name = mdesc->name;
@@ -780,6 +783,8 @@ static const char *hwcap_str[] = {
 	"crunch",
 	"thumbee",
 	"neon",
+	"vfpv3",
+	"vfpv3d16",
 	NULL
 };
 

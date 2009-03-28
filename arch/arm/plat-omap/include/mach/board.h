@@ -17,7 +17,6 @@
 /* Different peripheral ids */
 #define OMAP_TAG_CLOCK		0x4f01
 #define OMAP_TAG_SERIAL_CONSOLE 0x4f03
-#define OMAP_TAG_USB		0x4f04
 #define OMAP_TAG_LCD		0x4f05
 #define OMAP_TAG_GPIO_SWITCH	0x4f06
 #define OMAP_TAG_UART		0x4f07
@@ -132,9 +131,6 @@ struct omap_version_config {
 	char component[12];
 	char version[12];
 };
-
-
-#include <mach/board-nokia.h>
 
 struct omap_board_config_entry {
 	u16 tag;

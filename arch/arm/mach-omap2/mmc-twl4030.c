@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/i2c/twl4030.h>
+#include <linux/regulator/machine.h>
 
 #include <mach/hardware.h>
 #include <mach/control.h>
@@ -44,6 +45,7 @@
 #define VMMC2_315V		0x0c
 #define VMMC2_300V		0x0b
 #define VMMC2_285V		0x0a
+#define VMMC2_280V		0x09
 #define VMMC2_260V		0x08
 #define VMMC2_185V		0x06
 #define VMMC2_DEDICATED		0x2E
@@ -59,8 +61,8 @@ static struct twl_mmc_controller {
 	struct omap_mmc_platform_data	*mmc;
 	u8		twl_vmmc_dev_grp;
 	u8		twl_mmc_dedicated;
-	char		name[HSMMC_NAME_LEN];
-} hsmmc[] = {
+	char		name[HSMMC_NAME_LEN + 1];
+} hsmmc[OMAP34XX_NR_MMC] = {
 	{
 		.twl_vmmc_dev_grp		= VMMC1_DEV_GRP,
 		.twl_mmc_dedicated		= VMMC1_DEDICATED,
@@ -96,6 +98,14 @@ static int twl_mmc_get_ro(struct device *dev, int slot)
 
 	/* NOTE: assumes write protect signal is active-high */
 	return gpio_get_value_cansleep(mmc->slots[0].gpio_wp);
+}
+
+static int twl_mmc_get_cover_state(struct device *dev, int slot)
+{
+	struct omap_mmc_platform_data *mmc = dev->platform_data;
+
+	/* NOTE: assumes card detect signal is active-low */
+	return !gpio_get_value_cansleep(mmc->slots[0].switch_pin);
 }
 
 /*
@@ -166,66 +176,85 @@ static int twl_mmc_resume(struct device *dev, int slot)
 /*
  * Sets the MMC voltage in twl4030
  */
+
+#define MMC1_OCR	(MMC_VDD_165_195 \
+		|MMC_VDD_28_29|MMC_VDD_29_30|MMC_VDD_30_31|MMC_VDD_31_32)
+#define MMC2_OCR	(MMC_VDD_165_195 \
+		|MMC_VDD_25_26|MMC_VDD_26_27|MMC_VDD_27_28 \
+		|MMC_VDD_28_29|MMC_VDD_29_30|MMC_VDD_30_31|MMC_VDD_31_32)
+
 static int twl_mmc_set_voltage(struct twl_mmc_controller *c, int vdd)
 {
 	int ret;
-	u8 vmmc, dev_grp_val;
+	u8 vmmc = 0, dev_grp_val;
 
-	switch (1 << vdd) {
-	case MMC_VDD_35_36:
-	case MMC_VDD_34_35:
-	case MMC_VDD_33_34:
-	case MMC_VDD_32_33:
-	case MMC_VDD_31_32:
-	case MMC_VDD_30_31:
-		if (c->twl_vmmc_dev_grp == VMMC1_DEV_GRP)
-			vmmc = VMMC1_315V;
-		else
-			vmmc = VMMC2_315V;
-		break;
-	case MMC_VDD_29_30:
-		if (c->twl_vmmc_dev_grp == VMMC1_DEV_GRP)
-			vmmc = VMMC1_315V;
-		else
-			vmmc = VMMC2_300V;
-		break;
-	case MMC_VDD_27_28:
-	case MMC_VDD_26_27:
-		if (c->twl_vmmc_dev_grp == VMMC1_DEV_GRP)
-			vmmc = VMMC1_285V;
-		else
-			vmmc = VMMC2_285V;
-		break;
-	case MMC_VDD_25_26:
-	case MMC_VDD_24_25:
-	case MMC_VDD_23_24:
-	case MMC_VDD_22_23:
-	case MMC_VDD_21_22:
-	case MMC_VDD_20_21:
-		if (c->twl_vmmc_dev_grp == VMMC1_DEV_GRP)
-			vmmc = VMMC1_285V;
-		else
-			vmmc = VMMC2_260V;
-		break;
-	case MMC_VDD_165_195:
-		if (c->twl_vmmc_dev_grp == VMMC1_DEV_GRP)
+	if (!vdd)
+		goto doit;
+
+	if (c->twl_vmmc_dev_grp == VMMC1_DEV_GRP) {
+		/* VMMC1:  max 220 mA.  And for 8-bit mode,
+		 * VSIM:  max 50 mA
+		 */
+		switch (1 << vdd) {
+		case MMC_VDD_165_195:
 			vmmc = VMMC1_185V;
-		else
+			/* and VSIM_180V */
+			break;
+		case MMC_VDD_28_29:
+			vmmc = VMMC1_285V;
+			/* and VSIM_280V */
+			break;
+		case MMC_VDD_29_30:
+		case MMC_VDD_30_31:
+			vmmc = VMMC1_300V;
+			/* and VSIM_300V */
+			break;
+		case MMC_VDD_31_32:
+			vmmc = VMMC1_315V;
+			/* error if VSIM needed */
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else if (c->twl_vmmc_dev_grp == VMMC2_DEV_GRP) {
+		/* VMMC2:  max 100 mA */
+		switch (1 << vdd) {
+		case MMC_VDD_165_195:
 			vmmc = VMMC2_185V;
-		break;
-	default:
-		vmmc = 0;
-		break;
+			break;
+		case MMC_VDD_25_26:
+		case MMC_VDD_26_27:
+			vmmc = VMMC2_260V;
+			break;
+		case MMC_VDD_27_28:
+			vmmc = VMMC2_280V;
+			break;
+		case MMC_VDD_28_29:
+			vmmc = VMMC2_285V;
+			break;
+		case MMC_VDD_29_30:
+		case MMC_VDD_30_31:
+			vmmc = VMMC2_300V;
+			break;
+		case MMC_VDD_31_32:
+			vmmc = VMMC2_315V;
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		return -EINVAL;
 	}
 
-	if (vmmc)
+doit:
+	if (vdd)
 		dev_grp_val = VMMC_DEV_GRP_P1;	/* Power up */
 	else
 		dev_grp_val = LDO_CLR;		/* Power down */
 
 	ret = twl4030_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
 					dev_grp_val, c->twl_vmmc_dev_grp);
-	if (ret)
+	if (ret || !vdd)
 		return ret;
 
 	ret = twl4030_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
@@ -242,6 +271,14 @@ static int twl_mmc1_set_power(struct device *dev, int slot, int power_on,
 	struct twl_mmc_controller *c = &hsmmc[0];
 	struct omap_mmc_platform_data *mmc = dev->platform_data;
 
+	/*
+	 * Assume we power both OMAP VMMC1 (for CMD, CLK, DAT0..3) and the
+	 * card using the same TWL VMMC1 supply (hsmmc[0]); OMAP has both
+	 * 1.8V and 3.0V modes, controlled by the PBIAS register.
+	 *
+	 * In 8-bit modes, OMAP VMMC1A (for DAT4..7) needs a supply, which
+	 * is most naturally TWL VSIM; those pins also use PBIAS.
+	 */
 	if (power_on) {
 		if (cpu_is_omap2430()) {
 			reg = omap_ctrl_readl(OMAP243X_CONTROL_DEVCONF1);
@@ -298,6 +335,12 @@ static int twl_mmc2_set_power(struct device *dev, int slot, int power_on, int vd
 	struct twl_mmc_controller *c = &hsmmc[1];
 	struct omap_mmc_platform_data *mmc = dev->platform_data;
 
+	/*
+	 * Assume TWL VMMC2 (hsmmc[1]) is used only to power the card ... OMAP
+	 * VDDS is used to power the pins, optionally with a transceiver to
+	 * support cards using voltages other than VDDS (1.8V nominal).  When a
+	 * transceiver is used, DAT3..7 are muxed as transceiver control pins.
+	 */
 	if (power_on) {
 		if (mmc->slots[0].internal_clock) {
 			u32 reg;
@@ -312,6 +355,16 @@ static int twl_mmc2_set_power(struct device *dev, int slot, int power_on, int vd
 	}
 
 	return ret;
+}
+
+static int twl_mmc3_set_power(struct device *dev, int slot, int power_on,
+		int vdd)
+{
+	/*
+	 * Assume MMC3 has self-powered device connected, for example on-board
+	 * chip with external power source.
+	 */
+	return 0;
 }
 
 static struct omap_mmc_platform_data *hsmmc_data[OMAP34XX_NR_MMC] __initdata;
@@ -349,13 +402,13 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 			return;
 		}
 
-		sprintf(twl->name, "mmc%islot%i", c->mmc, 1);
+		if (c->name)
+			strncpy(twl->name, c->name, HSMMC_NAME_LEN);
+		else
+			snprintf(twl->name, ARRAY_SIZE(twl->name),
+				"mmc%islot%i", c->mmc, 1);
 		mmc->slots[0].name = twl->name;
 		mmc->nr_slots = 1;
-		mmc->slots[0].ocr_mask = MMC_VDD_165_195 |
-					MMC_VDD_26_27 | MMC_VDD_27_28 |
-					MMC_VDD_29_30 |
-					MMC_VDD_30_31 | MMC_VDD_31_32;
 		mmc->slots[0].wires = c->wires;
 		mmc->slots[0].internal_clock = !c->ext_clock;
 		mmc->dma_mask = 0xffffffff;
@@ -369,7 +422,10 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 
 			mmc->slots[0].switch_pin = c->gpio_cd;
 			mmc->slots[0].card_detect_irq = gpio_to_irq(c->gpio_cd);
-			mmc->slots[0].card_detect = twl_mmc_card_detect;
+			if (c->cover_only)
+				mmc->slots[0].get_cover_state = twl_mmc_get_cover_state;
+			else
+				mmc->slots[0].card_detect = twl_mmc_card_detect;
 		} else
 			mmc->slots[0].switch_pin = -EINVAL;
 
@@ -385,24 +441,43 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 
 		/* NOTE:  we assume OMAP's MMC1 and MMC2 use
 		 * the TWL4030's VMMC1 and VMMC2, respectively;
-		 * and that OMAP's MMC3 isn't used.
+		 * and that MMC3 device has it's own power source.
 		 */
 
 		switch (c->mmc) {
 		case 1:
 			mmc->slots[0].set_power = twl_mmc1_set_power;
+			mmc->slots[0].ocr_mask = MMC1_OCR;
 			break;
 		case 2:
 			mmc->slots[0].set_power = twl_mmc2_set_power;
+			if (c->transceiver)
+				mmc->slots[0].ocr_mask = MMC2_OCR;
+			else
+				mmc->slots[0].ocr_mask = MMC_VDD_165_195;
+			break;
+		case 3:
+			mmc->slots[0].set_power = twl_mmc3_set_power;
+			mmc->slots[0].ocr_mask = MMC_VDD_165_195;
 			break;
 		default:
 			pr_err("MMC%d configuration not supported!\n", c->mmc);
+			kfree(mmc);
 			continue;
 		}
 		hsmmc_data[c->mmc - 1] = mmc;
 	}
 
 	omap2_init_mmc(hsmmc_data, OMAP34XX_NR_MMC);
+
+	/* pass the device nodes back to board setup code */
+	for (c = controllers; c->mmc; c++) {
+		struct omap_mmc_platform_data *mmc = hsmmc_data[c->mmc - 1];
+
+		if (!c->mmc || c->mmc > nr_hsmmc)
+			continue;
+		c->dev = mmc->dev;
+	}
 }
 
 #endif

@@ -22,10 +22,10 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/input.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/hardware/iomd.h>
 
 MODULE_AUTHOR("Vojtech Pavlik, Russell King");

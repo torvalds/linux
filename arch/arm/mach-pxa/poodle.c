@@ -36,9 +36,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
+#include <mach/pxa25x.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/i2c.h>
@@ -503,12 +501,12 @@ static struct platform_device *devices[] __initdata = {
 
 static void poodle_poweroff(void)
 {
-	arm_machine_restart('h');
+	arm_machine_restart('h', NULL);
 }
 
-static void poodle_restart(char mode)
+static void poodle_restart(char mode, const char *cmd)
 {
-	arm_machine_restart('h');
+	arm_machine_restart('h', cmd);
 }
 
 static void __init poodle_init(void)

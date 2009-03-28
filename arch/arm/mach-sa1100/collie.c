@@ -25,6 +25,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/timer.h>
+#include <linux/gpio.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -145,7 +146,8 @@ static struct locomo_driver collie_uart_driver = {
 	.remove	= collie_uart_remove,
 };
 
-static int __init collie_uart_init(void) {
+static int __init collie_uart_init(void)
+{
 	return locomo_driver_register(&collie_uart_driver);
 }
 device_initcall(collie_uart_init);
@@ -195,18 +197,34 @@ static struct mtd_partition collie_partitions[] = {
 	}
 };
 
+static int collie_flash_init(void)
+{
+	int rc = gpio_request(COLLIE_GPIO_VPEN, "flash Vpp enable");
+	if (rc)
+		return rc;
+
+	rc = gpio_direction_output(COLLIE_GPIO_VPEN, 1);
+	if (rc)
+		gpio_free(COLLIE_GPIO_VPEN);
+
+	return rc;
+}
+
 static void collie_set_vpp(int vpp)
 {
-	write_scoop_reg(&colliescoop_device.dev, SCOOP_GPCR, read_scoop_reg(&colliescoop_device.dev, SCOOP_GPCR) | COLLIE_SCP_VPEN);
-	if (vpp)
-		write_scoop_reg(&colliescoop_device.dev, SCOOP_GPWR, read_scoop_reg(&colliescoop_device.dev, SCOOP_GPWR) | COLLIE_SCP_VPEN);
-	else
-		write_scoop_reg(&colliescoop_device.dev, SCOOP_GPWR, read_scoop_reg(&colliescoop_device.dev, SCOOP_GPWR) & ~COLLIE_SCP_VPEN);
+	gpio_set_value(COLLIE_GPIO_VPEN, vpp);
+}
+
+static void collie_flash_exit(void)
+{
+	gpio_free(COLLIE_GPIO_VPEN);
 }
 
 static struct flash_platform_data collie_flash_data = {
 	.map_name	= "cfi_probe",
+	.init		= collie_flash_init,
 	.set_vpp	= collie_set_vpp,
+	.exit		= collie_flash_exit,
 	.parts		= collie_partitions,
 	.nr_parts	= ARRAY_SIZE(collie_partitions),
 };

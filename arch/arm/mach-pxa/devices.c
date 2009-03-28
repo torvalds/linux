@@ -4,7 +4,6 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
-#include <mach/pxa-regs.h>
 #include <mach/udc.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>

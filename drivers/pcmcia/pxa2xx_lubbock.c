@@ -24,7 +24,6 @@
 #include <mach/hardware.h>
 #include <asm/hardware/sa1111.h>
 #include <asm/mach-types.h>
-#include <mach/pxa-regs.h>
 #include <mach/lubbock.h>
 
 #include "sa1111_generic.h"

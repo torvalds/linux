@@ -103,7 +103,7 @@ static struct platform_suspend_ops omap_pm_ops = {
 	.valid		= suspend_valid_only_mem,
 };
 
-int __init omap2_pm_init(void)
+static int __init omap2_pm_init(void)
 {
 	return 0;
 }

@@ -43,6 +43,13 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
+#define PALMTT_USBDETECT_GPIO	0
+#define PALMTT_CABLE_GPIO	1
+#define PALMTT_LED_GPIO		3
+#define PALMTT_PENIRQ_GPIO	6
+#define PALMTT_MMC_WP_GPIO	8
+#define PALMTT_HDQ_GPIO		11
+
 static int palmtt_keymap[] = {
 	KEY(0, 0, KEY_ESC),
 	KEY(0, 1, KEY_SPACE),
@@ -272,7 +279,6 @@ static struct omap_uart_config palmtt_uart_config __initdata = {
 };
 
 static struct omap_board_config_kernel palmtt_config[] __initdata = {
-	{ OMAP_TAG_USB,		&palmtt_usb_config	},
 	{ OMAP_TAG_LCD,		&palmtt_lcd_config	},
 	{ OMAP_TAG_UART,	&palmtt_uart_config	},
 };
@@ -297,6 +303,7 @@ static void __init omap_palmtt_init(void)
 
 	spi_register_board_info(palmtt_boardinfo,ARRAY_SIZE(palmtt_boardinfo));
 	omap_serial_init();
+	omap_usb_init(&palmtt_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 

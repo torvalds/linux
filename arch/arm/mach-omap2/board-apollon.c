@@ -51,6 +51,7 @@
 
 #define APOLLON_FLASH_CS	0
 #define APOLLON_ETH_CS		1
+#define APOLLON_ETHR_GPIO_IRQ	74
 
 static struct mtd_partition apollon_partitions[] = {
 	{
@@ -249,7 +250,7 @@ out:
 
 static void __init omap_apollon_init_irq(void)
 {
-	omap2_init_common_hw();
+	omap2_init_common_hw(NULL);
 	omap_init_irq();
 	omap_gpio_init();
 	apollon_init_smc91x();
@@ -272,7 +273,6 @@ static struct omap_lcd_config apollon_lcd_config __initdata = {
 
 static struct omap_board_config_kernel apollon_config[] = {
 	{ OMAP_TAG_UART,	&apollon_uart_config },
-	{ OMAP_TAG_USB,		&apollon_usb_config },
 	{ OMAP_TAG_LCD,		&apollon_lcd_config },
 };
 
@@ -299,6 +299,7 @@ static void __init apollon_usb_init(void)
 	omap_cfg_reg(P21_242X_GPIO12);
 	gpio_request(12, "USB suspend");
 	gpio_direction_output(12, 0);
+	omap_usb_init(&apollon_usb_config);
 }
 
 static void __init omap_apollon_init(void)

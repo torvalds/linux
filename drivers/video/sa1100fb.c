@@ -176,9 +176,9 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/mach-types.h>
 #include <mach/assabet.h>
 #include <mach/shannon.h>
@@ -249,22 +249,6 @@ static struct sa1100fb_mach_info pal_info __initdata = {
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(512),
 };
 #endif
-#endif
-
-#ifdef CONFIG_SA1100_H3800
-static struct sa1100fb_mach_info h3800_info __initdata = {
-	.pixclock	= 174757, 	.bpp		= 16,
-	.xres		= 320,		.yres		= 240,
-
-	.hsync_len	= 3,		.vsync_len	= 3,
-	.left_margin	= 12,		.upper_margin	= 10,
-	.right_margin	= 17,		.lower_margin	= 1,
-
-	.cmap_static	= 1,
-
-	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
-};
 #endif
 
 #ifdef CONFIG_SA1100_H3600
@@ -430,11 +414,6 @@ sa1100fb_get_machine_info(struct sa1100fb_info *fbi)
 	if (machine_is_h3600()) {
 		inf = &h3600_info;
 		fbi->rgb[RGB_16] = &h3600_rgb_16;
-	}
-#endif
-#ifdef CONFIG_SA1100_H3800
-	if (machine_is_h3800()) {
-		inf = &h3800_info;
 	}
 #endif
 #ifdef CONFIG_SA1100_COLLIE

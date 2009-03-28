@@ -222,6 +222,19 @@ static struct resource realview_pb1176_smsc911x_resources[] = {
 	},
 };
 
+static struct resource realview_pb1176_isp1761_resources[] = {
+	[0] = {
+		.start		= REALVIEW_PB1176_USB_BASE,
+		.end		= REALVIEW_PB1176_USB_BASE + SZ_128K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= IRQ_PB1176_USB,
+		.end		= IRQ_PB1176_USB,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
 static void __init gic_init_irq(void)
 {
 	/* ARM1176 DevChip GIC, primary */
@@ -260,6 +273,8 @@ static void __init realview_pb1176_init(void)
 
 	realview_flash_register(&realview_pb1176_flash_resource, 1);
 	realview_eth_register(NULL, realview_pb1176_smsc911x_resources);
+	platform_device_register(&realview_i2c_device);
+	realview_usb_register(realview_pb1176_isp1761_resources);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
