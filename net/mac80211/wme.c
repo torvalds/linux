@@ -99,10 +99,13 @@ static u16 classify80211(struct ieee80211_local *local, struct sk_buff *skb)
 	/* in case we are a client verify acm is not set for this ac */
 	while (unlikely(local->wmm_acm & BIT(skb->priority))) {
 		if (wme_downgrade_ac(skb)) {
-			/* The old code would drop the packet in this
-			 * case.
+			/*
+			 * This should not really happen. The AP has marked all
+			 * lower ACs to require admission control which is not
+			 * a reasonable configuration. Allow the frame to be
+			 * transmitted using AC_BK as a workaround.
 			 */
-			return 0;
+			break;
 		}
 	}
 
@@ -114,9 +117,7 @@ u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
 	struct ieee80211_local *local = mpriv->local;
-	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	struct sta_info *sta;
 	u16 queue;
 	u8 tid;
 
@@ -124,29 +125,11 @@ u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb)
 	if (unlikely(queue >= local->hw.queues))
 		queue = local->hw.queues - 1;
 
-	if (skb->requeue) {
-		if (!hw->ampdu_queues)
-			return queue;
-
-		rcu_read_lock();
-		sta = sta_info_get(local, hdr->addr1);
-		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
-		if (sta) {
-			int ampdu_queue = sta->tid_to_tx_q[tid];
-
-			if ((ampdu_queue < ieee80211_num_queues(hw)) &&
-			    test_bit(ampdu_queue, local->queue_pool))
-				queue = ampdu_queue;
-		}
-		rcu_read_unlock();
-
-		return queue;
-	}
-
-	/* Now we know the 1d priority, fill in the QoS header if
-	 * there is one.
+	/*
+	 * Now we know the 1d priority, fill in the QoS header if
+	 * there is one (and we haven't done this before).
 	 */
-	if (ieee80211_is_data_qos(hdr->frame_control)) {
+	if (!skb->requeue && ieee80211_is_data_qos(hdr->frame_control)) {
 		u8 *p = ieee80211_get_qos_ctl(hdr);
 		u8 ack_policy = 0;
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
@@ -156,140 +139,7 @@ u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb)
 		/* qos header is 2 bytes, second reserved */
 		*p++ = ack_policy | tid;
 		*p = 0;
-
-		if (!hw->ampdu_queues)
-			return queue;
-
-		rcu_read_lock();
-
-		sta = sta_info_get(local, hdr->addr1);
-		if (sta) {
-			int ampdu_queue = sta->tid_to_tx_q[tid];
-
-			if ((ampdu_queue < ieee80211_num_queues(hw)) &&
-			    test_bit(ampdu_queue, local->queue_pool))
-				queue = ampdu_queue;
-		}
-
-		rcu_read_unlock();
 	}
 
 	return queue;
-}
-
-int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
-			       struct sta_info *sta, u16 tid)
-{
-	int i;
-
-	/* XXX: currently broken due to cb/requeue use */
-	return -EPERM;
-
-	/* prepare the filter and save it for the SW queue
-	 * matching the received HW queue */
-
-	if (!local->hw.ampdu_queues)
-		return -EPERM;
-
-	/* try to get a Qdisc from the pool */
-	for (i = local->hw.queues; i < ieee80211_num_queues(&local->hw); i++)
-		if (!test_and_set_bit(i, local->queue_pool)) {
-			ieee80211_stop_queue(local_to_hw(local), i);
-			sta->tid_to_tx_q[tid] = i;
-
-			/* IF there are already pending packets
-			 * on this tid first we need to drain them
-			 * on the previous queue
-			 * since HT is strict in order */
-#ifdef CONFIG_MAC80211_HT_DEBUG
-			if (net_ratelimit())
-				printk(KERN_DEBUG "allocated aggregation queue"
-					" %d tid %d addr %pM pool=0x%lX\n",
-					i, tid, sta->sta.addr,
-					local->queue_pool[0]);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
-			return 0;
-		}
-
-	return -EAGAIN;
-}
-
-/**
- * the caller needs to hold netdev_get_tx_queue(local->mdev, X)->lock
- */
-void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
-				   struct sta_info *sta, u16 tid,
-				   u8 requeue)
-{
-	int agg_queue = sta->tid_to_tx_q[tid];
-	struct ieee80211_hw *hw = &local->hw;
-
-	/* return the qdisc to the pool */
-	clear_bit(agg_queue, local->queue_pool);
-	sta->tid_to_tx_q[tid] = ieee80211_num_queues(hw);
-
-	if (requeue) {
-		ieee80211_requeue(local, agg_queue);
-	} else {
-		struct netdev_queue *txq;
-		spinlock_t *root_lock;
-		struct Qdisc *q;
-
-		txq = netdev_get_tx_queue(local->mdev, agg_queue);
-		q = rcu_dereference(txq->qdisc);
-		root_lock = qdisc_lock(q);
-
-		spin_lock_bh(root_lock);
-		qdisc_reset(q);
-		spin_unlock_bh(root_lock);
-	}
-}
-
-void ieee80211_requeue(struct ieee80211_local *local, int queue)
-{
-	struct netdev_queue *txq = netdev_get_tx_queue(local->mdev, queue);
-	struct sk_buff_head list;
-	spinlock_t *root_lock;
-	struct Qdisc *qdisc;
-	u32 len;
-
-	rcu_read_lock_bh();
-
-	qdisc = rcu_dereference(txq->qdisc);
-	if (!qdisc || !qdisc->dequeue)
-		goto out_unlock;
-
-	skb_queue_head_init(&list);
-
-	root_lock = qdisc_root_lock(qdisc);
-	spin_lock(root_lock);
-	for (len = qdisc->q.qlen; len > 0; len--) {
-		struct sk_buff *skb = qdisc->dequeue(qdisc);
-
-		if (skb)
-			__skb_queue_tail(&list, skb);
-	}
-	spin_unlock(root_lock);
-
-	for (len = list.qlen; len > 0; len--) {
-		struct sk_buff *skb = __skb_dequeue(&list);
-		u16 new_queue;
-
-		BUG_ON(!skb);
-		new_queue = ieee80211_select_queue(local->mdev, skb);
-		skb_set_queue_mapping(skb, new_queue);
-
-		txq = netdev_get_tx_queue(local->mdev, new_queue);
-
-
-		qdisc = rcu_dereference(txq->qdisc);
-		root_lock = qdisc_root_lock(qdisc);
-
-		spin_lock(root_lock);
-		qdisc_enqueue_root(skb, qdisc);
-		spin_unlock(root_lock);
-	}
-
-out_unlock:
-	rcu_read_unlock_bh();
 }

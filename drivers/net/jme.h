@@ -25,7 +25,7 @@
 #define __JME_H_INCLUDED__
 
 #define DRV_NAME	"jme"
-#define DRV_VERSION	"1.0.3"
+#define DRV_VERSION	"1.0.4"
 #define PFX		DRV_NAME ": "
 
 #define PCI_DEVICE_ID_JMICRON_JMC250	0x0250
@@ -398,15 +398,15 @@ struct jme_ring {
 #define JME_NAPI_WEIGHT(w) int w
 #define JME_NAPI_WEIGHT_VAL(w) w
 #define JME_NAPI_WEIGHT_SET(w, r)
-#define JME_RX_COMPLETE(dev, napis) netif_rx_complete(napis)
+#define JME_RX_COMPLETE(dev, napis) napi_complete(napis)
 #define JME_NAPI_ENABLE(priv) napi_enable(&priv->napi);
 #define JME_NAPI_DISABLE(priv) \
 	if (!napi_disable_pending(&priv->napi)) \
 		napi_disable(&priv->napi);
 #define JME_RX_SCHEDULE_PREP(priv) \
-	netif_rx_schedule_prep(&priv->napi)
+	napi_schedule_prep(&priv->napi)
 #define JME_RX_SCHEDULE(priv) \
-	__netif_rx_schedule(&priv->napi);
+	__napi_schedule(&priv->napi);
 
 /*
  * Jmac Adapter Private data

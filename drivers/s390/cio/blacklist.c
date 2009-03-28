@@ -336,8 +336,7 @@ cio_ignore_write(struct file *file, const char __user *user_buf,
 		 size_t user_len, loff_t *offset)
 {
 	char *buf;
-	size_t i;
-	ssize_t rc, ret;
+	ssize_t rc, ret, i;
 
 	if (*offset)
 		return -EINVAL;

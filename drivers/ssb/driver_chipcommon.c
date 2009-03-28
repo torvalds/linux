@@ -26,19 +26,6 @@ enum ssb_clksrc {
 };
 
 
-static inline u32 chipco_read32(struct ssb_chipcommon *cc,
-				u16 offset)
-{
-	return ssb_read32(cc->dev, offset);
-}
-
-static inline void chipco_write32(struct ssb_chipcommon *cc,
-				  u16 offset,
-				  u32 value)
-{
-	ssb_write32(cc->dev, offset, value);
-}
-
 static inline u32 chipco_write32_masked(struct ssb_chipcommon *cc, u16 offset,
 					u32 mask, u32 value)
 {
@@ -246,6 +233,7 @@ void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 {
 	if (!cc->dev)
 		return; /* We don't have a ChipCommon */
+	ssb_pmu_init(cc);
 	chipco_powercontrol_init(cc);
 	ssb_chipco_set_clockmode(cc, SSB_CLKMODE_FAST);
 	calc_fast_powerup_delay(cc);

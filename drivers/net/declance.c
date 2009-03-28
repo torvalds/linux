@@ -1027,7 +1027,7 @@ static int __init dec_lance_probe(struct device *bdev, const int type)
 		printk(version);
 
 	if (bdev)
-		snprintf(name, sizeof(name), "%s", bdev->bus_id);
+		snprintf(name, sizeof(name), "%s", dev_name(bdev));
 	else {
 		i = 0;
 		dev = root_lance_dev;
@@ -1105,10 +1105,10 @@ static int __init dec_lance_probe(struct device *bdev, const int type)
 
 		start = to_tc_dev(bdev)->resource.start;
 		len = to_tc_dev(bdev)->resource.end - start + 1;
-		if (!request_mem_region(start, len, bdev->bus_id)) {
+		if (!request_mem_region(start, len, dev_name(bdev))) {
 			printk(KERN_ERR
 			       "%s: Unable to reserve MMIO resource\n",
-			       bdev->bus_id);
+			       dev_name(bdev));
 			ret = -EBUSY;
 			goto err_out_dev;
 		}

@@ -4135,10 +4135,9 @@ static int have_no_fdc = -ENODEV;
 static ssize_t floppy_cmos_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct platform_device *p;
+	struct platform_device *p = to_platform_device(dev);
 	int drive;
 
-	p = container_of(dev, struct platform_device,dev);
 	drive = p->id;
 	return sprintf(buf, "%X\n", UDP->cmos);
 }

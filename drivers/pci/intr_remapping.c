@@ -21,7 +21,7 @@ struct irq_2_iommu {
 	u8  irte_mask;
 };
 
-#ifdef CONFIG_SPARSE_IRQ
+#ifdef CONFIG_GENERIC_HARDIRQS
 static struct irq_2_iommu *get_one_free_irq_2_iommu(int cpu)
 {
 	struct irq_2_iommu *iommu;

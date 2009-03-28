@@ -65,7 +65,7 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #endif
 };
 
-static int sa11x0_drv_pcmcia_probe(struct device *dev)
+static int sa11x0_drv_pcmcia_probe(struct platform_device *dev)
 {
 	int i, ret = -ENODEV;
 
@@ -73,7 +73,7 @@ static int sa11x0_drv_pcmcia_probe(struct device *dev)
 	 * Initialise any "on-board" PCMCIA sockets.
 	 */
 	for (i = 0; i < ARRAY_SIZE(sa11x0_pcmcia_hw_init); i++) {
-		ret = sa11x0_pcmcia_hw_init[i](dev);
+		ret = sa11x0_pcmcia_hw_init[i](&dev->dev);
 		if (ret == 0)
 			break;
 	}
@@ -81,13 +81,31 @@ static int sa11x0_drv_pcmcia_probe(struct device *dev)
 	return ret;
 }
 
-static struct device_driver sa11x0_pcmcia_driver = {
+static int sa11x0_drv_pcmcia_remove(struct platform_device *dev)
+{
+	return soc_common_drv_pcmcia_remove(&dev->dev);
+}
+
+static int sa11x0_drv_pcmcia_suspend(struct platform_device *dev,
+				     pm_message_t state)
+{
+	return pcmcia_socket_dev_suspend(&dev->dev, state);
+}
+
+static int sa11x0_drv_pcmcia_resume(struct platform_device *dev)
+{
+	return pcmcia_socket_dev_resume(&dev->dev);
+}
+
+static struct platform_driver sa11x0_pcmcia_driver = {
+	.driver = {
+		.name		= "sa11x0-pcmcia",
+		.owner		= THIS_MODULE,
+	},
 	.probe		= sa11x0_drv_pcmcia_probe,
-	.remove		= soc_common_drv_pcmcia_remove,
-	.name		= "sa11x0-pcmcia",
-	.bus		= &platform_bus_type,
-	.suspend 	= pcmcia_socket_dev_suspend,
-	.resume 	= pcmcia_socket_dev_resume,
+	.remove		= sa11x0_drv_pcmcia_remove,
+	.suspend 	= sa11x0_drv_pcmcia_suspend,
+	.resume 	= sa11x0_drv_pcmcia_resume,
 };
 
 /* sa11x0_pcmcia_init()
@@ -100,7 +118,7 @@ static struct device_driver sa11x0_pcmcia_driver = {
  */
 static int __init sa11x0_pcmcia_init(void)
 {
-	return driver_register(&sa11x0_pcmcia_driver);
+	return platform_driver_register(&sa11x0_pcmcia_driver);
 }
 
 /* sa11x0_pcmcia_exit()
@@ -110,7 +128,7 @@ static int __init sa11x0_pcmcia_init(void)
  */
 static void __exit sa11x0_pcmcia_exit(void)
 {
-	driver_unregister(&sa11x0_pcmcia_driver);
+	platform_driver_unregister(&sa11x0_pcmcia_driver);
 }
 
 MODULE_AUTHOR("John Dorsey <john+@cs.cmu.edu>");

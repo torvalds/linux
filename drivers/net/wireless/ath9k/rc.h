@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004 Sam Leffler, Errno Consulting
  * Copyright (c) 2004 Video54 Technologies, Inc.
- * Copyright (c) 2008 Atheros Communications Inc.
+ * Copyright (c) 2008-2009 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,13 +19,12 @@
 #ifndef RC_H
 #define RC_H
 
-#include "ath9k.h"
-
 struct ath_softc;
 
 #define ATH_RATE_MAX     30
 #define RATE_TABLE_SIZE  64
 #define MAX_TX_RATE_PHY  48
+#define WLAN_CTRL_FRAME_SIZE (2+2+6+4)
 
 /* VALID_ALL - valid for 20/40/Legacy,
  * VALID - Legacy only,
@@ -38,6 +37,20 @@ struct ath_softc;
 #define VALID_40   0x4
 #define VALID_2040 (VALID_20|VALID_40)
 #define VALID_ALL  (VALID_2040|VALID)
+
+enum {
+	WLAN_RC_PHY_OFDM,
+	WLAN_RC_PHY_CCK,
+	WLAN_RC_PHY_HT_20_SS,
+	WLAN_RC_PHY_HT_20_DS,
+	WLAN_RC_PHY_HT_40_SS,
+	WLAN_RC_PHY_HT_40_DS,
+	WLAN_RC_PHY_HT_20_SS_HGI,
+	WLAN_RC_PHY_HT_20_DS_HGI,
+	WLAN_RC_PHY_HT_40_SS_HGI,
+	WLAN_RC_PHY_HT_40_DS_HGI,
+	WLAN_RC_PHY_MAX
+};
 
 #define WLAN_RC_PHY_DS(_phy)   ((_phy == WLAN_RC_PHY_HT_20_DS)		\
 				|| (_phy == WLAN_RC_PHY_HT_40_DS)	\
@@ -90,7 +103,6 @@ struct ath_softc;
  */
 struct ath_rate_table {
 	int rate_cnt;
-	u8 rateCodeToIndex[256];
 	struct {
 		int valid;
 		int valid_single_stream;
@@ -108,8 +120,6 @@ struct ath_rate_table {
 		u8 sgi_index;
 		u8 ht_index;
 		u32 max_4ms_framelen;
-		u16 lpAckDuration;
-		u16 spAckDuration;
 	} info[RATE_TABLE_SIZE];
 	u32 probe_interval;
 	u32 rssi_reduce_interval;
@@ -184,11 +194,19 @@ struct ath_rate_priv {
 	struct ath_rate_softc *asc;
 };
 
+enum ath9k_internal_frame_type {
+	ATH9K_NOT_INTERNAL,
+	ATH9K_INT_PAUSE,
+	ATH9K_INT_UNPAUSE
+};
+
 struct ath_tx_info_priv {
+	struct ath_wiphy *aphy;
 	struct ath_tx_status tx;
 	int n_frames;
 	int n_bad_frames;
 	bool update_rc;
+	enum ath9k_internal_frame_type frame_type;
 };
 
 #define ATH_TX_INFO_PRIV(tx_info) \

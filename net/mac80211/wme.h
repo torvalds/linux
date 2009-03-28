@@ -21,11 +21,5 @@
 extern const int ieee802_1d_to_ac[8];
 
 u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb);
-int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
-			       struct sta_info *sta, u16 tid);
-void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
-				   struct sta_info *sta, u16 tid,
-				   u8 requeue);
-void ieee80211_requeue(struct ieee80211_local *local, int queue);
 
 #endif /* _WME_H */

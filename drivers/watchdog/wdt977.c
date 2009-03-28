@@ -401,7 +401,7 @@ static long wdt977_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		if (wdt977_set_timeout(new_timeout))
-		    return -EINVAL;
+			return -EINVAL;
 
 		wdt977_keepalive();
 		/* Fall */

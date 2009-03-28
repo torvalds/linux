@@ -181,6 +181,7 @@ struct ucred {
 #define AF_ASH		18	/* Ash				*/
 #define AF_ECONET	19	/* Acorn Econet			*/
 #define AF_ATMSVC	20	/* ATM SVCs			*/
+#define AF_RDS		21	/* RDS sockets 			*/
 #define AF_SNA		22	/* Linux SNA Project (nutters!) */
 #define AF_IRDA		23	/* IRDA sockets			*/
 #define AF_PPPOX	24	/* PPPoX sockets		*/
@@ -219,6 +220,7 @@ struct ucred {
 #define PF_ASH		AF_ASH
 #define PF_ECONET	AF_ECONET
 #define PF_ATMSVC	AF_ATMSVC
+#define PF_RDS		AF_RDS
 #define PF_SNA		AF_SNA
 #define PF_IRDA		AF_IRDA
 #define PF_PPPOX	AF_PPPOX
@@ -300,6 +302,7 @@ struct ucred {
 #define SOL_PPPOL2TP	273
 #define SOL_BLUETOOTH	274
 #define SOL_PNPIPE	275
+#define SOL_RDS		276
 
 /* IPX options */
 #define IPX_TYPE	1

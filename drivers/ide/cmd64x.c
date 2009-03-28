@@ -333,7 +333,7 @@ static int cmd646_1_dma_end(ide_drive_t *drive)
 	return (dma_stat & 7) != 4;
 }
 
-static unsigned int init_chipset_cmd64x(struct pci_dev *dev)
+static int init_chipset_cmd64x(struct pci_dev *dev)
 {
 	u8 mrdmode = 0;
 

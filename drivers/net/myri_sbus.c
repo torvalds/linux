@@ -748,7 +748,7 @@ static int myri_rebuild_header(struct sk_buff *skb)
 	switch (eth->h_proto)
 	{
 #ifdef CONFIG_INET
-	case __constant_htons(ETH_P_IP):
+	case cpu_to_be16(ETH_P_IP):
  		return arp_find(eth->h_dest, skb);
 #endif
 
@@ -894,6 +894,17 @@ static const struct header_ops myri_header_ops = {
 	.rebuild	= myri_rebuild_header,
 	.cache	 	= myri_header_cache,
 	.cache_update	= myri_header_cache_update,
+};
+
+static const struct net_device_ops myri_ops = {
+	.ndo_open		= myri_open,
+	.ndo_stop		= myri_close,
+	.ndo_start_xmit		= myri_start_xmit,
+	.ndo_set_multicast_list	= myri_set_multicast,
+	.ndo_tx_timeout		= myri_tx_timeout,
+	.ndo_change_mtu		= myri_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 };
 
 static int __devinit myri_sbus_probe(struct of_device *op, const struct of_device_id *match)
@@ -1048,13 +1059,9 @@ static int __devinit myri_sbus_probe(struct of_device *op, const struct of_devic
 	sbus_writel((1 << i), mp->cregs + MYRICTRL_IRQLVL);
 
 	mp->dev = dev;
-	dev->open = &myri_open;
-	dev->stop = &myri_close;
-	dev->hard_start_xmit = &myri_start_xmit;
-	dev->tx_timeout = &myri_tx_timeout;
 	dev->watchdog_timeo = 5*HZ;
-	dev->set_multicast_list = &myri_set_multicast;
 	dev->irq = op->irqs[0];
+	dev->netdev_ops = &myri_ops;
 
 	/* Register interrupt handler now. */
 	DET(("Requesting MYRIcom IRQ line.\n"));
@@ -1065,7 +1072,6 @@ static int __devinit myri_sbus_probe(struct of_device *op, const struct of_devic
 	}
 
 	dev->mtu		= MYRINET_MTU;
-	dev->change_mtu		= myri_change_mtu;
 	dev->header_ops		= &myri_header_ops;
 
 	dev->hard_header_len	= (ETH_HLEN + MYRI_PAD_LEN);

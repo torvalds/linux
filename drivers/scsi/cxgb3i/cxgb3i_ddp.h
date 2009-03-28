@@ -185,12 +185,11 @@ static inline int cxgb3i_is_ddp_tag(struct cxgb3i_tag_format *tformat, u32 tag)
 }
 
 /**
- * cxgb3i_sw_tag_usable - check if a given s/w tag has enough bits left for
- *			  the reserved/hw bits
+ * cxgb3i_sw_tag_usable - check if s/w tag has enough bits left for hw bits
  * @tformat: tag format information
  * @sw_tag: s/w tag to be checked
  *
- * return true if the tag is a ddp tag, false otherwise.
+ * return true if the tag can be used for hw ddp tag, false otherwise.
  */
 static inline int cxgb3i_sw_tag_usable(struct cxgb3i_tag_format *tformat,
 					u32 sw_tag)
@@ -222,8 +221,7 @@ static inline u32 cxgb3i_set_non_ddp_tag(struct cxgb3i_tag_format *tformat,
 }
 
 /**
- * cxgb3i_ddp_tag_base - shift the s/w tag bits so that reserved bits are not
- *			 used.
+ * cxgb3i_ddp_tag_base - shift s/w tag bits so that reserved bits are not used
  * @tformat: tag format information
  * @sw_tag: s/w tag to be checked
  */

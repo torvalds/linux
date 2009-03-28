@@ -14,21 +14,22 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/numa.h>
+#include <linux/ftrace.h>
+#include <linux/suspend.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
 
-typedef NORET_TYPE void (*relocate_new_kernel_t)(
-				unsigned long indirection_page,
-				unsigned long reboot_code_buffer,
-				unsigned long start_address,
-				unsigned long vbr_reg) ATTRIB_NORET;
+typedef void (*relocate_new_kernel_t)(unsigned long indirection_page,
+				      unsigned long reboot_code_buffer,
+				      unsigned long start_address);
 
 extern const unsigned char relocate_new_kernel[];
 extern const unsigned int relocate_new_kernel_size;
 extern void *gdb_vbr_vector;
+extern void *vbr_base;
 
 void machine_shutdown(void)
 {
@@ -45,6 +46,12 @@ void machine_crash_shutdown(struct pt_regs *regs)
  */
 int machine_kexec_prepare(struct kimage *image)
 {
+	/* older versions of kexec-tools are passing
+	 * the zImage entry point as a virtual address.
+	 */
+	if (image->start != PHYSADDR(image->start))
+		return -EINVAL; /* upgrade your kexec-tools */
+
 	return 0;
 }
 
@@ -73,17 +80,33 @@ static void kexec_info(struct kimage *image)
  */
 void machine_kexec(struct kimage *image)
 {
-
 	unsigned long page_list;
 	unsigned long reboot_code_buffer;
-	unsigned long vbr_reg;
 	relocate_new_kernel_t rnk;
+	unsigned long entry;
+	unsigned long *ptr;
+	int save_ftrace_enabled;
 
-#if defined(CONFIG_SH_STANDARD_BIOS)
-	vbr_reg = ((unsigned long )gdb_vbr_vector) - 0x100;
-#else
-	vbr_reg = 0x80000000;  // dummy
+	/*
+	 * Nicked from the mips version of machine_kexec():
+	 * The generic kexec code builds a page list with physical
+	 * addresses. Use phys_to_virt() to convert them to virtual.
+	 */
+	for (ptr = &image->head; (entry = *ptr) && !(entry & IND_DONE);
+	     ptr = (entry & IND_INDIRECTION) ?
+	       phys_to_virt(entry & PAGE_MASK) : ptr + 1) {
+		if (*ptr & IND_SOURCE || *ptr & IND_INDIRECTION ||
+		    *ptr & IND_DESTINATION)
+			*ptr = (unsigned long) phys_to_virt(*ptr);
+	}
+
+#ifdef CONFIG_KEXEC_JUMP
+	if (image->preserve_context)
+		save_processor_state();
 #endif
+
+	save_ftrace_enabled = __ftrace_enabled_save();
+
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
 
@@ -97,12 +120,37 @@ void machine_kexec(struct kimage *image)
 	memcpy((void *)reboot_code_buffer, relocate_new_kernel,
 						relocate_new_kernel_size);
 
-        kexec_info(image);
+	kexec_info(image);
 	flush_cache_all();
+
+#if defined(CONFIG_SH_STANDARD_BIOS)
+	asm volatile("ldc %0, vbr" :
+		     : "r" (((unsigned long) gdb_vbr_vector) - 0x100)
+		     : "memory");
+#endif
 
 	/* now call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
-	(*rnk)(page_list, reboot_code_buffer, P2SEGADDR(image->start), vbr_reg);
+	(*rnk)(page_list, reboot_code_buffer,
+	       (unsigned long)phys_to_virt(image->start));
+
+#ifdef CONFIG_KEXEC_JUMP
+	asm volatile("ldc %0, vbr" : : "r" (&vbr_base) : "memory");
+
+	if (image->preserve_context)
+		restore_processor_state();
+
+	/* Convert page list back to physical addresses, what a mess. */
+	for (ptr = &image->head; (entry = *ptr) && !(entry & IND_DONE);
+	     ptr = (*ptr & IND_INDIRECTION) ?
+	       phys_to_virt(*ptr & PAGE_MASK) : ptr + 1) {
+		if (*ptr & IND_SOURCE || *ptr & IND_INDIRECTION ||
+		    *ptr & IND_DESTINATION)
+			*ptr = virt_to_phys(*ptr);
+	}
+#endif
+
+	__ftrace_enabled_restore(save_ftrace_enabled);
 }
 
 void arch_crash_save_vmcoreinfo(void)

@@ -9,6 +9,7 @@ struct kvm_kpit_timer {
 	s64 period; /* unit: ns */
 	s64 scheduled;
 	atomic_t pending;
+	bool reinject;
 };
 
 struct kvm_kpit_channel_state {
@@ -45,6 +46,7 @@ struct kvm_pit {
 	struct kvm *kvm;
 	struct kvm_kpit_state pit_state;
 	int irq_source_id;
+	struct kvm_irq_mask_notifier mask_notifier;
 };
 
 #define KVM_PIT_BASE_ADDRESS	    0x40

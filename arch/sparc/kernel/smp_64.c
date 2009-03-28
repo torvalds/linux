@@ -1031,7 +1031,7 @@ void smp_fetch_global_regs(void)
  *    If the address space is non-shared (ie. mm->count == 1) we avoid
  *    cross calls when we want to flush the currently running process's
  *    tlb state.  This is done by clearing all cpu bits except the current
- *    processor's in current->active_mm->cpu_vm_mask and performing the
+ *    processor's in current->mm->cpu_vm_mask and performing the
  *    flush locally only.  This will force any subsequent cpus which run
  *    this task to flush the context from the local tlb if the process
  *    migrates to another cpu (again).
@@ -1074,7 +1074,7 @@ void smp_flush_tlb_pending(struct mm_struct *mm, unsigned long nr, unsigned long
 	u32 ctx = CTX_HWBITS(mm->context);
 	int cpu = get_cpu();
 
-	if (mm == current->active_mm && atomic_read(&mm->mm_users) == 1)
+	if (mm == current->mm && atomic_read(&mm->mm_users) == 1)
 		mm->cpu_vm_mask = cpumask_of_cpu(cpu);
 	else
 		smp_cross_call_masked(&xcall_flush_tlb_pending,

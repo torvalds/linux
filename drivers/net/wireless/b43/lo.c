@@ -36,8 +36,8 @@
 #include <linux/sched.h>
 
 
-static struct b43_lo_calib * b43_find_lo_calib(struct b43_txpower_lo_control *lo,
-					       const struct b43_bbatt *bbatt,
+static struct b43_lo_calib *b43_find_lo_calib(struct b43_txpower_lo_control *lo,
+					      const struct b43_bbatt *bbatt,
 					       const struct b43_rfatt *rfatt)
 {
 	struct b43_lo_calib *c;
@@ -138,7 +138,7 @@ static u16 lo_measure_feedthrough(struct b43_wldev *dev,
  * "pad_mix_gain" is the PAD Mixer Gain.
  */
 static u16 lo_txctl_register_table(struct b43_wldev *dev,
-				   u16 * value, u16 * pad_mix_gain)
+				   u16 *value, u16 *pad_mix_gain)
 {
 	struct b43_phy *phy = &dev->phy;
 	u16 reg, v, padmix;
@@ -225,14 +225,12 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 				radio_pctl_reg = tmp;
 		}
 	}
-	b43_radio_write16(dev, 0x43, (b43_radio_read16(dev, 0x43)
-				      & 0xFFF0) | radio_pctl_reg);
+	b43_radio_maskset(dev, 0x43, 0xFFF0, radio_pctl_reg);
 	b43_gphy_set_baseband_attenuation(dev, 2);
 
 	reg = lo_txctl_register_table(dev, &mask, NULL);
 	mask = ~mask;
-	b43_radio_write16(dev, reg, b43_radio_read16(dev, reg)
-			  & mask);
+	b43_radio_mask(dev, reg, mask);
 
 	if (has_tx_magnification(phy)) {
 		int i, j;
@@ -242,14 +240,10 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 
 		for (i = 0; i < ARRAY_SIZE(tx_magn_values); i++) {
 			tx_magn = tx_magn_values[i];
-			b43_radio_write16(dev, 0x52,
-					  (b43_radio_read16(dev, 0x52)
-					   & 0xFF0F) | tx_magn);
+			b43_radio_maskset(dev, 0x52, 0xFF0F, tx_magn);
 			for (j = 0; j < ARRAY_SIZE(tx_bias_values); j++) {
 				tx_bias = tx_bias_values[j];
-				b43_radio_write16(dev, 0x52,
-						  (b43_radio_read16(dev, 0x52)
-						   & 0xFFF0) | tx_bias);
+				b43_radio_maskset(dev, 0x52, 0xFFF0, tx_bias);
 				feedthrough =
 				    lo_measure_feedthrough(dev, 0, pga,
 							   trsw_rx);
@@ -269,8 +263,7 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 	} else {
 		lo->tx_magn = 0;
 		lo->tx_bias = 0;
-		b43_radio_write16(dev, 0x52, b43_radio_read16(dev, 0x52)
-				  & 0xFFF0);	/* TX bias == 0 */
+		b43_radio_mask(dev, 0x52, 0xFFF0);	/* TX bias == 0 */
 	}
 	lo->txctl_measured_time = jiffies;
 }
@@ -406,18 +399,10 @@ static void lo_measure_setup(struct b43_wldev *dev,
 		sav->phy_cck_14 = b43_phy_read(dev, B43_PHY_CCK(0x14));
 		sav->phy_hpwr_tssictl = b43_phy_read(dev, B43_PHY_HPWR_TSSICTL);
 
-		b43_phy_write(dev, B43_PHY_HPWR_TSSICTL,
-			      b43_phy_read(dev, B43_PHY_HPWR_TSSICTL)
-			      | 0x100);
-		b43_phy_write(dev, B43_PHY_EXTG(0x01),
-			      b43_phy_read(dev, B43_PHY_EXTG(0x01))
-			      | 0x40);
-		b43_phy_write(dev, B43_PHY_DACCTL,
-			      b43_phy_read(dev, B43_PHY_DACCTL)
-			      | 0x40);
-		b43_phy_write(dev, B43_PHY_CCK(0x14),
-			      b43_phy_read(dev, B43_PHY_CCK(0x14))
-			      | 0x200);
+		b43_phy_set(dev, B43_PHY_HPWR_TSSICTL, 0x100);
+		b43_phy_set(dev, B43_PHY_EXTG(0x01), 0x40);
+		b43_phy_set(dev, B43_PHY_DACCTL, 0x40);
+		b43_phy_set(dev, B43_PHY_CCK(0x14), 0x200);
 	}
 	if (phy->type == B43_PHYTYPE_B &&
 	    phy->radio_ver == 0x2050 && phy->radio_rev < 6) {
@@ -434,17 +419,10 @@ static void lo_measure_setup(struct b43_wldev *dev,
 		sav->phy_cck_3E = b43_phy_read(dev, B43_PHY_CCK(0x3E));
 		sav->phy_crs0 = b43_phy_read(dev, B43_PHY_CRS0);
 
-		b43_phy_write(dev, B43_PHY_CLASSCTL,
-			      b43_phy_read(dev, B43_PHY_CLASSCTL)
-			      & 0xFFFC);
-		b43_phy_write(dev, B43_PHY_CRS0, b43_phy_read(dev, B43_PHY_CRS0)
-			      & 0x7FFF);
-		b43_phy_write(dev, B43_PHY_ANALOGOVER,
-			      b43_phy_read(dev, B43_PHY_ANALOGOVER)
-			      | 0x0003);
-		b43_phy_write(dev, B43_PHY_ANALOGOVERVAL,
-			      b43_phy_read(dev, B43_PHY_ANALOGOVERVAL)
-			      & 0xFFFC);
+		b43_phy_mask(dev, B43_PHY_CLASSCTL, 0xFFFC);
+		b43_phy_mask(dev, B43_PHY_CRS0, 0x7FFF);
+		b43_phy_set(dev, B43_PHY_ANALOGOVER, 0x0003);
+		b43_phy_mask(dev, B43_PHY_ANALOGOVERVAL, 0xFFFC);
 		if (phy->type == B43_PHYTYPE_G) {
 			if ((phy->rev >= 7) &&
 			    (sprom->boardflags_lo & B43_BFL_EXTLNA)) {
@@ -558,8 +536,7 @@ static void lo_measure_restore(struct b43_wldev *dev,
 	b43_radio_write16(dev, 0x7A, sav->radio_7A);
 	if (!has_tx_magnification(phy)) {
 		tmp = sav->radio_52;
-		b43_radio_write16(dev, 0x52, (b43_radio_read16(dev, 0x52)
-					      & 0xFF0F) | tmp);
+		b43_radio_maskset(dev, 0x52, 0xFF0F, tmp);
 	}
 	b43_write16(dev, 0x3E2, sav->reg_3E2);
 	if (phy->type == B43_PHYTYPE_B &&
@@ -754,9 +731,9 @@ static void lo_probe_loctls_statemachine(struct b43_wldev *dev,
 }
 
 static
-struct b43_lo_calib * b43_calibrate_lo_setting(struct b43_wldev *dev,
-					       const struct b43_bbatt *bbatt,
-					       const struct b43_rfatt *rfatt)
+struct b43_lo_calib *b43_calibrate_lo_setting(struct b43_wldev *dev,
+					      const struct b43_bbatt *bbatt,
+					      const struct b43_rfatt *rfatt)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
@@ -778,12 +755,8 @@ struct b43_lo_calib * b43_calibrate_lo_setting(struct b43_wldev *dev,
 
 	txctl_reg = lo_txctl_register_table(dev, &txctl_value, &pad_mix_gain);
 
-	b43_radio_write16(dev, 0x43,
-			  (b43_radio_read16(dev, 0x43) & 0xFFF0)
-			  | rfatt->att);
-	b43_radio_write16(dev, txctl_reg,
-			  (b43_radio_read16(dev, txctl_reg) & ~txctl_value)
-			  | (rfatt->with_padmix) ? txctl_value : 0);
+	b43_radio_maskset(dev, 0x43, 0xFFF0, rfatt->att);
+	b43_radio_maskset(dev, txctl_reg, ~txctl_value, (rfatt->with_padmix ? txctl_value :0));
 
 	max_rx_gain = rfatt->att * 2;
 	max_rx_gain += bbatt->att / 2;
@@ -824,9 +797,9 @@ struct b43_lo_calib * b43_calibrate_lo_setting(struct b43_wldev *dev,
 /* Get a calibrated LO setting for the given attenuation values.
  * Might return a NULL pointer under OOM! */
 static
-struct b43_lo_calib * b43_get_calib_lo_settings(struct b43_wldev *dev,
-						const struct b43_bbatt *bbatt,
-						const struct b43_rfatt *rfatt)
+struct b43_lo_calib *b43_get_calib_lo_settings(struct b43_wldev *dev,
+					       const struct b43_bbatt *bbatt,
+					       const struct b43_rfatt *rfatt)
 {
 	struct b43_txpower_lo_control *lo = dev->phy.g->lo_control;
 	struct b43_lo_calib *c;

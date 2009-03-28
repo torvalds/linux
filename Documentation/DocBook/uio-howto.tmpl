@@ -42,6 +42,13 @@ GPL version 2.
 
 <revhistory>
 	<revision>
+	<revnumber>0.8</revnumber>
+	<date>2008-12-24</date>
+	<authorinitials>hjk</authorinitials>
+	<revremark>Added name attributes in mem and portio sysfs directories.
+		</revremark>
+	</revision>
+	<revision>
 	<revnumber>0.7</revnumber>
 	<date>2008-12-23</date>
 	<authorinitials>hjk</authorinitials>
@@ -303,10 +310,17 @@ interested in translating it, please email me
 	appear if the size of the mapping is not 0.
 </para>
 <para>
-	Each <filename>mapX/</filename> directory contains two read-only files
-	that show start address and size of the memory:
+	Each <filename>mapX/</filename> directory contains four read-only files
+	that show attributes of the memory:
 </para>
 <itemizedlist>
+<listitem>
+	<para>
+	<filename>name</filename>: A string identifier for this mapping. This
+	is optional, the string can be empty. Drivers can set this to make it
+	easier for userspace to find the correct mapping.
+	</para>
+</listitem>
 <listitem>
 	<para>
 	<filename>addr</filename>: The address of memory that can be mapped.
@@ -366,10 +380,17 @@ offset = N * getpagesize();
 	<filename>/sys/class/uio/uioX/portio/</filename>.
 </para>
 <para>
-	Each <filename>portX/</filename> directory contains three read-only
-	files that show start, size, and type of the port region:
+	Each <filename>portX/</filename> directory contains four read-only
+	files that show name, start, size, and type of the port region:
 </para>
 <itemizedlist>
+<listitem>
+	<para>
+	<filename>name</filename>: A string identifier for this port region.
+	The string is optional and can be empty. Drivers can set it to make it
+	easier for userspace to find a certain port region.
+	</para>
+</listitem>
 <listitem>
 	<para>
 	<filename>start</filename>: The first port of this region.

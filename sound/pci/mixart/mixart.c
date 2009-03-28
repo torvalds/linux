@@ -1366,12 +1366,12 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 		else
 			idx = index[dev] + i;
 		snprintf(tmpid, sizeof(tmpid), "%s-%d", id[dev] ? id[dev] : "MIXART", i);
-		card = snd_card_new(idx, tmpid, THIS_MODULE, 0);
+		err = snd_card_create(idx, tmpid, THIS_MODULE, 0, &card);
 
-		if (! card) {
+		if (err < 0) {
 			snd_printk(KERN_ERR "cannot allocate the card %d\n", i);
 			snd_mixart_free(mgr);
-			return -ENOMEM;
+			return err;
 		}
 
 		strcpy(card->driver, CARD_NAME);

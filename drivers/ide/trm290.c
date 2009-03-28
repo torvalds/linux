@@ -277,9 +277,6 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 	if (reg & 0x10)
 		/* legacy mode */
 		hwif->irq = hwif->channel ? 15 : 14;
-	else if (!hwif->irq && hwif->mate && hwif->mate->irq)
-		/* sharing IRQ with mate */
-		hwif->irq = hwif->mate->irq;
 
 #if 1
 	{

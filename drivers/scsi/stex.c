@@ -1,7 +1,7 @@
 /*
  * SuperTrak EX Series Storage Controller driver for Linux
  *
- *	Copyright (C) 2005, 2006 Promise Technology Inc.
+ *	Copyright (C) 2005-2009 Promise Technology Inc.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -36,8 +36,8 @@
 #include <scsi/scsi_eh.h>
 
 #define DRV_NAME "stex"
-#define ST_DRIVER_VERSION "3.6.0000.1"
-#define ST_VER_MAJOR 		3
+#define ST_DRIVER_VERSION "4.6.0000.1"
+#define ST_VER_MAJOR 		4
 #define ST_VER_MINOR 		6
 #define ST_OEM 			0
 #define ST_BUILD_VER 		1
@@ -103,7 +103,7 @@ enum {
 	MU_REQ_COUNT				= (MU_MAX_REQUEST + 1),
 	MU_STATUS_COUNT				= (MU_MAX_REQUEST + 1),
 
-	STEX_CDB_LENGTH				= MAX_COMMAND_SIZE,
+	STEX_CDB_LENGTH				= 16,
 	REQ_VARIABLE_LEN			= 1024,
 	STATUS_VAR_LEN				= 128,
 	ST_CAN_QUEUE				= MU_MAX_REQUEST,
@@ -114,15 +114,19 @@ enum {
 	SG_CF_EOT				= 0x80,	/* end of table */
 	SG_CF_64B				= 0x40,	/* 64 bit item */
 	SG_CF_HOST				= 0x20,	/* sg in host memory */
+	MSG_DATA_DIR_ND				= 0,
+	MSG_DATA_DIR_IN				= 1,
+	MSG_DATA_DIR_OUT			= 2,
 
 	st_shasta				= 0,
 	st_vsc					= 1,
 	st_vsc1					= 2,
 	st_yosemite				= 3,
+	st_seq					= 4,
 
 	PASSTHRU_REQ_TYPE			= 0x00000001,
 	PASSTHRU_REQ_NO_WAKEUP			= 0x00000100,
-	ST_INTERNAL_TIMEOUT			= 30,
+	ST_INTERNAL_TIMEOUT			= 180,
 
 	ST_TO_CMD				= 0,
 	ST_FROM_CMD				= 1,
@@ -151,35 +155,6 @@ enum {
 
 	ST_ADDITIONAL_MEM			= 0x200000,
 };
-
-/* SCSI inquiry data */
-typedef struct st_inq {
-	u8 DeviceType			:5;
-	u8 DeviceTypeQualifier		:3;
-	u8 DeviceTypeModifier		:7;
-	u8 RemovableMedia		:1;
-	u8 Versions;
-	u8 ResponseDataFormat		:4;
-	u8 HiSupport			:1;
-	u8 NormACA			:1;
-	u8 ReservedBit			:1;
-	u8 AERC				:1;
-	u8 AdditionalLength;
-	u8 Reserved[2];
-	u8 SoftReset			:1;
-	u8 CommandQueue			:1;
-	u8 Reserved2			:1;
-	u8 LinkedCommands		:1;
-	u8 Synchronous			:1;
-	u8 Wide16Bit			:1;
-	u8 Wide32Bit			:1;
-	u8 RelativeAddressing		:1;
-	u8 VendorId[8];
-	u8 ProductId[16];
-	u8 ProductRevisionLevel[4];
-	u8 VendorSpecific[20];
-	u8 Reserved3[40];
-} ST_INQ;
 
 struct st_sgitem {
 	u8 ctrl;	/* SG_CF_xxx */
@@ -222,7 +197,7 @@ struct req_msg {
 	u8 target;
 	u8 task_attr;
 	u8 task_manage;
-	u8 prd_entry;
+	u8 data_dir;
 	u8 payload_sz;		/* payload size in 4-byte, not used */
 	u8 cdb[STEX_CDB_LENGTH];
 	u8 variable[REQ_VARIABLE_LEN];
@@ -284,7 +259,7 @@ struct st_drvver {
 #define MU_REQ_BUFFER_SIZE	(MU_REQ_COUNT * sizeof(struct req_msg))
 #define MU_STATUS_BUFFER_SIZE	(MU_STATUS_COUNT * sizeof(struct status_msg))
 #define MU_BUFFER_SIZE		(MU_REQ_BUFFER_SIZE + MU_STATUS_BUFFER_SIZE)
-#define STEX_EXTRA_SIZE		max(sizeof(struct st_frame), sizeof(ST_INQ))
+#define STEX_EXTRA_SIZE		sizeof(struct st_frame)
 #define STEX_BUFFER_SIZE	(MU_BUFFER_SIZE + STEX_EXTRA_SIZE)
 
 struct st_ccb {
@@ -346,8 +321,8 @@ MODULE_VERSION(ST_DRIVER_VERSION);
 static void stex_gettime(__le32 *time)
 {
 	struct timeval tv;
-	do_gettimeofday(&tv);
 
+	do_gettimeofday(&tv);
 	*time = cpu_to_le32(tv.tv_sec & 0xffffffff);
 	*(time + 1) = cpu_to_le32((tv.tv_sec >> 16) >> 16);
 }
@@ -368,7 +343,7 @@ static void stex_invalid_field(struct scsi_cmnd *cmd,
 {
 	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
-	/* "Invalid field in cbd" */
+	/* "Invalid field in cdb" */
 	scsi_build_sense_buffer(0, cmd->sense_buffer, ILLEGAL_REQUEST, 0x24,
 				0x0);
 	done(cmd);
@@ -497,6 +472,7 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 	unsigned int id,lun;
 	struct req_msg *req;
 	u16 tag;
+
 	host = cmd->device->host;
 	id = cmd->device->id;
 	lun = cmd->device->lun;
@@ -508,6 +484,7 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 		static char ms10_caching_page[12] =
 			{ 0, 0x12, 0, 0, 0, 0, 0, 0, 0x8, 0xa, 0x4, 0 };
 		unsigned char page;
+
 		page = cmd->cmnd[2] & 0x3f;
 		if (page == 0x8 || page == 0x3f) {
 			scsi_sg_copy_from_buffer(cmd, ms10_caching_page,
@@ -551,6 +528,7 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 		if (cmd->cmnd[1] == PASSTHRU_GET_DRVVER) {
 			struct st_drvver ver;
 			size_t cp_len = sizeof(ver);
+
 			ver.major = ST_VER_MAJOR;
 			ver.minor = ST_VER_MINOR;
 			ver.oem = ST_OEM;
@@ -583,6 +561,13 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 
 	/* cdb */
 	memcpy(req->cdb, cmd->cmnd, STEX_CDB_LENGTH);
+
+	if (cmd->sc_data_direction == DMA_FROM_DEVICE)
+		req->data_dir = MSG_DATA_DIR_IN;
+	else if (cmd->sc_data_direction == DMA_TO_DEVICE)
+		req->data_dir = MSG_DATA_DIR_OUT;
+	else
+		req->data_dir = MSG_DATA_DIR_ND;
 
 	hba->ccb[tag].cmd = cmd;
 	hba->ccb[tag].sense_bufflen = SCSI_SENSE_BUFFERSIZE;
@@ -642,6 +627,7 @@ static void stex_copy_data(struct st_ccb *ccb,
 	struct status_msg *resp, unsigned int variable)
 {
 	size_t count = variable;
+
 	if (resp->scsi_status != SAM_STAT_GOOD) {
 		if (ccb->sense_buffer != NULL)
 			memcpy(ccb->sense_buffer, resp->variable,
@@ -661,24 +647,6 @@ static void stex_ys_commands(struct st_hba *hba,
 		resp->scsi_status != SAM_STAT_CHECK_CONDITION) {
 		scsi_set_resid(ccb->cmd, scsi_bufflen(ccb->cmd) -
 			le32_to_cpu(*(__le32 *)&resp->variable[0]));
-		return;
-	}
-
-	if (resp->srb_status != 0)
-		return;
-
-	/* determine inquiry command status by DeviceTypeQualifier */
-	if (ccb->cmd->cmnd[0] == INQUIRY &&
-		resp->scsi_status == SAM_STAT_GOOD) {
-		ST_INQ *inq_data;
-
-		scsi_sg_copy_to_buffer(ccb->cmd, hba->copy_buffer,
-				       STEX_EXTRA_SIZE);
-		inq_data = (ST_INQ *)hba->copy_buffer;
-		if (inq_data->DeviceTypeQualifier != 0)
-			ccb->srb_status = SRB_STATUS_SELECTION_TIMEOUT;
-		else
-			ccb->srb_status = SRB_STATUS_SUCCESS;
 	}
 }
 
@@ -746,6 +714,7 @@ static void stex_mu_intr(struct st_hba *hba, u32 doorbell)
 				stex_copy_data(ccb, resp, size);
 		}
 
+		ccb->req = NULL;
 		ccb->srb_status = resp->srb_status;
 		ccb->scsi_status = resp->scsi_status;
 
@@ -983,6 +952,7 @@ static int stex_reset(struct scsi_cmnd *cmd)
 	struct st_hba *hba;
 	unsigned long flags;
 	unsigned long before;
+
 	hba = (struct st_hba *) &cmd->device->host->hostdata[0];
 
 	printk(KERN_INFO DRV_NAME
@@ -1067,6 +1037,7 @@ static struct scsi_host_template driver_template = {
 static int stex_set_dma_mask(struct pci_dev * pdev)
 {
 	int ret;
+
 	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)
 		&& !pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))
 		return 0;
@@ -1124,9 +1095,9 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	hba->cardtype = (unsigned int) id->driver_data;
-	if (hba->cardtype == st_vsc && (pdev->subsystem_device & 0xf) == 0x1)
+	if (hba->cardtype == st_vsc && (pdev->subsystem_device & 1))
 		hba->cardtype = st_vsc1;
-	hba->dma_size = (hba->cardtype == st_vsc1) ?
+	hba->dma_size = (hba->cardtype == st_vsc1 || hba->cardtype == st_seq) ?
 		(STEX_BUFFER_SIZE + ST_ADDITIONAL_MEM) : (STEX_BUFFER_SIZE);
 	hba->dma_mem = dma_alloc_coherent(&pdev->dev,
 		hba->dma_size, &hba->dma_handle, GFP_KERNEL);
@@ -1146,10 +1117,10 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		host->max_lun = 8;
 		host->max_id = 16 + 1;
 	} else if (hba->cardtype == st_yosemite) {
-		host->max_lun = 128;
+		host->max_lun = 256;
 		host->max_id = 1 + 1;
 	} else {
-		/* st_vsc and st_vsc1 */
+		/* st_vsc , st_vsc1 and st_seq */
 		host->max_lun = 1;
 		host->max_id = 128 + 1;
 	}
@@ -1299,18 +1270,10 @@ static struct pci_device_id stex_pci_tbl[] = {
 	{ 0x105a, 0x7250, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_vsc },
 
 	/* st_yosemite */
-	{ 0x105a, 0x8650, PCI_ANY_ID, 0x4600, 0, 0,
-		st_yosemite }, /* SuperTrak EX4650 */
-	{ 0x105a, 0x8650, PCI_ANY_ID, 0x4610, 0, 0,
-		st_yosemite }, /* SuperTrak EX4650o */
-	{ 0x105a, 0x8650, PCI_ANY_ID, 0x8600, 0, 0,
-		st_yosemite }, /* SuperTrak EX8650EL */
-	{ 0x105a, 0x8650, PCI_ANY_ID, 0x8601, 0, 0,
-		st_yosemite }, /* SuperTrak EX8650 */
-	{ 0x105a, 0x8650, PCI_ANY_ID, 0x8602, 0, 0,
-		st_yosemite }, /* SuperTrak EX8654 */
-	{ 0x105a, 0x8650, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		st_yosemite }, /* generic st_yosemite */
+	{ 0x105a, 0x8650, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_yosemite },
+
+	/* st_seq */
+	{ 0x105a, 0x3360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, st_seq },
 	{ }	/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, stex_pci_tbl);

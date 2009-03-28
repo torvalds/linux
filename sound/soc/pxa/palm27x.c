@@ -55,7 +55,7 @@ static void palm27x_ext_control(struct snd_soc_codec *codec)
 static int palm27x_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->socdev->codec;
+	struct snd_soc_codec *codec = rtd->socdev->card->codec;
 
 	/* check the jack status at stream startup */
 	palm27x_ext_control(codec);
@@ -146,19 +146,16 @@ static const struct snd_kcontrol_new palm27x_controls[] = {
 
 static int palm27x_ac97_init(struct snd_soc_codec *codec)
 {
-	int i, err;
+	int err;
 
 	snd_soc_dapm_nc_pin(codec, "OUT3");
 	snd_soc_dapm_nc_pin(codec, "MONOOUT");
 
 	/* add palm27x specific controls */
-	for (i = 0; i < ARRAY_SIZE(palm27x_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&palm27x_controls[i],
-						codec, NULL));
-		if (err < 0)
-			return err;
-	}
+	err = snd_soc_add_controls(codec, palm27x_controls,
+				ARRAY_SIZE(palm27x_controls));
+	if (err < 0)
+		return err;
 
 	/* add palm27x specific widgets */
 	snd_soc_dapm_new_controls(codec, palm27x_dapm_widgets,

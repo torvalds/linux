@@ -32,7 +32,7 @@
  * nforce2_chipset:
  * FSB is changed using the chipset
  */
-static struct pci_dev *nforce2_chipset_dev;
+static struct pci_dev *nforce2_dev;
 
 /* fid:
  * multiplier * 10
@@ -56,7 +56,9 @@ MODULE_PARM_DESC(fid, "CPU multiplier to use (11.5 = 115)");
 MODULE_PARM_DESC(min_fsb,
 		"Minimum FSB to use, if not defined: current FSB - 50");
 
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "cpufreq-nforce2", msg)
+#define PFX "cpufreq-nforce2: "
+#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
+		"cpufreq-nforce2", msg)
 
 /**
  * nforce2_calc_fsb - calculate FSB
@@ -118,11 +120,11 @@ static void nforce2_write_pll(int pll)
 	int temp;
 
 	/* Set the pll addr. to 0x00 */
-	pci_write_config_dword(nforce2_chipset_dev, NFORCE2_PLLADR, 0);
+	pci_write_config_dword(nforce2_dev, NFORCE2_PLLADR, 0);
 
 	/* Now write the value in all 64 registers */
 	for (temp = 0; temp <= 0x3f; temp++)
-		pci_write_config_dword(nforce2_chipset_dev, NFORCE2_PLLREG, pll);
+		pci_write_config_dword(nforce2_dev, NFORCE2_PLLREG, pll);
 
 	return;
 }
@@ -139,8 +141,8 @@ static unsigned int nforce2_fsb_read(int bootfsb)
 	u32 fsb, temp = 0;
 
 	/* Get chipset boot FSB from subdevice 5 (FSB at boot-time) */
-	nforce2_sub5 = pci_get_subsys(PCI_VENDOR_ID_NVIDIA,
-						0x01EF, PCI_ANY_ID, PCI_ANY_ID, NULL);
+	nforce2_sub5 = pci_get_subsys(PCI_VENDOR_ID_NVIDIA, 0x01EF,
+				PCI_ANY_ID, PCI_ANY_ID, NULL);
 	if (!nforce2_sub5)
 		return 0;
 
@@ -148,13 +150,13 @@ static unsigned int nforce2_fsb_read(int bootfsb)
 	fsb /= 1000000;
 
 	/* Check if PLL register is already set */
-	pci_read_config_byte(nforce2_chipset_dev, NFORCE2_PLLENABLE, (u8 *)&temp);
+	pci_read_config_byte(nforce2_dev, NFORCE2_PLLENABLE, (u8 *)&temp);
 
 	if (bootfsb || !temp)
 		return fsb;
 
 	/* Use PLL register FSB value */
-	pci_read_config_dword(nforce2_chipset_dev, NFORCE2_PLLREG, &temp);
+	pci_read_config_dword(nforce2_dev, NFORCE2_PLLREG, &temp);
 	fsb = nforce2_calc_fsb(temp);
 
 	return fsb;
@@ -174,18 +176,18 @@ static int nforce2_set_fsb(unsigned int fsb)
 	int pll = 0;
 
 	if ((fsb > max_fsb) || (fsb < NFORCE2_MIN_FSB)) {
-		printk(KERN_ERR "cpufreq: FSB %d is out of range!\n", fsb);
+		printk(KERN_ERR PFX "FSB %d is out of range!\n", fsb);
 		return -EINVAL;
 	}
 
 	tfsb = nforce2_fsb_read(0);
 	if (!tfsb) {
-		printk(KERN_ERR "cpufreq: Error while reading the FSB\n");
+		printk(KERN_ERR PFX "Error while reading the FSB\n");
 		return -EINVAL;
 	}
 
 	/* First write? Then set actual value */
-	pci_read_config_byte(nforce2_chipset_dev, NFORCE2_PLLENABLE, (u8 *)&temp);
+	pci_read_config_byte(nforce2_dev, NFORCE2_PLLENABLE, (u8 *)&temp);
 	if (!temp) {
 		pll = nforce2_calc_pll(tfsb);
 
@@ -197,7 +199,7 @@ static int nforce2_set_fsb(unsigned int fsb)
 
 	/* Enable write access */
 	temp = 0x01;
-	pci_write_config_byte(nforce2_chipset_dev, NFORCE2_PLLENABLE, (u8)temp);
+	pci_write_config_byte(nforce2_dev, NFORCE2_PLLENABLE, (u8)temp);
 
 	diff = tfsb - fsb;
 
@@ -222,7 +224,7 @@ static int nforce2_set_fsb(unsigned int fsb)
 	}
 
 	temp = 0x40;
-	pci_write_config_byte(nforce2_chipset_dev, NFORCE2_PLLADR, (u8)temp);
+	pci_write_config_byte(nforce2_dev, NFORCE2_PLLADR, (u8)temp);
 
 	return 0;
 }
@@ -244,7 +246,8 @@ static unsigned int nforce2_get(unsigned int cpu)
  * nforce2_target - set a new CPUFreq policy
  * @policy: new policy
  * @target_freq: the target frequency
- * @relation: how that frequency relates to achieved frequency (CPUFREQ_RELATION_L or CPUFREQ_RELATION_H)
+ * @relation: how that frequency relates to achieved frequency
+ *  (CPUFREQ_RELATION_L or CPUFREQ_RELATION_H)
  *
  * Sets a new CPUFreq policy.
  */
@@ -276,7 +279,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 	/* local_irq_save(flags); */
 
 	if (nforce2_set_fsb(target_fsb) < 0)
-		printk(KERN_ERR "cpufreq: Changing FSB to %d failed\n",
+		printk(KERN_ERR PFX "Changing FSB to %d failed\n",
 			target_fsb);
 	else
 		dprintk("Changed FSB successfully to %d\n",
@@ -327,8 +330,8 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 	/* FIX: Get FID from CPU */
 	if (!fid) {
 		if (!cpu_khz) {
-			printk(KERN_WARNING
-			       "cpufreq: cpu_khz not set, can't calculate multiplier!\n");
+			printk(KERN_WARNING PFX
+			"cpu_khz not set, can't calculate multiplier!\n");
 			return -ENODEV;
 		}
 
@@ -343,7 +346,7 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 		}
 	}
 
-	printk(KERN_INFO "cpufreq: FSB currently at %i MHz, FID %d.%d\n", fsb,
+	printk(KERN_INFO PFX "FSB currently at %i MHz, FID %d.%d\n", fsb,
 	       fid / 10, fid % 10);
 
 	/* Set maximum FSB to FSB at boot time */
@@ -392,17 +395,18 @@ static struct cpufreq_driver nforce2_driver = {
  */
 static unsigned int nforce2_detect_chipset(void)
 {
-	nforce2_chipset_dev = pci_get_subsys(PCI_VENDOR_ID_NVIDIA,
+	nforce2_dev = pci_get_subsys(PCI_VENDOR_ID_NVIDIA,
 					PCI_DEVICE_ID_NVIDIA_NFORCE2,
 					PCI_ANY_ID, PCI_ANY_ID, NULL);
 
-	if (nforce2_chipset_dev == NULL)
+	if (nforce2_dev == NULL)
 		return -ENODEV;
 
-	printk(KERN_INFO "cpufreq: Detected nForce2 chipset revision %X\n",
-	       nforce2_chipset_dev->revision);
-	printk(KERN_INFO
-	       "cpufreq: FSB changing is maybe unstable and can lead to crashes and data loss.\n");
+	printk(KERN_INFO PFX "Detected nForce2 chipset revision %X\n",
+	       nforce2_dev->revision);
+	printk(KERN_INFO PFX
+	       "FSB changing is maybe unstable and can lead to "
+	       "crashes and data loss.\n");
 
 	return 0;
 }
@@ -420,7 +424,7 @@ static int __init nforce2_init(void)
 
 	/* detect chipset */
 	if (nforce2_detect_chipset()) {
-		printk(KERN_ERR "cpufreq: No nForce2 chipset.\n");
+		printk(KERN_INFO PFX "No nForce2 chipset.\n");
 		return -ENODEV;
 	}
 

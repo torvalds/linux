@@ -42,22 +42,8 @@ static inline void get_cpu_id(cpuid_t *ptr)
 	asm volatile("stidp 0(%1)" : "=m" (*ptr) : "a" (ptr));
 }
 
-struct cpuinfo_S390
-{
-        cpuid_t  cpu_id;
-        __u16    cpu_addr;
-        __u16    cpu_nr;
-        unsigned long loops_per_jiffy;
-        unsigned long *pgd_quick;
-#ifdef __s390x__
-        unsigned long *pmd_quick;
-#endif /* __s390x__ */
-        unsigned long *pte_quick;
-        unsigned long pgtable_cache_sz;
-};
-
 extern void s390_adjust_jiffies(void);
-extern void print_cpu_info(struct cpuinfo_S390 *);
+extern void print_cpu_info(void);
 extern int get_cpu_capability(unsigned int *);
 
 /*

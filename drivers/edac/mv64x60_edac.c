@@ -121,7 +121,7 @@ static int __devinit mv64x60_pci_err_probe(struct platform_device *pdev)
 	pdata->irq = NO_IRQ;
 	platform_set_drvdata(pdev, pci);
 	pci->dev = &pdev->dev;
-	pci->dev_name = pdev->dev.bus_id;
+	pci->dev_name = dev_name(&pdev->dev);
 	pci->mod_name = EDAC_MOD_STR;
 	pci->ctl_name = pdata->name;
 
@@ -294,7 +294,7 @@ static int __devinit mv64x60_sram_err_probe(struct platform_device *pdev)
 	pdata->irq = NO_IRQ;
 	edac_dev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, edac_dev);
-	edac_dev->dev_name = pdev->dev.bus_id;
+	edac_dev->dev_name = dev_name(&pdev->dev);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
@@ -462,7 +462,7 @@ static int __devinit mv64x60_cpu_err_probe(struct platform_device *pdev)
 	pdata->irq = NO_IRQ;
 	edac_dev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, edac_dev);
-	edac_dev->dev_name = pdev->dev.bus_id;
+	edac_dev->dev_name = dev_name(&pdev->dev);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
@@ -713,7 +713,7 @@ static int __devinit mv64x60_mc_err_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mci);
 	pdata->name = "mv64x60_mc_err";
 	pdata->irq = NO_IRQ;
-	mci->dev_name = pdev->dev.bus_id;
+	mci->dev_name = dev_name(&pdev->dev);
 	pdata->edac_idx = edac_mc_idx++;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);

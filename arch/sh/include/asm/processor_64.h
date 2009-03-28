@@ -145,13 +145,13 @@ struct thread_struct {
  */
 #define SR_USER (SR_MMU | SR_FD)
 
-#define start_thread(regs, new_pc, new_sp)			\
+#define start_thread(_regs, new_pc, new_sp)			\
 	set_fs(USER_DS);					\
-	regs->sr = SR_USER;	/* User mode. */		\
-	regs->pc = new_pc - 4;	/* Compensate syscall exit */	\
-	regs->pc |= 1;		/* Set SHmedia ! */		\
-	regs->regs[18] = 0;					\
-	regs->regs[15] = new_sp
+	_regs->sr = SR_USER;	/* User mode. */		\
+	_regs->pc = new_pc - 4;	/* Compensate syscall exit */	\
+	_regs->pc |= 1;		/* Set SHmedia ! */		\
+	_regs->regs[18] = 0;					\
+	_regs->regs[15] = new_sp
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
@@ -226,7 +226,7 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(tsk)  ((tsk)->thread.pc)
 #define KSTK_ESP(tsk)  ((tsk)->thread.sp)
 
-#define user_stack_pointer(regs)	((regs)->regs[15])
+#define user_stack_pointer(_regs)	((_regs)->regs[15])
 
 #endif	/* __ASSEMBLY__ */
 #endif /* __ASM_SH_PROCESSOR_64_H */

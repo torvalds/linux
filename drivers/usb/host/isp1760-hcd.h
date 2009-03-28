@@ -2,9 +2,10 @@
 #define _ISP1760_HCD_H_
 
 /* exports for if */
-struct usb_hcd *isp1760_register(u64 res_start, u64 res_len, int irq,
-		u64 irqflags, struct device *dev, const char *busname,
-		unsigned int devflags);
+struct usb_hcd *isp1760_register(phys_addr_t res_start, resource_size_t res_len,
+				 int irq, unsigned long irqflags,
+				 struct device *dev, const char *busname,
+				 unsigned int devflags);
 int init_kmem_once(void);
 void deinit_kmem_cache(void);
 

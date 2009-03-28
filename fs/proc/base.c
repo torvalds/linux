@@ -1545,7 +1545,7 @@ static int pid_delete_dentry(struct dentry * dentry)
 	return !proc_pid(dentry->d_inode)->tasks[PIDTYPE_PID].first;
 }
 
-static struct dentry_operations pid_dentry_operations =
+static const struct dentry_operations pid_dentry_operations =
 {
 	.d_revalidate	= pid_revalidate,
 	.d_delete	= pid_delete_dentry,
@@ -1717,7 +1717,7 @@ static int tid_fd_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return 0;
 }
 
-static struct dentry_operations tid_fd_dentry_operations =
+static const struct dentry_operations tid_fd_dentry_operations =
 {
 	.d_revalidate	= tid_fd_revalidate,
 	.d_delete	= pid_delete_dentry,
@@ -2339,7 +2339,7 @@ static int proc_base_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return 0;
 }
 
-static struct dentry_operations proc_base_dentry_operations =
+static const struct dentry_operations proc_base_dentry_operations =
 {
 	.d_revalidate	= proc_base_revalidate,
 	.d_delete	= pid_delete_dentry,

@@ -2,6 +2,9 @@
 # KVM configuration
 #
 
+config HAVE_KVM_IRQCHIP
+       bool
+
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
 	---help---
@@ -40,6 +43,19 @@ config KVM_EXIT_TIMING
 	  report is available in debugfs kvm/vm#_vcpu#_timing.
 	  The overhead is relatively small, however it is not recommended for
 	  production environments.
+
+	  If unsure, say N.
+
+config KVM_E500
+	bool "KVM support for PowerPC E500 processors"
+	depends on EXPERIMENTAL && E500
+	select KVM
+	---help---
+	  Support running unmodified E500 guest kernels in virtual machines on
+	  E500 host processors.
+
+	  This module provides access to the hardware capabilities through
+	  a character device node named /dev/kvm.
 
 	  If unsure, say N.
 

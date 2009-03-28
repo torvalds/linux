@@ -103,7 +103,7 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 		if (!gpio_is_valid(oms->gpios[i]))
 			continue;
 
-		ret = gpio_request(oms->gpios[i], dev->bus_id);
+		ret = gpio_request(oms->gpios[i], dev_name(dev));
 		if (ret < 0) {
 			oms->gpios[i] = -EINVAL;
 			continue;

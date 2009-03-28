@@ -264,7 +264,7 @@ static void pdc202xx_dma_timeout(ide_drive_t *drive)
 	ide_dma_timeout(drive);
 }
 
-static unsigned int init_chipset_pdc202xx(struct pci_dev *dev)
+static int init_chipset_pdc202xx(struct pci_dev *dev)
 {
 	unsigned long dmabase = pci_resource_start(dev, 4);
 	u8 udma_speed_flag = 0, primary_mode = 0, secondary_mode = 0;
@@ -290,7 +290,7 @@ static unsigned int init_chipset_pdc202xx(struct pci_dev *dev)
 		printk("%sACTIVE\n", (inb(dmabase | 0x1f) & 1) ? "" : "IN");
 	}
 out:
-	return dev->irq;
+	return 0;
 }
 
 static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,

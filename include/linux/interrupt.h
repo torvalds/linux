@@ -61,6 +61,17 @@
 
 typedef irqreturn_t (*irq_handler_t)(int, void *);
 
+/**
+ * struct irqaction - per interrupt action descriptor
+ * @handler:	interrupt handler function
+ * @flags:	flags (see IRQF_* above)
+ * @mask:	no comment as it is useless and about to be removed
+ * @name:	name of the device
+ * @dev_id:	cookie to identify the device
+ * @next:	pointer to the next irqaction for shared interrupts
+ * @irq:	interrupt number
+ * @dir:	pointer to the proc/irq/NN/name entry
+ */
 struct irqaction {
 	irq_handler_t handler;
 	unsigned long flags;
@@ -460,6 +471,12 @@ extern void init_irq_proc(void);
 static inline void init_irq_proc(void)
 {
 }
+#endif
+
+#if defined(CONFIG_GENERIC_HARDIRQS) && defined(CONFIG_DEBUG_SHIRQ)
+extern void debug_poll_all_shared_irqs(void);
+#else
+static inline void debug_poll_all_shared_irqs(void) { }
 #endif
 
 int show_interrupts(struct seq_file *p, void *v);

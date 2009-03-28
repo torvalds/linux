@@ -271,7 +271,7 @@ static u8 sl82c105_bridge_revision(struct pci_dev *dev)
  * channel 0 here at least, but channel 1 has to be enabled by
  * firmware or arch code. We still set both to 16 bits mode.
  */
-static unsigned int init_chipset_sl82c105(struct pci_dev *dev)
+static int init_chipset_sl82c105(struct pci_dev *dev)
 {
 	u32 val;
 
@@ -281,7 +281,7 @@ static unsigned int init_chipset_sl82c105(struct pci_dev *dev)
 	val |= CTRL_P0EN | CTRL_P0F16 | CTRL_P1F16;
 	pci_write_config_dword(dev, 0x40, val);
 
-	return dev->irq;
+	return 0;
 }
 
 static const struct ide_port_ops sl82c105_port_ops = {

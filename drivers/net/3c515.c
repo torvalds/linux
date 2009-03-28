@@ -563,6 +563,20 @@ no_pnp:
 	return NULL;
 }
 
+
+static const struct net_device_ops netdev_ops = {
+	.ndo_open		= corkscrew_open,
+	.ndo_stop		= corkscrew_close,
+	.ndo_start_xmit		= corkscrew_start_xmit,
+	.ndo_tx_timeout		= corkscrew_timeout,
+	.ndo_get_stats		= corkscrew_get_stats,
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
+
 static int corkscrew_setup(struct net_device *dev, int ioaddr,
 			    struct pnp_dev *idev, int card_number)
 {
@@ -681,13 +695,8 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 	vp->full_bus_master_rx = (vp->capabilities & 0x20) ? 1 : 0;
 
 	/* The 3c51x-specific entries in the device structure. */
-	dev->open = &corkscrew_open;
-	dev->hard_start_xmit = &corkscrew_start_xmit;
-	dev->tx_timeout = &corkscrew_timeout;
+	dev->netdev_ops = &netdev_ops;
 	dev->watchdog_timeo = (400 * HZ) / 1000;
-	dev->stop = &corkscrew_close;
-	dev->get_stats = &corkscrew_get_stats;
-	dev->set_multicast_list = &set_rx_mode;
 	dev->ethtool_ops = &netdev_ethtool_ops;
 
 	return register_netdev(dev);
