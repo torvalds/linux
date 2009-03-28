@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/leds.h>
 #include <linux/suspend.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
 #include <mach/pm.h>
@@ -918,9 +919,12 @@ static int __init sharpsl_pm_probe(struct platform_device *pdev)
 
 	sharpsl_pm.machinfo->init();
 
-	pxa_gpio_mode(sharpsl_pm.machinfo->gpio_acin | GPIO_IN);
-	pxa_gpio_mode(sharpsl_pm.machinfo->gpio_batfull | GPIO_IN);
-	pxa_gpio_mode(sharpsl_pm.machinfo->gpio_batlock | GPIO_IN);
+	gpio_request(sharpsl_pm.machinfo->gpio_acin, "AC IN");
+	gpio_direction_input(sharpsl_pm.machinfo->gpio_acin);
+	gpio_request(sharpsl_pm.machinfo->gpio_batfull, "Battery Full");
+	gpio_direction_input(sharpsl_pm.machinfo->gpio_batfull);
+	gpio_request(sharpsl_pm.machinfo->gpio_batlock, "Battery Lock");
+	gpio_direction_input(sharpsl_pm.machinfo->gpio_batlock);
 
 	/* Register interrupt handlers */
 	if (request_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_acin), sharpsl_ac_isr, IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, "AC Input Detect", sharpsl_ac_isr)) {
@@ -978,6 +982,10 @@ static int sharpsl_pm_remove(struct platform_device *pdev)
 
 	if (sharpsl_pm.machinfo->batfull_irq)
 		free_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batfull), sharpsl_chrg_full_isr);
+
+	gpio_free(sharpsl_pm.machinfo->gpio_batlock);
+	gpio_free(sharpsl_pm.machinfo->gpio_batfull);
+	gpio_free(sharpsl_pm.machinfo->gpio_acin);
 
 	if (sharpsl_pm.machinfo->exit)
 		sharpsl_pm.machinfo->exit();
