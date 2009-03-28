@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -81,24 +82,23 @@ static void i2c_pca_pf_writebyte32(void *pd, int reg, int val)
 static int i2c_pca_pf_waitforcompletion(void *pd)
 {
 	struct i2c_pca_pf_data *i2c = pd;
-	int ret = 0;
+	long ret = ~0;
+	unsigned long timeout;
 
 	if (i2c->irq) {
-		ret = wait_event_interruptible(i2c->wait,
+		ret = wait_event_interruptible_timeout(i2c->wait,
 			i2c->algo_data.read_byte(i2c, I2C_PCA_CON)
-			& I2C_PCA_CON_SI);
+			& I2C_PCA_CON_SI, i2c->adap.timeout);
 	} else {
-		/*
-		 * Do polling...
-		 * XXX: Could get stuck in extreme cases!
-		 *      Maybe add timeout, but using irqs is preferred anyhow.
-		 */
-		while ((i2c->algo_data.read_byte(i2c, I2C_PCA_CON)
+		/* Do polling */
+		timeout = jiffies + i2c->adap.timeout;
+		while (((i2c->algo_data.read_byte(i2c, I2C_PCA_CON)
 				& I2C_PCA_CON_SI) == 0)
+				&& (ret = time_before(jiffies, timeout)))
 			udelay(100);
 	}
 
-	return ret;
+	return ret > 0;
 }
 
 static void i2c_pca_pf_dummyreset(void *pd)

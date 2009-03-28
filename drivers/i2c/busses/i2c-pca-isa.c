@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
@@ -43,6 +44,7 @@ static int irq = -1;
  * in the actual clock rate */
 static int clock  = 59000;
 
+static struct i2c_adapter pca_isa_ops;
 static wait_queue_head_t pca_wait;
 
 static void pca_isa_writebyte(void *pd, int reg, int val)
@@ -69,16 +71,22 @@ static int pca_isa_readbyte(void *pd, int reg)
 
 static int pca_isa_waitforcompletion(void *pd)
 {
-	int ret = 0;
+	long ret = ~0;
+	unsigned long timeout;
 
 	if (irq > -1) {
-		ret = wait_event_interruptible(pca_wait,
-					       pca_isa_readbyte(pd, I2C_PCA_CON) & I2C_PCA_CON_SI);
+		ret = wait_event_interruptible_timeout(pca_wait,
+				pca_isa_readbyte(pd, I2C_PCA_CON)
+				& I2C_PCA_CON_SI, pca_isa_ops.timeout);
 	} else {
-		while ((pca_isa_readbyte(pd, I2C_PCA_CON) & I2C_PCA_CON_SI) == 0)
+		/* Do polling */
+		timeout = jiffies + pca_isa_ops.timeout;
+		while (((pca_isa_readbyte(pd, I2C_PCA_CON)
+				& I2C_PCA_CON_SI) == 0)
+				&& (ret = time_before(jiffies, timeout)))
 			udelay(100);
 	}
-	return ret;
+	return ret > 0;
 }
 
 static void pca_isa_resetchip(void *pd)

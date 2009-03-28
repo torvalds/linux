@@ -60,14 +60,14 @@ static void pca9665_reset(void *pd)
  *
  * returns after the start condition has occurred
  */
-static void pca_start(struct i2c_algo_pca_data *adap)
+static int pca_start(struct i2c_algo_pca_data *adap)
 {
 	int sta = pca_get_con(adap);
 	DEB2("=== START\n");
 	sta |= I2C_PCA_CON_STA;
 	sta &= ~(I2C_PCA_CON_STO|I2C_PCA_CON_SI);
 	pca_set_con(adap, sta);
-	pca_wait(adap);
+	return pca_wait(adap);
 }
 
 /*
@@ -75,14 +75,14 @@ static void pca_start(struct i2c_algo_pca_data *adap)
  *
  * return after the repeated start condition has occurred
  */
-static void pca_repeated_start(struct i2c_algo_pca_data *adap)
+static int pca_repeated_start(struct i2c_algo_pca_data *adap)
 {
 	int sta = pca_get_con(adap);
 	DEB2("=== REPEATED START\n");
 	sta |= I2C_PCA_CON_STA;
 	sta &= ~(I2C_PCA_CON_STO|I2C_PCA_CON_SI);
 	pca_set_con(adap, sta);
-	pca_wait(adap);
+	return pca_wait(adap);
 }
 
 /*
@@ -108,7 +108,7 @@ static void pca_stop(struct i2c_algo_pca_data *adap)
  *
  * returns after the address has been sent
  */
-static void pca_address(struct i2c_algo_pca_data *adap,
+static int pca_address(struct i2c_algo_pca_data *adap,
 			struct i2c_msg *msg)
 {
 	int sta = pca_get_con(adap);
@@ -125,7 +125,7 @@ static void pca_address(struct i2c_algo_pca_data *adap,
 	sta &= ~(I2C_PCA_CON_STO|I2C_PCA_CON_STA|I2C_PCA_CON_SI);
 	pca_set_con(adap, sta);
 
-	pca_wait(adap);
+	return pca_wait(adap);
 }
 
 /*
@@ -133,7 +133,7 @@ static void pca_address(struct i2c_algo_pca_data *adap,
  *
  * Returns after the byte has been transmitted
  */
-static void pca_tx_byte(struct i2c_algo_pca_data *adap,
+static int pca_tx_byte(struct i2c_algo_pca_data *adap,
 			__u8 b)
 {
 	int sta = pca_get_con(adap);
@@ -143,7 +143,7 @@ static void pca_tx_byte(struct i2c_algo_pca_data *adap,
 	sta &= ~(I2C_PCA_CON_STO|I2C_PCA_CON_STA|I2C_PCA_CON_SI);
 	pca_set_con(adap, sta);
 
-	pca_wait(adap);
+	return pca_wait(adap);
 }
 
 /*
@@ -163,7 +163,7 @@ static void pca_rx_byte(struct i2c_algo_pca_data *adap,
  *
  * Returns after next byte has arrived.
  */
-static void pca_rx_ack(struct i2c_algo_pca_data *adap,
+static int pca_rx_ack(struct i2c_algo_pca_data *adap,
 		       int ack)
 {
 	int sta = pca_get_con(adap);
@@ -174,7 +174,7 @@ static void pca_rx_ack(struct i2c_algo_pca_data *adap,
 		sta |= I2C_PCA_CON_AA;
 
 	pca_set_con(adap, sta);
-	pca_wait(adap);
+	return pca_wait(adap);
 }
 
 static int pca_xfer(struct i2c_adapter *i2c_adap,
@@ -187,6 +187,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 	int numbytes = 0;
 	int state;
 	int ret;
+	int completed = 1;
 	unsigned long timeout = jiffies + i2c_adap->timeout;
 
 	while (pca_status(adap) != 0xf8) {
@@ -232,18 +233,19 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 
 		switch (state) {
 		case 0xf8: /* On reset or stop the bus is idle */
-			pca_start(adap);
+			completed = pca_start(adap);
 			break;
 
 		case 0x08: /* A START condition has been transmitted */
 		case 0x10: /* A repeated start condition has been transmitted */
-			pca_address(adap, msg);
+			completed = pca_address(adap, msg);
 			break;
 
 		case 0x18: /* SLA+W has been transmitted; ACK has been received */
 		case 0x28: /* Data byte in I2CDAT has been transmitted; ACK has been received */
 			if (numbytes < msg->len) {
-				pca_tx_byte(adap, msg->buf[numbytes]);
+				completed = pca_tx_byte(adap,
+							msg->buf[numbytes]);
 				numbytes++;
 				break;
 			}
@@ -251,7 +253,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 			if (curmsg == num)
 				pca_stop(adap);
 			else
-				pca_repeated_start(adap);
+				completed = pca_repeated_start(adap);
 			break;
 
 		case 0x20: /* SLA+W has been transmitted; NOT ACK has been received */
@@ -260,21 +262,22 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 			goto out;
 
 		case 0x40: /* SLA+R has been transmitted; ACK has been received */
-			pca_rx_ack(adap, msg->len > 1);
+			completed = pca_rx_ack(adap, msg->len > 1);
 			break;
 
 		case 0x50: /* Data bytes has been received; ACK has been returned */
 			if (numbytes < msg->len) {
 				pca_rx_byte(adap, &msg->buf[numbytes], 1);
 				numbytes++;
-				pca_rx_ack(adap, numbytes < msg->len - 1);
+				completed = pca_rx_ack(adap,
+						       numbytes < msg->len - 1);
 				break;
 			}
 			curmsg++; numbytes = 0;
 			if (curmsg == num)
 				pca_stop(adap);
 			else
-				pca_repeated_start(adap);
+				completed = pca_repeated_start(adap);
 			break;
 
 		case 0x48: /* SLA+R has been transmitted; NOT ACK has been received */
@@ -297,7 +300,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 				if (curmsg == num)
 					pca_stop(adap);
 				else
-					pca_repeated_start(adap);
+					completed = pca_repeated_start(adap);
 			} else {
 				DEB2("NOT ACK sent after data byte received. "
 				     "Not final byte. numbytes %d. len %d\n",
@@ -323,6 +326,8 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 			break;
 		}
 
+		if (!completed)
+			goto out;
 	}
 
 	ret = curmsg;
