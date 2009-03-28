@@ -27,9 +27,12 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pca.h>
 
-#define DEB1(fmt, args...) do { if (i2c_debug>=1) printk(fmt, ## args); } while(0)
-#define DEB2(fmt, args...) do { if (i2c_debug>=2) printk(fmt, ## args); } while(0)
-#define DEB3(fmt, args...) do { if (i2c_debug>=3) printk(fmt, ## args); } while(0)
+#define DEB1(fmt, args...) do { if (i2c_debug >= 1)			\
+				 printk(KERN_DEBUG fmt, ## args); } while (0)
+#define DEB2(fmt, args...) do { if (i2c_debug >= 2)			\
+				 printk(KERN_DEBUG fmt, ## args); } while (0)
+#define DEB3(fmt, args...) do { if (i2c_debug >= 3)			\
+				 printk(KERN_DEBUG fmt, ## args); } while (0)
 
 static int i2c_debug;
 
@@ -313,7 +316,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 
 	ret = curmsg;
  out:
-	DEB1(KERN_CRIT "}}} transfered %d/%d messages. "
+	DEB1("}}} transfered %d/%d messages. "
 	     "status is %#04x. control is %#04x\n",
 	     curmsg, num, pca_status(adap),
 	     pca_get_con(adap));
@@ -347,7 +350,8 @@ static int pca_init(struct i2c_adapter *adap)
 	pca_reset(pca_data);
 
 	clock = pca_clock(pca_data);
-	DEB1(KERN_INFO "%s: Clock frequency is %dkHz\n", adap->name, freqs[clock]);
+	printk(KERN_INFO "%s: Clock frequency is %dkHz\n", adap->name,
+	       freqs[clock]);
 
 	pca_set_con(pca_data, I2C_PCA_CON_ENSIO | clock);
 	udelay(500); /* 500 us for oscilator to stabilise */
