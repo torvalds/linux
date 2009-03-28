@@ -1,0 +1,10 @@
+config SND_S6000_SOC
+	tristate "SoC Audio for the Stretch s6000 family"
+	depends on XTENSA_VARIANT_S6000
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  s6000 family chips. You will also need to select the platform
+	  to support below.
+
+config SND_S6000_SOC_I2S
+	tristate
