@@ -24,15 +24,15 @@
  *
  *
  *
- * @MESH_PATH_ACTIVE: the mesh path is can be used for forwarding
- * @MESH_PATH_RESOLVED: the discovery process is running for this mesh path
+ * @MESH_PATH_ACTIVE: the mesh path can be used for forwarding
+ * @MESH_PATH_RESOLVING: the discovery process is running for this mesh path
  * @MESH_PATH_DSN_VALID: the mesh path contains a valid destination sequence
  * 	number
  * @MESH_PATH_FIXED: the mesh path has been manually set and should not be
  * 	modified
  * @MESH_PATH_RESOLVED: the mesh path can has been resolved
  *
- * MESH_PATH_RESOLVED and MESH_PATH_DELETE are used by the mesh path timer to
+ * MESH_PATH_RESOLVED is used by the mesh path timer to
  * decide when to stop or cancel the mesh path discovery.
  */
 enum mesh_path_flags {
@@ -196,7 +196,6 @@ struct mesh_rmc {
 
 /* Public interfaces */
 /* Various */
-u8 mesh_id_hash(u8 *mesh_id, int mesh_id_len);
 int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
 int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
 		struct ieee80211_sub_if_data *sdata);
@@ -236,14 +235,13 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_mgmt *mgmt, size_t len);
 int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata);
 /* Mesh plinks */
-void mesh_neighbour_update(u8 *hw_addr, u64 rates,
+void mesh_neighbour_update(u8 *hw_addr, u32 rates,
 		struct ieee80211_sub_if_data *sdata, bool add);
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie);
 void mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
 void mesh_plink_broken(struct sta_info *sta);
 void mesh_plink_deactivate(struct sta_info *sta);
 int mesh_plink_open(struct sta_info *sta);
-int mesh_plink_close(struct sta_info *sta);
 void mesh_plink_block(struct sta_info *sta);
 void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 			 struct ieee80211_mgmt *mgmt, size_t len,

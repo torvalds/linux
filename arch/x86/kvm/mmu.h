@@ -54,7 +54,7 @@ static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 static inline int is_long_mode(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_X86_64
-	return vcpu->arch.shadow_efer & EFER_LME;
+	return vcpu->arch.shadow_efer & EFER_LMA;
 #else
 	return 0;
 #endif

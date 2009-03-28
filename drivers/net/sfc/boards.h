@@ -15,6 +15,7 @@ enum efx_board_type {
 	EFX_BOARD_SFE4001 = 1,
 	EFX_BOARD_SFE4002 = 2,
 	EFX_BOARD_SFN4111T = 0x51,
+	EFX_BOARD_SFN4112F = 0x52,
 };
 
 extern void efx_set_board_info(struct efx_nic *efx, u16 revision_info);

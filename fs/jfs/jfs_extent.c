@@ -141,7 +141,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 	}
 
 	/* Allocate blocks to quota. */
-	if (DQUOT_ALLOC_BLOCK(ip, nxlen)) {
+	if (vfs_dq_alloc_block(ip, nxlen)) {
 		dbFree(ip, nxaddr, (s64) nxlen);
 		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return -EDQUOT;
@@ -164,7 +164,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 	 */
 	if (rc) {
 		dbFree(ip, nxaddr, nxlen);
-		DQUOT_FREE_BLOCK(ip, nxlen);
+		vfs_dq_free_block(ip, nxlen);
 		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return (rc);
 	}
@@ -256,7 +256,7 @@ int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, bool abnr)
 		goto exit;
 
 	/* Allocat blocks to quota. */
-	if (DQUOT_ALLOC_BLOCK(ip, nxlen)) {
+	if (vfs_dq_alloc_block(ip, nxlen)) {
 		dbFree(ip, nxaddr, (s64) nxlen);
 		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return -EDQUOT;
@@ -297,7 +297,7 @@ int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, bool abnr)
 		/* extend the extent */
 		if ((rc = xtExtend(0, ip, xoff + xlen, (int) nextend, 0))) {
 			dbFree(ip, xaddr + xlen, delta);
-			DQUOT_FREE_BLOCK(ip, nxlen);
+			vfs_dq_free_block(ip, nxlen);
 			goto exit;
 		}
 	} else {
@@ -308,7 +308,7 @@ int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, bool abnr)
 		 */
 		if ((rc = xtTailgate(0, ip, xoff, (int) ntail, nxaddr, 0))) {
 			dbFree(ip, nxaddr, nxlen);
-			DQUOT_FREE_BLOCK(ip, nxlen);
+			vfs_dq_free_block(ip, nxlen);
 			goto exit;
 		}
 	}

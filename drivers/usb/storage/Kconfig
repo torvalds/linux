@@ -2,8 +2,8 @@
 # USB Storage driver configuration
 #
 
-comment "NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may also be needed;"
-comment "see USB_STORAGE Help for more information"
+comment "NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may"
+comment "also be needed; see USB_STORAGE Help for more info"
 	depends on USB
 
 config USB_STORAGE
@@ -32,21 +32,25 @@ config USB_STORAGE_DEBUG
 	  verbose debugging messages.
 
 config USB_STORAGE_DATAFAB
-	bool "Datafab Compact Flash Reader support"
+	tristate "Datafab Compact Flash Reader support"
 	depends on USB_STORAGE
 	help
 	  Support for certain Datafab CompactFlash readers.
 	  Datafab has a web page at <http://www.datafabusa.com/>.
 
+	  If this driver is compiled as a module, it will be named ums-datafab.
+
 config USB_STORAGE_FREECOM
-	bool "Freecom USB/ATAPI Bridge support"
+	tristate "Freecom USB/ATAPI Bridge support"
 	depends on USB_STORAGE
 	help
 	  Support for the Freecom USB to IDE/ATAPI adaptor.
 	  Freecom has a web page at <http://www.freecom.de/>.
 
+	  If this driver is compiled as a module, it will be named ums-freecom.
+
 config USB_STORAGE_ISD200
-	bool "ISD-200 USB/ATA Bridge support"
+	tristate "ISD-200 USB/ATA Bridge support"
 	depends on USB_STORAGE
 	---help---
 	  Say Y here if you want to use USB Mass Store devices based
@@ -61,8 +65,10 @@ config USB_STORAGE_ISD200
 	  - CyQ've CQ8060A CDRW drive
 	  - Planex eXtreme Drive RX-25HU USB-IDE cable (not model RX-25U)
 
+	  If this driver is compiled as a module, it will be named ums-isd200.
+
 config USB_STORAGE_USBAT
-	bool "USBAT/USBAT02-based storage support"
+	tristate "USBAT/USBAT02-based storage support"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support storage devices
@@ -82,30 +88,38 @@ config USB_STORAGE_USBAT
 	  - RCA LYRA MP3 portable
 	  - Sandisk ImageMate SDDR-05b
 
+	  If this driver is compiled as a module, it will be named ums-usbat.
+
 config USB_STORAGE_SDDR09
-	bool "SanDisk SDDR-09 (and other SmartMedia, including DPCM) support"
+	tristate "SanDisk SDDR-09 (and other SmartMedia, including DPCM) support"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Sandisk SDDR-09
 	  SmartMedia reader in the USB Mass Storage driver.
 	  Also works for the Microtech Zio! CompactFlash/SmartMedia reader.
 
+	  If this driver is compiled as a module, it will be named ums-sddr09.
+
 config USB_STORAGE_SDDR55
-	bool "SanDisk SDDR-55 SmartMedia support"
+	tristate "SanDisk SDDR-55 SmartMedia support"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Sandisk SDDR-55
 	  SmartMedia reader in the USB Mass Storage driver.
 
+	  If this driver is compiled as a module, it will be named ums-sddr55.
+
 config USB_STORAGE_JUMPSHOT
-	bool "Lexar Jumpshot Compact Flash Reader"
+	tristate "Lexar Jumpshot Compact Flash Reader"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Lexar Jumpshot
 	  USB CompactFlash reader.
 
+	  If this driver is compiled as a module, it will be named ums-jumpshot.
+
 config USB_STORAGE_ALAUDA
-	bool "Olympus MAUSB-10/Fuji DPC-R1 support"
+	tristate "Olympus MAUSB-10/Fuji DPC-R1 support"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Olympus MAUSB-10
@@ -114,8 +128,10 @@ config USB_STORAGE_ALAUDA
 	  These devices are based on the Alauda chip and support both
 	  XD and SmartMedia cards.
 
+	  If this driver is compiled as a module, it will be named ums-alauda.
+
 config USB_STORAGE_ONETOUCH
-	bool "Support OneTouch Button on Maxtor Hard Drives"
+	tristate "Support OneTouch Button on Maxtor Hard Drives"
 	depends on USB_STORAGE
 	depends on INPUT=y || INPUT=USB_STORAGE
 	help
@@ -127,8 +143,10 @@ config USB_STORAGE_ONETOUCH
 	  this input in any keybinding software. (e.g. gnome's keyboard short-
 	  cuts)
 
+	  If this driver is compiled as a module, it will be named ums-onetouch.
+
 config USB_STORAGE_KARMA
-	bool "Support for Rio Karma music player"
+	tristate "Support for Rio Karma music player"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Rio Karma
@@ -139,8 +157,10 @@ config USB_STORAGE_KARMA
 	  on the resulting scsi device node returns the Karma to normal
 	  operation.
 
+	  If this driver is compiled as a module, it will be named ums-karma.
+
 config USB_STORAGE_CYPRESS_ATACB
-	bool "SAT emulation on Cypress USB/ATA Bridge with ATACB"
+	tristate "SAT emulation on Cypress USB/ATA Bridge with ATACB"
 	depends on USB_STORAGE
 	---help---
 	  Say Y here if you want to use SAT (ata pass through) on devices based
@@ -149,6 +169,8 @@ config USB_STORAGE_CYPRESS_ATACB
 
 	  If you say no here your device will still work with the standard usb
 	  mass storage class.
+
+	  If this driver is compiled as a module, it will be named ums-cypress.
 
 config USB_LIBUSUAL
 	bool "The shared table of common (or usual) storage devices"

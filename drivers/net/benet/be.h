@@ -100,9 +100,9 @@ struct be_drvr_stats {
 	u32 be_tx_wrbs;		/* number of tx WRBs used */
 	u32 be_tx_events;	/* number of tx completion events  */
 	u32 be_tx_compl;	/* number of tx completion entries processed */
-	u64 be_tx_jiffies;
-	ulong be_tx_bytes;
-	ulong be_tx_bytes_prev;
+	ulong be_tx_jiffies;
+	u64 be_tx_bytes;
+	u64 be_tx_bytes_prev;
 	u32 be_tx_rate;
 
 	u32 cache_barrier[16];
@@ -113,9 +113,9 @@ struct be_drvr_stats {
 	u32 be_rx_compl;	/* number of rx completion entries processed */
 	u32 be_lro_hgram_data[8];	/* histogram of LRO data packets */
 	u32 be_lro_hgram_ack[8];	/* histogram of LRO ACKs */
-	u64 be_rx_jiffies;
-	ulong be_rx_bytes;
-	ulong be_rx_bytes_prev;
+	ulong be_rx_jiffies;
+	u64 be_rx_bytes;
+	u64 be_rx_bytes_prev;
 	u32 be_rx_rate;
 	/* number of non ether type II frames dropped where
 	 * frame len > length field of Mac Hdr */

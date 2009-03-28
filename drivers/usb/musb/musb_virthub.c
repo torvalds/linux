@@ -285,7 +285,7 @@ int musb_hub_control(
 		desc->bDescLength = 9;
 		desc->bDescriptorType = 0x29;
 		desc->bNbrPorts = 1;
-		desc->wHubCharacteristics = __constant_cpu_to_le16(
+		desc->wHubCharacteristics = cpu_to_le16(
 				  0x0001	/* per-port power switching */
 				| 0x0010	/* no overcurrent reporting */
 				);

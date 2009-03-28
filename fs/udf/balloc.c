@@ -206,7 +206,7 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 					((char *)bh->b_data)[(bit + i) >> 3]);
 			} else {
 				if (inode)
-					DQUOT_FREE_BLOCK(inode, 1);
+					vfs_dq_free_block(inode, 1);
 				udf_add_free_space(sbi, sbi->s_partition, 1);
 			}
 		}
@@ -261,11 +261,11 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
 		while (bit < (sb->s_blocksize << 3) && block_count > 0) {
 			if (!udf_test_bit(bit, bh->b_data))
 				goto out;
-			else if (DQUOT_PREALLOC_BLOCK(inode, 1))
+			else if (vfs_dq_prealloc_block(inode, 1))
 				goto out;
 			else if (!udf_clear_bit(bit, bh->b_data)) {
 				udf_debug("bit already cleared for block %d\n", bit);
-				DQUOT_FREE_BLOCK(inode, 1);
+				vfs_dq_free_block(inode, 1);
 				goto out;
 			}
 			block_count--;
@@ -393,7 +393,7 @@ got_block:
 	/*
 	 * Check quota for allocation of this block.
 	 */
-	if (inode && DQUOT_ALLOC_BLOCK(inode, 1)) {
+	if (inode && vfs_dq_alloc_block(inode, 1)) {
 		mutex_unlock(&sbi->s_alloc_mutex);
 		*err = -EDQUOT;
 		return 0;
@@ -452,7 +452,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 	/* We do this up front - There are some error conditions that
 	   could occure, but.. oh well */
 	if (inode)
-		DQUOT_FREE_BLOCK(inode, count);
+		vfs_dq_free_block(inode, count);
 	if (udf_add_free_space(sbi, sbi->s_partition, count))
 		mark_buffer_dirty(sbi->s_lvid_bh);
 
@@ -700,7 +700,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 		epos.offset -= adsize;
 
 		alloc_count = (elen >> sb->s_blocksize_bits);
-		if (inode && DQUOT_PREALLOC_BLOCK(inode,
+		if (inode && vfs_dq_prealloc_block(inode,
 			alloc_count > block_count ? block_count : alloc_count))
 			alloc_count = 0;
 		else if (alloc_count > block_count) {
@@ -806,7 +806,7 @@ static int udf_table_new_block(struct super_block *sb,
 	goal_eloc.logicalBlockNum++;
 	goal_elen -= sb->s_blocksize;
 
-	if (inode && DQUOT_ALLOC_BLOCK(inode, 1)) {
+	if (inode && vfs_dq_alloc_block(inode, 1)) {
 		brelse(goal_epos.bh);
 		mutex_unlock(&sbi->s_alloc_mutex);
 		*err = -EDQUOT;

@@ -65,20 +65,20 @@ struct proc_event {
 		} ack;
 
 		struct fork_proc_event {
-			pid_t parent_pid;
-			pid_t parent_tgid;
-			pid_t child_pid;
-			pid_t child_tgid;
+			__kernel_pid_t parent_pid;
+			__kernel_pid_t parent_tgid;
+			__kernel_pid_t child_pid;
+			__kernel_pid_t child_tgid;
 		} fork;
 
 		struct exec_proc_event {
-			pid_t process_pid;
-			pid_t process_tgid;
+			__kernel_pid_t process_pid;
+			__kernel_pid_t process_tgid;
 		} exec;
 
 		struct id_proc_event {
-			pid_t process_pid;
-			pid_t process_tgid;
+			__kernel_pid_t process_pid;
+			__kernel_pid_t process_tgid;
 			union {
 				__u32 ruid; /* task uid */
 				__u32 rgid; /* task gid */
@@ -90,8 +90,8 @@ struct proc_event {
 		} id;
 
 		struct exit_proc_event {
-			pid_t process_pid;
-			pid_t process_tgid;
+			__kernel_pid_t process_pid;
+			__kernel_pid_t process_tgid;
 			__u32 exit_code, exit_signal;
 		} exit;
 	} event_data;

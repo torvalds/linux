@@ -778,6 +778,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	    }
 	    vc->vc_kmalloced = 1;
 	    vc_init(vc, vc->vc_rows, vc->vc_cols, 1);
+	    vcs_make_sysfs(currcons);
 	    atomic_notifier_call_chain(&vt_notifier_list, VT_ALLOCATE, &param);
 	}
 	return 0;
@@ -987,7 +988,9 @@ void vc_deallocate(unsigned int currcons)
 	if (vc_cons_allocated(currcons)) {
 		struct vc_data *vc = vc_cons[currcons].d;
 		struct vt_notifier_param param = { .vc = vc };
+
 		atomic_notifier_call_chain(&vt_notifier_list, VT_DEALLOCATE, &param);
+		vcs_remove_sysfs(currcons);
 		vc->vc_sw->con_deinit(vc);
 		put_pid(vc->vt_pid);
 		module_put(vc->vc_sw->owner);
@@ -2775,7 +2778,6 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 				tty->termios->c_iflag |= IUTF8;
 			else
 				tty->termios->c_iflag &= ~IUTF8;
-			vcs_make_sysfs(tty);
 			release_console_sem();
 			return ret;
 		}
@@ -2795,7 +2797,6 @@ static void con_shutdown(struct tty_struct *tty)
 	BUG_ON(vc == NULL);
 	acquire_console_sem();
 	vc->vc_tty = NULL;
-	vcs_remove_sysfs(tty);
 	release_console_sem();
 	tty_shutdown(tty);
 }

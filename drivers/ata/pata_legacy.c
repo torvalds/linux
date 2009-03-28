@@ -129,7 +129,7 @@ static int qdi;			/* Set to probe QDI controllers */
 static int winbond;		/* Set to probe Winbond controllers,
 					give I/O port if non standard */
 static int autospeed;		/* Chip present which snoops speed changes */
-static int pio_mask = 0x1F;	/* PIO range for autospeed devices */
+static int pio_mask = ATA_PIO4;	/* PIO range for autospeed devices */
 static int iordy_mask = 0xFFFFFFFF;	/* Use iordy if available */
 
 /**

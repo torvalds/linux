@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -58,6 +58,14 @@
 #define DEBUGFS_ADD_BOOL(name, parent, ptr) do {                        \
 	dbgfs->dbgfs_##parent##_files.file_##name =                     \
 	debugfs_create_bool(#name, 0644, dbgfs->dir_##parent, ptr);     \
+	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name)		\
+			|| !dbgfs->dbgfs_##parent##_files.file_##name)	\
+		goto err;                                               \
+} while (0)
+
+#define DEBUGFS_ADD_X32(name, parent, ptr) do {                        \
+	dbgfs->dbgfs_##parent##_files.file_##name =                     \
+	debugfs_create_x32(#name, 0444, dbgfs->dir_##parent, ptr);     \
 	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name)		\
 			|| !dbgfs->dbgfs_##parent##_files.file_##name)	\
 		goto err;                                               \
@@ -163,9 +171,6 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	int pos = 0;
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
 	const size_t bufsz = sizeof(buf);
-
-	printk(KERN_DEBUG "offset is: 0x%x\tlen is: 0x%x\n",
-	priv->dbgfs->sram_offset, priv->dbgfs->sram_len);
 
 	iwl_grab_nic_access(priv);
 	for (i = priv->dbgfs->sram_len; i > 0; i -= 4) {
@@ -301,14 +306,14 @@ static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
-		IWL_ERROR("EEPROM size is not multiple of 16.\n");
+		IWL_ERR(priv, "EEPROM size is not multiple of 16.\n");
 		return -ENODATA;
 	}
 
 	/* 4 characters for byte 0xYY */
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERROR("Can not allocate Buffer\n");
+		IWL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -365,7 +370,7 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERROR("Can not allocate Buffer\n");
+		IWL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -420,7 +425,6 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
-
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(eeprom);
@@ -462,6 +466,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(rx_statistics, data);
 	DEBUGFS_ADD_FILE(tx_statistics, data);
 	DEBUGFS_ADD_FILE(channels, data);
+	DEBUGFS_ADD_X32(status, data, (u32 *)&priv->status);
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
 			 &priv->disable_chain_noise_cal);
@@ -469,7 +474,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	return 0;
 
 err:
-	IWL_ERROR("Can't open the debugfs directory\n");
+	IWL_ERR(priv, "Can't open the debugfs directory\n");
 	iwl_dbgfs_unregister(priv);
 	return ret;
 }

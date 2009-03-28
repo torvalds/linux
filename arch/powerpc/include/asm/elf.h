@@ -7,7 +7,7 @@
 #include <asm/string.h>
 #endif
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
 #include <asm/auxvec.h>

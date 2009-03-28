@@ -9,7 +9,6 @@ struct sys_timer_ops {
 	int (*init)(void);
 	int (*start)(void);
 	int (*stop)(void);
-	cycle_t (*read)(void);
 #ifndef CONFIG_GENERIC_TIME
 	unsigned long (*get_offset)(void);
 #endif
@@ -39,6 +38,7 @@ struct sys_timer *get_sys_timer(void);
 
 /* arch/sh/kernel/time.c */
 void handle_timer_tick(void);
-extern unsigned long sh_hpt_frequency;
+
+extern struct clocksource clocksource_sh;
 
 #endif /* __ASM_SH_TIMER_H */

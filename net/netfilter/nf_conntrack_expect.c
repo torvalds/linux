@@ -72,7 +72,8 @@ static unsigned int nf_ct_expect_dst_hash(const struct nf_conntrack_tuple *tuple
 	unsigned int hash;
 
 	if (unlikely(!nf_ct_expect_hash_rnd_initted)) {
-		get_random_bytes(&nf_ct_expect_hash_rnd, 4);
+		get_random_bytes(&nf_ct_expect_hash_rnd,
+				 sizeof(nf_ct_expect_hash_rnd));
 		nf_ct_expect_hash_rnd_initted = 1;
 	}
 

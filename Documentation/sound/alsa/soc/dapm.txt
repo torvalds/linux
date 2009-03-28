@@ -116,6 +116,9 @@ SOC_DAPM_SINGLE("HiFi Playback Switch", WM8731_APANA, 4, 1, 0),
 SND_SOC_DAPM_MIXER("Output Mixer", WM8731_PWR, 4, 1, wm8731_output_mixer_controls,
 	ARRAY_SIZE(wm8731_output_mixer_controls)),
 
+If you dont want the mixer elements prefixed with the name of the mixer widget,
+you can use SND_SOC_DAPM_MIXER_NAMED_CTL instead. the parameters are the same
+as for SND_SOC_DAPM_MIXER.
 
 2.3 Platform/Machine domain Widgets
 -----------------------------------

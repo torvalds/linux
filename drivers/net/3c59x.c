@@ -102,8 +102,8 @@ static int vortex_debug = 1;
 #include <linux/delay.h>
 
 
-static char version[] __devinitdata =
-DRV_NAME ": Donald Becker and others.\n";
+static const char version[] __devinitconst =
+	DRV_NAME ": Donald Becker and others.\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("3Com 3c59x/3c9xx ethernet driver ");
@@ -992,6 +992,42 @@ out:
 	return rc;
 }
 
+static const struct net_device_ops boomrang_netdev_ops = {
+	.ndo_open		= vortex_open,
+	.ndo_stop		= vortex_close,
+	.ndo_start_xmit		= boomerang_start_xmit,
+	.ndo_tx_timeout		= vortex_tx_timeout,
+	.ndo_get_stats		= vortex_get_stats,
+#ifdef CONFIG_PCI
+	.ndo_do_ioctl 		= vortex_ioctl,
+#endif
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= poll_vortex,
+#endif
+};
+
+static const struct net_device_ops vortex_netdev_ops = {
+	.ndo_open		= vortex_open,
+	.ndo_stop		= vortex_close,
+	.ndo_start_xmit		= vortex_start_xmit,
+	.ndo_tx_timeout		= vortex_tx_timeout,
+	.ndo_get_stats		= vortex_get_stats,
+#ifdef CONFIG_PCI
+	.ndo_do_ioctl 		= vortex_ioctl,
+#endif
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= poll_vortex,
+#endif
+};
+
 /*
  * Start up the PCI/EISA device which is described by *gendev.
  * Return 0 on success.
@@ -1366,18 +1402,16 @@ static int __devinit vortex_probe1(struct device *gendev,
 	}
 
 	/* The 3c59x-specific entries in the device structure. */
-	dev->open = vortex_open;
 	if (vp->full_bus_master_tx) {
-		dev->hard_start_xmit = boomerang_start_xmit;
+		dev->netdev_ops = &boomrang_netdev_ops;
 		/* Actually, it still should work with iommu. */
 		if (card_idx < MAX_UNITS &&
 		    ((hw_checksums[card_idx] == -1 && (vp->drv_flags & HAS_HWCKSM)) ||
 				hw_checksums[card_idx] == 1)) {
 			dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 		}
-	} else {
-		dev->hard_start_xmit = vortex_start_xmit;
-	}
+	} else
+		dev->netdev_ops =  &vortex_netdev_ops;
 
 	if (print_info) {
 		printk(KERN_INFO "%s: scatter/gather %sabled. h/w checksums %sabled\n",
@@ -1386,18 +1420,9 @@ static int __devinit vortex_probe1(struct device *gendev,
 				(dev->features & NETIF_F_IP_CSUM) ? "en":"dis");
 	}
 
-	dev->stop = vortex_close;
-	dev->get_stats = vortex_get_stats;
-#ifdef CONFIG_PCI
-	dev->do_ioctl = vortex_ioctl;
-#endif
 	dev->ethtool_ops = &vortex_ethtool_ops;
-	dev->set_multicast_list = set_rx_mode;
-	dev->tx_timeout = vortex_tx_timeout;
 	dev->watchdog_timeo = (watchdog * HZ) / 1000;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = poll_vortex;
-#endif
+
 	if (pdev) {
 		vp->pm_state_valid = 1;
  		pci_save_state(VORTEX_PCI(vp));
@@ -2883,7 +2908,7 @@ static void vortex_get_drvinfo(struct net_device *dev,
 		strcpy(info->bus_info, pci_name(VORTEX_PCI(vp)));
 	} else {
 		if (VORTEX_EISA(vp))
-			sprintf(info->bus_info, dev_name(vp->gendev));
+			strcpy(info->bus_info, dev_name(vp->gendev));
 		else
 			sprintf(info->bus_info, "EISA 0x%lx %d",
 					dev->base_addr, dev->irq);

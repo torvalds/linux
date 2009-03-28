@@ -457,7 +457,7 @@ static struct fb_ops au1100fb_ops =
 
 /* AU1100 LCD controller device driver */
 
-static int __init au1100fb_drv_probe(struct device *dev)
+static int __init au1100fb_drv_probe(struct platform_device *dev)
 {
 	struct au1100fb_device *fbdev = NULL;
 	struct resource *regs_res;
@@ -475,7 +475,7 @@ static int __init au1100fb_drv_probe(struct device *dev)
 
 	fbdev->panel = &known_lcd_panels[drv_info.panel_idx];
 
-	dev_set_drvdata(dev, (void*)fbdev);
+	platform_set_drvdata(dev, (void *)fbdev);
 
 	/* Allocate region for our registers and map them */
 	if (!(regs_res = platform_get_resource(to_platform_device(dev),
@@ -583,19 +583,19 @@ failed:
 		fb_dealloc_cmap(&fbdev->info.cmap);
 	}
 	kfree(fbdev);
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }
 
-int au1100fb_drv_remove(struct device *dev)
+int au1100fb_drv_remove(struct platform_device *dev)
 {
 	struct au1100fb_device *fbdev = NULL;
 
 	if (!dev)
 		return -ENODEV;
 
-	fbdev = (struct au1100fb_device*) dev_get_drvdata(dev);
+	fbdev = (struct au1100fb_device *) platform_get_drvdata(dev);
 
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
 	au1100fb_fb_blank(VESA_POWERDOWN, &fbdev->info);
@@ -620,9 +620,9 @@ int au1100fb_drv_remove(struct device *dev)
 static u32 sys_clksrc;
 static struct au1100fb_regs fbregs;
 
-int au1100fb_drv_suspend(struct device *dev, pm_message_t state)
+int au1100fb_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct au1100fb_device *fbdev = dev_get_drvdata(dev);
+	struct au1100fb_device *fbdev = platform_get_drvdata(dev);
 
 	if (!fbdev)
 		return 0;
@@ -641,9 +641,9 @@ int au1100fb_drv_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-int au1100fb_drv_resume(struct device *dev)
+int au1100fb_drv_resume(struct platform_device *dev)
 {
-	struct au1100fb_device *fbdev = dev_get_drvdata(dev);
+	struct au1100fb_device *fbdev = platform_get_drvdata(dev);
 
 	if (!fbdev)
 		return 0;
@@ -663,10 +663,11 @@ int au1100fb_drv_resume(struct device *dev)
 #define au1100fb_drv_resume NULL
 #endif
 
-static struct device_driver au1100fb_driver = {
-	.name		= "au1100-lcd",
-	.bus		= &platform_bus_type,
-
+static struct platform_driver au1100fb_driver = {
+	.driver = {
+		.name		= "au1100-lcd",
+		.owner          = THIS_MODULE,
+	},
 	.probe		= au1100fb_drv_probe,
         .remove		= au1100fb_drv_remove,
 	.suspend	= au1100fb_drv_suspend,
@@ -753,12 +754,12 @@ int __init au1100fb_init(void)
 		return ret;
 	}
 
-	return driver_register(&au1100fb_driver);
+	return platform_driver_register(&au1100fb_driver);
 }
 
 void __exit au1100fb_cleanup(void)
 {
-	driver_unregister(&au1100fb_driver);
+	platform_driver_unregister(&au1100fb_driver);
 
 	kfree(drv_info.opt_mode);
 }

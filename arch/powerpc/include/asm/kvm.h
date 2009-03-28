@@ -20,7 +20,7 @@
 #ifndef __LINUX_KVM_POWERPC_H
 #define __LINUX_KVM_POWERPC_H
 
-#include <asm/types.h>
+#include <linux/types.h>
 
 struct kvm_regs {
 	__u64 pc;
@@ -50,6 +50,13 @@ struct kvm_sregs {
 
 struct kvm_fpu {
 	__u64 fpr[32];
+};
+
+struct kvm_debug_exit_arch {
+};
+
+/* for KVM_SET_GUEST_DEBUG */
+struct kvm_guest_debug_arch {
 };
 
 #endif /* __LINUX_KVM_POWERPC_H */

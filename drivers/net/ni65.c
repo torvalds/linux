@@ -481,8 +481,9 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 	else {
 		if(dev->dma == 0) {
 		/* 'stuck test' from lance.c */
-			long dma_channels = ((inb(DMA1_STAT_REG) >> 4) & 0x0f) |
-					    (inb(DMA2_STAT_REG) & 0xf0);
+			unsigned long dma_channels =
+				((inb(DMA1_STAT_REG) >> 4) & 0x0f)
+				| (inb(DMA2_STAT_REG) & 0xf0);
 			for(i=1;i<5;i++) {
 				int dma = dmatab[i];
 				if(test_bit(dma,&dma_channels) || request_dma(dma,"ni6510"))
@@ -897,7 +898,6 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
 
 		if(csr0 & CSR0_ERR)
 		{
-			struct priv *p = dev->ml_priv;
 			if(debuglevel > 1)
 				printk(KERN_ERR "%s: general error: %04x.\n",dev->name,csr0);
 			if(csr0 & CSR0_BABL)
@@ -922,8 +922,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
  int j;
  for(j=0;j<RMDNUM;j++)
  {
-	struct priv *p = dev->ml_priv;
-	int i,k,num1,num2;
+	int i, num2;
 	for(i=RMDNUM-1;i>0;i--) {
 		 num2 = (p->rmdnum + i) & (RMDNUM-1);
 		 if(!(p->rmdhead[num2].u.s.status & RCV_OWN))
@@ -931,6 +930,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
 	}
 
 	if(i) {
+		int k, num1;
 		for(k=0;k<RMDNUM;k++) {
 			num1 = (p->rmdnum + k) & (RMDNUM-1);
 			if(!(p->rmdhead[num1].u.s.status & RCV_OWN))
@@ -942,7 +942,6 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
 		if(debuglevel > 0)
 		{
 			char buf[256],*buf1;
-			int k;
 			buf1 = buf;
 			for(k=0;k<RMDNUM;k++) {
 				sprintf(buf1,"%02x ",(p->rmdhead[k].u.s.status)); /* & RCV_OWN) ); */

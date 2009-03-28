@@ -340,6 +340,8 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 				seq_printf(m, "\nWrites: %d Bytes: %lld",
 					atomic_read(&tcon->num_writes),
 					(long long)(tcon->bytes_written));
+				seq_printf(m, "\nFlushes: %d",
+					atomic_read(&tcon->num_flushes));
 				seq_printf(m, "\nLocks: %d HardLinks: %d "
 					      "Symlinks: %d",
 					atomic_read(&tcon->num_locks),

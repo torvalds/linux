@@ -4100,13 +4100,6 @@ static int snd_hdspm_capture_release(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_hdspm_hwdep_dummy_op(struct snd_hwdep * hw, struct file *file)
-{
-	/* we have nothing to initialize but the call is required */
-	return 0;
-}
-
-
 static int snd_hdspm_hwdep_ioctl(struct snd_hwdep * hw, struct file *file,
 				 unsigned int cmd, unsigned long arg)
 {
@@ -4213,9 +4206,7 @@ static int __devinit snd_hdspm_create_hwdep(struct snd_card *card,
 	hw->private_data = hdspm;
 	strcpy(hw->name, "HDSPM hwdep interface");
 
-	hw->ops.open = snd_hdspm_hwdep_dummy_op;
 	hw->ops.ioctl = snd_hdspm_hwdep_ioctl;
-	hw->ops.release = snd_hdspm_hwdep_dummy_op;
 
 	return 0;
 }
@@ -4503,10 +4494,10 @@ static int __devinit snd_hdspm_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev], id[dev],
-			    THIS_MODULE, sizeof(struct hdspm));
-	if (!card)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev],
+			      THIS_MODULE, sizeof(struct hdspm), &card);
+	if (err < 0)
+		return err;
 
 	hdspm = card->private_data;
 	card->private_free = snd_hdspm_card_free;

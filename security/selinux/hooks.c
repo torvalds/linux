@@ -89,7 +89,7 @@
 #define XATTR_SELINUX_SUFFIX "selinux"
 #define XATTR_NAME_SELINUX XATTR_SECURITY_PREFIX XATTR_SELINUX_SUFFIX
 
-#define NUM_SEL_MNT_OPTS 4
+#define NUM_SEL_MNT_OPTS 5
 
 extern unsigned int policydb_loaded_version;
 extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
@@ -353,6 +353,7 @@ enum {
 	Opt_fscontext = 2,
 	Opt_defcontext = 3,
 	Opt_rootcontext = 4,
+	Opt_labelsupport = 5,
 };
 
 static const match_table_t tokens = {
@@ -360,6 +361,7 @@ static const match_table_t tokens = {
 	{Opt_fscontext, FSCONTEXT_STR "%s"},
 	{Opt_defcontext, DEFCONTEXT_STR "%s"},
 	{Opt_rootcontext, ROOTCONTEXT_STR "%s"},
+	{Opt_labelsupport, LABELSUPP_STR},
 	{Opt_error, NULL},
 };
 
@@ -431,7 +433,7 @@ static int sb_finish_set_opts(struct super_block *sb)
 		}
 	}
 
-	sbsec->initialized = 1;
+	sbsec->flags |= (SE_SBINITIALIZED | SE_SBLABELSUPP);
 
 	if (sbsec->behavior > ARRAY_SIZE(labeling_behaviors))
 		printk(KERN_ERR "SELinux: initialized (dev %s, type %s), unknown behavior\n",
@@ -440,6 +442,12 @@ static int sb_finish_set_opts(struct super_block *sb)
 		printk(KERN_DEBUG "SELinux: initialized (dev %s, type %s), %s\n",
 		       sb->s_id, sb->s_type->name,
 		       labeling_behaviors[sbsec->behavior-1]);
+
+	if (sbsec->behavior == SECURITY_FS_USE_GENFS ||
+	    sbsec->behavior == SECURITY_FS_USE_MNTPOINT ||
+	    sbsec->behavior == SECURITY_FS_USE_NONE ||
+	    sbsec->behavior > ARRAY_SIZE(labeling_behaviors))
+		sbsec->flags &= ~SE_SBLABELSUPP;
 
 	/* Initialize the root inode. */
 	rc = inode_doinit_with_dentry(root_inode, root);
@@ -487,23 +495,22 @@ static int selinux_get_mnt_opts(const struct super_block *sb,
 
 	security_init_mnt_opts(opts);
 
-	if (!sbsec->initialized)
+	if (!(sbsec->flags & SE_SBINITIALIZED))
 		return -EINVAL;
 
 	if (!ss_initialized)
 		return -EINVAL;
 
-	/*
-	 * if we ever use sbsec flags for anything other than tracking mount
-	 * settings this is going to need a mask
-	 */
-	tmp = sbsec->flags;
+	tmp = sbsec->flags & SE_MNTMASK;
 	/* count the number of mount options for this sb */
 	for (i = 0; i < 8; i++) {
 		if (tmp & 0x01)
 			opts->num_mnt_opts++;
 		tmp >>= 1;
 	}
+	/* Check if the Label support flag is set */
+	if (sbsec->flags & SE_SBLABELSUPP)
+		opts->num_mnt_opts++;
 
 	opts->mnt_opts = kcalloc(opts->num_mnt_opts, sizeof(char *), GFP_ATOMIC);
 	if (!opts->mnt_opts) {
@@ -549,6 +556,10 @@ static int selinux_get_mnt_opts(const struct super_block *sb,
 		opts->mnt_opts[i] = context;
 		opts->mnt_opts_flags[i++] = ROOTCONTEXT_MNT;
 	}
+	if (sbsec->flags & SE_SBLABELSUPP) {
+		opts->mnt_opts[i] = NULL;
+		opts->mnt_opts_flags[i++] = SE_SBLABELSUPP;
+	}
 
 	BUG_ON(i != opts->num_mnt_opts);
 
@@ -562,8 +573,10 @@ out_free:
 static int bad_option(struct superblock_security_struct *sbsec, char flag,
 		      u32 old_sid, u32 new_sid)
 {
+	char mnt_flags = sbsec->flags & SE_MNTMASK;
+
 	/* check if the old mount command had the same options */
-	if (sbsec->initialized)
+	if (sbsec->flags & SE_SBINITIALIZED)
 		if (!(sbsec->flags & flag) ||
 		    (old_sid != new_sid))
 			return 1;
@@ -571,8 +584,8 @@ static int bad_option(struct superblock_security_struct *sbsec, char flag,
 	/* check if we were passed the same options twice,
 	 * aka someone passed context=a,context=b
 	 */
-	if (!sbsec->initialized)
-		if (sbsec->flags & flag)
+	if (!(sbsec->flags & SE_SBINITIALIZED))
+		if (mnt_flags & flag)
 			return 1;
 	return 0;
 }
@@ -626,7 +639,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	 * this sb does not set any security options.  (The first options
 	 * will be used for both mounts)
 	 */
-	if (sbsec->initialized && (sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)
+	if ((sbsec->flags & SE_SBINITIALIZED) && (sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)
 	    && (num_opts == 0))
 		goto out;
 
@@ -637,6 +650,9 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	 */
 	for (i = 0; i < num_opts; i++) {
 		u32 sid;
+
+		if (flags[i] == SE_SBLABELSUPP)
+			continue;
 		rc = security_context_to_sid(mount_options[i],
 					     strlen(mount_options[i]), &sid);
 		if (rc) {
@@ -690,19 +706,19 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 		}
 	}
 
-	if (sbsec->initialized) {
+	if (sbsec->flags & SE_SBINITIALIZED) {
 		/* previously mounted with options, but not on this attempt? */
-		if (sbsec->flags && !num_opts)
+		if ((sbsec->flags & SE_MNTMASK) && !num_opts)
 			goto out_double_mount;
 		rc = 0;
 		goto out;
 	}
 
 	if (strcmp(sb->s_type->name, "proc") == 0)
-		sbsec->proc = 1;
+		sbsec->flags |= SE_SBPROC;
 
 	/* Determine the labeling behavior to use for this filesystem type. */
-	rc = security_fs_use(sbsec->proc ? "proc" : sb->s_type->name, &sbsec->behavior, &sbsec->sid);
+	rc = security_fs_use((sbsec->flags & SE_SBPROC) ? "proc" : sb->s_type->name, &sbsec->behavior, &sbsec->sid);
 	if (rc) {
 		printk(KERN_WARNING "%s: security_fs_use(%s) returned %d\n",
 		       __func__, sb->s_type->name, rc);
@@ -806,10 +822,10 @@ static void selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	}
 
 	/* how can we clone if the old one wasn't set up?? */
-	BUG_ON(!oldsbsec->initialized);
+	BUG_ON(!(oldsbsec->flags & SE_SBINITIALIZED));
 
 	/* if fs is reusing a sb, just let its options stand... */
-	if (newsbsec->initialized)
+	if (newsbsec->flags & SE_SBINITIALIZED)
 		return;
 
 	mutex_lock(&newsbsec->lock);
@@ -917,7 +933,8 @@ static int selinux_parse_opts_str(char *options,
 				goto out_err;
 			}
 			break;
-
+		case Opt_labelsupport:
+			break;
 		default:
 			rc = -EINVAL;
 			printk(KERN_WARNING "SELinux:  unknown mount option\n");
@@ -999,7 +1016,12 @@ static void selinux_write_opts(struct seq_file *m,
 	char *prefix;
 
 	for (i = 0; i < opts->num_mnt_opts; i++) {
-		char *has_comma = strchr(opts->mnt_opts[i], ',');
+		char *has_comma;
+
+		if (opts->mnt_opts[i])
+			has_comma = strchr(opts->mnt_opts[i], ',');
+		else
+			has_comma = NULL;
 
 		switch (opts->mnt_opts_flags[i]) {
 		case CONTEXT_MNT:
@@ -1014,6 +1036,10 @@ static void selinux_write_opts(struct seq_file *m,
 		case DEFCONTEXT_MNT:
 			prefix = DEFCONTEXT_STR;
 			break;
+		case SE_SBLABELSUPP:
+			seq_putc(m, ',');
+			seq_puts(m, LABELSUPP_STR);
+			continue;
 		default:
 			BUG();
 		};
@@ -1209,7 +1235,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		goto out_unlock;
 
 	sbsec = inode->i_sb->s_security;
-	if (!sbsec->initialized) {
+	if (!(sbsec->flags & SE_SBINITIALIZED)) {
 		/* Defer initialization until selinux_complete_init,
 		   after the initial policy is loaded and the security
 		   server is ready to handle calls. */
@@ -1237,19 +1263,26 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			dentry = d_find_alias(inode);
 		}
 		if (!dentry) {
-			printk(KERN_WARNING "SELinux: %s:  no dentry for dev=%s "
-			       "ino=%ld\n", __func__, inode->i_sb->s_id,
-			       inode->i_ino);
+			/*
+			 * this is can be hit on boot when a file is accessed
+			 * before the policy is loaded.  When we load policy we
+			 * may find inodes that have no dentry on the
+			 * sbsec->isec_head list.  No reason to complain as these
+			 * will get fixed up the next time we go through
+			 * inode_doinit with a dentry, before these inodes could
+			 * be used again by userspace.
+			 */
 			goto out_unlock;
 		}
 
 		len = INITCONTEXTLEN;
-		context = kmalloc(len, GFP_NOFS);
+		context = kmalloc(len+1, GFP_NOFS);
 		if (!context) {
 			rc = -ENOMEM;
 			dput(dentry);
 			goto out_unlock;
 		}
+		context[len] = '\0';
 		rc = inode->i_op->getxattr(dentry, XATTR_NAME_SELINUX,
 					   context, len);
 		if (rc == -ERANGE) {
@@ -1262,12 +1295,13 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			}
 			kfree(context);
 			len = rc;
-			context = kmalloc(len, GFP_NOFS);
+			context = kmalloc(len+1, GFP_NOFS);
 			if (!context) {
 				rc = -ENOMEM;
 				dput(dentry);
 				goto out_unlock;
 			}
+			context[len] = '\0';
 			rc = inode->i_op->getxattr(dentry,
 						   XATTR_NAME_SELINUX,
 						   context, len);
@@ -1289,10 +1323,19 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 							     sbsec->def_sid,
 							     GFP_NOFS);
 			if (rc) {
-				printk(KERN_WARNING "SELinux: %s:  context_to_sid(%s) "
-				       "returned %d for dev=%s ino=%ld\n",
-				       __func__, context, -rc,
-				       inode->i_sb->s_id, inode->i_ino);
+				char *dev = inode->i_sb->s_id;
+				unsigned long ino = inode->i_ino;
+
+				if (rc == -EINVAL) {
+					if (printk_ratelimit())
+						printk(KERN_NOTICE "SELinux: inode=%lu on dev=%s was found to have an invalid "
+							"context=%s.  This indicates you may need to relabel the inode or the "
+							"filesystem in question.\n", ino, dev, context);
+				} else {
+					printk(KERN_WARNING "SELinux: %s:  context_to_sid(%s) "
+					       "returned %d for dev=%s ino=%ld\n",
+					       __func__, context, -rc, dev, ino);
+				}
 				kfree(context);
 				/* Leave with the unlabeled SID */
 				rc = 0;
@@ -1326,7 +1369,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		/* Default to the fs superblock SID. */
 		isec->sid = sbsec->sid;
 
-		if (sbsec->proc && !S_ISLNK(inode->i_mode)) {
+		if ((sbsec->flags & SE_SBPROC) && !S_ISLNK(inode->i_mode)) {
 			struct proc_inode *proci = PROC_I(inode);
 			if (proci->pde) {
 				isec->sclass = inode_mode_to_security_class(inode->i_mode);
@@ -1587,7 +1630,7 @@ static int may_create(struct inode *dir,
 	if (rc)
 		return rc;
 
-	if (!newsid || sbsec->behavior == SECURITY_FS_USE_MNTPOINT) {
+	if (!newsid || !(sbsec->flags & SE_SBLABELSUPP)) {
 		rc = security_transition_sid(sid, dsec->sid, tclass, &newsid);
 		if (rc)
 			return rc;
@@ -1801,6 +1844,8 @@ static inline u32 open_file_to_av(struct file *file)
 			av |= FIFO_FILE__OPEN;
 		else if (S_ISDIR(mode))
 			av |= DIR__OPEN;
+		else if (S_ISSOCK(mode))
+			av |= SOCK_FILE__OPEN;
 		else
 			printk(KERN_ERR "SELinux: WARNING: inside %s with "
 				"unknown mode:%o\n", __func__, mode);
@@ -1815,7 +1860,7 @@ static int selinux_ptrace_may_access(struct task_struct *child,
 {
 	int rc;
 
-	rc = secondary_ops->ptrace_may_access(child, mode);
+	rc = cap_ptrace_may_access(child, mode);
 	if (rc)
 		return rc;
 
@@ -1832,7 +1877,7 @@ static int selinux_ptrace_traceme(struct task_struct *parent)
 {
 	int rc;
 
-	rc = secondary_ops->ptrace_traceme(parent);
+	rc = cap_ptrace_traceme(parent);
 	if (rc)
 		return rc;
 
@@ -1848,7 +1893,7 @@ static int selinux_capget(struct task_struct *target, kernel_cap_t *effective,
 	if (error)
 		return error;
 
-	return secondary_ops->capget(target, effective, inheritable, permitted);
+	return cap_capget(target, effective, inheritable, permitted);
 }
 
 static int selinux_capset(struct cred *new, const struct cred *old,
@@ -1858,7 +1903,7 @@ static int selinux_capset(struct cred *new, const struct cred *old,
 {
 	int error;
 
-	error = secondary_ops->capset(new, old,
+	error = cap_capset(new, old,
 				      effective, inheritable, permitted);
 	if (error)
 		return error;
@@ -1866,12 +1911,22 @@ static int selinux_capset(struct cred *new, const struct cred *old,
 	return cred_has_perm(old, new, PROCESS__SETCAP);
 }
 
+/*
+ * (This comment used to live with the selinux_task_setuid hook,
+ * which was removed).
+ *
+ * Since setuid only affects the current process, and since the SELinux
+ * controls are not based on the Linux identity attributes, SELinux does not
+ * need to control this operation.  However, SELinux does control the use of
+ * the CAP_SETUID and CAP_SETGID capabilities using the capable hook.
+ */
+
 static int selinux_capable(struct task_struct *tsk, const struct cred *cred,
 			   int cap, int audit)
 {
 	int rc;
 
-	rc = secondary_ops->capable(tsk, cred, cap, audit);
+	rc = cap_capable(tsk, cred, cap, audit);
 	if (rc)
 		return rc;
 
@@ -1997,7 +2052,7 @@ static int selinux_syslog(int type)
 {
 	int rc;
 
-	rc = secondary_ops->syslog(type);
+	rc = cap_syslog(type);
 	if (rc)
 		return rc;
 
@@ -2028,10 +2083,6 @@ static int selinux_syslog(int type)
  * mapping. 0 means there is enough memory for the allocation to
  * succeed and -ENOMEM implies there is not.
  *
- * Note that secondary_ops->capable and task_has_perm_noaudit return 0
- * if the capability is granted, but __vm_enough_memory requires 1 if
- * the capability is granted.
- *
  * Do not audit the selinux permission check, as this is applied to all
  * processes that allocate mappings.
  */
@@ -2058,7 +2109,7 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 	struct inode *inode = bprm->file->f_path.dentry->d_inode;
 	int rc;
 
-	rc = secondary_ops->bprm_set_creds(bprm);
+	rc = cap_bprm_set_creds(bprm);
 	if (rc)
 		return rc;
 
@@ -2156,11 +2207,6 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 	return 0;
 }
 
-static int selinux_bprm_check_security(struct linux_binprm *bprm)
-{
-	return secondary_ops->bprm_check_security(bprm);
-}
-
 static int selinux_bprm_secureexec(struct linux_binprm *bprm)
 {
 	const struct cred *cred = current_cred();
@@ -2180,7 +2226,7 @@ static int selinux_bprm_secureexec(struct linux_binprm *bprm)
 					PROCESS__NOATSECURE, NULL);
 	}
 
-	return (atsecure || secondary_ops->bprm_secureexec(bprm));
+	return (atsecure || cap_bprm_secureexec(bprm));
 }
 
 extern struct vfsmount *selinuxfs_mount;
@@ -2290,8 +2336,6 @@ static void selinux_bprm_committing_creds(struct linux_binprm *bprm)
 	struct rlimit *rlim, *initrlim;
 	int rc, i;
 
-	secondary_ops->bprm_committing_creds(bprm);
-
 	new_tsec = bprm->cred->security;
 	if (new_tsec->sid == new_tsec->osid)
 		return;
@@ -2336,8 +2380,6 @@ static void selinux_bprm_committed_creds(struct linux_binprm *bprm)
 	u32 osid, sid;
 	int rc, i;
 	unsigned long flags;
-
-	secondary_ops->bprm_committed_creds(bprm);
 
 	osid = tsec->osid;
 	sid = tsec->sid;
@@ -2400,7 +2442,8 @@ static inline int selinux_option(char *option, int len)
 	return (match_prefix(CONTEXT_STR, sizeof(CONTEXT_STR)-1, option, len) ||
 		match_prefix(FSCONTEXT_STR, sizeof(FSCONTEXT_STR)-1, option, len) ||
 		match_prefix(DEFCONTEXT_STR, sizeof(DEFCONTEXT_STR)-1, option, len) ||
-		match_prefix(ROOTCONTEXT_STR, sizeof(ROOTCONTEXT_STR)-1, option, len));
+		match_prefix(ROOTCONTEXT_STR, sizeof(ROOTCONTEXT_STR)-1, option, len) ||
+		match_prefix(LABELSUPP_STR, sizeof(LABELSUPP_STR)-1, option, len));
 }
 
 static inline void take_option(char **to, char *from, int *first, int len)
@@ -2513,11 +2556,6 @@ static int selinux_mount(char *dev_name,
 			 void *data)
 {
 	const struct cred *cred = current_cred();
-	int rc;
-
-	rc = secondary_ops->sb_mount(dev_name, path, type, flags, data);
-	if (rc)
-		return rc;
 
 	if (flags & MS_REMOUNT)
 		return superblock_has_perm(cred, path->mnt->mnt_sb,
@@ -2530,11 +2568,6 @@ static int selinux_mount(char *dev_name,
 static int selinux_umount(struct vfsmount *mnt, int flags)
 {
 	const struct cred *cred = current_cred();
-	int rc;
-
-	rc = secondary_ops->sb_umount(mnt, flags);
-	if (rc)
-		return rc;
 
 	return superblock_has_perm(cred, mnt->mnt_sb,
 				   FILESYSTEM__UNMOUNT, NULL);
@@ -2570,7 +2603,7 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	sid = tsec->sid;
 	newsid = tsec->create_sid;
 
-	if (!newsid || sbsec->behavior == SECURITY_FS_USE_MNTPOINT) {
+	if (!newsid || !(sbsec->flags & SE_SBLABELSUPP)) {
 		rc = security_transition_sid(sid, dsec->sid,
 					     inode_mode_to_security_class(inode->i_mode),
 					     &newsid);
@@ -2585,14 +2618,14 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	}
 
 	/* Possibly defer initialization to selinux_complete_init. */
-	if (sbsec->initialized) {
+	if (sbsec->flags & SE_SBINITIALIZED) {
 		struct inode_security_struct *isec = inode->i_security;
 		isec->sclass = inode_mode_to_security_class(inode->i_mode);
 		isec->sid = newsid;
 		isec->initialized = 1;
 	}
 
-	if (!ss_initialized || sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
+	if (!ss_initialized || !(sbsec->flags & SE_SBLABELSUPP))
 		return -EOPNOTSUPP;
 
 	if (name) {
@@ -2622,21 +2655,11 @@ static int selinux_inode_create(struct inode *dir, struct dentry *dentry, int ma
 
 static int selinux_inode_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_dentry)
 {
-	int rc;
-
-	rc = secondary_ops->inode_link(old_dentry, dir, new_dentry);
-	if (rc)
-		return rc;
 	return may_link(dir, old_dentry, MAY_LINK);
 }
 
 static int selinux_inode_unlink(struct inode *dir, struct dentry *dentry)
 {
-	int rc;
-
-	rc = secondary_ops->inode_unlink(dir, dentry);
-	if (rc)
-		return rc;
 	return may_link(dir, dentry, MAY_UNLINK);
 }
 
@@ -2657,12 +2680,6 @@ static int selinux_inode_rmdir(struct inode *dir, struct dentry *dentry)
 
 static int selinux_inode_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 {
-	int rc;
-
-	rc = secondary_ops->inode_mknod(dir, dentry, mode, dev);
-	if (rc)
-		return rc;
-
 	return may_create(dir, dentry, inode_mode_to_security_class(mode));
 }
 
@@ -2682,22 +2699,13 @@ static int selinux_inode_readlink(struct dentry *dentry)
 static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *nameidata)
 {
 	const struct cred *cred = current_cred();
-	int rc;
 
-	rc = secondary_ops->inode_follow_link(dentry, nameidata);
-	if (rc)
-		return rc;
 	return dentry_has_perm(cred, NULL, dentry, FILE__READ);
 }
 
 static int selinux_inode_permission(struct inode *inode, int mask)
 {
 	const struct cred *cred = current_cred();
-	int rc;
-
-	rc = secondary_ops->inode_permission(inode, mask);
-	if (rc)
-		return rc;
 
 	if (!mask) {
 		/* No permission to check.  Existence test. */
@@ -2711,11 +2719,6 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	const struct cred *cred = current_cred();
-	int rc;
-
-	rc = secondary_ops->inode_setattr(dentry, iattr);
-	if (rc)
-		return rc;
 
 	if (iattr->ia_valid & ATTR_FORCE)
 		return 0;
@@ -2769,7 +2772,7 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 		return selinux_inode_setotherxattr(dentry, name);
 
 	sbsec = inode->i_sb->s_security;
-	if (sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
+	if (!(sbsec->flags & SE_SBLABELSUPP))
 		return -EOPNOTSUPP;
 
 	if (!is_owner_or_cap(inode))
@@ -2931,16 +2934,6 @@ static int selinux_inode_listsecurity(struct inode *inode, char *buffer, size_t 
 	return len;
 }
 
-static int selinux_inode_need_killpriv(struct dentry *dentry)
-{
-	return secondary_ops->inode_need_killpriv(dentry);
-}
-
-static int selinux_inode_killpriv(struct dentry *dentry)
-{
-	return secondary_ops->inode_killpriv(dentry);
-}
-
 static void selinux_inode_getsecid(const struct inode *inode, u32 *secid)
 {
 	struct inode_security_struct *isec = inode->i_security;
@@ -3078,18 +3071,13 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 				 unsigned long prot)
 {
 	const struct cred *cred = current_cred();
-	int rc;
-
-	rc = secondary_ops->file_mprotect(vma, reqprot, prot);
-	if (rc)
-		return rc;
 
 	if (selinux_checkreqprot)
 		prot = reqprot;
 
 #ifndef CONFIG_PPC32
 	if ((prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
-		rc = 0;
+		int rc = 0;
 		if (vma->vm_start >= vma->vm_mm->start_brk &&
 		    vma->vm_end <= vma->vm_mm->brk) {
 			rc = cred_has_perm(cred, cred, PROCESS__EXECHEAP);
@@ -3239,12 +3227,6 @@ static int selinux_dentry_open(struct file *file, const struct cred *cred)
 
 static int selinux_task_create(unsigned long clone_flags)
 {
-	int rc;
-
-	rc = secondary_ops->task_create(clone_flags);
-	if (rc)
-		return rc;
-
 	return current_has_perm(current, PROCESS__FORK);
 }
 
@@ -3275,14 +3257,6 @@ static int selinux_cred_prepare(struct cred *new, const struct cred *old,
 
 	new->security = tsec;
 	return 0;
-}
-
-/*
- * commit new credentials
- */
-static void selinux_cred_commit(struct cred *new, const struct cred *old)
-{
-	secondary_ops->cred_commit(new, old);
 }
 
 /*
@@ -3329,29 +3303,6 @@ static int selinux_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return 0;
 }
 
-static int selinux_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
-{
-	/* Since setuid only affects the current process, and
-	   since the SELinux controls are not based on the Linux
-	   identity attributes, SELinux does not need to control
-	   this operation.  However, SELinux does control the use
-	   of the CAP_SETUID and CAP_SETGID capabilities using the
-	   capable hook. */
-	return 0;
-}
-
-static int selinux_task_fix_setuid(struct cred *new, const struct cred *old,
-				   int flags)
-{
-	return secondary_ops->task_fix_setuid(new, old, flags);
-}
-
-static int selinux_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags)
-{
-	/* See the comment for setuid above. */
-	return 0;
-}
-
 static int selinux_task_setpgid(struct task_struct *p, pid_t pgid)
 {
 	return current_has_perm(p, PROCESS__SETPGID);
@@ -3372,17 +3323,11 @@ static void selinux_task_getsecid(struct task_struct *p, u32 *secid)
 	*secid = task_sid(p);
 }
 
-static int selinux_task_setgroups(struct group_info *group_info)
-{
-	/* See the comment for setuid above. */
-	return 0;
-}
-
 static int selinux_task_setnice(struct task_struct *p, int nice)
 {
 	int rc;
 
-	rc = secondary_ops->task_setnice(p, nice);
+	rc = cap_task_setnice(p, nice);
 	if (rc)
 		return rc;
 
@@ -3393,7 +3338,7 @@ static int selinux_task_setioprio(struct task_struct *p, int ioprio)
 {
 	int rc;
 
-	rc = secondary_ops->task_setioprio(p, ioprio);
+	rc = cap_task_setioprio(p, ioprio);
 	if (rc)
 		return rc;
 
@@ -3408,11 +3353,6 @@ static int selinux_task_getioprio(struct task_struct *p)
 static int selinux_task_setrlimit(unsigned int resource, struct rlimit *new_rlim)
 {
 	struct rlimit *old_rlim = current->signal->rlim + resource;
-	int rc;
-
-	rc = secondary_ops->task_setrlimit(resource, new_rlim);
-	if (rc)
-		return rc;
 
 	/* Control the ability to change the hard limit (whether
 	   lowering or raising it), so that the hard limit can
@@ -3428,7 +3368,7 @@ static int selinux_task_setscheduler(struct task_struct *p, int policy, struct s
 {
 	int rc;
 
-	rc = secondary_ops->task_setscheduler(p, policy, lp);
+	rc = cap_task_setscheduler(p, policy, lp);
 	if (rc)
 		return rc;
 
@@ -3451,10 +3391,6 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info,
 	u32 perm;
 	int rc;
 
-	rc = secondary_ops->task_kill(p, info, sig, secid);
-	if (rc)
-		return rc;
-
 	if (!sig)
 		perm = PROCESS__SIGNULL; /* null signal; existence test */
 	else
@@ -3465,18 +3401,6 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info,
 	else
 		rc = current_has_perm(p, perm);
 	return rc;
-}
-
-static int selinux_task_prctl(int option,
-			      unsigned long arg2,
-			      unsigned long arg3,
-			      unsigned long arg4,
-			      unsigned long arg5)
-{
-	/* The current prctl operations do not appear to require
-	   any SELinux controls since they merely observe or modify
-	   the state of the current process. */
-	return secondary_ops->task_prctl(option, arg2, arg3, arg4, arg5);
 }
 
 static int selinux_task_wait(struct task_struct *p)
@@ -4046,10 +3970,6 @@ static int selinux_socket_unix_stream_connect(struct socket *sock,
 	struct inode_security_struct *other_isec;
 	struct avc_audit_data ad;
 	int err;
-
-	err = secondary_ops->unix_stream_connect(sock, other, newsk);
-	if (err)
-		return err;
 
 	isec = SOCK_INODE(sock)->i_security;
 	other_isec = SOCK_INODE(other)->i_security;
@@ -4844,7 +4764,7 @@ static int selinux_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
 
-	err = secondary_ops->netlink_send(sk, skb);
+	err = cap_netlink_send(sk, skb);
 	if (err)
 		return err;
 
@@ -4859,7 +4779,7 @@ static int selinux_netlink_recv(struct sk_buff *skb, int capability)
 	int err;
 	struct avc_audit_data ad;
 
-	err = secondary_ops->netlink_recv(skb, capability);
+	err = cap_netlink_recv(skb, capability);
 	if (err)
 		return err;
 
@@ -5167,11 +5087,6 @@ static int selinux_shm_shmat(struct shmid_kernel *shp,
 			     char __user *shmaddr, int shmflg)
 {
 	u32 perms;
-	int rc;
-
-	rc = secondary_ops->shm_shmat(shp, shmaddr, shmflg);
-	if (rc)
-		return rc;
 
 	if (shmflg & SHM_RDONLY)
 		perms = SHM__READ;
@@ -5581,7 +5496,6 @@ static struct security_operations selinux_ops = {
 	.netlink_recv =			selinux_netlink_recv,
 
 	.bprm_set_creds =		selinux_bprm_set_creds,
-	.bprm_check_security =		selinux_bprm_check_security,
 	.bprm_committing_creds =	selinux_bprm_committing_creds,
 	.bprm_committed_creds =		selinux_bprm_committed_creds,
 	.bprm_secureexec =		selinux_bprm_secureexec,
@@ -5623,8 +5537,6 @@ static struct security_operations selinux_ops = {
 	.inode_getsecurity =		selinux_inode_getsecurity,
 	.inode_setsecurity =		selinux_inode_setsecurity,
 	.inode_listsecurity =		selinux_inode_listsecurity,
-	.inode_need_killpriv =		selinux_inode_need_killpriv,
-	.inode_killpriv =		selinux_inode_killpriv,
 	.inode_getsecid =		selinux_inode_getsecid,
 
 	.file_permission =		selinux_file_permission,
@@ -5644,17 +5556,12 @@ static struct security_operations selinux_ops = {
 	.task_create =			selinux_task_create,
 	.cred_free =			selinux_cred_free,
 	.cred_prepare =			selinux_cred_prepare,
-	.cred_commit =			selinux_cred_commit,
 	.kernel_act_as =		selinux_kernel_act_as,
 	.kernel_create_files_as =	selinux_kernel_create_files_as,
-	.task_setuid =			selinux_task_setuid,
-	.task_fix_setuid =		selinux_task_fix_setuid,
-	.task_setgid =			selinux_task_setgid,
 	.task_setpgid =			selinux_task_setpgid,
 	.task_getpgid =			selinux_task_getpgid,
 	.task_getsid =			selinux_task_getsid,
 	.task_getsecid =		selinux_task_getsecid,
-	.task_setgroups =		selinux_task_setgroups,
 	.task_setnice =			selinux_task_setnice,
 	.task_setioprio =		selinux_task_setioprio,
 	.task_getioprio =		selinux_task_getioprio,
@@ -5664,7 +5571,6 @@ static struct security_operations selinux_ops = {
 	.task_movememory =		selinux_task_movememory,
 	.task_kill =			selinux_task_kill,
 	.task_wait =			selinux_task_wait,
-	.task_prctl =			selinux_task_prctl,
 	.task_to_inode =		selinux_task_to_inode,
 
 	.ipc_permission =		selinux_ipc_permission,

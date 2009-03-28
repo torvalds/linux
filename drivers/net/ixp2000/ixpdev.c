@@ -141,7 +141,7 @@ static int ixpdev_poll(struct napi_struct *napi, int budget)
 			break;
 	} while (ixp2000_reg_read(IXP2000_IRQ_THD_RAW_STATUS_A_0) & 0x00ff);
 
-	netif_rx_complete(napi);
+	napi_complete(napi);
 	ixp2000_reg_write(IXP2000_IRQ_THD_ENABLE_SET_A_0, 0x00ff);
 
 	return rx;
@@ -204,7 +204,7 @@ static irqreturn_t ixpdev_interrupt(int irq, void *dev_id)
 
 		ixp2000_reg_wrb(IXP2000_IRQ_THD_ENABLE_CLEAR_A_0, 0x00ff);
 		if (likely(napi_schedule_prep(&ip->napi))) {
-			__netif_rx_schedule(&ip->napi);
+			__napi_schedule(&ip->napi);
 		} else {
 			printk(KERN_CRIT "ixp2000: irq while polling!!\n");
 		}

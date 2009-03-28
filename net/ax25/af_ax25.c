@@ -1435,6 +1435,11 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	size_t size;
 	int lv, err, addr_len = msg->msg_namelen;
 
+	/* AX.25 empty data frame has no meaning : don't send */
+	if (len == 0) {
+		return (0);
+	}
+
 	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_EOR|MSG_CMSG_COMPAT))
 		return -EINVAL;
 
@@ -1529,10 +1534,8 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 		dp = ax25->digipeat;
 	}
 
-	SOCK_DEBUG(sk, "AX.25: sendto: Addresses built.\n");
-
 	/* Build a packet */
-	SOCK_DEBUG(sk, "AX.25: sendto: building packet.\n");
+	SOCK_DEBUG(sk, "AX.25: sendto: Addresses built. Building packet.\n");
 
 	/* Assume the worst case */
 	size = len + ax25->ax25_dev->dev->hard_header_len;
@@ -1635,6 +1638,13 @@ static int ax25_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	skb_reset_transport_header(skb);
 	copied = skb->len;
+
+	/* AX.25 empty data frame has no meaning : ignore it */
+	if (copied == 0) {
+		err = copied;
+		skb_free_datagram(sk, skb);
+		goto out;
+	}
 
 	if (copied > size) {
 		copied = size;
@@ -1985,9 +1995,8 @@ static const struct proto_ops ax25_proto_ops = {
 /*
  *	Called by socket.c on kernel start up
  */
-static struct packet_type ax25_packet_type = {
-	.type	=	__constant_htons(ETH_P_AX25),
-	.dev	=	NULL,				/* All devices */
+static struct packet_type ax25_packet_type __read_mostly = {
+	.type	=	cpu_to_be16(ETH_P_AX25),
 	.func	=	ax25_kiss_rcv,
 };
 

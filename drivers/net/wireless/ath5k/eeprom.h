@@ -25,6 +25,7 @@
 #define AR5K_EEPROM_MAGIC_5211		0x0000145b /* 5211 */
 #define AR5K_EEPROM_MAGIC_5210		0x0000145a /* 5210 */
 
+#define	AR5K_EEPROM_IS_HB63		0x000b	/* Talon detect */
 #define AR5K_EEPROM_REG_DOMAIN		0x00bf	/* EEPROM regdom */
 #define AR5K_EEPROM_CHECKSUM		0x00c0	/* EEPROM checksum */
 #define AR5K_EEPROM_INFO_BASE		0x00c0	/* EEPROM header */

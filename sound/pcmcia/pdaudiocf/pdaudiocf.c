@@ -91,7 +91,7 @@ static int snd_pdacf_dev_free(struct snd_device *device)
  */
 static int snd_pdacf_probe(struct pcmcia_device *link)
 {
-	int i;
+	int i, err;
 	struct snd_pdacf *pdacf;
 	struct snd_card *card;
 	static struct snd_device_ops ops = {
@@ -112,20 +112,23 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		return -ENODEV; /* disabled explicitly */
 
 	/* ok, create a card instance */
-	card = snd_card_new(index[i], id[i], THIS_MODULE, 0);
-	if (card == NULL) {
+	err = snd_card_create(index[i], id[i], THIS_MODULE, 0, &card);
+	if (err < 0) {
 		snd_printk(KERN_ERR "pdacf: cannot create a card instance\n");
-		return -ENOMEM;
+		return err;
 	}
 
 	pdacf = snd_pdacf_create(card);
-	if (! pdacf)
-		return -EIO;
+	if (!pdacf) {
+		snd_card_free(card);
+		return -ENOMEM;
+	}
 
-	if (snd_device_new(card, SNDRV_DEV_LOWLEVEL, pdacf, &ops) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, pdacf, &ops);
+	if (err < 0) {
 		kfree(pdacf);
 		snd_card_free(card);
-		return -ENODEV;
+		return err;
 	}
 
 	snd_card_set_dev(card, &handle_to_dev(link));

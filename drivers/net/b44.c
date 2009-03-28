@@ -874,7 +874,7 @@ static int b44_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		b44_enable_ints(bp);
 	}
 
@@ -906,13 +906,13 @@ static irqreturn_t b44_interrupt(int irq, void *dev_id)
 			goto irq_ack;
 		}
 
-		if (netif_rx_schedule_prep(&bp->napi)) {
+		if (napi_schedule_prep(&bp->napi)) {
 			/* NOTE: These writes are posted by the readback of
 			 *       the ISTAT register below.
 			 */
 			bp->istat = istat;
 			__b44_disable_ints(bp);
-			__netif_rx_schedule(&bp->napi);
+			__napi_schedule(&bp->napi);
 		} else {
 			printk(KERN_ERR PFX "%s: Error, poll already scheduled\n",
 			       dev->name);
@@ -973,7 +973,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			ssb_dma_unmap_single(bp->sdev, mapping, len,
 					     DMA_TO_DEVICE);
 
-		bounce_skb = __dev_alloc_skb(len, GFP_ATOMIC | GFP_DMA);
+		bounce_skb = __netdev_alloc_skb(dev, len, GFP_ATOMIC | GFP_DMA);
 		if (!bounce_skb)
 			goto err_out;
 

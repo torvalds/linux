@@ -108,7 +108,7 @@ void fhci_dfs_create(struct fhci_hcd *fhci)
 {
 	struct device *dev = fhci_to_hcd(fhci)->self.controller;
 
-	fhci->dfs_root = debugfs_create_dir(dev->bus_id, NULL);
+	fhci->dfs_root = debugfs_create_dir(dev_name(dev), NULL);
 	if (!fhci->dfs_root) {
 		WARN_ON(1);
 		return;

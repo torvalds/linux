@@ -32,6 +32,8 @@
 #include "lapic.h"
 
 #define PIC_NUM_PINS 16
+#define SELECT_PIC(irq) \
+	((irq) < 8 ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE)
 
 struct kvm;
 struct kvm_vcpu;

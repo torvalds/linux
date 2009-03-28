@@ -1,8 +1,8 @@
 /*
  *	Watchdog driver for the SA11x0/PXA2xx
  *
- *      (c) Copyright 2000 Oleg Drokin <green@crimea.edu>
- *          Based on SoftDog driver by Alan Cox <alan@lxorguk.ukuu.org.uk>
+ *	(c) Copyright 2000 Oleg Drokin <green@crimea.edu>
+ *	    Based on SoftDog driver by Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -15,7 +15,7 @@
  *
  *	(c) Copyright 2000           Oleg Drokin <green@crimea.edu>
  *
- *      27/11/2000 Initial release
+ *	27/11/2000 Initial release
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>

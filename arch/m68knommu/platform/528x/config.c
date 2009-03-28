@@ -57,8 +57,40 @@ static struct platform_device m528x_uart = {
 	.dev.platform_data	= m528x_uart_platform,
 };
 
+static struct resource m528x_fec_resources[] = {
+	{
+		.start		= MCF_MBAR + 0x1000,
+		.end		= MCF_MBAR + 0x1000 + 0x7ff,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= 64 + 23,
+		.end		= 64 + 23,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{
+		.start		= 64 + 27,
+		.end		= 64 + 27,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{
+		.start		= 64 + 29,
+		.end		= 64 + 29,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device m528x_fec = {
+	.name			= "fec",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(m528x_fec_resources),
+	.resource		= m528x_fec_resources,
+};
+
+
 static struct platform_device *m528x_devices[] __initdata = {
 	&m528x_uart,
+	&m528x_fec,
 };
 
 /***************************************************************************/
@@ -95,6 +127,31 @@ static void __init m528x_uarts_init(void)
 
 	for (line = 0; (line < nrlines); line++)
 		m528x_uart_init_line(line, m528x_uart_platform[line].irq);
+}
+
+/***************************************************************************/
+
+static void __init m528x_fec_init(void)
+{
+	u32 imr;
+	u16 v16;
+
+	/* Unmask FEC interrupts at ColdFire interrupt controller */
+	writeb(0x28, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 23);
+	writeb(0x27, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 27);
+	writeb(0x26, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 29);
+
+	imr = readl(MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRH);
+	imr &= ~0xf;
+	writel(imr, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRH);
+	imr = readl(MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRL);
+	imr &= ~0xff800001;
+	writel(imr, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRL);
+
+	/* Set multi-function pins to ethernet mode for fec0 */
+	v16 = readw(MCF_IPSBAR + 0x100056);
+	writew(v16 | 0xf00, MCF_IPSBAR + 0x100056);
+	writeb(0xc0, MCF_IPSBAR + 0x100058);
 }
 
 /***************************************************************************/
@@ -158,6 +215,7 @@ void __init config_BSP(char *commandp, int size)
 static int __init init_BSP(void)
 {
 	m528x_uarts_init();
+	m528x_fec_init();
 	platform_add_devices(m528x_devices, ARRAY_SIZE(m528x_devices));
 	return 0;
 }

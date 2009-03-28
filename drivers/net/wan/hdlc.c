@@ -44,22 +44,13 @@ static const char* version = "HDLC support module revision 1.22";
 
 static struct hdlc_proto *first_proto;
 
-static int hdlc_change_mtu(struct net_device *dev, int new_mtu)
+int hdlc_change_mtu(struct net_device *dev, int new_mtu)
 {
 	if ((new_mtu < 68) || (new_mtu > HDLC_MAX_MTU))
 		return -EINVAL;
 	dev->mtu = new_mtu;
 	return 0;
 }
-
-
-
-static struct net_device_stats *hdlc_get_stats(struct net_device *dev)
-{
-	return &dev->stats;
-}
-
-
 
 static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 		    struct packet_type *p, struct net_device *orig_dev)
@@ -75,7 +66,15 @@ static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 	return hdlc->proto->netif_rx(skb);
 }
 
+int hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	hdlc_device *hdlc = dev_to_hdlc(dev);
 
+	if (hdlc->proto->xmit)
+		return hdlc->proto->xmit(skb, dev);
+
+	return hdlc->xmit(skb, dev); /* call hardware driver directly */
+}
 
 static inline void hdlc_proto_start(struct net_device *dev)
 {
@@ -102,11 +101,11 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 	hdlc_device *hdlc;
 	unsigned long flags;
 	int on;
- 
+
 	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
-	if (dev->get_stats != hdlc_get_stats)
+	if (!(dev->priv_flags & IFF_WAN_HDLC))
 		return NOTIFY_DONE; /* not an HDLC device */
 
 	if (event != NETDEV_CHANGE)
@@ -233,15 +232,13 @@ static void hdlc_setup_dev(struct net_device *dev)
 	/* Re-init all variables changed by HDLC protocol drivers,
 	 * including ether_setup() called from hdlc_raw_eth.c.
 	 */
-	dev->get_stats		 = hdlc_get_stats;
 	dev->flags		 = IFF_POINTOPOINT | IFF_NOARP;
+	dev->priv_flags		 = IFF_WAN_HDLC;
 	dev->mtu		 = HDLC_MAX_MTU;
 	dev->type		 = ARPHRD_RAWHDLC;
 	dev->hard_header_len	 = 16;
 	dev->addr_len		 = 0;
 	dev->header_ops		 = &hdlc_null_ops;
-
-	dev->change_mtu		 = hdlc_change_mtu;
 }
 
 static void hdlc_setup(struct net_device *dev)
@@ -339,6 +336,8 @@ MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
 MODULE_DESCRIPTION("HDLC support module");
 MODULE_LICENSE("GPL v2");
 
+EXPORT_SYMBOL(hdlc_change_mtu);
+EXPORT_SYMBOL(hdlc_start_xmit);
 EXPORT_SYMBOL(hdlc_open);
 EXPORT_SYMBOL(hdlc_close);
 EXPORT_SYMBOL(hdlc_ioctl);
@@ -349,8 +348,8 @@ EXPORT_SYMBOL(unregister_hdlc_protocol);
 EXPORT_SYMBOL(attach_hdlc_protocol);
 EXPORT_SYMBOL(detach_hdlc_protocol);
 
-static struct packet_type hdlc_packet_type = {
-	.type = __constant_htons(ETH_P_HDLC),
+static struct packet_type hdlc_packet_type __read_mostly = {
+	.type = cpu_to_be16(ETH_P_HDLC),
 	.func = hdlc_rcv,
 };
 

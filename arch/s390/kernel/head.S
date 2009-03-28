@@ -469,6 +469,8 @@ start:
 	.org	0x10000
 startup:basr	%r13,0			# get base
 .LPG0:
+	xc	0x200(256),0x200	# partially clear lowcore
+	xc	0x300(256),0x300
 
 #ifndef CONFIG_MARCH_G5
 	# check processor version against MARCH_{G5,Z900,Z990,Z9_109,Z10}

@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -49,8 +49,13 @@ enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key)
 void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
 				       struct txentry_desc *txdesc)
 {
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
+
+	if (!test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) ||
+	    !hw_key || entry->skb->do_not_encrypt)
+		return;
 
 	__set_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags);
 
@@ -69,10 +74,16 @@ void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
 		__set_bit(ENTRY_TXD_ENCRYPT_MMIC, &txdesc->flags);
 }
 
-unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info)
+unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
+				      struct sk_buff *skb)
 {
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *key = tx_info->control.hw_key;
 	unsigned int overhead = 0;
+
+	if (!test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) ||
+	    !key || skb->do_not_encrypt)
+		return overhead;
 
 	/*
 	 * Extend frame length to include IV/EIV/ICV/MMIC,

@@ -444,6 +444,17 @@ out:
 }
 EXPORT_SYMBOL(qdisc_calculate_pkt_len);
 
+void qdisc_warn_nonwc(char *txt, struct Qdisc *qdisc)
+{
+	if (!(qdisc->flags & TCQ_F_WARN_NONWC)) {
+		printk(KERN_WARNING
+		       "%s: %s qdisc %X: is non-work-conserving?\n",
+		       txt, qdisc->ops->id, qdisc->handle >> 16);
+		qdisc->flags |= TCQ_F_WARN_NONWC;
+	}
+}
+EXPORT_SYMBOL(qdisc_warn_nonwc);
+
 static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 {
 	struct qdisc_watchdog *wd = container_of(timer, struct qdisc_watchdog,

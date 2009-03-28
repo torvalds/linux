@@ -11,17 +11,6 @@ menuconfig SND_ARM
 
 if SND_ARM
 
-config SND_SA11XX_UDA1341
-	tristate "SA11xx UDA1341TS driver (iPaq H3600)"
-	depends on ARCH_SA1100 && L3
-	select SND_PCM
-	help
-	  Say Y here if you have a Compaq iPaq H3x00 handheld computer
-	  and want to use its Philips UDA 1341 audio chip.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-sa11xx-uda1341.
-
 config SND_ARMAACI
 	tristate "ARM PrimeCell PL041 AC Link support"
 	depends on ARM_AMBA

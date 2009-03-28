@@ -21,8 +21,6 @@
 #include "isac.h"
 #include "hscx.h"
 
-extern const char *CardType[];
-
 static const char *teles0_revision = "$Revision: 2.15.2.4 $";
 
 #define TELES_IOMEM_SIZE	0x400

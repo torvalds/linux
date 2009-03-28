@@ -42,9 +42,11 @@
 extern int dccp_debug;
 #define dccp_pr_debug(format, a...)	  DCCP_PR_DEBUG(dccp_debug, format, ##a)
 #define dccp_pr_debug_cat(format, a...)   DCCP_PRINTK(dccp_debug, format, ##a)
+#define dccp_debug(fmt, a...)		  dccp_pr_debug_cat(KERN_DEBUG fmt, ##a)
 #else
 #define dccp_pr_debug(format, a...)
 #define dccp_pr_debug_cat(format, a...)
+#define dccp_debug(format, a...)
 #endif
 
 extern struct inet_hashinfo dccp_hashinfo;
@@ -61,10 +63,13 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
  *    - DCCP-Reset    with ACK Subheader and 4 bytes of Reset Code fields
  *  Hence a safe upper bound for the maximum option length is 1020-28 = 992
  */
-#define MAX_DCCP_SPECIFIC_HEADER (255 * sizeof(int))
+#define MAX_DCCP_SPECIFIC_HEADER (255 * sizeof(uint32_t))
 #define DCCP_MAX_PACKET_HDR 28
 #define DCCP_MAX_OPT_LEN (MAX_DCCP_SPECIFIC_HEADER - DCCP_MAX_PACKET_HDR)
 #define MAX_DCCP_HEADER (MAX_DCCP_SPECIFIC_HEADER + MAX_HEADER)
+
+/* Upper bound for initial feature-negotiation overhead (padded to 32 bits) */
+#define DCCP_FEATNEG_OVERHEAD	 (32 * sizeof(uint32_t))
 
 #define DCCP_TIMEWAIT_LEN (60 * HZ) /* how long to wait to destroy TIME-WAIT
 				     * state, about 60 seconds */
@@ -95,9 +100,6 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 extern int  sysctl_dccp_request_retries;
 extern int  sysctl_dccp_retries1;
 extern int  sysctl_dccp_retries2;
-extern int  sysctl_dccp_feat_sequence_window;
-extern int  sysctl_dccp_feat_rx_ccid;
-extern int  sysctl_dccp_feat_tx_ccid;
 extern int  sysctl_dccp_tx_qlen;
 extern int  sysctl_dccp_sync_ratelimit;
 
@@ -409,23 +411,21 @@ static inline void dccp_hdr_set_ack(struct dccp_hdr_ack_bits *dhack,
 static inline void dccp_update_gsr(struct sock *sk, u64 seq)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	const struct dccp_minisock *dmsk = dccp_msk(sk);
 
 	dp->dccps_gsr = seq;
-	dccp_set_seqno(&dp->dccps_swl,
-		       dp->dccps_gsr + 1 - (dmsk->dccpms_sequence_window / 4));
-	dccp_set_seqno(&dp->dccps_swh,
-		       dp->dccps_gsr + (3 * dmsk->dccpms_sequence_window) / 4);
+	/* Sequence validity window depends on remote Sequence Window (7.5.1) */
+	dp->dccps_swl = SUB48(ADD48(dp->dccps_gsr, 1), dp->dccps_r_seq_win / 4);
+	dp->dccps_swh = ADD48(dp->dccps_gsr, (3 * dp->dccps_r_seq_win) / 4);
 }
 
 static inline void dccp_update_gss(struct sock *sk, u64 seq)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
-	dp->dccps_awh = dp->dccps_gss = seq;
-	dccp_set_seqno(&dp->dccps_awl,
-		       (dp->dccps_gss -
-			dccp_msk(sk)->dccpms_sequence_window + 1));
+	dp->dccps_gss = seq;
+	/* Ack validity window depends on local Sequence Window value (7.5.1) */
+	dp->dccps_awl = SUB48(ADD48(dp->dccps_gss, 1), dp->dccps_l_seq_win);
+	dp->dccps_awh = dp->dccps_gss;
 }
 
 static inline int dccp_ack_pending(const struct sock *sk)

@@ -257,6 +257,18 @@ static void tc574_detach(struct pcmcia_device *p_dev);
 	local data structures for one device.  The device is registered
 	with Card Services.
 */
+static const struct net_device_ops el3_netdev_ops = {
+	.ndo_open 		= el3_open,
+	.ndo_stop 		= el3_close,
+	.ndo_start_xmit		= el3_start_xmit,
+	.ndo_tx_timeout 	= el3_tx_timeout,
+	.ndo_get_stats		= el3_get_stats,
+	.ndo_do_ioctl		= el3_ioctl,
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 static int tc574_probe(struct pcmcia_device *link)
 {
@@ -284,18 +296,9 @@ static int tc574_probe(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.ConfigIndex = 1;
 
-	/* The EL3-specific entries in the device structure. */
-	dev->hard_start_xmit = &el3_start_xmit;
-	dev->get_stats = &el3_get_stats;
-	dev->do_ioctl = &el3_ioctl;
+	dev->netdev_ops = &el3_netdev_ops;
 	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
-	dev->set_multicast_list = &set_rx_mode;
-	dev->open = &el3_open;
-	dev->stop = &el3_close;
-#ifdef HAVE_TX_TIMEOUT
-	dev->tx_timeout = el3_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#endif
 
 	return tc574_config(link);
 } /* tc574_attach */
