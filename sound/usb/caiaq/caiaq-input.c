@@ -17,14 +17,8 @@
 */
 
 #include <linux/init.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
-#include <linux/spinlock.h>
-#include <sound/core.h>
-#include <sound/rawmidi.h>
 #include <sound/pcm.h>
 #include "caiaq-device.h"
 #include "caiaq-input.h"
