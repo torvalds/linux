@@ -1511,7 +1511,7 @@ static int xennet_set_tso(struct net_device *dev, u32 data)
 static void xennet_set_features(struct net_device *dev)
 {
 	/* Turn off all GSO bits except ROBUST. */
-	dev->features &= (1 << NETIF_F_GSO_SHIFT) - 1;
+	dev->features &= ~NETIF_F_GSO_MASK;
 	dev->features |= NETIF_F_GSO_ROBUST;
 	xennet_set_sg(dev, 0);
 

@@ -95,7 +95,7 @@ static struct {
 	{ FC_PORTTYPE_NPORT,	"NPort (fabric via point-to-point)" },
 	{ FC_PORTTYPE_NLPORT,	"NLPort (fabric via loop)" },
 	{ FC_PORTTYPE_LPORT,	"LPort (private loop)" },
-	{ FC_PORTTYPE_PTP,	"Point-To-Point (direct nport connection" },
+	{ FC_PORTTYPE_PTP,	"Point-To-Point (direct nport connection)" },
 	{ FC_PORTTYPE_NPIV,		"NPIV VPORT" },
 };
 fc_enum_name_search(port_type, fc_port_type, fc_port_type_names)
