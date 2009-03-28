@@ -3,25 +3,25 @@
 #define ARCH_X86_CPU_H
 
 struct cpu_model_info {
-	int vendor;
-	int family;
-	const char *model_names[16];
+	int		vendor;
+	int		family;
+	const char	*model_names[16];
 };
 
 /* attempt to consolidate cpu attributes */
 struct cpu_dev {
-	const char	* c_vendor;
+	const char	*c_vendor;
 
 	/* some have two possibilities for cpuid string */
-	const char	* c_ident[2];
+	const char	*c_ident[2];
 
 	struct		cpu_model_info c_models[4];
 
-	void            (*c_early_init)(struct cpuinfo_x86 *c);
-	void		(*c_init)(struct cpuinfo_x86 * c);
-	void		(*c_identify)(struct cpuinfo_x86 * c);
-	unsigned int	(*c_size_cache)(struct cpuinfo_x86 * c, unsigned int size);
-	int	c_x86_vendor;
+	void            (*c_early_init)(struct cpuinfo_x86 *);
+	void		(*c_init)(struct cpuinfo_x86 *);
+	void		(*c_identify)(struct cpuinfo_x86 *);
+	unsigned int	(*c_size_cache)(struct cpuinfo_x86 *, unsigned int);
+	int		c_x86_vendor;
 };
 
 #define cpu_dev_register(cpu_devX) \

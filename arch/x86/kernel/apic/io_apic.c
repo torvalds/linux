@@ -1430,7 +1430,6 @@ void __setup_vector_irq(int cpu)
 
 static struct irq_chip ioapic_chip;
 static struct irq_chip ir_ioapic_chip;
-static struct irq_chip msi_ir_chip;
 
 #define IOAPIC_AUTO     -1
 #define IOAPIC_EDGE     0
@@ -2665,20 +2664,20 @@ static struct irq_chip ioapic_chip __read_mostly = {
 	.retrigger	= ioapic_retrigger_irq,
 };
 
-#ifdef CONFIG_INTR_REMAP
 static struct irq_chip ir_ioapic_chip __read_mostly = {
 	.name		= "IR-IO-APIC",
 	.startup	= startup_ioapic_irq,
 	.mask		= mask_IO_APIC_irq,
 	.unmask		= unmask_IO_APIC_irq,
+#ifdef CONFIG_INTR_REMAP
 	.ack		= ack_x2apic_edge,
 	.eoi		= ack_x2apic_level,
 #ifdef CONFIG_SMP
 	.set_affinity	= set_ir_ioapic_affinity_irq,
 #endif
+#endif
 	.retrigger	= ioapic_retrigger_irq,
 };
-#endif
 
 static inline void init_IO_APIC_traps(void)
 {
@@ -3393,18 +3392,18 @@ static struct irq_chip msi_chip = {
 	.retrigger	= ioapic_retrigger_irq,
 };
 
-#ifdef CONFIG_INTR_REMAP
 static struct irq_chip msi_ir_chip = {
 	.name		= "IR-PCI-MSI",
 	.unmask		= unmask_msi_irq,
 	.mask		= mask_msi_irq,
+#ifdef CONFIG_INTR_REMAP
 	.ack		= ack_x2apic_edge,
 #ifdef CONFIG_SMP
 	.set_affinity	= ir_set_msi_irq_affinity,
 #endif
+#endif
 	.retrigger	= ioapic_retrigger_irq,
 };
-#endif
 
 /*
  * Map the PCI dev to the corresponding remapping hardware unit
