@@ -94,6 +94,10 @@ config PXA_SHARPSL
 	  SL-C3000 (Spitz), SL-C3100 (Borzoi) or SL-C6000x (Tosa)
 	  handheld computer.
 
+config SHARPSL_PM
+	bool
+	select APM_EMULATION
+
 config CORGI_SSP_DEPRECATED
 	bool
 	select PXA_SSP
