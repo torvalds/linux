@@ -423,7 +423,6 @@ int i2c_pcf_add_bus(struct i2c_adapter *adap)
 
 	/* register new adapter to i2c module... */
 	adap->algo = &pcf_algo;
-	adap->timeout = 100;
 
 	if ((rval = pcf_init_8584(pcf_adap)))
 		return rval;

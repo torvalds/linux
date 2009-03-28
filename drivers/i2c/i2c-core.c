@@ -459,6 +459,11 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		pr_debug("I2C adapter driver [%s] forgot to specify "
 			 "physical device\n", adap->name);
 	}
+
+	/* Set default timeout to 1 second if not already set */
+	if (adap->timeout == 0)
+		adap->timeout = HZ;
+
 	dev_set_name(&adap->dev, "i2c-%d", adap->nr);
 	adap->dev.release = &i2c_adapter_dev_release;
 	adap->dev.class = &i2c_adapter_class;
