@@ -15,9 +15,9 @@
 #include <asm/blackfin.h>
 
 /*
- * BF537/BF527: 8 timers:
+ * BF51x/BF52x/BF537: 8 timers:
  */
-#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
+#if defined(CONFIG_BF51x) || defined(BF527_FAMILY) || defined(BF537_FAMILY)
 # define MAX_BLACKFIN_GPTIMERS 8
 # define TIMER0_GROUP_REG      TIMER_ENABLE
 #endif
