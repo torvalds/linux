@@ -303,7 +303,10 @@ static inline void gpio_set_value(unsigned gpio, int value)
 
 static inline int gpio_to_irq(unsigned gpio)
 {
-	return (gpio + GPIO_IRQ_BASE);
+	if (likely(gpio < MAX_BLACKFIN_GPIOS))
+		return gpio + GPIO_IRQ_BASE;
+
+	return -EINVAL;
 }
 
 static inline int irq_to_gpio(unsigned irq)
