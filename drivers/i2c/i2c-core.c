@@ -152,7 +152,7 @@ static void i2c_device_shutdown(struct device *dev)
 		driver->shutdown(to_i2c_client(dev));
 }
 
-static int i2c_device_suspend(struct device * dev, pm_message_t mesg)
+static int i2c_device_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct i2c_driver *driver;
 
@@ -164,7 +164,7 @@ static int i2c_device_suspend(struct device * dev, pm_message_t mesg)
 	return driver->suspend(to_i2c_client(dev), mesg);
 }
 
-static int i2c_device_resume(struct device * dev)
+static int i2c_device_resume(struct device *dev)
 {
 	struct i2c_driver *driver;
 
@@ -187,13 +187,15 @@ static void i2c_client_dev_release(struct device *dev)
 	kfree(to_i2c_client(dev));
 }
 
-static ssize_t show_client_name(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t
+show_client_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	return sprintf(buf, "%s\n", client->name);
 }
 
-static ssize_t show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t
+show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	return sprintf(buf, "%s%s\n", I2C_MODULE_PREFIX, client->name);
@@ -365,8 +367,7 @@ static struct i2c_driver dummy_driver = {
  * This returns the new i2c client, which should be saved for later use with
  * i2c_unregister_device(); or NULL to indicate an error.
  */
-struct i2c_client *
-i2c_new_dummy(struct i2c_adapter *adapter, u16 address)
+struct i2c_client *i2c_new_dummy(struct i2c_adapter *adapter, u16 address)
 {
 	struct i2c_board_info info = {
 		I2C_BOARD_INFO("dummy", address),
@@ -413,8 +414,8 @@ static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 		if (devinfo->busnum == adapter->nr
 				&& !i2c_new_device(adapter,
 						&devinfo->board_info))
-			printk(KERN_ERR "i2c-core: can't create i2c%d-%04x\n",
-				i2c_adapter_id(adapter),
+			dev_err(&adapter->dev,
+				"Can't create device at 0x%02x\n",
 				devinfo->board_info.addr);
 	}
 	mutex_unlock(&__i2c_board_lock);
@@ -1020,7 +1021,7 @@ module_exit(i2c_exit);
  * Note that there is no requirement that each message be sent to
  * the same slave address, although that is the most common model.
  */
-int i2c_transfer(struct i2c_adapter * adap, struct i2c_msg *msgs, int num)
+int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	int ret;
 
@@ -1527,8 +1528,7 @@ EXPORT_SYMBOL(i2c_put_adapter);
 /* The SMBus parts */
 
 #define POLY    (0x1070U << 3)
-static u8
-crc8(u16 data)
+static u8 crc8(u16 data)
 {
 	int i;
 
@@ -1992,9 +1992,9 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
  * This executes an SMBus protocol operation, and returns a negative
  * errno code else zero on success.
  */
-s32 i2c_smbus_xfer(struct i2c_adapter * adapter, u16 addr, unsigned short flags,
+s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 		   char read_write, u8 command, int protocol,
-                   union i2c_smbus_data * data)
+		   union i2c_smbus_data *data)
 {
 	s32 res;
 
