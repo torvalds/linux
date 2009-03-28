@@ -214,7 +214,7 @@ static void pxa2xx_configure_sockets(struct device *dev)
 	MECR |= MECR_CIT;
 
 	/* Set MECR:NOS (Number Of Sockets) */
-	if (ops->nr > 1 || machine_is_viper())
+	if ((ops->first + ops->nr) > 1 || machine_is_viper())
 		MECR |= MECR_NOS;
 	else
 		MECR &= ~MECR_NOS;
@@ -250,7 +250,7 @@ int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 	for (i = 0; i < ops->nr; i++) {
 		skt = &sinfo->skt[i];
 
-		skt->nr		= i;
+		skt->nr		= ops->first + i;
 		skt->irq	= NO_IRQ;
 
 		skt->res_skt.start	= _PCMCIA(skt->nr);
