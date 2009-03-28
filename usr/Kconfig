@@ -64,12 +64,12 @@ config RD_BZIP2
 	  If unsure, say N.
 
 config RD_LZMA
-	bool "Support initial ramdisks compressed using lzma" if EMBEDDED
+	bool "Support initial ramdisks compressed using LZMA" if EMBEDDED
 	default !EMBEDDED
 	depends on BLK_DEV_INITRD
 	select DECOMPRESS_LZMA
 	help
-	  Support loading of a lzma encoded initial ramdisk or cpio buffer
+	  Support loading of a LZMA encoded initial ramdisk or cpio buffer
 	  If unsure, say N.
 
 choice
@@ -83,7 +83,7 @@ choice
 	  Compression speed is only relevant when building a kernel.
 	  Decompression speed is relevant at each boot.
 
-	  If you have any problems with bzip2 or lzma compressed
+	  If you have any problems with bzip2 or LZMA compressed
 	  initramfs, mail me (Alain Knaff) <alain@knaff.lu>.
 
 	  High compression options are mostly useful for users who
