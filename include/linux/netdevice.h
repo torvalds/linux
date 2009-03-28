@@ -32,6 +32,7 @@
 #ifdef __KERNEL__
 #include <linux/timer.h>
 #include <linux/delay.h>
+#include <linux/mm.h>
 #include <asm/atomic.h>
 #include <asm/cache.h>
 #include <asm/byteorder.h>
@@ -96,7 +97,7 @@ struct wireless_dev;
  *	Compute the worst case header length according to the protocols
  *	used.
  */
- 
+
 #if defined(CONFIG_WLAN_80211) || defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
 # if defined(CONFIG_MAC80211_MESH)
 #  define LL_MAX_HEADER 128
@@ -124,7 +125,7 @@ struct wireless_dev;
  *	Network device statistics. Akin to the 2.0 ether stats but
  *	with byte counters.
  */
- 
+
 struct net_device_stats
 {
 	unsigned long	rx_packets;		/* total packets received	*/
@@ -285,7 +286,7 @@ enum netdev_state_t
 
 /*
  * This structure holds at boot time configured netdevice settings. They
- * are then used in the device probing. 
+ * are then used in the device probing.
  */
 struct netdev_boot_setup {
 	char name[IFNAMSIZ];
@@ -314,6 +315,9 @@ struct napi_struct {
 	spinlock_t		poll_lock;
 	int			poll_owner;
 #endif
+
+	unsigned int		gro_count;
+
 	struct net_device	*dev;
 	struct list_head	dev_list;
 	struct sk_buff		*gro_list;
@@ -325,6 +329,14 @@ enum
 	NAPI_STATE_SCHED,	/* Poll is scheduled */
 	NAPI_STATE_DISABLE,	/* Disable pending */
 	NAPI_STATE_NPSVC,	/* Netpoll - don't dequeue from poll_list */
+};
+
+enum {
+	GRO_MERGED,
+	GRO_MERGED_FREE,
+	GRO_HELD,
+	GRO_NORMAL,
+	GRO_DROP,
 };
 
 extern void __napi_schedule(struct napi_struct *n);
@@ -740,7 +752,7 @@ struct net_device
 	void			*dsa_ptr;	/* dsa specific data */
 #endif
 	void 			*atalk_ptr;	/* AppleTalk link 	*/
-	void			*ip_ptr;	/* IPv4 specific data	*/  
+	void			*ip_ptr;	/* IPv4 specific data	*/
 	void                    *dn_ptr;        /* DECnet specific data */
 	void                    *ip6_ptr;       /* IPv6 specific data */
 	void			*ec_ptr;	/* Econet specific data	*/
@@ -753,7 +765,7 @@ struct net_device
  */
 	unsigned long		last_rx;	/* Time of last Rx	*/
 	/* Interface address info used in eth_type_trans() */
-	unsigned char		dev_addr[MAX_ADDR_LEN];	/* hw address, (before bcast 
+	unsigned char		dev_addr[MAX_ADDR_LEN];	/* hw address, (before bcast
 							   because most packets are unicast) */
 
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
@@ -984,6 +996,9 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 void netif_napi_del(struct napi_struct *napi);
 
 struct napi_gro_cb {
+	/* This indicates where we are processing relative to skb->data. */
+	int data_offset;
+
 	/* This is non-zero if the packet may be of the same flow. */
 	int same_flow;
 
@@ -1088,6 +1103,36 @@ extern int		dev_restart(struct net_device *dev);
 #ifdef CONFIG_NETPOLL_TRAP
 extern int		netpoll_trap(void);
 #endif
+extern void	      *skb_gro_header(struct sk_buff *skb, unsigned int hlen);
+extern int	       skb_gro_receive(struct sk_buff **head,
+				       struct sk_buff *skb);
+
+static inline unsigned int skb_gro_offset(const struct sk_buff *skb)
+{
+	return NAPI_GRO_CB(skb)->data_offset;
+}
+
+static inline unsigned int skb_gro_len(const struct sk_buff *skb)
+{
+	return skb->len - NAPI_GRO_CB(skb)->data_offset;
+}
+
+static inline void skb_gro_pull(struct sk_buff *skb, unsigned int len)
+{
+	NAPI_GRO_CB(skb)->data_offset += len;
+}
+
+static inline void skb_gro_reset_offset(struct sk_buff *skb)
+{
+	NAPI_GRO_CB(skb)->data_offset = 0;
+}
+
+static inline void *skb_gro_mac_header(struct sk_buff *skb)
+{
+	return skb_mac_header(skb) < skb->data ? skb_mac_header(skb) :
+	       page_address(skb_shinfo(skb)->frags[0].page) +
+	       skb_shinfo(skb)->frags[0].page_offset;
+}
 
 static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 				  unsigned short type,
@@ -1376,12 +1421,15 @@ extern int		netif_receive_skb(struct sk_buff *skb);
 extern void		napi_gro_flush(struct napi_struct *napi);
 extern int		dev_gro_receive(struct napi_struct *napi,
 					struct sk_buff *skb);
+extern int		napi_skb_finish(int ret, struct sk_buff *skb);
 extern int		napi_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb);
 extern void		napi_reuse_skb(struct napi_struct *napi,
 				       struct sk_buff *skb);
 extern struct sk_buff *	napi_fraginfo_skb(struct napi_struct *napi,
 					  struct napi_gro_fraginfo *info);
+extern int		napi_frags_finish(struct napi_struct *napi,
+					  struct sk_buff *skb, int ret);
 extern int		napi_gro_frags(struct napi_struct *napi,
 				       struct napi_gro_fraginfo *info);
 extern void		netif_nit_deliver(struct sk_buff *skb);
@@ -1573,56 +1621,6 @@ static inline u32 netif_msg_init(int debug_value, int default_msg_enable_bits)
 		return 0;
 	/* set low N bits */
 	return (1 << debug_value) - 1;
-}
-
-/* Test if receive needs to be scheduled but only if up */
-static inline int netif_rx_schedule_prep(struct napi_struct *napi)
-{
-	return napi_schedule_prep(napi);
-}
-
-/* Add interface to tail of rx poll list. This assumes that _prep has
- * already been called and returned 1.
- */
-static inline void __netif_rx_schedule(struct napi_struct *napi)
-{
-	__napi_schedule(napi);
-}
-
-/* Try to reschedule poll. Called by irq handler. */
-
-static inline void netif_rx_schedule(struct napi_struct *napi)
-{
-	if (netif_rx_schedule_prep(napi))
-		__netif_rx_schedule(napi);
-}
-
-/* Try to reschedule poll. Called by dev->poll() after netif_rx_complete().  */
-static inline int netif_rx_reschedule(struct napi_struct *napi)
-{
-	if (napi_schedule_prep(napi)) {
-		__netif_rx_schedule(napi);
-		return 1;
-	}
-	return 0;
-}
-
-/* same as netif_rx_complete, except that local_irq_save(flags)
- * has already been issued
- */
-static inline void __netif_rx_complete(struct napi_struct *napi)
-{
-	__napi_complete(napi);
-}
-
-/* Remove interface from poll list: it must be in the poll list
- * on current cpu. This primitive is called by dev->poll(), when
- * it completes the work. The device cannot be out of poll list at this
- * moment, it is BUG().
- */
-static inline void netif_rx_complete(struct napi_struct *napi)
-{
-	napi_complete(napi);
 }
 
 static inline void __netif_tx_lock(struct netdev_queue *txq, int cpu)
@@ -1875,7 +1873,7 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 
 		if (dev->priv_flags & IFF_SLAVE_INACTIVE) {
 			if ((dev->priv_flags & IFF_SLAVE_NEEDARP) &&
-			    skb->protocol == __constant_htons(ETH_P_ARP))
+			    skb->protocol == __cpu_to_be16(ETH_P_ARP))
 				return 0;
 
 			if (master->priv_flags & IFF_MASTER_ALB) {
@@ -1884,7 +1882,7 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 					return 0;
 			}
 			if (master->priv_flags & IFF_MASTER_8023AD &&
-			    skb->protocol == __constant_htons(ETH_P_SLOW))
+			    skb->protocol == __cpu_to_be16(ETH_P_SLOW))
 				return 0;
 
 			return 1;

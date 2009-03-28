@@ -481,7 +481,16 @@ static inline void tcp_clear_xmit_timers(struct sock *sk)
 }
 
 extern unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu);
-extern unsigned int tcp_current_mss(struct sock *sk, int large);
+extern unsigned int tcp_current_mss(struct sock *sk);
+
+/* Bound MSS / TSO packet size with the half of the window */
+static inline int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
+{
+	if (tp->max_window && pktsize > (tp->max_window >> 1))
+		return max(tp->max_window >> 1, 68U - tp->tcp_header_len);
+	else
+		return pktsize;
+}
 
 /* tcp.c */
 extern void tcp_get_info(struct sock *, struct tcp_info *);
@@ -685,6 +694,7 @@ extern void tcp_get_allowed_congestion_control(char *buf, size_t len);
 extern int tcp_set_allowed_congestion_control(char *allowed);
 extern int tcp_set_congestion_control(struct sock *sk, const char *name);
 extern void tcp_slow_start(struct tcp_sock *tp);
+extern void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w);
 
 extern struct tcp_congestion_ops tcp_init_congestion_ops;
 extern u32 tcp_reno_ssthresh(struct sock *sk);
@@ -821,15 +831,15 @@ static inline void tcp_push_pending_frames(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	__tcp_push_pending_frames(sk, tcp_current_mss(sk, 1), tp->nonagle);
+	__tcp_push_pending_frames(sk, tcp_current_mss(sk), tp->nonagle);
 }
 
-static inline void tcp_init_wl(struct tcp_sock *tp, u32 ack, u32 seq)
+static inline void tcp_init_wl(struct tcp_sock *tp, u32 seq)
 {
 	tp->snd_wl1 = seq;
 }
 
-static inline void tcp_update_wl(struct tcp_sock *tp, u32 ack, u32 seq)
+static inline void tcp_update_wl(struct tcp_sock *tp, u32 seq)
 {
 	tp->snd_wl1 = seq;
 }
@@ -925,7 +935,6 @@ extern void tcp_done(struct sock *sk);
 static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
 {
 	rx_opt->dsack = 0;
-	rx_opt->eff_sacks = 0;
 	rx_opt->num_sacks = 0;
 }
 
@@ -997,11 +1006,21 @@ static inline int tcp_fin_time(const struct sock *sk)
 	return fin_timeout;
 }
 
-static inline int tcp_paws_check(const struct tcp_options_received *rx_opt, int rst)
+static inline int tcp_paws_check(const struct tcp_options_received *rx_opt,
+				 int paws_win)
 {
-	if ((s32)(rx_opt->rcv_tsval - rx_opt->ts_recent) >= 0)
-		return 0;
-	if (get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS)
+	if ((s32)(rx_opt->ts_recent - rx_opt->rcv_tsval) <= paws_win)
+		return 1;
+	if (unlikely(get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS))
+		return 1;
+
+	return 0;
+}
+
+static inline int tcp_paws_reject(const struct tcp_options_received *rx_opt,
+				  int rst)
+{
+	if (tcp_paws_check(rx_opt, 0))
 		return 0;
 
 	/* RST segments are not recommended to carry timestamp,

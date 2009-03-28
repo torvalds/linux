@@ -493,10 +493,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default: 64
 
 	hpet=		[X86-32,HPET] option to control HPET usage
-			Format: { enable (default) | disable | force }
+			Format: { enable (default) | disable | force |
+				verbose }
 			disable: disable HPET and use PIT instead
 			force: allow force enabled of undocumented chips (ICH4,
 			VIA, nVidia)
+			verbose: show contents of HPET registers during setup
 
 	com20020=	[HW,NET] ARCnet - COM20020 chipset
 			Format:
@@ -830,6 +832,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hvc_iucv=	[S390] Number of z/VM IUCV hypervisor console (HVC)
 			       terminal devices. Valid values: 0..8
+	hvc_iucv_allow=	[S390] Comma-separated list of z/VM user IDs.
+			       If specified, z/VM IUCV HVC accepts connections
+			       from listed z/VM user IDs only.
 
 	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode

@@ -457,12 +457,13 @@ int ccw_device_set_online(struct ccw_device *cdev)
 	return (ret == 0) ? -ENODEV : ret;
 }
 
-static void online_store_handle_offline(struct ccw_device *cdev)
+static int online_store_handle_offline(struct ccw_device *cdev)
 {
 	if (cdev->private->state == DEV_STATE_DISCONNECTED)
 		ccw_device_remove_disconnected(cdev);
-	else if (cdev->drv && cdev->drv->set_offline)
-		ccw_device_set_offline(cdev);
+	else if (cdev->online && cdev->drv && cdev->drv->set_offline)
+		return ccw_device_set_offline(cdev);
+	return 0;
 }
 
 static int online_store_recog_and_online(struct ccw_device *cdev)
@@ -530,13 +531,10 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 		goto out;
 	switch (i) {
 	case 0:
-		online_store_handle_offline(cdev);
-		ret = count;
+		ret = online_store_handle_offline(cdev);
 		break;
 	case 1:
 		ret = online_store_handle_online(cdev, force);
-		if (!ret)
-			ret = count;
 		break;
 	default:
 		ret = -EINVAL;
@@ -545,7 +543,7 @@ out:
 	if (cdev->drv)
 		module_put(cdev->drv->owner);
 	atomic_set(&cdev->private->onoff, 0);
-	return ret;
+	return (ret < 0) ? ret : count;
 }
 
 static ssize_t
@@ -681,35 +679,22 @@ get_orphaned_ccwdev_by_dev_id(struct channel_subsystem *css,
 	return dev ? to_ccwdev(dev) : NULL;
 }
 
-static void
-ccw_device_add_changed(struct work_struct *work)
-{
-	struct ccw_device_private *priv;
-	struct ccw_device *cdev;
-
-	priv = container_of(work, struct ccw_device_private, kick_work);
-	cdev = priv->cdev;
-	if (device_add(&cdev->dev)) {
-		put_device(&cdev->dev);
-		return;
-	}
-	set_bit(1, &cdev->private->registered);
-}
-
-void ccw_device_do_unreg_rereg(struct work_struct *work)
+void ccw_device_do_unbind_bind(struct work_struct *work)
 {
 	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
 	struct subchannel *sch;
+	int ret;
 
 	priv = container_of(work, struct ccw_device_private, kick_work);
 	cdev = priv->cdev;
 	sch = to_subchannel(cdev->dev.parent);
 
-	ccw_device_unregister(cdev);
-	PREPARE_WORK(&cdev->private->kick_work,
-		     ccw_device_add_changed);
-	queue_work(ccw_device_work, &cdev->private->kick_work);
+	if (test_bit(1, &cdev->private->registered)) {
+		device_release_driver(&cdev->dev);
+		ret = device_attach(&cdev->dev);
+		WARN_ON(ret == -ENODEV);
+	}
 }
 
 static void
@@ -1035,8 +1020,6 @@ static void ccw_device_call_sch_unregister(struct work_struct *work)
 void
 io_subchannel_recog_done(struct ccw_device *cdev)
 {
-	struct subchannel *sch;
-
 	if (css_init_done == 0) {
 		cdev->private->flags.recog_done = 1;
 		return;
@@ -1047,7 +1030,6 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 		/* Remove device found not operational. */
 		if (!get_device(&cdev->dev))
 			break;
-		sch = to_subchannel(cdev->dev.parent);
 		PREPARE_WORK(&cdev->private->kick_work,
 			     ccw_device_call_sch_unregister);
 		queue_work(slow_path_wq, &cdev->private->kick_work);

@@ -41,7 +41,6 @@
 int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 	drm_i915_ring_buffer_t *ring = &(dev_priv->ring);
 	u32 acthd_reg = IS_I965G(dev) ? ACTHD_I965 : ACTHD;
 	u32 last_acthd = I915_READ(acthd_reg);
@@ -58,8 +57,12 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 		if (ring->space >= n)
 			return 0;
 
-		if (master_priv->sarea_priv)
-			master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
+		if (dev->primary->master) {
+			struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
+			if (master_priv->sarea_priv)
+				master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
+		}
+
 
 		if (ring->head != last_head)
 			i = 0;
@@ -356,7 +359,7 @@ static int validate_cmd(int cmd)
 	return ret;
 }
 
-static int i915_emit_cmds(struct drm_device * dev, int __user * buffer, int dwords)
+static int i915_emit_cmds(struct drm_device * dev, int *buffer, int dwords)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i;
@@ -370,8 +373,7 @@ static int i915_emit_cmds(struct drm_device * dev, int __user * buffer, int dwor
 	for (i = 0; i < dwords;) {
 		int cmd, sz;
 
-		if (DRM_COPY_FROM_USER_UNCHECKED(&cmd, &buffer[i], sizeof(cmd)))
-			return -EINVAL;
+		cmd = buffer[i];
 
 		if ((sz = validate_cmd(cmd)) == 0 || i + sz > dwords)
 			return -EINVAL;
@@ -379,11 +381,7 @@ static int i915_emit_cmds(struct drm_device * dev, int __user * buffer, int dwor
 		OUT_RING(cmd);
 
 		while (++i, --sz) {
-			if (DRM_COPY_FROM_USER_UNCHECKED(&cmd, &buffer[i],
-							 sizeof(cmd))) {
-				return -EINVAL;
-			}
-			OUT_RING(cmd);
+			OUT_RING(buffer[i]);
 		}
 	}
 
@@ -397,16 +395,12 @@ static int i915_emit_cmds(struct drm_device * dev, int __user * buffer, int dwor
 
 int
 i915_emit_box(struct drm_device *dev,
-	      struct drm_clip_rect __user *boxes,
+	      struct drm_clip_rect *boxes,
 	      int i, int DR1, int DR4)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_clip_rect box;
+	struct drm_clip_rect box = boxes[i];
 	RING_LOCALS;
-
-	if (DRM_COPY_FROM_USER_UNCHECKED(&box, &boxes[i], sizeof(box))) {
-		return -EFAULT;
-	}
 
 	if (box.y2 <= box.y1 || box.x2 <= box.x1 || box.y2 <= 0 || box.x2 <= 0) {
 		DRM_ERROR("Bad box %d,%d..%d,%d\n",
@@ -460,7 +454,9 @@ static void i915_emit_breadcrumb(struct drm_device *dev)
 }
 
 static int i915_dispatch_cmdbuffer(struct drm_device * dev,
-				   drm_i915_cmdbuffer_t * cmd)
+				   drm_i915_cmdbuffer_t *cmd,
+				   struct drm_clip_rect *cliprects,
+				   void *cmdbuf)
 {
 	int nbox = cmd->num_cliprects;
 	int i = 0, count, ret;
@@ -476,13 +472,13 @@ static int i915_dispatch_cmdbuffer(struct drm_device * dev,
 
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			ret = i915_emit_box(dev, cmd->cliprects, i,
+			ret = i915_emit_box(dev, cliprects, i,
 					    cmd->DR1, cmd->DR4);
 			if (ret)
 				return ret;
 		}
 
-		ret = i915_emit_cmds(dev, (int __user *)cmd->buf, cmd->sz / 4);
+		ret = i915_emit_cmds(dev, cmdbuf, cmd->sz / 4);
 		if (ret)
 			return ret;
 	}
@@ -492,10 +488,10 @@ static int i915_dispatch_cmdbuffer(struct drm_device * dev,
 }
 
 static int i915_dispatch_batchbuffer(struct drm_device * dev,
-				     drm_i915_batchbuffer_t * batch)
+				     drm_i915_batchbuffer_t * batch,
+				     struct drm_clip_rect *cliprects)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_clip_rect __user *boxes = batch->cliprects;
 	int nbox = batch->num_cliprects;
 	int i = 0, count;
 	RING_LOCALS;
@@ -511,7 +507,7 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			int ret = i915_emit_box(dev, boxes, i,
+			int ret = i915_emit_box(dev, cliprects, i,
 						batch->DR1, batch->DR4);
 			if (ret)
 				return ret;
@@ -626,6 +622,7 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 	    master_priv->sarea_priv;
 	drm_i915_batchbuffer_t *batch = data;
 	int ret;
+	struct drm_clip_rect *cliprects = NULL;
 
 	if (!dev_priv->allow_batchbuffer) {
 		DRM_ERROR("Batchbuffer ioctl disabled\n");
@@ -637,17 +634,35 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	if (batch->num_cliprects && DRM_VERIFYAREA_READ(batch->cliprects,
-						       batch->num_cliprects *
-						       sizeof(struct drm_clip_rect)))
-		return -EFAULT;
+	if (batch->num_cliprects < 0)
+		return -EINVAL;
+
+	if (batch->num_cliprects) {
+		cliprects = drm_calloc(batch->num_cliprects,
+				       sizeof(struct drm_clip_rect),
+				       DRM_MEM_DRIVER);
+		if (cliprects == NULL)
+			return -ENOMEM;
+
+		ret = copy_from_user(cliprects, batch->cliprects,
+				     batch->num_cliprects *
+				     sizeof(struct drm_clip_rect));
+		if (ret != 0)
+			goto fail_free;
+	}
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_dispatch_batchbuffer(dev, batch);
+	ret = i915_dispatch_batchbuffer(dev, batch, cliprects);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (sarea_priv)
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
+
+fail_free:
+	drm_free(cliprects,
+		 batch->num_cliprects * sizeof(struct drm_clip_rect),
+		 DRM_MEM_DRIVER);
+
 	return ret;
 }
 
@@ -659,6 +674,8 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	drm_i915_sarea_t *sarea_priv = (drm_i915_sarea_t *)
 	    master_priv->sarea_priv;
 	drm_i915_cmdbuffer_t *cmdbuf = data;
+	struct drm_clip_rect *cliprects = NULL;
+	void *batch_data;
 	int ret;
 
 	DRM_DEBUG("i915 cmdbuffer, buf %p sz %d cliprects %d\n",
@@ -666,25 +683,50 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	if (cmdbuf->num_cliprects &&
-	    DRM_VERIFYAREA_READ(cmdbuf->cliprects,
-				cmdbuf->num_cliprects *
-				sizeof(struct drm_clip_rect))) {
-		DRM_ERROR("Fault accessing cliprects\n");
-		return -EFAULT;
+	if (cmdbuf->num_cliprects < 0)
+		return -EINVAL;
+
+	batch_data = drm_alloc(cmdbuf->sz, DRM_MEM_DRIVER);
+	if (batch_data == NULL)
+		return -ENOMEM;
+
+	ret = copy_from_user(batch_data, cmdbuf->buf, cmdbuf->sz);
+	if (ret != 0)
+		goto fail_batch_free;
+
+	if (cmdbuf->num_cliprects) {
+		cliprects = drm_calloc(cmdbuf->num_cliprects,
+				       sizeof(struct drm_clip_rect),
+				       DRM_MEM_DRIVER);
+		if (cliprects == NULL)
+			goto fail_batch_free;
+
+		ret = copy_from_user(cliprects, cmdbuf->cliprects,
+				     cmdbuf->num_cliprects *
+				     sizeof(struct drm_clip_rect));
+		if (ret != 0)
+			goto fail_clip_free;
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_dispatch_cmdbuffer(dev, cmdbuf);
+	ret = i915_dispatch_cmdbuffer(dev, cmdbuf, cliprects, batch_data);
 	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
 		DRM_ERROR("i915_dispatch_cmdbuffer failed\n");
-		return ret;
+		goto fail_batch_free;
 	}
 
 	if (sarea_priv)
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
-	return 0;
+
+fail_batch_free:
+	drm_free(batch_data, cmdbuf->sz, DRM_MEM_DRIVER);
+fail_clip_free:
+	drm_free(cliprects,
+		 cmdbuf->num_cliprects * sizeof(struct drm_clip_rect),
+		 DRM_MEM_DRIVER);
+
+	return ret;
 }
 
 static int i915_flip_bufs(struct drm_device *dev, void *data,

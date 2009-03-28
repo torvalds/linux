@@ -38,7 +38,7 @@ static int sysv_hash(struct dentry *dentry, struct qstr *qstr)
 	return 0;
 }
 
-struct dentry_operations sysv_dentry_operations = {
+const struct dentry_operations sysv_dentry_operations = {
 	.d_hash		= sysv_hash,
 };
 

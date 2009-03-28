@@ -533,12 +533,8 @@ fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
 	event->event_code = event_code;
 	event->event_data = event_data;
 
-	err = nlmsg_multicast(scsi_nl_sock, skb, 0, SCSI_NL_GRP_FC_EVENTS,
-			      GFP_KERNEL);
-	if (err && (err != -ESRCH))	/* filter no recipient errors */
-		/* nlmsg_multicast already kfree_skb'd */
-		goto send_fail;
-
+	nlmsg_multicast(scsi_nl_sock, skb, 0, SCSI_NL_GRP_FC_EVENTS,
+			GFP_KERNEL);
 	return;
 
 send_fail_skb:
@@ -607,12 +603,8 @@ fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 	event->event_code = FCH_EVT_VENDOR_UNIQUE;
 	memcpy(&event->event_data, data_buf, data_len);
 
-	err = nlmsg_multicast(scsi_nl_sock, skb, 0, SCSI_NL_GRP_FC_EVENTS,
-			      GFP_KERNEL);
-	if (err && (err != -ESRCH))	/* filter no recipient errors */
-		/* nlmsg_multicast already kfree_skb'd */
-		goto send_vendor_fail;
-
+	nlmsg_multicast(scsi_nl_sock, skb, 0, SCSI_NL_GRP_FC_EVENTS,
+			GFP_KERNEL);
 	return;
 
 send_vendor_fail_skb:

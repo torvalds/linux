@@ -75,12 +75,17 @@ static struct mv643xx_eth_platform_data rd88f6281_ge00_data = {
 	.duplex		= DUPLEX_FULL,
 };
 
-static struct dsa_platform_data rd88f6281_switch_data = {
+static struct dsa_chip_data rd88f6281_switch_chip_data = {
 	.port_names[0]	= "lan1",
 	.port_names[1]	= "lan2",
 	.port_names[2]	= "lan3",
 	.port_names[3]	= "lan4",
 	.port_names[5]	= "cpu",
+};
+
+static struct dsa_platform_data rd88f6281_switch_plat_data = {
+	.nr_chips	= 1,
+	.chip		= &rd88f6281_switch_chip_data,
 };
 
 static struct mv643xx_eth_platform_data rd88f6281_ge01_data = {
@@ -105,12 +110,12 @@ static void __init rd88f6281_init(void)
 	kirkwood_ge00_init(&rd88f6281_ge00_data);
 	kirkwood_pcie_id(&dev, &rev);
 	if (rev == MV88F6281_REV_A0) {
-		rd88f6281_switch_data.sw_addr = 10;
+		rd88f6281_switch_chip_data.sw_addr = 10;
 		kirkwood_ge01_init(&rd88f6281_ge01_data);
 	} else {
-		rd88f6281_switch_data.port_names[4] = "wan";
+		rd88f6281_switch_chip_data.port_names[4] = "wan";
 	}
-	kirkwood_ge00_switch_init(&rd88f6281_switch_data, NO_IRQ);
+	kirkwood_ge00_switch_init(&rd88f6281_switch_plat_data, NO_IRQ);
 
 	kirkwood_rtc_init();
 	kirkwood_sata_init(&rd88f6281_sata_data);

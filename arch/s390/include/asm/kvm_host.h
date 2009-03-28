@@ -21,9 +21,6 @@
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
 
-struct kvm_guest_debug {
-};
-
 struct sca_entry {
 	atomic_t scn;
 	__u64	reserved;

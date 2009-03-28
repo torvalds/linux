@@ -1616,3 +1616,24 @@ int zd_chip_set_multicast_hash(struct zd_chip *chip,
 
 	return zd_iowrite32a(chip, ioreqs, ARRAY_SIZE(ioreqs));
 }
+
+u64 zd_chip_get_tsf(struct zd_chip *chip)
+{
+	int r;
+	static const zd_addr_t aw_pt_bi_addr[] =
+		{ CR_TSF_LOW_PART, CR_TSF_HIGH_PART };
+	u32 values[2];
+	u64 tsf;
+
+	mutex_lock(&chip->mutex);
+	r = zd_ioread32v_locked(chip, values, (const zd_addr_t *)aw_pt_bi_addr,
+	                        ARRAY_SIZE(aw_pt_bi_addr));
+	mutex_unlock(&chip->mutex);
+	if (r)
+		return 0;
+
+	tsf = values[1];
+	tsf = (tsf << 32) | values[0];
+
+	return tsf;
+}

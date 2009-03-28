@@ -849,6 +849,7 @@ struct file {
 #define f_dentry	f_path.dentry
 #define f_vfsmnt	f_path.mnt
 	const struct file_operations	*f_op;
+	spinlock_t		f_lock;  /* f_ep_links, f_flags */
 	atomic_long_t		f_count;
 	unsigned int 		f_flags;
 	fmode_t			f_mode;
@@ -867,7 +868,6 @@ struct file {
 #ifdef CONFIG_EPOLL
 	/* Used by fs/eventpoll.c to link all the hooks to this file */
 	struct list_head	f_ep_links;
-	spinlock_t		f_ep_lock;
 #endif /* #ifdef CONFIG_EPOLL */
 	struct address_space	*f_mapping;
 #ifdef CONFIG_DEBUG_WRITECOUNT
@@ -1064,34 +1064,147 @@ extern int lease_modify(struct file_lock **, int);
 extern int lock_may_read(struct inode *, loff_t start, unsigned long count);
 extern int lock_may_write(struct inode *, loff_t start, unsigned long count);
 #else /* !CONFIG_FILE_LOCKING */
-#define fcntl_getlk(a, b) ({ -EINVAL; })
-#define fcntl_setlk(a, b, c, d) ({ -EACCES; })
+static inline int fcntl_getlk(struct file *file, struct flock __user *user)
+{
+	return -EINVAL;
+}
+
+static inline int fcntl_setlk(unsigned int fd, struct file *file,
+			      unsigned int cmd, struct flock __user *user)
+{
+	return -EACCES;
+}
+
 #if BITS_PER_LONG == 32
-#define fcntl_getlk64(a, b) ({ -EINVAL; })
-#define fcntl_setlk64(a, b, c, d) ({ -EACCES; })
+static inline int fcntl_getlk64(struct file *file, struct flock64 __user *user)
+{
+	return -EINVAL;
+}
+
+static inline int fcntl_setlk64(unsigned int fd, struct file *file,
+				unsigned int cmd, struct flock64 __user *user)
+{
+	return -EACCES;
+}
 #endif
-#define fcntl_setlease(a, b, c) ({ 0; })
-#define fcntl_getlease(a) ({ 0; })
-#define locks_init_lock(a) ({ })
-#define __locks_copy_lock(a, b) ({ })
-#define locks_copy_lock(a, b) ({ })
-#define locks_remove_posix(a, b) ({ })
-#define locks_remove_flock(a) ({ })
-#define posix_test_lock(a, b) ({ 0; })
-#define posix_lock_file(a, b, c) ({ -ENOLCK; })
-#define posix_lock_file_wait(a, b) ({ -ENOLCK; })
-#define posix_unblock_lock(a, b) (-ENOENT)
-#define vfs_test_lock(a, b) ({ 0; })
-#define vfs_lock_file(a, b, c, d) (-ENOLCK)
-#define vfs_cancel_lock(a, b) ({ 0; })
-#define flock_lock_file_wait(a, b) ({ -ENOLCK; })
-#define __break_lease(a, b) ({ 0; })
-#define lease_get_mtime(a, b) ({ })
-#define generic_setlease(a, b, c) ({ -EINVAL; })
-#define vfs_setlease(a, b, c) ({ -EINVAL; })
-#define lease_modify(a, b) ({ -EINVAL; })
-#define lock_may_read(a, b, c) ({ 1; })
-#define lock_may_write(a, b, c) ({ 1; })
+static inline int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
+{
+	return 0;
+}
+
+static inline int fcntl_getlease(struct file *filp)
+{
+	return 0;
+}
+
+static inline void locks_init_lock(struct file_lock *fl)
+{
+	return;
+}
+
+static inline void __locks_copy_lock(struct file_lock *new, struct file_lock *fl)
+{
+	return;
+}
+
+static inline void locks_copy_lock(struct file_lock *new, struct file_lock *fl)
+{
+	return;
+}
+
+static inline void locks_remove_posix(struct file *filp, fl_owner_t owner)
+{
+	return;
+}
+
+static inline void locks_remove_flock(struct file *filp)
+{
+	return;
+}
+
+static inline void posix_test_lock(struct file *filp, struct file_lock *fl)
+{
+	return;
+}
+
+static inline int posix_lock_file(struct file *filp, struct file_lock *fl,
+				  struct file_lock *conflock)
+{
+	return -ENOLCK;
+}
+
+static inline int posix_lock_file_wait(struct file *filp, struct file_lock *fl)
+{
+	return -ENOLCK;
+}
+
+static inline int posix_unblock_lock(struct file *filp,
+				     struct file_lock *waiter)
+{
+	return -ENOENT;
+}
+
+static inline int vfs_test_lock(struct file *filp, struct file_lock *fl)
+{
+	return 0;
+}
+
+static inline int vfs_lock_file(struct file *filp, unsigned int cmd,
+				struct file_lock *fl, struct file_lock *conf)
+{
+	return -ENOLCK;
+}
+
+static inline int vfs_cancel_lock(struct file *filp, struct file_lock *fl)
+{
+	return 0;
+}
+
+static inline int flock_lock_file_wait(struct file *filp,
+				       struct file_lock *request)
+{
+	return -ENOLCK;
+}
+
+static inline int __break_lease(struct inode *inode, unsigned int mode)
+{
+	return 0;
+}
+
+static inline void lease_get_mtime(struct inode *inode, struct timespec *time)
+{
+	return;
+}
+
+static inline int generic_setlease(struct file *filp, long arg,
+				    struct file_lock **flp)
+{
+	return -EINVAL;
+}
+
+static inline int vfs_setlease(struct file *filp, long arg,
+			       struct file_lock **lease)
+{
+	return -EINVAL;
+}
+
+static inline int lease_modify(struct file_lock **before, int arg)
+{
+	return -EINVAL;
+}
+
+static inline int lock_may_read(struct inode *inode, loff_t start,
+				unsigned long len)
+{
+	return 1;
+}
+
+static inline int lock_may_write(struct inode *inode, loff_t start,
+				 unsigned long len)
+{
+	return 1;
+}
+
 #endif /* !CONFIG_FILE_LOCKING */
 
 
@@ -1607,7 +1720,7 @@ struct super_block *sget(struct file_system_type *type,
 extern int get_sb_pseudo(struct file_system_type *, char *,
 	const struct super_operations *ops, unsigned long,
 	struct vfsmount *mnt);
-extern int simple_set_mnt(struct vfsmount *mnt, struct super_block *sb);
+extern void simple_set_mnt(struct vfsmount *mnt, struct super_block *sb);
 int __put_super_and_need_restart(struct super_block *sb);
 
 /* Alas, no aliases. Too much hassle with bringing module.h everywhere */
@@ -1688,13 +1801,44 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
 	return 0;
 }
 #else /* !CONFIG_FILE_LOCKING */
-#define locks_mandatory_locked(a) ({ 0; })
-#define locks_mandatory_area(a, b, c, d, e) ({ 0; })
-#define __mandatory_lock(a) ({ 0; })
-#define mandatory_lock(a) ({ 0; })
-#define locks_verify_locked(a) ({ 0; })
-#define locks_verify_truncate(a, b, c) ({ 0; })
-#define break_lease(a, b) ({ 0; })
+static inline int locks_mandatory_locked(struct inode *inode)
+{
+	return 0;
+}
+
+static inline int locks_mandatory_area(int rw, struct inode *inode,
+				       struct file *filp, loff_t offset,
+				       size_t count)
+{
+	return 0;
+}
+
+static inline int __mandatory_lock(struct inode *inode)
+{
+	return 0;
+}
+
+static inline int mandatory_lock(struct inode *inode)
+{
+	return 0;
+}
+
+static inline int locks_verify_locked(struct inode *inode)
+{
+	return 0;
+}
+
+static inline int locks_verify_truncate(struct inode *inode, struct file *filp,
+					size_t size)
+{
+	return 0;
+}
+
+static inline int break_lease(struct inode *inode, unsigned int mode)
+{
+	return 0;
+}
+
 #endif /* CONFIG_FILE_LOCKING */
 
 /* fs/open.c */
@@ -1731,6 +1875,13 @@ extern void bd_set_size(struct block_device *, loff_t size);
 extern void bd_forget(struct inode *inode);
 extern void bdput(struct block_device *);
 extern struct block_device *open_by_devnum(dev_t, fmode_t);
+extern void invalidate_bdev(struct block_device *);
+extern int sync_blockdev(struct block_device *bdev);
+extern struct super_block *freeze_bdev(struct block_device *);
+extern int thaw_bdev(struct block_device *bdev, struct super_block *sb);
+extern int fsync_bdev(struct block_device *);
+extern int fsync_super(struct super_block *);
+extern int fsync_no_super(struct block_device *);
 #else
 static inline void bd_forget(struct inode *inode) {}
 #endif
@@ -1882,7 +2033,6 @@ static inline void allow_write_access(struct file *file)
 	if (file)
 		atomic_inc(&file->f_path.dentry->d_inode->i_writecount);
 }
-extern int do_pipe(int *);
 extern int do_pipe_flags(int *, int);
 extern struct file *create_read_pipe(struct file *f, int flags);
 extern struct file *create_write_pipe(int flags);

@@ -82,8 +82,8 @@ int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		       skb->len, MRVDRV_ETH_TX_PACKET_BUFFER_SIZE);
 		/* We'll never manage to send this one; drop it and return 'OK' */
 
-		priv->stats.tx_dropped++;
-		priv->stats.tx_errors++;
+		dev->stats.tx_dropped++;
+		dev->stats.tx_errors++;
 		goto free;
 	}
 
@@ -146,8 +146,8 @@ int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	lbs_deb_tx("%s lined up packet\n", __func__);
 
-	priv->stats.tx_packets++;
-	priv->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	dev->trans_start = jiffies;
 

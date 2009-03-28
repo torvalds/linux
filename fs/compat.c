@@ -378,6 +378,34 @@ out:
 	return error;
 }
 
+/*
+ * This is a copy of sys_ustat, just dealing with a structure layout.
+ * Given how simple this syscall is that apporach is more maintainable
+ * than the various conversion hacks.
+ */
+asmlinkage long compat_sys_ustat(unsigned dev, struct compat_ustat __user *u)
+{
+	struct super_block *sb;
+	struct compat_ustat tmp;
+	struct kstatfs sbuf;
+	int err;
+
+	sb = user_get_super(new_decode_dev(dev));
+	if (!sb)
+		return -EINVAL;
+	err = vfs_statfs(sb->s_root, &sbuf);
+	drop_super(sb);
+	if (err)
+		return err;
+
+	memset(&tmp, 0, sizeof(struct compat_ustat));
+	tmp.f_tfree = sbuf.f_bfree;
+	tmp.f_tinode = sbuf.f_ffree;
+	if (copy_to_user(u, &tmp, sizeof(struct compat_ustat)))
+		return -EFAULT;
+	return 0;
+}
+
 static int get_compat_flock(struct flock *kfl, struct compat_flock __user *ufl)
 {
 	if (!access_ok(VERIFY_READ, ufl, sizeof(*ufl)) ||

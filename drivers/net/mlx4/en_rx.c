@@ -768,6 +768,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 		skb->ip_summed = ip_summed;
 		skb->protocol = eth_type_trans(skb, dev);
+		skb_record_rx_queue(skb, cq->ring);
 
 		/* Push it up the stack */
 		if (priv->vlgrp && (be32_to_cpu(cqe->vlan_my_qpn) &
@@ -814,7 +815,7 @@ void mlx4_en_rx_irq(struct mlx4_cq *mcq)
 	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
 
 	if (priv->port_up)
-		netif_rx_schedule(&cq->napi);
+		napi_schedule(&cq->napi);
 	else
 		mlx4_en_arm_cq(priv, cq);
 }
@@ -834,7 +835,7 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
 	else {
 		/* Done for now */
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		mlx4_en_arm_cq(priv, cq);
 	}
 	return done;

@@ -479,7 +479,8 @@
 
 #include "de4x5.h"
 
-static char version[] __devinitdata = "de4x5.c:V0.546 2001/02/22 davies@maniac.ultranet.com\n";
+static const char version[] __devinitconst =
+	KERN_INFO "de4x5.c:V0.546 2001/02/22 davies@maniac.ultranet.com\n";
 
 #define c_char const char
 
@@ -3941,8 +3942,8 @@ PCI_signature(char *name, struct de4x5_private *lp)
 	strcpy(name, "DE434/5");
 	return status;
     } else {                           /* Search for a DEC name in the SROM */
-	int i = *((char *)&lp->srom + 19) * 3;
-	strncpy(name, (char *)&lp->srom + 26 + i, 8);
+	int tmp = *((char *)&lp->srom + 19) * 3;
+	strncpy(name, (char *)&lp->srom + 26 + tmp, 8);
     }
     name[8] = '\0';
     for (i=0; i<siglen; i++) {

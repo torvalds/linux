@@ -484,7 +484,7 @@ static struct device_attribute *const fw_host_attrs[] = {
 static ssize_t fw_show_drv_device_ids(struct device_driver *drv, char *buf)
 {
 	struct hpsb_protocol_driver *driver;
-	struct ieee1394_device_id *id;
+	const struct ieee1394_device_id *id;
 	int length = 0;
 	char *scratch = buf;
 
@@ -658,7 +658,7 @@ static int nodemgr_bus_match(struct device * dev, struct device_driver * drv)
 {
 	struct hpsb_protocol_driver *driver;
 	struct unit_directory *ud;
-	struct ieee1394_device_id *id;
+	const struct ieee1394_device_id *id;
 
 	/* We only match unit directories */
 	if (dev->platform_data != &nodemgr_ud_platform_data)

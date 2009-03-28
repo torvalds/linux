@@ -234,6 +234,9 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			NETLINK_CB(skb).dst_group = 1;
 			retval = netlink_broadcast(uevent_sock, skb, 0, 1,
 						   GFP_KERNEL);
+			/* ENOBUFS should be handled in userspace */
+			if (retval == -ENOBUFS)
+				retval = 0;
 		} else
 			retval = -ENOMEM;
 	}

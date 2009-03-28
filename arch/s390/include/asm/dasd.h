@@ -162,15 +162,15 @@ typedef struct dasd_profile_info_t {
         unsigned int dasd_io_nr_req[32]; /* histogram of # of requests in chanq */
 } dasd_profile_info_t;
 
-/* 
+/*
  * struct format_data_t
  * represents all data necessary to format a dasd
  */
 typedef struct format_data_t {
-	int start_unit; /* from track */
-	int stop_unit;  /* to track */
-	int blksize;    /* sectorsize */
-        int intensity;  
+	unsigned int start_unit; /* from track */
+	unsigned int stop_unit;  /* to track */
+	unsigned int blksize;	 /* sectorsize */
+	unsigned int intensity;
 } format_data_t;
 
 /*

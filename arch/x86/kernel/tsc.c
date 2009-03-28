@@ -17,20 +17,21 @@
 #include <asm/delay.h>
 #include <asm/hypervisor.h>
 
-unsigned int cpu_khz;           /* TSC clocks / usec, not used here */
+unsigned int __read_mostly cpu_khz;	/* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
-unsigned int tsc_khz;
+
+unsigned int __read_mostly tsc_khz;
 EXPORT_SYMBOL(tsc_khz);
 
 /*
  * TSC can be unstable due to cpufreq or due to unsynced TSCs
  */
-static int tsc_unstable;
+static int __read_mostly tsc_unstable;
 
 /* native_sched_clock() is called before tsc_init(), so
    we must start with the TSC soft disabled to prevent
    erroneous rdtsc usage on !cpu_has_tsc processors */
-static int tsc_disabled = -1;
+static int __read_mostly tsc_disabled = -1;
 
 static int tsc_clocksource_reliable;
 /*
