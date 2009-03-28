@@ -17,7 +17,14 @@ extern struct lock_class_key irq_desc_lock_class;
 extern void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr);
 extern void clear_kstat_irqs(struct irq_desc *desc);
 extern spinlock_t sparse_irq_lock;
+
+#ifdef CONFIG_SPARSE_IRQ
+/* irq_desc_ptrs allocated at boot time */
+extern struct irq_desc **irq_desc_ptrs;
+#else
+/* irq_desc_ptrs is a fixed size array */
 extern struct irq_desc *irq_desc_ptrs[NR_IRQS];
+#endif
 
 #ifdef CONFIG_PROC_FS
 extern void register_irq_proc(unsigned int irq, struct irq_desc *desc);
