@@ -184,6 +184,7 @@ static struct hdlc_proto proto = {
 	.close		= x25_close,
 	.ioctl		= x25_ioctl,
 	.netif_rx	= x25_rx,
+	.xmit		= x25_xmit,
 	.module		= THIS_MODULE,
 };
 
@@ -213,7 +214,6 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 		if ((result = attach_hdlc_protocol(dev, &proto, 0)))
 			return result;
-		dev->hard_start_xmit = x25_xmit;
 		dev->type = ARPHRD_X25;
 		netif_dormant_off(dev);
 		return 0;

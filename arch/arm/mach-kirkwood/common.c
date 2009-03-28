@@ -233,14 +233,17 @@ static struct platform_device kirkwood_switch_device = {
 
 void __init kirkwood_ge00_switch_init(struct dsa_platform_data *d, int irq)
 {
+	int i;
+
 	if (irq != NO_IRQ) {
 		kirkwood_switch_resources[0].start = irq;
 		kirkwood_switch_resources[0].end = irq;
 		kirkwood_switch_device.num_resources = 1;
 	}
 
-	d->mii_bus = &kirkwood_ge00_shared.dev;
 	d->netdev = &kirkwood_ge00.dev;
+	for (i = 0; i < d->nr_chips; i++)
+		d->chip[i].mii_bus = &kirkwood_ge00_shared.dev;
 	kirkwood_switch_device.dev.platform_data = d;
 
 	platform_device_register(&kirkwood_switch_device);

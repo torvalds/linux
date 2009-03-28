@@ -763,6 +763,9 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
 	struct cifsTconInfo *pTcon = cifs_sb->tcon;
 	FILE_BASIC_INFO	info_buf;
 
+	if (attrs == NULL)
+		return -EINVAL;
+
 	if (attrs->ia_valid & ATTR_ATIME) {
 		set_time = true;
 		info_buf.LastAccessTime =

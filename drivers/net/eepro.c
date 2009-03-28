@@ -739,6 +739,17 @@ static void __init eepro_print_info (struct net_device *dev)
 
 static const struct ethtool_ops eepro_ethtool_ops;
 
+static const struct net_device_ops eepro_netdev_ops = {
+ 	.ndo_open               = eepro_open,
+ 	.ndo_stop               = eepro_close,
+ 	.ndo_start_xmit    	= eepro_send_packet,
+ 	.ndo_set_multicast_list = set_multicast_list,
+ 	.ndo_tx_timeout		= eepro_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /* This is the real probe routine.  Linux has a history of friendly device
    probes on the ISA bus.  A good device probe avoids doing writes, and
    verifies that the correct device exists and functions.  */
@@ -851,11 +862,7 @@ static int __init eepro_probe1(struct net_device *dev, int autoprobe)
  		}
  	}
 
- 	dev->open               = eepro_open;
- 	dev->stop               = eepro_close;
- 	dev->hard_start_xmit    = eepro_send_packet;
- 	dev->set_multicast_list = &set_multicast_list;
- 	dev->tx_timeout		= eepro_tx_timeout;
+	dev->netdev_ops		= &eepro_netdev_ops;
  	dev->watchdog_timeo	= TX_TIMEOUT;
 	dev->ethtool_ops	= &eepro_ethtool_ops;
 

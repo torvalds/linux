@@ -299,7 +299,6 @@ struct streamer_private {
 	int tx_ring_free, tx_ring_last_status, rx_ring_last_received,
 	    free_tx_ring_entries;
 
-	struct net_device_stats streamer_stats;
 	__u16 streamer_lan_status;
 	__u8 streamer_ring_speed;
 	__u16 pkt_buf_sz;

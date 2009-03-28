@@ -496,7 +496,7 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 	}
 
 	if (!request_mem_region(r->start, (r->end - r->start) + 1,
-				pdev->dev.bus_id)) {
+				dev_name(&pdev->dev))) {
 		status = -EBUSY;
 		goto out;
 	}

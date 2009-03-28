@@ -169,7 +169,7 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 				struct rndis_keepalive_c *msg = (void *)buf;
 
 				msg->msg_type = RNDIS_MSG_KEEPALIVE_C;
-				msg->msg_len = ccpu2(sizeof *msg);
+				msg->msg_len = cpu_to_le32(sizeof *msg);
 				msg->status = RNDIS_STATUS_SUCCESS;
 				retval = usb_control_msg(dev->udev,
 					usb_sndctrlpipe(dev->udev, 0),
@@ -237,7 +237,7 @@ static int rndis_query(struct usbnet *dev, struct usb_interface *intf,
 	u.get->msg_len = cpu_to_le32(sizeof *u.get + in_len);
 	u.get->oid = oid;
 	u.get->len = cpu_to_le32(in_len);
-	u.get->offset = ccpu2(20);
+	u.get->offset = cpu_to_le32(20);
 
 	retval = rndis_command(dev, u.header, CONTROL_BUFFER_SIZE);
 	if (unlikely(retval < 0)) {
@@ -265,6 +265,16 @@ response_error:
 		oid, off, len);
 	return -EDOM;
 }
+
+/* same as usbnet_netdev_ops but MTU change not allowed */
+static const struct net_device_ops rndis_netdev_ops = {
+	.ndo_open		= usbnet_open,
+	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 int
 generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
@@ -297,9 +307,9 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 		goto fail;
 
 	u.init->msg_type = RNDIS_MSG_INIT;
-	u.init->msg_len = ccpu2(sizeof *u.init);
-	u.init->major_version = ccpu2(1);
-	u.init->minor_version = ccpu2(0);
+	u.init->msg_len = cpu_to_le32(sizeof *u.init);
+	u.init->major_version = cpu_to_le32(1);
+	u.init->minor_version = cpu_to_le32(0);
 
 	/* max transfer (in spec) is 0x4000 at full speed, but for
 	 * TX we'll stick to one Ethernet packet plus RNDIS framing.
@@ -327,7 +337,8 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	dev->rx_urb_size &= ~(dev->maxpacket - 1);
 	u.init->max_transfer_size = cpu_to_le32(dev->rx_urb_size);
 
-	net->change_mtu = NULL;
+	net->netdev_ops = &rndis_netdev_ops;
+
 	retval = rndis_command(dev, u.header, CONTROL_BUFFER_SIZE);
 	if (unlikely(retval < 0)) {
 		/* it might not even be an RNDIS device!! */
@@ -403,10 +414,10 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	/* set a nonzero filter to enable data transfers */
 	memset(u.set, 0, sizeof *u.set);
 	u.set->msg_type = RNDIS_MSG_SET;
-	u.set->msg_len = ccpu2(4 + sizeof *u.set);
+	u.set->msg_len = cpu_to_le32(4 + sizeof *u.set);
 	u.set->oid = OID_GEN_CURRENT_PACKET_FILTER;
-	u.set->len = ccpu2(4);
-	u.set->offset = ccpu2((sizeof *u.set) - 8);
+	u.set->len = cpu_to_le32(4);
+	u.set->offset = cpu_to_le32((sizeof *u.set) - 8);
 	*(__le32 *)(u.buf + sizeof *u.set) = RNDIS_DEFAULT_FILTER;
 
 	retval = rndis_command(dev, u.header, CONTROL_BUFFER_SIZE);
@@ -423,7 +434,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 halt_fail_and_release:
 	memset(u.halt, 0, sizeof *u.halt);
 	u.halt->msg_type = RNDIS_MSG_HALT;
-	u.halt->msg_len = ccpu2(sizeof *u.halt);
+	u.halt->msg_len = cpu_to_le32(sizeof *u.halt);
 	(void) rndis_command(dev, (void *)u.halt, CONTROL_BUFFER_SIZE);
 fail_and_release:
 	usb_set_intfdata(info->data, NULL);
@@ -448,7 +459,7 @@ void rndis_unbind(struct usbnet *dev, struct usb_interface *intf)
 	halt = kzalloc(CONTROL_BUFFER_SIZE, GFP_KERNEL);
 	if (halt) {
 		halt->msg_type = RNDIS_MSG_HALT;
-		halt->msg_len = ccpu2(sizeof *halt);
+		halt->msg_len = cpu_to_le32(sizeof *halt);
 		(void) rndis_command(dev, (void *)halt, CONTROL_BUFFER_SIZE);
 		kfree(halt);
 	}
@@ -543,7 +554,7 @@ fill:
 	memset(hdr, 0, sizeof *hdr);
 	hdr->msg_type = RNDIS_MSG_PACKET;
 	hdr->msg_len = cpu_to_le32(skb->len);
-	hdr->data_offset = ccpu2(sizeof(*hdr) - 8);
+	hdr->data_offset = cpu_to_le32(sizeof(*hdr) - 8);
 	hdr->data_len = cpu_to_le32(len);
 
 	/* FIXME make the last packet always be short ... */
@@ -561,9 +572,6 @@ static const struct driver_info	rndis_info = {
 	.rx_fixup =	rndis_rx_fixup,
 	.tx_fixup =	rndis_tx_fixup,
 };
-
-#undef ccpu2
-
 
 /*-------------------------------------------------------------------------*/
 

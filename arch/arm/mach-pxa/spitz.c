@@ -103,6 +103,12 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO57_nIOIS16,
 	GPIO104_PSKTSEL,
 
+	/* I2S */
+	GPIO28_I2S_BITCLK_OUT,
+	GPIO29_I2S_SDATA_IN,
+	GPIO30_I2S_SDATA_OUT,
+	GPIO31_I2S_SYNC,
+
 	/* MMC */
 	GPIO32_MMC_CLK,
 	GPIO112_MMC_CMD,

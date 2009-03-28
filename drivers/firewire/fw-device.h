@@ -19,10 +19,17 @@
 #ifndef __fw_device_h
 #define __fw_device_h
 
+#include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/cdev.h>
 #include <linux/idr.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/rwsem.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+
 #include <asm/atomic.h>
 
 enum fw_device_state {
@@ -37,6 +44,9 @@ struct fw_attribute_group {
 	struct attribute_group group;
 	struct attribute *attrs[11];
 };
+
+struct fw_node;
+struct fw_card;
 
 /*
  * Note, fw_device.generation always has to be read before fw_device.node_id.
@@ -61,13 +71,18 @@ struct fw_device {
 	int node_id;
 	int generation;
 	unsigned max_speed;
-	bool cmc;
 	struct fw_card *card;
 	struct device device;
+
+	struct mutex client_list_mutex;
 	struct list_head client_list;
+
 	u32 *config_rom;
 	size_t config_rom_length;
 	int config_rom_retries;
+	unsigned cmc:1;
+	unsigned bc_implemented:2;
+
 	struct delayed_work work;
 	struct fw_attribute_group attribute_group;
 };
@@ -96,6 +111,7 @@ static inline void fw_device_put(struct fw_device *device)
 
 struct fw_device *fw_device_get_by_devt(dev_t devt);
 int fw_device_enable_phys_dma(struct fw_device *device);
+void fw_device_set_broadcast_channel(struct fw_device *device, int generation);
 
 void fw_device_cdev_update(struct fw_device *device);
 void fw_device_cdev_remove(struct fw_device *device);
@@ -176,8 +192,7 @@ struct fw_driver {
 	const struct fw_device_id *id_table;
 };
 
-static inline struct fw_driver *
-fw_driver(struct device_driver *drv)
+static inline struct fw_driver *fw_driver(struct device_driver *drv)
 {
 	return container_of(drv, struct fw_driver, driver);
 }

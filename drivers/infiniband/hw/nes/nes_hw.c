@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2008 NetEffect, Inc. All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -254,6 +254,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 	u32 adapter_size;
 	u32 arp_table_size;
 	u16 vendor_id;
+	u16 device_id;
 	u8  OneG_Mode;
 	u8  func_index;
 
@@ -355,6 +356,13 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 		kfree(nesadapter);
 		return NULL;
 	}
+
+	nesadapter->vendor_id = (((u32) nesadapter->mac_addr_high) << 8) |
+				(nesadapter->mac_addr_low >> 24);
+
+	pci_bus_read_config_word(nesdev->pcidev->bus, nesdev->pcidev->devfn,
+				 PCI_DEVICE_ID, &device_id);
+	nesadapter->vendor_part_id = device_id;
 
 	if (nes_init_serdes(nesdev, hw_rev, port_count, nesadapter,
 							OneG_Mode)) {
@@ -1636,7 +1644,6 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 	nesvnic->post_cqp_request = nes_post_cqp_request;
 	nesvnic->mcrq_mcast_filter = NULL;
 
-	spin_lock_init(&nesvnic->nic.sq_lock);
 	spin_lock_init(&nesvnic->nic.rq_lock);
 
 	/* setup the RQ */
@@ -2261,6 +2268,8 @@ static void nes_process_aeq(struct nes_device *nesdev, struct nes_hw_aeq *aeq)
 
 		if (++head >= aeq_size)
 			head = 0;
+
+		nes_write32(nesdev->regs + NES_AEQ_ALLOC, 1 << 16);
 	}
 	while (1);
 	aeq->aeq_head = head;
@@ -2541,7 +2550,7 @@ static void nes_nic_napi_ce_handler(struct nes_device *nesdev, struct nes_hw_nic
 {
 	struct nes_vnic *nesvnic = container_of(cq, struct nes_vnic, nic_cq);
 
-	netif_rx_schedule(&nesvnic->napi);
+	napi_schedule(&nesvnic->napi);
 }
 
 
@@ -2622,9 +2631,9 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 						} else
 							break;
 					}
-					if (skb)
-						dev_kfree_skb_any(skb);
 				}
+				if (skb)
+					dev_kfree_skb_any(skb);
 				nesnic->sq_tail++;
 				nesnic->sq_tail &= nesnic->sq_size-1;
 				if (sq_cqes > 128) {

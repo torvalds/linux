@@ -536,7 +536,8 @@ static int __init pc87413_init(void)
 
 	ret = misc_register(&pc87413_miscdev);
 	if (ret != 0) {
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+		printk(KERN_ERR PFX
+			"cannot register miscdev on minor=%d (err=%d)\n",
 			WATCHDOG_MINOR, ret);
 		unregister_reboot_notifier(&pc87413_notifier);
 		return ret;
@@ -574,7 +575,8 @@ static void __exit pc87413_exit(void)
 module_init(pc87413_init);
 module_exit(pc87413_exit);
 
-MODULE_AUTHOR("Sven Anders <anders@anduras.de>, Marcus Junker <junker@anduras.de>,");
+MODULE_AUTHOR("Sven Anders <anders@anduras.de>, "
+		"Marcus Junker <junker@anduras.de>,");
 MODULE_DESCRIPTION("PC87413 WDT driver");
 MODULE_LICENSE("GPL");
 

@@ -204,8 +204,11 @@ static int uvesafb_exec(struct uvesafb_ktask *task)
 		} else {
 			v86d_started = 1;
 			err = cn_netlink_send(m, 0, gfp_any());
+			if (err == -ENOBUFS)
+				err = 0;
 		}
-	}
+	} else if (err == -ENOBUFS)
+		err = 0;
 
 	if (!err && !(task->t.flags & TF_EXIT))
 		err = !wait_for_completion_timeout(task->done,

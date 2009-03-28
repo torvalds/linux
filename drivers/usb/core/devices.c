@@ -187,7 +187,7 @@ static char *usb_dump_endpoint_descriptor(int speed, char *start, char *end,
 	}
 
 	/* this isn't checking for illegal values */
-	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		type = "Ctrl";
 		if (speed == USB_SPEED_HIGH) 	/* uframes per NAK */

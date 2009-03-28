@@ -131,6 +131,11 @@ static unsigned long e750_pin_config[] __initdata = {
 	/* IrDA */
 	GPIO38_GPIO | MFP_LPM_DRIVE_HIGH,
 
+	/* Audio power control */
+	GPIO4_GPIO,  /* Headphone amp power */
+	GPIO7_GPIO,  /* Speaker amp power */
+	GPIO37_GPIO, /* Headphone detect */
+
 	/* PC Card */
 	GPIO8_GPIO,   /* CD0 */
 	GPIO44_GPIO,  /* CD1 */

@@ -26,6 +26,7 @@
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/tpm.h>
 
 enum tpm_timeout {
 	TPM_TIMEOUT = 5,	/* msecs */
@@ -123,6 +124,147 @@ static inline void tpm_write_index(int base, int index, int value)
 	outb(index, base);
 	outb(value & 0xFF, base+1);
 }
+struct tpm_input_header {
+	__be16	tag;
+	__be32	length;
+	__be32	ordinal;
+}__attribute__((packed));
+
+struct tpm_output_header {
+	__be16	tag;
+	__be32	length;
+	__be32	return_code;
+}__attribute__((packed));
+
+struct	stclear_flags_t {
+	__be16	tag;
+	u8	deactivated;
+	u8	disableForceClear;
+	u8	physicalPresence;
+	u8	physicalPresenceLock;
+	u8	bGlobalLock;
+}__attribute__((packed));
+
+struct	tpm_version_t {
+	u8	Major;
+	u8	Minor;
+	u8	revMajor;
+	u8	revMinor;
+}__attribute__((packed));
+
+struct	tpm_version_1_2_t {
+	__be16	tag;
+	u8	Major;
+	u8	Minor;
+	u8	revMajor;
+	u8	revMinor;
+}__attribute__((packed));
+
+struct	timeout_t {
+	__be32	a;
+	__be32	b;
+	__be32	c;
+	__be32	d;
+}__attribute__((packed));
+
+struct duration_t {
+	__be32	tpm_short;
+	__be32	tpm_medium;
+	__be32	tpm_long;
+}__attribute__((packed));
+
+struct permanent_flags_t {
+	__be16	tag;
+	u8	disable;
+	u8	ownership;
+	u8	deactivated;
+	u8	readPubek;
+	u8	disableOwnerClear;
+	u8	allowMaintenance;
+	u8	physicalPresenceLifetimeLock;
+	u8	physicalPresenceHWEnable;
+	u8	physicalPresenceCMDEnable;
+	u8	CEKPUsed;
+	u8	TPMpost;
+	u8	TPMpostLock;
+	u8	FIPS;
+	u8	operator;
+	u8	enableRevokeEK;
+	u8	nvLocked;
+	u8	readSRKPub;
+	u8	tpmEstablished;
+	u8	maintenanceDone;
+	u8	disableFullDALogicInfo;
+}__attribute__((packed));
+
+typedef union {
+	struct	permanent_flags_t perm_flags;
+	struct	stclear_flags_t	stclear_flags;
+	bool	owned;
+	__be32	num_pcrs;
+	struct	tpm_version_t	tpm_version;
+	struct	tpm_version_1_2_t tpm_version_1_2;
+	__be32	manufacturer_id;
+	struct timeout_t  timeout;
+	struct duration_t duration;
+} cap_t;
+
+struct	tpm_getcap_params_in {
+	__be32	cap;
+	__be32	subcap_size;
+	__be32	subcap;
+}__attribute__((packed));
+
+struct	tpm_getcap_params_out {
+	__be32	cap_size;
+	cap_t	cap;
+}__attribute__((packed));
+
+struct	tpm_readpubek_params_out {
+	u8	algorithm[4];
+	u8	encscheme[2];
+	u8	sigscheme[2];
+	u8	parameters[12]; /*assuming RSA*/
+	__be32	keysize;
+	u8	modulus[256];
+	u8	checksum[20];
+}__attribute__((packed));
+
+typedef union {
+	struct	tpm_input_header in;
+	struct	tpm_output_header out;
+} tpm_cmd_header;
+
+#define TPM_DIGEST_SIZE 20
+struct tpm_pcrread_out {
+	u8	pcr_result[TPM_DIGEST_SIZE];
+}__attribute__((packed));
+
+struct tpm_pcrread_in {
+	__be32	pcr_idx;
+}__attribute__((packed));
+
+struct tpm_pcrextend_in {
+	__be32	pcr_idx;
+	u8	hash[TPM_DIGEST_SIZE];
+}__attribute__((packed));
+
+typedef union {
+	struct	tpm_getcap_params_out getcap_out;
+	struct	tpm_readpubek_params_out readpubek_out;
+	u8	readpubek_out_buffer[sizeof(struct tpm_readpubek_params_out)];
+	struct	tpm_getcap_params_in getcap_in;
+	struct	tpm_pcrread_in	pcrread_in;
+	struct	tpm_pcrread_out	pcrread_out;
+	struct	tpm_pcrextend_in pcrextend_in;
+} tpm_cmd_params;
+
+struct tpm_cmd_t {
+	tpm_cmd_header	header;
+	tpm_cmd_params	params;
+}__attribute__((packed));
+
+ssize_t	tpm_getcap(struct device *, __be32, cap_t *, const char *);
 
 extern void tpm_get_timeouts(struct tpm_chip *);
 extern void tpm_gen_interrupt(struct tpm_chip *);

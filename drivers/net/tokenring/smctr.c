@@ -61,7 +61,8 @@
 
 #include "smctr.h"               /* Our Stuff */
 
-static char version[] __initdata = KERN_INFO "smctr.c: v1.4 7/12/00 by jschlst@samba.org\n";
+static const char version[] __initdata =
+	KERN_INFO "smctr.c: v1.4 7/12/00 by jschlst@samba.org\n";
 static const char cardname[] = "smctr";
 
 
@@ -123,7 +124,6 @@ static unsigned int smctr_get_num_rx_bdbs(struct net_device *dev);
 static int smctr_get_physical_drop_number(struct net_device *dev);
 static __u8 *smctr_get_rx_pointer(struct net_device *dev, short queue);
 static int smctr_get_station_id(struct net_device *dev);
-static struct net_device_stats *smctr_get_stats(struct net_device *dev);
 static FCBlock *smctr_get_tx_fcb(struct net_device *dev, __u16 queue,
         __u16 bytes_count);
 static int smctr_get_upstream_neighbor_addr(struct net_device *dev);
@@ -3632,6 +3632,14 @@ out:
 	return ERR_PTR(err);
 }
 
+static const struct net_device_ops smctr_netdev_ops = {
+	.ndo_open          = smctr_open,
+	.ndo_stop          = smctr_close,
+	.ndo_start_xmit    = smctr_send_packet,
+	.ndo_tx_timeout	   = smctr_timeout,
+	.ndo_get_stats     = smctr_get_stats,
+	.ndo_set_multicast_list = smctr_set_multicast_list,
+};
 
 static int __init smctr_probe1(struct net_device *dev, int ioaddr)
 {
@@ -3682,13 +3690,8 @@ static int __init smctr_probe1(struct net_device *dev, int ioaddr)
                 (unsigned int)dev->base_addr,
                 dev->irq, tp->rom_base, tp->ram_base);
 
-        dev->open               = smctr_open;
-        dev->stop               = smctr_close;
-        dev->hard_start_xmit    = smctr_send_packet;
-        dev->tx_timeout		= smctr_timeout;
+	dev->netdev_ops = &smctr_netdev_ops;
         dev->watchdog_timeo	= HZ;
-        dev->get_stats          = smctr_get_stats;
-        dev->set_multicast_list = &smctr_set_multicast_list;
         return (0);
 
 out:
@@ -4392,52 +4395,42 @@ static int smctr_ring_status_chg(struct net_device *dev)
         {
                 case RING_RECOVERY:
                         printk(KERN_INFO "%s: Ring Recovery\n", dev->name);
-                        tp->current_ring_status |= RING_RECOVERY;
                         break;
 
                 case SINGLE_STATION:
                         printk(KERN_INFO "%s: Single Statinon\n", dev->name);
-                        tp->current_ring_status |= SINGLE_STATION;
                         break;
 
                 case COUNTER_OVERFLOW:
                         printk(KERN_INFO "%s: Counter Overflow\n", dev->name);
-                        tp->current_ring_status |= COUNTER_OVERFLOW;
                         break;
 
                 case REMOVE_RECEIVED:
                         printk(KERN_INFO "%s: Remove Received\n", dev->name);
-                        tp->current_ring_status |= REMOVE_RECEIVED;
                         break;
 
                 case AUTO_REMOVAL_ERROR:
                         printk(KERN_INFO "%s: Auto Remove Error\n", dev->name);
-                        tp->current_ring_status |= AUTO_REMOVAL_ERROR;
                         break;
 
                 case LOBE_WIRE_FAULT:
                         printk(KERN_INFO "%s: Lobe Wire Fault\n", dev->name);
-                        tp->current_ring_status |= LOBE_WIRE_FAULT;
                         break;
 
                 case TRANSMIT_BEACON:
                         printk(KERN_INFO "%s: Transmit Beacon\n", dev->name);
-                        tp->current_ring_status |= TRANSMIT_BEACON;
                         break;
 
                 case SOFT_ERROR:
                         printk(KERN_INFO "%s: Soft Error\n", dev->name);
-                        tp->current_ring_status |= SOFT_ERROR;
                         break;
 
                 case HARD_ERROR:
                         printk(KERN_INFO "%s: Hard Error\n", dev->name);
-                        tp->current_ring_status |= HARD_ERROR;
                         break;
 
                 case SIGNAL_LOSS:
                         printk(KERN_INFO "%s: Signal Loss\n", dev->name);
-                        tp->current_ring_status |= SIGNAL_LOSS;
                         break;
 
                 default:

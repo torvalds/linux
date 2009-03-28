@@ -203,7 +203,6 @@ struct baycom_state {
 		unsigned char buf[TXBUFFER_SIZE];
         } hdlctx;
 
-        struct net_device_stats stats;
 	unsigned int ptt_keyed;
 	struct sk_buff *skb;  /* next transmit packet  */
 
@@ -423,7 +422,7 @@ static void encode_hdlc(struct baycom_state *bc)
 	bc->hdlctx.bufptr = bc->hdlctx.buf;
 	bc->hdlctx.bufcnt = wp - bc->hdlctx.buf;
 	dev_kfree_skb(skb);
-	bc->stats.tx_packets++;
+	bc->dev->stats.tx_packets++;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -547,7 +546,7 @@ static void do_rxpacket(struct net_device *dev)
 	pktlen = bc->hdlcrx.bufcnt-2+1; /* KISS kludge */
 	if (!(skb = dev_alloc_skb(pktlen))) {
 		printk("%s: memory squeeze, dropping packet\n", dev->name);
-		bc->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 	cp = skb_put(skb, pktlen);
@@ -555,7 +554,7 @@ static void do_rxpacket(struct net_device *dev)
 	memcpy(cp, bc->hdlcrx.buf, pktlen - 1);
 	skb->protocol = ax25_type_trans(skb, dev);
 	netif_rx(skb);
-	bc->stats.rx_packets++;
+	dev->stats.rx_packets++;
 }
 
 static int receive(struct net_device *dev, int cnt)
@@ -798,19 +797,6 @@ static int baycom_set_mac_address(struct net_device *dev, void *addr)
 	/* addr is an AX.25 shifted ASCII mac address */
 	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len); 
 	return 0;                                         
-}
-
-/* --------------------------------------------------------------------- */
-
-static struct net_device_stats *baycom_get_stats(struct net_device *dev)
-{
-	struct baycom_state *bc = netdev_priv(dev);
-
-	/* 
-	 * Get the current statistics.  This may be called with the
-	 * card open or closed. 
-	 */
-	return &bc->stats;
 }
 
 /* --------------------------------------------------------------------- */
@@ -1065,10 +1051,10 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		hi.data.cs.ptt = !!(bc->stat & EPP_PTTBIT);
 		hi.data.cs.dcd = !(bc->stat & EPP_DCDBIT);
 		hi.data.cs.ptt_keyed = bc->ptt_keyed;
-		hi.data.cs.tx_packets = bc->stats.tx_packets;
-		hi.data.cs.tx_errors = bc->stats.tx_errors;
-		hi.data.cs.rx_packets = bc->stats.rx_packets;
-		hi.data.cs.rx_errors = bc->stats.rx_errors;
+		hi.data.cs.tx_packets = dev->stats.tx_packets;
+		hi.data.cs.tx_errors = dev->stats.tx_errors;
+		hi.data.cs.rx_packets = dev->stats.rx_packets;
+		hi.data.cs.rx_errors = dev->stats.rx_errors;
 		break;		
 
 	case HDLCDRVCTL_OLDGETSTAT:
@@ -1116,6 +1102,14 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 /* --------------------------------------------------------------------- */
 
+static const struct net_device_ops baycom_netdev_ops = {
+	.ndo_open	     = epp_open,
+	.ndo_stop	     = epp_close,
+	.ndo_do_ioctl	     = baycom_ioctl,
+	.ndo_start_xmit      = baycom_send_packet,
+	.ndo_set_mac_address = baycom_set_mac_address,
+};
+
 /*
  * Check for a network adaptor of this type, and return '0' if one exists.
  * If dev->base_addr == 0, probe all likely locations.
@@ -1143,17 +1137,12 @@ static void baycom_probe(struct net_device *dev)
 	/*
 	 * initialize the device struct
 	 */
-	dev->open = epp_open;
-	dev->stop = epp_close;
-	dev->do_ioctl = baycom_ioctl;
-	dev->hard_start_xmit = baycom_send_packet;
-	dev->get_stats = baycom_get_stats;
 
 	/* Fill in the fields of the device structure */
 	bc->skb = NULL;
 	
+	dev->netdev_ops = &baycom_netdev_ops;
 	dev->header_ops = &ax25_header_ops;
-	dev->set_mac_address = baycom_set_mac_address;
 	
 	dev->type = ARPHRD_AX25;           /* AF_AX25 device */
 	dev->hard_header_len = AX25_MAX_HEADER_LEN + AX25_BPQ_HEADER_LEN;

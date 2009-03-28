@@ -102,6 +102,8 @@ int vnic_dev_link_status(struct vnic_dev *vdev);
 u32 vnic_dev_port_speed(struct vnic_dev *vdev);
 u32 vnic_dev_msg_lvl(struct vnic_dev *vdev);
 u32 vnic_dev_mtu(struct vnic_dev *vdev);
+u32 vnic_dev_link_down_cnt(struct vnic_dev *vdev);
+u32 vnic_dev_notify_status(struct vnic_dev *vdev);
 int vnic_dev_close(struct vnic_dev *vdev);
 int vnic_dev_enable(struct vnic_dev *vdev);
 int vnic_dev_disable(struct vnic_dev *vdev);

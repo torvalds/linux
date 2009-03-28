@@ -284,7 +284,7 @@ static int icside_dma_init(struct pata_icside_info *info)
 
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, DRV_NAME)) {
 		state->dma = ec->dma;
-		info->mwdma_mask = 0x07;	/* MW0..2 */
+		info->mwdma_mask = ATA_MWDMA2;
 	}
 
 	return 0;
@@ -460,7 +460,7 @@ static int __devinit pata_icside_add_ports(struct pata_icside_info *info)
 	for (i = 0; i < info->nr_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
-		ap->pio_mask = 0x1f;
+		ap->pio_mask = ATA_PIO4;
 		ap->mwdma_mask = info->mwdma_mask;
 		ap->flags |= ATA_FLAG_SLAVE_POSS;
 		ap->ops = &pata_icside_port_ops;

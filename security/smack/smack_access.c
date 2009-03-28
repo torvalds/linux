@@ -162,8 +162,8 @@ int smk_access(char *subject_label, char *object_label, int request)
 
 /**
  * smk_curacc - determine if current has a specific access to an object
- * @object_label: a pointer to the object's Smack label
- * @request: the access requested, in "MAY" format
+ * @obj_label: a pointer to the object's Smack label
+ * @mode: the access requested, in "MAY" format
  *
  * This function checks the current subject label/object label pair
  * in the access rule list and returns 0 if the access is permitted,

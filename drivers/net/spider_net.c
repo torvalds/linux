@@ -1301,7 +1301,7 @@ static int spider_net_poll(struct napi_struct *napi, int budget)
 	/* if all packets are in the stack, enable interrupts and return 0 */
 	/* if not, return 1 */
 	if (packets_done < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		spider_net_rx_irq_on(card);
 		card->ignore_rx_ramfull = 0;
 	}
@@ -1528,7 +1528,7 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg,
 			spider_net_refill_rx_chain(card);
 			spider_net_enable_rxdmac(card);
 			card->num_rx_ints ++;
-			netif_rx_schedule(&card->napi);
+			napi_schedule(&card->napi);
 		}
 		show_error = 0;
 		break;
@@ -1548,7 +1548,7 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg,
 		spider_net_refill_rx_chain(card);
 		spider_net_enable_rxdmac(card);
 		card->num_rx_ints ++;
-		netif_rx_schedule(&card->napi);
+		napi_schedule(&card->napi);
 		show_error = 0;
 		break;
 
@@ -1562,7 +1562,7 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg,
 		spider_net_refill_rx_chain(card);
 		spider_net_enable_rxdmac(card);
 		card->num_rx_ints ++;
-		netif_rx_schedule(&card->napi);
+		napi_schedule(&card->napi);
 		show_error = 0;
 		break;
 
@@ -1656,11 +1656,11 @@ spider_net_interrupt(int irq, void *ptr)
 
 	if (status_reg & SPIDER_NET_RXINT ) {
 		spider_net_rx_irq_off(card);
-		netif_rx_schedule(&card->napi);
+		napi_schedule(&card->napi);
 		card->num_rx_ints ++;
 	}
 	if (status_reg & SPIDER_NET_TXINT)
-		netif_rx_schedule(&card->napi);
+		napi_schedule(&card->napi);
 
 	if (status_reg & SPIDER_NET_LINKINT)
 		spider_net_link_reset(netdev);
@@ -2259,6 +2259,23 @@ spider_net_tx_timeout(struct net_device *netdev)
 	card->spider_stats.tx_timeouts++;
 }
 
+static const struct net_device_ops spider_net_ops = {
+	.ndo_open		= spider_net_open,
+	.ndo_stop		= spider_net_stop,
+	.ndo_start_xmit		= spider_net_xmit,
+	.ndo_set_multicast_list	= spider_net_set_multi,
+	.ndo_set_mac_address	= spider_net_set_mac,
+	.ndo_change_mtu		= spider_net_change_mtu,
+	.ndo_do_ioctl		= spider_net_do_ioctl,
+	.ndo_tx_timeout		= spider_net_tx_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+	/* HW VLAN */
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	/* poll controller */
+	.ndo_poll_controller	= spider_net_poll_controller,
+#endif /* CONFIG_NET_POLL_CONTROLLER */
+};
+
 /**
  * spider_net_setup_netdev_ops - initialization of net_device operations
  * @netdev: net_device structure
@@ -2268,21 +2285,8 @@ spider_net_tx_timeout(struct net_device *netdev)
 static void
 spider_net_setup_netdev_ops(struct net_device *netdev)
 {
-	netdev->open = &spider_net_open;
-	netdev->stop = &spider_net_stop;
-	netdev->hard_start_xmit = &spider_net_xmit;
-	netdev->set_multicast_list = &spider_net_set_multi;
-	netdev->set_mac_address = &spider_net_set_mac;
-	netdev->change_mtu = &spider_net_change_mtu;
-	netdev->do_ioctl = &spider_net_do_ioctl;
-	/* tx watchdog */
-	netdev->tx_timeout = &spider_net_tx_timeout;
+	netdev->netdev_ops = &spider_net_ops;
 	netdev->watchdog_timeo = SPIDER_NET_WATCHDOG_TIMEOUT;
-	/* HW VLAN */
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	/* poll controller */
-	netdev->poll_controller = &spider_net_poll_controller;
-#endif /* CONFIG_NET_POLL_CONTROLLER */
 	/* ethtool ops */
 	netdev->ethtool_ops = &spider_net_ethtool_ops;
 }

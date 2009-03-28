@@ -19,7 +19,7 @@ void disable_endpoints(struct usb_composite_dev *cdev,
 		struct usb_ep *in, struct usb_ep *out);
 
 /* configuration-specific linkup */
-int sourcesink_add(struct usb_composite_dev *cdev);
-int loopback_add(struct usb_composite_dev *cdev);
+int sourcesink_add(struct usb_composite_dev *cdev, bool autoresume);
+int loopback_add(struct usb_composite_dev *cdev, bool autoresume);
 
 #endif /* __G_ZERO_H */

@@ -1225,6 +1225,23 @@ out:
 	read_unlock(&sk->sk_callback_lock);
 }
 
+static void xs_write_space(struct sock *sk)
+{
+	struct socket *sock;
+	struct rpc_xprt *xprt;
+
+	if (unlikely(!(sock = sk->sk_socket)))
+		return;
+	clear_bit(SOCK_NOSPACE, &sock->flags);
+
+	if (unlikely(!(xprt = xprt_from_sock(sk))))
+		return;
+	if (test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags) == 0)
+		return;
+
+	xprt_write_space(xprt);
+}
+
 /**
  * xs_udp_write_space - callback invoked when socket buffer space
  *                             becomes available
@@ -1240,23 +1257,9 @@ static void xs_udp_write_space(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 
 	/* from net/core/sock.c:sock_def_write_space */
-	if (sock_writeable(sk)) {
-		struct socket *sock;
-		struct rpc_xprt *xprt;
+	if (sock_writeable(sk))
+		xs_write_space(sk);
 
-		if (unlikely(!(sock = sk->sk_socket)))
-			goto out;
-		clear_bit(SOCK_NOSPACE, &sock->flags);
-
-		if (unlikely(!(xprt = xprt_from_sock(sk))))
-			goto out;
-		if (test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags) == 0)
-			goto out;
-
-		xprt_write_space(xprt);
-	}
-
- out:
 	read_unlock(&sk->sk_callback_lock);
 }
 
@@ -1275,23 +1278,9 @@ static void xs_tcp_write_space(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 
 	/* from net/core/stream.c:sk_stream_write_space */
-	if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk)) {
-		struct socket *sock;
-		struct rpc_xprt *xprt;
+	if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk))
+		xs_write_space(sk);
 
-		if (unlikely(!(sock = sk->sk_socket)))
-			goto out;
-		clear_bit(SOCK_NOSPACE, &sock->flags);
-
-		if (unlikely(!(xprt = xprt_from_sock(sk))))
-			goto out;
-		if (test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags) == 0)
-			goto out;
-
-		xprt_write_space(xprt);
-	}
-
- out:
 	read_unlock(&sk->sk_callback_lock);
 }
 

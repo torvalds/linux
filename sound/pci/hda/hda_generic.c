@@ -144,9 +144,9 @@ static int add_new_node(struct hda_codec *codec, struct hda_gspec *spec, hda_nid
 	node->type = (node->wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
 
 	if (node->type == AC_WID_PIN) {
-		node->pin_caps = snd_hda_param_read(codec, node->nid, AC_PAR_PIN_CAP);
+		node->pin_caps = snd_hda_query_pin_caps(codec, node->nid);
 		node->pin_ctl = snd_hda_codec_read(codec, node->nid, 0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-		node->def_cfg = snd_hda_codec_read(codec, node->nid, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
+		node->def_cfg = snd_hda_codec_get_pincfg(codec, node->nid);
 	}
 
 	if (node->wid_caps & AC_WCAP_OUT_AMP) {

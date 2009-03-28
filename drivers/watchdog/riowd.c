@@ -14,9 +14,8 @@
 #include <linux/watchdog.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 
 
 /* RIO uses the NatSemi Super I/O power management logical device
@@ -86,8 +85,7 @@ static int riowd_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int riowd_ioctl(struct inode *inode, struct file *filp,
-		       unsigned int cmd, unsigned long arg)
+static long riowd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	static struct watchdog_info info = {
 		.options		= WDIOF_SETTIMEOUT,
@@ -147,7 +145,8 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-static ssize_t riowd_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+static ssize_t riowd_write(struct file *file, const char __user *buf,
+						size_t count, loff_t *ppos)
 {
 	struct riowd *p = riowd_device;
 
@@ -160,12 +159,12 @@ static ssize_t riowd_write(struct file *file, const char __user *buf, size_t cou
 }
 
 static const struct file_operations riowd_fops = {
-	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
-	.ioctl =	riowd_ioctl,
-	.open =		riowd_open,
-	.write =	riowd_write,
-	.release =	riowd_release,
+	.owner =		THIS_MODULE,
+	.llseek =		no_llseek,
+	.unlocked_ioctl =	riowd_ioctl,
+	.open =			riowd_open,
+	.write =		riowd_write,
+	.release =		riowd_release,
 };
 
 static struct miscdevice riowd_miscdev = {

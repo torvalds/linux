@@ -73,7 +73,14 @@
 
 
 /* Our firmware file name */
-#define I2400MU_FW_FILE_NAME "i2400m-fw-usb-" I2400M_FW_VERSION ".sbcf"
+static const char *i2400mu_bus_fw_names[] = {
+#define I2400MU_FW_FILE_NAME_v1_4 "i2400m-fw-usb-1.4.sbcf"
+	I2400MU_FW_FILE_NAME_v1_4,
+#define I2400MU_FW_FILE_NAME_v1_3 "i2400m-fw-usb-1.3.sbcf"
+	I2400MU_FW_FILE_NAME_v1_3,
+	NULL,
+};
+
 
 static
 int i2400mu_bus_dev_start(struct i2400m *i2400m)
@@ -211,16 +218,16 @@ int i2400mu_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
 		container_of(i2400m, struct i2400mu, i2400m);
 	struct device *dev = i2400m_dev(i2400m);
 	static const __le32 i2400m_WARM_BOOT_BARKER[4] = {
-		__constant_cpu_to_le32(I2400M_WARM_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_WARM_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_WARM_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_WARM_RESET_BARKER),
+		cpu_to_le32(I2400M_WARM_RESET_BARKER),
+		cpu_to_le32(I2400M_WARM_RESET_BARKER),
+		cpu_to_le32(I2400M_WARM_RESET_BARKER),
+		cpu_to_le32(I2400M_WARM_RESET_BARKER),
 	};
 	static const __le32 i2400m_COLD_BOOT_BARKER[4] = {
-		__constant_cpu_to_le32(I2400M_COLD_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_COLD_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_COLD_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_COLD_RESET_BARKER),
+		cpu_to_le32(I2400M_COLD_RESET_BARKER),
+		cpu_to_le32(I2400M_COLD_RESET_BARKER),
+		cpu_to_le32(I2400M_COLD_RESET_BARKER),
+		cpu_to_le32(I2400M_COLD_RESET_BARKER),
 	};
 
 	d_fnstart(3, dev, "(i2400m %p rt %u)\n", i2400m, rt);
@@ -394,7 +401,7 @@ int i2400mu_probe(struct usb_interface *iface,
 	i2400m->bus_reset = i2400mu_bus_reset;
 	i2400m->bus_bm_cmd_send = i2400mu_bus_bm_cmd_send;
 	i2400m->bus_bm_wait_for_ack = i2400mu_bus_bm_wait_for_ack;
-	i2400m->bus_fw_name = I2400MU_FW_FILE_NAME;
+	i2400m->bus_fw_names = i2400mu_bus_fw_names;
 	i2400m->bus_bm_mac_addr_impaired = 0;
 
 #ifdef CONFIG_PM
@@ -594,4 +601,5 @@ module_exit(i2400mu_driver_exit);
 MODULE_AUTHOR("Intel Corporation <linux-wimax@intel.com>");
 MODULE_DESCRIPTION("Intel 2400M WiMAX networking for USB");
 MODULE_LICENSE("GPL");
-MODULE_FIRMWARE(I2400MU_FW_FILE_NAME);
+MODULE_FIRMWARE(I2400MU_FW_FILE_NAME_v1_4);
+MODULE_FIRMWARE(I2400MU_FW_FILE_NAME_v1_3);

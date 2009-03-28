@@ -112,6 +112,9 @@ do { \
 				d_data); \
 } while(0)
 
+/* limit size for an errorstring */
+#define ERRORLENGTH 30
+
 /* definition of dbf debug levels */
 #define	DBF_EMERG	0	/* system is unusable			*/
 #define	DBF_ALERT	1	/* action must be taken immediately	*/
@@ -157,7 +160,8 @@ struct dasd_ccw_req {
 	struct dasd_block *block;	/* the originating block device */
 	struct dasd_device *memdev;	/* the device used to allocate this */
 	struct dasd_device *startdev;	/* device the request is started on */
-	struct ccw1 *cpaddr;		/* address of channel program */
+	void *cpaddr;			/* address of ccw or tcw */
+	unsigned char cpmode;		/* 0 = cmd mode, 1 = itcw */
 	char status;			/* status of this request */
 	short retries;			/* A retry counter */
 	unsigned long flags;        	/* flags of this request */
@@ -280,6 +284,8 @@ struct dasd_discipline {
 	dasd_erp_fn_t(*erp_postaction) (struct dasd_ccw_req *);
 	void (*dump_sense) (struct dasd_device *, struct dasd_ccw_req *,
 			    struct irb *);
+	void (*dump_sense_dbf) (struct dasd_device *, struct dasd_ccw_req *,
+			    struct irb *, char *);
 
 	void (*handle_unsolicited_interrupt) (struct dasd_device *,
 					      struct irb *);
@@ -378,7 +384,7 @@ struct dasd_block {
 	struct block_device *bdev;
 	atomic_t open_count;
 
-	unsigned long blocks;	   /* size of volume in blocks */
+	unsigned long long blocks; /* size of volume in blocks */
 	unsigned int bp_block;	   /* bytes per block */
 	unsigned int s2b_shift;	   /* log2 (bp_block/512) */
 
@@ -573,12 +579,14 @@ int dasd_generic_notify(struct ccw_device *, int);
 void dasd_generic_handle_state_change(struct dasd_device *);
 
 int dasd_generic_read_dev_chars(struct dasd_device *, char *, void **, int);
+char *dasd_get_sense(struct irb *);
 
 /* externals in dasd_devmap.c */
 extern int dasd_max_devindex;
 extern int dasd_probeonly;
 extern int dasd_autodetect;
 extern int dasd_nopav;
+extern int dasd_nofcx;
 
 int dasd_devmap_init(void);
 void dasd_devmap_exit(void);
@@ -623,6 +631,7 @@ struct dasd_ccw_req *dasd_alloc_erp_request(char *, int, int,
 					    struct dasd_device *);
 void dasd_free_erp_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_log_sense(struct dasd_ccw_req *, struct irb *);
+void dasd_log_sense_dbf(struct dasd_ccw_req *cqr, struct irb *irb);
 
 /* externals in dasd_3990_erp.c */
 struct dasd_ccw_req *dasd_3990_erp_action(struct dasd_ccw_req *);

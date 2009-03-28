@@ -119,16 +119,6 @@ void snd_vx_free_firmware(struct vx_core *chip)
 
 #else /* old style firmware loading */
 
-static int vx_hwdep_open(struct snd_hwdep *hw, struct file *file)
-{
-	return 0;
-}
-
-static int vx_hwdep_release(struct snd_hwdep *hw, struct file *file)
-{
-	return 0;
-}
-
 static int vx_hwdep_dsp_status(struct snd_hwdep *hw,
 			       struct snd_hwdep_dsp_status *info)
 {
@@ -243,8 +233,6 @@ int snd_vx_setup_firmware(struct vx_core *chip)
 
 	hw->iface = SNDRV_HWDEP_IFACE_VX;
 	hw->private_data = chip;
-	hw->ops.open = vx_hwdep_open;
-	hw->ops.release = vx_hwdep_release;
 	hw->ops.dsp_status = vx_hwdep_dsp_status;
 	hw->ops.dsp_load = vx_hwdep_dsp_load;
 	hw->exclusive = 1;

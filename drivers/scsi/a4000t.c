@@ -35,7 +35,7 @@ static struct platform_device *a4000t_scsi_device;
 
 #define A4000T_SCSI_ADDR 0xdd0040
 
-static int __devinit a4000t_probe(struct device *dev)
+static int __devinit a4000t_probe(struct platform_device *dev)
 {
 	struct Scsi_Host *host;
 	struct NCR_700_Host_Parameters *hostdata;
@@ -61,7 +61,8 @@ static int __devinit a4000t_probe(struct device *dev)
 	hostdata->dcntl_extra = EA_710;
 
 	/* and register the chip */
-	host = NCR_700_detect(&a4000t_scsi_driver_template, hostdata, dev);
+	host = NCR_700_detect(&a4000t_scsi_driver_template, hostdata,
+			      &dev->dev);
 	if (!host) {
 		printk(KERN_ERR "a4000t-scsi: No host detected; "
 				"board configuration problem?\n");
@@ -78,7 +79,7 @@ static int __devinit a4000t_probe(struct device *dev)
 		goto out_put_host;
 	}
 
-	dev_set_drvdata(dev, host);
+	platform_set_drvdata(dev, host);
 	scsi_scan_host(host);
 
 	return 0;
@@ -93,9 +94,9 @@ static int __devinit a4000t_probe(struct device *dev)
 	return -ENODEV;
 }
 
-static __devexit int a4000t_device_remove(struct device *dev)
+static __devexit int a4000t_device_remove(struct platform_device *dev)
 {
-	struct Scsi_Host *host = dev_get_drvdata(dev);
+	struct Scsi_Host *host = platform_get_drvdata(dev);
 	struct NCR_700_Host_Parameters *hostdata = shost_priv(host);
 
 	scsi_remove_host(host);
@@ -108,25 +109,27 @@ static __devexit int a4000t_device_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver a4000t_scsi_driver = {
-	.name	= "a4000t-scsi",
-	.bus	= &platform_bus_type,
-	.probe	= a4000t_probe,
-	.remove	= __devexit_p(a4000t_device_remove),
+static struct platform_driver a4000t_scsi_driver = {
+	.driver = {
+		.name           = "a4000t-scsi",
+		.owner          = THIS_MODULE,
+	},
+	.probe          = a4000t_probe,
+	.remove         = __devexit_p(a4000t_device_remove),
 };
 
 static int __init a4000t_scsi_init(void)
 {
 	int err;
 
-	err = driver_register(&a4000t_scsi_driver);
+	err = platform_driver_register(&a4000t_scsi_driver);
 	if (err)
 		return err;
 
 	a4000t_scsi_device = platform_device_register_simple("a4000t-scsi",
 			-1, NULL, 0);
 	if (IS_ERR(a4000t_scsi_device)) {
-		driver_unregister(&a4000t_scsi_driver);
+		platform_driver_register(&a4000t_scsi_driver);
 		return PTR_ERR(a4000t_scsi_device);
 	}
 
@@ -136,7 +139,7 @@ static int __init a4000t_scsi_init(void)
 static void __exit a4000t_scsi_exit(void)
 {
 	platform_device_unregister(a4000t_scsi_device);
-	driver_unregister(&a4000t_scsi_driver);
+	platform_driver_unregister(&a4000t_scsi_driver);
 }
 
 module_init(a4000t_scsi_init);

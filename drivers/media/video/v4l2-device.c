@@ -34,7 +34,7 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 	spin_lock_init(&v4l2_dev->lock);
 	v4l2_dev->dev = dev;
 	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "%s %s",
-			dev->driver->name, dev->bus_id);
+			dev->driver->name, dev_name(dev));
 	dev_set_drvdata(dev, v4l2_dev);
 	return 0;
 }

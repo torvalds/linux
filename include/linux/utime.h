@@ -4,8 +4,8 @@
 #include <linux/types.h>
 
 struct utimbuf {
-	time_t actime;
-	time_t modtime;
+	__kernel_time_t actime;
+	__kernel_time_t modtime;
 };
 
 #endif

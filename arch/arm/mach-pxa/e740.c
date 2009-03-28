@@ -133,6 +133,11 @@ static unsigned long e740_pin_config[] __initdata = {
 	/* IrDA */
 	GPIO38_GPIO | MFP_LPM_DRIVE_HIGH,
 
+	/* Audio power control */
+	GPIO16_GPIO,  /* AC97 codec AVDD2 supply (analogue power) */
+	GPIO40_GPIO,  /* Mic amp power */
+	GPIO41_GPIO,  /* Headphone amp power */
+
 	/* PC Card */
 	GPIO8_GPIO,   /* CD0 */
 	GPIO44_GPIO,  /* CD1 */

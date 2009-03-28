@@ -367,6 +367,12 @@ static int au1xpsc_i2s_resume(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
+static struct snd_soc_dai_ops au1xpsc_i2s_dai_ops = {
+	.trigger	= au1xpsc_i2s_trigger,
+	.hw_params	= au1xpsc_i2s_hw_params,
+	.set_fmt	= au1xpsc_i2s_set_fmt,
+};
+
 struct snd_soc_dai au1xpsc_i2s_dai = {
 	.name			= "au1xpsc_i2s",
 	.probe			= au1xpsc_i2s_probe,
@@ -385,11 +391,7 @@ struct snd_soc_dai au1xpsc_i2s_dai = {
 		.channels_min	= 2,
 		.channels_max	= 8,	/* 2 without external help */
 	},
-	.ops = {
-		.trigger	= au1xpsc_i2s_trigger,
-		.hw_params	= au1xpsc_i2s_hw_params,
-		.set_fmt	= au1xpsc_i2s_set_fmt,
-	},
+	.ops = &au1xpsc_i2s_dai_ops,
 };
 EXPORT_SYMBOL(au1xpsc_i2s_dai);
 

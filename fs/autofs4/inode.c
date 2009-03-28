@@ -310,7 +310,7 @@ static struct autofs_info *autofs4_mkroot(struct autofs_sb_info *sbi)
 	return ino;
 }
 
-static struct dentry_operations autofs4_sb_dentry_operations = {
+static const struct dentry_operations autofs4_sb_dentry_operations = {
 	.d_release      = autofs4_dentry_release,
 };
 

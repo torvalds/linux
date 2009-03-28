@@ -8,6 +8,8 @@
  *
  */
 
+#define KMSG_COMPONENT "dasd"
+
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -144,8 +146,8 @@ dasd_diag_erp(struct dasd_device *device)
 	mdsk_term_io(device);
 	rc = mdsk_init_io(device, device->block->bp_block, 0, NULL);
 	if (rc)
-		DEV_MESSAGE(KERN_WARNING, device, "DIAG ERP unsuccessful, "
-			    "rc=%d", rc);
+		dev_warn(&device->cdev->dev, "DIAG ERP failed with "
+			    "rc=%d\n", rc);
 }
 
 /* Start a given request at the device. Return zero on success, non-zero
@@ -160,7 +162,7 @@ dasd_start_diag(struct dasd_ccw_req * cqr)
 
 	device = cqr->startdev;
 	if (cqr->retries < 0) {
-		DEV_MESSAGE(KERN_WARNING, device, "DIAG start_IO: request %p "
+		DBF_DEV_EVENT(DBF_ERR, device, "DIAG start_IO: request %p "
 			    "- no retry left)", cqr);
 		cqr->status = DASD_CQR_ERROR;
 		return -EIO;
@@ -195,7 +197,7 @@ dasd_start_diag(struct dasd_ccw_req * cqr)
 		break;
 	default: /* Error condition */
 		cqr->status = DASD_CQR_QUEUED;
-		DEV_MESSAGE(KERN_WARNING, device, "dia250 returned rc=%d", rc);
+		DBF_DEV_EVENT(DBF_WARNING, device, "dia250 returned rc=%d", rc);
 		dasd_diag_erp(device);
 		rc = -EIO;
 		break;
@@ -243,13 +245,14 @@ dasd_ext_handler(__u16 code)
 		return;
 	}
 	if (!ip) {		/* no intparm: unsolicited interrupt */
-		MESSAGE(KERN_DEBUG, "%s", "caught unsolicited interrupt");
+		DBF_EVENT(DBF_NOTICE, "%s", "caught unsolicited "
+			      "interrupt");
 		return;
 	}
 	cqr = (struct dasd_ccw_req *) ip;
 	device = (struct dasd_device *) cqr->startdev;
 	if (strncmp(device->discipline->ebcname, (char *) &cqr->magic, 4)) {
-		DEV_MESSAGE(KERN_WARNING, device,
+		DBF_DEV_EVENT(DBF_WARNING, device,
 			    " magic number of dasd_ccw_req 0x%08X doesn't"
 			    " match discipline 0x%08X",
 			    cqr->magic, *(int *) (&device->discipline->name));
@@ -281,15 +284,11 @@ dasd_ext_handler(__u16 code)
 				rc = dasd_start_diag(next);
 				if (rc == 0)
 					expires = next->expires;
-				else if (rc != -EACCES)
-					DEV_MESSAGE(KERN_WARNING, device, "%s",
-						    "Interrupt fastpath "
-						    "failed!");
 			}
 		}
 	} else {
 		cqr->status = DASD_CQR_QUEUED;
-		DEV_MESSAGE(KERN_WARNING, device, "interrupt status for "
+		DBF_DEV_EVENT(DBF_DEBUG, device, "interrupt status for "
 			    "request %p was %d (%d retries left)", cqr, status,
 			    cqr->retries);
 		dasd_diag_erp(device);
@@ -322,8 +321,9 @@ dasd_diag_check_device(struct dasd_device *device)
 	if (private == NULL) {
 		private = kzalloc(sizeof(struct dasd_diag_private),GFP_KERNEL);
 		if (private == NULL) {
-			DEV_MESSAGE(KERN_WARNING, device, "%s",
-				"memory allocation failed for private data");
+			DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+				"Allocating memory for private DASD data "
+				      "failed\n");
 			return -ENOMEM;
 		}
 		ccw_device_get_id(device->cdev, &private->dev_id);
@@ -331,7 +331,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	}
 	block = dasd_alloc_block();
 	if (IS_ERR(block)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "could not allocate dasd block structure");
 		device->private = NULL;
 		kfree(private);
@@ -347,7 +347,7 @@ dasd_diag_check_device(struct dasd_device *device)
 
 	rc = diag210((struct diag210 *) rdc_data);
 	if (rc) {
-		DEV_MESSAGE(KERN_WARNING, device, "failed to retrieve device "
+		DBF_DEV_EVENT(DBF_WARNING, device, "failed to retrieve device "
 			    "information (rc=%d)", rc);
 		rc = -EOPNOTSUPP;
 		goto out;
@@ -362,8 +362,8 @@ dasd_diag_check_device(struct dasd_device *device)
 		private->pt_block = 2;
 		break;
 	default:
-		DEV_MESSAGE(KERN_WARNING, device, "unsupported device class "
-			    "(class=%d)", private->rdc_data.vdev_class);
+		dev_warn(&device->cdev->dev, "Device type %d is not supported "
+			    "in DIAG mode\n", private->rdc_data.vdev_class);
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
@@ -380,7 +380,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	/* figure out blocksize of device */
 	label = (struct vtoc_cms_label *) get_zeroed_page(GFP_KERNEL);
 	if (label == NULL)  {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "No memory to allocate initialization request");
 		rc = -ENOMEM;
 		goto out;
@@ -404,8 +404,8 @@ dasd_diag_check_device(struct dasd_device *device)
 		private->iob.flaga = DASD_DIAG_FLAGA_DEFAULT;
 		rc = dia250(&private->iob, RW_BIO);
 		if (rc == 3) {
-			DEV_MESSAGE(KERN_WARNING, device, "%s",
-				"DIAG call failed");
+			dev_warn(&device->cdev->dev,
+				"A 64-bit DIAG call failed\n");
 			rc = -EOPNOTSUPP;
 			goto out_label;
 		}
@@ -414,8 +414,8 @@ dasd_diag_check_device(struct dasd_device *device)
 			break;
 	}
 	if (bsize > PAGE_SIZE) {
-		DEV_MESSAGE(KERN_WARNING, device, "device access failed "
-			    "(rc=%d)", rc);
+		dev_warn(&device->cdev->dev, "Accessing the DASD failed because"
+			 " of an incorrect format (rc=%d)\n", rc);
 		rc = -EIO;
 		goto out_label;
 	}
@@ -433,15 +433,15 @@ dasd_diag_check_device(struct dasd_device *device)
 		block->s2b_shift++;
 	rc = mdsk_init_io(device, block->bp_block, 0, NULL);
 	if (rc) {
-		DEV_MESSAGE(KERN_WARNING, device, "DIAG initialization "
-			"failed (rc=%d)", rc);
+		dev_warn(&device->cdev->dev, "DIAG initialization "
+			"failed with rc=%d\n", rc);
 		rc = -EIO;
 	} else {
-		DEV_MESSAGE(KERN_INFO, device,
-			    "(%ld B/blk): %ldkB",
-			    (unsigned long) block->bp_block,
-			    (unsigned long) (block->blocks <<
-				block->s2b_shift) >> 1);
+		dev_info(&device->cdev->dev,
+			 "New DASD with %ld byte/block, total size %ld KB\n",
+			 (unsigned long) block->bp_block,
+			 (unsigned long) (block->blocks <<
+					  block->s2b_shift) >> 1);
 	}
 out_label:
 	free_page((long) label);
@@ -595,7 +595,7 @@ static void
 dasd_diag_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		     struct irb *stat)
 {
-	DEV_MESSAGE(KERN_ERR, device, "%s",
+	DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 		    "dump sense not available for DIAG data");
 }
 
@@ -621,10 +621,8 @@ static int __init
 dasd_diag_init(void)
 {
 	if (!MACHINE_IS_VM) {
-		MESSAGE_LOG(KERN_INFO,
-			    "Machine is not VM: %s "
-			    "discipline not initializing",
-			    dasd_diag_discipline.name);
+		pr_info("Discipline %s cannot be used without z/VM\n",
+			dasd_diag_discipline.name);
 		return -ENODEV;
 	}
 	ASCEBC(dasd_diag_discipline.ebcname, 4);

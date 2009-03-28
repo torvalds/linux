@@ -225,7 +225,7 @@ void dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
 	if (!plat_device_is_coherent(dev) && direction != DMA_TO_DEVICE) {
 		unsigned long addr;
 
-		addr = plat_dma_addr_to_phys(dma_address);
+		addr = dma_addr_to_virt(dma_address);
 		dma_cache_wback_inv(addr, size);
 	}
 

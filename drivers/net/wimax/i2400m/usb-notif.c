@@ -102,7 +102,7 @@ int i2400mu_notification_grok(struct i2400mu *i2400mu, const void *buf,
 		dev_err(dev, "HW BUG? Unknown/unexpected data in notification "
 			"message (%zu bytes)\n", buf_len);
 		snprintf(prefix, sizeof(prefix), "%s %s: ",
-			 dev_driver_string(dev) , dev->bus_id);
+			 dev_driver_string(dev), dev_name(dev));
 		if (buf_len > 64) {
 			print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET,
 				       8, 4, buf, 64, 0);

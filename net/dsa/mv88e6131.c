@@ -1,6 +1,6 @@
 /*
- * net/dsa/mv88e6131.c - Marvell 88e6131 switch chip support
- * Copyright (c) 2008 Marvell Semiconductor
+ * net/dsa/mv88e6131.c - Marvell 88e6095/6095f/6131 switch chip support
+ * Copyright (c) 2008-2009 Marvell Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@ static char *mv88e6131_probe(struct mii_bus *bus, int sw_addr)
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
 		ret &= 0xfff0;
+		if (ret == 0x0950)
+			return "Marvell 88E6095/88E6095F";
 		if (ret == 0x1060)
 			return "Marvell 88E6131";
 	}
@@ -36,7 +38,7 @@ static int mv88e6131_switch_reset(struct dsa_switch *ds)
 	/*
 	 * Set all ports to the disabled state.
 	 */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 11; i++) {
 		ret = REG_READ(REG_PORT(i), 0x04);
 		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
 	}
@@ -100,17 +102,17 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 	REG_WRITE(REG_GLOBAL, 0x19, 0x8100);
 
 	/*
-	 * Disable ARP mirroring, and configure the cpu port as the
-	 * port to which ingress and egress monitor frames are to be
-	 * sent.
+	 * Disable ARP mirroring, and configure the upstream port as
+	 * the port to which ingress and egress monitor frames are to
+	 * be sent.
 	 */
-	REG_WRITE(REG_GLOBAL, 0x1a, (ds->cpu_port * 0x1100) | 0x00f0);
+	REG_WRITE(REG_GLOBAL, 0x1a, (dsa_upstream_port(ds) * 0x1100) | 0x00f0);
 
 	/*
 	 * Disable cascade port functionality, and set the switch's
-	 * DSA device number to zero.
+	 * DSA device number.
 	 */
-	REG_WRITE(REG_GLOBAL, 0x1c, 0xe000);
+	REG_WRITE(REG_GLOBAL, 0x1c, 0xe000 | (ds->index & 0x1f));
 
 	/*
 	 * Send all frames with destination addresses matching
@@ -127,16 +129,23 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 	REG_WRITE(REG_GLOBAL2, 0x05, 0x00ff);
 
 	/*
-	 * Map all DSA device IDs to the CPU port.
+	 * Program the DSA routing table.
 	 */
-	for (i = 0; i < 32; i++)
-		REG_WRITE(REG_GLOBAL2, 0x06, 0x8000 | (i << 8) | ds->cpu_port);
+	for (i = 0; i < 32; i++) {
+		int nexthop;
+
+		nexthop = 0x1f;
+		if (i != ds->index && i < ds->dst->pd->nr_chips)
+			nexthop = ds->pd->rtable[i] & 0x1f;
+
+		REG_WRITE(REG_GLOBAL2, 0x06, 0x8000 | (i << 8) | nexthop);
+	}
 
 	/*
 	 * Clear all trunk masks.
 	 */
 	for (i = 0; i < 8; i++)
-		REG_WRITE(REG_GLOBAL2, 0x07, 0x8000 | (i << 12) | 0xff);
+		REG_WRITE(REG_GLOBAL2, 0x07, 0x8000 | (i << 12) | 0x7ff);
 
 	/*
 	 * Clear all trunk mappings.
@@ -156,12 +165,18 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 {
 	int addr = REG_PORT(p);
+	u16 val;
 
 	/*
 	 * MAC Forcing register: don't force link, speed, duplex
-	 * or flow control state to any particular values.
+	 * or flow control state to any particular values on physical
+	 * ports, but force the CPU port and all DSA ports to 1000 Mb/s
+	 * full duplex.
 	 */
-	REG_WRITE(addr, 0x01, 0x0003);
+	if (dsa_is_cpu_port(ds, p) || ds->dsa_port_mask & (1 << p))
+		REG_WRITE(addr, 0x01, 0x003e);
+	else
+		REG_WRITE(addr, 0x01, 0x0003);
 
 	/*
 	 * Port Control: disable Core Tag, disable Drop-on-Lock,
@@ -169,29 +184,40 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 	 * enable IGMP/MLD snoop, disable DoubleTag, disable VLAN
 	 * tunneling, determine priority by looking at 802.1p and
 	 * IP priority fields (IP prio has precedence), and set STP
-	 * state to Forwarding.  Finally, if this is the CPU port,
-	 * additionally enable DSA tagging and forwarding of unknown
-	 * unicast addresses.
+	 * state to Forwarding.
+	 *
+	 * If this is the upstream port for this switch, enable
+	 * forwarding of unknown unicasts, and enable DSA tagging
+	 * mode.
+	 *
+	 * If this is the link to another switch, use DSA tagging
+	 * mode, but do not enable forwarding of unknown unicasts.
 	 */
-	REG_WRITE(addr, 0x04, (p == ds->cpu_port) ? 0x0537 : 0x0433);
+	val = 0x0433;
+	if (p == dsa_upstream_port(ds))
+		val |= 0x0104;
+	if (ds->dsa_port_mask & (1 << p))
+		val |= 0x0100;
+	REG_WRITE(addr, 0x04, val);
 
 	/*
 	 * Port Control 1: disable trunking.  Also, if this is the
 	 * CPU port, enable learn messages to be sent to this port.
 	 */
-	REG_WRITE(addr, 0x05, (p == ds->cpu_port) ? 0x8000 : 0x0000);
+	REG_WRITE(addr, 0x05, dsa_is_cpu_port(ds, p) ? 0x8000 : 0x0000);
 
 	/*
 	 * Port based VLAN map: give each port its own address
 	 * database, allow the CPU port to talk to each of the 'real'
 	 * ports, and allow each of the 'real' ports to only talk to
-	 * the CPU port.
+	 * the upstream port.
 	 */
-	REG_WRITE(addr, 0x06,
-			((p & 0xf) << 12) |
-			 ((p == ds->cpu_port) ?
-				ds->valid_port_mask :
-				(1 << ds->cpu_port)));
+	val = (p & 0xf) << 12;
+	if (dsa_is_cpu_port(ds, p))
+		val |= ds->phys_port_mask;
+	else
+		val |= 1 << dsa_upstream_port(ds);
+	REG_WRITE(addr, 0x06, val);
 
 	/*
 	 * Default VLAN ID and priority: don't set a default VLAN
@@ -207,13 +233,15 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 	 * untagged frames on this port, do a destination address
 	 * lookup on received packets as usual, don't send a copy
 	 * of all transmitted/received frames on this port to the
-	 * CPU, and configure the CPU port number.  Also, if this
-	 * is the CPU port, enable forwarding of unknown multicast
-	 * addresses.
+	 * CPU, and configure the upstream port number.
+	 *
+	 * If this is the upstream port for this switch, enable
+	 * forwarding of unknown multicast addresses.
 	 */
-	REG_WRITE(addr, 0x08,
-			((p == ds->cpu_port) ? 0x00c0 : 0x0080) |
-			 ds->cpu_port);
+	val = 0x0080 | dsa_upstream_port(ds);
+	if (p == dsa_upstream_port(ds))
+		val |= 0x0040;
+	REG_WRITE(addr, 0x08, val);
 
 	/*
 	 * Rate Control: disable ingress rate limiting.
@@ -268,7 +296,7 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 11; i++) {
 		ret = mv88e6131_setup_port(ds, i);
 		if (ret < 0)
 			return ret;
@@ -279,7 +307,7 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 
 static int mv88e6131_port_to_phy_addr(int port)
 {
-	if (port >= 0 && port != 3 && port <= 7)
+	if (port >= 0 && port <= 11)
 		return port;
 	return -1;
 }
@@ -353,7 +381,7 @@ static int mv88e6131_get_sset_count(struct dsa_switch *ds)
 }
 
 static struct dsa_switch_driver mv88e6131_switch_driver = {
-	.tag_protocol		= __constant_htons(ETH_P_DSA),
+	.tag_protocol		= cpu_to_be16(ETH_P_DSA),
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
 	.probe			= mv88e6131_probe,
 	.setup			= mv88e6131_setup,

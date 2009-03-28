@@ -1,16 +1,14 @@
 /*
- * Apple Onboard Audio driver -- layout fabric
+ * Apple Onboard Audio driver -- layout/machine id fabric
  *
- * Copyright 2006 Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2008 Johannes Berg <johannes@sipsolutions.net>
  *
  * GPL v2, can be found in COPYING.
  *
  *
- * This fabric module looks for sound codecs
- * based on the layout-id property in the device tree.
- *
+ * This fabric module looks for sound codecs based on the
+ * layout-id or device-id property in the device tree.
  */
-
 #include <asm/prom.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -63,7 +61,7 @@ struct codec_connect_info {
 #define LAYOUT_FLAG_COMBO_LINEOUT_SPDIF	(1<<0)
 
 struct layout {
-	unsigned int layout_id;
+	unsigned int layout_id, device_id;
 	struct codec_connect_info codecs[MAX_CODECS_PER_BUS];
 	int flags;
 
@@ -110,6 +108,10 @@ MODULE_ALIAS("sound-layout-94");
 MODULE_ALIAS("sound-layout-96");
 MODULE_ALIAS("sound-layout-98");
 MODULE_ALIAS("sound-layout-100");
+
+MODULE_ALIAS("aoa-device-id-14");
+MODULE_ALIAS("aoa-device-id-22");
+MODULE_ALIAS("aoa-device-id-35");
 
 /* onyx with all but microphone connected */
 static struct codec_connection onyx_connections_nomic[] = {
@@ -518,6 +520,27 @@ static struct layout layouts[] = {
 		.connections = onyx_connections_noheadphones,
 	  },
 	},
+	/* PowerMac3,4 */
+	{ .device_id = 14,
+	  .codecs[0] = {
+		.name = "tas",
+		.connections = tas_connections_noline,
+	  },
+	},
+	/* PowerMac3,6 */
+	{ .device_id = 22,
+	  .codecs[0] = {
+		.name = "tas",
+		.connections = tas_connections_all,
+	  },
+	},
+	/* PowerBook5,2 */
+	{ .device_id = 35,
+	  .codecs[0] = {
+		.name = "tas",
+		.connections = tas_connections_all,
+	  },
+	},
 	{}
 };
 
@@ -526,8 +549,21 @@ static struct layout *find_layout_by_id(unsigned int id)
 	struct layout *l;
 
 	l = layouts;
-	while (l->layout_id) {
+	while (l->codecs[0].name) {
 		if (l->layout_id == id)
+			return l;
+		l++;
+	}
+	return NULL;
+}
+
+static struct layout *find_layout_by_device(unsigned int id)
+{
+	struct layout *l;
+
+	l = layouts;
+	while (l->codecs[0].name) {
+		if (l->device_id == id)
 			return l;
 		l++;
 	}
@@ -564,6 +600,7 @@ struct layout_dev {
 	struct snd_kcontrol *headphone_ctrl;
 	struct snd_kcontrol *lineout_ctrl;
 	struct snd_kcontrol *speaker_ctrl;
+	struct snd_kcontrol *master_ctrl;
 	struct snd_kcontrol *headphone_detected_ctrl;
 	struct snd_kcontrol *lineout_detected_ctrl;
 
@@ -615,6 +652,7 @@ static struct snd_kcontrol_new n##_ctl = {				\
 AMP_CONTROL(headphone, "Headphone Switch");
 AMP_CONTROL(speakers, "Speakers Switch");
 AMP_CONTROL(lineout, "Line-Out Switch");
+AMP_CONTROL(master, "Master Switch");
 
 static int detect_choice_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
@@ -855,6 +893,11 @@ static void layout_attached_codec(struct aoa_codec *codec)
  	lineout = codec->gpio->methods->get_detect(codec->gpio,
 						   AOA_NOTIFY_LINE_OUT);
 
+	if (codec->gpio->methods->set_master) {
+		ctl = snd_ctl_new1(&master_ctl, codec->gpio);
+		ldev->master_ctrl = ctl;
+		aoa_snd_ctl_add(ctl);
+	}
 	while (cc->connected) {
 		if (cc->connected & CC_SPEAKERS) {
 			if (headphones <= 0 && lineout <= 0)
@@ -938,8 +981,8 @@ static struct aoa_fabric layout_fabric = {
 static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 {
 	struct device_node *sound = NULL;
-	const unsigned int *layout_id;
-	struct layout *layout;
+	const unsigned int *id;
+	struct layout *layout = NULL;
 	struct layout_dev *ldev = NULL;
 	int err;
 
@@ -952,15 +995,18 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 		if (sound->type && strcasecmp(sound->type, "soundchip") == 0)
 			break;
 	}
-	if (!sound) return -ENODEV;
+	if (!sound)
+		return -ENODEV;
 
-	layout_id = of_get_property(sound, "layout-id", NULL);
-	if (!layout_id)
-		goto outnodev;
-	printk(KERN_INFO "snd-aoa-fabric-layout: found bus with layout %d\n",
-	       *layout_id);
+	id = of_get_property(sound, "layout-id", NULL);
+	if (id) {
+		layout = find_layout_by_id(*id);
+	} else {
+		id = of_get_property(sound, "device-id", NULL);
+		if (id)
+			layout = find_layout_by_device(*id);
+	}
 
-	layout = find_layout_by_id(*layout_id);
 	if (!layout) {
 		printk(KERN_ERR "snd-aoa-fabric-layout: unknown layout\n");
 		goto outnodev;
@@ -976,6 +1022,7 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	ldev->layout = layout;
 	ldev->gpio.node = sound->parent;
 	switch (layout->layout_id) {
+	case 0:  /* anything with device_id, not layout_id */
 	case 41: /* that unknown machine no one seems to have */
 	case 51: /* PowerBook5,4 */
 	case 58: /* Mac Mini */

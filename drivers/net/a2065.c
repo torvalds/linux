@@ -552,18 +552,13 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 	volatile struct lance_init_block *ib = lp->init_block;
-	int entry, skblen, len;
+	int entry, skblen;
 	int status = 0;
 	unsigned long flags;
 
-	skblen = skb->len;
-	len = skblen;
-
-	if (len < ETH_ZLEN) {
-		len = ETH_ZLEN;
-		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
-	}
+	if (skb_padto(skb, ETH_ZLEN))
+		return 0;
+	skblen = max_t(unsigned, skb->len, ETH_ZLEN);
 
 	local_irq_save(flags);
 
@@ -586,14 +581,10 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	}
 #endif
 	entry = lp->tx_new & lp->tx_ring_mod_mask;
-	ib->btx_ring [entry].length = (-len) | 0xf000;
+	ib->btx_ring [entry].length = (-skblen) | 0xf000;
 	ib->btx_ring [entry].misc = 0;
 
 	skb_copy_from_linear_data(skb, (void *)&ib->tx_buf [entry][0], skblen);
-
-	/* Clear the slack of the packet, do I need this? */
-	if (len != skblen)
-		memset ((void *) &ib->tx_buf [entry][skblen], 0, len - skblen);
 
 	/* Now, give the packet to the lance */
 	ib->btx_ring [entry].tmd1_bits = (LE_T1_POK|LE_T1_OWN);

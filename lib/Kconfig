@@ -136,12 +136,6 @@ config TEXTSEARCH_BM
 config TEXTSEARCH_FSM
 	tristate
 
-#
-# plist support is select#ed if needed
-#
-config PLIST
-	boolean
-
 config HAS_IOMEM
 	boolean
 	depends on !NO_IOMEM
@@ -173,5 +167,11 @@ config CPUMASK_OFFSTACK
 config DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
        bool "Disable obsolete cpumask functions" if DEBUG_PER_CPU_MAPS
        depends on EXPERIMENTAL && BROKEN
+
+#
+# Netlink attribute parsing support is select'ed if needed
+#
+config NLATTR
+	bool
 
 endmenu

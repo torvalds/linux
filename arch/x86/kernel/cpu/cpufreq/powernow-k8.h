@@ -45,11 +45,10 @@ struct powernow_k8_data {
 	 * frequency is in kHz */
 	struct cpufreq_frequency_table  *powernow_table;
 
-#ifdef CONFIG_X86_POWERNOW_K8_ACPI
 	/* the acpi table needs to be kept. it's only available if ACPI was
 	 * used to determine valid frequency/vid/fid states */
 	struct acpi_processor_performance acpi_data;
-#endif
+
 	/* we need to keep track of associated cores, but let cpufreq
 	 * handle hotplug events - so just point at cpufreq pol->cpus
 	 * structure */
@@ -222,10 +221,8 @@ static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid);
 
 static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned int index);
 
-#ifdef CONFIG_X86_POWERNOW_K8_ACPI
 static int fill_powernow_table_pstate(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table);
 static int fill_powernow_table_fidvid(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table);
-#endif
 
 #ifdef CONFIG_SMP
 static inline void define_siblings(int cpu, cpumask_t cpu_sharedcore_mask[])

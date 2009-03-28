@@ -48,6 +48,7 @@
  *       i2400m_dev_bootstrap()
  *       i2400m_tx_setup()
  *       i2400m->bus_dev_start()
+ *       i2400m_firmware_check()
  *       i2400m_check_mac_addr()
  *   wimax_dev_add()
  *
@@ -74,6 +75,11 @@ module_param_named(idle_mode_disabled, i2400m_idle_mode_disabled, int, 0644);
 MODULE_PARM_DESC(idle_mode_disabled,
 		 "If true, the device will not enable idle mode negotiation "
 		 "with the base station (when connected) to save power.");
+
+int i2400m_rx_reorder_disabled;	/* 0 (rx reorder enabled) by default */
+module_param_named(rx_reorder_disabled, i2400m_rx_reorder_disabled, int, 0644);
+MODULE_PARM_DESC(rx_reorder_disabled,
+		 "If true, RX reordering will be disabled.");
 
 /**
  * i2400m_queue_work - schedule work on a i2400m's queue
@@ -395,6 +401,9 @@ retry:
 	result = i2400m_tx_setup(i2400m);
 	if (result < 0)
 		goto error_tx_setup;
+	result = i2400m_rx_setup(i2400m);
+	if (result < 0)
+		goto error_rx_setup;
 	result = i2400m->bus_dev_start(i2400m);
 	if (result < 0)
 		goto error_bus_dev_start;
@@ -404,6 +413,9 @@ retry:
 		dev_err(dev, "cannot create workqueue\n");
 		goto error_create_workqueue;
 	}
+	result = i2400m_firmware_check(i2400m);	/* fw versions ok? */
+	if (result < 0)
+		goto error_fw_check;
 	/* At this point is ok to send commands to the device */
 	result = i2400m_check_mac_addr(i2400m);
 	if (result < 0)
@@ -421,10 +433,13 @@ retry:
 
 error_dev_initialize:
 error_check_mac_addr:
+error_fw_check:
 	destroy_workqueue(i2400m->work_queue);
 error_create_workqueue:
 	i2400m->bus_dev_stop(i2400m);
 error_bus_dev_start:
+	i2400m_rx_release(i2400m);
+error_rx_setup:
 	i2400m_tx_release(i2400m);
 error_tx_setup:
 error_bootstrap:
@@ -472,6 +487,7 @@ void __i2400m_dev_stop(struct i2400m *i2400m)
 	i2400m->ready = 0;
 	destroy_workqueue(i2400m->work_queue);
 	i2400m->bus_dev_stop(i2400m);
+	i2400m_rx_release(i2400m);
 	i2400m_tx_release(i2400m);
 	wimax_state_change(wimax_dev, WIMAX_ST_DOWN);
 	d_fnend(3, dev, "(i2400m %p) = 0\n", i2400m);
@@ -613,7 +629,7 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 
 	snprintf(wimax_dev->name, sizeof(wimax_dev->name),
-		 "i2400m-%s:%s", dev->bus->name, dev->bus_id);
+		 "i2400m-%s:%s", dev->bus->name, dev_name(dev));
 
 	i2400m->bm_cmd_buf = kzalloc(I2400M_BM_CMD_BUF_SIZE, GFP_KERNEL);
 	if (i2400m->bm_cmd_buf == NULL) {
@@ -657,6 +673,11 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	wimax_state_change(wimax_dev, WIMAX_ST_UNINITIALIZED);
 
 	/* Now setup all that requires a registered net and wimax device. */
+	result = sysfs_create_group(&net_dev->dev.kobj, &i2400m_dev_attr_group);
+	if (result < 0) {
+		dev_err(dev, "cannot setup i2400m's sysfs: %d\n", result);
+		goto error_sysfs_setup;
+	}
 	result = i2400m_debugfs_add(i2400m);
 	if (result < 0) {
 		dev_err(dev, "cannot setup i2400m's debugfs: %d\n", result);
@@ -666,6 +687,9 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	return result;
 
 error_debugfs_setup:
+	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
+			   &i2400m_dev_attr_group);
+error_sysfs_setup:
 	wimax_dev_rm(&i2400m->wimax_dev);
 error_wimax_dev_add:
 	i2400m_dev_stop(i2400m);
@@ -697,6 +721,8 @@ void i2400m_release(struct i2400m *i2400m)
 	netif_stop_queue(i2400m->wimax_dev.net_dev);
 
 	i2400m_debugfs_rm(i2400m);
+	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
+			   &i2400m_dev_attr_group);
 	wimax_dev_rm(&i2400m->wimax_dev);
 	i2400m_dev_stop(i2400m);
 	unregister_netdev(i2400m->wimax_dev.net_dev);

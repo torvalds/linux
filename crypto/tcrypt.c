@@ -53,7 +53,7 @@ static char *check[] = {
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
 	"camellia", "seed", "salsa20", "rmd128", "rmd160", "rmd256", "rmd320",
-	"lzo", "cts", NULL
+	"lzo", "cts", "zlib", NULL
 };
 
 static int test_cipher_jiffies(struct blkcipher_desc *desc, int enc,
@@ -659,6 +659,10 @@ static void do_test(int m)
 
 	case 43:
 		tcrypt_test("ecb(seed)");
+		break;
+
+	case 44:
+		tcrypt_test("zlib");
 		break;
 
 	case 100:

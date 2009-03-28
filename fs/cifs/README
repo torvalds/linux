@@ -472,6 +472,19 @@ A partial list of the supported mount options follows:
 		even if the cifs server would support posix advisory locks.
 		"forcemand" is accepted as a shorter form of this mount
 		option.
+ nostrictsync   If this mount option is set, when an application does an
+		fsync call then the cifs client does not send an SMB Flush
+		to the server (to force the server to write all dirty data
+		for this file immediately to disk), although cifs still sends
+		all dirty (cached) file data to the server and waits for the
+		server to respond to the write.  Since SMB Flush can be
+		very slow, and some servers may be reliable enough (to risk
+		delaying slightly flushing the data to disk on the server),
+		turning on this option may be useful to improve performance for
+		applications that fsync too much, at a small risk of server
+		crash.  If this mount option is not set, by default cifs will
+		send an SMB flush request (and wait for a response) on every
+		fsync call.
  nodfs          Disable DFS (global name space support) even if the
 		server claims to support it.  This can help work around
 		a problem with parsing of DFS paths with Samba server
@@ -692,13 +705,14 @@ require this helper. Note that NTLMv2 security (which does not require the
 cifs.upcall helper program), instead of using Kerberos, is sufficient for
 some use cases.
 
-Enabling DFS support (used to access shares transparently in an MS-DFS
-global name space) requires that CONFIG_CIFS_EXPERIMENTAL be enabled.  In
-addition, DFS support for target shares which are specified as UNC
+DFS support allows transparent redirection to shares in an MS-DFS name space.
+In addition, DFS support for target shares which are specified as UNC
 names which begin with host names (rather than IP addresses) requires
 a user space helper (such as cifs.upcall) to be present in order to
 translate host names to ip address, and the user space helper must also
-be configured in the file /etc/request-key.conf
+be configured in the file /etc/request-key.conf.  Samba, Windows servers and
+many NAS appliances support DFS as a way of constructing a global name
+space to ease network configuration and improve reliability.
 
 To use cifs Kerberos and DFS support, the Linux keyutils package should be
 installed and something like the following lines should be added to the

@@ -54,4 +54,7 @@
 
 #define SO_MARK			36
 
+#define SO_TIMESTAMPING		37
+#define SCM_TIMESTAMPING	SO_TIMESTAMPING
+
 #endif /* __ASM_SH_SOCKET_H */

@@ -637,7 +637,7 @@ static int __init mpc83xx_spi_probe(struct platform_device *dev)
 	INIT_LIST_HEAD(&mpc83xx_spi->queue);
 
 	mpc83xx_spi->workqueue = create_singlethread_workqueue(
-		master->dev.parent->bus_id);
+		dev_name(master->dev.parent));
 	if (mpc83xx_spi->workqueue == NULL) {
 		ret = -EBUSY;
 		goto free_irq;
@@ -649,7 +649,7 @@ static int __init mpc83xx_spi_probe(struct platform_device *dev)
 
 	printk(KERN_INFO
 	       "%s: MPC83xx SPI Controller driver at 0x%p (irq = %d)\n",
-	       dev->dev.bus_id, mpc83xx_spi->base, mpc83xx_spi->irq);
+	       dev_name(&dev->dev), mpc83xx_spi->base, mpc83xx_spi->irq);
 
 	return ret;
 

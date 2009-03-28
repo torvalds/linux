@@ -536,9 +536,8 @@ static const struct ide_port_info au1xxx_port_info = {
 #endif
 };
 
-static int au_ide_probe(struct device *dev)
+static int au_ide_probe(struct platform_device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	_auide_hwif *ahwif = &auide_hwif;
 	struct resource *res;
 	struct ide_host *host;
@@ -552,23 +551,23 @@ static int au_ide_probe(struct device *dev)
 #endif
 
 	memset(&auide_hwif, 0, sizeof(_auide_hwif));
-	ahwif->irq = platform_get_irq(pdev, 0);
+	ahwif->irq = platform_get_irq(dev, 0);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 
 	if (res == NULL) {
-		pr_debug("%s %d: no base address\n", DRV_NAME, pdev->id);
+		pr_debug("%s %d: no base address\n", DRV_NAME, dev->id);
 		ret = -ENODEV;
 		goto out;
 	}
 	if (ahwif->irq < 0) {
-		pr_debug("%s %d: no IRQ\n", DRV_NAME, pdev->id);
+		pr_debug("%s %d: no IRQ\n", DRV_NAME, dev->id);
 		ret = -ENODEV;
 		goto out;
 	}
 
 	if (!request_mem_region(res->start, res->end - res->start + 1,
-				pdev->name)) {
+				dev->name)) {
 		pr_debug("%s: request_mem_region failed\n", DRV_NAME);
 		ret =  -EBUSY;
 		goto out;
@@ -583,7 +582,7 @@ static int au_ide_probe(struct device *dev)
 	memset(&hw, 0, sizeof(hw));
 	auide_setup_ports(&hw, ahwif);
 	hw.irq = ahwif->irq;
-	hw.dev = dev;
+	hw.dev = &dev->dev;
 	hw.chipset = ide_au1xxx;
 
 	ret = ide_host_add(&au1xxx_port_info, hws, &host);
@@ -592,7 +591,7 @@ static int au_ide_probe(struct device *dev)
 
 	auide_hwif.hwif = host->ports[0];
 
-	dev_set_drvdata(dev, host);
+	platform_set_drvdata(dev, host);
 
 	printk(KERN_INFO "Au1xxx IDE(builtin) configured for %s\n", mode );
 
@@ -600,38 +599,39 @@ static int au_ide_probe(struct device *dev)
 	return ret;
 }
 
-static int au_ide_remove(struct device *dev)
+static int au_ide_remove(struct platform_device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res;
-	struct ide_host *host = dev_get_drvdata(dev);
+	struct ide_host *host = platform_get_drvdata(dev);
 	_auide_hwif *ahwif = &auide_hwif;
 
 	ide_host_remove(host);
 
 	iounmap((void *)ahwif->regbase);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, res->end - res->start + 1);
 
 	return 0;
 }
 
-static struct device_driver au1200_ide_driver = {
-	.name		= "au1200-ide",
-	.bus		= &platform_bus_type,
+static struct platform_driver au1200_ide_driver = {
+	.driver = {
+		.name		= "au1200-ide",
+		.owner		= THIS_MODULE,
+	},
 	.probe 		= au_ide_probe,
 	.remove		= au_ide_remove,
 };
 
 static int __init au_ide_init(void)
 {
-	return driver_register(&au1200_ide_driver);
+	return platform_driver_register(&au1200_ide_driver);
 }
 
 static void __exit au_ide_exit(void)
 {
-	driver_unregister(&au1200_ide_driver);
+	platform_driver_unregister(&au1200_ide_driver);
 }
 
 MODULE_LICENSE("GPL");

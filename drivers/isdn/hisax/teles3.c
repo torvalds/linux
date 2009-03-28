@@ -20,7 +20,6 @@
 #include "hscx.h"
 #include "isdnl1.h"
 
-extern const char *CardType[];
 static const char *teles3_revision = "$Revision: 2.19.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
