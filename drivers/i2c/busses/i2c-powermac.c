@@ -191,7 +191,8 @@ static int __devexit i2c_powermac_remove(struct platform_device *dev)
 	i2c_set_adapdata(adapter, NULL);
 	/* We aren't that prepared to deal with this... */
 	if (rc)
-		printk("i2c-powermac.c: Failed to remove bus %s !\n",
+		printk(KERN_WARNING
+		       "i2c-powermac.c: Failed to remove bus %s !\n",
 		       adapter->name);
 	platform_set_drvdata(dev, NULL);
 	kfree(adapter);
