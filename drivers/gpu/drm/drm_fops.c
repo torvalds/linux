@@ -337,14 +337,10 @@ int drm_fasync(int fd, struct file *filp, int on)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
-	int retcode;
 
 	DRM_DEBUG("fd = %d, device = 0x%lx\n", fd,
 		  (long)old_encode_dev(priv->minor->device));
-	retcode = fasync_helper(fd, filp, on, &dev->buf_async);
-	if (retcode < 0)
-		return retcode;
-	return 0;
+	return fasync_helper(fd, filp, on, &dev->buf_async);
 }
 EXPORT_SYMBOL(drm_fasync);
 

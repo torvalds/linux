@@ -54,22 +54,22 @@
 
 /* WDTIM_CTRL bit definitions */
 #define COUNT_ENAB     1
-#define RESET_COUNT    (1<<1)
-#define DEBUG_EN       (1<<2)
+#define RESET_COUNT    (1 << 1)
+#define DEBUG_EN       (1 << 2)
 
 /* WDTIM_MCTRL bit definitions */
 #define MR0_INT        1
 #undef  RESET_COUNT0
-#define RESET_COUNT0   (1<<2)
-#define STOP_COUNT0    (1<<2)
-#define M_RES1         (1<<3)
-#define M_RES2         (1<<4)
-#define RESFRC1        (1<<5)
-#define RESFRC2        (1<<6)
+#define RESET_COUNT0   (1 << 2)
+#define STOP_COUNT0    (1 << 2)
+#define M_RES1         (1 << 3)
+#define M_RES2         (1 << 4)
+#define RESFRC1        (1 << 5)
+#define RESFRC2        (1 << 6)
 
 /* WDTIM_EMR bit definitions */
 #define EXT_MATCH0      1
-#define MATCH_OUTPUT_HIGH (2<<4)	/*a MATCH_CTRL setting */
+#define MATCH_OUTPUT_HIGH (2 << 4)	/*a MATCH_CTRL setting */
 
 /* WDTIM_RES bit definitions */
 #define WDOG_RESET      1	/* read only */

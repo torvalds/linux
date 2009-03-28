@@ -1603,7 +1603,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 
 	tasklet_init(&host->tasklet, atmci_tasklet_func, (unsigned long)host);
 
-	ret = request_irq(irq, atmci_interrupt, 0, pdev->dev.bus_id, host);
+	ret = request_irq(irq, atmci_interrupt, 0, dev_name(&pdev->dev), host);
 	if (ret)
 		goto err_request_irq;
 

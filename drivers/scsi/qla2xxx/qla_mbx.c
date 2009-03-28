@@ -2685,6 +2685,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	uint16_t stat = le16_to_cpu(rptid_entry->vp_idx);
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *vp;
+	scsi_qla_host_t *tvp;
 
 	if (rptid_entry->entry_status != 0)
 		return;
@@ -2710,7 +2711,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		if (MSB(stat) == 1)
 			return;
 
-		list_for_each_entry(vp, &ha->vp_list, list)
+		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list)
 			if (vp_idx == vp->vp_idx)
 				break;
 		if (!vp)

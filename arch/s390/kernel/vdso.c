@@ -144,7 +144,6 @@ out:
 	return -ENOMEM;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 void vdso_free_per_cpu(int cpu, struct _lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
@@ -163,7 +162,6 @@ void vdso_free_per_cpu(int cpu, struct _lowcore *lowcore)
 	free_page(page_table);
 	free_pages(segment_table, SEGMENT_ORDER);
 }
-#endif /* CONFIG_HOTPLUG_CPU */
 
 static void __vdso_init_cr5(void *dummy)
 {

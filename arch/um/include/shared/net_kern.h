@@ -26,7 +26,7 @@ struct uml_net_private {
 	spinlock_t lock;
 	struct net_device *dev;
 	struct timer_list tl;
-	struct net_device_stats stats;
+
 	struct work_struct work;
 	int fd;
 	unsigned char mac[ETH_ALEN];

@@ -49,7 +49,7 @@
 #include <asm/iseries/alpaca.h>
 #endif
 #ifdef CONFIG_KVM
-#include <asm/kvm_44x.h>
+#include <linux/kvm_host.h>
 #endif
 
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
@@ -361,8 +361,6 @@ int main(void)
 	DEFINE(PTE_SIZE, sizeof(pte_t));
 
 #ifdef CONFIG_KVM
-	DEFINE(TLBE_BYTES, sizeof(struct kvmppc_44x_tlbe));
-
 	DEFINE(VCPU_HOST_STACK, offsetof(struct kvm_vcpu, arch.host_stack));
 	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
 	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));

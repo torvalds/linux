@@ -108,7 +108,7 @@ static struct usb_cdc_header_desc mdlm_header_desc __initdata = {
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_HEADER_TYPE,
 
-	.bcdCDC =		__constant_cpu_to_le16(0x0110),
+	.bcdCDC =		cpu_to_le16(0x0110),
 };
 
 static struct usb_cdc_mdlm_desc mdlm_desc __initdata = {
@@ -116,7 +116,7 @@ static struct usb_cdc_mdlm_desc mdlm_desc __initdata = {
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_MDLM_TYPE,
 
-	.bcdVersion =		__constant_cpu_to_le16(0x0100),
+	.bcdVersion =		cpu_to_le16(0x0100),
 	.bGUID = {
 		0x5d, 0x34, 0xcf, 0x66, 0x11, 0x18, 0x11, 0xd6,
 		0xa2, 0x1a, 0x00, 0x01, 0x02, 0xca, 0x9a, 0x7f,
@@ -144,9 +144,9 @@ static struct usb_cdc_ether_desc ether_desc __initdata = {
 
 	/* this descriptor actually adds value, surprise! */
 	/* .iMACAddress = DYNAMIC */
-	.bmEthernetStatistics =	__constant_cpu_to_le32(0), /* no statistics */
-	.wMaxSegmentSize =	__constant_cpu_to_le16(ETH_FRAME_LEN),
-	.wNumberMCFilters =	__constant_cpu_to_le16(0),
+	.bmEthernetStatistics =	cpu_to_le32(0), /* no statistics */
+	.wMaxSegmentSize =	cpu_to_le16(ETH_FRAME_LEN),
+	.wNumberMCFilters =	cpu_to_le16(0),
 	.bNumberPowerFilters =	0,
 };
 
@@ -186,7 +186,7 @@ static struct usb_endpoint_descriptor hs_subset_in_desc __initdata = {
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512),
+	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
 static struct usb_endpoint_descriptor hs_subset_out_desc __initdata = {
@@ -194,7 +194,7 @@ static struct usb_endpoint_descriptor hs_subset_out_desc __initdata = {
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512),
+	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
 static struct usb_descriptor_header *hs_eth_function[] __initdata = {

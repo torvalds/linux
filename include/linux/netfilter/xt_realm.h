@@ -1,10 +1,12 @@
 #ifndef _XT_REALM_H
 #define _XT_REALM_H
 
+#include <linux/types.h>
+
 struct xt_realm_info {
-	u_int32_t id;
-	u_int32_t mask;
-	u_int8_t invert;
+	__u32 id;
+	__u32 mask;
+	__u8 invert;
 };
 
 #endif /* _XT_REALM_H */

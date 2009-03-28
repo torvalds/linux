@@ -57,7 +57,7 @@ config 32BIT
 	bool
 	default y if CPU_SH5
 
-config PMB
+config PMB_ENABLE
 	bool "Support 32-bit physical addressing through PMB"
 	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
 	select 32BIT
@@ -66,6 +66,33 @@ config PMB
 	  If you say Y here, physical addressing will be extended to
 	  32-bits through the SH-4A PMB. If this is not set, legacy
 	  29-bit physical addressing will be used.
+
+choice
+	prompt "PMB handling type"
+	depends on PMB_ENABLE
+	default PMB_FIXED
+
+config PMB
+	bool "PMB"
+	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
+	select 32BIT
+	help
+	  If you say Y here, physical addressing will be extended to
+	  32-bits through the SH-4A PMB. If this is not set, legacy
+	  29-bit physical addressing will be used.
+
+config PMB_FIXED
+	bool "fixed PMB"
+	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7780 || \
+					   CPU_SUBTYPE_SH7785)
+	select 32BIT
+	help
+	  If this option is enabled, fixed PMB mappings are inherited
+	  from the boot loader, and the kernel does not attempt dynamic
+	  management. This is the closest to legacy 29-bit physical mode,
+	  and allows systems to support up to 512MiB of system memory.
+
+endchoice
 
 config X2TLB
 	bool "Enable extended TLB mode"

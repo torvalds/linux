@@ -551,5 +551,15 @@ config MTD_PLATRAM
 
 	  This selection automatically selects the map_ram driver.
 
-endmenu
+config MTD_VMU
+	tristate "Map driver for Dreamcast VMU"
+	depends on MAPLE
+	help
+	  This driver enables access to the Dreamcast Visual Memory Unit (VMU).
 
+	  Most Dreamcast users will want to say Y here.
+
+	  To build this as a module select M here, the module will be called
+	  vmu-flash.
+
+endmenu

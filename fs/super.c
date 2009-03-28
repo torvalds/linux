@@ -197,7 +197,7 @@ void deactivate_super(struct super_block *s)
 	if (atomic_dec_and_lock(&s->s_active, &sb_lock)) {
 		s->s_count -= S_BIAS-1;
 		spin_unlock(&sb_lock);
-		DQUOT_OFF(s, 0);
+		vfs_dq_off(s, 0);
 		down_write(&s->s_umount);
 		fs->kill_sb(s);
 		put_filesystem(fs);
@@ -266,7 +266,7 @@ EXPORT_SYMBOL(unlock_super);
 void __fsync_super(struct super_block *sb)
 {
 	sync_inodes_sb(sb, 0);
-	DQUOT_SYNC(sb);
+	vfs_dq_sync(sb);
 	lock_super(sb);
 	if (sb->s_dirt && sb->s_op->write_super)
 		sb->s_op->write_super(sb);
@@ -371,8 +371,10 @@ retry:
 				continue;
 			if (!grab_super(old))
 				goto retry;
-			if (s)
+			if (s) {
+				up_write(&s->s_umount);
 				destroy_super(s);
+			}
 			return old;
 		}
 	}
@@ -387,6 +389,7 @@ retry:
 	err = set(s, data);
 	if (err) {
 		spin_unlock(&sb_lock);
+		up_write(&s->s_umount);
 		destroy_super(s);
 		return ERR_PTR(err);
 	}
@@ -652,7 +655,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			mark_files_ro(sb);
 		else if (!fs_may_remount_ro(sb))
 			return -EBUSY;
-		retval = DQUOT_OFF(sb, 1);
+		retval = vfs_dq_off(sb, 1);
 		if (retval < 0 && retval != -ENOSYS)
 			return -EBUSY;
 	}
@@ -667,11 +670,11 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	}
 	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (flags & MS_RMT_MASK);
 	if (remount_rw)
-		DQUOT_ON_REMOUNT(sb);
+		vfs_dq_quota_on_remount(sb);
 	return 0;
 }
 
-static void do_emergency_remount(unsigned long foo)
+static void do_emergency_remount(struct work_struct *work)
 {
 	struct super_block *sb;
 
@@ -694,12 +697,19 @@ static void do_emergency_remount(unsigned long foo)
 		spin_lock(&sb_lock);
 	}
 	spin_unlock(&sb_lock);
+	kfree(work);
 	printk("Emergency Remount complete\n");
 }
 
 void emergency_remount(void)
 {
-	pdflush_operation(do_emergency_remount, 0);
+	struct work_struct *work;
+
+	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	if (work) {
+		INIT_WORK(work, do_emergency_remount);
+		schedule_work(work);
+	}
 }
 
 /*
@@ -828,7 +838,8 @@ int get_sb_bdev(struct file_system_type *fs_type,
 		bdev->bd_super = s;
 	}
 
-	return simple_set_mnt(mnt, s);
+	simple_set_mnt(mnt, s);
+	return 0;
 
 error_s:
 	error = PTR_ERR(s);
@@ -874,7 +885,8 @@ int get_sb_nodev(struct file_system_type *fs_type,
 		return error;
 	}
 	s->s_flags |= MS_ACTIVE;
-	return simple_set_mnt(mnt, s);
+	simple_set_mnt(mnt, s);
+	return 0;
 }
 
 EXPORT_SYMBOL(get_sb_nodev);
@@ -906,7 +918,8 @@ int get_sb_single(struct file_system_type *fs_type,
 		s->s_flags |= MS_ACTIVE;
 	}
 	do_remount_sb(s, flags, data, 0);
-	return simple_set_mnt(mnt, s);
+	simple_set_mnt(mnt, s);
+	return 0;
 }
 
 EXPORT_SYMBOL(get_sb_single);

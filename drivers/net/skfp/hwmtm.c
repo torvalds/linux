@@ -97,23 +97,15 @@ static void mac_drv_clear_txd(struct s_smc *smc);
 
 extern void* mac_drv_get_space(struct s_smc *smc, unsigned int size);
 extern void* mac_drv_get_desc_mem(struct s_smc *smc, unsigned int size);
-extern void init_board(struct s_smc *smc, u_char *mac_addr);
 extern void mac_drv_fill_rxd(struct s_smc *smc);
-extern void plc1_irq(struct s_smc *smc);
 extern void mac_drv_tx_complete(struct s_smc *smc,
 				volatile struct s_smt_fp_txd *txd);
-extern void plc2_irq(struct s_smc *smc);
-extern void mac1_irq(struct s_smc *smc, u_short stu, u_short stl);
-extern void mac2_irq(struct s_smc *smc, u_short code_s2u, u_short code_s2l);
-extern void mac3_irq(struct s_smc *smc, u_short code_s3u, u_short code_s3l);
-extern void timer_irq(struct s_smc *smc);
 extern void mac_drv_rx_complete(struct s_smc *smc,
 				volatile struct s_smt_fp_rxd *rxd,
 				int frag_count, int len);
 extern void mac_drv_requeue_rxd(struct s_smc *smc, 
 				volatile struct s_smt_fp_rxd *rxd,
 				int frag_count);
-extern void init_plc(struct s_smc *smc);
 extern void mac_drv_clear_rxd(struct s_smc *smc,
 			      volatile struct s_smt_fp_rxd *rxd, int frag_count);
 
@@ -136,7 +128,6 @@ extern void dma_complete(struct s_smc *smc, volatile union s_fp_descr *descr,
 			 int flag);
 #endif
 
-extern int init_fplus(struct s_smc *smc);
 extern int mac_drv_rx_init(struct s_smc *smc, int len, int fc, char *look_ahead,
 			   int la_len);
 

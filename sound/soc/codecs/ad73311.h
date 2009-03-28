@@ -70,7 +70,7 @@
 #define REGD_IGS(x)		(x & 0x7)
 #define REGD_RMOD		(1 << 3)
 #define REGD_OGS(x)		((x & 0x7) << 4)
-#define REGD_MUTE		(x << 7)
+#define REGD_MUTE		(1 << 7)
 
 /* Control register E */
 #define CTRL_REG_E	(4 << 8)

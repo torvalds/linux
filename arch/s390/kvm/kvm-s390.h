@@ -50,7 +50,7 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
 
 /* implemented in priv.c */
-int kvm_s390_handle_priv(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
 
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);

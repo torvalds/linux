@@ -52,7 +52,7 @@ extern void efx_schedule_reset(struct efx_nic *efx, enum reset_type type);
 extern void efx_suspend(struct efx_nic *efx);
 extern void efx_resume(struct efx_nic *efx);
 extern void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs,
-				    int rx_usecs);
+				    int rx_usecs, bool rx_adaptive);
 extern int efx_request_power(struct efx_nic *efx, int mw, const char *name);
 extern void efx_hex_dump(const u8 *, unsigned int, const char *);
 
@@ -80,7 +80,7 @@ static inline void efx_schedule_channel(struct efx_channel *channel)
 		  channel->channel, raw_smp_processor_id());
 	channel->work_pending = true;
 
-	netif_rx_schedule(&channel->napi_str);
+	napi_schedule(&channel->napi_str);
 }
 
 #endif /* EFX_EFX_H */

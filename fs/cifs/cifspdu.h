@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifspdu.h
  *
- *   Copyright (c) International Business Machines  Corp., 2002,2008
+ *   Copyright (c) International Business Machines  Corp., 2002,2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -23,6 +23,7 @@
 #define _CIFSPDU_H
 
 #include <net/sock.h>
+#include "smbfsctl.h"
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 #define LANMAN_PROT 0
@@ -34,15 +35,15 @@
 #define POSIX_PROT  (CIFS_PROT+1)
 #define BAD_PROT 0xFFFF
 
-/* SMB command codes */
-/*
- * Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
+/* SMB command codes:
+ * Note some commands have minimal (wct=0,bcc=0), or uninteresting, responses
  * (ie which include no useful data other than the SMB error code itself).
- * Knowing this helps avoid response buffer allocations and copy in some cases
+ * This can allow us to avoid response buffer allocations and copy in some cases
  */
 #define SMB_COM_CREATE_DIRECTORY      0x00 /* trivial response */
 #define SMB_COM_DELETE_DIRECTORY      0x01 /* trivial response */
 #define SMB_COM_CLOSE                 0x04 /* triv req/rsp, timestamp ignored */
+#define SMB_COM_FLUSH                 0x05 /* triv req/rsp */
 #define SMB_COM_DELETE                0x06 /* trivial response */
 #define SMB_COM_RENAME                0x07 /* trivial response */
 #define SMB_COM_QUERY_INFORMATION     0x08 /* aka getattr */
@@ -789,6 +790,12 @@ typedef struct smb_com_close_rsp {
 	struct smb_hdr hdr;	/* wct = 0 */
 	__u16 ByteCount;	/* bct = 0 */
 } __attribute__((packed)) CLOSE_RSP;
+
+typedef struct smb_com_flush_req {
+	struct smb_hdr hdr;	/* wct = 1 */
+	__u16 FileID;
+	__u16 ByteCount;	/* 0 */
+} __attribute__((packed)) FLUSH_REQ;
 
 typedef struct smb_com_findclose_req {
 	struct smb_hdr hdr; /* wct = 1 */
@@ -1924,19 +1931,19 @@ typedef struct smb_com_transaction2_get_dfs_refer_req {
 #define DFS_TYPE_ROOT 0x0001
 
 /* Referral Entry Flags */
-#define DFS_NAME_LIST_REF 0x0200
+#define DFS_NAME_LIST_REF 0x0200 /* set for domain or DC referral responses */
+#define DFS_TARGET_SET_BOUNDARY 0x0400 /* only valid with version 4 dfs req */
 
-typedef struct dfs_referral_level_3 {
-	__le16 VersionNumber;
+typedef struct dfs_referral_level_3 { /* version 4 is same, + one flag bit */
+	__le16 VersionNumber;  /* must be 3 or 4 */
 	__le16 Size;
 	__le16 ServerType; /* 0x0001 = root targets; 0x0000 = link targets */
-	__le16 ReferralEntryFlags; /* 0x0200 bit set only for domain
-				      or DC referral responce */
+	__le16 ReferralEntryFlags;
 	__le32 TimeToLive;
 	__le16 DfsPathOffset;
 	__le16 DfsAlternatePathOffset;
 	__le16 NetworkAddressOffset; /* offset of the link target */
-	__le16 ServiceSiteGuid;
+	__u8   ServiceSiteGuid[16];  /* MBZ, ignored */
 } __attribute__((packed)) REFERRAL3;
 
 typedef struct smb_com_transaction_get_dfs_refer_rsp {
@@ -1946,48 +1953,15 @@ typedef struct smb_com_transaction_get_dfs_refer_rsp {
 	__u8 Pad;
 	__le16 PathConsumed;
 	__le16 NumberOfReferrals;
-	__le16 DFSFlags;
-	__u16 Pad2;
+	__le32 DFSFlags;
 	REFERRAL3 referrals[1];	/* array of level 3 dfs_referral structures */
 	/* followed by the strings pointed to by the referral structures */
 } __attribute__((packed)) TRANSACTION2_GET_DFS_REFER_RSP;
 
 /* DFS Flags */
-#define DFSREF_REFERRAL_SERVER  0x0001
-#define DFSREF_STORAGE_SERVER   0x0002
-
-/* IOCTL information */
-/*
- * List of ioctl function codes that look to be of interest to remote clients
- * like this one.  Need to do some experimentation to make sure they all work
- * remotely.  Some of the following, such as the encryption/compression ones
- * would be invoked from tools via a specialized hook into the VFS rather
- * than via the standard vfs entry points
- */
-#define FSCTL_REQUEST_OPLOCK_LEVEL_1 0x00090000
-#define FSCTL_REQUEST_OPLOCK_LEVEL_2 0x00090004
-#define FSCTL_REQUEST_BATCH_OPLOCK   0x00090008
-#define FSCTL_LOCK_VOLUME            0x00090018
-#define FSCTL_UNLOCK_VOLUME          0x0009001C
-#define FSCTL_GET_COMPRESSION        0x0009003C
-#define FSCTL_SET_COMPRESSION        0x0009C040
-#define FSCTL_REQUEST_FILTER_OPLOCK  0x0009008C
-#define FSCTL_FILESYS_GET_STATISTICS 0x00090090
-#define FSCTL_SET_REPARSE_POINT      0x000900A4
-#define FSCTL_GET_REPARSE_POINT      0x000900A8
-#define FSCTL_DELETE_REPARSE_POINT   0x000900AC
-#define FSCTL_SET_SPARSE             0x000900C4
-#define FSCTL_SET_ZERO_DATA          0x000900C8
-#define FSCTL_SET_ENCRYPTION         0x000900D7
-#define FSCTL_ENCRYPTION_FSCTL_IO    0x000900DB
-#define FSCTL_WRITE_RAW_ENCRYPTED    0x000900DF
-#define FSCTL_READ_RAW_ENCRYPTED     0x000900E3
-#define FSCTL_SIS_COPYFILE           0x00090100
-#define FSCTL_SIS_LINK_FILES         0x0009C104
-
-#define IO_REPARSE_TAG_MOUNT_POINT   0xA0000003
-#define IO_REPARSE_TAG_HSM           0xC0000004
-#define IO_REPARSE_TAG_SIS           0x80000007
+#define DFSREF_REFERRAL_SERVER  0x00000001 /* all targets are DFS roots */
+#define DFSREF_STORAGE_SERVER   0x00000002 /* no further ref requests needed */
+#define DFSREF_TARGET_FAILBACK  0x00000004 /* only for DFS referral version 4 */
 
 /*
  ************************************************************************
@@ -2508,8 +2482,6 @@ struct data_blob {
 	6) Use nanosecond timestamps throughout all time fields if
 	   corresponding attribute flag is set
 	7) sendfile - handle based copy
-	8) Direct i/o
-	9) Misc fcntls?
 
 	what about fixing 64 bit alignment
 
@@ -2628,7 +2600,5 @@ typedef struct file_chattr_info {
 	__le64	mode; /* list of actual attribute bits on this inode */
 } __attribute__((packed)) FILE_CHATTR_INFO;  /* ext attributes
 						(chattr, chflags) level 0x206 */
-
-#endif
-
+#endif 				/* POSIX */
 #endif				/* _CIFSPDU_H */

@@ -68,7 +68,6 @@
 /* device private data */
 
 struct net_local {
-	struct net_device_stats	stats;
 	struct timer_list	watchdog;
 
 	spinlock_t	lock;
@@ -117,7 +116,6 @@ static int  sbni_open( struct net_device * );
 static int  sbni_close( struct net_device * );
 static int  sbni_start_xmit( struct sk_buff *, struct net_device * );
 static int  sbni_ioctl( struct net_device *, struct ifreq *, int );
-static struct net_device_stats  *sbni_get_stats( struct net_device * );
 static void  set_multicast_list( struct net_device * );
 
 static irqreturn_t sbni_interrupt( int, void * );
@@ -208,15 +206,21 @@ sbni_isa_probe( struct net_device  *dev )
 	}
 }
 
+static const struct net_device_ops sbni_netdev_ops = {
+	.ndo_open		= sbni_open,
+	.ndo_stop		= sbni_close,
+	.ndo_start_xmit		= sbni_start_xmit,
+	.ndo_set_multicast_list	= set_multicast_list,
+	.ndo_do_ioctl		= sbni_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static void __init sbni_devsetup(struct net_device *dev)
 {
 	ether_setup( dev );
-	dev->open		= &sbni_open;
-	dev->stop		= &sbni_close;
-	dev->hard_start_xmit	= &sbni_start_xmit;
-	dev->get_stats		= &sbni_get_stats;
-	dev->set_multicast_list	= &set_multicast_list;
-	dev->do_ioctl		= &sbni_ioctl;
+	dev->netdev_ops = &sbni_netdev_ops;
 }
 
 int __init sbni_probe(int unit)
@@ -228,6 +232,8 @@ int __init sbni_probe(int unit)
 	dev = alloc_netdev(sizeof(struct net_local), "sbni", sbni_devsetup);
 	if (!dev)
 		return -ENOMEM;
+
+	dev->netdev_ops = &sbni_netdev_ops;
 
 	sprintf(dev->name, "sbni%d", unit);
 	netdev_boot_setup_check(dev);
@@ -723,13 +729,11 @@ upload_data( struct net_device  *dev,  unsigned  framelen,  unsigned  frameno,
 			nl->wait_frameno = 0,
 			nl->inppos = 0,
 #ifdef CONFIG_SBNI_MULTILINE
-			((struct net_local *)netdev_priv(nl->master))
-				->stats.rx_errors++,
-			((struct net_local *)netdev_priv(nl->master))
-				->stats.rx_missed_errors++;
+			nl->master->stats.rx_errors++,
+			nl->master->stats.rx_missed_errors++;
 #else
-			nl->stats.rx_errors++,
-			nl->stats.rx_missed_errors++;
+		        dev->stats.rx_errors++,
+			dev->stats.rx_missed_errors++;
 #endif
 			/* now skip all frames until is_first != 0 */
 	} else
@@ -742,13 +746,11 @@ upload_data( struct net_device  *dev,  unsigned  framelen,  unsigned  frameno,
 		 */
 		nl->wait_frameno = 0,
 #ifdef CONFIG_SBNI_MULTILINE
-		((struct net_local *)netdev_priv(nl->master))
-			->stats.rx_errors++,
-		((struct net_local *)netdev_priv(nl->master))
-			->stats.rx_crc_errors++;
+		nl->master->stats.rx_errors++,
+		nl->master->stats.rx_crc_errors++;
 #else
-		nl->stats.rx_errors++,
-		nl->stats.rx_crc_errors++;
+		dev->stats.rx_errors++,
+		dev->stats.rx_crc_errors++;
 #endif
 
 	return  frame_ok;
@@ -756,15 +758,16 @@ upload_data( struct net_device  *dev,  unsigned  framelen,  unsigned  frameno,
 
 
 static inline void
-send_complete( struct net_local  *nl )
+send_complete( struct net_device *dev )
 {
+	struct net_local  *nl = netdev_priv(dev);
+
 #ifdef CONFIG_SBNI_MULTILINE
-	((struct net_local *)netdev_priv(nl->master))->stats.tx_packets++;
-	((struct net_local *)netdev_priv(nl->master))->stats.tx_bytes
-		+= nl->tx_buf_p->len;
+	nl->master->stats.tx_packets++;
+	nl->master->stats.tx_bytes += nl->tx_buf_p->len;
 #else
-	nl->stats.tx_packets++;
-	nl->stats.tx_bytes += nl->tx_buf_p->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += nl->tx_buf_p->len;
 #endif
 	dev_kfree_skb_irq( nl->tx_buf_p );
 
@@ -792,7 +795,7 @@ interpret_ack( struct net_device  *dev,  unsigned  ack )
 						   nl->maxframe,
 						   nl->tx_buf_p->len - nl->outpos);
 			else
-				send_complete( nl ),
+				send_complete( dev ),
 #ifdef CONFIG_SBNI_MULTILINE
 				netif_wake_queue( nl->master );
 #else
@@ -881,13 +884,11 @@ drop_xmit_queue( struct net_device  *dev )
 		dev_kfree_skb_any( nl->tx_buf_p ),
 		nl->tx_buf_p = NULL,
 #ifdef CONFIG_SBNI_MULTILINE
-		((struct net_local *)netdev_priv(nl->master))
-			->stats.tx_errors++,
-		((struct net_local *)netdev_priv(nl->master))
-			->stats.tx_carrier_errors++;
+		nl->master->stats.tx_errors++,
+		nl->master->stats.tx_carrier_errors++;
 #else
-		nl->stats.tx_errors++,
-		nl->stats.tx_carrier_errors++;
+		dev->stats.tx_errors++,
+		dev->stats.tx_carrier_errors++;
 #endif
 
 	nl->tx_frameno	= 0;
@@ -1017,14 +1018,13 @@ indicate_pkt( struct net_device  *dev )
 #ifdef CONFIG_SBNI_MULTILINE
 	skb->protocol = eth_type_trans( skb, nl->master );
 	netif_rx( skb );
-	++((struct net_local *)netdev_priv(nl->master))->stats.rx_packets;
-	((struct net_local *)netdev_priv(nl->master))->stats.rx_bytes +=
-		nl->inppos;
+	++nl->master->stats.rx_packets;
+	nl->master->stats.rx_bytes += nl->inppos;
 #else
 	skb->protocol = eth_type_trans( skb, dev );
 	netif_rx( skb );
-	++nl->stats.rx_packets;
-	nl->stats.rx_bytes += nl->inppos;
+	++dev->stats.rx_packets;
+	dev->stats.rx_bytes += nl->inppos;
 #endif
 	nl->rx_buf_p = NULL;	/* protocol driver will clear this sk_buff */
 }
@@ -1197,7 +1197,7 @@ sbni_open( struct net_device  *dev )
 handler_attached:
 
 	spin_lock( &nl->lock );
-	memset( &nl->stats, 0, sizeof(struct net_device_stats) );
+	memset( &dev->stats, 0, sizeof(struct net_device_stats) );
 	memset( &nl->in_stats, 0, sizeof(struct sbni_in_stats) );
 
 	card_start( dev );
@@ -1413,7 +1413,7 @@ enslave( struct net_device  *dev,  struct net_device  *slave_dev )
 
 	/* Summary statistics of MultiLine operation will be stored
 	   in master's counters */
-	memset( &snl->stats, 0, sizeof(struct net_device_stats) );
+	memset( &slave_dev->stats, 0, sizeof(struct net_device_stats) );
 	netif_stop_queue( slave_dev );
 	netif_wake_queue( dev );	/* Now we are able to transmit */
 
@@ -1464,14 +1464,6 @@ emancipate( struct net_device  *dev )
 
 #endif
 
-
-static struct net_device_stats *
-sbni_get_stats( struct net_device  *dev )
-{
-	return  &((struct net_local *)netdev_priv(dev))->stats;
-}
-
-
 static void
 set_multicast_list( struct net_device  *dev )
 {
@@ -1520,17 +1512,18 @@ int __init init_module( void )
 }
 
 void
-cleanup_module( void )
+cleanup_module(void)
 {
-	struct net_device  *dev;
-	int  num;
+	int i;
 
-	for( num = 0;  num < SBNI_MAX_NUM_CARDS;  ++num )
-		if( (dev = sbni_cards[ num ]) != NULL ) {
-			unregister_netdev( dev );
-			release_region( dev->base_addr, SBNI_IO_EXTENT );
-			free_netdev( dev );
+	for (i = 0;  i < SBNI_MAX_NUM_CARDS;  ++i) {
+		struct net_device *dev = sbni_cards[i];
+		if (dev != NULL) {
+			unregister_netdev(dev);
+			release_region(dev->base_addr, SBNI_IO_EXTENT);
+			free_netdev(dev);
 		}
+	}
 }
 
 #else	/* MODULE */

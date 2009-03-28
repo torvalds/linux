@@ -32,8 +32,6 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
-#define	  FC_DEF_R_A_TOV      (10 * 1000) /* resource allocation timeout */
-
 /*
  * fc_exch_debug can be set in debugger or at compile time to get more logs.
  */
@@ -283,7 +281,7 @@ static void fc_exch_release(struct fc_exch *ep)
 			ep->destructor(&ep->seq, ep->arg);
 		if (ep->lp->tt.exch_put)
 			ep->lp->tt.exch_put(ep->lp, mp, ep->xid);
-		WARN_ON(!ep->esb_stat & ESB_ST_COMPLETE);
+		WARN_ON(!(ep->esb_stat & ESB_ST_COMPLETE));
 		mempool_free(ep, mp->ep_pool);
 	}
 }
@@ -491,7 +489,7 @@ static u16 fc_em_alloc_xid(struct fc_exch_mgr *mp, const struct fc_frame *fp)
 	struct fc_exch *ep = NULL;
 
 	if (mp->max_read) {
-		if (fc_frame_is_read(fp)) {
+		if (fc_fcp_is_read(fr_fsp(fp))) {
 			min = mp->min_xid;
 			max = mp->max_read;
 			plast = &mp->last_read;
@@ -627,7 +625,6 @@ static struct fc_exch *fc_exch_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 {
 	struct fc_exch *ep;
 	struct fc_frame_header *fh;
-	u16 rxid;
 
 	ep = mp->lp->tt.exch_get(mp->lp, fp);
 	if (ep) {
@@ -654,18 +651,6 @@ static struct fc_exch *fc_exch_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 		if ((ntoh24(fh->fh_f_ctl) & FC_FC_SEQ_INIT) == 0)
 			ep->esb_stat &= ~ESB_ST_SEQ_INIT;
 
-		/*
-		 * Set the responder ID in the frame header.
-		 * The old one should've been 0xffff.
-		 * If it isn't, don't assign one.
-		 * Incoming basic link service frames may specify
-		 * a referenced RX_ID.
-		 */
-		if (fh->fh_type != FC_TYPE_BLS) {
-			rxid = ntohs(fh->fh_rx_id);
-			WARN_ON(rxid != FC_XID_UNKNOWN);
-			fh->fh_rx_id = htons(ep->rxid);
-		}
 		fc_exch_hold(ep);	/* hold for caller */
 		spin_unlock_bh(&ep->ex_lock);	/* lock from exch_get */
 	}
@@ -677,8 +662,8 @@ static struct fc_exch *fc_exch_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
  * If fc_pf_rjt_reason is FC_RJT_NONE then this function will have a hold
  * on the ep that should be released by the caller.
  */
-static enum fc_pf_rjt_reason
-fc_seq_lookup_recip(struct fc_exch_mgr *mp, struct fc_frame *fp)
+static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_exch_mgr *mp,
+						 struct fc_frame *fp)
 {
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 	struct fc_exch *ep = NULL;
@@ -996,9 +981,9 @@ static void fc_seq_send_ack(struct fc_seq *sp, const struct fc_frame *rx_fp)
  * Send BLS Reject.
  * This is for rejecting BA_ABTS only.
  */
-static void
-fc_exch_send_ba_rjt(struct fc_frame *rx_fp, enum fc_ba_rjt_reason reason,
-		    enum fc_ba_rjt_explan explan)
+static void fc_exch_send_ba_rjt(struct fc_frame *rx_fp,
+				enum fc_ba_rjt_reason reason,
+				enum fc_ba_rjt_explan explan)
 {
 	struct fc_frame *fp;
 	struct fc_frame_header *rx_fh;
@@ -1096,7 +1081,7 @@ static void fc_exch_recv_abts(struct fc_exch *ep, struct fc_frame *rx_fp)
 		ap->ba_high_seq_cnt = fh->fh_seq_cnt;
 		ap->ba_low_seq_cnt = htons(sp->cnt);
 	}
-	sp = fc_seq_start_next(sp);
+	sp = fc_seq_start_next_locked(sp);
 	spin_unlock_bh(&ep->ex_lock);
 	fc_seq_send_last(sp, fp, FC_RCTL_BA_ACC, FC_TYPE_BLS);
 	fc_frame_free(rx_fp);
@@ -1480,10 +1465,11 @@ static void fc_exch_reset(struct fc_exch *ep)
  * If sid is non-zero, reset only exchanges we source from that FID.
  * If did is non-zero, reset only exchanges destined to that FID.
  */
-void fc_exch_mgr_reset(struct fc_exch_mgr *mp, u32 sid, u32 did)
+void fc_exch_mgr_reset(struct fc_lport *lp, u32 sid, u32 did)
 {
 	struct fc_exch *ep;
 	struct fc_exch *next;
+	struct fc_exch_mgr *mp = lp->emp;
 
 	spin_lock_bh(&mp->em_lock);
 restart:
@@ -1607,7 +1593,7 @@ static void fc_exch_rrq_resp(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 	if (IS_ERR(fp)) {
 		int err = PTR_ERR(fp);
 
-		if (err == -FC_EX_CLOSED)
+		if (err == -FC_EX_CLOSED || err == -FC_EX_TIMEOUT)
 			goto cleanup;
 		FC_DBG("Cannot process RRQ, because of frame error %d\n", err);
 		return;
@@ -1854,6 +1840,8 @@ struct fc_seq *fc_exch_seq_send(struct fc_lport *lp,
 	ep->f_ctl = ntoh24(fh->fh_f_ctl);
 	fc_exch_setup_hdr(ep, fp, ep->f_ctl);
 	sp->cnt++;
+
+	fc_fcp_ddp_setup(fr_fsp(fp), ep->xid);
 
 	if (unlikely(lp->tt.frame_send(lp, fp)))
 		goto err;

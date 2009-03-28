@@ -158,7 +158,7 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 	ret = KVM86->regs32;
 
 	ret->fs = current->thread.saved_fs;
-	loadsegment(gs, current->thread.saved_gs);
+	set_user_gs(ret, current->thread.saved_gs);
 
 	return ret;
 }
@@ -197,9 +197,9 @@ out:
 static int do_vm86_irq_handling(int subfunction, int irqnumber);
 static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk);
 
-asmlinkage int sys_vm86old(struct pt_regs regs)
+int sys_vm86old(struct pt_regs *regs)
 {
-	struct vm86_struct __user *v86 = (struct vm86_struct __user *)regs.bx;
+	struct vm86_struct __user *v86 = (struct vm86_struct __user *)regs->bx;
 	struct kernel_vm86_struct info; /* declare this _on top_,
 					 * this avoids wasting of stack space.
 					 * This remains on the stack until we
@@ -218,7 +218,7 @@ asmlinkage int sys_vm86old(struct pt_regs regs)
 	if (tmp)
 		goto out;
 	memset(&info.vm86plus, 0, (int)&info.regs32 - (int)&info.vm86plus);
-	info.regs32 = &regs;
+	info.regs32 = regs;
 	tsk->thread.vm86_info = v86;
 	do_sys_vm86(&info, tsk);
 	ret = 0;	/* we never return here */
@@ -227,7 +227,7 @@ out:
 }
 
 
-asmlinkage int sys_vm86(struct pt_regs regs)
+int sys_vm86(struct pt_regs *regs)
 {
 	struct kernel_vm86_struct info; /* declare this _on top_,
 					 * this avoids wasting of stack space.
@@ -239,12 +239,12 @@ asmlinkage int sys_vm86(struct pt_regs regs)
 	struct vm86plus_struct __user *v86;
 
 	tsk = current;
-	switch (regs.bx) {
+	switch (regs->bx) {
 	case VM86_REQUEST_IRQ:
 	case VM86_FREE_IRQ:
 	case VM86_GET_IRQ_BITS:
 	case VM86_GET_AND_RESET_IRQ:
-		ret = do_vm86_irq_handling(regs.bx, (int)regs.cx);
+		ret = do_vm86_irq_handling(regs->bx, (int)regs->cx);
 		goto out;
 	case VM86_PLUS_INSTALL_CHECK:
 		/*
@@ -261,14 +261,14 @@ asmlinkage int sys_vm86(struct pt_regs regs)
 	ret = -EPERM;
 	if (tsk->thread.saved_sp0)
 		goto out;
-	v86 = (struct vm86plus_struct __user *)regs.cx;
+	v86 = (struct vm86plus_struct __user *)regs->cx;
 	tmp = copy_vm86_regs_from_user(&info.regs, &v86->regs,
 				       offsetof(struct kernel_vm86_struct, regs32) -
 				       sizeof(info.regs));
 	ret = -EFAULT;
 	if (tmp)
 		goto out;
-	info.regs32 = &regs;
+	info.regs32 = regs;
 	info.vm86plus.is_vm86pus = 1;
 	tsk->thread.vm86_info = (struct vm86_struct __user *)v86;
 	do_sys_vm86(&info, tsk);
@@ -323,7 +323,7 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
 	info->regs32->ax = 0;
 	tsk->thread.saved_sp0 = tsk->thread.sp0;
 	tsk->thread.saved_fs = info->regs32->fs;
-	savesegment(gs, tsk->thread.saved_gs);
+	tsk->thread.saved_gs = get_user_gs(info->regs32);
 
 	tss = &per_cpu(init_tss, get_cpu());
 	tsk->thread.sp0 = (unsigned long) &info->VM86_TSS_ESP0;

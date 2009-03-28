@@ -242,7 +242,9 @@ static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 		ide_debug_log(IDE_DBG_SENSE, "failed_cmd: 0x%x\n",
 			      failed_command->cmd[0]);
 
-	ide_do_drive_cmd(drive, rq);
+	drive->hwif->rq = NULL;
+
+	elv_add_request(drive->queue, rq, ELEVATOR_INSERT_FRONT, 0);
 }
 
 static void cdrom_end_request(ide_drive_t *drive, int uptodate)

@@ -1,0 +1,14 @@
+
+config RDS
+	tristate "Reliable Datagram Sockets (RDS) (EXPERIMENTAL)"
+	depends on INET && INFINIBAND_IPOIB && EXPERIMENTAL
+	depends on INFINIBAND && INFINIBAND_ADDR_TRANS
+	---help---
+	  RDS provides reliable, sequenced delivery of datagrams
+	  over Infiniband.
+
+config RDS_DEBUG
+        bool "Debugging messages"
+	depends on RDS
+        default n
+

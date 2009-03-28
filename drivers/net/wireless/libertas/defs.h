@@ -41,6 +41,7 @@
 #define LBS_DEB_HEX	0x00200000
 #define LBS_DEB_SDIO	0x00400000
 #define LBS_DEB_SYSFS	0x00800000
+#define LBS_DEB_SPI	0x01000000
 
 extern unsigned int lbs_debug;
 
@@ -84,6 +85,7 @@ do { if ((lbs_debug & (grp)) == (grp)) \
 #define lbs_deb_thread(fmt, args...)    LBS_DEB_LL(LBS_DEB_THREAD, " thread", fmt, ##args)
 #define lbs_deb_sdio(fmt, args...)      LBS_DEB_LL(LBS_DEB_SDIO, " sdio", fmt, ##args)
 #define lbs_deb_sysfs(fmt, args...)     LBS_DEB_LL(LBS_DEB_SYSFS, " sysfs", fmt, ##args)
+#define lbs_deb_spi(fmt, args...)       LBS_DEB_LL(LBS_DEB_SPI, " spi", fmt, ##args)
 
 #define lbs_pr_info(format, args...) \
 	printk(KERN_INFO DRV_NAME": " format, ## args)
@@ -263,6 +265,7 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 
 #define	CMD_F_HOSTCMD		(1 << 0)
 #define FW_CAPINFO_WPA  	(1 << 0)
+#define FW_CAPINFO_PS  		(1 << 1)
 #define FW_CAPINFO_FIRMWARE_UPGRADE	(1 << 13)
 #define FW_CAPINFO_BOOT2_UPGRADE	(1<<14)
 #define FW_CAPINFO_PERSISTENT_CONFIG	(1<<15)

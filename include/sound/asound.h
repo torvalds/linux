@@ -23,9 +23,10 @@
 #ifndef __SOUND_ASOUND_H
 #define __SOUND_ASOUND_H
 
+#include <linux/types.h>
+
 #ifdef __KERNEL__
 #include <linux/ioctl.h>
-#include <linux/types.h>
 #include <linux/time.h>
 #include <asm/byteorder.h>
 
@@ -126,12 +127,10 @@ struct snd_hwdep_dsp_image {
 	unsigned long driver_data;	/* W: driver-specific data */
 };
 
-enum {
-	SNDRV_HWDEP_IOCTL_PVERSION = _IOR ('H', 0x00, int),
-	SNDRV_HWDEP_IOCTL_INFO = _IOR ('H', 0x01, struct snd_hwdep_info),
-	SNDRV_HWDEP_IOCTL_DSP_STATUS = _IOR('H', 0x02, struct snd_hwdep_dsp_status),
-	SNDRV_HWDEP_IOCTL_DSP_LOAD   = _IOW('H', 0x03, struct snd_hwdep_dsp_image)
-};
+#define SNDRV_HWDEP_IOCTL_PVERSION	_IOR ('H', 0x00, int)
+#define SNDRV_HWDEP_IOCTL_INFO		_IOR ('H', 0x01, struct snd_hwdep_info)
+#define SNDRV_HWDEP_IOCTL_DSP_STATUS	_IOR('H', 0x02, struct snd_hwdep_dsp_status)
+#define SNDRV_HWDEP_IOCTL_DSP_LOAD	_IOW('H', 0x03, struct snd_hwdep_dsp_image)
 
 /*****************************************************************************
  *                                                                           *
@@ -342,7 +341,7 @@ struct snd_interval {
 #define SNDRV_MASK_MAX	256
 
 struct snd_mask {
-	u_int32_t bits[(SNDRV_MASK_MAX+31)/32];
+	__u32 bits[(SNDRV_MASK_MAX+31)/32];
 };
 
 struct snd_pcm_hw_params {
@@ -385,7 +384,7 @@ struct snd_pcm_sw_params {
 
 struct snd_pcm_channel_info {
 	unsigned int channel;
-	off_t offset;			/* mmap offset */
+	__kernel_off_t offset;		/* mmap offset */
 	unsigned int first;		/* offset to first sample in bits */
 	unsigned int step;		/* samples distance in bits */
 };
@@ -451,40 +450,35 @@ enum {
 	SNDRV_PCM_TSTAMP_TYPE_LAST = SNDRV_PCM_TSTAMP_TYPE_MONOTONIC,
 };
 
-enum {
-	SNDRV_PCM_IOCTL_PVERSION = _IOR('A', 0x00, int),
-	SNDRV_PCM_IOCTL_INFO = _IOR('A', 0x01, struct snd_pcm_info),
-	SNDRV_PCM_IOCTL_TSTAMP = _IOW('A', 0x02, int),
-	SNDRV_PCM_IOCTL_TTSTAMP = _IOW('A', 0x03, int),
-	SNDRV_PCM_IOCTL_HW_REFINE = _IOWR('A', 0x10, struct snd_pcm_hw_params),
-	SNDRV_PCM_IOCTL_HW_PARAMS = _IOWR('A', 0x11, struct snd_pcm_hw_params),
-	SNDRV_PCM_IOCTL_HW_FREE = _IO('A', 0x12),
-	SNDRV_PCM_IOCTL_SW_PARAMS = _IOWR('A', 0x13, struct snd_pcm_sw_params),
-	SNDRV_PCM_IOCTL_STATUS = _IOR('A', 0x20, struct snd_pcm_status),
-	SNDRV_PCM_IOCTL_DELAY = _IOR('A', 0x21, snd_pcm_sframes_t),
-	SNDRV_PCM_IOCTL_HWSYNC = _IO('A', 0x22),
-	SNDRV_PCM_IOCTL_SYNC_PTR = _IOWR('A', 0x23, struct snd_pcm_sync_ptr),
-	SNDRV_PCM_IOCTL_CHANNEL_INFO = _IOR('A', 0x32, struct snd_pcm_channel_info),
-	SNDRV_PCM_IOCTL_PREPARE = _IO('A', 0x40),
-	SNDRV_PCM_IOCTL_RESET = _IO('A', 0x41),
-	SNDRV_PCM_IOCTL_START = _IO('A', 0x42),
-	SNDRV_PCM_IOCTL_DROP = _IO('A', 0x43),
-	SNDRV_PCM_IOCTL_DRAIN = _IO('A', 0x44),
-	SNDRV_PCM_IOCTL_PAUSE = _IOW('A', 0x45, int),
-	SNDRV_PCM_IOCTL_REWIND = _IOW('A', 0x46, snd_pcm_uframes_t),
-	SNDRV_PCM_IOCTL_RESUME = _IO('A', 0x47),
-	SNDRV_PCM_IOCTL_XRUN = _IO('A', 0x48),
-	SNDRV_PCM_IOCTL_FORWARD = _IOW('A', 0x49, snd_pcm_uframes_t),
-	SNDRV_PCM_IOCTL_WRITEI_FRAMES = _IOW('A', 0x50, struct snd_xferi),
-	SNDRV_PCM_IOCTL_READI_FRAMES = _IOR('A', 0x51, struct snd_xferi),
-	SNDRV_PCM_IOCTL_WRITEN_FRAMES = _IOW('A', 0x52, struct snd_xfern),
-	SNDRV_PCM_IOCTL_READN_FRAMES = _IOR('A', 0x53, struct snd_xfern),
-	SNDRV_PCM_IOCTL_LINK = _IOW('A', 0x60, int),
-	SNDRV_PCM_IOCTL_UNLINK = _IO('A', 0x61),
-};
-
-/* Trick to make alsa-lib/acinclude.m4 happy */
-#define SNDRV_PCM_IOCTL_REWIND SNDRV_PCM_IOCTL_REWIND
+#define SNDRV_PCM_IOCTL_PVERSION	_IOR('A', 0x00, int)
+#define SNDRV_PCM_IOCTL_INFO		_IOR('A', 0x01, struct snd_pcm_info)
+#define SNDRV_PCM_IOCTL_TSTAMP		_IOW('A', 0x02, int)
+#define SNDRV_PCM_IOCTL_TTSTAMP		_IOW('A', 0x03, int)
+#define SNDRV_PCM_IOCTL_HW_REFINE	_IOWR('A', 0x10, struct snd_pcm_hw_params)
+#define SNDRV_PCM_IOCTL_HW_PARAMS	_IOWR('A', 0x11, struct snd_pcm_hw_params)
+#define SNDRV_PCM_IOCTL_HW_FREE		_IO('A', 0x12)
+#define SNDRV_PCM_IOCTL_SW_PARAMS	_IOWR('A', 0x13, struct snd_pcm_sw_params)
+#define SNDRV_PCM_IOCTL_STATUS		_IOR('A', 0x20, struct snd_pcm_status)
+#define SNDRV_PCM_IOCTL_DELAY		_IOR('A', 0x21, snd_pcm_sframes_t)
+#define SNDRV_PCM_IOCTL_HWSYNC		_IO('A', 0x22)
+#define SNDRV_PCM_IOCTL_SYNC_PTR	_IOWR('A', 0x23, struct snd_pcm_sync_ptr)
+#define SNDRV_PCM_IOCTL_CHANNEL_INFO	_IOR('A', 0x32, struct snd_pcm_channel_info)
+#define SNDRV_PCM_IOCTL_PREPARE		_IO('A', 0x40)
+#define SNDRV_PCM_IOCTL_RESET		_IO('A', 0x41)
+#define SNDRV_PCM_IOCTL_START		_IO('A', 0x42)
+#define SNDRV_PCM_IOCTL_DROP		_IO('A', 0x43)
+#define SNDRV_PCM_IOCTL_DRAIN		_IO('A', 0x44)
+#define SNDRV_PCM_IOCTL_PAUSE		_IOW('A', 0x45, int)
+#define SNDRV_PCM_IOCTL_REWIND		_IOW('A', 0x46, snd_pcm_uframes_t)
+#define SNDRV_PCM_IOCTL_RESUME		_IO('A', 0x47)
+#define SNDRV_PCM_IOCTL_XRUN		_IO('A', 0x48)
+#define SNDRV_PCM_IOCTL_FORWARD		_IOW('A', 0x49, snd_pcm_uframes_t)
+#define SNDRV_PCM_IOCTL_WRITEI_FRAMES	_IOW('A', 0x50, struct snd_xferi)
+#define SNDRV_PCM_IOCTL_READI_FRAMES	_IOR('A', 0x51, struct snd_xferi)
+#define SNDRV_PCM_IOCTL_WRITEN_FRAMES	_IOW('A', 0x52, struct snd_xfern)
+#define SNDRV_PCM_IOCTL_READN_FRAMES	_IOR('A', 0x53, struct snd_xfern)
+#define SNDRV_PCM_IOCTL_LINK		_IOW('A', 0x60, int)
+#define SNDRV_PCM_IOCTL_UNLINK		_IO('A', 0x61)
 
 /*****************************************************************************
  *                                                                           *
@@ -538,14 +532,12 @@ struct snd_rawmidi_status {
 	unsigned char reserved[16];	/* reserved for future use */
 };
 
-enum {
-	SNDRV_RAWMIDI_IOCTL_PVERSION = _IOR('W', 0x00, int),
-	SNDRV_RAWMIDI_IOCTL_INFO = _IOR('W', 0x01, struct snd_rawmidi_info),
-	SNDRV_RAWMIDI_IOCTL_PARAMS = _IOWR('W', 0x10, struct snd_rawmidi_params),
-	SNDRV_RAWMIDI_IOCTL_STATUS = _IOWR('W', 0x20, struct snd_rawmidi_status),
-	SNDRV_RAWMIDI_IOCTL_DROP = _IOW('W', 0x30, int),
-	SNDRV_RAWMIDI_IOCTL_DRAIN = _IOW('W', 0x31, int),
-};
+#define SNDRV_RAWMIDI_IOCTL_PVERSION	_IOR('W', 0x00, int)
+#define SNDRV_RAWMIDI_IOCTL_INFO	_IOR('W', 0x01, struct snd_rawmidi_info)
+#define SNDRV_RAWMIDI_IOCTL_PARAMS	_IOWR('W', 0x10, struct snd_rawmidi_params)
+#define SNDRV_RAWMIDI_IOCTL_STATUS	_IOWR('W', 0x20, struct snd_rawmidi_status)
+#define SNDRV_RAWMIDI_IOCTL_DROP	_IOW('W', 0x30, int)
+#define SNDRV_RAWMIDI_IOCTL_DRAIN	_IOW('W', 0x31, int)
 
 /*
  *  Timer section - /dev/snd/timer
@@ -654,23 +646,21 @@ struct snd_timer_status {
 	unsigned char reserved[64];	/* reserved */
 };
 
-enum {
-	SNDRV_TIMER_IOCTL_PVERSION = _IOR('T', 0x00, int),
-	SNDRV_TIMER_IOCTL_NEXT_DEVICE = _IOWR('T', 0x01, struct snd_timer_id),
-	SNDRV_TIMER_IOCTL_TREAD = _IOW('T', 0x02, int),
-	SNDRV_TIMER_IOCTL_GINFO = _IOWR('T', 0x03, struct snd_timer_ginfo),
-	SNDRV_TIMER_IOCTL_GPARAMS = _IOW('T', 0x04, struct snd_timer_gparams),
-	SNDRV_TIMER_IOCTL_GSTATUS = _IOWR('T', 0x05, struct snd_timer_gstatus),
-	SNDRV_TIMER_IOCTL_SELECT = _IOW('T', 0x10, struct snd_timer_select),
-	SNDRV_TIMER_IOCTL_INFO = _IOR('T', 0x11, struct snd_timer_info),
-	SNDRV_TIMER_IOCTL_PARAMS = _IOW('T', 0x12, struct snd_timer_params),
-	SNDRV_TIMER_IOCTL_STATUS = _IOR('T', 0x14, struct snd_timer_status),
-	/* The following four ioctls are changed since 1.0.9 due to confliction */
-	SNDRV_TIMER_IOCTL_START = _IO('T', 0xa0),
-	SNDRV_TIMER_IOCTL_STOP = _IO('T', 0xa1),
-	SNDRV_TIMER_IOCTL_CONTINUE = _IO('T', 0xa2),
-	SNDRV_TIMER_IOCTL_PAUSE = _IO('T', 0xa3),
-};
+#define SNDRV_TIMER_IOCTL_PVERSION	_IOR('T', 0x00, int)
+#define SNDRV_TIMER_IOCTL_NEXT_DEVICE	_IOWR('T', 0x01, struct snd_timer_id)
+#define SNDRV_TIMER_IOCTL_TREAD		_IOW('T', 0x02, int)
+#define SNDRV_TIMER_IOCTL_GINFO		_IOWR('T', 0x03, struct snd_timer_ginfo)
+#define SNDRV_TIMER_IOCTL_GPARAMS	_IOW('T', 0x04, struct snd_timer_gparams)
+#define SNDRV_TIMER_IOCTL_GSTATUS	_IOWR('T', 0x05, struct snd_timer_gstatus)
+#define SNDRV_TIMER_IOCTL_SELECT	_IOW('T', 0x10, struct snd_timer_select)
+#define SNDRV_TIMER_IOCTL_INFO		_IOR('T', 0x11, struct snd_timer_info)
+#define SNDRV_TIMER_IOCTL_PARAMS	_IOW('T', 0x12, struct snd_timer_params)
+#define SNDRV_TIMER_IOCTL_STATUS	_IOR('T', 0x14, struct snd_timer_status)
+/* The following four ioctls are changed since 1.0.9 due to confliction */
+#define SNDRV_TIMER_IOCTL_START		_IO('T', 0xa0)
+#define SNDRV_TIMER_IOCTL_STOP		_IO('T', 0xa1)
+#define SNDRV_TIMER_IOCTL_CONTINUE	_IO('T', 0xa2)
+#define SNDRV_TIMER_IOCTL_PAUSE		_IO('T', 0xa3)
 
 struct snd_timer_read {
 	unsigned int resolution;
@@ -789,7 +779,7 @@ struct snd_ctl_elem_info {
 	snd_ctl_elem_type_t type;	/* R: value type - SNDRV_CTL_ELEM_TYPE_* */
 	unsigned int access;		/* R: value access (bitmask) - SNDRV_CTL_ELEM_ACCESS_* */
 	unsigned int count;		/* count of values */
-	pid_t owner;			/* owner's PID of this control */
+	__kernel_pid_t owner;		/* owner's PID of this control */
 	union {
 		struct {
 			long min;		/* R: minimum value */
@@ -847,33 +837,31 @@ struct snd_ctl_tlv {
         unsigned int tlv[0];	/* first TLV */
 };
 
-enum {
-	SNDRV_CTL_IOCTL_PVERSION = _IOR('U', 0x00, int),
-	SNDRV_CTL_IOCTL_CARD_INFO = _IOR('U', 0x01, struct snd_ctl_card_info),
-	SNDRV_CTL_IOCTL_ELEM_LIST = _IOWR('U', 0x10, struct snd_ctl_elem_list),
-	SNDRV_CTL_IOCTL_ELEM_INFO = _IOWR('U', 0x11, struct snd_ctl_elem_info),
-	SNDRV_CTL_IOCTL_ELEM_READ = _IOWR('U', 0x12, struct snd_ctl_elem_value),
-	SNDRV_CTL_IOCTL_ELEM_WRITE = _IOWR('U', 0x13, struct snd_ctl_elem_value),
-	SNDRV_CTL_IOCTL_ELEM_LOCK = _IOW('U', 0x14, struct snd_ctl_elem_id),
-	SNDRV_CTL_IOCTL_ELEM_UNLOCK = _IOW('U', 0x15, struct snd_ctl_elem_id),
-	SNDRV_CTL_IOCTL_SUBSCRIBE_EVENTS = _IOWR('U', 0x16, int),
-	SNDRV_CTL_IOCTL_ELEM_ADD = _IOWR('U', 0x17, struct snd_ctl_elem_info),
-	SNDRV_CTL_IOCTL_ELEM_REPLACE = _IOWR('U', 0x18, struct snd_ctl_elem_info),
-	SNDRV_CTL_IOCTL_ELEM_REMOVE = _IOWR('U', 0x19, struct snd_ctl_elem_id),
-	SNDRV_CTL_IOCTL_TLV_READ = _IOWR('U', 0x1a, struct snd_ctl_tlv),
-	SNDRV_CTL_IOCTL_TLV_WRITE = _IOWR('U', 0x1b, struct snd_ctl_tlv),
-	SNDRV_CTL_IOCTL_TLV_COMMAND = _IOWR('U', 0x1c, struct snd_ctl_tlv),
-	SNDRV_CTL_IOCTL_HWDEP_NEXT_DEVICE = _IOWR('U', 0x20, int),
-	SNDRV_CTL_IOCTL_HWDEP_INFO = _IOR('U', 0x21, struct snd_hwdep_info),
-	SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE = _IOR('U', 0x30, int),
-	SNDRV_CTL_IOCTL_PCM_INFO = _IOWR('U', 0x31, struct snd_pcm_info),
-	SNDRV_CTL_IOCTL_PCM_PREFER_SUBDEVICE = _IOW('U', 0x32, int),
-	SNDRV_CTL_IOCTL_RAWMIDI_NEXT_DEVICE = _IOWR('U', 0x40, int),
-	SNDRV_CTL_IOCTL_RAWMIDI_INFO = _IOWR('U', 0x41, struct snd_rawmidi_info),
-	SNDRV_CTL_IOCTL_RAWMIDI_PREFER_SUBDEVICE = _IOW('U', 0x42, int),
-	SNDRV_CTL_IOCTL_POWER = _IOWR('U', 0xd0, int),
-	SNDRV_CTL_IOCTL_POWER_STATE = _IOR('U', 0xd1, int),
-};
+#define SNDRV_CTL_IOCTL_PVERSION	_IOR('U', 0x00, int)
+#define SNDRV_CTL_IOCTL_CARD_INFO	_IOR('U', 0x01, struct snd_ctl_card_info)
+#define SNDRV_CTL_IOCTL_ELEM_LIST	_IOWR('U', 0x10, struct snd_ctl_elem_list)
+#define SNDRV_CTL_IOCTL_ELEM_INFO	_IOWR('U', 0x11, struct snd_ctl_elem_info)
+#define SNDRV_CTL_IOCTL_ELEM_READ	_IOWR('U', 0x12, struct snd_ctl_elem_value)
+#define SNDRV_CTL_IOCTL_ELEM_WRITE	_IOWR('U', 0x13, struct snd_ctl_elem_value)
+#define SNDRV_CTL_IOCTL_ELEM_LOCK	_IOW('U', 0x14, struct snd_ctl_elem_id)
+#define SNDRV_CTL_IOCTL_ELEM_UNLOCK	_IOW('U', 0x15, struct snd_ctl_elem_id)
+#define SNDRV_CTL_IOCTL_SUBSCRIBE_EVENTS _IOWR('U', 0x16, int)
+#define SNDRV_CTL_IOCTL_ELEM_ADD	_IOWR('U', 0x17, struct snd_ctl_elem_info)
+#define SNDRV_CTL_IOCTL_ELEM_REPLACE	_IOWR('U', 0x18, struct snd_ctl_elem_info)
+#define SNDRV_CTL_IOCTL_ELEM_REMOVE	_IOWR('U', 0x19, struct snd_ctl_elem_id)
+#define SNDRV_CTL_IOCTL_TLV_READ	_IOWR('U', 0x1a, struct snd_ctl_tlv)
+#define SNDRV_CTL_IOCTL_TLV_WRITE	_IOWR('U', 0x1b, struct snd_ctl_tlv)
+#define SNDRV_CTL_IOCTL_TLV_COMMAND	_IOWR('U', 0x1c, struct snd_ctl_tlv)
+#define SNDRV_CTL_IOCTL_HWDEP_NEXT_DEVICE _IOWR('U', 0x20, int)
+#define SNDRV_CTL_IOCTL_HWDEP_INFO	_IOR('U', 0x21, struct snd_hwdep_info)
+#define SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE	_IOR('U', 0x30, int)
+#define SNDRV_CTL_IOCTL_PCM_INFO	_IOWR('U', 0x31, struct snd_pcm_info)
+#define SNDRV_CTL_IOCTL_PCM_PREFER_SUBDEVICE _IOW('U', 0x32, int)
+#define SNDRV_CTL_IOCTL_RAWMIDI_NEXT_DEVICE _IOWR('U', 0x40, int)
+#define SNDRV_CTL_IOCTL_RAWMIDI_INFO	_IOWR('U', 0x41, struct snd_rawmidi_info)
+#define SNDRV_CTL_IOCTL_RAWMIDI_PREFER_SUBDEVICE _IOW('U', 0x42, int)
+#define SNDRV_CTL_IOCTL_POWER		_IOWR('U', 0xd0, int)
+#define SNDRV_CTL_IOCTL_POWER_STATE	_IOR('U', 0xd1, int)
 
 /*
  *  Read interface.
@@ -918,19 +906,5 @@ struct snd_ctl_event {
 #define SNDRV_CTL_NAME_IEC958_PRO_MASK			"Pro Mask"
 #define SNDRV_CTL_NAME_IEC958_PCM_STREAM		"PCM Stream"
 #define SNDRV_CTL_NAME_IEC958(expl,direction,what)	"IEC958 " expl SNDRV_CTL_NAME_##direction SNDRV_CTL_NAME_IEC958_##what
-
-/*
- *
- */
-
-struct snd_xferv {
-	const struct iovec *vector;
-	unsigned long count;
-};
-
-enum {
-	SNDRV_IOCTL_READV = _IOW('K', 0x00, struct snd_xferv),
-	SNDRV_IOCTL_WRITEV = _IOW('K', 0x01, struct snd_xferv),
-};
 
 #endif /* __SOUND_ASOUND_H */
