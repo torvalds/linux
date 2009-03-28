@@ -4,7 +4,7 @@
 
 # Object file lists.
 
-obj-y	:=  system.o generic.o devices.o serial.o
+obj-y	:=  generic.o devices.o serial.o
 
 obj-$(CONFIG_MACH_MX21) += clock_imx21.o
 

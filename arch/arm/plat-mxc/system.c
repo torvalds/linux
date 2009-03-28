@@ -3,6 +3,7 @@
  * Copyright (C) 2000 Deep Blue Solutions Ltd
  * Copyright 2006-2007 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
+ * Copyright 2009 Ilya Yanok, Emcraft Systems Ltd, yanok@emcraft.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,42 +23,45 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/err.h>
+#include <linux/delay.h>
 
 #include <mach/hardware.h>
 #include <asm/proc-fns.h>
 #include <asm/system.h>
 
-/*
- * Put the CPU into idle mode. It is called by default_idle()
- * in process.c file.
- */
-void arch_idle(void)
-{
-	/*
-	 * This should do all the clock switching
-	 * and wait for interrupt tricks.
-	 */
-	cpu_do_idle();
-}
-
-#define WDOG_WCR_REG                    IO_ADDRESS(WDOG_BASE_ADDR)
-#define WDOG_WCR_SRS                    (1 << 4)
+#ifdef CONFIG_ARCH_MX1
+#define WDOG_WCR_REG		IO_ADDRESS(WDT_BASE_ADDR)
+#define WDOG_WCR_ENABLE		(1 << 0)
+#else
+#define WDOG_WCR_REG		IO_ADDRESS(WDOG_BASE_ADDR)
+#define WDOG_WCR_ENABLE		(1 << 2)
+#endif
 
 /*
  * Reset the system. It is called by machine_restart().
  */
 void arch_reset(char mode, const char *cmd)
 {
-	struct clk *clk;
+	if (!cpu_is_mx1()) {
+		struct clk *clk;
 
-	clk = clk_get(NULL, "wdog_clk");
-	if (!clk) {
-		printk(KERN_ERR"Cannot activate the watchdog. Giving up\n");
-		return;
+		clk = clk_get_sys("imx-wdt.0", NULL);
+		if (!IS_ERR(clk))
+			clk_enable(clk);
 	}
 
-	clk_enable(clk);
-
 	/* Assert SRS signal */
-	__raw_writew(__raw_readw(WDOG_WCR_REG) & ~WDOG_WCR_SRS, WDOG_WCR_REG);
+	__raw_writew(WDOG_WCR_ENABLE, WDOG_WCR_REG);
+
+	/* wait for reset to assert... */
+	mdelay(500);
+
+	printk(KERN_ERR "Watchdog reset failed to assert reset\n");
+
+	/* delay to allow the serial port to show the message */
+	mdelay(50);
+
+	/* we'll take a jump through zero as a poor second */
+	cpu_reset(0);
 }

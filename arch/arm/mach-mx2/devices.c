@@ -229,7 +229,6 @@ struct platform_device mxc_nand_device = {
 	.resource = mxc_nand_resources,
 };
 
-#ifdef CONFIG_FB_IMX
 /*
  * lcdc:
  * - i.MX1: the basic controller
@@ -259,7 +258,6 @@ struct platform_device mxc_fb_device = {
 		.coherent_dma_mask = 0xFFFFFFFF,
 	},
 };
-#endif
 
 #ifdef CONFIG_MACH_MX27
 static struct resource mxc_fec_resources[] = {
