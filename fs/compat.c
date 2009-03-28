@@ -1420,12 +1420,17 @@ int compat_do_execve(char * filename,
 {
 	struct linux_binprm *bprm;
 	struct file *file;
+	struct files_struct *displaced;
 	int retval;
+
+	retval = unshare_files(&displaced);
+	if (retval)
+		goto out_ret;
 
 	retval = -ENOMEM;
 	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
 	if (!bprm)
-		goto out_ret;
+		goto out_files;
 
 	retval = mutex_lock_interruptible(&current->cred_exec_mutex);
 	if (retval < 0)
@@ -1487,6 +1492,8 @@ int compat_do_execve(char * filename,
 	mutex_unlock(&current->cred_exec_mutex);
 	acct_update_integrals(current);
 	free_bprm(bprm);
+	if (displaced)
+		put_files_struct(displaced);
 	return retval;
 
 out:
@@ -1506,6 +1513,9 @@ out_unlock:
 out_free:
 	free_bprm(bprm);
 
+out_files:
+	if (displaced)
+		reset_files_struct(displaced);
 out_ret:
 	return retval;
 }
