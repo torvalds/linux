@@ -5,8 +5,7 @@ obj-$(CONFIG_LIB80211_CRYPT_WEP) += lib80211_crypt_wep.o
 obj-$(CONFIG_LIB80211_CRYPT_CCMP) += lib80211_crypt_ccmp.o
 obj-$(CONFIG_LIB80211_CRYPT_TKIP) += lib80211_crypt_tkip.o
 
-cfg80211-y += core.o sysfs.o radiotap.o util.o reg.o
+cfg80211-y += core.o sysfs.o radiotap.o util.o reg.o scan.o nl80211.o mlme.o
 cfg80211-$(CONFIG_WIRELESS_EXT) += wext-compat.o
-cfg80211-$(CONFIG_NL80211) += nl80211.o
 
 ccflags-y += -D__CHECK_ENDIAN__

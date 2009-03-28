@@ -214,10 +214,10 @@ static int __devinit snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	struct snd_wss *wss;
 	struct snd_gusmax *maxcard;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_gusmax));
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_gusmax), &card);
+	if (err < 0)
+		return err;
 	card->private_free = snd_gusmax_free;
 	maxcard = (struct snd_gusmax *)card->private_data;
 	maxcard->card = card;

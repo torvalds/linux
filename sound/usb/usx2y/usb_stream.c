@@ -557,7 +557,7 @@ static void stream_start(struct usb_stream_kernel *sk,
 		s->idle_insize -= max_diff - max_diff_0;
 		s->idle_insize += urb_size - s->period_size;
 		if (s->idle_insize < 0) {
-			snd_printk("%i %i %i\n",
+			snd_printk(KERN_WARNING "%i %i %i\n",
 				   s->idle_insize, urb_size, s->period_size);
 			return;
 		} else if (s->idle_insize == 0) {

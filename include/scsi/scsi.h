@@ -9,7 +9,8 @@
 #define _SCSI_SCSI_H
 
 #include <linux/types.h>
-#include <scsi/scsi_cmnd.h>
+
+struct scsi_cmnd;
 
 /*
  * The maximum number of SG segments that we will put inside a
@@ -263,6 +264,7 @@ static inline int scsi_status_is_good(int status)
 #define TYPE_RAID           0x0c
 #define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
 #define TYPE_RBC	    0x0e
+#define TYPE_OSD            0x11
 #define TYPE_NO_LUN         0x7f
 
 /* SCSI protocols; these are taken from SPC-3 section 7.5 */
@@ -402,16 +404,6 @@ static inline int scsi_is_wlun(unsigned int lun)
 #define DRIVER_HARD         0x07
 #define DRIVER_SENSE	    0x08
 
-#define SUGGEST_RETRY       0x10
-#define SUGGEST_ABORT       0x20
-#define SUGGEST_REMAP       0x30
-#define SUGGEST_DIE         0x40
-#define SUGGEST_SENSE       0x80
-#define SUGGEST_IS_OK       0xff
-
-#define DRIVER_MASK         0x0f
-#define SUGGEST_MASK        0xf0
-
 /*
  * Internal return values.
  */
@@ -447,23 +439,6 @@ static inline int scsi_is_wlun(unsigned int lun)
 #define msg_byte(result)    (((result) >> 8) & 0xff)
 #define host_byte(result)   (((result) >> 16) & 0xff)
 #define driver_byte(result) (((result) >> 24) & 0xff)
-#define suggestion(result)  (driver_byte(result) & SUGGEST_MASK)
-
-static inline void set_msg_byte(struct scsi_cmnd *cmd, char status)
-{
-	cmd->result |= status << 8;
-}
-
-static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
-{
-	cmd->result |= status << 16;
-}
-
-static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
-{
-	cmd->result |= status << 24;
-}
-
 
 #define sense_class(sense)  (((sense) >> 4) & 0x7)
 #define sense_error(sense)  ((sense) & 0xf)

@@ -117,6 +117,7 @@ repeat:
 		crst_table_init(table, entry);
 		pgd_populate(mm, (pgd_t *) table, (pud_t *) pgd);
 		mm->pgd = (pgd_t *) table;
+		mm->task_size = mm->context.asce_limit;
 		table = NULL;
 	}
 	spin_unlock(&mm->page_table_lock);
@@ -154,6 +155,7 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 			BUG();
 		}
 		mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
+		mm->task_size = mm->context.asce_limit;
 		crst_table_free(mm, (unsigned long *) pgd);
 	}
 	update_mm(mm, current);
@@ -256,6 +258,10 @@ int s390_enable_sie(void)
 	struct task_struct *tsk = current;
 	struct mm_struct *mm, *old_mm;
 
+	/* Do we have switched amode? If no, we cannot do sie */
+	if (!switch_amode)
+		return -EINVAL;
+
 	/* Do we have pgstes? if yes, we are done */
 	if (tsk->mm->context.has_pgste)
 		return 0;
@@ -290,7 +296,7 @@ int s390_enable_sie(void)
 	tsk->mm = tsk->active_mm = mm;
 	preempt_disable();
 	update_mm(mm, tsk);
-	cpu_set(smp_processor_id(), mm->cpu_vm_mask);
+	cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
 	preempt_enable();
 	task_unlock(tsk);
 	mmput(old_mm);

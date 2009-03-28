@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -148,20 +148,105 @@ void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 	dev_kfree_skb_any(skb);
 }
 
+static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
+						 struct txentry_desc *txdesc)
+{
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
+	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
+	unsigned long irqflags;
+
+	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) ||
+	    unlikely(!tx_info->control.vif))
+		return;
+
+	/*
+	 * Hardware should insert sequence counter.
+	 * FIXME: We insert a software sequence counter first for
+	 * hardware that doesn't support hardware sequence counting.
+	 *
+	 * This is wrong because beacons are not getting sequence
+	 * numbers assigned properly.
+	 *
+	 * A secondary problem exists for drivers that cannot toggle
+	 * sequence counting per-frame, since those will override the
+	 * sequence counter given by mac80211.
+	 */
+	spin_lock_irqsave(&intf->seqlock, irqflags);
+
+	if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
+		intf->seqno += 0x10;
+	hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+	hdr->seq_ctrl |= cpu_to_le16(intf->seqno);
+
+	spin_unlock_irqrestore(&intf->seqlock, irqflags);
+
+	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
+}
+
+static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
+						  struct txentry_desc *txdesc,
+						  const struct rt2x00_rate *hwrate)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
+	struct ieee80211_tx_rate *txrate = &tx_info->control.rates[0];
+	unsigned int data_length;
+	unsigned int duration;
+	unsigned int residual;
+
+	/* Data length + CRC + Crypto overhead (IV/EIV/ICV/MIC) */
+	data_length = entry->skb->len + 4;
+	data_length += rt2x00crypto_tx_overhead(rt2x00dev, entry->skb);
+
+	/*
+	 * PLCP setup
+	 * Length calculation depends on OFDM/CCK rate.
+	 */
+	txdesc->signal = hwrate->plcp;
+	txdesc->service = 0x04;
+
+	if (hwrate->flags & DEV_RATE_OFDM) {
+		txdesc->length_high = (data_length >> 6) & 0x3f;
+		txdesc->length_low = data_length & 0x3f;
+	} else {
+		/*
+		 * Convert length to microseconds.
+		 */
+		residual = GET_DURATION_RES(data_length, hwrate->bitrate);
+		duration = GET_DURATION(data_length, hwrate->bitrate);
+
+		if (residual != 0) {
+			duration++;
+
+			/*
+			 * Check if we need to set the Length Extension
+			 */
+			if (hwrate->bitrate == 110 && residual <= 30)
+				txdesc->service |= 0x80;
+		}
+
+		txdesc->length_high = (duration >> 8) & 0xff;
+		txdesc->length_low = duration & 0xff;
+
+		/*
+		 * When preamble is enabled we should set the
+		 * preamble bit for the signal.
+		 */
+		if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
+			txdesc->signal |= 0x08;
+	}
+}
+
 static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 					     struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
-	struct ieee80211_tx_rate *txrate = &tx_info->control.rates[0];
 	struct ieee80211_rate *rate =
 	    ieee80211_get_tx_rate(rt2x00dev->hw, tx_info);
 	const struct rt2x00_rate *hwrate;
-	unsigned int data_length;
-	unsigned int duration;
-	unsigned int residual;
-	unsigned long irqflags;
 
 	memset(txdesc, 0, sizeof(*txdesc));
 
@@ -173,26 +258,11 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	txdesc->cw_max = entry->queue->cw_max;
 	txdesc->aifs = entry->queue->aifs;
 
-	/* Data length + CRC */
-	data_length = entry->skb->len + 4;
-
 	/*
 	 * Check whether this frame is to be acked.
 	 */
 	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK))
 		__set_bit(ENTRY_TXD_ACK, &txdesc->flags);
-
-	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) &&
-	    !entry->skb->do_not_encrypt) {
-		/* Apply crypto specific descriptor information */
-		rt2x00crypto_create_tx_descriptor(entry, txdesc);
-
-		/*
-		 * Extend frame length to include all encryption overhead
-		 * that will be added by the hardware.
-		 */
-		data_length += rt2x00crypto_tx_overhead(tx_info);
-	}
 
 	/*
 	 * Check if this is a RTS/CTS frame
@@ -237,86 +307,27 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 * Set ifs to IFS_SIFS when the this is not the first fragment,
 	 * or this fragment came after RTS/CTS.
 	 */
-	if (test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags)) {
-		txdesc->ifs = IFS_SIFS;
-	} else if (tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT) {
+	if ((tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT) &&
+	    !test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags)) {
 		__set_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags);
 		txdesc->ifs = IFS_BACKOFF;
-	} else {
+	} else
 		txdesc->ifs = IFS_SIFS;
-	}
 
 	/*
-	 * Hardware should insert sequence counter.
-	 * FIXME: We insert a software sequence counter first for
-	 * hardware that doesn't support hardware sequence counting.
-	 *
-	 * This is wrong because beacons are not getting sequence
-	 * numbers assigned properly.
-	 *
-	 * A secondary problem exists for drivers that cannot toggle
-	 * sequence counting per-frame, since those will override the
-	 * sequence counter given by mac80211.
-	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		if (likely(tx_info->control.vif)) {
-			struct rt2x00_intf *intf;
-
-			intf = vif_to_intf(tx_info->control.vif);
-
-			spin_lock_irqsave(&intf->seqlock, irqflags);
-
-			if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
-				intf->seqno += 0x10;
-			hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-			hdr->seq_ctrl |= cpu_to_le16(intf->seqno);
-
-			spin_unlock_irqrestore(&intf->seqlock, irqflags);
-
-			__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
-		}
-	}
-
-	/*
-	 * PLCP setup
-	 * Length calculation depends on OFDM/CCK rate.
+	 * Determine rate modulation.
 	 */
 	hwrate = rt2x00_get_rate(rate->hw_value);
-	txdesc->signal = hwrate->plcp;
-	txdesc->service = 0x04;
+	txdesc->rate_mode = RATE_MODE_CCK;
+	if (hwrate->flags & DEV_RATE_OFDM)
+		txdesc->rate_mode = RATE_MODE_OFDM;
 
-	if (hwrate->flags & DEV_RATE_OFDM) {
-		__set_bit(ENTRY_TXD_OFDM_RATE, &txdesc->flags);
-
-		txdesc->length_high = (data_length >> 6) & 0x3f;
-		txdesc->length_low = data_length & 0x3f;
-	} else {
-		/*
-		 * Convert length to microseconds.
-		 */
-		residual = GET_DURATION_RES(data_length, hwrate->bitrate);
-		duration = GET_DURATION(data_length, hwrate->bitrate);
-
-		if (residual != 0) {
-			duration++;
-
-			/*
-			 * Check if we need to set the Length Extension
-			 */
-			if (hwrate->bitrate == 110 && residual <= 30)
-				txdesc->service |= 0x80;
-		}
-
-		txdesc->length_high = (duration >> 8) & 0xff;
-		txdesc->length_low = duration & 0xff;
-
-		/*
-		 * When preamble is enabled we should set the
-		 * preamble bit for the signal.
-		 */
-		if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
-			txdesc->signal |= 0x08;
-	}
+	/*
+	 * Apply TX descriptor handling by components
+	 */
+	rt2x00crypto_create_tx_descriptor(entry, txdesc);
+	rt2x00queue_create_tx_descriptor_seq(entry, txdesc);
+	rt2x00queue_create_tx_descriptor_plcp(entry, txdesc, hwrate);
 }
 
 static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
@@ -403,7 +414,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	 */
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc.flags) &&
 	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags)) {
-		if (test_bit(CONFIG_CRYPTO_COPY_IV, &queue->rt2x00dev->flags))
+		if (test_bit(DRIVER_REQUIRE_COPY_IV, &queue->rt2x00dev->flags))
 			rt2x00crypto_tx_copy_iv(skb, iv_len);
 		else
 			rt2x00crypto_tx_remove_iv(skb, iv_len);
@@ -432,7 +443,8 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 }
 
 int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_vif *vif)
+			      struct ieee80211_vif *vif,
+			      const bool enable_beacon)
 {
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 	struct skb_frame_desc *skbdesc;
@@ -441,6 +453,11 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
+
+	if (!enable_beacon) {
+		rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev, QID_BEACON);
+		return 0;
+	}
 
 	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
 	if (!intf->beacon->skb)
@@ -489,6 +506,9 @@ struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 					 const enum data_queue_qid queue)
 {
 	int atim = test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
+
+	if (queue == QID_RX)
+		return rt2x00dev->rx;
 
 	if (queue < rt2x00dev->ops->tx_queues && rt2x00dev->tx)
 		return &rt2x00dev->tx[queue];
@@ -564,6 +584,14 @@ static void rt2x00queue_reset(struct data_queue *queue)
 	memset(queue->index, 0, sizeof(queue->index));
 
 	spin_unlock_irqrestore(&queue->lock, irqflags);
+}
+
+void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+
+	txall_queue_for_each(rt2x00dev, queue)
+		rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev, queue->qid);
 }
 
 void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)

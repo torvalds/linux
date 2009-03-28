@@ -63,18 +63,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	if ((err = init_line_levels(chip)) < 0)
 		return err;
 
-	/* Default routing of the virtual channels: all vchannels are routed
-	to the stereo output */
-	set_vmixer_gain(chip, 0, 0, 0);
-	set_vmixer_gain(chip, 1, 1, 0);
-	set_vmixer_gain(chip, 0, 2, 0);
-	set_vmixer_gain(chip, 1, 3, 0);
-	set_vmixer_gain(chip, 0, 4, 0);
-	set_vmixer_gain(chip, 1, 5, 0);
-	set_vmixer_gain(chip, 0, 6, 0);
-	set_vmixer_gain(chip, 1, 7, 0);
-	err = update_vmixer_level(chip);
-
 	DE_INIT(("init_hw done\n"));
 	return err;
 }

@@ -186,7 +186,7 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		if (!(params->rmask & (1 << k)))
 			continue;
 #ifdef RULES_DEBUG
-		printk("%s = ", snd_pcm_hw_param_names[k]);
+		printk(KERN_DEBUG "%s = ", snd_pcm_hw_param_names[k]);
 		printk("%04x%04x%04x%04x -> ", m->bits[3], m->bits[2], m->bits[1], m->bits[0]);
 #endif
 		changed = snd_mask_refine(m, constrs_mask(constrs, k));
@@ -206,7 +206,7 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		if (!(params->rmask & (1 << k)))
 			continue;
 #ifdef RULES_DEBUG
-		printk("%s = ", snd_pcm_hw_param_names[k]);
+		printk(KERN_DEBUG "%s = ", snd_pcm_hw_param_names[k]);
 		if (i->empty)
 			printk("empty");
 		else
@@ -251,7 +251,7 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 			if (!doit)
 				continue;
 #ifdef RULES_DEBUG
-			printk("Rule %d [%p]: ", k, r->func);
+			printk(KERN_DEBUG "Rule %d [%p]: ", k, r->func);
 			if (r->var >= 0) {
 				printk("%s = ", snd_pcm_hw_param_names[r->var]);
 				if (hw_is_mask(r->var)) {
@@ -3246,9 +3246,7 @@ static int snd_pcm_fasync(int fd, struct file * file, int on)
 	err = fasync_helper(fd, file, on, &runtime->fasync);
 out:
 	unlock_kernel();
-	if (err < 0)
-		return err;
-	return 0;
+	return err;
 }
 
 /*

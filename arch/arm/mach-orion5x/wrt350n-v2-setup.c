@@ -106,13 +106,18 @@ static struct mv643xx_eth_platform_data wrt350n_v2_eth_data = {
 	.duplex		= DUPLEX_FULL,
 };
 
-static struct dsa_platform_data wrt350n_v2_switch_data = {
+static struct dsa_chip_data wrt350n_v2_switch_chip_data = {
 	.port_names[0]	= "lan2",
 	.port_names[1]	= "lan1",
 	.port_names[2]	= "wan",
 	.port_names[3]	= "cpu",
 	.port_names[5]	= "lan3",
 	.port_names[7]	= "lan4",
+};
+
+static struct dsa_platform_data wrt350n_v2_switch_plat_data = {
+	.nr_chips	= 1,
+	.chip		= &wrt350n_v2_switch_chip_data,
 };
 
 static void __init wrt350n_v2_init(void)
@@ -129,7 +134,7 @@ static void __init wrt350n_v2_init(void)
 	 */
 	orion5x_ehci0_init();
 	orion5x_eth_init(&wrt350n_v2_eth_data);
-	orion5x_eth_switch_init(&wrt350n_v2_switch_data, NO_IRQ);
+	orion5x_eth_switch_init(&wrt350n_v2_switch_plat_data, NO_IRQ);
 	orion5x_uart0_init();
 
 	orion5x_setup_dev_boot_win(WRT350N_V2_NOR_BOOT_BASE,

@@ -831,6 +831,17 @@ static int __init smc_findirq(int ioaddr)
 #endif
 }
 
+static const struct net_device_ops smc_netdev_ops = {
+	.ndo_open		 = smc_open,
+	.ndo_stop		= smc_close,
+	.ndo_start_xmit    	= smc_wait_to_send_packet,
+	.ndo_tx_timeout	    	= smc_timeout,
+	.ndo_set_multicast_list	= smc_set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /*----------------------------------------------------------------------
  . Function: smc_probe( int ioaddr )
  .
@@ -1044,12 +1055,8 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
   	  	goto err_out;
       	}
 
-	dev->open		        = smc_open;
-	dev->stop		        = smc_close;
-	dev->hard_start_xmit    	= smc_wait_to_send_packet;
-	dev->tx_timeout		    	= smc_timeout;
+	dev->netdev_ops			= &smc_netdev_ops;
 	dev->watchdog_timeo		= HZ/20;
-	dev->set_multicast_list 	= smc_set_multicast_list;
 
 	return 0;
 

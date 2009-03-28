@@ -988,7 +988,7 @@ static void fc_rport_recv_plogi_req(struct fc_rport *rport,
 	switch (rdata->rp_state) {
 	case RPORT_ST_INIT:
 		FC_DEBUG_RPORT("incoming PLOGI from %6x wwpn %llx state INIT "
-			       "- reject\n", sid, wwpn);
+			       "- reject\n", sid, (unsigned long long)wwpn);
 		reject = ELS_RJT_UNSUP;
 		break;
 	case RPORT_ST_PLOGI:

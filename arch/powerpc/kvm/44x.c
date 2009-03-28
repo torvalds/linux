@@ -28,72 +28,6 @@
 
 #include "44x_tlb.h"
 
-/* Note: clearing MSR[DE] just means that the debug interrupt will not be
- * delivered *immediately*. Instead, it simply sets the appropriate DBSR bits.
- * If those DBSR bits are still set when MSR[DE] is re-enabled, the interrupt
- * will be delivered as an "imprecise debug event" (which is indicated by
- * DBSR[IDE].
- */
-static void kvm44x_disable_debug_interrupts(void)
-{
-	mtmsr(mfmsr() & ~MSR_DE);
-}
-
-void kvmppc_core_load_host_debugstate(struct kvm_vcpu *vcpu)
-{
-	kvm44x_disable_debug_interrupts();
-
-	mtspr(SPRN_IAC1, vcpu->arch.host_iac[0]);
-	mtspr(SPRN_IAC2, vcpu->arch.host_iac[1]);
-	mtspr(SPRN_IAC3, vcpu->arch.host_iac[2]);
-	mtspr(SPRN_IAC4, vcpu->arch.host_iac[3]);
-	mtspr(SPRN_DBCR1, vcpu->arch.host_dbcr1);
-	mtspr(SPRN_DBCR2, vcpu->arch.host_dbcr2);
-	mtspr(SPRN_DBCR0, vcpu->arch.host_dbcr0);
-	mtmsr(vcpu->arch.host_msr);
-}
-
-void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
-{
-	struct kvm_guest_debug *dbg = &vcpu->guest_debug;
-	u32 dbcr0 = 0;
-
-	vcpu->arch.host_msr = mfmsr();
-	kvm44x_disable_debug_interrupts();
-
-	/* Save host debug register state. */
-	vcpu->arch.host_iac[0] = mfspr(SPRN_IAC1);
-	vcpu->arch.host_iac[1] = mfspr(SPRN_IAC2);
-	vcpu->arch.host_iac[2] = mfspr(SPRN_IAC3);
-	vcpu->arch.host_iac[3] = mfspr(SPRN_IAC4);
-	vcpu->arch.host_dbcr0 = mfspr(SPRN_DBCR0);
-	vcpu->arch.host_dbcr1 = mfspr(SPRN_DBCR1);
-	vcpu->arch.host_dbcr2 = mfspr(SPRN_DBCR2);
-
-	/* set registers up for guest */
-
-	if (dbg->bp[0]) {
-		mtspr(SPRN_IAC1, dbg->bp[0]);
-		dbcr0 |= DBCR0_IAC1 | DBCR0_IDM;
-	}
-	if (dbg->bp[1]) {
-		mtspr(SPRN_IAC2, dbg->bp[1]);
-		dbcr0 |= DBCR0_IAC2 | DBCR0_IDM;
-	}
-	if (dbg->bp[2]) {
-		mtspr(SPRN_IAC3, dbg->bp[2]);
-		dbcr0 |= DBCR0_IAC3 | DBCR0_IDM;
-	}
-	if (dbg->bp[3]) {
-		mtspr(SPRN_IAC4, dbg->bp[3]);
-		dbcr0 |= DBCR0_IAC4 | DBCR0_IDM;
-	}
-
-	mtspr(SPRN_DBCR0, dbcr0);
-	mtspr(SPRN_DBCR1, 0);
-	mtspr(SPRN_DBCR2, 0);
-}
-
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	kvmppc_44x_tlb_load(vcpu);
@@ -149,8 +83,6 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
                                struct kvm_translation *tr)
 {
-	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
-	struct kvmppc_44x_tlbe *gtlbe;
 	int index;
 	gva_t eaddr;
 	u8 pid;
@@ -166,9 +98,7 @@ int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
 		return 0;
 	}
 
-	gtlbe = &vcpu_44x->guest_tlb[index];
-
-	tr->physical_address = tlb_xlate(gtlbe, eaddr);
+	tr->physical_address = kvmppc_mmu_xlate(vcpu, index, eaddr);
 	/* XXX what does "writeable" and "usermode" even mean? */
 	tr->valid = 1;
 

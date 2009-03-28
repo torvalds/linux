@@ -1007,6 +1007,13 @@ static int stir_net_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 	return ret;
 }
 
+static const struct net_device_ops stir_netdev_ops = {
+	.ndo_open       = stir_net_open,
+	.ndo_stop       = stir_net_close,
+	.ndo_start_xmit = stir_hard_xmit,
+	.ndo_do_ioctl   = stir_net_ioctl,
+};
+
 /*
  * This routine is called by the USB subsystem for each new device
  * in the system. We need to check if the device is ours, and in
@@ -1054,10 +1061,7 @@ static int stir_probe(struct usb_interface *intf,
 	irda_qos_bits_to_value(&stir->qos);
 
 	/* Override the network functions we need to use */
-	net->hard_start_xmit = stir_hard_xmit;
-	net->open            = stir_net_open;
-	net->stop            = stir_net_close;
-	net->do_ioctl        = stir_net_ioctl;
+	net->netdev_ops = &stir_netdev_ops;
 
 	ret = register_netdev(net);
 	if (ret != 0)

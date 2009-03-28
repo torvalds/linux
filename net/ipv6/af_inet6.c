@@ -276,11 +276,26 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	/* Check if the address belongs to the host. */
 	if (addr_type == IPV6_ADDR_MAPPED) {
-		v4addr = addr->sin6_addr.s6_addr32[3];
-		if (inet_addr_type(net, v4addr) != RTN_LOCAL) {
-			err = -EADDRNOTAVAIL;
+		int chk_addr_ret;
+
+		/* Binding to v4-mapped address on a v6-only socket
+		 * makes no sense
+		 */
+		if (np->ipv6only) {
+			err = -EINVAL;
 			goto out;
 		}
+
+		/* Reproduce AF_INET checks to make the bindings consitant */
+		v4addr = addr->sin6_addr.s6_addr32[3];
+		chk_addr_ret = inet_addr_type(net, v4addr);
+		if (!sysctl_ip_nonlocal_bind &&
+		    !(inet->freebind || inet->transparent) &&
+		    v4addr != htonl(INADDR_ANY) &&
+		    chk_addr_ret != RTN_LOCAL &&
+		    chk_addr_ret != RTN_MULTICAST &&
+		    chk_addr_ret != RTN_BROADCAST)
+			goto out;
 	} else {
 		if (addr_type != IPV6_ADDR_ANY) {
 			struct net_device *dev = NULL;
@@ -339,8 +354,11 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out;
 	}
 
-	if (addr_type != IPV6_ADDR_ANY)
+	if (addr_type != IPV6_ADDR_ANY) {
 		sk->sk_userlocks |= SOCK_BINDADDR_LOCK;
+		if (addr_type != IPV6_ADDR_MAPPED)
+			np->ipv6only = 1;
+	}
 	if (snum)
 		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;
 	inet->sport = htons(inet->num);
@@ -803,24 +821,34 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 	int proto;
 	__wsum csum;
 
-	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
+	iph = skb_gro_header(skb, sizeof(*iph));
+	if (unlikely(!iph))
 		goto out;
 
-	iph = ipv6_hdr(skb);
-	__skb_pull(skb, sizeof(*iph));
+	skb_gro_pull(skb, sizeof(*iph));
+	skb_set_transport_header(skb, skb_gro_offset(skb));
 
-	flush += ntohs(iph->payload_len) != skb->len;
+	flush += ntohs(iph->payload_len) != skb_gro_len(skb);
 
 	rcu_read_lock();
-	proto = ipv6_gso_pull_exthdrs(skb, iph->nexthdr);
-	iph = ipv6_hdr(skb);
-	IPV6_GRO_CB(skb)->proto = proto;
+	proto = iph->nexthdr;
 	ops = rcu_dereference(inet6_protos[proto]);
-	if (!ops || !ops->gro_receive)
-		goto out_unlock;
+	if (!ops || !ops->gro_receive) {
+		__pskb_pull(skb, skb_gro_offset(skb));
+		proto = ipv6_gso_pull_exthdrs(skb, proto);
+		skb_gro_pull(skb, -skb_transport_offset(skb));
+		skb_reset_transport_header(skb);
+		__skb_push(skb, skb_gro_offset(skb));
+
+		if (!ops || !ops->gro_receive)
+			goto out_unlock;
+
+		iph = ipv6_hdr(skb);
+	}
+
+	IPV6_GRO_CB(skb)->proto = proto;
 
 	flush--;
-	skb_reset_transport_header(skb);
 	nlen = skb_network_header_len(skb);
 
 	for (p = *head; p; p = p->next) {
@@ -883,8 +911,8 @@ out_unlock:
 	return err;
 }
 
-static struct packet_type ipv6_packet_type = {
-	.type = __constant_htons(ETH_P_IPV6),
+static struct packet_type ipv6_packet_type __read_mostly = {
+	.type = cpu_to_be16(ETH_P_IPV6),
 	.func = ipv6_rcv,
 	.gso_send_check = ipv6_gso_send_check,
 	.gso_segment = ipv6_gso_segment,

@@ -133,6 +133,13 @@ static int fcoe_sw_lport_config(struct fc_lport *lp)
 	/* lport fc_lport related configuration */
 	fc_lport_config(lp);
 
+	/* offload related configuration */
+	lp->crc_offload = 0;
+	lp->seq_offload = 0;
+	lp->lro_enabled = 0;
+	lp->lro_xid = 0;
+	lp->lso_max = 0;
+
 	return 0;
 }
 
@@ -186,7 +193,27 @@ static int fcoe_sw_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	if (fc->real_dev->features & NETIF_F_SG)
 		lp->sg_supp = 1;
 
-
+#ifdef NETIF_F_FCOE_CRC
+	if (netdev->features & NETIF_F_FCOE_CRC) {
+		lp->crc_offload = 1;
+		printk(KERN_DEBUG "fcoe:%s supports FCCRC offload\n",
+		       netdev->name);
+	}
+#endif
+#ifdef NETIF_F_FSO
+	if (netdev->features & NETIF_F_FSO) {
+		lp->seq_offload = 1;
+		lp->lso_max = netdev->gso_max_size;
+		printk(KERN_DEBUG "fcoe:%s supports LSO for max len 0x%x\n",
+		       netdev->name, lp->lso_max);
+	}
+#endif
+	if (netdev->fcoe_ddp_xid) {
+		lp->lro_enabled = 1;
+		lp->lro_xid = netdev->fcoe_ddp_xid;
+		printk(KERN_DEBUG "fcoe:%s supports LRO for max xid 0x%x\n",
+		       netdev->name, lp->lro_xid);
+	}
 	skb_queue_head_init(&fc->fcoe_pending_queue);
 	fc->fcoe_pending_queue_active = 0;
 
@@ -346,8 +373,46 @@ static int fcoe_sw_destroy(struct net_device *netdev)
 	return 0;
 }
 
+/*
+ * fcoe_sw_ddp_setup - calls LLD's ddp_setup through net_device
+ * @lp:	the corresponding fc_lport
+ * @xid: the exchange id for this ddp transfer
+ * @sgl: the scatterlist describing this transfer
+ * @sgc: number of sg items
+ *
+ * Returns : 0 no ddp
+ */
+static int fcoe_sw_ddp_setup(struct fc_lport *lp, u16 xid,
+			     struct scatterlist *sgl, unsigned int sgc)
+{
+	struct net_device *n = fcoe_netdev(lp);
+
+	if (n->netdev_ops && n->netdev_ops->ndo_fcoe_ddp_setup)
+		return n->netdev_ops->ndo_fcoe_ddp_setup(n, xid, sgl, sgc);
+
+	return 0;
+}
+
+/*
+ * fcoe_sw_ddp_done - calls LLD's ddp_done through net_device
+ * @lp:	the corresponding fc_lport
+ * @xid: the exchange id for this ddp transfer
+ *
+ * Returns : the length of data that have been completed by ddp
+ */
+static int fcoe_sw_ddp_done(struct fc_lport *lp, u16 xid)
+{
+	struct net_device *n = fcoe_netdev(lp);
+
+	if (n->netdev_ops && n->netdev_ops->ndo_fcoe_ddp_done)
+		return n->netdev_ops->ndo_fcoe_ddp_done(n, xid);
+	return 0;
+}
+
 static struct libfc_function_template fcoe_sw_libfc_fcn_templ = {
 	.frame_send = fcoe_xmit,
+	.ddp_setup = fcoe_sw_ddp_setup,
+	.ddp_done = fcoe_sw_ddp_done,
 };
 
 /**

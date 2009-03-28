@@ -30,10 +30,8 @@
 #include <asm/kvm_ppc.h>
 #include "timing.h"
 #include <asm/cacheflush.h>
-#include <asm/kvm_44x.h>
 
 #include "booke.h"
-#include "44x_tlb.h"
 
 unsigned long kvmppc_booke_handlers;
 
@@ -120,6 +118,9 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	case BOOKE_IRQPRIO_DATA_STORAGE:
 	case BOOKE_IRQPRIO_INST_STORAGE:
 	case BOOKE_IRQPRIO_FP_UNAVAIL:
+	case BOOKE_IRQPRIO_SPE_UNAVAIL:
+	case BOOKE_IRQPRIO_SPE_FP_DATA:
+	case BOOKE_IRQPRIO_SPE_FP_ROUND:
 	case BOOKE_IRQPRIO_AP_UNAVAIL:
 	case BOOKE_IRQPRIO_ALIGNMENT:
 		allowed = 1;
@@ -165,7 +166,7 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 	unsigned int priority;
 
 	priority = __ffs(*pending);
-	while (priority <= BOOKE_MAX_INTERRUPT) {
+	while (priority <= BOOKE_IRQPRIO_MAX) {
 		if (kvmppc_booke_irqprio_deliver(vcpu, priority))
 			break;
 
@@ -263,6 +264,21 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 
+	case BOOKE_INTERRUPT_SPE_UNAVAIL:
+		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SPE_UNAVAIL);
+		r = RESUME_GUEST;
+		break;
+
+	case BOOKE_INTERRUPT_SPE_FP_DATA:
+		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SPE_FP_DATA);
+		r = RESUME_GUEST;
+		break;
+
+	case BOOKE_INTERRUPT_SPE_FP_ROUND:
+		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SPE_FP_ROUND);
+		r = RESUME_GUEST;
+		break;
+
 	case BOOKE_INTERRUPT_DATA_STORAGE:
 		vcpu->arch.dear = vcpu->arch.fault_dear;
 		vcpu->arch.esr = vcpu->arch.fault_esr;
@@ -284,29 +300,27 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 
-	/* XXX move to a 440-specific file. */
 	case BOOKE_INTERRUPT_DTLB_MISS: {
-		struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
-		struct kvmppc_44x_tlbe *gtlbe;
 		unsigned long eaddr = vcpu->arch.fault_dear;
 		int gtlb_index;
+		gpa_t gpaddr;
 		gfn_t gfn;
 
 		/* Check the guest TLB. */
-		gtlb_index = kvmppc_44x_dtlb_index(vcpu, eaddr);
+		gtlb_index = kvmppc_mmu_dtlb_index(vcpu, eaddr);
 		if (gtlb_index < 0) {
 			/* The guest didn't have a mapping for it. */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DTLB_MISS);
 			vcpu->arch.dear = vcpu->arch.fault_dear;
 			vcpu->arch.esr = vcpu->arch.fault_esr;
+			kvmppc_mmu_dtlb_miss(vcpu);
 			kvmppc_account_exit(vcpu, DTLB_REAL_MISS_EXITS);
 			r = RESUME_GUEST;
 			break;
 		}
 
-		gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
-		vcpu->arch.paddr_accessed = tlb_xlate(gtlbe, eaddr);
-		gfn = vcpu->arch.paddr_accessed >> PAGE_SHIFT;
+		gpaddr = kvmppc_mmu_xlate(vcpu, gtlb_index, eaddr);
+		gfn = gpaddr >> PAGE_SHIFT;
 
 		if (kvm_is_visible_gfn(vcpu->kvm, gfn)) {
 			/* The guest TLB had a mapping, but the shadow TLB
@@ -315,13 +329,13 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * b) the guest used a large mapping which we're faking
 			 * Either way, we need to satisfy the fault without
 			 * invoking the guest. */
-			kvmppc_mmu_map(vcpu, eaddr, vcpu->arch.paddr_accessed, gtlbe->tid,
-			               gtlbe->word2, get_tlb_bytes(gtlbe), gtlb_index);
+			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlb_index);
 			kvmppc_account_exit(vcpu, DTLB_VIRT_MISS_EXITS);
 			r = RESUME_GUEST;
 		} else {
 			/* Guest has mapped and accessed a page which is not
 			 * actually RAM. */
+			vcpu->arch.paddr_accessed = gpaddr;
 			r = kvmppc_emulate_mmio(run, vcpu);
 			kvmppc_account_exit(vcpu, MMIO_EXITS);
 		}
@@ -329,10 +343,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	}
 
-	/* XXX move to a 440-specific file. */
 	case BOOKE_INTERRUPT_ITLB_MISS: {
-		struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
-		struct kvmppc_44x_tlbe *gtlbe;
 		unsigned long eaddr = vcpu->arch.pc;
 		gpa_t gpaddr;
 		gfn_t gfn;
@@ -341,18 +352,18 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 
 		/* Check the guest TLB. */
-		gtlb_index = kvmppc_44x_itlb_index(vcpu, eaddr);
+		gtlb_index = kvmppc_mmu_itlb_index(vcpu, eaddr);
 		if (gtlb_index < 0) {
 			/* The guest didn't have a mapping for it. */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ITLB_MISS);
+			kvmppc_mmu_itlb_miss(vcpu);
 			kvmppc_account_exit(vcpu, ITLB_REAL_MISS_EXITS);
 			break;
 		}
 
 		kvmppc_account_exit(vcpu, ITLB_VIRT_MISS_EXITS);
 
-		gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
-		gpaddr = tlb_xlate(gtlbe, eaddr);
+		gpaddr = kvmppc_mmu_xlate(vcpu, gtlb_index, eaddr);
 		gfn = gpaddr >> PAGE_SHIFT;
 
 		if (kvm_is_visible_gfn(vcpu->kvm, gfn)) {
@@ -362,8 +373,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * b) the guest used a large mapping which we're faking
 			 * Either way, we need to satisfy the fault without
 			 * invoking the guest. */
-			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlbe->tid,
-			               gtlbe->word2, get_tlb_bytes(gtlbe), gtlb_index);
+			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlb_index);
 		} else {
 			/* Guest mapped and leaped at non-RAM! */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_MACHINE_CHECK);

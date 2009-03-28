@@ -47,6 +47,7 @@ config USB_ARCH_HAS_OHCI
 	default y if CPU_SUBTYPE_SH7720
 	default y if CPU_SUBTYPE_SH7721
 	default y if CPU_SUBTYPE_SH7763
+	default y if CPU_SUBTYPE_SH7786
 	# more:
 	default PCI
 

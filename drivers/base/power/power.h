@@ -18,11 +18,19 @@ static inline struct device *to_device(struct list_head *entry)
 
 extern void device_pm_add(struct device *);
 extern void device_pm_remove(struct device *);
+extern void device_pm_move_before(struct device *, struct device *);
+extern void device_pm_move_after(struct device *, struct device *);
+extern void device_pm_move_last(struct device *);
 
 #else /* CONFIG_PM_SLEEP */
 
 static inline void device_pm_add(struct device *dev) {}
 static inline void device_pm_remove(struct device *dev) {}
+static inline void device_pm_move_before(struct device *deva,
+					 struct device *devb) {}
+static inline void device_pm_move_after(struct device *deva,
+					struct device *devb) {}
+static inline void device_pm_move_last(struct device *dev) {}
 
 #endif
 

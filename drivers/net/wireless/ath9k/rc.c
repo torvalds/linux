@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004 Video54 Technologies, Inc.
- * Copyright (c) 2004-2008 Atheros Communications, Inc.
+ * Copyright (c) 2004-2009 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,16 +15,15 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "core.h"
+#include "ath9k.h"
 
 static struct ath_rate_table ar5416_11na_ratetable = {
 	42,
-	{0},
 	{
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 6000, /* 6 Mb */
 			5400, 0x0b, 0x00, 12,
 			0, 2, 1, 0, 0, 0, 0, 0 },
-		{ VALID,	VALID, WLAN_RC_PHY_OFDM, 9000, /* 9 Mb */
+		{ VALID, VALID, WLAN_RC_PHY_OFDM, 9000, /* 9 Mb */
 			7800,  0x0f, 0x00, 18,
 			0, 3, 1, 1, 1, 1, 1, 0 },
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 12000, /* 12 Mb */
@@ -158,7 +157,6 @@ static struct ath_rate_table ar5416_11na_ratetable = {
 
 static struct ath_rate_table ar5416_11ng_ratetable = {
 	46,
-	{0},
 	{
 		{ VALID_ALL, VALID_ALL, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
 			900, 0x1b, 0x00, 2,
@@ -306,7 +304,6 @@ static struct ath_rate_table ar5416_11ng_ratetable = {
 
 static struct ath_rate_table ar5416_11a_ratetable = {
 	8,
-	{0},
 	{
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 6000, /* 6 Mb */
 			5400, 0x0b, 0x00, (0x80|12),
@@ -340,7 +337,6 @@ static struct ath_rate_table ar5416_11a_ratetable = {
 
 static struct ath_rate_table ar5416_11g_ratetable = {
 	12,
-	{0},
 	{
 		{ VALID, VALID, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
 			900, 0x1b, 0x00, 2,
@@ -386,7 +382,6 @@ static struct ath_rate_table ar5416_11g_ratetable = {
 
 static struct ath_rate_table ar5416_11b_ratetable = {
 	4,
-	{0},
 	{
 		{ VALID, VALID, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
 			900, 0x1b,  0x00, (0x80|2),
@@ -636,8 +631,7 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv,
 static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
 			     struct ath_rate_table *rate_table,
-			     int probe_allowed, int *is_probing,
-			     int is_retry)
+			     int *is_probing)
 {
 	u32 dt, best_thruput, this_thruput, now_msec;
 	u8 rate, next_rate, best_rate, maxindex, minindex;
@@ -719,13 +713,6 @@ static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 	}
 
 	rate = best_rate;
-
-	/* if we are retrying for more than half the number
-	 * of max retries, use the min rate for the next retry
-	 */
-	if (is_retry)
-		rate = ath_rc_priv->valid_rate_index[minindex];
-
 	ath_rc_priv->rssi_last_lookup = rssi_last;
 
 	/*
@@ -733,13 +720,12 @@ static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 	 * non-monoticity of 11g's rate table
 	 */
 
-	if (rate >= ath_rc_priv->rate_max_phy && probe_allowed) {
+	if (rate >= ath_rc_priv->rate_max_phy) {
 		rate = ath_rc_priv->rate_max_phy;
 
 		/* Probe the next allowed phy state */
-		/* FIXME:XXXX Check to make sure ratMax is checked properly */
 		if (ath_rc_get_nextvalid_txrate(rate_table,
-						ath_rc_priv, rate, &next_rate) &&
+					ath_rc_priv, rate, &next_rate) &&
 		    (now_msec - ath_rc_priv->probe_time >
 		     rate_table->probe_interval) &&
 		    (ath_rc_priv->hw_maxretry_pktcnt >= 1)) {
@@ -761,14 +747,17 @@ static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 	return rate;
 }
 
-static void ath_rc_rate_set_series(struct ath_rate_table *rate_table ,
+static void ath_rc_rate_set_series(struct ath_rate_table *rate_table,
 				   struct ieee80211_tx_rate *rate,
+				   struct ieee80211_tx_rate_control *txrc,
 				   u8 tries, u8 rix, int rtsctsenable)
 {
 	rate->count = tries;
 	rate->idx = rix;
 
-	if (rtsctsenable)
+	if (txrc->short_preamble)
+		rate->flags |= IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
+	if (txrc->rts || rtsctsenable)
 		rate->flags |= IEEE80211_TX_RC_USE_RTS_CTS;
 	if (WLAN_RC_PHY_40(rate_table->info[rix].phy))
 		rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
@@ -776,6 +765,43 @@ static void ath_rc_rate_set_series(struct ath_rate_table *rate_table ,
 		rate->flags |= IEEE80211_TX_RC_SHORT_GI;
 	if (WLAN_RC_PHY_HT(rate_table->info[rix].phy))
 		rate->flags |= IEEE80211_TX_RC_MCS;
+}
+
+static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
+				   struct ath_rate_table *rate_table,
+				   struct ieee80211_tx_info *tx_info)
+{
+	struct ieee80211_tx_rate *rates = tx_info->control.rates;
+	int i = 0, rix = 0, cix, enable_g_protection = 0;
+
+	/* get the cix for the lowest valid rix */
+	for (i = 3; i >= 0; i--) {
+		if (rates[i].count && (rates[i].idx >= 0)) {
+			rix = rates[i].idx;
+			break;
+		}
+	}
+	cix = rate_table->info[rix].ctrl_rate;
+
+	/* All protection frames are transmited at 2Mb/s for 802.11g,
+	 * otherwise we transmit them at 1Mb/s */
+	if (sc->hw->conf.channel->band == IEEE80211_BAND_2GHZ &&
+	    !conf_is_ht(&sc->hw->conf))
+		enable_g_protection = 1;
+
+	/*
+	 * If 802.11g protection is enabled, determine whether to use RTS/CTS or
+	 * just CTS.  Note that this is only done for OFDM/HT unicast frames.
+	 */
+	if ((sc->sc_flags & SC_OP_PROTECT_ENABLE) &&
+	    !(tx_info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+	    (rate_table->info[rix].phy == WLAN_RC_PHY_OFDM ||
+	     WLAN_RC_PHY_HT(rate_table->info[rix].phy))) {
+		rates[0].flags |= IEEE80211_TX_RC_USE_CTS_PROTECT;
+		cix = rate_table->info[enable_g_protection].ctrl_rate;
+	}
+
+	tx_info->control.rts_cts_rate_idx = cix;
 }
 
 static u8 ath_rc_rate_getidx(struct ath_softc *sc,
@@ -809,54 +835,58 @@ static u8 ath_rc_rate_getidx(struct ath_softc *sc,
 
 static void ath_rc_ratefind(struct ath_softc *sc,
 			    struct ath_rate_priv *ath_rc_priv,
-			    int num_tries, int num_rates,
-			    struct ieee80211_tx_info *tx_info, int *is_probe,
-			    int is_retry)
+			    struct ieee80211_tx_rate_control *txrc)
 {
-	u8 try_per_rate = 0, i = 0, rix, nrix;
 	struct ath_rate_table *rate_table;
+	struct sk_buff *skb = txrc->skb;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rates = tx_info->control.rates;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	__le16 fc = hdr->frame_control;
+	u8 try_per_rate = 0, i = 0, rix, nrix;
+	int is_probe = 0;
 
 	rate_table = sc->cur_rate_table;
-	rix = ath_rc_ratefind_ht(sc, ath_rc_priv, rate_table, 1,
-				 is_probe, is_retry);
+	rix = ath_rc_ratefind_ht(sc, ath_rc_priv, rate_table, &is_probe);
 	nrix = rix;
 
-	if (*is_probe) {
+	if (is_probe) {
 		/* set one try for probe rates. For the
 		 * probes don't enable rts */
-		ath_rc_rate_set_series(rate_table,
-			&rates[i++], 1, nrix, 0);
+		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
+				       1, nrix, 0);
 
-		try_per_rate = (num_tries/num_rates);
+		try_per_rate = (ATH_11N_TXMAXTRY/4);
 		/* Get the next tried/allowed rate. No RTS for the next series
 		 * after the probe rate
 		 */
-		nrix = ath_rc_rate_getidx(sc,
-			ath_rc_priv, rate_table, nrix, 1, 0);
-		ath_rc_rate_set_series(rate_table,
-			&rates[i++], try_per_rate, nrix, 0);
+		nrix = ath_rc_rate_getidx(sc, ath_rc_priv,
+					  rate_table, nrix, 1, 0);
+		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
+				       try_per_rate, nrix, 0);
+
+		tx_info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 	} else {
-		try_per_rate = (num_tries/num_rates);
+		try_per_rate = (ATH_11N_TXMAXTRY/4);
 		/* Set the choosen rate. No RTS for first series entry. */
-		ath_rc_rate_set_series(rate_table,
-			&rates[i++], try_per_rate, nrix, 0);
+		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
+				       try_per_rate, nrix, 0);
 	}
 
 	/* Fill in the other rates for multirate retry */
-	for ( ; i < num_rates; i++) {
+	for ( ; i < 4; i++) {
 		u8 try_num;
 		u8 min_rate;
 
-		try_num = ((i + 1) == num_rates) ?
-			num_tries - (try_per_rate * i) : try_per_rate ;
-		min_rate = (((i + 1) == num_rates) && 0);
+		try_num = ((i + 1) == 4) ?
+			ATH_11N_TXMAXTRY - (try_per_rate * i) : try_per_rate ;
+		min_rate = (((i + 1) == 4) && 0);
 
 		nrix = ath_rc_rate_getidx(sc, ath_rc_priv,
 					  rate_table, nrix, 1, min_rate);
 		/* All other rates in the series have RTS enabled */
-		ath_rc_rate_set_series(rate_table,
-				       &rates[i], try_num, nrix, 1);
+		ath_rc_rate_set_series(rate_table, &rates[i], txrc,
+				       try_num, nrix, 1);
 	}
 
 	/*
@@ -875,7 +905,7 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 	 * above conditions.
 	 */
 	if ((sc->hw->conf.channel->band == IEEE80211_BAND_2GHZ) &&
-	    (sc->hw->conf.ht.enabled)) {
+	    (conf_is_ht(&sc->hw->conf))) {
 		u8 dot11rate = rate_table->info[rix].dot11rate;
 		u8 phy = rate_table->info[rix].phy;
 		if (i == 4 &&
@@ -885,6 +915,24 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 			rates[3].flags = rates[2].flags;
 		}
 	}
+
+	/*
+	 * Force hardware to use computed duration for next
+	 * fragment by disabling multi-rate retry, which
+	 * updates duration based on the multi-rate duration table.
+	 *
+	 * FIXME: Fix duration
+	 */
+	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+	    (ieee80211_has_morefrags(fc) ||
+	     (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG))) {
+		rates[1].count = rates[2].count = rates[3].count = 0;
+		rates[1].idx = rates[2].idx = rates[3].idx = 0;
+		rates[0].count = ATH_TXMAXTRY;
+	}
+
+	/* Setup RTS/CTS */
+	ath_rc_rate_set_rtscts(sc, rate_table, tx_info);
 }
 
 static bool ath_rc_update_per(struct ath_softc *sc,
@@ -1221,6 +1269,9 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 		ath_rc_priv->per_down_time = now_msec;
 	}
 
+	ath_debug_stat_retries(sc, tx_rate, xretries, retries,
+			       ath_rc_priv->state[tx_rate].per);
+
 #undef CHK_RSSI
 }
 
@@ -1338,34 +1389,16 @@ static struct ath_rate_table *ath_choose_rate_table(struct ath_softc *sc,
 static void ath_rc_init(struct ath_softc *sc,
 			struct ath_rate_priv *ath_rc_priv,
 			struct ieee80211_supported_band *sband,
-			struct ieee80211_sta *sta)
+			struct ieee80211_sta *sta,
+			struct ath_rate_table *rate_table)
 {
-	struct ath_rate_table *rate_table = NULL;
 	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
 	u8 *ht_mcs = (u8 *)&ath_rc_priv->neg_ht_rates;
 	u8 i, j, k, hi = 0, hthi = 0;
 
-	/* FIXME: Adhoc */
-	if ((sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION) ||
-	    (sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC)) {
-		bool is_cw_40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-		rate_table = ath_choose_rate_table(sc, sband->band,
-						   sta->ht_cap.ht_supported,
-						   is_cw_40);
-	} else if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP) {
-		/* cur_rate_table would be set on init through config() */
-		rate_table = sc->cur_rate_table;
-	}
-
 	if (!rate_table) {
 		DPRINTF(sc, ATH_DBG_FATAL, "Rate table not initialized\n");
 		return;
-	}
-
-	if (sta->ht_cap.ht_supported) {
-		ath_rc_priv->ht_cap = (WLAN_RC_HT_FLAG | WLAN_RC_DS_FLAG);
-		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
-			ath_rc_priv->ht_cap |= WLAN_RC_40_FLAG;
 	}
 
 	/* Initial rate table size. Will change depending
@@ -1387,7 +1420,7 @@ static void ath_rc_init(struct ath_softc *sc,
 			ath_rc_priv->valid_phy_rateidx[i][j] = 0;
 		ath_rc_priv->valid_phy_ratecnt[i] = 0;
 	}
-	ath_rc_priv->rc_phy_mode = (ath_rc_priv->ht_cap & WLAN_RC_40_FLAG);
+	ath_rc_priv->rc_phy_mode = ath_rc_priv->ht_cap & WLAN_RC_40_FLAG;
 
 	/* Set stream capability */
 	ath_rc_priv->single_stream = (ath_rc_priv->ht_cap & WLAN_RC_DS_FLAG) ? 0 : 1;
@@ -1395,16 +1428,16 @@ static void ath_rc_init(struct ath_softc *sc,
 	if (!rateset->rs_nrates) {
 		/* No working rate, just initialize valid rates */
 		hi = ath_rc_init_validrates(ath_rc_priv, rate_table,
-						ath_rc_priv->ht_cap);
+					    ath_rc_priv->ht_cap);
 	} else {
 		/* Use intersection of working rates and valid rates */
 		hi = ath_rc_setvalid_rates(ath_rc_priv, rate_table,
-					       rateset, ath_rc_priv->ht_cap);
+					   rateset, ath_rc_priv->ht_cap);
 		if (ath_rc_priv->ht_cap & WLAN_RC_HT_FLAG) {
 			hthi = ath_rc_setvalid_htrates(ath_rc_priv,
-							   rate_table,
-							   ht_mcs,
-							   ath_rc_priv->ht_cap);
+						       rate_table,
+						       ht_mcs,
+						       ath_rc_priv->ht_cap);
 		}
 		hi = A_MAX(hi, hthi);
 	}
@@ -1432,9 +1465,36 @@ static void ath_rc_init(struct ath_softc *sc,
 	ath_rc_sort_validrates(rate_table, ath_rc_priv);
 	ath_rc_priv->rate_max_phy = ath_rc_priv->valid_rate_index[k-4];
 	sc->cur_rate_table = rate_table;
+
+	DPRINTF(sc, ATH_DBG_CONFIG, "RC Initialized with capabilities: 0x%x\n",
+		ath_rc_priv->ht_cap);
 }
 
-/* Rate Control callbacks */
+static u8 ath_rc_build_ht_caps(struct ath_softc *sc, struct ieee80211_sta *sta,
+			       bool is_cw40, bool is_sgi40)
+{
+	u8 caps = 0;
+
+	if (sta->ht_cap.ht_supported) {
+		caps = WLAN_RC_HT_FLAG;
+		if (sc->sc_ah->caps.tx_chainmask != 1 &&
+		    ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_DS, 0, NULL)) {
+			if (sta->ht_cap.mcs.rx_mask[1])
+				caps |= WLAN_RC_DS_FLAG;
+		}
+		if (is_cw40)
+			caps |= WLAN_RC_40_FLAG;
+		if (is_sgi40)
+			caps |= WLAN_RC_SGI_FLAG;
+	}
+
+	return caps;
+}
+
+/***********************************/
+/* mac80211 Rate Control callbacks */
+/***********************************/
+
 static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 			  struct ieee80211_sta *sta, void *priv_sta,
 			  struct sk_buff *skb)
@@ -1467,7 +1527,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	 */
 	if (tx_info_priv->tx.ts_flags &
 	    (ATH9K_TX_DATA_UNDERRUN | ATH9K_TX_DELIM_UNDERRUN) &&
-	    ((sc->sc_ah->ah_txTrigLevel) >= ath_rc_priv->tx_triglevel_max)) {
+	    ((sc->sc_ah->tx_trig_level) >= ath_rc_priv->tx_triglevel_max)) {
 		tx_status = 1;
 		is_underrun = 1;
 	}
@@ -1480,6 +1540,23 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 			 (is_underrun) ? ATH_11N_TXMAXTRY :
 			 tx_info_priv->tx.ts_longretry);
 
+	/* Check if aggregation has to be enabled for this tid */
+	if (conf_is_ht(&sc->hw->conf) &&
+	    !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
+		if (ieee80211_is_data_qos(fc)) {
+			u8 *qc, tid;
+			struct ath_node *an;
+
+			qc = ieee80211_get_qos_ctl(hdr);
+			tid = qc[0] & 0xf;
+			an = (struct ath_node *)sta->drv_priv;
+
+			if(ath_tx_aggr_check(sc, an, tid))
+				ieee80211_start_tx_ba_session(sc->hw, hdr->addr1, tid);
+		}
+	}
+
+	ath_debug_stat_rc(sc, skb);
 exit:
 	kfree(tx_info_priv);
 }
@@ -1490,11 +1567,9 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	struct ieee80211_supported_band *sband = txrc->sband;
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ath_softc *sc = priv;
-	struct ieee80211_hw *hw = sc->hw;
-	struct ath_rate_priv *ath_rc_priv = priv_sta;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	int is_probe = 0;
+	struct ath_softc *sc = priv;
+	struct ath_rate_priv *ath_rc_priv = priv_sta;
 	__le16 fc = hdr->frame_control;
 
 	/* lowest rate for management and multicast/broadcast frames */
@@ -1507,23 +1582,7 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	}
 
 	/* Find tx rate for unicast frames */
-	ath_rc_ratefind(sc, ath_rc_priv, ATH_11N_TXMAXTRY, 4,
-			tx_info, &is_probe, false);
-
-	/* Check if aggregation has to be enabled for this tid */
-	if (hw->conf.ht.enabled) {
-		if (ieee80211_is_data_qos(fc)) {
-			u8 *qc, tid;
-			struct ath_node *an;
-
-			qc = ieee80211_get_qos_ctl(hdr);
-			tid = qc[0] & 0xf;
-			an = (struct ath_node *)sta->drv_priv;
-
-			if(ath_tx_aggr_check(sc, an, tid))
-				ieee80211_start_tx_ba_session(hw, hdr->addr1, tid);
-		}
-	}
+	ath_rc_ratefind(sc, ath_rc_priv, txrc);
 }
 
 static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
@@ -1531,6 +1590,8 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 {
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
+	struct ath_rate_table *rate_table = NULL;
+	bool is_cw40, is_sgi40;
 	int i, j = 0;
 
 	for (i = 0; i < sband->n_bitrates; i++) {
@@ -1552,12 +1613,71 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 		ath_rc_priv->neg_ht_rates.rs_nrates = j;
 	}
 
-	ath_rc_init(sc, priv_sta, sband, sta);
+	is_cw40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+	is_sgi40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40;
+
+	/* Choose rate table first */
+
+	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) ||
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT) ||
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)) {
+		rate_table = ath_choose_rate_table(sc, sband->band,
+						   sta->ht_cap.ht_supported,
+						   is_cw40);
+	} else if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
+		/* cur_rate_table would be set on init through config() */
+		rate_table = sc->cur_rate_table;
+	}
+
+	ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc, sta, is_cw40, is_sgi40);
+	ath_rc_init(sc, priv_sta, sband, sta, rate_table);
+}
+
+static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
+			    struct ieee80211_sta *sta, void *priv_sta,
+			    u32 changed)
+{
+	struct ath_softc *sc = priv;
+	struct ath_rate_priv *ath_rc_priv = priv_sta;
+	struct ath_rate_table *rate_table = NULL;
+	bool oper_cw40 = false, oper_sgi40;
+	bool local_cw40 = (ath_rc_priv->ht_cap & WLAN_RC_40_FLAG) ?
+		true : false;
+	bool local_sgi40 = (ath_rc_priv->ht_cap & WLAN_RC_SGI_FLAG) ?
+		true : false;
+
+	/* FIXME: Handle AP mode later when we support CWM */
+
+	if (changed & IEEE80211_RC_HT_CHANGED) {
+		if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
+			return;
+
+		if (sc->hw->conf.channel_type == NL80211_CHAN_HT40MINUS ||
+		    sc->hw->conf.channel_type == NL80211_CHAN_HT40PLUS)
+			oper_cw40 = true;
+
+		oper_sgi40 = (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40) ?
+			true : false;
+
+		if ((local_cw40 != oper_cw40) || (local_sgi40 != oper_sgi40)) {
+			rate_table = ath_choose_rate_table(sc, sband->band,
+						   sta->ht_cap.ht_supported,
+						   oper_cw40);
+			ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc, sta,
+						   oper_cw40, oper_sgi40);
+			ath_rc_init(sc, priv_sta, sband, sta, rate_table);
+
+			DPRINTF(sc, ATH_DBG_CONFIG,
+				"Operating HT Bandwidth changed to: %d\n",
+				sc->hw->conf.channel_type);
+		}
+	}
 }
 
 static void *ath_rate_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
-	return hw->priv;
+	struct ath_wiphy *aphy = hw->priv;
+	return aphy->sc;
 }
 
 static void ath_rate_free(void *priv)
@@ -1578,7 +1698,7 @@ static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp
 	}
 
 	rate_priv->rssi_down_time = jiffies_to_msecs(jiffies);
-	rate_priv->tx_triglevel_max = sc->sc_ah->ah_caps.tx_triglevel_max;
+	rate_priv->tx_triglevel_max = sc->sc_ah->caps.tx_triglevel_max;
 
 	return rate_priv;
 }
@@ -1596,40 +1716,12 @@ static struct rate_control_ops ath_rate_ops = {
 	.tx_status = ath_tx_status,
 	.get_rate = ath_get_rate,
 	.rate_init = ath_rate_init,
+	.rate_update = ath_rate_update,
 	.alloc = ath_rate_alloc,
 	.free = ath_rate_free,
 	.alloc_sta = ath_rate_alloc_sta,
 	.free_sta = ath_rate_free_sta,
 };
-
-static void ath_setup_rate_table(struct ath_softc *sc,
-				 struct ath_rate_table *rate_table)
-{
-	int i;
-
-	for (i = 0; i < 256; i++)
-		rate_table->rateCodeToIndex[i] = (u8)-1;
-
-	for (i = 0; i < rate_table->rate_cnt; i++) {
-		u8 code = rate_table->info[i].ratecode;
-		u8 cix = rate_table->info[i].ctrl_rate;
-		u8 sh = rate_table->info[i].short_preamble;
-
-		rate_table->rateCodeToIndex[code] = i;
-		rate_table->rateCodeToIndex[code | sh] = i;
-
-		rate_table->info[i].lpAckDuration =
-			ath9k_hw_computetxtime(sc->sc_ah, rate_table,
-					       WLAN_CTRL_FRAME_SIZE,
-					       cix,
-					       false);
-		rate_table->info[i].spAckDuration =
-			ath9k_hw_computetxtime(sc->sc_ah, rate_table,
-					       WLAN_CTRL_FRAME_SIZE,
-					       cix,
-					       true);
-	}
-}
 
 void ath_rate_attach(struct ath_softc *sc)
 {
@@ -1651,12 +1743,6 @@ void ath_rate_attach(struct ath_softc *sc)
 		&ar5416_11ng_ratetable;
 	sc->hw_rate_table[ATH9K_MODE_11NG_HT40MINUS] =
 		&ar5416_11ng_ratetable;
-
-	ath_setup_rate_table(sc, &ar5416_11b_ratetable);
-	ath_setup_rate_table(sc, &ar5416_11a_ratetable);
-	ath_setup_rate_table(sc, &ar5416_11g_ratetable);
-	ath_setup_rate_table(sc, &ar5416_11na_ratetable);
-	ath_setup_rate_table(sc, &ar5416_11ng_ratetable);
 }
 
 int ath_rate_control_register(void)

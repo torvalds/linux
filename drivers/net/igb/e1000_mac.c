@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007 Intel Corporation.
+  Copyright(c) 2007-2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -36,19 +36,6 @@
 
 static s32 igb_set_default_fc(struct e1000_hw *hw);
 static s32 igb_set_fc_watermarks(struct e1000_hw *hw);
-
-/**
- *  igb_remove_device - Free device specific structure
- *  @hw: pointer to the HW structure
- *
- *  If a device specific structure was allocated, this function will
- *  free it.
- **/
-void igb_remove_device(struct e1000_hw *hw)
-{
-	/* Freeing the dev_spec member of e1000_hw structure */
-	kfree(hw->dev_spec);
-}
 
 static s32 igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
 {
@@ -131,6 +118,37 @@ void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 }
 
 /**
+ *  igb_vfta_set - enable or disable vlan in VLAN filter table
+ *  @hw: pointer to the HW structure
+ *  @vid: VLAN id to add or remove
+ *  @add: if true add filter, if false remove
+ *
+ *  Sets or clears a bit in the VLAN filter table array based on VLAN id
+ *  and if we are adding or removing the filter
+ **/
+s32 igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add)
+{
+	u32 index = (vid >> E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK;
+	u32 mask = 1 << (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
+	u32 vfta = array_rd32(E1000_VFTA, index);
+	s32 ret_val = 0;
+
+	/* bit was set/cleared before we started */
+	if ((!!(vfta & mask)) == add) {
+		ret_val = -E1000_ERR_CONFIG;
+	} else {
+		if (add)
+			vfta |= mask;
+		else
+			vfta &= ~mask;
+	}
+
+	igb_write_vfta(hw, index, vfta);
+
+	return ret_val;
+}
+
+/**
  *  igb_check_alt_mac_addr - Check for alternate MAC addr
  *  @hw: pointer to the HW structure
  *
@@ -148,7 +166,7 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 	u16 offset, nvm_alt_mac_addr_offset, nvm_data;
 	u8 alt_mac_addr[ETH_ALEN];
 
-	ret_val = hw->nvm.ops.read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
+	ret_val = hw->nvm.ops.read(hw, NVM_ALT_MAC_ADDR_PTR, 1,
 				 &nvm_alt_mac_addr_offset);
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");
@@ -165,7 +183,7 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 
 	for (i = 0; i < ETH_ALEN; i += 2) {
 		offset = nvm_alt_mac_addr_offset + (i >> 1);
-		ret_val = hw->nvm.ops.read_nvm(hw, offset, 1, &nvm_data);
+		ret_val = hw->nvm.ops.read(hw, offset, 1, &nvm_data);
 		if (ret_val) {
 			hw_dbg("NVM Read Error\n");
 			goto out;
@@ -213,7 +231,8 @@ void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 
 	rar_high = ((u32) addr[4] | ((u32) addr[5] << 8));
 
-	if (!hw->mac.disable_av)
+	/* If MAC address zero, no need to set the AV bit */
+	if (rar_low || rar_high)
 		rar_high |= E1000_RAH_AV;
 
 	wr32(E1000_RAL(index), rar_low);
@@ -588,8 +607,7 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
-	ret_val = hw->nvm.ops.read_nvm(hw, NVM_INIT_CONTROL2_REG, 1,
-				       &nvm_data);
+	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG, 1, &nvm_data);
 
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");
@@ -720,11 +738,11 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		 * has completed.  We read this twice because this reg has
 		 * some "sticky" (latched) bits.
 		 */
-		ret_val = hw->phy.ops.read_phy_reg(hw, PHY_STATUS,
+		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS,
 						   &mii_status_reg);
 		if (ret_val)
 			goto out;
-		ret_val = hw->phy.ops.read_phy_reg(hw, PHY_STATUS,
+		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS,
 						   &mii_status_reg);
 		if (ret_val)
 			goto out;
@@ -742,11 +760,11 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		 * Page Ability Register (Address 5) to determine how
 		 * flow control was negotiated.
 		 */
-		ret_val = hw->phy.ops.read_phy_reg(hw, PHY_AUTONEG_ADV,
+		ret_val = hw->phy.ops.read_reg(hw, PHY_AUTONEG_ADV,
 					    &mii_nway_adv_reg);
 		if (ret_val)
 			goto out;
-		ret_val = hw->phy.ops.read_phy_reg(hw, PHY_LP_ABILITY,
+		ret_val = hw->phy.ops.read_reg(hw, PHY_LP_ABILITY,
 					    &mii_nway_lp_ability_reg);
 		if (ret_val)
 			goto out;
@@ -1041,7 +1059,7 @@ static s32 igb_valid_led_default(struct e1000_hw *hw, u16 *data)
 {
 	s32 ret_val;
 
-	ret_val = hw->nvm.ops.read_nvm(hw, NVM_ID_LED_SETTINGS, 1, data);
+	ret_val = hw->nvm.ops.read(hw, NVM_ID_LED_SETTINGS, 1, data);
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");
 		goto out;

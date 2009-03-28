@@ -3,7 +3,7 @@
  *	Based on drivers/usb/iforce.c
  *
  *	Copyright Yaegashi Takeshi, 2001
- *	Adrian McMenamin, 2008
+ *	Adrian McMenamin, 2008 - 2009
  */
 
 #include <linux/kernel.h>
@@ -29,7 +29,7 @@ static void dc_pad_callback(struct mapleq *mq)
 	struct maple_device *mapledev = mq->dev;
 	struct dc_pad *pad = maple_get_drvdata(mapledev);
 	struct input_dev *dev = pad->dev;
-	unsigned char *res = mq->recvbuf;
+	unsigned char *res = mq->recvbuf->buf;
 
 	buttons = ~le16_to_cpup((__le16 *)(res + 8));
 

@@ -403,6 +403,20 @@ static int elmc_getinfo(char *buf, int slot, void *d)
 	return len;
 }				/* elmc_getinfo() */
 
+static const struct net_device_ops netdev_ops = {
+	.ndo_open 		= elmc_open,
+	.ndo_stop		= elmc_close,
+	.ndo_get_stats		= elmc_get_stats,
+	.ndo_start_xmit		= elmc_send_packet,
+	.ndo_tx_timeout		= elmc_timeout,
+#ifdef ELMC_MULTICAST
+	.ndo_set_multicast_list = set_multicast_list,
+#endif
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /*****************************************************************/
 
 static int __init do_elmc_probe(struct net_device *dev)
@@ -544,17 +558,8 @@ static int __init do_elmc_probe(struct net_device *dev)
 	printk(KERN_INFO "%s: hardware address %pM\n",
 	       dev->name, dev->dev_addr);
 
-	dev->open = &elmc_open;
-	dev->stop = &elmc_close;
-	dev->get_stats = &elmc_get_stats;
-	dev->hard_start_xmit = &elmc_send_packet;
-	dev->tx_timeout = &elmc_timeout;
+	dev->netdev_ops = &netdev_ops;
 	dev->watchdog_timeo = HZ;
-#ifdef ELMC_MULTICAST
-	dev->set_multicast_list = &set_multicast_list;
-#else
-	dev->set_multicast_list = NULL;
-#endif
 	dev->ethtool_ops = &netdev_ethtool_ops;
 
 	/* note that we haven't actually requested the IRQ from the kernel.

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -125,9 +125,10 @@ EXPORT_SYMBOL(iwl_rx_queue_space);
  */
 int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 {
-	u32 reg = 0;
-	int ret = 0;
 	unsigned long flags;
+	u32 rx_wrt_ptr_reg = priv->hw_params.rx_wrt_ptr_reg;
+	u32 reg;
+	int ret = 0;
 
 	spin_lock_irqsave(&q->lock, flags);
 
@@ -149,15 +150,14 @@ int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 			goto exit_unlock;
 
 		/* Device expects a multiple of 8 */
-		iwl_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
-				     q->write & ~0x7);
+		iwl_write_direct32(priv, rx_wrt_ptr_reg, q->write & ~0x7);
 		iwl_release_nic_access(priv);
 
 	/* Else device is assumed to be awake */
-	} else
+	} else {
 		/* Device expects a multiple of 8 */
-		iwl_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write & ~0x7);
-
+		iwl_write32(priv, rx_wrt_ptr_reg, q->write & ~0x7);
+	}
 
 	q->need_update = 0;
 
@@ -262,8 +262,7 @@ void iwl_rx_allocate(struct iwl_priv *priv)
 		rxb->skb = alloc_skb(priv->hw_params.rx_buf_size + 256,
 				     GFP_KERNEL);
 		if (!rxb->skb) {
-			printk(KERN_CRIT DRV_NAME
-				   "Can not allocate SKB buffers\n");
+			IWL_CRIT(priv, "Can not allocate SKB buffers\n");
 			/* We don't reschedule replenish work here -- we will
 			 * call the restock method and if it still needs
 			 * more buffers it will schedule replenish */
@@ -495,7 +494,7 @@ void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 
 	missed_beacon = &pkt->u.missed_beacon;
 	if (le32_to_cpu(missed_beacon->consequtive_missed_beacons) > 5) {
-		IWL_DEBUG_CALIB("missed bcn cnsq %d totl %d rcd %d expctd %d\n",
+		IWL_DEBUG_CALIB(priv, "missed bcn cnsq %d totl %d rcd %d expctd %d\n",
 		    le32_to_cpu(missed_beacon->consequtive_missed_beacons),
 		    le32_to_cpu(missed_beacon->total_missed_becons),
 		    le32_to_cpu(missed_beacon->num_recvd_beacons),
@@ -542,7 +541,7 @@ static void iwl_rx_calc_noise(struct iwl_priv *priv)
 	else
 		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
 
-	IWL_DEBUG_CALIB("inband silence a %u, b %u, c %u, dBm %d\n",
+	IWL_DEBUG_CALIB(priv, "inband silence a %u, b %u, c %u, dBm %d\n",
 			bcn_silence_a, bcn_silence_b, bcn_silence_c,
 			priv->last_rx_noise);
 }
@@ -555,7 +554,7 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 	int change;
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 
-	IWL_DEBUG_RX("Statistics notification received (%d vs %d).\n",
+	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(priv->statistics), pkt->len);
 
 	change = ((priv->statistics.general.temperature !=
@@ -742,13 +741,13 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 		 * MAC addresses show just the last byte (for brevity),
 		 *    but you can hack it to show more, if you'd like to. */
 		if (dataframe)
-			IWL_DEBUG_RX("%s: mhd=0x%04x, dst=0x%02x, "
+			IWL_DEBUG_RX(priv, "%s: mhd=0x%04x, dst=0x%02x, "
 				     "len=%u, rssi=%d, chnl=%d, rate=%u, \n",
 				     title, le16_to_cpu(fc), header->addr1[5],
 				     length, rssi, channel, bitrate);
 		else {
 			/* src/dst addresses assume managed mode */
-			IWL_DEBUG_RX("%s: 0x%04x, dst=0x%02x, src=0x%02x, "
+			IWL_DEBUG_RX(priv, "%s: 0x%04x, dst=0x%02x, src=0x%02x, "
 				     "len=%u, rssi=%d, tim=%lu usec, "
 				     "phy=0x%02x, chnl=%d\n",
 				     title, le16_to_cpu(fc), header->addr1[5],
@@ -773,10 +772,10 @@ static void iwl_update_rx_stats(struct iwl_priv *priv, u16 fc, u16 len)
 /*
  * returns non-zero if packet should be dropped
  */
-static int iwl_set_decrypted_flag(struct iwl_priv *priv,
-				      struct ieee80211_hdr *hdr,
-				      u32 decrypt_res,
-				      struct ieee80211_rx_status *stats)
+int iwl_set_decrypted_flag(struct iwl_priv *priv,
+			   struct ieee80211_hdr *hdr,
+			   u32 decrypt_res,
+			   struct ieee80211_rx_status *stats)
 {
 	u16 fc = le16_to_cpu(hdr->frame_control);
 
@@ -786,7 +785,7 @@ static int iwl_set_decrypted_flag(struct iwl_priv *priv,
 	if (!(fc & IEEE80211_FCTL_PROTECTED))
 		return 0;
 
-	IWL_DEBUG_RX("decrypt_res:0x%x\n", decrypt_res);
+	IWL_DEBUG_RX(priv, "decrypt_res:0x%x\n", decrypt_res);
 	switch (decrypt_res & RX_RES_STATUS_SEC_TYPE_MSK) {
 	case RX_RES_STATUS_SEC_TYPE_TKIP:
 		/* The uCode has got a bad phase 1 Key, pushes the packet.
@@ -800,13 +799,13 @@ static int iwl_set_decrypted_flag(struct iwl_priv *priv,
 		    RX_RES_STATUS_BAD_ICV_MIC) {
 			/* bad ICV, the packet is destroyed since the
 			 * decryption is inplace, drop it */
-			IWL_DEBUG_RX("Packet destroyed\n");
+			IWL_DEBUG_RX(priv, "Packet destroyed\n");
 			return -1;
 		}
 	case RX_RES_STATUS_SEC_TYPE_CCMP:
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_DECRYPT_OK) {
-			IWL_DEBUG_RX("hw decrypt successfully!!!\n");
+			IWL_DEBUG_RX(priv, "hw decrypt successfully!!!\n");
 			stats->flag |= RX_FLAG_DECRYPTED;
 		}
 		break;
@@ -816,6 +815,7 @@ static int iwl_set_decrypted_flag(struct iwl_priv *priv,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(iwl_set_decrypted_flag);
 
 static u32 iwl_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
 {
@@ -870,7 +870,7 @@ static u32 iwl_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
 		break;
 	};
 
-	IWL_DEBUG_RX("decrypt_in:0x%x  decrypt_out = 0x%x\n",
+	IWL_DEBUG_RX(priv, "decrypt_in:0x%x  decrypt_out = 0x%x\n",
 					decrypt_in, decrypt_out);
 
 	return decrypt_out;
@@ -895,7 +895,7 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 		rx_start = (struct iwl_rx_phy_res *)&priv->last_phy_res[1];
 
 	if (!rx_start) {
-		IWL_ERROR("MPDU frame without a PHY data\n");
+		IWL_ERR(priv, "MPDU frame without a PHY data\n");
 		return;
 	}
 	if (include_phy) {
@@ -934,8 +934,8 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 
 	/* We only process data packets if the interface is open */
 	if (unlikely(!priv->is_open)) {
-		IWL_DEBUG_DROP_LIMIT
-		    ("Dropping packet while interface is not open.\n");
+		IWL_DEBUG_DROP_LIMIT(priv,
+		    "Dropping packet while interface is not open.\n");
 		return;
 	}
 
@@ -1007,7 +1007,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	/*rx_status.flag |= RX_FLAG_TSFT;*/
 
 	if ((unlikely(rx_start->cfg_phy_cnt > 20))) {
-		IWL_DEBUG_DROP("dsp size out of range [0,20]: %d/n",
+		IWL_DEBUG_DROP(priv, "dsp size out of range [0,20]: %d/n",
 				rx_start->cfg_phy_cnt);
 		return;
 	}
@@ -1021,7 +1021,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	}
 
 	if (!rx_start) {
-		IWL_ERROR("MPDU frame without a PHY data\n");
+		IWL_ERR(priv, "MPDU frame without a PHY data\n");
 		return;
 	}
 
@@ -1045,7 +1045,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 
 	if (!(*rx_end & RX_RES_STATUS_NO_CRC32_ERROR) ||
 	    !(*rx_end & RX_RES_STATUS_NO_RXE_OVERFLOW)) {
-		IWL_DEBUG_RX("Bad CRC or FIFO: 0x%08X.\n",
+		IWL_DEBUG_RX(priv, "Bad CRC or FIFO: 0x%08X.\n",
 				le32_to_cpu(*rx_end));
 		return;
 	}
@@ -1078,7 +1078,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	if (unlikely(priv->debug_level & IWL_DL_RX))
 		iwl_dbg_report_frame(priv, rx_start, len, header, 1);
 #endif
-	IWL_DEBUG_STATS_LIMIT("Rssi %d, noise %d, qual %d, TSF %llu\n",
+	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, noise %d, qual %d, TSF %llu\n",
 		rx_status.signal, rx_status.noise, rx_status.signal,
 		(unsigned long long)rx_status.mactime);
 

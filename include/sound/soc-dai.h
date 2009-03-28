@@ -203,7 +203,7 @@ struct snd_soc_dai {
 	int (*resume)(struct snd_soc_dai *dai);
 
 	/* ops */
-	struct snd_soc_dai_ops ops;
+	struct snd_soc_dai_ops *ops;
 
 	/* DAI capabilities */
 	struct snd_soc_pcm_stream capture;

@@ -1,15 +1,17 @@
 #ifndef _XT_TCPUDP_H
 #define _XT_TCPUDP_H
 
+#include <linux/types.h>
+
 /* TCP matching stuff */
 struct xt_tcp
 {
-	u_int16_t spts[2];			/* Source port range. */
-	u_int16_t dpts[2];			/* Destination port range. */
-	u_int8_t option;			/* TCP Option iff non-zero*/
-	u_int8_t flg_mask;			/* TCP flags mask byte */
-	u_int8_t flg_cmp;			/* TCP flags compare byte */
-	u_int8_t invflags;			/* Inverse flags */
+	__u16 spts[2];			/* Source port range. */
+	__u16 dpts[2];			/* Destination port range. */
+	__u8 option;			/* TCP Option iff non-zero*/
+	__u8 flg_mask;			/* TCP flags mask byte */
+	__u8 flg_cmp;			/* TCP flags compare byte */
+	__u8 invflags;			/* Inverse flags */
 };
 
 /* Values for "inv" field in struct ipt_tcp. */
@@ -22,9 +24,9 @@ struct xt_tcp
 /* UDP matching stuff */
 struct xt_udp
 {
-	u_int16_t spts[2];			/* Source port range. */
-	u_int16_t dpts[2];			/* Destination port range. */
-	u_int8_t invflags;			/* Inverse flags */
+	__u16 spts[2];			/* Source port range. */
+	__u16 dpts[2];			/* Destination port range. */
+	__u8 invflags;			/* Inverse flags */
 };
 
 /* Values for "invflags" field in struct ipt_udp. */

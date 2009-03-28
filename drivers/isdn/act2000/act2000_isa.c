@@ -257,9 +257,9 @@ act2000_isa_receive(act2000_card *card)
 					printk(KERN_WARNING
 					       "act2000_isa_receive: Invalid CAPI msg\n");
 					{
-						int i; __u8 *p; __u8 *c; __u8 tmp[30];
-						for (i = 0, p = (__u8 *)&card->idat.isa.rcvhdr, c = tmp; i < 8; i++)
-							c += sprintf(c, "%02x ", *(p++));
+						int i; __u8 *p; __u8 *t; __u8 tmp[30];
+						for (i = 0, p = (__u8 *)&card->idat.isa.rcvhdr, t = tmp; i < 8; i++)
+							t += sprintf(t, "%02x ", *(p++));
 						printk(KERN_WARNING "act2000_isa_receive: %s\n", tmp);
 					}
 				}

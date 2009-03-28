@@ -196,7 +196,7 @@ static inline int ddp_alloc_gl_skb(struct cxgb3i_ddp_info *ddp, int idx,
 }
 
 /**
- * cxgb3i_ddp_find_page_index - return ddp page index for a given page size.
+ * cxgb3i_ddp_find_page_index - return ddp page index for a given page size
  * @pgsz: page size
  * return the ddp page index, if no match is found return DDP_PGIDX_MAX.
  */
@@ -355,8 +355,7 @@ EXPORT_SYMBOL_GPL(cxgb3i_ddp_release_gl);
  * @tdev: t3cdev adapter
  * @tid: connection id
  * @tformat: tag format
- * @tagp: the s/w tag, if ddp setup is successful, it will be updated with
- *	  ddp/hw tag
+ * @tagp: contains s/w tag initially, will be updated with ddp/hw tag
  * @gl: the page momory list
  * @gfp: allocation mode
  *

@@ -9,6 +9,7 @@
 #define MCP_TYPE_ETH 0x45544820	/* "ETH " */
 #define MCP_TYPE_MCP0 0x4d435030	/* "MCP0" */
 #define MCP_TYPE_DFLT 0x20202020	/* "    " */
+#define MCP_TYPE_ETHZ 0x4554485a	/* "ETHZ" */
 
 struct mcp_gen_header {
 	/* the first 4 fields are filled at compile time */
@@ -43,7 +44,15 @@ struct mcp_gen_header {
 	unsigned msix_table_addr;	/* start address of msix table in firmware */
 	unsigned bss_addr;	/* start of bss */
 	unsigned features;
+	unsigned ee_hdr_addr;
 	/* 8 */
+};
+
+struct zmcp_info {
+	unsigned info_len;
+	unsigned zmcp_addr;
+	unsigned zmcp_len;
+	unsigned mcp_edata;
 };
 
 #endif				/* __MYRI10GE_MCP_GEN_HEADER_H__ */

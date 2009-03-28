@@ -302,9 +302,6 @@ void probe_cards(int unsafe);
 /* video-vesa.c */
 void vesa_store_edid(void);
 
-/* voyager.c */
-int query_voyager(void);
-
 #endif /* __ASSEMBLY__ */
 
 #endif /* BOOT_BOOT_H */

@@ -275,8 +275,6 @@ static inline int can_respond(struct sk_buff *skb)
 		return 0;
 
 	ph = pn_hdr(skb);
-	if (phonet_address_get(skb->dev, ph->pn_rdev) != ph->pn_rdev)
-		return 0; /* we are not the destination */
 	if (ph->pn_res == PN_PREFIX && !pskb_may_pull(skb, 5))
 		return 0;
 	if (ph->pn_res == PN_COMMGR) /* indications */
@@ -344,8 +342,8 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 			struct packet_type *pkttype,
 			struct net_device *orig_dev)
 {
+	struct net *net = dev_net(dev);
 	struct phonethdr *ph;
-	struct sock *sk;
 	struct sockaddr_pn sa;
 	u16 len;
 
@@ -364,29 +362,28 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb_reset_transport_header(skb);
 
 	pn_skb_get_dst_sockaddr(skb, &sa);
-	if (pn_sockaddr_get_addr(&sa) == 0)
-		goto out; /* currently, we cannot be device 0 */
 
-	sk = pn_find_sock_by_sa(dev_net(dev), &sa);
-	if (sk == NULL) {
+	/* check if we are the destination */
+	if (phonet_address_lookup(net, pn_sockaddr_get_addr(&sa)) == 0) {
+		/* Phonet packet input */
+		struct sock *sk = pn_find_sock_by_sa(net, &sa);
+
+		if (sk)
+			return sk_receive_skb(sk, skb, 0);
+
 		if (can_respond(skb)) {
 			send_obj_unreachable(skb);
 			send_reset_indications(skb);
 		}
-		goto out;
 	}
-
-	/* Push data to the socket (or other sockets connected to it). */
-	return sk_receive_skb(sk, skb, 0);
 
 out:
 	kfree_skb(skb);
 	return NET_RX_DROP;
 }
 
-static struct packet_type phonet_packet_type = {
-	.type = __constant_htons(ETH_P_PHONET),
-	.dev = NULL,
+static struct packet_type phonet_packet_type __read_mostly = {
+	.type = cpu_to_be16(ETH_P_PHONET),
 	.func = phonet_rcv,
 };
 
@@ -428,16 +425,18 @@ static int __init phonet_init(void)
 {
 	int err;
 
+	err = phonet_device_init();
+	if (err)
+		return err;
+
 	err = sock_register(&phonet_proto_family);
 	if (err) {
 		printk(KERN_ALERT
 			"phonet protocol family initialization failed\n");
-		return err;
+		goto err_sock;
 	}
 
-	phonet_device_init();
 	dev_add_pack(&phonet_packet_type);
-	phonet_netlink_register();
 	phonet_sysctl_init();
 
 	err = isi_register();
@@ -449,6 +448,7 @@ err:
 	phonet_sysctl_exit();
 	sock_unregister(PF_PHONET);
 	dev_remove_pack(&phonet_packet_type);
+err_sock:
 	phonet_device_exit();
 	return err;
 }

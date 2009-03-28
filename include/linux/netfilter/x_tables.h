@@ -1,6 +1,8 @@
 #ifndef _X_TABLES_H
 #define _X_TABLES_H
 
+#include <linux/types.h>
+
 #define XT_FUNCTION_MAXNAMELEN 30
 #define XT_TABLE_MAXNAMELEN 32
 
@@ -8,22 +10,22 @@ struct xt_entry_match
 {
 	union {
 		struct {
-			u_int16_t match_size;
+			__u16 match_size;
 
 			/* Used by userspace */
 			char name[XT_FUNCTION_MAXNAMELEN-1];
 
-			u_int8_t revision;
+			__u8 revision;
 		} user;
 		struct {
-			u_int16_t match_size;
+			__u16 match_size;
 
 			/* Used inside the kernel */
 			struct xt_match *match;
 		} kernel;
 
 		/* Total length */
-		u_int16_t match_size;
+		__u16 match_size;
 	} u;
 
 	unsigned char data[0];
@@ -33,22 +35,22 @@ struct xt_entry_target
 {
 	union {
 		struct {
-			u_int16_t target_size;
+			__u16 target_size;
 
 			/* Used by userspace */
 			char name[XT_FUNCTION_MAXNAMELEN-1];
 
-			u_int8_t revision;
+			__u8 revision;
 		} user;
 		struct {
-			u_int16_t target_size;
+			__u16 target_size;
 
 			/* Used inside the kernel */
 			struct xt_target *target;
 		} kernel;
 
 		/* Total length */
-		u_int16_t target_size;
+		__u16 target_size;
 	} u;
 
 	unsigned char data[0];
@@ -74,7 +76,7 @@ struct xt_get_revision
 {
 	char name[XT_FUNCTION_MAXNAMELEN-1];
 
-	u_int8_t revision;
+	__u8 revision;
 };
 
 /* CONTINUE verdict for targets */
@@ -90,10 +92,10 @@ struct xt_get_revision
  */
 struct _xt_align
 {
-	u_int8_t u8;
-	u_int16_t u16;
-	u_int32_t u32;
-	u_int64_t u64;
+	__u8 u8;
+	__u16 u16;
+	__u32 u32;
+	__u64 u64;
 };
 
 #define XT_ALIGN(s) (((s) + (__alignof__(struct _xt_align)-1)) 	\
@@ -109,7 +111,7 @@ struct _xt_align
 
 struct xt_counters
 {
-	u_int64_t pcnt, bcnt;			/* Packet and byte counters */
+	__u64 pcnt, bcnt;			/* Packet and byte counters */
 };
 
 /* The argument to IPT_SO_ADD_COUNTERS. */
@@ -349,23 +351,22 @@ struct xt_table
 {
 	struct list_head list;
 
-	/* A unique name... */
-	const char name[XT_TABLE_MAXNAMELEN];
-
 	/* What hooks you will enter on */
 	unsigned int valid_hooks;
 
 	/* Lock for the curtain */
-	rwlock_t lock;
+	struct mutex lock;
 
 	/* Man behind the curtain... */
-	//struct ip6t_table_info *private;
-	void *private;
+	struct xt_table_info *private;
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
 	u_int8_t af;		/* address/protocol family */
+
+	/* A unique name... */
+	const char name[XT_TABLE_MAXNAMELEN];
 };
 
 #include <linux/netfilter_ipv4.h>
@@ -386,7 +387,7 @@ struct xt_table_info
 
 	/* ipt_entry tables: one per CPU */
 	/* Note : this field MUST be the last one, see XT_TABLE_INFO_SZ */
-	char *entries[1];
+	void *entries[1];
 };
 
 #define XT_TABLE_INFO_SZ (offsetof(struct xt_table_info, entries) \
@@ -433,6 +434,31 @@ extern void xt_proto_fini(struct net *net, u_int8_t af);
 
 extern struct xt_table_info *xt_alloc_table_info(unsigned int size);
 extern void xt_free_table_info(struct xt_table_info *info);
+extern void xt_table_entry_swap_rcu(struct xt_table_info *old,
+				    struct xt_table_info *new);
+
+/*
+ * This helper is performance critical and must be inlined
+ */
+static inline unsigned long ifname_compare_aligned(const char *_a,
+						   const char *_b,
+						   const char *_mask)
+{
+	const unsigned long *a = (const unsigned long *)_a;
+	const unsigned long *b = (const unsigned long *)_b;
+	const unsigned long *mask = (const unsigned long *)_mask;
+	unsigned long ret;
+
+	ret = (a[0] ^ b[0]) & mask[0];
+	if (IFNAMSIZ > sizeof(unsigned long))
+		ret |= (a[1] ^ b[1]) & mask[1];
+	if (IFNAMSIZ > 2 * sizeof(unsigned long))
+		ret |= (a[2] ^ b[2]) & mask[2];
+	if (IFNAMSIZ > 3 * sizeof(unsigned long))
+		ret |= (a[3] ^ b[3]) & mask[3];
+	BUILD_BUG_ON(IFNAMSIZ > 4 * sizeof(unsigned long));
+	return ret;
+}
 
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>

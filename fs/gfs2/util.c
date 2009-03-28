@@ -13,7 +13,6 @@
 #include <linux/buffer_head.h>
 #include <linux/crc32.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
@@ -35,6 +34,8 @@ void gfs2_assert_i(struct gfs2_sbd *sdp)
 
 int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
 {
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	const struct lm_lockops *lm = ls->ls_ops;
 	va_list args;
 
 	if (test_and_set_bit(SDF_SHUTDOWN, &sdp->sd_flags))
@@ -47,8 +48,12 @@ int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
 	fs_err(sdp, "about to withdraw this file system\n");
 	BUG_ON(sdp->sd_args.ar_debug);
 
-	fs_err(sdp, "telling LM to withdraw\n");
-	gfs2_withdraw_lockproto(&sdp->sd_lockstruct);
+	kobject_uevent(&sdp->sd_kobj, KOBJ_OFFLINE);
+
+	if (lm->lm_unmount) {
+		fs_err(sdp, "telling LM to unmount\n");
+		lm->lm_unmount(sdp);
+	}
 	fs_err(sdp, "withdrawn\n");
 	dump_stack();
 

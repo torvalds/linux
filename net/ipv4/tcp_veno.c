@@ -159,12 +159,7 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 				/* In the "non-congestive state", increase cwnd
 				 *  every rtt.
 				 */
-				if (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
-					if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-						tp->snd_cwnd++;
-					tp->snd_cwnd_cnt = 0;
-				} else
-					tp->snd_cwnd_cnt++;
+				tcp_cong_avoid_ai(tp, tp->snd_cwnd);
 			} else {
 				/* In the "congestive state", increase cwnd
 				 * every other rtt.

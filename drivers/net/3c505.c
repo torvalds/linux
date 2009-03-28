@@ -1354,6 +1354,17 @@ static int __init elp_autodetect(struct net_device *dev)
 	return 0;		/* Because of this, the layer above will return -ENODEV */
 }
 
+static const struct net_device_ops elp_netdev_ops = {
+	.ndo_open		= elp_open,
+	.ndo_stop		= elp_close,
+	.ndo_get_stats 		= elp_get_stats,
+	.ndo_start_xmit		= elp_start_xmit,
+	.ndo_tx_timeout 	= elp_timeout,
+	.ndo_set_multicast_list = elp_set_mc_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 /******************************************************
  *
@@ -1558,13 +1569,8 @@ static int __init elplus_setup(struct net_device *dev)
 		printk(KERN_ERR "%s: adapter configuration failed\n", dev->name);
 	}
 
-	dev->open = elp_open;				/* local */
-	dev->stop = elp_close;				/* local */
-	dev->get_stats = elp_get_stats;			/* local */
-	dev->hard_start_xmit = elp_start_xmit;		/* local */
-	dev->tx_timeout = elp_timeout;			/* local */
+	dev->netdev_ops = &elp_netdev_ops;
 	dev->watchdog_timeo = 10*HZ;
-	dev->set_multicast_list = elp_set_mc_list;	/* local */
 	dev->ethtool_ops = &netdev_ethtool_ops;		/* local */
 
 	dev->mem_start = dev->mem_end = 0;

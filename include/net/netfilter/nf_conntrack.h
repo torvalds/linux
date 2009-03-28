@@ -91,8 +91,7 @@ struct nf_conn_help {
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 
-struct nf_conn
-{
+struct nf_conn {
 	/* Usage count in here is 1 for hash table/destruct timer, 1 per skb,
            plus 1 for any connection(s) we are `master' for */
 	struct nf_conntrack ct_general;
@@ -126,7 +125,6 @@ struct nf_conn
 #ifdef CONFIG_NET_NS
 	struct net *ct_net;
 #endif
-	struct rcu_head rcu;
 };
 
 static inline struct nf_conn *
@@ -190,9 +188,13 @@ static inline void nf_ct_put(struct nf_conn *ct)
 extern int nf_ct_l3proto_try_module_get(unsigned short l3proto);
 extern void nf_ct_l3proto_module_put(unsigned short l3proto);
 
-extern struct hlist_head *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced);
-extern void nf_ct_free_hashtable(struct hlist_head *hash, int vmalloced,
-				 unsigned int size);
+/*
+ * Allocate a hashtable of hlist_head (if nulls == 0),
+ * or hlist_nulls_head (if nulls == 1)
+ */
+extern void *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced, int nulls);
+
+extern void nf_ct_free_hashtable(void *hash, int vmalloced, unsigned int size);
 
 extern struct nf_conntrack_tuple_hash *
 __nf_conntrack_find(struct net *net, const struct nf_conntrack_tuple *tuple);
@@ -287,7 +289,7 @@ static inline int nf_ct_is_untracked(const struct sk_buff *skb)
 
 extern int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;
-extern int nf_conntrack_max;
+extern unsigned int nf_conntrack_max;
 
 #define NF_CT_STAT_INC(net, count)	\
 	(per_cpu_ptr((net)->ct.stat, raw_smp_processor_id())->count++)

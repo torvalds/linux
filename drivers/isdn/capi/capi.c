@@ -277,7 +277,7 @@ static void capiminor_free(struct capiminor *mp)
 	list_del(&mp->list);
 	write_unlock_irqrestore(&capiminor_list_lock, flags);
 
-	if (mp->ttyskb) kfree_skb(mp->ttyskb);
+	kfree_skb(mp->ttyskb);
 	mp->ttyskb = NULL;
 	skb_queue_purge(&mp->inqueue);
 	skb_queue_purge(&mp->outqueue);

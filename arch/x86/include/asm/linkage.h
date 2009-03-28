@@ -52,70 +52,14 @@
 
 #endif
 
+#define GLOBAL(name)	\
+	.globl name;	\
+	name:
+
 #ifdef CONFIG_X86_ALIGNMENT_16
 #define __ALIGN .align 16,0x90
 #define __ALIGN_STR ".align 16,0x90"
 #endif
-
-/*
- * to check ENTRY_X86/END_X86 and
- * KPROBE_ENTRY_X86/KPROBE_END_X86
- * unbalanced-missed-mixed appearance
- */
-#define __set_entry_x86		.set ENTRY_X86_IN, 0
-#define __unset_entry_x86	.set ENTRY_X86_IN, 1
-#define __set_kprobe_x86	.set KPROBE_X86_IN, 0
-#define __unset_kprobe_x86	.set KPROBE_X86_IN, 1
-
-#define __macro_err_x86 .error "ENTRY_X86/KPROBE_X86 unbalanced,missed,mixed"
-
-#define __check_entry_x86	\
-	.ifdef ENTRY_X86_IN;	\
-	.ifeq ENTRY_X86_IN;	\
-	__macro_err_x86;	\
-	.abort;			\
-	.endif;			\
-	.endif
-
-#define __check_kprobe_x86	\
-	.ifdef KPROBE_X86_IN;	\
-	.ifeq KPROBE_X86_IN;	\
-	__macro_err_x86;	\
-	.abort;			\
-	.endif;			\
-	.endif
-
-#define __check_entry_kprobe_x86	\
-	__check_entry_x86;		\
-	__check_kprobe_x86
-
-#define ENTRY_KPROBE_FINAL_X86 __check_entry_kprobe_x86
-
-#define ENTRY_X86(name)			\
-	__check_entry_kprobe_x86;	\
-	__set_entry_x86;		\
-	.globl name;			\
-	__ALIGN;			\
-	name:
-
-#define END_X86(name)			\
-	__unset_entry_x86;		\
-	__check_entry_kprobe_x86;	\
-	.size name, .-name
-
-#define KPROBE_ENTRY_X86(name)		\
-	__check_entry_kprobe_x86;	\
-	__set_kprobe_x86;		\
-	.pushsection .kprobes.text, "ax"; \
-	.globl name;			\
-	__ALIGN;			\
-	name:
-
-#define KPROBE_END_X86(name)		\
-	__unset_kprobe_x86;		\
-	__check_entry_kprobe_x86;	\
-	.size name, .-name;		\
-	.popsection
 
 #endif /* _ASM_X86_LINKAGE_H */
 

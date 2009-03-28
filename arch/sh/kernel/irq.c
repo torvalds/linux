@@ -51,7 +51,7 @@ int show_interrupts(struct seq_file *p, void *v)
 			goto unlock;
 		seq_printf(p, "%3d: ",i);
 		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
+			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 		seq_printf(p, " %14s", irq_desc[i].chip->name);
 		seq_printf(p, "-%-8s", irq_desc[i].name);
 		seq_printf(p, "  %s", action->name);
@@ -106,7 +106,7 @@ asmlinkage int do_IRQ(unsigned int irq, struct pt_regs *regs)
 	}
 #endif
 
-	irq = irq_demux(evt2irq(irq));
+	irq = irq_demux(intc_evt2irq(irq));
 
 #ifdef CONFIG_IRQSTACKS
 	curctx = (union irq_ctx *)current_thread_info();
