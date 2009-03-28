@@ -64,10 +64,8 @@
 #define PHY_CONFIG_ROOT_ID(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
 #define PHY_IDENTIFIER(id)		((id) << 30)
 
-static int
-close_transaction(struct fw_transaction *transaction,
-		  struct fw_card *card, int rcode,
-		  u32 *payload, size_t length)
+static int close_transaction(struct fw_transaction *transaction,
+			     struct fw_card *card, int rcode)
 {
 	struct fw_transaction *t;
 	unsigned long flags;
@@ -83,7 +81,7 @@ close_transaction(struct fw_transaction *transaction,
 	spin_unlock_irqrestore(&card->lock, flags);
 
 	if (&t->link != &card->transaction_list) {
-		t->callback(card, rcode, payload, length, t->callback_data);
+		t->callback(card, rcode, NULL, 0, t->callback_data);
 		return 0;
 	}
 
@@ -94,9 +92,8 @@ close_transaction(struct fw_transaction *transaction,
  * Only valid for transactions that are potentially pending (ie have
  * been sent).
  */
-int
-fw_cancel_transaction(struct fw_card *card,
-		      struct fw_transaction *transaction)
+int fw_cancel_transaction(struct fw_card *card,
+			  struct fw_transaction *transaction)
 {
 	/*
 	 * Cancel the packet transmission if it's still queued.  That
@@ -112,20 +109,19 @@ fw_cancel_transaction(struct fw_card *card,
 	 * if the transaction is still pending and remove it in that case.
 	 */
 
-	return close_transaction(transaction, card, RCODE_CANCELLED, NULL, 0);
+	return close_transaction(transaction, card, RCODE_CANCELLED);
 }
 EXPORT_SYMBOL(fw_cancel_transaction);
 
-static void
-transmit_complete_callback(struct fw_packet *packet,
-			   struct fw_card *card, int status)
+static void transmit_complete_callback(struct fw_packet *packet,
+				       struct fw_card *card, int status)
 {
 	struct fw_transaction *t =
 	    container_of(packet, struct fw_transaction, packet);
 
 	switch (status) {
 	case ACK_COMPLETE:
-		close_transaction(t, card, RCODE_COMPLETE, NULL, 0);
+		close_transaction(t, card, RCODE_COMPLETE);
 		break;
 	case ACK_PENDING:
 		t->timestamp = packet->timestamp;
@@ -133,30 +129,41 @@ transmit_complete_callback(struct fw_packet *packet,
 	case ACK_BUSY_X:
 	case ACK_BUSY_A:
 	case ACK_BUSY_B:
-		close_transaction(t, card, RCODE_BUSY, NULL, 0);
+		close_transaction(t, card, RCODE_BUSY);
 		break;
 	case ACK_DATA_ERROR:
-		close_transaction(t, card, RCODE_DATA_ERROR, NULL, 0);
+		close_transaction(t, card, RCODE_DATA_ERROR);
 		break;
 	case ACK_TYPE_ERROR:
-		close_transaction(t, card, RCODE_TYPE_ERROR, NULL, 0);
+		close_transaction(t, card, RCODE_TYPE_ERROR);
 		break;
 	default:
 		/*
 		 * In this case the ack is really a juju specific
 		 * rcode, so just forward that to the callback.
 		 */
-		close_transaction(t, card, status, NULL, 0);
+		close_transaction(t, card, status);
 		break;
 	}
 }
 
-static void
-fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
+static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 		int destination_id, int source_id, int generation, int speed,
 		unsigned long long offset, void *payload, size_t length)
 {
 	int ext_tcode;
+
+	if (tcode == TCODE_STREAM_DATA) {
+		packet->header[0] =
+			HEADER_DATA_LENGTH(length) |
+			destination_id |
+			HEADER_TCODE(TCODE_STREAM_DATA);
+		packet->header_length = 4;
+		packet->payload = payload;
+		packet->payload_length = length;
+
+		goto common;
+	}
 
 	if (tcode > 0x10) {
 		ext_tcode = tcode & ~0x10;
@@ -204,7 +211,7 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 		packet->payload_length = 0;
 		break;
 	}
-
+ common:
 	packet->speed = speed;
 	packet->generation = generation;
 	packet->ack = 0;
@@ -246,13 +253,14 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
  * @param callback function to be called when the transaction is completed
  * @param callback_data pointer to arbitrary data, which will be
  *   passed to the callback
+ *
+ * In case of asynchronous stream packets i.e. TCODE_STREAM_DATA, the caller
+ * needs to synthesize @destination_id with fw_stream_packet_destination_id().
  */
-void
-fw_send_request(struct fw_card *card, struct fw_transaction *t,
-		int tcode, int destination_id, int generation, int speed,
-		unsigned long long offset,
-		void *payload, size_t length,
-		fw_transaction_callback_t callback, void *callback_data)
+void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
+		     int destination_id, int generation, int speed,
+		     unsigned long long offset, void *payload, size_t length,
+		     fw_transaction_callback_t callback, void *callback_data)
 {
 	unsigned long flags;
 	int tlabel;
@@ -322,16 +330,16 @@ static void transaction_callback(struct fw_card *card, int rcode,
  * Returns the RCODE.
  */
 int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
-		int generation, int speed, unsigned long long offset,
-		void *data, size_t length)
+		       int generation, int speed, unsigned long long offset,
+		       void *payload, size_t length)
 {
 	struct transaction_callback_data d;
 	struct fw_transaction t;
 
 	init_completion(&d.done);
-	d.payload = data;
+	d.payload = payload;
 	fw_send_request(card, &t, tcode, destination_id, generation, speed,
-			offset, data, length, transaction_callback, &d);
+			offset, payload, length, transaction_callback, &d);
 	wait_for_completion(&d.done);
 
 	return d.rcode;
@@ -399,9 +407,8 @@ void fw_flush_transactions(struct fw_card *card)
 	}
 }
 
-static struct fw_address_handler *
-lookup_overlapping_address_handler(struct list_head *list,
-				   unsigned long long offset, size_t length)
+static struct fw_address_handler *lookup_overlapping_address_handler(
+	struct list_head *list, unsigned long long offset, size_t length)
 {
 	struct fw_address_handler *handler;
 
@@ -414,9 +421,8 @@ lookup_overlapping_address_handler(struct list_head *list,
 	return NULL;
 }
 
-static struct fw_address_handler *
-lookup_enclosing_address_handler(struct list_head *list,
-				 unsigned long long offset, size_t length)
+static struct fw_address_handler *lookup_enclosing_address_handler(
+	struct list_head *list, unsigned long long offset, size_t length)
 {
 	struct fw_address_handler *handler;
 
@@ -449,36 +455,44 @@ const struct fw_address_region fw_unit_space_region =
 #endif  /*  0  */
 
 /**
- * Allocate a range of addresses in the node space of the OHCI
- * controller.  When a request is received that falls within the
- * specified address range, the specified callback is invoked.  The
- * parameters passed to the callback give the details of the
- * particular request.
+ * fw_core_add_address_handler - register for incoming requests
+ * @handler: callback
+ * @region: region in the IEEE 1212 node space address range
+ *
+ * region->start, ->end, and handler->length have to be quadlet-aligned.
+ *
+ * When a request is received that falls within the specified address range,
+ * the specified callback is invoked.  The parameters passed to the callback
+ * give the details of the particular request.
  *
  * Return value:  0 on success, non-zero otherwise.
  * The start offset of the handler's address region is determined by
  * fw_core_add_address_handler() and is returned in handler->offset.
- * The offset is quadlet-aligned.
  */
-int
-fw_core_add_address_handler(struct fw_address_handler *handler,
-			    const struct fw_address_region *region)
+int fw_core_add_address_handler(struct fw_address_handler *handler,
+				const struct fw_address_region *region)
 {
 	struct fw_address_handler *other;
 	unsigned long flags;
 	int ret = -EBUSY;
 
+	if (region->start & 0xffff000000000003ULL ||
+	    region->end   & 0xffff000000000003ULL ||
+	    region->start >= region->end ||
+	    handler->length & 3 ||
+	    handler->length == 0)
+		return -EINVAL;
+
 	spin_lock_irqsave(&address_handler_lock, flags);
 
-	handler->offset = roundup(region->start, 4);
+	handler->offset = region->start;
 	while (handler->offset + handler->length <= region->end) {
 		other =
 		    lookup_overlapping_address_handler(&address_handler_list,
 						       handler->offset,
 						       handler->length);
 		if (other != NULL) {
-			handler->offset =
-			    roundup(other->offset + other->length, 4);
+			handler->offset += other->length;
 		} else {
 			list_add_tail(&handler->link, &address_handler_list);
 			ret = 0;
@@ -493,12 +507,7 @@ fw_core_add_address_handler(struct fw_address_handler *handler,
 EXPORT_SYMBOL(fw_core_add_address_handler);
 
 /**
- * Deallocate a range of addresses allocated with fw_allocate.  This
- * will call the associated callback one last time with a the special
- * tcode TCODE_DEALLOCATE, to let the client destroy the registered
- * callback data.  For convenience, the callback parameters offset and
- * length are set to the start and the length respectively for the
- * deallocated region, payload is set to NULL.
+ * fw_core_remove_address_handler - unregister an address handler
  */
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
@@ -518,9 +527,8 @@ struct fw_request {
 	u32 data[0];
 };
 
-static void
-free_response_callback(struct fw_packet *packet,
-		       struct fw_card *card, int status)
+static void free_response_callback(struct fw_packet *packet,
+				   struct fw_card *card, int status)
 {
 	struct fw_request *request;
 
@@ -528,9 +536,8 @@ free_response_callback(struct fw_packet *packet,
 	kfree(request);
 }
 
-void
-fw_fill_response(struct fw_packet *response, u32 *request_header,
-		 int rcode, void *payload, size_t length)
+void fw_fill_response(struct fw_packet *response, u32 *request_header,
+		      int rcode, void *payload, size_t length)
 {
 	int tcode, tlabel, extended_tcode, source, destination;
 
@@ -588,8 +595,7 @@ fw_fill_response(struct fw_packet *response, u32 *request_header,
 }
 EXPORT_SYMBOL(fw_fill_response);
 
-static struct fw_request *
-allocate_request(struct fw_packet *p)
+static struct fw_request *allocate_request(struct fw_packet *p)
 {
 	struct fw_request *request;
 	u32 *data, length;
@@ -649,8 +655,8 @@ allocate_request(struct fw_packet *p)
 	return request;
 }
 
-void
-fw_send_response(struct fw_card *card, struct fw_request *request, int rcode)
+void fw_send_response(struct fw_card *card,
+		      struct fw_request *request, int rcode)
 {
 	/* unified transaction or broadcast transaction: don't respond */
 	if (request->ack != ACK_PENDING ||
@@ -670,8 +676,7 @@ fw_send_response(struct fw_card *card, struct fw_request *request, int rcode)
 }
 EXPORT_SYMBOL(fw_send_response);
 
-void
-fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
+void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 {
 	struct fw_address_handler *handler;
 	struct fw_request *request;
@@ -719,8 +724,7 @@ fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 }
 EXPORT_SYMBOL(fw_core_handle_request);
 
-void
-fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
+void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 {
 	struct fw_transaction *t;
 	unsigned long flags;
@@ -793,12 +797,10 @@ static const struct fw_address_region topology_map_region =
 	{ .start = CSR_REGISTER_BASE | CSR_TOPOLOGY_MAP,
 	  .end   = CSR_REGISTER_BASE | CSR_TOPOLOGY_MAP_END, };
 
-static void
-handle_topology_map(struct fw_card *card, struct fw_request *request,
-		    int tcode, int destination, int source,
-		    int generation, int speed,
-		    unsigned long long offset,
-		    void *payload, size_t length, void *callback_data)
+static void handle_topology_map(struct fw_card *card, struct fw_request *request,
+		int tcode, int destination, int source, int generation,
+		int speed, unsigned long long offset,
+		void *payload, size_t length, void *callback_data)
 {
 	int i, start, end;
 	__be32 *map;
@@ -832,12 +834,10 @@ static const struct fw_address_region registers_region =
 	{ .start = CSR_REGISTER_BASE,
 	  .end   = CSR_REGISTER_BASE | CSR_CONFIG_ROM, };
 
-static void
-handle_registers(struct fw_card *card, struct fw_request *request,
-		 int tcode, int destination, int source,
-		 int generation, int speed,
-		 unsigned long long offset,
-		 void *payload, size_t length, void *callback_data)
+static void handle_registers(struct fw_card *card, struct fw_request *request,
+		int tcode, int destination, int source, int generation,
+		int speed, unsigned long long offset,
+		void *payload, size_t length, void *callback_data)
 {
 	int reg = offset & ~CSR_REGISTER_BASE;
 	unsigned long long bus_time;
@@ -939,11 +939,11 @@ static struct fw_descriptor model_id_descriptor = {
 
 static int __init fw_core_init(void)
 {
-	int retval;
+	int ret;
 
-	retval = bus_register(&fw_bus_type);
-	if (retval < 0)
-		return retval;
+	ret = bus_register(&fw_bus_type);
+	if (ret < 0)
+		return ret;
 
 	fw_cdev_major = register_chrdev(0, "firewire", &fw_device_ops);
 	if (fw_cdev_major < 0) {
@@ -951,19 +951,10 @@ static int __init fw_core_init(void)
 		return fw_cdev_major;
 	}
 
-	retval = fw_core_add_address_handler(&topology_map,
-					     &topology_map_region);
-	BUG_ON(retval < 0);
-
-	retval = fw_core_add_address_handler(&registers,
-					     &registers_region);
-	BUG_ON(retval < 0);
-
-	/* Add the vendor textual descriptor. */
-	retval = fw_core_add_descriptor(&vendor_id_descriptor);
-	BUG_ON(retval < 0);
-	retval = fw_core_add_descriptor(&model_id_descriptor);
-	BUG_ON(retval < 0);
+	fw_core_add_address_handler(&topology_map, &topology_map_region);
+	fw_core_add_address_handler(&registers, &registers_region);
+	fw_core_add_descriptor(&vendor_id_descriptor);
+	fw_core_add_descriptor(&model_id_descriptor);
 
 	return 0;
 }

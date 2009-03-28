@@ -40,6 +40,10 @@ static const struct file_operations name## _ops = {			\
 	local->debugfs.name = debugfs_create_file(#name, 0400, phyd,	\
 						  local, &name## _ops);
 
+#define DEBUGFS_ADD_MODE(name, mode)					\
+	local->debugfs.name = debugfs_create_file(#name, mode, phyd,	\
+						  local, &name## _ops);
+
 #define DEBUGFS_DEL(name)						\
 	debugfs_remove(local->debugfs.name);				\
 	local->debugfs.name = NULL;
@@ -111,6 +115,24 @@ static const struct file_operations tsf_ops = {
 	.read = tsf_read,
 	.write = tsf_write,
 	.open = mac80211_open_file_generic
+};
+
+static ssize_t reset_write(struct file *file, const char __user *user_buf,
+			   size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+
+	rtnl_lock();
+	__ieee80211_suspend(&local->hw);
+	__ieee80211_resume(&local->hw);
+	rtnl_unlock();
+
+	return count;
+}
+
+static const struct file_operations reset_ops = {
+	.write = reset_write,
+	.open = mac80211_open_file_generic,
 };
 
 /* statistics stuff */
@@ -254,6 +276,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
 	DEBUGFS_ADD(tsf);
+	DEBUGFS_ADD_MODE(reset, 0200);
 
 	statsd = debugfs_create_dir("statistics", phyd);
 	local->debugfs.statistics = statsd;
@@ -308,6 +331,7 @@ void debugfs_hw_del(struct ieee80211_local *local)
 	DEBUGFS_DEL(total_ps_buffered);
 	DEBUGFS_DEL(wep_iv);
 	DEBUGFS_DEL(tsf);
+	DEBUGFS_DEL(reset);
 
 	DEBUGFS_STATS_DEL(transmitted_fragment_count);
 	DEBUGFS_STATS_DEL(multicast_transmitted_frame_count);

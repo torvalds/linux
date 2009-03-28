@@ -273,7 +273,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 	if (priv->iw_mode != NL80211_IFTYPE_STATION)
 		final_mode = IWL_POWER_MODE_CAM;
 
-	if (!iwl_is_rfkill(priv) && !setting->power_disabled &&
+	if (iwl_is_ready_rf(priv) && !setting->power_disabled &&
 	    ((setting->power_mode != final_mode) || force)) {
 		struct iwl_powertable_cmd cmd;
 

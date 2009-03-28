@@ -20,23 +20,6 @@ MODULE_DESCRIPTION("Xtables: Bridge physical device match");
 MODULE_ALIAS("ipt_physdev");
 MODULE_ALIAS("ip6t_physdev");
 
-static unsigned long ifname_compare(const char *_a, const char *_b, const char *_mask)
-{
-	const unsigned long *a = (const unsigned long *)_a;
-	const unsigned long *b = (const unsigned long *)_b;
-	const unsigned long *mask = (const unsigned long *)_mask;
-	unsigned long ret;
-
-	ret = (a[0] ^ b[0]) & mask[0];
-	if (IFNAMSIZ > sizeof(unsigned long))
-		ret |= (a[1] ^ b[1]) & mask[1];
-	if (IFNAMSIZ > 2 * sizeof(unsigned long))
-		ret |= (a[2] ^ b[2]) & mask[2];
-	if (IFNAMSIZ > 3 * sizeof(unsigned long))
-		ret |= (a[3] ^ b[3]) & mask[3];
-	BUILD_BUG_ON(IFNAMSIZ > 4 * sizeof(unsigned long));
-	return ret;
-}
 
 static bool
 physdev_mt(const struct sk_buff *skb, const struct xt_match_param *par)
@@ -85,7 +68,7 @@ physdev_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (!(info->bitmask & XT_PHYSDEV_OP_IN))
 		goto match_outdev;
 	indev = nf_bridge->physindev ? nf_bridge->physindev->name : nulldevname;
-	ret = ifname_compare(indev, info->physindev, info->in_mask);
+	ret = ifname_compare_aligned(indev, info->physindev, info->in_mask);
 
 	if (!ret ^ !(info->invert & XT_PHYSDEV_OP_IN))
 		return false;
@@ -95,7 +78,7 @@ match_outdev:
 		return true;
 	outdev = nf_bridge->physoutdev ?
 		 nf_bridge->physoutdev->name : nulldevname;
-	ret = ifname_compare(outdev, info->physoutdev, info->out_mask);
+	ret = ifname_compare_aligned(outdev, info->physoutdev, info->out_mask);
 
 	return (!!ret ^ !(info->invert & XT_PHYSDEV_OP_OUT));
 }

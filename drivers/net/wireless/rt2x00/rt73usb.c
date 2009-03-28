@@ -2425,6 +2425,8 @@ static struct usb_device_id rt73usb_device_table[] = {
 	{ USB_DEVICE(0x0df6, 0x9712), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Surecom */
 	{ USB_DEVICE(0x0769, 0x31f3), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* Tilgin */
+	{ USB_DEVICE(0x6933, 0x5001), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Philips */
 	{ USB_DEVICE(0x0471, 0x200a), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Planex */

@@ -933,7 +933,6 @@ static int __init init_mac80211_hwsim(void)
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_AP) |
 			BIT(NL80211_IFTYPE_MESH_POINT);
-		hw->ampdu_queues = 1;
 
 		hw->flags = IEEE80211_HW_MFP_CAPABLE;
 
@@ -1041,6 +1040,9 @@ static int __init init_mac80211_hwsim(void)
 			break;
 		}
 
+		/* give the regulatory workqueue a chance to run */
+		if (regtest)
+			schedule_timeout_interruptible(1);
 		err = ieee80211_register_hw(hw);
 		if (err < 0) {
 			printk(KERN_DEBUG "mac80211_hwsim: "

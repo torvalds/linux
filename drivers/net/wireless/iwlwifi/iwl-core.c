@@ -1298,6 +1298,7 @@ int iwl_setup_mac(struct iwl_priv *priv)
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM |
 		    IEEE80211_HW_AMPDU_AGGREGATION |
+		    IEEE80211_HW_SPECTRUM_MGMT |
 		    IEEE80211_HW_SUPPORTS_PS;
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
@@ -1308,9 +1309,6 @@ int iwl_setup_mac(struct iwl_priv *priv)
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
-	/* queues to support 11n aggregation */
-	if (priv->cfg->sku & IWL_SKU_N)
-		hw->ampdu_queues = priv->cfg->mod_params->num_of_ampdu_queues;
 
 	hw->conf.beacon_int = 100;
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
@@ -1436,6 +1434,10 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 		force = true;
 
 	priv->tx_power_user_lmt = tx_power;
+
+	/* if nic is not up don't send command */
+	if (!iwl_is_ready_rf(priv))
+		return ret;
 
 	if (force && priv->cfg->ops->lib->send_tx_power)
 		ret = priv->cfg->ops->lib->send_tx_power(priv);

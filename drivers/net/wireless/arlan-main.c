@@ -1030,7 +1030,17 @@ static int arlan_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
-
+static const struct net_device_ops arlan_netdev_ops = {
+	.ndo_open		= arlan_open,
+	.ndo_stop		= arlan_close,
+	.ndo_start_xmit		= arlan_tx,
+	.ndo_get_stats		= arlan_statistics,
+	.ndo_set_multicast_list = arlan_set_multicast,
+	.ndo_change_mtu		= arlan_change_mtu,
+	.ndo_set_mac_address	= arlan_mac_addr,
+	.ndo_tx_timeout		= arlan_tx_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 static int __init arlan_setup_device(struct net_device *dev, int num)
 {
@@ -1042,14 +1052,7 @@ static int __init arlan_setup_device(struct net_device *dev, int num)
 	ap->conf = (struct arlan_shmem *)(ap+1);
 
 	dev->tx_queue_len = tx_queue_len;
-	dev->open = arlan_open;
-	dev->stop = arlan_close;
-	dev->hard_start_xmit = arlan_tx;
-	dev->get_stats = arlan_statistics;
-	dev->set_multicast_list = arlan_set_multicast;
-	dev->change_mtu = arlan_change_mtu;
-	dev->set_mac_address = arlan_mac_addr;
-	dev->tx_timeout = arlan_tx_timeout;
+	dev->netdev_ops = &arlan_netdev_ops;
 	dev->watchdog_timeo = 3*HZ;
 	
 	ap->irq_test_done = 0;

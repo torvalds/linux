@@ -264,6 +264,7 @@ void iwl_rx_reply_error(struct iwl_priv *priv,
 * RX
 ******************************************************/
 void iwl_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
+void iwl_cmd_queue_free(struct iwl_priv *priv);
 int iwl_rx_queue_alloc(struct iwl_priv *priv);
 void iwl_rx_handle(struct iwl_priv *priv);
 int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,

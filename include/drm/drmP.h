@@ -758,6 +758,8 @@ struct drm_driver {
 
 	int (*proc_init)(struct drm_minor *minor);
 	void (*proc_cleanup)(struct drm_minor *minor);
+	int (*debugfs_init)(struct drm_minor *minor);
+	void (*debugfs_cleanup)(struct drm_minor *minor);
 
 	/**
 	 * Driver-specific constructor for drm_gem_objects, to set up
@@ -793,6 +795,48 @@ struct drm_driver {
 #define DRM_MINOR_CONTROL 2
 #define DRM_MINOR_RENDER 3
 
+
+/**
+ * debugfs node list. This structure represents a debugfs file to
+ * be created by the drm core
+ */
+struct drm_debugfs_list {
+	const char *name; /** file name */
+	int (*show)(struct seq_file*, void*); /** show callback */
+	u32 driver_features; /**< Required driver features for this entry */
+};
+
+/**
+ * debugfs node structure. This structure represents a debugfs file.
+ */
+struct drm_debugfs_node {
+	struct list_head list;
+	struct drm_minor *minor;
+	struct drm_debugfs_list *debugfs_ent;
+	struct dentry *dent;
+};
+
+/**
+ * Info file list entry. This structure represents a debugfs or proc file to
+ * be created by the drm core
+ */
+struct drm_info_list {
+	const char *name; /** file name */
+	int (*show)(struct seq_file*, void*); /** show callback */
+	u32 driver_features; /**< Required driver features for this entry */
+	void *data;
+};
+
+/**
+ * debugfs node structure. This structure represents a debugfs file.
+ */
+struct drm_info_node {
+	struct list_head list;
+	struct drm_minor *minor;
+	struct drm_info_list *info_ent;
+	struct dentry *dent;
+};
+
 /**
  * DRM minor structure. This structure represents a drm minor number.
  */
@@ -802,7 +846,12 @@ struct drm_minor {
 	dev_t device;			/**< Device number for mknod */
 	struct device kdev;		/**< Linux device */
 	struct drm_device *dev;
-	struct proc_dir_entry *dev_root;  /**< proc directory entry */
+
+	struct proc_dir_entry *proc_root;  /**< proc directory entry */
+	struct drm_info_node proc_nodes;
+	struct dentry *debugfs_root;
+	struct drm_info_node debugfs_nodes;
+
 	struct drm_master *master; /* currently active master for this node */
 	struct list_head master_list;
 	struct drm_mode_group mode_group;
@@ -1258,6 +1307,7 @@ extern unsigned int drm_debug;
 
 extern struct class *drm_class;
 extern struct proc_dir_entry *drm_proc_root;
+extern struct dentry *drm_debugfs_root;
 
 extern struct idr drm_minors_idr;
 
@@ -1267,6 +1317,31 @@ extern drm_local_map_t *drm_getsarea(struct drm_device *dev);
 extern int drm_proc_init(struct drm_minor *minor, int minor_id,
 			 struct proc_dir_entry *root);
 extern int drm_proc_cleanup(struct drm_minor *minor, struct proc_dir_entry *root);
+
+				/* Debugfs support */
+#if defined(CONFIG_DEBUG_FS)
+extern int drm_debugfs_init(struct drm_minor *minor, int minor_id,
+			    struct dentry *root);
+extern int drm_debugfs_create_files(struct drm_info_list *files, int count,
+				    struct dentry *root, struct drm_minor *minor);
+extern int drm_debugfs_remove_files(struct drm_info_list *files, int count,
+                                    struct drm_minor *minor);
+extern int drm_debugfs_cleanup(struct drm_minor *minor);
+#endif
+
+				/* Info file support */
+extern int drm_name_info(struct seq_file *m, void *data);
+extern int drm_vm_info(struct seq_file *m, void *data);
+extern int drm_queues_info(struct seq_file *m, void *data);
+extern int drm_bufs_info(struct seq_file *m, void *data);
+extern int drm_vblank_info(struct seq_file *m, void *data);
+extern int drm_clients_info(struct seq_file *m, void* data);
+extern int drm_gem_name_info(struct seq_file *m, void *data);
+extern int drm_gem_object_info(struct seq_file *m, void* data);
+
+#if DRM_DEBUG_CODE
+extern int drm_vma_info(struct seq_file *m, void *data);
+#endif
 
 				/* Scatter Gather Support (drm_scatter.h) */
 extern void drm_sg_cleanup(struct drm_sg_mem * entry);

@@ -353,9 +353,6 @@ el2_probe1(struct net_device *dev, int ioaddr)
 
     dev->netdev_ops = &el2_netdev_ops;
     dev->ethtool_ops = &netdev_ethtool_ops;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-    dev->poll_controller = eip_poll;
-#endif
 
     retval = register_netdev(dev);
     if (retval)

@@ -2178,10 +2178,9 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 			    (iwl_queue_space(&txq->q) > txq->q.low_mark) &&
 			    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)) {
 				if (agg->state == IWL_AGG_OFF)
-					ieee80211_wake_queue(priv->hw, txq_id);
+					iwl_wake_queue(priv, txq_id);
 				else
-					ieee80211_wake_queue(priv->hw,
-							     txq->swq_id);
+					iwl_wake_queue(priv, txq->swq_id);
 			}
 		}
 	} else {
@@ -2205,7 +2204,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 		if (priv->mac80211_registered &&
 		    (iwl_queue_space(&txq->q) > txq->q.low_mark))
-			ieee80211_wake_queue(priv->hw, txq_id);
+			iwl_wake_queue(priv, txq_id);
 	}
 
 	if (qc && likely(sta_id != IWL_INVALID_STATION))

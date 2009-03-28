@@ -54,7 +54,8 @@ static int v2_check_quota_file(struct super_block *sb, int type)
 	static const uint quota_magics[] = V2_INITQMAGICS;
 	static const uint quota_versions[] = V2_INITQVERSIONS;
  
-	size = sb->s_op->quota_read(sb, type, (char *)&dqhead, sizeof(struct v2_disk_dqheader), 0);
+	size = sb->s_op->quota_read(sb, type, (char *)&dqhead,
+				    sizeof(struct v2_disk_dqheader), 0);
 	if (size != sizeof(struct v2_disk_dqheader)) {
 		printk("quota_v2: failed read expected=%zd got=%zd\n",
 			sizeof(struct v2_disk_dqheader), size);

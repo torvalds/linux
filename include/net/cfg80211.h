@@ -471,26 +471,6 @@ struct ieee80211_txq_params {
 	u8 aifs;
 };
 
-/**
- * struct mgmt_extra_ie_params - Extra management frame IE parameters
- *
- * Used to add extra IE(s) into management frames. If the driver cannot add the
- * requested data into all management frames of the specified subtype that are
- * generated in kernel or firmware/hardware, it must reject the configuration
- * call. The IE data buffer is added to the end of the specified management
- * frame body after all other IEs. This addition is not applied to frames that
- * are injected through a monitor interface.
- *
- * @subtype: Management frame subtype
- * @ies: IE data buffer or %NULL to remove previous data
- * @ies_len: Length of @ies in octets
- */
-struct mgmt_extra_ie_params {
-	u8 subtype;
-	u8 *ies;
-	int ies_len;
-};
-
 /* from net/wireless.h */
 struct wiphy;
 
@@ -559,6 +539,7 @@ enum cfg80211_signal_type {
  *	is no guarantee that these are well-formed!)
  * @len_information_elements: total length of the information elements
  * @signal: signal strength value (type depends on the wiphy's signal_type)
+ * @hold: BSS should not expire
  * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
@@ -576,6 +557,105 @@ struct cfg80211_bss {
 
 	void (*free_priv)(struct cfg80211_bss *bss);
 	u8 priv[0] __attribute__((__aligned__(sizeof(void *))));
+};
+
+/**
+ * struct cfg80211_auth_request - Authentication request data
+ *
+ * This structure provides information needed to complete IEEE 802.11
+ * authentication.
+ * NOTE: This structure will likely change when more code from mac80211 is
+ * moved into cfg80211 so that non-mac80211 drivers can benefit from it, too.
+ * Before using this in a driver that does not use mac80211, it would be better
+ * to check the status of that work and better yet, volunteer to work on it.
+ *
+ * @chan: The channel to use or %NULL if not specified (auto-select based on
+ *	scan results)
+ * @peer_addr: The address of the peer STA (AP BSSID in infrastructure case);
+ *	this field is required to be present; if the driver wants to help with
+ *	BSS selection, it should use (yet to be added) MLME event to allow user
+ *	space SME to be notified of roaming candidate, so that the SME can then
+ *	use the authentication request with the recommended BSSID and whatever
+ *	other data may be needed for authentication/association
+ * @ssid: SSID or %NULL if not yet available
+ * @ssid_len: Length of ssid in octets
+ * @auth_type: Authentication type (algorithm)
+ * @ie: Extra IEs to add to Authentication frame or %NULL
+ * @ie_len: Length of ie buffer in octets
+ */
+struct cfg80211_auth_request {
+	struct ieee80211_channel *chan;
+	u8 *peer_addr;
+	const u8 *ssid;
+	size_t ssid_len;
+	enum nl80211_auth_type auth_type;
+	const u8 *ie;
+	size_t ie_len;
+};
+
+/**
+ * struct cfg80211_assoc_request - (Re)Association request data
+ *
+ * This structure provides information needed to complete IEEE 802.11
+ * (re)association.
+ * NOTE: This structure will likely change when more code from mac80211 is
+ * moved into cfg80211 so that non-mac80211 drivers can benefit from it, too.
+ * Before using this in a driver that does not use mac80211, it would be better
+ * to check the status of that work and better yet, volunteer to work on it.
+ *
+ * @chan: The channel to use or %NULL if not specified (auto-select based on
+ *	scan results)
+ * @peer_addr: The address of the peer STA (AP BSSID); this field is required
+ *	to be present and the STA must be in State 2 (authenticated) with the
+ *	peer STA
+ * @ssid: SSID
+ * @ssid_len: Length of ssid in octets
+ * @ie: Extra IEs to add to (Re)Association Request frame or %NULL
+ * @ie_len: Length of ie buffer in octets
+ */
+struct cfg80211_assoc_request {
+	struct ieee80211_channel *chan;
+	u8 *peer_addr;
+	const u8 *ssid;
+	size_t ssid_len;
+	const u8 *ie;
+	size_t ie_len;
+};
+
+/**
+ * struct cfg80211_deauth_request - Deauthentication request data
+ *
+ * This structure provides information needed to complete IEEE 802.11
+ * deauthentication.
+ *
+ * @peer_addr: The address of the peer STA (AP BSSID); this field is required
+ *	to be present and the STA must be authenticated with the peer STA
+ * @ie: Extra IEs to add to Deauthentication frame or %NULL
+ * @ie_len: Length of ie buffer in octets
+ */
+struct cfg80211_deauth_request {
+	u8 *peer_addr;
+	u16 reason_code;
+	const u8 *ie;
+	size_t ie_len;
+};
+
+/**
+ * struct cfg80211_disassoc_request - Disassociation request data
+ *
+ * This structure provides information needed to complete IEEE 802.11
+ * disassocation.
+ *
+ * @peer_addr: The address of the peer STA (AP BSSID); this field is required
+ *	to be present and the STA must be associated with the peer STA
+ * @ie: Extra IEs to add to Disassociation frame or %NULL
+ * @ie_len: Length of ie buffer in octets
+ */
+struct cfg80211_disassoc_request {
+	u8 *peer_addr;
+	u16 reason_code;
+	const u8 *ie;
+	size_t ie_len;
 };
 
 /**
@@ -644,12 +724,15 @@ struct cfg80211_bss {
  *
  * @set_channel: Set channel
  *
- * @set_mgmt_extra_ie: Set extra IE data for management frames
- *
  * @scan: Request to do a scan. If returning zero, the scan request is given
  *	the driver, and will be valid until passed to cfg80211_scan_done().
  *	For scan results, call cfg80211_inform_bss(); you can call this outside
  *	the scan/scan_done bracket too.
+ *
+ * @auth: Request to authenticate with the specified peer
+ * @assoc: Request to (re)associate with the specified peer
+ * @deauth: Request to deauthenticate from the specified peer
+ * @disassoc: Request to disassociate from the specified peer
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -724,12 +807,17 @@ struct cfg80211_ops {
 			       struct ieee80211_channel *chan,
 			       enum nl80211_channel_type channel_type);
 
-	int	(*set_mgmt_extra_ie)(struct wiphy *wiphy,
-				     struct net_device *dev,
-				     struct mgmt_extra_ie_params *params);
-
 	int	(*scan)(struct wiphy *wiphy, struct net_device *dev,
 			struct cfg80211_scan_request *request);
+
+	int	(*auth)(struct wiphy *wiphy, struct net_device *dev,
+			struct cfg80211_auth_request *req);
+	int	(*assoc)(struct wiphy *wiphy, struct net_device *dev,
+			 struct cfg80211_assoc_request *req);
+	int	(*deauth)(struct wiphy *wiphy, struct net_device *dev,
+			  struct cfg80211_deauth_request *req);
+	int	(*disassoc)(struct wiphy *wiphy, struct net_device *dev,
+			    struct cfg80211_disassoc_request *req);
 };
 
 /* temporary wext handlers */
@@ -806,5 +894,68 @@ void cfg80211_put_bss(struct cfg80211_bss *bss);
  * out, so it is not necessary to use this function at all.
  */
 void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
+
+/**
+ * cfg80211_send_rx_auth - notification of processed authentication
+ * @dev: network device
+ * @buf: authentication frame (header + body)
+ * @len: length of the frame data
+ *
+ * This function is called whenever an authentication has been processed in
+ * station mode.
+ */
+void cfg80211_send_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
+
+/**
+ * cfg80211_send_rx_assoc - notification of processed association
+ * @dev: network device
+ * @buf: (re)association response frame (header + body)
+ * @len: length of the frame data
+ *
+ * This function is called whenever a (re)association response has been
+ * processed in station mode.
+ */
+void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len);
+
+/**
+ * cfg80211_send_rx_deauth - notification of processed deauthentication
+ * @dev: network device
+ * @buf: deauthentication frame (header + body)
+ * @len: length of the frame data
+ *
+ * This function is called whenever deauthentication has been processed in
+ * station mode.
+ */
+void cfg80211_send_rx_deauth(struct net_device *dev, const u8 *buf,
+			     size_t len);
+
+/**
+ * cfg80211_send_rx_disassoc - notification of processed disassociation
+ * @dev: network device
+ * @buf: disassociation response frame (header + body)
+ * @len: length of the frame data
+ *
+ * This function is called whenever disassociation has been processed in
+ * station mode.
+ */
+void cfg80211_send_rx_disassoc(struct net_device *dev, const u8 *buf,
+			       size_t len);
+
+/**
+ * cfg80211_hold_bss - exclude bss from expiration
+ * @bss: bss which should not expire
+ *
+ * In a case when the BSS is not updated but it shouldn't expire this
+ * function can be used to mark the BSS to be excluded from expiration.
+ */
+void cfg80211_hold_bss(struct cfg80211_bss *bss);
+
+/**
+ * cfg80211_unhold_bss - remove expiration exception from the BSS
+ * @bss: bss which can expire again
+ *
+ * This function marks the BSS to be expirable again.
+ */
+void cfg80211_unhold_bss(struct cfg80211_bss *bss);
 
 #endif /* __NET_CFG80211_H */

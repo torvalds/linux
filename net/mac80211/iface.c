@@ -261,8 +261,7 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_bss_info_change_notify(sdata, changed);
 		ieee80211_enable_keys(sdata);
 
-		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-		    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
+		if (sdata->vif.type == NL80211_IFTYPE_STATION)
 			netif_carrier_off(dev);
 		else
 			netif_carrier_on(dev);
@@ -478,6 +477,9 @@ static int ieee80211_stop(struct net_device *dev)
 		 */
 		cancel_work_sync(&sdata->u.mgd.work);
 		cancel_work_sync(&sdata->u.mgd.chswitch_work);
+
+		cancel_work_sync(&sdata->u.mgd.beacon_loss_work);
+
 		/*
 		 * When we get here, the interface is marked down.
 		 * Call synchronize_rcu() to wait for the RX path
@@ -653,13 +655,7 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 		kfree(sdata->u.mgd.extra_ie);
 		kfree(sdata->u.mgd.assocreq_ies);
 		kfree(sdata->u.mgd.assocresp_ies);
-		kfree(sdata->u.mgd.ie_probereq);
-		kfree(sdata->u.mgd.ie_proberesp);
-		kfree(sdata->u.mgd.ie_auth);
-		kfree(sdata->u.mgd.ie_assocreq);
-		kfree(sdata->u.mgd.ie_reassocreq);
-		kfree(sdata->u.mgd.ie_deauth);
-		kfree(sdata->u.mgd.ie_disassoc);
+		kfree(sdata->u.mgd.sme_auth_ie);
 		break;
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_AP_VLAN:

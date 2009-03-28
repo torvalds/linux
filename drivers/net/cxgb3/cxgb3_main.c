@@ -602,7 +602,6 @@ static int setup_sge_qsets(struct adapter *adap)
 				&adap->params.sge.qset[qset_idx], ntxq, dev,
 				netdev_get_tx_queue(dev, j));
 			if (err) {
-				t3_stop_sge_timers(adap);
 				t3_free_sge_resources(adap);
 				return err;
 			}
@@ -1046,6 +1045,8 @@ static int cxgb_up(struct adapter *adap)
 		setup_rss(adap);
 		if (!(adap->flags & NAPI_INIT))
 			init_napi(adap);
+
+		t3_start_sge_timers(adap);
 		adap->flags |= FULL_INIT_DONE;
 	}
 
@@ -2870,6 +2871,9 @@ static void t3_io_resume(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 
+	CH_ALERT(adapter, "adapter recovering, PEX ERR 0x%x\n",
+		 t3_read_reg(adapter, A_PCIE_PEX_ERR));
+
 	t3_resume_ports(adapter);
 }
 
@@ -3002,7 +3006,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	static int version_printed;
 
 	int i, err, pci_using_dac = 0;
-	unsigned long mmio_start, mmio_len;
+	resource_size_t mmio_start, mmio_len;
 	const struct adapter_info *ai;
 	struct adapter *adapter = NULL;
 	struct port_info *pi;
@@ -3082,7 +3086,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	INIT_WORK(&adapter->fatal_error_handler_task, fatal_error_task);
 	INIT_DELAYED_WORK(&adapter->adap_check_task, t3_adap_check_task);
 
-	for (i = 0; i < ai->nports; ++i) {
+	for (i = 0; i < ai->nports0 + ai->nports1; ++i) {
 		struct net_device *netdev;
 
 		netdev = alloc_etherdev_mq(sizeof(struct port_info), SGE_QSETS);
@@ -3172,7 +3176,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 out_free_dev:
 	iounmap(adapter->regs);
-	for (i = ai->nports - 1; i >= 0; --i)
+	for (i = ai->nports0 + ai->nports1 - 1; i >= 0; --i)
 		if (adapter->port[i])
 			free_netdev(adapter->port[i]);
 

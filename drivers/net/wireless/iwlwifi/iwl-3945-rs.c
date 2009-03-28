@@ -124,7 +124,7 @@ static struct iwl3945_tpt_entry iwl3945_tpt_table_g[] = {
 #define IWL39_RATE_HIGH_TH          11520
 #define IWL_SUCCESS_UP_TH	   8960
 #define IWL_SUCCESS_DOWN_TH	  10880
-#define IWL_RATE_MIN_FAILURE_TH       8
+#define IWL_RATE_MIN_FAILURE_TH       6
 #define IWL_RATE_MIN_SUCCESS_TH       8
 #define IWL_RATE_DECREASE_TH       1920
 #define IWL_RATE_RETRY_TH	     15
@@ -488,7 +488,7 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 
 	IWL_DEBUG_RATE(priv, "enter\n");
 
-	retries = info->status.rates[0].count - 1;
+	retries = info->status.rates[0].count;
 	/* Sanity Check for retries */
 	if (retries > IWL_RATE_RETRY_TH)
 		retries = IWL_RATE_RETRY_TH;
@@ -791,16 +791,15 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	if ((window->success_ratio < IWL_RATE_DECREASE_TH) || !current_tpt) {
 		IWL_DEBUG_RATE(priv, "decrease rate because of low success_ratio\n");
 		scale_action = -1;
-
 	/* No throughput measured yet for adjacent rates,
 	 * try increase */
 	} else if ((low_tpt == IWL_INVALID_VALUE) &&
 		   (high_tpt == IWL_INVALID_VALUE)) {
 
-		if (high != IWL_RATE_INVALID && window->success_counter >= IWL_RATE_INCREASE_TH)
+		if (high != IWL_RATE_INVALID && window->success_ratio >= IWL_RATE_INCREASE_TH)
 			scale_action = 1;
 		else if (low != IWL_RATE_INVALID)
-			scale_action = -1;
+			scale_action = 0;
 
 	/* Both adjacent throughputs are measured, but neither one has
 	 * better throughput; we're using the best rate, don't change
@@ -826,14 +825,14 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 			else {
 				IWL_DEBUG_RATE(priv,
 				    "decrease rate because of high tpt\n");
-				scale_action = -1;
+				scale_action = 0;
 			}
 		} else if (low_tpt != IWL_INVALID_VALUE) {
 			if (low_tpt > current_tpt) {
 				IWL_DEBUG_RATE(priv,
 				    "decrease rate because of low tpt\n");
 				scale_action = -1;
-			} else if (window->success_counter >= IWL_RATE_INCREASE_TH) {
+			} else if (window->success_ratio >= IWL_RATE_INCREASE_TH) {
 				/* Lower rate has better
 				 * throughput,decrease rate */
 				scale_action = 1;

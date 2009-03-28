@@ -194,6 +194,10 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 		return -EINVAL;
 	}
 
+	tx_power += ah->ah_txpower.txp_offset;
+	if (tx_power > AR5K_TUNE_MAX_TXPOWER)
+		tx_power = AR5K_TUNE_MAX_TXPOWER;
+
 	/* Clear descriptor */
 	memset(&desc->ud.ds_tx5212, 0, sizeof(struct ath5k_hw_5212_tx_desc));
 

@@ -124,7 +124,6 @@ static unsigned int smctr_get_num_rx_bdbs(struct net_device *dev);
 static int smctr_get_physical_drop_number(struct net_device *dev);
 static __u8 *smctr_get_rx_pointer(struct net_device *dev, short queue);
 static int smctr_get_station_id(struct net_device *dev);
-static struct net_device_stats *smctr_get_stats(struct net_device *dev);
 static FCBlock *smctr_get_tx_fcb(struct net_device *dev, __u16 queue,
         __u16 bytes_count);
 static int smctr_get_upstream_neighbor_addr(struct net_device *dev);
@@ -3633,6 +3632,14 @@ out:
 	return ERR_PTR(err);
 }
 
+static const struct net_device_ops smctr_netdev_ops = {
+	.ndo_open          = smctr_open,
+	.ndo_stop          = smctr_close,
+	.ndo_start_xmit    = smctr_send_packet,
+	.ndo_tx_timeout	   = smctr_timeout,
+	.ndo_get_stats     = smctr_get_stats,
+	.ndo_set_multicast_list = smctr_set_multicast_list,
+};
 
 static int __init smctr_probe1(struct net_device *dev, int ioaddr)
 {
@@ -3683,13 +3690,8 @@ static int __init smctr_probe1(struct net_device *dev, int ioaddr)
                 (unsigned int)dev->base_addr,
                 dev->irq, tp->rom_base, tp->ram_base);
 
-        dev->open               = smctr_open;
-        dev->stop               = smctr_close;
-        dev->hard_start_xmit    = smctr_send_packet;
-        dev->tx_timeout		= smctr_timeout;
+	dev->netdev_ops = &smctr_netdev_ops;
         dev->watchdog_timeo	= HZ;
-        dev->get_stats          = smctr_get_stats;
-        dev->set_multicast_list = &smctr_set_multicast_list;
         return (0);
 
 out:

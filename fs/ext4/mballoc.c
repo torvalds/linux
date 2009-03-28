@@ -3086,9 +3086,12 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	if (!(ac->ac_flags & EXT4_MB_DELALLOC_RESERVED))
 		/* release all the reserved blocks if non delalloc */
 		percpu_counter_sub(&sbi->s_dirtyblocks_counter, reserv_blks);
-	else
+	else {
 		percpu_counter_sub(&sbi->s_dirtyblocks_counter,
 						ac->ac_b_ex.fe_len);
+		/* convert reserved quota blocks to real quota blocks */
+		vfs_dq_claim_block(ac->ac_inode, ac->ac_b_ex.fe_len);
+	}
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi,
@@ -4544,7 +4547,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	struct ext4_sb_info *sbi;
 	struct super_block *sb;
 	ext4_fsblk_t block = 0;
-	unsigned int inquota;
+	unsigned int inquota = 0;
 	unsigned int reserv_blks = 0;
 
 	sb = ar->inode->i_sb;
@@ -4562,9 +4565,17 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 		   (unsigned long long) ar->pleft,
 		   (unsigned long long) ar->pright);
 
-	if (!EXT4_I(ar->inode)->i_delalloc_reserved_flag) {
-		/*
-		 * With delalloc we already reserved the blocks
+	/*
+	 * For delayed allocation, we could skip the ENOSPC and
+	 * EDQUOT check, as blocks and quotas have been already
+	 * reserved when data being copied into pagecache.
+	 */
+	if (EXT4_I(ar->inode)->i_delalloc_reserved_flag)
+		ar->flags |= EXT4_MB_DELALLOC_RESERVED;
+	else {
+		/* Without delayed allocation we need to verify
+		 * there is enough free blocks to do block allocation
+		 * and verify allocation doesn't exceed the quota limits.
 		 */
 		while (ar->len && ext4_claim_free_blocks(sbi, ar->len)) {
 			/* let others to free the space */
@@ -4576,19 +4587,16 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 			return 0;
 		}
 		reserv_blks = ar->len;
+		while (ar->len && vfs_dq_alloc_block(ar->inode, ar->len)) {
+			ar->flags |= EXT4_MB_HINT_NOPREALLOC;
+			ar->len--;
+		}
+		inquota = ar->len;
+		if (ar->len == 0) {
+			*errp = -EDQUOT;
+			goto out3;
+		}
 	}
-	while (ar->len && DQUOT_ALLOC_BLOCK(ar->inode, ar->len)) {
-		ar->flags |= EXT4_MB_HINT_NOPREALLOC;
-		ar->len--;
-	}
-	if (ar->len == 0) {
-		*errp = -EDQUOT;
-		goto out3;
-	}
-	inquota = ar->len;
-
-	if (EXT4_I(ar->inode)->i_delalloc_reserved_flag)
-		ar->flags |= EXT4_MB_DELALLOC_RESERVED;
 
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
 	if (!ac) {
@@ -4654,8 +4662,8 @@ repeat:
 out2:
 	kmem_cache_free(ext4_ac_cachep, ac);
 out1:
-	if (ar->len < inquota)
-		DQUOT_FREE_BLOCK(ar->inode, inquota - ar->len);
+	if (inquota && ar->len < inquota)
+		vfs_dq_free_block(ar->inode, inquota - ar->len);
 out3:
 	if (!ar->len) {
 		if (!EXT4_I(ar->inode)->i_delalloc_reserved_flag)

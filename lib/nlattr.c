@@ -133,6 +133,32 @@ errout:
 }
 
 /**
+ * nla_policy_len - Determin the max. length of a policy
+ * @policy: policy to use
+ * @n: number of policies
+ *
+ * Determines the max. length of the policy.  It is currently used
+ * to allocated Netlink buffers roughly the size of the actual
+ * message.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+int
+nla_policy_len(const struct nla_policy *p, int n)
+{
+	int i, len = 0;
+
+	for (i = 0; i < n; i++) {
+		if (p->len)
+			len += nla_total_size(p->len);
+		else if (nla_attr_minlen[p->type])
+			len += nla_total_size(nla_attr_minlen[p->type]);
+	}
+
+	return len;
+}
+
+/**
  * nla_parse - Parse a stream of attributes into a tb buffer
  * @tb: destination array with maxtype+1 elements
  * @maxtype: maximum attribute type to be expected
@@ -467,6 +493,7 @@ EXPORT_SYMBOL(nla_append);
 #endif
 
 EXPORT_SYMBOL(nla_validate);
+EXPORT_SYMBOL(nla_policy_len);
 EXPORT_SYMBOL(nla_parse);
 EXPORT_SYMBOL(nla_find);
 EXPORT_SYMBOL(nla_strlcpy);

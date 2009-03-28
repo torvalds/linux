@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Atheros Communications Inc.
+ * Copyright (c) 2008-2009 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -295,13 +295,9 @@ struct ath_tx_control {
 	enum ath9k_internal_frame_type frame_type;
 };
 
-struct ath_xmit_status {
-	int retries;
-	int flags;
 #define ATH_TX_ERROR        0x01
 #define ATH_TX_XRETRY       0x02
 #define ATH_TX_BAR          0x04
-};
 
 /* All RSSI values are noise floor adjusted */
 struct ath_tx_stat {
@@ -390,6 +386,7 @@ void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid
 
 struct ath_vif {
 	int av_bslot;
+	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */
 	enum nl80211_iftype av_opmode;
 	struct ath_buf *av_bcbuf;
 	struct ath_tx_control av_btxctl;
@@ -406,7 +403,7 @@ struct ath_vif {
  * number of beacon intervals, the game's up.
  */
 #define BSTUCK_THRESH           	(9 * ATH_BCBUF)
-#define	ATH_BCBUF               	1
+#define	ATH_BCBUF               	4
 #define ATH_DEFAULT_BINTVAL     	100 /* TU */
 #define ATH_DEFAULT_BMISS_LIMIT 	10
 #define IEEE80211_MS_TO_TU(x)           (((x) * 1000) / 1024)

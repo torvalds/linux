@@ -355,40 +355,6 @@ SYSCALL_DEFINE1(32_personality, unsigned long, personality)
 	return ret;
 }
 
-/* ustat compatibility */
-struct ustat32 {
-	compat_daddr_t	f_tfree;
-	compat_ino_t	f_tinode;
-	char		f_fname[6];
-	char		f_fpack[6];
-};
-
-extern asmlinkage long sys_ustat(dev_t dev, struct ustat __user * ubuf);
-
-SYSCALL_DEFINE2(32_ustat, dev_t, dev, struct ustat32 __user *, ubuf32)
-{
-	int err;
-	struct ustat tmp;
-	struct ustat32 tmp32;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	err = sys_ustat(dev, (struct ustat __user *)&tmp);
-	set_fs(old_fs);
-
-	if (err)
-		goto out;
-
-	memset(&tmp32, 0, sizeof(struct ustat32));
-	tmp32.f_tfree = tmp.f_tfree;
-	tmp32.f_tinode = tmp.f_tinode;
-
-	err = copy_to_user(ubuf32, &tmp32, sizeof(struct ustat32)) ? -EFAULT : 0;
-
-out:
-	return err;
-}
-
 SYSCALL_DEFINE4(32_sendfile, long, out_fd, long, in_fd,
 	compat_off_t __user *, offset, s32, count)
 {

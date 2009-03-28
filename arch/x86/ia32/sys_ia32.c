@@ -638,28 +638,6 @@ long sys32_uname(struct old_utsname __user *name)
 	return err ? -EFAULT : 0;
 }
 
-long sys32_ustat(unsigned dev, struct ustat32 __user *u32p)
-{
-	struct ustat u;
-	mm_segment_t seg;
-	int ret;
-
-	seg = get_fs();
-	set_fs(KERNEL_DS);
-	ret = sys_ustat(dev, (struct ustat __user *)&u);
-	set_fs(seg);
-	if (ret < 0)
-		return ret;
-
-	if (!access_ok(VERIFY_WRITE, u32p, sizeof(struct ustat32)) ||
-	    __put_user((__u32) u.f_tfree, &u32p->f_tfree) ||
-	    __put_user((__u32) u.f_tinode, &u32p->f_tfree) ||
-	    __copy_to_user(&u32p->f_fname, u.f_fname, sizeof(u.f_fname)) ||
-	    __copy_to_user(&u32p->f_fpack, u.f_fpack, sizeof(u.f_fpack)))
-		ret = -EFAULT;
-	return ret;
-}
-
 asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
 			     compat_uptr_t __user *envp, struct pt_regs *regs)
 {

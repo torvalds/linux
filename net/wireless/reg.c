@@ -122,9 +122,14 @@ static const struct ieee80211_regdomain *cfg80211_world_regdom =
 
 #ifdef CONFIG_WIRELESS_OLD_REGULATORY
 static char *ieee80211_regdom = "US";
+#else
+static char *ieee80211_regdom = "00";
+#endif
+
 module_param(ieee80211_regdom, charp, 0444);
 MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
 
+#ifdef CONFIG_WIRELESS_OLD_REGULATORY
 /*
  * We assume 40 MHz bandwidth for the old regulatory work.
  * We make emphasis we are using the exact same frequencies
@@ -1415,16 +1420,6 @@ new_request:
 		return r;
 	}
 
-	/*
-	 * Note: When CONFIG_WIRELESS_OLD_REGULATORY is enabled
-	 * AND if CRDA is NOT present nothing will happen, if someone
-	 * wants to bother with 11d with OLD_REG you can add a timer.
-	 * If after x amount of time nothing happens you can call:
-	 *
-	 * return set_regdom(country_ie_regdomain);
-	 *
-	 * to intersect with the static rd
-	 */
 	return call_crda(last_request->alpha2);
 }
 
@@ -1601,6 +1596,10 @@ static bool reg_same_country_ie_hint(struct wiphy *wiphy,
 
 	assert_cfg80211_lock();
 
+	if (unlikely(last_request->initiator !=
+	    NL80211_REGDOM_SET_BY_COUNTRY_IE))
+		return false;
+
 	request_wiphy = wiphy_idx_to_wiphy(last_request->wiphy_idx);
 
 	if (!request_wiphy)
@@ -1663,7 +1662,9 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	 * we optimize an early check to exit out early if we don't have to
 	 * do anything
 	 */
-	if (likely(wiphy_idx_valid(last_request->wiphy_idx))) {
+	if (likely(last_request->initiator ==
+	    NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+	    wiphy_idx_valid(last_request->wiphy_idx))) {
 		struct cfg80211_registered_device *drv_last_ie;
 
 		drv_last_ie =
@@ -2022,28 +2023,21 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	 */
 
 	BUG_ON(!country_ie_regdomain);
+	BUG_ON(rd == country_ie_regdomain);
 
-	if (rd != country_ie_regdomain) {
-		/*
-		 * Intersect what CRDA returned and our what we
-		 * had built from the Country IE received
-		 */
+	/*
+	 * Intersect what CRDA returned and our what we
+	 * had built from the Country IE received
+	 */
 
-		intersected_rd = regdom_intersect(rd, country_ie_regdomain);
+	intersected_rd = regdom_intersect(rd, country_ie_regdomain);
 
-		reg_country_ie_process_debug(rd, country_ie_regdomain,
-			intersected_rd);
+	reg_country_ie_process_debug(rd,
+				     country_ie_regdomain,
+				     intersected_rd);
 
-		kfree(country_ie_regdomain);
-		country_ie_regdomain = NULL;
-	} else {
-		/*
-		 * This would happen when CRDA was not present and
-		 * OLD_REGULATORY was enabled. We intersect our Country
-		 * IE rd and what was set on cfg80211 originally
-		 */
-		intersected_rd = regdom_intersect(rd, cfg80211_regdomain);
-	}
+	kfree(country_ie_regdomain);
+	country_ie_regdomain = NULL;
 
 	if (!intersected_rd)
 		return -EINVAL;
@@ -2135,15 +2129,18 @@ int regulatory_init(void)
 	/*
 	 * The old code still requests for a new regdomain and if
 	 * you have CRDA you get it updated, otherwise you get
-	 * stuck with the static values. We ignore "EU" code as
-	 * that is not a valid ISO / IEC 3166 alpha2
+	 * stuck with the static values. Since "EU" is not a valid
+	 * ISO / IEC 3166 alpha2 code we can't expect userpace to
+	 * give us a regulatory domain for it. We need last_request
+	 * iniitalized though so lets just send a request which we
+	 * know will be ignored... this crap will be removed once
+	 * OLD_REG dies.
 	 */
-	if (ieee80211_regdom[0] != 'E' || ieee80211_regdom[1] != 'U')
-		err = regulatory_hint_core(ieee80211_regdom);
+	err = regulatory_hint_core(ieee80211_regdom);
 #else
 	cfg80211_regdomain = cfg80211_world_regdom;
 
-	err = regulatory_hint_core("00");
+	err = regulatory_hint_core(ieee80211_regdom);
 #endif
 	if (err) {
 		if (err == -ENOMEM)
