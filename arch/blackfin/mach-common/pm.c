@@ -287,7 +287,7 @@ int bfin_pm_suspend_mem_enter(void)
 static int bfin_pm_valid(suspend_state_t state)
 {
 	return (state == PM_SUSPEND_STANDBY
-#ifndef BF533_FAMILY
+#if !(defined(BF533_FAMILY) || defined(CONFIG_BF561))
 	/*
 	 * On BF533/2/1:
 	 * If we enter Hibernate the SCKE Pin is driven Low,
