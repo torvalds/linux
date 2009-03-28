@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
@@ -186,14 +187,16 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 	int numbytes = 0;
 	int state;
 	int ret;
-	int timeout = i2c_adap->timeout;
+	unsigned long timeout = jiffies + i2c_adap->timeout;
 
-	while ((state = pca_status(adap)) != 0xf8 && timeout--) {
-		msleep(10);
-	}
-	if (state != 0xf8) {
-		dev_dbg(&i2c_adap->dev, "bus is not idle. status is %#04x\n", state);
-		return -EAGAIN;
+	while (pca_status(adap) != 0xf8) {
+		if (time_before(jiffies, timeout)) {
+			msleep(10);
+		} else {
+			dev_dbg(&i2c_adap->dev, "bus is not idle. status is "
+				"%#04x\n", state);
+			return -EAGAIN;
+		}
 	}
 
 	DEB1("{{{ XFER %d messages\n", num);

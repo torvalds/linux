@@ -104,7 +104,7 @@ static struct i2c_adapter pca_isa_ops = {
 	.owner          = THIS_MODULE,
 	.algo_data	= &pca_isa_data,
 	.name		= "PCA9564/PCA9665 ISA Adapter",
-	.timeout	= 100,
+	.timeout	= HZ,
 };
 
 static int __devinit pca_isa_match(struct device *dev, unsigned int id)
