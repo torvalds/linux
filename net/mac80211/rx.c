@@ -142,6 +142,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	/* IEEE80211_RADIOTAP_FLAGS */
 	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
 		*pos |= IEEE80211_RADIOTAP_F_FCS;
+	if (status->flag & (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
+		*pos |= IEEE80211_RADIOTAP_F_BADFCS;
 	if (status->flag & RX_FLAG_SHORTPRE)
 		*pos |= IEEE80211_RADIOTAP_F_SHORTPRE;
 	pos++;
@@ -204,9 +206,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	/* ensure 2 byte alignment for the 2 byte field as required */
 	if ((pos - (unsigned char *)rthdr) & 1)
 		pos++;
-	/* FIXME: when radiotap gets a 'bad PLCP' flag use it here */
-	if (status->flag & (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
-		*(__le16 *)pos |= cpu_to_le16(IEEE80211_RADIOTAP_F_RX_BADFCS);
+	if (status->flag & RX_FLAG_FAILED_PLCP_CRC)
+		*(__le16 *)pos |= cpu_to_le16(IEEE80211_RADIOTAP_F_RX_BADPLCP);
 	pos += 2;
 }
 
@@ -849,11 +850,18 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 		 * Mesh beacons will update last_rx when if they are found to
 		 * match the current local configuration when processed.
 		 */
-		sta->last_rx = jiffies;
+		if (rx->sdata->vif.type == NL80211_IFTYPE_STATION &&
+		    ieee80211_is_beacon(hdr->frame_control)) {
+			rx->sdata->u.mgd.last_beacon = jiffies;
+		} else
+			sta->last_rx = jiffies;
 	}
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 		return RX_CONTINUE;
+
+	if (rx->sdata->vif.type == NL80211_IFTYPE_STATION)
+		ieee80211_sta_rx_notify(rx->sdata, hdr);
 
 	sta->rx_fragments++;
 	sta->rx_bytes += rx->skb->len;
@@ -1876,18 +1884,13 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		return ieee80211_mesh_rx_mgmt(sdata, rx->skb, rx->status);
 
-	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
-	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
-		return RX_DROP_MONITOR;
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return ieee80211_ibss_rx_mgmt(sdata, rx->skb, rx->status);
 
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME)
-			return RX_DROP_MONITOR;
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		return ieee80211_sta_rx_mgmt(sdata, rx->skb, rx->status);
-	}
 
-	return ieee80211_ibss_rx_mgmt(sdata, rx->skb, rx->status);
+	return RX_DROP_MONITOR;
 }
 
 static void ieee80211_rx_michael_mic_report(struct net_device *dev,

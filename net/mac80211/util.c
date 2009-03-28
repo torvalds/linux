@@ -166,18 +166,13 @@ int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
 
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
+	struct sk_buff *skb = tx->skb;
+	struct ieee80211_hdr *hdr;
 
-	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
-	if (tx->extra_frag) {
-		struct ieee80211_hdr *fhdr;
-		int i;
-		for (i = 0; i < tx->num_extra_frag; i++) {
-			fhdr = (struct ieee80211_hdr *)
-				tx->extra_frag[i]->data;
-			fhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
-		}
-	}
+	do {
+		hdr = (struct ieee80211_hdr *) skb->data;
+		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+	} while ((skb = skb->next));
 }
 
 int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
@@ -344,42 +339,21 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (queue >= hw->queues) {
-		if (local->ampdu_ac_queue[queue - hw->queues] < 0)
-			return;
-
-		/*
-		 * for virtual aggregation queues, we need to refcount the
-		 * internal mac80211 disable (multiple times!), keep track of
-		 * driver disable _and_ make sure the regular queue is
-		 * actually enabled.
-		 */
-		if (reason == IEEE80211_QUEUE_STOP_REASON_AGGREGATION)
-			local->amdpu_ac_stop_refcnt[queue - hw->queues]--;
-		else
-			__clear_bit(reason, &local->queue_stop_reasons[queue]);
-
-		if (local->queue_stop_reasons[queue] ||
-		    local->amdpu_ac_stop_refcnt[queue - hw->queues])
-			return;
-
-		/* now go on to treat the corresponding regular queue */
-		queue = local->ampdu_ac_queue[queue - hw->queues];
-		reason = IEEE80211_QUEUE_STOP_REASON_AGGREGATION;
-	}
+	if (WARN_ON(queue >= hw->queues))
+		return;
 
 	__clear_bit(reason, &local->queue_stop_reasons[queue]);
+
+	if (!skb_queue_empty(&local->pending[queue]) &&
+	    local->queue_stop_reasons[queue] ==
+				BIT(IEEE80211_QUEUE_STOP_REASON_PENDING))
+		tasklet_schedule(&local->tx_pending_tasklet);
 
 	if (local->queue_stop_reasons[queue] != 0)
 		/* someone still has this queue stopped */
 		return;
 
-	if (test_bit(queue, local->queues_pending)) {
-		set_bit(queue, local->queues_pending_run);
-		tasklet_schedule(&local->tx_pending_tasklet);
-	} else {
-		netif_wake_subqueue(local->mdev, queue);
-	}
+	netif_wake_subqueue(local->mdev, queue);
 }
 
 void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
@@ -405,29 +379,18 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (queue >= hw->queues) {
-		if (local->ampdu_ac_queue[queue - hw->queues] < 0)
-			return;
+	if (WARN_ON(queue >= hw->queues))
+		return;
 
-		/*
-		 * for virtual aggregation queues, we need to refcount the
-		 * internal mac80211 disable (multiple times!), keep track of
-		 * driver disable _and_ make sure the regular queue is
-		 * actually enabled.
-		 */
-		if (reason == IEEE80211_QUEUE_STOP_REASON_AGGREGATION)
-			local->amdpu_ac_stop_refcnt[queue - hw->queues]++;
-		else
-			__set_bit(reason, &local->queue_stop_reasons[queue]);
-
-		/* now go on to treat the corresponding regular queue */
-		queue = local->ampdu_ac_queue[queue - hw->queues];
-		reason = IEEE80211_QUEUE_STOP_REASON_AGGREGATION;
-	}
+	/*
+	 * Only stop if it was previously running, this is necessary
+	 * for correct pending packets handling because there we may
+	 * start (but not wake) the queue and rely on that.
+	 */
+	if (!local->queue_stop_reasons[queue])
+		netif_stop_subqueue(local->mdev, queue);
 
 	__set_bit(reason, &local->queue_stop_reasons[queue]);
-
-	netif_stop_subqueue(local->mdev, queue);
 }
 
 void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
@@ -473,15 +436,9 @@ EXPORT_SYMBOL(ieee80211_stop_queues);
 int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	unsigned long flags;
 
-	if (queue >= hw->queues) {
-		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-		queue = local->ampdu_ac_queue[queue - hw->queues];
-		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
-		if (queue < 0)
-			return true;
-	}
+	if (WARN_ON(queue >= hw->queues))
+		return true;
 
 	return __netif_subqueue_stopped(local->mdev, queue);
 }
@@ -496,7 +453,7 @@ void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 
-	for (i = 0; i < hw->queues + hw->ampdu_queues; i++)
+	for (i = 0; i < hw->queues; i++)
 		__ieee80211_wake_queue(hw, i, reason);
 
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
@@ -846,16 +803,9 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	const u8 *ie_auth = NULL;
-	int ie_auth_len = 0;
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		ie_auth_len = sdata->u.mgd.ie_auth_len;
-		ie_auth = sdata->u.mgd.ie_auth;
-	}
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
-			    sizeof(*mgmt) + 6 + extra_len + ie_auth_len);
+			    sizeof(*mgmt) + 6 + extra_len);
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for auth "
 		       "frame\n", sdata->dev->name);
@@ -877,8 +827,6 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.auth.status_code = cpu_to_le16(0);
 	if (extra)
 		memcpy(skb_put(skb, extra_len), extra, extra_len);
-	if (ie_auth)
-		memcpy(skb_put(skb, ie_auth_len), ie_auth, ie_auth_len);
 
 	ieee80211_tx_skb(sdata, skb, encrypt);
 }
@@ -891,20 +839,11 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	struct ieee80211_supported_band *sband;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos, *supp_rates, *esupp_rates = NULL, *extra_preq_ie = NULL;
-	int i, extra_preq_ie_len = 0;
-
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_STATION:
-		extra_preq_ie_len = sdata->u.mgd.ie_probereq_len;
-		extra_preq_ie = sdata->u.mgd.ie_probereq;
-		break;
-	default:
-		break;
-	}
+	u8 *pos, *supp_rates, *esupp_rates = NULL;
+	int i;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt) + 200 +
-			    ie_len + extra_preq_ie_len);
+			    ie_len);
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
 		       "request\n", sdata->dev->name);
@@ -953,9 +892,6 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 
 	if (ie)
 		memcpy(skb_put(skb, ie_len), ie, ie_len);
-	if (extra_preq_ie)
-		memcpy(skb_put(skb, extra_preq_ie_len), extra_preq_ie,
-		       extra_preq_ie_len);
 
 	ieee80211_tx_skb(sdata, skb, 0);
 }

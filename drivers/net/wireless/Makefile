@@ -57,5 +57,6 @@ obj-$(CONFIG_P54_COMMON)	+= p54/
 
 obj-$(CONFIG_ATH5K)	+= ath5k/
 obj-$(CONFIG_ATH9K)	+= ath9k/
+obj-$(CONFIG_AR9170_USB)	+= ar9170/
 
 obj-$(CONFIG_MAC80211_HWSIM)	+= mac80211_hwsim.o

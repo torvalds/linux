@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Atheros Communications Inc.
+ * Copyright (c) 2008-2009 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -344,8 +344,13 @@ void ath_rx_cleanup(struct ath_softc *sc)
 
 	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
 		skb = bf->bf_mpdu;
-		if (skb)
+		if (skb) {
+			dma_unmap_single(sc->dev,
+					 bf->bf_buf_addr,
+					 sc->rx.bufsize,
+					 DMA_FROM_DEVICE);
 			dev_kfree_skb(skb);
+		}
 	}
 
 	if (sc->rx.rxdma.dd_desc_len != 0)

@@ -174,7 +174,7 @@ EXPORT_SYMBOL(iwl_tx_queue_free);
  * Free all buffers.
  * 0-fill, but do not free "txq" descriptor structure.
  */
-static void iwl_cmd_queue_free(struct iwl_priv *priv)
+void iwl_cmd_queue_free(struct iwl_priv *priv)
 {
 	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 	struct iwl_queue *q = &txq->q;
@@ -193,12 +193,14 @@ static void iwl_cmd_queue_free(struct iwl_priv *priv)
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
-		pci_free_consistent(dev, sizeof(struct iwl_tfd) *
+		pci_free_consistent(dev, priv->hw_params.tfd_size *
 				    txq->q.n_bd, txq->tfds, txq->q.dma_addr);
 
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
 }
+EXPORT_SYMBOL(iwl_cmd_queue_free);
+
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
  *
@@ -761,8 +763,10 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
 		seq_number += 0x10;
 		/* aggregation is on for this <sta,tid> */
-		if (info->flags & IEEE80211_TX_CTL_AMPDU)
+		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
 			txq_id = priv->stations[sta_id].tid[tid].agg.txq_id;
+			swq_id = iwl_virtual_agg_queue_num(swq_id, txq_id);
+		}
 		priv->stations[sta_id].tid[tid].tfds_in_queue++;
 	}
 
@@ -893,7 +897,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			iwl_txq_update_write_ptr(priv, txq);
 			spin_unlock_irqrestore(&priv->lock, flags);
 		} else {
-			ieee80211_stop_queue(priv->hw, txq->swq_id);
+			iwl_stop_queue(priv, txq->swq_id);
 		}
 	}
 
@@ -1221,8 +1225,10 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 
 	sta_id = iwl_find_station(priv, ra);
 
-	if (sta_id == IWL_INVALID_STATION)
+	if (sta_id == IWL_INVALID_STATION) {
+		IWL_ERR(priv, "Invalid station for AGG tid %d\n", tid);
 		return -ENXIO;
+	}
 
 	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_ON)
 		IWL_WARN(priv, "Stopping AGG while state not IWL_AGG_ON\n");
@@ -1429,7 +1435,7 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 		if ((iwl_queue_space(&txq->q) > txq->q.low_mark) &&
 		    priv->mac80211_registered &&
 		    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA))
-			ieee80211_wake_queue(priv->hw, txq->swq_id);
+			iwl_wake_queue(priv, txq->swq_id);
 
 		iwl_txq_check_empty(priv, sta_id, tid, scd_flow);
 	}

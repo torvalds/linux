@@ -996,6 +996,12 @@ struct iwl_priv {
 	u8 key_mapping_key;
 	unsigned long ucode_key_table;
 
+	/* queue refcounts */
+#define IWL_MAX_HW_QUEUES	32
+	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
+	/* for each AC */
+	atomic_t queue_stop_count[4];
+
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
 

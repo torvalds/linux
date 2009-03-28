@@ -214,6 +214,66 @@ void ieee80211_scan_failed(struct ieee80211_local *local)
 	local->scan_req = NULL;
 }
 
+/*
+ * inform AP that we will go to sleep so that it will buffer the frames
+ * while we scan
+ */
+static void ieee80211_scan_ps_enable(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	bool ps = false;
+
+	/* FIXME: what to do when local->pspolling is true? */
+
+	del_timer_sync(&local->dynamic_ps_timer);
+	cancel_work_sync(&local->dynamic_ps_enable_work);
+
+	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
+		ps = true;
+		local->hw.conf.flags &= ~IEEE80211_CONF_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	}
+
+	if (!ps || !(local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK))
+		/*
+		 * If power save was enabled, no need to send a nullfunc
+		 * frame because AP knows that we are sleeping. But if the
+		 * hardware is creating the nullfunc frame for power save
+		 * status (ie. IEEE80211_HW_PS_NULLFUNC_STACK is not
+		 * enabled) and power save was enabled, the firmware just
+		 * sent a null frame with power save disabled. So we need
+		 * to send a new nullfunc frame to inform the AP that we
+		 * are again sleeping.
+		 */
+		ieee80211_send_nullfunc(local, sdata, 1);
+}
+
+/* inform AP that we are awake again, unless power save is enabled */
+static void ieee80211_scan_ps_disable(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	if (!local->powersave)
+		ieee80211_send_nullfunc(local, sdata, 0);
+	else {
+		/*
+		 * In !IEEE80211_HW_PS_NULLFUNC_STACK case the hardware
+		 * will send a nullfunc frame with the powersave bit set
+		 * even though the AP already knows that we are sleeping.
+		 * This could be avoided by sending a null frame with power
+		 * save bit disabled before enabling the power save, but
+		 * this doesn't gain anything.
+		 *
+		 * When IEEE80211_HW_PS_NULLFUNC_STACK is enabled, no need
+		 * to send a nullfunc frame because AP already knows that
+		 * we are sleeping, let's just enable power save mode in
+		 * hardware.
+		 */
+		local->hw.conf.flags |= IEEE80211_CONF_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	}
+}
+
 void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -268,7 +328,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 		/* Tell AP we're back */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED) {
-				ieee80211_send_nullfunc(local, sdata, 0);
+				ieee80211_scan_ps_disable(sdata);
 				netif_tx_wake_all_queues(sdata->dev);
 			}
 		} else
@@ -409,6 +469,19 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 		return 0;
 	}
 
+	/*
+	 * Hardware/driver doesn't support hw_scan, so use software
+	 * scanning instead. First send a nullfunc frame with power save
+	 * bit on so that AP will buffer the frames for us while we are not
+	 * listening, then send probe requests to each channel and wait for
+	 * the responses. After all channels are scanned, tune back to the
+	 * original channel and send a nullfunc frame with power save bit
+	 * off to trigger the AP to send us all the buffered frames.
+	 *
+	 * Note that while local->sw_scanning is true everything else but
+	 * nullfunc frames and probe requests will be dropped in
+	 * ieee80211_tx_h_check_assoc().
+	 */
 	local->sw_scanning = true;
 	if (local->ops->sw_scan_start)
 		local->ops->sw_scan_start(local_to_hw(local));
@@ -428,7 +501,7 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED) {
 				netif_tx_stop_all_queues(sdata->dev);
-				ieee80211_send_nullfunc(local, sdata, 1);
+				ieee80211_scan_ps_enable(sdata);
 			}
 		} else
 			netif_tx_stop_all_queues(sdata->dev);

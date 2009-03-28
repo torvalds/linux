@@ -203,17 +203,6 @@ void sta_info_destroy(struct sta_info *sta)
 		if (tid_rx)
 			tid_rx->shutdown = true;
 
-		/*
-		 * The stop callback cannot find this station any more, but
-		 * it didn't complete its work -- start the queue if necessary
-		 */
-		if (sta->ampdu_mlme.tid_state_tx[i] & HT_AGG_STATE_INITIATOR_MSK &&
-		    sta->ampdu_mlme.tid_state_tx[i] & HT_AGG_STATE_REQ_STOP_BA_MSK &&
-		    local->hw.ampdu_queues)
-			ieee80211_wake_queue_by_reason(&local->hw,
-				local->hw.queues + sta->tid_to_tx_q[i],
-				IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
-
 		spin_unlock_bh(&sta->lock);
 
 		/*
@@ -239,6 +228,11 @@ void sta_info_destroy(struct sta_info *sta)
 		tid_tx = sta->ampdu_mlme.tid_tx[i];
 		if (tid_tx) {
 			del_timer_sync(&tid_tx->addba_resp_timer);
+			/*
+			 * STA removed while aggregation session being
+			 * started? Bit odd, but purge frames anyway.
+			 */
+			skb_queue_purge(&tid_tx->pending);
 			kfree(tid_tx);
 		}
 	}
@@ -287,7 +281,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		 * enable session_timer's data differentiation. refer to
 		 * sta_rx_agg_session_timer_expired for useage */
 		sta->timer_to_tid[i] = i;
-		sta->tid_to_tx_q[i] = -1;
 		/* rx */
 		sta->ampdu_mlme.tid_state_rx[i] = HT_AGG_STATE_IDLE;
 		sta->ampdu_mlme.tid_rx[i] = NULL;

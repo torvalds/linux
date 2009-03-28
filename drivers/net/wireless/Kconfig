@@ -485,6 +485,7 @@ config MWL8K
 source "drivers/net/wireless/p54/Kconfig"
 source "drivers/net/wireless/ath5k/Kconfig"
 source "drivers/net/wireless/ath9k/Kconfig"
+source "drivers/net/wireless/ar9170/Kconfig"
 source "drivers/net/wireless/ipw2x00/Kconfig"
 source "drivers/net/wireless/iwlwifi/Kconfig"
 source "drivers/net/wireless/hostap/Kconfig"
