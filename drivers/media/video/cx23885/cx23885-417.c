@@ -896,7 +896,7 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 	if (retval != 0) {
 		printk(KERN_ERR
 			"ERROR: Hotplug firmware request failed (%s).\n",
-			CX2341X_FIRM_ENC_FILENAME);
+			CX23885_FIRM_IMAGE_NAME);
 		printk(KERN_ERR "Please fix your hotplug setup, the board will "
 			"not work without firmware loaded!\n");
 		return -1;
