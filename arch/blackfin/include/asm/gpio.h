@@ -110,7 +110,7 @@
 * MODIFICATION HISTORY :
 **************************************************************/
 
-#ifndef BF548_FAMILY
+#ifndef CONFIG_BF54x
 void set_gpio_dir(unsigned, unsigned short);
 void set_gpio_inen(unsigned, unsigned short);
 void set_gpio_polar(unsigned, unsigned short);
