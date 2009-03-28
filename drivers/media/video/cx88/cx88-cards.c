@@ -1969,6 +1969,13 @@ static const struct cx88_board cx88_boards[] = {
 		},
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_HAUPPAUGE_IRONLY] = {
+		.name           = "Hauppauge WinTV-IR Only",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -2382,6 +2389,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x153b,
 		.subdevice = 0x1177,
 		.card      = CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x9290,
+		.card      = CX88_BOARD_HAUPPAUGE_IRONLY,
 	},
 };
 
@@ -2448,6 +2459,7 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	case 90500: /* Nova-T-PCI (oem) */
 	case 90501: /* Nova-T-PCI (oem/IR) */
 	case 92000: /* Nova-SE2 (OEM, No Video or IR) */
+	case 92900: /* WinTV-IROnly (No analog or digital Video inputs) */
 	case 94009: /* WinTV-HVR1100 (Video and IR Retail) */
 	case 94501: /* WinTV-HVR1100 (Video and IR OEM) */
 	case 96009: /* WinTV-HVR1300 (PAL Video, MPEG Video and IR RX) */
@@ -2907,6 +2919,7 @@ static void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
+	case CX88_BOARD_HAUPPAUGE_IRONLY:
 		if (0 == core->i2c_rc)
 			hauppauge_eeprom(core, eeprom);
 		break;
