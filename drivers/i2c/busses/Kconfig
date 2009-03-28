@@ -132,6 +132,7 @@ config I2C_PIIX4
 	    Serverworks CSB5
 	    Serverworks CSB6
 	    Serverworks HT-1000
+	    Serverworks HT-1100
 	    SMSC Victory66
 
 	  This driver can also be built as a module.  If so, the module
