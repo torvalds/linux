@@ -46,6 +46,14 @@ static int i2c_debug;
 #define pca_wait(adap) adap->wait_for_completion(adap->data)
 #define pca_reset(adap) adap->reset_chip(adap->data)
 
+static void pca9665_reset(void *pd)
+{
+	struct i2c_algo_pca_data *adap = pd;
+	pca_outw(adap, I2C_PCA_INDPTR, I2C_PCA_IPRESET);
+	pca_outw(adap, I2C_PCA_IND, 0xA5);
+	pca_outw(adap, I2C_PCA_IND, 0x5A);
+}
+
 /*
  * Generate a start condition on the i2c bus.
  *
@@ -333,27 +341,171 @@ static const struct i2c_algorithm pca_algo = {
 	.functionality	= pca_func,
 };
 
+static unsigned int pca_probe_chip(struct i2c_adapter *adap)
+{
+	struct i2c_algo_pca_data *pca_data = adap->algo_data;
+	/* The trick here is to check if there is an indirect register
+	 * available. If there is one, we will read the value we first
+	 * wrote on I2C_PCA_IADR. Otherwise, we will read the last value
+	 * we wrote on I2C_PCA_ADR
+	 */
+	pca_outw(pca_data, I2C_PCA_INDPTR, I2C_PCA_IADR);
+	pca_outw(pca_data, I2C_PCA_IND, 0xAA);
+	pca_outw(pca_data, I2C_PCA_INDPTR, I2C_PCA_ITO);
+	pca_outw(pca_data, I2C_PCA_IND, 0x00);
+	pca_outw(pca_data, I2C_PCA_INDPTR, I2C_PCA_IADR);
+	if (pca_inw(pca_data, I2C_PCA_IND) == 0xAA) {
+		printk(KERN_INFO "%s: PCA9665 detected.\n", adap->name);
+		return I2C_PCA_CHIP_9665;
+	} else {
+		printk(KERN_INFO "%s: PCA9564 detected.\n", adap->name);
+		return I2C_PCA_CHIP_9564;
+	}
+}
+
 static int pca_init(struct i2c_adapter *adap)
 {
-	static int freqs[] = {330,288,217,146,88,59,44,36};
-	int clock;
 	struct i2c_algo_pca_data *pca_data = adap->algo_data;
-
-	if (pca_data->i2c_clock > 7) {
-		printk(KERN_WARNING "%s: Invalid I2C clock speed selected. Trying default.\n",
-			adap->name);
-		pca_data->i2c_clock = I2C_PCA_CON_59kHz;
-	}
 
 	adap->algo = &pca_algo;
 
-	pca_reset(pca_data);
+	if (pca_probe_chip(adap) == I2C_PCA_CHIP_9564) {
+		static int freqs[] = {330, 288, 217, 146, 88, 59, 44, 36};
+		int clock;
 
-	clock = pca_clock(pca_data);
-	printk(KERN_INFO "%s: Clock frequency is %dkHz\n", adap->name,
-	       freqs[clock]);
+		if (pca_data->i2c_clock > 7) {
+			switch (pca_data->i2c_clock) {
+			case 330000:
+				pca_data->i2c_clock = I2C_PCA_CON_330kHz;
+				break;
+			case 288000:
+				pca_data->i2c_clock = I2C_PCA_CON_288kHz;
+				break;
+			case 217000:
+				pca_data->i2c_clock = I2C_PCA_CON_217kHz;
+				break;
+			case 146000:
+				pca_data->i2c_clock = I2C_PCA_CON_146kHz;
+				break;
+			case 88000:
+				pca_data->i2c_clock = I2C_PCA_CON_88kHz;
+				break;
+			case 59000:
+				pca_data->i2c_clock = I2C_PCA_CON_59kHz;
+				break;
+			case 44000:
+				pca_data->i2c_clock = I2C_PCA_CON_44kHz;
+				break;
+			case 36000:
+				pca_data->i2c_clock = I2C_PCA_CON_36kHz;
+				break;
+			default:
+				printk(KERN_WARNING
+					"%s: Invalid I2C clock speed selected."
+					" Using default 59kHz.\n", adap->name);
+			pca_data->i2c_clock = I2C_PCA_CON_59kHz;
+			}
+		} else {
+			printk(KERN_WARNING "%s: "
+				"Choosing the clock frequency based on "
+				"index is deprecated."
+				" Use the nominal frequency.\n", adap->name);
+		}
 
-	pca_set_con(pca_data, I2C_PCA_CON_ENSIO | clock);
+		pca_reset(pca_data);
+
+		clock = pca_clock(pca_data);
+		printk(KERN_INFO "%s: Clock frequency is %dkHz\n",
+		     adap->name, freqs[clock]);
+
+		pca_set_con(pca_data, I2C_PCA_CON_ENSIO | clock);
+	} else {
+		int clock;
+		int mode;
+		int tlow, thi;
+		/* Values can be found on PCA9665 datasheet section 7.3.2.6 */
+		int min_tlow, min_thi;
+		/* These values are the maximum raise and fall values allowed
+		 * by the I2C operation mode (Standard, Fast or Fast+)
+		 * They are used (added) below to calculate the clock dividers
+		 * of PCA9665. Note that they are slightly different of the
+		 * real maximum, to allow the change on mode exactly on the
+		 * maximum clock rate for each mode
+		 */
+		int raise_fall_time;
+
+		struct i2c_algo_pca_data *pca_data = adap->algo_data;
+
+		/* Ignore the reset function from the module,
+		 * we can use the parallel bus reset
+		 */
+		pca_data->reset_chip = pca9665_reset;
+
+		if (pca_data->i2c_clock > 1265800) {
+			printk(KERN_WARNING "%s: I2C clock speed too high."
+				" Using 1265.8kHz.\n", adap->name);
+			pca_data->i2c_clock = 1265800;
+		}
+
+		if (pca_data->i2c_clock < 60300) {
+			printk(KERN_WARNING "%s: I2C clock speed too low."
+				" Using 60.3kHz.\n", adap->name);
+			pca_data->i2c_clock = 60300;
+		}
+
+		/* To avoid integer overflow, use clock/100 for calculations */
+		clock = pca_clock(pca_data) / 100;
+
+		if (pca_data->i2c_clock > 10000) {
+			mode = I2C_PCA_MODE_TURBO;
+			min_tlow = 14;
+			min_thi  = 5;
+			raise_fall_time = 22; /* Raise 11e-8s, Fall 11e-8s */
+		} else if (pca_data->i2c_clock > 4000) {
+			mode = I2C_PCA_MODE_FASTP;
+			min_tlow = 17;
+			min_thi  = 9;
+			raise_fall_time = 22; /* Raise 11e-8s, Fall 11e-8s */
+		} else if (pca_data->i2c_clock > 1000) {
+			mode = I2C_PCA_MODE_FAST;
+			min_tlow = 44;
+			min_thi  = 20;
+			raise_fall_time = 58; /* Raise 29e-8s, Fall 29e-8s */
+		} else {
+			mode = I2C_PCA_MODE_STD;
+			min_tlow = 157;
+			min_thi  = 134;
+			raise_fall_time = 127; /* Raise 29e-8s, Fall 98e-8s */
+		}
+
+		/* The minimum clock that respects the thi/tlow = 134/157 is
+		 * 64800 Hz. Below that, we have to fix the tlow to 255 and
+		 * calculate the thi factor.
+		 */
+		if (clock < 648) {
+			tlow = 255;
+			thi = 1000000 - clock * raise_fall_time;
+			thi /= (I2C_PCA_OSC_PER * clock) - tlow;
+		} else {
+			tlow = (1000000 - clock * raise_fall_time) * min_tlow;
+			tlow /= I2C_PCA_OSC_PER * clock * (min_thi + min_tlow);
+			thi = tlow * min_thi / min_tlow;
+		}
+
+		pca_reset(pca_data);
+
+		printk(KERN_INFO
+		     "%s: Clock frequency is %dHz\n", adap->name, clock * 100);
+
+		pca_outw(pca_data, I2C_PCA_INDPTR, I2C_PCA_IMODE);
+		pca_outw(pca_data, I2C_PCA_IND, mode);
+		pca_outw(pca_data, I2C_PCA_INDPTR, I2C_PCA_ISCLL);
+		pca_outw(pca_data, I2C_PCA_IND, tlow);
+		pca_outw(pca_data, I2C_PCA_INDPTR, I2C_PCA_ISCLH);
+		pca_outw(pca_data, I2C_PCA_IND, thi);
+
+		pca_set_con(pca_data, I2C_PCA_CON_ENSIO);
+	}
 	udelay(500); /* 500 us for oscilator to stabilise */
 
 	return 0;
@@ -388,7 +540,7 @@ EXPORT_SYMBOL(i2c_pca_add_numbered_bus);
 
 MODULE_AUTHOR("Ian Campbell <icampbell@arcom.com>, "
 	"Wolfram Sang <w.sang@pengutronix.de>");
-MODULE_DESCRIPTION("I2C-Bus PCA9564 algorithm");
+MODULE_DESCRIPTION("I2C-Bus PCA9564/PCA9665 algorithm");
 MODULE_LICENSE("GPL");
 
 module_param(i2c_debug, int, 0);

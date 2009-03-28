@@ -172,8 +172,9 @@ static int __devinit i2c_pca_pf_probe(struct platform_device *pdev)
 
 	i2c->adap.nr = pdev->id >= 0 ? pdev->id : 0;
 	i2c->adap.owner = THIS_MODULE;
-	snprintf(i2c->adap.name, sizeof(i2c->adap.name), "PCA9564 at 0x%08lx",
-		(unsigned long) res->start);
+	snprintf(i2c->adap.name, sizeof(i2c->adap.name),
+		 "PCA9564/PCA9665 at 0x%08lx",
+		 (unsigned long) res->start);
 	i2c->adap.algo_data = &i2c->algo_data;
 	i2c->adap.dev.parent = &pdev->dev;
 	i2c->adap.timeout = platform_data->timeout;
@@ -246,7 +247,7 @@ e_remap:
 e_alloc:
 	release_mem_region(res->start, res_len(res));
 e_print:
-	printk(KERN_ERR "Registering PCA9564 FAILED! (%d)\n", ret);
+	printk(KERN_ERR "Registering PCA9564/PCA9665 FAILED! (%d)\n", ret);
 	return ret;
 }
 
@@ -290,7 +291,7 @@ static void __exit i2c_pca_pf_exit(void)
 }
 
 MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
-MODULE_DESCRIPTION("I2C-PCA9564 platform driver");
+MODULE_DESCRIPTION("I2C-PCA9564/PCA9665 platform driver");
 MODULE_LICENSE("GPL");
 
 module_init(i2c_pca_pf_init);

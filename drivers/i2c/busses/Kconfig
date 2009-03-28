@@ -617,12 +617,12 @@ config I2C_ELEKTOR
 	  will be called i2c-elektor.
 
 config I2C_PCA_ISA
-	tristate "PCA9564 on an ISA bus"
+	tristate "PCA9564/PCA9665 on an ISA bus"
 	depends on ISA
 	select I2C_ALGOPCA
 	default n
 	help
-	  This driver supports ISA boards using the Philips PCA9564
+	  This driver supports ISA boards using the Philips PCA9564/PCA9665
 	  parallel bus to I2C bus controller.
 
 	  This driver can also be built as a module.  If so, the module
@@ -634,11 +634,11 @@ config I2C_PCA_ISA
 	  time).  If unsure, say N.
 
 config I2C_PCA_PLATFORM
-	tristate "PCA9564 as platform device"
+	tristate "PCA9564/PCA9665 as platform device"
 	select I2C_ALGOPCA
 	default n
 	help
-	  This driver supports a memory mapped Philips PCA9564
+	  This driver supports a memory mapped Philips PCA9564/PCA9665
 	  parallel bus to I2C bus controller.
 
 	  This driver can also be built as a module.  If so, the module
