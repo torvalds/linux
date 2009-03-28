@@ -672,6 +672,12 @@ struct rt2x00_dev {
 	unsigned long flags;
 
 	/*
+	 * Device information, Bus IRQ and name (PCI, SoC)
+	 */
+	int irq;
+	const char *name;
+
+	/*
 	 * Chipset identification.
 	 */
 	struct rt2x00_chip chip;
@@ -858,6 +864,18 @@ static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->chip.rt = rt;
 	rt2x00dev->chip.rf = rf;
 	rt2x00dev->chip.rev = rev;
+}
+
+static inline void rt2x00_set_chip_rt(struct rt2x00_dev *rt2x00dev,
+				      const u16 rt)
+{
+	rt2x00dev->chip.rt = rt;
+}
+
+static inline void rt2x00_set_chip_rf(struct rt2x00_dev *rt2x00dev,
+				      const u16 rf, const u32 rev)
+{
+	rt2x00_set_chip(rt2x00dev, rt2x00dev->chip.rt, rf, rev);
 }
 
 static inline char rt2x00_rt(const struct rt2x00_chip *chipset, const u16 chip)
