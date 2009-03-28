@@ -554,16 +554,17 @@ free_mem_and_exit:
 
 static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioctl_arg)
 {
-	lock_kernel();
-
-	struct dvb_device* dvbdev = (struct dvb_device*) file->private_data;
-	struct dst_state* state = (struct dst_state*) dvbdev->priv;
+	struct dvb_device *dvbdev;
+	struct dst_state *state;
 	struct ca_slot_info *p_ca_slot_info;
 	struct ca_caps *p_ca_caps;
 	struct ca_msg *p_ca_message;
 	void __user *arg = (void __user *)ioctl_arg;
 	int result = 0;
 
+	lock_kernel();
+	dvbdev = (struct dvb_device *)file->private_data;
+	state = (struct dst_state *)dvbdev->priv;
 	p_ca_message = kmalloc(sizeof (struct ca_msg), GFP_KERNEL);
 	p_ca_slot_info = kmalloc(sizeof (struct ca_slot_info), GFP_KERNEL);
 	p_ca_caps = kmalloc(sizeof (struct ca_caps), GFP_KERNEL);
