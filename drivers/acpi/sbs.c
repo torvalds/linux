@@ -102,8 +102,8 @@ struct acpi_battery {
 	u16 cycle_count;
 	u16 temp_now;
 	u16 voltage_now;
-	s16 current_now;
-	s16 current_avg;
+	s16 rate_now;
+	s16 rate_avg;
 	u16 capacity_now;
 	u16 state_of_charge;
 	u16 state;
@@ -202,9 +202,9 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 		return -ENODEV;
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		if (battery->current_now < 0)
+		if (battery->rate_now < 0)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-		else if (battery->current_now > 0)
+		else if (battery->rate_now > 0)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_FULL;
@@ -224,11 +224,13 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 				acpi_battery_vscale(battery) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = abs(battery->current_now) *
+	case POWER_SUPPLY_PROP_POWER_NOW:
+		val->intval = abs(battery->rate_now) *
 				acpi_battery_ipscale(battery) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
-		val->intval = abs(battery->current_avg) *
+	case POWER_SUPPLY_PROP_POWER_AVG:
+		val->intval = abs(battery->rate_avg) *
 				acpi_battery_ipscale(battery) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -293,6 +295,8 @@ static enum power_supply_property sbs_energy_battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
+	POWER_SUPPLY_PROP_POWER_NOW,
+	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
 	POWER_SUPPLY_PROP_ENERGY_FULL,
@@ -301,6 +305,7 @@ static enum power_supply_property sbs_energy_battery_props[] = {
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
+
 #endif
 
 /* --------------------------------------------------------------------------
@@ -330,8 +335,8 @@ static struct acpi_battery_reader info_readers[] = {
 static struct acpi_battery_reader state_readers[] = {
 	{0x08, SMBUS_READ_WORD, offsetof(struct acpi_battery, temp_now)},
 	{0x09, SMBUS_READ_WORD, offsetof(struct acpi_battery, voltage_now)},
-	{0x0a, SMBUS_READ_WORD, offsetof(struct acpi_battery, current_now)},
-	{0x0b, SMBUS_READ_WORD, offsetof(struct acpi_battery, current_avg)},
+	{0x0a, SMBUS_READ_WORD, offsetof(struct acpi_battery, rate_now)},
+	{0x0b, SMBUS_READ_WORD, offsetof(struct acpi_battery, rate_avg)},
 	{0x0f, SMBUS_READ_WORD, offsetof(struct acpi_battery, capacity_now)},
 	{0x0e, SMBUS_READ_WORD, offsetof(struct acpi_battery, state_of_charge)},
 	{0x16, SMBUS_READ_WORD, offsetof(struct acpi_battery, state)},
@@ -589,9 +594,9 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 	seq_printf(seq, "capacity state:          %s\n",
 		   (battery->state & 0x0010) ? "critical" : "ok");
 	seq_printf(seq, "charging state:          %s\n",
-		   (battery->current_now < 0) ? "discharging" :
-		   ((battery->current_now > 0) ? "charging" : "charged"));
-	rate = abs(battery->current_now) * acpi_battery_ipscale(battery);
+		   (battery->rate_now < 0) ? "discharging" :
+		   ((battery->rate_now > 0) ? "charging" : "charged"));
+	rate = abs(battery->rate_now) * acpi_battery_ipscale(battery);
 	rate *= (acpi_battery_mode(battery))?(battery->voltage_now *
 			acpi_battery_vscale(battery)/1000):1;
 	seq_printf(seq, "present rate:            %d%s\n", rate,
