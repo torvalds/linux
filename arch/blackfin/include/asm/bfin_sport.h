@@ -126,7 +126,7 @@ struct sport_dev {
 	int tx_len;
 	int tx_sent;
 
-	int sport_err_irq;
+	int err_irq;
 
 	struct mutex mutex;	/* mutual exclusion semaphore */
 	struct task_struct *task;
