@@ -843,6 +843,71 @@ static struct platform_device bfin_spi0_device = {
 };
 #endif  /* spi master and devices */
 
+#if defined(CONFIG_SPI_BFIN_SPORT) || defined(CONFIG_SPI_BFIN_SPORT_MODULE)
+
+/* SPORT SPI controller data */
+static struct bfin5xx_spi_master bfin_sport_spi0_info = {
+	.num_chipselect = 1, /* master only supports one device */
+	.enable_dma = 0,  /* master don't support DMA */
+	.pin_req = {P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_DRPRI,
+		P_SPORT0_RSCLK, P_SPORT0_TFS, P_SPORT0_RFS, 0},
+};
+
+static struct resource bfin_sport_spi0_resource[] = {
+	[0] = {
+		.start = SPORT0_TCR1,
+		.end   = SPORT0_TCR1 + 0xFF,
+		.flags = IORESOURCE_MEM,
+		},
+	[1] = {
+		.start = IRQ_SPORT0_ERROR,
+		.end   = IRQ_SPORT0_ERROR,
+		.flags = IORESOURCE_IRQ,
+		},
+};
+
+static struct platform_device bfin_sport_spi0_device = {
+	.name = "bfin-sport-spi",
+	.id = 1, /* Bus number */
+	.num_resources = ARRAY_SIZE(bfin_sport_spi0_resource),
+	.resource = bfin_sport_spi0_resource,
+	.dev = {
+		.platform_data = &bfin_sport_spi0_info, /* Passed to driver */
+	},
+};
+
+static struct bfin5xx_spi_master bfin_sport_spi1_info = {
+	.num_chipselect = 1, /* master only supports one device */
+	.enable_dma = 0,  /* master don't support DMA */
+	.pin_req = {P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_DRPRI,
+		P_SPORT1_RSCLK, P_SPORT1_TFS, P_SPORT1_RFS, 0},
+};
+
+static struct resource bfin_sport_spi1_resource[] = {
+	[0] = {
+		.start = SPORT1_TCR1,
+		.end   = SPORT1_TCR1 + 0xFF,
+		.flags = IORESOURCE_MEM,
+		},
+	[1] = {
+		.start = IRQ_SPORT1_ERROR,
+		.end   = IRQ_SPORT1_ERROR,
+		.flags = IORESOURCE_IRQ,
+		},
+};
+
+static struct platform_device bfin_sport_spi1_device = {
+	.name = "bfin-sport-spi",
+	.id = 2, /* Bus number */
+	.num_resources = ARRAY_SIZE(bfin_sport_spi1_resource),
+	.resource = bfin_sport_spi1_resource,
+	.dev = {
+		.platform_data = &bfin_sport_spi1_info, /* Passed to driver */
+	},
+};
+
+#endif  /* sport spi master and devices */
+
 #if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
 static struct platform_device bfin_fb_device = {
 	.name = "bf537-lq035",
@@ -1393,6 +1458,11 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	&bfin_spi0_device,
+#endif
+
+#if defined(CONFIG_SPI_BFIN_SPORT) || defined(CONFIG_SPI_BFIN_SPORT_MODULE)
+	&bfin_sport_spi0_device,
+	&bfin_sport_spi1_device,
 #endif
 
 #if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
