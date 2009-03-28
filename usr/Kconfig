@@ -46,7 +46,7 @@ config INITRAMFS_ROOT_GID
 	  If you are not sure, leave it set to "0".
 
 config RD_GZIP
-	bool "Initial ramdisk compressed using gzip" if EMBEDDED
+	bool "Support initial ramdisks compressed using gzip" if EMBEDDED
 	default y
 	depends on BLK_DEV_INITRD
 	select DECOMPRESS_GZIP
@@ -55,7 +55,7 @@ config RD_GZIP
 	  If unsure, say Y.
 
 config RD_BZIP2
-	bool "Initial ramdisk compressed using bzip2" if EMBEDDED
+	bool "Support initial ramdisks compressed using bzip2" if EMBEDDED
 	default !EMBEDDED
 	depends on BLK_DEV_INITRD
 	select DECOMPRESS_BZIP2
@@ -64,7 +64,7 @@ config RD_BZIP2
 	  If unsure, say N.
 
 config RD_LZMA
-	bool "Initial ramdisk compressed using lzma" if EMBEDDED
+	bool "Support initial ramdisks compressed using lzma" if EMBEDDED
 	default !EMBEDDED
 	depends on BLK_DEV_INITRD
 	select DECOMPRESS_LZMA
