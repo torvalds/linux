@@ -329,6 +329,7 @@ struct bttv {
 	unsigned int tuner_type;  /* tuner chip type */
 	unsigned int tda9887_conf;
 	unsigned int svhs, dig;
+	unsigned int has_saa6588:1;
 	struct bttv_pll_info pll;
 	int triton1;
 	int gpioirq;
@@ -352,8 +353,8 @@ struct bttv {
 	int                        i2c_state, i2c_rc;
 	int                        i2c_done;
 	wait_queue_head_t          i2c_queue;
-	struct i2c_client 	  *i2c_msp34xx_client;
-	struct i2c_client 	  *i2c_tvaudio_client;
+	struct v4l2_subdev 	  *sd_msp34xx;
+	struct v4l2_subdev 	  *sd_tvaudio;
 
 	/* video4linux (1) */
 	struct video_device *video_dev;

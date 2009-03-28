@@ -1163,7 +1163,6 @@ audio_mux(struct bttv *btv, int input, int mute)
 {
 	int gpio_val, signal;
 	struct v4l2_control ctrl;
-	struct i2c_client *c;
 
 	gpio_inout(bttv_tvcards[btv->c.type].gpiomask,
 		   bttv_tvcards[btv->c.type].gpiomask);
@@ -1197,9 +1196,8 @@ audio_mux(struct bttv *btv, int input, int mute)
 
 	ctrl.id = V4L2_CID_AUDIO_MUTE;
 	ctrl.value = btv->mute;
-	bttv_call_i2c_clients(btv, VIDIOC_S_CTRL, &ctrl);
-	c = btv->i2c_msp34xx_client;
-	if (c) {
+	bttv_call_all(btv, core, s_ctrl, &ctrl);
+	if (btv->sd_msp34xx) {
 		struct v4l2_routing route;
 
 		/* Note: the inputs tuner/radio/extern/intern are translated
@@ -1238,15 +1236,14 @@ audio_mux(struct bttv *btv, int input, int mute)
 			break;
 		}
 		route.output = MSP_OUTPUT_DEFAULT;
-		c->driver->command(c, VIDIOC_INT_S_AUDIO_ROUTING, &route);
+		v4l2_subdev_call(btv->sd_msp34xx, audio, s_routing, &route);
 	}
-	c = btv->i2c_tvaudio_client;
-	if (c) {
+	if (btv->sd_tvaudio) {
 		struct v4l2_routing route;
 
 		route.input = input;
 		route.output = 0;
-		c->driver->command(c, VIDIOC_INT_S_AUDIO_ROUTING, &route);
+		v4l2_subdev_call(btv->sd_tvaudio, audio, s_routing, &route);
 	}
 	return 0;
 }
@@ -1332,7 +1329,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 		break;
 	}
 	id = tvnorm->v4l2_id;
-	bttv_call_i2c_clients(btv, VIDIOC_S_STD, &id);
+	bttv_call_all(btv, tuner, s_std, id);
 
 	return 0;
 }
@@ -1476,7 +1473,7 @@ static int bttv_g_ctrl(struct file *file, void *priv,
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
-		bttv_call_i2c_clients(btv, VIDIOC_G_CTRL, c);
+		bttv_call_all(btv, core, g_ctrl, c);
 		break;
 
 	case V4L2_CID_PRIVATE_CHROMA_AGC:
@@ -1550,12 +1547,12 @@ static int bttv_s_ctrl(struct file *file, void *f,
 		if (btv->volume_gpio)
 			btv->volume_gpio(btv, c->value);
 
-		bttv_call_i2c_clients(btv, VIDIOC_S_CTRL, c);
+		bttv_call_all(btv, core, s_ctrl, c);
 		break;
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
-		bttv_call_i2c_clients(btv, VIDIOC_S_CTRL, c);
+		bttv_call_all(btv, core, s_ctrl, c);
 		break;
 
 	case V4L2_CID_PRIVATE_CHROMA_AGC:
@@ -1973,7 +1970,7 @@ static int bttv_s_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	mutex_lock(&btv->lock);
-	bttv_call_i2c_clients(btv, VIDIOC_S_TUNER, t);
+	bttv_call_all(btv, tuner, s_tuner, t);
 
 	if (btv->audio_mode_gpio)
 		btv->audio_mode_gpio(btv, t, 1);
@@ -2018,7 +2015,7 @@ static int bttv_s_frequency(struct file *file, void *priv,
 		return -EINVAL;
 	mutex_lock(&btv->lock);
 	btv->freq = f->frequency;
-	bttv_call_i2c_clients(btv, VIDIOC_S_FREQUENCY, f);
+	bttv_call_all(btv, tuner, s_frequency, f);
 	if (btv->has_matchbox && btv->radio_user)
 		tea5757_set_freq(btv, btv->freq);
 	mutex_unlock(&btv->lock);
@@ -2032,7 +2029,7 @@ static int bttv_log_status(struct file *file, void *f)
 
 	printk(KERN_INFO "bttv%d: ========  START STATUS CARD #%d  ========\n",
 			btv->c.nr, btv->c.nr);
-	bttv_call_i2c_clients(btv, VIDIOC_LOG_STATUS, NULL);
+	bttv_call_all(btv, core, log_status);
 	printk(KERN_INFO "bttv%d: ========  END STATUS CARD   #%d  ========\n",
 			btv->c.nr, btv->c.nr);
 	return 0;
@@ -2946,7 +2943,7 @@ static int bttv_g_tuner(struct file *file, void *priv,
 
 	mutex_lock(&btv->lock);
 	t->rxsubchans = V4L2_TUNER_SUB_MONO;
-	bttv_call_i2c_clients(btv, VIDIOC_G_TUNER, t);
+	bttv_call_all(btv, tuner, g_tuner, t);
 	strcpy(t->name, "Television");
 	t->capability = V4L2_TUNER_CAP_NORM;
 	t->type       = V4L2_TUNER_ANALOG_TV;
@@ -3437,7 +3434,7 @@ static int radio_open(struct file *file)
 
 	btv->radio_user++;
 
-	bttv_call_i2c_clients(btv,AUDC_SET_RADIO,NULL);
+	bttv_call_all(btv, tuner, s_radio);
 	audio_input(btv,TVAUDIO_INPUT_RADIO);
 
 	mutex_unlock(&btv->lock);
@@ -3457,7 +3454,7 @@ static int radio_release(struct file *file)
 
 	btv->radio_user--;
 
-	bttv_call_i2c_clients(btv, RDS_CMD_CLOSE, &cmd);
+	bttv_call_all(btv, core, ioctl, RDS_CMD_CLOSE, &cmd);
 
 	return 0;
 }
@@ -3490,7 +3487,7 @@ static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	strcpy(t->name, "Radio");
 	t->type = V4L2_TUNER_RADIO;
 
-	bttv_call_i2c_clients(btv, VIDIOC_G_TUNER, t);
+	bttv_call_all(btv, tuner, g_tuner, t);
 
 	if (btv->audio_mode_gpio)
 		btv->audio_mode_gpio(btv, t, 0);
@@ -3532,7 +3529,7 @@ static int radio_s_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
-	bttv_call_i2c_clients(btv, VIDIOC_G_TUNER, t);
+	bttv_call_all(btv, tuner, g_tuner, t);
 	return 0;
 }
 
@@ -3593,7 +3590,7 @@ static ssize_t radio_read(struct file *file, char __user *data,
 	cmd.instance = file;
 	cmd.result = -ENODEV;
 
-	bttv_call_i2c_clients(btv, RDS_CMD_READ, &cmd);
+	bttv_call_all(btv, core, ioctl, RDS_CMD_READ, &cmd);
 
 	return cmd.result;
 }
@@ -3606,7 +3603,7 @@ static unsigned int radio_poll(struct file *file, poll_table *wait)
 	cmd.instance = file;
 	cmd.event_list = wait;
 	cmd.result = -ENODEV;
-	bttv_call_i2c_clients(btv, RDS_CMD_POLL, &cmd);
+	bttv_call_all(btv, core, ioctl, RDS_CMD_POLL, &cmd);
 
 	return cmd.result;
 }

@@ -96,12 +96,10 @@ static unsigned int pll[BTTV_MAX]    = { [ 0 ... (BTTV_MAX-1) ] = UNSET };
 static unsigned int tuner[BTTV_MAX]  = { [ 0 ... (BTTV_MAX-1) ] = UNSET };
 static unsigned int svhs[BTTV_MAX]   = { [ 0 ... (BTTV_MAX-1) ] = UNSET };
 static unsigned int remote[BTTV_MAX] = { [ 0 ... (BTTV_MAX-1) ] = UNSET };
+static unsigned int audiodev[BTTV_MAX];
+static unsigned int saa6588[BTTV_MAX];
 static struct bttv  *master[BTTV_MAX] = { [ 0 ... (BTTV_MAX-1) ] = NULL };
-#ifdef MODULE
-static unsigned int autoload = 1;
-#else
-static unsigned int autoload;
-#endif
+static unsigned int autoload = UNSET;
 static unsigned int gpiomask = UNSET;
 static unsigned int audioall = UNSET;
 static unsigned int audiomux[5] = { [ 0 ... 4 ] = UNSET };
@@ -120,6 +118,7 @@ module_param_array(pll,      int, NULL, 0444);
 module_param_array(tuner,    int, NULL, 0444);
 module_param_array(svhs,     int, NULL, 0444);
 module_param_array(remote,   int, NULL, 0444);
+module_param_array(audiodev, int, NULL, 0444);
 module_param_array(audiomux, int, NULL, 0444);
 
 MODULE_PARM_DESC(triton1,"set ETBF pci config bit "
@@ -130,7 +129,14 @@ MODULE_PARM_DESC(latency,"pci latency timer");
 MODULE_PARM_DESC(card,"specify TV/grabber card model, see CARDLIST file for a list");
 MODULE_PARM_DESC(pll,"specify installed crystal (0=none, 28=28 MHz, 35=35 MHz)");
 MODULE_PARM_DESC(tuner,"specify installed tuner type");
-MODULE_PARM_DESC(autoload,"automatically load i2c modules like tuner.o, default is 1 (yes)");
+MODULE_PARM_DESC(autoload, "obsolete option, please do not use anymore");
+MODULE_PARM_DESC(audiodev, "specify audio device:\n"
+		"\t\t-1 = no audio\n"
+		"\t\t 0 = autodetect (default)\n"
+		"\t\t 1 = msp3400\n"
+		"\t\t 2 = tda7432\n"
+		"\t\t 3 = tvaudio");
+MODULE_PARM_DESC(saa6588, "if 1, then load the saa6588 RDS module, default (0) is to use the card definition.");
 MODULE_PARM_DESC(no_overlay,"allow override overlay default (0 disables, 1 enables)"
 		" [some VIA/SIS chipsets are known to have problem with overlay]");
 
@@ -3318,6 +3324,17 @@ void __devinit bttv_init_card1(struct bttv *btv)
 /* initialization part two -- after registering i2c bus */
 void __devinit bttv_init_card2(struct bttv *btv)
 {
+	static const unsigned short tvaudio_addrs[] = {
+		I2C_ADDR_TDA8425   >> 1,
+		I2C_ADDR_TEA6300   >> 1,
+		I2C_ADDR_TEA6420   >> 1,
+		I2C_ADDR_TDA9840   >> 1,
+		I2C_ADDR_TDA985x_L >> 1,
+		I2C_ADDR_TDA985x_H >> 1,
+		I2C_ADDR_TDA9874   >> 1,
+		I2C_ADDR_PIC16C54  >> 1,
+		I2C_CLIENT_END
+	};
 	int addr=ADDR_UNSET;
 
 	btv->tuner_type = UNSET;
@@ -3481,6 +3498,12 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		printk(KERN_INFO "bttv%d: tuner type=%d\n", btv->c.nr,
 		       btv->tuner_type);
 
+	if (autoload != UNSET) {
+		printk(KERN_WARNING "bttv%d: the autoload option is obsolete.\n", btv->c.nr);
+		printk(KERN_WARNING "bttv%d: use option msp3400, tda7432 or tvaudio to\n", btv->c.nr);
+		printk(KERN_WARNING "bttv%d: override which audio module should be used.\n", btv->c.nr);
+	}
+
 	if (UNSET == btv->tuner_type)
 		btv->tuner_type = TUNER_ABSENT;
 
@@ -3488,8 +3511,13 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		struct tuner_setup tun_setup;
 
 		/* Load tuner module before issuing tuner config call! */
-		if (autoload)
-			request_module("tuner");
+		if (bttv_tvcards[btv->c.type].has_radio)
+			v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap,
+				"tuner", "tuner", v4l2_i2c_tuner_addrs(ADDRS_RADIO));
+		v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap, "tuner",
+				"tuner", v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+		v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap, "tuner",
+				"tuner", v4l2_i2c_tuner_addrs(ADDRS_TV_WITH_DEMOD));
 
 		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
 		tun_setup.type = btv->tuner_type;
@@ -3498,7 +3526,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		if (bttv_tvcards[btv->c.type].has_radio)
 			tun_setup.mode_mask |= T_RADIO;
 
-		bttv_call_i2c_clients(btv, TUNER_SET_TYPE_ADDR, &tun_setup);
+		bttv_call_all(btv, tuner, s_type_addr, &tun_setup);
 	}
 
 	if (btv->tda9887_conf) {
@@ -3507,7 +3535,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		tda9887_cfg.tuner = TUNER_TDA9887;
 		tda9887_cfg.priv = &btv->tda9887_conf;
 
-		bttv_call_i2c_clients(btv, TUNER_SET_CONFIG, &tda9887_cfg);
+		bttv_call_all(btv, tuner, s_config, &tda9887_cfg);
 	}
 
 	btv->dig = bttv_tvcards[btv->c.type].has_dig_in ?
@@ -3530,31 +3558,127 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (bttv_tvcards[btv->c.type].audio_mode_gpio)
 		btv->audio_mode_gpio=bttv_tvcards[btv->c.type].audio_mode_gpio;
 
-	if (!autoload)
-		return;
-
 	if (btv->tuner_type == TUNER_ABSENT)
 		return;  /* no tuner or related drivers to load */
 
+	if (btv->has_saa6588 || saa6588[btv->c.nr]) {
+		/* Probe for RDS receiver chip */
+		static const unsigned short addrs[] = {
+			0x20 >> 1,
+			0x22 >> 1,
+			I2C_CLIENT_END
+		};
+		struct v4l2_subdev *sd;
+
+		sd = v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap,
+				"saa6588", "saa6588", addrs);
+		btv->has_saa6588 = (sd != NULL);
+	}
+
 	/* try to detect audio/fader chips */
-	if (!bttv_tvcards[btv->c.type].no_msp34xx &&
-	    bttv_I2CRead(btv, I2C_ADDR_MSP3400, "MSP34xx") >=0)
-		request_module("msp3400");
 
-	if (bttv_tvcards[btv->c.type].msp34xx_alt &&
-	    bttv_I2CRead(btv, I2C_ADDR_MSP3400_ALT, "MSP34xx (alternate address)") >=0)
-		request_module("msp3400");
+	/* First check if the user specified the audio chip via a module
+	   option. */
 
-	if (!bttv_tvcards[btv->c.type].no_tda9875 &&
-	    bttv_I2CRead(btv, I2C_ADDR_TDA9875, "TDA9875") >=0)
-		request_module("tda9875");
+	switch (audiodev[btv->c.nr]) {
+	case -1:
+		return;	/* do not load any audio module */
 
-	if (!bttv_tvcards[btv->c.type].no_tda7432 &&
-	    bttv_I2CRead(btv, I2C_ADDR_TDA7432, "TDA7432") >=0)
-		request_module("tda7432");
+	case 0: /* autodetect */
+		break;
 
-	if (bttv_tvcards[btv->c.type].needs_tvaudio)
-		request_module("tvaudio");
+	case 1: {
+		/* The user specified that we should probe for msp3400 */
+		static const unsigned short addrs[] = {
+			I2C_ADDR_MSP3400 >> 1,
+			I2C_ADDR_MSP3400_ALT >> 1,
+			I2C_CLIENT_END
+		};
+
+		btv->sd_msp34xx = v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap,
+				"msp3400", "msp3400", addrs);
+		if (btv->sd_msp34xx)
+			return;
+		goto no_audio;
+	}
+
+	case 2: {
+		/* The user specified that we should probe for tda7432 */
+		static const unsigned short addrs[] = {
+			I2C_ADDR_TDA7432 >> 1,
+			I2C_CLIENT_END
+		};
+
+		if (v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap,
+				"tda7432", "tda7432", addrs))
+			return;
+		goto no_audio;
+	}
+
+	case 3: {
+		/* The user specified that we should probe for tvaudio */
+		btv->sd_tvaudio = v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap,
+				"tvaudio", "tvaudio", tvaudio_addrs);
+		if (btv->sd_tvaudio)
+			return;
+		goto no_audio;
+	}
+
+	default:
+		printk(KERN_WARNING "bttv%d: unknown audiodev value!\n",
+			btv->c.nr);
+		return;
+	}
+
+	/* There were no overrides, so now we try to discover this through the
+	   card definition */
+
+	/* probe for msp3400 first: this driver can detect whether or not
+	   it really is a msp3400, so it will return NULL when the device
+	   found is really something else (e.g. a tea6300). */
+	if (!bttv_tvcards[btv->c.type].no_msp34xx) {
+		static const unsigned short addrs[] = {
+			I2C_ADDR_MSP3400 >> 1,
+			I2C_CLIENT_END
+		};
+
+		btv->sd_msp34xx = v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap,
+				"msp3400", "msp3400", addrs);
+	} else if (bttv_tvcards[btv->c.type].msp34xx_alt) {
+		static const unsigned short addrs[] = {
+			I2C_ADDR_MSP3400_ALT >> 1,
+			I2C_CLIENT_END
+		};
+
+		btv->sd_msp34xx = v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap,
+				"msp3400", "msp3400", addrs);
+	}
+
+	/* If we found a msp34xx, then we're done. */
+	if (btv->sd_msp34xx)
+		return;
+
+	/* it might also be a tda7432. */
+	if (!bttv_tvcards[btv->c.type].no_tda7432) {
+		static const unsigned short addrs[] = {
+			I2C_ADDR_TDA7432 >> 1,
+			I2C_CLIENT_END
+		};
+
+		if (v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap,
+				"tda7432", "tda7432", addrs))
+			return;
+	}
+
+	/* Now see if we can find one of the tvaudio devices. */
+	btv->sd_tvaudio = v4l2_i2c_new_probed_subdev(&btv->c.i2c_adap,
+			"tvaudio", "tvaudio", tvaudio_addrs);
+	if (btv->sd_tvaudio)
+		return;
+
+no_audio:
+	printk(KERN_WARNING "bttv%d: audio absent, no audio device found!\n",
+			btv->c.nr);
 }
 
 
@@ -3626,6 +3750,7 @@ static int terratec_active_radio_upgrade(struct bttv *btv)
 		printk("bttv%d: Terratec Active Radio Upgrade found.\n",
 		       btv->c.nr);
 		btv->has_radio    = 1;
+		btv->has_saa6588  = 1;
 		btv->has_matchbox = 1;
 	} else {
 		btv->has_radio    = 0;

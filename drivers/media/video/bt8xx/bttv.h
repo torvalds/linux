@@ -240,6 +240,9 @@ struct tvcard {
 	unsigned int no_tda7432:1;
 	unsigned int needs_tvaudio:1;
 	unsigned int msp34xx_alt:1;
+	/* Note: currently no card definition needs to mark the presence
+	   of a RDS saa6588 chip. If this is ever needed, then add a new
+	   'has_saa6588' bit here. */
 
 	unsigned int no_video:1; /* video pci function is unused */
 	unsigned int has_dvb:1;
@@ -355,7 +358,9 @@ void bttv_gpio_bits(struct bttv_core *core, u32 mask, u32 bits);
 /* ---------------------------------------------------------- */
 /* i2c                                                        */
 
-extern void bttv_call_i2c_clients(struct bttv *btv, unsigned int cmd, void *arg);
+#define bttv_call_all(btv, o, f, args...) \
+	v4l2_device_call_all(&btv->c.v4l2_dev, 0, o, f, ##args)
+
 extern int bttv_I2CRead(struct bttv *btv, unsigned char addr, char *probe_for);
 extern int bttv_I2CWrite(struct bttv *btv, unsigned char addr, unsigned char b1,
 			 unsigned char b2, int both);
