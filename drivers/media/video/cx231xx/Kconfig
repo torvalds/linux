@@ -8,11 +8,11 @@ config VIDEO_CX231XX
        select VIDEO_CX25840
        select VIDEO_CX231XX_ALSA
 
-       ---help---
-	 This is a video4linux driver for Conexant 231xx USB based TV cards.
+	---help---
+	  This is a video4linux driver for Conexant 231xx USB based TV cards.
 
-	 To compile this driver as a module, choose M here: the
-	 module will be called cx231xx
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx231xx
 
 config VIDEO_CX231XX_ALSA
     tristate "Conexant Cx231xx ALSA audio module"
