@@ -1136,7 +1136,7 @@ xattr_lookup_poison(struct dentry *dentry, struct qstr *q1, struct qstr *name)
 	return 1;
 }
 
-static struct dentry_operations xattr_lookup_poison_ops = {
+static const struct dentry_operations xattr_lookup_poison_ops = {
 	.d_compare = xattr_lookup_poison,
 };
 

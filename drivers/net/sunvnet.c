@@ -1012,6 +1012,16 @@ err_out:
 static LIST_HEAD(vnet_list);
 static DEFINE_MUTEX(vnet_list_mutex);
 
+static const struct net_device_ops vnet_ops = {
+	.ndo_open		= vnet_open,
+	.ndo_stop		= vnet_close,
+	.ndo_set_multicast_list	= vnet_set_rx_mode,
+	.ndo_set_mac_address	= vnet_set_mac_addr,
+	.ndo_tx_timeout		= vnet_tx_timeout,
+	.ndo_change_mtu		= vnet_change_mtu,
+	.ndo_start_xmit		= vnet_start_xmit,
+};
+
 static struct vnet * __devinit vnet_new(const u64 *local_mac)
 {
 	struct net_device *dev;
@@ -1040,15 +1050,9 @@ static struct vnet * __devinit vnet_new(const u64 *local_mac)
 	INIT_LIST_HEAD(&vp->list);
 	vp->local_mac = *local_mac;
 
-	dev->open = vnet_open;
-	dev->stop = vnet_close;
-	dev->set_multicast_list = vnet_set_rx_mode;
-	dev->set_mac_address = vnet_set_mac_addr;
-	dev->tx_timeout = vnet_tx_timeout;
+	dev->netdev_ops = &vnet_ops;
 	dev->ethtool_ops = &vnet_ethtool_ops;
 	dev->watchdog_timeo = VNET_TX_TIMEOUT;
-	dev->change_mtu = vnet_change_mtu;
-	dev->hard_start_xmit = vnet_start_xmit;
 
 	err = register_netdev(dev);
 	if (err) {

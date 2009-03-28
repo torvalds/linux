@@ -349,13 +349,13 @@ void autofs4_dentry_release(struct dentry *de)
 }
 
 /* For dentries of directories in the root dir */
-static struct dentry_operations autofs4_root_dentry_operations = {
+static const struct dentry_operations autofs4_root_dentry_operations = {
 	.d_revalidate	= autofs4_revalidate,
 	.d_release	= autofs4_dentry_release,
 };
 
 /* For other dentries */
-static struct dentry_operations autofs4_dentry_operations = {
+static const struct dentry_operations autofs4_dentry_operations = {
 	.d_revalidate	= autofs4_revalidate,
 	.d_release	= autofs4_dentry_release,
 };

@@ -478,7 +478,7 @@ int hpsb_unregister_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
 	return retval;
 }
 
-const static struct hpsb_address_ops dummy_ops;
+static const struct hpsb_address_ops dummy_ops;
 
 /* dummy address spaces as lower and upper bounds of the host's a.s. list */
 static void init_hpsb_highlevel(struct hpsb_host *host)

@@ -28,13 +28,12 @@
  * space and from the other side. The world is (sadly) configured to
  * take in only Ethernet devices...
  *
- * Because of this, currently there is an copy-each-rxed-packet
- * overhead on the RX path. Each IP packet has to be reallocated to
- * add an ethernet header (as there is no space in what we get from
- * the device). This is a known drawback and coming versions of the
- * device's firmware are being changed to add header space that can be
- * used to insert the ethernet header without having to reallocate and
- * copy.
+ * Because of this, when using firmwares <= v1.3, there is an
+ * copy-each-rxed-packet overhead on the RX path. Each IP packet has
+ * to be reallocated to add an ethernet header (as there is no space
+ * in what we get from the device). This is a known drawback and
+ * firmwares >= 1.4 add header space that can be used to insert the
+ * ethernet header without having to reallocate and copy.
  *
  * TX error handling is tricky; because we have to FIFO/queue the
  * buffers for transmission (as the hardware likes it aggregated), we
@@ -67,7 +66,9 @@
  * i2400m_tx_timeout      Called when the device times out
  *
  * i2400m_net_rx          Called by the RX code when a data frame is
- *                        available.
+ *                        available (firmware <= 1.3)
+ * i2400m_net_erx         Called by the RX code when a data frame is
+ *                        available (firmware >= 1.4).
  * i2400m_netdev_setup    Called to setup all the netdev stuff from
  *                        alloc_netdev.
  */
@@ -396,30 +397,18 @@ void i2400m_tx_timeout(struct net_device *net_dev)
  * Create a fake ethernet header
  *
  * For emulating an ethernet device, every received IP header has to
- * be prefixed with an ethernet header.
- *
- * What we receive has (potentially) many IP packets concatenated with
- * no ETH_HLEN bytes prefixed. Thus there is no space for an eth
- * header.
- *
- * We would have to reallocate or do ugly fragment tricks in order to
- * add it.
- *
- * But what we do is use the header space of the RX transaction
- * (*msg_hdr) as we don't need it anymore; then we'll point all the
- * data skbs there, as they share the same backing store.
- *
- * We only support IPv4 for v3 firmware.
+ * be prefixed with an ethernet header. Fake it with the given
+ * protocol.
  */
 static
 void i2400m_rx_fake_eth_header(struct net_device *net_dev,
-			       void *_eth_hdr)
+			       void *_eth_hdr, __be16 protocol)
 {
 	struct ethhdr *eth_hdr = _eth_hdr;
 
 	memcpy(eth_hdr->h_dest, net_dev->dev_addr, sizeof(eth_hdr->h_dest));
 	memset(eth_hdr->h_source, 0, sizeof(eth_hdr->h_dest));
-	eth_hdr->h_proto = __constant_cpu_to_be16(ETH_P_IP);
+	eth_hdr->h_proto = protocol;
 }
 
 
@@ -431,6 +420,13 @@ void i2400m_rx_fake_eth_header(struct net_device *net_dev,
  * @i: 1 if payload is the only one
  * @buf: pointer to the buffer containing the data
  * @len: buffer's length
+ *
+ * This is only used now for the v1.3 firmware. It will be deprecated
+ * in >= 2.6.31.
+ *
+ * Note that due to firmware limitations, we don't have space to add
+ * an ethernet header, so we need to copy each packet. Firmware
+ * versions >= v1.4 fix this [see i2400m_net_erx()].
  *
  * We just clone the skb and set it up so that it's skb->data pointer
  * points to "buf" and it's length.
@@ -478,7 +474,8 @@ void i2400m_net_rx(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		memcpy(skb_put(skb, buf_len), buf, buf_len);
 	}
 	i2400m_rx_fake_eth_header(i2400m->wimax_dev.net_dev,
-				  skb->data - ETH_HLEN);
+				  skb->data - ETH_HLEN,
+				  cpu_to_be16(ETH_P_IP));
 	skb_set_mac_header(skb, -ETH_HLEN);
 	skb->dev = i2400m->wimax_dev.net_dev;
 	skb->protocol = htons(ETH_P_IP);
@@ -492,6 +489,73 @@ error_skb_realloc:
 	d_fnend(2, dev, "(i2400m %p buf %p buf_len %d) = void\n",
 		i2400m, buf, buf_len);
 }
+
+
+/*
+ * i2400m_net_erx - pass a network packet to the stack (extended version)
+ *
+ * @i2400m: device descriptor
+ * @skb: the skb where the packet is - the skb should be set to point
+ *     at the IP packet; this function will add ethernet headers if
+ *     needed.
+ * @cs: packet type
+ *
+ * This is only used now for firmware >= v1.4. Note it is quite
+ * similar to i2400m_net_rx() (used only for v1.3 firmware).
+ *
+ * This function is normally run from a thread context. However, we
+ * still use netif_rx() instead of netif_receive_skb() as was
+ * recommended in the mailing list. Reason is in some stress tests
+ * when sending/receiving a lot of data we seem to hit a softlock in
+ * the kernel's TCP implementation [aroudn tcp_delay_timer()]. Using
+ * netif_rx() took care of the issue.
+ *
+ * This is, of course, still open to do more research on why running
+ * with netif_receive_skb() hits this softlock. FIXME.
+ */
+void i2400m_net_erx(struct i2400m *i2400m, struct sk_buff *skb,
+		    enum i2400m_cs cs)
+{
+	struct net_device *net_dev = i2400m->wimax_dev.net_dev;
+	struct device *dev = i2400m_dev(i2400m);
+	int protocol;
+
+	d_fnstart(2, dev, "(i2400m %p skb %p [%u] cs %d)\n",
+		  i2400m, skb, skb->len, cs);
+	switch(cs) {
+	case I2400M_CS_IPV4_0:
+	case I2400M_CS_IPV4:
+		protocol = ETH_P_IP;
+		i2400m_rx_fake_eth_header(i2400m->wimax_dev.net_dev,
+					  skb->data - ETH_HLEN,
+					  cpu_to_be16(ETH_P_IP));
+		skb_set_mac_header(skb, -ETH_HLEN);
+		skb->dev = i2400m->wimax_dev.net_dev;
+		skb->protocol = htons(ETH_P_IP);
+		net_dev->stats.rx_packets++;
+		net_dev->stats.rx_bytes += skb->len;
+		break;
+	default:
+		dev_err(dev, "ERX: BUG? CS type %u unsupported\n", cs);
+		goto error;
+
+	}
+	d_printf(3, dev, "ERX: receiving %d bytes to the network stack\n",
+		 skb->len);
+	d_dump(4, dev, skb->data, skb->len);
+	netif_rx_ni(skb);	/* see notes in function header */
+error:
+	d_fnend(2, dev, "(i2400m %p skb %p [%u] cs %d) = void\n",
+		i2400m, skb, skb->len, cs);
+}
+
+static const struct net_device_ops i2400m_netdev_ops = {
+	.ndo_open = i2400m_open,
+	.ndo_stop = i2400m_stop,
+	.ndo_start_xmit = i2400m_hard_start_xmit,
+	.ndo_tx_timeout = i2400m_tx_timeout,
+	.ndo_change_mtu = i2400m_change_mtu,
+};
 
 
 /**
@@ -513,11 +577,7 @@ void i2400m_netdev_setup(struct net_device *net_dev)
 		& (~IFF_BROADCAST	/* i2400m is P2P */
 		   & ~IFF_MULTICAST);
 	net_dev->watchdog_timeo = I2400M_TX_TIMEOUT;
-	net_dev->open = i2400m_open;
-	net_dev->stop = i2400m_stop;
-	net_dev->hard_start_xmit = i2400m_hard_start_xmit;
-	net_dev->change_mtu = i2400m_change_mtu;
-	net_dev->tx_timeout = i2400m_tx_timeout;
+	net_dev->netdev_ops = &i2400m_netdev_ops;
 	d_fnend(3, NULL, "(net_dev %p) = void\n", net_dev);
 }
 EXPORT_SYMBOL_GPL(i2400m_netdev_setup);

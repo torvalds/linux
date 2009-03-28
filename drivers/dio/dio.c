@@ -182,7 +182,7 @@ static int __init dio_init(void)
 
 	/* Initialize the DIO bus */ 
 	INIT_LIST_HEAD(&dio_bus.devices);
-	strcpy(dio_bus.dev.bus_id, "dio");
+	dev_set_name(&dio_bus.dev, "dio");
 	error = device_register(&dio_bus.dev);
 	if (error) {
 		pr_err("DIO: Error registering dio_bus\n");
@@ -237,7 +237,7 @@ static int __init dio_init(void)
 		dev->scode = scode;
 		dev->resource.start = pa;
 		dev->resource.end = pa + DIO_SIZE(scode, va);
-		sprintf(dev->dev.bus_id,"%02x", scode);
+		dev_set_name(&dev->dev, "%02x", scode);
 
                 /* read the ID byte(s) and encode if necessary. */
 		prid = DIO_ID(va);

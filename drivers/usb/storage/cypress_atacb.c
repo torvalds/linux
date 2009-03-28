@@ -19,6 +19,7 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/module.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_eh.h>
@@ -29,6 +30,49 @@
 #include "scsiglue.h"
 #include "debug.h"
 
+MODULE_DESCRIPTION("SAT support for Cypress USB/ATA bridges with ATACB");
+MODULE_AUTHOR("Matthieu Castet <castet.matthieu@free.fr>");
+MODULE_LICENSE("GPL");
+
+/*
+ * The table of devices
+ */
+#define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
+		    vendorName, productName, useProtocol, useTransport, \
+		    initFunction, flags) \
+{ USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
+  .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
+
+struct usb_device_id cypress_usb_ids[] = {
+#	include "unusual_cypress.h"
+	{ }		/* Terminating entry */
+};
+MODULE_DEVICE_TABLE(usb, cypress_usb_ids);
+
+#undef UNUSUAL_DEV
+
+/*
+ * The flags table
+ */
+#define UNUSUAL_DEV(idVendor, idProduct, bcdDeviceMin, bcdDeviceMax, \
+		    vendor_name, product_name, use_protocol, use_transport, \
+		    init_function, Flags) \
+{ \
+	.vendorName = vendor_name,	\
+	.productName = product_name,	\
+	.useProtocol = use_protocol,	\
+	.useTransport = use_transport,	\
+	.initFunction = init_function,	\
+}
+
+static struct us_unusual_dev cypress_unusual_dev_list[] = {
+#	include "unusual_cypress.h"
+	{ }		/* Terminating entry */
+};
+
+#undef UNUSUAL_DEV
+
+
 /*
  * ATACB is a protocol used on cypress usb<->ata bridge to
  * send raw ATA command over mass storage
@@ -36,7 +80,7 @@
  * More info that be found on cy7c68310_8.pdf and cy7c68300c_8.pdf
  * datasheet from cypress.com.
  */
-void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
+static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 {
 	unsigned char save_cmnd[MAX_COMMAND_SIZE];
 
@@ -133,19 +177,18 @@ void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 
 		/* build the command for
 		 * reading the ATA registers */
-		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, 0);
-		srb->sdb.length = sizeof(regs);
-		sg_init_one(&ses.sense_sgl, regs, srb->sdb.length);
-		srb->sdb.table.sgl = &ses.sense_sgl;
-		srb->sc_data_direction = DMA_FROM_DEVICE;
-		srb->sdb.table.nents = 1;
+		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, sizeof(regs));
+
 		/* we use the same command as before, but we set
 		 * the read taskfile bit, for not executing atacb command,
 		 * but reading register selected in srb->cmnd[4]
 		 */
+		srb->cmd_len = 16;
+		srb->cmnd = ses.cmnd;
 		srb->cmnd[2] = 1;
 
 		usb_stor_transparent_scsi_command(srb, us);
+		memcpy(regs, srb->sense_buffer, sizeof(regs));
 		tmp_result = srb->result;
 		scsi_eh_restore_cmnd(srb, &ses);
 		/* we fail to get registers, report invalid command */
@@ -162,8 +205,8 @@ void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 
 		/* XXX we should generate sk, asc, ascq from status and error
 		 * regs
-		 * (see 11.1 Error translation ­ ATA device error to SCSI error map)
-		 * and ata_to_sense_error from libata.
+		 * (see 11.1 Error translation ATA device error to SCSI error
+		 *  map, and ata_to_sense_error from libata.)
 		 */
 
 		/* Sense data is current and format is descriptor. */
@@ -198,3 +241,48 @@ end:
 	if (srb->cmnd[0] == ATA_12)
 		srb->cmd_len = 12;
 }
+
+
+static int cypress_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
+{
+	struct us_data *us;
+	int result;
+
+	result = usb_stor_probe1(&us, intf, id,
+			(id - cypress_usb_ids) + cypress_unusual_dev_list);
+	if (result)
+		return result;
+
+	us->protocol_name = "Transparent SCSI with Cypress ATACB";
+	us->proto_handler = cypress_atacb_passthrough;
+
+	result = usb_stor_probe2(us);
+	return result;
+}
+
+static struct usb_driver cypress_driver = {
+	.name =		"ums-cypress",
+	.probe =	cypress_probe,
+	.disconnect =	usb_stor_disconnect,
+	.suspend =	usb_stor_suspend,
+	.resume =	usb_stor_resume,
+	.reset_resume =	usb_stor_reset_resume,
+	.pre_reset =	usb_stor_pre_reset,
+	.post_reset =	usb_stor_post_reset,
+	.id_table =	cypress_usb_ids,
+	.soft_unbind =	1,
+};
+
+static int __init cypress_init(void)
+{
+	return usb_register(&cypress_driver);
+}
+
+static void __exit cypress_exit(void)
+{
+	usb_deregister(&cypress_driver);
+}
+
+module_init(cypress_init);
+module_exit(cypress_exit);

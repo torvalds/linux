@@ -16,6 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
@@ -154,6 +156,8 @@ enum snd_soc_bias_level {
 	SND_SOC_BIAS_OFF,
 };
 
+struct snd_jack;
+struct snd_soc_card;
 struct snd_soc_device;
 struct snd_soc_pcm_stream;
 struct snd_soc_ops;
@@ -164,6 +168,11 @@ struct snd_soc_platform;
 struct snd_soc_codec;
 struct soc_enum;
 struct snd_soc_ac97_ops;
+struct snd_soc_jack;
+struct snd_soc_jack_pin;
+#ifdef CONFIG_GPIOLIB
+struct snd_soc_jack_gpio;
+#endif
 
 typedef int (*hw_write_t)(void *,const char* ,int);
 typedef int (*hw_read_t)(void *,char* ,int);
@@ -184,6 +193,19 @@ int snd_soc_init_card(struct snd_soc_device *socdev);
 int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
 	const struct snd_pcm_hardware *hw);
 
+/* Jack reporting */
+int snd_soc_jack_new(struct snd_soc_card *card, const char *id, int type,
+		     struct snd_soc_jack *jack);
+void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask);
+int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
+			  struct snd_soc_jack_pin *pins);
+#ifdef CONFIG_GPIOLIB
+int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
+			struct snd_soc_jack_gpio *gpios);
+void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
+			struct snd_soc_jack_gpio *gpios);
+#endif
+
 /* codec IO */
 #define snd_soc_read(codec, reg) codec->read(codec, reg)
 #define snd_soc_write(codec, reg, value) codec->write(codec, reg, value)
@@ -203,6 +225,8 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
  */
 struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 	void *data, char *long_name);
+int snd_soc_add_controls(struct snd_soc_codec *codec,
+	const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
 int snd_soc_info_enum_ext(struct snd_kcontrol *kcontrol,
@@ -236,6 +260,48 @@ int snd_soc_get_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+
+/**
+ * struct snd_soc_jack_pin - Describes a pin to update based on jack detection
+ *
+ * @pin:    name of the pin to update
+ * @mask:   bits to check for in reported jack status
+ * @invert: if non-zero then pin is enabled when status is not reported
+ */
+struct snd_soc_jack_pin {
+	struct list_head list;
+	const char *pin;
+	int mask;
+	bool invert;
+};
+
+/**
+ * struct snd_soc_jack_gpio - Describes a gpio pin for jack detection
+ *
+ * @gpio:         gpio number
+ * @name:         gpio name
+ * @report:       value to report when jack detected
+ * @invert:       report presence in low state
+ * @debouce_time: debouce time in ms
+ */
+#ifdef CONFIG_GPIOLIB
+struct snd_soc_jack_gpio {
+	unsigned int gpio;
+	const char *name;
+	int report;
+	int invert;
+	int debounce_time;
+	struct snd_soc_jack *jack;
+	struct work_struct work;
+};
+#endif
+
+struct snd_soc_jack {
+	struct snd_jack *jack;
+	struct snd_soc_card *card;
+	struct list_head pins;
+	int status;
+};
 
 /* SoC PCM stream information */
 struct snd_soc_pcm_stream {
@@ -384,6 +450,8 @@ struct snd_soc_card {
 
 	struct snd_soc_device *socdev;
 
+	struct snd_soc_codec *codec;
+
 	struct snd_soc_platform *platform;
 	struct delayed_work delayed_work;
 	struct work_struct deferred_resume_work;
@@ -393,7 +461,6 @@ struct snd_soc_card {
 struct snd_soc_device {
 	struct device *dev;
 	struct snd_soc_card *card;
-	struct snd_soc_codec *codec;
 	struct snd_soc_codec_device *codec_dev;
 	void *codec_data;
 };

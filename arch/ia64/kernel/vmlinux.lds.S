@@ -213,16 +213,9 @@ SECTIONS
         { *(.data.cacheline_aligned) }
 
   /* Per-cpu data: */
-  percpu : { } :percpu
   . = ALIGN(PERCPU_PAGE_SIZE);
-  __phys_per_cpu_start = .;
-  .data.percpu PERCPU_ADDR : AT(__phys_per_cpu_start - LOAD_OFFSET)
-	{
-		__per_cpu_start = .;
-		*(.data.percpu)
-		*(.data.percpu.shared_aligned)
-		__per_cpu_end = .;
-	}
+  PERCPU_VADDR(PERCPU_ADDR, :percpu)
+  __phys_per_cpu_start = __per_cpu_load;
   . = __phys_per_cpu_start + PERCPU_PAGE_SIZE;	/* ensure percpu data fits
   						 * into percpu page size
 						 */

@@ -437,7 +437,7 @@ MODULE_PARM_DESC(max_rx_desc, "AceNIC/3C985/GA620 max number of receive descript
 MODULE_PARM_DESC(tx_ratio, "AceNIC/3C985/GA620 ratio of NIC memory used for TX/RX descriptors (range 0-63)");
 
 
-static char version[] __devinitdata =
+static const char version[] __devinitconst =
   "acenic.c: v0.92 08/05/2002  Jes Sorensen, linux-acenic@SunSITE.dk\n"
   "                            http://home.cern.ch/~jes/gige/acenic.html\n";
 

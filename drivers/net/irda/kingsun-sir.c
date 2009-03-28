@@ -418,6 +418,12 @@ static int kingsun_net_ioctl(struct net_device *netdev, struct ifreq *rq,
 	return ret;
 }
 
+static const struct net_device_ops kingsun_ops = {
+	.ndo_start_xmit = kingsun_hard_xmit,
+	.ndo_open            = kingsun_net_open,
+	.ndo_stop            = kingsun_net_close,
+	.ndo_do_ioctl        = kingsun_net_ioctl,
+};
 
 /*
  * This routine is called by the USB subsystem for each new device
@@ -520,10 +526,7 @@ static int kingsun_probe(struct usb_interface *intf,
 	irda_qos_bits_to_value(&kingsun->qos);
 
 	/* Override the network functions we need to use */
-	net->hard_start_xmit = kingsun_hard_xmit;
-	net->open            = kingsun_net_open;
-	net->stop            = kingsun_net_close;
-	net->do_ioctl        = kingsun_net_ioctl;
+	net->netdev_ops = &kingsun_ops;
 
 	ret = register_netdev(net);
 	if (ret != 0)

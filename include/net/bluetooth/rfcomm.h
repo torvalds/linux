@@ -183,8 +183,9 @@ struct rfcomm_dlc {
 	u8            remote_v24_sig;
 	u8            mscex;
 	u8            out;
-
-	u32           link_mode;
+	u8            sec_level;
+	u8            role_switch;
+	u32           defer_setup;
 
 	uint          mtu;
 	uint          cfc;
@@ -202,10 +203,12 @@ struct rfcomm_dlc {
 #define RFCOMM_RX_THROTTLED 0
 #define RFCOMM_TX_THROTTLED 1
 #define RFCOMM_TIMED_OUT    2
-#define RFCOMM_MSC_PENDING  3 
-#define RFCOMM_AUTH_PENDING 4
-#define RFCOMM_AUTH_ACCEPT  5
-#define RFCOMM_AUTH_REJECT  6
+#define RFCOMM_MSC_PENDING  3
+#define RFCOMM_SEC_PENDING  4
+#define RFCOMM_AUTH_PENDING 5
+#define RFCOMM_AUTH_ACCEPT  6
+#define RFCOMM_AUTH_REJECT  7
+#define RFCOMM_DEFER_SETUP  8
 
 /* Scheduling flags and events */
 #define RFCOMM_SCHED_STATE  0
@@ -239,6 +242,7 @@ int  rfcomm_dlc_close(struct rfcomm_dlc *d, int reason);
 int  rfcomm_dlc_send(struct rfcomm_dlc *d, struct sk_buff *skb);
 int  rfcomm_dlc_set_modem_status(struct rfcomm_dlc *d, u8 v24_sig);
 int  rfcomm_dlc_get_modem_status(struct rfcomm_dlc *d, u8 *v24_sig);
+void rfcomm_dlc_accept(struct rfcomm_dlc *d);
 
 #define rfcomm_dlc_lock(d)     spin_lock(&d->lock)
 #define rfcomm_dlc_unlock(d)   spin_unlock(&d->lock)
@@ -304,7 +308,8 @@ struct rfcomm_pinfo {
 	struct bt_sock bt;
 	struct rfcomm_dlc   *dlc;
 	u8     channel;
-	u32    link_mode;
+	u8     sec_level;
+	u8     role_switch;
 };
 
 int  rfcomm_init_sockets(void);
@@ -333,7 +338,6 @@ struct rfcomm_dev_req {
 	bdaddr_t src;
 	bdaddr_t dst;
 	u8       channel;
-	
 };
 
 struct rfcomm_dev_info {

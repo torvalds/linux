@@ -2,8 +2,6 @@
 	- this file.
 sched-arch.txt
 	- CPU Scheduler implementation hints for architecture specific code.
-sched-coding.txt
-	- reference for various scheduler-related methods in the O(1) scheduler.
 sched-design-CFS.txt
 	- goals, design and implementation of the Complete Fair Scheduler.
 sched-domains.txt

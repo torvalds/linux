@@ -6,33 +6,35 @@
 #ifndef __MTD_NFTL_USER_H__
 #define __MTD_NFTL_USER_H__
 
+#include <linux/types.h>
+
 /* Block Control Information */
 
 struct nftl_bci {
 	unsigned char ECCSig[6];
-	uint8_t Status;
-	uint8_t Status1;
+	__u8 Status;
+	__u8 Status1;
 }__attribute__((packed));
 
 /* Unit Control Information */
 
 struct nftl_uci0 {
-	uint16_t VirtUnitNum;
-	uint16_t ReplUnitNum;
-	uint16_t SpareVirtUnitNum;
-	uint16_t SpareReplUnitNum;
+	__u16 VirtUnitNum;
+	__u16 ReplUnitNum;
+	__u16 SpareVirtUnitNum;
+	__u16 SpareReplUnitNum;
 } __attribute__((packed));
 
 struct nftl_uci1 {
-	uint32_t WearInfo;
-	uint16_t EraseMark;
-	uint16_t EraseMark1;
+	__u32 WearInfo;
+	__u16 EraseMark;
+	__u16 EraseMark1;
 } __attribute__((packed));
 
 struct nftl_uci2 {
-        uint16_t FoldMark;
-        uint16_t FoldMark1;
-	uint32_t unused;
+        __u16 FoldMark;
+        __u16 FoldMark1;
+	__u32 unused;
 } __attribute__((packed));
 
 union nftl_uci {
@@ -50,9 +52,9 @@ struct nftl_oob {
 
 struct NFTLMediaHeader {
 	char DataOrgID[6];
-	uint16_t NumEraseUnits;
-	uint16_t FirstPhysicalEUN;
-	uint32_t FormattedSize;
+	__u16 NumEraseUnits;
+	__u16 FirstPhysicalEUN;
+	__u32 FormattedSize;
 	unsigned char UnitSizeFactor;
 } __attribute__((packed));
 

@@ -49,9 +49,6 @@
 #include <asm/paravirt.h>
 #include <asm/setup.h>
 #include <asm/cacheflush.h>
-#include <asm/smp.h>
-
-unsigned int __VMALLOC_RESERVE = 128 << 20;
 
 unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
@@ -136,6 +133,23 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 	}
 
 	return pte_offset_kernel(pmd, 0);
+}
+
+pmd_t * __init populate_extra_pmd(unsigned long vaddr)
+{
+	int pgd_idx = pgd_index(vaddr);
+	int pmd_idx = pmd_index(vaddr);
+
+	return one_md_table_init(swapper_pg_dir + pgd_idx) + pmd_idx;
+}
+
+pte_t * __init populate_extra_pte(unsigned long vaddr)
+{
+	int pte_idx = pte_index(vaddr);
+	pmd_t *pmd;
+
+	pmd = populate_extra_pmd(vaddr);
+	return one_page_table_init(pmd) + pte_idx;
 }
 
 static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
@@ -470,20 +484,8 @@ void __init add_highpages_with_active_regions(int nid, unsigned long start_pfn,
 	work_with_active_regions(nid, add_highpages_work_fn, &data);
 }
 
-#ifndef CONFIG_NUMA
-static void __init set_highmem_pages_init(void)
-{
-	add_highpages_with_active_regions(0, highstart_pfn, highend_pfn);
-
-	totalram_pages += totalhigh_pages;
-}
-#endif /* !CONFIG_NUMA */
-
 #else
 static inline void permanent_kmaps_init(pgd_t *pgd_base)
-{
-}
-static inline void set_highmem_pages_init(void)
 {
 }
 #endif /* CONFIG_HIGHMEM */
@@ -675,6 +677,86 @@ static int __init parse_highmem(char *arg)
 }
 early_param("highmem", parse_highmem);
 
+#define MSG_HIGHMEM_TOO_BIG \
+	"highmem size (%luMB) is bigger than pages available (%luMB)!\n"
+
+#define MSG_LOWMEM_TOO_SMALL \
+	"highmem size (%luMB) results in <64MB lowmem, ignoring it!\n"
+/*
+ * All of RAM fits into lowmem - but if user wants highmem
+ * artificially via the highmem=x boot parameter then create
+ * it:
+ */
+void __init lowmem_pfn_init(void)
+{
+	/* max_low_pfn is 0, we already have early_res support */
+	max_low_pfn = max_pfn;
+
+	if (highmem_pages == -1)
+		highmem_pages = 0;
+#ifdef CONFIG_HIGHMEM
+	if (highmem_pages >= max_pfn) {
+		printk(KERN_ERR MSG_HIGHMEM_TOO_BIG,
+			pages_to_mb(highmem_pages), pages_to_mb(max_pfn));
+		highmem_pages = 0;
+	}
+	if (highmem_pages) {
+		if (max_low_pfn - highmem_pages < 64*1024*1024/PAGE_SIZE) {
+			printk(KERN_ERR MSG_LOWMEM_TOO_SMALL,
+				pages_to_mb(highmem_pages));
+			highmem_pages = 0;
+		}
+		max_low_pfn -= highmem_pages;
+	}
+#else
+	if (highmem_pages)
+		printk(KERN_ERR "ignoring highmem size on non-highmem kernel!\n");
+#endif
+}
+
+#define MSG_HIGHMEM_TOO_SMALL \
+	"only %luMB highmem pages available, ignoring highmem size of %luMB!\n"
+
+#define MSG_HIGHMEM_TRIMMED \
+	"Warning: only 4GB will be used. Use a HIGHMEM64G enabled kernel!\n"
+/*
+ * We have more RAM than fits into lowmem - we try to put it into
+ * highmem, also taking the highmem=x boot parameter into account:
+ */
+void __init highmem_pfn_init(void)
+{
+	max_low_pfn = MAXMEM_PFN;
+
+	if (highmem_pages == -1)
+		highmem_pages = max_pfn - MAXMEM_PFN;
+
+	if (highmem_pages + MAXMEM_PFN < max_pfn)
+		max_pfn = MAXMEM_PFN + highmem_pages;
+
+	if (highmem_pages + MAXMEM_PFN > max_pfn) {
+		printk(KERN_WARNING MSG_HIGHMEM_TOO_SMALL,
+			pages_to_mb(max_pfn - MAXMEM_PFN),
+			pages_to_mb(highmem_pages));
+		highmem_pages = 0;
+	}
+#ifndef CONFIG_HIGHMEM
+	/* Maximum memory usable is what is directly addressable */
+	printk(KERN_WARNING "Warning only %ldMB will be used.\n", MAXMEM>>20);
+	if (max_pfn > MAX_NONPAE_PFN)
+		printk(KERN_WARNING "Use a HIGHMEM64G enabled kernel.\n");
+	else
+		printk(KERN_WARNING "Use a HIGHMEM enabled kernel.\n");
+	max_pfn = MAXMEM_PFN;
+#else /* !CONFIG_HIGHMEM */
+#ifndef CONFIG_HIGHMEM64G
+	if (max_pfn > MAX_NONPAE_PFN) {
+		max_pfn = MAX_NONPAE_PFN;
+		printk(KERN_WARNING MSG_HIGHMEM_TRIMMED);
+	}
+#endif /* !CONFIG_HIGHMEM64G */
+#endif /* !CONFIG_HIGHMEM */
+}
+
 /*
  * Determine low and high memory ranges:
  */
@@ -682,68 +764,10 @@ void __init find_low_pfn_range(void)
 {
 	/* it could update max_pfn */
 
-	/* max_low_pfn is 0, we already have early_res support */
-
-	max_low_pfn = max_pfn;
-	if (max_low_pfn > MAXMEM_PFN) {
-		if (highmem_pages == -1)
-			highmem_pages = max_pfn - MAXMEM_PFN;
-		if (highmem_pages + MAXMEM_PFN < max_pfn)
-			max_pfn = MAXMEM_PFN + highmem_pages;
-		if (highmem_pages + MAXMEM_PFN > max_pfn) {
-			printk(KERN_WARNING "only %luMB highmem pages "
-				"available, ignoring highmem size of %uMB.\n",
-				pages_to_mb(max_pfn - MAXMEM_PFN),
-				pages_to_mb(highmem_pages));
-			highmem_pages = 0;
-		}
-		max_low_pfn = MAXMEM_PFN;
-#ifndef CONFIG_HIGHMEM
-		/* Maximum memory usable is what is directly addressable */
-		printk(KERN_WARNING "Warning only %ldMB will be used.\n",
-					MAXMEM>>20);
-		if (max_pfn > MAX_NONPAE_PFN)
-			printk(KERN_WARNING
-				 "Use a HIGHMEM64G enabled kernel.\n");
-		else
-			printk(KERN_WARNING "Use a HIGHMEM enabled kernel.\n");
-		max_pfn = MAXMEM_PFN;
-#else /* !CONFIG_HIGHMEM */
-#ifndef CONFIG_HIGHMEM64G
-		if (max_pfn > MAX_NONPAE_PFN) {
-			max_pfn = MAX_NONPAE_PFN;
-			printk(KERN_WARNING "Warning only 4GB will be used."
-				"Use a HIGHMEM64G enabled kernel.\n");
-		}
-#endif /* !CONFIG_HIGHMEM64G */
-#endif /* !CONFIG_HIGHMEM */
-	} else {
-		if (highmem_pages == -1)
-			highmem_pages = 0;
-#ifdef CONFIG_HIGHMEM
-		if (highmem_pages >= max_pfn) {
-			printk(KERN_ERR "highmem size specified (%uMB) is "
-				"bigger than pages available (%luMB)!.\n",
-				pages_to_mb(highmem_pages),
-				pages_to_mb(max_pfn));
-			highmem_pages = 0;
-		}
-		if (highmem_pages) {
-			if (max_low_pfn - highmem_pages <
-			    64*1024*1024/PAGE_SIZE){
-				printk(KERN_ERR "highmem size %uMB results in "
-				"smaller than 64MB lowmem, ignoring it.\n"
-					, pages_to_mb(highmem_pages));
-				highmem_pages = 0;
-			}
-			max_low_pfn -= highmem_pages;
-		}
-#else
-		if (highmem_pages)
-			printk(KERN_ERR "ignoring highmem size on non-highmem"
-					" kernel!\n");
-#endif
-	}
+	if (max_pfn <= MAXMEM_PFN)
+		lowmem_pfn_init();
+	else
+		highmem_pfn_init();
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -826,10 +850,10 @@ static void __init find_early_table_space(unsigned long end, int use_pse)
 	unsigned long puds, pmds, ptes, tables, start;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
-	tables = PAGE_ALIGN(puds * sizeof(pud_t));
+	tables = roundup(puds * sizeof(pud_t), PAGE_SIZE);
 
 	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
-	tables += PAGE_ALIGN(pmds * sizeof(pmd_t));
+	tables += roundup(pmds * sizeof(pmd_t), PAGE_SIZE);
 
 	if (use_pse) {
 		unsigned long extra;
@@ -840,10 +864,10 @@ static void __init find_early_table_space(unsigned long end, int use_pse)
 	} else
 		ptes = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	tables += PAGE_ALIGN(ptes * sizeof(pte_t));
+	tables += roundup(ptes * sizeof(pte_t), PAGE_SIZE);
 
 	/* for fixmap */
-	tables += PAGE_ALIGN(__end_of_fixed_addresses * sizeof(pte_t));
+	tables += roundup(__end_of_fixed_addresses * sizeof(pte_t), PAGE_SIZE);
 
 	/*
 	 * RED-PEN putting page tables only on node 0 could
@@ -1192,45 +1216,6 @@ void mark_rodata_ro(void)
 #endif
 }
 #endif
-
-void free_init_pages(char *what, unsigned long begin, unsigned long end)
-{
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	/*
-	 * If debugging page accesses then do not free this memory but
-	 * mark them not present - any buggy init-section access will
-	 * create a kernel page fault:
-	 */
-	printk(KERN_INFO "debug: unmapping init memory %08lx..%08lx\n",
-		begin, PAGE_ALIGN(end));
-	set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
-#else
-	unsigned long addr;
-
-	/*
-	 * We just marked the kernel text read only above, now that
-	 * we are going to free part of that, we need to make that
-	 * writeable first.
-	 */
-	set_memory_rw(begin, (end - begin) >> PAGE_SHIFT);
-
-	for (addr = begin; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
-		free_page(addr);
-		totalram_pages++;
-	}
-	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
-#endif
-}
-
-void free_initmem(void)
-{
-	free_init_pages("unused kernel memory",
-			(unsigned long)(&__init_begin),
-			(unsigned long)(&__init_end));
-}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)

@@ -13,7 +13,7 @@
  *
  *	The timer is implemented in the following I/O controller hubs:
  *	(See the intel documentation on http://developer.intel.com.)
- *	6300ESB chip : document number 300641-003
+ *	6300ESB chip : document number 300641-004
  *
  *  2004YYZZ Ross Biro
  *	Initial version 0.01
@@ -34,7 +34,7 @@
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/reboot.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
@@ -42,7 +42,7 @@
 #include <linux/io.h>
 
 /* Module and version information */
-#define ESB_VERSION "0.03"
+#define ESB_VERSION "0.04"
 #define ESB_MODULE_NAME "i6300ESB timer"
 #define ESB_DRIVER_NAME ESB_MODULE_NAME ", v" ESB_VERSION
 #define PFX ESB_MODULE_NAME ": "
@@ -81,6 +81,7 @@ static unsigned long timer_alive;
 static struct pci_dev *esb_pci;
 static unsigned short triggered; /* The status of the watchdog upon boot */
 static char esb_expect_close;
+static struct platform_device *esb_platform_device;
 
 /* module parameters */
 /* 30 sec default heartbeat (1 < heartbeat < 2*1023) */
@@ -114,13 +115,18 @@ static inline void esb_unlock_registers(void)
 	writeb(ESB_UNLOCK2, ESB_RELOAD_REG);
 }
 
-static void esb_timer_start(void)
+static int esb_timer_start(void)
 {
 	u8 val;
 
+	spin_lock(&esb_lock);
+	esb_unlock_registers();
+	writew(ESB_WDT_RELOAD, ESB_RELOAD_REG);
 	/* Enable or Enable + Lock? */
 	val = 0x02 | (nowayout ? 0x01 : 0x00);
 	pci_write_config_byte(esb_pci, ESB_LOCK_REG, val);
+	spin_unlock(&esb_lock);
+	return 0;
 }
 
 static int esb_timer_stop(void)
@@ -207,7 +213,6 @@ static int esb_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	/* Reload and activate timer */
-	esb_timer_keepalive();
 	esb_timer_start();
 
 	return nonseekable_open(inode, file);
@@ -240,7 +245,8 @@ static ssize_t esb_write(struct file *file, const char __user *data,
 			 * five months ago... */
 			esb_expect_close = 0;
 
-			/* scan to see whether or not we got the magic character */
+			/* scan to see whether or not we got the
+			 * magic character */
 			for (i = 0; i != len; i++) {
 				char c;
 				if (get_user(c, data + i))
@@ -292,7 +298,6 @@ static long esb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		if (new_options & WDIOS_ENABLECARD) {
-			esb_timer_keepalive();
 			esb_timer_start();
 			retval = 0;
 		}
@@ -319,19 +324,6 @@ static long esb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 /*
- *      Notify system
- */
-
-static int esb_notify_sys(struct notifier_block *this,
-					unsigned long code, void *unused)
-{
-	if (code == SYS_DOWN || code == SYS_HALT)
-		esb_timer_stop();	/* Turn the WDT off */
-
-	return NOTIFY_DONE;
-}
-
-/*
  *      Kernel Interfaces
  */
 
@@ -348,10 +340,6 @@ static struct miscdevice esb_miscdev = {
 	.minor = WATCHDOG_MINOR,
 	.name = "watchdog",
 	.fops = &esb_fops,
-};
-
-static struct notifier_block esb_notifier = {
-	.notifier_call = esb_notify_sys,
 };
 
 /*
@@ -372,7 +360,7 @@ MODULE_DEVICE_TABLE(pci, esb_pci_tbl);
  *      Init & exit routines
  */
 
-static unsigned char __init esb_getdevice(void)
+static unsigned char __devinit esb_getdevice(void)
 {
 	u8 val1;
 	unsigned short val2;
@@ -443,7 +431,7 @@ err_devput:
 	return 0;
 }
 
-static int __init watchdog_init(void)
+static int __devinit esb_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -459,19 +447,13 @@ static int __init watchdog_init(void)
 			"heartbeat value must be 1<heartbeat<2046, using %d\n",
 								heartbeat);
 	}
-	ret = register_reboot_notifier(&esb_notifier);
-	if (ret != 0) {
-		printk(KERN_ERR PFX
-			"cannot register reboot notifier (err=%d)\n", ret);
-		goto err_unmap;
-	}
 
 	ret = misc_register(&esb_miscdev);
 	if (ret != 0) {
 		printk(KERN_ERR PFX
 			"cannot register miscdev on minor=%d (err=%d)\n",
 							WATCHDOG_MINOR, ret);
-		goto err_notifier;
+		goto err_unmap;
 	}
 	esb_timer_stop();
 	printk(KERN_INFO PFX
@@ -479,8 +461,6 @@ static int __init watchdog_init(void)
 						BASEADDR, heartbeat, nowayout);
 	return 0;
 
-err_notifier:
-	unregister_reboot_notifier(&esb_notifier);
 err_unmap:
 	iounmap(BASEADDR);
 /* err_release: */
@@ -492,7 +472,7 @@ err_unmap:
 	return ret;
 }
 
-static void __exit watchdog_cleanup(void)
+static int __devexit esb_remove(struct platform_device *dev)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -500,11 +480,58 @@ static void __exit watchdog_cleanup(void)
 
 	/* Deregister */
 	misc_deregister(&esb_miscdev);
-	unregister_reboot_notifier(&esb_notifier);
 	iounmap(BASEADDR);
 	pci_release_region(esb_pci, 0);
 	pci_disable_device(esb_pci);
 	pci_dev_put(esb_pci);
+	return 0;
+}
+
+static void esb_shutdown(struct platform_device *dev)
+{
+	esb_timer_stop();
+}
+
+static struct platform_driver esb_platform_driver = {
+	.probe          = esb_probe,
+	.remove         = __devexit_p(esb_remove),
+	.shutdown       = esb_shutdown,
+	.driver         = {
+		.owner  = THIS_MODULE,
+		.name   = ESB_MODULE_NAME,
+	},
+};
+
+static int __init watchdog_init(void)
+{
+	int err;
+
+	printk(KERN_INFO PFX "Intel 6300ESB WatchDog Timer Driver v%s\n",
+		ESB_VERSION);
+
+	err = platform_driver_register(&esb_platform_driver);
+	if (err)
+		return err;
+
+	esb_platform_device = platform_device_register_simple(ESB_MODULE_NAME,
+								-1, NULL, 0);
+	if (IS_ERR(esb_platform_device)) {
+		err = PTR_ERR(esb_platform_device);
+		goto unreg_platform_driver;
+	}
+
+	return 0;
+
+unreg_platform_driver:
+	platform_driver_unregister(&esb_platform_driver);
+	return err;
+}
+
+static void __exit watchdog_cleanup(void)
+{
+	platform_device_unregister(esb_platform_device);
+	platform_driver_unregister(&esb_platform_driver);
+	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
 module_init(watchdog_init);

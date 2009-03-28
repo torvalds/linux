@@ -3004,7 +3004,9 @@ struct niu_classifier {
 	struct niu_altmac_rdc	alt_mac_mappings[16];
 	struct niu_vlan_rdc	vlan_mappings[ENET_VLAN_TBL_NUM_ENTRIES];
 
-	u16			tcam_index;
+	u16			tcam_top;
+	u16			tcam_sz;
+	u16			tcam_valid_entries;
 	u16			num_alt_mac_mappings;
 
 	u32			h1_init;
@@ -3040,6 +3042,7 @@ struct phy_probe_info {
 };
 
 struct niu_tcam_entry {
+	u8			valid;
 	u64			key[4];
 	u64			key_mask[4];
 	u64			assoc_data;
@@ -3107,10 +3110,15 @@ struct niu_parent {
 	struct phy_probe_info	phy_probe_info;
 
 	struct niu_tcam_entry	tcam[NIU_TCAM_ENTRIES_MAX];
-	u64			l2_cls[2];
-	u64			l3_cls[4];
+
+#define	NIU_L2_PROG_CLS		2
+#define	NIU_L3_PROG_CLS		4
+	u64			l2_cls[NIU_L2_PROG_CLS];
+	u64			l3_cls[NIU_L3_PROG_CLS];
 	u64			tcam_key[12];
 	u64			flow_key[12];
+	u16			l3_cls_refcnt[NIU_L3_PROG_CLS];
+	u8			l3_cls_pid[NIU_L3_PROG_CLS];
 };
 
 struct niu_ops {
@@ -3131,16 +3139,19 @@ struct niu_ops {
 };
 
 struct niu_link_config {
+	u32				supported;
+
 	/* Describes what we're trying to get. */
 	u32				advertising;
-	u32				supported;
 	u16				speed;
 	u8				duplex;
 	u8				autoneg;
 
 	/* Describes what we actually have. */
+	u32				active_advertising;
 	u16				active_speed;
 	u8				active_duplex;
+	u8				active_autoneg;
 #define SPEED_INVALID		0xffff
 #define DUPLEX_INVALID		0xff
 #define AUTONEG_INVALID		0xff

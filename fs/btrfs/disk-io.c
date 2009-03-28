@@ -2385,7 +2385,7 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 	unsigned long thresh = 32 * 1024 * 1024;
 	tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 
-	if (current_is_pdflush() || current->flags & PF_MEMALLOC)
+	if (current->flags & PF_MEMALLOC)
 		return;
 
 	num_dirty = count_range_bits(tree, &start, (u64)-1,

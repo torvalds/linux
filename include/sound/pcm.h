@@ -364,7 +364,6 @@ struct snd_pcm_substream {
         /* -- timer section -- */
 	struct snd_timer *timer;		/* timer */
 	unsigned timer_running: 1;	/* time is running */
-	spinlock_t timer_lock;
 	/* -- next substream -- */
 	struct snd_pcm_substream *next;
 	/* -- linked substreams -- */
@@ -451,7 +450,7 @@ struct snd_pcm_notify {
 
 extern const struct file_operations snd_pcm_f_ops[2];
 
-int snd_pcm_new(struct snd_card *card, char *id, int device,
+int snd_pcm_new(struct snd_card *card, const char *id, int device,
 		int playback_count, int capture_count,
 		struct snd_pcm **rpcm);
 int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count);

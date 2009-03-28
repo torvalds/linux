@@ -50,18 +50,38 @@ struct link_slave {
 	struct link_master *master;
 	struct link_ctl_info info;
 	int vals[2];		/* current values */
+	unsigned int flags;
 	struct snd_kcontrol slave; /* the copy of original control entry */
 };
+
+static int slave_update(struct link_slave *slave)
+{
+	struct snd_ctl_elem_value *uctl;
+	int err, ch;
+
+	uctl = kmalloc(sizeof(*uctl), GFP_KERNEL);
+	if (!uctl)
+		return -ENOMEM;
+	uctl->id = slave->slave.id;
+	err = slave->slave.get(&slave->slave, uctl);
+	for (ch = 0; ch < slave->info.count; ch++)
+		slave->vals[ch] = uctl->value.integer.value[ch];
+	kfree(uctl);
+	return 0;
+}
 
 /* get the slave ctl info and save the initial values */
 static int slave_init(struct link_slave *slave)
 {
 	struct snd_ctl_elem_info *uinfo;
-	struct snd_ctl_elem_value *uctl;
-	int err, ch;
+	int err;
 
-	if (slave->info.count)
-		return 0; /* already initialized */
+	if (slave->info.count) {
+		/* already initialized */
+		if (slave->flags & SND_CTL_SLAVE_NEED_UPDATE)
+			return slave_update(slave);
+		return 0;
+	}
 
 	uinfo = kmalloc(sizeof(*uinfo), GFP_KERNEL);
 	if (!uinfo)
@@ -85,15 +105,7 @@ static int slave_init(struct link_slave *slave)
 	slave->info.max_val = uinfo->value.integer.max;
 	kfree(uinfo);
 
-	uctl = kmalloc(sizeof(*uctl), GFP_KERNEL);
-	if (!uctl)
-		return -ENOMEM;
-	uctl->id = slave->slave.id;
-	err = slave->slave.get(&slave->slave, uctl);
-	for (ch = 0; ch < slave->info.count; ch++)
-		slave->vals[ch] = uctl->value.integer.value[ch];
-	kfree(uctl);
-	return 0;
+	return slave_update(slave);
 }
 
 /* initialize master volume */
@@ -229,7 +241,8 @@ static void slave_free(struct snd_kcontrol *kcontrol)
  * - logarithmic volume control (dB level), no linear volume
  * - master can only attenuate the volume, no gain
  */
-int snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
+int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
+		       unsigned int flags)
 {
 	struct link_master *master_link = snd_kcontrol_chip(master);
 	struct link_slave *srec;
@@ -241,6 +254,7 @@ int snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
 	srec->slave = *slave;
 	memcpy(srec->slave.vd, slave->vd, slave->count * sizeof(*slave->vd));
 	srec->master = master_link;
+	srec->flags = flags;
 
 	/* override callbacks */
 	slave->info = slave_info;
@@ -254,8 +268,7 @@ int snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
 	list_add_tail(&srec->list, &master_link->slaves);
 	return 0;
 }
-
-EXPORT_SYMBOL(snd_ctl_add_slave);
+EXPORT_SYMBOL(_snd_ctl_add_slave);
 
 /*
  * ctl callbacks for master controls
@@ -327,8 +340,20 @@ static void master_free(struct snd_kcontrol *kcontrol)
 }
 
 
-/*
- * Create a virtual master control with the given name
+/**
+ * snd_ctl_make_virtual_master - Create a virtual master control
+ * @name: name string of the control element to create
+ * @tlv: optional TLV int array for dB information
+ *
+ * Creates a virtual matster control with the given name string.
+ * Returns the created control element, or NULL for errors (ENOMEM).
+ *
+ * After creating a vmaster element, you can add the slave controls
+ * via snd_ctl_add_slave() or snd_ctl_add_slave_uncached().
+ *
+ * The optional argument @tlv can be used to specify the TLV information
+ * for dB scale of the master control.  It should be a single element
+ * with #SNDRV_CTL_TLVT_DB_SCALE type, and should be the max 0dB.
  */
 struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 						 const unsigned int *tlv)
@@ -367,5 +392,4 @@ struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 
 	return kctl;
 }
-
 EXPORT_SYMBOL(snd_ctl_make_virtual_master);

@@ -273,8 +273,7 @@ int can_send(struct sk_buff *skb, int loop)
 		err = net_xmit_errno(err);
 
 	if (err) {
-		if (newskb)
-			kfree_skb(newskb);
+		kfree_skb(newskb);
 		return err;
 	}
 
@@ -828,7 +827,7 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
  */
 
 static struct packet_type can_packet __read_mostly = {
-	.type = __constant_htons(ETH_P_CAN),
+	.type = cpu_to_be16(ETH_P_CAN),
 	.dev  = NULL,
 	.func = can_rcv,
 };

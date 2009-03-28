@@ -90,7 +90,7 @@ static int arm_lock(struct hpsb_host *host, int nodeid, quadlet_t * store,
 static int arm_lock64(struct hpsb_host *host, int nodeid, octlet_t * store,
 		      u64 addr, octlet_t data, octlet_t arg, int ext_tcode,
 		      u16 flags);
-const static struct hpsb_address_ops arm_ops = {
+static const struct hpsb_address_ops arm_ops = {
 	.read = arm_read,
 	.write = arm_write,
 	.lock = arm_lock,
@@ -369,6 +369,7 @@ static const char __user *raw1394_compat_write(const char __user *buf)
 {
 	struct compat_raw1394_req __user *cr = (typeof(cr)) buf;
 	struct raw1394_request __user *r;
+
 	r = compat_alloc_user_space(sizeof(struct raw1394_request));
 
 #define C(x) __copy_in_user(&r->x, &cr->x, sizeof(r->x))
@@ -378,7 +379,8 @@ static const char __user *raw1394_compat_write(const char __user *buf)
 	    C(tag) ||
 	    C(sendb) ||
 	    C(recvb))
-		return ERR_PTR(-EFAULT);
+		return (__force const char __user *)ERR_PTR(-EFAULT);
+
 	return (const char __user *)r;
 }
 #undef C
@@ -389,6 +391,7 @@ static int
 raw1394_compat_read(const char __user *buf, struct raw1394_request *r)
 {
 	struct compat_raw1394_req __user *cr = (typeof(cr)) buf;
+
 	if (!access_ok(VERIFY_WRITE, cr, sizeof(struct compat_raw1394_req)) ||
 	    P(type) ||
 	    P(error) ||
@@ -400,6 +403,7 @@ raw1394_compat_read(const char __user *buf, struct raw1394_request *r)
 	    P(sendb) ||
 	    P(recvb))
 		return -EFAULT;
+
 	return sizeof(struct compat_raw1394_req);
 }
 #undef P
@@ -2249,8 +2253,8 @@ static ssize_t raw1394_write(struct file *file, const char __user * buffer,
    	    sizeof(struct compat_raw1394_req) !=
 			sizeof(struct raw1394_request)) {
 		buffer = raw1394_compat_write(buffer);
-		if (IS_ERR(buffer))
-			return PTR_ERR(buffer);
+		if (IS_ERR((__force void *)buffer))
+			return PTR_ERR((__force void *)buffer);
 	} else
 #endif
 	if (count != sizeof(struct raw1394_request)) {
@@ -2978,7 +2982,7 @@ static int raw1394_release(struct inode *inode, struct file *file)
  * Export information about protocols/devices supported by this driver.
  */
 #ifdef MODULE
-static struct ieee1394_device_id raw1394_id_table[] = {
+static const struct ieee1394_device_id raw1394_id_table[] = {
 	{
 	 .match_flags = IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION,
 	 .specifier_id = AVC_UNIT_SPEC_ID_ENTRY & 0xffffff,

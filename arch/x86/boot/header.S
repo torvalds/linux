@@ -19,7 +19,7 @@
 #include <linux/utsrelease.h>
 #include <asm/boot.h>
 #include <asm/e820.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/setup.h>
 #include "boot.h"
 #include "offsets.h"

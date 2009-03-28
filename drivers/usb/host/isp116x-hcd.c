@@ -772,7 +772,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 		break;
 	case PIPE_INTERRUPT:
 		urb->interval = ep->period;
-		ep->length = min((int)ep->maxpacket,
+		ep->length = min_t(u32, ep->maxpacket,
 				 urb->transfer_buffer_length);
 
 		/* urb submitted for already existing endpoint */

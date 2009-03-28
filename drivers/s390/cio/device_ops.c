@@ -680,7 +680,7 @@ int ccw_device_tm_intrg(struct ccw_device *cdev)
 	if (cdev->private->state != DEV_STATE_ONLINE)
 		return -EIO;
 	if (!scsw_is_tm(&sch->schib.scsw) ||
-	    !(scsw_actl(&sch->schib.scsw) | SCSW_ACTL_START_PEND))
+	    !(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_START_PEND))
 		return -EINVAL;
 	return cio_tm_intrg(sch);
 }

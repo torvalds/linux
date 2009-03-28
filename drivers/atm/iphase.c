@@ -977,9 +977,7 @@ static void xdump( u_char*  cp, int  length, char*  prefix )
             else
                 pBuf += sprintf( pBuf, "." );
                 }
-        sprintf( pBuf, "\n" );
-        // SPrint(prntBuf);
-        printk(prntBuf);
+        printk("%s\n", prntBuf);
         count += col;
         pBuf = prntBuf;
     }

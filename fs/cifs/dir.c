@@ -129,7 +129,7 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-static int cifs_posix_open(char *full_path, struct inode **pinode,
+int cifs_posix_open(char *full_path, struct inode **pinode,
 		    struct super_block *sb, int mode, int oflags,
 		    int *poplock, __u16 *pnetfid, int xid)
 {
@@ -187,7 +187,9 @@ static int cifs_posix_open(char *full_path, struct inode **pinode,
 	if (!pinode)
 		goto posix_open_ret; /* caller does not need info */
 
-	*pinode = cifs_new_inode(sb, &presp_data->UniqueId);
+	if (*pinode == NULL)
+		*pinode = cifs_new_inode(sb, &presp_data->UniqueId);
+	/* else an inode was passed in. Update its info, don't create one */
 
 	/* We do not need to close the file if new_inode fails since
 	   the caller will retry qpathinfo as long as inode is null */
@@ -699,7 +701,7 @@ cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 	return rc;
 }     */
 
-struct dentry_operations cifs_dentry_ops = {
+const struct dentry_operations cifs_dentry_ops = {
 	.d_revalidate = cifs_d_revalidate,
 /* d_delete:       cifs_d_delete,      */ /* not needed except for debugging */
 };
@@ -737,7 +739,7 @@ static int cifs_ci_compare(struct dentry *dentry, struct qstr *a,
 	return 1;
 }
 
-struct dentry_operations cifs_ci_dentry_ops = {
+const struct dentry_operations cifs_ci_dentry_ops = {
 	.d_revalidate = cifs_d_revalidate,
 	.d_hash = cifs_ci_hash,
 	.d_compare = cifs_ci_compare,

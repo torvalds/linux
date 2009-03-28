@@ -64,13 +64,6 @@ struct kvm_vcpu_stat {
 	u32 halt_wakeup;
 };
 
-struct kvmppc_44x_tlbe {
-	u32 tid; /* Only the low 8 bits are used. */
-	u32 word0;
-	u32 word1;
-	u32 word2;
-};
-
 enum kvm_exit_types {
 	MMIO_EXITS,
 	DCR_EXITS,
@@ -118,11 +111,6 @@ struct kvm_arch {
 struct kvm_vcpu_arch {
 	u32 host_stack;
 	u32 host_pid;
-	u32 host_dbcr0;
-	u32 host_dbcr1;
-	u32 host_dbcr2;
-	u32 host_iac[4];
-	u32 host_msr;
 
 	u64 fpr[32];
 	ulong gpr[32];
@@ -157,7 +145,7 @@ struct kvm_vcpu_arch {
 	u32 tbu;
 	u32 tcr;
 	u32 tsr;
-	u32 ivor[16];
+	u32 ivor[64];
 	ulong ivpr;
 	u32 pir;
 
@@ -170,6 +158,7 @@ struct kvm_vcpu_arch {
 	u32 ccr1;
 	u32 dbcr0;
 	u32 dbcr1;
+	u32 dbsr;
 
 #ifdef CONFIG_KVM_EXIT_TIMING
 	struct kvmppc_exit_timing timing_exit;
@@ -198,12 +187,6 @@ struct kvm_vcpu_arch {
 
 	struct timer_list dec_timer;
 	unsigned long pending_exceptions;
-};
-
-struct kvm_guest_debug {
-	int enabled;
-	unsigned long bp[4];
-	int singlestep;
 };
 
 #endif /* __POWERPC_KVM_HOST_H__ */

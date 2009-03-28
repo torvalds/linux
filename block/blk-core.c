@@ -603,13 +603,10 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	q->queue_flags		= QUEUE_FLAG_DEFAULT;
 	q->queue_lock		= lock;
 
-	blk_queue_segment_boundary(q, BLK_SEG_BOUNDARY_MASK);
-
+	/*
+	 * This also sets hw/phys segments, boundary and size
+	 */
 	blk_queue_make_request(q, __make_request);
-	blk_queue_max_segment_size(q, MAX_SEGMENT_SIZE);
-
-	blk_queue_max_hw_segments(q, MAX_HW_SEGMENTS);
-	blk_queue_max_phys_segments(q, MAX_PHYS_SEGMENTS);
 
 	q->sg_reserved_size = INT_MAX;
 
@@ -735,7 +732,6 @@ static void freed_request(struct request_queue *q, int rw, int priv)
 		__freed_request(q, rw ^ 1);
 }
 
-#define blkdev_free_rq(list) list_entry((list)->next, struct request, queuelist)
 /*
  * Get a free request, queue_lock must be held.
  * Returns NULL on failure, with queue_lock held.
@@ -1065,6 +1061,9 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 		return;
 
 	elv_completed_request(q, req);
+
+	/* this is a bio leak */
+	WARN_ON(req->bio != NULL);
 
 	/*
 	 * Request may not have originated from ll_rw_blk. if not,

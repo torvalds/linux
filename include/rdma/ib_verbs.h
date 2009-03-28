@@ -388,7 +388,7 @@ enum {
 	IB_MULTICAST_QPN = 0xffffff
 };
 
-#define IB_LID_PERMISSIVE	__constant_htons(0xFFFF)
+#define IB_LID_PERMISSIVE	cpu_to_be16(0xFFFF)
 
 enum ib_ah_flags {
 	IB_AH_GRH	= 1

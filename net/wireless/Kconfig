@@ -10,51 +10,19 @@ config CFG80211_REG_DEBUG
 
 	  If unsure, say N.
 
-config NL80211
-	bool "nl80211 new netlink interface support"
-	depends on CFG80211
-	default y
-	---help---
-	  This option turns on the new netlink interface
-	  (nl80211) support in cfg80211.
-
-	  If =n, drivers using mac80211 will be configured via
-	  wireless extension support provided by that subsystem.
-
-	  If unsure, say Y.
-
 config WIRELESS_OLD_REGULATORY
 	bool "Old wireless static regulatory definitions"
-	default y
+	default n
 	---help---
 	  This option enables the old static regulatory information
-	  and uses it within the new framework. This is available
-	  temporarily as an option to help prevent immediate issues
-	  due to the switch to the new regulatory framework which
-	  does require a new userspace application which has the
-	  database of regulatory information (CRDA) and another for
-	  setting regulatory domains (iw).
+	  and uses it within the new framework. This option is available
+	  for historical reasons and it is advised to leave it off.
 
-	  For more information see:
+	  For details see:
 
-	  http://wireless.kernel.org/en/developers/Regulatory/CRDA
-	  http://wireless.kernel.org/en/users/Documentation/iw
+	  http://wireless.kernel.org/en/developers/Regulatory
 
-	  It is important to note though that if you *do* have CRDA present
-	  and if this option is enabled CRDA *will* be called to update the
-	  regulatory domain (for US and JP only). Support for letting the user
-	  set the regulatory domain through iw is also supported. This option
-	  mainly exists to leave around for a kernel release some old static
-	  regulatory domains that were defined and to keep around the old
-	  ieee80211_regdom module parameter. This is being phased out and you
-	  should stop using them ASAP.
-
-	  Note: You will need CRDA if you want 802.11d support
-
-	  Say Y unless you have installed a new userspace application.
-	  Also say Y if have one currently depending on the ieee80211_regdom
-	  module parameter and cannot port it to use the new userspace
-	  interfaces.
+	  Say N and if you say Y, please tell us why. The default is N.
 
 config WIRELESS_EXT
 	bool "Wireless extensions"
@@ -102,3 +70,13 @@ config LIB80211_CRYPT_CCMP
 
 config LIB80211_CRYPT_TKIP
 	tristate
+
+config LIB80211_DEBUG
+	bool "lib80211 debugging messages"
+	depends on LIB80211
+	default n
+	---help---
+	  You can enable this if you want verbose debugging messages
+	  from lib80211.
+
+	  If unsure, say N.

@@ -59,17 +59,12 @@ struct f_sourcesink {
 
 	struct usb_ep		*in_ep;
 	struct usb_ep		*out_ep;
-	struct timer_list	resume;
 };
 
 static inline struct f_sourcesink *func_to_ss(struct usb_function *f)
 {
 	return container_of(f, struct f_sourcesink, function);
 }
-
-static unsigned autoresume;
-module_param(autoresume, uint, 0);
-MODULE_PARM_DESC(autoresume, "zero, or seconds before remote wakeup");
 
 static unsigned pattern;
 module_param(pattern, uint, 0);
@@ -118,7 +113,7 @@ static struct usb_endpoint_descriptor hs_source_desc = {
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512),
+	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
 static struct usb_endpoint_descriptor hs_sink_desc = {
@@ -126,7 +121,7 @@ static struct usb_endpoint_descriptor hs_sink_desc = {
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512),
+	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
 static struct usb_descriptor_header *hs_source_sink_descs[] = {
@@ -155,21 +150,6 @@ static struct usb_gadget_strings *sourcesink_strings[] = {
 
 /*-------------------------------------------------------------------------*/
 
-static void sourcesink_autoresume(unsigned long _c)
-{
-	struct usb_composite_dev *cdev = (void *)_c;
-	struct usb_gadget	*g = cdev->gadget;
-
-	/* Normally the host would be woken up for something
-	 * more significant than just a timer firing; likely
-	 * because of some direct user request.
-	 */
-	if (g->speed != USB_SPEED_UNKNOWN) {
-		int status = usb_gadget_wakeup(g);
-		DBG(cdev, "%s --> %d\n", __func__, status);
-	}
-}
-
 static int __init
 sourcesink_bind(struct usb_configuration *c, struct usb_function *f)
 {
@@ -197,9 +177,6 @@ autoconf_fail:
 	if (!ss->out_ep)
 		goto autoconf_fail;
 	ss->out_ep->driver_data = cdev;	/* claim */
-
-	setup_timer(&ss->resume, sourcesink_autoresume,
-			(unsigned long) c->cdev);
 
 	/* support high speed hardware */
 	if (gadget_is_dualspeed(c->cdev->gadget)) {
@@ -359,7 +336,6 @@ static void disable_source_sink(struct f_sourcesink *ss)
 
 	cdev = ss->function.config->cdev;
 	disable_endpoints(cdev, ss->in_ep, ss->out_ep);
-	del_timer(&ss->resume);
 	VDBG(cdev, "%s disabled\n", ss->function.name);
 }
 
@@ -426,30 +402,6 @@ static void sourcesink_disable(struct usb_function *f)
 	disable_source_sink(ss);
 }
 
-static void sourcesink_suspend(struct usb_function *f)
-{
-	struct f_sourcesink	*ss = func_to_ss(f);
-	struct usb_composite_dev *cdev = f->config->cdev;
-
-	if (cdev->gadget->speed == USB_SPEED_UNKNOWN)
-		return;
-
-	if (autoresume) {
-		mod_timer(&ss->resume, jiffies + (HZ * autoresume));
-		DBG(cdev, "suspend, wakeup in %d seconds\n", autoresume);
-	} else
-		DBG(cdev, "%s\n", __func__);
-}
-
-static void sourcesink_resume(struct usb_function *f)
-{
-	struct f_sourcesink	*ss = func_to_ss(f);
-	struct usb_composite_dev *cdev = f->config->cdev;
-
-	DBG(cdev, "%s\n", __func__);
-	del_timer(&ss->resume);
-}
-
 /*-------------------------------------------------------------------------*/
 
 static int __init sourcesink_bind_config(struct usb_configuration *c)
@@ -467,8 +419,6 @@ static int __init sourcesink_bind_config(struct usb_configuration *c)
 	ss->function.unbind = sourcesink_unbind;
 	ss->function.set_alt = sourcesink_set_alt;
 	ss->function.disable = sourcesink_disable;
-	ss->function.suspend = sourcesink_suspend;
-	ss->function.resume = sourcesink_resume;
 
 	status = usb_add_function(c, &ss->function);
 	if (status)
@@ -559,7 +509,7 @@ static struct usb_configuration sourcesink_driver = {
  * sourcesink_add - add a source/sink testing configuration to a device
  * @cdev: the device to support the configuration
  */
-int __init sourcesink_add(struct usb_composite_dev *cdev)
+int __init sourcesink_add(struct usb_composite_dev *cdev, bool autoresume)
 {
 	int id;
 

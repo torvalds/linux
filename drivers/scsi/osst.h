@@ -520,6 +520,7 @@ struct osst_buffer {
   int syscall_result;
   struct osst_request *last_SRpnt;
   struct st_cmdstatus cmdstat;
+  struct rq_map_data map_data;
   unsigned char *b_data;
   os_aux_t *aux;               /* onstream AUX structure at end of each block     */
   unsigned short use_sg;       /* zero or number of s/g segments for this adapter */
@@ -634,6 +635,7 @@ struct osst_request {
 	int result;
 	struct osst_tape *stp;
 	struct completion *waiting;
+	struct bio *bio;
 };
 
 /* Values of write_type */

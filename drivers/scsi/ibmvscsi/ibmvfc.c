@@ -2767,6 +2767,40 @@ static void ibmvfc_retry_tgt_init(struct ibmvfc_target *tgt,
 		ibmvfc_init_tgt(tgt, job_step);
 }
 
+/* Defined in FC-LS */
+static const struct {
+	int code;
+	int retry;
+	int logged_in;
+} prli_rsp [] = {
+	{ 0, 1, 0 },
+	{ 1, 0, 1 },
+	{ 2, 1, 0 },
+	{ 3, 1, 0 },
+	{ 4, 0, 0 },
+	{ 5, 0, 0 },
+	{ 6, 0, 1 },
+	{ 7, 0, 0 },
+	{ 8, 1, 0 },
+};
+
+/**
+ * ibmvfc_get_prli_rsp - Find PRLI response index
+ * @flags:	PRLI response flags
+ *
+ **/
+static int ibmvfc_get_prli_rsp(u16 flags)
+{
+	int i;
+	int code = (flags & 0x0f00) >> 8;
+
+	for (i = 0; i < ARRAY_SIZE(prli_rsp); i++)
+		if (prli_rsp[i].code == code)
+			return i;
+
+	return 0;
+}
+
 /**
  * ibmvfc_tgt_prli_done - Completion handler for Process Login
  * @evt:	ibmvfc event struct
@@ -2777,15 +2811,36 @@ static void ibmvfc_tgt_prli_done(struct ibmvfc_event *evt)
 	struct ibmvfc_target *tgt = evt->tgt;
 	struct ibmvfc_host *vhost = evt->vhost;
 	struct ibmvfc_process_login *rsp = &evt->xfer_iu->prli;
+	struct ibmvfc_prli_svc_parms *parms = &rsp->parms;
 	u32 status = rsp->common.status;
+	int index;
 
 	vhost->discovery_threads--;
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
 	switch (status) {
 	case IBMVFC_MAD_SUCCESS:
-		tgt_dbg(tgt, "Process Login succeeded\n");
-		tgt->need_login = 0;
-		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_ADD_RPORT);
+		tgt_dbg(tgt, "Process Login succeeded: %X %02X %04X\n",
+			parms->type, parms->flags, parms->service_parms);
+
+		if (parms->type == IBMVFC_SCSI_FCP_TYPE) {
+			index = ibmvfc_get_prli_rsp(parms->flags);
+			if (prli_rsp[index].logged_in) {
+				if (parms->flags & IBMVFC_PRLI_EST_IMG_PAIR) {
+					tgt->need_login = 0;
+					tgt->ids.roles = 0;
+					if (parms->service_parms & IBMVFC_PRLI_TARGET_FUNC)
+						tgt->ids.roles |= FC_PORT_ROLE_FCP_TARGET;
+					if (parms->service_parms & IBMVFC_PRLI_INITIATOR_FUNC)
+						tgt->ids.roles |= FC_PORT_ROLE_FCP_INITIATOR;
+					ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_ADD_RPORT);
+				} else
+					ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
+			} else if (prli_rsp[index].retry)
+				ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_send_prli);
+			else
+				ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
+		} else
+			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 		break;
 	case IBMVFC_MAD_DRIVER_FAILED:
 		break;
@@ -2874,7 +2929,6 @@ static void ibmvfc_tgt_plogi_done(struct ibmvfc_event *evt)
 		tgt->ids.node_name = wwn_to_u64(rsp->service_parms.node_name);
 		tgt->ids.port_name = wwn_to_u64(rsp->service_parms.port_name);
 		tgt->ids.port_id = tgt->scsi_id;
-		tgt->ids.roles = FC_PORT_ROLE_FCP_TARGET;
 		memcpy(&tgt->service_parms, &rsp->service_parms,
 		       sizeof(tgt->service_parms));
 		memcpy(&tgt->service_parms_change, &rsp->service_parms_change,

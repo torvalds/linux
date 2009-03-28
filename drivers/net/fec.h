@@ -14,7 +14,7 @@
 /****************************************************************************/
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x)
+    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARCH_MXC)
 /*
  *	Just figures, Motorola would have to change the offsets for
  *	registers in the same peripheral device on different models
@@ -103,12 +103,19 @@ typedef struct fec {
 /*
  *	Define the buffer descriptor structure.
  */
+#ifdef CONFIG_ARCH_MXC
+typedef struct bufdesc {
+	unsigned short cbd_datlen;	/* Data length */
+	unsigned short cbd_sc;	/* Control and status info */
+	unsigned long cbd_bufaddr;	/* Buffer address */
+} cbd_t;
+#else
 typedef struct bufdesc {
 	unsigned short	cbd_sc;			/* Control and status info */
 	unsigned short	cbd_datlen;		/* Data length */
 	unsigned long	cbd_bufaddr;		/* Buffer address */
 } cbd_t;
-
+#endif
 
 /*
  *	The following definitions courtesy of commproc.h, which where

@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -79,8 +79,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	 * RTS/CTS frame should use the length of the frame plus any
 	 * encryption overhead that will be added by the hardware.
 	 */
-	if (!frag_skb->do_not_encrypt)
-		data_length += rt2x00crypto_tx_overhead(tx_info);
+	data_length += rt2x00crypto_tx_overhead(rt2x00dev, skb);
 
 	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		ieee80211_ctstoself_get(rt2x00dev->hw, tx_info->control.vif,
@@ -226,6 +225,8 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_WDS:
 		/*
 		 * We don't support mixed combinations of
 		 * sta and ap interfaces.
@@ -430,8 +431,10 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	/*
 	 * Update the beacon.
 	 */
-	if (conf->changed & IEEE80211_IFCC_BEACON)
-		status = rt2x00queue_update_beacon(rt2x00dev, vif);
+	if (conf->changed & (IEEE80211_IFCC_BEACON |
+			     IEEE80211_IFCC_BEACON_ENABLED))
+		status = rt2x00queue_update_beacon(rt2x00dev, vif,
+						   conf->enable_beacon);
 
 	return status;
 }
@@ -482,16 +485,36 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 EXPORT_SYMBOL_GPL(rt2x00mac_configure_filter);
 
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
+static void memcpy_tkip(struct rt2x00lib_crypto *crypto, u8 *key, u8 key_len)
+{
+	if (key_len > NL80211_TKIP_DATA_OFFSET_ENCR_KEY)
+		memcpy(&crypto->key,
+		       &key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY],
+		       sizeof(crypto->key));
+
+	if (key_len > NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY)
+		memcpy(&crypto->tx_mic,
+		       &key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
+		       sizeof(crypto->tx_mic));
+
+	if (key_len > NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY)
+		memcpy(&crypto->rx_mic,
+		       &key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
+		       sizeof(crypto->rx_mic));
+}
+
 int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-		      const u8 *local_address, const u8 *address,
+		      struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		      struct ieee80211_key_conf *key)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct ieee80211_sta *sta;
+	struct rt2x00_intf *intf = vif_to_intf(vif);
 	int (*set_key) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_crypto *crypto,
 			struct ieee80211_key_conf *key);
 	struct rt2x00lib_crypto crypto;
+	static const u8 bcast_addr[ETH_ALEN] =
+		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, };
 
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
@@ -509,45 +532,25 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (rt2x00dev->intf_sta_count)
 		crypto.bssidx = 0;
 	else
-		crypto.bssidx =
-		    local_address[5] & (rt2x00dev->ops->max_ap_intf - 1);
+		crypto.bssidx = intf->mac[5] & (rt2x00dev->ops->max_ap_intf - 1);
 
 	crypto.cipher = rt2x00crypto_key_to_cipher(key);
 	if (crypto.cipher == CIPHER_NONE)
 		return -EOPNOTSUPP;
 
 	crypto.cmd = cmd;
-	crypto.address = address;
 
-	if (crypto.cipher == CIPHER_TKIP) {
-		if (key->keylen > NL80211_TKIP_DATA_OFFSET_ENCR_KEY)
-			memcpy(&crypto.key,
-			       &key->key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY],
-			       sizeof(crypto.key));
-
-		if (key->keylen > NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY)
-			memcpy(&crypto.tx_mic,
-			       &key->key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
-			       sizeof(crypto.tx_mic));
-
-		if (key->keylen > NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY)
-			memcpy(&crypto.rx_mic,
-			       &key->key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
-			       sizeof(crypto.rx_mic));
-	} else
-		memcpy(&crypto.key, &key->key[0], key->keylen);
-
-	/*
-	 * Discover the Association ID from mac80211.
-	 * Some drivers need this information when updating the
-	 * hardware key (either adding or removing).
-	 */
-	rcu_read_lock();
-	sta = ieee80211_find_sta(hw, address);
-	if (sta)
+	if (sta) {
+		/* some drivers need the AID */
 		crypto.aid = sta->aid;
-	rcu_read_unlock();
+		crypto.address = sta->addr;
+	} else
+		crypto.address = bcast_addr;
 
+	if (crypto.cipher == CIPHER_TKIP)
+		memcpy_tkip(&crypto, &key->key[0], key->keylen);
+	else
+		memcpy(&crypto.key, &key->key[0], key->keylen);
 	/*
 	 * Each BSS has a maximum of 4 shared keys.
 	 * Shared key index values:

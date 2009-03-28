@@ -580,7 +580,7 @@ extern const struct inode_operations ecryptfs_main_iops;
 extern const struct inode_operations ecryptfs_dir_iops;
 extern const struct inode_operations ecryptfs_symlink_iops;
 extern const struct super_operations ecryptfs_sops;
-extern struct dentry_operations ecryptfs_dops;
+extern const struct dentry_operations ecryptfs_dops;
 extern struct address_space_operations ecryptfs_aops;
 extern int ecryptfs_verbosity;
 extern unsigned int ecryptfs_message_buf_len;
@@ -620,7 +620,6 @@ int ecryptfs_interpose(struct dentry *hidden_dentry,
 		       u32 flags);
 int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 					struct dentry *lower_dentry,
-					struct ecryptfs_crypt_stat *crypt_stat,
 					struct inode *ecryptfs_dir_inode,
 					struct nameidata *ecryptfs_nd);
 int ecryptfs_decode_and_decrypt_filename(char **decrypted_name,

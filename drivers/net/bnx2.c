@@ -57,8 +57,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.9.2"
-#define DRV_MODULE_RELDATE	"Feb 11, 2009"
+#define DRV_MODULE_VERSION	"1.9.3"
+#define DRV_MODULE_RELDATE	"March 17, 2009"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -1497,6 +1497,8 @@ static int bnx2_fw_sync(struct bnx2 *, u32, int, int);
 
 static int
 bnx2_setup_remote_phy(struct bnx2 *bp, u8 port)
+__releases(&bp->phy_lock)
+__acquires(&bp->phy_lock)
 {
 	u32 speed_arg = 0, pause_adv;
 
@@ -1554,6 +1556,8 @@ bnx2_setup_remote_phy(struct bnx2 *bp, u8 port)
 
 static int
 bnx2_setup_serdes_phy(struct bnx2 *bp, u8 port)
+__releases(&bp->phy_lock)
+__acquires(&bp->phy_lock)
 {
 	u32 adv, bmcr;
 	u32 new_adv = 0;
@@ -1866,6 +1870,8 @@ bnx2_set_remote_link(struct bnx2 *bp)
 
 static int
 bnx2_setup_copper_phy(struct bnx2 *bp)
+__releases(&bp->phy_lock)
+__acquires(&bp->phy_lock)
 {
 	u32 bmcr;
 	u32 new_bmcr;
@@ -1963,6 +1969,8 @@ bnx2_setup_copper_phy(struct bnx2 *bp)
 
 static int
 bnx2_setup_phy(struct bnx2 *bp, u8 port)
+__releases(&bp->phy_lock)
+__acquires(&bp->phy_lock)
 {
 	if (bp->loopback == MAC_LOOPBACK)
 		return 0;
@@ -2176,6 +2184,8 @@ bnx2_init_copper_phy(struct bnx2 *bp, int reset_phy)
 
 static int
 bnx2_init_phy(struct bnx2 *bp, int reset_phy)
+__releases(&bp->phy_lock)
+__acquires(&bp->phy_lock)
 {
 	u32 val;
 	int rc = 0;
@@ -3005,6 +3015,8 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 		}
 
+		skb_record_rx_queue(skb, bnapi - &bp->bnx2_napi[0]);
+
 #ifdef BCM_VLAN
 		if (hw_vlan)
 			vlan_hwaccel_receive_skb(skb, bp->vlgrp, vtag);
@@ -3061,7 +3073,7 @@ bnx2_msi(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	netif_rx_schedule(&bnapi->napi);
+	napi_schedule(&bnapi->napi);
 
 	return IRQ_HANDLED;
 }
@@ -3078,7 +3090,7 @@ bnx2_msi_1shot(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	netif_rx_schedule(&bnapi->napi);
+	napi_schedule(&bnapi->napi);
 
 	return IRQ_HANDLED;
 }
@@ -3114,9 +3126,9 @@ bnx2_interrupt(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	if (netif_rx_schedule_prep(&bnapi->napi)) {
+	if (napi_schedule_prep(&bnapi->napi)) {
 		bnapi->last_status_idx = sblk->status_idx;
-		__netif_rx_schedule(&bnapi->napi);
+		__napi_schedule(&bnapi->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -3226,7 +3238,7 @@ static int bnx2_poll_msix(struct napi_struct *napi, int budget)
 		rmb();
 		if (likely(!bnx2_has_fast_work(bnapi))) {
 
-			netif_rx_complete(napi);
+			napi_complete(napi);
 			REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD, bnapi->int_num |
 			       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 			       bnapi->last_status_idx);
@@ -3259,7 +3271,7 @@ static int bnx2_poll(struct napi_struct *napi, int budget)
 
 		rmb();
 		if (likely(!bnx2_has_work(bnapi))) {
-			netif_rx_complete(napi);
+			napi_complete(napi);
 			if (likely(bp->flags & BNX2_FLAG_USING_MSI_OR_MSIX)) {
 				REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 				       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
@@ -5843,9 +5855,6 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++) {
 		msix_ent[i].entry = i;
 		msix_ent[i].vector = 0;
-
-		snprintf(bp->irq_tbl[i].name, len, "%s-%d", dev->name, i);
-		bp->irq_tbl[i].handler = bnx2_msi_1shot;
 	}
 
 	rc = pci_enable_msix(bp->pdev, msix_ent, BNX2_MAX_MSIX_VEC);
@@ -5854,8 +5863,11 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 
 	bp->irq_nvecs = msix_vecs;
 	bp->flags |= BNX2_FLAG_USING_MSIX | BNX2_FLAG_ONE_SHOT_MSI;
-	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++)
+	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++) {
 		bp->irq_tbl[i].vector = msix_ent[i].vector;
+		snprintf(bp->irq_tbl[i].name, len, "%s-%d", dev->name, i);
+		bp->irq_tbl[i].handler = bnx2_msi_1shot;
+	}
 }
 
 static void
