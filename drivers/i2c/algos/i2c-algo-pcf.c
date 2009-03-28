@@ -115,15 +115,17 @@ static int wait_for_bb(struct i2c_algo_pcf_data *adap)
 
 	status = get_pcf(adap, 1);
 
-	while (timeout-- && !(status & I2C_PCF_BB)) {
+	while (!(status & I2C_PCF_BB) && --timeout) {
 		udelay(100); /* wait for 100 us */
 		status = get_pcf(adap, 1);
 	}
 
-	if (timeout <= 0)
+	if (timeout == 0) {
 		printk(KERN_ERR "Timeout waiting for Bus Busy\n");
+		return -ETIMEDOUT;
+	}
 
-	return timeout <= 0;
+	return 0;
 }
 
 static int wait_for_pin(struct i2c_algo_pcf_data *adap, int *status)
@@ -133,7 +135,7 @@ static int wait_for_pin(struct i2c_algo_pcf_data *adap, int *status)
 
 	*status = get_pcf(adap, 1);
 
-	while (timeout-- && (*status & I2C_PCF_PIN)) {
+	while ((*status & I2C_PCF_PIN) && --timeout) {
 		adap->waitforpin(adap->data);
 		*status = get_pcf(adap, 1);
 	}
@@ -142,10 +144,10 @@ static int wait_for_pin(struct i2c_algo_pcf_data *adap, int *status)
 		return -EINTR;
 	}
 
-	if (timeout <= 0)
-		return -1;
-	else
-		return 0;
+	if (timeout == 0)
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 /*
