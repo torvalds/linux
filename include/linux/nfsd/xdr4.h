@@ -45,9 +45,9 @@
 #define XDR_LEN(n)                     (((n) + 3) & ~3)
 
 struct nfsd4_compound_state {
-	struct svc_fh current_fh;
-	struct svc_fh save_fh;
-	struct nfs4_stateowner *replay_owner;
+	struct svc_fh		current_fh;
+	struct svc_fh		save_fh;
+	struct nfs4_stateowner	*replay_owner;
 };
 
 struct nfsd4_change_info {
@@ -416,7 +416,8 @@ struct nfsd4_compoundres {
 	u32				taglen;
 	char *				tag;
 	u32				opcnt;
-	__be32 *			tagp; /* where to encode tag and  opcount */
+	__be32 *			tagp; /* tag, opcount encode location */
+	struct nfsd4_compound_state	cstate;
 };
 
 #define NFS4_SVC_XDRSIZE		sizeof(struct nfsd4_compoundargs)
