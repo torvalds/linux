@@ -9,6 +9,13 @@
 #ifndef __BFIN_SPORT_H__
 #define __BFIN_SPORT_H__
 
+#ifdef __KERNEL__
+#include <linux/cdev.h>
+#include <linux/mutex.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
+#endif
+
 #define SPORT_MAJOR	237
 #define SPORT_NR_DEVS	2
 
