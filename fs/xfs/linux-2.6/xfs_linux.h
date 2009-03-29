@@ -38,7 +38,6 @@
 #include <kmem.h>
 #include <mrlock.h>
 #include <sv.h>
-#include <mutex.h>
 #include <time.h>
 
 #include <support/ktrace.h>
@@ -51,6 +50,7 @@
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/file.h>
 #include <linux/swap.h>
 #include <linux/errno.h>

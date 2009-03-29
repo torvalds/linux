@@ -27,7 +27,7 @@ struct xfs_qm;
 struct xfs_inode;
 
 extern uint		ndquot;
-extern mutex_t		xfs_Gqm_lock;
+extern struct mutex	xfs_Gqm_lock;
 extern struct xfs_qm	*xfs_Gqm;
 extern kmem_zone_t	*qm_dqzone;
 extern kmem_zone_t	*qm_dqtrxzone;
@@ -79,7 +79,7 @@ typedef xfs_dqhash_t	xfs_dqlist_t;
 typedef struct xfs_frlist {
        struct xfs_dquot *qh_next;
        struct xfs_dquot *qh_prev;
-       mutex_t		 qh_lock;
+       struct mutex	 qh_lock;
        uint		 qh_version;
        uint		 qh_nelems;
 } xfs_frlist_t;
@@ -115,7 +115,7 @@ typedef struct xfs_quotainfo {
 	xfs_qwarncnt_t	 qi_bwarnlimit;	 /* limit for blks warnings */
 	xfs_qwarncnt_t	 qi_iwarnlimit;	 /* limit for inodes warnings */
 	xfs_qwarncnt_t	 qi_rtbwarnlimit;/* limit for rt blks warnings */
-	mutex_t		 qi_quotaofflock;/* to serialize quotaoff */
+	struct mutex	 qi_quotaofflock;/* to serialize quotaoff */
 	xfs_filblks_t	 qi_dqchunklen;	 /* # BBs in a chunk of dqs */
 	uint		 qi_dqperchunk;	 /* # ondisk dqs in above chunk */
 	xfs_qcnt_t	 qi_bhardlimit;	 /* default data blk hard limit */
