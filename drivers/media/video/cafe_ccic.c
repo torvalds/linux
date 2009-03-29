@@ -1151,8 +1151,6 @@ static int cafe_vidioc_reqbufs(struct file *filp, void *priv,
 	 * Make sure it's something we can do.  User pointers could be
 	 * implemented without great pain, but that's not been done yet.
 	 */
-	if (req->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 	if (req->memory != V4L2_MEMORY_MMAP)
 		return -EINVAL;
 	/*
@@ -1216,9 +1214,7 @@ static int cafe_vidioc_querybuf(struct file *filp, void *priv,
 	int ret = -EINVAL;
 
 	mutex_lock(&cam->s_mutex);
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		goto out;
-	if (buf->index < 0 || buf->index >= cam->n_sbufs)
+	if (buf->index >= cam->n_sbufs)
 		goto out;
 	*buf = cam->sb_bufs[buf->index].v4lbuf;
 	ret = 0;
@@ -1236,9 +1232,7 @@ static int cafe_vidioc_qbuf(struct file *filp, void *priv,
 	unsigned long flags;
 
 	mutex_lock(&cam->s_mutex);
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		goto out;
-	if (buf->index < 0 || buf->index >= cam->n_sbufs)
+	if (buf->index >= cam->n_sbufs)
 		goto out;
 	sbuf = cam->sb_bufs + buf->index;
 	if (sbuf->v4lbuf.flags & V4L2_BUF_FLAG_QUEUED) {
@@ -1269,8 +1263,6 @@ static int cafe_vidioc_dqbuf(struct file *filp, void *priv,
 	unsigned long flags;
 
 	mutex_lock(&cam->s_mutex);
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		goto out_unlock;
 	if (cam->state != S_STREAMING)
 		goto out_unlock;
 	if (list_empty(&cam->sb_full) && filp->f_flags & O_NONBLOCK) {
@@ -1503,8 +1495,6 @@ static int cafe_vidioc_enum_fmt_vid_cap(struct file *filp,
 	struct cafe_camera *cam = priv;
 	int ret;
 
-	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 	mutex_lock(&cam->s_mutex);
 	ret = sensor_call(cam, video, enum_fmt, fmt);
 	mutex_unlock(&cam->s_mutex);
