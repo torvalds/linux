@@ -1551,6 +1551,9 @@ static long __video_do_ioctl(struct file *file,
 		struct v4l2_streamparm *p = arg;
 
 		if (ops->vidioc_g_parm) {
+			ret = check_fmt(ops, p->type);
+			if (ret)
+				break;
 			ret = ops->vidioc_g_parm(file, fh, p);
 		} else {
 			if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1570,6 +1573,10 @@ static long __video_do_ioctl(struct file *file,
 
 		if (!ops->vidioc_s_parm)
 			break;
+		ret = check_fmt(ops, p->type);
+		if (ret)
+			break;
+
 		dbgarg(cmd, "type=%d\n", p->type);
 		ret = ops->vidioc_s_parm(file, fh, p);
 		break;
