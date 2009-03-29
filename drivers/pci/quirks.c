@@ -2206,6 +2206,33 @@ static int __devinit host_bridge_with_leaf(struct pci_dev *host_bridge)
 	return found;
 }
 
+#define PCI_HT_CAP_SLAVE_CTRL0     4    /* link control */
+#define PCI_HT_CAP_SLAVE_CTRL1     8    /* link control to */
+
+static int __devinit is_end_of_ht_chain(struct pci_dev *dev)
+{
+	int pos, ctrl_off;
+	int end = 0;
+	u16 flags, ctrl;
+
+	pos = pci_find_ht_capability(dev, HT_CAPTYPE_SLAVE);
+
+	if (!pos)
+		goto out;
+
+	pci_read_config_word(dev, pos + PCI_CAP_FLAGS, &flags);
+
+	ctrl_off = ((flags >> 10) & 1) ?
+			PCI_HT_CAP_SLAVE_CTRL0 : PCI_HT_CAP_SLAVE_CTRL1;
+	pci_read_config_word(dev, pos + ctrl_off, &ctrl);
+
+	if (ctrl & (1 << 6))
+		end = 1;
+
+out:
+	return end;
+}
+
 static void __devinit nv_ht_enable_msi_mapping(struct pci_dev *dev)
 {
 	struct pci_dev *host_bridge;
@@ -2230,8 +2257,9 @@ static void __devinit nv_ht_enable_msi_mapping(struct pci_dev *dev)
 	if (!found)
 		return;
 
-	/* don't enable host_bridge with leaf directly here */
-	if (host_bridge == dev && host_bridge_with_leaf(host_bridge))
+	/* don't enable end_device/host_bridge with leaf directly here */
+	if (host_bridge == dev && is_end_of_ht_chain(host_bridge) &&
+	    host_bridge_with_leaf(host_bridge))
 		goto out;
 
 	/* root did that ! */
