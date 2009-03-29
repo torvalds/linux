@@ -241,6 +241,11 @@ config CRYPTO_XTS
 	  key size 256, 384 or 512 bits. This implementation currently
 	  can't handle a sectorsize which is not a multiple of 16 bytes.
 
+config CRYPTO_FPU
+	tristate
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+
 comment "Hash modes"
 
 config CRYPTO_HMAC
