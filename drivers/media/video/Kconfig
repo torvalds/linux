@@ -249,6 +249,20 @@ config VIDEO_VP27SMPX
 	  To compile this driver as a module, choose M here: the
 	  module will be called vp27smpx.
 
+comment "RDS decoders"
+
+config VIDEO_SAA6588
+	tristate "SAA6588 Radio Chip RDS decoder support"
+	depends on VIDEO_V4L2 && I2C
+
+	help
+	  Support for this Radio Data System (RDS) decoder. This allows
+	  seeing radio station identification transmitted using this
+	  standard.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa6588.
+
 comment "Video decoders"
 
 config VIDEO_BT819
@@ -466,18 +480,6 @@ config VIDEO_VIVI
 	  In doubt, say N.
 
 source "drivers/media/video/bt8xx/Kconfig"
-
-config VIDEO_SAA6588
-	tristate "SAA6588 Radio Chip RDS decoder support on BT848 cards"
-	depends on I2C && VIDEO_BT848
-
-	help
-	  Support for  Radio Data System (RDS) decoder. This allows seeing
-	  radio station identification transmitted using this standard.
-	  Currently, it works only with bt8x8 chips.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa6588.
 
 config VIDEO_PMS
 	tristate "Mediavision Pro Movie Studio Video For Linux"
