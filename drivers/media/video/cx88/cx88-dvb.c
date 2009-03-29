@@ -1168,7 +1168,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe1->dvb.frontend->ops.ts_bus_ctrl = cx88_dvb_bus_ctrl;
 
 	/* Put the analog decoder in standby to keep it quiet */
-	cx88_call_i2c_clients(core, TUNER_SET_STANDBY, NULL);
+	call_all(core, core, s_standby, 0);
 
 	/* register everything */
 	return videobuf_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,

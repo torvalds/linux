@@ -328,6 +328,7 @@ struct cx88_core {
 
 	/* config info -- analog */
 	struct v4l2_device 	   v4l2_dev;
+	struct i2c_client 	   *i2c_rtc;
 	unsigned int               boardnr;
 	struct cx88_board	   board;
 
@@ -370,6 +371,17 @@ static inline struct cx88_core *to_core(struct v4l2_device *v4l2_dev)
 {
 	return container_of(v4l2_dev, struct cx88_core, v4l2_dev);
 }
+
+#define call_all(core, o, f, args...) 				\
+	do {							\
+		if (!core->i2c_rc) {				\
+			if (core->gate_ctrl)			\
+				core->gate_ctrl(core, 1);	\
+			v4l2_device_call_all(&core->v4l2_dev, 0, o, f, ##args); \
+			if (core->gate_ctrl)			\
+				core->gate_ctrl(core, 0);	\
+		}						\
+	} while (0)
 
 struct cx8800_dev;
 struct cx8802_dev;
@@ -616,8 +628,6 @@ extern struct videobuf_queue_ops cx8800_vbi_qops;
 /* cx88-i2c.c                                                  */
 
 extern int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci);
-extern void cx88_call_i2c_clients(struct cx88_core *core,
-				  unsigned int cmd, void *arg);
 
 
 /* ----------------------------------------------------------- */

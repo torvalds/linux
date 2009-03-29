@@ -991,7 +991,7 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	set_tvaudio(core);
 
 	// tell i2c chips
-	cx88_call_i2c_clients(core,VIDIOC_S_STD,&norm);
+	call_all(core, tuner, s_std, norm);
 
 	// done
 	return 0;
@@ -1059,8 +1059,11 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 
 	mutex_lock(&devlist);
 	cx88_ir_fini(core);
-	if (0 == core->i2c_rc)
+	if (0 == core->i2c_rc) {
+		if (core->i2c_rtc)
+			i2c_unregister_device(core->i2c_rtc);
 		i2c_del_adapter(&core->i2c_adap);
+	}
 	list_del(&core->devlist);
 	iounmap(core->lmmio);
 	cx88_devcount--;

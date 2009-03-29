@@ -915,7 +915,7 @@ static int vidioc_log_status (struct file *file, void *priv)
 	snprintf(name, sizeof(name), "%s/2", core->name);
 	printk("%s/2: ============  START LOG STATUS  ============\n",
 		core->name);
-	cx88_call_i2c_clients(core, VIDIOC_LOG_STATUS, NULL);
+	call_all(core, core, log_status);
 	cx2341x_log_status(&dev->params, name);
 	printk("%s/2: =============  END LOG STATUS  =============\n",
 		core->name);
@@ -970,7 +970,7 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 
 	f->type = V4L2_TUNER_ANALOG_TV;
 	f->frequency = core->freq;
-	cx88_call_i2c_clients(core,VIDIOC_G_FREQUENCY,f);
+	call_all(core, tuner, g_frequency, f);
 
 	return 0;
 }

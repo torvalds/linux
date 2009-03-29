@@ -732,6 +732,8 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
+		/* Some variants use a tda9874 and so need the tvaudio module. */
+		.audio_chip     = V4L2_IDENT_TVAUDIO,
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
@@ -2985,7 +2987,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		tea5767_cfg.tuner = TUNER_TEA5767;
 		tea5767_cfg.priv  = &ctl;
 
-		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &tea5767_cfg);
+		call_all(core, tuner, s_config, &tea5767_cfg);
 		break;
 	}
 	case  CX88_BOARD_TEVII_S420:
@@ -3010,7 +3012,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		tun_setup.type           = core->board.radio_type;
 		tun_setup.addr           = core->board.radio_addr;
 		tun_setup.tuner_callback = cx88_tuner_callback;
-		cx88_call_i2c_clients(core, TUNER_SET_TYPE_ADDR, &tun_setup);
+		call_all(core, tuner, s_type_addr, &tun_setup);
 		mode_mask &= ~T_RADIO;
 	}
 
@@ -3020,7 +3022,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		tun_setup.addr           = core->board.tuner_addr;
 		tun_setup.tuner_callback = cx88_tuner_callback;
 
-		cx88_call_i2c_clients(core, TUNER_SET_TYPE_ADDR, &tun_setup);
+		call_all(core, tuner, s_type_addr, &tun_setup);
 	}
 
 	if (core->board.tda9887_conf) {
@@ -3029,7 +3031,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		tda9887_cfg.tuner = TUNER_TDA9887;
 		tda9887_cfg.priv  = &core->board.tda9887_conf;
 
-		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &tda9887_cfg);
+		call_all(core, tuner, s_config, &tda9887_cfg);
 	}
 
 	if (core->board.tuner_type == TUNER_XC2028) {
@@ -3045,9 +3047,9 @@ static void cx88_card_setup(struct cx88_core *core)
 		xc2028_cfg.priv  = &ctl;
 		info_printk(core, "Asking xc2028/3028 to load firmware %s\n",
 			    ctl.fname);
-		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &xc2028_cfg);
+		call_all(core, tuner, s_config, &xc2028_cfg);
 	}
-	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
+	call_all(core, core, s_standby, 0);
 }
 
 /* ------------------------------------------------------------------ */
@@ -3202,8 +3204,30 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	cx88_i2c_init(core, pci);
 
 	/* load tuner module, if needed */
-	if (TUNER_ABSENT != core->board.tuner_type)
-		request_module("tuner");
+	if (TUNER_ABSENT != core->board.tuner_type) {
+		int has_demod = (core->board.tda9887_conf & TDA9887_PRESENT);
+
+		/* I don't trust the radio_type as is stored in the card
+		   definitions, so we just probe for it.
+		   The radio_type is sometimes missing, or set to UNSET but
+		   later code configures a tea5767.
+		 */
+		v4l2_i2c_new_probed_subdev(&core->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_RADIO));
+		if (has_demod)
+			v4l2_i2c_new_probed_subdev(&core->i2c_adap, "tuner",
+				"tuner", v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+		if (core->board.tuner_addr == ADDR_UNSET) {
+			enum v4l2_i2c_tuner_type type =
+				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
+
+			v4l2_i2c_new_probed_subdev(&core->i2c_adap, "tuner",
+				"tuner", v4l2_i2c_tuner_addrs(type));
+		} else {
+			v4l2_i2c_new_subdev(&core->i2c_adap,
+				"tuner", "tuner", core->board.tuner_addr);
+		}
+	}
 
 	cx88_card_setup(core);
 	cx88_ir_init(core, pci);

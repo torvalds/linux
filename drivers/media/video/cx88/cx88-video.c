@@ -431,8 +431,7 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 			struct v4l2_routing route;
 
 			route.input = INPUT(input).audioroute;
-			cx88_call_i2c_clients(core,
-				VIDIOC_INT_S_AUDIO_ROUTING, &route);
+			call_all(core, audio, s_routing, &route);
 		}
 		/* cx2388's C-ADC is connected to the tuner only.
 		   When used with S-Video, that ADC is busy dealing with
@@ -827,8 +826,7 @@ static int video_open(struct file *file)
 				struct v4l2_routing route;
 
 				route.input = core->board.radio.audioroute;
-				cx88_call_i2c_clients(core,
-					VIDIOC_INT_S_AUDIO_ROUTING, &route);
+				call_all(core, audio, s_routing, &route);
 			}
 			/* "I2S ADC mode" */
 			core->tvaudio = WW_I2SADC;
@@ -839,7 +837,7 @@ static int video_open(struct file *file)
 			cx88_set_tvaudio(core);
 			cx88_set_stereo(core,V4L2_TUNER_MODE_STEREO,1);
 		}
-		cx88_call_i2c_clients(core,AUDC_SET_RADIO,NULL);
+		call_all(core, tuner, s_radio);
 	}
 	unlock_kernel();
 
@@ -933,7 +931,7 @@ static int video_release(struct file *file)
 	kfree(fh);
 
 	if(atomic_dec_and_test(&dev->core->users))
-		cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
+		call_all(dev->core, core, s_standby, 0);
 
 	return 0;
 }
@@ -1395,7 +1393,7 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 	f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	f->frequency = core->freq;
 
-	cx88_call_i2c_clients(core,VIDIOC_G_FREQUENCY,f);
+	call_all(core, tuner, g_frequency, f);
 
 	return 0;
 }
@@ -1411,7 +1409,7 @@ int cx88_set_freq (struct cx88_core  *core,
 	mutex_lock(&core->lock);
 	core->freq = f->frequency;
 	cx88_newstation(core);
-	cx88_call_i2c_clients(core,VIDIOC_S_FREQUENCY,f);
+	call_all(core, tuner, s_frequency, f);
 
 	/* When changing channels it is required to reset TVAUDIO */
 	msleep (10);
@@ -1493,7 +1491,7 @@ static int radio_g_tuner (struct file *file, void *priv,
 	strcpy(t->name, "Radio");
 	t->type = V4L2_TUNER_RADIO;
 
-	cx88_call_i2c_clients(core,VIDIOC_G_TUNER,t);
+	call_all(core, tuner, g_tuner, t);
 	return 0;
 }
 
@@ -1527,7 +1525,7 @@ static int radio_s_tuner (struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
-	cx88_call_i2c_clients(core,VIDIOC_S_TUNER,t);
+	call_all(core, tuner, s_tuner, t);
 
 	return 0;
 }
@@ -1884,12 +1882,30 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	/* load and configure helper modules */
 
 	if (core->board.audio_chip == V4L2_IDENT_WM8775)
-		request_module("wm8775");
+		v4l2_i2c_new_subdev(&core->i2c_adap,
+				"wm8775", "wm8775", 0x36 >> 1);
+
+	if (core->board.audio_chip == V4L2_IDENT_TVAUDIO) {
+		/* This probes for a tda9874 as is used on some
+		   Pixelview Ultra boards. */
+		static const unsigned short i2c_addr[] = {
+			0xb0 >> 1, I2C_CLIENT_END
+		};
+
+		v4l2_i2c_new_probed_subdev(&core->i2c_adap,
+				"tvaudio", "tvaudio", i2c_addr);
+	}
 
 	switch (core->boardnr) {
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
-	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
+	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD: {
+		static struct i2c_board_info rtc_info = {
+			I2C_BOARD_INFO("isl1208", 0x6f)
+		};
+
 		request_module("rtc-isl1208");
+		core->i2c_rtc = i2c_new_device(&core->i2c_adap, &rtc_info);
+	}
 		/* break intentionally omitted */
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		request_module("ir-kbd-i2c");
