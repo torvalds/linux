@@ -1256,18 +1256,13 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh,
 	if (f->index > 1)
 		return -EINVAL;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	if (f->index == 0) {
 		/* standard YUV 422 capture */
-		f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		f->flags = 0;
 		strcpy(f->description, "YUV422");
 		f->pixelformat = V4L2_PIX_FMT_YUYV;
 	} else {
 		/* compressed MJPEG capture */
-		f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		f->flags = V4L2_FMT_FLAG_COMPRESSED;
 		strcpy(f->description, "MJPEG");
 		f->pixelformat = V4L2_PIX_FMT_MJPEG;
@@ -1279,9 +1274,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh,
 static int vidioc_try_fmt_vid_cap(struct file *file, void *fh,
 				struct v4l2_format *f)
 {
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	if (f->fmt.pix.pixelformat != V4L2_PIX_FMT_YUYV &&
 	    f->fmt.pix.pixelformat != V4L2_PIX_FMT_MJPEG)
 		return -EINVAL;
@@ -1312,9 +1304,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *fh,
 static int vidioc_g_fmt_vid_cap(struct file *file, void *fh,
 				    struct v4l2_format *f)
 {
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	switch (meye.mchip_mode) {
 	case MCHIP_HIC_MODE_CONT_OUT:
 	default:
@@ -1338,9 +1327,6 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *fh,
 static int vidioc_s_fmt_vid_cap(struct file *file, void *fh,
 				    struct v4l2_format *f)
 {
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	if (f->fmt.pix.pixelformat != V4L2_PIX_FMT_YUYV &&
 	    f->fmt.pix.pixelformat != V4L2_PIX_FMT_MJPEG)
 		return -EINVAL;
@@ -1386,9 +1372,6 @@ static int vidioc_reqbufs(struct file *file, void *fh,
 {
 	int i;
 
-	if (req->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	if (req->memory != V4L2_MEMORY_MMAP)
 		return -EINVAL;
 
@@ -1429,9 +1412,9 @@ static int vidioc_reqbufs(struct file *file, void *fh,
 
 static int vidioc_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
-	int index = buf->index;
+	unsigned int index = buf->index;
 
-	if (index < 0 || index >= gbuffers)
+	if (index >= gbuffers)
 		return -EINVAL;
 
 	buf->bytesused = meye.grab_buffer[index].size;
@@ -1455,13 +1438,10 @@ static int vidioc_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 static int vidioc_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	if (buf->memory != V4L2_MEMORY_MMAP)
 		return -EINVAL;
 
-	if (buf->index < 0 || buf->index >= gbuffers)
+	if (buf->index >= gbuffers)
 		return -EINVAL;
 
 	if (meye.grab_buffer[buf->index].state != MEYE_BUF_UNUSED)
@@ -1480,9 +1460,6 @@ static int vidioc_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 static int vidioc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	int reqnr;
-
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	if (buf->memory != V4L2_MEMORY_MMAP)
 		return -EINVAL;
