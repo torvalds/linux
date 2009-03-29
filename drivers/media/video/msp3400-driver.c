@@ -56,7 +56,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include <media/msp3400.h>
 #include <media/tvaudio.h>
 #include "msp3400-driver.h"
@@ -108,10 +108,6 @@ MODULE_PARM_DESC(dolby, "Activates Dolby processsing");
 /* DSP unit subaddress */
 #define I2C_MSP_DSP     0x12
 
-/* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x80 >> 1, 0x88 >> 1, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
 /* functions for talking to the MSP3400C Sound processor                   */
@@ -696,11 +692,6 @@ static int msp_resume(struct i2c_client *client)
 	return 0;
 }
 
-static int msp_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops msp_core_ops = {
@@ -925,8 +916,6 @@ MODULE_DEVICE_TABLE(i2c, msp_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "msp3400",
-	.driverid = I2C_DRIVERID_MSP3400,
-	.command = msp_command,
 	.probe = msp_probe,
 	.remove = msp_remove,
 	.suspend = msp_suspend,
