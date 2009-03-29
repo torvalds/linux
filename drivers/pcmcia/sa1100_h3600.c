@@ -25,8 +25,8 @@ static struct pcmcia_irqs irqs[] = {
 
 static int h3600_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-	skt->irq = skt->nr ? IRQ_GPIO_H3600_PCMCIA_IRQ1
-			   : IRQ_GPIO_H3600_PCMCIA_IRQ0;
+	skt->socket.pci_irq = skt->nr ? IRQ_GPIO_H3600_PCMCIA_IRQ1
+				      : IRQ_GPIO_H3600_PCMCIA_IRQ0;
 
 
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));

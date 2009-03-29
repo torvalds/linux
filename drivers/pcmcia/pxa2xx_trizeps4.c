@@ -53,7 +53,7 @@ static int trizeps_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 			gpio_free(GPIO_PRDY);
 			return -EINVAL;
 		}
-		skt->irq = IRQ_GPIO(GPIO_PRDY);
+		skt->socket.pci_irq = IRQ_GPIO(GPIO_PRDY);
 		break;
 
 #ifndef CONFIG_MACH_TRIZEPS_CONXS
@@ -63,7 +63,7 @@ static int trizeps_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 		break;
 	}
 	/* release the reset of this card */
-	pr_debug("%s: sock %d irq %d\n", __func__, skt->nr, skt->irq);
+	pr_debug("%s: sock %d irq %d\n", __func__, skt->nr, skt->socket.pci_irq);
 
 	/* supplementory irqs for the socket */
 	for (i = 0; i < ARRAY_SIZE(irqs); i++) {

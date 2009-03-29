@@ -144,10 +144,10 @@ soc_common_pcmcia_config_skt(struct soc_pcmcia_socket *skt, socket_state_t *stat
 		 */
 		if (skt->irq_state != 1 && state->io_irq) {
 			skt->irq_state = 1;
-			set_irq_type(skt->irq, IRQ_TYPE_EDGE_FALLING);
+			set_irq_type(skt->socket.pci_irq, IRQ_TYPE_EDGE_FALLING);
 		} else if (skt->irq_state == 1 && state->io_irq == 0) {
 			skt->irq_state = 0;
-			set_irq_type(skt->irq, IRQ_TYPE_NONE);
+			set_irq_type(skt->socket.pci_irq, IRQ_TYPE_NONE);
 		}
 
 		skt->cs_state = *state;
@@ -492,7 +492,8 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr, ch
 
 	p+=sprintf(p, "Vcc      : %d\n", skt->cs_state.Vcc);
 	p+=sprintf(p, "Vpp      : %d\n", skt->cs_state.Vpp);
-	p+=sprintf(p, "IRQ      : %d (%d)\n", skt->cs_state.io_irq, skt->irq);
+	p+=sprintf(p, "IRQ      : %d (%d)\n", skt->cs_state.io_irq,
+		skt->socket.pci_irq);
 	if (skt->ops->show_timing)
 		p+=skt->ops->show_timing(skt, p);
 
@@ -695,7 +696,6 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 	skt->socket.resource_ops = &pccard_static_ops;
 	skt->socket.irq_mask = 0;
 	skt->socket.map_size = PAGE_SIZE;
-	skt->socket.pci_irq = skt->irq;
 	skt->socket.io_offset = (unsigned long)skt->virt_io;
 
 	skt->status = soc_common_pcmcia_skt_state(skt);

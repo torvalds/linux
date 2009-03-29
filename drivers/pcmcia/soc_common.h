@@ -31,7 +31,6 @@ struct soc_pcmcia_socket {
 	 * Info from low level handler
 	 */
 	unsigned int		nr;
-	unsigned int		irq;
 
 	/*
 	 * Core PCMCIA state

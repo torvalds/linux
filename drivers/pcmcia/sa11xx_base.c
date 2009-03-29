@@ -235,10 +235,10 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 		skt = &sinfo->skt[i];
 
 		skt->nr = first + i;
-		skt->irq = NO_IRQ;
 		skt->ops = ops;
 		skt->socket.owner = ops->owner;
 		skt->socket.dev.parent = dev;
+		skt->socket.pci_irq = NO_IRQ;
 
 		ret = sa11xx_drv_pcmcia_add_one(skt);
 		if (ret)

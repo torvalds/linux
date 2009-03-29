@@ -137,10 +137,10 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 			return -ENOMEM;
 
 		s->soc.nr = ops->first + i;
-		s->soc.irq = s->soc.nr ? IRQ_S1_READY_NINT : IRQ_S0_READY_NINT;
 		s->soc.ops = ops;
 		s->soc.socket.owner = ops->owner;
 		s->soc.socket.dev.parent = &dev->dev;
+		s->soc.socket.pci_irq = s->soc.nr ? IRQ_S1_READY_NINT : IRQ_S0_READY_NINT;
 		s->dev = dev;
 
 		ret = add(&s->soc);
