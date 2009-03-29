@@ -228,6 +228,31 @@ static const char *skt_names[] = {
 #define SKT_DEV_INFO_SIZE(n) \
 	(sizeof(struct skt_dev_info) + (n)*sizeof(struct soc_pcmcia_socket))
 
+static int pxa2xx_drv_pcmcia_add_one(struct soc_pcmcia_socket *skt)
+{
+	skt->res_skt.start = _PCMCIA(skt->nr);
+	skt->res_skt.end = _PCMCIA(skt->nr) + PCMCIASp - 1;
+	skt->res_skt.name = skt_names[skt->nr];
+	skt->res_skt.flags = IORESOURCE_MEM;
+
+	skt->res_io.start = _PCMCIAIO(skt->nr);
+	skt->res_io.end = _PCMCIAIO(skt->nr) + PCMCIAIOSp - 1;
+	skt->res_io.name = "io";
+	skt->res_io.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+
+	skt->res_mem.start = _PCMCIAMem(skt->nr);
+	skt->res_mem.end = _PCMCIAMem(skt->nr) + PCMCIAMemSp - 1;
+	skt->res_mem.name = "memory";
+	skt->res_mem.flags = IORESOURCE_MEM;
+
+	skt->res_attr.start = _PCMCIAAttr(skt->nr);
+	skt->res_attr.end = _PCMCIAAttr(skt->nr) + PCMCIAAttrSp - 1;
+	skt->res_attr.name = "attribute";
+	skt->res_attr.flags = IORESOURCE_MEM;
+
+	return soc_pcmcia_add_one(skt);
+}
+
 int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 {
 	int i, ret;
@@ -240,6 +265,12 @@ int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 
 	ops = (struct pcmcia_low_level *)dev->platform_data;
 
+	/* Provide our PXA2xx specific timing routines. */
+	ops->set_timing  = pxa2xx_pcmcia_set_timing;
+#ifdef CONFIG_CPU_FREQ
+	ops->frequency_change = pxa2xx_pcmcia_frequency_change;
+#endif
+
 	sinfo = kzalloc(SKT_DEV_INFO_SIZE(ops->nr), GFP_KERNEL);
 	if (!sinfo)
 		return -ENOMEM;
@@ -250,40 +281,26 @@ int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 	for (i = 0; i < ops->nr; i++) {
 		skt = &sinfo->skt[i];
 
-		skt->nr		= ops->first + i;
-		skt->irq	= NO_IRQ;
+		skt->nr = ops->first + i;
+		skt->irq = NO_IRQ;
+		skt->dev = dev;
+		skt->ops = ops;
+		skt->socket.owner = ops->owner;
+		skt->socket.dev.parent = dev;
 
-		skt->res_skt.start	= _PCMCIA(skt->nr);
-		skt->res_skt.end	= _PCMCIA(skt->nr) + PCMCIASp - 1;
-		skt->res_skt.name	= skt_names[skt->nr];
-		skt->res_skt.flags	= IORESOURCE_MEM;
-
-		skt->res_io.start	= _PCMCIAIO(skt->nr);
-		skt->res_io.end		= _PCMCIAIO(skt->nr) + PCMCIAIOSp - 1;
-		skt->res_io.name	= "io";
-		skt->res_io.flags	= IORESOURCE_MEM | IORESOURCE_BUSY;
-
-		skt->res_mem.start	= _PCMCIAMem(skt->nr);
-		skt->res_mem.end	= _PCMCIAMem(skt->nr) + PCMCIAMemSp - 1;
-		skt->res_mem.name	= "memory";
-		skt->res_mem.flags	= IORESOURCE_MEM;
-
-		skt->res_attr.start	= _PCMCIAAttr(skt->nr);
-		skt->res_attr.end	= _PCMCIAAttr(skt->nr) + PCMCIAAttrSp - 1;
-		skt->res_attr.name	= "attribute";
-		skt->res_attr.flags	= IORESOURCE_MEM;
+		ret = pxa2xx_drv_pcmcia_add_one(skt);
+		if (ret)
+			break;
 	}
 
-	/* Provide our PXA2xx specific timing routines. */
-	ops->set_timing  = pxa2xx_pcmcia_set_timing;
-#ifdef CONFIG_CPU_FREQ
-	ops->frequency_change = pxa2xx_pcmcia_frequency_change;
-#endif
-
-	ret = soc_common_drv_pcmcia_probe(dev, ops, sinfo);
-
-	if (!ret)
+	if (ret) {
+		while (--i >= 0)
+			soc_pcmcia_remove_one(&sinfo->skt[i]);
+		kfree(sinfo);
+	} else {
 		pxa2xx_configure_sockets(dev);
+		dev_set_drvdata(dev, sinfo);
+	}
 
 	return ret;
 }

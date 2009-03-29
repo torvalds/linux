@@ -741,43 +741,6 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 }
 EXPORT_SYMBOL(soc_pcmcia_add_one);
 
-int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
-				struct skt_dev_info *sinfo)
-{
-	struct soc_pcmcia_socket *skt;
-	int ret, i;
-
-	/*
-	 * Initialise the per-socket structure.
-	 */
-	for (i = ret = 0; i < sinfo->nskt; i++) {
-		skt = &sinfo->skt[i];
-
-		skt->socket.owner = ops->owner;
-		skt->socket.dev.parent = dev;
-
-		skt->dev	= dev;
-		skt->ops	= ops;
-
-		ret = soc_pcmcia_add_one(skt);
-		if (ret)
-			break;
-
-		WARN_ON(skt->socket.sock != i);
-	}
-
-	if (ret) {
-		while (--i >= 0)
-			soc_pcmcia_remove_one(&sinfo->skt[i]);
-		kfree(sinfo);
-	} else {
-		dev_set_drvdata(dev, sinfo);
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(soc_common_drv_pcmcia_probe);
-
 MODULE_AUTHOR("John Dorsey <john+@cs.cmu.edu>");
 MODULE_DESCRIPTION("Linux PCMCIA Card Services: Common SoC support");
 MODULE_LICENSE("Dual MPL/GPL");
