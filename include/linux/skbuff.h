@@ -168,6 +168,7 @@ struct skb_shared_hwtstamps {
  * @software:		generate software time stamp
  * @in_progress:	device driver is going to provide
  *			hardware time stamp
+ * @flags:		all shared_tx flags
  *
  * These flags are attached to packets as part of the
  * &skb_shared_info. Use skb_tx() to get a pointer.
