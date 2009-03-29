@@ -17,7 +17,6 @@
 #include <linux/syscalls.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/fsnotify.h>
 #include <linux/slab.h>
