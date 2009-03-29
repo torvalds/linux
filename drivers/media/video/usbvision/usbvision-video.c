@@ -757,8 +757,7 @@ static int vidioc_reqbufs (struct file *file,
 
 	/* Check input validity:
 	   the user must do a VIDEO CAPTURE and MMAP method. */
-	if((vr->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) ||
-	   (vr->memory != V4L2_MEMORY_MMAP))
+	if (vr->memory != V4L2_MEMORY_MMAP)
 		return -EINVAL;
 
 	if(usbvision->streaming == Stream_On) {
@@ -816,9 +815,6 @@ static int vidioc_qbuf (struct file *file, void *priv, struct v4l2_buffer *vb)
 	unsigned long lock_flags;
 
 	/* FIXME : works only on VIDEO_CAPTURE MODE, MMAP. */
-	if(vb->type != V4L2_CAP_VIDEO_CAPTURE) {
-		return -EINVAL;
-	}
 	if(vb->index>=usbvision->num_frames)  {
 		return -EINVAL;
 	}
@@ -852,9 +848,6 @@ static int vidioc_dqbuf (struct file *file, void *priv, struct v4l2_buffer *vb)
 	int ret;
 	struct usbvision_frame *f;
 	unsigned long lock_flags;
-
-	if (vb->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	if (list_empty(&(usbvision->outqueue))) {
 		if (usbvision->streaming == Stream_Idle)
@@ -921,7 +914,6 @@ static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 	if(vfd->index>=USBVISION_SUPPORTED_PALETTES-1) {
 		return -EINVAL;
 	}
-	vfd->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	strcpy(vfd->description,usbvision_v4l2_format[vfd->index].desc);
 	vfd->pixelformat = usbvision_v4l2_format[vfd->index].format;
 	return 0;
