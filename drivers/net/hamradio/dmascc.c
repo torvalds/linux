@@ -445,6 +445,7 @@ static const struct net_device_ops scc_netdev_ops = {
 	.ndo_stop = scc_close,
 	.ndo_start_xmit = scc_send_packet,
 	.ndo_do_ioctl = scc_ioctl,
+	.ndo_set_mac_address = scc_set_mac_address,
 };
 
 static int __init setup_adapter(int card_base, int type, int n)
@@ -584,7 +585,6 @@ static int __init setup_adapter(int card_base, int type, int n)
 		dev->irq = irq;
 		dev->netdev_ops = &scc_netdev_ops;
 		dev->header_ops = &ax25_header_ops;
-		dev->set_mac_address = scc_set_mac_address;
 	}
 	if (register_netdev(info->dev[0])) {
 		printk(KERN_ERR "dmascc: could not register %s\n",
