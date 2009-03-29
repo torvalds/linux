@@ -602,7 +602,7 @@ static struct file *do_create(struct dentry *dir, struct dentry *dentry,
 		dentry->d_fsdata = attr;
 	}
 
-	mode &= ~current->fs->umask;
+	mode &= ~current_umask();
 	ret = mnt_want_write(mqueue_mnt);
 	if (ret)
 		goto out;

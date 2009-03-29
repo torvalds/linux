@@ -328,7 +328,7 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		data->arg.create.verifier[1] = current->pid;
 	}
 
-	sattr->ia_mode &= ~current->fs->umask;
+	sattr->ia_mode &= ~current_umask();
 
 	for (;;) {
 		status = nfs3_do_create(dir, dentry, data);
@@ -528,7 +528,7 @@ nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 
 	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
 
-	sattr->ia_mode &= ~current->fs->umask;
+	sattr->ia_mode &= ~current_umask();
 
 	data = nfs3_alloc_createdata();
 	if (data == NULL)
@@ -639,7 +639,7 @@ nfs3_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	dprintk("NFS call  mknod %s %u:%u\n", dentry->d_name.name,
 			MAJOR(rdev), MINOR(rdev));
 
-	sattr->ia_mode &= ~current->fs->umask;
+	sattr->ia_mode &= ~current_umask();
 
 	data = nfs3_alloc_createdata();
 	if (data == NULL)

@@ -1741,6 +1741,8 @@ extern void drop_collected_mounts(struct vfsmount *);
 
 extern int vfs_statfs(struct dentry *, struct kstatfs *);
 
+extern int current_umask(void);
+
 /* /sys/fs */
 extern struct kobject *fs_kobj;
 

@@ -477,7 +477,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	uid = current_uid();
 	gid = current_gid();
-	umask = current->fs->umask;
+	umask = current_umask();
 	lowercase = 0;
 	conv = CONV_BINARY;
 	eas = 2;

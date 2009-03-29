@@ -421,7 +421,7 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sbi->s_uid = current_uid();
 	sbi->s_gid = current_gid();
-	sbi->s_dmask = sbi->s_fmask = current->fs->umask;
+	sbi->s_dmask = sbi->s_fmask = current_umask();
 
 	if (!parse_options((char *) data, sbi))
 		goto end;

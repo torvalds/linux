@@ -1578,7 +1578,7 @@ static int __open_namei_create(struct nameidata *nd, struct path *path,
 	struct dentry *dir = nd->path.dentry;
 
 	if (!IS_POSIXACL(dir->d_inode))
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 	error = security_path_mknod(&nd->path, path->dentry, mode, 0);
 	if (error)
 		goto out_unlock;
@@ -1989,7 +1989,7 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, int, mode,
 		goto out_unlock;
 	}
 	if (!IS_POSIXACL(nd.path.dentry->d_inode))
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 	error = may_mknod(mode);
 	if (error)
 		goto out_dput;
@@ -2067,7 +2067,7 @@ SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, int, mode)
 		goto out_unlock;
 
 	if (!IS_POSIXACL(nd.path.dentry->d_inode))
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 	error = mnt_want_write(nd.path.mnt);
 	if (error)
 		goto out_dput;
