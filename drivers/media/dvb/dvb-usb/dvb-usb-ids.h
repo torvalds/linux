@@ -27,6 +27,7 @@
 #define USB_VID_DIBCOM				0x10b8
 #define USB_VID_DPOSH				0x1498
 #define USB_VID_DVICO				0x0fe9
+#define USB_VID_ELGATO				0x0fd9
 #define USB_VID_EMPIA				0xeb1a
 #define USB_VID_GENPIX				0x09c0
 #define USB_VID_GRANDTEC			0x5032
@@ -49,6 +50,7 @@
 #define USB_VID_TERRATEC			0x0ccd
 #define USB_VID_TELESTAR			0x10b9
 #define USB_VID_VISIONPLUS			0x13d3
+#define USB_VID_SONY				0x1415
 #define USB_VID_TWINHAN				0x1822
 #define USB_VID_ULTIMA_ELECTRONIC		0x05d8
 #define USB_VID_UNIWILL				0x1584
@@ -56,7 +58,6 @@
 #define USB_VID_GIGABYTE			0x1044
 #define USB_VID_YUAN				0x1164
 #define USB_VID_XTENSIONS			0x1ae7
-#define USB_VID_SONY				0x1415
 
 /* Product IDs */
 #define USB_PID_ADSTECH_USB2_COLD			0xa333
@@ -245,5 +246,6 @@
 #define USB_PID_TELESTAR_STARSTICK_2			0x8000
 #define USB_PID_MSI_DIGI_VOX_MINI_III                   0x8807
 #define USB_PID_SONY_PLAYTV				0x0003
+#define USB_PID_ELGATO_EYETV_DTT			0x0021
 
 #endif

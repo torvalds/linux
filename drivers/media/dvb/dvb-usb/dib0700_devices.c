@@ -1492,6 +1492,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_TIGER_ATSC) },
 	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_TIGER_ATSC_B210) },
 	{ USB_DEVICE(USB_VID_YUAN,	USB_PID_YUAN_MC770) },
+	{ USB_DEVICE(USB_VID_ELGATO,	USB_PID_ELGATO_EYETV_DTT) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1691,7 +1692,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 10,
+		.num_device_descs = 11,
 		.devices = {
 			{   "DiBcom STK7070P reference design",
 				{ &dib0700_usb_id_table[15], NULL },
@@ -1727,6 +1728,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Terratec Cinergy T USB XXS",
 				{ &dib0700_usb_id_table[33], NULL },
+				{ NULL },
+			},
+			{   "Elgato EyeTV DTT",
+				{ &dib0700_usb_id_table[49], NULL },
 				{ NULL },
 			},
 			{   "Yuan PD378S",
