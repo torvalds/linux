@@ -837,7 +837,8 @@ static int test_comp(struct crypto_comp *tfm, struct comp_testvec *ctemplate,
 	int ret;
 
 	for (i = 0; i < ctcount; i++) {
-		int ilen, dlen = COMP_BUF_SIZE;
+		int ilen;
+		unsigned int dlen = COMP_BUF_SIZE;
 
 		memset(result, 0, sizeof (result));
 
@@ -869,7 +870,8 @@ static int test_comp(struct crypto_comp *tfm, struct comp_testvec *ctemplate,
 	}
 
 	for (i = 0; i < dtcount; i++) {
-		int ilen, dlen = COMP_BUF_SIZE;
+		int ilen;
+		unsigned int dlen = COMP_BUF_SIZE;
 
 		memset(result, 0, sizeof (result));
 
