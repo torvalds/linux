@@ -765,7 +765,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	fmtdesc->pixelformat = fmt_tb[index];
 	if (gspca_is_compressed(fmt_tb[index]))
 		fmtdesc->flags = V4L2_FMT_FLAG_COMPRESSED;
-	fmtdesc->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	fmtdesc->description[0] = fmtdesc->pixelformat & 0xff;
 	fmtdesc->description[1] = (fmtdesc->pixelformat >> 8) & 0xff;
 	fmtdesc->description[2] = (fmtdesc->pixelformat >> 16) & 0xff;
@@ -961,8 +960,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 	int ret;
-
-	memset(cap, 0, sizeof *cap);
 
 	/* protect the access to the usb device */
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
@@ -1341,7 +1338,6 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 
-	parm->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	parm->parm.capture.readbuffers = gspca_dev->nbufread;
 
 	if (gspca_dev->sd_desc->get_streamparm) {
