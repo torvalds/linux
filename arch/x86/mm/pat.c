@@ -31,7 +31,7 @@
 #ifdef CONFIG_X86_PAT
 int __read_mostly pat_enabled = 1;
 
-void __cpuinit pat_disable(char *reason)
+void __cpuinit pat_disable(const char *reason)
 {
 	pat_enabled = 0;
 	printk(KERN_INFO "%s\n", reason);
@@ -43,6 +43,11 @@ static int __init nopat(char *str)
 	return 0;
 }
 early_param("nopat", nopat);
+#else
+static inline void pat_disable(const char *reason)
+{
+	(void)reason;
+}
 #endif
 
 
@@ -79,16 +84,20 @@ void pat_init(void)
 	if (!pat_enabled)
 		return;
 
-	/* Paranoia check. */
-	if (!cpu_has_pat && boot_pat_state) {
-		/*
-		 * If this happens we are on a secondary CPU, but
-		 * switched to PAT on the boot CPU. We have no way to
-		 * undo PAT.
-		 */
-		printk(KERN_ERR "PAT enabled, "
-		       "but not supported by secondary CPU\n");
-		BUG();
+	if (!cpu_has_pat) {
+		if (!boot_pat_state) {
+			pat_disable("PAT not supported by CPU.");
+			return;
+		} else {
+			/*
+			 * If this happens we are on a secondary CPU, but
+			 * switched to PAT on the boot CPU. We have no way to
+			 * undo PAT.
+			 */
+			printk(KERN_ERR "PAT enabled, "
+			       "but not supported by secondary CPU\n");
+			BUG();
+		}
 	}
 
 	/* Set PWT to Write-Combining. All other bits stay the same */
@@ -626,6 +635,33 @@ void unmap_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 }
 
 /*
+ * Change the memory type for the physial address range in kernel identity
+ * mapping space if that range is a part of identity map.
+ */
+int kernel_map_sync_memtype(u64 base, unsigned long size, unsigned long flags)
+{
+	unsigned long id_sz;
+
+	if (!pat_enabled || base >= __pa(high_memory))
+		return 0;
+
+	id_sz = (__pa(high_memory) < base + size) ?
+				__pa(high_memory) - base :
+				size;
+
+	if (ioremap_change_attr((unsigned long)__va(base), id_sz, flags) < 0) {
+		printk(KERN_INFO
+			"%s:%d ioremap_change_attr failed %s "
+			"for %Lx-%Lx\n",
+			current->comm, current->pid,
+			cattr_name(flags),
+			base, (unsigned long long)(base + size));
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/*
  * Internal interface to reserve a range of physical memory with prot.
  * Reserved non RAM regions only and after successful reserve_memtype,
  * this func also keeps identity mapping (if any) in sync with this new prot.
@@ -634,7 +670,7 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 				int strict_prot)
 {
 	int is_ram = 0;
-	int id_sz, ret;
+	int ret;
 	unsigned long flags;
 	unsigned long want_flags = (pgprot_val(*vma_prot) & _PAGE_CACHE_MASK);
 
@@ -671,23 +707,8 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 				     flags);
 	}
 
-	/* Need to keep identity mapping in sync */
-	if (paddr >= __pa(high_memory))
-		return 0;
-
-	id_sz = (__pa(high_memory) < paddr + size) ?
-				__pa(high_memory) - paddr :
-				size;
-
-	if (ioremap_change_attr((unsigned long)__va(paddr), id_sz, flags) < 0) {
+	if (kernel_map_sync_memtype(paddr, size, flags) < 0) {
 		free_memtype(paddr, paddr + size);
-		printk(KERN_ERR
-			"%s:%d reserve_pfn_range ioremap_change_attr failed %s "
-			"for %Lx-%Lx\n",
-			current->comm, current->pid,
-			cattr_name(flags),
-			(unsigned long long)paddr,
-			(unsigned long long)(paddr + size));
 		return -EINVAL;
 	}
 	return 0;

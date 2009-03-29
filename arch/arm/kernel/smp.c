@@ -93,6 +93,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	pmd = pmd_offset(pgd + pgd_index(PHYS_OFFSET), PHYS_OFFSET);
 	*pmd = __pmd((PHYS_OFFSET & PGDIR_MASK) |
 		     PMD_TYPE_SECT | PMD_SECT_AP_WRITE);
+	flush_pmd_entry(pmd);
 
 	/*
 	 * We need to tell the secondary core where to find
@@ -130,6 +131,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	secondary_data.pgdir = 0;
 
 	*pmd = __pmd(0);
+	clean_pmd_entry(pmd);
 	pgd_free(&init_mm, pgd);
 
 	if (ret) {

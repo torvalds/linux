@@ -555,7 +555,7 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 */
 static int drop_new_inode(struct inode *inode)
 {
-	DQUOT_DROP(inode);
+	vfs_dq_drop(inode);
 	make_bad_inode(inode);
 	inode->i_flags |= S_NOQUOTA;
 	iput(inode);
@@ -563,7 +563,7 @@ static int drop_new_inode(struct inode *inode)
 }
 
 /* utility function that does setup for reiserfs_new_inode.  
-** DQUOT_INIT needs lots of credits so it's better to have it
+** vfs_dq_init needs lots of credits so it's better to have it
 ** outside of a transaction, so we had to pull some bits of
 ** reiserfs_new_inode out into this func.
 */
@@ -586,7 +586,7 @@ static int new_inode_init(struct inode *inode, struct inode *dir, int mode)
 	} else {
 		inode->i_gid = current_fsgid();
 	}
-	DQUOT_INIT(inode);
+	vfs_dq_init(inode);
 	return 0;
 }
 

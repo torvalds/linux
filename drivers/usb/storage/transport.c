@@ -787,7 +787,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* Did we transfer less than the minimum amount required? */
 	if ((srb->result == SAM_STAT_GOOD || srb->sense_buffer[2] == 0) &&
 			scsi_bufflen(srb) - scsi_get_resid(srb) < srb->underflow)
-		srb->result = (DID_ERROR << 16) | (SUGGEST_RETRY << 24);
+		srb->result = DID_ERROR << 16;
 
 	last_sector_hacks(us, srb);
 	return;

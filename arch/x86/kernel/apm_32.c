@@ -301,7 +301,7 @@ extern int (*console_blank_hook)(int);
  */
 #define APM_ZERO_SEGS
 
-#include "apm.h"
+#include <asm/apm.h>
 
 /*
  * Define to re-initialize the interrupt 0 timer to 100 Hz after a suspend.

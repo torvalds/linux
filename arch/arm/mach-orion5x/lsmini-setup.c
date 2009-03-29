@@ -186,7 +186,7 @@ static struct mv_sata_platform_data lsmini_sata_data = {
 
 static void lsmini_power_off(void)
 {
-	arch_reset(0);
+	arch_reset(0, NULL);
 }
 
 

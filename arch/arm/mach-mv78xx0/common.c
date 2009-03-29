@@ -14,7 +14,9 @@
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
+#include <linux/ethtool.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <mach/mv78xx0.h>
@@ -430,8 +432,21 @@ static struct platform_device mv78xx0_ge10 = {
 
 void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
 {
+	u32 dev, rev;
+
 	eth_data->shared = &mv78xx0_ge10_shared;
 	mv78xx0_ge10.dev.platform_data = eth_data;
+
+	/*
+	 * On the Z0, ge10 and ge11 are internally connected back
+	 * to back, and not brought out.
+	 */
+	mv78xx0_pcie_id(&dev, &rev);
+	if (dev == MV78X00_Z0_DEV_ID) {
+		eth_data->phy_addr = MV643XX_ETH_PHY_NONE;
+		eth_data->speed = SPEED_1000;
+		eth_data->duplex = DUPLEX_FULL;
+	}
 
 	platform_device_register(&mv78xx0_ge10_shared);
 	platform_device_register(&mv78xx0_ge10);
@@ -484,13 +499,101 @@ static struct platform_device mv78xx0_ge11 = {
 
 void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)
 {
+	u32 dev, rev;
+
 	eth_data->shared = &mv78xx0_ge11_shared;
 	mv78xx0_ge11.dev.platform_data = eth_data;
+
+	/*
+	 * On the Z0, ge10 and ge11 are internally connected back
+	 * to back, and not brought out.
+	 */
+	mv78xx0_pcie_id(&dev, &rev);
+	if (dev == MV78X00_Z0_DEV_ID) {
+		eth_data->phy_addr = MV643XX_ETH_PHY_NONE;
+		eth_data->speed = SPEED_1000;
+		eth_data->duplex = DUPLEX_FULL;
+	}
 
 	platform_device_register(&mv78xx0_ge11_shared);
 	platform_device_register(&mv78xx0_ge11);
 }
 
+/*****************************************************************************
+ * I2C bus 0
+ ****************************************************************************/
+
+static struct mv64xxx_i2c_pdata mv78xx0_i2c_0_pdata = {
+	.freq_m		= 8, /* assumes 166 MHz TCLK */
+	.freq_n		= 3,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct resource mv78xx0_i2c_0_resources[] = {
+	{
+		.name   = "i2c 0 base",
+		.start  = I2C_0_PHYS_BASE,
+		.end    = I2C_0_PHYS_BASE + 0x1f,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.name   = "i2c 0 irq",
+		.start  = IRQ_MV78XX0_I2C_0,
+		.end    = IRQ_MV78XX0_I2C_0,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+
+static struct platform_device mv78xx0_i2c_0 = {
+	.name		= MV64XXX_I2C_CTLR_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(mv78xx0_i2c_0_resources),
+	.resource	= mv78xx0_i2c_0_resources,
+	.dev		= {
+		.platform_data	= &mv78xx0_i2c_0_pdata,
+	},
+};
+
+/*****************************************************************************
+ * I2C bus 1
+ ****************************************************************************/
+
+static struct mv64xxx_i2c_pdata mv78xx0_i2c_1_pdata = {
+	.freq_m		= 8, /* assumes 166 MHz TCLK */
+	.freq_n		= 3,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct resource mv78xx0_i2c_1_resources[] = {
+	{
+		.name   = "i2c 1 base",
+		.start  = I2C_1_PHYS_BASE,
+		.end    = I2C_1_PHYS_BASE + 0x1f,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.name   = "i2c 1 irq",
+		.start  = IRQ_MV78XX0_I2C_1,
+		.end    = IRQ_MV78XX0_I2C_1,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+
+static struct platform_device mv78xx0_i2c_1 = {
+	.name		= MV64XXX_I2C_CTLR_NAME,
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(mv78xx0_i2c_1_resources),
+	.resource	= mv78xx0_i2c_1_resources,
+	.dev		= {
+		.platform_data	= &mv78xx0_i2c_1_pdata,
+	},
+};
+
+void __init mv78xx0_i2c_init(void)
+{
+	platform_device_register(&mv78xx0_i2c_0);
+	platform_device_register(&mv78xx0_i2c_1);
+}
 
 /*****************************************************************************
  * SATA
@@ -719,6 +822,32 @@ struct sys_timer mv78xx0_timer = {
 /*****************************************************************************
  * General
  ****************************************************************************/
+static char * __init mv78xx0_id(void)
+{
+	u32 dev, rev;
+
+	mv78xx0_pcie_id(&dev, &rev);
+
+	if (dev == MV78X00_Z0_DEV_ID) {
+		if (rev == MV78X00_REV_Z0)
+			return "MV78X00-Z0";
+		else
+			return "MV78X00-Rev-Unsupported";
+	} else if (dev == MV78100_DEV_ID) {
+		if (rev == MV78100_REV_A0)
+			return "MV78100-A0";
+		else
+			return "MV78100-Rev-Unsupported";
+	} else if (dev == MV78200_DEV_ID) {
+		if (rev == MV78100_REV_A0)
+			return "MV78200-A0";
+		else
+			return "MV78200-Rev-Unsupported";
+	} else {
+		return "Device-Unknown";
+	}
+}
+
 static int __init is_l2_writethrough(void)
 {
 	return !!(readl(CPU_CONTROL) & L2_WRITETHROUGH);
@@ -737,7 +866,8 @@ void __init mv78xx0_init(void)
 	get_pclk_l2clk(hclk, core_index, &pclk, &l2clk);
 	tclk = get_tclk();
 
-	printk(KERN_INFO "MV78xx0 core #%d, ", core_index);
+	printk(KERN_INFO "%s ", mv78xx0_id());
+	printk("core #%d, ", core_index);
 	printk("PCLK = %dMHz, ", (pclk + 499999) / 1000000);
 	printk("L2 = %dMHz, ", (l2clk + 499999) / 1000000);
 	printk("HCLK = %dMHz, ", (hclk + 499999) / 1000000);

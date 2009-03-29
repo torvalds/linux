@@ -482,6 +482,13 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	pbase = (pte_t *)page_address(base);
 	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
 	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
+	/*
+	 * If we ever want to utilize the PAT bit, we need to
+	 * update this function to make sure it's converted from
+	 * bit 12 to bit 7 when we cross from the 2MB level to
+	 * the 4K level:
+	 */
+	WARN_ON_ONCE(pgprot_val(ref_prot) & _PAGE_PAT_LARGE);
 
 #ifdef CONFIG_X86_64
 	if (level == PG_LEVEL_1G) {

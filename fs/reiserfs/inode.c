@@ -53,7 +53,7 @@ void reiserfs_delete_inode(struct inode *inode)
 		 * after delete_object so that quota updates go into the same transaction as
 		 * stat data deletion */
 		if (!err) 
-			DQUOT_FREE_INODE(inode);
+			vfs_dq_free_inode(inode);
 
 		if (journal_end(&th, inode->i_sb, jbegin_count))
 			goto out;
@@ -1763,7 +1763,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 
 	BUG_ON(!th->t_trans_id);
 
-	if (DQUOT_ALLOC_INODE(inode)) {
+	if (vfs_dq_alloc_inode(inode)) {
 		err = -EDQUOT;
 		goto out_end_trans;
 	}
@@ -1947,12 +1947,12 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	INODE_PKEY(inode)->k_objectid = 0;
 
 	/* Quota change must be inside a transaction for journaling */
-	DQUOT_FREE_INODE(inode);
+	vfs_dq_free_inode(inode);
 
       out_end_trans:
 	journal_end(th, th->t_super, th->t_blocks_allocated);
 	/* Drop can be outside and it needs more credits so it's better to have it outside */
-	DQUOT_DROP(inode);
+	vfs_dq_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
 	make_bad_inode(inode);
 
@@ -3119,7 +3119,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 				if (error)
 					goto out;
 				error =
-				    DQUOT_TRANSFER(inode, attr) ? -EDQUOT : 0;
+				    vfs_dq_transfer(inode, attr) ? -EDQUOT : 0;
 				if (error) {
 					journal_end(&th, inode->i_sb,
 						    jbegin_count);

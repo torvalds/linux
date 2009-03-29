@@ -455,7 +455,7 @@ out_move:
 	d_move(dentry, target);
 }
 
-struct dentry_operations ocfs2_dentry_ops = {
+const struct dentry_operations ocfs2_dentry_ops = {
 	.d_revalidate		= ocfs2_dentry_revalidate,
 	.d_iput			= ocfs2_dentry_iput,
 };

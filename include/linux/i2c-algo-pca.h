@@ -1,7 +1,14 @@
 #ifndef _LINUX_I2C_ALGO_PCA_H
 #define _LINUX_I2C_ALGO_PCA_H
 
-/* Clock speeds for the bus */
+/* Chips known to the pca algo */
+#define I2C_PCA_CHIP_9564	0x00
+#define I2C_PCA_CHIP_9665	0x01
+
+/* Internal period for PCA9665 oscilator */
+#define I2C_PCA_OSC_PER		3 /* e10-8s */
+
+/* Clock speeds for the bus for PCA9564*/
 #define I2C_PCA_CON_330kHz	0x00
 #define I2C_PCA_CON_288kHz	0x01
 #define I2C_PCA_CON_217kHz	0x02
@@ -18,6 +25,26 @@
 #define I2C_PCA_ADR		0x02 /* OWN ADR Read/Write */
 #define I2C_PCA_CON		0x03 /* CONTROL Read/Write */
 
+/* PCA9665 registers */
+#define I2C_PCA_INDPTR          0x00 /* INDIRECT Pointer Write Only */
+#define I2C_PCA_IND             0x02 /* INDIRECT Read/Write */
+
+/* PCA9665 indirect registers */
+#define I2C_PCA_ICOUNT          0x00 /* Byte Count for buffered mode */
+#define I2C_PCA_IADR            0x01 /* OWN ADR */
+#define I2C_PCA_ISCLL           0x02 /* SCL LOW period */
+#define I2C_PCA_ISCLH           0x03 /* SCL HIGH period */
+#define I2C_PCA_ITO             0x04 /* TIMEOUT */
+#define I2C_PCA_IPRESET         0x05 /* Parallel bus reset */
+#define I2C_PCA_IMODE           0x06 /* I2C Bus mode */
+
+/* PCA9665 I2C bus mode */
+#define I2C_PCA_MODE_STD        0x00 /* Standard mode */
+#define I2C_PCA_MODE_FAST       0x01 /* Fast mode */
+#define I2C_PCA_MODE_FASTP      0x02 /* Fast Plus mode */
+#define I2C_PCA_MODE_TURBO      0x03 /* Turbo mode */
+
+
 #define I2C_PCA_CON_AA		0x80 /* Assert Acknowledge */
 #define I2C_PCA_CON_ENSIO	0x40 /* Enable */
 #define I2C_PCA_CON_STA		0x20 /* Start */
@@ -31,7 +58,9 @@ struct i2c_algo_pca_data {
 	int  (*read_byte)		(void *data, int reg);
 	int  (*wait_for_completion)	(void *data);
 	void (*reset_chip)		(void *data);
-	/* i2c_clock values are defined in linux/i2c-algo-pca.h */
+	/* For PCA9564, use one of the predefined frequencies:
+	 * 330000, 288000, 217000, 146000, 88000, 59000, 44000, 36000
+	 * For PCA9665, use the frequency you want here. */
 	unsigned int			i2c_clock;
 };
 

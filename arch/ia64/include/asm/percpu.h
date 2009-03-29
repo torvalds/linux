@@ -27,11 +27,11 @@ extern void *per_cpu_init(void);
 
 #else /* ! SMP */
 
-#define PER_CPU_ATTRIBUTES	__attribute__((__section__(".data.percpu")))
-
 #define per_cpu_init()				(__phys_per_cpu_start)
 
 #endif	/* SMP */
+
+#define PER_CPU_BASE_SECTION ".data.percpu"
 
 /*
  * Be extremely careful when taking the address of this variable!  Due to virtual

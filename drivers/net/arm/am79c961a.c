@@ -27,9 +27,9 @@
 #include <linux/crc32.h>
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/system.h>
 
 #define TX_BUFFERS 15

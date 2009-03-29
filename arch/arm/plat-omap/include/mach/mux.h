@@ -61,6 +61,16 @@
 					.pull_bit = bit, \
 					.pull_val = status,
 
+#define MUX_REG_850(reg, mode_offset, mode) .mux_reg_name = "OMAP850_IO_CONF_"#reg, \
+					.mux_reg = OMAP850_IO_CONF_##reg, \
+					.mask_offset = mode_offset, \
+					.mask = mode,
+
+#define PULL_REG_850(reg, bit, status)	.pull_name = "OMAP850_IO_CONF_"#reg, \
+					.pull_reg = OMAP850_IO_CONF_##reg, \
+					.pull_bit = bit, \
+					.pull_val = status,
+
 #else
 
 #define MUX_REG(reg, mode_offset, mode) .mux_reg = FUNC_MUX_CTRL_##reg, \
@@ -83,6 +93,15 @@
 					.pull_bit = bit, \
 					.pull_val = status,
 
+#define MUX_REG_850(reg, mode_offset, mode) \
+					.mux_reg = OMAP850_IO_CONF_##reg, \
+					.mask_offset = mode_offset, \
+					.mask = mode,
+
+#define PULL_REG_850(reg, bit, status)	.pull_reg = OMAP850_IO_CONF_##reg, \
+					.pull_bit = bit, \
+					.pull_val = status,
+
 #endif /* CONFIG_OMAP_MUX_DEBUG */
 
 #define MUX_CFG(desc, mux_reg, mode_offset, mode,	\
@@ -98,7 +117,7 @@
 
 
 /*
- * OMAP730 has a slightly different config for the pin mux.
+ * OMAP730/850 has a slightly different config for the pin mux.
  * - config regs are the OMAP730_IO_CONF_x regs (see omap730.h) regs and
  *   not the FUNC_MUX_CTRL_x regs from hardware.h
  * - for pull-up/down, only has one enable bit which is is in the same register
@@ -113,6 +132,17 @@
 	PULL_REG_730(mux_reg, pull_bit, pull_status)	\
 	PU_PD_REG(NA, 0)		\
 },
+
+#define MUX_CFG_850(desc, mux_reg, mode_offset, mode,	\
+		   pull_bit, pull_status, debug_status)\
+{							\
+	.name =	 desc,					\
+	.debug = debug_status,				\
+	MUX_REG_850(mux_reg, mode_offset, mode)		\
+	PULL_REG_850(mux_reg, pull_bit, pull_status)	\
+	PU_PD_REG(NA, 0)		\
+},
+
 
 #define MUX_CFG_24XX(desc, reg_offset, mode,			\
 				pull_en, pull_mode, dbg)	\
@@ -220,6 +250,26 @@ enum omap730_index {
 	W16_730_USB_PU_EN,
 	W17_730_USB_VBUSI,
 };
+
+enum omap850_index {
+	/* OMAP 850 keyboard */
+	E2_850_KBR0,
+	J7_850_KBR1,
+	E1_850_KBR2,
+	F3_850_KBR3,
+	D2_850_KBR4,
+	C2_850_KBC0,
+	D3_850_KBC1,
+	E4_850_KBC2,
+	F4_850_KBC3,
+	E3_850_KBC4,
+
+	/* USB */
+	AA17_850_USB_DM,
+	W16_850_USB_PU_EN,
+	W17_850_USB_VBUSI,
+};
+
 
 enum omap1xxx_index {
 	/* UART1 (BT_UART_GATING)*/
@@ -788,7 +838,20 @@ enum omap34xx_index {
 	 *  - "_DOWN" suffix (GPIO3_DOWN) with internal pulldown
 	 *  - "_OUT" suffix (GPIO3_OUT) for output-only pins (unlike 24xx)
 	 */
+	AF26_34XX_GPIO0,
+	AF22_34XX_GPIO9,
 	AH8_34XX_GPIO29,
+	U8_34XX_GPIO54_OUT,
+	U8_34XX_GPIO54_DOWN,
+	L8_34XX_GPIO63,
+	G25_34XX_GPIO86_OUT,
+	AG4_34XX_GPIO134_OUT,
+	AE4_34XX_GPIO136_OUT,
+	AF6_34XX_GPIO140_UP,
+	AE6_34XX_GPIO141,
+	AF5_34XX_GPIO142,
+	AE5_34XX_GPIO143,
+	H19_34XX_GPIO164_OUT,
 	J25_34XX_GPIO170,
 };
 

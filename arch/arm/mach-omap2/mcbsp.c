@@ -24,8 +24,6 @@
 #include <mach/cpu.h>
 #include <mach/mcbsp.h>
 
-const char *clk_names[] = { "mcbsp_ick", "mcbsp_fck" };
-
 static void omap2_mcbsp2_mux_setup(void)
 {
 	omap_cfg_reg(Y15_24XX_MCBSP2_CLKX);
@@ -57,8 +55,6 @@ static struct omap_mcbsp_platform_data omap2420_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP1_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP1_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 	{
 		.phys_base	= OMAP24XX_MCBSP2_BASE,
@@ -67,8 +63,6 @@ static struct omap_mcbsp_platform_data omap2420_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP2_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP2_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 };
 #define OMAP2420_MCBSP_PDATA_SZ		ARRAY_SIZE(omap2420_mcbsp_pdata)
@@ -86,8 +80,6 @@ static struct omap_mcbsp_platform_data omap2430_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP1_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP1_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 	{
 		.phys_base	= OMAP24XX_MCBSP2_BASE,
@@ -96,8 +88,6 @@ static struct omap_mcbsp_platform_data omap2430_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP2_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP2_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 	{
 		.phys_base	= OMAP2430_MCBSP3_BASE,
@@ -106,8 +96,6 @@ static struct omap_mcbsp_platform_data omap2430_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP3_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP3_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 	{
 		.phys_base	= OMAP2430_MCBSP4_BASE,
@@ -116,8 +104,6 @@ static struct omap_mcbsp_platform_data omap2430_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP4_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP4_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 	{
 		.phys_base	= OMAP2430_MCBSP5_BASE,
@@ -126,8 +112,6 @@ static struct omap_mcbsp_platform_data omap2430_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP5_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP5_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 };
 #define OMAP2430_MCBSP_PDATA_SZ		ARRAY_SIZE(omap2430_mcbsp_pdata)
@@ -145,8 +129,6 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP1_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP1_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 	{
 		.phys_base	= OMAP34XX_MCBSP2_BASE,
@@ -155,8 +137,6 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP2_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP2_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 	{
 		.phys_base	= OMAP34XX_MCBSP3_BASE,
@@ -165,8 +145,6 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP3_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP3_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 	{
 		.phys_base	= OMAP34XX_MCBSP4_BASE,
@@ -175,8 +153,6 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP4_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP4_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 	{
 		.phys_base	= OMAP34XX_MCBSP5_BASE,
@@ -185,8 +161,6 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 		.rx_irq		= INT_24XX_MCBSP5_IRQ_RX,
 		.tx_irq		= INT_24XX_MCBSP5_IRQ_TX,
 		.ops		= &omap2_mcbsp_ops,
-		.clk_names	= clk_names,
-		.num_clks	= 2,
 	},
 };
 #define OMAP34XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap34xx_mcbsp_pdata)

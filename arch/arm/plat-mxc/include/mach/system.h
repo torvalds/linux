@@ -26,9 +26,6 @@ static inline void arch_idle(void)
 	cpu_do_idle();
 }
 
-static inline void arch_reset(char mode)
-{
-	cpu_reset(0);
-}
+void arch_reset(char mode, const char *cmd);
 
 #endif /* __ASM_ARCH_MXC_SYSTEM_H__ */

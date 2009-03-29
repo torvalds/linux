@@ -25,13 +25,6 @@
  */
 
 /*
- * The FCoE ethertype eventually goes in net/if_ether.h.
- */
-#ifndef ETH_P_FCOE
-#define	ETH_P_FCOE	0x8906		/* FCOE ether type */
-#endif
-
-/*
  * FC_FCOE_OUI hasn't been standardized yet.   XXX TBD.
  */
 #ifndef FC_FCOE_OUI

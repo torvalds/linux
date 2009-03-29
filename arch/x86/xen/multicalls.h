@@ -41,7 +41,7 @@ static inline void xen_mc_issue(unsigned mode)
 		xen_mc_flush();
 
 	/* restore flags saved in xen_mc_batch */
-	local_irq_restore(x86_read_percpu(xen_mc_irq_flags));
+	local_irq_restore(percpu_read(xen_mc_irq_flags));
 }
 
 /* Set up a callback to be called when the current batch is flushed */

@@ -43,13 +43,7 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/clk.h>
-
-#include <asm/io.h>
-#include <mach/hardware.h>
-#include <asm/irq.h>
-#include <mach/pxa-regs.h>
-#include <mach/regs-uart.h>
-
+#include <linux/io.h>
 
 struct uart_pxa_port {
 	struct uart_port        port;
@@ -491,7 +485,7 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * Ensure the port will be enabled.
 	 * This is required especially for serial console.
 	 */
-	up->ier |= IER_UUE;
+	up->ier |= UART_IER_UUE;
 
 	/*
 	 * Update the per-port timeout.
@@ -784,19 +778,15 @@ static int serial_pxa_probe(struct platform_device *dev)
 	sport->port.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 	sport->port.uartclk = clk_get_rate(sport->clk);
 
-	/*
-	 * Is it worth keeping this?
-	 */
-	if (mmres->start == __PREG(FFUART))
-		sport->name = "FFUART";
-	else if (mmres->start == __PREG(BTUART))
-		sport->name = "BTUART";
-	else if (mmres->start == __PREG(STUART))
-		sport->name = "STUART";
-	else if (mmres->start == __PREG(HWUART))
-		sport->name = "HWUART";
-	else
+	switch (dev->id) {
+	case 0: sport->name = "FFUART"; break;
+	case 1: sport->name = "BTUART"; break;
+	case 2: sport->name = "STUART"; break;
+	case 3: sport->name = "HWUART"; break;
+	default:
 		sport->name = "???";
+		break;
+	}
 
 	sport->port.membase = ioremap(mmres->start, mmres->end - mmres->start + 1);
 	if (!sport->port.membase) {

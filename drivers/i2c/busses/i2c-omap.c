@@ -193,22 +193,24 @@ static inline u16 omap_i2c_read_reg(struct omap_i2c_dev *i2c_dev, int reg)
 
 static int __init omap_i2c_get_clocks(struct omap_i2c_dev *dev)
 {
-	if (cpu_is_omap16xx() || cpu_class_is_omap2()) {
-		dev->iclk = clk_get(dev->dev, "i2c_ick");
-		if (IS_ERR(dev->iclk)) {
-			dev->iclk = NULL;
-			return -ENODEV;
-		}
+	int ret;
+
+	dev->iclk = clk_get(dev->dev, "ick");
+	if (IS_ERR(dev->iclk)) {
+		ret = PTR_ERR(dev->iclk);
+		dev->iclk = NULL;
+		return ret;
 	}
 
-	dev->fclk = clk_get(dev->dev, "i2c_fck");
+	dev->fclk = clk_get(dev->dev, "fck");
 	if (IS_ERR(dev->fclk)) {
+		ret = PTR_ERR(dev->fclk);
 		if (dev->iclk != NULL) {
 			clk_put(dev->iclk);
 			dev->iclk = NULL;
 		}
 		dev->fclk = NULL;
-		return -ENODEV;
+		return ret;
 	}
 
 	return 0;
@@ -218,18 +220,15 @@ static void omap_i2c_put_clocks(struct omap_i2c_dev *dev)
 {
 	clk_put(dev->fclk);
 	dev->fclk = NULL;
-	if (dev->iclk != NULL) {
-		clk_put(dev->iclk);
-		dev->iclk = NULL;
-	}
+	clk_put(dev->iclk);
+	dev->iclk = NULL;
 }
 
 static void omap_i2c_unidle(struct omap_i2c_dev *dev)
 {
 	WARN_ON(!dev->idle);
 
-	if (dev->iclk != NULL)
-		clk_enable(dev->iclk);
+	clk_enable(dev->iclk);
 	clk_enable(dev->fclk);
 	dev->idle = 0;
 	if (dev->iestate)
@@ -254,8 +253,7 @@ static void omap_i2c_idle(struct omap_i2c_dev *dev)
 	}
 	dev->idle = 1;
 	clk_disable(dev->fclk);
-	if (dev->iclk != NULL)
-		clk_disable(dev->iclk);
+	clk_disable(dev->iclk);
 }
 
 static int omap_i2c_init(struct omap_i2c_dev *dev)
@@ -312,15 +310,14 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, 0);
 
 	if (cpu_class_is_omap1()) {
-		struct clk *armxor_ck;
+		/*
+		 * The I2C functional clock is the armxor_ck, so there's
+		 * no need to get "armxor_ck" separately.  Now, if OMAP2420
+		 * always returns 12MHz for the functional clock, we can
+		 * do this bit unconditionally.
+		 */
+		fclk_rate = clk_get_rate(dev->fclk);
 
-		armxor_ck = clk_get(NULL, "armxor_ck");
-		if (IS_ERR(armxor_ck))
-			dev_warn(dev->dev, "Could not get armxor_ck\n");
-		else {
-			fclk_rate = clk_get_rate(armxor_ck);
-			clk_put(armxor_ck);
-		}
 		/* TRM for 5912 says the I2C clock must be prescaled to be
 		 * between 7 - 12 MHz. The XOR input clock is typically
 		 * 12, 13 or 19.2 MHz. So we should have code that produces:

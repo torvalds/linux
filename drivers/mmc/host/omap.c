@@ -1460,18 +1460,12 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	if (!host->virt_base)
 		goto err_ioremap;
 
-	if (cpu_is_omap24xx()) {
-		host->iclk = clk_get(&pdev->dev, "mmc_ick");
-		if (IS_ERR(host->iclk))
-			goto err_free_mmc_host;
-		clk_enable(host->iclk);
-	}
+	host->iclk = clk_get(&pdev->dev, "ick");
+	if (IS_ERR(host->iclk))
+		goto err_free_mmc_host;
+	clk_enable(host->iclk);
 
-	if (!cpu_is_omap24xx())
-		host->fclk = clk_get(&pdev->dev, "mmc_ck");
-	else
-		host->fclk = clk_get(&pdev->dev, "mmc_fck");
-
+	host->fclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(host->fclk)) {
 		ret = PTR_ERR(host->fclk);
 		goto err_free_iclk;
@@ -1536,10 +1530,10 @@ static int mmc_omap_remove(struct platform_device *pdev)
 	if (host->pdata->cleanup)
 		host->pdata->cleanup(&pdev->dev);
 
-	if (host->iclk && !IS_ERR(host->iclk))
-		clk_put(host->iclk);
-	if (host->fclk && !IS_ERR(host->fclk))
-		clk_put(host->fclk);
+	mmc_omap_fclk_enable(host, 0);
+	clk_put(host->fclk);
+	clk_disable(host->iclk);
+	clk_put(host->iclk);
 
 	iounmap(host->virt_base);
 	release_mem_region(pdev->resource[0].start,

@@ -355,7 +355,7 @@ static void __init qt2410_machine_init(void)
 	s3c2410_gpio_cfgpin(S3C2410_GPB5, S3C2410_GPIO_OUTPUT);
 
 	platform_add_devices(qt2410_devices, ARRAY_SIZE(qt2410_devices));
-	s3c2410_pm_init();
+	s3c_pm_init();
 }
 
 MACHINE_START(QT2410, "QT2410")

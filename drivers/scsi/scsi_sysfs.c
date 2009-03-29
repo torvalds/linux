@@ -1043,7 +1043,6 @@ EXPORT_SYMBOL(scsi_register_interface);
 /**
  * scsi_sysfs_add_host - add scsi host to subsystem
  * @shost:     scsi host struct to add to subsystem
- * @dev:       parent struct device pointer
  **/
 int scsi_sysfs_add_host(struct Scsi_Host *shost)
 {

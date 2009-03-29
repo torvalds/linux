@@ -2,34 +2,59 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 
-#include "stacktrace.h"
+#include <asm/stacktrace.h>
 
-int walk_stackframe(unsigned long fp, unsigned long low, unsigned long high,
-		    int (*fn)(struct stackframe *, void *), void *data)
+#if defined(CONFIG_FRAME_POINTER) && !defined(CONFIG_ARM_UNWIND)
+/*
+ * Unwind the current stack frame and store the new register values in the
+ * structure passed as argument. Unwinding is equivalent to a function return,
+ * hence the new PC value rather than LR should be used for backtrace.
+ *
+ * With framepointer enabled, a simple function prologue looks like this:
+ *	mov	ip, sp
+ *	stmdb	sp!, {fp, ip, lr, pc}
+ *	sub	fp, ip, #4
+ *
+ * A simple function epilogue looks like this:
+ *	ldm	sp, {fp, sp, pc}
+ *
+ * Note that with framepointer enabled, even the leaf functions have the same
+ * prologue and epilogue, therefore we can ignore the LR value in this case.
+ */
+int unwind_frame(struct stackframe *frame)
 {
-	struct stackframe *frame;
+	unsigned long high, low;
+	unsigned long fp = frame->fp;
 
-	do {
-		/*
-		 * Check current frame pointer is within bounds
-		 */
-		if (fp < (low + 12) || fp + 4 >= high)
-			break;
+	/* only go to a higher address on the stack */
+	low = frame->sp;
+	high = ALIGN(low, THREAD_SIZE) + THREAD_SIZE;
 
-		frame = (struct stackframe *)(fp - 12);
+	/* check current frame pointer is within bounds */
+	if (fp < (low + 12) || fp + 4 >= high)
+		return -EINVAL;
+
+	/* restore the registers from the stack frame */
+	frame->fp = *(unsigned long *)(fp - 12);
+	frame->sp = *(unsigned long *)(fp - 8);
+	frame->pc = *(unsigned long *)(fp - 4);
+
+	return 0;
+}
+#endif
+
+void walk_stackframe(struct stackframe *frame,
+		     int (*fn)(struct stackframe *, void *), void *data)
+{
+	while (1) {
+		int ret;
 
 		if (fn(frame, data))
 			break;
-
-		/*
-		 * Update the low bound - the next frame must always
-		 * be at a higher address than the current frame.
-		 */
-		low = fp + 4;
-		fp = frame->fp;
-	} while (fp);
-
-	return 0;
+		ret = unwind_frame(frame);
+		if (ret < 0)
+			break;
+	}
 }
 EXPORT_SYMBOL(walk_stackframe);
 
@@ -44,7 +69,7 @@ static int save_trace(struct stackframe *frame, void *d)
 {
 	struct stack_trace_data *data = d;
 	struct stack_trace *trace = data->trace;
-	unsigned long addr = frame->lr;
+	unsigned long addr = frame->pc;
 
 	if (data->no_sched_functions && in_sched_functions(addr))
 		return 0;
@@ -61,11 +86,10 @@ static int save_trace(struct stackframe *frame, void *d)
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
 	struct stack_trace_data data;
-	unsigned long fp, base;
+	struct stackframe frame;
 
 	data.trace = trace;
 	data.skip = trace->skip;
-	base = (unsigned long)task_stack_page(tsk);
 
 	if (tsk != current) {
 #ifdef CONFIG_SMP
@@ -76,14 +100,22 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 		BUG();
 #else
 		data.no_sched_functions = 1;
-		fp = thread_saved_fp(tsk);
+		frame.fp = thread_saved_fp(tsk);
+		frame.sp = thread_saved_sp(tsk);
+		frame.lr = 0;		/* recovered from the stack */
+		frame.pc = thread_saved_pc(tsk);
 #endif
 	} else {
+		register unsigned long current_sp asm ("sp");
+
 		data.no_sched_functions = 0;
-		asm("mov %0, fp" : "=r" (fp));
+		frame.fp = (unsigned long)__builtin_frame_address(0);
+		frame.sp = current_sp;
+		frame.lr = (unsigned long)__builtin_return_address(0);
+		frame.pc = (unsigned long)save_stack_trace_tsk;
 	}
 
-	walk_stackframe(fp, base, base + THREAD_SIZE, save_trace, &data);
+	walk_stackframe(&frame, save_trace, &data);
 	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }

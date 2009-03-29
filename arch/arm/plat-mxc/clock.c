@@ -48,6 +48,11 @@ static DEFINE_MUTEX(clocks_mutex);
  *-------------------------------------------------------------------------*/
 
 /*
+ * All the code inside #ifndef CONFIG_COMMON_CLKDEV can be removed once all
+ * MXC architectures have switched to using clkdev.
+ */
+#ifndef CONFIG_COMMON_CLKDEV
+/*
  * Retrieve a clock by name.
  *
  * Note that we first try to use device id on the bus
@@ -110,6 +115,7 @@ found:
 	return clk;
 }
 EXPORT_SYMBOL(clk_get);
+#endif
 
 static void __clk_disable(struct clk *clk)
 {
@@ -187,6 +193,7 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
+#ifndef CONFIG_COMMON_CLKDEV
 /* Decrement the clock's module reference count */
 void clk_put(struct clk *clk)
 {
@@ -194,6 +201,7 @@ void clk_put(struct clk *clk)
 		module_put(clk->owner);
 }
 EXPORT_SYMBOL(clk_put);
+#endif
 
 /* Round the requested clock rate to the nearest supported
  * rate that is less than or equal to the requested rate.
@@ -257,6 +265,7 @@ struct clk *clk_get_parent(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_parent);
 
+#ifndef CONFIG_COMMON_CLKDEV
 /*
  * Add a new clock to the clock tree.
  */
@@ -327,4 +336,49 @@ static int __init mxc_setup_proc_entry(void)
 }
 
 late_initcall(mxc_setup_proc_entry);
+#endif /* CONFIG_PROC_FS */
 #endif
+
+/*
+ * Get the resulting clock rate from a PLL register value and the input
+ * frequency. PLLs with this register layout can at least be found on
+ * MX1, MX21, MX27 and MX31
+ *
+ *                  mfi + mfn / (mfd + 1)
+ *  f = 2 * f_ref * --------------------
+ *                        pd + 1
+ */
+unsigned long mxc_decode_pll(unsigned int reg_val, u32 freq)
+{
+	long long ll;
+	int mfn_abs;
+	unsigned int mfi, mfn, mfd, pd;
+
+	mfi = (reg_val >> 10) & 0xf;
+	mfn = reg_val & 0x3ff;
+	mfd = (reg_val >> 16) & 0x3ff;
+	pd =  (reg_val >> 26) & 0xf;
+
+	mfi = mfi <= 5 ? 5 : mfi;
+
+	mfn_abs = mfn;
+
+#if !defined CONFIG_ARCH_MX1 && !defined CONFIG_ARCH_MX21
+	if (mfn >= 0x200) {
+		mfn |= 0xFFFFFE00;
+		mfn_abs = -mfn;
+	}
+#endif
+
+	freq *= 2;
+	freq /= pd + 1;
+
+	ll = (unsigned long long)freq * mfn_abs;
+
+	do_div(ll, mfd + 1);
+	if (mfn < 0)
+		ll = -ll;
+	ll = (freq * mfi) + ll;
+
+	return ll;
+}

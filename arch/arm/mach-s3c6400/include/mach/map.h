@@ -52,6 +52,9 @@
 #define S3C64XX_PA_VIC0		(0x71200000)
 #define S3C64XX_PA_VIC1		(0x71300000)
 
+#define S3C64XX_PA_MODEM	(0x74108000)
+#define S3C64XX_VA_MODEM	S3C_ADDR(0x00600000)
+
 /* place VICs close together */
 #define S3C_VA_VIC0		(S3C_VA_IRQ + 0x00)
 #define S3C_VA_VIC1		(S3C_VA_IRQ + 0x10000)

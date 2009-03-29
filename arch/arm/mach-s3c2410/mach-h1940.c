@@ -203,7 +203,7 @@ static void __init h1940_map_io(void)
 #ifdef CONFIG_PM_H1940
 	memcpy(phys_to_virt(H1940_SUSPEND_RESUMEAT), h1940_pm_return, 1024);
 #endif
-	s3c2410_pm_init();
+	s3c_pm_init();
 }
 
 static void __init h1940_init_irq(void)

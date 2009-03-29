@@ -17,7 +17,7 @@
 #include <linux/rtc-v3020.h>
 #include <video/mbxfb.h>
 
-#include <mach/mfp-pxa27x.h>
+#include <mach/pxa27x.h>
 #include <mach/ohci.h>
 #include <mach/mmc.h>
 

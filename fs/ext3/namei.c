@@ -2049,7 +2049,7 @@ static int ext3_rmdir (struct inode * dir, struct dentry *dentry)
 
 	/* Initialize quotas before so that eventual writes go in
 	 * separate transaction */
-	DQUOT_INIT(dentry->d_inode);
+	vfs_dq_init(dentry->d_inode);
 	handle = ext3_journal_start(dir, EXT3_DELETE_TRANS_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
@@ -2108,7 +2108,7 @@ static int ext3_unlink(struct inode * dir, struct dentry *dentry)
 
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
-	DQUOT_INIT(dentry->d_inode);
+	vfs_dq_init(dentry->d_inode);
 	handle = ext3_journal_start(dir, EXT3_DELETE_TRANS_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
@@ -2272,7 +2272,7 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
 	if (new_dentry->d_inode)
-		DQUOT_INIT(new_dentry->d_inode);
+		vfs_dq_init(new_dentry->d_inode);
 	handle = ext3_journal_start(old_dir, 2 *
 					EXT3_DATA_TRANS_BLOCKS(old_dir->i_sb) +
 					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 2);

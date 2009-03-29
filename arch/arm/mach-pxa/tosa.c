@@ -36,8 +36,8 @@
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
+
+#include <mach/pxa25x.h>
 #include <mach/reset.h>
 #include <mach/irda.h>
 #include <mach/i2c.h>
@@ -876,10 +876,10 @@ static struct platform_device *devices[] __initdata = {
 
 static void tosa_poweroff(void)
 {
-	arm_machine_restart('g');
+	arm_machine_restart('g', NULL);
 }
 
-static void tosa_restart(char mode)
+static void tosa_restart(char mode, const char *cmd)
 {
 	/* Bootloader magic for a reboot */
 	if((MSC0 & 0xffff0000) == 0x7ff00000)
@@ -919,7 +919,7 @@ static void __init tosa_init(void)
 	pxa2xx_set_spi_info(2, &pxa_ssp_master_info);
 	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 
-	clk_add_alias("CLK_CK3P6MI", &tc6393xb_device.dev, "GPIO11_CLK", NULL);
+	clk_add_alias("CLK_CK3P6MI", tc6393xb_device.name, "GPIO11_CLK", NULL);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
