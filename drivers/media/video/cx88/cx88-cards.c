@@ -3205,6 +3205,15 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 
 	/* load tuner module, if needed */
 	if (TUNER_ABSENT != core->board.tuner_type) {
+		/* Ignore 0x6b and 0x6f on cx88 boards.
+		 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
+		 * and an RTC at 0x6f which can get corrupted if probed. */
+		static const unsigned short tv_addrs[] = {
+			0x42, 0x43, 0x4a, 0x4b,		/* tda8290 */
+			0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
+			0x68, 0x69, 0x6a, 0x6c, 0x6d, 0x6e,
+			I2C_CLIENT_END
+		};
 		int has_demod = (core->board.tda9887_conf & TDA9887_PRESENT);
 
 		/* I don't trust the radio_type as is stored in the card
@@ -3218,11 +3227,8 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 			v4l2_i2c_new_probed_subdev(&core->i2c_adap, "tuner",
 				"tuner", v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (core->board.tuner_addr == ADDR_UNSET) {
-			enum v4l2_i2c_tuner_type type =
-				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
-
 			v4l2_i2c_new_probed_subdev(&core->i2c_adap, "tuner",
-				"tuner", v4l2_i2c_tuner_addrs(type));
+				"tuner", has_demod ? tv_addrs + 4 : tv_addrs);
 		} else {
 			v4l2_i2c_new_subdev(&core->i2c_adap,
 				"tuner", "tuner", core->board.tuner_addr);
