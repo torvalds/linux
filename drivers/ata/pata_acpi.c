@@ -246,9 +246,9 @@ static int pacpi_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 	static const struct ata_port_info info = {
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 
-		.pio_mask	= 0x1f,
-		.mwdma_mask	= 0x07,
-		.udma_mask 	= 0x7f,
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
+		.udma_mask 	= ATA_UDMA6,
 
 		.port_ops	= &pacpi_ops,
 	};

@@ -1026,7 +1026,7 @@ static void acer_rfkill_exit(void)
 	kfree(wireless_rfkill->data);
 	rfkill_unregister(wireless_rfkill);
 	if (has_cap(ACER_CAP_BLUETOOTH)) {
-		kfree(wireless_rfkill->data);
+		kfree(bluetooth_rfkill->data);
 		rfkill_unregister(bluetooth_rfkill);
 	}
 	return;

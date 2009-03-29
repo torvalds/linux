@@ -704,24 +704,37 @@ static int __devinit vrc4171_card_setup(char *options)
 
 __setup("vrc4171_card=", vrc4171_card_setup);
 
-static struct device_driver vrc4171_card_driver = {
-	.name		= vrc4171_card_name,
-	.bus		= &platform_bus_type,
-	.suspend	= pcmcia_socket_dev_suspend,
-	.resume		= pcmcia_socket_dev_resume,
+static int vrc4171_card_suspend(struct platform_device *dev,
+				     pm_message_t state)
+{
+	return pcmcia_socket_dev_suspend(&dev->dev, state);
+}
+
+static int vrc4171_card_resume(struct platform_device *dev)
+{
+	return pcmcia_socket_dev_resume(&dev->dev);
+}
+
+static struct platform_driver vrc4171_card_driver = {
+	.driver = {
+		.name		= vrc4171_card_name,
+		.owner		= THIS_MODULE,
+	},
+	.suspend	= vrc4171_card_suspend,
+	.resume		= vrc4171_card_resume,
 };
 
 static int __devinit vrc4171_card_init(void)
 {
 	int retval;
 
-	retval = driver_register(&vrc4171_card_driver);
+	retval = platform_driver_register(&vrc4171_card_driver);
 	if (retval < 0)
 		return retval;
 
 	retval = platform_device_register(&vrc4171_card_device);
 	if (retval < 0) {
-		driver_unregister(&vrc4171_card_driver);
+		platform_driver_unregister(&vrc4171_card_driver);
 		return retval;
 	}
 
@@ -735,11 +748,12 @@ static int __devinit vrc4171_card_init(void)
 	if (retval < 0) {
 		vrc4171_remove_sockets();
 		platform_device_unregister(&vrc4171_card_device);
-		driver_unregister(&vrc4171_card_driver);
+		platform_driver_unregister(&vrc4171_card_driver);
 		return retval;
 	}
 
-	printk(KERN_INFO "%s, connected to IRQ %d\n", vrc4171_card_driver.name, vrc4171_irq);
+	printk(KERN_INFO "%s, connected to IRQ %d\n",
+		vrc4171_card_driver.driver.name, vrc4171_irq);
 
 	return 0;
 }
@@ -749,7 +763,7 @@ static void __devexit vrc4171_card_exit(void)
 	free_irq(vrc4171_irq, vrc4171_sockets);
 	vrc4171_remove_sockets();
 	platform_device_unregister(&vrc4171_card_device);
-	driver_unregister(&vrc4171_card_driver);
+	platform_driver_unregister(&vrc4171_card_driver);
 }
 
 module_init(vrc4171_card_init);

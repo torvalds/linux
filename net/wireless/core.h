@@ -8,6 +8,9 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/kref.h>
+#include <linux/rbtree.h>
+#include <linux/mutex.h>
 #include <net/genetlink.h>
 #include <net/wireless.h>
 #include <net/cfg80211.h>
@@ -35,11 +38,19 @@ struct cfg80211_registered_device {
 	enum environment_cap env;
 
 	/* wiphy index, internal only */
-	int idx;
+	int wiphy_idx;
 
 	/* associate netdev list */
 	struct mutex devlist_mtx;
 	struct list_head netdev_list;
+
+	/* BSSes/scanning */
+	spinlock_t bss_lock;
+	struct list_head bss_list;
+	struct rb_root bss_tree;
+	u32 bss_generation;
+	struct cfg80211_scan_request *scan_req; /* protected by RTNL */
+	unsigned long suspend_at;
 
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
@@ -53,8 +64,43 @@ struct cfg80211_registered_device *wiphy_to_dev(struct wiphy *wiphy)
 	return container_of(wiphy, struct cfg80211_registered_device, wiphy);
 }
 
-extern struct mutex cfg80211_drv_mutex;
+/* Note 0 is valid, hence phy0 */
+static inline
+bool wiphy_idx_valid(int wiphy_idx)
+{
+	return (wiphy_idx >= 0);
+}
+
+extern struct mutex cfg80211_mutex;
 extern struct list_head cfg80211_drv_list;
+
+static inline void assert_cfg80211_lock(void)
+{
+	WARN_ON(!mutex_is_locked(&cfg80211_mutex));
+}
+
+/*
+ * You can use this to mark a wiphy_idx as not having an associated wiphy.
+ * It guarantees cfg80211_drv_by_wiphy_idx(wiphy_idx) will return NULL
+ */
+#define WIPHY_IDX_STALE -1
+
+struct cfg80211_internal_bss {
+	struct list_head list;
+	struct rb_node rbn;
+	unsigned long ts;
+	struct kref ref;
+	bool hold;
+
+	/* must be last because of priv member */
+	struct cfg80211_bss pub;
+};
+
+struct cfg80211_registered_device *cfg80211_drv_by_wiphy_idx(int wiphy_idx);
+int get_wiphy_idx(struct wiphy *wiphy);
+
+struct cfg80211_registered_device *
+__cfg80211_drv_from_info(struct genl_info *info);
 
 /*
  * This function returns a pointer to the driver
@@ -63,13 +109,13 @@ extern struct list_head cfg80211_drv_list;
  * the driver's mutex!
  *
  * This means that you need to call cfg80211_put_dev()
- * before being allowed to acquire &cfg80211_drv_mutex!
+ * before being allowed to acquire &cfg80211_mutex!
  *
  * This is necessary because we need to lock the global
  * mutex to get an item off the list safely, and then
  * we lock the drv mutex so it doesn't go away under us.
  *
- * We don't want to keep cfg80211_drv_mutex locked
+ * We don't want to keep cfg80211_mutex locked
  * for all the time in order to allow requests on
  * other interfaces to go through at the same time.
  *
@@ -78,6 +124,9 @@ extern struct list_head cfg80211_drv_list;
  */
 extern struct cfg80211_registered_device *
 cfg80211_get_dev_from_info(struct genl_info *info);
+
+/* requires cfg80211_drv_mutex to be held! */
+struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx);
 
 /* identical to cfg80211_get_dev_from_info but only operate on ifindex */
 extern struct cfg80211_registered_device *
@@ -92,6 +141,11 @@ extern int cfg80211_dev_rename(struct cfg80211_registered_device *drv,
 			       char *newname);
 
 void ieee80211_set_bitrate_flags(struct wiphy *wiphy);
-void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby);
+void wiphy_update_regulatory(struct wiphy *wiphy,
+			     enum nl80211_reg_initiator setby);
+
+void cfg80211_bss_expire(struct cfg80211_registered_device *dev);
+void cfg80211_bss_age(struct cfg80211_registered_device *dev,
+                      unsigned long age_secs);
 
 #endif /* __NET_WIRELESS_CORE_H */

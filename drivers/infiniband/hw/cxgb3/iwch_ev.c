@@ -179,11 +179,6 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 	case TPT_ERR_BOUND:
 	case TPT_ERR_INVALIDATE_SHARED_MR:
 	case TPT_ERR_INVALIDATE_MR_WITH_MW_BOUND:
-		printk(KERN_ERR "%s - CQE Err qpid 0x%x opcode %d status 0x%x "
-		       "type %d wrid.hi 0x%x wrid.lo 0x%x \n", __func__,
-		       CQE_QPID(rsp_msg->cqe), CQE_OPCODE(rsp_msg->cqe),
-		       CQE_STATUS(rsp_msg->cqe), CQE_TYPE(rsp_msg->cqe),
-		       CQE_WRID_HI(rsp_msg->cqe), CQE_WRID_LOW(rsp_msg->cqe));
 		(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
 		post_qp_event(rnicp, chp, rsp_msg, IB_EVENT_QP_ACCESS_ERR, 1);
 		break;

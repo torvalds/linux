@@ -21,7 +21,7 @@ static void arch_idle(void)
 {
 }
 
-static void arch_reset(char mode)
+static void arch_reset(char mode, const char *cmd)
 {
 	cpu_reset(0);
 }

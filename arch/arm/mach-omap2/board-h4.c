@@ -47,6 +47,8 @@
 #define H4_FLASH_CS	0
 #define H4_SMC91X_CS	1
 
+#define H4_ETHR_GPIO_IRQ		92
+
 static unsigned int row_gpios[6] = { 88, 89, 124, 11, 6, 96 };
 static unsigned int col_gpios[7] = { 90, 91, 100, 36, 12, 97, 98 };
 
@@ -341,7 +343,7 @@ static inline void __init h4_init_debug(void)
 	udelay(100);
 
 	omap_cfg_reg(M15_24XX_GPIO92);
-	if (debug_card_init(cs_mem_base, OMAP24XX_ETHR_GPIO_IRQ) < 0)
+	if (debug_card_init(cs_mem_base, H4_ETHR_GPIO_IRQ) < 0)
 		gpmc_cs_free(eth_cs);
 
 out:
@@ -363,7 +365,7 @@ static void __init h4_init_flash(void)
 
 static void __init omap_h4_init_irq(void)
 {
-	omap2_init_common_hw();
+	omap2_init_common_hw(NULL);
 	omap_init_irq();
 	omap_gpio_init();
 	h4_init_flash();
@@ -375,6 +377,39 @@ static struct omap_uart_config h4_uart_config __initdata = {
 
 static struct omap_lcd_config h4_lcd_config __initdata = {
 	.ctrl_name	= "internal",
+};
+
+static struct omap_usb_config h4_usb_config __initdata = {
+#ifdef	CONFIG_MACH_OMAP2_H4_USB1
+	/* NOTE:  usb1 could also be used with 3 wire signaling */
+	.pins[1]	= 4,
+#endif
+
+#ifdef	CONFIG_MACH_OMAP_H4_OTG
+	/* S1.10 ON -- USB OTG port
+	 * usb0 switched to Mini-AB port and isp1301 transceiver;
+	 * S2.POS3 = OFF, S2.POS4 = ON ... to allow battery charging
+	 */
+	.otg		= 1,
+	.pins[0]	= 4,
+#ifdef	CONFIG_USB_GADGET_OMAP
+	/* use OTG cable, or standard A-to-MiniB */
+	.hmc_mode	= 0x14,	/* 0:dev/otg 1:host 2:disable */
+#elif	defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+	/* use OTG cable, or NONSTANDARD (B-to-MiniB) */
+	.hmc_mode	= 0x11,	/* 0:host 1:host 2:disable */
+#endif	/* XX */
+
+#else
+	/* S1.10 OFF -- usb "download port"
+	 * usb0 switched to Mini-B port and isp1105 transceiver;
+	 * S2.POS3 = ON, S2.POS4 = OFF ... to enable battery charging
+	 */
+	.register_dev	= 1,
+	.pins[0]	= 3,
+/*	.hmc_mode	= 0x14,*/	/* 0:dev 1:host 2:disable */
+	.hmc_mode	= 0x00,		/* 0:dev|otg 1:disable 2:disable */
+#endif
 };
 
 static struct omap_board_config_kernel h4_config[] = {
@@ -428,6 +463,7 @@ static void __init omap_h4_init(void)
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
 	omap_board_config = h4_config;
 	omap_board_config_size = ARRAY_SIZE(h4_config);
+	omap_usb_init(&h4_usb_config);
 	omap_serial_init();
 }
 

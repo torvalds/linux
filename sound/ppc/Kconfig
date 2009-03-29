@@ -13,6 +13,7 @@ config SND_POWERMAC
 	tristate "PowerMac (AWACS, DACA, Burgundy, Tumbler, Keywest)"
 	depends on I2C && INPUT && PPC_PMAC
 	select SND_PCM
+	select SND_VMASTER
 	help
 	  Say Y here to include support for the integrated sound device.
 

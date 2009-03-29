@@ -467,7 +467,7 @@ static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
 	int err, sent = 0;
 
 	if (unlikely(!sock))
-		return -ENOTCONN;
+		return -ENOTSOCK;
 
 	clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags);
 	if (base != 0) {
@@ -577,6 +577,8 @@ static int xs_udp_send_request(struct rpc_task *task)
 				req->rq_svec->iov_base,
 				req->rq_svec->iov_len);
 
+	if (!xprt_bound(xprt))
+		return -ENOTCONN;
 	status = xs_sendpages(transport->sock,
 			      xs_addr(xprt),
 			      xprt->addrlen, xdr,
@@ -594,6 +596,10 @@ static int xs_udp_send_request(struct rpc_task *task)
 	}
 
 	switch (status) {
+	case -ENOTSOCK:
+		status = -ENOTCONN;
+		/* Should we call xs_close() here? */
+		break;
 	case -EAGAIN:
 		xs_nospace(task);
 		break;
@@ -693,6 +699,10 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	}
 
 	switch (status) {
+	case -ENOTSOCK:
+		status = -ENOTCONN;
+		/* Should we call xs_close() here? */
+		break;
 	case -EAGAIN:
 		xs_nospace(task);
 		break;
@@ -1215,6 +1225,23 @@ out:
 	read_unlock(&sk->sk_callback_lock);
 }
 
+static void xs_write_space(struct sock *sk)
+{
+	struct socket *sock;
+	struct rpc_xprt *xprt;
+
+	if (unlikely(!(sock = sk->sk_socket)))
+		return;
+	clear_bit(SOCK_NOSPACE, &sock->flags);
+
+	if (unlikely(!(xprt = xprt_from_sock(sk))))
+		return;
+	if (test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags) == 0)
+		return;
+
+	xprt_write_space(xprt);
+}
+
 /**
  * xs_udp_write_space - callback invoked when socket buffer space
  *                             becomes available
@@ -1230,23 +1257,9 @@ static void xs_udp_write_space(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 
 	/* from net/core/sock.c:sock_def_write_space */
-	if (sock_writeable(sk)) {
-		struct socket *sock;
-		struct rpc_xprt *xprt;
+	if (sock_writeable(sk))
+		xs_write_space(sk);
 
-		if (unlikely(!(sock = sk->sk_socket)))
-			goto out;
-		clear_bit(SOCK_NOSPACE, &sock->flags);
-
-		if (unlikely(!(xprt = xprt_from_sock(sk))))
-			goto out;
-		if (test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags) == 0)
-			goto out;
-
-		xprt_write_space(xprt);
-	}
-
- out:
 	read_unlock(&sk->sk_callback_lock);
 }
 
@@ -1265,23 +1278,9 @@ static void xs_tcp_write_space(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 
 	/* from net/core/stream.c:sk_stream_write_space */
-	if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk)) {
-		struct socket *sock;
-		struct rpc_xprt *xprt;
+	if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk))
+		xs_write_space(sk);
 
-		if (unlikely(!(sock = sk->sk_socket)))
-			goto out;
-		clear_bit(SOCK_NOSPACE, &sock->flags);
-
-		if (unlikely(!(xprt = xprt_from_sock(sk))))
-			goto out;
-		if (test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags) == 0)
-			goto out;
-
-		xprt_write_space(xprt);
-	}
-
- out:
 	read_unlock(&sk->sk_callback_lock);
 }
 
@@ -1523,7 +1522,7 @@ static void xs_udp_connect_worker4(struct work_struct *work)
 	struct socket *sock = transport->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || !xprt_bound(xprt))
+	if (xprt->shutdown)
 		goto out;
 
 	/* Start by resetting any existing state */
@@ -1564,7 +1563,7 @@ static void xs_udp_connect_worker6(struct work_struct *work)
 	struct socket *sock = transport->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || !xprt_bound(xprt))
+	if (xprt->shutdown)
 		goto out;
 
 	/* Start by resetting any existing state */
@@ -1648,6 +1647,9 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		write_unlock_bh(&sk->sk_callback_lock);
 	}
 
+	if (!xprt_bound(xprt))
+		return -ENOTCONN;
+
 	/* Tell the socket layer to start connecting... */
 	xprt->stat.connect_count++;
 	xprt->stat.connect_start = jiffies;
@@ -1668,7 +1670,7 @@ static void xs_tcp_connect_worker4(struct work_struct *work)
 	struct socket *sock = transport->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || !xprt_bound(xprt))
+	if (xprt->shutdown)
 		goto out;
 
 	if (!sock) {
@@ -1728,7 +1730,7 @@ static void xs_tcp_connect_worker6(struct work_struct *work)
 	struct socket *sock = transport->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || !xprt_bound(xprt))
+	if (xprt->shutdown)
 		goto out;
 
 	if (!sock) {

@@ -201,8 +201,38 @@ enum desc_status_bits {
 	DescStartPkt = 0x20000000,
 	DescEndRing  = 0x02000000,
 	DescUseLink  = 0x01000000,
-	RxDescFatalErr = 0x008000,
+
+	/*
+	 * Error summary flag is logical or of 'CRC Error', 'Collision Seen',
+	 * 'Frame Too Long', 'Runt' and 'Descriptor Error' flags generated
+	 * within tulip chip.
+	 */
+	RxDescErrorSummary = 0x8000,
+	RxDescCRCError = 0x0002,
+	RxDescCollisionSeen = 0x0040,
+
+	/*
+	 * 'Frame Too Long' flag is set if packet length including CRC exceeds
+	 * 1518.  However, a full sized VLAN tagged frame is 1522 bytes
+	 * including CRC.
+	 *
+	 * The tulip chip does not block oversized frames, and if this flag is
+	 * set on a receive descriptor it does not indicate the frame has been
+	 * truncated.  The receive descriptor also includes the actual length.
+	 * Therefore we can safety ignore this flag and check the length
+	 * ourselves.
+	 */
+	RxDescFrameTooLong = 0x0080,
+	RxDescRunt = 0x0800,
+	RxDescDescErr = 0x4000,
 	RxWholePkt   = 0x00000300,
+	/*
+	 * Top three bits of 14 bit frame length (status bits 27-29) should
+	 * never be set as that would make frame over 2047 bytes. The Receive
+	 * Watchdog flag (bit 4) may indicate the length is over 2048 and the
+	 * length field is invalid.
+	 */
+	RxLengthOver2047 = 0x38000010
 };
 
 

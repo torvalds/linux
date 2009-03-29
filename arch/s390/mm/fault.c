@@ -200,29 +200,6 @@ static void do_low_address(struct pt_regs *regs, unsigned long error_code)
 	do_no_context(regs, error_code, 0);
 }
 
-/*
- * We ran out of memory, or some other thing happened to us that made
- * us unable to handle the page fault gracefully.
- */
-static int do_out_of_memory(struct pt_regs *regs, unsigned long error_code,
-			    unsigned long address)
-{
-	struct task_struct *tsk = current;
-	struct mm_struct *mm = tsk->mm;
-
-	up_read(&mm->mmap_sem);
-	if (is_global_init(tsk)) {
-		yield();
-		down_read(&mm->mmap_sem);
-		return 1;
-	}
-	printk("VM: killing process %s\n", tsk->comm);
-	if (regs->psw.mask & PSW_MASK_PSTATE)
-		do_group_exit(SIGKILL);
-	do_no_context(regs, error_code, address);
-	return 0;
-}
-
 static void do_sigbus(struct pt_regs *regs, unsigned long error_code,
 		      unsigned long address)
 {
@@ -367,7 +344,6 @@ good_area:
 			goto bad_area;
 	}
 
-survive:
 	if (is_vm_hugetlb_page(vma))
 		address &= HPAGE_MASK;
 	/*
@@ -378,8 +354,8 @@ survive:
 	fault = handle_mm_fault(mm, vma, address, write);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM) {
-			if (do_out_of_memory(regs, error_code, address))
-				goto survive;
+			up_read(&mm->mmap_sem);
+			pagefault_out_of_memory();
 			return;
 		} else if (fault & VM_FAULT_SIGBUS) {
 			do_sigbus(regs, error_code, address);

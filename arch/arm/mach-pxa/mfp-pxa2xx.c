@@ -18,14 +18,11 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
+#include <mach/gpio.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/mfp-pxa2xx.h>
 
 #include "generic.h"
-
-#define gpio_to_bank(gpio)	((gpio) >> 5)
 
 #define PGSR(x)		__REG2(0x40F00020, (x) << 2)
 #define __GAFR(u, x)	__REG2((u) ? 0x40E00058 : 0x40E00054, (x) << 3)

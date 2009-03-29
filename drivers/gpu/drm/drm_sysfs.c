@@ -349,8 +349,8 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	DRM_DEBUG("adding \"%s\" to sysfs\n",
 		  drm_get_connector_name(connector));
 
-	snprintf(connector->kdev.bus_id, BUS_ID_SIZE, "card%d-%s",
-		 dev->primary->index, drm_get_connector_name(connector));
+	dev_set_name(&connector->kdev, "card%d-%s",
+		     dev->primary->index, drm_get_connector_name(connector));
 	ret = device_register(&connector->kdev);
 
 	if (ret) {

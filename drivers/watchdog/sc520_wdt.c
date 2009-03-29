@@ -1,8 +1,8 @@
 /*
  *	AMD Elan SC520 processor Watchdog Timer driver
  *
- *      Based on acquirewdt.c by Alan Cox,
- *           and sbc60xxwdt.c by Jakob Oestergaard <jakob@unthought.net>
+ *	Based on acquirewdt.c by Alan Cox,
+ *	     and sbc60xxwdt.c by Jakob Oestergaard <jakob@unthought.net>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -11,7 +11,7 @@
  *
  *	The authors do NOT admit liability nor provide warranty for
  *	any of this software. This material is provided "AS-IS" in
- *      the hope that it may be useful for others.
+ *	the hope that it may be useful for others.
  *
  *	(c) Copyright 2001    Scott Jennings <linuxdrivers@oro.net>
  *           9/27 - 2001      [Initial release]
@@ -438,6 +438,7 @@ module_init(sc520_wdt_init);
 module_exit(sc520_wdt_unload);
 
 MODULE_AUTHOR("Scott and Bill Jennings");
-MODULE_DESCRIPTION("Driver for watchdog timer in AMD \"Elan\" SC520 uProcessor");
+MODULE_DESCRIPTION(
+	"Driver for watchdog timer in AMD \"Elan\" SC520 uProcessor");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

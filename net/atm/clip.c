@@ -214,15 +214,15 @@ static void clip_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		skb->protocol = ((__be16 *) skb->data)[3];
 		skb_pull(skb, RFC1483LLC_LEN);
 		if (skb->protocol == htons(ETH_P_ARP)) {
-			PRIV(skb->dev)->stats.rx_packets++;
-			PRIV(skb->dev)->stats.rx_bytes += skb->len;
+			skb->dev->stats.rx_packets++;
+			skb->dev->stats.rx_bytes += skb->len;
 			clip_arp_rcv(skb);
 			return;
 		}
 	}
 	clip_vcc->last_use = jiffies;
-	PRIV(skb->dev)->stats.rx_packets++;
-	PRIV(skb->dev)->stats.rx_bytes += skb->len;
+	skb->dev->stats.rx_packets++;
+	skb->dev->stats.rx_bytes += skb->len;
 	memset(ATM_SKB(skb), 0, sizeof(struct atm_skb_data));
 	netif_rx(skb);
 }
@@ -372,7 +372,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!skb->dst) {
 		printk(KERN_ERR "clip_start_xmit: skb->dst == NULL\n");
 		dev_kfree_skb(skb);
-		clip_priv->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		return 0;
 	}
 	if (!skb->dst->neighbour) {
@@ -380,13 +380,13 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb->dst->neighbour = clip_find_neighbour(skb->dst, 1);
 		if (!skb->dst->neighbour) {
 			dev_kfree_skb(skb);	/* lost that one */
-			clip_priv->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 			return 0;
 		}
 #endif
 		printk(KERN_ERR "clip_start_xmit: NO NEIGHBOUR !\n");
 		dev_kfree_skb(skb);
-		clip_priv->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		return 0;
 	}
 	entry = NEIGH2ENTRY(skb->dst->neighbour);
@@ -400,7 +400,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_queue_tail(&entry->neigh->arp_queue, skb);
 		else {
 			dev_kfree_skb(skb);
-			clip_priv->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 		}
 		return 0;
 	}
@@ -423,8 +423,8 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_WARNING "clip_start_xmit: XOFF->XOFF transition\n");
 		return 0;
 	}
-	clip_priv->stats.tx_packets++;
-	clip_priv->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 	vcc->send(vcc, skb);
 	if (atm_may_send(vcc, 0)) {
 		entry->vccs->xoff = 0;
@@ -441,11 +441,6 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   changes, use netif_wake_queue instead. */
 	spin_unlock_irqrestore(&clip_priv->xoff_lock, flags);
 	return 0;
-}
-
-static struct net_device_stats *clip_get_stats(struct net_device *dev)
-{
-	return &PRIV(dev)->stats;
 }
 
 static int clip_mkip(struct atm_vcc *vcc, int timeout)
@@ -501,8 +496,8 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 
 			skb_get(skb);
 			clip_push(vcc, skb);
-			PRIV(skb->dev)->stats.rx_packets--;
-			PRIV(skb->dev)->stats.rx_bytes -= len;
+			skb->dev->stats.rx_packets--;
+			skb->dev->stats.rx_bytes -= len;
 			kfree_skb(skb);
 		}
 
@@ -557,11 +552,13 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 	return error;
 }
 
+static const struct net_device_ops clip_netdev_ops = {
+	.ndo_start_xmit = clip_start_xmit,
+};
+
 static void clip_setup(struct net_device *dev)
 {
-	dev->hard_start_xmit = clip_start_xmit;
-	/* sg_xmit ... */
-	dev->get_stats = clip_get_stats;
+	dev->netdev_ops = &clip_netdev_ops;
 	dev->type = ARPHRD_ATM;
 	dev->hard_header_len = RFC1483LLC_LEN;
 	dev->mtu = RFC1626_MTU;
@@ -621,7 +618,7 @@ static int clip_device_event(struct notifier_block *this, unsigned long event,
 	}
 
 	/* ignore non-CLIP devices */
-	if (dev->type != ARPHRD_ATM || dev->hard_start_xmit != clip_start_xmit)
+	if (dev->type != ARPHRD_ATM || dev->netdev_ops != &clip_netdev_ops)
 		return NOTIFY_DONE;
 
 	switch (event) {

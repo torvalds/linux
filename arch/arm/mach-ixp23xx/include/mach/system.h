@@ -19,7 +19,7 @@ static inline void arch_idle(void)
 #endif
 }
 
-static inline void arch_reset(char mode)
+static inline void arch_reset(char mode, const char *cmd)
 {
 	/* First try machine specific support */
 	if (machine_is_ixdp2351()) {

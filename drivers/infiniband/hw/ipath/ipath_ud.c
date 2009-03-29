@@ -370,7 +370,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 	 */
 	ohdr->bth[1] = ah_attr->dlid >= IPATH_MULTICAST_LID_BASE &&
 		ah_attr->dlid != IPATH_PERMISSIVE_LID ?
-		__constant_cpu_to_be32(IPATH_MULTICAST_QPN) :
+		cpu_to_be32(IPATH_MULTICAST_QPN) :
 		cpu_to_be32(wqe->wr.wr.ud.remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(qp->s_next_psn++ & IPATH_PSN_MASK);
 	/*
@@ -573,7 +573,7 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	/* Signal completion event if the solicited bit is set. */
 	ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 		       (ohdr->bth[0] &
-			__constant_cpu_to_be32(1 << 23)) != 0);
+			cpu_to_be32(1 << 23)) != 0);
 
 bail:;
 }

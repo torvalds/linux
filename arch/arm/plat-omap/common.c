@@ -200,20 +200,16 @@ static struct clocksource clocksource_32k = {
 };
 
 /*
- * Rounds down to nearest nsec.
- */
-unsigned long long omap_32k_ticks_to_nsecs(unsigned long ticks_32k)
-{
-	return cyc2ns(&clocksource_32k, ticks_32k);
-}
-
-/*
  * Returns current time from boot in nsecs. It's OK for this to wrap
  * around for now, as it's just a relative time stamp.
  */
 unsigned long long sched_clock(void)
 {
-	return omap_32k_ticks_to_nsecs(omap_32k_read());
+	unsigned long long ret;
+
+	ret = (unsigned long long)omap_32k_read();
+	ret = (ret * clocksource_32k.mult_orig) >> clocksource_32k.shift;
+	return ret;
 }
 
 static int __init omap_init_clocksource_32k(void)
@@ -249,7 +245,7 @@ static struct omap_globals *omap2_globals;
 static void __init __omap2_set_globals(void)
 {
 	omap2_set_globals_tap(omap2_globals);
-	omap2_set_globals_memory(omap2_globals);
+	omap2_set_globals_sdrc(omap2_globals);
 	omap2_set_globals_control(omap2_globals);
 	omap2_set_globals_prcm(omap2_globals);
 }

@@ -49,4 +49,6 @@ static inline int gfs2_quota_lock_check(struct gfs2_inode *ip)
 	return ret;
 }
 
+extern int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask);
+
 #endif /* __QUOTA_DOT_H__ */

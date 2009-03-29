@@ -363,13 +363,25 @@ static int __init get_tcic_id(void)
     return id;
 }
 
+static int tcic_drv_pcmcia_suspend(struct platform_device *dev,
+				     pm_message_t state)
+{
+	return pcmcia_socket_dev_suspend(&dev->dev, state);
+}
+
+static int tcic_drv_pcmcia_resume(struct platform_device *dev)
+{
+	return pcmcia_socket_dev_resume(&dev->dev);
+}
 /*====================================================================*/
 
-static struct device_driver tcic_driver = {
-	.name = "tcic-pcmcia",
-	.bus = &platform_bus_type,
-	.suspend = pcmcia_socket_dev_suspend,
-	.resume = pcmcia_socket_dev_resume,
+static struct platform_driver tcic_driver = {
+	.driver = {
+		.name = "tcic-pcmcia",
+		.owner		= THIS_MODULE,
+	},
+	.suspend 	= tcic_drv_pcmcia_suspend,
+	.resume 	= tcic_drv_pcmcia_resume,
 };
 
 static struct platform_device tcic_device = {
@@ -383,7 +395,7 @@ static int __init init_tcic(void)
     int i, sock, ret = 0;
     u_int mask, scan;
 
-    if (driver_register(&tcic_driver))
+    if (platform_driver_register(&tcic_driver))
 	return -1;
     
     printk(KERN_INFO "Databook TCIC-2 PCMCIA probe: ");
@@ -391,7 +403,7 @@ static int __init init_tcic(void)
 
     if (!request_region(tcic_base, 16, "tcic-2")) {
 	printk("could not allocate ports,\n ");
-	driver_unregister(&tcic_driver);
+	platform_driver_unregister(&tcic_driver);
 	return -ENODEV;
     }
     else {
@@ -414,7 +426,7 @@ static int __init init_tcic(void)
     if (sock == 0) {
 	printk("not found.\n");
 	release_region(tcic_base, 16);
-	driver_unregister(&tcic_driver);
+	platform_driver_unregister(&tcic_driver);
 	return -ENODEV;
     }
 
@@ -542,7 +554,7 @@ static void __exit exit_tcic(void)
     }
 
     platform_device_unregister(&tcic_device);
-    driver_unregister(&tcic_driver);
+    platform_driver_unregister(&tcic_driver);
 } /* exit_tcic */
 
 /*====================================================================*/

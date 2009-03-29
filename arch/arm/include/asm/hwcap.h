@@ -17,6 +17,8 @@
 #define HWCAP_CRUNCH	1024
 #define HWCAP_THUMBEE	2048
 #define HWCAP_NEON	4096
+#define HWCAP_VFPv3	8192
+#define HWCAP_VFPv3D16	16384
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 /*

@@ -34,6 +34,9 @@
  * @WLAN_STA_CLEAR_PS_FILT: Clear PS filter in hardware (using the
  *	IEEE80211_TX_CTL_CLEAR_PS_FILT control flag) when the next
  *	frame to this station is transmitted.
+ * @WLAN_STA_MFP: Management frame protection is used with this STA.
+ * @WLAN_STA_SUSPEND: Set/cleared during a suspend/resume cycle.
+ *	Used to deny ADDBA requests (both TX and RX).
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
@@ -46,6 +49,8 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_WDS		= 1<<7,
 	WLAN_STA_PSPOLL		= 1<<8,
 	WLAN_STA_CLEAR_PS_FILT	= 1<<9,
+	WLAN_STA_MFP		= 1<<10,
+	WLAN_STA_SUSPEND	= 1<<11
 };
 
 #define STA_TID_NUM 16
@@ -63,17 +68,18 @@ enum ieee80211_sta_info_flags {
 #define HT_AGG_STATE_OPERATIONAL	(HT_ADDBA_REQUESTED_MSK |	\
 					 HT_ADDBA_DRV_READY_MSK |	\
 					 HT_ADDBA_RECEIVED_MSK)
-#define HT_AGG_STATE_DEBUGFS_CTL	BIT(7)
 
 /**
  * struct tid_ampdu_tx - TID aggregation information (Tx).
  *
  * @addba_resp_timer: timer for peer's response to addba request
+ * @pending: pending frames queue -- use sta's spinlock to protect
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @dialog_token: dialog token for aggregation session
  */
 struct tid_ampdu_tx {
 	struct timer_list addba_resp_timer;
+	struct sk_buff_head pending;
 	u16 ssn;
 	u8 dialog_token;
 };
@@ -87,8 +93,9 @@ struct tid_ampdu_tx {
  * @stored_mpdu_num: number of MPDUs in reordering buffer
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @buf_size: buffer size for incoming A-MPDUs
- * @timeout: reset timer value.
+ * @timeout: reset timer value (in TUs).
  * @dialog_token: dialog token for aggregation session
+ * @shutdown: this session is being shut down due to STA removal
  */
 struct tid_ampdu_rx {
 	struct sk_buff **reorder_buf;
@@ -99,6 +106,7 @@ struct tid_ampdu_rx {
 	u16 buf_size;
 	u16 timeout;
 	u8 dialog_token;
+	bool shutdown;
 };
 
 /**
@@ -198,7 +206,6 @@ struct sta_ampdu_mlme {
  * @tid_seq: per-TID sequence numbers for sending to this STA
  * @ampdu_mlme: A-MPDU state machine state
  * @timer_to_tid: identity mapping to ID timers
- * @tid_to_tx_q: map tid to tx queue
  * @llid: Local link ID
  * @plid: Peer link ID
  * @reason: Cancel reason on PLINK_HOLDING state
@@ -273,7 +280,6 @@ struct sta_info {
 	 */
 	struct sta_ampdu_mlme ampdu_mlme;
 	u8 timer_to_tid[STA_TID_NUM];
-	u8 tid_to_tx_q[STA_TID_NUM];
 
 #ifdef CONFIG_MAC80211_MESH
 	/*
@@ -382,8 +388,6 @@ static inline u32 get_sta_flags(struct sta_info *sta)
 }
 
 
-/* Maximum number of concurrently registered stations */
-#define MAX_STA_COUNT 2007
 
 #define STA_HASH_SIZE 256
 #define STA_HASH(sta) (sta[5])

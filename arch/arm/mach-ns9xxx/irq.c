@@ -63,7 +63,6 @@ static struct irq_chip ns9xxx_chip = {
 #else
 static void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned int cpu = smp_processor_id();
 	struct irqaction *action;
 	irqreturn_t action_ret;
 
@@ -72,7 +71,7 @@ static void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
 	BUG_ON(desc->status & IRQ_INPROGRESS);
 
 	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
-	kstat_cpu(cpu).irqs[irq]++;
+	kstat_incr_irqs_this_cpu(irq, desc);
 
 	action = desc->action;
 	if (unlikely(!action || (desc->status & IRQ_DISABLED)))

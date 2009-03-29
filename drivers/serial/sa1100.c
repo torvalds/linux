@@ -36,8 +36,8 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/mach/serial_sa1100.h>

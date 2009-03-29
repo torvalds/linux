@@ -77,20 +77,20 @@ typedef struct _agp_setup {
  * The "prot" down below needs still a "sleep" flag somehow ...
  */
 typedef struct _agp_segment {
-	off_t pg_start;		/* starting page to populate    */
-	size_t pg_count;	/* number of pages              */
-	int prot;		/* prot flags for mmap          */
+	__kernel_off_t pg_start;	/* starting page to populate    */
+	__kernel_size_t pg_count;	/* number of pages              */
+	int prot;			/* prot flags for mmap          */
 } agp_segment;
 
 typedef struct _agp_region {
-	pid_t pid;		/* pid of process               */
-	size_t seg_count;	/* number of segments           */
+	__kernel_pid_t pid;		/* pid of process       */
+	__kernel_size_t seg_count;	/* number of segments   */
 	struct _agp_segment *seg_list;
 } agp_region;
 
 typedef struct _agp_allocate {
 	int key;		/* tag of allocation            */
-	size_t pg_count;	/* number of pages              */
+	__kernel_size_t pg_count;/* number of pages             */
 	__u32 type;		/* 0 == normal, other devspec   */
    	__u32 physical;         /* device specific (some devices  
 				 * need a phys address of the     
@@ -100,7 +100,7 @@ typedef struct _agp_allocate {
 
 typedef struct _agp_bind {
 	int key;		/* tag of allocation            */
-	off_t pg_start;		/* starting page to populate    */
+	__kernel_off_t pg_start;/* starting page to populate    */
 } agp_bind;
 
 typedef struct _agp_unbind {

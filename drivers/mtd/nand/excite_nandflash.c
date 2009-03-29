@@ -128,11 +128,11 @@ static int excite_nand_devready(struct mtd_info *mtd)
  * The binding to the mtd and all allocated
  * resources are released.
  */
-static int __exit excite_nand_remove(struct device *dev)
+static int __exit excite_nand_remove(struct platform_device *dev)
 {
-	struct excite_nand_drvdata * const this = dev_get_drvdata(dev);
+	struct excite_nand_drvdata * const this = platform_get_drvdata(dev);
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	if (unlikely(!this)) {
 		printk(KERN_ERR "%s: called %s without private data!!",
@@ -159,9 +159,8 @@ static int __exit excite_nand_remove(struct device *dev)
  * it can allocate all necessary resources then calls the
  * nand layer to look for devices.
 */
-static int __init excite_nand_probe(struct device *dev)
+static int __init excite_nand_probe(struct platform_device *pdev)
 {
-	struct platform_device * const pdev = to_platform_device(dev);
 	struct excite_nand_drvdata *drvdata;	/* private driver data */
 	struct nand_chip *board_chip;	/* private flash chip data */
 	struct mtd_info *board_mtd;	/* mtd info for this board */
@@ -175,7 +174,7 @@ static int __init excite_nand_probe(struct device *dev)
 	}
 
 	/* bind private data into driver */
-	dev_set_drvdata(dev, drvdata);
+	platform_set_drvdata(pdev, drvdata);
 
 	/* allocate and map the resource */
 	drvdata->regs =
@@ -219,23 +218,25 @@ static int __init excite_nand_probe(struct device *dev)
 	return 0;
 }
 
-static struct device_driver excite_nand_driver = {
-	.name = "excite_nand",
-	.bus = &platform_bus_type,
+static struct platform_driver excite_nand_driver = {
+	.driver = {
+		.name = "excite_nand",
+		.owner		= THIS_MODULE,
+	},
 	.probe = excite_nand_probe,
-	.remove = __exit_p(excite_nand_remove)
+	.remove = __devexit_p(excite_nand_remove)
 };
 
 static int __init excite_nand_init(void)
 {
 	pr_info("Basler eXcite nand flash driver Version "
 		EXCITE_NANDFLASH_VERSION "\n");
-	return driver_register(&excite_nand_driver);
+	return platform_driver_register(&excite_nand_driver);
 }
 
 static void __exit excite_nand_exit(void)
 {
-	driver_unregister(&excite_nand_driver);
+	platform_driver_unregister(&excite_nand_driver);
 }
 
 module_init(excite_nand_init);

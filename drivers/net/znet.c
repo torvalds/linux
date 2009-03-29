@@ -358,6 +358,17 @@ static void znet_set_multicast_list (struct net_device *dev)
 	 * multicast address configured isn't equal to IFF_ALLMULTI */
 }
 
+static const struct net_device_ops znet_netdev_ops = {
+	.ndo_open		= znet_open,
+	.ndo_stop		= znet_close,
+	.ndo_start_xmit		= znet_send_packet,
+	.ndo_set_multicast_list = znet_set_multicast_list,
+	.ndo_tx_timeout		= znet_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /* The Z-Note probe is pretty easy.  The NETIDBLK exists in the safe-to-probe
    BIOS area.  We just scan for the signature, and pull the vital parameters
    out of the structure. */
@@ -440,11 +451,7 @@ static int __init znet_probe (void)
 	znet->tx_end = znet->tx_start + znet->tx_buf_len;
 
 	/* The ZNET-specific entries in the device structure. */
-	dev->open = &znet_open;
-	dev->hard_start_xmit = &znet_send_packet;
-	dev->stop = &znet_close;
-	dev->set_multicast_list = &znet_set_multicast_list;
-	dev->tx_timeout = znet_tx_timeout;
+	dev->netdev_ops = &znet_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	err = register_netdev(dev);
 	if (err)

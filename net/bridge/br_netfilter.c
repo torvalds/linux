@@ -107,7 +107,7 @@ static void fake_update_pmtu(struct dst_entry *dst, u32 mtu)
 
 static struct dst_ops fake_dst_ops = {
 	.family =		AF_INET,
-	.protocol =		__constant_htons(ETH_P_IP),
+	.protocol =		cpu_to_be16(ETH_P_IP),
 	.update_pmtu =		fake_update_pmtu,
 	.entries =		ATOMIC_INIT(0),
 };

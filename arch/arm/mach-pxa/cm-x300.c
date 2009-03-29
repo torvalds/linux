@@ -28,9 +28,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/mfp-pxa300.h>
-
-#include <mach/hardware.h>
+#include <mach/pxa300.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
@@ -162,7 +160,7 @@ static struct resource dm9000_resources[] = {
 };
 
 static struct dm9000_plat_data cm_x300_dm9000_platdata = {
-	.flags		= DM9000_PLATF_16BITONLY,
+	.flags		= DM9000_PLATF_16BITONLY | DM9000_PLATF_NO_EEPROM,
 };
 
 static struct platform_device dm9000_device = {

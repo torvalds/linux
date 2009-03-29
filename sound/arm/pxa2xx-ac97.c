@@ -20,8 +20,6 @@
 #include <sound/initval.h>
 #include <sound/pxa2xx-lib.h>
 
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 #include <mach/regs-ac97.h>
 #include <mach/audio.h>
 
@@ -173,10 +171,9 @@ static int __devinit pxa2xx_ac97_probe(struct platform_device *dev)
 	struct snd_ac97_template ac97_template;
 	int ret;
 
-	ret = -ENOMEM;
-	card = snd_card_new(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			    THIS_MODULE, 0);
-	if (!card)
+	ret = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+			      THIS_MODULE, 0, &card);
+	if (ret < 0)
 		goto err;
 
 	card->dev = &dev->dev;

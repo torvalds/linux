@@ -44,9 +44,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa27x.h>
+#include <mach/pxa27x.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/reset.h>
 #include <mach/i2c.h>
@@ -104,6 +102,12 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO56_nPWAIT,
 	GPIO57_nIOIS16,
 	GPIO104_PSKTSEL,
+
+	/* I2S */
+	GPIO28_I2S_BITCLK_OUT,
+	GPIO29_I2S_SDATA_IN,
+	GPIO30_I2S_SDATA_OUT,
+	GPIO31_I2S_SYNC,
 
 	/* MMC */
 	GPIO32_MMC_CLK,
@@ -703,10 +707,10 @@ static struct platform_device *devices[] __initdata = {
 
 static void spitz_poweroff(void)
 {
-	arm_machine_restart('g');
+	arm_machine_restart('g', NULL);
 }
 
-static void spitz_restart(char mode)
+static void spitz_restart(char mode, const char *cmd)
 {
 	/* Bootloader magic for a reboot */
 	if((MSC0 & 0xffff0000) == 0x7ff00000)

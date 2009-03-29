@@ -139,7 +139,7 @@ static void sci_poll_put_char(struct uart_port *port, unsigned char c)
 	} while (!(status & SCxSR_TDxE(port)));
 
 	sci_in(port, SCxSR);            /* Dummy read */
-	sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port));
+	sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port) & ~SCxSR_TEND(port));
 	sci_out(port, SCxTDR, c);
 }
 #endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_SH_SCI_CONSOLE */
@@ -263,6 +263,7 @@ static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
       defined(CONFIG_CPU_SUBTYPE_SH7780) || \
       defined(CONFIG_CPU_SUBTYPE_SH7785) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7786) || \
       defined(CONFIG_CPU_SUBTYPE_SHX3)
 static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
@@ -284,7 +285,8 @@ static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7760) || \
     defined(CONFIG_CPU_SUBTYPE_SH7780) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7785)
+    defined(CONFIG_CPU_SUBTYPE_SH7785) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7786)
 static inline int scif_txroom(struct uart_port *port)
 {
 	return SCIF_TXROOM_MAX - (sci_in(port, SCTFDR) & 0xff);
@@ -1095,6 +1097,7 @@ static void serial_console_write(struct console *co, const char *s,
 				 unsigned count)
 {
 	struct uart_port *port = &serial_console_port->port;
+	unsigned short bits;
 	int i;
 
 	for (i = 0; i < count; i++) {
@@ -1103,6 +1106,11 @@ static void serial_console_write(struct console *co, const char *s,
 
 		sci_poll_put_char(port, *s++);
 	}
+
+	/* wait until fifo is empty and last bit has been transmitted */
+	bits = SCxSR_TDxE(port) | SCxSR_TEND(port);
+	while ((sci_in(port, SCxSR) & bits) != bits)
+		cpu_relax();
 }
 
 static int __init serial_console_setup(struct console *co, char *options)

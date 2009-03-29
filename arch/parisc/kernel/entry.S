@@ -368,7 +368,7 @@
 	 * abstractions for the macros */
 	.macro		EXTR	reg1,start,length,reg2
 #ifdef CONFIG_64BIT
-	extrd,u		\reg1,32+\start,\length,\reg2
+	extrd,u		\reg1,32+(\start),\length,\reg2
 #else
 	extrw,u		\reg1,\start,\length,\reg2
 #endif
@@ -376,7 +376,7 @@
 
 	.macro		DEP	reg1,start,length,reg2
 #ifdef CONFIG_64BIT
-	depd		\reg1,32+\start,\length,\reg2
+	depd		\reg1,32+(\start),\length,\reg2
 #else
 	depw		\reg1,\start,\length,\reg2
 #endif
@@ -384,7 +384,7 @@
 
 	.macro		DEPI	val,start,length,reg
 #ifdef CONFIG_64BIT
-	depdi		\val,32+\start,\length,\reg
+	depdi		\val,32+(\start),\length,\reg
 #else
 	depwi		\val,\start,\length,\reg
 #endif

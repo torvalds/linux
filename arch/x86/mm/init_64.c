@@ -168,34 +168,51 @@ static __ref void *spp_getpage(void)
 	return ptr;
 }
 
-void
-set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
+static pud_t *fill_pud(pgd_t *pgd, unsigned long vaddr)
+{
+	if (pgd_none(*pgd)) {
+		pud_t *pud = (pud_t *)spp_getpage();
+		pgd_populate(&init_mm, pgd, pud);
+		if (pud != pud_offset(pgd, 0))
+			printk(KERN_ERR "PAGETABLE BUG #00! %p <-> %p\n",
+			       pud, pud_offset(pgd, 0));
+	}
+	return pud_offset(pgd, vaddr);
+}
+
+static pmd_t *fill_pmd(pud_t *pud, unsigned long vaddr)
+{
+	if (pud_none(*pud)) {
+		pmd_t *pmd = (pmd_t *) spp_getpage();
+		pud_populate(&init_mm, pud, pmd);
+		if (pmd != pmd_offset(pud, 0))
+			printk(KERN_ERR "PAGETABLE BUG #01! %p <-> %p\n",
+			       pmd, pmd_offset(pud, 0));
+	}
+	return pmd_offset(pud, vaddr);
+}
+
+static pte_t *fill_pte(pmd_t *pmd, unsigned long vaddr)
+{
+	if (pmd_none(*pmd)) {
+		pte_t *pte = (pte_t *) spp_getpage();
+		pmd_populate_kernel(&init_mm, pmd, pte);
+		if (pte != pte_offset_kernel(pmd, 0))
+			printk(KERN_ERR "PAGETABLE BUG #02!\n");
+	}
+	return pte_offset_kernel(pmd, vaddr);
+}
+
+void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
 {
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
 	pud = pud_page + pud_index(vaddr);
-	if (pud_none(*pud)) {
-		pmd = (pmd_t *) spp_getpage();
-		pud_populate(&init_mm, pud, pmd);
-		if (pmd != pmd_offset(pud, 0)) {
-			printk(KERN_ERR "PAGETABLE BUG #01! %p <-> %p\n",
-				pmd, pmd_offset(pud, 0));
-			return;
-		}
-	}
-	pmd = pmd_offset(pud, vaddr);
-	if (pmd_none(*pmd)) {
-		pte = (pte_t *) spp_getpage();
-		pmd_populate_kernel(&init_mm, pmd, pte);
-		if (pte != pte_offset_kernel(pmd, 0)) {
-			printk(KERN_ERR "PAGETABLE BUG #02!\n");
-			return;
-		}
-	}
+	pmd = fill_pmd(pud, vaddr);
+	pte = fill_pte(pmd, vaddr);
 
-	pte = pte_offset_kernel(pmd, vaddr);
 	set_pte(pte, new_pte);
 
 	/*
@@ -205,8 +222,7 @@ set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
 	__flush_tlb_one(vaddr);
 }
 
-void
-set_pte_vaddr(unsigned long vaddr, pte_t pteval)
+void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 {
 	pgd_t *pgd;
 	pud_t *pud_page;
@@ -221,6 +237,24 @@ set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 	}
 	pud_page = (pud_t*)pgd_page_vaddr(*pgd);
 	set_pte_vaddr_pud(pud_page, vaddr, pteval);
+}
+
+pmd_t * __init populate_extra_pmd(unsigned long vaddr)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+
+	pgd = pgd_offset_k(vaddr);
+	pud = fill_pud(pgd, vaddr);
+	return fill_pmd(pud, vaddr);
+}
+
+pte_t * __init populate_extra_pte(unsigned long vaddr)
+{
+	pmd_t *pmd;
+
+	pmd = populate_extra_pmd(vaddr);
+	return fill_pte(pmd, vaddr);
 }
 
 /*
@@ -945,43 +979,6 @@ void __init mem_init(void)
 		reservedpages << (PAGE_SHIFT-10),
 		datasize >> 10,
 		initsize >> 10);
-}
-
-void free_init_pages(char *what, unsigned long begin, unsigned long end)
-{
-	unsigned long addr = begin;
-
-	if (addr >= end)
-		return;
-
-	/*
-	 * If debugging page accesses then do not free this memory but
-	 * mark them not present - any buggy init-section access will
-	 * create a kernel page fault:
-	 */
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	printk(KERN_INFO "debug: unmapping init memory %08lx..%08lx\n",
-		begin, PAGE_ALIGN(end));
-	set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
-#else
-	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
-
-	for (; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		memset((void *)(addr & ~(PAGE_SIZE-1)),
-			POISON_FREE_INITMEM, PAGE_SIZE);
-		free_page(addr);
-		totalram_pages++;
-	}
-#endif
-}
-
-void free_initmem(void)
-{
-	free_init_pages("unused kernel memory",
-			(unsigned long)(&__init_begin),
-			(unsigned long)(&__init_end));
 }
 
 #ifdef CONFIG_DEBUG_RODATA

@@ -59,7 +59,10 @@ static inline unsigned long __lbus_to_virt(dma_addr_t x)
 	})
 
 #define __arch_page_to_dma(dev, page)					\
-	__arch_virt_to_dma(dev, page_address(page))
+	({								\
+		/* __is_lbus_virt() can never be true for RAM pages */	\
+		(dma_addr_t)page_to_phys(page);				\
+	})
 
 #endif /* CONFIG_ARCH_IOP13XX */
 #endif /* !ASSEMBLY */

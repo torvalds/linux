@@ -200,8 +200,8 @@ static int mxc_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int mxc_gpio_direction_output(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
-	_set_gpio_direction(chip, offset, 1);
 	mxc_gpio_set(chip, offset, value);
+	_set_gpio_direction(chip, offset, 1);
 	return 0;
 }
 

@@ -11,6 +11,11 @@ OUTPUT_ARCH(arm)
 ENTRY(_start)
 SECTIONS
 {
+  /DISCARD/ : {
+    *(.ARM.exidx*)
+    *(.ARM.extab*)
+  }
+
   . = TEXT_START;
   _text = .;
 

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -145,7 +145,7 @@ int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 {
 	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
 	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
-		IWL_ERROR("EEPROM not found, EEPROM_GP=0x%08x\n", gp);
+		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
 		return -ENOENT;
 	}
 	return 0;
@@ -173,7 +173,7 @@ int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
-			IWL_DEBUG_IO("Acquired semaphore after %d tries.\n",
+			IWL_DEBUG_IO(priv, "Acquired semaphore after %d tries.\n",
 				count+1);
 			return ret;
 		}
@@ -223,7 +223,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 
 	ret = priv->cfg->ops->lib->eeprom_ops.verify_signature(priv);
 	if (ret < 0) {
-		IWL_ERROR("EEPROM not found, EEPROM_GP=0x%08x\n", gp);
+		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
 		ret = -ENOENT;
 		goto err;
 	}
@@ -231,7 +231,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
 	ret = priv->cfg->ops->lib->eeprom_ops.acquire_semaphore(priv);
 	if (ret < 0) {
-		IWL_ERROR("Failed to acquire EEPROM semaphore.\n");
+		IWL_ERR(priv, "Failed to acquire EEPROM semaphore.\n");
 		ret = -ENOENT;
 		goto err;
 	}
@@ -247,7 +247,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 					  CSR_EEPROM_REG_READ_VALID_MSK,
 					  IWL_EEPROM_ACCESS_TIMEOUT);
 		if (ret < 0) {
-			IWL_ERROR("Time out reading EEPROM[%d]\n", addr);
+			IWL_ERR(priv, "Time out reading EEPROM[%d]\n", addr);
 			goto done;
 		}
 		r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
@@ -285,7 +285,7 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 
 	return 0;
 err:
-	IWL_ERROR("Unsupported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
+	IWL_ERR(priv, "Unsupported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
 		  eeprom_ver, priv->cfg->eeprom_ver,
 		  calib_ver,  priv->cfg->eeprom_calib_ver);
 	return -EINVAL;
@@ -390,7 +390,7 @@ static int iwl_set_fat_chan_info(struct iwl_priv *priv,
 	if (!is_channel_valid(ch_info))
 		return -1;
 
-	IWL_DEBUG_INFO("FAT Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
+	IWL_DEBUG_INFO(priv, "FAT Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
 			" Ad-Hoc %ssupported\n",
 			ch_info->channel,
 			is_channel_a_band(ch_info) ?
@@ -432,11 +432,11 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	struct iwl_channel_info *ch_info;
 
 	if (priv->channel_count) {
-		IWL_DEBUG_INFO("Channel map already initialized.\n");
+		IWL_DEBUG_INFO(priv, "Channel map already initialized.\n");
 		return 0;
 	}
 
-	IWL_DEBUG_INFO("Initializing regulatory info from EEPROM\n");
+	IWL_DEBUG_INFO(priv, "Initializing regulatory info from EEPROM\n");
 
 	priv->channel_count =
 	    ARRAY_SIZE(iwl_eeprom_band_1) +
@@ -445,12 +445,12 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	    ARRAY_SIZE(iwl_eeprom_band_4) +
 	    ARRAY_SIZE(iwl_eeprom_band_5);
 
-	IWL_DEBUG_INFO("Parsing data for %d channels.\n", priv->channel_count);
+	IWL_DEBUG_INFO(priv, "Parsing data for %d channels.\n", priv->channel_count);
 
 	priv->channel_info = kzalloc(sizeof(struct iwl_channel_info) *
 				     priv->channel_count, GFP_KERNEL);
 	if (!priv->channel_info) {
-		IWL_ERROR("Could not allocate channel_info\n");
+		IWL_ERR(priv, "Could not allocate channel_info\n");
 		priv->channel_count = 0;
 		return -ENOMEM;
 	}
@@ -485,7 +485,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 				 IEEE80211_CHAN_NO_FAT_BELOW);
 
 			if (!(is_channel_valid(ch_info))) {
-				IWL_DEBUG_INFO("Ch. %d Flags %x [%sGHz] - "
+				IWL_DEBUG_INFO(priv, "Ch. %d Flags %x [%sGHz] - "
 					       "No traffic\n",
 					       ch_info->channel,
 					       ch_info->flags,
@@ -501,7 +501,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			ch_info->scan_power = eeprom_ch_info[ch].max_power_avg;
 			ch_info->min_power = 0;
 
-			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x %ddBm):"
+			IWL_DEBUG_INFO(priv, "Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x %ddBm):"
 				       " Ad-Hoc %ssupported\n",
 				       ch_info->channel,
 				       is_channel_a_band(ch_info) ?
@@ -520,7 +520,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 					     flags & EEPROM_CHANNEL_RADAR))
 				       ? "" : "not ");
 
-			/* Set the user_txpower_limit to the highest power
+			/* Set the tx_power_user_lmt to the highest power
 			 * supported by any channel */
 			if (eeprom_ch_info[ch].max_power_avg >
 						priv->tx_power_user_lmt)
@@ -530,6 +530,13 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			ch_info++;
 		}
 	}
+
+	/* Check if we do have FAT channels */
+	if (priv->cfg->ops->lib->eeprom_ops.regulatory_bands[5] ==
+	    EEPROM_REGULATORY_BAND_NO_FAT &&
+	    priv->cfg->ops->lib->eeprom_ops.regulatory_bands[6] ==
+	    EEPROM_REGULATORY_BAND_NO_FAT)
+		return 0;
 
 	/* Two additional EEPROM bands for 2.4 and 5 GHz FAT channels */
 	for (band = 6; band <= 7; band++) {
@@ -582,6 +589,7 @@ void iwl_free_channel_map(struct iwl_priv *priv)
 	kfree(priv->channel_info);
 	priv->channel_count = 0;
 }
+EXPORT_SYMBOL(iwl_free_channel_map);
 
 /**
  * iwl_get_channel_info - Find driver's private channel info

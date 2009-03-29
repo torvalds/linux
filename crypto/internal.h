@@ -109,8 +109,10 @@ void crypto_alg_tested(const char *name, int err);
 void crypto_shoot_alg(struct crypto_alg *alg);
 struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 				      u32 mask);
-struct crypto_tfm *crypto_create_tfm(struct crypto_alg *alg,
-				     const struct crypto_type *frontend);
+void *crypto_create_tfm(struct crypto_alg *alg,
+			const struct crypto_type *frontend);
+void *crypto_alloc_tfm(const char *alg_name,
+		       const struct crypto_type *frontend, u32 type, u32 mask);
 
 int crypto_register_instance(struct crypto_template *tmpl,
 			     struct crypto_instance *inst);

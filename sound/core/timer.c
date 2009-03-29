@@ -1825,13 +1825,9 @@ static long snd_timer_user_ioctl(struct file *file, unsigned int cmd,
 static int snd_timer_user_fasync(int fd, struct file * file, int on)
 {
 	struct snd_timer_user *tu;
-	int err;
 
 	tu = file->private_data;
-	err = fasync_helper(fd, file, on, &tu->fasync);
-        if (err < 0)
-		return err;
-	return 0;
+	return fasync_helper(fd, file, on, &tu->fasync);
 }
 
 static ssize_t snd_timer_user_read(struct file *file, char __user *buffer,

@@ -280,7 +280,7 @@ static void wait_for_calibration(ad1848_info * devc)
 	while (timeout > 0 && (ad_read(devc, 11) & 0x20))
 		timeout--;
 	if (ad_read(devc, 11) & 0x20)
-		if ( (devc->model != MD_1845) || (devc->model != MD_1845_SSCAPE))
+		if ((devc->model != MD_1845) && (devc->model != MD_1845_SSCAPE))
 			printk(KERN_WARNING "ad1848: Auto calibration timed out(3).\n");
 }
 
@@ -2107,7 +2107,7 @@ int ad1848_control(int cmd, int arg)
 	switch (cmd)
 	{
 		case AD1848_SET_XTAL:	/* Change clock frequency of AD1845 (only ) */
-			if (devc->model != MD_1845 || devc->model != MD_1845_SSCAPE)
+			if (devc->model != MD_1845 && devc->model != MD_1845_SSCAPE)
 				return -EINVAL;
 			spin_lock_irqsave(&devc->lock,flags);
 			ad_enter_MCE(devc);

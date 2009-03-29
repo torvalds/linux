@@ -135,45 +135,6 @@ config USB_CYTHERM
 	  To compile this driver as a module, choose M here: the
 	  module will be called cytherm.
 
-config USB_PHIDGET
-	tristate "USB Phidgets drivers"
-	depends on USB
-	help
-	  Say Y here to enable the various drivers for devices from
-	  Phidgets inc.
-
-config USB_PHIDGETKIT
-	tristate "USB PhidgetInterfaceKit support"
-	depends on USB_PHIDGET
-	help
-	  Say Y here if you want to connect a PhidgetInterfaceKit USB device
-	  from Phidgets Inc.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called phidgetkit.
-
-config USB_PHIDGETMOTORCONTROL
-	tristate "USB PhidgetMotorControl support"
-	depends on USB_PHIDGET
-	help
-	  Say Y here if you want to connect a PhidgetMotorControl USB device
-	  from Phidgets Inc.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called phidgetmotorcontrol.
-
-config USB_PHIDGETSERVO
-	tristate "USB PhidgetServo support"
-	depends on USB_PHIDGET
-	help
-	  Say Y here if you want to connect an 1 or 4 Motor PhidgetServo 
-	  servo controller version 2.0 or 3.0.
-
-	  Phidgets Inc. has a web page at <http://www.phidgets.com/>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called phidgetservo.
-
 config USB_IDMOUSE
 	tristate "Siemens ID USB Mouse Fingerprint sensor support"
 	depends on USB

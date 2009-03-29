@@ -77,7 +77,8 @@
 /* --------------------------------------------------------------------- */
 
 static const char yam_drvname[] = "yam";
-static char yam_drvinfo[] __initdata = KERN_INFO "YAM driver version 0.8 by F1OAT/F6FBB\n";
+static const char yam_drvinfo[] __initdata = KERN_INFO \
+	"YAM driver version 0.8 by F1OAT/F6FBB\n";
 
 /* --------------------------------------------------------------------- */
 
@@ -114,10 +115,6 @@ struct yam_port {
 	int dupmode;
 
 	struct net_device *dev;
-
-	/* Stats section */
-
-	struct net_device_stats stats;
 
 	int nb_rxint;
 	int nb_mdint;
@@ -507,7 +504,7 @@ static inline void yam_rx_flag(struct net_device *dev, struct yam_port *yp)
 		} else {
 			if (!(skb = dev_alloc_skb(pkt_len))) {
 				printk(KERN_WARNING "%s: memory squeeze, dropping packet\n", dev->name);
-				++yp->stats.rx_dropped;
+				++dev->stats.rx_dropped;
 			} else {
 				unsigned char *cp;
 				cp = skb_put(skb, pkt_len);
@@ -515,7 +512,7 @@ static inline void yam_rx_flag(struct net_device *dev, struct yam_port *yp)
 				memcpy(cp, yp->rx_buf, pkt_len - 1);
 				skb->protocol = ax25_type_trans(skb, dev);
 				netif_rx(skb);
-				++yp->stats.rx_packets;
+				++dev->stats.rx_packets;
 			}
 		}
 	}
@@ -677,7 +674,7 @@ static void yam_tx_byte(struct net_device *dev, struct yam_port *yp)
 			yp->tx_count = 1;
 			yp->tx_state = TX_HEAD;
 		}
-		++yp->stats.tx_packets;
+		++dev->stats.tx_packets;
 		break;
 	case TX_TAIL:
 		if (--yp->tx_count <= 0) {
@@ -716,7 +713,7 @@ static irqreturn_t yam_interrupt(int irq, void *dev_id)
 			handled = 1;
 
 			if (lsr & LSR_OE)
-				++yp->stats.rx_fifo_errors;
+				++dev->stats.rx_fifo_errors;
 
 			yp->dcd = (msr & RX_DCD) ? 1 : 0;
 
@@ -778,16 +775,16 @@ static int yam_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "  TxTail   %u\n", yp->txtail);
 	seq_printf(seq, "  SlotTime %u\n", yp->slot);
 	seq_printf(seq, "  Persist  %u\n", yp->pers);
-	seq_printf(seq, "  TxFrames %lu\n", yp->stats.tx_packets);
-	seq_printf(seq, "  RxFrames %lu\n", yp->stats.rx_packets);
+	seq_printf(seq, "  TxFrames %lu\n", dev->stats.tx_packets);
+	seq_printf(seq, "  RxFrames %lu\n", dev->stats.rx_packets);
 	seq_printf(seq, "  TxInt    %u\n", yp->nb_mdint);
 	seq_printf(seq, "  RxInt    %u\n", yp->nb_rxint);
-	seq_printf(seq, "  RxOver   %lu\n", yp->stats.rx_fifo_errors);
+	seq_printf(seq, "  RxOver   %lu\n", dev->stats.rx_fifo_errors);
 	seq_printf(seq, "\n");
 	return 0;
 }
 
-static struct seq_operations yam_seqops = {
+static const struct seq_operations yam_seqops = {
 	.start = yam_seq_start,
 	.next = yam_seq_next,
 	.stop = yam_seq_stop,
@@ -809,26 +806,6 @@ static const struct file_operations yam_info_fops = {
 
 #endif
 
-
-/* --------------------------------------------------------------------- */
-
-static struct net_device_stats *yam_get_stats(struct net_device *dev)
-{
-	struct yam_port *yp;
-
-	if (!dev)
-		return NULL;
-
-	yp = netdev_priv(dev);
-	if (yp->magic != YAM_MAGIC)
-		return NULL;
-
-	/* 
-	 * Get the current statistics.  This may be called with the
-	 * card open or closed. 
-	 */
-	return &yp->stats;
-}
 
 /* --------------------------------------------------------------------- */
 
@@ -877,10 +854,10 @@ static int yam_open(struct net_device *dev)
 
 	/* Reset overruns for all ports - FPGA programming makes overruns */
 	for (i = 0; i < NR_PORTS; i++) {
-		struct net_device *dev = yam_devs[i];
-		struct yam_port *yp = netdev_priv(dev);
-		inb(LSR(dev->base_addr));
-		yp->stats.rx_fifo_errors = 0;
+		struct net_device *yam_dev = yam_devs[i];
+
+		inb(LSR(yam_dev->base_addr));
+		yam_dev->stats.rx_fifo_errors = 0;
 	}
 
 	printk(KERN_INFO "%s at iobase 0x%lx irq %u uart %s\n", dev->name, dev->base_addr, dev->irq,
@@ -1068,6 +1045,14 @@ static int yam_set_mac_address(struct net_device *dev, void *addr)
 
 /* --------------------------------------------------------------------- */
 
+static const struct net_device_ops yam_netdev_ops = {
+	.ndo_open	     = yam_open,
+	.ndo_stop	     = yam_close,
+	.ndo_start_xmit      = yam_send_packet,
+	.ndo_do_ioctl 	     = yam_ioctl,
+	.ndo_set_mac_address = yam_set_mac_address,
+};
+
 static void yam_setup(struct net_device *dev)
 {
 	struct yam_port *yp = netdev_priv(dev);
@@ -1088,17 +1073,10 @@ static void yam_setup(struct net_device *dev)
 	dev->base_addr = yp->iobase;
 	dev->irq = yp->irq;
 
-	dev->open = yam_open;
-	dev->stop = yam_close;
-	dev->do_ioctl = yam_ioctl;
-	dev->hard_start_xmit = yam_send_packet;
-	dev->get_stats = yam_get_stats;
-
 	skb_queue_head_init(&yp->send_queue);
 
+	dev->netdev_ops = &yam_netdev_ops;
 	dev->header_ops = &ax25_header_ops;
-
-	dev->set_mac_address = yam_set_mac_address;
 
 	dev->type = ARPHRD_AX25;
 	dev->hard_header_len = AX25_MAX_HEADER_LEN;

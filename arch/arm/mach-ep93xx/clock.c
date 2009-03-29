@@ -41,6 +41,56 @@ static struct clk clk_usb_host = {
 	.enable_mask	= EP93XX_SYSCON_CLOCK_USH_EN,
 };
 
+/* DMA Clocks */
+static struct clk clk_m2p0 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x00020000,
+};
+static struct clk clk_m2p1 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x00010000,
+};
+static struct clk clk_m2p2 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x00080000,
+};
+static struct clk clk_m2p3 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x00040000,
+};
+static struct clk clk_m2p4 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x00200000,
+};
+static struct clk clk_m2p5 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x00100000,
+};
+static struct clk clk_m2p6 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x00800000,
+};
+static struct clk clk_m2p7 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x00400000,
+};
+static struct clk clk_m2p8 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x02000000,
+};
+static struct clk clk_m2p9 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x01000000,
+};
+static struct clk clk_m2m0 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x04000000,
+};
+static struct clk clk_m2m1 = {
+	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
+	.enable_mask	= 0x08000000,
+};
+
 #define INIT_CK(dev,con,ck)					\
 	{ .dev_id = dev, .con_id = con, .clk = ck }
 
@@ -54,6 +104,18 @@ static struct clk_lookup clocks[] = {
 	INIT_CK(NULL, "pclk", &clk_p),
 	INIT_CK(NULL, "pll2", &clk_pll2),
 	INIT_CK(NULL, "usb_host", &clk_usb_host),
+	INIT_CK(NULL, "m2p0", &clk_m2p0),
+	INIT_CK(NULL, "m2p1", &clk_m2p1),
+	INIT_CK(NULL, "m2p2", &clk_m2p2),
+	INIT_CK(NULL, "m2p3", &clk_m2p3),
+	INIT_CK(NULL, "m2p4", &clk_m2p4),
+	INIT_CK(NULL, "m2p5", &clk_m2p5),
+	INIT_CK(NULL, "m2p6", &clk_m2p6),
+	INIT_CK(NULL, "m2p7", &clk_m2p7),
+	INIT_CK(NULL, "m2p8", &clk_m2p8),
+	INIT_CK(NULL, "m2p9", &clk_m2p9),
+	INIT_CK(NULL, "m2m0", &clk_m2m0),
+	INIT_CK(NULL, "m2m1", &clk_m2m1),
 };
 
 
@@ -110,6 +172,22 @@ static unsigned long calc_pll_rate(u32 config_word)
 	return (unsigned long)rate;
 }
 
+static void __init ep93xx_dma_clock_init(void)
+{
+	clk_m2p0.rate = clk_h.rate;
+	clk_m2p1.rate = clk_h.rate;
+	clk_m2p2.rate = clk_h.rate;
+	clk_m2p3.rate = clk_h.rate;
+	clk_m2p4.rate = clk_h.rate;
+	clk_m2p5.rate = clk_h.rate;
+	clk_m2p6.rate = clk_h.rate;
+	clk_m2p7.rate = clk_h.rate;
+	clk_m2p8.rate = clk_h.rate;
+	clk_m2p9.rate = clk_h.rate;
+	clk_m2m0.rate = clk_h.rate;
+	clk_m2m1.rate = clk_h.rate;
+}
+
 static int __init ep93xx_clock_init(void)
 {
 	u32 value;
@@ -124,6 +202,7 @@ static int __init ep93xx_clock_init(void)
 	clk_f.rate = clk_pll1.rate / fclk_divisors[(value >> 25) & 0x7];
 	clk_h.rate = clk_pll1.rate / hclk_divisors[(value >> 20) & 0x7];
 	clk_p.rate = clk_h.rate / pclk_divisors[(value >> 18) & 0x3];
+	ep93xx_dma_clock_init();
 
 	value = __raw_readl(EP93XX_SYSCON_CLOCK_SET2);
 	if (!(value & 0x00080000)) {			/* PLL2 bypassed?  */

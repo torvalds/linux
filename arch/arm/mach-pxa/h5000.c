@@ -24,14 +24,15 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+
+#include <mach/pxa25x.h>
 #include <mach/h5000.h>
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
 #include <mach/udc.h>
+
 #include "generic.h"
 
 /*
@@ -153,6 +154,13 @@ static unsigned long h5000_pin_config[] __initdata = {
 	GPIO23_SSP1_SCLK,
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
+
+	/* I2S */
+	GPIO28_I2S_BITCLK_OUT,
+	GPIO29_I2S_SDATA_IN,
+	GPIO30_I2S_SDATA_OUT,
+	GPIO31_I2S_SYNC,
+	GPIO32_I2S_SYSCLK,
 };
 
 /*

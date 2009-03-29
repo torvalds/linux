@@ -1171,8 +1171,7 @@ static void iucv_callback_txdone(struct iucv_path *path,
 
 		spin_unlock_irqrestore(&list->lock, flags);
 
-		if (this)
-			kfree_skb(this);
+		kfree_skb(this);
 	}
 	BUG_ON(!this);
 

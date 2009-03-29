@@ -2196,7 +2196,7 @@ pfmfs_delete_dentry(struct dentry *dentry)
 	return 1;
 }
 
-static struct dentry_operations pfmfs_dentry_operations = {
+static const struct dentry_operations pfmfs_dentry_operations = {
 	.d_delete = pfmfs_delete_dentry,
 };
 

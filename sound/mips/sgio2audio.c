@@ -936,9 +936,9 @@ static int __devinit snd_sgio2audio_probe(struct platform_device *pdev)
 	struct snd_sgio2audio *chip;
 	int err;
 
-	card = snd_card_new(index, id, THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	err = snd_sgio2audio_create(card, &chip);
 	if (err < 0) {

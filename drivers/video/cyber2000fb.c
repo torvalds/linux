@@ -46,8 +46,8 @@
 #include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
 
@@ -1425,7 +1425,7 @@ static void cyberpro_common_resume(struct cfb_info *cfb)
 
 #ifdef CONFIG_ARCH_SHARK
 
-#include <mach/hardware.h>
+#include <mach/framebuffer.h>
 
 static int __devinit cyberpro_vl_probe(void)
 {

@@ -42,19 +42,9 @@
  */
 static struct map_desc mx31lite_io_desc[] __initdata = {
 	{
-		.virtual = AIPS1_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(AIPS1_BASE_ADDR),
-		.length = AIPS1_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	}, {
 		.virtual = SPBA0_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
 		.length = SPBA0_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	}, {
-		.virtual = AIPS2_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(AIPS2_BASE_ADDR),
-		.length = AIPS2_SIZE,
 		.type = MT_DEVICE_NONSHARED
 	}, {
 		.virtual = CS4_BASE_ADDR_VIRT,
@@ -82,8 +72,7 @@ static void __init mxc_board_init(void)
 
 static void __init mx31lite_timer_init(void)
 {
-	mxc_clocks_init(26000000);
-	mxc_timer_init("ipg_clk.0");
+	mx31_clocks_init(26000000);
 }
 
 struct sys_timer mx31lite_timer = {

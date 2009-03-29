@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Atheros Communications Inc.
+ * Copyright (c) 2008-2009 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,936 +19,43 @@
 
 #include <linux/if_ether.h>
 #include <linux/delay.h>
-
-struct ar5416_desc {
-	u32 ds_link;
-	u32 ds_data;
-	u32 ds_ctl0;
-	u32 ds_ctl1;
-	union {
-		struct {
-			u32 ctl2;
-			u32 ctl3;
-			u32 ctl4;
-			u32 ctl5;
-			u32 ctl6;
-			u32 ctl7;
-			u32 ctl8;
-			u32 ctl9;
-			u32 ctl10;
-			u32 ctl11;
-			u32 status0;
-			u32 status1;
-			u32 status2;
-			u32 status3;
-			u32 status4;
-			u32 status5;
-			u32 status6;
-			u32 status7;
-			u32 status8;
-			u32 status9;
-		} tx;
-		struct {
-			u32 status0;
-			u32 status1;
-			u32 status2;
-			u32 status3;
-			u32 status4;
-			u32 status5;
-			u32 status6;
-			u32 status7;
-			u32 status8;
-		} rx;
-	} u;
-} __packed;
-
-#define AR5416DESC(_ds)         ((struct ar5416_desc *)(_ds))
-#define AR5416DESC_CONST(_ds)   ((const struct ar5416_desc *)(_ds))
-
-#define ds_ctl2     u.tx.ctl2
-#define ds_ctl3     u.tx.ctl3
-#define ds_ctl4     u.tx.ctl4
-#define ds_ctl5     u.tx.ctl5
-#define ds_ctl6     u.tx.ctl6
-#define ds_ctl7     u.tx.ctl7
-#define ds_ctl8     u.tx.ctl8
-#define ds_ctl9     u.tx.ctl9
-#define ds_ctl10    u.tx.ctl10
-#define ds_ctl11    u.tx.ctl11
-
-#define ds_txstatus0    u.tx.status0
-#define ds_txstatus1    u.tx.status1
-#define ds_txstatus2    u.tx.status2
-#define ds_txstatus3    u.tx.status3
-#define ds_txstatus4    u.tx.status4
-#define ds_txstatus5    u.tx.status5
-#define ds_txstatus6    u.tx.status6
-#define ds_txstatus7    u.tx.status7
-#define ds_txstatus8    u.tx.status8
-#define ds_txstatus9    u.tx.status9
-
-#define ds_rxstatus0    u.rx.status0
-#define ds_rxstatus1    u.rx.status1
-#define ds_rxstatus2    u.rx.status2
-#define ds_rxstatus3    u.rx.status3
-#define ds_rxstatus4    u.rx.status4
-#define ds_rxstatus5    u.rx.status5
-#define ds_rxstatus6    u.rx.status6
-#define ds_rxstatus7    u.rx.status7
-#define ds_rxstatus8    u.rx.status8
-
-#define AR_FrameLen         0x00000fff
-#define AR_VirtMoreFrag     0x00001000
-#define AR_TxCtlRsvd00      0x0000e000
-#define AR_XmitPower        0x003f0000
-#define AR_XmitPower_S      16
-#define AR_RTSEnable        0x00400000
-#define AR_VEOL             0x00800000
-#define AR_ClrDestMask      0x01000000
-#define AR_TxCtlRsvd01      0x1e000000
-#define AR_TxIntrReq        0x20000000
-#define AR_DestIdxValid     0x40000000
-#define AR_CTSEnable        0x80000000
-
-#define AR_BufLen           0x00000fff
-#define AR_TxMore           0x00001000
-#define AR_DestIdx          0x000fe000
-#define AR_DestIdx_S        13
-#define AR_FrameType        0x00f00000
-#define AR_FrameType_S      20
-#define AR_NoAck            0x01000000
-#define AR_InsertTS         0x02000000
-#define AR_CorruptFCS       0x04000000
-#define AR_ExtOnly          0x08000000
-#define AR_ExtAndCtl        0x10000000
-#define AR_MoreAggr         0x20000000
-#define AR_IsAggr           0x40000000
-
-#define AR_BurstDur         0x00007fff
-#define AR_BurstDur_S       0
-#define AR_DurUpdateEna     0x00008000
-#define AR_XmitDataTries0   0x000f0000
-#define AR_XmitDataTries0_S 16
-#define AR_XmitDataTries1   0x00f00000
-#define AR_XmitDataTries1_S 20
-#define AR_XmitDataTries2   0x0f000000
-#define AR_XmitDataTries2_S 24
-#define AR_XmitDataTries3   0xf0000000
-#define AR_XmitDataTries3_S 28
-
-#define AR_XmitRate0        0x000000ff
-#define AR_XmitRate0_S      0
-#define AR_XmitRate1        0x0000ff00
-#define AR_XmitRate1_S      8
-#define AR_XmitRate2        0x00ff0000
-#define AR_XmitRate2_S      16
-#define AR_XmitRate3        0xff000000
-#define AR_XmitRate3_S      24
-
-#define AR_PacketDur0       0x00007fff
-#define AR_PacketDur0_S     0
-#define AR_RTSCTSQual0      0x00008000
-#define AR_PacketDur1       0x7fff0000
-#define AR_PacketDur1_S     16
-#define AR_RTSCTSQual1      0x80000000
-
-#define AR_PacketDur2       0x00007fff
-#define AR_PacketDur2_S     0
-#define AR_RTSCTSQual2      0x00008000
-#define AR_PacketDur3       0x7fff0000
-#define AR_PacketDur3_S     16
-#define AR_RTSCTSQual3      0x80000000
-
-#define AR_AggrLen          0x0000ffff
-#define AR_AggrLen_S        0
-#define AR_TxCtlRsvd60      0x00030000
-#define AR_PadDelim         0x03fc0000
-#define AR_PadDelim_S       18
-#define AR_EncrType         0x0c000000
-#define AR_EncrType_S       26
-#define AR_TxCtlRsvd61      0xf0000000
-
-#define AR_2040_0           0x00000001
-#define AR_GI0              0x00000002
-#define AR_ChainSel0        0x0000001c
-#define AR_ChainSel0_S      2
-#define AR_2040_1           0x00000020
-#define AR_GI1              0x00000040
-#define AR_ChainSel1        0x00000380
-#define AR_ChainSel1_S      7
-#define AR_2040_2           0x00000400
-#define AR_GI2              0x00000800
-#define AR_ChainSel2        0x00007000
-#define AR_ChainSel2_S      12
-#define AR_2040_3           0x00008000
-#define AR_GI3              0x00010000
-#define AR_ChainSel3        0x000e0000
-#define AR_ChainSel3_S      17
-#define AR_RTSCTSRate       0x0ff00000
-#define AR_RTSCTSRate_S     20
-#define AR_TxCtlRsvd70      0xf0000000
-
-#define AR_TxRSSIAnt00      0x000000ff
-#define AR_TxRSSIAnt00_S    0
-#define AR_TxRSSIAnt01      0x0000ff00
-#define AR_TxRSSIAnt01_S    8
-#define AR_TxRSSIAnt02      0x00ff0000
-#define AR_TxRSSIAnt02_S    16
-#define AR_TxStatusRsvd00   0x3f000000
-#define AR_TxBaStatus       0x40000000
-#define AR_TxStatusRsvd01   0x80000000
-
-#define AR_FrmXmitOK            0x00000001
-#define AR_ExcessiveRetries     0x00000002
-#define AR_FIFOUnderrun         0x00000004
-#define AR_Filtered             0x00000008
-#define AR_RTSFailCnt           0x000000f0
-#define AR_RTSFailCnt_S         4
-#define AR_DataFailCnt          0x00000f00
-#define AR_DataFailCnt_S        8
-#define AR_VirtRetryCnt         0x0000f000
-#define AR_VirtRetryCnt_S       12
-#define AR_TxDelimUnderrun      0x00010000
-#define AR_TxDataUnderrun       0x00020000
-#define AR_DescCfgErr           0x00040000
-#define AR_TxTimerExpired       0x00080000
-#define AR_TxStatusRsvd10       0xfff00000
-
-#define AR_SendTimestamp    ds_txstatus2
-#define AR_BaBitmapLow      ds_txstatus3
-#define AR_BaBitmapHigh     ds_txstatus4
-
-#define AR_TxRSSIAnt10      0x000000ff
-#define AR_TxRSSIAnt10_S    0
-#define AR_TxRSSIAnt11      0x0000ff00
-#define AR_TxRSSIAnt11_S    8
-#define AR_TxRSSIAnt12      0x00ff0000
-#define AR_TxRSSIAnt12_S    16
-#define AR_TxRSSICombined   0xff000000
-#define AR_TxRSSICombined_S 24
-
-#define AR_TxEVM0           ds_txstatus5
-#define AR_TxEVM1           ds_txstatus6
-#define AR_TxEVM2           ds_txstatus7
-
-#define AR_TxDone           0x00000001
-#define AR_SeqNum           0x00001ffe
-#define AR_SeqNum_S         1
-#define AR_TxStatusRsvd80   0x0001e000
-#define AR_TxOpExceeded     0x00020000
-#define AR_TxStatusRsvd81   0x001c0000
-#define AR_FinalTxIdx       0x00600000
-#define AR_FinalTxIdx_S     21
-#define AR_TxStatusRsvd82   0x01800000
-#define AR_PowerMgmt        0x02000000
-#define AR_TxStatusRsvd83   0xfc000000
-
-#define AR_RxCTLRsvd00  0xffffffff
-
-#define AR_BufLen       0x00000fff
-#define AR_RxCtlRsvd00  0x00001000
-#define AR_RxIntrReq    0x00002000
-#define AR_RxCtlRsvd01  0xffffc000
-
-#define AR_RxRSSIAnt00      0x000000ff
-#define AR_RxRSSIAnt00_S    0
-#define AR_RxRSSIAnt01      0x0000ff00
-#define AR_RxRSSIAnt01_S    8
-#define AR_RxRSSIAnt02      0x00ff0000
-#define AR_RxRSSIAnt02_S    16
-#define AR_RxRate           0xff000000
-#define AR_RxRate_S         24
-#define AR_RxStatusRsvd00   0xff000000
-
-#define AR_DataLen          0x00000fff
-#define AR_RxMore           0x00001000
-#define AR_NumDelim         0x003fc000
-#define AR_NumDelim_S       14
-#define AR_RxStatusRsvd10   0xff800000
-
-#define AR_RcvTimestamp     ds_rxstatus2
-
-#define AR_GI               0x00000001
-#define AR_2040             0x00000002
-#define AR_Parallel40       0x00000004
-#define AR_Parallel40_S     2
-#define AR_RxStatusRsvd30   0x000000f8
-#define AR_RxAntenna	    0xffffff00
-#define AR_RxAntenna_S	    8
-
-#define AR_RxRSSIAnt10            0x000000ff
-#define AR_RxRSSIAnt10_S          0
-#define AR_RxRSSIAnt11            0x0000ff00
-#define AR_RxRSSIAnt11_S          8
-#define AR_RxRSSIAnt12            0x00ff0000
-#define AR_RxRSSIAnt12_S          16
-#define AR_RxRSSICombined         0xff000000
-#define AR_RxRSSICombined_S       24
-
-#define AR_RxEVM0           ds_rxstatus4
-#define AR_RxEVM1           ds_rxstatus5
-#define AR_RxEVM2           ds_rxstatus6
-
-#define AR_RxDone           0x00000001
-#define AR_RxFrameOK        0x00000002
-#define AR_CRCErr           0x00000004
-#define AR_DecryptCRCErr    0x00000008
-#define AR_PHYErr           0x00000010
-#define AR_MichaelErr       0x00000020
-#define AR_PreDelimCRCErr   0x00000040
-#define AR_RxStatusRsvd70   0x00000080
-#define AR_RxKeyIdxValid    0x00000100
-#define AR_KeyIdx           0x0000fe00
-#define AR_KeyIdx_S         9
-#define AR_PHYErrCode       0x0000ff00
-#define AR_PHYErrCode_S     8
-#define AR_RxMoreAggr       0x00010000
-#define AR_RxAggr           0x00020000
-#define AR_PostDelimCRCErr  0x00040000
-#define AR_RxStatusRsvd71   0x3ff80000
-#define AR_DecryptBusyErr   0x40000000
-#define AR_KeyMiss          0x80000000
-
-#define AR5416_MAGIC        0x19641014
-
-#define RXSTATUS_RATE(ah, ads)  (AR_SREV_5416_V20_OR_LATER(ah) ?	\
-				 MS(ads->ds_rxstatus0, AR_RxRate) :	\
-				 (ads->ds_rxstatus3 >> 2) & 0xFF)
-
-#define set11nTries(_series, _index) \
-	(SM((_series)[_index].Tries, AR_XmitDataTries##_index))
-
-#define set11nRate(_series, _index) \
-	(SM((_series)[_index].Rate, AR_XmitRate##_index))
-
-#define set11nPktDurRTSCTS(_series, _index)				\
-	(SM((_series)[_index].PktDuration, AR_PacketDur##_index) |	\
-	((_series)[_index].RateFlags & ATH9K_RATESERIES_RTS_CTS   ?	\
-		AR_RTSCTSQual##_index : 0))
-
-#define set11nRateFlags(_series, _index)				\
-	(((_series)[_index].RateFlags & ATH9K_RATESERIES_2040 ?		\
-	  AR_2040_##_index : 0)						\
-	 |((_series)[_index].RateFlags & ATH9K_RATESERIES_HALFGI ?	\
-	   AR_GI##_index : 0)						\
-	 |SM((_series)[_index].ChSel, AR_ChainSel##_index))
-
-#define AR_SREV_9100(ah) ((ah->ah_macVersion) == AR_SREV_VERSION_9100)
-
-#define INIT_CONFIG_STATUS  0x00000000
-#define INIT_RSSI_THR       0x00000700
-#define INIT_BCON_CNTRL_REG 0x00000000
-
-#define MIN_TX_FIFO_THRESHOLD   0x1
-#define MAX_TX_FIFO_THRESHOLD   ((4096 / 64) - 1)
-#define INIT_TX_FIFO_THRESHOLD  MIN_TX_FIFO_THRESHOLD
-
-struct ar5416AniState {
-	struct ath9k_channel c;
-	u8 noiseImmunityLevel;
-	u8 spurImmunityLevel;
-	u8 firstepLevel;
-	u8 ofdmWeakSigDetectOff;
-	u8 cckWeakSigThreshold;
-	u32 listenTime;
-	u32 ofdmTrigHigh;
-	u32 ofdmTrigLow;
-	int32_t cckTrigHigh;
-	int32_t cckTrigLow;
-	int32_t rssiThrLow;
-	int32_t rssiThrHigh;
-	u32 noiseFloor;
-	u32 txFrameCount;
-	u32 rxFrameCount;
-	u32 cycleCount;
-	u32 ofdmPhyErrCount;
-	u32 cckPhyErrCount;
-	u32 ofdmPhyErrBase;
-	u32 cckPhyErrBase;
-	int16_t pktRssi[2];
-	int16_t ofdmErrRssi[2];
-	int16_t cckErrRssi[2];
-};
-
-#define HAL_PROCESS_ANI     0x00000001
-#define DO_ANI(ah) \
-	((AH5416(ah)->ah_procPhyErr & HAL_PROCESS_ANI))
-
-struct ar5416Stats {
-	u32 ast_ani_niup;
-	u32 ast_ani_nidown;
-	u32 ast_ani_spurup;
-	u32 ast_ani_spurdown;
-	u32 ast_ani_ofdmon;
-	u32 ast_ani_ofdmoff;
-	u32 ast_ani_cckhigh;
-	u32 ast_ani_ccklow;
-	u32 ast_ani_stepup;
-	u32 ast_ani_stepdown;
-	u32 ast_ani_ofdmerrs;
-	u32 ast_ani_cckerrs;
-	u32 ast_ani_reset;
-	u32 ast_ani_lzero;
-	u32 ast_ani_lneg;
-	struct ath9k_mib_stats ast_mibstats;
-	struct ath9k_node_stats ast_nodestats;
-};
-
-#define AR5416_OPFLAGS_11A           0x01
-#define AR5416_OPFLAGS_11G           0x02
-#define AR5416_OPFLAGS_N_5G_HT40     0x04
-#define AR5416_OPFLAGS_N_2G_HT40     0x08
-#define AR5416_OPFLAGS_N_5G_HT20     0x10
-#define AR5416_OPFLAGS_N_2G_HT20     0x20
-
-#define EEP_RFSILENT_ENABLED        0x0001
-#define EEP_RFSILENT_ENABLED_S      0
-#define EEP_RFSILENT_POLARITY       0x0002
-#define EEP_RFSILENT_POLARITY_S     1
-#define EEP_RFSILENT_GPIO_SEL       0x001c
-#define EEP_RFSILENT_GPIO_SEL_S     2
-
-#define AR5416_EEP_NO_BACK_VER       0x1
-#define AR5416_EEP_VER               0xE
-#define AR5416_EEP_VER_MINOR_MASK    0x0FFF
-#define AR5416_EEP_MINOR_VER_2       0x2
-#define AR5416_EEP_MINOR_VER_3       0x3
-#define AR5416_EEP_MINOR_VER_7       0x7
-#define AR5416_EEP_MINOR_VER_9       0x9
-#define AR5416_EEP_MINOR_VER_16      0x10
-#define AR5416_EEP_MINOR_VER_17      0x11
-#define AR5416_EEP_MINOR_VER_19      0x13
-
-#define AR5416_NUM_5G_CAL_PIERS         8
-#define AR5416_NUM_2G_CAL_PIERS         4
-#define AR5416_NUM_5G_20_TARGET_POWERS  8
-#define AR5416_NUM_5G_40_TARGET_POWERS  8
-#define AR5416_NUM_2G_CCK_TARGET_POWERS 3
-#define AR5416_NUM_2G_20_TARGET_POWERS  4
-#define AR5416_NUM_2G_40_TARGET_POWERS  4
-#define AR5416_NUM_CTLS                 24
-#define AR5416_NUM_BAND_EDGES           8
-#define AR5416_NUM_PD_GAINS             4
-#define AR5416_PD_GAINS_IN_MASK         4
-#define AR5416_PD_GAIN_ICEPTS           5
-#define AR5416_EEPROM_MODAL_SPURS       5
-#define AR5416_MAX_RATE_POWER           63
-#define AR5416_NUM_PDADC_VALUES         128
-#define AR5416_BCHAN_UNUSED             0xFF
-#define AR5416_MAX_PWR_RANGE_IN_HALF_DB 64
-#define AR5416_MAX_CHAINS               3
-#define AR5416_PWR_TABLE_OFFSET         -5
-
-/* Rx gain type values */
-#define AR5416_EEP_RXGAIN_23DB_BACKOFF     0
-#define AR5416_EEP_RXGAIN_13DB_BACKOFF     1
-#define AR5416_EEP_RXGAIN_ORIG             2
-
-/* Tx gain type values */
-#define AR5416_EEP_TXGAIN_ORIGINAL         0
-#define AR5416_EEP_TXGAIN_HIGH_POWER       1
-
-#define AR5416_EEP4K_START_LOC         64
-#define AR5416_EEP4K_NUM_2G_CAL_PIERS      3
-#define AR5416_EEP4K_NUM_2G_CCK_TARGET_POWERS 3
-#define AR5416_EEP4K_NUM_2G_20_TARGET_POWERS  3
-#define AR5416_EEP4K_NUM_2G_40_TARGET_POWERS  3
-#define AR5416_EEP4K_NUM_CTLS              12
-#define AR5416_EEP4K_NUM_BAND_EDGES        4
-#define AR5416_EEP4K_NUM_PD_GAINS          2
-#define AR5416_EEP4K_PD_GAINS_IN_MASK      4
-#define AR5416_EEP4K_PD_GAIN_ICEPTS        5
-#define AR5416_EEP4K_MAX_CHAINS            1
-
-enum eeprom_param {
-	EEP_NFTHRESH_5,
-	EEP_NFTHRESH_2,
-	EEP_MAC_MSW,
-	EEP_MAC_MID,
-	EEP_MAC_LSW,
-	EEP_REG_0,
-	EEP_REG_1,
-	EEP_OP_CAP,
-	EEP_OP_MODE,
-	EEP_RF_SILENT,
-	EEP_OB_5,
-	EEP_DB_5,
-	EEP_OB_2,
-	EEP_DB_2,
-	EEP_MINOR_REV,
-	EEP_TX_MASK,
-	EEP_RX_MASK,
-	EEP_RXGAIN_TYPE,
-	EEP_TXGAIN_TYPE,
-};
-
-enum ar5416_rates {
-	rate6mb, rate9mb, rate12mb, rate18mb,
-	rate24mb, rate36mb, rate48mb, rate54mb,
-	rate1l, rate2l, rate2s, rate5_5l,
-	rate5_5s, rate11l, rate11s, rateXr,
-	rateHt20_0, rateHt20_1, rateHt20_2, rateHt20_3,
-	rateHt20_4, rateHt20_5, rateHt20_6, rateHt20_7,
-	rateHt40_0, rateHt40_1, rateHt40_2, rateHt40_3,
-	rateHt40_4, rateHt40_5, rateHt40_6, rateHt40_7,
-	rateDupCck, rateDupOfdm, rateExtCck, rateExtOfdm,
-	Ar5416RateSize
-};
-
-enum ath9k_hal_freq_band {
-	ATH9K_HAL_FREQ_BAND_5GHZ = 0,
-	ATH9K_HAL_FREQ_BAND_2GHZ = 1
-};
-
-struct base_eep_header {
-	u16 length;
-	u16 checksum;
-	u16 version;
-	u8 opCapFlags;
-	u8 eepMisc;
-	u16 regDmn[2];
-	u8 macAddr[6];
-	u8 rxMask;
-	u8 txMask;
-	u16 rfSilent;
-	u16 blueToothOptions;
-	u16 deviceCap;
-	u32 binBuildNumber;
-	u8 deviceType;
-	u8 pwdclkind;
-	u8 futureBase_1[2];
-	u8 rxGainType;
-	u8 futureBase_2[3];
-	u8 txGainType;
-	u8 futureBase_3[25];
-} __packed;
-
-struct base_eep_header_4k {
-	u16 length;
-	u16 checksum;
-	u16 version;
-	u8 opCapFlags;
-	u8 eepMisc;
-	u16 regDmn[2];
-	u8 macAddr[6];
-	u8 rxMask;
-	u8 txMask;
-	u16 rfSilent;
-	u16 blueToothOptions;
-	u16 deviceCap;
-	u32 binBuildNumber;
-	u8 deviceType;
-	u8 futureBase[1];
-} __packed;
-
-
-struct spur_chan {
-	u16 spurChan;
-	u8 spurRangeLow;
-	u8 spurRangeHigh;
-} __packed;
-
-struct modal_eep_header {
-	u32 antCtrlChain[AR5416_MAX_CHAINS];
-	u32 antCtrlCommon;
-	u8 antennaGainCh[AR5416_MAX_CHAINS];
-	u8 switchSettling;
-	u8 txRxAttenCh[AR5416_MAX_CHAINS];
-	u8 rxTxMarginCh[AR5416_MAX_CHAINS];
-	u8 adcDesiredSize;
-	u8 pgaDesiredSize;
-	u8 xlnaGainCh[AR5416_MAX_CHAINS];
-	u8 txEndToXpaOff;
-	u8 txEndToRxOn;
-	u8 txFrameToXpaOn;
-	u8 thresh62;
-	u8 noiseFloorThreshCh[AR5416_MAX_CHAINS];
-	u8 xpdGain;
-	u8 xpd;
-	u8 iqCalICh[AR5416_MAX_CHAINS];
-	u8 iqCalQCh[AR5416_MAX_CHAINS];
-	u8 pdGainOverlap;
-	u8 ob;
-	u8 db;
-	u8 xpaBiasLvl;
-	u8 pwrDecreaseFor2Chain;
-	u8 pwrDecreaseFor3Chain;
-	u8 txFrameToDataStart;
-	u8 txFrameToPaOn;
-	u8 ht40PowerIncForPdadc;
-	u8 bswAtten[AR5416_MAX_CHAINS];
-	u8 bswMargin[AR5416_MAX_CHAINS];
-	u8 swSettleHt40;
-	u8 xatten2Db[AR5416_MAX_CHAINS];
-	u8 xatten2Margin[AR5416_MAX_CHAINS];
-	u8 ob_ch1;
-	u8 db_ch1;
-	u8 useAnt1:1,
-	    force_xpaon:1,
-	    local_bias:1,
-	    femBandSelectUsed:1, xlnabufin:1, xlnaisel:2, xlnabufmode:1;
-	u8 futureModalar9280;
-	u16 xpaBiasLvlFreq[3];
-	u8 futureModal[6];
-
-	struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
-} __packed;
-
-struct modal_eep_4k_header {
-    u32  antCtrlChain[AR5416_EEP4K_MAX_CHAINS];
-    u32  antCtrlCommon;
-    u8   antennaGainCh[AR5416_EEP4K_MAX_CHAINS];
-    u8   switchSettling;
-    u8   txRxAttenCh[AR5416_EEP4K_MAX_CHAINS];
-    u8   rxTxMarginCh[AR5416_EEP4K_MAX_CHAINS];
-    u8   adcDesiredSize;
-    u8   pgaDesiredSize;
-    u8   xlnaGainCh[AR5416_EEP4K_MAX_CHAINS];
-    u8   txEndToXpaOff;
-    u8   txEndToRxOn;
-    u8   txFrameToXpaOn;
-    u8   thresh62;
-    u8   noiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
-    u8   xpdGain;
-    u8   xpd;
-    u8   iqCalICh[AR5416_EEP4K_MAX_CHAINS];
-    u8   iqCalQCh[AR5416_EEP4K_MAX_CHAINS];
-    u8   pdGainOverlap;
-    u8   ob_01;
-    u8   db1_01;
-    u8   xpaBiasLvl;
-    u8   txFrameToDataStart;
-    u8   txFrameToPaOn;
-    u8   ht40PowerIncForPdadc;
-    u8   bswAtten[AR5416_EEP4K_MAX_CHAINS];
-    u8   bswMargin[AR5416_EEP4K_MAX_CHAINS];
-    u8   swSettleHt40;
-    u8   xatten2Db[AR5416_EEP4K_MAX_CHAINS];
-    u8   xatten2Margin[AR5416_EEP4K_MAX_CHAINS];
-    u8   db2_01;
-    u8   version;
-    u16  ob_234;
-    u16  db1_234;
-    u16  db2_234;
-    u8   futureModal[4];
-
-    struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
-} __packed;
-
-
-struct cal_data_per_freq {
-	u8 pwrPdg[AR5416_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
-	u8 vpdPdg[AR5416_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
-} __packed;
-
-struct cal_data_per_freq_4k {
-	u8 pwrPdg[AR5416_EEP4K_NUM_PD_GAINS][AR5416_EEP4K_PD_GAIN_ICEPTS];
-	u8 vpdPdg[AR5416_EEP4K_NUM_PD_GAINS][AR5416_EEP4K_PD_GAIN_ICEPTS];
-} __packed;
-
-struct cal_target_power_leg {
-	u8 bChannel;
-	u8 tPow2x[4];
-} __packed;
-
-struct cal_target_power_ht {
-	u8 bChannel;
-	u8 tPow2x[8];
-} __packed;
-
-
-#ifdef __BIG_ENDIAN_BITFIELD
-struct cal_ctl_edges {
-	u8 bChannel;
-	u8 flag:2, tPower:6;
-} __packed;
-#else
-struct cal_ctl_edges {
-	u8 bChannel;
-	u8 tPower:6, flag:2;
-} __packed;
-#endif
-
-struct cal_ctl_data {
-	struct cal_ctl_edges
-	ctlEdges[AR5416_MAX_CHAINS][AR5416_NUM_BAND_EDGES];
-} __packed;
-
-struct cal_ctl_data_4k {
-	struct cal_ctl_edges
-	ctlEdges[AR5416_EEP4K_MAX_CHAINS][AR5416_EEP4K_NUM_BAND_EDGES];
-} __packed;
-
-struct ar5416_eeprom_def {
-	struct base_eep_header baseEepHeader;
-	u8 custData[64];
-	struct modal_eep_header modalHeader[2];
-	u8 calFreqPier5G[AR5416_NUM_5G_CAL_PIERS];
-	u8 calFreqPier2G[AR5416_NUM_2G_CAL_PIERS];
-	struct cal_data_per_freq
-	 calPierData5G[AR5416_MAX_CHAINS][AR5416_NUM_5G_CAL_PIERS];
-	struct cal_data_per_freq
-	 calPierData2G[AR5416_MAX_CHAINS][AR5416_NUM_2G_CAL_PIERS];
-	struct cal_target_power_leg
-	 calTargetPower5G[AR5416_NUM_5G_20_TARGET_POWERS];
-	struct cal_target_power_ht
-	 calTargetPower5GHT20[AR5416_NUM_5G_20_TARGET_POWERS];
-	struct cal_target_power_ht
-	 calTargetPower5GHT40[AR5416_NUM_5G_40_TARGET_POWERS];
-	struct cal_target_power_leg
-	 calTargetPowerCck[AR5416_NUM_2G_CCK_TARGET_POWERS];
-	struct cal_target_power_leg
-	 calTargetPower2G[AR5416_NUM_2G_20_TARGET_POWERS];
-	struct cal_target_power_ht
-	 calTargetPower2GHT20[AR5416_NUM_2G_20_TARGET_POWERS];
-	struct cal_target_power_ht
-	 calTargetPower2GHT40[AR5416_NUM_2G_40_TARGET_POWERS];
-	u8 ctlIndex[AR5416_NUM_CTLS];
-	struct cal_ctl_data ctlData[AR5416_NUM_CTLS];
-	u8 padding;
-} __packed;
-
-struct ar5416_eeprom_4k {
-	struct base_eep_header_4k baseEepHeader;
-	u8 custData[20];
-	struct modal_eep_4k_header modalHeader;
-	u8 calFreqPier2G[AR5416_EEP4K_NUM_2G_CAL_PIERS];
-	struct cal_data_per_freq_4k
-	calPierData2G[AR5416_EEP4K_MAX_CHAINS][AR5416_EEP4K_NUM_2G_CAL_PIERS];
-	struct cal_target_power_leg
-	calTargetPowerCck[AR5416_EEP4K_NUM_2G_CCK_TARGET_POWERS];
-	struct cal_target_power_leg
-	calTargetPower2G[AR5416_EEP4K_NUM_2G_20_TARGET_POWERS];
-	struct cal_target_power_ht
-	calTargetPower2GHT20[AR5416_EEP4K_NUM_2G_20_TARGET_POWERS];
-	struct cal_target_power_ht
-	calTargetPower2GHT40[AR5416_EEP4K_NUM_2G_40_TARGET_POWERS];
-	u8 ctlIndex[AR5416_EEP4K_NUM_CTLS];
-	struct cal_ctl_data_4k ctlData[AR5416_EEP4K_NUM_CTLS];
-	u8 padding;
-} __packed;
-
-struct ar5416IniArray {
-	u32 *ia_array;
-	u32 ia_rows;
-	u32 ia_columns;
-};
-
-#define INIT_INI_ARRAY(iniarray, array, rows, columns) do {	\
-		(iniarray)->ia_array = (u32 *)(array);		\
-		(iniarray)->ia_rows = (rows);			\
-		(iniarray)->ia_columns = (columns);		\
-	} while (0)
-
-#define INI_RA(iniarray, row, column) \
-	(((iniarray)->ia_array)[(row) *	((iniarray)->ia_columns) + (column)])
-
-#define INIT_CAL(_perCal) do {				\
-		(_perCal)->calState = CAL_WAITING;	\
-		(_perCal)->calNext = NULL;		\
-	} while (0)
-
-#define INSERT_CAL(_ahp, _perCal)					\
-	do {								\
-		if ((_ahp)->ah_cal_list_last == NULL) {			\
-			(_ahp)->ah_cal_list =				\
-				(_ahp)->ah_cal_list_last = (_perCal);	\
-			((_ahp)->ah_cal_list_last)->calNext = (_perCal); \
-		} else {						\
-			((_ahp)->ah_cal_list_last)->calNext = (_perCal); \
-			(_ahp)->ah_cal_list_last = (_perCal);		\
-			(_perCal)->calNext = (_ahp)->ah_cal_list;	\
-		}							\
-	} while (0)
-
-enum hal_cal_types {
-	ADC_DC_INIT_CAL = 0x1,
-	ADC_GAIN_CAL = 0x2,
-	ADC_DC_CAL = 0x4,
-	IQ_MISMATCH_CAL = 0x8
-};
-
-enum hal_cal_state {
-	CAL_INACTIVE,
-	CAL_WAITING,
-	CAL_RUNNING,
-	CAL_DONE
-};
-
-#define MIN_CAL_SAMPLES     1
-#define MAX_CAL_SAMPLES    64
-#define INIT_LOG_COUNT      5
-#define PER_MIN_LOG_COUNT   2
-#define PER_MAX_LOG_COUNT  10
-
-struct hal_percal_data {
-	enum hal_cal_types calType;
-	u32 calNumSamples;
-	u32 calCountMax;
-	void (*calCollect) (struct ath_hal *);
-	void (*calPostProc) (struct ath_hal *, u8);
-};
-
-struct hal_cal_list {
-	const struct hal_percal_data *calData;
-	enum hal_cal_state calState;
-	struct hal_cal_list *calNext;
-};
-
-/*
- * Enum to indentify the eeprom mappings
- */
-enum hal_eep_map {
-	EEP_MAP_DEFAULT = 0x0,
-	EEP_MAP_4KBITS,
-	EEP_MAP_MAX
-};
-
-
-struct ath_hal_5416 {
-	struct ath_hal ah;
-	union {
-		struct ar5416_eeprom_def def;
-		struct ar5416_eeprom_4k map4k;
-	} ah_eeprom;
-	struct ar5416Stats ah_stats;
-	struct ath9k_tx_queue_info ah_txq[ATH9K_NUM_TX_QUEUES];
-	void __iomem *ah_cal_mem;
-
-	u8 ah_macaddr[ETH_ALEN];
-	u8 ah_bssid[ETH_ALEN];
-	u8 ah_bssidmask[ETH_ALEN];
-	u16 ah_assocId;
-
-	int16_t ah_curchanRadIndex;
-	u32 ah_maskReg;
-	u32 ah_txOkInterruptMask;
-	u32 ah_txErrInterruptMask;
-	u32 ah_txDescInterruptMask;
-	u32 ah_txEolInterruptMask;
-	u32 ah_txUrnInterruptMask;
-	bool ah_chipFullSleep;
-	u32 ah_atimWindow;
-	u16 ah_antennaSwitchSwap;
-	enum ath9k_power_mode ah_powerMode;
-	enum ath9k_ant_setting ah_diversityControl;
-
-	/* Calibration */
-	enum hal_cal_types ah_suppCals;
-	struct hal_cal_list ah_iqCalData;
-	struct hal_cal_list ah_adcGainCalData;
-	struct hal_cal_list ah_adcDcCalInitData;
-	struct hal_cal_list ah_adcDcCalData;
-	struct hal_cal_list *ah_cal_list;
-	struct hal_cal_list *ah_cal_list_last;
-	struct hal_cal_list *ah_cal_list_curr;
-#define ah_totalPowerMeasI ah_Meas0.unsign
-#define ah_totalPowerMeasQ ah_Meas1.unsign
-#define ah_totalIqCorrMeas ah_Meas2.sign
-#define ah_totalAdcIOddPhase  ah_Meas0.unsign
-#define ah_totalAdcIEvenPhase ah_Meas1.unsign
-#define ah_totalAdcQOddPhase  ah_Meas2.unsign
-#define ah_totalAdcQEvenPhase ah_Meas3.unsign
-#define ah_totalAdcDcOffsetIOddPhase  ah_Meas0.sign
-#define ah_totalAdcDcOffsetIEvenPhase ah_Meas1.sign
-#define ah_totalAdcDcOffsetQOddPhase  ah_Meas2.sign
-#define ah_totalAdcDcOffsetQEvenPhase ah_Meas3.sign
-	union {
-		u32 unsign[AR5416_MAX_CHAINS];
-		int32_t sign[AR5416_MAX_CHAINS];
-	} ah_Meas0;
-	union {
-		u32 unsign[AR5416_MAX_CHAINS];
-		int32_t sign[AR5416_MAX_CHAINS];
-	} ah_Meas1;
-	union {
-		u32 unsign[AR5416_MAX_CHAINS];
-		int32_t sign[AR5416_MAX_CHAINS];
-	} ah_Meas2;
-	union {
-		u32 unsign[AR5416_MAX_CHAINS];
-		int32_t sign[AR5416_MAX_CHAINS];
-	} ah_Meas3;
-	u16 ah_CalSamples;
-
-	u32 ah_staId1Defaults;
-	u32 ah_miscMode;
-	enum {
-		AUTO_32KHZ,
-		USE_32KHZ,
-		DONT_USE_32KHZ,
-	} ah_enable32kHzClock;
-
-	/* RF */
-	u32 *ah_analogBank0Data;
-	u32 *ah_analogBank1Data;
-	u32 *ah_analogBank2Data;
-	u32 *ah_analogBank3Data;
-	u32 *ah_analogBank6Data;
-	u32 *ah_analogBank6TPCData;
-	u32 *ah_analogBank7Data;
-	u32 *ah_addac5416_21;
-	u32 *ah_bank6Temp;
-
-	int16_t ah_txPowerIndexOffset;
-	u32 ah_beaconInterval;
-	u32 ah_slottime;
-	u32 ah_acktimeout;
-	u32 ah_ctstimeout;
-	u32 ah_globaltxtimeout;
-	u8 ah_gBeaconRate;
-	u32 ah_gpioSelect;
-	u32 ah_polarity;
-	u32 ah_gpioBit;
-
-	/* ANI */
-	u32 ah_procPhyErr;
-	bool ah_hasHwPhyCounters;
-	u32 ah_aniPeriod;
-	struct ar5416AniState *ah_curani;
-	struct ar5416AniState ah_ani[255];
-	int ah_totalSizeDesired[5];
-	int ah_coarseHigh[5];
-	int ah_coarseLow[5];
-	int ah_firpwr[5];
-	enum ath9k_ani_cmd ah_ani_function;
-
-	u32 ah_intrTxqs;
-	bool ah_intrMitigation;
-	enum ath9k_ht_extprotspacing ah_extprotspacing;
-	u8 ah_txchainmask;
-	u8 ah_rxchainmask;
-
-	struct ar5416IniArray ah_iniModes;
-	struct ar5416IniArray ah_iniCommon;
-	struct ar5416IniArray ah_iniBank0;
-	struct ar5416IniArray ah_iniBB_RfGain;
-	struct ar5416IniArray ah_iniBank1;
-	struct ar5416IniArray ah_iniBank2;
-	struct ar5416IniArray ah_iniBank3;
-	struct ar5416IniArray ah_iniBank6;
-	struct ar5416IniArray ah_iniBank6TPC;
-	struct ar5416IniArray ah_iniBank7;
-	struct ar5416IniArray ah_iniAddac;
-	struct ar5416IniArray ah_iniPcieSerdes;
-	struct ar5416IniArray ah_iniModesAdditional;
-	struct ar5416IniArray ah_iniModesRxGain;
-	struct ar5416IniArray ah_iniModesTxGain;
-	/* To indicate EEPROM mapping used */
-	enum hal_eep_map ah_eep_map;
-};
-#define AH5416(_ah) ((struct ath_hal_5416 *)(_ah))
-
-#define FREQ2FBIN(x, y) ((y) ? ((x) - 2300) : (((x) - 4800) / 5))
-
-#define ar5416RfDetach(ah) do {					\
-		if (AH5416(ah)->ah_rfHal.rfDetach != NULL)	\
-			AH5416(ah)->ah_rfHal.rfDetach(ah);	\
-	} while (0)
-
-#define ath9k_hw_use_flash(_ah)			\
-	(!(_ah->ah_flags & AH_USE_EEPROM))
-
+#include <linux/io.h>
+
+#include "mac.h"
+#include "ani.h"
+#include "eeprom.h"
+#include "calib.h"
+#include "regd.h"
+#include "reg.h"
+#include "phy.h"
+
+#define ATHEROS_VENDOR_ID	0x168c
+#define AR5416_DEVID_PCI	0x0023
+#define AR5416_DEVID_PCIE	0x0024
+#define AR9160_DEVID_PCI	0x0027
+#define AR9280_DEVID_PCI	0x0029
+#define AR9280_DEVID_PCIE	0x002a
+#define AR9285_DEVID_PCIE	0x002b
+#define AR5416_AR9100_DEVID	0x000b
+#define	AR_SUBVENDOR_ID_NOG	0x0e11
+#define AR_SUBVENDOR_ID_NEW_A	0x7065
+#define AR5416_MAGIC		0x19641014
+
+/* Register read/write primitives */
+#define REG_WRITE(_ah, _reg, _val) ath9k_iowrite32((_ah), (_reg), (_val))
+#define REG_READ(_ah, _reg) ath9k_ioread32((_ah), (_reg))
+
+#define SM(_v, _f)  (((_v) << _f##_S) & _f)
+#define MS(_v, _f)  (((_v) & _f) >> _f##_S)
+#define REG_RMW(_a, _r, _set, _clr)    \
+	REG_WRITE(_a, _r, (REG_READ(_a, _r) & ~(_clr)) | (_set))
+#define REG_RMW_FIELD(_a, _r, _f, _v) \
+	REG_WRITE(_a, _r, \
+	(REG_READ(_a, _r) & ~_f) | (((_v) << _f##_S) & _f))
+#define REG_SET_BIT(_a, _r, _f) \
+	REG_WRITE(_a, _r, REG_READ(_a, _r) | _f)
+#define REG_CLR_BIT(_a, _r, _f) \
+	REG_WRITE(_a, _r, REG_READ(_a, _r) & ~_f)
 
 #define DO_DELAY(x) do {			\
 		if ((++(x) % 64) == 0)          \
@@ -964,117 +71,577 @@ struct ath_hal_5416 {
 		}							\
 	} while (0)
 
+#define AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0
+#define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
+#define AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED     2
+#define AR_GPIO_OUTPUT_MUX_AS_TX_FRAME           3
+#define AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
+#define AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
+
+#define AR_GPIOD_MASK               0x00001FFF
+#define AR_GPIO_BIT(_gpio)          (1 << (_gpio))
+
 #define BASE_ACTIVATE_DELAY         100
 #define RTC_PLL_SETTLE_DELAY        1000
 #define COEF_SCALE_S                24
 #define HT40_CHANNEL_CENTER_SHIFT   10
 
-#define AR5416_EEPROM_MAGIC_OFFSET  0x0
+#define ATH9K_ANTENNA0_CHAINMASK    0x1
+#define ATH9K_ANTENNA1_CHAINMASK    0x2
 
-#define AR5416_EEPROM_S             2
-#define AR5416_EEPROM_OFFSET        0x2000
-#define AR5416_EEPROM_START_ADDR \
-	(AR_SREV_9100(ah)) ? 0x1fff1000 : 0x503f1200
-#define AR5416_EEPROM_MAX           0xae0
-#define ar5416_get_eep_ver(_ahp) \
-	(((_ahp)->ah_eeprom.def.baseEepHeader.version >> 12) & 0xF)
-#define ar5416_get_eep_rev(_ahp) \
-	(((_ahp)->ah_eeprom.def.baseEepHeader.version) & 0xFFF)
-#define ar5416_get_ntxchains(_txchainmask) \
-	(((_txchainmask >> 2) & 1) + \
-		((_txchainmask >> 1) & 1) + (_txchainmask & 1))
+#define ATH9K_NUM_DMA_DEBUG_REGS    8
+#define ATH9K_NUM_QUEUES            10
 
-/* EEPROM 4K bit map definations */
-#define ar5416_get_eep4k_ver(_ahp)   \
-    (((_ahp)->ah_eeprom.map4k.baseEepHeader.version >> 12) & 0xF)
-#define ar5416_get_eep4k_rev(_ahp)   \
-    (((_ahp)->ah_eeprom.map4k.baseEepHeader.version) & 0xFFF)
+#define MAX_RATE_POWER              63
+#define AH_WAIT_TIMEOUT             100000 /* (us) */
+#define AH_TIME_QUANTUM             10
+#define AR_KEYTABLE_SIZE            128
+#define POWER_UP_TIME               200000
+#define SPUR_RSSI_THRESH            40
 
+#define CAB_TIMEOUT_VAL             10
+#define BEACON_TIMEOUT_VAL          10
+#define MIN_BEACON_TIMEOUT_VAL      1
+#define SLEEP_SLOP                  3
 
-#ifdef __BIG_ENDIAN
-#define AR5416_EEPROM_MAGIC 0x5aa5
-#else
-#define AR5416_EEPROM_MAGIC 0xa55a
+#define INIT_CONFIG_STATUS          0x00000000
+#define INIT_RSSI_THR               0x00000700
+#define INIT_BCON_CNTRL_REG         0x00000000
+
+#define TU_TO_USEC(_tu)             ((_tu) << 10)
+
+enum wireless_mode {
+	ATH9K_MODE_11A = 0,
+	ATH9K_MODE_11B = 2,
+	ATH9K_MODE_11G = 3,
+	ATH9K_MODE_11NA_HT20 = 6,
+	ATH9K_MODE_11NG_HT20 = 7,
+	ATH9K_MODE_11NA_HT40PLUS = 8,
+	ATH9K_MODE_11NA_HT40MINUS = 9,
+	ATH9K_MODE_11NG_HT40PLUS = 10,
+	ATH9K_MODE_11NG_HT40MINUS = 11,
+	ATH9K_MODE_MAX
+};
+
+enum ath9k_hw_caps {
+	ATH9K_HW_CAP_CHAN_SPREAD		= BIT(0),
+	ATH9K_HW_CAP_MIC_AESCCM                 = BIT(1),
+	ATH9K_HW_CAP_MIC_CKIP                   = BIT(2),
+	ATH9K_HW_CAP_MIC_TKIP                   = BIT(3),
+	ATH9K_HW_CAP_CIPHER_AESCCM              = BIT(4),
+	ATH9K_HW_CAP_CIPHER_CKIP                = BIT(5),
+	ATH9K_HW_CAP_CIPHER_TKIP                = BIT(6),
+	ATH9K_HW_CAP_VEOL                       = BIT(7),
+	ATH9K_HW_CAP_BSSIDMASK                  = BIT(8),
+	ATH9K_HW_CAP_MCAST_KEYSEARCH            = BIT(9),
+	ATH9K_HW_CAP_CHAN_HALFRATE              = BIT(10),
+	ATH9K_HW_CAP_CHAN_QUARTERRATE           = BIT(11),
+	ATH9K_HW_CAP_HT                         = BIT(12),
+	ATH9K_HW_CAP_GTT                        = BIT(13),
+	ATH9K_HW_CAP_FASTCC                     = BIT(14),
+	ATH9K_HW_CAP_RFSILENT                   = BIT(15),
+	ATH9K_HW_CAP_WOW                        = BIT(16),
+	ATH9K_HW_CAP_CST                        = BIT(17),
+	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(18),
+	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(19),
+	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(20),
+	ATH9K_HW_CAP_WOW_MATCHPATTERN_EXACT     = BIT(21),
+	ATH9K_HW_CAP_BT_COEX			= BIT(22)
+};
+
+enum ath9k_capability_type {
+	ATH9K_CAP_CIPHER = 0,
+	ATH9K_CAP_TKIP_MIC,
+	ATH9K_CAP_TKIP_SPLIT,
+	ATH9K_CAP_DIVERSITY,
+	ATH9K_CAP_TXPOW,
+	ATH9K_CAP_MCAST_KEYSRCH,
+	ATH9K_CAP_DS
+};
+
+struct ath9k_hw_capabilities {
+	u32 hw_caps; /* ATH9K_HW_CAP_* from ath9k_hw_caps */
+	DECLARE_BITMAP(wireless_modes, ATH9K_MODE_MAX); /* ATH9K_MODE_* */
+	u16 total_queues;
+	u16 keycache_size;
+	u16 low_5ghz_chan, high_5ghz_chan;
+	u16 low_2ghz_chan, high_2ghz_chan;
+	u16 num_mr_retries;
+	u16 rts_aggr_limit;
+	u8 tx_chainmask;
+	u8 rx_chainmask;
+	u16 tx_triglevel_max;
+	u16 reg_cap;
+	u8 num_gpio_pins;
+	u8 num_antcfg_2ghz;
+	u8 num_antcfg_5ghz;
+};
+
+struct ath9k_ops_config {
+	int dma_beacon_response_time;
+	int sw_beacon_response_time;
+	int additional_swba_backoff;
+	int ack_6mb;
+	int cwm_ignore_extcca;
+	u8 pcie_powersave_enable;
+	u8 pcie_l1skp_enable;
+	u8 pcie_clock_req;
+	u32 pcie_waen;
+	int pcie_power_reset;
+	u8 pcie_restore;
+	u8 analog_shiftreg;
+	u8 ht_enable;
+	u32 ofdm_trig_low;
+	u32 ofdm_trig_high;
+	u32 cck_trig_high;
+	u32 cck_trig_low;
+	u32 enable_ani;
+	u8 noise_immunity_level;
+	u32 ofdm_weaksignal_det;
+	u32 cck_weaksignal_thr;
+	u8 spur_immunity_level;
+	u8 firstep_level;
+	int8_t rssi_thr_high;
+	int8_t rssi_thr_low;
+	u16 diversity_control;
+	u16 antenna_switch_swap;
+	int serialize_regmode;
+	int intr_mitigation;
+#define SPUR_DISABLE        	0
+#define SPUR_ENABLE_IOCTL   	1
+#define SPUR_ENABLE_EEPROM  	2
+#define AR_EEPROM_MODAL_SPURS   5
+#define AR_SPUR_5413_1      	1640
+#define AR_SPUR_5413_2      	1200
+#define AR_NO_SPUR      	0x8000
+#define AR_BASE_FREQ_2GHZ   	2300
+#define AR_BASE_FREQ_5GHZ   	4900
+#define AR_SPUR_FEEQ_BOUND_HT40 19
+#define AR_SPUR_FEEQ_BOUND_HT20 10
+	int spurmode;
+	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
+};
+
+enum ath9k_int {
+	ATH9K_INT_RX = 0x00000001,
+	ATH9K_INT_RXDESC = 0x00000002,
+	ATH9K_INT_RXNOFRM = 0x00000008,
+	ATH9K_INT_RXEOL = 0x00000010,
+	ATH9K_INT_RXORN = 0x00000020,
+	ATH9K_INT_TX = 0x00000040,
+	ATH9K_INT_TXDESC = 0x00000080,
+	ATH9K_INT_TIM_TIMER = 0x00000100,
+	ATH9K_INT_TXURN = 0x00000800,
+	ATH9K_INT_MIB = 0x00001000,
+	ATH9K_INT_RXPHY = 0x00004000,
+	ATH9K_INT_RXKCM = 0x00008000,
+	ATH9K_INT_SWBA = 0x00010000,
+	ATH9K_INT_BMISS = 0x00040000,
+	ATH9K_INT_BNR = 0x00100000,
+	ATH9K_INT_TIM = 0x00200000,
+	ATH9K_INT_DTIM = 0x00400000,
+	ATH9K_INT_DTIMSYNC = 0x00800000,
+	ATH9K_INT_GPIO = 0x01000000,
+	ATH9K_INT_CABEND = 0x02000000,
+	ATH9K_INT_TSFOOR = 0x04000000,
+	ATH9K_INT_CST = 0x10000000,
+	ATH9K_INT_GTT = 0x20000000,
+	ATH9K_INT_FATAL = 0x40000000,
+	ATH9K_INT_GLOBAL = 0x80000000,
+	ATH9K_INT_BMISC = ATH9K_INT_TIM |
+		ATH9K_INT_DTIM |
+		ATH9K_INT_DTIMSYNC |
+		ATH9K_INT_TSFOOR |
+		ATH9K_INT_CABEND,
+	ATH9K_INT_COMMON = ATH9K_INT_RXNOFRM |
+		ATH9K_INT_RXDESC |
+		ATH9K_INT_RXEOL |
+		ATH9K_INT_RXORN |
+		ATH9K_INT_TXURN |
+		ATH9K_INT_TXDESC |
+		ATH9K_INT_MIB |
+		ATH9K_INT_RXPHY |
+		ATH9K_INT_RXKCM |
+		ATH9K_INT_SWBA |
+		ATH9K_INT_BMISS |
+		ATH9K_INT_GPIO,
+	ATH9K_INT_NOCARD = 0xffffffff
+};
+
+#define CHANNEL_CW_INT    0x00002
+#define CHANNEL_CCK       0x00020
+#define CHANNEL_OFDM      0x00040
+#define CHANNEL_2GHZ      0x00080
+#define CHANNEL_5GHZ      0x00100
+#define CHANNEL_PASSIVE   0x00200
+#define CHANNEL_DYN       0x00400
+#define CHANNEL_HALF      0x04000
+#define CHANNEL_QUARTER   0x08000
+#define CHANNEL_HT20      0x10000
+#define CHANNEL_HT40PLUS  0x20000
+#define CHANNEL_HT40MINUS 0x40000
+
+#define CHANNEL_INTERFERENCE    0x01
+#define CHANNEL_DFS             0x02
+#define CHANNEL_4MS_LIMIT       0x04
+#define CHANNEL_DFS_CLEAR       0x08
+#define CHANNEL_DISALLOW_ADHOC  0x10
+#define CHANNEL_PER_11D_ADHOC   0x20
+
+#define CHANNEL_A           (CHANNEL_5GHZ|CHANNEL_OFDM)
+#define CHANNEL_B           (CHANNEL_2GHZ|CHANNEL_CCK)
+#define CHANNEL_G           (CHANNEL_2GHZ|CHANNEL_OFDM)
+#define CHANNEL_G_HT20      (CHANNEL_2GHZ|CHANNEL_HT20)
+#define CHANNEL_A_HT20      (CHANNEL_5GHZ|CHANNEL_HT20)
+#define CHANNEL_G_HT40PLUS  (CHANNEL_2GHZ|CHANNEL_HT40PLUS)
+#define CHANNEL_G_HT40MINUS (CHANNEL_2GHZ|CHANNEL_HT40MINUS)
+#define CHANNEL_A_HT40PLUS  (CHANNEL_5GHZ|CHANNEL_HT40PLUS)
+#define CHANNEL_A_HT40MINUS (CHANNEL_5GHZ|CHANNEL_HT40MINUS)
+#define CHANNEL_ALL				\
+	(CHANNEL_OFDM|				\
+	 CHANNEL_CCK|				\
+	 CHANNEL_2GHZ |				\
+	 CHANNEL_5GHZ |				\
+	 CHANNEL_HT20 |				\
+	 CHANNEL_HT40PLUS |			\
+	 CHANNEL_HT40MINUS)
+
+struct ath9k_channel {
+	struct ieee80211_channel *chan;
+	u16 channel;
+	u32 channelFlags;
+	u32 chanmode;
+	int32_t CalValid;
+	bool oneTimeCalsDone;
+	int8_t iCoff;
+	int8_t qCoff;
+	int16_t rawNoiseFloor;
+};
+
+#define IS_CHAN_A(_c) ((((_c)->channelFlags & CHANNEL_A) == CHANNEL_A) || \
+       (((_c)->channelFlags & CHANNEL_A_HT20) == CHANNEL_A_HT20) || \
+       (((_c)->channelFlags & CHANNEL_A_HT40PLUS) == CHANNEL_A_HT40PLUS) || \
+       (((_c)->channelFlags & CHANNEL_A_HT40MINUS) == CHANNEL_A_HT40MINUS))
+#define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
+       (((_c)->channelFlags & CHANNEL_G_HT20) == CHANNEL_G_HT20) || \
+       (((_c)->channelFlags & CHANNEL_G_HT40PLUS) == CHANNEL_G_HT40PLUS) || \
+       (((_c)->channelFlags & CHANNEL_G_HT40MINUS) == CHANNEL_G_HT40MINUS))
+#define IS_CHAN_OFDM(_c) (((_c)->channelFlags & CHANNEL_OFDM) != 0)
+#define IS_CHAN_5GHZ(_c) (((_c)->channelFlags & CHANNEL_5GHZ) != 0)
+#define IS_CHAN_2GHZ(_c) (((_c)->channelFlags & CHANNEL_2GHZ) != 0)
+#define IS_CHAN_PASSIVE(_c) (((_c)->channelFlags & CHANNEL_PASSIVE) != 0)
+#define IS_CHAN_HALF_RATE(_c) (((_c)->channelFlags & CHANNEL_HALF) != 0)
+#define IS_CHAN_QUARTER_RATE(_c) (((_c)->channelFlags & CHANNEL_QUARTER) != 0)
+#define IS_CHAN_A_5MHZ_SPACED(_c)			\
+	((((_c)->channelFlags & CHANNEL_5GHZ) != 0) &&	\
+	 (((_c)->channel % 20) != 0) &&			\
+	 (((_c)->channel % 10) != 0))
+
+/* These macros check chanmode and not channelFlags */
+#define IS_CHAN_B(_c) ((_c)->chanmode == CHANNEL_B)
+#define IS_CHAN_HT20(_c) (((_c)->chanmode == CHANNEL_A_HT20) ||	\
+			  ((_c)->chanmode == CHANNEL_G_HT20))
+#define IS_CHAN_HT40(_c) (((_c)->chanmode == CHANNEL_A_HT40PLUS) ||	\
+			  ((_c)->chanmode == CHANNEL_A_HT40MINUS) ||	\
+			  ((_c)->chanmode == CHANNEL_G_HT40PLUS) ||	\
+			  ((_c)->chanmode == CHANNEL_G_HT40MINUS))
+#define IS_CHAN_HT(_c) (IS_CHAN_HT20((_c)) || IS_CHAN_HT40((_c)))
+
+enum ath9k_power_mode {
+	ATH9K_PM_AWAKE = 0,
+	ATH9K_PM_FULL_SLEEP,
+	ATH9K_PM_NETWORK_SLEEP,
+	ATH9K_PM_UNDEFINED
+};
+
+enum ath9k_ant_setting {
+	ATH9K_ANT_VARIABLE = 0,
+	ATH9K_ANT_FIXED_A,
+	ATH9K_ANT_FIXED_B
+};
+
+enum ath9k_tp_scale {
+	ATH9K_TP_SCALE_MAX = 0,
+	ATH9K_TP_SCALE_50,
+	ATH9K_TP_SCALE_25,
+	ATH9K_TP_SCALE_12,
+	ATH9K_TP_SCALE_MIN
+};
+
+enum ser_reg_mode {
+	SER_REG_MODE_OFF = 0,
+	SER_REG_MODE_ON = 1,
+	SER_REG_MODE_AUTO = 2,
+};
+
+struct ath9k_beacon_state {
+	u32 bs_nexttbtt;
+	u32 bs_nextdtim;
+	u32 bs_intval;
+#define ATH9K_BEACON_PERIOD       0x0000ffff
+#define ATH9K_BEACON_ENA          0x00800000
+#define ATH9K_BEACON_RESET_TSF    0x01000000
+#define ATH9K_TSFOOR_THRESHOLD    0x00004240 /* 16k us */
+	u32 bs_dtimperiod;
+	u16 bs_cfpperiod;
+	u16 bs_cfpmaxduration;
+	u32 bs_cfpnext;
+	u16 bs_timoffset;
+	u16 bs_bmissthreshold;
+	u32 bs_sleepduration;
+	u32 bs_tsfoor_threshold;
+};
+
+struct chan_centers {
+	u16 synth_center;
+	u16 ctl_center;
+	u16 ext_center;
+};
+
+enum {
+	ATH9K_RESET_POWER_ON,
+	ATH9K_RESET_WARM,
+	ATH9K_RESET_COLD,
+};
+
+struct ath9k_hw_version {
+	u32 magic;
+	u16 devid;
+	u16 subvendorid;
+	u32 macVersion;
+	u16 macRev;
+	u16 phyRev;
+	u16 analog5GhzRev;
+	u16 analog2GhzRev;
+};
+
+struct ath_hw {
+	struct ath_softc *ah_sc;
+	struct ath9k_hw_version hw_version;
+	struct ath9k_ops_config config;
+	struct ath9k_hw_capabilities caps;
+	struct ath9k_regulatory regulatory;
+	struct ath9k_channel channels[38];
+	struct ath9k_channel *curchan;
+
+	union {
+		struct ar5416_eeprom_def def;
+		struct ar5416_eeprom_4k map4k;
+	} eeprom;
+	const struct eeprom_ops *eep_ops;
+	enum ath9k_eep_map eep_map;
+
+	bool sw_mgmt_crypto;
+	bool is_pciexpress;
+	u8 macaddr[ETH_ALEN];
+	u16 tx_trig_level;
+	u16 rfsilent;
+	u32 rfkill_gpio;
+	u32 rfkill_polarity;
+	u32 btactive_gpio;
+	u32 wlanactive_gpio;
+	u32 ah_flags;
+
+	enum nl80211_iftype opmode;
+	enum ath9k_power_mode power_mode;
+	enum ath9k_power_mode restore_mode;
+
+	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+	struct ar5416Stats stats;
+	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
+
+	int16_t curchan_rad_index;
+	u32 mask_reg;
+	u32 txok_interrupt_mask;
+	u32 txerr_interrupt_mask;
+	u32 txdesc_interrupt_mask;
+	u32 txeol_interrupt_mask;
+	u32 txurn_interrupt_mask;
+	bool chip_fullsleep;
+	u32 atim_window;
+	u16 antenna_switch_swap;
+	enum ath9k_ant_setting diversity_control;
+
+	/* Calibration */
+	enum hal_cal_types supp_cals;
+	struct hal_cal_list iq_caldata;
+	struct hal_cal_list adcgain_caldata;
+	struct hal_cal_list adcdc_calinitdata;
+	struct hal_cal_list adcdc_caldata;
+	struct hal_cal_list *cal_list;
+	struct hal_cal_list *cal_list_last;
+	struct hal_cal_list *cal_list_curr;
+#define totalPowerMeasI meas0.unsign
+#define totalPowerMeasQ meas1.unsign
+#define totalIqCorrMeas meas2.sign
+#define totalAdcIOddPhase  meas0.unsign
+#define totalAdcIEvenPhase meas1.unsign
+#define totalAdcQOddPhase  meas2.unsign
+#define totalAdcQEvenPhase meas3.unsign
+#define totalAdcDcOffsetIOddPhase  meas0.sign
+#define totalAdcDcOffsetIEvenPhase meas1.sign
+#define totalAdcDcOffsetQOddPhase  meas2.sign
+#define totalAdcDcOffsetQEvenPhase meas3.sign
+	union {
+		u32 unsign[AR5416_MAX_CHAINS];
+		int32_t sign[AR5416_MAX_CHAINS];
+	} meas0;
+	union {
+		u32 unsign[AR5416_MAX_CHAINS];
+		int32_t sign[AR5416_MAX_CHAINS];
+	} meas1;
+	union {
+		u32 unsign[AR5416_MAX_CHAINS];
+		int32_t sign[AR5416_MAX_CHAINS];
+	} meas2;
+	union {
+		u32 unsign[AR5416_MAX_CHAINS];
+		int32_t sign[AR5416_MAX_CHAINS];
+	} meas3;
+	u16 cal_samples;
+
+	u32 sta_id1_defaults;
+	u32 misc_mode;
+	enum {
+		AUTO_32KHZ,
+		USE_32KHZ,
+		DONT_USE_32KHZ,
+	} enable_32kHz_clock;
+
+	/* RF */
+	u32 *analogBank0Data;
+	u32 *analogBank1Data;
+	u32 *analogBank2Data;
+	u32 *analogBank3Data;
+	u32 *analogBank6Data;
+	u32 *analogBank6TPCData;
+	u32 *analogBank7Data;
+	u32 *addac5416_21;
+	u32 *bank6Temp;
+
+	int16_t txpower_indexoffset;
+	u32 beacon_interval;
+	u32 slottime;
+	u32 acktimeout;
+	u32 ctstimeout;
+	u32 globaltxtimeout;
+	u8 gbeacon_rate;
+
+	/* ANI */
+	u32 proc_phyerr;
+	bool has_hw_phycounters;
+	u32 aniperiod;
+	struct ar5416AniState *curani;
+	struct ar5416AniState ani[255];
+	int totalSizeDesired[5];
+	int coarse_high[5];
+	int coarse_low[5];
+	int firpwr[5];
+	enum ath9k_ani_cmd ani_function;
+
+	u32 intr_txqs;
+	bool intr_mitigation;
+	enum ath9k_ht_extprotspacing extprotspacing;
+	u8 txchainmask;
+	u8 rxchainmask;
+
+	u32 originalGain[22];
+	int initPDADC;
+	int PDADCdelta;
+
+	struct ar5416IniArray iniModes;
+	struct ar5416IniArray iniCommon;
+	struct ar5416IniArray iniBank0;
+	struct ar5416IniArray iniBB_RfGain;
+	struct ar5416IniArray iniBank1;
+	struct ar5416IniArray iniBank2;
+	struct ar5416IniArray iniBank3;
+	struct ar5416IniArray iniBank6;
+	struct ar5416IniArray iniBank6TPC;
+	struct ar5416IniArray iniBank7;
+	struct ar5416IniArray iniAddac;
+	struct ar5416IniArray iniPcieSerdes;
+	struct ar5416IniArray iniModesAdditional;
+	struct ar5416IniArray iniModesRxGain;
+	struct ar5416IniArray iniModesTxGain;
+};
+
+/* Attach, Detach, Reset */
+const char *ath9k_hw_probe(u16 vendorid, u16 devid);
+void ath9k_hw_detach(struct ath_hw *ah);
+struct ath_hw *ath9k_hw_attach(u16 devid, struct ath_softc *sc, int *error);
+void ath9k_hw_rfdetach(struct ath_hw *ah);
+int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
+		   bool bChannelChange);
+bool ath9k_hw_fill_cap_info(struct ath_hw *ah);
+bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
+			    u32 capability, u32 *result);
+bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
+			    u32 capability, u32 setting, int *status);
+
+/* Key Cache Management */
+bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry);
+bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac);
+bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
+				 const struct ath9k_keyval *k,
+				 const u8 *mac);
+bool ath9k_hw_keyisvalid(struct ath_hw *ah, u16 entry);
+
+/* GPIO / RFKILL / Antennae */
+void ath9k_hw_cfg_gpio_input(struct ath_hw *ah, u32 gpio);
+u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio);
+void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
+			 u32 ah_signal_type);
+void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
+#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
+void ath9k_enable_rfkill(struct ath_hw *ah);
 #endif
+u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
+void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
+bool ath9k_hw_setantennaswitch(struct ath_hw *ah,
+			       enum ath9k_ant_setting settings,
+			       struct ath9k_channel *chan,
+			       u8 *tx_chainmask, u8 *rx_chainmask,
+			       u8 *antenna_cfgd);
 
-#define ATH9K_POW_SM(_r, _s)     (((_r) & 0x3f) << (_s))
+/* General Operation */
+bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
+u32 ath9k_hw_reverse_bits(u32 val, u32 n);
+bool ath9k_get_channel_edges(struct ath_hw *ah, u16 flags, u16 *low, u16 *high);
+u16 ath9k_hw_computetxtime(struct ath_hw *ah, struct ath_rate_table *rates,
+			   u32 frameLen, u16 rateix, bool shortPreamble);
+void ath9k_hw_get_channel_centers(struct ath_hw *ah,
+				  struct ath9k_channel *chan,
+				  struct chan_centers *centers);
+u32 ath9k_hw_getrxfilter(struct ath_hw *ah);
+void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits);
+bool ath9k_hw_phy_disable(struct ath_hw *ah);
+bool ath9k_hw_disable(struct ath_hw *ah);
+bool ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit);
+void ath9k_hw_setmac(struct ath_hw *ah, const u8 *mac);
+void ath9k_hw_setopmode(struct ath_hw *ah);
+void ath9k_hw_setmcastfilter(struct ath_hw *ah, u32 filter0, u32 filter1);
+void ath9k_hw_setbssidmask(struct ath_softc *sc);
+void ath9k_hw_write_associd(struct ath_softc *sc);
+u64 ath9k_hw_gettsf64(struct ath_hw *ah);
+void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
+void ath9k_hw_reset_tsf(struct ath_hw *ah);
+bool ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
+bool ath9k_hw_setslottime(struct ath_hw *ah, u32 us);
+void ath9k_hw_set11nmac2040(struct ath_hw *ah, enum ath9k_ht_macmode mode);
+void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
+void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
+				    const struct ath9k_beacon_state *bs);
+bool ath9k_hw_setpower(struct ath_hw *ah,
+		       enum ath9k_power_mode mode);
+void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore);
 
-#define ATH9K_ANTENNA0_CHAINMASK        0x1
-#define ATH9K_ANTENNA1_CHAINMASK        0x2
+/* Interrupt Handling */
+bool ath9k_hw_intrpend(struct ath_hw *ah);
+bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked);
+enum ath9k_int ath9k_hw_intrget(struct ath_hw *ah);
+enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints);
 
-#define ATH9K_NUM_DMA_DEBUG_REGS        8
-#define ATH9K_NUM_QUEUES                10
-
-#define HAL_NOISE_IMMUNE_MAX            4
-#define HAL_SPUR_IMMUNE_MAX             7
-#define HAL_FIRST_STEP_MAX              2
-
-#define ATH9K_ANI_OFDM_TRIG_HIGH          500
-#define ATH9K_ANI_OFDM_TRIG_LOW           200
-#define ATH9K_ANI_CCK_TRIG_HIGH           200
-#define ATH9K_ANI_CCK_TRIG_LOW            100
-#define ATH9K_ANI_NOISE_IMMUNE_LVL        4
-#define ATH9K_ANI_USE_OFDM_WEAK_SIG       true
-#define ATH9K_ANI_CCK_WEAK_SIG_THR        false
-#define ATH9K_ANI_SPUR_IMMUNE_LVL         7
-#define ATH9K_ANI_FIRSTEP_LVL             0
-#define ATH9K_ANI_RSSI_THR_HIGH           40
-#define ATH9K_ANI_RSSI_THR_LOW            7
-#define ATH9K_ANI_PERIOD                  100
-
-#define AR_GPIOD_MASK                   0x00001FFF
-#define AR_GPIO_BIT(_gpio)              (1 << (_gpio))
-
-#define HAL_EP_RND(x, mul) \
-	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
-#define BEACON_RSSI(ahp) \
-	HAL_EP_RND(ahp->ah_stats.ast_nodestats.ns_avgbrssi, \
-		ATH9K_RSSI_EP_MULTIPLIER)
-
-#define ah_mibStats     ah_stats.ast_mibstats
-
-#define AH_TIMEOUT         100000
-#define AH_TIME_QUANTUM        10
-
-#define AR_KEYTABLE_SIZE 128
-#define POWER_UP_TIME    200000
-
-#define EXT_ADDITIVE (0x8000)
-#define CTL_11A_EXT (CTL_11A | EXT_ADDITIVE)
-#define CTL_11G_EXT (CTL_11G | EXT_ADDITIVE)
-#define CTL_11B_EXT (CTL_11B | EXT_ADDITIVE)
-
-#define SUB_NUM_CTL_MODES_AT_5G_40 2
-#define SUB_NUM_CTL_MODES_AT_2G_40 3
-#define SPUR_RSSI_THRESH 40
-
-#define TU_TO_USEC(_tu)         ((_tu) << 10)
-
-#define CAB_TIMEOUT_VAL         10
-#define BEACON_TIMEOUT_VAL      10
-#define MIN_BEACON_TIMEOUT_VAL   1
-#define SLEEP_SLOP               3
-
-#define CCK_SIFS_TIME        10
-#define CCK_PREAMBLE_BITS   144
-#define CCK_PLCP_BITS        48
-
-#define OFDM_SIFS_TIME        16
-#define OFDM_PREAMBLE_TIME    20
-#define OFDM_PLCP_BITS        22
-#define OFDM_SYMBOL_TIME      4
-
-#define OFDM_SIFS_TIME_HALF     32
-#define OFDM_PREAMBLE_TIME_HALF 40
-#define OFDM_PLCP_BITS_HALF     22
-#define OFDM_SYMBOL_TIME_HALF   8
-
-#define OFDM_SIFS_TIME_QUARTER      64
-#define OFDM_PREAMBLE_TIME_QUARTER  80
-#define OFDM_PLCP_BITS_QUARTER      22
-#define OFDM_SYMBOL_TIME_QUARTER    16
-
-u32 ath9k_hw_get_eeprom(struct ath_hal *ah,
-			enum eeprom_param param);
+void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 
 #endif

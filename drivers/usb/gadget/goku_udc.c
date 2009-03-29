@@ -1472,7 +1472,7 @@ static void ep0_setup(struct goku_udc *dev)
 				/* active endpoint */
 				if (tmp > 3 || (!dev->ep[tmp].desc && tmp != 0))
 					goto stall;
-				if (ctrl.wIndex & __constant_cpu_to_le16(
+				if (ctrl.wIndex & cpu_to_le16(
 						USB_DIR_IN)) {
 					if (!dev->ep[tmp].is_in)
 						goto stall;
@@ -1480,7 +1480,7 @@ static void ep0_setup(struct goku_udc *dev)
 					if (dev->ep[tmp].is_in)
 						goto stall;
 				}
-				if (ctrl.wValue != __constant_cpu_to_le16(
+				if (ctrl.wValue != cpu_to_le16(
 						USB_ENDPOINT_HALT))
 					goto stall;
 				if (tmp)
@@ -1493,7 +1493,7 @@ succeed:
 				return;
 			case USB_RECIP_DEVICE:
 				/* device remote wakeup: always clear */
-				if (ctrl.wValue != __constant_cpu_to_le16(1))
+				if (ctrl.wValue != cpu_to_le16(1))
 					goto stall;
 				VDBG(dev, "clear dev remote wakeup\n");
 				goto succeed;
@@ -1519,7 +1519,7 @@ succeed:
 	dev->req_config = (ctrl.bRequest == USB_REQ_SET_CONFIGURATION
 				&& ctrl.bRequestType == USB_RECIP_DEVICE);
 	if (unlikely(dev->req_config))
-		dev->configured = (ctrl.wValue != __constant_cpu_to_le16(0));
+		dev->configured = (ctrl.wValue != cpu_to_le16(0));
 
 	/* delegate everything to the gadget driver.
 	 * it may respond after this irq handler returns.

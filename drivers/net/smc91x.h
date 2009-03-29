@@ -44,6 +44,7 @@
     defined(CONFIG_MACH_MAINSTONE) ||\
     defined(CONFIG_MACH_ZYLONITE) ||\
     defined(CONFIG_MACH_LITTLETON) ||\
+    defined(CONFIG_MACH_ZYLONITE2) ||\
     defined(CONFIG_ARCH_VIPER)
 
 #include <asm/mach-types.h>
@@ -494,8 +495,6 @@ struct smc_local {
  */
 #include <linux/dma-mapping.h>
 #include <mach/dma.h>
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 
 #ifdef SMC_insl
 #undef SMC_insl
@@ -1140,6 +1139,16 @@ static const char * chip_ids[ 16 ] =  {
 #define SMC_SET_CTL(lp, x)		SMC_outw(x, ioaddr, CTL_REG(lp))
 
 #define SMC_GET_MII(lp)		SMC_inw(ioaddr, MII_REG(lp))
+
+#define SMC_GET_GP(lp)		SMC_inw(ioaddr, GP_REG(lp))
+
+#define SMC_SET_GP(lp, x)						\
+	do {								\
+		if (SMC_MUST_ALIGN_WRITE(lp))				\
+			SMC_outl((x)<<16, ioaddr, SMC_REG(lp, 8, 1));	\
+		else							\
+			SMC_outw(x, ioaddr, GP_REG(lp));		\
+	} while (0)
 
 #define SMC_SET_MII(lp, x)		SMC_outw(x, ioaddr, MII_REG(lp))
 

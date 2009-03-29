@@ -62,9 +62,8 @@ static struct clk *clk_find(const char *dev_id, const char *con_id)
 	return clk;
 }
 
-struct clk *clk_get(struct device *dev, const char *con_id)
+struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 {
-	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct clk *clk;
 
 	mutex_lock(&clocks_mutex);
@@ -74,6 +73,14 @@ struct clk *clk_get(struct device *dev, const char *con_id)
 	mutex_unlock(&clocks_mutex);
 
 	return clk ? clk : ERR_PTR(-ENOENT);
+}
+EXPORT_SYMBOL(clk_get_sys);
+
+struct clk *clk_get(struct device *dev, const char *con_id)
+{
+	const char *dev_id = dev ? dev_name(dev) : NULL;
+
+	return clk_get_sys(dev_id, con_id);
 }
 EXPORT_SYMBOL(clk_get);
 

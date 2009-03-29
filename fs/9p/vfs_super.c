@@ -168,8 +168,9 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 	p9stat_free(st);
 	kfree(st);
 
-P9_DPRINTK(P9_DEBUG_VFS, " return simple set mount\n");
-	return simple_set_mnt(mnt, sb);
+P9_DPRINTK(P9_DEBUG_VFS, " simple set mount, return 0\n");
+	simple_set_mnt(mnt, sb);
+	return 0;
 
 release_sb:
 	if (sb) {

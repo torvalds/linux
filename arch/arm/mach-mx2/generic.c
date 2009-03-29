@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <mach/hardware.h>
+#include <mach/common.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 

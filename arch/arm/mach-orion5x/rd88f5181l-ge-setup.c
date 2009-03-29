@@ -95,13 +95,18 @@ static struct mv643xx_eth_platform_data rd88f5181l_ge_eth_data = {
 	.duplex		= DUPLEX_FULL,
 };
 
-static struct dsa_platform_data rd88f5181l_ge_switch_data = {
+static struct dsa_chip_data rd88f5181l_ge_switch_chip_data = {
 	.port_names[0]	= "lan2",
 	.port_names[1]	= "lan1",
 	.port_names[2]	= "wan",
 	.port_names[3]	= "cpu",
 	.port_names[5]	= "lan4",
 	.port_names[7]	= "lan3",
+};
+
+static struct dsa_platform_data rd88f5181l_ge_switch_plat_data = {
+	.nr_chips	= 1,
+	.chip		= &rd88f5181l_ge_switch_chip_data,
 };
 
 static struct i2c_board_info __initdata rd88f5181l_ge_i2c_rtc = {
@@ -122,7 +127,8 @@ static void __init rd88f5181l_ge_init(void)
 	 */
 	orion5x_ehci0_init();
 	orion5x_eth_init(&rd88f5181l_ge_eth_data);
-	orion5x_eth_switch_init(&rd88f5181l_ge_switch_data, gpio_to_irq(8));
+	orion5x_eth_switch_init(&rd88f5181l_ge_switch_plat_data,
+				gpio_to_irq(8));
 	orion5x_i2c_init();
 	orion5x_uart0_init();
 

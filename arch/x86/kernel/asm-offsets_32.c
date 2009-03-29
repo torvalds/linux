@@ -75,6 +75,7 @@ void foo(void)
 	OFFSET(PT_DS,  pt_regs, ds);
 	OFFSET(PT_ES,  pt_regs, es);
 	OFFSET(PT_FS,  pt_regs, fs);
+	OFFSET(PT_GS,  pt_regs, gs);
 	OFFSET(PT_ORIG_EAX, pt_regs, orig_ax);
 	OFFSET(PT_EIP, pt_regs, ip);
 	OFFSET(PT_CS,  pt_regs, cs);

@@ -91,7 +91,7 @@
 #define DEBUG_PLAY_REC	0
 
 #if DEBUG_CALLS
-#define snd_als300_dbgcalls(format, args...) printk(format, ##args)
+#define snd_als300_dbgcalls(format, args...) printk(KERN_DEBUG format, ##args)
 #define snd_als300_dbgcallenter() printk(KERN_ERR "--> %s\n", __func__)
 #define snd_als300_dbgcallleave() printk(KERN_ERR "<-- %s\n", __func__)
 #else
@@ -812,10 +812,10 @@ static int __devinit snd_als300_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
 
-	if (card == NULL)
-		return -ENOMEM;
+	if (err < 0)
+		return err;
 
 	chip_type = pci_id->driver_data;
 

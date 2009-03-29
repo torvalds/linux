@@ -502,6 +502,13 @@ P:	Richard Purdie
 M:	rpurdie@rpsys.net
 S:	Maintained
 
+ARM/CORTINA SYSTEMS GEMINI ARM ARCHITECTURE
+P:	Paulius Zaleckas
+M:	paulius.zaleckas@teltonika.lt
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+T:	git gitorious.org/linux-gemini/mainline.git
+S:	Maintained
+
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
 P:	Daniel Ribeiro
 M:	drwyrm@gmail.com
@@ -511,6 +518,12 @@ P:	Harald Welte
 M:	laforge@openezx.org
 L:	openezx-devel@lists.openezx.org (subscribers-only)
 W:	http://www.openezx.org/
+S:	Maintained
+
+ARM/FARADAY FA526 PORT
+P:	Paulius Zaleckas
+M:	paulius.zaleckas@teltonika.lt
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
@@ -622,7 +635,7 @@ P:	Dirk Opfer
 M:	dirk@opfer-online.de
 S:	Maintained
 
-ARM/PALMTX SUPPORT
+ARM/PALMTX,PALMT5,PALMLD SUPPORT
 P:	Marek Vasut
 M:	marek.vasut@gmail.com
 W:	http://hackndev.com
@@ -764,6 +777,14 @@ M:	jmalinen@atheros.com
 L:	linux-wireless@vger.kernel.org
 L:	ath9k-devel@lists.ath9k.org
 S:	Supported
+
+ATHEROS AR9170 WIRELESS DRIVER
+P:	Christian Lamparter
+M:	chunkeey@web.de
+L:	linux-wireless@vger.kernel.org
+W:	http://wireless.kernel.org/en/users/Drivers/ar9170
+S:	Maintained
+F:	drivers/net/wireless/ar9170/
 
 ATI_REMOTE2 DRIVER
 P:	Ville Syrjala
@@ -1011,6 +1032,8 @@ L:	netdev@vger.kernel.org
 S:	Supported
 
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
+P:	Matt Carlson
+M:	mcarlson@broadcom.com
 P:	Michael Chan
 M:	mchan@broadcom.com
 L:	netdev@vger.kernel.org
@@ -1267,6 +1290,12 @@ P:	David S. Miller
 M:	davem@davemloft.net
 L:	linux-crypto@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/herbert/crypto-2.6.git
+S:	Maintained
+
+CRYPTOGRAPHIC RANDOM NUMBER GENERATOR
+P:	Neil Horman
+M:	nhorman@tuxdriver.com
+L:	linux-crypto@vger.kernel.org
 S:	Maintained
 
 CS5535 Audio ALSA driver
@@ -2216,6 +2245,11 @@ M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
 S:	Maintained
 
+INTEGRITY MEASUREMENT ARCHITECTURE (IMA)
+P:	Mimi Zohar
+M:	zohar@us.ibm.com
+S:	Supported
+
 IMS TWINTURBO FRAMEBUFFER DRIVER
 L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Orphan
@@ -2832,7 +2866,7 @@ P:	Roman Zippel
 M:	zippel@linux-m68k.org
 L:	linux-m68k@lists.linux-m68k.org
 W:	http://www.linux-m68k.org/
-W:	http://linux-m68k-cvs.ubb.ca/
+T:	git git.kernel.org/pub/scm/linux/kernel/git/geert/linux-m68k.git
 S:	Maintained
 
 M68K ON APPLE MACINTOSH
@@ -3289,6 +3323,16 @@ L:	orinoco-devel@lists.sourceforge.net
 W:	http://www.nongnu.org/orinoco/
 S:	Maintained
 
+OSD LIBRARY
+P:	Boaz Harrosh
+M:	bharrosh@panasas.com
+P:	Benny Halevy
+M:	bhalevy@panasas.com
+L:	osd-dev@open-osd.org
+W:	http://open-osd.org
+T:	git://git.open-osd.org/open-osd.git
+S:	Maintained
+
 P54 WIRELESS DRIVER
 P:	Michael Wu
 M:	flamingice@sourmilk.net
@@ -3350,10 +3394,8 @@ S:	Maintained
 PARISC ARCHITECTURE
 P:	Kyle McMartin
 M:	kyle@mcmartin.ca
-P:	Matthew Wilcox
-M:	matthew@wil.cx
-P:	Grant Grundler
-M:	grundler@parisc-linux.org
+P:	Helge Deller
+M:	deller@gmx.de
 L:	linux-parisc@vger.kernel.org
 W:	http://www.parisc-linux.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
@@ -3541,6 +3583,22 @@ M:	linux@arm.linux.org.uk
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 S:	Maintained
 
+PXA168 SUPPORT
+P:	Eric Miao
+M:	eric.miao@marvell.com
+P:	Jason Chagas
+M:	jason.chagas@marvell.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+T:	git kernel.org:/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
+S:	Supported
+
+PXA910 SUPPORT
+P:	Eric Miao
+M:	eric.miao@marvell.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+T:	git kernel.org:/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
+S:	Supported
+
 PXA MMCI DRIVER
 S:	Orphan
 
@@ -3591,7 +3649,7 @@ S:	Maintained
 RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project
 L:	linux-wireless@vger.kernel.org
-L:	rt2400-devel@lists.sourceforge.net
+L:	users@rt2x00.serialmonkey.com
 W:	http://rt2x00.serialmonkey.com/
 S:	Maintained
 T:	git kernel.org:/pub/scm/linux/kernel/git/ivd/rt2x00.git
@@ -3636,6 +3694,12 @@ P:	Florian Fainelli
 M:	florian.fainelli@telecomint.eu
 L:	netdev@vger.kernel.org
 S:	Maintained
+
+RDS - RELIABLE DATAGRAM SOCKETS
+P:	Andy Grover
+M:	andy.grover@oracle.com
+L:	rds-devel@oss.oracle.com
+S:	Supported
 
 READ-COPY UPDATE (RCU)
 P:	Dipankar Sarma
@@ -3726,6 +3790,15 @@ M:	blaschka@linux.vnet.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
+S:	Supported
+
+S390 ZCRYPT DRIVER
+P:	Felix Beck
+M:	felix.beck@de.ibm.com
+P:	Ralph Wuerthner
+M:	ralph.wuerthner@de.ibm.com
+M:	linux390@de.ibm.com
+L:	linux-s390@vger.kernel.org
 S:	Supported
 
 S390 ZFCP DRIVER
@@ -3846,6 +3919,7 @@ M:	jmorris@namei.org
 L:	linux-kernel@vger.kernel.org
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
 T:	git kernel.org:pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+W:	http://security.wiki.kernel.org/
 S:	Supported
 
 SECURITY CONTACT
@@ -3877,6 +3951,15 @@ M:	jgarzik@pobox.com
 L:	linux-ide@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/jgarzik/libata-dev.git
 S:	Supported
+
+SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
+P:	Sathya Perla
+M:	sathyap@serverengines.com
+P:      Subbu Seetharaman
+M:      subbus@serverengines.com
+L:      netdev@vger.kernel.org
+W:      http://www.serverengines.com
+S:      Supported
 
 SFC NETWORK DRIVER
 P:	Steve Hodgson
@@ -4276,6 +4359,19 @@ P:	Samuel Chessman
 M:	chessman@tux.org
 L:	tlan-devel@lists.sourceforge.net (subscribers-only)
 W:	http://sourceforge.net/projects/tlan/
+S:	Maintained
+
+TOMOYO SECURITY MODULE
+P:	Kentaro Takeda
+M:	takedakn@nttdata.co.jp
+P:	Tetsuo Handa
+M:	penguin-kernel@I-love.SAKURA.ne.jp
+L:	linux-kernel@vger.kernel.org (kernel issues)
+L:	tomoyo-users-en@lists.sourceforge.jp (subscribers-only, for developers and users in English)
+L:	tomoyo-dev@lists.sourceforge.jp (subscribers-only, for developers in Japanese)
+L:	tomoyo-users@lists.sourceforge.jp (subscribers-only, for users in Japanese)
+W:	http://tomoyo.sourceforge.jp/
+T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.2.x/tomoyo-lsm/patches/
 S:	Maintained
 
 TOSHIBA ACPI EXTRAS DRIVER

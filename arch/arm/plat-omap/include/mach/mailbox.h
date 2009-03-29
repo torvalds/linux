@@ -33,6 +33,9 @@ struct omap_mbox_ops {
 	void		(*disable_irq)(struct omap_mbox *mbox, omap_mbox_irq_t irq);
 	void		(*ack_irq)(struct omap_mbox *mbox, omap_mbox_irq_t irq);
 	int		(*is_irq)(struct omap_mbox *mbox, omap_mbox_irq_t irq);
+	/* ctx */
+	void		(*save_ctx)(struct omap_mbox *mbox);
+	void		(*restore_ctx)(struct omap_mbox *mbox);
 };
 
 struct omap_mbox_queue {
@@ -53,7 +56,7 @@ struct omap_mbox {
 
 	mbox_msg_t		seq_snd, seq_rcv;
 
-	struct device		dev;
+	struct device		*dev;
 
 	struct omap_mbox	*next;
 	void			*priv;
@@ -67,7 +70,27 @@ void omap_mbox_init_seq(struct omap_mbox *);
 struct omap_mbox *omap_mbox_get(const char *);
 void omap_mbox_put(struct omap_mbox *);
 
-int omap_mbox_register(struct omap_mbox *);
+int omap_mbox_register(struct device *parent, struct omap_mbox *);
 int omap_mbox_unregister(struct omap_mbox *);
+
+static inline void omap_mbox_save_ctx(struct omap_mbox *mbox)
+{
+	if (!mbox->ops->save_ctx) {
+		dev_err(mbox->dev, "%s:\tno save\n", __func__);
+		return;
+	}
+
+	mbox->ops->save_ctx(mbox);
+}
+
+static inline void omap_mbox_restore_ctx(struct omap_mbox *mbox)
+{
+	if (!mbox->ops->restore_ctx) {
+		dev_err(mbox->dev, "%s:\tno restore\n", __func__);
+		return;
+	}
+
+	mbox->ops->restore_ctx(mbox);
+}
 
 #endif /* MAILBOX_H */

@@ -107,6 +107,50 @@ void device_pm_remove(struct device *dev)
 }
 
 /**
+ *	device_pm_move_before - move device in dpm_list
+ *	@deva:  Device to move in dpm_list
+ *	@devb:  Device @deva should come before
+ */
+void device_pm_move_before(struct device *deva, struct device *devb)
+{
+	pr_debug("PM: Moving %s:%s before %s:%s\n",
+		 deva->bus ? deva->bus->name : "No Bus",
+		 kobject_name(&deva->kobj),
+		 devb->bus ? devb->bus->name : "No Bus",
+		 kobject_name(&devb->kobj));
+	/* Delete deva from dpm_list and reinsert before devb. */
+	list_move_tail(&deva->power.entry, &devb->power.entry);
+}
+
+/**
+ *	device_pm_move_after - move device in dpm_list
+ *	@deva:  Device to move in dpm_list
+ *	@devb:  Device @deva should come after
+ */
+void device_pm_move_after(struct device *deva, struct device *devb)
+{
+	pr_debug("PM: Moving %s:%s after %s:%s\n",
+		 deva->bus ? deva->bus->name : "No Bus",
+		 kobject_name(&deva->kobj),
+		 devb->bus ? devb->bus->name : "No Bus",
+		 kobject_name(&devb->kobj));
+	/* Delete deva from dpm_list and reinsert after devb. */
+	list_move(&deva->power.entry, &devb->power.entry);
+}
+
+/**
+ * 	device_pm_move_last - move device to end of dpm_list
+ * 	@dev:   Device to move in dpm_list
+ */
+void device_pm_move_last(struct device *dev)
+{
+	pr_debug("PM: Moving %s:%s to end of list\n",
+		 dev->bus ? dev->bus->name : "No Bus",
+		 kobject_name(&dev->kobj));
+	list_move_tail(&dev->power.entry, &dpm_list);
+}
+
+/**
  *	pm_op - execute the PM operation appropiate for given PM event
  *	@dev:	Device.
  *	@ops:	PM operations to choose from.

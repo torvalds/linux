@@ -21,9 +21,8 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <mach/irqs.h>
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa27x.h>
+#include <mach/gpio.h>
+#include <mach/pxa27x.h>
 #include <mach/reset.h>
 #include <mach/ohci.h>
 #include <mach/pm.h>
@@ -332,7 +331,7 @@ static int pxa27x_set_wake(unsigned int irq, unsigned int on)
 void __init pxa27x_init_irq(void)
 {
 	pxa_init_irq(34, pxa27x_set_wake);
-	pxa_init_gpio(121, pxa27x_set_wake);
+	pxa_init_gpio(IRQ_GPIO_2_x, 2, 120, pxa27x_set_wake);
 }
 
 /*
@@ -381,7 +380,7 @@ static int __init pxa27x_init(void)
 
 		clks_register(pxa27x_clkregs, ARRAY_SIZE(pxa27x_clkregs));
 
-		if ((ret = pxa_init_dma(32)))
+		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
 			return ret;
 
 		pxa27x_init_pm();

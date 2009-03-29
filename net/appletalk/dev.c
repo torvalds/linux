@@ -9,22 +9,20 @@
 #include <linux/if_arp.h>
 #include <linux/if_ltalk.h>
 
+#ifdef CONFIG_COMPAT_NET_DEV_OPS
 static int ltalk_change_mtu(struct net_device *dev, int mtu)
 {
 	return -EINVAL;
 }
-
-static int ltalk_mac_addr(struct net_device *dev, void *addr)
-{
-	return -EINVAL;
-}
+#endif
 
 static void ltalk_setup(struct net_device *dev)
 {
 	/* Fill in the fields of the device structure with localtalk-generic values. */
 
+#ifdef CONFIG_COMPAT_NET_DEV_OPS
 	dev->change_mtu		= ltalk_change_mtu;
-	dev->set_mac_address 	= ltalk_mac_addr;
+#endif
 
 	dev->type		= ARPHRD_LOCALTLK;
 	dev->hard_header_len 	= LTALK_HLEN;

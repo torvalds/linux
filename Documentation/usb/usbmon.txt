@@ -229,16 +229,26 @@ struct usbmon_packet {
 	int status;		/* 28: */
 	unsigned int length;	/* 32: Length of data (submitted or actual) */
 	unsigned int len_cap;	/* 36: Delivered length */
-	unsigned char setup[8];	/* 40: Only for Control 'S' */
-};				/* 48 bytes total */
+	union {			/* 40: */
+		unsigned char setup[SETUP_LEN];	/* Only for Control S-type */
+		struct iso_rec {		/* Only for ISO */
+			int error_count;
+			int numdesc;
+		} iso;
+	} s;
+	int interval;		/* 48: Only for Interrupt and ISO */
+	int start_frame;	/* 52: For ISO */
+	unsigned int xfer_flags; /* 56: copy of URB's transfer_flags */
+	unsigned int ndesc;	/* 60: Actual number of ISO descriptors */
+};				/* 64 total length */
 
 These events can be received from a character device by reading with read(2),
-with an ioctl(2), or by accessing the buffer with mmap.
+with an ioctl(2), or by accessing the buffer with mmap. However, read(2)
+only returns first 48 bytes for compatibility reasons.
 
 The character device is usually called /dev/usbmonN, where N is the USB bus
 number. Number zero (/dev/usbmon0) is special and means "all buses".
-However, this feature is not implemented yet. Note that specific naming
-policy is set by your Linux distribution.
+Note that specific naming policy is set by your Linux distribution.
 
 If you create /dev/usbmon0 by hand, make sure that it is owned by root
 and has mode 0600. Otherwise, unpriviledged users will be able to snoop
@@ -279,9 +289,10 @@ size is out of [unspecified] bounds for this kernel, the call fails with
 This call returns the current size of the buffer in bytes.
 
  MON_IOCX_GET, defined as _IOW(MON_IOC_MAGIC, 6, struct mon_get_arg)
+ MON_IOCX_GETX, defined as _IOW(MON_IOC_MAGIC, 10, struct mon_get_arg)
 
-This call waits for events to arrive if none were in the kernel buffer,
-then returns the first event. Its argument is a pointer to the following
+These calls wait for events to arrive if none were in the kernel buffer,
+then return the first event. The argument is a pointer to the following
 structure:
 
 struct mon_get_arg {
@@ -293,6 +304,8 @@ struct mon_get_arg {
 Before the call, hdr, data, and alloc should be filled. Upon return, the area
 pointed by hdr contains the next event structure, and the data buffer contains
 the data, if any. The event is removed from the kernel buffer.
+
+The MON_IOCX_GET copies 48 bytes, MON_IOCX_GETX copies 64 bytes.
 
  MON_IOCX_MFETCH, defined as _IOWR(MON_IOC_MAGIC, 7, struct mon_mfetch_arg)
 
