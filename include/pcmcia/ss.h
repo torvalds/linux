@@ -172,7 +172,7 @@ struct pcmcia_socket {
 	u_int				irq_mask;
 	u_int				map_size;
 	u_int				io_offset;
-	u_char				pci_irq;
+	u_int				pci_irq;
 	struct pci_dev *		cb_dev;
 
 
