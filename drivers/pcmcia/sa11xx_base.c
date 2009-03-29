@@ -171,7 +171,7 @@ static const char *skt_names[] = {
 #define SKT_DEV_INFO_SIZE(n) \
 	(sizeof(struct skt_dev_info) + (n)*sizeof(struct soc_pcmcia_socket))
 
-static int sa11xx_drv_pcmcia_add_one(struct soc_pcmcia_socket *skt)
+int sa11xx_drv_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 {
 	skt->res_skt.start = _PCMCIA(skt->nr);
 	skt->res_skt.end = _PCMCIA(skt->nr) + PCMCIASp - 1;
@@ -195,14 +195,10 @@ static int sa11xx_drv_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 
 	return soc_pcmcia_add_one(skt);
 }
+EXPORT_SYMBOL(sa11xx_drv_pcmcia_add_one);
 
-int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
-			    int first, int nr)
+void sa11xx_drv_pcmcia_ops(struct pcmcia_low_level *ops)
 {
-	struct skt_dev_info *sinfo;
-	struct soc_pcmcia_socket *skt;
-	int i;
-
 	/*
 	 * set default MECR calculation if the board specific
 	 * code did not specify one...
@@ -216,6 +212,17 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 #ifdef CONFIG_CPU_FREQ
 	ops->frequency_change = sa1100_pcmcia_frequency_change;
 #endif
+}
+EXPORT_SYMBOL(sa11xx_drv_pcmcia_ops);
+
+int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
+			    int first, int nr)
+{
+	struct skt_dev_info *sinfo;
+	struct soc_pcmcia_socket *skt;
+	int i, ret = 0;
+
+	sa11xx_drv_pcmcia_ops(ops);
 
 	sinfo = kzalloc(SKT_DEV_INFO_SIZE(nr), GFP_KERNEL);
 	if (!sinfo)

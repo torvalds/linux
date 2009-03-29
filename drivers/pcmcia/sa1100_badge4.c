@@ -134,6 +134,9 @@ static struct pcmcia_low_level badge4_pcmcia_ops = {
 
 	.socket_init		= sa1111_pcmcia_socket_init,
 	.socket_suspend		= sa1111_pcmcia_socket_suspend,
+
+	.first			= 0,
+	.nr			= 2,
 };
 
 int pcmcia_badge4_init(struct device *dev)
@@ -146,7 +149,9 @@ int pcmcia_badge4_init(struct device *dev)
 		       __func__,
 		       badge4_pcmvcc, badge4_pcmvpp, badge4_cfvcc);
 
-		ret = sa11xx_drv_pcmcia_probe(dev, &badge4_pcmcia_ops, 0, 2);
+		sa11xx_drv_pcmcia_ops(&badge4_pcmcia_ops);
+		ret = sa1111_pcmcia_add(dev, &badge4_pcmcia_ops,
+				sa11xx_drv_pcmcia_add_one);
 	}
 
 	return ret;

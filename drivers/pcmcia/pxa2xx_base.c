@@ -228,7 +228,7 @@ static const char *skt_names[] = {
 #define SKT_DEV_INFO_SIZE(n) \
 	(sizeof(struct skt_dev_info) + (n)*sizeof(struct soc_pcmcia_socket))
 
-static int pxa2xx_drv_pcmcia_add_one(struct soc_pcmcia_socket *skt)
+int pxa2xx_drv_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 {
 	skt->res_skt.start = _PCMCIA(skt->nr);
 	skt->res_skt.end = _PCMCIA(skt->nr) + PCMCIASp - 1;
@@ -253,9 +253,18 @@ static int pxa2xx_drv_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 	return soc_pcmcia_add_one(skt);
 }
 
+void pxa2xx_drv_pcmcia_ops(struct pcmcia_low_level *ops)
+{
+	/* Provide our PXA2xx specific timing routines. */
+	ops->set_timing  = pxa2xx_pcmcia_set_timing;
+#ifdef CONFIG_CPU_FREQ
+	ops->frequency_change = pxa2xx_pcmcia_frequency_change;
+#endif
+}
+
 int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 {
-	int i, ret;
+	int i, ret = 0;
 	struct pcmcia_low_level *ops;
 	struct skt_dev_info *sinfo;
 	struct soc_pcmcia_socket *skt;
@@ -265,11 +274,7 @@ int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 
 	ops = (struct pcmcia_low_level *)dev->platform_data;
 
-	/* Provide our PXA2xx specific timing routines. */
-	ops->set_timing  = pxa2xx_pcmcia_set_timing;
-#ifdef CONFIG_CPU_FREQ
-	ops->frequency_change = pxa2xx_pcmcia_frequency_change;
-#endif
+	pxa2xx_drv_pcmcia_ops(ops);
 
 	sinfo = kzalloc(SKT_DEV_INFO_SIZE(ops->nr), GFP_KERNEL);
 	if (!sinfo)

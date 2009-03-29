@@ -1,6 +1,20 @@
 #include "soc_common.h"
 #include "sa11xx_base.h"
 
+struct sa1111_pcmcia_socket {
+	struct soc_pcmcia_socket soc;
+	struct sa1111_dev *dev;
+	struct sa1111_pcmcia_socket *next;
+};
+
+static inline struct sa1111_pcmcia_socket *to_skt(struct soc_pcmcia_socket *s)
+{
+	return container_of(s, struct sa1111_pcmcia_socket, soc);
+}
+
+int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
+	int (*add)(struct soc_pcmcia_socket *));
+
 extern int sa1111_pcmcia_hw_init(struct soc_pcmcia_socket *);
 extern void sa1111_pcmcia_hw_shutdown(struct soc_pcmcia_socket *);
 extern void sa1111_pcmcia_socket_state(struct soc_pcmcia_socket *, struct pcmcia_state *);
