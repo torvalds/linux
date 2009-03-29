@@ -34,15 +34,12 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("wm8775 driver");
 MODULE_AUTHOR("Ulf Eklund, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static unsigned short normal_i2c[] = { 0x36 >> 1, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 
 /* ----------------------------------------------------------------------- */
@@ -161,11 +158,6 @@ static int wm8775_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *fre
 	return 0;
 }
 
-static int wm8775_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops wm8775_core_ops = {
@@ -268,8 +260,6 @@ MODULE_DEVICE_TABLE(i2c, wm8775_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "wm8775",
-	.driverid = I2C_DRIVERID_WM8775,
-	.command = wm8775_command,
 	.probe = wm8775_probe,
 	.remove = wm8775_remove,
 	.id_table = wm8775_id,
