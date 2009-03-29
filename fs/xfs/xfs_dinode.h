@@ -103,7 +103,9 @@ typedef enum xfs_dinode_fmt {
 /*
  * Inode size for given fs.
  */
-#define	XFS_LITINO(mp)	((mp)->m_litino)
+#define XFS_LITINO(mp) \
+	((int)(((mp)->m_sb.sb_inodesize) - sizeof(struct xfs_dinode)))
+
 #define	XFS_BROOT_SIZE_ADJ	\
 	(XFS_BTREE_LBLOCK_LEN - sizeof(xfs_bmdr_block_t))
 
