@@ -841,12 +841,13 @@ static void ipsec_esp_encrypt_done(struct device *dev,
 				   int err)
 {
 	struct aead_request *areq = context;
-	struct talitos_edesc *edesc =
-		 container_of(desc, struct talitos_edesc, desc);
 	struct crypto_aead *authenc = crypto_aead_reqtfm(areq);
 	struct talitos_ctx *ctx = crypto_aead_ctx(authenc);
+	struct talitos_edesc *edesc;
 	struct scatterlist *sg;
 	void *icvdata;
+
+	edesc = container_of(desc, struct talitos_edesc, desc);
 
 	ipsec_esp_unmap(dev, edesc, areq);
 
@@ -869,12 +870,13 @@ static void ipsec_esp_decrypt_swauth_done(struct device *dev,
 					  void *context, int err)
 {
 	struct aead_request *req = context;
-	struct talitos_edesc *edesc =
-		 container_of(desc, struct talitos_edesc, desc);
 	struct crypto_aead *authenc = crypto_aead_reqtfm(req);
 	struct talitos_ctx *ctx = crypto_aead_ctx(authenc);
+	struct talitos_edesc *edesc;
 	struct scatterlist *sg;
 	void *icvdata;
+
+	edesc = container_of(desc, struct talitos_edesc, desc);
 
 	ipsec_esp_unmap(dev, edesc, req);
 
@@ -901,8 +903,9 @@ static void ipsec_esp_decrypt_hwauth_done(struct device *dev,
 					  void *context, int err)
 {
 	struct aead_request *req = context;
-	struct talitos_edesc *edesc =
-		 container_of(desc, struct talitos_edesc, desc);
+	struct talitos_edesc *edesc;
+
+	edesc = container_of(desc, struct talitos_edesc, desc);
 
 	ipsec_esp_unmap(dev, edesc, req);
 
@@ -1308,8 +1311,9 @@ static void ablkcipher_done(struct device *dev,
 			    int err)
 {
 	struct ablkcipher_request *areq = context;
-	struct talitos_edesc *edesc =
-		 container_of(desc, struct talitos_edesc, desc);
+	struct talitos_edesc *edesc;
+
+	edesc = container_of(desc, struct talitos_edesc, desc);
 
 	common_nonsnoop_unmap(dev, edesc, areq);
 
@@ -1686,12 +1690,14 @@ struct talitos_crypto_alg {
 static int talitos_cra_init(struct crypto_tfm *tfm)
 {
 	struct crypto_alg *alg = tfm->__crt_alg;
-	struct talitos_crypto_alg *talitos_alg =
-		 container_of(alg, struct talitos_crypto_alg, crypto_alg);
+	struct talitos_crypto_alg *talitos_alg;
 	struct talitos_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	talitos_alg =  container_of(alg, struct talitos_crypto_alg, crypto_alg);
 
 	/* update context with ptr to dev */
 	ctx->dev = talitos_alg->dev;
+
 	/* copy descriptor header template value */
 	ctx->desc_hdr_template = talitos_alg->desc_hdr_template;
 
