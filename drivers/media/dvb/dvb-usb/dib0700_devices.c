@@ -1491,6 +1491,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 /* 45 */{ USB_DEVICE(USB_VID_YUAN,      USB_PID_YUAN_PD378S) },
 	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_TIGER_ATSC) },
 	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_TIGER_ATSC_B210) },
+	{ USB_DEVICE(USB_VID_YUAN,	USB_PID_YUAN_MC770) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1806,7 +1807,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 5,
+		.num_device_descs = 7,
 		.devices = {
 			{   "Terratec Cinergy HT USB XE",
 				{ &dib0700_usb_id_table[27], NULL },
@@ -1830,6 +1831,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Asus My Cinema-U3000Hybrid",
 				{ &dib0700_usb_id_table[39], NULL },
+				{ NULL },
+			},
+			{   "YUAN High-Tech MC770",
+				{ &dib0700_usb_id_table[48], NULL },
 				{ NULL },
 			},
 		},
