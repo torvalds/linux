@@ -78,7 +78,6 @@ mempool_t *xfs_ioend_pool;
 #define MNTOPT_RTDEV	"rtdev"		/* realtime I/O device */
 #define MNTOPT_BIOSIZE	"biosize"	/* log2 of preferred buffered io size */
 #define MNTOPT_WSYNC	"wsync"		/* safe-mode nfs compatible mount */
-#define MNTOPT_INO64	"ino64"		/* force inodes into 64-bit range */
 #define MNTOPT_NOALIGN	"noalign"	/* turn off stripe alignment */
 #define MNTOPT_SWALLOC	"swalloc"	/* turn on stripe width allocation */
 #define MNTOPT_SUNIT	"sunit"		/* data volume stripe unit */
@@ -290,16 +289,6 @@ xfs_parseargs(
 			mp->m_flags |= XFS_MOUNT_OSYNCISOSYNC;
 		} else if (!strcmp(this_char, MNTOPT_NORECOVERY)) {
 			mp->m_flags |= XFS_MOUNT_NORECOVERY;
-		} else if (!strcmp(this_char, MNTOPT_INO64)) {
-#if XFS_BIG_INUMS
-			mp->m_flags |= XFS_MOUNT_INO64;
-			mp->m_inoadd = XFS_INO64_OFFSET;
-#else
-			cmn_err(CE_WARN,
-				"XFS: %s option not allowed on this system",
-				this_char);
-			return EINVAL;
-#endif
 		} else if (!strcmp(this_char, MNTOPT_NOALIGN)) {
 			mp->m_flags |= XFS_MOUNT_NOALIGN;
 		} else if (!strcmp(this_char, MNTOPT_SWALLOC)) {
@@ -528,7 +517,6 @@ xfs_showargs(
 		/* the few simple ones we can get from the mount struct */
 		{ XFS_MOUNT_IKEEP,		"," MNTOPT_IKEEP },
 		{ XFS_MOUNT_WSYNC,		"," MNTOPT_WSYNC },
-		{ XFS_MOUNT_INO64,		"," MNTOPT_INO64 },
 		{ XFS_MOUNT_NOALIGN,		"," MNTOPT_NOALIGN },
 		{ XFS_MOUNT_SWALLOC,		"," MNTOPT_SWALLOC },
 		{ XFS_MOUNT_NOUUID,		"," MNTOPT_NOUUID },
@@ -1199,18 +1187,12 @@ xfs_fs_statfs(
 	statp->f_bfree = statp->f_bavail =
 				sbp->sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 	fakeinos = statp->f_bfree << sbp->sb_inopblog;
-#if XFS_BIG_INUMS
-	fakeinos += mp->m_inoadd;
-#endif
 	statp->f_files =
 	    MIN(sbp->sb_icount + fakeinos, (__uint64_t)XFS_MAXINUMBER);
 	if (mp->m_maxicount)
-#if XFS_BIG_INUMS
-		if (!mp->m_inoadd)
-#endif
-			statp->f_files = min_t(typeof(statp->f_files),
-						statp->f_files,
-						mp->m_maxicount);
+		statp->f_files = min_t(typeof(statp->f_files),
+					statp->f_files,
+					mp->m_maxicount);
 	statp->f_ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
 	spin_unlock(&mp->m_sb_lock);
 

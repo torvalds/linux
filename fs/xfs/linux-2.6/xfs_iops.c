@@ -541,9 +541,6 @@ xfs_vn_getattr(
 	stat->uid = ip->i_d.di_uid;
 	stat->gid = ip->i_d.di_gid;
 	stat->ino = ip->i_ino;
-#if XFS_BIG_INUMS
-	stat->ino += mp->m_inoadd;
-#endif
 	stat->atime = inode->i_atime;
 	stat->mtime.tv_sec = ip->i_d.di_mtime.t_sec;
 	stat->mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;
