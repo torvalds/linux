@@ -3,40 +3,16 @@
  *  Copyright (C) 2001, 2002 Andi Kleen, SuSE Labs.
  *  Copyright (C) 2008-2009, Red Hat Inc., Ingo Molnar
  */
-#include <linux/interrupt.h>
-#include <linux/mmiotrace.h>
-#include <linux/bootmem.h>
-#include <linux/compiler.h>
-#include <linux/highmem.h>
-#include <linux/kprobes.h>
-#include <linux/uaccess.h>
-#include <linux/vmalloc.h>
-#include <linux/vt_kern.h>
-#include <linux/signal.h>
-#include <linux/kernel.h>
-#include <linux/ptrace.h>
-#include <linux/string.h>
-#include <linux/module.h>
-#include <linux/kdebug.h>
-#include <linux/errno.h>
-#include <linux/magic.h>
-#include <linux/sched.h>
-#include <linux/types.h>
-#include <linux/init.h>
-#include <linux/mman.h>
-#include <linux/tty.h>
-#include <linux/smp.h>
-#include <linux/mm.h>
+#include <linux/magic.h>		/* STACK_END_MAGIC		*/
+#include <linux/sched.h>		/* test_thread_flag(), ...	*/
+#include <linux/kdebug.h>		/* oops_begin/end, ...		*/
+#include <linux/module.h>		/* search_exception_table	*/
+#include <linux/bootmem.h>		/* max_low_pfn			*/
+#include <linux/kprobes.h>		/* __kprobes, ...		*/
+#include <linux/mmiotrace.h>		/* kmmio_handler, ...		*/
 
-#include <asm-generic/sections.h>
-
-#include <asm/tlbflush.h>
-#include <asm/pgalloc.h>
-#include <asm/segment.h>
-#include <asm/system.h>
-#include <asm/proto.h>
-#include <asm/traps.h>
-#include <asm/desc.h>
+#include <asm/traps.h>			/* dotraplinkage, ...		*/
+#include <asm/pgalloc.h>		/* pgd_*(), ...			*/
 
 /*
  * Page fault error code bits:
