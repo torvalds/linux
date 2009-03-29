@@ -776,7 +776,7 @@ static struct maple_driver maple_unsupported_device = {
 		.bus = &maple_bus_type,
 	},
 };
-/**
+/*
  * maple_bus_type - core maple bus structure
  */
 struct bus_type maple_bus_type = {
