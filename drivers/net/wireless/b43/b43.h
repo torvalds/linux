@@ -625,9 +625,11 @@ struct b43_wl {
 	/* Stats about the wireless interface */
 	struct ieee80211_low_level_stats ieee_stats;
 
+#ifdef CONFIG_B43_HWRNG
 	struct hwrng rng;
-	u8 rng_initialized;
+	bool rng_initialized;
 	char rng_name[30 + 1];
+#endif /* CONFIG_B43_HWRNG */
 
 	/* The RF-kill button */
 	struct b43_rfkill rfkill;
