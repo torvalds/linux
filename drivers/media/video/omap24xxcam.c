@@ -1285,9 +1285,6 @@ static int vidioc_g_parm(struct file *file, void *fh,
 	struct omap24xxcam_device *cam = ofh->cam;
 	int rval;
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	mutex_lock(&cam->mutex);
 	rval = vidioc_int_g_parm(cam->sdev, a);
 	mutex_unlock(&cam->mutex);
@@ -1302,9 +1299,6 @@ static int vidioc_s_parm(struct file *file, void *fh,
 	struct omap24xxcam_device *cam = ofh->cam;
 	struct v4l2_streamparm old_streamparm;
 	int rval;
-
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	mutex_lock(&cam->mutex);
 	if (cam->streaming) {
