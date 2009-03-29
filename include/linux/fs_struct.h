@@ -20,5 +20,7 @@ extern void set_fs_root(struct fs_struct *, struct path *);
 extern void set_fs_pwd(struct fs_struct *, struct path *);
 extern struct fs_struct *copy_fs_struct(struct fs_struct *);
 extern void put_fs_struct(struct fs_struct *);
+extern void daemonize_fs_struct(void);
+extern int unshare_fs_struct(void);
 
 #endif /* _LINUX_FS_STRUCT_H */

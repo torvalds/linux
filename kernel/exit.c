@@ -429,7 +429,6 @@ EXPORT_SYMBOL(disallow_signal);
 void daemonize(const char *name, ...)
 {
 	va_list args;
-	struct fs_struct *fs;
 	sigset_t blocked;
 
 	va_start(args, name);
@@ -462,11 +461,7 @@ void daemonize(const char *name, ...)
 
 	/* Become as one with the init task */
 
-	exit_fs(current);	/* current->fs->count--; */
-	fs = init_task.fs;
-	current->fs = fs;
-	atomic_inc(&fs->count);
-
+	daemonize_fs_struct();
 	exit_files(current);
 	current->files = init_task.files;
 	atomic_inc(&current->files->count);
@@ -564,30 +559,6 @@ void exit_files(struct task_struct *tsk)
 		put_files_struct(files);
 	}
 }
-
-void put_fs_struct(struct fs_struct *fs)
-{
-	/* No need to hold fs->lock if we are killing it */
-	if (atomic_dec_and_test(&fs->count)) {
-		path_put(&fs->root);
-		path_put(&fs->pwd);
-		kmem_cache_free(fs_cachep, fs);
-	}
-}
-
-void exit_fs(struct task_struct *tsk)
-{
-	struct fs_struct * fs = tsk->fs;
-
-	if (fs) {
-		task_lock(tsk);
-		tsk->fs = NULL;
-		task_unlock(tsk);
-		put_fs_struct(fs);
-	}
-}
-
-EXPORT_SYMBOL_GPL(exit_fs);
 
 #ifdef CONFIG_MM_OWNER
 /*
