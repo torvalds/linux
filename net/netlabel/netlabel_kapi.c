@@ -619,8 +619,9 @@ int netlbl_enabled(void)
 }
 
 /**
- * netlbl_socket_setattr - Label a socket using the correct protocol
+ * netlbl_sock_setattr - Label a socket using the correct protocol
  * @sk: the socket to label
+ * @family: protocol family
  * @secattr: the security attributes
  *
  * Description:
@@ -633,29 +634,45 @@ int netlbl_enabled(void)
  *
  */
 int netlbl_sock_setattr(struct sock *sk,
+			u16 family,
 			const struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val = -ENOENT;
+	int ret_val;
 	struct netlbl_dom_map *dom_entry;
 
 	rcu_read_lock();
 	dom_entry = netlbl_domhsh_getentry(secattr->domain);
-	if (dom_entry == NULL)
+	if (dom_entry == NULL) {
+		ret_val = -ENOENT;
 		goto socket_setattr_return;
-	switch (dom_entry->type) {
-	case NETLBL_NLTYPE_ADDRSELECT:
-		ret_val = -EDESTADDRREQ;
+	}
+	switch (family) {
+	case AF_INET:
+		switch (dom_entry->type) {
+		case NETLBL_NLTYPE_ADDRSELECT:
+			ret_val = -EDESTADDRREQ;
+			break;
+		case NETLBL_NLTYPE_CIPSOV4:
+			ret_val = cipso_v4_sock_setattr(sk,
+						    dom_entry->type_def.cipsov4,
+						    secattr);
+			break;
+		case NETLBL_NLTYPE_UNLABELED:
+			ret_val = 0;
+			break;
+		default:
+			ret_val = -ENOENT;
+		}
 		break;
-	case NETLBL_NLTYPE_CIPSOV4:
-		ret_val = cipso_v4_sock_setattr(sk,
-						dom_entry->type_def.cipsov4,
-						secattr);
-		break;
-	case NETLBL_NLTYPE_UNLABELED:
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		/* since we don't support any IPv6 labeling protocols right
+		 * now we can optimize everything away until we do */
 		ret_val = 0;
 		break;
+#endif /* IPv6 */
 	default:
-		ret_val = -ENOENT;
+		ret_val = -EPROTONOSUPPORT;
 	}
 
 socket_setattr_return:
@@ -689,9 +706,25 @@ void netlbl_sock_delattr(struct sock *sk)
  * on failure.
  *
  */
-int netlbl_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
+int netlbl_sock_getattr(struct sock *sk,
+			struct netlbl_lsm_secattr *secattr)
 {
-	return cipso_v4_sock_getattr(sk, secattr);
+	int ret_val;
+
+	switch (sk->sk_family) {
+	case AF_INET:
+		ret_val = cipso_v4_sock_getattr(sk, secattr);
+		break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		ret_val = -ENOMSG;
+		break;
+#endif /* IPv6 */
+	default:
+		ret_val = -EPROTONOSUPPORT;
+	}
+
+	return ret_val;
 }
 
 /**
@@ -748,12 +781,96 @@ int netlbl_conn_setattr(struct sock *sk,
 		break;
 #endif /* IPv6 */
 	default:
-		ret_val = 0;
+		ret_val = -EPROTONOSUPPORT;
 	}
 
 conn_setattr_return:
 	rcu_read_unlock();
 	return ret_val;
+}
+
+/**
+ * netlbl_req_setattr - Label a request socket using the correct protocol
+ * @req: the request socket to label
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Attach the correct label to the given socket using the security attributes
+ * specified in @secattr.  Returns zero on success, negative values on failure.
+ *
+ */
+int netlbl_req_setattr(struct request_sock *req,
+		       const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+	struct netlbl_dom_map *dom_entry;
+	struct netlbl_domaddr4_map *af4_entry;
+	u32 proto_type;
+	struct cipso_v4_doi *proto_cv4;
+
+	rcu_read_lock();
+	dom_entry = netlbl_domhsh_getentry(secattr->domain);
+	if (dom_entry == NULL) {
+		ret_val = -ENOENT;
+		goto req_setattr_return;
+	}
+	switch (req->rsk_ops->family) {
+	case AF_INET:
+		if (dom_entry->type == NETLBL_NLTYPE_ADDRSELECT) {
+			struct inet_request_sock *req_inet = inet_rsk(req);
+			af4_entry = netlbl_domhsh_getentry_af4(secattr->domain,
+							    req_inet->rmt_addr);
+			if (af4_entry == NULL) {
+				ret_val = -ENOENT;
+				goto req_setattr_return;
+			}
+			proto_type = af4_entry->type;
+			proto_cv4 = af4_entry->type_def.cipsov4;
+		} else {
+			proto_type = dom_entry->type;
+			proto_cv4 = dom_entry->type_def.cipsov4;
+		}
+		switch (proto_type) {
+		case NETLBL_NLTYPE_CIPSOV4:
+			ret_val = cipso_v4_req_setattr(req, proto_cv4, secattr);
+			break;
+		case NETLBL_NLTYPE_UNLABELED:
+			/* just delete the protocols we support for right now
+			 * but we could remove other protocols if needed */
+			cipso_v4_req_delattr(req);
+			ret_val = 0;
+			break;
+		default:
+			ret_val = -ENOENT;
+		}
+		break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		/* since we don't support any IPv6 labeling protocols right
+		 * now we can optimize everything away until we do */
+		ret_val = 0;
+		break;
+#endif /* IPv6 */
+	default:
+		ret_val = -EPROTONOSUPPORT;
+	}
+
+req_setattr_return:
+	rcu_read_unlock();
+	return ret_val;
+}
+
+/**
+* netlbl_req_delattr - Delete all the NetLabel labels on a socket
+* @req: the socket
+*
+* Description:
+* Remove all the NetLabel labeling from @req.
+*
+*/
+void netlbl_req_delattr(struct request_sock *req)
+{
+	cipso_v4_req_delattr(req);
 }
 
 /**
@@ -808,7 +925,7 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 		break;
 #endif /* IPv6 */
 	default:
-		ret_val = 0;
+		ret_val = -EPROTONOSUPPORT;
 	}
 
 skbuff_setattr_return:
@@ -833,9 +950,17 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
 			  u16 family,
 			  struct netlbl_lsm_secattr *secattr)
 {
-	if (CIPSO_V4_OPTEXIST(skb) &&
-	    cipso_v4_skbuff_getattr(skb, secattr) == 0)
-		return 0;
+	switch (family) {
+	case AF_INET:
+		if (CIPSO_V4_OPTEXIST(skb) &&
+		    cipso_v4_skbuff_getattr(skb, secattr) == 0)
+			return 0;
+		break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		break;
+#endif /* IPv6 */
+	}
 
 	return netlbl_unlabel_getattr(skb, family, secattr);
 }
