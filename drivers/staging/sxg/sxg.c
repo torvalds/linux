@@ -896,6 +896,22 @@ static inline int sxg_read_config(struct adapter_t *adapter)
 	return status;
 }
 
+static const struct net_device_ops sxg_netdev_ops = {
+	.ndo_open		= sxg_entry_open,
+	.ndo_stop		= sxg_entry_halt,
+	.ndo_start_xmit		= sxg_send_packets,
+	.ndo_do_ioctl		= sxg_ioctl,
+	.ndo_change_mtu		= sxg_change_mtu,
+	.ndo_get_stats		= sxg_get_stats,
+	.ndo_set_multicast_list	= sxg_mcast_set_list,
+	.ndo_validate_addr	= eth_validate_addr,
+#if XXXTODO
+	.ndo_set_mac_address	= sxg_mac_set_address,
+#else
+	.ndo_set_mac_address	= eth_mac_addr,
+#endif
+};
+
 static int sxg_entry_probe(struct pci_dev *pcidev,
 			   const struct pci_device_id *pci_tbl_entry)
 {
@@ -1095,16 +1111,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 
 	netdev->base_addr = (unsigned long)adapter->base_addr;
 	netdev->irq = adapter->irq;
-	netdev->open = sxg_entry_open;
-	netdev->stop = sxg_entry_halt;
-	netdev->hard_start_xmit = sxg_send_packets;
-	netdev->do_ioctl = sxg_ioctl;
-	netdev->change_mtu = sxg_change_mtu;
-#if XXXTODO
-	netdev->set_mac_address = sxg_mac_set_address;
-#endif
-	netdev->get_stats = sxg_get_stats;
-	netdev->set_multicast_list = sxg_mcast_set_list;
+	netdev->netdev_ops = &sxg_netdev_ops;
 	SET_ETHTOOL_OPS(netdev, &sxg_nic_ethtool_ops);
  	netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	err = sxg_set_interrupt_capability(adapter);
