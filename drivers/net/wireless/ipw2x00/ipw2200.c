@@ -11593,7 +11593,6 @@ static const struct net_device_ops ipw_netdev_ops = {
 	.ndo_set_mac_address	= ipw_net_set_mac_address,
 	.ndo_start_xmit		= ieee80211_xmit,
 	.ndo_change_mtu		= ieee80211_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
