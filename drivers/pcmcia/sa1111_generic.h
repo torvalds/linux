@@ -15,12 +15,9 @@ static inline struct sa1111_pcmcia_socket *to_skt(struct soc_pcmcia_socket *s)
 int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 	int (*add)(struct soc_pcmcia_socket *));
 
-extern int sa1111_pcmcia_hw_init(struct soc_pcmcia_socket *);
-extern void sa1111_pcmcia_hw_shutdown(struct soc_pcmcia_socket *);
 extern void sa1111_pcmcia_socket_state(struct soc_pcmcia_socket *, struct pcmcia_state *);
 extern int sa1111_pcmcia_configure_socket(struct soc_pcmcia_socket *, const socket_state_t *);
 extern void sa1111_pcmcia_socket_init(struct soc_pcmcia_socket *);
-extern void sa1111_pcmcia_socket_suspend(struct soc_pcmcia_socket *);
 
 extern int pcmcia_badge4_init(struct device *);
 extern int pcmcia_jornada720_init(struct device *);

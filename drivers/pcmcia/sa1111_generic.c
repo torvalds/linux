@@ -28,12 +28,12 @@ static struct pcmcia_irqs irqs[] = {
 	{ 1, IRQ_S1_BVD1_STSCHG, "SA1111 CF BVD1"            },
 };
 
-int sa1111_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
+static int sa1111_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
 
-void sa1111_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
+static void sa1111_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
 	soc_pcmcia_free_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
@@ -111,7 +111,7 @@ void sa1111_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
 	soc_pcmcia_enable_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
 
-void sa1111_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
+static void sa1111_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
 {
 	soc_pcmcia_disable_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
@@ -121,6 +121,11 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 {
 	struct sa1111_pcmcia_socket *s;
 	int i, ret = 0;
+
+	ops->hw_init = sa1111_pcmcia_hw_init;
+	ops->hw_shutdown = sa1111_pcmcia_hw_shutdown;
+	ops->socket_state = sa1111_pcmcia_socket_state;
+	ops->socket_suspend = sa1111_pcmcia_socket_suspend;
 
 	s = kzalloc(sizeof(*s) * ops->nr, GFP_KERNEL);
 	if (!s)
