@@ -1182,7 +1182,7 @@ static void log_audio_status(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-/* This init operation must be called to load the driver's firmware.
+/* This load_fw operation must be called to load the driver's firmware.
    Without this the audio standard detection will fail and you will
    only get mono.
 
@@ -1192,13 +1192,13 @@ static void log_audio_status(struct i2c_client *client)
    postponing it is that loading this firmware takes a long time (seconds)
    due to the slow i2c bus speed. So it will speed up the boot process if
    you can avoid loading the fw as long as the video device isn't used.  */
-static int cx25840_init(struct v4l2_subdev *sd, u32 val)
+static int cx25840_load_fw(struct v4l2_subdev *sd)
 {
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (!state->is_initialized) {
-		/* initialize on first use */
+		/* initialize and load firmware */
 		state->is_initialized = 1;
 		if (state->is_cx25836)
 			cx25836_initialize(client);
@@ -1473,7 +1473,7 @@ static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.s_ctrl = cx25840_s_ctrl,
 	.queryctrl = cx25840_queryctrl,
 	.reset = cx25840_reset,
-	.init = cx25840_init,
+	.load_fw = cx25840_load_fw,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = cx25840_g_register,
 	.s_register = cx25840_s_register,

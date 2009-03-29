@@ -316,7 +316,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 					"cx25840", "cx25840", 0x88 >> 1);
 		if (dev->sd_cx25840 == NULL)
 			cx231xx_info("cx25840 subdev registration failure\n");
-		cx25840_call(dev, core, init, 0);
+		cx25840_call(dev, core, load_fw);
 
 	}
 

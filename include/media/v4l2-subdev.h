@@ -89,7 +89,9 @@ struct v4l2_crystal_freq {
 	values. Do not use for new drivers and should be removed in existing
 	drivers.
 
-  reset: generic reset command. The argument selects which subsystems to
+   load_fw: load firmware.
+
+   reset: generic reset command. The argument selects which subsystems to
 	reset. Passing 0 will always reset the whole chip. Do not use for new
 	drivers without discussing this first on the linux-media mailinglist.
 	There should be no reason normally to reset a device.
@@ -101,6 +103,7 @@ struct v4l2_subdev_core_ops {
 	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
+	int (*load_fw)(struct v4l2_subdev *sd);
 	int (*reset)(struct v4l2_subdev *sd, u32 val);
 	int (*s_gpio)(struct v4l2_subdev *sd, u32 val);
 	int (*queryctrl)(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc);
@@ -175,31 +178,31 @@ struct v4l2_subdev_audio_ops {
 	v4l2_sliced_vbi_data struct. If no valid VBI data was found, then the
 	type field is set to 0 on return.
 
-  s_vbi_data: used to generate VBI signals on a video signal.
+   s_vbi_data: used to generate VBI signals on a video signal.
 	v4l2_sliced_vbi_data is filled with the data packets that should be
 	output. Note that if you set the line field to 0, then that VBI signal
 	is disabled. If no valid VBI data was found, then the type field is
 	set to 0 on return.
 
-  g_vbi_data: used to obtain the sliced VBI packet from a readback register.
+   g_vbi_data: used to obtain the sliced VBI packet from a readback register.
 	Not all video decoders support this. If no data is available because
 	the readback register contains invalid or erroneous data -EIO is
 	returned. Note that you must fill in the 'id' member and the 'field'
 	member (to determine whether CC data from the first or second field
 	should be obtained).
 
-  s_std_output: set v4l2_std_id for video OUTPUT devices. This is ignored by
+   s_std_output: set v4l2_std_id for video OUTPUT devices. This is ignored by
 	video input devices.
 
-  s_crystal_freq: sets the frequency of the crystal used to generate the
+   s_crystal_freq: sets the frequency of the crystal used to generate the
 	clocks. An extra flags field allows device specific configuration
 	regarding clock frequency dividers, etc. If not used, then set flags
 	to 0. If the frequency is not supported, then -EINVAL is returned.
 
-  g_input_status: get input status. Same as the status field in the v4l2_input
+   g_input_status: get input status. Same as the status field in the v4l2_input
 	struct.
 
-  s_routing: see s_routing in audio_ops, except this version is for video
+   s_routing: see s_routing in audio_ops, except this version is for video
 	devices.
  */
 struct v4l2_subdev_video_ops {

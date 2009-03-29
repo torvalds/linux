@@ -1234,7 +1234,7 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	if (itv->card->hw_all & IVTV_HW_CX25840) {
 		struct v4l2_control ctrl;
 
-		v4l2_subdev_call(itv->sd_video, core, init, 0);
+		v4l2_subdev_call(itv->sd_video, core, load_fw);
 		/* CX25840_CID_ENABLE_PVR150_WORKAROUND */
 		ctrl.id = V4L2_CID_PRIVATE_BASE;
 		ctrl.value = itv->pvr150_workaround;

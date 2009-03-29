@@ -203,43 +203,42 @@ static int cx18_av_reset(struct v4l2_subdev *sd, u32 val)
 
 static int cx18_av_init(struct v4l2_subdev *sd, u32 val)
 {
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
+	/*
+	 * The crystal freq used in calculations in this driver will be
+	 * 28.636360 MHz.
+	 * Aim to run the PLLs' VCOs near 400 MHz to minimze errors.
+	 */
+
+	/*
+	 * VDCLK  Integer = 0x0f, Post Divider = 0x04
+	 * AIMCLK Integer = 0x0e, Post Divider = 0x16
+	 */
+	cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
+
+	/* VDCLK Fraction = 0x2be2fe */
+	/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
+	cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
+
+	/* AIMCLK Fraction = 0x05227ad */
+	/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz pre post-div*/
+	cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
+
+	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
+	cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
+	return 0;
+}
+
+static int cx18_av_load_fw(struct v4l2_subdev *sd)
+{
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
-	switch (val) {
-	case CX18_AV_INIT_PLLS:
-		/*
-		 * The crystal freq used in calculations in this driver will be
-		 * 28.636360 MHz.
-		 * Aim to run the PLLs' VCOs near 400 MHz to minimze errors.
-		 */
-
-		/*
-		 * VDCLK  Integer = 0x0f, Post Divider = 0x04
-		 * AIMCLK Integer = 0x0e, Post Divider = 0x16
-		 */
-		cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
-
-		/* VDCLK Fraction = 0x2be2fe */
-		/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
-		cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
-
-		/* AIMCLK Fraction = 0x05227ad */
-		/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz pre post-div*/
-		cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
-
-		/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
-		cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
-		break;
-
-	case CX18_AV_INIT_NORMAL:
-	default:
-		if (!state->is_initialized) {
-			/* initialize on first use */
-			state->is_initialized = 1;
-			cx18_av_initialize(cx);
-		}
-		break;
+	if (!state->is_initialized) {
+		/* initialize on first use */
+		state->is_initialized = 1;
+		cx18_av_initialize(cx);
 	}
 	return 0;
 }
@@ -1185,6 +1184,7 @@ static const struct v4l2_subdev_core_ops cx18_av_general_ops = {
 	.g_chip_ident = cx18_av_g_chip_ident,
 	.log_status = cx18_av_log_status,
 	.init = cx18_av_init,
+	.load_fw = cx18_av_load_fw,
 	.reset = cx18_av_reset,
 	.queryctrl = cx18_av_queryctrl,
 	.g_ctrl = cx18_av_g_ctrl,
