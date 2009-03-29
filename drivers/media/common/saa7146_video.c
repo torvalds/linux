@@ -723,8 +723,6 @@ static int vidioc_g_parm(struct file *file, void *fh,
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 	parm->parm.capture.readbuffers = 1;
 	v4l2_video_std_frame_period(vv->standard->id,
 				    &parm->parm.capture.timeperframe);
