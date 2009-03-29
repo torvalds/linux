@@ -1020,7 +1020,7 @@ static void tuner_lookup(struct i2c_adapter *adap,
 		int mode_mask;
 
 		if (pos->i2c->adapter != adap ||
-		    pos->i2c->driver->id != I2C_DRIVERID_TUNER)
+		    strcmp(pos->i2c->driver->driver.name, "tuner"))
 			continue;
 
 		mode_mask = pos->mode_mask & ~T_STANDBY;

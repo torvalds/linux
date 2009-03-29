@@ -1667,6 +1667,5 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa7115",
 	.probe = saa711x_probe,
 	.remove = saa711x_remove,
-	.legacy_class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
 	.id_table = saa7115_id,
 };
