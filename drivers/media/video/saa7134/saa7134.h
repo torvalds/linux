@@ -333,6 +333,7 @@ struct saa7134_board {
 	unsigned char		tuner_addr;
 	unsigned char		radio_addr;
 	unsigned char		empress_addr;
+	unsigned char		rds_addr;
 
 	unsigned int            tda9887_conf;
 	unsigned int            tuner_config;

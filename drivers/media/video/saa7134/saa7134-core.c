@@ -990,6 +990,17 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 			sd->grp_id = GRP_EMPRESS;
 	}
 
+	if (saa7134_boards[dev->board].rds_addr) {
+		unsigned short addrs[2] = { 0, I2C_CLIENT_END };
+		struct v4l2_subdev *sd;
+
+		addrs[0] = saa7134_boards[dev->board].rds_addr;
+		sd = v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "saa6588",
+			    "saa6588", addrs);
+		if (sd)
+			printk(KERN_INFO "%s: found RDS decoder\n", dev->name);
+	}
+
 	request_submodules(dev);
 
 	v4l2_prio_init(&dev->prio);

@@ -30,6 +30,7 @@
 #include "saa7134-reg.h"
 #include "saa7134.h"
 #include <media/v4l2-common.h>
+#include <media/rds.h>
 
 /* ------------------------------------------------------------------ */
 
@@ -1462,6 +1463,7 @@ static int video_release(struct file *file)
 {
 	struct saa7134_fh  *fh  = file->private_data;
 	struct saa7134_dev *dev = fh->dev;
+	struct rds_command cmd;
 	unsigned long flags;
 
 	/* turn off overlay */
@@ -1495,6 +1497,8 @@ static int video_release(struct file *file)
 	saa_andorb(SAA7134_OFMT_DATA_B, 0x1f, 0);
 
 	saa_call_all(dev, core, s_standby, 0);
+	if (fh->radio)
+		saa_call_all(dev, core, ioctl, RDS_CMD_CLOSE, &cmd);
 
 	/* free stuff */
 	videobuf_mmap_free(&fh->cap);
@@ -1513,6 +1517,37 @@ static int video_mmap(struct file *file, struct vm_area_struct * vma)
 	struct saa7134_fh *fh = file->private_data;
 
 	return videobuf_mmap_mapper(saa7134_queue(fh), vma);
+}
+
+static ssize_t radio_read(struct file *file, char __user *data,
+			 size_t count, loff_t *ppos)
+{
+	struct saa7134_fh *fh = file->private_data;
+	struct saa7134_dev *dev = fh->dev;
+	struct rds_command cmd;
+
+	cmd.block_count = count/3;
+	cmd.buffer = data;
+	cmd.instance = file;
+	cmd.result = -ENODEV;
+
+	saa_call_all(dev, core, ioctl, RDS_CMD_READ, &cmd);
+
+	return cmd.result;
+}
+
+static unsigned int radio_poll(struct file *file, poll_table *wait)
+{
+	struct saa7134_fh *fh = file->private_data;
+	struct saa7134_dev *dev = fh->dev;
+	struct rds_command cmd;
+
+	cmd.instance = file;
+	cmd.event_list = wait;
+	cmd.result = -ENODEV;
+	saa_call_all(dev, core, ioctl, RDS_CMD_POLL, &cmd);
+
+	return cmd.result;
 }
 
 /* ------------------------------------------------------------------ */
@@ -2439,8 +2474,10 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 static const struct v4l2_file_operations radio_fops = {
 	.owner	  = THIS_MODULE,
 	.open	  = video_open,
+	.read     = radio_read,
 	.release  = video_release,
 	.ioctl	  = video_ioctl2,
+	.poll     = radio_poll,
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {
