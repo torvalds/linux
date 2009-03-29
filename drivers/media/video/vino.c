@@ -3102,22 +3102,14 @@ out:
 static int vino_enum_fmt_vid_cap(struct file *file, void *__fh,
 			      struct v4l2_fmtdesc *fd)
 {
-	enum v4l2_buf_type type = fd->type;
-	int index = fd->index;
+	dprintk("format index = %d\n", fd->index);
 
-	dprintk("format index = %d\n", index);
-
-	if ((fd->index < 0) ||
-			(fd->index >= VINO_DATA_FMT_COUNT))
+	if (fd->index >= VINO_DATA_FMT_COUNT)
 		return -EINVAL;
-	dprintk("format name = %s\n",
-			vino_data_formats[index].description);
+	dprintk("format name = %s\n", vino_data_formats[fd->index].description);
 
-	memset(fd, 0, sizeof(struct v4l2_fmtdesc));
-	fd->index = index;
-	fd->type = type;
-	fd->pixelformat = vino_data_formats[index].pixelformat;
-	strcpy(fd->description, vino_data_formats[index].description);
+	fd->pixelformat = vino_data_formats[fd->index].pixelformat;
+	strcpy(fd->description, vino_data_formats[fd->index].description);
 	return 0;
 }
 
@@ -3327,28 +3319,18 @@ static int vino_g_parm(struct file *file, void *__fh,
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
+	struct v4l2_captureparm *cp = &sp->parm.capture;
 
-	switch (sp->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct v4l2_captureparm *cp = &sp->parm.capture;
-		memset(cp, 0, sizeof(struct v4l2_captureparm));
+	cp->capability = V4L2_CAP_TIMEPERFRAME;
+	cp->timeperframe.numerator = 1;
 
-		cp->capability = V4L2_CAP_TIMEPERFRAME;
-		cp->timeperframe.numerator = 1;
+	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
 
-		spin_lock_irqsave(&vino_drvdata->input_lock, flags);
+	cp->timeperframe.denominator = vcs->fps;
 
-		cp->timeperframe.denominator = vcs->fps;
+	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
 
-		spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
-
-		// TODO: cp->readbuffers = xxx;
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
-		return -EINVAL;
-	}
+	/* TODO: cp->readbuffers = xxx; */
 
 	return 0;
 }
@@ -3358,31 +3340,20 @@ static int vino_s_parm(struct file *file, void *__fh,
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
+	struct v4l2_captureparm *cp = &sp->parm.capture;
 
-	switch (sp->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct v4l2_captureparm *cp = &sp->parm.capture;
+	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
 
-		spin_lock_irqsave(&vino_drvdata->input_lock, flags);
-
-		if ((cp->timeperframe.numerator == 0) ||
-		    (cp->timeperframe.denominator == 0)) {
-			/* reset framerate */
-			vino_set_default_framerate(vcs);
-		} else {
-			vino_set_framerate(vcs, cp->timeperframe.denominator /
-					   cp->timeperframe.numerator);
-		}
-
-		spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
-
-		// TODO: set buffers according to cp->readbuffers
-		break;
+	if ((cp->timeperframe.numerator == 0) ||
+	    (cp->timeperframe.denominator == 0)) {
+		/* reset framerate */
+		vino_set_default_framerate(vcs);
+	} else {
+		vino_set_framerate(vcs, cp->timeperframe.denominator /
+				   cp->timeperframe.numerator);
 	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
-		return -EINVAL;
-	}
+
+	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
 
 	return 0;
 }
@@ -3391,42 +3362,35 @@ static int vino_reqbufs(struct file *file, void *__fh,
 			     struct v4l2_requestbuffers *rb)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
+
 	if (vcs->reading)
 		return -EBUSY;
 
-	switch (rb->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		// TODO: check queue type
-		if (rb->memory != V4L2_MEMORY_MMAP) {
-			dprintk("type not mmap\n");
-			return -EINVAL;
+	/* TODO: check queue type */
+	if (rb->memory != V4L2_MEMORY_MMAP) {
+		dprintk("type not mmap\n");
+		return -EINVAL;
+	}
+
+	dprintk("count = %d\n", rb->count);
+	if (rb->count > 0) {
+		if (vino_is_capturing(vcs)) {
+			dprintk("busy, capturing\n");
+			return -EBUSY;
 		}
 
-		dprintk("count = %d\n", rb->count);
-		if (rb->count > 0) {
-			if (vino_is_capturing(vcs)) {
-				dprintk("busy, capturing\n");
-				return -EBUSY;
-			}
-
-			if (vino_queue_has_mapped_buffers(&vcs->fb_queue)) {
-				dprintk("busy, buffers still mapped\n");
-				return -EBUSY;
-			} else {
-				vcs->streaming = 0;
-				vino_queue_free(&vcs->fb_queue);
-				vino_queue_init(&vcs->fb_queue, &rb->count);
-			}
+		if (vino_queue_has_mapped_buffers(&vcs->fb_queue)) {
+			dprintk("busy, buffers still mapped\n");
+			return -EBUSY;
 		} else {
 			vcs->streaming = 0;
-			vino_capture_stop(vcs);
 			vino_queue_free(&vcs->fb_queue);
+			vino_queue_init(&vcs->fb_queue, &rb->count);
 		}
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
-		return -EINVAL;
+	} else {
+		vcs->streaming = 0;
+		vino_capture_stop(vcs);
+		vino_queue_free(&vcs->fb_queue);
 	}
 
 	return 0;
@@ -3474,34 +3438,26 @@ static int vino_querybuf(struct file *file, void *__fh,
 			      struct v4l2_buffer *b)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
+	struct vino_framebuffer *fb;
+
 	if (vcs->reading)
 		return -EBUSY;
 
-	switch (b->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct vino_framebuffer *fb;
-
-		// TODO: check queue type
-		if (b->index >= vino_queue_get_length(&vcs->fb_queue)) {
-			dprintk("invalid index = %d\n",
-			       b->index);
-			return -EINVAL;
-		}
-
-		fb = vino_queue_get_buffer(&vcs->fb_queue,
-					   b->index);
-		if (fb == NULL) {
-			dprintk("vino_queue_get_buffer() failed");
-			return -EINVAL;
-		}
-
-		vino_v4l2_get_buffer_status(vcs, fb, b);
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
+	/* TODO: check queue type */
+	if (b->index >= vino_queue_get_length(&vcs->fb_queue)) {
+		dprintk("invalid index = %d\n",
+		       b->index);
 		return -EINVAL;
 	}
+
+	fb = vino_queue_get_buffer(&vcs->fb_queue,
+				   b->index);
+	if (fb == NULL) {
+		dprintk("vino_queue_get_buffer() failed");
+		return -EINVAL;
+	}
+
+	vino_v4l2_get_buffer_status(vcs, fb, b);
 
 	return 0;
 }
@@ -3510,36 +3466,28 @@ static int vino_qbuf(struct file *file, void *__fh,
 			  struct v4l2_buffer *b)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
+	struct vino_framebuffer *fb;
+	int ret;
+
 	if (vcs->reading)
 		return -EBUSY;
 
-	switch (b->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct vino_framebuffer *fb;
-		int ret;
-
-		// TODO: check queue type
-		if (b->memory != V4L2_MEMORY_MMAP) {
-			dprintk("type not mmap\n");
-			return -EINVAL;
-		}
-
-		fb = vino_capture_enqueue(vcs, b->index);
-		if (fb == NULL)
-			return -EINVAL;
-
-		vino_v4l2_get_buffer_status(vcs, fb, b);
-
-		if (vcs->streaming) {
-			ret = vino_capture_next(vcs, 1);
-			if (ret)
-				return ret;
-		}
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
+	/* TODO: check queue type */
+	if (b->memory != V4L2_MEMORY_MMAP) {
+		dprintk("type not mmap\n");
 		return -EINVAL;
+	}
+
+	fb = vino_capture_enqueue(vcs, b->index);
+	if (fb == NULL)
+		return -EINVAL;
+
+	vino_v4l2_get_buffer_status(vcs, fb, b);
+
+	if (vcs->streaming) {
+		ret = vino_capture_next(vcs, 1);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -3550,73 +3498,63 @@ static int vino_dqbuf(struct file *file, void *__fh,
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned int nonblocking = file->f_flags & O_NONBLOCK;
+	struct vino_framebuffer *fb;
+	unsigned int incoming, outgoing;
+	int err;
+
 	if (vcs->reading)
 		return -EBUSY;
 
-	switch (b->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct vino_framebuffer *fb;
-		unsigned int incoming, outgoing;
-		int err;
+	/* TODO: check queue type */
 
-		// TODO: check queue type
-
-		err = vino_queue_get_incoming(&vcs->fb_queue, &incoming);
-		if (err) {
-			dprintk("vino_queue_get_incoming() failed\n");
-			return -EINVAL;
-		}
-		err = vino_queue_get_outgoing(&vcs->fb_queue, &outgoing);
-		if (err) {
-			dprintk("vino_queue_get_outgoing() failed\n");
-			return -EINVAL;
-		}
-
-		dprintk("incoming = %d, outgoing = %d\n", incoming, outgoing);
-
-		if (outgoing == 0) {
-			if (incoming == 0) {
-				dprintk("no incoming or outgoing buffers\n");
-				return -EINVAL;
-			}
-			if (nonblocking) {
-				dprintk("non-blocking I/O was selected and "
-					"there are no buffers to dequeue\n");
-				return -EAGAIN;
-			}
-
-			err = vino_wait_for_frame(vcs);
-			if (err) {
-				err = vino_wait_for_frame(vcs);
-				if (err) {
-					/* interrupted or
-					 * no frames captured because
-					 * of frame skipping */
-					// vino_capture_failed(vcs);
-					return -EIO;
-				}
-			}
-		}
-
-		fb = vino_queue_remove(&vcs->fb_queue, &b->index);
-		if (fb == NULL) {
-			dprintk("vino_queue_remove() failed\n");
-			return -EINVAL;
-		}
-
-		err = vino_check_buffer(vcs, fb);
-
-		vino_v4l2_get_buffer_status(vcs, fb, b);
-
-		if (err)
-			return -EIO;
-
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
+	err = vino_queue_get_incoming(&vcs->fb_queue, &incoming);
+	if (err) {
+		dprintk("vino_queue_get_incoming() failed\n");
 		return -EINVAL;
 	}
+	err = vino_queue_get_outgoing(&vcs->fb_queue, &outgoing);
+	if (err) {
+		dprintk("vino_queue_get_outgoing() failed\n");
+		return -EINVAL;
+	}
+
+	dprintk("incoming = %d, outgoing = %d\n", incoming, outgoing);
+
+	if (outgoing == 0) {
+		if (incoming == 0) {
+			dprintk("no incoming or outgoing buffers\n");
+			return -EINVAL;
+		}
+		if (nonblocking) {
+			dprintk("non-blocking I/O was selected and "
+				"there are no buffers to dequeue\n");
+			return -EAGAIN;
+		}
+
+		err = vino_wait_for_frame(vcs);
+		if (err) {
+			err = vino_wait_for_frame(vcs);
+			if (err) {
+				/* interrupted or no frames captured because of
+				 * frame skipping */
+				/* vino_capture_failed(vcs); */
+				return -EIO;
+			}
+		}
+	}
+
+	fb = vino_queue_remove(&vcs->fb_queue, &b->index);
+	if (fb == NULL) {
+		dprintk("vino_queue_remove() failed\n");
+		return -EINVAL;
+	}
+
+	err = vino_check_buffer(vcs, fb);
+
+	vino_v4l2_get_buffer_status(vcs, fb, b);
+
+	if (err)
+		return -EIO;
 
 	return 0;
 }
