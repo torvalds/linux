@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <media/v4l2-device.h>
 #include <media/tvp5150.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include <media/v4l2-chip-ident.h>
 
 #include "tvp5150_reg.h"
@@ -19,14 +19,6 @@ MODULE_DESCRIPTION("Texas Instruments TVP5150A video decoder driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
 
-/* standard i2c insmod options */
-static unsigned short normal_i2c[] = {
-	0xb8 >> 1,
-	0xba >> 1,
-	I2C_CLIENT_END
-};
-
-I2C_CLIENT_INSMOD;
 
 static int debug;
 module_param(debug, int, 0);
@@ -1026,11 +1018,6 @@ static int tvp5150_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	return -EINVAL;
 }
 
-static int tvp5150_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
@@ -1125,9 +1112,7 @@ MODULE_DEVICE_TABLE(i2c, tvp5150_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tvp5150",
-	.command = tvp5150_command,
 	.probe = tvp5150_probe,
 	.remove = tvp5150_remove,
-	.legacy_class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
 	.id_table = tvp5150_id,
 };
