@@ -644,7 +644,7 @@ xfs_initialize_perag_data(xfs_mount_t *mp, xfs_agnumber_t agcount)
 	for (index = 0; index < agcount; index++) {
 		/*
 		 * read the agf, then the agi. This gets us
-		 * all the inforamtion we need and populates the
+		 * all the information we need and populates the
 		 * per-ag structures for us.
 		 */
 		error = xfs_alloc_pagf_init(mp, NULL, index, 0);
@@ -1225,7 +1225,7 @@ xfs_unmountfs(
 
 	/*
 	 * We can potentially deadlock here if we have an inode cluster
-	 * that has been freed has it's buffer still pinned in memory because
+	 * that has been freed has its buffer still pinned in memory because
 	 * the transaction is still sitting in a iclog. The stale inodes
 	 * on that buffer will have their flush locks held until the
 	 * transaction hits the disk and the callbacks run. the inode
@@ -1257,7 +1257,7 @@ xfs_unmountfs(
 	 * Unreserve any blocks we have so that when we unmount we don't account
 	 * the reserved free space as used. This is really only necessary for
 	 * lazy superblock counting because it trusts the incore superblock
-	 * counters to be aboslutely correct on clean unmount.
+	 * counters to be absolutely correct on clean unmount.
 	 *
 	 * We don't bother correcting this elsewhere for lazy superblock
 	 * counting because on mount of an unclean filesystem we reconstruct the
@@ -1860,7 +1860,7 @@ xfs_mount_log_sb(
  * we disable the per-cpu counter and go through the slow path.
  *
  * The slow path is the current xfs_mod_incore_sb() function.  This means that
- * when we disable a per-cpu counter, we need to drain it's resources back to
+ * when we disable a per-cpu counter, we need to drain its resources back to
  * the global superblock. We do this after disabling the counter to prevent
  * more threads from queueing up on the counter.
  *

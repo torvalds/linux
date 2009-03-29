@@ -63,7 +63,7 @@ typedef enum {
  */
 
 typedef struct xfs_iomap {
-	xfs_daddr_t		iomap_bn;	/* first 512b blk of mapping */
+	xfs_daddr_t		iomap_bn;	/* first 512B blk of mapping */
 	xfs_buftarg_t		*iomap_target;
 	xfs_off_t		iomap_offset;	/* offset of mapping, bytes */
 	xfs_off_t		iomap_bsize;	/* size of mapping, bytes */

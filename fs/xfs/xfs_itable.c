@@ -584,7 +584,7 @@ xfs_bulkstat(
 				 * first inode of the cluster.
 				 *
 				 * Careful with clustidx.   There can be
-				 * multple clusters per chunk, a single
+				 * multiple clusters per chunk, a single
 				 * cluster per chunk or a cluster that has
 				 * inodes represented from several different
 				 * chunks (if blocksize is large).

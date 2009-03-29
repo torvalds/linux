@@ -2862,7 +2862,7 @@ xfs_free_file_space(
 
 	/*
 	 * Need to zero the stuff we're not freeing, on disk.
-	 * If its a realtime file & can't use unwritten extents then we
+	 * If it's a realtime file & can't use unwritten extents then we
 	 * actually need to zero the extent edges.  Otherwise xfs_bunmapi
 	 * will take care of it for us.
 	 */

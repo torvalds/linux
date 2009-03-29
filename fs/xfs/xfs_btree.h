@@ -41,7 +41,7 @@ extern kmem_zone_t	*xfs_btree_cur_zone;
 /*
  * Generic btree header.
  *
- * This is a comination of the actual format used on disk for short and long
+ * This is a combination of the actual format used on disk for short and long
  * format btrees.  The first three fields are shared by both format, but
  * the pointers are different and should be used with care.
  *
