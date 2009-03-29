@@ -746,7 +746,6 @@ static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 		return -EINVAL;
 
 	strlcpy(f->description, "MPEG", sizeof(f->description));
-	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
 	return 0;
 }
@@ -757,7 +756,6 @@ static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
 	struct cx8802_fh  *fh   = priv;
 	struct cx8802_dev *dev  = fh->dev;
 
-	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
 	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */
@@ -776,7 +774,6 @@ static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
 	struct cx8802_fh  *fh   = priv;
 	struct cx8802_dev *dev  = fh->dev;
 
-	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
 	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */;
@@ -793,7 +790,6 @@ static int vidioc_s_fmt_vid_cap (struct file *file, void *priv,
 	struct cx8802_dev *dev  = fh->dev;
 	struct cx88_core  *core = dev->core;
 
-	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.bytesperline = 0;
 	f->fmt.pix.sizeimage    = dev->ts_packet_size * dev->ts_packet_count; /* 188 * 4 * 1024; */;
