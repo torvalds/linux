@@ -288,7 +288,6 @@ int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 
 		skt->nr = ops->first + i;
 		skt->irq = NO_IRQ;
-		skt->dev = dev;
 		skt->ops = ops;
 		skt->socket.owner = ops->owner;
 		skt->socket.dev.parent = dev;

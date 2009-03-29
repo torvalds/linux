@@ -30,7 +30,6 @@ struct soc_pcmcia_socket {
 	/*
 	 * Info from low level handler
 	 */
-	struct device		*dev;
 	unsigned int		nr;
 	unsigned int		irq;
 
