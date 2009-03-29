@@ -155,7 +155,8 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 		 * minimum offset only needs to be the space required for 
 		 * the btree root.
 		 */ 
-		if (!dp->i_d.di_forkoff && dp->i_df.if_bytes > mp->m_attroffset)
+		if (!dp->i_d.di_forkoff && dp->i_df.if_bytes >
+		    xfs_default_attroffset(dp))
 			dsize = XFS_BMDR_SPACE_CALC(MINDBTPTRS);
 		break;
 		

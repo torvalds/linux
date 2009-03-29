@@ -338,6 +338,10 @@ xfs_check_nostate_extents(
 	xfs_extnum_t		idx,
 	xfs_extnum_t		num);
 
+uint
+xfs_default_attroffset(
+	struct xfs_inode	*ip);
+
 #ifdef __KERNEL__
 
 /*
