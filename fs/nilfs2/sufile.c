@@ -625,7 +625,7 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum,
 			si[i + j].sui_nblocks = le32_to_cpu(su->su_nblocks);
 			si[i + j].sui_flags = le32_to_cpu(su->su_flags) &
 				~(1UL << NILFS_SEGMENT_USAGE_ACTIVE);
-			if (nilfs_segment_is_active(nilfs, segnum + i + j))
+			if (nilfs_segment_is_active(nilfs, segnum + j))
 				si[i + j].sui_flags |=
 					(1UL << NILFS_SEGMENT_USAGE_ACTIVE);
 		}
