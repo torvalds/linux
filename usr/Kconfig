@@ -72,23 +72,24 @@ config RD_LZMA
 	  Support loading of a LZMA encoded initial ramdisk or cpio buffer
 	  If unsure, say N.
 
+if INITRAMFS_SOURCE!=""
+
 choice
 	prompt "Built-in initramfs compression mode"
 	help
-	  This setting is only meaningful if the INITRAMFS_SOURCE is
-	  set. It decides by which algorithm the INITRAMFS_SOURCE will
-	  be compressed.
-	  Several compression algorithms are available, which differ
-	  in efficiency, compression and decompression speed.
-	  Compression speed is only relevant when building a kernel.
-	  Decompression speed is relevant at each boot.
+	  This option decides by which algorithm the builtin initramfs
+	  will be compressed.  Several compression algorithms are
+	  available, which differ in efficiency, compression and
+	  decompression speed.  Compression speed is only relevant
+	  when building a kernel.  Decompression speed is relevant at
+	  each boot.
 
 	  If you have any problems with bzip2 or LZMA compressed
 	  initramfs, mail me (Alain Knaff) <alain@knaff.lu>.
 
-	  High compression options are mostly useful for users who
-	  are low on disk space (embedded systems), but for whom ram
-	  size matters less.
+	  High compression options are mostly useful for users who are
+	  low on RAM, since it reduces the memory consumption during
+	  boot.
 
 	  If in doubt, select 'gzip'
 
@@ -133,3 +134,14 @@ config INITRAMFS_COMPRESSION_LZMA
 	  smaller with LZMA in comparison to gzip.
 
 endchoice
+
+endif
+
+if INITRAMFS_SOURCE=""
+# The builtin initramfs is so small so we don't want to bug the user...
+
+config INITRAMFS_COMPRESSION_NONE
+	bool
+	default y
+
+endif
