@@ -35,7 +35,7 @@
 #include <media/tvaudio.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
 #include <media/i2c-addr.h>
 
@@ -136,20 +136,6 @@ static inline struct CHIPSTATE *to_state(struct v4l2_subdev *sd)
 	return container_of(sd, struct CHIPSTATE, sd);
 }
 
-/* ---------------------------------------------------------------------- */
-/* i2c addresses                                                          */
-
-static unsigned short normal_i2c[] = {
-	I2C_ADDR_TDA8425   >> 1,
-	I2C_ADDR_TEA6300   >> 1,
-	I2C_ADDR_TEA6420   >> 1,
-	I2C_ADDR_TDA9840   >> 1,
-	I2C_ADDR_TDA985x_L >> 1,
-	I2C_ADDR_TDA985x_H >> 1,
-	I2C_ADDR_TDA9874   >> 1,
-	I2C_ADDR_PIC16C54  >> 1,
-	I2C_CLIENT_END };
-I2C_CLIENT_INSMOD;
 
 /* ---------------------------------------------------------------------- */
 /* i2c I/O functions                                                      */
@@ -1918,11 +1904,6 @@ static int tvaudio_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ide
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TVAUDIO, 0);
 }
 
-static int tvaudio_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops tvaudio_core_ops = {
@@ -2088,16 +2069,6 @@ static int tvaudio_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int tvaudio_legacy_probe(struct i2c_adapter *adap)
-{
-	/* don't attach on saa7146 based cards,
-	   because dedicated drivers are used */
-	if ((adap->id == I2C_HW_SAA7146))
-		return 0;
-	if (adap->class & I2C_CLASS_TV_ANALOG)
-		return 1;
-	return 0;
-}
 
 /* This driver supports many devices and the idea is to let the driver
    detect which device is present. So rather than listing all supported
@@ -2110,10 +2081,7 @@ MODULE_DEVICE_TABLE(i2c, tvaudio_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tvaudio",
-	.driverid = I2C_DRIVERID_TVAUDIO,
-	.command = tvaudio_command,
 	.probe = tvaudio_probe,
 	.remove = tvaudio_remove,
-	.legacy_probe = tvaudio_legacy_probe,
 	.id_table = tvaudio_id,
 };
