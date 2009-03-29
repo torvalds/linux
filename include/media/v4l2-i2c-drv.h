@@ -51,7 +51,7 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data;
 static struct i2c_driver v4l2_i2c_driver;
 
 
-/* Bus-based I2C implementation for kernels >= 2.6.22 */
+/* Bus-based I2C implementation for kernels >= 2.6.26 */
 
 static int __init v4l2_i2c_drv_init(void)
 {

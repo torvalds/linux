@@ -1164,7 +1164,6 @@ register_client:
 	return 0;
 }
 
-
 static int tuner_remove(struct i2c_client *client)
 {
 	struct tuner *t = to_tuner(i2c_get_clientdata(client));

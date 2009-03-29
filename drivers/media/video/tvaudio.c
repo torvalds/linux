@@ -2069,7 +2069,6 @@ static int tvaudio_remove(struct i2c_client *client)
 	return 0;
 }
 
-
 /* This driver supports many devices and the idea is to let the driver
    detect which device is present. So rather than listing all supported
    devices here, we pretend to support a single, fake device type. */
