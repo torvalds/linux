@@ -920,6 +920,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	int r;
 	gfn_t base_gfn;
 	unsigned long npages;
+	int largepages;
 	unsigned long i;
 	struct kvm_memory_slot *memslot;
 	struct kvm_memory_slot old, new;
@@ -995,11 +996,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			new.userspace_addr = 0;
 	}
 	if (npages && !new.lpage_info) {
-		int largepages = npages / KVM_PAGES_PER_HPAGE;
-		if (npages % KVM_PAGES_PER_HPAGE)
-			largepages++;
-		if (base_gfn % KVM_PAGES_PER_HPAGE)
-			largepages++;
+		largepages = 1 + (base_gfn + npages - 1) / KVM_PAGES_PER_HPAGE;
+		largepages -= base_gfn / KVM_PAGES_PER_HPAGE;
 
 		new.lpage_info = vmalloc(largepages * sizeof(*new.lpage_info));
 
