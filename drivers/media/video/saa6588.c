@@ -34,16 +34,8 @@
 #include <media/rds.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
-/* Addresses to scan */
-static unsigned short normal_i2c[] = {
-	0x20 >> 1,
-	0x22 >> 1,
-	I2C_CLIENT_END,
-};
-
-I2C_CLIENT_INSMOD;
 
 /* insmod options */
 static unsigned int debug;
@@ -431,11 +423,6 @@ static int saa6588_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ide
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_SAA6588, 0);
 }
 
-static int saa6588_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops saa6588_core_ops = {
@@ -511,7 +498,6 @@ MODULE_DEVICE_TABLE(i2c, saa6588_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa6588",
-	.command = saa6588_command,
 	.probe = saa6588_probe,
 	.remove = saa6588_remove,
 	.id_table = saa6588_id,
