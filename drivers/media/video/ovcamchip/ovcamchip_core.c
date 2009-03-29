@@ -322,11 +322,6 @@ static long ovcamchip_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	}
 }
 
-static int ovcamchip_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops ovcamchip_core_ops = {
@@ -394,7 +389,6 @@ MODULE_DEVICE_TABLE(i2c, ovcamchip_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "ovcamchip",
-	.command = ovcamchip_command,
 	.probe = ovcamchip_probe,
 	.remove = ovcamchip_remove,
 	.id_table = ovcamchip_id,

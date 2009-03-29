@@ -118,11 +118,6 @@ static int tlv320aic23b_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int tlv320aic23b_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops tlv320aic23b_core_ops = {
@@ -205,7 +200,6 @@ MODULE_DEVICE_TABLE(i2c, tlv320aic23b_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tlv320aic23b",
-	.command = tlv320aic23b_command,
 	.probe = tlv320aic23b_probe,
 	.remove = tlv320aic23b_remove,
 	.id_table = tlv320aic23b_id,
