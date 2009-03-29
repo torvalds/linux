@@ -1010,8 +1010,7 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 	} else {
 		sg_link_tbl_len = cryptlen;
 
-		if ((edesc->desc.hdr & DESC_HDR_MODE1_MDEU_CICV) &&
-			(edesc->desc.hdr & DESC_HDR_MODE0_ENCRYPT) == 0)
+		if (edesc->desc.hdr & DESC_HDR_MODE1_MDEU_CICV)
 			sg_link_tbl_len = cryptlen + authsize;
 
 		sg_count = sg_to_link_tbl(areq->src, sg_count, sg_link_tbl_len,
