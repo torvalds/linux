@@ -1092,7 +1092,7 @@ static void __init numa_parse_mdesc_group_cpus(struct mdesc_handle *md,
 		if (strcmp(name, "cpu"))
 			continue;
 		id = mdesc_get_property(md, target, "id", NULL);
-		if (*id < NR_CPUS)
+		if (*id < nr_cpu_ids)
 			cpu_set(*id, *mask);
 	}
 }
