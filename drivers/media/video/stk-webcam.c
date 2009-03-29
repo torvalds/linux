@@ -1112,8 +1112,6 @@ static int stk_vidioc_reqbufs(struct file *filp,
 
 	if (dev == NULL)
 		return -ENODEV;
-	if (rb->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 	if (rb->memory != V4L2_MEMORY_MMAP)
 		return -EINVAL;
 	if (is_streaming(dev)
@@ -1152,8 +1150,6 @@ static int stk_vidioc_qbuf(struct file *filp,
 	struct stk_camera *dev = priv;
 	struct stk_sio_buffer *sbuf;
 	unsigned long flags;
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	if (buf->memory != V4L2_MEMORY_MMAP)
 		return -EINVAL;
@@ -1180,8 +1176,7 @@ static int stk_vidioc_dqbuf(struct file *filp,
 	unsigned long flags;
 	int ret;
 
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE
-		|| !is_streaming(dev))
+	if (!is_streaming(dev))
 		return -EINVAL;
 
 	if (filp->f_flags & O_NONBLOCK && list_empty(&dev->sio_full))
@@ -1240,9 +1235,6 @@ static int stk_vidioc_streamoff(struct file *filp,
 static int stk_vidioc_g_parm(struct file *filp,
 		void *priv, struct v4l2_streamparm *sp)
 {
-	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	/*FIXME This is not correct */
 	sp->parm.capture.timeperframe.numerator = 1;
 	sp->parm.capture.timeperframe.denominator = 30;
