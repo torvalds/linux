@@ -46,7 +46,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include <media/saa7115.h>
 #include <asm/div64.h>
 
@@ -62,12 +62,6 @@ module_param(debug, bool, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-static unsigned short normal_i2c[] = {
-		0x4a >> 1, 0x48 >> 1,	/* SAA7111, SAA7111A and SAA7113 */
-		0x42 >> 1, 0x40 >> 1,	/* SAA7114, SAA7115 and SAA7118 */
-		I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 struct saa711x_state {
 	struct v4l2_subdev sd;
@@ -1498,11 +1492,6 @@ static int saa711x_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int saa711x_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops saa711x_core_ops = {
@@ -1676,8 +1665,6 @@ MODULE_DEVICE_TABLE(i2c, saa7115_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa7115",
-	.driverid = I2C_DRIVERID_SAA711X,
-	.command = saa711x_command,
 	.probe = saa711x_probe,
 	.remove = saa711x_remove,
 	.legacy_class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
