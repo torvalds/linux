@@ -190,6 +190,8 @@
 #define   I830_FENCE_SIZE_BITS(size)	((ffs((size) >> 19) - 1) << 8)
 #define   I830_FENCE_PITCH_SHIFT	4
 #define   I830_FENCE_REG_VALID		(1<<0)
+#define   I830_FENCE_MAX_PITCH_VAL	0x10
+#define   I830_FENCE_MAX_SIZE_VAL	(1<<8)
 
 #define   I915_FENCE_START_MASK		0x0ff00000
 #define   I915_FENCE_SIZE_BITS(size)	((ffs((size) >> 20) - 1) << 8)
@@ -198,6 +200,7 @@
 #define   I965_FENCE_PITCH_SHIFT	2
 #define   I965_FENCE_TILING_Y_SHIFT	1
 #define   I965_FENCE_REG_VALID		(1<<0)
+#define   I965_FENCE_MAX_PITCH_VAL	0x0400
 
 /*
  * Instruction and interrupt control regs
