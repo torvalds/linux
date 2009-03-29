@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/mount.h>
 #include <linux/mnt_namespace.h>
+#include <linux/fs_struct.h>
 #include "common.h"
 #include "realpath.h"
 

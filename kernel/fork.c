@@ -60,6 +60,7 @@
 #include <linux/tty.h>
 #include <linux/proc_fs.h>
 #include <linux/blkdev.h>
+#include <linux/fs_struct.h>
 #include <trace/sched.h>
 #include <linux/magic.h>
 

@@ -32,6 +32,7 @@
 #include <linux/file.h>
 #include <linux/fcntl.h>
 #include <linux/device_cgroup.h>
+#include <linux/fs_struct.h>
 #include <asm/uaccess.h>
 
 #define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])

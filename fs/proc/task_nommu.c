@@ -2,6 +2,7 @@
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
+#include <linux/fs_struct.h>
 #include <linux/mount.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>

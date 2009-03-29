@@ -34,6 +34,7 @@
 #include <linux/seccomp.h>
 #include <linux/cpu.h>
 #include <linux/ptrace.h>
+#include <linux/fs_struct.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>

@@ -46,6 +46,7 @@
 #include <linux/blkdev.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/tracehook.h>
+#include <linux/fs_struct.h>
 #include <linux/init_task.h>
 #include <trace/sched.h>
 

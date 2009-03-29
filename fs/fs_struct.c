@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <linux/path.h>
 #include <linux/slab.h>
+#include <linux/fs_struct.h>
 
 /*
  * Replace the fs->{rootmnt,root} with {mnt,dentry}. Put the old values.

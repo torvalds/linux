@@ -53,6 +53,7 @@
 #include <linux/tracehook.h>
 #include <linux/kmod.h>
 #include <linux/fsnotify.h>
+#include <linux/fs_struct.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>

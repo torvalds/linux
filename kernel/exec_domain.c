@@ -18,6 +18,7 @@
 #include <linux/syscalls.h>
 #include <linux/sysctl.h>
 #include <linux/types.h>
+#include <linux/fs_struct.h>
 
 
 static void default_handler(int, struct pt_regs *);
