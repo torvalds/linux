@@ -3190,7 +3190,7 @@ static int move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	return 0;
 }
 /********** Helpers for find_busiest_group ************************/
-/**
+/*
  * sd_lb_stats - Structure to store the statistics of a sched_domain
  * 		during load balancing.
  */
@@ -3222,7 +3222,7 @@ struct sd_lb_stats {
 #endif
 };
 
-/**
+/*
  * sg_lb_stats - stats of a sched_group required for load_balancing
  */
 struct sg_lb_stats {
@@ -3360,15 +3360,16 @@ static inline void update_sd_power_savings_stats(struct sched_group *group,
 }
 
 /**
- * check_power_save_busiest_group - Check if we have potential to perform
- *	some power-savings balance. If yes, set the busiest group to be
- *	the least loaded group in the sched_domain, so that it's CPUs can
- *	be put to idle.
- *
+ * check_power_save_busiest_group - see if there is potential for some power-savings balance
  * @sds: Variable containing the statistics of the sched_domain
  *	under consideration.
  * @this_cpu: Cpu at which we're currently performing load-balancing.
  * @imbalance: Variable to store the imbalance.
+ *
+ * Description:
+ * Check if we have potential to perform some power-savings balance.
+ * If yes, set the busiest group to be the least loaded group in the
+ * sched_domain, so that it's CPUs can be put to idle.
  *
  * Returns 1 if there is potential to perform power-savings balance.
  * Else returns 0.
