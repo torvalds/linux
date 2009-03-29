@@ -37,7 +37,7 @@ struct soc_pcmcia_socket {
 	/*
 	 * Core PCMCIA state
 	 */
-	struct pcmcia_low_level *ops;
+	const struct pcmcia_low_level *ops;
 
 	unsigned int		status;
 	socket_state_t		cs_state;
