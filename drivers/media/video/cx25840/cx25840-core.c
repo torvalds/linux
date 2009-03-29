@@ -39,7 +39,7 @@
 #include <linux/delay.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include <media/cx25840.h>
 
 #include "cx25840-core.h"
@@ -48,15 +48,12 @@ MODULE_DESCRIPTION("Conexant CX25840 audio/video decoder driver");
 MODULE_AUTHOR("Ulf Eklund, Chris Kennedy, Hans Verkuil, Tyler Trafford");
 MODULE_LICENSE("GPL");
 
-static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
-
 static int cx25840_debug;
 
 module_param_named(debug,cx25840_debug, int, 0644);
 
 MODULE_PARM_DESC(debug, "Debugging messages [0=Off (default) 1=On]");
 
-I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
 
@@ -1393,19 +1390,6 @@ static int cx25840_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int cx25840_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	/* ignore this command */
-	if (cmd == TUNER_SET_TYPE_ADDR || cmd == TUNER_SET_CONFIG)
-		return 0;
-
-	/* Old-style drivers rely on initialization on first use, so
-	   call the init whenever a command is issued to this driver.
-	   New-style drivers using v4l2_subdev should call init explicitly. */
-	cx25840_init(i2c_get_clientdata(client), 0);
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops cx25840_core_ops = {
@@ -1541,8 +1525,6 @@ MODULE_DEVICE_TABLE(i2c, cx25840_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "cx25840",
-	.driverid = I2C_DRIVERID_CX25840,
-	.command = cx25840_command,
 	.probe = cx25840_probe,
 	.remove = cx25840_remove,
 	.id_table = cx25840_id,
