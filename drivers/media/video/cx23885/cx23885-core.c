@@ -875,7 +875,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	cx23885_i2c_register(&dev->i2c_bus[1]);
 	cx23885_i2c_register(&dev->i2c_bus[2]);
 	cx23885_card_setup(dev);
-	cx23885_call_i2c_clients(&dev->i2c_bus[0], TUNER_SET_STANDBY, NULL);
+	call_all(dev, core, s_standby, 0);
 	cx23885_ir_init(dev);
 
 	if (cx23885_boards[dev->board].porta == CX23885_ANALOG_VIDEO) {

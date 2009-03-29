@@ -323,6 +323,7 @@ struct cx23885_dev {
 	unsigned int               radio_type;
 	unsigned char              radio_addr;
 	unsigned int               has_radio;
+	struct v4l2_subdev 	   *sd_cx25840;
 
 	/* V4l */
 	u32                        freq;
@@ -347,6 +348,9 @@ static inline struct cx23885_dev *to_cx23885(struct v4l2_device *v4l2_dev)
 {
 	return container_of(v4l2_dev, struct cx23885_dev, v4l2_dev);
 }
+
+#define call_all(dev, o, f, args...) \
+	v4l2_device_call_all(&dev->v4l2_dev, 0, o, f, ##args)
 
 extern struct list_head cx23885_devlist;
 
@@ -464,8 +468,6 @@ extern struct videobuf_queue_ops cx23885_vbi_qops;
 /* cx23885-i2c.c                                                */
 extern int cx23885_i2c_register(struct cx23885_i2c *bus);
 extern int cx23885_i2c_unregister(struct cx23885_i2c *bus);
-extern void cx23885_call_i2c_clients(struct cx23885_i2c *bus, unsigned int cmd,
-				     void *arg);
 extern void cx23885_av_clk(struct cx23885_dev *dev, int enable);
 
 /* ----------------------------------------------------------- */

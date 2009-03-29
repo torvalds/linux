@@ -1251,8 +1251,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 	strcpy(t->name, "Television");
-	cx23885_call_i2c_clients(&dev->i2c_bus[2], VIDIOC_G_TUNER, t);
-	cx23885_call_i2c_clients(&dev->i2c_bus[1], VIDIOC_G_TUNER, t);
+	call_all(dev, tuner, g_tuner, t);
 
 	dprintk(1, "VIDIOC_G_TUNER: tuner type %d\n", t->type);
 
@@ -1269,7 +1268,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	/* Update the A/V core */
-	cx23885_call_i2c_clients(&dev->i2c_bus[2], VIDIOC_S_TUNER, t);
+	call_all(dev, tuner, s_tuner, t);
 
 	return 0;
 }
@@ -1285,8 +1284,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	f->type = V4L2_TUNER_ANALOG_TV;
 	f->frequency = dev->freq;
 
-	/* Assumption that tuner is always on bus 1 */
-	cx23885_call_i2c_clients(&dev->i2c_bus[1], VIDIOC_G_FREQUENCY, f);
+	call_all(dev, tuner, g_frequency, f);
 
 	return 0;
 }
@@ -1313,8 +1311,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		return -EINVAL;
 	dev->freq = f->frequency;
 
-	/* Assumption that tuner is always on bus 1 */
-	cx23885_call_i2c_clients(&dev->i2c_bus[1], VIDIOC_S_FREQUENCY, f);
+	call_all(dev, tuner, s_frequency, f);
 
 	cx23885_initialize_codec(dev);
 
@@ -1328,7 +1325,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	struct cx23885_dev *dev = fh->dev;
 
 	/* Update the A/V core */
-	cx23885_call_i2c_clients(&dev->i2c_bus[2], VIDIOC_S_CTRL, ctl);
+	call_all(dev, core, s_ctrl, ctl);
 	return 0;
 }
 
@@ -1524,12 +1521,7 @@ static int vidioc_log_status(struct file *file, void *priv)
 	printk(KERN_INFO
 		"%s/2: ============  START LOG STATUS  ============\n",
 	       dev->name);
-	cx23885_call_i2c_clients(&dev->i2c_bus[0], VIDIOC_LOG_STATUS,
-		NULL);
-	cx23885_call_i2c_clients(&dev->i2c_bus[1], VIDIOC_LOG_STATUS,
-		NULL);
-	cx23885_call_i2c_clients(&dev->i2c_bus[2], VIDIOC_LOG_STATUS,
-		NULL);
+	call_all(dev, core, log_status);
 	cx2341x_log_status(&dev->mpeg_params, name);
 	printk(KERN_INFO
 		"%s/2: =============  END LOG STATUS  =============\n",
