@@ -96,9 +96,13 @@ ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 
 	if (OK_STAT(stat, DRIVE_READY, drive->bad_wstat | ATA_DRQ)) {
 		if (!dma_stat) {
-			struct request *rq = hwif->rq;
+			struct ide_cmd *cmd = &hwif->cmd;
 
-			task_end_request(drive, rq, stat);
+			if ((cmd->tf_flags & IDE_TFLAG_FS) == 0)
+				ide_finish_cmd(drive, cmd, stat);
+			else
+				ide_complete_rq(drive, 0,
+						cmd->rq->nr_sectors << 9);
 			return ide_stopped;
 		}
 		printk(KERN_ERR "%s: %s: bad DMA status (0x%02x)\n",
@@ -106,7 +110,6 @@ ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 	}
 	return ide_error(drive, "dma_intr", stat);
 }
-EXPORT_SYMBOL_GPL(ide_dma_intr);
 
 int ide_dma_good_drive(ide_drive_t *drive)
 {
@@ -116,7 +119,7 @@ int ide_dma_good_drive(ide_drive_t *drive)
 /**
  *	ide_build_sglist	-	map IDE scatter gather for DMA I/O
  *	@drive: the drive to build the DMA table for
- *	@rq: the request holding the sg list
+ *	@cmd: command
  *
  *	Perform the DMA mapping magic necessary to access the source or
  *	target buffers of a request via DMA.  The lower layers of the
@@ -124,28 +127,29 @@ int ide_dma_good_drive(ide_drive_t *drive)
  *	operate in a portable fashion.
  */
 
-int ide_build_sglist(ide_drive_t *drive, struct request *rq)
+int ide_build_sglist(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
 	int i;
 
-	ide_map_sg(drive, rq);
+	ide_map_sg(drive, cmd);
 
-	if (rq_data_dir(rq) == READ)
-		hwif->sg_dma_direction = DMA_FROM_DEVICE;
+	if (cmd->tf_flags & IDE_TFLAG_WRITE)
+		cmd->sg_dma_direction = DMA_TO_DEVICE;
 	else
-		hwif->sg_dma_direction = DMA_TO_DEVICE;
+		cmd->sg_dma_direction = DMA_FROM_DEVICE;
 
-	i = dma_map_sg(hwif->dev, sg, hwif->sg_nents, hwif->sg_dma_direction);
-	if (i) {
-		hwif->orig_sg_nents = hwif->sg_nents;
-		hwif->sg_nents = i;
+	i = dma_map_sg(hwif->dev, sg, cmd->sg_nents, cmd->sg_dma_direction);
+	if (i == 0)
+		ide_map_sg(drive, cmd);
+	else {
+		cmd->orig_sg_nents = cmd->sg_nents;
+		cmd->sg_nents = i;
 	}
 
 	return i;
 }
-EXPORT_SYMBOL_GPL(ide_build_sglist);
 
 /**
  *	ide_destroy_dmatable	-	clean up DMA mapping
@@ -161,9 +165,10 @@ EXPORT_SYMBOL_GPL(ide_build_sglist);
 void ide_destroy_dmatable(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_cmd *cmd = &hwif->cmd;
 
-	dma_unmap_sg(hwif->dev, hwif->sg_table, hwif->orig_sg_nents,
-		     hwif->sg_dma_direction);
+	dma_unmap_sg(hwif->dev, hwif->sg_table, cmd->orig_sg_nents,
+		     cmd->sg_dma_direction);
 }
 EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
 

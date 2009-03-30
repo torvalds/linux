@@ -293,11 +293,11 @@ static const struct ide_port_ops sl82c105_port_ops = {
 static const struct ide_dma_ops sl82c105_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= sl82c105_dma_start,
 	.dma_end		= sl82c105_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= sl82c105_dma_lost_irq,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_timeout		= sl82c105_dma_timeout,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };

@@ -32,6 +32,10 @@ static int probe_mask;
 module_param(probe_mask, int, 0);
 MODULE_PARM_DESC(probe_mask, "probe mask for legacy ISA IDE ports");
 
+static const struct ide_port_info ide_generic_port_info = {
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
 static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 {
 	unsigned int base, ctl;
@@ -46,7 +50,7 @@ static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 	hw.irq = irq;
 	hw.chipset = ide_generic;
 
-	rc = ide_host_add(NULL, hws, NULL);
+	rc = ide_host_add(&ide_generic_port_info, hws, NULL);
 	if (rc)
 		return rc;
 
@@ -184,7 +188,7 @@ static int __init ide_generic_init(void)
 #endif
 			hw.chipset = ide_generic;
 
-			rc = ide_host_add(NULL, hws, NULL);
+			rc = ide_host_add(&ide_generic_port_info, hws, NULL);
 			if (rc) {
 				release_region(io_addr + 0x206, 1);
 				release_region(io_addr, 8);

@@ -1,6 +1,5 @@
 #include <linux/kernel.h>
 #include <linux/ide.h>
-#include <linux/hdreg.h>
 #include <linux/jiffies.h>
 #include <linux/blkdev.h>
 
@@ -63,10 +62,10 @@ out:
 
 ide_startstop_t ide_do_park_unpark(ide_drive_t *drive, struct request *rq)
 {
-	ide_task_t task;
-	struct ide_taskfile *tf = &task.tf;
+	struct ide_cmd cmd;
+	struct ide_taskfile *tf = &cmd.tf;
 
-	memset(&task, 0, sizeof(task));
+	memset(&cmd, 0, sizeof(cmd));
 	if (rq->cmd[0] == REQ_PARK_HEADS) {
 		drive->sleep = *(unsigned long *)rq->special;
 		drive->dev_flags |= IDE_DFLAG_SLEEPING;
@@ -75,14 +74,16 @@ ide_startstop_t ide_do_park_unpark(ide_drive_t *drive, struct request *rq)
 		tf->lbal = 0x4c;
 		tf->lbam = 0x4e;
 		tf->lbah = 0x55;
-		task.tf_flags |= IDE_TFLAG_CUSTOM_HANDLER;
+		cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	} else		/* cmd == REQ_UNPARK_HEADS */
 		tf->command = ATA_CMD_CHK_POWER;
 
-	task.tf_flags |= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	task.rq = rq;
-	drive->hwif->data_phase = task.data_phase = TASKFILE_NO_DATA;
-	return do_rw_taskfile(drive, &task);
+	cmd.tf_flags |= IDE_TFLAG_CUSTOM_HANDLER;
+	cmd.protocol = ATA_PROT_NODATA;
+
+	cmd.rq = rq;
+
+	return do_rw_taskfile(drive, &cmd);
 }
 
 ssize_t ide_park_show(struct device *dev, struct device_attribute *attr,

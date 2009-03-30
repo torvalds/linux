@@ -302,16 +302,16 @@ EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
 
 void ide_read_bcount_and_ireason(ide_drive_t *drive, u16 *bcount, u8 *ireason)
 {
-	ide_task_t task;
+	struct ide_cmd cmd;
 
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_IN_LBAH | IDE_TFLAG_IN_LBAM |
-			IDE_TFLAG_IN_NSECT;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf_flags = IDE_TFLAG_IN_LBAH | IDE_TFLAG_IN_LBAM |
+		       IDE_TFLAG_IN_NSECT;
 
-	drive->hwif->tp_ops->tf_read(drive, &task);
+	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
-	*bcount = (task.tf.lbah << 8) | task.tf.lbam;
-	*ireason = task.tf.nsect & 3;
+	*bcount = (cmd.tf.lbah << 8) | cmd.tf.lbam;
+	*ireason = cmd.tf.nsect & 3;
 }
 EXPORT_SYMBOL_GPL(ide_read_bcount_and_ireason);
 
@@ -336,11 +336,6 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
 					       : WAIT_TAPE_CMD;
 
-	if (pc->flags & PC_FLAG_TIMEDOUT) {
-		drive->pc_callback(drive, 0);
-		return ide_stopped;
-	}
-
 	/* Clear the interrupt */
 	stat = tp_ops->read_status(hwif);
 
@@ -362,6 +357,8 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 	/* No more interrupts */
 	if ((stat & ATA_DRQ) == 0) {
+		int uptodate;
+
 		debug_log("Packet command completed, %d bytes transferred\n",
 			  pc->xferred);
 
@@ -400,7 +397,22 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			dsc = 1;
 
 		/* Command finished - Call the callback function */
-		drive->pc_callback(drive, dsc);
+		uptodate = drive->pc_callback(drive, dsc);
+
+		if (uptodate == 0)
+			drive->failed_pc = NULL;
+
+		if (blk_special_request(rq)) {
+			rq->errors = 0;
+			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
+		} else {
+			if (blk_fs_request(rq) == 0 && uptodate <= 0) {
+				if (rq->errors == 0)
+					rq->errors = -EIO;
+			}
+			ide_complete_rq(drive, uptodate ? 0 : -EIO,
+					ide_rq_bytes(rq));
+		}
 
 		return ide_stopped;
 	}
@@ -458,7 +470,8 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 		/* FIXME: don't do partial completions */
 		if (drive->media == ide_floppy)
-			ide_end_request(drive, 1, done >> 9);
+			ide_complete_rq(drive, 0,
+					done ? done : ide_rq_bytes(rq));
 	} else
 		xferfunc(drive, NULL, pc->cur_pos, bcount);
 
@@ -470,39 +483,32 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		  rq->cmd[0], bcount);
 next_irq:
 	/* And set the interrupt handler again */
-	ide_set_handler(drive, ide_pc_intr, timeout, NULL);
+	ide_set_handler(drive, ide_pc_intr, timeout);
 	return ide_started;
 }
 
-static void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount)
+static void ide_init_packet_cmd(struct ide_cmd *cmd, u32 tf_flags,
+				u16 bcount, u8 dma)
 {
-	ide_hwif_t *hwif = drive->hwif;
-	ide_task_t task;
-	u8 dma = drive->dma;
-
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
-			IDE_TFLAG_OUT_FEATURE | tf_flags;
-	task.tf.feature = dma;		/* Use PIO/DMA */
-	task.tf.lbam    = bcount & 0xff;
-	task.tf.lbah    = (bcount >> 8) & 0xff;
-
-	ide_tf_dump(drive->name, &task.tf);
-	hwif->tp_ops->set_irq(hwif, 1);
-	SELECT_MASK(drive, 0);
-	hwif->tp_ops->tf_load(drive, &task);
+	cmd->protocol  = dma ? ATAPI_PROT_DMA : ATAPI_PROT_PIO;
+	cmd->tf_flags |= IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
+			 IDE_TFLAG_OUT_FEATURE | tf_flags;
+	cmd->tf.command = ATA_CMD_PACKET;
+	cmd->tf.feature = dma;		/* Use PIO/DMA */
+	cmd->tf.lbam    = bcount & 0xff;
+	cmd->tf.lbah    = (bcount >> 8) & 0xff;
 }
 
 static u8 ide_read_ireason(ide_drive_t *drive)
 {
-	ide_task_t task;
+	struct ide_cmd cmd;
 
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_IN_NSECT;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf_flags = IDE_TFLAG_IN_NSECT;
 
-	drive->hwif->tp_ops->tf_read(drive, &task);
+	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
-	return task.tf.nsect & 3;
+	return cmd.tf.nsect & 3;
 }
 
 static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
@@ -597,11 +603,13 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 		}
 	}
 
+	hwif->expiry = expiry;
+
 	/* Set the interrupt routine */
 	ide_set_handler(drive,
 			(dev_is_idecd(drive) ? drive->irq_handler
 					     : ide_pc_intr),
-			timeout, expiry);
+			timeout);
 
 	/* Begin DMA, if necessary */
 	if (dev_is_idecd(drive)) {
@@ -621,23 +629,30 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 	return ide_started;
 }
 
-ide_startstop_t ide_issue_pc(ide_drive_t *drive)
+ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	struct ide_atapi_pc *pc;
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
 	ide_expiry_t *expiry = NULL;
+	struct request *rq = hwif->rq;
 	unsigned int timeout;
 	u32 tf_flags;
 	u16 bcount;
+	u8 drq_int = !!(drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT);
 
 	if (dev_is_idecd(drive)) {
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
-		bcount = ide_cd_get_xferlen(hwif->rq);
+		bcount = ide_cd_get_xferlen(rq);
 		expiry = ide_cd_expiry;
 		timeout = ATAPI_WAIT_PC;
 
-		if (drive->dma)
-			drive->dma = !hwif->dma_ops->dma_setup(drive);
+		if (drive->dma) {
+			if (ide_build_sglist(drive, cmd))
+				drive->dma = !dma_ops->dma_setup(drive, cmd);
+			else
+				drive->dma = 0;
+		}
 	} else {
 		pc = drive->pc;
 
@@ -656,8 +671,12 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 		}
 
 		if ((pc->flags & PC_FLAG_DMA_OK) &&
-		     (drive->dev_flags & IDE_DFLAG_USING_DMA))
-			drive->dma = !hwif->dma_ops->dma_setup(drive);
+		     (drive->dev_flags & IDE_DFLAG_USING_DMA)) {
+			if (ide_build_sglist(drive, cmd))
+				drive->dma = !dma_ops->dma_setup(drive, cmd);
+			else
+				drive->dma = 0;
+		}
 
 		if (!drive->dma)
 			pc->flags &= ~PC_FLAG_DMA_OK;
@@ -666,18 +685,18 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 						       : WAIT_TAPE_CMD;
 	}
 
-	ide_pktcmd_tf_load(drive, tf_flags, bcount);
+	ide_init_packet_cmd(cmd, tf_flags, bcount, drive->dma);
 
-	/* Issue the packet command */
-	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
+	(void)do_rw_taskfile(drive, cmd);
+
+	if (drq_int) {
 		if (drive->dma)
 			drive->waiting_for_dma = 0;
-		ide_execute_command(drive, ATA_CMD_PACKET, ide_transfer_pc,
-				    timeout, expiry);
-		return ide_started;
-	} else {
-		ide_execute_pkt_cmd(drive);
-		return ide_transfer_pc(drive);
+		hwif->expiry = expiry;
 	}
+
+	ide_execute_command(drive, cmd, ide_transfer_pc, timeout);
+
+	return drq_int ? ide_started : ide_transfer_pc(drive);
 }
 EXPORT_SYMBOL_GPL(ide_issue_pc);

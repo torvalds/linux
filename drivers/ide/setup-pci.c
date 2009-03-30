@@ -558,6 +558,8 @@ int ide_pci_init_one(struct pci_dev *dev, const struct ide_port_info *d,
 
 	host->host_priv = priv;
 
+	host->irq_flags = IRQF_SHARED;
+
 	pci_set_drvdata(dev, host);
 
 	ret = do_ide_setup_pci_device(dev, d, 1);
@@ -605,6 +607,8 @@ int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
 	host->dev[1] = &dev2->dev;
 
 	host->host_priv = priv;
+
+	host->irq_flags = IRQF_SHARED;
 
 	pci_set_drvdata(pdev[0], host);
 	pci_set_drvdata(pdev[1], host);
