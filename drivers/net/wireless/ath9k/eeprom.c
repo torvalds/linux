@@ -783,11 +783,11 @@ static bool ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 					((pdadcValues[4 * j + 3] & 0xFF) << 24);
 				REG_WRITE(ah, regOffset, reg32);
 
-				DPRINTF(ah->ah_sc, ATH_DBG_REG_IO,
+				DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 					"PDADC (%d,%4x): %4.4x %8.8x\n",
 					i, regChainOffset, regOffset,
 					reg32);
-				DPRINTF(ah->ah_sc, ATH_DBG_REG_IO,
+				DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 					"PDADC: Chain %d | "
 					"PDADC %3d Value %3d | "
 					"PDADC %3d Value %3d | "
@@ -910,7 +910,7 @@ static bool ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 		    ah->eep_ops->get_eeprom_rev(ah) <= 2)
 			twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
 
-		DPRINTF(ah->ah_sc, ATH_DBG_POWER_MGMT,
+		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 			"LOOP-Mode ctlMode %d < %d, isHt40CtlMode %d, "
 			"EXT_ADDITIVE %d\n",
 			ctlMode, numCtlModes, isHt40CtlMode,
@@ -918,7 +918,7 @@ static bool ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 
 		for (i = 0; (i < AR5416_NUM_CTLS) &&
 				pEepData->ctlIndex[i]; i++) {
-			DPRINTF(ah->ah_sc, ATH_DBG_POWER_MGMT,
+			DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 				"  LOOP-Ctlidx %d: cfgCtl 0x%2.2x "
 				"pCtlMode 0x%2.2x ctlIndex 0x%2.2x "
 				"chan %d\n",
@@ -941,7 +941,7 @@ static bool ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 				IS_CHAN_2GHZ(chan),
 				AR5416_EEP4K_NUM_BAND_EDGES);
 
-				DPRINTF(ah->ah_sc, ATH_DBG_POWER_MGMT,
+				DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 					"    MATCH-EE_IDX %d: ch %d is2 %d "
 					"2xMinEdge %d chainmask %d chains %d\n",
 					i, freq, IS_CHAN_2GHZ(chan),
@@ -961,7 +961,7 @@ static bool ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 
 		minCtlPower = (u8)min(twiceMaxEdgePower, scaledPower);
 
-		DPRINTF(ah->ah_sc, ATH_DBG_POWER_MGMT,
+		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 			"    SEL-Min ctlMode %d pCtlMode %d "
 			"2xMaxEdge %d sP %d minCtlPwr %d\n",
 			ctlMode, pCtlMode[ctlMode], twiceMaxEdgePower,
@@ -2234,11 +2234,11 @@ static bool ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 					((pdadcValues[4 * j + 3] & 0xFF) << 24);
 				REG_WRITE(ah, regOffset, reg32);
 
-				DPRINTF(ah->ah_sc, ATH_DBG_REG_IO,
+				DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 					"PDADC (%d,%4x): %4.4x %8.8x\n",
 					i, regChainOffset, regOffset,
 					reg32);
-				DPRINTF(ah->ah_sc, ATH_DBG_REG_IO,
+				DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 					"PDADC: Chain %d | PDADC %3d "
 					"Value %3d | PDADC %3d Value %3d | "
 					"PDADC %3d Value %3d | PDADC %3d "
@@ -2415,14 +2415,14 @@ static bool ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 		    ah->eep_ops->get_eeprom_rev(ah) <= 2)
 			twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
 
-		DPRINTF(ah->ah_sc, ATH_DBG_POWER_MGMT,
+		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 			"LOOP-Mode ctlMode %d < %d, isHt40CtlMode %d, "
 			"EXT_ADDITIVE %d\n",
 			ctlMode, numCtlModes, isHt40CtlMode,
 			(pCtlMode[ctlMode] & EXT_ADDITIVE));
 
 		for (i = 0; (i < AR5416_NUM_CTLS) && pEepData->ctlIndex[i]; i++) {
-			DPRINTF(ah->ah_sc, ATH_DBG_POWER_MGMT,
+			DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 				"  LOOP-Ctlidx %d: cfgCtl 0x%2.2x "
 				"pCtlMode 0x%2.2x ctlIndex 0x%2.2x "
 				"chan %d\n",
@@ -2441,7 +2441,7 @@ static bool ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 				rep->ctlEdges[ar5416_get_ntxchains(tx_chainmask) - 1],
 				IS_CHAN_2GHZ(chan), AR5416_NUM_BAND_EDGES);
 
-				DPRINTF(ah->ah_sc, ATH_DBG_POWER_MGMT,
+				DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 					"    MATCH-EE_IDX %d: ch %d is2 %d "
 					"2xMinEdge %d chainmask %d chains %d\n",
 					i, freq, IS_CHAN_2GHZ(chan),
@@ -2460,7 +2460,7 @@ static bool ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 
 		minCtlPower = min(twiceMaxEdgePower, scaledPower);
 
-		DPRINTF(ah->ah_sc, ATH_DBG_POWER_MGMT,
+		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 			"    SEL-Min ctlMode %d pCtlMode %d "
 			"2xMaxEdge %d sP %d minCtlPwr %d\n",
 			ctlMode, pCtlMode[ctlMode], twiceMaxEdgePower,

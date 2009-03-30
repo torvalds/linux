@@ -46,7 +46,7 @@ ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			channelSel = ((freq - 704) * 2 - 3040) / 10;
 			bModeSynth = 1;
 		} else {
-			DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
+			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
 				"Invalid channel %u MHz\n", freq);
 			return false;
 		}
@@ -79,7 +79,7 @@ ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 		channelSel = ath9k_hw_reverse_bits((freq - 4800) / 5, 8);
 		aModeRefSel = ath9k_hw_reverse_bits(1, 2);
 	} else {
-		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
 			"Invalid channel %u MHz\n", freq);
 		return false;
 	}

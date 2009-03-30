@@ -674,7 +674,7 @@ static int ath_setkey_tkip(struct ath_softc *sc, u16 keyix, const u8 *key,
 	memcpy(hk->kv_mic, key_txmic, sizeof(hk->kv_mic));
 	if (!ath9k_hw_set_keycache_entry(sc->sc_ah, keyix, hk, NULL)) {
 		/* TX MIC entry failed. No need to proceed further */
-		DPRINTF(sc, ATH_DBG_KEYCACHE,
+		DPRINTF(sc, ATH_DBG_FATAL,
 			"Setting TX MIC Key Failed\n");
 		return 0;
 	}
@@ -1400,7 +1400,7 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	/* Get the hardware key cache size. */
 	sc->keymax = ah->caps.keycache_size;
 	if (sc->keymax > ATH_KEYMAX) {
-		DPRINTF(sc, ATH_DBG_KEYCACHE,
+		DPRINTF(sc, ATH_DBG_ANY,
 			"Warning, using only %u entries in %u key cache\n",
 			ATH_KEYMAX, sc->keymax);
 		sc->keymax = ATH_KEYMAX;
@@ -2602,7 +2602,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
-	DPRINTF(sc, ATH_DBG_KEYCACHE, "Set HW Key\n");
+	DPRINTF(sc, ATH_DBG_CONFIG, "Set HW Key\n");
 
 	switch (cmd) {
 	case SET_KEY:

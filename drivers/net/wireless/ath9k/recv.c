@@ -320,7 +320,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 				  bf->bf_buf_addr))) {
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
-				DPRINTF(sc, ATH_DBG_CONFIG,
+				DPRINTF(sc, ATH_DBG_FATAL,
 					"dma_mapping_error() on RX init\n");
 				error = -ENOMEM;
 				break;
@@ -675,7 +675,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			  bf->bf_buf_addr))) {
 			dev_kfree_skb_any(requeue_skb);
 			bf->bf_mpdu = NULL;
-			DPRINTF(sc, ATH_DBG_CONFIG,
+			DPRINTF(sc, ATH_DBG_FATAL,
 				"dma_mapping_error() on RX\n");
 			break;
 		}

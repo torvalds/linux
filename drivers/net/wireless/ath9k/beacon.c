@@ -43,7 +43,7 @@ static int ath_beaconq_config(struct ath_softc *sc)
 
 	if (!ath9k_hw_set_txq_props(ah, sc->beacon.beaconq, &qi)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"unable to update h/w beacon queue parameters\n");
+			"Unable to update h/w beacon queue parameters\n");
 		return 0;
 	} else {
 		ath9k_hw_resettxqueue(ah, sc->beacon.beaconq);
@@ -132,11 +132,8 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	avp = (void *)vif->drv_priv;
 	cabq = sc->beacon.cabq;
 
-	if (avp->av_bcbuf == NULL) {
-		DPRINTF(sc, ATH_DBG_BEACON, "avp=%p av_bcbuf=%p\n",
-			avp, avp->av_bcbuf);
+	if (avp->av_bcbuf == NULL)
 		return NULL;
-	}
 
 	/* Release the old beacon first */
 

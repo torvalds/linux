@@ -556,9 +556,6 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 		int r;							\
 		for (r = 0; r < ((iniarray)->ia_rows); r++) {		\
 			REG_WRITE(ah, INI_RA((iniarray), r, 0), (regData)[r]); \
-			DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL, \
-				"RF 0x%x V 0x%x\n", \
-				INI_RA((iniarray), r, 0), (regData)[r]); \
 			DO_DELAY(regWr);				\
 		}							\
 	} while (0)
