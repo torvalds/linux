@@ -296,8 +296,6 @@ static int vpx3220_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pst
 	int res = V4L2_IN_ST_NO_SIGNAL, status;
 	v4l2_std_id std = 0;
 
-	v4l2_dbg(1, debug, sd, "VIDIOC_QUERYSTD/VIDIOC_INT_G_INPUT_STATUS\n");
-
 	status = vpx3220_fp_read(sd, 0x0f3);
 
 	v4l2_dbg(1, debug, sd, "status: 0x%04x\n", status);
@@ -336,11 +334,13 @@ static int vpx3220_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pst
 
 static int vpx3220_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
+	v4l2_dbg(1, debug, sd, "querystd\n");
 	return vpx3220_status(sd, NULL, std);
 }
 
 static int vpx3220_g_input_status(struct v4l2_subdev *sd, u32 *status)
 {
+	v4l2_dbg(1, debug, sd, "g_input_status\n");
 	return vpx3220_status(sd, status, NULL);
 }
 
@@ -354,7 +354,7 @@ static int vpx3220_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	   choosen video norm */
 	temp_input = vpx3220_fp_read(sd, 0xf2);
 
-	v4l2_dbg(1, debug, sd, "VIDIOC_S_STD %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, debug, sd, "s_std %llx\n", (unsigned long long)std);
 	if (std & V4L2_STD_NTSC) {
 		vpx3220_write_fp_block(sd, init_ntsc, sizeof(init_ntsc) >> 1);
 		v4l2_dbg(1, debug, sd, "norm switched to NTSC\n");
@@ -410,7 +410,7 @@ static int vpx3220_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *
 
 static int vpx3220_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	v4l2_dbg(1, debug, sd, "VIDIOC_STREAM%s\n", enable ? "ON" : "OFF");
+	v4l2_dbg(1, debug, sd, "s_stream %s\n", enable ? "on" : "off");
 
 	vpx3220_write(sd, 0xf2, (enable ? 0x1b : 0x00));
 	return 0;

@@ -778,8 +778,7 @@ static int tuner_s_radio(struct v4l2_subdev *sd)
 	struct tuner *t = to_tuner(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (set_mode(client, t, V4L2_TUNER_RADIO, "AUDC_SET_RADIO")
-			== -EINVAL)
+	if (set_mode(client, t, V4L2_TUNER_RADIO, "s_radio") == -EINVAL)
 		return 0;
 	if (t->radio_freq)
 		set_freq(client, t->radio_freq);
@@ -793,7 +792,7 @@ static int tuner_s_standby(struct v4l2_subdev *sd, u32 standby)
 
 	tuner_dbg("Putting tuner to sleep\n");
 
-	if (check_mode(t, "TUNER_SET_STANDBY") == -EINVAL)
+	if (check_mode(t, "s_standby") == -EINVAL)
 		return 0;
 	t->mode = T_STANDBY;
 	if (analog_ops->standby)
@@ -952,8 +951,7 @@ static int tuner_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	struct tuner *t = to_tuner(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (set_mode(client, t, V4L2_TUNER_ANALOG_TV, "VIDIOC_S_STD")
-			== -EINVAL)
+	if (set_mode(client, t, V4L2_TUNER_ANALOG_TV, "s_std") == -EINVAL)
 		return 0;
 
 	switch_v4l2();
@@ -970,8 +968,7 @@ static int tuner_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	struct tuner *t = to_tuner(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (set_mode(client, t, f->type, "VIDIOC_S_FREQUENCY")
-			== -EINVAL)
+	if (set_mode(client, t, f->type, "s_frequency") == -EINVAL)
 		return 0;
 	switch_v4l2();
 	set_freq(client, f->frequency);
@@ -984,7 +981,7 @@ static int tuner_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	struct tuner *t = to_tuner(sd);
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 
-	if (check_mode(t, "VIDIOC_G_FREQUENCY") == -EINVAL)
+	if (check_mode(t, "g_frequency") == -EINVAL)
 		return 0;
 	switch_v4l2();
 	f->type = t->mode;
@@ -1008,7 +1005,7 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 
-	if (check_mode(t, "VIDIOC_G_TUNER") == -EINVAL)
+	if (check_mode(t, "g_tuner") == -EINVAL)
 		return 0;
 	switch_v4l2();
 
@@ -1057,7 +1054,7 @@ static int tuner_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct tuner *t = to_tuner(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (check_mode(t, "VIDIOC_S_TUNER") == -EINVAL)
+	if (check_mode(t, "s_tuner") == -EINVAL)
 		return 0;
 
 	switch_v4l2();

@@ -421,7 +421,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 	case KS_INPUT_COMPOSITE_5:
 	case KS_INPUT_COMPOSITE_6:
 		v4l2_dbg(1, debug, sd,
-			"VIDIOC_S_INPUT %d: Composite\n", route->input);
+			"s_routing %d: Composite\n", route->input);
 		/* autodetect 50/60 Hz */
 		ks0127_and_or(sd, KS_CMDA,   0xfc, 0x00);
 		/* VSE=0 */
@@ -455,7 +455,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 	case KS_INPUT_SVIDEO_2:
 	case KS_INPUT_SVIDEO_3:
 		v4l2_dbg(1, debug, sd,
-			"VIDIOC_S_INPUT %d: S-Video\n", route->input);
+			"s_routing %d: S-Video\n", route->input);
 		/* autodetect 50/60 Hz */
 		ks0127_and_or(sd, KS_CMDA,   0xfc, 0x00);
 		/* VSE=0 */
@@ -486,7 +486,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 		break;
 
 	case KS_INPUT_YUV656:
-		v4l2_dbg(1, debug, sd, "VIDIOC_S_INPUT 15: YUV656\n");
+		v4l2_dbg(1, debug, sd, "s_routing 15: YUV656\n");
 		if (ks->norm & V4L2_STD_525_60)
 			/* force 60 Hz */
 			ks0127_and_or(sd, KS_CMDA,   0xfc, 0x03);
@@ -531,7 +531,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 
 	default:
 		v4l2_dbg(1, debug, sd,
-			"VIDIOC_INT_S_VIDEO_ROUTING: Unknown input %d\n", route->input);
+			"s_routing: Unknown input %d\n", route->input);
 		break;
 	}
 
@@ -551,23 +551,23 @@ static int ks0127_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	ks->norm = std;
 	if (std & V4L2_STD_NTSC) {
 		v4l2_dbg(1, debug, sd,
-			"VIDIOC_S_STD: NTSC_M\n");
+			"s_std: NTSC_M\n");
 		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x20);
 	} else if (std & V4L2_STD_PAL_N) {
 		v4l2_dbg(1, debug, sd,
-			"KS0127_SET_NORM: NTSC_N (fixme)\n");
+			"s_std: NTSC_N (fixme)\n");
 		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x40);
 	} else if (std & V4L2_STD_PAL) {
 		v4l2_dbg(1, debug, sd,
-			"VIDIOC_S_STD: PAL_N\n");
+			"s_std: PAL_N\n");
 		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x20);
 	} else if (std & V4L2_STD_PAL_M) {
 		v4l2_dbg(1, debug, sd,
-			"KS0127_SET_NORM: PAL_M (fixme)\n");
+			"s_std: PAL_M (fixme)\n");
 		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x40);
 	} else if (std & V4L2_STD_SECAM) {
 		v4l2_dbg(1, debug, sd,
-			"KS0127_SET_NORM: SECAM\n");
+			"s_std: SECAM\n");
 
 		/* set to secam autodetection */
 		ks0127_and_or(sd, KS_CHROMA, 0xdf, 0x20);
@@ -579,7 +579,7 @@ static int ks0127_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 			/* force to secam mode */
 			ks0127_and_or(sd, KS_DEMOD, 0xf0, 0x0f);
 	} else {
-		v4l2_dbg(1, debug, sd, "VIDIOC_S_STD: Unknown norm %llx\n",
+		v4l2_dbg(1, debug, sd, "s_std: Unknown norm %llx\n",
 			       (unsigned long long)std);
 	}
 	return 0;
@@ -608,7 +608,6 @@ static int ks0127_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd
 	u8 status;
 	v4l2_std_id std = V4L2_STD_ALL;
 
-	v4l2_dbg(1, debug, sd, "VIDIOC_QUERYSTD/VIDIOC_INT_G_INPUT_STATUS\n");
 	status = ks0127_read(sd, KS_STAT);
 	if (!(status & 0x20))		 /* NOVID not set */
 		stat = 0;
@@ -627,11 +626,13 @@ static int ks0127_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd
 
 static int ks0127_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
+	v4l2_dbg(1, debug, sd, "querystd\n");
 	return ks0127_status(sd, NULL, std);
 }
 
 static int ks0127_g_input_status(struct v4l2_subdev *sd, u32 *status)
 {
+	v4l2_dbg(1, debug, sd, "g_input_status\n");
 	return ks0127_status(sd, status, NULL);
 }
 

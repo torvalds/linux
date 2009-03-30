@@ -931,8 +931,8 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	/* Prevent unnecessary standard changes. During a standard
 	   change the I-Port is temporarily disabled. Any devices
 	   reading from that port can get confused.
-	   Note that VIDIOC_S_STD is also used to switch from
-	   radio to TV mode, so if a VIDIOC_S_STD is broadcast to
+	   Note that s_std is also used to switch from
+	   radio to TV mode, so if a s_std is broadcast to
 	   all I2C devices then you do not want to have an unwanted
 	   side-effect here. */
 	if (std == state->std)
