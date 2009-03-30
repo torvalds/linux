@@ -824,8 +824,6 @@ static int cx25840_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int cx25840_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
 	switch (fmt->type) {
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
 		return cx25840_vbi_g_fmt(sd, fmt);
