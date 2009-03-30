@@ -181,10 +181,8 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	if (!hw_addrs[idx])
 		return -1;
 	if (hw == IVTV_HW_UPD64031A || hw == IVTV_HW_UPD6408X) {
-		unsigned short addrs[2] = { hw_addrs[idx], I2C_CLIENT_END };
-
-		sd = v4l2_i2c_new_probed_subdev(&itv->v4l2_dev,
-				adap, mod, type, addrs);
+		sd = v4l2_i2c_new_probed_subdev_addr(&itv->v4l2_dev,
+				adap, mod, type, hw_addrs[idx]);
 	} else {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, mod, type, hw_addrs[idx]);

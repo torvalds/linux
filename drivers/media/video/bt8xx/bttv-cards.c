@@ -3640,21 +3640,13 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	   it really is a msp3400, so it will return NULL when the device
 	   found is really something else (e.g. a tea6300). */
 	if (!bttv_tvcards[btv->c.type].no_msp34xx) {
-		static const unsigned short addrs[] = {
-			I2C_ADDR_MSP3400 >> 1,
-			I2C_CLIENT_END
-		};
-
-		btv->sd_msp34xx = v4l2_i2c_new_probed_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, "msp3400", "msp3400", addrs);
+		btv->sd_msp34xx = v4l2_i2c_new_probed_subdev_addr(&btv->c.v4l2_dev,
+			&btv->c.i2c_adap, "msp3400", "msp3400",
+			I2C_ADDR_MSP3400 >> 1);
 	} else if (bttv_tvcards[btv->c.type].msp34xx_alt) {
-		static const unsigned short addrs[] = {
-			I2C_ADDR_MSP3400_ALT >> 1,
-			I2C_CLIENT_END
-		};
-
-		btv->sd_msp34xx = v4l2_i2c_new_probed_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, "msp3400", "msp3400", addrs);
+		btv->sd_msp34xx = v4l2_i2c_new_probed_subdev_addr(&btv->c.v4l2_dev,
+			&btv->c.i2c_adap, "msp3400", "msp3400",
+			I2C_ADDR_MSP3400_ALT >> 1);
 	}
 
 	/* If we found a msp34xx, then we're done. */

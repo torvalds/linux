@@ -4266,7 +4266,6 @@ static int vino_init_channel_settings(struct vino_channel_settings *vcs,
 
 static int __init vino_module_init(void)
 {
-	unsigned short addr[] = { 0, I2C_CLIENT_END };
 	int ret;
 
 	printk(KERN_INFO "SGI VINO driver version %s\n",
@@ -4336,14 +4335,12 @@ static int __init vino_module_init(void)
 	}
 	vino_init_stage++;
 
-	addr[0] = 0x45;
 	vino_drvdata->decoder =
-		v4l2_i2c_new_probed_subdev(&vino_drvdata->v4l2_dev,
-			&vino_i2c_adapter, "saa7191", "saa7191", addr);
-	addr[0] = 0x2b;
+		v4l2_i2c_new_probed_subdev_addr(&vino_drvdata->v4l2_dev,
+			&vino_i2c_adapter, "saa7191", "saa7191", 0x45);
 	vino_drvdata->camera =
-		v4l2_i2c_new_probed_subdev(&vino_drvdata->v4l2_dev,
-			&vino_i2c_adapter, "indycam", "indycam", addr);
+		v4l2_i2c_new_probed_subdev_addr(&vino_drvdata->v4l2_dev,
+			&vino_i2c_adapter, "indycam", "indycam", 0x2b);
 
 	dprintk("init complete!\n");
 

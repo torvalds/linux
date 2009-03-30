@@ -1888,12 +1888,9 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	if (core->board.audio_chip == V4L2_IDENT_TVAUDIO) {
 		/* This probes for a tda9874 as is used on some
 		   Pixelview Ultra boards. */
-		static const unsigned short i2c_addr[] = {
-			0xb0 >> 1, I2C_CLIENT_END
-		};
-
-		v4l2_i2c_new_probed_subdev(&core->v4l2_dev, &core->i2c_adap,
-				"tvaudio", "tvaudio", i2c_addr);
+		v4l2_i2c_new_probed_subdev_addr(&core->v4l2_dev,
+				&core->i2c_adap,
+				"tvaudio", "tvaudio", 0xb0 >> 1);
 	}
 
 	switch (core->boardnr) {
