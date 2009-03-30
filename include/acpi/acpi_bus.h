@@ -95,6 +95,7 @@ typedef int (*acpi_op_suspend) (struct acpi_device * device,
 typedef int (*acpi_op_resume) (struct acpi_device * device);
 typedef int (*acpi_op_bind) (struct acpi_device * device);
 typedef int (*acpi_op_unbind) (struct acpi_device * device);
+typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
 
 struct acpi_bus_ops {
 	u32 acpi_op_add:1;
@@ -110,6 +111,7 @@ struct acpi_device_ops {
 	acpi_op_resume resume;
 	acpi_op_bind bind;
 	acpi_op_unbind unbind;
+	acpi_op_notify notify;
 };
 
 struct acpi_driver {

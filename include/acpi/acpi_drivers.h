@@ -67,6 +67,16 @@
 #define ACPI_BAY_HID			"LNXIOBAY"
 #define ACPI_DOCK_HID			"LNXDOCK"
 
+/*
+ * For fixed hardware buttons, we fabricate acpi_devices with HID
+ * ACPI_BUTTON_HID_POWERF or ACPI_BUTTON_HID_SLEEPF.  Fixed hardware
+ * signals only an event; it doesn't supply a notification value.
+ * To allow drivers to treat notifications from fixed hardware the
+ * same as those from real devices, we turn the events into this
+ * notification value.
+ */
+#define ACPI_FIXED_HARDWARE_EVENT	0x100
+
 /* --------------------------------------------------------------------------
                                        PCI
    -------------------------------------------------------------------------- */

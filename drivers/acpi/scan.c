@@ -359,6 +359,61 @@ static int acpi_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
+static void acpi_device_notify(acpi_handle handle, u32 event, void *data)
+{
+	struct acpi_device *device = data;
+
+	device->driver->ops.notify(device, event);
+}
+
+static acpi_status acpi_device_notify_fixed(void *data)
+{
+	struct acpi_device *device = data;
+
+	acpi_device_notify(device->handle, ACPI_FIXED_HARDWARE_EVENT, device);
+	return AE_OK;
+}
+
+static int acpi_device_install_notify_handler(struct acpi_device *device)
+{
+	acpi_status status;
+	char *hid;
+
+	hid = acpi_device_hid(device);
+	if (!strcmp(hid, ACPI_BUTTON_HID_POWERF))
+		status =
+		    acpi_install_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
+						     acpi_device_notify_fixed,
+						     device);
+	else if (!strcmp(hid, ACPI_BUTTON_HID_SLEEPF))
+		status =
+		    acpi_install_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
+						     acpi_device_notify_fixed,
+						     device);
+	else
+		status = acpi_install_notify_handler(device->handle,
+						     ACPI_DEVICE_NOTIFY,
+						     acpi_device_notify,
+						     device);
+
+	if (ACPI_FAILURE(status))
+		return -EINVAL;
+	return 0;
+}
+
+static void acpi_device_remove_notify_handler(struct acpi_device *device)
+{
+	if (!strcmp(acpi_device_hid(device), ACPI_BUTTON_HID_POWERF))
+		acpi_remove_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
+						acpi_device_notify_fixed);
+	else if (!strcmp(acpi_device_hid(device), ACPI_BUTTON_HID_SLEEPF))
+		acpi_remove_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
+						acpi_device_notify_fixed);
+	else
+		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+					   acpi_device_notify);
+}
+
 static int acpi_bus_driver_init(struct acpi_device *, struct acpi_driver *);
 static int acpi_start_single_object(struct acpi_device *);
 static int acpi_device_probe(struct device * dev)
@@ -371,6 +426,20 @@ static int acpi_device_probe(struct device * dev)
 	if (!ret) {
 		if (acpi_dev->bus_ops.acpi_op_start)
 			acpi_start_single_object(acpi_dev);
+
+		if (acpi_drv->ops.notify) {
+			ret = acpi_device_install_notify_handler(acpi_dev);
+			if (ret) {
+				if (acpi_drv->ops.stop)
+					acpi_drv->ops.stop(acpi_dev,
+						   acpi_dev->removal_type);
+				if (acpi_drv->ops.remove)
+					acpi_drv->ops.remove(acpi_dev,
+						     acpi_dev->removal_type);
+				return ret;
+			}
+		}
+
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			"Found driver [%s] for device [%s]\n",
 			acpi_drv->name, acpi_dev->pnp.bus_id));
@@ -385,6 +454,8 @@ static int acpi_device_remove(struct device * dev)
 	struct acpi_driver *acpi_drv = acpi_dev->driver;
 
 	if (acpi_drv) {
+		if (acpi_drv->ops.notify)
+			acpi_device_remove_notify_handler(acpi_dev);
 		if (acpi_drv->ops.stop)
 			acpi_drv->ops.stop(acpi_dev, acpi_dev->removal_type);
 		if (acpi_drv->ops.remove)
