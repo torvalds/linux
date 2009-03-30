@@ -266,6 +266,7 @@ static int synaptics_ts_probe(
 	uint16_t max_x, max_y;
 	int fuzz_x, fuzz_y, fuzz_p, fuzz_w;
 	struct synaptics_i2c_rmi_platform_data *pdata;
+	unsigned long irqflags;
 	int inactive_area_left;
 	int inactive_area_right;
 	int inactive_area_top;
@@ -345,6 +346,7 @@ static int synaptics_ts_probe(
 			pdata++;
 		ts->flags = pdata->flags;
 		ts->sensitivity_adjust = pdata->sensitivity_adjust;
+		irqflags = pdata->irqflags;
 		inactive_area_left = pdata->inactive_left;
 		inactive_area_right = pdata->inactive_right;
 		inactive_area_top = pdata->inactive_top;
@@ -362,6 +364,7 @@ static int synaptics_ts_probe(
 		fuzz_p = pdata->fuzz_p;
 		fuzz_w = pdata->fuzz_w;
 	} else {
+		irqflags = 0;
 		inactive_area_left = 0;
 		inactive_area_right = 0;
 		inactive_area_top = 0;
@@ -513,7 +516,7 @@ static int synaptics_ts_probe(
 		goto err_input_register_device_failed;
 	}
 	if (client->irq) {
-		ret = request_irq(client->irq, synaptics_ts_irq_handler, 0, client->name, ts);
+		ret = request_irq(client->irq, synaptics_ts_irq_handler, irqflags, client->name, ts);
 		if (ret == 0) {
 			ret = i2c_smbus_write_byte_data(ts->client, 0xf1, 0x01); /* enable abs int */
 			if (ret)
