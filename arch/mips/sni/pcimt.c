@@ -304,7 +304,7 @@ void __init sni_pcimt_irq_init(void)
 	mips_cpu_irq_init();
 	/* Actually we've got more interrupts to handle ...  */
 	for (i = PCIMT_IRQ_INT2; i <= PCIMT_IRQ_SCSI; i++)
-		set_irq_chip(i, &pcimt_irq_type);
+		set_irq_chip_and_handler(i, &pcimt_irq_type, handle_level_irq);
 	sni_hwint = sni_pcimt_hwint;
 	change_c0_status(ST0_IM, IE_IRQ1|IE_IRQ3);
 }
