@@ -3038,21 +3038,39 @@ static int handle_task_switch(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long exit_qualification;
 	u16 tss_selector;
-	int reason;
+	int reason, type, idt_v;
+
+	idt_v = (vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK);
+	type = (vmx->idt_vectoring_info & VECTORING_INFO_TYPE_MASK);
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
 	reason = (u32)exit_qualification >> 30;
-	if (reason == TASK_SWITCH_GATE && vmx->vcpu.arch.nmi_injected &&
-	    (vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK) &&
-	    (vmx->idt_vectoring_info & VECTORING_INFO_TYPE_MASK)
-	    == INTR_TYPE_NMI_INTR) {
-		vcpu->arch.nmi_injected = false;
-		if (cpu_has_virtual_nmis())
-			vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
-				      GUEST_INTR_STATE_NMI);
+	if (reason == TASK_SWITCH_GATE && idt_v) {
+		switch (type) {
+		case INTR_TYPE_NMI_INTR:
+			vcpu->arch.nmi_injected = false;
+			if (cpu_has_virtual_nmis())
+				vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
+					      GUEST_INTR_STATE_NMI);
+			break;
+		case INTR_TYPE_EXT_INTR:
+			kvm_clear_interrupt_queue(vcpu);
+			break;
+		case INTR_TYPE_HARD_EXCEPTION:
+		case INTR_TYPE_SOFT_EXCEPTION:
+			kvm_clear_exception_queue(vcpu);
+			break;
+		default:
+			break;
+		}
 	}
 	tss_selector = exit_qualification;
+
+	if (!idt_v || (type != INTR_TYPE_HARD_EXCEPTION &&
+		       type != INTR_TYPE_EXT_INTR &&
+		       type != INTR_TYPE_NMI_INTR))
+		skip_emulated_instruction(vcpu);
 
 	if (!kvm_task_switch(vcpu, tss_selector, reason))
 		return 0;
@@ -3306,7 +3324,7 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 	vector = idt_vectoring_info & VECTORING_INFO_VECTOR_MASK;
 	type = idt_vectoring_info & VECTORING_INFO_TYPE_MASK;
 
-	switch(type) {
+	switch (type) {
 	case INTR_TYPE_NMI_INTR:
 		vmx->vcpu.arch.nmi_injected = true;
 		/*

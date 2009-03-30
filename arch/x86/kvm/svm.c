@@ -1825,17 +1825,28 @@ static int task_switch_interception(struct vcpu_svm *svm,
 				    struct kvm_run *kvm_run)
 {
 	u16 tss_selector;
+	int reason;
+	int int_type = svm->vmcb->control.exit_int_info &
+		SVM_EXITINTINFO_TYPE_MASK;
 
 	tss_selector = (u16)svm->vmcb->control.exit_info_1;
+
 	if (svm->vmcb->control.exit_info_2 &
 	    (1ULL << SVM_EXITINFOSHIFT_TS_REASON_IRET))
-		return kvm_task_switch(&svm->vcpu, tss_selector,
-				       TASK_SWITCH_IRET);
-	if (svm->vmcb->control.exit_info_2 &
-	    (1ULL << SVM_EXITINFOSHIFT_TS_REASON_JMP))
-		return kvm_task_switch(&svm->vcpu, tss_selector,
-				       TASK_SWITCH_JMP);
-	return kvm_task_switch(&svm->vcpu, tss_selector, TASK_SWITCH_CALL);
+		reason = TASK_SWITCH_IRET;
+	else if (svm->vmcb->control.exit_info_2 &
+		 (1ULL << SVM_EXITINFOSHIFT_TS_REASON_JMP))
+		reason = TASK_SWITCH_JMP;
+	else if (svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_VALID)
+		reason = TASK_SWITCH_GATE;
+	else
+		reason = TASK_SWITCH_CALL;
+
+
+	if (reason != TASK_SWITCH_GATE || int_type == SVM_EXITINTINFO_TYPE_SOFT)
+		skip_emulated_instruction(&svm->vcpu);
+
+	return kvm_task_switch(&svm->vcpu, tss_selector, reason);
 }
 
 static int cpuid_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)

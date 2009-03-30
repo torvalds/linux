@@ -3935,7 +3935,10 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 		kvm_x86_ops->set_rflags(vcpu, eflags & ~X86_EFLAGS_NT);
 	}
 
-	kvm_x86_ops->skip_emulated_instruction(vcpu);
+	/* set back link to prev task only if NT bit is set in eflags
+	   note that old_tss_sel is not used afetr this point */
+	if (reason != TASK_SWITCH_CALL && reason != TASK_SWITCH_GATE)
+		old_tss_sel = 0xffff;
 
 	/* set back link to prev task only if NT bit is set in eflags
 	   note that old_tss_sel is not used afetr this point */
