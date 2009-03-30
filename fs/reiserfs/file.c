@@ -138,11 +138,11 @@ static int reiserfs_sync_file(struct file *filp,
 			      struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;
-	int n_err;
+	int err;
 	int barrier_done;
 
 	BUG_ON(!S_ISREG(inode->i_mode));
-	n_err = sync_mapping_buffers(inode->i_mapping);
+	err = sync_mapping_buffers(inode->i_mapping);
 	reiserfs_write_lock(inode->i_sb);
 	barrier_done = reiserfs_commit_for_inode(inode);
 	reiserfs_write_unlock(inode->i_sb);
@@ -150,7 +150,7 @@ static int reiserfs_sync_file(struct file *filp,
 		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
 	if (barrier_done < 0)
 		return barrier_done;
-	return (n_err < 0) ? -EIO : 0;
+	return (err < 0) ? -EIO : 0;
 }
 
 /* taken fs/buffer.c:__block_commit_write */

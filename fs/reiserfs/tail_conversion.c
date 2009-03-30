@@ -26,7 +26,7 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 				   converted item. */
 	struct item_head ind_ih;	/* new indirect item to be inserted or
 					   key of unfm pointer to be pasted */
-	int n_blk_size, n_retval;	/* returned value for reiserfs_insert_item and clones */
+	int blk_size, retval;	/* returned value for reiserfs_insert_item and clones */
 	unp_t unfm_ptr;		/* Handle on an unformatted node
 				   that will be inserted in the
 				   tree. */
@@ -35,7 +35,7 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 
 	REISERFS_SB(sb)->s_direct2indirect++;
 
-	n_blk_size = sb->s_blocksize;
+	blk_size = sb->s_blocksize;
 
 	/* and key to search for append or insert pointer to the new
 	   unformatted node. */
@@ -64,17 +64,17 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 		set_ih_free_space(&ind_ih, 0);	/* delete at nearest future */
 		put_ih_item_len(&ind_ih, UNFM_P_SIZE);
 		PATH_LAST_POSITION(path)++;
-		n_retval =
+		retval =
 		    reiserfs_insert_item(th, path, &end_key, &ind_ih, inode,
 					 (char *)&unfm_ptr);
 	} else {
 		/* Paste into last indirect item of an object. */
-		n_retval = reiserfs_paste_into_item(th, path, &end_key, inode,
+		retval = reiserfs_paste_into_item(th, path, &end_key, inode,
 						    (char *)&unfm_ptr,
 						    UNFM_P_SIZE);
 	}
-	if (n_retval) {
-		return n_retval;
+	if (retval) {
+		return retval;
 	}
 	// note: from here there are two keys which have matching first
 	// three key components. They only differ by the fourth one.
@@ -98,7 +98,7 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 		RFALSE(!is_direct_le_ih(p_le_ih),
 		       "vs-14055: direct item expected(%K), found %h",
 		       &end_key, p_le_ih);
-		tail_size = (le_ih_k_offset(p_le_ih) & (n_blk_size - 1))
+		tail_size = (le_ih_k_offset(p_le_ih) & (blk_size - 1))
 		    + ih_item_len(p_le_ih) - 1;
 
 		/* we only send the unbh pointer if the buffer is not up to date.
@@ -113,11 +113,11 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 		} else {
 			up_to_date_bh = unbh;
 		}
-		n_retval = reiserfs_delete_item(th, path, &end_key, inode,
+		retval = reiserfs_delete_item(th, path, &end_key, inode,
 						up_to_date_bh);
 
-		total_tail += n_retval;
-		if (tail_size == n_retval)
+		total_tail += retval;
+		if (tail_size == retval)
 			// done: file does not have direct items anymore
 			break;
 
@@ -129,7 +129,7 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 		unsigned pgoff =
 		    (tail_offset + total_tail - 1) & (PAGE_CACHE_SIZE - 1);
 		char *kaddr = kmap_atomic(up_to_date_bh->b_page, KM_USER0);
-		memset(kaddr + pgoff, 0, n_blk_size - total_tail);
+		memset(kaddr + pgoff, 0, blk_size - total_tail);
 		kunmap_atomic(kaddr, KM_USER0);
 	}
 
@@ -181,7 +181,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th,
 {
 	struct super_block *sb = inode->i_sb;
 	struct item_head s_ih;
-	unsigned long n_block_size = sb->s_blocksize;
+	unsigned long block_size = sb->s_blocksize;
 	char *tail;
 	int tail_len, round_tail_len;
 	loff_t pos, pos1;	/* position of first byte of the tail */
@@ -196,7 +196,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th,
 	/* store item head path points to. */
 	copy_item_head(&s_ih, PATH_PITEM_HEAD(path));
 
-	tail_len = (n_new_file_size & (n_block_size - 1));
+	tail_len = (n_new_file_size & (block_size - 1));
 	if (get_inode_sd_version(inode) == STAT_DATA_V2)
 		round_tail_len = ROUND_UP(tail_len);
 	else
@@ -257,7 +257,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th,
 		   unformatted node. For now i_size is considered as guard for
 		   going out of file size */
 		kunmap(page);
-		return n_block_size - round_tail_len;
+		return block_size - round_tail_len;
 	}
 	kunmap(page);
 
@@ -276,5 +276,5 @@ int indirect2direct(struct reiserfs_transaction_handle *th,
 	/* mark_file_with_tail (inode, pos1 + 1); */
 	REISERFS_I(inode)->i_first_direct_byte = pos1 + 1;
 
-	return n_block_size - round_tail_len;
+	return block_size - round_tail_len;
 }
