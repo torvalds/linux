@@ -1747,7 +1747,8 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		       /* 0 for regular, EMTRY_DIR_SIZE for dirs, 
 		          strlen (symname) for symlinks) */
 		       loff_t i_size, struct dentry *dentry,
-		       struct inode *inode)
+		       struct inode *inode,
+		       struct reiserfs_security_handle *security)
 {
 	struct super_block *sb;
 	struct reiserfs_iget_args args;
@@ -1928,6 +1929,19 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 				 "but vfs thinks they are!");
 	} else if (IS_PRIVATE(dir))
 		inode->i_flags |= S_PRIVATE;
+
+	if (security->name) {
+		retval = reiserfs_security_write(th, inode, security);
+		if (retval) {
+			err = retval;
+			reiserfs_check_path(&path_to_key);
+			retval = journal_end(th, th->t_super,
+					     th->t_blocks_allocated);
+			if (retval)
+				err = retval;
+			goto out_inserted_sd;
+		}
+	}
 
 	reiserfs_update_sd(th, inode);
 	reiserfs_check_path(&path_to_key);

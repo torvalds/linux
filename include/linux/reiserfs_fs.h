@@ -1915,10 +1915,12 @@ void make_le_item_head(struct item_head *ih, const struct cpu_key *key,
 		       loff_t offset, int type, int length, int entry_count);
 struct inode *reiserfs_iget(struct super_block *s, const struct cpu_key *key);
 
+struct reiserfs_security_handle;
 int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		       struct inode *dir, int mode,
 		       const char *symname, loff_t i_size,
-		       struct dentry *dentry, struct inode *inode);
+		       struct dentry *dentry, struct inode *inode,
+		       struct reiserfs_security_handle *security);
 
 void reiserfs_update_sd_size(struct reiserfs_transaction_handle *th,
 			     struct inode *inode, loff_t size);

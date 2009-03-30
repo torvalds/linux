@@ -15,6 +15,12 @@ struct reiserfs_xattr_header {
 	__le32 h_hash;		/* hash of the value */
 };
 
+struct reiserfs_security_handle {
+	char *name;
+	void *value;
+	size_t length;
+};
+
 #ifdef __KERNEL__
 
 #include <linux/init.h>
@@ -54,6 +60,14 @@ int reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *,
 extern struct xattr_handler reiserfs_xattr_user_handler;
 extern struct xattr_handler reiserfs_xattr_trusted_handler;
 extern struct xattr_handler reiserfs_xattr_security_handler;
+#ifdef CONFIG_REISERFS_FS_SECURITY
+int reiserfs_security_init(struct inode *dir, struct inode *inode,
+			   struct reiserfs_security_handle *sec);
+int reiserfs_security_write(struct reiserfs_transaction_handle *th,
+			    struct inode *inode,
+			    struct reiserfs_security_handle *sec);
+void reiserfs_security_free(struct reiserfs_security_handle *sec);
+#endif
 
 #define xattr_size(size) ((size) + sizeof(struct reiserfs_xattr_header))
 static inline loff_t reiserfs_xattr_nblocks(struct inode *inode, loff_t size)
@@ -108,6 +122,24 @@ static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 {
 }
 #endif  /*  CONFIG_REISERFS_FS_XATTR  */
+
+#ifndef CONFIG_REISERFS_FS_SECURITY
+static inline int reiserfs_security_init(struct inode *dir,
+					 struct inode *inode,
+					 struct reiserfs_security_handle *sec)
+{
+	return 0;
+}
+static inline int
+reiserfs_security_write(struct reiserfs_transaction_handle *th,
+			struct inode *inode,
+			struct reiserfs_security_handle *sec)
+{
+	return 0;
+}
+static inline void reiserfs_security_free(struct reiserfs_security_handle *sec)
+{}
+#endif
 
 #endif  /*  __KERNEL__  */
 

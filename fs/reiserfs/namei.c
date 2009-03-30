@@ -598,6 +598,7 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb));
 	struct reiserfs_transaction_handle th;
+	struct reiserfs_security_handle security;
 
 	if (!(inode = new_inode(dir->i_sb))) {
 		return -ENOMEM;
@@ -605,6 +606,12 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	new_inode_init(inode, dir, mode);
 
 	jbegin_count += reiserfs_cache_default_acl(dir);
+	retval = reiserfs_security_init(dir, inode, &security);
+	if (retval < 0) {
+		drop_new_inode(inode);
+		return retval;
+	}
+	jbegin_count += retval;
 	reiserfs_write_lock(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
@@ -615,7 +622,7 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	retval =
 	    reiserfs_new_inode(&th, dir, mode, NULL, 0 /*i_size */ , dentry,
-			       inode);
+			       inode, &security);
 	if (retval)
 		goto out_failed;
 
@@ -655,6 +662,7 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	int retval;
 	struct inode *inode;
 	struct reiserfs_transaction_handle th;
+	struct reiserfs_security_handle security;
 	/* We need blocks for transaction + (user+group)*(quotas for new inode + update of quota for directory owner) */
 	int jbegin_count =
 	    JOURNAL_PER_BALANCE_CNT * 3 +
@@ -670,6 +678,12 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	new_inode_init(inode, dir, mode);
 
 	jbegin_count += reiserfs_cache_default_acl(dir);
+	retval = reiserfs_security_init(dir, inode, &security);
+	if (retval < 0) {
+		drop_new_inode(inode);
+		return retval;
+	}
+	jbegin_count += retval;
 	reiserfs_write_lock(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
@@ -680,7 +694,7 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 
 	retval =
 	    reiserfs_new_inode(&th, dir, mode, NULL, 0 /*i_size */ , dentry,
-			       inode);
+			       inode, &security);
 	if (retval) {
 		goto out_failed;
 	}
@@ -723,6 +737,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	int retval;
 	struct inode *inode;
 	struct reiserfs_transaction_handle th;
+	struct reiserfs_security_handle security;
 	/* We need blocks for transaction + (user+group)*(quotas for new inode + update of quota for directory owner) */
 	int jbegin_count =
 	    JOURNAL_PER_BALANCE_CNT * 3 +
@@ -740,6 +755,12 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	new_inode_init(inode, dir, mode);
 
 	jbegin_count += reiserfs_cache_default_acl(dir);
+	retval = reiserfs_security_init(dir, inode, &security);
+	if (retval < 0) {
+		drop_new_inode(inode);
+		return retval;
+	}
+	jbegin_count += retval;
 	reiserfs_write_lock(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
@@ -756,7 +777,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	    retval = reiserfs_new_inode(&th, dir, mode, NULL /*symlink */ ,
 					old_format_only(dir->i_sb) ?
 					EMPTY_DIR_SIZE_V1 : EMPTY_DIR_SIZE,
-					dentry, inode);
+					dentry, inode, &security);
 	if (retval) {
 		dir->i_nlink--;
 		goto out_failed;
@@ -999,6 +1020,7 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	char *name;
 	int item_len;
 	struct reiserfs_transaction_handle th;
+	struct reiserfs_security_handle security;
 	int mode = S_IFLNK | S_IRWXUGO;
 	/* We need blocks for transaction + (user+group)*(quotas for new inode + update of quota for directory owner) */
 	int jbegin_count =
@@ -1010,6 +1032,13 @@ static int reiserfs_symlink(struct inode *parent_dir,
 		return -ENOMEM;
 	}
 	new_inode_init(inode, parent_dir, mode);
+
+	retval = reiserfs_security_init(parent_dir, inode, &security);
+	if (retval < 0) {
+		drop_new_inode(inode);
+		return retval;
+	}
+	jbegin_count += retval;
 
 	reiserfs_write_lock(parent_dir->i_sb);
 	item_len = ROUND_UP(strlen(symname));
@@ -1037,7 +1066,7 @@ static int reiserfs_symlink(struct inode *parent_dir,
 
 	retval =
 	    reiserfs_new_inode(&th, parent_dir, mode, name, strlen(symname),
-			       dentry, inode);
+			       dentry, inode, &security);
 	kfree(name);
 	if (retval) {		/* reiserfs_new_inode iputs for us */
 		goto out_failed;
