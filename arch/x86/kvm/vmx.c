@@ -2626,11 +2626,6 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		printk(KERN_ERR "%s: unexpected, vectoring info 0x%x "
 		       "intr info 0x%x\n", __func__, vect_info, intr_info);
 
-	if (!irqchip_in_kernel(vcpu->kvm) && is_external_interrupt(vect_info)) {
-		int irq = vect_info & VECTORING_INFO_VECTOR_MASK;
-		kvm_push_irq(vcpu, irq);
-	}
-
 	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR)
 		return 1;  /* already handled by vmx_vcpu_run() */
 
@@ -3329,11 +3324,9 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 			kvm_queue_exception_e(&vmx->vcpu, vector, err);
 		} else
 			kvm_queue_exception(&vmx->vcpu, vector);
-		vmx->idt_vectoring_info = 0;
 		break;
 	case INTR_TYPE_EXT_INTR:
 		kvm_queue_interrupt(&vmx->vcpu, vector);
-		vmx->idt_vectoring_info = 0;
 		break;
 	default:
 		break;
