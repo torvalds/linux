@@ -148,8 +148,8 @@ void mga_do_dma_flush(drm_mga_private_t * dev_priv)
 		primary->space = head - tail;
 	}
 
-	DRM_DEBUG("   head = 0x%06lx\n", head - dev_priv->primary->offset);
-	DRM_DEBUG("   tail = 0x%06lx\n", tail - dev_priv->primary->offset);
+	DRM_DEBUG("   head = 0x%06lx\n", (unsigned long)(head - dev_priv->primary->offset));
+	DRM_DEBUG("   tail = 0x%06lx\n", (unsigned long)(tail - dev_priv->primary->offset));
 	DRM_DEBUG("  space = 0x%06x\n", primary->space);
 
 	mga_flush_write_combine();
@@ -187,7 +187,7 @@ void mga_do_dma_wrap_start(drm_mga_private_t * dev_priv)
 		primary->space = head - dev_priv->primary->offset;
 	}
 
-	DRM_DEBUG("   head = 0x%06lx\n", head - dev_priv->primary->offset);
+	DRM_DEBUG("   head = 0x%06lx\n", (unsigned long)(head - dev_priv->primary->offset));
 	DRM_DEBUG("   tail = 0x%06x\n", primary->tail);
 	DRM_DEBUG("   wrap = %d\n", primary->last_wrap);
 	DRM_DEBUG("  space = 0x%06x\n", primary->space);
@@ -239,7 +239,7 @@ static void mga_freelist_print(struct drm_device * dev)
 	for (entry = dev_priv->head->next; entry; entry = entry->next) {
 		DRM_INFO("   %p   idx=%2d  age=0x%x 0x%06lx\n",
 			 entry, entry->buf->idx, entry->age.head,
-			 entry->age.head - dev_priv->primary->offset);
+			 (unsigned long)(entry->age.head - dev_priv->primary->offset));
 	}
 	DRM_INFO("\n");
 }
@@ -340,10 +340,10 @@ static struct drm_buf *mga_freelist_get(struct drm_device * dev)
 
 	DRM_DEBUG("   tail=0x%06lx %d\n",
 		  tail->age.head ?
-		  tail->age.head - dev_priv->primary->offset : 0,
+		  (unsigned long)(tail->age.head - dev_priv->primary->offset) : 0,
 		  tail->age.wrap);
 	DRM_DEBUG("   head=0x%06lx %d\n",
-		  head - dev_priv->primary->offset, wrap);
+		  (unsigned long)(head - dev_priv->primary->offset), wrap);
 
 	if (TEST_AGE(&tail->age, head, wrap)) {
 		prev = dev_priv->tail->prev;
@@ -366,8 +366,9 @@ int mga_freelist_put(struct drm_device * dev, struct drm_buf * buf)
 	drm_mga_freelist_t *head, *entry, *prev;
 
 	DRM_DEBUG("age=0x%06lx wrap=%d\n",
-		  buf_priv->list_entry->age.head -
-		  dev_priv->primary->offset, buf_priv->list_entry->age.wrap);
+		  (unsigned long)(buf_priv->list_entry->age.head -
+				  dev_priv->primary->offset),
+		  buf_priv->list_entry->age.wrap);
 
 	entry = buf_priv->list_entry;
 	head = dev_priv->head;

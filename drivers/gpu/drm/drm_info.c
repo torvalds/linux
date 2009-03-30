@@ -72,7 +72,7 @@ int drm_vm_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct drm_map *map;
+	struct drm_local_map *map;
 	struct drm_map_list *r_list;
 
 	/* Hardcoded from _DRM_FRAME_BUFFER,
@@ -94,9 +94,9 @@ int drm_vm_info(struct seq_file *m, void *data)
 		else
 			type = types[map->type];
 
-		seq_printf(m, "%4d 0x%08lx 0x%08lx %4.4s  0x%02x 0x%08lx ",
+		seq_printf(m, "%4d 0x%016llx 0x%08lx %4.4s  0x%02x 0x%08lx ",
 			   i,
-			   map->offset,
+			   (unsigned long long)map->offset,
 			   map->size, type, map->flags,
 			   (unsigned long) r_list->user_token);
 		if (map->mtrr < 0)
