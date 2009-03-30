@@ -418,9 +418,7 @@ int reiserfs_cache_default_acl(struct inode *inode)
 	int ret = 0;
 	if (reiserfs_posixacl(inode->i_sb) && !IS_PRIVATE(inode)) {
 		struct posix_acl *acl;
-		reiserfs_read_lock_xattr_i(inode);
 		acl = reiserfs_get_acl(inode, ACL_TYPE_DEFAULT);
-		reiserfs_read_unlock_xattr_i(inode);
 		ret = (acl && !IS_ERR(acl));
 		if (ret)
 			posix_acl_release(acl);
@@ -452,11 +450,8 @@ int reiserfs_acl_chmod(struct inode *inode)
 	if (!clone)
 		return -ENOMEM;
 	error = posix_acl_chmod_masq(clone, inode->i_mode);
-	if (!error) {
-		reiserfs_write_lock_xattr_i(inode);
+	if (!error)
 		error = reiserfs_set_acl(inode, ACL_TYPE_ACCESS, clone);
-		reiserfs_write_unlock_xattr_i(inode);
-	}
 	posix_acl_release(clone);
 	return error;
 }

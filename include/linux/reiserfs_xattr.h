@@ -67,24 +67,6 @@ extern struct reiserfs_xattr_handler user_handler;
 extern struct reiserfs_xattr_handler trusted_handler;
 extern struct reiserfs_xattr_handler security_handler;
 
-static inline void reiserfs_write_lock_xattr_i(struct inode *inode)
-{
-	down_write(&REISERFS_I(inode)->i_xattr_sem);
-}
-static inline void reiserfs_write_unlock_xattr_i(struct inode *inode)
-{
-	up_write(&REISERFS_I(inode)->i_xattr_sem);
-}
-static inline void reiserfs_read_lock_xattr_i(struct inode *inode)
-{
-	down_read(&REISERFS_I(inode)->i_xattr_sem);
-}
-
-static inline void reiserfs_read_unlock_xattr_i(struct inode *inode)
-{
-	up_read(&REISERFS_I(inode)->i_xattr_sem);
-}
-
 static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 {
 	init_rwsem(&REISERFS_I(inode)->i_xattr_sem);
@@ -96,10 +78,6 @@ static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 #define reiserfs_setxattr NULL
 #define reiserfs_listxattr NULL
 #define reiserfs_removexattr NULL
-#define reiserfs_write_lock_xattrs(sb) do {;} while(0)
-#define reiserfs_write_unlock_xattrs(sb) do {;} while(0)
-#define reiserfs_read_lock_xattrs(sb)
-#define reiserfs_read_unlock_xattrs(sb)
 
 #define reiserfs_permission NULL
 
