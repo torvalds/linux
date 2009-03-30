@@ -46,6 +46,7 @@ static unsigned char *pixis_bdcfg0, *pixis_arch;
 static struct of_device_id __initdata mpc8610_ids[] = {
 	{ .compatible = "fsl,mpc8610-immr", },
 	{ .compatible = "simple-bus", },
+	{ .compatible = "gianfar", },
 	{}
 };
 
