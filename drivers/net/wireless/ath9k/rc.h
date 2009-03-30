@@ -157,7 +157,6 @@ struct ath_rateset {
  * @probe_interval: interval for ratectrl to probe for other rates
  * @prev_data_rix: rate idx of last data frame
  * @ht_cap: HT capabilities
- * @single_stream: When TRUE, only single TX stream possible
  * @neg_rates: Negotatied rates
  * @neg_ht_rates: Negotiated HT rates
  */
@@ -175,7 +174,6 @@ struct ath_rate_priv {
 	u8 max_valid_rate;
 	u8 valid_rate_index[RATE_TABLE_SIZE];
 	u8 ht_cap;
-	u8 single_stream;
 	u8 valid_phy_ratecnt[WLAN_RC_PHY_MAX];
 	u8 valid_phy_rateidx[WLAN_RC_PHY_MAX][RATE_TABLE_SIZE];
 	u8 rc_phy_mode;
