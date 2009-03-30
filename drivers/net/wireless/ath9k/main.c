@@ -2325,26 +2325,33 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 	struct ieee80211_conf *conf = &hw->conf;
+	struct ath_hw *ah = sc->sc_ah;
 
 	mutex_lock(&sc->mutex);
 
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		if (conf->flags & IEEE80211_CONF_PS) {
-			if ((sc->imask & ATH9K_INT_TIM_TIMER) == 0) {
-				sc->imask |= ATH9K_INT_TIM_TIMER;
-				ath9k_hw_set_interrupts(sc->sc_ah,
-						sc->imask);
+			if (!(ah->caps.hw_caps &
+			      ATH9K_HW_CAP_AUTOSLEEP)) {
+				if ((sc->imask & ATH9K_INT_TIM_TIMER) == 0) {
+					sc->imask |= ATH9K_INT_TIM_TIMER;
+					ath9k_hw_set_interrupts(sc->sc_ah,
+							sc->imask);
+				}
+				ath9k_hw_setrxabort(sc->sc_ah, 1);
 			}
-			ath9k_hw_setrxabort(sc->sc_ah, 1);
 			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
 		} else {
 			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
-			ath9k_hw_setrxabort(sc->sc_ah, 0);
-			sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
-			if (sc->imask & ATH9K_INT_TIM_TIMER) {
-				sc->imask &= ~ATH9K_INT_TIM_TIMER;
-				ath9k_hw_set_interrupts(sc->sc_ah,
-						sc->imask);
+			if (!(ah->caps.hw_caps &
+			      ATH9K_HW_CAP_AUTOSLEEP)) {
+				ath9k_hw_setrxabort(sc->sc_ah, 0);
+				sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
+				if (sc->imask & ATH9K_INT_TIM_TIMER) {
+					sc->imask &= ~ATH9K_INT_TIM_TIMER;
+					ath9k_hw_set_interrupts(sc->sc_ah,
+							sc->imask);
+				}
 			}
 		}
 	}
