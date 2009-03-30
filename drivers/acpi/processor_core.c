@@ -82,7 +82,7 @@ static int acpi_processor_add(struct acpi_device *device);
 static int acpi_processor_start(struct acpi_device *device);
 static int acpi_processor_remove(struct acpi_device *device, int type);
 static int acpi_processor_info_open_fs(struct inode *inode, struct file *file);
-static void acpi_processor_notify(acpi_handle handle, u32 event, void *data);
+static void acpi_processor_notify(struct acpi_device *device, u32 event);
 static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu);
 static int acpi_processor_handle_eject(struct acpi_processor *pr);
 
@@ -104,6 +104,7 @@ static struct acpi_driver acpi_processor_driver = {
 		.start = acpi_processor_start,
 		.suspend = acpi_processor_suspend,
 		.resume = acpi_processor_resume,
+		.notify = acpi_processor_notify,
 		},
 };
 
@@ -691,7 +692,6 @@ static DEFINE_PER_CPU(void *, processor_device_array);
 static int __cpuinit acpi_processor_start(struct acpi_device *device)
 {
 	int result = 0;
-	acpi_status status = AE_OK;
 	struct acpi_processor *pr;
 	struct sys_device *sysdev;
 
@@ -727,9 +727,6 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 	sysdev = get_cpu_sysdev(pr->id);
 	if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev"))
 		return -EFAULT;
-
-	status = acpi_install_notify_handler(pr->handle, ACPI_DEVICE_NOTIFY,
-					     acpi_processor_notify, pr);
 
 	/* _PDC call should be done before doing anything else (if reqd.). */
 	arch_acpi_processor_init_pdc(pr);
@@ -776,16 +773,12 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 	return result;
 }
 
-static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_processor_notify(struct acpi_device *device, u32 event)
 {
-	struct acpi_processor *pr = data;
-	struct acpi_device *device = NULL;
+	struct acpi_processor *pr = acpi_driver_data(device);
 	int saved;
 
 	if (!pr)
-		return;
-
-	if (acpi_bus_get_device(pr->handle, &device))
 		return;
 
 	switch (event) {
@@ -866,7 +859,6 @@ static int acpi_processor_add(struct acpi_device *device)
 
 static int acpi_processor_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = AE_OK;
 	struct acpi_processor *pr = NULL;
 
 
@@ -884,9 +876,6 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 	}
 
 	acpi_processor_power_exit(pr, device);
-
-	status = acpi_remove_notify_handler(pr->handle, ACPI_DEVICE_NOTIFY,
-					    acpi_processor_notify);
 
 	sysfs_remove_link(&device->dev.kobj, "sysdev");
 
