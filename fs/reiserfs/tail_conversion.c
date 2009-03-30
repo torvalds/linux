@@ -175,9 +175,9 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 		    loff_t n_new_file_size,	/* New file size. */
 		    char *p_c_mode)
 {
-	struct super_block *p_s_sb = p_s_inode->i_sb;
+	struct super_block *sb = p_s_inode->i_sb;
 	struct item_head s_ih;
-	unsigned long n_block_size = p_s_sb->s_blocksize;
+	unsigned long n_block_size = sb->s_blocksize;
 	char *tail;
 	int tail_len, round_tail_len;
 	loff_t pos, pos1;	/* position of first byte of the tail */
@@ -185,7 +185,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 
 	BUG_ON(!th->t_trans_id);
 
-	REISERFS_SB(p_s_sb)->s_indirect2direct++;
+	REISERFS_SB(sb)->s_indirect2direct++;
 
 	*p_c_mode = M_SKIP_BALANCING;
 
@@ -200,7 +200,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 
 	pos =
 	    le_ih_k_offset(&s_ih) - 1 + (ih_item_len(&s_ih) / UNFM_P_SIZE -
-					 1) * p_s_sb->s_blocksize;
+					 1) * sb->s_blocksize;
 	pos1 = pos;
 
 	// we are protected by i_mutex. The tail can not disapper, not
@@ -211,18 +211,18 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 
 	if (path_changed(&s_ih, p_s_path)) {
 		/* re-search indirect item */
-		if (search_for_position_by_key(p_s_sb, p_s_item_key, p_s_path)
+		if (search_for_position_by_key(sb, p_s_item_key, p_s_path)
 		    == POSITION_NOT_FOUND)
-			reiserfs_panic(p_s_sb, "PAP-5520",
+			reiserfs_panic(sb, "PAP-5520",
 				       "item to be converted %K does not exist",
 				       p_s_item_key);
 		copy_item_head(&s_ih, PATH_PITEM_HEAD(p_s_path));
 #ifdef CONFIG_REISERFS_CHECK
 		pos = le_ih_k_offset(&s_ih) - 1 +
 		    (ih_item_len(&s_ih) / UNFM_P_SIZE -
-		     1) * p_s_sb->s_blocksize;
+		     1) * sb->s_blocksize;
 		if (pos != pos1)
-			reiserfs_panic(p_s_sb, "vs-5530", "tail position "
+			reiserfs_panic(sb, "vs-5530", "tail position "
 				       "changed while we were reading it");
 #endif
 	}

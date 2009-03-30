@@ -785,7 +785,7 @@ static int get_empty_nodes(struct tree_balance *p_s_tb, int n_h)
 	b_blocknr_t *p_n_blocknr, a_n_blocknrs[MAX_AMOUNT_NEEDED] = { 0, };
 	int n_counter, n_number_of_freeblk, n_amount_needed,	/* number of needed empty blocks */
 	 n_retval = CARRY_ON;
-	struct super_block *p_s_sb = p_s_tb->tb_sb;
+	struct super_block *sb = p_s_tb->tb_sb;
 
 	/* number_of_freeblk is the number of empty blocks which have been
 	   acquired for use by the balancing algorithm minus the number of
@@ -830,7 +830,7 @@ static int get_empty_nodes(struct tree_balance *p_s_tb, int n_h)
 		RFALSE(!*p_n_blocknr,
 		       "PAP-8135: reiserfs_new_blocknrs failed when got new blocks");
 
-		p_s_new_bh = sb_getblk(p_s_sb, *p_n_blocknr);
+		p_s_new_bh = sb_getblk(sb, *p_n_blocknr);
 		RFALSE(buffer_dirty(p_s_new_bh) ||
 		       buffer_journaled(p_s_new_bh) ||
 		       buffer_journal_dirty(p_s_new_bh),
@@ -899,7 +899,7 @@ static int get_rfree(struct tree_balance *tb, int h)
 static int is_left_neighbor_in_cache(struct tree_balance *p_s_tb, int n_h)
 {
 	struct buffer_head *p_s_father, *left;
-	struct super_block *p_s_sb = p_s_tb->tb_sb;
+	struct super_block *sb = p_s_tb->tb_sb;
 	b_blocknr_t n_left_neighbor_blocknr;
 	int n_left_neighbor_position;
 
@@ -924,7 +924,7 @@ static int is_left_neighbor_in_cache(struct tree_balance *p_s_tb, int n_h)
 	n_left_neighbor_blocknr =
 	    B_N_CHILD_NUM(p_s_tb->FL[n_h], n_left_neighbor_position);
 	/* Look for the left neighbor in the cache. */
-	if ((left = sb_find_get_block(p_s_sb, n_left_neighbor_blocknr))) {
+	if ((left = sb_find_get_block(sb, n_left_neighbor_blocknr))) {
 
 		RFALSE(buffer_uptodate(left) && !B_IS_IN_TREE(left),
 		       "vs-8170: left neighbor (%b %z) is not in the tree",
@@ -1942,14 +1942,14 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 	int n_child_position,
 	    n_path_offset = PATH_H_PATH_OFFSET(p_s_tb->tb_path, n_h + 1);
 	unsigned long n_son_number;
-	struct super_block *p_s_sb = p_s_tb->tb_sb;
+	struct super_block *sb = p_s_tb->tb_sb;
 	struct buffer_head *p_s_bh;
 
-	PROC_INFO_INC(p_s_sb, get_neighbors[n_h]);
+	PROC_INFO_INC(sb, get_neighbors[n_h]);
 
 	if (p_s_tb->lnum[n_h]) {
 		/* We need left neighbor to balance S[n_h]. */
-		PROC_INFO_INC(p_s_sb, need_l_neighbor[n_h]);
+		PROC_INFO_INC(sb, need_l_neighbor[n_h]);
 		p_s_bh = PATH_OFFSET_PBUFFER(p_s_tb->tb_path, n_path_offset);
 
 		RFALSE(p_s_bh == p_s_tb->FL[n_h] &&
@@ -1961,12 +1961,12 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 		     p_s_tb->FL[n_h]) ? p_s_tb->lkey[n_h] : B_NR_ITEMS(p_s_tb->
 								       FL[n_h]);
 		n_son_number = B_N_CHILD_NUM(p_s_tb->FL[n_h], n_child_position);
-		p_s_bh = sb_bread(p_s_sb, n_son_number);
+		p_s_bh = sb_bread(sb, n_son_number);
 		if (!p_s_bh)
 			return IO_ERROR;
 		if (FILESYSTEM_CHANGED_TB(p_s_tb)) {
 			brelse(p_s_bh);
-			PROC_INFO_INC(p_s_sb, get_neighbors_restart[n_h]);
+			PROC_INFO_INC(sb, get_neighbors_restart[n_h]);
 			return REPEAT_SEARCH;
 		}
 
@@ -1986,7 +1986,7 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 	}
 
 	if (p_s_tb->rnum[n_h]) {	/* We need right neighbor to balance S[n_path_offset]. */
-		PROC_INFO_INC(p_s_sb, need_r_neighbor[n_h]);
+		PROC_INFO_INC(sb, need_r_neighbor[n_h]);
 		p_s_bh = PATH_OFFSET_PBUFFER(p_s_tb->tb_path, n_path_offset);
 
 		RFALSE(p_s_bh == p_s_tb->FR[n_h] &&
@@ -1998,12 +1998,12 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 		n_child_position =
 		    (p_s_bh == p_s_tb->FR[n_h]) ? p_s_tb->rkey[n_h] + 1 : 0;
 		n_son_number = B_N_CHILD_NUM(p_s_tb->FR[n_h], n_child_position);
-		p_s_bh = sb_bread(p_s_sb, n_son_number);
+		p_s_bh = sb_bread(sb, n_son_number);
 		if (!p_s_bh)
 			return IO_ERROR;
 		if (FILESYSTEM_CHANGED_TB(p_s_tb)) {
 			brelse(p_s_bh);
-			PROC_INFO_INC(p_s_sb, get_neighbors_restart[n_h]);
+			PROC_INFO_INC(sb, get_neighbors_restart[n_h]);
 			return REPEAT_SEARCH;
 		}
 		brelse(p_s_tb->R[n_h]);
@@ -2089,51 +2089,51 @@ static int get_mem_for_virtual_node(struct tree_balance *tb)
 }
 
 #ifdef CONFIG_REISERFS_CHECK
-static void tb_buffer_sanity_check(struct super_block *p_s_sb,
+static void tb_buffer_sanity_check(struct super_block *sb,
 				   struct buffer_head *p_s_bh,
 				   const char *descr, int level)
 {
 	if (p_s_bh) {
 		if (atomic_read(&(p_s_bh->b_count)) <= 0) {
 
-			reiserfs_panic(p_s_sb, "jmacd-1", "negative or zero "
+			reiserfs_panic(sb, "jmacd-1", "negative or zero "
 				       "reference counter for buffer %s[%d] "
 				       "(%b)", descr, level, p_s_bh);
 		}
 
 		if (!buffer_uptodate(p_s_bh)) {
-			reiserfs_panic(p_s_sb, "jmacd-2", "buffer is not up "
+			reiserfs_panic(sb, "jmacd-2", "buffer is not up "
 				       "to date %s[%d] (%b)",
 				       descr, level, p_s_bh);
 		}
 
 		if (!B_IS_IN_TREE(p_s_bh)) {
-			reiserfs_panic(p_s_sb, "jmacd-3", "buffer is not "
+			reiserfs_panic(sb, "jmacd-3", "buffer is not "
 				       "in tree %s[%d] (%b)",
 				       descr, level, p_s_bh);
 		}
 
-		if (p_s_bh->b_bdev != p_s_sb->s_bdev) {
-			reiserfs_panic(p_s_sb, "jmacd-4", "buffer has wrong "
+		if (p_s_bh->b_bdev != sb->s_bdev) {
+			reiserfs_panic(sb, "jmacd-4", "buffer has wrong "
 				       "device %s[%d] (%b)",
 				       descr, level, p_s_bh);
 		}
 
-		if (p_s_bh->b_size != p_s_sb->s_blocksize) {
-			reiserfs_panic(p_s_sb, "jmacd-5", "buffer has wrong "
+		if (p_s_bh->b_size != sb->s_blocksize) {
+			reiserfs_panic(sb, "jmacd-5", "buffer has wrong "
 				       "blocksize %s[%d] (%b)",
 				       descr, level, p_s_bh);
 		}
 
-		if (p_s_bh->b_blocknr > SB_BLOCK_COUNT(p_s_sb)) {
-			reiserfs_panic(p_s_sb, "jmacd-6", "buffer block "
+		if (p_s_bh->b_blocknr > SB_BLOCK_COUNT(sb)) {
+			reiserfs_panic(sb, "jmacd-6", "buffer block "
 				       "number too high %s[%d] (%b)",
 				       descr, level, p_s_bh);
 		}
 	}
 }
 #else
-static void tb_buffer_sanity_check(struct super_block *p_s_sb,
+static void tb_buffer_sanity_check(struct super_block *sb,
 				   struct buffer_head *p_s_bh,
 				   const char *descr, int level)
 {;

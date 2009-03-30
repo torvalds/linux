@@ -1769,12 +1769,12 @@ int journal_end_sync(struct reiserfs_transaction_handle *, struct super_block *,
 int journal_mark_freed(struct reiserfs_transaction_handle *,
 		       struct super_block *, b_blocknr_t blocknr);
 int journal_transaction_should_end(struct reiserfs_transaction_handle *, int);
-int reiserfs_in_journal(struct super_block *p_s_sb, unsigned int bmap_nr,
-			int bit_nr, int searchall, b_blocknr_t *next);
+int reiserfs_in_journal(struct super_block *sb, unsigned int bmap_nr,
+			 int bit_nr, int searchall, b_blocknr_t *next);
 int journal_begin(struct reiserfs_transaction_handle *,
-		  struct super_block *p_s_sb, unsigned long);
+		  struct super_block *sb, unsigned long);
 int journal_join_abort(struct reiserfs_transaction_handle *,
-		       struct super_block *p_s_sb, unsigned long);
+		       struct super_block *sb, unsigned long);
 void reiserfs_abort_journal(struct super_block *sb, int errno);
 void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...);
 int reiserfs_allocate_list_bitmaps(struct super_block *s,
@@ -1830,11 +1830,11 @@ static inline void copy_key(struct reiserfs_key *to,
 
 int comp_items(const struct item_head *stored_ih, const struct treepath *p_s_path);
 const struct reiserfs_key *get_rkey(const struct treepath *p_s_chk_path,
-				    const struct super_block *p_s_sb);
+				    const struct super_block *sb);
 int search_by_key(struct super_block *, const struct cpu_key *,
 		  struct treepath *, int);
 #define search_item(s,key,path) search_by_key (s, key, path, DISK_LEAF_NODE_LEVEL)
-int search_for_position_by_key(struct super_block *p_s_sb,
+int search_for_position_by_key(struct super_block *sb,
 			       const struct cpu_key *p_s_cpu_key,
 			       struct treepath *p_s_search_path);
 extern void decrement_bcount(struct buffer_head *p_s_bh);
@@ -1978,7 +1978,7 @@ int reiserfs_global_version_in_proc(char *buffer, char **start, off_t offset,
 #define PROC_INFO_MAX( sb, field, value ) VOID_V
 #define PROC_INFO_INC( sb, field ) VOID_V
 #define PROC_INFO_ADD( sb, field, val ) VOID_V
-#define PROC_INFO_BH_STAT( p_s_sb, p_s_bh, n_node_level ) VOID_V
+#define PROC_INFO_BH_STAT(sb, p_s_bh, n_node_level) VOID_V
 #endif
 
 /* dir.c */
