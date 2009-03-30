@@ -294,26 +294,6 @@ struct ath_tx_control {
 #define ATH_TX_XRETRY       0x02
 #define ATH_TX_BAR          0x04
 
-/* All RSSI values are noise floor adjusted */
-struct ath_tx_stat {
-	int rssi;
-	int rssictl[ATH_MAX_ANTENNA];
-	int rssiextn[ATH_MAX_ANTENNA];
-	int rateieee;
-	int rateKbps;
-	int ratecode;
-	int flags;
-	u32 airtime;	/* time on air per final tx rate */
-};
-
-struct aggr_rifs_param {
-	int param_max_frames;
-	int param_max_len;
-	int param_rl;
-	int param_al;
-	struct ath_rc_series *param_rcs;
-};
-
 struct ath_node {
 	struct ath_softc *an_sc;
 	struct ath_atx_tid tid[WME_NUM_TID];
