@@ -303,6 +303,9 @@ struct w83627ehf_data {
 
 	u8 vid;
 	u8 vrm;
+
+	u8 temp3_disable;
+	u8 in6_skip;
 };
 
 struct w83627ehf_sio_data {
@@ -871,25 +874,37 @@ show_temp_type(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%d\n", (int)data->temp_type[nr]);
 }
 
-static struct sensor_device_attribute sda_temp[] = {
+static struct sensor_device_attribute sda_temp_input[] = {
 	SENSOR_ATTR(temp1_input, S_IRUGO, show_temp1, NULL, 0),
 	SENSOR_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 0),
 	SENSOR_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 1),
+};
+
+static struct sensor_device_attribute sda_temp_max[] = {
 	SENSOR_ATTR(temp1_max, S_IRUGO | S_IWUSR, show_temp1_max,
 		    store_temp1_max, 0),
 	SENSOR_ATTR(temp2_max, S_IRUGO | S_IWUSR, show_temp_max,
 		    store_temp_max, 0),
 	SENSOR_ATTR(temp3_max, S_IRUGO | S_IWUSR, show_temp_max,
 		    store_temp_max, 1),
+};
+
+static struct sensor_device_attribute sda_temp_max_hyst[] = {
 	SENSOR_ATTR(temp1_max_hyst, S_IRUGO | S_IWUSR, show_temp1_max_hyst,
 		    store_temp1_max_hyst, 0),
 	SENSOR_ATTR(temp2_max_hyst, S_IRUGO | S_IWUSR, show_temp_max_hyst,
 		    store_temp_max_hyst, 0),
 	SENSOR_ATTR(temp3_max_hyst, S_IRUGO | S_IWUSR, show_temp_max_hyst,
 		    store_temp_max_hyst, 1),
+};
+
+static struct sensor_device_attribute sda_temp_alarm[] = {
 	SENSOR_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 4),
 	SENSOR_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 5),
 	SENSOR_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13),
+};
+
+static struct sensor_device_attribute sda_temp_type[] = {
 	SENSOR_ATTR(temp1_type, S_IRUGO, show_temp_type, NULL, 0),
 	SENSOR_ATTR(temp2_type, S_IRUGO, show_temp_type, NULL, 1),
 	SENSOR_ATTR(temp3_type, S_IRUGO, show_temp_type, NULL, 2),
@@ -1186,6 +1201,8 @@ static void w83627ehf_device_remove_files(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++)
 		device_remove_file(dev, &sda_sf3_arrays_fan4[i].dev_attr);
 	for (i = 0; i < data->in_num; i++) {
+		if ((i == 6) && data->in6_skip)
+			continue;
 		device_remove_file(dev, &sda_in_input[i].dev_attr);
 		device_remove_file(dev, &sda_in_alarm[i].dev_attr);
 		device_remove_file(dev, &sda_in_min[i].dev_attr);
@@ -1204,8 +1221,15 @@ static void w83627ehf_device_remove_files(struct device *dev)
 		device_remove_file(dev, &sda_target_temp[i].dev_attr);
 		device_remove_file(dev, &sda_tolerance[i].dev_attr);
 	}
-	for (i = 0; i < ARRAY_SIZE(sda_temp); i++)
-		device_remove_file(dev, &sda_temp[i].dev_attr);
+	for (i = 0; i < 3; i++) {
+		if ((i == 2) && data->temp3_disable)
+			continue;
+		device_remove_file(dev, &sda_temp_input[i].dev_attr);
+		device_remove_file(dev, &sda_temp_max[i].dev_attr);
+		device_remove_file(dev, &sda_temp_max_hyst[i].dev_attr);
+		device_remove_file(dev, &sda_temp_alarm[i].dev_attr);
+		device_remove_file(dev, &sda_temp_type[i].dev_attr);
+	}
 
 	device_remove_file(dev, &dev_attr_name);
 	device_remove_file(dev, &dev_attr_cpu0_vid);
@@ -1227,6 +1251,8 @@ static inline void __devinit w83627ehf_init_device(struct w83627ehf_data *data)
 	for (i = 0; i < 2; i++) {
 		tmp = w83627ehf_read_value(data,
 					   W83627EHF_REG_TEMP_CONFIG[i]);
+		if ((i == 1) && data->temp3_disable)
+			continue;
 		if (tmp & 0x01)
 			w83627ehf_write_value(data,
 					      W83627EHF_REG_TEMP_CONFIG[i],
@@ -1281,6 +1307,13 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 	data->in_num = (sio_data->kind == w83627ehf) ? 10 : 9;
 	/* 667HG has 3 pwms */
 	data->pwm_num = (sio_data->kind == w83667hg) ? 3 : 4;
+
+	/* Check temp3 configuration bit for 667HG */
+	if (sio_data->kind == w83667hg) {
+		data->temp3_disable = w83627ehf_read_value(data,
+					W83627EHF_REG_TEMP_CONFIG[1]) & 0x01;
+		data->in6_skip = !data->temp3_disable;
+	}
 
 	/* Initialize the chip */
 	w83627ehf_init_device(data);
@@ -1378,7 +1411,9 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 				goto exit_remove;
 		}
 
-	for (i = 0; i < data->in_num; i++)
+	for (i = 0; i < data->in_num; i++) {
+		if ((i == 6) && data->in6_skip)
+			continue;
 		if ((err = device_create_file(dev, &sda_in_input[i].dev_attr))
 			|| (err = device_create_file(dev,
 				&sda_in_alarm[i].dev_attr))
@@ -1387,6 +1422,7 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 			|| (err = device_create_file(dev,
 				&sda_in_max[i].dev_attr)))
 			goto exit_remove;
+	}
 
 	for (i = 0; i < 5; i++) {
 		if (data->has_fan & (1 << i)) {
@@ -1414,9 +1450,21 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sda_temp); i++)
-		if ((err = device_create_file(dev, &sda_temp[i].dev_attr)))
+	for (i = 0; i < 3; i++) {
+		if ((i == 2) && data->temp3_disable)
+			continue;
+		if ((err = device_create_file(dev,
+				&sda_temp_input[i].dev_attr))
+			|| (err = device_create_file(dev,
+				&sda_temp_max[i].dev_attr))
+			|| (err = device_create_file(dev,
+				&sda_temp_max_hyst[i].dev_attr))
+			|| (err = device_create_file(dev,
+				&sda_temp_alarm[i].dev_attr))
+			|| (err = device_create_file(dev,
+				&sda_temp_type[i].dev_attr)))
 			goto exit_remove;
+	}
 
 	err = device_create_file(dev, &dev_attr_name);
 	if (err)
