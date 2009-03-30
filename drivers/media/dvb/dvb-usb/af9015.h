@@ -64,14 +64,6 @@
 
 #define AF9015_EEPROM_OFFSET (AF9015_EEPROM_SAW_BW2 - AF9015_EEPROM_SAW_BW1)
 
-#define AF9015_GPIO_ON (1 << 0)
-#define AF9015_GPIO_EN (1 << 1)
-#define AF9015_GPIO_O  (1 << 2)
-#define AF9015_GPIO_I  (1 << 3)
-
-#define AF9015_GPIO_TUNER_ON  (AF9015_GPIO_ON|AF9015_GPIO_EN)
-#define AF9015_GPIO_TUNER_OFF (AF9015_GPIO_ON|AF9015_GPIO_EN|AF9015_GPIO_O)
-
 struct req_t {
 	u8  cmd;       /* [0] */
 	/*  seq */     /* [1] */
