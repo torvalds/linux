@@ -837,11 +837,7 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 	if (AR_SREV_9280_20(ah))
 		ath9k_hw_init_txgain_ini(ah);
 
-	if (!ath9k_hw_fill_cap_info(ah)) {
-		DPRINTF(sc, ATH_DBG_RESET, "failed ath9k_hw_fill_cap_info\n");
-		ecode = -EINVAL;
-		goto bad;
-	}
+	ath9k_hw_fill_cap_info(ah);
 
 	if ((ah->hw_version.devid == AR9280_DEVID_PCI) &&
 	    test_bit(ATH9K_MODE_11A, ah->caps.wireless_modes)) {
@@ -3228,7 +3224,7 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 /* HW Capabilities */
 /*******************/
 
-bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
+void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	u16 capField = 0, eeval;
@@ -3403,8 +3399,6 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		ah->btactive_gpio = 6;
 		ah->wlanactive_gpio = 5;
 	}
-
-	return true;
 }
 
 bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
