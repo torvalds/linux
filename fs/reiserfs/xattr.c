@@ -420,10 +420,8 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	struct dentry *dentry;
 	struct page *page;
 	char *data;
-	struct address_space *mapping;
 	size_t file_pos = 0;
 	size_t buffer_pos = 0;
-	struct inode *xinode;
 	struct iattr newattrs;
 	__u32 xahash = 0;
 
@@ -441,11 +439,10 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 		goto out;
 	}
 
-	xinode = dentry->d_inode;
 	REISERFS_I(inode)->i_flags |= i_has_xattr_dir;
 
 	/* we need to copy it off.. */
-	if (xinode->i_nlink > 1) {
+	if (dentry->d_inode->i_nlink > 1) {
 		dput(dentry);
 		err = reiserfs_xattr_del(inode, name);
 		if (err < 0)
@@ -459,12 +456,11 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	/* Resize it so we're ok to write there */
 	newattrs.ia_size = buffer_size;
 	newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
-	mutex_lock_nested(&xinode->i_mutex, I_MUTEX_XATTR);
+	mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_XATTR);
 	err = notify_change(dentry, &newattrs);
 	if (err)
 		goto out_filp;
 
-	mapping = xinode->i_mapping;
 	while (buffer_pos < buffer_size || buffer_pos == 0) {
 		size_t chunk;
 		size_t skip = 0;
@@ -474,7 +470,8 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 		else
 			chunk = buffer_size - buffer_pos;
 
-		page = reiserfs_get_page(xinode, file_pos >> PAGE_CACHE_SHIFT);
+		page = reiserfs_get_page(dentry->d_inode,
+					 file_pos >> PAGE_CACHE_SHIFT);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			goto out_filp;
@@ -521,7 +518,7 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	}
 
       out_filp:
-	mutex_unlock(&xinode->i_mutex);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 	dput(dentry);
 
       out:
@@ -541,7 +538,6 @@ reiserfs_xattr_get(const struct inode *inode, const char *name, void *buffer,
 	size_t file_pos = 0;
 	size_t buffer_pos = 0;
 	struct page *page;
-	struct inode *xinode;
 	__u32 hash = 0;
 
 	if (name == NULL)
@@ -558,8 +554,7 @@ reiserfs_xattr_get(const struct inode *inode, const char *name, void *buffer,
 		goto out;
 	}
 
-	xinode = dentry->d_inode;
-	isize = xinode->i_size;
+	isize = i_size_read(dentry->d_inode);
 	REISERFS_I(inode)->i_flags |= i_has_xattr_dir;
 
 	/* Just return the size needed */
@@ -582,7 +577,8 @@ reiserfs_xattr_get(const struct inode *inode, const char *name, void *buffer,
 		else
 			chunk = isize - file_pos;
 
-		page = reiserfs_get_page(xinode, file_pos >> PAGE_CACHE_SHIFT);
+		page = reiserfs_get_page(dentry->d_inode,
+					 file_pos >> PAGE_CACHE_SHIFT);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			goto out_dput;
