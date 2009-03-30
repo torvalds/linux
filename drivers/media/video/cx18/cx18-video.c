@@ -21,7 +21,6 @@
 
 #include "cx18-driver.h"
 #include "cx18-video.h"
-#include "cx18-av-core.h"
 #include "cx18-cards.h"
 
 void cx18_video_set_io(struct cx18 *cx)
@@ -32,7 +31,7 @@ void cx18_video_set_io(struct cx18 *cx)
 
 	route.input = cx->card->video_inputs[inp].video_input;
 	route.output = 0;
-	cx18_av_cmd(cx, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+	v4l2_subdev_call(cx->sd_av, video, s_routing, &route);
 
 	type = cx->card->video_inputs[inp].video_type;
 

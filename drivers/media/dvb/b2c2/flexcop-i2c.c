@@ -1,17 +1,14 @@
 /*
- * This file is part of linux driver the digital TV devices equipped with B2C2 FlexcopII(b)/III
- *
+ * Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
  * flexcop-i2c.c - flexcop internal 2Wire bus (I2C) and dvb i2c initialization
- *
- * see flexcop.c for copyright information.
+ * see flexcop.c for copyright information
  */
 #include "flexcop.h"
 
 #define FC_MAX_I2C_RETRIES 100000
 
-/* #define DUMP_I2C_MESSAGES */
-
-static int flexcop_i2c_operation(struct flexcop_device *fc, flexcop_ibi_value *r100)
+static int flexcop_i2c_operation(struct flexcop_device *fc,
+		flexcop_ibi_value *r100)
 {
 	int i;
 	flexcop_ibi_value r;
@@ -26,7 +23,7 @@ static int flexcop_i2c_operation(struct flexcop_device *fc, flexcop_ibi_value *r
 		r = fc->read_ibi_reg(fc, tw_sm_c_100);
 
 		if (!r.tw_sm_c_100.no_base_addr_ack_error) {
-			if (r.tw_sm_c_100.st_done) {  /* && !r.tw_sm_c_100.working_start */
+			if (r.tw_sm_c_100.st_done) {
 				*r100 = r;
 				deb_i2c("i2c success\n");
 				return 0;
@@ -36,16 +33,30 @@ static int flexcop_i2c_operation(struct flexcop_device *fc, flexcop_ibi_value *r
 			return -EREMOTEIO;
 		}
 	}
-	deb_i2c("tried %d times i2c operation, never finished or too many ack errors.\n",i);
+	deb_i2c("tried %d times i2c operation, "
+			"never finished or too many ack errors.\n", i);
 	return -EREMOTEIO;
 }
 
 static int flexcop_i2c_read4(struct flexcop_i2c_adapter *i2c,
-	flexcop_ibi_value r100, u8 *buf)
+		flexcop_ibi_value r100, u8 *buf)
 {
 	flexcop_ibi_value r104;
-	int len = r100.tw_sm_c_100.total_bytes, /* remember total_bytes is buflen-1 */
+	int len = r100.tw_sm_c_100.total_bytes,
+		/* remember total_bytes is buflen-1 */
 		ret;
+
+	/* work-around to have CableStar2 and SkyStar2 rev 2.7 work
+	 * correctly:
+	 *
+	 * the ITD1000 is behind an i2c-gate which closes automatically
+	 * after an i2c-transaction the STV0297 needs 2 consecutive reads
+	 * one with no_base_addr = 0 and one with 1
+	 *
+	 * those two work-arounds are conflictin: we check for the card
+	 * type, it is set when probing the ITD1000 */
+	if (i2c->fc->dev_type == FC_SKY_REV27)
+		r100.tw_sm_c_100.no_base_addr_ack_error = i2c->no_base_addr;
 
 	ret = flexcop_i2c_operation(i2c->fc, &r100);
 	if (ret != 0) {
@@ -69,11 +80,11 @@ static int flexcop_i2c_read4(struct flexcop_i2c_adapter *i2c,
 		if (len > 1) buf[2] = r104.tw_sm_c_104.data3_reg;
 		if (len > 2) buf[3] = r104.tw_sm_c_104.data4_reg;
 	}
-
 	return 0;
 }
 
-static int flexcop_i2c_write4(struct flexcop_device *fc, flexcop_ibi_value r100, u8 *buf)
+static int flexcop_i2c_write4(struct flexcop_device *fc,
+		flexcop_ibi_value r100, u8 *buf)
 {
 	flexcop_ibi_value r104;
 	int len = r100.tw_sm_c_100.total_bytes; /* remember total_bytes is buflen-1 */
@@ -81,7 +92,6 @@ static int flexcop_i2c_write4(struct flexcop_device *fc, flexcop_ibi_value r100,
 
 	/* there is at least one byte, otherwise we wouldn't be here */
 	r100.tw_sm_c_100.data1_reg = buf[0];
-
 	r104.tw_sm_c_104.data2_reg = len > 0 ? buf[1] : 0;
 	r104.tw_sm_c_104.data3_reg = len > 1 ? buf[2] : 0;
 	r104.tw_sm_c_104.data4_reg = len > 2 ? buf[3] : 0;
@@ -94,7 +104,7 @@ static int flexcop_i2c_write4(struct flexcop_device *fc, flexcop_ibi_value r100,
 }
 
 int flexcop_i2c_request(struct flexcop_i2c_adapter *i2c,
-	flexcop_access_op_t op, u8 chipaddr, u8 addr, u8 *buf, u16 len)
+		flexcop_access_op_t op, u8 chipaddr, u8 addr, u8 *buf, u16 len)
 {
 	int ret;
 
@@ -117,7 +127,6 @@ int flexcop_i2c_request(struct flexcop_i2c_adapter *i2c,
 		printk("rd(");
 	else
 		printk("wr(");
-
 	printk("%02x): %02x ", chipaddr, addr);
 #endif
 
@@ -163,7 +172,8 @@ int flexcop_i2c_request(struct flexcop_i2c_adapter *i2c,
 EXPORT_SYMBOL(flexcop_i2c_request);
 
 /* master xfer callback for demodulator */
-static int flexcop_master_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
+static int flexcop_master_xfer(struct i2c_adapter *i2c_adap,
+		struct i2c_msg msgs[], int num)
 {
 	struct flexcop_i2c_adapter *i2c = i2c_get_adapdata(i2c_adap);
 	int i, ret = 0;
@@ -182,12 +192,13 @@ static int flexcop_master_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs
 		/* reading */
 		if (i+1 < num && (msgs[i+1].flags == I2C_M_RD)) {
 			ret = i2c->fc->i2c_request(i2c, FC_READ, msgs[i].addr,
-				msgs[i].buf[0], msgs[i+1].buf, msgs[i+1].len);
+					msgs[i].buf[0], msgs[i+1].buf,
+					msgs[i+1].len);
 			i++; /* skip the following message */
 		} else /* writing */
 			ret = i2c->fc->i2c_request(i2c, FC_WRITE, msgs[i].addr,
-				msgs[i].buf[0], &msgs[i].buf[1],
-				msgs[i].len - 1);
+					msgs[i].buf[0], &msgs[i].buf[1],
+					msgs[i].len - 1);
 		if (ret < 0) {
 			err("i2c master_xfer failed");
 			break;
@@ -214,23 +225,21 @@ static struct i2c_algorithm flexcop_algo = {
 int flexcop_i2c_init(struct flexcop_device *fc)
 {
 	int ret;
-
 	mutex_init(&fc->i2c_mutex);
 
 	fc->fc_i2c_adap[0].fc = fc;
 	fc->fc_i2c_adap[1].fc = fc;
 	fc->fc_i2c_adap[2].fc = fc;
-
 	fc->fc_i2c_adap[0].port = FC_I2C_PORT_DEMOD;
 	fc->fc_i2c_adap[1].port = FC_I2C_PORT_EEPROM;
 	fc->fc_i2c_adap[2].port = FC_I2C_PORT_TUNER;
 
 	strlcpy(fc->fc_i2c_adap[0].i2c_adap.name, "B2C2 FlexCop I2C to demod",
-		sizeof(fc->fc_i2c_adap[0].i2c_adap.name));
+			sizeof(fc->fc_i2c_adap[0].i2c_adap.name));
 	strlcpy(fc->fc_i2c_adap[1].i2c_adap.name, "B2C2 FlexCop I2C to eeprom",
-		sizeof(fc->fc_i2c_adap[1].i2c_adap.name));
+			sizeof(fc->fc_i2c_adap[1].i2c_adap.name));
 	strlcpy(fc->fc_i2c_adap[2].i2c_adap.name, "B2C2 FlexCop I2C to tuner",
-		sizeof(fc->fc_i2c_adap[2].i2c_adap.name));
+			sizeof(fc->fc_i2c_adap[2].i2c_adap.name));
 
 	i2c_set_adapdata(&fc->fc_i2c_adap[0].i2c_adap, &fc->fc_i2c_adap[0]);
 	i2c_set_adapdata(&fc->fc_i2c_adap[1].i2c_adap, &fc->fc_i2c_adap[1]);
@@ -268,7 +277,6 @@ adap_2_failed:
 	i2c_del_adapter(&fc->fc_i2c_adap[1].i2c_adap);
 adap_1_failed:
 	i2c_del_adapter(&fc->fc_i2c_adap[0].i2c_adap);
-
 	return ret;
 }
 
@@ -279,6 +287,5 @@ void flexcop_i2c_exit(struct flexcop_device *fc)
 		i2c_del_adapter(&fc->fc_i2c_adap[1].i2c_adap);
 		i2c_del_adapter(&fc->fc_i2c_adap[0].i2c_adap);
 	}
-
 	fc->init_state &= ~FC_STATE_I2C_INIT;
 }

@@ -27,35 +27,25 @@
 #include <linux/delay.h>
 #include "dvb_frontend.h"
 #include "au8522.h"
-
-struct au8522_state {
-
-	struct i2c_adapter *i2c;
-
-	/* configuration settings */
-	const struct au8522_config *config;
-
-	struct dvb_frontend frontend;
-
-	u32 current_frequency;
-	fe_modulation_t current_modulation;
-
-	u32 fe_status;
-	unsigned int led_state;
-};
+#include "au8522_priv.h"
 
 static int debug;
 
-#define dprintk(arg...) do {		\
-	if (debug) 			\
-		 printk(arg); 		\
+/* Despite the name "hybrid_tuner", the framework works just as well for
+   hybrid demodulators as well... */
+static LIST_HEAD(hybrid_tuner_instance_list);
+static DEFINE_MUTEX(au8522_list_mutex);
+
+#define dprintk(arg...)\
+	do { if (debug)\
+		printk(arg);\
 	} while (0)
 
 /* 16 bit registers, 8 bit values */
-static int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
+int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
 {
 	int ret;
-	u8 buf [] = { reg >> 8, reg & 0xff, data };
+	u8 buf[] = { (reg >> 8) | 0x80, reg & 0xff, data };
 
 	struct i2c_msg msg = { .addr = state->config->demod_address,
 			       .flags = 0, .buf = buf, .len = 3 };
@@ -69,13 +59,13 @@ static int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
 	return (ret != 1) ? -1 : 0;
 }
 
-static u8 au8522_readreg(struct au8522_state *state, u16 reg)
+u8 au8522_readreg(struct au8522_state *state, u16 reg)
 {
 	int ret;
-	u8 b0 [] = { reg >> 8, reg & 0xff };
-	u8 b1 [] = { 0 };
+	u8 b0[] = { (reg >> 8) | 0x40, reg & 0xff };
+	u8 b1[] = { 0 };
 
-	struct i2c_msg msg [] = {
+	struct i2c_msg msg[] = {
 		{ .addr = state->config->demod_address, .flags = 0,
 		  .buf = b0, .len = 2 },
 		{ .addr = state->config->demod_address, .flags = I2C_M_RD,
@@ -528,7 +518,7 @@ static int au8522_set_frontend(struct dvb_frontend *fe,
 
 /* Reset the demod hardware and reset all of the configuration registers
    to a default state. */
-static int au8522_init(struct dvb_frontend *fe)
+int au8522_init(struct dvb_frontend *fe)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	dprintk("%s()\n", __func__);
@@ -624,13 +614,16 @@ static int au8522_led_ctrl(struct au8522_state *state, int led)
 	return 0;
 }
 
-static int au8522_sleep(struct dvb_frontend *fe)
+int au8522_sleep(struct dvb_frontend *fe)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 	dprintk("%s()\n", __func__);
 
 	/* turn off led */
 	au8522_led_ctrl(state, 0);
+
+	/* Power down the chip */
+	au8522_writereg(state, 0xa4, 1 << 5);
 
 	state->current_frequency = 0;
 
@@ -798,23 +791,58 @@ static int au8522_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
+static struct dvb_frontend_ops au8522_ops;
+
+int au8522_get_state(struct au8522_state **state, struct i2c_adapter *i2c,
+		     u8 client_address)
+{
+	int ret;
+
+	mutex_lock(&au8522_list_mutex);
+	ret = hybrid_tuner_request_state(struct au8522_state, (*state),
+					 hybrid_tuner_instance_list,
+					 i2c, client_address, "au8522");
+	mutex_unlock(&au8522_list_mutex);
+
+	return ret;
+}
+
+void au8522_release_state(struct au8522_state *state)
+{
+	mutex_lock(&au8522_list_mutex);
+	if (state != NULL)
+		hybrid_tuner_release_state(state);
+	mutex_unlock(&au8522_list_mutex);
+}
+
+
 static void au8522_release(struct dvb_frontend *fe)
 {
 	struct au8522_state *state = fe->demodulator_priv;
-	kfree(state);
+	au8522_release_state(state);
 }
-
-static struct dvb_frontend_ops au8522_ops;
 
 struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 				   struct i2c_adapter *i2c)
 {
 	struct au8522_state *state = NULL;
+	int instance;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct au8522_state), GFP_KERNEL);
-	if (state == NULL)
-		goto error;
+	instance = au8522_get_state(&state, i2c, config->demod_address);
+	switch (instance) {
+	case 0:
+		dprintk("%s state allocation failed\n", __func__);
+		break;
+	case 1:
+		/* new demod instance */
+		dprintk("%s using new instance\n", __func__);
+		break;
+	default:
+		/* existing demod instance */
+		dprintk("%s using existing instance\n", __func__);
+		break;
+	}
 
 	/* setup the state */
 	state->config = config;
@@ -836,7 +864,7 @@ struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 	return &state->frontend;
 
 error:
-	kfree(state);
+	au8522_release_state(state);
 	return NULL;
 }
 EXPORT_SYMBOL(au8522_attach);

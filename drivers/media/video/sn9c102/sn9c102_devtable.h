@@ -96,9 +96,7 @@ static const struct usb_device_id sn9c102_id_table[] = {
 #if !defined CONFIG_USB_GSPCA && !defined CONFIG_USB_GSPCA_MODULE
 	{ SN9C102_USB_DEVICE(0x045e, 0x00f5, BRIDGE_SN9C105), },
 	{ SN9C102_USB_DEVICE(0x045e, 0x00f7, BRIDGE_SN9C105), },
-#endif
 	{ SN9C102_USB_DEVICE(0x0471, 0x0327, BRIDGE_SN9C105), },
-#if !defined CONFIG_USB_GSPCA && !defined CONFIG_USB_GSPCA_MODULE
 	{ SN9C102_USB_DEVICE(0x0471, 0x0328, BRIDGE_SN9C105), },
 #endif
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60c0, BRIDGE_SN9C105), },
@@ -123,7 +121,9 @@ static const struct usb_device_id sn9c102_id_table[] = {
 	{ SN9C102_USB_DEVICE(0x0c45, 0x613a, BRIDGE_SN9C120), },
 #endif
 	{ SN9C102_USB_DEVICE(0x0c45, 0x613b, BRIDGE_SN9C120), },
+#if !defined CONFIG_USB_GSPCA && !defined CONFIG_USB_GSPCA_MODULE
 	{ SN9C102_USB_DEVICE(0x0c45, 0x613c, BRIDGE_SN9C120), },
+#endif
 	{ SN9C102_USB_DEVICE(0x0c45, 0x613e, BRIDGE_SN9C120), },
 	{ }
 };
