@@ -139,6 +139,38 @@ static void stop_ep_timer(struct iwch_ep *ep)
 	put_ep(&ep->com);
 }
 
+int iwch_l2t_send(struct t3cdev *tdev, struct sk_buff *skb, struct l2t_entry *l2e)
+{
+	int	error = 0;
+	struct cxio_rdev *rdev;
+
+	rdev = (struct cxio_rdev *)tdev->ulp;
+	if (cxio_fatal_error(rdev)) {
+		kfree_skb(skb);
+		return -EIO;
+	}
+	error = l2t_send(tdev, skb, l2e);
+	if (error)
+		kfree_skb(skb);
+	return error;
+}
+
+int iwch_cxgb3_ofld_send(struct t3cdev *tdev, struct sk_buff *skb)
+{
+	int	error = 0;
+	struct cxio_rdev *rdev;
+
+	rdev = (struct cxio_rdev *)tdev->ulp;
+	if (cxio_fatal_error(rdev)) {
+		kfree_skb(skb);
+		return -EIO;
+	}
+	error = cxgb3_ofld_send(tdev, skb);
+	if (error)
+		kfree_skb(skb);
+	return error;
+}
+
 static void release_tid(struct t3cdev *tdev, u32 hwtid, struct sk_buff *skb)
 {
 	struct cpl_tid_release *req;
@@ -150,7 +182,7 @@ static void release_tid(struct t3cdev *tdev, u32 hwtid, struct sk_buff *skb)
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_TID_RELEASE, hwtid));
 	skb->priority = CPL_PRIORITY_SETUP;
-	cxgb3_ofld_send(tdev, skb);
+	iwch_cxgb3_ofld_send(tdev, skb);
 	return;
 }
 
@@ -172,8 +204,7 @@ int iwch_quiesce_tid(struct iwch_ep *ep)
 	req->val = cpu_to_be64(1 << S_TCB_RX_QUIESCE);
 
 	skb->priority = CPL_PRIORITY_DATA;
-	cxgb3_ofld_send(ep->com.tdev, skb);
-	return 0;
+	return iwch_cxgb3_ofld_send(ep->com.tdev, skb);
 }
 
 int iwch_resume_tid(struct iwch_ep *ep)
@@ -194,8 +225,7 @@ int iwch_resume_tid(struct iwch_ep *ep)
 	req->val = 0;
 
 	skb->priority = CPL_PRIORITY_DATA;
-	cxgb3_ofld_send(ep->com.tdev, skb);
-	return 0;
+	return iwch_cxgb3_ofld_send(ep->com.tdev, skb);
 }
 
 static void set_emss(struct iwch_ep *ep, u16 opt)
@@ -382,7 +412,7 @@ static void abort_arp_failure(struct t3cdev *dev, struct sk_buff *skb)
 
 	PDBG("%s t3cdev %p\n", __func__, dev);
 	req->cmd = CPL_ABORT_NO_RST;
-	cxgb3_ofld_send(dev, skb);
+	iwch_cxgb3_ofld_send(dev, skb);
 }
 
 static int send_halfclose(struct iwch_ep *ep, gfp_t gfp)
@@ -402,8 +432,7 @@ static int send_halfclose(struct iwch_ep *ep, gfp_t gfp)
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_CLOSE_CON));
 	req->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_CON_REQ, ep->hwtid));
-	l2t_send(ep->com.tdev, skb, ep->l2t);
-	return 0;
+	return iwch_l2t_send(ep->com.tdev, skb, ep->l2t);
 }
 
 static int send_abort(struct iwch_ep *ep, struct sk_buff *skb, gfp_t gfp)
@@ -424,8 +453,7 @@ static int send_abort(struct iwch_ep *ep, struct sk_buff *skb, gfp_t gfp)
 	req->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_ABORT_REQ, ep->hwtid));
 	req->cmd = CPL_ABORT_SEND_RST;
-	l2t_send(ep->com.tdev, skb, ep->l2t);
-	return 0;
+	return iwch_l2t_send(ep->com.tdev, skb, ep->l2t);
 }
 
 static int send_connect(struct iwch_ep *ep)
@@ -469,8 +497,7 @@ static int send_connect(struct iwch_ep *ep)
 	req->opt0l = htonl(opt0l);
 	req->params = 0;
 	req->opt2 = htonl(opt2);
-	l2t_send(ep->com.tdev, skb, ep->l2t);
-	return 0;
+	return iwch_l2t_send(ep->com.tdev, skb, ep->l2t);
 }
 
 static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
@@ -527,7 +554,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	req->sndseq = htonl(ep->snd_seq);
 	BUG_ON(ep->mpa_skb);
 	ep->mpa_skb = skb;
-	l2t_send(ep->com.tdev, skb, ep->l2t);
+	iwch_l2t_send(ep->com.tdev, skb, ep->l2t);
 	start_ep_timer(ep);
 	state_set(&ep->com, MPA_REQ_SENT);
 	return;
@@ -578,8 +605,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 	req->sndseq = htonl(ep->snd_seq);
 	BUG_ON(ep->mpa_skb);
 	ep->mpa_skb = skb;
-	l2t_send(ep->com.tdev, skb, ep->l2t);
-	return 0;
+	return iwch_l2t_send(ep->com.tdev, skb, ep->l2t);
 }
 
 static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
@@ -630,8 +656,7 @@ static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
 	req->sndseq = htonl(ep->snd_seq);
 	ep->mpa_skb = skb;
 	state_set(&ep->com, MPA_REP_SENT);
-	l2t_send(ep->com.tdev, skb, ep->l2t);
-	return 0;
+	return iwch_l2t_send(ep->com.tdev, skb, ep->l2t);
 }
 
 static int act_establish(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
@@ -795,7 +820,7 @@ static int update_rx_credits(struct iwch_ep *ep, u32 credits)
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_RX_DATA_ACK, ep->hwtid));
 	req->credit_dack = htonl(V_RX_CREDITS(credits) | V_RX_FORCE_ACK(1));
 	skb->priority = CPL_PRIORITY_ACK;
-	cxgb3_ofld_send(ep->com.tdev, skb);
+	iwch_cxgb3_ofld_send(ep->com.tdev, skb);
 	return credits;
 }
 
@@ -1203,8 +1228,7 @@ static int listen_start(struct iwch_listen_ep *ep)
 	req->opt1 = htonl(V_CONN_POLICY(CPL_CONN_POLICY_ASK));
 
 	skb->priority = 1;
-	cxgb3_ofld_send(ep->com.tdev, skb);
-	return 0;
+	return iwch_cxgb3_ofld_send(ep->com.tdev, skb);
 }
 
 static int pass_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
@@ -1237,8 +1261,7 @@ static int listen_stop(struct iwch_listen_ep *ep)
 	req->cpu_idx = 0;
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_LISTSRV_REQ, ep->stid));
 	skb->priority = 1;
-	cxgb3_ofld_send(ep->com.tdev, skb);
-	return 0;
+	return iwch_cxgb3_ofld_send(ep->com.tdev, skb);
 }
 
 static int close_listsrv_rpl(struct t3cdev *tdev, struct sk_buff *skb,
@@ -1286,7 +1309,7 @@ static void accept_cr(struct iwch_ep *ep, __be32 peer_ip, struct sk_buff *skb)
 	rpl->opt2 = htonl(opt2);
 	rpl->rsvd = rpl->opt2;	/* workaround for HW bug */
 	skb->priority = CPL_PRIORITY_SETUP;
-	l2t_send(ep->com.tdev, skb, ep->l2t);
+	iwch_l2t_send(ep->com.tdev, skb, ep->l2t);
 
 	return;
 }
@@ -1315,7 +1338,7 @@ static void reject_cr(struct t3cdev *tdev, u32 hwtid, __be32 peer_ip,
 		rpl->opt0l_status = htonl(CPL_PASS_OPEN_REJECT);
 		rpl->opt2 = 0;
 		rpl->rsvd = rpl->opt2;
-		cxgb3_ofld_send(tdev, skb);
+		iwch_cxgb3_ofld_send(tdev, skb);
 	}
 }
 
@@ -1613,7 +1636,7 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	rpl->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
 	OPCODE_TID(rpl) = htonl(MK_OPCODE_TID(CPL_ABORT_RPL, ep->hwtid));
 	rpl->cmd = CPL_ABORT_NO_RST;
-	cxgb3_ofld_send(ep->com.tdev, rpl_skb);
+	iwch_cxgb3_ofld_send(ep->com.tdev, rpl_skb);
 out:
 	if (release)
 		release_ep_resources(ep);
@@ -2017,8 +2040,11 @@ int iwch_destroy_listen(struct iw_cm_id *cm_id)
 	ep->com.rpl_done = 0;
 	ep->com.rpl_err = 0;
 	err = listen_stop(ep);
+	if (err)
+		goto done;
 	wait_event(ep->com.waitq, ep->com.rpl_done);
 	cxgb3_free_stid(ep->com.tdev, ep->stid);
+done:
 	err = ep->com.rpl_err;
 	cm_id->rem_ref(cm_id);
 	put_ep(&ep->com);
@@ -2030,12 +2056,22 @@ int iwch_ep_disconnect(struct iwch_ep *ep, int abrupt, gfp_t gfp)
 	int ret=0;
 	unsigned long flags;
 	int close = 0;
+	int fatal = 0;
+	struct t3cdev *tdev;
+	struct cxio_rdev *rdev;
 
 	spin_lock_irqsave(&ep->com.lock, flags);
 
 	PDBG("%s ep %p state %s, abrupt %d\n", __func__, ep,
 	     states[ep->com.state], abrupt);
 
+	tdev = (struct t3cdev *)ep->com.tdev;
+	rdev = (struct cxio_rdev *)tdev->ulp;
+	if (cxio_fatal_error(rdev)) {
+		fatal = 1;
+		close_complete_upcall(ep);
+		ep->com.state = DEAD;
+	}
 	switch (ep->com.state) {
 	case MPA_REQ_WAIT:
 	case MPA_REQ_SENT:
@@ -2075,7 +2111,11 @@ int iwch_ep_disconnect(struct iwch_ep *ep, int abrupt, gfp_t gfp)
 			ret = send_abort(ep, NULL, gfp);
 		else
 			ret = send_halfclose(ep, gfp);
+		if (ret)
+			fatal = 1;
 	}
+	if (fatal)
+		release_ep_resources(ep);
 	return ret;
 }
 

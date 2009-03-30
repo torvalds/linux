@@ -165,12 +165,19 @@ static void close_rnic_dev(struct t3cdev *tdev)
 static void iwch_err_handler(struct t3cdev *tdev, u32 status, u32 error)
 {
 	struct cxio_rdev *rdev = tdev->ulp;
+	struct iwch_dev *rnicp = rdev_to_iwch_dev(rdev);
+	struct ib_event event;
 
-	if (status == OFFLOAD_STATUS_DOWN)
+	if (status == OFFLOAD_STATUS_DOWN) {
 		rdev->flags = CXIO_ERROR_FATAL;
 
-	return;
+		event.device = &rnicp->ibdev;
+		event.event  = IB_EVENT_DEVICE_FATAL;
+		event.element.port_num = 0;
+		ib_dispatch_event(&event);
+	}
 
+	return;
 }
 
 static int __init iwch_init_module(void)
