@@ -1182,12 +1182,10 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 				}
 
 				if (dentry && dentry->d_inode)
-					reiserfs_warning(s,
-							 "Created %s on %s - reserved for "
-							 "xattr storage.",
-							 PRIVROOT_NAME,
-							 reiserfs_bdevname
-							 (inode->i_sb));
+					reiserfs_info(s, "Created %s - "
+						      "reserved for xattr "
+						      "storage.\n",
+						      PRIVROOT_NAME);
 			} else if (!dentry->d_inode) {
 				dput(dentry);
 				dentry = NULL;

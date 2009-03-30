@@ -40,8 +40,8 @@
 
 #define SET_OPTION(optname) \
    do { \
-        reiserfs_warning(s, "reiserfs: option \"%s\" is set", #optname); \
-        set_bit(_ALLOC_ ## optname , &SB_ALLOC_OPTS(s)); \
+	reiserfs_info(s, "block allocator option \"%s\" is set", #optname); \
+	set_bit(_ALLOC_ ## optname , &SB_ALLOC_OPTS(s)); \
     } while(0)
 #define TEST_OPTION(optname, s) \
     test_bit(_ALLOC_ ## optname , &SB_ALLOC_OPTS(s))
@@ -636,7 +636,7 @@ int reiserfs_parse_alloc_options(struct super_block *s, char *options)
 		return 1;
 	}
 
-	reiserfs_warning(s, "allocator options = [%08x]\n", SB_ALLOC_OPTS(s));
+	reiserfs_info(s, "allocator options = [%08x]\n", SB_ALLOC_OPTS(s));
 	return 0;
 }
 

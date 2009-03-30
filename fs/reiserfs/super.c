@@ -1371,13 +1371,11 @@ static int read_super_block(struct super_block *s, int offset)
 		/* magic is of non-standard journal filesystem, look at s_version to
 		   find which format is in use */
 		if (sb_version(rs) == REISERFS_VERSION_2)
-			reiserfs_warning(s,
-					 "read_super_block: found reiserfs format \"3.6\""
-					 " with non-standard journal");
+			reiserfs_info(s, "found reiserfs format \"3.6\""
+				      " with non-standard journal\n");
 		else if (sb_version(rs) == REISERFS_VERSION_1)
-			reiserfs_warning(s,
-					 "read_super_block: found reiserfs format \"3.5\""
-					 " with non-standard journal");
+			reiserfs_info(s, "found reiserfs format \"3.5\""
+				      " with non-standard journal\n");
 		else {
 			reiserfs_warning(s,
 					 "sh-2012: read_super_block: found unknown "
@@ -1456,8 +1454,8 @@ static __u32 find_hash_out(struct super_block *s)
 			if (reiserfs_rupasov_hash(s)) {
 				hash = YURA_HASH;
 			}
-			reiserfs_warning(s, "FS seems to be empty, autodetect "
-					 "is using the default hash");
+			reiserfs_info(s, "FS seems to be empty, autodetect "
+					 "is using the default hash\n");
 			break;
 		}
 		r5hash = GET_HASH_VALUE(r5_hash(de.de_name, de.de_namelen));
