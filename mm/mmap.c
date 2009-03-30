@@ -28,6 +28,7 @@
 #include <linux/mempolicy.h>
 #include <linux/rmap.h>
 #include <linux/mmu_notifier.h>
+#include <linux/perf_counter.h>
 
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
@@ -1223,6 +1224,9 @@ munmap_back:
 	if (correct_wcount)
 		atomic_inc(&inode->i_writecount);
 out:
+	if (vm_flags & VM_EXEC)
+		perf_counter_mmap(addr, len, pgoff, file);
+
 	mm->total_vm += len >> PAGE_SHIFT;
 	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
 	if (vm_flags & VM_LOCKED) {
@@ -1755,6 +1759,12 @@ static void remove_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 	update_hiwater_vm(mm);
 	do {
 		long nrpages = vma_pages(vma);
+
+		if (vma->vm_flags & VM_EXEC) {
+			perf_counter_munmap(vma->vm_start,
+					nrpages << PAGE_SHIFT,
+					vma->vm_pgoff, vma->vm_file);
+		}
 
 		mm->total_vm -= nrpages;
 		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);

@@ -25,6 +25,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/kernel_stat.h>
 #include <linux/perf_counter.h>
+#include <linux/dcache.h>
 
 #include <asm/irq_regs.h>
 
@@ -1841,6 +1842,150 @@ void perf_counter_output(struct perf_counter *counter,
 		perf_output_group(counter, nmi);
 		break;
 	}
+}
+
+/*
+ * mmap tracking
+ */
+
+struct perf_mmap_event {
+	struct file	*file;
+	char		*file_name;
+	int		file_size;
+
+	struct {
+		struct perf_event_header	header;
+
+		u32				pid;
+		u32				tid;
+		u64				start;
+		u64				len;
+		u64				pgoff;
+	} event;
+};
+
+static void perf_counter_mmap_output(struct perf_counter *counter,
+				     struct perf_mmap_event *mmap_event)
+{
+	struct perf_output_handle handle;
+	int size = mmap_event->event.header.size;
+	int ret = perf_output_begin(&handle, counter, size);
+
+	if (ret)
+		return;
+
+	perf_output_put(&handle, mmap_event->event);
+	perf_output_copy(&handle, mmap_event->file_name,
+				   mmap_event->file_size);
+	perf_output_end(&handle, 0);
+}
+
+static int perf_counter_mmap_match(struct perf_counter *counter,
+				   struct perf_mmap_event *mmap_event)
+{
+	if (counter->hw_event.mmap &&
+	    mmap_event->event.header.type == PERF_EVENT_MMAP)
+		return 1;
+
+	if (counter->hw_event.munmap &&
+	    mmap_event->event.header.type == PERF_EVENT_MUNMAP)
+		return 1;
+
+	return 0;
+}
+
+static void perf_counter_mmap_ctx(struct perf_counter_context *ctx,
+				  struct perf_mmap_event *mmap_event)
+{
+	struct perf_counter *counter;
+
+	if (system_state != SYSTEM_RUNNING || list_empty(&ctx->event_list))
+		return;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
+		if (perf_counter_mmap_match(counter, mmap_event))
+			perf_counter_mmap_output(counter, mmap_event);
+	}
+	rcu_read_unlock();
+}
+
+static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
+{
+	struct perf_cpu_context *cpuctx;
+	struct file *file = mmap_event->file;
+	unsigned int size;
+	char tmp[16];
+	char *buf = NULL;
+	char *name;
+
+	if (file) {
+		buf = kzalloc(PATH_MAX, GFP_KERNEL);
+		if (!buf) {
+			name = strncpy(tmp, "//enomem", sizeof(tmp));
+			goto got_name;
+		}
+		name = dentry_path(file->f_dentry, buf, PATH_MAX);
+		if (IS_ERR(name)) {
+			name = strncpy(tmp, "//toolong", sizeof(tmp));
+			goto got_name;
+		}
+	} else {
+		name = strncpy(tmp, "//anon", sizeof(tmp));
+		goto got_name;
+	}
+
+got_name:
+	size = ALIGN(strlen(name), sizeof(u64));
+
+	mmap_event->file_name = name;
+	mmap_event->file_size = size;
+
+	mmap_event->event.header.size = sizeof(mmap_event->event) + size;
+
+	cpuctx = &get_cpu_var(perf_cpu_context);
+	perf_counter_mmap_ctx(&cpuctx->ctx, mmap_event);
+	put_cpu_var(perf_cpu_context);
+
+	perf_counter_mmap_ctx(&current->perf_counter_ctx, mmap_event);
+
+	kfree(buf);
+}
+
+void perf_counter_mmap(unsigned long addr, unsigned long len,
+		       unsigned long pgoff, struct file *file)
+{
+	struct perf_mmap_event mmap_event = {
+		.file   = file,
+		.event  = {
+			.header = { .type = PERF_EVENT_MMAP, },
+			.pid	= current->group_leader->pid,
+			.tid	= current->pid,
+			.start  = addr,
+			.len    = len,
+			.pgoff  = pgoff,
+		},
+	};
+
+	perf_counter_mmap_event(&mmap_event);
+}
+
+void perf_counter_munmap(unsigned long addr, unsigned long len,
+			 unsigned long pgoff, struct file *file)
+{
+	struct perf_mmap_event mmap_event = {
+		.file   = file,
+		.event  = {
+			.header = { .type = PERF_EVENT_MUNMAP, },
+			.pid	= current->group_leader->pid,
+			.tid	= current->pid,
+			.start  = addr,
+			.len    = len,
+			.pgoff  = pgoff,
+		},
+	};
+
+	perf_counter_mmap_event(&mmap_event);
 }
 
 /*

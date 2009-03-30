@@ -137,9 +137,11 @@ struct perf_counter_hw_event {
 				exclude_kernel :  1, /* ditto kernel          */
 				exclude_hv     :  1, /* ditto hypervisor      */
 				exclude_idle   :  1, /* don't count when idle */
-				include_tid    :  1, /* include the tid */
+				include_tid    :  1, /* include the tid       */
+				mmap           :  1, /* include mmap data     */
+				munmap         :  1, /* include munmap data   */
 
-				__reserved_1   : 54;
+				__reserved_1   : 52;
 
 	__u32			extra_config_len;
 	__u32			__reserved_4;
@@ -210,6 +212,9 @@ struct perf_event_header {
 enum perf_event_type {
 	PERF_EVENT_IP		= 0,
 	PERF_EVENT_GROUP	= 1,
+
+	PERF_EVENT_MMAP		= 2,
+	PERF_EVENT_MUNMAP	= 3,
 
 	__PERF_EVENT_TID	= 0x100,
 };
@@ -491,6 +496,12 @@ static inline int is_software_counter(struct perf_counter *counter)
 
 extern void perf_swcounter_event(u32, u64, int, struct pt_regs *);
 
+extern void perf_counter_mmap(unsigned long addr, unsigned long len,
+			      unsigned long pgoff, struct file *file);
+
+extern void perf_counter_munmap(unsigned long addr, unsigned long len,
+				unsigned long pgoff, struct file *file);
+
 #else
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
@@ -510,6 +521,15 @@ static inline int perf_counter_task_enable(void)	{ return -EINVAL; }
 
 static inline void
 perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs)	{ }
+
+
+static inline void
+perf_counter_mmap(unsigned long addr, unsigned long len,
+		  unsigned long pgoff, struct file *file)		{ }
+
+static inline void
+perf_counter_munmap(unsigned long addr, unsigned long len,
+		    unsigned long pgoff, struct file *file) 		{ }
 
 #endif
 
