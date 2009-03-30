@@ -432,7 +432,6 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	if (buffer && buffer_size)
 		xahash = xattr_hash(buffer, buffer_size);
 
-      open_file:
 	dentry = get_xa_file_dentry(inode, name, flags);
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
@@ -440,18 +439,6 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	}
 
 	REISERFS_I(inode)->i_flags |= i_has_xattr_dir;
-
-	/* we need to copy it off.. */
-	if (dentry->d_inode->i_nlink > 1) {
-		dput(dentry);
-		err = reiserfs_xattr_del(inode, name);
-		if (err < 0)
-			goto out;
-		/* We just killed the old one, we're not replacing anymore */
-		if (flags & XATTR_REPLACE)
-			flags &= ~XATTR_REPLACE;
-		goto open_file;
-	}
 
 	/* Resize it so we're ok to write there */
 	newattrs.ia_size = buffer_size;
