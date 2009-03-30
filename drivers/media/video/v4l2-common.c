@@ -864,6 +864,17 @@ error:
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev);
 
+struct v4l2_subdev *v4l2_i2c_new_probed_subdev_addr(struct v4l2_device *v4l2_dev,
+		struct i2c_adapter *adapter,
+		const char *module_name, const char *client_type, u8 addr)
+{
+	unsigned short addrs[2] = { addr, I2C_CLIENT_END };
+
+	return v4l2_i2c_new_probed_subdev(v4l2_dev, adapter,
+			module_name, client_type, addrs);
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev_addr);
+
 /* Return i2c client address of v4l2_subdev. */
 unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd)
 {
