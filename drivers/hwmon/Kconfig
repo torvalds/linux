@@ -348,8 +348,8 @@ config SENSORS_FSCHMD
 	help
 	  If you say yes here you get support for the following Fujitsu
 	  Siemens Computers (FSC) sensor chips: Poseidon, Scylla, Hermes,
-	  Heimdall, Heracles and Syleus including support for the integrated
-	  watchdog.
+	  Heimdall, Heracles, Hades and Syleus including support for the
+	  integrated watchdog.
 
 	  This is a merged driver for FSC sensor chips replacing the fscpos,
 	  fscscy and fscher drivers and adding support for several other FSC
