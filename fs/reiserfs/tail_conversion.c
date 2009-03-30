@@ -170,12 +170,14 @@ void reiserfs_unmap_buffer(struct buffer_head *bh)
    what we expect from it (number of cut bytes). But when tail remains
    in the unformatted node, we set mode to SKIP_BALANCING and unlock
    inode */
-int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_inode, struct page *page, struct treepath *p_s_path,	/* path to the indirect item. */
+int indirect2direct(struct reiserfs_transaction_handle *th,
+		    struct inode *inode, struct page *page,
+		    struct treepath *p_s_path,	/* path to the indirect item. */
 		    const struct cpu_key *p_s_item_key,	/* Key to look for unformatted node pointer to be cut. */
 		    loff_t n_new_file_size,	/* New file size. */
 		    char *p_c_mode)
 {
-	struct super_block *sb = p_s_inode->i_sb;
+	struct super_block *sb = inode->i_sb;
 	struct item_head s_ih;
 	unsigned long n_block_size = sb->s_blocksize;
 	char *tail;
@@ -193,7 +195,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 	copy_item_head(&s_ih, PATH_PITEM_HEAD(p_s_path));
 
 	tail_len = (n_new_file_size & (n_block_size - 1));
-	if (get_inode_sd_version(p_s_inode) == STAT_DATA_V2)
+	if (get_inode_sd_version(inode) == STAT_DATA_V2)
 		round_tail_len = ROUND_UP(tail_len);
 	else
 		round_tail_len = tail_len;
@@ -228,7 +230,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 	}
 
 	/* Set direct item header to insert. */
-	make_le_item_head(&s_ih, NULL, get_inode_item_key_version(p_s_inode),
+	make_le_item_head(&s_ih, NULL, get_inode_item_key_version(inode),
 			  pos1 + 1, TYPE_DIRECT, round_tail_len,
 			  0xffff /*ih_free_space */ );
 
@@ -244,7 +246,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 	set_cpu_key_k_type(&key, TYPE_DIRECT);
 	key.key_length = 4;
 	/* Insert tail as new direct item in the tree */
-	if (reiserfs_insert_item(th, p_s_path, &key, &s_ih, p_s_inode,
+	if (reiserfs_insert_item(th, p_s_path, &key, &s_ih, inode,
 				 tail ? tail : NULL) < 0) {
 		/* No disk memory. So we can not convert last unformatted node
 		   to the direct item.  In this case we used to adjust
@@ -258,7 +260,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 	kunmap(page);
 
 	/* make sure to get the i_blocks changes from reiserfs_insert_item */
-	reiserfs_update_sd(th, p_s_inode);
+	reiserfs_update_sd(th, inode);
 
 	// note: we have now the same as in above direct2indirect
 	// conversion: there are two keys which have matching first three
@@ -269,8 +271,8 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 	*p_c_mode = M_CUT;
 
 	/* we store position of first direct item in the in-core inode */
-	//mark_file_with_tail (p_s_inode, pos1 + 1);
-	REISERFS_I(p_s_inode)->i_first_direct_byte = pos1 + 1;
+	/* mark_file_with_tail (inode, pos1 + 1); */
+	REISERFS_I(inode)->i_first_direct_byte = pos1 + 1;
 
 	return n_block_size - round_tail_len;
 }

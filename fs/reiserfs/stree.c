@@ -1143,10 +1143,11 @@ char head2type(struct item_head *ih)
 /* Delete object item. */
 int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath *p_s_path,	/* Path to the deleted item. */
 			 const struct cpu_key *p_s_item_key,	/* Key to search for the deleted item.  */
-			 struct inode *p_s_inode,	/* inode is here just to update i_blocks and quotas */
+			 struct inode *inode,	/* inode is here just to update
+						 * i_blocks and quotas */
 			 struct buffer_head *p_s_un_bh)
 {				/* NULL or unformatted node pointer.    */
-	struct super_block *sb = p_s_inode->i_sb;
+	struct super_block *sb = inode->i_sb;
 	struct tree_balance s_del_balance;
 	struct item_head s_ih;
 	struct item_head *q_ih;
@@ -1170,10 +1171,10 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath
 		n_iter++;
 		c_mode =
 #endif
-		    prepare_for_delete_or_cut(th, p_s_inode, p_s_path,
+		    prepare_for_delete_or_cut(th, inode, p_s_path,
 					      p_s_item_key, &n_removed,
 					      &n_del_size,
-					      max_reiserfs_offset(p_s_inode));
+					      max_reiserfs_offset(inode));
 
 		RFALSE(c_mode != M_DELETE, "PAP-5320: mode must be M_DELETE");
 
@@ -1214,7 +1215,7 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath
 	 ** split into multiple items, and we only want to decrement for
 	 ** the unfm node once
 	 */
-	if (!S_ISLNK(p_s_inode->i_mode) && is_direct_le_ih(q_ih)) {
+	if (!S_ISLNK(inode->i_mode) && is_direct_le_ih(q_ih)) {
 		if ((le_ih_k_offset(q_ih) & (sb->s_blocksize - 1)) == 1) {
 			quota_cut_bytes = sb->s_blocksize + UNFM_P_SIZE;
 		} else {
@@ -1259,9 +1260,9 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath
 #ifdef REISERQUOTA_DEBUG
 	reiserfs_debug(sb, REISERFS_DEBUG_CODE,
 		       "reiserquota delete_item(): freeing %u, id=%u type=%c",
-		       quota_cut_bytes, p_s_inode->i_uid, head2type(&s_ih));
+		       quota_cut_bytes, inode->i_uid, head2type(&s_ih));
 #endif
-	DQUOT_FREE_SPACE_NODIRTY(p_s_inode, quota_cut_bytes);
+	DQUOT_FREE_SPACE_NODIRTY(inode, quota_cut_bytes);
 
 	/* Return deleted body length */
 	return n_ret_value;
@@ -1423,25 +1424,25 @@ static void unmap_buffers(struct page *page, loff_t pos)
 }
 
 static int maybe_indirect_to_direct(struct reiserfs_transaction_handle *th,
-				    struct inode *p_s_inode,
+				    struct inode *inode,
 				    struct page *page,
 				    struct treepath *p_s_path,
 				    const struct cpu_key *p_s_item_key,
 				    loff_t n_new_file_size, char *p_c_mode)
 {
-	struct super_block *sb = p_s_inode->i_sb;
+	struct super_block *sb = inode->i_sb;
 	int n_block_size = sb->s_blocksize;
 	int cut_bytes;
 	BUG_ON(!th->t_trans_id);
-	BUG_ON(n_new_file_size != p_s_inode->i_size);
+	BUG_ON(n_new_file_size != inode->i_size);
 
 	/* the page being sent in could be NULL if there was an i/o error
 	 ** reading in the last block.  The user will hit problems trying to
 	 ** read the file, but for now we just skip the indirect2direct
 	 */
-	if (atomic_read(&p_s_inode->i_count) > 1 ||
-	    !tail_has_to_be_packed(p_s_inode) ||
-	    !page || (REISERFS_I(p_s_inode)->i_flags & i_nopack_mask)) {
+	if (atomic_read(&inode->i_count) > 1 ||
+	    !tail_has_to_be_packed(inode) ||
+	    !page || (REISERFS_I(inode)->i_flags & i_nopack_mask)) {
 		/* leave tail in an unformatted node */
 		*p_c_mode = M_SKIP_BALANCING;
 		cut_bytes =
@@ -1450,8 +1451,9 @@ static int maybe_indirect_to_direct(struct reiserfs_transaction_handle *th,
 		return cut_bytes;
 	}
 	/* Permorm the conversion to a direct_item. */
-	/*return indirect_to_direct (p_s_inode, p_s_path, p_s_item_key, n_new_file_size, p_c_mode); */
-	return indirect2direct(th, p_s_inode, page, p_s_path, p_s_item_key,
+	/* return indirect_to_direct(inode, p_s_path, p_s_item_key,
+				  n_new_file_size, p_c_mode); */
+	return indirect2direct(th, inode, page, p_s_path, p_s_item_key,
 			       n_new_file_size, p_c_mode);
 }
 
@@ -1505,10 +1507,10 @@ static void indirect_to_direct_roll_back(struct reiserfs_transaction_handle *th,
 int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 			   struct treepath *p_s_path,
 			   struct cpu_key *p_s_item_key,
-			   struct inode *p_s_inode,
+			   struct inode *inode,
 			   struct page *page, loff_t n_new_file_size)
 {
-	struct super_block *sb = p_s_inode->i_sb;
+	struct super_block *sb = inode->i_sb;
 	/* Every function which is going to call do_balance must first
 	   create a tree_balance structure.  Then it must fill up this
 	   structure by using the init_tb_struct and fix_nodes functions.
@@ -1525,7 +1527,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 
 	BUG_ON(!th->t_trans_id);
 
-	init_tb_struct(th, &s_cut_balance, p_s_inode->i_sb, p_s_path,
+	init_tb_struct(th, &s_cut_balance, inode->i_sb, p_s_path,
 		       n_cut_size);
 
 	/* Repeat this loop until we either cut the item without needing
@@ -1537,7 +1539,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 		   pointers. */
 
 		c_mode =
-		    prepare_for_delete_or_cut(th, p_s_inode, p_s_path,
+		    prepare_for_delete_or_cut(th, inode, p_s_path,
 					      p_s_item_key, &n_removed,
 					      &n_cut_size, n_new_file_size);
 		if (c_mode == M_CONVERT) {
@@ -1547,7 +1549,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 			       "PAP-5570: can not convert twice");
 
 			n_ret_value =
-			    maybe_indirect_to_direct(th, p_s_inode, page,
+			    maybe_indirect_to_direct(th, inode, page,
 						     p_s_path, p_s_item_key,
 						     n_new_file_size, &c_mode);
 			if (c_mode == M_SKIP_BALANCING)
@@ -1612,7 +1614,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 		if (n_is_inode_locked) {
 			// FIXME: this seems to be not needed: we are always able
 			// to cut item
-			indirect_to_direct_roll_back(th, p_s_inode, p_s_path);
+			indirect_to_direct_roll_back(th, inode, p_s_path);
 		}
 		if (n_ret_value == NO_DISK_SPACE)
 			reiserfs_warning(sb, "reiserfs-5092",
@@ -1639,12 +1641,12 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 	 ** item.
 	 */
 	p_le_ih = PATH_PITEM_HEAD(s_cut_balance.tb_path);
-	if (!S_ISLNK(p_s_inode->i_mode) && is_direct_le_ih(p_le_ih)) {
+	if (!S_ISLNK(inode->i_mode) && is_direct_le_ih(p_le_ih)) {
 		if (c_mode == M_DELETE &&
 		    (le_ih_k_offset(p_le_ih) & (sb->s_blocksize - 1)) ==
 		    1) {
 			// FIXME: this is to keep 3.5 happy
-			REISERFS_I(p_s_inode)->i_first_direct_byte = U32_MAX;
+			REISERFS_I(inode)->i_first_direct_byte = U32_MAX;
 			quota_cut_bytes = sb->s_blocksize + UNFM_P_SIZE;
 		} else {
 			quota_cut_bytes = 0;
@@ -1687,14 +1689,14 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 		 ** unmap and invalidate it
 		 */
 		unmap_buffers(page, tail_pos);
-		REISERFS_I(p_s_inode)->i_flags &= ~i_pack_on_close_mask;
+		REISERFS_I(inode)->i_flags &= ~i_pack_on_close_mask;
 	}
 #ifdef REISERQUOTA_DEBUG
-	reiserfs_debug(p_s_inode->i_sb, REISERFS_DEBUG_CODE,
+	reiserfs_debug(inode->i_sb, REISERFS_DEBUG_CODE,
 		       "reiserquota cut_from_item(): freeing %u id=%u type=%c",
-		       quota_cut_bytes, p_s_inode->i_uid, '?');
+		       quota_cut_bytes, inode->i_uid, '?');
 #endif
-	DQUOT_FREE_SPACE_NODIRTY(p_s_inode, quota_cut_bytes);
+	DQUOT_FREE_SPACE_NODIRTY(inode, quota_cut_bytes);
 	return n_ret_value;
 }
 
@@ -1715,8 +1717,8 @@ static void truncate_directory(struct reiserfs_transaction_handle *th,
 
 /* Truncate file to the new size. Note, this must be called with a transaction
    already started */
-int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p_s_inode,	/* ->i_size contains new
-												   size */
+int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
+			  struct inode *inode,	/* ->i_size contains new size */
 			 struct page *page,	/* up to date for last block */
 			 int update_timestamps	/* when it is called by
 						   file_release to convert
@@ -1735,35 +1737,35 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
 
 	BUG_ON(!th->t_trans_id);
 	if (!
-	    (S_ISREG(p_s_inode->i_mode) || S_ISDIR(p_s_inode->i_mode)
-	     || S_ISLNK(p_s_inode->i_mode)))
+	    (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)
+	     || S_ISLNK(inode->i_mode)))
 		return 0;
 
-	if (S_ISDIR(p_s_inode->i_mode)) {
+	if (S_ISDIR(inode->i_mode)) {
 		// deletion of directory - no need to update timestamps
-		truncate_directory(th, p_s_inode);
+		truncate_directory(th, inode);
 		return 0;
 	}
 
 	/* Get new file size. */
-	n_new_file_size = p_s_inode->i_size;
+	n_new_file_size = inode->i_size;
 
 	// FIXME: note, that key type is unimportant here
-	make_cpu_key(&s_item_key, p_s_inode, max_reiserfs_offset(p_s_inode),
+	make_cpu_key(&s_item_key, inode, max_reiserfs_offset(inode),
 		     TYPE_DIRECT, 3);
 
 	retval =
-	    search_for_position_by_key(p_s_inode->i_sb, &s_item_key,
+	    search_for_position_by_key(inode->i_sb, &s_item_key,
 				       &s_search_path);
 	if (retval == IO_ERROR) {
-		reiserfs_error(p_s_inode->i_sb, "vs-5657",
+		reiserfs_error(inode->i_sb, "vs-5657",
 			       "i/o failure occurred trying to truncate %K",
 			       &s_item_key);
 		err = -EIO;
 		goto out;
 	}
 	if (retval == POSITION_FOUND || retval == FILE_NOT_FOUND) {
-		reiserfs_error(p_s_inode->i_sb, "PAP-5660",
+		reiserfs_error(inode->i_sb, "PAP-5660",
 			       "wrong result %d of search for %K", retval,
 			       &s_item_key);
 
@@ -1780,7 +1782,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
 	else {
 		loff_t offset = le_ih_k_offset(p_le_ih);
 		int bytes =
-		    op_bytes_number(p_le_ih, p_s_inode->i_sb->s_blocksize);
+		    op_bytes_number(p_le_ih, inode->i_sb->s_blocksize);
 
 		/* this may mismatch with real file size: if last direct item
 		   had no padding zeros and last unformatted node had no free
@@ -1805,9 +1807,9 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
 		/* Cut or delete file item. */
 		n_deleted =
 		    reiserfs_cut_from_item(th, &s_search_path, &s_item_key,
-					   p_s_inode, page, n_new_file_size);
+					   inode, page, n_new_file_size);
 		if (n_deleted < 0) {
-			reiserfs_warning(p_s_inode->i_sb, "vs-5665",
+			reiserfs_warning(inode->i_sb, "vs-5665",
 					 "reiserfs_cut_from_item failed");
 			reiserfs_check_path(&s_search_path);
 			return 0;
@@ -1837,22 +1839,22 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
 			pathrelse(&s_search_path);
 
 			if (update_timestamps) {
-				p_s_inode->i_mtime = p_s_inode->i_ctime =
-				    CURRENT_TIME_SEC;
+				inode->i_mtime = CURRENT_TIME_SEC;
+				inode->i_ctime = CURRENT_TIME_SEC;
 			}
-			reiserfs_update_sd(th, p_s_inode);
+			reiserfs_update_sd(th, inode);
 
-			err = journal_end(th, p_s_inode->i_sb, orig_len_alloc);
+			err = journal_end(th, inode->i_sb, orig_len_alloc);
 			if (err)
 				goto out;
-			err = journal_begin(th, p_s_inode->i_sb,
+			err = journal_begin(th, inode->i_sb,
 					    JOURNAL_FOR_FREE_BLOCK_AND_UPDATE_SD + JOURNAL_PER_BALANCE_CNT * 4) ;
 			if (err)
 				goto out;
-			reiserfs_update_inode_transaction(p_s_inode);
+			reiserfs_update_inode_transaction(inode);
 		}
 	} while (n_file_size > ROUND_UP(n_new_file_size) &&
-		 search_for_position_by_key(p_s_inode->i_sb, &s_item_key,
+		 search_for_position_by_key(inode->i_sb, &s_item_key,
 					    &s_search_path) == POSITION_FOUND);
 
 	RFALSE(n_file_size > ROUND_UP(n_new_file_size),
@@ -1862,9 +1864,10 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
       update_and_out:
 	if (update_timestamps) {
 		// this is truncate, not file closing
-		p_s_inode->i_mtime = p_s_inode->i_ctime = CURRENT_TIME_SEC;
+		inode->i_mtime = CURRENT_TIME_SEC;
+		inode->i_ctime = CURRENT_TIME_SEC;
 	}
-	reiserfs_update_sd(th, p_s_inode);
+	reiserfs_update_sd(th, inode);
 
       out:
 	pathrelse(&s_search_path);

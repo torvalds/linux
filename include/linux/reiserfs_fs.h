@@ -1870,9 +1870,9 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
 void reiserfs_delete_solid_item(struct reiserfs_transaction_handle *th,
 				struct inode *inode, struct reiserfs_key *key);
 int reiserfs_delete_object(struct reiserfs_transaction_handle *th,
-			   struct inode *p_s_inode);
+			   struct inode *inode);
 int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
-			 struct inode *p_s_inode, struct page *,
+			 struct inode *inode, struct page *,
 			 int update_timestamps);
 
 #define i_block_size(inode) ((inode)->i_sb->s_blocksize)

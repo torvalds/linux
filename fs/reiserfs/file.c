@@ -137,17 +137,17 @@ static void reiserfs_vfs_truncate_file(struct inode *inode)
 static int reiserfs_sync_file(struct file *p_s_filp,
 			      struct dentry *p_s_dentry, int datasync)
 {
-	struct inode *p_s_inode = p_s_dentry->d_inode;
+	struct inode *inode = p_s_dentry->d_inode;
 	int n_err;
 	int barrier_done;
 
-	BUG_ON(!S_ISREG(p_s_inode->i_mode));
-	n_err = sync_mapping_buffers(p_s_inode->i_mapping);
-	reiserfs_write_lock(p_s_inode->i_sb);
-	barrier_done = reiserfs_commit_for_inode(p_s_inode);
-	reiserfs_write_unlock(p_s_inode->i_sb);
-	if (barrier_done != 1 && reiserfs_barrier_flush(p_s_inode->i_sb))
-		blkdev_issue_flush(p_s_inode->i_sb->s_bdev, NULL);
+	BUG_ON(!S_ISREG(inode->i_mode));
+	n_err = sync_mapping_buffers(inode->i_mapping);
+	reiserfs_write_lock(inode->i_sb);
+	barrier_done = reiserfs_commit_for_inode(inode);
+	reiserfs_write_unlock(inode->i_sb);
+	if (barrier_done != 1 && reiserfs_barrier_flush(inode->i_sb))
+		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
 	if (barrier_done < 0)
 		return barrier_done;
 	return (n_err < 0) ? -EIO : 0;

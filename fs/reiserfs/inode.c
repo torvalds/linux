@@ -1987,7 +1987,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 **
 ** on failure, nonzero is returned, page_result and bh_result are untouched.
 */
-static int grab_tail_page(struct inode *p_s_inode,
+static int grab_tail_page(struct inode *inode,
 			  struct page **page_result,
 			  struct buffer_head **bh_result)
 {
@@ -1995,11 +1995,11 @@ static int grab_tail_page(struct inode *p_s_inode,
 	/* we want the page with the last byte in the file,
 	 ** not the page that will hold the next byte for appending
 	 */
-	unsigned long index = (p_s_inode->i_size - 1) >> PAGE_CACHE_SHIFT;
+	unsigned long index = (inode->i_size - 1) >> PAGE_CACHE_SHIFT;
 	unsigned long pos = 0;
 	unsigned long start = 0;
-	unsigned long blocksize = p_s_inode->i_sb->s_blocksize;
-	unsigned long offset = (p_s_inode->i_size) & (PAGE_CACHE_SIZE - 1);
+	unsigned long blocksize = inode->i_sb->s_blocksize;
+	unsigned long offset = (inode->i_size) & (PAGE_CACHE_SIZE - 1);
 	struct buffer_head *bh;
 	struct buffer_head *head;
 	struct page *page;
@@ -2013,7 +2013,7 @@ static int grab_tail_page(struct inode *p_s_inode,
 	if ((offset & (blocksize - 1)) == 0) {
 		return -ENOENT;
 	}
-	page = grab_cache_page(p_s_inode->i_mapping, index);
+	page = grab_cache_page(inode->i_mapping, index);
 	error = -ENOMEM;
 	if (!page) {
 		goto out;
@@ -2042,7 +2042,7 @@ static int grab_tail_page(struct inode *p_s_inode,
 		 ** I've screwed up the code to find the buffer, or the code to
 		 ** call prepare_write
 		 */
-		reiserfs_error(p_s_inode->i_sb, "clm-6000",
+		reiserfs_error(inode->i_sb, "clm-6000",
 			       "error reading block %lu", bh->b_blocknr);
 		error = -EIO;
 		goto unlock;
@@ -2065,27 +2065,28 @@ static int grab_tail_page(struct inode *p_s_inode,
 **
 ** some code taken from block_truncate_page
 */
-int reiserfs_truncate_file(struct inode *p_s_inode, int update_timestamps)
+int reiserfs_truncate_file(struct inode *inode, int update_timestamps)
 {
 	struct reiserfs_transaction_handle th;
 	/* we want the offset for the first byte after the end of the file */
-	unsigned long offset = p_s_inode->i_size & (PAGE_CACHE_SIZE - 1);
-	unsigned blocksize = p_s_inode->i_sb->s_blocksize;
+	unsigned long offset = inode->i_size & (PAGE_CACHE_SIZE - 1);
+	unsigned blocksize = inode->i_sb->s_blocksize;
 	unsigned length;
 	struct page *page = NULL;
 	int error;
 	struct buffer_head *bh = NULL;
 	int err2;
 
-	reiserfs_write_lock(p_s_inode->i_sb);
+	reiserfs_write_lock(inode->i_sb);
 
-	if (p_s_inode->i_size > 0) {
-		if ((error = grab_tail_page(p_s_inode, &page, &bh))) {
+	if (inode->i_size > 0) {
+		error = grab_tail_page(inode, &page, &bh);
+		if (error) {
 			// -ENOENT means we truncated past the end of the file,
 			// and get_block_create_0 could not find a block to read in,
 			// which is ok.
 			if (error != -ENOENT)
-				reiserfs_error(p_s_inode->i_sb, "clm-6001",
+				reiserfs_error(inode->i_sb, "clm-6001",
 					       "grab_tail_page failed %d",
 					       error);
 			page = NULL;
@@ -2103,19 +2104,19 @@ int reiserfs_truncate_file(struct inode *p_s_inode, int update_timestamps)
 	/* it is enough to reserve space in transaction for 2 balancings:
 	   one for "save" link adding and another for the first
 	   cut_from_item. 1 is for update_sd */
-	error = journal_begin(&th, p_s_inode->i_sb,
+	error = journal_begin(&th, inode->i_sb,
 			      JOURNAL_PER_BALANCE_CNT * 2 + 1);
 	if (error)
 		goto out;
-	reiserfs_update_inode_transaction(p_s_inode);
+	reiserfs_update_inode_transaction(inode);
 	if (update_timestamps)
 		/* we are doing real truncate: if the system crashes before the last
 		   transaction of truncating gets committed - on reboot the file
 		   either appears truncated properly or not truncated at all */
-		add_save_link(&th, p_s_inode, 1);
-	err2 = reiserfs_do_truncate(&th, p_s_inode, page, update_timestamps);
+		add_save_link(&th, inode, 1);
+	err2 = reiserfs_do_truncate(&th, inode, page, update_timestamps);
 	error =
-	    journal_end(&th, p_s_inode->i_sb, JOURNAL_PER_BALANCE_CNT * 2 + 1);
+	    journal_end(&th, inode->i_sb, JOURNAL_PER_BALANCE_CNT * 2 + 1);
 	if (error)
 		goto out;
 
@@ -2126,7 +2127,7 @@ int reiserfs_truncate_file(struct inode *p_s_inode, int update_timestamps)
 	}
 	
 	if (update_timestamps) {
-		error = remove_save_link(p_s_inode, 1 /* truncate */ );
+		error = remove_save_link(inode, 1 /* truncate */);
 		if (error)
 			goto out;
 	}
@@ -2145,14 +2146,14 @@ int reiserfs_truncate_file(struct inode *p_s_inode, int update_timestamps)
 		page_cache_release(page);
 	}
 
-	reiserfs_write_unlock(p_s_inode->i_sb);
+	reiserfs_write_unlock(inode->i_sb);
 	return 0;
       out:
 	if (page) {
 		unlock_page(page);
 		page_cache_release(page);
 	}
-	reiserfs_write_unlock(p_s_inode->i_sb);
+	reiserfs_write_unlock(inode->i_sb);
 	return error;
 }
 
