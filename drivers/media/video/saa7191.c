@@ -597,6 +597,7 @@ static const struct v4l2_subdev_video_ops saa7191_video_ops = {
 static const struct v4l2_subdev_ops saa7191_ops = {
 	.core = &saa7191_core_ops,
 	.video = &saa7191_video_ops,
+	.tuner = &saa7191_tuner_ops,
 };
 
 static int saa7191_probe(struct i2c_client *client,
