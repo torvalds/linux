@@ -6963,7 +6963,8 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 		cpumask_or(groupmask, groupmask, sched_group_cpus(group));
 
 		cpulist_scnprintf(str, sizeof(str), sched_group_cpus(group));
-		printk(KERN_CONT " %s", str);
+		printk(KERN_CONT " %s (__cpu_power = %d)", str,
+						group->__cpu_power);
 
 		group = group->next;
 	} while (group != sd->groups);
