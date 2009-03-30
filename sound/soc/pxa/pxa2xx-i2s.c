@@ -24,20 +24,11 @@
 #include <sound/pxa2xx-lib.h>
 
 #include <mach/hardware.h>
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-gpio.h>
+#include <mach/dma.h>
 #include <mach/audio.h>
 
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"
-
-struct pxa2xx_gpio {
-	u32 sys;
-	u32	rx;
-	u32 tx;
-	u32 clk;
-	u32 frm;
-};
 
 /*
  * I2S Controller Register and Bit Definitions
@@ -106,21 +97,6 @@ static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_in = {
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };
 
-static struct pxa2xx_gpio gpio_bus[] = {
-	{ /* I2S SoC Slave */
-		.rx = GPIO29_SDATA_IN_I2S_MD,
-		.tx = GPIO30_SDATA_OUT_I2S_MD,
-		.clk = GPIO28_BITCLK_IN_I2S_MD,
-		.frm = GPIO31_SYNC_I2S_MD,
-	},
-	{ /* I2S SoC Master */
-		.rx = GPIO29_SDATA_IN_I2S_MD,
-		.tx = GPIO30_SDATA_OUT_I2S_MD,
-		.clk = GPIO28_BITCLK_OUT_I2S_MD,
-		.frm = GPIO31_SYNC_I2S_MD,
-	},
-};
-
 static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
@@ -181,9 +157,6 @@ static int pxa2xx_i2s_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	if (clk_id != PXA2XX_I2S_SYSCLK)
 		return -ENODEV;
 
-	if (pxa_i2s.master && dir == SND_SOC_CLOCK_OUT)
-		pxa_gpio_mode(gpio_bus[pxa_i2s.master].sys);
-
 	return 0;
 }
 
@@ -194,10 +167,6 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
-	pxa_gpio_mode(gpio_bus[pxa_i2s.master].rx);
-	pxa_gpio_mode(gpio_bus[pxa_i2s.master].tx);
-	pxa_gpio_mode(gpio_bus[pxa_i2s.master].frm);
-	pxa_gpio_mode(gpio_bus[pxa_i2s.master].clk);
 	BUG_ON(IS_ERR(clk_i2s));
 	clk_enable(clk_i2s);
 	pxa_i2s_wait();
@@ -335,6 +304,15 @@ static int pxa2xx_i2s_resume(struct snd_soc_dai *dai)
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
 		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
 
+static struct snd_soc_dai_ops pxa_i2s_dai_ops = {
+	.startup	= pxa2xx_i2s_startup,
+	.shutdown	= pxa2xx_i2s_shutdown,
+	.trigger	= pxa2xx_i2s_trigger,
+	.hw_params	= pxa2xx_i2s_hw_params,
+	.set_fmt	= pxa2xx_i2s_set_dai_fmt,
+	.set_sysclk	= pxa2xx_i2s_set_dai_sysclk,
+};
+
 struct snd_soc_dai pxa_i2s_dai = {
 	.name = "pxa2xx-i2s",
 	.id = 0,
@@ -350,14 +328,7 @@ struct snd_soc_dai pxa_i2s_dai = {
 		.channels_max = 2,
 		.rates = PXA2XX_I2S_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.startup = pxa2xx_i2s_startup,
-		.shutdown = pxa2xx_i2s_shutdown,
-		.trigger = pxa2xx_i2s_trigger,
-		.hw_params = pxa2xx_i2s_hw_params,
-		.set_fmt = pxa2xx_i2s_set_dai_fmt,
-		.set_sysclk = pxa2xx_i2s_set_dai_sysclk,
-	},
+	.ops = &pxa_i2s_dai_ops,
 };
 
 EXPORT_SYMBOL_GPL(pxa_i2s_dai);
@@ -398,11 +369,6 @@ static struct platform_driver pxa2xx_i2s_driver = {
 
 static int __init pxa2xx_i2s_init(void)
 {
-	if (cpu_is_pxa27x())
-		gpio_bus[1].sys = GPIO113_I2S_SYSCLK_MD;
-	else
-		gpio_bus[1].sys = GPIO32_SYSCLK_I2S_MD;
-
 	clk_i2s = ERR_PTR(-ENOENT);
 	return platform_driver_register(&pxa2xx_i2s_driver);
 }

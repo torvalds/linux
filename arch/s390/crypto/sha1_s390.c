@@ -23,17 +23,17 @@
  * any later version.
  *
  */
+#include <crypto/internal/hash.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/crypto.h>
 #include <crypto/sha.h>
 
 #include "crypt_s390.h"
 #include "sha.h"
 
-static void sha1_init(struct crypto_tfm *tfm)
+static int sha1_init(struct shash_desc *desc)
 {
-	struct s390_sha_ctx *sctx = crypto_tfm_ctx(tfm);
+	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
 
 	sctx->state[0] = SHA1_H0;
 	sctx->state[1] = SHA1_H1;
@@ -42,34 +42,36 @@ static void sha1_init(struct crypto_tfm *tfm)
 	sctx->state[4] = SHA1_H4;
 	sctx->count = 0;
 	sctx->func = KIMD_SHA_1;
+
+	return 0;
 }
 
-static struct crypto_alg alg = {
-	.cra_name	=	"sha1",
-	.cra_driver_name=	"sha1-s390",
-	.cra_priority	=	CRYPT_S390_PRIORITY,
-	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
-	.cra_blocksize	=	SHA1_BLOCK_SIZE,
-	.cra_ctxsize	=	sizeof(struct s390_sha_ctx),
-	.cra_module	=	THIS_MODULE,
-	.cra_list	=	LIST_HEAD_INIT(alg.cra_list),
-	.cra_u		=	{ .digest = {
-	.dia_digestsize	=	SHA1_DIGEST_SIZE,
-	.dia_init	=	sha1_init,
-	.dia_update	=	s390_sha_update,
-	.dia_final	=	s390_sha_final } }
+static struct shash_alg alg = {
+	.digestsize	=	SHA1_DIGEST_SIZE,
+	.init		=	sha1_init,
+	.update		=	s390_sha_update,
+	.final		=	s390_sha_final,
+	.descsize	=	sizeof(struct s390_sha_ctx),
+	.base		=	{
+		.cra_name	=	"sha1",
+		.cra_driver_name=	"sha1-s390",
+		.cra_priority	=	CRYPT_S390_PRIORITY,
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	SHA1_BLOCK_SIZE,
+		.cra_module	=	THIS_MODULE,
+	}
 };
 
 static int __init sha1_s390_init(void)
 {
 	if (!crypt_s390_func_available(KIMD_SHA_1))
 		return -EOPNOTSUPP;
-	return crypto_register_alg(&alg);
+	return crypto_register_shash(&alg);
 }
 
 static void __exit sha1_s390_fini(void)
 {
-	crypto_unregister_alg(&alg);
+	crypto_unregister_shash(&alg);
 }
 
 module_init(sha1_s390_init);

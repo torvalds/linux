@@ -6,6 +6,7 @@
 #include <linux/irq.h>
 #include <asm/io_apic.h>
 #include <asm/smp.h>
+#include <asm/cpu.h>
 #include <linux/intel-iommu.h>
 #include "intr_remapping.h"
 
@@ -20,7 +21,7 @@ struct irq_2_iommu {
 	u8  irte_mask;
 };
 
-#ifdef CONFIG_SPARSE_IRQ
+#ifdef CONFIG_GENERIC_HARDIRQS
 static struct irq_2_iommu *get_one_free_irq_2_iommu(int cpu)
 {
 	struct irq_2_iommu *iommu;

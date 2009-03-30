@@ -329,24 +329,17 @@ static int wep_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 ieee80211_tx_result
 ieee80211_crypto_wep_encrypt(struct ieee80211_tx_data *tx)
 {
-	int i;
+	struct sk_buff *skb;
 
 	ieee80211_tx_set_protected(tx);
 
-	if (wep_encrypt_skb(tx, tx->skb) < 0) {
-		I802_DEBUG_INC(tx->local->tx_handlers_drop_wep);
-		return TX_DROP;
-	}
-
-	if (tx->extra_frag) {
-		for (i = 0; i < tx->num_extra_frag; i++) {
-			if (wep_encrypt_skb(tx, tx->extra_frag[i])) {
-				I802_DEBUG_INC(tx->local->
-					       tx_handlers_drop_wep);
-				return TX_DROP;
-			}
+	skb = tx->skb;
+	do {
+		if (wep_encrypt_skb(tx, skb) < 0) {
+			I802_DEBUG_INC(tx->local->tx_handlers_drop_wep);
+			return TX_DROP;
 		}
-	}
+	} while ((skb = skb->next));
 
 	return TX_CONTINUE;
 }

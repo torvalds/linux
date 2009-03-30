@@ -4,7 +4,7 @@
  * Based on code by Ingo Molnar and Andi Kleen, copyrighted
  * as follows:
  *
- * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
+ * Copyright 2003-2009 Red Hat Inc.
  * All Rights Reserved.
  * Copyright 2005 Andi Kleen, SUSE Labs.
  * Copyright 2007 Jiri Kosina, SUSE Labs.

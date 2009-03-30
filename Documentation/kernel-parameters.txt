@@ -44,6 +44,7 @@ parameter is applicable:
 	FB	The frame buffer device is enabled.
 	HW	Appropriate hardware is enabled.
 	IA-64	IA-64 architecture is enabled.
+	IMA     Integrity measurement architecture is enabled.
 	IOSCHED	More than one I/O scheduler is enabled.
 	IP_PNP	IP DHCP, BOOTP, or RARP is enabled.
 	ISAPNP	ISA PnP code is enabled.
@@ -492,10 +493,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default: 64
 
 	hpet=		[X86-32,HPET] option to control HPET usage
-			Format: { enable (default) | disable | force }
+			Format: { enable (default) | disable | force |
+				verbose }
 			disable: disable HPET and use PIT instead
 			force: allow force enabled of undocumented chips (ICH4,
 			VIA, nVidia)
+			verbose: show contents of HPET registers during setup
 
 	com20020=	[HW,NET] ARCnet - COM20020 chipset
 			Format:
@@ -829,6 +832,15 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hvc_iucv=	[S390] Number of z/VM IUCV hypervisor console (HVC)
 			       terminal devices. Valid values: 0..8
+	hvc_iucv_allow=	[S390] Comma-separated list of z/VM user IDs.
+			       If specified, z/VM IUCV HVC accepts connections
+			       from listed z/VM user IDs only.
+
+	i2c_bus=	[HW] Override the default board specific I2C bus speed
+			     or register an additional I2C bus that is not
+			     registered from board initialization code.
+			     Format:
+			     <bus_id>,<clkrate>
 
 	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode
@@ -901,6 +913,15 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	ihash_entries=	[KNL]
 			Set number of hash buckets for inode cache.
+
+	ima_audit=	[IMA]
+			Format: { "0" | "1" }
+			0 -- integrity auditing messages. (Default)
+			1 -- enable informational integrity auditing messages.
+
+	ima_hash=	[IMA]
+			Formt: { "sha1" | "md5" }
+			default: "sha1"
 
 	in2000=		[HW,SCSI]
 			See header of drivers/scsi/in2000.c.
@@ -1310,8 +1331,13 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	memtest=	[KNL,X86] Enable memtest
 			Format: <integer>
-			range: 0,4 : pattern number
 			default : 0 <disable>
+			Specifies the number of memtest passes to be
+			performed. Each pass selects another test
+			pattern from a given set of patterns. Memtest
+			fills the memory with this pattern, validates
+			memory contents and reserves bad memory
+			regions that are detected.
 
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/video4linux/meye.txt.
@@ -1816,11 +1842,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			autoconfiguration.
 			Ranges are in pairs (memory base and size).
 
-	dynamic_printk	Enables pr_debug()/dev_dbg() calls if
-			CONFIG_DYNAMIC_PRINTK_DEBUG has been enabled.
-			These can also be switched on/off via
-			<debugfs>/dynamic_printk/modules
-
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
 			print-fatal-signals=1: print segfault info to
@@ -2008,15 +2029,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default value is set via kernel config option.
 			If enabled at boot time, /selinux/disable can be used
 			later to disable prior to initial policy load.
-
-	selinux_compat_net =
-			[SELINUX] Set initial selinux_compat_net flag value.
-                        Format: { "0" | "1" }
-                        0 -- use new secmark-based packet controls
-                        1 -- use legacy packet controls
-                        Default value is 0 (preferred).
-                        Value can be changed at runtime via
-                        /selinux/compat_net.
 
 	serialnumber	[BUGS=X86-32]
 

@@ -47,8 +47,6 @@ static char *policycap_names[] = {
 
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
 
-int selinux_compat_net = 0;
-
 static int __init checkreqprot_setup(char *str)
 {
 	unsigned long checkreqprot;
@@ -57,16 +55,6 @@ static int __init checkreqprot_setup(char *str)
 	return 1;
 }
 __setup("checkreqprot=", checkreqprot_setup);
-
-static int __init selinux_compat_net_setup(char *str)
-{
-	unsigned long compat_net;
-	if (!strict_strtoul(str, 0, &compat_net))
-		selinux_compat_net = compat_net ? 1 : 0;
-	return 1;
-}
-__setup("selinux_compat_net=", selinux_compat_net_setup);
-
 
 static DEFINE_MUTEX(sel_mutex);
 
@@ -450,61 +438,6 @@ static const struct file_operations sel_checkreqprot_ops = {
 	.write		= sel_write_checkreqprot,
 };
 
-static ssize_t sel_read_compat_net(struct file *filp, char __user *buf,
-				   size_t count, loff_t *ppos)
-{
-	char tmpbuf[TMPBUFLEN];
-	ssize_t length;
-
-	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", selinux_compat_net);
-	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
-}
-
-static ssize_t sel_write_compat_net(struct file *file, const char __user *buf,
-				    size_t count, loff_t *ppos)
-{
-	char *page;
-	ssize_t length;
-	int new_value;
-
-	length = task_has_security(current, SECURITY__LOAD_POLICY);
-	if (length)
-		return length;
-
-	if (count >= PAGE_SIZE)
-		return -ENOMEM;
-	if (*ppos != 0) {
-		/* No partial writes. */
-		return -EINVAL;
-	}
-	page = (char *)get_zeroed_page(GFP_KERNEL);
-	if (!page)
-		return -ENOMEM;
-	length = -EFAULT;
-	if (copy_from_user(page, buf, count))
-		goto out;
-
-	length = -EINVAL;
-	if (sscanf(page, "%d", &new_value) != 1)
-		goto out;
-
-	if (new_value) {
-		printk(KERN_NOTICE
-		       "SELinux: compat_net is deprecated, please use secmark"
-		       " instead\n");
-		selinux_compat_net = 1;
-	} else
-		selinux_compat_net = 0;
-	length = count;
-out:
-	free_page((unsigned long) page);
-	return length;
-}
-static const struct file_operations sel_compat_net_ops = {
-	.read		= sel_read_compat_net,
-	.write		= sel_write_compat_net,
-};
-
 /*
  * Remaining nodes use transaction based IO methods like nfsd/nfsctl.c
  */
@@ -595,7 +528,7 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 
 	length = scnprintf(buf, SIMPLE_TRANSACTION_LIMIT,
 			  "%x %x %x %x %u",
-			  avd.allowed, avd.decided,
+			  avd.allowed, 0xffffffff,
 			  avd.auditallow, avd.auditdeny,
 			  avd.seqno);
 out2:
@@ -1665,7 +1598,6 @@ static int sel_fill_super(struct super_block *sb, void *data, int silent)
 		[SEL_DISABLE] = {"disable", &sel_disable_ops, S_IWUSR},
 		[SEL_MEMBER] = {"member", &transaction_ops, S_IRUGO|S_IWUGO},
 		[SEL_CHECKREQPROT] = {"checkreqprot", &sel_checkreqprot_ops, S_IRUGO|S_IWUSR},
-		[SEL_COMPAT_NET] = {"compat_net", &sel_compat_net_ops, S_IRUGO|S_IWUSR},
 		[SEL_REJECT_UNKNOWN] = {"reject_unknown", &sel_handle_unknown_ops, S_IRUGO},
 		[SEL_DENY_UNKNOWN] = {"deny_unknown", &sel_handle_unknown_ops, S_IRUGO},
 		/* last one */ {""}

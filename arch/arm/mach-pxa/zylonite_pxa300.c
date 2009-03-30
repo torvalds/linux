@@ -18,9 +18,9 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/gpio.h>
 
-#include <asm/gpio.h>
-#include <mach/mfp-pxa300.h>
+#include <mach/pxa300.h>
 #include <mach/i2c.h>
 #include <mach/zylonite.h>
 

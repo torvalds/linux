@@ -1156,10 +1156,12 @@ SYSCALL_DEFINE3(mq_getsetattr, mqd_t, mqdes,
 	omqstat.mq_flags = filp->f_flags & O_NONBLOCK;
 	if (u_mqstat) {
 		audit_mq_getsetattr(mqdes, &mqstat);
+		spin_lock(&filp->f_lock);
 		if (mqstat.mq_flags & O_NONBLOCK)
 			filp->f_flags |= O_NONBLOCK;
 		else
 			filp->f_flags &= ~O_NONBLOCK;
+		spin_unlock(&filp->f_lock);
 
 		inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	}

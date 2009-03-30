@@ -1,0 +1,3 @@
+if PLAT_PXA
+
+endif

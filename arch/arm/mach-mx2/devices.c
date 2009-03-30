@@ -34,6 +34,10 @@
 
 #include <mach/irqs.h>
 #include <mach/hardware.h>
+#include <mach/common.h>
+#include <mach/mmc.h>
+
+#include "devices.h"
 
 /*
  * Resource definition for the MXC IrDA
@@ -225,37 +229,215 @@ struct platform_device mxc_nand_device = {
 	.resource = mxc_nand_resources,
 };
 
+/*
+ * lcdc:
+ * - i.MX1: the basic controller
+ * - i.MX21: to be checked
+ * - i.MX27: like i.MX1, with slightly variations
+ */
+static struct resource mxc_fb[] = {
+	{
+		.start = LCDC_BASE_ADDR,
+		.end   = LCDC_BASE_ADDR + 0xFFF,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MXC_INT_LCDC,
+		.end   = MXC_INT_LCDC,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+/* mxc lcd driver */
+struct platform_device mxc_fb_device = {
+	.name = "imx-fb",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_fb),
+	.resource = mxc_fb,
+	.dev = {
+		.coherent_dma_mask = 0xFFFFFFFF,
+	},
+};
+
+#ifdef CONFIG_MACH_MX27
+static struct resource mxc_fec_resources[] = {
+	{
+		.start	= FEC_BASE_ADDR,
+		.end	= FEC_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM
+	}, {
+		.start	= MXC_INT_FEC,
+		.end	= MXC_INT_FEC,
+		.flags	= IORESOURCE_IRQ
+	},
+};
+
+struct platform_device mxc_fec_device = {
+	.name = "fec",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_fec_resources),
+	.resource = mxc_fec_resources,
+};
+#endif
+
+static struct resource mxc_i2c_1_resources[] = {
+	[0] = {
+		.start	= I2C_BASE_ADDR,
+		.end	= I2C_BASE_ADDR + 0x0fff,
+		.flags	= IORESOURCE_MEM
+	},
+	[1] = {
+		.start	= MXC_INT_I2C,
+		.end	= MXC_INT_I2C,
+		.flags	= IORESOURCE_IRQ
+	}
+};
+
+struct platform_device mxc_i2c_device0 = {
+	.name = "imx-i2c",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_i2c_1_resources),
+	.resource = mxc_i2c_1_resources
+};
+
+#ifdef CONFIG_MACH_MX27
+static struct resource mxc_i2c_2_resources[] = {
+	[0] = {
+		.start	= I2C2_BASE_ADDR,
+		.end	= I2C2_BASE_ADDR + 0x0fff,
+		.flags	= IORESOURCE_MEM
+	},
+	[1] = {
+		.start	= MXC_INT_I2C2,
+		.end	= MXC_INT_I2C2,
+		.flags	= IORESOURCE_IRQ
+	}
+};
+
+struct platform_device mxc_i2c_device1 = {
+	.name = "imx-i2c",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(mxc_i2c_2_resources),
+	.resource = mxc_i2c_2_resources
+};
+#endif
+
+static struct resource mxc_pwm_resources[] = {
+	[0] = {
+		.start	= PWM_BASE_ADDR,
+		.end	= PWM_BASE_ADDR + 0x0fff,
+		.flags	= IORESOURCE_MEM
+	},
+	[1] = {
+		.start   = MXC_INT_PWM,
+		.end     = MXC_INT_PWM,
+		.flags   = IORESOURCE_IRQ,
+	}
+};
+
+struct platform_device mxc_pwm_device = {
+	.name = "mxc_pwm",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_pwm_resources),
+	.resource = mxc_pwm_resources
+};
+
+/*
+ * Resource definition for the MXC SDHC
+ */
+static struct resource mxc_sdhc1_resources[] = {
+	[0] = {
+			.start = SDHC1_BASE_ADDR,
+			.end   = SDHC1_BASE_ADDR + SZ_4K - 1,
+			.flags = IORESOURCE_MEM,
+			},
+	[1] = {
+			.start = MXC_INT_SDHC1,
+			.end   = MXC_INT_SDHC1,
+			.flags = IORESOURCE_IRQ,
+			},
+	[2] = {
+			.start  = DMA_REQ_SDHC1,
+			.end    = DMA_REQ_SDHC1,
+			.flags  = IORESOURCE_DMA
+		},
+};
+
+static u64 mxc_sdhc1_dmamask = 0xffffffffUL;
+
+struct platform_device mxc_sdhc_device0 = {
+       .name           = "mxc-mmc",
+       .id             = 0,
+       .dev            = {
+               .dma_mask = &mxc_sdhc1_dmamask,
+               .coherent_dma_mask = 0xffffffff,
+       },
+       .num_resources  = ARRAY_SIZE(mxc_sdhc1_resources),
+       .resource       = mxc_sdhc1_resources,
+};
+
+static struct resource mxc_sdhc2_resources[] = {
+	[0] = {
+			.start = SDHC2_BASE_ADDR,
+			.end   = SDHC2_BASE_ADDR + SZ_4K - 1,
+			.flags = IORESOURCE_MEM,
+			},
+	[1] = {
+			.start = MXC_INT_SDHC2,
+			.end   = MXC_INT_SDHC2,
+			.flags = IORESOURCE_IRQ,
+			},
+	[2] = {
+			.start  = DMA_REQ_SDHC2,
+			.end    = DMA_REQ_SDHC2,
+			.flags  = IORESOURCE_DMA
+		},
+};
+
+static u64 mxc_sdhc2_dmamask = 0xffffffffUL;
+
+struct platform_device mxc_sdhc_device1 = {
+       .name           = "mxc-mmc",
+       .id             = 1,
+       .dev            = {
+               .dma_mask = &mxc_sdhc2_dmamask,
+               .coherent_dma_mask = 0xffffffff,
+       },
+       .num_resources  = ARRAY_SIZE(mxc_sdhc2_resources),
+       .resource       = mxc_sdhc2_resources,
+};
+
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	[0] = {
 		.chip.label = "gpio-0",
 		.irq = MXC_INT_GPIO,
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 0),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR),
 		.virtual_irq_start = MXC_GPIO_IRQ_START,
 	},
 	[1] = {
 		.chip.label = "gpio-1",
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 1),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR + 0x100),
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 32,
 	},
 	[2] = {
 		.chip.label = "gpio-2",
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 2),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR + 0x200),
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 64,
 	},
 	[3] = {
 		.chip.label = "gpio-3",
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 3),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR + 0x300),
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 96,
 	},
 	[4] = {
 		.chip.label = "gpio-4",
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 4),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR + 0x400),
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 128,
 	},
 	[5] = {
 		.chip.label = "gpio-5",
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 5),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR + 0x500),
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 160,
 	}
 };

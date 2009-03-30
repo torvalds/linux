@@ -27,7 +27,7 @@ struct ipx_address {
 
 struct ipxhdr {
 	__be16			ipx_checksum __attribute__ ((packed));
-#define IPX_NO_CHECKSUM	__constant_htons(0xFFFF)
+#define IPX_NO_CHECKSUM	cpu_to_be16(0xFFFF)
 	__be16			ipx_pktsize __attribute__ ((packed));
 	__u8			ipx_tctrl;
 	__u8			ipx_type;

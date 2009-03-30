@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -123,7 +123,7 @@ static int iwl4965_led_pattern(struct iwl_priv *priv, int led_id,
 /* Set led register off */
 static int iwl4965_led_on_reg(struct iwl_priv *priv, int led_id)
 {
-	IWL_DEBUG_LED("led on %d\n", led_id);
+	IWL_DEBUG_LED(priv, "led on %d\n", led_id);
 	iwl_write32(priv, CSR_LED_REG, CSR_LED_REG_TRUN_ON);
 	return 0;
 }
@@ -150,7 +150,7 @@ int iwl4965_led_off(struct iwl_priv *priv, int led_id)
 		.off = 0,
 		.interval = IWL_DEF_LED_INTRVL
 	};
-	IWL_DEBUG_LED("led off %d\n", led_id);
+	IWL_DEBUG_LED(priv, "led off %d\n", led_id);
 	return iwl_send_led_cmd(priv, &led_cmd);
 }
 #endif
@@ -159,7 +159,7 @@ int iwl4965_led_off(struct iwl_priv *priv, int led_id)
 /* Set led register off */
 static int iwl4965_led_off_reg(struct iwl_priv *priv, int led_id)
 {
-	IWL_DEBUG_LED("LED Reg off\n");
+	IWL_DEBUG_LED(priv, "LED Reg off\n");
 	iwl_write32(priv, CSR_LED_REG, CSR_LED_REG_TRUN_OFF);
 	return 0;
 }
@@ -169,7 +169,7 @@ static int iwl4965_led_off_reg(struct iwl_priv *priv, int led_id)
  */
 static int iwl_led_associate(struct iwl_priv *priv, int led_id)
 {
-	IWL_DEBUG_LED("Associated\n");
+	IWL_DEBUG_LED(priv, "Associated\n");
 	priv->allow_blinking = 1;
 	return iwl4965_led_on_reg(priv, led_id);
 }
@@ -213,7 +213,7 @@ static void iwl_led_brightness_set(struct led_classdev *led_cdev,
 		return;
 
 
-	IWL_DEBUG_LED("Led type = %s brightness = %d\n",
+	IWL_DEBUG_LED(priv, "Led type = %s brightness = %d\n",
 			led_type_str[led->type], brightness);
 	switch (brightness) {
 	case LED_FULL:
@@ -254,7 +254,7 @@ static int iwl_leds_register_led(struct iwl_priv *priv, struct iwl_led *led,
 
 	ret = led_classdev_register(device, &led->led_dev);
 	if (ret) {
-		IWL_ERROR("Error: failed to register led handler.\n");
+		IWL_ERR(priv, "Error: failed to register led handler.\n");
 		return ret;
 	}
 
@@ -280,7 +280,7 @@ static int iwl_get_blink_rate(struct iwl_priv *priv)
 	if (tpt < 0) /* wraparound */
 		tpt = -tpt;
 
-	IWL_DEBUG_LED("tpt %lld current_tpt %llu\n",
+	IWL_DEBUG_LED(priv, "tpt %lld current_tpt %llu\n",
 		(long long)tpt,
 		(unsigned long long)current_tpt);
 	priv->led_tpt = current_tpt;
@@ -292,7 +292,7 @@ static int iwl_get_blink_rate(struct iwl_priv *priv)
 			if (tpt  > (blink_tbl[i].tpt * IWL_1MB_RATE))
 				break;
 
-	IWL_DEBUG_LED("LED BLINK IDX=%d\n", i);
+	IWL_DEBUG_LED(priv, "LED BLINK IDX=%d\n", i);
 	return i;
 }
 
@@ -352,7 +352,7 @@ int iwl_leds_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_radio_led_name(priv->hw);
 	snprintf(priv->led[IWL_LED_TRG_RADIO].name,
-		 sizeof(priv->led[IWL_LED_TRG_RADIO].name), "iwl-%s:radio",
+		 sizeof(priv->led[IWL_LED_TRG_RADIO].name), "iwl-%s::radio",
 		 wiphy_name(priv->hw->wiphy));
 
 	priv->led[IWL_LED_TRG_RADIO].led_on = iwl4965_led_on_reg;
@@ -366,7 +366,7 @@ int iwl_leds_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_assoc_led_name(priv->hw);
 	snprintf(priv->led[IWL_LED_TRG_ASSOC].name,
-		 sizeof(priv->led[IWL_LED_TRG_ASSOC].name), "iwl-%s:assoc",
+		 sizeof(priv->led[IWL_LED_TRG_ASSOC].name), "iwl-%s::assoc",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl_leds_register_led(priv, &priv->led[IWL_LED_TRG_ASSOC],
@@ -382,7 +382,7 @@ int iwl_leds_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_rx_led_name(priv->hw);
 	snprintf(priv->led[IWL_LED_TRG_RX].name,
-		 sizeof(priv->led[IWL_LED_TRG_RX].name), "iwl-%s:RX",
+		 sizeof(priv->led[IWL_LED_TRG_RX].name), "iwl-%s::RX",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl_leds_register_led(priv, &priv->led[IWL_LED_TRG_RX],
@@ -397,7 +397,7 @@ int iwl_leds_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_tx_led_name(priv->hw);
 	snprintf(priv->led[IWL_LED_TRG_TX].name,
-		 sizeof(priv->led[IWL_LED_TRG_TX].name), "iwl-%s:TX",
+		 sizeof(priv->led[IWL_LED_TRG_TX].name), "iwl-%s::TX",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl_leds_register_led(priv, &priv->led[IWL_LED_TRG_TX],

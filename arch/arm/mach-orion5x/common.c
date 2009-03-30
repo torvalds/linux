@@ -31,6 +31,7 @@
 #include <plat/ehci-orion.h>
 #include <plat/mv_xor.h>
 #include <plat/orion_nand.h>
+#include <plat/orion5x_wdt.h>
 #include <plat/time.h>
 #include "common.h"
 
@@ -219,14 +220,17 @@ static struct platform_device orion5x_switch_device = {
 
 void __init orion5x_eth_switch_init(struct dsa_platform_data *d, int irq)
 {
+	int i;
+
 	if (irq != NO_IRQ) {
 		orion5x_switch_resources[0].start = irq;
 		orion5x_switch_resources[0].end = irq;
 		orion5x_switch_device.num_resources = 1;
 	}
 
-	d->mii_bus = &orion5x_eth_shared.dev;
 	d->netdev = &orion5x_eth.dev;
+	for (i = 0; i < d->nr_chips; i++)
+		d->chip[i].mii_bus = &orion5x_eth_shared.dev;
 	orion5x_switch_device.dev.platform_data = d;
 
 	platform_device_register(&orion5x_switch_device);
@@ -533,6 +537,29 @@ void __init orion5x_xor_init(void)
 
 
 /*****************************************************************************
+ * Watchdog
+ ****************************************************************************/
+static struct orion5x_wdt_platform_data orion5x_wdt_data = {
+	.tclk			= 0,
+};
+
+static struct platform_device orion5x_wdt_device = {
+	.name		= "orion5x_wdt",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &orion5x_wdt_data,
+	},
+	.num_resources	= 0,
+};
+
+void __init orion5x_wdt_init(void)
+{
+	orion5x_wdt_data.tclk = orion5x_tclk;
+	platform_device_register(&orion5x_wdt_device);
+}
+
+
+/*****************************************************************************
  * Time handling
  ****************************************************************************/
 int orion5x_tclk;
@@ -631,6 +658,11 @@ void __init orion5x_init(void)
 		printk(KERN_INFO "Orion: Applying 5281 D0 WFI workaround.\n");
 		disable_hlt();
 	}
+
+	/*
+	 * Register watchdog driver
+	 */
+	orion5x_wdt_init();
 }
 
 /*

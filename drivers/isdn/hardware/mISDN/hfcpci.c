@@ -56,8 +56,8 @@ static const char *hfcpci_revision = "2.0";
 static int HFC_cnt;
 static uint debug;
 static uint poll, tics;
-struct timer_list hfc_tl;
-u32	hfc_jiffies;
+static struct timer_list hfc_tl;
+static unsigned long hfc_jiffies;
 
 MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL");

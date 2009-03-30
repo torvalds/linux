@@ -1507,7 +1507,7 @@ static struct urb *keyspan_setup_urb(struct usb_serial *serial, int endpoint,
 	} else {
 		dev_warn(&serial->interface->dev,
 			 "unsupported endpoint type %x\n",
-			 ep_desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK);
+			 usb_endpoint_type(ep_desc));
 		usb_free_urb(urb);
 		return NULL;
 	}

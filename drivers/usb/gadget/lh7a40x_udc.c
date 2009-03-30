@@ -432,8 +432,8 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	device_add(&dev->gadget.dev);
 	retval = driver->bind(&dev->gadget);
 	if (retval) {
-		printk("%s: bind to driver %s --> error %d\n", dev->gadget.name,
-		       driver->driver.name, retval);
+		printk(KERN_WARNING "%s: bind to driver %s --> error %d\n",
+		       dev->gadget.name, driver->driver.name, retval);
 		device_del(&dev->gadget.dev);
 
 		dev->driver = 0;
@@ -445,8 +445,8 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	 * for set_configuration as well as eventual disconnect.
 	 * NOTE:  this shouldn't power up until later.
 	 */
-	printk("%s: registered gadget driver '%s'\n", dev->gadget.name,
-	       driver->driver.name);
+	printk(KERN_WARNING "%s: registered gadget driver '%s'\n",
+	       dev->gadget.name, driver->driver.name);
 
 	udc_enable(dev);
 
@@ -581,7 +581,8 @@ static int read_fifo(struct lh7a40x_ep *ep, struct lh7a40x_request *req)
 			 * discard the extra data.
 			 */
 			if (req->req.status != -EOVERFLOW)
-				printk("%s overflow %d\n", ep->ep.name, count);
+				printk(KERN_WARNING "%s overflow %d\n",
+				       ep->ep.name, count);
 			req->req.status = -EOVERFLOW;
 		} else {
 			*buf++ = byte;
@@ -831,7 +832,8 @@ static void lh7a40x_out_epn(struct lh7a40x_udc *dev, u32 ep_idx, u32 intr)
 						       queue);
 
 				if (!req) {
-					printk("%s: NULL REQ %d\n",
+					printk(KERN_WARNING
+					       "%s: NULL REQ %d\n",
 					       __func__, ep_idx);
 					flush(ep);
 					break;
@@ -844,7 +846,7 @@ static void lh7a40x_out_epn(struct lh7a40x_udc *dev, u32 ep_idx, u32 intr)
 
 	} else {
 		/* Throw packet away.. */
-		printk("%s: No descriptor?!?\n", __func__);
+		printk(KERN_WARNING "%s: No descriptor?!?\n", __func__);
 		flush(ep);
 	}
 }

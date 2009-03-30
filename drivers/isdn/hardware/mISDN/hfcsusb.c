@@ -35,7 +35,7 @@
 #include <linux/mISDNhw.h>
 #include "hfcsusb.h"
 
-const char *hfcsusb_rev = "Revision: 0.3.3 (socket), 2008-11-05";
+static const char *hfcsusb_rev = "Revision: 0.3.3 (socket), 2008-11-05";
 
 static unsigned int debug;
 static int poll = DEFAULT_TRANSP_BURST_SZ;
@@ -974,7 +974,7 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 	spin_unlock(&hw->lock);
 }
 
-void
+static void
 fill_isoc_urb(struct urb *urb, struct usb_device *dev, unsigned int pipe,
 	      void *buf, int num_packets, int packet_size, int interval,
 	      usb_complete_t complete, void *context)
@@ -1720,7 +1720,7 @@ hfcsusb_stop_endpoint(struct hfcsusb *hw, int channel)
 
 
 /* Hardware Initialization */
-int
+static int
 setup_hfcsusb(struct hfcsusb *hw)
 {
 	int err;

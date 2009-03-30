@@ -69,7 +69,6 @@ struct lane2_ops {
 #define LEC_ARP_TABLE_SIZE 16
 
 struct lec_priv {
-	struct net_device_stats stats;
 	unsigned short lecid;			/* Lecid of this client */
 	struct hlist_head lec_arp_empty_ones;
 						/* Used for storing VCC's that don't have a MAC address attached yet */

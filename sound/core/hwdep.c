@@ -99,9 +99,6 @@ static int snd_hwdep_open(struct inode *inode, struct file * file)
 	if (hw == NULL)
 		return -ENODEV;
 
-	if (!hw->ops.open)
-		return -ENXIO;
-
 	if (!try_module_get(hw->card->module))
 		return -EFAULT;
 
@@ -111,6 +108,10 @@ static int snd_hwdep_open(struct inode *inode, struct file * file)
 	while (1) {
 		if (hw->exclusive && hw->used > 0) {
 			err = -EBUSY;
+			break;
+		}
+		if (!hw->ops.open) {
+			err = 0;
 			break;
 		}
 		err = hw->ops.open(hw, file);
@@ -151,7 +152,7 @@ static int snd_hwdep_open(struct inode *inode, struct file * file)
 
 static int snd_hwdep_release(struct inode *inode, struct file * file)
 {
-	int err = -ENXIO;
+	int err = 0;
 	struct snd_hwdep *hw = file->private_data;
 	struct module *mod = hw->card->module;
 

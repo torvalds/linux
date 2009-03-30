@@ -219,10 +219,12 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 		info->control.rates[i].count = 1;
 	}
 
-	if (sta && sdata->force_unicast_rateidx > -1)
+	if (sta && sdata->force_unicast_rateidx > -1) {
 		info->control.rates[0].idx = sdata->force_unicast_rateidx;
-	else
+	} else {
 		ref->ops->get_rate(ref->priv, ista, priv_sta, txrc);
+		info->flags |= IEEE80211_TX_INTFL_RCALGO;
+	}
 
 	/*
 	 * try to enforce the maximum rate the user wanted

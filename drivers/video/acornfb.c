@@ -28,9 +28,9 @@
 #include <linux/fb.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>

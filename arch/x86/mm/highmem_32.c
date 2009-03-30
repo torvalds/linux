@@ -1,5 +1,6 @@
 #include <linux/highmem.h>
 #include <linux/module.h>
+#include <linux/swap.h> /* for totalram_pages */
 
 void *kmap(struct page *page)
 {
@@ -156,3 +157,36 @@ EXPORT_SYMBOL(kmap);
 EXPORT_SYMBOL(kunmap);
 EXPORT_SYMBOL(kmap_atomic);
 EXPORT_SYMBOL(kunmap_atomic);
+
+#ifdef CONFIG_NUMA
+void __init set_highmem_pages_init(void)
+{
+	struct zone *zone;
+	int nid;
+
+	for_each_zone(zone) {
+		unsigned long zone_start_pfn, zone_end_pfn;
+
+		if (!is_highmem(zone))
+			continue;
+
+		zone_start_pfn = zone->zone_start_pfn;
+		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
+
+		nid = zone_to_nid(zone);
+		printk(KERN_INFO "Initializing %s for node %d (%08lx:%08lx)\n",
+				zone->name, nid, zone_start_pfn, zone_end_pfn);
+
+		add_highpages_with_active_regions(nid, zone_start_pfn,
+				 zone_end_pfn);
+	}
+	totalram_pages += totalhigh_pages;
+}
+#else
+void __init set_highmem_pages_init(void)
+{
+	add_highpages_with_active_regions(0, highstart_pfn, highend_pfn);
+
+	totalram_pages += totalhigh_pages;
+}
+#endif /* CONFIG_NUMA */

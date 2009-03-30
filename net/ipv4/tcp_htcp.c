@@ -115,8 +115,7 @@ static void measure_achieved_throughput(struct sock *sk, u32 pkts_acked, s32 rtt
 		return;
 
 	/* achieved throughput calculations */
-	if (icsk->icsk_ca_state != TCP_CA_Open &&
-	    icsk->icsk_ca_state != TCP_CA_Disorder) {
+	if (!((1 << icsk->icsk_ca_state) & (TCPF_CA_Open | TCPF_CA_Disorder))) {
 		ca->packetcount = 0;
 		ca->lasttime = now;
 		return;

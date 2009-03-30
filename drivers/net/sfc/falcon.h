@@ -85,6 +85,8 @@ extern void falcon_set_int_moderation(struct efx_channel *channel);
 extern void falcon_disable_interrupts(struct efx_nic *efx);
 extern void falcon_fini_interrupt(struct efx_nic *efx);
 
+#define FALCON_IRQ_MOD_RESOLUTION 5
+
 /* Global Resources */
 extern int falcon_probe_nic(struct efx_nic *efx);
 extern int falcon_probe_resources(struct efx_nic *efx);

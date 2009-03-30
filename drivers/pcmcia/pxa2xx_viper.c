@@ -26,7 +26,6 @@
 
 #include <asm/irq.h>
 
-#include <mach/pxa-regs.h>
 #include <mach/viper.h>
 #include <asm/mach-types.h>
 

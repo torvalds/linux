@@ -175,7 +175,7 @@ static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	pci_write_config_byte(dev, 0x54, ultra_enable);
 }
 
-static unsigned int init_chipset_svwks(struct pci_dev *dev)
+static int init_chipset_svwks(struct pci_dev *dev)
 {
 	unsigned int reg;
 	u8 btr;
@@ -270,7 +270,7 @@ static unsigned int init_chipset_svwks(struct pci_dev *dev)
 		pci_write_config_byte(dev, 0x5A, btr);
 	}
 
-	return dev->irq;
+	return 0;
 }
 
 static u8 ata66_svwks_svwks(ide_hwif_t *hwif)
@@ -353,14 +353,11 @@ static const struct ide_port_ops svwks_port_ops = {
 	.cable_detect		= svwks_cable_detect,
 };
 
-#define IDE_HFLAGS_SVWKS IDE_HFLAG_LEGACY_IRQS
-
 static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	{	/* 0: OSB4 */
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_svwks,
 		.port_ops	= &osb4_port_ops,
-		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= 0x00, /* UDMA is problematic on OSB4 */
@@ -369,7 +366,6 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_svwks,
 		.port_ops	= &svwks_port_ops,
-		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -378,7 +374,6 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_svwks,
 		.port_ops	= &svwks_port_ops,
-		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -387,7 +382,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_svwks,
 		.port_ops	= &svwks_port_ops,
-		.host_flags	= IDE_HFLAGS_SVWKS | IDE_HFLAG_SINGLE,
+		.host_flags	= IDE_HFLAG_SINGLE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -396,7 +391,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_svwks,
 		.port_ops	= &svwks_port_ops,
-		.host_flags	= IDE_HFLAGS_SVWKS | IDE_HFLAG_SINGLE,
+		.host_flags	= IDE_HFLAG_SINGLE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,

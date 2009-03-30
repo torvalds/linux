@@ -25,10 +25,11 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/pgtable.h>
-#include <asm/page.h>
+#include <asm/pgtable_types.h>
+#include <asm/page_types.h>
 #include <asm/msr.h>
 #include <asm/segment.h>
+#include <asm/processor-flags.h>
 
 .section .rodata, "a", @progbits
 
@@ -37,7 +38,7 @@
 ENTRY(trampoline_data)
 r_base = .
 	cli			# We should be safe anyway
-	wbinvd	
+	wbinvd
 	mov	%cs, %ax	# Code and data in the same place
 	mov	%ax, %ds
 	mov	%ax, %es
@@ -73,9 +74,8 @@ r_base = .
 	lidtl	tidt - r_base	# load idt with 0, 0
 	lgdtl	tgdt - r_base	# load gdt with whatever is appropriate
 
-	xor	%ax, %ax
-	inc	%ax		# protected mode (PE) bit
-	lmsw	%ax		# into protected mode
+	mov	$X86_CR0_PE, %ax	# protected mode (PE) bit
+	lmsw	%ax			# into protected mode
 
 	# flush prefetch and jump to startup_32
 	ljmpl	*(startup_32_vector - r_base)
@@ -86,9 +86,8 @@ startup_32:
 	movl	$__KERNEL_DS, %eax	# Initialize the %ds segment register
 	movl	%eax, %ds
 
-	xorl	%eax, %eax
-	btsl	$5, %eax		# Enable PAE mode
-	movl	%eax, %cr4
+	movl	$X86_CR4_PAE, %eax
+	movl	%eax, %cr4		# Enable PAE mode
 
 					# Setup trampoline 4 level pagetables
 	leal	(trampoline_level4_pgt - r_base)(%esi), %eax
@@ -99,9 +98,9 @@ startup_32:
 	xorl	%edx, %edx
 	wrmsr
 
-	xorl	%eax, %eax
-	btsl	$31, %eax		# Enable paging and in turn activate Long Mode
-	btsl	$0, %eax		# Enable protected mode
+	# Enable paging and in turn activate Long Mode
+	# Enable protected mode
+	movl	$(X86_CR0_PG | X86_CR0_PE), %eax
 	movl	%eax, %cr0
 
 	/*

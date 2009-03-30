@@ -151,7 +151,7 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 	for (i = 0; i < 100000; i++) {
 		u8 val = if_cs_read8(card, addr);
 		if (val == reg)
-			return i;
+			return 0;
 		udelay(5);
 	}
 	return -ETIME;
@@ -421,7 +421,7 @@ static struct sk_buff *if_cs_receive_data(struct lbs_private *priv)
 	len = if_cs_read16(priv->card, IF_CS_READ_LEN);
 	if (len == 0 || len > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE) {
 		lbs_pr_err("card data buffer has invalid # of bytes (%d)\n", len);
-		priv->stats.rx_dropped++;
+		priv->dev->stats.rx_dropped++;
 		goto dat_err;
 	}
 

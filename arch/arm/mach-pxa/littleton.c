@@ -39,8 +39,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/mfp-pxa300.h>
+#include <mach/pxa300.h>
 #include <mach/pxafb.h>
 #include <mach/ssp.h>
 #include <mach/pxa2xx_spi.h>

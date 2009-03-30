@@ -100,6 +100,7 @@ static inline char *strcat(char *dst, const char *src)
 
 static inline char *strcpy(char *dst, const char *src)
 {
+#if __GNUC__ < 4
 	register int r0 asm("0") = 0;
 	char *ret = dst;
 
@@ -109,10 +110,14 @@ static inline char *strcpy(char *dst, const char *src)
 		: "+&a" (dst), "+&a" (src) : "d" (r0)
 		: "cc", "memory");
 	return ret;
+#else
+	return __builtin_strcpy(dst, src);
+#endif
 }
 
 static inline size_t strlen(const char *s)
 {
+#if __GNUC__ < 4
 	register unsigned long r0 asm("0") = 0;
 	const char *tmp = s;
 
@@ -121,6 +126,9 @@ static inline size_t strlen(const char *s)
 		"	jo	0b"
 		: "+d" (r0), "+a" (tmp) :  : "cc");
 	return r0 - (unsigned long) s;
+#else
+	return __builtin_strlen(s);
+#endif
 }
 
 static inline size_t strnlen(const char * s, size_t n)
@@ -135,7 +143,13 @@ static inline size_t strnlen(const char * s, size_t n)
 		: "+a" (end), "+a" (tmp) : "d" (r0)  : "cc");
 	return end - s;
 }
-
+#else /* IN_ARCH_STRING_C */
+void *memchr(const void * s, int c, size_t n);
+void *memscan(void *s, int c, size_t n);
+char *strcat(char *dst, const char *src);
+char *strcpy(char *dst, const char *src);
+size_t strlen(const char *s);
+size_t strnlen(const char * s, size_t n);
 #endif /* !IN_ARCH_STRING_C */
 
 #endif /* __KERNEL__ */

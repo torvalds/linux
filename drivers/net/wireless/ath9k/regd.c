@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Atheros Communications Inc.
+ * Copyright (c) 2008-2009 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,63 +16,359 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include "core.h"
-#include "hw.h"
-#include "regd.h"
+#include "ath9k.h"
 #include "regd_common.h"
 
-static int ath9k_regd_chansort(const void *a, const void *b)
-{
-	const struct ath9k_channel *ca = a;
-	const struct ath9k_channel *cb = b;
+/*
+ * This is a set of common rules used by our world regulatory domains.
+ * We have 12 world regulatory domains. To save space we consolidate
+ * the regulatory domains in 5 structures by frequency and change
+ * the flags on our reg_notifier() on a case by case basis.
+ */
 
-	return (ca->channel == cb->channel) ?
-	    (ca->channelFlags & CHAN_FLAGS) -
-	    (cb->channelFlags & CHAN_FLAGS) : ca->channel - cb->channel;
-}
+/* Only these channels all allow active scan on all world regulatory domains */
+#define ATH9K_2GHZ_CH01_11	REG_RULE(2412-10, 2462+10, 40, 0, 20, 0)
 
-static void
-ath9k_regd_sort(void *a, u32 n, u32 size, ath_hal_cmp_t *cmp)
-{
-	u8 *aa = a;
-	u8 *ai, *t;
+/* We enable active scan on these a case by case basis by regulatory domain */
+#define ATH9K_2GHZ_CH12_13	REG_RULE(2467-10, 2472+10, 40, 0, 20,\
+					NL80211_RRF_PASSIVE_SCAN)
+#define ATH9K_2GHZ_CH14		REG_RULE(2484-10, 2484+10, 40, 0, 20,\
+				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_OFDM)
 
-	for (ai = aa + size; --n >= 1; ai += size)
-		for (t = ai; t > aa; t -= size) {
-			u8 *u = t - size;
-			if (cmp(u, t) <= 0)
-				break;
-			swap_array(u, t, size);
-		}
-}
+/* We allow IBSS on these on a case by case basis by regulatory domain */
+#define ATH9K_5GHZ_5150_5350	REG_RULE(5150-10, 5350+10, 40, 0, 30,\
+				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS)
+#define ATH9K_5GHZ_5470_5850	REG_RULE(5470-10, 5850+10, 40, 0, 30,\
+				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS)
+#define ATH9K_5GHZ_5725_5850	REG_RULE(5725-10, 5850+10, 40, 0, 30,\
+				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS)
 
-static u16 ath9k_regd_get_eepromRD(struct ath_hal *ah)
-{
-	return ah->ah_currentRD & ~WORLDWIDE_ROAMING_FLAG;
-}
+#define ATH9K_2GHZ_ALL		ATH9K_2GHZ_CH01_11, \
+				ATH9K_2GHZ_CH12_13, \
+				ATH9K_2GHZ_CH14
 
-static bool ath9k_regd_is_chan_bm_zero(u64 *bitmask)
-{
-	int i;
+#define ATH9K_5GHZ_ALL		ATH9K_5GHZ_5150_5350, \
+				ATH9K_5GHZ_5470_5850
+/* This one skips what we call "mid band" */
+#define ATH9K_5GHZ_NO_MIDBAND	ATH9K_5GHZ_5150_5350, \
+				ATH9K_5GHZ_5725_5850
 
-	for (i = 0; i < BMLEN; i++) {
-		if (bitmask[i] != 0)
-			return false;
+/* Can be used for:
+ * 0x60, 0x61, 0x62 */
+static const struct ieee80211_regdomain ath9k_world_regdom_60_61_62 = {
+	.n_reg_rules = 5,
+	.alpha2 =  "99",
+	.reg_rules = {
+		ATH9K_2GHZ_ALL,
+		ATH9K_5GHZ_ALL,
 	}
-	return true;
+};
+
+/* Can be used by 0x63 and 0x65 */
+static const struct ieee80211_regdomain ath9k_world_regdom_63_65 = {
+	.n_reg_rules = 4,
+	.alpha2 =  "99",
+	.reg_rules = {
+		ATH9K_2GHZ_CH01_11,
+		ATH9K_2GHZ_CH12_13,
+		ATH9K_5GHZ_NO_MIDBAND,
+	}
+};
+
+/* Can be used by 0x64 only */
+static const struct ieee80211_regdomain ath9k_world_regdom_64 = {
+	.n_reg_rules = 3,
+	.alpha2 =  "99",
+	.reg_rules = {
+		ATH9K_2GHZ_CH01_11,
+		ATH9K_5GHZ_NO_MIDBAND,
+	}
+};
+
+/* Can be used by 0x66 and 0x69 */
+static const struct ieee80211_regdomain ath9k_world_regdom_66_69 = {
+	.n_reg_rules = 3,
+	.alpha2 =  "99",
+	.reg_rules = {
+		ATH9K_2GHZ_CH01_11,
+		ATH9K_5GHZ_ALL,
+	}
+};
+
+/* Can be used by 0x67, 0x6A and 0x68 */
+static const struct ieee80211_regdomain ath9k_world_regdom_67_68_6A = {
+	.n_reg_rules = 4,
+	.alpha2 =  "99",
+	.reg_rules = {
+		ATH9K_2GHZ_CH01_11,
+		ATH9K_2GHZ_CH12_13,
+		ATH9K_5GHZ_ALL,
+	}
+};
+
+static inline bool is_wwr_sku(u16 regd)
+{
+	return ((regd & WORLD_SKU_MASK) == WORLD_SKU_PREFIX) ||
+		(regd == WORLD);
 }
 
-static bool ath9k_regd_is_eeprom_valid(struct ath_hal *ah)
+static u16 ath9k_regd_get_eepromRD(struct ath_hw *ah)
+{
+	return ah->regulatory.current_rd & ~WORLDWIDE_ROAMING_FLAG;
+}
+
+bool ath9k_is_world_regd(struct ath_hw *ah)
+{
+	return is_wwr_sku(ath9k_regd_get_eepromRD(ah));
+}
+
+const struct ieee80211_regdomain *ath9k_default_world_regdomain(void)
+{
+	/* this is the most restrictive */
+	return &ath9k_world_regdom_64;
+}
+
+const struct ieee80211_regdomain *ath9k_world_regdomain(struct ath_hw *ah)
+{
+	switch (ah->regulatory.regpair->regDmnEnum) {
+	case 0x60:
+	case 0x61:
+	case 0x62:
+		return &ath9k_world_regdom_60_61_62;
+	case 0x63:
+	case 0x65:
+		return &ath9k_world_regdom_63_65;
+	case 0x64:
+		return &ath9k_world_regdom_64;
+	case 0x66:
+	case 0x69:
+		return &ath9k_world_regdom_66_69;
+	case 0x67:
+	case 0x68:
+	case 0x6A:
+		return &ath9k_world_regdom_67_68_6A;
+	default:
+		WARN_ON(1);
+		return ath9k_default_world_regdomain();
+	}
+}
+
+/* Frequency is one where radar detection is required */
+static bool ath9k_is_radar_freq(u16 center_freq)
+{
+	return (center_freq >= 5260 && center_freq <= 5700);
+}
+
+/*
+ * N.B: These exception rules do not apply radar freqs.
+ *
+ * - We enable adhoc (or beaconing) if allowed by 11d
+ * - We enable active scan if the channel is allowed by 11d
+ * - If no country IE has been processed and a we determine we have
+ *   received a beacon on a channel we can enable active scan and
+ *   adhoc (or beaconing).
+ */
+static void ath9k_reg_apply_beaconing_flags(
+	struct wiphy *wiphy,
+	enum nl80211_reg_initiator initiator)
+{
+	enum ieee80211_band band;
+	struct ieee80211_supported_band *sband;
+	const struct ieee80211_reg_rule *reg_rule;
+	struct ieee80211_channel *ch;
+	unsigned int i;
+	u32 bandwidth = 0;
+	int r;
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+
+		if (!wiphy->bands[band])
+			continue;
+
+		sband = wiphy->bands[band];
+
+		for (i = 0; i < sband->n_channels; i++) {
+
+			ch = &sband->channels[i];
+
+			if (ath9k_is_radar_freq(ch->center_freq) ||
+			    (ch->flags & IEEE80211_CHAN_RADAR))
+				continue;
+
+			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
+				r = freq_reg_info(wiphy, ch->center_freq,
+					&bandwidth, &reg_rule);
+				if (r)
+					continue;
+				/*
+				 * If 11d had a rule for this channel ensure
+				 * we enable adhoc/beaconing if it allows us to
+				 * use it. Note that we would have disabled it
+				 * by applying our static world regdomain by
+				 * default during init, prior to calling our
+				 * regulatory_hint().
+				 */
+				if (!(reg_rule->flags &
+				    NL80211_RRF_NO_IBSS))
+					ch->flags &=
+					  ~IEEE80211_CHAN_NO_IBSS;
+				if (!(reg_rule->flags &
+				    NL80211_RRF_PASSIVE_SCAN))
+					ch->flags &=
+					  ~IEEE80211_CHAN_PASSIVE_SCAN;
+			} else {
+				if (ch->beacon_found)
+					ch->flags &= ~(IEEE80211_CHAN_NO_IBSS |
+					  IEEE80211_CHAN_PASSIVE_SCAN);
+			}
+		}
+	}
+
+}
+
+/* Allows active scan scan on Ch 12 and 13 */
+static void ath9k_reg_apply_active_scan_flags(
+	struct wiphy *wiphy,
+	enum nl80211_reg_initiator initiator)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *ch;
+	const struct ieee80211_reg_rule *reg_rule;
+	u32 bandwidth = 0;
+	int r;
+
+	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
+
+	/*
+	 * If no country IE has been received always enable active scan
+	 * on these channels. This is only done for specific regulatory SKUs
+	 */
+	if (initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE) {
+		ch = &sband->channels[11]; /* CH 12 */
+		if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+			ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+		ch = &sband->channels[12]; /* CH 13 */
+		if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+			ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+		return;
+	}
+
+	/*
+	 * If a country IE has been recieved check its rule for this
+	 * channel first before enabling active scan. The passive scan
+	 * would have been enforced by the initial processing of our
+	 * custom regulatory domain.
+	 */
+
+	ch = &sband->channels[11]; /* CH 12 */
+	r = freq_reg_info(wiphy, ch->center_freq, &bandwidth, &reg_rule);
+	if (!r) {
+		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
+			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+				ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+	}
+
+	ch = &sband->channels[12]; /* CH 13 */
+	r = freq_reg_info(wiphy, ch->center_freq, &bandwidth, &reg_rule);
+	if (!r) {
+		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
+			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+				ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+	}
+}
+
+/* Always apply Radar/DFS rules on freq range 5260 MHz - 5700 MHz */
+void ath9k_reg_apply_radar_flags(struct wiphy *wiphy)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *ch;
+	unsigned int i;
+
+	if (!wiphy->bands[IEEE80211_BAND_5GHZ])
+		return;
+
+	sband = wiphy->bands[IEEE80211_BAND_5GHZ];
+
+	for (i = 0; i < sband->n_channels; i++) {
+		ch = &sband->channels[i];
+		if (!ath9k_is_radar_freq(ch->center_freq))
+			continue;
+		/* We always enable radar detection/DFS on this
+		 * frequency range. Additionally we also apply on
+		 * this frequency range:
+		 * - If STA mode does not yet have DFS supports disable
+		 *   active scanning
+		 * - If adhoc mode does not support DFS yet then
+		 *   disable adhoc in the frequency.
+		 * - If AP mode does not yet support radar detection/DFS
+		 *   do not allow AP mode
+		 */
+		if (!(ch->flags & IEEE80211_CHAN_DISABLED))
+			ch->flags |= IEEE80211_CHAN_RADAR |
+				     IEEE80211_CHAN_NO_IBSS |
+				     IEEE80211_CHAN_PASSIVE_SCAN;
+	}
+}
+
+void ath9k_reg_apply_world_flags(struct wiphy *wiphy,
+				 enum nl80211_reg_initiator initiator)
+{
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	struct ath_hw *ah = sc->sc_ah;
+
+	switch (ah->regulatory.regpair->regDmnEnum) {
+	case 0x60:
+	case 0x63:
+	case 0x66:
+	case 0x67:
+		ath9k_reg_apply_beaconing_flags(wiphy, initiator);
+		break;
+	case 0x68:
+		ath9k_reg_apply_beaconing_flags(wiphy, initiator);
+		ath9k_reg_apply_active_scan_flags(wiphy, initiator);
+		break;
+	}
+	return;
+}
+
+int ath9k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+{
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+
+	/* We always apply this */
+	ath9k_reg_apply_radar_flags(wiphy);
+
+	switch (request->initiator) {
+	case NL80211_REGDOM_SET_BY_DRIVER:
+	case NL80211_REGDOM_SET_BY_CORE:
+	case NL80211_REGDOM_SET_BY_USER:
+		break;
+	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
+		if (ath9k_is_world_regd(sc->sc_ah))
+			ath9k_reg_apply_world_flags(wiphy, request->initiator);
+		break;
+	}
+
+	return 0;
+}
+
+bool ath9k_regd_is_eeprom_valid(struct ath_hw *ah)
 {
 	u16 rd = ath9k_regd_get_eepromRD(ah);
 	int i;
 
 	if (rd & COUNTRY_ERD_FLAG) {
+		/* EEPROM value is a country code */
 		u16 cc = rd & ~COUNTRY_ERD_FLAG;
 		for (i = 0; i < ARRAY_SIZE(allCountries); i++)
 			if (allCountries[i].countryCode == cc)
 				return true;
 	} else {
+		/* EEPROM value is a regpair value */
 		for (i = 0; i < ARRAY_SIZE(regDomainPairs); i++)
 			if (regDomainPairs[i].regDmnEnum == rd)
 				return true;
@@ -82,113 +378,7 @@ static bool ath9k_regd_is_eeprom_valid(struct ath_hal *ah)
 	return false;
 }
 
-static bool ath9k_regd_is_fcc_midband_supported(struct ath_hal *ah)
-{
-	u32 regcap;
-
-	regcap = ah->ah_caps.reg_cap;
-
-	if (regcap & AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND)
-		return true;
-	else
-		return false;
-}
-
-static bool ath9k_regd_is_ccode_valid(struct ath_hal *ah,
-				      u16 cc)
-{
-	u16 rd;
-	int i;
-
-	if (cc == CTRY_DEFAULT)
-		return true;
-	if (cc == CTRY_DEBUG)
-		return true;
-
-	rd = ath9k_regd_get_eepromRD(ah);
-	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY, "EEPROM regdomain 0x%x\n", rd);
-
-	if (rd & COUNTRY_ERD_FLAG) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"EEPROM setting is country code %u\n",
-			rd & ~COUNTRY_ERD_FLAG);
-		return cc == (rd & ~COUNTRY_ERD_FLAG);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(allCountries); i++) {
-		if (cc == allCountries[i].countryCode) {
-#ifdef AH_SUPPORT_11D
-			if ((rd & WORLD_SKU_MASK) == WORLD_SKU_PREFIX)
-				return true;
-#endif
-			if (allCountries[i].regDmnEnum == rd ||
-			    rd == DEBUG_REG_DMN || rd == NO_ENUMRD)
-				return true;
-		}
-	}
-	return false;
-}
-
-static void
-ath9k_regd_get_wmodes_nreg(struct ath_hal *ah,
-			   struct country_code_to_enum_rd *country,
-			   struct regDomain *rd5GHz,
-			   unsigned long *modes_allowed)
-{
-	bitmap_copy(modes_allowed, ah->ah_caps.wireless_modes, ATH9K_MODE_MAX);
-
-	if (test_bit(ATH9K_MODE_11G, ah->ah_caps.wireless_modes) &&
-	    (!country->allow11g))
-		clear_bit(ATH9K_MODE_11G, modes_allowed);
-
-	if (test_bit(ATH9K_MODE_11A, ah->ah_caps.wireless_modes) &&
-	    (ath9k_regd_is_chan_bm_zero(rd5GHz->chan11a)))
-		clear_bit(ATH9K_MODE_11A, modes_allowed);
-
-	if (test_bit(ATH9K_MODE_11NG_HT20, ah->ah_caps.wireless_modes)
-	    && (!country->allow11ng20))
-		clear_bit(ATH9K_MODE_11NG_HT20, modes_allowed);
-
-	if (test_bit(ATH9K_MODE_11NA_HT20, ah->ah_caps.wireless_modes)
-	    && (!country->allow11na20))
-		clear_bit(ATH9K_MODE_11NA_HT20, modes_allowed);
-
-	if (test_bit(ATH9K_MODE_11NG_HT40PLUS, ah->ah_caps.wireless_modes) &&
-	    (!country->allow11ng40))
-		clear_bit(ATH9K_MODE_11NG_HT40PLUS, modes_allowed);
-
-	if (test_bit(ATH9K_MODE_11NG_HT40MINUS, ah->ah_caps.wireless_modes) &&
-	    (!country->allow11ng40))
-		clear_bit(ATH9K_MODE_11NG_HT40MINUS, modes_allowed);
-
-	if (test_bit(ATH9K_MODE_11NA_HT40PLUS, ah->ah_caps.wireless_modes) &&
-	    (!country->allow11na40))
-		clear_bit(ATH9K_MODE_11NA_HT40PLUS, modes_allowed);
-
-	if (test_bit(ATH9K_MODE_11NA_HT40MINUS, ah->ah_caps.wireless_modes) &&
-	    (!country->allow11na40))
-		clear_bit(ATH9K_MODE_11NA_HT40MINUS, modes_allowed);
-}
-
-bool ath9k_regd_is_public_safety_sku(struct ath_hal *ah)
-{
-	u16 rd;
-
-	rd = ath9k_regd_get_eepromRD(ah);
-
-	switch (rd) {
-	case FCC4_FCCA:
-	case (CTRY_UNITED_STATES_FCC49 | COUNTRY_ERD_FLAG):
-		return true;
-	case DEBUG_REG_DMN:
-	case NO_ENUMRD:
-		if (ah->ah_countryCode == CTRY_UNITED_STATES_FCC49)
-			return true;
-		break;
-	}
-	return false;
-}
-
+/* EEPROM country code to regpair mapping */
 static struct country_code_to_enum_rd*
 ath9k_regd_find_country(u16 countryCode)
 {
@@ -201,12 +391,22 @@ ath9k_regd_find_country(u16 countryCode)
 	return NULL;
 }
 
-static u16 ath9k_regd_get_default_country(struct ath_hal *ah)
+/* EEPROM rd code to regpair mapping */
+static struct country_code_to_enum_rd*
+ath9k_regd_find_country_by_rd(int regdmn)
 {
-	u16 rd;
 	int i;
 
-	rd = ath9k_regd_get_eepromRD(ah);
+	for (i = 0; i < ARRAY_SIZE(allCountries); i++) {
+		if (allCountries[i].regDmnEnum == regdmn)
+			return &allCountries[i];
+	}
+	return NULL;
+}
+
+/* Returns the map of the EEPROM set RD to a country code */
+static u16 ath9k_regd_get_default_country(u16 rd)
+{
 	if (rd & COUNTRY_ERD_FLAG) {
 		struct country_code_to_enum_rd *country = NULL;
 		u16 cc = rd & ~COUNTRY_ERD_FLAG;
@@ -216,798 +416,104 @@ static u16 ath9k_regd_get_default_country(struct ath_hal *ah)
 			return cc;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(regDomainPairs); i++)
-		if (regDomainPairs[i].regDmnEnum == rd) {
-			if (regDomainPairs[i].singleCC != 0)
-				return regDomainPairs[i].singleCC;
-			else
-				i = ARRAY_SIZE(regDomainPairs);
-		}
 	return CTRY_DEFAULT;
 }
 
-static bool ath9k_regd_is_valid_reg_domain(int regDmn,
-					   struct regDomain *rd)
+static struct reg_dmn_pair_mapping*
+ath9k_get_regpair(int regdmn)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(regDomains); i++) {
-		if (regDomains[i].regDmnEnum == regDmn) {
-			if (rd != NULL) {
-				memcpy(rd, &regDomains[i],
-				       sizeof(struct regDomain));
-			}
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool ath9k_regd_is_valid_reg_domainPair(int regDmnPair)
-{
-	int i;
-
-	if (regDmnPair == NO_ENUMRD)
-		return false;
+	if (regdmn == NO_ENUMRD)
+		return NULL;
 	for (i = 0; i < ARRAY_SIZE(regDomainPairs); i++) {
-		if (regDomainPairs[i].regDmnEnum == regDmnPair)
-			return true;
+		if (regDomainPairs[i].regDmnEnum == regdmn)
+			return &regDomainPairs[i];
 	}
-	return false;
+	return NULL;
 }
 
-static bool
-ath9k_regd_get_wmode_regdomain(struct ath_hal *ah, int regDmn,
-			       u16 channelFlag, struct regDomain *rd)
+int ath9k_regd_init(struct ath_hw *ah)
 {
-	int i, found;
-	u64 flags = NO_REQ;
-	struct reg_dmn_pair_mapping *regPair = NULL;
-	int regOrg;
-
-	regOrg = regDmn;
-	if (regDmn == CTRY_DEFAULT) {
-		u16 rdnum;
-		rdnum = ath9k_regd_get_eepromRD(ah);
-
-		if (!(rdnum & COUNTRY_ERD_FLAG)) {
-			if (ath9k_regd_is_valid_reg_domain(rdnum, NULL) ||
-			    ath9k_regd_is_valid_reg_domainPair(rdnum)) {
-				regDmn = rdnum;
-			}
-		}
-	}
-
-	if ((regDmn & MULTI_DOMAIN_MASK) == 0) {
-		for (i = 0, found = 0;
-		     (i < ARRAY_SIZE(regDomainPairs)) && (!found); i++) {
-			if (regDomainPairs[i].regDmnEnum == regDmn) {
-				regPair = &regDomainPairs[i];
-				found = 1;
-			}
-		}
-		if (!found) {
-			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"Failed to find reg domain pair %u\n", regDmn);
-			return false;
-		}
-		if (!(channelFlag & CHANNEL_2GHZ)) {
-			regDmn = regPair->regDmn5GHz;
-			flags = regPair->flags5GHz;
-		}
-		if (channelFlag & CHANNEL_2GHZ) {
-			regDmn = regPair->regDmn2GHz;
-			flags = regPair->flags2GHz;
-		}
-	}
-
-	found = ath9k_regd_is_valid_reg_domain(regDmn, rd);
-	if (!found) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Failed to find unitary reg domain %u\n", regDmn);
-		return false;
-	} else {
-		rd->pscan &= regPair->pscanMask;
-		if (((regOrg & MULTI_DOMAIN_MASK) == 0) &&
-		    (flags != NO_REQ)) {
-			rd->flags = flags;
-		}
-
-		rd->flags &= (channelFlag & CHANNEL_2GHZ) ?
-		    REG_DOMAIN_2GHZ_MASK : REG_DOMAIN_5GHZ_MASK;
-		return true;
-	}
-}
-
-static bool ath9k_regd_is_bit_set(int bit, u64 *bitmask)
-{
-	int byteOffset, bitnum;
-	u64 val;
-
-	byteOffset = bit / 64;
-	bitnum = bit - byteOffset * 64;
-	val = ((u64) 1) << bitnum;
-	if (bitmask[byteOffset] & val)
-		return true;
-	else
-		return false;
-}
-
-static void
-ath9k_regd_add_reg_classid(u8 *regclassids, u32 maxregids,
-			   u32 *nregids, u8 regclassid)
-{
-	int i;
-
-	if (regclassid == 0)
-		return;
-
-	for (i = 0; i < maxregids; i++) {
-		if (regclassids[i] == regclassid)
-			return;
-		if (regclassids[i] == 0)
-			break;
-	}
-
-	if (i == maxregids)
-		return;
-	else {
-		regclassids[i] = regclassid;
-		*nregids += 1;
-	}
-
-	return;
-}
-
-static bool
-ath9k_regd_get_eeprom_reg_ext_bits(struct ath_hal *ah,
-				   enum reg_ext_bitmap bit)
-{
-	return (ah->ah_currentRDExt & (1 << bit)) ? true : false;
-}
-
-#ifdef ATH_NF_PER_CHAN
-
-static void ath9k_regd_init_rf_buffer(struct ath9k_channel *ichans,
-				      int nchans)
-{
-	int i, j, next;
-
-	for (next = 0; next < nchans; next++) {
-		for (i = 0; i < NUM_NF_READINGS; i++) {
-			ichans[next].nfCalHist[i].currIndex = 0;
-			ichans[next].nfCalHist[i].privNF =
-			    AR_PHY_CCA_MAX_GOOD_VALUE;
-			ichans[next].nfCalHist[i].invalidNFcount =
-			    AR_PHY_CCA_FILTERWINDOW_LENGTH;
-			for (j = 0; j < ATH9K_NF_CAL_HIST_MAX; j++) {
-				ichans[next].nfCalHist[i].nfCalBuffer[j] =
-				    AR_PHY_CCA_MAX_GOOD_VALUE;
-			}
-		}
-	}
-}
-#endif
-
-static int ath9k_regd_is_chan_present(struct ath_hal *ah,
-				      u16 c)
-{
-	int i;
-
-	for (i = 0; i < 150; i++) {
-		if (!ah->ah_channels[i].channel)
-			return -1;
-		else if (ah->ah_channels[i].channel == c)
-			return i;
-	}
-
-	return -1;
-}
-
-static bool
-ath9k_regd_add_channel(struct ath_hal *ah,
-		       u16 c,
-		       u16 c_lo,
-		       u16 c_hi,
-		       u16 maxChan,
-		       u8 ctl,
-		       int pos,
-		       struct regDomain rd5GHz,
-		       struct RegDmnFreqBand *fband,
-		       struct regDomain *rd,
-		       const struct cmode *cm,
-		       struct ath9k_channel *ichans,
-		       bool enableExtendedChannels)
-{
-	struct ath9k_channel *chan;
-	int ret;
-	u32 channelFlags = 0;
-	u8 privFlags = 0;
-
-	if (!(c_lo <= c && c <= c_hi)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"c %u out of range [%u..%u]\n",
-			c, c_lo, c_hi);
-		return false;
-	}
-	if ((fband->channelBW == CHANNEL_HALF_BW) &&
-	    !(ah->ah_caps.hw_caps & ATH9K_HW_CAP_CHAN_HALFRATE)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Skipping %u half rate channel\n", c);
-		return false;
-	}
-
-	if ((fband->channelBW == CHANNEL_QUARTER_BW) &&
-	    !(ah->ah_caps.hw_caps & ATH9K_HW_CAP_CHAN_QUARTERRATE)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Skipping %u quarter rate channel\n", c);
-		return false;
-	}
-
-	if (((c + fband->channelSep) / 2) > (maxChan + HALF_MAXCHANBW)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"c %u > maxChan %u\n", c, maxChan);
-		return false;
-	}
-
-	if ((fband->usePassScan & IS_ECM_CHAN) && !enableExtendedChannels) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Skipping ecm channel\n");
-		return false;
-	}
-
-	if ((rd->flags & NO_HOSTAP) && (ah->ah_opmode == NL80211_IFTYPE_AP)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Skipping HOSTAP channel\n");
-		return false;
-	}
-
-	if (IS_HT40_MODE(cm->mode) &&
-	    !(ath9k_regd_get_eeprom_reg_ext_bits(ah, REG_EXT_FCC_DFS_HT40)) &&
-	    (fband->useDfs) &&
-	    (rd->conformanceTestLimit != MKK)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Skipping HT40 channel (en_fcc_dfs_ht40 = 0)\n");
-		return false;
-	}
-
-	if (IS_HT40_MODE(cm->mode) &&
-	    !(ath9k_regd_get_eeprom_reg_ext_bits(ah,
-						 REG_EXT_JAPAN_NONDFS_HT40)) &&
-	    !(fband->useDfs) && (rd->conformanceTestLimit == MKK)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Skipping HT40 channel (en_jap_ht40 = 0)\n");
-		return false;
-	}
-
-	if (IS_HT40_MODE(cm->mode) &&
-	    !(ath9k_regd_get_eeprom_reg_ext_bits(ah, REG_EXT_JAPAN_DFS_HT40)) &&
-	    (fband->useDfs) &&
-	    (rd->conformanceTestLimit == MKK)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Skipping HT40 channel (en_jap_dfs_ht40 = 0)\n");
-		return false;
-	}
-
-	/* Calculate channel flags */
-
-	channelFlags = cm->flags;
-
-	switch (fband->channelBW) {
-	case CHANNEL_HALF_BW:
-		channelFlags |= CHANNEL_HALF;
-		break;
-	case CHANNEL_QUARTER_BW:
-		channelFlags |= CHANNEL_QUARTER;
-		break;
-	}
-
-	if (fband->usePassScan & rd->pscan)
-		channelFlags |= CHANNEL_PASSIVE;
-	else
-		channelFlags &= ~CHANNEL_PASSIVE;
-	if (fband->useDfs & rd->dfsMask)
-		privFlags = CHANNEL_DFS;
-	else
-		privFlags = 0;
-	if (rd->flags & LIMIT_FRAME_4MS)
-		privFlags |= CHANNEL_4MS_LIMIT;
-	if (privFlags & CHANNEL_DFS)
-		privFlags |= CHANNEL_DISALLOW_ADHOC;
-	if (rd->flags & ADHOC_PER_11D)
-		privFlags |= CHANNEL_PER_11D_ADHOC;
-
-	if (channelFlags & CHANNEL_PASSIVE) {
-		if ((c < 2412) || (c > 2462)) {
-			if (rd5GHz.regDmnEnum == MKK1 ||
-			    rd5GHz.regDmnEnum == MKK2) {
-				u32 regcap = ah->ah_caps.reg_cap;
-				if (!(regcap &
-				      (AR_EEPROM_EEREGCAP_EN_KK_U1_EVEN |
-				       AR_EEPROM_EEREGCAP_EN_KK_U2 |
-				       AR_EEPROM_EEREGCAP_EN_KK_MIDBAND)) &&
-				    isUNII1OddChan(c)) {
-					channelFlags &= ~CHANNEL_PASSIVE;
-				} else {
-					privFlags |= CHANNEL_DISALLOW_ADHOC;
-				}
-			} else {
-				privFlags |= CHANNEL_DISALLOW_ADHOC;
-			}
-		}
-	}
-
-	if ((cm->mode == ATH9K_MODE_11A) ||
-	    (cm->mode == ATH9K_MODE_11NA_HT20) ||
-	    (cm->mode == ATH9K_MODE_11NA_HT40PLUS) ||
-	    (cm->mode == ATH9K_MODE_11NA_HT40MINUS)) {
-		if (rd->flags & (ADHOC_NO_11A | DISALLOW_ADHOC_11A))
-			privFlags |= CHANNEL_DISALLOW_ADHOC;
-	}
-
-	/* Fill in channel details */
-
-	ret = ath9k_regd_is_chan_present(ah, c);
-	if (ret == -1) {
-		chan = &ah->ah_channels[pos];
-		chan->channel = c;
-		chan->maxRegTxPower = fband->powerDfs;
-		chan->antennaMax = fband->antennaMax;
-		chan->regDmnFlags = rd->flags;
-		chan->maxTxPower = AR5416_MAX_RATE_POWER;
-		chan->minTxPower = AR5416_MAX_RATE_POWER;
-		chan->channelFlags = channelFlags;
-		chan->privFlags = privFlags;
-	} else {
-		chan = &ah->ah_channels[ret];
-		chan->channelFlags |= channelFlags;
-		chan->privFlags |= privFlags;
-	}
-
-	/* Set CTLs */
-
-	if ((cm->flags & CHANNEL_ALL) == CHANNEL_A)
-		chan->conformanceTestLimit[0] = ctl;
-	else if ((cm->flags & CHANNEL_ALL) == CHANNEL_B)
-		chan->conformanceTestLimit[1] = ctl;
-	else if ((cm->flags & CHANNEL_ALL) == CHANNEL_G)
-		chan->conformanceTestLimit[2] = ctl;
-
-	return (ret == -1) ? true : false;
-}
-
-static bool ath9k_regd_japan_check(struct ath_hal *ah,
-				   int b,
-				   struct regDomain *rd5GHz)
-{
-	bool skipband = false;
-	int i;
-	u32 regcap;
-
-	for (i = 0; i < ARRAY_SIZE(j_bandcheck); i++) {
-		if (j_bandcheck[i].freqbandbit == b) {
-			regcap = ah->ah_caps.reg_cap;
-			if ((j_bandcheck[i].eepromflagtocheck & regcap) == 0) {
-				skipband = true;
-			} else if ((regcap & AR_EEPROM_EEREGCAP_EN_KK_U2) ||
-				  (regcap & AR_EEPROM_EEREGCAP_EN_KK_MIDBAND)) {
-				rd5GHz->dfsMask |= DFS_MKK4;
-				rd5GHz->pscan |= PSCAN_MKK3;
-			}
-			break;
-		}
-	}
-
-	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-		"Skipping %d freq band\n", j_bandcheck[i].freqbandbit);
-
-	return skipband;
-}
-
-bool
-ath9k_regd_init_channels(struct ath_hal *ah,
-			 u32 maxchans,
-			 u32 *nchans, u8 *regclassids,
-			 u32 maxregids, u32 *nregids, u16 cc,
-			 bool enableOutdoor,
-			 bool enableExtendedChannels)
-{
-	u16 maxChan = 7000;
 	struct country_code_to_enum_rd *country = NULL;
-	struct regDomain rd5GHz, rd2GHz;
-	const struct cmode *cm;
-	struct ath9k_channel *ichans = &ah->ah_channels[0];
-	int next = 0, b;
-	u8 ctl;
-	int regdmn;
-	u16 chanSep;
-	unsigned long *modes_avail;
-	DECLARE_BITMAP(modes_allowed, ATH9K_MODE_MAX);
-
-	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY, "cc %u %s %s\n", cc,
-		 enableOutdoor ? "Enable outdoor" : "",
-		 enableExtendedChannels ? "Enable ecm" : "");
-
-	if (!ath9k_regd_is_ccode_valid(ah, cc)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Invalid country code %d\n", cc);
-		return false;
-	}
+	u16 regdmn;
 
 	if (!ath9k_regd_is_eeprom_valid(ah)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
 			"Invalid EEPROM contents\n");
-		return false;
+		return -EINVAL;
 	}
 
-	ah->ah_countryCode = ath9k_regd_get_default_country(ah);
+	regdmn = ath9k_regd_get_eepromRD(ah);
+	ah->regulatory.country_code = ath9k_regd_get_default_country(regdmn);
 
-	if (ah->ah_countryCode == CTRY_DEFAULT) {
-		ah->ah_countryCode = cc & COUNTRY_CODE_MASK;
-		if ((ah->ah_countryCode == CTRY_DEFAULT) &&
-		    (ath9k_regd_get_eepromRD(ah) == CTRY_DEFAULT)) {
-			ah->ah_countryCode = CTRY_UNITED_STATES;
-		}
-	}
+	if (ah->regulatory.country_code == CTRY_DEFAULT &&
+	    regdmn == CTRY_DEFAULT)
+		ah->regulatory.country_code = CTRY_UNITED_STATES;
 
-#ifdef AH_SUPPORT_11D
-	if (ah->ah_countryCode == CTRY_DEFAULT) {
-		regdmn = ath9k_regd_get_eepromRD(ah);
+	if (ah->regulatory.country_code == CTRY_DEFAULT) {
 		country = NULL;
 	} else {
-#endif
-		country = ath9k_regd_find_country(ah->ah_countryCode);
+		country = ath9k_regd_find_country(ah->regulatory.country_code);
 		if (country == NULL) {
 			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
 				"Country is NULL!!!!, cc= %d\n",
-				ah->ah_countryCode);
-			return false;
-		} else {
+				ah->regulatory.country_code);
+			return -EINVAL;
+		} else
 			regdmn = country->regDmnEnum;
-#ifdef AH_SUPPORT_11D
-			if (((ath9k_regd_get_eepromRD(ah) &
-			      WORLD_SKU_MASK) == WORLD_SKU_PREFIX) &&
-			    (cc == CTRY_UNITED_STATES)) {
-				if (!isWwrSKU_NoMidband(ah)
-				    && ath9k_regd_is_fcc_midband_supported(ah))
-					regdmn = FCC3_FCCA;
-				else
-					regdmn = FCC1_FCCA;
-			}
-#endif
-		}
-#ifdef AH_SUPPORT_11D
-	}
-#endif
-	if (!ath9k_regd_get_wmode_regdomain(ah,
-					    regdmn,
-					    ~CHANNEL_2GHZ,
-					    &rd5GHz)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Couldn't find unitary "
-			"5GHz reg domain for country %u\n",
-			ah->ah_countryCode);
-		return false;
-	}
-	if (!ath9k_regd_get_wmode_regdomain(ah,
-					    regdmn,
-					    CHANNEL_2GHZ,
-					    &rd2GHz)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"Couldn't find unitary 2GHz "
-			"reg domain for country %u\n",
-			ah->ah_countryCode);
-		return false;
 	}
 
-	if (!isWwrSKU(ah) && ((rd5GHz.regDmnEnum == FCC1) ||
-			      (rd5GHz.regDmnEnum == FCC2))) {
-		if (ath9k_regd_is_fcc_midband_supported(ah)) {
-			if (!ath9k_regd_get_wmode_regdomain(ah,
-							    FCC3_FCCA,
-							    ~CHANNEL_2GHZ,
-							    &rd5GHz)) {
-				DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-					"Couldn't find unitary 5GHz "
-					"reg domain for country %u\n",
-					ah->ah_countryCode);
-				return false;
-			}
-		}
+	ah->regulatory.regpair = ath9k_get_regpair(regdmn);
+
+	if (!ah->regulatory.regpair) {
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
+			"No regulatory domain pair found, cannot continue\n");
+		return -EINVAL;
 	}
 
-	if (country == NULL) {
-		modes_avail = ah->ah_caps.wireless_modes;
+	if (!country)
+		country = ath9k_regd_find_country_by_rd(regdmn);
+
+	if (country) {
+		ah->regulatory.alpha2[0] = country->isoName[0];
+		ah->regulatory.alpha2[1] = country->isoName[1];
 	} else {
-		ath9k_regd_get_wmodes_nreg(ah, country, &rd5GHz, modes_allowed);
-		modes_avail = modes_allowed;
-
-		if (!enableOutdoor)
-			maxChan = country->outdoorChanStart;
+		ah->regulatory.alpha2[0] = '0';
+		ah->regulatory.alpha2[1] = '0';
 	}
-
-	next = 0;
-
-	if (maxchans > ARRAY_SIZE(ah->ah_channels))
-		maxchans = ARRAY_SIZE(ah->ah_channels);
-
-	for (cm = modes; cm < &modes[ARRAY_SIZE(modes)]; cm++) {
-		u16 c, c_hi, c_lo;
-		u64 *channelBM = NULL;
-		struct regDomain *rd = NULL;
-		struct RegDmnFreqBand *fband = NULL, *freqs;
-		int8_t low_adj = 0, hi_adj = 0;
-
-		if (!test_bit(cm->mode, modes_avail)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"!avail mode %d flags 0x%x\n",
-				cm->mode, cm->flags);
-			continue;
-		}
-		if (!ath9k_get_channel_edges(ah, cm->flags, &c_lo, &c_hi)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"channels 0x%x not supported "
-				"by hardware\n", cm->flags);
-			continue;
-		}
-
-		switch (cm->mode) {
-		case ATH9K_MODE_11A:
-		case ATH9K_MODE_11NA_HT20:
-		case ATH9K_MODE_11NA_HT40PLUS:
-		case ATH9K_MODE_11NA_HT40MINUS:
-			rd = &rd5GHz;
-			channelBM = rd->chan11a;
-			freqs = &regDmn5GhzFreq[0];
-			ctl = rd->conformanceTestLimit;
-			break;
-		case ATH9K_MODE_11B:
-			rd = &rd2GHz;
-			channelBM = rd->chan11b;
-			freqs = &regDmn2GhzFreq[0];
-			ctl = rd->conformanceTestLimit | CTL_11B;
-			break;
-		case ATH9K_MODE_11G:
-		case ATH9K_MODE_11NG_HT20:
-		case ATH9K_MODE_11NG_HT40PLUS:
-		case ATH9K_MODE_11NG_HT40MINUS:
-			rd = &rd2GHz;
-			channelBM = rd->chan11g;
-			freqs = &regDmn2Ghz11gFreq[0];
-			ctl = rd->conformanceTestLimit | CTL_11G;
-			break;
-		default:
-			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"Unknown HAL mode 0x%x\n", cm->mode);
-			continue;
-		}
-
-		if (ath9k_regd_is_chan_bm_zero(channelBM))
-			continue;
-
-		if ((cm->mode == ATH9K_MODE_11NA_HT40PLUS) ||
-		    (cm->mode == ATH9K_MODE_11NG_HT40PLUS)) {
-			hi_adj = -20;
-		}
-
-		if ((cm->mode == ATH9K_MODE_11NA_HT40MINUS) ||
-		    (cm->mode == ATH9K_MODE_11NG_HT40MINUS)) {
-			low_adj = 20;
-		}
-
-		/* XXX: Add a helper here instead */
-		for (b = 0; b < 64 * BMLEN; b++) {
-			if (ath9k_regd_is_bit_set(b, channelBM)) {
-				fband = &freqs[b];
-				if (rd5GHz.regDmnEnum == MKK1
-				    || rd5GHz.regDmnEnum == MKK2) {
-					if (ath9k_regd_japan_check(ah,
-								   b,
-								   &rd5GHz))
-						continue;
-				}
-
-				ath9k_regd_add_reg_classid(regclassids,
-							   maxregids,
-							   nregids,
-							   fband->
-							   regClassId);
-
-				if (IS_HT40_MODE(cm->mode) && (rd == &rd5GHz)) {
-					chanSep = 40;
-					if (fband->lowChannel == 5280)
-						low_adj += 20;
-
-					if (fband->lowChannel == 5170)
-						continue;
-				} else
-					chanSep = fband->channelSep;
-
-				for (c = fband->lowChannel + low_adj;
-				     ((c <= (fband->highChannel + hi_adj)) &&
-				      (c >= (fband->lowChannel + low_adj)));
-				     c += chanSep) {
-					if (next >= maxchans) {
-						DPRINTF(ah->ah_sc,
-							ATH_DBG_REGULATORY,
-							"too many channels "
-							"for channel table\n");
-						goto done;
-					}
-					if (ath9k_regd_add_channel(ah,
-						   c, c_lo, c_hi,
-						   maxChan, ctl,
-						   next,
-						   rd5GHz,
-						   fband, rd, cm,
-						   ichans,
-						   enableExtendedChannels))
-						next++;
-				}
-				if (IS_HT40_MODE(cm->mode) &&
-				    (fband->lowChannel == 5280)) {
-					low_adj -= 20;
-				}
-			}
-		}
-	}
-done:
-	if (next != 0) {
-		int i;
-
-		if (next > ARRAY_SIZE(ah->ah_channels)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"too many channels %u; truncating to %u\n",
-				next, (int) ARRAY_SIZE(ah->ah_channels));
-			next = ARRAY_SIZE(ah->ah_channels);
-		}
-#ifdef ATH_NF_PER_CHAN
-		ath9k_regd_init_rf_buffer(ichans, next);
-#endif
-		ath9k_regd_sort(ichans, next,
-				sizeof(struct ath9k_channel),
-				ath9k_regd_chansort);
-
-		ah->ah_nchan = next;
-
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY, "Channel list:\n");
-		for (i = 0; i < next; i++) {
-			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-				"chan: %d flags: 0x%x\n",
-				ah->ah_channels[i].channel,
-				ah->ah_channels[i].channelFlags);
-		}
-	}
-	*nchans = next;
-
-	ah->ah_countryCode = ah->ah_countryCode;
-
-	ah->ah_currentRDInUse = regdmn;
-	ah->ah_currentRD5G = rd5GHz.regDmnEnum;
-	ah->ah_currentRD2G = rd2GHz.regDmnEnum;
-	if (country == NULL) {
-		ah->ah_iso[0] = 0;
-		ah->ah_iso[1] = 0;
-	} else {
-		ah->ah_iso[0] = country->isoName[0];
-		ah->ah_iso[1] = country->isoName[1];
-	}
-
-	return next != 0;
-}
-
-struct ath9k_channel*
-ath9k_regd_check_channel(struct ath_hal *ah,
-			 const struct ath9k_channel *c)
-{
-	struct ath9k_channel *base, *cc;
-
-	int flags = c->channelFlags & CHAN_FLAGS;
-	int n, lim;
 
 	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-		"channel %u/0x%x (0x%x) requested\n",
-		c->channel, c->channelFlags, flags);
+		"Country alpha2 being used: %c%c\n"
+		"Regulatory.Regpair detected: 0x%0x\n",
+		ah->regulatory.alpha2[0], ah->regulatory.alpha2[1],
+		ah->regulatory.regpair->regDmnEnum);
 
-	cc = ah->ah_curchan;
-	if (cc != NULL && cc->channel == c->channel &&
-	    (cc->channelFlags & CHAN_FLAGS) == flags) {
-		if ((cc->privFlags & CHANNEL_INTERFERENCE) &&
-		    (cc->privFlags & CHANNEL_DFS))
-			return NULL;
-		else
-			return cc;
-	}
-
-	base = ah->ah_channels;
-	n = ah->ah_nchan;
-
-	for (lim = n; lim != 0; lim >>= 1) {
-		int d;
-		cc = &base[lim >> 1];
-		d = c->channel - cc->channel;
-		if (d == 0) {
-			if ((cc->channelFlags & CHAN_FLAGS) == flags) {
-				if ((cc->privFlags & CHANNEL_INTERFERENCE) &&
-				    (cc->privFlags & CHANNEL_DFS))
-					return NULL;
-				else
-					return cc;
-			}
-			d = flags - (cc->channelFlags & CHAN_FLAGS);
-		}
-		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-			"channel %u/0x%x d %d\n",
-			cc->channel, cc->channelFlags, d);
-		if (d > 0) {
-			base = cc + 1;
-			lim--;
-		}
-	}
-	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY, "no match for %u/0x%x\n",
-		c->channel, c->channelFlags);
-	return NULL;
+	return 0;
 }
 
-u32
-ath9k_regd_get_antenna_allowed(struct ath_hal *ah,
-			       struct ath9k_channel *chan)
-{
-	struct ath9k_channel *ichan = NULL;
-
-	ichan = ath9k_regd_check_channel(ah, chan);
-	if (!ichan)
-		return 0;
-
-	return ichan->antennaMax;
-}
-
-u32 ath9k_regd_get_ctl(struct ath_hal *ah, struct ath9k_channel *chan)
+u32 ath9k_regd_get_ctl(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	u32 ctl = NO_CTL;
-	struct ath9k_channel *ichan;
 
-	if (ah->ah_countryCode == CTRY_DEFAULT && isWwrSKU(ah)) {
+	if (!ah->regulatory.regpair ||
+	    (ah->regulatory.country_code == CTRY_DEFAULT &&
+	     is_wwr_sku(ath9k_regd_get_eepromRD(ah)))) {
 		if (IS_CHAN_B(chan))
 			ctl = SD_NO_CTL | CTL_11B;
 		else if (IS_CHAN_G(chan))
 			ctl = SD_NO_CTL | CTL_11G;
 		else
 			ctl = SD_NO_CTL | CTL_11A;
-	} else {
-		ichan = ath9k_regd_check_channel(ah, chan);
-		if (ichan != NULL) {
-			/* FIXME */
-			if (IS_CHAN_A(ichan))
-				ctl = ichan->conformanceTestLimit[0];
-			else if (IS_CHAN_B(ichan))
-				ctl = ichan->conformanceTestLimit[1];
-			else if (IS_CHAN_G(ichan))
-				ctl = ichan->conformanceTestLimit[2];
-
-			if (IS_CHAN_G(chan) && (ctl & 0xf) == CTL_11B)
-				ctl = (ctl & ~0xf) | CTL_11G;
-		}
+		return ctl;
 	}
+
+	if (IS_CHAN_B(chan))
+		ctl = ah->regulatory.regpair->reg_2ghz_ctl | CTL_11B;
+	else if (IS_CHAN_G(chan))
+		ctl = ah->regulatory.regpair->reg_2ghz_ctl | CTL_11G;
+	else
+		ctl = ah->regulatory.regpair->reg_5ghz_ctl | CTL_11A;
+
 	return ctl;
-}
-
-void ath9k_regd_get_current_country(struct ath_hal *ah,
-				    struct ath9k_country_entry *ctry)
-{
-	u16 rd = ath9k_regd_get_eepromRD(ah);
-
-	ctry->isMultidomain = false;
-	if (rd == CTRY_DEFAULT)
-		ctry->isMultidomain = true;
-	else if (!(rd & COUNTRY_ERD_FLAG))
-		ctry->isMultidomain = isWwrSKU(ah);
-
-	ctry->countryCode = ah->ah_countryCode;
-	ctry->regDmnEnum = ah->ah_currentRD;
-	ctry->regDmn5G = ah->ah_currentRD5G;
-	ctry->regDmn2G = ah->ah_currentRD2G;
-	ctry->iso[0] = ah->ah_iso[0];
-	ctry->iso[1] = ah->ah_iso[1];
-	ctry->iso[2] = ah->ah_iso[2];
 }

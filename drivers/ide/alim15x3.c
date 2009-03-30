@@ -212,7 +212,7 @@ static int ali15x3_dma_setup(ide_drive_t *drive)
  *	appropriate also sets up the 1533 southbridge.
  */
 
-static unsigned int init_chipset_ali15x3(struct pci_dev *dev)
+static int init_chipset_ali15x3(struct pci_dev *dev)
 {
 	unsigned long flags;
 	u8 tmpbyte;

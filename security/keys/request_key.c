@@ -365,7 +365,7 @@ static struct key *construct_key_and_link(struct key_type *type,
 
 	kenter("");
 
-	user = key_user_lookup(current_fsuid());
+	user = key_user_lookup(current_fsuid(), current_user_ns());
 	if (!user)
 		return ERR_PTR(-ENOMEM);
 

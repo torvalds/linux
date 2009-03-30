@@ -53,8 +53,6 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 #define native_ptep_get_and_clear(xp) native_local_ptep_get_and_clear(xp)
 #endif
 
-#define pte_none(x)		(!(x).pte_low)
-
 /*
  * Bits _PAGE_BIT_PRESENT, _PAGE_BIT_FILE and _PAGE_BIT_PROTNONE are taken,
  * split up the 29 bits of offset into this range:

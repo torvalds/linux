@@ -1,7 +1,6 @@
 #ifndef __ASM_ARCH_MFP_PXA25X_H
 #define __ASM_ARCH_MFP_PXA25X_H
 
-#include <mach/mfp.h>
 #include <mach/mfp-pxa2xx.h>
 
 /* GPIO */

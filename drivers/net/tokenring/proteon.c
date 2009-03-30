@@ -116,6 +116,8 @@ nodev:
 	return -ENODEV;
 }
 
+static struct net_device_ops proteon_netdev_ops __read_mostly;
+
 static int __init setup_card(struct net_device *dev, struct device *pdev)
 {
 	struct net_local *tp;
@@ -167,8 +169,7 @@ static int __init setup_card(struct net_device *dev, struct device *pdev)
 
 	tp->tmspriv = NULL;
 
-	dev->open = proteon_open;
-	dev->stop = tms380tr_close;
+	dev->netdev_ops = &proteon_netdev_ops;
 
 	if (dev->irq == 0)
 	{
@@ -351,6 +352,10 @@ static int __init proteon_init(void)
 	struct net_device *dev;
 	struct platform_device *pdev;
 	int i, num = 0, err = 0;
+
+	proteon_netdev_ops = tms380tr_netdev_ops;
+	proteon_netdev_ops.ndo_open = proteon_open;
+	proteon_netdev_ops.ndo_stop = tms380tr_close;
 
 	err = platform_driver_register(&proteon_driver);
 	if (err)

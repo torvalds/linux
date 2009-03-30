@@ -1,10 +1,10 @@
 /* orinoco_pci.h
- * 
+ *
  * Common code for all Orinoco drivers for PCI devices, including
  * both native PCI and PCMCIA-to-PCI bridges.
  *
  * Copyright (C) 2005, Pavel Roskin.
- * See orinoco.c for license.
+ * See main.c for license.
  */
 
 #ifndef _ORINOCO_PCI_H
@@ -37,11 +37,11 @@ static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (err)
 		printk(KERN_WARNING "%s: error %d bringing interface down "
 		       "for suspend\n", dev->name, err);
-	
+
 	netif_device_detach(dev);
 
 	priv->hw_unavailable++;
-	
+
 	orinoco_unlock(priv, &flags);
 
 	free_irq(pdev->irq, dev);
@@ -90,13 +90,13 @@ static int orinoco_pci_resume(struct pci_dev *pdev)
 
 	priv->hw_unavailable--;
 
-	if (priv->open && (! priv->hw_unavailable)) {
+	if (priv->open && (!priv->hw_unavailable)) {
 		err = __orinoco_up(dev);
 		if (err)
 			printk(KERN_ERR "%s: Error %d restarting card on resume\n",
 			       dev->name, err);
 	}
-	
+
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;

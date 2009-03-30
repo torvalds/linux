@@ -29,8 +29,8 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <mach/pm.h>
-#include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
+#include <mach/regs-rtc.h>
 #include <mach/sharpsl.h>
 #include <asm/hardware/sharpsl_pm.h>
 

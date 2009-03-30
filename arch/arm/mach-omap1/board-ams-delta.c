@@ -175,7 +175,6 @@ static struct omap_usb_config ams_delta_usb_config __initdata = {
 static struct omap_board_config_kernel ams_delta_config[] = {
 	{ OMAP_TAG_LCD,		&ams_delta_lcd_config },
 	{ OMAP_TAG_UART,	&ams_delta_uart_config },
-	{ OMAP_TAG_USB,		&ams_delta_usb_config },
 };
 
 static struct resource ams_delta_kp_resources[] = {
@@ -232,6 +231,7 @@ static void __init ams_delta_init(void)
 	/* Clear latch2 (NAND, LCD, modem enable) */
 	ams_delta_latch2_write(~0, 0);
 
+	omap_usb_init(&ams_delta_usb_config);
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
 }
 

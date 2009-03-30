@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007 Intel Corporation.
+  Copyright(c) 2007-2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -58,12 +58,12 @@ s32  igb_write_8bit_ctrl_reg(struct e1000_hw *hw, u32 reg,
 
 void igb_clear_hw_cntrs_base(struct e1000_hw *hw);
 void igb_clear_vfta(struct e1000_hw *hw);
+s32  igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add);
 void igb_config_collision_dist(struct e1000_hw *hw);
 void igb_mta_set(struct e1000_hw *hw, u32 hash_value);
 void igb_put_hw_semaphore(struct e1000_hw *hw);
 void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index);
 s32  igb_check_alt_mac_addr(struct e1000_hw *hw);
-void igb_remove_device(struct e1000_hw *hw);
 void igb_reset_adaptive(struct e1000_hw *hw);
 void igb_update_adaptive(struct e1000_hw *hw);
 void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value);
@@ -83,12 +83,7 @@ enum e1000_mng_mode {
 #define E1000_FWSM_MODE_MASK  0xE
 #define E1000_FWSM_MODE_SHIFT 1
 
-#define E1000_MNG_DHCP_COMMAND_TIMEOUT       10
 #define E1000_MNG_DHCP_COOKIE_STATUS_VLAN    0x2
-
-#define E1000_HICR_EN              0x01  /* Enable bit - RO */
-/* Driver sets this bit when done to put command in RAM */
-#define E1000_HICR_C               0x02
 
 extern void e1000_init_function_pointers_82575(struct e1000_hw *hw);
 extern u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr);

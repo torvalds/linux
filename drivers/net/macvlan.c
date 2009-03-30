@@ -60,6 +60,47 @@ static struct macvlan_dev *macvlan_hash_lookup(const struct macvlan_port *port,
 	return NULL;
 }
 
+static void macvlan_hash_add(struct macvlan_dev *vlan)
+{
+	struct macvlan_port *port = vlan->port;
+	const unsigned char *addr = vlan->dev->dev_addr;
+
+	hlist_add_head_rcu(&vlan->hlist, &port->vlan_hash[addr[5]]);
+}
+
+static void macvlan_hash_del(struct macvlan_dev *vlan)
+{
+	hlist_del_rcu(&vlan->hlist);
+	synchronize_rcu();
+}
+
+static void macvlan_hash_change_addr(struct macvlan_dev *vlan,
+					const unsigned char *addr)
+{
+	macvlan_hash_del(vlan);
+	/* Now that we are unhashed it is safe to change the device
+	 * address without confusing packet delivery.
+	 */
+	memcpy(vlan->dev->dev_addr, addr, ETH_ALEN);
+	macvlan_hash_add(vlan);
+}
+
+static int macvlan_addr_busy(const struct macvlan_port *port,
+				const unsigned char *addr)
+{
+	/* Test to see if the specified multicast address is
+	 * currently in use by the underlying device or
+	 * another macvlan.
+	 */
+	if (memcmp(port->dev->dev_addr, addr, ETH_ALEN) == 0)
+		return 1;
+
+	if (macvlan_hash_lookup(port, addr))
+		return 1;
+
+	return 0;
+}
+
 static void macvlan_broadcast(struct sk_buff *skb,
 			      const struct macvlan_port *port)
 {
@@ -184,9 +225,12 @@ static const struct header_ops macvlan_hard_header_ops = {
 static int macvlan_open(struct net_device *dev)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
-	struct macvlan_port *port = vlan->port;
 	struct net_device *lowerdev = vlan->lowerdev;
 	int err;
+
+	err = -EBUSY;
+	if (macvlan_addr_busy(vlan->port, dev->dev_addr))
+		goto out;
 
 	err = dev_unicast_add(lowerdev, dev->dev_addr, ETH_ALEN);
 	if (err < 0)
@@ -196,8 +240,7 @@ static int macvlan_open(struct net_device *dev)
 		if (err < 0)
 			goto del_unicast;
 	}
-
-	hlist_add_head_rcu(&vlan->hlist, &port->vlan_hash[dev->dev_addr[5]]);
+	macvlan_hash_add(vlan);
 	return 0;
 
 del_unicast:
@@ -217,8 +260,7 @@ static int macvlan_stop(struct net_device *dev)
 
 	dev_unicast_delete(lowerdev, dev->dev_addr, ETH_ALEN);
 
-	hlist_del_rcu(&vlan->hlist);
-	synchronize_rcu();
+	macvlan_hash_del(vlan);
 	return 0;
 }
 
@@ -232,16 +274,21 @@ static int macvlan_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	if (!(dev->flags & IFF_UP))
-		goto out;
+	if (!(dev->flags & IFF_UP)) {
+		/* Just copy in the new address */
+		memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	} else {
+		/* Rehash and update the device filters */
+		if (macvlan_addr_busy(vlan->port, addr->sa_data))
+			return -EBUSY;
 
-	err = dev_unicast_add(lowerdev, addr->sa_data, ETH_ALEN);
-	if (err < 0)
-		return err;
-	dev_unicast_delete(lowerdev, dev->dev_addr, ETH_ALEN);
+		if ((err = dev_unicast_add(lowerdev, addr->sa_data, ETH_ALEN)))
+			return err;
 
-out:
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+		dev_unicast_delete(lowerdev, dev->dev_addr, ETH_ALEN);
+
+		macvlan_hash_change_addr(vlan, addr->sa_data);
+	}
 	return 0;
 }
 
@@ -461,12 +508,13 @@ static int macvlan_newlink(struct net_device *dev,
 	if (lowerdev == NULL)
 		return -ENODEV;
 
-	/* Don't allow macvlans on top of other macvlans - its not really
-	 * wrong, but lockdep can't handle it and its not useful for anything
-	 * you couldn't do directly on top of the real device.
+	/* When creating macvlans on top of other macvlans - use
+	 * the real device as the lowerdev.
 	 */
-	if (lowerdev->rtnl_link_ops == dev->rtnl_link_ops)
-		return -ENODEV;
+	if (lowerdev->rtnl_link_ops == dev->rtnl_link_ops) {
+		struct macvlan_dev *lowervlan = netdev_priv(lowerdev);
+		lowerdev = lowervlan->lowerdev;
+	}
 
 	if (!tb[IFLA_MTU])
 		dev->mtu = lowerdev->mtu;

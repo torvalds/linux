@@ -198,7 +198,7 @@ validconf[][19] = {
 };
 
 /* string description of chosen config */
-char *conf_str[] = {
+static char *conf_str[] = {
 	"4 Interrupt IN + 3 Isochron OUT",
 	"3 Interrupt IN + 3 Isochron OUT",
 	"4 Isochron IN + 3 Isochron OUT",
@@ -316,7 +316,7 @@ struct hfcsusb_vdata {
 #define HFC_MAX_TE_LAYER1_STATE 8
 #define HFC_MAX_NT_LAYER1_STATE 4
 
-const char *HFC_TE_LAYER1_STATES[HFC_MAX_TE_LAYER1_STATE + 1] = {
+static const char *HFC_TE_LAYER1_STATES[HFC_MAX_TE_LAYER1_STATE + 1] = {
 	"TE F0 - Reset",
 	"TE F1 - Reset",
 	"TE F2 - Sensing",
@@ -328,7 +328,7 @@ const char *HFC_TE_LAYER1_STATES[HFC_MAX_TE_LAYER1_STATE + 1] = {
 	"TE F8 - Lost framing",
 };
 
-const char *HFC_NT_LAYER1_STATES[HFC_MAX_NT_LAYER1_STATE + 1] = {
+static const char *HFC_NT_LAYER1_STATES[HFC_MAX_NT_LAYER1_STATE + 1] = {
 	"NT G0 - Reset",
 	"NT G1 - Deactive",
 	"NT G2 - Pending activation",

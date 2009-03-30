@@ -37,7 +37,7 @@ enum matroxfb_ctrl_id {
   MATROXFB_CID_LAST
 };
 
-#define FBIO_WAITFORVSYNC	_IOW('F', 0x20, u_int32_t)
+#define FBIO_WAITFORVSYNC	_IOW('F', 0x20, __u32)
 
 #endif
 

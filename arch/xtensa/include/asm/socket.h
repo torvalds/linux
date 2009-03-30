@@ -65,4 +65,7 @@
 
 #define SO_MARK			36
 
+#define SO_TIMESTAMPING		37
+#define SCM_TIMESTAMPING	SO_TIMESTAMPING
+
 #endif	/* _XTENSA_SOCKET_H */

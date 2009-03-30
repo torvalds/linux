@@ -762,10 +762,11 @@ static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
 	remote_wwpn = get_unaligned_be64(&flp->fl_wwpn);
 	if (remote_wwpn == lport->wwpn) {
 		FC_DBG("FLOGI from port with same WWPN %llx "
-		       "possible configuration error\n", remote_wwpn);
+		       "possible configuration error\n",
+		       (unsigned long long)remote_wwpn);
 		goto out;
 	}
-	FC_DBG("FLOGI from port WWPN %llx\n", remote_wwpn);
+	FC_DBG("FLOGI from port WWPN %llx\n", (unsigned long long)remote_wwpn);
 
 	/*
 	 * XXX what is the right thing to do for FIDs?

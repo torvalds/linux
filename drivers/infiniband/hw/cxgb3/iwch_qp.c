@@ -99,8 +99,8 @@ static int build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
 	if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM) {
 		plen = 4;
 		wqe->write.sgl[0].stag = wr->ex.imm_data;
-		wqe->write.sgl[0].len = __constant_cpu_to_be32(0);
-		wqe->write.num_sgle = __constant_cpu_to_be32(0);
+		wqe->write.sgl[0].len = cpu_to_be32(0);
+		wqe->write.num_sgle = cpu_to_be32(0);
 		*flit_cnt = 6;
 	} else {
 		plen = 0;
@@ -195,15 +195,12 @@ static int build_inv_stag(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-/*
- * TBD: this is going to be moved to firmware. Missing pdid/qpid check for now.
- */
 static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 			    u32 num_sgle, u32 * pbl_addr, u8 * page_size)
 {
 	int i;
 	struct iwch_mr *mhp;
-	u32 offset;
+	u64 offset;
 	for (i = 0; i < num_sgle; i++) {
 
 		mhp = get_mhp(rhp, (sg_list[i].lkey) >> 8);
@@ -235,8 +232,8 @@ static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 			return -EINVAL;
 		}
 		offset = sg_list[i].addr - mhp->attr.va_fbo;
-		offset += ((u32) mhp->attr.va_fbo) %
-		          (1UL << (12 + mhp->attr.page_size));
+		offset += mhp->attr.va_fbo &
+			  ((1UL << (12 + mhp->attr.page_size)) - 1);
 		pbl_addr[i] = ((mhp->attr.pbl_addr -
 			        rhp->rdev.rnic_info.pbl_base) >> 3) +
 			      (offset >> (12 + mhp->attr.page_size));
@@ -266,8 +263,8 @@ static int build_rdma_recv(struct iwch_qp *qhp, union t3_wr *wqe,
 		wqe->recv.sgl[i].len = cpu_to_be32(wr->sg_list[i].length);
 
 		/* to in the WQE == the offset into the page */
-		wqe->recv.sgl[i].to = cpu_to_be64(((u32) wr->sg_list[i].addr) %
-				(1UL << (12 + page_size[i])));
+		wqe->recv.sgl[i].to = cpu_to_be64(((u32)wr->sg_list[i].addr) &
+				((1UL << (12 + page_size[i])) - 1));
 
 		/* pbl_addr is the adapters address in the PBL */
 		wqe->recv.pbl_addr[i] = cpu_to_be32(pbl_addr[i]);

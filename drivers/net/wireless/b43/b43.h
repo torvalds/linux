@@ -120,6 +120,9 @@
 #define B43_MMIO_IFSCTL			0x688 /* Interframe space control */
 #define  B43_MMIO_IFSCTL_USE_EDCF	0x0004
 #define B43_MMIO_POWERUP_DELAY		0x6A8
+#define B43_MMIO_BTCOEX_CTL		0x6B4 /* Bluetooth Coexistence Control */
+#define B43_MMIO_BTCOEX_STAT		0x6B6 /* Bluetooth Coexistence Status */
+#define B43_MMIO_BTCOEX_TXCTL		0x6B8 /* Bluetooth Coexistence Transmit Control */
 
 /* SPROM boardflags_lo values */
 #define B43_BFL_BTCOEXIST		0x0001	/* implements Bluetooth coexistance */
@@ -547,9 +550,6 @@ struct b43_noise_calculation {
 
 struct b43_stats {
 	u8 link_noise;
-	/* Store the last TX/RX times here for updating the leds. */
-	unsigned long last_tx;
-	unsigned long last_rx;
 };
 
 struct b43_key {
@@ -655,10 +655,39 @@ struct b43_wl {
 	struct work_struct txpower_adjust_work;
 };
 
+/* The type of the firmware file. */
+enum b43_firmware_file_type {
+	B43_FWTYPE_PROPRIETARY,
+	B43_FWTYPE_OPENSOURCE,
+	B43_NR_FWTYPES,
+};
+
+/* Context data for fetching firmware. */
+struct b43_request_fw_context {
+	/* The device we are requesting the fw for. */
+	struct b43_wldev *dev;
+	/* The type of firmware to request. */
+	enum b43_firmware_file_type req_type;
+	/* Error messages for each firmware type. */
+	char errors[B43_NR_FWTYPES][128];
+	/* Temporary buffer for storing the firmware name. */
+	char fwname[64];
+	/* A fatal error occured while requesting. Firmware reqest
+	 * can not continue, as any other reqest will also fail. */
+	int fatal_failure;
+};
+
 /* In-memory representation of a cached microcode file. */
 struct b43_firmware_file {
 	const char *filename;
 	const struct firmware *data;
+	/* Type of the firmware file name. Note that this does only indicate
+	 * the type by the firmware name. NOT the file contents.
+	 * If you want to check for proprietary vs opensource, use (struct b43_firmware)->opensource
+	 * instead! The (struct b43_firmware)->opensource flag is derived from the actual firmware
+	 * binary code, not just the filename.
+	 */
+	enum b43_firmware_file_type type;
 };
 
 /* Pointers to the firmware data and meta information about it. */
@@ -677,7 +706,8 @@ struct b43_firmware {
 	/* Firmware patchlevel */
 	u16 patch;
 
-	/* Set to true, if we are using an opensource firmware. */
+	/* Set to true, if we are using an opensource firmware.
+	 * Use this to check for proprietary vs opensource. */
 	bool opensource;
 	/* Set to true, if the core needs a PCM firmware, but
 	 * we failed to load one. This is always false for
@@ -848,12 +878,9 @@ void b43err(struct b43_wl *wl, const char *fmt, ...)
     __attribute__ ((format(printf, 2, 3)));
 void b43warn(struct b43_wl *wl, const char *fmt, ...)
     __attribute__ ((format(printf, 2, 3)));
-#if B43_DEBUG
 void b43dbg(struct b43_wl *wl, const char *fmt, ...)
     __attribute__ ((format(printf, 2, 3)));
-#else /* DEBUG */
-# define b43dbg(wl, fmt...) do { /* nothing */ } while (0)
-#endif /* DEBUG */
+
 
 /* A WARN_ON variant that vanishes when b43 debugging is disabled.
  * This _also_ evaluates the arg with debugging disabled. */

@@ -9,6 +9,13 @@
 #ifndef __BFIN_SPORT_H__
 #define __BFIN_SPORT_H__
 
+#ifdef __KERNEL__
+#include <linux/cdev.h>
+#include <linux/mutex.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
+#endif
+
 #define SPORT_MAJOR	237
 #define SPORT_NR_DEVS	2
 
@@ -119,7 +126,7 @@ struct sport_dev {
 	int tx_len;
 	int tx_sent;
 
-	int sport_err_irq;
+	int err_irq;
 
 	struct mutex mutex;	/* mutual exclusion semaphore */
 	struct task_struct *task;
