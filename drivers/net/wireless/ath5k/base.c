@@ -64,6 +64,10 @@ static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
+static int modparam_all_channels;
+module_param_named(all_channels, modparam_all_channels, int, 0444);
+MODULE_PARM_DESC(all_channels, "Expose all channels the device can use.");
+
 
 /******************\
 * Internal defines *
@@ -862,6 +866,20 @@ ath5k_ieee2mhz(short chan)
 		return 2212 + chan * 20;
 }
 
+/*
+ * Returns true for the channel numbers used without all_channels modparam.
+ */
+static bool ath5k_is_standard_channel(short chan)
+{
+	return ((chan <= 14) ||
+		/* UNII 1,2 */
+		((chan & 3) == 0 && chan >= 36 && chan <= 64) ||
+		/* midband */
+		((chan & 3) == 0 && chan >= 100 && chan <= 140) ||
+		/* UNII-3 */
+		((chan & 3) == 1 && chan >= 149 && chan <= 165));
+}
+
 static unsigned int
 ath5k_copy_channels(struct ath5k_hw *ah,
 		struct ieee80211_channel *channels,
@@ -897,6 +915,9 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 
 		/* Check if channel is supported by the chipset */
 		if (!ath5k_channel_ok(ah, freq, chfreq))
+			continue;
+
+		if (!modparam_all_channels && !ath5k_is_standard_channel(ch))
 			continue;
 
 		/* Write channel info and increment counter */
