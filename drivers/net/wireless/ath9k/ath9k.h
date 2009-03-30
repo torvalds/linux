@@ -74,11 +74,15 @@ struct ath_config {
 /*************************/
 
 #define ATH_TXBUF_RESET(_bf) do {				\
-		(_bf)->bf_status = 0;				\
+		(_bf)->bf_stale = false;			\
 		(_bf)->bf_lastbf = NULL;			\
 		(_bf)->bf_next = NULL;				\
 		memset(&((_bf)->bf_state), 0,			\
 		       sizeof(struct ath_buf_state));		\
+	} while (0)
+
+#define ATH_RXBUF_RESET(_bf) do {		\
+		(_bf)->bf_stale = false;	\
 	} while (0)
 
 /**
@@ -106,7 +110,7 @@ struct ath_buf_state {
 	int bfs_seqno;
 	int bfs_tidno;
 	int bfs_retries;
-	u32 bf_type;
+	u8 bf_type;
 	u32 bfs_keyix;
 	enum ath9k_key_type bfs_keytype;
 };
@@ -134,14 +138,11 @@ struct ath_buf {
 	struct ath_desc *bf_desc;	/* virtual addr of desc */
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
-	u32 bf_status;
+	bool bf_stale;
 	u16 bf_flags;
 	struct ath_buf_state bf_state;
 	dma_addr_t bf_dmacontext;
 };
-
-#define ATH_RXBUF_RESET(_bf)    ((_bf)->bf_status = 0)
-#define ATH_BUFSTATUS_STALE     0x00000002
 
 struct ath_descdma {
 	const char *dd_name;
