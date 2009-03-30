@@ -3717,7 +3717,6 @@ static void save_state_to_tss32(struct kvm_vcpu *vcpu,
 	tss->fs = get_segment_selector(vcpu, VCPU_SREG_FS);
 	tss->gs = get_segment_selector(vcpu, VCPU_SREG_GS);
 	tss->ldt_selector = get_segment_selector(vcpu, VCPU_SREG_LDTR);
-	tss->prev_task_link = get_segment_selector(vcpu, VCPU_SREG_TR);
 }
 
 static int load_state_from_tss32(struct kvm_vcpu *vcpu,
@@ -3814,8 +3813,8 @@ static int load_state_from_tss16(struct kvm_vcpu *vcpu,
 }
 
 static int kvm_task_switch_16(struct kvm_vcpu *vcpu, u16 tss_selector,
-		       u32 old_tss_base,
-		       struct desc_struct *nseg_desc)
+			      u16 old_tss_sel, u32 old_tss_base,
+			      struct desc_struct *nseg_desc)
 {
 	struct tss_segment_16 tss_segment_16;
 	int ret = 0;
@@ -3834,6 +3833,16 @@ static int kvm_task_switch_16(struct kvm_vcpu *vcpu, u16 tss_selector,
 			   &tss_segment_16, sizeof tss_segment_16))
 		goto out;
 
+	if (old_tss_sel != 0xffff) {
+		tss_segment_16.prev_task_link = old_tss_sel;
+
+		if (kvm_write_guest(vcpu->kvm,
+				    get_tss_base_addr(vcpu, nseg_desc),
+				    &tss_segment_16.prev_task_link,
+				    sizeof tss_segment_16.prev_task_link))
+			goto out;
+	}
+
 	if (load_state_from_tss16(vcpu, &tss_segment_16))
 		goto out;
 
@@ -3843,7 +3852,7 @@ out:
 }
 
 static int kvm_task_switch_32(struct kvm_vcpu *vcpu, u16 tss_selector,
-		       u32 old_tss_base,
+		       u16 old_tss_sel, u32 old_tss_base,
 		       struct desc_struct *nseg_desc)
 {
 	struct tss_segment_32 tss_segment_32;
@@ -3862,6 +3871,16 @@ static int kvm_task_switch_32(struct kvm_vcpu *vcpu, u16 tss_selector,
 	if (kvm_read_guest(vcpu->kvm, get_tss_base_addr(vcpu, nseg_desc),
 			   &tss_segment_32, sizeof tss_segment_32))
 		goto out;
+
+	if (old_tss_sel != 0xffff) {
+		tss_segment_32.prev_task_link = old_tss_sel;
+
+		if (kvm_write_guest(vcpu->kvm,
+				    get_tss_base_addr(vcpu, nseg_desc),
+				    &tss_segment_32.prev_task_link,
+				    sizeof tss_segment_32.prev_task_link))
+			goto out;
+	}
 
 	if (load_state_from_tss32(vcpu, &tss_segment_32))
 		goto out;
@@ -3918,12 +3937,17 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 
 	kvm_x86_ops->skip_emulated_instruction(vcpu);
 
+	/* set back link to prev task only if NT bit is set in eflags
+	   note that old_tss_sel is not used afetr this point */
+	if (reason != TASK_SWITCH_CALL && reason != TASK_SWITCH_GATE)
+		old_tss_sel = 0xffff;
+
 	if (nseg_desc.type & 8)
-		ret = kvm_task_switch_32(vcpu, tss_selector, old_tss_base,
-					 &nseg_desc);
+		ret = kvm_task_switch_32(vcpu, tss_selector, old_tss_sel,
+					 old_tss_base, &nseg_desc);
 	else
-		ret = kvm_task_switch_16(vcpu, tss_selector, old_tss_base,
-					 &nseg_desc);
+		ret = kvm_task_switch_16(vcpu, tss_selector, old_tss_sel,
+					 old_tss_base, &nseg_desc);
 
 	if (reason == TASK_SWITCH_CALL || reason == TASK_SWITCH_GATE) {
 		u32 eflags = kvm_x86_ops->get_rflags(vcpu);
