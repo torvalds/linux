@@ -210,13 +210,15 @@ struct perf_event_header {
 };
 
 enum perf_event_type {
-	PERF_EVENT_IP		= 0,
+
 	PERF_EVENT_GROUP	= 1,
 
 	PERF_EVENT_MMAP		= 2,
 	PERF_EVENT_MUNMAP	= 3,
 
-	__PERF_EVENT_TID	= 0x100,
+	PERF_EVENT_OVERFLOW	= 1UL << 31,
+	__PERF_EVENT_IP		= 1UL << 30,
+	__PERF_EVENT_TID	= 1UL << 29,
 };
 
 #ifdef __KERNEL__

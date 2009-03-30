@@ -1754,50 +1754,44 @@ static void perf_output_end(struct perf_output_handle *handle)
 	rcu_read_unlock();
 }
 
-static int perf_output_write(struct perf_counter *counter, int nmi,
-			     void *buf, ssize_t size)
-{
-	struct perf_output_handle handle;
-	int ret;
-
-	ret = perf_output_begin(&handle, counter, size, nmi);
-	if (ret)
-		goto out;
-
-	perf_output_copy(&handle, buf, size);
-	perf_output_end(&handle);
-
-out:
-	return ret;
-}
-
 static void perf_output_simple(struct perf_counter *counter,
 			       int nmi, struct pt_regs *regs)
 {
-	unsigned int size;
+	int ret;
+	struct perf_output_handle handle;
+	struct perf_event_header header;
+	u64 ip;
 	struct {
-		struct perf_event_header header;
-		u64 ip;
 		u32 pid, tid;
-	} event;
+	} tid_entry;
 
-	event.header.type = PERF_EVENT_IP;
-	event.ip = instruction_pointer(regs);
+	header.type = PERF_EVENT_OVERFLOW;
+	header.size = sizeof(header);
 
-	size = sizeof(event);
+	ip = instruction_pointer(regs);
+	header.type |= __PERF_EVENT_IP;
+	header.size += sizeof(ip);
 
 	if (counter->hw_event.include_tid) {
 		/* namespace issues */
-		event.pid = current->group_leader->pid;
-		event.tid = current->pid;
+		tid_entry.pid = current->group_leader->pid;
+		tid_entry.tid = current->pid;
 
-		event.header.type |= __PERF_EVENT_TID;
-	} else
-		size -= sizeof(u64);
+		header.type |= __PERF_EVENT_TID;
+		header.size += sizeof(tid_entry);
+	}
 
-	event.header.size = size;
+	ret = perf_output_begin(&handle, counter, header.size, nmi);
+	if (ret)
+		return;
 
-	perf_output_write(counter, nmi, &event, size);
+	perf_output_put(&handle, header);
+	perf_output_put(&handle, ip);
+
+	if (counter->hw_event.include_tid)
+		perf_output_put(&handle, tid_entry);
+
+	perf_output_end(&handle);
 }
 
 static void perf_output_group(struct perf_counter *counter, int nmi)
