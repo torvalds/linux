@@ -449,8 +449,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							/* when we have merge directory item, pos_in_item has been changed too */
 
 							/* paste new directory entry. 1 is entry number */
-							leaf_paste_entries(bi.
-									   bi_bh,
+							leaf_paste_entries(&bi,
 									   n +
 									   item_pos
 									   -
@@ -699,7 +698,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							   n + item_pos -
 							   ret_val);
 					if (is_direntry_le_ih(pasted))
-						leaf_paste_entries(bi.bi_bh,
+						leaf_paste_entries(&bi,
 								   n +
 								   item_pos -
 								   ret_val,
@@ -894,8 +893,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							     tb->insert_size[0],
 							     body, zeros_num);
 							/* paste entry */
-							leaf_paste_entries(bi.
-									   bi_bh,
+							leaf_paste_entries(&bi,
 									   0,
 									   paste_entry_position,
 									   1,
@@ -1096,7 +1094,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							   tb->rnum[0]);
 					if (is_direntry_le_ih(pasted)
 					    && pos_in_item >= 0) {
-						leaf_paste_entries(bi.bi_bh,
+						leaf_paste_entries(&bi,
 								   item_pos -
 								   n +
 								   tb->rnum[0],
@@ -1339,8 +1337,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							     tb->insert_size[0],
 							     body, zeros_num);
 							/* paste new directory entry */
-							leaf_paste_entries(bi.
-									   bi_bh,
+							leaf_paste_entries(&bi,
 									   0,
 									   pos_in_item
 									   -
@@ -1505,7 +1502,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 							   item_pos - n +
 							   snum[i]);
 					if (is_direntry_le_ih(pasted)) {
-						leaf_paste_entries(bi.bi_bh,
+						leaf_paste_entries(&bi,
 								   item_pos -
 								   n + snum[i],
 								   pos_in_item,
@@ -1606,7 +1603,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 								     zeros_num);
 
 						/* paste entry */
-						leaf_paste_entries(bi.bi_bh,
+						leaf_paste_entries(&bi,
 								   item_pos,
 								   pos_in_item,
 								   1,

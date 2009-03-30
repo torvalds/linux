@@ -111,7 +111,7 @@ static void leaf_copy_dir_entries(struct buffer_info *dest_bi,
 	item_num_in_dest =
 	    (last_first == FIRST_TO_LAST) ? (B_NR_ITEMS(dest) - 1) : 0;
 
-	leaf_paste_entries(dest_bi->bi_bh, item_num_in_dest,
+	leaf_paste_entries(dest_bi, item_num_in_dest,
 			   (last_first ==
 			    FIRST_TO_LAST) ? I_ENTRY_COUNT(B_N_PITEM_HEAD(dest,
 									  item_num_in_dest))
@@ -1191,7 +1191,7 @@ static void leaf_delete_items_entirely(struct buffer_info *bi,
 }
 
 /* paste new_entry_count entries (new_dehs, records) into position before to item_num-th item */
-void leaf_paste_entries(struct buffer_head *bh,
+void leaf_paste_entries(struct buffer_info *bi,
 			int item_num,
 			int before,
 			int new_entry_count,
@@ -1203,6 +1203,7 @@ void leaf_paste_entries(struct buffer_head *bh,
 	struct reiserfs_de_head *deh;
 	char *insert_point;
 	int i, old_entry_num;
+	struct buffer_head *bh = bi->bi_bh;
 
 	if (new_entry_count == 0)
 		return;

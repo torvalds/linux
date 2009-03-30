@@ -2026,7 +2026,7 @@ void leaf_paste_in_buffer(struct buffer_info *bi, int pasted_item_num,
 			  int zeros_number);
 void leaf_cut_from_buffer(struct buffer_info *bi, int cut_item_num,
 			  int pos_in_item, int cut_size);
-void leaf_paste_entries(struct buffer_head *bh, int item_num, int before,
+void leaf_paste_entries(struct buffer_info *bi, int item_num, int before,
 			int new_entry_count, struct reiserfs_de_head *new_dehs,
 			const char *records, int paste_size);
 /* ibalance.c */
