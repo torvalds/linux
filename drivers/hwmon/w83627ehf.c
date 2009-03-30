@@ -1317,8 +1317,8 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 
 	/* fan4 and fan5 share some pins with the GPIO and serial flash */
 
-	fan5pin = superio_inb(sio_data->sioreg, 0x24) & 0x2;
-	fan4pin = superio_inb(sio_data->sioreg, 0x29) & 0x6;
+	fan5pin = !(superio_inb(sio_data->sioreg, 0x24) & 0x2);
+	fan4pin = !(superio_inb(sio_data->sioreg, 0x29) & 0x6);
 	superio_exit(sio_data->sioreg);
 
 	/* It looks like fan4 and fan5 pins can be alternatively used
@@ -1329,9 +1329,9 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 
 	data->has_fan = 0x07; /* fan1, fan2 and fan3 */
 	i = w83627ehf_read_value(data, W83627EHF_REG_FANDIV1);
-	if ((i & (1 << 2)) && (!fan4pin))
+	if ((i & (1 << 2)) && fan4pin)
 		data->has_fan |= (1 << 3);
-	if (!(i & (1 << 1)) && (!fan5pin))
+	if (!(i & (1 << 1)) && fan5pin)
 		data->has_fan |= (1 << 4);
 
 	/* Read fan clock dividers immediately */
