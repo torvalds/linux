@@ -426,7 +426,6 @@ static inline int platform_pci_sleep_wake(struct pci_dev *dev, bool enable)
  *                           given PCI device
  * @dev: PCI device to handle.
  * @state: PCI power state (D0, D1, D2, D3hot) to put the device into.
- * @wait: If 'true', wait for the device to change its power state
  *
  * RETURN VALUE:
  * -EINVAL if the requested state is invalid.
@@ -435,11 +434,14 @@ static inline int platform_pci_sleep_wake(struct pci_dev *dev, bool enable)
  * 0 if device already is in the requested state.
  * 0 if device's power state has been successfully changed.
  */
-static int
-pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state, bool wait)
+static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
 	u16 pmcsr;
 	bool need_restore = false;
+
+	/* Check if we're already there */
+	if (dev->current_state == state)
+		return 0;
 
 	if (!dev->pm_cap)
 		return -EIO;
@@ -451,10 +453,7 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state, bool wait)
 	 * Can enter D0 from any state, but if we can only go deeper 
 	 * to sleep if we're already in a low power state
 	 */
-	if (dev->current_state == state) {
-		/* we're already there */
-		return 0;
-	} else if (state != PCI_D0 && dev->current_state <= PCI_D3cold
+	if (state != PCI_D0 && dev->current_state <= PCI_D3cold
 	    && dev->current_state > state) {
 		dev_err(&dev->dev, "invalid power transition "
 			"(from state %d to %d)\n", dev->current_state, state);
@@ -481,10 +480,8 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state, bool wait)
 		break;
 	case PCI_UNKNOWN: /* Boot-up */
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot
-		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET)) {
+		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
 			need_restore = true;
-			wait = true;
-		}
 		/* Fall-through: force to D0 */
 	default:
 		pmcsr = 0;
@@ -493,9 +490,6 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state, bool wait)
 
 	/* enter specified state */
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
-
-	if (!wait)
-		return 0;
 
 	/* Mandatory power management transition delays */
 	/* see PCI PM 1.1 5.6.1 table 18 */
@@ -521,7 +515,7 @@ pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state, bool wait)
 	if (need_restore)
 		pci_restore_bars(dev);
 
-	if (wait && dev->bus->self)
+	if (dev->bus->self)
 		pcie_aspm_pm_state_change(dev->bus->self);
 
 	return 0;
@@ -544,6 +538,53 @@ void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
 		dev->current_state = state;
 	}
 }
+
+/**
+ * pci_platform_power_transition - Use platform to change device power state
+ * @dev: PCI device to handle.
+ * @state: State to put the device into.
+ */
+static int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
+{
+	int error;
+
+	if (platform_pci_power_manageable(dev)) {
+		error = platform_pci_set_power_state(dev, state);
+		if (!error)
+			pci_update_current_state(dev, state);
+	} else {
+		error = -ENODEV;
+		/* Fall back to PCI_D0 if native PM is not supported */
+		pci_update_current_state(dev, PCI_D0);
+	}
+
+	return error;
+}
+
+/**
+ * __pci_start_power_transition - Start power transition of a PCI device
+ * @dev: PCI device to handle.
+ * @state: State to put the device into.
+ */
+static void __pci_start_power_transition(struct pci_dev *dev, pci_power_t state)
+{
+	if (state == PCI_D0)
+		pci_platform_power_transition(dev, PCI_D0);
+}
+
+/**
+ * __pci_complete_power_transition - Complete power transition of a PCI device
+ * @dev: PCI device to handle.
+ * @state: State to put the device into.
+ *
+ * This function should not be called directly by device drivers.
+ */
+int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state)
+{
+	return state > PCI_D0 ?
+			pci_platform_power_transition(dev, state) : -EINVAL;
+}
+EXPORT_SYMBOL_GPL(__pci_complete_power_transition);
 
 /**
  * pci_set_power_state - Set the power state of a PCI device
@@ -577,30 +618,21 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		 */
 		return 0;
 
-	if (state == PCI_D0 && platform_pci_power_manageable(dev)) {
-		/*
-		 * Allow the platform to change the state, for example via ACPI
-		 * _PR0, _PS0 and some such, but do not trust it.
-		 */
-		int ret = platform_pci_set_power_state(dev, PCI_D0);
-		if (!ret)
-			pci_update_current_state(dev, PCI_D0);
-	}
+	/* Check if we're already there */
+	if (dev->current_state == state)
+		return 0;
+
+	__pci_start_power_transition(dev, state);
+
 	/* This device is quirked not to be put into D3, so
 	   don't put it in D3 */
 	if (state == PCI_D3hot && (dev->dev_flags & PCI_DEV_FLAGS_NO_D3))
 		return 0;
 
-	error = pci_raw_set_power_state(dev, state, true);
+	error = pci_raw_set_power_state(dev, state);
 
-	if (state > PCI_D0 && platform_pci_power_manageable(dev)) {
-		/* Allow the platform to finalize the transition */
-		int ret = platform_pci_set_power_state(dev, state);
-		if (!ret) {
-			pci_update_current_state(dev, state);
-			error = 0;
-		}
-	}
+	if (!__pci_complete_power_transition(dev, state))
+		error = 0;
 
 	return error;
 }
@@ -1231,7 +1263,7 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
 	if (target_state == PCI_POWER_ERROR)
 		return -EIO;
 
-	pci_enable_wake(dev, target_state, true);
+	pci_enable_wake(dev, target_state, device_may_wakeup(&dev->dev));
 
 	error = pci_set_power_state(dev, target_state);
 
@@ -1378,50 +1410,6 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 	if (error)
 		dev_err(&dev->dev,
 			"unable to preallocate PCI-X save buffer\n");
-}
-
-/**
- * pci_restore_standard_config - restore standard config registers of PCI device
- * @dev: PCI device to handle
- *
- * This function assumes that the device's configuration space is accessible.
- * If the device needs to be powered up, the function will wait for it to
- * change the state.
- */
-int pci_restore_standard_config(struct pci_dev *dev)
-{
-	pci_power_t prev_state;
-	int error;
-
-	pci_update_current_state(dev, PCI_D0);
-
-	prev_state = dev->current_state;
-	if (prev_state == PCI_D0)
-		goto Restore;
-
-	error = pci_raw_set_power_state(dev, PCI_D0, false);
-	if (error)
-		return error;
-
-	/*
-	 * This assumes that we won't get a bus in B2 or B3 from the BIOS, but
-	 * we've made this assumption forever and it appears to be universally
-	 * satisfied.
-	 */
-	switch(prev_state) {
-	case PCI_D3cold:
-	case PCI_D3hot:
-		mdelay(pci_pm_d3_delay);
-		break;
-	case PCI_D2:
-		udelay(PCI_PM_D2_DELAY);
-		break;
-	}
-
-	pci_update_current_state(dev, PCI_D0);
-
- Restore:
-	return dev->state_saved ? pci_restore_state(dev) : 0;
 }
 
 /**

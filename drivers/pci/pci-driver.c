@@ -352,53 +352,60 @@ static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 {
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	struct pci_driver * drv = pci_dev->driver;
-	int i = 0;
+
+	pci_dev->state_saved = false;
 
 	if (drv && drv->suspend) {
 		pci_power_t prev = pci_dev->current_state;
+		int error;
 
-		pci_dev->state_saved = false;
+		error = drv->suspend(pci_dev, state);
+		suspend_report_result(drv->suspend, error);
+		if (error)
+			return error;
 
-		i = drv->suspend(pci_dev, state);
-		suspend_report_result(drv->suspend, i);
-		if (i)
-			return i;
-
-		if (pci_dev->state_saved)
-			goto Fixup;
-
-		if (pci_dev->current_state != PCI_D0
+		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
 		    && pci_dev->current_state != PCI_UNKNOWN) {
 			WARN_ONCE(pci_dev->current_state != prev,
 				"PCI PM: Device state not saved by %pF\n",
 				drv->suspend);
-			goto Fixup;
 		}
 	}
 
-	pci_save_state(pci_dev);
-	/*
-	 * This is for compatibility with existing code with legacy PM support.
-	 */
-	pci_pm_set_unknown_state(pci_dev);
-
- Fixup:
 	pci_fixup_device(pci_fixup_suspend, pci_dev);
 
-	return i;
+	return 0;
 }
 
 static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
 {
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	struct pci_driver * drv = pci_dev->driver;
-	int i = 0;
 
 	if (drv && drv->suspend_late) {
-		i = drv->suspend_late(pci_dev, state);
-		suspend_report_result(drv->suspend_late, i);
+		pci_power_t prev = pci_dev->current_state;
+		int error;
+
+		error = drv->suspend_late(pci_dev, state);
+		suspend_report_result(drv->suspend_late, error);
+		if (error)
+			return error;
+
+		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
+		    && pci_dev->current_state != PCI_UNKNOWN) {
+			WARN_ONCE(pci_dev->current_state != prev,
+				"PCI PM: Device state not saved by %pF\n",
+				drv->suspend_late);
+			return 0;
+		}
 	}
-	return i;
+
+	if (!pci_dev->state_saved)
+		pci_save_state(pci_dev);
+
+	pci_pm_set_unknown_state(pci_dev);
+
+	return 0;
 }
 
 static int pci_legacy_resume_early(struct device *dev)
@@ -423,6 +430,23 @@ static int pci_legacy_resume(struct device *dev)
 
 /* Auxiliary functions used by the new power management framework */
 
+/**
+ * pci_restore_standard_config - restore standard config registers of PCI device
+ * @pci_dev: PCI device to handle
+ */
+static int pci_restore_standard_config(struct pci_dev *pci_dev)
+{
+	pci_update_current_state(pci_dev, PCI_UNKNOWN);
+
+	if (pci_dev->current_state != PCI_D0) {
+		int error = pci_set_power_state(pci_dev, PCI_D0);
+		if (error)
+			return error;
+	}
+
+	return pci_dev->state_saved ? pci_restore_state(pci_dev) : 0;
+}
+
 static void pci_pm_default_resume_noirq(struct pci_dev *pci_dev)
 {
 	pci_restore_standard_config(pci_dev);
@@ -443,7 +467,6 @@ static void pci_pm_default_suspend(struct pci_dev *pci_dev)
 	/* Disable non-bridge devices without PM support */
 	if (!pci_is_bridge(pci_dev))
 		pci_disable_enabled_device(pci_dev);
-	pci_save_state(pci_dev);
 }
 
 static bool pci_has_legacy_pm_support(struct pci_dev *pci_dev)
@@ -493,12 +516,12 @@ static int pci_pm_suspend(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend(dev, PMSG_SUSPEND);
 
+	pci_dev->state_saved = false;
+
 	if (!pm) {
 		pci_pm_default_suspend(pci_dev);
 		goto Fixup;
 	}
-
-	pci_dev->state_saved = false;
 
 	if (pm->suspend) {
 		pci_power_t prev = pci_dev->current_state;
@@ -509,22 +532,12 @@ static int pci_pm_suspend(struct device *dev)
 		if (error)
 			return error;
 
-		if (pci_dev->state_saved)
-			goto Fixup;
-
-		if (pci_dev->current_state != PCI_D0
+		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
 		    && pci_dev->current_state != PCI_UNKNOWN) {
 			WARN_ONCE(pci_dev->current_state != prev,
 				"PCI PM: State of device not saved by %pF\n",
 				pm->suspend);
-			goto Fixup;
 		}
-	}
-
-	if (!pci_dev->state_saved) {
-		pci_save_state(pci_dev);
-		if (!pci_is_bridge(pci_dev))
-			pci_prepare_to_sleep(pci_dev);
 	}
 
  Fixup:
@@ -536,21 +549,43 @@ static int pci_pm_suspend(struct device *dev)
 static int pci_pm_suspend_noirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct device_driver *drv = dev->driver;
-	int error = 0;
+	struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend_late(dev, PMSG_SUSPEND);
 
-	if (drv && drv->pm && drv->pm->suspend_noirq) {
-		error = drv->pm->suspend_noirq(dev);
-		suspend_report_result(drv->pm->suspend_noirq, error);
+	if (!pm) {
+		pci_save_state(pci_dev);
+		return 0;
 	}
 
-	if (!error)
-		pci_pm_set_unknown_state(pci_dev);
+	if (pm->suspend_noirq) {
+		pci_power_t prev = pci_dev->current_state;
+		int error;
 
-	return error;
+		error = pm->suspend_noirq(dev);
+		suspend_report_result(pm->suspend_noirq, error);
+		if (error)
+			return error;
+
+		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
+		    && pci_dev->current_state != PCI_UNKNOWN) {
+			WARN_ONCE(pci_dev->current_state != prev,
+				"PCI PM: State of device not saved by %pF\n",
+				pm->suspend_noirq);
+			return 0;
+		}
+	}
+
+	if (!pci_dev->state_saved) {
+		pci_save_state(pci_dev);
+		if (!pci_is_bridge(pci_dev))
+			pci_prepare_to_sleep(pci_dev);
+	}
+
+	pci_pm_set_unknown_state(pci_dev);
+
+	return 0;
 }
 
 static int pci_pm_resume_noirq(struct device *dev)
@@ -617,12 +652,12 @@ static int pci_pm_freeze(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend(dev, PMSG_FREEZE);
 
+	pci_dev->state_saved = false;
+
 	if (!pm) {
 		pci_pm_default_suspend(pci_dev);
 		return 0;
 	}
-
-	pci_dev->state_saved = false;
 
 	if (pm->freeze) {
 		int error;
@@ -633,9 +668,6 @@ static int pci_pm_freeze(struct device *dev)
 			return error;
 	}
 
-	if (!pci_dev->state_saved)
-		pci_save_state(pci_dev);
-
 	return 0;
 }
 
@@ -643,20 +675,25 @@ static int pci_pm_freeze_noirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct device_driver *drv = dev->driver;
-	int error = 0;
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend_late(dev, PMSG_FREEZE);
 
 	if (drv && drv->pm && drv->pm->freeze_noirq) {
+		int error;
+
 		error = drv->pm->freeze_noirq(dev);
 		suspend_report_result(drv->pm->freeze_noirq, error);
+		if (error)
+			return error;
 	}
 
-	if (!error)
-		pci_pm_set_unknown_state(pci_dev);
+	if (!pci_dev->state_saved)
+		pci_save_state(pci_dev);
 
-	return error;
+	pci_pm_set_unknown_state(pci_dev);
+
+	return 0;
 }
 
 static int pci_pm_thaw_noirq(struct device *dev)
@@ -699,46 +736,56 @@ static int pci_pm_poweroff(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-	int error = 0;
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend(dev, PMSG_HIBERNATE);
+
+	pci_dev->state_saved = false;
 
 	if (!pm) {
 		pci_pm_default_suspend(pci_dev);
 		goto Fixup;
 	}
 
-	pci_dev->state_saved = false;
-
 	if (pm->poweroff) {
+		int error;
+
 		error = pm->poweroff(dev);
 		suspend_report_result(pm->poweroff, error);
+		if (error)
+			return error;
+	}
+
+ Fixup:
+	pci_fixup_device(pci_fixup_suspend, pci_dev);
+
+	return 0;
+}
+
+static int pci_pm_poweroff_noirq(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct device_driver *drv = dev->driver;
+
+	if (pci_has_legacy_pm_support(to_pci_dev(dev)))
+		return pci_legacy_suspend_late(dev, PMSG_HIBERNATE);
+
+	if (!drv || !drv->pm)
+		return 0;
+
+	if (drv->pm->poweroff_noirq) {
+		int error;
+
+		error = drv->pm->poweroff_noirq(dev);
+		suspend_report_result(drv->pm->poweroff_noirq, error);
+		if (error)
+			return error;
 	}
 
 	if (!pci_dev->state_saved && !pci_is_bridge(pci_dev))
 		pci_prepare_to_sleep(pci_dev);
 
- Fixup:
-	pci_fixup_device(pci_fixup_suspend, pci_dev);
-
-	return error;
-}
-
-static int pci_pm_poweroff_noirq(struct device *dev)
-{
-	struct device_driver *drv = dev->driver;
-	int error = 0;
-
-	if (pci_has_legacy_pm_support(to_pci_dev(dev)))
-		return pci_legacy_suspend_late(dev, PMSG_HIBERNATE);
-
-	if (drv && drv->pm && drv->pm->poweroff_noirq) {
-		error = drv->pm->poweroff_noirq(dev);
-		suspend_report_result(drv->pm->poweroff_noirq, error);
-	}
-
-	return error;
+	return 0;
 }
 
 static int pci_pm_restore_noirq(struct device *dev)
