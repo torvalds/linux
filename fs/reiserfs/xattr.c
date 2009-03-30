@@ -459,10 +459,7 @@ int reiserfs_delete_xattrs(struct inode *inode)
 
 	dput(root);
 out:
-	if (!err)
-		REISERFS_I(inode)->i_flags =
-		    REISERFS_I(inode)->i_flags & ~i_has_xattr_dir;
-	else
+	if (err)
 		reiserfs_warning(inode->i_sb, "jdm-20004",
 				 "Couldn't remove all xattrs (%d)\n", err);
 	return err;
@@ -660,7 +657,6 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	down_write(&REISERFS_I(inode)->i_xattr_sem);
 
 	xahash = xattr_hash(buffer, buffer_size);
-	REISERFS_I(inode)->i_flags |= i_has_xattr_dir;
 
 	/* Resize it so we're ok to write there */
 	newattrs.ia_size = buffer_size;
@@ -769,7 +765,6 @@ reiserfs_xattr_get(const struct inode *inode, const char *name, void *buffer,
 	down_read(&REISERFS_I(inode)->i_xattr_sem);
 
 	isize = i_size_read(dentry->d_inode);
-	REISERFS_I(inode)->i_flags |= i_has_xattr_dir;
 
 	/* Just return the size needed */
 	if (buffer == NULL) {
@@ -998,8 +993,6 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 	buf.r_size = buffer ? size : 0;
 	buf.r_pos = 0;
 	buf.r_inode = dentry->d_inode;
-
-	REISERFS_I(dentry->d_inode)->i_flags |= i_has_xattr_dir;
 
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_XATTR);
 	err = xattr_readdir(dir->d_inode, reiserfs_listxattr_filler, &buf);
