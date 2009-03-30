@@ -123,6 +123,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 	gfn_t table_gfn;
 	unsigned index, pt_access, pte_access;
 	gpa_t pte_gpa;
+	int rsvd_fault = 0;
 
 	pgprintk("%s: addr %lx\n", __func__, addr);
 walk:
@@ -156,6 +157,10 @@ walk:
 
 		if (!is_present_pte(pte))
 			goto not_present;
+
+		rsvd_fault = is_rsvd_bits_set(vcpu, pte, walker->level);
+		if (rsvd_fault)
+			goto access_error;
 
 		if (write_fault && !is_writeble_pte(pte))
 			if (user_fault || is_write_protection(vcpu))
@@ -232,6 +237,8 @@ err:
 		walker->error_code |= PFERR_USER_MASK;
 	if (fetch_fault)
 		walker->error_code |= PFERR_FETCH_MASK;
+	if (rsvd_fault)
+		walker->error_code |= PFERR_RSVD_MASK;
 	return 0;
 }
 

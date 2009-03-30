@@ -126,6 +126,7 @@ module_param(oos_shadow, bool, 0644);
 #define PFERR_PRESENT_MASK (1U << 0)
 #define PFERR_WRITE_MASK (1U << 1)
 #define PFERR_USER_MASK (1U << 2)
+#define PFERR_RSVD_MASK (1U << 3)
 #define PFERR_FETCH_MASK (1U << 4)
 
 #define PT_DIRECTORY_LEVEL 2
@@ -178,6 +179,11 @@ static u64 __read_mostly shadow_user_mask;
 static u64 __read_mostly shadow_accessed_mask;
 static u64 __read_mostly shadow_dirty_mask;
 static u64 __read_mostly shadow_mt_mask;
+
+static inline u64 rsvd_bits(int s, int e)
+{
+	return ((1ULL << (e - s + 1)) - 1) << s;
+}
 
 void kvm_mmu_set_nonpresent_ptes(u64 trap_pte, u64 notrap_pte)
 {
@@ -2151,6 +2157,14 @@ static void paging_free(struct kvm_vcpu *vcpu)
 	nonpaging_free(vcpu);
 }
 
+static bool is_rsvd_bits_set(struct kvm_vcpu *vcpu, u64 gpte, int level)
+{
+	int bit7;
+
+	bit7 = (gpte >> 7) & 1;
+	return (gpte & vcpu->arch.mmu.rsvd_bits_mask[bit7][level-1]) != 0;
+}
+
 #define PTTYPE 64
 #include "paging_tmpl.h"
 #undef PTTYPE
@@ -2158,6 +2172,55 @@ static void paging_free(struct kvm_vcpu *vcpu)
 #define PTTYPE 32
 #include "paging_tmpl.h"
 #undef PTTYPE
+
+static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu, int level)
+{
+	struct kvm_mmu *context = &vcpu->arch.mmu;
+	int maxphyaddr = cpuid_maxphyaddr(vcpu);
+	u64 exb_bit_rsvd = 0;
+
+	if (!is_nx(vcpu))
+		exb_bit_rsvd = rsvd_bits(63, 63);
+	switch (level) {
+	case PT32_ROOT_LEVEL:
+		/* no rsvd bits for 2 level 4K page table entries */
+		context->rsvd_bits_mask[0][1] = 0;
+		context->rsvd_bits_mask[0][0] = 0;
+		if (is_cpuid_PSE36())
+			/* 36bits PSE 4MB page */
+			context->rsvd_bits_mask[1][1] = rsvd_bits(17, 21);
+		else
+			/* 32 bits PSE 4MB page */
+			context->rsvd_bits_mask[1][1] = rsvd_bits(13, 21);
+		context->rsvd_bits_mask[1][0] = ~0ull;
+		break;
+	case PT32E_ROOT_LEVEL:
+		context->rsvd_bits_mask[0][1] = exb_bit_rsvd |
+			rsvd_bits(maxphyaddr, 62);		/* PDE */
+		context->rsvd_bits_mask[0][0] = exb_bit_rsvd |
+			rsvd_bits(maxphyaddr, 62); 	/* PTE */
+		context->rsvd_bits_mask[1][1] = exb_bit_rsvd |
+			rsvd_bits(maxphyaddr, 62) |
+			rsvd_bits(13, 20);		/* large page */
+		context->rsvd_bits_mask[1][0] = ~0ull;
+		break;
+	case PT64_ROOT_LEVEL:
+		context->rsvd_bits_mask[0][3] = exb_bit_rsvd |
+			rsvd_bits(maxphyaddr, 51) | rsvd_bits(7, 8);
+		context->rsvd_bits_mask[0][2] = exb_bit_rsvd |
+			rsvd_bits(maxphyaddr, 51) | rsvd_bits(7, 8);
+		context->rsvd_bits_mask[0][1] = exb_bit_rsvd |
+			rsvd_bits(maxphyaddr, 51) | rsvd_bits(7, 8);
+		context->rsvd_bits_mask[0][0] = exb_bit_rsvd |
+			rsvd_bits(maxphyaddr, 51);
+		context->rsvd_bits_mask[1][3] = context->rsvd_bits_mask[0][3];
+		context->rsvd_bits_mask[1][2] = context->rsvd_bits_mask[0][2];
+		context->rsvd_bits_mask[1][1] = exb_bit_rsvd |
+			rsvd_bits(maxphyaddr, 51) | rsvd_bits(13, 20);
+		context->rsvd_bits_mask[1][0] = ~0ull;
+		break;
+	}
+}
 
 static int paging64_init_context_common(struct kvm_vcpu *vcpu, int level)
 {
@@ -2179,6 +2242,7 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu, int level)
 
 static int paging64_init_context(struct kvm_vcpu *vcpu)
 {
+	reset_rsvds_bits_mask(vcpu, PT64_ROOT_LEVEL);
 	return paging64_init_context_common(vcpu, PT64_ROOT_LEVEL);
 }
 
@@ -2186,6 +2250,7 @@ static int paging32_init_context(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *context = &vcpu->arch.mmu;
 
+	reset_rsvds_bits_mask(vcpu, PT32_ROOT_LEVEL);
 	context->new_cr3 = paging_new_cr3;
 	context->page_fault = paging32_page_fault;
 	context->gva_to_gpa = paging32_gva_to_gpa;
@@ -2201,6 +2266,7 @@ static int paging32_init_context(struct kvm_vcpu *vcpu)
 
 static int paging32E_init_context(struct kvm_vcpu *vcpu)
 {
+	reset_rsvds_bits_mask(vcpu, PT32E_ROOT_LEVEL);
 	return paging64_init_context_common(vcpu, PT32E_ROOT_LEVEL);
 }
 
@@ -2221,12 +2287,15 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 		context->gva_to_gpa = nonpaging_gva_to_gpa;
 		context->root_level = 0;
 	} else if (is_long_mode(vcpu)) {
+		reset_rsvds_bits_mask(vcpu, PT64_ROOT_LEVEL);
 		context->gva_to_gpa = paging64_gva_to_gpa;
 		context->root_level = PT64_ROOT_LEVEL;
 	} else if (is_pae(vcpu)) {
+		reset_rsvds_bits_mask(vcpu, PT32E_ROOT_LEVEL);
 		context->gva_to_gpa = paging64_gva_to_gpa;
 		context->root_level = PT32E_ROOT_LEVEL;
 	} else {
+		reset_rsvds_bits_mask(vcpu, PT32_ROOT_LEVEL);
 		context->gva_to_gpa = paging32_gva_to_gpa;
 		context->root_level = PT32_ROOT_LEVEL;
 	}

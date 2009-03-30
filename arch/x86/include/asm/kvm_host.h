@@ -261,6 +261,7 @@ struct kvm_mmu {
 	union kvm_mmu_page_role base_role;
 
 	u64 *pae_root;
+	u64 rsvd_bits_mask[2][4];
 };
 
 struct kvm_vcpu_arch {
@@ -791,5 +792,6 @@ asmlinkage void kvm_handle_fault_on_reboot(void);
 #define KVM_ARCH_WANT_MMU_NOTIFIER
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 int kvm_age_hva(struct kvm *kvm, unsigned long hva);
+int cpuid_maxphyaddr(struct kvm_vcpu *vcpu);
 
 #endif /* _ASM_X86_KVM_HOST_H */
