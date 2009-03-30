@@ -115,6 +115,10 @@ static inline void l2_inv_pa_range(unsigned long start, unsigned long end)
 	raw_local_irq_restore(flags);
 }
 
+static inline void l2_inv_all(void)
+{
+	__asm__("mcr p15, 1, %0, c15, c11, 0" : : "r" (0));
+}
 
 /*
  * Linux primitives.
@@ -254,9 +258,7 @@ static void __init enable_dcache(void)
 
 static void __init __invalidate_icache(void)
 {
-	int dummy;
-
-	__asm__ __volatile__("mcr p15, 0, %0, c7, c5, 0" : "=r" (dummy));
+	__asm__("mcr p15, 0, %0, c7, c5, 0" : : "r" (0));
 }
 
 static int __init invalidate_and_disable_icache(void)
@@ -321,6 +323,7 @@ static void __init enable_l2(void)
 
 		d = flush_and_disable_dcache();
 		i = invalidate_and_disable_icache();
+		l2_inv_all();
 		write_extra_features(u | 0x00400000);
 		if (i)
 			enable_icache();
