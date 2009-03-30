@@ -23,7 +23,6 @@
  * get_rkey
  * key_in_buffer
  * decrement_bcount
- * decrement_counters_in_path
  * reiserfs_check_path
  * pathrelse_and_restore
  * pathrelse
@@ -359,36 +358,6 @@ static inline int key_in_buffer(struct treepath *p_s_chk_path,	/* Path which sho
 	return 1;
 }
 
-inline void decrement_bcount(struct buffer_head *p_s_bh)
-{
-	if (p_s_bh) {
-		if (atomic_read(&(p_s_bh->b_count))) {
-			put_bh(p_s_bh);
-			return;
-		}
-		reiserfs_panic(NULL, "PAP-5070",
-			       "trying to free free buffer %b", p_s_bh);
-	}
-}
-
-/* Decrement b_count field of the all buffers in the path. */
-void decrement_counters_in_path(struct treepath *p_s_search_path)
-{
-	int n_path_offset = p_s_search_path->path_length;
-
-	RFALSE(n_path_offset < ILLEGAL_PATH_ELEMENT_OFFSET ||
-	       n_path_offset > EXTENDED_MAX_HEIGHT - 1,
-	       "PAP-5080: invalid path offset of %d", n_path_offset);
-
-	while (n_path_offset > ILLEGAL_PATH_ELEMENT_OFFSET) {
-		struct buffer_head *bh;
-
-		bh = PATH_OFFSET_PBUFFER(p_s_search_path, n_path_offset--);
-		decrement_bcount(bh);
-	}
-	p_s_search_path->path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
-}
-
 int reiserfs_check_path(struct treepath *p)
 {
 	RFALSE(p->path_length != ILLEGAL_PATH_ELEMENT_OFFSET,
@@ -396,12 +365,11 @@ int reiserfs_check_path(struct treepath *p)
 	return 0;
 }
 
-/* Release all buffers in the path. Restore dirty bits clean
-** when preparing the buffer for the log
-**
-** only called from fix_nodes()
-*/
-void pathrelse_and_restore(struct super_block *s, struct treepath *p_s_search_path)
+/* Drop the reference to each buffer in a path and restore
+ * dirty bits clean when preparing the buffer for the log.
+ * This version should only be called from fix_nodes() */
+void pathrelse_and_restore(struct super_block *sb,
+			   struct treepath *p_s_search_path)
 {
 	int n_path_offset = p_s_search_path->path_length;
 
@@ -409,16 +377,15 @@ void pathrelse_and_restore(struct super_block *s, struct treepath *p_s_search_pa
 	       "clm-4000: invalid path offset");
 
 	while (n_path_offset > ILLEGAL_PATH_ELEMENT_OFFSET) {
-		reiserfs_restore_prepared_buffer(s,
-						 PATH_OFFSET_PBUFFER
-						 (p_s_search_path,
-						  n_path_offset));
-		brelse(PATH_OFFSET_PBUFFER(p_s_search_path, n_path_offset--));
+		struct buffer_head *bh;
+		bh = PATH_OFFSET_PBUFFER(p_s_search_path, n_path_offset--);
+		reiserfs_restore_prepared_buffer(sb, bh);
+		brelse(bh);
 	}
 	p_s_search_path->path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
 }
 
-/* Release all buffers in the path. */
+/* Drop the reference to each buffer in a path */
 void pathrelse(struct treepath *p_s_search_path)
 {
 	int n_path_offset = p_s_search_path->path_length;
@@ -631,7 +598,7 @@ int search_by_key(struct super_block *p_s_sb, const struct cpu_key *p_s_key,	/* 
 	   we must be careful to release all nodes in a path before we either
 	   discard the path struct or re-use the path struct, as we do here. */
 
-	decrement_counters_in_path(p_s_search_path);
+	pathrelse(p_s_search_path);
 
 	right_neighbor_of_leaf_node = 0;
 
@@ -691,7 +658,7 @@ int search_by_key(struct super_block *p_s_sb, const struct cpu_key *p_s_key,	/* 
 			PROC_INFO_INC(p_s_sb, search_by_key_restarted);
 			PROC_INFO_INC(p_s_sb,
 				      sbk_restarted[expected_level - 1]);
-			decrement_counters_in_path(p_s_search_path);
+			pathrelse(p_s_search_path);
 
 			/* Get the root block number so that we can repeat the search
 			   starting from the root. */
@@ -1868,7 +1835,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
 		if (journal_transaction_should_end(th, 0) ||
 		    reiserfs_transaction_free_space(th) <= JOURNAL_FOR_FREE_BLOCK_AND_UPDATE_SD) {
 			int orig_len_alloc = th->t_blocks_allocated;
-			decrement_counters_in_path(&s_search_path);
+			pathrelse(&s_search_path);
 
 			if (update_timestamps) {
 				p_s_inode->i_mtime = p_s_inode->i_ctime =

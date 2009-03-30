@@ -753,20 +753,21 @@ static void free_buffers_in_tb(struct tree_balance *p_s_tb)
 {
 	int n_counter;
 
-	decrement_counters_in_path(p_s_tb->tb_path);
+	pathrelse(p_s_tb->tb_path);
 
 	for (n_counter = 0; n_counter < MAX_HEIGHT; n_counter++) {
-		decrement_bcount(p_s_tb->L[n_counter]);
+		brelse(p_s_tb->L[n_counter]);
+		brelse(p_s_tb->R[n_counter]);
+		brelse(p_s_tb->FL[n_counter]);
+		brelse(p_s_tb->FR[n_counter]);
+		brelse(p_s_tb->CFL[n_counter]);
+		brelse(p_s_tb->CFR[n_counter]);
+
 		p_s_tb->L[n_counter] = NULL;
-		decrement_bcount(p_s_tb->R[n_counter]);
 		p_s_tb->R[n_counter] = NULL;
-		decrement_bcount(p_s_tb->FL[n_counter]);
 		p_s_tb->FL[n_counter] = NULL;
-		decrement_bcount(p_s_tb->FR[n_counter]);
 		p_s_tb->FR[n_counter] = NULL;
-		decrement_bcount(p_s_tb->CFL[n_counter]);
 		p_s_tb->CFL[n_counter] = NULL;
-		decrement_bcount(p_s_tb->CFR[n_counter]);
 		p_s_tb->CFR[n_counter] = NULL;
 	}
 }
@@ -1022,7 +1023,7 @@ static int get_far_parent(struct tree_balance *p_s_tb,
 	if (buffer_locked(*pp_s_com_father)) {
 		__wait_on_buffer(*pp_s_com_father);
 		if (FILESYSTEM_CHANGED_TB(p_s_tb)) {
-			decrement_bcount(*pp_s_com_father);
+			brelse(*pp_s_com_father);
 			return REPEAT_SEARCH;
 		}
 	}
@@ -1050,8 +1051,8 @@ static int get_far_parent(struct tree_balance *p_s_tb,
 		return IO_ERROR;
 
 	if (FILESYSTEM_CHANGED_TB(p_s_tb)) {
-		decrement_counters_in_path(&s_path_to_neighbor_father);
-		decrement_bcount(*pp_s_com_father);
+		pathrelse(&s_path_to_neighbor_father);
+		brelse(*pp_s_com_father);
 		return REPEAT_SEARCH;
 	}
 
@@ -1063,7 +1064,7 @@ static int get_far_parent(struct tree_balance *p_s_tb,
 	       FIRST_PATH_ELEMENT_OFFSET, "PAP-8192: path length is too small");
 
 	s_path_to_neighbor_father.path_length--;
-	decrement_counters_in_path(&s_path_to_neighbor_father);
+	pathrelse(&s_path_to_neighbor_father);
 	return CARRY_ON;
 }
 
@@ -1086,10 +1087,10 @@ static int get_parents(struct tree_balance *p_s_tb, int n_h)
 	if (n_path_offset <= FIRST_PATH_ELEMENT_OFFSET) {
 		/* The root can not have parents.
 		   Release nodes which previously were obtained as parents of the current node neighbors. */
-		decrement_bcount(p_s_tb->FL[n_h]);
-		decrement_bcount(p_s_tb->CFL[n_h]);
-		decrement_bcount(p_s_tb->FR[n_h]);
-		decrement_bcount(p_s_tb->CFR[n_h]);
+		brelse(p_s_tb->FL[n_h]);
+		brelse(p_s_tb->CFL[n_h]);
+		brelse(p_s_tb->FR[n_h]);
+		brelse(p_s_tb->CFR[n_h]);
 		p_s_tb->FL[n_h] = p_s_tb->CFL[n_h] = p_s_tb->FR[n_h] =
 		    p_s_tb->CFR[n_h] = NULL;
 		return CARRY_ON;
@@ -1115,9 +1116,9 @@ static int get_parents(struct tree_balance *p_s_tb, int n_h)
 			return n_ret_value;
 	}
 
-	decrement_bcount(p_s_tb->FL[n_h]);
+	brelse(p_s_tb->FL[n_h]);
 	p_s_tb->FL[n_h] = p_s_curf;	/* New initialization of FL[n_h]. */
-	decrement_bcount(p_s_tb->CFL[n_h]);
+	brelse(p_s_tb->CFL[n_h]);
 	p_s_tb->CFL[n_h] = p_s_curcf;	/* New initialization of CFL[n_h]. */
 
 	RFALSE((p_s_curf && !B_IS_IN_TREE(p_s_curf)) ||
@@ -1145,10 +1146,10 @@ static int get_parents(struct tree_balance *p_s_tb, int n_h)
 		p_s_tb->rkey[n_h] = n_position;
 	}
 
-	decrement_bcount(p_s_tb->FR[n_h]);
+	brelse(p_s_tb->FR[n_h]);
 	p_s_tb->FR[n_h] = p_s_curf;	/* New initialization of FR[n_path_offset]. */
 
-	decrement_bcount(p_s_tb->CFR[n_h]);
+	brelse(p_s_tb->CFR[n_h]);
 	p_s_tb->CFR[n_h] = p_s_curcf;	/* New initialization of CFR[n_path_offset]. */
 
 	RFALSE((p_s_curf && !B_IS_IN_TREE(p_s_curf)) ||
@@ -1964,7 +1965,7 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 		if (!p_s_bh)
 			return IO_ERROR;
 		if (FILESYSTEM_CHANGED_TB(p_s_tb)) {
-			decrement_bcount(p_s_bh);
+			brelse(p_s_bh);
 			PROC_INFO_INC(p_s_sb, get_neighbors_restart[n_h]);
 			return REPEAT_SEARCH;
 		}
@@ -1980,7 +1981,7 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 		       dc_size(B_N_CHILD(p_s_tb->FL[0], n_child_position)),
 		       "PAP-8290: invalid child size of left neighbor");
 
-		decrement_bcount(p_s_tb->L[n_h]);
+		brelse(p_s_tb->L[n_h]);
 		p_s_tb->L[n_h] = p_s_bh;
 	}
 
@@ -2001,11 +2002,11 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 		if (!p_s_bh)
 			return IO_ERROR;
 		if (FILESYSTEM_CHANGED_TB(p_s_tb)) {
-			decrement_bcount(p_s_bh);
+			brelse(p_s_bh);
 			PROC_INFO_INC(p_s_sb, get_neighbors_restart[n_h]);
 			return REPEAT_SEARCH;
 		}
-		decrement_bcount(p_s_tb->R[n_h]);
+		brelse(p_s_tb->R[n_h]);
 		p_s_tb->R[n_h] = p_s_bh;
 
 		RFALSE(!n_h
@@ -2511,16 +2512,17 @@ int fix_nodes(int n_op_mode, struct tree_balance *p_s_tb, struct item_head *p_s_
 			}
 
 			brelse(p_s_tb->L[i]);
-			p_s_tb->L[i] = NULL;
 			brelse(p_s_tb->R[i]);
-			p_s_tb->R[i] = NULL;
 			brelse(p_s_tb->FL[i]);
-			p_s_tb->FL[i] = NULL;
 			brelse(p_s_tb->FR[i]);
-			p_s_tb->FR[i] = NULL;
 			brelse(p_s_tb->CFL[i]);
-			p_s_tb->CFL[i] = NULL;
 			brelse(p_s_tb->CFR[i]);
+
+			p_s_tb->L[i] = NULL;
+			p_s_tb->R[i] = NULL;
+			p_s_tb->FL[i] = NULL;
+			p_s_tb->FR[i] = NULL;
+			p_s_tb->CFL[i] = NULL;
 			p_s_tb->CFR[i] = NULL;
 		}
 
