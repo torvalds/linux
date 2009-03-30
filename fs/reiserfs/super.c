@@ -1280,6 +1280,8 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		REISERFS_SB(s)->s_mount_state = sb_umount_state(rs);
 		s->s_flags &= ~MS_RDONLY;
 		set_sb_umount_state(rs, REISERFS_ERROR_FS);
+		if (!old_format_only(s))
+			set_sb_mnt_count(rs, sb_mnt_count(rs) + 1);
 		/* mark_buffer_dirty (SB_BUFFER_WITH_SB (s), 1); */
 		journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
 		REISERFS_SB(s)->s_mount_state = REISERFS_VALID_FS;
@@ -1819,7 +1821,9 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 			} else if (!silent) {
 				reiserfs_info(s, "using 3.5.x disk format\n");
 			}
-		}
+		} else
+			set_sb_mnt_count(rs, sb_mnt_count(rs) + 1);
+
 
 		journal_mark_dirty(&th, s, SB_BUFFER_WITH_SB(s));
 		errval = journal_end(&th, s, 1);

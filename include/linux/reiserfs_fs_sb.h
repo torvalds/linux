@@ -73,6 +73,9 @@ typedef enum {
 #define sb_version(sbp)            (le16_to_cpu((sbp)->s_v1.s_version))
 #define set_sb_version(sbp,v)      ((sbp)->s_v1.s_version = cpu_to_le16(v))
 
+#define sb_mnt_count(sbp)	   (le16_to_cpu((sbp)->s_mnt_count))
+#define set_sb_mnt_count(sbp, v)   ((sbp)->s_mnt_count = cpu_to_le16(v))
+
 #define sb_reserved_for_journal(sbp) \
               (le16_to_cpu((sbp)->s_v1.s_reserved_for_journal))
 #define set_sb_reserved_for_journal(sbp,v) \

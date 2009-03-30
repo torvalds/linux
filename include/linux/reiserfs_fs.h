@@ -171,7 +171,11 @@ struct reiserfs_super_block {
 	__le32 s_flags;		/* Right now used only by inode-attributes, if enabled */
 	unsigned char s_uuid[16];	/* filesystem unique identifier */
 	unsigned char s_label[16];	/* filesystem volume label */
-	char s_unused[88];	/* zero filled by mkreiserfs and
+	__le16 s_mnt_count;		/* Count of mounts since last fsck */
+	__le16 s_max_mnt_count;		/* Maximum mounts before check */
+	__le32 s_lastcheck;		/* Timestamp of last fsck */
+	__le32 s_check_interval;	/* Interval between checks */
+	char s_unused[76];	/* zero filled by mkreiserfs and
 				 * reiserfs_convert_objectid_map_v1()
 				 * so any additions must be updated
 				 * there as well. */
