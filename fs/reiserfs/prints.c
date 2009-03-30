@@ -184,13 +184,15 @@ static char *is_there_reiserfs_struct(char *fmt, int *what)
    printk ("bad key %lu %lu %lu %lu", key->k_dir_id, key->k_objectid, 
            key->k_offset, key->k_uniqueness); 
 */
-
+static DEFINE_SPINLOCK(error_lock);
 static void prepare_error_buf(const char *fmt, va_list args)
 {
 	char *fmt1 = fmt_buf;
 	char *k;
 	char *p = error_buf;
 	int what;
+
+	spin_lock(&error_lock);
 
 	strcpy(fmt1, fmt);
 
@@ -237,6 +239,7 @@ static void prepare_error_buf(const char *fmt, va_list args)
 		fmt1 = k + 2;
 	}
 	vsprintf(p, fmt1, args);
+	spin_unlock(&error_lock);
 
 }
 
