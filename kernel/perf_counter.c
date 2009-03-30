@@ -1663,10 +1663,20 @@ struct perf_output_handle {
 	unsigned int		offset;
 	unsigned int		head;
 	int			wakeup;
+	int			nmi;
 };
 
+static inline void __perf_output_wakeup(struct perf_output_handle *handle)
+{
+	if (handle->nmi)
+		perf_pending_queue(handle->counter);
+	else
+		perf_counter_wakeup(handle->counter);
+}
+
 static int perf_output_begin(struct perf_output_handle *handle,
-			     struct perf_counter *counter, unsigned int size)
+			     struct perf_counter *counter, unsigned int size,
+			     int nmi)
 {
 	struct perf_mmap_data *data;
 	unsigned int offset, head;
@@ -1676,15 +1686,17 @@ static int perf_output_begin(struct perf_output_handle *handle,
 	if (!data)
 		goto out;
 
+	handle->counter	= counter;
+	handle->nmi	= nmi;
+
 	if (!data->nr_pages)
-		goto out;
+		goto fail;
 
 	do {
 		offset = head = atomic_read(&data->head);
 		head += size;
 	} while (atomic_cmpxchg(&data->head, offset, head) != offset);
 
-	handle->counter	= counter;
 	handle->data	= data;
 	handle->offset	= offset;
 	handle->head	= head;
@@ -1692,6 +1704,8 @@ static int perf_output_begin(struct perf_output_handle *handle,
 
 	return 0;
 
+fail:
+	__perf_output_wakeup(handle);
 out:
 	rcu_read_unlock();
 
@@ -1733,14 +1747,10 @@ static void perf_output_copy(struct perf_output_handle *handle,
 #define perf_output_put(handle, x) \
 	perf_output_copy((handle), &(x), sizeof(x))
 
-static void perf_output_end(struct perf_output_handle *handle, int nmi)
+static void perf_output_end(struct perf_output_handle *handle)
 {
-	if (handle->wakeup) {
-		if (nmi)
-			perf_pending_queue(handle->counter);
-		else
-			perf_counter_wakeup(handle->counter);
-	}
+	if (handle->wakeup)
+		__perf_output_wakeup(handle);
 	rcu_read_unlock();
 }
 
@@ -1750,12 +1760,12 @@ static int perf_output_write(struct perf_counter *counter, int nmi,
 	struct perf_output_handle handle;
 	int ret;
 
-	ret = perf_output_begin(&handle, counter, size);
+	ret = perf_output_begin(&handle, counter, size, nmi);
 	if (ret)
 		goto out;
 
 	perf_output_copy(&handle, buf, size);
-	perf_output_end(&handle, nmi);
+	perf_output_end(&handle);
 
 out:
 	return ret;
@@ -1804,7 +1814,7 @@ static void perf_output_group(struct perf_counter *counter, int nmi)
 
 	size = sizeof(header) + counter->nr_siblings * sizeof(entry);
 
-	ret = perf_output_begin(&handle, counter, size);
+	ret = perf_output_begin(&handle, counter, size, nmi);
 	if (ret)
 		return;
 
@@ -1824,7 +1834,7 @@ static void perf_output_group(struct perf_counter *counter, int nmi)
 		perf_output_put(&handle, entry);
 	}
 
-	perf_output_end(&handle, nmi);
+	perf_output_end(&handle);
 }
 
 void perf_counter_output(struct perf_counter *counter,
@@ -1869,7 +1879,7 @@ static void perf_counter_mmap_output(struct perf_counter *counter,
 {
 	struct perf_output_handle handle;
 	int size = mmap_event->event.header.size;
-	int ret = perf_output_begin(&handle, counter, size);
+	int ret = perf_output_begin(&handle, counter, size, 0);
 
 	if (ret)
 		return;
@@ -1877,7 +1887,7 @@ static void perf_counter_mmap_output(struct perf_counter *counter,
 	perf_output_put(&handle, mmap_event->event);
 	perf_output_copy(&handle, mmap_event->file_name,
 				   mmap_event->file_size);
-	perf_output_end(&handle, 0);
+	perf_output_end(&handle);
 }
 
 static int perf_counter_mmap_match(struct perf_counter *counter,
