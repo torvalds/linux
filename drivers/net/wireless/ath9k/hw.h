@@ -190,7 +190,7 @@ struct ath9k_ops_config {
 	u16 diversity_control;
 	u16 antenna_switch_swap;
 	int serialize_regmode;
-	int intr_mitigation;
+	bool intr_mitigation;
 #define SPUR_DISABLE        	0
 #define SPUR_ENABLE_IOCTL   	1
 #define SPUR_ENABLE_EEPROM  	2
@@ -524,7 +524,6 @@ struct ath_hw {
 	enum ath9k_ani_cmd ani_function;
 
 	u32 intr_txqs;
-	bool intr_mitigation;
 	enum ath9k_ht_extprotspacing extprotspacing;
 	u8 txchainmask;
 	u8 rxchainmask;
