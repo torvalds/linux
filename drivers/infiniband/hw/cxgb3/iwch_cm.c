@@ -282,18 +282,22 @@ static void *alloc_ep(int size, gfp_t gfp)
 
 void __free_ep(struct kref *kref)
 {
-	struct iwch_ep_common *epc;
-	epc = container_of(kref, struct iwch_ep_common, kref);
-	PDBG("%s ep %p state %s\n", __func__, epc, states[state_read(epc)]);
-	kfree(epc);
+	struct iwch_ep *ep;
+	ep = container_of(container_of(kref, struct iwch_ep_common, kref),
+			  struct iwch_ep, com);
+	PDBG("%s ep %p state %s\n", __func__, ep, states[state_read(&ep->com)]);
+	if (ep->com.flags & RELEASE_RESOURCES) {
+		cxgb3_remove_tid(ep->com.tdev, (void *)ep, ep->hwtid);
+		dst_release(ep->dst);
+		l2t_release(L2DATA(ep->com.tdev), ep->l2t);
+	}
+	kfree(ep);
 }
 
 static void release_ep_resources(struct iwch_ep *ep)
 {
 	PDBG("%s ep %p tid %d\n", __func__, ep, ep->hwtid);
-	cxgb3_remove_tid(ep->com.tdev, (void *)ep, ep->hwtid);
-	dst_release(ep->dst);
-	l2t_release(L2DATA(ep->com.tdev), ep->l2t);
+	ep->com.flags |= RELEASE_RESOURCES;
 	put_ep(&ep->com);
 }
 
@@ -1152,8 +1156,8 @@ static int abort_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	 * We get 2 abort replies from the HW.  The first one must
 	 * be ignored except for scribbling that we need one more.
 	 */
-	if (!(ep->flags & ABORT_REQ_IN_PROGRESS)) {
-		ep->flags |= ABORT_REQ_IN_PROGRESS;
+	if (!(ep->com.flags & ABORT_REQ_IN_PROGRESS)) {
+		ep->com.flags |= ABORT_REQ_IN_PROGRESS;
 		return CPL_RET_BUF_DONE;
 	}
 
@@ -1557,8 +1561,8 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	 * We get 2 peer aborts from the HW.  The first one must
 	 * be ignored except for scribbling that we need one more.
 	 */
-	if (!(ep->flags & PEER_ABORT_IN_PROGRESS)) {
-		ep->flags |= PEER_ABORT_IN_PROGRESS;
+	if (!(ep->com.flags & PEER_ABORT_IN_PROGRESS)) {
+		ep->com.flags |= PEER_ABORT_IN_PROGRESS;
 		return CPL_RET_BUF_DONE;
 	}
 
