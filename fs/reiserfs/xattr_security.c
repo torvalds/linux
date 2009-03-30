@@ -31,35 +31,25 @@ security_set(struct inode *inode, const char *name, const void *buffer,
 	return reiserfs_xattr_set(inode, name, buffer, size, flags);
 }
 
-static int security_del(struct inode *inode, const char *name)
+static size_t security_list(struct inode *inode, char *list, size_t list_len,
+			    const char *name, size_t namelen)
 {
-	if (strlen(name) < sizeof(XATTR_SECURITY_PREFIX))
-		return -EINVAL;
-
-	if (IS_PRIVATE(inode))
-		return -EPERM;
-
-	return 0;
-}
-
-static int
-security_list(struct inode *inode, const char *name, int namelen, char *out)
-{
-	int len = namelen;
+	const size_t len = namelen + 1;
 
 	if (IS_PRIVATE(inode))
 		return 0;
 
-	if (out)
-		memcpy(out, name, len);
+	if (list && len <= list_len) {
+		memcpy(list, name, namelen);
+		list[namelen] = '\0';
+	}
 
 	return len;
 }
 
-struct reiserfs_xattr_handler security_handler = {
+struct xattr_handler reiserfs_xattr_security_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.get = security_get,
 	.set = security_set,
-	.del = security_del,
 	.list = security_list,
 };

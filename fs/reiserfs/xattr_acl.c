@@ -271,7 +271,7 @@ reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	char *name;
 	void *value = NULL;
 	struct posix_acl **p_acl;
-	size_t size;
+	size_t size = 0;
 	int error;
 	struct reiserfs_inode_info *reiserfs_i = REISERFS_I(inode);
 
@@ -308,16 +308,21 @@ reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		value = posix_acl_to_disk(acl, &size);
 		if (IS_ERR(value))
 			return (int)PTR_ERR(value);
-		error = reiserfs_xattr_set(inode, name, value, size, 0);
-	} else {
-		error = reiserfs_xattr_del(inode, name);
-		if (error == -ENODATA) {
-			/* This may seem odd here, but it means that the ACL was set
-			 * with a value representable with mode bits. If there was
-			 * an ACL before, reiserfs_xattr_del already dirtied the inode.
-			 */
+	}
+
+	error = __reiserfs_xattr_set(inode, name, value, size, 0);
+
+	/*
+	 * Ensure that the inode gets dirtied if we're only using
+	 * the mode bits and an old ACL didn't exist. We don't need
+	 * to check if the inode is hashed here since we won't get
+	 * called by reiserfs_inherit_default_acl().
+	 */
+	if (error == -ENODATA) {
+		error = 0;
+		if (type == ACL_TYPE_ACCESS) {
+			inode->i_ctime = CURRENT_TIME_SEC;
 			mark_inode_dirty(inode);
-			error = 0;
 		}
 	}
 
@@ -474,33 +479,22 @@ posix_acl_access_set(struct inode *inode, const char *name,
 	return xattr_set_acl(inode, ACL_TYPE_ACCESS, value, size);
 }
 
-static int posix_acl_access_del(struct inode *inode, const char *name)
+static size_t posix_acl_access_list(struct inode *inode, char *list,
+				    size_t list_size, const char *name,
+				    size_t name_len)
 {
-	struct reiserfs_inode_info *reiserfs_i = REISERFS_I(inode);
-	if (strlen(name) != sizeof(POSIX_ACL_XATTR_ACCESS) - 1)
-		return -EINVAL;
-	iset_acl(inode, &reiserfs_i->i_acl_access, ERR_PTR(-ENODATA));
-	return 0;
-}
-
-static int
-posix_acl_access_list(struct inode *inode, const char *name, int namelen,
-		      char *out)
-{
-	int len = namelen;
+	const size_t size = sizeof(POSIX_ACL_XATTR_ACCESS);
 	if (!reiserfs_posixacl(inode->i_sb))
 		return 0;
-	if (out)
-		memcpy(out, name, len);
-
-	return len;
+	if (list && size <= list_size)
+		memcpy(list, POSIX_ACL_XATTR_ACCESS, size);
+	return size;
 }
 
-struct reiserfs_xattr_handler posix_acl_access_handler = {
+struct xattr_handler reiserfs_posix_acl_access_handler = {
 	.prefix = POSIX_ACL_XATTR_ACCESS,
 	.get = posix_acl_access_get,
 	.set = posix_acl_access_set,
-	.del = posix_acl_access_del,
 	.list = posix_acl_access_list,
 };
 
@@ -522,32 +516,21 @@ posix_acl_default_set(struct inode *inode, const char *name,
 	return xattr_set_acl(inode, ACL_TYPE_DEFAULT, value, size);
 }
 
-static int posix_acl_default_del(struct inode *inode, const char *name)
+static size_t posix_acl_default_list(struct inode *inode, char *list,
+				     size_t list_size, const char *name,
+				     size_t name_len)
 {
-	struct reiserfs_inode_info *reiserfs_i = REISERFS_I(inode);
-	if (strlen(name) != sizeof(POSIX_ACL_XATTR_DEFAULT) - 1)
-		return -EINVAL;
-	iset_acl(inode, &reiserfs_i->i_acl_default, ERR_PTR(-ENODATA));
-	return 0;
-}
-
-static int
-posix_acl_default_list(struct inode *inode, const char *name, int namelen,
-		       char *out)
-{
-	int len = namelen;
+	const size_t size = sizeof(POSIX_ACL_XATTR_DEFAULT);
 	if (!reiserfs_posixacl(inode->i_sb))
 		return 0;
-	if (out)
-		memcpy(out, name, len);
-
-	return len;
+	if (list && size <= list_size)
+		memcpy(list, POSIX_ACL_XATTR_DEFAULT, size);
+	return size;
 }
 
-struct reiserfs_xattr_handler posix_acl_default_handler = {
+struct xattr_handler reiserfs_posix_acl_default_handler = {
 	.prefix = POSIX_ACL_XATTR_DEFAULT,
 	.get = posix_acl_default_get,
 	.set = posix_acl_default_set,
-	.del = posix_acl_default_del,
 	.list = posix_acl_default_list,
 };

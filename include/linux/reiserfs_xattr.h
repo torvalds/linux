@@ -29,20 +29,6 @@ struct iattr;
 struct super_block;
 struct nameidata;
 
-struct reiserfs_xattr_handler {
-	char *prefix;
-	int (*init) (void);
-	void (*exit) (void);
-	int (*get) (struct inode * inode, const char *name, void *buffer,
-		    size_t size);
-	int (*set) (struct inode * inode, const char *name, const void *buffer,
-		    size_t size, int flags);
-	int (*del) (struct inode * inode, const char *name);
-	int (*list) (struct inode * inode, const char *name, int namelen,
-		     char *out);
-	struct list_head handlers;
-};
-
 int reiserfs_xattr_register_handlers(void) __init;
 void reiserfs_xattr_unregister_handlers(void);
 int reiserfs_xattr_init(struct super_block *sb, int mount_flags);
@@ -59,13 +45,14 @@ ssize_t reiserfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 int reiserfs_removexattr(struct dentry *dentry, const char *name);
 int reiserfs_permission(struct inode *inode, int mask);
 
-int reiserfs_xattr_del(struct inode *, const char *);
-int reiserfs_xattr_get(const struct inode *, const char *, void *, size_t);
+int reiserfs_xattr_get(struct inode *, const char *, void *, size_t);
+int __reiserfs_xattr_set(struct inode *, const char *, const void *,
+			 size_t, int);
 int reiserfs_xattr_set(struct inode *, const char *, const void *, size_t, int);
 
-extern struct reiserfs_xattr_handler user_handler;
-extern struct reiserfs_xattr_handler trusted_handler;
-extern struct reiserfs_xattr_handler security_handler;
+extern struct xattr_handler reiserfs_xattr_user_handler;
+extern struct xattr_handler reiserfs_xattr_trusted_handler;
+extern struct xattr_handler reiserfs_xattr_security_handler;
 
 static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 {
