@@ -413,19 +413,6 @@ void cx18_av_std_setup(struct cx18 *cx)
 	cx18_av_write(cx, 0x47f, state->slicer_line_delay);
 }
 
-static int cx18_av_decode_vbi_line(struct v4l2_subdev *sd,
-				   struct v4l2_decode_vbi_line *vbi_line)
-{
-	struct cx18 *cx = v4l2_get_subdevdata(sd);
-	return cx18_av_vbi(cx, VIDIOC_INT_DECODE_VBI_LINE, vbi_line);
-}
-
-static int cx18_av_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
-{
-	struct cx18 *cx = v4l2_get_subdevdata(sd);
-	return cx18_av_audio(cx, VIDIOC_INT_AUDIO_CLOCK_FREQ, &freq);
-}
-
 static void input_change(struct cx18 *cx)
 {
 	struct cx18_av_state *state = &cx->av_state;
@@ -772,7 +759,7 @@ static int cx18_av_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_MUTE:
-		return cx18_av_audio(cx, VIDIOC_S_CTRL, ctrl);
+		return cx18_av_audio_s_ctrl(cx, ctrl);
 
 	default:
 		return -EINVAL;
@@ -802,7 +789,7 @@ static int cx18_av_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_MUTE:
-		return cx18_av_audio(cx, VIDIOC_G_CTRL, ctrl);
+		return cx18_av_audio_g_ctrl(cx, ctrl);
 	default:
 		return -EINVAL;
 	}
@@ -845,13 +832,7 @@ static int cx18_av_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx18_av_vbi(cx, VIDIOC_G_FMT, fmt);
-	default:
-		return -EINVAL;
-	}
-	return 0;
+	return cx18_av_vbi_g_fmt(cx, fmt);
 }
 
 static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
@@ -925,10 +906,10 @@ static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		break;
 
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx18_av_vbi(cx, VIDIOC_S_FMT, fmt);
+		return cx18_av_vbi_s_fmt(cx, fmt);
 
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx18_av_vbi(cx, VIDIOC_S_FMT, fmt);
+		return cx18_av_vbi_s_fmt(cx, fmt);
 
 	default:
 		return -EINVAL;

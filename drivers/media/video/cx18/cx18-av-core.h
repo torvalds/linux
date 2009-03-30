@@ -355,11 +355,16 @@ int cx18_av_loadfw(struct cx18 *cx);
 
 /* ----------------------------------------------------------------------- */
 /* cx18_av-audio.c                                                         */
-int cx18_av_audio(struct cx18 *cx, unsigned int cmd, void *arg);
+int cx18_av_audio_g_ctrl(struct cx18 *cx, struct v4l2_control *ctrl);
+int cx18_av_audio_s_ctrl(struct cx18 *cx, struct v4l2_control *ctrl);
+int cx18_av_s_clock_freq(struct v4l2_subdev *sd, u32 freq);
 void cx18_av_audio_set_path(struct cx18 *cx);
 
 /* ----------------------------------------------------------------------- */
 /* cx18_av-vbi.c                                                           */
-int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg);
+int cx18_av_decode_vbi_line(struct v4l2_subdev *sd,
+			   struct v4l2_decode_vbi_line *vbi);
+int cx18_av_vbi_g_fmt(struct cx18 *cx, struct v4l2_format *fmt);
+int cx18_av_vbi_s_fmt(struct cx18 *cx, struct v4l2_format *fmt);
 
 #endif
