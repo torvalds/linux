@@ -954,7 +954,7 @@ hw_perf_counter_init(struct perf_counter *counter)
 
 	err = __hw_perf_counter_init(counter);
 	if (err)
-		return NULL;
+		return ERR_PTR(err);
 
 	return &x86_perf_counter_ops;
 }
