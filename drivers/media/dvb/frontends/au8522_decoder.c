@@ -829,7 +829,6 @@ MODULE_DEVICE_TABLE(i2c, au8522_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "au8522",
-	.driverid = I2C_DRIVERID_AU8522,
 	.probe = au8522_probe,
 	.remove = au8522_remove,
 	.id_table = au8522_id,
