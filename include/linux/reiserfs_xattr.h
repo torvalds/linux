@@ -46,13 +46,49 @@ int reiserfs_removexattr(struct dentry *dentry, const char *name);
 int reiserfs_permission(struct inode *inode, int mask);
 
 int reiserfs_xattr_get(struct inode *, const char *, void *, size_t);
-int __reiserfs_xattr_set(struct inode *, const char *, const void *,
-			 size_t, int);
 int reiserfs_xattr_set(struct inode *, const char *, const void *, size_t, int);
+int reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *,
+			      struct inode *, const char *, const void *,
+			      size_t, int);
 
 extern struct xattr_handler reiserfs_xattr_user_handler;
 extern struct xattr_handler reiserfs_xattr_trusted_handler;
 extern struct xattr_handler reiserfs_xattr_security_handler;
+
+#define xattr_size(size) ((size) + sizeof(struct reiserfs_xattr_header))
+static inline loff_t reiserfs_xattr_nblocks(struct inode *inode, loff_t size)
+{
+	loff_t ret = 0;
+	if (reiserfs_file_data_log(inode)) {
+		ret = _ROUND_UP(xattr_size(size), inode->i_sb->s_blocksize);
+		ret >>= inode->i_sb->s_blocksize_bits;
+	}
+	return ret;
+}
+
+/* We may have to create up to 3 objects: xattr root, xattr dir, xattr file.
+ * Let's try to be smart about it.
+ * xattr root: We cache it. If it's not cached, we may need to create it.
+ * xattr dir: If anything has been loaded for this inode, we can set a flag
+ *            saying so.
+ * xattr file: Since we don't cache xattrs, we can't tell. We always include
+ *             blocks for it.
+ *
+ * However, since root and dir can be created between calls - YOU MUST SAVE
+ * THIS VALUE.
+ */
+static inline size_t reiserfs_xattr_jcreate_nblocks(struct inode *inode)
+{
+	size_t nblocks = JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
+
+	if ((REISERFS_I(inode)->i_flags & i_has_xattr_dir) == 0) {
+		nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
+		if (REISERFS_SB(inode->i_sb)->xattr_root == NULL)
+			nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
+	}
+
+	return nblocks;
+}
 
 static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 {

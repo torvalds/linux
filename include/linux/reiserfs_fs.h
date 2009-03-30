@@ -1615,6 +1615,10 @@ struct reiserfs_journal_header {
 #define JOURNAL_MAX_COMMIT_AGE 30
 #define JOURNAL_MAX_TRANS_AGE 30
 #define JOURNAL_PER_BALANCE_CNT (3 * (MAX_HEIGHT-2) + 9)
+#define JOURNAL_BLOCKS_PER_OBJECT(sb)  (JOURNAL_PER_BALANCE_CNT * 3 + \
+					 2 * (REISERFS_QUOTA_INIT_BLOCKS(sb) + \
+					      REISERFS_QUOTA_TRANS_BLOCKS(sb)))
+
 #ifdef CONFIG_QUOTA
 /* We need to update data and inode (atime) */
 #define REISERFS_QUOTA_TRANS_BLOCKS(s) (REISERFS_SB(s)->s_mount_opt & (1<<REISERFS_QUOTA) ? 2 : 0)

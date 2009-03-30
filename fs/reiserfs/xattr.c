@@ -632,8 +632,9 @@ out_dput:
  * inode->i_mutex: down
  */
 int
-__reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
-		     size_t buffer_size, int flags)
+reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
+			  struct inode *inode, const char *name,
+			  const void *buffer, size_t buffer_size, int flags)
 {
 	int err = 0;
 	struct dentry *dentry;
@@ -723,14 +724,34 @@ out_unlock:
 	return err;
 }
 
-int
-reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
-		     size_t buffer_size, int flags)
+/* We need to start a transaction to maintain lock ordering */
+int reiserfs_xattr_set(struct inode *inode, const char *name,
+		       const void *buffer, size_t buffer_size, int flags)
 {
-	int err = __reiserfs_xattr_set(inode, name, buffer, buffer_size, flags);
-	if (err == -ENODATA)
-		err = 0;
-	return err;
+
+	struct reiserfs_transaction_handle th;
+	int error, error2;
+	size_t jbegin_count = reiserfs_xattr_nblocks(inode, buffer_size);
+
+	if (!(flags & XATTR_REPLACE))
+		jbegin_count += reiserfs_xattr_jcreate_nblocks(inode);
+
+	reiserfs_write_lock(inode->i_sb);
+	error = journal_begin(&th, inode->i_sb, jbegin_count);
+	if (error) {
+		reiserfs_write_unlock(inode->i_sb);
+		return error;
+	}
+
+	error = reiserfs_xattr_set_handle(&th, inode, name,
+					  buffer, buffer_size, flags);
+
+	error2 = journal_end(&th, inode->i_sb, jbegin_count);
+	if (error == 0)
+		error = error2;
+	reiserfs_write_unlock(inode->i_sb);
+
+	return error;
 }
 
 /*

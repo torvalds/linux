@@ -10,15 +10,17 @@
 #include <linux/reiserfs_acl.h>
 #include <asm/uaccess.h>
 
-static int reiserfs_set_acl(struct inode *inode, int type,
+static int reiserfs_set_acl(struct reiserfs_transaction_handle *th,
+			    struct inode *inode, int type,
 			    struct posix_acl *acl);
 
 static int
 xattr_set_acl(struct inode *inode, int type, const void *value, size_t size)
 {
 	struct posix_acl *acl;
-	int error;
-
+	int error, error2;
+	struct reiserfs_transaction_handle th;
+	size_t jcreate_blocks;
 	if (!reiserfs_posixacl(inode->i_sb))
 		return -EOPNOTSUPP;
 	if (!is_owner_or_cap(inode))
@@ -36,7 +38,21 @@ xattr_set_acl(struct inode *inode, int type, const void *value, size_t size)
 	} else
 		acl = NULL;
 
-	error = reiserfs_set_acl(inode, type, acl);
+	/* Pessimism: We can't assume that anything from the xattr root up
+	 * has been created. */
+
+	jcreate_blocks = reiserfs_xattr_jcreate_nblocks(inode) +
+			 reiserfs_xattr_nblocks(inode, size) * 2;
+
+	reiserfs_write_lock(inode->i_sb);
+	error = journal_begin(&th, inode->i_sb, jcreate_blocks);
+	if (error == 0) {
+		error = reiserfs_set_acl(&th, inode, type, acl);
+		error2 = journal_end(&th, inode->i_sb, jcreate_blocks);
+		if (error2)
+			error = error2;
+	}
+	reiserfs_write_unlock(inode->i_sb);
 
       release_and_out:
 	posix_acl_release(acl);
@@ -266,7 +282,8 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
  * BKL held [before 2.5.x]
  */
 static int
-reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
+reiserfs_set_acl(struct reiserfs_transaction_handle *th, struct inode *inode,
+		 int type, struct posix_acl *acl)
 {
 	char *name;
 	void *value = NULL;
@@ -310,7 +327,7 @@ reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 			return (int)PTR_ERR(value);
 	}
 
-	error = __reiserfs_xattr_set(inode, name, value, size, 0);
+	error = reiserfs_xattr_set_handle(th, inode, name, value, size, 0);
 
 	/*
 	 * Ensure that the inode gets dirtied if we're only using
@@ -337,7 +354,8 @@ reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 /* dir->i_mutex: locked,
  * inode is new and not released into the wild yet */
 int
-reiserfs_inherit_default_acl(struct inode *dir, struct dentry *dentry,
+reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
+			     struct inode *dir, struct dentry *dentry,
 			     struct inode *inode)
 {
 	struct posix_acl *acl;
@@ -374,7 +392,8 @@ reiserfs_inherit_default_acl(struct inode *dir, struct dentry *dentry,
 
 		/* Copy the default ACL to the default ACL of a new directory */
 		if (S_ISDIR(inode->i_mode)) {
-			err = reiserfs_set_acl(inode, ACL_TYPE_DEFAULT, acl);
+			err = reiserfs_set_acl(th, inode, ACL_TYPE_DEFAULT,
+					       acl);
 			if (err)
 				goto cleanup;
 		}
@@ -395,9 +414,9 @@ reiserfs_inherit_default_acl(struct inode *dir, struct dentry *dentry,
 
 			/* If we need an ACL.. */
 			if (need_acl > 0) {
-				err =
-				    reiserfs_set_acl(inode, ACL_TYPE_ACCESS,
-						     acl_copy);
+				err = reiserfs_set_acl(th, inode,
+						       ACL_TYPE_ACCESS,
+						       acl_copy);
 				if (err)
 					goto cleanup_copy;
 			}
@@ -415,21 +434,45 @@ reiserfs_inherit_default_acl(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
-/* Looks up and caches the result of the default ACL.
- * We do this so that we don't need to carry the xattr_sem into
- * reiserfs_new_inode if we don't need to */
+/* This is used to cache the default acl before a new object is created.
+ * The biggest reason for this is to get an idea of how many blocks will
+ * actually be required for the create operation if we must inherit an ACL.
+ * An ACL write can add up to 3 object creations and an additional file write
+ * so we'd prefer not to reserve that many blocks in the journal if we can.
+ * It also has the advantage of not loading the ACL with a transaction open,
+ * this may seem silly, but if the owner of the directory is doing the
+ * creation, the ACL may not be loaded since the permissions wouldn't require
+ * it.
+ * We return the number of blocks required for the transaction.
+ */
 int reiserfs_cache_default_acl(struct inode *inode)
 {
-	int ret = 0;
-	if (reiserfs_posixacl(inode->i_sb) && !IS_PRIVATE(inode)) {
-		struct posix_acl *acl;
-		acl = reiserfs_get_acl(inode, ACL_TYPE_DEFAULT);
-		ret = (acl && !IS_ERR(acl));
-		if (ret)
-			posix_acl_release(acl);
+	struct posix_acl *acl;
+	int nblocks = 0;
+
+	if (IS_PRIVATE(inode))
+		return 0;
+
+	acl = reiserfs_get_acl(inode, ACL_TYPE_DEFAULT);
+
+	if (acl && !IS_ERR(acl)) {
+		int size = reiserfs_acl_size(acl->a_count);
+
+		/* Other xattrs can be created during inode creation. We don't
+		 * want to claim too many blocks, so we check to see if we
+		 * we need to create the tree to the xattrs, and then we
+		 * just want two files. */
+		nblocks = reiserfs_xattr_jcreate_nblocks(inode);
+		nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
+
+		REISERFS_I(inode)->i_flags |= i_has_xattr_dir;
+
+		/* We need to account for writes + bitmaps for two files */
+		nblocks += reiserfs_xattr_nblocks(inode, size) * 4;
+		posix_acl_release(acl);
 	}
 
-	return ret;
+	return nblocks;
 }
 
 int reiserfs_acl_chmod(struct inode *inode)
@@ -455,8 +498,22 @@ int reiserfs_acl_chmod(struct inode *inode)
 	if (!clone)
 		return -ENOMEM;
 	error = posix_acl_chmod_masq(clone, inode->i_mode);
-	if (!error)
-		error = reiserfs_set_acl(inode, ACL_TYPE_ACCESS, clone);
+	if (!error) {
+		struct reiserfs_transaction_handle th;
+		size_t size = reiserfs_xattr_nblocks(inode,
+					     reiserfs_acl_size(clone->a_count));
+		reiserfs_write_lock(inode->i_sb);
+		error = journal_begin(&th, inode->i_sb, size * 2);
+		if (!error) {
+			int error2;
+			error = reiserfs_set_acl(&th, inode, ACL_TYPE_ACCESS,
+						 clone);
+			error2 = journal_end(&th, inode->i_sb, size * 2);
+			if (error2)
+				error = error2;
+		}
+		reiserfs_write_unlock(inode->i_sb);
+	}
 	posix_acl_release(clone);
 	return error;
 }

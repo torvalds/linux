@@ -598,15 +598,13 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb));
 	struct reiserfs_transaction_handle th;
-	int locked;
 
 	if (!(inode = new_inode(dir->i_sb))) {
 		return -ENOMEM;
 	}
 	new_inode_init(inode, dir, mode);
 
-	locked = reiserfs_cache_default_acl(dir);
-
+	jbegin_count += reiserfs_cache_default_acl(dir);
 	reiserfs_write_lock(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
@@ -662,7 +660,6 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	    JOURNAL_PER_BALANCE_CNT * 3 +
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb));
-	int locked;
 
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
@@ -672,8 +669,7 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	}
 	new_inode_init(inode, dir, mode);
 
-	locked = reiserfs_cache_default_acl(dir);
-
+	jbegin_count += reiserfs_cache_default_acl(dir);
 	reiserfs_write_lock(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
@@ -732,7 +728,6 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	    JOURNAL_PER_BALANCE_CNT * 3 +
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb));
-	int locked;
 
 #ifdef DISPLACE_NEW_PACKING_LOCALITIES
 	/* set flag that new packing locality created and new blocks for the content     * of that directory are not displaced yet */
@@ -744,8 +739,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	}
 	new_inode_init(inode, dir, mode);
 
-	locked = reiserfs_cache_default_acl(dir);
-
+	jbegin_count += reiserfs_cache_default_acl(dir);
 	reiserfs_write_lock(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
@@ -1033,8 +1027,6 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	}
 	memcpy(name, symname, strlen(symname));
 	padd_item(name, item_len, strlen(symname));
-
-	/* We would inherit the default ACL here, but symlinks don't get ACLs */
 
 	retval = journal_begin(&th, parent_dir->i_sb, jbegin_count);
 	if (retval) {

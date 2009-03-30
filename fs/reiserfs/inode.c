@@ -1914,9 +1914,8 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		goto out_inserted_sd;
 	}
 
-	/* XXX CHECK THIS */
 	if (reiserfs_posixacl(inode->i_sb)) {
-		retval = reiserfs_inherit_default_acl(dir, dentry, inode);
+		retval = reiserfs_inherit_default_acl(th, dir, dentry, inode);
 		if (retval) {
 			err = retval;
 			reiserfs_check_path(&path_to_key);
