@@ -195,9 +195,8 @@ static int finish_unfinished(struct super_block *s)
 	while (!retval) {
 		retval = search_item(s, &max_cpu_key, &path);
 		if (retval != ITEM_NOT_FOUND) {
-			reiserfs_warning(s, "vs-2140",
-					 "search_by_key returned %d",
-					 retval);
+			reiserfs_error(s, "vs-2140",
+				       "search_by_key returned %d", retval);
 			break;
 		}
 
@@ -378,9 +377,9 @@ void add_save_link(struct reiserfs_transaction_handle *th,
 	retval = search_item(inode->i_sb, &key, &path);
 	if (retval != ITEM_NOT_FOUND) {
 		if (retval != -ENOSPC)
-			reiserfs_warning(inode->i_sb, "vs-2100",
-					 "search_by_key (%K) returned %d", &key,
-					 retval);
+			reiserfs_error(inode->i_sb, "vs-2100",
+				       "search_by_key (%K) returned %d", &key,
+				       retval);
 		pathrelse(&path);
 		return;
 	}
@@ -393,8 +392,8 @@ void add_save_link(struct reiserfs_transaction_handle *th,
 	    reiserfs_insert_item(th, &path, &key, &ih, NULL, (char *)&link);
 	if (retval) {
 		if (retval != -ENOSPC)
-			reiserfs_warning(inode->i_sb, "vs-2120",
-					 "insert_item returned %d", retval);
+			reiserfs_error(inode->i_sb, "vs-2120",
+				       "insert_item returned %d", retval);
 	} else {
 		if (truncate)
 			REISERFS_I(inode)->i_flags |=

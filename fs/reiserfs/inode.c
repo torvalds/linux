@@ -841,12 +841,12 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 							  tail_offset);
 				if (retval) {
 					if (retval != -ENOSPC)
-						reiserfs_warning(inode->i_sb,
-							 "clm-6004",
-							 "convert tail failed "
-							 "inode %lu, error %d",
-								 inode->i_ino,
-								 retval);
+						reiserfs_error(inode->i_sb,
+							"clm-6004",
+							"convert tail failed "
+							"inode %lu, error %d",
+							inode->i_ino,
+							retval);
 					if (allocated_block_nr) {
 						/* the bitmap, the super, and the stat data == 3 */
 						if (!th)
@@ -1332,10 +1332,9 @@ void reiserfs_update_sd_size(struct reiserfs_transaction_handle *th,
 		/* look for the object's stat data */
 		retval = search_item(inode->i_sb, &key, &path);
 		if (retval == IO_ERROR) {
-			reiserfs_warning(inode->i_sb, "vs-13050",
-					 "i/o failure occurred trying to "
-					 "update %K stat data",
-					 &key);
+			reiserfs_error(inode->i_sb, "vs-13050",
+				       "i/o failure occurred trying to "
+				       "update %K stat data", &key);
 			return;
 		}
 		if (retval == ITEM_NOT_FOUND) {
@@ -1424,9 +1423,9 @@ void reiserfs_read_locked_inode(struct inode *inode,
 	/* look for the object's stat data */
 	retval = search_item(inode->i_sb, &key, &path_to_sd);
 	if (retval == IO_ERROR) {
-		reiserfs_warning(inode->i_sb, "vs-13070",
-				 "i/o failure occurred trying to find "
-				 "stat data of %K", &key);
+		reiserfs_error(inode->i_sb, "vs-13070",
+			       "i/o failure occurred trying to find "
+			       "stat data of %K", &key);
 		reiserfs_make_bad_inode(inode);
 		return;
 	}
@@ -1678,8 +1677,8 @@ static int reiserfs_new_directory(struct reiserfs_transaction_handle *th,
 	/* look for place in the tree for new item */
 	retval = search_item(sb, &key, path);
 	if (retval == IO_ERROR) {
-		reiserfs_warning(sb, "vs-13080",
-				 "i/o failure occurred creating new directory");
+		reiserfs_error(sb, "vs-13080",
+			       "i/o failure occurred creating new directory");
 		return -EIO;
 	}
 	if (retval == ITEM_FOUND) {
@@ -1718,8 +1717,8 @@ static int reiserfs_new_symlink(struct reiserfs_transaction_handle *th, struct i
 	/* look for place in the tree for new item */
 	retval = search_item(sb, &key, path);
 	if (retval == IO_ERROR) {
-		reiserfs_warning(sb, "vs-13080",
-				 "i/o failure occurred creating new symlink");
+		reiserfs_error(sb, "vs-13080",
+			       "i/o failure occurred creating new symlink");
 		return -EIO;
 	}
 	if (retval == ITEM_FOUND) {
@@ -2043,10 +2042,8 @@ static int grab_tail_page(struct inode *p_s_inode,
 		 ** I've screwed up the code to find the buffer, or the code to
 		 ** call prepare_write
 		 */
-		reiserfs_warning(p_s_inode->i_sb, "clm-6000",
-				 "error reading block %lu on dev %s",
-				 bh->b_blocknr,
-				 reiserfs_bdevname(p_s_inode->i_sb));
+		reiserfs_error(p_s_inode->i_sb, "clm-6000",
+			       "error reading block %lu", bh->b_blocknr);
 		error = -EIO;
 		goto unlock;
 	}
@@ -2088,9 +2085,9 @@ int reiserfs_truncate_file(struct inode *p_s_inode, int update_timestamps)
 			// and get_block_create_0 could not find a block to read in,
 			// which is ok.
 			if (error != -ENOENT)
-				reiserfs_warning(p_s_inode->i_sb, "clm-6001",
-						 "grab_tail_page failed %d",
-						 error);
+				reiserfs_error(p_s_inode->i_sb, "clm-6001",
+					       "grab_tail_page failed %d",
+					       error);
 			page = NULL;
 			bh = NULL;
 		}

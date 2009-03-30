@@ -64,9 +64,9 @@ int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 	unsigned int bmap_count = reiserfs_bmap_count(s);
 
 	if (block == 0 || block >= SB_BLOCK_COUNT(s)) {
-		reiserfs_warning(s, "vs-4010",
-				 "block number is out of range %lu (%u)",
-				 block, SB_BLOCK_COUNT(s));
+		reiserfs_error(s, "vs-4010",
+			       "block number is out of range %lu (%u)",
+			       block, SB_BLOCK_COUNT(s));
 		return 0;
 	}
 
@@ -79,30 +79,30 @@ int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 		b_blocknr_t bmap1 = REISERFS_SB(s)->s_sbh->b_blocknr + 1;
 		if (block >= bmap1 &&
 		    block <= bmap1 + bmap_count) {
-			reiserfs_warning(s, "vs-4019", "bitmap block %lu(%u) "
-					 "can't be freed or reused",
-					 block, bmap_count);
+			reiserfs_error(s, "vs-4019", "bitmap block %lu(%u) "
+				       "can't be freed or reused",
+				       block, bmap_count);
 			return 0;
 		}
 	} else {
 		if (offset == 0) {
-			reiserfs_warning(s, "vs-4020", "bitmap block %lu(%u) "
-					 "can't be freed or reused",
-					 block, bmap_count);
+			reiserfs_error(s, "vs-4020", "bitmap block %lu(%u) "
+				       "can't be freed or reused",
+				       block, bmap_count);
 			return 0;
 		}
 	}
 
 	if (bmap >= bmap_count) {
-		reiserfs_warning(s, "vs-4030", "bitmap for requested block "
-				 "is out of range: block=%lu, bitmap_nr=%u",
-				 block, bmap);
+		reiserfs_error(s, "vs-4030", "bitmap for requested block "
+			       "is out of range: block=%lu, bitmap_nr=%u",
+			       block, bmap);
 		return 0;
 	}
 
 	if (bit_value == 0 && block == SB_ROOT_BLOCK(s)) {
-		reiserfs_warning(s, "vs-4050", "this is root block (%u), "
-				 "it must be busy", SB_ROOT_BLOCK(s));
+		reiserfs_error(s, "vs-4050", "this is root block (%u), "
+			       "it must be busy", SB_ROOT_BLOCK(s));
 		return 0;
 	}
 
@@ -153,8 +153,8 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 /* - I mean `a window of zero bits' as in description of this function - Zam. */
 
 	if (!bi) {
-		reiserfs_warning(s, "jdm-4055", "NULL bitmap info pointer "
-				 "for bitmap %d", bmap_n);
+		reiserfs_error(s, "jdm-4055", "NULL bitmap info pointer "
+			       "for bitmap %d", bmap_n);
 		return 0;
 	}
 
@@ -399,8 +399,8 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 	get_bit_address(s, block, &nr, &offset);
 
 	if (nr >= reiserfs_bmap_count(s)) {
-		reiserfs_warning(s, "vs-4075", "block %lu is out of range",
-				 block);
+		reiserfs_error(s, "vs-4075", "block %lu is out of range",
+			       block);
 		return;
 	}
 
@@ -412,8 +412,8 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 
 	/* clear bit for the given block in bit map */
 	if (!reiserfs_test_and_clear_le_bit(offset, bmbh->b_data)) {
-		reiserfs_warning(s, "vs-4080",
-				 "block %lu: bit already cleared", block);
+		reiserfs_error(s, "vs-4080",
+			       "block %lu: bit already cleared", block);
 	}
 	apbi[nr].free_count++;
 	journal_mark_dirty(th, s, bmbh);
@@ -440,7 +440,7 @@ void reiserfs_free_block(struct reiserfs_transaction_handle *th,
 		return;
 
 	if (block > sb_block_count(REISERFS_SB(s)->s_rs)) {
-		reiserfs_panic(th->t_super, "bitmap-4072",
+		reiserfs_error(th->t_super, "bitmap-4072",
 			       "Trying to free block outside file system "
 			       "boundaries (%lu > %lu)",
 			       block, sb_block_count(REISERFS_SB(s)->s_rs));
@@ -472,8 +472,8 @@ static void __discard_prealloc(struct reiserfs_transaction_handle *th,
 	BUG_ON(!th->t_trans_id);
 #ifdef CONFIG_REISERFS_CHECK
 	if (ei->i_prealloc_count < 0)
-		reiserfs_warning(th->t_super, "zam-4001",
-				 "inode has negative prealloc blocks count.");
+		reiserfs_error(th->t_super, "zam-4001",
+			       "inode has negative prealloc blocks count.");
 #endif
 	while (ei->i_prealloc_count > 0) {
 		reiserfs_free_prealloc_block(th, inode, ei->i_prealloc_block);
@@ -509,9 +509,9 @@ void reiserfs_discard_all_prealloc(struct reiserfs_transaction_handle *th)
 				i_prealloc_list);
 #ifdef CONFIG_REISERFS_CHECK
 		if (!ei->i_prealloc_count) {
-			reiserfs_warning(th->t_super, "zam-4001",
-					 "inode is in prealloc list but has "
-					 "no preallocated blocks.");
+			reiserfs_error(th->t_super, "zam-4001",
+				       "inode is in prealloc list but has "
+				       "no preallocated blocks.");
 		}
 #endif
 		__discard_prealloc(th, ei);
@@ -1213,7 +1213,9 @@ void reiserfs_cache_bitmap_metadata(struct super_block *sb,
 	unsigned long *cur = (unsigned long *)(bh->b_data + bh->b_size);
 
 	/* The first bit must ALWAYS be 1 */
-	BUG_ON(!reiserfs_test_le_bit(0, (unsigned long *)bh->b_data));
+	if (!reiserfs_test_le_bit(0, (unsigned long *)bh->b_data))
+		reiserfs_error(sb, "reiserfs-2025", "bitmap block %lu is "
+			       "corrupted: first bit must be 1", bh->b_blocknr);
 
 	info->free_count = 0;
 

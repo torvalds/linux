@@ -720,9 +720,9 @@ int search_by_key(struct super_block *p_s_sb, const struct cpu_key *p_s_key,	/* 
 		// make sure, that the node contents look like a node of
 		// certain level
 		if (!is_tree_node(p_s_bh, expected_level)) {
-			reiserfs_warning(p_s_sb, "vs-5150",
-					 "invalid format found in block %ld. "
-					 "Fsck?", p_s_bh->b_blocknr);
+			reiserfs_error(p_s_sb, "vs-5150",
+				       "invalid format found in block %ld. "
+				       "Fsck?", p_s_bh->b_blocknr);
 			pathrelse(p_s_search_path);
 			return IO_ERROR;
 		}
@@ -1336,9 +1336,9 @@ void reiserfs_delete_solid_item(struct reiserfs_transaction_handle *th,
 	while (1) {
 		retval = search_item(th->t_super, &cpu_key, &path);
 		if (retval == IO_ERROR) {
-			reiserfs_warning(th->t_super, "vs-5350",
-					 "i/o failure occurred trying "
-					 "to delete %K", &cpu_key);
+			reiserfs_error(th->t_super, "vs-5350",
+				       "i/o failure occurred trying "
+				       "to delete %K", &cpu_key);
 			break;
 		}
 		if (retval != ITEM_FOUND) {
@@ -1737,7 +1737,7 @@ static void truncate_directory(struct reiserfs_transaction_handle *th,
 {
 	BUG_ON(!th->t_trans_id);
 	if (inode->i_nlink)
-		reiserfs_warning(inode->i_sb, "vs-5655", "link count != 0");
+		reiserfs_error(inode->i_sb, "vs-5655", "link count != 0");
 
 	set_le_key_k_offset(KEY_FORMAT_3_5, INODE_PKEY(inode), DOT_OFFSET);
 	set_le_key_k_type(KEY_FORMAT_3_5, INODE_PKEY(inode), TYPE_DIRENTRY);
@@ -1790,16 +1790,16 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
 	    search_for_position_by_key(p_s_inode->i_sb, &s_item_key,
 				       &s_search_path);
 	if (retval == IO_ERROR) {
-		reiserfs_warning(p_s_inode->i_sb, "vs-5657",
-				 "i/o failure occurred trying to truncate %K",
-				 &s_item_key);
+		reiserfs_error(p_s_inode->i_sb, "vs-5657",
+			       "i/o failure occurred trying to truncate %K",
+			       &s_item_key);
 		err = -EIO;
 		goto out;
 	}
 	if (retval == POSITION_FOUND || retval == FILE_NOT_FOUND) {
-		reiserfs_warning(p_s_inode->i_sb, "PAP-5660",
-				 "wrong result %d of search for %K", retval,
-				 &s_item_key);
+		reiserfs_error(p_s_inode->i_sb, "PAP-5660",
+			       "wrong result %d of search for %K", retval,
+			       &s_item_key);
 
 		err = -EIO;
 		goto out;

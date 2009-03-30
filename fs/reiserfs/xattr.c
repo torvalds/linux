@@ -259,8 +259,8 @@ static int __xattr_readdir(struct inode *inode, void *dirent, filldir_t filldir)
 		ih = de.de_ih;
 
 		if (!is_direntry_le_ih(ih)) {
-			reiserfs_warning(inode->i_sb, "jdm-20000",
-					 "not direntry %h", ih);
+			reiserfs_error(inode->i_sb, "jdm-20000",
+				       "not direntry %h", ih);
 			break;
 		}
 		copy_item_head(&tmp_ih, ih);
@@ -653,15 +653,14 @@ __reiserfs_xattr_del(struct dentry *xadir, const char *name, int namelen)
 		goto out_file;
 
 	if (!is_reiserfs_priv_object(dentry->d_inode)) {
-		reiserfs_warning(dir->i_sb, "jdm-20003",
-				 "OID %08x [%.*s/%.*s] doesn't have "
-				 "priv flag set [parent is %sset].",
-				 le32_to_cpu(INODE_PKEY(dentry->d_inode)->
-					     k_objectid), xadir->d_name.len,
-				 xadir->d_name.name, namelen, name,
-				 is_reiserfs_priv_object(xadir->
-							 d_inode) ? "" :
-				 "not ");
+		reiserfs_error(dir->i_sb, "jdm-20003",
+			       "OID %08x [%.*s/%.*s] doesn't have "
+			       "priv flag set [parent is %sset].",
+			       le32_to_cpu(INODE_PKEY(dentry->d_inode)->
+					   k_objectid), xadir->d_name.len,
+			       xadir->d_name.name, namelen, name,
+			       is_reiserfs_priv_object(xadir->d_inode) ? "" :
+			       "not ");
 		dput(dentry);
 		return -EIO;
 	}

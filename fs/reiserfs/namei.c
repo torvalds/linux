@@ -120,8 +120,8 @@ int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 	switch (retval) {
 	case ITEM_NOT_FOUND:
 		if (!PATH_LAST_POSITION(path)) {
-			reiserfs_warning(sb, "vs-7000", "search_by_key "
-					 "returned item position == 0");
+			reiserfs_error(sb, "vs-7000", "search_by_key "
+				       "returned item position == 0");
 			pathrelse(path);
 			return IO_ERROR;
 		}
@@ -135,7 +135,7 @@ int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 
 	default:
 		pathrelse(path);
-		reiserfs_warning(sb, "vs-7002", "no path to here");
+		reiserfs_error(sb, "vs-7002", "no path to here");
 		return IO_ERROR;
 	}
 
@@ -298,7 +298,7 @@ static int reiserfs_find_entry(struct inode *dir, const char *name, int namelen,
 		    search_by_entry_key(dir->i_sb, &key_to_search,
 					path_to_entry, de);
 		if (retval == IO_ERROR) {
-			reiserfs_warning(dir->i_sb, "zam-7001", "io error");
+			reiserfs_error(dir->i_sb, "zam-7001", "io error");
 			return IO_ERROR;
 		}
 
@@ -481,9 +481,9 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 		}
 
 		if (retval != NAME_FOUND) {
-			reiserfs_warning(dir->i_sb, "zam-7002",
-					 "reiserfs_find_entry() returned "
-					 "unexpected value (%d)", retval);
+			reiserfs_error(dir->i_sb, "zam-7002",
+				       "reiserfs_find_entry() returned "
+				       "unexpected value (%d)", retval);
 		}
 
 		return -EEXIST;
@@ -899,9 +899,9 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 		goto end_rmdir;
 
 	if (inode->i_nlink != 2 && inode->i_nlink != 1)
-		reiserfs_warning(inode->i_sb, "reiserfs-7040",
-				 "empty directory has nlink != 2 (%d)",
-				 inode->i_nlink);
+		reiserfs_error(inode->i_sb, "reiserfs-7040",
+			       "empty directory has nlink != 2 (%d)",
+			       inode->i_nlink);
 
 	clear_nlink(inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
@@ -1494,8 +1494,8 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (reiserfs_cut_from_item
 	    (&th, &old_entry_path, &(old_de.de_entry_key), old_dir, NULL,
 	     0) < 0)
-		reiserfs_warning(old_dir->i_sb, "vs-7060",
-				 "couldn't not cut old name. Fsck later?");
+		reiserfs_error(old_dir->i_sb, "vs-7060",
+			       "couldn't not cut old name. Fsck later?");
 
 	old_dir->i_size -= DEH_SIZE + old_de.de_entrylen;
 
