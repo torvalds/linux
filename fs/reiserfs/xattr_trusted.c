@@ -16,7 +16,7 @@ trusted_get(struct inode *inode, const char *name, void *buffer, size_t size)
 	if (!reiserfs_xattrs(inode->i_sb))
 		return -EOPNOTSUPP;
 
-	if (!(capable(CAP_SYS_ADMIN) || is_reiserfs_priv_object(inode)))
+	if (!(capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode)))
 		return -EPERM;
 
 	return reiserfs_xattr_get(inode, name, buffer, size);
@@ -32,7 +32,7 @@ trusted_set(struct inode *inode, const char *name, const void *buffer,
 	if (!reiserfs_xattrs(inode->i_sb))
 		return -EOPNOTSUPP;
 
-	if (!(capable(CAP_SYS_ADMIN) || is_reiserfs_priv_object(inode)))
+	if (!(capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode)))
 		return -EPERM;
 
 	return reiserfs_xattr_set(inode, name, buffer, size, flags);
@@ -46,7 +46,7 @@ static int trusted_del(struct inode *inode, const char *name)
 	if (!reiserfs_xattrs(inode->i_sb))
 		return -EOPNOTSUPP;
 
-	if (!(capable(CAP_SYS_ADMIN) || is_reiserfs_priv_object(inode)))
+	if (!(capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode)))
 		return -EPERM;
 
 	return 0;
@@ -60,7 +60,7 @@ trusted_list(struct inode *inode, const char *name, int namelen, char *out)
 	if (!reiserfs_xattrs(inode->i_sb))
 		return 0;
 
-	if (!(capable(CAP_SYS_ADMIN) || is_reiserfs_priv_object(inode)))
+	if (!(capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode)))
 		return 0;
 
 	if (out)

@@ -335,8 +335,8 @@ reiserfs_inherit_default_acl(struct inode *dir, struct dentry *dentry,
 	/* Don't apply ACLs to objects in the .reiserfs_priv tree.. This
 	 * would be useless since permissions are ignored, and a pain because
 	 * it introduces locking cycles */
-	if (is_reiserfs_priv_object(dir)) {
-		reiserfs_mark_inode_private(inode);
+	if (IS_PRIVATE(dir)) {
+		inode->i_flags |= S_PRIVATE;
 		goto apply_umask;
 	}
 
@@ -401,7 +401,7 @@ reiserfs_inherit_default_acl(struct inode *dir, struct dentry *dentry,
 int reiserfs_cache_default_acl(struct inode *inode)
 {
 	int ret = 0;
-	if (reiserfs_posixacl(inode->i_sb) && !is_reiserfs_priv_object(inode)) {
+	if (reiserfs_posixacl(inode->i_sb) && !IS_PRIVATE(inode)) {
 		struct posix_acl *acl;
 		reiserfs_read_lock_xattr_i(inode);
 		reiserfs_read_lock_xattrs(inode->i_sb);

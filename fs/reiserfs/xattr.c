@@ -633,14 +633,14 @@ __reiserfs_xattr_del(struct dentry *xadir, const char *name, int namelen)
 	if (S_ISDIR(dentry->d_inode->i_mode))
 		goto out_file;
 
-	if (!is_reiserfs_priv_object(dentry->d_inode)) {
+	if (!IS_PRIVATE(dentry->d_inode)) {
 		reiserfs_error(dir->i_sb, "jdm-20003",
 			       "OID %08x [%.*s/%.*s] doesn't have "
 			       "priv flag set [parent is %sset].",
 			       le32_to_cpu(INODE_PKEY(dentry->d_inode)->
 					   k_objectid), xadir->d_name.len,
 			       xadir->d_name.name, namelen, name,
-			       is_reiserfs_priv_object(xadir->d_inode) ? "" :
+			       IS_PRIVATE(xadir->d_inode) ? "" :
 			       "not ");
 		dput(dentry);
 		return -EIO;
@@ -701,8 +701,7 @@ int reiserfs_delete_xattrs(struct inode *inode)
 	int err = 0;
 
 	/* Skip out, an xattr has no xattrs associated with it */
-	if (is_reiserfs_priv_object(inode) ||
-	    get_inode_sd_version(inode) == STAT_DATA_V1 ||
+	if (IS_PRIVATE(inode) || get_inode_sd_version(inode) == STAT_DATA_V1 ||
 	    !reiserfs_xattrs(inode->i_sb)) {
 		return 0;
 	}
@@ -786,8 +785,7 @@ int reiserfs_chown_xattrs(struct inode *inode, struct iattr *attrs)
 	unsigned int ia_valid = attrs->ia_valid;
 
 	/* Skip out, an xattr has no xattrs associated with it */
-	if (is_reiserfs_priv_object(inode) ||
-	    get_inode_sd_version(inode) == STAT_DATA_V1 ||
+	if (IS_PRIVATE(inode) || get_inode_sd_version(inode) == STAT_DATA_V1 ||
 	    !reiserfs_xattrs(inode->i_sb)) {
 		return 0;
 	}
@@ -1178,7 +1176,7 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 
 		if (!err && dentry) {
 			s->s_root->d_op = &xattr_lookup_poison_ops;
-			reiserfs_mark_inode_private(dentry->d_inode);
+			dentry->d_inode->i_flags |= S_PRIVATE;
 			REISERFS_SB(s)->priv_root = dentry;
 		} else if (!(mount_flags & MS_RDONLY)) {	/* xattrs are unavailable */
 			/* If we're read-only it just means that the dir hasn't been
@@ -1239,7 +1237,7 @@ int reiserfs_permission(struct inode *inode, int mask)
 	 * We don't do permission checks on the internal objects.
 	 * Permissions are determined by the "owning" object.
 	 */
-	if (is_reiserfs_priv_object(inode))
+	if (IS_PRIVATE(inode))
 		return 0;
 
 	/*

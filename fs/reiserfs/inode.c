@@ -1927,9 +1927,8 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		reiserfs_warning(inode->i_sb, "jdm-13090",
 				 "ACLs aren't enabled in the fs, "
 				 "but vfs thinks they are!");
-	} else if (is_reiserfs_priv_object(dir)) {
-		reiserfs_mark_inode_private(inode);
-	}
+	} else if (IS_PRIVATE(dir))
+		inode->i_flags |= S_PRIVATE;
 
 	reiserfs_update_sd(th, inode);
 	reiserfs_check_path(&path_to_key);
