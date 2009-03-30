@@ -51,6 +51,7 @@
 #include <linux/poll.h>
 #include <linux/mm.h>
 #include <linux/eventpoll.h>
+#include <linux/fs_struct.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -1441,12 +1442,15 @@ int compat_do_execve(char * filename,
 	bprm->cred = prepare_exec_creds();
 	if (!bprm->cred)
 		goto out_unlock;
-	check_unsafe_exec(bprm);
+
+	retval = check_unsafe_exec(bprm);
+	if (retval)
+		goto out_unlock;
 
 	file = open_exec(filename);
 	retval = PTR_ERR(file);
 	if (IS_ERR(file))
-		goto out_unlock;
+		goto out_unmark;
 
 	sched_exec();
 
@@ -1488,6 +1492,9 @@ int compat_do_execve(char * filename,
 		goto out;
 
 	/* execve succeeded */
+	write_lock(&current->fs->lock);
+	current->fs->in_exec = 0;
+	write_unlock(&current->fs->lock);
 	current->in_execve = 0;
 	mutex_unlock(&current->cred_exec_mutex);
 	acct_update_integrals(current);
@@ -1505,6 +1512,11 @@ out_file:
 		allow_write_access(bprm->file);
 		fput(bprm->file);
 	}
+
+out_unmark:
+	write_lock(&current->fs->lock);
+	current->fs->in_exec = 0;
+	write_unlock(&current->fs->lock);
 
 out_unlock:
 	current->in_execve = 0;

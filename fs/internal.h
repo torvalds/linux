@@ -44,7 +44,7 @@ extern void __init chrdev_init(void);
 /*
  * exec.c
  */
-extern void check_unsafe_exec(struct linux_binprm *);
+extern int check_unsafe_exec(struct linux_binprm *);
 
 /*
  * namespace.c

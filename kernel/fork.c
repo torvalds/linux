@@ -683,11 +683,19 @@ fail_nomem:
 
 static int copy_fs(unsigned long clone_flags, struct task_struct *tsk)
 {
+	struct fs_struct *fs = current->fs;
 	if (clone_flags & CLONE_FS) {
-		atomic_inc(&current->fs->count);
+		/* tsk->fs is already what we want */
+		write_lock(&fs->lock);
+		if (fs->in_exec) {
+			write_unlock(&fs->lock);
+			return -EAGAIN;
+		}
+		fs->users++;
+		write_unlock(&fs->lock);
 		return 0;
 	}
-	tsk->fs = copy_fs_struct(current->fs);
+	tsk->fs = copy_fs_struct(fs);
 	if (!tsk->fs)
 		return -ENOMEM;
 	return 0;
@@ -1518,12 +1526,16 @@ static int unshare_fs(unsigned long unshare_flags, struct fs_struct **new_fsp)
 {
 	struct fs_struct *fs = current->fs;
 
-	if ((unshare_flags & CLONE_FS) &&
-	    (fs && atomic_read(&fs->count) > 1)) {
-		*new_fsp = copy_fs_struct(current->fs);
-		if (!*new_fsp)
-			return -ENOMEM;
-	}
+	if (!(unshare_flags & CLONE_FS) || !fs)
+		return 0;
+
+	/* don't need lock here; in the worst case we'll do useless copy */
+	if (fs->users == 1)
+		return 0;
+
+	*new_fsp = copy_fs_struct(fs);
+	if (!*new_fsp)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -1639,8 +1651,13 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
 
 		if (new_fs) {
 			fs = current->fs;
+			write_lock(&fs->lock);
 			current->fs = new_fs;
-			new_fs = fs;
+			if (--fs->users)
+				new_fs = NULL;
+			else
+				new_fs = fs;
+			write_unlock(&fs->lock);
 		}
 
 		if (new_mm) {
@@ -1679,7 +1696,7 @@ bad_unshare_cleanup_sigh:
 
 bad_unshare_cleanup_fs:
 	if (new_fs)
-		put_fs_struct(new_fs);
+		free_fs_struct(new_fs);
 
 bad_unshare_cleanup_thread:
 bad_unshare_out:

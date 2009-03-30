@@ -49,7 +49,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 	else
 		bytes += kobjsize(mm);
 	
-	if (current->fs && atomic_read(&current->fs->count) > 1)
+	if (current->fs && current->fs->users > 1)
 		sbytes += kobjsize(current->fs);
 	else
 		bytes += kobjsize(current->fs);
