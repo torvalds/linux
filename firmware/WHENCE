@@ -531,3 +531,15 @@ Licence:
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: PCMCIA_SMC91C92 - SMC 91Cxx PCMCIA
+
+File: ositech/Xilinx7OD.bin
+
+Licence: Allegedly GPL, but no source visible. Marked:
+    This file contains the firmware of Seven of Diamonds from OSITECH.
+    (Special thanks to Kevin MacPherson of OSITECH)
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
