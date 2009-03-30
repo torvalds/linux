@@ -41,6 +41,8 @@ struct power_pmu *ppmu;
  */
 static unsigned int freeze_counters_kernel = MMCR0_FCS;
 
+static void perf_counter_interrupt(struct pt_regs *regs);
+
 void perf_counter_print_debug(void)
 {
 }
@@ -594,6 +596,24 @@ struct hw_perf_counter_ops power_perf_ops = {
 	.read = power_perf_read
 };
 
+/* Number of perf_counters counting hardware events */
+static atomic_t num_counters;
+/* Used to avoid races in calling reserve/release_pmc_hardware */
+static DEFINE_MUTEX(pmc_reserve_mutex);
+
+/*
+ * Release the PMU if this is the last perf_counter.
+ */
+static void hw_perf_counter_destroy(struct perf_counter *counter)
+{
+	if (!atomic_add_unless(&num_counters, -1, 1)) {
+		mutex_lock(&pmc_reserve_mutex);
+		if (atomic_dec_return(&num_counters) == 0)
+			release_pmc_hardware();
+		mutex_unlock(&pmc_reserve_mutex);
+	}
+}
+
 const struct hw_perf_counter_ops *
 hw_perf_counter_init(struct perf_counter *counter)
 {
@@ -601,6 +621,7 @@ hw_perf_counter_init(struct perf_counter *counter)
 	struct perf_counter *ctrs[MAX_HWCOUNTERS];
 	unsigned int events[MAX_HWCOUNTERS];
 	int n;
+	int err;
 
 	if (!ppmu)
 		return NULL;
@@ -646,6 +667,27 @@ hw_perf_counter_init(struct perf_counter *counter)
 
 	counter->hw.config = events[n];
 	atomic64_set(&counter->hw.period_left, counter->hw_event.irq_period);
+
+	/*
+	 * See if we need to reserve the PMU.
+	 * If no counters are currently in use, then we have to take a
+	 * mutex to ensure that we don't race with another task doing
+	 * reserve_pmc_hardware or release_pmc_hardware.
+	 */
+	err = 0;
+	if (!atomic_inc_not_zero(&num_counters)) {
+		mutex_lock(&pmc_reserve_mutex);
+		if (atomic_read(&num_counters) == 0 &&
+		    reserve_pmc_hardware(perf_counter_interrupt))
+			err = -EBUSY;
+		else
+			atomic_inc(&num_counters);
+		mutex_unlock(&pmc_reserve_mutex);
+	}
+	counter->destroy = hw_perf_counter_destroy;
+
+	if (err)
+		return NULL;
 	return &power_perf_ops;
 }
 
@@ -768,11 +810,6 @@ extern struct power_pmu power6_pmu;
 static int init_perf_counters(void)
 {
 	unsigned long pvr;
-
-	if (reserve_pmc_hardware(perf_counter_interrupt)) {
-		printk(KERN_ERR "Couldn't init performance monitor subsystem\n");
-		return -EBUSY;
-	}
 
 	/* XXX should get this from cputable */
 	pvr = mfspr(SPRN_PVR);
