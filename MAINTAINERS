@@ -4286,10 +4286,7 @@ W:	http://sourceforge.net/projects/tlan/
 S:	Maintained
 
 TOSHIBA ACPI EXTRAS DRIVER
-P:	John Belmonte
-M:	toshiba_acpi@memebeam.org
-W:	http://memebeam.org/toys/ToshibaAcpiDriver
-S:	Maintained
+S:	Orphan
 
 TOSHIBA SMM DRIVER
 P:	Jonathan Buzzard
