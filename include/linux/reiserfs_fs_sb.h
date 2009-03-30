@@ -156,7 +156,7 @@ struct reiserfs_journal_list {
 	atomic_t j_commit_left;
 	atomic_t j_older_commits_done;	/* all commits older than this on disk */
 	struct mutex j_commit_mutex;
-	unsigned long j_trans_id;
+	unsigned int j_trans_id;
 	time_t j_timestamp;
 	struct reiserfs_list_bitmap *j_list_bitmap;
 	struct buffer_head *j_commit_bh;	/* commit buffer head */
@@ -185,7 +185,7 @@ struct reiserfs_journal {
 	int j_1st_reserved_block;	/* first block on s_dev of reserved area journal */
 
 	unsigned long j_state;
-	unsigned long j_trans_id;
+	unsigned int j_trans_id;
 	unsigned long j_mount_id;
 	unsigned long j_start;	/* start of current waiting commit (index into j_ap_blocks) */
 	unsigned long j_len;	/* length of current waiting commit */
@@ -226,10 +226,10 @@ struct reiserfs_journal {
 	int j_num_work_lists;	/* number that need attention from kreiserfsd */
 
 	/* debugging to make sure things are flushed in order */
-	int j_last_flush_id;
+	unsigned int j_last_flush_id;
 
 	/* debugging to make sure things are committed in order */
-	int j_last_commit_id;
+	unsigned int j_last_commit_id;
 
 	struct list_head j_bitmap_nodes;
 	struct list_head j_dirty_buffers;

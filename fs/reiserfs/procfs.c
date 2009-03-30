@@ -321,7 +321,7 @@ static int show_journal(struct seq_file *m, struct super_block *sb)
 		   /* incore fields */
 		   "j_1st_reserved_block: \t%i\n"
 		   "j_state: \t%li\n"
-		   "j_trans_id: \t%lu\n"
+		   "j_trans_id: \t%u\n"
 		   "j_mount_id: \t%lu\n"
 		   "j_start: \t%lu\n"
 		   "j_len: \t%lu\n"
@@ -329,7 +329,7 @@ static int show_journal(struct seq_file *m, struct super_block *sb)
 		   "j_wcount: \t%i\n"
 		   "j_bcount: \t%lu\n"
 		   "j_first_unflushed_offset: \t%lu\n"
-		   "j_last_flush_trans_id: \t%lu\n"
+		   "j_last_flush_trans_id: \t%u\n"
 		   "j_trans_start_time: \t%li\n"
 		   "j_list_bitmap_index: \t%i\n"
 		   "j_must_wait: \t%i\n"

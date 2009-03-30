@@ -1676,7 +1676,7 @@ struct reiserfs_transaction_handle {
 	int t_refcount;
 	int t_blocks_logged;	/* number of blocks this writer has logged */
 	int t_blocks_allocated;	/* number of blocks this writer allocated */
-	unsigned long t_trans_id;	/* sanity check, equals the current trans id */
+	unsigned int t_trans_id;	/* sanity check, equals the current trans id */
 	void *t_handle_save;	/* save existing current->journal_info */
 	unsigned displace_new_blocks:1;	/* if new block allocation occurres, that block
 					   should be displaced from others */

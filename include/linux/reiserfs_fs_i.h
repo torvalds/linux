@@ -51,7 +51,7 @@ struct reiserfs_inode_info {
 	/* we use these for fsync or O_SYNC to decide which transaction
 	 ** needs to be committed in order for this inode to be properly
 	 ** flushed */
-	unsigned long i_trans_id;
+	unsigned int i_trans_id;
 	struct reiserfs_journal_list *i_jl;
 	struct mutex i_mmap;
 #ifdef CONFIG_REISERFS_FS_POSIX_ACL
