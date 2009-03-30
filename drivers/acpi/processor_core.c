@@ -427,6 +427,29 @@ static int map_lapic_id(struct acpi_subtable_header *entry,
 	return 0;
 }
 
+static int map_x2apic_id(struct acpi_subtable_header *entry,
+			 int device_declaration, u32 acpi_id, int *apic_id)
+{
+	struct acpi_madt_local_x2apic *apic =
+		(struct acpi_madt_local_x2apic *)entry;
+	u32 tmp = apic->local_apic_id;
+
+	/* Only check enabled APICs*/
+	if (!(apic->lapic_flags & ACPI_MADT_ENABLED))
+		return 0;
+
+	/* Device statement declaration type */
+	if (device_declaration) {
+		if (apic->uid == acpi_id)
+			goto found;
+	}
+
+	return 0;
+found:
+	*apic_id = tmp;
+	return 1;
+}
+
 static int map_lsapic_id(struct acpi_subtable_header *entry,
 		int device_declaration, u32 acpi_id, int *apic_id)
 {
@@ -475,6 +498,9 @@ static int map_madt_entry(int type, u32 acpi_id)
 			(struct acpi_subtable_header *)entry;
 		if (header->type == ACPI_MADT_TYPE_LOCAL_APIC) {
 			if (map_lapic_id(header, acpi_id, &apic_id))
+				break;
+		} else if (header->type == ACPI_MADT_TYPE_LOCAL_X2APIC) {
+			if (map_x2apic_id(header, type, acpi_id, &apic_id))
 				break;
 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
 			if (map_lsapic_id(header, type, acpi_id, &apic_id))
