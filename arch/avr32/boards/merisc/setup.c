@@ -160,6 +160,12 @@ static struct platform_device i2c_gpio_device = {
 	},
 };
 
+static struct i2c_board_info __initdata i2c_info[] = {
+	{
+		I2C_BOARD_INFO("pcf8563", 0x51)
+	},
+};
+
 #ifdef CONFIG_LEDS_ATMEL_PWM
 static struct gpio_led stk_pwm_led[] = {
 	{
@@ -283,6 +289,8 @@ static int __init merisc_init(void)
 	at32_select_gpio(i2c_gpio_data.scl_pin,
 		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 	platform_device_register(&i2c_gpio_device);
+
+	i2c_register_board_info(0, i2c_info, ARRAY_SIZE(i2c_info));
 
 	return 0;
 }
