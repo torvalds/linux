@@ -1542,9 +1542,6 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 		sc->beacon.bslot_aphy[i] = NULL;
 	}
 
-	/* save MISC configurations */
-	sc->config.swBeaconProcess = 1;
-
 	/* setup channels and rates */
 
 	sc->sbands[IEEE80211_BAND_2GHZ].channels = ath9k_2ghz_chantable;
@@ -2252,17 +2249,6 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 			sc->imask |= ATH9K_INT_MIB;
 		sc->imask |= ATH9K_INT_TSFOOR;
 	}
-
-	/*
-	 * Some hardware processes the TIM IE and fires an
-	 * interrupt when the TIM bit is set.  For hardware
-	 * that does, if not overridden by configuration,
-	 * enable the TIM interrupt when operating as station.
-	 */
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_ENHANCEDPM) &&
-	    (conf->type == NL80211_IFTYPE_STATION) &&
-	    !sc->config.swBeaconProcess)
-		sc->imask |= ATH9K_INT_TIM;
 
 	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
 
