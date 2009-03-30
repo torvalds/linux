@@ -68,10 +68,10 @@ inline int B_IS_IN_TREE(const struct buffer_head *bh)
 //
 // to gets item head in le form
 //
-inline void copy_item_head(struct item_head *p_v_to,
-			   const struct item_head *p_v_from)
+inline void copy_item_head(struct item_head *to,
+			   const struct item_head *from)
 {
-	memcpy(p_v_to, p_v_from, IH_SIZE);
+	memcpy(to, from, IH_SIZE);
 }
 
 /* k1 is pointer to on-disk structure which is stored in little-endian
@@ -135,15 +135,15 @@ static inline int comp_keys(const struct reiserfs_key *le_key,
 inline int comp_short_le_keys(const struct reiserfs_key *key1,
 			      const struct reiserfs_key *key2)
 {
-	__u32 *p_s_1_u32, *p_s_2_u32;
+	__u32 *k1_u32, *k2_u32;
 	int n_key_length = REISERFS_SHORT_KEY_LEN;
 
-	p_s_1_u32 = (__u32 *) key1;
-	p_s_2_u32 = (__u32 *) key2;
-	for (; n_key_length--; ++p_s_1_u32, ++p_s_2_u32) {
-		if (le32_to_cpu(*p_s_1_u32) < le32_to_cpu(*p_s_2_u32))
+	k1_u32 = (__u32 *) key1;
+	k2_u32 = (__u32 *) key2;
+	for (; n_key_length--; ++k1_u32, ++k2_u32) {
+		if (le32_to_cpu(*k1_u32) < le32_to_cpu(*k2_u32))
 			return -1;
-		if (le32_to_cpu(*p_s_1_u32) > le32_to_cpu(*p_s_2_u32))
+		if (le32_to_cpu(*k1_u32) > le32_to_cpu(*k2_u32))
 			return 1;
 	}
 	return 0;
@@ -174,8 +174,8 @@ inline int comp_le_keys(const struct reiserfs_key *k1,
  *  Binary search toolkit function                                        *
  *  Search for an item in the array by the item key                       *
  *  Returns:    1 if found,  0 if not found;                              *
- *        *p_n_pos = number of the searched element if found, else the    *
- *        number of the first element that is larger than p_v_key.        *
+ *        *pos = number of the searched element if found, else the        *
+ *        number of the first element that is larger than key.            *
  **************************************************************************/
 /* For those not familiar with binary search: n_lbound is the leftmost item that it
  could be, n_rbound the rightmost item that it could be.  We examine the item
@@ -184,28 +184,28 @@ inline int comp_le_keys(const struct reiserfs_key *k1,
  there are no possible items, and we have not found it. With each examination we
  cut the number of possible items it could be by one more than half rounded down,
  or we find it. */
-static inline int bin_search(const void *p_v_key,	/* Key to search for.                   */
-			     const void *p_v_base,	/* First item in the array.             */
-			     int p_n_num,	/* Number of items in the array.        */
-			     int p_n_width,	/* Item size in the array.
-						   searched. Lest the reader be
-						   confused, note that this is crafted
-						   as a general function, and when it
-						   is applied specifically to the array
-						   of item headers in a node, p_n_width
-						   is actually the item header size not
-						   the item size.                      */
-			     int *p_n_pos	/* Number of the searched for element. */
+static inline int bin_search(const void *key,	/* Key to search for. */
+			     const void *base,	/* First item in the array. */
+			     int num,	/* Number of items in the array. */
+			     int width,	/* Item size in the array.
+					   searched. Lest the reader be
+					   confused, note that this is crafted
+					   as a general function, and when it
+					   is applied specifically to the array
+					   of item headers in a node, width
+					   is actually the item header size not
+					   the item size. */
+			     int *pos /* Number of the searched for element. */
     )
 {
 	int n_rbound, n_lbound, n_j;
 
-	for (n_j = ((n_rbound = p_n_num - 1) + (n_lbound = 0)) / 2;
+	for (n_j = ((n_rbound = num - 1) + (n_lbound = 0)) / 2;
 	     n_lbound <= n_rbound; n_j = (n_rbound + n_lbound) / 2)
 		switch (comp_keys
-			((struct reiserfs_key *)((char *)p_v_base +
-						 n_j * p_n_width),
-			 (struct cpu_key *)p_v_key)) {
+			((struct reiserfs_key *)((char *)base +
+						 n_j * width),
+			 (struct cpu_key *)key)) {
 		case -1:
 			n_lbound = n_j + 1;
 			continue;
@@ -213,13 +213,13 @@ static inline int bin_search(const void *p_v_key,	/* Key to search for.         
 			n_rbound = n_j - 1;
 			continue;
 		case 0:
-			*p_n_pos = n_j;
+			*pos = n_j;
 			return ITEM_FOUND;	/* Key found in the array.  */
 		}
 
 	/* bin_search did not find given key, it returns position of key,
 	   that is minimal and greater than the given one. */
-	*p_n_pos = n_lbound;
+	*pos = n_lbound;
 	return ITEM_NOT_FOUND;
 }
 
@@ -243,12 +243,12 @@ static const struct reiserfs_key MAX_KEY = {
    the path, there is no delimiting key in the tree (buffer is first or last buffer in tree), and in this
    case we return a special key, either MIN_KEY or MAX_KEY. */
 static inline const struct reiserfs_key *get_lkey(const struct treepath
-						  *p_s_chk_path,
+						  *chk_path,
 						  const struct super_block
 						  *sb)
 {
-	int n_position, n_path_offset = p_s_chk_path->path_length;
-	struct buffer_head *p_s_parent;
+	int n_position, n_path_offset = chk_path->path_length;
+	struct buffer_head *parent;
 
 	RFALSE(n_path_offset < FIRST_PATH_ELEMENT_OFFSET,
 	       "PAP-5010: invalid offset in the path");
@@ -257,42 +257,42 @@ static inline const struct reiserfs_key *get_lkey(const struct treepath
 	while (n_path_offset-- > FIRST_PATH_ELEMENT_OFFSET) {
 
 		RFALSE(!buffer_uptodate
-		       (PATH_OFFSET_PBUFFER(p_s_chk_path, n_path_offset)),
+		       (PATH_OFFSET_PBUFFER(chk_path, n_path_offset)),
 		       "PAP-5020: parent is not uptodate");
 
 		/* Parent at the path is not in the tree now. */
 		if (!B_IS_IN_TREE
-		    (p_s_parent =
-		     PATH_OFFSET_PBUFFER(p_s_chk_path, n_path_offset)))
+		    (parent =
+		     PATH_OFFSET_PBUFFER(chk_path, n_path_offset)))
 			return &MAX_KEY;
 		/* Check whether position in the parent is correct. */
 		if ((n_position =
-		     PATH_OFFSET_POSITION(p_s_chk_path,
+		     PATH_OFFSET_POSITION(chk_path,
 					  n_path_offset)) >
-		    B_NR_ITEMS(p_s_parent))
+		    B_NR_ITEMS(parent))
 			return &MAX_KEY;
 		/* Check whether parent at the path really points to the child. */
-		if (B_N_CHILD_NUM(p_s_parent, n_position) !=
-		    PATH_OFFSET_PBUFFER(p_s_chk_path,
+		if (B_N_CHILD_NUM(parent, n_position) !=
+		    PATH_OFFSET_PBUFFER(chk_path,
 					n_path_offset + 1)->b_blocknr)
 			return &MAX_KEY;
 		/* Return delimiting key if position in the parent is not equal to zero. */
 		if (n_position)
-			return B_N_PDELIM_KEY(p_s_parent, n_position - 1);
+			return B_N_PDELIM_KEY(parent, n_position - 1);
 	}
 	/* Return MIN_KEY if we are in the root of the buffer tree. */
-	if (PATH_OFFSET_PBUFFER(p_s_chk_path, FIRST_PATH_ELEMENT_OFFSET)->
+	if (PATH_OFFSET_PBUFFER(chk_path, FIRST_PATH_ELEMENT_OFFSET)->
 	    b_blocknr == SB_ROOT_BLOCK(sb))
 		return &MIN_KEY;
 	return &MAX_KEY;
 }
 
 /* Get delimiting key of the buffer at the path and its right neighbor. */
-inline const struct reiserfs_key *get_rkey(const struct treepath *p_s_chk_path,
+inline const struct reiserfs_key *get_rkey(const struct treepath *chk_path,
 					   const struct super_block *sb)
 {
-	int n_position, n_path_offset = p_s_chk_path->path_length;
-	struct buffer_head *p_s_parent;
+	int n_position, n_path_offset = chk_path->path_length;
+	struct buffer_head *parent;
 
 	RFALSE(n_path_offset < FIRST_PATH_ELEMENT_OFFSET,
 	       "PAP-5030: invalid offset in the path");
@@ -300,31 +300,31 @@ inline const struct reiserfs_key *get_rkey(const struct treepath *p_s_chk_path,
 	while (n_path_offset-- > FIRST_PATH_ELEMENT_OFFSET) {
 
 		RFALSE(!buffer_uptodate
-		       (PATH_OFFSET_PBUFFER(p_s_chk_path, n_path_offset)),
+		       (PATH_OFFSET_PBUFFER(chk_path, n_path_offset)),
 		       "PAP-5040: parent is not uptodate");
 
 		/* Parent at the path is not in the tree now. */
 		if (!B_IS_IN_TREE
-		    (p_s_parent =
-		     PATH_OFFSET_PBUFFER(p_s_chk_path, n_path_offset)))
+		    (parent =
+		     PATH_OFFSET_PBUFFER(chk_path, n_path_offset)))
 			return &MIN_KEY;
 		/* Check whether position in the parent is correct. */
 		if ((n_position =
-		     PATH_OFFSET_POSITION(p_s_chk_path,
+		     PATH_OFFSET_POSITION(chk_path,
 					  n_path_offset)) >
-		    B_NR_ITEMS(p_s_parent))
+		    B_NR_ITEMS(parent))
 			return &MIN_KEY;
 		/* Check whether parent at the path really points to the child. */
-		if (B_N_CHILD_NUM(p_s_parent, n_position) !=
-		    PATH_OFFSET_PBUFFER(p_s_chk_path,
+		if (B_N_CHILD_NUM(parent, n_position) !=
+		    PATH_OFFSET_PBUFFER(chk_path,
 					n_path_offset + 1)->b_blocknr)
 			return &MIN_KEY;
 		/* Return delimiting key if position in the parent is not the last one. */
-		if (n_position != B_NR_ITEMS(p_s_parent))
-			return B_N_PDELIM_KEY(p_s_parent, n_position);
+		if (n_position != B_NR_ITEMS(parent))
+			return B_N_PDELIM_KEY(parent, n_position);
 	}
 	/* Return MAX_KEY if we are in the root of the buffer tree. */
-	if (PATH_OFFSET_PBUFFER(p_s_chk_path, FIRST_PATH_ELEMENT_OFFSET)->
+	if (PATH_OFFSET_PBUFFER(chk_path, FIRST_PATH_ELEMENT_OFFSET)->
 	    b_blocknr == SB_ROOT_BLOCK(sb))
 		return &MAX_KEY;
 	return &MIN_KEY;
@@ -335,25 +335,25 @@ inline const struct reiserfs_key *get_rkey(const struct treepath *p_s_chk_path,
    the path.  These delimiting keys are stored at least one level above that buffer in the tree. If the
    buffer is the first or last node in the tree order then one of the delimiting keys may be absent, and in
    this case get_lkey and get_rkey return a special key which is MIN_KEY or MAX_KEY. */
-static inline int key_in_buffer(struct treepath *p_s_chk_path,	/* Path which should be checked.  */
-				const struct cpu_key *p_s_key,	/* Key which should be checked.   */
-				struct super_block *sb	/* Super block pointer.	   */
+static inline int key_in_buffer(struct treepath *chk_path,	/* Path which should be checked.  */
+				const struct cpu_key *key,	/* Key which should be checked.   */
+				struct super_block *sb
     )
 {
 
-	RFALSE(!p_s_key || p_s_chk_path->path_length < FIRST_PATH_ELEMENT_OFFSET
-	       || p_s_chk_path->path_length > MAX_HEIGHT,
+	RFALSE(!key || chk_path->path_length < FIRST_PATH_ELEMENT_OFFSET
+	       || chk_path->path_length > MAX_HEIGHT,
 	       "PAP-5050: pointer to the key(%p) is NULL or invalid path length(%d)",
-	       p_s_key, p_s_chk_path->path_length);
-	RFALSE(!PATH_PLAST_BUFFER(p_s_chk_path)->b_bdev,
+	       key, chk_path->path_length);
+	RFALSE(!PATH_PLAST_BUFFER(chk_path)->b_bdev,
 	       "PAP-5060: device must not be NODEV");
 
-	if (comp_keys(get_lkey(p_s_chk_path, sb), p_s_key) == 1)
+	if (comp_keys(get_lkey(chk_path, sb), key) == 1)
 		/* left delimiting key is bigger, that the key we look for */
 		return 0;
-	//  if ( comp_keys(p_s_key, get_rkey(p_s_chk_path, sb)) != -1 )
-	if (comp_keys(get_rkey(p_s_chk_path, sb), p_s_key) != 1)
-		/* p_s_key must be less than right delimitiing key */
+	/*  if ( comp_keys(key, get_rkey(chk_path, sb)) != -1 ) */
+	if (comp_keys(get_rkey(chk_path, sb), key) != 1)
+		/* key must be less than right delimitiing key */
 		return 0;
 	return 1;
 }
@@ -369,34 +369,34 @@ int reiserfs_check_path(struct treepath *p)
  * dirty bits clean when preparing the buffer for the log.
  * This version should only be called from fix_nodes() */
 void pathrelse_and_restore(struct super_block *sb,
-			   struct treepath *p_s_search_path)
+			   struct treepath *search_path)
 {
-	int n_path_offset = p_s_search_path->path_length;
+	int n_path_offset = search_path->path_length;
 
 	RFALSE(n_path_offset < ILLEGAL_PATH_ELEMENT_OFFSET,
 	       "clm-4000: invalid path offset");
 
 	while (n_path_offset > ILLEGAL_PATH_ELEMENT_OFFSET) {
 		struct buffer_head *bh;
-		bh = PATH_OFFSET_PBUFFER(p_s_search_path, n_path_offset--);
+		bh = PATH_OFFSET_PBUFFER(search_path, n_path_offset--);
 		reiserfs_restore_prepared_buffer(sb, bh);
 		brelse(bh);
 	}
-	p_s_search_path->path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
+	search_path->path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
 }
 
 /* Drop the reference to each buffer in a path */
-void pathrelse(struct treepath *p_s_search_path)
+void pathrelse(struct treepath *search_path)
 {
-	int n_path_offset = p_s_search_path->path_length;
+	int n_path_offset = search_path->path_length;
 
 	RFALSE(n_path_offset < ILLEGAL_PATH_ELEMENT_OFFSET,
 	       "PAP-5090: invalid path offset");
 
 	while (n_path_offset > ILLEGAL_PATH_ELEMENT_OFFSET)
-		brelse(PATH_OFFSET_PBUFFER(p_s_search_path, n_path_offset--));
+		brelse(PATH_OFFSET_PBUFFER(search_path, n_path_offset--));
 
-	p_s_search_path->path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
+	search_path->path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
 }
 
 static int is_leaf(char *buf, int blocksize, struct buffer_head *bh)
@@ -547,9 +547,9 @@ static void search_by_key_reada(struct super_block *s,
  * Algorithm   SearchByKey                                                *
  *             look for item in the Disk S+Tree by its key                *
  * Input:  sb   -  super block                                            *
- *         p_s_key  - pointer to the key to search                        *
+ *         key  - pointer to the key to search                            *
  * Output: ITEM_FOUND, ITEM_NOT_FOUND or IO_ERROR                         *
- *         p_s_search_path - path from the root to the needed leaf        *
+ *         search_path - path from the root to the needed leaf            *
  **************************************************************************/
 
 /* This function fills up the path from the root to the leaf as it
@@ -566,8 +566,8 @@ static void search_by_key_reada(struct super_block *s,
    correctness of the top of the path but need not be checked for the
    correctness of the bottom of the path */
 /* The function is NOT SCHEDULE-SAFE! */
-int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key to search. */
-		  struct treepath *p_s_search_path,/* This structure was
+int search_by_key(struct super_block *sb, const struct cpu_key *key,	/* Key to search. */
+		  struct treepath *search_path,/* This structure was
 						   allocated and initialized
 						   by the calling
 						   function. It is filled up
@@ -580,7 +580,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 	b_blocknr_t n_block_number;
 	int expected_level;
 	struct buffer_head *bh;
-	struct path_element *p_s_last_element;
+	struct path_element *last_element;
 	int n_node_level, n_retval;
 	int right_neighbor_of_leaf_node;
 	int fs_gen;
@@ -598,7 +598,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 	   we must be careful to release all nodes in a path before we either
 	   discard the path struct or re-use the path struct, as we do here. */
 
-	pathrelse(p_s_search_path);
+	pathrelse(search_path);
 
 	right_neighbor_of_leaf_node = 0;
 
@@ -615,18 +615,18 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 					 "%s: there were %d iterations of "
 					 "while loop looking for key %K",
 					 current->comm, n_repeat_counter,
-					 p_s_key);
+					 key);
 #endif
 
 		/* prep path to have another element added to it. */
-		p_s_last_element =
-		    PATH_OFFSET_PELEMENT(p_s_search_path,
-					 ++p_s_search_path->path_length);
+		last_element =
+		    PATH_OFFSET_PELEMENT(search_path,
+					 ++search_path->path_length);
 		fs_gen = get_generation(sb);
 
 		/* Read the next tree node, and set the last element in the path to
 		   have a pointer to it. */
-		if ((bh = p_s_last_element->pe_buffer =
+		if ((bh = last_element->pe_buffer =
 		     sb_getblk(sb, n_block_number))) {
 			if (!buffer_uptodate(bh) && reada_count > 1)
 				search_by_key_reada(sb, reada_bh,
@@ -637,8 +637,8 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 				goto io_error;
 		} else {
 		      io_error:
-			p_s_search_path->path_length--;
-			pathrelse(p_s_search_path);
+			search_path->path_length--;
+			pathrelse(search_path);
 			return IO_ERROR;
 		}
 		reada_count = 0;
@@ -652,12 +652,12 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 		if (fs_changed(fs_gen, sb) &&
 		    (!B_IS_IN_TREE(bh) ||
 		     B_LEVEL(bh) != expected_level ||
-		     !key_in_buffer(p_s_search_path, p_s_key, sb))) {
+		     !key_in_buffer(search_path, key, sb))) {
 			PROC_INFO_INC(sb, search_by_key_fs_changed);
 			PROC_INFO_INC(sb, search_by_key_restarted);
 			PROC_INFO_INC(sb,
 				      sbk_restarted[expected_level - 1]);
-			pathrelse(p_s_search_path);
+			pathrelse(search_path);
 
 			/* Get the root block number so that we can repeat the search
 			   starting from the root. */
@@ -669,11 +669,11 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 			continue;
 		}
 
-		/* only check that the key is in the buffer if p_s_key is not
+		/* only check that the key is in the buffer if key is not
 		   equal to the MAX_KEY. Latter case is only possible in
 		   "finish_unfinished()" processing during mount. */
-		RFALSE(comp_keys(&MAX_KEY, p_s_key) &&
-		       !key_in_buffer(p_s_search_path, p_s_key, sb),
+		RFALSE(comp_keys(&MAX_KEY, key) &&
+		       !key_in_buffer(search_path, key, sb),
 		       "PAP-5130: key is not in the buffer");
 #ifdef CONFIG_REISERFS_CHECK
 		if (cur_tb) {
@@ -689,7 +689,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 			reiserfs_error(sb, "vs-5150",
 				       "invalid format found in block %ld. "
 				       "Fsck?", bh->b_blocknr);
-			pathrelse(p_s_search_path);
+			pathrelse(search_path);
 			return IO_ERROR;
 		}
 
@@ -702,12 +702,12 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 		       "vs-5152: tree level (%d) is less than stop level (%d)",
 		       n_node_level, n_stop_level);
 
-		n_retval = bin_search(p_s_key, B_N_PITEM_HEAD(bh, 0),
+		n_retval = bin_search(key, B_N_PITEM_HEAD(bh, 0),
 				      B_NR_ITEMS(bh),
 				      (n_node_level ==
 				       DISK_LEAF_NODE_LEVEL) ? IH_SIZE :
 				      KEY_SIZE,
-				      &(p_s_last_element->pe_position));
+				      &(last_element->pe_position));
 		if (n_node_level == n_stop_level) {
 			return n_retval;
 		}
@@ -715,7 +715,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 		/* we are not in the stop level */
 		if (n_retval == ITEM_FOUND)
 			/* item has been found, so we choose the pointer which is to the right of the found one */
-			p_s_last_element->pe_position++;
+			last_element->pe_position++;
 
 		/* if item was not found we choose the position which is to
 		   the left of the found item. This requires no code,
@@ -725,23 +725,23 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 		   an internal node.  Now we calculate child block number by
 		   position in the node. */
 		n_block_number =
-		    B_N_CHILD_NUM(bh, p_s_last_element->pe_position);
+		    B_N_CHILD_NUM(bh, last_element->pe_position);
 
 		/* if we are going to read leaf nodes, try for read ahead as well */
-		if ((p_s_search_path->reada & PATH_READA) &&
+		if ((search_path->reada & PATH_READA) &&
 		    n_node_level == DISK_LEAF_NODE_LEVEL + 1) {
-			int pos = p_s_last_element->pe_position;
+			int pos = last_element->pe_position;
 			int limit = B_NR_ITEMS(bh);
 			struct reiserfs_key *le_key;
 
-			if (p_s_search_path->reada & PATH_READA_BACK)
+			if (search_path->reada & PATH_READA_BACK)
 				limit = 0;
 			while (reada_count < SEARCH_BY_KEY_READA) {
 				if (pos == limit)
 					break;
 				reada_blocks[reada_count++] =
 				    B_N_CHILD_NUM(bh, pos);
-				if (p_s_search_path->reada & PATH_READA_BACK)
+				if (search_path->reada & PATH_READA_BACK)
 					pos--;
 				else
 					pos++;
@@ -751,7 +751,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 				 */
 				le_key = B_N_PDELIM_KEY(bh, pos);
 				if (le32_to_cpu(le_key->k_objectid) !=
-				    p_s_key->on_disk_key.k_objectid) {
+				    key->on_disk_key.k_objectid) {
 					break;
 				}
 			}
@@ -760,11 +760,11 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 }
 
 /* Form the path to an item and position in this item which contains
-   file byte defined by p_s_key. If there is no such item
+   file byte defined by key. If there is no such item
    corresponding to the key, we point the path to the item with
-   maximal key less than p_s_key, and *p_n_pos_in_item is set to one
+   maximal key less than key, and *pos_in_item is set to one
    past the last entry/byte in the item.  If searching for entry in a
-   directory item, and it is not found, *p_n_pos_in_item is set to one
+   directory item, and it is not found, *pos_in_item is set to one
    entry more than the entry with maximal key which is less than the
    sought key.
 
@@ -777,7 +777,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 /* The function is NOT SCHEDULE-SAFE! */
 int search_for_position_by_key(struct super_block *sb,	/* Pointer to the super block.          */
 			       const struct cpu_key *p_cpu_key,	/* Key to search (cpu variable)         */
-			       struct treepath *p_s_search_path	/* Filled up by this function.          */
+			       struct treepath *search_path	/* Filled up by this function.          */
     )
 {
 	struct item_head *p_le_ih;	/* pointer to on-disk structure */
@@ -788,34 +788,34 @@ int search_for_position_by_key(struct super_block *sb,	/* Pointer to the super b
 
 	/* If searching for directory entry. */
 	if (is_direntry_cpu_key(p_cpu_key))
-		return search_by_entry_key(sb, p_cpu_key, p_s_search_path,
+		return search_by_entry_key(sb, p_cpu_key, search_path,
 					   &de);
 
 	/* If not searching for directory entry. */
 
 	/* If item is found. */
-	retval = search_item(sb, p_cpu_key, p_s_search_path);
+	retval = search_item(sb, p_cpu_key, search_path);
 	if (retval == IO_ERROR)
 		return retval;
 	if (retval == ITEM_FOUND) {
 
 		RFALSE(!ih_item_len
 		       (B_N_PITEM_HEAD
-			(PATH_PLAST_BUFFER(p_s_search_path),
-			 PATH_LAST_POSITION(p_s_search_path))),
+			(PATH_PLAST_BUFFER(search_path),
+			 PATH_LAST_POSITION(search_path))),
 		       "PAP-5165: item length equals zero");
 
-		pos_in_item(p_s_search_path) = 0;
+		pos_in_item(search_path) = 0;
 		return POSITION_FOUND;
 	}
 
-	RFALSE(!PATH_LAST_POSITION(p_s_search_path),
+	RFALSE(!PATH_LAST_POSITION(search_path),
 	       "PAP-5170: position equals zero");
 
 	/* Item is not found. Set path to the previous item. */
 	p_le_ih =
-	    B_N_PITEM_HEAD(PATH_PLAST_BUFFER(p_s_search_path),
-			   --PATH_LAST_POSITION(p_s_search_path));
+	    B_N_PITEM_HEAD(PATH_PLAST_BUFFER(search_path),
+			   --PATH_LAST_POSITION(search_path));
 	n_blk_size = sb->s_blocksize;
 
 	if (comp_short_keys(&(p_le_ih->ih_key), p_cpu_key)) {
@@ -829,9 +829,9 @@ int search_for_position_by_key(struct super_block *sb,	/* Pointer to the super b
 	/* Needed byte is contained in the item pointed to by the path. */
 	if (item_offset <= offset &&
 	    item_offset + op_bytes_number(p_le_ih, n_blk_size) > offset) {
-		pos_in_item(p_s_search_path) = offset - item_offset;
+		pos_in_item(search_path) = offset - item_offset;
 		if (is_indirect_le_ih(p_le_ih)) {
-			pos_in_item(p_s_search_path) /= n_blk_size;
+			pos_in_item(search_path) /= n_blk_size;
 		}
 		return POSITION_FOUND;
 	}
@@ -839,18 +839,18 @@ int search_for_position_by_key(struct super_block *sb,	/* Pointer to the super b
 	/* Needed byte is not contained in the item pointed to by the
 	   path. Set pos_in_item out of the item. */
 	if (is_indirect_le_ih(p_le_ih))
-		pos_in_item(p_s_search_path) =
+		pos_in_item(search_path) =
 		    ih_item_len(p_le_ih) / UNFM_P_SIZE;
 	else
-		pos_in_item(p_s_search_path) = ih_item_len(p_le_ih);
+		pos_in_item(search_path) = ih_item_len(p_le_ih);
 
 	return POSITION_NOT_FOUND;
 }
 
 /* Compare given item and item pointed to by the path. */
-int comp_items(const struct item_head *stored_ih, const struct treepath *p_s_path)
+int comp_items(const struct item_head *stored_ih, const struct treepath *path)
 {
-	struct buffer_head *bh = PATH_PLAST_BUFFER(p_s_path);
+	struct buffer_head *bh = PATH_PLAST_BUFFER(path);
 	struct item_head *ih;
 
 	/* Last buffer at the path is not in the tree. */
@@ -858,11 +858,11 @@ int comp_items(const struct item_head *stored_ih, const struct treepath *p_s_pat
 		return 1;
 
 	/* Last path position is invalid. */
-	if (PATH_LAST_POSITION(p_s_path) >= B_NR_ITEMS(bh))
+	if (PATH_LAST_POSITION(path) >= B_NR_ITEMS(bh))
 		return 1;
 
 	/* we need only to know, whether it is the same item */
-	ih = get_ih(p_s_path);
+	ih = get_ih(path);
 	return memcmp(stored_ih, ih, IH_SIZE);
 }
 
@@ -951,14 +951,14 @@ static inline int prepare_for_direntry_item(struct treepath *path,
     In case of file truncate calculate whether this item must be deleted/truncated or last
     unformatted node of this item will be converted to a direct item.
     This function returns a determination of what balance mode the calling function should employ. */
-static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, struct inode *inode, struct treepath *p_s_path, const struct cpu_key *p_s_item_key, int *p_n_removed,	/* Number of unformatted nodes which were removed
+static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, struct inode *inode, struct treepath *path, const struct cpu_key *item_key, int *removed,	/* Number of unformatted nodes which were removed
 																						   from end of the file. */
-				      int *p_n_cut_size, unsigned long long n_new_file_length	/* MAX_KEY_OFFSET in case of delete. */
+				      int *cut_size, unsigned long long n_new_file_length	/* MAX_KEY_OFFSET in case of delete. */
     )
 {
 	struct super_block *sb = inode->i_sb;
-	struct item_head *p_le_ih = PATH_PITEM_HEAD(p_s_path);
-	struct buffer_head *bh = PATH_PLAST_BUFFER(p_s_path);
+	struct item_head *p_le_ih = PATH_PITEM_HEAD(path);
+	struct buffer_head *bh = PATH_PLAST_BUFFER(path);
 
 	BUG_ON(!th->t_trans_id);
 
@@ -968,20 +968,20 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 		RFALSE(n_new_file_length != max_reiserfs_offset(inode),
 		       "PAP-5210: mode must be M_DELETE");
 
-		*p_n_cut_size = -(IH_SIZE + ih_item_len(p_le_ih));
+		*cut_size = -(IH_SIZE + ih_item_len(p_le_ih));
 		return M_DELETE;
 	}
 
 	/* Directory item. */
 	if (is_direntry_le_ih(p_le_ih))
-		return prepare_for_direntry_item(p_s_path, p_le_ih, inode,
+		return prepare_for_direntry_item(path, p_le_ih, inode,
 						 n_new_file_length,
-						 p_n_cut_size);
+						 cut_size);
 
 	/* Direct item. */
 	if (is_direct_le_ih(p_le_ih))
-		return prepare_for_direct_item(p_s_path, p_le_ih, inode,
-					       n_new_file_length, p_n_cut_size);
+		return prepare_for_direct_item(path, p_le_ih, inode,
+					       n_new_file_length, cut_size);
 
 	/* Case of an indirect item. */
 	{
@@ -1001,9 +1001,9 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 
 	    do {
 		need_re_search = 0;
-		*p_n_cut_size = 0;
-		bh = PATH_PLAST_BUFFER(p_s_path);
-		copy_item_head(&s_ih, PATH_PITEM_HEAD(p_s_path));
+		*cut_size = 0;
+		bh = PATH_PLAST_BUFFER(path);
+		copy_item_head(&s_ih, PATH_PITEM_HEAD(path));
 		pos = I_UNFM_NUM(&s_ih);
 
 		while (le_ih_k_offset (&s_ih) + (pos - 1) * blk_size > n_new_file_length) {
@@ -1013,10 +1013,9 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 		    /* Each unformatted block deletion may involve one additional
 		     * bitmap block into the transaction, thereby the initial
 		     * journal space reservation might not be enough. */
-		    if (!delete && (*p_n_cut_size) != 0 &&
-			reiserfs_transaction_free_space(th) < JOURNAL_FOR_FREE_BLOCK_AND_UPDATE_SD) {
+		    if (!delete && (*cut_size) != 0 &&
+			reiserfs_transaction_free_space(th) < JOURNAL_FOR_FREE_BLOCK_AND_UPDATE_SD)
 			break;
-		    }
 
 		    unfm = (__le32 *)B_I_PITEM(bh, &s_ih) + pos - 1;
 		    block = get_block_num(unfm, 0);
@@ -1030,17 +1029,17 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 
 		    cond_resched();
 
-		    if (item_moved (&s_ih, p_s_path))  {
+		    if (item_moved (&s_ih, path))  {
 			need_re_search = 1;
 			break;
 		    }
 
 		    pos --;
-		    (*p_n_removed) ++;
-		    (*p_n_cut_size) -= UNFM_P_SIZE;
+		    (*removed)++;
+		    (*cut_size) -= UNFM_P_SIZE;
 
 		    if (pos == 0) {
-			(*p_n_cut_size) -= IH_SIZE;
+			(*cut_size) -= IH_SIZE;
 			result = M_DELETE;
 			break;
 		    }
@@ -1050,10 +1049,10 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 		** buffer */
 		reiserfs_restore_prepared_buffer(sb, bh);
 	    } while (need_re_search &&
-		     search_for_position_by_key(sb, p_s_item_key, p_s_path) == POSITION_FOUND);
-	    pos_in_item(p_s_path) = pos * UNFM_P_SIZE;
+		     search_for_position_by_key(sb, item_key, path) == POSITION_FOUND);
+	    pos_in_item(path) = pos * UNFM_P_SIZE;
 
-	    if (*p_n_cut_size == 0) {
+	    if (*cut_size == 0) {
 		/* Nothing were cut. maybe convert last unformatted node to the
 		 * direct item? */
 		result = M_CONVERT;
@@ -1091,7 +1090,7 @@ static int calc_deleted_bytes_number(struct tree_balance *tb, char c_mode)
 static void init_tb_struct(struct reiserfs_transaction_handle *th,
 			   struct tree_balance *tb,
 			   struct super_block *sb,
-			   struct treepath *p_s_path, int n_size)
+			   struct treepath *path, int n_size)
 {
 
 	BUG_ON(!th->t_trans_id);
@@ -1099,9 +1098,9 @@ static void init_tb_struct(struct reiserfs_transaction_handle *th,
 	memset(tb, '\0', sizeof(struct tree_balance));
 	tb->transaction_handle = th;
 	tb->tb_sb = sb;
-	tb->tb_path = p_s_path;
-	PATH_OFFSET_PBUFFER(p_s_path, ILLEGAL_PATH_ELEMENT_OFFSET) = NULL;
-	PATH_OFFSET_POSITION(p_s_path, ILLEGAL_PATH_ELEMENT_OFFSET) = 0;
+	tb->tb_path = path;
+	PATH_OFFSET_PBUFFER(path, ILLEGAL_PATH_ELEMENT_OFFSET) = NULL;
+	PATH_OFFSET_POSITION(path, ILLEGAL_PATH_ELEMENT_OFFSET) = 0;
 	tb->insert_size[0] = n_size;
 }
 
@@ -1141,13 +1140,17 @@ char head2type(struct item_head *ih)
 }
 #endif
 
-/* Delete object item. */
-int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath *p_s_path,	/* Path to the deleted item. */
-			 const struct cpu_key *p_s_item_key,	/* Key to search for the deleted item.  */
-			 struct inode *inode,	/* inode is here just to update
-						 * i_blocks and quotas */
-			 struct buffer_head *p_s_un_bh)
-{				/* NULL or unformatted node pointer.    */
+/* Delete object item.
+ * th       - active transaction handle
+ * path     - path to the deleted item
+ * item_key - key to search for the deleted item
+ * indode   - used for updating i_blocks and quotas
+ * un_bh    - NULL or unformatted node pointer
+ */
+int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
+			 struct treepath *path, const struct cpu_key *item_key,
+			 struct inode *inode, struct buffer_head *un_bh)
+{
 	struct super_block *sb = inode->i_sb;
 	struct tree_balance s_del_balance;
 	struct item_head s_ih;
@@ -1162,7 +1165,7 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath
 
 	BUG_ON(!th->t_trans_id);
 
-	init_tb_struct(th, &s_del_balance, sb, p_s_path,
+	init_tb_struct(th, &s_del_balance, sb, path,
 		       0 /*size is unknown */ );
 
 	while (1) {
@@ -1172,14 +1175,14 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath
 		n_iter++;
 		c_mode =
 #endif
-		    prepare_for_delete_or_cut(th, inode, p_s_path,
-					      p_s_item_key, &n_removed,
+		    prepare_for_delete_or_cut(th, inode, path,
+					      item_key, &n_removed,
 					      &n_del_size,
 					      max_reiserfs_offset(inode));
 
 		RFALSE(c_mode != M_DELETE, "PAP-5320: mode must be M_DELETE");
 
-		copy_item_head(&s_ih, PATH_PITEM_HEAD(p_s_path));
+		copy_item_head(&s_ih, PATH_PITEM_HEAD(path));
 		s_del_balance.insert_size[0] = n_del_size;
 
 		n_ret_value = fix_nodes(M_DELETE, &s_del_balance, NULL, NULL);
@@ -1190,13 +1193,13 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath
 
 		// file system changed, repeat search
 		n_ret_value =
-		    search_for_position_by_key(sb, p_s_item_key, p_s_path);
+		    search_for_position_by_key(sb, item_key, path);
 		if (n_ret_value == IO_ERROR)
 			break;
 		if (n_ret_value == FILE_NOT_FOUND) {
 			reiserfs_warning(sb, "vs-5340",
 					 "no items of the file %K found",
-					 p_s_item_key);
+					 item_key);
 			break;
 		}
 	}			/* while (1) */
@@ -1207,7 +1210,7 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath
 	}
 	// reiserfs_delete_item returns item length when success
 	n_ret_value = calc_deleted_bytes_number(&s_del_balance, M_DELETE);
-	q_ih = get_ih(p_s_path);
+	q_ih = get_ih(path);
 	quota_cut_bytes = ih_item_len(q_ih);
 
 	/* hack so the quota code doesn't have to guess if the file
@@ -1224,7 +1227,7 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath
 		}
 	}
 
-	if (p_s_un_bh) {
+	if (un_bh) {
 		int off;
 		char *data;
 
@@ -1242,16 +1245,16 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th, struct treepath
 		 ** The unformatted node must be dirtied later on.  We can't be
 		 ** sure here if the entire tail has been deleted yet.
 		 **
-		 ** p_s_un_bh is from the page cache (all unformatted nodes are
+		 ** un_bh is from the page cache (all unformatted nodes are
 		 ** from the page cache) and might be a highmem page.  So, we
-		 ** can't use p_s_un_bh->b_data.
+		 ** can't use un_bh->b_data.
 		 ** -clm
 		 */
 
-		data = kmap_atomic(p_s_un_bh->b_page, KM_USER0);
+		data = kmap_atomic(un_bh->b_page, KM_USER0);
 		off = ((le_ih_k_offset(&s_ih) - 1) & (PAGE_CACHE_SIZE - 1));
 		memcpy(data + off,
-		       B_I_PITEM(PATH_PLAST_BUFFER(p_s_path), &s_ih),
+		       B_I_PITEM(PATH_PLAST_BUFFER(path), &s_ih),
 		       n_ret_value);
 		kunmap_atomic(data, KM_USER0);
 	}
@@ -1427,9 +1430,9 @@ static void unmap_buffers(struct page *page, loff_t pos)
 static int maybe_indirect_to_direct(struct reiserfs_transaction_handle *th,
 				    struct inode *inode,
 				    struct page *page,
-				    struct treepath *p_s_path,
-				    const struct cpu_key *p_s_item_key,
-				    loff_t n_new_file_size, char *p_c_mode)
+				    struct treepath *path,
+				    const struct cpu_key *item_key,
+				    loff_t n_new_file_size, char *mode)
 {
 	struct super_block *sb = inode->i_sb;
 	int n_block_size = sb->s_blocksize;
@@ -1445,17 +1448,17 @@ static int maybe_indirect_to_direct(struct reiserfs_transaction_handle *th,
 	    !tail_has_to_be_packed(inode) ||
 	    !page || (REISERFS_I(inode)->i_flags & i_nopack_mask)) {
 		/* leave tail in an unformatted node */
-		*p_c_mode = M_SKIP_BALANCING;
+		*mode = M_SKIP_BALANCING;
 		cut_bytes =
 		    n_block_size - (n_new_file_size & (n_block_size - 1));
-		pathrelse(p_s_path);
+		pathrelse(path);
 		return cut_bytes;
 	}
-	/* Permorm the conversion to a direct_item. */
-	/* return indirect_to_direct(inode, p_s_path, p_s_item_key,
-				  n_new_file_size, p_c_mode); */
-	return indirect2direct(th, inode, page, p_s_path, p_s_item_key,
-			       n_new_file_size, p_c_mode);
+	/* Perform the conversion to a direct_item. */
+	/* return indirect_to_direct(inode, path, item_key,
+				  n_new_file_size, mode); */
+	return indirect2direct(th, inode, page, path, item_key,
+			       n_new_file_size, mode);
 }
 
 /* we did indirect_to_direct conversion. And we have inserted direct
@@ -1506,8 +1509,8 @@ static void indirect_to_direct_roll_back(struct reiserfs_transaction_handle *th,
 
 /* (Truncate or cut entry) or delete object item. Returns < 0 on failure */
 int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
-			   struct treepath *p_s_path,
-			   struct cpu_key *p_s_item_key,
+			   struct treepath *path,
+			   struct cpu_key *item_key,
 			   struct inode *inode,
 			   struct page *page, loff_t n_new_file_size)
 {
@@ -1528,7 +1531,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 
 	BUG_ON(!th->t_trans_id);
 
-	init_tb_struct(th, &s_cut_balance, inode->i_sb, p_s_path,
+	init_tb_struct(th, &s_cut_balance, inode->i_sb, path,
 		       n_cut_size);
 
 	/* Repeat this loop until we either cut the item without needing
@@ -1540,8 +1543,8 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 		   pointers. */
 
 		c_mode =
-		    prepare_for_delete_or_cut(th, inode, p_s_path,
-					      p_s_item_key, &n_removed,
+		    prepare_for_delete_or_cut(th, inode, path,
+					      item_key, &n_removed,
 					      &n_cut_size, n_new_file_size);
 		if (c_mode == M_CONVERT) {
 			/* convert last unformatted node to direct item or leave
@@ -1551,7 +1554,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 
 			n_ret_value =
 			    maybe_indirect_to_direct(th, inode, page,
-						     p_s_path, p_s_item_key,
+						     path, item_key,
 						     n_new_file_size, &c_mode);
 			if (c_mode == M_SKIP_BALANCING)
 				/* tail has been left in the unformatted node */
@@ -1568,26 +1571,26 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 			   inserting the new direct item.  Now we are removing the
 			   last unformatted node pointer. Set key to search for
 			   it. */
-			set_cpu_key_k_type(p_s_item_key, TYPE_INDIRECT);
-			p_s_item_key->key_length = 4;
+			set_cpu_key_k_type(item_key, TYPE_INDIRECT);
+			item_key->key_length = 4;
 			n_new_file_size -=
 			    (n_new_file_size & (sb->s_blocksize - 1));
 			tail_pos = n_new_file_size;
-			set_cpu_key_k_offset(p_s_item_key, n_new_file_size + 1);
+			set_cpu_key_k_offset(item_key, n_new_file_size + 1);
 			if (search_for_position_by_key
-			    (sb, p_s_item_key,
-			     p_s_path) == POSITION_NOT_FOUND) {
-				print_block(PATH_PLAST_BUFFER(p_s_path), 3,
-					    PATH_LAST_POSITION(p_s_path) - 1,
-					    PATH_LAST_POSITION(p_s_path) + 1);
+			    (sb, item_key,
+			     path) == POSITION_NOT_FOUND) {
+				print_block(PATH_PLAST_BUFFER(path), 3,
+					    PATH_LAST_POSITION(path) - 1,
+					    PATH_LAST_POSITION(path) + 1);
 				reiserfs_panic(sb, "PAP-5580", "item to "
 					       "convert does not exist (%K)",
-					       p_s_item_key);
+					       item_key);
 			}
 			continue;
 		}
 		if (n_cut_size == 0) {
-			pathrelse(p_s_path);
+			pathrelse(path);
 			return 0;
 		}
 
@@ -1600,12 +1603,12 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 		PROC_INFO_INC(sb, cut_from_item_restarted);
 
 		n_ret_value =
-		    search_for_position_by_key(sb, p_s_item_key, p_s_path);
+		    search_for_position_by_key(sb, item_key, path);
 		if (n_ret_value == POSITION_FOUND)
 			continue;
 
 		reiserfs_warning(sb, "PAP-5610", "item %K not found",
-				 p_s_item_key);
+				 item_key);
 		unfix_nodes(&s_cut_balance);
 		return (n_ret_value == IO_ERROR) ? -EIO : -ENOENT;
 	}			/* while */
@@ -1615,7 +1618,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 		if (n_is_inode_locked) {
 			// FIXME: this seems to be not needed: we are always able
 			// to cut item
-			indirect_to_direct_roll_back(th, inode, p_s_path);
+			indirect_to_direct_roll_back(th, inode, path);
 		}
 		if (n_ret_value == NO_DISK_SPACE)
 			reiserfs_warning(sb, "reiserfs-5092",
@@ -1631,7 +1634,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 	/* Calculate number of bytes that need to be cut from the item. */
 	quota_cut_bytes =
 	    (c_mode ==
-	     M_DELETE) ? ih_item_len(get_ih(p_s_path)) : -s_cut_balance.
+	     M_DELETE) ? ih_item_len(get_ih(path)) : -s_cut_balance.
 	    insert_size[0];
 	if (retval2 == -1)
 		n_ret_value = calc_deleted_bytes_number(&s_cut_balance, c_mode);
@@ -1878,7 +1881,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 #ifdef CONFIG_REISERFS_CHECK
 // this makes sure, that we __append__, not overwrite or add holes
 static void check_research_for_paste(struct treepath *path,
-				     const struct cpu_key *p_s_key)
+				     const struct cpu_key *key)
 {
 	struct item_head *found_ih = get_ih(path);
 
@@ -1886,35 +1889,35 @@ static void check_research_for_paste(struct treepath *path,
 		if (le_ih_k_offset(found_ih) +
 		    op_bytes_number(found_ih,
 				    get_last_bh(path)->b_size) !=
-		    cpu_key_k_offset(p_s_key)
+		    cpu_key_k_offset(key)
 		    || op_bytes_number(found_ih,
 				       get_last_bh(path)->b_size) !=
 		    pos_in_item(path))
 			reiserfs_panic(NULL, "PAP-5720", "found direct item "
 				       "%h or position (%d) does not match "
 				       "to key %K", found_ih,
-				       pos_in_item(path), p_s_key);
+				       pos_in_item(path), key);
 	}
 	if (is_indirect_le_ih(found_ih)) {
 		if (le_ih_k_offset(found_ih) +
 		    op_bytes_number(found_ih,
 				    get_last_bh(path)->b_size) !=
-		    cpu_key_k_offset(p_s_key)
+		    cpu_key_k_offset(key)
 		    || I_UNFM_NUM(found_ih) != pos_in_item(path)
 		    || get_ih_free_space(found_ih) != 0)
 			reiserfs_panic(NULL, "PAP-5730", "found indirect "
 				       "item (%h) or position (%d) does not "
 				       "match to key (%K)",
-				       found_ih, pos_in_item(path), p_s_key);
+				       found_ih, pos_in_item(path), key);
 	}
 }
 #endif				/* config reiserfs check */
 
 /* Paste bytes to the existing item. Returns bytes number pasted into the item. */
-int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct treepath *p_s_search_path,	/* Path to the pasted item.          */
-			     const struct cpu_key *p_s_key,	/* Key to search for the needed item. */
+int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct treepath *search_path,	/* Path to the pasted item.	  */
+			     const struct cpu_key *key,	/* Key to search for the needed item. */
 			     struct inode *inode,	/* Inode item belongs to */
-			     const char *p_c_body,	/* Pointer to the bytes to paste.    */
+			     const char *body,	/* Pointer to the bytes to paste.    */
 			     int n_pasted_size)
 {				/* Size of pasted bytes.             */
 	struct tree_balance s_paste_balance;
@@ -1929,17 +1932,17 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct tree
 	reiserfs_debug(inode->i_sb, REISERFS_DEBUG_CODE,
 		       "reiserquota paste_into_item(): allocating %u id=%u type=%c",
 		       n_pasted_size, inode->i_uid,
-		       key2type(&(p_s_key->on_disk_key)));
+		       key2type(&(key->on_disk_key)));
 #endif
 
 	if (DQUOT_ALLOC_SPACE_NODIRTY(inode, n_pasted_size)) {
-		pathrelse(p_s_search_path);
+		pathrelse(search_path);
 		return -EDQUOT;
 	}
-	init_tb_struct(th, &s_paste_balance, th->t_super, p_s_search_path,
+	init_tb_struct(th, &s_paste_balance, th->t_super, search_path,
 		       n_pasted_size);
 #ifdef DISPLACE_NEW_PACKING_LOCALITIES
-	s_paste_balance.key = p_s_key->on_disk_key;
+	s_paste_balance.key = key->on_disk_key;
 #endif
 
 	/* DQUOT_* can schedule, must check before the fix_nodes */
@@ -1949,13 +1952,13 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct tree
 
 	while ((retval =
 		fix_nodes(M_PASTE, &s_paste_balance, NULL,
-			  p_c_body)) == REPEAT_SEARCH) {
+			  body)) == REPEAT_SEARCH) {
 	      search_again:
 		/* file system changed while we were in the fix_nodes */
 		PROC_INFO_INC(th->t_super, paste_into_item_restarted);
 		retval =
-		    search_for_position_by_key(th->t_super, p_s_key,
-					       p_s_search_path);
+		    search_for_position_by_key(th->t_super, key,
+					       search_path);
 		if (retval == IO_ERROR) {
 			retval = -EIO;
 			goto error_out;
@@ -1963,19 +1966,19 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct tree
 		if (retval == POSITION_FOUND) {
 			reiserfs_warning(inode->i_sb, "PAP-5710",
 					 "entry or pasted byte (%K) exists",
-					 p_s_key);
+					 key);
 			retval = -EEXIST;
 			goto error_out;
 		}
 #ifdef CONFIG_REISERFS_CHECK
-		check_research_for_paste(p_s_search_path, p_s_key);
+		check_research_for_paste(search_path, key);
 #endif
 	}
 
 	/* Perform balancing after all resources are collected by fix_nodes, and
 	   accessing them will not risk triggering schedule. */
 	if (retval == CARRY_ON) {
-		do_balance(&s_paste_balance, NULL /*ih */ , p_c_body, M_PASTE);
+		do_balance(&s_paste_balance, NULL /*ih */ , body, M_PASTE);
 		return 0;
 	}
 	retval = (retval == NO_DISK_SPACE) ? -ENOSPC : -EIO;
@@ -1986,17 +1989,23 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th, struct tree
 	reiserfs_debug(inode->i_sb, REISERFS_DEBUG_CODE,
 		       "reiserquota paste_into_item(): freeing %u id=%u type=%c",
 		       n_pasted_size, inode->i_uid,
-		       key2type(&(p_s_key->on_disk_key)));
+		       key2type(&(key->on_disk_key)));
 #endif
 	DQUOT_FREE_SPACE_NODIRTY(inode, n_pasted_size);
 	return retval;
 }
 
-/* Insert new item into the buffer at the path. */
-int reiserfs_insert_item(struct reiserfs_transaction_handle *th, struct treepath *p_s_path,	/* Path to the inserteded item.         */
-			 const struct cpu_key *key, struct item_head *p_s_ih,	/* Pointer to the item header to insert. */
-			 struct inode *inode, const char *p_c_body)
-{				/* Pointer to the bytes to insert.      */
+/* Insert new item into the buffer at the path.
+ * th   - active transaction handle
+ * path - path to the inserted item
+ * ih   - pointer to the item header to insert
+ * body - pointer to the bytes to insert
+ */
+int reiserfs_insert_item(struct reiserfs_transaction_handle *th,
+			 struct treepath *path, const struct cpu_key *key,
+			 struct item_head *ih, struct inode *inode,
+			 const char *body)
+{
 	struct tree_balance s_ins_balance;
 	int retval;
 	int fs_gen = 0;
@@ -2006,28 +2015,27 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th, struct treepath
 
 	if (inode) {		/* Do we count quotas for item? */
 		fs_gen = get_generation(inode->i_sb);
-		quota_bytes = ih_item_len(p_s_ih);
+		quota_bytes = ih_item_len(ih);
 
 		/* hack so the quota code doesn't have to guess if the file has
 		 ** a tail, links are always tails, so there's no guessing needed
 		 */
-		if (!S_ISLNK(inode->i_mode) && is_direct_le_ih(p_s_ih)) {
+		if (!S_ISLNK(inode->i_mode) && is_direct_le_ih(ih))
 			quota_bytes = inode->i_sb->s_blocksize + UNFM_P_SIZE;
-		}
 #ifdef REISERQUOTA_DEBUG
 		reiserfs_debug(inode->i_sb, REISERFS_DEBUG_CODE,
 			       "reiserquota insert_item(): allocating %u id=%u type=%c",
-			       quota_bytes, inode->i_uid, head2type(p_s_ih));
+			       quota_bytes, inode->i_uid, head2type(ih));
 #endif
 		/* We can't dirty inode here. It would be immediately written but
 		 * appropriate stat item isn't inserted yet... */
 		if (DQUOT_ALLOC_SPACE_NODIRTY(inode, quota_bytes)) {
-			pathrelse(p_s_path);
+			pathrelse(path);
 			return -EDQUOT;
 		}
 	}
-	init_tb_struct(th, &s_ins_balance, th->t_super, p_s_path,
-		       IH_SIZE + ih_item_len(p_s_ih));
+	init_tb_struct(th, &s_ins_balance, th->t_super, path,
+		       IH_SIZE + ih_item_len(ih));
 #ifdef DISPLACE_NEW_PACKING_LOCALITIES
 	s_ins_balance.key = key->on_disk_key;
 #endif
@@ -2037,12 +2045,12 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th, struct treepath
 	}
 
 	while ((retval =
-		fix_nodes(M_INSERT, &s_ins_balance, p_s_ih,
-			  p_c_body)) == REPEAT_SEARCH) {
+		fix_nodes(M_INSERT, &s_ins_balance, ih,
+			  body)) == REPEAT_SEARCH) {
 	      search_again:
 		/* file system changed while we were in the fix_nodes */
 		PROC_INFO_INC(th->t_super, insert_item_restarted);
-		retval = search_item(th->t_super, key, p_s_path);
+		retval = search_item(th->t_super, key, path);
 		if (retval == IO_ERROR) {
 			retval = -EIO;
 			goto error_out;
@@ -2058,7 +2066,7 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th, struct treepath
 
 	/* make balancing after all resources will be collected at a time */
 	if (retval == CARRY_ON) {
-		do_balance(&s_ins_balance, p_s_ih, p_c_body, M_INSERT);
+		do_balance(&s_ins_balance, ih, body, M_INSERT);
 		return 0;
 	}
 
@@ -2069,7 +2077,7 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th, struct treepath
 #ifdef REISERQUOTA_DEBUG
 	reiserfs_debug(th->t_super, REISERFS_DEBUG_CODE,
 		       "reiserquota insert_item(): freeing %u id=%u type=%c",
-		       quota_bytes, inode->i_uid, head2type(p_s_ih));
+		       quota_bytes, inode->i_uid, head2type(ih));
 #endif
 	if (inode)
 		DQUOT_FREE_SPACE_NODIRTY(inode, quota_bytes);

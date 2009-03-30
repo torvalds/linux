@@ -694,9 +694,9 @@ static inline void cpu_key_k_offset_dec(struct cpu_key *key)
 #define is_indirect_cpu_ih(ih) (is_indirect_cpu_key (&((ih)->ih_key)))
 #define is_statdata_cpu_ih(ih) (is_statdata_cpu_key (&((ih)->ih_key)))
 
-#define I_K_KEY_IN_ITEM(p_s_ih, p_s_key, n_blocksize) \
-    ( ! COMP_SHORT_KEYS(p_s_ih, p_s_key) && \
-          I_OFF_BYTE_IN_ITEM(p_s_ih, k_offset (p_s_key), n_blocksize) )
+#define I_K_KEY_IN_ITEM(ih, key, n_blocksize) \
+    (!COMP_SHORT_KEYS(ih, key) && \
+	  I_OFF_BYTE_IN_ITEM(ih, k_offset(key), n_blocksize))
 
 /* maximal length of item */
 #define MAX_ITEM_LEN(block_size) (block_size - BLKH_SIZE - IH_SIZE)
@@ -1196,33 +1196,33 @@ struct treepath {
 struct treepath var = {.path_length = ILLEGAL_PATH_ELEMENT_OFFSET, .reada = 0,}
 
 /* Get path element by path and path position. */
-#define PATH_OFFSET_PELEMENT(p_s_path,n_offset)  ((p_s_path)->path_elements +(n_offset))
+#define PATH_OFFSET_PELEMENT(path, n_offset)  ((path)->path_elements + (n_offset))
 
 /* Get buffer header at the path by path and path position. */
-#define PATH_OFFSET_PBUFFER(p_s_path,n_offset)   (PATH_OFFSET_PELEMENT(p_s_path,n_offset)->pe_buffer)
+#define PATH_OFFSET_PBUFFER(path, n_offset)   (PATH_OFFSET_PELEMENT(path, n_offset)->pe_buffer)
 
 /* Get position in the element at the path by path and path position. */
-#define PATH_OFFSET_POSITION(p_s_path,n_offset) (PATH_OFFSET_PELEMENT(p_s_path,n_offset)->pe_position)
+#define PATH_OFFSET_POSITION(path, n_offset) (PATH_OFFSET_PELEMENT(path, n_offset)->pe_position)
 
-#define PATH_PLAST_BUFFER(p_s_path) (PATH_OFFSET_PBUFFER((p_s_path), (p_s_path)->path_length))
+#define PATH_PLAST_BUFFER(path) (PATH_OFFSET_PBUFFER((path), (path)->path_length))
 				/* you know, to the person who didn't
 				   write this the macro name does not
 				   at first suggest what it does.
 				   Maybe POSITION_FROM_PATH_END? Or
 				   maybe we should just focus on
 				   dumping paths... -Hans */
-#define PATH_LAST_POSITION(p_s_path) (PATH_OFFSET_POSITION((p_s_path), (p_s_path)->path_length))
+#define PATH_LAST_POSITION(path) (PATH_OFFSET_POSITION((path), (path)->path_length))
 
-#define PATH_PITEM_HEAD(p_s_path)    B_N_PITEM_HEAD(PATH_PLAST_BUFFER(p_s_path),PATH_LAST_POSITION(p_s_path))
+#define PATH_PITEM_HEAD(path)    B_N_PITEM_HEAD(PATH_PLAST_BUFFER(path), PATH_LAST_POSITION(path))
 
 /* in do_balance leaf has h == 0 in contrast with path structure,
    where root has level == 0. That is why we need these defines */
-#define PATH_H_PBUFFER(p_s_path, h) PATH_OFFSET_PBUFFER (p_s_path, p_s_path->path_length - (h))	/* tb->S[h] */
+#define PATH_H_PBUFFER(path, h) PATH_OFFSET_PBUFFER (path, path->path_length - (h))	/* tb->S[h] */
 #define PATH_H_PPARENT(path, h) PATH_H_PBUFFER (path, (h) + 1)	/* tb->F[h] or tb->S[0]->b_parent */
 #define PATH_H_POSITION(path, h) PATH_OFFSET_POSITION (path, path->path_length - (h))
 #define PATH_H_B_ITEM_ORDER(path, h) PATH_H_POSITION(path, h + 1)	/* tb->S[h]->b_item_order */
 
-#define PATH_H_PATH_OFFSET(p_s_path, n_h) ((p_s_path)->path_length - (n_h))
+#define PATH_H_PATH_OFFSET(path, n_h) ((path)->path_length - (n_h))
 
 #define get_last_bh(path) PATH_PLAST_BUFFER(path)
 #define get_ih(path) PATH_PITEM_HEAD(path)
@@ -1512,7 +1512,7 @@ extern struct item_operations *item_ops[TYPE_ANY + 1];
 #define COMP_SHORT_KEYS comp_short_keys
 
 /* number of blocks pointed to by the indirect item */
-#define I_UNFM_NUM(p_s_ih)	( ih_item_len(p_s_ih) / UNFM_P_SIZE )
+#define I_UNFM_NUM(ih)	(ih_item_len(ih) / UNFM_P_SIZE)
 
 /* the used space within the unformatted node corresponding to pos within the item pointed to by ih */
 #define I_POS_UNFM_SIZE(ih,pos,size) (((pos) == I_UNFM_NUM(ih) - 1 ) ? (size) - ih_free_space(ih) : (size))
@@ -1793,8 +1793,8 @@ int reiserfs_convert_objectid_map_v1(struct super_block *);
 
 /* stree.c */
 int B_IS_IN_TREE(const struct buffer_head *);
-extern void copy_item_head(struct item_head *p_v_to,
-			   const struct item_head *p_v_from);
+extern void copy_item_head(struct item_head *to,
+			   const struct item_head *from);
 
 // first key is in cpu form, second - le
 extern int comp_short_keys(const struct reiserfs_key *le_key,
@@ -1829,20 +1829,20 @@ static inline void copy_key(struct reiserfs_key *to,
 	memcpy(to, from, KEY_SIZE);
 }
 
-int comp_items(const struct item_head *stored_ih, const struct treepath *p_s_path);
-const struct reiserfs_key *get_rkey(const struct treepath *p_s_chk_path,
+int comp_items(const struct item_head *stored_ih, const struct treepath *path);
+const struct reiserfs_key *get_rkey(const struct treepath *chk_path,
 				    const struct super_block *sb);
 int search_by_key(struct super_block *, const struct cpu_key *,
 		  struct treepath *, int);
 #define search_item(s,key,path) search_by_key (s, key, path, DISK_LEAF_NODE_LEVEL)
 int search_for_position_by_key(struct super_block *sb,
-			       const struct cpu_key *p_s_cpu_key,
-			       struct treepath *p_s_search_path);
+			       const struct cpu_key *cpu_key,
+			       struct treepath *search_path);
 extern void decrement_bcount(struct buffer_head *bh);
-void decrement_counters_in_path(struct treepath *p_s_search_path);
-void pathrelse(struct treepath *p_s_search_path);
+void decrement_counters_in_path(struct treepath *search_path);
+void pathrelse(struct treepath *search_path);
 int reiserfs_check_path(struct treepath *p);
-void pathrelse_and_restore(struct super_block *s, struct treepath *p_s_search_path);
+void pathrelse_and_restore(struct super_block *s, struct treepath *search_path);
 
 int reiserfs_insert_item(struct reiserfs_transaction_handle *th,
 			 struct treepath *path,
@@ -1865,7 +1865,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
 			 struct treepath *path,
 			 const struct cpu_key *key,
-			 struct inode *inode, struct buffer_head *p_s_un_bh);
+			 struct inode *inode, struct buffer_head *un_bh);
 
 void reiserfs_delete_solid_item(struct reiserfs_transaction_handle *th,
 				struct inode *inode, struct reiserfs_key *key);
@@ -2005,7 +2005,7 @@ extern const struct address_space_operations reiserfs_address_space_operations;
 /* fix_nodes.c */
 
 int fix_nodes(int n_op_mode, struct tree_balance *tb,
-	      struct item_head *p_s_ins_ih, const void *);
+	      struct item_head *ins_ih, const void *);
 void unfix_nodes(struct tree_balance *);
 
 /* prints.c */
