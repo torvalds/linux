@@ -44,100 +44,123 @@
 #include <net/checksum.h>
 #include <linux/smp_lock.h>
 #include <linux/stat.h>
+#include <linux/quotaops.h>
 
-#define FL_READONLY 128
-#define FL_DIR_SEM_HELD 256
 #define PRIVROOT_NAME ".reiserfs_priv"
 #define XAROOT_NAME   "xattrs"
 
-/* Returns the dentry referring to the root of the extended attribute
- * directory tree. If it has already been retrieved, it is used. If it
- * hasn't been created and the flags indicate creation is allowed, we
- * attempt to create it. On error, we return a pointer-encoded error.
- */
-static struct dentry *get_xa_root(struct super_block *sb, int flags)
+/* Helpers for inode ops. We do this so that we don't have all the VFS
+ * overhead and also for proper i_mutex annotation.
+ * dir->i_mutex must be held for all of them. */
+static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 {
-	struct dentry *privroot = dget(REISERFS_SB(sb)->priv_root);
-	struct dentry *xaroot;
-
-	/* This needs to be created at mount-time */
-	if (!privroot)
-		return ERR_PTR(-ENODATA);
-
-	mutex_lock_nested(&privroot->d_inode->i_mutex, I_MUTEX_XATTR);
-	if (REISERFS_SB(sb)->xattr_root) {
-		xaroot = dget(REISERFS_SB(sb)->xattr_root);
-		goto out;
-	}
-
-	xaroot = lookup_one_len(XAROOT_NAME, privroot, strlen(XAROOT_NAME));
-	if (IS_ERR(xaroot)) {
-		goto out;
-	} else if (!xaroot->d_inode) {
-		int err = -ENODATA;
-		if (flags == 0 || flags & XATTR_CREATE)
-			err = privroot->d_inode->i_op->mkdir(privroot->d_inode,
-			                                     xaroot, 0700);
-		if (err) {
-			dput(xaroot);
-			xaroot = ERR_PTR(err);
-			goto out;
-		}
-	}
-	REISERFS_SB(sb)->xattr_root = dget(xaroot);
-
-      out:
-	mutex_unlock(&privroot->d_inode->i_mutex);
-	dput(privroot);
-	return xaroot;
+	BUG_ON(!mutex_is_locked(&dir->i_mutex));
+	DQUOT_INIT(dir);
+	return dir->i_op->create(dir, dentry, mode, NULL);
 }
 
-/* Opens the directory corresponding to the inode's extended attribute store.
- * If flags allow, the tree to the directory may be created. If creation is
- * prohibited, -ENODATA is returned. */
+static int xattr_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+{
+	BUG_ON(!mutex_is_locked(&dir->i_mutex));
+	DQUOT_INIT(dir);
+	return dir->i_op->mkdir(dir, dentry, mode);
+}
+
+/* We use I_MUTEX_CHILD here to silence lockdep. It's safe because xattr
+ * mutation ops aren't called during rename or splace, which are the
+ * only other users of I_MUTEX_CHILD. It violates the ordering, but that's
+ * better than allocating another subclass just for this code. */
+static int xattr_unlink(struct inode *dir, struct dentry *dentry)
+{
+	int error;
+	BUG_ON(!mutex_is_locked(&dir->i_mutex));
+	DQUOT_INIT(dir);
+
+	mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
+	error = dir->i_op->unlink(dir, dentry);
+	mutex_unlock(&dentry->d_inode->i_mutex);
+
+	if (!error)
+		d_delete(dentry);
+	return error;
+}
+
+static int xattr_rmdir(struct inode *dir, struct dentry *dentry)
+{
+	int error;
+	BUG_ON(!mutex_is_locked(&dir->i_mutex));
+	DQUOT_INIT(dir);
+
+	mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
+	dentry_unhash(dentry);
+	error = dir->i_op->rmdir(dir, dentry);
+	if (!error)
+		dentry->d_inode->i_flags |= S_DEAD;
+	mutex_unlock(&dentry->d_inode->i_mutex);
+	if (!error)
+		d_delete(dentry);
+	dput(dentry);
+
+	return error;
+}
+
+
+#define xattr_may_create(flags)	(!flags || flags & XATTR_CREATE)
+
+/* Returns and possibly creates the xattr dir. */
+static struct dentry *lookup_or_create_dir(struct dentry *parent,
+					    const char *name, int flags)
+{
+	struct dentry *dentry;
+	BUG_ON(!parent);
+
+	dentry = lookup_one_len(name, parent, strlen(name));
+	if (IS_ERR(dentry))
+		return dentry;
+	else if (!dentry->d_inode) {
+		int err = -ENODATA;
+
+		if (xattr_may_create(flags)) {
+			mutex_lock_nested(&parent->d_inode->i_mutex,
+					  I_MUTEX_XATTR);
+			err = xattr_mkdir(parent->d_inode, dentry, 0700);
+			mutex_unlock(&parent->d_inode->i_mutex);
+		}
+
+		if (err) {
+			dput(dentry);
+			dentry = ERR_PTR(err);
+		}
+	}
+
+	return dentry;
+}
+
+static struct dentry *open_xa_root(struct super_block *sb, int flags)
+{
+	struct dentry *privroot = REISERFS_SB(sb)->priv_root;
+	if (!privroot)
+		return ERR_PTR(-ENODATA);
+	return lookup_or_create_dir(privroot, XAROOT_NAME, flags);
+}
+
 static struct dentry *open_xa_dir(const struct inode *inode, int flags)
 {
 	struct dentry *xaroot, *xadir;
 	char namebuf[17];
 
-	xaroot = get_xa_root(inode->i_sb, flags);
+	xaroot = open_xa_root(inode->i_sb, flags);
 	if (IS_ERR(xaroot))
 		return xaroot;
 
-	/* ok, we have xaroot open */
 	snprintf(namebuf, sizeof(namebuf), "%X.%X",
 		 le32_to_cpu(INODE_PKEY(inode)->k_objectid),
 		 inode->i_generation);
-	xadir = lookup_one_len(namebuf, xaroot, strlen(namebuf));
-	if (IS_ERR(xadir)) {
-		dput(xaroot);
-		return xadir;
-	}
 
-	if (!xadir->d_inode) {
-		int err;
-		if (flags == 0 || flags & XATTR_CREATE) {
-			/* Although there is nothing else trying to create this directory,
-			 * another directory with the same hash may be created, so we need
-			 * to protect against that */
-			err =
-			    xaroot->d_inode->i_op->mkdir(xaroot->d_inode, xadir,
-							 0700);
-			if (err) {
-				dput(xaroot);
-				dput(xadir);
-				return ERR_PTR(err);
-			}
-		}
-		if (!xadir->d_inode) {
-			dput(xaroot);
-			dput(xadir);
-			return ERR_PTR(-ENODATA);
-		}
-	}
-
+	xadir = lookup_or_create_dir(xaroot, namebuf, flags);
 	dput(xaroot);
 	return xadir;
+
 }
 
 /*
@@ -302,13 +325,11 @@ static
 int xattr_readdir(struct inode *inode, filldir_t filler, void *buf)
 {
 	int res = -ENOENT;
-	mutex_lock_nested(&inode->i_mutex, I_MUTEX_XATTR);
 	if (!IS_DEADDIR(inode)) {
 		lock_kernel();
 		res = __xattr_readdir(inode, buf, filler);
 		unlock_kernel();
 	}
-	mutex_unlock(&inode->i_mutex);
 	return res;
 }
 
@@ -345,9 +366,7 @@ __reiserfs_xattr_del(struct dentry *xadir, const char *name, int namelen)
 		return -EIO;
 	}
 
-	err = dir->i_op->unlink(dir, dentry);
-	if (!err)
-		d_delete(dentry);
+	err = xattr_unlink(dir, dentry);
 
 out_file:
 	dput(dentry);
@@ -381,7 +400,7 @@ int reiserfs_delete_xattrs(struct inode *inode)
 		return 0;
 
 	reiserfs_read_lock_xattrs(inode->i_sb);
-	dir = open_xa_dir(inode, FL_READONLY);
+	dir = open_xa_dir(inode, XATTR_REPLACE);
 	reiserfs_read_unlock_xattrs(inode->i_sb);
 	if (IS_ERR(dir)) {
 		err = PTR_ERR(dir);
@@ -391,25 +410,25 @@ int reiserfs_delete_xattrs(struct inode *inode)
 		return 0;
 	}
 
-	lock_kernel();
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_XATTR);
 	err = xattr_readdir(dir->d_inode, reiserfs_delete_xattrs_filler, dir);
-	if (err) {
-		unlock_kernel();
+	mutex_unlock(&dir->d_inode->i_mutex);
+	if (err)
 		goto out_dir;
-	}
 
 	/* Leftovers besides . and .. -- that's not good. */
 	if (dir->d_inode->i_nlink <= 2) {
-		root = get_xa_root(inode->i_sb, XATTR_REPLACE);
+		root = open_xa_root(inode->i_sb, XATTR_REPLACE);
 		reiserfs_write_lock_xattrs(inode->i_sb);
-		err = vfs_rmdir(root->d_inode, dir);
+		mutex_lock_nested(&root->d_inode->i_mutex, I_MUTEX_XATTR);
+		err = xattr_rmdir(root->d_inode, dir);
+		mutex_unlock(&root->d_inode->i_mutex);
 		reiserfs_write_unlock_xattrs(inode->i_sb);
 		dput(root);
 	} else {
 		reiserfs_warning(inode->i_sb, "jdm-20006",
 				 "Couldn't remove all entries in directory");
 	}
-	unlock_kernel();
 
 out_dir:
 	dput(dir);
@@ -445,8 +464,11 @@ reiserfs_chown_xattrs_filler(void *buf, const char *name, int namelen,
 		return -ENODATA;
 	}
 
-	if (!S_ISDIR(xafile->d_inode->i_mode))
+	if (!S_ISDIR(xafile->d_inode->i_mode)) {
+		mutex_lock_nested(&xafile->d_inode->i_mutex, I_MUTEX_CHILD);
 		err = notify_change(xafile, attrs);
+		mutex_unlock(&xafile->d_inode->i_mutex);
+	}
 	dput(xafile);
 
 	return err;
@@ -464,38 +486,31 @@ int reiserfs_chown_xattrs(struct inode *inode, struct iattr *attrs)
 		return 0;
 
 	reiserfs_read_lock_xattrs(inode->i_sb);
-	dir = open_xa_dir(inode, FL_READONLY);
+	dir = open_xa_dir(inode, XATTR_REPLACE);
 	reiserfs_read_unlock_xattrs(inode->i_sb);
 	if (IS_ERR(dir)) {
 		if (PTR_ERR(dir) != -ENODATA)
 			err = PTR_ERR(dir);
 		goto out;
-	} else if (!dir->d_inode) {
-		dput(dir);
-		goto out;
-	}
-
-	lock_kernel();
+	} else if (!dir->d_inode)
+		goto out_dir;
 
 	attrs->ia_valid &= (ATTR_UID | ATTR_GID | ATTR_CTIME);
 	buf.xadir = dir;
 	buf.attrs = attrs;
 	buf.inode = inode;
 
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_XATTR);
 	err = xattr_readdir(dir->d_inode, reiserfs_chown_xattrs_filler, &buf);
-	if (err) {
-		unlock_kernel();
-		goto out_dir;
-	}
 
-	err = notify_change(dir, attrs);
-	unlock_kernel();
+	if (!err)
+		err = notify_change(dir, attrs);
+	mutex_unlock(&dir->d_inode->i_mutex);
 
+	attrs->ia_valid = ia_valid;
 out_dir:
 	dput(dir);
-
 out:
-	attrs->ia_valid = ia_valid;
 	return err;
 }
 
@@ -513,47 +528,35 @@ static struct dentry *get_xa_file_dentry(const struct inode *inode,
 	int err = 0;
 
 	xadir = open_xa_dir(inode, flags);
-	if (IS_ERR(xadir)) {
+	if (IS_ERR(xadir))
 		return ERR_CAST(xadir);
-	} else if (xadir && !xadir->d_inode) {
-		dput(xadir);
-		return ERR_PTR(-ENODATA);
-	}
 
 	xafile = lookup_one_len(name, xadir, strlen(name));
 	if (IS_ERR(xafile)) {
-		dput(xadir);
-		return ERR_CAST(xafile);
-	}
-
-	if (xafile->d_inode) {	/* file exists */
-		if (flags & XATTR_CREATE) {
-			err = -EEXIST;
-			dput(xafile);
-			goto out;
-		}
-	} else if (flags & XATTR_REPLACE || flags & FL_READONLY) {
+		err = PTR_ERR(xafile);
 		goto out;
-	} else {
-		/* inode->i_mutex is down, so nothing else can try to create
-		 * the same xattr */
-		err = xadir->d_inode->i_op->create(xadir->d_inode, xafile,
-						   0700 | S_IFREG, NULL);
+	}
 
-		if (err) {
-			dput(xafile);
-			goto out;
+	if (xafile->d_inode && (flags & XATTR_CREATE))
+		err = -EEXIST;
+
+	if (!xafile->d_inode) {
+		err = -ENODATA;
+		if (xattr_may_create(flags)) {
+			mutex_lock_nested(&xadir->d_inode->i_mutex,
+					  I_MUTEX_XATTR);
+			err = xattr_create(xadir->d_inode, xafile,
+					      0700|S_IFREG);
+			mutex_unlock(&xadir->d_inode->i_mutex);
 		}
 	}
 
+	if (err)
+		dput(xafile);
 out:
 	dput(xadir);
 	if (err)
-		xafile = ERR_PTR(err);
-	else if (!xafile->d_inode) {
-		dput(xafile);
-		xafile = ERR_PTR(-ENODATA);
-	}
+		return ERR_PTR(err);
 	return xafile;
 }
 
@@ -633,6 +636,7 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
 	mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_XATTR);
 	err = notify_change(dentry, &newattrs);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 	if (err)
 		goto out_filp;
 
@@ -692,7 +696,6 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	}
 
       out_filp:
-	mutex_unlock(&dentry->d_inode->i_mutex);
 	dput(dentry);
 
       out:
@@ -722,7 +725,7 @@ reiserfs_xattr_get(const struct inode *inode, const char *name, void *buffer,
 	if (get_inode_sd_version(inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
 
-	dentry = get_xa_file_dentry(inode, name, FL_READONLY);
+	dentry = get_xa_file_dentry(inode, name, XATTR_REPLACE);
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
 		goto out;
@@ -806,13 +809,15 @@ int reiserfs_xattr_del(struct inode *inode, const char *name)
 	struct dentry *dir;
 	int err;
 
-	dir = open_xa_dir(inode, FL_READONLY);
+	dir = open_xa_dir(inode, XATTR_REPLACE);
 	if (IS_ERR(dir)) {
 		err = PTR_ERR(dir);
 		goto out;
 	}
 
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_XATTR);
 	err = __reiserfs_xattr_del(dir, name, strlen(name));
+	mutex_unlock(&dir->d_inode->i_mutex);
 	dput(dir);
 
 	if (!err) {
@@ -826,6 +831,7 @@ int reiserfs_xattr_del(struct inode *inode, const char *name)
 
 /* Actual operations that are exported to VFS-land */
 
+static struct reiserfs_xattr_handler *find_xattr_handler_prefix(const char *);
 /*
  * Inode operation getxattr()
  * Preliminary locking: we down dentry->d_inode->i_mutex
@@ -978,7 +984,7 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 
 	reiserfs_read_lock_xattr_i(dentry->d_inode);
 	reiserfs_read_lock_xattrs(dentry->d_sb);
-	dir = open_xa_dir(dentry->d_inode, FL_READONLY);
+	dir = open_xa_dir(dentry->d_inode, XATTR_REPLACE);
 	reiserfs_read_unlock_xattrs(dentry->d_sb);
 	if (IS_ERR(dir)) {
 		err = PTR_ERR(dir);
@@ -994,7 +1000,9 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 
 	REISERFS_I(dentry->d_inode)->i_flags |= i_has_xattr_dir;
 
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_XATTR);
 	err = xattr_readdir(dir->d_inode, reiserfs_listxattr_filler, &buf);
+	mutex_unlock(&dir->d_inode->i_mutex);
 	if (err)
 		goto out_dir;
 
@@ -1146,7 +1154,7 @@ static int create_privroot(struct dentry *dentry)
 	int err;
 	struct inode *inode = dentry->d_parent->d_inode;
 	mutex_lock_nested(&inode->i_mutex, I_MUTEX_XATTR);
-	err = inode->i_op->mkdir(inode, dentry, 0700);
+	err = xattr_mkdir(inode, dentry, 0700);
 	mutex_unlock(&inode->i_mutex);
 	if (err) {
 		dput(dentry);
