@@ -101,11 +101,10 @@ static int uart_mxc_port0_init(struct platform_device *pdev)
 			ARRAY_SIZE(mxc_uart0_pins), "UART0");
 }
 
-static int uart_mxc_port0_exit(struct platform_device *pdev)
+static void uart_mxc_port0_exit(struct platform_device *pdev)
 {
 	mxc_gpio_release_multiple_pins(mxc_uart0_pins,
 			ARRAY_SIZE(mxc_uart0_pins));
-	return 0;
 }
 
 static int mxc_uart1_pins[] = {
@@ -121,11 +120,10 @@ static int uart_mxc_port1_init(struct platform_device *pdev)
 			ARRAY_SIZE(mxc_uart1_pins), "UART1");
 }
 
-static int uart_mxc_port1_exit(struct platform_device *pdev)
+static void uart_mxc_port1_exit(struct platform_device *pdev)
 {
 	mxc_gpio_release_multiple_pins(mxc_uart1_pins,
 			ARRAY_SIZE(mxc_uart1_pins));
-	return 0;
 }
 
 static int mxc_uart2_pins[] = { PE8_PF_UART3_TXD,
@@ -139,11 +137,10 @@ static int uart_mxc_port2_init(struct platform_device *pdev)
 			ARRAY_SIZE(mxc_uart2_pins), "UART2");
 }
 
-static int uart_mxc_port2_exit(struct platform_device *pdev)
+static void uart_mxc_port2_exit(struct platform_device *pdev)
 {
 	mxc_gpio_release_multiple_pins(mxc_uart2_pins,
 			ARRAY_SIZE(mxc_uart2_pins));
-	return 0;
 }
 
 static struct imxuart_platform_data uart_pdata[] = {

@@ -23,7 +23,7 @@
 
 struct imxuart_platform_data {
 	int (*init)(struct platform_device *pdev);
-	int (*exit)(struct platform_device *pdev);
+	void (*exit)(struct platform_device *pdev);
 	unsigned int flags;
 };
 

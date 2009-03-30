@@ -105,11 +105,9 @@ static int pcm038_fb_init(struct platform_device *pdev)
 			ARRAY_SIZE(mxc_fb_pins), "FB");
 }
 
-static int pcm038_fb_exit(struct platform_device *pdev)
+static void pcm038_fb_exit(struct platform_device *pdev)
 {
 	mxc_gpio_release_multiple_pins(mxc_fb_pins, ARRAY_SIZE(mxc_fb_pins));
-
-	return 0;
 }
 
 /*
