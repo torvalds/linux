@@ -18,8 +18,7 @@
 static void check_objectid_map(struct super_block *s, __le32 * map)
 {
 	if (le32_to_cpu(map[0]) != 1)
-		reiserfs_panic(s,
-			       "vs-15010: check_objectid_map: map corrupted: %lx",
+		reiserfs_panic(s, "vs-15010", "map corrupted: %lx",
 			       (long unsigned int)le32_to_cpu(map[0]));
 
 	// FIXME: add something else here

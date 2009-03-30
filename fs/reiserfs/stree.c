@@ -366,9 +366,8 @@ inline void decrement_bcount(struct buffer_head *p_s_bh)
 			put_bh(p_s_bh);
 			return;
 		}
-		reiserfs_panic(NULL,
-			       "PAP-5070: decrement_bcount: trying to free free buffer %b",
-			       p_s_bh);
+		reiserfs_panic(NULL, "PAP-5070",
+			       "trying to free free buffer %b", p_s_bh);
 	}
 }
 
@@ -713,8 +712,8 @@ int search_by_key(struct super_block *p_s_sb, const struct cpu_key *p_s_key,	/* 
 #ifdef CONFIG_REISERFS_CHECK
 		if (cur_tb) {
 			print_cur_tb("5140");
-			reiserfs_panic(p_s_sb,
-				       "PAP-5140: search_by_key: schedule occurred in do_balance!");
+			reiserfs_panic(p_s_sb, "PAP-5140",
+				       "schedule occurred in do_balance!");
 		}
 #endif
 
@@ -1511,8 +1510,8 @@ static void indirect_to_direct_roll_back(struct reiserfs_transaction_handle *th,
 		/* look for the last byte of the tail */
 		if (search_for_position_by_key(inode->i_sb, &tail_key, path) ==
 		    POSITION_NOT_FOUND)
-			reiserfs_panic(inode->i_sb,
-				       "vs-5615: indirect_to_direct_roll_back: found invalid item");
+			reiserfs_panic(inode->i_sb, "vs-5615",
+				       "found invalid item");
 		RFALSE(path->pos_in_item !=
 		       ih_item_len(PATH_PITEM_HEAD(path)) - 1,
 		       "vs-5616: appended bytes found");
@@ -1612,8 +1611,8 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 				print_block(PATH_PLAST_BUFFER(p_s_path), 3,
 					    PATH_LAST_POSITION(p_s_path) - 1,
 					    PATH_LAST_POSITION(p_s_path) + 1);
-				reiserfs_panic(p_s_sb,
-					       "PAP-5580: reiserfs_cut_from_item: item to convert does not exist (%K)",
+				reiserfs_panic(p_s_sb, "PAP-5580", "item to "
+					       "convert does not exist (%K)",
 					       p_s_item_key);
 			}
 			continue;
@@ -1693,22 +1692,20 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 		   sure, that we exactly remove last unformatted node pointer
 		   of the item */
 		if (!is_indirect_le_ih(le_ih))
-			reiserfs_panic(p_s_sb,
-				       "vs-5652: reiserfs_cut_from_item: "
+			reiserfs_panic(p_s_sb, "vs-5652",
 				       "item must be indirect %h", le_ih);
 
 		if (c_mode == M_DELETE && ih_item_len(le_ih) != UNFM_P_SIZE)
-			reiserfs_panic(p_s_sb,
-				       "vs-5653: reiserfs_cut_from_item: "
-				       "completing indirect2direct conversion indirect item %h "
-				       "being deleted must be of 4 byte long",
-				       le_ih);
+			reiserfs_panic(p_s_sb, "vs-5653", "completing "
+				       "indirect2direct conversion indirect "
+				       "item %h being deleted must be of "
+				       "4 byte long", le_ih);
 
 		if (c_mode == M_CUT
 		    && s_cut_balance.insert_size[0] != -UNFM_P_SIZE) {
-			reiserfs_panic(p_s_sb,
-				       "vs-5654: reiserfs_cut_from_item: "
-				       "can not complete indirect2direct conversion of %h (CUT, insert_size==%d)",
+			reiserfs_panic(p_s_sb, "vs-5654", "can not complete "
+				       "indirect2direct conversion of %h "
+				       "(CUT, insert_size==%d)",
 				       le_ih, s_cut_balance.insert_size[0]);
 		}
 		/* it would be useful to make sure, that right neighboring
@@ -1923,10 +1920,10 @@ static void check_research_for_paste(struct treepath *path,
 		    || op_bytes_number(found_ih,
 				       get_last_bh(path)->b_size) !=
 		    pos_in_item(path))
-			reiserfs_panic(NULL,
-				       "PAP-5720: check_research_for_paste: "
-				       "found direct item %h or position (%d) does not match to key %K",
-				       found_ih, pos_in_item(path), p_s_key);
+			reiserfs_panic(NULL, "PAP-5720", "found direct item "
+				       "%h or position (%d) does not match "
+				       "to key %K", found_ih,
+				       pos_in_item(path), p_s_key);
 	}
 	if (is_indirect_le_ih(found_ih)) {
 		if (le_ih_k_offset(found_ih) +
@@ -1935,9 +1932,9 @@ static void check_research_for_paste(struct treepath *path,
 		    cpu_key_k_offset(p_s_key)
 		    || I_UNFM_NUM(found_ih) != pos_in_item(path)
 		    || get_ih_free_space(found_ih) != 0)
-			reiserfs_panic(NULL,
-				       "PAP-5730: check_research_for_paste: "
-				       "found indirect item (%h) or position (%d) does not match to key (%K)",
+			reiserfs_panic(NULL, "PAP-5730", "found indirect "
+				       "item (%h) or position (%d) does not "
+				       "match to key (%K)",
 				       found_ih, pos_in_item(path), p_s_key);
 	}
 }

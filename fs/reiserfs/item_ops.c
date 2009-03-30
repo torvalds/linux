@@ -517,8 +517,9 @@ static int direntry_create_vi(struct virtual_node *vn,
 		    ((is_affected
 		      && (vn->vn_mode == M_PASTE
 			  || vn->vn_mode == M_CUT)) ? insert_size : 0)) {
-			reiserfs_panic(NULL,
-				       "vs-8025: set_entry_sizes: (mode==%c, insert_size==%d), invalid length of directory item",
+			reiserfs_panic(NULL, "vs-8025", "(mode==%c, "
+				       "insert_size==%d), invalid length of "
+				       "directory item",
 				       vn->vn_mode, insert_size);
 		}
 	}
@@ -549,7 +550,8 @@ static int direntry_check_left(struct virtual_item *vi, int free,
 	}
 
 	if (entries == dir_u->entry_count) {
-		reiserfs_panic(NULL, "free space %d, entry_count %d\n", free,
+		reiserfs_panic(NULL, "item_ops-1",
+			       "free space %d, entry_count %d", free,
 			       dir_u->entry_count);
 	}
 

@@ -86,11 +86,14 @@ void __reiserfs_warning(struct super_block *s, const char *id,
 /* assertions handling */
 
 /** always check a condition and panic if it's false. */
-#define __RASSERT( cond, scond, format, args... )					\
-if( !( cond ) ) 								\
-  reiserfs_panic( NULL, "reiserfs[%i]: assertion " scond " failed at "	\
-		  __FILE__ ":%i:%s: " format "\n",		\
-		  in_interrupt() ? -1 : task_pid_nr(current), __LINE__ , __func__ , ##args )
+#define __RASSERT(cond, scond, format, args...)			\
+do {									\
+	if (!(cond))							\
+		reiserfs_panic(NULL, "assertion failure", "(" #cond ") at " \
+			       __FILE__ ":%i:%s: " format "\n",		\
+			       in_interrupt() ? -1 : task_pid_nr(current), \
+			       __LINE__, __func__ , ##args);		\
+} while (0)
 
 #define RASSERT(cond, format, args...) __RASSERT(cond, #cond, format, ##args)
 
@@ -1448,6 +1451,16 @@ struct buffer_info {
 	int bi_position;
 };
 
+static inline struct super_block *sb_from_tb(struct tree_balance *tb)
+{
+	return tb ? tb->tb_sb : NULL;
+}
+
+static inline struct super_block *sb_from_bi(struct buffer_info *bi)
+{
+	return bi ? sb_from_tb(bi->tb) : NULL;
+}
+
 /* there are 4 types of items: stat data, directory item, indirect, direct.
 +-------------------+------------+--------------+------------+
 |	            |  k_offset  | k_uniqueness | mergeable? |
@@ -1988,8 +2001,11 @@ int fix_nodes(int n_op_mode, struct tree_balance *p_s_tb,
 void unfix_nodes(struct tree_balance *);
 
 /* prints.c */
-void reiserfs_panic(struct super_block *s, const char *fmt, ...)
+void __reiserfs_panic(struct super_block *s, const char *id,
+		      const char *function, const char *fmt, ...)
     __attribute__ ((noreturn));
+#define reiserfs_panic(s, id, fmt, args...) \
+	__reiserfs_panic(s, id, __func__, fmt, ##args)
 void reiserfs_info(struct super_block *s, const char *fmt, ...);
 void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...);
 void print_indirect_item(struct buffer_head *bh, int item_num);

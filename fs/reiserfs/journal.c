@@ -436,8 +436,8 @@ void reiserfs_check_lock_depth(struct super_block *sb, char *caller)
 {
 #ifdef CONFIG_SMP
 	if (current->lock_depth < 0) {
-		reiserfs_panic(sb, "%s called without kernel lock held",
-			       caller);
+		reiserfs_panic(sb, "journal-1", "%s called without kernel "
+			       "lock held", caller);
 	}
 #else
 	;
@@ -574,7 +574,7 @@ static inline void put_journal_list(struct super_block *s,
 				    struct reiserfs_journal_list *jl)
 {
 	if (jl->j_refcount < 1) {
-		reiserfs_panic(s, "trans id %u, refcount at %d",
+		reiserfs_panic(s, "journal-2", "trans id %u, refcount at %d",
 			       jl->j_trans_id, jl->j_refcount);
 	}
 	if (--jl->j_refcount == 0)
@@ -1416,8 +1416,7 @@ static int flush_journal_list(struct super_block *s,
 
 	count = 0;
 	if (j_len_saved > journal->j_trans_max) {
-		reiserfs_panic(s,
-			       "journal-715: flush_journal_list, length is %lu, trans id %lu\n",
+		reiserfs_panic(s, "journal-715", "length is %lu, trans id %lu",
 			       j_len_saved, jl->j_trans_id);
 		return 0;
 	}
@@ -1449,8 +1448,8 @@ static int flush_journal_list(struct super_block *s,
 	 ** or wait on a more recent transaction, or just ignore it 
 	 */
 	if (atomic_read(&(journal->j_wcount)) != 0) {
-		reiserfs_panic(s,
-			       "journal-844: panic journal list is flushing, wcount is not 0\n");
+		reiserfs_panic(s, "journal-844", "journal list is flushing, "
+			       "wcount is not 0");
 	}
 	cn = jl->j_realblock;
 	while (cn) {
@@ -1551,13 +1550,13 @@ static int flush_journal_list(struct super_block *s,
 		while (cn) {
 			if (test_bit(BLOCK_NEEDS_FLUSH, &cn->state)) {
 				if (!cn->bh) {
-					reiserfs_panic(s,
-						       "journal-1011: cn->bh is NULL\n");
+					reiserfs_panic(s, "journal-1011",
+						       "cn->bh is NULL");
 				}
 				wait_on_buffer(cn->bh);
 				if (!cn->bh) {
-					reiserfs_panic(s,
-						       "journal-1012: cn->bh is NULL\n");
+					reiserfs_panic(s, "journal-1012",
+						       "cn->bh is NULL");
 				}
 				if (unlikely(!buffer_uptodate(cn->bh))) {
 #ifdef CONFIG_REISERFS_CHECK
@@ -3255,8 +3254,8 @@ int journal_mark_dirty(struct reiserfs_transaction_handle *th,
 
 	PROC_INFO_INC(p_s_sb, journal.mark_dirty);
 	if (th->t_trans_id != journal->j_trans_id) {
-		reiserfs_panic(th->t_super,
-			       "journal-1577: handle trans id %ld != current trans id %ld\n",
+		reiserfs_panic(th->t_super, "journal-1577",
+			       "handle trans id %ld != current trans id %ld",
 			       th->t_trans_id, journal->j_trans_id);
 	}
 
@@ -3295,8 +3294,8 @@ int journal_mark_dirty(struct reiserfs_transaction_handle *th,
 	 ** Nothing can be done here, except make the FS readonly or panic.
 	 */
 	if (journal->j_len >= journal->j_trans_max) {
-		reiserfs_panic(th->t_super,
-			       "journal-1413: journal_mark_dirty: j_len (%lu) is too big\n",
+		reiserfs_panic(th->t_super, "journal-1413",
+			       "j_len (%lu) is too big",
 			       journal->j_len);
 	}
 
@@ -3316,7 +3315,8 @@ int journal_mark_dirty(struct reiserfs_transaction_handle *th,
 	if (!cn) {
 		cn = get_cnode(p_s_sb);
 		if (!cn) {
-			reiserfs_panic(p_s_sb, "get_cnode failed!\n");
+			reiserfs_panic(p_s_sb, "journal-4",
+				       "get_cnode failed!");
 		}
 
 		if (th->t_blocks_logged == th->t_blocks_allocated) {
@@ -3584,8 +3584,8 @@ static int check_journal_end(struct reiserfs_transaction_handle *th,
 	BUG_ON(!th->t_trans_id);
 
 	if (th->t_trans_id != journal->j_trans_id) {
-		reiserfs_panic(th->t_super,
-			       "journal-1577: handle trans id %ld != current trans id %ld\n",
+		reiserfs_panic(th->t_super, "journal-1577",
+			       "handle trans id %ld != current trans id %ld",
 			       th->t_trans_id, journal->j_trans_id);
 	}
 
@@ -3664,8 +3664,8 @@ static int check_journal_end(struct reiserfs_transaction_handle *th,
 	}
 
 	if (journal->j_start > SB_ONDISK_JOURNAL_SIZE(p_s_sb)) {
-		reiserfs_panic(p_s_sb,
-			       "journal-003: journal_end: j_start (%ld) is too high\n",
+		reiserfs_panic(p_s_sb, "journal-003",
+			       "j_start (%ld) is too high",
 			       journal->j_start);
 	}
 	return 1;
@@ -3710,8 +3710,8 @@ int journal_mark_freed(struct reiserfs_transaction_handle *th,
 		/* set the bit for this block in the journal bitmap for this transaction */
 		jb = journal->j_current_jl->j_list_bitmap;
 		if (!jb) {
-			reiserfs_panic(p_s_sb,
-				       "journal-1702: journal_mark_freed, journal_list_bitmap is NULL\n");
+			reiserfs_panic(p_s_sb, "journal-1702",
+				       "journal_list_bitmap is NULL");
 		}
 		set_bit_in_list_bitmap(p_s_sb, blocknr, jb);
 
@@ -4066,8 +4066,8 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 		if (buffer_journaled(cn->bh)) {
 			jl_cn = get_cnode(p_s_sb);
 			if (!jl_cn) {
-				reiserfs_panic(p_s_sb,
-					       "journal-1676, get_cnode returned NULL\n");
+				reiserfs_panic(p_s_sb, "journal-1676",
+					       "get_cnode returned NULL");
 			}
 			if (i == 0) {
 				jl->j_realblock = jl_cn;
@@ -4083,8 +4083,9 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 
 			if (is_block_in_log_or_reserved_area
 			    (p_s_sb, cn->bh->b_blocknr)) {
-				reiserfs_panic(p_s_sb,
-					       "journal-2332: Trying to log block %lu, which is a log block\n",
+				reiserfs_panic(p_s_sb, "journal-2332",
+					       "Trying to log block %lu, "
+					       "which is a log block",
 					       cn->bh->b_blocknr);
 			}
 			jl_cn->blocknr = cn->bh->b_blocknr;
@@ -4268,8 +4269,8 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 	    get_list_bitmap(p_s_sb, journal->j_current_jl);
 
 	if (!(journal->j_current_jl->j_list_bitmap)) {
-		reiserfs_panic(p_s_sb,
-			       "journal-1996: do_journal_end, could not get a list bitmap\n");
+		reiserfs_panic(p_s_sb, "journal-1996",
+			       "could not get a list bitmap");
 	}
 
 	atomic_set(&(journal->j_jlock), 0);

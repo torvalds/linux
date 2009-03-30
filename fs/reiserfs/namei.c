@@ -145,10 +145,9 @@ int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 	if (!is_direntry_le_ih(de->de_ih) ||
 	    COMP_SHORT_KEYS(&(de->de_ih->ih_key), key)) {
 		print_block(de->de_bh, 0, -1, -1);
-		reiserfs_panic(sb,
-			       "vs-7005: search_by_entry_key: found item %h is not directory item or "
-			       "does not belong to the same directory as key %K",
-			       de->de_ih, key);
+		reiserfs_panic(sb, "vs-7005", "found item %h is not directory "
+			       "item or does not belong to the same directory "
+			       "as key %K", de->de_ih, key);
 	}
 #endif				/* CONFIG_REISERFS_CHECK */
 
@@ -1193,15 +1192,14 @@ static int entry_points_to_object(const char *name, int len,
 
 	if (inode) {
 		if (!de_visible(de->de_deh + de->de_entry_num))
-			reiserfs_panic(NULL,
-				       "vs-7042: entry_points_to_object: entry must be visible");
+			reiserfs_panic(inode->i_sb, "vs-7042",
+				       "entry must be visible");
 		return (de->de_objectid == inode->i_ino) ? 1 : 0;
 	}
 
 	/* this must be added hidden entry */
 	if (de_visible(de->de_deh + de->de_entry_num))
-		reiserfs_panic(NULL,
-			       "vs-7043: entry_points_to_object: entry must be visible");
+		reiserfs_panic(NULL, "vs-7043", "entry must be visible");
 
 	return 1;
 }
@@ -1315,8 +1313,8 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			       new_dentry->d_name.len, old_inode, 0);
 	if (retval == -EEXIST) {
 		if (!new_dentry_inode) {
-			reiserfs_panic(old_dir->i_sb,
-				       "vs-7050: new entry is found, new inode == 0\n");
+			reiserfs_panic(old_dir->i_sb, "vs-7050",
+				       "new entry is found, new inode == 0");
 		}
 	} else if (retval) {
 		int err = journal_end(&th, old_dir->i_sb, jbegin_count);

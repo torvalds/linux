@@ -135,8 +135,7 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 		vn->vn_free_ptr +=
 		    op_create_vi(vn, vi, is_affected, tb->insert_size[0]);
 		if (tb->vn_buf + tb->vn_buf_size < vn->vn_free_ptr)
-			reiserfs_panic(tb->tb_sb,
-				       "vs-8030: create_virtual_node: "
+			reiserfs_panic(tb->tb_sb, "vs-8030",
 				       "virtual node space consumed");
 
 		if (!is_affected)
@@ -186,8 +185,9 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 			     && I_ENTRY_COUNT(B_N_PITEM_HEAD(Sh, 0)) == 1)) {
 				/* node contains more than 1 item, or item is not directory item, or this item contains more than 1 entry */
 				print_block(Sh, 0, -1, -1);
-				reiserfs_panic(tb->tb_sb,
-					       "vs-8045: create_virtual_node: rdkey %k, affected item==%d (mode==%c) Must be %c",
+				reiserfs_panic(tb->tb_sb, "vs-8045",
+					       "rdkey %k, affected item==%d "
+					       "(mode==%c) Must be %c",
 					       key, vn->vn_affected_item_num,
 					       vn->vn_mode, M_DELETE);
 			}
@@ -1255,8 +1255,8 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 	/* Calculate balance parameters for creating new root. */
 	if (!Sh) {
 		if (!h)
-			reiserfs_panic(tb->tb_sb,
-				       "vs-8210: ip_check_balance: S[0] can not be 0");
+			reiserfs_panic(tb->tb_sb, "vs-8210",
+				       "S[0] can not be 0");
 		switch (n_ret_value = get_empty_nodes(tb, h)) {
 		case CARRY_ON:
 			set_parameters(tb, h, 0, 0, 1, NULL, -1, -1);
@@ -1266,8 +1266,8 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 		case REPEAT_SEARCH:
 			return n_ret_value;
 		default:
-			reiserfs_panic(tb->tb_sb,
-				       "vs-8215: ip_check_balance: incorrect return value of get_empty_nodes");
+			reiserfs_panic(tb->tb_sb, "vs-8215", "incorrect "
+				       "return value of get_empty_nodes");
 		}
 	}
 
@@ -2095,38 +2095,38 @@ static void tb_buffer_sanity_check(struct super_block *p_s_sb,
 	if (p_s_bh) {
 		if (atomic_read(&(p_s_bh->b_count)) <= 0) {
 
-			reiserfs_panic(p_s_sb,
-				       "jmacd-1: tb_buffer_sanity_check(): negative or zero reference counter for buffer %s[%d] (%b)\n",
-				       descr, level, p_s_bh);
+			reiserfs_panic(p_s_sb, "jmacd-1", "negative or zero "
+				       "reference counter for buffer %s[%d] "
+				       "(%b)", descr, level, p_s_bh);
 		}
 
 		if (!buffer_uptodate(p_s_bh)) {
-			reiserfs_panic(p_s_sb,
-				       "jmacd-2: tb_buffer_sanity_check(): buffer is not up to date %s[%d] (%b)\n",
+			reiserfs_panic(p_s_sb, "jmacd-2", "buffer is not up "
+				       "to date %s[%d] (%b)",
 				       descr, level, p_s_bh);
 		}
 
 		if (!B_IS_IN_TREE(p_s_bh)) {
-			reiserfs_panic(p_s_sb,
-				       "jmacd-3: tb_buffer_sanity_check(): buffer is not in tree %s[%d] (%b)\n",
+			reiserfs_panic(p_s_sb, "jmacd-3", "buffer is not "
+				       "in tree %s[%d] (%b)",
 				       descr, level, p_s_bh);
 		}
 
 		if (p_s_bh->b_bdev != p_s_sb->s_bdev) {
-			reiserfs_panic(p_s_sb,
-				       "jmacd-4: tb_buffer_sanity_check(): buffer has wrong device %s[%d] (%b)\n",
+			reiserfs_panic(p_s_sb, "jmacd-4", "buffer has wrong "
+				       "device %s[%d] (%b)",
 				       descr, level, p_s_bh);
 		}
 
 		if (p_s_bh->b_size != p_s_sb->s_blocksize) {
-			reiserfs_panic(p_s_sb,
-				       "jmacd-5: tb_buffer_sanity_check(): buffer has wrong blocksize %s[%d] (%b)\n",
+			reiserfs_panic(p_s_sb, "jmacd-5", "buffer has wrong "
+				       "blocksize %s[%d] (%b)",
 				       descr, level, p_s_bh);
 		}
 
 		if (p_s_bh->b_blocknr > SB_BLOCK_COUNT(p_s_sb)) {
-			reiserfs_panic(p_s_sb,
-				       "jmacd-6: tb_buffer_sanity_check(): buffer block number too high %s[%d] (%b)\n",
+			reiserfs_panic(p_s_sb, "jmacd-6", "buffer block "
+				       "number too high %s[%d] (%b)",
 				       descr, level, p_s_bh);
 		}
 	}
@@ -2358,14 +2358,14 @@ int fix_nodes(int n_op_mode, struct tree_balance *p_s_tb, struct item_head *p_s_
 #ifdef CONFIG_REISERFS_CHECK
 	if (cur_tb) {
 		print_cur_tb("fix_nodes");
-		reiserfs_panic(p_s_tb->tb_sb,
-			       "PAP-8305: fix_nodes:  there is pending do_balance");
+		reiserfs_panic(p_s_tb->tb_sb, "PAP-8305",
+			       "there is pending do_balance");
 	}
 
 	if (!buffer_uptodate(p_s_tbS0) || !B_IS_IN_TREE(p_s_tbS0)) {
-		reiserfs_panic(p_s_tb->tb_sb,
-			       "PAP-8320: fix_nodes: S[0] (%b %z) is not uptodate "
-			       "at the beginning of fix_nodes or not in tree (mode %c)",
+		reiserfs_panic(p_s_tb->tb_sb, "PAP-8320", "S[0] (%b %z) is "
+			       "not uptodate at the beginning of fix_nodes "
+			       "or not in tree (mode %c)",
 			       p_s_tbS0, p_s_tbS0, n_op_mode);
 	}
 
@@ -2373,24 +2373,26 @@ int fix_nodes(int n_op_mode, struct tree_balance *p_s_tb, struct item_head *p_s_
 	switch (n_op_mode) {
 	case M_INSERT:
 		if (n_item_num <= 0 || n_item_num > B_NR_ITEMS(p_s_tbS0))
-			reiserfs_panic(p_s_tb->tb_sb,
-				       "PAP-8330: fix_nodes: Incorrect item number %d (in S0 - %d) in case of insert",
-				       n_item_num, B_NR_ITEMS(p_s_tbS0));
+			reiserfs_panic(p_s_tb->tb_sb, "PAP-8330", "Incorrect "
+				       "item number %d (in S0 - %d) in case "
+				       "of insert", n_item_num,
+				       B_NR_ITEMS(p_s_tbS0));
 		break;
 	case M_PASTE:
 	case M_DELETE:
 	case M_CUT:
 		if (n_item_num < 0 || n_item_num >= B_NR_ITEMS(p_s_tbS0)) {
 			print_block(p_s_tbS0, 0, -1, -1);
-			reiserfs_panic(p_s_tb->tb_sb,
-				       "PAP-8335: fix_nodes: Incorrect item number(%d); mode = %c insert_size = %d\n",
+			reiserfs_panic(p_s_tb->tb_sb, "PAP-8335", "Incorrect "
+				       "item number(%d); mode = %c "
+				       "insert_size = %d",
 				       n_item_num, n_op_mode,
 				       p_s_tb->insert_size[0]);
 		}
 		break;
 	default:
-		reiserfs_panic(p_s_tb->tb_sb,
-			       "PAP-8340: fix_nodes: Incorrect mode of operation");
+		reiserfs_panic(p_s_tb->tb_sb, "PAP-8340", "Incorrect mode "
+			       "of operation");
 	}
 #endif
 

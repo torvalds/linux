@@ -168,10 +168,11 @@ static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
 			if (bytes_or_entries == ih_item_len(ih)
 			    && is_indirect_le_ih(ih))
 				if (get_ih_free_space(ih))
-					reiserfs_panic(NULL,
-						       "vs-10020: leaf_copy_boundary_item: "
-						       "last unformatted node must be filled entirely (%h)",
-						       ih);
+					reiserfs_panic(sb_from_bi(dest_bi),
+						       "vs-10020",
+						       "last unformatted node "
+						       "must be filled "
+						       "entirely (%h)", ih);
 		}
 #endif
 
@@ -622,9 +623,8 @@ static void leaf_define_dest_src_infos(int shift_mode, struct tree_balance *tb,
 		break;
 
 	default:
-		reiserfs_panic(NULL,
-			       "vs-10250: leaf_define_dest_src_infos: shift type is unknown (%d)",
-			       shift_mode);
+		reiserfs_panic(sb_from_bi(src_bi), "vs-10250",
+			       "shift type is unknown (%d)", shift_mode);
 	}
 	RFALSE(!src_bi->bi_bh || !dest_bi->bi_bh,
 	       "vs-10260: mode==%d, source (%p) or dest (%p) buffer is initialized incorrectly",
@@ -674,9 +674,9 @@ int leaf_shift_left(struct tree_balance *tb, int shift_num, int shift_bytes)
 #ifdef CONFIG_REISERFS_CHECK
 			if (tb->tb_mode == M_PASTE || tb->tb_mode == M_INSERT) {
 				print_cur_tb("vs-10275");
-				reiserfs_panic(tb->tb_sb,
-					       "vs-10275: leaf_shift_left: balance condition corrupted (%c)",
-					       tb->tb_mode);
+				reiserfs_panic(tb->tb_sb, "vs-10275",
+					       "balance condition corrupted "
+					       "(%c)", tb->tb_mode);
 			}
 #endif
 
@@ -889,9 +889,12 @@ void leaf_paste_in_buffer(struct buffer_info *bi, int affected_item_num,
 
 #ifdef CONFIG_REISERFS_CHECK
 	if (zeros_number > paste_size) {
+		struct super_block *sb = NULL;
+		if (bi && bi->tb)
+			sb = bi->tb->tb_sb;
 		print_cur_tb("10177");
-		reiserfs_panic(NULL,
-			       "vs-10177: leaf_paste_in_buffer: ero number == %d, paste_size == %d",
+		reiserfs_panic(sb, "vs-10177",
+			       "zeros_number == %d, paste_size == %d",
 			       zeros_number, paste_size);
 	}
 #endif				/* CONFIG_REISERFS_CHECK */

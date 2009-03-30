@@ -1300,8 +1300,7 @@ static void update_stat_data(struct treepath *path, struct inode *inode,
 	ih = PATH_PITEM_HEAD(path);
 
 	if (!is_statdata_le_ih(ih))
-		reiserfs_panic(inode->i_sb,
-			       "vs-13065: update_stat_data: key %k, found item %h",
+		reiserfs_panic(inode->i_sb, "vs-13065", "key %k, found item %h",
 			       INODE_PKEY(inode), ih);
 
 	if (stat_data_v1(ih)) {

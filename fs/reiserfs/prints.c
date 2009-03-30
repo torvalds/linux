@@ -353,14 +353,21 @@ void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...)
 extern struct tree_balance *cur_tb;
 #endif
 
-void reiserfs_panic(struct super_block *sb, const char *fmt, ...)
+void __reiserfs_panic(struct super_block *sb, const char *id,
+		      const char *function, const char *fmt, ...)
 {
 	do_reiserfs_warning(fmt);
 
+#ifdef CONFIG_REISERFS_CHECK
 	dump_stack();
-
-	panic(KERN_EMERG "REISERFS: panic (device %s): %s\n",
-	       reiserfs_bdevname(sb), error_buf);
+#endif
+	if (sb)
+		panic(KERN_WARNING "REISERFS panic (device %s): %s%s%s: %s\n",
+		      sb->s_id, id ? id : "", id ? " " : "",
+		      function, error_buf);
+	else
+		panic(KERN_WARNING "REISERFS panic: %s%s%s: %s\n",
+		      id ? id : "", id ? " " : "", function, error_buf);
 }
 
 void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...)
@@ -681,12 +688,10 @@ static void check_leaf_block_head(struct buffer_head *bh)
 	blkh = B_BLK_HEAD(bh);
 	nr = blkh_nr_item(blkh);
 	if (nr > (bh->b_size - BLKH_SIZE) / IH_SIZE)
-		reiserfs_panic(NULL,
-			       "vs-6010: check_leaf_block_head: invalid item number %z",
+		reiserfs_panic(NULL, "vs-6010", "invalid item number %z",
 			       bh);
 	if (blkh_free_space(blkh) > bh->b_size - BLKH_SIZE - IH_SIZE * nr)
-		reiserfs_panic(NULL,
-			       "vs-6020: check_leaf_block_head: invalid free space %z",
+		reiserfs_panic(NULL, "vs-6020", "invalid free space %z",
 			       bh);
 
 }
@@ -697,21 +702,15 @@ static void check_internal_block_head(struct buffer_head *bh)
 
 	blkh = B_BLK_HEAD(bh);
 	if (!(B_LEVEL(bh) > DISK_LEAF_NODE_LEVEL && B_LEVEL(bh) <= MAX_HEIGHT))
-		reiserfs_panic(NULL,
-			       "vs-6025: check_internal_block_head: invalid level %z",
-			       bh);
+		reiserfs_panic(NULL, "vs-6025", "invalid level %z", bh);
 
 	if (B_NR_ITEMS(bh) > (bh->b_size - BLKH_SIZE) / IH_SIZE)
-		reiserfs_panic(NULL,
-			       "vs-6030: check_internal_block_head: invalid item number %z",
-			       bh);
+		reiserfs_panic(NULL, "vs-6030", "invalid item number %z", bh);
 
 	if (B_FREE_SPACE(bh) !=
 	    bh->b_size - BLKH_SIZE - KEY_SIZE * B_NR_ITEMS(bh) -
 	    DC_SIZE * (B_NR_ITEMS(bh) + 1))
-		reiserfs_panic(NULL,
-			       "vs-6040: check_internal_block_head: invalid free space %z",
-			       bh);
+		reiserfs_panic(NULL, "vs-6040", "invalid free space %z", bh);
 
 }
 

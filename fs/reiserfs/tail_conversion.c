@@ -92,8 +92,7 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 		   last item of the file */
 		if (search_for_position_by_key(sb, &end_key, path) ==
 		    POSITION_FOUND)
-			reiserfs_panic(sb,
-				       "PAP-14050: direct2indirect: "
+			reiserfs_panic(sb, "PAP-14050",
 				       "direct item (%K) not found", &end_key);
 		p_le_ih = PATH_PITEM_HEAD(path);
 		RFALSE(!is_direct_le_ih(p_le_ih),
@@ -214,8 +213,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 		/* re-search indirect item */
 		if (search_for_position_by_key(p_s_sb, p_s_item_key, p_s_path)
 		    == POSITION_NOT_FOUND)
-			reiserfs_panic(p_s_sb,
-				       "PAP-5520: indirect2direct: "
+			reiserfs_panic(p_s_sb, "PAP-5520",
 				       "item to be converted %K does not exist",
 				       p_s_item_key);
 		copy_item_head(&s_ih, PATH_PITEM_HEAD(p_s_path));
@@ -224,8 +222,8 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 		    (ih_item_len(&s_ih) / UNFM_P_SIZE -
 		     1) * p_s_sb->s_blocksize;
 		if (pos != pos1)
-			reiserfs_panic(p_s_sb, "vs-5530: indirect2direct: "
-				       "tail position changed while we were reading it");
+			reiserfs_panic(p_s_sb, "vs-5530", "tail position "
+				       "changed while we were reading it");
 #endif
 	}
 
