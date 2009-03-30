@@ -56,13 +56,13 @@
 #include <linux/quotaops.h>
 
 /* Does the buffer contain a disk block which is in the tree. */
-inline int B_IS_IN_TREE(const struct buffer_head *p_s_bh)
+inline int B_IS_IN_TREE(const struct buffer_head *bh)
 {
 
-	RFALSE(B_LEVEL(p_s_bh) > MAX_HEIGHT,
-	       "PAP-1010: block (%b) has too big level (%z)", p_s_bh, p_s_bh);
+	RFALSE(B_LEVEL(bh) > MAX_HEIGHT,
+	       "PAP-1010: block (%b) has too big level (%z)", bh, bh);
 
-	return (B_LEVEL(p_s_bh) != FREE_LEVEL);
+	return (B_LEVEL(bh) != FREE_LEVEL);
 }
 
 //
@@ -579,7 +579,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 {
 	b_blocknr_t n_block_number;
 	int expected_level;
-	struct buffer_head *p_s_bh;
+	struct buffer_head *bh;
 	struct path_element *p_s_last_element;
 	int n_node_level, n_retval;
 	int right_neighbor_of_leaf_node;
@@ -626,15 +626,14 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 
 		/* Read the next tree node, and set the last element in the path to
 		   have a pointer to it. */
-		if ((p_s_bh = p_s_last_element->pe_buffer =
+		if ((bh = p_s_last_element->pe_buffer =
 		     sb_getblk(sb, n_block_number))) {
-			if (!buffer_uptodate(p_s_bh) && reada_count > 1) {
+			if (!buffer_uptodate(bh) && reada_count > 1)
 				search_by_key_reada(sb, reada_bh,
 						    reada_blocks, reada_count);
-			}
-			ll_rw_block(READ, 1, &p_s_bh);
-			wait_on_buffer(p_s_bh);
-			if (!buffer_uptodate(p_s_bh))
+			ll_rw_block(READ, 1, &bh);
+			wait_on_buffer(bh);
+			if (!buffer_uptodate(bh))
 				goto io_error;
 		} else {
 		      io_error:
@@ -651,8 +650,8 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 		   to search is still in the tree rooted from the current buffer. If
 		   not then repeat search from the root. */
 		if (fs_changed(fs_gen, sb) &&
-		    (!B_IS_IN_TREE(p_s_bh) ||
-		     B_LEVEL(p_s_bh) != expected_level ||
+		    (!B_IS_IN_TREE(bh) ||
+		     B_LEVEL(bh) != expected_level ||
 		     !key_in_buffer(p_s_search_path, p_s_key, sb))) {
 			PROC_INFO_INC(sb, search_by_key_fs_changed);
 			PROC_INFO_INC(sb, search_by_key_restarted);
@@ -686,25 +685,25 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 
 		// make sure, that the node contents look like a node of
 		// certain level
-		if (!is_tree_node(p_s_bh, expected_level)) {
+		if (!is_tree_node(bh, expected_level)) {
 			reiserfs_error(sb, "vs-5150",
 				       "invalid format found in block %ld. "
-				       "Fsck?", p_s_bh->b_blocknr);
+				       "Fsck?", bh->b_blocknr);
 			pathrelse(p_s_search_path);
 			return IO_ERROR;
 		}
 
 		/* ok, we have acquired next formatted node in the tree */
-		n_node_level = B_LEVEL(p_s_bh);
+		n_node_level = B_LEVEL(bh);
 
-		PROC_INFO_BH_STAT(sb, p_s_bh, n_node_level - 1);
+		PROC_INFO_BH_STAT(sb, bh, n_node_level - 1);
 
 		RFALSE(n_node_level < n_stop_level,
 		       "vs-5152: tree level (%d) is less than stop level (%d)",
 		       n_node_level, n_stop_level);
 
-		n_retval = bin_search(p_s_key, B_N_PITEM_HEAD(p_s_bh, 0),
-				      B_NR_ITEMS(p_s_bh),
+		n_retval = bin_search(p_s_key, B_N_PITEM_HEAD(bh, 0),
+				      B_NR_ITEMS(bh),
 				      (n_node_level ==
 				       DISK_LEAF_NODE_LEVEL) ? IH_SIZE :
 				      KEY_SIZE,
@@ -726,13 +725,13 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 		   an internal node.  Now we calculate child block number by
 		   position in the node. */
 		n_block_number =
-		    B_N_CHILD_NUM(p_s_bh, p_s_last_element->pe_position);
+		    B_N_CHILD_NUM(bh, p_s_last_element->pe_position);
 
 		/* if we are going to read leaf nodes, try for read ahead as well */
 		if ((p_s_search_path->reada & PATH_READA) &&
 		    n_node_level == DISK_LEAF_NODE_LEVEL + 1) {
 			int pos = p_s_last_element->pe_position;
-			int limit = B_NR_ITEMS(p_s_bh);
+			int limit = B_NR_ITEMS(bh);
 			struct reiserfs_key *le_key;
 
 			if (p_s_search_path->reada & PATH_READA_BACK)
@@ -741,7 +740,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 				if (pos == limit)
 					break;
 				reada_blocks[reada_count++] =
-				    B_N_CHILD_NUM(p_s_bh, pos);
+				    B_N_CHILD_NUM(bh, pos);
 				if (p_s_search_path->reada & PATH_READA_BACK)
 					pos--;
 				else
@@ -750,7 +749,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *p_s_key,	/* Key 
 				/*
 				 * check to make sure we're in the same object
 				 */
-				le_key = B_N_PDELIM_KEY(p_s_bh, pos);
+				le_key = B_N_PDELIM_KEY(bh, pos);
 				if (le32_to_cpu(le_key->k_objectid) !=
 				    p_s_key->on_disk_key.k_objectid) {
 					break;
@@ -851,15 +850,15 @@ int search_for_position_by_key(struct super_block *sb,	/* Pointer to the super b
 /* Compare given item and item pointed to by the path. */
 int comp_items(const struct item_head *stored_ih, const struct treepath *p_s_path)
 {
-	struct buffer_head *p_s_bh;
+	struct buffer_head *bh = PATH_PLAST_BUFFER(p_s_path);
 	struct item_head *ih;
 
 	/* Last buffer at the path is not in the tree. */
-	if (!B_IS_IN_TREE(p_s_bh = PATH_PLAST_BUFFER(p_s_path)))
+	if (!B_IS_IN_TREE(bh))
 		return 1;
 
 	/* Last path position is invalid. */
-	if (PATH_LAST_POSITION(p_s_path) >= B_NR_ITEMS(p_s_bh))
+	if (PATH_LAST_POSITION(p_s_path) >= B_NR_ITEMS(bh))
 		return 1;
 
 	/* we need only to know, whether it is the same item */
@@ -959,7 +958,7 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 {
 	struct super_block *sb = inode->i_sb;
 	struct item_head *p_le_ih = PATH_PITEM_HEAD(p_s_path);
-	struct buffer_head *p_s_bh = PATH_PLAST_BUFFER(p_s_path);
+	struct buffer_head *bh = PATH_PLAST_BUFFER(p_s_path);
 
 	BUG_ON(!th->t_trans_id);
 
@@ -1003,7 +1002,7 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 	    do {
 		need_re_search = 0;
 		*p_n_cut_size = 0;
-		p_s_bh = PATH_PLAST_BUFFER(p_s_path);
+		bh = PATH_PLAST_BUFFER(p_s_path);
 		copy_item_head(&s_ih, PATH_PITEM_HEAD(p_s_path));
 		pos = I_UNFM_NUM(&s_ih);
 
@@ -1019,13 +1018,13 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 			break;
 		    }
 
-		    unfm = (__le32 *)B_I_PITEM(p_s_bh, &s_ih) + pos - 1;
+		    unfm = (__le32 *)B_I_PITEM(bh, &s_ih) + pos - 1;
 		    block = get_block_num(unfm, 0);
 
 		    if (block != 0) {
-			reiserfs_prepare_for_journal(sb, p_s_bh, 1);
+			reiserfs_prepare_for_journal(sb, bh, 1);
 			put_block_num(unfm, 0, 0);
-			journal_mark_dirty (th, sb, p_s_bh);
+			journal_mark_dirty(th, sb, bh);
 			reiserfs_free_block(th, inode, block, 1);
 		    }
 
@@ -1049,7 +1048,7 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 		/* a trick.  If the buffer has been logged, this will do nothing.  If
 		** we've broken the loop without logging it, it will restore the
 		** buffer */
-		reiserfs_restore_prepared_buffer(sb, p_s_bh);
+		reiserfs_restore_prepared_buffer(sb, bh);
 	    } while (need_re_search &&
 		     search_for_position_by_key(sb, p_s_item_key, p_s_path) == POSITION_FOUND);
 	    pos_in_item(p_s_path) = pos * UNFM_P_SIZE;

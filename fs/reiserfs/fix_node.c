@@ -1887,7 +1887,7 @@ static int check_balance(int mode,
 /* Check whether parent at the path is the really parent of the current node.*/
 static int get_direct_parent(struct tree_balance *p_s_tb, int n_h)
 {
-	struct buffer_head *p_s_bh;
+	struct buffer_head *bh;
 	struct treepath *p_s_path = p_s_tb->tb_path;
 	int n_position,
 	    n_path_offset = PATH_H_PATH_OFFSET(p_s_tb->tb_path, n_h);
@@ -1909,21 +1909,21 @@ static int get_direct_parent(struct tree_balance *p_s_tb, int n_h)
 	}
 
 	if (!B_IS_IN_TREE
-	    (p_s_bh = PATH_OFFSET_PBUFFER(p_s_path, n_path_offset - 1)))
+	    (bh = PATH_OFFSET_PBUFFER(p_s_path, n_path_offset - 1)))
 		return REPEAT_SEARCH;	/* Parent in the path is not in the tree. */
 
 	if ((n_position =
 	     PATH_OFFSET_POSITION(p_s_path,
-				  n_path_offset - 1)) > B_NR_ITEMS(p_s_bh))
+				  n_path_offset - 1)) > B_NR_ITEMS(bh))
 		return REPEAT_SEARCH;
 
-	if (B_N_CHILD_NUM(p_s_bh, n_position) !=
+	if (B_N_CHILD_NUM(bh, n_position) !=
 	    PATH_OFFSET_PBUFFER(p_s_path, n_path_offset)->b_blocknr)
 		/* Parent in the path is not parent of the current node in the tree. */
 		return REPEAT_SEARCH;
 
-	if (buffer_locked(p_s_bh)) {
-		__wait_on_buffer(p_s_bh);
+	if (buffer_locked(bh)) {
+		__wait_on_buffer(bh);
 		if (FILESYSTEM_CHANGED_TB(p_s_tb))
 			return REPEAT_SEARCH;
 	}
@@ -1943,29 +1943,29 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 	    n_path_offset = PATH_H_PATH_OFFSET(p_s_tb->tb_path, n_h + 1);
 	unsigned long n_son_number;
 	struct super_block *sb = p_s_tb->tb_sb;
-	struct buffer_head *p_s_bh;
+	struct buffer_head *bh;
 
 	PROC_INFO_INC(sb, get_neighbors[n_h]);
 
 	if (p_s_tb->lnum[n_h]) {
 		/* We need left neighbor to balance S[n_h]. */
 		PROC_INFO_INC(sb, need_l_neighbor[n_h]);
-		p_s_bh = PATH_OFFSET_PBUFFER(p_s_tb->tb_path, n_path_offset);
+		bh = PATH_OFFSET_PBUFFER(p_s_tb->tb_path, n_path_offset);
 
-		RFALSE(p_s_bh == p_s_tb->FL[n_h] &&
+		RFALSE(bh == p_s_tb->FL[n_h] &&
 		       !PATH_OFFSET_POSITION(p_s_tb->tb_path, n_path_offset),
 		       "PAP-8270: invalid position in the parent");
 
 		n_child_position =
-		    (p_s_bh ==
+		    (bh ==
 		     p_s_tb->FL[n_h]) ? p_s_tb->lkey[n_h] : B_NR_ITEMS(p_s_tb->
 								       FL[n_h]);
 		n_son_number = B_N_CHILD_NUM(p_s_tb->FL[n_h], n_child_position);
-		p_s_bh = sb_bread(sb, n_son_number);
-		if (!p_s_bh)
+		bh = sb_bread(sb, n_son_number);
+		if (!bh)
 			return IO_ERROR;
 		if (FILESYSTEM_CHANGED_TB(p_s_tb)) {
-			brelse(p_s_bh);
+			brelse(bh);
 			PROC_INFO_INC(sb, get_neighbors_restart[n_h]);
 			return REPEAT_SEARCH;
 		}
@@ -1973,48 +1973,48 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 		RFALSE(!B_IS_IN_TREE(p_s_tb->FL[n_h]) ||
 		       n_child_position > B_NR_ITEMS(p_s_tb->FL[n_h]) ||
 		       B_N_CHILD_NUM(p_s_tb->FL[n_h], n_child_position) !=
-		       p_s_bh->b_blocknr, "PAP-8275: invalid parent");
-		RFALSE(!B_IS_IN_TREE(p_s_bh), "PAP-8280: invalid child");
+		       bh->b_blocknr, "PAP-8275: invalid parent");
+		RFALSE(!B_IS_IN_TREE(bh), "PAP-8280: invalid child");
 		RFALSE(!n_h &&
-		       B_FREE_SPACE(p_s_bh) !=
-		       MAX_CHILD_SIZE(p_s_bh) -
+		       B_FREE_SPACE(bh) !=
+		       MAX_CHILD_SIZE(bh) -
 		       dc_size(B_N_CHILD(p_s_tb->FL[0], n_child_position)),
 		       "PAP-8290: invalid child size of left neighbor");
 
 		brelse(p_s_tb->L[n_h]);
-		p_s_tb->L[n_h] = p_s_bh;
+		p_s_tb->L[n_h] = bh;
 	}
 
 	if (p_s_tb->rnum[n_h]) {	/* We need right neighbor to balance S[n_path_offset]. */
 		PROC_INFO_INC(sb, need_r_neighbor[n_h]);
-		p_s_bh = PATH_OFFSET_PBUFFER(p_s_tb->tb_path, n_path_offset);
+		bh = PATH_OFFSET_PBUFFER(p_s_tb->tb_path, n_path_offset);
 
-		RFALSE(p_s_bh == p_s_tb->FR[n_h] &&
+		RFALSE(bh == p_s_tb->FR[n_h] &&
 		       PATH_OFFSET_POSITION(p_s_tb->tb_path,
 					    n_path_offset) >=
-		       B_NR_ITEMS(p_s_bh),
+		       B_NR_ITEMS(bh),
 		       "PAP-8295: invalid position in the parent");
 
 		n_child_position =
-		    (p_s_bh == p_s_tb->FR[n_h]) ? p_s_tb->rkey[n_h] + 1 : 0;
+		    (bh == p_s_tb->FR[n_h]) ? p_s_tb->rkey[n_h] + 1 : 0;
 		n_son_number = B_N_CHILD_NUM(p_s_tb->FR[n_h], n_child_position);
-		p_s_bh = sb_bread(sb, n_son_number);
-		if (!p_s_bh)
+		bh = sb_bread(sb, n_son_number);
+		if (!bh)
 			return IO_ERROR;
 		if (FILESYSTEM_CHANGED_TB(p_s_tb)) {
-			brelse(p_s_bh);
+			brelse(bh);
 			PROC_INFO_INC(sb, get_neighbors_restart[n_h]);
 			return REPEAT_SEARCH;
 		}
 		brelse(p_s_tb->R[n_h]);
-		p_s_tb->R[n_h] = p_s_bh;
+		p_s_tb->R[n_h] = bh;
 
 		RFALSE(!n_h
-		       && B_FREE_SPACE(p_s_bh) !=
-		       MAX_CHILD_SIZE(p_s_bh) -
+		       && B_FREE_SPACE(bh) !=
+		       MAX_CHILD_SIZE(bh) -
 		       dc_size(B_N_CHILD(p_s_tb->FR[0], n_child_position)),
 		       "PAP-8300: invalid child size of right neighbor (%d != %d - %d)",
-		       B_FREE_SPACE(p_s_bh), MAX_CHILD_SIZE(p_s_bh),
+		       B_FREE_SPACE(bh), MAX_CHILD_SIZE(bh),
 		       dc_size(B_N_CHILD(p_s_tb->FR[0], n_child_position)));
 
 	}
@@ -2090,51 +2090,45 @@ static int get_mem_for_virtual_node(struct tree_balance *tb)
 
 #ifdef CONFIG_REISERFS_CHECK
 static void tb_buffer_sanity_check(struct super_block *sb,
-				   struct buffer_head *p_s_bh,
+				   struct buffer_head *bh,
 				   const char *descr, int level)
 {
-	if (p_s_bh) {
-		if (atomic_read(&(p_s_bh->b_count)) <= 0) {
+	if (bh) {
+		if (atomic_read(&(bh->b_count)) <= 0)
 
 			reiserfs_panic(sb, "jmacd-1", "negative or zero "
 				       "reference counter for buffer %s[%d] "
-				       "(%b)", descr, level, p_s_bh);
-		}
+				       "(%b)", descr, level, bh);
 
-		if (!buffer_uptodate(p_s_bh)) {
+		if (!buffer_uptodate(bh))
 			reiserfs_panic(sb, "jmacd-2", "buffer is not up "
 				       "to date %s[%d] (%b)",
-				       descr, level, p_s_bh);
-		}
+				       descr, level, bh);
 
-		if (!B_IS_IN_TREE(p_s_bh)) {
+		if (!B_IS_IN_TREE(bh))
 			reiserfs_panic(sb, "jmacd-3", "buffer is not "
 				       "in tree %s[%d] (%b)",
-				       descr, level, p_s_bh);
-		}
+				       descr, level, bh);
 
-		if (p_s_bh->b_bdev != sb->s_bdev) {
+		if (bh->b_bdev != sb->s_bdev)
 			reiserfs_panic(sb, "jmacd-4", "buffer has wrong "
 				       "device %s[%d] (%b)",
-				       descr, level, p_s_bh);
-		}
+				       descr, level, bh);
 
-		if (p_s_bh->b_size != sb->s_blocksize) {
+		if (bh->b_size != sb->s_blocksize)
 			reiserfs_panic(sb, "jmacd-5", "buffer has wrong "
 				       "blocksize %s[%d] (%b)",
-				       descr, level, p_s_bh);
-		}
+				       descr, level, bh);
 
-		if (p_s_bh->b_blocknr > SB_BLOCK_COUNT(sb)) {
+		if (bh->b_blocknr > SB_BLOCK_COUNT(sb))
 			reiserfs_panic(sb, "jmacd-6", "buffer block "
 				       "number too high %s[%d] (%b)",
-				       descr, level, p_s_bh);
-		}
+				       descr, level, bh);
 	}
 }
 #else
 static void tb_buffer_sanity_check(struct super_block *sb,
-				   struct buffer_head *p_s_bh,
+				   struct buffer_head *bh,
 				   const char *descr, int level)
 {;
 }

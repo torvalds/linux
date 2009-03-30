@@ -751,25 +751,25 @@ struct block_head {
 #define DISK_LEAF_NODE_LEVEL  1	/* Leaf node level. */
 
 /* Given the buffer head of a formatted node, resolve to the block head of that node. */
-#define B_BLK_HEAD(p_s_bh)            ((struct block_head *)((p_s_bh)->b_data))
+#define B_BLK_HEAD(bh)			((struct block_head *)((bh)->b_data))
 /* Number of items that are in buffer. */
-#define B_NR_ITEMS(p_s_bh)            (blkh_nr_item(B_BLK_HEAD(p_s_bh)))
-#define B_LEVEL(p_s_bh)               (blkh_level(B_BLK_HEAD(p_s_bh)))
-#define B_FREE_SPACE(p_s_bh)          (blkh_free_space(B_BLK_HEAD(p_s_bh)))
+#define B_NR_ITEMS(bh)			(blkh_nr_item(B_BLK_HEAD(bh)))
+#define B_LEVEL(bh)			(blkh_level(B_BLK_HEAD(bh)))
+#define B_FREE_SPACE(bh)		(blkh_free_space(B_BLK_HEAD(bh)))
 
-#define PUT_B_NR_ITEMS(p_s_bh,val)    do { set_blkh_nr_item(B_BLK_HEAD(p_s_bh),val); } while (0)
-#define PUT_B_LEVEL(p_s_bh,val)       do { set_blkh_level(B_BLK_HEAD(p_s_bh),val); } while (0)
-#define PUT_B_FREE_SPACE(p_s_bh,val)  do { set_blkh_free_space(B_BLK_HEAD(p_s_bh),val); } while (0)
+#define PUT_B_NR_ITEMS(bh, val)		do { set_blkh_nr_item(B_BLK_HEAD(bh), val); } while (0)
+#define PUT_B_LEVEL(bh, val)		do { set_blkh_level(B_BLK_HEAD(bh), val); } while (0)
+#define PUT_B_FREE_SPACE(bh, val)	do { set_blkh_free_space(B_BLK_HEAD(bh), val); } while (0)
 
 /* Get right delimiting key. -- little endian */
-#define B_PRIGHT_DELIM_KEY(p_s_bh)   (&(blk_right_delim_key(B_BLK_HEAD(p_s_bh))))
+#define B_PRIGHT_DELIM_KEY(bh)		(&(blk_right_delim_key(B_BLK_HEAD(bh))))
 
 /* Does the buffer contain a disk leaf. */
-#define B_IS_ITEMS_LEVEL(p_s_bh)     (B_LEVEL(p_s_bh) == DISK_LEAF_NODE_LEVEL)
+#define B_IS_ITEMS_LEVEL(bh)		(B_LEVEL(bh) == DISK_LEAF_NODE_LEVEL)
 
 /* Does the buffer contain a disk internal node */
-#define B_IS_KEYS_LEVEL(p_s_bh)      (B_LEVEL(p_s_bh) > DISK_LEAF_NODE_LEVEL \
-                                            && B_LEVEL(p_s_bh) <= MAX_HEIGHT)
+#define B_IS_KEYS_LEVEL(bh)      (B_LEVEL(bh) > DISK_LEAF_NODE_LEVEL \
+					    && B_LEVEL(bh) <= MAX_HEIGHT)
 
 /***************************************************************************/
 /*                             STAT DATA                                   */
@@ -1119,12 +1119,13 @@ struct disk_child {
 #define put_dc_size(dc_p, val)   do { (dc_p)->dc_size = cpu_to_le16(val); } while(0)
 
 /* Get disk child by buffer header and position in the tree node. */
-#define B_N_CHILD(p_s_bh,n_pos)  ((struct disk_child *)\
-((p_s_bh)->b_data+BLKH_SIZE+B_NR_ITEMS(p_s_bh)*KEY_SIZE+DC_SIZE*(n_pos)))
+#define B_N_CHILD(bh, n_pos)  ((struct disk_child *)\
+((bh)->b_data + BLKH_SIZE + B_NR_ITEMS(bh) * KEY_SIZE + DC_SIZE * (n_pos)))
 
 /* Get disk child number by buffer header and position in the tree node. */
-#define B_N_CHILD_NUM(p_s_bh,n_pos) (dc_block_number(B_N_CHILD(p_s_bh,n_pos)))
-#define PUT_B_N_CHILD_NUM(p_s_bh,n_pos, val) (put_dc_block_number(B_N_CHILD(p_s_bh,n_pos), val ))
+#define B_N_CHILD_NUM(bh, n_pos) (dc_block_number(B_N_CHILD(bh, n_pos)))
+#define PUT_B_N_CHILD_NUM(bh, n_pos, val) \
+				(put_dc_block_number(B_N_CHILD(bh, n_pos), val))
 
  /* maximal value of field child_size in structure disk_child */
  /* child size is the combined size of all items and their headers */
@@ -1837,7 +1838,7 @@ int search_by_key(struct super_block *, const struct cpu_key *,
 int search_for_position_by_key(struct super_block *sb,
 			       const struct cpu_key *p_s_cpu_key,
 			       struct treepath *p_s_search_path);
-extern void decrement_bcount(struct buffer_head *p_s_bh);
+extern void decrement_bcount(struct buffer_head *bh);
 void decrement_counters_in_path(struct treepath *p_s_search_path);
 void pathrelse(struct treepath *p_s_search_path);
 int reiserfs_check_path(struct treepath *p);
@@ -1978,7 +1979,7 @@ int reiserfs_global_version_in_proc(char *buffer, char **start, off_t offset,
 #define PROC_INFO_MAX( sb, field, value ) VOID_V
 #define PROC_INFO_INC( sb, field ) VOID_V
 #define PROC_INFO_ADD( sb, field, val ) VOID_V
-#define PROC_INFO_BH_STAT(sb, p_s_bh, n_node_level) VOID_V
+#define PROC_INFO_BH_STAT(sb, bh, n_node_level) VOID_V
 #endif
 
 /* dir.c */
