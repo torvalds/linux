@@ -370,6 +370,31 @@ void __reiserfs_panic(struct super_block *sb, const char *id,
 		      id ? id : "", id ? " " : "", function, error_buf);
 }
 
+void __reiserfs_error(struct super_block *sb, const char *id,
+		      const char *function, const char *fmt, ...)
+{
+	do_reiserfs_warning(fmt);
+
+	BUG_ON(sb == NULL);
+
+	if (reiserfs_error_panic(sb))
+		__reiserfs_panic(sb, id, function, error_buf);
+
+	if (id && id[0])
+		printk(KERN_CRIT "REISERFS error (device %s): %s %s: %s\n",
+		       sb->s_id, id, function, error_buf);
+	else
+		printk(KERN_CRIT "REISERFS error (device %s): %s: %s\n",
+		       sb->s_id, function, error_buf);
+
+	if (sb->s_flags & MS_RDONLY)
+		return;
+
+	reiserfs_info(sb, "Remounting filesystem read-only\n");
+	sb->s_flags |= MS_RDONLY;
+	reiserfs_abort_journal(sb, -EIO);
+}
+
 void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...)
 {
 	do_reiserfs_warning(fmt);

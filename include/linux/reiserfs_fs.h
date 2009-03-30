@@ -2006,6 +2006,10 @@ void __reiserfs_panic(struct super_block *s, const char *id,
     __attribute__ ((noreturn));
 #define reiserfs_panic(s, id, fmt, args...) \
 	__reiserfs_panic(s, id, __func__, fmt, ##args)
+void __reiserfs_error(struct super_block *s, const char *id,
+		      const char *function, const char *fmt, ...);
+#define reiserfs_error(s, id, fmt, args...) \
+	 __reiserfs_error(s, id, __func__, fmt, ##args)
 void reiserfs_info(struct super_block *s, const char *fmt, ...);
 void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...);
 void print_indirect_item(struct buffer_head *bh, int item_num);
