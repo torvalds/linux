@@ -376,14 +376,14 @@ static inline void reiserfs_put_page(struct page *page)
 	page_cache_release(page);
 }
 
-static struct page *reiserfs_get_page(struct inode *dir, unsigned long n)
+static struct page *reiserfs_get_page(struct inode *dir, size_t n)
 {
 	struct address_space *mapping = dir->i_mapping;
 	struct page *page;
 	/* We can deadlock if we try to free dentries,
 	   and an unlink/rmdir has just occured - GFP_NOFS avoids this */
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
-	page = read_mapping_page(mapping, n, NULL);
+	page = read_mapping_page(mapping, n >> PAGE_CACHE_SHIFT, NULL);
 	if (!IS_ERR(page)) {
 		kmap(page);
 		if (PageError(page))
@@ -470,8 +470,7 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 		else
 			chunk = buffer_size - buffer_pos;
 
-		page = reiserfs_get_page(dentry->d_inode,
-					 file_pos >> PAGE_CACHE_SHIFT);
+		page = reiserfs_get_page(dentry->d_inode, file_pos);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			goto out_filp;
@@ -577,8 +576,7 @@ reiserfs_xattr_get(const struct inode *inode, const char *name, void *buffer,
 		else
 			chunk = isize - file_pos;
 
-		page = reiserfs_get_page(dentry->d_inode,
-					 file_pos >> PAGE_CACHE_SHIFT);
+		page = reiserfs_get_page(dentry->d_inode, file_pos);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			goto out_dput;
