@@ -153,34 +153,23 @@ endif
 
 boot := arch/x86/boot
 
-PHONY += zImage bzImage compressed zlilo bzlilo \
-         zdisk bzdisk fdimage fdimage144 fdimage288 isoimage install
+BOOT_TARGETS = bzlilo bzdisk fdimage fdimage144 fdimage288 isoimage install
+
+PHONY += bzImage $(BOOT_TARGETS)
 
 # Default kernel to build
 all: bzImage
 
 # KBUILD_IMAGE specify target image being built
-                    KBUILD_IMAGE := $(boot)/bzImage
-zImage zlilo zdisk: KBUILD_IMAGE := $(boot)/zImage
+KBUILD_IMAGE := $(boot)/bzImage
 
-zImage bzImage: vmlinux
+bzImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(KBUILD_IMAGE)
 	$(Q)mkdir -p $(objtree)/arch/$(UTS_MACHINE)/boot
 	$(Q)ln -fsn ../../x86/boot/bzImage $(objtree)/arch/$(UTS_MACHINE)/boot/$@
 
-compressed: zImage
-
-zlilo bzlilo: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) zlilo
-
-zdisk bzdisk: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) zdisk
-
-fdimage fdimage144 fdimage288 isoimage: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) $@
-
-install:
-	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
+$(BOOT_TARGETS): vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $@
 
 PHONY += vdso_install
 vdso_install:
@@ -205,7 +194,3 @@ define archhelp
   echo  '                  FDARGS="..."  arguments for the booted kernel'
   echo  '                  FDINITRD=file initrd for the booted kernel'
 endef
-
-CLEAN_FILES += arch/x86/boot/fdimage \
-	       arch/x86/boot/image.iso \
-	       arch/x86/boot/mtools.conf

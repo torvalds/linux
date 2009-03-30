@@ -368,6 +368,7 @@ ENTRY(save_rest)
 END(save_rest)
 
 /* save complete stack frame */
+	.pushsection .kprobes.text, "ax"
 ENTRY(save_paranoid)
 	XCPT_FRAME 1 RDI+8
 	cld
@@ -396,6 +397,7 @@ ENTRY(save_paranoid)
 1:	ret
 	CFI_ENDPROC
 END(save_paranoid)
+	.popsection
 
 /*
  * A newly forked process directly context switches into this address.
@@ -416,7 +418,6 @@ ENTRY(ret_from_fork)
 
 	GET_THREAD_INFO(%rcx)
 
-	CFI_REMEMBER_STATE
 	RESTORE_REST
 
 	testl $3, CS-ARGOFFSET(%rsp)		# from kernel_thread?
@@ -428,7 +429,6 @@ ENTRY(ret_from_fork)
 	RESTORE_TOP_OF_STACK %rdi, -ARGOFFSET
 	jmp ret_from_sys_call			# go to the SYSRET fastpath
 
-	CFI_RESTORE_STATE
 	CFI_ENDPROC
 END(ret_from_fork)
 
@@ -984,6 +984,8 @@ apicinterrupt UV_BAU_MESSAGE \
 #endif
 apicinterrupt LOCAL_TIMER_VECTOR \
 	apic_timer_interrupt smp_apic_timer_interrupt
+apicinterrupt GENERIC_INTERRUPT_VECTOR \
+	generic_interrupt smp_generic_interrupt
 
 #ifdef CONFIG_SMP
 apicinterrupt INVALIDATE_TLB_VECTOR_START+0 \

@@ -456,24 +456,9 @@ config CPU_SUP_AMD
 
 	  If unsure, say N.
 
-config CPU_SUP_CENTAUR_32
+config CPU_SUP_CENTAUR
 	default y
 	bool "Support Centaur processors" if PROCESSOR_SELECT
-	depends on !64BIT
-	---help---
-	  This enables detection, tunings and quirks for Centaur processors
-
-	  You need this enabled if you want your kernel to run on a
-	  Centaur CPU. Disabling this option on other types of CPUs
-	  makes the kernel a tiny bit smaller. Disabling it on a Centaur
-	  CPU might render the kernel unbootable.
-
-	  If unsure, say N.
-
-config CPU_SUP_CENTAUR_64
-	default y
-	bool "Support Centaur processors" if PROCESSOR_SELECT
-	depends on 64BIT
 	---help---
 	  This enables detection, tunings and quirks for Centaur processors
 

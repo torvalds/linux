@@ -121,22 +121,13 @@ void kunmap_atomic(void *kvaddr, enum km_type type)
 	pagefault_enable();
 }
 
-/* This is the same as kmap_atomic() but can map memory that doesn't
+/*
+ * This is the same as kmap_atomic() but can map memory that doesn't
  * have a struct page associated with it.
  */
 void *kmap_atomic_pfn(unsigned long pfn, enum km_type type)
 {
-	enum fixed_addresses idx;
-	unsigned long vaddr;
-
-	pagefault_disable();
-
-	idx = type + KM_TYPE_NR*smp_processor_id();
-	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
-	set_pte(kmap_pte-idx, pfn_pte(pfn, kmap_prot));
-	arch_flush_lazy_mmu_mode();
-
-	return (void*) vaddr;
+	return kmap_atomic_prot_pfn(pfn, type, kmap_prot);
 }
 EXPORT_SYMBOL_GPL(kmap_atomic_pfn); /* temporarily in use by i915 GEM until vmap */
 
@@ -158,7 +149,6 @@ EXPORT_SYMBOL(kunmap);
 EXPORT_SYMBOL(kmap_atomic);
 EXPORT_SYMBOL(kunmap_atomic);
 
-#ifdef CONFIG_NUMA
 void __init set_highmem_pages_init(void)
 {
 	struct zone *zone;
@@ -182,11 +172,3 @@ void __init set_highmem_pages_init(void)
 	}
 	totalram_pages += totalhigh_pages;
 }
-#else
-void __init set_highmem_pages_init(void)
-{
-	add_highpages_with_active_regions(0, highstart_pfn, highend_pfn);
-
-	totalram_pages += totalhigh_pages;
-}
-#endif /* CONFIG_NUMA */

@@ -292,6 +292,8 @@ struct intel_iommu {
 	spinlock_t	register_lock; /* protect register handling */
 	int		seq_id;	/* sequence id of the iommu */
 	int		agaw; /* agaw of this iommu */
+	unsigned int 	irq;
+	unsigned char 	name[13];    /* Device Name */
 
 #ifdef CONFIG_DMAR
 	unsigned long 	*domain_ids; /* bitmap of domains */
@@ -299,8 +301,6 @@ struct intel_iommu {
 	spinlock_t	lock; /* protect context, domain ids */
 	struct root_entry *root_entry; /* virtual address */
 
-	unsigned int irq;
-	unsigned char name[7];    /* Device Name */
 	struct iommu_flush flush;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
@@ -321,6 +321,7 @@ extern struct dmar_drhd_unit * dmar_find_matched_drhd_unit(struct pci_dev *dev);
 extern int alloc_iommu(struct dmar_drhd_unit *drhd);
 extern void free_iommu(struct intel_iommu *iommu);
 extern int dmar_enable_qi(struct intel_iommu *iommu);
+extern void dmar_disable_qi(struct intel_iommu *iommu);
 extern void qi_global_iec(struct intel_iommu *iommu);
 
 extern int qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid,

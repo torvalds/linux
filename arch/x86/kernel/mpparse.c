@@ -109,9 +109,6 @@ static void __init MP_bus_info(struct mpc_bus *m)
 	} else
 		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
 }
-#endif
-
-#ifdef CONFIG_X86_IO_APIC
 
 static int bad_ioapic(unsigned long address)
 {
@@ -224,8 +221,12 @@ static void __init MP_intsrc_info(struct mpc_intsrc *m)
 	if (++mp_irq_entries == MAX_IRQ_SOURCES)
 		panic("Max # of irq sources exceeded!!\n");
 }
+#else /* CONFIG_X86_IO_APIC */
+static inline void __init MP_bus_info(struct mpc_bus *m) {}
+static inline void __init MP_ioapic_info(struct mpc_ioapic *m) {}
+static inline void __init MP_intsrc_info(struct mpc_intsrc *m) {}
+#endif /* CONFIG_X86_IO_APIC */
 
-#endif
 
 static void __init MP_lintsrc_info(struct mpc_lintsrc *m)
 {
@@ -275,6 +276,20 @@ static int __init smp_check_mpc(struct mpc_table *mpc, char *oem, char *str)
 	return 1;
 }
 
+static void skip_entry(unsigned char **ptr, int *count, int size)
+{
+	*ptr += size;
+	*count += size;
+}
+
+static void __init smp_dump_mptable(struct mpc_table *mpc, unsigned char *mpt)
+{
+	printk(KERN_ERR "Your mptable is wrong, contact your HW vendor!\n"
+		"type %x\n", *mpt);
+	print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_ADDRESS, 16,
+			1, mpc, mpc->length, 1);
+}
+
 static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 {
 	char str[16];
@@ -310,61 +325,30 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 	while (count < mpc->length) {
 		switch (*mpt) {
 		case MP_PROCESSOR:
-			{
-				struct mpc_cpu *m = (struct mpc_cpu *)mpt;
-				/* ACPI may have already provided this data */
-				if (!acpi_lapic)
-					MP_processor_info(m);
-				mpt += sizeof(*m);
-				count += sizeof(*m);
-				break;
-			}
+			/* ACPI may have already provided this data */
+			if (!acpi_lapic)
+				MP_processor_info((struct mpc_cpu *)mpt);
+			skip_entry(&mpt, &count, sizeof(struct mpc_cpu));
+			break;
 		case MP_BUS:
-			{
-				struct mpc_bus *m = (struct mpc_bus *)mpt;
-#ifdef CONFIG_X86_IO_APIC
-				MP_bus_info(m);
-#endif
-				mpt += sizeof(*m);
-				count += sizeof(*m);
-				break;
-			}
+			MP_bus_info((struct mpc_bus *)mpt);
+			skip_entry(&mpt, &count, sizeof(struct mpc_bus));
+			break;
 		case MP_IOAPIC:
-			{
-#ifdef CONFIG_X86_IO_APIC
-				struct mpc_ioapic *m = (struct mpc_ioapic *)mpt;
-				MP_ioapic_info(m);
-#endif
-				mpt += sizeof(struct mpc_ioapic);
-				count += sizeof(struct mpc_ioapic);
-				break;
-			}
+			MP_ioapic_info((struct mpc_ioapic *)mpt);
+			skip_entry(&mpt, &count, sizeof(struct mpc_ioapic));
+			break;
 		case MP_INTSRC:
-			{
-#ifdef CONFIG_X86_IO_APIC
-				struct mpc_intsrc *m = (struct mpc_intsrc *)mpt;
-
-				MP_intsrc_info(m);
-#endif
-				mpt += sizeof(struct mpc_intsrc);
-				count += sizeof(struct mpc_intsrc);
-				break;
-			}
+			MP_intsrc_info((struct mpc_intsrc *)mpt);
+			skip_entry(&mpt, &count, sizeof(struct mpc_intsrc));
+			break;
 		case MP_LINTSRC:
-			{
-				struct mpc_lintsrc *m =
-				    (struct mpc_lintsrc *)mpt;
-				MP_lintsrc_info(m);
-				mpt += sizeof(*m);
-				count += sizeof(*m);
-				break;
-			}
+			MP_lintsrc_info((struct mpc_lintsrc *)mpt);
+			skip_entry(&mpt, &count, sizeof(struct mpc_lintsrc));
+			break;
 		default:
 			/* wrong mptable */
-			printk(KERN_ERR "Your mptable is wrong, contact your HW vendor!\n");
-			printk(KERN_ERR "type %x\n", *mpt);
-			print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_ADDRESS, 16,
-					1, mpc, mpc->length, 1);
+			smp_dump_mptable(mpc, mpt);
 			count = mpc->length;
 			break;
 		}
@@ -558,6 +542,68 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 
 static struct mpf_intel *mpf_found;
 
+static unsigned long __init get_mpc_size(unsigned long physptr)
+{
+	struct mpc_table *mpc;
+	unsigned long size;
+
+	mpc = early_ioremap(physptr, PAGE_SIZE);
+	size = mpc->length;
+	early_iounmap(mpc, PAGE_SIZE);
+	apic_printk(APIC_VERBOSE, "  mpc: %lx-%lx\n", physptr, physptr + size);
+
+	return size;
+}
+
+static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
+{
+	struct mpc_table *mpc;
+	unsigned long size;
+
+	size = get_mpc_size(mpf->physptr);
+	mpc = early_ioremap(mpf->physptr, size);
+	/*
+	 * Read the physical hardware table.  Anything here will
+	 * override the defaults.
+	 */
+	if (!smp_read_mpc(mpc, early)) {
+#ifdef CONFIG_X86_LOCAL_APIC
+		smp_found_config = 0;
+#endif
+		printk(KERN_ERR "BIOS bug, MP table errors detected!...\n"
+			"... disabling SMP support. (tell your hw vendor)\n");
+		early_iounmap(mpc, size);
+		return -1;
+	}
+	early_iounmap(mpc, size);
+
+	if (early)
+		return -1;
+
+#ifdef CONFIG_X86_IO_APIC
+	/*
+	 * If there are no explicit MP IRQ entries, then we are
+	 * broken.  We set up most of the low 16 IO-APIC pins to
+	 * ISA defaults and hope it will work.
+	 */
+	if (!mp_irq_entries) {
+		struct mpc_bus bus;
+
+		printk(KERN_ERR "BIOS bug, no explicit IRQ entries, "
+		       "using default mptable. (tell your hw vendor)\n");
+
+		bus.type = MP_BUS;
+		bus.busid = 0;
+		memcpy(bus.bustype, "ISA   ", 6);
+		MP_bus_info(&bus);
+
+		construct_default_ioirq_mptable(0);
+	}
+#endif
+
+	return 0;
+}
+
 /*
  * Scan the memory blocks for an SMP configuration block.
  */
@@ -611,45 +657,8 @@ static void __init __get_smp_config(unsigned int early)
 		construct_default_ISA_mptable(mpf->feature1);
 
 	} else if (mpf->physptr) {
-
-		/*
-		 * Read the physical hardware table.  Anything here will
-		 * override the defaults.
-		 */
-		if (!smp_read_mpc(phys_to_virt(mpf->physptr), early)) {
-#ifdef CONFIG_X86_LOCAL_APIC
-			smp_found_config = 0;
-#endif
-			printk(KERN_ERR
-			       "BIOS bug, MP table errors detected!...\n");
-			printk(KERN_ERR "... disabling SMP support. "
-			       "(tell your hw vendor)\n");
+		if (check_physptr(mpf, early))
 			return;
-		}
-
-		if (early)
-			return;
-#ifdef CONFIG_X86_IO_APIC
-		/*
-		 * If there are no explicit MP IRQ entries, then we are
-		 * broken.  We set up most of the low 16 IO-APIC pins to
-		 * ISA defaults and hope it will work.
-		 */
-		if (!mp_irq_entries) {
-			struct mpc_bus bus;
-
-			printk(KERN_ERR "BIOS bug, no explicit IRQ entries, "
-			       "using default mptable. "
-			       "(tell your hw vendor)\n");
-
-			bus.type = MP_BUS;
-			bus.busid = 0;
-			memcpy(bus.bustype, "ISA   ", 6);
-			MP_bus_info(&bus);
-
-			construct_default_ioirq_mptable(0);
-		}
-#endif
 	} else
 		BUG();
 
@@ -668,6 +677,31 @@ void __init early_get_smp_config(void)
 void __init get_smp_config(void)
 {
 	__get_smp_config(0);
+}
+
+static void smp_reserve_bootmem(struct mpf_intel *mpf)
+{
+	unsigned long size = get_mpc_size(mpf->physptr);
+#ifdef CONFIG_X86_32
+	/*
+	 * We cannot access to MPC table to compute table size yet,
+	 * as only few megabytes from the bottom is mapped now.
+	 * PC-9800's MPC table places on the very last of physical
+	 * memory; so that simply reserving PAGE_SIZE from mpf->physptr
+	 * yields BUG() in reserve_bootmem.
+	 * also need to make sure physptr is below than max_low_pfn
+	 * we don't need reserve the area above max_low_pfn
+	 */
+	unsigned long end = max_low_pfn * PAGE_SIZE;
+
+	if (mpf->physptr < end) {
+		if (mpf->physptr + size > end)
+			size = end - mpf->physptr;
+		reserve_bootmem_generic(mpf->physptr, size, BOOTMEM_DEFAULT);
+	}
+#else
+	reserve_bootmem_generic(mpf->physptr, size, BOOTMEM_DEFAULT);
+#endif
 }
 
 static int __init smp_scan_config(unsigned long base, unsigned long length,
@@ -697,36 +731,10 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 
 			if (!reserve)
 				return 1;
-			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE,
-					BOOTMEM_DEFAULT);
-			if (mpf->physptr) {
-				unsigned long size = PAGE_SIZE;
-#ifdef CONFIG_X86_32
-				/*
-				 * We cannot access to MPC table to compute
-				 * table size yet, as only few megabytes from
-				 * the bottom is mapped now.
-				 * PC-9800's MPC table places on the very last
-				 * of physical memory; so that simply reserving
-				 * PAGE_SIZE from mpf->physptr yields BUG()
-				 * in reserve_bootmem.
-				 * also need to make sure physptr is below than
-				 * max_low_pfn
-				 * we don't need reserve the area above max_low_pfn
-				 */
-				unsigned long end = max_low_pfn * PAGE_SIZE;
-
-				if (mpf->physptr < end) {
-					if (mpf->physptr + size > end)
-						size = end - mpf->physptr;
-					reserve_bootmem_generic(mpf->physptr, size,
-							BOOTMEM_DEFAULT);
-				}
-#else
-				reserve_bootmem_generic(mpf->physptr, size,
+			reserve_bootmem_generic(virt_to_phys(mpf), sizeof(*mpf),
 						BOOTMEM_DEFAULT);
-#endif
-			}
+			if (mpf->physptr)
+				smp_reserve_bootmem(mpf);
 
 			return 1;
 		}
@@ -829,7 +837,57 @@ static int  __init get_MP_intsrc_index(struct mpc_intsrc *m)
 #define SPARE_SLOT_NUM 20
 
 static struct mpc_intsrc __initdata *m_spare[SPARE_SLOT_NUM];
-#endif
+
+static void check_irq_src(struct mpc_intsrc *m, int *nr_m_spare)
+{
+	int i;
+
+	apic_printk(APIC_VERBOSE, "OLD ");
+	print_MP_intsrc_info(m);
+
+	i = get_MP_intsrc_index(m);
+	if (i > 0) {
+		assign_to_mpc_intsrc(&mp_irqs[i], m);
+		apic_printk(APIC_VERBOSE, "NEW ");
+		print_mp_irq_info(&mp_irqs[i]);
+		return;
+	}
+	if (!i) {
+		/* legacy, do nothing */
+		return;
+	}
+	if (*nr_m_spare < SPARE_SLOT_NUM) {
+		/*
+		 * not found (-1), or duplicated (-2) are invalid entries,
+		 * we need to use the slot later
+		 */
+		m_spare[*nr_m_spare] = m;
+		*nr_m_spare += 1;
+	}
+}
+#else /* CONFIG_X86_IO_APIC */
+static inline void check_irq_src(struct mpc_intsrc *m, int *nr_m_spare) {}
+#endif /* CONFIG_X86_IO_APIC */
+
+static int check_slot(unsigned long mpc_new_phys, unsigned long mpc_new_length,
+		      int count)
+{
+	if (!mpc_new_phys) {
+		pr_info("No spare slots, try to append...take your risk, "
+			"new mpc_length %x\n", count);
+	} else {
+		if (count <= mpc_new_length)
+			pr_info("No spare slots, try to append..., "
+				"new mpc_length %x\n", count);
+		else {
+			pr_err("mpc_new_length %lx is too small\n",
+				mpc_new_length);
+			return -1;
+		}
+	}
+
+	return 0;
+}
 
 static int  __init replace_intsrc_all(struct mpc_table *mpc,
 					unsigned long mpc_new_phys,
@@ -837,77 +895,33 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 {
 #ifdef CONFIG_X86_IO_APIC
 	int i;
-	int nr_m_spare = 0;
 #endif
-
 	int count = sizeof(*mpc);
+	int nr_m_spare = 0;
 	unsigned char *mpt = ((unsigned char *)mpc) + count;
 
 	printk(KERN_INFO "mpc_length %x\n", mpc->length);
 	while (count < mpc->length) {
 		switch (*mpt) {
 		case MP_PROCESSOR:
-			{
-				struct mpc_cpu *m = (struct mpc_cpu *)mpt;
-				mpt += sizeof(*m);
-				count += sizeof(*m);
-				break;
-			}
+			skip_entry(&mpt, &count, sizeof(struct mpc_cpu));
+			break;
 		case MP_BUS:
-			{
-				struct mpc_bus *m = (struct mpc_bus *)mpt;
-				mpt += sizeof(*m);
-				count += sizeof(*m);
-				break;
-			}
+			skip_entry(&mpt, &count, sizeof(struct mpc_bus));
+			break;
 		case MP_IOAPIC:
-			{
-				mpt += sizeof(struct mpc_ioapic);
-				count += sizeof(struct mpc_ioapic);
-				break;
-			}
+			skip_entry(&mpt, &count, sizeof(struct mpc_ioapic));
+			break;
 		case MP_INTSRC:
-			{
-#ifdef CONFIG_X86_IO_APIC
-				struct mpc_intsrc *m = (struct mpc_intsrc *)mpt;
-
-				printk(KERN_INFO "OLD ");
-				print_MP_intsrc_info(m);
-				i = get_MP_intsrc_index(m);
-				if (i > 0) {
-					assign_to_mpc_intsrc(&mp_irqs[i], m);
-					printk(KERN_INFO "NEW ");
-					print_mp_irq_info(&mp_irqs[i]);
-				} else if (!i) {
-					/* legacy, do nothing */
-				} else if (nr_m_spare < SPARE_SLOT_NUM) {
-					/*
-					 * not found (-1), or duplicated (-2)
-					 * are invalid entries,
-					 * we need to use the slot  later
-					 */
-					m_spare[nr_m_spare] = m;
-					nr_m_spare++;
-				}
-#endif
-				mpt += sizeof(struct mpc_intsrc);
-				count += sizeof(struct mpc_intsrc);
-				break;
-			}
+			check_irq_src((struct mpc_intsrc *)mpt, &nr_m_spare);
+			skip_entry(&mpt, &count, sizeof(struct mpc_intsrc));
+			break;
 		case MP_LINTSRC:
-			{
-				struct mpc_lintsrc *m =
-				    (struct mpc_lintsrc *)mpt;
-				mpt += sizeof(*m);
-				count += sizeof(*m);
-				break;
-			}
+			skip_entry(&mpt, &count, sizeof(struct mpc_lintsrc));
+			break;
 		default:
 			/* wrong mptable */
-			printk(KERN_ERR "Your mptable is wrong, contact your HW vendor!\n");
-			printk(KERN_ERR "type %x\n", *mpt);
-			print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_ADDRESS, 16,
-					1, mpc, mpc->length, 1);
+			smp_dump_mptable(mpc, mpt);
 			goto out;
 		}
 	}
@@ -924,23 +938,15 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 			continue;
 
 		if (nr_m_spare > 0) {
-			printk(KERN_INFO "*NEW* found ");
+			apic_printk(APIC_VERBOSE, "*NEW* found\n");
 			nr_m_spare--;
 			assign_to_mpc_intsrc(&mp_irqs[i], m_spare[nr_m_spare]);
 			m_spare[nr_m_spare] = NULL;
 		} else {
 			struct mpc_intsrc *m = (struct mpc_intsrc *)mpt;
 			count += sizeof(struct mpc_intsrc);
-			if (!mpc_new_phys) {
-				printk(KERN_INFO "No spare slots, try to append...take your risk, new mpc_length %x\n", count);
-			} else {
-				if (count <= mpc_new_length)
-					printk(KERN_INFO "No spare slots, try to append..., new mpc_length %x\n", count);
-				else {
-					printk(KERN_ERR "mpc_new_length %lx is too small\n", mpc_new_length);
-					goto out;
-				}
-			}
+			if (!check_slot(mpc_new_phys, mpc_new_length, count))
+				goto out;
 			assign_to_mpc_intsrc(&mp_irqs[i], m);
 			mpc->length = count;
 			mpt += sizeof(struct mpc_intsrc);

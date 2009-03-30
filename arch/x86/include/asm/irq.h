@@ -36,6 +36,7 @@ static inline int irq_canonicalize(int irq)
 extern void fixup_irqs(void);
 #endif
 
+extern void (*generic_interrupt_extension)(void);
 extern void init_IRQ(void);
 extern void native_init_IRQ(void);
 extern bool handle_irq(unsigned irq, struct pt_regs *regs);
