@@ -23,6 +23,10 @@
 #include <linux/io.h>
 #include <asm/fsl_lbc.h>
 
+#define FSL_UPM_WAIT_RUN_PATTERN  0x1
+#define FSL_UPM_WAIT_WRITE_BYTE   0x2
+#define FSL_UPM_WAIT_WRITE_BUFFER 0x4
+
 struct fsl_upm_nand {
 	struct device *dev;
 	struct mtd_info mtd;
@@ -41,6 +45,7 @@ struct fsl_upm_nand {
 	uint32_t mchip_count;
 	uint32_t mchip_number;
 	int chip_delay;
+	uint32_t wait_flags;
 };
 
 #define to_fsl_upm_nand(mtd) container_of(mtd, struct fsl_upm_nand, mtd)
@@ -96,7 +101,8 @@ static void fun_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 		fun->mchip_offsets[fun->mchip_number];
 	fsl_upm_run_pattern(&fun->upm, chip->IO_ADDR_R, mar);
 
-	fun_wait_rnb(fun);
+	if (fun->wait_flags & FSL_UPM_WAIT_RUN_PATTERN)
+		fun_wait_rnb(fun);
 }
 
 static void fun_select_chip(struct mtd_info *mtd, int mchip_nr)
@@ -138,8 +144,11 @@ static void fun_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 
 	for (i = 0; i < len; i++) {
 		out_8(fun->chip.IO_ADDR_W, buf[i]);
-		fun_wait_rnb(fun);
+		if (fun->wait_flags & FSL_UPM_WAIT_WRITE_BYTE)
+			fun_wait_rnb(fun);
 	}
+	if (fun->wait_flags & FSL_UPM_WAIT_WRITE_BUFFER)
+		fun_wait_rnb(fun);
 }
 
 static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
@@ -284,6 +293,13 @@ static int __devinit fun_probe(struct of_device *ofdev,
 		fun->chip_delay = *prop;
 	else
 		fun->chip_delay = 50;
+
+	prop = of_get_property(ofdev->node, "fsl,upm-wait-flags", &size);
+	if (prop && size == sizeof(uint32_t))
+		fun->wait_flags = *prop;
+	else
+		fun->wait_flags = FSL_UPM_WAIT_RUN_PATTERN |
+				  FSL_UPM_WAIT_WRITE_BYTE;
 
 	fun->io_base = devm_ioremap_nocache(&ofdev->dev, io_res.start,
 					    io_res.end - io_res.start + 1);
