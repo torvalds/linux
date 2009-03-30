@@ -2047,44 +2047,38 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 {
 	int error = 0;
 
-	do {
-		spin_lock_init(&sc->tx.txbuflock);
+	spin_lock_init(&sc->tx.txbuflock);
 
-		error = ath_descdma_setup(sc, &sc->tx.txdma, &sc->tx.txbuf,
-			"tx", nbufs, 1);
-		if (error != 0) {
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"Failed to allocate tx descriptors: %d\n",
-				error);
-			break;
-		}
+	error = ath_descdma_setup(sc, &sc->tx.txdma, &sc->tx.txbuf,
+				  "tx", nbufs, 1);
+	if (error != 0) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"Failed to allocate tx descriptors: %d\n", error);
+		goto err;
+	}
 
-		error = ath_descdma_setup(sc, &sc->beacon.bdma, &sc->beacon.bbuf,
-					  "beacon", ATH_BCBUF, 1);
-		if (error != 0) {
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"Failed to allocate beacon descriptors: %d\n",
-				error);
-			break;
-		}
+	error = ath_descdma_setup(sc, &sc->beacon.bdma, &sc->beacon.bbuf,
+				  "beacon", ATH_BCBUF, 1);
+	if (error != 0) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"Failed to allocate beacon descriptors: %d\n", error);
+		goto err;
+	}
 
-	} while (0);
-
+err:
 	if (error != 0)
 		ath_tx_cleanup(sc);
 
 	return error;
 }
 
-int ath_tx_cleanup(struct ath_softc *sc)
+void ath_tx_cleanup(struct ath_softc *sc)
 {
 	if (sc->beacon.bdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->beacon.bdma, &sc->beacon.bbuf);
 
 	if (sc->tx.txdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->tx.txdma, &sc->tx.txbuf);
-
-	return 0;
 }
 
 void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)

@@ -283,54 +283,51 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	struct ath_buf *bf;
 	int error = 0;
 
-	do {
-		spin_lock_init(&sc->rx.rxflushlock);
-		sc->sc_flags &= ~SC_OP_RXFLUSH;
-		spin_lock_init(&sc->rx.rxbuflock);
+	spin_lock_init(&sc->rx.rxflushlock);
+	sc->sc_flags &= ~SC_OP_RXFLUSH;
+	spin_lock_init(&sc->rx.rxbuflock);
 
-		sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
-					   min(sc->cachelsz,
-					       (u16)64));
+	sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
+				 min(sc->cachelsz, (u16)64));
 
-		DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
-			sc->cachelsz, sc->rx.bufsize);
+	DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
+		sc->cachelsz, sc->rx.bufsize);
 
-		/* Initialize rx descriptors */
+	/* Initialize rx descriptors */
 
-		error = ath_descdma_setup(sc, &sc->rx.rxdma, &sc->rx.rxbuf,
-					  "rx", nbufs, 1);
-		if (error != 0) {
+	error = ath_descdma_setup(sc, &sc->rx.rxdma, &sc->rx.rxbuf,
+				  "rx", nbufs, 1);
+	if (error != 0) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"failed to allocate rx descriptors: %d\n", error);
+		goto err;
+	}
+
+	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
+		skb = ath_rxbuf_alloc(sc, sc->rx.bufsize, GFP_KERNEL);
+		if (skb == NULL) {
+			error = -ENOMEM;
+			goto err;
+		}
+
+		bf->bf_mpdu = skb;
+		bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
+						 sc->rx.bufsize,
+						 DMA_FROM_DEVICE);
+		if (unlikely(dma_mapping_error(sc->dev,
+					       bf->bf_buf_addr))) {
+			dev_kfree_skb_any(skb);
+			bf->bf_mpdu = NULL;
 			DPRINTF(sc, ATH_DBG_FATAL,
-				"failed to allocate rx descriptors: %d\n", error);
-			break;
+				"dma_mapping_error() on RX init\n");
+			error = -ENOMEM;
+			goto err;
 		}
+		bf->bf_dmacontext = bf->bf_buf_addr;
+	}
+	sc->rx.rxlink = NULL;
 
-		list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-			skb = ath_rxbuf_alloc(sc, sc->rx.bufsize, GFP_KERNEL);
-			if (skb == NULL) {
-				error = -ENOMEM;
-				break;
-			}
-
-			bf->bf_mpdu = skb;
-			bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
-							 sc->rx.bufsize,
-							 DMA_FROM_DEVICE);
-			if (unlikely(dma_mapping_error(sc->dev,
-				  bf->bf_buf_addr))) {
-				dev_kfree_skb_any(skb);
-				bf->bf_mpdu = NULL;
-				DPRINTF(sc, ATH_DBG_FATAL,
-					"dma_mapping_error() on RX init\n");
-				error = -ENOMEM;
-				break;
-			}
-			bf->bf_dmacontext = bf->bf_buf_addr;
-		}
-		sc->rx.rxlink = NULL;
-
-	} while (0);
-
+err:
 	if (error)
 		ath_rx_cleanup(sc);
 
@@ -345,10 +342,8 @@ void ath_rx_cleanup(struct ath_softc *sc)
 	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
 		skb = bf->bf_mpdu;
 		if (skb) {
-			dma_unmap_single(sc->dev,
-					 bf->bf_buf_addr,
-					 sc->rx.bufsize,
-					 DMA_FROM_DEVICE);
+			dma_unmap_single(sc->dev, bf->bf_buf_addr,
+					 sc->rx.bufsize, DMA_FROM_DEVICE);
 			dev_kfree_skb(skb);
 		}
 	}
