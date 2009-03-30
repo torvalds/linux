@@ -13,22 +13,36 @@
 int swiotlb __read_mostly;
 EXPORT_SYMBOL(swiotlb);
 
-struct dma_mapping_ops swiotlb_dma_ops = {
-	.mapping_error = swiotlb_dma_mapping_error,
-	.alloc_coherent = swiotlb_alloc_coherent,
+static void *ia64_swiotlb_alloc_coherent(struct device *dev, size_t size,
+					 dma_addr_t *dma_handle, gfp_t gfp)
+{
+	if (dev->coherent_dma_mask != DMA_64BIT_MASK)
+		gfp |= GFP_DMA;
+	return swiotlb_alloc_coherent(dev, size, dma_handle, gfp);
+}
+
+struct dma_map_ops swiotlb_dma_ops = {
+	.alloc_coherent = ia64_swiotlb_alloc_coherent,
 	.free_coherent = swiotlb_free_coherent,
-	.map_single = swiotlb_map_single,
-	.unmap_single = swiotlb_unmap_single,
+	.map_page = swiotlb_map_page,
+	.unmap_page = swiotlb_unmap_page,
+	.map_sg = swiotlb_map_sg_attrs,
+	.unmap_sg = swiotlb_unmap_sg_attrs,
 	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
 	.sync_single_for_device = swiotlb_sync_single_for_device,
 	.sync_single_range_for_cpu = swiotlb_sync_single_range_for_cpu,
 	.sync_single_range_for_device = swiotlb_sync_single_range_for_device,
 	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
 	.sync_sg_for_device = swiotlb_sync_sg_for_device,
-	.map_sg = swiotlb_map_sg,
-	.unmap_sg = swiotlb_unmap_sg,
-	.dma_supported_op = swiotlb_dma_supported,
+	.dma_supported = swiotlb_dma_supported,
+	.mapping_error = swiotlb_dma_mapping_error,
 };
+
+void __init swiotlb_dma_init(void)
+{
+	dma_ops = &swiotlb_dma_ops;
+	swiotlb_init();
+}
 
 void __init pci_swiotlb_init(void)
 {
