@@ -1654,6 +1654,17 @@ void perf_counter_do_pending(void)
 }
 
 /*
+ * Callchain support -- arch specific
+ */
+
+struct perf_callchain_entry *
+__attribute__((weak))
+perf_callchain(struct pt_regs *regs)
+{
+	return NULL;
+}
+
+/*
  * Output
  */
 
@@ -1764,6 +1775,8 @@ static void perf_output_simple(struct perf_counter *counter,
 	struct {
 		u32 pid, tid;
 	} tid_entry;
+	struct perf_callchain_entry *callchain = NULL;
+	int callchain_size = 0;
 
 	header.type = PERF_EVENT_OVERFLOW;
 	header.size = sizeof(header);
@@ -1781,6 +1794,17 @@ static void perf_output_simple(struct perf_counter *counter,
 		header.size += sizeof(tid_entry);
 	}
 
+	if (counter->hw_event.callchain) {
+		callchain = perf_callchain(regs);
+
+		if (callchain) {
+			callchain_size = (1 + callchain->nr) * sizeof(u64);
+
+			header.type |= __PERF_EVENT_CALLCHAIN;
+			header.size += callchain_size;
+		}
+	}
+
 	ret = perf_output_begin(&handle, counter, header.size, nmi);
 	if (ret)
 		return;
@@ -1790,6 +1814,9 @@ static void perf_output_simple(struct perf_counter *counter,
 
 	if (counter->hw_event.include_tid)
 		perf_output_put(&handle, tid_entry);
+
+	if (callchain)
+		perf_output_copy(&handle, callchain, callchain_size);
 
 	perf_output_end(&handle);
 }

@@ -140,8 +140,9 @@ struct perf_counter_hw_event {
 				include_tid    :  1, /* include the tid       */
 				mmap           :  1, /* include mmap data     */
 				munmap         :  1, /* include munmap data   */
+				callchain      :  1, /* add callchain data    */
 
-				__reserved_1   : 52;
+				__reserved_1   : 51;
 
 	__u32			extra_config_len;
 	__u32			__reserved_4;
@@ -219,6 +220,7 @@ enum perf_event_type {
 	PERF_EVENT_OVERFLOW	= 1UL << 31,
 	__PERF_EVENT_IP		= 1UL << 30,
 	__PERF_EVENT_TID	= 1UL << 29,
+	__PERF_EVENT_CALLCHAIN  = 1UL << 28,
 };
 
 #ifdef __KERNEL__
@@ -503,6 +505,15 @@ extern void perf_counter_mmap(unsigned long addr, unsigned long len,
 
 extern void perf_counter_munmap(unsigned long addr, unsigned long len,
 				unsigned long pgoff, struct file *file);
+
+#define MAX_STACK_DEPTH		255
+
+struct perf_callchain_entry {
+	u64	nr;
+	u64	ip[MAX_STACK_DEPTH];
+};
+
+extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
 
 #else
 static inline void
