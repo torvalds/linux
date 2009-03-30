@@ -1197,8 +1197,12 @@ static void free_counter_rcu(struct rcu_head *head)
 	kfree(counter);
 }
 
+static void perf_pending_sync(struct perf_counter *counter);
+
 static void free_counter(struct perf_counter *counter)
 {
+	perf_pending_sync(counter);
+
 	if (counter->destroy)
 		counter->destroy(counter);
 
@@ -1529,6 +1533,118 @@ static const struct file_operations perf_fops = {
 };
 
 /*
+ * Perf counter wakeup
+ *
+ * If there's data, ensure we set the poll() state and publish everything
+ * to user-space before waking everybody up.
+ */
+
+void perf_counter_wakeup(struct perf_counter *counter)
+{
+	struct perf_mmap_data *data;
+
+	rcu_read_lock();
+	data = rcu_dereference(counter->data);
+	if (data) {
+		(void)atomic_xchg(&data->wakeup, POLL_IN);
+		__perf_counter_update_userpage(counter, data);
+	}
+	rcu_read_unlock();
+
+	wake_up_all(&counter->waitq);
+}
+
+/*
+ * Pending wakeups
+ *
+ * Handle the case where we need to wakeup up from NMI (or rq->lock) context.
+ *
+ * The NMI bit means we cannot possibly take locks. Therefore, maintain a
+ * single linked list and use cmpxchg() to add entries lockless.
+ */
+
+#define PENDING_TAIL ((struct perf_wakeup_entry *)-1UL)
+
+static DEFINE_PER_CPU(struct perf_wakeup_entry *, perf_wakeup_head) = {
+	PENDING_TAIL,
+};
+
+static void perf_pending_queue(struct perf_counter *counter)
+{
+	struct perf_wakeup_entry **head;
+	struct perf_wakeup_entry *prev, *next;
+
+	if (cmpxchg(&counter->wakeup.next, NULL, PENDING_TAIL) != NULL)
+		return;
+
+	head = &get_cpu_var(perf_wakeup_head);
+
+	do {
+		prev = counter->wakeup.next = *head;
+		next = &counter->wakeup;
+	} while (cmpxchg(head, prev, next) != prev);
+
+	set_perf_counter_pending();
+
+	put_cpu_var(perf_wakeup_head);
+}
+
+static int __perf_pending_run(void)
+{
+	struct perf_wakeup_entry *list;
+	int nr = 0;
+
+	list = xchg(&__get_cpu_var(perf_wakeup_head), PENDING_TAIL);
+	while (list != PENDING_TAIL) {
+		struct perf_counter *counter = container_of(list,
+				struct perf_counter, wakeup);
+
+		list = list->next;
+
+		counter->wakeup.next = NULL;
+		/*
+		 * Ensure we observe the unqueue before we issue the wakeup,
+		 * so that we won't be waiting forever.
+		 * -- see perf_not_pending().
+		 */
+		smp_wmb();
+
+		perf_counter_wakeup(counter);
+		nr++;
+	}
+
+	return nr;
+}
+
+static inline int perf_not_pending(struct perf_counter *counter)
+{
+	/*
+	 * If we flush on whatever cpu we run, there is a chance we don't
+	 * need to wait.
+	 */
+	get_cpu();
+	__perf_pending_run();
+	put_cpu();
+
+	/*
+	 * Ensure we see the proper queue state before going to sleep
+	 * so that we do not miss the wakeup. -- see perf_pending_handle()
+	 */
+	smp_rmb();
+	return counter->wakeup.next == NULL;
+}
+
+static void perf_pending_sync(struct perf_counter *counter)
+{
+	wait_event(counter->waitq, perf_not_pending(counter));
+}
+
+void perf_counter_do_pending(void)
+{
+	__perf_pending_run();
+}
+
+/*
  * Output
  */
 
@@ -1611,13 +1727,10 @@ static void perf_output_copy(struct perf_output_handle *handle,
 static void perf_output_end(struct perf_output_handle *handle, int nmi)
 {
 	if (handle->wakeup) {
-		(void)atomic_xchg(&handle->data->wakeup, POLL_IN);
-		__perf_counter_update_userpage(handle->counter, handle->data);
-		if (nmi) {
-			handle->counter->wakeup_pending = 1;
-			set_perf_counter_pending();
-		} else
-			wake_up(&handle->counter->waitq);
+		if (nmi)
+			perf_pending_queue(handle->counter);
+		else
+			perf_counter_wakeup(handle->counter);
 	}
 	rcu_read_unlock();
 }
@@ -2211,7 +2324,6 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 
 	counter->cpu			= cpu;
 	counter->hw_event		= *hw_event;
-	counter->wakeup_pending		= 0;
 	counter->group_leader		= group_leader;
 	counter->hw_ops			= NULL;
 	counter->ctx			= ctx;

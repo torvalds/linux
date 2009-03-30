@@ -275,6 +275,10 @@ struct perf_mmap_data {
 	void 				*data_pages[0];
 };
 
+struct perf_wakeup_entry {
+	struct perf_wakeup_entry *next;
+};
+
 /**
  * struct perf_counter - performance counter kernel representation:
  */
@@ -350,7 +354,7 @@ struct perf_counter {
 	/* poll related */
 	wait_queue_head_t		waitq;
 	/* optional: for NMIs */
-	int				wakeup_pending;
+	struct perf_wakeup_entry	wakeup;
 
 	void (*destroy)(struct perf_counter *);
 	struct rcu_head			rcu_head;
@@ -427,7 +431,7 @@ extern void perf_counter_task_sched_out(struct task_struct *task, int cpu);
 extern void perf_counter_task_tick(struct task_struct *task, int cpu);
 extern void perf_counter_init_task(struct task_struct *child);
 extern void perf_counter_exit_task(struct task_struct *child);
-extern void perf_counter_notify(struct pt_regs *regs);
+extern void perf_counter_do_pending(void);
 extern void perf_counter_print_debug(void);
 extern void perf_counter_unthrottle(void);
 extern u64 hw_perf_save_disable(void);
@@ -461,7 +465,7 @@ static inline void
 perf_counter_task_tick(struct task_struct *task, int cpu)		{ }
 static inline void perf_counter_init_task(struct task_struct *child)	{ }
 static inline void perf_counter_exit_task(struct task_struct *child)	{ }
-static inline void perf_counter_notify(struct pt_regs *regs)		{ }
+static inline void perf_counter_do_pending(void)			{ }
 static inline void perf_counter_print_debug(void)			{ }
 static inline void perf_counter_unthrottle(void)			{ }
 static inline void hw_perf_restore(u64 ctrl)				{ }
@@ -469,8 +473,9 @@ static inline u64 hw_perf_save_disable(void)		      { return 0; }
 static inline int perf_counter_task_disable(void)	{ return -EINVAL; }
 static inline int perf_counter_task_enable(void)	{ return -EINVAL; }
 
-static inline void perf_swcounter_event(u32 event, u64 nr,
-					int nmi, struct pt_regs *regs)	{ }
+static inline void
+perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs)	{ }
+
 #endif
 
 #endif /* __KERNEL__ */

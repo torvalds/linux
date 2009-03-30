@@ -135,7 +135,7 @@ notrace void raw_local_irq_restore(unsigned long en)
 			iseries_handle_interrupts();
 	}
 
-	if (get_perf_counter_pending()) {
+	if (test_perf_counter_pending()) {
 		clear_perf_counter_pending();
 		perf_counter_do_pending();
 	}

@@ -132,7 +132,7 @@ static inline int irqs_disabled_flags(unsigned long flags)
 struct irq_chip;
 
 #ifdef CONFIG_PERF_COUNTERS
-static inline unsigned long get_perf_counter_pending(void)
+static inline unsigned long test_perf_counter_pending(void)
 {
 	unsigned long x;
 
@@ -160,7 +160,7 @@ extern void perf_counter_do_pending(void);
 
 #else
 
-static inline unsigned long get_perf_counter_pending(void)
+static inline unsigned long test_perf_counter_pending(void)
 {
 	return 0;
 }

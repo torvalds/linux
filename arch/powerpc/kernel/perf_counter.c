@@ -650,24 +650,6 @@ hw_perf_counter_init(struct perf_counter *counter)
 }
 
 /*
- * Handle wakeups.
- */
-void perf_counter_do_pending(void)
-{
-	int i;
-	struct cpu_hw_counters *cpuhw = &__get_cpu_var(cpu_hw_counters);
-	struct perf_counter *counter;
-
-	for (i = 0; i < cpuhw->n_counters; ++i) {
-		counter = cpuhw->counter[i];
-		if (counter && counter->wakeup_pending) {
-			counter->wakeup_pending = 0;
-			wake_up(&counter->waitq);
-		}
-	}
-}
-
-/*
  * A counter has overflowed; update its count and record
  * things if requested.  Note that interrupts are hard-disabled
  * here so there is no possibility of being interrupted.
@@ -720,7 +702,7 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	struct cpu_hw_counters *cpuhw = &__get_cpu_var(cpu_hw_counters);
 	struct perf_counter *counter;
 	long val;
-	int need_wakeup = 0, found = 0;
+	int found = 0;
 
 	for (i = 0; i < cpuhw->n_counters; ++i) {
 		counter = cpuhw->counter[i];
@@ -761,7 +743,7 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	 * immediately; otherwise we'll have do the wakeup when interrupts
 	 * get soft-enabled.
 	 */
-	if (get_perf_counter_pending() && regs->softe) {
+	if (test_perf_counter_pending() && regs->softe) {
 		irq_enter();
 		clear_perf_counter_pending();
 		perf_counter_do_pending();

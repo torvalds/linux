@@ -227,7 +227,6 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		 */
 		hwc->config |= pmc_ops->event_map(perf_event_id(hw_event));
 	}
-	counter->wakeup_pending = 0;
 
 	return 0;
 }
@@ -771,34 +770,6 @@ void smp_perf_counter_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 	__smp_perf_counter_interrupt(regs, 0);
 	irq_exit();
-}
-
-/*
- * This handler is triggered by NMI contexts:
- */
-void perf_counter_notify(struct pt_regs *regs)
-{
-	struct cpu_hw_counters *cpuc;
-	unsigned long flags;
-	int bit, cpu;
-
-	local_irq_save(flags);
-	cpu = smp_processor_id();
-	cpuc = &per_cpu(cpu_hw_counters, cpu);
-
-	for_each_bit(bit, cpuc->used, X86_PMC_IDX_MAX) {
-		struct perf_counter *counter = cpuc->counters[bit];
-
-		if (!counter)
-			continue;
-
-		if (counter->wakeup_pending) {
-			counter->wakeup_pending = 0;
-			wake_up(&counter->waitq);
-		}
-	}
-
-	local_irq_restore(flags);
 }
 
 void perf_counters_lapic_init(int nmi)

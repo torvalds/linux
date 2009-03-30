@@ -84,8 +84,9 @@ union cpuid10_edx {
 #define MSR_ARCH_PERFMON_FIXED_CTR2			0x30b
 #define X86_PMC_IDX_FIXED_BUS_CYCLES			(X86_PMC_IDX_FIXED + 2)
 
-#define set_perf_counter_pending()	\
-		set_tsk_thread_flag(current, TIF_PERF_COUNTERS);
+#define set_perf_counter_pending()	do { } while (0)
+#define clear_perf_counter_pending()	do { } while (0)
+#define test_perf_counter_pending()	(0)
 
 #ifdef CONFIG_PERF_COUNTERS
 extern void init_hw_perf_counters(void);
