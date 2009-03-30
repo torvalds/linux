@@ -1060,23 +1060,20 @@ int check_unsafe_exec(struct linux_binprm *bprm)
 {
 	struct task_struct *p = current, *t;
 	unsigned long flags;
-	unsigned n_fs, n_sighand;
+	unsigned n_fs;
 	int res = 0;
 
 	bprm->unsafe = tracehook_unsafe_exec(p);
 
 	n_fs = 1;
-	n_sighand = 1;
 	write_lock(&p->fs->lock);
 	lock_task_sighand(p, &flags);
 	for (t = next_thread(p); t != p; t = next_thread(t)) {
 		if (t->fs == p->fs)
 			n_fs++;
-		n_sighand++;
 	}
 
-	if (p->fs->users > n_fs ||
-	    atomic_read(&p->sighand->count) > n_sighand) {
+	if (p->fs->users > n_fs) {
 		bprm->unsafe |= LSM_UNSAFE_SHARE;
 	} else {
 		if (p->fs->in_exec)
