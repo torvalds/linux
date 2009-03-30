@@ -493,3 +493,15 @@ Licence:
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: YAM - YAM driver for AX.25
+
+File: yam/1200.bin
+File: yam/9600.bin
+
+Licence:
+ * (C) F6FBB 1998
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
