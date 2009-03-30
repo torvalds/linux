@@ -197,6 +197,8 @@ static int			delay_secs			=  2;
 static int			zero;
 static int			dump_symtab;
 
+static int			scale;
+
 struct source_line {
 	uint64_t		EIP;
 	unsigned long		count;
@@ -305,6 +307,7 @@ static void display_perfstat_help(void)
 	display_events_help();
 
 	printf(
+	" -l                           # scale counter values\n"
 	" -a                           # system-wide collection\n");
 	exit(0);
 }
@@ -328,6 +331,7 @@ static void display_help(void)
 	" -c CNT    --count=CNT        # event period to sample\n\n"
 	" -C CPU    --cpu=CPU          # CPU (-1 for all)                 [default: -1]\n"
 	" -p PID    --pid=PID          # PID of sampled task (-1 for all) [default: -1]\n\n"
+	" -l                           # show scale factor for RR events\n"
 	" -d delay  --delay=<seconds>  # sampling/display delay           [default:  2]\n"
 	" -f CNT    --filter=CNT       # min-event-count filter          [default: 100]\n\n"
 	" -s symbol --symbol=<symbol>  # function to be showed annotated one-shot\n"
@@ -436,6 +440,9 @@ static void create_perfstat_counter(int counter)
 	hw_event.config		= event_id[counter];
 	hw_event.record_type	= PERF_RECORD_SIMPLE;
 	hw_event.nmi		= 0;
+	if (scale)
+		hw_event.read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
+					  PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	if (system_wide) {
 		int cpu;
@@ -507,28 +514,53 @@ int do_perfstat(int argc, char *argv[])
 	fprintf(stderr, "\n");
 
 	for (counter = 0; counter < nr_counters; counter++) {
-		int cpu;
-		__u64 count, single_count;
+		int cpu, nv;
+		__u64 count[3], single_count[3];
+		int scaled;
 
-		count = 0;
+		count[0] = count[1] = count[2] = 0;
+		nv = scale ? 3 : 1;
 		for (cpu = 0; cpu < nr_cpus; cpu ++) {
 			res = read(fd[cpu][counter],
-					(char *) &single_count, sizeof(single_count));
-			assert(res == sizeof(single_count));
-			count += single_count;
+				   single_count, nv * sizeof(__u64));
+			assert(res == nv * sizeof(__u64));
+
+			count[0] += single_count[0];
+			if (scale) {
+				count[1] += single_count[1];
+				count[2] += single_count[2];
+			}
+		}
+
+		scaled = 0;
+		if (scale) {
+			if (count[2] == 0) {
+				fprintf(stderr, " %14s  %-20s\n",
+					"<not counted>", event_name(counter));
+				continue;
+			}
+			if (count[2] < count[1]) {
+				scaled = 1;
+				count[0] = (unsigned long long)
+					((double)count[0] * count[1] / count[2] + 0.5);
+			}
 		}
 
 		if (event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_CLOCK) ||
 		    event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK)) {
 
-			double msecs = (double)count / 1000000;
+			double msecs = (double)count[0] / 1000000;
 
-			fprintf(stderr, " %14.6f  %-20s (msecs)\n",
+			fprintf(stderr, " %14.6f  %-20s (msecs)",
 				msecs, event_name(counter));
 		} else {
-			fprintf(stderr, " %14Ld  %-20s (events)\n",
-				count, event_name(counter));
+			fprintf(stderr, " %14Ld  %-20s (events)",
+				count[0], event_name(counter));
 		}
+		if (scaled)
+			fprintf(stderr, "  (scaled from %.2f%%)",
+				(double) count[2] / count[1] * 100);
+		fprintf(stderr, "\n");
 	}
 	fprintf(stderr, "\n");
 	fprintf(stderr, " Wall-clock time elapsed: %12.6f msecs\n",
@@ -1049,6 +1081,7 @@ static void process_options(int argc, char *argv[])
 			{"filter",	required_argument,	NULL, 'f'},
 			{"group",	required_argument,	NULL, 'g'},
 			{"help",	no_argument,		NULL, 'h'},
+			{"scale",	no_argument,		NULL, 'l'},
 			{"nmi",		required_argument,	NULL, 'n'},
 			{"pid",		required_argument,	NULL, 'p'},
 			{"vmlinux",	required_argument,	NULL, 'x'},
@@ -1060,7 +1093,7 @@ static void process_options(int argc, char *argv[])
 			{"munmap_info",	no_argument,		NULL, 'U'},
 			{NULL,		0,			NULL,  0 }
 		};
-		int c = getopt_long(argc, argv, "+:ac:C:d:De:f:g:hn:m:p:s:Sx:zMU",
+		int c = getopt_long(argc, argv, "+:ac:C:d:De:f:g:hln:m:p:s:Sx:zMU",
 				    long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1084,6 +1117,7 @@ static void process_options(int argc, char *argv[])
 		case 'f': count_filter			=   atoi(optarg); break;
 		case 'g': group				=   atoi(optarg); break;
 		case 'h':      				  display_help(); break;
+		case 'l': scale				=	       1; break;
 		case 'n': nmi				=   atoi(optarg); break;
 		case 'p':
 			/* CPU and PID are mutually exclusive */
