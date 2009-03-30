@@ -2004,7 +2004,7 @@ extern const struct address_space_operations reiserfs_address_space_operations;
 
 /* fix_nodes.c */
 
-int fix_nodes(int n_op_mode, struct tree_balance *p_s_tb,
+int fix_nodes(int n_op_mode, struct tree_balance *tb,
 	      struct item_head *p_s_ins_ih, const void *);
 void unfix_nodes(struct tree_balance *);
 

@@ -1063,17 +1063,17 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 }
 
 /* Calculate number of bytes which will be deleted or cut during balance */
-static int calc_deleted_bytes_number(struct tree_balance *p_s_tb, char c_mode)
+static int calc_deleted_bytes_number(struct tree_balance *tb, char c_mode)
 {
 	int n_del_size;
-	struct item_head *p_le_ih = PATH_PITEM_HEAD(p_s_tb->tb_path);
+	struct item_head *p_le_ih = PATH_PITEM_HEAD(tb->tb_path);
 
 	if (is_statdata_le_ih(p_le_ih))
 		return 0;
 
 	n_del_size =
 	    (c_mode ==
-	     M_DELETE) ? ih_item_len(p_le_ih) : -p_s_tb->insert_size[0];
+	     M_DELETE) ? ih_item_len(p_le_ih) : -tb->insert_size[0];
 	if (is_direntry_le_ih(p_le_ih)) {
 		// return EMPTY_DIR_SIZE; /* We delete emty directoris only. */
 		// we can't use EMPTY_DIR_SIZE, as old format dirs have a different
@@ -1083,25 +1083,26 @@ static int calc_deleted_bytes_number(struct tree_balance *p_s_tb, char c_mode)
 	}
 
 	if (is_indirect_le_ih(p_le_ih))
-		n_del_size = (n_del_size / UNFM_P_SIZE) * (PATH_PLAST_BUFFER(p_s_tb->tb_path)->b_size);	// - get_ih_free_space (p_le_ih);
+		n_del_size = (n_del_size / UNFM_P_SIZE) *
+				(PATH_PLAST_BUFFER(tb->tb_path)->b_size);
 	return n_del_size;
 }
 
 static void init_tb_struct(struct reiserfs_transaction_handle *th,
-			   struct tree_balance *p_s_tb,
+			   struct tree_balance *tb,
 			   struct super_block *sb,
 			   struct treepath *p_s_path, int n_size)
 {
 
 	BUG_ON(!th->t_trans_id);
 
-	memset(p_s_tb, '\0', sizeof(struct tree_balance));
-	p_s_tb->transaction_handle = th;
-	p_s_tb->tb_sb = sb;
-	p_s_tb->tb_path = p_s_path;
+	memset(tb, '\0', sizeof(struct tree_balance));
+	tb->transaction_handle = th;
+	tb->tb_sb = sb;
+	tb->tb_path = p_s_path;
 	PATH_OFFSET_PBUFFER(p_s_path, ILLEGAL_PATH_ELEMENT_OFFSET) = NULL;
 	PATH_OFFSET_POSITION(p_s_path, ILLEGAL_PATH_ELEMENT_OFFSET) = 0;
-	p_s_tb->insert_size[0] = n_size;
+	tb->insert_size[0] = n_size;
 }
 
 void padd_item(char *item, int total_length, int length)
