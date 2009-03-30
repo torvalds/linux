@@ -386,7 +386,7 @@ void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...)
 	       error_buf);
 
 	sb->s_flags |= MS_RDONLY;
-	reiserfs_journal_abort(sb, errno);
+	reiserfs_abort_journal(sb, errno);
 }
 
 /* this prints internal nodes (4 keys/items in line) (dc_number,
