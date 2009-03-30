@@ -2224,7 +2224,4 @@ int reiserfs_unpack(struct inode *inode, struct file *filp);
 #define reiserfs_write_lock( sb ) lock_kernel()
 #define reiserfs_write_unlock( sb ) unlock_kernel()
 
-/* xattr stuff */
-#define REISERFS_XATTR_DIR_SEM(s) (REISERFS_SB(s)->xattr_dir_sem)
-
 #endif				/* _LINUX_REISER_FS_H */

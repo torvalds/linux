@@ -1957,19 +1957,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	inode->i_nlink = 0;
 	th->t_trans_id = 0;	/* so the caller can't use this handle later */
 	unlock_new_inode(inode); /* OK to do even if we hadn't locked it */
-
-	/* If we were inheriting an ACL, we need to release the lock so that
-	 * iput doesn't deadlock in reiserfs_delete_xattrs. The locking
-	 * code really needs to be reworked, but this will take care of it
-	 * for now. -jeffm */
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
-	if (REISERFS_I(dir)->i_acl_default && !IS_ERR(REISERFS_I(dir)->i_acl_default)) {
-		reiserfs_write_unlock_xattrs(dir->i_sb);
-		iput(inode);
-		reiserfs_write_lock_xattrs(dir->i_sb);
-	} else
-#endif
-		iput(inode);
+	iput(inode);
 	return err;
 }
 

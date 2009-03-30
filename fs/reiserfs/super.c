@@ -1646,10 +1646,6 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	REISERFS_SB(s)->s_alloc_options.preallocmin = 0;
 	/* Preallocate by 16 blocks (17-1) at once */
 	REISERFS_SB(s)->s_alloc_options.preallocsize = 17;
-#ifdef CONFIG_REISERFS_FS_XATTR
-	/* Initialize the rwsem for xattr dir */
-	init_rwsem(&REISERFS_SB(s)->xattr_dir_sem);
-#endif
 	/* setup default block allocator options */
 	reiserfs_init_alloc_options(s);
 

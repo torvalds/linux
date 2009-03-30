@@ -609,9 +609,6 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	reiserfs_write_lock(dir->i_sb);
 
-	if (locked)
-		reiserfs_write_lock_xattrs(dir->i_sb);
-
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval) {
 		drop_new_inode(inode);
@@ -623,11 +620,6 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 			       inode);
 	if (retval)
 		goto out_failed;
-
-	if (locked) {
-		reiserfs_write_unlock_xattrs(dir->i_sb);
-		locked = 0;
-	}
 
 	inode->i_op = &reiserfs_file_inode_operations;
 	inode->i_fop = &reiserfs_file_operations;
@@ -655,8 +647,6 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
 
       out_failed:
-	if (locked)
-		reiserfs_write_unlock_xattrs(dir->i_sb);
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }
@@ -686,9 +676,6 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 
 	reiserfs_write_lock(dir->i_sb);
 
-	if (locked)
-		reiserfs_write_lock_xattrs(dir->i_sb);
-
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval) {
 		drop_new_inode(inode);
@@ -700,11 +687,6 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 			       inode);
 	if (retval) {
 		goto out_failed;
-	}
-
-	if (locked) {
-		reiserfs_write_unlock_xattrs(dir->i_sb);
-		locked = 0;
 	}
 
 	inode->i_op = &reiserfs_special_inode_operations;
@@ -736,8 +718,6 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
 
       out_failed:
-	if (locked)
-		reiserfs_write_unlock_xattrs(dir->i_sb);
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }
@@ -767,8 +747,6 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	locked = reiserfs_cache_default_acl(dir);
 
 	reiserfs_write_lock(dir->i_sb);
-	if (locked)
-		reiserfs_write_lock_xattrs(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval) {
@@ -788,11 +766,6 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (retval) {
 		dir->i_nlink--;
 		goto out_failed;
-	}
-
-	if (locked) {
-		reiserfs_write_unlock_xattrs(dir->i_sb);
-		locked = 0;
 	}
 
 	reiserfs_update_inode_transaction(inode);
@@ -824,8 +797,6 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	unlock_new_inode(inode);
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
       out_failed:
-	if (locked)
-		reiserfs_write_unlock_xattrs(dir->i_sb);
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }

@@ -172,6 +172,29 @@ static void *posix_acl_to_disk(const struct posix_acl *acl, size_t * size)
 	return ERR_PTR(-EINVAL);
 }
 
+static inline void iset_acl(struct inode *inode, struct posix_acl **i_acl,
+			    struct posix_acl *acl)
+{
+	spin_lock(&inode->i_lock);
+	if (*i_acl != ERR_PTR(-ENODATA))
+		posix_acl_release(*i_acl);
+	*i_acl = posix_acl_dup(acl);
+	spin_unlock(&inode->i_lock);
+}
+
+static inline struct posix_acl *iget_acl(struct inode *inode,
+					 struct posix_acl **i_acl)
+{
+	struct posix_acl *acl = ERR_PTR(-ENODATA);
+
+	spin_lock(&inode->i_lock);
+	if (*i_acl != ERR_PTR(-ENODATA))
+		acl = posix_acl_dup(*i_acl);
+	spin_unlock(&inode->i_lock);
+
+	return acl;
+}
+
 /*
  * Inode operation get_posix_acl().
  *
@@ -199,11 +222,11 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (IS_ERR(*p_acl)) {
-		if (PTR_ERR(*p_acl) == -ENODATA)
-			return NULL;
-	} else if (*p_acl != NULL)
-		return posix_acl_dup(*p_acl);
+	acl = iget_acl(inode, p_acl);
+	if (acl && !IS_ERR(acl))
+		return acl;
+	else if (PTR_ERR(acl) == -ENODATA)
+		return NULL;
 
 	size = reiserfs_xattr_get(inode, name, NULL, 0);
 	if (size < 0) {
@@ -229,7 +252,7 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 	} else {
 		acl = posix_acl_from_disk(value, retval);
 		if (!IS_ERR(acl))
-			*p_acl = posix_acl_dup(acl);
+			iset_acl(inode, p_acl, acl);
 	}
 
 	kfree(value);
@@ -300,16 +323,8 @@ reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 
 	kfree(value);
 
-	if (!error) {
-		/* Release the old one */
-		if (!IS_ERR(*p_acl) && *p_acl)
-			posix_acl_release(*p_acl);
-
-		if (acl == NULL)
-			*p_acl = ERR_PTR(-ENODATA);
-		else
-			*p_acl = posix_acl_dup(acl);
-	}
+	if (!error)
+		iset_acl(inode, p_acl, acl);
 
 	return error;
 }
@@ -404,9 +419,7 @@ int reiserfs_cache_default_acl(struct inode *inode)
 	if (reiserfs_posixacl(inode->i_sb) && !IS_PRIVATE(inode)) {
 		struct posix_acl *acl;
 		reiserfs_read_lock_xattr_i(inode);
-		reiserfs_read_lock_xattrs(inode->i_sb);
 		acl = reiserfs_get_acl(inode, ACL_TYPE_DEFAULT);
-		reiserfs_read_unlock_xattrs(inode->i_sb);
 		reiserfs_read_unlock_xattr_i(inode);
 		ret = (acl && !IS_ERR(acl));
 		if (ret)
@@ -429,9 +442,7 @@ int reiserfs_acl_chmod(struct inode *inode)
 		return 0;
 	}
 
-	reiserfs_read_lock_xattrs(inode->i_sb);
 	acl = reiserfs_get_acl(inode, ACL_TYPE_ACCESS);
-	reiserfs_read_unlock_xattrs(inode->i_sb);
 	if (!acl)
 		return 0;
 	if (IS_ERR(acl))
@@ -442,17 +453,8 @@ int reiserfs_acl_chmod(struct inode *inode)
 		return -ENOMEM;
 	error = posix_acl_chmod_masq(clone, inode->i_mode);
 	if (!error) {
-		int lock = !has_xattr_dir(inode);
 		reiserfs_write_lock_xattr_i(inode);
-		if (lock)
-			reiserfs_write_lock_xattrs(inode->i_sb);
-		else
-			reiserfs_read_lock_xattrs(inode->i_sb);
 		error = reiserfs_set_acl(inode, ACL_TYPE_ACCESS, clone);
-		if (lock)
-			reiserfs_write_unlock_xattrs(inode->i_sb);
-		else
-			reiserfs_read_unlock_xattrs(inode->i_sb);
 		reiserfs_write_unlock_xattr_i(inode);
 	}
 	posix_acl_release(clone);
@@ -480,14 +482,9 @@ posix_acl_access_set(struct inode *inode, const char *name,
 static int posix_acl_access_del(struct inode *inode, const char *name)
 {
 	struct reiserfs_inode_info *reiserfs_i = REISERFS_I(inode);
-	struct posix_acl **acl = &reiserfs_i->i_acl_access;
 	if (strlen(name) != sizeof(POSIX_ACL_XATTR_ACCESS) - 1)
 		return -EINVAL;
-	if (!IS_ERR(*acl) && *acl) {
-		posix_acl_release(*acl);
-		*acl = ERR_PTR(-ENODATA);
-	}
-
+	iset_acl(inode, &reiserfs_i->i_acl_access, ERR_PTR(-ENODATA));
 	return 0;
 }
 
@@ -533,14 +530,9 @@ posix_acl_default_set(struct inode *inode, const char *name,
 static int posix_acl_default_del(struct inode *inode, const char *name)
 {
 	struct reiserfs_inode_info *reiserfs_i = REISERFS_I(inode);
-	struct posix_acl **acl = &reiserfs_i->i_acl_default;
 	if (strlen(name) != sizeof(POSIX_ACL_XATTR_DEFAULT) - 1)
 		return -EINVAL;
-	if (!IS_ERR(*acl) && *acl) {
-		posix_acl_release(*acl);
-		*acl = ERR_PTR(-ENODATA);
-	}
-
+	iset_acl(inode, &reiserfs_i->i_acl_default, ERR_PTR(-ENODATA));
 	return 0;
 }
 

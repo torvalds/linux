@@ -67,45 +67,27 @@ extern struct reiserfs_xattr_handler user_handler;
 extern struct reiserfs_xattr_handler trusted_handler;
 extern struct reiserfs_xattr_handler security_handler;
 
-static inline void reiserfs_write_lock_xattrs(struct super_block *sb)
-{
-	down_write(&REISERFS_XATTR_DIR_SEM(sb));
-}
-static inline void reiserfs_write_unlock_xattrs(struct super_block *sb)
-{
-	up_write(&REISERFS_XATTR_DIR_SEM(sb));
-}
-static inline void reiserfs_read_lock_xattrs(struct super_block *sb)
-{
-	down_read(&REISERFS_XATTR_DIR_SEM(sb));
-}
-
-static inline void reiserfs_read_unlock_xattrs(struct super_block *sb)
-{
-	up_read(&REISERFS_XATTR_DIR_SEM(sb));
-}
-
 static inline void reiserfs_write_lock_xattr_i(struct inode *inode)
 {
-	down_write(&REISERFS_I(inode)->xattr_sem);
+	down_write(&REISERFS_I(inode)->i_xattr_sem);
 }
 static inline void reiserfs_write_unlock_xattr_i(struct inode *inode)
 {
-	up_write(&REISERFS_I(inode)->xattr_sem);
+	up_write(&REISERFS_I(inode)->i_xattr_sem);
 }
 static inline void reiserfs_read_lock_xattr_i(struct inode *inode)
 {
-	down_read(&REISERFS_I(inode)->xattr_sem);
+	down_read(&REISERFS_I(inode)->i_xattr_sem);
 }
 
 static inline void reiserfs_read_unlock_xattr_i(struct inode *inode)
 {
-	up_read(&REISERFS_I(inode)->xattr_sem);
+	up_read(&REISERFS_I(inode)->i_xattr_sem);
 }
 
 static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 {
-	init_rwsem(&REISERFS_I(inode)->xattr_sem);
+	init_rwsem(&REISERFS_I(inode)->i_xattr_sem);
 }
 
 #else
