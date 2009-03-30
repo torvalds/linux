@@ -307,8 +307,7 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 				if (pmd_none(*pmd)) {
 					pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
 					set_pmd(pmd, __pmd((unsigned long)pte));
-					if (pte != pte_offset_kernel(pmd, 0))
-						BUG();
+					BUG_ON(pte != pte_offset_kernel(pmd, 0));
 				}
 				vaddr += PMD_SIZE;
 			}

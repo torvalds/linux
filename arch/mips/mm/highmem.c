@@ -17,8 +17,7 @@ void *__kmap(struct page *page)
 
 void __kunmap(struct page *page)
 {
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 	if (!PageHighMem(page))
 		return;
 	kunmap_high(page);
@@ -46,8 +45,7 @@ void *__kmap_atomic(struct page *page, enum km_type type)
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
-	if (!pte_none(*(kmap_pte-idx)))
-		BUG();
+	BUG_ON(!pte_none(*(kmap_pte - idx)));
 #endif
 	set_pte(kmap_pte-idx, mk_pte(page, kmap_prot));
 	local_flush_tlb_one((unsigned long)vaddr);
@@ -66,8 +64,7 @@ void __kunmap_atomic(void *kvaddr, enum km_type type)
 		return;
 	}
 
-	if (vaddr != __fix_to_virt(FIX_KMAP_BEGIN+idx))
-		BUG();
+	BUG_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
 
 	/*
 	 * force other mappings to Oops if they'll try to access
