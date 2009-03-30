@@ -24,7 +24,6 @@ struct ath_softc;
 #define ATH_RATE_MAX     30
 #define RATE_TABLE_SIZE  64
 #define MAX_TX_RATE_PHY  48
-#define WLAN_CTRL_FRAME_SIZE (2+2+6+4)
 
 /* VALID_ALL - valid for 20/40/Legacy,
  * VALID - Legacy only,

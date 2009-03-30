@@ -287,7 +287,6 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	}
 	spin_unlock_bh(&sc->sc_resetlock);
 
-	sc->sc_flags &= ~SC_OP_CHAINMASK_UPDATE;
 	sc->sc_flags &= ~SC_OP_FULL_RESET;
 
 	if (ath_startrecv(sc) != 0) {
@@ -416,7 +415,6 @@ set_timer:
  */
 void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
-	sc->sc_flags |= SC_OP_CHAINMASK_UPDATE;
 	if (is_ht ||
 	    (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BT_COEX)) {
 		sc->tx_chainmask = sc->sc_ah->caps.tx_chainmask;

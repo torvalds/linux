@@ -363,10 +363,7 @@ static void ath9k_hw_set_defaults(struct ath_hw *ah)
 	ah->config.ack_6mb = 0x0;
 	ah->config.cwm_ignore_extcca = 0;
 	ah->config.pcie_powersave_enable = 0;
-	ah->config.pcie_l1skp_enable = 0;
 	ah->config.pcie_clock_req = 0;
-	ah->config.pcie_power_reset = 0x100;
-	ah->config.pcie_restore = 0;
 	ah->config.pcie_waen = 0;
 	ah->config.analog_shiftreg = 1;
 	ah->config.ht_enable = 1;
@@ -375,13 +372,6 @@ static void ath9k_hw_set_defaults(struct ath_hw *ah)
 	ah->config.cck_trig_high = 200;
 	ah->config.cck_trig_low = 100;
 	ah->config.enable_ani = 1;
-	ah->config.noise_immunity_level = 4;
-	ah->config.ofdm_weaksignal_det = 1;
-	ah->config.cck_weaksignal_thr = 0;
-	ah->config.spur_immunity_level = 2;
-	ah->config.firstep_level = 0;
-	ah->config.rssi_thr_high = 40;
-	ah->config.rssi_thr_low = 7;
 	ah->config.diversity_control = 0;
 	ah->config.antenna_switch_swap = 0;
 
@@ -3343,8 +3333,6 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	pCap->hw_caps |= ATH9K_HW_CAP_MIC_TKIP;
 	pCap->hw_caps |= ATH9K_HW_CAP_MIC_AESCCM;
 
-	pCap->hw_caps |= ATH9K_HW_CAP_CHAN_SPREAD;
-
 	if (ah->config.ht_enable)
 		pCap->hw_caps |= ATH9K_HW_CAP_HT;
 	else
@@ -3368,7 +3356,6 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->keycache_size = AR_KEYTABLE_SIZE;
 
 	pCap->hw_caps |= ATH9K_HW_CAP_FASTCC;
-	pCap->num_mr_retries = 4;
 	pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD;
 
 	if (AR_SREV_9285_10_OR_LATER(ah))
@@ -3377,14 +3364,6 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->num_gpio_pins = AR928X_NUM_GPIO;
 	else
 		pCap->num_gpio_pins = AR_NUM_GPIO;
-
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
-		pCap->hw_caps |= ATH9K_HW_CAP_WOW;
-		pCap->hw_caps |= ATH9K_HW_CAP_WOW_MATCHPATTERN_EXACT;
-	} else {
-		pCap->hw_caps &= ~ATH9K_HW_CAP_WOW;
-		pCap->hw_caps &= ~ATH9K_HW_CAP_WOW_MATCHPATTERN_EXACT;
-	}
 
 	if (AR_SREV_9160_10_OR_LATER(ah) || AR_SREV_9100(ah)) {
 		pCap->hw_caps |= ATH9K_HW_CAP_CST;
