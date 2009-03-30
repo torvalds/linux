@@ -1263,8 +1263,8 @@ static void mmap_read(struct mmap_data *md)
 		old += size;
 
 		switch (event->header.type) {
-		case PERF_EVENT_IP:
-		case PERF_EVENT_IP | __PERF_EVENT_TID:
+		case PERF_EVENT_OVERFLOW | __PERF_EVENT_IP:
+		case PERF_EVENT_OVERFLOW | __PERF_EVENT_IP | __PERF_EVENT_TID:
 			process_event(event->ip.ip, md->counter);
 			break;
 
