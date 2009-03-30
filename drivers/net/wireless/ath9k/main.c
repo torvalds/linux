@@ -1789,7 +1789,6 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		goto fail;
 	}
 
-	dd->dd_name = name;
 	dd->dd_desc_len = sizeof(struct ath_desc) * nbuf * ndesc;
 
 	/*
@@ -1819,7 +1818,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	}
 	ds = dd->dd_desc;
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
-		dd->dd_name, ds, (u32) dd->dd_desc_len,
+		name, ds, (u32) dd->dd_desc_len,
 		ito64(dd->dd_desc_paddr), /*XXX*/(u32) dd->dd_desc_len);
 
 	/* allocate buffers */

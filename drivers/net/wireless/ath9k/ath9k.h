@@ -145,12 +145,10 @@ struct ath_buf {
 };
 
 struct ath_descdma {
-	const char *dd_name;
 	struct ath_desc *dd_desc;
 	dma_addr_t dd_desc_paddr;
 	u32 dd_desc_len;
 	struct ath_buf *dd_bufptr;
-	dma_addr_t dd_dmacontext;
 };
 
 int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
