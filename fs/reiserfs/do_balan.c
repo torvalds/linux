@@ -1752,15 +1752,16 @@ static void store_thrown(struct tree_balance *tb, struct buffer_head *bh)
 	int i;
 
 	if (buffer_dirty(bh))
-		reiserfs_warning(tb->tb_sb,
-				 "store_thrown deals with dirty buffer");
+		reiserfs_warning(tb->tb_sb, "reiserfs-12320",
+				 "called with dirty buffer");
 	for (i = 0; i < ARRAY_SIZE(tb->thrown); i++)
 		if (!tb->thrown[i]) {
 			tb->thrown[i] = bh;
 			get_bh(bh);	/* free_thrown puts this */
 			return;
 		}
-	reiserfs_warning(tb->tb_sb, "store_thrown: too many thrown buffers");
+	reiserfs_warning(tb->tb_sb, "reiserfs-12321",
+			 "too many thrown buffers");
 }
 
 static void free_thrown(struct tree_balance *tb)
@@ -1771,8 +1772,8 @@ static void free_thrown(struct tree_balance *tb)
 		if (tb->thrown[i]) {
 			blocknr = tb->thrown[i]->b_blocknr;
 			if (buffer_dirty(tb->thrown[i]))
-				reiserfs_warning(tb->tb_sb,
-						 "free_thrown deals with dirty buffer %d",
+				reiserfs_warning(tb->tb_sb, "reiserfs-12322",
+						 "called with dirty buffer %d",
 						 blocknr);
 			brelse(tb->thrown[i]);	/* incremented in store_thrown */
 			reiserfs_free_block(tb->transaction_handle, NULL,
@@ -1877,13 +1878,12 @@ static void check_internal_node(struct super_block *s, struct buffer_head *bh,
 	}
 }
 
-static int locked_or_not_in_tree(struct buffer_head *bh, char *which)
+static int locked_or_not_in_tree(struct tree_balance *tb,
+				  struct buffer_head *bh, char *which)
 {
 	if ((!buffer_journal_prepared(bh) && buffer_locked(bh)) ||
 	    !B_IS_IN_TREE(bh)) {
-		reiserfs_warning(NULL,
-				 "vs-12339: locked_or_not_in_tree: %s (%b)",
-				 which, bh);
+		reiserfs_warning(tb->tb_sb, "vs-12339", "%s (%b)", which, bh);
 		return 1;
 	}
 	return 0;
@@ -1902,18 +1902,19 @@ static int check_before_balancing(struct tree_balance *tb)
 	/* double check that buffers that we will modify are unlocked. (fix_nodes should already have
 	   prepped all of these for us). */
 	if (tb->lnum[0]) {
-		retval |= locked_or_not_in_tree(tb->L[0], "L[0]");
-		retval |= locked_or_not_in_tree(tb->FL[0], "FL[0]");
-		retval |= locked_or_not_in_tree(tb->CFL[0], "CFL[0]");
+		retval |= locked_or_not_in_tree(tb, tb->L[0], "L[0]");
+		retval |= locked_or_not_in_tree(tb, tb->FL[0], "FL[0]");
+		retval |= locked_or_not_in_tree(tb, tb->CFL[0], "CFL[0]");
 		check_leaf(tb->L[0]);
 	}
 	if (tb->rnum[0]) {
-		retval |= locked_or_not_in_tree(tb->R[0], "R[0]");
-		retval |= locked_or_not_in_tree(tb->FR[0], "FR[0]");
-		retval |= locked_or_not_in_tree(tb->CFR[0], "CFR[0]");
+		retval |= locked_or_not_in_tree(tb, tb->R[0], "R[0]");
+		retval |= locked_or_not_in_tree(tb, tb->FR[0], "FR[0]");
+		retval |= locked_or_not_in_tree(tb, tb->CFR[0], "CFR[0]");
 		check_leaf(tb->R[0]);
 	}
-	retval |= locked_or_not_in_tree(PATH_PLAST_BUFFER(tb->tb_path), "S[0]");
+	retval |= locked_or_not_in_tree(tb, PATH_PLAST_BUFFER(tb->tb_path),
+					"S[0]");
 	check_leaf(PATH_PLAST_BUFFER(tb->tb_path));
 
 	return retval;
@@ -1952,7 +1953,7 @@ static void check_after_balance_leaf(struct tree_balance *tb)
 					       PATH_H_POSITION(tb->tb_path,
 							       1))));
 		print_cur_tb("12223");
-		reiserfs_warning(tb->tb_sb,
+		reiserfs_warning(tb->tb_sb, "reiserfs-12363",
 				 "B_FREE_SPACE (PATH_H_PBUFFER(tb->tb_path,0)) = %d; "
 				 "MAX_CHILD_SIZE (%d) - dc_size( %y, %d ) [%d] = %d",
 				 left,
@@ -2104,9 +2105,8 @@ void do_balance(struct tree_balance *tb,	/* tree_balance structure */
 	}
 	/* if we have no real work to do  */
 	if (!tb->insert_size[0]) {
-		reiserfs_warning(tb->tb_sb,
-				 "PAP-12350: do_balance: insert_size == 0, mode == %c",
-				 flag);
+		reiserfs_warning(tb->tb_sb, "PAP-12350",
+				 "insert_size == 0, mode == %c", flag);
 		unfix_nodes(tb);
 		return;
 	}

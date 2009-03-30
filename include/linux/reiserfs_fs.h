@@ -79,7 +79,10 @@ struct fid;
 */
 #define REISERFS_DEBUG_CODE 5	/* extra messages to help find/debug errors */
 
-void reiserfs_warning(struct super_block *s, const char *fmt, ...);
+void __reiserfs_warning(struct super_block *s, const char *id,
+			 const char *func, const char *fmt, ...);
+#define reiserfs_warning(s, id, fmt, args...) \
+	 __reiserfs_warning(s, id, __func__, fmt, ##args)
 /* assertions handling */
 
 /** always check a condition and panic if it's false. */
@@ -558,7 +561,7 @@ static inline int uniqueness2type(__u32 uniqueness)
 	case V1_DIRENTRY_UNIQUENESS:
 		return TYPE_DIRENTRY;
 	default:
-		reiserfs_warning(NULL, "vs-500: unknown uniqueness %d",
+		reiserfs_warning(NULL, "vs-500", "unknown uniqueness %d",
 				 uniqueness);
 	case V1_ANY_UNIQUENESS:
 		return TYPE_ANY;
@@ -578,7 +581,7 @@ static inline __u32 type2uniqueness(int type)
 	case TYPE_DIRENTRY:
 		return V1_DIRENTRY_UNIQUENESS;
 	default:
-		reiserfs_warning(NULL, "vs-501: unknown type %d", type);
+		reiserfs_warning(NULL, "vs-501", "unknown type %d", type);
 	case TYPE_ANY:
 		return V1_ANY_UNIQUENESS;
 	}

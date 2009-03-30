@@ -264,14 +264,17 @@ static void prepare_error_buf(const char *fmt, va_list args)
     va_end( args );\
 }
 
-void reiserfs_warning(struct super_block *sb, const char *fmt, ...)
+void __reiserfs_warning(struct super_block *sb, const char *id,
+			 const char *function, const char *fmt, ...)
 {
 	do_reiserfs_warning(fmt);
 	if (sb)
-		printk(KERN_WARNING "REISERFS warning (device %s): %s\n",
-		       sb->s_id, error_buf);
+		printk(KERN_WARNING "REISERFS warning (device %s): %s%s%s: "
+		       "%s\n", sb->s_id, id ? id : "", id ? " " : "",
+		       function, error_buf);
 	else
-		printk(KERN_WARNING "REISERFS warning: %s\n", error_buf);
+		printk(KERN_WARNING "REISERFS warning: %s%s%s: %s\n",
+		       id ? id : "", id ? " " : "", function, error_buf);
 }
 
 /* No newline.. reiserfs_info calls can be followed by printk's */

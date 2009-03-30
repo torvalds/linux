@@ -76,7 +76,7 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 			 * and let the admin know what is going on.
 			 */
 			igrab(inode);
-			reiserfs_warning(inode->i_sb,
+			reiserfs_warning(inode->i_sb, "clm-9001",
 					 "pinning inode %lu because the "
 					 "preallocation can't be freed",
 					 inode->i_ino);

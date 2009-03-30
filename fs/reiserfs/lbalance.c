@@ -1288,12 +1288,16 @@ void leaf_paste_entries(struct buffer_info *bi,
 			prev = (i != 0) ? deh_location(&(deh[i - 1])) : 0;
 
 			if (prev && prev <= deh_location(&(deh[i])))
-				reiserfs_warning(NULL,
-						 "vs-10240: leaf_paste_entries: directory item (%h) corrupted (prev %a, cur(%d) %a)",
+				reiserfs_warning(NULL, "vs-10240",
+						 "directory item (%h) "
+						 "corrupted (prev %a, "
+						 "cur(%d) %a)",
 						 ih, deh + i - 1, i, deh + i);
 			if (next && next >= deh_location(&(deh[i])))
-				reiserfs_warning(NULL,
-						 "vs-10250: leaf_paste_entries: directory item (%h) corrupted (cur(%d) %a, next %a)",
+				reiserfs_warning(NULL, "vs-10250",
+						 "directory item (%h) "
+						 "corrupted (cur(%d) %a, "
+						 "next %a)",
 						 ih, i, deh + i, deh + i + 1);
 		}
 	}

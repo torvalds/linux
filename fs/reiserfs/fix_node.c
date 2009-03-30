@@ -496,8 +496,8 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 		snum012[needed_nodes - 1 + 3] = units;
 
 		if (needed_nodes > 2)
-			reiserfs_warning(tb->tb_sb, "vs-8111: get_num_ver: "
-					 "split_item_position is out of boundary");
+			reiserfs_warning(tb->tb_sb, "vs-8111",
+					 "split_item_position is out of range");
 		snum012[needed_nodes - 1]++;
 		split_item_positions[needed_nodes - 1] = i;
 		needed_nodes++;
@@ -533,8 +533,8 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 
 		if (vn->vn_vi[split_item_num].vi_index != TYPE_DIRENTRY &&
 		    vn->vn_vi[split_item_num].vi_index != TYPE_INDIRECT)
-			reiserfs_warning(tb->tb_sb, "vs-8115: get_num_ver: not "
-					 "directory or indirect item");
+			reiserfs_warning(tb->tb_sb, "vs-8115",
+					 "not directory or indirect item");
 	}
 
 	/* now we know S2bytes, calculate S1bytes */
@@ -2268,9 +2268,9 @@ static int wait_tb_buffers_until_unlocked(struct tree_balance *p_s_tb)
 #ifdef CONFIG_REISERFS_CHECK
 			repeat_counter++;
 			if ((repeat_counter % 10000) == 0) {
-				reiserfs_warning(p_s_tb->tb_sb,
-						 "wait_tb_buffers_until_released(): too many "
-						 "iterations waiting for buffer to unlock "
+				reiserfs_warning(p_s_tb->tb_sb, "reiserfs-8200",
+						 "too many iterations waiting "
+						 "for buffer to unlock "
 						 "(%b)", locked);
 
 				/* Don't loop forever.  Try to recover from possible error. */
