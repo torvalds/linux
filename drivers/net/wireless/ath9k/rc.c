@@ -1321,7 +1321,7 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 				 * 40 to 20 => don't update */
 
 				if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
-				    (ath_rc_priv->rc_phy_mode != WLAN_RC_40_FLAG))
+				    !(ath_rc_priv->ht_cap & WLAN_RC_40_FLAG))
 					return;
 
 				rix = ath_rc_get_rateindex(rate_table, &rates[i]);
@@ -1346,9 +1346,8 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 
 	/* If HT40 and we have switched mode from 40 to 20 => don't update */
 	if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
-	    (ath_rc_priv->rc_phy_mode != WLAN_RC_40_FLAG)) {
+	    !(ath_rc_priv->ht_cap & WLAN_RC_40_FLAG))
 		return;
-	}
 
 	rix = ath_rc_get_rateindex(rate_table, &rates[i]);
 	ath_rc_update_ht(sc, ath_rc_priv, tx_info_priv, rix,
@@ -1421,7 +1420,6 @@ static void ath_rc_init(struct ath_softc *sc,
 			ath_rc_priv->valid_phy_rateidx[i][j] = 0;
 		ath_rc_priv->valid_phy_ratecnt[i] = 0;
 	}
-	ath_rc_priv->rc_phy_mode = ath_rc_priv->ht_cap & WLAN_RC_40_FLAG;
 
 	if (!rateset->rs_nrates) {
 		/* No working rate, just initialize valid rates */

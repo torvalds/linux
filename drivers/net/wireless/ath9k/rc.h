@@ -176,7 +176,6 @@ struct ath_rate_priv {
 	u8 ht_cap;
 	u8 valid_phy_ratecnt[WLAN_RC_PHY_MAX];
 	u8 valid_phy_rateidx[WLAN_RC_PHY_MAX][RATE_TABLE_SIZE];
-	u8 rc_phy_mode;
 	u8 rate_max_phy;
 	u32 rssi_time;
 	u32 rssi_down_time;
