@@ -14,3 +14,5 @@ obj-y += dma-octeon.o flash_setup.o
 obj-y += octeon-memcpy.o
 
 obj-$(CONFIG_SMP)                     += smp.o
+
+EXTRA_CFLAGS += -Werror
