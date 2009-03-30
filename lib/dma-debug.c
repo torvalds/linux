@@ -648,7 +648,7 @@ static void check_sync(struct device *dev, dma_addr_t addr,
 		err_printk(dev, NULL, "DMA-API: device driver tries "
 				"to sync DMA memory it has not allocated "
 				"[device address=0x%016llx] [size=%llu bytes]\n",
-				addr, size);
+				(unsigned long long)addr, size);
 		goto out;
 	}
 
@@ -666,7 +666,7 @@ static void check_sync(struct device *dev, dma_addr_t addr,
 				"DMA memory with different direction "
 				"[device address=0x%016llx] [size=%llu bytes] "
 				"[mapped with %s] [synced with %s]\n",
-				addr, entry->size,
+				(unsigned long long)addr, entry->size,
 				dir2name[entry->direction],
 				dir2name[direction]);
 	}
@@ -680,7 +680,7 @@ static void check_sync(struct device *dev, dma_addr_t addr,
 				"device read-only DMA memory for cpu "
 				"[device address=0x%016llx] [size=%llu bytes] "
 				"[mapped with %s] [synced with %s]\n",
-				addr, entry->size,
+				(unsigned long long)addr, entry->size,
 				dir2name[entry->direction],
 				dir2name[direction]);
 
@@ -690,7 +690,7 @@ static void check_sync(struct device *dev, dma_addr_t addr,
 				"device write-only DMA memory to device "
 				"[device address=0x%016llx] [size=%llu bytes] "
 				"[mapped with %s] [synced with %s]\n",
-				addr, entry->size,
+				(unsigned long long)addr, entry->size,
 				dir2name[entry->direction],
 				dir2name[direction]);
 
