@@ -1125,22 +1125,10 @@ struct mmap_data {
 static unsigned int mmap_read_head(struct mmap_data *md)
 {
 	struct perf_counter_mmap_page *pc = md->base;
-	unsigned int seq, head;
-
-repeat:
-	rmb();
-	seq = pc->lock;
-
-	if (unlikely(seq & 1)) {
-		cpu_relax();
-		goto repeat;
-	}
+	int head;
 
 	head = pc->data_head;
-
 	rmb();
-	if (pc->lock != seq)
-		goto repeat;
 
 	return head;
 }
