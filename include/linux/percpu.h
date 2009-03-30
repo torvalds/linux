@@ -34,7 +34,7 @@
 
 #ifdef CONFIG_SMP
 
-#ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
+#ifndef CONFIG_HAVE_LEGACY_PER_CPU_AREA
 
 /* minimum unit size, also is the maximum supported allocation size */
 #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(64 << 10)
@@ -80,7 +80,7 @@ extern ssize_t __init pcpu_embed_first_chunk(
 
 extern void *__alloc_reserved_percpu(size_t size, size_t align);
 
-#else /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+#else /* CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 struct percpu_data {
 	void *ptrs[1];
@@ -99,10 +99,14 @@ struct percpu_data {
         (__typeof__(ptr))__p->ptrs[(cpu)];				\
 })
 
-#endif /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+#endif /* CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 extern void *__alloc_percpu(size_t size, size_t align);
 extern void free_percpu(void *__pdata);
+
+#ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
+extern void __init setup_per_cpu_areas(void);
+#endif
 
 #else /* CONFIG_SMP */
 
@@ -123,6 +127,8 @@ static inline void free_percpu(void *p)
 {
 	kfree(p);
 }
+
+static inline void __init setup_per_cpu_areas(void) { }
 
 #endif /* CONFIG_SMP */
 

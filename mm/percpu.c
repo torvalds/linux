@@ -43,7 +43,7 @@
  *
  * To use this allocator, arch code should do the followings.
  *
- * - define CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
+ * - drop CONFIG_HAVE_LEGACY_PER_CPU_AREA
  *
  * - define __addr_to_pcpu_ptr() and __pcpu_ptr_to_addr() to translate
  *   regular address to percpu pointer and back if they need to be
@@ -1275,3 +1275,41 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 				      reserved_size, dyn_size,
 				      pcpue_unit_size, pcpue_ptr, NULL);
 }
+
+/*
+ * Generic percpu area setup.
+ *
+ * The embedding helper is used because its behavior closely resembles
+ * the original non-dynamic generic percpu area setup.  This is
+ * important because many archs have addressing restrictions and might
+ * fail if the percpu area is located far away from the previous
+ * location.  As an added bonus, in non-NUMA cases, embedding is
+ * generally a good idea TLB-wise because percpu area can piggy back
+ * on the physical linear memory mapping which uses large page
+ * mappings on applicable archs.
+ */
+#ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
+unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
+EXPORT_SYMBOL(__per_cpu_offset);
+
+void __init setup_per_cpu_areas(void)
+{
+	size_t static_size = __per_cpu_end - __per_cpu_start;
+	ssize_t unit_size;
+	unsigned long delta;
+	unsigned int cpu;
+
+	/*
+	 * Always reserve area for module percpu variables.  That's
+	 * what the legacy allocator did.
+	 */
+	unit_size = pcpu_embed_first_chunk(static_size, PERCPU_MODULE_RESERVE,
+					   PERCPU_DYNAMIC_RESERVE, -1);
+	if (unit_size < 0)
+		panic("Failed to initialized percpu areas.");
+
+	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
+	for_each_possible_cpu(cpu)
+		__per_cpu_offset[cpu] = delta + cpu * unit_size;
+}
+#endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */

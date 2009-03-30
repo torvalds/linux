@@ -46,6 +46,9 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 	bool
 	default y
 
+config HAVE_LEGACY_PER_CPU_AREA
+	def_bool PPC64
+
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool PPC64
 

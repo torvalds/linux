@@ -92,6 +92,9 @@ config AUDIT_ARCH
 	bool
 	default y
 
+config HAVE_LEGACY_PER_CPU_AREA
+	def_bool y if SPARC64
+
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y if SPARC64
 
