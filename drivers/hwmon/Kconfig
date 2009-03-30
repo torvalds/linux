@@ -827,7 +827,7 @@ config SENSORS_W83627HF
 	  will be called w83627hf.
 
 config SENSORS_W83627EHF
-	tristate "Winbond W83627EHF/DHG"
+	tristate "Winbond W83627EHF/EHG/DHG, W83667HG"
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the hardware
@@ -837,6 +837,8 @@ config SENSORS_W83627EHF
 	  version of the W83627EHF, and the W83627DHG, which is a similar
 	  chip suited for specific Intel processors that use PECI such as
 	  the Core 2 Duo.
+
+	  This driver also supports the W83667HG chip.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627ehf.
