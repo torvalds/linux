@@ -59,7 +59,7 @@ static int ath_beaconq_config(struct ath_softc *sc)
 static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 			     struct ath_buf *bf)
 {
-	struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
+	struct sk_buff *skb = bf->bf_mpdu;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_desc *ds;
 	struct ath9k_11n_rate_series series[4];
@@ -138,7 +138,7 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	/* Release the old beacon first */
 
 	bf = avp->av_bcbuf;
-	skb = (struct sk_buff *)bf->bf_mpdu;
+	skb = bf->bf_mpdu;
 	if (skb) {
 		dma_unmap_single(sc->dev, bf->bf_dmacontext,
 				 skb->len, DMA_TO_DEVICE);
@@ -226,7 +226,7 @@ static void ath_beacon_start_adhoc(struct ath_softc *sc,
 		return;
 
 	bf = avp->av_bcbuf;
-	skb = (struct sk_buff *) bf->bf_mpdu;
+	skb = bf->bf_mpdu;
 
 	ath_beacon_setup(sc, avp, bf);
 
@@ -299,7 +299,7 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 	/* release the previous beacon frame, if it already exists. */
 	bf = avp->av_bcbuf;
 	if (bf->bf_mpdu != NULL) {
-		skb = (struct sk_buff *)bf->bf_mpdu;
+		skb = bf->bf_mpdu;
 		dma_unmap_single(sc->dev, bf->bf_dmacontext,
 				 skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
@@ -371,7 +371,7 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
 
 		bf = avp->av_bcbuf;
 		if (bf->bf_mpdu != NULL) {
-			struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
+			struct sk_buff *skb = bf->bf_mpdu;
 			dma_unmap_single(sc->dev, bf->bf_dmacontext,
 					 skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(skb);

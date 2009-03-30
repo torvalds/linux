@@ -283,7 +283,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	int isaggr, txfail, txpending, sendbar = 0, needreset = 0, nbad = 0;
 	bool rc_update = true;
 
-	skb = (struct sk_buff *)bf->bf_mpdu;
+	skb = bf->bf_mpdu;
 	hdr = (struct ieee80211_hdr *)skb->data;
 
 	rcu_read_lock();
@@ -444,7 +444,7 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	u16 aggr_limit, legacy = 0, maxampdu;
 	int i;
 
-	skb = (struct sk_buff *)bf->bf_mpdu;
+	skb = bf->bf_mpdu;
 	tx_info = IEEE80211_SKB_CB(skb);
 	rates = tx_info->control.rates;
 	tx_info_priv = (struct ath_tx_info_priv *)tx_info->rate_driver_data[0];
@@ -1452,7 +1452,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 
 	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
 
-	skb = (struct sk_buff *)bf->bf_mpdu;
+	skb = bf->bf_mpdu;
 	tx_info = IEEE80211_SKB_CB(skb);
 	rates = tx_info->control.rates;
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -1586,7 +1586,7 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 			     struct ath_tx_control *txctl)
 {
-	struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
+	struct sk_buff *skb = bf->bf_mpdu;
 	struct ieee80211_tx_info *tx_info =  IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ath_node *an = NULL;
@@ -1860,7 +1860,7 @@ static int ath_tx_num_badfrms(struct ath_softc *sc, struct ath_buf *bf,
 static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds,
 			     int nbad, int txok, bool update_rc)
 {
-	struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
+	struct sk_buff *skb = bf->bf_mpdu;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
