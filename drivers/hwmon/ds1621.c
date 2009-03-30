@@ -81,28 +81,27 @@ struct ds1621_data {
 	u8 conf;			/* Register encoding, combined */
 };
 
-/* All registers are word-sized, except for the configuration register.
+/* Temperature registers are word-sized.
    DS1621 uses a high-byte first convention, which is exactly opposite to
    the SMBus standard. */
-static int ds1621_read_value(struct i2c_client *client, u8 reg)
+static int ds1621_read_temp(struct i2c_client *client, u8 reg)
 {
-	if (reg == DS1621_REG_CONF)
-		return i2c_smbus_read_byte_data(client, reg);
-	else
-		return swab16(i2c_smbus_read_word_data(client, reg));
+	int ret;
+
+	ret = i2c_smbus_read_word_data(client, reg);
+	if (ret < 0)
+		return ret;
+	return swab16(ret);
 }
 
-static int ds1621_write_value(struct i2c_client *client, u8 reg, u16 value)
+static int ds1621_write_temp(struct i2c_client *client, u8 reg, u16 value)
 {
-	if (reg == DS1621_REG_CONF)
-		return i2c_smbus_write_byte_data(client, reg, value);
-	else
-		return i2c_smbus_write_word_data(client, reg, swab16(value));
+	return i2c_smbus_write_word_data(client, reg, swab16(value));
 }
 
 static void ds1621_init_client(struct i2c_client *client)
 {
-	int reg = ds1621_read_value(client, DS1621_REG_CONF);
+	int reg = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
 	/* switch to continuous conversion mode */
 	reg &= ~ DS1621_REG_CONFIG_1SHOT;
 
@@ -112,7 +111,7 @@ static void ds1621_init_client(struct i2c_client *client)
 	else if (polarity == 1)
 		reg |= DS1621_REG_CONFIG_POLARITY;
 	
-	ds1621_write_value(client, DS1621_REG_CONF, reg);
+	i2c_smbus_write_byte_data(client, DS1621_REG_CONF, reg);
 	
 	/* start conversion */
 	i2c_smbus_write_byte(client, DS1621_COM_START);
@@ -132,11 +131,11 @@ static struct ds1621_data *ds1621_update_client(struct device *dev)
 
 		dev_dbg(&client->dev, "Starting ds1621 update\n");
 
-		data->conf = ds1621_read_value(client, DS1621_REG_CONF);
+		data->conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
 
 		for (i = 0; i < ARRAY_SIZE(data->temp); i++)
-			data->temp[i] = ds1621_read_value(client,
-							  DS1621_REG_TEMP[i]);
+			data->temp[i] = ds1621_read_temp(client,
+							 DS1621_REG_TEMP[i]);
 
 		/* reset alarms if necessary */
 		new_conf = data->conf;
@@ -145,8 +144,8 @@ static struct ds1621_data *ds1621_update_client(struct device *dev)
 		if (data->temp[0] < data->temp[2])	/* input < max */
 			new_conf &= ~DS1621_ALARM_TEMP_HIGH;
 		if (data->conf != new_conf)
-			ds1621_write_value(client, DS1621_REG_CONF,
-					   new_conf);
+			i2c_smbus_write_byte_data(client, DS1621_REG_CONF,
+						  new_conf);
 
 		data->last_updated = jiffies;
 		data->valid = 1;
@@ -176,8 +175,8 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 
 	mutex_lock(&data->update_lock);
 	data->temp[attr->index] = val;
-	ds1621_write_value(client, DS1621_REG_TEMP[attr->index],
-			   data->temp[attr->index]);
+	ds1621_write_temp(client, DS1621_REG_TEMP[attr->index],
+			  data->temp[attr->index]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -239,13 +238,14 @@ static int ds1621_detect(struct i2c_client *client, int kind,
 		/* The NVB bit should be low if no EEPROM write has been 
 		   requested during the latest 10ms, which is highly 
 		   improbable in our case. */
-		conf = ds1621_read_value(client, DS1621_REG_CONF);
-		if (conf & DS1621_REG_CONFIG_NVB)
+		conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
+		if (conf < 0 || conf & DS1621_REG_CONFIG_NVB)
 			return -ENODEV;
 		/* The 7 lowest bits of a temperature should always be 0. */
 		for (i = 0; i < ARRAY_SIZE(DS1621_REG_TEMP); i++) {
-			temp = ds1621_read_value(client, DS1621_REG_TEMP[i]);
-			if (temp & 0x007f)
+			temp = i2c_smbus_read_word_data(client,
+							DS1621_REG_TEMP[i]);
+			if (temp < 0 || (temp & 0x7f00))
 				return -ENODEV;
 		}
 	}
