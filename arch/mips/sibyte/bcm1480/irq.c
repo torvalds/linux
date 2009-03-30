@@ -236,7 +236,7 @@ void __init init_bcm1480_irqs(void)
 	int i;
 
 	for (i = 0; i < BCM1480_NR_IRQS; i++) {
-		set_irq_chip(i, &bcm1480_irq_type);
+		set_irq_chip_and_handler(i, &bcm1480_irq_type, handle_level_irq);
 		bcm1480_irq_owner[i] = 0;
 	}
 }
