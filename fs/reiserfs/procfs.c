@@ -633,7 +633,7 @@ int reiserfs_global_version_in_proc(char *buffer, char **start,
  *
  */
 
-/* 
+/*
  * Make Linus happy.
  * Local variables:
  * c-indentation-style: "K&R"

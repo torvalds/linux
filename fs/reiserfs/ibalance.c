@@ -278,7 +278,7 @@ static void internal_delete_childs(struct buffer_info *cur_bi, int from, int n)
 
 /* copy cpy_num node pointers and cpy_num - 1 items from buffer src to buffer dest
 * last_first == FIRST_TO_LAST means, that we copy first items from src to tail of dest
- * last_first == LAST_TO_FIRST means, that we copy last items from src to head of dest 
+ * last_first == LAST_TO_FIRST means, that we copy last items from src to head of dest
  */
 static void internal_copy_pointers_items(struct buffer_info *dest_bi,
 					 struct buffer_head *src,
@@ -385,7 +385,7 @@ static void internal_move_pointers_items(struct buffer_info *dest_bi,
 	if (last_first == FIRST_TO_LAST) {	/* shift_left occurs */
 		first_pointer = 0;
 		first_item = 0;
-		/* delete cpy_num - del_par pointers and keys starting for pointers with first_pointer, 
+		/* delete cpy_num - del_par pointers and keys starting for pointers with first_pointer,
 		   for key - with first_item */
 		internal_delete_pointers_items(src_bi, first_pointer,
 					       first_item, cpy_num - del_par);
@@ -453,7 +453,7 @@ static void internal_insert_key(struct buffer_info *dest_bi, int dest_position_b
 	}
 }
 
-/* Insert d_key'th (delimiting) key from buffer cfl to tail of dest. 
+/* Insert d_key'th (delimiting) key from buffer cfl to tail of dest.
  * Copy pointer_amount node pointers and pointer_amount - 1 items from buffer src to buffer dest.
  * Replace  d_key'th key in buffer cfl.
  * Delete pointer_amount items and node pointers from buffer src.
@@ -518,7 +518,7 @@ static void internal_shift1_left(struct tree_balance *tb,
 	/*    internal_move_pointers_items (tb->L[h], tb->S[h], FIRST_TO_LAST, pointer_amount, 1); */
 }
 
-/* Insert d_key'th (delimiting) key from buffer cfr to head of dest. 
+/* Insert d_key'th (delimiting) key from buffer cfr to head of dest.
  * Copy n node pointers and n - 1 items from buffer src to buffer dest.
  * Replace  d_key'th key in buffer cfr.
  * Delete n items and node pointers from buffer src.
@@ -749,7 +749,7 @@ int balance_internal(struct tree_balance *tb,	/* tree_balance structure         
        this means that new pointers and items must be inserted AFTER *
        child_pos
        }
-       else 
+       else
        {
        it is the position of the leftmost pointer that must be deleted (together with
        its corresponding key to the left of the pointer)

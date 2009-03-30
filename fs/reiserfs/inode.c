@@ -52,7 +52,7 @@ void reiserfs_delete_inode(struct inode *inode)
 		/* Do quota update inside a transaction for journaled quotas. We must do that
 		 * after delete_object so that quota updates go into the same transaction as
 		 * stat data deletion */
-		if (!err) 
+		if (!err)
 			DQUOT_FREE_INODE(inode);
 
 		if (journal_end(&th, inode->i_sb, jbegin_count))
@@ -363,7 +363,7 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 		}
 		/* make sure we don't read more bytes than actually exist in
 		 ** the file.  This can happen in odd cases where i_size isn't
-		 ** correct, and when direct item padding results in a few 
+		 ** correct, and when direct item padding results in a few
 		 ** extra bytes at the end of the direct item
 		 */
 		if ((le_ih_k_offset(ih) + path.pos_in_item) > inode->i_size)
@@ -438,15 +438,15 @@ static int reiserfs_bmap(struct inode *inode, sector_t block,
 ** -ENOENT instead of a valid buffer.  block_prepare_write expects to
 ** be able to do i/o on the buffers returned, unless an error value
 ** is also returned.
-** 
+**
 ** So, this allows block_prepare_write to be used for reading a single block
 ** in a page.  Where it does not produce a valid page for holes, or past the
 ** end of the file.  This turns out to be exactly what we need for reading
 ** tails for conversion.
 **
 ** The point of the wrapper is forcing a certain value for create, even
-** though the VFS layer is calling this function with create==1.  If you 
-** don't want to send create == GET_BLOCK_NO_HOLE to reiserfs_get_block, 
+** though the VFS layer is calling this function with create==1.  If you
+** don't want to send create == GET_BLOCK_NO_HOLE to reiserfs_get_block,
 ** don't use this function.
 */
 static int reiserfs_get_block_create_0(struct inode *inode, sector_t block,
@@ -602,7 +602,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 	int done;
 	int fs_gen;
 	struct reiserfs_transaction_handle *th = NULL;
-	/* space reserved in transaction batch: 
+	/* space reserved in transaction batch:
 	   . 3 balancings in direct->indirect conversion
 	   . 1 block involved into reiserfs_update_sd()
 	   XXX in practically impossible worst case direct2indirect()
@@ -754,7 +754,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 		reiserfs_write_unlock(inode->i_sb);
 
 		/* the item was found, so new blocks were not added to the file
-		 ** there is no need to make sure the inode is updated with this 
+		 ** there is no need to make sure the inode is updated with this
 		 ** transaction
 		 */
 		return retval;
@@ -986,7 +986,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 
 		/* this loop could log more blocks than we had originally asked
 		 ** for.  So, we have to allow the transaction to end if it is
-		 ** too big or too full.  Update the inode so things are 
+		 ** too big or too full.  Update the inode so things are
 		 ** consistent if we crash before the function returns
 		 **
 		 ** release the path so that anybody waiting on the path before
@@ -997,7 +997,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 			if (retval)
 				goto failure;
 		}
-		/* inserting indirect pointers for a hole can take a 
+		/* inserting indirect pointers for a hole can take a
 		 ** long time.  reschedule if needed
 		 */
 		cond_resched();
@@ -1444,7 +1444,7 @@ void reiserfs_read_locked_inode(struct inode *inode,
 	   update sd on unlink all that is required is to check for nlink
 	   here. This bug was first found by Sizif when debugging
 	   SquidNG/Butterfly, forgotten, and found again after Philippe
-	   Gramoulle <philippe.gramoulle@mmania.com> reproduced it. 
+	   Gramoulle <philippe.gramoulle@mmania.com> reproduced it.
 
 	   More logical fix would require changes in fs/inode.c:iput() to
 	   remove inode from hash-table _after_ fs cleaned disk stuff up and
@@ -1619,7 +1619,7 @@ int reiserfs_write_inode(struct inode *inode, int do_sync)
 	if (inode->i_sb->s_flags & MS_RDONLY)
 		return -EROFS;
 	/* memory pressure can sometimes initiate write_inode calls with sync == 1,
-	 ** these cases are just when the system needs ram, not when the 
+	 ** these cases are just when the system needs ram, not when the
 	 ** inode needs to reach disk for safety, and they can safely be
 	 ** ignored because the altered inode has already been logged.
 	 */
@@ -1736,7 +1736,7 @@ static int reiserfs_new_symlink(struct reiserfs_transaction_handle *th, struct i
 /* inserts the stat data into the tree, and then calls
    reiserfs_new_directory (to insert ".", ".." item if new object is
    directory) or reiserfs_new_symlink (to insert symlink body if new
-   object is symlink) or nothing (if new object is regular file) 
+   object is symlink) or nothing (if new object is regular file)
 
    NOTE! uid and gid must already be set in the inode.  If we return
    non-zero due to an error, we have to drop the quota previously allocated
@@ -1744,7 +1744,7 @@ static int reiserfs_new_symlink(struct reiserfs_transaction_handle *th, struct i
    if we return non-zero, we also end the transaction.  */
 int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		       struct inode *dir, int mode, const char *symname,
-		       /* 0 for regular, EMTRY_DIR_SIZE for dirs, 
+		       /* 0 for regular, EMTRY_DIR_SIZE for dirs,
 		          strlen (symname) for symlinks) */
 		       loff_t i_size, struct dentry *dentry,
 		       struct inode *inode,
@@ -1794,7 +1794,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		goto out_bad_inode;
 	}
 	if (old_format_only(sb))
-		/* not a perfect generation count, as object ids can be reused, but 
+		/* not a perfect generation count, as object ids can be reused, but
 		 ** this is as good as reiserfs can do right now.
 		 ** note that the private part of inode isn't filled in yet, we have
 		 ** to use the directory.
@@ -2081,7 +2081,7 @@ int reiserfs_truncate_file(struct inode *p_s_inode, int update_timestamps)
 
 	if (p_s_inode->i_size > 0) {
 		if ((error = grab_tail_page(p_s_inode, &page, &bh))) {
-			// -ENOENT means we truncated past the end of the file, 
+			// -ENOENT means we truncated past the end of the file,
 			// and get_block_create_0 could not find a block to read in,
 			// which is ok.
 			if (error != -ENOENT)
@@ -2093,11 +2093,11 @@ int reiserfs_truncate_file(struct inode *p_s_inode, int update_timestamps)
 		}
 	}
 
-	/* so, if page != NULL, we have a buffer head for the offset at 
-	 ** the end of the file. if the bh is mapped, and bh->b_blocknr != 0, 
-	 ** then we have an unformatted node.  Otherwise, we have a direct item, 
-	 ** and no zeroing is required on disk.  We zero after the truncate, 
-	 ** because the truncate might pack the item anyway 
+	/* so, if page != NULL, we have a buffer head for the offset at
+	 ** the end of the file. if the bh is mapped, and bh->b_blocknr != 0,
+	 ** then we have an unformatted node.  Otherwise, we have a direct item,
+	 ** and no zeroing is required on disk.  We zero after the truncate,
+	 ** because the truncate might pack the item anyway
 	 ** (it will unmap bh if it packs).
 	 */
 	/* it is enough to reserve space in transaction for 2 balancings:
@@ -2306,8 +2306,8 @@ static int map_block_for_writepage(struct inode *inode,
 	return retval;
 }
 
-/* 
- * mason@suse.com: updated in 2.5.54 to follow the same general io 
+/*
+ * mason@suse.com: updated in 2.5.54 to follow the same general io
  * start/recovery path as __block_write_full_page, along with special
  * code to handle reiserfs tails.
  */
@@ -2447,7 +2447,7 @@ static int reiserfs_write_full_page(struct page *page,
 	unlock_page(page);
 
 	/*
-	 * since any buffer might be the only dirty buffer on the page, 
+	 * since any buffer might be the only dirty buffer on the page,
 	 * the first submit_bh can bring the page out of writeback.
 	 * be careful with the buffers.
 	 */
@@ -2466,8 +2466,8 @@ static int reiserfs_write_full_page(struct page *page,
 	if (nr == 0) {
 		/*
 		 * if this page only had a direct item, it is very possible for
-		 * no io to be required without there being an error.  Or, 
-		 * someone else could have locked them and sent them down the 
+		 * no io to be required without there being an error.  Or,
+		 * someone else could have locked them and sent them down the
 		 * pipe without locking the page
 		 */
 		bh = head;
@@ -2486,7 +2486,7 @@ static int reiserfs_write_full_page(struct page *page,
 
       fail:
 	/* catches various errors, we need to make sure any valid dirty blocks
-	 * get to the media.  The page is currently locked and not marked for 
+	 * get to the media.  The page is currently locked and not marked for
 	 * writeback
 	 */
 	ClearPageUptodate(page);

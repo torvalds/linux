@@ -178,11 +178,11 @@ static char *is_there_reiserfs_struct(char *fmt, int *what)
    appropriative printk. With this reiserfs_warning you can use format
    specification for complex structures like you used to do with
    printfs for integers, doubles and pointers. For instance, to print
-   out key structure you have to write just: 
-   reiserfs_warning ("bad key %k", key); 
-   instead of 
-   printk ("bad key %lu %lu %lu %lu", key->k_dir_id, key->k_objectid, 
-           key->k_offset, key->k_uniqueness); 
+   out key structure you have to write just:
+   reiserfs_warning ("bad key %k", key);
+   instead of
+   printk ("bad key %lu %lu %lu %lu", key->k_dir_id, key->k_objectid,
+           key->k_offset, key->k_uniqueness);
 */
 static DEFINE_SPINLOCK(error_lock);
 static void prepare_error_buf(const char *fmt, va_list args)
@@ -244,11 +244,11 @@ static void prepare_error_buf(const char *fmt, va_list args)
 }
 
 /* in addition to usual conversion specifiers this accepts reiserfs
-   specific conversion specifiers: 
-   %k to print little endian key, 
-   %K to print cpu key, 
+   specific conversion specifiers:
+   %k to print little endian key,
+   %K to print cpu key,
    %h to print item_head,
-   %t to print directory entry 
+   %t to print directory entry
    %z to print block head (arg must be struct buffer_head *
    %b to print buffer_head
 */
@@ -314,17 +314,17 @@ void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...)
     maintainer-errorid.  Don't bother with reusing errorids, there are
     lots of numbers out there.
 
-    Example: 
-    
+    Example:
+
     reiserfs_panic(
 	p_sb, "reiser-29: reiserfs_new_blocknrs: "
 	"one of search_start or rn(%d) is equal to MAX_B_NUM,"
-	"which means that we are optimizing location based on the bogus location of a temp buffer (%p).", 
+	"which means that we are optimizing location based on the bogus location of a temp buffer (%p).",
 	rn, bh
     );
 
     Regular panic()s sometimes clear the screen before the message can
-    be read, thus the need for the while loop.  
+    be read, thus the need for the while loop.
 
     Numbering scheme for panic used by Vladimir and Anatoly( Hans completely ignores this scheme, and considers it
     pointless complexity):

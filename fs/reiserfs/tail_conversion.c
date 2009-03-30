@@ -46,7 +46,7 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 	/* Set the key to search for the place for new unfm pointer */
 	make_cpu_key(&end_key, inode, tail_offset, TYPE_INDIRECT, 4);
 
-	// FIXME: we could avoid this 
+	/* FIXME: we could avoid this */
 	if (search_for_position_by_key(sb, &end_key, path) == POSITION_FOUND) {
 		reiserfs_error(sb, "PAP-14030",
 			       "pasted or inserted byte exists in "

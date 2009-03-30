@@ -77,7 +77,7 @@ inline void copy_item_head(struct item_head *p_v_to,
 /* k1 is pointer to on-disk structure which is stored in little-endian
    form. k2 is pointer to cpu variable. For key of items of the same
    object this returns 0.
-   Returns: -1 if key1 < key2 
+   Returns: -1 if key1 < key2
    0 if key1 == key2
    1 if key1 > key2 */
 inline int comp_short_keys(const struct reiserfs_key *le_key,
@@ -890,7 +890,7 @@ static inline int prepare_for_direct_item(struct treepath *path,
 	}
 	// new file gets truncated
 	if (get_inode_item_key_version(inode) == KEY_FORMAT_3_6) {
-		// 
+		//
 		round_len = ROUND_UP(new_file_length);
 		/* this was n_new_file_length < le_ih ... */
 		if (round_len < le_ih_k_offset(le_ih)) {
@@ -1443,7 +1443,7 @@ static int maybe_indirect_to_direct(struct reiserfs_transaction_handle *th,
 	if (atomic_read(&p_s_inode->i_count) > 1 ||
 	    !tail_has_to_be_packed(p_s_inode) ||
 	    !page || (REISERFS_I(p_s_inode)->i_flags & i_nopack_mask)) {
-		// leave tail in an unformatted node    
+		/* leave tail in an unformatted node */
 		*p_c_mode = M_SKIP_BALANCING;
 		cut_bytes =
 		    n_block_size - (n_new_file_size & (n_block_size - 1));
@@ -1826,7 +1826,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
 		/* While there are bytes to truncate and previous file item is presented in the tree. */
 
 		/*
-		 ** This loop could take a really long time, and could log 
+		 ** This loop could take a really long time, and could log
 		 ** many more blocks than a transaction can hold.  So, we do a polite
 		 ** journal end here, and if the transaction needs ending, we make
 		 ** sure the file is consistent before ending the current trans

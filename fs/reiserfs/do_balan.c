@@ -76,21 +76,21 @@ inline void do_balance_mark_leaf_dirty(struct tree_balance *tb,
 #define do_balance_mark_internal_dirty do_balance_mark_leaf_dirty
 #define do_balance_mark_sb_dirty do_balance_mark_leaf_dirty
 
-/* summary: 
+/* summary:
  if deleting something ( tb->insert_size[0] < 0 )
    return(balance_leaf_when_delete()); (flag d handled here)
  else
    if lnum is larger than 0 we put items into the left node
    if rnum is larger than 0 we put items into the right node
    if snum1 is larger than 0 we put items into the new node s1
-   if snum2 is larger than 0 we put items into the new node s2 
+   if snum2 is larger than 0 we put items into the new node s2
 Note that all *num* count new items being created.
 
 It would be easier to read balance_leaf() if each of these summary
 lines was a separate procedure rather than being inlined.  I think
 that there are many passages here and in balance_leaf_when_delete() in
 which two calls to one procedure can replace two passages, and it
-might save cache space and improve software maintenance costs to do so.  
+might save cache space and improve software maintenance costs to do so.
 
 Vladimir made the perceptive comment that we should offload most of
 the decision making in this function into fix_nodes/check_balance, and
@@ -288,15 +288,15 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
     )
 {
 	struct buffer_head *tbS0 = PATH_PLAST_BUFFER(tb->tb_path);
-	int item_pos = PATH_LAST_POSITION(tb->tb_path);	/*  index into the array of item headers in S[0] 
+	int item_pos = PATH_LAST_POSITION(tb->tb_path);	/*  index into the array of item headers in S[0]
 							   of the affected item */
 	struct buffer_info bi;
 	struct buffer_head *S_new[2];	/* new nodes allocated to hold what could not fit into S */
 	int snum[2];		/* number of items that will be placed
 				   into S_new (includes partially shifted
 				   items) */
-	int sbytes[2];		/* if an item is partially shifted into S_new then 
-				   if it is a directory item 
+	int sbytes[2];		/* if an item is partially shifted into S_new then
+				   if it is a directory item
 				   it is the number of entries from the item that are shifted into S_new
 				   else
 				   it is the number of bytes from the item that are shifted into S_new
@@ -1983,7 +1983,7 @@ static inline void do_balance_starts(struct tree_balance *tb)
 	/* store_print_tb (tb); */
 
 	/* do not delete, just comment it out */
-/*    print_tb(flag, PATH_LAST_POSITION(tb->tb_path), tb->tb_path->pos_in_item, tb, 
+/*    print_tb(flag, PATH_LAST_POSITION(tb->tb_path), tb->tb_path->pos_in_item, tb,
 	     "check");*/
 	RFALSE(check_before_balancing(tb), "PAP-12340: locked buffers in TB");
 #ifdef CONFIG_REISERFS_CHECK

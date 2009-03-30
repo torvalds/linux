@@ -106,7 +106,7 @@ key of the first directory entry in it.
 This function first calls search_by_key, then, if item whose first
 entry matches is not found it looks for the entry inside directory
 item found by search_by_key. Fills the path to the entry, and to the
-entry position in the item 
+entry position in the item
 
 */
 
@@ -371,7 +371,7 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
-/* 
+/*
 ** looks up the dentry of the parent directory for child.
 ** taken from ext2_get_parent
 */
@@ -401,7 +401,7 @@ struct dentry *reiserfs_get_parent(struct dentry *child)
 	return d_obtain_alias(inode);
 }
 
-/* add entry to the directory (entry can be hidden). 
+/* add entry to the directory (entry can be hidden).
 
 insert definition of when hidden directories are used here -Hans
 
@@ -559,7 +559,7 @@ static int drop_new_inode(struct inode *inode)
 	return 0;
 }
 
-/* utility function that does setup for reiserfs_new_inode.  
+/* utility function that does setup for reiserfs_new_inode.
 ** DQUOT_INIT needs lots of credits so it's better to have it
 ** outside of a transaction, so we had to pull some bits of
 ** reiserfs_new_inode out into this func.
@@ -820,7 +820,7 @@ static inline int reiserfs_empty_dir(struct inode *inode)
 {
 	/* we can cheat because an old format dir cannot have
 	 ** EMPTY_DIR_SIZE, and a new format dir cannot have
-	 ** EMPTY_DIR_SIZE_V1.  So, if the inode is either size, 
+	 ** EMPTY_DIR_SIZE_V1.  So, if the inode is either size,
 	 ** regardless of disk format version, the directory is empty.
 	 */
 	if (inode->i_size != EMPTY_DIR_SIZE &&
@@ -1162,7 +1162,7 @@ static int reiserfs_link(struct dentry *old_dentry, struct inode *dir,
 	return retval;
 }
 
-// de contains information pointing to an entry which 
+/* de contains information pointing to an entry which */
 static int de_still_valid(const char *name, int len,
 			  struct reiserfs_dir_entry *de)
 {
@@ -1206,10 +1206,10 @@ static void set_ino_in_dir_entry(struct reiserfs_dir_entry *de,
 	de->de_deh[de->de_entry_num].deh_objectid = key->k_objectid;
 }
 
-/* 
+/*
  * process, that is going to call fix_nodes/do_balance must hold only
  * one path. If it holds 2 or more, it can get into endless waiting in
- * get_empty_nodes or its clones 
+ * get_empty_nodes or its clones
  */
 static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry)
@@ -1263,7 +1263,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	old_inode_mode = old_inode->i_mode;
 	if (S_ISDIR(old_inode_mode)) {
-		// make sure, that directory being renamed has correct ".." 
+		// make sure, that directory being renamed has correct ".."
 		// and that its new parent directory has not too many links
 		// already
 
@@ -1274,8 +1274,8 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			}
 		}
 
-		/* directory is renamed, its parent directory will be changed, 
-		 ** so find ".." entry 
+		/* directory is renamed, its parent directory will be changed,
+		 ** so find ".." entry
 		 */
 		dot_dot_de.de_gen_number_bit_string = NULL;
 		retval =
@@ -1385,9 +1385,9 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		   this stuff, yes? Then, having
 		   gathered everything into RAM we
 		   should lock the buffers, yes?  -Hans */
-		/* probably.  our rename needs to hold more 
-		 ** than one path at once.  The seals would 
-		 ** have to be written to deal with multi-path 
+		/* probably.  our rename needs to hold more
+		 ** than one path at once.  The seals would
+		 ** have to be written to deal with multi-path
 		 ** issues -chris
 		 */
 		/* sanity checking before doing the rename - avoid races many
@@ -1465,7 +1465,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 
 	if (S_ISDIR(old_inode_mode)) {
-		// adjust ".." of renamed directory 
+		/* adjust ".." of renamed directory */
 		set_ino_in_dir_entry(&dot_dot_de, INODE_PKEY(new_dir));
 		journal_mark_dirty(&th, new_dir->i_sb, dot_dot_de.de_bh);
 

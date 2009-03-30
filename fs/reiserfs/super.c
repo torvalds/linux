@@ -758,7 +758,7 @@ static int reiserfs_getopt(struct super_block *s, char **cur, opt_desc_t * opts,
 			   char **opt_arg, unsigned long *bit_flags)
 {
 	char *p;
-	/* foo=bar, 
+	/* foo=bar,
 	   ^   ^  ^
 	   |   |  +-- option_end
 	   |   +-- arg_start
@@ -1348,7 +1348,7 @@ static int read_super_block(struct super_block *s, int offset)
 	}
 	//
 	// ok, reiserfs signature (old or new) found in at the given offset
-	//    
+	//
 	fs_blocksize = sb_blocksize(rs);
 	brelse(bh);
 	sb_set_blocksize(s, fs_blocksize);
@@ -1534,8 +1534,8 @@ static int what_hash(struct super_block *s)
 		code = find_hash_out(s);
 
 	if (code != UNSET_HASH && reiserfs_hash_detect(s)) {
-		/* detection has found the hash, and we must check against the 
-		 ** mount options 
+		/* detection has found the hash, and we must check against the
+		 ** mount options
 		 */
 		if (reiserfs_rupasov_hash(s) && code != YURA_HASH) {
 			reiserfs_warning(s, "reiserfs-2507",
@@ -1567,7 +1567,7 @@ static int what_hash(struct super_block *s)
 		}
 	}
 
-	/* if we are mounted RW, and we have a new valid hash code, update 
+	/* if we are mounted RW, and we have a new valid hash code, update
 	 ** the super
 	 */
 	if (code != UNSET_HASH &&

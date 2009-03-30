@@ -180,7 +180,7 @@ int reiserfs_convert_objectid_map_v1(struct super_block *s)
 
 	if (cur_size > new_size) {
 		/* mark everyone used that was listed as free at the end of the objectid
-		 ** map 
+		 ** map
 		 */
 		objectid_map[new_size - 1] = objectid_map[cur_size - 1];
 		set_sb_oid_cursize(disk_sb, new_size);

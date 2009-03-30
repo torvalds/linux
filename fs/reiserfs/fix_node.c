@@ -30,8 +30,8 @@
  ** get_direct_parent
  ** get_neighbors
  ** fix_nodes
- ** 
- ** 
+ **
+ **
  **/
 
 #include <linux/time.h>
@@ -377,9 +377,9 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 	int needed_nodes;
 	int start_item,		/* position of item we start filling node from */
 	 end_item,		/* position of item we finish filling node by */
-	 start_bytes,		/* number of first bytes (entries for directory) of start_item-th item 
+	 start_bytes,		/* number of first bytes (entries for directory) of start_item-th item
 				   we do not include into node that is being filled */
-	 end_bytes;		/* number of last bytes (entries for directory) of end_item-th item 
+	 end_bytes;		/* number of last bytes (entries for directory) of end_item-th item
 				   we do node include into node that is being filled */
 	int split_item_positions[2];	/* these are positions in virtual item of
 					   items, that are split between S[0] and
@@ -569,7 +569,7 @@ extern struct tree_balance *cur_tb;
 
 /* Set parameters for balancing.
  * Performs write of results of analysis of balancing into structure tb,
- * where it will later be used by the functions that actually do the balancing. 
+ * where it will later be used by the functions that actually do the balancing.
  * Parameters:
  *	tb	tree_balance structure;
  *	h	current level of the node;
@@ -1204,7 +1204,7 @@ static inline int can_node_be_removed(int mode, int lfree, int sfree, int rfree,
  *	h	current level of the node;
  *	inum	item number in S[h];
  *	mode	i - insert, p - paste;
- * Returns:	1 - schedule occurred; 
+ * Returns:	1 - schedule occurred;
  *	        0 - balancing for higher levels needed;
  *	       -1 - no balancing for higher levels needed;
  *	       -2 - no disk space.
@@ -1239,7 +1239,7 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 	/* we perform 8 calls to get_num_ver().  For each call we calculate five parameters.
 	   where 4th parameter is s1bytes and 5th - s2bytes
 	 */
-	short snum012[40] = { 0, };	/* s0num, s1num, s2num for 8 cases 
+	short snum012[40] = { 0, };	/* s0num, s1num, s2num for 8 cases
 					   0,1 - do not shift and do not shift but bottle
 					   2 - shift only whole item to left
 					   3 - shift to left and bottle as much as possible
@@ -1288,7 +1288,7 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 
 	create_virtual_node(tb, h);
 
-	/*  
+	/*
 	   determine maximal number of items we can shift to the left neighbor (in tb structure)
 	   and the maximal number of bytes that can flow to the left neighbor
 	   from the left most liquid item that cannot be shifted from S[0] entirely (returned value)
@@ -1349,13 +1349,13 @@ static int ip_check_balance(struct tree_balance *tb, int h)
 
 	{
 		int lpar, rpar, nset, lset, rset, lrset;
-		/* 
+		/*
 		 * regular overflowing of the node
 		 */
 
-		/* get_num_ver works in 2 modes (FLOW & NO_FLOW) 
+		/* get_num_ver works in 2 modes (FLOW & NO_FLOW)
 		   lpar, rpar - number of items we can shift to left/right neighbor (including splitting item)
-		   nset, lset, rset, lrset - shows, whether flowing items give better packing 
+		   nset, lset, rset, lrset - shows, whether flowing items give better packing
 		 */
 #define FLOW 1
 #define NO_FLOW 0		/* do not any splitting */
@@ -1545,7 +1545,7 @@ static int ip_check_balance(struct tree_balance *tb, int h)
  *	h	current level of the node;
  *	inum	item number in S[h];
  *	mode	i - insert, p - paste;
- * Returns:	1 - schedule occurred; 
+ * Returns:	1 - schedule occurred;
  *	        0 - balancing for higher levels needed;
  *	       -1 - no balancing for higher levels needed;
  *	       -2 - no disk space.
@@ -1728,7 +1728,7 @@ static int dc_check_balance_internal(struct tree_balance *tb, int h)
  *	h	current level of the node;
  *	inum	item number in S[h];
  *	mode	i - insert, p - paste;
- * Returns:	1 - schedule occurred; 
+ * Returns:	1 - schedule occurred;
  *	        0 - balancing for higher levels needed;
  *	       -1 - no balancing for higher levels needed;
  *	       -2 - no disk space.
@@ -1822,7 +1822,7 @@ static int dc_check_balance_leaf(struct tree_balance *tb, int h)
  *	h	current level of the node;
  *	inum	item number in S[h];
  *	mode	d - delete, c - cut.
- * Returns:	1 - schedule occurred; 
+ * Returns:	1 - schedule occurred;
  *	        0 - balancing for higher levels needed;
  *	       -1 - no balancing for higher levels needed;
  *	       -2 - no disk space.
@@ -1851,7 +1851,7 @@ static int dc_check_balance(struct tree_balance *tb, int h)
  *	h	current level of the node;
  *	inum	item number in S[h];
  *	mode	i - insert, p - paste, d - delete, c - cut.
- * Returns:	1 - schedule occurred; 
+ * Returns:	1 - schedule occurred;
  *	        0 - balancing for higher levels needed;
  *	       -1 - no balancing for higher levels needed;
  *	       -2 - no disk space.
@@ -2296,15 +2296,15 @@ static int wait_tb_buffers_until_unlocked(struct tree_balance *p_s_tb)
  *	analyze what and where should be moved;
  *	get sufficient number of new nodes;
  * Balancing will start only after all resources will be collected at a time.
- * 
+ *
  * When ported to SMP kernels, only at the last moment after all needed nodes
  * are collected in cache, will the resources be locked using the usual
  * textbook ordered lock acquisition algorithms.  Note that ensuring that
  * this code neither write locks what it does not need to write lock nor locks out of order
  * will be a pain in the butt that could have been avoided.  Grumble grumble. -Hans
- * 
+ *
  * fix is meant in the sense of render unchanging
- * 
+ *
  * Latency might be improved by first gathering a list of what buffers are needed
  * and then getting as many of them in parallel as possible? -Hans
  *
@@ -2316,7 +2316,7 @@ static int wait_tb_buffers_until_unlocked(struct tree_balance *p_s_tb)
  *      ins_ih & ins_sd are used when inserting
  * Returns:	1 - schedule occurred while the function worked;
  *	        0 - schedule didn't occur while the function worked;
- *             -1 - if no_disk_space 
+ *             -1 - if no_disk_space
  */
 
 int fix_nodes(int n_op_mode, struct tree_balance *p_s_tb, struct item_head *p_s_ins_ih,	// item head of item being inserted

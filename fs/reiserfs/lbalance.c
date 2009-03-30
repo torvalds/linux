@@ -119,8 +119,8 @@ static void leaf_copy_dir_entries(struct buffer_info *dest_bi,
 			   DEH_SIZE * copy_count + copy_records_len);
 }
 
-/* Copy the first (if last_first == FIRST_TO_LAST) or last (last_first == LAST_TO_FIRST) item or 
-   part of it or nothing (see the return 0 below) from SOURCE to the end 
+/* Copy the first (if last_first == FIRST_TO_LAST) or last (last_first == LAST_TO_FIRST) item or
+   part of it or nothing (see the return 0 below) from SOURCE to the end
    (if last_first) or beginning (!last_first) of the DEST */
 /* returns 1 if anything was copied, else 0 */
 static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
@@ -396,7 +396,7 @@ static void leaf_item_bottle(struct buffer_info *dest_bi,
 		else {
 			struct item_head n_ih;
 
-			/* copy part of the body of the item number 'item_num' of SOURCE to the end of the DEST 
+			/* copy part of the body of the item number 'item_num' of SOURCE to the end of the DEST
 			   part defined by 'cpy_bytes'; create new item header; change old item_header (????);
 			   n_ih = new item_header;
 			 */
@@ -426,7 +426,7 @@ static void leaf_item_bottle(struct buffer_info *dest_bi,
 		else {
 			struct item_head n_ih;
 
-			/* copy part of the body of the item number 'item_num' of SOURCE to the begin of the DEST 
+			/* copy part of the body of the item number 'item_num' of SOURCE to the begin of the DEST
 			   part defined by 'cpy_bytes'; create new item header;
 			   n_ih = new item_header;
 			 */
@@ -724,7 +724,7 @@ int leaf_shift_right(struct tree_balance *tb, int shift_num, int shift_bytes)
 static void leaf_delete_items_entirely(struct buffer_info *bi,
 				       int first, int del_num);
 /*  If del_bytes == -1, starting from position 'first' delete del_num items in whole in buffer CUR.
-    If not. 
+    If not.
     If last_first == 0. Starting from position 'first' delete del_num-1 items in whole. Delete part of body of
     the first item. Part defined by del_bytes. Don't delete first item header
     If last_first == 1. Starting from position 'first+1' delete del_num-1 items in whole. Delete part of body of
@@ -783,7 +783,7 @@ void leaf_delete_items(struct buffer_info *cur_bi, int last_first,
 				/* len = body len of item */
 				len = ih_item_len(ih);
 
-			/* delete the part of the last item of the bh 
+			/* delete the part of the last item of the bh
 			   do not delete item header
 			 */
 			leaf_cut_from_buffer(cur_bi, B_NR_ITEMS(bh) - 1,
@@ -865,7 +865,7 @@ void leaf_insert_into_buf(struct buffer_info *bi, int before,
 	}
 }
 
-/* paste paste_size bytes to affected_item_num-th item. 
+/* paste paste_size bytes to affected_item_num-th item.
    When item is a directory, this only prepare space for new entries */
 void leaf_paste_in_buffer(struct buffer_info *bi, int affected_item_num,
 			  int pos_in_item, int paste_size,
@@ -1022,7 +1022,7 @@ static int leaf_cut_entries(struct buffer_head *bh,
 /*  when cut item is part of regular file
         pos_in_item - first byte that must be cut
         cut_size - number of bytes to be cut beginning from pos_in_item
- 
+
    when cut item is part of directory
         pos_in_item - number of first deleted entry
         cut_size - count of deleted entries
@@ -1275,7 +1275,7 @@ void leaf_paste_entries(struct buffer_info *bi,
 	/* change item key if necessary (when we paste before 0-th entry */
 	if (!before) {
 		set_le_ih_k_offset(ih, deh_offset(new_dehs));
-/*      memcpy (&ih->ih_key.k_offset, 
+/*      memcpy (&ih->ih_key.k_offset,
 		       &new_dehs->deh_offset, SHORT_KEY_SIZE);*/
 	}
 #ifdef CONFIG_REISERFS_CHECK

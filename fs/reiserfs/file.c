@@ -20,14 +20,14 @@
 ** insertion/balancing, for files that are written in one write.
 ** It avoids unnecessary tail packings (balances) for files that are written in
 ** multiple writes and are small enough to have tails.
-** 
+**
 ** file_release is called by the VFS layer when the file is closed.  If
 ** this is the last open file descriptor, and the file
 ** small enough to have a tail, and the tail is currently in an
 ** unformatted node, the tail is converted back into a direct item.
-** 
+**
 ** We use reiserfs_truncate_file to pack the tail, since it already has
-** all the conditions coded.  
+** all the conditions coded.
 */
 static int reiserfs_file_release(struct inode *inode, struct file *filp)
 {
@@ -223,7 +223,7 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
 }
 
 /* Write @count bytes at position @ppos in a file indicated by @file
-   from the buffer @buf.  
+   from the buffer @buf.
 
    generic_file_write() is only appropriate for filesystems that are not seeking to optimize performance and want
    something simple that works.  It is not for serious use by general purpose filesystems, excepting the one that it was

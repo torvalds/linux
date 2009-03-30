@@ -14,7 +14,7 @@ typedef enum {
 } reiserfs_super_block_flags;
 
 /* struct reiserfs_super_block accessors/mutators
- * since this is a disk structure, it will always be in 
+ * since this is a disk structure, it will always be in
  * little endian format. */
 #define sb_block_count(sbp)         (le32_to_cpu((sbp)->s_v1.s_block_count))
 #define set_sb_block_count(sbp,v)   ((sbp)->s_v1.s_block_count = cpu_to_le32(v))
@@ -83,16 +83,16 @@ typedef enum {
 
 /* LOGGING -- */
 
-/* These all interelate for performance.  
+/* These all interelate for performance.
 **
-** If the journal block count is smaller than n transactions, you lose speed. 
+** If the journal block count is smaller than n transactions, you lose speed.
 ** I don't know what n is yet, I'm guessing 8-16.
 **
 ** typical transaction size depends on the application, how often fsync is
-** called, and how many metadata blocks you dirty in a 30 second period.  
+** called, and how many metadata blocks you dirty in a 30 second period.
 ** The more small files (<16k) you use, the larger your transactions will
 ** be.
-** 
+**
 ** If your journal fills faster than dirty buffers get flushed to disk, it must flush them before allowing the journal
 ** to wrap, which slows things down.  If you need high speed meta data updates, the journal should be big enough
 ** to prevent wrapping before dirty meta blocks get to disk.
@@ -242,7 +242,7 @@ struct reiserfs_journal {
 
 	struct reiserfs_list_bitmap j_list_bitmap[JOURNAL_NUM_BITMAPS];	/* array of bitmaps to record the deleted blocks */
 	struct reiserfs_journal_cnode *j_hash_table[JOURNAL_HASH_SIZE];	/* hash table for real buffer heads in current trans */
-	struct reiserfs_journal_cnode *j_list_hash_table[JOURNAL_HASH_SIZE];	/* hash table for all the real buffer heads in all 
+	struct reiserfs_journal_cnode *j_list_hash_table[JOURNAL_HASH_SIZE];	/* hash table for all the real buffer heads in all
 										   the transactions */
 	struct list_head j_prealloc_list;	/* list of inodes which have preallocated blocks */
 	int j_persistent_trans;
@@ -426,7 +426,7 @@ enum reiserfs_mount_options {
 				   partition will be dealt with in a
 				   manner of 3.5.x */
 
-/* -o hash={tea, rupasov, r5, detect} is meant for properly mounting 
+/* -o hash={tea, rupasov, r5, detect} is meant for properly mounting
 ** reiserfs disks from 3.5.19 or earlier.  99% of the time, this option
 ** is not required.  If the normal autodection code can't determine which
 ** hash to use (because both hashes had the same value for a file)
