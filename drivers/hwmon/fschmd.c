@@ -856,7 +856,7 @@ static struct file_operations watchdog_fops = {
 
 /* DMI decode routine to read voltage scaling factors from special DMI tables,
    which are available on FSC machines with an fscher or later chip. */
-static void fschmd_dmi_decode(const struct dmi_header *header)
+static void fschmd_dmi_decode(const struct dmi_header *header, void *dummy)
 {
 	int i, mult[3] = { 0 }, offset[3] = { 0 }, vref = 0, found = 0;
 
@@ -991,7 +991,7 @@ static int fschmd_probe(struct i2c_client *client,
 
 	/* Read the special DMI table for fscher and newer chips */
 	if ((kind == fscher || kind >= fschrc) && dmi_vref == -1) {
-		dmi_walk(fschmd_dmi_decode);
+		dmi_walk(fschmd_dmi_decode, NULL);
 		if (dmi_vref == -1) {
 			dev_warn(&client->dev,
 				"Couldn't get voltage scaling factors from "
