@@ -560,10 +560,8 @@ static inline int uniqueness2type(__u32 uniqueness)
 		return TYPE_DIRECT;
 	case V1_DIRENTRY_UNIQUENESS:
 		return TYPE_DIRENTRY;
-	default:
-		reiserfs_warning(NULL, "vs-500", "unknown uniqueness %d",
-				 uniqueness);
 	case V1_ANY_UNIQUENESS:
+	default:
 		return TYPE_ANY;
 	}
 }
@@ -580,9 +578,8 @@ static inline __u32 type2uniqueness(int type)
 		return V1_DIRECT_UNIQUENESS;
 	case TYPE_DIRENTRY:
 		return V1_DIRENTRY_UNIQUENESS;
-	default:
-		reiserfs_warning(NULL, "vs-501", "unknown type %d", type);
 	case TYPE_ANY:
+	default:
 		return V1_ANY_UNIQUENESS;
 	}
 }
