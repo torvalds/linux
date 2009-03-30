@@ -101,17 +101,20 @@ static int ds1621_write_temp(struct i2c_client *client, u8 reg, u16 value)
 
 static void ds1621_init_client(struct i2c_client *client)
 {
-	int reg = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
+	u8 conf, new_conf;
+
+	new_conf = conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
 	/* switch to continuous conversion mode */
-	reg &= ~ DS1621_REG_CONFIG_1SHOT;
+	new_conf &= ~DS1621_REG_CONFIG_1SHOT;
 
 	/* setup output polarity */
 	if (polarity == 0)
-		reg &= ~DS1621_REG_CONFIG_POLARITY;
+		new_conf &= ~DS1621_REG_CONFIG_POLARITY;
 	else if (polarity == 1)
-		reg |= DS1621_REG_CONFIG_POLARITY;
+		new_conf |= DS1621_REG_CONFIG_POLARITY;
 	
-	i2c_smbus_write_byte_data(client, DS1621_REG_CONF, reg);
+	if (conf != new_conf)
+		i2c_smbus_write_byte_data(client, DS1621_REG_CONF, new_conf);
 	
 	/* start conversion */
 	i2c_smbus_write_byte(client, DS1621_COM_START);
@@ -170,7 +173,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct i2c_client *client = to_i2c_client(dev);
-	struct ds1621_data *data = ds1621_update_client(dev);
+	struct ds1621_data *data = i2c_get_clientdata(client);
 	u16 val = LM75_TEMP_TO_REG(simple_strtol(buf, NULL, 10));
 
 	mutex_lock(&data->update_lock);
