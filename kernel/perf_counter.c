@@ -2453,10 +2453,11 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 {
 	const struct hw_perf_counter_ops *hw_ops;
 	struct perf_counter *counter;
+	long err;
 
 	counter = kzalloc(sizeof(*counter), gfpflags);
 	if (!counter)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Single counters are their own group leaders, with an
@@ -2505,12 +2506,18 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 		hw_ops = tp_perf_counter_init(counter);
 		break;
 	}
-
-	if (!hw_ops) {
-		kfree(counter);
-		return NULL;
-	}
 done:
+	err = 0;
+	if (!hw_ops)
+		err = -EINVAL;
+	else if (IS_ERR(hw_ops))
+		err = PTR_ERR(hw_ops);
+
+	if (err) {
+		kfree(counter);
+		return ERR_PTR(err);
+	}
+
 	counter->hw_ops = hw_ops;
 
 	return counter;
@@ -2583,10 +2590,10 @@ SYSCALL_DEFINE5(perf_counter_open,
 			goto err_put_context;
 	}
 
-	ret = -EINVAL;
 	counter = perf_counter_alloc(&hw_event, cpu, ctx, group_leader,
 				     GFP_KERNEL);
-	if (!counter)
+	ret = PTR_ERR(counter);
+	if (IS_ERR(counter))
 		goto err_put_context;
 
 	ret = anon_inode_getfd("[perf_counter]", &perf_fops, counter, 0);
@@ -2658,8 +2665,8 @@ inherit_counter(struct perf_counter *parent_counter,
 	child_counter = perf_counter_alloc(&parent_counter->hw_event,
 					   parent_counter->cpu, child_ctx,
 					   group_leader, GFP_KERNEL);
-	if (!child_counter)
-		return NULL;
+	if (IS_ERR(child_counter))
+		return child_counter;
 
 	/*
 	 * Link it up in the child's context:
@@ -2710,15 +2717,17 @@ static int inherit_group(struct perf_counter *parent_counter,
 {
 	struct perf_counter *leader;
 	struct perf_counter *sub;
+	struct perf_counter *child_ctr;
 
 	leader = inherit_counter(parent_counter, parent, parent_ctx,
 				 child, NULL, child_ctx);
-	if (!leader)
-		return -ENOMEM;
+	if (IS_ERR(leader))
+		return PTR_ERR(leader);
 	list_for_each_entry(sub, &parent_counter->sibling_list, list_entry) {
-		if (!inherit_counter(sub, parent, parent_ctx,
-				     child, leader, child_ctx))
-			return -ENOMEM;
+		child_ctr = inherit_counter(sub, parent, parent_ctx,
+					    child, leader, child_ctx);
+		if (IS_ERR(child_ctr))
+			return PTR_ERR(child_ctr);
 	}
 	return 0;
 }

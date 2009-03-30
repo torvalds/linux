@@ -624,13 +624,13 @@ hw_perf_counter_init(struct perf_counter *counter)
 	int err;
 
 	if (!ppmu)
-		return NULL;
+		return ERR_PTR(-ENXIO);
 	if ((s64)counter->hw_event.irq_period < 0)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	if (!perf_event_raw(&counter->hw_event)) {
 		ev = perf_event_id(&counter->hw_event);
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
-			return NULL;
+			return ERR_PTR(-EOPNOTSUPP);
 		ev = ppmu->generic_events[ev];
 	} else {
 		ev = perf_event_config(&counter->hw_event);
@@ -656,14 +656,14 @@ hw_perf_counter_init(struct perf_counter *counter)
 		n = collect_events(counter->group_leader, ppmu->n_counter - 1,
 				   ctrs, events);
 		if (n < 0)
-			return NULL;
+			return ERR_PTR(-EINVAL);
 	}
 	events[n] = ev;
 	ctrs[n] = counter;
 	if (check_excludes(ctrs, n, 1))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	if (power_check_constraints(events, n + 1))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	counter->hw.config = events[n];
 	atomic64_set(&counter->hw.period_left, counter->hw_event.irq_period);
@@ -687,7 +687,7 @@ hw_perf_counter_init(struct perf_counter *counter)
 	counter->destroy = hw_perf_counter_destroy;
 
 	if (err)
-		return NULL;
+		return ERR_PTR(err);
 	return &power_perf_ops;
 }
 
