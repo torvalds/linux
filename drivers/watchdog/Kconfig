@@ -772,7 +772,7 @@ config TXX9_WDT
 
 config GEF_WDT
 	tristate "GE Fanuc Watchdog Timer"
-	depends on GEF_SBC610
+	depends on GEF_SBC610 || GEF_SBC310 || GEF_PPC9A
 	---help---
 	  Watchdog timer found in a number of GE Fanuc single board computers.
 

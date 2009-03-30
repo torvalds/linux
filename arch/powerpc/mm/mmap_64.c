@@ -24,15 +24,56 @@
 
 #include <linux/personality.h>
 #include <linux/mm.h>
+#include <linux/random.h>
 #include <linux/sched.h>
 
 /*
  * Top of mmap area (just below the process stack).
  *
- * Leave an at least ~128 MB hole.
+ * Leave at least a ~128 MB hole on 32bit applications.
+ *
+ * On 64bit applications we randomise the stack by 1GB so we need to
+ * space our mmap start address by a further 1GB, otherwise there is a
+ * chance the mmap area will end up closer to the stack than our ulimit
+ * requires.
  */
-#define MIN_GAP (128*1024*1024)
+#define MIN_GAP32 (128*1024*1024)
+#define MIN_GAP64 ((128 + 1024)*1024*1024UL)
+#define MIN_GAP ((is_32bit_task()) ? MIN_GAP32 : MIN_GAP64)
 #define MAX_GAP (TASK_SIZE/6*5)
+
+static inline int mmap_is_legacy(void)
+{
+	if (current->personality & ADDR_COMPAT_LAYOUT)
+		return 1;
+
+	if (current->signal->rlim[RLIMIT_STACK].rlim_cur == RLIM_INFINITY)
+		return 1;
+
+	return sysctl_legacy_va_layout;
+}
+
+/*
+ * Since get_random_int() returns the same value within a 1 jiffy window,
+ * we will almost always get the same randomisation for the stack and mmap
+ * region. This will mean the relative distance between stack and mmap will
+ * be the same.
+ *
+ * To avoid this we can shift the randomness by 1 bit.
+ */
+static unsigned long mmap_rnd(void)
+{
+	unsigned long rnd = 0;
+
+	if (current->flags & PF_RANDOMIZE) {
+		/* 8MB for 32bit, 1GB for 64bit */
+		if (is_32bit_task())
+			rnd = (long)(get_random_int() % (1<<(22-PAGE_SHIFT)));
+		else
+			rnd = (long)(get_random_int() % (1<<(29-PAGE_SHIFT)));
+	}
+	return (rnd << PAGE_SHIFT) * 2;
+}
 
 static inline unsigned long mmap_base(void)
 {
@@ -43,24 +84,7 @@ static inline unsigned long mmap_base(void)
 	else if (gap > MAX_GAP)
 		gap = MAX_GAP;
 
-	return TASK_SIZE - (gap & PAGE_MASK);
-}
-
-static inline int mmap_is_legacy(void)
-{
-	/*
-	 * Force standard allocation for 64 bit programs.
-	 */
-	if (!test_thread_flag(TIF_32BIT))
-		return 1;
-
-	if (current->personality & ADDR_COMPAT_LAYOUT)
-		return 1;
-
-	if (current->signal->rlim[RLIMIT_STACK].rlim_cur == RLIM_INFINITY)
-		return 1;
-
-	return sysctl_legacy_va_layout;
+	return PAGE_ALIGN(TASK_SIZE - gap - mmap_rnd());
 }
 
 /*

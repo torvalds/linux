@@ -56,7 +56,7 @@ void __init udbg_init_cpm(void)
 {
 	if (cpm_udbg_txdesc) {
 #ifdef CONFIG_CPM2
-		setbat(1, 0xf0000000, 0xf0000000, 1024*1024, _PAGE_IO);
+		setbat(1, 0xf0000000, 0xf0000000, 1024*1024, PAGE_KERNEL_NCG);
 #endif
 		udbg_putc = udbg_putc_cpm;
 	}

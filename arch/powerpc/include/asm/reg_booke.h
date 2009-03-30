@@ -10,6 +10,7 @@
 #define __ASM_POWERPC_REG_BOOKE_H__
 
 /* Machine State Register (MSR) Fields */
+#define MSR_GS		(1<<28) /* Guest state */
 #define MSR_UCLE	(1<<26)	/* User-mode cache lock enable */
 #define MSR_SPE		(1<<25)	/* Enable SPE */
 #define MSR_DWE		(1<<10)	/* Debug Wait Enable */
@@ -110,6 +111,7 @@
 #define SPRN_L1CSR0	0x3F2	/* L1 Cache Control and Status Register 0 */
 #define SPRN_L1CSR1	0x3F3	/* L1 Cache Control and Status Register 1 */
 #define SPRN_MMUCSR0	0x3F4	/* MMU Control and Status Register 0 */
+#define SPRN_MMUCFG	0x3F7	/* MMU Configuration Register */
 #define SPRN_PIT	0x3DB	/* Programmable Interval Timer */
 #define SPRN_BUCSR	0x3F5	/* Branch Unit Control and Status */
 #define SPRN_L2CSR0	0x3F9	/* L2 Data Cache Control and Status Register 0 */

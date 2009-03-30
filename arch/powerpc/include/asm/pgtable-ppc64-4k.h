@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PGTABLE_4K_H
-#define _ASM_POWERPC_PGTABLE_4K_H
+#ifndef _ASM_POWERPC_PGTABLE_PPC64_4K_H
+#define _ASM_POWERPC_PGTABLE_PPC64_4K_H
 /*
  * Entries per page directory level.  The PTE level must use a 64b record
  * for each page table entry.  The PMD and PGD level use a 32b record for
@@ -40,28 +40,6 @@
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-/* PTE bits */
-#define _PAGE_HASHPTE	0x0400 /* software: pte has an associated HPTE */
-#define _PAGE_SECONDARY 0x8000 /* software: HPTE is in secondary group */
-#define _PAGE_GROUP_IX  0x7000 /* software: HPTE index within group */
-#define _PAGE_F_SECOND  _PAGE_SECONDARY
-#define _PAGE_F_GIX     _PAGE_GROUP_IX
-#define _PAGE_SPECIAL	0x10000 /* software: special page */
-#define __HAVE_ARCH_PTE_SPECIAL
-
-/* PTE flags to conserve for HPTE identification */
-#define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_HASHPTE | \
-			 _PAGE_SECONDARY | _PAGE_GROUP_IX)
-
-/* There is no 4K PFN hack on 4K pages */
-#define _PAGE_4K_PFN	0
-
-/* PAGE_MASK gives the right answer below, but only by accident */
-/* It should be preserving the high 48 bits and then specifically */
-/* preserving _PAGE_SECONDARY | _PAGE_GROUP_IX */
-#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | \
-                         _PAGE_HPTEFLAGS | _PAGE_SPECIAL)
-
 /* Bits to mask out from a PMD to get to the PTE page */
 #define PMD_MASKED_BITS		0
 /* Bits to mask out from a PUD to get to the PMD page */
@@ -69,30 +47,6 @@
 /* Bits to mask out from a PGD to get to the PUD page */
 #define PGD_MASKED_BITS		0
 
-/* shift to put page number into pte */
-#define PTE_RPN_SHIFT	(17)
-
-#ifdef STRICT_MM_TYPECHECKS
-#define __real_pte(e,p)		((real_pte_t){(e)})
-#define __rpte_to_pte(r)	((r).pte)
-#else
-#define __real_pte(e,p)		(e)
-#define __rpte_to_pte(r)	(__pte(r))
-#endif
-#define __rpte_to_hidx(r,index)	(pte_val(__rpte_to_pte(r)) >> 12)
-
-#define pte_iterate_hashed_subpages(rpte, psize, va, index, shift)       \
-	do {							         \
-		index = 0;					         \
-		shift = mmu_psize_defs[psize].shift;		         \
-
-#define pte_iterate_hashed_end() } while(0)
-
-#ifdef CONFIG_PPC_HAS_HASH_64K
-#define pte_pagesize_index(mm, addr, pte)	get_slice_psize(mm, addr)
-#else
-#define pte_pagesize_index(mm, addr, pte)	MMU_PAGE_4K
-#endif
 
 /*
  * 4-level page tables related bits
@@ -112,6 +66,9 @@
 #define pud_ERROR(e) \
 	printk("%s:%d: bad pud %08lx.\n", __FILE__, __LINE__, pud_val(e))
 
+/*
+ * On all 4K setups, remap_4k_pfn() equates to remap_pfn_range() */
 #define remap_4k_pfn(vma, addr, pfn, prot)	\
 	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE, (prot))
-#endif /* _ASM_POWERPC_PGTABLE_4K_H */
+
+#endif /* _ASM_POWERPC_PGTABLE_PPC64_4K_H */

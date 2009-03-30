@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
@@ -327,6 +328,9 @@ static int __init fsl_usb_of_init(void)
 		struct resource r[2];
 		struct fsl_usb2_platform_data usb_data;
 		const unsigned char *prop = NULL;
+
+		if (!of_device_is_available(np))
+			continue;
 
 		memset(&r, 0, sizeof(r));
 		memset(&usb_data, 0, sizeof(usb_data));
