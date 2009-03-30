@@ -2189,14 +2189,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ah->txchainmask = sc->tx_chainmask;
 	ah->rxchainmask = sc->rx_chainmask;
 
-	if (AR_SREV_9285(ah)) {
-		ah->txchainmask &= 0x1;
-		ah->rxchainmask &= 0x1;
-	} else if (AR_SREV_9280(ah)) {
-		ah->txchainmask &= 0x3;
-		ah->rxchainmask &= 0x3;
-	}
-
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
 		return -EIO;
 
