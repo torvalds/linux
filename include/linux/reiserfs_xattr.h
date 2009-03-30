@@ -43,6 +43,12 @@ struct reiserfs_xattr_handler {
 	struct list_head handlers;
 };
 
+int reiserfs_xattr_register_handlers(void) __init;
+void reiserfs_xattr_unregister_handlers(void);
+int reiserfs_xattr_init(struct super_block *sb, int mount_flags);
+int reiserfs_delete_xattrs(struct inode *inode);
+int reiserfs_chown_xattrs(struct inode *inode, struct iattr *attrs);
+
 #ifdef CONFIG_REISERFS_FS_XATTR
 #define has_xattr_dir(inode) (REISERFS_I(inode)->i_flags & i_has_xattr_dir)
 ssize_t reiserfs_getxattr(struct dentry *dentry, const char *name,
@@ -51,9 +57,6 @@ int reiserfs_setxattr(struct dentry *dentry, const char *name,
 		      const void *value, size_t size, int flags);
 ssize_t reiserfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 int reiserfs_removexattr(struct dentry *dentry, const char *name);
-int reiserfs_delete_xattrs(struct inode *inode);
-int reiserfs_chown_xattrs(struct inode *inode, struct iattr *attrs);
-int reiserfs_xattr_init(struct super_block *sb, int mount_flags);
 int reiserfs_permission(struct inode *inode, int mask);
 
 int reiserfs_xattr_del(struct inode *, const char *);
@@ -63,9 +66,6 @@ int reiserfs_xattr_set(struct inode *, const char *, const void *, size_t, int);
 extern struct reiserfs_xattr_handler user_handler;
 extern struct reiserfs_xattr_handler trusted_handler;
 extern struct reiserfs_xattr_handler security_handler;
-
-int reiserfs_xattr_register_handlers(void) __init;
-void reiserfs_xattr_unregister_handlers(void);
 
 static inline void reiserfs_write_lock_xattrs(struct super_block *sb)
 {
@@ -121,23 +121,6 @@ static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 
 #define reiserfs_permission NULL
 
-#define reiserfs_xattr_register_handlers() 0
-#define reiserfs_xattr_unregister_handlers()
-
-static inline int reiserfs_delete_xattrs(struct inode *inode)
-{
-	return 0;
-};
-static inline int reiserfs_chown_xattrs(struct inode *inode,
-					struct iattr *attrs)
-{
-	return 0;
-};
-static inline int reiserfs_xattr_init(struct super_block *sb, int mount_flags)
-{
-	sb->s_flags = (sb->s_flags & ~MS_POSIXACL);	/* to be sure */
-	return 0;
-};
 static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 {
 }
