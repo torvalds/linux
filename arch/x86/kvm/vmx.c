@@ -3272,36 +3272,41 @@ static void update_tpr_threshold(struct kvm_vcpu *vcpu)
 static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 {
 	u32 exit_intr_info;
-	u32 idt_vectoring_info;
+	u32 idt_vectoring_info = vmx->idt_vectoring_info;
 	bool unblock_nmi;
 	u8 vector;
 	int type;
 	bool idtv_info_valid;
 	u32 error;
 
+	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	if (cpu_has_virtual_nmis()) {
 		unblock_nmi = (exit_intr_info & INTR_INFO_UNBLOCK_NMI) != 0;
 		vector = exit_intr_info & INTR_INFO_VECTOR_MASK;
 		/*
-		 * SDM 3: 25.7.1.2
+		 * SDM 3: 27.7.1.2 (September 2008)
 		 * Re-set bit "block by NMI" before VM entry if vmexit caused by
 		 * a guest IRET fault.
+		 * SDM 3: 23.2.2 (September 2008)
+		 * Bit 12 is undefined in any of the following cases:
+		 *  If the VM exit sets the valid bit in the IDT-vectoring
+		 *   information field.
+		 *  If the VM exit is due to a double fault.
 		 */
-		if (unblock_nmi && vector != DF_VECTOR)
+		if ((exit_intr_info & INTR_INFO_VALID_MASK) && unblock_nmi &&
+		    vector != DF_VECTOR && !idtv_info_valid)
 			vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
 				      GUEST_INTR_STATE_NMI);
 	} else if (unlikely(vmx->soft_vnmi_blocked))
 		vmx->vnmi_blocked_time +=
 			ktime_to_ns(ktime_sub(ktime_get(), vmx->entry_time));
 
-	idt_vectoring_info = vmx->idt_vectoring_info;
-	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 	vector = idt_vectoring_info & VECTORING_INFO_VECTOR_MASK;
 	type = idt_vectoring_info & VECTORING_INFO_TYPE_MASK;
 	if (vmx->vcpu.arch.nmi_injected) {
 		/*
-		 * SDM 3: 25.7.1.2
+		 * SDM 3: 27.7.1.2 (September 2008)
 		 * Clear bit "block by NMI" before VM entry if a NMI delivery
 		 * faulted.
 		 */
