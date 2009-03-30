@@ -157,11 +157,9 @@ static void sprintf_disk_child(char *buf, struct disk_child *dc)
 		dc_size(dc));
 }
 
-static char *is_there_reiserfs_struct(char *fmt, int *what, int *skip)
+static char *is_there_reiserfs_struct(char *fmt, int *what)
 {
 	char *k = fmt;
-
-	*skip = 0;
 
 	while ((k = strchr(k, '%')) != NULL) {
 		if (k[1] == 'k' || k[1] == 'K' || k[1] == 'h' || k[1] == 't' ||
@@ -169,7 +167,6 @@ static char *is_there_reiserfs_struct(char *fmt, int *what, int *skip)
 			*what = k[1];
 			break;
 		}
-		(*skip)++;
 		k++;
 	}
 	return k;
@@ -193,17 +190,14 @@ static void prepare_error_buf(const char *fmt, va_list args)
 	char *fmt1 = fmt_buf;
 	char *k;
 	char *p = error_buf;
-	int i, j, what, skip;
+	int what;
 
 	strcpy(fmt1, fmt);
 
-	while ((k = is_there_reiserfs_struct(fmt1, &what, &skip)) != NULL) {
+	while ((k = is_there_reiserfs_struct(fmt1, &what)) != NULL) {
 		*k = 0;
 
 		p += vsprintf(p, fmt1, args);
-
-		for (i = 0; i < skip; i++)
-			j = va_arg(args, int);
 
 		switch (what) {
 		case 'k':
