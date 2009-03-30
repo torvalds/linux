@@ -277,6 +277,7 @@ static void __init mxc_board_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	mxc_register_device(&mxc_uart_device1, &uart_pdata);
 	mxc_register_device(&mxc_uart_device2, &uart_pdata);
 
 	mxc_register_device(&mxc_w1_master_device, NULL);
