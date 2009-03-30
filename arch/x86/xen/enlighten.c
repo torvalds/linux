@@ -428,7 +428,7 @@ static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 static int cvt_gate_to_trap(int vector, const gate_desc *val,
 			    struct trap_info *info)
 {
-	if (val->type != 0xf && val->type != 0xe)
+	if (val->type != GATE_TRAP && val->type != GATE_INTERRUPT)
 		return 0;
 
 	info->vector = vector;
@@ -436,8 +436,8 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 	info->cs = gate_segment(*val);
 	info->flags = val->dpl;
 	/* interrupt gates clear IF */
-	if (val->type == 0xe)
-		info->flags |= 4;
+	if (val->type == GATE_INTERRUPT)
+		info->flags |= 1 << 2;
 
 	return 1;
 }
