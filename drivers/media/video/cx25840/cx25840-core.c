@@ -775,7 +775,7 @@ static int cx25840_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_MUTE:
 		if (state->is_cx25836)
 			return -EINVAL;
-		return cx25840_audio(client, VIDIOC_S_CTRL, ctrl);
+		return cx25840_audio_s_ctrl(sd, ctrl);
 
 	default:
 		return -EINVAL;
@@ -812,7 +812,7 @@ static int cx25840_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_MUTE:
 		if (state->is_cx25836)
 			return -EINVAL;
-		return cx25840_audio(client, VIDIOC_G_CTRL, ctrl);
+		return cx25840_audio_g_ctrl(sd, ctrl);
 	default:
 		return -EINVAL;
 	}
@@ -828,7 +828,7 @@ static int cx25840_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 
 	switch (fmt->type) {
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_vbi(client, VIDIOC_G_FMT, fmt);
+		return cx25840_vbi_g_fmt(sd, fmt);
 	default:
 		return -EINVAL;
 	}
@@ -890,10 +890,10 @@ static int cx25840_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		break;
 
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_vbi(client, VIDIOC_S_FMT, fmt);
+		return cx25840_vbi_s_fmt(sd, fmt);
 
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx25840_vbi(client, VIDIOC_S_FMT, fmt);
+		return cx25840_vbi_s_fmt(sd, fmt);
 
 	default:
 		return -EINVAL;
@@ -1152,20 +1152,6 @@ static int cx25840_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 	return 0;
 }
 #endif
-
-static int cx25840_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return cx25840_vbi(client, VIDIOC_INT_DECODE_VBI_LINE, vbi);
-}
-
-static int cx25840_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return cx25840_audio(client, VIDIOC_INT_AUDIO_CLOCK_FREQ, &freq);
-}
 
 static int cx25840_s_stream(struct v4l2_subdev *sd, int enable)
 {

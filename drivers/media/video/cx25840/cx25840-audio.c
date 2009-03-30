@@ -363,75 +363,74 @@ static void set_mute(struct i2c_client *client, int mute)
 	}
 }
 
-int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg)
+int cx25840_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 {
-	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
-	struct v4l2_control *ctrl = arg;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct cx25840_state *state = to_state(sd);
 	int retval;
 
-	switch (cmd) {
-	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		if (!state->is_cx25836)
-			cx25840_and_or(client, 0x810, ~0x1, 1);
-		if (state->aud_input != CX25840_AUDIO_SERIAL) {
-			cx25840_and_or(client, 0x803, ~0x10, 0);
-			cx25840_write(client, 0x8d3, 0x1f);
-		}
-		retval = set_audclk_freq(client, *(u32 *)arg);
-		if (state->aud_input != CX25840_AUDIO_SERIAL) {
-			cx25840_and_or(client, 0x803, ~0x10, 0x10);
-		}
-		if (!state->is_cx25836)
-			cx25840_and_or(client, 0x810, ~0x1, 0);
-		return retval;
+	if (!state->is_cx25836)
+		cx25840_and_or(client, 0x810, ~0x1, 1);
+	if (state->aud_input != CX25840_AUDIO_SERIAL) {
+		cx25840_and_or(client, 0x803, ~0x10, 0);
+		cx25840_write(client, 0x8d3, 0x1f);
+	}
+	retval = set_audclk_freq(client, freq);
+	if (state->aud_input != CX25840_AUDIO_SERIAL)
+		cx25840_and_or(client, 0x803, ~0x10, 0x10);
+	if (!state->is_cx25836)
+		cx25840_and_or(client, 0x810, ~0x1, 0);
+	return retval;
+}
 
-	case VIDIOC_G_CTRL:
-		switch (ctrl->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-			ctrl->value = get_volume(client);
-			break;
-		case V4L2_CID_AUDIO_BASS:
-			ctrl->value = get_bass(client);
-			break;
-		case V4L2_CID_AUDIO_TREBLE:
-			ctrl->value = get_treble(client);
-			break;
-		case V4L2_CID_AUDIO_BALANCE:
-			ctrl->value = get_balance(client);
-			break;
-		case V4L2_CID_AUDIO_MUTE:
-			ctrl->value = get_mute(client);
-			break;
-		default:
-			return -EINVAL;
-		}
+int cx25840_audio_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+		ctrl->value = get_volume(client);
 		break;
-
-	case VIDIOC_S_CTRL:
-		switch (ctrl->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-			set_volume(client, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_BASS:
-			set_bass(client, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_TREBLE:
-			set_treble(client, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_BALANCE:
-			set_balance(client, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_MUTE:
-			set_mute(client, ctrl->value);
-			break;
-		default:
-			return -EINVAL;
-		}
+	case V4L2_CID_AUDIO_BASS:
+		ctrl->value = get_bass(client);
 		break;
-
+	case V4L2_CID_AUDIO_TREBLE:
+		ctrl->value = get_treble(client);
+		break;
+	case V4L2_CID_AUDIO_BALANCE:
+		ctrl->value = get_balance(client);
+		break;
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = get_mute(client);
+		break;
 	default:
 		return -EINVAL;
 	}
+	return 0;
+}
 
+int cx25840_audio_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+		set_volume(client, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_BASS:
+		set_bass(client, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_TREBLE:
+		set_treble(client, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_BALANCE:
+		set_balance(client, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_MUTE:
+		set_mute(client, ctrl->value);
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
