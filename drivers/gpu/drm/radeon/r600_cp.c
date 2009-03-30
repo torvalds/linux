@@ -388,17 +388,17 @@ static void r600_cp_load_microcode(drm_radeon_private_t *dev_priv)
 		DRM_INFO("Loading RS780 CP Microcode\n");
 		for (i = 0; i < PM4_UCODE_SIZE; i++) {
 			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV670_cp_microcode[i][0]);
+				     RS780_cp_microcode[i][0]);
 			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV670_cp_microcode[i][1]);
+				     RS780_cp_microcode[i][1]);
 			RADEON_WRITE(R600_CP_ME_RAM_DATA,
-				     RV670_cp_microcode[i][2]);
+				     RS780_cp_microcode[i][2]);
 		}
 
 		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
 		DRM_INFO("Loading RS780 PFP Microcode\n");
 		for (i = 0; i < PFP_UCODE_SIZE; i++)
-			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RV670_pfp_microcode[i]);
+			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RS780_pfp_microcode[i]);
 	}
 	RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
 	RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
