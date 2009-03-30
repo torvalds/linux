@@ -1401,6 +1401,14 @@ static inline void irda_usb_init_qos(struct irda_usb_cb *self)
 }
 
 /*------------------------------------------------------------------*/
+static const struct net_device_ops irda_usb_netdev_ops = {
+	.ndo_open       = irda_usb_net_open,
+	.ndo_stop       = irda_usb_net_close,
+	.ndo_do_ioctl   = irda_usb_net_ioctl,
+	.ndo_start_xmit = irda_usb_hard_xmit,
+	.ndo_tx_timeout	= irda_usb_net_timeout,
+};
+
 /*
  * Initialise the network side of the irda-usb instance
  * Called when a new USB instance is registered in irda_usb_probe()
@@ -1411,15 +1419,9 @@ static inline int irda_usb_open(struct irda_usb_cb *self)
 
 	IRDA_DEBUG(1, "%s()\n", __func__);
 
-	irda_usb_init_qos(self);
+	netdev->netdev_ops = &irda_usb_netdev_ops;
 
-	/* Override the network functions we need to use */
-	netdev->hard_start_xmit = irda_usb_hard_xmit;
-	netdev->tx_timeout	= irda_usb_net_timeout;
-	netdev->watchdog_timeo  = 250*HZ/1000;	/* 250 ms > USB timeout */
-	netdev->open            = irda_usb_net_open;
-	netdev->stop            = irda_usb_net_close;
-	netdev->do_ioctl        = irda_usb_net_ioctl;
+	irda_usb_init_qos(self);
 
 	return register_netdev(netdev);
 }

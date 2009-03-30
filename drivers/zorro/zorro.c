@@ -140,7 +140,7 @@ static int __init zorro_init(void)
 
     /* Initialize the Zorro bus */
     INIT_LIST_HEAD(&zorro_bus.devices);
-    strcpy(zorro_bus.dev.bus_id, "zorro");
+    dev_set_name(&zorro_bus.dev, "zorro");
     error = device_register(&zorro_bus.dev);
     if (error) {
 	pr_err("Zorro: Error registering zorro_bus\n");
@@ -167,7 +167,7 @@ static int __init zorro_init(void)
 	if (request_resource(zorro_find_parent_resource(z), &z->resource))
 	    pr_err("Zorro: Address space collision on device %s %pR\n",
 		   z->name, &z->resource);
-	sprintf(z->dev.bus_id, "%02x", i);
+	dev_set_name(&z->dev, "%02x", i);
 	z->dev.parent = &zorro_bus.dev;
 	z->dev.bus = &zorro_bus_type;
 	error = device_register(&z->dev);

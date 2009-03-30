@@ -81,16 +81,6 @@ tuner.o
 		pal=[bdgil]	select PAL variant (used for some tuners
 				only, important for the audio carrier).
 
-tvmixer.o
-	registers a mixer device for the TV card's volume/bass/treble
-	controls (requires a i2c audio control chip like the msp3400).
-
-	insmod args:
-		debug=1		print some debug info to the syslog.
-		devnr=n		allocate device #n (0 == /dev/mixer,
-				1 = /dev/mixer1, ...), default is to
-				use the first free one.
-
 tvaudio.o
 	new, experimental module which is supported to provide a single
 	driver for all simple i2c audio control chips (tda/tea*).

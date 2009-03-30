@@ -889,6 +889,8 @@ static void wusb_dev_add_ncb(struct usb_device *usb_dev)
 	if (usb_dev->wusb == 0 || usb_dev->devnum == 1)
 		return;		/* skip non wusb and wusb RHs */
 
+	usb_set_device_state(usb_dev, USB_STATE_UNAUTHENTICATED);
+
 	wusbhc = wusbhc_get_by_usb_dev(usb_dev);
 	if (wusbhc == NULL)
 		goto error_nodev;

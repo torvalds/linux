@@ -1,4 +1,4 @@
-# Copyright (C) 2003 - 2006 NetXen, Inc.
+# Copyright (C) 2003 - 2009 NetXen, Inc.
 # All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or
@@ -21,11 +21,10 @@
 # 
 # Contact Information:
 #    info@netxen.com
-# NetXen,
-# 3965 Freedom Circle, Fourth floor,
-# Santa Clara, CA 95054
+# NetXen Inc,
+# 18922 Forge Drive
+# Cupertino, CA 95014-0701
 #
-# Makefile for the NetXen NIC Driver
 #
 
 

@@ -265,7 +265,7 @@ sys_call_table:
 	PTR	sys_olduname
 	PTR	sys_umask			/* 4060 */
 	PTR	sys_chroot
-	PTR	sys_32_ustat
+	PTR	compat_sys_ustat
 	PTR	sys_dup2
 	PTR	sys_getppid
 	PTR	sys_getpgrp			/* 4065 */

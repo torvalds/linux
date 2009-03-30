@@ -147,8 +147,8 @@ core-y				+= arch/powerpc/kernel/ \
 				   arch/powerpc/mm/ \
 				   arch/powerpc/lib/ \
 				   arch/powerpc/sysdev/ \
-				   arch/powerpc/platforms/
-core-$(CONFIG_MATH_EMULATION)	+= arch/powerpc/math-emu/
+				   arch/powerpc/platforms/ \
+				   arch/powerpc/math-emu/
 core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 core-$(CONFIG_KVM) 		+= arch/powerpc/kvm/
 

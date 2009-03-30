@@ -1391,11 +1391,11 @@ static inline void tlb_write_random(void)
 static inline unsigned int					\
 set_c0_##name(unsigned int set)					\
 {								\
-	unsigned int res;					\
+	unsigned int res, new;					\
 								\
 	res = read_c0_##name();					\
-	res |= set;						\
-	write_c0_##name(res);					\
+	new = res | set;					\
+	write_c0_##name(new);					\
 								\
 	return res;						\
 }								\
@@ -1403,24 +1403,24 @@ set_c0_##name(unsigned int set)					\
 static inline unsigned int					\
 clear_c0_##name(unsigned int clear)				\
 {								\
-	unsigned int res;					\
+	unsigned int res, new;					\
 								\
 	res = read_c0_##name();					\
-	res &= ~clear;						\
-	write_c0_##name(res);					\
+	new = res & ~clear;					\
+	write_c0_##name(new);					\
 								\
 	return res;						\
 }								\
 								\
 static inline unsigned int					\
-change_c0_##name(unsigned int change, unsigned int new)		\
+change_c0_##name(unsigned int change, unsigned int val)		\
 {								\
-	unsigned int res;					\
+	unsigned int res, new;					\
 								\
 	res = read_c0_##name();					\
-	res &= ~change;						\
-	res |= (new & change);					\
-	write_c0_##name(res);					\
+	new = res & ~change;					\
+	new |= (val & change);					\
+	write_c0_##name(new);					\
 								\
 	return res;						\
 }

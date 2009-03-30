@@ -118,7 +118,9 @@ static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
 }
 
 static const struct ide_port_info gayle_port_info = {
-	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_NO_DMA,
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_SERIALIZE |
+				  IDE_HFLAG_NO_DMA,
+	.irq_flags		= IRQF_SHARED,
 };
 
     /*
@@ -163,9 +165,6 @@ found:
 	    irqport = (unsigned long)ZTWO_VADDR(GAYLE_IRQ_1200);
 	    ack_intr = gayle_ack_intr_a1200;
 	}
-/*
- * FIXME: we now have selectable modes between mmio v/s iomio
- */
 
 	res_start = ((unsigned long)phys_base) & ~(GAYLE_NEXT_PORT-1);
 	res_n = GAYLE_IDEREG_SIZE;

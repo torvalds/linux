@@ -1024,7 +1024,7 @@ static int dvb_demux_release(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static struct file_operations dvb_demux_fops = {
+static const struct file_operations dvb_demux_fops = {
 	.owner = THIS_MODULE,
 	.read = dvb_demux_read,
 	.ioctl = dvb_demux_ioctl,

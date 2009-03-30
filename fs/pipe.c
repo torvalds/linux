@@ -667,10 +667,7 @@ pipe_read_fasync(int fd, struct file *filp, int on)
 	retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_readers);
 	mutex_unlock(&inode->i_mutex);
 
-	if (retval < 0)
-		return retval;
-
-	return 0;
+	return retval;
 }
 
 
@@ -684,10 +681,7 @@ pipe_write_fasync(int fd, struct file *filp, int on)
 	retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_writers);
 	mutex_unlock(&inode->i_mutex);
 
-	if (retval < 0)
-		return retval;
-
-	return 0;
+	return retval;
 }
 
 
@@ -706,11 +700,7 @@ pipe_rdwr_fasync(int fd, struct file *filp, int on)
 			fasync_helper(-1, filp, 0, &pipe->fasync_readers);
 	}
 	mutex_unlock(&inode->i_mutex);
-
-	if (retval < 0)
-		return retval;
-
-	return 0;
+	return retval;
 }
 
 
@@ -870,7 +860,7 @@ static char *pipefs_dname(struct dentry *dentry, char *buffer, int buflen)
 				dentry->d_inode->i_ino);
 }
 
-static struct dentry_operations pipefs_dentry_operations = {
+static const struct dentry_operations pipefs_dentry_operations = {
 	.d_delete	= pipefs_delete_dentry,
 	.d_dname	= pipefs_dname,
 };
@@ -1032,11 +1022,6 @@ int do_pipe_flags(int *fd, int flags)
  err_write_pipe:
 	free_write_pipe(fw);
 	return error;
-}
-
-int do_pipe(int *fd)
-{
-	return do_pipe_flags(fd, 0);
 }
 
 /*

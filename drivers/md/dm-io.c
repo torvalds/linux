@@ -292,6 +292,8 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 					     (PAGE_SIZE >> SECTOR_SHIFT));
 		num_bvecs = 1 + min_t(int, bio_get_nr_vecs(where->bdev),
 				      num_bvecs);
+		if (unlikely(num_bvecs > BIO_MAX_PAGES))
+			num_bvecs = BIO_MAX_PAGES;
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);
 		bio->bi_sector = where->sector + (where->count - remaining);
 		bio->bi_bdev = where->bdev;

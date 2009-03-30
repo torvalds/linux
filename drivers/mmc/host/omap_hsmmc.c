@@ -956,13 +956,13 @@ static int __init omap_mmc_probe(struct platform_device *pdev)
 
 	sema_init(&host->sem, 1);
 
-	host->iclk = clk_get(&pdev->dev, "mmchs_ick");
+	host->iclk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(host->iclk)) {
 		ret = PTR_ERR(host->iclk);
 		host->iclk = NULL;
 		goto err1;
 	}
-	host->fclk = clk_get(&pdev->dev, "mmchs_fck");
+	host->fclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(host->fclk)) {
 		ret = PTR_ERR(host->fclk);
 		host->fclk = NULL;

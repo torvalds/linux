@@ -845,14 +845,14 @@ static inline void qh_update(struct oxu_hcd *oxu,
 		is_out = !(qtd->hw_token & cpu_to_le32(1 << 8));
 		epnum = (le32_to_cpup(&qh->hw_info1) >> 8) & 0x0f;
 		if (unlikely(!usb_gettoggle(qh->dev, epnum, is_out))) {
-			qh->hw_token &= ~__constant_cpu_to_le32(QTD_TOGGLE);
+			qh->hw_token &= ~cpu_to_le32(QTD_TOGGLE);
 			usb_settoggle(qh->dev, epnum, is_out, 1);
 		}
 	}
 
 	/* HC must see latest qtd and qh data before we clear ACTIVE+HALT */
 	wmb();
-	qh->hw_token &= __constant_cpu_to_le32(QTD_TOGGLE | QTD_STS_PING);
+	qh->hw_token &= cpu_to_le32(QTD_TOGGLE | QTD_STS_PING);
 }
 
 /* If it weren't for a common silicon quirk (writing the dummy into the qh
@@ -937,7 +937,7 @@ __acquires(oxu->lock)
 		struct ehci_qh	*qh = (struct ehci_qh *) urb->hcpriv;
 
 		/* S-mask in a QH means it's an interrupt urb */
-		if ((qh->hw_info2 & __constant_cpu_to_le32(QH_SMASK)) != 0) {
+		if ((qh->hw_info2 & cpu_to_le32(QH_SMASK)) != 0) {
 
 			/* ... update hc-wide periodic stats (for usbfs) */
 			oxu_to_hcd(oxu)->self.bandwidth_int_reqs--;
@@ -981,7 +981,7 @@ static void unlink_async(struct oxu_hcd *oxu, struct ehci_qh *qh);
 static void intr_deschedule(struct oxu_hcd *oxu, struct ehci_qh *qh);
 static int qh_schedule(struct oxu_hcd *oxu, struct ehci_qh *qh);
 
-#define HALT_BIT __constant_cpu_to_le32(QTD_STS_HALT)
+#define HALT_BIT cpu_to_le32(QTD_STS_HALT)
 
 /* Process and free completed qtds for a qh, returning URBs to drivers.
  * Chases up to qh->hw_current.  Returns number of completions called,
@@ -1160,7 +1160,7 @@ halt:
 			/* should be rare for periodic transfers,
 			 * except maybe high bandwidth ...
 			 */
-			if ((__constant_cpu_to_le32(QH_SMASK)
+			if ((cpu_to_le32(QH_SMASK)
 					& qh->hw_info2) != 0) {
 				intr_deschedule(oxu, qh);
 				(void) qh_schedule(oxu, qh);
@@ -1350,7 +1350,7 @@ static struct list_head *qh_urb_transaction(struct oxu_hcd *oxu,
 	}
 
 	/* by default, enable interrupt on urb completion */
-		qtd->hw_token |= __constant_cpu_to_le32(QTD_IOC);
+		qtd->hw_token |= cpu_to_le32(QTD_IOC);
 	return head;
 
 cleanup:
@@ -1539,7 +1539,7 @@ static void qh_link_async(struct oxu_hcd *oxu, struct ehci_qh *qh)
 	/* qtd completions reported later by interrupt */
 }
 
-#define	QH_ADDR_MASK	__constant_cpu_to_le32(0x7f)
+#define	QH_ADDR_MASK	cpu_to_le32(0x7f)
 
 /*
  * For control/bulk/interrupt, return QH with these TDs appended.
@@ -2012,7 +2012,7 @@ static void qh_unlink_periodic(struct oxu_hcd *oxu, struct ehci_qh *qh)
 	 *   and this qh is active in the current uframe
 	 *   (and overlay token SplitXstate is false?)
 	 * THEN
-	 *   qh->hw_info1 |= __constant_cpu_to_le32(1 << 7 "ignore");
+	 *   qh->hw_info1 |= cpu_to_le32(1 << 7 "ignore");
 	 */
 
 	/* high bandwidth, or otherwise part of every microframe */
@@ -2057,7 +2057,7 @@ static void intr_deschedule(struct oxu_hcd *oxu, struct ehci_qh *qh)
 	 * active high speed queues may need bigger delays...
 	 */
 	if (list_empty(&qh->qtd_list)
-		|| (__constant_cpu_to_le32(QH_CMASK) & qh->hw_info2) != 0)
+		|| (cpu_to_le32(QH_CMASK) & qh->hw_info2) != 0)
 		wait = 2;
 	else
 		wait = 55;	/* worst case: 3 * 1024 */
@@ -2183,10 +2183,10 @@ static int qh_schedule(struct oxu_hcd *oxu, struct ehci_qh *qh)
 		qh->start = frame;
 
 		/* reset S-frame and (maybe) C-frame masks */
-		qh->hw_info2 &= __constant_cpu_to_le32(~(QH_CMASK | QH_SMASK));
+		qh->hw_info2 &= cpu_to_le32(~(QH_CMASK | QH_SMASK));
 		qh->hw_info2 |= qh->period
 			? cpu_to_le32(1 << uframe)
-			: __constant_cpu_to_le32(QH_SMASK);
+			: cpu_to_le32(QH_SMASK);
 		qh->hw_info2 |= c_mask;
 	} else
 		oxu_dbg(oxu, "reused qh %p schedule\n", qh);
@@ -2684,7 +2684,7 @@ static int oxu_reset(struct usb_hcd *hcd)
 	oxu->urb_len = 0;
 
 	/* FIMXE */
-	hcd->self.controller->dma_mask = 0UL;
+	hcd->self.controller->dma_mask = NULL;
 
 	if (oxu->is_otg) {
 		oxu->caps = hcd->regs + OXU_OTG_CAP_OFFSET;

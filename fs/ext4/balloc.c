@@ -536,7 +536,7 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	ext4_mb_free_blocks(handle, inode, block, count,
 			    metadata, &dquot_freed_blocks);
 	if (dquot_freed_blocks)
-		DQUOT_FREE_BLOCK(inode, dquot_freed_blocks);
+		vfs_dq_free_block(inode, dquot_freed_blocks);
 	return;
 }
 

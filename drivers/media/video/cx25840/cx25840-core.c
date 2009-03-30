@@ -39,7 +39,7 @@
 #include <linux/delay.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include <media/cx25840.h>
 
 #include "cx25840-core.h"
@@ -48,15 +48,12 @@ MODULE_DESCRIPTION("Conexant CX25840 audio/video decoder driver");
 MODULE_AUTHOR("Ulf Eklund, Chris Kennedy, Hans Verkuil, Tyler Trafford");
 MODULE_LICENSE("GPL");
 
-static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
-
 static int cx25840_debug;
 
 module_param_named(debug,cx25840_debug, int, 0644);
 
 MODULE_PARM_DESC(debug, "Debugging messages [0=Off (default) 1=On]");
 
-I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
 
@@ -763,7 +760,7 @@ static int cx25840_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 
 	case V4L2_CID_HUE:
-		if (ctrl->value < -127 || ctrl->value > 127) {
+		if (ctrl->value < -128 || ctrl->value > 127) {
 			v4l_err(client, "invalid hue setting %d\n", ctrl->value);
 			return -ERANGE;
 		}
@@ -778,7 +775,7 @@ static int cx25840_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_MUTE:
 		if (state->is_cx25836)
 			return -EINVAL;
-		return cx25840_audio(client, VIDIOC_S_CTRL, ctrl);
+		return cx25840_audio_s_ctrl(sd, ctrl);
 
 	default:
 		return -EINVAL;
@@ -815,7 +812,7 @@ static int cx25840_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_MUTE:
 		if (state->is_cx25836)
 			return -EINVAL;
-		return cx25840_audio(client, VIDIOC_G_CTRL, ctrl);
+		return cx25840_audio_g_ctrl(sd, ctrl);
 	default:
 		return -EINVAL;
 	}
@@ -827,11 +824,9 @@ static int cx25840_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int cx25840_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
 	switch (fmt->type) {
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_vbi(client, VIDIOC_G_FMT, fmt);
+		return cx25840_vbi_g_fmt(sd, fmt);
 	default:
 		return -EINVAL;
 	}
@@ -893,10 +888,10 @@ static int cx25840_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		break;
 
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_vbi(client, VIDIOC_S_FMT, fmt);
+		return cx25840_vbi_s_fmt(sd, fmt);
 
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx25840_vbi(client, VIDIOC_S_FMT, fmt);
+		return cx25840_vbi_s_fmt(sd, fmt);
 
 	default:
 		return -EINVAL;
@@ -1101,6 +1096,16 @@ static void log_audio_status(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
+/* This init operation must be called to load the driver's firmware.
+   Without this the audio standard detection will fail and you will
+   only get mono.
+
+   Since loading the firmware is often problematic when the driver is
+   compiled into the kernel I recommend postponing calling this function
+   until the first open of the video device. Another reason for
+   postponing it is that loading this firmware takes a long time (seconds)
+   due to the slow i2c bus speed. So it will speed up the boot process if
+   you can avoid loading the fw as long as the video device isn't used.  */
 static int cx25840_init(struct v4l2_subdev *sd, u32 val)
 {
 	struct cx25840_state *state = to_state(sd);
@@ -1146,20 +1151,6 @@ static int cx25840_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 }
 #endif
 
-static int cx25840_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return cx25840_vbi(client, VIDIOC_INT_DECODE_VBI_LINE, vbi);
-}
-
-static int cx25840_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return cx25840_audio(client, VIDIOC_INT_AUDIO_CLOCK_FREQ, &freq);
-}
-
 static int cx25840_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct cx25840_state *state = to_state(sd);
@@ -1195,10 +1186,12 @@ static int cx25840_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 
 	switch (qc->id) {
 	case V4L2_CID_BRIGHTNESS:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
 	case V4L2_CID_CONTRAST:
 	case V4L2_CID_SATURATION:
+		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
 	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill_std(qc);
+		return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
 	default:
 		break;
 	}
@@ -1210,10 +1203,11 @@ static int cx25840_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 		return v4l2_ctrl_query_fill(qc, 0, 65535,
 				65535 / 100, state->default_volume);
 	case V4L2_CID_AUDIO_MUTE:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
-		return v4l2_ctrl_query_fill_std(qc);
+		return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
 	default:
 		return -EINVAL;
 	}
@@ -1380,19 +1374,6 @@ static int cx25840_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int cx25840_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	/* ignore this command */
-	if (cmd == TUNER_SET_TYPE_ADDR || cmd == TUNER_SET_CONFIG)
-		return 0;
-
-	/* Old-style drivers rely on initialization on first use, so
-	   call the init whenever a command is issued to this driver.
-	   New-style drivers using v4l2_subdev should call init explicitly. */
-	cx25840_init(i2c_get_clientdata(client), 0);
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops cx25840_core_ops = {
@@ -1528,8 +1509,6 @@ MODULE_DEVICE_TABLE(i2c, cx25840_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "cx25840",
-	.driverid = I2C_DRIVERID_CX25840,
-	.command = cx25840_command,
 	.probe = cx25840_probe,
 	.remove = cx25840_remove,
 	.id_table = cx25840_id,

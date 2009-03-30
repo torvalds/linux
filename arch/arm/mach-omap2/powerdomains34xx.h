@@ -200,12 +200,33 @@ static struct powerdomain mpu_34xx_pwrdm = {
 };
 
 /* No wkdeps or sleepdeps for 34xx core apparently */
-static struct powerdomain core_34xx_pwrdm = {
+static struct powerdomain core_34xx_pre_es3_1_pwrdm = {
 	.name		  = "core_pwrdm",
 	.prcm_offs	  = CORE_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
+	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430ES1 |
+					   CHIP_IS_OMAP3430ES2 |
+					   CHIP_IS_OMAP3430ES3_0),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.dep_bit	  = OMAP3430_EN_CORE_SHIFT,
+	.banks		  = 2,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_OFF_RET,	 /* MEM1RETSTATE */
+		[1] = PWRSTS_OFF_RET,	 /* MEM2RETSTATE */
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_OFF_RET_ON, /* MEM1ONSTATE */
+		[1] = PWRSTS_OFF_RET_ON, /* MEM2ONSTATE */
+	},
+};
+
+/* No wkdeps or sleepdeps for 34xx core apparently */
+static struct powerdomain core_34xx_es3_1_pwrdm = {
+	.name		  = "core_pwrdm",
+	.prcm_offs	  = CORE_MOD,
+	.omap_chip	  = OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES3_1),
+	.pwrsts		  = PWRSTS_OFF_RET_ON,
+	.dep_bit	  = OMAP3430_EN_CORE_SHIFT,
+	.flags		  = PWRDM_HAS_HDWR_SAR, /* for USBTLL only */
 	.banks		  = 2,
 	.pwrsts_mem_ret	  = {
 		[0] = PWRSTS_OFF_RET,	 /* MEM1RETSTATE */
@@ -236,14 +257,19 @@ static struct powerdomain dss_pwrdm = {
 	},
 };
 
+/*
+ * Although the 34XX TRM Rev K Table 4-371 notes that retention is a
+ * possible SGX powerstate, the SGX device itself does not support
+ * retention.
+ */
 static struct powerdomain sgx_pwrdm = {
 	.name		  = "sgx_pwrdm",
 	.prcm_offs	  = OMAP3430ES2_SGX_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430ES2),
+	.omap_chip	  = OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 	.wkdep_srcs	  = gfx_sgx_wkdeps,
 	.sleepdep_srcs	  = cam_gfx_sleepdeps,
 	/* XXX This is accurate for 3430 SGX, but what about GFX? */
-	.pwrsts		  = PWRSTS_OFF_RET_ON,
+	.pwrsts		  = PWRSTS_OFF_ON,
 	.pwrsts_logic_ret = PWRDM_POWER_RET,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
@@ -307,11 +333,12 @@ static struct powerdomain neon_pwrdm = {
 static struct powerdomain usbhost_pwrdm = {
 	.name		  = "usbhost_pwrdm",
 	.prcm_offs	  = OMAP3430ES2_USBHOST_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430ES2),
+	.omap_chip	  = OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 	.wkdep_srcs	  = per_usbhost_wkdeps,
 	.sleepdep_srcs	  = dss_per_usbhost_sleepdeps,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRDM_POWER_RET,
+	.flags		  = PWRDM_HAS_HDWR_SAR, /* for USBHOST ctrlr only */
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
 		[0] = PWRDM_POWER_RET, /* MEMRETSTATE */
@@ -320,6 +347,37 @@ static struct powerdomain usbhost_pwrdm = {
 		[0] = PWRDM_POWER_ON,  /* MEMONSTATE */
 	},
 };
+
+static struct powerdomain dpll1_pwrdm = {
+	.name		= "dpll1_pwrdm",
+	.prcm_offs	= MPU_MOD,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
+};
+
+static struct powerdomain dpll2_pwrdm = {
+	.name		= "dpll2_pwrdm",
+	.prcm_offs	= OMAP3430_IVA2_MOD,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
+};
+
+static struct powerdomain dpll3_pwrdm = {
+	.name		= "dpll3_pwrdm",
+	.prcm_offs	= PLL_MOD,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
+};
+
+static struct powerdomain dpll4_pwrdm = {
+	.name		= "dpll4_pwrdm",
+	.prcm_offs	= PLL_MOD,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
+};
+
+static struct powerdomain dpll5_pwrdm = {
+	.name		= "dpll5_pwrdm",
+	.prcm_offs	= PLL_MOD,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
+};
+
 
 #endif    /* CONFIG_ARCH_OMAP34XX */
 

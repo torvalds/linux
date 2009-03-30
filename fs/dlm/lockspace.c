@@ -487,7 +487,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 		goto out_lkbfree;
 	for (i = 0; i < size; i++) {
 		INIT_LIST_HEAD(&ls->ls_dirtbl[i].list);
-		rwlock_init(&ls->ls_dirtbl[i].lock);
+		spin_lock_init(&ls->ls_dirtbl[i].lock);
 	}
 
 	INIT_LIST_HEAD(&ls->ls_waiters);

@@ -186,13 +186,6 @@ static int __init osk_soc_init(void)
 		return -ENODEV;
 	}
 
-	if (clk_get_usecount(tlv320aic23_mclk) > 0) {
-		/* MCLK is already in use */
-		printk(KERN_WARNING
-		       "MCLK in use at %d Hz. We change it to %d Hz\n",
-		       (uint) clk_get_rate(tlv320aic23_mclk), CODEC_CLOCK);
-	}
-
 	/*
 	 * Configure 12 MHz output on MCLK.
 	 */
@@ -205,9 +198,8 @@ static int __init osk_soc_init(void)
 		}
 	}
 
-	printk(KERN_INFO "MCLK = %d [%d], usecount = %d\n",
-	       (uint) clk_get_rate(tlv320aic23_mclk), CODEC_CLOCK,
-	       clk_get_usecount(tlv320aic23_mclk));
+	printk(KERN_INFO "MCLK = %d [%d]\n",
+	       (uint) clk_get_rate(tlv320aic23_mclk), CODEC_CLOCK);
 
 	return 0;
 err1:

@@ -191,17 +191,18 @@ static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 /**
  *	ali15x3_dma_setup	-	begin a DMA phase
  *	@drive:	target device
+ *	@cmd: command
  *
  *	Returns 1 if the DMA cannot be performed, zero on success.
  */
 
-static int ali15x3_dma_setup(ide_drive_t *drive)
+static int ali15x3_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	if (m5229_revision < 0xC2 && drive->media != ide_disk) {
-		if (rq_data_dir(drive->hwif->rq))
+		if (cmd->tf_flags & IDE_TFLAG_WRITE)
 			return 1;	/* try PIO instead of DMA */
 	}
-	return ide_dma_setup(drive);
+	return ide_dma_setup(drive, cmd);
 }
 
 /**
@@ -212,7 +213,7 @@ static int ali15x3_dma_setup(ide_drive_t *drive)
  *	appropriate also sets up the 1533 southbridge.
  */
 
-static unsigned int init_chipset_ali15x3(struct pci_dev *dev)
+static int init_chipset_ali15x3(struct pci_dev *dev)
 {
 	unsigned long flags;
 	u8 tmpbyte;
@@ -503,11 +504,11 @@ static const struct ide_port_ops ali_port_ops = {
 static const struct ide_dma_ops ali_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ali15x3_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
 	.dma_end		= ide_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_timeout		= ide_dma_timeout,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };

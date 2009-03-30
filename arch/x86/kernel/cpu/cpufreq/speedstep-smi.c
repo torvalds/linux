@@ -19,8 +19,8 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <asm/ist.h>
-#include <asm/io.h>
 
 #include "speedstep-lib.h"
 
@@ -30,12 +30,12 @@
  * If user gives it, these are used.
  *
  */
-static int smi_port = 0;
-static int smi_cmd = 0;
-static unsigned int smi_sig = 0;
+static int smi_port;
+static int smi_cmd;
+static unsigned int smi_sig;
 
 /* info about the processor */
-static unsigned int speedstep_processor = 0;
+static unsigned int speedstep_processor;
 
 /*
  * There are only two frequency states for each processor. Values
@@ -56,12 +56,13 @@ static struct cpufreq_frequency_table speedstep_freqs[] = {
  * of DMA activity going on? */
 #define SMI_TRIES 5
 
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "speedstep-smi", msg)
+#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
+		"speedstep-smi", msg)
 
 /**
  * speedstep_smi_ownership
  */
-static int speedstep_smi_ownership (void)
+static int speedstep_smi_ownership(void)
 {
 	u32 command, result, magic, dummy;
 	u32 function = GET_SPEEDSTEP_OWNER;
@@ -70,16 +71,18 @@ static int speedstep_smi_ownership (void)
 	command = (smi_sig & 0xffffff00) | (smi_cmd & 0xff);
 	magic = virt_to_phys(magic_data);
 
-	dprintk("trying to obtain ownership with command %x at port %x\n", command, smi_port);
+	dprintk("trying to obtain ownership with command %x at port %x\n",
+			command, smi_port);
 
 	__asm__ __volatile__(
 		"push %%ebp\n"
 		"out %%al, (%%dx)\n"
 		"pop %%ebp\n"
-		: "=D" (result), "=a" (dummy), "=b" (dummy), "=c" (dummy), "=d" (dummy),
-			"=S" (dummy)
+		: "=D" (result),
+		  "=a" (dummy), "=b" (dummy), "=c" (dummy), "=d" (dummy),
+		  "=S" (dummy)
 		: "a" (command), "b" (function), "c" (0), "d" (smi_port),
-			"D" (0), "S" (magic)
+		  "D" (0), "S" (magic)
 		: "memory"
 	);
 
@@ -97,10 +100,10 @@ static int speedstep_smi_ownership (void)
  * even hangs [cf. bugme.osdl.org # 1422] on earlier systems. Empirical testing
  * shows that the latter occurs if !(ist_info.event & 0xFFFF).
  */
-static int speedstep_smi_get_freqs (unsigned int *low, unsigned int *high)
+static int speedstep_smi_get_freqs(unsigned int *low, unsigned int *high)
 {
 	u32 command, result = 0, edi, high_mhz, low_mhz, dummy;
-	u32 state=0;
+	u32 state = 0;
 	u32 function = GET_SPEEDSTEP_FREQS;
 
 	if (!(ist_info.event & 0xFFFF)) {
@@ -110,17 +113,25 @@ static int speedstep_smi_get_freqs (unsigned int *low, unsigned int *high)
 
 	command = (smi_sig & 0xffffff00) | (smi_cmd & 0xff);
 
-	dprintk("trying to determine frequencies with command %x at port %x\n", command, smi_port);
+	dprintk("trying to determine frequencies with command %x at port %x\n",
+			command, smi_port);
 
 	__asm__ __volatile__(
 		"push %%ebp\n"
 		"out %%al, (%%dx)\n"
 		"pop %%ebp"
-		: "=a" (result), "=b" (high_mhz), "=c" (low_mhz), "=d" (state), "=D" (edi), "=S" (dummy)
-		: "a" (command), "b" (function), "c" (state), "d" (smi_port), "S" (0), "D" (0)
+		: "=a" (result),
+		  "=b" (high_mhz),
+		  "=c" (low_mhz),
+		  "=d" (state), "=D" (edi), "=S" (dummy)
+		: "a" (command),
+		  "b" (function),
+		  "c" (state),
+		  "d" (smi_port), "S" (0), "D" (0)
 	);
 
-	dprintk("result %x, low_freq %u, high_freq %u\n", result, low_mhz, high_mhz);
+	dprintk("result %x, low_freq %u, high_freq %u\n",
+			result, low_mhz, high_mhz);
 
 	/* abort if results are obviously incorrect... */
 	if ((high_mhz + low_mhz) < 600)
@@ -137,26 +148,30 @@ static int speedstep_smi_get_freqs (unsigned int *low, unsigned int *high)
  * @state: processor frequency state (SPEEDSTEP_LOW or SPEEDSTEP_HIGH)
  *
  */
-static int speedstep_get_state (void)
+static int speedstep_get_state(void)
 {
-	u32 function=GET_SPEEDSTEP_STATE;
+	u32 function = GET_SPEEDSTEP_STATE;
 	u32 result, state, edi, command, dummy;
 
 	command = (smi_sig & 0xffffff00) | (smi_cmd & 0xff);
 
-	dprintk("trying to determine current setting with command %x at port %x\n", command, smi_port);
+	dprintk("trying to determine current setting with command %x "
+		"at port %x\n", command, smi_port);
 
 	__asm__ __volatile__(
 		"push %%ebp\n"
 		"out %%al, (%%dx)\n"
 		"pop %%ebp\n"
-		: "=a" (result), "=b" (state), "=D" (edi), "=c" (dummy), "=d" (dummy), "=S" (dummy)
-		: "a" (command), "b" (function), "c" (0), "d" (smi_port), "S" (0), "D" (0)
+		: "=a" (result),
+		  "=b" (state), "=D" (edi),
+		  "=c" (dummy), "=d" (dummy), "=S" (dummy)
+		: "a" (command), "b" (function), "c" (0),
+		  "d" (smi_port), "S" (0), "D" (0)
 	);
 
 	dprintk("state is %x, result is %x\n", state, result);
 
-	return (state & 1);
+	return state & 1;
 }
 
 
@@ -165,11 +180,11 @@ static int speedstep_get_state (void)
  * @state: new processor frequency state (SPEEDSTEP_LOW or SPEEDSTEP_HIGH)
  *
  */
-static void speedstep_set_state (unsigned int state)
+static void speedstep_set_state(unsigned int state)
 {
 	unsigned int result = 0, command, new_state, dummy;
 	unsigned long flags;
-	unsigned int function=SET_SPEEDSTEP_STATE;
+	unsigned int function = SET_SPEEDSTEP_STATE;
 	unsigned int retry = 0;
 
 	if (state > 0x1)
@@ -180,11 +195,14 @@ static void speedstep_set_state (unsigned int state)
 
 	command = (smi_sig & 0xffffff00) | (smi_cmd & 0xff);
 
-	dprintk("trying to set frequency to state %u with command %x at port %x\n", state, command, smi_port);
+	dprintk("trying to set frequency to state %u "
+		"with command %x at port %x\n",
+		state, command, smi_port);
 
 	do {
 		if (retry) {
-			dprintk("retry %u, previous result %u, waiting...\n", retry, result);
+			dprintk("retry %u, previous result %u, waiting...\n",
+					retry, result);
 			mdelay(retry * 50);
 		}
 		retry++;
@@ -192,20 +210,26 @@ static void speedstep_set_state (unsigned int state)
 			"push %%ebp\n"
 			"out %%al, (%%dx)\n"
 			"pop %%ebp"
-			: "=b" (new_state), "=D" (result), "=c" (dummy), "=a" (dummy),
-				"=d" (dummy), "=S" (dummy)
-			: "a" (command), "b" (function), "c" (state), "d" (smi_port), "S" (0), "D" (0)
+			: "=b" (new_state), "=D" (result),
+			  "=c" (dummy), "=a" (dummy),
+			  "=d" (dummy), "=S" (dummy)
+			: "a" (command), "b" (function), "c" (state),
+			  "d" (smi_port), "S" (0), "D" (0)
 			);
 	} while ((new_state != state) && (retry <= SMI_TRIES));
 
 	/* enable IRQs */
 	local_irq_restore(flags);
 
-	if (new_state == state) {
-		dprintk("change to %u MHz succeeded after %u tries with result %u\n", (speedstep_freqs[new_state].frequency / 1000), retry, result);
-	} else {
-		printk(KERN_ERR "cpufreq: change to state %u failed with new_state %u and result %u\n", state, new_state, result);
-	}
+	if (new_state == state)
+		dprintk("change to %u MHz succeeded after %u tries "
+			"with result %u\n",
+			(speedstep_freqs[new_state].frequency / 1000),
+			retry, result);
+	else
+		printk(KERN_ERR "cpufreq: change to state %u "
+			"failed with new_state %u and result %u\n",
+			state, new_state, result);
 
 	return;
 }
@@ -219,13 +243,14 @@ static void speedstep_set_state (unsigned int state)
  *
  * Sets a new CPUFreq policy/freq.
  */
-static int speedstep_target (struct cpufreq_policy *policy,
+static int speedstep_target(struct cpufreq_policy *policy,
 			unsigned int target_freq, unsigned int relation)
 {
 	unsigned int newstate = 0;
 	struct cpufreq_freqs freqs;
 
-	if (cpufreq_frequency_table_target(policy, &speedstep_freqs[0], target_freq, relation, &newstate))
+	if (cpufreq_frequency_table_target(policy, &speedstep_freqs[0],
+				target_freq, relation, &newstate))
 		return -EINVAL;
 
 	freqs.old = speedstep_freqs[speedstep_get_state()].frequency;
@@ -250,7 +275,7 @@ static int speedstep_target (struct cpufreq_policy *policy,
  * Limit must be within speedstep_low_freq and speedstep_high_freq, with
  * at least one border included.
  */
-static int speedstep_verify (struct cpufreq_policy *policy)
+static int speedstep_verify(struct cpufreq_policy *policy)
 {
 	return cpufreq_frequency_table_verify(policy, &speedstep_freqs[0]);
 }
@@ -259,7 +284,8 @@ static int speedstep_verify (struct cpufreq_policy *policy)
 static int speedstep_cpu_init(struct cpufreq_policy *policy)
 {
 	int result;
-	unsigned int speed,state;
+	unsigned int speed, state;
+	unsigned int *low, *high;
 
 	/* capability check */
 	if (policy->cpu != 0)
@@ -272,19 +298,23 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	/* detect low and high frequency */
-	result = speedstep_smi_get_freqs(&speedstep_freqs[SPEEDSTEP_LOW].frequency,
-				&speedstep_freqs[SPEEDSTEP_HIGH].frequency);
+	low = &speedstep_freqs[SPEEDSTEP_LOW].frequency;
+	high = &speedstep_freqs[SPEEDSTEP_HIGH].frequency;
+
+	result = speedstep_smi_get_freqs(low, high);
 	if (result) {
-		/* fall back to speedstep_lib.c dection mechanism: try both states out */
-		dprintk("could not detect low and high frequencies by SMI call.\n");
+		/* fall back to speedstep_lib.c dection mechanism:
+		 * try both states out */
+		dprintk("could not detect low and high frequencies "
+				"by SMI call.\n");
 		result = speedstep_get_freqs(speedstep_processor,
-				&speedstep_freqs[SPEEDSTEP_LOW].frequency,
-				&speedstep_freqs[SPEEDSTEP_HIGH].frequency,
+				low, high,
 				NULL,
 				&speedstep_set_state);
 
 		if (result) {
-			dprintk("could not detect two different speeds -- aborting.\n");
+			dprintk("could not detect two different speeds"
+					" -- aborting.\n");
 			return result;
 		} else
 			dprintk("workaround worked.\n");
@@ -295,7 +325,8 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	speed = speedstep_freqs[state].frequency;
 
 	dprintk("currently at %s speed setting - %i MHz\n",
-		(speed == speedstep_freqs[SPEEDSTEP_LOW].frequency) ? "low" : "high",
+		(speed == speedstep_freqs[SPEEDSTEP_LOW].frequency)
+		? "low" : "high",
 		(speed / 1000));
 
 	/* cpuinfo and default policy values */
@@ -304,7 +335,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 
 	result = cpufreq_frequency_table_cpuinfo(policy, speedstep_freqs);
 	if (result)
-		return (result);
+		return result;
 
 	cpufreq_frequency_table_get_attr(speedstep_freqs, policy->cpu);
 
@@ -321,7 +352,7 @@ static unsigned int speedstep_get(unsigned int cpu)
 {
 	if (cpu)
 		return -ENODEV;
-	return speedstep_get_processor_frequency(speedstep_processor);
+	return speedstep_get_frequency(speedstep_processor);
 }
 
 
@@ -335,7 +366,7 @@ static int speedstep_resume(struct cpufreq_policy *policy)
 	return result;
 }
 
-static struct freq_attr* speedstep_attr[] = {
+static struct freq_attr *speedstep_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
 };
@@ -364,21 +395,23 @@ static int __init speedstep_init(void)
 	speedstep_processor = speedstep_detect_processor();
 
 	switch (speedstep_processor) {
-	case SPEEDSTEP_PROCESSOR_PIII_T:
-	case SPEEDSTEP_PROCESSOR_PIII_C:
-	case SPEEDSTEP_PROCESSOR_PIII_C_EARLY:
+	case SPEEDSTEP_CPU_PIII_T:
+	case SPEEDSTEP_CPU_PIII_C:
+	case SPEEDSTEP_CPU_PIII_C_EARLY:
 		break;
 	default:
 		speedstep_processor = 0;
 	}
 
 	if (!speedstep_processor) {
-		dprintk ("No supported Intel CPU detected.\n");
+		dprintk("No supported Intel CPU detected.\n");
 		return -ENODEV;
 	}
 
-	dprintk("signature:0x%.8lx, command:0x%.8lx, event:0x%.8lx, perf_level:0x%.8lx.\n",
-		ist_info.signature, ist_info.command, ist_info.event, ist_info.perf_level);
+	dprintk("signature:0x%.8lx, command:0x%.8lx, "
+		"event:0x%.8lx, perf_level:0x%.8lx.\n",
+		ist_info.signature, ist_info.command,
+		ist_info.event, ist_info.perf_level);
 
 	/* Error if no IST-SMI BIOS or no PARM
 		 sig= 'ISGE' aka 'Intel Speedstep Gate E' */
@@ -416,17 +449,20 @@ static void __exit speedstep_exit(void)
 	cpufreq_unregister_driver(&speedstep_driver);
 }
 
-module_param(smi_port,  int, 0444);
-module_param(smi_cmd,   int, 0444);
-module_param(smi_sig,  uint, 0444);
+module_param(smi_port, int, 0444);
+module_param(smi_cmd,  int, 0444);
+module_param(smi_sig, uint, 0444);
 
-MODULE_PARM_DESC(smi_port, "Override the BIOS-given IST port with this value -- Intel's default setting is 0xb2");
-MODULE_PARM_DESC(smi_cmd, "Override the BIOS-given IST command with this value -- Intel's default setting is 0x82");
-MODULE_PARM_DESC(smi_sig, "Set to 1 to fake the IST signature when using the SMI interface.");
+MODULE_PARM_DESC(smi_port, "Override the BIOS-given IST port with this value "
+		"-- Intel's default setting is 0xb2");
+MODULE_PARM_DESC(smi_cmd, "Override the BIOS-given IST command with this value "
+		"-- Intel's default setting is 0x82");
+MODULE_PARM_DESC(smi_sig, "Set to 1 to fake the IST signature when using the "
+		"SMI interface.");
 
-MODULE_AUTHOR ("Hiroshi Miura");
-MODULE_DESCRIPTION ("Speedstep driver for IST applet SMI interface.");
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("Hiroshi Miura");
+MODULE_DESCRIPTION("Speedstep driver for IST applet SMI interface.");
+MODULE_LICENSE("GPL");
 
 module_init(speedstep_init);
 module_exit(speedstep_exit);

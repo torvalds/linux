@@ -275,7 +275,6 @@ struct olympic_private {
 	struct sk_buff *tx_ring_skb[OLYMPIC_TX_RING_SIZE], *rx_ring_skb[OLYMPIC_RX_RING_SIZE];	
 	int tx_ring_free, tx_ring_last_status, rx_ring_last_received,rx_status_last_received, free_tx_ring_entries;
 
-	struct net_device_stats olympic_stats ;
 	u16 olympic_lan_status ;
 	u8 olympic_ring_speed ;
 	u16 pkt_buf_sz ; 

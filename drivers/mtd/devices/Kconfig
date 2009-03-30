@@ -120,13 +120,6 @@ config MTD_PHRAM
 	  doesn't have access to, memory beyond the mem=xxx limit, nvram,
 	  memory on the video card, etc...
 
-config MTD_PS3VRAM
-	tristate "PS3 video RAM"
-	depends on FB_PS3
-	help
-	  This driver allows you to use excess PS3 video RAM as volatile
-	  storage or system swap.
-
 config MTD_LART
 	tristate "28F160xx flash driver for LART"
 	depends on SA1100_LART

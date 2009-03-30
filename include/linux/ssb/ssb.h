@@ -339,6 +339,10 @@ extern int ssb_bus_pcmciabus_register(struct ssb_bus *bus,
 
 extern void ssb_bus_unregister(struct ssb_bus *bus);
 
+/* Set a fallback SPROM.
+ * See kdoc at the function definition for complete documentation. */
+extern int ssb_arch_set_fallback_sprom(const struct ssb_sprom *sprom);
+
 /* Suspend a SSB bus.
  * Call this from the parent bus suspend routine. */
 extern int ssb_bus_suspend(struct ssb_bus *bus);

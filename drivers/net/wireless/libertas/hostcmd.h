@@ -221,6 +221,14 @@ struct cmd_ds_mac_multicast_adr {
 	u8 maclist[ETH_ALEN * MRVDRV_MAX_MULTICAST_LIST_SIZE];
 } __attribute__ ((packed));
 
+struct cmd_ds_gspi_bus_config {
+	struct cmd_header hdr;
+	__le16 action;
+	__le16 bus_delay_mode;
+	__le16 host_time_delay_to_read_port;
+	__le16 host_time_delay_to_read_register;
+} __attribute__ ((packed));
+
 struct cmd_ds_802_11_authenticate {
 	u8 macaddr[ETH_ALEN];
 	u8 authtype;

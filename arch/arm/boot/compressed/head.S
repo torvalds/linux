@@ -27,6 +27,12 @@
 		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c0, c5, 0
 		.endm
+#elif defined(CONFIG_CPU_XSCALE)
+		.macro	loadsp, rb
+		.endm
+		.macro	writeb, ch, rb
+		mcr	p14, 0, \ch, c8, c0, 0
+		.endm
 #else
 		.macro	loadsp, rb
 		.endm
@@ -459,6 +465,20 @@ __armv7_mmu_cache_on:
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
 		mov	pc, r12
 
+__fa526_cache_on:
+		mov	r12, lr
+		bl	__setup_mmu
+		mov	r0, #0
+		mcr	p15, 0, r0, c7, c7, 0	@ Invalidate whole cache
+		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
+		mcr	p15, 0, r0, c8, c7, 0	@ flush UTLB
+		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
+		orr	r0, r0, #0x1000		@ I-cache enable
+		bl	__common_mmu_cache_on
+		mov	r0, #0
+		mcr	p15, 0, r0, c8, c7, 0	@ flush UTLB
+		mov	pc, r12
+
 __arm6_mmu_cache_on:
 		mov	r12, lr
 		bl	__setup_mmu
@@ -630,11 +650,29 @@ proc_types:
 		b	__armv4_mmu_cache_off
 		b	__armv4_mmu_cache_flush
 
+		.word	0x56158000		@ PXA168
+		.word	0xfffff000
+		b __armv4_mmu_cache_on
+		b __armv4_mmu_cache_off
+		b __armv5tej_mmu_cache_flush
+
+		.word	0x56056930
+		.word	0xff0ffff0		@ PXA935
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv4_mmu_cache_flush
+
 		.word	0x56050000		@ Feroceon
 		.word	0xff0f0000
 		b	__armv4_mmu_cache_on
 		b	__armv4_mmu_cache_off
 		b	__armv5tej_mmu_cache_flush
+
+		.word	0x66015261		@ FA526
+		.word	0xff01fff1
+		b	__fa526_cache_on
+		b	__armv4_mmu_cache_off
+		b	__fa526_cache_flush
 
 		@ These match on the architecture ID
 
@@ -775,6 +813,12 @@ __armv4_mpu_cache_flush:
 		mcr	p15, 0, ip, c7, c10, 4	@ drain WB
 		mov	pc, lr
 		
+__fa526_cache_flush:
+		mov	r1, #0
+		mcr	p15, 0, r1, c7, c14, 0	@ clean and invalidate D cache
+		mcr	p15, 0, r1, c7, c5, 0	@ flush I cache
+		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
+		mov	pc, lr
 
 __armv6_mmu_cache_flush:
 		mov	r1, #0

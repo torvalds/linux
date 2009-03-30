@@ -18,6 +18,10 @@
 #define IDE_ARM_IO	0x1f0
 #define IDE_ARM_IRQ	IRQ_HARDDISK
 
+static const struct ide_port_info ide_arm_port_info = {
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
 static int __init ide_arm_init(void)
 {
 	unsigned long base = IDE_ARM_IO, ctl = IDE_ARM_IO + 0x206;
@@ -41,7 +45,7 @@ static int __init ide_arm_init(void)
 	hw.irq = IDE_ARM_IRQ;
 	hw.chipset = ide_generic;
 
-	return ide_host_add(NULL, hws, NULL);
+	return ide_host_add(&ide_arm_port_info, hws, NULL);
 }
 
 module_init(ide_arm_init);

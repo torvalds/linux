@@ -133,7 +133,8 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 	 *	do all the device setup for us
 	 */
 
-	ide_pci_setup_ports(dev, d, 14, &hw[0], &hws[0]);
+	ide_pci_setup_ports(dev, d, &hw[0], &hws[0]);
+	hw[0].irq = 14;
 
 	return ide_host_add(d, hws, NULL);
 }

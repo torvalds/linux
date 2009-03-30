@@ -80,7 +80,7 @@ void io_subchannel_init_config(struct subchannel *sch);
 
 int ccw_device_cancel_halt_clear(struct ccw_device *);
 
-void ccw_device_do_unreg_rereg(struct work_struct *);
+void ccw_device_do_unbind_bind(struct work_struct *);
 void ccw_device_move_to_orphanage(struct work_struct *);
 int ccw_device_is_orphan(struct ccw_device *);
 

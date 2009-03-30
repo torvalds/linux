@@ -11,11 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/pci.h>
-#include <linux/irq.h>
-#include <linux/mtd/physmap.h>
 #include <linux/mtd/nand.h>
-#include <linux/timer.h>
+#include <linux/mtd/partitions.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/spi/flash.h>
@@ -23,7 +20,6 @@
 #include <linux/spi/orion_spi.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/pci.h>
 #include <mach/kirkwood.h>
 #include "common.h"
 
@@ -61,14 +57,11 @@ static void __init rd88f6192_init(void)
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&rd88f6192_ge00_data);
-	kirkwood_rtc_init();
 	kirkwood_sata_init(&rd88f6192_sata_data);
 	spi_register_board_info(rd88F6192_spi_slave_info,
 				ARRAY_SIZE(rd88F6192_spi_slave_info));
 	kirkwood_spi_init();
 	kirkwood_uart0_init();
-	kirkwood_xor0_init();
-	kirkwood_xor1_init();
 }
 
 static int __init rd88f6192_pci_init(void)

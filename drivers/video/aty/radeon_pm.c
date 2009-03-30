@@ -2507,6 +2507,25 @@ static void radeon_reinitialize_QW(struct radeonfb_info *rinfo)
 
 #endif /* CONFIG_PPC_OF */
 
+static void radeonfb_whack_power_state(struct radeonfb_info *rinfo, pci_power_t state)
+{
+	u16 pwr_cmd;
+
+	for (;;) {
+		pci_read_config_word(rinfo->pdev,
+				     rinfo->pm_reg+PCI_PM_CTRL,
+				     &pwr_cmd);
+		if (pwr_cmd & 2)
+			break;
+		pwr_cmd = (pwr_cmd & ~PCI_PM_CTRL_STATE_MASK) | 2;
+		pci_write_config_word(rinfo->pdev,
+				      rinfo->pm_reg+PCI_PM_CTRL,
+				      pwr_cmd);
+		msleep(500);
+	}
+	rinfo->pdev->current_state = state;
+}
+
 static void radeon_set_suspend(struct radeonfb_info *rinfo, int suspend)
 {
 	u32 tmp;
@@ -2558,6 +2577,11 @@ static void radeon_set_suspend(struct radeonfb_info *rinfo, int suspend)
 		/* Switch PCI power management to D2. */
 		pci_disable_device(rinfo->pdev);
 		pci_save_state(rinfo->pdev);
+		/* The chip seems to need us to whack the PM register
+		 * repeatedly until it sticks. We do that -prior- to
+		 * calling pci_set_power_state()
+		 */
+		radeonfb_whack_power_state(rinfo, PCI_D2);
 		pci_set_power_state(rinfo->pdev, PCI_D2);
 	} else {
 		printk(KERN_DEBUG "radeonfb (%s): switching to D0 state...\n",

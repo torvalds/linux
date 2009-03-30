@@ -27,8 +27,8 @@
 #include <linux/mutex.h>
 #include <sound/pcm.h>
 
-#define PCXHR_DRIVER_VERSION		0x000905	/* 0.9.5 */
-#define PCXHR_DRIVER_VERSION_STRING	"0.9.5"		/* 0.9.5 */
+#define PCXHR_DRIVER_VERSION		0x000906	/* 0.9.6 */
+#define PCXHR_DRIVER_VERSION_STRING	"0.9.6"		/* 0.9.6 */
 
 
 #define PCXHR_MAX_CARDS		6
@@ -124,6 +124,7 @@ struct pcxhr_mgr {
 
 	unsigned char xlx_cfg;		/* copy of PCXHR_XLX_CFG register */
 	unsigned char xlx_selmic;	/* copy of PCXHR_XLX_SELMIC register */
+	unsigned char dsp_reset;	/* copy of PCXHR_DSP_RESET register */
 };
 
 

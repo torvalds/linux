@@ -296,10 +296,8 @@ struct uvc_xu_control {
 
 /* Number of isochronous URBs. */
 #define UVC_URBS		5
-/* Maximum number of packets per isochronous URB. */
-#define UVC_MAX_ISO_PACKETS	40
-/* Maximum frame size in bytes, for sanity checking. */
-#define UVC_MAX_FRAME_SIZE	(16*1024*1024)
+/* Maximum number of packets per URB. */
+#define UVC_MAX_PACKETS		32
 /* Maximum number of video buffers. */
 #define UVC_MAX_VIDEO_BUFFERS	32
 /* Maximum status buffer size in bytes of interrupt URB. */
@@ -316,6 +314,7 @@ struct uvc_xu_control {
 #define UVC_QUIRK_STREAM_NO_FID		0x00000010
 #define UVC_QUIRK_IGNORE_SELECTOR_UNIT	0x00000020
 #define UVC_QUIRK_PRUNE_CONTROLS	0x00000040
+#define UVC_QUIRK_FIX_BANDWIDTH		0x00000080
 
 /* Format flags */
 #define UVC_FMT_FLAG_COMPRESSED		0x00000001
@@ -649,6 +648,7 @@ struct uvc_device {
 	struct urb *int_urb;
 	__u8 *status;
 	struct input_dev *input;
+	char input_phys[64];
 
 	/* Video Streaming interfaces */
 	struct list_head streaming;

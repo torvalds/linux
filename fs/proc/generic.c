@@ -363,7 +363,7 @@ static int proc_delete_dentry(struct dentry * dentry)
 	return 1;
 }
 
-static struct dentry_operations proc_dentry_operations =
+static const struct dentry_operations proc_dentry_operations =
 {
 	.d_delete	= proc_delete_dentry,
 };

@@ -1502,7 +1502,7 @@ static struct ata_port_info bfin_port_info[] = {
 		.flags		= ATA_FLAG_SLAVE_POSS
 				| ATA_FLAG_MMIO
 				| ATA_FLAG_NO_LEGACY,
-		.pio_mask	= 0x1f,	/* pio0-4 */
+		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= 0,
 		.udma_mask	= 0,
 		.port_ops	= &bfin_pata_ops,

@@ -19,7 +19,6 @@
 #include <linux/delay.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
-#include <linux/lm_interface.h>
 #include <linux/time.h>
 
 #include "gfs2.h"
@@ -27,7 +26,6 @@
 #include "glock.h"
 #include "inode.h"
 #include "log.h"
-#include "mount.h"
 #include "quota.h"
 #include "recovery.h"
 #include "rgrp.h"
@@ -39,6 +37,8 @@
 #include "eattr.h"
 #include "bmap.h"
 #include "meta_io.h"
+
+#define args_neq(a1, a2, x) ((a1)->ar_##x != (a2)->ar_##x)
 
 /**
  * gfs2_write_inode - Make sure the inode is stable on the disk
@@ -435,25 +435,45 @@ static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
+	struct gfs2_args args = sdp->sd_args; /* Default to current settings */
 	int error;
 
-	error = gfs2_mount_args(sdp, data, 1);
+	error = gfs2_mount_args(sdp, &args, data);
 	if (error)
 		return error;
 
+	/* Not allowed to change locking details */
+	if (strcmp(args.ar_lockproto, sdp->sd_args.ar_lockproto) ||
+	    strcmp(args.ar_locktable, sdp->sd_args.ar_locktable) ||
+	    strcmp(args.ar_hostdata, sdp->sd_args.ar_hostdata))
+		return -EINVAL;
+
+	/* Some flags must not be changed */
+	if (args_neq(&args, &sdp->sd_args, spectator) ||
+	    args_neq(&args, &sdp->sd_args, ignore_local_fs) ||
+	    args_neq(&args, &sdp->sd_args, localflocks) ||
+	    args_neq(&args, &sdp->sd_args, localcaching) ||
+	    args_neq(&args, &sdp->sd_args, meta))
+		return -EINVAL;
+
 	if (sdp->sd_args.ar_spectator)
 		*flags |= MS_RDONLY;
-	else {
-		if (*flags & MS_RDONLY) {
-			if (!(sb->s_flags & MS_RDONLY))
-				error = gfs2_make_fs_ro(sdp);
-		} else if (!(*flags & MS_RDONLY) &&
-			   (sb->s_flags & MS_RDONLY)) {
+
+	if ((sb->s_flags ^ *flags) & MS_RDONLY) {
+		if (*flags & MS_RDONLY)
+			error = gfs2_make_fs_ro(sdp);
+		else
 			error = gfs2_make_fs_rw(sdp);
-		}
+		if (error)
+			return error;
 	}
 
-	return error;
+	sdp->sd_args = args;
+	if (sdp->sd_args.ar_posix_acl)
+		sb->s_flags |= MS_POSIXACL;
+	else
+		sb->s_flags &= ~MS_POSIXACL;
+	return 0;
 }
 
 /**
@@ -588,6 +608,8 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		}
 		seq_printf(s, ",data=%s", state);
 	}
+	if (args->ar_discard)
+		seq_printf(s, ",discard");
 
 	return 0;
 }

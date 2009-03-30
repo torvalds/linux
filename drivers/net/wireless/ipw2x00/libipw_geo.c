@@ -41,7 +41,7 @@
 #include <linux/etherdevice.h>
 #include <asm/uaccess.h>
 
-#include <net/ieee80211.h>
+#include "ieee80211.h"
 
 int ieee80211_is_valid_channel(struct ieee80211_device *ieee, u8 channel)
 {

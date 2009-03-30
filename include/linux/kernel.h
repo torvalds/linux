@@ -16,7 +16,7 @@
 #include <linux/log2.h>
 #include <linux/typecheck.h>
 #include <linux/ratelimit.h>
-#include <linux/dynamic_printk.h>
+#include <linux/dynamic_debug.h>
 #include <asm/byteorder.h>
 #include <asm/bug.h>
 
@@ -358,9 +358,10 @@ static inline char *pack_hex_byte(char *buf, u8 byte)
 #if defined(DEBUG)
 #define pr_debug(fmt, ...) \
 	printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
-#elif defined(CONFIG_DYNAMIC_PRINTK_DEBUG)
+#elif defined(CONFIG_DYNAMIC_DEBUG)
+/* dynamic_pr_debug() uses pr_fmt() internally so we don't need it here */
 #define pr_debug(fmt, ...) do { \
-	dynamic_pr_debug(pr_fmt(fmt), ##__VA_ARGS__); \
+	dynamic_pr_debug(fmt, ##__VA_ARGS__); \
 	} while (0)
 #else
 #define pr_debug(fmt, ...) \

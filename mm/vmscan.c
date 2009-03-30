@@ -1262,7 +1262,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	 * Move the pages to the [file or anon] inactive list.
 	 */
 	pagevec_init(&pvec, 1);
-	pgmoved = 0;
 	lru = LRU_BASE + file * LRU_FILE;
 
 	spin_lock_irq(&zone->lru_lock);
@@ -1274,6 +1273,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	 */
 	reclaim_stat->recent_rotated[!!file] += pgmoved;
 
+	pgmoved = 0;
 	while (!list_empty(&l_inactive)) {
 		page = lru_to_page(&l_inactive);
 		prefetchw_prev_lru_page(page, &l_inactive, flags);

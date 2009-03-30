@@ -49,11 +49,6 @@
 
 #include "soc_common.h"
 
-/* FIXME: platform dependent resource declaration has to move out of this file */
-#ifdef CONFIG_ARCH_PXA
-#include <mach/pxa-regs.h>
-#endif
-
 #ifdef CONFIG_PCMCIA_DEBUG
 
 static int pc_debug;
@@ -581,19 +576,6 @@ EXPORT_SYMBOL(soc_pcmcia_enable_irqs);
 LIST_HEAD(soc_pcmcia_sockets);
 static DEFINE_MUTEX(soc_pcmcia_sockets_lock);
 
-static const char *skt_names[] = {
-	"PCMCIA socket 0",
-	"PCMCIA socket 1",
-};
-
-struct skt_dev_info {
-	int nskt;
-	struct soc_pcmcia_socket skt[0];
-};
-
-#define SKT_DEV_INFO_SIZE(n) \
-	(sizeof(struct skt_dev_info) + (n)*sizeof(struct soc_pcmcia_socket))
-
 #ifdef CONFIG_CPU_FREQ
 static int
 soc_pcmcia_notifier(struct notifier_block *nb, unsigned long val, void *data)
@@ -637,26 +619,18 @@ static int soc_pcmcia_cpufreq_register(void) { return 0; }
 static void soc_pcmcia_cpufreq_unregister(void) {}
 #endif
 
-int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops, int first, int nr)
+int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
+				struct skt_dev_info *sinfo)
 {
-	struct skt_dev_info *sinfo;
 	struct soc_pcmcia_socket *skt;
 	int ret, i;
 
 	mutex_lock(&soc_pcmcia_sockets_lock);
 
-	sinfo = kzalloc(SKT_DEV_INFO_SIZE(nr), GFP_KERNEL);
-	if (!sinfo) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	sinfo->nskt = nr;
-
 	/*
 	 * Initialise the per-socket structure.
 	 */
-	for (i = 0; i < nr; i++) {
+	for (i = 0; i < sinfo->nskt; i++) {
 		skt = &sinfo->skt[i];
 
 		skt->socket.ops = &soc_common_pcmcia_operations;
@@ -668,42 +642,20 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 		skt->poll_timer.data = (unsigned long)skt;
 		skt->poll_timer.expires = jiffies + SOC_PCMCIA_POLL_PERIOD;
 
-		skt->nr		= first + i;
-		skt->irq	= NO_IRQ;
 		skt->dev	= dev;
 		skt->ops	= ops;
-
-		skt->res_skt.start	= _PCMCIA(skt->nr);
-		skt->res_skt.end	= _PCMCIA(skt->nr) + PCMCIASp - 1;
-		skt->res_skt.name	= skt_names[skt->nr];
-		skt->res_skt.flags	= IORESOURCE_MEM;
 
 		ret = request_resource(&iomem_resource, &skt->res_skt);
 		if (ret)
 			goto out_err_1;
 
-		skt->res_io.start	= _PCMCIAIO(skt->nr);
-		skt->res_io.end		= _PCMCIAIO(skt->nr) + PCMCIAIOSp - 1;
-		skt->res_io.name	= "io";
-		skt->res_io.flags	= IORESOURCE_MEM | IORESOURCE_BUSY;
-
 		ret = request_resource(&skt->res_skt, &skt->res_io);
 		if (ret)
 			goto out_err_2;
 
-		skt->res_mem.start	= _PCMCIAMem(skt->nr);
-		skt->res_mem.end	= _PCMCIAMem(skt->nr) + PCMCIAMemSp - 1;
-		skt->res_mem.name	= "memory";
-		skt->res_mem.flags	= IORESOURCE_MEM;
-
 		ret = request_resource(&skt->res_skt, &skt->res_mem);
 		if (ret)
 			goto out_err_3;
-
-		skt->res_attr.start	= _PCMCIAAttr(skt->nr);
-		skt->res_attr.end	= _PCMCIAAttr(skt->nr) + PCMCIAAttrSp - 1;
-		skt->res_attr.name	= "attribute";
-		skt->res_attr.flags	= IORESOURCE_MEM;
 
 		ret = request_resource(&skt->res_skt, &skt->res_attr);
 		if (ret)

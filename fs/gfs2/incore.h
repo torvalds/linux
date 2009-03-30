@@ -12,6 +12,8 @@
 
 #include <linux/fs.h>
 #include <linux/workqueue.h>
+#include <linux/dlm.h>
+#include <linux/buffer_head.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -26,6 +28,7 @@ struct gfs2_trans;
 struct gfs2_ail;
 struct gfs2_jdesc;
 struct gfs2_sbd;
+struct lm_lockops;
 
 typedef void (*gfs2_glop_bh_t) (struct gfs2_glock *gl, unsigned int ret);
 
@@ -121,6 +124,28 @@ struct gfs2_bufdata {
 	struct list_head bd_ail_gl_list;
 };
 
+/*
+ * Internally, we prefix things with gdlm_ and GDLM_ (for gfs-dlm) since a
+ * prefix of lock_dlm_ gets awkward.
+ */
+
+#define GDLM_STRNAME_BYTES	25
+#define GDLM_LVB_SIZE		32
+
+enum {
+	DFL_BLOCK_LOCKS		= 0,
+};
+
+struct lm_lockname {
+	u64 ln_number;
+	unsigned int ln_type;
+};
+
+#define lm_name_equal(name1, name2) \
+        (((name1)->ln_number == (name2)->ln_number) && \
+         ((name1)->ln_type == (name2)->ln_type))
+
+
 struct gfs2_glock_operations {
 	void (*go_xmote_th) (struct gfs2_glock *gl);
 	int (*go_xmote_bh) (struct gfs2_glock *gl, struct gfs2_holder *gh);
@@ -162,6 +187,8 @@ enum {
 	GLF_LFLUSH			= 7,
 	GLF_INVALIDATE_IN_PROGRESS	= 8,
 	GLF_REPLY_PENDING		= 9,
+	GLF_INITIAL			= 10,
+	GLF_FROZEN			= 11,
 };
 
 struct gfs2_glock {
@@ -176,16 +203,15 @@ struct gfs2_glock {
 	unsigned int gl_target;
 	unsigned int gl_reply;
 	unsigned int gl_hash;
+	unsigned int gl_req;
 	unsigned int gl_demote_state; /* state requested by remote node */
 	unsigned long gl_demote_time; /* time of first demote request */
 	struct list_head gl_holders;
 
 	const struct gfs2_glock_operations *gl_ops;
-	void *gl_lock;
-	char *gl_lvb;
-	atomic_t gl_lvb_count;
-
-	unsigned long gl_stamp;
+	char gl_strname[GDLM_STRNAME_BYTES];
+	struct dlm_lksb gl_lksb;
+	char gl_lvb[32];
 	unsigned long gl_tchange;
 	void *gl_object;
 
@@ -283,7 +309,9 @@ enum {
 
 struct gfs2_quota_data {
 	struct list_head qd_list;
-	unsigned int qd_count;
+	struct list_head qd_reclaim;
+
+	atomic_t qd_count;
 
 	u32 qd_id;
 	unsigned long qd_flags;		/* QDF_... */
@@ -303,7 +331,6 @@ struct gfs2_quota_data {
 
 	u64 qd_sync_gen;
 	unsigned long qd_last_warn;
-	unsigned long qd_last_touched;
 };
 
 struct gfs2_trans {
@@ -390,7 +417,7 @@ struct gfs2_args {
 	unsigned int ar_suiddir:1;		/* suiddir support */
 	unsigned int ar_data:2;			/* ordered/writeback */
 	unsigned int ar_meta:1;			/* mount metafs */
-	unsigned int ar_num_glockd;		/* Number of glockd threads */
+	unsigned int ar_discard:1;		/* discard requests */
 };
 
 struct gfs2_tune {
@@ -406,7 +433,6 @@ struct gfs2_tune {
 	unsigned int gt_quota_warn_period; /* Secs between quota warn msgs */
 	unsigned int gt_quota_scale_num; /* Numerator */
 	unsigned int gt_quota_scale_den; /* Denominator */
-	unsigned int gt_quota_cache_secs;
 	unsigned int gt_quota_quantum; /* Secs between syncs to quota file */
 	unsigned int gt_new_files_jdata;
 	unsigned int gt_max_readahead; /* Max bytes to read-ahead from disk */
@@ -445,6 +471,31 @@ struct gfs2_sb_host {
 
 	char sb_lockproto[GFS2_LOCKNAME_LEN];
 	char sb_locktable[GFS2_LOCKNAME_LEN];
+	u8 sb_uuid[16];
+};
+
+/*
+ * lm_mount() return values
+ *
+ * ls_jid - the journal ID this node should use
+ * ls_first - this node is the first to mount the file system
+ * ls_lockspace - lock module's context for this file system
+ * ls_ops - lock module's functions
+ */
+
+struct lm_lockstruct {
+	u32 ls_id;
+	unsigned int ls_jid;
+	unsigned int ls_first;
+	unsigned int ls_first_done;
+	unsigned int ls_nodir;
+	const struct lm_lockops *ls_ops;
+	unsigned long ls_flags;
+	dlm_lockspace_t *ls_dlm;
+
+	int ls_recover_jid;
+	int ls_recover_jid_done;
+	int ls_recover_jid_status;
 };
 
 struct gfs2_sbd {
@@ -520,7 +571,6 @@ struct gfs2_sbd {
 	spinlock_t sd_jindex_spin;
 	struct mutex sd_jindex_mutex;
 	unsigned int sd_journals;
-	unsigned long sd_jindex_refresh_time;
 
 	struct gfs2_jdesc *sd_jdesc;
 	struct gfs2_holder sd_journal_gh;
@@ -540,7 +590,6 @@ struct gfs2_sbd {
 
 	struct list_head sd_quota_list;
 	atomic_t sd_quota_count;
-	spinlock_t sd_quota_spin;
 	struct mutex sd_quota_mutex;
 	wait_queue_head_t sd_quota_wait;
 	struct list_head sd_trunc_list;

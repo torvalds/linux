@@ -53,7 +53,7 @@ static int ad73311_soc_probe(struct platform_device *pdev)
 	codec->owner = THIS_MODULE;
 	codec->dai = &ad73311_dai;
 	codec->num_dai = 1;
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
@@ -75,15 +75,15 @@ static int ad73311_soc_probe(struct platform_device *pdev)
 register_err:
 	snd_soc_free_pcms(socdev);
 pcm_err:
-	kfree(socdev->codec);
-	socdev->codec = NULL;
+	kfree(socdev->card->codec);
+	socdev->card->codec = NULL;
 	return ret;
 }
 
 static int ad73311_soc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	if (codec == NULL)
 		return 0;

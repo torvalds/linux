@@ -45,6 +45,13 @@ config MAC_FLOPPY
 	  If you have a SWIM-3 (Super Woz Integrated Machine 3; from Apple)
 	  floppy controller, say Y here. Most commonly found in PowerMacs.
 
+config BLK_DEV_SWIM
+	tristate "Support for SWIM Macintosh floppy"
+	depends on M68K && MAC
+	help
+	  You should select this option if you want floppy support
+	  and you don't have a II, IIfx, Q900, Q950 or AV series.
+
 config AMIGA_Z2RAM
 	tristate "Amiga Zorro II ramdisk support"
 	depends on ZORRO

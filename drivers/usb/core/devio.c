@@ -104,7 +104,7 @@ MODULE_PARM_DESC(usbfs_snoop, "true to log all usbfs traffic");
 
 #define	MAX_USBFS_BUFFER_SIZE	16384
 
-static inline int connected(struct dev_state *ps)
+static int connected(struct dev_state *ps)
 {
 	return (!list_empty(&ps->list) &&
 			ps->dev->state != USB_STATE_NOTATTACHED);
@@ -248,7 +248,7 @@ static void free_async(struct async *as)
 	kfree(as);
 }
 
-static inline void async_newpending(struct async *as)
+static void async_newpending(struct async *as)
 {
 	struct dev_state *ps = as->ps;
 	unsigned long flags;
@@ -258,7 +258,7 @@ static inline void async_newpending(struct async *as)
 	spin_unlock_irqrestore(&ps->lock, flags);
 }
 
-static inline void async_removepending(struct async *as)
+static void async_removepending(struct async *as)
 {
 	struct dev_state *ps = as->ps;
 	unsigned long flags;
@@ -268,7 +268,7 @@ static inline void async_removepending(struct async *as)
 	spin_unlock_irqrestore(&ps->lock, flags);
 }
 
-static inline struct async *async_getcompleted(struct dev_state *ps)
+static struct async *async_getcompleted(struct dev_state *ps)
 {
 	unsigned long flags;
 	struct async *as = NULL;
@@ -283,7 +283,7 @@ static inline struct async *async_getcompleted(struct dev_state *ps)
 	return as;
 }
 
-static inline struct async *async_getpending(struct dev_state *ps,
+static struct async *async_getpending(struct dev_state *ps,
 					     void __user *userurb)
 {
 	unsigned long flags;
@@ -302,7 +302,7 @@ static inline struct async *async_getpending(struct dev_state *ps,
 
 static void snoop_urb(struct urb *urb, void __user *userurb)
 {
-	int j;
+	unsigned j;
 	unsigned char *data = urb->transfer_buffer;
 
 	if (!usbfs_snoop)
@@ -311,9 +311,9 @@ static void snoop_urb(struct urb *urb, void __user *userurb)
 	dev_info(&urb->dev->dev, "direction=%s\n",
 			usb_urb_dir_in(urb) ? "IN" : "OUT");
 	dev_info(&urb->dev->dev, "userurb=%p\n", userurb);
-	dev_info(&urb->dev->dev, "transfer_buffer_length=%d\n",
+	dev_info(&urb->dev->dev, "transfer_buffer_length=%u\n",
 		 urb->transfer_buffer_length);
-	dev_info(&urb->dev->dev, "actual_length=%d\n", urb->actual_length);
+	dev_info(&urb->dev->dev, "actual_length=%u\n", urb->actual_length);
 	dev_info(&urb->dev->dev, "data: ");
 	for (j = 0; j < urb->transfer_buffer_length; ++j)
 		printk("%02x ", data[j]);
@@ -359,11 +359,6 @@ static void destroy_async(struct dev_state *ps, struct list_head *list)
 		spin_lock_irqsave(&ps->lock, flags);
 	}
 	spin_unlock_irqrestore(&ps->lock, flags);
-	as = async_getcompleted(ps);
-	while (as) {
-		free_async(as);
-		as = async_getcompleted(ps);
-	}
 }
 
 static void destroy_async_on_interface(struct dev_state *ps,
@@ -381,7 +376,7 @@ static void destroy_async_on_interface(struct dev_state *ps,
 	destroy_async(ps, &hitlist);
 }
 
-static inline void destroy_all_async(struct dev_state *ps)
+static void destroy_all_async(struct dev_state *ps)
 {
 	destroy_async(ps, &ps->async_pending);
 }
@@ -530,7 +525,8 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype,
 {
 	int ret = 0;
 
-	if (ps->dev->state != USB_STATE_ADDRESS
+	if (ps->dev->state != USB_STATE_UNAUTHENTICATED
+	 && ps->dev->state != USB_STATE_ADDRESS
 	 && ps->dev->state != USB_STATE_CONFIGURED)
 		return -EHOSTUNREACH;
 	if (USB_TYPE_VENDOR == (USB_TYPE_MASK & requesttype))
@@ -643,6 +639,7 @@ static int usbdev_release(struct inode *inode, struct file *file)
 	struct dev_state *ps = file->private_data;
 	struct usb_device *dev = ps->dev;
 	unsigned int ifnum;
+	struct async *as;
 
 	usb_lock_device(dev);
 
@@ -661,6 +658,12 @@ static int usbdev_release(struct inode *inode, struct file *file)
 	usb_unlock_device(dev);
 	usb_put_dev(dev);
 	put_pid(ps->disc_pid);
+
+	as = async_getcompleted(ps);
+	while (as) {
+		free_async(as);
+		as = async_getcompleted(ps);
+	}
 	kfree(ps);
 	return 0;
 }

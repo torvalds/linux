@@ -86,13 +86,13 @@ void auide_outsw(unsigned long port, void *addr, u32 count)
 	ctp->cur_ptr = au1xxx_ddma_get_nextptr_virt(dp);
 }
 
-static void au1xxx_input_data(ide_drive_t *drive, struct request *rq,
+static void au1xxx_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			      void *buf, unsigned int len)
 {
 	auide_insw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
 }
 
-static void au1xxx_output_data(ide_drive_t *drive, struct request *rq,
+static void au1xxx_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			       void *buf, unsigned int len)
 {
 	auide_outsw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
@@ -209,22 +209,16 @@ static void auide_set_dma_mode(ide_drive_t *drive, const u8 speed)
  */
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-static int auide_build_dmatable(ide_drive_t *drive)
+static int auide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 {
-	int i, iswrite, count = 0;
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->rq;
 	_auide_hwif *ahwif = &auide_hwif;
 	struct scatterlist *sg;
+	int i = cmd->sg_nents, count = 0;
+	int iswrite = !!(cmd->tf_flags & IDE_TFLAG_WRITE);
 
-	iswrite = (rq_data_dir(rq) == WRITE);
 	/* Save for interrupt context */
 	ahwif->drive = drive;
-
-	hwif->sg_nents = i = ide_build_sglist(drive, rq);
-
-	if (!i)
-		return 0;
 
 	/* fill the descriptors */
 	sg = hwif->sg_table;
@@ -286,12 +280,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 
 static int auide_dma_end(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
-
-	if (hwif->sg_nents) {
-		ide_destroy_dmatable(drive);
-		hwif->sg_nents = 0;
-	}
+	ide_destroy_dmatable(drive);
 
 	return 0;
 }
@@ -301,19 +290,10 @@ static void auide_dma_start(ide_drive_t *drive )
 }
 
 
-static void auide_dma_exec_cmd(ide_drive_t *drive, u8 command)
+static int auide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
-	/* issue cmd to drive */
-	ide_execute_command(drive, command, &ide_dma_intr,
-			    (2*WAIT_CMD), NULL);
-}
-
-static int auide_dma_setup(ide_drive_t *drive)
-{
-	struct request *rq = drive->hwif->rq;
-
-	if (!auide_build_dmatable(drive)) {
-		ide_map_sg(drive, rq);
+	if (auide_build_dmatable(drive, cmd) == 0) {
+		ide_map_sg(drive, cmd);
 		return 1;
 	}
 
@@ -369,7 +349,6 @@ static void auide_init_dbdma_dev(dbdev_tab_t *dev, u32 dev_id, u32 tsize, u32 de
 static const struct ide_dma_ops au1xxx_dma_ops = {
 	.dma_host_set		= auide_dma_host_set,
 	.dma_setup		= auide_dma_setup,
-	.dma_exec_cmd		= auide_dma_exec_cmd,
 	.dma_start		= auide_dma_start,
 	.dma_end		= auide_dma_end,
 	.dma_test_irq		= auide_dma_test_irq,
@@ -536,9 +515,8 @@ static const struct ide_port_info au1xxx_port_info = {
 #endif
 };
 
-static int au_ide_probe(struct device *dev)
+static int au_ide_probe(struct platform_device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	_auide_hwif *ahwif = &auide_hwif;
 	struct resource *res;
 	struct ide_host *host;
@@ -552,23 +530,23 @@ static int au_ide_probe(struct device *dev)
 #endif
 
 	memset(&auide_hwif, 0, sizeof(_auide_hwif));
-	ahwif->irq = platform_get_irq(pdev, 0);
+	ahwif->irq = platform_get_irq(dev, 0);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 
 	if (res == NULL) {
-		pr_debug("%s %d: no base address\n", DRV_NAME, pdev->id);
+		pr_debug("%s %d: no base address\n", DRV_NAME, dev->id);
 		ret = -ENODEV;
 		goto out;
 	}
 	if (ahwif->irq < 0) {
-		pr_debug("%s %d: no IRQ\n", DRV_NAME, pdev->id);
+		pr_debug("%s %d: no IRQ\n", DRV_NAME, dev->id);
 		ret = -ENODEV;
 		goto out;
 	}
 
 	if (!request_mem_region(res->start, res->end - res->start + 1,
-				pdev->name)) {
+				dev->name)) {
 		pr_debug("%s: request_mem_region failed\n", DRV_NAME);
 		ret =  -EBUSY;
 		goto out;
@@ -583,7 +561,7 @@ static int au_ide_probe(struct device *dev)
 	memset(&hw, 0, sizeof(hw));
 	auide_setup_ports(&hw, ahwif);
 	hw.irq = ahwif->irq;
-	hw.dev = dev;
+	hw.dev = &dev->dev;
 	hw.chipset = ide_au1xxx;
 
 	ret = ide_host_add(&au1xxx_port_info, hws, &host);
@@ -592,7 +570,7 @@ static int au_ide_probe(struct device *dev)
 
 	auide_hwif.hwif = host->ports[0];
 
-	dev_set_drvdata(dev, host);
+	platform_set_drvdata(dev, host);
 
 	printk(KERN_INFO "Au1xxx IDE(builtin) configured for %s\n", mode );
 
@@ -600,38 +578,39 @@ static int au_ide_probe(struct device *dev)
 	return ret;
 }
 
-static int au_ide_remove(struct device *dev)
+static int au_ide_remove(struct platform_device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res;
-	struct ide_host *host = dev_get_drvdata(dev);
+	struct ide_host *host = platform_get_drvdata(dev);
 	_auide_hwif *ahwif = &auide_hwif;
 
 	ide_host_remove(host);
 
 	iounmap((void *)ahwif->regbase);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, res->end - res->start + 1);
 
 	return 0;
 }
 
-static struct device_driver au1200_ide_driver = {
-	.name		= "au1200-ide",
-	.bus		= &platform_bus_type,
+static struct platform_driver au1200_ide_driver = {
+	.driver = {
+		.name		= "au1200-ide",
+		.owner		= THIS_MODULE,
+	},
 	.probe 		= au_ide_probe,
 	.remove		= au_ide_remove,
 };
 
 static int __init au_ide_init(void)
 {
-	return driver_register(&au1200_ide_driver);
+	return platform_driver_register(&au1200_ide_driver);
 }
 
 static void __exit au_ide_exit(void)
 {
-	driver_unregister(&au1200_ide_driver);
+	platform_driver_unregister(&au1200_ide_driver);
 }
 
 MODULE_LICENSE("GPL");

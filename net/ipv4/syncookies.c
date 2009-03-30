@@ -288,10 +288,6 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	if (!req)
 		goto out;
 
-	if (security_inet_conn_request(sk, skb, req)) {
-		reqsk_free(req);
-		goto out;
-	}
 	ireq = inet_rsk(req);
 	treq = tcp_rsk(req);
 	treq->rcv_isn		= ntohl(th->seq) - 1;
@@ -320,6 +316,11 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 			kfree(ireq->opt);
 			ireq->opt = NULL;
 		}
+	}
+
+	if (security_inet_conn_request(sk, skb, req)) {
+		reqsk_free(req);
+		goto out;
 	}
 
 	req->expires	= 0UL;

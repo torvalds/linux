@@ -11,6 +11,8 @@
  *
  */
 
+#define KMSG_COMPONENT "dasd"
+
 #include <linux/ctype.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
@@ -112,7 +114,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 			seq_printf(m, "n/f	 ");
 		else
 			seq_printf(m,
-				   "at blocksize: %d, %ld blocks, %ld MB",
+				   "at blocksize: %d, %lld blocks, %lld MB",
 				   block->bp_block, block->blocks,
 				   ((block->bp_block >> 9) *
 				    block->blocks) >> 11);
@@ -267,7 +269,7 @@ dasd_statistics_write(struct file *file, const char __user *user_buf,
 	buffer = dasd_get_user_string(user_buf, user_len);
 	if (IS_ERR(buffer))
 		return PTR_ERR(buffer);
-	MESSAGE_LOG(KERN_INFO, "/proc/dasd/statictics: '%s'", buffer);
+	DBF_EVENT(DBF_DEBUG, "/proc/dasd/statictics: '%s'\n", buffer);
 
 	/* check for valid verbs */
 	for (str = buffer; isspace(*str); str++);
@@ -277,33 +279,33 @@ dasd_statistics_write(struct file *file, const char __user *user_buf,
 		if (strcmp(str, "on") == 0) {
 			/* switch on statistics profiling */
 			dasd_profile_level = DASD_PROFILE_ON;
-			MESSAGE(KERN_INFO, "%s", "Statistics switched on");
+			pr_info("The statistics feature has been switched "
+				"on\n");
 		} else if (strcmp(str, "off") == 0) {
 			/* switch off and reset statistics profiling */
 			memset(&dasd_global_profile,
 			       0, sizeof (struct dasd_profile_info_t));
 			dasd_profile_level = DASD_PROFILE_OFF;
-			MESSAGE(KERN_INFO, "%s", "Statistics switched off");
+			pr_info("The statistics feature has been switched "
+				"off\n");
 		} else
 			goto out_error;
 	} else if (strncmp(str, "reset", 5) == 0) {
 		/* reset the statistics */
 		memset(&dasd_global_profile, 0,
 		       sizeof (struct dasd_profile_info_t));
-		MESSAGE(KERN_INFO, "%s", "Statistics reset");
+		pr_info("The statistics have been reset\n");
 	} else
 		goto out_error;
 	kfree(buffer);
 	return user_len;
 out_error:
-	MESSAGE(KERN_WARNING, "%s",
-		"/proc/dasd/statistics: only 'set on', 'set off' "
-		"and 'reset' are supported verbs");
+	pr_warning("%s is not a supported value for /proc/dasd/statistics\n",
+		str);
 	kfree(buffer);
 	return -EINVAL;
 #else
-	MESSAGE(KERN_WARNING, "%s",
-		"/proc/dasd/statistics: is not activated in this kernel");
+	pr_warning("/proc/dasd/statistics: is not activated in this kernel\n");
 	return user_len;
 #endif				/* CONFIG_DASD_PROFILE */
 }

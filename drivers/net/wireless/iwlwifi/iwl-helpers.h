@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -92,5 +92,57 @@ static inline int iwl_alloc_fw_desc(struct pci_dev *pci_dev,
 	desc->v_addr = pci_alloc_consistent(pci_dev, desc->len, &desc->p_addr);
 	return (desc->v_addr != NULL) ? 0 : -ENOMEM;
 }
+
+/*
+ * we have 8 bits used like this:
+ *
+ * 7 6 5 4 3 2 1 0
+ * | | | | | | | |
+ * | | | | | | +-+-------- AC queue (0-3)
+ * | | | | | |
+ * | +-+-+-+-+------------ HW A-MPDU queue
+ * |
+ * +---------------------- indicates agg queue
+ */
+static inline u8 iwl_virtual_agg_queue_num(u8 ac, u8 hwq)
+{
+	BUG_ON(ac > 3);   /* only have 2 bits */
+	BUG_ON(hwq > 31); /* only have 5 bits */
+
+	return 0x80 | (hwq << 2) | ac;
+}
+
+static inline void iwl_wake_queue(struct iwl_priv *priv, u8 queue)
+{
+	u8 ac = queue;
+	u8 hwq = queue;
+
+	if (queue & 0x80) {
+		ac = queue & 3;
+		hwq = (queue >> 2) & 0x1f;
+	}
+
+	if (test_and_clear_bit(hwq, priv->queue_stopped))
+		if (atomic_dec_return(&priv->queue_stop_count[ac]) <= 0)
+			ieee80211_wake_queue(priv->hw, ac);
+}
+
+static inline void iwl_stop_queue(struct iwl_priv *priv, u8 queue)
+{
+	u8 ac = queue;
+	u8 hwq = queue;
+
+	if (queue & 0x80) {
+		ac = queue & 3;
+		hwq = (queue >> 2) & 0x1f;
+	}
+
+	if (!test_and_set_bit(hwq, priv->queue_stopped))
+		if (atomic_inc_return(&priv->queue_stop_count[ac]) > 0)
+			ieee80211_stop_queue(priv->hw, ac);
+}
+
+#define ieee80211_stop_queue DO_NOT_USE_ieee80211_stop_queue
+#define ieee80211_wake_queue DO_NOT_USE_ieee80211_wake_queue
 
 #endif				/* __iwl_helpers_h__ */

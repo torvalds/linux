@@ -50,12 +50,7 @@ extern void machine_power_off_smp(void);
  
 #define PROC_CHANGE_PENALTY	20		/* Schedule penalty */
 
-#define raw_smp_processor_id()	(S390_lowcore.cpu_data.cpu_nr)
-
-static inline __u16 hard_smp_processor_id(void)
-{
-	return stap();
-}
+#define raw_smp_processor_id()	(S390_lowcore.cpu_nr)
 
 /*
  * returns 1 if cpu is in stopped/check stopped state or not operational

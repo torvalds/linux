@@ -1004,8 +1004,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 	DEBUG_VAR(1, "(%s%d) Failing active commands", ips_name, ha->host_num);
 
 	while ((scb = ips_removeq_scb_head(&ha->scb_activelist))) {
-		scb->scsi_cmd->result =
-		    (DID_RESET << 16) | (SUGGEST_RETRY << 24);
+		scb->scsi_cmd->result = DID_RESET << 16;
 		scb->scsi_cmd->scsi_done(scb->scsi_cmd);
 		ips_freescb(ha, scb);
 	}

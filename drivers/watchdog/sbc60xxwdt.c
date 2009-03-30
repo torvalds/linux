@@ -1,7 +1,7 @@
 /*
  *	60xx Single Board Computer Watchdog Timer driver for Linux 2.2.x
  *
- *      Based on acquirewdt.c by Alan Cox.
+ *	Based on acquirewdt.c by Alan Cox.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
