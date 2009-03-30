@@ -2719,6 +2719,9 @@ void unregister_ftrace_graph(void)
 {
 	mutex_lock(&ftrace_lock);
 
+	if (!unlikely(atomic_read(&ftrace_graph_active)))
+		goto out;
+
 	atomic_dec(&ftrace_graph_active);
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
@@ -2726,6 +2729,7 @@ void unregister_ftrace_graph(void)
 	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
 	unregister_pm_notifier(&ftrace_suspend_notifier);
 
+ out:
 	mutex_unlock(&ftrace_lock);
 }
 
