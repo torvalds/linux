@@ -922,7 +922,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		mod_timer(&sc->ani.timer,
 			  jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
 	} else {
-		DPRINTF(sc, ATH_DBG_CONFIG, "Bss Info DISSOC\n");
+		DPRINTF(sc, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
 		sc->curaid = 0;
 	}
 }
@@ -2036,8 +2036,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * here except setup the interrupt mask.
 	 */
 	if (ath_startrecv(sc) != 0) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to start recv logic\n");
+		DPRINTF(sc, ATH_DBG_FATAL, "Unable to start recv logic\n");
 		r = -EIO;
 		goto mutex_unlock;
 	}
@@ -2550,6 +2549,8 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		return 0;
 
 	mutex_lock(&sc->mutex);
+
+	memset(&qi, 0, sizeof(struct ath9k_tx_queue_info));
 
 	qi.tqi_aifs = params->aifs;
 	qi.tqi_cwmin = params->cw_min;
