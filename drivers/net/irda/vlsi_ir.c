@@ -1871,13 +1871,6 @@ static int __init vlsi_mod_init(void)
 	 * without procfs - it's not required for the driver to work.
 	 */
 	vlsi_proc_root = proc_mkdir(PROC_DIR, NULL);
-	if (vlsi_proc_root) {
-		/* protect registered procdir against module removal.
-		 * Because we are in the module init path there's no race
-		 * window after create_proc_entry (and no barrier needed).
-		 */
-		vlsi_proc_root->owner = THIS_MODULE;
-	}
 
 	ret = pci_register_driver(&vlsi_irda_driver);
 

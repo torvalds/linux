@@ -359,7 +359,6 @@ static int acpi_processor_add_fs(struct acpi_device *device)
 		if (!acpi_device_dir(device))
 			return -ENODEV;
 	}
-	acpi_device_dir(device)->owner = THIS_MODULE;
 
 	/* 'info' [R] */
 	entry = proc_create_data(ACPI_PROCESSOR_FILE_INFO,
@@ -1137,7 +1136,6 @@ static int __init acpi_processor_init(void)
 	acpi_processor_dir = proc_mkdir(ACPI_PROCESSOR_CLASS, acpi_root_dir);
 	if (!acpi_processor_dir)
 		return -ENOMEM;
-	acpi_processor_dir->owner = THIS_MODULE;
 
 	/*
 	 * Check whether the system is DMI table. If yes, OSPM
