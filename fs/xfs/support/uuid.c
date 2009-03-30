@@ -17,10 +17,6 @@
  */
 #include <xfs.h>
 
-static DEFINE_MUTEX(uuid_monitor);
-static int	uuid_table_size;
-static uuid_t	*uuid_table;
-
 /* IRIX interpretation of an uuid_t */
 typedef struct {
 	__be32	uu_timelow;
@@ -46,12 +42,6 @@ uuid_getnodeuniq(uuid_t *uuid, int fsid [2])
 	fsid[1] = be32_to_cpu(uup->uu_timelow);
 }
 
-void
-uuid_create_nil(uuid_t *uuid)
-{
-	memset(uuid, 0, sizeof(*uuid));
-}
-
 int
 uuid_is_nil(uuid_t *uuid)
 {
@@ -70,65 +60,4 @@ int
 uuid_equal(uuid_t *uuid1, uuid_t *uuid2)
 {
 	return memcmp(uuid1, uuid2, sizeof(uuid_t)) ? 0 : 1;
-}
-
-/*
- * Given a 128-bit uuid, return a 64-bit value by adding the top and bottom
- * 64-bit words.  NOTE: This function can not be changed EVER.  Although
- * brain-dead, some applications depend on this 64-bit value remaining
- * persistent.  Specifically, DMI vendors store the value as a persistent
- * filehandle.
- */
-__uint64_t
-uuid_hash64(uuid_t *uuid)
-{
-	__uint64_t	*sp = (__uint64_t *)uuid;
-
-	return sp[0] + sp[1];
-}
-
-int
-uuid_table_insert(uuid_t *uuid)
-{
-	int	i, hole;
-
-	mutex_lock(&uuid_monitor);
-	for (i = 0, hole = -1; i < uuid_table_size; i++) {
-		if (uuid_is_nil(&uuid_table[i])) {
-			hole = i;
-			continue;
-		}
-		if (uuid_equal(uuid, &uuid_table[i])) {
-			mutex_unlock(&uuid_monitor);
-			return 0;
-		}
-	}
-	if (hole < 0) {
-		uuid_table = kmem_realloc(uuid_table,
-			(uuid_table_size + 1) * sizeof(*uuid_table),
-			uuid_table_size  * sizeof(*uuid_table),
-			KM_SLEEP);
-		hole = uuid_table_size++;
-	}
-	uuid_table[hole] = *uuid;
-	mutex_unlock(&uuid_monitor);
-	return 1;
-}
-
-void
-uuid_table_remove(uuid_t *uuid)
-{
-	int	i;
-
-	mutex_lock(&uuid_monitor);
-	for (i = 0; i < uuid_table_size; i++) {
-		if (uuid_is_nil(&uuid_table[i]))
-			continue;
-		if (!uuid_equal(uuid, &uuid_table[i]))
-			continue;
-		uuid_create_nil(&uuid_table[i]);
-		break;
-	}
-	ASSERT(i < uuid_table_size);
-	mutex_unlock(&uuid_monitor);
 }
