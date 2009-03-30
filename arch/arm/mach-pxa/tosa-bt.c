@@ -38,9 +38,9 @@ static void tosa_bt_off(struct tosa_bt_data *data)
 static int tosa_bt_toggle_radio(void *data, enum rfkill_state state)
 {
 	pr_info("BT_RADIO going: %s\n",
-			state == RFKILL_STATE_ON ? "on" : "off");
+			state == RFKILL_STATE_UNBLOCKED ? "on" : "off");
 
-	if (state == RFKILL_STATE_ON) {
+	if (state == RFKILL_STATE_UNBLOCKED) {
 		pr_info("TOSA_BT: going ON\n");
 		tosa_bt_on(data);
 	} else {

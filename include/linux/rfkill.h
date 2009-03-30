@@ -52,14 +52,6 @@ enum rfkill_state {
 	RFKILL_STATE_MAX,		/* marker for last valid state */
 };
 
-/*
- * These are DEPRECATED, drivers using them should be verified to
- * comply with the rfkill usage guidelines in Documentation/rfkill.txt
- * and then converted to use the new names for rfkill_state
- */
-#define RFKILL_STATE_OFF RFKILL_STATE_SOFT_BLOCKED
-#define RFKILL_STATE_ON  RFKILL_STATE_UNBLOCKED
-
 /**
  * struct rfkill - rfkill control structure.
  * @name: Name of the switch.

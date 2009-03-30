@@ -113,7 +113,7 @@ void wimax_report_rfkill_hw(struct wimax_dev *wimax_dev,
 	if (state != wimax_dev->rf_hw) {
 		wimax_dev->rf_hw = state;
 		rfkill_state = state == WIMAX_RF_ON ?
-			RFKILL_STATE_OFF : RFKILL_STATE_ON;
+			RFKILL_STATE_UNBLOCKED : RFKILL_STATE_SOFT_BLOCKED;
 		if (wimax_dev->rf_hw == WIMAX_RF_ON
 		    && wimax_dev->rf_sw == WIMAX_RF_ON)
 			wimax_state = WIMAX_ST_READY;
@@ -259,10 +259,10 @@ int wimax_rfkill_toggle_radio(void *data, enum rfkill_state state)
 
 	d_fnstart(3, dev, "(wimax_dev %p state %u)\n", wimax_dev, state);
 	switch (state) {
-	case RFKILL_STATE_ON:
+	case RFKILL_STATE_SOFT_BLOCKED:
 		rf_state = WIMAX_RF_OFF;
 		break;
-	case RFKILL_STATE_OFF:
+	case RFKILL_STATE_UNBLOCKED:
 		rf_state = WIMAX_RF_ON;
 		break;
 	default:
@@ -361,7 +361,7 @@ int wimax_rfkill_add(struct wimax_dev *wimax_dev)
 	wimax_dev->rfkill = rfkill;
 
 	rfkill->name = wimax_dev->name;
-	rfkill->state = RFKILL_STATE_OFF;
+	rfkill->state = RFKILL_STATE_UNBLOCKED;
 	rfkill->data = wimax_dev;
 	rfkill->toggle_radio = wimax_rfkill_toggle_radio;
 	rfkill->user_claim_unsupported = 1;

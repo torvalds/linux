@@ -2484,7 +2484,7 @@ static int add_net_device(struct hso_device *hso_dev)
 static int hso_radio_toggle(void *data, enum rfkill_state state)
 {
 	struct hso_device *hso_dev = data;
-	int enabled = (state == RFKILL_STATE_ON);
+	int enabled = (state == RFKILL_STATE_UNBLOCKED);
 	int rv;
 
 	mutex_lock(&hso_dev->mutex);
@@ -2522,7 +2522,7 @@ static void hso_create_rfkill(struct hso_device *hso_dev,
 	snprintf(rfkn, 20, "hso-%d",
 		 interface->altsetting->desc.bInterfaceNumber);
 	hso_net->rfkill->name = rfkn;
-	hso_net->rfkill->state = RFKILL_STATE_ON;
+	hso_net->rfkill->state = RFKILL_STATE_UNBLOCKED;
 	hso_net->rfkill->data = hso_dev;
 	hso_net->rfkill->toggle_radio = hso_radio_toggle;
 	if (rfkill_register(hso_net->rfkill) < 0) {
