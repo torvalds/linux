@@ -434,12 +434,12 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
 
 	an = (struct ath_node *)sta->drv_priv;
 
-	if (sc->sc_flags & SC_OP_TXAGGR)
+	if (sc->sc_flags & SC_OP_TXAGGR) {
 		ath_tx_node_init(sc, an);
-
-	an->maxampdu = 1 << (IEEE80211_HTCAP_MAXRXAMPDU_FACTOR +
-			     sta->ht_cap.ampdu_factor);
-	an->mpdudensity = parse_mpdudensity(sta->ht_cap.ampdu_density);
+		an->maxampdu = 1 << (IEEE80211_HTCAP_MAXRXAMPDU_FACTOR +
+				     sta->ht_cap.ampdu_factor);
+		an->mpdudensity = parse_mpdudensity(sta->ht_cap.ampdu_density);
+	}
 }
 
 static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
