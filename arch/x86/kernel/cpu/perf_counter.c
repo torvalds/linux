@@ -20,6 +20,7 @@
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
+#include <asm/nmi.h>
 
 static bool perf_counters_initialized __read_mostly;
 
@@ -172,6 +173,65 @@ again:
 	atomic64_sub(delta, &hwc->period_left);
 }
 
+static atomic_t num_counters;
+static DEFINE_MUTEX(pmc_reserve_mutex);
+
+static bool reserve_pmc_hardware(void)
+{
+	int i;
+
+	if (nmi_watchdog == NMI_LOCAL_APIC)
+		disable_lapic_nmi_watchdog();
+
+	for (i = 0; i < nr_counters_generic; i++) {
+		if (!reserve_perfctr_nmi(pmc_ops->perfctr + i))
+			goto perfctr_fail;
+	}
+
+	for (i = 0; i < nr_counters_generic; i++) {
+		if (!reserve_evntsel_nmi(pmc_ops->eventsel + i))
+			goto eventsel_fail;
+	}
+
+	return true;
+
+eventsel_fail:
+	for (i--; i >= 0; i--)
+		release_evntsel_nmi(pmc_ops->eventsel + i);
+
+	i = nr_counters_generic;
+
+perfctr_fail:
+	for (i--; i >= 0; i--)
+		release_perfctr_nmi(pmc_ops->perfctr + i);
+
+	if (nmi_watchdog == NMI_LOCAL_APIC)
+		enable_lapic_nmi_watchdog();
+
+	return false;
+}
+
+static void release_pmc_hardware(void)
+{
+	int i;
+
+	for (i = 0; i < nr_counters_generic; i++) {
+		release_perfctr_nmi(pmc_ops->perfctr + i);
+		release_evntsel_nmi(pmc_ops->eventsel + i);
+	}
+
+	if (nmi_watchdog == NMI_LOCAL_APIC)
+		enable_lapic_nmi_watchdog();
+}
+
+static void hw_perf_counter_destroy(struct perf_counter *counter)
+{
+	if (atomic_dec_and_mutex_lock(&num_counters, &pmc_reserve_mutex)) {
+		release_pmc_hardware();
+		mutex_unlock(&pmc_reserve_mutex);
+	}
+}
+
 /*
  * Setup the hardware configuration for a given hw_event_type
  */
@@ -179,9 +239,22 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 {
 	struct perf_counter_hw_event *hw_event = &counter->hw_event;
 	struct hw_perf_counter *hwc = &counter->hw;
+	int err;
 
 	if (unlikely(!perf_counters_initialized))
 		return -EINVAL;
+
+	err = 0;
+	if (atomic_inc_not_zero(&num_counters)) {
+		mutex_lock(&pmc_reserve_mutex);
+		if (atomic_read(&num_counters) == 0 && !reserve_pmc_hardware())
+			err = -EBUSY;
+		else
+			atomic_inc(&num_counters);
+		mutex_unlock(&pmc_reserve_mutex);
+	}
+	if (err)
+		return err;
 
 	/*
 	 * Generate PMC IRQs:
@@ -229,6 +302,8 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		 */
 		hwc->config |= pmc_ops->event_map(perf_event_id(hw_event));
 	}
+
+	counter->destroy = hw_perf_counter_destroy;
 
 	return 0;
 }
