@@ -1316,10 +1316,22 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-static void __perf_counter_update_userpage(struct perf_counter *counter,
-					   struct perf_mmap_data *data)
+/*
+ * Callers need to ensure there can be no nesting of this function, otherwise
+ * the seqlock logic goes bad. We can not serialize this because the arch
+ * code calls this from NMI context.
+ */
+void perf_counter_update_userpage(struct perf_counter *counter)
 {
-	struct perf_counter_mmap_page *userpg = data->user_page;
+	struct perf_mmap_data *data;
+	struct perf_counter_mmap_page *userpg;
+
+	rcu_read_lock();
+	data = rcu_dereference(counter->data);
+	if (!data)
+		goto unlock;
+
+	userpg = data->user_page;
 
 	/*
 	 * Disable preemption so as to not let the corresponding user-space
@@ -1333,20 +1345,10 @@ static void __perf_counter_update_userpage(struct perf_counter *counter,
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
 		userpg->offset -= atomic64_read(&counter->hw.prev_count);
 
-	userpg->data_head = atomic_read(&data->head);
 	smp_wmb();
 	++userpg->lock;
 	preempt_enable();
-}
-
-void perf_counter_update_userpage(struct perf_counter *counter)
-{
-	struct perf_mmap_data *data;
-
-	rcu_read_lock();
-	data = rcu_dereference(counter->data);
-	if (data)
-		__perf_counter_update_userpage(counter, data);
+unlock:
 	rcu_read_unlock();
 }
 
@@ -1547,7 +1549,13 @@ void perf_counter_wakeup(struct perf_counter *counter)
 	data = rcu_dereference(counter->data);
 	if (data) {
 		(void)atomic_xchg(&data->wakeup, POLL_IN);
-		__perf_counter_update_userpage(counter, data);
+		/*
+		 * Ensure all data writes are issued before updating the
+		 * user-space data head information. The matching rmb()
+		 * will be in userspace after reading this value.
+		 */
+		smp_wmb();
+		data->user_page->data_head = atomic_read(&data->head);
 	}
 	rcu_read_unlock();
 

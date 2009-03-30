@@ -160,10 +160,45 @@ struct perf_counter_hw_event {
 struct perf_counter_mmap_page {
 	__u32	version;		/* version number of this structure */
 	__u32	compat_version;		/* lowest version this is compat with */
+
+	/*
+	 * Bits needed to read the hw counters in user-space.
+	 *
+	 * The index and offset should be read atomically using the seqlock:
+	 *
+	 *   __u32 seq, index;
+	 *   __s64 offset;
+	 *
+	 * again:
+	 *   rmb();
+	 *   seq = pc->lock;
+	 *
+	 *   if (unlikely(seq & 1)) {
+	 *     cpu_relax();
+	 *     goto again;
+	 *   }
+	 *
+	 *   index = pc->index;
+	 *   offset = pc->offset;
+	 *
+	 *   rmb();
+	 *   if (pc->lock != seq)
+	 *     goto again;
+	 *
+	 * After this, index contains architecture specific counter index + 1,
+	 * so that 0 means unavailable, offset contains the value to be added
+	 * to the result of the raw timer read to obtain this counter's value.
+	 */
 	__u32	lock;			/* seqlock for synchronization */
 	__u32	index;			/* hardware counter identifier */
 	__s64	offset;			/* add to hardware counter value */
 
+	/*
+	 * Control data for the mmap() data buffer.
+	 *
+	 * User-space reading this value should issue an rmb(), on SMP capable
+	 * platforms, after reading this value -- see perf_counter_wakeup().
+	 */
 	__u32   data_head;		/* head in the data section */
 };
 
