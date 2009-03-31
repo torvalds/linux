@@ -890,6 +890,8 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 		*pos = rate->bitrate / 5;
 	}
 
+	/* if adding more here, adjust max_scan_ie_len */
+
 	if (ie)
 		memcpy(skb_put(skb, ie_len), ie, ie_len);
 

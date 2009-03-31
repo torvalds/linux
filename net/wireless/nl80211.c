@@ -181,6 +181,8 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	NLA_PUT_STRING(msg, NL80211_ATTR_WIPHY_NAME, wiphy_name(&dev->wiphy));
 	NLA_PUT_U8(msg, NL80211_ATTR_MAX_NUM_SCAN_SSIDS,
 		   dev->wiphy.max_scan_ssids);
+	NLA_PUT_U16(msg, NL80211_ATTR_MAX_SCAN_IE_LEN,
+		    dev->wiphy.max_scan_ie_len);
 
 	nl_modes = nla_nest_start(msg, NL80211_ATTR_SUPPORTED_IFTYPES);
 	if (!nl_modes)
@@ -2527,6 +2529,11 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	else
 		ie_len = 0;
+
+	if (ie_len > wiphy->max_scan_ie_len) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	request = kzalloc(sizeof(*request)
 			+ sizeof(*ssid) * n_ssids

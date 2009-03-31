@@ -728,7 +728,18 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 		return NULL;
 
 	wiphy->privid = mac80211_wiphy_privid;
-	wiphy->max_scan_ssids = 4;
+
+	if (!ops->hw_scan) {
+		/* For hw_scan, driver needs to set these up. */
+		wiphy->max_scan_ssids = 4;
+
+		/* we support a maximum of 32 rates in cfg80211 */
+		wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN
+					 - 2 - 32 /* SSID */
+					 - 4 - 32 /* (ext) supp rates */;
+
+	}
+
 	/* Yes, putting cfg80211_bss into ieee80211_bss is a hack */
 	wiphy->bss_priv_size = sizeof(struct ieee80211_bss) -
 			       sizeof(struct cfg80211_bss);

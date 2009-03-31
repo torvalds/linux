@@ -390,6 +390,8 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_MAX_NUM_SCAN_SSIDS: number of SSIDs you can scan with
  *	a single scan request, a wiphy attribute.
+ * @NL80211_ATTR_MAX_SCAN_IE_LEN: maximum length of information elements
+ *	that can be added to a scan request
  *
  * @NL80211_ATTR_SCAN_FREQUENCIES: nested attribute with frequencies (in MHz)
  * @NL80211_ATTR_SCAN_SSIDS: nested attribute with SSIDs, leave out for passive
@@ -506,6 +508,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_REASON_CODE,
 
 	NL80211_ATTR_KEY_TYPE,
+
+	NL80211_ATTR_MAX_SCAN_IE_LEN,
 
 	/* add attributes here, update the policy in nl80211.c */
 
