@@ -2061,11 +2061,9 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
 	struct zone *zone;
 	unsigned long ret = 0;
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		enum lru_list l;
 
-		if (!populated_zone(zone))
-			continue;
 		if (zone_is_all_unreclaimable(zone) && prio != DEF_PRIORITY)
 			continue;
 
