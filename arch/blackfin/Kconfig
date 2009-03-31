@@ -1011,21 +1011,34 @@ endmenu
 
 menu "EBIU_AMBCTL Control"
 config BANK_0
-	hex "Bank 0"
+	hex "Bank 0 (AMBCTL0.L)"
 	default 0x7BB0
+	help
+	  These are the low 16 bits of the EBIU_AMBCTL0 MMR which are
+	  used to control the Asynchronous Memory Bank 0 settings.
 
 config BANK_1
-	hex "Bank 1"
+	hex "Bank 1 (AMBCTL0.H)"
 	default 0x7BB0
 	default 0x5558 if BF54x
+	help
+	  These are the high 16 bits of the EBIU_AMBCTL0 MMR which are
+	  used to control the Asynchronous Memory Bank 1 settings.
 
 config BANK_2
-	hex "Bank 2"
+	hex "Bank 2 (AMBCTL1.L)"
 	default 0x7BB0
+	help
+	  These are the low 16 bits of the EBIU_AMBCTL1 MMR which are
+	  used to control the Asynchronous Memory Bank 2 settings.
 
 config BANK_3
-	hex "Bank 3"
+	hex "Bank 3 (AMBCTL1.H)"
 	default 0x99B3
+	help
+	  These are the high 16 bits of the EBIU_AMBCTL1 MMR which are
+	  used to control the Asynchronous Memory Bank 3 settings.
+
 endmenu
 
 config EBIU_MBSCTLVAL
