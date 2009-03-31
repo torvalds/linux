@@ -4,7 +4,6 @@ ath9k-y +=	hw.o \
 		calib.o \
 		ani.o \
 		phy.o \
-		regd.o \
 		beacon.o \
 		main.o \
 		recv.o \

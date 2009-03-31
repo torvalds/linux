@@ -1406,7 +1406,7 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	for (i = 0; i < sc->keymax; i++)
 		ath9k_hw_keyreset(ah, (u16) i);
 
-	if (ath9k_regd_init(&sc->sc_ah->regulatory))
+	if (ath_regd_init(&sc->sc_ah->regulatory))
 		goto bad;
 
 	/* default to MONITOR mode */
@@ -1570,6 +1570,17 @@ bad:
 	return error;
 }
 
+static int ath9k_reg_notifier(struct wiphy *wiphy,
+			      struct regulatory_request *request)
+{
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	struct ath_regulatory *reg = &sc->sc_ah->regulatory;
+
+	return ath_reg_notifier_apply(wiphy, request, reg);
+}
+
 void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
@@ -1614,7 +1625,7 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 	struct ieee80211_hw *hw = sc->hw;
 	const struct ieee80211_regdomain *regd;
 	int error = 0, i;
-	struct ath9k_regulatory *reg;
+	struct ath_regulatory *reg;
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Attach ATH hw\n");
 
@@ -1656,23 +1667,23 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 		goto error_attach;
 #endif
 
-	if (ath9k_is_world_regd(reg)) {
+	if (ath_is_world_regd(reg)) {
 		/* Anything applied here (prior to wiphy registration) gets
 		 * saved on the wiphy orig_* parameters */
-		regd = ath9k_world_regdomain(reg);
+		regd = ath_world_regdomain(reg);
 		hw->wiphy->custom_regulatory = true;
 		hw->wiphy->strict_regulatory = false;
 	} else {
 		/* This gets applied in the case of the absense of CRDA,
 		 * it's our own custom world regulatory domain, similar to
 		 * cfg80211's but we enable passive scanning */
-		regd = ath9k_default_world_regdomain();
+		regd = ath_default_world_regdomain();
 	}
 	wiphy_apply_custom_regulatory(hw->wiphy, regd);
-	ath9k_reg_apply_radar_flags(hw->wiphy);
-	ath9k_reg_apply_world_flags(hw->wiphy,
-				    NL80211_REGDOM_SET_BY_DRIVER,
-				    reg);
+	ath_reg_apply_radar_flags(hw->wiphy);
+	ath_reg_apply_world_flags(hw->wiphy,
+				  NL80211_REGDOM_SET_BY_DRIVER,
+				  reg);
 
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
 	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
@@ -1680,7 +1691,7 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 
 	error = ieee80211_register_hw(hw);
 
-	if (!ath9k_is_world_regd(reg)) {
+	if (!ath_is_world_regd(reg)) {
 		error = regulatory_hint(hw->wiphy, reg->alpha2);
 		if (error)
 			goto error_attach;

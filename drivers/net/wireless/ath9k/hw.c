@@ -1220,6 +1220,21 @@ static void ath9k_olc_init(struct ath_hw *ah)
 	ah->PDADCdelta = 0;
 }
 
+static u32 ath9k_regd_get_ctl(struct ath_regulatory *reg,
+			      struct ath9k_channel *chan)
+{
+	u32 ctl = ath_regd_get_band_ctl(reg, chan->chan->band);
+
+	if (IS_CHAN_B(chan))
+		ctl |= CTL_11B;
+	else if (IS_CHAN_G(chan))
+		ctl |= CTL_11G;
+	else
+		ctl |= CTL_11A;
+
+	return ctl;
+}
+
 static int ath9k_hw_process_ini(struct ath_hw *ah,
 				struct ath9k_channel *chan,
 				enum ath9k_ht_macmode macmode)

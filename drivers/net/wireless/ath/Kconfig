@@ -1,0 +1,4 @@
+config ATH_COMMON
+	tristate "Atheros Wireless Cards Shared Support"
+	depends on ATH5K || ATH9K
+
