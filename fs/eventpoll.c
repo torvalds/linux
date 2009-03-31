@@ -1054,8 +1054,10 @@ static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 		 */
 		if (revents) {
 			if (__put_user(revents, &uevent->events) ||
-			    __put_user(epi->event.data, &uevent->data))
+			    __put_user(epi->event.data, &uevent->data)) {
+				list_add(&epi->rdllink, head);
 				return eventcnt ? eventcnt : -EFAULT;
+			}
 			eventcnt++;
 			uevent++;
 			if (epi->event.events & EPOLLONESHOT)
