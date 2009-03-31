@@ -916,20 +916,18 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 				set_audio_standard_A2(core, EN_A2_FORCE_MONO1);
 			} else {
 				/* TODO: Add A2 autodection */
+				mask = 0x3f;
 				switch (mode) {
 				case V4L2_TUNER_MODE_MONO:
 				case V4L2_TUNER_MODE_LANG1:
-					set_audio_standard_A2(core,
-							      EN_A2_FORCE_MONO1);
+					ctl = EN_A2_FORCE_MONO1;
 					break;
 				case V4L2_TUNER_MODE_LANG2:
-					set_audio_standard_A2(core,
-							      EN_A2_FORCE_MONO2);
+					ctl = EN_A2_FORCE_MONO2;
 					break;
 				case V4L2_TUNER_MODE_STEREO:
 				case V4L2_TUNER_MODE_LANG1_LANG2:
-					set_audio_standard_A2(core,
-							      EN_A2_FORCE_STEREO);
+					ctl = EN_A2_FORCE_STEREO;
 					break;
 				}
 			}
