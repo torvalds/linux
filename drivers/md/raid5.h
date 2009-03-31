@@ -337,11 +337,16 @@ struct raid5_private_data {
 	int			raid_disks;
 	int			max_nr_stripes;
 
-	/* used during an expand */
-	sector_t		expand_progress;	/* MaxSector when no expand happening */
-	sector_t		expand_lo; /* from here up to expand_progress it out-of-bounds
-					    * as we haven't flushed the metadata yet
-					    */
+	/* reshape_progress is the leading edge of a 'reshape'
+	 * It has value MaxSector when no reshape is happening
+	 * If delta_disks < 0, it is the last sector we started work on,
+	 * else is it the next sector to work on.
+	 */
+	sector_t		reshape_progress;
+	/* reshape_safe is the trailing edge of a reshape.  We know that
+	 * before (or after) this address, all reshape has completed.
+	 */
+	sector_t		reshape_safe;
 	int			previous_raid_disks;
 
 	struct list_head	handle_list; /* stripes needing handling */
