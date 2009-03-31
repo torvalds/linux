@@ -4,7 +4,7 @@
  * Copyright (C) 1994-1996   Scott Snyder <snyder@fnald0.fnal.gov>
  * Copyright (C) 1996-1998   Erik Andersen <andersee@debian.org>
  * Copyright (C) 1998-2000   Jens Axboe <axboe@suse.de>
- * Copyright (C) 2005, 2007  Bartlomiej Zolnierkiewicz
+ * Copyright (C) 2005, 2007-2009  Bartlomiej Zolnierkiewicz
  *
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
@@ -711,22 +711,8 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	while (thislen > 0) {
 		int blen = min_t(int, thislen, cmd->nleft);
 
-		if (cmd->nleft == 0) {
-			if (blk_fs_request(rq) && !write)
-				/*
-				 * If the buffers are full, pipe the rest into
-				 * oblivion.
-				 */
-				ide_pad_transfer(drive, 0, thislen);
-			else {
-				printk(KERN_ERR PFX "%s: confused, missing data\n",
-						drive->name);
-				blk_dump_rq_flags(rq, rq_data_dir(rq)
-						  ? "cdrom_newpc_intr, write"
-						  : "cdrom_newpc_intr, read");
-			}
+		if (cmd->nleft == 0)
 			break;
-		}
 
 		ide_pio_bytes(drive, cmd, write, blen);
 		cmd->last_xfer_len += blen;
@@ -739,8 +725,15 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	}
 
 	/* pad, if necessary */
-	if (!blk_fs_request(rq) && len > 0)
-		ide_pad_transfer(drive, write, len);
+	if (len > 0) {
+		if (blk_fs_request(rq) == 0 || write == 0)
+			ide_pad_transfer(drive, write, len);
+		else {
+			printk(KERN_ERR PFX "%s: confused, missing data\n",
+				drive->name);
+			blk_dump_rq_flags(rq, "cdrom_newpc_intr");
+		}
+	}
 
 	if (blk_pc_request(rq)) {
 		timeout = rq->timeout;
