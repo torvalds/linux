@@ -110,13 +110,6 @@ int ide_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		}
 	}
 
-	if (bcount) {
-		printk(KERN_ERR "%s: %d leftover bytes, %s\n", drive->name,
-			bcount, write ? "padding with zeros"
-				      : "discarding data");
-		ide_pad_transfer(drive, write, bcount);
-	}
-
 	return done;
 }
 EXPORT_SYMBOL_GPL(ide_io_buffers);
@@ -330,9 +323,10 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	struct request *rq = hwif->rq;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	xfer_func_t *xferfunc;
-	unsigned int timeout, temp;
+	unsigned int timeout, done;
 	u16 bcount;
 	u8 stat, ireason, dsc = 0;
+	u8 write = !!(pc->flags & PC_FLAG_WRITING);
 
 	debug_log("Enter %s - interrupt handler\n", __func__);
 
@@ -441,8 +435,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		return ide_do_reset(drive);
 	}
 
-	if (((ireason & ATAPI_IO) == ATAPI_IO) ==
-		!!(pc->flags & PC_FLAG_WRITING)) {
+	if (((ireason & ATAPI_IO) == ATAPI_IO) == write) {
 		/* Hopefully, we will never get here */
 		printk(KERN_ERR "%s: We wanted to %s, but the device wants us "
 				"to %s!\n", drive->name,
@@ -451,45 +444,33 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		return ide_do_reset(drive);
 	}
 
-	if (!(pc->flags & PC_FLAG_WRITING)) {
-		/* Reading - Check that we have enough space */
-		temp = pc->xferred + bcount;
-		if (temp > pc->req_xfer) {
-			if (temp > pc->buf_size) {
-				printk(KERN_ERR "%s: The device wants to send "
-						"us more data than expected - "
-						"discarding data\n",
-						drive->name);
-
-				ide_pad_transfer(drive, 0, bcount);
-				goto next_irq;
-			}
-			debug_log("The device wants to send us more data than "
-				  "expected - allowing transfer\n");
-		}
-		xferfunc = tp_ops->input_data;
-	} else
-		xferfunc = tp_ops->output_data;
+	xferfunc = write ? tp_ops->output_data : tp_ops->input_data;
 
 	if ((drive->media == ide_floppy && !pc->buf) ||
 	    (drive->media == ide_tape && pc->bh)) {
-		int done = drive->pc_io_buffers(drive, pc, bcount,
-				  !!(pc->flags & PC_FLAG_WRITING));
+		done = drive->pc_io_buffers(drive, pc, bcount, write);
 
 		/* FIXME: don't do partial completions */
 		if (drive->media == ide_floppy)
 			ide_complete_rq(drive, 0,
 					done ? done : ide_rq_bytes(rq));
-	} else
-		xferfunc(drive, NULL, pc->cur_pos, bcount);
+	} else {
+		done = min_t(unsigned int, bcount, pc->req_xfer - pc->xferred);
+		xferfunc(drive, NULL, pc->cur_pos, done);
+	}
 
 	/* Update the current position */
-	pc->xferred += bcount;
-	pc->cur_pos += bcount;
+	pc->xferred += done;
+	pc->cur_pos += done;
 
-	debug_log("[cmd %x] transferred %d bytes on that intr.\n",
-		  rq->cmd[0], bcount);
-next_irq:
+	bcount -= done;
+
+	if (bcount)
+		ide_pad_transfer(drive, write, bcount);
+
+	debug_log("[cmd %x] transferred %d bytes, padded %d bytes\n",
+		  rq->cmd[0], done, bcount);
+
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, ide_pc_intr, timeout);
 	return ide_started;
