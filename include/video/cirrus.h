@@ -71,6 +71,7 @@
 #define CL_CRT1B	0x1b	/* Extended Display Controls */
 #define CL_CRT1C	0x1c	/* Sync adjust and genlock register */
 #define CL_CRT1D	0x1d	/* Overlay Extended Control register */
+#define CL_CRT1E	0x1e	/* Another overflow register */
 #define CL_CRT25	0x25	/* Part Status Register */
 #define CL_CRT27	0x27	/* ID Register */
 #define CL_CRT51	0x51	/* P4 disable "flicker fixer" */
