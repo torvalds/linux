@@ -25,11 +25,7 @@ static int parisc_get_time(struct device *dev, struct rtc_time *tm)
 
 static int parisc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	int ret;
-
-	ret = set_rtc_time(tm);
-
-	if (ret < 0)
+	if (set_rtc_time(tm) < 0)
 		return -EOPNOTSUPP;
 
 	return 0;
@@ -46,10 +42,8 @@ static int __init parisc_rtc_probe(struct platform_device *dev)
 
 	p = rtc_device_register("rtc-parisc", &dev->dev, &parisc_rtc_ops,
 				THIS_MODULE);
-	if (IS_ERR(p)) {
-		int err = PTR_ERR(p);
-		return err;
-	}
+	if (IS_ERR(p))
+		return PTR_ERR(p);
 
 	platform_set_drvdata(dev, p);
 
