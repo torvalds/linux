@@ -1364,7 +1364,7 @@ int gfs2_quotad(void *data)
 			refrigerator();
 		t = min(quotad_timeo, statfs_timeo);
 
-		prepare_to_wait(&sdp->sd_quota_wait, &wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait(&sdp->sd_quota_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_lock(&sdp->sd_trunc_lock);
 		empty = list_empty(&sdp->sd_trunc_list);
 		spin_unlock(&sdp->sd_trunc_lock);
