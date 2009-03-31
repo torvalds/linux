@@ -1961,6 +1961,9 @@ static noinline struct module *load_module(void __user *umod,
 		if (strncmp(secstrings+sechdrs[i].sh_name, ".exit", 5) == 0)
 			sechdrs[i].sh_flags &= ~(unsigned long)SHF_ALLOC;
 #endif
+		/* Don't keep __versions around; it's just for loading. */
+		if (strcmp(secstrings + sechdrs[i].sh_name, "__versions") == 0)
+			sechdrs[i].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	}
 
 	modindex = find_sec(hdr, sechdrs, secstrings,
