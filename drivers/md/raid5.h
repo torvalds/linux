@@ -350,6 +350,7 @@ struct raid5_private_data {
 	 */
 	sector_t		reshape_safe;
 	int			previous_raid_disks;
+	int			prev_chunk;
 	short			generation; /* increments with every reshape */
 
 	struct list_head	handle_list; /* stripes needing handling */
