@@ -352,6 +352,8 @@ struct raid5_private_data {
 	int			previous_raid_disks;
 	int			prev_chunk, prev_algo;
 	short			generation; /* increments with every reshape */
+	unsigned long		reshape_checkpoint; /* Time we last updated
+						     * metadata */
 
 	struct list_head	handle_list; /* stripes needing handling */
 	struct list_head	hold_list; /* preread ready stripes */
