@@ -44,7 +44,6 @@
 
 #include "cpqphp.h"
 #include "cpqphp_nvram.h"
-#include <asm/pci_x86.h>
 
 
 /* Global variables */
@@ -52,6 +51,7 @@ int cpqhp_debug;
 int cpqhp_legacy_mode;
 struct controller *cpqhp_ctrl_list;	/* = NULL */
 struct pci_func *cpqhp_slot_list[256];
+struct irq_routing_table *cpqhp_routing_table;
 
 /* local variables */
 static void __iomem *smbios_table;
@@ -154,40 +154,42 @@ static int init_SERR(struct controller * ctrl)
 	return 0;
 }
 
-/* nice debugging output */
-static int pci_print_IRQ_route (void)
+static int init_cpqhp_routing_table(void)
 {
-	struct irq_routing_table *routing_table;
 	int len;
-	int loop;
 
-	u8 tbus, tdevice, tslot;
-
-	routing_table = pcibios_get_irq_routing_table();
-	if (routing_table == NULL) {
-		err("No BIOS Routing Table??? Not good\n");
+	cpqhp_routing_table = pcibios_get_irq_routing_table();
+	if (cpqhp_routing_table == NULL)
 		return -ENOMEM;
-	}
 
-	len = (routing_table->size - sizeof(struct irq_routing_table)) /
-			sizeof(struct irq_info);
-	/* Make sure I got at least one entry */
+	len = cpqhp_routing_table_length();
 	if (len == 0) {
-		kfree(routing_table);
+		kfree(cpqhp_routing_table);
+		cpqhp_routing_table = NULL;
 		return -1;
 	}
 
-	dbg("bus dev func slot\n");
+	return 0;
+}
 
+/* nice debugging output */
+static void pci_print_IRQ_route(void)
+{
+	int len;
+	int loop;
+	u8 tbus, tdevice, tslot;
+
+	len = cpqhp_routing_table_length();
+
+	dbg("bus dev func slot\n");
 	for (loop = 0; loop < len; ++loop) {
-		tbus = routing_table->slots[loop].bus;
-		tdevice = routing_table->slots[loop].devfn;
-		tslot = routing_table->slots[loop].slot;
+		tbus = cpqhp_routing_table->slots[loop].bus;
+		tdevice = cpqhp_routing_table->slots[loop].devfn;
+		tslot = cpqhp_routing_table->slots[loop].slot;
 		dbg("%d %d %d %d\n", tbus, tdevice >> 3, tdevice & 0x7, tslot);
 
 	}
-	kfree(routing_table);
-	return 0;
+	return;
 }
 
 
@@ -331,7 +333,6 @@ static int ctrl_slot_cleanup (struct controller * ctrl)
 static int
 get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 {
-	struct irq_routing_table *PCIIRQRoutingInfoLength;
 	u32 work;
 	long len;
 	long loop;
@@ -342,26 +343,14 @@ get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 
 	bridgeSlot = 0xFF;
 
-	PCIIRQRoutingInfoLength = pcibios_get_irq_routing_table();
-	if (!PCIIRQRoutingInfoLength)
-		return -1;
-
-	len = (PCIIRQRoutingInfoLength->size -
-	       sizeof(struct irq_routing_table)) / sizeof(struct irq_info);
-	/* Make sure I got at least one entry */
-	if (len == 0) {
-		kfree(PCIIRQRoutingInfoLength);
-		return -1;
-	}
-
+	len = cpqhp_routing_table_length();
 	for (loop = 0; loop < len; ++loop) {
-		tbus = PCIIRQRoutingInfoLength->slots[loop].bus;
-		tdevice = PCIIRQRoutingInfoLength->slots[loop].devfn >> 3;
-		tslot = PCIIRQRoutingInfoLength->slots[loop].slot;
+		tbus = cpqhp_routing_table->slots[loop].bus;
+		tdevice = cpqhp_routing_table->slots[loop].devfn >> 3;
+		tslot = cpqhp_routing_table->slots[loop].slot;
 
 		if ((tbus == bus_num) && (tdevice == dev_num)) {
 			*slot = tslot;
-			kfree(PCIIRQRoutingInfoLength);
 			return 0;
 		} else {
 			/* Did not get a match on the target PCI device. Check
@@ -396,10 +385,8 @@ get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 	 */
 	if (bridgeSlot != 0xFF) {
 		*slot = bridgeSlot;
-		kfree(PCIIRQRoutingInfoLength);
 		return 0;
 	}
-	kfree(PCIIRQRoutingInfoLength);
 	/* Couldn't find an entry in the routing table for this PCI device */
 	return -1;
 }
@@ -782,9 +769,12 @@ static int one_time_init(void)
 
 	power_mode = 0;
 
-	retval = pci_print_IRQ_route();
+	retval = init_cpqhp_routing_table();
 	if (retval)
 		goto error;
+
+	if (cpqhp_debug)
+		pci_print_IRQ_route();
 
 	dbg("Initialize + Start the notification mechanism \n");
 

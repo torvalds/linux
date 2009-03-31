@@ -455,6 +455,7 @@ extern int cpqhp_debug;
 extern int cpqhp_legacy_mode;
 extern struct controller *cpqhp_ctrl_list;
 extern struct pci_func *cpqhp_slot_list[256];
+extern struct irq_routing_table *cpqhp_routing_table;
 
 /* these can be gotten rid of, but for debugging they are purty */
 extern u8 cpqhp_nic_irq;
@@ -731,6 +732,14 @@ static inline int wait_for_ctrl_irq(struct controller *ctrl)
 
 	dbg("%s - end\n", __func__);
 	return retval;
+}
+
+#include <asm/pci_x86.h>
+static inline int cpqhp_routing_table_length(void)
+{
+	BUG_ON(cpqhp_routing_table == NULL);
+	return ((cpqhp_routing_table->size - sizeof(struct irq_routing_table)) /
+		sizeof(struct irq_info));
 }
 
 #endif

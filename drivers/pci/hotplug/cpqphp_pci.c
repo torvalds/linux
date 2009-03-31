@@ -37,7 +37,6 @@
 #include "../pci.h"
 #include "cpqphp.h"
 #include "cpqphp_nvram.h"
-#include <asm/pci_x86.h>
 
 
 u8 cpqhp_nic_irq;
@@ -244,39 +243,23 @@ static int PCI_ScanBusForNonBridge(struct controller *ctrl, u8 bus_num, u8 * dev
 
 static int PCI_GetBusDevHelper(struct controller *ctrl, u8 *bus_num, u8 *dev_num, u8 slot, u8 nobridge)
 {
-	struct irq_routing_table *PCIIRQRoutingInfoLength;
-	long len;
-	long loop;
+	int loop, len;
 	u32 work;
-
 	u8 tbus, tdevice, tslot;
 
-	PCIIRQRoutingInfoLength = pcibios_get_irq_routing_table();
-	if (!PCIIRQRoutingInfoLength)
-		return -1;
-
-	len = (PCIIRQRoutingInfoLength->size -
-	       sizeof(struct irq_routing_table)) / sizeof(struct irq_info);
-	/* Make sure I got at least one entry */
-	if (len == 0) {
-		kfree(PCIIRQRoutingInfoLength );
-		return -1;
-	}
-
+	len = cpqhp_routing_table_length();
 	for (loop = 0; loop < len; ++loop) {
-		tbus = PCIIRQRoutingInfoLength->slots[loop].bus;
-		tdevice = PCIIRQRoutingInfoLength->slots[loop].devfn;
-		tslot = PCIIRQRoutingInfoLength->slots[loop].slot;
+		tbus = cpqhp_routing_table->slots[loop].bus;
+		tdevice = cpqhp_routing_table->slots[loop].devfn;
+		tslot = cpqhp_routing_table->slots[loop].slot;
 
 		if (tslot == slot) {
 			*bus_num = tbus;
 			*dev_num = tdevice;
 			ctrl->pci_bus->number = tbus;
 			pci_bus_read_config_dword (ctrl->pci_bus, *dev_num, PCI_VENDOR_ID, &work);
-			if (!nobridge || (work == 0xffffffff)) {
-				kfree(PCIIRQRoutingInfoLength );
+			if (!nobridge || (work == 0xffffffff))
 				return 0;
-			}
 
 			dbg("bus_num %d devfn %d\n", *bus_num, *dev_num);
 			pci_bus_read_config_dword (ctrl->pci_bus, *dev_num, PCI_CLASS_REVISION, &work);
@@ -287,17 +270,12 @@ static int PCI_GetBusDevHelper(struct controller *ctrl, u8 *bus_num, u8 *dev_num
 				dbg("Scan bus for Non Bridge: bus %d\n", tbus);
 				if (PCI_ScanBusForNonBridge(ctrl, tbus, dev_num) == 0) {
 					*bus_num = tbus;
-					kfree(PCIIRQRoutingInfoLength );
 					return 0;
 				}
-			} else {
-				kfree(PCIIRQRoutingInfoLength );
+			} else
 				return 0;
-			}
-
 		}
 	}
-	kfree(PCIIRQRoutingInfoLength );
 	return -1;
 }
 
