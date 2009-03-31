@@ -17,6 +17,8 @@
 #ifndef REGD_H
 #define REGD_H
 
+#include <linux/nl80211.h>
+
 #define COUNTRY_ERD_FLAG        0x8000
 #define WORLDWIDE_ROAMING_FLAG  0x4000
 
@@ -233,15 +235,18 @@ enum CountryCode {
 	CTRY_BELGIUM2 = 5002
 };
 
-bool ath9k_is_world_regd(struct ath_hw *ah);
-const struct ieee80211_regdomain *ath9k_world_regdomain(struct ath_hw *ah);
+bool ath9k_is_world_regd(struct ath9k_regulatory *reg);
+const struct ieee80211_regdomain *ath9k_world_regdomain(
+				 struct ath9k_regulatory *reg);
 const struct ieee80211_regdomain *ath9k_default_world_regdomain(void);
 void ath9k_reg_apply_world_flags(struct wiphy *wiphy,
-				 enum nl80211_reg_initiator initiator);
+				 enum nl80211_reg_initiator,
+				 struct ath9k_regulatory *reg);
 void ath9k_reg_apply_radar_flags(struct wiphy *wiphy);
-int ath9k_regd_init(struct ath_hw *ah);
-bool ath9k_regd_is_eeprom_valid(struct ath_hw *ah);
-u32 ath9k_regd_get_ctl(struct ath_hw *ah, struct ath9k_channel *chan);
+int ath9k_regd_init(struct ath9k_regulatory *reg);
+bool ath9k_regd_is_eeprom_valid(struct ath9k_regulatory *reg);
+u32 ath9k_regd_get_ctl(struct ath9k_regulatory *reg,
+		       struct ath9k_channel *chan);
 int ath9k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
 
 #endif
