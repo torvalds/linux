@@ -214,8 +214,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 		do_div(delta, lru_pages + 1);
 		shrinker->nr += delta;
 		if (shrinker->nr < 0) {
-			printk(KERN_ERR "%s: nr=%ld\n",
-					__func__, shrinker->nr);
+			printk(KERN_ERR "shrink_slab: %pF negative objects to "
+			       "delete nr=%ld\n",
+			       shrinker->shrink, shrinker->nr);
 			shrinker->nr = max_pass;
 		}
 
