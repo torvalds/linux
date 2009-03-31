@@ -265,34 +265,6 @@ static void ide_cd_complete_failed_rq(ide_drive_t *drive, struct request *rq)
 		cdrom_analyze_sense_data(drive, NULL, sense);
 }
 
-static void cdrom_end_request(ide_drive_t *drive, int uptodate)
-{
-	struct request *rq = drive->hwif->rq;
-	int nsectors = rq->hard_cur_sectors;
-
-	ide_debug_log(IDE_DBG_FUNC, "cmd: 0x%x, uptodate: 0x%x, nsectors: %d",
-				    rq->cmd[0], uptodate, nsectors);
-
-	if (blk_sense_request(rq) && uptodate)
-		ide_cd_complete_failed_rq(drive, rq);
-
-	if (!rq->current_nr_sectors && blk_fs_request(rq))
-		uptodate = 1;
-	/* make sure it's fully ended */
-	if (blk_pc_request(rq))
-		nsectors = (rq->data_len + 511) >> 9;
-	if (!nsectors)
-		nsectors = 1;
-
-	ide_debug_log(IDE_DBG_FUNC, "uptodate: 0x%x, nsectors: %d",
-				    uptodate, nsectors);
-
-	if (blk_fs_request(rq) == 0 && uptodate <= 0 && rq->errors == 0)
-		rq->errors = -EIO;
-
-	ide_complete_rq(drive, uptodate ? 0 : -EIO, nsectors << 9);
-}
-
 /*
  * Returns:
  * 0: if the request should be continued.
@@ -735,7 +707,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	xfer_func_t *xferfunc;
 	ide_expiry_t *expiry = NULL;
 	int dma_error = 0, dma, stat, thislen, uptodate = 0;
-	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0, rc;
+	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0, rc, nsectors;
 	int sense = blk_sense_request(rq);
 	unsigned int timeout;
 	u16 len;
@@ -902,8 +874,14 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			rq->current_nr_sectors -= (blen >> 9);
 			rq->sector += (blen >> 9);
 
-			if (rq->current_nr_sectors == 0 && rq->nr_sectors)
-				cdrom_end_request(drive, 1);
+			if (rq->current_nr_sectors == 0 && rq->nr_sectors) {
+				nsectors = rq->hard_cur_sectors;
+
+				if (nsectors == 0)
+					nsectors = 1;
+
+				ide_complete_rq(drive, 0, nsectors << 9);
+			}
 		} else {
 			rq->data_len -= blen;
 
@@ -951,7 +929,28 @@ out_end:
 
 		hwif->rq = NULL;
 	} else {
-		cdrom_end_request(drive, uptodate);
+		if (sense && uptodate)
+			ide_cd_complete_failed_rq(drive, rq);
+
+		if (blk_fs_request(rq)) {
+			if (rq->current_nr_sectors == 0)
+				uptodate = 1;
+		} else {
+			if (uptodate <= 0 && rq->errors == 0)
+				rq->errors = -EIO;
+		}
+
+		/* make sure it's fully ended */
+		if (blk_pc_request(rq))
+			nsectors = (rq->data_len + 511) >> 9;
+		else
+			nsectors = rq->hard_cur_sectors;
+
+		if (nsectors == 0)
+			nsectors = 1;
+
+		ide_complete_rq(drive, uptodate ? 0 : -EIO, nsectors << 9);
+
 		if (sense && rc == 2)
 			ide_error(drive, "request sense failure", stat);
 	}
@@ -1040,7 +1039,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
 	struct ide_cmd cmd;
-	int uptodate = 0;
+	int uptodate = 0, nsectors;
 
 	ide_debug_log(IDE_DBG_RQ, "cmd: 0x%x, block: %llu",
 				  rq->cmd[0], (unsigned long long)block);
@@ -1076,7 +1075,21 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 
 	return ide_issue_pc(drive, &cmd);
 out_end:
-	cdrom_end_request(drive, uptodate);
+	if (blk_fs_request(rq)) {
+		if (rq->current_nr_sectors == 0)
+			uptodate = 1;
+	} else {
+		if (uptodate <= 0 && rq->errors == 0)
+			rq->errors = -EIO;
+	}
+
+	nsectors = rq->hard_cur_sectors;
+
+	if (nsectors == 0)
+		nsectors = 1;
+
+	ide_complete_rq(drive, uptodate ? 0 : -EIO, nsectors << 9);
+
 	return ide_stopped;
 }
 
