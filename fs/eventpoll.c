@@ -435,7 +435,7 @@ static int ep_scan_ready_list(struct eventpoll *ep,
 
 	/*
 	 * We need to lock this because we could be hit by
-	 * eventpoll_release_file() and epoll_ctl(EPOLL_CTL_DEL).
+	 * eventpoll_release_file() and epoll_ctl().
 	 */
 	mutex_lock(&ep->mtx);
 
@@ -972,15 +972,14 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_even
 {
 	int pwake = 0;
 	unsigned int revents;
-	unsigned long flags;
 
 	/*
-	 * Set the new event interest mask before calling f_op->poll(), otherwise
-	 * a potential race might occur. In fact if we do this operation inside
-	 * the lock, an event might happen between the f_op->poll() call and the
-	 * new event set registering.
+	 * Set the new event interest mask before calling f_op->poll();
+	 * otherwise we might miss an event that happens between the
+	 * f_op->poll() call and the new event set registering.
 	 */
 	epi->event.events = event->events;
+	epi->event.data = event->data; /* protected by mtx */
 
 	/*
 	 * Get current event bits. We can safely use the file* here because
@@ -988,16 +987,12 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_even
 	 */
 	revents = epi->ffd.file->f_op->poll(epi->ffd.file, NULL);
 
-	spin_lock_irqsave(&ep->lock, flags);
-
-	/* Copy the data member from inside the lock */
-	epi->event.data = event->data;
-
 	/*
 	 * If the item is "hot" and it is not registered inside the ready
 	 * list, push it inside.
 	 */
 	if (revents & event->events) {
+		spin_lock_irq(&ep->lock);
 		if (!ep_is_linked(&epi->rdllink)) {
 			list_add_tail(&epi->rdllink, &ep->rdllist);
 
@@ -1007,8 +1002,8 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_even
 			if (waitqueue_active(&ep->poll_wait))
 				pwake++;
 		}
+		spin_unlock_irq(&ep->lock);
 	}
-	spin_unlock_irqrestore(&ep->lock, flags);
 
 	/* We have to call this outside the lock */
 	if (pwake)
