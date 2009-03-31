@@ -36,7 +36,6 @@
 #include <linux/freezer.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
-#include <acpi/acpi_drivers.h>
 #include <asm/atomic.h>
 #include "lis3lv02d.h"
 
@@ -53,18 +52,27 @@
  * joystick.
  */
 
-struct acpi_lis3lv02d lis3_dev = {
+struct lis3lv02d lis3_dev = {
 	.misc_wait   = __WAIT_QUEUE_HEAD_INITIALIZER(lis3_dev.misc_wait),
 };
 
 EXPORT_SYMBOL_GPL(lis3_dev);
 
-static s16 lis3lv02d_read_16(acpi_handle handle, int reg)
+static s16 lis3lv02d_read_8(struct lis3lv02d *lis3, int reg)
+{
+	s8 lo;
+	if (lis3->read(lis3, reg, &lo) < 0)
+		return 0;
+
+	return lo;
+}
+
+static s16 lis3lv02d_read_16(struct lis3lv02d *lis3, int reg)
 {
 	u8 lo, hi;
 
-	lis3_dev.read(handle, reg, &lo);
-	lis3_dev.read(handle, reg + 1, &hi);
+	lis3->read(lis3, reg - 1, &lo);
+	lis3->read(lis3, reg, &hi);
 	/* In "12 bit right justified" mode, bit 6, bit 7, bit 8 = bit 5 */
 	return (s16)((hi << 8) | lo);
 }
@@ -86,36 +94,36 @@ static inline int lis3lv02d_get_axis(s8 axis, int hw_values[3])
 
 /**
  * lis3lv02d_get_xyz - Get X, Y and Z axis values from the accelerometer
- * @handle: the handle to the device
- * @x:      where to store the X axis value
- * @y:      where to store the Y axis value
- * @z:      where to store the Z axis value
+ * @lis3: pointer to the device struct
+ * @x:    where to store the X axis value
+ * @y:    where to store the Y axis value
+ * @z:    where to store the Z axis value
  *
  * Note that 40Hz input device can eat up about 10% CPU at 800MHZ
  */
-static void lis3lv02d_get_xyz(acpi_handle handle, int *x, int *y, int *z)
+static void lis3lv02d_get_xyz(struct lis3lv02d *lis3, int *x, int *y, int *z)
 {
 	int position[3];
 
-	position[0] = lis3_dev.read_data(handle, OUTX);
-	position[1] = lis3_dev.read_data(handle, OUTY);
-	position[2] = lis3_dev.read_data(handle, OUTZ);
+	position[0] = lis3_dev.read_data(lis3, OUTX);
+	position[1] = lis3_dev.read_data(lis3, OUTY);
+	position[2] = lis3_dev.read_data(lis3, OUTZ);
 
 	*x = lis3lv02d_get_axis(lis3_dev.ac.x, position);
 	*y = lis3lv02d_get_axis(lis3_dev.ac.y, position);
 	*z = lis3lv02d_get_axis(lis3_dev.ac.z, position);
 }
 
-void lis3lv02d_poweroff(acpi_handle handle)
+void lis3lv02d_poweroff(struct lis3lv02d *lis3)
 {
 	lis3_dev.is_on = 0;
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweroff);
 
-void lis3lv02d_poweron(acpi_handle handle)
+void lis3lv02d_poweron(struct lis3lv02d *lis3)
 {
 	lis3_dev.is_on = 1;
-	lis3_dev.init(handle);
+	lis3_dev.init(lis3);
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweron);
 
@@ -124,13 +132,13 @@ EXPORT_SYMBOL_GPL(lis3lv02d_poweron);
  * device will always be on until a call to lis3lv02d_decrease_use(). Not to be
  * used from interrupt context.
  */
-static void lis3lv02d_increase_use(struct acpi_lis3lv02d *dev)
+static void lis3lv02d_increase_use(struct lis3lv02d *dev)
 {
 	mutex_lock(&dev->lock);
 	dev->usage++;
 	if (dev->usage == 1) {
 		if (!dev->is_on)
-			lis3lv02d_poweron(dev->device->handle);
+			lis3lv02d_poweron(dev);
 	}
 	mutex_unlock(&dev->lock);
 }
@@ -139,12 +147,12 @@ static void lis3lv02d_increase_use(struct acpi_lis3lv02d *dev)
  * To be called whenever a usage of the device is stopped.
  * It will make sure to turn off the device when there is not usage.
  */
-static void lis3lv02d_decrease_use(struct acpi_lis3lv02d *dev)
+static void lis3lv02d_decrease_use(struct lis3lv02d *dev)
 {
 	mutex_lock(&dev->lock);
 	dev->usage--;
 	if (dev->usage == 0)
-		lis3lv02d_poweroff(dev->device->handle);
+		lis3lv02d_poweroff(dev);
 	mutex_unlock(&dev->lock);
 }
 
@@ -291,7 +299,7 @@ static int lis3lv02d_joystick_kthread(void *data)
 	int x, y, z;
 
 	while (!kthread_should_stop()) {
-		lis3lv02d_get_xyz(lis3_dev.device->handle, &x, &y, &z);
+		lis3lv02d_get_xyz(&lis3_dev, &x, &y, &z);
 		input_report_abs(lis3_dev.idev, ABS_X, x - lis3_dev.xcalib);
 		input_report_abs(lis3_dev.idev, ABS_Y, y - lis3_dev.ycalib);
 		input_report_abs(lis3_dev.idev, ABS_Z, z - lis3_dev.zcalib);
@@ -325,7 +333,8 @@ static void lis3lv02d_joystick_close(struct input_dev *input)
 
 static inline void lis3lv02d_calibrate_joystick(void)
 {
-	lis3lv02d_get_xyz(lis3_dev.device->handle, &lis3_dev.xcalib, &lis3_dev.ycalib, &lis3_dev.zcalib);
+	lis3lv02d_get_xyz(&lis3_dev,
+		&lis3_dev.xcalib, &lis3_dev.ycalib, &lis3_dev.zcalib);
 }
 
 int lis3lv02d_joystick_enable(void)
@@ -382,7 +391,7 @@ static ssize_t lis3lv02d_position_show(struct device *dev,
 	int x, y, z;
 
 	lis3lv02d_increase_use(&lis3_dev);
-	lis3lv02d_get_xyz(lis3_dev.device->handle, &x, &y, &z);
+	lis3lv02d_get_xyz(&lis3_dev, &x, &y, &z);
 	lis3lv02d_decrease_use(&lis3_dev);
 	return sprintf(buf, "(%d,%d,%d)\n", x, y, z);
 }
@@ -412,7 +421,7 @@ static ssize_t lis3lv02d_rate_show(struct device *dev,
 	int val;
 
 	lis3lv02d_increase_use(&lis3_dev);
-	lis3_dev.read(lis3_dev.device->handle, CTRL_REG1, &ctrl);
+	lis3_dev.read(&lis3_dev, CTRL_REG1, &ctrl);
 	lis3lv02d_decrease_use(&lis3_dev);
 	val = (ctrl & (CTRL1_DF0 | CTRL1_DF1)) >> 4;
 	return sprintf(buf, "%d\n", lis3lv02dl_df_val[val]);
@@ -435,7 +444,7 @@ static struct attribute_group lis3lv02d_attribute_group = {
 };
 
 
-static int lis3lv02d_add_fs(struct acpi_device *device)
+static int lis3lv02d_add_fs(struct lis3lv02d *lis3)
 {
 	lis3_dev.pdev = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
 	if (IS_ERR(lis3_dev.pdev))
@@ -456,10 +465,29 @@ EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
  * Initialise the accelerometer and the various subsystems.
  * Should be rather independant of the bus system.
  */
-int lis3lv02d_init_device(struct acpi_lis3lv02d *dev)
+int lis3lv02d_init_device(struct lis3lv02d *dev)
 {
+	dev->whoami = lis3lv02d_read_8(dev, WHO_AM_I);
+
+	switch (dev->whoami) {
+	case LIS_DOUBLE_ID:
+		printk(KERN_INFO DRIVER_NAME ": 2-byte sensor found\n");
+		dev->read_data = lis3lv02d_read_16;
+		dev->mdps_max_val = 2048;
+		break;
+	case LIS_SINGLE_ID:
+		printk(KERN_INFO DRIVER_NAME ": 1-byte sensor found\n");
+		dev->read_data = lis3lv02d_read_8;
+		dev->mdps_max_val = 128;
+		break;
+	default:
+		printk(KERN_ERR DRIVER_NAME
+			": unknown sensor type 0x%X\n", lis3_dev.whoami);
+		return -EINVAL;
+	}
+
 	mutex_init(&dev->lock);
-	lis3lv02d_add_fs(dev->device);
+	lis3lv02d_add_fs(dev);
 	lis3lv02d_increase_use(dev);
 
 	if (lis3lv02d_joystick_enable())
@@ -467,10 +495,10 @@ int lis3lv02d_init_device(struct acpi_lis3lv02d *dev)
 
 	printk("lis3_init_device: irq %d\n", dev->irq);
 
-	/* if we did not get an IRQ from ACPI - we have nothing more to do */
+	/* bail if we did not get an IRQ from the bus layer */
 	if (!dev->irq) {
 		printk(KERN_ERR DRIVER_NAME
-			": No IRQ in ACPI. Disabling /dev/freefall\n");
+			": No IRQ. Disabling /dev/freefall\n");
 		goto out;
 	}
 
