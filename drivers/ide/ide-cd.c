@@ -290,13 +290,6 @@ static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 	ide_complete_rq(drive, uptodate ? 0 : -EIO, nsectors << 9);
 }
 
-static void ide_dump_status_no_sense(ide_drive_t *drive, const char *msg, u8 st)
-{
-	if (st & 0x80)
-		return;
-	ide_dump_status(drive, msg, st);
-}
-
 /*
  * Returns:
  * 0: if the request should be continued.
@@ -439,21 +432,19 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 			 * No point in retrying after an illegal request or data
 			 * protect error.
 			 */
-			ide_dump_status_no_sense(drive, "command error", stat);
+			ide_dump_status(drive, "command error", stat);
 			do_end_request = 1;
 		} else if (sense_key == MEDIUM_ERROR) {
 			/*
 			 * No point in re-trying a zillion times on a bad
 			 * sector. If we got here the error is not correctable.
 			 */
-			ide_dump_status_no_sense(drive,
-						 "media error (bad sector)",
-						 stat);
+			ide_dump_status(drive, "media error (bad sector)",
+					stat);
 			do_end_request = 1;
 		} else if (sense_key == BLANK_CHECK) {
 			/* disk appears blank ?? */
-			ide_dump_status_no_sense(drive, "media error (blank)",
-						 stat);
+			ide_dump_status(drive, "media error (blank)", stat);
 			do_end_request = 1;
 		} else if ((err & ~ATA_ABORTED) != 0) {
 			/* go to the default handler for other errors */
