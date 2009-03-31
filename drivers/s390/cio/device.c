@@ -468,7 +468,7 @@ static int online_store_recog_and_online(struct ccw_device *cdev)
 	int ret;
 
 	/* Do device recognition, if needed. */
-	if (cdev->id.cu_type == 0) {
+	if (cdev->private->state == DEV_STATE_BOXED) {
 		ret = ccw_device_recognition(cdev);
 		if (ret) {
 			CIO_MSG_EVENT(0, "Couldn't start recognition "
