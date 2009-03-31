@@ -948,7 +948,6 @@ static int grow_stripes(raid5_conf_t *conf, int num)
 	return 0;
 }
 
-#ifdef CONFIG_MD_RAID5_RESHAPE
 static int resize_stripes(raid5_conf_t *conf, int newsize)
 {
 	/* Make all the stripes able to hold 'newsize' devices.
@@ -1073,7 +1072,6 @@ static int resize_stripes(raid5_conf_t *conf, int newsize)
 	conf->pool_size = newsize;
 	return err;
 }
-#endif
 
 static int drop_one_stripe(raid5_conf_t *conf)
 {
@@ -4822,7 +4820,6 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 	return 0;
 }
 
-#ifdef CONFIG_MD_RAID5_RESHAPE
 static int raid5_check_reshape(mddev_t *mddev)
 {
 	raid5_conf_t *conf = mddev_to_conf(mddev);
@@ -4967,7 +4964,6 @@ static int raid5_start_reshape(mddev_t *mddev)
 	md_new_event(mddev);
 	return 0;
 }
-#endif
 
 /* This is called from the reshape thread and should make any
  * changes needed in 'conf'
@@ -5289,11 +5285,9 @@ static struct mdk_personality raid6_personality =
 	.sync_request	= sync_request,
 	.resize		= raid5_resize,
 	.size		= raid5_size,
-#ifdef CONFIG_MD_RAID5_RESHAPE
 	.check_reshape	= raid5_check_reshape,
 	.start_reshape  = raid5_start_reshape,
 	.finish_reshape = raid5_finish_reshape,
-#endif
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid6_takeover,
 	.reconfig	= raid6_reconfig,
@@ -5314,11 +5308,9 @@ static struct mdk_personality raid5_personality =
 	.sync_request	= sync_request,
 	.resize		= raid5_resize,
 	.size		= raid5_size,
-#ifdef CONFIG_MD_RAID5_RESHAPE
 	.check_reshape	= raid5_check_reshape,
 	.start_reshape  = raid5_start_reshape,
 	.finish_reshape = raid5_finish_reshape,
-#endif
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid5_takeover,
 	.reconfig	= raid5_reconfig,
@@ -5340,11 +5332,9 @@ static struct mdk_personality raid4_personality =
 	.sync_request	= sync_request,
 	.resize		= raid5_resize,
 	.size		= raid5_size,
-#ifdef CONFIG_MD_RAID5_RESHAPE
 	.check_reshape	= raid5_check_reshape,
 	.start_reshape  = raid5_start_reshape,
 	.finish_reshape = raid5_finish_reshape,
-#endif
 	.quiesce	= raid5_quiesce,
 };
 
