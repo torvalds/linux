@@ -352,6 +352,8 @@ struct ide_cmd {
 
 	unsigned int		nbytes;
 	unsigned int		nleft;
+	unsigned int		last_xfer_len;
+
 	struct scatterlist	*cursg;
 	unsigned int		cursg_ofs;
 
@@ -1225,6 +1227,8 @@ int ide_cd_get_xferlen(struct request *);
 ide_startstop_t ide_issue_pc(ide_drive_t *, struct ide_cmd *);
 
 ide_startstop_t do_rw_taskfile(ide_drive_t *, struct ide_cmd *);
+
+void ide_pio_bytes(ide_drive_t *, struct ide_cmd *, unsigned int, unsigned int);
 
 void ide_finish_cmd(ide_drive_t *, struct ide_cmd *, u8);
 

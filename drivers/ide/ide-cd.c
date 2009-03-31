@@ -539,62 +539,10 @@ static ide_startstop_t ide_cd_prepare_rw_request(ide_drive_t *drive,
 {
 	ide_debug_log(IDE_DBG_RQ, "rq->cmd_flags: 0x%x", rq->cmd_flags);
 
-	if (rq_data_dir(rq) == READ) {
-		unsigned short sectors_per_frame =
-			queue_hardsect_size(drive->queue) >> SECTOR_BITS;
-		int nskip = rq->sector & (sectors_per_frame - 1);
-
-		/*
-		 * If the requested sector doesn't start on a frame boundary,
-		 * we must adjust the start of the transfer so that it does,
-		 * and remember to skip the first few sectors.
-		 *
-		 * If the rq->current_nr_sectors field is larger than the size
-		 * of the buffer, it will mean that we're to skip a number of
-		 * sectors equal to the amount by which rq->current_nr_sectors
-		 * is larger than the buffer size.
-		 */
-		if (nskip > 0) {
-			/* sanity check... */
-			if (rq->current_nr_sectors !=
-			    bio_cur_sectors(rq->bio)) {
-				printk(KERN_ERR PFX "%s: %s: buffer botch (%u)\n",
-						drive->name, __func__,
-						rq->current_nr_sectors);
-				return ide_stopped;
-			}
-			rq->current_nr_sectors += nskip;
-		}
-	}
-
 	/* set up the command */
 	rq->timeout = ATAPI_WAIT_PC;
 
 	return ide_started;
-}
-
-/*
- * Fix up a possibly partially-processed request so that we can start it over
- * entirely, or even put it back on the request queue.
- */
-static void ide_cd_restore_request(ide_drive_t *drive, struct request *rq)
-{
-
-	ide_debug_log(IDE_DBG_FUNC, "enter");
-
-	if (rq->buffer != bio_data(rq->bio)) {
-		sector_t n =
-			(rq->buffer - (char *)bio_data(rq->bio)) / SECTOR_SIZE;
-
-		rq->buffer = bio_data(rq->bio);
-		rq->nr_sectors += n;
-		rq->sector -= n;
-	}
-	rq->current_nr_sectors = bio_cur_sectors(rq->bio);
-	rq->hard_cur_sectors = rq->current_nr_sectors;
-	rq->hard_nr_sectors = rq->nr_sectors;
-	rq->hard_sector = rq->sector;
-	rq->q->prep_rq_fn(rq->q, rq);
 }
 
 static void ide_cd_request_sense_fixup(ide_drive_t *drive, struct request *rq)
@@ -690,6 +638,17 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 	return (flags & REQ_FAILED) ? -EIO : 0;
 }
 
+static void ide_cd_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
+{
+	unsigned int nr_bytes = cmd->nbytes - cmd->nleft;
+
+	if (cmd->tf_flags & IDE_TFLAG_WRITE)
+		nr_bytes -= cmd->last_xfer_len;
+
+	if (nr_bytes > 0)
+		ide_complete_rq(drive, 0, nr_bytes);
+}
+
 /*
  * Called from blk_end_request_callback() after the data of the request is
  * completed and before the request itself is completed. By returning value '1',
@@ -703,6 +662,7 @@ static int cdrom_newpc_intr_dummy_cb(struct request *rq)
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_cmd *cmd = &hwif->cmd;
 	struct request *rq = hwif->rq;
 	xfer_func_t *xferfunc;
 	ide_expiry_t *expiry = NULL;
@@ -769,11 +729,10 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			 * Otherwise, complete the command normally.
 			 */
 			uptodate = 1;
-			if (rq->current_nr_sectors > 0) {
+			if (cmd->nleft > 0) {
 				printk(KERN_ERR PFX "%s: %s: data underrun "
-						"(%d blocks)\n",
-						drive->name, __func__,
-						rq->current_nr_sectors);
+					"(%u bytes)\n", drive->name, __func__,
+					cmd->nleft);
 				if (!write)
 					rq->cmd_flags |= REQ_FAILED;
 				uptodate = 0;
@@ -795,24 +754,10 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 	if (blk_fs_request(rq)) {
 		if (write == 0) {
-			int nskip;
-
 			if (ide_cd_check_transfer_size(drive, len))
 				goto out_end;
-
-			/*
-			 * First, figure out if we need to bit-bucket
-			 * any of the leading sectors.
-			 */
-			nskip = min_t(int, rq->current_nr_sectors
-					   - bio_cur_sectors(rq->bio),
-					   thislen >> 9);
-			if (nskip > 0) {
-				ide_pad_transfer(drive, write, nskip << 9);
-				rq->current_nr_sectors -= nskip;
-				thislen -= (nskip << 9);
-			}
 		}
+		cmd->last_xfer_len = 0;
 	}
 
 	if (ireason == 0) {
@@ -835,15 +780,15 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		/* bio backed? */
 		if (rq->bio) {
 			if (blk_fs_request(rq)) {
-				ptr = rq->buffer;
-				blen = rq->current_nr_sectors << 9;
+				blen = min_t(int, thislen, cmd->nleft);
 			} else {
 				ptr = bio_data(rq->bio);
 				blen = bio_iovec(rq->bio)->bv_len;
 			}
 		}
 
-		if (!ptr) {
+		if ((blk_fs_request(rq) && cmd->nleft == 0) ||
+		    (blk_fs_request(rq) == 0 && ptr == NULL)) {
 			if (blk_fs_request(rq) && !write)
 				/*
 				 * If the buffers are full, pipe the rest into
@@ -863,26 +808,16 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		if (blen > thislen)
 			blen = thislen;
 
-		xferfunc(drive, NULL, ptr, blen);
+		if (blk_fs_request(rq)) {
+			ide_pio_bytes(drive, cmd, write, blen);
+			cmd->last_xfer_len += blen;
+		} else
+			xferfunc(drive, NULL, ptr, blen);
 
 		thislen -= blen;
 		len -= blen;
 
-		if (blk_fs_request(rq)) {
-			rq->buffer += blen;
-			rq->nr_sectors -= (blen >> 9);
-			rq->current_nr_sectors -= (blen >> 9);
-			rq->sector += (blen >> 9);
-
-			if (rq->current_nr_sectors == 0 && rq->nr_sectors) {
-				nsectors = rq->hard_cur_sectors;
-
-				if (nsectors == 0)
-					nsectors = 1;
-
-				ide_complete_rq(drive, 0, nsectors << 9);
-			}
-		} else {
+		if (blk_fs_request(rq) == 0) {
 			rq->data_len -= blen;
 
 			/*
@@ -933,8 +868,10 @@ out_end:
 			ide_cd_complete_failed_rq(drive, rq);
 
 		if (blk_fs_request(rq)) {
-			if (rq->current_nr_sectors == 0)
+			if (cmd->nleft == 0)
 				uptodate = 1;
+			if (uptodate == 0)
+				ide_cd_error_cmd(drive, cmd);
 		} else {
 			if (uptodate <= 0 && rq->errors == 0)
 				rq->errors = -EIO;
@@ -944,7 +881,7 @@ out_end:
 		if (blk_pc_request(rq))
 			nsectors = (rq->data_len + 511) >> 9;
 		else
-			nsectors = rq->hard_cur_sectors;
+			nsectors = rq->hard_nr_sectors;
 
 		if (nsectors == 0)
 			nsectors = 1;
@@ -960,9 +897,10 @@ out_end:
 static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 {
 	struct cdrom_info *cd = drive->driver_data;
+	struct request_queue *q = drive->queue;
 	int write = rq_data_dir(rq) == WRITE;
 	unsigned short sectors_per_frame =
-		queue_hardsect_size(drive->queue) >> SECTOR_BITS;
+		queue_hardsect_size(q) >> SECTOR_BITS;
 
 	ide_debug_log(IDE_DBG_RQ, "rq->cmd[0]: 0x%x, write: 0x%x, "
 				  "secs_per_frame: %u",
@@ -977,17 +915,16 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 		 * We may be retrying this request after an error.  Fix up any
 		 * weirdness which might be present in the request packet.
 		 */
-		ide_cd_restore_request(drive, rq);
+		q->prep_rq_fn(q, rq);
 	}
 
-	/* use DMA, if possible / writes *must* be hardware frame aligned */
+	/* fs requests *must* be hardware frame aligned */
 	if ((rq->nr_sectors & (sectors_per_frame - 1)) ||
-	    (rq->sector & (sectors_per_frame - 1))) {
-		if (write)
-			return ide_stopped;
-		drive->dma = 0;
-	} else
-		drive->dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
+	    (rq->sector & (sectors_per_frame - 1)))
+		return ide_stopped;
+
+	/* use DMA, if possible */
+	drive->dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 
 	if (write)
 		cd->devinfo.media_written = 1;
@@ -1050,8 +987,6 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 	if (blk_fs_request(rq)) {
 		if (cdrom_start_rw(drive, rq) == ide_stopped ||
 		    ide_cd_prepare_rw_request(drive, rq) == ide_stopped) {
-			if (rq->current_nr_sectors == 0)
-				uptodate = 1;
 			goto out_end;
 		}
 	} else if (blk_sense_request(rq) || blk_pc_request(rq) ||
@@ -1077,6 +1012,11 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		cmd.tf_flags |= IDE_TFLAG_WRITE;
 
 	cmd.rq = rq;
+
+	if (blk_fs_request(rq)) {
+		ide_init_sg_cmd(&cmd, rq->nr_sectors << 9);
+		ide_map_sg(drive, &cmd);
+	}
 
 	return ide_issue_pc(drive, &cmd);
 out_end:

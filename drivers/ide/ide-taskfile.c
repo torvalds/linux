@@ -188,8 +188,8 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	return stat;
 }
 
-static void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
-			  unsigned int write, unsigned int len)
+void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
+		   unsigned int write, unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
@@ -243,6 +243,7 @@ static void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 		len -= nr_bytes;
 	}
 }
+EXPORT_SYMBOL_GPL(ide_pio_bytes);
 
 static void ide_pio_datablock(ide_drive_t *drive, struct ide_cmd *cmd,
 			      unsigned int write)
