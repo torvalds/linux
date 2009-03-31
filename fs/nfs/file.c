@@ -451,8 +451,9 @@ const struct address_space_operations nfs_file_aops = {
 	.launder_page = nfs_launder_page,
 };
 
-static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
+	struct page *page = vmf->page;
 	struct file *filp = vma->vm_file;
 	struct dentry *dentry = filp->f_path.dentry;
 	unsigned pagelen;
@@ -483,6 +484,8 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 		ret = pagelen;
 out_unlock:
 	unlock_page(page);
+	if (ret)
+		ret = VM_FAULT_SIGBUS;
 	return ret;
 }
 

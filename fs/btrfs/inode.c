@@ -4292,8 +4292,9 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
  * beyond EOF, then the page is guaranteed safe against truncation until we
  * unlock the page.
  */
-int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
+	struct page *page = vmf->page;
 	struct inode *inode = fdentry(vma->vm_file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
@@ -4362,6 +4363,8 @@ again:
 out_unlock:
 	unlock_page(page);
 out:
+	if (ret)
+		ret = VM_FAULT_SIGBUS;
 	return ret;
 }
 

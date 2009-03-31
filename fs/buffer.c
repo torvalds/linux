@@ -2313,9 +2313,10 @@ int block_commit_write(struct page *page, unsigned from, unsigned to)
  * unlock the page.
  */
 int
-block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 		   get_block_t get_block)
 {
+	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 	unsigned long end;
 	loff_t size;
@@ -2340,6 +2341,9 @@ block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
 		ret = block_commit_write(page, 0, end);
 
 out_unlock:
+	if (ret)
+		ret = VM_FAULT_SIGBUS;
+
 	unlock_page(page);
 	return ret;
 }

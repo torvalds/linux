@@ -5146,8 +5146,9 @@ static int ext4_bh_unmapped(handle_t *handle, struct buffer_head *bh)
 	return !buffer_mapped(bh);
 }
 
-int ext4_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
+	struct page *page = vmf->page;
 	loff_t size;
 	unsigned long len;
 	int ret = -EINVAL;
@@ -5199,6 +5200,8 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 		goto out_unlock;
 	ret = 0;
 out_unlock:
+	if (ret)
+		ret = VM_FAULT_SIGBUS;
 	up_read(&inode->i_alloc_sem);
 	return ret;
 }
