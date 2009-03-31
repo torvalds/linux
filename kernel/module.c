@@ -1052,9 +1052,9 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 {
 	const unsigned long *crc;
 
-	if (!find_symbol("struct_module", NULL, &crc, true, false))
+	if (!find_symbol("module_layout", NULL, &crc, true, false))
 		BUG();
-	return check_version(sechdrs, versindex, "struct_module", mod, crc);
+	return check_version(sechdrs, versindex, "module_layout", mod, crc);
 }
 
 /* First part is kernel version, which we ignore if module has crcs. */
@@ -2858,9 +2858,17 @@ void print_modules(void)
 }
 
 #ifdef CONFIG_MODVERSIONS
-/* Generate the signature for struct module here, too, for modversions. */
-void struct_module(struct module *mod) { return; }
-EXPORT_SYMBOL(struct_module);
+/* Generate the signature for all relevant module structures here.
+ * If these change, we don't want to try to parse the module. */
+void module_layout(struct module *mod,
+		   struct modversion_info *ver,
+		   struct kernel_param *kp,
+		   struct kernel_symbol *ks,
+		   struct marker *marker,
+		   struct tracepoint *tp)
+{
+}
+EXPORT_SYMBOL(module_layout);
 #endif
 
 #ifdef CONFIG_MARKERS
