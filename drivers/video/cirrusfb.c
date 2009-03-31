@@ -2090,8 +2090,6 @@ static int __devinit cirrusfb_register(struct fb_info *info)
 
 err_dealloc_cmap:
 	fb_dealloc_cmap(&info->cmap);
-	cinfo->unmap(info);
-	framebuffer_release(info);
 	return err;
 }
 
@@ -2328,18 +2326,15 @@ static int __devinit cirrusfb_zorro_register(struct zorro_dev *z,
 	zorro_set_drvdata(z, info);
 
 	ret = cirrusfb_register(info);
-	if (ret) {
-		if (btype == BT_PICASSO4) {
-			iounmap(info->screen_base);
-			iounmap(cinfo->regbase - 0x600000);
-		} else if (board_addr > 0x01000000)
-			iounmap(info->screen_base);
-	}
-	return ret;
+	if (!ret)
+		return 0;
+
+	if (btype == BT_PICASSO4 || board_addr > 0x01000000)
+		iounmap(info->screen_base);
 
 err_unmap_regbase:
-	/* Parental advisory: explicit hack */
-	iounmap(cinfo->regbase - 0x600000);
+	if (btype == BT_PICASSO4)
+		iounmap(cinfo->regbase - 0x600000);
 err_release_region:
 	release_region(board_addr, board_size);
 err_release_fb:
