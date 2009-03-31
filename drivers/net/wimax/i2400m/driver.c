@@ -231,13 +231,20 @@ int i2400m_op_msg_from_user(struct wimax_dev *wimax_dev,
 	d_fnstart(4, dev, "(wimax_dev %p [i2400m %p] msg_buf %p "
 		  "msg_len %zu genl_info %p)\n", wimax_dev, i2400m,
 		  msg_buf, msg_len, genl_info);
+	if (unlikely(i2400m->trace_msg_from_user))
+		wimax_msg(&i2400m->wimax_dev, "echo",
+			  msg_buf, msg_len, GFP_KERNEL);
 	ack_skb = i2400m_msg_to_dev(i2400m, msg_buf, msg_len);
 	result = PTR_ERR(ack_skb);
 	if (IS_ERR(ack_skb))
 		goto error_msg_to_dev;
-	if (unlikely(i2400m->trace_msg_from_user))
-		wimax_msg(&i2400m->wimax_dev, "trace",
-			  msg_buf, msg_len, GFP_KERNEL);
+	if (unlikely(i2400m->trace_msg_from_user)) {
+		const void *ack_data;
+		size_t ack_len;
+		ack_data = wimax_msg_data_len(ack_skb, &ack_len);
+		wimax_msg(&i2400m->wimax_dev, "echo",
+			  ack_data, ack_len, GFP_KERNEL);
+	}
 	result = wimax_msg_send(&i2400m->wimax_dev, ack_skb);
 error_msg_to_dev:
 	d_fnend(4, dev, "(wimax_dev %p [i2400m %p] msg_buf %p msg_len %zu "

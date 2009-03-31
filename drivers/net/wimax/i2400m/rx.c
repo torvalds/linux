@@ -309,6 +309,9 @@ void i2400m_rx_ctl(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		skb_get(skb_rx);
 		i2400m_queue_work(i2400m, i2400m_report_hook_work,
 				  GFP_KERNEL, &args, sizeof(args));
+		if (unlikely(i2400m->trace_msg_from_user))
+			wimax_msg(&i2400m->wimax_dev, "echo",
+				  l3l4_hdr, size, GFP_KERNEL);
 		result = wimax_msg(&i2400m->wimax_dev, NULL, l3l4_hdr, size,
 				   GFP_KERNEL);
 		if (result < 0)
