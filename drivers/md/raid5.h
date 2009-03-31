@@ -196,15 +196,16 @@ enum reconstruct_states {
 
 struct stripe_head {
 	struct hlist_node	hash;
-	struct list_head	lru;			/* inactive_list or handle_list */
-	struct raid5_private_data	*raid_conf;
-	sector_t		sector;			/* sector of this row */
-	int			pd_idx;			/* parity disk index */
-	unsigned long		state;			/* state flags */
-	atomic_t		count;			/* nr of active thread/requests */
+	struct list_head	lru;	      /* inactive_list or handle_list */
+	struct raid5_private_data *raid_conf;
+	sector_t		sector;		/* sector of this row */
+	short			pd_idx;		/* parity disk index */
+	short			qd_idx;		/* 'Q' disk index for raid6 */
+	unsigned long		state;		/* state flags */
+	atomic_t		count;	      /* nr of active thread/requests */
 	spinlock_t		lock;
 	int			bm_seq;	/* sequence number for bitmap flushes */
-	int			disks;			/* disks in stripe */
+	int			disks;		/* disks in stripe */
 	enum check_states	check_state;
 	enum reconstruct_states reconstruct_state;
 	/* stripe_operations
