@@ -373,8 +373,10 @@ unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
 	/* First step: get the top-level Guest page table entry. */
 	gpgd = lgread(cpu, gpgd_addr(cpu, vaddr), pgd_t);
 	/* Toplevel not present?  We can't map it in. */
-	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
+	if (!(pgd_flags(gpgd) & _PAGE_PRESENT)) {
 		kill_guest(cpu, "Bad address %#lx", vaddr);
+		return -1UL;
+	}
 
 	gpte = lgread(cpu, gpte_addr(gpgd, vaddr), pte_t);
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))
