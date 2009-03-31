@@ -359,121 +359,121 @@ int cpqhp_save_config(struct controller *ctrl, int busnumber, int is_hot_plug)
 	ctrl->pci_bus->number = busnumber;
 	for (device = FirstSupported; device <= LastSupported; device++) {
 		ID = 0xFFFFFFFF;
-		rc = pci_bus_read_config_dword (ctrl->pci_bus, PCI_DEVFN(device, 0), PCI_VENDOR_ID, &ID);
+		rc = pci_bus_read_config_dword(ctrl->pci_bus, PCI_DEVFN(device, 0), PCI_VENDOR_ID, &ID);
 
-		if (ID != 0xFFFFFFFF) {	  /* device in slot */
-			rc = pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(device, 0), 0x0B, &class_code);
-			if (rc)
-				return rc;
-
-			rc = pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(device, 0), PCI_HEADER_TYPE, &header_type);
-			if (rc)
-				return rc;
-
-			/* If multi-function device, set max_functions to 8 */
-			if (header_type & 0x80)
-				max_functions = 8;
-			else
-				max_functions = 1;
-
-			function = 0;
-
-			do {
-				DevError = 0;
-				if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
-					/* Recurse the subordinate bus
-					 * get the subordinate bus number
-					 */
-					rc = pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(device, function), PCI_SECONDARY_BUS, &secondary_bus);
-					if (rc) {
-						return rc;
-					} else {
-						sub_bus = (int) secondary_bus;
-
-						/* Save secondary bus cfg spc
-						 * with this recursive call.
-						 */
-						rc = cpqhp_save_config(ctrl, sub_bus, 0);
-						if (rc)
-							return rc;
-						ctrl->pci_bus->number = busnumber;
-					}
-				}
-
-				index = 0;
-				new_slot = cpqhp_slot_find(busnumber, device, index++);
-				while (new_slot &&
-				       (new_slot->function != (u8) function))
-					new_slot = cpqhp_slot_find(busnumber, device, index++);
-
-				if (!new_slot) {
-					/* Setup slot structure. */
-					new_slot = cpqhp_slot_create(busnumber);
-
-					if (new_slot == NULL)
-						return(1);
-				}
+		if (ID == 0xFFFFFFFF) {
+			if (is_hot_plug) {
+				/* Setup slot structure with entry for empty
+				 * slot
+				 */
+				new_slot = cpqhp_slot_create(busnumber);
+				if (new_slot == NULL)
+					return 1;
 
 				new_slot->bus = (u8) busnumber;
 				new_slot->device = (u8) device;
-				new_slot->function = (u8) function;
-				new_slot->is_a_board = 1;
-				new_slot->switch_save = 0x10;
-				/* In case of unsupported board */
-				new_slot->status = DevError;
-				new_slot->pci_dev = pci_find_slot(new_slot->bus, (new_slot->device << 3) | new_slot->function);
+				new_slot->function = 0;
+				new_slot->is_a_board = 0;
+				new_slot->presence_save = 0;
+				new_slot->switch_save = 0;
+			}
+			continue;
+		}
 
-				for (cloop = 0; cloop < 0x20; cloop++) {
-					rc = pci_bus_read_config_dword (ctrl->pci_bus, PCI_DEVFN(device, function), cloop << 2, (u32 *) & (new_slot-> config_space [cloop]));
+		rc = pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(device, 0), 0x0B, &class_code);
+		if (rc)
+			return rc;
+
+		rc = pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(device, 0), PCI_HEADER_TYPE, &header_type);
+		if (rc)
+			return rc;
+
+		/* If multi-function device, set max_functions to 8 */
+		if (header_type & 0x80)
+			max_functions = 8;
+		else
+			max_functions = 1;
+
+		function = 0;
+
+		do {
+			DevError = 0;
+			if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+				/* Recurse the subordinate bus
+				 * get the subordinate bus number
+				 */
+				rc = pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(device, function), PCI_SECONDARY_BUS, &secondary_bus);
+				if (rc) {
+					return rc;
+				} else {
+					sub_bus = (int) secondary_bus;
+
+					/* Save secondary bus cfg spc
+					 * with this recursive call.
+					 */
+					rc = cpqhp_save_config(ctrl, sub_bus, 0);
 					if (rc)
 						return rc;
+					ctrl->pci_bus->number = busnumber;
 				}
+			}
 
-				function++;
+			index = 0;
+			new_slot = cpqhp_slot_find(busnumber, device, index++);
+			while (new_slot &&
+			       (new_slot->function != (u8) function))
+				new_slot = cpqhp_slot_find(busnumber, device, index++);
 
-				stop_it = 0;
-
-				/* this loop skips to the next present function
-				 * reading in Class Code and Header type.
-				 */
-
-				while ((function < max_functions)&&(!stop_it)) {
-					rc = pci_bus_read_config_dword (ctrl->pci_bus, PCI_DEVFN(device, function), PCI_VENDOR_ID, &ID);
-					if (ID == 0xFFFFFFFF) {	 /* nothing there. */
-						function++;
-					} else {  /* Something there */
-						rc = pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(device, function), 0x0B, &class_code);
-						if (rc)
-							return rc;
-
-						rc = pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(device, function), PCI_HEADER_TYPE, &header_type);
-						if (rc)
-							return rc;
-
-						stop_it++;
-					}
-				}
-
-			} while (function < max_functions);
-		}		/* End of IF (device in slot?) */
-		else if (is_hot_plug) {
-			/* Setup slot structure with entry for empty slot */
-			new_slot = cpqhp_slot_create(busnumber);
-
-			if (new_slot == NULL) {
-				return(1);
+			if (!new_slot) {
+				/* Setup slot structure. */
+				new_slot = cpqhp_slot_create(busnumber);
+				if (new_slot == NULL)
+					return 1;
 			}
 
 			new_slot->bus = (u8) busnumber;
 			new_slot->device = (u8) device;
-			new_slot->function = 0;
-			new_slot->is_a_board = 0;
-			new_slot->presence_save = 0;
-			new_slot->switch_save = 0;
-		}
+			new_slot->function = (u8) function;
+			new_slot->is_a_board = 1;
+			new_slot->switch_save = 0x10;
+			/* In case of unsupported board */
+			new_slot->status = DevError;
+			new_slot->pci_dev = pci_find_slot(new_slot->bus, (new_slot->device << 3) | new_slot->function);
+
+			for (cloop = 0; cloop < 0x20; cloop++) {
+				rc = pci_bus_read_config_dword(ctrl->pci_bus, PCI_DEVFN(device, function), cloop << 2, (u32 *) & (new_slot-> config_space [cloop]));
+				if (rc)
+					return rc;
+			}
+
+			function++;
+
+			stop_it = 0;
+
+			/* this loop skips to the next present function
+			 * reading in Class Code and Header type.
+			 */
+			while ((function < max_functions) && (!stop_it)) {
+				rc = pci_bus_read_config_dword(ctrl->pci_bus, PCI_DEVFN(device, function), PCI_VENDOR_ID, &ID);
+				if (ID == 0xFFFFFFFF) {
+					function++;
+					continue;
+				}
+				rc = pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(device, function), 0x0B, &class_code);
+				if (rc)
+					return rc;
+
+				rc = pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(device, function), PCI_HEADER_TYPE, &header_type);
+				if (rc)
+					return rc;
+
+				stop_it++;
+			}
+
+		} while (function < max_functions);
 	}			/* End of FOR loop */
 
-	return(0);
+	return 0;
 }
 
 
