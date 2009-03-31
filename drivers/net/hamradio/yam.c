@@ -55,6 +55,8 @@
 #include <asm/system.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/firmware.h>
+#include <linux/platform_device.h>
 
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
@@ -71,8 +73,6 @@
 #include <linux/init.h>
 
 #include <linux/yam.h>
-#include "yam9600.h"
-#include "yam1200.h"
 
 /* --------------------------------------------------------------------- */
 
@@ -81,6 +81,9 @@ static const char yam_drvinfo[] __initdata = KERN_INFO \
 	"YAM driver version 0.8 by F1OAT/F6FBB\n";
 
 /* --------------------------------------------------------------------- */
+
+#define FIRMWARE_9600	"yam/9600.bin"
+#define FIRMWARE_1200	"yam/1200.bin"
 
 #define YAM_9600	1
 #define YAM_1200	2
@@ -342,9 +345,51 @@ static int fpga_write(int iobase, unsigned char wrd)
 	return 0;
 }
 
-static unsigned char *add_mcs(unsigned char *bits, int bitrate)
+/*
+ * predef should be 0 for loading user defined mcs
+ * predef should be YAM_1200 for loading predef 1200 mcs
+ * predef should be YAM_9600 for loading predef 9600 mcs
+ */
+static unsigned char *add_mcs(unsigned char *bits, int bitrate,
+			      unsigned int predef)
 {
+	const char *fw_name[2] = {FIRMWARE_9600, FIRMWARE_1200};
+	const struct firmware *fw;
+	struct platform_device *pdev;
 	struct yam_mcs *p;
+	int err;
+
+	switch (predef) {
+	case 0:
+		fw = NULL;
+		break;
+	case YAM_1200:
+	case YAM_9600:
+		predef--;
+		pdev = platform_device_register_simple("yam", 0, NULL, 0);
+		if (IS_ERR(pdev)) {
+			printk(KERN_ERR "yam: Failed to register firmware\n");
+			return NULL;
+		}
+		err = request_firmware(&fw, fw_name[predef], &pdev->dev);
+		platform_device_unregister(pdev);
+		if (err) {
+			printk(KERN_ERR "Failed to load firmware \"%s\"\n",
+			       fw_name[predef]);
+			return NULL;
+		}
+		if (fw->size != YAM_FPGA_SIZE) {
+			printk(KERN_ERR "Bogus length %zu in firmware \"%s\"\n",
+			       fw->size, fw_name[predef]);
+			release_firmware(fw);
+			return NULL;
+		}
+		bits = (unsigned char *)fw->data;
+		break;
+	default:
+		printk(KERN_ERR "yam: Invalid predef number %u\n", predef);
+		return NULL;
+	}
 
 	/* If it already exists, replace the bit data */
 	p = yam_data;
@@ -359,6 +404,7 @@ static unsigned char *add_mcs(unsigned char *bits, int bitrate)
 	/* Allocate a new mcs */
 	if ((p = kmalloc(sizeof(struct yam_mcs), GFP_KERNEL)) == NULL) {
 		printk(KERN_WARNING "YAM: no memory to allocate mcs\n");
+		release_firmware(fw);
 		return NULL;
 	}
 	memcpy(p->bits, bits, YAM_FPGA_SIZE);
@@ -366,6 +412,7 @@ static unsigned char *add_mcs(unsigned char *bits, int bitrate)
 	p->next = yam_data;
 	yam_data = p;
 
+	release_firmware(fw);
 	return p->bits;
 }
 
@@ -383,9 +430,11 @@ static unsigned char *get_mcs(int bitrate)
 	/* Load predefined mcs data */
 	switch (bitrate) {
 	case 1200:
-		return add_mcs(bits_1200, bitrate);
+		/* setting predef as YAM_1200 for loading predef 1200 mcs */
+		return add_mcs(NULL, bitrate, YAM_1200);
 	default:
-		return add_mcs(bits_9600, bitrate);
+		/* setting predef as YAM_9600 for loading predef 9600 mcs */
+		return add_mcs(NULL, bitrate, YAM_9600);
 	}
 }
 
@@ -936,7 +985,8 @@ static int yam_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			kfree(ym);
 			return -EINVAL;
 		}
-		add_mcs(ym->bits, ym->bitrate);
+		/* setting predef as 0 for loading userdefined mcs data */
+		add_mcs(ym->bits, ym->bitrate, 0);
 		kfree(ym);
 		break;
 
@@ -1159,6 +1209,8 @@ static void __exit yam_cleanup_driver(void)
 MODULE_AUTHOR("Frederic Rible F1OAT frible@teaser.fr");
 MODULE_DESCRIPTION("Yam amateur radio modem driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(FIRMWARE_1200);
+MODULE_FIRMWARE(FIRMWARE_9600);
 
 module_init(yam_init_driver);
 module_exit(yam_cleanup_driver);
