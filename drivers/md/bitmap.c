@@ -266,7 +266,6 @@ static mdk_rdev_t *next_active_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
 	list_for_each_continue_rcu(pos, &mddev->disks) {
 		rdev = list_entry(pos, mdk_rdev_t, same_set);
 		if (rdev->raid_disk >= 0 &&
-		    test_bit(In_sync, &rdev->flags) &&
 		    !test_bit(Faulty, &rdev->flags)) {
 			/* this is a usable devices */
 			atomic_inc(&rdev->nr_pending);
