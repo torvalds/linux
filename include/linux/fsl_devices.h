@@ -99,7 +99,7 @@ struct spi_device;
 
 struct fsl_spi_platform_data {
 	u32 	initial_spmode;	/* initial SPMODE value */
-	u16	bus_num;
+	s16	bus_num;
 	bool	qe_mode;
 	/* board specific information */
 	u16	max_chipselect;
