@@ -950,15 +950,13 @@ int cpqhp_save_used_resources (struct controller *ctrl, struct pci_func * func)
 						return(1);
 				}
 			}	/* End of base register loop */
-		/* Some other unknown header type */
-		} else {
 		}
 
 		/* find the next device in this slot */
 		func = cpqhp_slot_find(func->bus, func->device, index++);
 	}
 
-	return(0);
+	return 0;
 }
 
 
@@ -993,9 +991,8 @@ int cpqhp_configure_board(struct controller *ctrl, struct pci_func * func)
 		/* Start at the top of config space so that the control
 		 * registers are programmed last
 		 */
-		for (cloop = 0x3C; cloop > 0; cloop -= 4) {
+		for (cloop = 0x3C; cloop > 0; cloop -= 4)
 			pci_bus_write_config_dword (pci_bus, devfn, cloop, func->config_space[cloop >> 2]);
-		}
 
 		pci_bus_read_config_byte (pci_bus, devfn, PCI_HEADER_TYPE, &header_type);
 
@@ -1210,9 +1207,9 @@ int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_st
 	rom_resource_table = detect_HRT_floating_pointer(rom_start, rom_start+0xffff);
 	dbg("rom_resource_table = %p\n", rom_resource_table);
 
-	if (rom_resource_table == NULL) {
+	if (rom_resource_table == NULL)
 		return -ENODEV;
-	}
+
 	/* Sum all resources and setup resource maps */
 	unused_IRQ = readl(rom_resource_table + UNUSED_IRQ);
 	dbg("unused_IRQ = %x\n", unused_IRQ);
@@ -1245,13 +1242,11 @@ int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_st
 
 	temp = 0;
 
-	if (!cpqhp_nic_irq) {
+	if (!cpqhp_nic_irq)
 		cpqhp_nic_irq = ctrl->cfgspc_irq;
-	}
 
-	if (!cpqhp_disk_irq) {
+	if (!cpqhp_disk_irq)
 		cpqhp_disk_irq = ctrl->cfgspc_irq;
-	}
 
 	dbg("cpqhp_disk_irq, cpqhp_nic_irq= %d, %d\n", cpqhp_disk_irq, cpqhp_nic_irq);
 
