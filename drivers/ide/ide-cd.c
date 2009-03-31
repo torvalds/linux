@@ -595,7 +595,6 @@ static ide_startstop_t ide_cd_prepare_rw_request(ide_drive_t *drive,
 				printk(KERN_ERR PFX "%s: %s: buffer botch (%u)\n",
 						drive->name, __func__,
 						rq->current_nr_sectors);
-				cdrom_end_request(drive, 0);
 				return ide_stopped;
 			}
 			rq->current_nr_sectors += nskip;
@@ -972,10 +971,8 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 
 	if (write) {
 		/* disk has become write protected */
-		if (get_disk_ro(cd->disk)) {
-			cdrom_end_request(drive, 0);
+		if (get_disk_ro(cd->disk))
 			return ide_stopped;
-		}
 	} else {
 		/*
 		 * We may be retrying this request after an error.  Fix up any
@@ -987,10 +984,8 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	/* use DMA, if possible / writes *must* be hardware frame aligned */
 	if ((rq->nr_sectors & (sectors_per_frame - 1)) ||
 	    (rq->sector & (sectors_per_frame - 1))) {
-		if (write) {
-			cdrom_end_request(drive, 0);
+		if (write)
 			return ide_stopped;
-		}
 		drive->dma = 0;
 	} else
 		drive->dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
@@ -1045,6 +1040,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
 	struct ide_cmd cmd;
+	int uptodate = 0;
 
 	ide_debug_log(IDE_DBG_RQ, "cmd: 0x%x, block: %llu",
 				  rq->cmd[0], (unsigned long long)block);
@@ -1053,11 +1049,9 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		blk_dump_rq_flags(rq, "ide_cd_do_request");
 
 	if (blk_fs_request(rq)) {
-		if (cdrom_start_rw(drive, rq) == ide_stopped)
-			return ide_stopped;
-
-		if (ide_cd_prepare_rw_request(drive, rq) == ide_stopped)
-			return ide_stopped;
+		if (cdrom_start_rw(drive, rq) == ide_stopped ||
+		    ide_cd_prepare_rw_request(drive, rq) == ide_stopped)
+			goto out_end;
 	} else if (blk_sense_request(rq) || blk_pc_request(rq) ||
 		   rq->cmd_type == REQ_TYPE_ATA_PC) {
 		if (!rq->timeout)
@@ -1066,12 +1060,11 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		cdrom_do_block_pc(drive, rq);
 	} else if (blk_special_request(rq)) {
 		/* right now this can only be a reset... */
-		cdrom_end_request(drive, 1);
-		return ide_stopped;
+		uptodate = 1;
+		goto out_end;
 	} else {
 		blk_dump_rq_flags(rq, DRV_NAME " bad flags");
-		cdrom_end_request(drive, 0);
-		return ide_stopped;
+		goto out_end;
 	}
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -1082,6 +1075,9 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 	cmd.rq = rq;
 
 	return ide_issue_pc(drive, &cmd);
+out_end:
+	cdrom_end_request(drive, uptodate);
+	return ide_stopped;
 }
 
 /*
