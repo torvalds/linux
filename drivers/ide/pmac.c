@@ -919,10 +919,18 @@ static u8 pmac_ide_cable_detect(ide_hwif_t *hwif)
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
 	struct device_node *np = pmif->node;
 	const char *cable = of_get_property(np, "cable-type", NULL);
+	struct device_node *root = of_find_node_by_path("/");
+	const char *model = of_get_property(root, "model", NULL);
 
 	/* Get cable type from device-tree. */
-	if (cable && !strncmp(cable, "80-", 3))
-		return ATA_CBL_PATA80;
+	if (cable && !strncmp(cable, "80-", 3)) {
+		/* Some drives fail to detect 80c cable in PowerBook */
+		/* These machine use proprietary short IDE cable anyway */
+		if (!strncmp(model, "PowerBook", 9))
+			return ATA_CBL_PATA40_SHORT;
+		else
+			return ATA_CBL_PATA80;
+	}
 
 	/*
 	 * G5's seem to have incorrect cable type in device-tree.
