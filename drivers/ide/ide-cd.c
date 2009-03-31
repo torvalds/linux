@@ -1942,9 +1942,6 @@ static struct block_device_operations idecd_ops = {
 };
 
 /* module options */
-static char *ignore;
-module_param(ignore, charp, 0400);
-
 static unsigned long debug_mask;
 module_param(debug_mask, ulong, 0644);
 
@@ -1964,15 +1961,6 @@ static int ide_cd_probe(ide_drive_t *drive)
 
 	if (drive->media != ide_cdrom && drive->media != ide_optical)
 		goto failed;
-
-	/* skip drives that we were told to ignore */
-	if (ignore != NULL) {
-		if (strstr(ignore, drive->name)) {
-			printk(KERN_INFO PFX "ignoring drive %s\n",
-					 drive->name);
-			goto failed;
-		}
-	}
 
 	drive->debug_mask = debug_mask;
 	drive->irq_handler = cdrom_newpc_intr;
