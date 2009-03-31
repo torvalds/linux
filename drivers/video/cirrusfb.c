@@ -519,6 +519,7 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 	int yres;
 	/* memory size in pixels */
 	unsigned pixels = info->screen_size * 8 / var->bits_per_pixel;
+	struct cirrusfb_info *cinfo = info->par;
 
 	switch (var->bits_per_pixel) {
 	case 1:
@@ -626,6 +627,9 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 
 	if (cirrusfb_check_pixclock(var, info))
 		return -EINVAL;
+
+	if (!is_laguna(cinfo))
+		var->accel_flags = FB_ACCELF_TEXT;
 
 	return 0;
 }
@@ -2029,8 +2033,12 @@ static int __devinit cirrusfb_set_fbinfo(struct fb_info *info)
 		    | FBINFO_HWACCEL_FILLRECT
 		    | FBINFO_HWACCEL_IMAGEBLIT
 		    | FBINFO_HWACCEL_COPYAREA;
-	if (noaccel || is_laguna(cinfo))
+	if (noaccel || is_laguna(cinfo)) {
 		info->flags |= FBINFO_HWACCEL_DISABLED;
+		info->fix.accel = FB_ACCEL_NONE;
+	} else
+		info->fix.accel = FB_ACCEL_CIRRUS_ALPINE;
+
 	info->fbops = &cirrusfb_ops;
 
 	if (cinfo->btype == BT_GD5480) {
@@ -2056,7 +2064,6 @@ static int __devinit cirrusfb_set_fbinfo(struct fb_info *info)
 
 	/* FIXME: map region at 0xB8000 if available, fill in here */
 	info->fix.mmio_len   = 0;
-	info->fix.accel = FB_ACCEL_NONE;
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
