@@ -250,7 +250,7 @@ static void __init favr32_setup_atmel_pwm_bl(void)
 
 void __init setup_board(void)
 {
-	at32_map_usart(3, 0);	/* USART 3 => /dev/ttyS0 */
+	at32_map_usart(3, 0, 0);	/* USART 3 => /dev/ttyS0 */
 	at32_setup_serial_console(0);
 }
 

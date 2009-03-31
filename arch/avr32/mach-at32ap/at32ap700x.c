@@ -966,56 +966,68 @@ static struct resource atmel_usart3_resource[] = {
 DEFINE_DEV_DATA(atmel_usart, 3);
 DEV_CLK(usart, atmel_usart3, pba, 6);
 
-static inline void configure_usart0_pins(void)
+static inline void configure_usart0_pins(int flags)
 {
 	u32 pin_mask = (1 << 8) | (1 << 9); /* RXD & TXD */
+	if (flags & ATMEL_USART_RTS)	pin_mask |= (1 << 6);
+	if (flags & ATMEL_USART_CTS)	pin_mask |= (1 << 7);
+	if (flags & ATMEL_USART_CLK)	pin_mask |= (1 << 10);
 
 	select_peripheral(PIOA, pin_mask, PERIPH_B, AT32_GPIOF_PULLUP);
 }
 
-static inline void configure_usart1_pins(void)
+static inline void configure_usart1_pins(int flags)
 {
 	u32 pin_mask = (1 << 17) | (1 << 18); /* RXD & TXD */
+	if (flags & ATMEL_USART_RTS)	pin_mask |= (1 << 19);
+	if (flags & ATMEL_USART_CTS)	pin_mask |= (1 << 20);
+	if (flags & ATMEL_USART_CLK)	pin_mask |= (1 << 16);
 
 	select_peripheral(PIOA, pin_mask, PERIPH_A, AT32_GPIOF_PULLUP);
 }
 
-static inline void configure_usart2_pins(void)
+static inline void configure_usart2_pins(int flags)
 {
 	u32 pin_mask = (1 << 26) | (1 << 27); /* RXD & TXD */
+	if (flags & ATMEL_USART_RTS)	pin_mask |= (1 << 30);
+	if (flags & ATMEL_USART_CTS)	pin_mask |= (1 << 29);
+	if (flags & ATMEL_USART_CLK)	pin_mask |= (1 << 28);
 
 	select_peripheral(PIOB, pin_mask, PERIPH_B, AT32_GPIOF_PULLUP);
 }
 
-static inline void configure_usart3_pins(void)
+static inline void configure_usart3_pins(int flags)
 {
 	u32 pin_mask = (1 << 18) | (1 << 17); /* RXD & TXD */
+	if (flags & ATMEL_USART_RTS)	pin_mask |= (1 << 16);
+	if (flags & ATMEL_USART_CTS)	pin_mask |= (1 << 15);
+	if (flags & ATMEL_USART_CLK)	pin_mask |= (1 << 19);
 
 	select_peripheral(PIOB, pin_mask, PERIPH_B, AT32_GPIOF_PULLUP);
 }
 
 static struct platform_device *__initdata at32_usarts[4];
 
-void __init at32_map_usart(unsigned int hw_id, unsigned int line)
+void __init at32_map_usart(unsigned int hw_id, unsigned int line, int flags)
 {
 	struct platform_device *pdev;
 
 	switch (hw_id) {
 	case 0:
 		pdev = &atmel_usart0_device;
-		configure_usart0_pins();
+		configure_usart0_pins(flags);
 		break;
 	case 1:
 		pdev = &atmel_usart1_device;
-		configure_usart1_pins();
+		configure_usart1_pins(flags);
 		break;
 	case 2:
 		pdev = &atmel_usart2_device;
-		configure_usart2_pins();
+		configure_usart2_pins(flags);
 		break;
 	case 3:
 		pdev = &atmel_usart3_device;
-		configure_usart3_pins();
+		configure_usart3_pins(flags);
 		break;
 	default:
 		return;

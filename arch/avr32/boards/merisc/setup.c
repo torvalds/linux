@@ -231,9 +231,9 @@ static void detect_merisc_board_id(void)
 
 void __init setup_board(void)
 {
-	at32_map_usart(0, 0);
-	at32_map_usart(1, 1);
-	at32_map_usart(3, 3);
+	at32_map_usart(0, 0, 0);
+	at32_map_usart(1, 1, 0);
+	at32_map_usart(3, 3, 0);
 	at32_setup_serial_console(1);
 }
 
@@ -248,7 +248,7 @@ static int __init merisc_init(void)
 	at32_reserve_pin(GPIO_PIOE_BASE, ATMEL_EBI_PE_DATA_ALL | (1 << 26));
 
 	if (merisc_board_id >= 1)
-		at32_map_usart(2, 2);
+		at32_map_usart(2, 2, 0);
 
 	at32_add_device_usart(0);
 	at32_add_device_usart(1);
