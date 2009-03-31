@@ -875,7 +875,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		threshold = fb_readw(cinfo->laguna_mmio + 0xea);
 		control &= ~0x6800;
 		format = 0;
-		threshold &= 0xffe0 & 0x3fbf;
+		threshold &= 0xffc0 & 0x3fbf;
 	}
 	if (nom) {
 		tmp = den << 1;
