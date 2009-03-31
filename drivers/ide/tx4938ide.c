@@ -142,7 +142,7 @@ static void tx4938ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	}
 
 	/* be sure we're looking at the low order bits */
-	tx4938ide_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
+	tx4938ide_outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
 	if (cmd->tf_flags & IDE_TFLAG_IN_FEATURE)
 		tf->feature = tx4938ide_inb(io_ports->feature_addr);
@@ -158,7 +158,7 @@ static void tx4938ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 		tf->device = tx4938ide_inb(io_ports->device_addr);
 
 	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
-		tx4938ide_outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
+		tx4938ide_outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
 			tf->hob_feature =

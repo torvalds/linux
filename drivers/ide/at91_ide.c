@@ -242,7 +242,7 @@ static void at91_ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	}
 
 	/* be sure we're looking at the low order bits */
-	ide_mm_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
+	ide_mm_outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
 	if (cmd->tf_flags & IDE_TFLAG_IN_FEATURE)
 		tf->feature = ide_mm_inb(io_ports->feature_addr);
@@ -258,7 +258,7 @@ static void at91_ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 		tf->device = ide_mm_inb(io_ports->device_addr);
 
 	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
-		ide_mm_outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
+		ide_mm_outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
 			tf->hob_feature = ide_mm_inb(io_ports->feature_addr);
