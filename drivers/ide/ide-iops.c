@@ -386,9 +386,11 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 		return error;
 	}
 
-	id[ATA_ID_UDMA_MODES]  &= ~0xFF00;
-	id[ATA_ID_MWDMA_MODES] &= ~0x0F00;
-	id[ATA_ID_SWDMA_MODES] &= ~0x0F00;
+	if (speed >= XFER_SW_DMA_0) {
+		id[ATA_ID_UDMA_MODES]  &= ~0xFF00;
+		id[ATA_ID_MWDMA_MODES] &= ~0x0700;
+		id[ATA_ID_SWDMA_MODES] &= ~0x0700;
+	}
 
  skip:
 #ifdef CONFIG_BLK_DEV_IDEDMA
