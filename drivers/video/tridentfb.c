@@ -490,7 +490,6 @@ static void tgui_copy_rect(struct tridentfb_par *par,
 /*
  * Accel functions called by the upper layers
  */
-#ifdef CONFIG_FB_TRIDENT_ACCEL
 static void tridentfb_fillrect(struct fb_info *info,
 			       const struct fb_fillrect *fr)
 {
@@ -565,11 +564,6 @@ static int tridentfb_sync(struct fb_info *info)
 		par->wait_engine(par);
 	return 0;
 }
-#else
-#define tridentfb_fillrect cfb_fillrect
-#define tridentfb_copyarea cfb_copyarea
-#define tridentfb_imageblit cfb_imageblit
-#endif /* CONFIG_FB_TRIDENT_ACCEL */
 
 /*
  * Hardware access functions
@@ -1333,9 +1327,7 @@ static struct fb_ops tridentfb_ops = {
 	.fb_fillrect = tridentfb_fillrect,
 	.fb_copyarea = tridentfb_copyarea,
 	.fb_imageblit = tridentfb_imageblit,
-#ifdef CONFIG_FB_TRIDENT_ACCEL
 	.fb_sync = tridentfb_sync,
-#endif
 };
 
 static int __devinit trident_pci_probe(struct pci_dev *dev,
@@ -1358,10 +1350,6 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	default_par = info->par;
 
 	chip_id = id->device;
-
-#ifndef CONFIG_FB_TRIDENT_ACCEL
-	noaccel = 1;
-#endif
 
 	/* If PCI id is 0x9660 then further detect chip type */
 

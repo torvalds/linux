@@ -1598,7 +1598,7 @@ config FB_VT8623
 	  VIA VT8623 [Apollo CLE266] chipset.
 
 config FB_TRIDENT
-	tristate "Trident support"
+	tristate "Trident/CyberXXX/CyberBlade support"
 	depends on FB && PCI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1616,13 +1616,6 @@ config FB_TRIDENT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tridentfb.
-
-config FB_TRIDENT_ACCEL
-	bool "Trident Acceleration functions (EXPERIMENTAL)"
-	depends on FB_TRIDENT && EXPERIMENTAL
-	---help---
-	This will compile the Trident frame buffer device with
-	acceleration functions.
 
 config FB_ARK
 	tristate "ARK 2000PV support"
