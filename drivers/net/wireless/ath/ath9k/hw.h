@@ -28,7 +28,7 @@
 #include "reg.h"
 #include "phy.h"
 
-#include "../ath/regd.h"
+#include "../regd.h"
 
 #define ATHEROS_VENDOR_ID	0x168c
 #define AR5416_DEVID_PCI	0x0023
