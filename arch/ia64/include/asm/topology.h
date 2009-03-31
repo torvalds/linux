@@ -44,11 +44,6 @@
 #define parent_node(nid) (nid)
 
 /*
- * Returns the number of the first CPU on Node 'node'.
- */
-#define node_to_first_cpu(node) (cpumask_first(cpumask_of_node(node)))
-
-/*
  * Determines the node for a given pci bus
  */
 #define pcibus_to_node(bus) PCI_CONTROLLER(bus)->node
