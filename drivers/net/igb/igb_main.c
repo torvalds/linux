@@ -420,6 +420,9 @@ static void igb_free_queues(struct igb_adapter *adapter)
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		netif_napi_del(&adapter->rx_ring[i].napi);
 
+	adapter->num_rx_queues = 0;
+	adapter->num_tx_queues = 0;
+
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
 }
