@@ -1630,6 +1630,13 @@ static bool service_io(struct device *dev)
 		}
 	}
 
+	/* OK, so we noted that it was pretty poor to use an fdatasync as a
+	 * barrier.  But Christoph Hellwig points out that we need a sync
+	 * *afterwards* as well: "Barriers specify no reordering to the front
+	 * or the back."  And Jens Axboe confirmed it, so here we are: */
+	if (out->type & VIRTIO_BLK_T_BARRIER)
+		fdatasync(vblk->fd);
+
 	/* We can't trigger an IRQ, because we're not the Launcher.  It does
 	 * that when we tell it we're done. */
 	add_used(dev->vq, head, wlen);
