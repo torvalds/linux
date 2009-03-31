@@ -38,10 +38,9 @@ int config_drive_for_dma(ide_drive_t *drive)
 	 * Enable DMA on any drive that has mode2 DMA
 	 * (multi or single) enabled
 	 */
-	if (id[ATA_ID_FIELD_VALID] & 2)	/* regular DMA */
-		if ((id[ATA_ID_MWDMA_MODES] & 0x404) == 0x404 ||
-		    (id[ATA_ID_SWDMA_MODES] & 0x404) == 0x404)
-			return 1;
+	if ((id[ATA_ID_MWDMA_MODES] & 0x404) == 0x404 ||
+	    (id[ATA_ID_SWDMA_MODES] & 0x404) == 0x404)
+		return 1;
 
 	/* Consult the list of known "good" drives */
 	if (ide_dma_good_drive(drive))

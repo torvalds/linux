@@ -92,8 +92,7 @@ static u8 cs5530_udma_filter(ide_drive_t *drive)
 		if ((mateid[ATA_ID_FIELD_VALID] & 4) &&
 		    (mateid[ATA_ID_UDMA_MODES] & 7))
 			goto out;
-		if ((mateid[ATA_ID_FIELD_VALID] & 2) &&
-		    (mateid[ATA_ID_MWDMA_MODES] & 7))
+		if (mateid[ATA_ID_MWDMA_MODES] & 7)
 			mask = 0;
 	}
 out:

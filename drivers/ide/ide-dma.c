@@ -245,12 +245,11 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 	case XFER_UDMA_0:
 		if ((id[ATA_ID_FIELD_VALID] & 4) == 0)
 			break;
-
+		mask = id[ATA_ID_UDMA_MODES];
 		if (port_ops && port_ops->udma_filter)
-			mask = port_ops->udma_filter(drive);
+			mask &= port_ops->udma_filter(drive);
 		else
-			mask = hwif->ultra_mask;
-		mask &= id[ATA_ID_UDMA_MODES];
+			mask &= hwif->ultra_mask;
 
 		/*
 		 * avoid false cable warning from eighty_ninty_three()
@@ -261,18 +260,15 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 		}
 		break;
 	case XFER_MW_DMA_0:
-		if ((id[ATA_ID_FIELD_VALID] & 2) == 0)
-			break;
+		mask = id[ATA_ID_MWDMA_MODES];
 		if (port_ops && port_ops->mdma_filter)
-			mask = port_ops->mdma_filter(drive);
+			mask &= port_ops->mdma_filter(drive);
 		else
-			mask = hwif->mwdma_mask;
-		mask &= id[ATA_ID_MWDMA_MODES];
+			mask &= hwif->mwdma_mask;
 		break;
 	case XFER_SW_DMA_0:
-		if (id[ATA_ID_FIELD_VALID] & 2) {
-			mask = id[ATA_ID_SWDMA_MODES] & hwif->swdma_mask;
-		} else if (id[ATA_ID_OLD_DMA_MODES] >> 8) {
+		mask = id[ATA_ID_SWDMA_MODES];
+		if (!(mask & ATA_SWDMA2) && (id[ATA_ID_OLD_DMA_MODES] >> 8)) {
 			u8 mode = id[ATA_ID_OLD_DMA_MODES] >> 8;
 
 			/*
@@ -280,8 +276,9 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 			 * (the maximum allowed mode is XFER_SW_DMA_2)
 			 */
 			if (mode <= 2)
-				mask = ((2 << mode) - 1) & hwif->swdma_mask;
+				mask = (2 << mode) - 1;
 		}
+		mask &= hwif->swdma_mask;
 		break;
 	default:
 		BUG();
@@ -398,11 +395,10 @@ int ide_id_dma_bug(ide_drive_t *drive)
 		if ((id[ATA_ID_UDMA_MODES] >> 8) &&
 		    (id[ATA_ID_MWDMA_MODES] >> 8))
 			goto err_out;
-	} else if (id[ATA_ID_FIELD_VALID] & 2) {
-		if ((id[ATA_ID_MWDMA_MODES] >> 8) &&
-		    (id[ATA_ID_SWDMA_MODES] >> 8))
-			goto err_out;
-	}
+	} else if ((id[ATA_ID_MWDMA_MODES] >> 8) &&
+		   (id[ATA_ID_SWDMA_MODES] >> 8))
+		goto err_out;
+
 	return 0;
 err_out:
 	printk(KERN_ERR "%s: bad DMA info in identify block\n", drive->name);
