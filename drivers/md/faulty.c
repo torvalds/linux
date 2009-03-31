@@ -64,7 +64,7 @@
 #define MaxFault	50
 #include <linux/blkdev.h>
 #include <linux/raid/md_u.h>
-#include <linux/raid/md_k.h>
+#include "md.h"
 #include <linux/seq_file.h>
 
 

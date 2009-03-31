@@ -44,10 +44,10 @@
  */
 
 #include <linux/blkdev.h>
-#include <linux/raid/md_k.h>
 #include <linux/kthread.h>
 #include <linux/async_tx.h>
 #include <linux/seq_file.h>
+#include "md.h"
 #include "raid5.h"
 #include "raid6.h"
 #include "bitmap.h"

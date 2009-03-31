@@ -19,8 +19,8 @@
 */
 
 #include <linux/blkdev.h>
-#include <linux/raid/md_k.h>
 #include <linux/seq_file.h>
+#include "md.h"
 #include "raid0.h"
 
 static void raid0_unplug(struct request_queue *q)

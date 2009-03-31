@@ -20,8 +20,8 @@
 
 #include <linux/delay.h>
 #include <linux/blkdev.h>
-#include <linux/raid/md_k.h>
 #include <linux/seq_file.h>
+#include "md.h"
 #include "dm-bio-list.h"
 #include "raid10.h"
 #include "bitmap.h"

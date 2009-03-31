@@ -45,9 +45,9 @@
 #include <linux/reboot.h>
 #include <linux/file.h>
 #include <linux/delay.h>
-#include <linux/raid/md_k.h>
 #include <linux/raid/md_p.h>
 #include <linux/raid/md_u.h>
+#include "md.h"
 #include "bitmap.h"
 
 #define DEBUG 0

@@ -27,7 +27,7 @@
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/buffer_head.h>
-#include <linux/raid/md_k.h>
+#include "md.h"
 #include "bitmap.h"
 
 /* debug macros */
