@@ -97,8 +97,8 @@ struct epoll_filefd {
  */
 struct nested_call_node {
 	struct list_head llink;
-	struct task_struct *task;
 	void *cookie;
+	int cpu;
 };
 
 /*
@@ -327,7 +327,7 @@ static int ep_call_nested(struct nested_calls *ncalls, int max_nests,
 {
 	int error, call_nests = 0;
 	unsigned long flags;
-	struct task_struct *this_task = current;
+	int this_cpu = get_cpu();
 	struct list_head *lsthead = &ncalls->tasks_call_list;
 	struct nested_call_node *tncur;
 	struct nested_call_node tnode;
@@ -340,20 +340,19 @@ static int ep_call_nested(struct nested_calls *ncalls, int max_nests,
 	 * very much limited.
 	 */
 	list_for_each_entry(tncur, lsthead, llink) {
-		if (tncur->task == this_task &&
+		if (tncur->cpu == this_cpu &&
 		    (tncur->cookie == cookie || ++call_nests > max_nests)) {
 			/*
 			 * Ops ... loop detected or maximum nest level reached.
 			 * We abort this wake by breaking the cycle itself.
 			 */
-			spin_unlock_irqrestore(&ncalls->lock, flags);
-
-			return -1;
+			error = -1;
+			goto out_unlock;
 		}
 	}
 
 	/* Add the current task and cookie to the list */
-	tnode.task = this_task;
+	tnode.cpu = this_cpu;
 	tnode.cookie = cookie;
 	list_add(&tnode.llink, lsthead);
 
@@ -365,8 +364,10 @@ static int ep_call_nested(struct nested_calls *ncalls, int max_nests,
 	/* Remove the current task from the list */
 	spin_lock_irqsave(&ncalls->lock, flags);
 	list_del(&tnode.llink);
+ out_unlock:
 	spin_unlock_irqrestore(&ncalls->lock, flags);
 
+	put_cpu();
 	return error;
 }
 
