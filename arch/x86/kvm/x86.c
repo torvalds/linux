@@ -523,6 +523,9 @@ static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	efer |= vcpu->arch.shadow_efer & EFER_LMA;
 
 	vcpu->arch.shadow_efer = efer;
+
+	vcpu->arch.mmu.base_role.nxe = (efer & EFER_NX) && !tdp_enabled;
+	kvm_mmu_reset_context(vcpu);
 }
 
 void kvm_enable_efer_bits(u64 mask)
