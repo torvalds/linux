@@ -1324,10 +1324,15 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	}
 
 	if (rdev->raid_disk >= 0 &&
-	    !test_bit(In_sync, &rdev->flags) &&
-	    rdev->recovery_offset > 0) {
-		sb->feature_map |= cpu_to_le32(MD_FEATURE_RECOVERY_OFFSET);
-		sb->recovery_offset = cpu_to_le64(rdev->recovery_offset);
+	    !test_bit(In_sync, &rdev->flags)) {
+		if (mddev->curr_resync_completed > rdev->recovery_offset)
+			rdev->recovery_offset = mddev->curr_resync_completed;
+		if (rdev->recovery_offset > 0) {
+			sb->feature_map |=
+				cpu_to_le32(MD_FEATURE_RECOVERY_OFFSET);
+			sb->recovery_offset =
+				cpu_to_le64(rdev->recovery_offset);
+		}
 	}
 
 	if (mddev->reshape_position != MaxSector) {
@@ -6072,6 +6077,18 @@ void md_do_sync(mddev_t *mddev)
 		}
 		if (kthread_should_stop())
 			goto interrupted;
+
+		if (mddev->curr_resync > mddev->curr_resync_completed &&
+		    (mddev->curr_resync - mddev->curr_resync_completed)
+		    > (max_sectors >> 4)) {
+			/* time to update curr_resync_completed */
+			blk_unplug(mddev->queue);
+			wait_event(mddev->recovery_wait,
+				   atomic_read(&mddev->recovery_active) == 0);
+			mddev->curr_resync_completed =
+				mddev->curr_resync;
+			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+		}
 		sectors = mddev->pers->sync_request(mddev, j, &skipped,
 						  currspeed < speed_min(mddev));
 		if (sectors == 0) {
@@ -6204,6 +6221,8 @@ static int remove_and_add_spares(mddev_t *mddev)
 {
 	mdk_rdev_t *rdev;
 	int spares = 0;
+
+	mddev->curr_resync_completed = 0;
 
 	list_for_each_entry(rdev, &mddev->disks, same_set)
 		if (rdev->raid_disk >= 0 &&

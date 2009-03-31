@@ -159,6 +159,13 @@ struct mddev_s
 	struct mdk_thread_s		*thread;	/* management thread */
 	struct mdk_thread_s		*sync_thread;	/* doing resync or reconstruct */
 	sector_t			curr_resync;	/* last block scheduled */
+	/* As resync requests can complete out of order, we cannot easily track
+	 * how much resync has been completed.  So we occasionally pause until
+	 * everything completes, then set curr_resync_completed to curr_resync.
+	 * As such it may be well behind the real resync mark, but it is a value
+	 * we are certain of.
+	 */
+	sector_t			curr_resync_completed;
 	unsigned long			resync_mark;	/* a recent timestamp */
 	sector_t			resync_mark_cnt;/* blocks written at resync_mark */
 	sector_t			curr_mark_cnt; /* blocks scheduled now */
