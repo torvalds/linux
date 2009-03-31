@@ -217,6 +217,7 @@
 
 /* In module TWL4030_MODULE_PM_MASTER */
 #define PROTECT_KEY			0x0E
+#define STS_HW_CONDITIONS		0x0F
 
 /* In module TWL4030_MODULE_PM_RECEIVER */
 #define VUSB_DEDICATED1			0x7D
@@ -351,15 +352,26 @@ static enum linkstat twl4030_usb_linkstat(struct twl4030_usb *twl)
 	int	status;
 	int	linkstat = USB_LINK_UNKNOWN;
 
-	/* STS_HW_CONDITIONS */
-	status = twl4030_readb(twl, TWL4030_MODULE_PM_MASTER, 0x0f);
+	/*
+	 * For ID/VBUS sensing, see manual section 15.4.8 ...
+	 * except when using only battery backup power, two
+	 * comparators produce VBUS_PRES and ID_PRES signals,
+	 * which don't match docs elsewhere.  But ... BIT(7)
+	 * and BIT(2) of STS_HW_CONDITIONS, respectively, do
+	 * seem to match up.  If either is true the USB_PRES
+	 * signal is active, the OTG module is activated, and
+	 * its interrupt may be raised (may wake the system).
+	 */
+	status = twl4030_readb(twl, TWL4030_MODULE_PM_MASTER,
+			STS_HW_CONDITIONS);
 	if (status < 0)
 		dev_err(twl->dev, "USB link status err %d\n", status);
-	else if (status & BIT(7))
-		linkstat = USB_LINK_VBUS;
-	else if (status & BIT(2))
-		linkstat = USB_LINK_ID;
-	else
+	else if (status & (BIT(7) | BIT(2))) {
+		if (status & BIT(2))
+			linkstat = USB_LINK_ID;
+		else
+			linkstat = USB_LINK_VBUS;
+	} else
 		linkstat = USB_LINK_NONE;
 
 	dev_dbg(twl->dev, "HW_CONDITIONS 0x%02x/%d; link %d\n",
