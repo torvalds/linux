@@ -1035,6 +1035,8 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 		return;
 	}
 	switch (cdev->private->state) {
+	case DEV_STATE_BOXED:
+		/* Device did not respond in time. */
 	case DEV_STATE_NOT_OPER:
 		cdev->private->flags.recog_done = 1;
 		/* Remove device found not operational. */
@@ -1044,8 +1046,6 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 		if (atomic_dec_and_test(&ccw_device_init_count))
 			wake_up(&ccw_device_init_wq);
 		break;
-	case DEV_STATE_BOXED:
-		/* Device did not respond in time. */
 	case DEV_STATE_OFFLINE:
 		/* 
 		 * We can't register the device in interrupt context so

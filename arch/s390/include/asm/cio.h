@@ -456,6 +456,8 @@ struct ciw {
 #define CIO_OPER       0x0004
 /* Sick revalidation of device. */
 #define CIO_REVALIDATE 0x0008
+/* Device did not respond in time. */
+#define CIO_BOXED      0x0010
 
 /**
  * struct ccw_dev_id - unique identifier for ccw devices
