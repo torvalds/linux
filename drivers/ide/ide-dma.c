@@ -460,7 +460,7 @@ void ide_dma_lost_irq(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_dma_lost_irq);
 
-void ide_dma_timeout(ide_drive_t *drive)
+static void ide_dma_timeout(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
@@ -473,7 +473,6 @@ void ide_dma_timeout(ide_drive_t *drive)
 
 	hwif->dma_ops->dma_end(drive);
 }
-EXPORT_SYMBOL_GPL(ide_dma_timeout);
 
 /*
  * un-busy the port etc, and clear any pending DMA status. we want to
@@ -483,6 +482,7 @@ EXPORT_SYMBOL_GPL(ide_dma_timeout);
 ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
 	struct request *rq;
 	ide_startstop_t ret = ide_stopped;
 
@@ -492,12 +492,14 @@ ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 
 	if (error < 0) {
 		printk(KERN_WARNING "%s: DMA timeout error\n", drive->name);
-		(void)hwif->dma_ops->dma_end(drive);
+		(void)dma_ops->dma_end(drive);
 		ret = ide_error(drive, "dma timeout error",
 				hwif->tp_ops->read_status(hwif));
 	} else {
 		printk(KERN_WARNING "%s: DMA timeout retry\n", drive->name);
-		hwif->dma_ops->dma_timeout(drive);
+		if (dma_ops->dma_clear)
+			dma_ops->dma_clear(drive);
+		ide_dma_timeout(drive);
 	}
 
 	/*

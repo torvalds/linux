@@ -533,7 +533,6 @@ static const struct ide_dma_ops sgiioc4_dma_ops = {
 	.dma_end		= sgiioc4_dma_end,
 	.dma_test_irq		= sgiioc4_dma_test_irq,
 	.dma_lost_irq		= sgiioc4_dma_lost_irq,
-	.dma_timeout		= ide_dma_timeout,
 };
 
 static const struct ide_port_info sgiioc4_port_info __devinitconst = {

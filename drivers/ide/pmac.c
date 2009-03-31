@@ -1650,7 +1650,6 @@ static const struct ide_dma_ops pmac_dma_ops = {
 	.dma_start		= pmac_ide_dma_start,
 	.dma_end		= pmac_ide_dma_end,
 	.dma_test_irq		= pmac_ide_dma_test_irq,
-	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= pmac_ide_dma_lost_irq,
 };
 
