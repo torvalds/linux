@@ -570,8 +570,12 @@ int ide_dma_prepare(ide_drive_t *drive, struct ide_cmd *cmd)
 
 	if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0 ||
 	    (dma_ops->dma_check && dma_ops->dma_check(drive, cmd)) ||
-	    ide_build_sglist(drive, cmd) == 0 ||
-	    dma_ops->dma_setup(drive, cmd))
+	    ide_build_sglist(drive, cmd) == 0)
 		return 1;
+	if (dma_ops->dma_setup(drive, cmd)) {
+		ide_destroy_dmatable(drive);
+		ide_map_sg(drive, cmd);
+		return 1;
+	}
 	return 0;
 }

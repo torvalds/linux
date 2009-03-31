@@ -1455,7 +1455,7 @@ static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 				       "switching to PIO on Ohare chipset\n", drive->name);
 				pmif->broken_dma_warn = 1;
 			}
-			goto use_pio_instead;
+			return 0;
 		}
 		while (cur_len) {
 			unsigned int tc = (cur_len < 0xfe00)? cur_len: 0xfe00;
@@ -1463,7 +1463,7 @@ static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 			if (count++ >= MAX_DCMDS) {
 				printk(KERN_WARNING "%s: DMA table too small\n",
 				       drive->name);
-				goto use_pio_instead;
+				return 0;
 			}
 			st_le16(&table->command, wr? OUTPUT_MORE: INPUT_MORE);
 			st_le16(&table->req_count, tc);
@@ -1492,9 +1492,6 @@ static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 
 	printk(KERN_DEBUG "%s: empty DMA table?\n", drive->name);
 
-use_pio_instead:
-	ide_destroy_dmatable(drive);
-
 	return 0; /* revert to PIO for this request */
 }
 
@@ -1510,10 +1507,8 @@ static int pmac_ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	u8 unit = drive->dn & 1, ata4 = (pmif->kind == controller_kl_ata4);
 	u8 write = !!(cmd->tf_flags & IDE_TFLAG_WRITE);
 
-	if (pmac_ide_build_dmatable(drive, cmd) == 0) {
-		ide_map_sg(drive, cmd);
+	if (pmac_ide_build_dmatable(drive, cmd) == 0)
 		return 1;
-	}
 
 	/* Apple adds 60ns to wrDataSetup on reads */
 	if (ata4 && (pmif->timings[unit] & TR_66_UDMA_EN)) {

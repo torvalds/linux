@@ -193,11 +193,10 @@ static int trm290_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	unsigned int count, rw = (cmd->tf_flags & IDE_TFLAG_WRITE) ? 1 : 2;
 
 	count = ide_build_dmatable(drive, cmd);
-	if (count == 0) {
-		ide_map_sg(drive, cmd);
+	if (count == 0)
 		/* try PIO instead of DMA */
 		return 1;
-	}
+
 	outl(hwif->dmatable_dma | rw, hwif->dma_base);
 	drive->waiting_for_dma = 1;
 	/* start DMA */

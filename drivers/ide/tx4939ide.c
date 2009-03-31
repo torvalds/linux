@@ -279,8 +279,6 @@ use_pio_instead:
 	printk(KERN_ERR "%s: %s\n", drive->name,
 		count ? "DMA table too small" : "empty DMA table?");
 
-	ide_destroy_dmatable(drive);
-
 	return 0; /* revert to PIO for this request */
 }
 #else
@@ -294,10 +292,8 @@ static int tx4939ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	u8 rw = (cmd->tf_flags & IDE_TFLAG_WRITE) ? 0 : ATA_DMA_WR;
 
 	/* fall back to PIO! */
-	if (tx4939ide_build_dmatable(drive, cmd) == 0) {
-		ide_map_sg(drive, cmd);
+	if (tx4939ide_build_dmatable(drive, cmd) == 0)
 		return 1;
-	}
 
 	/* PRD table */
 	tx4939ide_writel(hwif->dmatable_dma, base, TX4939IDE_PRD_Ptr);

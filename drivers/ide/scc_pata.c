@@ -321,10 +321,8 @@ static int scc_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	u8 dma_stat;
 
 	/* fall back to pio! */
-	if (ide_build_dmatable(drive, cmd) == 0) {
-		ide_map_sg(drive, cmd);
+	if (ide_build_dmatable(drive, cmd) == 0)
 		return 1;
-	}
 
 	/* PRD table */
 	out_be32((void __iomem *)(hwif->dma_base + 8), hwif->dmatable_dma);

@@ -166,8 +166,6 @@ use_pio_instead:
 	printk(KERN_ERR "%s: %s\n", drive->name,
 		count ? "DMA table too small" : "empty DMA table?");
 
-	ide_destroy_dmatable(drive);
-
 	return 0; /* revert to PIO for this request */
 }
 EXPORT_SYMBOL_GPL(ide_build_dmatable);

@@ -236,7 +236,7 @@ static int auide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 			if (++count >= PRD_ENTRIES) {
 				printk(KERN_WARNING "%s: DMA table too small\n",
 				       drive->name);
-				goto use_pio_instead;
+				return 0;
 			}
 
 			/* Lets enable intr for the last descriptor only */
@@ -272,9 +272,6 @@ static int auide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (count)
 		return 1;
 
- use_pio_instead:
-	ide_destroy_dmatable(drive);
-
 	return 0; /* revert to PIO for this request */
 }
 
@@ -290,10 +287,8 @@ static void auide_dma_start(ide_drive_t *drive )
 
 static int auide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
-	if (auide_build_dmatable(drive, cmd) == 0) {
-		ide_map_sg(drive, cmd);
+	if (auide_build_dmatable(drive, cmd) == 0)
 		return 1;
-	}
 
 	drive->waiting_for_dma = 1;
 	return 0;
