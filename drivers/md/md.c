@@ -2888,6 +2888,8 @@ __ATTR(chunk_size, S_IRUGO|S_IWUSR, chunk_size_show, chunk_size_store);
 static ssize_t
 resync_start_show(mddev_t *mddev, char *page)
 {
+	if (mddev->recovery_cp == MaxSector)
+		return sprintf(page, "none\n");
 	return sprintf(page, "%llu\n", (unsigned long long)mddev->recovery_cp);
 }
 
@@ -3469,6 +3471,8 @@ static ssize_t
 sync_speed_show(mddev_t *mddev, char *page)
 {
 	unsigned long resync, dt, db;
+	if (mddev->curr_resync == 0)
+		return sprintf(page, "none\n");
 	resync = mddev->curr_mark_cnt - atomic_read(&mddev->recovery_active);
 	dt = (jiffies - mddev->resync_mark) / HZ;
 	if (!dt) dt++;
