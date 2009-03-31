@@ -198,6 +198,8 @@ struct stripe_head {
 	struct hlist_node	hash;
 	struct list_head	lru;	      /* inactive_list or handle_list */
 	struct raid5_private_data *raid_conf;
+	short			generation;	/* increments with every
+						 * reshape */
 	sector_t		sector;		/* sector of this row */
 	short			pd_idx;		/* parity disk index */
 	short			qd_idx;		/* 'Q' disk index for raid6 */
@@ -348,6 +350,7 @@ struct raid5_private_data {
 	 */
 	sector_t		reshape_safe;
 	int			previous_raid_disks;
+	short			generation; /* increments with every reshape */
 
 	struct list_head	handle_list; /* stripes needing handling */
 	struct list_head	hold_list; /* preread ready stripes */
