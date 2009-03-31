@@ -20,7 +20,6 @@
 
 #include <asm/cacheflush.h>
 #include <asm/ftrace.h>
-#include <linux/ftrace.h>
 #include <asm/nops.h>
 #include <asm/nmi.h>
 
