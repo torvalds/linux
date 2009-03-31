@@ -1920,6 +1920,30 @@ config FB_TMIO_ACCELL
 	depends on FB_TMIO
 	default y
 
+config FB_S3C
+	tristate "Samsung S3C framebuffer support"
+	depends on FB && ARCH_S3C64XX
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Frame buffer driver for the built-in FB controller in the Samsung
+	  SoC line from the S3C2443 onwards, including the S3C2416, S3C2450,
+	  and the S3C64XX series such as the S3C6400 and S3C6410.
+
+	  These chips all have the same basic framebuffer design with the
+	  actual capabilities depending on the chip. For instance the S3C6400
+	  and S3C6410 support 4 hardware windows whereas the S3C24XX series
+	  currently only have two.
+
+	  Currently the support is only for the S3C6400 and S3C6410 SoCs.
+
+config FB_S3C_DEBUG_REGWRITE
+       bool "Debug register writes"
+       depends on FB_S3C
+       ---help---
+         Show all register writes via printk(KERN_DEBUG)
+
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"
 	depends on FB && ARCH_S3C2410
