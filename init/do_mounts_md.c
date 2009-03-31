@@ -1,5 +1,6 @@
 #include <linux/delay.h>
-#include <linux/raid/md.h>
+#include <linux/raid/md_u.h>
+#include <linux/raid/md_p.h>
 
 #include "do_mounts.h"
 

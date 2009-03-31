@@ -1,8 +1,6 @@
 #ifndef _LINEAR_H
 #define _LINEAR_H
 
-#include <linux/raid/md.h>
-
 struct dev_info {
 	mdk_rdev_t	*rdev;
 	sector_t	num_sectors;

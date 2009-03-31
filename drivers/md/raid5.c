@@ -43,8 +43,12 @@
  * miss any bits.
  */
 
+#include <linux/blkdev.h>
+#include <linux/raid/md_k.h>
 #include <linux/kthread.h>
 #include <linux/async_tx.h>
+#include <linux/seq_file.h>
+#include "raid5.h"
 #include "raid6.h"
 #include "bitmap.h"
 
@@ -1467,7 +1471,7 @@ static void copy_data(int frombio, struct bio *bio,
 
 static void compute_parity6(struct stripe_head *sh, int method)
 {
-	raid6_conf_t *conf = sh->raid_conf;
+	raid5_conf_t *conf = sh->raid_conf;
 	int i, pd_idx = sh->pd_idx, qd_idx, d0_idx, disks = sh->disks, count;
 	struct bio *chosen;
 	/**** FIX THIS: This could be very bad if disks is close to 256 ****/
@@ -2795,7 +2799,7 @@ static bool handle_stripe5(struct stripe_head *sh)
 
 static bool handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 {
-	raid6_conf_t *conf = sh->raid_conf;
+	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks;
 	struct bio *return_bi = NULL;
 	int i, pd_idx = sh->pd_idx;

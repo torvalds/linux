@@ -1,7 +1,6 @@
 #ifndef _RAID5_H
 #define _RAID5_H
 
-#include <linux/raid/md.h>
 #include <linux/raid/xor.h>
 
 /*

@@ -62,7 +62,10 @@
 #define	ModeShift	5
 
 #define MaxFault	50
-#include <linux/raid/md.h>
+#include <linux/blkdev.h>
+#include <linux/raid/md_u.h>
+#include <linux/raid/md_k.h>
+#include <linux/seq_file.h>
 
 
 static void faulty_fail(struct bio *bio, int error)

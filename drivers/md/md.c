@@ -33,8 +33,9 @@
 */
 
 #include <linux/kthread.h>
-#include <linux/raid/md.h>
+#include <linux/blkdev.h>
 #include <linux/sysctl.h>
+#include <linux/seq_file.h>
 #include <linux/buffer_head.h> /* for invalidate_bdev */
 #include <linux/poll.h>
 #include <linux/ctype.h>
@@ -44,6 +45,9 @@
 #include <linux/reboot.h>
 #include <linux/file.h>
 #include <linux/delay.h>
+#include <linux/raid/md_k.h>
+#include <linux/raid/md_p.h>
+#include <linux/raid/md_u.h>
 #include "bitmap.h"
 
 #define DEBUG 0

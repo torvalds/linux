@@ -1,8 +1,6 @@
 #ifndef _RAID0_H
 #define _RAID0_H
 
-#include <linux/raid/md.h>
-
 struct strip_zone
 {
 	sector_t zone_start;	/* Zone offset in md_dev (in sectors) */

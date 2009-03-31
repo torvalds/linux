@@ -16,6 +16,7 @@
  * wait if count gets too high, wake when it drops to half.
  */
 
+#include <linux/blkdev.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -26,7 +27,7 @@
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/buffer_head.h>
-#include <linux/raid/md.h>
+#include <linux/raid/md_k.h>
 #include "bitmap.h"
 
 /* debug macros */

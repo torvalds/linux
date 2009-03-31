@@ -17,11 +17,7 @@
 
 /* Set to 1 to use kernel-wide empty_zero_page */
 #define RAID6_USE_EMPTY_ZERO_PAGE 0
-
-#include <linux/raid/md.h>
-#include "raid5.h"
-
-typedef raid5_conf_t raid6_conf_t; /* Same configuration */
+#include <linux/blkdev.h>
 
 /* Additional compute_parity mode -- updates the parity w/o LOCKING */
 #define UPDATE_PARITY	4

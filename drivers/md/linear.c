@@ -16,6 +16,10 @@
    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
 */
 
+#include <linux/blkdev.h>
+#include <linux/raid/md_u.h>
+#include <linux/raid/md_k.h>
+#include <linux/seq_file.h>
 #include "linear.h"
 
 /*
