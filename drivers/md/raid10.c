@@ -2211,6 +2211,9 @@ static int stop(mddev_t *mddev)
 {
 	conf_t *conf = mddev_to_conf(mddev);
 
+	raise_barrier(conf, 0);
+	lower_barrier(conf);
+
 	md_unregister_thread(mddev->thread);
 	mddev->thread = NULL;
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/

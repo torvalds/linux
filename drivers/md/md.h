@@ -119,6 +119,8 @@ struct mddev_s
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
 #define MD_CHANGE_PENDING 2	/* superblock update in progress */
 
+	int				suspended;
+	atomic_t			active_io;
 	int				ro;
 
 	struct gendisk			*gendisk;

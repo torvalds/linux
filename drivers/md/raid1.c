@@ -2092,6 +2092,9 @@ static int stop(mddev_t *mddev)
 		/* need to kick something here to make sure I/O goes? */
 	}
 
+	raise_barrier(conf);
+	lower_barrier(conf);
+
 	md_unregister_thread(mddev->thread);
 	mddev->thread = NULL;
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
