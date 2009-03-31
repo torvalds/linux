@@ -112,8 +112,6 @@ static int __init md_setup(char *str)
 	return 1;
 }
 
-#define MdpMinorShift 6
-
 static void __init md_setup_drive(void)
 {
 	int minor, i, ent, partitioned;

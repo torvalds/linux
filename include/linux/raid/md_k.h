@@ -20,16 +20,6 @@
 
 #ifdef CONFIG_BLOCK
 
-#define	LEVEL_MULTIPATH		(-4)
-#define	LEVEL_LINEAR		(-1)
-#define	LEVEL_FAULTY		(-5)
-
-/* we need a value for 'no level specified' and 0
- * means 'raid0', so we need something else.  This is
- * for internal use only
- */
-#define	LEVEL_NONE		(-1000000)
-
 #define MaxSector (~(sector_t)0)
 
 typedef struct mddev_s mddev_t;

@@ -46,9 +46,6 @@
 #include <linux/delay.h>
 #include "bitmap.h"
 
-/* 63 partitions with the alternate major number (mdp) */
-#define MdpMinorShift 6
-
 #define DEBUG 0
 #define dprintk(x...) ((void)(DEBUG && printk(x)))
 

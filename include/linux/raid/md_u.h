@@ -46,6 +46,12 @@
 #define STOP_ARRAY_RO		_IO (MD_MAJOR, 0x33)
 #define RESTART_ARRAY_RW	_IO (MD_MAJOR, 0x34)
 
+/* 63 partitions with the alternate major number (mdp) */
+#define MdpMinorShift 6
+#ifdef __KERNEL__
+extern int mdp_major;
+#endif
+
 typedef struct mdu_version_s {
 	int major;
 	int minor;
@@ -84,6 +90,17 @@ typedef struct mdu_array_info_s {
 	int chunk_size;	/*  1 chunk size in bytes		      */
 
 } mdu_array_info_t;
+
+/* non-obvious values for 'level' */
+#define	LEVEL_MULTIPATH		(-4)
+#define	LEVEL_LINEAR		(-1)
+#define	LEVEL_FAULTY		(-5)
+
+/* we need a value for 'no level specified' and 0
+ * means 'raid0', so we need something else.  This is
+ * for internal use only
+ */
+#define	LEVEL_NONE		(-1000000)
 
 typedef struct mdu_disk_info_s {
 	/*
