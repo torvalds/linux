@@ -295,7 +295,7 @@ static const struct ide_tp_ops at91_ide_tp_ops = {
 	.exec_command	= ide_exec_command,
 	.read_status	= ide_read_status,
 	.read_altstatus	= ide_read_altstatus,
-	.set_irq	= ide_set_irq,
+	.write_devctl	= ide_write_devctl,
 
 	.tf_load	= at91_ide_tf_load,
 	.tf_read	= at91_ide_tf_read,

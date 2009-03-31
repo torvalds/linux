@@ -159,8 +159,7 @@ static const struct ide_tp_ops h8300_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
-
-	.set_irq		= ide_set_irq,
+	.write_devctl		= ide_write_devctl,
 
 	.tf_load		= h8300_tf_load,
 	.tf_read		= h8300_tf_read,

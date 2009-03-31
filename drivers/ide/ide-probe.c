@@ -260,7 +260,7 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 	 * during the identify phase that the IRQ handler isn't expecting.
 	 */
 	if (io_ports->ctl_addr)
-		tp_ops->set_irq(hwif, 0);
+		tp_ops->write_devctl(hwif, ATA_NIEN | ATA_DEVCTL_OBS);
 
 	/* take a deep breath */
 	msleep(50);
@@ -628,7 +628,7 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 		if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0 ||
 		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
 			SELECT_DRIVE(drive);
-			hwif->tp_ops->set_irq(hwif, 1);
+			hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 			mdelay(2);
 			rc = ide_wait_not_busy(hwif, 35000);
 			if (rc)
@@ -845,7 +845,7 @@ static int init_irq (ide_hwif_t *hwif)
 		irq_handler = ide_intr;
 
 	if (io_ports->ctl_addr)
-		hwif->tp_ops->set_irq(hwif, 1);
+		hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	if (request_irq(hwif->irq, irq_handler, sa, hwif->name, hwif))
 		goto out_up;

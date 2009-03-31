@@ -148,17 +148,8 @@ static u8 scc_dma_sff_read_status(ide_hwif_t *hwif)
 	return (u8)in_be32((void *)(hwif->dma_base + 4));
 }
 
-static void scc_set_irq(ide_hwif_t *hwif, int on)
+static void scc_write_devctl(ide_hwif_t *hwif, u8 ctl)
 {
-	u8 ctl = ATA_DEVCTL_OBS;
-
-	if (on == 4) { /* hack for SRST */
-		ctl |= 4;
-		on &= ~4;
-	}
-
-	ctl |= on ? 0 : 2;
-
 	out_be32((void *)hwif->io_ports.ctl_addr, ctl);
 	eieio();
 	in_be32((void *)(hwif->dma_base + 0x01c));
@@ -843,8 +834,7 @@ static const struct ide_tp_ops scc_tp_ops = {
 	.exec_command		= scc_exec_command,
 	.read_status		= scc_read_status,
 	.read_altstatus		= scc_read_altstatus,
-
-	.set_irq		= scc_set_irq,
+	.write_devctl		= scc_write_devctl,
 
 	.tf_load		= scc_tf_load,
 	.tf_read		= scc_tf_read,

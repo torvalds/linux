@@ -476,17 +476,8 @@ static void pmac_exec_command(ide_hwif_t *hwif, u8 cmd)
 				     + IDE_TIMING_CONFIG));
 }
 
-static void pmac_set_irq(ide_hwif_t *hwif, int on)
+static void pmac_write_devctl(ide_hwif_t *hwif, u8 ctl)
 {
-	u8 ctl = ATA_DEVCTL_OBS;
-
-	if (on == 4) { /* hack for SRST */
-		ctl |= 4;
-		on &= ~4;
-	}
-
-	ctl |= on ? 0 : 2;
-
 	writeb(ctl, (void __iomem *)hwif->io_ports.ctl_addr);
 	(void)readl((void __iomem *)(hwif->io_ports.data_addr
 				     + IDE_TIMING_CONFIG));
@@ -954,8 +945,7 @@ static const struct ide_tp_ops pmac_tp_ops = {
 	.exec_command		= pmac_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
-
-	.set_irq		= pmac_set_irq,
+	.write_devctl		= pmac_write_devctl,
 
 	.tf_load		= ide_tf_load,
 	.tf_read		= ide_tf_read,

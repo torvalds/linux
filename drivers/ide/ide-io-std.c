@@ -64,23 +64,14 @@ u8 ide_read_altstatus(ide_hwif_t *hwif)
 }
 EXPORT_SYMBOL_GPL(ide_read_altstatus);
 
-void ide_set_irq(ide_hwif_t *hwif, int on)
+void ide_write_devctl(ide_hwif_t *hwif, u8 ctl)
 {
-	u8 ctl = ATA_DEVCTL_OBS;
-
-	if (on == 4) { /* hack for SRST */
-		ctl |= 4;
-		on &= ~4;
-	}
-
-	ctl |= on ? 0 : 2;
-
 	if (hwif->host_flags & IDE_HFLAG_MMIO)
 		writeb(ctl, (void __iomem *)hwif->io_ports.ctl_addr);
 	else
 		outb(ctl, hwif->io_ports.ctl_addr);
 }
-EXPORT_SYMBOL_GPL(ide_set_irq);
+EXPORT_SYMBOL_GPL(ide_write_devctl);
 
 void ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 {
@@ -312,8 +303,7 @@ const struct ide_tp_ops default_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
-
-	.set_irq		= ide_set_irq,
+	.write_devctl		= ide_write_devctl,
 
 	.tf_load		= ide_tf_load,
 	.tf_read		= ide_tf_read,

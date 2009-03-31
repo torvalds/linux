@@ -494,7 +494,9 @@ repeat:
 			 * quirk_list may not like intr setups/cleanups
 			 */
 			if (prev_port && prev_port->cur_dev->quirk_list == 0)
-				prev_port->tp_ops->set_irq(prev_port, 0);
+				prev_port->tp_ops->write_devctl(prev_port,
+								ATA_NIEN |
+								ATA_DEVCTL_OBS);
 
 			hwif->host->cur_port = hwif;
 		}

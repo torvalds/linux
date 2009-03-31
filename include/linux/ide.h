@@ -655,8 +655,7 @@ struct ide_tp_ops {
 	void	(*exec_command)(struct hwif_s *, u8);
 	u8	(*read_status)(struct hwif_s *);
 	u8	(*read_altstatus)(struct hwif_s *);
-
-	void	(*set_irq)(struct hwif_s *, int);
+	void	(*write_devctl)(struct hwif_s *, u8);
 
 	void	(*tf_load)(ide_drive_t *, struct ide_cmd *);
 	void	(*tf_read)(ide_drive_t *, struct ide_cmd *);
@@ -1165,8 +1164,7 @@ void ide_tf_dump(const char *, struct ide_taskfile *);
 void ide_exec_command(ide_hwif_t *, u8);
 u8 ide_read_status(ide_hwif_t *);
 u8 ide_read_altstatus(ide_hwif_t *);
-
-void ide_set_irq(ide_hwif_t *, int);
+void ide_write_devctl(ide_hwif_t *, u8);
 
 void ide_tf_load(ide_drive_t *, struct ide_cmd *);
 void ide_tf_read(ide_drive_t *, struct ide_cmd *);

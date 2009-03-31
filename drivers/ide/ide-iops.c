@@ -360,7 +360,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	SELECT_DRIVE(drive);
 	SELECT_MASK(drive, 1);
 	udelay(1);
-	tp_ops->set_irq(hwif, 0);
+	tp_ops->write_devctl(hwif, ATA_NIEN | ATA_DEVCTL_OBS);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT;
@@ -372,7 +372,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	tp_ops->exec_command(hwif, ATA_CMD_SET_FEATURES);
 
 	if (drive->quirk_list == 2)
-		tp_ops->set_irq(hwif, 1);
+		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	error = __ide_wait_stat(drive, drive->ready_stat,
 				ATA_BUSY | ATA_DRQ | ATA_ERR,
