@@ -976,24 +976,39 @@ int cx88_audio_thread(void *data)
 			break;
 		try_to_freeze();
 
-		/* just monitor the audio status for now ... */
-		memset(&t, 0, sizeof(t));
-		cx88_get_stereo(core, &t);
+		switch (core->tvaudio) {
+		case WW_BG:
+		case WW_DK:
+		case WW_M:
+		case WW_I:
+		case WW_L:
+			if (core->use_nicam)
+				goto hw_autodetect;
 
-		if (UNSET != core->audiomode_manual)
-			/* manually set, don't do anything. */
-			continue;
+			/* just monitor the audio status for now ... */
+			memset(&t, 0, sizeof(t));
+			cx88_get_stereo(core, &t);
 
-		/* monitor signal */
-		if (t.rxsubchans & V4L2_TUNER_SUB_STEREO)
-			mode = V4L2_TUNER_MODE_STEREO;
-		else
-			mode = V4L2_TUNER_MODE_MONO;
-		if (mode == core->audiomode_current)
-			continue;
+			if (UNSET != core->audiomode_manual)
+				/* manually set, don't do anything. */
+				continue;
 
-		/* automatically switch to best available mode */
-		cx88_set_stereo(core, mode, 0);
+			/* monitor signal and set stereo if available */
+			if (t.rxsubchans & V4L2_TUNER_SUB_STEREO)
+				mode = V4L2_TUNER_MODE_STEREO;
+			else
+				mode = V4L2_TUNER_MODE_MONO;
+			if (mode == core->audiomode_current)
+				continue;
+			/* automatically switch to best available mode */
+			cx88_set_stereo(core, mode, 0);
+			break;
+		default:
+hw_autodetect:
+			/* stereo autodetection is supported by hardware so
+			   we don't need to do it manually. Do nothing. */
+			break;
+		}
 	}
 
 	dprintk("cx88: tvaudio thread exiting\n");
