@@ -861,6 +861,22 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 		*pos++ = rate->bitrate / 5;
 	}
 
+	if (sband->ht_cap.ht_supported) {
+		__le16 tmp = cpu_to_le16(sband->ht_cap.cap);
+
+		*pos++ = WLAN_EID_HT_CAPABILITY;
+		*pos++ = sizeof(struct ieee80211_ht_cap);
+		memset(pos, 0, sizeof(struct ieee80211_ht_cap));
+		memcpy(pos, &tmp, sizeof(u16));
+		pos += sizeof(u16);
+		/* TODO: needs a define here for << 2 */
+		*pos++ = sband->ht_cap.ampdu_factor |
+			 (sband->ht_cap.ampdu_density << 2);
+		memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
+		pos += sizeof(sband->ht_cap.mcs);
+		pos += 2 + 4 + 1; /* ext info, BF cap, antsel */
+	}
+
 	/*
 	 * If adding more here, adjust code in main.c
 	 * that calculates local->scan_ies_len.

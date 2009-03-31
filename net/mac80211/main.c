@@ -822,6 +822,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	struct net_device *mdev;
 	struct ieee80211_master_priv *mpriv;
 	int channels, i, j, max_bitrates;
+	bool supp_ht;
 
 	/*
 	 * generic code guarantees at least one band,
@@ -830,6 +831,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	 */
 	channels = 0;
 	max_bitrates = 0;
+	supp_ht = false;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		struct ieee80211_supported_band *sband;
 
@@ -846,6 +848,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 		if (max_bitrates < sband->n_bitrates)
 			max_bitrates = sband->n_bitrates;
+		supp_ht = supp_ht || sband->ht_cap.ht_supported;
 	}
 
 	local->int_scan_req.n_channels = channels;
@@ -872,6 +875,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	 * information -- SSID is the driver's responsibility.
 	 */
 	local->scan_ies_len = 4 + max_bitrates; /* (ext) supp rates */
+	if (supp_ht)
+		local->scan_ies_len += 2 + sizeof(struct ieee80211_ht_cap);
 
 	if (!local->ops->hw_scan) {
 		/* For hw_scan, driver needs to set these up. */
