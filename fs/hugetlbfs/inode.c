@@ -943,9 +943,7 @@ static struct vfsmount *hugetlbfs_vfsmount;
 
 static int can_do_hugetlb_shm(void)
 {
-	return likely(capable(CAP_IPC_LOCK) ||
-			in_group_p(sysctl_hugetlb_shm_group) ||
-			can_do_mlock());
+	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
 }
 
 struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag)
@@ -962,9 +960,6 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag)
 
 	if (!can_do_hugetlb_shm())
 		return ERR_PTR(-EPERM);
-
-	if (!user_shm_lock(size, user))
-		return ERR_PTR(-ENOMEM);
 
 	root = hugetlbfs_vfsmount->mnt_root;
 	quick_string.name = name;
@@ -1004,7 +999,6 @@ out_inode:
 out_dentry:
 	dput(dentry);
 out_shm_unlock:
-	user_shm_unlock(size, user);
 	return ERR_PTR(error);
 }
 
