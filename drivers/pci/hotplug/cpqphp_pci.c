@@ -494,7 +494,7 @@ int cpqhp_save_slot_config (struct controller *ctrl, struct pci_func * new_slot)
 	u8 secondary_bus;
 	int sub_bus;
 	int max_functions;
-	int function;
+	int function = 0;
 	int cloop = 0;
 	int stop_it;
 
@@ -503,65 +503,58 @@ int cpqhp_save_slot_config (struct controller *ctrl, struct pci_func * new_slot)
 	ctrl->pci_bus->number = new_slot->bus;
 	pci_bus_read_config_dword (ctrl->pci_bus, PCI_DEVFN(new_slot->device, 0), PCI_VENDOR_ID, &ID);
 
-	if (ID != 0xFFFFFFFF) {	  /*  device in slot */
-		pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(new_slot->device, 0), 0x0B, &class_code);
-		pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(new_slot->device, 0), PCI_HEADER_TYPE, &header_type);
-
-		if (header_type & 0x80)	/* Multi-function device */
-			max_functions = 8;
-		else
-			max_functions = 1;
-
-		function = 0;
-
-		do {
-			if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
-				/*  Recurse the subordinate bus */
-				pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), PCI_SECONDARY_BUS, &secondary_bus);
-
-				sub_bus = (int) secondary_bus;
-
-				/* Save the config headers for the secondary
-				 * bus.
-				 */
-				rc = cpqhp_save_config(ctrl, sub_bus, 0);
-				if (rc)
-					return(rc);
-				ctrl->pci_bus->number = new_slot->bus;
-
-			}	/* End of IF */
-
-			new_slot->status = 0;
-
-			for (cloop = 0; cloop < 0x20; cloop++) {
-				pci_bus_read_config_dword (ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), cloop << 2, (u32 *) & (new_slot-> config_space [cloop]));
-			}
-
-			function++;
-
-			stop_it = 0;
-
-			/* this loop skips to the next present function
-			 * reading in the Class Code and the Header type.
-			 */
-			while ((function < max_functions) && (!stop_it)) {
-				pci_bus_read_config_dword (ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), PCI_VENDOR_ID, &ID);
-
-				if (ID == 0xFFFFFFFF) {	 /* nothing there. */
-					function++;
-				} else {  /* Something there */
-					pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), 0x0B, &class_code);
-
-					pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), PCI_HEADER_TYPE, &header_type);
-
-					stop_it++;
-				}
-			}
-
-		} while (function < max_functions);
-	}			/* End of IF (device in slot?) */
-	else {
+	if (ID == 0xFFFFFFFF)
 		return 2;
+
+	pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(new_slot->device, 0), 0x0B, &class_code);
+	pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(new_slot->device, 0), PCI_HEADER_TYPE, &header_type);
+
+	if (header_type & 0x80)	/* Multi-function device */
+		max_functions = 8;
+	else
+		max_functions = 1;
+
+	while (function < max_functions) {
+		if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+			/*  Recurse the subordinate bus */
+			pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), PCI_SECONDARY_BUS, &secondary_bus);
+
+			sub_bus = (int) secondary_bus;
+
+			/* Save the config headers for the secondary
+			 * bus.
+			 */
+			rc = cpqhp_save_config(ctrl, sub_bus, 0);
+			if (rc)
+				return(rc);
+			ctrl->pci_bus->number = new_slot->bus;
+
+		}
+
+		new_slot->status = 0;
+
+		for (cloop = 0; cloop < 0x20; cloop++)
+			pci_bus_read_config_dword(ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), cloop << 2, (u32 *) & (new_slot-> config_space [cloop]));
+
+		function++;
+
+		stop_it = 0;
+
+		/* this loop skips to the next present function
+		 * reading in the Class Code and the Header type.
+		 */
+		while ((function < max_functions) && (!stop_it)) {
+			pci_bus_read_config_dword(ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), PCI_VENDOR_ID, &ID);
+
+			if (ID == 0xFFFFFFFF)
+				function++;
+			else {
+				pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), 0x0B, &class_code);
+				pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(new_slot->device, function), PCI_HEADER_TYPE, &header_type);
+				stop_it++;
+			}
+		}
+
 	}
 
 	return 0;
