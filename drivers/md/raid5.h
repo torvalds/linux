@@ -386,6 +386,11 @@ struct raid5_private_data {
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
 	struct disk_info	*disks;
+
+	/* When taking over an array from a different personality, we store
+	 * the new thread here until we fully activate the array.
+	 */
+	struct mdk_thread_s	*thread;
 };
 
 typedef struct raid5_private_data raid5_conf_t;

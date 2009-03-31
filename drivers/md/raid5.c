@@ -4164,32 +4164,146 @@ static struct attribute_group raid5_attrs_group = {
 	.attrs = raid5_attrs,
 };
 
-static int run(mddev_t *mddev)
+static raid5_conf_t *setup_conf(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
 	int raid_disk, memory;
 	mdk_rdev_t *rdev;
 	struct disk_info *disk;
-	int working_disks = 0;
 
-	if (mddev->level != 5 && mddev->level != 4 && mddev->level != 6) {
+	if (mddev->new_level != 5
+	    && mddev->new_level != 4
+	    && mddev->new_level != 6) {
 		printk(KERN_ERR "raid5: %s: raid level not set to 4/5/6 (%d)\n",
-		       mdname(mddev), mddev->level);
-		return -EIO;
+		       mdname(mddev), mddev->new_level);
+		return ERR_PTR(-EIO);
 	}
-	if ((mddev->level == 5 && !algorithm_valid_raid5(mddev->layout)) ||
-	    (mddev->level == 6 && !algorithm_valid_raid6(mddev->layout))) {
+	if ((mddev->new_level == 5
+	     && !algorithm_valid_raid5(mddev->new_layout)) ||
+	    (mddev->new_level == 6
+	     && !algorithm_valid_raid6(mddev->new_layout))) {
 		printk(KERN_ERR "raid5: %s: layout %d not supported\n",
-		       mdname(mddev), mddev->layout);
-		return -EIO;
+		       mdname(mddev), mddev->new_layout);
+		return ERR_PTR(-EIO);
+	}
+	if (mddev->new_level == 6 && mddev->raid_disks < 4) {
+		printk(KERN_ERR "raid6: not enough configured devices for %s (%d, minimum 4)\n",
+		       mdname(mddev), mddev->raid_disks);
+		return ERR_PTR(-EINVAL);
 	}
 
-	if (mddev->chunk_size < PAGE_SIZE) {
-		printk(KERN_ERR "md/raid5: chunk_size must be at least "
-		       "PAGE_SIZE but %d < %ld\n",
-		       mddev->chunk_size, PAGE_SIZE);
-		return -EINVAL;
+	if (!mddev->new_chunk || mddev->new_chunk % PAGE_SIZE) {
+		printk(KERN_ERR "raid5: invalid chunk size %d for %s\n",
+			mddev->new_chunk, mdname(mddev));
+		return ERR_PTR(-EINVAL);
 	}
+
+	conf = kzalloc(sizeof(raid5_conf_t), GFP_KERNEL);
+	if (conf == NULL)
+		goto abort;
+
+	conf->raid_disks = mddev->raid_disks;
+	if (mddev->reshape_position == MaxSector)
+		conf->previous_raid_disks = mddev->raid_disks;
+	else
+		conf->previous_raid_disks = mddev->raid_disks - mddev->delta_disks;
+
+	conf->disks = kzalloc(conf->raid_disks * sizeof(struct disk_info),
+			      GFP_KERNEL);
+	if (!conf->disks)
+		goto abort;
+
+	conf->mddev = mddev;
+
+	if ((conf->stripe_hashtbl = kzalloc(PAGE_SIZE, GFP_KERNEL)) == NULL)
+		goto abort;
+
+	if (mddev->new_level == 6) {
+		conf->spare_page = alloc_page(GFP_KERNEL);
+		if (!conf->spare_page)
+			goto abort;
+	}
+	spin_lock_init(&conf->device_lock);
+	init_waitqueue_head(&conf->wait_for_stripe);
+	init_waitqueue_head(&conf->wait_for_overlap);
+	INIT_LIST_HEAD(&conf->handle_list);
+	INIT_LIST_HEAD(&conf->hold_list);
+	INIT_LIST_HEAD(&conf->delayed_list);
+	INIT_LIST_HEAD(&conf->bitmap_list);
+	INIT_LIST_HEAD(&conf->inactive_list);
+	atomic_set(&conf->active_stripes, 0);
+	atomic_set(&conf->preread_active_stripes, 0);
+	atomic_set(&conf->active_aligned_reads, 0);
+	conf->bypass_threshold = BYPASS_THRESHOLD;
+
+	pr_debug("raid5: run(%s) called.\n", mdname(mddev));
+
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		raid_disk = rdev->raid_disk;
+		if (raid_disk >= conf->raid_disks
+		    || raid_disk < 0)
+			continue;
+		disk = conf->disks + raid_disk;
+
+		disk->rdev = rdev;
+
+		if (test_bit(In_sync, &rdev->flags)) {
+			char b[BDEVNAME_SIZE];
+			printk(KERN_INFO "raid5: device %s operational as raid"
+				" disk %d\n", bdevname(rdev->bdev,b),
+				raid_disk);
+		} else
+			/* Cannot rely on bitmap to complete recovery */
+			conf->fullsync = 1;
+	}
+
+	conf->chunk_size = mddev->new_chunk;
+	conf->level = mddev->new_level;
+	if (conf->level == 6)
+		conf->max_degraded = 2;
+	else
+		conf->max_degraded = 1;
+	conf->algorithm = mddev->new_layout;
+	conf->max_nr_stripes = NR_STRIPES;
+	conf->expand_progress = mddev->reshape_position;
+
+	memory = conf->max_nr_stripes * (sizeof(struct stripe_head) +
+		 conf->raid_disks * ((sizeof(struct bio) + PAGE_SIZE))) / 1024;
+	if (grow_stripes(conf, conf->max_nr_stripes)) {
+		printk(KERN_ERR
+			"raid5: couldn't allocate %dkB for buffers\n", memory);
+		goto abort;
+	} else
+		printk(KERN_INFO "raid5: allocated %dkB for %s\n",
+			memory, mdname(mddev));
+
+	conf->thread = md_register_thread(raid5d, mddev, "%s_raid5");
+	if (!conf->thread) {
+		printk(KERN_ERR
+		       "raid5: couldn't allocate thread for %s\n",
+		       mdname(mddev));
+		goto abort;
+	}
+
+	return conf;
+
+ abort:
+	if (conf) {
+		shrink_stripes(conf);
+		safe_put_page(conf->spare_page);
+		kfree(conf->disks);
+		kfree(conf->stripe_hashtbl);
+		kfree(conf);
+		return ERR_PTR(-EIO);
+	} else
+		return ERR_PTR(-ENOMEM);
+}
+
+static int run(mddev_t *mddev)
+{
+	raid5_conf_t *conf;
+	int working_disks = 0;
+	mdk_rdev_t *rdev;
 
 	if (mddev->reshape_position != MaxSector) {
 		/* Check that we can continue the reshape.
@@ -4241,105 +4355,43 @@ static int run(mddev_t *mddev)
 		}
 		printk(KERN_INFO "raid5: reshape will continue\n");
 		/* OK, we should be able to continue; */
-	}
-
-
-	mddev->private = kzalloc(sizeof (raid5_conf_t), GFP_KERNEL);
-	if ((conf = mddev->private) == NULL)
-		goto abort;
-	if (mddev->reshape_position == MaxSector) {
-		conf->previous_raid_disks = conf->raid_disks = mddev->raid_disks;
 	} else {
-		conf->raid_disks = mddev->raid_disks;
-		conf->previous_raid_disks = mddev->raid_disks - mddev->delta_disks;
+		BUG_ON(mddev->level != mddev->new_level);
+		BUG_ON(mddev->layout != mddev->new_layout);
+		BUG_ON(mddev->chunk_size != mddev->new_chunk);
+		BUG_ON(mddev->delta_disks != 0);
 	}
+	conf = setup_conf(mddev);
 
-	conf->disks = kzalloc(conf->raid_disks * sizeof(struct disk_info),
-			      GFP_KERNEL);
-	if (!conf->disks)
-		goto abort;
+	if (conf == NULL)
+		return -EIO;
+	if (IS_ERR(conf))
+		return PTR_ERR(conf);
 
-	conf->mddev = mddev;
-
-	if ((conf->stripe_hashtbl = kzalloc(PAGE_SIZE, GFP_KERNEL)) == NULL)
-		goto abort;
-
-	if (mddev->level == 6) {
-		conf->spare_page = alloc_page(GFP_KERNEL);
-		if (!conf->spare_page)
-			goto abort;
-	}
-	spin_lock_init(&conf->device_lock);
-	mddev->queue->queue_lock = &conf->device_lock;
-	init_waitqueue_head(&conf->wait_for_stripe);
-	init_waitqueue_head(&conf->wait_for_overlap);
-	INIT_LIST_HEAD(&conf->handle_list);
-	INIT_LIST_HEAD(&conf->hold_list);
-	INIT_LIST_HEAD(&conf->delayed_list);
-	INIT_LIST_HEAD(&conf->bitmap_list);
-	INIT_LIST_HEAD(&conf->inactive_list);
-	atomic_set(&conf->active_stripes, 0);
-	atomic_set(&conf->preread_active_stripes, 0);
-	atomic_set(&conf->active_aligned_reads, 0);
-	conf->bypass_threshold = BYPASS_THRESHOLD;
-
-	pr_debug("raid5: run(%s) called.\n", mdname(mddev));
-
-	list_for_each_entry(rdev, &mddev->disks, same_set) {
-		raid_disk = rdev->raid_disk;
-		if (raid_disk >= conf->raid_disks
-		    || raid_disk < 0)
-			continue;
-		disk = conf->disks + raid_disk;
-
-		disk->rdev = rdev;
-
-		if (test_bit(In_sync, &rdev->flags)) {
-			char b[BDEVNAME_SIZE];
-			printk(KERN_INFO "raid5: device %s operational as raid"
-				" disk %d\n", bdevname(rdev->bdev,b),
-				raid_disk);
-			working_disks++;
-		} else
-			/* Cannot rely on bitmap to complete recovery */
-			conf->fullsync = 1;
-	}
+	mddev->thread = conf->thread;
+	conf->thread = NULL;
+	mddev->private = conf;
 
 	/*
 	 * 0 for a fully functional array, 1 or 2 for a degraded array.
 	 */
+	list_for_each_entry(rdev, &mddev->disks, same_set)
+		if (rdev->raid_disk >= 0 &&
+		    test_bit(In_sync, &rdev->flags))
+			working_disks++;
+
 	mddev->degraded = conf->raid_disks - working_disks;
-	conf->mddev = mddev;
-	conf->chunk_size = mddev->chunk_size;
-	conf->level = mddev->level;
-	if (conf->level == 6)
-		conf->max_degraded = 2;
-	else
-		conf->max_degraded = 1;
-	conf->algorithm = mddev->layout;
-	conf->max_nr_stripes = NR_STRIPES;
-	conf->expand_progress = mddev->reshape_position;
 
-	/* device size must be a multiple of chunk size */
-	mddev->dev_sectors &= ~(mddev->chunk_size / 512 - 1);
-	mddev->resync_max_sectors = mddev->dev_sectors;
-
-	if (conf->level == 6 && conf->raid_disks < 4) {
-		printk(KERN_ERR "raid6: not enough configured devices for %s (%d, minimum 4)\n",
-		       mdname(mddev), conf->raid_disks);
-		goto abort;
-	}
-	if (!conf->chunk_size || conf->chunk_size % 4) {
-		printk(KERN_ERR "raid5: invalid chunk size %d for %s\n",
-			conf->chunk_size, mdname(mddev));
-		goto abort;
-	}
 	if (mddev->degraded > conf->max_degraded) {
 		printk(KERN_ERR "raid5: not enough operational devices for %s"
 			" (%d/%d failed)\n",
 			mdname(mddev), mddev->degraded, conf->raid_disks);
 		goto abort;
 	}
+
+	/* device size must be a multiple of chunk size */
+	mddev->dev_sectors &= ~(mddev->chunk_size / 512 - 1);
+	mddev->resync_max_sectors = mddev->dev_sectors;
 
 	if (mddev->degraded > 0 &&
 	    mddev->recovery_cp != MaxSector) {
@@ -4355,27 +4407,6 @@ static int run(mddev_t *mddev)
 			goto abort;
 		}
 	}
-
-	{
-		mddev->thread = md_register_thread(raid5d, mddev, "%s_raid5");
-		if (!mddev->thread) {
-			printk(KERN_ERR 
-				"raid5: couldn't allocate thread for %s\n",
-				mdname(mddev));
-			goto abort;
-		}
-	}
-	memory = conf->max_nr_stripes * (sizeof(struct stripe_head) +
-		 conf->raid_disks * ((sizeof(struct bio) + PAGE_SIZE))) / 1024;
-	if (grow_stripes(conf, conf->max_nr_stripes)) {
-		printk(KERN_ERR 
-			"raid5: couldn't allocate %dkB for buffers\n", memory);
-		shrink_stripes(conf);
-		md_unregister_thread(mddev->thread);
-		goto abort;
-	} else
-		printk(KERN_INFO "raid5: allocated %dkB for %s\n",
-			memory, mdname(mddev));
 
 	if (mddev->degraded == 0)
 		printk("raid5: raid level %d set %s active with %d out of %d"
@@ -4419,6 +4450,8 @@ static int run(mddev_t *mddev)
 		       "raid5: failed to create sysfs attributes for %s\n",
 		       mdname(mddev));
 
+	mddev->queue->queue_lock = &conf->device_lock;
+
 	mddev->queue->unplug_fn = raid5_unplug_device;
 	mddev->queue->backing_dev_info.congested_data = mddev;
 	mddev->queue->backing_dev_info.congested_fn = raid5_congested;
@@ -4430,7 +4463,11 @@ static int run(mddev_t *mddev)
 
 	return 0;
 abort:
+	if (mddev->thread)
+		md_unregister_thread(mddev->thread);
+	mddev->thread = NULL;
 	if (conf) {
+		shrink_stripes(conf);
 		print_raid5_conf(conf);
 		safe_put_page(conf->spare_page);
 		kfree(conf->disks);
