@@ -7,12 +7,12 @@
 #include <linux/delay.h>
 
 #ifndef readq
-static u64 readq(void __iomem *reg)
+static inline u64 readq(void __iomem *reg)
 {
 	return ((u64) readl(reg)) | (((u64) readl(reg + 4UL)) << 32);
 }
 
-static void writeq(u64 val, void __iomem *reg)
+static inline void writeq(u64 val, void __iomem *reg)
 {
 	writel(val & 0xffffffff, reg);
 	writel(val >> 32, reg + 0x4UL);
