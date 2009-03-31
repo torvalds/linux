@@ -1592,8 +1592,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = -EINVAL;
 	}
 out:
-	if (lapic)
-		kfree(lapic);
+	kfree(lapic);
 	return r;
 }
 
