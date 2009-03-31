@@ -45,11 +45,6 @@
 #define AVIC_FIPNDH		(AVIC_BASE + 0x60)	/* fast int pending high */
 #define AVIC_FIPNDL		(AVIC_BASE + 0x64)	/* fast int pending low */
 
-#define SYSTEM_PREV_REG		IO_ADDRESS(IIM_BASE_ADDR + 0x20)
-#define SYSTEM_SREV_REG		IO_ADDRESS(IIM_BASE_ADDR + 0x24)
-#define IIM_PROD_REV_SH		3
-#define IIM_PROD_REV_LEN	5
-
 int imx_irq_set_priority(unsigned char irq, unsigned char prio)
 {
 #ifdef CONFIG_MXC_IRQ_PRIOR
