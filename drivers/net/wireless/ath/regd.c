@@ -126,14 +126,13 @@ bool ath_is_world_regd(struct ath_regulatory *reg)
 }
 EXPORT_SYMBOL(ath_is_world_regd);
 
-const struct ieee80211_regdomain *ath_default_world_regdomain(void)
+static const struct ieee80211_regdomain *ath_default_world_regdomain(void)
 {
 	/* this is the most restrictive */
 	return &ath_world_regdom_64;
 }
-EXPORT_SYMBOL(ath_default_world_regdomain);
 
-const struct
+static const struct
 ieee80211_regdomain *ath_world_regdomain(struct ath_regulatory *reg)
 {
 	switch (reg->regpair->regDmnEnum) {
@@ -158,7 +157,6 @@ ieee80211_regdomain *ath_world_regdomain(struct ath_regulatory *reg)
 		return ath_default_world_regdomain();
 	}
 }
-EXPORT_SYMBOL(ath_world_regdomain);
 
 /* Frequency is one where radar detection is required */
 static bool ath_is_radar_freq(u16 center_freq)
@@ -285,7 +283,7 @@ static void ath_reg_apply_active_scan_flags(
 }
 
 /* Always apply Radar/DFS rules on freq range 5260 MHz - 5700 MHz */
-void ath_reg_apply_radar_flags(struct wiphy *wiphy)
+static void ath_reg_apply_radar_flags(struct wiphy *wiphy)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
@@ -316,11 +314,10 @@ void ath_reg_apply_radar_flags(struct wiphy *wiphy)
 				     IEEE80211_CHAN_PASSIVE_SCAN;
 	}
 }
-EXPORT_SYMBOL(ath_reg_apply_radar_flags);
 
-void ath_reg_apply_world_flags(struct wiphy *wiphy,
-			       enum nl80211_reg_initiator initiator,
-			       struct ath_regulatory *reg)
+static void ath_reg_apply_world_flags(struct wiphy *wiphy,
+				 enum nl80211_reg_initiator initiator,
+				 struct ath_regulatory *reg)
 {
 	switch (reg->regpair->regDmnEnum) {
 	case 0x60:
@@ -336,7 +333,6 @@ void ath_reg_apply_world_flags(struct wiphy *wiphy,
 	}
 	return;
 }
-EXPORT_SYMBOL(ath_reg_apply_world_flags);
 
 int ath_reg_notifier_apply(struct wiphy *wiphy,
 	struct regulatory_request *request, struct ath_regulatory *reg)
@@ -360,7 +356,7 @@ int ath_reg_notifier_apply(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(ath_reg_notifier_apply);
 
-bool ath_regd_is_eeprom_valid(struct ath_regulatory *reg)
+static bool ath_regd_is_eeprom_valid(struct ath_regulatory *reg)
 {
 	 u16 rd = ath_regd_get_eepromRD(reg);
 	int i;
@@ -381,7 +377,6 @@ bool ath_regd_is_eeprom_valid(struct ath_regulatory *reg)
 		 "ath: invalid regulatory domain/country code 0x%x\n", rd);
 	return false;
 }
-EXPORT_SYMBOL(ath_regd_is_eeprom_valid);
 
 /* EEPROM country code to regpair mapping */
 static struct country_code_to_enum_rd*
@@ -438,7 +433,40 @@ ath_get_regpair(int regdmn)
 	return NULL;
 }
 
-int ath_regd_init(struct ath_regulatory *reg)
+static int ath_regd_init_wiphy(struct ath_regulatory *reg, struct wiphy *wiphy,
+			       int (*reg_notifier)(struct wiphy *wiphy,
+					struct regulatory_request *request))
+{
+	const struct ieee80211_regdomain *regd;
+
+	wiphy->reg_notifier = reg_notifier;
+	wiphy->strict_regulatory = true;
+
+	if (ath_is_world_regd(reg)) {
+		/*
+		 * Anything applied here (prior to wiphy registration) gets
+		 * saved on the wiphy orig_* parameters
+		 */
+		regd = ath_world_regdomain(reg);
+		wiphy->custom_regulatory = true;
+		wiphy->strict_regulatory = false;
+	} else {
+		/*
+		 * This gets applied in the case of the absense of CRDA,
+		 * it's our own custom world regulatory domain, similar to
+		 * cfg80211's but we enable passive scanning.
+		 */
+		regd = ath_default_world_regdomain();
+	}
+	wiphy_apply_custom_regulatory(wiphy, regd);
+	ath_reg_apply_radar_flags(wiphy);
+	ath_reg_apply_world_flags(wiphy, NL80211_REGDOM_SET_BY_DRIVER, reg);
+	return 0;
+}
+
+int ath_regd_init(struct ath_regulatory *reg, struct wiphy *wiphy,
+		  int (*reg_notifier)(struct wiphy *wiphy,
+			    struct regulatory_request *request))
 {
 	struct country_code_to_enum_rd *country = NULL;
 	u16 regdmn;
@@ -492,6 +520,7 @@ int ath_regd_init(struct ath_regulatory *reg)
 	printk(KERN_DEBUG "ath: Regpair detected: 0x%0x\n",
 		reg->regpair->regDmnEnum);
 
+	ath_regd_init_wiphy(reg, wiphy, reg_notifier);
 	return 0;
 }
 EXPORT_SYMBOL(ath_regd_init);

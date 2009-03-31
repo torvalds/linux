@@ -254,15 +254,9 @@ enum CountryCode {
 };
 
 bool ath_is_world_regd(struct ath_regulatory *reg);
-const
-struct ieee80211_regdomain *ath_world_regdomain(struct ath_regulatory *reg);
-const struct ieee80211_regdomain *ath_default_world_regdomain(void);
-void ath_reg_apply_world_flags(struct wiphy *wiphy,
-			       enum nl80211_reg_initiator,
-			       struct ath_regulatory *reg);
-void ath_reg_apply_radar_flags(struct wiphy *wiphy);
-int ath_regd_init(struct ath_regulatory *reg);
-bool ath_regd_is_eeprom_valid(struct ath_regulatory *reg);
+int ath_regd_init(struct ath_regulatory *reg, struct wiphy *wiphy,
+		  int (*reg_notifier)(struct wiphy *wiphy,
+		  struct regulatory_request *request));
 u32 ath_regd_get_band_ctl(struct ath_regulatory *reg,
 			  enum ieee80211_band band);
 int ath_reg_notifier_apply(struct wiphy *wiphy,

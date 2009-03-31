@@ -1352,6 +1352,17 @@ void ath_detach(struct ath_softc *sc)
 	ath9k_ps_restore(sc);
 }
 
+static int ath9k_reg_notifier(struct wiphy *wiphy,
+			      struct regulatory_request *request)
+{
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	struct ath_regulatory *reg = &sc->sc_ah->regulatory;
+
+	return ath_reg_notifier_apply(wiphy, request, reg);
+}
+
 static int ath_init(u16 devid, struct ath_softc *sc)
 {
 	struct ath_hw *ah = NULL;
@@ -1406,7 +1417,8 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	for (i = 0; i < sc->keymax; i++)
 		ath9k_hw_keyreset(ah, (u16) i);
 
-	if (ath_regd_init(&sc->sc_ah->regulatory))
+	if (ath_regd_init(&sc->sc_ah->regulatory, sc->hw->wiphy,
+			  ath9k_reg_notifier))
 		goto bad;
 
 	/* default to MONITOR mode */
@@ -1570,17 +1582,6 @@ bad:
 	return error;
 }
 
-static int ath9k_reg_notifier(struct wiphy *wiphy,
-			      struct regulatory_request *request)
-{
-	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
-	struct ath_regulatory *reg = &sc->sc_ah->regulatory;
-
-	return ath_reg_notifier_apply(wiphy, request, reg);
-}
-
 void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
@@ -1599,9 +1600,6 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_MESH_POINT);
-
-	hw->wiphy->reg_notifier = ath9k_reg_notifier;
-	hw->wiphy->strict_regulatory = true;
 
 	hw->queues = 4;
 	hw->max_rates = 4;
@@ -1623,7 +1621,6 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 int ath_attach(u16 devid, struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
-	const struct ieee80211_regdomain *regd;
 	int error = 0, i;
 	struct ath_regulatory *reg;
 
@@ -1666,24 +1663,6 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 	if (error)
 		goto error_attach;
 #endif
-
-	if (ath_is_world_regd(reg)) {
-		/* Anything applied here (prior to wiphy registration) gets
-		 * saved on the wiphy orig_* parameters */
-		regd = ath_world_regdomain(reg);
-		hw->wiphy->custom_regulatory = true;
-		hw->wiphy->strict_regulatory = false;
-	} else {
-		/* This gets applied in the case of the absense of CRDA,
-		 * it's our own custom world regulatory domain, similar to
-		 * cfg80211's but we enable passive scanning */
-		regd = ath_default_world_regdomain();
-	}
-	wiphy_apply_custom_regulatory(hw->wiphy, regd);
-	ath_reg_apply_radar_flags(hw->wiphy);
-	ath_reg_apply_world_flags(hw->wiphy,
-				  NL80211_REGDOM_SET_BY_DRIVER,
-				  reg);
 
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
 	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
