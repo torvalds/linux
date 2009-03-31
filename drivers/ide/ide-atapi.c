@@ -310,16 +310,14 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			pc->xferred = pc->req_xfer;
 			if (drive->pc_update_buffers)
 				drive->pc_update_buffers(drive, pc);
-
-			if (drive->media == ide_floppy)
-				ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 		}
 		debug_log("%s: DMA finished\n", drive->name);
 	}
 
 	/* No more interrupts */
 	if ((stat & ATA_DRQ) == 0) {
-		int uptodate;
+		int uptodate, error;
+		unsigned int done;
 
 		debug_log("Packet command completed, %d bytes transferred\n",
 			  pc->xferred);
@@ -366,9 +364,9 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 		if (blk_special_request(rq)) {
 			rq->errors = 0;
-			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
+			done = blk_rq_bytes(rq);
+			error = 0;
 		} else {
-			unsigned int done;
 
 			if (blk_fs_request(rq) == 0 && uptodate <= 0) {
 				if (rq->errors == 0)
@@ -380,9 +378,10 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			else
 				done = blk_rq_bytes(rq);
 
-			ide_complete_rq(drive, uptodate ? 0 : -EIO, done);
+			error = uptodate ? 0 : -EIO;
 		}
 
+		ide_complete_rq(drive, error, done);
 		return ide_stopped;
 	}
 
