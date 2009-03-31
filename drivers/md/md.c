@@ -2633,9 +2633,9 @@ layout_store(mddev_t *mddev, const char *buf, size_t len)
 
 	if (mddev->pers)
 		return -EBUSY;
-	if (mddev->reshape_position != MaxSector)
-		mddev->new_layout = n;
-	else
+
+	mddev->new_layout = n;
+	if (mddev->reshape_position == MaxSector)
 		mddev->layout = n;
 	return len;
 }
@@ -2702,9 +2702,9 @@ chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 
 	if (mddev->pers)
 		return -EBUSY;
-	else if (mddev->reshape_position != MaxSector)
-		mddev->new_chunk = n;
-	else
+
+	mddev->new_chunk = n;
+	if (mddev->reshape_position == MaxSector)
 		mddev->chunk_size = n;
 	return len;
 }
@@ -3831,7 +3831,10 @@ static int do_md_run(mddev_t * mddev)
 	}
 	mddev->pers = pers;
 	spin_unlock(&pers_lock);
-	mddev->level = pers->level;
+	if (mddev->level != pers->level) {
+		mddev->level = pers->level;
+		mddev->new_level = pers->level;
+	}
 	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
 
 	if (pers->level >= 4 && pers->level <= 6)
