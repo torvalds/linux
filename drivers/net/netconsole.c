@@ -294,14 +294,12 @@ static ssize_t show_remote_port(struct netconsole_target *nt, char *buf)
 
 static ssize_t show_local_ip(struct netconsole_target *nt, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d.%d.%d.%d\n",
-			HIPQUAD(nt->np.local_ip));
+	return snprintf(buf, PAGE_SIZE, "%pI4\n", &nt->np.local_ip);
 }
 
 static ssize_t show_remote_ip(struct netconsole_target *nt, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d.%d.%d.%d\n",
-			HIPQUAD(nt->np.remote_ip));
+	return snprintf(buf, PAGE_SIZE, "%pI4\n", &nt->np.remote_ip);
 }
 
 static ssize_t show_local_mac(struct netconsole_target *nt, char *buf)
@@ -438,7 +436,7 @@ static ssize_t store_local_ip(struct netconsole_target *nt,
 		return -EINVAL;
 	}
 
-	nt->np.local_ip = ntohl(in_aton(buf));
+	nt->np.local_ip = in_aton(buf);
 
 	return strnlen(buf, count);
 }
@@ -454,7 +452,7 @@ static ssize_t store_remote_ip(struct netconsole_target *nt,
 		return -EINVAL;
 	}
 
-	nt->np.remote_ip = ntohl(in_aton(buf));
+	nt->np.remote_ip = in_aton(buf);
 
 	return strnlen(buf, count);
 }
