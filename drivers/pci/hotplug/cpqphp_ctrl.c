@@ -81,14 +81,15 @@ static u8 handle_switch_change(u8 change, struct controller * ctrl)
 
 	for (hp_slot = 0; hp_slot < 6; hp_slot++) {
 		if (change & (0x1L << hp_slot)) {
-			/**********************************
+			/*
 			 * this one changed.
-			 **********************************/
+			 */
 			func = cpqhp_slot_find(ctrl->bus,
 				(hp_slot + ctrl->slot_device_offset), 0);
 
 			/* this is the structure that tells the worker thread
-			 *what to do */
+			 * what to do
+			 */
 			taskInfo = &(ctrl->event_queue[ctrl->next_event]);
 			ctrl->next_event = (ctrl->next_event + 1) % 10;
 			taskInfo->hp_slot = hp_slot;
@@ -100,17 +101,17 @@ static u8 handle_switch_change(u8 change, struct controller * ctrl)
 			func->presence_save |= (temp_word >> (hp_slot + 7)) & 0x02;
 
 			if (ctrl->ctrl_int_comp & (0x1L << hp_slot)) {
-				/**********************************
+				/*
 				 * Switch opened
-				 **********************************/
+				 */
 
 				func->switch_save = 0;
 
 				taskInfo->event_type = INT_SWITCH_OPEN;
 			} else {
-				/**********************************
+				/*
 				 * Switch closed
-				 **********************************/
+				 */
 
 				func->switch_save = 0x10;
 
@@ -152,17 +153,17 @@ static u8 handle_presence_change(u16 change, struct controller * ctrl)
 	if (!change)
 		return 0;
 
-	/**********************************
+	/*
 	 * Presence Change
-	 **********************************/
+	 */
 	dbg("cpqsbd:  Presence/Notify input change.\n");
 	dbg("         Changed bits are 0x%4.4x\n", change );
 
 	for (hp_slot = 0; hp_slot < 6; hp_slot++) {
 		if (change & (0x0101 << hp_slot)) {
-			/**********************************
+			/*
 			 * this one changed.
-			 **********************************/
+			 */
 			func = cpqhp_slot_find(ctrl->bus,
 				(hp_slot + ctrl->slot_device_offset), 0);
 
@@ -177,22 +178,23 @@ static u8 handle_presence_change(u16 change, struct controller * ctrl)
 				return 0;
 
 			/* If the switch closed, must be a button
-			 * If not in button mode, nevermind */
+			 * If not in button mode, nevermind
+			 */
 			if (func->switch_save && (ctrl->push_button == 1)) {
 				temp_word = ctrl->ctrl_int_comp >> 16;
 				temp_byte = (temp_word >> hp_slot) & 0x01;
 				temp_byte |= (temp_word >> (hp_slot + 7)) & 0x02;
 
 				if (temp_byte != func->presence_save) {
-					/**************************************
+					/*
 					 * button Pressed (doesn't do anything)
-					 **************************************/
+					 */
 					dbg("hp_slot %d button pressed\n", hp_slot);
 					taskInfo->event_type = INT_BUTTON_PRESS;
 				} else {
-					/**********************************
+					/*
 					 * button Released - TAKE ACTION!!!!
-					 **********************************/
+					 */
 					dbg("hp_slot %d button released\n", hp_slot);
 					taskInfo->event_type = INT_BUTTON_RELEASE;
 
@@ -210,7 +212,8 @@ static u8 handle_presence_change(u16 change, struct controller * ctrl)
 				}
 			} else {
 				/* Switch is open, assume a presence change
-				 * Save the presence state */
+				 * Save the presence state
+				 */
 				temp_word = ctrl->ctrl_int_comp >> 16;
 				func->presence_save = (temp_word >> hp_slot) & 0x01;
 				func->presence_save |= (temp_word >> (hp_slot + 7)) & 0x02;
@@ -241,17 +244,17 @@ static u8 handle_power_fault(u8 change, struct controller * ctrl)
 	if (!change)
 		return 0;
 
-	/**********************************
+	/*
 	 * power fault
-	 **********************************/
+	 */
 
 	info("power fault interrupt\n");
 
 	for (hp_slot = 0; hp_slot < 6; hp_slot++) {
 		if (change & (0x01 << hp_slot)) {
-			/**********************************
+			/*
 			 * this one changed.
-			 **********************************/
+			 */
 			func = cpqhp_slot_find(ctrl->bus,
 				(hp_slot + ctrl->slot_device_offset), 0);
 
@@ -262,16 +265,16 @@ static u8 handle_power_fault(u8 change, struct controller * ctrl)
 			rc++;
 
 			if (ctrl->ctrl_int_comp & (0x00000100 << hp_slot)) {
-				/**********************************
+				/*
 				 * power fault Cleared
-				 **********************************/
+				 */
 				func->status = 0x00;
 
 				taskInfo->event_type = INT_POWER_FAULT_CLEAR;
 			} else {
-				/**********************************
+				/*
 				 * power fault
-				 **********************************/
+				 */
 				taskInfo->event_type = INT_POWER_FAULT;
 
 				if (ctrl->rev < 4) {
@@ -432,13 +435,15 @@ static struct pci_resource *do_pre_bridge_resource_split(struct pci_resource **h
 
 
 	/* If we got here, there the bridge requires some of the resource, but
-	 * we may be able to split some off of the front */
+	 * we may be able to split some off of the front
+	 */
 
 	node = *head;
 
 	if (node->length & (alignment -1)) {
 		/* this one isn't an aligned length, so we'll make a new entry
-		 * and split it up. */
+		 * and split it up.
+		 */
 		split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
 
 		if (!split_node)
@@ -556,7 +561,8 @@ static struct pci_resource *get_io_resource(struct pci_resource **head, u32 size
 
 		if (node->base & (size - 1)) {
 			/* this one isn't base aligned properly
-			 * so we'll make a new entry and split it up */
+			 * so we'll make a new entry and split it up
+			 */
 			temp_dword = (node->base | (size-1)) + 1;
 
 			/* Short circuit if adjusted size is too small */
@@ -581,7 +587,8 @@ static struct pci_resource *get_io_resource(struct pci_resource **head, u32 size
 		/* Don't need to check if too small since we already did */
 		if (node->length > size) {
 			/* this one is longer than we need
-			 * so we'll make a new entry and split it up */
+			 * so we'll make a new entry and split it up
+			 */
 			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
 
 			if (!split_node)
@@ -601,7 +608,8 @@ static struct pci_resource *get_io_resource(struct pci_resource **head, u32 size
 			continue;
 
 		/* If we got here, then it is the right size
-		 * Now take it out of the list and break */
+		 * Now take it out of the list and break
+		 */
 		if (*head == node) {
 			*head = node->next;
 		} else {
@@ -643,13 +651,15 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 
 	for (max = *head; max; max = max->next) {
 		/* If not big enough we could probably just bail,
-		 * instead we'll continue to the next. */
+		 * instead we'll continue to the next.
+		 */
 		if (max->length < size)
 			continue;
 
 		if (max->base & (size - 1)) {
 			/* this one isn't base aligned properly
-			 * so we'll make a new entry and split it up */
+			 * so we'll make a new entry and split it up
+			 */
 			temp_dword = (max->base | (size-1)) + 1;
 
 			/* Short circuit if adjusted size is too small */
@@ -672,7 +682,8 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 
 		if ((max->base + max->length) & (size - 1)) {
 			/* this one isn't end aligned properly at the top
-			 * so we'll make a new entry and split it up */
+			 * so we'll make a new entry and split it up
+			 */
 			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
 
 			if (!split_node)
@@ -744,7 +755,8 @@ static struct pci_resource *get_resource(struct pci_resource **head, u32 size)
 		if (node->base & (size - 1)) {
 			dbg("%s: not aligned\n", __func__);
 			/* this one isn't base aligned properly
-			 * so we'll make a new entry and split it up */
+			 * so we'll make a new entry and split it up
+			 */
 			temp_dword = (node->base | (size-1)) + 1;
 
 			/* Short circuit if adjusted size is too small */
@@ -769,7 +781,8 @@ static struct pci_resource *get_resource(struct pci_resource **head, u32 size)
 		if (node->length > size) {
 			dbg("%s: too big\n", __func__);
 			/* this one is longer than we need
-			 * so we'll make a new entry and split it up */
+			 * so we'll make a new entry and split it up
+			 */
 			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
 
 			if (!split_node)
@@ -888,17 +901,17 @@ irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 
 
 	misc = readw(ctrl->hpc_reg + MISC);
-	/***************************************
+	/*
 	 * Check to see if it was our interrupt
-	 ***************************************/
+	 */
 	if (!(misc & 0x000C)) {
 		return IRQ_NONE;
 	}
 
 	if (misc & 0x0004) {
-		/**********************************
+		/*
 		 * Serial Output interrupt Pending
-		 **********************************/
+		 */
 
 		/* Clear the interrupt */
 		misc |= 0x0004;
@@ -963,7 +976,8 @@ struct pci_func *cpqhp_slot_create(u8 busnumber)
 	new_slot = kzalloc(sizeof(*new_slot), GFP_KERNEL);
 	if (new_slot == NULL) {
 		/* I'm not dead yet!
-		 * You will be. */
+		 * You will be.
+		 */
 		return new_slot;
 	}
 
@@ -1135,7 +1149,8 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 		return 0;
 
 	/* We don't allow freq/mode changes if we find another adapter running
-	 * in another slot on this controller */
+	 * in another slot on this controller
+	 */
 	for(slot = ctrl->slot; slot; slot = slot->next) {
 		if (slot->device == (hp_slot + ctrl->slot_device_offset))
 			continue;
@@ -1145,7 +1160,8 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 			continue;
 		/* If another adapter is running on the same segment but at a
 		 * lower speed/mode, we allow the new adapter to function at
-		 * this rate if supported */
+		 * this rate if supported
+		 */
 		if (ctrl->speed < adapter_speed)
 			return 0;
 
@@ -1153,7 +1169,8 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	}
 
 	/* If the controller doesn't support freq/mode changes and the
-	 * controller is running at a higher mode, we bail */
+	 * controller is running at a higher mode, we bail
+	 */
 	if ((ctrl->speed > adapter_speed) && (!ctrl->pcix_speed_capability))
 		return 1;
 
@@ -1162,7 +1179,8 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 		return 0;
 
 	/* We try to set the max speed supported by both the adapter and
-	 * controller */
+	 * controller
+	 */
 	if (ctrl->speed_capability < adapter_speed) {
 		if (ctrl->speed == ctrl->speed_capability)
 			return 0;
@@ -1244,7 +1262,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 }
 
 /* the following routines constitute the bulk of the
-   hotplug controller logic
+ * hotplug controller logic
  */
 
 
@@ -1269,14 +1287,14 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 	hp_slot = func->device - ctrl->slot_device_offset;
 
 	if (readl(ctrl->hpc_reg + INT_INPUT_CLEAR) & (0x01L << hp_slot)) {
-		/**********************************
+		/*
 		 * The switch is open.
-		 **********************************/
+		 */
 		rc = INTERLOCK_OPEN;
 	} else if (is_slot_enabled (ctrl, hp_slot)) {
-		/**********************************
+		/*
 		 * The board is already on
-		 **********************************/
+		 */
 		rc = CARD_FUNCTIONING;
 	} else {
 		mutex_lock(&ctrl->crit_sect);
@@ -1352,7 +1370,8 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 			 * Get slot won't work for devices behind
 			 * bridges, but in this case it will always be
 			 * called for the "base" bus/dev/func of an
-			 * adapter. */
+			 * adapter.
+			 */
 
 			mutex_lock(&ctrl->crit_sect);
 
@@ -1377,7 +1396,8 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 
 			 * Get slot won't work for devices behind bridges, but
 			 * in this case it will always be called for the "base"
-			 * bus/dev/func of an adapter. */
+			 * bus/dev/func of an adapter.
+			 */
 
 			mutex_lock(&ctrl->crit_sect);
 
@@ -1434,7 +1454,8 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	wait_for_ctrl_irq (ctrl);
 
 	/* Change bits in slot power register to force another shift out
-	 * NOTE: this is to work around the timer bug */
+	 * NOTE: this is to work around the timer bug
+	 */
 	temp_byte = readb(ctrl->hpc_reg + SLOT_POWER);
 	writeb(0x00, ctrl->hpc_reg + SLOT_POWER);
 	writeb(temp_byte, ctrl->hpc_reg + SLOT_POWER);
@@ -2484,7 +2505,8 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 		temp_resources.irqs = &irqs;
 
 		/* Make copies of the nodes we are going to pass down so that
-		 * if there is a problem,we can just use these to free resources */
+		 * if there is a problem,we can just use these to free resources
+		 */
 		hold_bus_node = kmalloc(sizeof(*hold_bus_node), GFP_KERNEL);
 		hold_IO_node = kmalloc(sizeof(*hold_IO_node), GFP_KERNEL);
 		hold_mem_node = kmalloc(sizeof(*hold_mem_node), GFP_KERNEL);
@@ -2556,7 +2578,8 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 		temp_word = (p_mem_node->base + p_mem_node->length - 1) >> 16;
 		rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
 
-		/* Adjust this to compensate for extra adjustment in first loop */
+		/* Adjust this to compensate for extra adjustment in first loop
+		 */
 		irqs.barber_pole--;
 
 		rc = 0;

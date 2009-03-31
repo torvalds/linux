@@ -26,7 +26,6 @@
  *
  * Jan 12, 2003 -	Added 66/100/133MHz PCI-X support,
  *			Torben Mathiasen <torben.mathiasen@hp.com>
- *
  */
 
 #include <linux/module.h>
@@ -171,7 +170,7 @@ static int init_SERR(struct controller * ctrl)
 	tempdword = ctrl->first_slot;
 
 	number_of_slots = readb(ctrl->hpc_reg + SLOT_MASK) & 0x0F;
-	// Loop through slots
+	/* Loop through slots */
 	while (number_of_slots) {
 		physical_slot = tempdword;
 		writeb(0, ctrl->hpc_reg + SLOT_SERR);
@@ -200,7 +199,7 @@ static int pci_print_IRQ_route (void)
 
 	len = (routing_table->size - sizeof(struct irq_routing_table)) /
 			sizeof(struct irq_info);
-	// Make sure I got at least one entry
+	/* Make sure I got at least one entry */
 	if (len == 0) {
 		kfree(routing_table);
 		return -1;
@@ -244,7 +243,7 @@ static void __iomem *get_subsequent_smbios_entry(void __iomem *smbios_start,
 	if (!smbios_table || !curr)
 		return(NULL);
 
-	// set p_max to the end of the table
+	/* set p_max to the end of the table */
 	p_max = smbios_start + readw(smbios_table + ST_LENGTH);
 
 	p_temp = curr;
@@ -253,7 +252,8 @@ static void __iomem *get_subsequent_smbios_entry(void __iomem *smbios_start,
 	while ((p_temp < p_max) && !bail) {
 		/* Look for the double NULL terminator
 		 * The first condition is the previous byte
-		 * and the second is the curr */
+		 * and the second is the curr
+		 */
 		if (!previous_byte && !(readb(p_temp))) {
 			bail = 1;
 		}
@@ -387,8 +387,9 @@ static int ctrl_slot_setup(struct controller *ctrl,
 		slot->task_event.expires = jiffies + 5 * HZ;
 		slot->task_event.function = cpqhp_pushbutton_thread;
 
-		//FIXME: these capabilities aren't used but if they are
-		//       they need to be correctly implemented
+		/*FIXME: these capabilities aren't used but if they are
+		 *	 they need to be correctly implemented
+		 */
 		slot->capabilities |= PCISLOT_REPLACE_SUPPORTED;
 		slot->capabilities |= PCISLOT_INTERLOCK_SUPPORTED;
 
@@ -402,14 +403,14 @@ static int ctrl_slot_setup(struct controller *ctrl,
 		ctrl_slot =
 			slot_device - (readb(ctrl->hpc_reg + SLOT_MASK) >> 4);
 
-		// Check presence
+		/* Check presence */
 		slot->capabilities |=
 			((((~tempdword) >> 23) |
 			 ((~tempdword) >> 15)) >> ctrl_slot) & 0x02;
-		// Check the switch state
+		/* Check the switch state */
 		slot->capabilities |=
 			((~tempdword & 0xFF) >> ctrl_slot) & 0x01;
-		// Check the slot enable
+		/* Check the slot enable */
 		slot->capabilities |=
 			((read_slot_enable(ctrl) << 2) >> ctrl_slot) & 0x04;
 
@@ -476,11 +477,11 @@ static int ctrl_slot_cleanup (struct controller * ctrl)
 
 	cpqhp_remove_debugfs_files(ctrl);
 
-	//Free IRQ associated with hot plug device
+	/* Free IRQ associated with hot plug device */
 	free_irq(ctrl->interrupt, ctrl);
-	//Unmap the memory
+	/* Unmap the memory */
 	iounmap(ctrl->hpc_reg);
-	//Finally reclaim PCI mem
+	/* Finally reclaim PCI mem */
 	release_mem_region(pci_resource_start(ctrl->pci_dev, 0),
 			   pci_resource_len(ctrl->pci_dev, 0));
 
@@ -488,20 +489,17 @@ static int ctrl_slot_cleanup (struct controller * ctrl)
 }
 
 
-//============================================================================
-// function:	get_slot_mapping
-//
-// Description: Attempts to determine a logical slot mapping for a PCI
-//		device.  Won't work for more than one PCI-PCI bridge
-//		in a slot.
-//
-// Input:	u8 bus_num - bus number of PCI device
-//		u8 dev_num - device number of PCI device
-//		u8 *slot - Pointer to u8 where slot number will
-//			be returned
-//
-// Output:	SUCCESS or FAILURE
-//=============================================================================
+/**
+ * get_slot_mapping - determine logical slot mapping for PCI device
+ *
+ * Won't work for more than one PCI-PCI bridge in a slot.
+ *
+ * @bus_num - bus number of PCI device
+ * @dev_num - device number of PCI device
+ * @slot - Pointer to u8 where slot number will	be returned
+ *
+ * Output:	SUCCESS or FAILURE
+ */
 static int
 get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 {
@@ -522,7 +520,7 @@ get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 
 	len = (PCIIRQRoutingInfoLength->size -
 	       sizeof(struct irq_routing_table)) / sizeof(struct irq_info);
-	// Make sure I got at least one entry
+	/* Make sure I got at least one entry */
 	if (len == 0) {
 		kfree(PCIIRQRoutingInfoLength);
 		return -1;
@@ -539,13 +537,14 @@ get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 			return 0;
 		} else {
 			/* Did not get a match on the target PCI device. Check
-			 * if the current IRQ table entry is a PCI-to-PCI bridge
-			 * device.  If so, and it's secondary bus matches the
-			 * bus number for the target device, I need to save the
-			 * bridge's slot number.  If I can not find an entry for
-			 * the target device, I will have to assume it's on the
-			 * other side of the bridge, and assign it the bridge's
-			 * slot. */
+			 * if the current IRQ table entry is a PCI-to-PCI
+			 * bridge device.  If so, and it's secondary bus
+			 * matches the bus number for the target device, I need
+			 * to save the bridge's slot number.  If I can not find
+			 * an entry for the target device, I will have to
+			 * assume it's on the other side of the bridge, and
+			 * assign it the bridge's slot.
+			 */
 			bus->number = tbus;
 			pci_bus_read_config_dword(bus, PCI_DEVFN(tdevice, 0),
 						PCI_CLASS_REVISION, &work);
@@ -563,17 +562,18 @@ get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 
 	}
 
-	// If we got here, we didn't find an entry in the IRQ mapping table
-	// for the target PCI device.  If we did determine that the target
-	// device is on the other side of a PCI-to-PCI bridge, return the
-	// slot number for the bridge.
+	/* If we got here, we didn't find an entry in the IRQ mapping table for
+	 * the target PCI device.  If we did determine that the target device
+	 * is on the other side of a PCI-to-PCI bridge, return the slot number
+	 * for the bridge.
+	 */
 	if (bridgeSlot != 0xFF) {
 		*slot = bridgeSlot;
 		kfree(PCIIRQRoutingInfoLength);
 		return 0;
 	}
 	kfree(PCIIRQRoutingInfoLength);
-	// Couldn't find an entry in the routing table for this PCI device
+	/* Couldn't find an entry in the routing table for this PCI device */
 	return -1;
 }
 
@@ -595,7 +595,7 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 
 	hp_slot = func->device - ctrl->slot_device_offset;
 
-	// Wait for exclusive access to hardware
+	/* Wait for exclusive access to hardware */
 	mutex_lock(&ctrl->crit_sect);
 
 	if (status == 1) {
@@ -603,17 +603,17 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 	} else if (status == 0) {
 		amber_LED_off (ctrl, hp_slot);
 	} else {
-		// Done with exclusive hardware access
+		/* Done with exclusive hardware access */
 		mutex_unlock(&ctrl->crit_sect);
 		return(1);
 	}
 
 	set_SOGO(ctrl);
 
-	// Wait for SOBS to be unset
+	/* Wait for SOBS to be unset */
 	wait_for_ctrl_irq (ctrl);
 
-	// Done with exclusive hardware access
+	/* Done with exclusive hardware access */
 	mutex_unlock(&ctrl->crit_sect);
 
 	return(0);
@@ -815,7 +815,9 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 	}
 
-	// Need to read VID early b/c it's used to differentiate CPQ and INTC discovery
+	/* Need to read VID early b/c it's used to differentiate CPQ and INTC
+	 * discovery
+	 */
 	rc = pci_read_config_word(pdev, PCI_VENDOR_ID, &vendor_id);
 	if (rc || ((vendor_id != PCI_VENDOR_ID_COMPAQ) && (vendor_id != PCI_VENDOR_ID_INTEL))) {
 		err(msg_HPC_non_compaq_or_intel);
@@ -837,7 +839,9 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * Also Intel HPC's may have RID=0.
 	 */
 	if ((pdev->revision > 2) || (vendor_id == PCI_VENDOR_ID_INTEL)) {
-		// TODO: This code can be made to support non-Compaq or Intel subsystem IDs
+		/* TODO: This code can be made to support non-Compaq or Intel
+		 * subsystem IDs
+		 */
 		rc = pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &subsystem_vid);
 		if (rc) {
 			err("%s : pci_read_config_word failed\n", __func__);
@@ -865,7 +869,9 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		info("Hot Plug Subsystem Device ID: %x\n", subsystem_deviceid);
 
-		/* Set Vendor ID, so it can be accessed later from other functions */
+		/* Set Vendor ID, so it can be accessed later from other
+		 * functions
+		 */
 		ctrl->vendor_id = vendor_id;
 
 		switch (subsystem_vid) {
@@ -992,23 +998,23 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 				/* PHP Status (0=De-feature PHP, 1=Normal operation) */
 				if (subsystem_deviceid & 0x0008) {
-					ctrl->defeature_PHP = 1;	// PHP supported
+					ctrl->defeature_PHP = 1;	/* PHP supported */
 				} else {
-					ctrl->defeature_PHP = 0;	// PHP not supported
+					ctrl->defeature_PHP = 0;	/* PHP not supported */
 				}
 
 				/* Alternate Base Address Register Interface (0=not supported, 1=supported) */
 				if (subsystem_deviceid & 0x0010) {
-					ctrl->alternate_base_address = 1;	// supported
+					ctrl->alternate_base_address = 1;	/* supported */
 				} else {
-					ctrl->alternate_base_address = 0;	// not supported
+					ctrl->alternate_base_address = 0;	/* not supported */
 				}
 
 				/* PCI Config Space Index (0=not supported, 1=supported) */
 				if (subsystem_deviceid & 0x0020) {
-					ctrl->pci_config_space = 1;		// supported
+					ctrl->pci_config_space = 1;		/* supported */
 				} else {
-					ctrl->pci_config_space = 0;		// not supported
+					ctrl->pci_config_space = 0;		/* not supported */
 				}
 
 				/* PCI-X support */
@@ -1042,7 +1048,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	// Tell the user that we found one.
+	/* Tell the user that we found one. */
 	info("Initializing the PCI hot plug controller residing on PCI bus %d\n",
 					pdev->bus->number);
 
@@ -1120,7 +1126,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 *
 	 ********************************************************/
 
-	// find the physical slot number of the first hot plug slot
+	/* find the physical slot number of the first hot plug slot */
 
 	/* Get slot won't work for devices behind bridges, but
 	 * in this case it will always be called for the "base"
@@ -1137,7 +1143,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_iounmap;
 	}
 
-	// Store PCI Config Space for all devices on this bus
+	/* Store PCI Config Space for all devices on this bus */
 	rc = cpqhp_save_config(ctrl, ctrl->bus, readb(ctrl->hpc_reg + SLOT_MASK));
 	if (rc) {
 		err("%s: unable to save PCI configuration data, error %d\n",
@@ -1148,7 +1154,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/*
 	 * Get IO, memory, and IRQ resources for new devices
 	 */
-	// The next line is required for cpqhp_find_available_resources
+	/* The next line is required for cpqhp_find_available_resources */
 	ctrl->interrupt = pdev->irq;
 	if (ctrl->interrupt < 0x10) {
 		cpqhp_legacy_mode = 1;
@@ -1196,12 +1202,14 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_iounmap;
 	}
 
-	/* Enable Shift Out interrupt and clear it, also enable SERR on power fault */
+	/* Enable Shift Out interrupt and clear it, also enable SERR on power
+	 * fault
+	 */
 	temp_word = readw(ctrl->hpc_reg + MISC);
 	temp_word |= 0x4006;
 	writew(temp_word, ctrl->hpc_reg + MISC);
 
-	// Changed 05/05/97 to clear all interrupts at start
+	/* Changed 05/05/97 to clear all interrupts at start */
 	writel(0xFFFFFFFFL, ctrl->hpc_reg + INT_INPUT_CLEAR);
 
 	ctrl->ctrl_int_comp = readl(ctrl->hpc_reg + INT_INPUT_CLEAR);
@@ -1216,13 +1224,14 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		cpqhp_ctrl_list = ctrl;
 	}
 
-	// turn off empty slots here unless command line option "ON" set
-	// Wait for exclusive access to hardware
+	/* turn off empty slots here unless command line option "ON" set
+	 * Wait for exclusive access to hardware
+	 */
 	mutex_lock(&ctrl->crit_sect);
 
 	num_of_slots = readb(ctrl->hpc_reg + SLOT_MASK) & 0x0F;
 
-	// find first device number for the ctrl
+	/* find first device number for the ctrl */
 	device = readb(ctrl->hpc_reg + SLOT_MASK) >> 4;
 
 	while (num_of_slots) {
@@ -1234,7 +1243,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		hp_slot = func->device - ctrl->slot_device_offset;
 		dbg("hp_slot: %d\n", hp_slot);
 
-		// We have to save the presence info for these slots
+		/* We have to save the presence info for these slots */
 		temp_word = ctrl->ctrl_int_comp >> 16;
 		func->presence_save = (temp_word >> hp_slot) & 0x01;
 		func->presence_save |= (temp_word >> (hp_slot + 7)) & 0x02;
@@ -1258,7 +1267,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!power_mode) {
 		set_SOGO(ctrl);
-		// Wait for SOBS to be unset
+		/* Wait for SOBS to be unset */
 		wait_for_ctrl_irq(ctrl);
 	}
 
@@ -1269,7 +1278,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_free_irq;
 	}
 
-	// Done with exclusive hardware access
+	/* Done with exclusive hardware access */
 	mutex_unlock(&ctrl->crit_sect);
 
 	cpqhp_create_debugfs_files(ctrl);
@@ -1316,11 +1325,11 @@ static int one_time_init(void)
 		cpqhp_slot_list[loop] = NULL;
 	}
 
-	// FIXME: We also need to hook the NMI handler eventually.
-	// this also needs to be worked with Christoph
-	// register_NMI_handler();
-
-	// Map rom address
+	/* FIXME: We also need to hook the NMI handler eventually.
+	 * this also needs to be worked with Christoph
+	 * register_NMI_handler();
+	 */
+	/* Map rom address */
 	cpqhp_rom_start = ioremap(ROM_PHY_ADDR, ROM_PHY_LEN);
 	if (!cpqhp_rom_start) {
 		err ("Could not ioremap memory region for ROM\n");
@@ -1328,7 +1337,9 @@ static int one_time_init(void)
 		goto error;
 	}
 
-	/* Now, map the int15 entry point if we are on compaq specific hardware */
+	/* Now, map the int15 entry point if we are on compaq specific
+	 * hardware
+	 */
 	compaq_nvram_init(cpqhp_rom_start);
 
 	/* Map smbios table entry point structure */
@@ -1462,11 +1473,11 @@ static void __exit unload_cpqphpd(void)
 		}
 	}
 
-	// Stop the notification mechanism
+	/* Stop the notification mechanism */
 	if (initialized)
 		cpqhp_event_stop_thread();
 
-	//unmap the rom address
+	/* unmap the rom address */
 	if (cpqhp_rom_start)
 		iounmap(cpqhp_rom_start);
 	if (smbios_start)

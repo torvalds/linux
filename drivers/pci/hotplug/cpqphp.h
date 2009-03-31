@@ -190,7 +190,9 @@ struct hrt {
 	u32 reserved2;
 } __attribute__ ((packed));
 
-/* offsets to the hotplug resource table registers based on the above structure layout */
+/* offsets to the hotplug resource table registers based on the above
+ * structure layout
+ */
 enum hrt_offsets {
 	SIG0 =			offsetof(struct hrt, sig0),
 	SIG1 =			offsetof(struct hrt, sig1),
@@ -217,7 +219,9 @@ struct slot_rt {
 	u16 pre_mem_length;
 } __attribute__ ((packed));
 
-/* offsets to the hotplug slot resource table registers based on the above structure layout */
+/* offsets to the hotplug slot resource table registers based on the above
+ * structure layout
+ */
 enum slot_rt_offsets {
 	DEV_FUNC =		offsetof(struct slot_rt, dev_func),
 	PRIMARY_BUS =		offsetof(struct slot_rt, primary_bus),
@@ -286,8 +290,8 @@ struct event_info {
 struct controller {
 	struct controller *next;
 	u32 ctrl_int_comp;
-	struct mutex crit_sect;		/* critical section mutex */
-	void __iomem *hpc_reg;		/* cookie for our pci controller location */
+	struct mutex crit_sect;	/* critical section mutex */
+	void __iomem *hpc_reg;	/* cookie for our pci controller location */
 	struct pci_resource *mem_head;
 	struct pci_resource *p_mem_head;
 	struct pci_resource *io_head;
@@ -299,7 +303,7 @@ struct controller {
 	u8 next_event;
 	u8 interrupt;
 	u8 cfgspc_irq;
-	u8 bus;				/* bus number for the pci hotplug controller */
+	u8 bus;			/* bus number for the pci hotplug controller */
 	u8 rev;
 	u8 slot_device_offset;
 	u8 first_slot;
@@ -458,7 +462,6 @@ static inline char *slot_name(struct slot *slot)
  * return_resource
  *
  * Puts node back in the resource list pointed to by head
- *
  */
 static inline void return_resource(struct pci_resource **head, struct pci_resource *node)
 {
@@ -575,13 +578,12 @@ static inline u8 read_slot_enable(struct controller *ctrl)
 }
 
 
-/*
+/**
  * get_controller_speed - find the current frequency/mode of controller.
  *
  * @ctrl: controller to get frequency/mode for.
  *
  * Returns controller speed.
- *
  */
 static inline u8 get_controller_speed(struct controller *ctrl)
 {
@@ -607,14 +609,13 @@ static inline u8 get_controller_speed(struct controller *ctrl)
 }
 
 
-/*
+/**
  * get_adapter_speed - find the max supported frequency/mode of adapter.
  *
  * @ctrl: hotplug controller.
  * @hp_slot: hotplug slot where adapter is installed.
  *
  * Returns adapter speed.
- *
  */
 static inline u8 get_adapter_speed(struct controller *ctrl, u8 hp_slot)
 {
@@ -719,4 +720,3 @@ static inline int wait_for_ctrl_irq(struct controller *ctrl)
 }
 
 #endif
-
