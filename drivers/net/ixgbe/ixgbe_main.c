@@ -3169,7 +3169,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 #endif
 
 	/* default flow control settings */
-	hw->fc.requested_mode = ixgbe_fc_none;
+	hw->fc.requested_mode = ixgbe_fc_full;
 	hw->fc.high_water = IXGBE_DEFAULT_FCRTH;
 	hw->fc.low_water = IXGBE_DEFAULT_FCRTL;
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
