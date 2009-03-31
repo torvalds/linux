@@ -469,6 +469,7 @@ static const struct ide_tp_ops au1xxx_tp_ops = {
 	.read_altstatus		= ide_read_altstatus,
 	.write_devctl		= ide_write_devctl,
 
+	.dev_select		= ide_dev_select,
 	.tf_load		= ide_tf_load,
 	.tf_read		= ide_tf_read,
 

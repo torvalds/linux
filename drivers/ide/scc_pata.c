@@ -825,6 +825,7 @@ static const struct ide_tp_ops scc_tp_ops = {
 	.read_altstatus		= scc_read_altstatus,
 	.write_devctl		= scc_write_devctl,
 
+	.dev_select		= ide_dev_select,
 	.tf_load		= scc_tf_load,
 	.tf_read		= scc_tf_read,
 

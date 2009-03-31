@@ -73,6 +73,18 @@ void ide_write_devctl(ide_hwif_t *hwif, u8 ctl)
 }
 EXPORT_SYMBOL_GPL(ide_write_devctl);
 
+void ide_dev_select(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	u8 select = drive->select | ATA_DEVICE_OBS;
+
+	if (hwif->host_flags & IDE_HFLAG_MMIO)
+		writeb(select, (void __iomem *)hwif->io_ports.device_addr);
+	else
+		outb(select, hwif->io_ports.device_addr);
+}
+EXPORT_SYMBOL_GPL(ide_dev_select);
+
 void ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -280,6 +292,7 @@ const struct ide_tp_ops default_tp_ops = {
 	.read_altstatus		= ide_read_altstatus,
 	.write_devctl		= ide_write_devctl,
 
+	.dev_select		= ide_dev_select,
 	.tf_load		= ide_tf_load,
 	.tf_read		= ide_tf_read,
 

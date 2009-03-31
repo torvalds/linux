@@ -171,9 +171,11 @@ static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 	local_irq_restore(flags);
 }
 
-static void trm290_selectproc (ide_drive_t *drive)
+static void trm290_dev_select(ide_drive_t *drive)
 {
 	trm290_prepare_drive(drive, !!(drive->dev_flags & IDE_DFLAG_USING_DMA));
+
+	outb(drive->select | ATA_DEVICE_OBS, drive->hwif->io_ports.device_addr);
 }
 
 static int trm290_dma_check(ide_drive_t *drive, struct ide_cmd *cmd)
@@ -298,8 +300,18 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 #endif
 }
 
-static const struct ide_port_ops trm290_port_ops = {
-	.selectproc		= trm290_selectproc,
+static const struct ide_tp_ops trm290_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
+
+	.dev_select		= trm290_dev_select,
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
 };
 
 static struct ide_dma_ops trm290_dma_ops = {
@@ -315,7 +327,7 @@ static struct ide_dma_ops trm290_dma_ops = {
 static const struct ide_port_info trm290_chipset __devinitdata = {
 	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_trm290,
-	.port_ops	= &trm290_port_ops,
+	.tp_ops 	= &trm290_tp_ops,
 	.dma_ops	= &trm290_dma_ops,
 	.host_flags	= IDE_HFLAG_TRM290 |
 			  IDE_HFLAG_NO_ATAPI_DMA |

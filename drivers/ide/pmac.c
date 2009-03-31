@@ -404,8 +404,6 @@ kauai_lookup_timing(struct kauai_timing* table, int cycle_time)
 #define IDE_WAKEUP_DELAY	(1*HZ)
 
 static int pmac_ide_init_dma(ide_hwif_t *, const struct ide_port_info *);
-static void pmac_ide_selectproc(ide_drive_t *drive);
-static void pmac_ide_kauai_selectproc(ide_drive_t *drive);
 
 #define PMAC_IDE_REG(x) \
 	((void __iomem *)((drive)->hwif->io_ports.data_addr + (x)))
@@ -415,8 +413,7 @@ static void pmac_ide_kauai_selectproc(ide_drive_t *drive);
  * timing register when selecting that unit. This version is for
  * ASICs with a single timing register
  */
-static void
-pmac_ide_selectproc(ide_drive_t *drive)
+static void pmac_ide_apply_timings(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
@@ -434,8 +431,7 @@ pmac_ide_selectproc(ide_drive_t *drive)
  * timing register when selecting that unit. This version is for
  * ASICs with a dual timing register (Kauai)
  */
-static void
-pmac_ide_kauai_selectproc(ide_drive_t *drive)
+static void pmac_ide_kauai_apply_timings(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
@@ -464,9 +460,25 @@ pmac_ide_do_update_timings(ide_drive_t *drive)
 	if (pmif->kind == controller_sh_ata6 ||
 	    pmif->kind == controller_un_ata6 ||
 	    pmif->kind == controller_k2_ata6)
-		pmac_ide_kauai_selectproc(drive);
+		pmac_ide_kauai_apply_timings(drive);
 	else
-		pmac_ide_selectproc(drive);
+		pmac_ide_apply_timings(drive);
+}
+
+static void pmac_dev_select(ide_drive_t *drive)
+{
+	pmac_ide_apply_timings(drive);
+
+	writeb(drive->select | ATA_DEVICE_OBS,
+	       (void __iomem *)drive->hwif->io_ports.device_addr);
+}
+
+static void pmac_kauai_dev_select(ide_drive_t *drive)
+{
+	pmac_ide_kauai_apply_timings(drive);
+
+	writeb(drive->select | ATA_DEVICE_OBS,
+	       (void __iomem *)drive->hwif->io_ports.device_addr);
 }
 
 static void pmac_exec_command(ide_hwif_t *hwif, u8 cmd)
@@ -947,6 +959,7 @@ static const struct ide_tp_ops pmac_tp_ops = {
 	.read_altstatus		= ide_read_altstatus,
 	.write_devctl		= pmac_write_devctl,
 
+	.dev_select		= pmac_dev_select,
 	.tf_load		= ide_tf_load,
 	.tf_read		= ide_tf_read,
 
@@ -954,19 +967,24 @@ static const struct ide_tp_ops pmac_tp_ops = {
 	.output_data		= ide_output_data,
 };
 
-static const struct ide_port_ops pmac_ide_ata6_port_ops = {
-	.init_dev		= pmac_ide_init_dev,
-	.set_pio_mode		= pmac_ide_set_pio_mode,
-	.set_dma_mode		= pmac_ide_set_dma_mode,
-	.selectproc		= pmac_ide_kauai_selectproc,
-	.cable_detect		= pmac_ide_cable_detect,
+static const struct ide_tp_ops pmac_ata6_tp_ops = {
+	.exec_command		= pmac_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= pmac_write_devctl,
+
+	.dev_select		= pmac_kauai_dev_select,
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
 };
 
 static const struct ide_port_ops pmac_ide_ata4_port_ops = {
 	.init_dev		= pmac_ide_init_dev,
 	.set_pio_mode		= pmac_ide_set_pio_mode,
 	.set_dma_mode		= pmac_ide_set_dma_mode,
-	.selectproc		= pmac_ide_selectproc,
 	.cable_detect		= pmac_ide_cable_detect,
 };
 
@@ -974,7 +992,6 @@ static const struct ide_port_ops pmac_ide_port_ops = {
 	.init_dev		= pmac_ide_init_dev,
 	.set_pio_mode		= pmac_ide_set_pio_mode,
 	.set_dma_mode		= pmac_ide_set_dma_mode,
-	.selectproc		= pmac_ide_selectproc,
 };
 
 static const struct ide_dma_ops pmac_dma_ops;
@@ -1011,15 +1028,18 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
 	if (of_device_is_compatible(np, "shasta-ata")) {
 		pmif->kind = controller_sh_ata6;
-		d.port_ops = &pmac_ide_ata6_port_ops;
+		d.tp_ops = &pmac_ata6_tp_ops;
+		d.port_ops = &pmac_ide_ata4_port_ops;
 		d.udma_mask = ATA_UDMA6;
 	} else if (of_device_is_compatible(np, "kauai-ata")) {
 		pmif->kind = controller_un_ata6;
-		d.port_ops = &pmac_ide_ata6_port_ops;
+		d.tp_ops = &pmac_ata6_tp_ops;
+		d.port_ops = &pmac_ide_ata4_port_ops;
 		d.udma_mask = ATA_UDMA5;
 	} else if (of_device_is_compatible(np, "K2-UATA")) {
 		pmif->kind = controller_k2_ata6;
-		d.port_ops = &pmac_ide_ata6_port_ops;
+		d.tp_ops = &pmac_ata6_tp_ops;
+		d.port_ops = &pmac_ide_ata4_port_ops;
 		d.udma_mask = ATA_UDMA5;
 	} else if (of_device_is_compatible(np, "keylargo-ata")) {
 		if (strcmp(np->name, "ata-4") == 0) {

@@ -98,12 +98,15 @@ static void superio_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	}
 }
 
+static void ns87415_dev_select(ide_drive_t *drive);
+
 static const struct ide_tp_ops superio_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= superio_read_status,
 	.read_altstatus		= ide_read_altstatus,
 	.write_devctl		= ide_write_devctl,
 
+	.dev_select		= ns87415_dev_select,
 	.tf_load		= ide_tf_load,
 	.tf_read		= superio_tf_read,
 
@@ -182,10 +185,12 @@ static void ns87415_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 	local_irq_restore(flags);
 }
 
-static void ns87415_selectproc (ide_drive_t *drive)
+static void ns87415_dev_select(ide_drive_t *drive)
 {
 	ns87415_prepare_drive(drive,
 			      !!(drive->dev_flags & IDE_DFLAG_USING_DMA));
+
+	outb(drive->select | ATA_DEVICE_OBS, drive->hwif->io_ports.device_addr);
 }
 
 static void ns87415_dma_start(ide_drive_t *drive)
@@ -229,7 +234,7 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	 * Also, leave IRQ masked during drive probing, to prevent infinite
 	 * interrupts from a potentially floating INTA..
 	 *
-	 * IRQs get unmasked in selectproc when drive is first used.
+	 * IRQs get unmasked in dev_select() when drive is first used.
 	 */
 	(void) pci_read_config_dword(dev, 0x40, &ctrl);
 	(void) pci_read_config_byte(dev, 0x09, &progif);
@@ -281,8 +286,18 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	outb(0x60, hwif->dma_base + ATA_DMA_STATUS);
 }
 
-static const struct ide_port_ops ns87415_port_ops = {
-	.selectproc		= ns87415_selectproc,
+static const struct ide_tp_ops ns87415_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
+
+	.dev_select		= ns87415_dev_select,
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
 };
 
 static const struct ide_dma_ops ns87415_dma_ops = {
@@ -299,7 +314,7 @@ static const struct ide_dma_ops ns87415_dma_ops = {
 static const struct ide_port_info ns87415_chipset __devinitdata = {
 	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_ns87415,
-	.port_ops	= &ns87415_port_ops,
+	.tp_ops 	= &ns87415_tp_ops,
 	.dma_ops	= &ns87415_dma_ops,
 	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 			  IDE_HFLAG_NO_ATAPI_DMA,

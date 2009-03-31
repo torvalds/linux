@@ -29,17 +29,7 @@
 
 void SELECT_DRIVE(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_port_ops *port_ops = hwif->port_ops;
-	struct ide_cmd cmd;
-
-	if (port_ops && port_ops->selectproc)
-		port_ops->selectproc(drive);
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_OUT_DEVICE;
-
-	drive->hwif->tp_ops->tf_load(drive, &cmd);
+	drive->hwif->tp_ops->dev_select(drive);
 }
 
 void SELECT_MASK(ide_drive_t *drive, int mask)
