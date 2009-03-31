@@ -262,7 +262,7 @@ CONFIG_PCI_SYSCALL=y
 # CONFIG_PCIEPORTBUS is not set
 CONFIG_ARCH_SUPPORTS_MSI=y
 # CONFIG_PCI_MSI is not set
-CONFIG_PCI_LEGACY=y
+# CONFIG_PCI_LEGACY is not set
 # CONFIG_PCI_DEBUG is not set
 # CONFIG_PCI_STUB is not set
 # CONFIG_PCCARD is not set
@@ -716,7 +716,7 @@ CONFIG_SSB_POSSIBLE=y
 #
 # Multimedia drivers
 #
-CONFIG_DAB=y
+# CONFIG_DAB is not set
 # CONFIG_USB_DABUSB is not set
 
 #
@@ -725,7 +725,7 @@ CONFIG_DAB=y
 # CONFIG_AGP is not set
 # CONFIG_DRM is not set
 # CONFIG_VGASTATE is not set
-CONFIG_VIDEO_OUTPUT_CONTROL=m
+# CONFIG_VIDEO_OUTPUT_CONTROL is not set
 # CONFIG_FB is not set
 # CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 
