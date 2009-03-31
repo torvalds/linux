@@ -394,27 +394,21 @@ static void ep_poll_safewake(wait_queue_head_t *wq)
 }
 
 /*
- * This function unregister poll callbacks from the associated file descriptor.
- * Since this must be called without holding "ep->lock" the atomic exchange trick
- * will protect us from multiple unregister.
+ * This function unregisters poll callbacks from the associated file
+ * descriptor.  Must be called with "mtx" held (or "epmutex" if called from
+ * ep_free).
  */
 static void ep_unregister_pollwait(struct eventpoll *ep, struct epitem *epi)
 {
-	int nwait;
 	struct list_head *lsthead = &epi->pwqlist;
 	struct eppoll_entry *pwq;
 
-	/* This is called without locks, so we need the atomic exchange */
-	nwait = xchg(&epi->nwait, 0);
+	while (!list_empty(lsthead)) {
+		pwq = list_first_entry(lsthead, struct eppoll_entry, llink);
 
-	if (nwait) {
-		while (!list_empty(lsthead)) {
-			pwq = list_first_entry(lsthead, struct eppoll_entry, llink);
-
-			list_del_init(&pwq->llink);
-			remove_wait_queue(pwq->whead, &pwq->wait);
-			kmem_cache_free(pwq_cache, pwq);
-		}
+		list_del(&pwq->llink);
+		remove_wait_queue(pwq->whead, &pwq->wait);
+		kmem_cache_free(pwq_cache, pwq);
 	}
 }
 
