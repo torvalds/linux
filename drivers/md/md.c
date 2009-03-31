@@ -2771,12 +2771,18 @@ layout_store(mddev_t *mddev, const char *buf, size_t len)
 	if (!*buf || (*e && *e != '\n'))
 		return -EINVAL;
 
-	if (mddev->pers)
-		return -EBUSY;
-
-	mddev->new_layout = n;
-	if (mddev->reshape_position == MaxSector)
-		mddev->layout = n;
+	if (mddev->pers) {
+		int err;
+		if (mddev->pers->reconfig == NULL)
+			return -EBUSY;
+		err = mddev->pers->reconfig(mddev, n, -1);
+		if (err)
+			return err;
+	} else {
+		mddev->new_layout = n;
+		if (mddev->reshape_position == MaxSector)
+			mddev->layout = n;
+	}
 	return len;
 }
 static struct md_sysfs_entry md_layout =
@@ -2833,19 +2839,24 @@ chunk_size_show(mddev_t *mddev, char *page)
 static ssize_t
 chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 {
-	/* can only set chunk_size if array is not yet active */
 	char *e;
 	unsigned long n = simple_strtoul(buf, &e, 10);
 
 	if (!*buf || (*e && *e != '\n'))
 		return -EINVAL;
 
-	if (mddev->pers)
-		return -EBUSY;
-
-	mddev->new_chunk = n;
-	if (mddev->reshape_position == MaxSector)
-		mddev->chunk_size = n;
+	if (mddev->pers) {
+		int err;
+		if (mddev->pers->reconfig == NULL)
+			return -EBUSY;
+		err = mddev->pers->reconfig(mddev, -1, n);
+		if (err)
+			return err;
+	} else {
+		mddev->new_chunk = n;
+		if (mddev->reshape_position == MaxSector)
+			mddev->chunk_size = n;
+	}
 	return len;
 }
 static struct md_sysfs_entry md_chunk_size =

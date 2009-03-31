@@ -4913,6 +4913,47 @@ static void *raid5_takeover_raid1(mddev_t *mddev)
 }
 
 
+static int raid5_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
+{
+	/* Currently the layout and chunk size can only be changed
+	 * for a 2-drive raid array, as in that case no data shuffling
+	 * is required.
+	 * Later we might validate these and set new_* so a reshape
+	 * can complete the change.
+	 */
+	raid5_conf_t *conf = mddev_to_conf(mddev);
+
+	if (new_layout >= 0 && !algorithm_valid_raid5(new_layout))
+		return -EINVAL;
+	if (new_chunk > 0) {
+		if (new_chunk & (new_chunk-1))
+			/* not a power of 2 */
+			return -EINVAL;
+		if (new_chunk < PAGE_SIZE)
+			return -EINVAL;
+		if (mddev->array_sectors & ((new_chunk>>9)-1))
+			/* not factor of array size */
+			return -EINVAL;
+	}
+
+	/* They look valid */
+
+	if (mddev->raid_disks != 2)
+		return -EINVAL;
+
+	if (new_layout >= 0) {
+		conf->algorithm = new_layout;
+		mddev->layout = mddev->new_layout = new_layout;
+	}
+	if (new_chunk > 0) {
+		conf->chunk_size = new_chunk;
+		mddev->chunk_size = mddev->new_chunk = new_chunk;
+	}
+	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	md_wakeup_thread(mddev->thread);
+	return 0;
+}
+
 static void *raid5_takeover(mddev_t *mddev)
 {
 	/* raid5 can take over:
@@ -5023,6 +5064,7 @@ static struct mdk_personality raid5_personality =
 #endif
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid5_takeover,
+	.reconfig	= raid5_reconfig,
 };
 
 static struct mdk_personality raid4_personality =
