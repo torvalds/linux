@@ -18,7 +18,6 @@
 #include <linux/string.h>
 #include <linux/backing-dev.h>
 #include <linux/ramfs.h>
-#include <linux/quotaops.h>
 #include <linux/pagevec.h>
 #include <linux/mman.h>
 
@@ -204,11 +203,6 @@ static int ramfs_nommu_setattr(struct dentry *dentry, struct iattr *ia)
 	ret = inode_change_ok(inode, ia);
 	if (ret)
 		return ret;
-
-	/* by providing our own setattr() method, we skip this quotaism */
-	if ((old_ia_valid & ATTR_UID && ia->ia_uid != inode->i_uid) ||
-	    (old_ia_valid & ATTR_GID && ia->ia_gid != inode->i_gid))
-		ret = DQUOT_TRANSFER(inode, ia) ? -EDQUOT : 0;
 
 	/* pick out size-changing events */
 	if (ia->ia_valid & ATTR_SIZE) {

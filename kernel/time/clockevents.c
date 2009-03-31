@@ -68,6 +68,17 @@ void clockevents_set_mode(struct clock_event_device *dev,
 	if (dev->mode != mode) {
 		dev->set_mode(mode, dev);
 		dev->mode = mode;
+
+		/*
+		 * A nsec2cyc multiplicator of 0 is invalid and we'd crash
+		 * on it, so fix it up and emit a warning:
+		 */
+		if (mode == CLOCK_EVT_MODE_ONESHOT) {
+			if (unlikely(!dev->mult)) {
+				dev->mult = 1;
+				WARN_ON(1);
+			}
+		}
 	}
 }
 
@@ -167,15 +178,6 @@ void clockevents_register_device(struct clock_event_device *dev)
 {
 	BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
 	BUG_ON(!dev->cpumask);
-
-	/*
-	 * A nsec2cyc multiplicator of 0 is invalid and we'd crash
-	 * on it, so fix it up and emit a warning:
-	 */
-	if (unlikely(!dev->mult)) {
-		dev->mult = 1;
-		WARN_ON(1);
-	}
 
 	spin_lock(&clockevents_lock);
 

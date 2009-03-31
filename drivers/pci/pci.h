@@ -49,7 +49,6 @@ extern void pci_disable_enabled_device(struct pci_dev *dev);
 extern void pci_pm_init(struct pci_dev *dev);
 extern void platform_pci_wakeup_init(struct pci_dev *dev);
 extern void pci_allocate_cap_save_buffers(struct pci_dev *dev);
-extern int pci_restore_standard_config(struct pci_dev *dev);
 
 static inline bool pci_is_bridge(struct pci_dev *pci_dev)
 {

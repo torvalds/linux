@@ -25,7 +25,9 @@
 
 #include <asm/dma.h>
 #include <asm/mach-types.h>
+#ifdef CONFIG_SFFSDR_FPGA
 #include <asm/plat-sffsdr/sffsdr-fpga.h>
+#endif
 
 #include <mach/mcbsp.h>
 #include <mach/edma.h>
@@ -34,31 +36,45 @@
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
 
+/*
+ * CLKX and CLKR are the inputs for the Sample Rate Generator.
+ * FSX and FSR are outputs, driven by the sample Rate Generator.
+ */
+#define AUDIO_FORMAT (SND_SOC_DAIFMT_DSP_B |	\
+		      SND_SOC_DAIFMT_CBM_CFS |	\
+		      SND_SOC_DAIFMT_IB_NF)
+
 static int sffsdr_hw_params(struct snd_pcm_substream *substream,
-			    struct snd_pcm_hw_params *params,
-			    struct snd_soc_dai *dai)
+			    struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	int fs;
 	int ret = 0;
 
-	/* Set cpu DAI configuration:
-	 * CLKX and CLKR are the inputs for the Sample Rate Generator.
-	 * FSX and FSR are outputs, driven by the sample Rate Generator. */
-	ret = snd_soc_dai_set_fmt(cpu_dai,
-				  SND_SOC_DAIFMT_RIGHT_J |
-				  SND_SOC_DAIFMT_CBM_CFS |
-				  SND_SOC_DAIFMT_IB_NF);
-	if (ret < 0)
-		return ret;
-
 	/* Fsref can be 32000, 44100 or 48000. */
 	fs = params_rate(params);
 
+#ifndef CONFIG_SFFSDR_FPGA
+	/* Without the FPGA module, the Fs is fixed at 44100 Hz */
+	if (fs != 44100) {
+		pr_debug("warning: only 44.1 kHz is supported without SFFSDR FPGA module\n");
+		return -EINVAL;
+	}
+#endif
+
+	/* set cpu DAI configuration */
+	ret = snd_soc_dai_set_fmt(cpu_dai, AUDIO_FORMAT);
+	if (ret < 0)
+		return ret;
+
 	pr_debug("sffsdr_hw_params: rate = %d Hz\n", fs);
 
+#ifndef CONFIG_SFFSDR_FPGA
+	return 0;
+#else
 	return sffsdr_fpga_set_codec_fs(fs);
+#endif
 }
 
 static struct snd_soc_ops sffsdr_ops = {
@@ -127,7 +143,8 @@ static int __init sffsdr_init(void)
 
 	platform_set_drvdata(sffsdr_snd_device, &sffsdr_snd_devdata);
 	sffsdr_snd_devdata.dev = &sffsdr_snd_device->dev;
-	sffsdr_snd_device->dev.platform_data = &sffsdr_snd_data;
+	platform_device_add_data(sffsdr_snd_device, &sffsdr_snd_data,
+				 sizeof(sffsdr_snd_data));
 
 	ret = platform_device_add_resources(sffsdr_snd_device,
 					    sffsdr_snd_resources,

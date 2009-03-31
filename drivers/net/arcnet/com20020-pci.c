@@ -72,6 +72,9 @@ static int __devinit com20020pci_probe(struct pci_dev *pdev, const struct pci_de
 	dev = alloc_arcdev(device);
 	if (!dev)
 		return -ENOMEM;
+
+	dev->netdev_ops = &com20020_netdev_ops;
+
 	lp = netdev_priv(dev);
 
 	pci_set_drvdata(pdev, dev);

@@ -112,7 +112,8 @@ void __init mips_cpu_irq_init(void)
 	 */
 	if (cpu_has_mipsmt)
 		for (i = irq_base; i < irq_base + 2; i++)
-			set_irq_chip(i, &mips_mt_cpu_irq_controller);
+			set_irq_chip_and_handler(i, &mips_mt_cpu_irq_controller,
+						 handle_percpu_irq);
 
 	for (i = irq_base + 2; i < irq_base + 8; i++)
 		set_irq_chip_and_handler(i, &mips_cpu_irq_controller,

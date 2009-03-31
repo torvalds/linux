@@ -20,6 +20,18 @@ config MACH_RD88F6281
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell RD-88F6281 Reference Board.
 
+config MACH_SHEEVAPLUG
+	bool "Marvell SheevaPlug Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell SheevaPlug Reference Board.
+
+config MACH_TS219
+	bool "QNAP TS-119 and TS-219 Turbo NAS"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  QNAP TS-119 and TS-219 Turbo NAS devices.
+
 endmenu
 
 endif

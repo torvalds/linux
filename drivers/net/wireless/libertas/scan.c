@@ -692,7 +692,7 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 					    bss->wpa_ie_len);
 			} else if (pos[1] >= MARVELL_MESH_IE_LENGTH &&
 				   pos[2] == 0x00 && pos[3] == 0x50 &&
-				   pos[4] == 0x43 && pos[4] == 0x04) {
+				   pos[4] == 0x43 && pos[5] == 0x04) {
 				lbs_deb_scan("got mesh IE\n");
 				bss->mesh = 1;
 			} else {

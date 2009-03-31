@@ -404,7 +404,8 @@ struct drm_i915_gem_object {
 	/** AGP memory structure for our GTT binding. */
 	DRM_AGP_MEM *agp_mem;
 
-	struct page **page_list;
+	struct page **pages;
+	int pages_refcount;
 
 	/**
 	 * Current offset of the object in GTT space.
@@ -519,7 +520,7 @@ extern int i915_driver_device_is_agp(struct drm_device * dev);
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
 extern int i915_emit_box(struct drm_device *dev,
-			 struct drm_clip_rect __user *boxes,
+			 struct drm_clip_rect *boxes,
 			 int i, int DR1, int DR4);
 
 /* i915_irq.c */
@@ -604,8 +605,6 @@ int i915_gem_get_tiling(struct drm_device *dev, void *data,
 int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
-int i915_gem_proc_init(struct drm_minor *minor);
-void i915_gem_proc_cleanup(struct drm_minor *minor);
 int i915_gem_init_object(struct drm_gem_object *obj);
 void i915_gem_free_object(struct drm_gem_object *obj);
 int i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment);
@@ -648,6 +647,10 @@ void i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle);
 void i915_gem_dump_object(struct drm_gem_object *obj, int len,
 			  const char *where, uint32_t mark);
 void i915_dump_lru(struct drm_device *dev, const char *where);
+
+/* i915_debugfs.c */
+int i915_gem_debugfs_init(struct drm_minor *minor);
+void i915_gem_debugfs_cleanup(struct drm_minor *minor);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
@@ -784,15 +787,21 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		     (dev)->pci_device == 0x2E22 || \
 		     IS_GM45(dev))
 
+#define IS_IGDG(dev) ((dev)->pci_device == 0xa001)
+#define IS_IGDGM(dev) ((dev)->pci_device == 0xa011)
+#define IS_IGD(dev) (IS_IGDG(dev) || IS_IGDGM(dev))
+
 #define IS_G33(dev)    ((dev)->pci_device == 0x29C2 ||	\
 			(dev)->pci_device == 0x29B2 ||	\
-			(dev)->pci_device == 0x29D2)
+			(dev)->pci_device == 0x29D2 ||  \
+			(IS_IGD(dev)))
 
 #define IS_I9XX(dev) (IS_I915G(dev) || IS_I915GM(dev) || IS_I945G(dev) || \
 		      IS_I945GM(dev) || IS_I965G(dev) || IS_G33(dev))
 
 #define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
-			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev))
+			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev) || \
+			IS_IGD(dev))
 
 #define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev))
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte

@@ -199,6 +199,10 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 #define SCIR_CPU_ACTIVITY	0x02	/* not idle */
 #define SCIR_CPU_HB_INTERVAL	(HZ)	/* once per second */
 
+/* Loop through all installed blades */
+#define for_each_possible_blade(bid)		\
+	for ((bid) = 0; (bid) < uv_num_possible_blades(); (bid)++)
+
 /*
  * Macros for converting between kernel virtual addresses, socket local physical
  * addresses, and UV global physical addresses.

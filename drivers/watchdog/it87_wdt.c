@@ -188,8 +188,8 @@ static inline int superio_inb(int reg)
 
 static inline void superio_outb(int val, int reg)
 {
-       outb(reg, REG);
-       outb(val, VAL);
+	outb(reg, REG);
+	outb(val, VAL);
 }
 
 static inline int superio_inw(int reg)
@@ -204,10 +204,10 @@ static inline int superio_inw(int reg)
 
 static inline void superio_outw(int val, int reg)
 {
-       outb(reg++, REG);
-       outb(val >> 8, VAL);
-       outb(reg, REG);
-       outb(val, VAL);
+	outb(reg++, REG);
+	outb(val >> 8, VAL);
+	outb(reg, REG);
+	outb(val, VAL);
 }
 
 /* watchdog timer handling */

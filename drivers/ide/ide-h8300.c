@@ -44,53 +44,53 @@ static u16 mm_inw(unsigned long a)
 	return r;
 }
 
-static void h8300_tf_load(ide_drive_t *drive, ide_task_t *task)
+static void h8300_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
-	struct ide_taskfile *tf = &task->tf;
-	u8 HIHI = (task->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
+	struct ide_taskfile *tf = &cmd->tf;
+	u8 HIHI = (cmd->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
 
-	if (task->tf_flags & IDE_TFLAG_FLAGGED)
+	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (task->tf_flags & IDE_TFLAG_OUT_DATA)
+	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA)
 		mm_outw((tf->hob_data << 8) | tf->data, io_ports->data_addr);
 
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
 		outb(tf->hob_feature, io_ports->feature_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
 		outb(tf->hob_nsect, io_ports->nsect_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAL)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_LBAL)
 		outb(tf->hob_lbal, io_ports->lbal_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAM)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_LBAM)
 		outb(tf->hob_lbam, io_ports->lbam_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAH)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_LBAH)
 		outb(tf->hob_lbah, io_ports->lbah_addr);
 
-	if (task->tf_flags & IDE_TFLAG_OUT_FEATURE)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_FEATURE)
 		outb(tf->feature, io_ports->feature_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_NSECT)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_NSECT)
 		outb(tf->nsect, io_ports->nsect_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_LBAL)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_LBAL)
 		outb(tf->lbal, io_ports->lbal_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_LBAM)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_LBAM)
 		outb(tf->lbam, io_ports->lbam_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_LBAH)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_LBAH)
 		outb(tf->lbah, io_ports->lbah_addr);
 
-	if (task->tf_flags & IDE_TFLAG_OUT_DEVICE)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_DEVICE)
 		outb((tf->device & HIHI) | drive->select,
 		     io_ports->device_addr);
 }
 
-static void h8300_tf_read(ide_drive_t *drive, ide_task_t *task)
+static void h8300_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
-	struct ide_taskfile *tf = &task->tf;
+	struct ide_taskfile *tf = &cmd->tf;
 
-	if (task->tf_flags & IDE_TFLAG_IN_DATA) {
+	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
 		u16 data = mm_inw(io_ports->data_addr);
 
 		tf->data = data & 0xff;
@@ -100,31 +100,31 @@ static void h8300_tf_read(ide_drive_t *drive, ide_task_t *task)
 	/* be sure we're looking at the low order bits */
 	outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
-	if (task->tf_flags & IDE_TFLAG_IN_FEATURE)
+	if (cmd->tf_flags & IDE_TFLAG_IN_FEATURE)
 		tf->feature = inb(io_ports->feature_addr);
-	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
+	if (cmd->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = inb(io_ports->nsect_addr);
-	if (task->tf_flags & IDE_TFLAG_IN_LBAL)
+	if (cmd->tf_flags & IDE_TFLAG_IN_LBAL)
 		tf->lbal   = inb(io_ports->lbal_addr);
-	if (task->tf_flags & IDE_TFLAG_IN_LBAM)
+	if (cmd->tf_flags & IDE_TFLAG_IN_LBAM)
 		tf->lbam   = inb(io_ports->lbam_addr);
-	if (task->tf_flags & IDE_TFLAG_IN_LBAH)
+	if (cmd->tf_flags & IDE_TFLAG_IN_LBAH)
 		tf->lbah   = inb(io_ports->lbah_addr);
-	if (task->tf_flags & IDE_TFLAG_IN_DEVICE)
+	if (cmd->tf_flags & IDE_TFLAG_IN_DEVICE)
 		tf->device = inb(io_ports->device_addr);
 
-	if (task->tf_flags & IDE_TFLAG_LBA48) {
+	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
 		outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
 
-		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
 			tf->hob_feature = inb(io_ports->feature_addr);
-		if (task->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
 			tf->hob_nsect   = inb(io_ports->nsect_addr);
-		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
 			tf->hob_lbal    = inb(io_ports->lbal_addr);
-		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
 			tf->hob_lbam    = inb(io_ports->lbam_addr);
-		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
 			tf->hob_lbah    = inb(io_ports->lbah_addr);
 	}
 }
@@ -143,13 +143,13 @@ static void mm_insw(unsigned long addr, void *buf, u32 len)
 		*bp = bswap(*(volatile u16 *)addr);
 }
 
-static void h8300_input_data(ide_drive_t *drive, struct request *rq,
+static void h8300_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			     void *buf, unsigned int len)
 {
 	mm_insw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
 }
 
-static void h8300_output_data(ide_drive_t *drive, struct request *rq,
+static void h8300_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			      void *buf, unsigned int len)
 {
 	mm_outsw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);

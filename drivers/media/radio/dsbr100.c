@@ -390,9 +390,11 @@ static void usb_dsbr100_disconnect(struct usb_interface *intf)
 static int vidioc_querycap(struct file *file, void *priv,
 					struct v4l2_capability *v)
 {
+	struct dsbr100_device *radio = video_drvdata(file);
+
 	strlcpy(v->driver, "dsbr100", sizeof(v->driver));
 	strlcpy(v->card, "D-Link R-100 USB FM Radio", sizeof(v->card));
-	sprintf(v->bus_info, "USB");
+	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
 	v->version = RADIO_VERSION;
 	v->capabilities = V4L2_CAP_TUNER;
 	return 0;
@@ -450,7 +452,10 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (radio->removed)
 		return -EIO;
 
+	mutex_lock(&radio->lock);
 	radio->curfreq = f->frequency;
+	mutex_unlock(&radio->lock);
+
 	retval = dsbr100_setfreq(radio, radio->curfreq);
 	if (retval < 0)
 		dev_warn(&radio->usbdev->dev, "Set frequency failed\n");
@@ -601,7 +606,10 @@ static int usb_dsbr100_close(struct file *file)
 	if (!radio)
 		return -ENODEV;
 
+	mutex_lock(&radio->lock);
 	radio->users = 0;
+	mutex_unlock(&radio->lock);
+
 	if (!radio->removed) {
 		retval = dsbr100_stop(radio);
 		if (retval < 0) {

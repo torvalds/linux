@@ -164,11 +164,6 @@ static int upd64083_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int upd64083_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops upd64083_core_ops = {
@@ -239,8 +234,6 @@ MODULE_DEVICE_TABLE(i2c, upd64083_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "upd64083",
-	.driverid = I2C_DRIVERID_UPD64083,
-	.command = upd64083_command,
 	.probe = upd64083_probe,
 	.remove = upd64083_remove,
 	.id_table = upd64083_id,

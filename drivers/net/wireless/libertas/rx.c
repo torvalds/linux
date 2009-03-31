@@ -168,7 +168,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 
 	if (skb->len < (ETH_HLEN + 8 + sizeof(struct rxpd))) {
 		lbs_deb_rx("rx err: frame received with bad length\n");
-		priv->stats.rx_length_errors++;
+		dev->stats.rx_length_errors++;
 		ret = 0;
 		goto done;
 	}
@@ -179,7 +179,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	if (!(p_rx_pd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK))) {
 		lbs_deb_rx("rx err: frame received with bad status\n");
 		lbs_pr_alert("rxpd not ok\n");
-		priv->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		ret = 0;
 		goto done;
 	}
@@ -243,8 +243,8 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	lbs_compute_rssi(priv, p_rx_pd);
 
 	lbs_deb_rx("rx data: size of actual packet %d\n", skb->len);
-	priv->stats.rx_bytes += skb->len;
-	priv->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
+	dev->stats.rx_packets++;
 
 	skb->protocol = eth_type_trans(skb, dev);
 	if (in_interrupt())
@@ -311,7 +311,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	struct sk_buff *skb)
 {
 	int ret = 0;
-
+	struct net_device *dev = priv->dev;
 	struct rx80211packethdr *p_rx_pkt;
 	struct rxpd *prxpd;
 	struct rx_radiotap_hdr radiotap_hdr;
@@ -326,7 +326,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 
 	if (skb->len < (ETH_HLEN + 8 + sizeof(struct rxpd))) {
 		lbs_deb_rx("rx err: frame received with bad length\n");
-		priv->stats.rx_length_errors++;
+		dev->stats.rx_length_errors++;
 		ret = -EINVAL;
 		kfree_skb(skb);
 		goto done;
@@ -337,7 +337,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	 */
 	if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK))) {
 		//lbs_deb_rx("rx err: frame received with bad status\n");
-		priv->stats.rx_errors++;
+		dev->stats.rx_errors++;
 	}
 
 	lbs_deb_rx("rx data: skb->len-sizeof(RxPd) = %d-%zd = %zd\n",
@@ -351,19 +351,11 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	radiotap_hdr.hdr.it_pad = 0;
 	radiotap_hdr.hdr.it_len = cpu_to_le16 (sizeof(struct rx_radiotap_hdr));
 	radiotap_hdr.hdr.it_present = cpu_to_le32 (RX_RADIOTAP_PRESENT);
-	/* unknown values */
-	radiotap_hdr.flags = 0;
-	radiotap_hdr.chan_freq = 0;
-	radiotap_hdr.chan_flags = 0;
-	radiotap_hdr.antenna = 0;
-	/* known values */
+	if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK)))
+		radiotap_hdr.flags |= IEEE80211_RADIOTAP_F_BADFCS;
 	radiotap_hdr.rate = convert_mv_rate_to_radiotap(prxpd->rx_rate);
 	/* XXX must check no carryout */
 	radiotap_hdr.antsignal = prxpd->snr + prxpd->nf;
-	radiotap_hdr.rx_flags = 0;
-	if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK)))
-		radiotap_hdr.rx_flags |= IEEE80211_RADIOTAP_F_RX_BADFCS;
-	//memset(radiotap_hdr.pad, 0x11, IEEE80211_RADIOTAP_HDRLEN - 18);
 
 	/* chop the rxpd */
 	skb_pull(skb, sizeof(struct rxpd));
@@ -389,8 +381,8 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	lbs_compute_rssi(priv, prxpd);
 
 	lbs_deb_rx("rx data: size of actual packet %d\n", skb->len);
-	priv->stats.rx_bytes += skb->len;
-	priv->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
+	dev->stats.rx_packets++;
 
 	skb->protocol = eth_type_trans(skb, priv->rtap_net_dev);
 	netif_rx(skb);

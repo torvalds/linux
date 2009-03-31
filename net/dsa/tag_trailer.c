@@ -1,6 +1,6 @@
 /*
  * net/dsa/tag_trailer.c - Trailer tag format handling
- * Copyright (c) 2008 Marvell Semiconductor
+ * Copyright (c) 2008-2009 Marvell Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ int trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	nskb->protocol = htons(ETH_P_TRAILER);
 
-	nskb->dev = p->parent->master_netdev;
+	nskb->dev = p->parent->dst->master_netdev;
 	dev_queue_xmit(nskb);
 
 	return NETDEV_TX_OK;
@@ -68,12 +68,14 @@ int trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 static int trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 		       struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct dsa_switch *ds = dev->dsa_ptr;
+	struct dsa_switch_tree *dst = dev->dsa_ptr;
+	struct dsa_switch *ds;
 	u8 *trailer;
 	int source_port;
 
-	if (unlikely(ds == NULL))
+	if (unlikely(dst == NULL))
 		goto out_drop;
+	ds = dst->ds[0];
 
 	skb = skb_unshare(skb, GFP_ATOMIC);
 	if (skb == NULL)
@@ -111,8 +113,8 @@ out:
 	return 0;
 }
 
-static struct packet_type trailer_packet_type = {
-	.type	= __constant_htons(ETH_P_TRAILER),
+static struct packet_type trailer_packet_type __read_mostly = {
+	.type	= cpu_to_be16(ETH_P_TRAILER),
 	.func	= trailer_rcv,
 };
 

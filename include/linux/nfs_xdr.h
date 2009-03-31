@@ -785,7 +785,7 @@ struct nfs_access_entry;
  */
 struct nfs_rpc_ops {
 	u32	version;		/* Protocol version */
-	struct dentry_operations *dentry_ops;
+	const struct dentry_operations *dentry_ops;
 	const struct inode_operations *dir_inode_ops;
 	const struct inode_operations *file_inode_ops;
 

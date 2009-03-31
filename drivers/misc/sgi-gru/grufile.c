@@ -36,22 +36,10 @@
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
+#include <asm/uv/uv.h>
 #include "gru.h"
 #include "grulib.h"
 #include "grutables.h"
-
-#if defined CONFIG_X86_64
-#include <asm/genapic.h>
-#include <asm/irq.h>
-#define IS_UV()		is_uv_system()
-#elif defined CONFIG_IA64
-#include <asm/system.h>
-#include <asm/sn/simulator.h>
-/* temp support for running on hardware simulator */
-#define IS_UV()		IS_MEDUSA() || ia64_platform_is("uv")
-#else
-#define IS_UV()		0
-#endif
 
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/uv_mmrs.h>
@@ -381,7 +369,7 @@ static int __init gru_init(void)
 	char id[10];
 	void *gru_start_vaddr;
 
-	if (!IS_UV())
+	if (!is_uv_system())
 		return 0;
 
 #if defined CONFIG_IA64
@@ -451,7 +439,7 @@ static void __exit gru_exit(void)
 	int order = get_order(sizeof(struct gru_state) *
 			      GRU_CHIPLETS_PER_BLADE);
 
-	if (!IS_UV())
+	if (!is_uv_system())
 		return;
 
 	for (i = 0; i < GRU_CHIPLETS_PER_BLADE; i++)

@@ -143,8 +143,8 @@ void nmi_dump_hub_irq(nasid_t nasid, int slice)
 	pend0 = REMOTE_HUB_L(nasid, PI_INT_PEND0);
 	pend1 = REMOTE_HUB_L(nasid, PI_INT_PEND1);
 
-	printk("PI_INT_MASK0: %16lx PI_INT_MASK1: %16lx\n", mask0, mask1);
-	printk("PI_INT_PEND0: %16lx PI_INT_PEND1: %16lx\n", pend0, pend1);
+	printk("PI_INT_MASK0: %16Lx PI_INT_MASK1: %16Lx\n", mask0, mask1);
+	printk("PI_INT_PEND0: %16Lx PI_INT_PEND1: %16Lx\n", pend0, pend1);
 	printk("\n\n");
 }
 
@@ -219,7 +219,7 @@ cont_nmi_dump(void)
 		if (i == 1000) {
 			for_each_online_node(node)
 				if (NODEPDA(node)->dump_count == 0) {
-					cpu = node_to_first_cpu(node);
+					cpu = cpumask_first(cpumask_of_node(node));
 					for (n=0; n < CNODE_NUM_CPUS(node); cpu++, n++) {
 						CPUMASK_SETB(nmied_cpus, cpu);
 						/*

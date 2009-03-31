@@ -1071,7 +1071,8 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 		mutex_unlock(&cgroup_mutex);
 	}
 
-	return simple_set_mnt(mnt, sb);
+	simple_set_mnt(mnt, sb);
+	return 0;
 
  free_cg_links:
 	free_cg_links(&tmp_cg_links);
@@ -1627,7 +1628,7 @@ static struct inode_operations cgroup_dir_inode_operations = {
 static int cgroup_create_file(struct dentry *dentry, int mode,
 				struct super_block *sb)
 {
-	static struct dentry_operations cgroup_dops = {
+	static const struct dentry_operations cgroup_dops = {
 		.d_iput = cgroup_diput,
 	};
 

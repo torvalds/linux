@@ -14,15 +14,8 @@
 #include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/errno.h>
-#include <linux/time.h>
 
-#include <mach/hardware.h>
-#include <asm/memory.h>
-#include <asm/system.h>
 #include <mach/pm.h>
-#include <mach/pxa-regs.h>
-#include <mach/lubbock.h>
-#include <asm/mach/time.h>
 
 struct pxa_cpu_pm_fns *pxa_cpu_pm_fns;
 static unsigned long *sleep_save;
@@ -57,9 +50,9 @@ int pxa_pm_enter(suspend_state_t state)
 
 		/* if invalid, display message and wait for a hardware reset */
 		if (checksum != sleep_save_checksum) {
-#ifdef CONFIG_ARCH_LUBBOCK
-			LUB_HEXLED = 0xbadbadc5;
-#endif
+
+			lubbock_set_hexled(0xbadbadc5);
+
 			while (1)
 				pxa_cpu_pm_fns->enter(state);
 		}

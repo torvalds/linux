@@ -31,6 +31,7 @@ enum
  *	Neighbor Cache Entry Flags
  */
 
+#define NTF_USE		0x01
 #define NTF_PROXY	0x08	/* == ATF_PUBL */
 #define NTF_ROUTER	0x80
 

@@ -1649,7 +1649,7 @@ static int ipu_probe(struct platform_device *pdev)
 	}
 
 	/* Get IPU clock */
-	ipu_data.ipu_clk = clk_get(&pdev->dev, "ipu_clk");
+	ipu_data.ipu_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ipu_data.ipu_clk)) {
 		ret = PTR_ERR(ipu_data.ipu_clk);
 		goto err_clk_get;

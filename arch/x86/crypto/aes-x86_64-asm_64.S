@@ -17,8 +17,6 @@
 
 #include <asm/asm-offsets.h>
 
-#define BASE crypto_tfm_ctx_offset
-
 #define R1	%rax
 #define R1E	%eax
 #define R1X	%ax
@@ -56,13 +54,13 @@
 	.align	8;			\
 FUNC:	movq	r1,r2;			\
 	movq	r3,r4;			\
-	leaq	BASE+KEY+48+4(r8),r9;	\
+	leaq	KEY+48(r8),r9;		\
 	movq	r10,r11;		\
 	movl	(r7),r5 ## E;		\
 	movl	4(r7),r1 ## E;		\
 	movl	8(r7),r6 ## E;		\
 	movl	12(r7),r7 ## E;		\
-	movl	BASE+0(r8),r10 ## E;	\
+	movl	480(r8),r10 ## E;	\
 	xorl	-48(r9),r5 ## E;	\
 	xorl	-44(r9),r1 ## E;	\
 	xorl	-40(r9),r6 ## E;	\

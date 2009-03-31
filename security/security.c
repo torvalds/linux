@@ -1007,11 +1007,6 @@ int security_socket_accept(struct socket *sock, struct socket *newsock)
 	return security_ops->socket_accept(sock, newsock);
 }
 
-void security_socket_post_accept(struct socket *sock, struct socket *newsock)
-{
-	security_ops->socket_post_accept(sock, newsock);
-}
-
 int security_socket_sendmsg(struct socket *sock, struct msghdr *msg, int size)
 {
 	return security_ops->socket_sendmsg(sock, msg, size);

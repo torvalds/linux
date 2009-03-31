@@ -114,7 +114,7 @@ static const struct super_operations isofs_sops = {
 };
 
 
-static struct dentry_operations isofs_dentry_ops[] = {
+static const struct dentry_operations isofs_dentry_ops[] = {
 	{
 		.d_hash		= isofs_hash,
 		.d_compare	= isofs_dentry_cmp,

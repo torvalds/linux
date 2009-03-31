@@ -40,6 +40,7 @@
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <net/netlabel.h>
+#include <net/request_sock.h>
 #include <asm/atomic.h>
 
 /* known doi values */
@@ -215,6 +216,10 @@ int cipso_v4_sock_setattr(struct sock *sk,
 			  const struct netlbl_lsm_secattr *secattr);
 void cipso_v4_sock_delattr(struct sock *sk);
 int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr);
+int cipso_v4_req_setattr(struct request_sock *req,
+			 const struct cipso_v4_doi *doi_def,
+			 const struct netlbl_lsm_secattr *secattr);
+void cipso_v4_req_delattr(struct request_sock *req);
 int cipso_v4_skbuff_setattr(struct sk_buff *skb,
 			    const struct cipso_v4_doi *doi_def,
 			    const struct netlbl_lsm_secattr *secattr);
@@ -245,6 +250,18 @@ static inline int cipso_v4_sock_getattr(struct sock *sk,
 					struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;
+}
+
+static inline int cipso_v4_req_setattr(struct request_sock *req,
+				       const struct cipso_v4_doi *doi_def,
+				       const struct netlbl_lsm_secattr *secattr)
+{
+	return -ENOSYS;
+}
+
+static inline void cipso_v4_req_delattr(struct request_sock *req)
+{
+	return;
 }
 
 static inline int cipso_v4_skbuff_setattr(struct sk_buff *skb,

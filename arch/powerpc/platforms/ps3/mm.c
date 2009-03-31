@@ -311,7 +311,7 @@ static int __init ps3_mm_add_memory(void)
 	result = add_memory(0, start_addr, map.r1.size);
 
 	if (result) {
-		DBG("%s:%d: add_memory failed: (%d)\n",
+		pr_err("%s:%d: add_memory failed: (%d)\n",
 			__func__, __LINE__, result);
 		return result;
 	}
@@ -322,7 +322,7 @@ static int __init ps3_mm_add_memory(void)
 	result = online_pages(start_pfn, nr_pages);
 
 	if (result)
-		DBG("%s:%d: online_pages failed: (%d)\n",
+		pr_err("%s:%d: online_pages failed: (%d)\n",
 			__func__, __LINE__, result);
 
 	return result;

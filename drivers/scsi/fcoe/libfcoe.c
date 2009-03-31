@@ -423,7 +423,7 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 
 	/* crc offload */
 	if (likely(lp->crc_offload)) {
-		skb->ip_summed = CHECKSUM_COMPLETE;
+		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum_start = skb_headroom(skb);
 		skb->csum_offset = skb->len;
 		crc = 0;
@@ -460,7 +460,7 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	skb->mac_len = elen;
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FCOE);
 	skb->dev = fc->real_dev;
 
 	/* fill up mac and fcoe headers */
@@ -483,6 +483,16 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 		FC_FCOE_ENCAPS_VER(hp, FC_FCOE_VER);
 	hp->fcoe_sof = sof;
 
+#ifdef NETIF_F_FSO
+	/* fcoe lso, mss is in max_payload which is non-zero for FCP data */
+	if (lp->seq_offload && fr_max_payload(fp)) {
+		skb_shinfo(skb)->gso_type = SKB_GSO_FCOE;
+		skb_shinfo(skb)->gso_size = fr_max_payload(fp);
+	} else {
+		skb_shinfo(skb)->gso_type = 0;
+		skb_shinfo(skb)->gso_size = 0;
+	}
+#endif
 	/* update tx stats: regardless if LLD fails */
 	stats = lp->dev_stats[smp_processor_id()];
 	if (stats) {
@@ -623,7 +633,7 @@ int fcoe_percpu_receive_thread(void *arg)
 		 * it's solicited data, in which case, the FCP layer would
 		 * check it during the copy.
 		 */
-		if (lp->crc_offload)
+		if (lp->crc_offload && skb->ip_summed == CHECKSUM_UNNECESSARY)
 			fr_flags(fp) &= ~FCPHF_CRC_UNCHECKED;
 		else
 			fr_flags(fp) |= FCPHF_CRC_UNCHECKED;

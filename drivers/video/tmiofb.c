@@ -751,7 +751,7 @@ static int __devinit tmiofb_probe(struct platform_device *dev)
 	}
 
 	retval = request_irq(irq, &tmiofb_irq, IRQF_DISABLED,
-					dev->dev.bus_id, info);
+					dev_name(&dev->dev), info);
 
 	if (retval)
 		goto err_request_irq;

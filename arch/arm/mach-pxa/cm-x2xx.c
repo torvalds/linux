@@ -22,8 +22,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa27x.h>
-#include <mach/pxa-regs.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
 
@@ -96,7 +94,7 @@ static struct resource cmx270_dm9000_resource[] = {
 };
 
 static struct dm9000_plat_data cmx270_dm9000_platdata = {
-	.flags		= DM9000_PLATF_32BITONLY,
+	.flags		= DM9000_PLATF_32BITONLY | DM9000_PLATF_NO_EEPROM,
 };
 
 static struct platform_device cmx2xx_dm9000_device = {

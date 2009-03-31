@@ -26,6 +26,7 @@
 #define TUN_MINOR		200
 #define MWAVE_MINOR		219	/* ACP/Mwave Modem */
 #define MPT_MINOR		220
+#define MPT2SAS_MINOR		221
 #define HPET_MINOR		228
 #define FUSE_MINOR		229
 #define KVM_MINOR		232

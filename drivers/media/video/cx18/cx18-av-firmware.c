@@ -29,6 +29,7 @@
 
 int cx18_av_loadfw(struct cx18 *cx)
 {
+	struct v4l2_subdev *sd = &cx->av_state.sd;
 	const struct firmware *fw = NULL;
 	u32 size;
 	u32 v;
@@ -36,8 +37,8 @@ int cx18_av_loadfw(struct cx18 *cx)
 	int i;
 	int retries1 = 0;
 
-	if (request_firmware(&fw, FWFILE, &cx->dev->dev) != 0) {
-		CX18_ERR("unable to open firmware %s\n", FWFILE);
+	if (request_firmware(&fw, FWFILE, &cx->pci_dev->dev) != 0) {
+		CX18_ERR_DEV(sd, "unable to open firmware %s\n", FWFILE);
 		return -EINVAL;
 	}
 
@@ -88,7 +89,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 		retries1++;
 	}
 	if (retries1 >= 5) {
-		CX18_ERR("unable to load firmware %s\n", FWFILE);
+		CX18_ERR_DEV(sd, "unable to load firmware %s\n", FWFILE);
 		release_firmware(fw);
 		return -EIO;
 	}
@@ -115,9 +116,9 @@ int cx18_av_loadfw(struct cx18 *cx)
 	   are generated) */
 	cx18_av_write4(cx, CXADEC_I2S_OUT_CTL, 0x000001A0);
 
-	/* set alt I2s master clock to /16 and enable alt divider i2s
+	/* set alt I2s master clock to /0x16 and enable alt divider i2s
 	   passthrough */
-	cx18_av_write4(cx, CXADEC_PIN_CFG3, 0x5000B687);
+	cx18_av_write4(cx, CXADEC_PIN_CFG3, 0x5600B687);
 
 	cx18_av_write4_expect(cx, CXADEC_STD_DET_CTL, 0x000000F6, 0x000000F6,
 								  0x3F00FFFF);
@@ -131,7 +132,8 @@ int cx18_av_loadfw(struct cx18 *cx)
 	v = cx18_read_reg(cx, CX18_AUDIO_ENABLE);
 	/* If bit 11 is 1, clear bit 10 */
 	if (v & 0x800)
-		cx18_write_reg(cx, v & 0xFFFFFBFF, CX18_AUDIO_ENABLE);
+		cx18_write_reg_expect(cx, v & 0xFFFFFBFF, CX18_AUDIO_ENABLE,
+				      0, 0x400);
 
 	/* Enable WW auto audio standard detection */
 	v = cx18_av_read4(cx, CXADEC_STD_DET_CTL);
@@ -142,6 +144,6 @@ int cx18_av_loadfw(struct cx18 *cx)
 
 	release_firmware(fw);
 
-	CX18_INFO("loaded %s firmware (%d bytes)\n", FWFILE, size);
+	CX18_INFO_DEV(sd, "loaded %s firmware (%d bytes)\n", FWFILE, size);
 	return 0;
 }

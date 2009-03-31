@@ -20,6 +20,7 @@
 #include <linux/blkdev.h>
 #include <linux/magic.h>
 #include <linux/jbd2.h>
+#include <linux/quota.h>
 #include "ext4_i.h"
 
 /*
@@ -1098,6 +1099,7 @@ extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
 extern int ext4_block_truncate_page(handle_t *handle,
 		struct address_space *mapping, loff_t from);
 extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct page *page);
+extern qsize_t ext4_get_reserved_space(struct inode *inode);
 
 /* ioctl.c */
 extern long ext4_ioctl(struct file *, unsigned int, unsigned long);

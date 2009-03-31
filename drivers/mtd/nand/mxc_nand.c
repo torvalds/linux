@@ -880,7 +880,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	this->read_buf = mxc_nand_read_buf;
 	this->verify_buf = mxc_nand_verify_buf;
 
-	host->clk = clk_get(&pdev->dev, "nfc_clk");
+	host->clk = clk_get(&pdev->dev, "nfc");
 	if (IS_ERR(host->clk))
 		goto eclk;
 

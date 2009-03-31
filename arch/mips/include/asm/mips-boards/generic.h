@@ -71,8 +71,6 @@
 
 #define MIPS_REVISION_CORID (((*(volatile u32 *)ioremap(MIPS_REVISION_REG, 4)) >> 10) & 0x3f)
 
-extern int mips_revision_corid;
-
 #define MIPS_REVISION_SCON_OTHER	   0
 #define MIPS_REVISION_SCON_SOCITSC	   1
 #define MIPS_REVISION_SCON_SOCITSCP	   2

@@ -62,13 +62,6 @@
  *   and will continue to evolve.
  */
 
-
-
-#ifdef TEST_FRAME
-#undef CONFIG_SCTP_DBG_OBJCNT
-#undef CONFIG_SYSCTL
-#endif /* TEST_FRAME */
-
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/in.h>
@@ -138,6 +131,8 @@ void sctp_write_space(struct sock *sk);
 unsigned int sctp_poll(struct file *file, struct socket *sock,
 		poll_table *wait);
 void sctp_sock_rfree(struct sk_buff *skb);
+void sctp_copy_sock(struct sock *newsk, struct sock *sk,
+		    struct sctp_association *asoc);
 extern struct percpu_counter sctp_sockets_allocated;
 
 /*

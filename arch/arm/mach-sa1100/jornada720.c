@@ -226,12 +226,22 @@ static struct platform_device jornada_ssp_device = {
 	.id             = -1,
 };
 
+static struct platform_device jornada_kbd_device = {
+	.name		= "jornada720_kbd",
+	.id		= -1,
+};
+
+static struct platform_device jornada_ts_device = {
+	.name		= "jornada_ts",
+	.id		= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&sa1111_device,
-#ifdef CONFIG_SA1100_JORNADA720_SSP
 	&jornada_ssp_device,
-#endif
 	&s1d13xxxfb_device,
+	&jornada_kbd_device,
+	&jornada_ts_device,
 };
 
 static int __init jornada720_init(void)

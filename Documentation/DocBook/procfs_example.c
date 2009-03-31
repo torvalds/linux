@@ -117,9 +117,6 @@ static int __init init_procfs_example(void)
 		rv = -ENOMEM;
 		goto out;
 	}
-	
-	example_dir->owner = THIS_MODULE;
-	
 	/* create jiffies using convenience function */
 	jiffies_file = create_proc_read_entry("jiffies", 
 					      0444, example_dir, 
@@ -129,8 +126,6 @@ static int __init init_procfs_example(void)
 		rv  = -ENOMEM;
 		goto no_jiffies;
 	}
-
-	jiffies_file->owner = THIS_MODULE;
 
 	/* create foo and bar files using same callback
 	 * functions 
@@ -146,7 +141,6 @@ static int __init init_procfs_example(void)
 	foo_file->data = &foo_data;
 	foo_file->read_proc = proc_read_foobar;
 	foo_file->write_proc = proc_write_foobar;
-	foo_file->owner = THIS_MODULE;
 		
 	bar_file = create_proc_entry("bar", 0644, example_dir);
 	if(bar_file == NULL) {
@@ -159,7 +153,6 @@ static int __init init_procfs_example(void)
 	bar_file->data = &bar_data;
 	bar_file->read_proc = proc_read_foobar;
 	bar_file->write_proc = proc_write_foobar;
-	bar_file->owner = THIS_MODULE;
 		
 	/* create symlink */
 	symlink = proc_symlink("jiffies_too", example_dir, 
@@ -168,8 +161,6 @@ static int __init init_procfs_example(void)
 		rv = -ENOMEM;
 		goto no_symlink;
 	}
-
-	symlink->owner = THIS_MODULE;
 
 	/* everything OK */
 	printk(KERN_INFO "%s %s initialised\n",

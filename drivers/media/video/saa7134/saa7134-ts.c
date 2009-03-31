@@ -79,8 +79,19 @@ static int buffer_activate(struct saa7134_dev *dev,
 		saa_writeb(SAA7134_TS_SERIAL1, 0x00);
 
 		/* Start TS stream */
-		saa_writeb(SAA7134_TS_SERIAL0, 0x40);
-		saa_writeb(SAA7134_TS_PARALLEL, 0xEC);
+		switch (saa7134_boards[dev->board].ts_type) {
+		case SAA7134_MPEG_TS_PARALLEL:
+			saa_writeb(SAA7134_TS_SERIAL0, 0x40);
+			saa_writeb(SAA7134_TS_PARALLEL, 0xec);
+			break;
+		case SAA7134_MPEG_TS_SERIAL:
+			saa_writeb(SAA7134_TS_SERIAL0, 0xd8);
+			saa_writeb(SAA7134_TS_PARALLEL, 0x6c);
+			saa_writeb(SAA7134_TS_PARALLEL_SERIAL, 0xbc);
+			saa_writeb(SAA7134_TS_SERIAL1, 0x02);
+			break;
+		}
+
 		dev->ts_state = SAA7134_TS_STARTED;
 	}
 

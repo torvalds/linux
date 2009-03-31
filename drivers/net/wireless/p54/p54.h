@@ -14,6 +14,10 @@
  * published by the Free Software Foundation.
  */
 
+#ifdef CONFIG_MAC80211_LEDS
+#include <linux/leds.h>
+#endif /* CONFIG_MAC80211_LEDS */
+
 enum p54_control_frame_types {
 	P54_CONTROL_TYPE_SETUP = 0,
 	P54_CONTROL_TYPE_SCAN,
@@ -43,6 +47,18 @@ enum p54_control_frame_types {
 	P54_CONTROL_TYPE_ARPTABLE = 31,
 	P54_CONTROL_TYPE_BT_OPTIONS = 35
 };
+
+/* provide 16 bytes for the transport back-end */
+#define P54_TX_INFO_DATA_SIZE		16
+
+/* stored in ieee80211_tx_info's rate_driver_data */
+struct p54_tx_info {
+	u32 start_addr;
+	u32 end_addr;
+	void *data[P54_TX_INFO_DATA_SIZE / sizeof(void *)];
+};
+
+#define P54_MAX_CTRL_FRAME_LEN		0x1000
 
 #define P54_HDR_FLAG_CONTROL		BIT(15)
 #define P54_HDR_FLAG_CONTROL_OPSET	(BIT(15) + BIT(0))
@@ -75,6 +91,14 @@ struct p54_rssi_linear_approximation {
 	s16 longbow_unk2;
 };
 
+struct p54_cal_database {
+	size_t entries;
+	size_t entry_size;
+	size_t offset;
+	size_t len;
+	u8 data[0];
+};
+
 #define EEPROM_READBACK_LEN 0x3fc
 
 #define ISL38XX_DEV_FIRMWARE_ADDR 0x20000
@@ -83,6 +107,29 @@ struct p54_rssi_linear_approximation {
 #define FW_LM86 0x4c4d3836
 #define FW_LM87 0x4c4d3837
 #define FW_LM20 0x4c4d3230
+
+enum fw_state {
+	FW_STATE_OFF,
+	FW_STATE_BOOTING,
+	FW_STATE_READY,
+	FW_STATE_RESET,
+	FW_STATE_RESETTING,
+};
+
+#ifdef CONFIG_MAC80211_LEDS
+
+#define P54_LED_MAX_NAME_LEN 31
+
+struct p54_led_dev {
+	struct ieee80211_hw *hw_dev;
+	struct led_classdev led_dev;
+	char name[P54_LED_MAX_NAME_LEN + 1];
+
+	unsigned int index;
+	unsigned int registered;
+};
+
+#endif /* CONFIG_MAC80211_LEDS */
 
 struct p54_common {
 	struct ieee80211_hw *hw;
@@ -99,11 +146,12 @@ struct p54_common {
 	struct mutex conf_mutex;
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
+	u8 rx_diversity_mask;
+	u8 tx_diversity_mask;
 	struct pda_iq_autocal_entry *iq_autocal;
 	unsigned int iq_autocal_len;
-	struct pda_channel_output_limit *output_limit;
-	unsigned int output_limit_len;
-	struct pda_pa_curve_data *curve_data;
+	struct p54_cal_database *output_limit;
+	struct p54_cal_database *curve_data;
 	struct p54_rssi_linear_approximation rssical_db[IEEE80211_NUM_BANDS];
 	unsigned int filter_flags;
 	bool use_short_slot;
@@ -115,7 +163,7 @@ struct p54_common {
 	unsigned int output_power;
 	u32 tsf_low32;
 	u32 tsf_high32;
-	u64 basic_rate_mask;
+	u32 basic_rate_mask;
 	u16 wakeup_timer;
 	u16 aid;
 	struct ieee80211_tx_queue_stats tx_stats[8];
@@ -128,13 +176,21 @@ struct p54_common {
 	struct completion eeprom_comp;
 	u8 privacy_caps;
 	u8 rx_keycache_size;
+	/* LED management */
+	#ifdef CONFIG_MAC80211_LEDS
+	struct p54_led_dev assoc_led;
+	struct p54_led_dev tx_led;
+	#endif /* CONFIG_MAC80211_LEDS */
+	u16 softled_state;		/* bit field of glowing LEDs */
 };
 
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb);
 void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb);
 int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw);
+int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len);
 int p54_read_eeprom(struct ieee80211_hw *dev);
 struct ieee80211_hw *p54_init_common(size_t priv_data_len);
+int p54_register_common(struct ieee80211_hw *dev, struct device *pdev);
 void p54_free_common(struct ieee80211_hw *dev);
 
 #endif /* P54_H */

@@ -92,7 +92,6 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct archdr *pkt = (struct archdr *) skb->data;
 	struct arc_rfc1201 *soft = &pkt->soft.rfc1201;
-	struct arcnet_local *lp = netdev_priv(dev);
 	int hdr_size = ARC_HDR_SIZE + RFC1201_HDR_SIZE;
 
 	/* Pull off the arcnet header. */
@@ -121,8 +120,8 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 	case ARC_P_NOVELL_EC:
 		return htons(ETH_P_802_3);
 	default:
-		lp->stats.rx_errors++;
-		lp->stats.rx_crc_errors++;
+		dev->stats.rx_errors++;
+		dev->stats.rx_crc_errors++;
 		return 0;
 	}
 
@@ -172,8 +171,8 @@ static void rx(struct net_device *dev, int bufnum,
 			 in->sequence, soft->split_flag, soft->sequence);
 			lp->rfc1201.aborted_seq = soft->sequence;
 			dev_kfree_skb_irq(in->skb);
-			lp->stats.rx_errors++;
-			lp->stats.rx_missed_errors++;
+			dev->stats.rx_errors++;
+			dev->stats.rx_missed_errors++;
 			in->skb = NULL;
 		}
 		in->sequence = soft->sequence;
@@ -181,7 +180,7 @@ static void rx(struct net_device *dev, int bufnum,
 		skb = alloc_skb(length + ARC_HDR_SIZE, GFP_ATOMIC);
 		if (skb == NULL) {
 			BUGMSG(D_NORMAL, "Memory squeeze, dropping packet.\n");
-			lp->stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 			return;
 		}
 		skb_put(skb, length + ARC_HDR_SIZE);
@@ -213,7 +212,7 @@ static void rx(struct net_device *dev, int bufnum,
 					BUGMSG(D_EXTRA,
 					       "ARP source address was 00h, set to %02Xh.\n",
 					       saddr);
-					lp->stats.rx_crc_errors++;
+					dev->stats.rx_crc_errors++;
 					*cptr = saddr;
 				} else {
 					BUGMSG(D_DURING, "ARP source address (%Xh) is fine.\n",
@@ -222,8 +221,8 @@ static void rx(struct net_device *dev, int bufnum,
 			} else {
 				BUGMSG(D_NORMAL, "funny-shaped ARP packet. (%Xh, %Xh)\n",
 				       arp->ar_hln, arp->ar_pln);
-				lp->stats.rx_errors++;
-				lp->stats.rx_crc_errors++;
+				dev->stats.rx_errors++;
+				dev->stats.rx_crc_errors++;
 			}
 		}
 		BUGLVL(D_SKB) arcnet_dump_skb(dev, skb, "rx");
@@ -257,8 +256,8 @@ static void rx(struct net_device *dev, int bufnum,
 			       soft->split_flag);
 			dev_kfree_skb_irq(in->skb);
 			in->skb = NULL;
-			lp->stats.rx_errors++;
-			lp->stats.rx_missed_errors++;
+			dev->stats.rx_errors++;
+			dev->stats.rx_missed_errors++;
 			in->lastpacket = in->numpackets = 0;
 		}
 		if (soft->split_flag & 1) {	/* first packet in split */
@@ -269,8 +268,8 @@ static void rx(struct net_device *dev, int bufnum,
 				       "(splitflag=%d, seq=%d)\n",
 				       in->sequence, soft->split_flag,
 				       soft->sequence);
-				lp->stats.rx_errors++;
-				lp->stats.rx_missed_errors++;
+				dev->stats.rx_errors++;
+				dev->stats.rx_missed_errors++;
 				dev_kfree_skb_irq(in->skb);
 			}
 			in->sequence = soft->sequence;
@@ -281,8 +280,8 @@ static void rx(struct net_device *dev, int bufnum,
 				BUGMSG(D_EXTRA, "incoming packet more than 16 segments; dropping. (splitflag=%d)\n",
 				       soft->split_flag);
 				lp->rfc1201.aborted_seq = soft->sequence;
-				lp->stats.rx_errors++;
-				lp->stats.rx_length_errors++;
+				dev->stats.rx_errors++;
+				dev->stats.rx_length_errors++;
 				return;
 			}
 			in->skb = skb = alloc_skb(508 * in->numpackets + ARC_HDR_SIZE,
@@ -290,7 +289,7 @@ static void rx(struct net_device *dev, int bufnum,
 			if (skb == NULL) {
 				BUGMSG(D_NORMAL, "(split) memory squeeze, dropping packet.\n");
 				lp->rfc1201.aborted_seq = soft->sequence;
-				lp->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				return;
 			}
 			skb->dev = dev;
@@ -314,8 +313,8 @@ static void rx(struct net_device *dev, int bufnum,
 					       "first! (splitflag=%d, seq=%d, aborted=%d)\n",
 					soft->split_flag, soft->sequence,
 					       lp->rfc1201.aborted_seq);
-					lp->stats.rx_errors++;
-					lp->stats.rx_missed_errors++;
+					dev->stats.rx_errors++;
+					dev->stats.rx_missed_errors++;
 				}
 				return;
 			}
@@ -325,8 +324,8 @@ static void rx(struct net_device *dev, int bufnum,
 				if (packetnum <= in->lastpacket - 1) {
 					BUGMSG(D_EXTRA, "duplicate splitpacket ignored! (splitflag=%d)\n",
 					       soft->split_flag);
-					lp->stats.rx_errors++;
-					lp->stats.rx_frame_errors++;
+					dev->stats.rx_errors++;
+					dev->stats.rx_frame_errors++;
 					return;
 				}
 				/* "bad" duplicate, kill reassembly */
@@ -336,8 +335,8 @@ static void rx(struct net_device *dev, int bufnum,
 				lp->rfc1201.aborted_seq = soft->sequence;
 				dev_kfree_skb_irq(in->skb);
 				in->skb = NULL;
-				lp->stats.rx_errors++;
-				lp->stats.rx_missed_errors++;
+				dev->stats.rx_errors++;
+				dev->stats.rx_missed_errors++;
 				in->lastpacket = in->numpackets = 0;
 				return;
 			}
@@ -404,8 +403,8 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	default:
 		BUGMSG(D_NORMAL, "RFC1201: I don't understand protocol %d (%Xh)\n",
 		       type, type);
-		lp->stats.tx_errors++;
-		lp->stats.tx_aborted_errors++;
+		dev->stats.tx_errors++;
+		dev->stats.tx_aborted_errors++;
 		return 0;
 	}
 

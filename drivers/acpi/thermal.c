@@ -1506,7 +1506,6 @@ static int acpi_thermal_add_fs(struct acpi_device *device)
 						     acpi_thermal_dir);
 		if (!acpi_device_dir(device))
 			return -ENODEV;
-		acpi_device_dir(device)->owner = THIS_MODULE;
 	}
 
 	/* 'state' [R] */
@@ -1875,7 +1874,6 @@ static int __init acpi_thermal_init(void)
 	acpi_thermal_dir = proc_mkdir(ACPI_THERMAL_CLASS, acpi_root_dir);
 	if (!acpi_thermal_dir)
 		return -ENODEV;
-	acpi_thermal_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&acpi_thermal_driver);
 	if (result < 0) {

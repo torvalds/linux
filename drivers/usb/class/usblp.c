@@ -880,16 +880,19 @@ static int usblp_wwait(struct usblp *usblp, int nonblock)
 		if (rc <= 0)
 			break;
 
-		if (usblp->flags & LP_ABORT) {
-			if (schedule_timeout(msecs_to_jiffies(5000)) == 0) {
+		if (schedule_timeout(msecs_to_jiffies(1500)) == 0) {
+			if (usblp->flags & LP_ABORT) {
 				err = usblp_check_status(usblp, err);
 				if (err == 1) {	/* Paper out */
 					rc = -ENOSPC;
 					break;
 				}
+			} else {
+				/* Prod the printer, Gentoo#251237. */
+				mutex_lock(&usblp->mut);
+				usblp_read_status(usblp, usblp->statusbuf);
+				mutex_unlock(&usblp->mut);
 			}
-		} else {
-			schedule();
 		}
 	}
 	set_current_state(TASK_RUNNING);

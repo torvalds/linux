@@ -14,6 +14,7 @@
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
+#include <linux/stackprotector.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
@@ -135,14 +136,14 @@ unsigned int __initdata setup_max_cpus = NR_CPUS;
  * greater than 0, limits the maximum number of CPUs activated in
  * SMP mode to <NUM>.
  */
-#ifndef CONFIG_X86_IO_APIC
-static inline void disable_ioapic_setup(void) {};
-#endif
+
+void __weak arch_disable_smp_support(void) { }
 
 static int __init nosmp(char *str)
 {
 	setup_max_cpus = 0;
-	disable_ioapic_setup();
+	arch_disable_smp_support();
+
 	return 0;
 }
 
@@ -152,14 +153,14 @@ static int __init maxcpus(char *str)
 {
 	get_option(&str, &setup_max_cpus);
 	if (setup_max_cpus == 0)
-		disable_ioapic_setup();
+		arch_disable_smp_support();
 
 	return 0;
 }
 
 early_param("maxcpus", maxcpus);
 #else
-#define setup_max_cpus NR_CPUS
+const unsigned int setup_max_cpus = NR_CPUS;
 #endif
 
 /*
@@ -406,8 +407,7 @@ static void __init smp_init(void)
 	 * Set up the current CPU as possible to migrate to.
 	 * The other ones will be done by cpu_up/cpu_down()
 	 */
-	cpu = smp_processor_id();
-	cpu_set(cpu, cpu_active_map);
+	set_cpu_active(smp_processor_id(), true);
 
 	/* FIXME: This should be done in userspace --RR */
 	for_each_present_cpu(cpu) {
@@ -540,6 +540,12 @@ asmlinkage void __init start_kernel(void)
 	 */
 	lockdep_init();
 	debug_objects_early_init();
+
+	/*
+	 * Set up the the initial canary ASAP:
+	 */
+	boot_init_stack_canary();
+
 	cgroup_init_early();
 
 	local_irq_disable();
@@ -835,7 +841,7 @@ static int __init kernel_init(void * unused)
 	/*
 	 * init can run on any cpu.
 	 */
-	set_cpus_allowed_ptr(current, CPU_MASK_ALL_PTR);
+	set_cpus_allowed_ptr(current, cpu_all_mask);
 	/*
 	 * Tell the world that we're going to be the grim
 	 * reaper of innocent orphaned children.

@@ -6992,7 +6992,6 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 			ret = -ENODEV;
 			goto err_out;
 		}
-		entry->owner = THIS_MODULE;
 		entry->data = ibm;
 		entry->read_proc = &dispatch_procfs_read;
 		if (ibm->write)
@@ -7405,7 +7404,6 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return -ENODEV;
 	}
-	proc_dir->owner = THIS_MODULE;
 
 	ret = platform_driver_register(&tpacpi_pdriver);
 	if (ret) {

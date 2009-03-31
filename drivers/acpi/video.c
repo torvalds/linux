@@ -1125,8 +1125,6 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 	if (!device_dir)
 		return -ENOMEM;
 
-	device_dir->owner = THIS_MODULE;
-
 	/* 'info' [R] */
 	entry = proc_create_data("info", S_IRUGO, device_dir,
 			&acpi_video_device_info_fops, acpi_driver_data(device));
@@ -1402,8 +1400,6 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	device_dir = proc_mkdir(acpi_device_bid(device), acpi_video_dir);
 	if (!device_dir)
 		return -ENOMEM;
-
-	device_dir->owner = THIS_MODULE;
 
 	/* 'info' [R] */
 	entry = proc_create_data("info", S_IRUGO, device_dir,
@@ -2131,7 +2127,6 @@ static int __init acpi_video_init(void)
 	acpi_video_dir = proc_mkdir(ACPI_VIDEO_CLASS, acpi_root_dir);
 	if (!acpi_video_dir)
 		return -ENODEV;
-	acpi_video_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&acpi_video_bus);
 	if (result < 0) {

@@ -26,13 +26,6 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 	native_set_pte(ptep, pte);
 }
 
-static inline void native_set_pte_present(struct mm_struct *mm,
-					  unsigned long addr,
-					  pte_t *ptep, pte_t pte)
-{
-	native_set_pte(ptep, pte);
-}
-
 static inline void native_pmd_clear(pmd_t *pmdp)
 {
 	native_set_pmd(pmdp, __pmd(0));
@@ -52,8 +45,6 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 #else
 #define native_ptep_get_and_clear(xp) native_local_ptep_get_and_clear(xp)
 #endif
-
-#define pte_none(x)		(!(x).pte_low)
 
 /*
  * Bits _PAGE_BIT_PRESENT, _PAGE_BIT_FILE and _PAGE_BIT_PROTNONE are taken,

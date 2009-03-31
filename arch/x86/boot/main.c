@@ -149,11 +149,6 @@ void main(void)
 	/* Query MCA information */
 	query_mca();
 
-	/* Voyager */
-#ifdef CONFIG_X86_VOYAGER
-	query_voyager();
-#endif
-
 	/* Query Intel SpeedStep (IST) information */
 	query_ist();
 

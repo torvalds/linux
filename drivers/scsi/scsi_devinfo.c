@@ -596,8 +596,6 @@ int __init scsi_init_devinfo(void)
 		error = -ENOMEM;
 		goto out;
 	}
-
-	p->owner = THIS_MODULE;
 #endif /* CONFIG_SCSI_PROC_FS */
 
  out:

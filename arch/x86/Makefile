@@ -70,14 +70,17 @@ else
         # this works around some issues with generating unwind tables in older gccs
         # newer gccs do it by default
         KBUILD_CFLAGS += -maccumulate-outgoing-args
+endif
 
-        stackp := $(CONFIG_SHELL) $(srctree)/scripts/gcc-x86_64-has-stack-protector.sh
-        stackp-$(CONFIG_CC_STACKPROTECTOR) := $(shell $(stackp) \
-                "$(CC)" -fstack-protector )
-        stackp-$(CONFIG_CC_STACKPROTECTOR_ALL) += $(shell $(stackp) \
-                "$(CC)" -fstack-protector-all )
-
-        KBUILD_CFLAGS += $(stackp-y)
+ifdef CONFIG_CC_STACKPROTECTOR
+	cc_has_sp := $(srctree)/scripts/gcc-x86_$(BITS)-has-stack-protector.sh
+        ifeq ($(shell $(CONFIG_SHELL) $(cc_has_sp) $(CC)),y)
+                stackp-y := -fstack-protector
+                stackp-$(CONFIG_CC_STACKPROTECTOR_ALL) += -fstack-protector-all
+                KBUILD_CFLAGS += $(stackp-y)
+        else
+                $(warning stack protector enabled but no compiler support)
+        endif
 endif
 
 # Stackpointer is addressed different for 32 bit and 64 bit x86
@@ -101,29 +104,6 @@ KBUILD_CFLAGS += -Wno-sign-compare
 KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 # prevent gcc from generating any FP code by mistake
 KBUILD_CFLAGS += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
-
-###
-# Sub architecture support
-# fcore-y is linked before mcore-y files.
-
-# Default subarch .c files
-mcore-y  := arch/x86/mach-default/
-
-# Voyager subarch support
-mflags-$(CONFIG_X86_VOYAGER)	:= -Iarch/x86/include/asm/mach-voyager
-mcore-$(CONFIG_X86_VOYAGER)	:= arch/x86/mach-voyager/
-
-# generic subarchitecture
-mflags-$(CONFIG_X86_GENERICARCH):= -Iarch/x86/include/asm/mach-generic
-fcore-$(CONFIG_X86_GENERICARCH)	+= arch/x86/mach-generic/
-mcore-$(CONFIG_X86_GENERICARCH)	:= arch/x86/mach-default/
-
-# default subarch .h files
-mflags-y += -Iarch/x86/include/asm/mach-default
-
-# 64 bit does not support subarch support - clear sub arch variables
-fcore-$(CONFIG_X86_64)  :=
-mcore-$(CONFIG_X86_64)  :=
 
 KBUILD_CFLAGS += $(mflags-y)
 KBUILD_AFLAGS += $(mflags-y)
@@ -150,9 +130,6 @@ core-$(CONFIG_LGUEST_GUEST) += arch/x86/lguest/
 core-y += arch/x86/kernel/
 core-y += arch/x86/mm/
 
-# Remaining sub architecture files
-core-y += $(mcore-y)
-
 core-y += arch/x86/crypto/
 core-y += arch/x86/vdso/
 core-$(CONFIG_IA32_EMULATION) += arch/x86/ia32/
@@ -176,34 +153,23 @@ endif
 
 boot := arch/x86/boot
 
-PHONY += zImage bzImage compressed zlilo bzlilo \
-         zdisk bzdisk fdimage fdimage144 fdimage288 isoimage install
+BOOT_TARGETS = bzlilo bzdisk fdimage fdimage144 fdimage288 isoimage install
+
+PHONY += bzImage $(BOOT_TARGETS)
 
 # Default kernel to build
 all: bzImage
 
 # KBUILD_IMAGE specify target image being built
-                    KBUILD_IMAGE := $(boot)/bzImage
-zImage zlilo zdisk: KBUILD_IMAGE := $(boot)/zImage
+KBUILD_IMAGE := $(boot)/bzImage
 
-zImage bzImage: vmlinux
+bzImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(KBUILD_IMAGE)
 	$(Q)mkdir -p $(objtree)/arch/$(UTS_MACHINE)/boot
 	$(Q)ln -fsn ../../x86/boot/bzImage $(objtree)/arch/$(UTS_MACHINE)/boot/$@
 
-compressed: zImage
-
-zlilo bzlilo: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) zlilo
-
-zdisk bzdisk: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) zdisk
-
-fdimage fdimage144 fdimage288 isoimage: vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) $@
-
-install:
-	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
+$(BOOT_TARGETS): vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $@
 
 PHONY += vdso_install
 vdso_install:
@@ -228,7 +194,3 @@ define archhelp
   echo  '                  FDARGS="..."  arguments for the booted kernel'
   echo  '                  FDINITRD=file initrd for the booted kernel'
 endef
-
-CLEAN_FILES += arch/x86/boot/fdimage \
-	       arch/x86/boot/image.iso \
-	       arch/x86/boot/mtools.conf

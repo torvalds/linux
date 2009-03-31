@@ -356,7 +356,7 @@ static void __devinit pci_fixup_video(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_video);
 
 
-static struct dmi_system_id __devinitdata msi_k8t_dmi_table[] = {
+static const struct dmi_system_id __devinitconst msi_k8t_dmi_table[] = {
 	{
 		.ident = "MSI-K8T-Neo2Fir",
 		.matches = {
@@ -413,7 +413,7 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237,
  */
 static u16 toshiba_line_size;
 
-static struct dmi_system_id __devinitdata toshiba_ohci1394_dmi_table[] = {
+static const struct dmi_system_id __devinitconst toshiba_ohci1394_dmi_table[] = {
 	{
 		.ident = "Toshiba PS5 based laptop",
 		.matches = {
