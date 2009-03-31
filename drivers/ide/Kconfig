@@ -681,7 +681,7 @@ endif
 # TODO: BLK_DEV_IDEDMA_PCI -> BLK_DEV_IDEDMA_SFF
 config BLK_DEV_IDE_PMAC
 	tristate "PowerMac on-board IDE support"
-	depends on PPC_PMAC && IDE=y
+	depends on PPC_PMAC
 	select IDE_TIMINGS
 	select BLK_DEV_IDEDMA_PCI
 	help
