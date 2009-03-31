@@ -464,7 +464,7 @@ extern u8 cpqhp_disk_irq;
 
 /* inline functions */
 
-static inline char *slot_name(struct slot *slot)
+static inline const char *slot_name(struct slot *slot)
 {
 	return hotplug_slot_name(slot->hotplug_slot);
 }
