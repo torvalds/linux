@@ -1303,9 +1303,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	spin_unlock_irq(&zone->lru_lock);
 	if (buffer_heads_over_limit)
 		pagevec_strip(&pvec);
-	if (vm_swap_full())
-		pagevec_swap_free(&pvec);
-
 	pagevec_release(&pvec);
 }
 
