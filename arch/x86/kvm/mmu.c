@@ -225,11 +225,6 @@ static int is_nx(struct kvm_vcpu *vcpu)
 	return vcpu->arch.shadow_efer & EFER_NX;
 }
 
-static int is_present_pte(unsigned long pte)
-{
-	return pte & PT_PRESENT_MASK;
-}
-
 static int is_shadow_present_pte(u64 pte)
 {
 	return pte != shadow_trap_nonpresent_pte
@@ -2195,6 +2190,9 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu, int level)
 		context->rsvd_bits_mask[1][0] = ~0ull;
 		break;
 	case PT32E_ROOT_LEVEL:
+		context->rsvd_bits_mask[0][2] =
+			rsvd_bits(maxphyaddr, 63) |
+			rsvd_bits(7, 8) | rsvd_bits(1, 2);	/* PDPTE */
 		context->rsvd_bits_mask[0][1] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 62);		/* PDE */
 		context->rsvd_bits_mask[0][0] = exb_bit_rsvd |
