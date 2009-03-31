@@ -71,49 +71,6 @@ int ide_check_atapi_device(ide_drive_t *drive, const char *s)
 }
 EXPORT_SYMBOL_GPL(ide_check_atapi_device);
 
-/* PIO data transfer routine using the scatter gather table. */
-int ide_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
-		    unsigned int bcount, int write)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
-	xfer_func_t *xf = write ? tp_ops->output_data : tp_ops->input_data;
-	struct scatterlist *sg = pc->sg;
-	char *buf;
-	int count, done = 0;
-
-	while (bcount) {
-		count = min(sg->length - pc->b_count, bcount);
-
-		if (PageHighMem(sg_page(sg))) {
-			unsigned long flags;
-
-			local_irq_save(flags);
-			buf = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
-			xf(drive, NULL, buf + pc->b_count, count);
-			kunmap_atomic(buf - sg->offset, KM_IRQ0);
-			local_irq_restore(flags);
-		} else {
-			buf = sg_virt(sg);
-			xf(drive, NULL, buf + pc->b_count, count);
-		}
-
-		bcount -= count;
-		pc->b_count += count;
-		done += count;
-
-		if (pc->b_count == sg->length) {
-			if (!--pc->sg_cnt)
-				break;
-			pc->sg = sg = sg_next(sg);
-			pc->b_count = 0;
-		}
-	}
-
-	return done;
-}
-EXPORT_SYMBOL_GPL(ide_io_buffers);
-
 void ide_init_pc(struct ide_atapi_pc *pc)
 {
 	memset(pc, 0, sizeof(*pc));
@@ -353,6 +310,9 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			pc->xferred = pc->req_xfer;
 			if (drive->pc_update_buffers)
 				drive->pc_update_buffers(drive, pc);
+
+			if (drive->media == ide_floppy)
+				ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 		}
 		debug_log("%s: DMA finished\n", drive->name);
 	}
@@ -408,12 +368,19 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			rq->errors = 0;
 			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 		} else {
+			unsigned int done;
+
 			if (blk_fs_request(rq) == 0 && uptodate <= 0) {
 				if (rq->errors == 0)
 					rq->errors = -EIO;
 			}
-			ide_complete_rq(drive, uptodate ? 0 : -EIO,
-					ide_rq_bytes(rq));
+
+			if (drive->media == ide_tape)
+				done = ide_rq_bytes(rq); /* FIXME */
+			else
+				done = blk_rq_bytes(rq);
+
+			ide_complete_rq(drive, uptodate ? 0 : -EIO, done);
 		}
 
 		return ide_stopped;
@@ -446,14 +413,11 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 	xferfunc = write ? tp_ops->output_data : tp_ops->input_data;
 
-	if ((drive->media == ide_floppy && !pc->buf) ||
-	    (drive->media == ide_tape && pc->bh)) {
+	if (drive->media == ide_floppy && pc->buf == NULL) {
+		done = min_t(unsigned int, bcount, cmd->nleft);
+		ide_pio_bytes(drive, cmd, write, done);
+	} else if (drive->media == ide_tape && pc->bh) {
 		done = drive->pc_io_buffers(drive, pc, bcount, write);
-
-		/* FIXME: don't do partial completions */
-		if (drive->media == ide_floppy)
-			ide_complete_rq(drive, 0,
-					done ? done : ide_rq_bytes(rq));
 	} else {
 		done = min_t(unsigned int, bcount, pc->req_xfer - pc->xferred);
 		xferfunc(drive, NULL, pc->cur_pos, done);

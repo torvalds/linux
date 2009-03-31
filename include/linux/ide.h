@@ -415,9 +415,6 @@ struct ide_atapi_pc {
 	struct idetape_bh *bh;
 	char *b_data;
 
-	struct scatterlist *sg;
-	unsigned int sg_cnt;
-
 	unsigned long timeout;
 };
 
@@ -1176,8 +1173,6 @@ void ide_tf_read(ide_drive_t *, struct ide_cmd *);
 
 void ide_input_data(ide_drive_t *, struct ide_cmd *, void *, unsigned int);
 void ide_output_data(ide_drive_t *, struct ide_cmd *, void *, unsigned int);
-
-int ide_io_buffers(ide_drive_t *, struct ide_atapi_pc *, unsigned int, int);
 
 extern void SELECT_DRIVE(ide_drive_t *);
 void SELECT_MASK(ide_drive_t *, int);
