@@ -51,7 +51,7 @@ struct mdk_rdev_s
 
 	sector_t size;			/* Device size (in blocks) */
 	mddev_t *mddev;			/* RAID array if running */
-	long last_events;		/* IO event timestamp */
+	int last_events;		/* IO event timestamp */
 
 	struct block_device *bdev;	/* block device handle */
 

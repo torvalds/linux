@@ -5716,19 +5716,19 @@ int unregister_md_personality(struct mdk_personality *p)
 	return 0;
 }
 
-static int is_mddev_idle(mddev_t *mddev)
+static int is_mddev_idle(mddev_t *mddev, int init)
 {
 	mdk_rdev_t * rdev;
 	int idle;
-	long curr_events;
+	int curr_events;
 
 	idle = 1;
 	rcu_read_lock();
 	rdev_for_each_rcu(rdev, mddev) {
 		struct gendisk *disk = rdev->bdev->bd_contains->bd_disk;
-		curr_events = part_stat_read(&disk->part0, sectors[0]) +
-				part_stat_read(&disk->part0, sectors[1]) -
-				atomic_read(&disk->sync_io);
+		curr_events = (int)part_stat_read(&disk->part0, sectors[0]) +
+			      (int)part_stat_read(&disk->part0, sectors[1]) -
+			      atomic_read(&disk->sync_io);
 		/* sync IO will cause sync_io to increase before the disk_stats
 		 * as sync_io is counted when a request starts, and
 		 * disk_stats is counted when it completes.
@@ -5751,7 +5751,7 @@ static int is_mddev_idle(mddev_t *mddev)
 		 * always make curr_events less than last_events.
 		 *
 		 */
-		if (curr_events - rdev->last_events > 4096) {
+		if (init || curr_events - rdev->last_events > 64) {
 			rdev->last_events = curr_events;
 			idle = 0;
 		}
@@ -5994,7 +5994,7 @@ void md_do_sync(mddev_t *mddev)
 	       "(but not more than %d KB/sec) for %s.\n",
 	       speed_max(mddev), desc);
 
-	is_mddev_idle(mddev); /* this also initializes IO event counters */
+	is_mddev_idle(mddev, 1); /* this initializes IO event counters */
 
 	io_sectors = 0;
 	for (m = 0; m < SYNC_MARKS; m++) {
@@ -6096,7 +6096,7 @@ void md_do_sync(mddev_t *mddev)
 
 		if (currspeed > speed_min(mddev)) {
 			if ((currspeed > speed_max(mddev)) ||
-					!is_mddev_idle(mddev)) {
+					!is_mddev_idle(mddev, 0)) {
 				msleep(500);
 				goto repeat;
 			}
