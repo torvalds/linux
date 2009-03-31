@@ -312,7 +312,7 @@ static int run(mddev_t *mddev)
 	list_for_each_entry(rdev, &mddev->disks, same_set)
 		conf->rdev = rdev;
 
-	mddev->array_sectors = faulty_size(mddev, 0, 0);
+	md_set_array_sectors(mddev, faulty_size(mddev, 0, 0));
 	mddev->private = conf;
 
 	reconfig(mddev, mddev->layout, -1);

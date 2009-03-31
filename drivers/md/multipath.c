@@ -510,7 +510,7 @@ static int multipath_run (mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_sectors = multipath_size(mddev, 0, 0);
+	md_set_array_sectors(mddev, multipath_size(mddev, 0, 0));
 
 	mddev->queue->unplug_fn = multipath_unplug;
 	mddev->queue->backing_dev_info.congested_fn = multipath_congested;

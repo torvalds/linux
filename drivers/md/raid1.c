@@ -2059,7 +2059,7 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_sectors = raid1_size(mddev, 0, 0);
+	md_set_array_sectors(mddev, raid1_size(mddev, 0, 0));
 
 	mddev->queue->unplug_fn = raid1_unplug;
 	mddev->queue->backing_dev_info.congested_fn = raid1_congested;
@@ -2124,7 +2124,7 @@ static int raid1_resize(mddev_t *mddev, sector_t sectors)
 	 * any io in the removed space completes, but it hardly seems
 	 * worth it.
 	 */
-	mddev->array_sectors = raid1_size(mddev, sectors, 0);
+	md_set_array_sectors(mddev, raid1_size(mddev, sectors, 0));
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
 	if (mddev->array_sectors > mddev->dev_sectors &&

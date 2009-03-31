@@ -4474,7 +4474,7 @@ static int run(mddev_t *mddev)
 	mddev->queue->backing_dev_info.congested_data = mddev;
 	mddev->queue->backing_dev_info.congested_fn = raid5_congested;
 
-	mddev->array_sectors = raid5_size(mddev, 0, 0);
+	md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
 
 	blk_queue_merge_bvec(mddev->queue, raid5_mergeable_bvec);
 
@@ -4698,7 +4698,8 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 	 * worth it.
 	 */
 	sectors &= ~((sector_t)mddev->chunk_size/512 - 1);
-	mddev->array_sectors = raid5_size(mddev, sectors, mddev->raid_disks);
+	md_set_array_sectors(mddev, raid5_size(mddev, sectors,
+					       mddev->raid_disks));
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
 	if (sectors > mddev->dev_sectors && mddev->recovery_cp == MaxSector) {
@@ -4836,7 +4837,8 @@ static void end_reshape(raid5_conf_t *conf)
 	if (!test_bit(MD_RECOVERY_INTR, &conf->mddev->recovery)) {
 		mddev_t *mddev = conf->mddev;
 
-		mddev->array_sectors = raid5_size(mddev, 0, conf->raid_disks);
+		md_set_array_sectors(mddev, raid5_size(mddev, 0,
+						       conf->raid_disks));
 		set_capacity(mddev->gendisk, mddev->array_sectors);
 		mddev->changed = 1;
 		conf->previous_raid_disks = conf->raid_disks;
