@@ -214,5 +214,13 @@ config UNEVICTABLE_LRU
 	  will use one page flag and increase the code size a little,
 	  say Y unless you know what you are doing.
 
+config HAVE_MLOCK
+	bool
+	default y if MMU=y
+
+config HAVE_MLOCKED_PAGE_BIT
+	bool
+	default y if HAVE_MLOCK=y && UNEVICTABLE_LRU=y
+
 config MMU_NOTIFIER
 	bool
