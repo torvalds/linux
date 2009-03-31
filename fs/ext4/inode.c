@@ -371,6 +371,34 @@ static int ext4_block_to_path(struct inode *inode,
 	return n;
 }
 
+static int __ext4_check_blockref(const char *function, struct inode *inode,
+				 unsigned int *p, unsigned int max) {
+
+	unsigned int maxblocks = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es);
+	unsigned int *bref = p;
+	while (bref < p+max) {
+		if (unlikely(*bref >= maxblocks)) {
+			ext4_error(inode->i_sb, function,
+				   "block reference %u >= max (%u) "
+				   "in inode #%lu, offset=%d",
+				   *bref, maxblocks,
+				   inode->i_ino, (int)(bref-p));
+ 			return -EIO;
+ 		}
+		bref++;
+ 	}
+ 	return 0;
+}
+
+
+#define ext4_check_indirect_blockref(inode, bh)                         \
+        __ext4_check_blockref(__func__, inode, (__le32 *)(bh)->b_data,  \
+			      EXT4_ADDR_PER_BLOCK((inode)->i_sb))
+
+#define ext4_check_inode_blockref(inode)                                \
+        __ext4_check_blockref(__func__, inode, EXT4_I(inode)->i_data,   \
+			      EXT4_NDIR_BLOCKS)
+
 /**
  *	ext4_get_branch - read the chain of indirect blocks leading to data
  *	@inode: inode in question
@@ -415,9 +443,22 @@ static Indirect *ext4_get_branch(struct inode *inode, int depth,
 	if (!p->key)
 		goto no_block;
 	while (--depth) {
-		bh = sb_bread(sb, le32_to_cpu(p->key));
-		if (!bh)
+		bh = sb_getblk(sb, le32_to_cpu(p->key));
+		if (unlikely(!bh))
 			goto failure;
+                  
+		if (!bh_uptodate_or_lock(bh)) {
+			if (bh_submit_read(bh) < 0) {
+				put_bh(bh);
+				goto failure;
+			}
+			/* validate block references */
+			if (ext4_check_indirect_blockref(inode, bh)) {
+				put_bh(bh);
+				goto failure;
+			}
+		}
+		
 		add_chain(++p, bh, (__le32 *)bh->b_data + *++offsets);
 		/* Reader: end */
 		if (!p->key)
@@ -4371,11 +4412,15 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	if (ei->i_flags & EXT4_EXTENTS_FL) {
 		/* Validate extent which is part of inode */
 		ret = ext4_ext_check_inode(inode);
-		if (ret) {
-			brelse(bh);
-			goto bad_inode;
-		}
-
+ 	} else if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+		   (S_ISLNK(inode->i_mode) &&
+		    !ext4_inode_is_fast_symlink(inode))) {
+	 	/* Validate block references which are part of inode */
+		ret = ext4_check_inode_blockref(inode);
+	}
+	if (ret) {
+ 		brelse(bh);
+ 		goto bad_inode;
 	}
 
 	if (S_ISREG(inode->i_mode)) {
