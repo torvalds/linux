@@ -4884,6 +4884,53 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 	}
 }
 
+
+static void *raid5_takeover_raid1(mddev_t *mddev)
+{
+	int chunksect;
+
+	if (mddev->raid_disks != 2 ||
+	    mddev->degraded > 1)
+		return ERR_PTR(-EINVAL);
+
+	/* Should check if there are write-behind devices? */
+
+	chunksect = 64*2; /* 64K by default */
+
+	/* The array must be an exact multiple of chunksize */
+	while (chunksect && (mddev->array_sectors & (chunksect-1)))
+		chunksect >>= 1;
+
+	if ((chunksect<<9) < STRIPE_SIZE)
+		/* array size does not allow a suitable chunk size */
+		return ERR_PTR(-EINVAL);
+
+	mddev->new_level = 5;
+	mddev->new_layout = ALGORITHM_LEFT_SYMMETRIC;
+	mddev->new_chunk = chunksect << 9;
+
+	return setup_conf(mddev);
+}
+
+
+static void *raid5_takeover(mddev_t *mddev)
+{
+	/* raid5 can take over:
+	 *  raid0 - if all devices are the same - make it a raid4 layout
+	 *  raid1 - if there are two drives.  We need to know the chunk size
+	 *  raid4 - trivial - just use a raid4 layout.
+	 *  raid6 - Providing it is a *_6 layout
+	 *
+	 * For now, just do raid1
+	 */
+
+	if (mddev->level == 1)
+		return raid5_takeover_raid1(mddev);
+
+	return ERR_PTR(-EINVAL);
+}
+
+
 static struct mdk_personality raid5_personality;
 
 static void *raid6_takeover(mddev_t *mddev)
@@ -4975,6 +5022,7 @@ static struct mdk_personality raid5_personality =
 	.start_reshape  = raid5_start_reshape,
 #endif
 	.quiesce	= raid5_quiesce,
+	.takeover	= raid5_takeover,
 };
 
 static struct mdk_personality raid4_personality =
