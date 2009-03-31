@@ -866,6 +866,21 @@ extern void filter_free_subsystem_preds(struct event_subsystem *system);
 extern int filter_add_subsystem_pred(struct event_subsystem *system,
 				     struct filter_pred *pred);
 
+static inline void
+filter_check_discard(struct ftrace_event_call *call, void *rec,
+		     struct ring_buffer_event *event)
+{
+	if (unlikely(call->preds) && !filter_match_preds(call, rec))
+		ring_buffer_event_discard(event);
+}
+
+#define __common_field(type, item)					\
+	ret = trace_define_field(event_call, #type, "common_" #item,	\
+				 offsetof(typeof(field.ent), item),	\
+				 sizeof(field.ent.item));		\
+	if (ret)							\
+		return ret;
+
 void event_trace_printk(unsigned long ip, const char *fmt, ...);
 extern struct ftrace_event_call __start_ftrace_events[];
 extern struct ftrace_event_call __stop_ftrace_events[];
@@ -896,5 +911,10 @@ do {									\
 	} else								\
 		__trace_printk(ip, fmt, ##args);			\
 } while (0)
+
+#undef TRACE_EVENT_FORMAT
+#define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
+	extern struct ftrace_event_call event_##call;
+#include "trace_event_types.h"
 
 #endif /* _LINUX_KERNEL_TRACE_H */

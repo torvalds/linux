@@ -168,6 +168,7 @@ static enum print_line_t bts_trace_print_line(struct trace_iterator *iter)
 
 void trace_hw_branch(u64 from, u64 to)
 {
+	struct ftrace_event_call *call = &event_hw_branch;
 	struct trace_array *tr = hw_branch_trace;
 	struct ring_buffer_event *event;
 	struct hw_branch_entry *entry;
@@ -194,6 +195,7 @@ void trace_hw_branch(u64 from, u64 to)
 	entry->ent.type = TRACE_HW_BRANCHES;
 	entry->from = from;
 	entry->to   = to;
+	filter_check_discard(call, entry, event);
 	trace_buffer_unlock_commit(tr, event, 0, 0);
 
  out:

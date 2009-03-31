@@ -30,6 +30,7 @@ static struct trace_array *branch_tracer;
 static void
 probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 {
+	struct ftrace_event_call *call = &event_branch;
 	struct trace_array *tr = branch_tracer;
 	struct ring_buffer_event *event;
 	struct trace_branch *entry;
@@ -72,6 +73,8 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	entry->file[TRACE_FILE_SIZE] = 0;
 	entry->line = f->line;
 	entry->correct = val == expect;
+
+	filter_check_discard(call, entry, event);
 
 	ring_buffer_unlock_commit(tr->buffer, event);
 

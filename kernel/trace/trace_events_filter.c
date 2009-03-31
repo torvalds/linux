@@ -185,7 +185,7 @@ void filter_free_subsystem_preds(struct event_subsystem *system)
 	}
 
 	events_for_each(call) {
-		if (!call->name || !call->regfunc)
+		if (!call->define_fields)
 			continue;
 
 		if (!strcmp(call->system, system->name))
@@ -324,7 +324,7 @@ int filter_add_subsystem_pred(struct event_subsystem *system,
 	events_for_each(call) {
 		int err;
 
-		if (!call->name || !call->regfunc)
+		if (!call->define_fields)
 			continue;
 
 		if (strcmp(call->system, system->name))

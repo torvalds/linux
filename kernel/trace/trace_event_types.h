@@ -122,8 +122,10 @@ TRACE_EVENT_FORMAT(print, TRACE_PRINT, print_entry, ignore,
 TRACE_EVENT_FORMAT(branch, TRACE_BRANCH, trace_branch, ignore,
 	TRACE_STRUCT(
 		TRACE_FIELD(unsigned int, line, line)
-		TRACE_FIELD_SPECIAL(char func[TRACE_FUNC_SIZE+1], func, func)
-		TRACE_FIELD_SPECIAL(char file[TRACE_FUNC_SIZE+1], file, file)
+		TRACE_FIELD_SPECIAL(char func[TRACE_FUNC_SIZE+1], func,
+				    TRACE_FUNC_SIZE+1, func)
+		TRACE_FIELD_SPECIAL(char file[TRACE_FUNC_SIZE+1], file,
+				    TRACE_FUNC_SIZE+1, file)
 		TRACE_FIELD(char, correct, correct)
 	),
 	TP_RAW_FMT("%u:%s:%s (%u)")

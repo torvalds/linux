@@ -680,6 +680,7 @@ static struct dentry *
 event_subsystem_dir(const char *name, struct dentry *d_events)
 {
 	struct event_subsystem *system;
+	struct dentry *entry;
 
 	/* First see if we did not already create this dir */
 	list_for_each_entry(system, &event_subsystems, list) {
@@ -707,6 +708,12 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 	list_add(&system->list, &event_subsystems);
 
 	system->preds = NULL;
+
+	entry = debugfs_create_file("filter", 0644, system->entry, system,
+				    &ftrace_subsystem_filter_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'%s/filter' entry\n", name);
 
 	return system->entry;
 }

@@ -42,6 +42,7 @@ static inline void kmemtrace_alloc(enum kmemtrace_type_id type_id,
 				   gfp_t gfp_flags,
 				   int node)
 {
+	struct ftrace_event_call *call = &event_kmem_alloc;
 	struct trace_array *tr = kmemtrace_array;
 	struct kmemtrace_alloc_entry *entry;
 	struct ring_buffer_event *event;
@@ -62,6 +63,8 @@ static inline void kmemtrace_alloc(enum kmemtrace_type_id type_id,
 	entry->gfp_flags	= gfp_flags;
 	entry->node		= node;
 
+	filter_check_discard(call, entry, event);
+
 	ring_buffer_unlock_commit(tr->buffer, event);
 
 	trace_wake_up();
@@ -71,6 +74,7 @@ static inline void kmemtrace_free(enum kmemtrace_type_id type_id,
 				  unsigned long call_site,
 				  const void *ptr)
 {
+	struct ftrace_event_call *call = &event_kmem_free;
 	struct trace_array *tr = kmemtrace_array;
 	struct kmemtrace_free_entry *entry;
 	struct ring_buffer_event *event;
@@ -85,6 +89,8 @@ static inline void kmemtrace_free(enum kmemtrace_type_id type_id,
 	entry->type_id		= type_id;
 	entry->call_site	= call_site;
 	entry->ptr		= ptr;
+
+	filter_check_discard(call, entry, event);
 
 	ring_buffer_unlock_commit(tr->buffer, event);
 

@@ -898,6 +898,7 @@ trace_function(struct trace_array *tr,
 	       unsigned long ip, unsigned long parent_ip, unsigned long flags,
 	       int pc)
 {
+	struct ftrace_event_call *call = &event_function;
 	struct ring_buffer_event *event;
 	struct ftrace_entry *entry;
 
@@ -912,6 +913,9 @@ trace_function(struct trace_array *tr,
 	entry	= ring_buffer_event_data(event);
 	entry->ip			= ip;
 	entry->parent_ip		= parent_ip;
+
+	filter_check_discard(call, entry, event);
+
 	ring_buffer_unlock_commit(tr->buffer, event);
 }
 
@@ -921,6 +925,7 @@ static int __trace_graph_entry(struct trace_array *tr,
 				unsigned long flags,
 				int pc)
 {
+	struct ftrace_event_call *call = &event_funcgraph_entry;
 	struct ring_buffer_event *event;
 	struct ftrace_graph_ent_entry *entry;
 
@@ -933,6 +938,7 @@ static int __trace_graph_entry(struct trace_array *tr,
 		return 0;
 	entry	= ring_buffer_event_data(event);
 	entry->graph_ent			= *trace;
+	filter_check_discard(call, entry, event);
 	ring_buffer_unlock_commit(global_trace.buffer, event);
 
 	return 1;
@@ -943,6 +949,7 @@ static void __trace_graph_return(struct trace_array *tr,
 				unsigned long flags,
 				int pc)
 {
+	struct ftrace_event_call *call = &event_funcgraph_exit;
 	struct ring_buffer_event *event;
 	struct ftrace_graph_ret_entry *entry;
 
@@ -955,6 +962,7 @@ static void __trace_graph_return(struct trace_array *tr,
 		return;
 	entry	= ring_buffer_event_data(event);
 	entry->ret				= *trace;
+	filter_check_discard(call, entry, event);
 	ring_buffer_unlock_commit(global_trace.buffer, event);
 }
 #endif
@@ -973,6 +981,7 @@ static void __ftrace_trace_stack(struct trace_array *tr,
 				 int skip, int pc)
 {
 #ifdef CONFIG_STACKTRACE
+	struct ftrace_event_call *call = &event_kernel_stack;
 	struct ring_buffer_event *event;
 	struct stack_entry *entry;
 	struct stack_trace trace;
@@ -990,6 +999,7 @@ static void __ftrace_trace_stack(struct trace_array *tr,
 	trace.entries		= entry->caller;
 
 	save_stack_trace(&trace);
+	filter_check_discard(call, entry, event);
 	ring_buffer_unlock_commit(tr->buffer, event);
 #endif
 }
@@ -1015,6 +1025,7 @@ static void ftrace_trace_userstack(struct trace_array *tr,
 				   unsigned long flags, int pc)
 {
 #ifdef CONFIG_STACKTRACE
+	struct ftrace_event_call *call = &event_user_stack;
 	struct ring_buffer_event *event;
 	struct userstack_entry *entry;
 	struct stack_trace trace;
@@ -1036,6 +1047,7 @@ static void ftrace_trace_userstack(struct trace_array *tr,
 	trace.entries		= entry->caller;
 
 	save_stack_trace_user(&trace);
+	filter_check_discard(call, entry, event);
 	ring_buffer_unlock_commit(tr->buffer, event);
 #endif
 }
@@ -1052,6 +1064,7 @@ ftrace_trace_special(void *__tr,
 		     unsigned long arg1, unsigned long arg2, unsigned long arg3,
 		     int pc)
 {
+	struct ftrace_event_call *call = &event_special;
 	struct ring_buffer_event *event;
 	struct trace_array *tr = __tr;
 	struct special_entry *entry;
@@ -1064,6 +1077,7 @@ ftrace_trace_special(void *__tr,
 	entry->arg1			= arg1;
 	entry->arg2			= arg2;
 	entry->arg3			= arg3;
+	filter_check_discard(call, entry, event);
 	trace_buffer_unlock_commit(tr, event, 0, pc);
 }
 
@@ -1080,6 +1094,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 			   struct task_struct *next,
 			   unsigned long flags, int pc)
 {
+	struct ftrace_event_call *call = &event_context_switch;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
 
@@ -1095,6 +1110,9 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->next_prio		= next->prio;
 	entry->next_state		= next->state;
 	entry->next_cpu	= task_cpu(next);
+
+	filter_check_discard(call, entry, event);
+
 	trace_buffer_unlock_commit(tr, event, flags, pc);
 }
 
@@ -1104,6 +1122,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 			   struct task_struct *curr,
 			   unsigned long flags, int pc)
 {
+	struct ftrace_event_call *call = &event_wakeup;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
 
@@ -1119,6 +1138,8 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->next_prio		= wakee->prio;
 	entry->next_state		= wakee->state;
 	entry->next_cpu			= task_cpu(wakee);
+
+	filter_check_discard(call, entry, event);
 
 	ring_buffer_unlock_commit(tr->buffer, event);
 	ftrace_trace_stack(tr, flags, 6, pc);
@@ -1221,6 +1242,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 		(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 	static u32 trace_buf[TRACE_BUF_SIZE];
 
+	struct ftrace_event_call *call = &event_bprint;
 	struct ring_buffer_event *event;
 	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
@@ -1260,6 +1282,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	entry->fmt			= fmt;
 
 	memcpy(entry->buf, trace_buf, sizeof(u32) * len);
+	filter_check_discard(call, entry, event);
 	ring_buffer_unlock_commit(tr->buffer, event);
 
 out_unlock:
@@ -1279,6 +1302,7 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	static raw_spinlock_t trace_buf_lock = __RAW_SPIN_LOCK_UNLOCKED;
 	static char trace_buf[TRACE_BUF_SIZE];
 
+	struct ftrace_event_call *call = &event_print;
 	struct ring_buffer_event *event;
 	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
@@ -1314,6 +1338,7 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 
 	memcpy(&entry->buf, trace_buf, len);
 	entry->buf[len] = 0;
+	filter_check_discard(call, entry, event);
 	ring_buffer_unlock_commit(tr->buffer, event);
 
  out_unlock:

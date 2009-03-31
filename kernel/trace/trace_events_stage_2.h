@@ -146,13 +146,6 @@ ftrace_format_##call(struct trace_seq *s)				\
 	if (ret)							\
 		return ret;
 
-#define __common_field(type, item)					\
-	ret = trace_define_field(event_call, #type, "common_" #item,	\
-				 offsetof(typeof(field.ent), item),	\
-				 sizeof(field.ent.item));		\
-	if (ret)							\
-		return ret;
-
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
 int									\
