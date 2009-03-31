@@ -509,31 +509,6 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 	return -1;
 }
 
-/*
- * Assume that the drive will always provide data in multiples of at least
- * SECTOR_SIZE, as it gets hairy to keep track of the transfers otherwise.
- */
-static int ide_cd_check_transfer_size(ide_drive_t *drive, int len)
-{
-	ide_debug_log(IDE_DBG_FUNC, "len: %d", len);
-
-	if ((len % SECTOR_SIZE) == 0)
-		return 0;
-
-	printk(KERN_ERR PFX "%s: %s: Bad transfer size %d\n", drive->name,
-			__func__, len);
-
-	if (drive->atapi_flags & IDE_AFLAG_LIMIT_NFRAMES)
-		printk(KERN_ERR PFX "This drive is not supported by this "
-				"version of the driver\n");
-	else {
-		printk(KERN_ERR PFX "Trying to limit transfer sizes\n");
-		drive->atapi_flags |= IDE_AFLAG_LIMIT_NFRAMES;
-	}
-
-	return 1;
-}
-
 static ide_startstop_t ide_cd_prepare_rw_request(ide_drive_t *drive,
 						 struct request *rq)
 {
@@ -752,13 +727,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (rc)
 		goto out_end;
 
-	if (blk_fs_request(rq)) {
-		if (write == 0) {
-			if (ide_cd_check_transfer_size(drive, len))
-				goto out_end;
-		}
-		cmd->last_xfer_len = 0;
-	}
+	cmd->last_xfer_len = 0;
 
 	if (ireason == 0) {
 		write = 1;
@@ -1619,9 +1588,6 @@ static const struct ide_proc_devset *ide_cd_proc_devsets(ide_drive_t *drive)
 #endif
 
 static const struct cd_list_entry ide_cd_quirks_list[] = {
-	/* Limit transfer size per interrupt. */
-	{ "SAMSUNG CD-ROM SCR-2430", NULL,   IDE_AFLAG_LIMIT_NFRAMES	     },
-	{ "SAMSUNG CD-ROM SCR-2432", NULL,   IDE_AFLAG_LIMIT_NFRAMES	     },
 	/* SCR-3231 doesn't support the SET_CD_SPEED command. */
 	{ "SAMSUNG CD-ROM SCR-3231", NULL,   IDE_AFLAG_NO_SPEED_SELECT	     },
 	/* Old NEC260 (not R) was released before ATAPI 1.2 spec. */
