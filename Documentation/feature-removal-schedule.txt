@@ -311,6 +311,18 @@ Who:	Vlad Yasevich <vladislav.yasevich@hp.com>
 
 ---------------------------
 
+What:	Ability for non root users to shm_get hugetlb pages based on mlock
+	resource limits
+When:	2.6.31
+Why:	Non root users need to be part of /proc/sys/vm/hugetlb_shm_group or
+	have CAP_IPC_LOCK to be able to allocate shm segments backed by
+	huge pages.  The mlock based rlimit check to allow shm hugetlb is
+	inconsistent with mmap based allocations.  Hence it is being
+	deprecated.
+Who:	Ravikiran Thirumalai <kiran@scalex86.org>
+
+---------------------------
+
 What:	CONFIG_THERMAL_HWMON
 When:	January 2009
 Why:	This option was introduced just to allow older lm-sensors userspace
