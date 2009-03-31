@@ -14,17 +14,13 @@
 /* as simple as can be, and no simpler. */
 struct parisc_rtc {
 	struct rtc_device *rtc;
-	spinlock_t lock;
 };
 
 static int parisc_get_time(struct device *dev, struct rtc_time *tm)
 {
-	struct parisc_rtc *p = dev_get_drvdata(dev);
-	unsigned long flags, ret;
+	unsigned long ret;
 
-	spin_lock_irqsave(&p->lock, flags);
 	ret = get_rtc_time(tm);
-	spin_unlock_irqrestore(&p->lock, flags);
 
 	if (ret & RTC_BATT_BAD)
 		return -EOPNOTSUPP;
@@ -34,13 +30,9 @@ static int parisc_get_time(struct device *dev, struct rtc_time *tm)
 
 static int parisc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct parisc_rtc *p = dev_get_drvdata(dev);
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&p->lock, flags);
 	ret = set_rtc_time(tm);
-	spin_unlock_irqrestore(&p->lock, flags);
 
 	if (ret < 0)
 		return -EOPNOTSUPP;
@@ -60,8 +52,6 @@ static int __devinit parisc_rtc_probe(struct platform_device *dev)
 	p = kzalloc(sizeof (*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
-
-	spin_lock_init(&p->lock);
 
 	p->rtc = rtc_device_register("rtc-parisc", &dev->dev, &parisc_rtc_ops,
 					THIS_MODULE);
