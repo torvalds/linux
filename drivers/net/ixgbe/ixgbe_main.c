@@ -4987,8 +4987,20 @@ static int ixgbe_notify_dca(struct notifier_block *nb, unsigned long event,
 
 	return ret_val ? NOTIFY_BAD : NOTIFY_DONE;
 }
-#endif /* CONFIG_IXGBE_DCA */
 
+#endif /* CONFIG_IXGBE_DCA */
+#ifdef DEBUG
+/**
+ * ixgbe_get_hw_dev_name - return device name string
+ * used by hardware layer to print debugging information
+ **/
+char *ixgbe_get_hw_dev_name(struct ixgbe_hw *hw)
+{
+	struct ixgbe_adapter *adapter = hw->back;
+	return adapter->netdev->name;
+}
+
+#endif
 module_exit(ixgbe_exit_module);
 
 /* ixgbe_main.c */
