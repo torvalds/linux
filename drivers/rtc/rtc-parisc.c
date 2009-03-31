@@ -11,11 +11,6 @@
 
 #include <asm/rtc.h>
 
-/* as simple as can be, and no simpler. */
-struct parisc_rtc {
-	struct rtc_device *rtc;
-};
-
 static int parisc_get_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long ret;
@@ -47,16 +42,16 @@ static const struct rtc_class_ops parisc_rtc_ops = {
 
 static int __devinit parisc_rtc_probe(struct platform_device *dev)
 {
-	struct parisc_rtc *p;
+	struct rtc_device *p;
 
 	p = kzalloc(sizeof (*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
-	p->rtc = rtc_device_register("rtc-parisc", &dev->dev, &parisc_rtc_ops,
-					THIS_MODULE);
-	if (IS_ERR(p->rtc)) {
-		int err = PTR_ERR(p->rtc);
+	p = rtc_device_register("rtc-parisc", &dev->dev, &parisc_rtc_ops,
+				THIS_MODULE);
+	if (IS_ERR(p)) {
+		int err = PTR_ERR(p);
 		kfree(p);
 		return err;
 	}
@@ -68,9 +63,9 @@ static int __devinit parisc_rtc_probe(struct platform_device *dev)
 
 static int __devexit parisc_rtc_remove(struct platform_device *dev)
 {
-	struct parisc_rtc *p = platform_get_drvdata(dev);
+	struct rtc_device *p = platform_get_drvdata(dev);
 
-	rtc_device_unregister(p->rtc);
+	rtc_device_unregister(p);
 	kfree(p);
 
 	return 0;
