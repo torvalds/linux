@@ -309,6 +309,6 @@ config DVB_USB_CE6230
 	tristate "Intel CE6230 DVB-T USB2.0 support"
 	depends on DVB_USB && EXPERIMENTAL
 	select DVB_ZL10353
-	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Intel CE6230 DVB-T USB2.0 receiver
