@@ -173,9 +173,9 @@ static bool ath_is_radar_freq(u16 center_freq)
  *   received a beacon on a channel we can enable active scan and
  *   adhoc (or beaconing).
  */
-static void ath_reg_apply_beaconing_flags(
-	struct wiphy *wiphy,
-	enum nl80211_reg_initiator initiator)
+static void
+ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
+			      enum nl80211_reg_initiator initiator)
 {
 	enum ieee80211_band band;
 	struct ieee80211_supported_band *sband;
@@ -232,9 +232,9 @@ static void ath_reg_apply_beaconing_flags(
 }
 
 /* Allows active scan scan on Ch 12 and 13 */
-static void ath_reg_apply_active_scan_flags(
-	struct wiphy *wiphy,
-	enum nl80211_reg_initiator initiator)
+static void
+ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
+				enum nl80211_reg_initiator initiator)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
@@ -316,8 +316,8 @@ static void ath_reg_apply_radar_flags(struct wiphy *wiphy)
 }
 
 static void ath_reg_apply_world_flags(struct wiphy *wiphy,
-				 enum nl80211_reg_initiator initiator,
-				 struct ath_regulatory *reg)
+				      enum nl80211_reg_initiator initiator,
+				      struct ath_regulatory *reg)
 {
 	switch (reg->regpair->regDmnEnum) {
 	case 0x60:
@@ -335,7 +335,8 @@ static void ath_reg_apply_world_flags(struct wiphy *wiphy,
 }
 
 int ath_reg_notifier_apply(struct wiphy *wiphy,
-	struct regulatory_request *request, struct ath_regulatory *reg)
+			   struct regulatory_request *request,
+			   struct ath_regulatory *reg)
 {
 	/* We always apply this */
 	ath_reg_apply_radar_flags(wiphy);
@@ -433,8 +434,10 @@ ath_get_regpair(int regdmn)
 	return NULL;
 }
 
-static int ath_regd_init_wiphy(struct ath_regulatory *reg, struct wiphy *wiphy,
-			       int (*reg_notifier)(struct wiphy *wiphy,
+static int
+ath_regd_init_wiphy(struct ath_regulatory *reg,
+		    struct wiphy *wiphy,
+		    int (*reg_notifier)(struct wiphy *wiphy,
 					struct regulatory_request *request))
 {
 	const struct ieee80211_regdomain *regd;
@@ -464,9 +467,11 @@ static int ath_regd_init_wiphy(struct ath_regulatory *reg, struct wiphy *wiphy,
 	return 0;
 }
 
-int ath_regd_init(struct ath_regulatory *reg, struct wiphy *wiphy,
-		  int (*reg_notifier)(struct wiphy *wiphy,
-			    struct regulatory_request *request))
+int
+ath_regd_init(struct ath_regulatory *reg,
+	      struct wiphy *wiphy,
+	      int (*reg_notifier)(struct wiphy *wiphy,
+				  struct regulatory_request *request))
 {
 	struct country_code_to_enum_rd *country = NULL;
 	u16 regdmn;
