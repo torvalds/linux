@@ -193,16 +193,6 @@ int cpqhp_set_irq (u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num)
 }
 
 
-/*
- * WTF??? This function isn't in the code, yet a function calls it, but the
- * compiler optimizes it away?  strange.  Here as a placeholder to keep the
- * compiler happy.
- */
-static int PCI_ScanBusNonBridge (u8 bus, u8 device)
-{
-	return 0;
-}
-
 static int PCI_ScanBusForNonBridge(struct controller *ctrl, u8 bus_num, u8 * dev_num)
 {
 	u16 tdevice;
@@ -231,9 +221,9 @@ static int PCI_ScanBusForNonBridge(struct controller *ctrl, u8 bus_num, u8 * dev
 		/* Yep we got one. bridge ? */
 		if ((work >> 8) == PCI_TO_PCI_BRIDGE_CLASS) {
 			pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(tdevice, 0), PCI_SECONDARY_BUS, &tbus);
+			/* XXX: no recursion, wtf? */
 			dbg("Recurse on bus_num %d tdevice %d\n", tbus, tdevice);
-			if (PCI_ScanBusNonBridge(tbus, tdevice) == 0)
-				return 0;
+			return 0;
 		}
 	}
 
