@@ -23,7 +23,7 @@
 
 #if defined(__i386__) && !defined(__arch_um__)
 
-#include "raid6.h"
+#include <linux/raid/pq.h>
 #include "raid6x86.h"
 
 /* Defined in raid6mmx.c */

@@ -269,6 +269,8 @@ struct r6_state {
 #define READ_MODIFY_WRITE	2
 /* not a write method, but a compute_parity mode */
 #define	CHECK_PARITY		3
+/* Additional compute_parity mode -- updates the parity w/o LOCKING */
+#define UPDATE_PARITY		4
 
 /*
  * Stripe state

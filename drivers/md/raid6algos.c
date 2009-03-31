@@ -16,13 +16,20 @@
  * Algorithm list and algorithm selection for RAID-6
  */
 
-#include "raid6.h"
+#include <linux/raid/pq.h>
 #ifndef __KERNEL__
 #include <sys/mman.h>
 #include <stdio.h>
+#else
+#if !RAID6_USE_EMPTY_ZERO_PAGE
+/* In .bss so it's zeroed */
+const char raid6_empty_zero_page[PAGE_SIZE] __attribute__((aligned(256)));
+EXPORT_SYMBOL(raid6_empty_zero_page);
+#endif
 #endif
 
 struct raid6_calls raid6_call;
+EXPORT_SYMBOL_GPL(raid6_call);
 
 /* Various routine sets */
 extern const struct raid6_calls raid6_intx1;
@@ -79,6 +86,7 @@ const struct raid6_calls * const raid6_algos[] = {
 #else
 /* Need more time to be stable in userspace */
 #define RAID6_TIME_JIFFIES_LG2	9
+#define time_before(x, y) ((x) < (y))
 #endif
 
 /* Try to pick the best algorithm */
@@ -152,3 +160,12 @@ int __init raid6_select_algo(void)
 
 	return best ? 0 : -EINVAL;
 }
+
+static void raid6_exit(void)
+{
+	do { } while (0);
+}
+
+subsys_initcall(raid6_select_algo);
+module_exit(raid6_exit);
+MODULE_LICENSE("GPL");

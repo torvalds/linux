@@ -19,9 +19,6 @@
 #define RAID6_USE_EMPTY_ZERO_PAGE 0
 #include <linux/blkdev.h>
 
-/* Additional compute_parity mode -- updates the parity w/o LOCKING */
-#define UPDATE_PARITY	4
-
 /* We need a pre-zeroed page... if we don't want to use the kernel-provided
    one define it here */
 #if RAID6_USE_EMPTY_ZERO_PAGE
@@ -64,6 +61,10 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #define enable_kernel_altivec()
 #define disable_kernel_altivec()
 
+#define EXPORT_SYMBOL(sym)
+#define MODULE_LICENSE(licence)
+#define subsys_initcall(x)
+#define module_exit(x)
 #endif /* __KERNEL__ */
 
 /* Routine choices */
@@ -94,9 +95,11 @@ extern const u8 raid6_gfinv[256]      __attribute__((aligned(256)));
 extern const u8 raid6_gfexi[256]      __attribute__((aligned(256)));
 
 /* Recovery routines */
-void raid6_2data_recov(int disks, size_t bytes, int faila, int failb, void **ptrs);
+void raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
+		       void **ptrs);
 void raid6_datap_recov(int disks, size_t bytes, int faila, void **ptrs);
-void raid6_dual_recov(int disks, size_t bytes, int faila, int failb, void **ptrs);
+void raid6_dual_recov(int disks, size_t bytes, int faila, int failb,
+		      void **ptrs);
 
 /* Some definitions to allow code to be compiled for testing in userspace */
 #ifndef __KERNEL__
@@ -104,8 +107,11 @@ void raid6_dual_recov(int disks, size_t bytes, int faila, int failb, void **ptrs
 # define jiffies	raid6_jiffies()
 # define printk 	printf
 # define GFP_KERNEL	0
-# define __get_free_pages(x,y)	((unsigned long)mmap(NULL, PAGE_SIZE << (y), PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0))
-# define free_pages(x,y)	munmap((void *)(x), (y)*PAGE_SIZE)
+# define __get_free_pages(x, y)	((unsigned long)mmap(NULL, PAGE_SIZE << (y), \
+						     PROT_READ|PROT_WRITE,   \
+						     MAP_PRIVATE|MAP_ANONYMOUS,\
+						     0, 0))
+# define free_pages(x, y)	munmap((void *)(x), (y)*PAGE_SIZE)
 
 static inline void cpu_relax(void)
 {

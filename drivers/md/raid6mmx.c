@@ -18,7 +18,7 @@
 
 #if defined(__i386__) && !defined(__arch_um__)
 
-#include "raid6.h"
+#include <linux/raid/pq.h>
 #include "raid6x86.h"
 
 /* Shared with raid6sse1.c */

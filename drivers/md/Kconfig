@@ -121,6 +121,7 @@ config MD_RAID10
 config MD_RAID456
 	tristate "RAID-4/RAID-5/RAID-6 mode"
 	depends on BLK_DEV_MD
+	select MD_RAID6_PQ
 	select ASYNC_MEMCPY
 	select ASYNC_XOR
 	---help---
@@ -179,6 +180,9 @@ config MD_RAID5_RESHAPE
 	  array workable.
 
 	  If unsure, say Y.
+
+config MD_RAID6_PQ
+	tristate
 
 config MD_MULTIPATH
 	tristate "Multipath I/O support"

@@ -45,11 +45,11 @@
 
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
+#include <linux/raid/pq.h>
 #include <linux/async_tx.h>
 #include <linux/seq_file.h>
 #include "md.h"
 #include "raid5.h"
-#include "raid6.h"
 #include "bitmap.h"
 
 /*
@@ -93,11 +93,6 @@
 #endif
 
 #define printk_rl(args...) ((void) (printk_ratelimit() && printk(args)))
-
-#if !RAID6_USE_EMPTY_ZERO_PAGE
-/* In .bss so it's zeroed */
-const char raid6_empty_zero_page[PAGE_SIZE] __attribute__((aligned(256)));
-#endif
 
 /*
  * We maintain a biased count of active stripes in the bottom 16 bits of
@@ -5153,11 +5148,6 @@ static struct mdk_personality raid4_personality =
 
 static int __init raid5_init(void)
 {
-	int e;
-
-	e = raid6_select_algo();
-	if ( e )
-		return e;
 	register_md_personality(&raid6_personality);
 	register_md_personality(&raid5_personality);
 	register_md_personality(&raid4_personality);

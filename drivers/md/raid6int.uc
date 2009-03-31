@@ -18,7 +18,7 @@
  * This file is postprocessed using unroll.pl
  */
 
-#include "raid6.h"
+#include <linux/raid/pq.h>
 
 /*
  * This is the C data type to use

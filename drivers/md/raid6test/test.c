@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "raid6.h"
+#include <linux/raid/pq.h>
 
 #define NDISKS		16	/* Including P and Q */
 
