@@ -382,6 +382,11 @@ static inline struct page *swapin_readahead(swp_entry_t swp, gfp_t gfp_mask,
 	return NULL;
 }
 
+static inline int swap_writepage(struct page *p, struct writeback_control *wbc)
+{
+	return 0;
+}
+
 static inline struct page *lookup_swap_cache(swp_entry_t swp)
 {
 	return NULL;
