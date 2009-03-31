@@ -1307,6 +1307,9 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 		PRINTK(KERN_DEBUG "dec write-behind count %d/%d\n",
 		  atomic_read(&bitmap->behind_writes), bitmap->max_write_behind);
 	}
+	if (bitmap->mddev->degraded)
+		/* Never clear bits or update events_cleared when degraded */
+		success = 0;
 
 	while (sectors) {
 		int blocks;
