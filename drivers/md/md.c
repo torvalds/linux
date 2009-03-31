@@ -46,8 +46,6 @@
 #include <linux/file.h>
 #include <linux/delay.h>
 
-#define MAJOR_NR MD_MAJOR
-
 /* 63 partitions with the alternate major number (mdp) */
 #define MdpMinorShift 6
 
@@ -6503,13 +6501,13 @@ static void md_geninit(void)
 
 static int __init md_init(void)
 {
-	if (register_blkdev(MAJOR_NR, "md"))
+	if (register_blkdev(MD_MAJOR, "md"))
 		return -1;
 	if ((mdp_major=register_blkdev(0, "mdp"))<=0) {
-		unregister_blkdev(MAJOR_NR, "md");
+		unregister_blkdev(MD_MAJOR, "md");
 		return -1;
 	}
-	blk_register_region(MKDEV(MAJOR_NR, 0), 1UL<<MINORBITS, THIS_MODULE,
+	blk_register_region(MKDEV(MD_MAJOR, 0), 1UL<<MINORBITS, THIS_MODULE,
 			    md_probe, NULL, NULL);
 	blk_register_region(MKDEV(mdp_major, 0), 1UL<<MINORBITS, THIS_MODULE,
 			    md_probe, NULL, NULL);
@@ -6595,10 +6593,10 @@ static __exit void md_exit(void)
 	mddev_t *mddev;
 	struct list_head *tmp;
 
-	blk_unregister_region(MKDEV(MAJOR_NR,0), 1U << MINORBITS);
+	blk_unregister_region(MKDEV(MD_MAJOR,0), 1U << MINORBITS);
 	blk_unregister_region(MKDEV(mdp_major,0), 1U << MINORBITS);
 
-	unregister_blkdev(MAJOR_NR,"md");
+	unregister_blkdev(MD_MAJOR,"md");
 	unregister_blkdev(mdp_major, "mdp");
 	unregister_reboot_notifier(&md_notifier);
 	unregister_sysctl_table(raid_table_header);
