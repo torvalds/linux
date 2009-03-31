@@ -321,12 +321,6 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 	err = ide_read_error(drive);
 	sense_key = err >> 4;
 
-	if (rq == NULL) {
-		printk(KERN_ERR PFX "%s: missing rq in %s\n",
-				drive->name, __func__);
-		return 1;
-	}
-
 	ide_debug_log(IDE_DBG_RQ, "stat: 0x%x, good_stat: 0x%x, cmd[0]: 0x%x, "
 				  "rq->cmd_type: 0x%x, err: 0x%x",
 				  stat, good_stat, rq->cmd[0], rq->cmd_type,
