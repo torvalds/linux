@@ -34,46 +34,6 @@
 
 #ifdef CONFIG_MD
 
-/*
- * Different major versions are not compatible.
- * Different minor versions are only downward compatible.
- * Different patchlevel versions are downward and upward compatible.
- */
-#define MD_MAJOR_VERSION                0
-#define MD_MINOR_VERSION                90
-/*
- * MD_PATCHLEVEL_VERSION indicates kernel functionality.
- * >=1 means different superblock formats are selectable using SET_ARRAY_INFO
- *     and major_version/minor_version accordingly
- * >=2 means that Internal bitmaps are supported by setting MD_SB_BITMAP_PRESENT
- *     in the super status byte
- * >=3 means that bitmap superblock version 4 is supported, which uses
- *     little-ending representation rather than host-endian
- */
-#define MD_PATCHLEVEL_VERSION           3
-
-extern int register_md_personality(struct mdk_personality *p);
-extern int unregister_md_personality(struct mdk_personality *p);
-extern mdk_thread_t * md_register_thread(void (*run) (mddev_t *mddev),
-				mddev_t *mddev, const char *name);
-extern void md_unregister_thread(mdk_thread_t *thread);
-extern void md_wakeup_thread(mdk_thread_t *thread);
-extern void md_check_recovery(mddev_t *mddev);
-extern void md_write_start(mddev_t *mddev, struct bio *bi);
-extern void md_write_end(mddev_t *mddev);
-extern void md_done_sync(mddev_t *mddev, int blocks, int ok);
-extern void md_error(mddev_t *mddev, mdk_rdev_t *rdev);
-
-extern void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
-			   sector_t sector, int size, struct page *page);
-extern void md_super_wait(mddev_t *mddev);
-extern int sync_page_io(struct block_device *bdev, sector_t sector, int size,
-			struct page *page, int rw);
-extern void md_do_sync(mddev_t *mddev);
-extern void md_new_event(mddev_t *mddev);
-extern int md_allow_write(mddev_t *mddev);
-extern void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
-
 #endif /* CONFIG_MD */
 #endif 
 

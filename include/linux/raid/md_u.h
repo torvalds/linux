@@ -15,6 +15,24 @@
 #ifndef _MD_U_H
 #define _MD_U_H
 
+/*
+ * Different major versions are not compatible.
+ * Different minor versions are only downward compatible.
+ * Different patchlevel versions are downward and upward compatible.
+ */
+#define MD_MAJOR_VERSION                0
+#define MD_MINOR_VERSION                90
+/*
+ * MD_PATCHLEVEL_VERSION indicates kernel functionality.
+ * >=1 means different superblock formats are selectable using SET_ARRAY_INFO
+ *     and major_version/minor_version accordingly
+ * >=2 means that Internal bitmaps are supported by setting MD_SB_BITMAP_PRESENT
+ *     in the super status byte
+ * >=3 means that bitmap superblock version 4 is supported, which uses
+ *     little-ending representation rather than host-endian
+ */
+#define MD_PATCHLEVEL_VERSION           3
+
 /* ioctls */
 
 /* status */
