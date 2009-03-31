@@ -717,6 +717,7 @@ struct ide_dma_ops {
 	int	(*dma_test_irq)(struct ide_drive_s *);
 	void	(*dma_lost_irq)(struct ide_drive_s *);
 	/* below ones are optional */
+	int	(*dma_check)(struct ide_drive_s *, struct ide_cmd *);
 	int	(*dma_timer_expiry)(struct ide_drive_s *);
 	void	(*dma_clear)(struct ide_drive_s *);
 	/*

@@ -566,9 +566,12 @@ EXPORT_SYMBOL_GPL(ide_allocate_dma_engine);
 
 int ide_dma_prepare(ide_drive_t *drive, struct ide_cmd *cmd)
 {
+	const struct ide_dma_ops *dma_ops = drive->hwif->dma_ops;
+
 	if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0 ||
+	    (dma_ops->dma_check && dma_ops->dma_check(drive, cmd)) ||
 	    ide_build_sglist(drive, cmd) == 0 ||
-	    drive->hwif->dma_ops->dma_setup(drive, cmd))
+	    dma_ops->dma_setup(drive, cmd))
 		return 1;
 	return 0;
 }

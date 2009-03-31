@@ -176,19 +176,21 @@ static void trm290_selectproc (ide_drive_t *drive)
 	trm290_prepare_drive(drive, !!(drive->dev_flags & IDE_DFLAG_USING_DMA));
 }
 
-static int trm290_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
+static int trm290_dma_check(ide_drive_t *drive, struct ide_cmd *cmd)
 {
-	ide_hwif_t *hwif = drive->hwif;
-	unsigned int count, rw;
-
 	if (cmd->tf_flags & IDE_TFLAG_WRITE) {
 #ifdef TRM290_NO_DMA_WRITES
 		/* always use PIO for writes */
 		return 1;
 #endif
-		rw = 1;
-	} else
-		rw = 2;
+	}
+	return 0;
+}
+
+static int trm290_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	unsigned int count, rw = (cmd->tf_flags & IDE_TFLAG_WRITE) ? 1 : 2;
 
 	count = ide_build_dmatable(drive, cmd);
 	if (count == 0) {
@@ -312,6 +314,7 @@ static struct ide_dma_ops trm290_dma_ops = {
 	.dma_end		= trm290_dma_end,
 	.dma_test_irq		= trm290_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_check		= trm290_dma_check,
 };
 
 static const struct ide_port_info trm290_chipset __devinitdata = {
