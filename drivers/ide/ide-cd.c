@@ -12,12 +12,9 @@
  * See Documentation/cdrom/ide-cd for usage information.
  *
  * Suggestions are welcome. Patches that work are more welcome though. ;-)
- * For those wishing to work on this driver, please be sure you download
- * and comply with the latest Mt. Fuji (SFF8090 version 4) and ATAPI
- * (SFF-8020i rev 2.6) standards. These documents can be obtained by
- * anonymous ftp from:
- * ftp://fission.dt.wdc.com/pub/standards/SFF_atapi/spec/SFF8020-r2.6/PS/8020r26.ps
- * ftp://ftp.avc-pioneer.com/Mtfuji4/Spec/Fuji4r10.pdf
+ *
+ * Documentation:
+ *	Mt. Fuji (SFF8090 version 4) and ATAPI (SFF-8020i rev 2.6) standards.
  *
  * For historical changelog please see:
  *	Documentation/ide/ChangeLog.ide-cd.1994-2004
