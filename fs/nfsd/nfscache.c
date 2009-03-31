@@ -174,8 +174,8 @@ nfsd_cache_lookup(struct svc_rqst *rqstp, int type)
 	}
 	}
 
-	/* This should not happen */
-	if (rp == NULL) {
+	/* All entries on the LRU are in-progress. This should not happen */
+	if (&rp->c_lru == &lru_head) {
 		static int	complaints;
 
 		printk(KERN_WARNING "nfsd: all repcache entries locked!\n");
