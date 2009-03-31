@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2005 James Chapman (ds1337 core)
  *  Copyright (C) 2006 David Brownell
+ *  Copyright (C) 2009 Matthias Fuchs (rx8025 support)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,6 +32,7 @@ enum ds_type {
 	ds_1339,
 	ds_1340,
 	m41t00,
+	rx_8025,
 	// rs5c372 too?  different address...
 };
 
@@ -83,6 +85,12 @@ enum ds_type {
 #define DS1339_REG_ALARM1_SECS	0x07
 #define DS1339_REG_TRICKLE	0x10
 
+#define RX8025_REG_CTRL1	0x0e
+#	define RX8025_BIT_2412		0x20
+#define RX8025_REG_CTRL2	0x0f
+#	define RX8025_BIT_PON		0x10
+#	define RX8025_BIT_VDET		0x40
+#	define RX8025_BIT_XST		0x20
 
 
 struct ds1307 {
@@ -121,6 +129,8 @@ static const struct chip_desc chips[] = {
 [ds_1340] = {
 },
 [m41t00] = {
+},
+[rx_8025] = {
 }, };
 
 static const struct i2c_device_id ds1307_id[] = {
@@ -130,6 +140,7 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1339", ds_1339 },
 	{ "ds1340", ds_1340 },
 	{ "m41t00", m41t00 },
+	{ "rx8025", rx_8025 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1307_id);
@@ -674,6 +685,72 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 			dev_warn(&client->dev, "SET TIME!\n");
 		}
 		break;
+
+	case rx_8025:
+		tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
+				RX8025_REG_CTRL1 << 4 | 0x08, 2, buf);
+		if (tmp != 2) {
+			pr_debug("read error %d\n", tmp);
+			err = -EIO;
+			goto exit_free;
+		}
+
+		/* oscillator off?  turn it on, so clock can tick. */
+		if (!(ds1307->regs[1] & RX8025_BIT_XST)) {
+			ds1307->regs[1] |= RX8025_BIT_XST;
+			i2c_smbus_write_byte_data(client,
+						  RX8025_REG_CTRL2 << 4 | 0x08,
+						  ds1307->regs[1]);
+			dev_warn(&client->dev,
+				 "oscillator stop detected - SET TIME!\n");
+		}
+
+		if (ds1307->regs[1] & RX8025_BIT_PON) {
+			ds1307->regs[1] &= ~RX8025_BIT_PON;
+			i2c_smbus_write_byte_data(client,
+						  RX8025_REG_CTRL2 << 4 | 0x08,
+						  ds1307->regs[1]);
+			dev_warn(&client->dev, "power-on detected\n");
+		}
+
+		if (ds1307->regs[1] & RX8025_BIT_VDET) {
+			ds1307->regs[1] &= ~RX8025_BIT_VDET;
+			i2c_smbus_write_byte_data(client,
+						  RX8025_REG_CTRL2 << 4 | 0x08,
+						  ds1307->regs[1]);
+			dev_warn(&client->dev, "voltage drop detected\n");
+		}
+
+		/* make sure we are running in 24hour mode */
+		if (!(ds1307->regs[0] & RX8025_BIT_2412)) {
+			u8 hour;
+
+			/* switch to 24 hour mode */
+			i2c_smbus_write_byte_data(client,
+						  RX8025_REG_CTRL1 << 4 | 0x08,
+						  ds1307->regs[0] |
+						  RX8025_BIT_2412);
+
+			tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
+					RX8025_REG_CTRL1 << 4 | 0x08, 2, buf);
+			if (tmp != 2) {
+				pr_debug("read error %d\n", tmp);
+				err = -EIO;
+				goto exit_free;
+			}
+
+			/* correct hour */
+			hour = bcd2bin(ds1307->regs[DS1307_REG_HOUR]);
+			if (hour == 12)
+				hour = 0;
+			if (ds1307->regs[DS1307_REG_HOUR] & DS1307_BIT_PM)
+				hour += 12;
+
+			i2c_smbus_write_byte_data(client,
+						  DS1307_REG_HOUR << 4 | 0x08,
+						  hour);
+		}
+		break;
 	default:
 		break;
 	}
@@ -734,6 +811,7 @@ read_rtc:
 			dev_warn(&client->dev, "SET TIME!\n");
 		}
 		break;
+	case rx_8025:
 	case ds_1337:
 	case ds_1339:
 		break;
@@ -746,6 +824,8 @@ read_rtc:
 		/* NOTE: ignores century bits; fix before deploying
 		 * systems that will run through year 2100.
 		 */
+		break;
+	case rx_8025:
 		break;
 	default:
 		if (!(tmp & DS1307_BIT_12HR))
