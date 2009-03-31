@@ -460,20 +460,6 @@ void ide_dma_lost_irq(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_dma_lost_irq);
 
-static void ide_dma_timeout(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	printk(KERN_ERR "%s: timeout waiting for DMA\n", drive->name);
-
-	if (hwif->dma_ops->dma_test_irq(drive))
-		return;
-
-	ide_dump_status(drive, "DMA timeout", hwif->tp_ops->read_status(hwif));
-
-	hwif->dma_ops->dma_end(drive);
-}
-
 /*
  * un-busy the port etc, and clear any pending DMA status. we want to
  * retry the current request in pio mode instead of risking tossing it
@@ -499,7 +485,12 @@ ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 		printk(KERN_WARNING "%s: DMA timeout retry\n", drive->name);
 		if (dma_ops->dma_clear)
 			dma_ops->dma_clear(drive);
-		ide_dma_timeout(drive);
+		printk(KERN_ERR "%s: timeout waiting for DMA\n", drive->name);
+		if (dma_ops->dma_test_irq(drive) == 0) {
+			ide_dump_status(drive, "DMA timeout",
+					hwif->tp_ops->read_status(hwif));
+			(void)dma_ops->dma_end(drive);
+		}
 	}
 
 	/*
