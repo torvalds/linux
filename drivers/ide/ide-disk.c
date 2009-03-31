@@ -227,7 +227,7 @@ static u64 idedisk_read_native_max_address(ide_drive_t *drive, int lba48)
 	ide_no_data_taskfile(drive, &cmd);
 
 	/* if OK, compute maximum address value */
-	if ((tf->status & 0x01) == 0)
+	if (!(tf->status & ATA_ERR))
 		addr = ide_get_lba_addr(tf, lba48) + 1;
 
 	return addr;
@@ -267,7 +267,7 @@ static u64 idedisk_set_max_address(ide_drive_t *drive, u64 addr_req, int lba48)
 	ide_no_data_taskfile(drive, &cmd);
 
 	/* if OK, compute maximum address value */
-	if ((tf->status & 0x01) == 0)
+	if (!(tf->status & ATA_ERR))
 		addr_set = ide_get_lba_addr(tf, lba48) + 1;
 
 	return addr_set;
