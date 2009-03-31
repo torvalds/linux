@@ -239,7 +239,7 @@ struct stripe_head_state {
 
 /* r6_state - extra state data only relevant to r6 */
 struct r6_state {
-	int p_failed, q_failed, qd_idx, failed_num[2];
+	int p_failed, q_failed, failed_num[2];
 };
 
 /* Flags */
