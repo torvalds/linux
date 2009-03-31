@@ -2131,25 +2131,33 @@ static void chroot_fs_refs(struct path *old_root, struct path *new_root)
 {
 	struct task_struct *g, *p;
 	struct fs_struct *fs;
+	int count = 0;
 
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
 		task_lock(p);
 		fs = p->fs;
 		if (fs) {
-			atomic_inc(&fs->count);
-			task_unlock(p);
+			write_lock(&fs->lock);
 			if (fs->root.dentry == old_root->dentry
-			    && fs->root.mnt == old_root->mnt)
-				set_fs_root(fs, new_root);
+			    && fs->root.mnt == old_root->mnt) {
+				path_get(new_root);
+				fs->root = *new_root;
+				count++;
+			}
 			if (fs->pwd.dentry == old_root->dentry
-			    && fs->pwd.mnt == old_root->mnt)
-				set_fs_pwd(fs, new_root);
-			put_fs_struct(fs);
-		} else
-			task_unlock(p);
+			    && fs->pwd.mnt == old_root->mnt) {
+				path_get(new_root);
+				fs->pwd = *new_root;
+				count++;
+			}
+			write_unlock(&fs->lock);
+		}
+		task_unlock(p);
 	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
+	while (count--)
+		path_put(old_root);
 }
 
 /*
