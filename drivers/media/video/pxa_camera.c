@@ -163,6 +163,13 @@
 			CICR0_EOFM | CICR0_FOM)
 
 /*
+ * YUV422P picture size should be a multiple of 16, so the heuristic aligns
+ * height, width on 4 byte boundaries to reach the 16 multiple for the size.
+ */
+#define YUV422P_X_Y_ALIGN 4
+#define YUV422P_SIZE_ALIGN YUV422P_X_Y_ALIGN * YUV422P_X_Y_ALIGN
+
+/*
  * Structures
  */
 enum pxa_camera_active_dma {
@@ -236,20 +243,11 @@ static int pxa_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 			      unsigned int *size)
 {
 	struct soc_camera_device *icd = vq->priv_data;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct pxa_camera_dev *pcdev = ici->priv;
 
 	dev_dbg(&icd->dev, "count=%d, size=%d\n", *count, *size);
 
-	/* planar capture requires Y, U and V buffers to be page aligned */
-	if (pcdev->channels == 3) {
-		*size = PAGE_ALIGN(icd->width * icd->height); /* Y pages */
-		*size += PAGE_ALIGN(icd->width * icd->height / 2); /* U pages */
-		*size += PAGE_ALIGN(icd->width * icd->height / 2); /* V pages */
-	} else {
-		*size = icd->width * icd->height *
-			((icd->current_fmt->depth + 7) >> 3);
-	}
+	*size = roundup(icd->width * icd->height *
+			((icd->current_fmt->depth + 7) >> 3), 8);
 
 	if (0 == *count)
 		*count = 32;
@@ -1264,6 +1262,18 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	if (pix->width > 2048)
 		pix->width = 2048;
 	pix->width &= ~0x01;
+
+	/*
+	 * YUV422P planar format requires images size to be a 16 bytes
+	 * multiple. If not, zeros will be inserted between Y and U planes, and
+	 * U and V planes, and YUV422P standard would be violated.
+	 */
+	if (xlate->host_fmt->fourcc == V4L2_PIX_FMT_YUV422P) {
+		if (!IS_ALIGNED(pix->width * pix->height, YUV422P_SIZE_ALIGN))
+			pix->height = ALIGN(pix->height, YUV422P_X_Y_ALIGN);
+		if (!IS_ALIGNED(pix->width * pix->height, YUV422P_SIZE_ALIGN))
+			pix->width = ALIGN(pix->width, YUV422P_X_Y_ALIGN);
+	}
 
 	pix->bytesperline = pix->width *
 		DIV_ROUND_UP(xlate->host_fmt->depth, 8);
