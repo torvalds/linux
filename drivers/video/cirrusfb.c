@@ -499,12 +499,12 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 			var->green.offset = -3;
 			var->blue.offset = 8;
 		} else {
-			var->red.offset = 10;
+			var->red.offset = 11;
 			var->green.offset = 5;
 			var->blue.offset = 0;
 		}
 		var->red.length = 5;
-		var->green.length = 5;
+		var->green.length = 6;
 		var->blue.length = 5;
 		break;
 
@@ -1180,7 +1180,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		/* pixel mask: pass-through all planes */
 		WGen(cinfo, VGA_PEL_MSK, 0xff);
 #ifdef CONFIG_PCI
-		WHDR(cinfo, 0xc0);	/* Copy Xbh */
+		WHDR(cinfo, 0xc1);	/* Copy Xbh */
 #elif defined(CONFIG_ZORRO)
 		/* FIXME: CONFIG_PCI and CONFIG_ZORRO may be defined both */
 		WHDR(cinfo, 0xa0);	/* hidden dac reg: nothing special */
