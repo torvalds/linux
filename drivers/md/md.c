@@ -5382,6 +5382,8 @@ mdk_thread_t *md_register_thread(void (*run) (mddev_t *), mddev_t *mddev,
 
 void md_unregister_thread(mdk_thread_t *thread)
 {
+	if (!thread)
+		return;
 	dprintk("interrupting MD-thread pid %d\n", task_pid_nr(thread->tsk));
 
 	kthread_stop(thread->tsk);

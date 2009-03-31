@@ -4463,8 +4463,7 @@ static int run(mddev_t *mddev)
 
 	return 0;
 abort:
-	if (mddev->thread)
-		md_unregister_thread(mddev->thread);
+	md_unregister_thread(mddev->thread);
 	mddev->thread = NULL;
 	if (conf) {
 		shrink_stripes(conf);
