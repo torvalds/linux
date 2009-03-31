@@ -52,6 +52,7 @@
 #include <asm/meminit.h>
 #include <asm/page.h>
 #include <asm/paravirt.h>
+#include <asm/paravirt_patch.h>
 #include <asm/patch.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -537,6 +538,7 @@ setup_arch (char **cmdline_p)
 	paravirt_arch_setup_early();
 
 	ia64_patch_vtop((u64) __start___vtop_patchlist, (u64) __end___vtop_patchlist);
+	paravirt_patch_apply();
 
 	*cmdline_p = __va(ia64_boot_param->command_line);
 	strlcpy(boot_command_line, *cmdline_p, COMMAND_LINE_SIZE);
