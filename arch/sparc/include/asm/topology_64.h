@@ -28,11 +28,6 @@ static inline cpumask_t node_to_cpumask(int node)
 #define node_to_cpumask_ptr_next(v, node)	\
 			   v = &(numa_cpumask_lookup_table[node])
 
-static inline int node_to_first_cpu(int node)
-{
-	return cpumask_first(cpumask_of_node(node));
-}
-
 struct pci_bus;
 #ifdef CONFIG_PCI
 extern int pcibus_to_node(struct pci_bus *pbus);

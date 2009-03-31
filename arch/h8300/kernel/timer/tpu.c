@@ -65,7 +65,6 @@ static struct irqaction tpu_irq = {
 	.name		= "tpu",
 	.handler	= timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_TIMER,
-	.mask		= CPU_MASK_NONE,
 };
 
 const static int __initdata divide_rate[] = {

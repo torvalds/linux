@@ -219,7 +219,7 @@ cont_nmi_dump(void)
 		if (i == 1000) {
 			for_each_online_node(node)
 				if (NODEPDA(node)->dump_count == 0) {
-					cpu = node_to_first_cpu(node);
+					cpu = cpumask_first(cpumask_of_node(node));
 					for (n=0; n < CNODE_NUM_CPUS(node); cpu++, n++) {
 						CPUMASK_SETB(nmied_cpus, cpu);
 						/*
