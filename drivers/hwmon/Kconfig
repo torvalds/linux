@@ -932,6 +932,22 @@ config SENSORS_LIS3LV02D
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of lis3lv02d.
 
+config SENSORS_LIS3_SPI
+	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (SPI)"
+	depends on !ACPI && SPI_MASTER && INPUT
+	default n
+	help
+	  This driver provides support for the LIS3LV02Dx accelerometer connected
+	  via SPI. The accelerometer data is readable via
+	  /sys/devices/platform/lis3lv02d.
+
+	  This driver also provides an absolute input class device, allowing
+	  the laptop to act as a pinball machine-esque joystick.
+
+	  This driver can also be built as modules.  If so, the core module
+	  will be called lis3lv02d and a specific module for the SPI transport
+	  is called lis3lv02d_spi.
+
 config SENSORS_APPLESMC
 	tristate "Apple SMC (Motion sensor, light sensor, keyboard backlight)"
 	depends on INPUT && X86
