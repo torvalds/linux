@@ -657,16 +657,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (dma) {
 		if (dma_error)
 			return ide_error(drive, "dma error", stat);
-		if (blk_fs_request(rq)) {
-			ide_complete_rq(drive, 0, rq->nr_sectors
-				? (rq->nr_sectors << 9) : ide_rq_bytes(rq));
-			return ide_stopped;
-		} else if (rq->cmd_type == REQ_TYPE_ATA_PC && !rq->bio) {
-			ide_complete_rq(drive, 0, 512);
-			return ide_stopped;
-		}
-		if (blk_pc_request(rq) == 0 && uptodate == 0)
-			rq->cmd_flags |= REQ_FAILED;
+		uptodate = 1;
 		goto out_end;
 	}
 
