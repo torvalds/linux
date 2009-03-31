@@ -298,7 +298,7 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 				    + size/512 > 0)
 					/* bitmap runs in to metadata */
 					goto bad_alignment;
-				if (rdev->data_offset + mddev->size*2
+				if (rdev->data_offset + mddev->dev_sectors
 				    > rdev->sb_start + bitmap->offset)
 					/* data runs in to bitmap */
 					goto bad_alignment;

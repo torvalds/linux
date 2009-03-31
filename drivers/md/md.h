@@ -142,7 +142,8 @@ struct mddev_s
 	char				clevel[16];
 	int				raid_disks;
 	int				max_disks;
-	sector_t			size; /* used size of component devices */
+	sector_t			dev_sectors; 	/* used size of
+							 * component devices */
 	sector_t			array_sectors; /* exported array size */
 	__u64				events;
 

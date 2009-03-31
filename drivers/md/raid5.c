@@ -3629,8 +3629,8 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 				     *(new_data_disks) -1,
 				     raid_disks, data_disks,
 				     &dd_idx, &pd_idx, conf);
-	if (last_sector >= (mddev->size<<1))
-		last_sector = (mddev->size<<1)-1;
+	if (last_sector >= mddev->dev_sectors)
+		last_sector = mddev->dev_sectors - 1;
 	while (first_sector <= last_sector) {
 		pd_idx = stripe_to_pdidx(first_sector, conf,
 					 conf->previous_raid_disks);
@@ -3670,7 +3670,7 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	struct stripe_head *sh;
 	int pd_idx;
 	int raid_disks = conf->raid_disks;
-	sector_t max_sector = mddev->size << 1;
+	sector_t max_sector = mddev->dev_sectors;
 	int sync_blocks;
 	int still_degraded = 0;
 	int i;
@@ -3708,7 +3708,7 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	 */
 	if (mddev->degraded >= conf->max_degraded &&
 	    test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
-		sector_t rv = (mddev->size << 1) - sector_nr;
+		sector_t rv = mddev->dev_sectors - sector_nr;
 		*skipped = 1;
 		return rv;
 	}
@@ -4146,8 +4146,8 @@ static int run(mddev_t *mddev)
 	conf->expand_progress = mddev->reshape_position;
 
 	/* device size must be a multiple of chunk size */
-	mddev->size &= ~(mddev->chunk_size/1024 -1);
-	mddev->resync_max_sectors = mddev->size << 1;
+	mddev->dev_sectors &= ~(mddev->chunk_size / 512 - 1);
+	mddev->resync_max_sectors = mddev->dev_sectors;
 
 	if (conf->level == 6 && conf->raid_disks < 4) {
 		printk(KERN_ERR "raid6: not enough configured devices for %s (%d, minimum 4)\n",
@@ -4254,8 +4254,8 @@ static int run(mddev_t *mddev)
 	mddev->queue->backing_dev_info.congested_data = mddev;
 	mddev->queue->backing_dev_info.congested_fn = raid5_congested;
 
-	mddev->array_sectors = 2 * mddev->size * (conf->previous_raid_disks -
-					    conf->max_degraded);
+	mddev->array_sectors = mddev->dev_sectors *
+		(conf->previous_raid_disks - conf->max_degraded);
 
 	blk_queue_merge_bvec(mddev->queue, raid5_mergeable_bvec);
 
@@ -4482,11 +4482,11 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 					  - conf->max_degraded);
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
-	if (sectors/2  > mddev->size && mddev->recovery_cp == MaxSector) {
-		mddev->recovery_cp = mddev->size << 1;
+	if (sectors > mddev->dev_sectors && mddev->recovery_cp == MaxSector) {
+		mddev->recovery_cp = mddev->dev_sectors;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	}
-	mddev->size = sectors /2;
+	mddev->dev_sectors = sectors;
 	mddev->resync_max_sectors = sectors;
 	return 0;
 }
@@ -4615,7 +4615,7 @@ static void end_reshape(raid5_conf_t *conf)
 	struct block_device *bdev;
 
 	if (!test_bit(MD_RECOVERY_INTR, &conf->mddev->recovery)) {
-		conf->mddev->array_sectors = 2 * conf->mddev->size *
+		conf->mddev->array_sectors = conf->mddev->dev_sectors *
 			(conf->raid_disks - conf->max_degraded);
 		set_capacity(conf->mddev->gendisk, conf->mddev->array_sectors);
 		conf->mddev->changed = 1;

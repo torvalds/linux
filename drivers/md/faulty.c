@@ -301,7 +301,7 @@ static int run(mddev_t *mddev)
 	list_for_each_entry(rdev, &mddev->disks, same_set)
 		conf->rdev = rdev;
 
-	mddev->array_sectors = mddev->size * 2;
+	mddev->array_sectors = mddev->dev_sectors;
 	mddev->private = conf;
 
 	reconfig(mddev, mddev->layout, -1);

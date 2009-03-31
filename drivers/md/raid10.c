@@ -1698,7 +1698,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			return 0;
 
  skipped:
-	max_sector = mddev->size << 1;
+	max_sector = mddev->dev_sectors;
 	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
 		max_sector = mddev->resync_max_sectors;
 	if (sector_nr >= max_sector) {
@@ -2079,7 +2079,7 @@ static int run(mddev_t *mddev)
 	conf->far_offset = fo;
 	conf->chunk_mask = (sector_t)(mddev->chunk_size>>9)-1;
 	conf->chunk_shift = ffz(~mddev->chunk_size) - 9;
-	size = mddev->size >> (conf->chunk_shift-1);
+	size = mddev->dev_sectors >> conf->chunk_shift;
 	sector_div(size, fc);
 	size = size * conf->raid_disks;
 	sector_div(size, nc);
@@ -2092,7 +2092,7 @@ static int run(mddev_t *mddev)
 	 */
 	stride += conf->raid_disks - 1;
 	sector_div(stride, conf->raid_disks);
-	mddev->size = stride  << (conf->chunk_shift-1);
+	mddev->dev_sectors = stride << conf->chunk_shift;
 
 	if (fo)
 		stride = 1;
