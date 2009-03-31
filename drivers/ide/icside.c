@@ -287,8 +287,6 @@ static int icside_dma_end(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 
-	drive->waiting_for_dma = 0;
-
 	disable_dma(ec->dma);
 
 	return get_dma_residue(ec->dma) != 0;
@@ -342,8 +340,6 @@ static int icside_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	 */
 	set_dma_sg(ec->dma, hwif->sg_table, cmd->sg_nents);
 	set_dma_mode(ec->dma, dma_mode);
-
-	drive->waiting_for_dma = 1;
 
 	return 0;
 }

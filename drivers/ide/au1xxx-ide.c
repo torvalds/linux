@@ -290,7 +290,6 @@ static int auide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (auide_build_dmatable(drive, cmd) == 0)
 		return 1;
 
-	drive->waiting_for_dma = 1;
 	return 0;
 }
 
@@ -315,16 +314,11 @@ static void auide_dma_host_set(ide_drive_t *drive, int on)
 
 static void auide_ddma_tx_callback(int irq, void *param)
 {
-	_auide_hwif *ahwif = (_auide_hwif*)param;
-	ahwif->drive->waiting_for_dma = 0;
 }
 
 static void auide_ddma_rx_callback(int irq, void *param)
 {
-	_auide_hwif *ahwif = (_auide_hwif*)param;
-	ahwif->drive->waiting_for_dma = 0;
 }
-
 #endif /* end CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA */
 
 static void auide_init_dbdma_dev(dbdev_tab_t *dev, u32 dev_id, u32 tsize, u32 devwidth, u32 flags)

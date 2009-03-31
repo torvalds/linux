@@ -258,8 +258,6 @@ static int sgiioc4_dma_end(ide_drive_t *drive)
 		}
 	}
 
-	drive->waiting_for_dma = 0;
-
 	return dma_stat;
 }
 
@@ -412,7 +410,6 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 	writel(ending_dma_addr, (void __iomem *)(dma_base + IOC4_DMA_END_ADDR * 4));
 
 	writel(dma_direction, (void __iomem *)ioc4_dma_addr);
-	drive->waiting_for_dma = 1;
 }
 
 /* IOC4 Scatter Gather list Format 					 */

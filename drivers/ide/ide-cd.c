@@ -638,6 +638,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	dma = drive->dma;
 	if (dma) {
 		drive->dma = 0;
+		drive->waiting_for_dma = 0;
 		dma_error = hwif->dma_ops->dma_end(drive);
 		ide_destroy_dmatable(drive);
 		if (dma_error) {

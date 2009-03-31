@@ -1517,8 +1517,6 @@ static int pmac_ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 		(void)readl(PMAC_IDE_REG(IDE_TIMING_CONFIG));
 	}
 
-	drive->waiting_for_dma = 1;
-
 	return 0;
 }
 
@@ -1553,7 +1551,6 @@ pmac_ide_dma_end (ide_drive_t *drive)
 	volatile struct dbdma_regs __iomem *dma = pmif->dma_regs;
 	u32 dstat;
 
-	drive->waiting_for_dma = 0;
 	dstat = readl(&dma->status);
 	writel(((RUN|WAKE|DEAD) << 16), &dma->control);
 

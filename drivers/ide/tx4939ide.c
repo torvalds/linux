@@ -304,8 +304,6 @@ static int tx4939ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	/* clear INTR & ERROR flags */
 	tx4939ide_clear_dma_status(base);
 
-	drive->waiting_for_dma = 1;
-
 	tx4939ide_writew(SECTOR_SIZE / 2, base, drive->dn ?
 			 TX4939IDE_Xfer_Cnt_2 : TX4939IDE_Xfer_Cnt_1);
 
@@ -320,8 +318,6 @@ static int tx4939ide_dma_end(ide_drive_t *drive)
 	u8 dma_stat, dma_cmd;
 	void __iomem *base = TX4939IDE_BASE(hwif);
 	u16 ctl = tx4939ide_readw(base, TX4939IDE_Int_Ctl);
-
-	drive->waiting_for_dma = 0;
 
 	/* get DMA command mode */
 	dma_cmd = tx4939ide_readb(base, TX4939IDE_DMA_Cmd);

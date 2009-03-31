@@ -342,8 +342,10 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	stat = tp_ops->read_status(hwif);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
-		int rc = hwif->dma_ops->dma_end(drive);
+		int rc;
 
+		drive->waiting_for_dma = 0;
+		rc = hwif->dma_ops->dma_end(drive);
 		ide_destroy_dmatable(drive);
 
 		if (rc || (drive->media == ide_tape && (stat & ATA_ERR))) {

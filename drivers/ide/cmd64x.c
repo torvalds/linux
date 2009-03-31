@@ -318,7 +318,6 @@ static int cmd646_1_dma_end(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	u8 dma_stat = 0, dma_cmd = 0;
 
-	drive->waiting_for_dma = 0;
 	/* get DMA status */
 	dma_stat = inb(hwif->dma_base + ATA_DMA_STATUS);
 	/* read DMA command state */

@@ -216,7 +216,6 @@ int ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	/* clear INTR & ERROR flags */
 	ide_dma_sff_write_status(hwif, dma_stat | ATA_DMA_ERR | ATA_DMA_INTR);
 
-	drive->waiting_for_dma = 1;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_dma_setup);
@@ -289,8 +288,6 @@ int ide_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	u8 dma_stat = 0, dma_cmd = 0, mask;
-
-	drive->waiting_for_dma = 0;
 
 	/* stop DMA */
 	if (hwif->host_flags & IDE_HFLAG_MMIO) {

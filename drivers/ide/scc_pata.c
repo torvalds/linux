@@ -335,7 +335,7 @@ static int scc_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 
 	/* clear INTR & ERROR flags */
 	out_be32((void __iomem *)(hwif->dma_base + 4), dma_stat | 6);
-	drive->waiting_for_dma = 1;
+
 	return 0;
 }
 
@@ -354,7 +354,6 @@ static int __scc_dma_end(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	u8 dma_stat, dma_cmd;
 
-	drive->waiting_for_dma = 0;
 	/* get DMA command mode */
 	dma_cmd = scc_ide_inb(hwif->dma_base);
 	/* stop DMA */

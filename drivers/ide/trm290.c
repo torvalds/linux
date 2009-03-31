@@ -198,9 +198,9 @@ static int trm290_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 		return 1;
 
 	outl(hwif->dmatable_dma | rw, hwif->dma_base);
-	drive->waiting_for_dma = 1;
 	/* start DMA */
 	outw(count * 2 - 1, hwif->dma_base + 2);
+
 	return 0;
 }
 
@@ -211,11 +211,7 @@ static void trm290_dma_start(ide_drive_t *drive)
 
 static int trm290_dma_end(ide_drive_t *drive)
 {
-	u16 status;
-
-	drive->waiting_for_dma = 0;
-
-	status = inw(drive->hwif->dma_base + 2);
+	u16 status = inw(drive->hwif->dma_base + 2);
 
 	trm290_prepare_drive(drive, 0);
 
