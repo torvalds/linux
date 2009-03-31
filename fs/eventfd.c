@@ -51,7 +51,7 @@ int eventfd_signal(struct file *file, int n)
 		n = (int) (ULLONG_MAX - ctx->count);
 	ctx->count += n;
 	if (waitqueue_active(&ctx->wqh))
-		wake_up_locked(&ctx->wqh);
+		wake_up_locked_poll(&ctx->wqh, POLLIN);
 	spin_unlock_irqrestore(&ctx->wqh.lock, flags);
 
 	return n;
@@ -120,7 +120,7 @@ static ssize_t eventfd_read(struct file *file, char __user *buf, size_t count,
 		ucnt = (ctx->flags & EFD_SEMAPHORE) ? 1 : ctx->count;
 		ctx->count -= ucnt;
 		if (waitqueue_active(&ctx->wqh))
-			wake_up_locked(&ctx->wqh);
+			wake_up_locked_poll(&ctx->wqh, POLLOUT);
 	}
 	spin_unlock_irq(&ctx->wqh.lock);
 	if (res > 0 && put_user(ucnt, (__u64 __user *) buf))
@@ -169,7 +169,7 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
 	if (likely(res > 0)) {
 		ctx->count += ucnt;
 		if (waitqueue_active(&ctx->wqh))
-			wake_up_locked(&ctx->wqh);
+			wake_up_locked_poll(&ctx->wqh, POLLIN);
 	}
 	spin_unlock_irq(&ctx->wqh.lock);
 
