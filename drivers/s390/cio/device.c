@@ -482,17 +482,21 @@ static int online_store_recog_and_online(struct ccw_device *cdev)
 		}
 		wait_event(cdev->private->wait_q,
 			   cdev->private->flags.recog_done);
+		if (cdev->private->state != DEV_STATE_OFFLINE)
+			/* recognition failed */
+			return -EAGAIN;
 	}
 	if (cdev->drv && cdev->drv->set_online)
 		ccw_device_set_online(cdev);
 	return 0;
 }
+
 static int online_store_handle_online(struct ccw_device *cdev, int force)
 {
 	int ret;
 
 	ret = online_store_recog_and_online(cdev);
-	if (ret)
+	if (ret && !force)
 		return ret;
 	if (force && cdev->private->state == DEV_STATE_BOXED) {
 		ret = ccw_device_stlck(cdev);
@@ -500,7 +504,9 @@ static int online_store_handle_online(struct ccw_device *cdev, int force)
 			return ret;
 		if (cdev->id.cu_type == 0)
 			cdev->private->state = DEV_STATE_NOT_OPER;
-		online_store_recog_and_online(cdev);
+		ret = online_store_recog_and_online(cdev);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }

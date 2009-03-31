@@ -260,6 +260,7 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 		if (state == DEV_STATE_NOT_OPER) {
 			cdev->private->flags.recog_done = 1;
 			cdev->private->state = DEV_STATE_DISCONNECTED;
+			wake_up(&cdev->private->wait_q);
 			return;
 		}
 		/* Boxed devices don't need extra treatment. */
@@ -311,8 +312,7 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 	}
 	cdev->private->state = state;
 	io_subchannel_recog_done(cdev);
-	if (state != DEV_STATE_NOT_OPER)
-		wake_up(&cdev->private->wait_q);
+	wake_up(&cdev->private->wait_q);
 }
 
 /*
