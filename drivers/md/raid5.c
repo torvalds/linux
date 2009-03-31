@@ -4967,6 +4967,11 @@ static void *raid5_takeover(mddev_t *mddev)
 
 	if (mddev->level == 1)
 		return raid5_takeover_raid1(mddev);
+	if (mddev->level == 4) {
+		mddev->new_layout = ALGORITHM_PARITY_N;
+		mddev->new_level = 5;
+		return setup_conf(mddev);
+	}
 
 	return ERR_PTR(-EINVAL);
 }
