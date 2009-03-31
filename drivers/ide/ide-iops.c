@@ -27,11 +27,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-void SELECT_DRIVE(ide_drive_t *drive)
-{
-	drive->hwif->tp_ops->dev_select(drive);
-}
-
 void SELECT_MASK(ide_drive_t *drive, int mask)
 {
 	const struct ide_port_ops *port_ops = drive->hwif->port_ops;
@@ -347,7 +342,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	disable_irq_nosync(hwif->irq);
 
 	udelay(1);
-	SELECT_DRIVE(drive);
+	tp_ops->dev_select(drive);
 	SELECT_MASK(drive, 1);
 	udelay(1);
 	tp_ops->write_devctl(hwif, ATA_NIEN | ATA_DEVCTL_OBS);

@@ -1176,7 +1176,6 @@ void ide_tf_read(ide_drive_t *, struct ide_cmd *);
 void ide_input_data(ide_drive_t *, struct ide_cmd *, void *, unsigned int);
 void ide_output_data(ide_drive_t *, struct ide_cmd *, void *, unsigned int);
 
-extern void SELECT_DRIVE(ide_drive_t *);
 void SELECT_MASK(ide_drive_t *, int);
 
 u8 ide_read_error(ide_drive_t *);

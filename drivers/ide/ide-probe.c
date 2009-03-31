@@ -390,13 +390,13 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	 * (e.g. crw9624 as drive0 with disk as slave)
 	 */
 	msleep(50);
-	SELECT_DRIVE(drive);
+	tp_ops->dev_select(drive);
 	msleep(50);
 
 	if (ide_read_device(drive) != drive->select && present == 0) {
 		if (drive->dn & 1) {
 			/* exit with drive0 selected */
-			SELECT_DRIVE(hwif->devices[0]);
+			tp_ops->dev_select(hwif->devices[0]);
 			/* allow ATA_BUSY to assert & clear */
 			msleep(50);
 		}
@@ -422,7 +422,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			printk(KERN_ERR "%s: no response (status = 0x%02x), "
 					"resetting drive\n", drive->name, stat);
 			msleep(50);
-			SELECT_DRIVE(drive);
+			tp_ops->dev_select(drive);
 			msleep(50);
 			tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
 			(void)ide_busy_sleep(hwif, WAIT_WORSTCASE, 0);
@@ -441,7 +441,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	}
 	if (drive->dn & 1) {
 		/* exit with drive0 selected */
-		SELECT_DRIVE(hwif->devices[0]);
+		tp_ops->dev_select(hwif->devices[0]);
 		msleep(50);
 		/* ensure drive irq is clear */
 		(void)tp_ops->read_status(hwif);
@@ -605,6 +605,7 @@ out:
 
 static int ide_port_wait_ready(ide_hwif_t *hwif)
 {
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	ide_drive_t *drive;
 	int i, rc;
 
@@ -627,8 +628,8 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 		/* Ignore disks that we will not probe for later. */
 		if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0 ||
 		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
-			SELECT_DRIVE(drive);
-			hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
+			tp_ops->dev_select(drive);
+			tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 			mdelay(2);
 			rc = ide_wait_not_busy(hwif, 35000);
 			if (rc)
@@ -640,7 +641,7 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 out:
 	/* Exit function with master reselected (let's be sane) */
 	if (i)
-		SELECT_DRIVE(hwif->devices[0]);
+		tp_ops->dev_select(hwif->devices[0]);
 
 	return rc;
 }

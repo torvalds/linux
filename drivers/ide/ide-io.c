@@ -348,7 +348,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 	if (blk_pm_request(rq))
 		ide_check_pm_state(drive, rq);
 
-	SELECT_DRIVE(drive);
+	drive->hwif->tp_ops->dev_select(drive);
 	if (ide_wait_stat(&startstop, drive, drive->ready_stat,
 			  ATA_BUSY | ATA_DRQ, WAIT_READY)) {
 		printk(KERN_ERR "%s: drive not ready for command\n", drive->name);
