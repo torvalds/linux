@@ -1443,7 +1443,8 @@ ide_startstop_t ide_dma_intr(ide_drive_t *);
 int ide_allocate_dma_engine(ide_hwif_t *);
 void ide_release_dma_engine(ide_hwif_t *);
 
-int ide_build_sglist(ide_drive_t *, struct ide_cmd *);
+int ide_dma_prepare(ide_drive_t *, struct ide_cmd *);
+
 void ide_destroy_dmatable(ide_drive_t *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_SFF
@@ -1477,8 +1478,8 @@ static inline void ide_check_dma_crc(ide_drive_t *drive) { ; }
 static inline ide_startstop_t ide_dma_intr(ide_drive_t *drive) { return ide_stopped; }
 static inline ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error) { return ide_stopped; }
 static inline void ide_release_dma_engine(ide_hwif_t *hwif) { ; }
-static inline int ide_build_sglist(ide_drive_t *drive,
-				   struct ide_cmd *cmd) { return 0; }
+static inline int ide_dma_prepare(ide_drive_t *drive,
+				  struct ide_cmd *cmd) { return 1; }
 static inline void ide_destroy_dmatable(ide_drive_t *drive) { ; }
 #endif /* CONFIG_BLK_DEV_IDEDMA */
 

@@ -638,7 +638,6 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	struct ide_atapi_pc *pc;
 	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
 	ide_expiry_t *expiry = NULL;
 	struct request *rq = hwif->rq;
 	unsigned int timeout;
@@ -652,12 +651,8 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 		expiry = ide_cd_expiry;
 		timeout = ATAPI_WAIT_PC;
 
-		if (drive->dma) {
-			if (ide_build_sglist(drive, cmd))
-				drive->dma = !dma_ops->dma_setup(drive, cmd);
-			else
-				drive->dma = 0;
-		}
+		if (drive->dma)
+			drive->dma = !ide_dma_prepare(drive, cmd);
 	} else {
 		pc = drive->pc;
 
@@ -675,13 +670,8 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 			ide_dma_off(drive);
 		}
 
-		if ((pc->flags & PC_FLAG_DMA_OK) &&
-		     (drive->dev_flags & IDE_DFLAG_USING_DMA)) {
-			if (ide_build_sglist(drive, cmd))
-				drive->dma = !dma_ops->dma_setup(drive, cmd);
-			else
-				drive->dma = 0;
-		}
+		if (pc->flags & PC_FLAG_DMA_OK)
+			drive->dma = !ide_dma_prepare(drive, cmd);
 
 		if (!drive->dma)
 			pc->flags &= ~PC_FLAG_DMA_OK;

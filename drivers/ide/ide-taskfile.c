@@ -100,9 +100,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 		ide_execute_command(drive, cmd, handler, WAIT_WORSTCASE);
 		return ide_started;
 	case ATA_PROT_DMA:
-		if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0 ||
-		    ide_build_sglist(drive, cmd) == 0 ||
-		    dma_ops->dma_setup(drive, cmd))
+		if (ide_dma_prepare(drive, cmd))
 			return ide_stopped;
 		hwif->expiry = dma_ops->dma_timer_expiry;
 		ide_execute_command(drive, cmd, ide_dma_intr, 2 * WAIT_CMD);

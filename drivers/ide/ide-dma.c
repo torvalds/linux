@@ -128,7 +128,7 @@ int ide_dma_good_drive(ide_drive_t *drive)
  *	operate in a portable fashion.
  */
 
-int ide_build_sglist(ide_drive_t *drive, struct ide_cmd *cmd)
+static int ide_build_sglist(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
@@ -563,3 +563,12 @@ int ide_allocate_dma_engine(ide_hwif_t *hwif)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_allocate_dma_engine);
+
+int ide_dma_prepare(ide_drive_t *drive, struct ide_cmd *cmd)
+{
+	if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0 ||
+	    ide_build_sglist(drive, cmd) == 0 ||
+	    drive->hwif->dma_ops->dma_setup(drive, cmd))
+		return 1;
+	return 0;
+}
