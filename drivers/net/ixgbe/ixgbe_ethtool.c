@@ -129,6 +129,15 @@ static int ixgbe_get_settings(struct net_device *netdev,
 			ecmd->advertising |= ADVERTISED_10000baseT_Full;
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		/*
+		 * It's possible that phy.autoneg_advertised may not be
+		 * set yet.  If so display what the default would be -
+		 * both 1G and 10G supported.
+		 */
+		if (!(ecmd->advertising & (ADVERTISED_1000baseT_Full |
+					   ADVERTISED_10000baseT_Full)))
+			ecmd->advertising |= (ADVERTISED_10000baseT_Full |
+					      ADVERTISED_1000baseT_Full);
 
 		ecmd->port = PORT_TP;
 	} else if (hw->phy.media_type == ixgbe_media_type_backplane) {
