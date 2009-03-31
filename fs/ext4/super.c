@@ -35,6 +35,7 @@
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/ctype.h>
 #include <linux/marker.h>
 #include <linux/log2.h>
 #include <linux/crc16.h>
@@ -48,6 +49,7 @@
 #include "group.h"
 
 struct proc_dir_entry *ext4_proc_root;
+static struct kset *ext4_kset;
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
 			     unsigned long journal_devnum);
@@ -580,6 +582,7 @@ static void ext4_put_super(struct super_block *sb)
 		remove_proc_entry("inode_readahead_blks", sbi->s_proc);
 		remove_proc_entry(sb->s_id, ext4_proc_root);
 	}
+	kobject_del(&sbi->s_kobj);
 
 	for (i = 0; i < sbi->s_gdb_count; i++)
 		brelse(sbi->s_group_desc[i]);
@@ -615,6 +618,16 @@ static void ext4_put_super(struct super_block *sb)
 		ext4_blkdev_remove(sbi);
 	}
 	sb->s_fs_info = NULL;
+	/*
+	 * Now that we are completely done shutting down the
+	 * superblock, we need to actually destroy the kobject.
+	 */
+	unlock_kernel();
+	unlock_super(sb);
+	kobject_put(&sbi->s_kobj);
+	wait_for_completion(&sbi->s_kobj_unregister);
+	lock_super(sb);
+	lock_kernel();
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 	return;
@@ -1464,6 +1477,11 @@ set_qf_format:
 				return 0;
 			if (option < 0 || option > (1 << 30))
 				return 0;
+			if (option & (option - 1)) {
+				printk(KERN_ERR "EXT4-fs: inode_readahead_blks"
+				       " must be a power of 2\n");
+				return 0;
+			}
 			sbi->s_inode_readahead_blks = option;
 			break;
 		case Opt_journal_ioprio:
@@ -1991,6 +2009,181 @@ static unsigned long ext4_get_stripe_size(struct ext4_sb_info *sbi)
 
 	return 0;
 }
+
+/* sysfs supprt */
+
+struct ext4_attr {
+	struct attribute attr;
+	ssize_t (*show)(struct ext4_attr *, struct ext4_sb_info *, char *);
+	ssize_t (*store)(struct ext4_attr *, struct ext4_sb_info *, 
+			 const char *, size_t);
+	int offset;
+};
+
+static int parse_strtoul(const char *buf,
+		unsigned long max, unsigned long *value)
+{
+	char *endp;
+
+	while (*buf && isspace(*buf))
+		buf++;
+	*value = simple_strtoul(buf, &endp, 0);
+	while (*endp && isspace(*endp))
+		endp++;
+	if (*endp || *value > max)
+		return -EINVAL;
+
+	return 0;
+}
+
+static ssize_t delayed_allocation_blocks_show(struct ext4_attr *a,
+					      struct ext4_sb_info *sbi,
+					      char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(s64) percpu_counter_sum(&sbi->s_dirtyblocks_counter));
+}
+
+static ssize_t session_write_kbytes_show(struct ext4_attr *a,
+					 struct ext4_sb_info *sbi, char *buf)
+{
+	struct super_block *sb = sbi->s_buddy_cache->i_sb;
+
+	return snprintf(buf, PAGE_SIZE, "%lu\n",
+			(part_stat_read(sb->s_bdev->bd_part, sectors[1]) -
+			 sbi->s_sectors_written_start) >> 1);
+}
+
+static ssize_t lifetime_write_kbytes_show(struct ext4_attr *a,
+					  struct ext4_sb_info *sbi, char *buf)
+{
+	struct super_block *sb = sbi->s_buddy_cache->i_sb;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			sbi->s_kbytes_written + 
+			((part_stat_read(sb->s_bdev->bd_part, sectors[1]) -
+			  EXT4_SB(sb)->s_sectors_written_start) >> 1));
+}
+
+static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
+					  struct ext4_sb_info *sbi,
+					  const char *buf, size_t count)
+{
+	unsigned long t;
+
+	if (parse_strtoul(buf, 0x40000000, &t))
+		return -EINVAL;
+
+	/* inode_readahead_blks must be a power of 2 */
+	if (t & (t-1))
+		return -EINVAL;
+
+	sbi->s_inode_readahead_blks = t;
+	return count;
+}
+
+static ssize_t sbi_ui_show(struct ext4_attr *a,
+				struct ext4_sb_info *sbi, char *buf)
+{
+	unsigned int *ui = (unsigned int *) (((char *) sbi) + a->offset);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", *ui);
+}
+
+static ssize_t sbi_ui_store(struct ext4_attr *a,
+			    struct ext4_sb_info *sbi,
+			    const char *buf, size_t count)
+{
+	unsigned int *ui = (unsigned int *) (((char *) sbi) + a->offset);
+	unsigned long t;
+
+	if (parse_strtoul(buf, 0xffffffff, &t))
+		return -EINVAL;
+	*ui = t;
+	return count;
+}
+
+#define EXT4_ATTR_OFFSET(_name,_mode,_show,_store,_elname) \
+static struct ext4_attr ext4_attr_##_name = {			\
+	.attr = {.name = __stringify(_name), .mode = _mode },	\
+	.show	= _show,					\
+	.store	= _store,					\
+	.offset = offsetof(struct ext4_sb_info, _elname),	\
+}
+#define EXT4_ATTR(name, mode, show, store) \
+static struct ext4_attr ext4_attr_##name = __ATTR(name, mode, show, store)
+
+#define EXT4_RO_ATTR(name) EXT4_ATTR(name, 0444, name##_show, NULL)
+#define EXT4_RW_ATTR(name) EXT4_ATTR(name, 0644, name##_show, name##_store)
+#define EXT4_RW_ATTR_SBI_UI(name, elname)	\
+	EXT4_ATTR_OFFSET(name, 0644, sbi_ui_show, sbi_ui_store, elname)
+#define ATTR_LIST(name) &ext4_attr_##name.attr
+
+EXT4_RO_ATTR(delayed_allocation_blocks);
+EXT4_RO_ATTR(session_write_kbytes);
+EXT4_RO_ATTR(lifetime_write_kbytes);
+EXT4_ATTR_OFFSET(inode_readahead_blks, 0644, sbi_ui_show,
+		 inode_readahead_blks_store, s_inode_readahead_blks);
+EXT4_RW_ATTR_SBI_UI(mb_stats, s_mb_stats);
+EXT4_RW_ATTR_SBI_UI(mb_max_to_scan, s_mb_max_to_scan);
+EXT4_RW_ATTR_SBI_UI(mb_min_to_scan, s_mb_min_to_scan);
+EXT4_RW_ATTR_SBI_UI(mb_order2_req, s_mb_order2_reqs);
+EXT4_RW_ATTR_SBI_UI(mb_stream_req, s_mb_stream_request);
+EXT4_RW_ATTR_SBI_UI(mb_group_prealloc, s_mb_group_prealloc);
+
+static struct attribute *ext4_attrs[] = {
+	ATTR_LIST(delayed_allocation_blocks),
+	ATTR_LIST(session_write_kbytes),
+	ATTR_LIST(lifetime_write_kbytes),
+	ATTR_LIST(inode_readahead_blks),
+	ATTR_LIST(mb_stats),
+	ATTR_LIST(mb_max_to_scan),
+	ATTR_LIST(mb_min_to_scan),
+	ATTR_LIST(mb_order2_req),
+	ATTR_LIST(mb_stream_req),
+	ATTR_LIST(mb_group_prealloc),
+	NULL,
+};
+
+static ssize_t ext4_attr_show(struct kobject *kobj,
+			      struct attribute *attr, char *buf)
+{
+	struct ext4_sb_info *sbi = container_of(kobj, struct ext4_sb_info,
+						s_kobj);
+	struct ext4_attr *a = container_of(attr, struct ext4_attr, attr);
+
+	return a->show ? a->show(a, sbi, buf) : 0;
+}
+
+static ssize_t ext4_attr_store(struct kobject *kobj,
+			       struct attribute *attr,
+			       const char *buf, size_t len)
+{
+	struct ext4_sb_info *sbi = container_of(kobj, struct ext4_sb_info,
+						s_kobj);
+	struct ext4_attr *a = container_of(attr, struct ext4_attr, attr);
+
+	return a->store ? a->store(a, sbi, buf, len) : 0;
+}
+
+static void ext4_sb_release(struct kobject *kobj)
+{
+	struct ext4_sb_info *sbi = container_of(kobj, struct ext4_sb_info,
+						s_kobj);
+	complete(&sbi->s_kobj_unregister);
+}
+
+
+static struct sysfs_ops ext4_attr_ops = {
+	.show	= ext4_attr_show,
+	.store	= ext4_attr_store,
+};
+
+static struct kobj_type ext4_ktype = {
+	.default_attrs	= ext4_attrs,
+	.sysfs_ops	= &ext4_attr_ops,
+	.release	= ext4_sb_release,
+};
 
 static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 				__releases(kernel_lock)
@@ -2574,6 +2767,16 @@ no_journal:
 		       err);
 		goto failed_mount4;
 	}
+
+	sbi->s_kobj.kset = ext4_kset;
+	init_completion(&sbi->s_kobj_unregister);
+	err = kobject_init_and_add(&sbi->s_kobj, &ext4_ktype, NULL,
+				   "%s", sb->s_id);
+	if (err) {
+		ext4_mb_release(sb);
+		ext4_ext_release(sb);
+		goto failed_mount4;
+	};
 
 	/*
 	 * akpm: core read_super() calls in here with the superblock locked.
@@ -3734,6 +3937,9 @@ static int __init init_ext4_fs(void)
 {
 	int err;
 
+	ext4_kset = kset_create_and_add("ext4", NULL, fs_kobj);
+	if (!ext4_kset)
+		return -ENOMEM;
 	ext4_proc_root = proc_mkdir("fs/ext4", NULL);
 	err = init_ext4_mballoc();
 	if (err)
@@ -3775,6 +3981,7 @@ static void __exit exit_ext4_fs(void)
 	exit_ext4_xattr();
 	exit_ext4_mballoc();
 	remove_proc_entry("fs/ext4", NULL);
+	kset_unregister(ext4_kset);
 }
 
 MODULE_AUTHOR("Remy Card, Stephen Tweedie, Andrew Morton, Andreas Dilger, Theodore Ts'o and others");
