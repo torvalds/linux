@@ -867,19 +867,24 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		}
 	}
 	if (nom) {
-		vga_wseq(regbase, CL_SEQRB, nom);
 		tmp = den << 1;
 		if (div != 0)
 			tmp |= 1;
-
 		/* 6 bit denom; ONLY 5434!!! (bugged me 10 days) */
 		if ((cinfo->btype == BT_SD64) ||
 		    (cinfo->btype == BT_ALPINE) ||
 		    (cinfo->btype == BT_GD5480))
 			tmp |= 0x80;
 
-		dev_dbg(info->device, "CL_SEQR1B: %ld\n", (long) tmp);
-		vga_wseq(regbase, CL_SEQR1B, tmp);
+		dev_dbg(info->device, "CL_SEQR1B: %d\n", (int) tmp);
+		/* Laguna chipset has reversed clock registers */
+		if (cinfo->btype == BT_LAGUNA) {
+			vga_wseq(regbase, CL_SEQRE, tmp);
+			vga_wseq(regbase, CL_SEQR1E, nom);
+		} else {
+			vga_wseq(regbase, CL_SEQRB, nom);
+			vga_wseq(regbase, CL_SEQR1B, tmp);
+		}
 	}
 
 	if (yres >= 1024)
@@ -1917,31 +1922,37 @@ static unsigned int __devinit cirrusfb_get_memsize(struct fb_info *info,
 						   u8 __iomem *regbase)
 {
 	unsigned long mem;
-	unsigned char SRF;
+	struct cirrusfb_info *cinfo = info->par;
 
-	SRF = vga_rseq(regbase, CL_SEQRF);
-	switch ((SRF & 0x18)) {
-	case 0x08:
-		mem = 512 * 1024;
-		break;
-	case 0x10:
-		mem = 1024 * 1024;
-		break;
-	/* 64-bit DRAM data bus width; assume 2MB. Also indicates 2MB memory
-	 * on the 5430.
-	 */
-	case 0x18:
-		mem = 2048 * 1024;
-		break;
-	default:
-		dev_warn(info->device, "CLgenfb: Unknown memory size!\n");
-		mem = 1024 * 1024;
+	if (cinfo->btype == BT_LAGUNA) {
+		unsigned char SR14 = vga_rseq(regbase, CL_SEQR14);
+
+		mem = ((SR14 & 7) + 1) << 20;
+	} else {
+		unsigned char SRF = vga_rseq(regbase, CL_SEQRF);
+		switch ((SRF & 0x18)) {
+		case 0x08:
+			mem = 512 * 1024;
+			break;
+		case 0x10:
+			mem = 1024 * 1024;
+			break;
+		/* 64-bit DRAM data bus width; assume 2MB.
+		 * Also indicates 2MB memory on the 5430.
+		 */
+		case 0x18:
+			mem = 2048 * 1024;
+			break;
+		default:
+			dev_warn(info->device, "Unknown memory size!\n");
+			mem = 1024 * 1024;
+		}
+		/* If DRAM bank switching is enabled, there must be
+		 * twice as much memory installed. (4MB on the 5434)
+		 */
+		if (SRF & 0x80)
+			mem *= 2;
 	}
-	if (SRF & 0x80)
-	/* If DRAM bank switching is enabled, there must be twice as much
-	 * memory installed. (4MB on the 5434)
-	 */
-		mem *= 2;
 
 	/* TODO: Handling of GD5446/5480 (see XF86 sources ...) */
 	return mem;
