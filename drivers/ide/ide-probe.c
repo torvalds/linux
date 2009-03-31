@@ -942,20 +942,16 @@ EXPORT_SYMBOL_GPL(ide_init_disk);
 static void drive_release_dev (struct device *dev)
 {
 	ide_drive_t *drive = container_of(dev, ide_drive_t, gendev);
-	ide_hwif_t *hwif = drive->hwif;
 
 	ide_proc_unregister_device(drive);
 
-	spin_lock_irq(&hwif->lock);
+	blk_cleanup_queue(drive->queue);
+	drive->queue = NULL;
+
 	kfree(drive->id);
 	drive->id = NULL;
+
 	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
-	/* Messed up locking ... */
-	spin_unlock_irq(&hwif->lock);
-	blk_cleanup_queue(drive->queue);
-	spin_lock_irq(&hwif->lock);
-	drive->queue = NULL;
-	spin_unlock_irq(&hwif->lock);
 
 	complete(&drive->gendev_rel_comp);
 }
