@@ -82,7 +82,7 @@ static void __iomem *detect_HRT_floating_pointer(void __iomem *begin, void __iom
 }
 
 
-int cpqhp_configure_device (struct controller* ctrl, struct pci_func* func)  
+int cpqhp_configure_device (struct controller* ctrl, struct pci_func* func)
 {
 	unsigned char bus;
 	struct pci_bus *child;
@@ -116,10 +116,10 @@ int cpqhp_configure_device (struct controller* ctrl, struct pci_func* func)
 }
 
 
-int cpqhp_unconfigure_device(struct pci_func* func) 
+int cpqhp_unconfigure_device(struct pci_func* func)
 {
 	int j;
-	
+
 	dbg("%s: bus/dev/func = %x/%x/%x\n", __func__, func->bus, func->device, func->function);
 
 	for (j=0; j<8 ; j++) {
@@ -195,8 +195,8 @@ int cpqhp_set_irq (u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num)
 
 
 /*
- * WTF??? This function isn't in the code, yet a function calls it, but the 
- * compiler optimizes it away?  strange.  Here as a placeholder to keep the 
+ * WTF??? This function isn't in the code, yet a function calls it, but the
+ * compiler optimizes it away?  strange.  Here as a placeholder to keep the
  * compiler happy.
  */
 static int PCI_ScanBusNonBridge (u8 bus, u8 device)
@@ -398,7 +398,7 @@ int cpqhp_save_config(struct controller *ctrl, int busnumber, int is_hot_plug)
 
 				index = 0;
 				new_slot = cpqhp_slot_find(busnumber, device, index++);
-				while (new_slot && 
+				while (new_slot &&
 				       (new_slot->function != (u8) function))
 					new_slot = cpqhp_slot_find(busnumber, device, index++);
 
@@ -1168,7 +1168,7 @@ int cpqhp_valid_replace(struct controller *ctrl, struct pci_func * func)
  * this function is for hot plug ADD!
  *
  * returns 0 if success
- */  
+ */
 int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_start)
 {
 	u8 temp;

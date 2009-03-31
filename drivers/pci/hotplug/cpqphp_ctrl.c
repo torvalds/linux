@@ -642,7 +642,7 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 		return NULL;
 
 	for (max = *head; max; max = max->next) {
-		/* If not big enough we could probably just bail, 
+		/* If not big enough we could probably just bail,
 		 * instead we'll continue to the next. */
 		if (max->length < size)
 			continue;
@@ -886,7 +886,7 @@ irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 	u32 Diff;
 	u32 temp_dword;
 
-	
+
 	misc = readw(ctrl->hpc_reg + MISC);
 	/***************************************
 	 * Check to see if it was our interrupt
@@ -1130,33 +1130,33 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	u8 slot_power = readb(ctrl->hpc_reg + SLOT_POWER);
 	u16 reg16;
 	u32 leds = readl(ctrl->hpc_reg + LED_CONTROL);
-	
+
 	if (ctrl->speed == adapter_speed)
 		return 0;
-	
+
 	/* We don't allow freq/mode changes if we find another adapter running
 	 * in another slot on this controller */
 	for(slot = ctrl->slot; slot; slot = slot->next) {
-		if (slot->device == (hp_slot + ctrl->slot_device_offset)) 
+		if (slot->device == (hp_slot + ctrl->slot_device_offset))
 			continue;
 		if (!slot->hotplug_slot || !slot->hotplug_slot->info)
 			continue;
-		if (slot->hotplug_slot->info->adapter_status == 0) 
+		if (slot->hotplug_slot->info->adapter_status == 0)
 			continue;
 		/* If another adapter is running on the same segment but at a
 		 * lower speed/mode, we allow the new adapter to function at
 		 * this rate if supported */
-		if (ctrl->speed < adapter_speed) 
+		if (ctrl->speed < adapter_speed)
 			return 0;
 
 		return 1;
 	}
-	
+
 	/* If the controller doesn't support freq/mode changes and the
 	 * controller is running at a higher mode, we bail */
 	if ((ctrl->speed > adapter_speed) && (!ctrl->pcix_speed_capability))
 		return 1;
-	
+
 	/* But we allow the adapter to run at a lower rate if possible */
 	if ((ctrl->speed < adapter_speed) && (!ctrl->pcix_speed_capability))
 		return 0;
@@ -1171,22 +1171,22 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 
 	writel(0x0L, ctrl->hpc_reg + LED_CONTROL);
 	writeb(0x00, ctrl->hpc_reg + SLOT_ENABLE);
-	
-	set_SOGO(ctrl); 
+
+	set_SOGO(ctrl);
 	wait_for_ctrl_irq(ctrl);
-	
+
 	if (adapter_speed != PCI_SPEED_133MHz_PCIX)
 		reg = 0xF5;
 	else
-		reg = 0xF4;	
+		reg = 0xF4;
 	pci_write_config_byte(ctrl->pci_dev, 0x41, reg);
-	
+
 	reg16 = readw(ctrl->hpc_reg + NEXT_CURR_FREQ);
 	reg16 &= ~0x000F;
 	switch(adapter_speed) {
-		case(PCI_SPEED_133MHz_PCIX): 
+		case(PCI_SPEED_133MHz_PCIX):
 			reg = 0x75;
-			reg16 |= 0xB; 
+			reg16 |= 0xB;
 			break;
 		case(PCI_SPEED_100MHz_PCIX):
 			reg = 0x74;
@@ -1203,47 +1203,47 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 		default: /* 33MHz PCI 2.2 */
 			reg = 0x71;
 			break;
-			
+
 	}
 	reg16 |= 0xB << 12;
 	writew(reg16, ctrl->hpc_reg + NEXT_CURR_FREQ);
-	
-	mdelay(5); 
-	
+
+	mdelay(5);
+
 	/* Reenable interrupts */
 	writel(0, ctrl->hpc_reg + INT_MASK);
 
-	pci_write_config_byte(ctrl->pci_dev, 0x41, reg); 
-	
+	pci_write_config_byte(ctrl->pci_dev, 0x41, reg);
+
 	/* Restart state machine */
 	reg = ~0xF;
 	pci_read_config_byte(ctrl->pci_dev, 0x43, &reg);
 	pci_write_config_byte(ctrl->pci_dev, 0x43, reg);
-	
+
 	/* Only if mode change...*/
 	if (((ctrl->speed == PCI_SPEED_66MHz) && (adapter_speed == PCI_SPEED_66MHz_PCIX)) ||
 		((ctrl->speed == PCI_SPEED_66MHz_PCIX) && (adapter_speed == PCI_SPEED_66MHz))) 
 			set_SOGO(ctrl);
-	
+
 	wait_for_ctrl_irq(ctrl);
 	mdelay(1100);
-	
+
 	/* Restore LED/Slot state */
 	writel(leds, ctrl->hpc_reg + LED_CONTROL);
 	writeb(slot_power, ctrl->hpc_reg + SLOT_ENABLE);
-	
+
 	set_SOGO(ctrl);
 	wait_for_ctrl_irq(ctrl);
 
 	ctrl->speed = adapter_speed;
 	slot = cpqhp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
-	info("Successfully changed frequency/mode for adapter in slot %d\n", 
+	info("Successfully changed frequency/mode for adapter in slot %d\n",
 			slot->number);
 	return 0;
 }
 
-/* the following routines constitute the bulk of the 
+/* the following routines constitute the bulk of the
    hotplug controller logic
  */
 
@@ -1299,7 +1299,7 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 
 		/* Wait for SOBS to be unset */
 		wait_for_ctrl_irq (ctrl);
-		
+
 		adapter_speed = get_adapter_speed(ctrl, hp_slot);
 		if (ctrl->speed != adapter_speed)
 			if (set_controller_speed(ctrl, adapter_speed, hp_slot))
@@ -1443,12 +1443,12 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 
 	/* Wait for SOBS to be unset */
 	wait_for_ctrl_irq (ctrl);
-	
+
 	adapter_speed = get_adapter_speed(ctrl, hp_slot);
 	if (ctrl->speed != adapter_speed)
 		if (set_controller_speed(ctrl, adapter_speed, hp_slot))
 			rc = WRONG_BUS_FREQUENCY;
-	
+
 	/* turn off board without attaching to the bus */
 	disable_slot_power (ctrl, hp_slot);
 
@@ -1461,7 +1461,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 
 	if (rc)
 		return rc;
-	
+
 	p_slot = cpqhp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	/* turn on board and blink green LED */
@@ -1859,12 +1859,12 @@ static void interrupt_event_handler(struct controller *ctrl)
 						info(msg_button_on, p_slot->number);
 					}
 					mutex_lock(&ctrl->crit_sect);
-					
+
 					dbg("blink green LED and turn off amber\n");
-					
+
 					amber_LED_off (ctrl, hp_slot);
 					green_LED_blink (ctrl, hp_slot);
-					
+
 					set_SOGO(ctrl);
 
 					/* Wait for SOBS to be unset */
@@ -1958,7 +1958,7 @@ void cpqhp_pushbutton_thread(unsigned long slot)
 			if (cpqhp_process_SI(ctrl, func) != 0) {
 				amber_LED_on(ctrl, hp_slot);
 				green_LED_off(ctrl, hp_slot);
-				
+
 				set_SOGO(ctrl);
 
 				/* Wait for SOBS to be unset */
@@ -2079,7 +2079,7 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 	struct pci_bus *pci_bus = ctrl->pci_bus;
 	int physical_slot=0;
 
-	device = func->device; 
+	device = func->device;
 	func = cpqhp_slot_find(ctrl->bus, device, index++);
 	p_slot = cpqhp_find_slot(ctrl, device);
 	if (p_slot) {
@@ -2216,7 +2216,7 @@ int cpqhp_hardware_test(struct controller *ctrl, int test_num)
 				long_delay((3*HZ)/10);
 				work_LED = work_LED >> 16;
 				writel(work_LED, ctrl->hpc_reg + LED_CONTROL);
-				
+
 				set_SOGO(ctrl);
 
 				/* Wait for SOGO interrupt */
@@ -2339,7 +2339,7 @@ static u32 configure_new_device(struct controller * ctrl, struct pci_func * func
 
 
 /*
-  Configuration logic that involves the hotplug data structures and 
+  Configuration logic that involves the hotplug data structures and
   their bookkeeping
  */
 
@@ -2917,17 +2917,17 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 		}		/* End of base register loop */
 		if (cpqhp_legacy_mode) {
 			/* Figure out which interrupt pin this function uses */
-			rc = pci_bus_read_config_byte (pci_bus, devfn, 
+			rc = pci_bus_read_config_byte (pci_bus, devfn,
 				PCI_INTERRUPT_PIN, &temp_byte);
 
 			/* If this function needs an interrupt and we are behind
 			 * a bridge and the pin is tied to something that's
 			 * alread mapped, set this one the same */
-			if (temp_byte && resources->irqs && 
-			    (resources->irqs->valid_INT & 
+			if (temp_byte && resources->irqs &&
+			    (resources->irqs->valid_INT &
 			     (0x01 << ((temp_byte + resources->irqs->barber_pole - 1) & 0x03)))) {
 				/* We have to share with something already set up */
-				IRQ = resources->irqs->interrupt[(temp_byte + 
+				IRQ = resources->irqs->interrupt[(temp_byte +
 					resources->irqs->barber_pole - 1) & 0x03];
 			} else {
 				/* Program IRQ based on card type */

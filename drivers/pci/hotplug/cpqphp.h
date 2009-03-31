@@ -150,25 +150,25 @@ struct ctrl_reg {			/* offset */
 
 /* offsets to the controller registers based on the above structure layout */
 enum ctrl_offsets {
-	SLOT_RST = 		offsetof(struct ctrl_reg, slot_RST),
+	SLOT_RST =		offsetof(struct ctrl_reg, slot_RST),
 	SLOT_ENABLE =		offsetof(struct ctrl_reg, slot_enable),
 	MISC =			offsetof(struct ctrl_reg, misc),
 	LED_CONTROL =		offsetof(struct ctrl_reg, led_control),
 	INT_INPUT_CLEAR =	offsetof(struct ctrl_reg, int_input_clear),
-	INT_MASK = 		offsetof(struct ctrl_reg, int_mask),
-	CTRL_RESERVED0 = 	offsetof(struct ctrl_reg, reserved0),
+	INT_MASK =		offsetof(struct ctrl_reg, int_mask),
+	CTRL_RESERVED0 =	offsetof(struct ctrl_reg, reserved0),
 	CTRL_RESERVED1 =	offsetof(struct ctrl_reg, reserved1),
 	CTRL_RESERVED2 =	offsetof(struct ctrl_reg, reserved1),
-	GEN_OUTPUT_AB = 	offsetof(struct ctrl_reg, gen_output_AB),
-	NON_INT_INPUT = 	offsetof(struct ctrl_reg, non_int_input),
+	GEN_OUTPUT_AB =		offsetof(struct ctrl_reg, gen_output_AB),
+	NON_INT_INPUT =		offsetof(struct ctrl_reg, non_int_input),
 	CTRL_RESERVED3 =	offsetof(struct ctrl_reg, reserved3),
 	CTRL_RESERVED4 =	offsetof(struct ctrl_reg, reserved4),
 	CTRL_RESERVED5 =	offsetof(struct ctrl_reg, reserved5),
 	CTRL_RESERVED6 =	offsetof(struct ctrl_reg, reserved6),
 	CTRL_RESERVED7 =	offsetof(struct ctrl_reg, reserved7),
 	CTRL_RESERVED8 =	offsetof(struct ctrl_reg, reserved8),
-	SLOT_MASK = 		offsetof(struct ctrl_reg, slot_mask),
-	CTRL_RESERVED9 = 	offsetof(struct ctrl_reg, reserved9),
+	SLOT_MASK =		offsetof(struct ctrl_reg, slot_mask),
+	CTRL_RESERVED9 =	offsetof(struct ctrl_reg, reserved9),
 	CTRL_RESERVED10 =	offsetof(struct ctrl_reg, reserved10),
 	CTRL_RESERVED11 =	offsetof(struct ctrl_reg, reserved11),
 	SLOT_SERR =		offsetof(struct ctrl_reg, slot_SERR),
@@ -220,15 +220,15 @@ struct slot_rt {
 /* offsets to the hotplug slot resource table registers based on the above structure layout */
 enum slot_rt_offsets {
 	DEV_FUNC =		offsetof(struct slot_rt, dev_func),
-	PRIMARY_BUS = 		offsetof(struct slot_rt, primary_bus),
-	SECONDARY_BUS = 	offsetof(struct slot_rt, secondary_bus),
-	MAX_BUS = 		offsetof(struct slot_rt, max_bus),
-	IO_BASE = 		offsetof(struct slot_rt, io_base),
-	IO_LENGTH = 		offsetof(struct slot_rt, io_length),
-	MEM_BASE = 		offsetof(struct slot_rt, mem_base),
-	MEM_LENGTH = 		offsetof(struct slot_rt, mem_length),
-	PRE_MEM_BASE = 		offsetof(struct slot_rt, pre_mem_base),
-	PRE_MEM_LENGTH = 	offsetof(struct slot_rt, pre_mem_length),
+	PRIMARY_BUS =		offsetof(struct slot_rt, primary_bus),
+	SECONDARY_BUS =		offsetof(struct slot_rt, secondary_bus),
+	MAX_BUS =		offsetof(struct slot_rt, max_bus),
+	IO_BASE =		offsetof(struct slot_rt, io_base),
+	IO_LENGTH =		offsetof(struct slot_rt, io_length),
+	MEM_BASE =		offsetof(struct slot_rt, mem_base),
+	MEM_LENGTH =		offsetof(struct slot_rt, mem_length),
+	PRE_MEM_BASE =		offsetof(struct slot_rt, pre_mem_base),
+	PRE_MEM_LENGTH =	offsetof(struct slot_rt, pre_mem_length),
 };
 
 struct pci_func {
@@ -471,7 +471,7 @@ static inline void return_resource(struct pci_resource **head, struct pci_resour
 static inline void set_SOGO(struct controller *ctrl)
 {
 	u16 misc;
-	
+
 	misc = readw(ctrl->hpc_reg + MISC);
 	misc = (misc | 0x0001) & 0xFFFB;
 	writew(misc, ctrl->hpc_reg + MISC);
@@ -481,7 +481,7 @@ static inline void set_SOGO(struct controller *ctrl)
 static inline void amber_LED_on(struct controller *ctrl, u8 slot)
 {
 	u32 led_control;
-	
+
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control |= (0x01010000L << slot);
 	writel(led_control, ctrl->hpc_reg + LED_CONTROL);
@@ -491,7 +491,7 @@ static inline void amber_LED_on(struct controller *ctrl, u8 slot)
 static inline void amber_LED_off(struct controller *ctrl, u8 slot)
 {
 	u32 led_control;
-	
+
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control &= ~(0x01010000L << slot);
 	writel(led_control, ctrl->hpc_reg + LED_CONTROL);
@@ -504,7 +504,7 @@ static inline int read_amber_LED(struct controller *ctrl, u8 slot)
 
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control &= (0x01010000L << slot);
-	
+
 	return led_control ? 1 : 0;
 }
 
@@ -512,7 +512,7 @@ static inline int read_amber_LED(struct controller *ctrl, u8 slot)
 static inline void green_LED_on(struct controller *ctrl, u8 slot)
 {
 	u32 led_control;
-	
+
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control |= 0x0101L << slot;
 	writel(led_control, ctrl->hpc_reg + LED_CONTROL);
@@ -521,7 +521,7 @@ static inline void green_LED_on(struct controller *ctrl, u8 slot)
 static inline void green_LED_off(struct controller *ctrl, u8 slot)
 {
 	u32 led_control;
-	
+
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control &= ~(0x0101L << slot);
 	writel(led_control, ctrl->hpc_reg + LED_CONTROL);
@@ -531,7 +531,7 @@ static inline void green_LED_off(struct controller *ctrl, u8 slot)
 static inline void green_LED_blink(struct controller *ctrl, u8 slot)
 {
 	u32 led_control;
-	
+
 	led_control = readl(ctrl->hpc_reg + LED_CONTROL);
 	led_control &= ~(0x0101L << slot);
 	led_control |= (0x0001L << slot);
@@ -586,11 +586,11 @@ static inline u8 read_slot_enable(struct controller *ctrl)
 static inline u8 get_controller_speed(struct controller *ctrl)
 {
 	u8 curr_freq;
- 	u16 misc;
- 	
+	u16 misc;
+
 	if (ctrl->pcix_support) {
 		curr_freq = readb(ctrl->hpc_reg + NEXT_CURR_FREQ);
-		if ((curr_freq & 0xB0) == 0xB0) 
+		if ((curr_freq & 0xB0) == 0xB0)
 			return PCI_SPEED_133MHz_PCIX;
 		if ((curr_freq & 0xA0) == 0xA0)
 			return PCI_SPEED_100MHz_PCIX;
@@ -602,10 +602,10 @@ static inline u8 get_controller_speed(struct controller *ctrl)
 		return PCI_SPEED_33MHz;
 	}
 
- 	misc = readw(ctrl->hpc_reg + MISC);
- 	return (misc & 0x0800) ? PCI_SPEED_66MHz : PCI_SPEED_33MHz;
+	misc = readw(ctrl->hpc_reg + MISC);
+	return (misc & 0x0800) ? PCI_SPEED_66MHz : PCI_SPEED_33MHz;
 }
- 
+
 
 /*
  * get_adapter_speed - find the max supported frequency/mode of adapter.

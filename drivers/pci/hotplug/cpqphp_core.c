@@ -25,7 +25,7 @@
  * Send feedback to <greg@kroah.com>
  *
  * Jan 12, 2003 -	Added 66/100/133MHz PCI-X support,
- * 			Torben Mathiasen <torben.mathiasen@hp.com>
+ *			Torben Mathiasen <torben.mathiasen@hp.com>
  *
  */
 
@@ -100,8 +100,8 @@ static struct hotplug_slot_ops cpqphp_hotplug_slot_ops = {
 	.get_attention_status =	get_attention_status,
 	.get_latch_status =	get_latch_status,
 	.get_adapter_status =	get_adapter_status,
-  	.get_max_bus_speed =	get_max_bus_speed,
-  	.get_cur_bus_speed =	get_cur_bus_speed,
+	.get_max_bus_speed =	get_max_bus_speed,
+	.get_cur_bus_speed =	get_cur_bus_speed,
 };
 
 
@@ -144,7 +144,7 @@ static void __iomem * detect_SMBIOS_pointer(void __iomem *begin, void __iomem *e
 			break;
 		}
 	}
-	
+
 	if (!status)
 		fp = NULL;
 
@@ -292,7 +292,7 @@ static void __iomem *get_SMBIOS_entry(void __iomem *smbios_start,
 	if (!smbios_table)
 		return NULL;
 
-	if (!previous) {		  
+	if (!previous) {
 		previous = smbios_start;
 	} else {
 		previous = get_subsequent_smbios_entry(smbios_start,
@@ -300,7 +300,7 @@ static void __iomem *get_SMBIOS_entry(void __iomem *smbios_start,
 	}
 
 	while (previous) {
-	       	if (readb(previous + SMBIOS_GENERIC_TYPE) != type) {
+		if (readb(previous + SMBIOS_GENERIC_TYPE) != type) {
 			previous = get_subsequent_smbios_entry(smbios_start,
 						smbios_table, previous);
 		} else {
@@ -426,7 +426,7 @@ static int ctrl_slot_setup(struct controller *ctrl,
 			cpq_get_latch_status(ctrl, slot);
 		hotplug_slot_info->adapter_status =
 			get_presence_status(ctrl, slot);
-		
+
 		dbg("registering bus %d, dev %d, number %d, "
 				"ctrl->slot_device_offset %d, slot %d\n",
 				slot->bus, slot->device,
@@ -440,7 +440,7 @@ static int ctrl_slot_setup(struct controller *ctrl,
 			err("pci_hp_register failed with error %d\n", result);
 			goto error_info;
 		}
-		
+
 		slot->next = ctrl->slot;
 		ctrl->slot = slot;
 
@@ -563,9 +563,9 @@ get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 
 	}
 
-	// If we got here, we didn't find an entry in the IRQ mapping table 
-	// for the target PCI device.  If we did determine that the target 
-	// device is on the other side of a PCI-to-PCI bridge, return the 
+	// If we got here, we didn't find an entry in the IRQ mapping table
+	// for the target PCI device.  If we did determine that the target
+	// device is on the other side of a PCI-to-PCI bridge, return the
 	// slot number for the bridge.
 	if (bridgeSlot != 0xFF) {
 		*slot = bridgeSlot;
@@ -719,7 +719,7 @@ static int hardware_test(struct hotplug_slot *hotplug_slot, u32 value)
 
 	dbg("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
-	return cpqhp_hardware_test(ctrl, value);	
+	return cpqhp_hardware_test(ctrl, value);
 }
 
 
@@ -738,7 +738,7 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = hotplug_slot->private;
 	struct controller *ctrl = slot->ctrl;
-	
+
 	dbg("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	*value = cpq_get_attention_status(ctrl, slot);
@@ -832,7 +832,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Check for the proper subsytem ID's
-	 * Intel uses a different SSID programming model than Compaq.  
+	 * Intel uses a different SSID programming model than Compaq.
 	 * For Intel, each SSID bit identifies a PHP capability.
 	 * Also Intel HPC's may have RID=0.
 	 */
@@ -1087,7 +1087,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc) {
 		goto err_free_bus;
 	}
-	
+
 	dbg("pdev = %p\n", pdev);
 	dbg("pci resource start %llx\n", (unsigned long long)pci_resource_start(pdev, 0));
 	dbg("pci resource len %llx\n", (unsigned long long)pci_resource_len(pdev, 0));
@@ -1182,7 +1182,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			__func__, rc);
 		goto err_iounmap;
 	}
-	
+
 	/* Mask all general input interrupts */
 	writel(0xFFFFFFFFL, ctrl->hpc_reg + INT_MASK);
 
@@ -1291,7 +1291,6 @@ err_disable_device:
 	return rc;
 }
 
-
 static int one_time_init(void)
 {
 	int loop;
@@ -1328,10 +1327,10 @@ static int one_time_init(void)
 		retval = -EIO;
 		goto error;
 	}
-	
+
 	/* Now, map the int15 entry point if we are on compaq specific hardware */
 	compaq_nvram_init(cpqhp_rom_start);
-	
+
 	/* Map smbios table entry point structure */
 	smbios_table = detect_SMBIOS_pointer(cpqhp_rom_start,
 					cpqhp_rom_start + ROM_PHY_LEN);
@@ -1361,7 +1360,6 @@ error:
 	return retval;
 }
 
-
 static void __exit unload_cpqphpd(void)
 {
 	struct pci_func *next;
@@ -1381,10 +1379,10 @@ static void __exit unload_cpqphpd(void)
 		if (ctrl->hpc_reg) {
 			u16 misc;
 			rc = read_slot_enable (ctrl);
-			
+
 			writeb(0, ctrl->hpc_reg + SLOT_SERR);
 			writel(0xFFFFFFC0L | ~rc, ctrl->hpc_reg + INT_MASK);
-			
+
 			misc = readw(ctrl->hpc_reg + MISC);
 			misc &= 0xFFFD;
 			writew(misc, ctrl->hpc_reg + MISC);
@@ -1475,26 +1473,22 @@ static void __exit unload_cpqphpd(void)
 		iounmap(smbios_start);
 }
 
-
-
 static struct pci_device_id hpcd_pci_tbl[] = {
 	{
 	/* handle any PCI Hotplug controller */
 	.class =        ((PCI_CLASS_SYSTEM_PCI_HOTPLUG << 8) | 0x00),
 	.class_mask =   ~0,
-	
+
 	/* no matter who makes it */
 	.vendor =       PCI_ANY_ID,
 	.device =       PCI_ANY_ID,
 	.subvendor =    PCI_ANY_ID,
 	.subdevice =    PCI_ANY_ID,
-	
+
 	}, { /* end: all zeroes */ }
 };
 
 MODULE_DEVICE_TABLE(pci, hpcd_pci_tbl);
-
-
 
 static struct pci_driver cpqhpc_driver = {
 	.name =		"compaq_pci_hotplug",
@@ -1502,8 +1496,6 @@ static struct pci_driver cpqhpc_driver = {
 	.probe =	cpqhpc_probe,
 	/* remove:	cpqhpc_remove_one, */
 };
-
-
 
 static int __init cpqhpc_init(void)
 {
@@ -1518,7 +1510,6 @@ static int __init cpqhpc_init(void)
 	return result;
 }
 
-
 static void __exit cpqhpc_cleanup(void)
 {
 	dbg("unload_cpqphpd()\n");
@@ -1529,8 +1520,5 @@ static void __exit cpqhpc_cleanup(void)
 	cpqhp_shutdown_debugfs();
 }
 
-
 module_init(cpqhpc_init);
 module_exit(cpqhpc_cleanup);
-
-

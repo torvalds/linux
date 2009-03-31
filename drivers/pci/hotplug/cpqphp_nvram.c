@@ -113,7 +113,7 @@ static u32 add_byte( u32 **p_buffer, u8 value, u32 *used, u32 *avail)
 
 	if ((*used + 1) > *avail)
 		return(1);
-	
+
 	*((u8*)*p_buffer) = value;
 	tByte = (u8**)p_buffer;
 	(*tByte)++;
@@ -170,10 +170,10 @@ static u32 access_EV (u16 operation, u8 *ev_name, u8 *buffer, u32 *buf_size)
 	unsigned long flags;
 	int op = operation;
 	int ret_val;
-	
+
 	if (!compaq_int15_entry_point)
 		return -ENODEV;
-	
+
 	spin_lock_irqsave(&int15_lock, flags);
 	__asm__ (
 		"xorl   %%ebx,%%ebx\n" \
@@ -187,7 +187,7 @@ static u32 access_EV (u16 operation, u8 *ev_name, u8 *buffer, u32 *buf_size)
 		"D" (buffer), "m" (compaq_int15_entry_point)
 		: "%ebx", "%edx");
 	spin_unlock_irqrestore(&int15_lock, flags);
-	
+
 	return((ret_val & 0xFF00) >> 8);
 }
 
@@ -263,7 +263,7 @@ static u32 store_HRT (void __iomem *rom_start)
 	p_EV_header = (struct ev_hrt_header *) pFill;
 
 	ctrl = cpqhp_ctrl_list;
-	
+
 	// The revision of this structure
 	rc = add_byte( &pFill, 1 + ctrl->push_flag, &usedbytes, &available);
 	if (rc)
@@ -401,7 +401,7 @@ static u32 store_HRT (void __iomem *rom_start)
 
 		ctrl = ctrl->next;
 	}
-	
+
 	p_EV_header->num_of_ctrl = numCtrl;
 
 	// Now store the EV
@@ -479,7 +479,7 @@ int compaq_nvram_load (void __iomem *rom_start, struct controller *ctrl)
 		function = p_ev_ctrl->function;
 
 		while ((bus != ctrl->bus) ||
-		       (device != PCI_SLOT(ctrl->pci_dev->devfn)) || 
+		       (device != PCI_SLOT(ctrl->pci_dev->devfn)) ||
 		       (function != PCI_FUNC(ctrl->pci_dev->devfn))) {
 			nummem = p_ev_ctrl->mem_avail;
 			numpmem = p_ev_ctrl->p_mem_avail;
@@ -640,14 +640,14 @@ int compaq_nvram_load (void __iomem *rom_start, struct controller *ctrl)
 		if (rc)
 			return(rc);
 	} else {
-		if ((evbuffer[0] != 0) && (!ctrl->push_flag)) 
+		if ((evbuffer[0] != 0) && (!ctrl->push_flag))
 			return 1;
 	}
 
 	return 0;
 }
 
-	
+
 int compaq_nvram_store (void __iomem *rom_start)
 {
 	int rc = 1;
