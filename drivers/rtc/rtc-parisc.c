@@ -38,23 +38,23 @@ static const struct rtc_class_ops parisc_rtc_ops = {
 
 static int __init parisc_rtc_probe(struct platform_device *dev)
 {
-	struct rtc_device *p;
+	struct rtc_device *rtc;
 
-	p = rtc_device_register("rtc-parisc", &dev->dev, &parisc_rtc_ops,
-				THIS_MODULE);
-	if (IS_ERR(p))
-		return PTR_ERR(p);
+	rtc = rtc_device_register("rtc-parisc", &dev->dev, &parisc_rtc_ops,
+				  THIS_MODULE);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
 
-	platform_set_drvdata(dev, p);
+	platform_set_drvdata(dev, rtc);
 
 	return 0;
 }
 
 static int __exit parisc_rtc_remove(struct platform_device *dev)
 {
-	struct rtc_device *p = platform_get_drvdata(dev);
+	struct rtc_device *rtc = platform_get_drvdata(dev);
 
-	rtc_device_unregister(p);
+	rtc_device_unregister(rtc);
 
 	return 0;
 }
