@@ -362,8 +362,6 @@ static inline int module_is_live(struct module *mod)
 	return mod->state != MODULE_STATE_GOING;
 }
 
-/* Is this address in a module? (second is with no locks, for oops) */
-struct module *module_text_address(unsigned long addr);
 struct module *__module_text_address(unsigned long addr);
 struct module *__module_address(unsigned long addr);
 bool is_module_address(unsigned long addr);
@@ -492,11 +490,6 @@ extern int module_get_iter_tracepoints(struct tracepoint_iter *iter);
 /* Given an address, look for it in the exception tables. */
 static inline const struct exception_table_entry *
 search_module_extables(unsigned long addr)
-{
-	return NULL;
-}
-
-static inline struct module *module_text_address(unsigned long addr)
 {
 	return NULL;
 }

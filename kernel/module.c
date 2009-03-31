@@ -908,8 +908,10 @@ void symbol_put_addr(void *addr)
 	if (core_kernel_text((unsigned long)addr))
 		return;
 
-	if (!(modaddr = module_text_address((unsigned long)addr)))
-		BUG();
+	/* module_text_address is safe here: we're supposed to have reference
+	 * to module from symbol_get, so it can't go away. */
+	modaddr = __module_text_address((unsigned long)addr);
+	BUG_ON(!modaddr);
 	module_put(modaddr);
 }
 EXPORT_SYMBOL_GPL(symbol_put_addr);
@@ -2818,17 +2820,6 @@ struct module *__module_text_address(unsigned long addr)
 		    && !within(addr, mod->module_core, mod->core_text_size))
 			mod = NULL;
 	}
-	return mod;
-}
-
-struct module *module_text_address(unsigned long addr)
-{
-	struct module *mod;
-
-	preempt_disable();
-	mod = __module_text_address(addr);
-	preempt_enable();
-
 	return mod;
 }
 

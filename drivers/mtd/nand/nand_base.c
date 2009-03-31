@@ -2720,14 +2720,14 @@ int nand_scan_tail(struct mtd_info *mtd)
 	return chip->scan_bbt(mtd);
 }
 
-/* module_text_address() isn't exported, and it's mostly a pointless
+/* is_module_text_address() isn't exported, and it's mostly a pointless
    test if this is a module _anyway_ -- they'd have to try _really_ hard
    to call us from in-kernel code if the core NAND support is modular. */
 #ifdef MODULE
 #define caller_is_module() (1)
 #else
 #define caller_is_module() \
-	module_text_address((unsigned long)__builtin_return_address(0))
+	is_module_text_address((unsigned long)__builtin_return_address(0))
 #endif
 
 /**
