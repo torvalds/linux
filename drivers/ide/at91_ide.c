@@ -192,10 +192,10 @@ static void at91_ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_taskfile *tf = &cmd->tf;
 	u8 HIHI = (cmd->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
 
-	if (cmd->tf_flags & IDE_FTFLAG_FLAGGED)
+	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (cmd->tf_flags & IDE_FTFLAG_OUT_DATA) {
+	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
 		u16 data = (tf->hob_data << 8) | tf->data;
 
 		at91_ide_output_data(drive, NULL, &data, 2);
@@ -233,7 +233,7 @@ static void at91_ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	struct ide_taskfile *tf = &cmd->tf;
 
-	if (cmd->tf_flags & IDE_FTFLAG_IN_DATA) {
+	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
 		u16 data;
 
 		at91_ide_input_data(drive, NULL, &data, 2);
