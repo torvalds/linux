@@ -50,7 +50,9 @@ SECTIONS
 		_text = .;
 		__stext = .;
 		TEXT_TEXT
+#ifndef CONFIG_SCHEDULE_L1
 		SCHED_TEXT
+#endif
 		LOCK_TEXT
 		KPROBES_TEXT
 		*(.text.*)
@@ -180,6 +182,9 @@ SECTIONS
 		. = ALIGN(4);
 		__stext_l1 = .;
 		*(.l1.text)
+#ifdef CONFIG_SCHEDULE_L1
+		SCHED_TEXT
+#endif
 		. = ALIGN(4);
 		__etext_l1 = .;
 	}
