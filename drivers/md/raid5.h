@@ -201,6 +201,7 @@ struct stripe_head {
 	sector_t		sector;		/* sector of this row */
 	short			pd_idx;		/* parity disk index */
 	short			qd_idx;		/* 'Q' disk index for raid6 */
+	short			ddf_layout;/* use DDF ordering to calculate Q */
 	unsigned long		state;		/* state flags */
 	atomic_t		count;	      /* nr of active thread/requests */
 	spinlock_t		lock;

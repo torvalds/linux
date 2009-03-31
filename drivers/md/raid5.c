@@ -136,6 +136,10 @@ static inline void raid5_set_bi_hw_segments(struct bio *bio, unsigned int cnt)
 /* Find first data disk in a raid6 stripe */
 static inline int raid6_d0(struct stripe_head *sh)
 {
+	if (sh->ddf_layout)
+		/* ddf always start from first device */
+		return 0;
+	/* md starts just after Q block */
 	if (sh->qd_idx == sh->disks - 1)
 		return 0;
 	else
@@ -152,13 +156,15 @@ static inline int raid6_next_disk(int disk, int raid_disks)
  * 0 .. raid_disks-3, the parity disk is raid_disks-2 and the Q disk
  * is raid_disks-1.  This help does that mapping.
  */
-static int raid6_idx_to_slot(int idx, struct stripe_head *sh, int *count)
+static int raid6_idx_to_slot(int idx, struct stripe_head *sh,
+			     int *count, int syndrome_disks)
 {
 	int slot;
+
 	if (idx == sh->pd_idx)
-		return sh->disks - 2;
+		return syndrome_disks;
 	if (idx == sh->qd_idx)
-		return sh->disks - 1;
+		return syndrome_disks + 1;
 	slot = (*count)++;
 	return slot;
 }
@@ -1267,6 +1273,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 	unsigned long chunk_number;
 	unsigned int chunk_offset;
 	int pd_idx, qd_idx;
+	int ddf_layout = 0;
 	sector_t new_sector;
 	int sectors_per_chunk = conf->chunk_size >> 9;
 	int raid_disks = previous ? conf->previous_raid_disks
@@ -1386,6 +1393,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 				qd_idx = 0;
 			} else if (*dd_idx >= pd_idx)
 				(*dd_idx) += 2; /* D D P Q D */
+			ddf_layout = 1;
 			break;
 
 		case ALGORITHM_ROTATING_N_RESTART:
@@ -1400,6 +1408,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 				qd_idx = 0;
 			} else if (*dd_idx >= pd_idx)
 				(*dd_idx) += 2; /* D D P Q D */
+			ddf_layout = 1;
 			break;
 
 		case ALGORITHM_ROTATING_N_CONTINUE:
@@ -1407,6 +1416,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 			pd_idx = raid_disks - 1 - (stripe % raid_disks);
 			qd_idx = (pd_idx + raid_disks - 1) % raid_disks;
 			*dd_idx = (pd_idx + 1 + *dd_idx) % raid_disks;
+			ddf_layout = 1;
 			break;
 
 		case ALGORITHM_LEFT_ASYMMETRIC_6:
@@ -1454,6 +1464,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 	if (sh) {
 		sh->pd_idx = pd_idx;
 		sh->qd_idx = qd_idx;
+		sh->ddf_layout = ddf_layout;
 	}
 	/*
 	 * Finally, compute the new sector number
@@ -1642,9 +1653,10 @@ static void compute_parity6(struct stripe_head *sh, int method)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int i, pd_idx, qd_idx, d0_idx, disks = sh->disks, count;
+	int syndrome_disks = sh->ddf_layout ? disks : (disks - 2);
 	struct bio *chosen;
 	/**** FIX THIS: This could be very bad if disks is close to 256 ****/
-	void *ptrs[disks];
+	void *ptrs[syndrome_disks+2];
 
 	pd_idx = sh->pd_idx;
 	qd_idx = sh->qd_idx;
@@ -1687,23 +1699,28 @@ static void compute_parity6(struct stripe_head *sh, int method)
 		}
 
 	/* Note that unlike RAID-5, the ordering of the disks matters greatly.*/
-	/* FIX: Is this ordering of drives even remotely optimal? */
+
+	for (i = 0; i < disks; i++)
+		ptrs[i] = (void *)raid6_empty_zero_page;
+
 	count = 0;
 	i = d0_idx;
 	do {
-		int slot = raid6_idx_to_slot(i, sh, &count);
+		int slot = raid6_idx_to_slot(i, sh, &count, syndrome_disks);
+
 		ptrs[slot] = page_address(sh->dev[i].page);
-		if (slot < sh->disks - 2 &&
+		if (slot < syndrome_disks &&
 		    !test_bit(R5_UPTODATE, &sh->dev[i].flags)) {
 			printk(KERN_ERR "block %d/%d not uptodate "
 			       "on parity calc\n", i, count);
 			BUG();
 		}
+
 		i = raid6_next_disk(i, disks);
 	} while (i != d0_idx);
-	BUG_ON(count+2 != disks);
+	BUG_ON(count != syndrome_disks);
 
-	raid6_call.gen_syndrome(disks, STRIPE_SIZE, ptrs);
+	raid6_call.gen_syndrome(syndrome_disks+2, STRIPE_SIZE, ptrs);
 
 	switch(method) {
 	case RECONSTRUCT_WRITE:
@@ -1761,24 +1778,28 @@ static void compute_block_1(struct stripe_head *sh, int dd_idx, int nozero)
 static void compute_block_2(struct stripe_head *sh, int dd_idx1, int dd_idx2)
 {
 	int i, count, disks = sh->disks;
+	int syndrome_disks = sh->ddf_layout ? disks : disks-2;
 	int d0_idx = raid6_d0(sh);
 	int faila = -1, failb = -1;
 	/**** FIX THIS: This could be very bad if disks is close to 256 ****/
-	void *ptrs[disks];
+	void *ptrs[syndrome_disks+2];
 
+	for (i = 0; i < disks ; i++)
+		ptrs[i] = (void *)raid6_empty_zero_page;
 	count = 0;
 	i = d0_idx;
 	do {
-		int slot;
-		slot = raid6_idx_to_slot(i, sh, &count);
+		int slot = raid6_idx_to_slot(i, sh, &count, syndrome_disks);
+
 		ptrs[slot] = page_address(sh->dev[i].page);
+
 		if (i == dd_idx1)
 			faila = slot;
 		if (i == dd_idx2)
 			failb = slot;
 		i = raid6_next_disk(i, disks);
 	} while (i != d0_idx);
-	BUG_ON(count+2 != disks);
+	BUG_ON(count != syndrome_disks);
 
 	BUG_ON(faila == failb);
 	if ( failb < faila ) { int tmp = faila; faila = failb; failb = tmp; }
@@ -1787,9 +1808,9 @@ static void compute_block_2(struct stripe_head *sh, int dd_idx1, int dd_idx2)
 		 (unsigned long long)sh->sector, dd_idx1, dd_idx2,
 		 faila, failb);
 
-	if ( failb == disks-1 ) {
+	if (failb == syndrome_disks+1) {
 		/* Q disk is one of the missing disks */
-		if ( faila == disks-2 ) {
+		if (faila == syndrome_disks) {
 			/* Missing P+Q, just recompute */
 			compute_parity6(sh, UPDATE_PARITY);
 			return;
@@ -1804,12 +1825,13 @@ static void compute_block_2(struct stripe_head *sh, int dd_idx1, int dd_idx2)
 	}
 
 	/* We're missing D+P or D+D; */
-	if (failb == disks-2) {
+	if (failb == syndrome_disks) {
 		/* We're missing D+P. */
-		raid6_datap_recov(disks, STRIPE_SIZE, faila, ptrs);
+		raid6_datap_recov(syndrome_disks+2, STRIPE_SIZE, faila, ptrs);
 	} else {
 		/* We're missing D+D. */
-		raid6_2data_recov(disks, STRIPE_SIZE, faila, failb, ptrs);
+		raid6_2data_recov(syndrome_disks+2, STRIPE_SIZE, faila, failb,
+				  ptrs);
 	}
 
 	/* Both the above update both missing blocks */
