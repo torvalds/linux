@@ -222,7 +222,8 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
-	depends on ALPHA || X86 || IA64 || M32R || MIPS
+	depends on ALPHA || X86 || IA64 || M32R || MIPS || ARCH_RPC || ARCH_SHARK
+	default ARM && (ARCH_RPC || ARCH_SHARK)
 	help
 	  This is the generic IDE driver.  This driver attaches to the
 	  fixed legacy ports (e.g. on PCs 0x1f0/0x170, 0x1e8/0x168 and
@@ -730,11 +731,6 @@ config BLK_DEV_IDE_AT91
 	tristate "Atmel AT91 (SAM9, CAP9, AT572D940HF) IDE support"
 	depends on ARM && ARCH_AT91 && !ARCH_AT91RM9200 && !ARCH_AT91X40
 	select IDE_TIMINGS
-
-config IDE_ARM
-	tristate "ARM IDE support"
-	depends on ARM && (ARCH_RPC || ARCH_SHARK)
-	default y
 
 config BLK_DEV_IDE_ICSIDE
 	tristate "ICS IDE interface support"

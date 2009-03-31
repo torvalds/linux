@@ -13,7 +13,10 @@
 #include <linux/ide.h>
 #include <linux/pci_ids.h>
 
-/* FIXME: convert m32r to use ide_platform host driver */
+/* FIXME: convert arm and m32r to use ide_platform host driver */
+#ifdef CONFIG_ARM
+#include <asm/irq.h>
+#endif
 #ifdef CONFIG_M32R
 #include <asm/m32r.h>
 #endif
@@ -28,8 +31,11 @@ static const struct ide_port_info ide_generic_port_info = {
 	.host_flags		= IDE_HFLAG_NO_DMA,
 };
 
-#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_MAPPI2) \
-	|| defined(CONFIG_PLAT_OPSPUT)
+#ifdef CONFIG_ARM
+static const u16 legacy_bases[] = { 0x1f0 };
+static const int legacy_irqs[]  = { IRQ_HARDDISK };
+#elif defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_MAPPI2) || \
+      defined(CONFIG_PLAT_OPSPUT)
 static const u16 legacy_bases[] = { 0x1f0 };
 static const int legacy_irqs[]  = { PLD_IRQ_CFIREQ };
 #elif defined(CONFIG_PLAT_MAPPI3)
@@ -45,11 +51,11 @@ static const int legacy_irqs[]  = { 14, 15, 11, 10, 8, 12 };
 
 static void ide_generic_check_pci_legacy_iobases(int *primary, int *secondary)
 {
+#ifdef CONFIG_PCI
 	struct pci_dev *p = NULL;
 	u16 val;
 
 	for_each_pci_dev(p) {
-
 		if (pci_resource_start(p, 0) == 0x1f0)
 			*primary = 1;
 		if (pci_resource_start(p, 2) == 0x170)
@@ -64,7 +70,6 @@ static void ide_generic_check_pci_legacy_iobases(int *primary, int *secondary)
 		/* Intel MPIIX - PIO ATA on non PCI side of bridge */
 		if (p->vendor == PCI_VENDOR_ID_INTEL &&
 		    p->device == PCI_DEVICE_ID_INTEL_82371MX) {
-
 			pci_read_config_word(p, 0x6C, &val);
 			if (val & 0x8000) {
 				/* ATA port enabled */
@@ -75,6 +80,7 @@ static void ide_generic_check_pci_legacy_iobases(int *primary, int *secondary)
 			}
 		}
 	}
+#endif
 }
 
 static int __init ide_generic_init(void)
@@ -106,6 +112,7 @@ static int __init ide_generic_init(void)
 				printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX "
 						"not free.\n",
 						DRV_NAME, io_addr, io_addr + 7);
+				rc = -EBUSY;
 				continue;
 			}
 
@@ -114,6 +121,7 @@ static int __init ide_generic_init(void)
 						"not free.\n",
 						DRV_NAME, io_addr + 0x206);
 				release_region(io_addr, 8);
+				rc = -EBUSY;
 				continue;
 			}
 
