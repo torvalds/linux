@@ -194,4 +194,4 @@ void lis3lv02d_poweroff(acpi_handle handle);
 void lis3lv02d_poweron(acpi_handle handle);
 int lis3lv02d_remove_fs(void);
 
-extern struct acpi_lis3lv02d adev;
+extern struct acpi_lis3lv02d lis3_dev;

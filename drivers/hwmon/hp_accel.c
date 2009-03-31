@@ -140,7 +140,7 @@ acpi_status lis3lv02d_acpi_write(acpi_handle handle, int reg, u8 val)
 
 static int lis3lv02d_dmi_matched(const struct dmi_system_id *dmi)
 {
-	adev.ac = *((struct axis_conversion *)dmi->driver_data);
+	lis3_dev.ac = *((struct axis_conversion *)dmi->driver_data);
 	printk(KERN_INFO DRIVER_NAME ": hardware type %s found.\n", dmi->ident);
 
 	return 1;
@@ -214,7 +214,7 @@ static struct dmi_system_id lis3lv02d_dmi_ids[] = {
 
 static void hpled_set(struct delayed_led_classdev *led_cdev, enum led_brightness value)
 {
-	acpi_handle handle = adev.device->handle;
+	acpi_handle handle = lis3_dev.device->handle;
 	unsigned long long ret; /* Not used when writing */
 	union acpi_object in_obj[1];
 	struct acpi_object_list args = { 1, in_obj };
@@ -254,7 +254,7 @@ static void lis3lv02d_enum_resources(struct acpi_device *device)
 	acpi_status status;
 
 	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
-					lis3lv02d_get_resource, &adev.irq);
+					lis3lv02d_get_resource, &lis3_dev.irq);
 	if (ACPI_FAILURE(status))
 		printk(KERN_DEBUG DRIVER_NAME ": Error getting resources\n");
 }
@@ -263,8 +263,8 @@ static s16 lis3lv02d_read_16(acpi_handle handle, int reg)
 {
 	u8 lo, hi;
 
-	adev.read(handle, reg - 1, &lo);
-	adev.read(handle, reg, &hi);
+	lis3_dev.read(handle, reg - 1, &lo);
+	lis3_dev.read(handle, reg, &hi);
 	/* In "12 bit right justified" mode, bit 6, bit 7, bit 8 = bit 5 */
 	return (s16)((hi << 8) | lo);
 }
@@ -272,7 +272,7 @@ static s16 lis3lv02d_read_16(acpi_handle handle, int reg)
 static s16 lis3lv02d_read_8(acpi_handle handle, int reg)
 {
 	s8 lo;
-	adev.read(handle, reg, &lo);
+	lis3_dev.read(handle, reg, &lo);
 	return lo;
 }
 
@@ -283,29 +283,29 @@ static int lis3lv02d_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	adev.device = device;
-	adev.init = lis3lv02d_acpi_init;
-	adev.read = lis3lv02d_acpi_read;
-	adev.write = lis3lv02d_acpi_write;
+	lis3_dev.device = device;
+	lis3_dev.init = lis3lv02d_acpi_init;
+	lis3_dev.read = lis3lv02d_acpi_read;
+	lis3_dev.write = lis3lv02d_acpi_write;
 	strcpy(acpi_device_name(device), DRIVER_NAME);
 	strcpy(acpi_device_class(device), ACPI_MDPS_CLASS);
-	device->driver_data = &adev;
+	device->driver_data = &lis3_dev;
 
-	lis3lv02d_acpi_read(device->handle, WHO_AM_I, &adev.whoami);
-	switch (adev.whoami) {
+	lis3lv02d_acpi_read(device->handle, WHO_AM_I, &lis3_dev.whoami);
+	switch (lis3_dev.whoami) {
 	case LIS_DOUBLE_ID:
 		printk(KERN_INFO DRIVER_NAME ": 2-byte sensor found\n");
-		adev.read_data = lis3lv02d_read_16;
-		adev.mdps_max_val = 2048;
+		lis3_dev.read_data = lis3lv02d_read_16;
+		lis3_dev.mdps_max_val = 2048;
 		break;
 	case LIS_SINGLE_ID:
 		printk(KERN_INFO DRIVER_NAME ": 1-byte sensor found\n");
-		adev.read_data = lis3lv02d_read_8;
-		adev.mdps_max_val = 128;
+		lis3_dev.read_data = lis3lv02d_read_8;
+		lis3_dev.mdps_max_val = 128;
 		break;
 	default:
 		printk(KERN_ERR DRIVER_NAME
-			": unknown sensor type 0x%X\n", adev.whoami);
+			": unknown sensor type 0x%X\n", lis3_dev.whoami);
 		return -EINVAL;
 	}
 
@@ -313,7 +313,7 @@ static int lis3lv02d_add(struct acpi_device *device)
 	if (dmi_check_system(lis3lv02d_dmi_ids) == 0) {
 		printk(KERN_INFO DRIVER_NAME ": laptop model unknown, "
 				 "using default axes configuration\n");
-		adev.ac = lis3lv02d_axis_normal;
+		lis3_dev.ac = lis3lv02d_axis_normal;
 	}
 
 	INIT_WORK(&hpled_led.work, delayed_set_status_worker);
@@ -322,9 +322,9 @@ static int lis3lv02d_add(struct acpi_device *device)
 		return ret;
 
 	/* obtain IRQ number of our device from ACPI */
-	lis3lv02d_enum_resources(adev.device);
+	lis3lv02d_enum_resources(lis3_dev.device);
 
-	ret = lis3lv02d_init_device(&adev);
+	ret = lis3lv02d_init_device(&lis3_dev);
 	if (ret) {
 		flush_work(&hpled_led.work);
 		led_classdev_unregister(&hpled_led.led_classdev);
@@ -360,12 +360,12 @@ static int lis3lv02d_suspend(struct acpi_device *device, pm_message_t state)
 static int lis3lv02d_resume(struct acpi_device *device)
 {
 	/* put back the device in the right state (ACPI might turn it on) */
-	mutex_lock(&adev.lock);
-	if (adev.usage > 0)
+	mutex_lock(&lis3_dev.lock);
+	if (lis3_dev.usage > 0)
 		lis3lv02d_poweron(device->handle);
 	else
 		lis3lv02d_poweroff(device->handle);
-	mutex_unlock(&adev.lock);
+	mutex_unlock(&lis3_dev.lock);
 	return 0;
 }
 #else
