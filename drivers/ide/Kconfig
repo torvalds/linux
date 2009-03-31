@@ -56,8 +56,12 @@ if IDE
 
 comment "Please see Documentation/ide/ide.txt for help/info on IDE drives"
 
+config IDE_XFER_MODE
+	bool
+
 config IDE_TIMINGS
 	bool
+	select IDE_XFER_MODE
 
 config IDE_ATAPI
 	bool
@@ -698,6 +702,7 @@ config BLK_DEV_IDE_PMAC_ATA100FIRST
 config BLK_DEV_IDE_AU1XXX
        bool "IDE for AMD Alchemy Au1200"
        depends on SOC_AU1200
+       select IDE_XFER_MODE
 choice
        prompt "IDE Mode for AMD Alchemy Au1200"
        default CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA
@@ -871,6 +876,7 @@ config BLK_DEV_ALI14XX
 
 config BLK_DEV_DTC2278
 	tristate "DTC-2278 support"
+	select IDE_XFER_MODE
 	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "dtc2278.probe" kernel
@@ -902,6 +908,7 @@ config BLK_DEV_QD65XX
 
 config BLK_DEV_UMC8672
 	tristate "UMC-8672 support"
+	select IDE_XFER_MODE
 	select IDE_LEGACY
 	help
 	  This driver is enabled at runtime using the "umc8672.probe" kernel
@@ -915,5 +922,6 @@ endif
 config BLK_DEV_IDEDMA
 	def_bool BLK_DEV_IDEDMA_SFF || \
 		 BLK_DEV_IDEDMA_ICS || BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
+	select IDE_XFER_MODE
 
 endif # IDE

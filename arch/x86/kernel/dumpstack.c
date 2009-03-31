@@ -10,6 +10,7 @@
 #include <linux/kdebug.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
+#include <linux/ftrace.h>
 #include <linux/kexec.h>
 #include <linux/bug.h>
 #include <linux/nmi.h>
@@ -99,7 +100,7 @@ print_context_stack(struct thread_info *tinfo,
 				frame = frame->next_frame;
 				bp = (unsigned long) frame;
 			} else {
-				ops->address(data, addr, bp == 0);
+				ops->address(data, addr, 0);
 			}
 			print_ftrace_graph_addr(addr, data, ops, tinfo, graph);
 		}

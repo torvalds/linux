@@ -32,8 +32,6 @@
 #ifndef _MACH_BLACKFIN_H_
 #define _MACH_BLACKFIN_H_
 
-#define BF548_FAMILY
-
 #include "bf548.h"
 #include "mem_map.h"
 #include "anomaly.h"

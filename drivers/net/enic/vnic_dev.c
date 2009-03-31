@@ -34,6 +34,9 @@ struct vnic_res {
 	unsigned int count;
 };
 
+#define VNIC_DEV_CAP_INIT	0x0001
+#define VNIC_DEV_CAP_PERBI	0x0002
+
 struct vnic_dev {
 	void *priv;
 	struct pci_dev *pdev;
@@ -50,6 +53,7 @@ struct vnic_dev {
 	dma_addr_t stats_pa;
 	struct vnic_devcmd_fw_info *fw_info;
 	dma_addr_t fw_info_pa;
+	u32 cap_flags;
 };
 
 #define VNIC_MAX_RES_HDR_SIZE \
@@ -575,9 +579,9 @@ int vnic_dev_init(struct vnic_dev *vdev, int arg)
 {
 	u64 a0 = (u32)arg, a1 = 0;
 	int wait = 1000;
-        int r = 0;
+	int r = 0;
 
-	if (vnic_dev_capable(vdev, CMD_INIT))
+	if (vdev->cap_flags & VNIC_DEV_CAP_INIT)
 		r = vnic_dev_cmd(vdev, CMD_INIT, &a0, &a1, wait);
 	else {
 		vnic_dev_cmd(vdev, CMD_INIT_v1, &a0, &a1, wait);
@@ -587,8 +591,8 @@ int vnic_dev_init(struct vnic_dev *vdev, int arg)
 			vnic_dev_cmd(vdev, CMD_MAC_ADDR, &a0, &a1, wait);
 			vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a0, &a1, wait);
 		}
-        }
-        return r;
+	}
+	return r;
 }
 
 int vnic_dev_link_status(struct vnic_dev *vdev)
@@ -624,6 +628,22 @@ u32 vnic_dev_mtu(struct vnic_dev *vdev)
 		return 0;
 
 	return vdev->notify_copy.mtu;
+}
+
+u32 vnic_dev_link_down_cnt(struct vnic_dev *vdev)
+{
+	if (!vnic_dev_notify_ready(vdev))
+		return 0;
+
+	return vdev->notify_copy.link_down_cnt;
+}
+
+u32 vnic_dev_notify_status(struct vnic_dev *vdev)
+{
+	if (!vnic_dev_notify_ready(vdev))
+		return 0;
+
+	return vdev->notify_copy.status;
 }
 
 void vnic_dev_set_intr_mode(struct vnic_dev *vdev,
@@ -681,6 +701,11 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
 	if (!vdev->devcmd)
 		goto err_out;
+
+	vdev->cap_flags = 0;
+
+	if (vnic_dev_capable(vdev, CMD_INIT))
+		vdev->cap_flags |= VNIC_DEV_CAP_INIT;
 
 	return vdev;
 

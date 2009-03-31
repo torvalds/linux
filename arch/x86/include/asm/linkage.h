@@ -1,13 +1,10 @@
 #ifndef _ASM_X86_LINKAGE_H
 #define _ASM_X86_LINKAGE_H
 
+#include <linux/stringify.h>
+
 #undef notrace
 #define notrace __attribute__((no_instrument_function))
-
-#ifdef CONFIG_X86_64
-#define __ALIGN .p2align 4,,15
-#define __ALIGN_STR ".p2align 4,,15"
-#endif
 
 #ifdef CONFIG_X86_32
 #define asmlinkage CPP_ASMLINKAGE __attribute__((regparm(0)))
@@ -50,72 +47,20 @@
 	__asmlinkage_protect_n(ret, "g" (arg1), "g" (arg2), "g" (arg3), \
 			      "g" (arg4), "g" (arg5), "g" (arg6))
 
-#endif
+#endif /* CONFIG_X86_32 */
 
-#ifdef CONFIG_X86_ALIGNMENT_16
-#define __ALIGN .align 16,0x90
-#define __ALIGN_STR ".align 16,0x90"
-#endif
+#ifdef __ASSEMBLY__
 
-/*
- * to check ENTRY_X86/END_X86 and
- * KPROBE_ENTRY_X86/KPROBE_END_X86
- * unbalanced-missed-mixed appearance
- */
-#define __set_entry_x86		.set ENTRY_X86_IN, 0
-#define __unset_entry_x86	.set ENTRY_X86_IN, 1
-#define __set_kprobe_x86	.set KPROBE_X86_IN, 0
-#define __unset_kprobe_x86	.set KPROBE_X86_IN, 1
-
-#define __macro_err_x86 .error "ENTRY_X86/KPROBE_X86 unbalanced,missed,mixed"
-
-#define __check_entry_x86	\
-	.ifdef ENTRY_X86_IN;	\
-	.ifeq ENTRY_X86_IN;	\
-	__macro_err_x86;	\
-	.abort;			\
-	.endif;			\
-	.endif
-
-#define __check_kprobe_x86	\
-	.ifdef KPROBE_X86_IN;	\
-	.ifeq KPROBE_X86_IN;	\
-	__macro_err_x86;	\
-	.abort;			\
-	.endif;			\
-	.endif
-
-#define __check_entry_kprobe_x86	\
-	__check_entry_x86;		\
-	__check_kprobe_x86
-
-#define ENTRY_KPROBE_FINAL_X86 __check_entry_kprobe_x86
-
-#define ENTRY_X86(name)			\
-	__check_entry_kprobe_x86;	\
-	__set_entry_x86;		\
-	.globl name;			\
-	__ALIGN;			\
+#define GLOBAL(name)	\
+	.globl name;	\
 	name:
 
-#define END_X86(name)			\
-	__unset_entry_x86;		\
-	__check_entry_kprobe_x86;	\
-	.size name, .-name
+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_ALIGNMENT_16)
+#define __ALIGN		.p2align 4, 0x90
+#define __ALIGN_STR	__stringify(__ALIGN)
+#endif
 
-#define KPROBE_ENTRY_X86(name)		\
-	__check_entry_kprobe_x86;	\
-	__set_kprobe_x86;		\
-	.pushsection .kprobes.text, "ax"; \
-	.globl name;			\
-	__ALIGN;			\
-	name:
-
-#define KPROBE_END_X86(name)		\
-	__unset_kprobe_x86;		\
-	__check_entry_kprobe_x86;	\
-	.size name, .-name;		\
-	.popsection
+#endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_X86_LINKAGE_H */
 

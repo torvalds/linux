@@ -163,7 +163,6 @@ struct catc {
 	struct net_device *netdev;
 	struct usb_device *usbdev;
 
-	struct net_device_stats stats;
 	unsigned long flags;
 
 	unsigned int tx_ptr, tx_idx;
@@ -245,8 +244,8 @@ static void catc_rx_done(struct urb *urb)
 		if(!catc->is_f5u011) {
 			pkt_len = le16_to_cpup((__le16*)pkt_start);
 			if (pkt_len > urb->actual_length) {
-				catc->stats.rx_length_errors++;
-				catc->stats.rx_errors++;
+				catc->netdev->stats.rx_length_errors++;
+				catc->netdev->stats.rx_errors++;
 				break;
 			}
 		} else {
@@ -262,8 +261,8 @@ static void catc_rx_done(struct urb *urb)
 		skb->protocol = eth_type_trans(skb, catc->netdev);
 		netif_rx(skb);
 
-		catc->stats.rx_packets++;
-		catc->stats.rx_bytes += pkt_len;
+		catc->netdev->stats.rx_packets++;
+		catc->netdev->stats.rx_bytes += pkt_len;
 
 		/* F5U011 only does one packet per RX */
 		if (catc->is_f5u011)
@@ -386,7 +385,7 @@ static void catc_tx_done(struct urb *urb)
 		dbg("Tx Reset.");
 		urb->status = 0;
 		catc->netdev->trans_start = jiffies;
-		catc->stats.tx_errors++;
+		catc->netdev->stats.tx_errors++;
 		clear_bit(TX_RUNNING, &catc->flags);
 		netif_wake_queue(catc->netdev);
 		return;
@@ -412,7 +411,7 @@ static void catc_tx_done(struct urb *urb)
 	spin_unlock_irqrestore(&catc->tx_lock, flags);
 }
 
-static int catc_hard_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static int catc_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct catc *catc = netdev_priv(netdev);
 	unsigned long flags;
@@ -443,8 +442,8 @@ static int catc_hard_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	spin_unlock_irqrestore(&catc->tx_lock, flags);
 
 	if (r >= 0) {
-		catc->stats.tx_bytes += skb->len;
-		catc->stats.tx_packets++;
+		catc->netdev->stats.tx_bytes += skb->len;
+		catc->netdev->stats.tx_packets++;
 	}
 
 	dev_kfree_skb(skb);
@@ -588,15 +587,15 @@ static void catc_stats_done(struct catc *catc, struct ctrl_queue *q)
 	switch (index) {
 		case TxSingleColl:
 		case TxMultiColl:
-			catc->stats.collisions += data - last;
+			catc->netdev->stats.collisions += data - last;
 			break;
 		case TxExcessColl:
-			catc->stats.tx_aborted_errors += data - last;
-			catc->stats.tx_errors += data - last;
+			catc->netdev->stats.tx_aborted_errors += data - last;
+			catc->netdev->stats.tx_errors += data - last;
 			break;
 		case RxFramErr:
-			catc->stats.rx_frame_errors += data - last;
-			catc->stats.rx_errors += data - last;
+			catc->netdev->stats.rx_frame_errors += data - last;
+			catc->netdev->stats.rx_errors += data - last;
 			break;
 	}
 
@@ -612,12 +611,6 @@ static void catc_stats_timer(unsigned long data)
 		catc_get_reg_async(catc, EthStats + 7 - i, catc_stats_done);
 
 	mod_timer(&catc->timer, jiffies + STATS_UPDATE);
-}
-
-static struct net_device_stats *catc_get_stats(struct net_device *netdev)
-{
-	struct catc *catc = netdev_priv(netdev);
-	return &catc->stats;
 }
 
 /*
@@ -750,6 +743,18 @@ static int catc_stop(struct net_device *netdev)
 	return 0;
 }
 
+static const struct net_device_ops catc_netdev_ops = {
+	.ndo_open		= catc_open,
+	.ndo_stop		= catc_stop,
+	.ndo_start_xmit		= catc_start_xmit,
+
+	.ndo_tx_timeout		= catc_tx_timeout,
+	.ndo_set_multicast_list = catc_set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /*
  * USB probe, disconnect.
  */
@@ -774,13 +779,8 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	catc = netdev_priv(netdev);
 
-	netdev->open = catc_open;
-	netdev->hard_start_xmit = catc_hard_start_xmit;
-	netdev->stop = catc_stop;
-	netdev->get_stats = catc_get_stats;
-	netdev->tx_timeout = catc_tx_timeout;
+	netdev->netdev_ops = &catc_netdev_ops;
 	netdev->watchdog_timeo = TX_TIMEOUT;
-	netdev->set_multicast_list = catc_set_multicast_list;
 	SET_ETHTOOL_OPS(netdev, &ops);
 
 	catc->usbdev = usbdev;

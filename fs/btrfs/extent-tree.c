@@ -20,6 +20,7 @@
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
 #include <linux/sort.h>
+#include <linux/rcupdate.h>
 #include "compat.h"
 #include "hash.h"
 #include "crc32c.h"
@@ -330,11 +331,31 @@ static struct btrfs_space_info *__find_space_info(struct btrfs_fs_info *info,
 {
 	struct list_head *head = &info->space_info;
 	struct btrfs_space_info *found;
-	list_for_each_entry(found, head, list) {
-		if (found->flags == flags)
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(found, head, list) {
+		if (found->flags == flags) {
+			rcu_read_unlock();
 			return found;
+		}
 	}
+	rcu_read_unlock();
 	return NULL;
+}
+
+/*
+ * after adding space to the filesystem, we need to clear the full flags
+ * on all the space infos.
+ */
+void btrfs_clear_space_info_full(struct btrfs_fs_info *info)
+{
+	struct list_head *head = &info->space_info;
+	struct btrfs_space_info *found;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(found, head, list)
+		found->full = 0;
+	rcu_read_unlock();
 }
 
 static u64 div_factor(u64 num, int factor)
@@ -1903,7 +1924,6 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	if (!found)
 		return -ENOMEM;
 
-	list_add(&found->list, &info->space_info);
 	INIT_LIST_HEAD(&found->block_groups);
 	init_rwsem(&found->groups_sem);
 	spin_lock_init(&found->lock);
@@ -1917,6 +1937,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->full = 0;
 	found->force_alloc = 0;
 	*space_info = found;
+	list_add_rcu(&found->list, &info->space_info);
 	return 0;
 }
 
@@ -6320,6 +6341,7 @@ out:
 int btrfs_free_block_groups(struct btrfs_fs_info *info)
 {
 	struct btrfs_block_group_cache *block_group;
+	struct btrfs_space_info *space_info;
 	struct rb_node *n;
 
 	spin_lock(&info->block_group_cache_lock);
@@ -6341,6 +6363,23 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		spin_lock(&info->block_group_cache_lock);
 	}
 	spin_unlock(&info->block_group_cache_lock);
+
+	/* now that all the block groups are freed, go through and
+	 * free all the space_info structs.  This is only called during
+	 * the final stages of unmount, and so we know nobody is
+	 * using them.  We call synchronize_rcu() once before we start,
+	 * just to be on the safe side.
+	 */
+	synchronize_rcu();
+
+	while(!list_empty(&info->space_info)) {
+		space_info = list_entry(info->space_info.next,
+					struct btrfs_space_info,
+					list);
+
+		list_del(&space_info->list);
+		kfree(space_info);
+	}
 	return 0;
 }
 

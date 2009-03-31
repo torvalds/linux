@@ -35,7 +35,11 @@ extern struct bus_type platform_bus_type;
 					__phys_to_virt(x) : __bus_to_virt(x)); })
 #define __arch_virt_to_dma(dev, x)	({ is_lbus_device(dev) ? \
 					(dma_addr_t)__virt_to_phys(x) : (dma_addr_t)__virt_to_bus(x); })
-#define __arch_page_to_dma(dev, x)	__arch_virt_to_dma(dev, page_address(x))
+#define __arch_page_to_dma(dev, x)	\
+	({ dma_addr_t __dma = page_to_phys(page); \
+	   if (!is_lbus_device(dev)) \
+		__dma = __dma - PHYS_OFFSET + KS8695_PCIMEM_PA; \
+	   __dma; })
 
 #endif
 

@@ -8,12 +8,15 @@
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "tape"
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/bio.h>
 #include <asm/ebcdic.h>
 
 #define TAPE_DBF_AREA	tape_3590_dbf
+#define BUFSIZE 512	/* size of buffers for dynamic generated messages */
 
 #include "tape.h"
 #include "tape_std.h"
@@ -36,7 +39,7 @@ EXPORT_SYMBOL(TAPE_DBF_AREA);
  * - Read Alternate:		 implemented
  *******************************************************************/
 
-#define PRINTK_HEADER "TAPE_3590: "
+#define KMSG_COMPONENT "tape"
 
 static const char *tape_3590_msg[TAPE_3590_MAX_MSG] = {
 	[0x00] = "",
@@ -661,8 +664,7 @@ tape_3590_bread(struct tape_device *device, struct request *req)
 			ccw++;
 			dst += TAPEBLOCK_HSEC_SIZE;
 		}
-		if (off > bv->bv_len)
-			BUG();
+		BUG_ON(off > bv->bv_len);
 	}
 	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
 	DBF_EVENT(6, "xBREDccwg\n");
@@ -726,7 +728,7 @@ static void tape_3590_med_state_set(struct tape_device *device,
 	}
 	c_info->medium_status |= TAPE390_MEDIUM_LOADED_MASK;
 	if (sense->flags & MSENSE_CRYPT_MASK) {
-		PRINT_INFO("Medium is encrypted (%04x)\n", sense->flags);
+		DBF_EVENT(6, "Medium is encrypted (%04x)\n", sense->flags);
 		c_info->medium_status |= TAPE390_MEDIUM_ENCRYPTED_MASK;
 	} else	{
 		DBF_EVENT(6, "Medium is not encrypted %04x\n", sense->flags);
@@ -847,8 +849,7 @@ tape_3590_unsolicited_irq(struct tape_device *device, struct irb *irb)
 		tape_3590_schedule_work(device, TO_READ_ATTMSG);
 	} else {
 		DBF_EVENT(3, "unsol.irq! dev end: %08x\n", device->cdev_id);
-		PRINT_WARN("Unsolicited IRQ (Device End) caught.\n");
-		tape_dump_sense(device, NULL, irb);
+		tape_dump_sense_dbf(device, NULL, irb);
 	}
 	/* check medium state */
 	tape_3590_schedule_work(device, TO_MSEN);
@@ -876,8 +877,6 @@ tape_3590_erp_basic(struct tape_device *device, struct tape_request *request,
 	case SENSE_BRA_DRE:
 		return tape_3590_erp_failed(device, request, irb, rc);
 	default:
-		PRINT_ERR("Unknown BRA %x - This should not happen!\n",
-			  sense->bra);
 		BUG();
 		return TAPE_IO_STOP;
 	}
@@ -910,7 +909,8 @@ tape_3590_erp_swap(struct tape_device *device, struct tape_request *request,
 	 * should proceed with the new tape... this
 	 * should probably be done in user space!
 	 */
-	PRINT_WARN("(%s): Swap Tape Device!\n", dev_name(&device->cdev->dev));
+	dev_warn (&device->cdev->dev, "The tape medium must be loaded into a "
+		"different tape unit\n");
 	return tape_3590_erp_basic(device, request, irb, -EIO);
 }
 
@@ -985,8 +985,6 @@ tape_3590_erp_read_opposite(struct tape_device *device,
 		return tape_3590_erp_failed(device, request, irb, -EIO);
 		break;
 	default:
-		PRINT_WARN("read_opposite_recovery_called_with_op: %s\n",
-			   tape_op_verbose[request->op]);
 		return tape_3590_erp_failed(device, request, irb, -EIO);
 	}
 }
@@ -998,50 +996,61 @@ static void
 tape_3590_print_mim_msg_f0(struct tape_device *device, struct irb *irb)
 {
 	struct tape_3590_sense *sense;
+	char *exception, *service;
+
+	exception = kmalloc(BUFSIZE, GFP_ATOMIC);
+	service = kmalloc(BUFSIZE, GFP_ATOMIC);
+
+	if (!exception || !service)
+		goto out_nomem;
 
 	sense = (struct tape_3590_sense *) irb->ecw;
 	/* Exception Message */
 	switch (sense->fmt.f70.emc) {
 	case 0x02:
-		PRINT_WARN("(%s): Data degraded\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(exception, BUFSIZE, "Data degraded");
 		break;
 	case 0x03:
-		PRINT_WARN("(%s): Data degraded in partion %i\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f70.mp);
+		snprintf(exception, BUFSIZE, "Data degraded in partion %i",
+			sense->fmt.f70.mp);
 		break;
 	case 0x04:
-		PRINT_WARN("(%s): Medium degraded\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(exception, BUFSIZE, "Medium degraded");
 		break;
 	case 0x05:
-		PRINT_WARN("(%s): Medium degraded in partition %i\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f70.mp);
+		snprintf(exception, BUFSIZE, "Medium degraded in partition %i",
+			sense->fmt.f70.mp);
 		break;
 	case 0x06:
-		PRINT_WARN("(%s): Block 0 Error\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(exception, BUFSIZE, "Block 0 Error");
 		break;
 	case 0x07:
-		PRINT_WARN("(%s): Medium Exception 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f70.md);
+		snprintf(exception, BUFSIZE, "Medium Exception 0x%02x",
+			sense->fmt.f70.md);
 		break;
 	default:
-		PRINT_WARN("(%s): MIM ExMsg: 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f70.emc);
+		snprintf(exception, BUFSIZE, "0x%02x",
+			sense->fmt.f70.emc);
 		break;
 	}
 	/* Service Message */
 	switch (sense->fmt.f70.smc) {
 	case 0x02:
-		PRINT_WARN("(%s): Reference Media maintenance procedure %i\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f70.md);
+		snprintf(service, BUFSIZE, "Reference Media maintenance "
+			"procedure %i", sense->fmt.f70.md);
 		break;
 	default:
-		PRINT_WARN("(%s): MIM ServiceMsg: 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f70.smc);
+		snprintf(service, BUFSIZE, "0x%02x",
+			sense->fmt.f70.smc);
 		break;
 	}
+
+	dev_warn (&device->cdev->dev, "Tape media information: exception %s, "
+		"service %s\n", exception, service);
+
+out_nomem:
+	kfree(exception);
+	kfree(service);
 }
 
 /*
@@ -1051,108 +1060,108 @@ static void
 tape_3590_print_io_sim_msg_f1(struct tape_device *device, struct irb *irb)
 {
 	struct tape_3590_sense *sense;
+	char *exception, *service;
+
+	exception = kmalloc(BUFSIZE, GFP_ATOMIC);
+	service = kmalloc(BUFSIZE, GFP_ATOMIC);
+
+	if (!exception || !service)
+		goto out_nomem;
 
 	sense = (struct tape_3590_sense *) irb->ecw;
 	/* Exception Message */
 	switch (sense->fmt.f71.emc) {
 	case 0x01:
-		PRINT_WARN("(%s): Effect of failure is unknown\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(exception, BUFSIZE, "Effect of failure is unknown");
 		break;
 	case 0x02:
-		PRINT_WARN("(%s): CU Exception - no performance impact\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(exception, BUFSIZE, "CU Exception - no performance "
+			"impact");
 		break;
 	case 0x03:
-		PRINT_WARN("(%s): CU Exception on channel interface 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.md[0]);
+		snprintf(exception, BUFSIZE, "CU Exception on channel "
+			"interface 0x%02x", sense->fmt.f71.md[0]);
 		break;
 	case 0x04:
-		PRINT_WARN("(%s): CU Exception on device path 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.md[0]);
+		snprintf(exception, BUFSIZE, "CU Exception on device path "
+			"0x%02x", sense->fmt.f71.md[0]);
 		break;
 	case 0x05:
-		PRINT_WARN("(%s): CU Exception on library path 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.md[0]);
+		snprintf(exception, BUFSIZE, "CU Exception on library path "
+			"0x%02x", sense->fmt.f71.md[0]);
 		break;
 	case 0x06:
-		PRINT_WARN("(%s): CU Exception on node 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.md[0]);
+		snprintf(exception, BUFSIZE, "CU Exception on node 0x%02x",
+			sense->fmt.f71.md[0]);
 		break;
 	case 0x07:
-		PRINT_WARN("(%s): CU Exception on partition 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.md[0]);
+		snprintf(exception, BUFSIZE, "CU Exception on partition "
+			"0x%02x", sense->fmt.f71.md[0]);
 		break;
 	default:
-		PRINT_WARN("(%s): SIM ExMsg: 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.emc);
+		snprintf(exception, BUFSIZE, "0x%02x",
+			sense->fmt.f71.emc);
 	}
 	/* Service Message */
 	switch (sense->fmt.f71.smc) {
 	case 0x01:
-		PRINT_WARN("(%s): Repair impact is unknown\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(service, BUFSIZE, "Repair impact is unknown");
 		break;
 	case 0x02:
-		PRINT_WARN("(%s): Repair will not impact cu performance\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(service, BUFSIZE, "Repair will not impact cu "
+			"performance");
 		break;
 	case 0x03:
 		if (sense->fmt.f71.mdf == 0)
-			PRINT_WARN("(%s): Repair will disable node "
-				   "0x%x on CU\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1]);
+			snprintf(service, BUFSIZE, "Repair will disable node "
+				"0x%x on CU", sense->fmt.f71.md[1]);
 		else
-			PRINT_WARN("(%s): Repair will disable nodes "
-				   "(0x%x-0x%x) on CU\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+			snprintf(service, BUFSIZE, "Repair will disable "
+				"nodes (0x%x-0x%x) on CU", sense->fmt.f71.md[1],
+				sense->fmt.f71.md[2]);
 		break;
 	case 0x04:
 		if (sense->fmt.f71.mdf == 0)
-			PRINT_WARN("(%s): Repair will disable cannel path "
-				   "0x%x on CU\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1]);
+			snprintf(service, BUFSIZE, "Repair will disable "
+				"channel path 0x%x on CU",
+				sense->fmt.f71.md[1]);
 		else
-			PRINT_WARN("(%s): Repair will disable cannel paths "
-				   "(0x%x-0x%x) on CU\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+			snprintf(service, BUFSIZE, "Repair will disable cannel"
+				" paths (0x%x-0x%x) on CU",
+				sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
 		break;
 	case 0x05:
 		if (sense->fmt.f71.mdf == 0)
-			PRINT_WARN("(%s): Repair will disable device path "
-				   "0x%x on CU\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1]);
+			snprintf(service, BUFSIZE, "Repair will disable device"
+				" path 0x%x on CU", sense->fmt.f71.md[1]);
 		else
-			PRINT_WARN("(%s): Repair will disable device paths "
-				   "(0x%x-0x%x) on CU\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+			snprintf(service, BUFSIZE, "Repair will disable device"
+				" paths (0x%x-0x%x) on CU",
+				sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
 		break;
 	case 0x06:
 		if (sense->fmt.f71.mdf == 0)
-			PRINT_WARN("(%s): Repair will disable library path "
-				   "0x%x on CU\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1]);
+			snprintf(service, BUFSIZE, "Repair will disable "
+				"library path 0x%x on CU",
+				sense->fmt.f71.md[1]);
 		else
-			PRINT_WARN("(%s): Repair will disable library paths "
-				   "(0x%x-0x%x) on CU\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+			snprintf(service, BUFSIZE, "Repair will disable "
+				"library paths (0x%x-0x%x) on CU",
+				sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
 		break;
 	case 0x07:
-		PRINT_WARN("(%s): Repair will disable access to CU\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(service, BUFSIZE, "Repair will disable access to CU");
 		break;
 	default:
-		PRINT_WARN("(%s): SIM ServiceMsg: 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.smc);
+		snprintf(service, BUFSIZE, "0x%02x",
+			sense->fmt.f71.smc);
 	}
+
+	dev_warn (&device->cdev->dev, "I/O subsystem information: exception"
+		" %s, service %s\n", exception, service);
+out_nomem:
+	kfree(exception);
+	kfree(service);
 }
 
 /*
@@ -1162,111 +1171,109 @@ static void
 tape_3590_print_dev_sim_msg_f2(struct tape_device *device, struct irb *irb)
 {
 	struct tape_3590_sense *sense;
+	char *exception, *service;
+
+	exception = kmalloc(BUFSIZE, GFP_ATOMIC);
+	service = kmalloc(BUFSIZE, GFP_ATOMIC);
+
+	if (!exception || !service)
+		goto out_nomem;
 
 	sense = (struct tape_3590_sense *) irb->ecw;
 	/* Exception Message */
 	switch (sense->fmt.f71.emc) {
 	case 0x01:
-		PRINT_WARN("(%s): Effect of failure is unknown\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(exception, BUFSIZE, "Effect of failure is unknown");
 		break;
 	case 0x02:
-		PRINT_WARN("(%s): DV Exception - no performance impact\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(exception, BUFSIZE, "DV Exception - no performance"
+			" impact");
 		break;
 	case 0x03:
-		PRINT_WARN("(%s): DV Exception on channel interface 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.md[0]);
+		snprintf(exception, BUFSIZE, "DV Exception on channel "
+			"interface 0x%02x", sense->fmt.f71.md[0]);
 		break;
 	case 0x04:
-		PRINT_WARN("(%s): DV Exception on loader 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.md[0]);
+		snprintf(exception, BUFSIZE, "DV Exception on loader 0x%02x",
+			sense->fmt.f71.md[0]);
 		break;
 	case 0x05:
-		PRINT_WARN("(%s): DV Exception on message display 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.md[0]);
+		snprintf(exception, BUFSIZE, "DV Exception on message display"
+			" 0x%02x", sense->fmt.f71.md[0]);
 		break;
 	case 0x06:
-		PRINT_WARN("(%s): DV Exception in tape path\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(exception, BUFSIZE, "DV Exception in tape path");
 		break;
 	case 0x07:
-		PRINT_WARN("(%s): DV Exception in drive\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(exception, BUFSIZE, "DV Exception in drive");
 		break;
 	default:
-		PRINT_WARN("(%s): DSIM ExMsg: 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.emc);
+		snprintf(exception, BUFSIZE, "0x%02x",
+			sense->fmt.f71.emc);
 	}
 	/* Service Message */
 	switch (sense->fmt.f71.smc) {
 	case 0x01:
-		PRINT_WARN("(%s): Repair impact is unknown\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(service, BUFSIZE, "Repair impact is unknown");
 		break;
 	case 0x02:
-		PRINT_WARN("(%s): Repair will not impact device performance\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(service, BUFSIZE, "Repair will not impact device "
+			"performance");
 		break;
 	case 0x03:
 		if (sense->fmt.f71.mdf == 0)
-			PRINT_WARN("(%s): Repair will disable channel path "
-				   "0x%x on DV\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1]);
+			snprintf(service, BUFSIZE, "Repair will disable "
+				"channel path 0x%x on DV",
+				sense->fmt.f71.md[1]);
 		else
-			PRINT_WARN("(%s): Repair will disable channel path "
-				   "(0x%x-0x%x) on DV\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+			snprintf(service, BUFSIZE, "Repair will disable "
+				"channel path (0x%x-0x%x) on DV",
+				sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
 		break;
 	case 0x04:
 		if (sense->fmt.f71.mdf == 0)
-			PRINT_WARN("(%s): Repair will disable interface 0x%x "
-				   "on DV\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1]);
+			snprintf(service, BUFSIZE, "Repair will disable "
+				"interface 0x%x on DV", sense->fmt.f71.md[1]);
 		else
-			PRINT_WARN("(%s): Repair will disable interfaces "
-				   "(0x%x-0x%x) on DV\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+			snprintf(service, BUFSIZE, "Repair will disable "
+				"interfaces (0x%x-0x%x) on DV",
+				sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
 		break;
 	case 0x05:
 		if (sense->fmt.f71.mdf == 0)
-			PRINT_WARN("(%s): Repair will disable loader 0x%x "
-				   "on DV\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1]);
+			snprintf(service, BUFSIZE, "Repair will disable loader"
+				" 0x%x on DV", sense->fmt.f71.md[1]);
 		else
-			PRINT_WARN("(%s): Repair will disable loader "
-				   "(0x%x-0x%x) on DV\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+			snprintf(service, BUFSIZE, "Repair will disable loader"
+				" (0x%x-0x%x) on DV",
+				sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
 		break;
 	case 0x07:
-		PRINT_WARN("(%s): Repair will disable access to DV\n",
-			   dev_name(&device->cdev->dev));
+		snprintf(service, BUFSIZE, "Repair will disable access to DV");
 		break;
 	case 0x08:
 		if (sense->fmt.f71.mdf == 0)
-			PRINT_WARN("(%s): Repair will disable message "
-				   "display 0x%x on DV\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1]);
+			snprintf(service, BUFSIZE, "Repair will disable "
+				"message display 0x%x on DV",
+				sense->fmt.f71.md[1]);
 		else
-			PRINT_WARN("(%s): Repair will disable message "
-				   "displays (0x%x-0x%x) on DV\n",
-				   dev_name(&device->cdev->dev),
-				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+			snprintf(service, BUFSIZE, "Repair will disable "
+				"message displays (0x%x-0x%x) on DV",
+				 sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
 		break;
 	case 0x09:
-		PRINT_WARN("(%s): Clean DV\n", dev_name(&device->cdev->dev));
+		snprintf(service, BUFSIZE, "Clean DV");
 		break;
 	default:
-		PRINT_WARN("(%s): DSIM ServiceMsg: 0x%02x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.smc);
+		snprintf(service, BUFSIZE, "0x%02x",
+			sense->fmt.f71.smc);
 	}
+
+	dev_warn (&device->cdev->dev, "Device subsystem information: exception"
+		" %s, service %s\n", exception, service);
+out_nomem:
+	kfree(exception);
+	kfree(service);
 }
 
 /*
@@ -1282,46 +1289,44 @@ tape_3590_print_era_msg(struct tape_device *device, struct irb *irb)
 		return;
 	if ((sense->mc > 0) && (sense->mc < TAPE_3590_MAX_MSG)) {
 		if (tape_3590_msg[sense->mc] != NULL)
-			PRINT_WARN("(%s): %s\n", dev_name(&device->cdev->dev),
-				   tape_3590_msg[sense->mc]);
-		else {
-			PRINT_WARN("(%s): Message Code 0x%x\n",
-				   dev_name(&device->cdev->dev), sense->mc);
-		}
+			dev_warn (&device->cdev->dev, "The tape unit has "
+				"issued sense message %s\n",
+				tape_3590_msg[sense->mc]);
+		else
+			dev_warn (&device->cdev->dev, "The tape unit has "
+				"issued an unknown sense message code 0x%x\n",
+				sense->mc);
 		return;
 	}
 	if (sense->mc == 0xf0) {
 		/* Standard Media Information Message */
-		PRINT_WARN("(%s): MIM SEV=%i, MC=%02x, ES=%x/%x, "
-			   "RC=%02x-%04x-%02x\n", dev_name(&device->cdev->dev),
-			   sense->fmt.f70.sev, sense->mc,
-			   sense->fmt.f70.emc, sense->fmt.f70.smc,
-			   sense->fmt.f70.refcode, sense->fmt.f70.mid,
-			   sense->fmt.f70.fid);
+		dev_warn (&device->cdev->dev, "MIM SEV=%i, MC=%02x, ES=%x/%x, "
+			"RC=%02x-%04x-%02x\n", sense->fmt.f70.sev, sense->mc,
+			sense->fmt.f70.emc, sense->fmt.f70.smc,
+			sense->fmt.f70.refcode, sense->fmt.f70.mid,
+			sense->fmt.f70.fid);
 		tape_3590_print_mim_msg_f0(device, irb);
 		return;
 	}
 	if (sense->mc == 0xf1) {
 		/* Standard I/O Subsystem Service Information Message */
-		PRINT_WARN("(%s): IOSIM SEV=%i, DEVTYPE=3590/%02x, "
-			   "MC=%02x, ES=%x/%x, REF=0x%04x-0x%04x-0x%04x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.sev,
-			   device->cdev->id.dev_model,
-			   sense->mc, sense->fmt.f71.emc,
-			   sense->fmt.f71.smc, sense->fmt.f71.refcode1,
-			   sense->fmt.f71.refcode2, sense->fmt.f71.refcode3);
+		dev_warn (&device->cdev->dev, "IOSIM SEV=%i, DEVTYPE=3590/%02x,"
+			" MC=%02x, ES=%x/%x, REF=0x%04x-0x%04x-0x%04x\n",
+			sense->fmt.f71.sev, device->cdev->id.dev_model,
+			sense->mc, sense->fmt.f71.emc, sense->fmt.f71.smc,
+			sense->fmt.f71.refcode1, sense->fmt.f71.refcode2,
+			sense->fmt.f71.refcode3);
 		tape_3590_print_io_sim_msg_f1(device, irb);
 		return;
 	}
 	if (sense->mc == 0xf2) {
 		/* Standard Device Service Information Message */
-		PRINT_WARN("(%s): DEVSIM SEV=%i, DEVTYPE=3590/%02x, "
-			   "MC=%02x, ES=%x/%x, REF=0x%04x-0x%04x-0x%04x\n",
-			   dev_name(&device->cdev->dev), sense->fmt.f71.sev,
-			   device->cdev->id.dev_model,
-			   sense->mc, sense->fmt.f71.emc,
-			   sense->fmt.f71.smc, sense->fmt.f71.refcode1,
-			   sense->fmt.f71.refcode2, sense->fmt.f71.refcode3);
+		dev_warn (&device->cdev->dev, "DEVSIM SEV=%i, DEVTYPE=3590/%02x"
+			", MC=%02x, ES=%x/%x, REF=0x%04x-0x%04x-0x%04x\n",
+			sense->fmt.f71.sev, device->cdev->id.dev_model,
+			sense->mc, sense->fmt.f71.emc, sense->fmt.f71.smc,
+			sense->fmt.f71.refcode1, sense->fmt.f71.refcode2,
+			sense->fmt.f71.refcode3);
 		tape_3590_print_dev_sim_msg_f2(device, irb);
 		return;
 	}
@@ -1329,8 +1334,8 @@ tape_3590_print_era_msg(struct tape_device *device, struct irb *irb)
 		/* Standard Library Service Information Message */
 		return;
 	}
-	PRINT_WARN("(%s): Device Message(%x)\n",
-		   dev_name(&device->cdev->dev), sense->mc);
+	dev_warn (&device->cdev->dev, "The tape unit has issued an unknown "
+		"sense message code %x\n", sense->mc);
 }
 
 static int tape_3590_crypt_error(struct tape_device *device,
@@ -1355,9 +1360,8 @@ static int tape_3590_crypt_error(struct tape_device *device,
 		/* No connection to EKM */
 		return tape_3590_erp_basic(device, request, irb, -ENOTCONN);
 
-	PRINT_ERR("(%s): Unable to get encryption key from EKM\n", bus_id);
-	PRINT_ERR("(%s): CU=%02X DRIVE=%06X EKM=%02X:%04X\n", bus_id, cu_rc,
-		drv_rc, ekm_rc1, ekm_rc2);
+	dev_err (&device->cdev->dev, "The tape unit failed to obtain the "
+		"encryption key from EKM\n");
 
 	return tape_3590_erp_basic(device, request, irb, -ENOKEY);
 }
@@ -1443,8 +1447,6 @@ tape_3590_unit_check(struct tape_device *device, struct tape_request *request,
 		 * print additional msg since default msg
 		 * "device intervention" is not very meaningfull
 		 */
-		PRINT_WARN("(%s): Tape operation when medium not loaded\n",
-			   dev_name(&device->cdev->dev));
 		tape_med_state_set(device, MS_UNLOADED);
 		tape_3590_schedule_work(device, TO_CRYPT_OFF);
 		return tape_3590_erp_basic(device, request, irb, -ENOMEDIUM);
@@ -1490,19 +1492,13 @@ tape_3590_unit_check(struct tape_device *device, struct tape_request *request,
 		return tape_3590_erp_basic(device, request, irb, -ENOMEDIUM);
 
 	case 0x6020:
-		PRINT_WARN("(%s): Cartridge of wrong type ?\n",
-			   dev_name(&device->cdev->dev));
 		return tape_3590_erp_basic(device, request, irb, -EMEDIUMTYPE);
 
 	case 0x8011:
-		PRINT_WARN("(%s): Another host has reserved the tape device\n",
-			   dev_name(&device->cdev->dev));
 		return tape_3590_erp_basic(device, request, irb, -EPERM);
 	case 0x8013:
-		PRINT_WARN("(%s): Another host has privileged access to the "
-			   "tape device\n", dev_name(&device->cdev->dev));
-		PRINT_WARN("(%s): To solve the problem unload the current "
-			   "cartridge!\n", dev_name(&device->cdev->dev));
+		dev_warn (&device->cdev->dev, "A different host has privileged"
+			" access to the tape unit\n");
 		return tape_3590_erp_basic(device, request, irb, -EPERM);
 	default:
 		return tape_3590_erp_basic(device, request, irb, -EIO);
@@ -1552,9 +1548,7 @@ tape_3590_irq(struct tape_device *device, struct tape_request *request,
 	}
 
 	DBF_EVENT(6, "xunknownirq\n");
-	PRINT_ERR("Unexpected interrupt.\n");
-	PRINT_ERR("Current op is: %s", tape_op_verbose[request->op]);
-	tape_dump_sense(device, request, irb);
+	tape_dump_sense_dbf(device, request, irb);
 	return TAPE_IO_STOP;
 }
 
@@ -1609,7 +1603,6 @@ tape_3590_setup_device(struct tape_device *device)
 	if (rc)
 		goto fail_rdc_data;
 	if (rdc_data->data[31] == 0x13) {
-		PRINT_INFO("Device has crypto support\n");
 		data->crypt_info.capability |= TAPE390_CRYPT_SUPPORTED_MASK;
 		tape_3592_disable_crypt(device);
 	} else {

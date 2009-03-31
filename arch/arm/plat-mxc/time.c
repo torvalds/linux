@@ -34,9 +34,6 @@
 static struct clock_event_device clockevent_mxc;
 static enum clock_event_mode clockevent_mode = CLOCK_EVT_MODE_UNUSED;
 
-/* clock source for the timer */
-static struct clk *timer_clk;
-
 /* clock source */
 
 static cycle_t mxc_get_cycles(void)
@@ -53,13 +50,11 @@ static struct clocksource clocksource_mxc = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static int __init mxc_clocksource_init(void)
+static int __init mxc_clocksource_init(struct clk *timer_clk)
 {
-	unsigned int clock;
+	unsigned int c = clk_get_rate(timer_clk);
 
-	clock = clk_get_rate(timer_clk);
-
-	clocksource_mxc.mult = clocksource_hz2mult(clock,
+	clocksource_mxc.mult = clocksource_hz2mult(c,
 					clocksource_mxc.shift);
 	clocksource_register(&clocksource_mxc);
 
@@ -177,13 +172,11 @@ static struct clock_event_device clockevent_mxc = {
 	.rating		= 200,
 };
 
-static int __init mxc_clockevent_init(void)
+static int __init mxc_clockevent_init(struct clk *timer_clk)
 {
-	unsigned int clock;
+	unsigned int c = clk_get_rate(timer_clk);
 
-	clock = clk_get_rate(timer_clk);
-
-	clockevent_mxc.mult = div_sc(clock, NSEC_PER_SEC,
+	clockevent_mxc.mult = div_sc(c, NSEC_PER_SEC,
 					clockevent_mxc.shift);
 	clockevent_mxc.max_delta_ns =
 			clockevent_delta2ns(0xfffffffe, &clockevent_mxc);
@@ -197,14 +190,8 @@ static int __init mxc_clockevent_init(void)
 	return 0;
 }
 
-void __init mxc_timer_init(const char *clk_timer)
+void __init mxc_timer_init(struct clk *timer_clk)
 {
-	timer_clk = clk_get(NULL, clk_timer);
-	if (!timer_clk) {
-		printk(KERN_ERR"Cannot determine timer clock. Giving up.\n");
-		return;
-	}
-
 	clk_enable(timer_clk);
 
 	/*
@@ -219,10 +206,9 @@ void __init mxc_timer_init(const char *clk_timer)
 		     TIMER_BASE + MXC_TCTL);
 
 	/* init and register the timer to the framework */
-	mxc_clocksource_init();
-	mxc_clockevent_init();
+	mxc_clocksource_init(timer_clk);
+	mxc_clockevent_init(timer_clk);
 
 	/* Make irqs happen */
 	setup_irq(TIMER_INTERRUPT, &mxc_timer_irq);
 }
-

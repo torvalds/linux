@@ -253,7 +253,7 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_utime		/* 6130 */
 	PTR	sys_mknod
 	PTR	sys_32_personality
-	PTR	sys_32_ustat
+	PTR	compat_sys_ustat
 	PTR	compat_sys_statfs
 	PTR	compat_sys_fstatfs		/* 6135 */
 	PTR	sys_sysfs

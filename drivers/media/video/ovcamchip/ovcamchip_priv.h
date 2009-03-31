@@ -16,6 +16,7 @@
 #define __LINUX_OVCAMCHIP_PRIV_H
 
 #include <linux/i2c.h>
+#include <media/v4l2-subdev.h>
 #include <media/ovcamchip.h>
 
 #ifdef DEBUG
@@ -46,12 +47,18 @@ struct ovcamchip_ops {
 };
 
 struct ovcamchip {
+	struct v4l2_subdev sd;
 	struct ovcamchip_ops *sops;
 	void *spriv;               /* Private data for OV7x10.c etc... */
 	int subtype;               /* = SEN_OV7610 etc... */
 	int mono;                  /* Monochrome chip? (invalid until init) */
 	int initialized;           /* OVCAMCHIP_CMD_INITIALIZE was successful */
 };
+
+static inline struct ovcamchip *to_ovcamchip(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct ovcamchip, sd);
+}
 
 extern struct ovcamchip_ops ov6x20_ops;
 extern struct ovcamchip_ops ov6x30_ops;

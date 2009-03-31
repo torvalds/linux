@@ -39,60 +39,56 @@ int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
 	unsigned long is_write;
 	int ret;
 
-#if 0
-	if (!IS_VALID_EA(ea)) {
+	if (mm == NULL)
 		return -EFAULT;
-	}
-#endif /* XXX */
-	if (mm == NULL) {
+
+	if (mm->pgd == NULL)
 		return -EFAULT;
-	}
-	if (mm->pgd == NULL) {
-		return -EFAULT;
-	}
 
 	down_read(&mm->mmap_sem);
+	ret = -EFAULT;
 	vma = find_vma(mm, ea);
 	if (!vma)
-		goto bad_area;
-	if (vma->vm_start <= ea)
-		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
-	if (expand_stack(vma, ea))
-		goto bad_area;
-good_area:
+		goto out_unlock;
+
+	if (ea < vma->vm_start) {
+		if (!(vma->vm_flags & VM_GROWSDOWN))
+			goto out_unlock;
+		if (expand_stack(vma, ea))
+			goto out_unlock;
+	}
+
 	is_write = dsisr & MFC_DSISR_ACCESS_PUT;
 	if (is_write) {
 		if (!(vma->vm_flags & VM_WRITE))
-			goto bad_area;
+			goto out_unlock;
 	} else {
 		if (dsisr & MFC_DSISR_ACCESS_DENIED)
-			goto bad_area;
+			goto out_unlock;
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
-			goto bad_area;
+			goto out_unlock;
 	}
+
 	ret = 0;
 	*flt = handle_mm_fault(mm, vma, ea, is_write);
 	if (unlikely(*flt & VM_FAULT_ERROR)) {
 		if (*flt & VM_FAULT_OOM) {
 			ret = -ENOMEM;
-			goto bad_area;
+			goto out_unlock;
 		} else if (*flt & VM_FAULT_SIGBUS) {
 			ret = -EFAULT;
-			goto bad_area;
+			goto out_unlock;
 		}
 		BUG();
 	}
+
 	if (*flt & VM_FAULT_MAJOR)
 		current->maj_flt++;
 	else
 		current->min_flt++;
+
+out_unlock:
 	up_read(&mm->mmap_sem);
 	return ret;
-
-bad_area:
-	up_read(&mm->mmap_sem);
-	return -EFAULT;
 }
 EXPORT_SYMBOL_GPL(spu_handle_mm_fault);

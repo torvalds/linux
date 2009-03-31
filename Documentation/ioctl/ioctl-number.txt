@@ -122,10 +122,8 @@ Code	Seq#	Include File		Comments
 'c'	00-7F	linux/coda.h		conflict!
 'c'	80-9F	arch/s390/include/asm/chsc.h
 'd'	00-FF	linux/char/drm/drm/h	conflict!
-'d'	00-DF	linux/video_decoder.h	conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
-'e'	00-1F	linux/video_encoder.h	conflict!
 'e'	00-1F	net/irda/irtty.h	conflict!
 'f'	00-1F	linux/ext2_fs.h
 'h'	00-7F				Charon filesystem

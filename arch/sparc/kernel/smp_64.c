@@ -808,9 +808,9 @@ static void smp_start_sync_tick_client(int cpu)
 
 extern unsigned long xcall_call_function;
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
-	xcall_deliver((u64) &xcall_call_function, 0, 0, &mask);
+	xcall_deliver((u64) &xcall_call_function, 0, 0, mask);
 }
 
 extern unsigned long xcall_call_function_single;
@@ -850,7 +850,7 @@ static void tsb_sync(void *info)
 
 void smp_tsb_sync(struct mm_struct *mm)
 {
-	smp_call_function_mask(mm->cpu_vm_mask, tsb_sync, mm, 1);
+	smp_call_function_many(mm_cpumask(mm), tsb_sync, mm, 1);
 }
 
 extern unsigned long xcall_flush_tlb_mm;
@@ -1031,7 +1031,7 @@ void smp_fetch_global_regs(void)
  *    If the address space is non-shared (ie. mm->count == 1) we avoid
  *    cross calls when we want to flush the currently running process's
  *    tlb state.  This is done by clearing all cpu bits except the current
- *    processor's in current->active_mm->cpu_vm_mask and performing the
+ *    processor's in current->mm->cpu_vm_mask and performing the
  *    flush locally only.  This will force any subsequent cpus which run
  *    this task to flush the context from the local tlb if the process
  *    migrates to another cpu (again).
@@ -1055,13 +1055,13 @@ void smp_flush_tlb_mm(struct mm_struct *mm)
 	int cpu = get_cpu();
 
 	if (atomic_read(&mm->mm_users) == 1) {
-		mm->cpu_vm_mask = cpumask_of_cpu(cpu);
+		cpumask_copy(mm_cpumask(mm), cpumask_of(cpu));
 		goto local_flush_and_out;
 	}
 
 	smp_cross_call_masked(&xcall_flush_tlb_mm,
 			      ctx, 0, 0,
-			      &mm->cpu_vm_mask);
+			      mm_cpumask(mm));
 
 local_flush_and_out:
 	__flush_tlb_mm(ctx, SECONDARY_CONTEXT);
@@ -1074,12 +1074,12 @@ void smp_flush_tlb_pending(struct mm_struct *mm, unsigned long nr, unsigned long
 	u32 ctx = CTX_HWBITS(mm->context);
 	int cpu = get_cpu();
 
-	if (mm == current->active_mm && atomic_read(&mm->mm_users) == 1)
-		mm->cpu_vm_mask = cpumask_of_cpu(cpu);
+	if (mm == current->mm && atomic_read(&mm->mm_users) == 1)
+		cpumask_copy(mm_cpumask(mm), cpumask_of(cpu));
 	else
 		smp_cross_call_masked(&xcall_flush_tlb_pending,
 				      ctx, nr, (unsigned long) vaddrs,
-				      &mm->cpu_vm_mask);
+				      mm_cpumask(mm));
 
 	__flush_tlb_pending(ctx, nr, vaddrs);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Atheros Communications Inc.
+ * Copyright (c) 2008-2009 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,127 +17,8 @@
 #ifndef REGD_H
 #define REGD_H
 
-#include "ath9k.h"
-
-#define BMLEN 2
-#define BMZERO {(u64) 0, (u64) 0}
-
-#define BM(_fa, _fb, _fc, _fd, _fe, _ff, _fg, _fh, _fi, _fj, _fk, _fl) \
-	{((((_fa >= 0) && (_fa < 64)) ? \
-		(((u64) 1) << _fa) : (u64) 0) | \
-	(((_fb >= 0) && (_fb < 64)) ? \
-		(((u64) 1) << _fb) : (u64) 0) | \
-	(((_fc >= 0) && (_fc < 64)) ? \
-		(((u64) 1) << _fc) : (u64) 0) | \
-	(((_fd >= 0) && (_fd < 64)) ? \
-		(((u64) 1) << _fd) : (u64) 0) | \
-	(((_fe >= 0) && (_fe < 64)) ? \
-		(((u64) 1) << _fe) : (u64) 0) | \
-	(((_ff >= 0) && (_ff < 64)) ? \
-		(((u64) 1) << _ff) : (u64) 0) | \
-	(((_fg >= 0) && (_fg < 64)) ? \
-		(((u64) 1) << _fg) : (u64) 0) | \
-	(((_fh >= 0) && (_fh < 64)) ? \
-		(((u64) 1) << _fh) : (u64) 0) | \
-	(((_fi >= 0) && (_fi < 64)) ? \
-		(((u64) 1) << _fi) : (u64) 0) | \
-	(((_fj >= 0) && (_fj < 64)) ? \
-		(((u64) 1) << _fj) : (u64) 0) | \
-	(((_fk >= 0) && (_fk < 64)) ? \
-		(((u64) 1) << _fk) : (u64) 0) | \
-	(((_fl >= 0) && (_fl < 64)) ? \
-		(((u64) 1) << _fl) : (u64) 0) | \
-			((((_fa > 63) && (_fa < 128)) ? \
-			(((u64) 1) << (_fa - 64)) : (u64) 0) | \
-	(((_fb > 63) && (_fb < 128)) ? \
-		(((u64) 1) << (_fb - 64)) : (u64) 0) | \
-	(((_fc > 63) && (_fc < 128)) ? \
-		(((u64) 1) << (_fc - 64)) : (u64) 0) | \
-	(((_fd > 63) && (_fd < 128)) ? \
-		(((u64) 1) << (_fd - 64)) : (u64) 0) | \
-	(((_fe > 63) && (_fe < 128)) ? \
-		(((u64) 1) << (_fe - 64)) : (u64) 0) | \
-	(((_ff > 63) && (_ff < 128)) ? \
-		(((u64) 1) << (_ff - 64)) : (u64) 0) | \
-	(((_fg > 63) && (_fg < 128)) ? \
-		(((u64) 1) << (_fg - 64)) : (u64) 0) | \
-	(((_fh > 63) && (_fh < 128)) ? \
-		(((u64) 1) << (_fh - 64)) : (u64) 0) | \
-	(((_fi > 63) && (_fi < 128)) ? \
-		(((u64) 1) << (_fi - 64)) : (u64) 0) | \
-	(((_fj > 63) && (_fj < 128)) ? \
-		(((u64) 1) << (_fj - 64)) : (u64) 0) | \
-	(((_fk > 63) && (_fk < 128)) ? \
-		(((u64) 1) << (_fk - 64)) : (u64) 0) | \
-	(((_fl > 63) && (_fl < 128)) ? \
-		(((u64) 1) << (_fl - 64)) : (u64) 0)))}
-
-#define DEF_REGDMN      FCC1_FCCA
-#define DEF_DMN_5       FCC1
-#define DEF_DMN_2       FCCA
 #define COUNTRY_ERD_FLAG        0x8000
 #define WORLDWIDE_ROAMING_FLAG  0x4000
-#define SUPER_DOMAIN_MASK   0x0fff
-#define COUNTRY_CODE_MASK   0x3fff
-#define CF_INTERFERENCE     (CHANNEL_CW_INT | CHANNEL_RADAR_INT)
-#define CHANNEL_14      (2484)
-#define IS_11G_CH14(_ch,_cf) \
-    (((_ch) == CHANNEL_14) && ((_cf) == CHANNEL_G))
-
-#define NO_PSCAN    0x0ULL
-#define PSCAN_FCC   0x0000000000000001ULL
-#define PSCAN_FCC_T 0x0000000000000002ULL
-#define PSCAN_ETSI  0x0000000000000004ULL
-#define PSCAN_MKK1  0x0000000000000008ULL
-#define PSCAN_MKK2  0x0000000000000010ULL
-#define PSCAN_MKKA  0x0000000000000020ULL
-#define PSCAN_MKKA_G    0x0000000000000040ULL
-#define PSCAN_ETSIA 0x0000000000000080ULL
-#define PSCAN_ETSIB 0x0000000000000100ULL
-#define PSCAN_ETSIC 0x0000000000000200ULL
-#define PSCAN_WWR   0x0000000000000400ULL
-#define PSCAN_MKKA1 0x0000000000000800ULL
-#define PSCAN_MKKA1_G   0x0000000000001000ULL
-#define PSCAN_MKKA2 0x0000000000002000ULL
-#define PSCAN_MKKA2_G   0x0000000000004000ULL
-#define PSCAN_MKK3  0x0000000000008000ULL
-#define PSCAN_DEFER 0x7FFFFFFFFFFFFFFFULL
-#define IS_ECM_CHAN 0x8000000000000000ULL
-
-#define isWwrSKU(_ah) \
-	(((ath9k_regd_get_eepromRD((_ah)) & WORLD_SKU_MASK) == \
-		WORLD_SKU_PREFIX) || \
-		(ath9k_regd_get_eepromRD(_ah) == WORLD))
-
-#define isWwrSKU_NoMidband(_ah) \
-	((ath9k_regd_get_eepromRD((_ah)) == WOR3_WORLD) || \
-	(ath9k_regd_get_eepromRD(_ah) == WOR4_WORLD) || \
-	(ath9k_regd_get_eepromRD(_ah) == WOR5_ETSIC))
-
-#define isUNII1OddChan(ch) \
-	((ch == 5170) || (ch == 5190) || (ch == 5210) || (ch == 5230))
-
-#define IS_HT40_MODE(_mode)					\
-	(((_mode == ATH9K_MODE_11NA_HT40PLUS  ||		\
-	   _mode == ATH9K_MODE_11NG_HT40PLUS    ||		\
-	   _mode == ATH9K_MODE_11NA_HT40MINUS   ||		\
-	   _mode == ATH9K_MODE_11NG_HT40MINUS) ? true : false))
-
-#define CHAN_FLAGS      (CHANNEL_ALL|CHANNEL_HALF|CHANNEL_QUARTER)
-
-#define swap_array(_a, _b, _size) {                   \
-	u8 *s = _b;                       \
-	int i = _size;                          \
-	do {                                    \
-		u8 tmp = *_a;             \
-		*_a++ = *s;                     \
-		*s++ = tmp;                     \
-	} while (--i);                          \
-	_a -= _size;                            \
-}
-
-
-#define HALF_MAXCHANBW          10
 
 #define MULTI_DOMAIN_MASK 0xFF00
 
@@ -147,81 +28,27 @@
 #define CHANNEL_HALF_BW         10
 #define CHANNEL_QUARTER_BW      5
 
-typedef int ath_hal_cmp_t(const void *, const void *);
-
 struct reg_dmn_pair_mapping {
 	u16 regDmnEnum;
-	u16 regDmn5GHz;
-	u16 regDmn2GHz;
-	u32 flags5GHz;
-	u32 flags2GHz;
-	u64 pscanMask;
-	u16 singleCC;
-};
-
-struct ccmap {
-	char isoName[3];
-	u16 countryCode;
+	u16 reg_5ghz_ctl;
+	u16 reg_2ghz_ctl;
 };
 
 struct country_code_to_enum_rd {
 	u16 countryCode;
 	u16 regDmnEnum;
 	const char *isoName;
-	const char *name;
-	bool allow11g;
-	bool allow11aTurbo;
-	bool allow11gTurbo;
-	bool allow11ng20;
-	bool allow11ng40;
-	bool allow11na20;
-	bool allow11na40;
-	u16 outdoorChanStart;
 };
 
-struct RegDmnFreqBand {
-	u16 lowChannel;
-	u16 highChannel;
-	u8 powerDfs;
-	u8 antennaMax;
-	u8 channelBW;
-	u8 channelSep;
-	u64 useDfs;
-	u64 usePassScan;
-	u8 regClassId;
-};
-
-struct regDomain {
-	u16 regDmnEnum;
-	u8 conformanceTestLimit;
-	u64 dfsMask;
-	u64 pscan;
-	u32 flags;
-	u64 chan11a[BMLEN];
-	u64 chan11a_turbo[BMLEN];
-	u64 chan11a_dyn_turbo[BMLEN];
-	u64 chan11b[BMLEN];
-	u64 chan11g[BMLEN];
-	u64 chan11g_turbo[BMLEN];
-};
-
-struct cmode {
-	u32 mode;
-	u32 flags;
-};
-
-#define YES true
-#define NO  false
-
-struct japan_bandcheck {
-	u16 freqbandbit;
-	u32 eepromflagtocheck;
-};
-
-struct common_mode_power {
-	u16 lchan;
-	u16 hchan;
-	u8 pwrlvl;
+struct ath9k_regulatory {
+	char alpha2[2];
+	u16 country_code;
+	u16 max_power_level;
+	u32 tp_scale;
+	u16 current_rd;
+	u16 current_rd_ext;
+	int16_t power_limit;
+	struct reg_dmn_pair_mapping *regpair;
 };
 
 enum CountryCode {
@@ -406,7 +233,15 @@ enum CountryCode {
 	CTRY_BELGIUM2 = 5002
 };
 
-void ath9k_regd_get_current_country(struct ath_hal *ah,
-				    struct ath9k_country_entry *ctry);
+bool ath9k_is_world_regd(struct ath_hw *ah);
+const struct ieee80211_regdomain *ath9k_world_regdomain(struct ath_hw *ah);
+const struct ieee80211_regdomain *ath9k_default_world_regdomain(void);
+void ath9k_reg_apply_world_flags(struct wiphy *wiphy,
+				 enum nl80211_reg_initiator initiator);
+void ath9k_reg_apply_radar_flags(struct wiphy *wiphy);
+int ath9k_regd_init(struct ath_hw *ah);
+bool ath9k_regd_is_eeprom_valid(struct ath_hw *ah);
+u32 ath9k_regd_get_ctl(struct ath_hw *ah, struct ath9k_channel *chan);
+int ath9k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
 
 #endif

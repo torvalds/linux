@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/timex.h>
+#include <linux/module.h>
 #include <linux/irqflags.h>
 #include <linux/interrupt.h>
 
@@ -92,6 +93,7 @@ out:
 	local_irq_restore(flags);
 	preempt_enable();
 }
+EXPORT_SYMBOL(__udelay);
 
 /*
  * Simple udelay variant. To be used on startup and reboot

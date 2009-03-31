@@ -12,7 +12,6 @@
  *		performance Alessandro Zummo <alessandro.zummo@towertech.it>
  *
  *	TODO
- *	850 serialization once the core supports it
  *	Investigate no_dsc on 850R
  *	Clock detect
  */
@@ -29,7 +28,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_artop"
-#define DRV_VERSION	"0.4.4"
+#define DRV_VERSION	"0.4.5"
 
 /*
  *	The ARTOP has 33 Mhz and "over clocked" timing tables. Until we
@@ -283,6 +282,31 @@ static void artop6260_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	pci_write_config_byte(pdev, 0x44 + ap->port_no, ultra);
 }
 
+/**
+ *	artop_6210_qc_defer	-	implement serialization
+ *	@qc: command
+ *
+ *	Issue commands per host on this chip.
+ */
+
+static int artop6210_qc_defer(struct ata_queued_cmd *qc)
+{
+	struct ata_host *host = qc->ap->host;
+	struct ata_port *alt = host->ports[1 ^ qc->ap->port_no];
+	int rc;
+
+	/* First apply the usual rules */
+	rc = ata_std_qc_defer(qc);
+	if (rc != 0)
+		return rc;
+
+	/* Now apply serialization rules. Only allow a command if the
+	   other channel state machine is idle */
+	if (alt && alt->qc_active)
+		return	ATA_DEFER_PORT;
+	return 0;
+}
+
 static struct scsi_host_template artop_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
@@ -293,6 +317,7 @@ static struct ata_port_operations artop6210_ops = {
 	.set_piomode		= artop6210_set_piomode,
 	.set_dmamode		= artop6210_set_dmamode,
 	.prereset		= artop6210_pre_reset,
+	.qc_defer		= artop6210_qc_defer,
 };
 
 static struct ata_port_operations artop6260_ops = {
@@ -323,29 +348,29 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 	static int printed_version;
 	static const struct ata_port_info info_6210 = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask 	= ATA_UDMA2,
 		.port_ops	= &artop6210_ops,
 	};
 	static const struct ata_port_info info_626x = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask 	= ATA_UDMA4,
 		.port_ops	= &artop6260_ops,
 	};
 	static const struct ata_port_info info_628x = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask 	= ATA_UDMA5,
 		.port_ops	= &artop6260_ops,
 	};
 	static const struct ata_port_info info_628x_fast = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask 	= ATA_UDMA6,
 		.port_ops	= &artop6260_ops,
 	};
@@ -362,12 +387,8 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (id->driver_data == 0) {	/* 6210 variant */
 		ppi[0] = &info_6210;
-		ppi[1] = &ata_dummy_port_info;
 		/* BIOS may have left us in UDMA, clear it before libata probe */
 		pci_write_config_byte(pdev, 0x54, 0);
-		/* For the moment (also lacks dsc) */
-		printk(KERN_WARNING "ARTOP 6210 requires serialize functionality not yet supported by libata.\n");
-		printk(KERN_WARNING "Secondary ATA ports will not be activated.\n");
 	}
 	else if (id->driver_data == 1)	/* 6260 */
 		ppi[0] = &info_626x;

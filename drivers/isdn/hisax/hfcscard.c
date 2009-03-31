@@ -16,8 +16,6 @@
 #include "hfc_2bds0.h"
 #include "isdnl1.h"
 
-extern const char *CardType[];
-
 static const char *hfcs_revision = "$Revision: 1.10.2.4 $";
 
 static irqreturn_t

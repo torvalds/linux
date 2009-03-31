@@ -204,6 +204,11 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 		goto bailout_kref_put;
 	}
 
+	if (port->serial->disconnected) {
+		retval = -ENODEV;
+		goto bailout_kref_put;
+	}
+
 	if (mutex_lock_interruptible(&port->mutex)) {
 		retval = -ERESTARTSYS;
 		goto bailout_kref_put;
@@ -1067,6 +1072,8 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 	struct usb_serial_port *port;
 	int i, r = 0;
 
+	serial->suspending = 1;
+
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		if (port)
@@ -1083,10 +1090,15 @@ EXPORT_SYMBOL(usb_serial_suspend);
 int usb_serial_resume(struct usb_interface *intf)
 {
 	struct usb_serial *serial = usb_get_intfdata(intf);
+	int rv;
 
+	serial->suspending = 0;
 	if (serial->type->resume)
-		return serial->type->resume(serial);
-	return 0;
+		rv = serial->type->resume(serial);
+	else
+		rv = usb_serial_generic_resume(serial);
+
+	return rv;
 }
 EXPORT_SYMBOL(usb_serial_resume);
 
@@ -1222,13 +1234,15 @@ static void fixup_generic(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, read_bulk_callback);
 	set_to_generic_if_null(device, write_bulk_callback);
 	set_to_generic_if_null(device, shutdown);
-	set_to_generic_if_null(device, resume);
 }
 
 int usb_serial_register(struct usb_serial_driver *driver)
 {
 	/* must be called with BKL held */
 	int retval;
+
+	if (usb_disabled())
+		return -ENODEV;
 
 	fixup_generic(driver);
 

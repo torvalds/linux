@@ -44,11 +44,6 @@
 #define parent_node(nid) (nid)
 
 /*
- * Returns the number of the first CPU on Node 'node'.
- */
-#define node_to_first_cpu(node) (cpumask_first(cpumask_of_node(node)))
-
-/*
  * Determines the node for a given pci bus
  */
 #define pcibus_to_node(bus) PCI_CONTROLLER(bus)->node
@@ -84,7 +79,7 @@ void build_cpu_to_node_map(void);
 	.child			= NULL,			\
 	.groups			= NULL,			\
 	.min_interval		= 8,			\
-	.max_interval		= 8*(min(num_online_cpus(), 32)), \
+	.max_interval		= 8*(min(num_online_cpus(), 32U)), \
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 125,			\
 	.cache_nice_tries	= 2,			\

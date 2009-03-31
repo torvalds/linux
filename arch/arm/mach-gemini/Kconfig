@@ -1,0 +1,19 @@
+if ARCH_GEMINI
+
+menu "Cortina Systems Gemini Implementations"
+
+config MACH_RUT100
+	bool "Teltonika RUT100"
+	select GEMINI_MEM_SWAP
+	help
+	  Say Y here if you intend to run this kernel on a
+	  Teltonika 3G Router RUT100.
+
+endmenu
+
+config GEMINI_MEM_SWAP
+	bool "Gemini memory is swapped"
+	help
+	  Say Y here if Gemini memory is swapped by bootloader.
+
+endif

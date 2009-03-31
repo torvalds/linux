@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
+
+<!-- ****************************************************** -->
+<!-- Header  -->
+<!-- ****************************************************** -->
+<book id="ALSA-Driver-API">
+  <bookinfo>
+    <title>The ALSA Driver API</title>
+
+    <legalnotice>
+    <para>
+    This document is free; you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version. 
+    </para>
+
+    <para>
+    This document is distributed in the hope that it will be useful,
+    but <emphasis>WITHOUT ANY WARRANTY</emphasis>; without even the
+    implied warranty of <emphasis>MERCHANTABILITY or FITNESS FOR A
+    PARTICULAR PURPOSE</emphasis>. See the GNU General Public License
+    for more details.
+    </para>
+
+    <para>
+    You should have received a copy of the GNU General Public
+    License along with this program; if not, write to the Free
+    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+    MA 02111-1307 USA
+    </para>
+    </legalnotice>
+
+  </bookinfo>
+
+<toc></toc>
+
+  <chapter><title>Management of Cards and Devices</title>
+     <sect1><title>Card Management</title>
+!Esound/core/init.c
+     </sect1>
+     <sect1><title>Device Components</title>
+!Esound/core/device.c
+     </sect1>
+     <sect1><title>Module requests and Device File Entries</title>
+!Esound/core/sound.c
+     </sect1>
+     <sect1><title>Memory Management Helpers</title>
+!Esound/core/memory.c
+!Esound/core/memalloc.c
+     </sect1>
+  </chapter>
+  <chapter><title>PCM API</title>
+     <sect1><title>PCM Core</title>
+!Esound/core/pcm.c
+!Esound/core/pcm_lib.c
+!Esound/core/pcm_native.c
+     </sect1>
+     <sect1><title>PCM Format Helpers</title>
+!Esound/core/pcm_misc.c
+     </sect1>
+     <sect1><title>PCM Memory Management</title>
+!Esound/core/pcm_memory.c
+     </sect1>
+  </chapter>
+  <chapter><title>Control/Mixer API</title>
+     <sect1><title>General Control Interface</title>
+!Esound/core/control.c
+     </sect1>
+     <sect1><title>AC97 Codec API</title>
+!Esound/pci/ac97/ac97_codec.c
+!Esound/pci/ac97/ac97_pcm.c
+     </sect1>
+     <sect1><title>Virtual Master Control API</title>
+!Esound/core/vmaster.c
+!Iinclude/sound/control.h
+     </sect1>
+  </chapter>
+  <chapter><title>MIDI API</title>
+     <sect1><title>Raw MIDI API</title>
+!Esound/core/rawmidi.c
+     </sect1>
+     <sect1><title>MPU401-UART API</title>
+!Esound/drivers/mpu401/mpu401_uart.c
+     </sect1>
+  </chapter>
+  <chapter><title>Proc Info API</title>
+     <sect1><title>Proc Info Interface</title>
+!Esound/core/info.c
+     </sect1>
+  </chapter>
+  <chapter><title>Miscellaneous Functions</title>
+     <sect1><title>Hardware-Dependent Devices API</title>
+!Esound/core/hwdep.c
+     </sect1>
+     <sect1><title>Jack Abstraction Layer API</title>
+!Esound/core/jack.c
+     </sect1>
+     <sect1><title>ISA DMA Helpers</title>
+!Esound/core/isadma.c
+     </sect1>
+     <sect1><title>Other Helper Macros</title>
+!Iinclude/sound/core.h
+     </sect1>
+  </chapter>
+
+</book>

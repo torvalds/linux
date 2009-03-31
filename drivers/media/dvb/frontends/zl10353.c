@@ -572,6 +572,10 @@ static int zl10353_init(struct dvb_frontend *fe)
 		zl10353_dump_regs(fe);
 	if (state->config.parallel_ts)
 		zl10353_reset_attach[2] &= ~0x20;
+	if (state->config.clock_ctl_1)
+		zl10353_reset_attach[3] = state->config.clock_ctl_1;
+	if (state->config.pll_0)
+		zl10353_reset_attach[4] = state->config.pll_0;
 
 	/* Do a "hard" reset if not already done */
 	if (zl10353_read_register(state, 0x50) != zl10353_reset_attach[1] ||
@@ -590,7 +594,7 @@ static int zl10353_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 	struct zl10353_state *state = fe->demodulator_priv;
 	u8 val = 0x0a;
 
-	if (state->config.no_tuner) {
+	if (state->config.disable_i2c_gate_ctrl) {
 		/* No tuner attached to the internal I2C bus */
 		/* If set enable I2C bridge, the main I2C bus stopped hardly */
 		return 0;
@@ -614,6 +618,7 @@ struct dvb_frontend *zl10353_attach(const struct zl10353_config *config,
 				    struct i2c_adapter *i2c)
 {
 	struct zl10353_state *state = NULL;
+	int id;
 
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct zl10353_state), GFP_KERNEL);
@@ -625,7 +630,8 @@ struct dvb_frontend *zl10353_attach(const struct zl10353_config *config,
 	memcpy(&state->config, config, sizeof(struct zl10353_config));
 
 	/* check if the demod is there */
-	if (zl10353_read_register(state, CHIP_ID) != ID_ZL10353)
+	id = zl10353_read_register(state, CHIP_ID);
+	if ((id != ID_ZL10353) && (id != ID_CE6230) && (id != ID_CE6231))
 		goto error;
 
 	/* create dvb_frontend */

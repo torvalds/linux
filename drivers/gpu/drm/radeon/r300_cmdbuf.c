@@ -37,6 +37,8 @@
 #include "radeon_drv.h"
 #include "r300_reg.h"
 
+#include <asm/unaligned.h>
+
 #define R300_SIMULTANEOUS_CLIPRECTS		4
 
 /* Values for R300_RE_CLIPRECT_CNTL depending on the number of cliprects
@@ -205,6 +207,10 @@ void r300_init_reg_flags(struct drm_device *dev)
 	ADD_RANGE(0x42C0, 2);
 	ADD_RANGE(R300_RS_CNTL_0, 2);
 
+	ADD_RANGE(R300_SU_REG_DEST, 1);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV530)
+		ADD_RANGE(RV530_FG_ZBREG_DEST, 1);
+
 	ADD_RANGE(R300_SC_HYPERZ, 2);
 	ADD_RANGE(0x43E8, 1);
 
@@ -230,6 +236,7 @@ void r300_init_reg_flags(struct drm_device *dev)
 	ADD_RANGE(R300_ZB_DEPTHPITCH, 1);
 	ADD_RANGE(R300_ZB_DEPTHCLEARVALUE, 1);
 	ADD_RANGE(R300_ZB_ZMASK_OFFSET, 13);
+	ADD_RANGE(R300_ZB_ZPASS_DATA, 2); /* ZB_ZPASS_DATA, ZB_ZPASS_ADDR */
 
 	ADD_RANGE(R300_TX_FILTER_0, 16);
 	ADD_RANGE(R300_TX_FILTER1_0, 16);
@@ -917,6 +924,7 @@ static int r300_scratch(drm_radeon_private_t *dev_priv,
 {
 	u32 *ref_age_base;
 	u32 i, buf_idx, h_pending;
+	u64 ptr_addr;
 	RING_LOCALS;
 
 	if (cmdbuf->bufsz <
@@ -930,7 +938,8 @@ static int r300_scratch(drm_radeon_private_t *dev_priv,
 
 	dev_priv->scratch_ages[header.scratch.reg]++;
 
-	ref_age_base =  (u32 *)(unsigned long)*((uint64_t *)cmdbuf->buf);
+	ptr_addr = get_unaligned((u64 *)cmdbuf->buf);
+	ref_age_base = (u32 *)(unsigned long)ptr_addr;
 
 	cmdbuf->buf += sizeof(u64);
 	cmdbuf->bufsz -= sizeof(u64);

@@ -1,5 +1,5 @@
 /*
- * cx2341x - generic code for cx23415/6 based devices
+ * cx2341x - generic code for cx23415/6/8 based devices
  *
  * Copyright (C) 2006 Hans Verkuil <hverkuil@xs4all.nl>
  *
@@ -30,7 +30,7 @@
 #include <media/cx2341x.h>
 #include <media/v4l2-common.h>
 
-MODULE_DESCRIPTION("cx23415/6 driver");
+MODULE_DESCRIPTION("cx23415/6/8 driver");
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_LICENSE("GPL");
 
@@ -38,6 +38,7 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
+/* Must be sorted from low to high control ID! */
 const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_CLASS,
 	V4L2_CID_MPEG_STREAM_TYPE,
@@ -50,6 +51,7 @@ const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_AUDIO_EMPHASIS,
 	V4L2_CID_MPEG_AUDIO_CRC,
 	V4L2_CID_MPEG_AUDIO_MUTE,
+	V4L2_CID_MPEG_AUDIO_AC3_BITRATE,
 	V4L2_CID_MPEG_VIDEO_ENCODING,
 	V4L2_CID_MPEG_VIDEO_ASPECT,
 	V4L2_CID_MPEG_VIDEO_B_FRAMES,
@@ -94,6 +96,7 @@ static const struct cx2341x_mpeg_params default_params = {
 	.audio_sampling_freq = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
 	.audio_encoding = V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
 	.audio_l2_bitrate = V4L2_MPEG_AUDIO_L2_BITRATE_224K,
+	.audio_ac3_bitrate = V4L2_MPEG_AUDIO_AC3_BITRATE_224K,
 	.audio_mode = V4L2_MPEG_AUDIO_MODE_STEREO,
 	.audio_mode_extension = V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4,
 	.audio_emphasis = V4L2_MPEG_AUDIO_EMPHASIS_NONE,
@@ -147,6 +150,9 @@ static int cx2341x_get_ctrl(const struct cx2341x_mpeg_params *params,
 		break;
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
 		ctrl->value = params->audio_l2_bitrate;
+		break;
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+		ctrl->value = params->audio_ac3_bitrate;
 		break;
 	case V4L2_CID_MPEG_AUDIO_MODE:
 		ctrl->value = params->audio_mode;
@@ -256,12 +262,25 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params, int busy,
 		params->audio_sampling_freq = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
+		if (busy)
+			return -EBUSY;
+		if (params->capabilities & CX2341X_CAP_HAS_AC3)
+			if (ctrl->value != V4L2_MPEG_AUDIO_ENCODING_LAYER_2 &&
+			    ctrl->value != V4L2_MPEG_AUDIO_ENCODING_AC3)
+				return -ERANGE;
 		params->audio_encoding = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
 		if (busy)
 			return -EBUSY;
 		params->audio_l2_bitrate = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+		if (busy)
+			return -EBUSY;
+		if (!(params->capabilities & CX2341X_CAP_HAS_AC3))
+			return -EINVAL;
+		params->audio_ac3_bitrate = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_AUDIO_MODE:
 		params->audio_mode = ctrl->value;
@@ -481,28 +500,105 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 	int err;
 
 	switch (qctrl->id) {
+	case V4L2_CID_MPEG_STREAM_TYPE:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
+				V4L2_MPEG_STREAM_TYPE_MPEG2_SVCD, 1,
+				V4L2_MPEG_STREAM_TYPE_MPEG2_PS);
+
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:
+		if (params->capabilities & CX2341X_CAP_HAS_SLICED_VBI)
+			return v4l2_ctrl_query_fill(qctrl,
+					V4L2_MPEG_STREAM_VBI_FMT_NONE,
+					V4L2_MPEG_STREAM_VBI_FMT_IVTV, 1,
+					V4L2_MPEG_STREAM_VBI_FMT_NONE);
+		return cx2341x_ctrl_query_fill(qctrl,
+				V4L2_MPEG_STREAM_VBI_FMT_NONE,
+				V4L2_MPEG_STREAM_VBI_FMT_NONE, 1,
+				default_params.stream_vbi_fmt);
+
+	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100,
+				V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000, 1,
+				V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000);
+
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
+		if (params->capabilities & CX2341X_CAP_HAS_AC3) {
+			/*
+			 * The state of L2 & AC3 bitrate controls can change
+			 * when this control changes, but v4l2_ctrl_query_fill()
+			 * already sets V4L2_CTRL_FLAG_UPDATE for
+			 * V4L2_CID_MPEG_AUDIO_ENCODING, so we don't here.
+			 */
+			return v4l2_ctrl_query_fill(qctrl,
+					V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
+					V4L2_MPEG_AUDIO_ENCODING_AC3, 1,
+					default_params.audio_encoding);
+		}
+
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_2, 1,
 				default_params.audio_encoding);
 
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
-		return v4l2_ctrl_query_fill(qctrl,
+		err = v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_L2_BITRATE_192K,
 				V4L2_MPEG_AUDIO_L2_BITRATE_384K, 1,
 				default_params.audio_l2_bitrate);
+		if (err)
+			return err;
+		if (params->capabilities & CX2341X_CAP_HAS_AC3 &&
+		    params->audio_encoding != V4L2_MPEG_AUDIO_ENCODING_LAYER_2)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		return 0;
 
-	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
-	case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
-		return -EINVAL;
+	case V4L2_CID_MPEG_AUDIO_MODE:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_MODE_STEREO,
+				V4L2_MPEG_AUDIO_MODE_MONO, 1,
+				V4L2_MPEG_AUDIO_MODE_STEREO);
 
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
-		err = v4l2_ctrl_query_fill_std(qctrl);
+		err = v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4,
+				V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_16, 1,
+				V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4);
 		if (err == 0 &&
 		    params->audio_mode != V4L2_MPEG_AUDIO_MODE_JOINT_STEREO)
 			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return err;
+
+	case V4L2_CID_MPEG_AUDIO_EMPHASIS:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_EMPHASIS_NONE,
+				V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17, 1,
+				V4L2_MPEG_AUDIO_EMPHASIS_NONE);
+
+	case V4L2_CID_MPEG_AUDIO_CRC:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_CRC_NONE,
+				V4L2_MPEG_AUDIO_CRC_CRC16, 1,
+				V4L2_MPEG_AUDIO_CRC_NONE);
+
+	case V4L2_CID_MPEG_AUDIO_MUTE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
+
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+		err = v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_48K,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_448K, 1,
+				default_params.audio_ac3_bitrate);
+		if (err)
+			return err;
+		if (params->capabilities & CX2341X_CAP_HAS_AC3) {
+			if (params->audio_encoding !=
+						   V4L2_MPEG_AUDIO_ENCODING_AC3)
+				qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		} else
+			qctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
+		return 0;
 
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
 		/* this setting is read-only for the cx2341x since the
@@ -516,32 +612,51 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 			qctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 		return err;
 
+	case V4L2_CID_MPEG_VIDEO_ASPECT:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_VIDEO_ASPECT_1x1,
+				V4L2_MPEG_VIDEO_ASPECT_221x100, 1,
+				V4L2_MPEG_VIDEO_ASPECT_4x3);
+
+	case V4L2_CID_MPEG_VIDEO_B_FRAMES:
+		return v4l2_ctrl_query_fill(qctrl, 0, 33, 1, 2);
+
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+		return v4l2_ctrl_query_fill(qctrl, 1, 34, 1,
+				params->is_50hz ? 12 : 15);
+
+	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 1);
+
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
-		err = v4l2_ctrl_query_fill_std(qctrl);
+		err = v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_VIDEO_BITRATE_MODE_VBR,
+				V4L2_MPEG_VIDEO_BITRATE_MODE_CBR, 1,
+				V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
 		if (err == 0 &&
 		    params->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1)
 			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return err;
 
+	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 27000000, 1, 6000000);
+
 	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
-		err = v4l2_ctrl_query_fill_std(qctrl);
+		err = v4l2_ctrl_query_fill(qctrl, 0, 27000000, 1, 8000000);
 		if (err == 0 &&
 		    params->video_bitrate_mode ==
 				V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
 			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return err;
 
-	case V4L2_CID_MPEG_STREAM_VBI_FMT:
-		if (params->capabilities & CX2341X_CAP_HAS_SLICED_VBI)
-			return v4l2_ctrl_query_fill_std(qctrl);
-		return cx2341x_ctrl_query_fill(qctrl,
-				V4L2_MPEG_STREAM_VBI_FMT_NONE,
-				V4L2_MPEG_STREAM_VBI_FMT_NONE, 1,
-				default_params.stream_vbi_fmt);
+	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION:
+		return v4l2_ctrl_query_fill(qctrl, 0, 255, 1, 0);
 
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
-		return v4l2_ctrl_query_fill(qctrl, 1, 34, 1,
-				params->is_50hz ? 12 : 15);
+	case V4L2_CID_MPEG_VIDEO_MUTE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
+
+	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:  /* Init YUV (really YCbCr) to black */
+		return v4l2_ctrl_query_fill(qctrl, 0, 0xffffff, 1, 0x008080);
 
 	/* CX23415/6 specific */
 	case V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE:
@@ -643,7 +758,7 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 				default_params.stream_insert_nav_packets);
 
 	default:
-		return v4l2_ctrl_query_fill_std(qctrl);
+		return -EINVAL;
 
 	}
 }
@@ -668,6 +783,15 @@ const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id)
 		"MPEG-2 DVD-compatible Stream",
 		"MPEG-1 VCD-compatible Stream",
 		"MPEG-2 SVCD-compatible Stream",
+		NULL
+	};
+
+	static const char *mpeg_audio_encoding_l2_ac3[] = {
+		"",
+		"MPEG-1/2 Layer II",
+		"",
+		"",
+		"AC-3",
 		NULL
 	};
 
@@ -711,6 +835,9 @@ const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id)
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		return (p->capabilities & CX2341X_CAP_HAS_TS) ?
 			mpeg_stream_type_with_ts : mpeg_stream_type_without_ts;
+	case V4L2_CID_MPEG_AUDIO_ENCODING:
+		return (p->capabilities & CX2341X_CAP_HAS_AC3) ?
+			mpeg_audio_encoding_l2_ac3 : v4l2_ctrl_get_menu(id);
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
 		return NULL;
@@ -730,16 +857,34 @@ const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id)
 }
 EXPORT_SYMBOL(cx2341x_ctrl_get_menu);
 
+/* definitions for audio properties bits 29-28 */
+#define CX2341X_AUDIO_ENCODING_METHOD_MPEG	0
+#define CX2341X_AUDIO_ENCODING_METHOD_AC3	1
+#define CX2341X_AUDIO_ENCODING_METHOD_LPCM	2
+
 static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 {
-	params->audio_properties = (params->audio_sampling_freq << 0) |
-		((3 - params->audio_encoding) << 2) |
-		((1 + params->audio_l2_bitrate) << 4) |
+	params->audio_properties =
+		(params->audio_sampling_freq << 0) |
 		(params->audio_mode << 8) |
 		(params->audio_mode_extension << 10) |
 		(((params->audio_emphasis == V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17)
 		  ? 3 : params->audio_emphasis) << 12) |
 		(params->audio_crc << 14);
+
+	if ((params->capabilities & CX2341X_CAP_HAS_AC3) &&
+	    params->audio_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3) {
+		params->audio_properties |=
+			/* Not sure if this MPEG Layer II setting is required */
+			((3 - V4L2_MPEG_AUDIO_ENCODING_LAYER_2) << 2) |
+			(params->audio_ac3_bitrate << 4) |
+			(CX2341X_AUDIO_ENCODING_METHOD_AC3 << 28);
+	} else {
+		/* Assuming MPEG Layer II */
+		params->audio_properties |=
+			((3 - params->audio_encoding) << 2) |
+			((1 + params->audio_l2_bitrate) << 4);
+	}
 }
 
 int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params, int busy,
@@ -1022,7 +1167,10 @@ void cx2341x_log_status(const struct cx2341x_mpeg_params *p, const char *prefix)
 		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_ENCODING),
-		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_L2_BITRATE),
+		cx2341x_menu_item(p,
+			   p->audio_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3
+					      ? V4L2_CID_MPEG_AUDIO_AC3_BITRATE
+					      : V4L2_CID_MPEG_AUDIO_L2_BITRATE),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_MODE),
 		p->audio_mute ? " (muted)" : "");
 	if (p->audio_mode == V4L2_MPEG_AUDIO_MODE_JOINT_STEREO)

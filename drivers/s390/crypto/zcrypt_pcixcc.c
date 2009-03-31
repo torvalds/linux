@@ -781,8 +781,7 @@ static long zcrypt_pcixcc_send_cprb(struct zcrypt_device *zdev,
 		/* Signal pending. */
 		ap_cancel_message(zdev->ap_dev, &ap_msg);
 out_free:
-	memset(ap_msg.message, 0x0, ap_msg.length);
-	kfree(ap_msg.message);
+	kzfree(ap_msg.message);
 	return rc;
 }
 

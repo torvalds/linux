@@ -92,7 +92,7 @@ enum iomux_gp_func {
 	MUX_EXTDMAREQ2_MBX_SEL		= 1 << 15,
 	MUX_TAMPER_DETECT_EN		= 1 << 16,
 	MUX_PGP_USB_4WIRE		= 1 << 17,
-	MUX_PGB_USB_COMMON		= 1 << 18,
+	MUX_PGP_USB_COMMON		= 1 << 18,
 	MUX_SDHC_MEMSTICK1		= 1 << 19,
 	MUX_SDHC_MEMSTICK2		= 1 << 20,
 	MUX_PGP_SPLL_BYP		= 1 << 21,
@@ -109,21 +109,44 @@ enum iomux_gp_func {
 };
 
 /*
+ * setups a single pin:
+ * 	- reserves the pin so that it is not claimed by another driver
+ * 	- setups the iomux according to the configuration
+ * 	- if the pin is configured as a GPIO, we claim it throug kernel gpiolib
+ */
+int mxc_iomux_setup_pin(const unsigned int pin, const char *label);
+/*
+ * setups mutliple pins
+ * convenient way to call the above function with tables
+ */
+int mxc_iomux_setup_multiple_pins(unsigned int *pin_list, unsigned count,
+		const char *label);
+
+/*
+ * releases a single pin:
+ * 	- make it available for a future use by another driver
+ * 	- frees the GPIO if the pin was configured as GPIO
+ * 	- DOES NOT reconfigure the IOMUX in its reset state
+ */
+void mxc_iomux_release_pin(const unsigned int pin);
+/*
+ * releases multiple pins
+ * convenvient way to call the above function with tables
+ */
+void mxc_iomux_release_multiple_pins(unsigned int *pin_list, int count);
+
+/*
  * This function enables/disables the general purpose function for a particular
  * signal.
  */
-void iomux_config_gpr(enum iomux_gp_func , bool);
+void mxc_iomux_set_gpr(enum iomux_gp_func, bool en);
 
 /*
- * set the mode for a IOMUX pin.
+ * This function only configures the iomux hardware.
+ * It is called by the setup functions and should not be called directly anymore.
+ * It is here visible for backward compatibility
  */
-int mxc_iomux_mode(unsigned int);
-
-/*
- * This function enables/disables the general purpose function for a particular
- * signal.
- */
-void mxc_iomux_set_gpr(enum iomux_gp_func, bool);
+int mxc_iomux_mode(unsigned int pin_mode);
 
 #define IOMUX_PADNUM_MASK	0x1ff
 #define IOMUX_GPIONUM_SHIFT	9
@@ -142,6 +165,11 @@ void mxc_iomux_set_gpr(enum iomux_gp_func, bool);
 #define IOMUX_TO_IRQ(iomux_pin) \
 	(((iomux_pin & IOMUX_GPIONUM_MASK) >> IOMUX_GPIONUM_SHIFT) + \
 	MXC_GPIO_IRQ_START)
+
+/*
+ * The number of gpio devices among the pads
+ */
+#define GPIO_PORT_MAX 3
 
 /*
  * This enumeration is constructed based on the Section
@@ -480,6 +508,9 @@ enum iomux_pins {
 	MX31_PIN_CAPTURE	= IOMUX_PIN( 7,   327),
 };
 
+#define PIN_MAX 327
+#define NB_PORTS 12 /* NB_PINS/32, we chose 32 pins per "PORT" */
+
 /*
  * Convenience values for use with mxc_iomux_mode()
  *
@@ -507,7 +538,9 @@ enum iomux_pins {
 #define MX31_PIN_CSPI1_SS1__SS1		IOMUX_MODE(MX31_PIN_CSPI1_SS1, IOMUX_CONFIG_FUNC)
 #define MX31_PIN_CSPI1_SS2__SS2		IOMUX_MODE(MX31_PIN_CSPI1_SS2, IOMUX_CONFIG_FUNC)
 #define MX31_PIN_CSPI2_MOSI__MOSI	IOMUX_MODE(MX31_PIN_CSPI2_MOSI, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_CSPI2_MOSI__SCL	IOMUX_MODE(MX31_PIN_CSPI2_MOSI, IOMUX_CONFIG_ALT1)
 #define MX31_PIN_CSPI2_MISO__MISO	IOMUX_MODE(MX31_PIN_CSPI2_MISO, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_CSPI2_MISO__SDA	IOMUX_MODE(MX31_PIN_CSPI2_MISO, IOMUX_CONFIG_ALT1)
 #define MX31_PIN_CSPI2_SCLK__SCLK	IOMUX_MODE(MX31_PIN_CSPI2_SCLK, IOMUX_CONFIG_FUNC)
 #define MX31_PIN_CSPI2_SPI_RDY__SPI_RDY	IOMUX_MODE(MX31_PIN_CSPI2_SPI_RDY, IOMUX_CONFIG_FUNC)
 #define MX31_PIN_CSPI2_SS0__SS0		IOMUX_MODE(MX31_PIN_CSPI2_SS0, IOMUX_CONFIG_FUNC)
@@ -525,6 +558,33 @@ enum iomux_pins {
 #define MX31_PIN_SD1_DATA0__SD1_DATA0	IOMUX_MODE(MX31_PIN_SD1_DATA0, IOMUX_CONFIG_FUNC)
 #define MX31_PIN_SD1_CLK__SD1_CLK	IOMUX_MODE(MX31_PIN_SD1_CLK, IOMUX_CONFIG_FUNC)
 #define MX31_PIN_SD1_CMD__SD1_CMD	IOMUX_MODE(MX31_PIN_SD1_CMD, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD0__LD0		IOMUX_MODE(MX31_PIN_LD0, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD1__LD1		IOMUX_MODE(MX31_PIN_LD1, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD2__LD2		IOMUX_MODE(MX31_PIN_LD2, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD3__LD3		IOMUX_MODE(MX31_PIN_LD3, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD4__LD4		IOMUX_MODE(MX31_PIN_LD4, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD5__LD5		IOMUX_MODE(MX31_PIN_LD5, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD6__LD6		IOMUX_MODE(MX31_PIN_LD6, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD7__LD7		IOMUX_MODE(MX31_PIN_LD7, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD8__LD8		IOMUX_MODE(MX31_PIN_LD8, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD9__LD9		IOMUX_MODE(MX31_PIN_LD9, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD10__LD10		IOMUX_MODE(MX31_PIN_LD10, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD11__LD11		IOMUX_MODE(MX31_PIN_LD11, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD12__LD12		IOMUX_MODE(MX31_PIN_LD12, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD13__LD13		IOMUX_MODE(MX31_PIN_LD13, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD14__LD14		IOMUX_MODE(MX31_PIN_LD14, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD15__LD15		IOMUX_MODE(MX31_PIN_LD15, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD16__LD16		IOMUX_MODE(MX31_PIN_LD16, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LD17__LD17		IOMUX_MODE(MX31_PIN_LD17, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_VSYNC3__VSYNC3		IOMUX_MODE(MX31_PIN_VSYNC3, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_HSYNC__HSYNC		IOMUX_MODE(MX31_PIN_HSYNC, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_FPSHIFT__FPSHIFT	IOMUX_MODE(MX31_PIN_FPSHIFT, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_DRDY0__DRDY0		IOMUX_MODE(MX31_PIN_DRDY0, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_D3_REV__D3_REV		IOMUX_MODE(MX31_PIN_D3_REV, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_CONTRAST__CONTRAST	IOMUX_MODE(MX31_PIN_CONTRAST, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_D3_SPL__D3_SPL		IOMUX_MODE(MX31_PIN_D3_SPL, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_D3_CLS__D3_CLS		IOMUX_MODE(MX31_PIN_D3_CLS, IOMUX_CONFIG_FUNC)
+#define MX31_PIN_LCS0__GPI03_23		IOMUX_MODE(MX31_PIN_LCS0, IOMUX_CONFIG_GPIO)
 
 /*XXX: The SS0, SS1, SS2, SS3 lines of spi3 are multiplexed by cspi2_ss0, cspi2_ss1, cspi1_ss0
  * cspi1_ss1*/

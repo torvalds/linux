@@ -117,10 +117,28 @@ accessible parameters:
 sampling_rate: measured in uS (10^-6 seconds), this is how often you
 want the kernel to look at the CPU usage and to make decisions on
 what to do about the frequency.  Typically this is set to values of
-around '10000' or more.
+around '10000' or more. It's default value is (cmp. with users-guide.txt):
+transition_latency * 1000
+The lowest value you can set is:
+transition_latency * 100 or it may get restricted to a value where it
+makes not sense for the kernel anymore to poll that often which depends
+on your HZ config variable (HZ=1000: max=20000us, HZ=250: max=5000).
+Be aware that transition latency is in ns and sampling_rate is in us, so you
+get the same sysfs value by default.
+Sampling rate should always get adjusted considering the transition latency
+To set the sampling rate 750 times as high as the transition latency
+in the bash (as said, 1000 is default), do:
+echo `$(($(cat cpuinfo_transition_latency) * 750 / 1000)) \
+    >ondemand/sampling_rate
 
-show_sampling_rate_(min|max): the minimum and maximum sampling rates
-available that you may set 'sampling_rate' to.
+show_sampling_rate_(min|max): THIS INTERFACE IS DEPRECATED, DON'T USE IT.
+You can use wider ranges now and the general
+cpuinfo_transition_latency variable (cmp. with user-guide.txt) can be
+used to obtain exactly the same info:
+show_sampling_rate_min = transtition_latency * 500    / 1000
+show_sampling_rate_max = transtition_latency * 500000 / 1000
+(divided by 1000 is to illustrate that sampling rate is in us and
+transition latency is exported ns).
 
 up_threshold: defines what the average CPU usage between the samplings
 of 'sampling_rate' needs to be for the kernel to make a decision on

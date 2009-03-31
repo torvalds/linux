@@ -38,6 +38,13 @@ struct zl10353_config
 
 	/* set if parallel ts output is required */
 	int parallel_ts;
+
+	/* set if i2c_gate_ctrl disable is required */
+	u8 disable_i2c_gate_ctrl:1;
+
+	/* clock control registers (0x51-0x54) */
+	u8 clock_ctl_1;  /* default: 0x46 */
+	u8 pll_0;        /* default: 0x15 */
 };
 
 #if defined(CONFIG_DVB_ZL10353) || (defined(CONFIG_DVB_ZL10353_MODULE) && defined(MODULE))

@@ -82,8 +82,10 @@
 #define NFS3_commitres_sz	(1+NFS3_wcc_data_sz+2)
 
 #define ACL3_getaclargs_sz	(NFS3_fh_sz+1)
-#define ACL3_setaclargs_sz	(NFS3_fh_sz+1+2*(2+5*3))
-#define ACL3_getaclres_sz	(1+NFS3_post_op_attr_sz+1+2*(2+5*3))
+#define ACL3_setaclargs_sz	(NFS3_fh_sz+1+ \
+				XDR_QUADLEN(NFS_ACL_INLINE_BUFSIZE))
+#define ACL3_getaclres_sz	(1+NFS3_post_op_attr_sz+1+ \
+				XDR_QUADLEN(NFS_ACL_INLINE_BUFSIZE))
 #define ACL3_setaclres_sz	(1+NFS3_post_op_attr_sz)
 
 /*
@@ -703,28 +705,18 @@ nfs3_xdr_setaclargs(struct rpc_rqst *req, __be32 *p,
                    struct nfs3_setaclargs *args)
 {
 	struct xdr_buf *buf = &req->rq_snd_buf;
-	unsigned int base, len_in_head, len = nfsacl_size(
-		(args->mask & NFS_ACL)   ? args->acl_access  : NULL,
-		(args->mask & NFS_DFACL) ? args->acl_default : NULL);
-	int count, err;
+	unsigned int base;
+	int err;
 
 	p = xdr_encode_fhandle(p, NFS_FH(args->inode));
 	*p++ = htonl(args->mask);
-	base = (char *)p - (char *)buf->head->iov_base;
-	/* put as much of the acls into head as possible. */
-	len_in_head = min_t(unsigned int, buf->head->iov_len - base, len);
-	len -= len_in_head;
-	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p + (len_in_head >> 2));
+	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
+	base = req->rq_slen;
 
-	for (count = 0; (count << PAGE_SHIFT) < len; count++) {
-		args->pages[count] = alloc_page(GFP_KERNEL);
-		if (!args->pages[count]) {
-			while (count)
-				__free_page(args->pages[--count]);
-			return -ENOMEM;
-		}
-	}
-	xdr_encode_pages(buf, args->pages, 0, len);
+	if (args->npages != 0)
+		xdr_encode_pages(buf, args->pages, 0, args->len);
+	else
+		req->rq_slen += args->len;
 
 	err = nfsacl_encode(buf, base, args->inode,
 			    (args->mask & NFS_ACL) ?

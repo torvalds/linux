@@ -336,9 +336,10 @@
 #define NUM_PDC_RESULT	32
 
 #if !defined(__ASSEMBLY__)
-#ifdef __KERNEL__
 
 #include <linux/types.h>
+
+#ifdef __KERNEL__
 
 extern int pdc_type;
 

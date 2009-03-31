@@ -204,7 +204,7 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
  *	out to be nice and simple.
  */
 
-static unsigned int init_chipset_ich(struct pci_dev *dev)
+static int init_chipset_ich(struct pci_dev *dev)
 {
 	u32 extra = 0;
 
@@ -318,19 +318,12 @@ static const struct ide_port_ops ich_port_ops = {
 	.cable_detect		= piix_cable_detect,
 };
 
-#ifndef CONFIG_IA64
- #define IDE_HFLAGS_PIIX IDE_HFLAG_LEGACY_IRQS
-#else
- #define IDE_HFLAGS_PIIX 0
-#endif
-
 #define DECLARE_PIIX_DEV(udma) \
 	{						\
 		.name		= DRV_NAME,		\
 		.init_hwif	= init_hwif_piix,	\
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
 		.port_ops	= &piix_port_ops,	\
-		.host_flags	= IDE_HFLAGS_PIIX,	\
 		.pio_mask	= ATA_PIO4,		\
 		.swdma_mask	= ATA_SWDMA2_ONLY,	\
 		.mwdma_mask	= ATA_MWDMA12_ONLY,	\
@@ -344,7 +337,6 @@ static const struct ide_port_ops ich_port_ops = {
 		.init_hwif	= init_hwif_piix, \
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
 		.port_ops	= &ich_port_ops, \
-		.host_flags	= IDE_HFLAGS_PIIX, \
 		.pio_mask	= ATA_PIO4, \
 		.swdma_mask	= ATA_SWDMA2_ONLY, \
 		.mwdma_mask	= ATA_MWDMA12_ONLY, \
@@ -360,8 +352,7 @@ static const struct ide_port_info piix_pci_info[] __devinitdata = {
 		 */
 		.name		= DRV_NAME,
 		.enablebits	= {{0x6d,0xc0,0x80}, {0x6d,0xc0,0xc0}},
-		.host_flags	= IDE_HFLAG_ISA_PORTS | IDE_HFLAG_NO_DMA |
-				  IDE_HFLAGS_PIIX,
+		.host_flags	= IDE_HFLAG_ISA_PORTS | IDE_HFLAG_NO_DMA,
 		.pio_mask	= ATA_PIO4,
 		/* This is a painful system best to let it self tune for now */
 	},

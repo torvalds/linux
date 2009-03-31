@@ -600,11 +600,14 @@ static struct tvec_base *lock_timer_base(struct timer_list *timer,
 	}
 }
 
-int __mod_timer(struct timer_list *timer, unsigned long expires)
+static inline int
+__mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 {
 	struct tvec_base *base, *new_base;
 	unsigned long flags;
-	int ret = 0;
+	int ret;
+
+	ret = 0;
 
 	timer_stats_timer_set_start_info(timer);
 	BUG_ON(!timer->function);
@@ -614,6 +617,9 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 	if (timer_pending(timer)) {
 		detach_timer(timer, 0);
 		ret = 1;
+	} else {
+		if (pending_only)
+			goto out_unlock;
 	}
 
 	debug_timer_activate(timer);
@@ -640,12 +646,83 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 
 	timer->expires = expires;
 	internal_add_timer(base, timer);
+
+out_unlock:
 	spin_unlock_irqrestore(&base->lock, flags);
 
 	return ret;
 }
 
-EXPORT_SYMBOL(__mod_timer);
+/**
+ * mod_timer_pending - modify a pending timer's timeout
+ * @timer: the pending timer to be modified
+ * @expires: new timeout in jiffies
+ *
+ * mod_timer_pending() is the same for pending timers as mod_timer(),
+ * but will not re-activate and modify already deleted timers.
+ *
+ * It is useful for unserialized use of timers.
+ */
+int mod_timer_pending(struct timer_list *timer, unsigned long expires)
+{
+	return __mod_timer(timer, expires, true);
+}
+EXPORT_SYMBOL(mod_timer_pending);
+
+/**
+ * mod_timer - modify a timer's timeout
+ * @timer: the timer to be modified
+ * @expires: new timeout in jiffies
+ *
+ * mod_timer() is a more efficient way to update the expire field of an
+ * active timer (if the timer is inactive it will be activated)
+ *
+ * mod_timer(timer, expires) is equivalent to:
+ *
+ *     del_timer(timer); timer->expires = expires; add_timer(timer);
+ *
+ * Note that if there are multiple unserialized concurrent users of the
+ * same timer, then mod_timer() is the only safe way to modify the timeout,
+ * since add_timer() cannot modify an already running timer.
+ *
+ * The function returns whether it has modified a pending timer or not.
+ * (ie. mod_timer() of an inactive timer returns 0, mod_timer() of an
+ * active timer returns 1.)
+ */
+int mod_timer(struct timer_list *timer, unsigned long expires)
+{
+	/*
+	 * This is a common optimization triggered by the
+	 * networking code - if the timer is re-modified
+	 * to be the same thing then just return:
+	 */
+	if (timer->expires == expires && timer_pending(timer))
+		return 1;
+
+	return __mod_timer(timer, expires, false);
+}
+EXPORT_SYMBOL(mod_timer);
+
+/**
+ * add_timer - start a timer
+ * @timer: the timer to be added
+ *
+ * The kernel will do a ->function(->data) callback from the
+ * timer interrupt at the ->expires point in the future. The
+ * current time is 'jiffies'.
+ *
+ * The timer's ->expires, ->function (and if the handler uses it, ->data)
+ * fields must be set prior calling this function.
+ *
+ * Timers with an ->expires field in the past will be executed in the next
+ * timer tick.
+ */
+void add_timer(struct timer_list *timer)
+{
+	BUG_ON(timer_pending(timer));
+	mod_timer(timer, timer->expires);
+}
+EXPORT_SYMBOL(add_timer);
 
 /**
  * add_timer_on - start a timer on a particular CPU
@@ -678,44 +755,6 @@ void add_timer_on(struct timer_list *timer, int cpu)
 }
 
 /**
- * mod_timer - modify a timer's timeout
- * @timer: the timer to be modified
- * @expires: new timeout in jiffies
- *
- * mod_timer() is a more efficient way to update the expire field of an
- * active timer (if the timer is inactive it will be activated)
- *
- * mod_timer(timer, expires) is equivalent to:
- *
- *     del_timer(timer); timer->expires = expires; add_timer(timer);
- *
- * Note that if there are multiple unserialized concurrent users of the
- * same timer, then mod_timer() is the only safe way to modify the timeout,
- * since add_timer() cannot modify an already running timer.
- *
- * The function returns whether it has modified a pending timer or not.
- * (ie. mod_timer() of an inactive timer returns 0, mod_timer() of an
- * active timer returns 1.)
- */
-int mod_timer(struct timer_list *timer, unsigned long expires)
-{
-	BUG_ON(!timer->function);
-
-	timer_stats_timer_set_start_info(timer);
-	/*
-	 * This is a common optimization triggered by the
-	 * networking code - if the timer is re-modified
-	 * to be the same thing then just return:
-	 */
-	if (timer->expires == expires && timer_pending(timer))
-		return 1;
-
-	return __mod_timer(timer, expires);
-}
-
-EXPORT_SYMBOL(mod_timer);
-
-/**
  * del_timer - deactive a timer.
  * @timer: the timer to be deactivated
  *
@@ -744,7 +783,6 @@ int del_timer(struct timer_list *timer)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(del_timer);
 
 #ifdef CONFIG_SMP
@@ -778,7 +816,6 @@ out:
 
 	return ret;
 }
-
 EXPORT_SYMBOL(try_to_del_timer_sync);
 
 /**
@@ -816,7 +853,6 @@ int del_timer_sync(struct timer_list *timer)
 		cpu_relax();
 	}
 }
-
 EXPORT_SYMBOL(del_timer_sync);
 #endif
 
@@ -1314,7 +1350,7 @@ signed long __sched schedule_timeout(signed long timeout)
 	expire = timeout + jiffies;
 
 	setup_timer_on_stack(&timer, process_timeout, (unsigned long)current);
-	__mod_timer(&timer, expire);
+	__mod_timer(&timer, expire, false);
 	schedule();
 	del_singleshot_timer_sync(&timer);
 

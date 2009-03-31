@@ -489,6 +489,28 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		ace->fsm_state, ace->id_req_count);
 #endif
 
+	/* Verify that there is actually a CF in the slot. If not, then
+	 * bail out back to the idle state and wake up all the waiters */
+	status = ace_in32(ace, ACE_STATUS);
+	if ((status & ACE_STATUS_CFDETECT) == 0) {
+		ace->fsm_state = ACE_FSM_STATE_IDLE;
+		ace->media_change = 1;
+		set_capacity(ace->gd, 0);
+		dev_info(ace->dev, "No CF in slot\n");
+
+		/* Drop all pending requests */
+		while ((req = elv_next_request(ace->queue)) != NULL)
+			end_request(req, 0);
+
+		/* Drop back to IDLE state and notify waiters */
+		ace->fsm_state = ACE_FSM_STATE_IDLE;
+		ace->id_result = -EIO;
+		while (ace->id_req_count) {
+			complete(&ace->id_completion);
+			ace->id_req_count--;
+		}
+	}
+
 	switch (ace->fsm_state) {
 	case ACE_FSM_STATE_IDLE:
 		/* See if there is anything to do */

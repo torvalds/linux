@@ -539,6 +539,9 @@ struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 				    &keyring_name_hash[bucket],
 				    type_data.link
 				    ) {
+			if (keyring->user->user_ns != current_user_ns())
+				continue;
+
 			if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
 				continue;
 

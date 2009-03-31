@@ -366,29 +366,6 @@ int msp_sleep(struct msp_state *state, int timeout)
 }
 
 /* ------------------------------------------------------------------------ */
-#ifdef CONFIG_VIDEO_ALLOW_V4L1
-static int msp_mode_v4l2_to_v4l1(int rxsubchans, int audmode)
-{
-	if (rxsubchans == V4L2_TUNER_SUB_MONO)
-		return VIDEO_SOUND_MONO;
-	if (rxsubchans == V4L2_TUNER_SUB_STEREO)
-		return VIDEO_SOUND_STEREO;
-	if (audmode == V4L2_TUNER_MODE_LANG2)
-		return VIDEO_SOUND_LANG2;
-	return VIDEO_SOUND_LANG1;
-}
-
-static int msp_mode_v4l1_to_v4l2(int mode)
-{
-	if (mode & VIDEO_SOUND_STEREO)
-		return V4L2_TUNER_MODE_STEREO;
-	if (mode & VIDEO_SOUND_LANG2)
-		return V4L2_TUNER_MODE_LANG2;
-	if (mode & VIDEO_SOUND_LANG1)
-		return V4L2_TUNER_MODE_LANG1;
-	return V4L2_TUNER_MODE_MONO;
-}
-#endif
 
 static int msp_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
@@ -481,96 +458,6 @@ static int msp_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	msp_set_audio(client);
 	return 0;
 }
-
-#ifdef CONFIG_VIDEO_ALLOW_V4L1
-static long msp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
-{
-	struct msp_state *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	switch (cmd) {
-	/* --- v4l ioctls --- */
-	/* take care: bttv does userspace copying, we'll get a
-	   kernel pointer here... */
-	case VIDIOCGAUDIO:
-	{
-		struct video_audio *va = arg;
-
-		va->flags |= VIDEO_AUDIO_VOLUME | VIDEO_AUDIO_MUTABLE;
-		if (state->has_sound_processing)
-			va->flags |= VIDEO_AUDIO_BALANCE |
-				VIDEO_AUDIO_BASS |
-				VIDEO_AUDIO_TREBLE;
-		if (state->muted)
-			va->flags |= VIDEO_AUDIO_MUTE;
-		va->volume = state->volume;
-		va->balance = state->volume ? state->balance : 32768;
-		va->bass = state->bass;
-		va->treble = state->treble;
-
-		if (state->radio)
-			break;
-		if (state->opmode == OPMODE_AUTOSELECT)
-			msp_detect_stereo(client);
-		va->mode = msp_mode_v4l2_to_v4l1(state->rxsubchans, state->audmode);
-		break;
-	}
-
-	case VIDIOCSAUDIO:
-	{
-		struct video_audio *va = arg;
-
-		state->muted = (va->flags & VIDEO_AUDIO_MUTE);
-		state->volume = va->volume;
-		state->balance = va->balance;
-		state->bass = va->bass;
-		state->treble = va->treble;
-		msp_set_audio(client);
-
-		if (va->mode != 0 && state->radio == 0 &&
-		    state->audmode != msp_mode_v4l1_to_v4l2(va->mode)) {
-			state->audmode = msp_mode_v4l1_to_v4l2(va->mode);
-			msp_set_audmode(client);
-		}
-		break;
-	}
-
-	case VIDIOCSCHAN:
-	{
-		struct video_channel *vc = arg;
-		int update = 0;
-		v4l2_std_id std;
-
-		if (state->radio)
-			update = 1;
-		state->radio = 0;
-		if (vc->norm == VIDEO_MODE_PAL)
-			std = V4L2_STD_PAL;
-		else if (vc->norm == VIDEO_MODE_SECAM)
-			std = V4L2_STD_SECAM;
-		else
-			std = V4L2_STD_NTSC;
-		if (std != state->v4l2_std) {
-			state->v4l2_std = std;
-			update = 1;
-		}
-		if (update)
-			msp_wake_thread(client);
-		break;
-	}
-
-	case VIDIOCSFREQ:
-	{
-		/* new channel -- kick audio carrier scan */
-		msp_wake_thread(client);
-		break;
-	}
-	default:
-		return -ENOIOCTLCMD;
-	}
-	return 0;
-}
-#endif
 
 /* --- v4l2 ioctls --- */
 static int msp_s_radio(struct v4l2_subdev *sd)
@@ -713,22 +600,24 @@ static int msp_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	struct msp_state *state = to_state(sd);
 
 	switch (qc->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-		case V4L2_CID_AUDIO_MUTE:
-			return v4l2_ctrl_query_fill_std(qc);
-		default:
-			break;
+	case V4L2_CID_AUDIO_VOLUME:
+		return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 58880);
+	case V4L2_CID_AUDIO_MUTE:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
+	default:
+		break;
 	}
 	if (!state->has_sound_processing)
 		return -EINVAL;
 	switch (qc->id) {
-		case V4L2_CID_AUDIO_LOUDNESS:
-		case V4L2_CID_AUDIO_BALANCE:
-		case V4L2_CID_AUDIO_BASS:
-		case V4L2_CID_AUDIO_TREBLE:
-			return v4l2_ctrl_query_fill_std(qc);
-		default:
-			return -EINVAL;
+	case V4L2_CID_AUDIO_LOUDNESS:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
+	case V4L2_CID_AUDIO_BALANCE:
+	case V4L2_CID_AUDIO_BASS:
+	case V4L2_CID_AUDIO_TREBLE:
+		return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
+	default:
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -820,9 +709,6 @@ static const struct v4l2_subdev_core_ops msp_core_ops = {
 	.g_ctrl = msp_g_ctrl,
 	.s_ctrl = msp_s_ctrl,
 	.queryctrl = msp_queryctrl,
-#ifdef CONFIG_VIDEO_ALLOW_V4L1
-	.ioctl = msp_ioctl,
-#endif
 };
 
 static const struct v4l2_subdev_tuner_ops msp_tuner_ops = {

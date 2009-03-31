@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -59,8 +59,8 @@
 #define EEPROM_SIZE			0x006a
 #define BBP_BASE			0x0000
 #define BBP_SIZE			0x0060
-#define RF_BASE				0x0000
-#define RF_SIZE				0x0014
+#define RF_BASE				0x0004
+#define RF_SIZE				0x0010
 
 /*
  * Number of TX queues.
@@ -189,6 +189,14 @@
  * MAC_CSR19: GPIO control register.
  */
 #define MAC_CSR19			0x0426
+#define MAC_CSR19_BIT0			FIELD32(0x0001)
+#define MAC_CSR19_BIT1			FIELD32(0x0002)
+#define MAC_CSR19_BIT2			FIELD32(0x0004)
+#define MAC_CSR19_BIT3			FIELD32(0x0008)
+#define MAC_CSR19_BIT4			FIELD32(0x0010)
+#define MAC_CSR19_BIT5			FIELD32(0x0020)
+#define MAC_CSR19_BIT6			FIELD32(0x0040)
+#define MAC_CSR19_BIT7			FIELD32(0x0080)
 
 /*
  * MAC_CSR20: LED control register.

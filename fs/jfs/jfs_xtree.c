@@ -164,11 +164,8 @@ int xtLookup(struct inode *ip, s64 lstart,
 		/* is lookup offset beyond eof ? */
 		size = ((u64) ip->i_size + (JFS_SBI(ip->i_sb)->bsize - 1)) >>
 		    JFS_SBI(ip->i_sb)->l2bsize;
-		if (lstart >= size) {
-			jfs_err("xtLookup: lstart (0x%lx) >= size (0x%lx)",
-				(ulong) lstart, (ulong) size);
+		if (lstart >= size)
 			return 0;
-		}
 	}
 
 	/*
@@ -219,264 +216,6 @@ int xtLookup(struct inode *ip, s64 lstart,
 
 	return rc;
 }
-
-
-/*
- *	xtLookupList()
- *
- * function: map a single logical extent into a list of physical extent;
- *
- * parameter:
- *	struct inode	*ip,
- *	struct lxdlist	*lxdlist,	lxd list (in)
- *	struct xadlist	*xadlist,	xad list (in/out)
- *	int		flag)
- *
- * coverage of lxd by xad under assumption of
- * . lxd's are ordered and disjoint.
- * . xad's are ordered and disjoint.
- *
- * return:
- *	0:	success
- *
- * note: a page being written (even a single byte) is backed fully,
- *	except the last page which is only backed with blocks
- *	required to cover the last byte;
- *	the extent backing a page is fully contained within an xad;
- */
-int xtLookupList(struct inode *ip, struct lxdlist * lxdlist,
-		 struct xadlist * xadlist, int flag)
-{
-	int rc = 0;
-	struct btstack btstack;
-	int cmp;
-	s64 bn;
-	struct metapage *mp;
-	xtpage_t *p;
-	int index;
-	lxd_t *lxd;
-	xad_t *xad, *pxd;
-	s64 size, lstart, lend, xstart, xend, pstart;
-	s64 llen, xlen, plen;
-	s64 xaddr, paddr;
-	int nlxd, npxd, maxnpxd;
-
-	npxd = xadlist->nxad = 0;
-	maxnpxd = xadlist->maxnxad;
-	pxd = xadlist->xad;
-
-	nlxd = lxdlist->nlxd;
-	lxd = lxdlist->lxd;
-
-	lstart = offsetLXD(lxd);
-	llen = lengthLXD(lxd);
-	lend = lstart + llen;
-
-	size = (ip->i_size + (JFS_SBI(ip->i_sb)->bsize - 1)) >>
-	    JFS_SBI(ip->i_sb)->l2bsize;
-
-	/*
-	 * search for the xad entry covering the logical extent
-	 */
-      search:
-	if (lstart >= size)
-		return 0;
-
-	if ((rc = xtSearch(ip, lstart, NULL, &cmp, &btstack, 0)))
-		return rc;
-
-	/*
-	 *	compute the physical extent covering logical extent
-	 *
-	 * N.B. search may have failed (e.g., hole in sparse file),
-	 * and returned the index of the next entry.
-	 */
-//map:
-	/* retrieve search result */
-	XT_GETSEARCH(ip, btstack.top, bn, mp, p, index);
-
-	/* is xad on the next sibling page ? */
-	if (index == le16_to_cpu(p->header.nextindex)) {
-		if (p->header.flag & BT_ROOT)
-			goto mapend;
-
-		if ((bn = le64_to_cpu(p->header.next)) == 0)
-			goto mapend;
-
-		XT_PUTPAGE(mp);
-
-		/* get next sibling page */
-		XT_GETPAGE(ip, bn, mp, PSIZE, p, rc);
-		if (rc)
-			return rc;
-
-		index = XTENTRYSTART;
-	}
-
-	xad = &p->xad[index];
-
-	/*
-	 * is lxd covered by xad ?
-	 */
-      compare:
-	xstart = offsetXAD(xad);
-	xlen = lengthXAD(xad);
-	xend = xstart + xlen;
-	xaddr = addressXAD(xad);
-
-      compare1:
-	if (xstart < lstart)
-		goto compare2;
-
-	/* (lstart <= xstart) */
-
-	/* lxd is NOT covered by xad */
-	if (lend <= xstart) {
-		/*
-		 * get next lxd
-		 */
-		if (--nlxd == 0)
-			goto mapend;
-		lxd++;
-
-		lstart = offsetLXD(lxd);
-		llen = lengthLXD(lxd);
-		lend = lstart + llen;
-		if (lstart >= size)
-			goto mapend;
-
-		/* compare with the current xad */
-		goto compare1;
-	}
-	/* lxd is covered by xad */
-	else {			/* (xstart < lend) */
-
-		/* initialize new pxd */
-		pstart = xstart;
-		plen = min(lend - xstart, xlen);
-		paddr = xaddr;
-
-		goto cover;
-	}
-
-	/* (xstart < lstart) */
-      compare2:
-	/* lxd is covered by xad */
-	if (lstart < xend) {
-		/* initialize new pxd */
-		pstart = lstart;
-		plen = min(xend - lstart, llen);
-		paddr = xaddr + (lstart - xstart);
-
-		goto cover;
-	}
-	/* lxd is NOT covered by xad */
-	else {			/* (xend <= lstart) */
-
-		/*
-		 * get next xad
-		 *
-		 * linear search next xad covering lxd on
-		 * the current xad page, and then tree search
-		 */
-		if (index == le16_to_cpu(p->header.nextindex) - 1) {
-			if (p->header.flag & BT_ROOT)
-				goto mapend;
-
-			XT_PUTPAGE(mp);
-			goto search;
-		} else {
-			index++;
-			xad++;
-
-			/* compare with new xad */
-			goto compare;
-		}
-	}
-
-	/*
-	 * lxd is covered by xad and a new pxd has been initialized
-	 * (lstart <= xstart < lend) or (xstart < lstart < xend)
-	 */
-      cover:
-	/* finalize pxd corresponding to current xad */
-	XT_PUTENTRY(pxd, xad->flag, pstart, plen, paddr);
-
-	if (++npxd >= maxnpxd)
-		goto mapend;
-	pxd++;
-
-	/*
-	 * lxd is fully covered by xad
-	 */
-	if (lend <= xend) {
-		/*
-		 * get next lxd
-		 */
-		if (--nlxd == 0)
-			goto mapend;
-		lxd++;
-
-		lstart = offsetLXD(lxd);
-		llen = lengthLXD(lxd);
-		lend = lstart + llen;
-		if (lstart >= size)
-			goto mapend;
-
-		/*
-		 * test for old xad covering new lxd
-		 * (old xstart < new lstart)
-		 */
-		goto compare2;
-	}
-	/*
-	 * lxd is partially covered by xad
-	 */
-	else {			/* (xend < lend) */
-
-		/*
-		 * get next xad
-		 *
-		 * linear search next xad covering lxd on
-		 * the current xad page, and then next xad page search
-		 */
-		if (index == le16_to_cpu(p->header.nextindex) - 1) {
-			if (p->header.flag & BT_ROOT)
-				goto mapend;
-
-			if ((bn = le64_to_cpu(p->header.next)) == 0)
-				goto mapend;
-
-			XT_PUTPAGE(mp);
-
-			/* get next sibling page */
-			XT_GETPAGE(ip, bn, mp, PSIZE, p, rc);
-			if (rc)
-				return rc;
-
-			index = XTENTRYSTART;
-			xad = &p->xad[index];
-		} else {
-			index++;
-			xad++;
-		}
-
-		/*
-		 * test for new xad covering old lxd
-		 * (old lstart < new xstart)
-		 */
-		goto compare;
-	}
-
-      mapend:
-	xadlist->nxad = npxd;
-
-//out:
-	XT_PUTPAGE(mp);
-
-	return rc;
-}
-
 
 /*
  *	xtSearch()
@@ -846,10 +585,10 @@ int xtInsert(tid_t tid,		/* transaction id */
 			hint = addressXAD(xad) + lengthXAD(xad) - 1;
 		} else
 			hint = 0;
-		if ((rc = DQUOT_ALLOC_BLOCK(ip, xlen)))
+		if ((rc = vfs_dq_alloc_block(ip, xlen)))
 			goto out;
 		if ((rc = dbAlloc(ip, hint, (s64) xlen, &xaddr))) {
-			DQUOT_FREE_BLOCK(ip, xlen);
+			vfs_dq_free_block(ip, xlen);
 			goto out;
 		}
 	}
@@ -878,7 +617,7 @@ int xtInsert(tid_t tid,		/* transaction id */
 			/* undo data extent allocation */
 			if (*xaddrp == 0) {
 				dbFree(ip, xaddr, (s64) xlen);
-				DQUOT_FREE_BLOCK(ip, xlen);
+				vfs_dq_free_block(ip, xlen);
 			}
 			return rc;
 		}
@@ -1246,7 +985,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 	rbn = addressPXD(pxd);
 
 	/* Allocate blocks to quota. */
-	if (DQUOT_ALLOC_BLOCK(ip, lengthPXD(pxd))) {
+	if (vfs_dq_alloc_block(ip, lengthPXD(pxd))) {
 		rc = -EDQUOT;
 		goto clean_up;
 	}
@@ -1456,7 +1195,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 
 	/* Rollback quota allocation. */
 	if (quota_allocation)
-		DQUOT_FREE_BLOCK(ip, quota_allocation);
+		vfs_dq_free_block(ip, quota_allocation);
 
 	return (rc);
 }
@@ -1513,7 +1252,7 @@ xtSplitRoot(tid_t tid,
 		return -EIO;
 
 	/* Allocate blocks to quota. */
-	if (DQUOT_ALLOC_BLOCK(ip, lengthPXD(pxd))) {
+	if (vfs_dq_alloc_block(ip, lengthPXD(pxd))) {
 		release_metapage(rmp);
 		return -EDQUOT;
 	}
@@ -3941,7 +3680,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 		ip->i_size = newsize;
 
 	/* update quota allocation to reflect freed blocks */
-	DQUOT_FREE_BLOCK(ip, nfreed);
+	vfs_dq_free_block(ip, nfreed);
 
 	/*
 	 * free tlock of invalidated pages

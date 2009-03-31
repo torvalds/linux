@@ -17,7 +17,6 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -25,7 +24,6 @@
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
-#include "mount.h"
 #include "recovery.h"
 #include "rgrp.h"
 #include "super.h"
@@ -64,7 +62,6 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_quota_warn_period = 10;
 	gt->gt_quota_scale_num = 1;
 	gt->gt_quota_scale_den = 1;
-	gt->gt_quota_cache_secs = 300;
 	gt->gt_quota_quantum = 60;
 	gt->gt_new_files_jdata = 0;
 	gt->gt_max_readahead = 1 << 18;
@@ -100,7 +97,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	mutex_init(&sdp->sd_jindex_mutex);
 
 	INIT_LIST_HEAD(&sdp->sd_quota_list);
-	spin_lock_init(&sdp->sd_quota_spin);
 	mutex_init(&sdp->sd_quota_mutex);
 	init_waitqueue_head(&sdp->sd_quota_wait);
 	INIT_LIST_HEAD(&sdp->sd_trunc_list);
@@ -238,6 +234,7 @@ static void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
 
 	memcpy(sb->sb_lockproto, str->sb_lockproto, GFS2_LOCKNAME_LEN);
 	memcpy(sb->sb_locktable, str->sb_locktable, GFS2_LOCKNAME_LEN);
+	memcpy(sb->sb_uuid, str->sb_uuid, 16);
 }
 
 /**
@@ -299,15 +296,15 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
 	__free_page(page);
 	return 0;
 }
+
 /**
  * gfs2_read_sb - Read super block
  * @sdp: The GFS2 superblock
- * @gl: the glock for the superblock (assumed to be held)
  * @silent: Don't print message if mount fails
  *
  */
 
-static int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
+static int gfs2_read_sb(struct gfs2_sbd *sdp, int silent)
 {
 	u32 hash_blocks, ind_blocks, leaf_blocks;
 	u32 tmp_blocks;
@@ -527,7 +524,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent)
 		return ret;
 	}
 
-	ret = gfs2_read_sb(sdp, sb_gh.gh_gl, silent);
+	ret = gfs2_read_sb(sdp, silent);
 	if (ret) {
 		fs_err(sdp, "can't read superblock: %d\n", ret);
 		goto out;
@@ -630,13 +627,13 @@ static int map_journal_extents(struct gfs2_sbd *sdp)
 	return rc;
 }
 
-static void gfs2_lm_others_may_mount(struct gfs2_sbd *sdp)
+static void gfs2_others_may_mount(struct gfs2_sbd *sdp)
 {
-	if (!sdp->sd_lockstruct.ls_ops->lm_others_may_mount)
-		return;
-	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		sdp->sd_lockstruct.ls_ops->lm_others_may_mount(
-					sdp->sd_lockstruct.ls_lockspace);
+	char *message = "FIRSTMOUNT=Done";
+	char *envp[] = { message, NULL };
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	ls->ls_first_done = 1;
+	kobject_uevent_env(&sdp->sd_kobj, KOBJ_CHANGE, envp);
 }
 
 /**
@@ -796,7 +793,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 			}
 		}
 
-		gfs2_lm_others_may_mount(sdp);
+		gfs2_others_may_mount(sdp);
 	} else if (!sdp->sd_args.ar_spectator) {
 		error = gfs2_recover_journal(sdp->sd_jdesc);
 		if (error) {
@@ -1005,7 +1002,6 @@ static int init_threads(struct gfs2_sbd *sdp, int undo)
 		goto fail_quotad;
 
 	sdp->sd_log_flush_time = jiffies;
-	sdp->sd_jindex_refresh_time = jiffies;
 
 	p = kthread_run(gfs2_logd, sdp, "gfs2_logd");
 	error = IS_ERR(p);
@@ -1033,6 +1029,17 @@ fail:
 	return error;
 }
 
+static const match_table_t nolock_tokens = {
+	{ Opt_jid, "jid=%d\n", },
+	{ Opt_err, NULL },
+};
+
+static const struct lm_lockops nolock_ops = {
+	.lm_proto_name = "lock_nolock",
+	.lm_put_lock = kmem_cache_free,
+	.lm_tokens = &nolock_tokens,
+};
+
 /**
  * gfs2_lm_mount - mount a locking protocol
  * @sdp: the filesystem
@@ -1044,31 +1051,73 @@ fail:
 
 static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 {
-	char *proto = sdp->sd_proto_name;
-	char *table = sdp->sd_table_name;
-	int flags = LM_MFLAG_CONV_NODROP;
-	int error;
+	const struct lm_lockops *lm;
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	struct gfs2_args *args = &sdp->sd_args;
+	const char *proto = sdp->sd_proto_name;
+	const char *table = sdp->sd_table_name;
+	const char *fsname;
+	char *o, *options;
+	int ret;
 
-	if (sdp->sd_args.ar_spectator)
-		flags |= LM_MFLAG_SPECTATOR;
+	if (!strcmp("lock_nolock", proto)) {
+		lm = &nolock_ops;
+		sdp->sd_args.ar_localflocks = 1;
+		sdp->sd_args.ar_localcaching = 1;
+#ifdef CONFIG_GFS2_FS_LOCKING_DLM
+	} else if (!strcmp("lock_dlm", proto)) {
+		lm = &gfs2_dlm_ops;
+#endif
+	} else {
+		printk(KERN_INFO "GFS2: can't find protocol %s\n", proto);
+		return -ENOENT;
+	}
 
 	fs_info(sdp, "Trying to join cluster \"%s\", \"%s\"\n", proto, table);
 
-	error = gfs2_mount_lockproto(proto, table, sdp->sd_args.ar_hostdata,
-				     gfs2_glock_cb, sdp,
-				     GFS2_MIN_LVB_SIZE, flags,
-				     &sdp->sd_lockstruct, &sdp->sd_kobj);
-	if (error) {
-		fs_info(sdp, "can't mount proto=%s, table=%s, hostdata=%s\n",
-			proto, table, sdp->sd_args.ar_hostdata);
-		goto out;
-	}
+	ls->ls_ops = lm;
+	ls->ls_first = 1;
+	ls->ls_id = 0;
 
-	if (gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_ops) ||
-	    gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_lvb_size >=
-				  GFS2_MIN_LVB_SIZE)) {
-		gfs2_unmount_lockproto(&sdp->sd_lockstruct);
-		goto out;
+	for (options = args->ar_hostdata; (o = strsep(&options, ":")); ) {
+		substring_t tmp[MAX_OPT_ARGS];
+		int token, option;
+
+		if (!o || !*o)
+			continue;
+
+		token = match_token(o, *lm->lm_tokens, tmp);
+		switch (token) {
+		case Opt_jid:
+			ret = match_int(&tmp[0], &option);
+			if (ret || option < 0) 
+				goto hostdata_error;
+			ls->ls_jid = option;
+			break;
+		case Opt_id:
+			ret = match_int(&tmp[0], &option);
+			if (ret)
+				goto hostdata_error;
+			ls->ls_id = option;
+			break;
+		case Opt_first:
+			ret = match_int(&tmp[0], &option);
+			if (ret || (option != 0 && option != 1))
+				goto hostdata_error;
+			ls->ls_first = option;
+			break;
+		case Opt_nodir:
+			ret = match_int(&tmp[0], &option);
+			if (ret || (option != 0 && option != 1))
+				goto hostdata_error;
+			ls->ls_nodir = option;
+			break;
+		case Opt_err:
+		default:
+hostdata_error:
+			fs_info(sdp, "unknown hostdata (%s)\n", o);
+			return -EINVAL;
+		}
 	}
 
 	if (sdp->sd_args.ar_spectator)
@@ -1077,22 +1126,25 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.%u", table,
 			 sdp->sd_lockstruct.ls_jid);
 
-	fs_info(sdp, "Joined cluster. Now mounting FS...\n");
-
-	if ((sdp->sd_lockstruct.ls_flags & LM_LSFLAG_LOCAL) &&
-	    !sdp->sd_args.ar_ignore_local_fs) {
-		sdp->sd_args.ar_localflocks = 1;
-		sdp->sd_args.ar_localcaching = 1;
+	fsname = strchr(table, ':');
+	if (fsname)
+		fsname++;
+	if (lm->lm_mount == NULL) {
+		fs_info(sdp, "Now mounting FS...\n");
+		return 0;
 	}
-
-out:
-	return error;
+	ret = lm->lm_mount(sdp, fsname);
+	if (ret == 0)
+		fs_info(sdp, "Joined cluster. Now mounting FS...\n");
+	return ret;
 }
 
 void gfs2_lm_unmount(struct gfs2_sbd *sdp)
 {
-	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		gfs2_unmount_lockproto(&sdp->sd_lockstruct);
+	const struct lm_lockops *lm = sdp->sd_lockstruct.ls_ops;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)) &&
+	    lm->lm_unmount)
+		lm->lm_unmount(sdp);
 }
 
 /**
@@ -1116,11 +1168,19 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	}
 
-	error = gfs2_mount_args(sdp, (char *)data, 0);
+	sdp->sd_args.ar_quota = GFS2_QUOTA_DEFAULT;
+	sdp->sd_args.ar_data = GFS2_DATA_DEFAULT;
+
+	error = gfs2_mount_args(sdp, &sdp->sd_args, data);
 	if (error) {
 		printk(KERN_WARNING "GFS2: can't parse mount arguments\n");
 		goto fail;
 	}
+
+	if (sdp->sd_args.ar_spectator)
+                sb->s_flags |= MS_RDONLY;
+	if (sdp->sd_args.ar_posix_acl)
+		sb->s_flags |= MS_POSIXACL;
 
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
@@ -1199,6 +1259,8 @@ fail_sb:
 		dput(sdp->sd_root_dir);
 	if (sdp->sd_master_dir)
 		dput(sdp->sd_master_dir);
+	if (sb->s_root)
+		dput(sb->s_root);
 	sb->s_root = NULL;
 fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);

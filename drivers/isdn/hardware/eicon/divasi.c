@@ -118,7 +118,6 @@ static int DIVA_INIT_FUNCTION create_um_idi_proc(void)
 		return (0);
 
 	um_idi_proc_entry->read_proc = um_idi_proc_read;
-	um_idi_proc_entry->owner = THIS_MODULE;
 
 	return (1);
 }

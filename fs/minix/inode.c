@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
- *  Copyright (C) 1996  Gertjan van Wingerde    (gertjan@cs.vu.nl)
+ *  Copyright (C) 1996  Gertjan van Wingerde
  *	Minix V2 fs support.
  *
  *  Modified for 680x0 by Andreas Schwab

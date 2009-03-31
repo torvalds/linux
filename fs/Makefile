@@ -51,11 +51,7 @@ obj-$(CONFIG_FS_POSIX_ACL)	+= posix_acl.o xattr_acl.o
 obj-$(CONFIG_NFS_COMMON)	+= nfs_common/
 obj-$(CONFIG_GENERIC_ACL)	+= generic_acl.o
 
-obj-$(CONFIG_QUOTA)		+= dquot.o
-obj-$(CONFIG_QFMT_V1)		+= quota_v1.o
-obj-$(CONFIG_QFMT_V2)		+= quota_v2.o
-obj-$(CONFIG_QUOTA_TREE)	+= quota_tree.o
-obj-$(CONFIG_QUOTACTL)		+= quota.o
+obj-y				+= quota/
 
 obj-$(CONFIG_PROC_FS)		+= proc/
 obj-y				+= partitions/

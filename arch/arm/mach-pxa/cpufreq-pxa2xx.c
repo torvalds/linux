@@ -37,8 +37,6 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
 
 #ifdef DEBUG

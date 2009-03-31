@@ -328,7 +328,10 @@ static int build_via_table(struct viadev *dev, struct snd_pcm_substream *substre
 					flag = VIA_TBL_BIT_FLAG; /* period boundary */
 			} else
 				flag = 0; /* period continues to the next */
-			// printk("via: tbl %d: at %d  size %d (rest %d)\n", idx, ofs, r, rest);
+			/*
+			printk(KERN_DEBUG "via: tbl %d: at %d  size %d "
+			       "(rest %d)\n", idx, ofs, r, rest);
+			*/
 			((u32 *)dev->table.area)[(idx<<1) + 1] = cpu_to_le32(r | flag);
 			dev->idx_table[idx].offset = ofs;
 			dev->idx_table[idx].size = r;
@@ -1167,9 +1170,9 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 	unsigned int i;
 	int err;
 
-	card = snd_card_new(index, id, THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	card_type = pci_id->driver_data;
 	switch (card_type) {

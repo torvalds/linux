@@ -4,7 +4,10 @@
 #include <linux/path.h>
 
 struct fs_struct {
-	atomic_t count;
+	atomic_t count;	/* This usage count is used by check_unsafe_exec() for
+			 * security checking purposes - therefore it may not be
+			 * incremented, except by clone(CLONE_FS).
+			 */
 	rwlock_t lock;
 	int umask;
 	struct path root, pwd;

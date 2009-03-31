@@ -23,7 +23,8 @@
 /* Helper macros */
 #define EP_NO(ep)	((ep->bEndpointAddress) & ~USB_DIR_IN) /* IN:1, OUT:0 */
 #define EP_DIR(ep)	((ep->bEndpointAddress) & USB_DIR_IN ? 1 : 0)
-#define irq_to_ep(irq)	(((irq) >= USBD_INT0) || ((irq) <= USBD_INT6) ? ((irq) - USBD_INT0) : (USBD_INT6)) /*should not happen*/
+#define irq_to_ep(irq)	(((irq) >= USBD_INT0) || ((irq) <= USBD_INT6) \
+		? ((irq) - USBD_INT0) : (USBD_INT6)) /*should not happen*/
 #define ep_to_irq(ep)	(EP_NO((ep)) + USBD_INT0)
 #define IMX_USB_NB_EP	6
 
@@ -58,6 +59,7 @@ struct imx_udc_struct {
 	struct device				*dev;
 	struct imx_ep_struct			imx_ep[IMX_USB_NB_EP];
 	struct clk				*clk;
+	struct timer_list			timer;
 	enum ep0_state				ep0state;
 	struct resource				*res;
 	void __iomem				*base;
@@ -88,8 +90,8 @@ struct imx_udc_struct {
 #define  USB_EP_FDAT3(x)	(0x3F + (x*0x30)) /* USB FIFO data */
 #define  USB_EP_FSTAT(x)	(0x40 + (x*0x30)) /* USB FIFO status */
 #define  USB_EP_FCTRL(x)	(0x44 + (x*0x30)) /* USB FIFO control */
-#define  USB_EP_LRFP(x)		(0x48 + (x*0x30)) /* USB last read frame pointer */
-#define  USB_EP_LWFP(x)		(0x4C + (x*0x30)) /* USB last write frame pointer */
+#define  USB_EP_LRFP(x)		(0x48 + (x*0x30)) /* USB last rd f. pointer */
+#define  USB_EP_LWFP(x)		(0x4C + (x*0x30)) /* USB last wr f. pointer */
 #define  USB_EP_FALRM(x)	(0x50 + (x*0x30)) /* USB FIFO alarm */
 #define  USB_EP_FRDP(x)		(0x54 + (x*0x30)) /* USB FIFO read pointer */
 #define  USB_EP_FWRP(x)		(0x58 + (x*0x30)) /* USB FIFO write pointer */
@@ -170,7 +172,7 @@ struct imx_udc_struct {
 /* #define DEBUG_IRQ */
 /* #define DEBUG_EPIRQ */
 /* #define DEBUG_DUMP */
-#define DEBUG_ERR
+/* #define DEBUG_ERR */
 
 #ifdef DEBUG_REQ
 	#define D_REQ(dev, args...)	dev_dbg(dev, ## args)
@@ -228,7 +230,8 @@ struct imx_udc_struct {
 #endif /* DEBUG_IRQ */
 
 #ifdef DEBUG_EPIRQ
-	static void dump_ep_intr(const char *label, int nr, int irqreg, struct device *dev)
+	static void dump_ep_intr(const char *label, int nr, int irqreg,
+							struct device *dev)
 	{
 		dev_dbg(dev, "<%s> EP%d_INTR=[%s%s%s%s%s%s%s%s%s]\n", label, nr,
 			(irqreg & EPINTR_FIFO_FULL) ? " full" : "",
@@ -246,7 +249,8 @@ struct imx_udc_struct {
 #endif /* DEBUG_IRQ */
 
 #ifdef DEBUG_DUMP
-	static void dump_usb_stat(const char *label, struct imx_udc_struct *imx_usb)
+	static void dump_usb_stat(const char *label,
+						struct imx_udc_struct *imx_usb)
 	{
 		int temp = __raw_readl(imx_usb->base + USB_STAT);
 
@@ -259,12 +263,15 @@ struct imx_udc_struct {
 			(temp & STAT_ALTSET));
 	}
 
-	static void dump_ep_stat(const char *label, struct imx_ep_struct *imx_ep)
+	static void dump_ep_stat(const char *label,
+						struct imx_ep_struct *imx_ep)
 	{
-		int temp = __raw_readl(imx_ep->imx_usb->base + USB_EP_INTR(EP_NO(imx_ep)));
+		int temp = __raw_readl(imx_ep->imx_usb->base
+						+ USB_EP_INTR(EP_NO(imx_ep)));
 
 		dev_dbg(imx_ep->imx_usb->dev,
-			"<%s> EP%d_INTR=[%s%s%s%s%s%s%s%s%s]\n", label, EP_NO(imx_ep),
+			"<%s> EP%d_INTR=[%s%s%s%s%s%s%s%s%s]\n",
+			label, EP_NO(imx_ep),
 			(temp & EPINTR_FIFO_FULL) ? " full" : "",
 			(temp & EPINTR_FIFO_EMPTY) ? " fempty" : "",
 			(temp & EPINTR_FIFO_ERROR) ? " ferr" : "",
@@ -275,18 +282,22 @@ struct imx_udc_struct {
 			(temp & EPINTR_DEVREQ) ? " devreq" : "",
 			(temp & EPINTR_EOT) ? " eot" : "");
 
-		temp = __raw_readl(imx_ep->imx_usb->base + USB_EP_STAT(EP_NO(imx_ep)));
+		temp = __raw_readl(imx_ep->imx_usb->base
+						+ USB_EP_STAT(EP_NO(imx_ep)));
 
 		dev_dbg(imx_ep->imx_usb->dev,
-			"<%s> EP%d_STAT=[%s%s bcount=%d]\n", label, EP_NO(imx_ep),
+			"<%s> EP%d_STAT=[%s%s bcount=%d]\n",
+			label, EP_NO(imx_ep),
 			(temp & EPSTAT_SIP) ? " sip" : "",
 			(temp & EPSTAT_STALL) ? " stall" : "",
 			(temp & EPSTAT_BCOUNT) >> 16);
 
-		temp = __raw_readl(imx_ep->imx_usb->base + USB_EP_FSTAT(EP_NO(imx_ep)));
+		temp = __raw_readl(imx_ep->imx_usb->base
+						+ USB_EP_FSTAT(EP_NO(imx_ep)));
 
 		dev_dbg(imx_ep->imx_usb->dev,
-			"<%s> EP%d_FSTAT=[%s%s%s%s%s%s%s]\n", label, EP_NO(imx_ep),
+			"<%s> EP%d_FSTAT=[%s%s%s%s%s%s%s]\n",
+			label, EP_NO(imx_ep),
 			(temp & FSTAT_ERR) ? " ferr" : "",
 			(temp & FSTAT_UF) ? " funder" : "",
 			(temp & FSTAT_OF) ? " fover" : "",
@@ -296,19 +307,23 @@ struct imx_udc_struct {
 			(temp & FSTAT_EMPTY) ? " fempty" : "");
 	}
 
-	static void dump_req(const char *label, struct imx_ep_struct *imx_ep, struct usb_request *req)
+	static void dump_req(const char *label, struct imx_ep_struct *imx_ep,
+							struct usb_request *req)
 	{
 		int i;
 
 		if (!req || !req->buf) {
-			dev_dbg(imx_ep->imx_usb->dev, "<%s> req or req buf is free\n", label);
+			dev_dbg(imx_ep->imx_usb->dev,
+					"<%s> req or req buf is free\n", label);
 			return;
 		}
 
-		if ((!EP_NO(imx_ep) && imx_ep->imx_usb->ep0state == EP0_IN_DATA_PHASE)
+		if ((!EP_NO(imx_ep) && imx_ep->imx_usb->ep0state
+			== EP0_IN_DATA_PHASE)
 			|| (EP_NO(imx_ep) && EP_DIR(imx_ep))) {
 
-			dev_dbg(imx_ep->imx_usb->dev, "<%s> request dump <", label);
+			dev_dbg(imx_ep->imx_usb->dev,
+						"<%s> request dump <", label);
 			for (i = 0; i < req->length; i++)
 				printk("%02x-", *((u8 *)req->buf + i));
 			printk(">\n");

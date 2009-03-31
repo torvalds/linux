@@ -97,7 +97,7 @@
 	       available) - it returns 0 if the mode is possible
    set_size -> this fn-ref. sets the norm and image size for
 	       compression/decompression (returns 0 on success)
-	       the norm param is defined in videodev.h (VIDEO_MODE_*)
+	       the norm param is defined in videodev2.h (V4L2_STD_*)
 
    additional setup may be available, too - but the codec should work with
    some default values even without this
@@ -144,9 +144,8 @@ M                       zr36055[1] 0001 0000c001 00000000 (zr36050[1])
 #ifndef __LINUX_VIDEOCODEC_H
 #define __LINUX_VIDEOCODEC_H
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 
-//should be in videodev.h ??? (VID_DO_....)
 #define CODEC_DO_COMPRESSION 0
 #define CODEC_DO_EXPANSION   1
 
@@ -237,10 +236,6 @@ struct vfe_settings {
 	__u32 width, height;	/* Area to capture */
 	__u16 decimation;	/* Decimation divider */
 	__u16 flags;		/* Flags for capture */
-/* flags are the same as in struct video_capture - see videodev.h:
-#define VIDEO_CAPTURE_ODD		0
-#define VIDEO_CAPTURE_EVEN		1
-*/
 	__u16 quality;		/* quality of the video */
 };
 

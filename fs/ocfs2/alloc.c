@@ -176,7 +176,8 @@ static int ocfs2_dinode_insert_check(struct inode *inode,
 
 	BUG_ON(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL);
 	mlog_bug_on_msg(!ocfs2_sparse_alloc(osb) &&
-			(OCFS2_I(inode)->ip_clusters != rec->e_cpos),
+			(OCFS2_I(inode)->ip_clusters !=
+			 le32_to_cpu(rec->e_cpos)),
 			"Device %s, asking for sparse allocation: inode %llu, "
 			"cpos %u, clusters %u\n",
 			osb->dev_str,

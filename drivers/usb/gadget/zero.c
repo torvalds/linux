@@ -102,10 +102,20 @@ module_param(loopdefault, bool, S_IRUGO|S_IWUSR);
 #ifndef	CONFIG_USB_ZERO_HNPTEST
 #define DRIVER_VENDOR_NUM	0x0525		/* NetChip */
 #define DRIVER_PRODUCT_NUM	0xa4a0		/* Linux-USB "Gadget Zero" */
+#define DEFAULT_AUTORESUME	0
 #else
 #define DRIVER_VENDOR_NUM	0x1a0a		/* OTG test device IDs */
 #define DRIVER_PRODUCT_NUM	0xbadd
+#define DEFAULT_AUTORESUME	5
 #endif
+
+/* If the optional "autoresume" mode is enabled, it provides good
+ * functional coverage for the "USBCV" test harness from USB-IF.
+ * It's always set if OTG mode is enabled.
+ */
+unsigned autoresume = DEFAULT_AUTORESUME;
+module_param(autoresume, uint, S_IRUGO);
+MODULE_PARM_DESC(autoresume, "zero, or seconds before remote wakeup");
 
 /*-------------------------------------------------------------------------*/
 
@@ -113,11 +123,11 @@ static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		__constant_cpu_to_le16(0x0200),
+	.bcdUSB =		cpu_to_le16(0x0200),
 	.bDeviceClass =		USB_CLASS_VENDOR_SPEC,
 
-	.idVendor =		__constant_cpu_to_le16(DRIVER_VENDOR_NUM),
-	.idProduct =		__constant_cpu_to_le16(DRIVER_PRODUCT_NUM),
+	.idVendor =		cpu_to_le16(DRIVER_VENDOR_NUM),
+	.idProduct =		cpu_to_le16(DRIVER_PRODUCT_NUM),
 	.bNumConfigurations =	2,
 };
 
@@ -212,6 +222,47 @@ void disable_endpoints(struct usb_composite_dev *cdev,
 
 /*-------------------------------------------------------------------------*/
 
+static struct timer_list	autoresume_timer;
+
+static void zero_autoresume(unsigned long _c)
+{
+	struct usb_composite_dev	*cdev = (void *)_c;
+	struct usb_gadget		*g = cdev->gadget;
+
+	/* unconfigured devices can't issue wakeups */
+	if (!cdev->config)
+		return;
+
+	/* Normally the host would be woken up for something
+	 * more significant than just a timer firing; likely
+	 * because of some direct user request.
+	 */
+	if (g->speed != USB_SPEED_UNKNOWN) {
+		int status = usb_gadget_wakeup(g);
+		INFO(cdev, "%s --> %d\n", __func__, status);
+	}
+}
+
+static void zero_suspend(struct usb_composite_dev *cdev)
+{
+	if (cdev->gadget->speed == USB_SPEED_UNKNOWN)
+		return;
+
+	if (autoresume) {
+		mod_timer(&autoresume_timer, jiffies + (HZ * autoresume));
+		DBG(cdev, "suspend, wakeup in %d seconds\n", autoresume);
+	} else
+		DBG(cdev, "%s\n", __func__);
+}
+
+static void zero_resume(struct usb_composite_dev *cdev)
+{
+	DBG(cdev, "%s\n", __func__);
+	del_timer(&autoresume_timer);
+}
+
+/*-------------------------------------------------------------------------*/
+
 static int __init zero_bind(struct usb_composite_dev *cdev)
 {
 	int			gcnum;
@@ -239,17 +290,19 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	strings_dev[STRING_SERIAL_IDX].id = id;
 	device_desc.iSerialNumber = id;
 
+	setup_timer(&autoresume_timer, zero_autoresume, (unsigned long) cdev);
+
 	/* Register primary, then secondary configuration.  Note that
 	 * SH3 only allows one config...
 	 */
 	if (loopdefault) {
-		loopback_add(cdev);
+		loopback_add(cdev, autoresume != 0);
 		if (!gadget_is_sh(gadget))
-			sourcesink_add(cdev);
+			sourcesink_add(cdev, autoresume != 0);
 	} else {
-		sourcesink_add(cdev);
+		sourcesink_add(cdev, autoresume != 0);
 		if (!gadget_is_sh(gadget))
-			loopback_add(cdev);
+			loopback_add(cdev, autoresume != 0);
 	}
 
 	gcnum = usb_gadget_controller_number(gadget);
@@ -265,7 +318,7 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 		 */
 		pr_warning("%s: controller '%s' not recognized\n",
 			longname, gadget->name);
-		device_desc.bcdDevice = __constant_cpu_to_le16(0x9999);
+		device_desc.bcdDevice = cpu_to_le16(0x9999);
 	}
 
 
@@ -278,11 +331,20 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
+static int zero_unbind(struct usb_composite_dev *cdev)
+{
+	del_timer_sync(&autoresume_timer);
+	return 0;
+}
+
 static struct usb_composite_driver zero_driver = {
 	.name		= "zero",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.bind		= zero_bind,
+	.unbind		= zero_unbind,
+	.suspend	= zero_suspend,
+	.resume		= zero_resume,
 };
 
 MODULE_AUTHOR("David Brownell");

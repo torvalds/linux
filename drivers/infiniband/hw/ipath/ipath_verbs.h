@@ -86,11 +86,11 @@
 #define IB_PMA_SAMPLE_STATUS_RUNNING	0x02
 
 /* Mandatory IB performance counter select values. */
-#define IB_PMA_PORT_XMIT_DATA	__constant_htons(0x0001)
-#define IB_PMA_PORT_RCV_DATA	__constant_htons(0x0002)
-#define IB_PMA_PORT_XMIT_PKTS	__constant_htons(0x0003)
-#define IB_PMA_PORT_RCV_PKTS	__constant_htons(0x0004)
-#define IB_PMA_PORT_XMIT_WAIT	__constant_htons(0x0005)
+#define IB_PMA_PORT_XMIT_DATA	cpu_to_be16(0x0001)
+#define IB_PMA_PORT_RCV_DATA	cpu_to_be16(0x0002)
+#define IB_PMA_PORT_XMIT_PKTS	cpu_to_be16(0x0003)
+#define IB_PMA_PORT_RCV_PKTS	cpu_to_be16(0x0004)
+#define IB_PMA_PORT_XMIT_WAIT	cpu_to_be16(0x0005)
 
 struct ib_reth {
 	__be64 vaddr;

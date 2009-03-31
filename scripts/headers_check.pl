@@ -38,7 +38,7 @@ foreach my $file (@files) {
 		&check_asm_types();
 		&check_sizetypes();
 		&check_prototypes();
-		&check_config();
+		# Dropped for now. Too much noise &check_config();
 	}
 	close FH;
 }

@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
+#include <linux/smc91x.h>
 
 #include <asm/mach-au1x00/au1xxx.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
@@ -131,6 +132,12 @@ static struct platform_device ide_device = {
 	.resource	= ide_resources
 };
 
+static struct smc91x_platdata smc_data = {
+	.flags	= SMC91X_NOWAIT | SMC91X_USE_16BIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
+};
+
 static struct resource smc91c111_resources[] = {
 	[0] = {
 		.name	= "smc91x-regs",
@@ -146,6 +153,9 @@ static struct resource smc91c111_resources[] = {
 };
 
 static struct platform_device smc91c111_device = {
+	.dev	= {
+		.platform_data	= &smc_data,
+	},
 	.name		= "smc91x",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(smc91c111_resources),

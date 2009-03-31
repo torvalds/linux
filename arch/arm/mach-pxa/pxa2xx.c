@@ -16,7 +16,6 @@
 
 #include <mach/hardware.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa2xx.h>
 #include <mach/mfp-pxa25x.h>
 #include <mach/reset.h>
 #include <mach/irda.h>

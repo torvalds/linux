@@ -14,7 +14,12 @@
 #if defined CONFIG_ARCH_MX1
 #define PHYS_OFFSET		UL(0x08000000)
 #elif defined CONFIG_ARCH_MX2
+#ifdef CONFIG_MACH_MX21
+#define PHYS_OFFSET		UL(0xC0000000)
+#endif
+#ifdef CONFIG_MACH_MX27
 #define PHYS_OFFSET		UL(0xA0000000)
+#endif
 #elif defined CONFIG_ARCH_MX3
 #define PHYS_OFFSET		UL(0x80000000)
 #endif

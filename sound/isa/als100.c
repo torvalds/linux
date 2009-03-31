@@ -163,9 +163,10 @@ static int __devinit snd_card_als100_probe(int dev,
 	struct snd_card_als100 *acard;
 	struct snd_opl3 *opl3;
 
-	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-				 sizeof(struct snd_card_als100))) == NULL)
-		return -ENOMEM;
+	error = snd_card_create(index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_card_als100), &card);
+	if (error < 0)
+		return error;
 	acard = card->private_data;
 
 	if ((error = snd_card_als100_pnp(dev, acard, pcard, pid))) {

@@ -547,8 +547,12 @@ int ocfs2_calc_xattr_init(struct inode *dir,
 	 * when blocksize = 512, may reserve one more cluser for
 	 * xattr bucket, otherwise reserve one metadata block
 	 * for them is ok.
+	 * If this is a new directory with inline data,
+	 * we choose to reserve the entire inline area for
+	 * directory contents and force an external xattr block.
 	 */
 	if (dir->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE ||
+	    (S_ISDIR(mode) && ocfs2_supports_inline_data(osb)) ||
 	    (s_size + a_size) > OCFS2_XATTR_FREE_IN_IBODY) {
 		ret = ocfs2_reserve_new_metadata_blocks(osb, 1, xattr_ac);
 		if (ret) {
@@ -4791,19 +4795,33 @@ static int ocfs2_xattr_bucket_set_value_outside(struct inode *inode,
 						char *val,
 						int value_len)
 {
-	int offset;
+	int ret, offset, block_off;
 	struct ocfs2_xattr_value_root *xv;
 	struct ocfs2_xattr_entry *xe = xs->here;
+	struct ocfs2_xattr_header *xh = bucket_xh(xs->bucket);
+	void *base;
 
 	BUG_ON(!xs->base || !xe || ocfs2_xattr_is_local(xe));
 
-	offset = le16_to_cpu(xe->xe_name_offset) +
-		 OCFS2_XATTR_SIZE(xe->xe_name_len);
+	ret = ocfs2_xattr_bucket_get_name_value(inode, xh,
+						xe - xh->xh_entries,
+						&block_off,
+						&offset);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
 
-	xv = (struct ocfs2_xattr_value_root *)(xs->base + offset);
+	base = bucket_block(xs->bucket, block_off);
+	xv = (struct ocfs2_xattr_value_root *)(base + offset +
+		 OCFS2_XATTR_SIZE(xe->xe_name_len));
 
-	return __ocfs2_xattr_set_value_outside(inode, handle,
-					       xv, val, value_len);
+	ret = __ocfs2_xattr_set_value_outside(inode, handle,
+					      xv, val, value_len);
+	if (ret)
+		mlog_errno(ret);
+out:
+	return ret;
 }
 
 static int ocfs2_rm_xattr_cluster(struct inode *inode,

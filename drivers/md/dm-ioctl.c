@@ -704,7 +704,8 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 	char *new_name = (char *) param + param->data_start;
 
 	if (new_name < param->data ||
-	    invalid_str(new_name, (void *) param + param_size)) {
+	    invalid_str(new_name, (void *) param + param_size) ||
+	    strlen(new_name) > DM_NAME_LEN - 1) {
 		DMWARN("Invalid new logical volume name supplied.");
 		return -EINVAL;
 	}
@@ -1063,7 +1064,7 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 
 	r = populate_table(t, param, param_size);
 	if (r) {
-		dm_table_put(t);
+		dm_table_destroy(t);
 		goto out;
 	}
 
@@ -1071,7 +1072,7 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	hc = dm_get_mdptr(md);
 	if (!hc || hc->md != md) {
 		DMWARN("device has been removed from the dev hash table.");
-		dm_table_put(t);
+		dm_table_destroy(t);
 		up_write(&_hash_lock);
 		r = -ENXIO;
 		goto out;
