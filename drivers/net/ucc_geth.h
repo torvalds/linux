@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/fsl_devices.h>
 
 #include <asm/immap_qe.h>
 #include <asm/qe.h>
