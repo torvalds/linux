@@ -32,7 +32,6 @@
 #define CL_VSSM2	0x3c3	/* Motherboard Sleep */
 
 /*** VGA Sequencer Registers ***/
-#define CL_SEQR0	0x0	/* Reset */
 /* the following are from the "extension registers" group */
 #define CL_SEQR6	0x6	/* Unlock ALL Extensions */
 #define CL_SEQR7	0x7	/* Extended Sequencer Mode */

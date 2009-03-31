@@ -660,7 +660,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	int yres, vdispend, vsyncstart, vsyncend, vtotal;
 	long freq;
 	int nom, den, div;
-	unsigned int control, format, threshold;
+	unsigned int control = 0, format = 0, threshold = 0;
 
 	dev_dbg(info->device, "Requested mode: %dx%dx%d\n",
 	       var->xres, var->yres, var->bits_per_pixel);
@@ -842,8 +842,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		threshold = fb_readw(cinfo->laguna_mmio + 0xea);
 		control &= ~0x6800;
 		format = 0;
-		threshold &= 0xffe0;
-		threshold &= 0x3fbf;
+		threshold &= 0xffe0 & 0x3fbf;
 	}
 	if (nom) {
 		tmp = den << 1;
@@ -893,6 +892,8 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		tmp |= 0x40;
 	if (var->sync & FB_SYNC_VERT_HIGH_ACT)
 		tmp |= 0x80;
+	if (cinfo->btype == BT_LAGUNA)
+		tmp |= 0xc;
 	WGen(cinfo, VGA_MIS_W, tmp);
 
 	/* Screen A Preset Row-Scan register */
@@ -1228,9 +1229,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	if (cirrusfb_board_info[cinfo->btype].scrn_start_bit19)
 		vga_wcrt(regbase, CL_CRT1D, (pitch >> 9) & 1);
 
-	if (cinfo->btype == BT_LAGUNA ||
-	    cinfo->btype == BT_GD5480) {
-
+	if (cinfo->btype == BT_LAGUNA) {
 		tmp = 0;
 		if ((htotal + 5) & 256)
 			tmp |= 128;
@@ -1360,7 +1359,8 @@ static int cirrusfb_pan_display(struct fb_var_screeninfo *var,
 		xpix = (unsigned char) ((xoffset % 4) * 2);
 	}
 
-	cirrusfb_WaitBLT(cinfo->regbase); /* make sure all the BLT's are done */
+	if (cinfo->btype != BT_LAGUNA)
+		cirrusfb_WaitBLT(cinfo->regbase);
 
 	/* lower 8 + 8 bits of screen start address */
 	vga_wcrt(cinfo->regbase, VGA_CRTC_START_LO,
@@ -1394,7 +1394,8 @@ static int cirrusfb_pan_display(struct fb_var_screeninfo *var,
 	if (info->var.bits_per_pixel == 1)
 		vga_wattr(cinfo->regbase, CL_AR33, xpix);
 
-	cirrusfb_WaitBLT(cinfo->regbase);
+	if (cinfo->btype != BT_LAGUNA)
+		cirrusfb_WaitBLT(cinfo->regbase);
 
 	return 0;
 }
@@ -1513,6 +1514,7 @@ static void init_vgachip(struct fb_info *info)
 		vga_wgfx(cinfo->regbase, CL_GR2F, 0x00);
 		break;
 
+	case BT_LAGUNA:
 	case BT_ALPINE:
 		/* Nothing to do to reset the board. */
 		break;
@@ -1538,7 +1540,7 @@ static void init_vgachip(struct fb_info *info)
 			WGen(cinfo, CL_VSSM2, 0x01);
 
 		/* reset sequencer logic */
-		vga_wseq(cinfo->regbase, CL_SEQR0, 0x03);
+		vga_wseq(cinfo->regbase, VGA_SEQ_RESET, 0x03);
 
 		/* FullBandwidth (video off) and 8/9 dot clock */
 		vga_wseq(cinfo->regbase, VGA_SEQ_CLOCK_MODE, 0x21);
@@ -1560,6 +1562,7 @@ static void init_vgachip(struct fb_info *info)
 			vga_wseq(cinfo->regbase, CL_SEQRF, 0x98);
 			break;
 		case BT_ALPINE:
+		case BT_LAGUNA:
 			break;
 		case BT_SD64:
 			vga_wseq(cinfo->regbase, CL_SEQRF, 0xb8);
@@ -1648,7 +1651,8 @@ static void init_vgachip(struct fb_info *info)
 	vga_wgfx(cinfo->regbase, VGA_GFX_COMPARE_MASK, 0x0f);
 	/* Bit Mask: no mask at all */
 	vga_wgfx(cinfo->regbase, VGA_GFX_BIT_MASK, 0xff);
-	if (cinfo->btype == BT_ALPINE)
+
+	if (cinfo->btype == BT_ALPINE || cinfo->btype == BT_LAGUNA)
 		/* (5434 can't have bit 3 set for bitblt) */
 		vga_wgfx(cinfo->regbase, CL_GRB, 0x20);
 	else
@@ -1845,7 +1849,8 @@ static void cirrusfb_imageblit(struct fb_info *info,
 {
 	struct cirrusfb_info *cinfo = info->par;
 
-	cirrusfb_WaitBLT(cinfo->regbase);
+	if (cinfo->btype != BT_LAGUNA)
+		cirrusfb_WaitBLT(cinfo->regbase);
 	cfb_imageblit(info, image);
 }
 
@@ -1992,7 +1997,7 @@ static int __devinit cirrusfb_set_fbinfo(struct fb_info *info)
 		    | FBINFO_HWACCEL_YPAN
 		    | FBINFO_HWACCEL_FILLRECT
 		    | FBINFO_HWACCEL_COPYAREA;
-	if (noaccel)
+	if (noaccel || cinfo->btype == BT_LAGUNA)
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 	info->fbops = &cirrusfb_ops;
 	if (cinfo->btype == BT_GD5480) {
@@ -2481,6 +2486,8 @@ static void WHDR(const struct cirrusfb_info *cinfo, unsigned char val)
 {
 	unsigned char dummy;
 
+	if (cinfo->btype == BT_LAGUNA)
+		return;
 	if (cinfo->btype == BT_PICASSO) {
 		/* Klaus' hint for correct access to HDR on some boards */
 		/* first write 0 to pixel mask (3c6) */
@@ -2548,7 +2555,8 @@ static void WClut(struct cirrusfb_info *cinfo, unsigned char regnum, unsigned ch
 	vga_w(cinfo->regbase, VGA_PEL_IW, regnum);
 
 	if (cinfo->btype == BT_PICASSO || cinfo->btype == BT_PICASSO4 ||
-	    cinfo->btype == BT_ALPINE || cinfo->btype == BT_GD5480) {
+	    cinfo->btype == BT_ALPINE || cinfo->btype == BT_GD5480 ||
+	    cinfo->btype == BT_LAGUNA) {
 		/* but DAC data register IS, at least for Picasso II */
 		if (cinfo->btype == BT_PICASSO)
 			data += 0xfff;
