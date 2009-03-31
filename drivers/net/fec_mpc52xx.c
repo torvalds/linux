@@ -271,15 +271,6 @@ static void mpc52xx_fec_phy_stop(struct net_device *dev)
 	phy_write(priv->phydev, MII_BMCR, BMCR_PDOWN);
 }
 
-static int mpc52xx_fec_phy_mii_ioctl(struct mpc52xx_fec_priv *priv,
-		struct mii_ioctl_data *mii_data, int cmd)
-{
-	if (!priv->phydev)
-		return -ENOTSUPP;
-
-	return phy_mii_ioctl(priv->phydev, mii_data, cmd);
-}
-
 static void mpc52xx_fec_phy_hw_init(struct mpc52xx_fec_priv *priv)
 {
 	struct mpc52xx_fec __iomem *fec = priv->fec;
@@ -852,12 +843,20 @@ static void mpc52xx_fec_get_drvinfo(struct net_device *dev,
 static int mpc52xx_fec_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
+
+	if (!priv->phydev)
+		return -ENODEV;
+
 	return phy_ethtool_gset(priv->phydev, cmd);
 }
 
 static int mpc52xx_fec_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
+
+	if (!priv->phydev)
+		return -ENODEV;
+
 	return phy_ethtool_sset(priv->phydev, cmd);
 }
 
@@ -887,7 +886,10 @@ static int mpc52xx_fec_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 
-	return mpc52xx_fec_phy_mii_ioctl(priv, if_mii(rq), cmd);
+	if (!priv->phydev)
+		return -ENOTSUPP;
+
+	return phy_mii_ioctl(priv->phydev, if_mii(rq), cmd);
 }
 
 static const struct net_device_ops mpc52xx_fec_netdev_ops = {
