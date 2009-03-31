@@ -57,9 +57,9 @@ static struct tracer_flags tracer_flags = {
 
 /* Add a function return address to the trace stack on thread info.*/
 int
-ftrace_push_return_trace(unsigned long ret, unsigned long long time,
-			 unsigned long func, int *depth)
+ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
 {
+	unsigned long long calltime;
 	int index;
 
 	if (!current->ret_stack)
@@ -71,11 +71,13 @@ ftrace_push_return_trace(unsigned long ret, unsigned long long time,
 		return -EBUSY;
 	}
 
+	calltime = trace_clock_local();
+
 	index = ++current->curr_ret_stack;
 	barrier();
 	current->ret_stack[index].ret = ret;
 	current->ret_stack[index].func = func;
-	current->ret_stack[index].calltime = time;
+	current->ret_stack[index].calltime = calltime;
 	*depth = index;
 
 	return 0;

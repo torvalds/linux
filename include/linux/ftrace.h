@@ -145,9 +145,15 @@ enum {
 };
 
 struct dyn_ftrace {
-	unsigned long		ip; /* address of mcount call-site */
-	unsigned long		flags;
-	struct dyn_arch_ftrace	arch;
+	union {
+		unsigned long		ip; /* address of mcount call-site */
+		struct dyn_ftrace	*freelist;
+	};
+	union {
+		unsigned long		flags;
+		struct dyn_ftrace	*newlist;
+	};
+	struct dyn_arch_ftrace		arch;
 };
 
 int ftrace_force_update(void);
@@ -369,8 +375,7 @@ struct ftrace_ret_stack {
 extern void return_to_handler(void);
 
 extern int
-ftrace_push_return_trace(unsigned long ret, unsigned long long time,
-			 unsigned long func, int *depth);
+ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth);
 extern void
 ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret);
 

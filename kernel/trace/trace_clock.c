@@ -18,6 +18,7 @@
 #include <linux/percpu.h>
 #include <linux/sched.h>
 #include <linux/ktime.h>
+#include <linux/trace_clock.h>
 
 /*
  * trace_clock_local(): the simplest and least coherent tracing clock.

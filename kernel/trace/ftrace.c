@@ -29,6 +29,8 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 
+#include <trace/sched.h>
+
 #include <asm/ftrace.h>
 
 #include "trace.h"
@@ -339,7 +341,7 @@ static inline int record_frozen(struct dyn_ftrace *rec)
 
 static void ftrace_free_rec(struct dyn_ftrace *rec)
 {
-	rec->ip = (unsigned long)ftrace_free_records;
+	rec->freelist = ftrace_free_records;
 	ftrace_free_records = rec;
 	rec->flags |= FTRACE_FL_FREE;
 }
@@ -356,9 +358,14 @@ void ftrace_release(void *start, unsigned long size)
 
 	mutex_lock(&ftrace_lock);
 	do_for_each_ftrace_rec(pg, rec) {
-		if ((rec->ip >= s) && (rec->ip < e) &&
-		    !(rec->flags & FTRACE_FL_FREE))
+		if ((rec->ip >= s) && (rec->ip < e)) {
+			/*
+			 * rec->ip is changed in ftrace_free_rec()
+			 * It should not between s and e if record was freed.
+			 */
+			FTRACE_WARN_ON(rec->flags & FTRACE_FL_FREE);
 			ftrace_free_rec(rec);
+		}
 	} while_for_each_ftrace_rec();
 	mutex_unlock(&ftrace_lock);
 }
@@ -377,7 +384,7 @@ static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
 			return NULL;
 		}
 
-		ftrace_free_records = (void *)rec->ip;
+		ftrace_free_records = rec->freelist;
 		memset(rec, 0, sizeof(*rec));
 		return rec;
 	}
@@ -409,7 +416,7 @@ ftrace_record_ip(unsigned long ip)
 		return NULL;
 
 	rec->ip = ip;
-	rec->flags = (unsigned long)ftrace_new_addrs;
+	rec->newlist = ftrace_new_addrs;
 	ftrace_new_addrs = rec;
 
 	return rec;
@@ -729,7 +736,7 @@ static int ftrace_update_code(struct module *mod)
 			return -1;
 
 		p = ftrace_new_addrs;
-		ftrace_new_addrs = (struct dyn_ftrace *)p->flags;
+		ftrace_new_addrs = p->newlist;
 		p->flags = 0L;
 
 		/* convert record (i.e, patch mcount-call with NOP) */
@@ -2262,7 +2269,7 @@ ftrace_pid_read(struct file *file, char __user *ubuf,
 	if (ftrace_pid_trace == ftrace_swapper_pid)
 		r = sprintf(buf, "swapper tasks\n");
 	else if (ftrace_pid_trace)
-		r = sprintf(buf, "%u\n", pid_nr(ftrace_pid_trace));
+		r = sprintf(buf, "%u\n", pid_vnr(ftrace_pid_trace));
 	else
 		r = sprintf(buf, "no pid\n");
 
@@ -2590,6 +2597,38 @@ free:
 	return ret;
 }
 
+static void
+ftrace_graph_probe_sched_switch(struct rq *__rq, struct task_struct *prev,
+				struct task_struct *next)
+{
+	unsigned long long timestamp;
+	int index;
+
+	/*
+	 * Does the user want to count the time a function was asleep.
+	 * If so, do not update the time stamps.
+	 */
+	if (trace_flags & TRACE_ITER_SLEEP_TIME)
+		return;
+
+	timestamp = trace_clock_local();
+
+	prev->ftrace_timestamp = timestamp;
+
+	/* only process tasks that we timestamped */
+	if (!next->ftrace_timestamp)
+		return;
+
+	/*
+	 * Update all the counters in next to make up for the
+	 * time next was sleeping.
+	 */
+	timestamp -= next->ftrace_timestamp;
+
+	for (index = next->curr_ret_stack; index >= 0; index--)
+		next->ret_stack[index].calltime += timestamp;
+}
+
 /* Allocate a return stack for each task */
 static int start_graph_tracing(void)
 {
@@ -2610,6 +2649,13 @@ static int start_graph_tracing(void)
 	do {
 		ret = alloc_retstack_tasklist(ret_stack_list);
 	} while (ret == -EAGAIN);
+
+	if (!ret) {
+		ret = register_trace_sched_switch(ftrace_graph_probe_sched_switch);
+		if (ret)
+			pr_info("ftrace_graph: Couldn't activate tracepoint"
+				" probe to kernel_sched_switch\n");
+	}
 
 	kfree(ret_stack_list);
 	return ret;
@@ -2643,6 +2689,12 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 
 	mutex_lock(&ftrace_lock);
 
+	/* we currently allow only one tracer registered at a time */
+	if (atomic_read(&ftrace_graph_active)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	ftrace_suspend_notifier.notifier_call = ftrace_suspend_notifier_call;
 	register_pm_notifier(&ftrace_suspend_notifier);
 
@@ -2668,6 +2720,7 @@ void unregister_ftrace_graph(void)
 	mutex_lock(&ftrace_lock);
 
 	atomic_dec(&ftrace_graph_active);
+	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = ftrace_graph_entry_stub;
 	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
@@ -2688,6 +2741,7 @@ void ftrace_graph_init_task(struct task_struct *t)
 		t->curr_ret_stack = -1;
 		atomic_set(&t->tracing_graph_pause, 0);
 		atomic_set(&t->trace_overrun, 0);
+		t->ftrace_timestamp = 0;
 	} else
 		t->ret_stack = NULL;
 }

@@ -19,6 +19,39 @@
 
 static DEFINE_MUTEX(event_mutex);
 
+int trace_define_field(struct ftrace_event_call *call, char *type,
+		       char *name, int offset, int size)
+{
+	struct ftrace_event_field *field;
+
+	field = kzalloc(sizeof(*field), GFP_KERNEL);
+	if (!field)
+		goto err;
+
+	field->name = kstrdup(name, GFP_KERNEL);
+	if (!field->name)
+		goto err;
+
+	field->type = kstrdup(type, GFP_KERNEL);
+	if (!field->type)
+		goto err;
+
+	field->offset = offset;
+	field->size = size;
+	list_add(&field->link, &call->fields);
+
+	return 0;
+
+err:
+	if (field) {
+		kfree(field->name);
+		kfree(field->type);
+	}
+	kfree(field);
+
+	return -ENOMEM;
+}
+
 static void ftrace_clear_events(void)
 {
 	struct ftrace_event_call *call = (void *)__start_ftrace_events;
@@ -343,7 +376,8 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 #undef FIELD
 #define FIELD(type, name)						\
-	#type, #name, offsetof(typeof(field), name), sizeof(field.name)
+	#type, "common_" #name, offsetof(typeof(field), name),		\
+		sizeof(field.name)
 
 static int trace_write_header(struct trace_seq *s)
 {
@@ -430,6 +464,139 @@ event_id_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 	return r;
 }
 
+static ssize_t
+event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
+		  loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	struct trace_seq *s;
+	int r;
+
+	if (*ppos)
+		return 0;
+
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	trace_seq_init(s);
+
+	filter_print_preds(call->preds, s);
+	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, s->len);
+
+	kfree(s);
+
+	return r;
+}
+
+static ssize_t
+event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		   loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	char buf[64], *pbuf = buf;
+	struct filter_pred *pred;
+	int err;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
+	if (!pred)
+		return -ENOMEM;
+
+	err = filter_parse(&pbuf, pred);
+	if (err < 0) {
+		filter_free_pred(pred);
+		return err;
+	}
+
+	if (pred->clear) {
+		filter_free_preds(call);
+		filter_free_pred(pred);
+		return cnt;
+	}
+
+	if (filter_add_pred(call, pred)) {
+		filter_free_pred(pred);
+		return -EINVAL;
+	}
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
+static ssize_t
+subsystem_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
+		      loff_t *ppos)
+{
+	struct event_subsystem *system = filp->private_data;
+	struct trace_seq *s;
+	int r;
+
+	if (*ppos)
+		return 0;
+
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	trace_seq_init(s);
+
+	filter_print_preds(system->preds, s);
+	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, s->len);
+
+	kfree(s);
+
+	return r;
+}
+
+static ssize_t
+subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		       loff_t *ppos)
+{
+	struct event_subsystem *system = filp->private_data;
+	char buf[64], *pbuf = buf;
+	struct filter_pred *pred;
+	int err;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
+	if (!pred)
+		return -ENOMEM;
+
+	err = filter_parse(&pbuf, pred);
+	if (err < 0) {
+		filter_free_pred(pred);
+		return err;
+	}
+
+	if (pred->clear) {
+		filter_free_subsystem_preds(system);
+		filter_free_pred(pred);
+		return cnt;
+	}
+
+	if (filter_add_subsystem_pred(system, pred)) {
+		filter_free_subsystem_preds(system);
+		filter_free_pred(pred);
+		return -EINVAL;
+	}
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
 static const struct seq_operations show_event_seq_ops = {
 	.start = t_start,
 	.next = t_next,
@@ -475,6 +642,18 @@ static const struct file_operations ftrace_event_id_fops = {
 	.read = event_id_read,
 };
 
+static const struct file_operations ftrace_event_filter_fops = {
+	.open = tracing_open_generic,
+	.read = event_filter_read,
+	.write = event_filter_write,
+};
+
+static const struct file_operations ftrace_subsystem_filter_fops = {
+	.open = tracing_open_generic,
+	.read = subsystem_filter_read,
+	.write = subsystem_filter_write,
+};
+
 static struct dentry *event_trace_events_dir(void)
 {
 	static struct dentry *d_tracer;
@@ -494,12 +673,6 @@ static struct dentry *event_trace_events_dir(void)
 
 	return d_events;
 }
-
-struct event_subsystem {
-	struct list_head	list;
-	const char		*name;
-	struct dentry		*entry;
-};
 
 static LIST_HEAD(event_subsystems);
 
@@ -532,6 +705,8 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 
 	system->name = name;
 	list_add(&system->list, &event_subsystems);
+
+	system->preds = NULL;
 
 	return system->entry;
 }
@@ -579,6 +754,20 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 		if (!entry)
 			pr_warning("Could not create debugfs '%s/id' entry\n",
 					call->name);
+	}
+
+	if (call->define_fields) {
+		ret = call->define_fields();
+		if (ret < 0) {
+			pr_warning("Could not initialize trace point"
+				   " events/%s\n", call->name);
+			return ret;
+		}
+		entry = debugfs_create_file("filter", 0644, call->dir, call,
+					    &ftrace_event_filter_fops);
+		if (!entry)
+			pr_warning("Could not create debugfs "
+				   "'%s/filter' entry\n", call->name);
 	}
 
 	/* A trace may not want to export its format */

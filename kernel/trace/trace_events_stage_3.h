@@ -204,6 +204,7 @@ static struct ftrace_event_call event_##call;				\
 									\
 static void ftrace_raw_event_##call(proto)				\
 {									\
+	struct ftrace_event_call *call = &event_##call;			\
 	struct ring_buffer_event *event;				\
 	struct ftrace_raw_##call *entry;				\
 	unsigned long irq_flags;					\
@@ -221,7 +222,11 @@ static void ftrace_raw_event_##call(proto)				\
 									\
 	assign;								\
 									\
-	trace_current_buffer_unlock_commit(event, irq_flags, pc);	\
+	if (call->preds && !filter_match_preds(call, entry))		\
+		ring_buffer_event_discard(event);			\
+									\
+	trace_nowake_buffer_unlock_commit(event, irq_flags, pc);	\
+									\
 }									\
 									\
 static int ftrace_raw_reg_event_##call(void)				\
@@ -252,6 +257,7 @@ static int ftrace_raw_init_event_##call(void)				\
 	if (!id)							\
 		return -ENODEV;						\
 	event_##call.id = id;						\
+	INIT_LIST_HEAD(&event_##call.fields);				\
 	return 0;							\
 }									\
 									\
@@ -264,6 +270,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.regfunc		= ftrace_raw_reg_event_##call,		\
 	.unregfunc		= ftrace_raw_unreg_event_##call,	\
 	.show_format		= ftrace_format_##call,			\
+	.define_fields		= ftrace_define_fields_##call,		\
 	_TRACE_PROFILE_INIT(call)					\
 }
 
