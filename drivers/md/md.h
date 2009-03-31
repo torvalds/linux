@@ -317,6 +317,7 @@ struct mdk_personality
 	sector_t (*size) (mddev_t *mddev, sector_t sectors, int raid_disks);
 	int (*check_reshape) (mddev_t *mddev);
 	int (*start_reshape) (mddev_t *mddev);
+	void (*finish_reshape) (mddev_t *mddev);
 	int (*reconfig) (mddev_t *mddev, int layout, int chunk_size);
 	/* quiesce moves between quiescence states
 	 * 0 - fully active
@@ -433,4 +434,3 @@ extern void md_new_event(mddev_t *mddev);
 extern int md_allow_write(mddev_t *mddev);
 extern void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern void md_set_array_sectors(mddev_t *mddev, sector_t array_sectors);
-extern void md_set_array_sectors_lock(mddev_t *mddev, sector_t array_sectors);

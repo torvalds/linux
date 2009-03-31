@@ -5073,14 +5073,6 @@ void md_set_array_sectors(mddev_t *mddev, sector_t array_sectors)
 }
 EXPORT_SYMBOL(md_set_array_sectors);
 
-void md_set_array_sectors_lock(mddev_t *mddev, sector_t array_sectors)
-{
-	mddev_lock(mddev);
-	md_set_array_sectors(mddev, array_sectors);
-	mddev_unlock(mddev);
-}
-EXPORT_SYMBOL(md_set_array_sectors_lock);
-
 static int update_size(mddev_t *mddev, sector_t num_sectors)
 {
 	mdk_rdev_t *rdev;
@@ -6641,6 +6633,9 @@ void md_check_recovery(mddev_t *mddev)
 					sysfs_notify(&mddev->kobj, NULL,
 						     "degraded");
 			}
+			if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
+			    mddev->pers->finish_reshape)
+				mddev->pers->finish_reshape(mddev);
 			md_update_sb(mddev, 1);
 
 			/* if array is no-longer degraded, then any saved_raid_disk

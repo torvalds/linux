@@ -3850,6 +3850,7 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	if (sector_nr >= max_sector) {
 		/* just being told to finish up .. nothing much to do */
 		unplug_slaves(mddev);
+
 		if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery)) {
 			end_reshape(conf);
 			return 0;
@@ -4836,39 +4837,45 @@ static int raid5_start_reshape(mddev_t *mddev)
 
 static void end_reshape(raid5_conf_t *conf)
 {
-	struct block_device *bdev;
 
 	if (!test_bit(MD_RECOVERY_INTR, &conf->mddev->recovery)) {
-		mddev_t *mddev = conf->mddev;
 
-		md_set_array_sectors_lock(mddev, raid5_size(mddev, 0,
-						       conf->raid_disks));
-		set_capacity(mddev->gendisk, mddev->array_sectors);
-		mddev->changed = 1;
-		conf->previous_raid_disks = conf->raid_disks;
-
-		bdev = bdget_disk(conf->mddev->gendisk, 0);
-		if (bdev) {
-			mutex_lock(&bdev->bd_inode->i_mutex);
-			i_size_write(bdev->bd_inode,
-				     (loff_t)conf->mddev->array_sectors << 9);
-			mutex_unlock(&bdev->bd_inode->i_mutex);
-			bdput(bdev);
-		}
 		spin_lock_irq(&conf->device_lock);
+		conf->previous_raid_disks = conf->raid_disks;
 		conf->expand_progress = MaxSector;
 		spin_unlock_irq(&conf->device_lock);
-		conf->mddev->reshape_position = MaxSector;
 
 		/* read-ahead size must cover two whole stripes, which is
 		 * 2 * (datadisks) * chunksize where 'n' is the number of raid devices
 		 */
 		{
-			int data_disks = conf->previous_raid_disks - conf->max_degraded;
-			int stripe = data_disks *
-				(conf->mddev->chunk_size / PAGE_SIZE);
+			int data_disks = conf->raid_disks - conf->max_degraded;
+			int stripe = data_disks * (conf->chunk_size
+						   / PAGE_SIZE);
 			if (conf->mddev->queue->backing_dev_info.ra_pages < 2 * stripe)
 				conf->mddev->queue->backing_dev_info.ra_pages = 2 * stripe;
+		}
+	}
+}
+
+static void raid5_finish_reshape(mddev_t *mddev)
+{
+	struct block_device *bdev;
+
+	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
+
+		md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
+		set_capacity(mddev->gendisk, mddev->array_sectors);
+		mddev->changed = 1;
+		mddev->reshape_position = MaxSector;
+
+		bdev = bdget_disk(mddev->gendisk, 0);
+		if (bdev) {
+			mutex_lock(&bdev->bd_inode->i_mutex);
+			i_size_write(bdev->bd_inode,
+				     (loff_t)mddev->array_sectors << 9);
+			mutex_unlock(&bdev->bd_inode->i_mutex);
+			bdput(bdev);
 		}
 	}
 }
@@ -5098,6 +5105,7 @@ static struct mdk_personality raid6_personality =
 #ifdef CONFIG_MD_RAID5_RESHAPE
 	.check_reshape	= raid5_check_reshape,
 	.start_reshape  = raid5_start_reshape,
+	.finish_reshape = raid5_finish_reshape,
 #endif
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid6_takeover,
@@ -5121,6 +5129,7 @@ static struct mdk_personality raid5_personality =
 #ifdef CONFIG_MD_RAID5_RESHAPE
 	.check_reshape	= raid5_check_reshape,
 	.start_reshape  = raid5_start_reshape,
+	.finish_reshape = raid5_finish_reshape,
 #endif
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid5_takeover,
@@ -5146,6 +5155,7 @@ static struct mdk_personality raid4_personality =
 #ifdef CONFIG_MD_RAID5_RESHAPE
 	.check_reshape	= raid5_check_reshape,
 	.start_reshape  = raid5_start_reshape,
+	.finish_reshape = raid5_finish_reshape,
 #endif
 	.quiesce	= raid5_quiesce,
 };
