@@ -405,40 +405,50 @@ struct resource_lists {
 
 
 /* debugfs functions for the hotplug controller info */
-extern void cpqhp_initialize_debugfs		(void);
-extern void cpqhp_shutdown_debugfs		(void);
-extern void cpqhp_create_debugfs_files		(struct controller *ctrl);
-extern void cpqhp_remove_debugfs_files		(struct controller *ctrl);
+extern void cpqhp_initialize_debugfs(void);
+extern void cpqhp_shutdown_debugfs(void);
+extern void cpqhp_create_debugfs_files(struct controller *ctrl);
+extern void cpqhp_remove_debugfs_files(struct controller *ctrl);
 
 /* controller functions */
-extern void	cpqhp_pushbutton_thread		(unsigned long event_pointer);
-extern irqreturn_t cpqhp_ctrl_intr		(int IRQ, void *data);
-extern int	cpqhp_find_available_resources	(struct controller *ctrl, void __iomem *rom_start);
-extern int	cpqhp_event_start_thread	(void);
-extern void	cpqhp_event_stop_thread		(void);
-extern struct pci_func *cpqhp_slot_create	(unsigned char busnumber);
-extern struct pci_func *cpqhp_slot_find		(unsigned char bus, unsigned char device, unsigned char index);
-extern int	cpqhp_process_SI		(struct controller *ctrl, struct pci_func *func);
-extern int	cpqhp_process_SS		(struct controller *ctrl, struct pci_func *func);
-extern int	cpqhp_hardware_test		(struct controller *ctrl, int test_num);
+extern void cpqhp_pushbutton_thread(unsigned long event_pointer);
+extern irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data);
+extern int cpqhp_find_available_resources(struct controller *ctrl,
+					  void __iomem *rom_start);
+extern int cpqhp_event_start_thread(void);
+extern void cpqhp_event_stop_thread(void);
+extern struct pci_func *cpqhp_slot_create(unsigned char busnumber);
+extern struct pci_func *cpqhp_slot_find(unsigned char bus, unsigned char device,
+					unsigned char index);
+extern int cpqhp_process_SI(struct controller *ctrl, struct pci_func *func);
+extern int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func);
+extern int cpqhp_hardware_test(struct controller *ctrl, int test_num);
 
 /* resource functions */
 extern int	cpqhp_resource_sort_and_combine	(struct pci_resource **head);
 
 /* pci functions */
-extern int	cpqhp_set_irq			(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num);
-extern int	cpqhp_get_bus_dev		(struct controller *ctrl, u8 *bus_num, u8 *dev_num, u8 slot);
-extern int	cpqhp_save_config		(struct controller *ctrl, int busnumber, int is_hot_plug);
-extern int	cpqhp_save_base_addr_length	(struct controller *ctrl, struct pci_func * func);
-extern int	cpqhp_save_used_resources	(struct controller *ctrl, struct pci_func * func);
-extern int	cpqhp_configure_board		(struct controller *ctrl, struct pci_func * func);
-extern int	cpqhp_save_slot_config		(struct controller *ctrl, struct pci_func * new_slot);
-extern int	cpqhp_valid_replace		(struct controller *ctrl, struct pci_func * func);
-extern void	cpqhp_destroy_board_resources	(struct pci_func * func);
-extern int	cpqhp_return_board_resources	(struct pci_func * func, struct resource_lists * resources);
-extern void	cpqhp_destroy_resource_list	(struct resource_lists * resources);
-extern int	cpqhp_configure_device		(struct controller* ctrl, struct pci_func* func);
-extern int	cpqhp_unconfigure_device	(struct pci_func* func);
+extern int cpqhp_set_irq(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num);
+extern int cpqhp_get_bus_dev(struct controller *ctrl, u8 *bus_num, u8 *dev_num,
+			     u8 slot);
+extern int cpqhp_save_config(struct controller *ctrl, int busnumber,
+			     int is_hot_plug);
+extern int cpqhp_save_base_addr_length(struct controller *ctrl,
+				       struct pci_func *func);
+extern int cpqhp_save_used_resources(struct controller *ctrl,
+				     struct pci_func *func);
+extern int cpqhp_configure_board(struct controller *ctrl,
+				 struct pci_func *func);
+extern int cpqhp_save_slot_config(struct controller *ctrl,
+				  struct pci_func *new_slot);
+extern int cpqhp_valid_replace(struct controller *ctrl, struct pci_func *func);
+extern void cpqhp_destroy_board_resources(struct pci_func *func);
+extern int cpqhp_return_board_resources	(struct pci_func *func,
+					 struct resource_lists *resources);
+extern void cpqhp_destroy_resource_list(struct resource_lists *resources);
+extern int cpqhp_configure_device(struct controller *ctrl,
+				  struct pci_func *func);
+extern int cpqhp_unconfigure_device(struct pci_func *func);
 
 /* Global variables */
 extern int cpqhp_debug;
@@ -463,7 +473,8 @@ static inline char *slot_name(struct slot *slot)
  *
  * Puts node back in the resource list pointed to by head
  */
-static inline void return_resource(struct pci_resource **head, struct pci_resource *node)
+static inline void return_resource(struct pci_resource **head,
+				   struct pci_resource *node)
 {
 	if (!node || !head)
 		return;
@@ -673,7 +684,8 @@ static inline int get_slot_enabled(struct controller *ctrl, struct slot *slot)
 }
 
 
-static inline int cpq_get_latch_status(struct controller *ctrl, struct slot *slot)
+static inline int cpq_get_latch_status(struct controller *ctrl,
+				       struct slot *slot)
 {
 	u32 status;
 	u8 hp_slot;
@@ -688,7 +700,8 @@ static inline int cpq_get_latch_status(struct controller *ctrl, struct slot *slo
 }
 
 
-static inline int get_presence_status(struct controller *ctrl, struct slot *slot)
+static inline int get_presence_status(struct controller *ctrl,
+				      struct slot *slot)
 {
 	int presence_save = 0;
 	u8 hp_slot;
@@ -697,7 +710,8 @@ static inline int get_presence_status(struct controller *ctrl, struct slot *slot
 	hp_slot = slot->device - ctrl->slot_device_offset;
 
 	tempdword = readl(ctrl->hpc_reg + INT_INPUT_CLEAR);
-	presence_save = (int) ((((~tempdword) >> 23) | ((~tempdword) >> 15)) >> hp_slot) & 0x02;
+	presence_save = (int) ((((~tempdword) >> 23) | ((~tempdword) >> 15))
+				>> hp_slot) & 0x02;
 
 	return presence_save;
 }
