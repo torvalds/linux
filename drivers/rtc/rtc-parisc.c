@@ -20,7 +20,7 @@ static int parisc_get_time(struct device *dev, struct rtc_time *tm)
 	if (ret & RTC_BATT_BAD)
 		return -EOPNOTSUPP;
 
-	return 0;
+	return rtc_valid_tm(tm);
 }
 
 static int parisc_set_time(struct device *dev, struct rtc_time *tm)
