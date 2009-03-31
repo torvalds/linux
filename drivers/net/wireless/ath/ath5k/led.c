@@ -78,7 +78,7 @@ void ath5k_led_enable(struct ath5k_softc *sc)
 	}
 }
 
-void ath5k_led_on(struct ath5k_softc *sc)
+static void ath5k_led_on(struct ath5k_softc *sc)
 {
 	if (!test_bit(ATH_STAT_LEDSOFT, sc->status))
 		return;
