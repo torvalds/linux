@@ -44,7 +44,6 @@
 #define	get_cpu_rev()	2
 #endif
 
-#define MUSB_TIMEOUT_A_WAIT_BCON	1100
 
 static struct timer_list musb_idle_timer;
 
@@ -245,7 +244,6 @@ int __init musb_platform_init(struct musb *musb)
 
 	if (is_host_enabled(musb))
 		musb->board_set_vbus = omap_set_vbus;
-	musb->a_wait_bcon = MUSB_TIMEOUT_A_WAIT_BCON;
 
 	setup_timer(&musb_idle_timer, musb_do_idle, (unsigned long) musb);
 
