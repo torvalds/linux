@@ -189,7 +189,7 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 }
 
 static void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
-			  unsigned int write, unsigned int nr_bytes)
+			  unsigned int write, unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
@@ -202,56 +202,55 @@ static void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 	u8 *buf;
 
 	cursg = cmd->cursg;
-	if (!cursg) {
-		cursg = sg;
-		cmd->cursg = sg;
-	}
+	if (cursg == NULL)
+		cursg = cmd->cursg = sg;
 
-	page = sg_page(cursg);
-	offset = cursg->offset + cmd->cursg_ofs;
+	while (len) {
+		unsigned nr_bytes = min(len, cursg->length - cmd->cursg_ofs);
 
-	/* get the current page and offset */
-	page = nth_page(page, (offset >> PAGE_SHIFT));
-	offset %= PAGE_SIZE;
+		if (nr_bytes > PAGE_SIZE)
+			nr_bytes = PAGE_SIZE;
+
+		page = sg_page(cursg);
+		offset = cursg->offset + cmd->cursg_ofs;
+
+		/* get the current page and offset */
+		page = nth_page(page, (offset >> PAGE_SHIFT));
+		offset %= PAGE_SIZE;
 
 #ifdef CONFIG_HIGHMEM
-	local_irq_save(flags);
+		local_irq_save(flags);
 #endif
-	buf = kmap_atomic(page, KM_BIO_SRC_IRQ) + offset;
+		buf = kmap_atomic(page, KM_BIO_SRC_IRQ) + offset;
 
-	cmd->nleft -= nr_bytes;
-	cmd->cursg_ofs += nr_bytes;
+		cmd->nleft -= nr_bytes;
+		cmd->cursg_ofs += nr_bytes;
 
-	if (cmd->cursg_ofs == cursg->length) {
-		cmd->cursg = sg_next(cmd->cursg);
-		cmd->cursg_ofs = 0;
-	}
+		if (cmd->cursg_ofs == cursg->length) {
+			cursg = cmd->cursg = sg_next(cmd->cursg);
+			cmd->cursg_ofs = 0;
+		}
 
-	/* do the actual data transfer */
-	if (write)
-		hwif->tp_ops->output_data(drive, cmd, buf, nr_bytes);
-	else
-		hwif->tp_ops->input_data(drive, cmd, buf, nr_bytes);
+		/* do the actual data transfer */
+		if (write)
+			hwif->tp_ops->output_data(drive, cmd, buf, nr_bytes);
+		else
+			hwif->tp_ops->input_data(drive, cmd, buf, nr_bytes);
 
-	kunmap_atomic(buf, KM_BIO_SRC_IRQ);
+		kunmap_atomic(buf, KM_BIO_SRC_IRQ);
 #ifdef CONFIG_HIGHMEM
-	local_irq_restore(flags);
+		local_irq_restore(flags);
 #endif
-}
 
-static void ide_pio_multi(ide_drive_t *drive, struct ide_cmd *cmd,
-			  unsigned int write)
-{
-	unsigned int nsect;
-
-	nsect = min_t(unsigned int, cmd->nleft >> 9, drive->mult_count);
-	while (nsect--)
-		ide_pio_bytes(drive, cmd, write, SECTOR_SIZE);
+		len -= nr_bytes;
+	}
 }
 
 static void ide_pio_datablock(ide_drive_t *drive, struct ide_cmd *cmd,
 			      unsigned int write)
 {
+	unsigned int nr_bytes;
+
 	u8 saved_io_32bit = drive->io_32bit;
 
 	if (cmd->tf_flags & IDE_TFLAG_FS)
@@ -263,9 +262,11 @@ static void ide_pio_datablock(ide_drive_t *drive, struct ide_cmd *cmd,
 	touch_softlockup_watchdog();
 
 	if (cmd->tf_flags & IDE_TFLAG_MULTI_PIO)
-		ide_pio_multi(drive, cmd, write);
+		nr_bytes = min_t(unsigned, cmd->nleft, drive->mult_count << 9);
 	else
-		ide_pio_bytes(drive, cmd, write, SECTOR_SIZE);
+		nr_bytes = SECTOR_SIZE;
+
+	ide_pio_bytes(drive, cmd, write, nr_bytes);
 
 	drive->io_32bit = saved_io_32bit;
 }
