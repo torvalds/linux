@@ -122,7 +122,7 @@ static int wm8350_rtc_settime(struct device *dev, struct rtc_time *tm)
 	do {
 		rtc_ctrl = wm8350_reg_read(wm8350, WM8350_RTC_TIME_CONTROL);
 		schedule_timeout_uninterruptible(msecs_to_jiffies(1));
-	} while (retries-- && !(rtc_ctrl & WM8350_RTC_STS));
+	} while (--retries && !(rtc_ctrl & WM8350_RTC_STS));
 
 	if (!retries) {
 		dev_err(dev, "timed out on set confirmation\n");
@@ -437,7 +437,7 @@ static int wm8350_rtc_probe(struct platform_device *pdev)
 		do {
 			timectl = wm8350_reg_read(wm8350,
 						  WM8350_RTC_TIME_CONTROL);
-		} while (timectl & WM8350_RTC_STS && retries--);
+		} while (timectl & WM8350_RTC_STS && --retries);
 
 		if (retries == 0) {
 			dev_err(&pdev->dev, "failed to start: timeout\n");
