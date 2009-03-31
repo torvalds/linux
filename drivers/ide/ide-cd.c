@@ -509,17 +509,6 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 	return -1;
 }
 
-static ide_startstop_t ide_cd_prepare_rw_request(ide_drive_t *drive,
-						 struct request *rq)
-{
-	ide_debug_log(IDE_DBG_RQ, "rq->cmd_flags: 0x%x", rq->cmd_flags);
-
-	/* set up the command */
-	rq->timeout = ATAPI_WAIT_PC;
-
-	return ide_started;
-}
-
 static void ide_cd_request_sense_fixup(ide_drive_t *drive, struct request *rq)
 {
 	ide_debug_log(IDE_DBG_FUNC, "rq->cmd[0]: 0x%x", rq->cmd[0]);
@@ -871,9 +860,9 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	unsigned short sectors_per_frame =
 		queue_hardsect_size(q) >> SECTOR_BITS;
 
-	ide_debug_log(IDE_DBG_RQ, "rq->cmd[0]: 0x%x, write: 0x%x, "
+	ide_debug_log(IDE_DBG_RQ, "rq->cmd[0]: 0x%x, rq->cmd_flags: 0x%x, "
 				  "secs_per_frame: %u",
-				  rq->cmd[0], write, sectors_per_frame);
+				  rq->cmd[0], rq->cmd_flags, sectors_per_frame);
 
 	if (write) {
 		/* disk has become write protected */
@@ -897,6 +886,8 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 
 	if (write)
 		cd->devinfo.media_written = 1;
+
+	rq->timeout = ATAPI_WAIT_PC;
 
 	return ide_started;
 }
@@ -954,10 +945,8 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		blk_dump_rq_flags(rq, "ide_cd_do_request");
 
 	if (blk_fs_request(rq)) {
-		if (cdrom_start_rw(drive, rq) == ide_stopped ||
-		    ide_cd_prepare_rw_request(drive, rq) == ide_stopped) {
+		if (cdrom_start_rw(drive, rq) == ide_stopped)
 			goto out_end;
-		}
 	} else if (blk_sense_request(rq) || blk_pc_request(rq) ||
 		   rq->cmd_type == REQ_TYPE_ATA_PC) {
 		if (!rq->timeout)
