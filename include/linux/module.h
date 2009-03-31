@@ -248,6 +248,10 @@ struct module
 	const unsigned long *crcs;
 	unsigned int num_syms;
 
+	/* Kernel parameters. */
+	struct kernel_param *kp;
+	unsigned int num_kp;
+
 	/* GPL-only exported symbols. */
 	unsigned int num_gpl_syms;
 	const struct kernel_symbol *gpl_syms;
