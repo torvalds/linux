@@ -479,6 +479,11 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 		goto fail1;
 	}
 
+	if (!request_mem_region(res->start, res_size, DRIVER_NAME)) {
+		ret = -EBUSY;
+		goto fail2;
+	}
+
 	/* Setup i2c_imx driver structure */
 	strcpy(i2c_imx->adapter.name, pdev->name);
 	i2c_imx->adapter.owner		= THIS_MODULE;
@@ -494,7 +499,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	if (IS_ERR(i2c_imx->clk)) {
 		ret = PTR_ERR(i2c_imx->clk);
 		dev_err(&pdev->dev, "can't get I2C clock\n");
-		goto fail2;
+		goto fail3;
 	}
 	clk_enable(i2c_imx->clk);
 
@@ -502,7 +507,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	ret = request_irq(i2c_imx->irq, i2c_imx_isr, 0, pdev->name, i2c_imx);
 	if (ret) {
 		dev_err(&pdev->dev, "can't claim irq %d\n", i2c_imx->irq);
-		goto fail3;
+		goto fail4;
 	}
 
 	/* Init queue */
@@ -525,7 +530,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	ret = i2c_add_numbered_adapter(&i2c_imx->adapter);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "registration failed\n");
-		goto fail4;
+		goto fail5;
 	}
 
 	/* Set up platform driver data */
@@ -542,11 +547,13 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 
 	return 0;   /* Return OK */
 
-fail4:
+fail5:
 	free_irq(i2c_imx->irq, i2c_imx);
-fail3:
+fail4:
 	clk_disable(i2c_imx->clk);
 	clk_put(i2c_imx->clk);
+fail3:
+	release_mem_region(i2c_imx->res->start, resource_size(res));
 fail2:
 	kfree(i2c_imx);
 fail1:
@@ -584,6 +591,7 @@ static int __exit i2c_imx_remove(struct platform_device *pdev)
 	clk_disable(i2c_imx->clk);
 	clk_put(i2c_imx->clk);
 
+	release_mem_region(i2c_imx->res->start, resource_size(i2c_imx->res));
 	iounmap(i2c_imx->base);
 	kfree(i2c_imx);
 	return 0;
