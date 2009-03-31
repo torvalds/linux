@@ -261,6 +261,14 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 		break;
 	case XFER_MW_DMA_0:
 		mask = id[ATA_ID_MWDMA_MODES];
+
+		/* Also look for the CF specific MWDMA modes... */
+		if (ata_id_is_cfa(id) && (id[ATA_ID_CFA_MODES] & 0x38)) {
+			u8 mode = ((id[ATA_ID_CFA_MODES] & 0x38) >> 3) - 1;
+
+			mask |= ((2 << mode) - 1) << 3;
+		}
+
 		if (port_ops && port_ops->mdma_filter)
 			mask &= port_ops->mdma_filter(drive);
 		else

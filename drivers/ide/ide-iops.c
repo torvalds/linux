@@ -306,6 +306,7 @@ int ide_driveid_update(ide_drive_t *drive)
 	drive->id[ATA_ID_UDMA_MODES]  = id[ATA_ID_UDMA_MODES];
 	drive->id[ATA_ID_MWDMA_MODES] = id[ATA_ID_MWDMA_MODES];
 	drive->id[ATA_ID_SWDMA_MODES] = id[ATA_ID_SWDMA_MODES];
+	drive->id[ATA_ID_CFA_MODES]   = id[ATA_ID_CFA_MODES];
 	/* anything more ? */
 
 	kfree(id);
@@ -390,7 +391,10 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 		id[ATA_ID_UDMA_MODES]  &= ~0xFF00;
 		id[ATA_ID_MWDMA_MODES] &= ~0x0700;
 		id[ATA_ID_SWDMA_MODES] &= ~0x0700;
-	}
+		if (ata_id_is_cfa(id))
+			id[ATA_ID_CFA_MODES] &= ~0x0E00;
+	} else	if (ata_id_is_cfa(id))
+		id[ATA_ID_CFA_MODES] &= ~0x01C0;
 
  skip:
 #ifdef CONFIG_BLK_DEV_IDEDMA
@@ -403,12 +407,18 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	if (speed >= XFER_UDMA_0) {
 		i = 1 << (speed - XFER_UDMA_0);
 		id[ATA_ID_UDMA_MODES] |= (i << 8 | i);
+	} else if (ata_id_is_cfa(id) && speed >= XFER_MW_DMA_3) {
+		i = speed - XFER_MW_DMA_2;
+		id[ATA_ID_CFA_MODES] |= i << 9;
 	} else if (speed >= XFER_MW_DMA_0) {
 		i = 1 << (speed - XFER_MW_DMA_0);
 		id[ATA_ID_MWDMA_MODES] |= (i << 8 | i);
 	} else if (speed >= XFER_SW_DMA_0) {
 		i = 1 << (speed - XFER_SW_DMA_0);
 		id[ATA_ID_SWDMA_MODES] |= (i << 8 | i);
+	} else if (ata_id_is_cfa(id) && speed >= XFER_PIO_5) {
+		i = speed - XFER_PIO_4;
+		id[ATA_ID_CFA_MODES] |= i << 6;
 	}
 
 	if (!drive->init_speed)
