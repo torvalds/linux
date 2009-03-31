@@ -7,11 +7,15 @@
 #include <stdlib.h>
 #include "init.h"
 
-static __initdata char *config = "CONFIG";
+static __initdata const char *config[] = {
+"CONFIG"
+};
 
 static int __init print_config(char *line, int *add)
 {
-	printf("%s", config);
+	int i;
+	for (i = 0; i < sizeof(config)/sizeof(config[0]); i++)
+		printf("%s", config[i]);
 	exit(0);
 }
 
