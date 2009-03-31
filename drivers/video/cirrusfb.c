@@ -470,10 +470,25 @@ static int cirrusfb_check_pixclock(const struct fb_var_screeninfo *var,
 	/* If the frequency is greater than we can support, we might be able
 	 * to use multiplexing for the video mode */
 	if (freq > maxclock) {
+		dev_err(info->device,
+			"Frequency greater than maxclock (%ld kHz)\n",
+			maxclock);
+		return -EINVAL;
+	}
+	/*
+	 * Additional constraint: 8bpp uses DAC clock doubling to allow maximum
+	 * pixel clock
+	 */
+	if (var->bits_per_pixel == 8) {
 		switch (cinfo->btype) {
 		case BT_ALPINE:
+		case BT_PICASSO4:
+			if (freq > 85500)
+				cinfo->multiplexing = 1;
+			break;
 		case BT_GD5480:
-			cinfo->multiplexing = 1;
+			if (freq > 135100)
+				cinfo->multiplexing = 1;
 			break;
 
 		default:
@@ -815,6 +830,8 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	freq = PICOS2KHZ(var->pixclock);
 	if (cinfo->btype == BT_ALPINE && var->bits_per_pixel == 24)
 		freq *= 3;
+	if (cinfo->multiplexing)
+		freq /= 2;
 
 	bestclock(freq, &nom, &den, &div);
 
