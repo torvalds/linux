@@ -1620,10 +1620,22 @@ static int ar9170_read_eeprom(struct ar9170 *ar)
 	else
 		ar->hw->channel_change_time = 80 * 1000;
 
+	ar->regulatory.current_rd = le16_to_cpu(ar->eeprom.reg_domain[0]);
+	ar->regulatory.current_rd_ext = le16_to_cpu(ar->eeprom.reg_domain[1]);
+
 	/* second part of wiphy init */
 	SET_IEEE80211_PERM_ADDR(ar->hw, addr);
 
 	return bands ? 0 : -EINVAL;
+}
+
+static int ar9170_reg_notifier(struct wiphy *wiphy,
+			struct regulatory_request *request)
+{
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct ar9170 *ar = hw->priv;
+
+	return ath_reg_notifier_apply(wiphy, request, &ar->regulatory);
 }
 
 int ar9170_register(struct ar9170 *ar, struct device *pdev)
@@ -1635,9 +1647,15 @@ int ar9170_register(struct ar9170 *ar, struct device *pdev)
 	if (err)
 		goto err_out;
 
+	err = ath_regd_init(&ar->regulatory, ar->hw->wiphy,
+			    ar9170_reg_notifier);
+
 	err = ieee80211_register_hw(ar->hw);
 	if (err)
 		goto err_out;
+
+	if (!ath_is_world_regd(&ar->regulatory))
+		regulatory_hint(ar->hw->wiphy, ar->regulatory.alpha2);
 
 	err = ar9170_init_leds(ar);
 	if (err)
