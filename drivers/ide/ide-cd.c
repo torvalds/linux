@@ -242,6 +242,29 @@ static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 	elv_add_request(drive->queue, rq, ELEVATOR_INSERT_FRONT, 0);
 }
 
+static void ide_cd_complete_failed_rq(ide_drive_t *drive, struct request *rq)
+{
+	/*
+	 * For REQ_TYPE_SENSE, "rq->buffer" points to the original
+	 * failed request
+	 */
+	struct request *failed = (struct request *)rq->buffer;
+	struct cdrom_info *info = drive->driver_data;
+	void *sense = &info->sense_data;
+
+	if (failed) {
+		if (failed->sense) {
+			sense = failed->sense;
+			failed->sense_len = rq->sense_len;
+		}
+		cdrom_analyze_sense_data(drive, failed, sense);
+
+		if (ide_end_rq(drive, failed, -EIO, blk_rq_bytes(failed)))
+			BUG();
+	} else
+		cdrom_analyze_sense_data(drive, NULL, sense);
+}
+
 static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 {
 	struct request *rq = drive->hwif->rq;
@@ -250,28 +273,8 @@ static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 	ide_debug_log(IDE_DBG_FUNC, "cmd: 0x%x, uptodate: 0x%x, nsectors: %d",
 				    rq->cmd[0], uptodate, nsectors);
 
-	if (blk_sense_request(rq) && uptodate) {
-		/*
-		 * For REQ_TYPE_SENSE, "rq->buffer" points to the original
-		 * failed request
-		 */
-		struct request *failed = (struct request *) rq->buffer;
-		struct cdrom_info *info = drive->driver_data;
-		void *sense = &info->sense_data;
-
-		if (failed) {
-			if (failed->sense) {
-				sense = failed->sense;
-				failed->sense_len = rq->sense_len;
-			}
-			cdrom_analyze_sense_data(drive, failed, sense);
-
-			if (ide_end_rq(drive, failed, -EIO,
-				       blk_rq_bytes(failed)))
-				BUG();
-		} else
-			cdrom_analyze_sense_data(drive, NULL, sense);
-	}
+	if (blk_sense_request(rq) && uptodate)
+		ide_cd_complete_failed_rq(drive, rq);
 
 	if (!rq->current_nr_sectors && blk_fs_request(rq))
 		uptodate = 1;
