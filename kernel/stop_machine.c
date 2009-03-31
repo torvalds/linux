@@ -44,7 +44,7 @@ static DEFINE_MUTEX(setup_lock);
 static int refcount;
 static struct workqueue_struct *stop_machine_wq;
 static struct stop_machine_data active, idle;
-static const cpumask_t *active_cpus;
+static const struct cpumask *active_cpus;
 static void *stop_machine_work;
 
 static void set_state(enum stopmachine_state newstate)
