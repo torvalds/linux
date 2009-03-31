@@ -146,7 +146,7 @@ static const struct cirrusfb_board_info_rec {
 		.sr07			= 0xF0,
 		.sr07_1bpp		= 0xF0,
 		.sr07_8bpp		= 0xF1,
-		.sr1f			= 0x20
+		.sr1f			= 0x1E
 	},
 	[BT_PICCOLO] = {
 		.name			= "CL Piccolo",
@@ -482,6 +482,7 @@ static int cirrusfb_check_pixclock(const struct fb_var_screeninfo *var,
 	if (var->bits_per_pixel == 8) {
 		switch (cinfo->btype) {
 		case BT_ALPINE:
+		case BT_SD64:
 		case BT_PICASSO4:
 			if (freq > 85500)
 				cinfo->multiplexing = 1;
@@ -492,10 +493,7 @@ static int cirrusfb_check_pixclock(const struct fb_var_screeninfo *var,
 			break;
 
 		default:
-			dev_err(info->device,
-				"Frequency greater than maxclock (%ld kHz)\n",
-				maxclock);
-			return -EINVAL;
+			break;
 		}
 	}
 #if 0
@@ -847,7 +845,8 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	/* formula: VClk = (OSC * N) / (D * (1+P)) */
 	/* Example: VClk = (14.31818 * 91) / (23 * (1+1)) = 28.325 MHz */
 
-	if (cinfo->btype == BT_ALPINE || cinfo->btype == BT_PICASSO4) {
+	if (cinfo->btype == BT_ALPINE || cinfo->btype == BT_PICASSO4 ||
+	    cinfo->btype == BT_SD64) {
 		/* if freq is close to mclk or mclk/2 select mclk
 		 * as clock source
 		 */
@@ -966,30 +965,19 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 
 		/* Extended Sequencer Mode */
 		switch (cinfo->btype) {
-		case BT_SD64:
-			/* setting the SEQRF on SD64 is not necessary
-			 * (only during init)
-			 */
-			/*  MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x1a);
-			break;
 
 		case BT_PICCOLO:
 		case BT_SPECTRUM:
-			/* ### ueberall 0x22? */
-			/* ##vorher 1c MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x22);
 			/* evtl d0 bei 1 bit? avoid FIFO underruns..? */
 			vga_wseq(regbase, CL_SEQRF, 0xb0);
 			break;
 
 		case BT_PICASSO:
-			/* ##vorher 22 MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x22);
 			/* ## vorher d0 avoid FIFO underruns..? */
 			vga_wseq(regbase, CL_SEQRF, 0xd0);
 			break;
 
+		case BT_SD64:
 		case BT_PICASSO4:
 		case BT_ALPINE:
 		case BT_GD5480:
@@ -1051,16 +1039,9 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		}
 
 		switch (cinfo->btype) {
-		case BT_SD64:
-			/* MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x1d);
-			break;
-
 		case BT_PICCOLO:
 		case BT_PICASSO:
 		case BT_SPECTRUM:
-			/* ### vorher 1c MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x22);
 			/* Fast Page-Mode writes */
 			vga_wseq(regbase, CL_SEQRF, 0xb0);
 			break;
@@ -1074,6 +1055,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 			/* We already set SRF and SR1F */
 			break;
 
+		case BT_SD64:
 		case BT_GD5480:
 		case BT_LAGUNA:
 		case BT_LAGUNAB:
@@ -1104,32 +1086,23 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	else if (var->bits_per_pixel == 16) {
 		dev_dbg(info->device, "preparing for 16 bit deep display\n");
 		switch (cinfo->btype) {
-		case BT_SD64:
-			/* Extended Sequencer Mode: 256c col. mode */
-			vga_wseq(regbase, CL_SEQR7, 0xf7);
-			/* MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x1e);
-			break;
-
 		case BT_PICCOLO:
 		case BT_SPECTRUM:
 			vga_wseq(regbase, CL_SEQR7, 0x87);
 			/* Fast Page-Mode writes */
 			vga_wseq(regbase, CL_SEQRF, 0xb0);
-			/* MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x22);
 			break;
 
 		case BT_PICASSO:
 			vga_wseq(regbase, CL_SEQR7, 0x27);
 			/* Fast Page-Mode writes */
 			vga_wseq(regbase, CL_SEQRF, 0xb0);
-			/* MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x22);
 			break;
 
+		case BT_SD64:
 		case BT_PICASSO4:
 		case BT_ALPINE:
+			/* Extended Sequencer Mode: 256c col. mode */
 			vga_wseq(regbase, CL_SEQR7, 0xa7);
 			break;
 
@@ -1171,32 +1144,23 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	else if (var->bits_per_pixel == 24) {
 		dev_dbg(info->device, "preparing for 24 bit deep display\n");
 		switch (cinfo->btype) {
-		case BT_SD64:
-			/* Extended Sequencer Mode: 256c col. mode */
-			vga_wseq(regbase, CL_SEQR7, 0xf5);
-			/* MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x1e);
-			break;
-
 		case BT_PICCOLO:
 		case BT_SPECTRUM:
 			vga_wseq(regbase, CL_SEQR7, 0x85);
 			/* Fast Page-Mode writes */
 			vga_wseq(regbase, CL_SEQRF, 0xb0);
-			/* MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x22);
 			break;
 
 		case BT_PICASSO:
 			vga_wseq(regbase, CL_SEQR7, 0x25);
 			/* Fast Page-Mode writes */
 			vga_wseq(regbase, CL_SEQRF, 0xb0);
-			/* MCLK select */
-			vga_wseq(regbase, CL_SEQR1F, 0x22);
 			break;
 
+		case BT_SD64:
 		case BT_PICASSO4:
 		case BT_ALPINE:
+			/* Extended Sequencer Mode: 256c col. mode */
 			vga_wseq(regbase, CL_SEQR7, 0xa5);
 			break;
 
@@ -1352,9 +1316,6 @@ static int cirrusfb_pan_display(struct fb_var_screeninfo *var,
 	unsigned long base;
 	unsigned char tmp, xpix;
 	struct cirrusfb_info *cinfo = info->par;
-
-	dev_dbg(info->device,
-		"virtual offset: (%d,%d)\n", var->xoffset, var->yoffset);
 
 	/* no range checks for xoffset and yoffset,   */
 	/* as fb_pan_display has already done this */
@@ -1606,10 +1567,6 @@ static void init_vgachip(struct fb_info *info)
 		/* signature generator */
 		vga_wseq(cinfo->regbase, CL_SEQR18, 0x02);
 	}
-
-	/* MCLK select etc. */
-	if (bi->init_sr1f)
-		vga_wseq(cinfo->regbase, CL_SEQR1F, bi->sr1f);
 
 	/* Screen A preset row scan: none */
 	vga_wcrt(cinfo->regbase, VGA_CRTC_PRESET_ROW, 0x00);
@@ -2345,6 +2302,11 @@ static int __devinit cirrusfb_zorro_register(struct zorro_dev *z,
 		 board_size / MB_, board_addr);
 
 	zorro_set_drvdata(z, info);
+
+	/* MCLK select etc. */
+	if (cirrusfb_board_info[btype].init_sr1f)
+		vga_wseq(cinfo->regbase, CL_SEQR1F,
+			 cirrusfb_board_info[btype].sr1f);
 
 	ret = cirrusfb_register(info);
 	if (!ret)
