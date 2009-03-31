@@ -46,22 +46,23 @@
  * The allocation request involve request for multiple number of blocks
  * near to the goal(block) value specified.
  *
- * During initialization phase of the allocator we decide to use the group
- * preallocation or inode preallocation depending on the size file. The
- * size of the file could be the resulting file size we would have after
- * allocation or the current file size which ever is larger. If the size is
- * less that sbi->s_mb_stream_request we select the group
- * preallocation. The default value of s_mb_stream_request is 16
- * blocks. This can also be tuned via
- * /proc/fs/ext4/<partition>/stream_req. The value is represented in terms
- * of number of blocks.
+ * During initialization phase of the allocator we decide to use the
+ * group preallocation or inode preallocation depending on the size of
+ * the file. The size of the file could be the resulting file size we
+ * would have after allocation, or the current file size, which ever
+ * is larger. If the size is less than sbi->s_mb_stream_request we
+ * select to use the group preallocation. The default value of
+ * s_mb_stream_request is 16 blocks. This can also be tuned via
+ * /sys/fs/ext4/<partition>/mb_stream_req. The value is represented in
+ * terms of number of blocks.
  *
  * The main motivation for having small file use group preallocation is to
- * ensure that we have small file closer in the disk.
+ * ensure that we have small files closer together on the disk.
  *
- * First stage the allocator looks at the inode prealloc list
- * ext4_inode_info->i_prealloc_list contain list of prealloc spaces for
- * this particular inode. The inode prealloc space is represented as:
+ * First stage the allocator looks at the inode prealloc list,
+ * ext4_inode_info->i_prealloc_list, which contains list of prealloc
+ * spaces for this particular inode. The inode prealloc space is
+ * represented as:
  *
  * pa_lstart -> the logical start block for this prealloc space
  * pa_pstart -> the physical start block for this prealloc space
@@ -121,29 +122,29 @@
  * list. In case of inode preallocation we follow a list of heuristics
  * based on file size. This can be found in ext4_mb_normalize_request. If
  * we are doing a group prealloc we try to normalize the request to
- * sbi->s_mb_group_prealloc. Default value of s_mb_group_prealloc is set to
+ * sbi->s_mb_group_prealloc. Default value of s_mb_group_prealloc is
  * 512 blocks. This can be tuned via
- * /proc/fs/ext4/<partition/group_prealloc. The value is represented in
+ * /sys/fs/ext4/<partition/mb_group_prealloc. The value is represented in
  * terms of number of blocks. If we have mounted the file system with -O
  * stripe=<value> option the group prealloc request is normalized to the
  * stripe value (sbi->s_stripe)
  *
- * The regular allocator(using the buddy cache) support few tunables.
+ * The regular allocator(using the buddy cache) supports few tunables.
  *
- * /proc/fs/ext4/<partition>/min_to_scan
- * /proc/fs/ext4/<partition>/max_to_scan
- * /proc/fs/ext4/<partition>/order2_req
+ * /sys/fs/ext4/<partition>/mb_min_to_scan
+ * /sys/fs/ext4/<partition>/mb_max_to_scan
+ * /sys/fs/ext4/<partition>/mb_order2_req
  *
- * The regular allocator use buddy scan only if the request len is power of
+ * The regular allocator uses buddy scan only if the request len is power of
  * 2 blocks and the order of allocation is >= sbi->s_mb_order2_reqs. The
  * value of s_mb_order2_reqs can be tuned via
- * /proc/fs/ext4/<partition>/order2_req.  If the request len is equal to
+ * /sys/fs/ext4/<partition>/mb_order2_req.  If the request len is equal to
  * stripe size (sbi->s_stripe), we try to search for contigous block in
- * stripe size. This should result in better allocation on RAID setup. If
- * not we search in the specific group using bitmap for best extents. The
- * tunable min_to_scan and max_to_scan controll the behaviour here.
+ * stripe size. This should result in better allocation on RAID setups. If
+ * not, we search in the specific group using bitmap for best extents. The
+ * tunable min_to_scan and max_to_scan control the behaviour here.
  * min_to_scan indicate how long the mballoc __must__ look for a best
- * extent and max_to_scanindicate how long the mballoc __can__ look for a
+ * extent and max_to_scan indicates how long the mballoc __can__ look for a
  * best extent in the found extents. Searching for the blocks starts with
  * the group specified as the goal value in allocation context via
  * ac_g_ex. Each group is first checked based on the criteria whether it
@@ -337,8 +338,6 @@ static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 					ext4_group_t group);
 static void ext4_mb_generate_from_freelist(struct super_block *sb, void *bitmap,
 						ext4_group_t group);
-static int ext4_mb_init_per_dev_proc(struct super_block *sb);
-static int ext4_mb_destroy_per_dev_proc(struct super_block *sb);
 static void release_blocks_on_commit(journal_t *journal, transaction_t *txn);
 
 
@@ -1978,7 +1977,7 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	/*
 	 * We search using buddy data only if the order of the request
 	 * is greater than equal to the sbi_s_mb_order2_reqs
-	 * You can tune it via /proc/fs/ext4/<partition>/order2_req
+	 * You can tune it via /sys/fs/ext4/<partition>/mb_order2_req
 	 */
 	if (i >= sbi->s_mb_order2_reqs) {
 		/*
@@ -2753,7 +2752,6 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 		spin_lock_init(&lg->lg_prealloc_lock);
 	}
 
-	ext4_mb_init_per_dev_proc(sb);
 	ext4_mb_history_init(sb);
 
 	if (sbi->s_journal)
@@ -2836,7 +2834,6 @@ int ext4_mb_release(struct super_block *sb)
 
 	free_percpu(sbi->s_locality_groups);
 	ext4_mb_history_release(sb);
-	ext4_mb_destroy_per_dev_proc(sb);
 
 	return 0;
 }
@@ -2895,62 +2892,6 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 	}
 
 	mb_debug("freed %u blocks in %u structures\n", count, count2);
-}
-
-#define EXT4_MB_STATS_NAME		"stats"
-#define EXT4_MB_MAX_TO_SCAN_NAME	"max_to_scan"
-#define EXT4_MB_MIN_TO_SCAN_NAME	"min_to_scan"
-#define EXT4_MB_ORDER2_REQ		"order2_req"
-#define EXT4_MB_STREAM_REQ		"stream_req"
-#define EXT4_MB_GROUP_PREALLOC		"group_prealloc"
-
-static int ext4_mb_init_per_dev_proc(struct super_block *sb)
-{
-#ifdef CONFIG_PROC_FS
-	mode_t mode = S_IFREG | S_IRUGO | S_IWUSR;
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct proc_dir_entry *proc;
-
-	if (sbi->s_proc == NULL)
-		return -EINVAL;
-
-	EXT4_PROC_HANDLER(EXT4_MB_STATS_NAME, mb_stats);
-	EXT4_PROC_HANDLER(EXT4_MB_MAX_TO_SCAN_NAME, mb_max_to_scan);
-	EXT4_PROC_HANDLER(EXT4_MB_MIN_TO_SCAN_NAME, mb_min_to_scan);
-	EXT4_PROC_HANDLER(EXT4_MB_ORDER2_REQ, mb_order2_reqs);
-	EXT4_PROC_HANDLER(EXT4_MB_STREAM_REQ, mb_stream_request);
-	EXT4_PROC_HANDLER(EXT4_MB_GROUP_PREALLOC, mb_group_prealloc);
-	return 0;
-
-err_out:
-	remove_proc_entry(EXT4_MB_GROUP_PREALLOC, sbi->s_proc);
-	remove_proc_entry(EXT4_MB_STREAM_REQ, sbi->s_proc);
-	remove_proc_entry(EXT4_MB_ORDER2_REQ, sbi->s_proc);
-	remove_proc_entry(EXT4_MB_MIN_TO_SCAN_NAME, sbi->s_proc);
-	remove_proc_entry(EXT4_MB_MAX_TO_SCAN_NAME, sbi->s_proc);
-	remove_proc_entry(EXT4_MB_STATS_NAME, sbi->s_proc);
-	return -ENOMEM;
-#else
-	return 0;
-#endif
-}
-
-static int ext4_mb_destroy_per_dev_proc(struct super_block *sb)
-{
-#ifdef CONFIG_PROC_FS
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
-
-	if (sbi->s_proc == NULL)
-		return -EINVAL;
-
-	remove_proc_entry(EXT4_MB_GROUP_PREALLOC, sbi->s_proc);
-	remove_proc_entry(EXT4_MB_STREAM_REQ, sbi->s_proc);
-	remove_proc_entry(EXT4_MB_ORDER2_REQ, sbi->s_proc);
-	remove_proc_entry(EXT4_MB_MIN_TO_SCAN_NAME, sbi->s_proc);
-	remove_proc_entry(EXT4_MB_MAX_TO_SCAN_NAME, sbi->s_proc);
-	remove_proc_entry(EXT4_MB_STATS_NAME, sbi->s_proc);
-#endif
-	return 0;
 }
 
 int __init init_ext4_mballoc(void)
@@ -3123,7 +3064,7 @@ out_err:
  * here we normalize request for locality group
  * Group request are normalized to s_strip size if we set the same via mount
  * option. If not we set it to s_mb_group_prealloc which can be configured via
- * /proc/fs/ext4/<partition>/group_prealloc
+ * /sys/fs/ext4/<partition>/mb_group_prealloc
  *
  * XXX: should we try to preallocate more than the group has now?
  */
@@ -4239,7 +4180,7 @@ static inline void ext4_mb_show_ac(struct ext4_allocation_context *ac)
  * file is determined by the current size or the resulting size after
  * allocation which ever is larger
  *
- * One can tune this size via /proc/fs/ext4/<partition>/stream_req
+ * One can tune this size via /sys/fs/ext4/<partition>/mb_stream_req
  */
 static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
 {

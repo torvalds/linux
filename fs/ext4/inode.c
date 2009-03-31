@@ -4153,12 +4153,7 @@ make_io:
 			unsigned num;
 
 			table = ext4_inode_table(sb, gdp);
-			/* Make sure s_inode_readahead_blks is a power of 2 */
-			while (EXT4_SB(sb)->s_inode_readahead_blks &
-			       (EXT4_SB(sb)->s_inode_readahead_blks-1))
-				EXT4_SB(sb)->s_inode_readahead_blks = 
-				   (EXT4_SB(sb)->s_inode_readahead_blks &
-				    (EXT4_SB(sb)->s_inode_readahead_blks-1));
+			/* s_inode_readahead_blks is always a power of 2 */
 			b = block & ~(EXT4_SB(sb)->s_inode_readahead_blks-1);
 			if (table > b)
 				b = table;

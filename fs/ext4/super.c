@@ -579,7 +579,6 @@ static void ext4_put_super(struct super_block *sb)
 		ext4_commit_super(sb, es, 1);
 	}
 	if (sbi->s_proc) {
-		remove_proc_entry("inode_readahead_blks", sbi->s_proc);
 		remove_proc_entry(sb->s_id, ext4_proc_root);
 	}
 	kobject_del(&sbi->s_kobj);
@@ -2529,11 +2528,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_PROC_FS
 	if (ext4_proc_root)
 		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
-
-	if (sbi->s_proc)
-		proc_create_data("inode_readahead_blks", 0644, sbi->s_proc,
-				 &ext4_ui_proc_fops,
-				 &sbi->s_inode_readahead_blks);
 #endif
 
 	bgl_lock_init(sbi->s_blockgroup_lock);
@@ -2832,7 +2826,6 @@ failed_mount2:
 	kfree(sbi->s_group_desc);
 failed_mount:
 	if (sbi->s_proc) {
-		remove_proc_entry("inode_readahead_blks", sbi->s_proc);
 		remove_proc_entry(sb->s_id, ext4_proc_root);
 	}
 #ifdef CONFIG_QUOTA
@@ -3864,45 +3857,6 @@ static int ext4_get_sb(struct file_system_type *fs_type,
 {
 	return get_sb_bdev(fs_type, flags, dev_name, data, ext4_fill_super, mnt);
 }
-
-#ifdef CONFIG_PROC_FS
-static int ext4_ui_proc_show(struct seq_file *m, void *v)
-{
-	unsigned int *p = m->private;
-
-	seq_printf(m, "%u\n", *p);
-	return 0;
-}
-
-static int ext4_ui_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ext4_ui_proc_show, PDE(inode)->data);
-}
-
-static ssize_t ext4_ui_proc_write(struct file *file, const char __user *buf,
-			       size_t cnt, loff_t *ppos)
-{
-	unsigned long *p = PDE(file->f_path.dentry->d_inode)->data;
-	char str[32];
-
-	if (cnt >= sizeof(str))
-		return -EINVAL;
-	if (copy_from_user(str, buf, cnt))
-		return -EFAULT;
-
-	*p = simple_strtoul(str, NULL, 0);
-	return cnt;
-}
-
-const struct file_operations ext4_ui_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= ext4_ui_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= ext4_ui_proc_write,
-};
-#endif
 
 static struct file_system_type ext4_fs_type = {
 	.owner		= THIS_MODULE,
