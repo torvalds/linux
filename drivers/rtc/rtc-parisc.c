@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/time.h>
 #include <linux/platform_device.h>
+#include <linux/rtc.h>
 
 #include <asm/rtc.h>
 
