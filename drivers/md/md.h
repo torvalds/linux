@@ -321,6 +321,16 @@ struct mdk_personality
 	 * others - reserved
 	 */
 	void (*quiesce) (mddev_t *mddev, int state);
+	/* takeover is used to transition an array from one
+	 * personality to another.  The new personality must be able
+	 * to handle the data in the current layout.
+	 * e.g. 2drive raid1 -> 2drive raid5
+	 *      ndrive raid5 -> degraded n+1drive raid6 with special layout
+	 * If the takeover succeeds, a new 'private' structure is returned.
+	 * This needs to be installed and then ->run used to activate the
+	 * array.
+	 */
+	void *(*takeover) (mddev_t *mddev);
 };
 
 

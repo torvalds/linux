@@ -933,8 +933,10 @@ static int grow_stripes(raid5_conf_t *conf, int num)
 	struct kmem_cache *sc;
 	int devs = conf->raid_disks;
 
-	sprintf(conf->cache_name[0], "raid5-%s", mdname(conf->mddev));
-	sprintf(conf->cache_name[1], "raid5-%s-alt", mdname(conf->mddev));
+	sprintf(conf->cache_name[0],
+		"raid%d-%s", conf->level, mdname(conf->mddev));
+	sprintf(conf->cache_name[1],
+		"raid%d-%s-alt", conf->level, mdname(conf->mddev));
 	conf->active_name = 0;
 	sc = kmem_cache_create(conf->cache_name[conf->active_name],
 			       sizeof(struct stripe_head)+(devs-1)*sizeof(struct r5dev),
@@ -4361,10 +4363,12 @@ static int run(mddev_t *mddev)
 		BUG_ON(mddev->chunk_size != mddev->new_chunk);
 		BUG_ON(mddev->delta_disks != 0);
 	}
-	conf = setup_conf(mddev);
 
-	if (conf == NULL)
-		return -EIO;
+	if (mddev->private == NULL)
+		conf = setup_conf(mddev);
+	else
+		conf = mddev->private;
+
 	if (IS_ERR(conf))
 		return PTR_ERR(conf);
 
@@ -4880,6 +4884,55 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 	}
 }
 
+static struct mdk_personality raid5_personality;
+
+static void *raid6_takeover(mddev_t *mddev)
+{
+	/* Currently can only take over a raid5.  We map the
+	 * personality to an equivalent raid6 personality
+	 * with the Q block at the end.
+	 */
+	int new_layout;
+
+	if (mddev->pers != &raid5_personality)
+		return ERR_PTR(-EINVAL);
+	if (mddev->degraded > 1)
+		return ERR_PTR(-EINVAL);
+	if (mddev->raid_disks > 253)
+		return ERR_PTR(-EINVAL);
+	if (mddev->raid_disks < 3)
+		return ERR_PTR(-EINVAL);
+
+	switch (mddev->layout) {
+	case ALGORITHM_LEFT_ASYMMETRIC:
+		new_layout = ALGORITHM_LEFT_ASYMMETRIC_6;
+		break;
+	case ALGORITHM_RIGHT_ASYMMETRIC:
+		new_layout = ALGORITHM_RIGHT_ASYMMETRIC_6;
+		break;
+	case ALGORITHM_LEFT_SYMMETRIC:
+		new_layout = ALGORITHM_LEFT_SYMMETRIC_6;
+		break;
+	case ALGORITHM_RIGHT_SYMMETRIC:
+		new_layout = ALGORITHM_RIGHT_SYMMETRIC_6;
+		break;
+	case ALGORITHM_PARITY_0:
+		new_layout = ALGORITHM_PARITY_0_6;
+		break;
+	case ALGORITHM_PARITY_N:
+		new_layout = ALGORITHM_PARITY_N;
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+	mddev->new_level = 6;
+	mddev->new_layout = new_layout;
+	mddev->delta_disks = 1;
+	mddev->raid_disks += 1;
+	return setup_conf(mddev);
+}
+
+
 static struct mdk_personality raid6_personality =
 {
 	.name		= "raid6",
@@ -4900,6 +4953,7 @@ static struct mdk_personality raid6_personality =
 	.start_reshape  = raid5_start_reshape,
 #endif
 	.quiesce	= raid5_quiesce,
+	.takeover	= raid6_takeover,
 };
 static struct mdk_personality raid5_personality =
 {

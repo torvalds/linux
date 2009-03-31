@@ -2649,18 +2649,101 @@ level_show(mddev_t *mddev, char *page)
 static ssize_t
 level_store(mddev_t *mddev, const char *buf, size_t len)
 {
+	char level[16];
 	ssize_t rv = len;
-	if (mddev->pers)
+	struct mdk_personality *pers;
+	void *priv;
+
+	if (mddev->pers == NULL) {
+		if (len == 0)
+			return 0;
+		if (len >= sizeof(mddev->clevel))
+			return -ENOSPC;
+		strncpy(mddev->clevel, buf, len);
+		if (mddev->clevel[len-1] == '\n')
+			len--;
+		mddev->clevel[len] = 0;
+		mddev->level = LEVEL_NONE;
+		return rv;
+	}
+
+	/* request to change the personality.  Need to ensure:
+	 *  - array is not engaged in resync/recovery/reshape
+	 *  - old personality can be suspended
+	 *  - new personality will access other array.
+	 */
+
+	if (mddev->sync_thread || mddev->reshape_position != MaxSector)
 		return -EBUSY;
-	if (len == 0)
-		return 0;
-	if (len >= sizeof(mddev->clevel))
-		return -ENOSPC;
-	strncpy(mddev->clevel, buf, len);
-	if (mddev->clevel[len-1] == '\n')
+
+	if (!mddev->pers->quiesce) {
+		printk(KERN_WARNING "md: %s: %s does not support online personality change\n",
+		       mdname(mddev), mddev->pers->name);
+		return -EINVAL;
+	}
+
+	/* Now find the new personality */
+	if (len == 0 || len >= sizeof(level))
+		return -EINVAL;
+	strncpy(level, buf, len);
+	if (level[len-1] == '\n')
 		len--;
-	mddev->clevel[len] = 0;
-	mddev->level = LEVEL_NONE;
+	level[len] = 0;
+
+	request_module("md-%s", level);
+	spin_lock(&pers_lock);
+	pers = find_pers(LEVEL_NONE, level);
+	if (!pers || !try_module_get(pers->owner)) {
+		spin_unlock(&pers_lock);
+		printk(KERN_WARNING "md: personality %s not loaded\n", level);
+		return -EINVAL;
+	}
+	spin_unlock(&pers_lock);
+
+	if (pers == mddev->pers) {
+		/* Nothing to do! */
+		module_put(pers->owner);
+		return rv;
+	}
+	if (!pers->takeover) {
+		module_put(pers->owner);
+		printk(KERN_WARNING "md: %s: %s does not support personality takeover\n",
+		       mdname(mddev), level);
+		return -EINVAL;
+	}
+
+	/* ->takeover must set new_* and/or delta_disks
+	 * if it succeeds, and may set them when it fails.
+	 */
+	priv = pers->takeover(mddev);
+	if (IS_ERR(priv)) {
+		mddev->new_level = mddev->level;
+		mddev->new_layout = mddev->layout;
+		mddev->new_chunk = mddev->chunk_size;
+		mddev->raid_disks -= mddev->delta_disks;
+		mddev->delta_disks = 0;
+		module_put(pers->owner);
+		printk(KERN_WARNING "md: %s: %s would not accept array\n",
+		       mdname(mddev), level);
+		return PTR_ERR(priv);
+	}
+
+	/* Looks like we have a winner */
+	mddev_suspend(mddev);
+	mddev->pers->stop(mddev);
+	module_put(mddev->pers->owner);
+	mddev->pers = pers;
+	mddev->private = priv;
+	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
+	mddev->level = mddev->new_level;
+	mddev->layout = mddev->new_layout;
+	mddev->chunk_size = mddev->new_chunk;
+	mddev->delta_disks = 0;
+	pers->run(mddev);
+	mddev_resume(mddev);
+	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	md_wakeup_thread(mddev->thread);
 	return rv;
 }
 
