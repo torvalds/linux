@@ -4912,6 +4912,39 @@ static void *raid5_takeover_raid1(mddev_t *mddev)
 	return setup_conf(mddev);
 }
 
+static void *raid5_takeover_raid6(mddev_t *mddev)
+{
+	int new_layout;
+
+	switch (mddev->layout) {
+	case ALGORITHM_LEFT_ASYMMETRIC_6:
+		new_layout = ALGORITHM_LEFT_ASYMMETRIC;
+		break;
+	case ALGORITHM_RIGHT_ASYMMETRIC_6:
+		new_layout = ALGORITHM_RIGHT_ASYMMETRIC;
+		break;
+	case ALGORITHM_LEFT_SYMMETRIC_6:
+		new_layout = ALGORITHM_LEFT_SYMMETRIC;
+		break;
+	case ALGORITHM_RIGHT_SYMMETRIC_6:
+		new_layout = ALGORITHM_RIGHT_SYMMETRIC;
+		break;
+	case ALGORITHM_PARITY_0_6:
+		new_layout = ALGORITHM_PARITY_0;
+		break;
+	case ALGORITHM_PARITY_N:
+		new_layout = ALGORITHM_PARITY_N;
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+	mddev->new_level = 5;
+	mddev->new_layout = new_layout;
+	mddev->delta_disks = -1;
+	mddev->raid_disks -= 1;
+	return setup_conf(mddev);
+}
+
 
 static int raid5_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
 {
@@ -4972,6 +5005,8 @@ static void *raid5_takeover(mddev_t *mddev)
 		mddev->new_level = 5;
 		return setup_conf(mddev);
 	}
+	if (mddev->level == 6)
+		return raid5_takeover_raid6(mddev);
 
 	return ERR_PTR(-EINVAL);
 }
