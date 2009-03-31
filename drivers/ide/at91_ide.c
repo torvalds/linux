@@ -196,9 +196,9 @@ static void at91_ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 		HIHI = 0xFF;
 
 	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
-		u16 data = (tf->hob_data << 8) | tf->data;
+		u8 data[2] = { tf->data, tf->hob_data };
 
-		at91_ide_output_data(drive, NULL, &data, 2);
+		at91_ide_output_data(drive, cmd, data, 2);
 	}
 
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
@@ -234,11 +234,12 @@ static void at91_ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_taskfile *tf = &cmd->tf;
 
 	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
-		u16 data;
+		u8 data[2];
 
-		at91_ide_input_data(drive, NULL, &data, 2);
-		tf->data = data & 0xff;
-		tf->hob_data = (data >> 8) & 0xff;
+		at91_ide_input_data(drive, cmd, data, 2);
+
+		tf->data = data[0];
+		tf->hob_data = data[1];
 	}
 
 	/* be sure we're looking at the low order bits */

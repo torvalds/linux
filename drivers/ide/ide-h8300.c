@@ -54,8 +54,11 @@ static void h8300_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA)
-		mm_outw((tf->hob_data << 8) | tf->data, io_ports->data_addr);
+	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
+		u8 data[2] = { tf->data, tf->hob_data };
+
+		h8300_output_data(drive, cmd, data, 2);
+	}
 
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
 		outb(tf->hob_feature, io_ports->feature_addr);
@@ -91,10 +94,12 @@ static void h8300_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_taskfile *tf = &cmd->tf;
 
 	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
-		u16 data = mm_inw(io_ports->data_addr);
+		u8 data[2];
 
-		tf->data = data & 0xff;
-		tf->hob_data = (data >> 8) & 0xff;
+		h8300_input_data(drive, cmd, data, 2);
+
+		tf->data = data[0];
+		tf->hob_data = data[1];
 	}
 
 	/* be sure we're looking at the low order bits */

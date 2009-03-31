@@ -458,10 +458,9 @@ static void tx4939ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 		HIHI = 0xFF;
 
 	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
-		u16 data = (tf->hob_data << 8) | tf->data;
+		u8 data[2] = { tf->data, tf->hob_data };
 
-		/* no endian swap */
-		__raw_writew(data, (void __iomem *)io_ports->data_addr);
+		hwif->tp_ops->output_data(drive, cmd, data, 2);
 	}
 
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
@@ -500,12 +499,12 @@ static void tx4939ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_taskfile *tf = &cmd->tf;
 
 	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
-		u16 data;
+		u8 data[2];
 
-		/* no endian swap */
-		data = __raw_readw((void __iomem *)io_ports->data_addr);
-		tf->data = data & 0xff;
-		tf->hob_data = (data >> 8) & 0xff;
+		hwif->tp_ops->input_data(drive, cmd, data, 2);
+
+		tf->data = data[0];
+		tf->hob_data = data[1];
 	}
 
 	/* be sure we're looking at the low order bits */

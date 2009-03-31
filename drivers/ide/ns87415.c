@@ -67,10 +67,12 @@ static void superio_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_taskfile *tf = &cmd->tf;
 
 	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
-		u16 data = inw(io_ports->data_addr);
+		u8 data[2];
 
-		tf->data = data & 0xff;
-		tf->hob_data = (data >> 8) & 0xff;
+		ide_input_data(drive, cmd, data, 2);
+
+		tf->data = data[0];
+		tf->hob_data = data[1];
 	}
 
 	/* be sure we're looking at the low order bits */
