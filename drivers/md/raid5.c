@@ -44,10 +44,9 @@
  */
 
 #include <linux/kthread.h>
-#include "raid6.h"
-
-#include <linux/raid/bitmap.h>
 #include <linux/async_tx.h>
+#include "raid6.h"
+#include "bitmap.h"
 
 /*
  * Stripe cache

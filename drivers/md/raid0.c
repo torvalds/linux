@@ -18,7 +18,7 @@
    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
 */
 
-#include <linux/raid/raid0.h>
+#include "raid0.h"
 
 static void raid0_unplug(struct request_queue *q)
 {

@@ -20,8 +20,8 @@
 
 #include "dm-bio-list.h"
 #include <linux/delay.h>
-#include <linux/raid/raid10.h>
-#include <linux/raid/bitmap.h>
+#include "raid10.h"
+#include "bitmap.h"
 
 /*
  * RAID10 provides a combination of RAID0 and RAID1 functionality.

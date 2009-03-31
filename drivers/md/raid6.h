@@ -19,7 +19,7 @@
 #define RAID6_USE_EMPTY_ZERO_PAGE 0
 
 #include <linux/raid/md.h>
-#include <linux/raid/raid5.h>
+#include "raid5.h"
 
 typedef raid5_conf_t raid6_conf_t; /* Same configuration */
 

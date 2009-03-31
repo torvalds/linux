@@ -34,7 +34,6 @@
 
 #include <linux/kthread.h>
 #include <linux/raid/md.h>
-#include <linux/raid/bitmap.h>
 #include <linux/sysctl.h>
 #include <linux/buffer_head.h> /* for invalidate_bdev */
 #include <linux/poll.h>
@@ -45,6 +44,7 @@
 #include <linux/reboot.h>
 #include <linux/file.h>
 #include <linux/delay.h>
+#include "bitmap.h"
 
 /* 63 partitions with the alternate major number (mdp) */
 #define MdpMinorShift 6

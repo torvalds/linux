@@ -33,8 +33,8 @@
 
 #include "dm-bio-list.h"
 #include <linux/delay.h>
-#include <linux/raid/raid1.h>
-#include <linux/raid/bitmap.h>
+#include "raid1.h"
+#include "bitmap.h"
 
 #define DEBUG 0
 #if DEBUG

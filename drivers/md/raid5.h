@@ -319,7 +319,7 @@ struct r6_state {
  * PREREAD_ACTIVE is set, else we set DELAYED which will send it to the delayed queue.
  * HANDLE gets cleared if stripe_handle leave nothing locked.
  */
- 
+
 
 struct disk_info {
 	mdk_rdev_t	*rdev;

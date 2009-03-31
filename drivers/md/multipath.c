@@ -19,7 +19,7 @@
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/raid/multipath.h>
+#include "multipath.h"
 
 #define MAX_WORK_PER_DISK 128
 
