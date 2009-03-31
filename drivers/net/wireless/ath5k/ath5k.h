@@ -27,6 +27,8 @@
 #include <linux/types.h>
 #include <net/mac80211.h>
 
+#include "../ath/regd.h"
+
 /* RX/TX descriptor hw structs
  * TODO: Driver part should only see sw structs */
 #include "desc.h"
@@ -1039,8 +1041,6 @@ struct ath5k_hw {
 	bool			ah_5ghz;
 	bool			ah_2ghz;
 
-#define ah_regdomain		ah_capabilities.cap_regdomain.reg_current
-#define ah_regdomain_hw		ah_capabilities.cap_regdomain.reg_hw
 #define ah_modes		ah_capabilities.cap_mode
 #define ah_ee_version		ah_capabilities.cap_eeprom.ee_version
 
@@ -1065,6 +1065,7 @@ struct ath5k_hw {
 	u32			ah_gpio[AR5K_MAX_GPIO];
 	int			ah_gpio_npins;
 
+	struct ath_regulatory	ah_regulatory;
 	struct ath5k_capabilities ah_capabilities;
 
 	struct ath5k_txq_info	ah_txq[AR5K_NUM_TX_QUEUES];
