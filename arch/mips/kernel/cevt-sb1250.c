@@ -143,7 +143,6 @@ void __cpuinit sb1250_clockevent_init(void)
 
 	action->handler	= sibyte_counter_handler;
 	action->flags	= IRQF_DISABLED | IRQF_PERCPU;
-	action->mask	= cpumask_of_cpu(cpu);
 	action->name	= name;
 	action->dev_id	= cd;
 

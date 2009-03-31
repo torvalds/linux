@@ -44,7 +44,6 @@ static irqreturn_t timebase_interrupt(int irq, void *dev)
 
 static struct irqaction tbint_irqaction = {
 	.handler = timebase_interrupt,
-	.mask = CPU_MASK_NONE,
 	.name = "tbint",
 };
 

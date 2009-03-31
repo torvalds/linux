@@ -50,7 +50,6 @@ static irqreturn_t math_error_irq(int cpl, void *dev_id)
  */
 static struct irqaction fpu_irq = {
 	.handler = math_error_irq,
-	.mask = CPU_MASK_NONE,
 	.name = "fpu",
 };
 
@@ -83,7 +82,6 @@ void __init init_ISA_irqs(void)
  */
 static struct irqaction irq2 = {
 	.handler = no_action,
-	.mask = CPU_MASK_NONE,
 	.name = "cascade",
 };
 

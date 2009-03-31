@@ -108,7 +108,6 @@ static struct irqaction fpga_irq[1]  = {
 	[0] = {
 		.handler	= fpga_interrupt,
 		.flags		= IRQF_DISABLED,
-		.mask		= CPU_MASK_NONE,
 		.name		= "fpga.0",
 		.dev_id		= (void *) 0x0700UL,
 	}

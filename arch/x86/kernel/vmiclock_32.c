@@ -202,7 +202,6 @@ static struct irqaction vmi_clock_action  = {
 	.name 		= "vmi-timer",
 	.handler 	= vmi_timer_interrupt,
 	.flags 		= IRQF_DISABLED | IRQF_NOBALANCING | IRQF_TIMER,
-	.mask 		= CPU_MASK_ALL,
 };
 
 static void __devinit vmi_time_init_clockevent(void)

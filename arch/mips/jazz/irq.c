@@ -134,7 +134,6 @@ static irqreturn_t r4030_timer_interrupt(int irq, void *dev_id)
 static struct irqaction r4030_timer_irqaction = {
 	.handler	= r4030_timer_interrupt,
 	.flags		= IRQF_DISABLED,
-	.mask		= CPU_MASK_CPU0,
 	.name		= "R4030 timer",
 };
 

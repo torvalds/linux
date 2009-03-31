@@ -98,7 +98,6 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 static struct irqaction irq0  = {
 	.handler = timer_interrupt,
 	.flags = IRQF_DISABLED | IRQF_NOBALANCING,
-	.mask = CPU_MASK_NONE,
 	.name = "timer"
 };
 
@@ -121,7 +120,6 @@ void __init setup_pit_timer(void)
 	cd->min_delta_ns = clockevent_delta2ns(0xF, cd);
 	clockevents_register_device(cd);
 
-	irq0.mask = cpumask_of_cpu(cpu);
 	setup_irq(0, &irq0);
 }
 

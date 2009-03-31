@@ -439,7 +439,6 @@ static int request_fast_irq(unsigned int irq,
 	flush_cache_all();
 
 	action->flags = irqflags;
-	cpus_clear(action->mask);
 	action->name = devname;
 	action->dev_id = NULL;
 	action->next = NULL;
@@ -574,7 +573,6 @@ int request_irq(unsigned int irq,
 
 	action->handler = handler;
 	action->flags = irqflags;
-	cpus_clear(action->mask);
 	action->name = devname;
 	action->next = NULL;
 	action->dev_id = dev_id;

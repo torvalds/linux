@@ -162,7 +162,6 @@ static struct irqaction tmu0_irq = {
 	.name		= "periodic/oneshot timer",
 	.handler	= tmu_timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.mask		= CPU_MASK_NONE,
 };
 
 static void __init tmu_clk_init(struct clk *clk)

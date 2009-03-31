@@ -45,7 +45,6 @@
 
 static struct irqaction irq2 = {
 	.handler = no_action,
-	.mask = CPU_MASK_NONE,
 	.name = "cascade",
 };
 DEFINE_PER_CPU(vector_irq_t, vector_irq) = {

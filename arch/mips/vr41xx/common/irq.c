@@ -32,7 +32,6 @@ static irq_cascade_t irq_cascade[NR_IRQS] __cacheline_aligned;
 
 static struct irqaction cascade_irqaction = {
 	.handler	= no_action,
-	.mask		= CPU_MASK_NONE,
 	.name		= "cascade",
 };
 
