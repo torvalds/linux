@@ -90,12 +90,12 @@ static inline void cpuset_init_smp(void) {}
 static inline void cpuset_cpus_allowed(struct task_struct *p,
 				       struct cpumask *mask)
 {
-	*mask = cpu_possible_map;
+	cpumask_copy(mask, cpu_possible_mask);
 }
 static inline void cpuset_cpus_allowed_locked(struct task_struct *p,
 					      struct cpumask *mask)
 {
-	*mask = cpu_possible_map;
+	cpumask_copy(mask, cpu_possible_mask);
 }
 
 static inline nodemask_t cpuset_mems_allowed(struct task_struct *p)
