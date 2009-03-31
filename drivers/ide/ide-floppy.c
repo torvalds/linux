@@ -385,7 +385,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	struct gendisk *disk = floppy->disk;
 	struct ide_atapi_pc pc;
 	u8 *cap_desc;
-	u8 header_len, desc_cnt;
+	u8 pc_buf[256], header_len, desc_cnt;
 	int i, rc = 1, blocks, length;
 
 	drive->bios_cyl = 0;
@@ -395,6 +395,9 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	drive->capacity64 = 0;
 
 	ide_floppy_create_read_capacity_cmd(&pc);
+	pc.buf = &pc_buf[0];
+	pc.buf_size = sizeof(pc_buf);
+
 	if (ide_queue_pc_tail(drive, disk, &pc)) {
 		printk(KERN_ERR PFX "Can't get floppy parameters\n");
 		return 1;

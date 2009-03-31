@@ -377,7 +377,7 @@ enum {
  * With each packet command, we allocate a buffer of IDE_PC_BUFFER_SIZE bytes.
  * This is used for several packet commands (not for READ/WRITE commands).
  */
-#define IDE_PC_BUFFER_SIZE	256
+#define IDE_PC_BUFFER_SIZE	64
 #define ATAPI_WAIT_PC		(60 * HZ)
 
 struct ide_atapi_pc {
