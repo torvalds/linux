@@ -277,11 +277,12 @@ static void sgiioc4_dma_host_set(ide_drive_t *drive, int on)
 		sgiioc4_clearirq(drive);
 }
 
-static void
-sgiioc4_resetproc(ide_drive_t * drive)
+static void sgiioc4_resetproc(ide_drive_t *drive)
 {
+	struct ide_cmd *cmd = &drive->hwif->cmd;
+
 	sgiioc4_dma_end(drive);
-	ide_destroy_dmatable(drive);
+	ide_dma_unmap_sg(drive, cmd);
 	sgiioc4_clearirq(drive);
 }
 

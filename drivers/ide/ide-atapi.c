@@ -326,6 +326,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 {
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_cmd *cmd = &hwif->cmd;
 	struct request *rq = hwif->rq;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	xfer_func_t *xferfunc;
@@ -346,7 +347,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 		drive->waiting_for_dma = 0;
 		rc = hwif->dma_ops->dma_end(drive);
-		ide_destroy_dmatable(drive);
+		ide_dma_unmap_sg(drive, cmd);
 
 		if (rc || (drive->media == ide_tape && (stat & ATA_ERR))) {
 			if (drive->media == ide_floppy)
