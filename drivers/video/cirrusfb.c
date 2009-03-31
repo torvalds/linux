@@ -198,9 +198,11 @@ static const struct cirrusfb_board_info_rec {
 		.init_sr07		= true,
 		.init_sr1f		= false,
 		.scrn_start_bit19	= true,
-		.sr07			= 0x20,
-		.sr07_1bpp		= 0x20,
-		.sr07_8bpp		= 0x21,
+		.sr07			= 0xA0,
+		.sr07_1bpp		= 0xA0,
+		.sr07_1bpp_mux		= 0xA6,
+		.sr07_8bpp		= 0xA1,
+		.sr07_8bpp_mux		= 0xA7,
 		.sr1f			= 0
 	},
 	[BT_ALPINE] = {
@@ -213,8 +215,8 @@ static const struct cirrusfb_board_info_rec {
 		.init_sr1f		= true,
 		.scrn_start_bit19	= true,
 		.sr07			= 0xA0,
-		.sr07_1bpp		= 0xA1,
-		.sr07_1bpp_mux		= 0xA7,
+		.sr07_1bpp		= 0xA0,
+		.sr07_1bpp_mux		= 0xA6,
 		.sr07_8bpp		= 0xA1,
 		.sr07_8bpp_mux		= 0xA7,
 		.sr1f			= 0x1C
@@ -821,7 +823,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	/* formula: VClk = (OSC * N) / (D * (1+P)) */
 	/* Example: VClk = (14.31818 * 91) / (23 * (1+1)) = 28.325 MHz */
 
-	if (cinfo->btype == BT_ALPINE) {
+	if (cinfo->btype == BT_ALPINE || cinfo->btype == BT_PICASSO4) {
 		/* if freq is close to mclk or mclk/2 select mclk
 		 * as clock source
 		 */
@@ -1044,9 +1046,6 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 			/* ### INCOMPLETE!! */
 			vga_wseq(regbase, CL_SEQRF, 0xb8);
 #endif
-/*	  		vga_wseq(regbase, CL_SEQR1F, 0x1c); */
-			break;
-
 		case BT_ALPINE:
 			/* We already set SRF and SR1F */
 			break;
@@ -1106,10 +1105,6 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 			break;
 
 		case BT_PICASSO4:
-			vga_wseq(regbase, CL_SEQR7, 0x27);
-/*			vga_wseq(regbase, CL_SEQR1F, 0x1c);  */
-			break;
-
 		case BT_ALPINE:
 			vga_wseq(regbase, CL_SEQR7, 0xa7);
 			break;
@@ -1177,10 +1172,6 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 			break;
 
 		case BT_PICASSO4:
-			vga_wseq(regbase, CL_SEQR7, 0x25);
-/*			vga_wseq(regbase, CL_SEQR1F, 0x1c);  */
-			break;
-
 		case BT_ALPINE:
 			vga_wseq(regbase, CL_SEQR7, 0xa9);
 			break;
@@ -2678,7 +2669,7 @@ static void cirrusfb_set_blitter(u8 __iomem *regbase,
 	vga_wgfx(regbase, CL_GR32, 0x0d);	/* BLT ROP */
 
 	/* and finally: GO! */
-	vga_wgfx(regbase, CL_GR31, 0x82);	/* BLT Start/status */
+	vga_wgfx(regbase, CL_GR31, 0x02);	/* BLT Start/status */
 }
 
 /*******************************************************************
