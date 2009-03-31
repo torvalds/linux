@@ -624,6 +624,7 @@ static void pxa_camera_stop_capture(struct pxa_camera_dev *pcdev)
 	cicr0 = __raw_readl(pcdev->base + CICR0) & ~CICR0_ENB;
 	__raw_writel(cicr0, pcdev->base + CICR0);
 
+	pcdev->active = NULL;
 	dev_dbg(pcdev->dev, "%s\n", __func__);
 }
 
@@ -697,7 +698,6 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
 
 	if (list_empty(&pcdev->capture)) {
 		pxa_camera_stop_capture(pcdev);
-		pcdev->active = NULL;
 		for (i = 0; i < pcdev->channels; i++)
 			pcdev->sg_tail[i] = NULL;
 		return;
@@ -765,10 +765,20 @@ static void pxa_camera_dma_irq(int channel, struct pxa_camera_dev *pcdev,
 		goto out;
 	}
 
-	if (!pcdev->active) {
-		dev_err(pcdev->dev, "DMA End IRQ with no active buffer!\n");
+	/*
+	 * pcdev->active should not be NULL in DMA irq handler.
+	 *
+	 * But there is one corner case : if capture was stopped due to an
+	 * overrun of channel 1, and at that same channel 2 was completed.
+	 *
+	 * When handling the overrun in DMA irq for channel 1, we'll stop the
+	 * capture and restart it (and thus set pcdev->active to NULL). But the
+	 * DMA irq handler will already be pending for channel 2. So on entering
+	 * the DMA irq handler for channel 2 there will be no active buffer, yet
+	 * that is normal.
+	 */
+	if (!pcdev->active)
 		goto out;
-	}
 
 	vb = &pcdev->active->vb;
 	buf = container_of(vb, struct pxa_buffer, vb);
@@ -779,7 +789,12 @@ static void pxa_camera_dma_irq(int channel, struct pxa_camera_dev *pcdev,
 		status & DCSR_ENDINTR ? "EOF " : "", vb, DDADR(channel));
 
 	if (status & DCSR_ENDINTR) {
-		if (camera_status & overrun) {
+		/*
+		 * It's normal if the last frame creates an overrun, as there
+		 * are no more DMA descriptors to fetch from QCI fifos
+		 */
+		if (camera_status & overrun &&
+		    !list_is_last(pcdev->capture.next, &pcdev->capture)) {
 			dev_dbg(pcdev->dev, "FIFO overrun! CISR: %x\n",
 				camera_status);
 			pxa_camera_stop_capture(pcdev);
