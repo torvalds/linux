@@ -670,7 +670,7 @@ static int ov772x_set_bus_param(struct soc_camera_device *icd,
 static unsigned long ov772x_query_bus_param(struct soc_camera_device *icd)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
-	struct soc_camera_link *icl = priv->client->dev.platform_data;
+	struct soc_camera_link *icl = &priv->info->link;
 	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
 		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
 		SOCAM_DATA_ACTIVE_HIGH | priv->info->buswidth;
