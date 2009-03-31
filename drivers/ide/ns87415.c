@@ -196,6 +196,12 @@ static void ns87415_selectproc (ide_drive_t *drive)
 			      !!(drive->dev_flags & IDE_DFLAG_USING_DMA));
 }
 
+static void ns87415_dma_start(ide_drive_t *drive)
+{
+	ns87415_prepare_drive(drive, 1);
+	ide_dma_start(drive);
+}
+
 static int ns87415_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -210,19 +216,11 @@ static int ns87415_dma_end(ide_drive_t *drive)
 	/* from ERRATA: clear the INTR & ERROR bits */
 	dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
 	outb(dma_cmd | 6, hwif->dma_base + ATA_DMA_CMD);
+
+	ns87415_prepare_drive(drive, 0);
+
 	/* verify good DMA status */
 	return (dma_stat & 7) != 4;
-}
-
-static int ns87415_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
-{
-	/* select DMA xfer */
-	ns87415_prepare_drive(drive, 1);
-	if (ide_dma_setup(drive, cmd) == 0)
-		return 0;
-	/* DMA failed: select PIO xfer */
-	ns87415_prepare_drive(drive, 0);
-	return 1;
 }
 
 static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
@@ -298,8 +296,8 @@ static const struct ide_port_ops ns87415_port_ops = {
 
 static const struct ide_dma_ops ns87415_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
-	.dma_setup		= ns87415_dma_setup,
-	.dma_start		= ide_dma_start,
+	.dma_setup		= ide_dma_setup,
+	.dma_start		= ns87415_dma_start,
 	.dma_end		= ns87415_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
