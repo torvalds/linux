@@ -1,18 +1,10 @@
 /*
  * generic/default IDE host driver
  *
- * Copyright (C) 2004, 2008 Bartlomiej Zolnierkiewicz
+ * Copyright (C) 2004, 2008-2009 Bartlomiej Zolnierkiewicz
  * This code was split off from ide.c.  See it for original copyrights.
  *
  * May be copied or modified under the terms of the GNU General Public License.
- */
-
-/*
- * For special cases new interfaces may be added using sysfs, i.e.
- *
- *	echo -n "0x168:0x36e:10" > /sys/class/ide_generic/add
- *
- * will add an interface using I/O ports 0x168-0x16f/0x36e and IRQ 10.
  */
 
 #include <linux/kernel.h>
@@ -35,60 +27,6 @@ MODULE_PARM_DESC(probe_mask, "probe mask for legacy ISA IDE ports");
 static const struct ide_port_info ide_generic_port_info = {
 	.host_flags		= IDE_HFLAG_NO_DMA,
 };
-
-static ssize_t store_add(struct class *cls, const char *buf, size_t n)
-{
-	unsigned int base, ctl;
-	int irq, rc;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
-
-	if (sscanf(buf, "%x:%x:%d", &base, &ctl, &irq) != 3)
-		return -EINVAL;
-
-	memset(&hw, 0, sizeof(hw));
-	ide_std_init_ports(&hw, base, ctl);
-	hw.irq = irq;
-	hw.chipset = ide_generic;
-
-	rc = ide_host_add(&ide_generic_port_info, hws, NULL);
-	if (rc)
-		return rc;
-
-	return n;
-};
-
-static struct class_attribute ide_generic_class_attrs[] = {
-	__ATTR(add, S_IWUSR, NULL, store_add),
-	__ATTR_NULL
-};
-
-static void ide_generic_class_release(struct class *cls)
-{
-	kfree(cls);
-}
-
-static int __init ide_generic_sysfs_init(void)
-{
-	struct class *cls;
-	int rc;
-
-	cls = kzalloc(sizeof(*cls), GFP_KERNEL);
-	if (!cls)
-		return -ENOMEM;
-
-	cls->name = DRV_NAME;
-	cls->owner = THIS_MODULE;
-	cls->class_release = ide_generic_class_release;
-	cls->class_attrs = ide_generic_class_attrs;
-
-	rc = class_register(cls);
-	if (rc) {
-		kfree(cls);
-		return rc;
-	}
-
-	return 0;
-}
 
 #if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_MAPPI2) \
 	|| defined(CONFIG_PLAT_OPSPUT)
@@ -195,10 +133,6 @@ static int __init ide_generic_init(void)
 			}
 		}
 	}
-
-	if (ide_generic_sysfs_init())
-		printk(KERN_ERR DRV_NAME ": failed to create ide_generic "
-					 "class\n");
 
 	return rc;
 }
