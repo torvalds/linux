@@ -1083,7 +1083,7 @@ out_end:
 			rq->errors = -EIO;
 	}
 
-	nsectors = rq->hard_cur_sectors;
+	nsectors = rq->hard_nr_sectors;
 
 	if (nsectors == 0)
 		nsectors = 1;
