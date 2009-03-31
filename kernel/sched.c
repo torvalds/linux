@@ -3818,19 +3818,23 @@ find_busiest_queue(struct sched_group *group, enum cpu_idle_type idle,
  */
 #define MAX_PINNED_INTERVAL	512
 
+/* Working cpumask for load_balance and load_balance_newidle. */
+static DEFINE_PER_CPU(cpumask_var_t, load_balance_tmpmask);
+
 /*
  * Check this_cpu to ensure it is balanced within domain. Attempt to move
  * tasks if there is an imbalance.
  */
 static int load_balance(int this_cpu, struct rq *this_rq,
 			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *balance, struct cpumask *cpus)
+			int *balance)
 {
 	int ld_moved, all_pinned = 0, active_balance = 0, sd_idle = 0;
 	struct sched_group *group;
 	unsigned long imbalance;
 	struct rq *busiest;
 	unsigned long flags;
+	struct cpumask *cpus = __get_cpu_var(load_balance_tmpmask);
 
 	cpumask_setall(cpus);
 
@@ -3985,8 +3989,7 @@ out:
  * this_rq is locked.
  */
 static int
-load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd,
-			struct cpumask *cpus)
+load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd)
 {
 	struct sched_group *group;
 	struct rq *busiest = NULL;
@@ -3994,6 +3997,7 @@ load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd,
 	int ld_moved = 0;
 	int sd_idle = 0;
 	int all_pinned = 0;
+	struct cpumask *cpus = __get_cpu_var(load_balance_tmpmask);
 
 	cpumask_setall(cpus);
 
@@ -4134,10 +4138,6 @@ static void idle_balance(int this_cpu, struct rq *this_rq)
 	struct sched_domain *sd;
 	int pulled_task = 0;
 	unsigned long next_balance = jiffies + HZ;
-	cpumask_var_t tmpmask;
-
-	if (!alloc_cpumask_var(&tmpmask, GFP_ATOMIC))
-		return;
 
 	for_each_domain(this_cpu, sd) {
 		unsigned long interval;
@@ -4148,7 +4148,7 @@ static void idle_balance(int this_cpu, struct rq *this_rq)
 		if (sd->flags & SD_BALANCE_NEWIDLE)
 			/* If we've pulled tasks over stop searching: */
 			pulled_task = load_balance_newidle(this_cpu, this_rq,
-							   sd, tmpmask);
+							   sd);
 
 		interval = msecs_to_jiffies(sd->balance_interval);
 		if (time_after(next_balance, sd->last_balance + interval))
@@ -4163,7 +4163,6 @@ static void idle_balance(int this_cpu, struct rq *this_rq)
 		 */
 		this_rq->next_balance = next_balance;
 	}
-	free_cpumask_var(tmpmask);
 }
 
 /*
@@ -4313,11 +4312,6 @@ static void rebalance_domains(int cpu, enum cpu_idle_type idle)
 	unsigned long next_balance = jiffies + 60*HZ;
 	int update_next_balance = 0;
 	int need_serialize;
-	cpumask_var_t tmp;
-
-	/* Fails alloc?  Rebalancing probably not a priority right now. */
-	if (!alloc_cpumask_var(&tmp, GFP_ATOMIC))
-		return;
 
 	for_each_domain(cpu, sd) {
 		if (!(sd->flags & SD_LOAD_BALANCE))
@@ -4342,7 +4336,7 @@ static void rebalance_domains(int cpu, enum cpu_idle_type idle)
 		}
 
 		if (time_after_eq(jiffies, sd->last_balance + interval)) {
-			if (load_balance(cpu, rq, sd, idle, &balance, tmp)) {
+			if (load_balance(cpu, rq, sd, idle, &balance)) {
 				/*
 				 * We've pulled tasks over so either we're no
 				 * longer idle, or one of our SMT siblings is
@@ -4376,8 +4370,6 @@ out:
 	 */
 	if (likely(update_next_balance))
 		rq->next_balance = next_balance;
-
-	free_cpumask_var(tmp);
 }
 
 /*
@@ -7713,7 +7705,7 @@ cpu_to_core_group(int cpu, const struct cpumask *cpu_map,
 {
 	int group;
 
-	cpumask_and(mask, &per_cpu(cpu_sibling_map, cpu), cpu_map);
+	cpumask_and(mask, topology_thread_cpumask(cpu), cpu_map);
 	group = cpumask_first(mask);
 	if (sg)
 		*sg = &per_cpu(sched_group_core, group).sg;
@@ -7742,7 +7734,7 @@ cpu_to_phys_group(int cpu, const struct cpumask *cpu_map,
 	cpumask_and(mask, cpu_coregroup_mask(cpu), cpu_map);
 	group = cpumask_first(mask);
 #elif defined(CONFIG_SCHED_SMT)
-	cpumask_and(mask, &per_cpu(cpu_sibling_map, cpu), cpu_map);
+	cpumask_and(mask, topology_thread_cpumask(cpu), cpu_map);
 	group = cpumask_first(mask);
 #else
 	group = cpu;
@@ -8085,7 +8077,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 		SD_INIT(sd, SIBLING);
 		set_domain_attribute(sd, attr);
 		cpumask_and(sched_domain_span(sd),
-			    &per_cpu(cpu_sibling_map, i), cpu_map);
+			    topology_thread_cpumask(i), cpu_map);
 		sd->parent = p;
 		p->child = sd;
 		cpu_to_cpu_group(i, cpu_map, &sd->groups, tmpmask);
@@ -8096,7 +8088,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 	/* Set up CPU (sibling) groups */
 	for_each_cpu(i, cpu_map) {
 		cpumask_and(this_sibling_map,
-			    &per_cpu(cpu_sibling_map, i), cpu_map);
+			    topology_thread_cpumask(i), cpu_map);
 		if (i != cpumask_first(this_sibling_map))
 			continue;
 
@@ -8772,6 +8764,9 @@ void __init sched_init(void)
 #ifdef CONFIG_USER_SCHED
 	alloc_size *= 2;
 #endif
+#ifdef CONFIG_CPUMASK_OFFSTACK
+	alloc_size += num_possible_cpus() * cpumask_size();
+#endif
 	/*
 	 * As sched_init() is called before page_alloc is setup,
 	 * we use alloc_bootmem().
@@ -8809,6 +8804,12 @@ void __init sched_init(void)
 		ptr += nr_cpu_ids * sizeof(void **);
 #endif /* CONFIG_USER_SCHED */
 #endif /* CONFIG_RT_GROUP_SCHED */
+#ifdef CONFIG_CPUMASK_OFFSTACK
+		for_each_possible_cpu(i) {
+			per_cpu(load_balance_tmpmask, i) = (void *)ptr;
+			ptr += cpumask_size();
+		}
+#endif /* CONFIG_CPUMASK_OFFSTACK */
 	}
 
 #ifdef CONFIG_SMP

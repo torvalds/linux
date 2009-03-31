@@ -54,7 +54,10 @@ static DEFINE_PER_CPU(struct powernow_k8_data *, powernow_data);
 static int cpu_family = CPU_OPTERON;
 
 #ifndef CONFIG_SMP
-DEFINE_PER_CPU(cpumask_t, cpu_core_map);
+static inline const struct cpumask *cpu_core_mask(int cpu)
+{
+	return cpumask_of(0);
+}
 #endif
 
 /* Return a frequency in MHz, given an input fid */
@@ -699,7 +702,7 @@ static int fill_powernow_table(struct powernow_k8_data *data,
 
 	dprintk("cfid 0x%x, cvid 0x%x\n", data->currfid, data->currvid);
 	data->powernow_table = powernow_table;
-	if (first_cpu(per_cpu(cpu_core_map, data->cpu)) == data->cpu)
+	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)
 		print_basics(data);
 
 	for (j = 0; j < data->numps; j++)
@@ -862,7 +865,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 
 	/* fill in data */
 	data->numps = data->acpi_data.state_count;
-	if (first_cpu(per_cpu(cpu_core_map, data->cpu)) == data->cpu)
+	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)
 		print_basics(data);
 	powernow_k8_acpi_pst_values(data, 0);
 
@@ -1300,7 +1303,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	if (cpu_family == CPU_HW_PSTATE)
 		cpumask_copy(pol->cpus, cpumask_of(pol->cpu));
 	else
-		cpumask_copy(pol->cpus, &per_cpu(cpu_core_map, pol->cpu));
+		cpumask_copy(pol->cpus, cpu_core_mask(pol->cpu));
 	data->available_cores = pol->cpus;
 
 	if (cpu_family == CPU_HW_PSTATE)
@@ -1365,7 +1368,7 @@ static unsigned int powernowk8_get(unsigned int cpu)
 	unsigned int khz = 0;
 	unsigned int first;
 
-	first = first_cpu(per_cpu(cpu_core_map, cpu));
+	first = cpumask_first(cpu_core_mask(cpu));
 	data = per_cpu(powernow_data, first);
 
 	if (!data)

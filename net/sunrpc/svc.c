@@ -317,8 +317,7 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	}
 	case SVC_POOL_PERNODE:
 	{
-		node_to_cpumask_ptr(nodecpumask, node);
-		set_cpus_allowed_ptr(task, nodecpumask);
+		set_cpus_allowed_ptr(task, cpumask_of_node(node));
 		break;
 	}
 	}
