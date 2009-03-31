@@ -2934,6 +2934,7 @@ err_tx_ring_allocation:
  **/
 static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
 	int err = 0;
 	int vector, v_budget;
 
@@ -2948,12 +2949,12 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 
 	/*
 	 * At the same time, hardware can only support a maximum of
-	 * MAX_MSIX_COUNT vectors.  With features such as RSS and VMDq,
-	 * we can easily reach upwards of 64 Rx descriptor queues and
-	 * 32 Tx queues.  Thus, we cap it off in those rare cases where
-	 * the cpu count also exceeds our vector limit.
+	 * hw.mac->max_msix_vectors vectors.  With features
+	 * such as RSS and VMDq, we can easily surpass the number of Rx and Tx
+	 * descriptor queues supported by our device.  Thus, we cap it off in
+	 * those rare cases where the cpu count also exceeds our vector limit.
 	 */
-	v_budget = min(v_budget, MAX_MSIX_COUNT);
+	v_budget = min(v_budget, (int)hw->mac.max_msix_vectors);
 
 	/* A failure in MSI-X entry allocation isn't fatal, but it does
 	 * mean we disable MSI-X capabilities of the adapter. */
