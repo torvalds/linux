@@ -296,7 +296,8 @@ static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 /*
  * Returns:
  * 0: if the request should be continued.
- * 1: if the request was ended.
+ * 1: if the request will be going through error recovery.
+ * 2: if the request should be ended.
  */
 static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 {
@@ -329,10 +330,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 		 * Just give up.
 		 */
 		rq->cmd_flags |= REQ_FAILED;
-		cdrom_end_request(drive, 0);
-		ide_error(drive, "request sense failure", stat);
-		return 1;
-
+		return 2;
 	} else if (blk_pc_request(rq) || rq->cmd_type == REQ_TYPE_ATA_PC) {
 		/* All other functions, except for READ. */
 
@@ -472,13 +470,11 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 		 */
 		if (stat & ATA_ERR)
 			cdrom_queue_request_sense(drive, NULL, NULL);
+		return 1;
 	} else {
 		blk_dump_rq_flags(rq, PFX "bad rq");
-		cdrom_end_request(drive, 0);
+		return 2;
 	}
-
-	/* retry, or handle the next request */
-	return 1;
 
 end_request:
 	if (stat & ATA_ERR) {
@@ -492,10 +488,9 @@ end_request:
 		hwif->rq = NULL;
 
 		cdrom_queue_request_sense(drive, rq->sense, rq);
+		return 1;
 	} else
-		cdrom_end_request(drive, 0);
-
-	return 1;
+		return 2;
 }
 
 /*
@@ -539,7 +534,6 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 	if (rq->cmd_type == REQ_TYPE_ATA_PC)
 		rq->cmd_flags |= REQ_FAILED;
 
-	cdrom_end_request(drive, 0);
 	return -1;
 }
 
@@ -741,7 +735,8 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	xfer_func_t *xferfunc;
 	ide_expiry_t *expiry = NULL;
 	int dma_error = 0, dma, stat, thislen, uptodate = 0;
-	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0;
+	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0, rc;
+	int sense = blk_sense_request(rq);
 	unsigned int timeout;
 	u16 len;
 	u8 ireason;
@@ -761,8 +756,12 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		}
 	}
 
-	if (cdrom_decode_status(drive, 0, &stat))
+	rc = cdrom_decode_status(drive, 0, &stat);
+	if (rc) {
+		if (rc == 2)
+			goto out_end;
 		return ide_stopped;
+	}
 
 	/* using dma, transfer is complete now */
 	if (dma) {
@@ -807,8 +806,6 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 					rq->cmd_flags |= REQ_FAILED;
 				uptodate = 0;
 			}
-			cdrom_end_request(drive, uptodate);
-			return ide_stopped;
 		} else if (!blk_pc_request(rq)) {
 			ide_cd_request_sense_fixup(drive, rq);
 			/* complain if we still have data left to transfer */
@@ -820,17 +817,16 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	}
 
 	/* check which way to transfer data */
-	if (ide_cd_check_ireason(drive, rq, len, ireason, write))
-		return ide_stopped;
+	rc = ide_cd_check_ireason(drive, rq, len, ireason, write);
+	if (rc)
+		goto out_end;
 
 	if (blk_fs_request(rq)) {
 		if (write == 0) {
 			int nskip;
 
-			if (ide_cd_check_transfer_size(drive, len)) {
-				cdrom_end_request(drive, 0);
-				return ide_stopped;
-			}
+			if (ide_cd_check_transfer_size(drive, len))
+				goto out_end;
 
 			/*
 			 * First, figure out if we need to bit-bucket
@@ -923,7 +919,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			else
 				rq->data += blen;
 		}
-		if (!write && blk_sense_request(rq))
+		if (sense && write == 0)
 			rq->sense_len += blen;
 	}
 
@@ -944,7 +940,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	return ide_started;
 
 out_end:
-	if (blk_pc_request(rq)) {
+	if (blk_pc_request(rq) && rc == 0) {
 		unsigned int dlen = rq->data_len;
 
 		if (dma)
@@ -956,6 +952,8 @@ out_end:
 		hwif->rq = NULL;
 	} else {
 		cdrom_end_request(drive, uptodate);
+		if (sense && rc == 2)
+			ide_error(drive, "request sense failure", stat);
 	}
 	return ide_stopped;
 }
