@@ -216,7 +216,7 @@ void __init start_cpu_itimer(void)
 	per_cpu(cpu_data, cpu).it_value = next_tick;
 }
 
-struct platform_device rtc_parisc_dev = {
+static struct platform_device rtc_parisc_dev = {
 	.name = "rtc-parisc",
 	.id = -1,
 };
