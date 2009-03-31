@@ -566,15 +566,6 @@ static void pxa_dma_stop_channels(struct pxa_camera_dev *pcdev)
 	}
 }
 
-static void pxa_dma_update_sg_tail(struct pxa_camera_dev *pcdev,
-				   struct pxa_buffer *buf)
-{
-	int i;
-
-	for (i = 0; i < pcdev->channels; i++)
-		pcdev->sg_tail[i] = buf->dmas[i].sg_cpu + buf->dmas[i].sglen;
-}
-
 static void pxa_dma_add_tail_buf(struct pxa_camera_dev *pcdev,
 				 struct pxa_buffer *buf)
 {
@@ -585,12 +576,13 @@ static void pxa_dma_add_tail_buf(struct pxa_camera_dev *pcdev,
 		buf_last_desc = buf->dmas[i].sg_cpu + buf->dmas[i].sglen;
 		buf_last_desc->ddadr = DDADR_STOP;
 
-		if (!pcdev->sg_tail[i])
-			continue;
-		pcdev->sg_tail[i]->ddadr = buf->dmas[i].sg_dma;
-	}
+		if (pcdev->sg_tail[i])
+			/* Link the new buffer to the old tail */
+			pcdev->sg_tail[i]->ddadr = buf->dmas[i].sg_dma;
 
-	pxa_dma_update_sg_tail(pcdev, buf);
+		/* Update the channel tail */
+		pcdev->sg_tail[i] = buf_last_desc;
+	}
 }
 
 /**
