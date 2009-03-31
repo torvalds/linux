@@ -264,6 +264,7 @@ struct tty_operations {
 	int (*poll_get_char)(struct tty_driver *driver, int line);
 	void (*poll_put_char)(struct tty_driver *driver, int line, char ch);
 #endif
+	const struct file_operations *proc_fops;
 };
 
 struct tty_driver {
