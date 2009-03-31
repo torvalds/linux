@@ -1298,14 +1298,11 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	}
 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
 	pgdeactivate += pgmoved;
-	if (buffer_heads_over_limit) {
-		spin_unlock_irq(&zone->lru_lock);
-		pagevec_strip(&pvec);
-		spin_lock_irq(&zone->lru_lock);
-	}
 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
 	__count_vm_events(PGDEACTIVATE, pgdeactivate);
 	spin_unlock_irq(&zone->lru_lock);
+	if (buffer_heads_over_limit)
+		pagevec_strip(&pvec);
 	if (vm_swap_full())
 		pagevec_swap_free(&pvec);
 
