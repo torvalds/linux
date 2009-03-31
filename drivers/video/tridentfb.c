@@ -2,7 +2,7 @@
  * Frame buffer driver for Trident TGUI, Blade and Image series
  *
  * Copyright 2001, 2002 - Jani Monoses   <jani@iv.ro>
- *
+ * Copyright 2009 Krzysztof Helt <krzysztof.h1@wp.pl>
  *
  * CREDITS:(in order of appearance)
  *	skeletonfb.c by Geert Uytterhoeven and other fb code in drivers/video
@@ -1490,6 +1490,9 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	} else
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 
+	if (is_blade(chip_id) && chip_id != BLADE3D)
+		info->flags |= FBINFO_READS_FAST;
+
 	info->pixmap.addr = kmalloc(4096, GFP_KERNEL);
 	if (!info->pixmap.addr) {
 		err = -ENOMEM;
@@ -1664,4 +1667,5 @@ module_exit(tridentfb_exit);
 MODULE_AUTHOR("Jani Monoses <jani@iv.ro>");
 MODULE_DESCRIPTION("Framebuffer driver for Trident cards");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("cyblafb");
 
