@@ -89,9 +89,6 @@ struct mpc83xx_spi {
 
 	bool qe_mode;
 
-	void (*activate_cs) (u8 cs, u8 polarity);
-	void (*deactivate_cs) (u8 cs, u8 polarity);
-
 	u8 busy;
 
 	struct workqueue_struct *workqueue;
@@ -153,15 +150,14 @@ MPC83XX_SPI_TX_BUF(u32)
 
 static void mpc83xx_spi_chipselect(struct spi_device *spi, int value)
 {
-	struct mpc83xx_spi *mpc83xx_spi;
-	u8 pol = spi->mode & SPI_CS_HIGH ? 1 : 0;
+	struct mpc83xx_spi *mpc83xx_spi = spi_master_get_devdata(spi->master);
+	struct fsl_spi_platform_data *pdata = spi->dev.parent->platform_data;
+	bool pol = spi->mode & SPI_CS_HIGH;
 	struct spi_mpc83xx_cs	*cs = spi->controller_state;
 
-	mpc83xx_spi = spi_master_get_devdata(spi->master);
-
 	if (value == BITBANG_CS_INACTIVE) {
-		if (mpc83xx_spi->deactivate_cs)
-			mpc83xx_spi->deactivate_cs(spi->chip_select, pol);
+		if (pdata->cs_control)
+			pdata->cs_control(spi, !pol);
 	}
 
 	if (value == BITBANG_CS_ACTIVE) {
@@ -186,8 +182,8 @@ static void mpc83xx_spi_chipselect(struct spi_device *spi, int value)
 			mpc83xx_spi_write_reg(mode, regval);
 			local_irq_restore(flags);
 		}
-		if (mpc83xx_spi->activate_cs)
-			mpc83xx_spi->activate_cs(spi->chip_select, pol);
+		if (pdata->cs_control)
+			pdata->cs_control(spi, pol);
 	}
 }
 
@@ -582,8 +578,6 @@ static int __init mpc83xx_spi_probe(struct platform_device *dev)
 	master->cleanup = mpc83xx_spi_cleanup;
 
 	mpc83xx_spi = spi_master_get_devdata(master);
-	mpc83xx_spi->activate_cs = pdata->activate_cs;
-	mpc83xx_spi->deactivate_cs = pdata->deactivate_cs;
 	mpc83xx_spi->qe_mode = pdata->qe_mode;
 	mpc83xx_spi->get_rx = mpc83xx_spi_rx_buf_u8;
 	mpc83xx_spi->get_tx = mpc83xx_spi_tx_buf_u8;

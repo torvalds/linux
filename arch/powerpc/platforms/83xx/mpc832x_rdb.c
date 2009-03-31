@@ -39,16 +39,10 @@
 #endif
 
 #ifdef CONFIG_QUICC_ENGINE
-static void mpc83xx_spi_activate_cs(u8 cs, u8 polarity)
+static void mpc83xx_spi_cs_control(struct spi_device *spi, bool on)
 {
-	pr_debug("%s %d %d\n", __func__, cs, polarity);
-	par_io_data_set(3, 13, polarity);
-}
-
-static void mpc83xx_spi_deactivate_cs(u8 cs, u8 polarity)
-{
-	pr_debug("%s %d %d\n", __func__, cs, polarity);
-	par_io_data_set(3, 13, !polarity);
+	pr_debug("%s %d %d\n", __func__, spi->chip_select, on);
+	par_io_data_set(3, 13, on);
 }
 
 static struct mmc_spi_platform_data mpc832x_mmc_pdata = {
@@ -74,9 +68,7 @@ static int __init mpc832x_spi_init(void)
 	par_io_config_pin(3, 14, 2, 0, 0, 0); /* SD_INSERT, I */
 	par_io_config_pin(3, 15, 2, 0, 0, 0); /* SD_PROTECT,I */
 
-	return fsl_spi_init(&mpc832x_spi_boardinfo, 1,
-			    mpc83xx_spi_activate_cs,
-			    mpc83xx_spi_deactivate_cs);
+	return fsl_spi_init(&mpc832x_spi_boardinfo, 1, mpc83xx_spi_cs_control);
 }
 machine_device_initcall(mpc832x_rdb, mpc832x_spi_init);
 #endif /* CONFIG_QUICC_ENGINE */

@@ -420,8 +420,8 @@ arch_initcall(fsl_usb_of_init);
 static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
 				   struct spi_board_info *board_infos,
 				   unsigned int num_board_infos,
-				   void (*activate_cs)(u8 cs, u8 polarity),
-				   void (*deactivate_cs)(u8 cs, u8 polarity))
+				   void (*cs_control)(struct spi_device *dev,
+						      bool on))
 {
 	struct device_node *np;
 	unsigned int i = 0;
@@ -433,8 +433,7 @@ static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
 		struct resource res[2];
 		struct platform_device *pdev;
 		struct fsl_spi_platform_data pdata = {
-			.activate_cs = activate_cs,
-			.deactivate_cs = deactivate_cs,
+			.cs_control = cs_control,
 		};
 
 		memset(res, 0, sizeof(res));
@@ -501,8 +500,7 @@ next:
 
 int __init fsl_spi_init(struct spi_board_info *board_infos,
 			unsigned int num_board_infos,
-			void (*activate_cs)(u8 cs, u8 polarity),
-			void (*deactivate_cs)(u8 cs, u8 polarity))
+			void (*cs_control)(struct spi_device *spi, bool on))
 {
 	u32 sysclk = -1;
 	int ret;
@@ -518,10 +516,10 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 	}
 
 	ret = of_fsl_spi_probe(NULL, "fsl,spi", sysclk, board_infos,
-			       num_board_infos, activate_cs, deactivate_cs);
+			       num_board_infos, cs_control);
 	if (!ret)
 		of_fsl_spi_probe("spi", "fsl_spi", sysclk, board_infos,
-				 num_board_infos, activate_cs, deactivate_cs);
+				 num_board_infos, cs_control);
 
 	return spi_register_board_info(board_infos, num_board_infos);
 }
