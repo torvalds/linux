@@ -24,9 +24,15 @@
 #ifdef DEBUG
 /* For development, we want to crash whenever the ring is screwed. */
 #define BAD_RING(_vq, fmt...)			\
-	do { dev_err(&_vq->vq.vdev->dev, fmt); BUG(); } while(0)
-#define START_USE(_vq) \
-	do { if ((_vq)->in_use) panic("in_use = %i\n", (_vq)->in_use); (_vq)->in_use = __LINE__; mb(); } while(0)
+	do { dev_err(&(_vq)->vq.vdev->dev, fmt); BUG(); } while(0)
+/* Caller is supposed to guarantee no reentry. */
+#define START_USE(_vq)						\
+	do {							\
+		if ((_vq)->in_use)				\
+			panic("in_use = %i\n", (_vq)->in_use);	\
+		(_vq)->in_use = __LINE__;			\
+		mb();						\
+	} while(0)
 #define END_USE(_vq) \
 	do { BUG_ON(!(_vq)->in_use); (_vq)->in_use = 0; mb(); } while(0)
 #else
