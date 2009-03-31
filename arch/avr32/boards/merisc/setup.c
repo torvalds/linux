@@ -94,9 +94,10 @@ static struct spi_board_info __initdata spi0_board_info[] = {
 
 static struct mci_platform_data __initdata mci0_data = {
 	.slot[0] = {
-		.bus_width	= 4,
-		.detect_pin	= GPIO_PIN_PE(19),
-		.wp_pin		= GPIO_PIN_PE(20),
+		.bus_width		= 4,
+		.detect_pin		= GPIO_PIN_PE(19),
+		.wp_pin			= GPIO_PIN_PE(20),
+		.detect_is_active_high	= true,
 	},
 };
 
