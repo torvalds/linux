@@ -509,8 +509,10 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 	return -1;
 }
 
-static void ide_cd_request_sense_fixup(ide_drive_t *drive, struct request *rq)
+static void ide_cd_request_sense_fixup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
+	struct request *rq = cmd->rq;
+
 	ide_debug_log(IDE_DBG_FUNC, "rq->cmd[0]: 0x%x", rq->cmd[0]);
 
 	/*
@@ -518,11 +520,14 @@ static void ide_cd_request_sense_fixup(ide_drive_t *drive, struct request *rq)
 	 * and some drives don't send them.  Sigh.
 	 */
 	if (rq->cmd[0] == GPCMD_REQUEST_SENSE &&
-	    rq->data_len > 0 && rq->data_len <= 5)
-		while (rq->data_len > 0) {
-			*(u8 *)rq->data++ = 0;
-			--rq->data_len;
+	    cmd->nleft > 0 && cmd->nleft <= 5) {
+		unsigned int ofs = cmd->nbytes - cmd->nleft;
+
+		while (cmd->nleft > 0) {
+			*((u8 *)rq->data + ofs++) = 0;
+			cmd->nleft--;
 		}
+	}
 }
 
 int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
@@ -613,22 +618,11 @@ static void ide_cd_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 		ide_complete_rq(drive, 0, nr_bytes);
 }
 
-/*
- * Called from blk_end_request_callback() after the data of the request is
- * completed and before the request itself is completed. By returning value '1',
- * blk_end_request_callback() returns immediately without completing it.
- */
-static int cdrom_newpc_intr_dummy_cb(struct request *rq)
-{
-	return 1;
-}
-
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_cmd *cmd = &hwif->cmd;
 	struct request *rq = hwif->rq;
-	xfer_func_t *xferfunc;
 	ide_expiry_t *expiry = NULL;
 	int dma_error = 0, dma, stat, thislen, uptodate = 0;
 	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0, rc, nsectors;
@@ -678,7 +672,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 	ide_read_bcount_and_ireason(drive, &len, &ireason);
 
-	thislen = blk_fs_request(rq) ? len : rq->data_len;
+	thislen = blk_fs_request(rq) ? len : cmd->nleft;
 	if (thislen > len)
 		thislen = len;
 
@@ -702,9 +696,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 				uptodate = 0;
 			}
 		} else if (!blk_pc_request(rq)) {
-			ide_cd_request_sense_fixup(drive, rq);
+			ide_cd_request_sense_fixup(drive, cmd);
 			/* complain if we still have data left to transfer */
-			uptodate = rq->data_len ? 0 : 1;
+			uptodate = cmd->nleft ? 0 : 1;
 			if (uptodate == 0)
 				rq->cmd_flags |= REQ_FAILED;
 		}
@@ -718,35 +712,15 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 	cmd->last_xfer_len = 0;
 
-	if (ireason == 0) {
-		write = 1;
-		xferfunc = hwif->tp_ops->output_data;
-	} else {
-		write = 0;
-		xferfunc = hwif->tp_ops->input_data;
-	}
-
 	ide_debug_log(IDE_DBG_PC, "data transfer, rq->cmd_type: 0x%x, "
 				  "ireason: 0x%x",
 				  rq->cmd_type, ireason);
 
 	/* transfer data */
 	while (thislen > 0) {
-		u8 *ptr = blk_fs_request(rq) ? NULL : rq->data;
-		int blen = rq->data_len;
+		int blen = min_t(int, thislen, cmd->nleft);
 
-		/* bio backed? */
-		if (rq->bio) {
-			if (blk_fs_request(rq)) {
-				blen = min_t(int, thislen, cmd->nleft);
-			} else {
-				ptr = bio_data(rq->bio);
-				blen = bio_iovec(rq->bio)->bv_len;
-			}
-		}
-
-		if ((blk_fs_request(rq) && cmd->nleft == 0) ||
-		    (blk_fs_request(rq) == 0 && ptr == NULL)) {
+		if (cmd->nleft == 0) {
 			if (blk_fs_request(rq) && !write)
 				/*
 				 * If the buffers are full, pipe the rest into
@@ -763,33 +737,12 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			break;
 		}
 
-		if (blen > thislen)
-			blen = thislen;
-
-		if (blk_fs_request(rq)) {
-			ide_pio_bytes(drive, cmd, write, blen);
-			cmd->last_xfer_len += blen;
-		} else
-			xferfunc(drive, NULL, ptr, blen);
+		ide_pio_bytes(drive, cmd, write, blen);
+		cmd->last_xfer_len += blen;
 
 		thislen -= blen;
 		len -= blen;
 
-		if (blk_fs_request(rq) == 0) {
-			rq->data_len -= blen;
-
-			/*
-			 * The request can't be completed until DRQ is cleared.
-			 * So complete the data, but don't complete the request
-			 * using the dummy function for the callback feature
-			 * of blk_end_request_callback().
-			 */
-			if (rq->bio)
-				blk_end_request_callback(rq, 0, blen,
-						 cdrom_newpc_intr_dummy_cb);
-			else
-				rq->data += blen;
-		}
 		if (sense && write == 0)
 			rq->sense_len += blen;
 	}
@@ -814,8 +767,7 @@ out_end:
 	if (blk_pc_request(rq) && rc == 0) {
 		unsigned int dlen = rq->data_len;
 
-		if (dma)
-			rq->data_len = 0;
+		rq->data_len = 0;
 
 		if (blk_end_request(rq, 0, dlen))
 			BUG();
@@ -828,12 +780,13 @@ out_end:
 		if (blk_fs_request(rq)) {
 			if (cmd->nleft == 0)
 				uptodate = 1;
-			if (uptodate == 0)
-				ide_cd_error_cmd(drive, cmd);
 		} else {
 			if (uptodate <= 0 && rq->errors == 0)
 				rq->errors = -EIO;
 		}
+
+		if (uptodate == 0)
+			ide_cd_error_cmd(drive, cmd);
 
 		/* make sure it's fully ended */
 		if (blk_pc_request(rq))
@@ -843,6 +796,12 @@ out_end:
 
 		if (nsectors == 0)
 			nsectors = 1;
+
+		if (blk_fs_request(rq) == 0) {
+			rq->data_len -= (cmd->nbytes - cmd->nleft);
+			if (uptodate == 0 && (cmd->tf_flags & IDE_TFLAG_WRITE))
+				rq->data_len += cmd->last_xfer_len;
+		}
 
 		ide_complete_rq(drive, uptodate ? 0 : -EIO, nsectors << 9);
 
@@ -971,8 +930,9 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 
 	cmd.rq = rq;
 
-	if (blk_fs_request(rq)) {
-		ide_init_sg_cmd(&cmd, rq->nr_sectors << 9);
+	if (blk_fs_request(rq) || rq->data_len) {
+		ide_init_sg_cmd(&cmd, blk_fs_request(rq) ? (rq->nr_sectors << 9)
+							 : rq->data_len);
 		ide_map_sg(drive, &cmd);
 	}
 
