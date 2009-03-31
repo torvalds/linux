@@ -210,8 +210,6 @@ static int ns87415_dma_end(ide_drive_t *drive)
 	/* from ERRATA: clear the INTR & ERROR bits */
 	dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
 	outb(dma_cmd | 6, hwif->dma_base + ATA_DMA_CMD);
-	/* and free any DMA resources */
-	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
 	return (dma_stat & 7) != 4;
 }

@@ -327,8 +327,6 @@ static int cmd646_1_dma_end(ide_drive_t *drive)
 	outb(dma_cmd & ~1, hwif->dma_base + ATA_DMA_CMD);
 	/* clear the INTR & ERROR bits */
 	outb(dma_stat | 6, hwif->dma_base + ATA_DMA_STATUS);
-	/* and free any DMA resources */
-	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
 	return (dma_stat & 7) != 4;
 }

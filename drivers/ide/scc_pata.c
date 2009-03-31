@@ -365,8 +365,6 @@ static int __scc_dma_end(ide_drive_t *drive)
 	dma_stat = scc_dma_sff_read_status(hwif);
 	/* clear the INTR & ERROR bits */
 	scc_ide_outb(dma_stat | 6, hwif->dma_base + 4);
-	/* purge DMA mappings */
-	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
 	wmb();
 	return (dma_stat & 7) != 4 ? (0x10 | dma_stat) : 0;

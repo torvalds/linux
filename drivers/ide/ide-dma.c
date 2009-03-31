@@ -92,6 +92,7 @@ ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 	u8 stat = 0, dma_stat = 0;
 
 	dma_stat = hwif->dma_ops->dma_end(drive);
+	ide_destroy_dmatable(drive);
 	stat = hwif->tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat, DRIVE_READY, drive->bad_wstat | ATA_DRQ)) {
@@ -479,6 +480,7 @@ ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	if (error < 0) {
 		printk(KERN_WARNING "%s: DMA timeout error\n", drive->name);
 		(void)dma_ops->dma_end(drive);
+		ide_destroy_dmatable(drive);
 		ret = ide_error(drive, "dma timeout error",
 				hwif->tp_ops->read_status(hwif));
 	} else {
@@ -490,6 +492,7 @@ ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 			ide_dump_status(drive, "DMA timeout",
 					hwif->tp_ops->read_status(hwif));
 			(void)dma_ops->dma_end(drive);
+			ide_destroy_dmatable(drive);
 		}
 	}
 

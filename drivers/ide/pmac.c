@@ -1562,8 +1562,6 @@ pmac_ide_dma_end (ide_drive_t *drive)
 	dstat = readl(&dma->status);
 	writel(((RUN|WAKE|DEAD) << 16), &dma->control);
 
-	ide_destroy_dmatable(drive);
-
 	/* verify good dma status. we don't check for ACTIVE beeing 0. We should...
 	 * in theory, but with ATAPI decices doing buffer underruns, that would
 	 * cause us to disable DMA, which isn't what we want

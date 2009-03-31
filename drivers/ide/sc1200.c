@@ -184,7 +184,6 @@ static int sc1200_dma_end(ide_drive_t *drive)
 	outb(inb(dma_base)&~1, dma_base);	/* !! DO THIS HERE !! stop DMA */
 
 	drive->waiting_for_dma = 0;
-	ide_destroy_dmatable(drive);		/* purge DMA mappings */
 
 	return (dma_stat & 7) != 4;		/* verify good DMA status */
 }

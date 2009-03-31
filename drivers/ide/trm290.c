@@ -216,8 +216,7 @@ static int trm290_dma_end(ide_drive_t *drive)
 	u16 status;
 
 	drive->waiting_for_dma = 0;
-	/* purge DMA mappings */
-	ide_destroy_dmatable(drive);
+
 	status = inw(drive->hwif->dma_base + 2);
 
 	return status != 0x00ff;

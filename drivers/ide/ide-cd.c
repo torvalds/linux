@@ -639,6 +639,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (dma) {
 		drive->dma = 0;
 		dma_error = hwif->dma_ops->dma_end(drive);
+		ide_destroy_dmatable(drive);
 		if (dma_error) {
 			printk(KERN_ERR PFX "%s: DMA %s error\n", drive->name,
 					write ? "write" : "read");

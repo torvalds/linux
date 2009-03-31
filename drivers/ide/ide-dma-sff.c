@@ -310,8 +310,6 @@ int ide_dma_end(ide_drive_t *drive)
 	/* clear INTR & ERROR bits */
 	ide_dma_sff_write_status(hwif, dma_stat | ATA_DMA_ERR | ATA_DMA_INTR);
 
-	/* purge DMA mappings */
-	ide_destroy_dmatable(drive);
 	wmb();
 
 	/* verify good DMA status */

@@ -280,8 +280,6 @@ static int auide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 
 static int auide_dma_end(ide_drive_t *drive)
 {
-	ide_destroy_dmatable(drive);
-
 	return 0;
 }
 

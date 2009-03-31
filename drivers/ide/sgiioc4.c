@@ -259,7 +259,6 @@ static int sgiioc4_dma_end(ide_drive_t *drive)
 	}
 
 	drive->waiting_for_dma = 0;
-	ide_destroy_dmatable(drive);
 
 	return dma_stat;
 }
@@ -284,6 +283,7 @@ static void
 sgiioc4_resetproc(ide_drive_t * drive)
 {
 	sgiioc4_dma_end(drive);
+	ide_destroy_dmatable(drive);
 	sgiioc4_clearirq(drive);
 }
 

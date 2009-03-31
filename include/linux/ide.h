@@ -1479,6 +1479,7 @@ static inline ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int erro
 static inline void ide_release_dma_engine(ide_hwif_t *hwif) { ; }
 static inline int ide_build_sglist(ide_drive_t *drive,
 				   struct ide_cmd *cmd) { return 0; }
+static inline void ide_destroy_dmatable(ide_drive_t *drive) { ; }
 #endif /* CONFIG_BLK_DEV_IDEDMA */
 
 #ifdef CONFIG_BLK_DEV_IDEACPI

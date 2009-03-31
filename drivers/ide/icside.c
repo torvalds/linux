@@ -291,9 +291,6 @@ static int icside_dma_end(ide_drive_t *drive)
 
 	disable_dma(ec->dma);
 
-	/* Teardown mappings after DMA has completed. */
-	ide_destroy_dmatable(drive);
-
 	return get_dma_residue(ec->dma) != 0;
 }
 

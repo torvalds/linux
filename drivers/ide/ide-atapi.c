@@ -342,8 +342,11 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	stat = tp_ops->read_status(hwif);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
-		if (hwif->dma_ops->dma_end(drive) ||
-		    (drive->media == ide_tape && (stat & ATA_ERR))) {
+		int rc = hwif->dma_ops->dma_end(drive);
+
+		ide_destroy_dmatable(drive);
+
+		if (rc || (drive->media == ide_tape && (stat & ATA_ERR))) {
 			if (drive->media == ide_floppy)
 				printk(KERN_ERR "%s: DMA %s error\n",
 					drive->name, rq_data_dir(pc->rq)
