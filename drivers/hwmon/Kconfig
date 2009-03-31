@@ -571,6 +571,17 @@ config SENSORS_LM93
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm93.
 
+config SENSORS_LTC4215
+	tristate "Linear Technology LTC4215"
+	depends on I2C && EXPERIMENTAL
+	default n
+	help
+	  If you say yes here you get support for Linear Technology LTC4215
+	  Hot Swap Controller I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4215.
+
 config SENSORS_LTC4245
 	tristate "Linear Technology LTC4245"
 	depends on I2C && EXPERIMENTAL
