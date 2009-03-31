@@ -68,7 +68,8 @@ struct rtas_t {
 #define RTAS_EPOW_WARNING		0x40000000 /* set bit 1 */
 #define RTAS_POWERMGM_EVENTS		0x20000000 /* set bit 2 */
 #define RTAS_HOTPLUG_EVENTS		0x10000000 /* set bit 3 */
-#define RTAS_EVENT_SCAN_ALL_EVENTS	0xf0000000
+#define RTAS_IO_EVENTS			0x08000000 /* set bit 4 */
+#define RTAS_EVENT_SCAN_ALL_EVENTS	0xffffffff
 
 /* RTAS event severity */
 #define RTAS_SEVERITY_FATAL		0x5
