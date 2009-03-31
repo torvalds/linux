@@ -65,6 +65,22 @@ ftrace_format_##call(struct trace_seq *s)				\
 	return ret;							\
 }
 
+#undef TRACE_EVENT_FORMAT_NOFILTER
+#define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct,	\
+				    tpfmt)				\
+static int								\
+ftrace_format_##call(struct trace_seq *s)				\
+{									\
+	struct args field;						\
+	int ret;							\
+									\
+	tstruct;							\
+									\
+	trace_seq_printf(s, "\nprint fmt: \"%s\"\n", tpfmt);		\
+									\
+	return ret;							\
+}
+
 #include "trace_event_types.h"
 
 #undef TRACE_ZERO_CHAR
@@ -109,6 +125,19 @@ static int ftrace_raw_init_event_##call(void)				\
 	return 0;							\
 }									\
 
+#undef TRACE_EVENT_FORMAT_NOFILTER
+#define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct,	\
+				    tpfmt)				\
+									\
+struct ftrace_event_call __used						\
+__attribute__((__aligned__(4)))						\
+__attribute__((section("_ftrace_events"))) event_##call = {		\
+	.name			= #call,				\
+	.id			= proto,				\
+	.system			= __stringify(TRACE_SYSTEM),		\
+	.show_format		= ftrace_format_##call,			\
+};
+
 #include "trace_event_types.h"
 
 #undef TRACE_FIELD
@@ -149,5 +178,9 @@ ftrace_define_fields_##call(void)					\
 									\
 	return ret;							\
 }
+
+#undef TRACE_EVENT_FORMAT_NOFILTER
+#define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct,	\
+				    tpfmt)
 
 #include "trace_event_types.h"

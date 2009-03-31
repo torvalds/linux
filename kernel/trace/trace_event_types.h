@@ -57,7 +57,7 @@ TRACE_EVENT_FORMAT(context_switch, TRACE_CTX, ctx_switch_entry, ignore,
 	TP_RAW_FMT("%u:%u:%u  ==+ %u:%u:%u [%03u]")
 );
 
-TRACE_EVENT_FORMAT(special, TRACE_SPECIAL, special_entry, ignore,
+TRACE_EVENT_FORMAT_NOFILTER(special, TRACE_SPECIAL, special_entry, ignore,
 	TRACE_STRUCT(
 		TRACE_FIELD(unsigned long, arg1, arg1)
 		TRACE_FIELD(unsigned long, arg2, arg2)
