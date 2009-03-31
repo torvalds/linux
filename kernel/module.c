@@ -1673,8 +1673,7 @@ static void layout_sections(struct module *mod,
 			if ((s->sh_flags & masks[m][0]) != masks[m][0]
 			    || (s->sh_flags & masks[m][1])
 			    || s->sh_entsize != ~0UL
-			    || strncmp(secstrings + s->sh_name,
-				       ".init", 5) == 0)
+			    || strstarts(secstrings + s->sh_name, ".init"))
 				continue;
 			s->sh_entsize = get_offset(mod, &mod->core_size, s, i);
 			DEBUGP("\t%s\n", secstrings + s->sh_name);
@@ -1691,8 +1690,7 @@ static void layout_sections(struct module *mod,
 			if ((s->sh_flags & masks[m][0]) != masks[m][0]
 			    || (s->sh_flags & masks[m][1])
 			    || s->sh_entsize != ~0UL
-			    || strncmp(secstrings + s->sh_name,
-				       ".init", 5) != 0)
+			    || !strstarts(secstrings + s->sh_name, ".init"))
 				continue;
 			s->sh_entsize = (get_offset(mod, &mod->init_size, s, i)
 					 | INIT_OFFSET_MASK);
@@ -1825,8 +1823,7 @@ static char elf_type(const Elf_Sym *sym,
 		else
 			return 'b';
 	}
-	if (strncmp(secstrings + sechdrs[sym->st_shndx].sh_name,
-		    ".debug", strlen(".debug")) == 0)
+	if (strstarts(secstrings + sechdrs[sym->st_shndx].sh_name, ".debug"))
 		return 'n';
 	return '?';
 }
@@ -1952,7 +1949,7 @@ static noinline struct module *load_module(void __user *umod,
 		}
 #ifndef CONFIG_MODULE_UNLOAD
 		/* Don't load .exit sections */
-		if (strncmp(secstrings+sechdrs[i].sh_name, ".exit", 5) == 0)
+		if (strstarts(secstrings+sechdrs[i].sh_name, ".exit"))
 			sechdrs[i].sh_flags &= ~(unsigned long)SHF_ALLOC;
 #endif
 		/* Don't keep __versions around; it's just for loading. */
