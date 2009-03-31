@@ -371,9 +371,28 @@ static int ep_call_nested(struct nested_calls *ncalls, int max_nests,
 	return error;
 }
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static inline void ep_wake_up_nested(wait_queue_head_t *wqueue,
+				     unsigned long events, int subclass)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave_nested(&wqueue->lock, flags, subclass);
+	wake_up_locked_poll(wqueue, events);
+	spin_unlock_irqrestore(&wqueue->lock, flags);
+}
+#else
+static inline void ep_wake_up_nested(wait_queue_head_t *wqueue,
+				     unsigned long events, int subclass)
+{
+	wake_up_poll(wqueue, events);
+}
+#endif
+
 static int ep_poll_wakeup_proc(void *priv, void *cookie, int call_nests)
 {
-	wake_up_nested((wait_queue_head_t *) cookie, 1 + call_nests);
+	ep_wake_up_nested((wait_queue_head_t *) cookie, POLLIN,
+			  1 + call_nests);
 	return 0;
 }
 
@@ -780,6 +799,15 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 	 * until the next EPOLL_CTL_MOD will be issued.
 	 */
 	if (!(epi->event.events & ~EP_PRIVATE_BITS))
+		goto out_unlock;
+
+	/*
+	 * Check the events coming with the callback. At this stage, not
+	 * every device reports the events in the "key" parameter of the
+	 * callback. We need to be able to handle both cases here, hence the
+	 * test for "key" != NULL before the event match test.
+	 */
+	if (key && !((unsigned long) key & epi->event.events))
 		goto out_unlock;
 
 	/*
@@ -1254,7 +1282,6 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	case EPOLL_CTL_ADD:
 		if (!epi) {
 			epds.events |= POLLERR | POLLHUP;
-
 			error = ep_insert(ep, &epds, tfile, fd);
 		} else
 			error = -EEXIST;
