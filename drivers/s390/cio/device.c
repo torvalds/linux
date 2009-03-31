@@ -310,8 +310,6 @@ static void ccw_device_remove_orphan_cb(struct work_struct *work)
 	put_device(&cdev->dev);
 }
 
-static void ccw_device_call_sch_unregister(struct work_struct *work);
-
 static void
 ccw_device_remove_disconnected(struct ccw_device *cdev)
 {
@@ -335,11 +333,10 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 		spin_unlock_irqrestore(cdev->ccwlock, flags);
 		PREPARE_WORK(&cdev->private->kick_work,
 				ccw_device_remove_orphan_cb);
+		queue_work(slow_path_wq, &cdev->private->kick_work);
 	} else
 		/* Deregister subchannel, which will kill the ccw device. */
-		PREPARE_WORK(&cdev->private->kick_work,
-				ccw_device_call_sch_unregister);
-	queue_work(slow_path_wq, &cdev->private->kick_work);
+		ccw_device_schedule_sch_unregister(cdev);
 }
 
 /**
@@ -1020,6 +1017,13 @@ static void ccw_device_call_sch_unregister(struct work_struct *work)
 	put_device(&sch->dev);
 }
 
+void ccw_device_schedule_sch_unregister(struct ccw_device *cdev)
+{
+	PREPARE_WORK(&cdev->private->kick_work,
+		     ccw_device_call_sch_unregister);
+	queue_work(slow_path_wq, &cdev->private->kick_work);
+}
+
 /*
  * subchannel recognition done. Called from the state machine.
  */
@@ -1036,9 +1040,7 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 		/* Remove device found not operational. */
 		if (!get_device(&cdev->dev))
 			break;
-		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_call_sch_unregister);
-		queue_work(slow_path_wq, &cdev->private->kick_work);
+		ccw_device_schedule_sch_unregister(cdev);
 		if (atomic_dec_and_test(&ccw_device_init_count))
 			wake_up(&ccw_device_init_wq);
 		break;
@@ -1557,8 +1559,7 @@ static int purge_fn(struct device *dev, void *data)
 		goto out;
 	CIO_MSG_EVENT(3, "ccw: purging 0.%x.%04x\n", priv->dev_id.ssid,
 		      priv->dev_id.devno);
-	PREPARE_WORK(&cdev->private->kick_work, ccw_device_call_sch_unregister);
-	queue_work(slow_path_wq, &cdev->private->kick_work);
+	ccw_device_schedule_sch_unregister(cdev);
 
 out:
 	/* Abort loop in case of pending signal. */
