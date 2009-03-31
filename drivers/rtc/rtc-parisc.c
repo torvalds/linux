@@ -40,19 +40,14 @@ static const struct rtc_class_ops parisc_rtc_ops = {
 	.set_time = parisc_set_time,
 };
 
-static int __devinit parisc_rtc_probe(struct platform_device *dev)
+static int __init parisc_rtc_probe(struct platform_device *dev)
 {
 	struct rtc_device *p;
-
-	p = kzalloc(sizeof (*p), GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
 
 	p = rtc_device_register("rtc-parisc", &dev->dev, &parisc_rtc_ops,
 				THIS_MODULE);
 	if (IS_ERR(p)) {
 		int err = PTR_ERR(p);
-		kfree(p);
 		return err;
 	}
 
@@ -61,12 +56,11 @@ static int __devinit parisc_rtc_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit parisc_rtc_remove(struct platform_device *dev)
+static int __exit parisc_rtc_remove(struct platform_device *dev)
 {
 	struct rtc_device *p = platform_get_drvdata(dev);
 
 	rtc_device_unregister(p);
-	kfree(p);
 
 	return 0;
 }
@@ -82,7 +76,7 @@ static struct platform_driver parisc_rtc_driver = {
 
 static int __init parisc_rtc_init(void)
 {
-	return platform_driver_register(&parisc_rtc_driver);
+	return platform_driver_probe(&parisc_rtc_driver, parisc_rtc_probe);
 }
 
 static void __exit parisc_rtc_fini(void)
