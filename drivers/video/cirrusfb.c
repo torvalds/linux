@@ -694,7 +694,8 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	struct cirrusfb_regs regs;
 	u8 __iomem *regbase = cinfo->regbase;
 	unsigned char tmp;
-	int offset = 0, err;
+	int err;
+	int pitch;
 	const struct cirrusfb_board_info_rec *bi;
 	int hdispend, hsyncstart, hsyncend, htotal;
 	int yres, vdispend, vsyncstart, vsyncend, vtotal;
@@ -1027,7 +1028,6 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		vga_wseq(regbase, VGA_SEQ_MEMORY_MODE, 0x06);
 		/* plane mask: only write to first plane */
 		vga_wseq(regbase, VGA_SEQ_PLANE_WRITE, 0x01);
-		offset = var->xres_virtual / 16;
 	}
 
 	/******************************************************
@@ -1113,7 +1113,6 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		vga_wseq(regbase, VGA_SEQ_MEMORY_MODE, 0x0a);
 		/* plane mask: enable writing to all 4 planes */
 		vga_wseq(regbase, VGA_SEQ_PLANE_WRITE, 0xff);
-		offset = var->xres_virtual / 8;
 	}
 
 	/******************************************************
@@ -1190,7 +1189,6 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		vga_wseq(regbase, VGA_SEQ_MEMORY_MODE, 0x0a);
 		/* plane mask: enable writing to all 4 planes */
 		vga_wseq(regbase, VGA_SEQ_PLANE_WRITE, 0xff);
-		offset = var->xres_virtual / 4;
 	}
 
 	/******************************************************
@@ -1263,7 +1261,6 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		vga_wseq(regbase, VGA_SEQ_MEMORY_MODE, 0x0a);
 		/* plane mask: enable writing to all 4 planes */
 		vga_wseq(regbase, VGA_SEQ_PLANE_WRITE, 0xff);
-		offset = var->xres_virtual / 4;
 	}
 
 	/******************************************************
@@ -1277,9 +1274,10 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 			"What's this? requested color depth == %d.\n",
 			var->bits_per_pixel);
 
-	vga_wcrt(regbase, VGA_CRTC_OFFSET, offset & 0xff);
+	pitch = info->fix.line_length >> 3;
+	vga_wcrt(regbase, VGA_CRTC_OFFSET, pitch & 0xff);
 	tmp = 0x22;
-	if (offset & 0x100)
+	if (pitch & 0x100)
 		tmp |= 0x10;	/* offset overflow bit */
 
 	/* screen start addr #16-18, fastpagemode cycles */
@@ -1287,7 +1285,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 
 	/* screen start address bit 19 */
 	if (cirrusfb_board_info[cinfo->btype].scrn_start_bit19)
-		vga_wcrt(regbase, CL_CRT1D, 0x00);
+		vga_wcrt(regbase, CL_CRT1D, (pitch >> 9) & 1);
 
 	if (cinfo->btype == BT_LAGUNA ||
 	    cinfo->btype == BT_GD5480) {
