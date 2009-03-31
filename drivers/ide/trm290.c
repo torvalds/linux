@@ -184,7 +184,6 @@ static int trm290_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (cmd->tf_flags & IDE_TFLAG_WRITE) {
 #ifdef TRM290_NO_DMA_WRITES
 		/* always use PIO for writes */
-		trm290_prepare_drive(drive, 0);	/* select PIO xfer */
 		return 1;
 #endif
 		rw = 1;
@@ -195,11 +194,8 @@ static int trm290_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (count == 0) {
 		ide_map_sg(drive, cmd);
 		/* try PIO instead of DMA */
-		trm290_prepare_drive(drive, 0); /* select PIO xfer */
 		return 1;
 	}
-	/* select DMA xfer */
-	trm290_prepare_drive(drive, 1);
 	outl(hwif->dmatable_dma | rw, hwif->dma_base);
 	drive->waiting_for_dma = 1;
 	/* start DMA */
@@ -209,6 +205,7 @@ static int trm290_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 
 static void trm290_dma_start(ide_drive_t *drive)
 {
+	trm290_prepare_drive(drive, 1);
 }
 
 static int trm290_dma_end(ide_drive_t *drive)
@@ -218,6 +215,8 @@ static int trm290_dma_end(ide_drive_t *drive)
 	drive->waiting_for_dma = 0;
 
 	status = inw(drive->hwif->dma_base + 2);
+
+	trm290_prepare_drive(drive, 0);
 
 	return status != 0x00ff;
 }
