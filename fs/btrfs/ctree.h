@@ -45,6 +45,13 @@ struct btrfs_ordered_sum;
 
 #define BTRFS_MAX_LEVEL 8
 
+/*
+ * files bigger than this get some pre-flushing when they are added
+ * to the ordered operations list.  That way we limit the total
+ * work done by the commit
+ */
+#define BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT (8 * 1024 * 1024)
+
 /* holds pointers to all of the tree roots */
 #define BTRFS_ROOT_TREE_OBJECTID 1ULL
 
@@ -727,6 +734,15 @@ struct btrfs_fs_info {
 	struct mutex volume_mutex;
 	struct mutex tree_reloc_mutex;
 
+	/*
+	 * this protects the ordered operations list only while we are
+	 * processing all of the entries on it.  This way we make
+	 * sure the commit code doesn't find the list temporarily empty
+	 * because another function happens to be doing non-waiting preflush
+	 * before jumping into the main commit.
+	 */
+	struct mutex ordered_operations_mutex;
+
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;
@@ -741,8 +757,27 @@ struct btrfs_fs_info {
 	 * ordered extents
 	 */
 	spinlock_t ordered_extent_lock;
+
+	/*
+	 * all of the data=ordered extents pending writeback
+	 * these can span multiple transactions and basically include
+	 * every dirty data page that isn't from nodatacow
+	 */
 	struct list_head ordered_extents;
+
+	/*
+	 * all of the inodes that have delalloc bytes.  It is possible for
+	 * this list to be empty even when there is still dirty data=ordered
+	 * extents waiting to finish IO.
+	 */
 	struct list_head delalloc_inodes;
+
+	/*
+	 * special rename and truncate targets that must be on disk before
+	 * we're allowed to commit.  This is basically the ext3 style
+	 * data=ordered list.
+	 */
+	struct list_head ordered_operations;
 
 	/*
 	 * there is a pool of worker threads for checksumming during writes

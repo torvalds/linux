@@ -975,6 +975,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	int should_grow = 0;
 	unsigned long now = get_seconds();
 
+	btrfs_run_ordered_operations(root, 0);
+
 	/* make a pass through all the delayed refs we have so far
 	 * any runnings procs may add more while we are here
 	 */
@@ -1055,6 +1057,15 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			ret = btrfs_wait_ordered_extents(root, 1);
 			BUG_ON(ret);
 		}
+
+		/*
+		 * rename don't use btrfs_join_transaction, so, once we
+		 * set the transaction to blocked above, we aren't going
+		 * to get any new ordered operations.  We can safely run
+		 * it here and no for sure that nothing new will be added
+		 * to the list
+		 */
+		btrfs_run_ordered_operations(root, 1);
 
 		smp_mb();
 		if (cur_trans->num_writers > 1 || should_grow)

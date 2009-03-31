@@ -1161,6 +1161,20 @@ out_nolock:
 		page_cache_release(pinned[1]);
 	*ppos = pos;
 
+	/*
+	 * we want to make sure fsync finds this change
+	 * but we haven't joined a transaction running right now.
+	 *
+	 * Later on, someone is sure to update the inode and get the
+	 * real transid recorded.
+	 *
+	 * We set last_trans now to the fs_info generation + 1,
+	 * this will either be one more than the running transaction
+	 * or the generation used for the next transaction if there isn't
+	 * one running right now.
+	 */
+	BTRFS_I(inode)->last_trans = root->fs_info->generation + 1;
+
 	if (num_written > 0 && will_write) {
 		struct btrfs_trans_handle *trans;
 
@@ -1194,6 +1208,18 @@ out_nolock:
 
 int btrfs_release_file(struct inode *inode, struct file *filp)
 {
+	/*
+	 * ordered_data_close is set by settattr when we are about to truncate
+	 * a file from a non-zero size to a zero size.  This tries to
+	 * flush down new bytes that may have been written if the
+	 * application were using truncate to replace a file in place.
+	 */
+	if (BTRFS_I(inode)->ordered_data_close) {
+		BTRFS_I(inode)->ordered_data_close = 0;
+		btrfs_add_ordered_operation(NULL, BTRFS_I(inode)->root, inode);
+		if (inode->i_size > BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT)
+			filemap_flush(inode->i_mapping);
+	}
 	if (filp->private_data)
 		btrfs_ioctl_trans_end(filp);
 	return 0;

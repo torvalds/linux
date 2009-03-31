@@ -66,6 +66,12 @@ struct btrfs_inode {
 	 */
 	struct list_head delalloc_inodes;
 
+	/*
+	 * list for tracking inodes that must be sent to disk before a
+	 * rename or truncate commit
+	 */
+	struct list_head ordered_operations;
+
 	/* the space_info for where this inode's data allocations are done */
 	struct btrfs_space_info *space_info;
 
@@ -121,6 +127,18 @@ struct btrfs_inode {
 	 * details
 	 */
 	u64 last_unlink_trans;
+
+	/*
+	 * ordered_data_close is set by truncate when a file that used
+	 * to have good data has been truncated to zero.  When it is set
+	 * the btrfs file release call will add this inode to the
+	 * ordered operations list so that we make sure to flush out any
+	 * new data the application may have written before commit.
+	 *
+	 * yes, its silly to have a single bitflag, but we might grow more
+	 * of these.
+	 */
+	unsigned ordered_data_close:1;
 
 	struct inode vfs_inode;
 };

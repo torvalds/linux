@@ -1572,6 +1572,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->hashers);
 	INIT_LIST_HEAD(&fs_info->delalloc_inodes);
+	INIT_LIST_HEAD(&fs_info->ordered_operations);
 	spin_lock_init(&fs_info->delalloc_lock);
 	spin_lock_init(&fs_info->new_trans_lock);
 	spin_lock_init(&fs_info->ref_cache_lock);
@@ -1643,6 +1644,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	insert_inode_hash(fs_info->btree_inode);
 
 	mutex_init(&fs_info->trans_mutex);
+	mutex_init(&fs_info->ordered_operations_mutex);
 	mutex_init(&fs_info->tree_log_mutex);
 	mutex_init(&fs_info->drop_mutex);
 	mutex_init(&fs_info->pinned_mutex);

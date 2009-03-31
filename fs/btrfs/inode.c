@@ -2907,11 +2907,21 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err)
 		return err;
 
-	if (S_ISREG(inode->i_mode) &&
-	    attr->ia_valid & ATTR_SIZE && attr->ia_size > inode->i_size) {
-		err = btrfs_cont_expand(inode, attr->ia_size);
-		if (err)
-			return err;
+	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
+		if (attr->ia_size > inode->i_size) {
+			err = btrfs_cont_expand(inode, attr->ia_size);
+			if (err)
+				return err;
+		} else if (inode->i_size > 0 &&
+			   attr->ia_size == 0) {
+
+			/* we're truncating a file that used to have good
+			 * data down to zero.  Make sure it gets into
+			 * the ordered flush list so that any new writes
+			 * get down to disk quickly.
+			 */
+			BTRFS_I(inode)->ordered_data_close = 1;
+		}
 	}
 
 	err = inode_setattr(inode, attr);
@@ -3050,6 +3060,7 @@ static noinline void init_btrfs_i(struct inode *inode)
 	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 			     inode->i_mapping, GFP_NOFS);
 	INIT_LIST_HEAD(&BTRFS_I(inode)->delalloc_inodes);
+	INIT_LIST_HEAD(&BTRFS_I(inode)->ordered_operations);
 	btrfs_ordered_inode_tree_init(&BTRFS_I(inode)->ordered_tree);
 	mutex_init(&BTRFS_I(inode)->extent_mutex);
 	mutex_init(&BTRFS_I(inode)->log_mutex);
@@ -4419,6 +4430,8 @@ again:
 	}
 	ClearPageChecked(page);
 	set_page_dirty(page);
+
+	BTRFS_I(inode)->last_trans = root->fs_info->generation + 1;
 	unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 
 out_unlock:
@@ -4444,6 +4457,27 @@ static void btrfs_truncate(struct inode *inode)
 	btrfs_wait_ordered_range(inode, inode->i_size & (~mask), (u64)-1);
 
 	trans = btrfs_start_transaction(root, 1);
+
+	/*
+	 * setattr is responsible for setting the ordered_data_close flag,
+	 * but that is only tested during the last file release.  That
+	 * could happen well after the next commit, leaving a great big
+	 * window where new writes may get lost if someone chooses to write
+	 * to this file after truncating to zero
+	 *
+	 * The inode doesn't have any dirty data here, and so if we commit
+	 * this is a noop.  If someone immediately starts writing to the inode
+	 * it is very likely we'll catch some of their writes in this
+	 * transaction, and the commit will find this file on the ordered
+	 * data list with good things to send down.
+	 *
+	 * This is a best effort solution, there is still a window where
+	 * using truncate to replace the contents of the file will
+	 * end up with a zero length file after a crash.
+	 */
+	if (inode->i_size == 0 && BTRFS_I(inode)->ordered_data_close)
+		btrfs_add_ordered_operation(trans, root, inode);
+
 	btrfs_set_trans_block_group(trans, inode);
 	btrfs_i_size_write(inode, inode->i_size);
 
@@ -4520,12 +4554,15 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->i_acl = BTRFS_ACL_NOT_CACHED;
 	ei->i_default_acl = BTRFS_ACL_NOT_CACHED;
 	INIT_LIST_HEAD(&ei->i_orphan);
+	INIT_LIST_HEAD(&ei->ordered_operations);
 	return &ei->vfs_inode;
 }
 
 void btrfs_destroy_inode(struct inode *inode)
 {
 	struct btrfs_ordered_extent *ordered;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
 	WARN_ON(!list_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
 
@@ -4536,13 +4573,24 @@ void btrfs_destroy_inode(struct inode *inode)
 	    BTRFS_I(inode)->i_default_acl != BTRFS_ACL_NOT_CACHED)
 		posix_acl_release(BTRFS_I(inode)->i_default_acl);
 
-	spin_lock(&BTRFS_I(inode)->root->list_lock);
+	/*
+	 * Make sure we're properly removed from the ordered operation
+	 * lists.
+	 */
+	smp_mb();
+	if (!list_empty(&BTRFS_I(inode)->ordered_operations)) {
+		spin_lock(&root->fs_info->ordered_extent_lock);
+		list_del_init(&BTRFS_I(inode)->ordered_operations);
+		spin_unlock(&root->fs_info->ordered_extent_lock);
+	}
+
+	spin_lock(&root->list_lock);
 	if (!list_empty(&BTRFS_I(inode)->i_orphan)) {
 		printk(KERN_ERR "BTRFS: inode %lu: inode still on the orphan"
 		       " list\n", inode->i_ino);
 		dump_stack();
 	}
-	spin_unlock(&BTRFS_I(inode)->root->list_lock);
+	spin_unlock(&root->list_lock);
 
 	while (1) {
 		ordered = btrfs_lookup_first_ordered_extent(inode, (u64)-1);
@@ -4667,7 +4715,26 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (ret)
 		goto out_unlock;
 
+	/*
+	 * we're using rename to replace one file with another.
+	 * and the replacement file is large.  Start IO on it now so
+	 * we don't add too much work to the end of the transaction
+	 */
+	if (new_inode && old_inode && S_ISREG(old_inode->i_mode) &&
+	    new_inode->i_size &&
+	    old_inode->i_size > BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT)
+		filemap_flush(old_inode->i_mapping);
+
 	trans = btrfs_start_transaction(root, 1);
+
+	/*
+	 * make sure the inode gets flushed if it is replacing
+	 * something.
+	 */
+	if (new_inode && new_inode->i_size &&
+	    old_inode && S_ISREG(old_inode->i_mode)) {
+		btrfs_add_ordered_operation(trans, root, old_inode);
+	}
 
 	/*
 	 * this is an ugly little race, but the rename is required to make
