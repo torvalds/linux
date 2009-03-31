@@ -3486,10 +3486,10 @@ err_up:
 	ixgbe_release_hw_control(adapter);
 	ixgbe_free_irq(adapter);
 err_req_irq:
-	ixgbe_free_all_rx_resources(adapter);
 err_setup_rx:
-	ixgbe_free_all_tx_resources(adapter);
+	ixgbe_free_all_rx_resources(adapter);
 err_setup_tx:
+	ixgbe_free_all_tx_resources(adapter);
 	ixgbe_reset(adapter);
 
 	return err;
