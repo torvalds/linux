@@ -2125,14 +2125,16 @@ static int raid1_resize(mddev_t *mddev, sector_t sectors)
 	 * worth it.
 	 */
 	md_set_array_sectors(mddev, raid1_size(mddev, sectors, 0));
+	if (mddev->array_sectors > raid1_size(mddev, sectors, 0))
+		return -EINVAL;
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
-	if (mddev->array_sectors > mddev->dev_sectors &&
+	if (sectors > mddev->dev_sectors &&
 	    mddev->recovery_cp == MaxSector) {
 		mddev->recovery_cp = mddev->dev_sectors;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	}
-	mddev->dev_sectors = mddev->array_sectors;
+	mddev->dev_sectors = sectors;
 	mddev->resync_max_sectors = sectors;
 	return 0;
 }

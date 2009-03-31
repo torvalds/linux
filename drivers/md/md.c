@@ -387,6 +387,11 @@ static inline int mddev_lock(mddev_t * mddev)
 	return mutex_lock_interruptible(&mddev->reconfig_mutex);
 }
 
+static inline int mddev_is_locked(mddev_t *mddev)
+{
+	return mutex_is_locked(&mddev->reconfig_mutex);
+}
+
 static inline int mddev_trylock(mddev_t * mddev)
 {
 	return mutex_trylock(&mddev->reconfig_mutex);
@@ -2282,16 +2287,34 @@ static int overlaps(sector_t s1, sector_t l1, sector_t s2, sector_t l2)
 	return 1;
 }
 
+static int strict_blocks_to_sectors(const char *buf, sector_t *sectors)
+{
+	unsigned long long blocks;
+	sector_t new;
+
+	if (strict_strtoull(buf, 10, &blocks) < 0)
+		return -EINVAL;
+
+	if (blocks & 1ULL << (8 * sizeof(blocks) - 1))
+		return -EINVAL; /* sector conversion overflow */
+
+	new = blocks * 2;
+	if (new != blocks * 2)
+		return -EINVAL; /* unsigned long long to sector_t overflow */
+
+	*sectors = new;
+	return 0;
+}
+
 static ssize_t
 rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 {
 	mddev_t *my_mddev = rdev->mddev;
 	sector_t oldsectors = rdev->sectors;
-	unsigned long long sectors;
+	sector_t sectors;
 
-	if (strict_strtoull(buf, 10, &sectors) < 0)
+	if (strict_blocks_to_sectors(buf, &sectors) < 0)
 		return -EINVAL;
-	sectors *= 2;
 	if (my_mddev->pers && rdev->raid_disk >= 0) {
 		if (my_mddev->persistent) {
 			sectors = super_types[my_mddev->major_version].
@@ -3182,12 +3205,11 @@ size_store(mddev_t *mddev, const char *buf, size_t len)
 	 * not increase it (except from 0).
 	 * If array is active, we can try an on-line resize
 	 */
-	unsigned long long sectors;
-	int err = strict_strtoull(buf, 10, &sectors);
+	sector_t sectors;
+	int err = strict_blocks_to_sectors(buf, &sectors);
 
 	if (err < 0)
 		return err;
-	sectors *= 2;
 	if (mddev->pers) {
 		err = update_size(mddev, sectors);
 		md_update_sb(mddev, 1);
@@ -3627,6 +3649,57 @@ static struct md_sysfs_entry md_reshape_position =
 __ATTR(reshape_position, S_IRUGO|S_IWUSR, reshape_position_show,
        reshape_position_store);
 
+static ssize_t
+array_size_show(mddev_t *mddev, char *page)
+{
+	if (mddev->external_size)
+		return sprintf(page, "%llu\n",
+			       (unsigned long long)mddev->array_sectors/2);
+	else
+		return sprintf(page, "default\n");
+}
+
+static ssize_t
+array_size_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	sector_t sectors;
+
+	if (strncmp(buf, "default", 7) == 0) {
+		if (mddev->pers)
+			sectors = mddev->pers->size(mddev, 0, 0);
+		else
+			sectors = mddev->array_sectors;
+
+		mddev->external_size = 0;
+	} else {
+		if (strict_blocks_to_sectors(buf, &sectors) < 0)
+			return -EINVAL;
+		if (mddev->pers && mddev->pers->size(mddev, 0, 0) < sectors)
+			return -EINVAL;
+
+		mddev->external_size = 1;
+	}
+
+	mddev->array_sectors = sectors;
+	set_capacity(mddev->gendisk, mddev->array_sectors);
+	if (mddev->pers) {
+		struct block_device *bdev = bdget_disk(mddev->gendisk, 0);
+
+		if (bdev) {
+			mutex_lock(&bdev->bd_inode->i_mutex);
+			i_size_write(bdev->bd_inode,
+				     (loff_t)mddev->array_sectors << 9);
+			mutex_unlock(&bdev->bd_inode->i_mutex);
+			bdput(bdev);
+		}
+	}
+
+	return len;
+}
+
+static struct md_sysfs_entry md_array_size =
+__ATTR(array_size, S_IRUGO|S_IWUSR, array_size_show,
+       array_size_store);
 
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
@@ -3640,6 +3713,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_safe_delay.attr,
 	&md_array_state.attr,
 	&md_reshape_position.attr,
+	&md_array_size.attr,
 	NULL,
 };
 
@@ -4045,7 +4119,17 @@ static int do_md_run(mddev_t * mddev)
 	err = mddev->pers->run(mddev);
 	if (err)
 		printk(KERN_ERR "md: pers->run() failed ...\n");
-	else if (mddev->pers->sync_request) {
+	else if (mddev->pers->size(mddev, 0, 0) < mddev->array_sectors) {
+		WARN_ONCE(!mddev->external_size, "%s: default size too small,"
+			  " but 'external_size' not in effect?\n", __func__);
+		printk(KERN_ERR
+		       "md: invalid array_size %llu > default size %llu\n",
+		       (unsigned long long)mddev->array_sectors / 2,
+		       (unsigned long long)mddev->pers->size(mddev, 0, 0) / 2);
+		err = -EINVAL;
+		mddev->pers->stop(mddev);
+	}
+	if (err == 0 && mddev->pers->sync_request) {
 		err = bitmap_create(mddev);
 		if (err) {
 			printk(KERN_ERR "%s: failed to create bitmap (%d)\n",
@@ -4281,6 +4365,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		export_array(mddev);
 
 		mddev->array_sectors = 0;
+		mddev->external_size = 0;
 		mddev->dev_sectors = 0;
 		mddev->raid_disks = 0;
 		mddev->recovery_cp = 0;
@@ -4979,9 +5064,22 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 
 void md_set_array_sectors(mddev_t *mddev, sector_t array_sectors)
 {
+	WARN(!mddev_is_locked(mddev), "%s: unlocked mddev!\n", __func__);
+
+	if (mddev->external_size)
+		return;
+
 	mddev->array_sectors = array_sectors;
 }
 EXPORT_SYMBOL(md_set_array_sectors);
+
+void md_set_array_sectors_lock(mddev_t *mddev, sector_t array_sectors)
+{
+	mddev_lock(mddev);
+	md_set_array_sectors(mddev, array_sectors);
+	mddev_unlock(mddev);
+}
+EXPORT_SYMBOL(md_set_array_sectors_lock);
 
 static int update_size(mddev_t *mddev, sector_t num_sectors)
 {

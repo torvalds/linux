@@ -3703,6 +3703,8 @@ static int make_request(struct request_queue *q, struct bio * bi)
 	return 0;
 }
 
+static sector_t raid5_size(mddev_t *mddev, sector_t sectors, int raid_disks);
+
 static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped)
 {
 	/* reshaping is quite different to recovery/resync so it is
@@ -3781,7 +3783,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 			    j == sh->qd_idx)
 				continue;
 			s = compute_blocknr(sh, j);
-			if (s < mddev->array_sectors) {
+			if (s < raid5_size(mddev, 0, 0)) {
 				skipped = 1;
 				continue;
 			}
@@ -4700,6 +4702,9 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 	sectors &= ~((sector_t)mddev->chunk_size/512 - 1);
 	md_set_array_sectors(mddev, raid5_size(mddev, sectors,
 					       mddev->raid_disks));
+	if (mddev->array_sectors >
+	    raid5_size(mddev, sectors, mddev->raid_disks))
+		return -EINVAL;
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
 	if (sectors > mddev->dev_sectors && mddev->recovery_cp == MaxSector) {
@@ -4837,7 +4842,7 @@ static void end_reshape(raid5_conf_t *conf)
 	if (!test_bit(MD_RECOVERY_INTR, &conf->mddev->recovery)) {
 		mddev_t *mddev = conf->mddev;
 
-		md_set_array_sectors(mddev, raid5_size(mddev, 0,
+		md_set_array_sectors_lock(mddev, raid5_size(mddev, 0,
 						       conf->raid_disks));
 		set_capacity(mddev->gendisk, mddev->array_sectors);
 		mddev->changed = 1;

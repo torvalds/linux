@@ -147,6 +147,8 @@ struct mddev_s
 	sector_t			dev_sectors; 	/* used size of
 							 * component devices */
 	sector_t			array_sectors; /* exported array size */
+	int				external_size; /* size managed
+							* externally */
 	__u64				events;
 
 	char				uuid[16];
@@ -431,3 +433,4 @@ extern void md_new_event(mddev_t *mddev);
 extern int md_allow_write(mddev_t *mddev);
 extern void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern void md_set_array_sectors(mddev_t *mddev, sector_t array_sectors);
+extern void md_set_array_sectors_lock(mddev_t *mddev, sector_t array_sectors);

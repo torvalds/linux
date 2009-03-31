@@ -313,7 +313,7 @@ static int raid0_run (mddev_t *mddev)
 	printk(KERN_INFO "raid0 : conf->spacing is %llu sectors.\n",
 		(unsigned long long)conf->spacing);
 	{
-		sector_t s = mddev->array_sectors;
+		sector_t s = raid0_size(mddev, 0, 0);
 		sector_t space = conf->spacing;
 		int round;
 		conf->sector_shift = 0;
