@@ -45,7 +45,6 @@
 #include "xfs_fsops.h"
 #include "xfs_utils.h"
 
-STATIC int	xfs_uuid_mount(xfs_mount_t *);
 STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
 
 
@@ -120,6 +119,84 @@ static const struct {
     { offsetof(xfs_sb_t, sb_bad_features2), 0 },
     { sizeof(xfs_sb_t),			 0 }
 };
+
+static DEFINE_MUTEX(xfs_uuid_table_mutex);
+static int xfs_uuid_table_size;
+static uuid_t *xfs_uuid_table;
+
+/*
+ * See if the UUID is unique among mounted XFS filesystems.
+ * Mount fails if UUID is nil or a FS with the same UUID is already mounted.
+ */
+STATIC int
+xfs_uuid_mount(
+	struct xfs_mount	*mp)
+{
+	uuid_t			*uuid = &mp->m_sb.sb_uuid;
+	int			hole, i;
+
+	if (mp->m_flags & XFS_MOUNT_NOUUID)
+		return 0;
+
+	if (uuid_is_nil(uuid)) {
+		cmn_err(CE_WARN,
+			"XFS: Filesystem %s has nil UUID - can't mount",
+			mp->m_fsname);
+		return XFS_ERROR(EINVAL);
+	}
+
+	mutex_lock(&xfs_uuid_table_mutex);
+	for (i = 0, hole = -1; i < xfs_uuid_table_size; i++) {
+		if (uuid_is_nil(&xfs_uuid_table[i])) {
+			hole = i;
+			continue;
+		}
+		if (uuid_equal(uuid, &xfs_uuid_table[i]))
+			goto out_duplicate;
+	}
+
+	if (hole < 0) {
+		xfs_uuid_table = kmem_realloc(xfs_uuid_table,
+			(xfs_uuid_table_size + 1) * sizeof(*xfs_uuid_table),
+			xfs_uuid_table_size  * sizeof(*xfs_uuid_table),
+			KM_SLEEP);
+		hole = xfs_uuid_table_size++;
+	}
+	xfs_uuid_table[hole] = *uuid;
+	mutex_unlock(&xfs_uuid_table_mutex);
+
+	return 0;
+
+ out_duplicate:
+	mutex_unlock(&xfs_uuid_table_mutex);
+	cmn_err(CE_WARN, "XFS: Filesystem %s has duplicate UUID - can't mount",
+			 mp->m_fsname);
+	return XFS_ERROR(EINVAL);
+}
+
+STATIC void
+xfs_uuid_unmount(
+	struct xfs_mount	*mp)
+{
+	uuid_t			*uuid = &mp->m_sb.sb_uuid;
+	int			i;
+
+	if (mp->m_flags & XFS_MOUNT_NOUUID)
+		return;
+
+	mutex_lock(&xfs_uuid_table_mutex);
+	for (i = 0; i < xfs_uuid_table_size; i++) {
+		if (uuid_is_nil(&xfs_uuid_table[i]))
+			continue;
+		if (!uuid_equal(uuid, &xfs_uuid_table[i]))
+			continue;
+		memset(&xfs_uuid_table[i], 0, sizeof(uuid_t));
+		break;
+	}
+	ASSERT(i < xfs_uuid_table_size);
+	mutex_unlock(&xfs_uuid_table_mutex);
+}
+
 
 /*
  * Free up the resources associated with a mount structure.  Assume that
@@ -253,6 +330,22 @@ xfs_mount_validate_sb(
 		xfs_fs_mount_cmn_err(flags,
 			"only pagesize (%ld) or less will currently work.",
 			PAGE_SIZE);
+		return XFS_ERROR(ENOSYS);
+	}
+
+	/*
+	 * Currently only very few inode sizes are supported.
+	 */
+	switch (sbp->sb_inodesize) {
+	case 256:
+	case 512:
+	case 1024:
+	case 2048:
+		break;
+	default:
+		xfs_fs_mount_cmn_err(flags,
+			"inode size of %d bytes not supported",
+			sbp->sb_inodesize);
 		return XFS_ERROR(ENOSYS);
 	}
 
@@ -574,31 +667,9 @@ xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
 	mp->m_sectbb_log = sbp->sb_sectlog - BBSHIFT;
 	mp->m_agno_log = xfs_highbit32(sbp->sb_agcount - 1) + 1;
 	mp->m_agino_log = sbp->sb_inopblog + sbp->sb_agblklog;
-	mp->m_litino = sbp->sb_inodesize - sizeof(struct xfs_dinode);
 	mp->m_blockmask = sbp->sb_blocksize - 1;
 	mp->m_blockwsize = sbp->sb_blocksize >> XFS_WORDLOG;
 	mp->m_blockwmask = mp->m_blockwsize - 1;
-
-	/*
-	 * Setup for attributes, in case they get created.
-	 * This value is for inodes getting attributes for the first time,
-	 * the per-inode value is for old attribute values.
-	 */
-	ASSERT(sbp->sb_inodesize >= 256 && sbp->sb_inodesize <= 2048);
-	switch (sbp->sb_inodesize) {
-	case 256:
-		mp->m_attroffset = XFS_LITINO(mp) -
-				   XFS_BMDR_SPACE_CALC(MINABTPTRS);
-		break;
-	case 512:
-	case 1024:
-	case 2048:
-		mp->m_attroffset = XFS_BMDR_SPACE_CALC(6 * MINABTPTRS);
-		break;
-	default:
-		ASSERT(0);
-	}
-	ASSERT(mp->m_attroffset < XFS_LITINO(mp));
 
 	mp->m_alloc_mxr[0] = xfs_allocbt_maxrecs(mp, sbp->sb_blocksize, 1);
 	mp->m_alloc_mxr[1] = xfs_allocbt_maxrecs(mp, sbp->sb_blocksize, 0);
@@ -645,7 +716,7 @@ xfs_initialize_perag_data(xfs_mount_t *mp, xfs_agnumber_t agcount)
 	for (index = 0; index < agcount; index++) {
 		/*
 		 * read the agf, then the agi. This gets us
-		 * all the inforamtion we need and populates the
+		 * all the information we need and populates the
 		 * per-ag structures for us.
 		 */
 		error = xfs_alloc_pagf_init(mp, NULL, index, 0);
@@ -968,18 +1039,9 @@ xfs_mountfs(
 
 	mp->m_maxioffset = xfs_max_file_offset(sbp->sb_blocklog);
 
-	/*
-	 * XFS uses the uuid from the superblock as the unique
-	 * identifier for fsid.  We can not use the uuid from the volume
-	 * since a single partition filesystem is identical to a single
-	 * partition volume/filesystem.
-	 */
-	if (!(mp->m_flags & XFS_MOUNT_NOUUID)) {
-		if (xfs_uuid_mount(mp)) {
-			error = XFS_ERROR(EINVAL);
-			goto out;
-		}
-	}
+	error = xfs_uuid_mount(mp);
+	if (error)
+		goto out;
 
 	/*
 	 * Set the minimum read and write sizes
@@ -1198,8 +1260,7 @@ xfs_mountfs(
  out_free_perag:
 	xfs_free_perag(mp);
  out_remove_uuid:
-	if (!(mp->m_flags & XFS_MOUNT_NOUUID))
-		uuid_table_remove(&mp->m_sb.sb_uuid);
+	xfs_uuid_unmount(mp);
  out:
 	return error;
 }
@@ -1226,7 +1287,7 @@ xfs_unmountfs(
 
 	/*
 	 * We can potentially deadlock here if we have an inode cluster
-	 * that has been freed has it's buffer still pinned in memory because
+	 * that has been freed has its buffer still pinned in memory because
 	 * the transaction is still sitting in a iclog. The stale inodes
 	 * on that buffer will have their flush locks held until the
 	 * transaction hits the disk and the callbacks run. the inode
@@ -1258,7 +1319,7 @@ xfs_unmountfs(
 	 * Unreserve any blocks we have so that when we unmount we don't account
 	 * the reserved free space as used. This is really only necessary for
 	 * lazy superblock counting because it trusts the incore superblock
-	 * counters to be aboslutely correct on clean unmount.
+	 * counters to be absolutely correct on clean unmount.
 	 *
 	 * We don't bother correcting this elsewhere for lazy superblock
 	 * counting because on mount of an unclean filesystem we reconstruct the
@@ -1282,9 +1343,7 @@ xfs_unmountfs(
 	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
 	xfs_log_unmount_write(mp);
 	xfs_log_unmount(mp);
-
-	if ((mp->m_flags & XFS_MOUNT_NOUUID) == 0)
-		uuid_table_remove(&mp->m_sb.sb_uuid);
+	xfs_uuid_unmount(mp);
 
 #if defined(DEBUG)
 	xfs_errortag_clearall(mp, 0);
@@ -1786,29 +1845,6 @@ xfs_freesb(
 }
 
 /*
- * See if the UUID is unique among mounted XFS filesystems.
- * Mount fails if UUID is nil or a FS with the same UUID is already mounted.
- */
-STATIC int
-xfs_uuid_mount(
-	xfs_mount_t	*mp)
-{
-	if (uuid_is_nil(&mp->m_sb.sb_uuid)) {
-		cmn_err(CE_WARN,
-			"XFS: Filesystem %s has nil UUID - can't mount",
-			mp->m_fsname);
-		return -1;
-	}
-	if (!uuid_table_insert(&mp->m_sb.sb_uuid)) {
-		cmn_err(CE_WARN,
-			"XFS: Filesystem %s has duplicate UUID - can't mount",
-			mp->m_fsname);
-		return -1;
-	}
-	return 0;
-}
-
-/*
  * Used to log changes to the superblock unit and width fields which could
  * be altered by the mount options, as well as any potential sb_features2
  * fixup. Only the first superblock is updated.
@@ -1861,7 +1897,7 @@ xfs_mount_log_sb(
  * we disable the per-cpu counter and go through the slow path.
  *
  * The slow path is the current xfs_mod_incore_sb() function.  This means that
- * when we disable a per-cpu counter, we need to drain it's resources back to
+ * when we disable a per-cpu counter, we need to drain its resources back to
  * the global superblock. We do this after disabling the counter to prevent
  * more threads from queueing up on the counter.
  *

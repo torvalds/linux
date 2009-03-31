@@ -276,12 +276,10 @@ typedef struct xfs_mount {
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_dmevmask;	/* DMI events for this FS */
 	__uint64_t		m_flags;	/* global mount flags */
-	uint			m_attroffset;	/* inode attribute offset */
 	uint			m_dir_node_ents; /* #entries in a dir danode */
 	uint			m_attr_node_ents; /* #entries in attr danode */
 	int			m_ialloc_inos;	/* inodes in inode allocation */
 	int			m_ialloc_blks;	/* blocks in inode allocation */
-	int			m_litino;	/* size of inode union area */
 	int			m_inoalign_mask;/* mask sb_inoalignmt if used */
 	uint			m_qflags;	/* quota status flags */
 	xfs_trans_reservations_t m_reservations;/* precomputed res values */
@@ -289,9 +287,6 @@ typedef struct xfs_mount {
 	__uint64_t		m_maxioffset;	/* maximum inode offset */
 	__uint64_t		m_resblks;	/* total reserved blocks */
 	__uint64_t		m_resblks_avail;/* available reserved blocks */
-#if XFS_BIG_INUMS
-	xfs_ino_t		m_inoadd;	/* add value for ino64_offset */
-#endif
 	int			m_dalign;	/* stripe unit */
 	int			m_swidth;	/* stripe width */
 	int			m_sinoalign;	/* stripe unit inode alignment */
@@ -333,7 +328,6 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_WSYNC		(1ULL << 0)	/* for nfs - all metadata ops
 						   must be synchronous except
 						   for space allocations */
-#define XFS_MOUNT_INO64		(1ULL << 1)
 #define XFS_MOUNT_DMAPI		(1ULL << 2)	/* dmapi is enabled */
 #define XFS_MOUNT_WAS_CLEAN	(1ULL << 3)
 #define XFS_MOUNT_FS_SHUTDOWN	(1ULL << 4)	/* atomic stop of all filesystem
@@ -385,8 +379,8 @@ typedef struct xfs_mount {
  * Synchronous read and write sizes.  This should be
  * better for NFSv2 wsync filesystems.
  */
-#define	XFS_WSYNC_READIO_LOG	15	/* 32K */
-#define	XFS_WSYNC_WRITEIO_LOG	14	/* 16K */
+#define	XFS_WSYNC_READIO_LOG	15	/* 32k */
+#define	XFS_WSYNC_WRITEIO_LOG	14	/* 16k */
 
 /*
  * Allow large block sizes to be reported to userspace programs if the

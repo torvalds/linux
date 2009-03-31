@@ -55,7 +55,7 @@
  * quota functionality, including maintaining the freelist and hash
  * tables of dquots.
  */
-mutex_t		xfs_Gqm_lock;
+struct mutex	xfs_Gqm_lock;
 struct xfs_qm	*xfs_Gqm;
 uint		ndquot;
 
@@ -80,7 +80,7 @@ static struct shrinker xfs_qm_shaker = {
 };
 
 #ifdef DEBUG
-extern mutex_t	qcheck_lock;
+extern struct mutex	qcheck_lock;
 #endif
 
 #ifdef QUOTADEBUG

@@ -349,7 +349,7 @@ xfs_ialloc_ag_alloc(
 		 * Initialize all inodes in this buffer and then log them.
 		 *
 		 * XXX: It would be much better if we had just one transaction to
-		 *      log a whole cluster of inodes instead of all the indivdual
+		 *      log a whole cluster of inodes instead of all the individual
 		 *      transactions causing a lot of log traffic.
 		 */
 		xfs_biozero(fbuf, 0, ninodes << args.mp->m_sb.sb_inodelog);

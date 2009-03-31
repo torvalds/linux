@@ -1098,7 +1098,7 @@ xlog_bdstrat_cb(struct xfs_buf *bp)
 /*
  * Return size of each in-core log record buffer.
  *
- * All machines get 8 x 32KB buffers by default, unless tuned otherwise.
+ * All machines get 8 x 32kB buffers by default, unless tuned otherwise.
  *
  * If the filesystem blocksize is too large, we may need to choose a
  * larger size since the directory code currently logs entire blocks.
@@ -1128,8 +1128,8 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 		}
 
 		if (xfs_sb_version_haslogv2(&mp->m_sb)) {
-			/* # headers = size / 32K
-			 * one header holds cycles from 32K of data
+			/* # headers = size / 32k
+			 * one header holds cycles from 32k of data
 			 */
 
 			xhdrs = mp->m_logbsize / XLOG_HEADER_CYCLE_SIZE;
@@ -1145,7 +1145,7 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 		goto done;
 	}
 
-	/* All machines use 32KB buffers by default. */
+	/* All machines use 32kB buffers by default. */
 	log->l_iclog_size = XLOG_BIG_RECORD_BSIZE;
 	log->l_iclog_size_log = XLOG_BIG_RECORD_BSHIFT;
 
@@ -3179,7 +3179,7 @@ xlog_state_want_sync(xlog_t *log, xlog_in_core_t *iclog)
  */
 
 /*
- * Free a used ticket when it's refcount falls to zero.
+ * Free a used ticket when its refcount falls to zero.
  */
 void
 xfs_log_ticket_put(
