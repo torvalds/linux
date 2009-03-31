@@ -1030,13 +1030,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto destroy_ringbuffer;
 
-	/* FIXME: re-add hotplug support */
-#if 0
-	ret = drm_hotplug_init(dev);
-	if (ret)
-		goto destroy_ringbuffer;
-#endif
-
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
 	dev->vblank_disable_allowed = 1;
