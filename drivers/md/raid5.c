@@ -4331,7 +4331,7 @@ static int run(mddev_t *mddev)
 		 */
 		sector_t here_new, here_old;
 		int old_disks;
-		int max_degraded = (mddev->level == 5 ? 1 : 2);
+		int max_degraded = (mddev->level == 6 ? 2 : 1);
 
 		if (mddev->new_level != mddev->level ||
 		    mddev->new_layout != mddev->layout ||
