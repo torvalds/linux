@@ -265,18 +265,10 @@ static void cdrom_end_request(ide_drive_t *drive, int uptodate)
 				failed->sense_len = rq->sense_len;
 			}
 			cdrom_analyze_sense_data(drive, failed, sense);
-			/*
-			 * now end the failed request
-			 */
-			if (blk_fs_request(failed)) {
-				if (ide_end_rq(drive, failed, -EIO,
-						failed->hard_nr_sectors << 9))
-					BUG();
-			} else {
-				if (blk_end_request(failed, -EIO,
-						    failed->data_len))
-					BUG();
-			}
+
+			if (ide_end_rq(drive, failed, -EIO,
+				       blk_rq_bytes(failed)))
+				BUG();
 		} else
 			cdrom_analyze_sense_data(drive, NULL, sense);
 	}
