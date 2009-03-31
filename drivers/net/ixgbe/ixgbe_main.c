@@ -3167,10 +3167,12 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 
 	/* default flow control settings */
 	hw->fc.requested_mode = ixgbe_fc_full;
+	hw->fc.current_mode = ixgbe_fc_full;	/* init for ethtool output */
 	hw->fc.high_water = IXGBE_DEFAULT_FCRTH;
 	hw->fc.low_water = IXGBE_DEFAULT_FCRTL;
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
 	hw->fc.send_xon = true;
+	hw->fc.disable_fc_autoneg = false;
 
 	/* enable itr by default in dynamic mode */
 	adapter->itr_setting = 1;

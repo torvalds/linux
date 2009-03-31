@@ -234,7 +234,16 @@ static void ixgbe_get_pauseparam(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	pause->autoneg = (hw->fc.current_mode == ixgbe_fc_full ? 1 : 0);
+	/*
+	 * Flow Control Autoneg isn't on if
+	 *  - we didn't ask for it OR
+	 *  - it failed, we know this by tx & rx being off
+	 */
+	if (hw->fc.disable_fc_autoneg ||
+	    (hw->fc.current_mode == ixgbe_fc_none))
+		pause->autoneg = 0;
+	else
+		pause->autoneg = 1;
 
 	if (hw->fc.current_mode == ixgbe_fc_rx_pause) {
 		pause->rx_pause = 1;
@@ -252,8 +261,12 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	if ((pause->autoneg == AUTONEG_ENABLE) ||
-	    (pause->rx_pause && pause->tx_pause))
+	if (pause->autoneg != AUTONEG_ENABLE)
+		hw->fc.disable_fc_autoneg = true;
+	else
+		hw->fc.disable_fc_autoneg = false;
+
+	if (pause->rx_pause && pause->tx_pause)
 		hw->fc.requested_mode = ixgbe_fc_full;
 	else if (pause->rx_pause && !pause->tx_pause)
 		hw->fc.requested_mode = ixgbe_fc_rx_pause;
