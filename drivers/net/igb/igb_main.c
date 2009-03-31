@@ -1476,9 +1476,10 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		 netdev->name,
 		 ((hw->bus.speed == e1000_bus_speed_2500)
 		  ? "2.5Gb/s" : "unknown"),
-		 ((hw->bus.width == e1000_bus_width_pcie_x4)
-		  ? "Width x4" : (hw->bus.width == e1000_bus_width_pcie_x1)
-		  ? "Width x1" : "unknown"),
+		 ((hw->bus.width == e1000_bus_width_pcie_x4) ? "Width x4" :
+		  (hw->bus.width == e1000_bus_width_pcie_x2) ? "Width x2" :
+		  (hw->bus.width == e1000_bus_width_pcie_x1) ? "Width x1" :
+		   "unknown"),
 		 netdev->dev_addr);
 
 	igb_read_part_num(hw, &part_num);
