@@ -50,7 +50,7 @@ static _auide_hwif auide_hwif;
 
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA)
 
-void auide_insw(unsigned long port, void *addr, u32 count)
+static inline void auide_insw(unsigned long port, void *addr, u32 count)
 {
 	_auide_hwif *ahwif = &auide_hwif;
 	chan_tab_t *ctp;
@@ -68,7 +68,7 @@ void auide_insw(unsigned long port, void *addr, u32 count)
 	ctp->cur_ptr = au1xxx_ddma_get_nextptr_virt(dp);
 }
 
-void auide_outsw(unsigned long port, void *addr, u32 count)
+static inline void auide_outsw(unsigned long port, void *addr, u32 count)
 {
 	_auide_hwif *ahwif = &auide_hwif;
 	chan_tab_t *ctp;
