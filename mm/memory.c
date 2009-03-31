@@ -2435,8 +2435,6 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		count_vm_event(PGMAJFAULT);
 	}
 
-	mark_page_accessed(page);
-
 	lock_page(page);
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 
