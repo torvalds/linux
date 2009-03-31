@@ -4169,8 +4169,13 @@ raid5_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 
 	if (!sectors)
 		sectors = mddev->dev_sectors;
-	if (!raid_disks)
-		raid_disks = conf->previous_raid_disks;
+	if (!raid_disks) {
+		/* size is defined by the smallest of previous and new size */
+		if (conf->raid_disks < conf->previous_raid_disks)
+			raid_disks = conf->raid_disks;
+		else
+			raid_disks = conf->previous_raid_disks;
+	}
 
 	sectors &= ~((sector_t)mddev->chunk_size/512 - 1);
 	return sectors * (raid_disks - conf->max_degraded);
