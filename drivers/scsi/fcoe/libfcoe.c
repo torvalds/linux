@@ -71,9 +71,6 @@ DEFINE_PER_CPU(struct fcoe_percpu_s, fcoe_percpu);
 /* Function Prototyes */
 static int fcoe_check_wait_queue(struct fc_lport *);
 static void fcoe_recv_flogi(struct fcoe_softc *, struct fc_frame *, u8 *);
-#ifdef CONFIG_HOTPLUG_CPU
-static int fcoe_cpu_callback(struct notifier_block *, ulong, void *);
-#endif /* CONFIG_HOTPLUG_CPU */
 static int fcoe_device_notification(struct notifier_block *, ulong, void *);
 static void fcoe_dev_setup(void);
 static void fcoe_dev_cleanup(void);
@@ -82,87 +79,6 @@ static void fcoe_dev_cleanup(void);
 static struct notifier_block fcoe_notifier = {
 	.notifier_call = fcoe_device_notification,
 };
-
-
-#ifdef CONFIG_HOTPLUG_CPU
-static struct notifier_block fcoe_cpu_notifier = {
-	.notifier_call = fcoe_cpu_callback,
-};
-
-/**
- * fcoe_create_percpu_data() - creates the associated cpu data
- * @cpu: index for the cpu where fcoe cpu data will be created
- *
- * create percpu stats block, from cpu add notifier
- *
- * Returns: none
- */
-static void fcoe_create_percpu_data(unsigned int cpu)
-{
-	struct fc_lport *lp;
-	struct fcoe_softc *fc;
-
-	write_lock_bh(&fcoe_hostlist_lock);
-	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		lp = fc->lp;
-		if (lp->dev_stats[cpu] == NULL)
-			lp->dev_stats[cpu] =
-				kzalloc(sizeof(struct fcoe_dev_stats),
-					GFP_KERNEL);
-	}
-	write_unlock_bh(&fcoe_hostlist_lock);
-}
-
-/**
- * fcoe_destroy_percpu_data() - destroys the associated cpu data
- * @cpu: index for the cpu where fcoe cpu data will destroyed
- *
- * destroy percpu stats block called by cpu add/remove notifier
- *
- * Retuns: none
- */
-static void fcoe_destroy_percpu_data(unsigned int cpu)
-{
-	struct fc_lport *lp;
-	struct fcoe_softc *fc;
-
-	write_lock_bh(&fcoe_hostlist_lock);
-	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		lp = fc->lp;
-		kfree(lp->dev_stats[cpu]);
-		lp->dev_stats[cpu] = NULL;
-	}
-	write_unlock_bh(&fcoe_hostlist_lock);
-}
-
-/**
- * fcoe_cpu_callback() - fcoe cpu hotplug event callback
- * @nfb: callback data block
- * @action: event triggering the callback
- * @hcpu: index for the cpu of this event
- *
- * this creates or destroys per cpu data for fcoe
- *
- * Returns NOTIFY_OK always.
- */
-static int fcoe_cpu_callback(struct notifier_block *nfb, unsigned long action,
-			     void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-		fcoe_create_percpu_data(cpu);
-		break;
-	case CPU_DEAD:
-		fcoe_destroy_percpu_data(cpu);
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-#endif /* CONFIG_HOTPLUG_CPU */
 
 /**
  * fcoe_rcv() - this is the fcoe receive function called by NET_RX_SOFTIRQ
@@ -181,7 +97,6 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct fc_lport *lp;
 	struct fcoe_rcv_info *fr;
 	struct fcoe_softc *fc;
-	struct fcoe_dev_stats *stats;
 	struct fc_frame_header *fh;
 	struct fcoe_percpu_s *fps;
 	unsigned short oxid;
@@ -252,13 +167,7 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	return 0;
 err:
-#ifdef CONFIG_SMP
-	stats = lp->dev_stats[smp_processor_id()];
-#else
-	stats = lp->dev_stats[0];
-#endif
-	if (stats)
-		stats->ErrorFrames++;
+	fc_lport_get_stats(lp)->ErrorFrames++;
 
 err2:
 	kfree_skb(skb);
@@ -495,11 +404,9 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	}
 #endif
 	/* update tx stats: regardless if LLD fails */
-	stats = lp->dev_stats[smp_processor_id()];
-	if (stats) {
-		stats->TxFrames++;
-		stats->TxWords += wlen;
-	}
+	stats = fc_lport_get_stats(lp);
+	stats->TxFrames++;
+	stats->TxWords += wlen;
 
 	/* send down to lld */
 	fr_dev(fp) = lp;
@@ -565,8 +472,6 @@ int fcoe_percpu_receive_thread(void *arg)
 			continue;
 		}
 
-		stats = lp->dev_stats[smp_processor_id()];
-
 		if (unlikely(debug_fcoe)) {
 			FC_DBG("skb_info: len:%d data_len:%d head:%p data:%p "
 			       "tail:%p end:%p sum:%d dev:%s",
@@ -593,13 +498,16 @@ int fcoe_percpu_receive_thread(void *arg)
 		hp = (struct fcoe_hdr *) skb_network_header(skb);
 		fh = (struct fc_frame_header *) skb_transport_header(skb);
 
+		stats = fc_lport_get_stats(lp);
 		if (unlikely(FC_FCOE_DECAPS_VER(hp) != FC_FCOE_VER)) {
-			if (stats) {
-				if (stats->ErrorFrames < 5)
-					FC_DBG("unknown FCoE version %x",
-					       FC_FCOE_DECAPS_VER(hp));
-				stats->ErrorFrames++;
-			}
+			if (stats->ErrorFrames < 5)
+				printk(KERN_WARNING "FCoE version "
+				       "mismatch: The frame has "
+				       "version %x, but the "
+				       "initiator supports version "
+				       "%x\n", FC_FCOE_DECAPS_VER(hp),
+				       FC_FCOE_VER);
+			stats->ErrorFrames++;
 			kfree_skb(skb);
 			continue;
 		}
@@ -607,10 +515,8 @@ int fcoe_percpu_receive_thread(void *arg)
 		skb_pull(skb, sizeof(struct fcoe_hdr));
 		fr_len = skb->len - sizeof(struct fcoe_crc_eof);
 
-		if (stats) {
-			stats->RxFrames++;
-			stats->RxWords += fr_len / FCOE_WORD_TO_BYTE;
-		}
+		stats->RxFrames++;
+		stats->RxWords += fr_len / FCOE_WORD_TO_BYTE;
 
 		fp = (struct fc_frame *)skb;
 		fc_frame_init(fp);
@@ -885,9 +791,8 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		if (new_link_up)
 			fc_linkup(lp);
 		else {
-			stats = lp->dev_stats[smp_processor_id()];
-			if (stats)
-				stats->LinkFailureCount++;
+			stats = fc_lport_get_stats(lp);
+			stats->LinkFailureCount++;
 			fc_linkdown(lp);
 			fcoe_clean_pending_queue(lp);
 		}
@@ -1371,10 +1276,6 @@ static int __init fcoe_init(void)
 	INIT_LIST_HEAD(&fcoe_hostlist);
 	rwlock_init(&fcoe_hostlist_lock);
 
-#ifdef CONFIG_HOTPLUG_CPU
-	register_cpu_notifier(&fcoe_cpu_notifier);
-#endif /* CONFIG_HOTPLUG_CPU */
-
 	for_each_possible_cpu(cpu) {
 		p = &per_cpu(fcoe_percpu, cpu);
 		skb_queue_head_init(&p->fcoe_rx_list);
@@ -1430,17 +1331,9 @@ static void __exit fcoe_exit(void)
 	struct fcoe_percpu_s *p;
 	struct sk_buff *skb;
 
-	/*
-	 * Stop all call back interfaces
-	 */
-#ifdef CONFIG_HOTPLUG_CPU
-	unregister_cpu_notifier(&fcoe_cpu_notifier);
-#endif /* CONFIG_HOTPLUG_CPU */
 	fcoe_dev_cleanup();
 
-	/*
-	 * stop timer
-	 */
+	/* Stop the timer */
 	del_timer_sync(&fcoe_timer);
 
 	/* releases the associated fcoe transport for each lport */

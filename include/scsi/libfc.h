@@ -22,6 +22,7 @@
 
 #include <linux/timer.h>
 #include <linux/if.h>
+#include <linux/percpu.h>
 
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
@@ -661,7 +662,8 @@ struct fc_lport {
 	unsigned long		boot_time;
 
 	struct fc_host_statistics host_stats;
-	struct fcoe_dev_stats	*dev_stats[NR_CPUS];
+	struct fcoe_dev_stats	*dev_stats;
+
 	u64			wwpn;
 	u64			wwnn;
 	u8			retry_count;
@@ -720,6 +722,25 @@ static inline void fc_lport_state_enter(struct fc_lport *lp,
 	if (state != lp->state)
 		lp->retry_count = 0;
 	lp->state = state;
+}
+
+static inline int fc_lport_init_stats(struct fc_lport *lp)
+{
+	/* allocate per cpu stats block */
+	lp->dev_stats = alloc_percpu(struct fcoe_dev_stats);
+	if (!lp->dev_stats)
+		return -ENOMEM;
+	return 0;
+}
+
+static inline void fc_lport_free_stats(struct fc_lport *lp)
+{
+	free_percpu(lp->dev_stats);
+}
+
+static inline struct fcoe_dev_stats *fc_lport_get_stats(struct fc_lport *lp)
+{
+	return per_cpu_ptr(lp->dev_stats, smp_processor_id());
 }
 
 

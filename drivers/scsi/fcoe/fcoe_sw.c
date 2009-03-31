@@ -113,8 +113,6 @@ static struct scsi_host_template fcoe_sw_shost_template = {
  */
 static int fcoe_sw_lport_config(struct fc_lport *lp)
 {
-	int i = 0;
-
 	lp->link_up = 0;
 	lp->qfull = 0;
 	lp->max_retry_count = 3;
@@ -123,12 +121,7 @@ static int fcoe_sw_lport_config(struct fc_lport *lp)
 	lp->service_params = (FCP_SPPF_INIT_FCN | FCP_SPPF_RD_XRDY_DIS |
 			      FCP_SPPF_RETRY | FCP_SPPF_CONF_COMPL);
 
-	/*
-	 * allocate per cpu stats block
-	 */
-	for_each_online_cpu(i)
-		lp->dev_stats[i] = kzalloc(sizeof(struct fcoe_dev_stats),
-					   GFP_KERNEL);
+	fc_lport_init_stats(lp);
 
 	/* lport fc_lport related configuration */
 	fc_lport_config(lp);
@@ -311,7 +304,6 @@ static inline int fcoe_sw_em_config(struct fc_lport *lp)
  */
 static int fcoe_sw_destroy(struct net_device *netdev)
 {
-	int cpu;
 	struct fc_lport *lp = NULL;
 	struct fcoe_softc *fc;
 	u8 flogi_maddr[ETH_ALEN];
@@ -363,8 +355,7 @@ static int fcoe_sw_destroy(struct net_device *netdev)
 	fcoe_clean_pending_queue(lp);
 
 	/* Free memory used by statistical counters */
-	for_each_online_cpu(cpu)
-		kfree(lp->dev_stats[cpu]);
+	fc_lport_free_stats(lp);
 
 	/* Release the net_device and Scsi_Host */
 	dev_put(fc->real_dev);
