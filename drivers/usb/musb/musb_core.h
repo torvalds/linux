@@ -356,7 +356,7 @@ struct musb {
 	u16			int_rx;
 	u16			int_tx;
 
-	struct otg_transceiver	xceiv;
+	struct otg_transceiver	*xceiv;
 
 	int nIrq;
 	unsigned		irq_wake:1;

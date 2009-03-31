@@ -2213,7 +2213,7 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 {
 	struct musb	*musb = hcd_to_musb(hcd);
 
-	if (musb->xceiv.state == OTG_STATE_A_SUSPEND)
+	if (musb->xceiv->state == OTG_STATE_A_SUSPEND)
 		return 0;
 
 	if (is_host_active(musb) && musb->is_active) {
