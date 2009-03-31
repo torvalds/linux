@@ -776,7 +776,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			ide_complete_rq(drive, 0, 512);
 			return ide_stopped;
 		}
-		goto end_request;
+		if (blk_pc_request(rq) == 0 && uptodate == 0)
+			rq->cmd_flags |= REQ_FAILED;
+		goto out_end;
 	}
 
 	ide_read_bcount_and_ireason(drive, &len, &ireason);
@@ -811,8 +813,10 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			ide_cd_request_sense_fixup(drive, rq);
 			/* complain if we still have data left to transfer */
 			uptodate = rq->data_len ? 0 : 1;
+			if (uptodate == 0)
+				rq->cmd_flags |= REQ_FAILED;
 		}
-		goto end_request;
+		goto out_end;
 	}
 
 	/* check which way to transfer data */
@@ -939,7 +943,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	ide_set_handler(drive, cdrom_newpc_intr, timeout);
 	return ide_started;
 
-end_request:
+out_end:
 	if (blk_pc_request(rq)) {
 		unsigned int dlen = rq->data_len;
 
@@ -951,8 +955,6 @@ end_request:
 
 		hwif->rq = NULL;
 	} else {
-		if (!uptodate)
-			rq->cmd_flags |= REQ_FAILED;
 		cdrom_end_request(drive, uptodate);
 	}
 	return ide_stopped;
