@@ -1049,8 +1049,11 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 
 	if (blk_fs_request(rq)) {
 		if (cdrom_start_rw(drive, rq) == ide_stopped ||
-		    ide_cd_prepare_rw_request(drive, rq) == ide_stopped)
+		    ide_cd_prepare_rw_request(drive, rq) == ide_stopped) {
+			if (rq->current_nr_sectors == 0)
+				uptodate = 1;
 			goto out_end;
+		}
 	} else if (blk_sense_request(rq) || blk_pc_request(rq) ||
 		   rq->cmd_type == REQ_TYPE_ATA_PC) {
 		if (!rq->timeout)
@@ -1063,6 +1066,8 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		goto out_end;
 	} else {
 		blk_dump_rq_flags(rq, DRV_NAME " bad flags");
+		if (rq->errors == 0)
+			rq->errors = -EIO;
 		goto out_end;
 	}
 
@@ -1075,14 +1080,6 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 
 	return ide_issue_pc(drive, &cmd);
 out_end:
-	if (blk_fs_request(rq)) {
-		if (rq->current_nr_sectors == 0)
-			uptodate = 1;
-	} else {
-		if (uptodate <= 0 && rq->errors == 0)
-			rq->errors = -EIO;
-	}
-
 	nsectors = rq->hard_nr_sectors;
 
 	if (nsectors == 0)
