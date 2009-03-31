@@ -395,7 +395,8 @@ get_active_stripe(raid5_conf_t *conf, sector_t sector,
 				init_stripe(sh, sector, previous);
 		} else {
 			if (atomic_read(&sh->count)) {
-			  BUG_ON(!list_empty(&sh->lru));
+				BUG_ON(!list_empty(&sh->lru)
+				    && !test_bit(STRIPE_EXPANDING, &sh->state));
 			} else {
 				if (!test_bit(STRIPE_HANDLE, &sh->state))
 					atomic_inc(&conf->active_stripes);
@@ -2944,6 +2945,23 @@ static bool handle_stripe5(struct stripe_head *sh)
 
 	/* Finish reconstruct operations initiated by the expansion process */
 	if (sh->reconstruct_state == reconstruct_state_result) {
+		struct stripe_head *sh2
+			= get_active_stripe(conf, sh->sector, 1, 1);
+		if (sh2 && test_bit(STRIPE_EXPAND_SOURCE, &sh2->state)) {
+			/* sh cannot be written until sh2 has been read.
+			 * so arrange for sh to be delayed a little
+			 */
+			set_bit(STRIPE_DELAYED, &sh->state);
+			set_bit(STRIPE_HANDLE, &sh->state);
+			if (!test_and_set_bit(STRIPE_PREREAD_ACTIVE,
+					      &sh2->state))
+				atomic_inc(&conf->preread_active_stripes);
+			release_stripe(sh2);
+			goto unlock;
+		}
+		if (sh2)
+			release_stripe(sh2);
+
 		sh->reconstruct_state = reconstruct_state_idle;
 		clear_bit(STRIPE_EXPANDING, &sh->state);
 		for (i = conf->raid_disks; i--; ) {
@@ -3172,6 +3190,23 @@ static bool handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 		}
 
 	if (s.expanded && test_bit(STRIPE_EXPANDING, &sh->state)) {
+		struct stripe_head *sh2
+			= get_active_stripe(conf, sh->sector, 1, 1);
+		if (sh2 && test_bit(STRIPE_EXPAND_SOURCE, &sh2->state)) {
+			/* sh cannot be written until sh2 has been read.
+			 * so arrange for sh to be delayed a little
+			 */
+			set_bit(STRIPE_DELAYED, &sh->state);
+			set_bit(STRIPE_HANDLE, &sh->state);
+			if (!test_and_set_bit(STRIPE_PREREAD_ACTIVE,
+					      &sh2->state))
+				atomic_inc(&conf->preread_active_stripes);
+			release_stripe(sh2);
+			goto unlock;
+		}
+		if (sh2)
+			release_stripe(sh2);
+
 		/* Need to write out all blocks after computing P&Q */
 		sh->disks = conf->raid_disks;
 		stripe_set_idx(sh->sector, conf, 0, sh);
@@ -3739,6 +3774,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 	sector_t writepos, safepos, gap;
 	sector_t stripe_addr;
 	int reshape_sectors;
+	struct list_head stripes;
 
 	if (sector_nr == 0) {
 		/* If restarting in the middle, skip the initial sectors */
@@ -3816,6 +3852,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		BUG_ON(writepos != sector_nr + reshape_sectors);
 		stripe_addr = sector_nr;
 	}
+	INIT_LIST_HEAD(&stripes);
 	for (i = 0; i < reshape_sectors; i += STRIPE_SECTORS) {
 		int j;
 		int skipped = 0;
@@ -3845,7 +3882,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 			set_bit(STRIPE_EXPAND_READY, &sh->state);
 			set_bit(STRIPE_HANDLE, &sh->state);
 		}
-		release_stripe(sh);
+		list_add(&sh->lru, &stripes);
 	}
 	spin_lock_irq(&conf->device_lock);
 	if (mddev->delta_disks < 0)
@@ -3873,6 +3910,14 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		set_bit(STRIPE_HANDLE, &sh->state);
 		release_stripe(sh);
 		first_sector += STRIPE_SECTORS;
+	}
+	/* Now that the sources are clearly marked, we can release
+	 * the destination stripes
+	 */
+	while (!list_empty(&stripes)) {
+		sh = list_entry(stripes.next, struct stripe_head, lru);
+		list_del_init(&sh->lru);
+		release_stripe(sh);
 	}
 	/* If this takes us to the resync_max point where we have to pause,
 	 * then we need to write out the superblock.
