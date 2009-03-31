@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <net/wireless.h>
 #include "ath9k.h"
 #include "regd_common.h"
 
@@ -492,28 +493,37 @@ int ath9k_regd_init(struct ath_hw *ah)
 	return 0;
 }
 
-u32 ath9k_regd_get_ctl(struct ath_hw *ah, struct ath9k_channel *chan)
+static
+u32 ath9k_regd_get_band_ctl(struct ath_hw *ah, enum ieee80211_band band)
 {
-	u32 ctl = NO_CTL;
-
 	if (!ah->regulatory.regpair ||
 	    (ah->regulatory.country_code == CTRY_DEFAULT &&
 	     is_wwr_sku(ath9k_regd_get_eepromRD(ah)))) {
-		if (IS_CHAN_B(chan))
-			ctl = SD_NO_CTL | CTL_11B;
-		else if (IS_CHAN_G(chan))
-			ctl = SD_NO_CTL | CTL_11G;
-		else
-			ctl = SD_NO_CTL | CTL_11A;
-		return ctl;
+		return SD_NO_CTL;
 	}
 
+	switch (band) {
+	case IEEE80211_BAND_2GHZ:
+		return ah->regulatory.regpair->reg_2ghz_ctl;
+	case IEEE80211_BAND_5GHZ:
+		return ah->regulatory.regpair->reg_5ghz_ctl;
+	default:
+		return NO_CTL;
+	}
+
+	return NO_CTL;
+}
+
+u32 ath9k_regd_get_ctl(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	u32 ctl = ath9k_regd_get_band_ctl(ah, chan->chan->band);
+
 	if (IS_CHAN_B(chan))
-		ctl = ah->regulatory.regpair->reg_2ghz_ctl | CTL_11B;
+		ctl |= CTL_11B;
 	else if (IS_CHAN_G(chan))
-		ctl = ah->regulatory.regpair->reg_2ghz_ctl | CTL_11G;
+		ctl |= CTL_11G;
 	else
-		ctl = ah->regulatory.regpair->reg_5ghz_ctl | CTL_11A;
+		ctl |= CTL_11A;
 
 	return ctl;
 }
