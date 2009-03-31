@@ -2384,6 +2384,10 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 		if (owner_objectid >= BTRFS_FIRST_FREE_OBJECTID) {
 			ret = btrfs_del_csums(trans, root, bytenr, num_bytes);
 			BUG_ON(ret);
+		} else {
+			invalidate_mapping_pages(info->btree_inode->i_mapping,
+			     bytenr >> PAGE_CACHE_SHIFT,
+			     (bytenr + num_bytes - 1) >> PAGE_CACHE_SHIFT);
 		}
 
 		ret = update_block_group(trans, root, bytenr, num_bytes, 0,
