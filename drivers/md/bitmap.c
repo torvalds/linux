@@ -111,9 +111,10 @@ static int bitmap_checkpage(struct bitmap *bitmap, unsigned long page, int creat
 	unsigned char *mappage;
 
 	if (page >= bitmap->pages) {
-		printk(KERN_ALERT
-			"%s: invalid bitmap page request: %lu (> %lu)\n",
-			bmname(bitmap), page, bitmap->pages-1);
+		/* This can happen if bitmap_start_sync goes beyond
+		 * End-of-device while looking for a whole page.
+		 * It is harmless.
+		 */
 		return -EINVAL;
 	}
 
@@ -570,7 +571,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 	else if (le32_to_cpu(sb->version) < BITMAP_MAJOR_LO ||
 		 le32_to_cpu(sb->version) > BITMAP_MAJOR_HI)
 		reason = "unrecognized superblock version";
-	else if (chunksize < PAGE_SIZE)
+	else if (chunksize < 512)
 		reason = "bitmap chunksize too small";
 	else if ((1 << ffz(~chunksize)) != chunksize)
 		reason = "bitmap chunksize not a power of 2";
@@ -1345,8 +1346,8 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 	}
 }
 
-int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
-			int degraded)
+static int __bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
+			       int degraded)
 {
 	bitmap_counter_t *bmc;
 	int rv;
@@ -1371,6 +1372,29 @@ int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
 	}
 	spin_unlock_irq(&bitmap->lock);
 	bitmap->allclean = 0;
+	return rv;
+}
+
+int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
+		      int degraded)
+{
+	/* bitmap_start_sync must always report on multiples of whole
+	 * pages, otherwise resync (which is very PAGE_SIZE based) will
+	 * get confused.
+	 * So call __bitmap_start_sync repeatedly (if needed) until
+	 * At least PAGE_SIZE>>9 blocks are covered.
+	 * Return the 'or' of the result.
+	 */
+	int rv = 0;
+	int blocks1;
+
+	*blocks = 0;
+	while (*blocks < (PAGE_SIZE>>9)) {
+		rv |= __bitmap_start_sync(bitmap, offset,
+					  &blocks1, degraded);
+		offset += blocks1;
+		*blocks += blocks1;
+	}
 	return rv;
 }
 
