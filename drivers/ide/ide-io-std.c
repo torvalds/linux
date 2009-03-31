@@ -216,10 +216,9 @@ void ide_input_data(ide_drive_t *drive, struct ide_cmd *cmd, void *buf,
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	unsigned long data_addr = io_ports->data_addr;
+	unsigned int words = (len + 1) >> 1;
 	u8 io_32bit = drive->io_32bit;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
-
-	len++;
 
 	if (io_32bit) {
 		unsigned long uninitialized_var(flags);
@@ -229,27 +228,26 @@ void ide_input_data(ide_drive_t *drive, struct ide_cmd *cmd, void *buf,
 			ata_vlb_sync(io_ports->nsect_addr);
 		}
 
+		words >>= 1;
 		if (mmio)
-			__ide_mm_insl((void __iomem *)data_addr, buf, len / 4);
+			__ide_mm_insl((void __iomem *)data_addr, buf, words);
 		else
-			insl(data_addr, buf, len / 4);
+			insl(data_addr, buf, words);
 
 		if ((io_32bit & 2) && !mmio)
 			local_irq_restore(flags);
 
-		if ((len & 3) >= 2) {
-			if (mmio)
-				__ide_mm_insw((void __iomem *)data_addr,
-						(u8 *)buf + (len & ~3), 1);
-			else
-				insw(data_addr, (u8 *)buf + (len & ~3), 1);
-		}
-	} else {
-		if (mmio)
-			__ide_mm_insw((void __iomem *)data_addr, buf, len / 2);
-		else
-			insw(data_addr, buf, len / 2);
+		if (((len + 1) & 3) < 2)
+			return;
+
+		buf += len & ~3;
+		words = 1;
 	}
+
+	if (mmio)
+		__ide_mm_insw((void __iomem *)data_addr, buf, words);
+	else
+		insw(data_addr, buf, words);
 }
 EXPORT_SYMBOL_GPL(ide_input_data);
 
@@ -262,10 +260,9 @@ void ide_output_data(ide_drive_t *drive, struct ide_cmd *cmd, void *buf,
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	unsigned long data_addr = io_ports->data_addr;
+	unsigned int words = (len + 1) >> 1;
 	u8 io_32bit = drive->io_32bit;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
-
-	len++;
 
 	if (io_32bit) {
 		unsigned long uninitialized_var(flags);
@@ -275,27 +272,26 @@ void ide_output_data(ide_drive_t *drive, struct ide_cmd *cmd, void *buf,
 			ata_vlb_sync(io_ports->nsect_addr);
 		}
 
+		words >>= 1;
 		if (mmio)
-			__ide_mm_outsl((void __iomem *)data_addr, buf, len / 4);
+			__ide_mm_outsl((void __iomem *)data_addr, buf, words);
 		else
-			outsl(data_addr, buf, len / 4);
+			outsl(data_addr, buf, words);
 
 		if ((io_32bit & 2) && !mmio)
 			local_irq_restore(flags);
 
-		if ((len & 3) >= 2) {
-			if (mmio)
-				__ide_mm_outsw((void __iomem *)data_addr,
-						 (u8 *)buf + (len & ~3), 1);
-			else
-				outsw(data_addr, (u8 *)buf + (len & ~3), 1);
-		}
-	} else {
-		if (mmio)
-			__ide_mm_outsw((void __iomem *)data_addr, buf, len / 2);
-		else
-			outsw(data_addr, buf, len / 2);
+		if (((len + 1) & 3) < 2)
+			return;
+
+		buf += len & ~3;
+		words = 1;
 	}
+
+	if (mmio)
+		__ide_mm_outsw((void __iomem *)data_addr, buf, words);
+	else
+		outsw(data_addr, buf, words);
 }
 EXPORT_SYMBOL_GPL(ide_output_data);
 
