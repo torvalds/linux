@@ -265,7 +265,7 @@ enum {
 	IDE_TFLAG_WRITE			= (1 << 12),
 	IDE_TFLAG_CUSTOM_HANDLER	= (1 << 13),
 	IDE_TFLAG_DMA_PIO_FALLBACK	= (1 << 14),
-	IDE_TFLAG_IN_HOB_FEATURE	= (1 << 15),
+	IDE_TFLAG_IN_HOB_ERROR		= (1 << 15),
 	IDE_TFLAG_IN_HOB_NSECT		= (1 << 16),
 	IDE_TFLAG_IN_HOB_LBAL		= (1 << 17),
 	IDE_TFLAG_IN_HOB_LBAM		= (1 << 18),
@@ -273,10 +273,10 @@ enum {
 	IDE_TFLAG_IN_HOB_LBA		= IDE_TFLAG_IN_HOB_LBAL |
 					  IDE_TFLAG_IN_HOB_LBAM |
 					  IDE_TFLAG_IN_HOB_LBAH,
-	IDE_TFLAG_IN_HOB		= IDE_TFLAG_IN_HOB_FEATURE |
+	IDE_TFLAG_IN_HOB		= IDE_TFLAG_IN_HOB_ERROR |
 					  IDE_TFLAG_IN_HOB_NSECT |
 					  IDE_TFLAG_IN_HOB_LBA,
-	IDE_TFLAG_IN_FEATURE		= (1 << 20),
+	IDE_TFLAG_IN_ERROR		= (1 << 20),
 	IDE_TFLAG_IN_NSECT		= (1 << 21),
 	IDE_TFLAG_IN_LBAL		= (1 << 22),
 	IDE_TFLAG_IN_LBAM		= (1 << 23),
@@ -310,8 +310,12 @@ enum {
 
 struct ide_taskfile {
 	u8	hob_data;	/*  0: high data byte (for TASKFILE IOCTL) */
+				/*  1-5: additional data to support LBA48 */
+	union {
+		u8 hob_error;	/*   read: error */
+		u8 hob_feature;	/*  write: feature */
+	};
 
-	u8	hob_feature;	/*  1-5: additional data to support LBA48 */
 	u8	hob_nsect;
 	u8	hob_lbal;
 	u8	hob_lbam;

@@ -55,7 +55,7 @@ u8 ide_read_error(ide_drive_t *drive)
 	struct ide_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_FEATURE;
+	cmd.tf_flags = IDE_TFLAG_IN_ERROR;
 
 	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
