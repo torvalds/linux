@@ -4517,6 +4517,8 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		clear_bit(In_sync, &rdev->flags); /* just to be sure */
 		if (info->state & (1<<MD_DISK_WRITEMOSTLY))
 			set_bit(WriteMostly, &rdev->flags);
+		else
+			clear_bit(WriteMostly, &rdev->flags);
 
 		rdev->raid_disk = -1;
 		err = bind_rdev_to_array(rdev, mddev);
