@@ -764,7 +764,10 @@ static int soc_camera_s_register(struct file *file, void *fh,
 
 static int device_register_link(struct soc_camera_device *icd)
 {
-	int ret = device_register(&icd->dev);
+	int ret = dev_set_name(&icd->dev, "%u-%u", icd->iface, icd->devnum);
+
+	if (!ret)
+		ret = device_register(&icd->dev);
 
 	if (ret < 0) {
 		/* Prevent calling device_unregister() */
@@ -1060,7 +1063,6 @@ int soc_camera_device_register(struct soc_camera_device *icd)
 
 	icd->devnum = num;
 	icd->dev.bus = &soc_camera_bus_type;
-	dev_set_name(&icd->dev, "%u-%u", icd->iface, icd->devnum);
 
 	icd->dev.release	= dummy_release;
 	icd->use_count		= 0;
