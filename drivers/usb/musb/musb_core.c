@@ -304,9 +304,11 @@ void musb_otg_timer_func(unsigned long data)
 		musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
 		musb->is_active = 0;
 		break;
+	case OTG_STATE_A_SUSPEND:
 	case OTG_STATE_A_WAIT_BCON:
-		DBG(1, "HNP: a_wait_bcon timeout; back to a_host\n");
-		musb_hnp_stop(musb);
+		DBG(1, "HNP: %s timeout\n", otg_state_string(musb));
+		musb_set_vbus(musb, 0);
+		musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
 		break;
 	default:
 		DBG(1, "HNP: Unhandled mode %s\n", otg_state_string(musb));
@@ -324,15 +326,12 @@ void musb_hnp_stop(struct musb *musb)
 	void __iomem	*mbase = musb->mregs;
 	u8	reg;
 
+	DBG(1, "HNP: stop from %s\n", otg_state_string(musb));
+
 	switch (musb->xceiv->state) {
 	case OTG_STATE_A_PERIPHERAL:
-	case OTG_STATE_A_WAIT_VFALL:
-	case OTG_STATE_A_WAIT_BCON:
-		DBG(1, "HNP: Switching back to A-host\n");
 		musb_g_disconnect(musb);
-		musb->xceiv->state = OTG_STATE_A_IDLE;
-		MUSB_HST_MODE(musb);
-		musb->is_active = 0;
+		DBG(1, "HNP: back to %s\n", otg_state_string(musb));
 		break;
 	case OTG_STATE_B_HOST:
 		DBG(1, "HNP: Disabling HR\n");
@@ -775,7 +774,16 @@ static irqreturn_t musb_stage2_irq(struct musb *musb, u8 int_usb,
 #endif	/* HOST */
 #ifdef CONFIG_USB_MUSB_OTG
 		case OTG_STATE_B_HOST:
-			musb_hnp_stop(musb);
+			/* REVISIT this behaves for "real disconnect"
+			 * cases; make sure the other transitions from
+			 * from B_HOST act right too.  The B_HOST code
+			 * in hnp_stop() is currently not used...
+			 */
+			musb_root_disconnect(musb);
+			musb_to_hcd(musb)->self.is_b_host = 0;
+			musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
+			MUSB_DEV_MODE(musb);
+			musb_g_disconnect(musb);
 			break;
 		case OTG_STATE_A_PERIPHERAL:
 			musb_hnp_stop(musb);
@@ -807,10 +815,19 @@ static irqreturn_t musb_stage2_irq(struct musb *musb, u8 int_usb,
 		switch (musb->xceiv->state) {
 #ifdef	CONFIG_USB_MUSB_OTG
 		case OTG_STATE_A_PERIPHERAL:
-			/*
-			 * We cannot stop HNP here, devctl BDEVICE might be
-			 * still set.
+			/* We also come here if the cable is removed, since
+			 * this silicon doesn't report ID-no-longer-grounded.
+			 *
+			 * We depend on T(a_wait_bcon) to shut us down, and
+			 * hope users don't do anything dicey during this
+			 * undesired detour through A_WAIT_BCON.
 			 */
+			musb_hnp_stop(musb);
+			usb_hcd_resume_root_hub(musb_to_hcd(musb));
+			musb_root_disconnect(musb);
+			musb_platform_try_idle(musb, jiffies
+					+ msecs_to_jiffies(musb->a_wait_bcon
+						? : OTG_TIME_A_WAIT_BCON));
 			break;
 #endif
 		case OTG_STATE_B_PERIPHERAL:
