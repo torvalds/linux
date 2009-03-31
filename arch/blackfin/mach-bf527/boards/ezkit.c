@@ -509,6 +509,13 @@ static struct bfin5xx_spi_chip ad9960_spi_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+static struct bfin5xx_spi_chip  mmc_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
 #if defined(CONFIG_PBX)
 static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
 	.ctl_reg	= 0x4, /* send zero */
@@ -624,6 +631,17 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data = &ad9960_spi_chip_info,
 	},
 #endif
+#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+	{
+		.modalias = "mmc_spi",
+		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 3,
+		.controller_data = &mmc_spi_chip_info,
+		.mode = SPI_MODE_0,
+	},
+#endif
+
 #if defined(CONFIG_PBX)
 	{
 		.modalias = "fxs-spi",
