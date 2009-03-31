@@ -139,8 +139,8 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		    mddev->queue->max_sectors > (PAGE_SIZE>>9))
 			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
-		disk->num_sectors = rdev->size * 2;
-		conf->array_sectors += rdev->size * 2;
+		disk->num_sectors = rdev->sectors;
+		conf->array_sectors += rdev->sectors;
 
 		cnt++;
 	}

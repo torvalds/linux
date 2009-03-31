@@ -36,7 +36,7 @@ struct mdk_rdev_s
 {
 	struct list_head same_set;	/* RAID devices within the same set */
 
-	sector_t size;			/* Device size (in blocks) */
+	sector_t sectors;		/* Device size (in 512bytes sectors) */
 	mddev_t *mddev;			/* RAID array if running */
 	int last_events;		/* IO event timestamp */
 
