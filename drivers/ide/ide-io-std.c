@@ -90,12 +90,6 @@ void ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
-		u8 data[2] = { tf->data, tf->hob_data };
-
-		ide_output_data(drive, cmd, data, 2);
-	}
-
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
 		tf_outb(tf->hob_feature, io_ports->feature_addr);
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
@@ -139,15 +133,6 @@ void ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	} else {
 		tf_outb = ide_outb;
 		tf_inb  = ide_inb;
-	}
-
-	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
-		u8 data[2];
-
-		ide_input_data(drive, cmd, data, 2);
-
-		tf->data = data[0];
-		tf->hob_data = data[1];
 	}
 
 	/* be sure we're looking at the low order bits */

@@ -82,6 +82,12 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 		ide_tf_dump(drive->name, tf);
 		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 		SELECT_MASK(drive, 0);
+
+		if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
+			u8 data[2] = { tf->data, tf->hob_data };
+
+			tp_ops->output_data(drive, cmd, data, 2);
+		}
 		tp_ops->tf_load(drive, cmd);
 	}
 

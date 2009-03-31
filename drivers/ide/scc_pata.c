@@ -656,12 +656,6 @@ static void scc_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
-		u8 data[2] = { tf->data, tf->hob_data };
-
-		scc_output_data(drive, NULL, data, 2);
-	}
-
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
 		scc_ide_outb(tf->hob_feature, io_ports->feature_addr);
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
@@ -693,15 +687,6 @@ static void scc_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	struct ide_io_ports *io_ports = &drive->hwif->io_ports;
 	struct ide_taskfile *tf = &cmd->tf;
-
-	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
-		u8 data[2];
-
-		scc_input_data(drive, cmd, data, 2);
-
-		tf->data = data[0];
-		tf->hob_data = data[1];
-	}
 
 	/* be sure we're looking at the low order bits */
 	scc_ide_outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);

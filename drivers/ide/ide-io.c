@@ -73,6 +73,7 @@ EXPORT_SYMBOL_GPL(ide_end_rq);
 
 void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 {
+	const struct ide_tp_ops *tp_ops = drive->hwif->tp_ops;
 	struct ide_taskfile *tf = &cmd->tf;
 	struct request *rq = cmd->rq;
 	u8 tf_cmd = tf->command;
@@ -80,7 +81,16 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 	tf->error = err;
 	tf->status = stat;
 
-	drive->hwif->tp_ops->tf_read(drive, cmd);
+	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
+		u8 data[2];
+
+		tp_ops->input_data(drive, cmd, data, 2);
+
+		tf->data = data[0];
+		tf->hob_data = data[1];
+	}
+
+	tp_ops->tf_read(drive, cmd);
 
 	if ((cmd->tf_flags & IDE_TFLAG_CUSTOM_HANDLER) &&
 	    tf_cmd == ATA_CMD_IDLEIMMEDIATE) {

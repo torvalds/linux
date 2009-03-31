@@ -66,15 +66,6 @@ static void superio_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_io_ports *io_ports = &drive->hwif->io_ports;
 	struct ide_taskfile *tf = &cmd->tf;
 
-	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
-		u8 data[2];
-
-		ide_input_data(drive, cmd, data, 2);
-
-		tf->data = data[0];
-		tf->hob_data = data[1];
-	}
-
 	/* be sure we're looking at the low order bits */
 	outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
