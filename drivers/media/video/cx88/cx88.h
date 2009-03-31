@@ -65,6 +65,8 @@
 #define VBI_LINE_COUNT              17
 #define VBI_LINE_LENGTH           2048
 
+#define AUD_RDS_LINES		     4
+
 /* need "shadow" registers for some write-only ones ... */
 #define SHADOW_AUD_VOL_CTL           1
 #define SHADOW_AUD_BAL_CTL           2
@@ -132,6 +134,7 @@ struct cx88_ctrl {
 #define SRAM_CH25 4   /* audio */
 #define SRAM_CH26 5
 #define SRAM_CH28 6   /* mpeg */
+#define SRAM_CH27 7   /* audio rds */
 /* more */
 
 struct sram_channel {
@@ -352,6 +355,7 @@ struct cx88_core {
 	u32                        input;
 	u32                        astat;
 	u32			   use_nicam;
+	unsigned long		   last_change;
 
 	/* IR remote control state */
 	struct cx88_IR             *ir;
@@ -654,6 +658,7 @@ extern void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl);
 #define WW_I2SPT	 8
 #define WW_FM		 9
 #define WW_I2SADC	 10
+#define WW_M		 11
 
 void cx88_set_tvaudio(struct cx88_core *core);
 void cx88_newstation(struct cx88_core *core);
@@ -665,6 +670,11 @@ int cx8802_register_driver(struct cx8802_driver *drv);
 int cx8802_unregister_driver(struct cx8802_driver *drv);
 struct cx8802_dev *cx8802_get_device(int minor);
 struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype);
+
+/* ----------------------------------------------------------- */
+/* cx88-dsp.c                                                  */
+
+s32 cx88_dsp_detect_stereo_sap(struct cx88_core *core);
 
 /* ----------------------------------------------------------- */
 /* cx88-input.c                                                */
