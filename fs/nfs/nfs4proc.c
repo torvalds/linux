@@ -4780,19 +4780,41 @@ static int nfs41_proc_async_sequence(struct nfs_client *clp,
 
 #endif /* CONFIG_NFS_V4_1 */
 
-struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops = {
+struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_REBOOT,
 	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,
 	.recover_open	= nfs4_open_reclaim,
 	.recover_lock	= nfs4_lock_reclaim,
+	.establish_clid = nfs4_init_clientid,
 };
 
-struct nfs4_state_recovery_ops nfs4_nograce_recovery_ops = {
+#if defined(CONFIG_NFS_V4_1)
+struct nfs4_state_recovery_ops nfs41_reboot_recovery_ops = {
+	.owner_flag_bit = NFS_OWNER_RECLAIM_REBOOT,
+	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,
+	.recover_open	= nfs4_open_reclaim,
+	.recover_lock	= nfs4_lock_reclaim,
+	.establish_clid = nfs4_proc_exchange_id,
+};
+#endif /* CONFIG_NFS_V4_1 */
+
+struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
 	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
 	.recover_open	= nfs4_open_expired,
 	.recover_lock	= nfs4_lock_expired,
+	.establish_clid = nfs4_init_clientid,
 };
+
+#if defined(CONFIG_NFS_V4_1)
+struct nfs4_state_recovery_ops nfs41_nograce_recovery_ops = {
+	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
+	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
+	.recover_open	= nfs4_open_expired,
+	.recover_lock	= nfs4_lock_expired,
+	.establish_clid = nfs4_proc_exchange_id,
+};
+#endif /* CONFIG_NFS_V4_1 */
 
 struct nfs4_state_maintenance_ops nfs40_state_renewal_ops = {
 	.sched_state_renewal = nfs4_proc_async_renew,
@@ -4811,6 +4833,20 @@ struct nfs4_state_maintenance_ops nfs41_state_renewal_ops = {
 /*
  * Per minor version reboot and network partition recovery ops
  */
+
+struct nfs4_state_recovery_ops *nfs4_reboot_recovery_ops[] = {
+	&nfs40_reboot_recovery_ops,
+#if defined(CONFIG_NFS_V4_1)
+	&nfs41_reboot_recovery_ops,
+#endif
+};
+
+struct nfs4_state_recovery_ops *nfs4_nograce_recovery_ops[] = {
+	&nfs40_nograce_recovery_ops,
+#if defined(CONFIG_NFS_V4_1)
+	&nfs41_nograce_recovery_ops,
+#endif
+};
 
 struct nfs4_state_maintenance_ops *nfs4_state_renewal_ops[] = {
 	&nfs40_state_renewal_ops,

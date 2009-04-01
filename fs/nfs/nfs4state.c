@@ -60,7 +60,7 @@ const nfs4_stateid zero_stateid;
 
 static LIST_HEAD(nfs4_clientid_list);
 
-static int nfs4_init_client(struct nfs_client *clp, struct rpc_cred *cred)
+int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	unsigned short port;
 	int status;
@@ -1098,11 +1098,13 @@ out:
 static int nfs4_reclaim_lease(struct nfs_client *clp)
 {
 	struct rpc_cred *cred;
+	struct nfs4_state_recovery_ops *ops =
+		nfs4_reboot_recovery_ops[clp->cl_minorversion];
 	int status = -ENOENT;
 
 	cred = nfs4_get_setclientid_cred(clp);
 	if (cred != NULL) {
-		status = nfs4_init_client(clp, cred);
+		status = ops->establish_clid(clp, cred);
 		put_rpccred(cred);
 		/* Handle case where the user hasn't set up machine creds */
 		if (status == -EACCES && cred == clp->cl_machine_cred) {
@@ -1208,7 +1210,8 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		}
 		/* First recover reboot state... */
 		if (test_and_clear_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state)) {
-			status = nfs4_do_reclaim(clp, &nfs4_reboot_recovery_ops);
+			status = nfs4_do_reclaim(clp,
+				nfs4_reboot_recovery_ops[clp->cl_minorversion]);
 			if (status == -NFS4ERR_STALE_CLIENTID)
 				continue;
 			if (test_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state))
@@ -1219,7 +1222,8 @@ static void nfs4_state_manager(struct nfs_client *clp)
 
 		/* Now recover expired state... */
 		if (test_and_clear_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state)) {
-			status = nfs4_do_reclaim(clp, &nfs4_nograce_recovery_ops);
+			status = nfs4_do_reclaim(clp,
+				nfs4_nograce_recovery_ops[clp->cl_minorversion]);
 			if (status < 0) {
 				set_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state);
 				if (status == -NFS4ERR_STALE_CLIENTID)
