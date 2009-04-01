@@ -74,6 +74,15 @@ config NFS_V4
 
 	  If unsure, say N.
 
+config NFS_V4_1
+	bool "NFS client support for NFSv4.1 (DEVELOPER ONLY)"
+	depends on NFS_V4 && EXPERIMENTAL
+	help
+	  This option enables support for minor version 1 of the NFSv4 protocol
+	  (draft-ietf-nfsv4-minorversion1) in the kernel's NFS client.
+
+	  Unless you're an NFS developer, say N.
+
 config ROOT_NFS
 	bool "Root file system on NFS"
 	depends on NFS_FS=y && IP_PNP
