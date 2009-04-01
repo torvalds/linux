@@ -103,6 +103,9 @@ struct cb_sequenceres {
 	uint32_t			csr_target_highestslotid;
 };
 
+extern unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
+				       struct cb_sequenceres *res);
+
 #endif /* CONFIG_NFS_V4_1 */
 
 extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res);
@@ -119,6 +122,7 @@ extern void nfs_callback_down(int minorversion);
  * of slots for the backchannel.
  */
 #define NFS41_BC_MIN_CALLBACKS 1
+#define NFS41_BC_MAX_CALLBACKS 1
 
 extern unsigned int nfs_callback_set_tcpport;
 extern unsigned short nfs_callback_tcpport;
