@@ -230,7 +230,7 @@ struct rpc_rqst *xprt_alloc_bc_request(struct rpc_xprt *xprt)
 
 	if (req != NULL) {
 		set_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
-		req->rq_received = 0;
+		req->rq_reply_bytes_recvd = 0;
 		req->rq_bytes_sent = 0;
 		memcpy(&req->rq_private_buf, &req->rq_rcv_buf,
 			sizeof(req->rq_private_buf));

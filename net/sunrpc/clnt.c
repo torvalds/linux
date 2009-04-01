@@ -1258,8 +1258,8 @@ call_status(struct rpc_task *task)
 	struct rpc_rqst	*req = task->tk_rqstp;
 	int		status;
 
-	if (req->rq_received > 0 && !req->rq_bytes_sent)
-		task->tk_status = req->rq_received;
+	if (req->rq_reply_bytes_recvd > 0 && !req->rq_bytes_sent)
+		task->tk_status = req->rq_reply_bytes_recvd;
 
 	dprint_status(task);
 
@@ -1376,7 +1376,7 @@ call_decode(struct rpc_task *task)
 
 	/*
 	 * Ensure that we see all writes made by xprt_complete_rqst()
-	 * before it changed req->rq_received.
+	 * before it changed req->rq_reply_bytes_recvd.
 	 */
 	smp_rmb();
 	req->rq_rcv_buf.len = req->rq_private_buf.len;
@@ -1417,7 +1417,7 @@ out_retry:
 	task->tk_status = 0;
 	/* Note: rpc_verify_header() may have freed the RPC slot */
 	if (task->tk_rqstp == req) {
-		req->rq_received = req->rq_rcv_buf.len = 0;
+		req->rq_reply_bytes_recvd = req->rq_rcv_buf.len = 0;
 		if (task->tk_client->cl_discrtry)
 			xprt_conditional_disconnect(task->tk_xprt,
 					req->rq_connect_cookie);

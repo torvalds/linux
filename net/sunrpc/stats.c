@@ -156,7 +156,7 @@ void rpc_count_iostats(struct rpc_task *task)
 	op_metrics->om_timeouts += task->tk_timeouts;
 
 	op_metrics->om_bytes_sent += task->tk_bytes_sent;
-	op_metrics->om_bytes_recv += req->rq_received;
+	op_metrics->om_bytes_recv += req->rq_reply_bytes_recvd;
 
 	queue = (long)req->rq_xtime - task->tk_start;
 	if (queue < 0)

@@ -806,9 +806,10 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 
 	list_del_init(&req->rq_list);
 	req->rq_private_buf.len = copied;
-	/* Ensure all writes are done before we update req->rq_received */
+	/* Ensure all writes are done before we update */
+	/* req->rq_reply_bytes_recvd */
 	smp_wmb();
-	req->rq_received = copied;
+	req->rq_reply_bytes_recvd = copied;
 	rpc_wake_up_queued_task(&xprt->pending, task);
 }
 EXPORT_SYMBOL_GPL(xprt_complete_rqst);
@@ -823,7 +824,7 @@ static void xprt_timer(struct rpc_task *task)
 	dprintk("RPC: %5u xprt_timer\n", task->tk_pid);
 
 	spin_lock_bh(&xprt->transport_lock);
-	if (!req->rq_received) {
+	if (!req->rq_reply_bytes_recvd) {
 		if (xprt->ops->timer)
 			xprt->ops->timer(task);
 	} else
@@ -845,8 +846,8 @@ int xprt_prepare_transmit(struct rpc_task *task)
 	dprintk("RPC: %5u xprt_prepare_transmit\n", task->tk_pid);
 
 	spin_lock_bh(&xprt->transport_lock);
-	if (req->rq_received && !req->rq_bytes_sent) {
-		err = req->rq_received;
+	if (req->rq_reply_bytes_recvd && !req->rq_bytes_sent) {
+		err = req->rq_reply_bytes_recvd;
 		goto out_unlock;
 	}
 	if (!xprt->ops->reserve_xprt(task))
@@ -875,7 +876,7 @@ void xprt_transmit(struct rpc_task *task)
 
 	dprintk("RPC: %5u xprt_transmit(%u)\n", task->tk_pid, req->rq_slen);
 
-	if (!req->rq_received) {
+	if (!req->rq_reply_bytes_recvd) {
 		if (list_empty(&req->rq_list) && rpc_reply_expected(task)) {
 			/*
 			 * Add to the list only if we're expecting a reply
@@ -914,7 +915,7 @@ void xprt_transmit(struct rpc_task *task)
 	/* Don't race with disconnect */
 	if (!xprt_connected(xprt))
 		task->tk_status = -ENOTCONN;
-	else if (!req->rq_received && rpc_reply_expected(task)) {
+	else if (!req->rq_reply_bytes_recvd && rpc_reply_expected(task)) {
 		/*
 		 * Sleep on the pending queue since
 		 * we're expecting a reply.
