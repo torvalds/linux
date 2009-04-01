@@ -185,16 +185,31 @@ nfs41_callback_svc(void *vrqstp)
 struct svc_rqst *
 nfs41_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 {
+	struct svc_xprt *bc_xprt;
+	struct svc_rqst *rqstp = ERR_PTR(-ENOMEM);
+
+	dprintk("--> %s\n", __func__);
+	/* Create a svc_sock for the service */
+	bc_xprt = svc_sock_create(serv, xprt->prot);
+	if (!bc_xprt)
+		goto out;
+
 	/*
 	 * Save the svc_serv in the transport so that it can
 	 * be referenced when the session backchannel is initialized
 	 */
+	serv->bc_xprt = bc_xprt;
 	xprt->bc_serv = serv;
 
 	INIT_LIST_HEAD(&serv->sv_cb_list);
 	spin_lock_init(&serv->sv_cb_lock);
 	init_waitqueue_head(&serv->sv_cb_waitq);
-	return svc_prepare_thread(serv, &serv->sv_pools[0]);
+	rqstp = svc_prepare_thread(serv, &serv->sv_pools[0]);
+	if (IS_ERR(rqstp))
+		svc_sock_destroy(bc_xprt);
+out:
+	dprintk("--> %s return %p\n", __func__, rqstp);
+	return rqstp;
 }
 
 static inline int nfs_minorversion_callback_svc_setup(u32 minorversion,
