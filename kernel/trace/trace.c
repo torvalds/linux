@@ -1632,7 +1632,11 @@ static void test_cpu_buff_start(struct trace_iterator *iter)
 		return;
 
 	cpumask_set_cpu(iter->cpu, iter->started);
-	trace_seq_printf(s, "##### CPU %u buffer started ####\n", iter->cpu);
+
+	/* Don't print started cpu buffer for the first entry of the trace */
+	if (iter->idx > 1)
+		trace_seq_printf(s, "##### CPU %u buffer started ####\n",
+				iter->cpu);
 }
 
 static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
@@ -1867,6 +1871,11 @@ __tracing_open(struct inode *inode, struct file *file)
 	if (current_trace)
 		*iter->trace = *current_trace;
 
+	if (!alloc_cpumask_var(&iter->started, GFP_KERNEL))
+		goto fail;
+
+	cpumask_clear(iter->started);
+
 	if (current_trace && current_trace->print_max)
 		iter->tr = &max_tr;
 	else
@@ -1917,6 +1926,7 @@ __tracing_open(struct inode *inode, struct file *file)
 		if (iter->buffer_iter[cpu])
 			ring_buffer_read_finish(iter->buffer_iter[cpu]);
 	}
+	free_cpumask_var(iter->started);
  fail:
 	mutex_unlock(&trace_types_lock);
 	kfree(iter->trace);
@@ -1960,6 +1970,7 @@ static int tracing_release(struct inode *inode, struct file *file)
 
 	seq_release(inode, file);
 	mutex_destroy(&iter->mutex);
+	free_cpumask_var(iter->started);
 	kfree(iter->trace);
 	kfree(iter);
 	return 0;
