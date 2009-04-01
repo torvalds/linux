@@ -67,7 +67,7 @@ enum ec_command {
 
 #define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
-#define ACPI_EC_UDELAY		100	/* Wait 100us before polling EC again */
+#define ACPI_EC_CDELAY		10	/* Wait 10us before polling EC */
 
 #define ACPI_EC_STORM_THRESHOLD 8	/* number of false interrupts
 					   per one transaction */
@@ -236,13 +236,23 @@ static int ec_check_sci(struct acpi_ec *ec, u8 state)
 	return 0;
 }
 
+static void ec_delay(void)
+{
+	/* EC in MSI notebooks don't tolerate delays other than 550 usec */
+	if (EC_FLAGS_MSI)
+		udelay(ACPI_EC_DELAY);
+	else
+		/* Use shortest sleep available */
+		msleep(1);
+}
+
 static int ec_poll(struct acpi_ec *ec)
 {
 	unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
-	udelay(ACPI_EC_UDELAY);
+	udelay(ACPI_EC_CDELAY);
 	while (time_before(jiffies, delay)) {
 		gpe_transaction(ec, acpi_ec_read_status(ec));
-		udelay(ACPI_EC_UDELAY);
+		ec_delay();
 		if (ec_transaction_done(ec))
 			return 0;
 	}
