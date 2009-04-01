@@ -587,12 +587,12 @@ int cxgb3i_adapter_ddp_info(struct t3cdev *tdev,
 }
 
 /**
- * ddp_release - release the cxgb3 adapter's ddp resource
+ * cxgb3i_ddp_cleanup - release the cxgb3 adapter's ddp resource
  * @tdev: t3cdev adapter
  * release all the resource held by the ddp pagepod manager for a given
  * adapter if needed
  */
-static void ddp_release(struct t3cdev *tdev)
+void cxgb3i_ddp_cleanup(struct t3cdev *tdev)
 {
 	int i = 0;
 	struct cxgb3i_ddp_info *ddp = (struct cxgb3i_ddp_info *)tdev->ulp_iscsi;
@@ -713,12 +713,4 @@ void cxgb3i_ddp_init(struct t3cdev *tdev)
 				PAGE_SIZE, page_idx);
 	}
 	ddp_init(tdev);
-}
-
-/**
- * cxgb3i_ddp_cleaup - clean up ddp function
- */
-void cxgb3i_ddp_cleanup(struct t3cdev *tdev)
-{
-	ddp_release(tdev);
 }
