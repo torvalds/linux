@@ -791,6 +791,11 @@ struct nfs4_statfs_arg {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs4_server_caps_arg {
+	struct nfs_fh		       *fhandle;
+	struct nfs4_sequence_args	seq_args;
+};
+
 struct nfs4_server_caps_res {
 	u32				attr_bitmask[2];
 	u32				acl_bitmask;
