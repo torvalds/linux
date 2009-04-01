@@ -191,7 +191,6 @@ static int map_xdr(struct svcxprt_rdma *xprt,
 		   struct xdr_buf *xdr,
 		   struct svc_rdma_req_map *vec)
 {
-	int sge_max = (xdr->len+PAGE_SIZE-1) / PAGE_SIZE + 3;
 	int sge_no;
 	u32 sge_bytes;
 	u32 page_bytes;
@@ -235,7 +234,11 @@ static int map_xdr(struct svcxprt_rdma *xprt,
 		sge_no++;
 	}
 
-	BUG_ON(sge_no > sge_max);
+	dprintk("svcrdma: map_xdr: sge_no %d page_no %d "
+		"page_base %u page_len %u head_len %zu tail_len %zu\n",
+		sge_no, page_no, xdr->page_base, xdr->page_len,
+		xdr->head[0].iov_len, xdr->tail[0].iov_len);
+
 	vec->count = sge_no;
 	return 0;
 }
@@ -579,7 +582,6 @@ static int send_reply(struct svcxprt_rdma *rdma,
 			ctxt->sge[page_no+1].length = 0;
 	}
 	BUG_ON(sge_no > rdma->sc_max_sge);
-	BUG_ON(sge_no > ctxt->count);
 	memset(&send_wr, 0, sizeof send_wr);
 	ctxt->wr_op = IB_WR_SEND;
 	send_wr.wr_id = (unsigned long)ctxt;

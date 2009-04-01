@@ -49,6 +49,9 @@ unsigned int xprt_tcp_slot_table_entries = RPC_DEF_SLOT_TABLE;
 unsigned int xprt_min_resvport = RPC_DEF_MIN_RESVPORT;
 unsigned int xprt_max_resvport = RPC_DEF_MAX_RESVPORT;
 
+#define XS_TCP_LINGER_TO	(15U * HZ)
+static unsigned int xs_tcp_fin_timeout __read_mostly = XS_TCP_LINGER_TO;
+
 /*
  * We can register our own files under /proc/sys/sunrpc by
  * calling register_sysctl_table() again.  The files in that
@@ -115,6 +118,14 @@ static ctl_table xs_tunables_table[] = {
 		.strategy	= &sysctl_intvec,
 		.extra1		= &xprt_min_resvport_limit,
 		.extra2		= &xprt_max_resvport_limit
+	},
+	{
+		.procname	= "tcp_fin_timeout",
+		.data		= &xs_tcp_fin_timeout,
+		.maxlen		= sizeof(xs_tcp_fin_timeout),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+		.strategy	= sysctl_jiffies
 	},
 	{
 		.ctl_name = 0,
@@ -521,11 +532,12 @@ static void xs_nospace_callback(struct rpc_task *task)
  * @task: task to put to sleep
  *
  */
-static void xs_nospace(struct rpc_task *task)
+static int xs_nospace(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+	int ret = 0;
 
 	dprintk("RPC: %5u xmit incomplete (%u left of %u)\n",
 			task->tk_pid, req->rq_slen - req->rq_bytes_sent,
@@ -537,6 +549,7 @@ static void xs_nospace(struct rpc_task *task)
 	/* Don't race with disconnect */
 	if (xprt_connected(xprt)) {
 		if (test_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags)) {
+			ret = -EAGAIN;
 			/*
 			 * Notify TCP that we're limited by the application
 			 * window size
@@ -548,10 +561,11 @@ static void xs_nospace(struct rpc_task *task)
 		}
 	} else {
 		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
-		task->tk_status = -ENOTCONN;
+		ret = -ENOTCONN;
 	}
 
 	spin_unlock_bh(&xprt->transport_lock);
+	return ret;
 }
 
 /**
@@ -594,6 +608,8 @@ static int xs_udp_send_request(struct rpc_task *task)
 		/* Still some bytes left; set up for a retry later. */
 		status = -EAGAIN;
 	}
+	if (!transport->sock)
+		goto out;
 
 	switch (status) {
 	case -ENOTSOCK:
@@ -601,21 +617,19 @@ static int xs_udp_send_request(struct rpc_task *task)
 		/* Should we call xs_close() here? */
 		break;
 	case -EAGAIN:
-		xs_nospace(task);
+		status = xs_nospace(task);
 		break;
+	default:
+		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
+			-status);
 	case -ENETUNREACH:
 	case -EPIPE:
 	case -ECONNREFUSED:
 		/* When the server has died, an ICMP port unreachable message
 		 * prompts ECONNREFUSED. */
 		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
-		break;
-	default:
-		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
-		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
-			-status);
 	}
-
+out:
 	return status;
 }
 
@@ -697,6 +711,8 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		status = -EAGAIN;
 		break;
 	}
+	if (!transport->sock)
+		goto out;
 
 	switch (status) {
 	case -ENOTSOCK:
@@ -704,23 +720,19 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		/* Should we call xs_close() here? */
 		break;
 	case -EAGAIN:
-		xs_nospace(task);
-		break;
-	case -ECONNRESET:
-		xs_tcp_shutdown(xprt);
-	case -ECONNREFUSED:
-	case -ENOTCONN:
-	case -EPIPE:
-		status = -ENOTCONN;
-		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
+		status = xs_nospace(task);
 		break;
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
 			-status);
-		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
+	case -ECONNRESET:
+	case -EPIPE:
 		xs_tcp_shutdown(xprt);
+	case -ECONNREFUSED:
+	case -ENOTCONN:
+		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
 	}
-
+out:
 	return status;
 }
 
@@ -767,23 +779,13 @@ static void xs_restore_old_callbacks(struct sock_xprt *transport, struct sock *s
 	sk->sk_error_report = transport->old_error_report;
 }
 
-/**
- * xs_close - close a socket
- * @xprt: transport
- *
- * This is used when all requests are complete; ie, no DRC state remains
- * on the server we want to save.
- */
-static void xs_close(struct rpc_xprt *xprt)
+static void xs_reset_transport(struct sock_xprt *transport)
 {
-	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct socket *sock = transport->sock;
 	struct sock *sk = transport->inet;
 
-	if (!sk)
-		goto clear_close_wait;
-
-	dprintk("RPC:       xs_close xprt %p\n", xprt);
+	if (sk == NULL)
+		return;
 
 	write_lock_bh(&sk->sk_callback_lock);
 	transport->inet = NULL;
@@ -797,8 +799,25 @@ static void xs_close(struct rpc_xprt *xprt)
 	sk->sk_no_check = 0;
 
 	sock_release(sock);
-clear_close_wait:
+}
+
+/**
+ * xs_close - close a socket
+ * @xprt: transport
+ *
+ * This is used when all requests are complete; ie, no DRC state remains
+ * on the server we want to save.
+ */
+static void xs_close(struct rpc_xprt *xprt)
+{
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+
+	dprintk("RPC:       xs_close xprt %p\n", xprt);
+
+	xs_reset_transport(transport);
+
 	smp_mb__before_clear_bit();
+	clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
 	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 	clear_bit(XPRT_CLOSING, &xprt->state);
 	smp_mb__after_clear_bit();
@@ -1126,6 +1145,47 @@ out:
 	read_unlock(&sk->sk_callback_lock);
 }
 
+/*
+ * Do the equivalent of linger/linger2 handling for dealing with
+ * broken servers that don't close the socket in a timely
+ * fashion
+ */
+static void xs_tcp_schedule_linger_timeout(struct rpc_xprt *xprt,
+		unsigned long timeout)
+{
+	struct sock_xprt *transport;
+
+	if (xprt_test_and_set_connecting(xprt))
+		return;
+	set_bit(XPRT_CONNECTION_ABORT, &xprt->state);
+	transport = container_of(xprt, struct sock_xprt, xprt);
+	queue_delayed_work(rpciod_workqueue, &transport->connect_worker,
+			   timeout);
+}
+
+static void xs_tcp_cancel_linger_timeout(struct rpc_xprt *xprt)
+{
+	struct sock_xprt *transport;
+
+	transport = container_of(xprt, struct sock_xprt, xprt);
+
+	if (!test_bit(XPRT_CONNECTION_ABORT, &xprt->state) ||
+	    !cancel_delayed_work(&transport->connect_worker))
+		return;
+	clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
+	xprt_clear_connecting(xprt);
+}
+
+static void xs_sock_mark_closed(struct rpc_xprt *xprt)
+{
+	smp_mb__before_clear_bit();
+	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
+	clear_bit(XPRT_CLOSING, &xprt->state);
+	smp_mb__after_clear_bit();
+	/* Mark transport as closed and wake up all pending tasks */
+	xprt_disconnect_done(xprt);
+}
+
 /**
  * xs_tcp_state_change - callback to handle TCP socket state changes
  * @sk: socket whose state has changed
@@ -1158,7 +1218,7 @@ static void xs_tcp_state_change(struct sock *sk)
 			transport->tcp_flags =
 				TCP_RCV_COPY_FRAGHDR | TCP_RCV_COPY_XID;
 
-			xprt_wake_pending_tasks(xprt, 0);
+			xprt_wake_pending_tasks(xprt, -EAGAIN);
 		}
 		spin_unlock_bh(&xprt->transport_lock);
 		break;
@@ -1171,10 +1231,10 @@ static void xs_tcp_state_change(struct sock *sk)
 		clear_bit(XPRT_CONNECTED, &xprt->state);
 		clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 		smp_mb__after_clear_bit();
+		xs_tcp_schedule_linger_timeout(xprt, xs_tcp_fin_timeout);
 		break;
 	case TCP_CLOSE_WAIT:
 		/* The server initiated a shutdown of the socket */
-		set_bit(XPRT_CLOSING, &xprt->state);
 		xprt_force_disconnect(xprt);
 	case TCP_SYN_SENT:
 		xprt->connect_cookie++;
@@ -1187,40 +1247,35 @@ static void xs_tcp_state_change(struct sock *sk)
 			xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
 		break;
 	case TCP_LAST_ACK:
+		set_bit(XPRT_CLOSING, &xprt->state);
+		xs_tcp_schedule_linger_timeout(xprt, xs_tcp_fin_timeout);
 		smp_mb__before_clear_bit();
 		clear_bit(XPRT_CONNECTED, &xprt->state);
 		smp_mb__after_clear_bit();
 		break;
 	case TCP_CLOSE:
-		smp_mb__before_clear_bit();
-		clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
-		clear_bit(XPRT_CLOSING, &xprt->state);
-		smp_mb__after_clear_bit();
-		/* Mark transport as closed and wake up all pending tasks */
-		xprt_disconnect_done(xprt);
+		xs_tcp_cancel_linger_timeout(xprt);
+		xs_sock_mark_closed(xprt);
 	}
  out:
 	read_unlock(&sk->sk_callback_lock);
 }
 
 /**
- * xs_tcp_error_report - callback mainly for catching RST events
+ * xs_error_report - callback mainly for catching socket errors
  * @sk: socket
  */
-static void xs_tcp_error_report(struct sock *sk)
+static void xs_error_report(struct sock *sk)
 {
 	struct rpc_xprt *xprt;
 
 	read_lock(&sk->sk_callback_lock);
-	if (sk->sk_err != ECONNRESET || sk->sk_state != TCP_ESTABLISHED)
-		goto out;
 	if (!(xprt = xprt_from_sock(sk)))
 		goto out;
 	dprintk("RPC:       %s client %p...\n"
 			"RPC:       error %d\n",
 			__func__, xprt, sk->sk_err);
-
-	xprt_force_disconnect(xprt);
+	xprt_wake_pending_tasks(xprt, -EAGAIN);
 out:
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -1494,6 +1549,7 @@ static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		sk->sk_user_data = xprt;
 		sk->sk_data_ready = xs_udp_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
+		sk->sk_error_report = xs_error_report;
 		sk->sk_no_check = UDP_CSUM_NORCV;
 		sk->sk_allocation = GFP_ATOMIC;
 
@@ -1526,9 +1582,10 @@ static void xs_udp_connect_worker4(struct work_struct *work)
 		goto out;
 
 	/* Start by resetting any existing state */
-	xs_close(xprt);
+	xs_reset_transport(transport);
 
-	if ((err = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock)) < 0) {
+	err = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
+	if (err < 0) {
 		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
 		goto out;
 	}
@@ -1545,8 +1602,8 @@ static void xs_udp_connect_worker4(struct work_struct *work)
 	xs_udp_finish_connecting(xprt, sock);
 	status = 0;
 out:
-	xprt_wake_pending_tasks(xprt, status);
 	xprt_clear_connecting(xprt);
+	xprt_wake_pending_tasks(xprt, status);
 }
 
 /**
@@ -1567,9 +1624,10 @@ static void xs_udp_connect_worker6(struct work_struct *work)
 		goto out;
 
 	/* Start by resetting any existing state */
-	xs_close(xprt);
+	xs_reset_transport(transport);
 
-	if ((err = sock_create_kern(PF_INET6, SOCK_DGRAM, IPPROTO_UDP, &sock)) < 0) {
+	err = sock_create_kern(PF_INET6, SOCK_DGRAM, IPPROTO_UDP, &sock);
+	if (err < 0) {
 		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
 		goto out;
 	}
@@ -1586,18 +1644,17 @@ static void xs_udp_connect_worker6(struct work_struct *work)
 	xs_udp_finish_connecting(xprt, sock);
 	status = 0;
 out:
-	xprt_wake_pending_tasks(xprt, status);
 	xprt_clear_connecting(xprt);
+	xprt_wake_pending_tasks(xprt, status);
 }
 
 /*
  * We need to preserve the port number so the reply cache on the server can
  * find our cached RPC replies when we get around to reconnecting.
  */
-static void xs_tcp_reuse_connection(struct rpc_xprt *xprt)
+static void xs_abort_connection(struct rpc_xprt *xprt, struct sock_xprt *transport)
 {
 	int result;
-	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct sockaddr any;
 
 	dprintk("RPC:       disconnecting xprt %p to reuse port\n", xprt);
@@ -1609,9 +1666,22 @@ static void xs_tcp_reuse_connection(struct rpc_xprt *xprt)
 	memset(&any, 0, sizeof(any));
 	any.sa_family = AF_UNSPEC;
 	result = kernel_connect(transport->sock, &any, sizeof(any), 0);
-	if (result)
+	if (!result)
+		xs_sock_mark_closed(xprt);
+	else
 		dprintk("RPC:       AF_UNSPEC connect return code %d\n",
 				result);
+}
+
+static void xs_tcp_reuse_connection(struct rpc_xprt *xprt, struct sock_xprt *transport)
+{
+	unsigned int state = transport->inet->sk_state;
+
+	if (state == TCP_CLOSE && transport->sock->state == SS_UNCONNECTED)
+		return;
+	if ((1 << state) & (TCPF_ESTABLISHED|TCPF_SYN_SENT))
+		return;
+	xs_abort_connection(xprt, transport);
 }
 
 static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
@@ -1629,7 +1699,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		sk->sk_data_ready = xs_tcp_data_ready;
 		sk->sk_state_change = xs_tcp_state_change;
 		sk->sk_write_space = xs_tcp_write_space;
-		sk->sk_error_report = xs_tcp_error_report;
+		sk->sk_error_report = xs_error_report;
 		sk->sk_allocation = GFP_ATOMIC;
 
 		/* socket options */
@@ -1657,6 +1727,97 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 }
 
 /**
+ * xs_tcp_setup_socket - create a TCP socket and connect to a remote endpoint
+ * @xprt: RPC transport to connect
+ * @transport: socket transport to connect
+ * @create_sock: function to create a socket of the correct type
+ *
+ * Invoked by a work queue tasklet.
+ */
+static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
+		struct sock_xprt *transport,
+		struct socket *(*create_sock)(struct rpc_xprt *,
+			struct sock_xprt *))
+{
+	struct socket *sock = transport->sock;
+	int status = -EIO;
+
+	if (xprt->shutdown)
+		goto out;
+
+	if (!sock) {
+		clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
+		sock = create_sock(xprt, transport);
+		if (IS_ERR(sock)) {
+			status = PTR_ERR(sock);
+			goto out;
+		}
+	} else {
+		int abort_and_exit;
+
+		abort_and_exit = test_and_clear_bit(XPRT_CONNECTION_ABORT,
+				&xprt->state);
+		/* "close" the socket, preserving the local port */
+		xs_tcp_reuse_connection(xprt, transport);
+
+		if (abort_and_exit)
+			goto out_eagain;
+	}
+
+	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
+			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+
+	status = xs_tcp_finish_connecting(xprt, sock);
+	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
+			xprt, -status, xprt_connected(xprt),
+			sock->sk->sk_state);
+	switch (status) {
+	case -ECONNREFUSED:
+	case -ECONNRESET:
+	case -ENETUNREACH:
+		/* retry with existing socket, after a delay */
+	case 0:
+	case -EINPROGRESS:
+	case -EALREADY:
+		xprt_clear_connecting(xprt);
+		return;
+	}
+	/* get rid of existing socket, and retry */
+	xs_tcp_shutdown(xprt);
+	printk("%s: connect returned unhandled error %d\n",
+			__func__, status);
+out_eagain:
+	status = -EAGAIN;
+out:
+	xprt_clear_connecting(xprt);
+	xprt_wake_pending_tasks(xprt, status);
+}
+
+static struct socket *xs_create_tcp_sock4(struct rpc_xprt *xprt,
+		struct sock_xprt *transport)
+{
+	struct socket *sock;
+	int err;
+
+	/* start from scratch */
+	err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+	if (err < 0) {
+		dprintk("RPC:       can't create TCP transport socket (%d).\n",
+				-err);
+		goto out_err;
+	}
+	xs_reclassify_socket4(sock);
+
+	if (xs_bind4(transport, sock) < 0) {
+		sock_release(sock);
+		goto out_err;
+	}
+	return sock;
+out_err:
+	return ERR_PTR(-EIO);
+}
+
+/**
  * xs_tcp_connect_worker4 - connect a TCP socket to a remote endpoint
  * @work: RPC transport to connect
  *
@@ -1667,53 +1828,32 @@ static void xs_tcp_connect_worker4(struct work_struct *work)
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
 	struct rpc_xprt *xprt = &transport->xprt;
-	struct socket *sock = transport->sock;
-	int err, status = -EIO;
 
-	if (xprt->shutdown)
-		goto out;
+	xs_tcp_setup_socket(xprt, transport, xs_create_tcp_sock4);
+}
 
-	if (!sock) {
-		/* start from scratch */
-		if ((err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
-			dprintk("RPC:       can't create TCP transport socket (%d).\n", -err);
-			goto out;
-		}
-		xs_reclassify_socket4(sock);
+static struct socket *xs_create_tcp_sock6(struct rpc_xprt *xprt,
+		struct sock_xprt *transport)
+{
+	struct socket *sock;
+	int err;
 
-		if (xs_bind4(transport, sock) < 0) {
-			sock_release(sock);
-			goto out;
-		}
-	} else
-		/* "close" the socket, preserving the local port */
-		xs_tcp_reuse_connection(xprt);
-
-	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
-			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
-
-	status = xs_tcp_finish_connecting(xprt, sock);
-	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
-			xprt, -status, xprt_connected(xprt),
-			sock->sk->sk_state);
-	if (status < 0) {
-		switch (status) {
-			case -EINPROGRESS:
-			case -EALREADY:
-				goto out_clear;
-			case -ECONNREFUSED:
-			case -ECONNRESET:
-				/* retry with existing socket, after a delay */
-				break;
-			default:
-				/* get rid of existing socket, and retry */
-				xs_tcp_shutdown(xprt);
-		}
+	/* start from scratch */
+	err = sock_create_kern(PF_INET6, SOCK_STREAM, IPPROTO_TCP, &sock);
+	if (err < 0) {
+		dprintk("RPC:       can't create TCP transport socket (%d).\n",
+				-err);
+		goto out_err;
 	}
-out:
-	xprt_wake_pending_tasks(xprt, status);
-out_clear:
-	xprt_clear_connecting(xprt);
+	xs_reclassify_socket6(sock);
+
+	if (xs_bind6(transport, sock) < 0) {
+		sock_release(sock);
+		goto out_err;
+	}
+	return sock;
+out_err:
+	return ERR_PTR(-EIO);
 }
 
 /**
@@ -1727,52 +1867,8 @@ static void xs_tcp_connect_worker6(struct work_struct *work)
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
 	struct rpc_xprt *xprt = &transport->xprt;
-	struct socket *sock = transport->sock;
-	int err, status = -EIO;
 
-	if (xprt->shutdown)
-		goto out;
-
-	if (!sock) {
-		/* start from scratch */
-		if ((err = sock_create_kern(PF_INET6, SOCK_STREAM, IPPROTO_TCP, &sock)) < 0) {
-			dprintk("RPC:       can't create TCP transport socket (%d).\n", -err);
-			goto out;
-		}
-		xs_reclassify_socket6(sock);
-
-		if (xs_bind6(transport, sock) < 0) {
-			sock_release(sock);
-			goto out;
-		}
-	} else
-		/* "close" the socket, preserving the local port */
-		xs_tcp_reuse_connection(xprt);
-
-	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
-			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
-
-	status = xs_tcp_finish_connecting(xprt, sock);
-	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
-			xprt, -status, xprt_connected(xprt), sock->sk->sk_state);
-	if (status < 0) {
-		switch (status) {
-			case -EINPROGRESS:
-			case -EALREADY:
-				goto out_clear;
-			case -ECONNREFUSED:
-			case -ECONNRESET:
-				/* retry with existing socket, after a delay */
-				break;
-			default:
-				/* get rid of existing socket, and retry */
-				xs_tcp_shutdown(xprt);
-		}
-	}
-out:
-	xprt_wake_pending_tasks(xprt, status);
-out_clear:
-	xprt_clear_connecting(xprt);
+	xs_tcp_setup_socket(xprt, transport, xs_create_tcp_sock6);
 }
 
 /**
@@ -1817,9 +1913,6 @@ static void xs_tcp_connect(struct rpc_task *task)
 {
 	struct rpc_xprt *xprt = task->tk_xprt;
 
-	/* Initiate graceful shutdown of the socket if not already done */
-	if (test_bit(XPRT_CONNECTED, &xprt->state))
-		xs_tcp_shutdown(xprt);
 	/* Exit if we need to wait for socket shutdown to complete */
 	if (test_bit(XPRT_CLOSING, &xprt->state))
 		return;
