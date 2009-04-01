@@ -280,6 +280,8 @@ static void renew_lease(const struct nfs_server *server, unsigned long timestamp
  * If found, we mark the slot as used, update the highest_used_slotid,
  * and respectively set up the sequence operation args.
  * The slot number is returned if found, or NFS4_MAX_SLOT_TABLE otherwise.
+ *
+ * Note: must be called with under the slot_tbl_lock.
  */
 static u8
 nfs4_find_slot(struct nfs4_slot_table *tbl, struct rpc_task *task)
@@ -288,7 +290,6 @@ nfs4_find_slot(struct nfs4_slot_table *tbl, struct rpc_task *task)
 	u8 ret_id = NFS4_MAX_SLOT_TABLE;
 	BUILD_BUG_ON((u8)NFS4_MAX_SLOT_TABLE != (int)NFS4_MAX_SLOT_TABLE);
 
-	spin_lock(&tbl->slot_tbl_lock);
 	dprintk("--> %s used_slots=%04lx highest_used=%d max_slots=%d\n",
 		__func__, tbl->used_slots[0], tbl->highest_used_slotid,
 		tbl->max_slots);
@@ -302,7 +303,6 @@ nfs4_find_slot(struct nfs4_slot_table *tbl, struct rpc_task *task)
 out:
 	dprintk("<-- %s used_slots=%04lx highest_used=%d slotid=%d \n",
 		__func__, tbl->used_slots[0], tbl->highest_used_slotid, ret_id);
-	spin_unlock(&tbl->slot_tbl_lock);
 	return ret_id;
 }
 
@@ -312,12 +312,42 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 				int cache_reply,
 				struct rpc_task *task)
 {
+	struct nfs4_slot *slot;
+	struct nfs4_slot_table *tbl;
+	u8 slotid;
+
+	dprintk("--> %s\n", __func__);
 	/* slot already allocated? */
 	if (res->sr_slotid != NFS4_MAX_SLOT_TABLE)
 		return 0;
 
 	memset(res, 0, sizeof(*res));
 	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
+	tbl = &session->fc_slot_table;
+
+	spin_lock(&tbl->slot_tbl_lock);
+	slotid = nfs4_find_slot(tbl, task);
+	if (slotid == NFS4_MAX_SLOT_TABLE) {
+		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
+		spin_unlock(&tbl->slot_tbl_lock);
+		dprintk("<-- %s: no free slots\n", __func__);
+		return -EAGAIN;
+	}
+	spin_unlock(&tbl->slot_tbl_lock);
+
+	slot = tbl->slots + slotid;
+	args->sa_slotid = slotid;
+	args->sa_cache_this = cache_reply;
+
+	dprintk("<-- %s slotid=%d seqid=%d\n", __func__, slotid, slot->seq_nr);
+
+	res->sr_slotid = slotid;
+	res->sr_renewal_time = jiffies;
+	/*
+	 * sr_status is only set in decode_sequence, and so will remain
+	 * set to 1 if an rpc level failure occurs.
+	 */
+	res->sr_status = 1;
 	return 0;
 }
 

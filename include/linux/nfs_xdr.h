@@ -163,11 +163,15 @@ struct nfs4_slot {
 
 struct nfs4_sequence_args {
 	struct nfs4_session	*sa_session;
+	u8			sa_slotid;
+	u8			sa_cache_this;
 };
 
 struct nfs4_sequence_res {
 	struct nfs4_session	*sr_session;
 	u8			sr_slotid;	/* slot used to send request */
+	unsigned long		sr_renewal_time;
+	int			sr_status;	/* sequence operation status */
 };
 
 /*
