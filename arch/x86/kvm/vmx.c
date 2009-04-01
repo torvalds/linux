@@ -216,66 +216,79 @@ static inline int is_external_interrupt(u32 intr_info)
 
 static inline int cpu_has_vmx_msr_bitmap(void)
 {
-	return (vmcs_config.cpu_based_exec_ctrl & CPU_BASED_USE_MSR_BITMAPS);
+	return vmcs_config.cpu_based_exec_ctrl & CPU_BASED_USE_MSR_BITMAPS;
 }
 
 static inline int cpu_has_vmx_tpr_shadow(void)
 {
-	return (vmcs_config.cpu_based_exec_ctrl & CPU_BASED_TPR_SHADOW);
+	return vmcs_config.cpu_based_exec_ctrl & CPU_BASED_TPR_SHADOW;
 }
 
 static inline int vm_need_tpr_shadow(struct kvm *kvm)
 {
-	return ((cpu_has_vmx_tpr_shadow()) && (irqchip_in_kernel(kvm)));
+	return (cpu_has_vmx_tpr_shadow()) && (irqchip_in_kernel(kvm));
 }
 
 static inline int cpu_has_secondary_exec_ctrls(void)
 {
-	return (vmcs_config.cpu_based_exec_ctrl &
-		CPU_BASED_ACTIVATE_SECONDARY_CONTROLS);
+	return vmcs_config.cpu_based_exec_ctrl &
+		CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
 }
 
 static inline bool cpu_has_vmx_virtualize_apic_accesses(void)
 {
-	return flexpriority_enabled;
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+}
+
+static inline bool cpu_has_vmx_flexpriority(void)
+{
+	return cpu_has_vmx_tpr_shadow() &&
+		cpu_has_vmx_virtualize_apic_accesses();
 }
 
 static inline int cpu_has_vmx_invept_individual_addr(void)
 {
-	return (!!(vmx_capability.ept & VMX_EPT_EXTENT_INDIVIDUAL_BIT));
+	return !!(vmx_capability.ept & VMX_EPT_EXTENT_INDIVIDUAL_BIT);
 }
 
 static inline int cpu_has_vmx_invept_context(void)
 {
-	return (!!(vmx_capability.ept & VMX_EPT_EXTENT_CONTEXT_BIT));
+	return !!(vmx_capability.ept & VMX_EPT_EXTENT_CONTEXT_BIT);
 }
 
 static inline int cpu_has_vmx_invept_global(void)
 {
-	return (!!(vmx_capability.ept & VMX_EPT_EXTENT_GLOBAL_BIT));
+	return !!(vmx_capability.ept & VMX_EPT_EXTENT_GLOBAL_BIT);
 }
 
 static inline int cpu_has_vmx_ept(void)
 {
-	return (vmcs_config.cpu_based_2nd_exec_ctrl &
-		SECONDARY_EXEC_ENABLE_EPT);
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_ENABLE_EPT;
 }
 
 static inline int vm_need_virtualize_apic_accesses(struct kvm *kvm)
 {
-	return ((cpu_has_vmx_virtualize_apic_accesses()) &&
-		(irqchip_in_kernel(kvm)));
+	return flexpriority_enabled &&
+		(cpu_has_vmx_virtualize_apic_accesses()) &&
+		(irqchip_in_kernel(kvm));
 }
 
 static inline int cpu_has_vmx_vpid(void)
 {
-	return (vmcs_config.cpu_based_2nd_exec_ctrl &
-		SECONDARY_EXEC_ENABLE_VPID);
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_ENABLE_VPID;
 }
 
 static inline int cpu_has_virtual_nmis(void)
 {
 	return vmcs_config.pin_based_exec_ctrl & PIN_BASED_VIRTUAL_NMIS;
+}
+
+static inline bool report_flexpriority(void)
+{
+	return flexpriority_enabled;
 }
 
 static int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
@@ -1201,7 +1214,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	if (!cpu_has_vmx_ept())
 		enable_ept = 0;
 
-	if (!(vmcs_config.cpu_based_2nd_exec_ctrl & SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
+	if (!cpu_has_vmx_flexpriority())
 		flexpriority_enabled = 0;
 
 	min = 0;
@@ -3655,7 +3668,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.check_processor_compatibility = vmx_check_processor_compat,
 	.hardware_enable = hardware_enable,
 	.hardware_disable = hardware_disable,
-	.cpu_has_accelerated_tpr = cpu_has_vmx_virtualize_apic_accesses,
+	.cpu_has_accelerated_tpr = report_flexpriority,
 
 	.vcpu_create = vmx_create_vcpu,
 	.vcpu_free = vmx_free_vcpu,
