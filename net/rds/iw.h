@@ -294,9 +294,17 @@ void rds_iw_cm_connect_complete(struct rds_connection *conn,
 
 /* ib_rdma.c */
 int rds_iw_update_cm_id(struct rds_iw_device *rds_iwdev, struct rdma_cm_id *cm_id);
-int rds_iw_add_conn(struct rds_iw_device *rds_iwdev, struct rds_connection *conn);
-void rds_iw_remove_nodev_conns(void);
-void rds_iw_remove_conns(struct rds_iw_device *rds_iwdev);
+void rds_iw_add_conn(struct rds_iw_device *rds_iwdev, struct rds_connection *conn);
+void rds_iw_remove_conn(struct rds_iw_device *rds_iwdev, struct rds_connection *conn);
+void __rds_iw_destroy_conns(struct list_head *list, spinlock_t *list_lock);
+static inline void rds_iw_destroy_nodev_conns(void)
+{
+	__rds_iw_destroy_conns(&iw_nodev_conns, &iw_nodev_conns_lock);
+}
+static inline void rds_iw_destroy_conns(struct rds_iw_device *rds_iwdev)
+{
+	__rds_iw_destroy_conns(&rds_iwdev->conn_list, &rds_iwdev->spinlock);
+}
 struct rds_iw_mr_pool *rds_iw_create_mr_pool(struct rds_iw_device *);
 void rds_iw_get_mr_info(struct rds_iw_device *rds_iwdev, struct rds_info_rdma_connection *iinfo);
 void rds_iw_destroy_mr_pool(struct rds_iw_mr_pool *);

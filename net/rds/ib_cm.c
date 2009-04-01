@@ -126,9 +126,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	err = rds_ib_update_ipaddr(rds_ibdev, conn->c_laddr);
 	if (err)
 		printk(KERN_ERR "rds_ib_update_ipaddr failed (%d)\n", err);
-	err = rds_ib_add_conn(rds_ibdev, conn);
-	if (err)
-		printk(KERN_ERR "rds_ib_add_conn failed (%d)\n", err);
+	rds_ib_add_conn(rds_ibdev, conn);
 
 	/* If the peer gave us the last packet it saw, process this as if
 	 * we had received a regular ACK. */
@@ -616,18 +614,8 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 		/*
 		 * Move connection back to the nodev list.
 		 */
-		if (ic->rds_ibdev) {
-
-			spin_lock_irq(&ic->rds_ibdev->spinlock);
-			BUG_ON(list_empty(&ic->ib_node));
-			list_del(&ic->ib_node);
-			spin_unlock_irq(&ic->rds_ibdev->spinlock);
-
-			spin_lock_irq(&ib_nodev_conns_lock);
-			list_add_tail(&ic->ib_node, &ib_nodev_conns);
-			spin_unlock_irq(&ib_nodev_conns_lock);
-			ic->rds_ibdev = NULL;
-		}
+		if (ic->rds_ibdev)
+			rds_ib_remove_conn(ic->rds_ibdev, conn);
 
 		ic->i_cm_id = NULL;
 		ic->i_pd = NULL;
@@ -701,11 +689,27 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	return 0;
 }
 
+/*
+ * Free a connection. Connection must be shut down and not set for reconnect.
+ */
 void rds_ib_conn_free(void *arg)
 {
 	struct rds_ib_connection *ic = arg;
+	spinlock_t	*lock_ptr;
+
 	rdsdebug("ic %p\n", ic);
+
+	/*
+	 * Conn is either on a dev's list or on the nodev list.
+	 * A race with shutdown() or connect() would cause problems
+	 * (since rds_ibdev would change) but that should never happen.
+	 */
+	lock_ptr = ic->rds_ibdev ? &ic->rds_ibdev->spinlock : &ib_nodev_conns_lock;
+
+	spin_lock_irq(lock_ptr);
 	list_del(&ic->ib_node);
+	spin_unlock_irq(lock_ptr);
+
 	kfree(ic);
 }
 
