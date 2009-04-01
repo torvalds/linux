@@ -386,6 +386,7 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 	if (mboxes & MBOX_ASLE) {
 		DRM_DEBUG("ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
+		opregion_enable_asle(dev);
 	}
 
 	if (!resume)
