@@ -278,7 +278,7 @@ static unsigned long kimage_addr_to_ra(void *p)
 	return kern_base + (val - KERNBASE);
 }
 
-static void __cpuinit ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
+static void __cpuinit ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg, void **descrp)
 {
 	extern unsigned long sparc64_ttable_tl0;
 	extern unsigned long kern_locked_tte_data;
@@ -298,12 +298,12 @@ static void __cpuinit ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread
 		       "hvtramp_descr.\n");
 		return;
 	}
+	*descrp = hdesc;
 
 	hdesc->cpu = cpu;
 	hdesc->num_mappings = num_kernel_image_mappings;
 
 	tb = &trap_block[cpu];
-	tb->hdesc = hdesc;
 
 	hdesc->fault_info_va = (unsigned long) &tb->fault_info;
 	hdesc->fault_info_pa = kimage_addr_to_ra(&tb->fault_info);
@@ -341,12 +341,12 @@ static struct thread_info *cpu_new_thread = NULL;
 
 static int __cpuinit smp_boot_one_cpu(unsigned int cpu)
 {
-	struct trap_per_cpu *tb = &trap_block[cpu];
 	unsigned long entry =
 		(unsigned long)(&sparc64_cpu_startup);
 	unsigned long cookie =
 		(unsigned long)(&cpu_new_thread);
 	struct task_struct *p;
+	void *descr = NULL;
 	int timeout, ret;
 
 	p = fork_idle(cpu);
@@ -359,7 +359,8 @@ static int __cpuinit smp_boot_one_cpu(unsigned int cpu)
 #if defined(CONFIG_SUN_LDOMS) && defined(CONFIG_HOTPLUG_CPU)
 		if (ldom_domaining_enabled)
 			ldom_startcpu_cpuid(cpu,
-					    (unsigned long) cpu_new_thread);
+					    (unsigned long) cpu_new_thread,
+					    &descr);
 		else
 #endif
 			prom_startcpu_cpuid(cpu, entry, cookie);
@@ -383,10 +384,7 @@ static int __cpuinit smp_boot_one_cpu(unsigned int cpu)
 	}
 	cpu_new_thread = NULL;
 
-	if (tb->hdesc) {
-		kfree(tb->hdesc);
-		tb->hdesc = NULL;
-	}
+	kfree(descr);
 
 	return ret;
 }
