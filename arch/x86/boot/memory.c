@@ -31,6 +31,12 @@ static int detect_memory_e820(void)
 	struct e820entry *desc = boot_params.e820_map;
 	static struct e820_ext_entry buf; /* static so it is zeroed */
 
+	/*
+	 * Set this here so that if the BIOS doesn't change this field
+	 * but still doesn't change %ecx, we're still okay...
+	 */
+	buf.ext_flags = 1;
+
 	do {
 		size = sizeof buf;
 
