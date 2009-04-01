@@ -919,7 +919,6 @@ void __init sun4v_mdesc_init(void)
 {
 	struct mdesc_handle *hp;
 	unsigned long len, real_len, status;
-	cpumask_t mask;
 
 	(void) sun4v_mach_desc(0UL, 0UL, &len);
 
@@ -943,7 +942,4 @@ void __init sun4v_mdesc_init(void)
 	cur_mdesc = hp;
 
 	report_platform_properties();
-
-	cpus_setall(mask);
-	mdesc_fill_in_cpu_data(mask);
 }
