@@ -108,7 +108,12 @@ struct rds_ib_connection {
 
 	/* sending acks */
 	unsigned long		i_ack_flags;
+#ifdef KERNEL_HAS_ATOMIC64
+	atomic64_t		i_ack_next;	/* next ACK to send */
+#else
+	spinlock_t		i_ack_lock;	/* protect i_ack_next */
 	u64			i_ack_next;	/* next ACK to send */
+#endif
 	struct rds_header	*i_ack;
 	struct ib_send_wr	i_ack_wr;
 	struct ib_sge		i_ack_sge;
@@ -361,15 +366,6 @@ static inline struct ib_sge *
 rds_ib_data_sge(struct rds_ib_connection *ic, struct ib_sge *sge)
 {
 	return &sge[1];
-}
-
-static inline void rds_ib_set_64bit(u64 *ptr, u64 val)
-{
-#if BITS_PER_LONG == 64
-	*ptr = val;
-#else
-	set_64bit(ptr, val);
-#endif
 }
 
 #endif

@@ -659,7 +659,11 @@ void rds_iw_conn_shutdown(struct rds_connection *conn)
 
 	/* Clear the ACK state */
 	clear_bit(IB_ACK_IN_FLIGHT, &ic->i_ack_flags);
-	rds_iw_set_64bit(&ic->i_ack_next, 0);
+#ifdef KERNEL_HAS_ATOMIC64
+	atomic64_set(&ic->i_ack_next, 0);
+#else
+	ic->i_ack_next = 0;
+#endif
 	ic->i_ack_recv = 0;
 
 	/* Clear flow control state */
@@ -693,6 +697,9 @@ int rds_iw_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 
 	INIT_LIST_HEAD(&ic->iw_node);
 	mutex_init(&ic->i_recv_mutex);
+#ifndef KERNEL_HAS_ATOMIC64
+	spin_lock_init(&ic->i_ack_lock);
+#endif
 
 	/*
 	 * rds_iw_conn_shutdown() waits for these to be emptied so they
