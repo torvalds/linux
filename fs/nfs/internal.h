@@ -209,6 +209,9 @@ extern int nfs4_path_walk(struct nfs_server *server,
 /* read.c */
 extern void nfs_read_prepare(struct rpc_task *task, void *calldata);
 
+/* write.c */
+extern void nfs_write_prepare(struct rpc_task *task, void *calldata);
+
 /* nfs4proc.c */
 extern int _nfs4_call_sync(struct nfs_server *server,
 			   struct rpc_message *msg,
