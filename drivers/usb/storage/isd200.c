@@ -420,19 +420,19 @@ static void isd200_build_sense(struct us_data *us, struct scsi_cmnd *srb)
 		buf->Flags = UNIT_ATTENTION;
 		buf->AdditionalSenseCode = 0;
 		buf->AdditionalSenseCodeQualifier = 0;
-	} else if(error & MCR_ERR) {
+	} else if (error & ATA_MCR) {
 		buf->ErrorCode = 0x70 | SENSE_ERRCODE_VALID;
 		buf->AdditionalSenseLength = 0xb;
 		buf->Flags =  UNIT_ATTENTION;
 		buf->AdditionalSenseCode = 0;
 		buf->AdditionalSenseCodeQualifier = 0;
-	} else if(error & TRK0_ERR) {
+	} else if (error & ATA_TRK0NF) {
 		buf->ErrorCode = 0x70 | SENSE_ERRCODE_VALID;
 		buf->AdditionalSenseLength = 0xb;
 		buf->Flags =  NOT_READY;
 		buf->AdditionalSenseCode = 0;
 		buf->AdditionalSenseCodeQualifier = 0;
-	} else if(error & ECC_ERR) {
+	} else if (error & ATA_UNC) {
 		buf->ErrorCode = 0x70 | SENSE_ERRCODE_VALID;
 		buf->AdditionalSenseLength = 0xb;
 		buf->Flags =  DATA_PROTECT;
@@ -945,22 +945,22 @@ static int isd200_try_enum(struct us_data *us, unsigned char master_slave,
 			break;
 
 		if (!detect) {
-			if (regs[ATA_REG_STATUS_OFFSET] & BUSY_STAT) {
+			if (regs[ATA_REG_STATUS_OFFSET] & ATA_BUSY) {
 				US_DEBUGP("   %s status is still BSY, try again...\n",mstr);
 			} else {
 				US_DEBUGP("   %s status !BSY, continue with next operation\n",mstr);
 				break;
 			}
 		}
-		/* check for BUSY_STAT and */
-		/* WRERR_STAT (workaround ATA Zip drive) and */ 
-		/* ERR_STAT (workaround for Archos CD-ROM) */
+		/* check for ATA_BUSY and */
+		/* ATA_DF (workaround ATA Zip drive) and */
+		/* ATA_ERR (workaround for Archos CD-ROM) */
 		else if (regs[ATA_REG_STATUS_OFFSET] &
-			 (BUSY_STAT | WRERR_STAT | ERR_STAT )) {
+			 (ATA_BUSY | ATA_DF | ATA_ERR)) {
 			US_DEBUGP("   Status indicates it is not ready, try again...\n");
 		}
 		/* check for DRDY, ATA devices set DRDY after SRST */
-		else if (regs[ATA_REG_STATUS_OFFSET] & READY_STAT) {
+		else if (regs[ATA_REG_STATUS_OFFSET] & ATA_DRDY) {
 			US_DEBUGP("   Identified ATA device\n");
 			info->DeviceFlags |= DF_ATA_DEVICE;
 			info->DeviceHead = master_slave;
