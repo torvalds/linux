@@ -90,7 +90,7 @@ up before calling v4l2_device_register then it will be untouched. If dev is
 NULL, then you *must* setup v4l2_dev->name before calling v4l2_device_register.
 
 The first 'dev' argument is normally the struct device pointer of a pci_dev,
-usb_device or platform_device. It is rare for dev to be NULL, but it happens
+usb_interface or platform_device. It is rare for dev to be NULL, but it happens
 with ISA devices or when one device creates multiple PCI devices, thus making
 it impossible to associate v4l2_dev with a particular parent.
 
