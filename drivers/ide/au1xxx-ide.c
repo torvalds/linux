@@ -50,7 +50,7 @@ static _auide_hwif auide_hwif;
 
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA)
 
-void auide_insw(unsigned long port, void *addr, u32 count)
+static inline void auide_insw(unsigned long port, void *addr, u32 count)
 {
 	_auide_hwif *ahwif = &auide_hwif;
 	chan_tab_t *ctp;
@@ -68,7 +68,7 @@ void auide_insw(unsigned long port, void *addr, u32 count)
 	ctp->cur_ptr = au1xxx_ddma_get_nextptr_virt(dp);
 }
 
-void auide_outsw(unsigned long port, void *addr, u32 count)
+static inline void auide_outsw(unsigned long port, void *addr, u32 count)
 {
 	_auide_hwif *ahwif = &auide_hwif;
 	chan_tab_t *ctp;
@@ -236,7 +236,7 @@ static int auide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 			if (++count >= PRD_ENTRIES) {
 				printk(KERN_WARNING "%s: DMA table too small\n",
 				       drive->name);
-				goto use_pio_instead;
+				return 0;
 			}
 
 			/* Lets enable intr for the last descriptor only */
@@ -272,16 +272,11 @@ static int auide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (count)
 		return 1;
 
- use_pio_instead:
-	ide_destroy_dmatable(drive);
-
 	return 0; /* revert to PIO for this request */
 }
 
 static int auide_dma_end(ide_drive_t *drive)
 {
-	ide_destroy_dmatable(drive);
-
 	return 0;
 }
 
@@ -292,12 +287,9 @@ static void auide_dma_start(ide_drive_t *drive )
 
 static int auide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
-	if (auide_build_dmatable(drive, cmd) == 0) {
-		ide_map_sg(drive, cmd);
+	if (auide_build_dmatable(drive, cmd) == 0)
 		return 1;
-	}
 
-	drive->waiting_for_dma = 1;
 	return 0;
 }
 
@@ -322,16 +314,11 @@ static void auide_dma_host_set(ide_drive_t *drive, int on)
 
 static void auide_ddma_tx_callback(int irq, void *param)
 {
-	_auide_hwif *ahwif = (_auide_hwif*)param;
-	ahwif->drive->waiting_for_dma = 0;
 }
 
 static void auide_ddma_rx_callback(int irq, void *param)
 {
-	_auide_hwif *ahwif = (_auide_hwif*)param;
-	ahwif->drive->waiting_for_dma = 0;
 }
-
 #endif /* end CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA */
 
 static void auide_init_dbdma_dev(dbdev_tab_t *dev, u32 dev_id, u32 tsize, u32 devwidth, u32 flags)
@@ -353,7 +340,6 @@ static const struct ide_dma_ops au1xxx_dma_ops = {
 	.dma_end		= auide_dma_end,
 	.dma_test_irq		= auide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
-	.dma_timeout		= ide_dma_timeout,
 };
 
 static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
@@ -481,9 +467,9 @@ static const struct ide_tp_ops au1xxx_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
 
-	.set_irq		= ide_set_irq,
-
+	.dev_select		= ide_dev_select,
 	.tf_load		= ide_tf_load,
 	.tf_read		= ide_tf_read,
 

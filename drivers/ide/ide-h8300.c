@@ -54,9 +54,6 @@ static void h8300_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA)
-		mm_outw((tf->hob_data << 8) | tf->data, io_ports->data_addr);
-
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
 		outb(tf->hob_feature, io_ports->feature_addr);
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
@@ -90,18 +87,11 @@ static void h8300_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	struct ide_taskfile *tf = &cmd->tf;
 
-	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
-		u16 data = mm_inw(io_ports->data_addr);
-
-		tf->data = data & 0xff;
-		tf->hob_data = (data >> 8) & 0xff;
-	}
-
 	/* be sure we're looking at the low order bits */
-	outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
+	outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
-	if (cmd->tf_flags & IDE_TFLAG_IN_FEATURE)
-		tf->feature = inb(io_ports->feature_addr);
+	if (cmd->tf_flags & IDE_TFLAG_IN_ERROR)
+		tf->error  = inb(io_ports->feature_addr);
 	if (cmd->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = inb(io_ports->nsect_addr);
 	if (cmd->tf_flags & IDE_TFLAG_IN_LBAL)
@@ -114,18 +104,18 @@ static void h8300_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 		tf->device = inb(io_ports->device_addr);
 
 	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
-		outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
+		outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
-			tf->hob_feature = inb(io_ports->feature_addr);
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_ERROR)
+			tf->hob_error = inb(io_ports->feature_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
-			tf->hob_nsect   = inb(io_ports->nsect_addr);
+			tf->hob_nsect = inb(io_ports->nsect_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
-			tf->hob_lbal    = inb(io_ports->lbal_addr);
+			tf->hob_lbal  = inb(io_ports->lbal_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
-			tf->hob_lbam    = inb(io_ports->lbam_addr);
+			tf->hob_lbam  = inb(io_ports->lbam_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
-			tf->hob_lbah    = inb(io_ports->lbah_addr);
+			tf->hob_lbah  = inb(io_ports->lbah_addr);
 	}
 }
 
@@ -159,9 +149,9 @@ static const struct ide_tp_ops h8300_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
 
-	.set_irq		= ide_set_irq,
-
+	.dev_select		= ide_dev_select,
 	.tf_load		= h8300_tf_load,
 	.tf_read		= h8300_tf_read,
 

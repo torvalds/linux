@@ -38,10 +38,9 @@ int config_drive_for_dma(ide_drive_t *drive)
 	 * Enable DMA on any drive that has mode2 DMA
 	 * (multi or single) enabled
 	 */
-	if (id[ATA_ID_FIELD_VALID] & 2)	/* regular DMA */
-		if ((id[ATA_ID_MWDMA_MODES] & 0x404) == 0x404 ||
-		    (id[ATA_ID_SWDMA_MODES] & 0x404) == 0x404)
-			return 1;
+	if ((id[ATA_ID_MWDMA_MODES] & 0x404) == 0x404 ||
+	    (id[ATA_ID_SWDMA_MODES] & 0x404) == 0x404)
+		return 1;
 
 	/* Consult the list of known "good" drives */
 	if (ide_dma_good_drive(drive))
@@ -166,8 +165,6 @@ use_pio_instead:
 	printk(KERN_ERR "%s: %s\n", drive->name,
 		count ? "DMA table too small" : "empty DMA table?");
 
-	ide_destroy_dmatable(drive);
-
 	return 0; /* revert to PIO for this request */
 }
 EXPORT_SYMBOL_GPL(ide_build_dmatable);
@@ -218,7 +215,6 @@ int ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	/* clear INTR & ERROR flags */
 	ide_dma_sff_write_status(hwif, dma_stat | ATA_DMA_ERR | ATA_DMA_INTR);
 
-	drive->waiting_for_dma = 1;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_dma_setup);
@@ -292,8 +288,6 @@ int ide_dma_end(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	u8 dma_stat = 0, dma_cmd = 0, mask;
 
-	drive->waiting_for_dma = 0;
-
 	/* stop DMA */
 	if (hwif->host_flags & IDE_HFLAG_MMIO) {
 		dma_cmd = readb((void __iomem *)(hwif->dma_base + ATA_DMA_CMD));
@@ -310,8 +304,6 @@ int ide_dma_end(ide_drive_t *drive)
 	/* clear INTR & ERROR bits */
 	ide_dma_sff_write_status(hwif, dma_stat | ATA_DMA_ERR | ATA_DMA_INTR);
 
-	/* purge DMA mappings */
-	ide_destroy_dmatable(drive);
 	wmb();
 
 	/* verify good DMA status */
@@ -338,9 +330,8 @@ const struct ide_dma_ops sff_dma_ops = {
 	.dma_start		= ide_dma_start,
 	.dma_end		= ide_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
-	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
-	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 EXPORT_SYMBOL_GPL(sff_dma_ops);

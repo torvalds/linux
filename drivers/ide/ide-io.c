@@ -73,6 +73,7 @@ EXPORT_SYMBOL_GPL(ide_end_rq);
 
 void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 {
+	const struct ide_tp_ops *tp_ops = drive->hwif->tp_ops;
 	struct ide_taskfile *tf = &cmd->tf;
 	struct request *rq = cmd->rq;
 	u8 tf_cmd = tf->command;
@@ -80,7 +81,16 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 	tf->error = err;
 	tf->status = stat;
 
-	drive->hwif->tp_ops->tf_read(drive, cmd);
+	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
+		u8 data[2];
+
+		tp_ops->input_data(drive, cmd, data, 2);
+
+		tf->data = data[0];
+		tf->hob_data = data[1];
+	}
+
+	tp_ops->tf_read(drive, cmd);
 
 	if ((cmd->tf_flags & IDE_TFLAG_CUSTOM_HANDLER) &&
 	    tf_cmd == ATA_CMD_IDLEIMMEDIATE) {
@@ -338,7 +348,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 	if (blk_pm_request(rq))
 		ide_check_pm_state(drive, rq);
 
-	SELECT_DRIVE(drive);
+	drive->hwif->tp_ops->dev_select(drive);
 	if (ide_wait_stat(&startstop, drive, drive->ready_stat,
 			  ATA_BUSY | ATA_DRQ, WAIT_READY)) {
 		printk(KERN_ERR "%s: drive not ready for command\n", drive->name);
@@ -481,11 +491,10 @@ repeat:
 		prev_port = hwif->host->cur_port;
 		hwif->rq = NULL;
 
-		if (drive->dev_flags & IDE_DFLAG_SLEEPING) {
-			if (time_before(drive->sleep, jiffies)) {
-				ide_unlock_port(hwif);
-				goto plug_device;
-			}
+		if (drive->dev_flags & IDE_DFLAG_SLEEPING &&
+		    time_after(drive->sleep, jiffies)) {
+			ide_unlock_port(hwif);
+			goto plug_device;
 		}
 
 		if ((hwif->host->host_flags & IDE_HFLAG_SERIALIZE) &&
@@ -495,7 +504,9 @@ repeat:
 			 * quirk_list may not like intr setups/cleanups
 			 */
 			if (prev_port && prev_port->cur_dev->quirk_list == 0)
-				prev_port->tp_ops->set_irq(prev_port, 0);
+				prev_port->tp_ops->write_devctl(prev_port,
+								ATA_NIEN |
+								ATA_DEVCTL_OBS);
 
 			hwif->host->cur_port = hwif;
 		}

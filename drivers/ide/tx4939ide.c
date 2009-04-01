@@ -279,8 +279,6 @@ use_pio_instead:
 	printk(KERN_ERR "%s: %s\n", drive->name,
 		count ? "DMA table too small" : "empty DMA table?");
 
-	ide_destroy_dmatable(drive);
-
 	return 0; /* revert to PIO for this request */
 }
 #else
@@ -294,10 +292,8 @@ static int tx4939ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	u8 rw = (cmd->tf_flags & IDE_TFLAG_WRITE) ? 0 : ATA_DMA_WR;
 
 	/* fall back to PIO! */
-	if (tx4939ide_build_dmatable(drive, cmd) == 0) {
-		ide_map_sg(drive, cmd);
+	if (tx4939ide_build_dmatable(drive, cmd) == 0)
 		return 1;
-	}
 
 	/* PRD table */
 	tx4939ide_writel(hwif->dmatable_dma, base, TX4939IDE_PRD_Ptr);
@@ -307,8 +303,6 @@ static int tx4939ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 
 	/* clear INTR & ERROR flags */
 	tx4939ide_clear_dma_status(base);
-
-	drive->waiting_for_dma = 1;
 
 	tx4939ide_writew(SECTOR_SIZE / 2, base, drive->dn ?
 			 TX4939IDE_Xfer_Cnt_2 : TX4939IDE_Xfer_Cnt_1);
@@ -325,8 +319,6 @@ static int tx4939ide_dma_end(ide_drive_t *drive)
 	void __iomem *base = TX4939IDE_BASE(hwif);
 	u16 ctl = tx4939ide_readw(base, TX4939IDE_Int_Ctl);
 
-	drive->waiting_for_dma = 0;
-
 	/* get DMA command mode */
 	dma_cmd = tx4939ide_readb(base, TX4939IDE_DMA_Cmd);
 	/* stop DMA */
@@ -335,11 +327,9 @@ static int tx4939ide_dma_end(ide_drive_t *drive)
 	/* read and clear the INTR & ERROR bits */
 	dma_stat = tx4939ide_clear_dma_status(base);
 
-	/* purge DMA mappings */
-	ide_destroy_dmatable(drive);
-	/* verify good DMA status */
 	wmb();
 
+	/* verify good DMA status */
 	if ((dma_stat & (ATA_DMA_INTR | ATA_DMA_ERR | ATA_DMA_ACTIVE)) == 0 &&
 	    (ctl & (TX4939IDE_INT_XFEREND | TX4939IDE_INT_HOST)) ==
 	    (TX4939IDE_INT_XFEREND | TX4939IDE_INT_HOST))
@@ -439,7 +429,7 @@ static void tx4939ide_tf_load_fixup(ide_drive_t *drive)
 	 * Fix ATA100 CORE System Control Register. (The write to the
 	 * Device/Head register may write wrong data to the System
 	 * Control Register)
-	 * While Sys_Ctl is written here, selectproc is not needed.
+	 * While Sys_Ctl is written here, dev_select() is not needed.
 	 */
 	tx4939ide_writew(sysctl, base, TX4939IDE_Sys_Ctl);
 }
@@ -466,13 +456,6 @@ static void tx4939ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 
 	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
-
-	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
-		u16 data = (tf->hob_data << 8) | tf->data;
-
-		/* no endian swap */
-		__raw_writew(data, (void __iomem *)io_ports->data_addr);
-	}
 
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
 		tx4939ide_outb(tf->hob_feature, io_ports->feature_addr);
@@ -509,20 +492,11 @@ static void tx4939ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	struct ide_taskfile *tf = &cmd->tf;
 
-	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
-		u16 data;
-
-		/* no endian swap */
-		data = __raw_readw((void __iomem *)io_ports->data_addr);
-		tf->data = data & 0xff;
-		tf->hob_data = (data >> 8) & 0xff;
-	}
-
 	/* be sure we're looking at the low order bits */
-	tx4939ide_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
+	tx4939ide_outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
-	if (cmd->tf_flags & IDE_TFLAG_IN_FEATURE)
-		tf->feature = tx4939ide_inb(io_ports->feature_addr);
+	if (cmd->tf_flags & IDE_TFLAG_IN_ERROR)
+		tf->error  = tx4939ide_inb(io_ports->feature_addr);
 	if (cmd->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = tx4939ide_inb(io_ports->nsect_addr);
 	if (cmd->tf_flags & IDE_TFLAG_IN_LBAL)
@@ -535,19 +509,18 @@ static void tx4939ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 		tf->device = tx4939ide_inb(io_ports->device_addr);
 
 	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
-		tx4939ide_outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
+		tx4939ide_outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
-			tf->hob_feature =
-				tx4939ide_inb(io_ports->feature_addr);
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_ERROR)
+			tf->hob_error =	tx4939ide_inb(io_ports->feature_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
-			tf->hob_nsect   = tx4939ide_inb(io_ports->nsect_addr);
+			tf->hob_nsect = tx4939ide_inb(io_ports->nsect_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
-			tf->hob_lbal    = tx4939ide_inb(io_ports->lbal_addr);
+			tf->hob_lbal  = tx4939ide_inb(io_ports->lbal_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
-			tf->hob_lbam    = tx4939ide_inb(io_ports->lbam_addr);
+			tf->hob_lbam  = tx4939ide_inb(io_ports->lbam_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
-			tf->hob_lbah    = tx4939ide_inb(io_ports->lbah_addr);
+			tf->hob_lbah  = tx4939ide_inb(io_ports->lbah_addr);
 	}
 }
 
@@ -581,9 +554,9 @@ static const struct ide_tp_ops tx4939ide_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
 
-	.set_irq		= ide_set_irq,
-
+	.dev_select		= ide_dev_select,
 	.tf_load		= tx4939ide_tf_load,
 	.tf_read		= tx4939ide_tf_read,
 
@@ -605,9 +578,9 @@ static const struct ide_tp_ops tx4939ide_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
 
-	.set_irq		= ide_set_irq,
-
+	.dev_select		= ide_dev_select,
 	.tf_load		= tx4939ide_tf_load,
 	.tf_read		= ide_tf_read,
 
@@ -632,7 +605,6 @@ static const struct ide_dma_ops tx4939ide_dma_ops = {
 	.dma_test_irq		= tx4939ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
-	.dma_timeout		= ide_dma_timeout,
 	.dma_sff_read_status	= tx4939ide_dma_sff_read_status,
 };
 
