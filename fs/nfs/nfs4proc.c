@@ -2864,6 +2864,11 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
 {
 	struct nfs_server *server = NFS_SERVER(data->inode);
 
+	dprintk("--> %s\n", __func__);
+
+	/* nfs4_sequence_free_slot called in the read rpc_call_done */
+	nfs4_sequence_done(server, &data->res.seq_res, task->tk_status);
+
 	if (nfs4_async_handle_error(task, server, data->args.context->state) == -EAGAIN) {
 		rpc_restart_call(task);
 		return -EAGAIN;
