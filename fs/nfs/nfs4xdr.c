@@ -4370,7 +4370,8 @@ static int nfs4_xdr_dec_fsinfo(struct rpc_rqst *req, __be32 *p,
 /*
  * PATHCONF request
  */
-static int nfs4_xdr_dec_pathconf(struct rpc_rqst *req, __be32 *p, struct nfs_pathconf *pathconf)
+static int nfs4_xdr_dec_pathconf(struct rpc_rqst *req, __be32 *p,
+				 struct nfs4_pathconf_res *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;
@@ -4381,7 +4382,7 @@ static int nfs4_xdr_dec_pathconf(struct rpc_rqst *req, __be32 *p, struct nfs_pat
 	if (!status)
 		status = decode_putfh(&xdr);
 	if (!status)
-		status = decode_pathconf(&xdr, pathconf);
+		status = decode_pathconf(&xdr, res->pathconf);
 	return status;
 }
 

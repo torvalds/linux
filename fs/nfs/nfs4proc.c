@@ -2496,10 +2496,13 @@ static int _nfs4_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle
 		.fh = fhandle,
 		.bitmask = server->attr_bitmask,
 	};
+	struct nfs4_pathconf_res res = {
+		.pathconf = pathconf,
+	};
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_PATHCONF],
 		.rpc_argp = &args,
-		.rpc_resp = pathconf,
+		.rpc_resp = &res,
 	};
 
 	/* None of the pathconf attributes are mandatory to implement */

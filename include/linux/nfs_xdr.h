@@ -734,6 +734,11 @@ struct nfs4_pathconf_arg {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs4_pathconf_res {
+	struct nfs_pathconf	       *pathconf;
+	struct nfs4_sequence_res	seq_res;
+};
+
 struct nfs4_readdir_arg {
 	const struct nfs_fh *		fh;
 	u64				cookie;
