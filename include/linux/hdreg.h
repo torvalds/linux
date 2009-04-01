@@ -191,6 +191,7 @@ typedef struct hd_drive_hob_hdr {
 #define TASKFILE_INVALID		0x7fff
 #endif
 
+#ifndef __KERNEL__
 /* ATA/ATAPI Commands pre T13 Spec */
 #define WIN_NOP				0x00
 /*
@@ -379,6 +380,7 @@ typedef struct hd_drive_hob_hdr {
 #define SECURITY_ERASE_UNIT		0xBD
 #define SECURITY_FREEZE_LOCK		0xBE
 #define SECURITY_DISABLE_PASSWORD	0xBF
+#endif /* __KERNEL__ */
 
 struct hd_geometry {
       unsigned char heads;
