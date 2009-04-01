@@ -146,6 +146,21 @@ struct nfs4_change_info {
 
 struct nfs_seqid;
 
+/* nfs41 sessions channel attributes */
+struct nfs4_channel_attrs {
+	u32			headerpadsz;
+	u32			max_rqst_sz;
+	u32			max_resp_sz;
+	u32			max_resp_sz_cached;
+	u32			max_ops;
+	u32			max_reqs;
+};
+
+/* nfs41 sessions slot seqid */
+struct nfs4_slot {
+	u32		 	seq_nr;
+};
+
 struct nfs4_sequence_args {
 	/* stub */
 };

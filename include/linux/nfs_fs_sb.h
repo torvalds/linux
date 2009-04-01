@@ -4,9 +4,12 @@
 #include <linux/list.h>
 #include <linux/backing-dev.h>
 #include <linux/wait.h>
+#include <linux/nfs_xdr.h>
+#include <linux/sunrpc/xprt.h>
 
 #include <asm/atomic.h>
 
+struct nfs4_session;
 struct nfs_iostats;
 struct nlm_host;
 
@@ -65,6 +68,10 @@ struct nfs_client {
 	char			cl_ipaddr[48];
 	unsigned char		cl_id_uniquifier;
 #endif /* CONFIG_NFS_V4 */
+
+#ifdef CONFIG_NFS_V4_1
+	struct nfs4_session	*cl_session; 	/* sharred session */
+#endif /* CONFIG_NFS_V4_1 */
 
 #ifdef CONFIG_NFS_FSCACHE
 	struct fscache_cookie	*fscache;	/* client index cache cookie */
@@ -146,4 +153,46 @@ struct nfs_server {
 #define NFS_CAP_ACLS		(1U << 3)
 #define NFS_CAP_ATOMIC_OPEN	(1U << 4)
 
+
+/* maximum number of slots to use */
+#define NFS4_MAX_SLOT_TABLE RPC_MAX_SLOT_TABLE
+
+#if defined(CONFIG_NFS_V4_1)
+
+/* Sessions */
+#define SLOT_TABLE_SZ (NFS4_MAX_SLOT_TABLE/(8*sizeof(long)))
+struct nfs4_slot_table {
+	struct nfs4_slot *slots;		/* seqid per slot */
+	unsigned long   used_slots[SLOT_TABLE_SZ]; /* used/unused bitmap */
+	spinlock_t	slot_tbl_lock;
+	struct rpc_wait_queue	slot_tbl_waitq;	/* allocators may wait here */
+	int		max_slots;		/* # slots in table */
+	int		highest_used_slotid;	/* sent to server on each SEQ.
+						 * op for dynamic resizing */
+};
+
+static inline int slot_idx(struct nfs4_slot_table *tbl, struct nfs4_slot *sp)
+{
+	return sp - tbl->slots;
+}
+
+/*
+ * Session related parameters
+ */
+struct nfs4_session {
+	struct nfs4_sessionid		sess_id;
+	u32				flags;
+	unsigned long			session_state;
+	u32				hash_alg;
+	u32				ssv_len;
+
+	/* The fore and back channel */
+	struct nfs4_channel_attrs	fc_attrs;
+	struct nfs4_slot_table		fc_slot_table;
+	struct nfs4_channel_attrs	bc_attrs;
+					/* back channel has one slot */
+	struct nfs_client		*clp;
+};
+
+#endif /* CONFIG_NFS_V4_1 */
 #endif

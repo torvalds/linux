@@ -184,12 +184,27 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 }
 
 /*
+ * Clears/puts all minor version specific parts from an nfs_client struct
+ * reverting it to minorversion 0.
+ */
+static void nfs4_clear_client_minor_version(struct nfs_client *clp)
+{
+#ifdef CONFIG_NFS_V4_1
+	if (nfs4_has_session(clp)) {
+		nfs4_destroy_session(clp->cl_session);
+		clp->cl_session = NULL;
+	}
+#endif /* CONFIG_NFS_V4_1 */
+}
+
+/*
  * Destroy a shared client record
  */
 static void nfs_free_client(struct nfs_client *clp)
 {
 	dprintk("--> nfs_free_client(%u)\n", clp->rpc_ops->version);
 
+	nfs4_clear_client_minor_version(clp);
 	nfs4_shutdown_client(clp);
 
 	nfs_fscache_release_client_cookie(clp);
@@ -1054,6 +1069,30 @@ error:
 
 #ifdef CONFIG_NFS_V4
 /*
+ * Initialize the minor version specific parts of an NFS4 client record
+ */
+static int nfs4_init_client_minor_version(struct nfs_client *clp)
+{
+#if defined(CONFIG_NFS_V4_1)
+	if (clp->cl_minorversion) {
+		struct nfs4_session *session = NULL;
+		/*
+		 * Create the session and mark it expired.
+		 * When a SEQUENCE operation encounters the expired session
+		 * it will do session recovery to initialize it.
+		 */
+		session = nfs4_alloc_session(clp);
+		if (!session)
+			return -ENOMEM;
+
+		clp->cl_session = session;
+	}
+#endif /* CONFIG_NFS_V4_1 */
+
+	return 0;
+}
+
+/*
  * Initialise an NFS4 client record
  */
 static int nfs4_init_client(struct nfs_client *clp,
@@ -1086,6 +1125,10 @@ static int nfs4_init_client(struct nfs_client *clp,
 		goto error;
 	}
 	__set_bit(NFS_CS_IDMAP, &clp->cl_res_state);
+
+	error = nfs4_init_client_minor_version(clp);
+	if (error < 0)
+		goto error;
 
 	nfs_mark_client_ready(clp, NFS_CS_READY);
 	return 0;
@@ -1141,6 +1184,21 @@ error_put:
 error:
 	dprintk("<-- nfs4_set_client() = xerror %d\n", error);
 	return error;
+}
+
+/*
+ * Initialize a session.
+ * Note: save the mount rsize and wsize for create_server negotiation.
+ */
+static void nfs4_init_session(struct nfs_client *clp,
+			      unsigned int wsize, unsigned int rsize)
+{
+#if defined(CONFIG_NFS_V4_1)
+	if (nfs4_has_session(clp)) {
+		clp->cl_session->fc_attrs.max_rqst_sz = wsize;
+		clp->cl_session->fc_attrs.max_resp_sz = rsize;
+	}
+#endif /* CONFIG_NFS_V4_1 */
 }
 
 /*
@@ -1220,6 +1278,8 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 	BUG_ON(!server->nfs_client);
 	BUG_ON(!server->nfs_client->rpc_ops);
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
+
+	nfs4_init_session(server->nfs_client, server->wsize, server->rsize);
 
 	/* Probe the root fh to retrieve its FSID */
 	error = nfs4_path_walk(server, mntfh, data->nfs_server.export_path);

@@ -3723,6 +3723,40 @@ int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 	return status;
 }
 
+#ifdef CONFIG_NFS_V4_1
+/* Destroy the slot table */
+static void nfs4_destroy_slot_table(struct nfs4_session *session)
+{
+	if (session->fc_slot_table.slots == NULL)
+		return;
+	kfree(session->fc_slot_table.slots);
+	session->fc_slot_table.slots = NULL;
+	return;
+}
+
+struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
+{
+	struct nfs4_session *session;
+	struct nfs4_slot_table *tbl;
+
+	session = kzalloc(sizeof(struct nfs4_session), GFP_KERNEL);
+	if (!session)
+		return NULL;
+	tbl = &session->fc_slot_table;
+	spin_lock_init(&tbl->slot_tbl_lock);
+	rpc_init_wait_queue(&tbl->slot_tbl_waitq, "Slot table");
+	session->clp = clp;
+	return session;
+}
+
+void nfs4_destroy_session(struct nfs4_session *session)
+{
+	nfs4_destroy_slot_table(session);
+	kfree(session);
+}
+
+#endif /* CONFIG_NFS_V4_1 */
+
 struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_REBOOT,
 	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,

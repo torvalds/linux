@@ -207,6 +207,18 @@ extern int nfs4_path_walk(struct nfs_server *server,
 #endif
 
 /*
+ * Determine if sessions are in use.
+ */
+static inline int nfs4_has_session(const struct nfs_client *clp)
+{
+#ifdef CONFIG_NFS_V4_1
+	if (clp->cl_session)
+		return 1;
+#endif /* CONFIG_NFS_V4_1 */
+	return 0;
+}
+
+/*
  * Determine the device name as a string
  */
 static inline char *nfs_devname(const struct vfsmount *mnt_parent,
