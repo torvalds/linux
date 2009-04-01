@@ -1373,27 +1373,17 @@ void smp_send_stop(void)
 
 void __init setup_per_cpu_areas(void)
 {
-	unsigned long base, shift, goal, size, i;
+	unsigned long size, i, nr_possible_cpus = num_possible_cpus();
 	char *ptr;
 
 	/* Copy section for each CPU (we discard the original) */
-	goal = PERCPU_ENOUGH_ROOM;
+	size = ALIGN(PERCPU_ENOUGH_ROOM, PAGE_SIZE);
+	ptr = alloc_bootmem_pages(size * nr_possible_cpus);
 
-	shift = PAGE_SHIFT;
-	for (size = PAGE_SIZE; size < goal; size <<= 1UL)
-		shift++;
-
-	ptr = __alloc_bootmem(size * NR_CPUS, PAGE_SIZE, 0);
-	if (!ptr) {
-		prom_printf("Cannot allocate per-cpu memory.\n");
-		prom_halt();
-	}
-
-	base = ptr - __per_cpu_start;
-
-	for (i = 0; i < NR_CPUS; i++, ptr += size) {
-		__per_cpu_offset(i) = base + (i * size);
+	for_each_possible_cpu(i) {
+		__per_cpu_offset(i) = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+		ptr += size;
 	}
 
 	/* Setup %g5 for the boot cpu.  */
