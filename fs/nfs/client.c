@@ -47,9 +47,6 @@
 #include "internal.h"
 #include "fscache.h"
 
-static int nfs4_init_callback(struct nfs_client *);
-static void nfs4_destroy_callback(struct nfs_client *);
-
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
 static DEFINE_SPINLOCK(nfs_client_lock);
@@ -124,9 +121,6 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 
 	clp->rpc_ops = cl_init->rpc_ops;
 
-	if (nfs4_init_callback(clp) < 0)
-		goto error_2;
-
 	atomic_set(&clp->cl_count, 1);
 	clp->cl_cons_state = NFS_CS_INITING;
 
@@ -136,7 +130,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	if (cl_init->hostname) {
 		clp->cl_hostname = kstrdup(cl_init->hostname, GFP_KERNEL);
 		if (!clp->cl_hostname)
-			goto error_3;
+			goto error_cleanup;
 	}
 
 	INIT_LIST_HEAD(&clp->cl_superblocks);
@@ -161,9 +155,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 
 	return clp;
 
-error_3:
-	nfs4_destroy_callback(clp);
-error_2:
+error_cleanup:
 	kfree(clp);
 error_0:
 	return NULL;
@@ -207,6 +199,8 @@ static void nfs4_clear_client_minor_version(struct nfs_client *clp)
 
 	clp->cl_call_sync = _nfs4_call_sync;
 #endif /* CONFIG_NFS_V4_1 */
+
+	nfs4_destroy_callback(clp);
 }
 
 /*
@@ -224,8 +218,6 @@ static void nfs_free_client(struct nfs_client *clp)
 	/* -EIO all pending I/O */
 	if (!IS_ERR(clp->cl_rpcclient))
 		rpc_shutdown_client(clp->cl_rpcclient);
-
-	nfs4_destroy_callback(clp);
 
 	if (clp->cl_machine_cred != NULL)
 		put_rpccred(clp->cl_machine_cred);
@@ -1104,7 +1096,8 @@ static int nfs4_init_callback(struct nfs_client *clp)
 	int error;
 
 	if (clp->rpc_ops->version == 4) {
-		error = nfs_callback_up();
+		error = nfs_callback_up(clp->cl_minorversion,
+					clp->cl_rpcclient->cl_xprt);
 		if (error < 0) {
 			dprintk("%s: failed to start callback. Error = %d\n",
 				__func__, error);
@@ -1139,7 +1132,7 @@ static int nfs4_init_client_minor_version(struct nfs_client *clp)
 	}
 #endif /* CONFIG_NFS_V4_1 */
 
-	return 0;
+	return nfs4_init_callback(clp);
 }
 
 /*

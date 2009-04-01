@@ -59,7 +59,7 @@ module_param_call(callback_tcpport, param_set_port, param_get_int,
  * This is the callback kernel thread.
  */
 static int
-nfs_callback_svc(void *vrqstp)
+nfs4_callback_svc(void *vrqstp)
 {
 	int err, preverr = 0;
 	struct svc_rqst *rqstp = vrqstp;
@@ -97,20 +97,12 @@ nfs_callback_svc(void *vrqstp)
 }
 
 /*
- * Bring up the callback thread if it is not already up.
+ * Prepare to bring up the NFSv4 callback service
  */
-int nfs_callback_up(void)
+struct svc_rqst *
+nfs4_callback_up(struct svc_serv *serv)
 {
-	struct svc_serv *serv = NULL;
-	int ret = 0;
-
-	mutex_lock(&nfs_callback_mutex);
-	if (nfs_callback_info.users++ || nfs_callback_info.task != NULL)
-		goto out;
-	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, NULL);
-	ret = -ENOMEM;
-	if (!serv)
-		goto out_err;
+	int ret;
 
 	ret = svc_create_xprt(serv, "tcp", PF_INET,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
@@ -131,18 +123,53 @@ int nfs_callback_up(void)
 		goto out_err;
 #endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 
-	nfs_callback_info.rqst = svc_prepare_thread(serv, &serv->sv_pools[0]);
-	if (IS_ERR(nfs_callback_info.rqst)) {
-		ret = PTR_ERR(nfs_callback_info.rqst);
-		nfs_callback_info.rqst = NULL;
+	return svc_prepare_thread(serv, &serv->sv_pools[0]);
+
+out_err:
+	if (ret == 0)
+		ret = -ENOMEM;
+	return ERR_PTR(ret);
+}
+
+/*
+ * Bring up the callback thread if it is not already up.
+ */
+int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
+{
+	struct svc_serv *serv = NULL;
+	struct svc_rqst *rqstp;
+	int (*callback_svc)(void *vrqstp);
+	char svc_name[12];
+	int ret = 0;
+
+	mutex_lock(&nfs_callback_mutex);
+	if (nfs_callback_info.users++ || nfs_callback_info.task != NULL)
+		goto out;
+	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, NULL);
+	if (!serv) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	if (!minorversion) {
+		rqstp = nfs4_callback_up(serv);
+		callback_svc = nfs4_callback_svc;
+	} else {
+		BUG();	/* for now */
+	}
+
+	if (IS_ERR(rqstp)) {
+		ret = PTR_ERR(rqstp);
 		goto out_err;
 	}
 
 	svc_sock_update_bufs(serv);
 
-	nfs_callback_info.task = kthread_run(nfs_callback_svc,
+	sprintf(svc_name, "nfsv4.%u-svc", minorversion);
+	nfs_callback_info.rqst = rqstp;
+	nfs_callback_info.task = kthread_run(callback_svc,
 					     nfs_callback_info.rqst,
-					     "nfsv4-svc");
+					     svc_name);
 	if (IS_ERR(nfs_callback_info.task)) {
 		ret = PTR_ERR(nfs_callback_info.task);
 		svc_exit_thread(nfs_callback_info.rqst);
