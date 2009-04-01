@@ -795,6 +795,11 @@ struct nfs4_statfs_arg {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs4_statfs_res {
+	struct nfs_fsstat	       *fsstat;
+	struct nfs4_sequence_res	seq_res;
+};
+
 struct nfs4_server_caps_arg {
 	struct nfs_fh		       *fhandle;
 	struct nfs4_sequence_args	seq_args;

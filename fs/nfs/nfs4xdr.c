@@ -4387,7 +4387,8 @@ static int nfs4_xdr_dec_pathconf(struct rpc_rqst *req, __be32 *p, struct nfs_pat
 /*
  * STATFS request
  */
-static int nfs4_xdr_dec_statfs(struct rpc_rqst *req, __be32 *p, struct nfs_fsstat *fsstat)
+static int nfs4_xdr_dec_statfs(struct rpc_rqst *req, __be32 *p,
+			       struct nfs4_statfs_res *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;
@@ -4398,7 +4399,7 @@ static int nfs4_xdr_dec_statfs(struct rpc_rqst *req, __be32 *p, struct nfs_fssta
 	if (!status)
 		status = decode_putfh(&xdr);
 	if (!status)
-		status = decode_statfs(&xdr, fsstat);
+		status = decode_statfs(&xdr, res->fsstat);
 	return status;
 }
 
