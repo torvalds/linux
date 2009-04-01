@@ -423,6 +423,22 @@ out:
 	return ret_id;
 }
 
+static int nfs4_recover_session(struct nfs4_session *session)
+{
+	struct nfs_client *clp = session->clp;
+	int ret;
+
+	for (;;) {
+		ret = nfs4_wait_clnt_recover(clp);
+		if (ret != 0)
+				return ret;
+		if (!test_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state))
+			break;
+		nfs4_schedule_state_manager(clp);
+	}
+	return 0;
+}
+
 static int nfs41_setup_sequence(struct nfs4_session *session,
 				struct nfs4_sequence_args *args,
 				struct nfs4_sequence_res *res,
@@ -431,6 +447,7 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 {
 	struct nfs4_slot *slot;
 	struct nfs4_slot_table *tbl;
+	int status = 0;
 	u8 slotid;
 
 	dprintk("--> %s\n", __func__);
@@ -443,6 +460,23 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	tbl = &session->fc_slot_table;
 
 	spin_lock(&tbl->slot_tbl_lock);
+	if (test_bit(NFS4CLNT_SESSION_SETUP, &session->clp->cl_state)) {
+		if (tbl->highest_used_slotid != -1) {
+			rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
+			spin_unlock(&tbl->slot_tbl_lock);
+			dprintk("<-- %s: Session reset: draining\n", __func__);
+			return -EAGAIN;
+		}
+
+		/* The slot table is empty; start the reset thread */
+		dprintk("%s Session Reset\n", __func__);
+		spin_unlock(&tbl->slot_tbl_lock);
+		status = nfs4_recover_session(session);
+		if (status)
+			return status;
+		spin_lock(&tbl->slot_tbl_lock);
+	}
+
 	slotid = nfs4_find_slot(tbl, task);
 	if (slotid == NFS4_MAX_SLOT_TABLE) {
 		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
