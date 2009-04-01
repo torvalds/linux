@@ -4420,23 +4420,22 @@ static int nfs4_reset_slot_tables(struct nfs4_session *session)
 /*
  * Initialize slot table
  */
-static int nfs4_init_slot_table(struct nfs4_session *session)
+static int nfs4_init_slot_table(struct nfs4_slot_table *tbl,
+		int max_slots, int ivalue)
 {
-	struct nfs4_slot_table *tbl = &session->fc_slot_table;
-	int i, max_slots = session->fc_attrs.max_reqs;
+	int i;
 	struct nfs4_slot *slot;
 	int ret = -ENOMEM;
 
 	BUG_ON(max_slots > NFS4_MAX_SLOT_TABLE);
 
-	dprintk("--> %s: max_reqs=%u\n", __func__,
-		session->fc_attrs.max_reqs);
+	dprintk("--> %s: max_reqs=%u\n", __func__, max_slots);
 
 	slot = kcalloc(max_slots, sizeof(struct nfs4_slot), GFP_KERNEL);
 	if (!slot)
 		goto out;
 	for (i = 0; i < max_slots; ++i)
-		slot[i].seq_nr = 1;
+		slot[i].seq_nr = ivalue;
 	ret = 0;
 
 	spin_lock(&tbl->slot_tbl_lock);
@@ -4456,9 +4455,22 @@ static int nfs4_init_slot_table(struct nfs4_session *session)
 out:
 	dprintk("<-- %s: return %d\n", __func__, ret);
 	return ret;
+
 out_free:
 	kfree(slot);
 	goto out;
+}
+
+/*
+ * Initialize the forechannel and backchannel tables
+ */
+static int nfs4_init_slot_tables(struct nfs4_session *session)
+{
+	int status;
+
+	status = nfs4_init_slot_table(&session->fc_slot_table,
+			session->fc_attrs.max_reqs, 1);
+	return status;
 }
 
 /* Destroy the slot table */
@@ -4657,7 +4669,7 @@ int nfs4_proc_create_session(struct nfs_client *clp, int reset)
 	if (reset)
 		status = nfs4_reset_slot_tables(session);
 	else
-		status = nfs4_init_slot_table(session);
+		status = nfs4_init_slot_tables(session);
 	dprintk("fore channel slot table initialization returned %d\n", status);
 	if (status)
 		goto out;
