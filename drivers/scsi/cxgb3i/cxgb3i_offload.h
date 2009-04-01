@@ -16,7 +16,7 @@
 #define _CXGB3I_OFFLOAD_H
 
 #include <linux/skbuff.h>
-#include <net/tcp.h>
+#include <linux/in.h>
 
 #include "common.h"
 #include "adapter.h"

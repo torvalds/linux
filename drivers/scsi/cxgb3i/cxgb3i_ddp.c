@@ -23,19 +23,6 @@
 
 #include "cxgb3i_ddp.h"
 
-#define DRV_MODULE_NAME         "cxgb3i_ddp"
-#define DRV_MODULE_VERSION      "1.0.0"
-#define DRV_MODULE_RELDATE      "Dec. 1, 2008"
-
-static char version[] =
-	"Chelsio S3xx iSCSI DDP " DRV_MODULE_NAME
-	" v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
-
-MODULE_AUTHOR("Karen Xie <kxie@chelsio.com>");
-MODULE_DESCRIPTION("cxgb3i ddp pagepod manager");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_MODULE_VERSION);
-
 #define ddp_log_error(fmt...) printk(KERN_ERR "cxgb3i_ddp: ERR! " fmt)
 #define ddp_log_warn(fmt...)  printk(KERN_WARNING "cxgb3i_ddp: WARN! " fmt)
 #define ddp_log_info(fmt...)  printk(KERN_INFO "cxgb3i_ddp: " fmt)
@@ -212,7 +199,6 @@ int cxgb3i_ddp_find_page_index(unsigned long pgsz)
 	ddp_log_debug("ddp page size 0x%lx not supported.\n", pgsz);
 	return DDP_PGIDX_MAX;
 }
-EXPORT_SYMBOL_GPL(cxgb3i_ddp_find_page_index);
 
 static inline void ddp_gl_unmap(struct pci_dev *pdev,
 				struct cxgb3i_gather_list *gl)
@@ -335,7 +321,6 @@ error_out:
 	kfree(gl);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(cxgb3i_ddp_make_gl);
 
 /**
  * cxgb3i_ddp_release_gl - release a page buffer list
@@ -349,7 +334,6 @@ void cxgb3i_ddp_release_gl(struct cxgb3i_gather_list *gl,
 	ddp_gl_unmap(pdev, gl);
 	kfree(gl);
 }
-EXPORT_SYMBOL_GPL(cxgb3i_ddp_release_gl);
 
 /**
  * cxgb3i_ddp_tag_reserve - set up ddp for a data transfer
@@ -431,7 +415,6 @@ unmark_entries:
 	ddp_unmark_entries(ddp, idx, npods);
 	return err;
 }
-EXPORT_SYMBOL_GPL(cxgb3i_ddp_tag_reserve);
 
 /**
  * cxgb3i_ddp_tag_release - release a ddp tag
@@ -469,7 +452,6 @@ void cxgb3i_ddp_tag_release(struct t3cdev *tdev, u32 tag)
 		ddp_log_error("ddp tag 0x%x, idx 0x%x > max 0x%x.\n",
 			      tag, idx, ddp->nppods);
 }
-EXPORT_SYMBOL_GPL(cxgb3i_ddp_tag_release);
 
 static int setup_conn_pgidx(struct t3cdev *tdev, unsigned int tid, int pg_idx,
 			    int reply)
@@ -510,7 +492,6 @@ int cxgb3i_setup_conn_host_pagesize(struct t3cdev *tdev, unsigned int tid,
 {
 	return setup_conn_pgidx(tdev, tid, page_idx, reply);
 }
-EXPORT_SYMBOL_GPL(cxgb3i_setup_conn_host_pagesize);
 
 /**
  * cxgb3i_setup_conn_pagesize - setup the conn.'s ddp page size
@@ -527,7 +508,6 @@ int cxgb3i_setup_conn_pagesize(struct t3cdev *tdev, unsigned int tid,
 
 	return setup_conn_pgidx(tdev, tid, pgidx, reply);
 }
-EXPORT_SYMBOL_GPL(cxgb3i_setup_conn_pagesize);
 
 /**
  * cxgb3i_setup_conn_digest - setup conn. digest setting
@@ -563,7 +543,6 @@ int cxgb3i_setup_conn_digest(struct t3cdev *tdev, unsigned int tid,
 	cxgb3_ofld_send(tdev, skb);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cxgb3i_setup_conn_digest);
 
 
 /**
@@ -606,7 +585,6 @@ int cxgb3i_adapter_ddp_info(struct t3cdev *tdev,
 		     *txsz, ddp->max_txsz, *rxsz, ddp->max_rxsz);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cxgb3i_adapter_ddp_info);
 
 /**
  * ddp_release - release the cxgb3 adapter's ddp resource
@@ -651,17 +629,11 @@ static void ddp_init(struct t3cdev *tdev)
 	struct ulp_iscsi_info uinfo;
 	unsigned int ppmax, bits;
 	int i, err;
-	static int vers_printed;
 
 	if (tdev->ulp_iscsi) {
 		ddp_log_warn("t3dev 0x%p, ddp 0x%p already set up.\n",
 				tdev, tdev->ulp_iscsi);
 		return;
-	}
-
-	if (!vers_printed) {
-		printk(KERN_INFO "%s", version);
-		vers_printed = 1;
 	}
 
 	err = tdev->ctl(tdev, ULP_ISCSI_GET_PARAMS, &uinfo);
@@ -730,36 +702,23 @@ free_ddp_map:
 	cxgb3i_free_big_mem(ddp);
 }
 
-static struct cxgb3_client t3c_ddp_client = {
-	.name = "iscsiddp_cxgb3",
-	.add = ddp_init,
-	.remove = ddp_release,
-};
-
 /**
- * cxgb3i_ddp_init_module - module init entry point
- * initialize any driver wide global data structures and register with the
- * cxgb3 module
+ * cxgb3i_ddp_init - initialize ddp functions
  */
-static int __init cxgb3i_ddp_init_module(void)
+void cxgb3i_ddp_init(struct t3cdev *tdev)
 {
-	page_idx = cxgb3i_ddp_find_page_index(PAGE_SIZE);
-	ddp_log_info("system PAGE_SIZE %lu, ddp idx %u.\n",
-		     PAGE_SIZE, page_idx);
-
-	cxgb3_register_client(&t3c_ddp_client);
-	return 0;
+	if (page_idx == DDP_PGIDX_MAX) {
+		page_idx = cxgb3i_ddp_find_page_index(PAGE_SIZE);
+		ddp_log_info("system PAGE_SIZE %lu, ddp idx %u.\n",
+				PAGE_SIZE, page_idx);
+	}
+	ddp_init(tdev);
 }
 
 /**
- * cxgb3i_ddp_exit_module - module cleanup/exit entry point
- * go through the ddp list, unregister with the cxgb3 module and release
- * any resource held.
+ * cxgb3i_ddp_cleaup - clean up ddp function
  */
-static void __exit cxgb3i_ddp_exit_module(void)
+void cxgb3i_ddp_cleanup(struct t3cdev *tdev)
 {
-	cxgb3_unregister_client(&t3c_ddp_client);
+	ddp_release(tdev);
 }
-
-module_init(cxgb3i_ddp_init_module);
-module_exit(cxgb3i_ddp_exit_module);

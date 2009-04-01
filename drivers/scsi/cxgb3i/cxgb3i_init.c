@@ -12,8 +12,8 @@
 #include "cxgb3i.h"
 
 #define DRV_MODULE_NAME         "cxgb3i"
-#define DRV_MODULE_VERSION	"1.0.1"
-#define DRV_MODULE_RELDATE	"Jan. 2009"
+#define DRV_MODULE_VERSION	"1.0.2"
+#define DRV_MODULE_RELDATE	"Mar. 2009"
 
 static char version[] =
 	"Chelsio S3xx iSCSI Driver " DRV_MODULE_NAME
@@ -50,6 +50,7 @@ static void open_s3_dev(struct t3cdev *t3dev)
 		vers_printed = 1;
 	}
 
+	cxgb3i_ddp_init(t3dev);
 	cxgb3i_sdev_add(t3dev, &t3c_client);
 	cxgb3i_adapter_open(t3dev);
 }
@@ -62,6 +63,7 @@ static void close_s3_dev(struct t3cdev *t3dev)
 {
 	cxgb3i_adapter_close(t3dev);
 	cxgb3i_sdev_remove(t3dev);
+	cxgb3i_ddp_cleanup(t3dev);
 }
 
 static void s3_err_handler(struct t3cdev *tdev, u32 status, u32 error)
