@@ -3722,10 +3722,13 @@ int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 		.page = page,
 		.bitmask = bitmask,
 	};
+	struct nfs4_fs_locations_res res = {
+		.fs_locations = fs_locations,
+	};
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_FS_LOCATIONS],
 		.rpc_argp = &args,
-		.rpc_resp = fs_locations,
+		.rpc_resp = &res,
 	};
 	int status;
 

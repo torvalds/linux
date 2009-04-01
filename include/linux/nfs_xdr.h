@@ -867,6 +867,11 @@ struct nfs4_fs_locations_arg {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs4_fs_locations_res {
+	struct nfs4_fs_locations       *fs_locations;
+	struct nfs4_sequence_res	seq_res;
+};
+
 #endif /* CONFIG_NFS_V4 */
 
 struct nfs_page;
