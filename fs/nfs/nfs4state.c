@@ -114,6 +114,20 @@ struct rpc_cred *nfs4_get_renew_cred_locked(struct nfs_client *clp)
 	return cred;
 }
 
+#if defined(CONFIG_NFS_V4_1)
+
+struct rpc_cred *nfs4_get_exchange_id_cred(struct nfs_client *clp)
+{
+	struct rpc_cred *cred;
+
+	spin_lock(&clp->cl_lock);
+	cred = nfs4_get_machine_cred_locked(clp);
+	spin_unlock(&clp->cl_lock);
+	return cred;
+}
+
+#endif /* CONFIG_NFS_V4_1 */
+
 struct rpc_cred *nfs4_get_setclientid_cred(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
