@@ -283,7 +283,7 @@ static unsigned decode_cb_sequence_args(struct svc_rqst *rqstp,
 	if (unlikely(p == NULL))
 		goto out;
 
-	args->csa_addr = svc_addr_in(rqstp);
+	args->csa_addr = svc_addr(rqstp);
 	args->csa_sequenceid = ntohl(*p++);
 	args->csa_slotid = ntohl(*p++);
 	args->csa_highestslotid = ntohl(*p++);

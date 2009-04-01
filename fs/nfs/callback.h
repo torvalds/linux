@@ -84,7 +84,7 @@ struct referring_call_list {
 };
 
 struct cb_sequenceargs {
-	struct sockaddr_in		*csa_addr;
+	struct sockaddr			*csa_addr;
 	struct nfs4_sessionid		csa_sessionid;
 	uint32_t			csa_sequenceid;
 	uint32_t			csa_slotid;
@@ -95,7 +95,7 @@ struct cb_sequenceargs {
 };
 
 struct cb_sequenceres {
-	uint32_t			csr_status;
+	__be32				csr_status;
 	struct nfs4_sessionid		csr_sessionid;
 	uint32_t			csr_sequenceid;
 	uint32_t			csr_slotid;
