@@ -675,6 +675,11 @@ struct nfs4_fsinfo_arg {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs4_fsinfo_res {
+	struct nfs_fsinfo	       *fsinfo;
+	struct nfs4_sequence_res	seq_res;
+};
+
 struct nfs4_getattr_arg {
 	const struct nfs_fh *		fh;
 	const u32 *			bitmask;
