@@ -492,8 +492,17 @@ static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 	rpc_call_start(task);
 }
 
+static void nfs41_call_sync_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs41_call_sync_data *data = calldata;
+
+	nfs41_sequence_done(data->clp, data->seq_res, task->tk_status);
+	nfs41_sequence_free_slot(data->clp, data->seq_res);
+}
+
 struct rpc_call_ops nfs41_call_sync_ops = {
 	.rpc_call_prepare = nfs41_call_sync_prepare,
+	.rpc_call_done = nfs41_call_sync_done,
 };
 
 static int nfs4_call_sync_sequence(struct nfs_client *clp,
