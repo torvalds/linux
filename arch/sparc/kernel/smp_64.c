@@ -1371,23 +1371,17 @@ void smp_send_stop(void)
 {
 }
 
-unsigned long __per_cpu_base __read_mostly;
-unsigned long __per_cpu_shift __read_mostly;
-
-EXPORT_SYMBOL(__per_cpu_base);
-EXPORT_SYMBOL(__per_cpu_shift);
-
 void __init real_setup_per_cpu_areas(void)
 {
-	unsigned long paddr, goal, size, i;
+	unsigned long base, shift, paddr, goal, size, i;
 	char *ptr;
 
 	/* Copy section for each CPU (we discard the original) */
 	goal = PERCPU_ENOUGH_ROOM;
 
-	__per_cpu_shift = PAGE_SHIFT;
+	shift = PAGE_SHIFT;
 	for (size = PAGE_SIZE; size < goal; size <<= 1UL)
-		__per_cpu_shift++;
+		shift++;
 
 	paddr = lmb_alloc(size * NR_CPUS, PAGE_SIZE);
 	if (!paddr) {
@@ -1396,10 +1390,12 @@ void __init real_setup_per_cpu_areas(void)
 	}
 
 	ptr = __va(paddr);
-	__per_cpu_base = ptr - __per_cpu_start;
+	base = ptr - __per_cpu_start;
 
-	for (i = 0; i < NR_CPUS; i++, ptr += size)
+	for (i = 0; i < NR_CPUS; i++, ptr += size) {
+		__per_cpu_offset(i) = base + (i * size);
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+	}
 
 	/* Setup %g5 for the boot cpu.  */
 	__local_per_cpu_offset = __per_cpu_offset(smp_processor_id());

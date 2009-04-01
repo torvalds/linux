@@ -48,7 +48,7 @@ struct trap_per_cpu {
 	unsigned int		dev_mondo_qmask;
 	unsigned int		resum_qmask;
 	unsigned int		nonresum_qmask;
-	unsigned long		__unused;
+	unsigned long		__per_cpu_base;
 } __attribute__((aligned(64)));
 extern struct trap_per_cpu trap_block[NR_CPUS];
 extern void init_cur_cpu_trap(struct thread_info *);
@@ -101,6 +101,7 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 #define TRAP_PER_CPU_DEV_MONDO_QMASK	0xec
 #define TRAP_PER_CPU_RESUM_QMASK	0xf0
 #define TRAP_PER_CPU_NONRESUM_QMASK	0xf4
+#define TRAP_PER_CPU_PER_CPU_BASE	0xf8
 
 #define TRAP_BLOCK_SZ_SHIFT		8
 
@@ -172,12 +173,11 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
  */
 #define LOAD_PER_CPU_BASE(DEST, THR, REG1, REG2, REG3)	\
 	lduh	[THR + TI_CPU], REG1;			\
-	sethi	%hi(__per_cpu_shift), REG3;		\
-	sethi	%hi(__per_cpu_base), REG2;		\
-	ldx	[REG3 + %lo(__per_cpu_shift)], REG3;	\
-	ldx	[REG2 + %lo(__per_cpu_base)], REG2;	\
-	sllx	REG1, REG3, REG3;			\
-	add	REG3, REG2, DEST;
+	sethi	%hi(trap_block), REG2;			\
+	sllx	REG1, TRAP_BLOCK_SZ_SHIFT, REG1;	\
+	or	REG2, %lo(trap_block), REG2;		\
+	add	REG2, REG1, REG2;			\
+	ldx	[REG2 + TRAP_PER_CPU_PER_CPU_BASE], DEST;
 
 #else
 

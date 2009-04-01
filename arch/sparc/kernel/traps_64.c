@@ -2509,6 +2509,7 @@ void do_getpsr(struct pt_regs *regs)
 }
 
 struct trap_per_cpu trap_block[NR_CPUS];
+EXPORT_SYMBOL(trap_block);
 
 /* This can get invoked before sched_init() so play it super safe
  * and use hard_smp_processor_id().
@@ -2592,7 +2593,9 @@ void __init trap_init(void)
 	    (TRAP_PER_CPU_RESUM_QMASK !=
 	     offsetof(struct trap_per_cpu, resum_qmask)) ||
 	    (TRAP_PER_CPU_NONRESUM_QMASK !=
-	     offsetof(struct trap_per_cpu, nonresum_qmask)))
+	     offsetof(struct trap_per_cpu, nonresum_qmask)) ||
+	    (TRAP_PER_CPU_PER_CPU_BASE !=
+	     offsetof(struct trap_per_cpu, __per_cpu_base)))
 		trap_per_cpu_offsets_are_bolixed_dave();
 
 	if ((TSB_CONFIG_TSB !=
