@@ -20,7 +20,7 @@
 #include <linux/cache.h>
 #include <linux/jiffies.h>
 #include <linux/profile.h>
-#include <linux/lmb.h>
+#include <linux/bootmem.h>
 #include <linux/cpu.h>
 
 #include <asm/head.h>
@@ -1371,9 +1371,9 @@ void smp_send_stop(void)
 {
 }
 
-void __init real_setup_per_cpu_areas(void)
+void __init setup_per_cpu_areas(void)
 {
-	unsigned long base, shift, paddr, goal, size, i;
+	unsigned long base, shift, goal, size, i;
 	char *ptr;
 
 	/* Copy section for each CPU (we discard the original) */
@@ -1383,13 +1383,12 @@ void __init real_setup_per_cpu_areas(void)
 	for (size = PAGE_SIZE; size < goal; size <<= 1UL)
 		shift++;
 
-	paddr = lmb_alloc(size * NR_CPUS, PAGE_SIZE);
-	if (!paddr) {
+	ptr = __alloc_bootmem(size * NR_CPUS, PAGE_SIZE, 0);
+	if (!ptr) {
 		prom_printf("Cannot allocate per-cpu memory.\n");
 		prom_halt();
 	}
 
-	ptr = __va(paddr);
 	base = ptr - __per_cpu_start;
 
 	for (i = 0; i < NR_CPUS; i++, ptr += size) {

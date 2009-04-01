@@ -1679,11 +1679,6 @@ pgd_t swapper_pg_dir[2048];
 static void sun4u_pgprot_init(void);
 static void sun4v_pgprot_init(void);
 
-/* Dummy function */
-void __init setup_per_cpu_areas(void)
-{
-}
-
 void __init paging_init(void)
 {
 	unsigned long end_pfn, shift, phys_base;
@@ -1806,8 +1801,6 @@ void __init paging_init(void)
 		sun4v_mdesc_init();
 		mdesc_populate_present_mask(CPU_MASK_ALL_PTR);
 	}
-
-	real_setup_per_cpu_areas();
 
 	/* Once the OF device tree and MDESC have been setup, we know
 	 * the list of possible cpus.  Therefore we can allocate the
