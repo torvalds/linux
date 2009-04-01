@@ -3360,6 +3360,10 @@ struct nfs4_delegreturndata {
 static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_delegreturndata *data = calldata;
+
+	nfs4_sequence_done_free_slot(data->res.server, &data->res.seq_res,
+				     task->tk_status);
+
 	data->rpc_status = task->tk_status;
 	if (data->rpc_status == 0)
 		renew_lease(data->res.server, data->timestamp);
@@ -3370,7 +3374,25 @@ static void nfs4_delegreturn_release(void *calldata)
 	kfree(calldata);
 }
 
+#if defined(CONFIG_NFS_V4_1)
+static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
+{
+	struct nfs4_delegreturndata *d_data;
+
+	d_data = (struct nfs4_delegreturndata *)data;
+
+	if (nfs4_setup_sequence(d_data->res.server->nfs_client,
+				&d_data->args.seq_args,
+				&d_data->res.seq_res, 1, task))
+		return;
+	rpc_call_start(task);
+}
+#endif /* CONFIG_NFS_V4_1 */
+
 static const struct rpc_call_ops nfs4_delegreturn_ops = {
+#if defined(CONFIG_NFS_V4_1)
+	.rpc_call_prepare = nfs4_delegreturn_prepare,
+#endif /* CONFIG_NFS_V4_1 */
 	.rpc_call_done = nfs4_delegreturn_done,
 	.rpc_release = nfs4_delegreturn_release,
 };
@@ -3392,7 +3414,7 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	};
 	int status = 0;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 	data->args.fhandle = &data->fh;
