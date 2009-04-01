@@ -49,6 +49,7 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/module.h>
+#include <linux/sunrpc/bc_xprt.h>
 
 #include "nfs4_fs.h"
 #include "delegation.h"
@@ -4481,6 +4482,11 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 
 void nfs4_destroy_session(struct nfs4_session *session)
 {
+	nfs4_proc_destroy_session(session);
+	dprintk("%s Destroy backchannel for xprt %p\n",
+		__func__, session->clp->cl_rpcclient->cl_xprt);
+	xprt_destroy_backchannel(session->clp->cl_rpcclient->cl_xprt,
+				NFS41_BC_MIN_CALLBACKS);
 	nfs4_destroy_slot_table(session);
 	kfree(session);
 }
