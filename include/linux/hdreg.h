@@ -1,10 +1,6 @@
 #ifndef _LINUX_HDREG_H
 #define _LINUX_HDREG_H
 
-#ifdef __KERNEL__
-#include <linux/ata.h>
-#endif /* __KERNEL__ */
-
 #include <linux/types.h>
 
 /*
