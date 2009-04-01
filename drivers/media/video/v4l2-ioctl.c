@@ -275,32 +275,6 @@ static const char *v4l2_ioctls[] = {
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
-static const char *v4l2_int_ioctls[] = {
-	[_IOC_NR(AUDC_SET_RADIO)]              = "AUDC_SET_RADIO",
-
-	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
-	[_IOC_NR(TUNER_SET_STANDBY)]           = "TUNER_SET_STANDBY",
-	[_IOC_NR(TUNER_SET_CONFIG)]            = "TUNER_SET_CONFIG",
-
-	[_IOC_NR(VIDIOC_INT_S_TUNER_MODE)]     = "VIDIOC_INT_S_TUNER_MODE",
-	[_IOC_NR(VIDIOC_INT_RESET)]            = "VIDIOC_INT_RESET",
-	[_IOC_NR(VIDIOC_INT_AUDIO_CLOCK_FREQ)] = "VIDIOC_INT_AUDIO_CLOCK_FREQ",
-	[_IOC_NR(VIDIOC_INT_DECODE_VBI_LINE)]  = "VIDIOC_INT_DECODE_VBI_LINE",
-	[_IOC_NR(VIDIOC_INT_S_VBI_DATA)]       = "VIDIOC_INT_S_VBI_DATA",
-	[_IOC_NR(VIDIOC_INT_G_VBI_DATA)]       = "VIDIOC_INT_G_VBI_DATA",
-	[_IOC_NR(VIDIOC_INT_I2S_CLOCK_FREQ)]   = "VIDIOC_INT_I2S_CLOCK_FREQ",
-	[_IOC_NR(VIDIOC_INT_S_STANDBY)]        = "VIDIOC_INT_S_STANDBY",
-	[_IOC_NR(VIDIOC_INT_S_AUDIO_ROUTING)]  = "VIDIOC_INT_S_AUDIO_ROUTING",
-	[_IOC_NR(VIDIOC_INT_G_AUDIO_ROUTING)]  = "VIDIOC_INT_G_AUDIO_ROUTING",
-	[_IOC_NR(VIDIOC_INT_S_VIDEO_ROUTING)]  = "VIDIOC_INT_S_VIDEO_ROUTING",
-	[_IOC_NR(VIDIOC_INT_G_VIDEO_ROUTING)]  = "VIDIOC_INT_G_VIDEO_ROUTING",
-	[_IOC_NR(VIDIOC_INT_S_CRYSTAL_FREQ)]   = "VIDIOC_INT_S_CRYSTAL_FREQ",
-	[_IOC_NR(VIDIOC_INT_INIT)]   	       = "VIDIOC_INT_INIT",
-	[_IOC_NR(VIDIOC_INT_G_STD_OUTPUT)]     = "VIDIOC_INT_G_STD_OUTPUT",
-	[_IOC_NR(VIDIOC_INT_S_STD_OUTPUT)]     = "VIDIOC_INT_S_STD_OUTPUT",
-};
-#define V4L2_INT_IOCTLS ARRAY_SIZE(v4l2_int_ioctls)
-
 /* Common ioctl debug function. This function can be used by
    external ioctl messages as well as internal V4L ioctl */
 void v4l_printk_ioctl(unsigned int cmd)
@@ -309,12 +283,8 @@ void v4l_printk_ioctl(unsigned int cmd)
 
 	switch (_IOC_TYPE(cmd)) {
 	case 'd':
-		if (_IOC_NR(cmd) >= V4L2_INT_IOCTLS) {
-			type = "v4l2_int";
-			break;
-		}
-		printk("%s", v4l2_int_ioctls[_IOC_NR(cmd)]);
-		return;
+		type = "v4l2_int";
+		break;
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case 'v':
 		if (_IOC_NR(cmd) >= V4L1_IOCTLS) {

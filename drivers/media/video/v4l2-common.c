@@ -739,33 +739,8 @@ EXPORT_SYMBOL(v4l2_chip_ident_i2c_client);
 
 /* ----------------------------------------------------------------- */
 
-/* Helper function for I2C legacy drivers */
+/* I2C Helper functions */
 
-int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver *driver,
-		const char *name,
-		int (*probe)(struct i2c_client *, const struct i2c_device_id *))
-{
-	struct i2c_client *client;
-	int err;
-
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (!client)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = driver;
-	strlcpy(client->name, name, sizeof(client->name));
-
-	err = probe(client, NULL);
-	if (err == 0) {
-		i2c_attach_client(client);
-	} else {
-		kfree(client);
-	}
-	return err != -ENOMEM ? 0 : err;
-}
-EXPORT_SYMBOL(v4l2_i2c_attach);
 
 void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops)

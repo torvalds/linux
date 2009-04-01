@@ -351,17 +351,6 @@ And this to go from an i2c_client to a v4l2_subdev struct:
 
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
-Finally you need to make a command function to make driver->command()
-call the right subdev_ops functions:
-
-static int subdev_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
-If driver->command is never used then you can leave this out. Eventually the
-driver->command usage should be removed from v4l.
-
 Make sure to call v4l2_device_unregister_subdev(sd) when the remove() callback
 is called. This will unregister the sub-device from the bridge driver. It is
 safe to call this even if the sub-device was never registered.
