@@ -200,7 +200,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	i = atomic_inc_return(&au0828_instance) - 1;
 	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name), "%s-%03d",
 		 "au0828", i);
-	retval = v4l2_device_register(&dev->usbdev->dev, &dev->v4l2_dev);
+	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
 		printk(KERN_ERR "%s() v4l2_device_register failed\n",
 		       __func__);
