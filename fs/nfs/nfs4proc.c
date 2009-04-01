@@ -4289,6 +4289,37 @@ int nfs4_proc_get_lease_time(struct nfs_client *clp, struct nfs_fsinfo *fsinfo)
 	return status;
 }
 
+/* Reset a slot table */
+static int nfs4_reset_slot_table(struct nfs4_session *session)
+{
+	struct nfs4_slot_table *tbl = &session->fc_slot_table;
+	int i, max_slots = session->fc_attrs.max_reqs;
+	int old_max_slots = session->fc_slot_table.max_slots;
+	int ret = 0;
+
+	dprintk("--> %s: max_reqs=%u, tbl %p\n", __func__,
+		session->fc_attrs.max_reqs, tbl);
+
+	/* Until we have dynamic slot table adjustment, insist
+	 * upon the same slot table size */
+	if (max_slots != old_max_slots) {
+		dprintk("%s reset slot table does't match old\n",
+			__func__);
+		ret = -EINVAL; /*XXX NFS4ERR_REQ_TOO_BIG ? */
+		goto out;
+	}
+	spin_lock(&tbl->slot_tbl_lock);
+	for (i = 0; i < max_slots; ++i)
+		tbl->slots[i].seq_nr = 1;
+	tbl->highest_used_slotid = -1;
+	spin_unlock(&tbl->slot_tbl_lock);
+	dprintk("%s: tbl=%p slots=%p max_slots=%d\n", __func__,
+		tbl, tbl->slots, tbl->max_slots);
+out:
+	dprintk("<-- %s: return %d\n", __func__, ret);
+	return ret;
+}
+
 /*
  * Initialize slot table
  */
@@ -4497,7 +4528,7 @@ static int _nfs4_proc_create_session(struct nfs_client *clp)
  * It is the responsibility of the caller to verify the session is
  * expired before calling this routine.
  */
-int nfs4_proc_create_session(struct nfs_client *clp)
+int nfs4_proc_create_session(struct nfs_client *clp, int reset)
 {
 	int status;
 	unsigned *ptr;
@@ -4510,8 +4541,11 @@ int nfs4_proc_create_session(struct nfs_client *clp)
 	if (status)
 		goto out;
 
-	/* Init the fore channel */
-	status = nfs4_init_slot_table(session);
+	/* Init or reset the fore channel */
+	if (reset)
+		status = nfs4_reset_slot_table(session);
+	else
+		status = nfs4_init_slot_table(session);
 	dprintk("fore channel slot table initialization returned %d\n", status);
 	if (status)
 		goto out;
@@ -4519,6 +4553,10 @@ int nfs4_proc_create_session(struct nfs_client *clp)
 	ptr = (unsigned *)&session->sess_id.data[0];
 	dprintk("%s client>seqid %d sessionid %u:%u:%u:%u\n", __func__,
 		clp->cl_seqid, ptr[0], ptr[1], ptr[2], ptr[3]);
+
+	if (reset)
+		/* Lease time is aleady set */
+		goto out;
 
 	/* Get the lease time */
 	status = nfs4_proc_get_lease_time(clp, &fsinfo);
