@@ -755,6 +755,10 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	unsigned long long tmp = 0;
 
 	struct acpi_ec *ec = context;
+
+	/* clear addr values, ec_parse_io_ports depend on it */
+	ec->command_addr = ec->data_addr = 0;
+
 	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
 				     ec_parse_io_ports, ec);
 	if (ACPI_FAILURE(status))
@@ -804,11 +808,11 @@ static int acpi_ec_add(struct acpi_device *device)
 		ec = make_acpi_ec();
 		if (!ec)
 			return -ENOMEM;
-		if (ec_parse_device(device->handle, 0, ec, NULL) !=
-		    AE_CTRL_TERMINATE) {
+	}
+	if (ec_parse_device(device->handle, 0, ec, NULL) !=
+		AE_CTRL_TERMINATE) {
 			kfree(ec);
 			return -EINVAL;
-		}
 	}
 
 	ec->handle = device->handle;
@@ -986,12 +990,12 @@ int __init acpi_ec_ecdt_probe(void)
 		boot_ec->handle = ACPI_ROOT_OBJECT;
 		acpi_get_handle(ACPI_ROOT_OBJECT, ecdt_ptr->id, &boot_ec->handle);
 		/* Don't trust ECDT, which comes from ASUSTek */
-		if (!dmi_name_in_vendors("ASUS"))
+		if (!dmi_name_in_vendors("ASUS") && EC_FLAGS_MSI == 0)
 			goto install;
 		saved_ec = kmalloc(sizeof(struct acpi_ec), GFP_KERNEL);
 		if (!saved_ec)
 			return -ENOMEM;
-		memcpy(saved_ec, boot_ec, sizeof(*saved_ec));
+		memcpy(saved_ec, boot_ec, sizeof(struct acpi_ec));
 	/* fall through */
 	}
 	/* This workaround is needed only on some broken machines,
