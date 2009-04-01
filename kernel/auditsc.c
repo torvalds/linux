@@ -752,7 +752,7 @@ static void audit_set_auditable(struct audit_context *ctx)
 
 static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 						      int return_valid,
-						      int return_code)
+						      long return_code)
 {
 	struct audit_context *context = tsk->audit_context;
 
