@@ -1241,6 +1241,10 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 		nfs_copy_fh(&data->o_res.fh, data->o_arg.fh);
 	}
 	data->timestamp = jiffies;
+	if (nfs4_setup_sequence(data->o_arg.server->nfs_client,
+				&data->o_arg.seq_args,
+				&data->o_res.seq_res, 1, task))
+		return;
 	rpc_call_start(task);
 	return;
 out_no_action:
@@ -1253,6 +1257,10 @@ static void nfs4_open_done(struct rpc_task *task, void *calldata)
 	struct nfs4_opendata *data = calldata;
 
 	data->rpc_status = task->tk_status;
+
+	nfs4_sequence_done_free_slot(data->o_arg.server, &data->o_res.seq_res,
+				     task->tk_status);
+
 	if (RPC_ASSASSINATED(task))
 		return;
 	if (task->tk_status == 0) {
