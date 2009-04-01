@@ -2574,7 +2574,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->ctl_read_urb = usb_alloc_urb(0,GFP_KERNEL);
 	if (!hdw->ctl_read_urb) goto fail;
 
-	if (v4l2_device_register(&usb_dev->dev, &hdw->v4l2_dev) != 0) {
+	if (v4l2_device_register(&intf->dev, &hdw->v4l2_dev) != 0) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Error registering with v4l core, giving up");
 		goto fail;
