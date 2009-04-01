@@ -1313,17 +1313,16 @@ static int saa711x_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int saa711x_s_crystal_freq(struct v4l2_subdev *sd, struct v4l2_crystal_freq *freq)
+static int saa711x_s_crystal_freq(struct v4l2_subdev *sd, u32 freq, u32 flags)
 {
 	struct saa711x_state *state = to_state(sd);
 
-	if (freq->freq != SAA7115_FREQ_32_11_MHZ &&
-			freq->freq != SAA7115_FREQ_24_576_MHZ)
+	if (freq != SAA7115_FREQ_32_11_MHZ && freq != SAA7115_FREQ_24_576_MHZ)
 		return -EINVAL;
-	state->crystal_freq = freq->freq;
-	state->cgcdiv = (freq->flags & SAA7115_FREQ_FL_CGCDIV) ? 3 : 4;
-	state->ucgc = (freq->flags & SAA7115_FREQ_FL_UCGC) ? 1 : 0;
-	state->apll = (freq->flags & SAA7115_FREQ_FL_APLL) ? 1 : 0;
+	state->crystal_freq = freq;
+	state->cgcdiv = (flags & SAA7115_FREQ_FL_CGCDIV) ? 3 : 4;
+	state->ucgc = (flags & SAA7115_FREQ_FL_UCGC) ? 1 : 0;
+	state->apll = (flags & SAA7115_FREQ_FL_APLL) ? 1 : 0;
 	saa711x_s_clock_freq(sd, state->audclk_freq);
 	return 0;
 }

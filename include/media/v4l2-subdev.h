@@ -37,12 +37,6 @@ struct v4l2_decode_vbi_line {
 	u32 type;		/* VBI service type (V4L2_SLICED_*). 0 if no service found */
 };
 
-/* s_crystal_freq */
-struct v4l2_crystal_freq {
-	u32 freq;	/* frequency in Hz of the crystal */
-	u32 flags; 	/* device specific flags */
-};
-
 /* Sub-devices are devices that are connected somehow to the main bridge
    device. These devices are usually audio/video muxers/encoders/decoders or
    sensors and webcam controllers.
@@ -194,8 +188,8 @@ struct v4l2_subdev_audio_ops {
    s_std_output: set v4l2_std_id for video OUTPUT devices. This is ignored by
 	video input devices.
 
-   s_crystal_freq: sets the frequency of the crystal used to generate the
-	clocks. An extra flags field allows device specific configuration
+  s_crystal_freq: sets the frequency of the crystal used to generate the
+	clocks in Hz. An extra flags field allows device specific configuration
 	regarding clock frequency dividers, etc. If not used, then set flags
 	to 0. If the frequency is not supported, then -EINVAL is returned.
 
@@ -207,7 +201,7 @@ struct v4l2_subdev_audio_ops {
  */
 struct v4l2_subdev_video_ops {
 	int (*s_routing)(struct v4l2_subdev *sd, const struct v4l2_routing *route);
-	int (*s_crystal_freq)(struct v4l2_subdev *sd, struct v4l2_crystal_freq *freq);
+	int (*s_crystal_freq)(struct v4l2_subdev *sd, u32 freq, u32 flags);
 	int (*decode_vbi_line)(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi_line);
 	int (*s_vbi_data)(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_data *vbi_data);
 	int (*g_vbi_data)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_data *vbi_data);
