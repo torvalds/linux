@@ -1522,7 +1522,8 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
  * Returns NULL on error, a pointer to usb_usbvision else.
  *
  */
-static struct usb_usbvision *usbvision_alloc(struct usb_device *dev)
+static struct usb_usbvision *usbvision_alloc(struct usb_device *dev,
+					     struct usb_interface *intf)
 {
 	struct usb_usbvision *usbvision;
 
@@ -1531,7 +1532,7 @@ static struct usb_usbvision *usbvision_alloc(struct usb_device *dev)
 		return NULL;
 
 	usbvision->dev = dev;
-	if (v4l2_device_register(&dev->dev, &usbvision->v4l2_dev))
+	if (v4l2_device_register(&intf->dev, &usbvision->v4l2_dev))
 		goto err_free;
 
 	mutex_init(&usbvision->lock);	/* available */
@@ -1669,7 +1670,8 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	if ((usbvision = usbvision_alloc(dev)) == NULL) {
+	usbvision = usbvision_alloc(dev, intf);
+	if (usbvision == NULL) {
 		dev_err(&intf->dev, "%s: couldn't allocate USBVision struct\n", __func__);
 		return -ENOMEM;
 	}
