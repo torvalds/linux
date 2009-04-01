@@ -2,6 +2,7 @@
  * NFS internal definitions
  */
 
+#include "nfs4_fs.h"
 #include <linux/mount.h>
 #include <linux/security.h>
 
@@ -16,6 +17,18 @@ struct nfs_string;
  *        interactive response.
  */
 #define NFS_MAX_READAHEAD	(RPC_DEF_SLOT_TABLE - 1)
+
+/*
+ * Determine if sessions are in use.
+ */
+static inline int nfs4_has_session(const struct nfs_client *clp)
+{
+#ifdef CONFIG_NFS_V4_1
+	if (clp->cl_session)
+		return 1;
+#endif /* CONFIG_NFS_V4_1 */
+	return 0;
+}
 
 struct nfs_clone_mount {
 	const struct super_block *sb;
@@ -148,6 +161,20 @@ extern __be32 * nfs_decode_dirent(__be32 *, struct nfs_entry *, int);
 extern struct rpc_procinfo nfs3_procedures[];
 extern __be32 *nfs3_decode_dirent(__be32 *, struct nfs_entry *, int);
 
+/* nfs4proc.c */
+static inline void nfs4_restart_rpc(struct rpc_task *task,
+				    const struct nfs_client *clp)
+{
+#ifdef CONFIG_NFS_V4_1
+	if (nfs4_has_session(clp) &&
+	    test_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state)) {
+		rpc_restart_call_prepare(task);
+		return;
+	}
+#endif /* CONFIG_NFS_V4_1 */
+	rpc_restart_call(task);
+}
+
 /* nfs4xdr.c */
 #ifdef CONFIG_NFS_V4
 extern __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus);
@@ -224,18 +251,6 @@ extern int _nfs4_call_sync_session(struct nfs_server *server,
 				   struct nfs4_sequence_args *args,
 				   struct nfs4_sequence_res *res,
 				   int cache_reply);
-
-/*
- * Determine if sessions are in use.
- */
-static inline int nfs4_has_session(const struct nfs_client *clp)
-{
-#ifdef CONFIG_NFS_V4_1
-	if (clp->cl_session)
-		return 1;
-#endif /* CONFIG_NFS_V4_1 */
-	return 0;
-}
 
 #ifdef CONFIG_NFS_V4_1
 extern void nfs41_sequence_free_slot(const struct nfs_client *,
