@@ -1496,7 +1496,7 @@ static int video_release(struct file *file)
 	saa_andorb(SAA7134_OFMT_DATA_A, 0x1f, 0);
 	saa_andorb(SAA7134_OFMT_DATA_B, 0x1f, 0);
 
-	saa_call_all(dev, core, s_standby, 0);
+	saa_call_all(dev, tuner, s_standby);
 	if (fh->radio)
 		saa_call_all(dev, core, ioctl, RDS_CMD_CLOSE, &cmd);
 

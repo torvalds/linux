@@ -96,14 +96,11 @@ struct v4l2_crystal_freq {
 
    s_gpio: set GPIO pins. Very simple right now, might need to be extended with
 	a direction argument if needed.
-
-   s_standby: puts tuner on powersaving state, disabling it, except for i2c.
  */
 struct v4l2_subdev_core_ops {
 	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
-	int (*s_standby)(struct v4l2_subdev *sd, u32 standby);
 	int (*reset)(struct v4l2_subdev *sd, u32 val);
 	int (*s_gpio)(struct v4l2_subdev *sd, u32 val);
 	int (*queryctrl)(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc);
@@ -127,6 +124,8 @@ struct v4l2_subdev_core_ops {
    s_type_addr: sets tuner type and its I2C addr.
 
    s_config: sets tda9887 specific stuff, like port1, port2 and qss
+
+   s_standby: puts tuner on powersaving state, disabling it, except for i2c.
  */
 struct v4l2_subdev_tuner_ops {
 	int (*s_mode)(struct v4l2_subdev *sd, enum v4l2_tuner_type);
@@ -138,6 +137,7 @@ struct v4l2_subdev_tuner_ops {
 	int (*s_std)(struct v4l2_subdev *sd, v4l2_std_id norm);
 	int (*s_type_addr)(struct v4l2_subdev *sd, struct tuner_setup *type);
 	int (*s_config)(struct v4l2_subdev *sd, const struct v4l2_priv_tun_config *config);
+	int (*s_standby)(struct v4l2_subdev *sd);
 };
 
 /* s_clock_freq: set the frequency (in Hz) of the audio clock output.

@@ -1015,7 +1015,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	saa7134_irq_video_signalchange(dev);
 
 	if (TUNER_ABSENT != dev->tuner_type)
-		saa_call_all(dev, core, s_standby, 0);
+		saa_call_all(dev, tuner, s_standby);
 
 	/* register v4l devices */
 	if (saa7134_no_overlay > 0)

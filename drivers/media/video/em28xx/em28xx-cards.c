@@ -2162,7 +2162,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	em28xx_init_extension(dev);
 
 	/* Save some power by putting tuner to sleep */
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_standby, 0);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_standby);
 
 	return 0;
 

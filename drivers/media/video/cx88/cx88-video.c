@@ -931,7 +931,7 @@ static int video_release(struct file *file)
 	kfree(fh);
 
 	if(atomic_dec_and_test(&dev->core->users))
-		call_all(dev->core, core, s_standby, 0);
+		call_all(dev->core, tuner, s_standby);
 
 	return 0;
 }
