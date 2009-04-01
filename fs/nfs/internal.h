@@ -206,6 +206,18 @@ extern int nfs4_path_walk(struct nfs_server *server,
 			  const char *path);
 #endif
 
+/* nfs4proc.c */
+extern int _nfs4_call_sync(struct nfs_server *server,
+			   struct rpc_message *msg,
+			   struct nfs4_sequence_args *args,
+			   struct nfs4_sequence_res *res,
+			   int cache_reply);
+extern int _nfs4_call_sync_session(struct nfs_server *server,
+				   struct rpc_message *msg,
+				   struct nfs4_sequence_args *args,
+				   struct nfs4_sequence_res *res,
+				   int cache_reply);
+
 /*
  * Determine if sessions are in use.
  */
