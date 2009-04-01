@@ -879,6 +879,46 @@ struct nfs4_fs_locations_res {
 
 #endif /* CONFIG_NFS_V4 */
 
+struct nfstime4 {
+	u64	seconds;
+	u32	nseconds;
+};
+
+#ifdef CONFIG_NFS_V4_1
+struct nfs_impl_id4 {
+	u32		domain_len;
+	char		*domain;
+	u32		name_len;
+	char		*name;
+	struct nfstime4	date;
+};
+
+#define NFS4_EXCHANGE_ID_LEN	(48)
+struct nfs41_exchange_id_args {
+	struct nfs_client		*client;
+	nfs4_verifier			*verifier;
+	unsigned int 			id_len;
+	char 				id[NFS4_EXCHANGE_ID_LEN];
+	u32				flags;
+};
+
+struct server_owner {
+	uint64_t			minor_id;
+	uint32_t			major_id_sz;
+	char				major_id[NFS4_OPAQUE_LIMIT];
+};
+
+struct server_scope {
+	uint32_t			server_scope_sz;
+	char 				server_scope[NFS4_OPAQUE_LIMIT];
+};
+
+struct nfs41_exchange_id_res {
+	struct nfs_client		*client;
+	u32				flags;
+};
+#endif /* CONFIG_NFS_V4_1 */
+
 struct nfs_page;
 
 #define NFS_PAGEVEC_SIZE	(8U)

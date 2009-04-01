@@ -246,6 +246,27 @@ static int nfs4_stat_to_errno(int);
 				(0)
 
 #if defined(CONFIG_NFS_V4_1)
+#define encode_exchange_id_maxsz (op_encode_hdr_maxsz + \
+				encode_verifier_maxsz + \
+				1 /* co_ownerid.len */ + \
+				XDR_QUADLEN(NFS4_EXCHANGE_ID_LEN) + \
+				1 /* flags */ + \
+				1 /* spa_how */ + \
+				0 /* SP4_NONE (for now) */ + \
+				1 /* zero implemetation id array */)
+#define decode_exchange_id_maxsz (op_decode_hdr_maxsz + \
+				2 /* eir_clientid */ + \
+				1 /* eir_sequenceid */ + \
+				1 /* eir_flags */ + \
+				1 /* spr_how */ + \
+				0 /* SP4_NONE (for now) */ + \
+				2 /* eir_server_owner.so_minor_id */ + \
+				/* eir_server_owner.so_major_id<> */ \
+				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 + \
+				/* eir_server_scope<> */ \
+				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 + \
+				1 /* eir_server_impl_id array length */ + \
+				0 /* ignored eir_server_impl_id contents */)
 #define encode_sequence_maxsz	0 /* stub */
 #define decode_sequence_maxsz	0 /* stub */
 #else /* CONFIG_NFS_V4_1 */
@@ -594,6 +615,14 @@ static int nfs4_stat_to_errno(int);
 				 decode_putfh_maxsz + \
 				 decode_lookup_maxsz + \
 				 decode_fs_locations_maxsz)
+#if defined(CONFIG_NFS_V4_1)
+#define NFS4_enc_exchange_id_sz \
+				(compound_encode_hdr_maxsz + \
+				 encode_exchange_id_maxsz)
+#define NFS4_dec_exchange_id_sz \
+				(compound_decode_hdr_maxsz + \
+				 decode_exchange_id_maxsz)
+#endif /* CONFIG_NFS_V4_1 */
 
 static const umode_t nfs_type2fmt[] = {
 	[NF4BAD] = 0,
@@ -1455,7 +1484,29 @@ static void encode_delegreturn(struct xdr_stream *xdr, const nfs4_stateid *state
 	hdr->replen += decode_delegreturn_maxsz;
 }
 
+#if defined(CONFIG_NFS_V4_1)
 /* NFSv4.1 operations */
+static void encode_exchange_id(struct xdr_stream *xdr,
+			       struct nfs41_exchange_id_args *args,
+			       struct compound_hdr *hdr)
+{
+	__be32 *p;
+
+	RESERVE_SPACE(4 + sizeof(args->verifier->data));
+	WRITE32(OP_EXCHANGE_ID);
+	WRITEMEM(args->verifier->data, sizeof(args->verifier->data));
+
+	encode_string(xdr, args->id_len, args->id);
+
+	RESERVE_SPACE(12);
+	WRITE32(args->flags);
+	WRITE32(0);	/* zero length state_protect4_a */
+	WRITE32(0);	/* zero length implementation id array */
+	hdr->nops++;
+	hdr->replen += decode_exchange_id_maxsz;
+}
+#endif /* CONFIG_NFS_V4_1 */
+
 static void encode_sequence(struct xdr_stream *xdr,
 			    const struct nfs4_sequence_args *args,
 			    struct compound_hdr *hdr)
@@ -2161,6 +2212,26 @@ static int nfs4_xdr_enc_fs_locations(struct rpc_rqst *req, __be32 *p, struct nfs
 	encode_nops(&hdr);
 	return 0;
 }
+
+#if defined(CONFIG_NFS_V4_1)
+/*
+ * EXCHANGE_ID request
+ */
+static int nfs4_xdr_enc_exchange_id(struct rpc_rqst *req, uint32_t *p,
+				    struct nfs41_exchange_id_args *args)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr = {
+		.minorversion = args->client->cl_minorversion,
+	};
+
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+	encode_compound_hdr(&xdr, req, &hdr);
+	encode_exchange_id(&xdr, args, &hdr);
+	encode_nops(&hdr);
+	return 0;
+}
+#endif /* CONFIG_NFS_V4_1 */
 
 /*
  * START OF "GENERIC" DECODE ROUTINES.
@@ -3877,6 +3948,52 @@ static int decode_delegreturn(struct xdr_stream *xdr)
 	return decode_op_hdr(xdr, OP_DELEGRETURN);
 }
 
+#if defined(CONFIG_NFS_V4_1)
+static int decode_exchange_id(struct xdr_stream *xdr,
+			      struct nfs41_exchange_id_res *res)
+{
+	__be32 *p;
+	uint32_t dummy;
+	int status;
+	struct nfs_client *clp = res->client;
+
+	status = decode_op_hdr(xdr, OP_EXCHANGE_ID);
+	if (status)
+		return status;
+
+	READ_BUF(8);
+	READ64(clp->cl_ex_clid);
+	READ_BUF(12);
+	READ32(clp->cl_seqid);
+	READ32(clp->cl_exchange_flags);
+
+	/* We ask for SP4_NONE */
+	READ32(dummy);
+	if (dummy != SP4_NONE)
+		return -EIO;
+
+	/* Throw away minor_id */
+	READ_BUF(8);
+
+	/* Throw away Major id */
+	READ_BUF(4);
+	READ32(dummy);
+	READ_BUF(dummy);
+
+	/* Throw away server_scope */
+	READ_BUF(4);
+	READ32(dummy);
+	READ_BUF(dummy);
+
+	/* Throw away Implementation id array */
+	READ_BUF(4);
+	READ32(dummy);
+	READ_BUF(dummy);
+
+	return 0;
+}
+#endif /* CONFIG_NFS_V4_1 */
+
 static int decode_sequence(struct xdr_stream *xdr,
 			   struct nfs4_sequence_res *res,
 			   struct rpc_rqst *rqstp)
@@ -4774,6 +4891,25 @@ out:
 	return status;
 }
 
+#if defined(CONFIG_NFS_V4_1)
+/*
+ * EXCHANGE_ID request
+ */
+static int nfs4_xdr_dec_exchange_id(struct rpc_rqst *rqstp, uint32_t *p,
+				    void *res)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr;
+	int status;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
+	if (!status)
+		status = decode_exchange_id(&xdr, res);
+	return status;
+}
+#endif /* CONFIG_NFS_V4_1 */
+
 __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
 {
 	uint32_t bitmap[2] = {0};
@@ -4943,6 +5079,9 @@ struct rpc_procinfo	nfs4_procedures[] = {
   PROC(GETACL,		enc_getacl,	dec_getacl),
   PROC(SETACL,		enc_setacl,	dec_setacl),
   PROC(FS_LOCATIONS,	enc_fs_locations, dec_fs_locations),
+#if defined(CONFIG_NFS_V4_1)
+  PROC(EXCHANGE_ID,	enc_exchange_id,	dec_exchange_id),
+#endif /* CONFIG_NFS_V4_1 */
 };
 
 struct rpc_version		nfs_version4 = {
