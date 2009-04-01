@@ -3440,7 +3440,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	if (!cam)
 		return -ENOMEM;
 
-	err = v4l2_device_register(&udev->dev, &cam->v4l2_dev);
+	err = v4l2_device_register(&intf->dev, &cam->v4l2_dev);
 	if (err)
 		goto fail0;
 
