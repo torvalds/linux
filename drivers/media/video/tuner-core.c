@@ -15,12 +15,12 @@
 #include <linux/i2c.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/tuner.h>
 #include <media/tuner-types.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include "mt20xx.h"
 #include "tda8290.h"
 #include "tea5761.h"
@@ -101,18 +101,6 @@ static inline struct tuner *to_tuner(struct v4l2_subdev *sd)
 	return container_of(sd, struct tuner, sd);
 }
 
-/* standard i2c insmod options */
-static unsigned short normal_i2c[] = {
-#if defined(CONFIG_MEDIA_TUNER_TEA5761) || (defined(CONFIG_MEDIA_TUNER_TEA5761_MODULE) && defined(MODULE))
-	0x10,
-#endif
-	0x42, 0x43, 0x4a, 0x4b,			/* tda8290 */
-	0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
-	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
-	I2C_CLIENT_END
-};
-
-I2C_CLIENT_INSMOD;
 
 /* insmod options used at init time => read/only */
 static unsigned int addr;
@@ -951,11 +939,6 @@ static int tuner_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int tuner_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 static int tuner_suspend(struct i2c_client *c, pm_message_t state)
 {
 	struct tuner *t = to_tuner(i2c_get_clientdata(c));
@@ -978,6 +961,20 @@ static int tuner_resume(struct i2c_client *c)
 			set_freq(c, t->tv_freq);
 	}
 	return 0;
+}
+
+static int tuner_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	/* TUNER_SET_CONFIG is still called by tuner-simple.c, so we have
+	   to handle it here.
+	   There must be a better way of doing this... */
+	switch (cmd) {
+	case TUNER_SET_CONFIG:
+		return tuner_s_config(sd, arg);
+	}
+	return -ENOIOCTLCMD;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -1167,39 +1164,6 @@ register_client:
 	return 0;
 }
 
-static int tuner_legacy_probe(struct i2c_adapter *adap)
-{
-	if (0 != addr) {
-		normal_i2c[0] = addr;
-		normal_i2c[1] = I2C_CLIENT_END;
-	}
-
-	if ((adap->class & I2C_CLASS_TV_ANALOG) == 0)
-		return 0;
-
-	/* HACK: Ignore 0x6b and 0x6f on cx88 boards.
-	 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
-	 * and an RTC at 0x6f which can get corrupted if probed.
-	 */
-	if ((adap->id == I2C_HW_B_CX2388x) ||
-	    (adap->id == I2C_HW_B_CX23885)) {
-		unsigned int i = 0;
-
-		while (i < I2C_CLIENT_MAX_OPTS && ignore[i] != I2C_CLIENT_END)
-			i += 2;
-		if (i + 4 < I2C_CLIENT_MAX_OPTS) {
-			ignore[i+0] = adap->nr;
-			ignore[i+1] = 0x6b;
-			ignore[i+2] = adap->nr;
-			ignore[i+3] = 0x6f;
-			ignore[i+4] = I2C_CLIENT_END;
-		} else
-			printk(KERN_WARNING "tuner: "
-			       "too many options specified "
-			       "in i2c probe ignore list!\n");
-	}
-	return 1;
-}
 
 static int tuner_remove(struct i2c_client *client)
 {
@@ -1227,13 +1191,11 @@ MODULE_DEVICE_TABLE(i2c, tuner_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tuner",
-	.driverid = I2C_DRIVERID_TUNER,
-	.command = tuner_command,
 	.probe = tuner_probe,
 	.remove = tuner_remove,
+	.command = tuner_command,
 	.suspend = tuner_suspend,
 	.resume = tuner_resume,
-	.legacy_probe = tuner_legacy_probe,
 	.id_table = tuner_id,
 };
 
