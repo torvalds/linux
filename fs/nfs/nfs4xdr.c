@@ -3996,7 +3996,8 @@ nfs4_xdr_enc_setacl(struct rpc_rqst *req, __be32 *p, struct nfs_setaclargs *args
  * Decode SETACL response
  */
 static int
-nfs4_xdr_dec_setacl(struct rpc_rqst *rqstp, __be32 *p, void *res)
+nfs4_xdr_dec_setacl(struct rpc_rqst *rqstp, __be32 *p,
+		    struct nfs_setaclres *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;

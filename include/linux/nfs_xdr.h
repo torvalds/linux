@@ -436,6 +436,10 @@ struct nfs_setaclargs {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs_setaclres {
+	struct nfs4_sequence_res	seq_res;
+};
+
 struct nfs_getaclargs {
 	struct nfs_fh *			fh;
 	size_t				acl_len;
