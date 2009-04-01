@@ -298,8 +298,8 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	/* mute audio on tea6420s */
 	tea6420_1_call(mxb, audio, s_routing, &TEA6420_line[6][0]);
 	tea6420_2_call(mxb, audio, s_routing, &TEA6420_line[6][1]);
-	tea6420_1_call(mxb, audio, s_routing, &TEA6420_line[6][0]);
-	tea6420_2_call(mxb, audio, s_routing, &TEA6420_line[6][1]);
+	tea6420_1_call(mxb, audio, s_routing, &TEA6420_cd[6][0]);
+	tea6420_2_call(mxb, audio, s_routing, &TEA6420_cd[6][1]);
 
 	/* switch to tuner-channel on tea6415c */
 	route.input = 3;
