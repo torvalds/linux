@@ -4018,7 +4018,8 @@ out:
  * Decode GETACL response
  */
 static int
-nfs4_xdr_dec_getacl(struct rpc_rqst *rqstp, __be32 *p, size_t *acl_len)
+nfs4_xdr_dec_getacl(struct rpc_rqst *rqstp, __be32 *p,
+		    struct nfs_getaclres *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;
@@ -4031,7 +4032,7 @@ nfs4_xdr_dec_getacl(struct rpc_rqst *rqstp, __be32 *p, size_t *acl_len)
 	status = decode_putfh(&xdr);
 	if (status)
 		goto out;
-	status = decode_getacl(&xdr, rqstp, acl_len);
+	status = decode_getacl(&xdr, rqstp, &res->acl_len);
 
 out:
 	return status;

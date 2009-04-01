@@ -444,6 +444,11 @@ struct nfs_getaclargs {
 	struct nfs4_sequence_args 	seq_args;
 };
 
+struct nfs_getaclres {
+	size_t				acl_len;
+	struct nfs4_sequence_res	seq_res;
+};
+
 struct nfs_setattrres {
 	struct nfs_fattr *              fattr;
 	const struct nfs_server *	server;
