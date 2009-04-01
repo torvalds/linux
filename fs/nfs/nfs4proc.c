@@ -1808,6 +1808,8 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait)
 	calldata->state = state;
 	calldata->arg.fh = NFS_FH(state->inode);
 	calldata->arg.stateid = &state->open_stateid;
+	if (nfs4_has_session(server->nfs_client))
+		memset(calldata->arg.stateid->data, 0, 4);    /* clear seqid */
 	/* Serialization for the sequence id */
 	calldata->arg.seqid = nfs_alloc_seqid(&state->owner->so_seqid);
 	if (calldata->arg.seqid == NULL)

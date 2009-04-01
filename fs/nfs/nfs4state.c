@@ -742,12 +742,14 @@ static void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
 
 void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid)
 {
-	if (status == -NFS4ERR_BAD_SEQID) {
-		struct nfs4_state_owner *sp = container_of(seqid->sequence,
-				struct nfs4_state_owner, so_seqid);
+	struct nfs4_state_owner *sp = container_of(seqid->sequence,
+					struct nfs4_state_owner, so_seqid);
+	struct nfs_server *server = sp->so_server;
+
+	if (status == -NFS4ERR_BAD_SEQID)
 		nfs4_drop_state_owner(sp);
-	}
-	nfs_increment_seqid(status, seqid);
+	if (!nfs4_has_session(server->nfs_client))
+		nfs_increment_seqid(status, seqid);
 }
 
 /*
