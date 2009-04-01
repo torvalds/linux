@@ -37,6 +37,7 @@
 #include <linux/in6.h>
 #include <net/ipv6.h>
 #include <linux/nfs_xdr.h>
+#include <linux/sunrpc/bc_xprt.h>
 
 #include <asm/system.h>
 
@@ -1096,6 +1097,14 @@ static int nfs4_init_callback(struct nfs_client *clp)
 	int error;
 
 	if (clp->rpc_ops->version == 4) {
+		if (nfs4_has_session(clp)) {
+			error = xprt_setup_backchannel(
+						clp->cl_rpcclient->cl_xprt,
+						NFS41_BC_MIN_CALLBACKS);
+			if (error < 0)
+				return error;
+		}
+
 		error = nfs_callback_up(clp->cl_minorversion,
 					clp->cl_rpcclient->cl_xprt);
 		if (error < 0) {
