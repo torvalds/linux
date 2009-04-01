@@ -3918,7 +3918,7 @@ GetInodeNumberRetry:
 			}
 			pfinfo = (struct file_internal_info *)
 				(data_offset + (char *) &pSMBr->hdr.Protocol);
-			*inode_number = pfinfo->UniqueId;
+			*inode_number = le64_to_cpu(pfinfo->UniqueId);
 		}
 	}
 GetInodeNumOut:

@@ -840,7 +840,7 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 			len = strnlen(filename, PATH_MAX);
 		}
 
-		*pinum = pFindData->UniqueId;
+		*pinum = le64_to_cpu(pFindData->UniqueId);
 	} else if (level == SMB_FIND_FILE_DIRECTORY_INFO) {
 		FILE_DIRECTORY_INFO *pFindData =
 			(FILE_DIRECTORY_INFO *)current_entry;
@@ -856,7 +856,7 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 			(SEARCH_ID_FULL_DIR_INFO *)current_entry;
 		filename = &pFindData->FileName[0];
 		len = le32_to_cpu(pFindData->FileNameLength);
-		*pinum = pFindData->UniqueId;
+		*pinum = le64_to_cpu(pFindData->UniqueId);
 	} else if (level == SMB_FIND_FILE_BOTH_DIRECTORY_INFO) {
 		FILE_BOTH_DIRECTORY_INFO *pFindData =
 			(FILE_BOTH_DIRECTORY_INFO *)current_entry;

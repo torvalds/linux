@@ -276,7 +276,8 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 	/* get new inode */
 	if (*pinode == NULL) {
-		*pinode = cifs_new_inode(sb, &find_data.UniqueId);
+		__u64 unique_id = le64_to_cpu(find_data.UniqueId);
+		*pinode = cifs_new_inode(sb, &unique_id);
 		if (*pinode == NULL) {
 			rc = -ENOMEM;
 			goto cgiiu_exit;
@@ -1138,6 +1139,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			cFYI(1, ("posix mkdir returned 0x%x", rc));
 			d_drop(direntry);
 		} else {
+			__u64 unique_id;
 			if (pInfo->Type == cpu_to_le32(-1)) {
 				/* no return info, go query for it */
 				kfree(pInfo);
@@ -1151,8 +1153,8 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			else
 				direntry->d_op = &cifs_dentry_ops;
 
-			newinode = cifs_new_inode(inode->i_sb,
-						  &pInfo->UniqueId);
+			unique_id = le64_to_cpu(pInfo->UniqueId);
+			newinode = cifs_new_inode(inode->i_sb, &unique_id);
 			if (newinode == NULL) {
 				kfree(pInfo);
 				goto mkdir_get_info;

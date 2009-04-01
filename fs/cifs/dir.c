@@ -187,8 +187,10 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	if (!pinode)
 		goto posix_open_ret; /* caller does not need info */
 
-	if (*pinode == NULL)
-		*pinode = cifs_new_inode(sb, &presp_data->UniqueId);
+	if (*pinode == NULL) {
+		__u64 unique_id = le64_to_cpu(presp_data->UniqueId);
+		*pinode = cifs_new_inode(sb, &unique_id);
+	}
 	/* else an inode was passed in. Update its info, don't create one */
 
 	/* We do not need to close the file if new_inode fails since
