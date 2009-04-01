@@ -1232,7 +1232,7 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->regs != NULL)
 		iounmap(dev_priv->regs);
 
-	intel_opregion_free(dev);
+	intel_opregion_free(dev, 0);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_modeset_cleanup(dev);

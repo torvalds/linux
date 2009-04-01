@@ -2293,7 +2293,7 @@ static int __init acpi_video_init(void)
 	return acpi_video_register();
 }
 
-static void __exit acpi_video_exit(void)
+void __exit acpi_video_exit(void)
 {
 
 	acpi_bus_unregister_driver(&acpi_video_bus);
@@ -2302,6 +2302,7 @@ static void __exit acpi_video_exit(void)
 
 	return;
 }
+EXPORT_SYMBOL(acpi_video_exit);
 
 module_init(acpi_video_init);
 module_exit(acpi_video_exit);

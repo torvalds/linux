@@ -409,13 +409,16 @@ err_out:
 	return err;
 }
 
-void intel_opregion_free(struct drm_device *dev)
+void intel_opregion_free(struct drm_device *dev, int suspend)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
 
 	if (!opregion->enabled)
 		return;
+
+	if (!suspend)
+		acpi_video_exit();
 
 	opregion->acpi->drdy = 0;
 
