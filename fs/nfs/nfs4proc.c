@@ -249,7 +249,25 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 			ret = nfs4_wait_clnt_recover(clp);
 			if (ret == 0)
 				exception->retry = 1;
+#if !defined(CONFIG_NFS_V4_1)
 			break;
+#else /* !defined(CONFIG_NFS_V4_1) */
+			if (!nfs4_has_session(server->nfs_client))
+				break;
+			/* FALLTHROUGH */
+		case -NFS4ERR_BADSESSION:
+		case -NFS4ERR_BADSLOT:
+		case -NFS4ERR_BAD_HIGH_SLOT:
+		case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+		case -NFS4ERR_DEADSESSION:
+		case -NFS4ERR_SEQ_FALSE_RETRY:
+		case -NFS4ERR_SEQ_MISORDERED:
+			dprintk("%s ERROR: %d Reset session\n", __func__,
+				errorcode);
+			set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
+			exception->retry = 1;
+			/* FALLTHROUGH */
+#endif /* !defined(CONFIG_NFS_V4_1) */
 		case -NFS4ERR_FILE_OPEN:
 		case -NFS4ERR_GRACE:
 		case -NFS4ERR_DELAY:
@@ -3241,6 +3259,20 @@ _nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server,
 				rpc_wake_up_queued_task(&clp->cl_rpcwaitq, task);
 			task->tk_status = 0;
 			return -EAGAIN;
+#if defined(CONFIG_NFS_V4_1)
+		case -NFS4ERR_BADSESSION:
+		case -NFS4ERR_BADSLOT:
+		case -NFS4ERR_BAD_HIGH_SLOT:
+		case -NFS4ERR_DEADSESSION:
+		case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+		case -NFS4ERR_SEQ_FALSE_RETRY:
+		case -NFS4ERR_SEQ_MISORDERED:
+			dprintk("%s ERROR %d, Reset session\n", __func__,
+				task->tk_status);
+			set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
+			task->tk_status = 0;
+			return -EAGAIN;
+#endif /* CONFIG_NFS_V4_1 */
 		case -NFS4ERR_DELAY:
 			if (server)
 				nfs_inc_server_stats(server, NFSIOS_DELAY);
