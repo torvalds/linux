@@ -4235,7 +4235,8 @@ out:
 /*
  * Decode READLINK response
  */
-static int nfs4_xdr_dec_readlink(struct rpc_rqst *rqstp, __be32 *p, void *res)
+static int nfs4_xdr_dec_readlink(struct rpc_rqst *rqstp, __be32 *p,
+				 struct nfs4_readlink_res *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;

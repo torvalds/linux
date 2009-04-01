@@ -1960,10 +1960,11 @@ static int _nfs4_proc_readlink(struct inode *inode, struct page *page,
 		.pglen    = pglen,
 		.pages    = &page,
 	};
+	struct nfs4_readlink_res res;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READLINK],
 		.rpc_argp = &args,
-		.rpc_resp = NULL,
+		.rpc_resp = &res,
 	};
 
 	return rpc_call_sync(NFS_CLIENT(inode), &msg, 0);

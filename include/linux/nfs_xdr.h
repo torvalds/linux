@@ -754,6 +754,10 @@ struct nfs4_readlink {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs4_readlink_res {
+	struct nfs4_sequence_res	seq_res;
+};
+
 struct nfs4_rename_arg {
 	const struct nfs_fh *		old_dir;
 	const struct nfs_fh *		new_dir;
