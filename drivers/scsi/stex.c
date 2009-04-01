@@ -36,11 +36,11 @@
 #include <scsi/scsi_eh.h>
 
 #define DRV_NAME "stex"
-#define ST_DRIVER_VERSION "4.6.0000.1"
-#define ST_VER_MAJOR 		4
-#define ST_VER_MINOR 		6
-#define ST_OEM 			0
-#define ST_BUILD_VER 		1
+#define ST_DRIVER_VERSION "4.6.0000.3"
+#define ST_VER_MAJOR		4
+#define ST_VER_MINOR		6
+#define ST_OEM			0
+#define ST_BUILD_VER		3
 
 enum {
 	/* MU register offset */
