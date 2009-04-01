@@ -3324,17 +3324,6 @@ void __devinit bttv_init_card1(struct bttv *btv)
 /* initialization part two -- after registering i2c bus */
 void __devinit bttv_init_card2(struct bttv *btv)
 {
-	static const unsigned short tvaudio_addrs[] = {
-		I2C_ADDR_TDA8425   >> 1,
-		I2C_ADDR_TEA6300   >> 1,
-		I2C_ADDR_TEA6420   >> 1,
-		I2C_ADDR_TDA9840   >> 1,
-		I2C_ADDR_TDA985x_L >> 1,
-		I2C_ADDR_TDA985x_H >> 1,
-		I2C_ADDR_TDA9874   >> 1,
-		I2C_ADDR_PIC16C54  >> 1,
-		I2C_CLIENT_END
-	};
 	int addr=ADDR_UNSET;
 
 	btv->tuner_type = UNSET;
@@ -3621,7 +3610,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	case 3: {
 		/* The user specified that we should probe for tvaudio */
 		btv->sd_tvaudio = v4l2_i2c_new_probed_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, "tvaudio", "tvaudio", tvaudio_addrs);
+			&btv->c.i2c_adap, "tvaudio", "tvaudio", tvaudio_addrs());
 		if (btv->sd_tvaudio)
 			return;
 		goto no_audio;
@@ -3667,7 +3656,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 
 	/* Now see if we can find one of the tvaudio devices. */
 	btv->sd_tvaudio = v4l2_i2c_new_probed_subdev(&btv->c.v4l2_dev,
-		&btv->c.i2c_adap, "tvaudio", "tvaudio", tvaudio_addrs);
+		&btv->c.i2c_adap, "tvaudio", "tvaudio", tvaudio_addrs());
 	if (btv->sd_tvaudio)
 		return;
 
