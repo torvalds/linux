@@ -91,9 +91,11 @@ struct av_decision {
 	u32 auditallow;
 	u32 auditdeny;
 	u32 seqno;
+	u32 flags;
 };
 
-int security_permissive_sid(u32 sid);
+/* definitions of av_decision.flags */
+#define AVD_FLAGS_PERMISSIVE	0x0001
 
 int security_compute_av(u32 ssid, u32 tsid,
 	u16 tclass, u32 requested,
