@@ -448,6 +448,7 @@ enum {
 
 #define __NEW_HD_DRIVE_ID
 
+#ifndef __KERNEL__
 /*
  * Structure returned by HDIO_GET_IDENTITY, as per ANSI NCITS ATA6 rev.1b spec.
  *
@@ -699,6 +700,7 @@ struct hd_driveid {
 					 *  7:0 Signature
 					 */
 };
+#endif /* __KERNEL__ */
 
 /*
  * IDE "nice" flags. These are used on a per drive basis to determine
