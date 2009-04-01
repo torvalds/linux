@@ -5,6 +5,7 @@ config ARCH_MX31
 
 config ARCH_MX35
 	bool
+	select ARCH_MXC_IOMUX_V3
 
 comment "MX3 platforms:"
 
