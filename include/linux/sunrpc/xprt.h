@@ -97,6 +97,12 @@ struct rpc_rqst {
 
 	unsigned long		rq_xtime;	/* when transmitted */
 	int			rq_ntrans;
+
+#if defined(CONFIG_NFS_V4_1)
+	struct list_head	rq_bc_list;	/* Callback service list */
+	unsigned long		rq_bc_pa_state;	/* Backchannel prealloc state */
+	struct list_head	rq_bc_pa_list;	/* Backchannel prealloc list */
+#endif /* CONFIG_NFS_V4_1 */
 };
 #define rq_svec			rq_snd_buf.head
 #define rq_slen			rq_snd_buf.len
@@ -174,6 +180,14 @@ struct rpc_xprt {
 	spinlock_t		reserve_lock;	/* lock slot table */
 	u32			xid;		/* Next XID value to use */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
+#if defined(CONFIG_NFS_V4_1)
+	struct svc_serv		*bc_serv;       /* The RPC service which will */
+						/* process the callback */
+	spinlock_t		bc_pa_lock;	/* Protects the preallocated
+						 * items */
+	struct list_head	bc_pa_list;	/* List of preallocated
+						 * backchannel rpc_rqst's */
+#endif /* CONFIG_NFS_V4_1 */
 	struct list_head	recv;
 
 	struct {
@@ -191,6 +205,14 @@ struct rpc_xprt {
 
 	const char		*address_strings[RPC_DISPLAY_MAX];
 };
+
+#if defined(CONFIG_NFS_V4_1)
+/*
+ * Backchannel flags
+ */
+#define	RPC_BC_PA_IN_USE	0x0001		/* Preallocated backchannel */
+						/* buffer in use */
+#endif /* CONFIG_NFS_V4_1 */
 
 struct xprt_create {
 	int			ident;		/* XPRT_TRANSPORT identifier */

@@ -96,6 +96,14 @@ struct svc_serv {
 	svc_thread_fn		sv_function;	/* main function for threads */
 	unsigned int		sv_drc_max_pages; /* Total pages for DRC */
 	unsigned int		sv_drc_pages_used;/* DRC pages used */
+#if defined(CONFIG_NFS_V4_1)
+	struct list_head	sv_cb_list;	/* queue for callback requests
+						 * that arrive over the same
+						 * connection */
+	spinlock_t		sv_cb_lock;	/* protects the svc_cb_list */
+	wait_queue_head_t	sv_cb_waitq;	/* sleep here if there are no
+						 * entries in the svc_cb_list */
+#endif /* CONFIG_NFS_V4_1 */
 };
 
 /*
