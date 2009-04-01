@@ -2926,6 +2926,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev tuner set_type(%d)",
 			   hdw->tuner_type);
 		if (((int)(hdw->tuner_type)) >= 0) {
+			memset(&setup, 0, sizeof(setup));
 			setup.addr = ADDR_UNSET;
 			setup.type = hdw->tuner_type;
 			setup.mode_mask = T_RADIO | T_ANALOG_TV;
