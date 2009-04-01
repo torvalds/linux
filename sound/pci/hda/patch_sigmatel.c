@@ -4895,6 +4895,7 @@ again:
 	switch (codec->vendor_id) {
 	case 0x111d7604:
 	case 0x111d7605:
+	case 0x111d76d5:
 		if (spec->board_config == STAC_92HD83XXX_PWR_REF)
 			break;
 		spec->num_pwrs = 0;
@@ -5707,6 +5708,7 @@ static struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d7603, .name = "92HD75B3X5", .patch = patch_stac92hd71bxx},
 	{ .id = 0x111d7604, .name = "92HD83C1X5", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7605, .name = "92HD81B1X5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76d5, .name = "92HD81B1C5", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7608, .name = "92HD75B2X5", .patch = patch_stac92hd71bxx},
 	{ .id = 0x111d7674, .name = "92HD73D1X5", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d7675, .name = "92HD73C1X5", .patch = patch_stac92hd73xx },
