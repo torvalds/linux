@@ -99,4 +99,10 @@ enum mem_add_context { BOOT, HOTPLUG };
 #define hotplug_memory_notifier(fn, pri) do { } while (0)
 #endif
 
+/*
+ * Kernel text modification mutex, used for code patching. Users of this lock
+ * can sleep.
+ */
+extern struct mutex text_mutex;
+
 #endif /* _LINUX_MEMORY_H_ */
