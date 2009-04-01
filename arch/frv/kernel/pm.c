@@ -393,7 +393,7 @@ static int cm_sysctl(ctl_table *table,
 static struct ctl_table pm_table[] =
 {
 	{
-		.ctl_name	= CTL_PM_SUSPEND,
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "suspend",
 		.data		= NULL,
 		.maxlen		= 0,

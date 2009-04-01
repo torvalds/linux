@@ -176,7 +176,7 @@ static int procctl_frv_pin_cxnr(ctl_table *table, int write, struct file *filp,
 static struct ctl_table frv_table[] =
 {
 	{
-		.ctl_name 	= 1,
+		.ctl_name 	= CTL_UNNUMBERD,
 		.procname 	= "cache-mode",
 		.data		= NULL,
 		.maxlen		= 0,
@@ -185,7 +185,7 @@ static struct ctl_table frv_table[] =
 	},
 #ifdef CONFIG_MMU
 	{
-		.ctl_name	= 2,
+		.ctl_name	= CTL_UNNUMBERD,
 		.procname	= "pin-cxnr",
 		.data		= NULL,
 		.maxlen		= 0,
@@ -203,7 +203,7 @@ static struct ctl_table frv_table[] =
 static struct ctl_table frv_dir_table[] =
 {
 	{
-		.ctl_name	= CTL_FRV,
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "frv",
 		.mode 		= 0555,
 		.child		= frv_table
