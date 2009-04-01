@@ -419,6 +419,8 @@ int		   svc_set_num_threads(struct svc_serv *, struct svc_pool *, int);
 int		   svc_pool_stats_open(struct svc_serv *serv, struct file *file);
 void		   svc_destroy(struct svc_serv *);
 int		   svc_process(struct svc_rqst *);
+int		   bc_svc_process(struct svc_serv *, struct rpc_rqst *,
+			struct svc_rqst *);
 int		   svc_register(const struct svc_serv *, const int,
 				const unsigned short, const unsigned short);
 
