@@ -1102,7 +1102,7 @@ static int nfs4_reclaim_lease(struct nfs_client *clp)
 		nfs4_reboot_recovery_ops[clp->cl_minorversion];
 	int status = -ENOENT;
 
-	cred = nfs4_get_setclientid_cred(clp);
+	cred = ops->get_clid_cred(clp);
 	if (cred != NULL) {
 		status = ops->establish_clid(clp, cred);
 		put_rpccred(cred);

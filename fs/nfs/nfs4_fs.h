@@ -179,6 +179,7 @@ struct nfs4_state_recovery_ops {
 	int (*recover_open)(struct nfs4_state_owner *, struct nfs4_state *);
 	int (*recover_lock)(struct nfs4_state *, struct file_lock *);
 	int (*establish_clid)(struct nfs_client *, struct rpc_cred *);
+	struct rpc_cred * (*get_clid_cred)(struct nfs_client *);
 };
 
 struct nfs4_state_maintenance_ops {
