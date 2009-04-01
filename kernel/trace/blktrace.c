@@ -971,6 +971,16 @@ static inline const void *pdu_start(const struct trace_entry *ent)
 	return te_blk_io_trace(ent) + 1;
 }
 
+static inline u32 t_action(const struct trace_entry *ent)
+{
+	return te_blk_io_trace(ent)->action;
+}
+
+static inline u32 t_bytes(const struct trace_entry *ent)
+{
+	return te_blk_io_trace(ent)->bytes;
+}
+
 static inline u32 t_sec(const struct trace_entry *ent)
 {
 	return te_blk_io_trace(ent)->bytes >> 9;
@@ -1031,25 +1041,87 @@ static int blk_log_action(struct trace_iterator *iter, const char *act)
 				MAJOR(t->device), MINOR(t->device), act, rwbs);
 }
 
+static int blk_log_dump_pdu(struct trace_seq *s, const struct trace_entry *ent)
+{
+	const char *pdu_buf;
+	int pdu_len;
+	int i, end, ret;
+
+	pdu_buf = pdu_start(ent);
+	pdu_len = te_blk_io_trace(ent)->pdu_len;
+
+	if (!pdu_len)
+		return 1;
+
+	/* find the last zero that needs to be printed */
+	for (end = pdu_len - 1; end >= 0; end--)
+		if (pdu_buf[end])
+			break;
+	end++;
+
+	if (!trace_seq_putc(s, '('))
+		return 0;
+
+	for (i = 0; i < pdu_len; i++) {
+
+		ret = trace_seq_printf(s, "%s%02x",
+				       i == 0 ? "" : " ", pdu_buf[i]);
+		if (!ret)
+			return ret;
+
+		/*
+		 * stop when the rest is just zeroes and indicate so
+		 * with a ".." appended
+		 */
+		if (i == end && end != pdu_len - 1)
+			return trace_seq_puts(s, " ..) ");
+	}
+
+	return trace_seq_puts(s, ") ");
+}
+
 static int blk_log_generic(struct trace_seq *s, const struct trace_entry *ent)
 {
 	char cmd[TASK_COMM_LEN];
 
 	trace_find_cmdline(ent->pid, cmd);
 
-	if (t_sec(ent))
-		return trace_seq_printf(s, "%llu + %u [%s]\n",
-					t_sector(ent), t_sec(ent), cmd);
-	return trace_seq_printf(s, "[%s]\n", cmd);
+	if (t_action(ent) & BLK_TC_ACT(BLK_TC_PC)) {
+		int ret;
+
+		ret = trace_seq_printf(s, "%u ", t_bytes(ent));
+		if (!ret)
+			return 0;
+		ret = blk_log_dump_pdu(s, ent);
+		if (!ret)
+			return 0;
+		return trace_seq_printf(s, "[%s]\n", cmd);
+	} else {
+		if (t_sec(ent))
+			return trace_seq_printf(s, "%llu + %u [%s]\n",
+						t_sector(ent), t_sec(ent), cmd);
+		return trace_seq_printf(s, "[%s]\n", cmd);
+	}
 }
 
 static int blk_log_with_error(struct trace_seq *s,
 			      const struct trace_entry *ent)
 {
-	if (t_sec(ent))
-		return trace_seq_printf(s, "%llu + %u [%d]\n", t_sector(ent),
-					t_sec(ent), t_error(ent));
-	return trace_seq_printf(s, "%llu [%d]\n", t_sector(ent), t_error(ent));
+	if (t_action(ent) & BLK_TC_ACT(BLK_TC_PC)) {
+		int ret;
+
+		ret = blk_log_dump_pdu(s, ent);
+		if (ret)
+			return trace_seq_printf(s, "[%d]\n", t_error(ent));
+		return 0;
+	} else {
+		if (t_sec(ent))
+			return trace_seq_printf(s, "%llu + %u [%d]\n",
+						t_sector(ent),
+						t_sec(ent), t_error(ent));
+		return trace_seq_printf(s, "%llu [%d]\n",
+					t_sector(ent), t_error(ent));
+	}
 }
 
 static int blk_log_remap(struct trace_seq *s, const struct trace_entry *ent)
