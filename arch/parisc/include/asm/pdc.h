@@ -343,6 +343,8 @@
 
 #ifdef __KERNEL__
 
+#include <asm/page.h> /* for __PAGE_OFFSET */
+
 extern int pdc_type;
 
 /* Values for pdc_type */
