@@ -1374,6 +1374,11 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		 * association next time. This works around some broken APs
 		 * which do not correctly reject reassociation requests. */
 		ifmgd->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
+		cfg80211_send_rx_assoc(sdata->dev, (u8 *) mgmt, len);
+		if (ifmgd->flags & IEEE80211_STA_EXT_SME) {
+			/* Wait for SME to decide what to do next */
+			ifmgd->state = IEEE80211_STA_MLME_DISABLED;
+		}
 		return;
 	}
 
