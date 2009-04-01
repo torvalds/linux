@@ -64,11 +64,8 @@ extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy);
 
 #ifdef CONFIG_NFS_V4
 extern int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt);
-extern void nfs_callback_down(void);
-#else
-#define nfs_callback_up()	(0)
-#define nfs_callback_down()	do {} while(0)
-#endif
+extern void nfs_callback_down(int minorversion);
+#endif /* CONFIG_NFS_V4 */
 
 /*
  * nfs41: Callbacks are expected to not cause substantial latency,

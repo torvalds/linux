@@ -181,7 +181,7 @@ static void nfs4_destroy_callback(struct nfs_client *clp)
 {
 #ifdef CONFIG_NFS_V4
 	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
-		nfs_callback_down();
+		nfs_callback_down(clp->cl_minorversion);
 #endif /* CONFIG_NFS_V4 */
 }
 
