@@ -241,6 +241,7 @@ enum {
 #define IWL_LEGACY_SWITCH_MIMO2_AB      3
 #define IWL_LEGACY_SWITCH_MIMO2_AC      4
 #define IWL_LEGACY_SWITCH_MIMO2_BC      5
+#define IWL_LEGACY_SWITCH_MIMO3_ABC     6
 
 /* possible actions when in siso mode */
 #define IWL_SISO_SWITCH_ANTENNA1        0
@@ -249,6 +250,8 @@ enum {
 #define IWL_SISO_SWITCH_MIMO2_AC        3
 #define IWL_SISO_SWITCH_MIMO2_BC        4
 #define IWL_SISO_SWITCH_GI              5
+#define IWL_SISO_SWITCH_MIMO3_ABC       6
+
 
 /* possible actions when in mimo mode */
 #define IWL_MIMO2_SWITCH_ANTENNA1       0
@@ -257,6 +260,21 @@ enum {
 #define IWL_MIMO2_SWITCH_SISO_B         3
 #define IWL_MIMO2_SWITCH_SISO_C         4
 #define IWL_MIMO2_SWITCH_GI             5
+#define IWL_MIMO2_SWITCH_MIMO3_ABC      6
+
+
+/* possible actions when in mimo3 mode */
+#define IWL_MIMO3_SWITCH_ANTENNA1       0
+#define IWL_MIMO3_SWITCH_ANTENNA2       1
+#define IWL_MIMO3_SWITCH_SISO_A         2
+#define IWL_MIMO3_SWITCH_SISO_B         3
+#define IWL_MIMO3_SWITCH_SISO_C         4
+#define IWL_MIMO3_SWITCH_MIMO2_AB       5
+#define IWL_MIMO3_SWITCH_MIMO2_AC       6
+#define IWL_MIMO3_SWITCH_MIMO2_BC       7
+#define IWL_MIMO3_SWITCH_GI             8
+
+
 
 /*FIXME:RS:add possible actions for MIMO3*/
 
