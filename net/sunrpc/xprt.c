@@ -1049,6 +1049,11 @@ found:
 
 	INIT_LIST_HEAD(&xprt->free);
 	INIT_LIST_HEAD(&xprt->recv);
+#if defined(CONFIG_NFS_V4_1)
+	spin_lock_init(&xprt->bc_pa_lock);
+	INIT_LIST_HEAD(&xprt->bc_pa_list);
+#endif /* CONFIG_NFS_V4_1 */
+
 	INIT_WORK(&xprt->task_cleanup, xprt_autoclose);
 	setup_timer(&xprt->timer, xprt_init_autodisconnect,
 			(unsigned long)xprt);
