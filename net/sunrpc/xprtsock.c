@@ -270,12 +270,13 @@ struct sock_xprt {
 #define TCP_RCV_COPY_FRAGHDR	(1UL << 1)
 #define TCP_RCV_COPY_XID	(1UL << 2)
 #define TCP_RCV_COPY_DATA	(1UL << 3)
-#define TCP_RCV_COPY_CALLDIR	(1UL << 4)
+#define TCP_RCV_READ_CALLDIR	(1UL << 4)
+#define TCP_RCV_COPY_CALLDIR	(1UL << 5)
 
 /*
  * TCP RPC flags
  */
-#define TCP_RPC_REPLY		(1UL << 5)
+#define TCP_RPC_REPLY		(1UL << 6)
 
 static inline struct sockaddr *xs_addr(struct rpc_xprt *xprt)
 {
@@ -997,7 +998,7 @@ static inline void xs_tcp_read_xid(struct sock_xprt *transport, struct xdr_skb_r
 	if (used != len)
 		return;
 	transport->tcp_flags &= ~TCP_RCV_COPY_XID;
-	transport->tcp_flags |= TCP_RCV_COPY_CALLDIR;
+	transport->tcp_flags |= TCP_RCV_READ_CALLDIR;
 	transport->tcp_copied = 4;
 	dprintk("RPC:       reading %s XID %08x\n",
 			(transport->tcp_flags & TCP_RPC_REPLY) ? "reply for"
@@ -1026,9 +1027,13 @@ static inline void xs_tcp_read_calldir(struct sock_xprt *transport,
 	transport->tcp_offset += used;
 	if (used != len)
 		return;
-	transport->tcp_flags &= ~TCP_RCV_COPY_CALLDIR;
+	transport->tcp_flags &= ~TCP_RCV_READ_CALLDIR;
+	transport->tcp_flags |= TCP_RCV_COPY_CALLDIR;
 	transport->tcp_flags |= TCP_RCV_COPY_DATA;
-	transport->tcp_copied += 4;
+	/*
+	 * We don't yet have the XDR buffer, so we will write the calldir
+	 * out after we get the buffer from the 'struct rpc_rqst'
+	 */
 	if (ntohl(calldir) == RPC_REPLY)
 		transport->tcp_flags |= TCP_RPC_REPLY;
 	else
@@ -1059,6 +1064,20 @@ static inline void xs_tcp_read_request(struct rpc_xprt *xprt, struct xdr_skb_rea
 	}
 
 	rcvbuf = &req->rq_private_buf;
+
+	if (transport->tcp_flags & TCP_RCV_COPY_CALLDIR) {
+		/*
+		 * Save the RPC direction in the XDR buffer
+		 */
+		__be32	calldir = transport->tcp_flags & TCP_RPC_REPLY ?
+					htonl(RPC_REPLY) : 0;
+
+		memcpy(rcvbuf->head[0].iov_base + transport->tcp_copied,
+			&calldir, sizeof(calldir));
+		transport->tcp_copied += sizeof(calldir);
+		transport->tcp_flags &= ~TCP_RCV_COPY_CALLDIR;
+	}
+
 	len = desc->count;
 	if (len > transport->tcp_reclen - transport->tcp_offset) {
 		struct xdr_skb_reader my_desc;
@@ -1156,7 +1175,7 @@ static int xs_tcp_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb, uns
 			continue;
 		}
 		/* Read in the call/reply flag */
-		if (transport->tcp_flags & TCP_RCV_COPY_CALLDIR) {
+		if (transport->tcp_flags & TCP_RCV_READ_CALLDIR) {
 			xs_tcp_read_calldir(transport, &desc);
 			continue;
 		}
