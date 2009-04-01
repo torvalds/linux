@@ -760,18 +760,16 @@ EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_init);
 
 
 
-/* Load an i2c sub-device. It assumes that i2c_get_adapdata(adapter)
-   returns the v4l2_device and that i2c_get_clientdata(client)
-   returns the v4l2_subdev. */
-struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
+/* Load an i2c sub-device. */
+struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
+		struct i2c_adapter *adapter,
 		const char *module_name, const char *client_type, u8 addr)
 {
-	struct v4l2_device *dev = i2c_get_adapdata(adapter);
 	struct v4l2_subdev *sd = NULL;
 	struct i2c_client *client;
 	struct i2c_board_info info;
 
-	BUG_ON(!dev);
+	BUG_ON(!v4l2_dev);
 
 	if (module_name)
 		request_module(module_name);
@@ -798,7 +796,7 @@ struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
 
 	/* Register with the v4l2_device which increases the module's
 	   use count as well. */
-	if (v4l2_device_register_subdev(dev, sd))
+	if (v4l2_device_register_subdev(v4l2_dev, sd))
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
@@ -812,19 +810,17 @@ error:
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev);
 
-/* Probe and load an i2c sub-device. It assumes that i2c_get_adapdata(adapter)
-   returns the v4l2_device and that i2c_get_clientdata(client)
-   returns the v4l2_subdev. */
-struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
+/* Probe and load an i2c sub-device. */
+struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct v4l2_device *v4l2_dev,
+	struct i2c_adapter *adapter,
 	const char *module_name, const char *client_type,
 	const unsigned short *addrs)
 {
-	struct v4l2_device *dev = i2c_get_adapdata(adapter);
 	struct v4l2_subdev *sd = NULL;
 	struct i2c_client *client = NULL;
 	struct i2c_board_info info;
 
-	BUG_ON(!dev);
+	BUG_ON(!v4l2_dev);
 
 	if (module_name)
 		request_module(module_name);
@@ -850,7 +846,7 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
 
 	/* Register with the v4l2_device which increases the module's
 	   use count as well. */
-	if (v4l2_device_register_subdev(dev, sd))
+	if (v4l2_device_register_subdev(v4l2_dev, sd))
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);

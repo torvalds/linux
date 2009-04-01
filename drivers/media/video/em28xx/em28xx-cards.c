@@ -1958,44 +1958,46 @@ void em28xx_card_setup(struct em28xx *dev)
 
 	/* request some modules */
 	if (dev->board.has_msp34xx)
-		v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "msp3400",
-			"msp3400", msp3400_addrs);
+		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"msp3400", "msp3400", msp3400_addrs);
 
 	if (dev->board.decoder == EM28XX_SAA711X)
-		v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "saa7115",
-			"saa7115_auto", saa711x_addrs);
+		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"saa7115", "saa7115_auto", saa711x_addrs);
 
 	if (dev->board.decoder == EM28XX_TVP5150)
-		v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "tvp5150",
-			"tvp5150", tvp5150_addrs);
+		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"tvp5150", "tvp5150", tvp5150_addrs);
 
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
-		v4l2_i2c_new_subdev(&dev->i2c_adap, "tvaudio",
-			"tvaudio", dev->board.tvaudio_addr);
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"tvaudio", "tvaudio", dev->board.tvaudio_addr);
 
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		int has_demod = (dev->tda9887_conf & TDA9887_PRESENT);
 
 		if (dev->board.radio.type)
-			v4l2_i2c_new_subdev(&dev->i2c_adap, "tuner", "tuner",
-				dev->board.radio_addr);
+			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+				"tuner", "tuner", dev->board.radio_addr);
 
 		if (has_demod)
-			v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "tuner",
-				"tuner", v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+			v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (dev->tuner_addr == 0) {
 			enum v4l2_i2c_tuner_type type =
 				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 			struct v4l2_subdev *sd;
 
-			sd = v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "tuner",
-				"tuner", v4l2_i2c_tuner_addrs(type));
+			sd = v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(type));
 
 			if (sd)
 				dev->tuner_addr = v4l2_i2c_subdev_addr(sd);
 		} else {
-			v4l2_i2c_new_subdev(&dev->i2c_adap, "tuner",
-				"tuner", dev->tuner_addr);
+			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+				"tuner", "tuner", dev->tuner_addr);
 		}
 	}
 

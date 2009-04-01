@@ -168,13 +168,20 @@ static int mxb_probe(struct saa7146_dev *dev)
 		return -EFAULT;
 	}
 
-	mxb->saa7111a = v4l2_i2c_new_subdev(&mxb->i2c_adapter, "saa7115", "saa7111", I2C_SAA7111A);
-	mxb->tea6420_1 = v4l2_i2c_new_subdev(&mxb->i2c_adapter, "tea6420", "tea6420", I2C_TEA6420_1);
-	mxb->tea6420_2 = v4l2_i2c_new_subdev(&mxb->i2c_adapter, "tea6420", "tea6420", I2C_TEA6420_2);
-	mxb->tea6415c = v4l2_i2c_new_subdev(&mxb->i2c_adapter, "tea6415c", "tea6415c", I2C_TEA6415C);
-	mxb->tda9840 = v4l2_i2c_new_subdev(&mxb->i2c_adapter, "tda9840", "tda9840", I2C_TDA9840);
-	mxb->tuner = v4l2_i2c_new_subdev(&mxb->i2c_adapter, "tuner", "tuner", I2C_TUNER);
-	if (v4l2_i2c_new_subdev(&mxb->i2c_adapter, "saa5246a", "saa5246a", I2C_SAA5246A)) {
+	mxb->saa7111a = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
+			"saa7115", "saa7111", I2C_SAA7111A);
+	mxb->tea6420_1 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
+			"tea6420", "tea6420", I2C_TEA6420_1);
+	mxb->tea6420_2 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
+			"tea6420", "tea6420", I2C_TEA6420_2);
+	mxb->tea6415c = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
+			"tea6415c", "tea6415c", I2C_TEA6415C);
+	mxb->tda9840 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
+			"tda9840", "tda9840", I2C_TDA9840);
+	mxb->tuner = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
+			"tuner", "tuner", I2C_TUNER);
+	if (v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
+			"saa5246a", "saa5246a", I2C_SAA5246A)) {
 		printk(KERN_INFO "mxb: found teletext decoder\n");
 	}
 

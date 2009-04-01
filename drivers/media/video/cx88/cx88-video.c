@@ -1882,7 +1882,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	/* load and configure helper modules */
 
 	if (core->board.audio_chip == V4L2_IDENT_WM8775)
-		v4l2_i2c_new_subdev(&core->i2c_adap,
+		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
 				"wm8775", "wm8775", 0x36 >> 1);
 
 	if (core->board.audio_chip == V4L2_IDENT_TVAUDIO) {
@@ -1892,7 +1892,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 			0xb0 >> 1, I2C_CLIENT_END
 		};
 
-		v4l2_i2c_new_probed_subdev(&core->i2c_adap,
+		v4l2_i2c_new_probed_subdev(&core->v4l2_dev, &core->i2c_adap,
 				"tvaudio", "tvaudio", i2c_addr);
 	}
 

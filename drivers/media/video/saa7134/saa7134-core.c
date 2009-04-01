@@ -982,7 +982,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	/* load i2c helpers */
 	if (card_is_empress(dev)) {
 		struct v4l2_subdev *sd =
-			v4l2_i2c_new_subdev(&dev->i2c_adap,
+			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 				"saa6752hs", "saa6752hs",
 				saa7134_boards[dev->board].empress_addr);
 
@@ -995,8 +995,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		struct v4l2_subdev *sd;
 
 		addrs[0] = saa7134_boards[dev->board].rds_addr;
-		sd = v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "saa6588",
-			    "saa6588", addrs);
+		sd = v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+				"saa6588", "saa6588", addrs);
 		if (sd)
 			printk(KERN_INFO "%s: found RDS decoder\n", dev->name);
 	}

@@ -4337,11 +4337,13 @@ static int __init vino_module_init(void)
 	vino_init_stage++;
 
 	addr[0] = 0x45;
-	vino_drvdata->decoder = v4l2_i2c_new_probed_subdev(&vino_i2c_adapter,
-			"saa7191", "saa7191", addr);
+	vino_drvdata->decoder =
+		v4l2_i2c_new_probed_subdev(&vino_drvdata->v4l2_dev,
+			&vino_i2c_adapter, "saa7191", "saa7191", addr);
 	addr[0] = 0x2b;
-	vino_drvdata->camera = v4l2_i2c_new_probed_subdev(&vino_i2c_adapter,
-			"indycam", "indycam", addr);
+	vino_drvdata->camera =
+		v4l2_i2c_new_probed_subdev(&vino_drvdata->v4l2_dev,
+			&vino_i2c_adapter, "indycam", "indycam", addr);
 
 	dprintk("init complete!\n");
 

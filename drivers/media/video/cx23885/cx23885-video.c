@@ -1523,10 +1523,12 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		struct v4l2_subdev *sd = NULL;
 
 		if (dev->tuner_addr)
-			sd = v4l2_i2c_new_subdev(&dev->i2c_bus[1].i2c_adap,
+			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_bus[1].i2c_adap,
 				"tuner", "tuner", dev->tuner_addr);
 		else
-			sd = v4l2_i2c_new_probed_subdev(&dev->i2c_bus[1].i2c_adap,
+			sd = v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+				&dev->i2c_bus[1].i2c_adap,
 				"tuner", "tuner", v4l2_i2c_tuner_addrs(ADDRS_TV));
 		if (sd) {
 			struct tuner_setup tun_setup;

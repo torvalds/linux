@@ -211,8 +211,8 @@ void au0828_card_setup(struct au0828_dev *dev)
 		/* Load the analog demodulator driver (note this would need to
 		   be abstracted out if we ever need to support a different
 		   demod) */
-		sd = v4l2_i2c_new_subdev(&dev->i2c_adap, "au8522", "au8522",
-					 0x8e >> 1);
+		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+				"au8522", "au8522", 0x8e >> 1);
 		if (sd == NULL)
 			printk(KERN_ERR "analog subdev registration failed\n");
 	}
@@ -220,8 +220,8 @@ void au0828_card_setup(struct au0828_dev *dev)
 	/* Setup tuners */
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		/* Load the tuner module, which does the attach */
-		sd = v4l2_i2c_new_subdev(&dev->i2c_adap, "tuner", "tuner",
-					 dev->board.tuner_addr);
+		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+				"tuner", "tuner", dev->board.tuner_addr);
 		if (sd == NULL)
 			printk(KERN_ERR "tuner subdev registration fail\n");
 

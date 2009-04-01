@@ -311,8 +311,8 @@ void cx231xx_card_setup(struct cx231xx *dev)
 
 	/* request some modules */
 	if (dev->board.decoder == CX231XX_AVDECODER) {
-		dev->sd_cx25840 =
-			v4l2_i2c_new_subdev(&dev->i2c_bus[0].i2c_adap,
+		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
+					&dev->i2c_bus[0].i2c_adap,
 					"cx25840", "cx25840", 0x88 >> 1);
 		if (dev->sd_cx25840 == NULL)
 			cx231xx_info("cx25840 subdev registration failure\n");
@@ -321,8 +321,8 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	}
 
 	if (dev->board.tuner_type != TUNER_ABSENT) {
-		dev->sd_tuner =
-			v4l2_i2c_new_subdev(&dev->i2c_bus[1].i2c_adap,
+		dev->sd_tuner =	v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_bus[1].i2c_adap,
 				"tuner", "tuner", 0xc2 >> 1);
 		if (dev->sd_tuner == NULL)
 			cx231xx_info("tuner subdev registration failure\n");

@@ -364,14 +364,12 @@ from the remove() callback ensures that this is always done correctly.
 
 The bridge driver also has some helper functions it can use:
 
-struct v4l2_subdev *sd = v4l2_i2c_new_subdev(adapter, "module_foo", "chipid", 0x36);
+struct v4l2_subdev *sd = v4l2_i2c_new_subdev(v4l2_dev, adapter,
+	       "module_foo", "chipid", 0x36);
 
 This loads the given module (can be NULL if no module needs to be loaded) and
 calls i2c_new_device() with the given i2c_adapter and chip/address arguments.
-If all goes well, then it registers the subdev with the v4l2_device. It gets
-the v4l2_device by calling i2c_get_adapdata(adapter), so you should make sure
-to call i2c_set_adapdata(adapter, v4l2_device) when you setup the i2c_adapter
-in your driver.
+If all goes well, then it registers the subdev with the v4l2_device.
 
 You can also use v4l2_i2c_new_probed_subdev() which is very similar to
 v4l2_i2c_new_subdev(), except that it has an array of possible I2C addresses

@@ -6599,20 +6599,24 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		/* Note: radio tuner address is always filled in,
 		   so we do not need to probe for a radio tuner device. */
 		if (dev->radio_type != UNSET)
-			v4l2_i2c_new_subdev(&dev->i2c_adap,
-				"tuner", "tuner", dev->radio_addr);
+			v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				dev->radio_addr);
 		if (has_demod)
-			v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "tuner",
-				"tuner", v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+			v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (dev->tuner_addr == ADDR_UNSET) {
 			enum v4l2_i2c_tuner_type type =
 				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 
-			v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "tuner",
-				"tuner", v4l2_i2c_tuner_addrs(type));
+			v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(type));
 		} else {
-			v4l2_i2c_new_subdev(&dev->i2c_adap,
-				"tuner", "tuner", dev->tuner_addr);
+			v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				dev->tuner_addr);
 		}
 	}
 

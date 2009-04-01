@@ -247,7 +247,8 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 	switch (usbvision_device_data[usbvision->DevModel].Codec) {
 	case CODEC_SAA7113:
 	case CODEC_SAA7111:
-		v4l2_i2c_new_probed_subdev(&usbvision->i2c_adap, "saa7115",
+		v4l2_i2c_new_probed_subdev(&usbvision->v4l2_dev,
+				&usbvision->i2c_adap, "saa7115",
 				"saa7115_auto", saa711x_addrs);
 		break;
 	}
@@ -256,13 +257,15 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 		enum v4l2_i2c_tuner_type type;
 		struct tuner_setup tun_setup;
 
-		sd = v4l2_i2c_new_probed_subdev(&usbvision->i2c_adap, "tuner",
+		sd = v4l2_i2c_new_probed_subdev(&usbvision->v4l2_dev,
+				&usbvision->i2c_adap, "tuner",
 				"tuner", v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		/* depending on whether we found a demod or not, select
 		   the tuner type. */
 		type = sd ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 
-		sd = v4l2_i2c_new_probed_subdev(&usbvision->i2c_adap, "tuner",
+		sd = v4l2_i2c_new_probed_subdev(&usbvision->v4l2_dev,
+				&usbvision->i2c_adap, "tuner",
 				"tuner", v4l2_i2c_tuner_addrs(type));
 
 		if (usbvision->tuner_type != -1) {
