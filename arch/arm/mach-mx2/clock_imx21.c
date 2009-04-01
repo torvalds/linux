@@ -931,7 +931,7 @@ static struct clk_lookup lookups[] __initdata = {
 	_REGISTER_CLOCK(NULL, "slcdc", slcdc_clk[0])
 	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "gpio", gpio_clk)
-	_REGISTER_CLOCK(NULL, "i2c", i2c_clk)
+	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c_clk)
 	_REGISTER_CLOCK("mxc-keypad", NULL, kpp_clk)
 	_REGISTER_CLOCK(NULL, "owire", owire_clk)
 	_REGISTER_CLOCK(NULL, "rtc", rtc_clk)
