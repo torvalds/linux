@@ -2536,14 +2536,15 @@ static void hso_create_rfkill(struct hso_device *hso_dev,
 }
 
 /* Creates our network device */
-static struct hso_device *hso_create_net_device(struct usb_interface *interface)
+static struct hso_device *hso_create_net_device(struct usb_interface *interface,
+						int port_spec)
 {
 	int result, i;
 	struct net_device *net;
 	struct hso_net *hso_net;
 	struct hso_device *hso_dev;
 
-	hso_dev = hso_create_device(interface, HSO_INTF_MUX | HSO_PORT_NETWORK);
+	hso_dev = hso_create_device(interface, port_spec);
 	if (!hso_dev)
 		return NULL;
 
@@ -2943,7 +2944,8 @@ static int hso_probe(struct usb_interface *interface,
 		if ((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK) {
 			/* Create the network device */
 			if (!disable_net) {
-				hso_dev = hso_create_net_device(interface);
+				hso_dev = hso_create_net_device(interface,
+								port_spec);
 				if (!hso_dev)
 					goto exit;
 				tmp_dev = hso_dev;
@@ -2975,7 +2977,7 @@ static int hso_probe(struct usb_interface *interface,
 		/* It's a regular bulk interface */
 		if (((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK)
 		    && !disable_net)
-			hso_dev = hso_create_net_device(interface);
+			hso_dev = hso_create_net_device(interface, port_spec);
 		else
 			hso_dev =
 			    hso_create_bulk_serial_device(interface, port_spec);
