@@ -86,7 +86,13 @@ char aac_driver_version[] = AAC_DRIVER_FULL_VERSION;
  *
  * Note: The last field is used to index into aac_drivers below.
  */
-static struct pci_device_id aac_pci_tbl[] = {
+#ifdef DECLARE_PCI_DEVICE_TABLE
+static DECLARE_PCI_DEVICE_TABLE(aac_pci_tbl) = {
+#elif defined(__devinitconst)
+static const struct pci_device_id aac_pci_tbl[] __devinitconst = {
+#else
+static const struct pci_device_id aac_pci_tbl[] __devinitdata = {
+#endif
 	{ 0x1028, 0x0001, 0x1028, 0x0001, 0, 0, 0 }, /* PERC 2/Si (Iguana/PERC2Si) */
 	{ 0x1028, 0x0002, 0x1028, 0x0002, 0, 0, 1 }, /* PERC 3/Di (Opal/PERC3Di) */
 	{ 0x1028, 0x0003, 0x1028, 0x0003, 0, 0, 2 }, /* PERC 3/Si (SlimFast/PERC3Si */
