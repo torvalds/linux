@@ -554,7 +554,7 @@ static int __init sn2_ptc_init(void)
 
 	proc_sn2_ptc = proc_create(PTC_BASENAME, 0444,
 				   NULL, &proc_sn2_ptc_operations);
-	if (!&proc_sn2_ptc_operations) {
+	if (!proc_sn2_ptc) {
 		printk(KERN_ERR "unable to create %s proc entry", PTC_BASENAME);
 		return -EINVAL;
 	}
