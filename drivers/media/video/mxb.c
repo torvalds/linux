@@ -266,7 +266,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	int i = 0, err = 0;
 
 	/* select video mode in saa7111a */
-	saa7111a_call(mxb, tuner, s_std, std);
+	saa7111a_call(mxb, core, s_std, std);
 
 	/* select tuner-output on saa7111a */
 	i = 0;
@@ -286,7 +286,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	tuner_call(mxb, tuner, s_frequency, &mxb->cur_freq);
 
 	/* set a default video standard */
-	tuner_call(mxb, tuner, s_std, std);
+	tuner_call(mxb, core, s_std, std);
 
 	/* mute audio on tea6420s */
 	tea6420_1_call(mxb, audio, s_routing, &TEA6420_line[6][0]);
@@ -788,7 +788,7 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
 		/* unset the 7111 gpio register -- I don't know what this does exactly */
 		saa7111a_call(mxb, core, s_gpio, 0);
-		tuner_call(mxb, tuner, s_std, std);
+		tuner_call(mxb, core, s_std, std);
 	} else {
 		v4l2_std_id std = V4L2_STD_PAL_BG;
 
@@ -797,7 +797,7 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
 		/* set the 7111 gpio register -- I don't know what this does exactly */
 		saa7111a_call(mxb, core, s_gpio, 1);
-		tuner_call(mxb, tuner, s_std, std);
+		tuner_call(mxb, core, s_std, std);
 	}
 	return 0;
 }

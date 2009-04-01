@@ -829,7 +829,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_resolution_set(dev);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_std, dev->norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
 
 	mutex_unlock(&dev->lock);
 	return 0;

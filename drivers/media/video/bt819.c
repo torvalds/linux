@@ -444,9 +444,6 @@ static const struct v4l2_subdev_core_ops bt819_core_ops = {
 	.g_ctrl = bt819_g_ctrl,
 	.s_ctrl = bt819_s_ctrl,
 	.queryctrl = bt819_queryctrl,
-};
-
-static const struct v4l2_subdev_tuner_ops bt819_tuner_ops = {
 	.s_std = bt819_s_std,
 };
 
@@ -459,7 +456,6 @@ static const struct v4l2_subdev_video_ops bt819_video_ops = {
 
 static const struct v4l2_subdev_ops bt819_ops = {
 	.core = &bt819_core_ops,
-	.tuner = &bt819_tuner_ops,
 	.video = &bt819_video_ops,
 };
 

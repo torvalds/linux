@@ -1121,7 +1121,7 @@ int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	IVTV_DEBUG_INFO("Switching standard to %llx.\n", (unsigned long long)itv->std);
 
 	/* Tuner */
-	ivtv_call_all(itv, tuner, s_std, itv->std);
+	ivtv_call_all(itv, core, s_std, itv->std);
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		/* set display standard */

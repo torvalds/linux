@@ -342,10 +342,10 @@ static const struct v4l2_subdev_core_ops subdev_core_ops = {
 	.g_ctrl = subdev_g_ctrl,
 	.s_ctrl = subdev_s_ctrl,
 	.queryctrl = subdev_queryctrl,
+	.s_std = subdev_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops subdev_tuner_ops = {
-	.s_std = subdev_s_std,
 	.s_radio = subdev_s_radio,
 	.g_tuner = subdev_g_tuner,
 	.s_tuner = subdev_s_tuner,

@@ -1390,12 +1390,12 @@ static const struct v4l2_subdev_core_ops saa717x_core_ops = {
 	.queryctrl = saa717x_queryctrl,
 	.g_ctrl = saa717x_g_ctrl,
 	.s_ctrl = saa717x_s_ctrl,
+	.s_std = saa717x_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops saa717x_tuner_ops = {
 	.g_tuner = saa717x_g_tuner,
 	.s_tuner = saa717x_s_tuner,
-	.s_std = saa717x_s_std,
 	.s_radio = saa717x_s_radio,
 };
 

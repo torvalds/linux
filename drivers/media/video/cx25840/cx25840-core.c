@@ -1472,6 +1472,7 @@ static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.g_ctrl = cx25840_g_ctrl,
 	.s_ctrl = cx25840_s_ctrl,
 	.queryctrl = cx25840_queryctrl,
+	.s_std = cx25840_s_std,
 	.reset = cx25840_reset,
 	.load_fw = cx25840_load_fw,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -1482,7 +1483,6 @@ static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 
 static const struct v4l2_subdev_tuner_ops cx25840_tuner_ops = {
 	.s_frequency = cx25840_s_frequency,
-	.s_std = cx25840_s_std,
 	.s_radio = cx25840_s_radio,
 	.g_tuner = cx25840_g_tuner,
 	.s_tuner = cx25840_s_tuner,

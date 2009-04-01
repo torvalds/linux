@@ -1584,7 +1584,7 @@ zoran_init_hardware (struct zoran *zr)
 	route.input = zr->card.input[zr->input].muxsel;
 
 	decoder_call(zr, core, init, 0);
-	decoder_call(zr, tuner, s_std, zr->norm);
+	decoder_call(zr, core, s_std, zr->norm);
 	decoder_call(zr, video, s_routing, &route);
 
 	encoder_call(zr, core, init, 0);

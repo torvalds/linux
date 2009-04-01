@@ -621,7 +621,7 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 	usbvision->tvnormId=*id;
 
 	mutex_lock(&usbvision->lock);
-	call_all(usbvision, tuner, s_std, usbvision->tvnormId);
+	call_all(usbvision, core, s_std, usbvision->tvnormId);
 	mutex_unlock(&usbvision->lock);
 	/* propagate the change to the decoder */
 	usbvision_muxsel(usbvision, usbvision->ctl_input);

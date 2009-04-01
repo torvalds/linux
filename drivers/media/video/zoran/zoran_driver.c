@@ -1449,7 +1449,7 @@ zoran_set_norm (struct zoran *zr,
 		v4l2_std_id std = 0;
 
 		decoder_call(zr, video, querystd, &std);
-		decoder_call(zr, tuner, s_std, std);
+		decoder_call(zr, core, s_std, std);
 
 		/* let changes come into effect */
 		ssleep(2);
@@ -1461,7 +1461,7 @@ zoran_set_norm (struct zoran *zr,
 				"%s: %s - no norm detected\n",
 				ZR_DEVNAME(zr), __func__);
 			/* reset norm */
-			decoder_call(zr, tuner, s_std, zr->norm);
+			decoder_call(zr, core, s_std, zr->norm);
 			return -EIO;
 		}
 
@@ -1480,7 +1480,7 @@ zoran_set_norm (struct zoran *zr,
 	if (on)
 		zr36057_overlay(zr, 0);
 
-	decoder_call(zr, tuner, s_std, norm);
+	decoder_call(zr, core, s_std, norm);
 	encoder_call(zr, video, s_std_output, norm);
 
 	if (on)

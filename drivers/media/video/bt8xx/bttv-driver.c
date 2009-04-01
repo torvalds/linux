@@ -1329,7 +1329,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 		break;
 	}
 	id = tvnorm->v4l2_id;
-	bttv_call_all(btv, tuner, s_std, id);
+	bttv_call_all(btv, core, s_std, id);
 
 	return 0;
 }

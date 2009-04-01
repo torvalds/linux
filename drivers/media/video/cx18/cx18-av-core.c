@@ -1189,6 +1189,7 @@ static const struct v4l2_subdev_core_ops cx18_av_general_ops = {
 	.queryctrl = cx18_av_queryctrl,
 	.g_ctrl = cx18_av_g_ctrl,
 	.s_ctrl = cx18_av_s_ctrl,
+	.s_std = cx18_av_s_std,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = cx18_av_g_register,
 	.s_register = cx18_av_s_register,
@@ -1200,7 +1201,6 @@ static const struct v4l2_subdev_tuner_ops cx18_av_tuner_ops = {
 	.s_frequency = cx18_av_s_frequency,
 	.g_tuner = cx18_av_g_tuner,
 	.s_tuner = cx18_av_s_tuner,
-	.s_std = cx18_av_s_std,
 };
 
 static const struct v4l2_subdev_audio_ops cx18_av_audio_ops = {

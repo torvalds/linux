@@ -700,6 +700,7 @@ static const struct v4l2_subdev_core_ops msp_core_ops = {
 	.g_ctrl = msp_g_ctrl,
 	.s_ctrl = msp_s_ctrl,
 	.queryctrl = msp_queryctrl,
+	.s_std = msp_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops msp_tuner_ops = {
@@ -707,7 +708,6 @@ static const struct v4l2_subdev_tuner_ops msp_tuner_ops = {
 	.g_tuner = msp_g_tuner,
 	.s_tuner = msp_s_tuner,
 	.s_radio = msp_s_radio,
-	.s_std = msp_s_std,
 };
 
 static const struct v4l2_subdev_audio_ops msp_audio_ops = {

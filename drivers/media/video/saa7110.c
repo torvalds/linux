@@ -414,9 +414,6 @@ static const struct v4l2_subdev_core_ops saa7110_core_ops = {
 	.g_ctrl = saa7110_g_ctrl,
 	.s_ctrl = saa7110_s_ctrl,
 	.queryctrl = saa7110_queryctrl,
-};
-
-static const struct v4l2_subdev_tuner_ops saa7110_tuner_ops = {
 	.s_std = saa7110_s_std,
 };
 
@@ -429,7 +426,6 @@ static const struct v4l2_subdev_video_ops saa7110_video_ops = {
 
 static const struct v4l2_subdev_ops saa7110_ops = {
 	.core = &saa7110_core_ops,
-	.tuner = &saa7110_tuner_ops,
 	.video = &saa7110_video_ops,
 };
 

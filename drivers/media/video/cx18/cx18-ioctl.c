@@ -705,7 +705,7 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 			(unsigned long long) cx->std);
 
 	/* Tuner */
-	cx18_call_all(cx, tuner, s_std, cx->std);
+	cx18_call_all(cx, core, s_std, cx->std);
 	return 0;
 }
 

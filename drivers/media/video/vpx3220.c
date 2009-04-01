@@ -516,9 +516,6 @@ static const struct v4l2_subdev_core_ops vpx3220_core_ops = {
 	.g_ctrl = vpx3220_g_ctrl,
 	.s_ctrl = vpx3220_s_ctrl,
 	.queryctrl = vpx3220_queryctrl,
-};
-
-static const struct v4l2_subdev_tuner_ops vpx3220_tuner_ops = {
 	.s_std = vpx3220_s_std,
 };
 
@@ -531,7 +528,6 @@ static const struct v4l2_subdev_video_ops vpx3220_video_ops = {
 
 static const struct v4l2_subdev_ops vpx3220_ops = {
 	.core = &vpx3220_core_ops,
-	.tuner = &vpx3220_tuner_ops,
 	.video = &vpx3220_video_ops,
 };
 

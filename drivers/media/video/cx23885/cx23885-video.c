@@ -299,7 +299,7 @@ static int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm)
 
 	dev->tvnorm = norm;
 
-	call_all(dev, tuner, s_std, norm);
+	call_all(dev, core, s_std, norm);
 
 	return 0;
 }

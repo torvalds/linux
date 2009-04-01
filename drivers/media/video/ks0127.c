@@ -648,9 +648,6 @@ static int ks0127_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_iden
 
 static const struct v4l2_subdev_core_ops ks0127_core_ops = {
 	.g_chip_ident = ks0127_g_chip_ident,
-};
-
-static const struct v4l2_subdev_tuner_ops ks0127_tuner_ops = {
 	.s_std = ks0127_s_std,
 };
 
@@ -663,7 +660,6 @@ static const struct v4l2_subdev_video_ops ks0127_video_ops = {
 
 static const struct v4l2_subdev_ops ks0127_ops = {
 	.core = &ks0127_core_ops,
-	.tuner = &ks0127_tuner_ops,
 	.video = &ks0127_video_ops,
 };
 

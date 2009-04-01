@@ -1911,12 +1911,12 @@ static const struct v4l2_subdev_core_ops tvaudio_core_ops = {
 	.queryctrl = tvaudio_queryctrl,
 	.g_ctrl = tvaudio_g_ctrl,
 	.s_ctrl = tvaudio_s_ctrl,
+	.s_std = tvaudio_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops tvaudio_tuner_ops = {
 	.s_radio = tvaudio_s_radio,
 	.s_frequency = tvaudio_s_frequency,
-	.s_std = tvaudio_s_std,
 	.s_tuner = tvaudio_s_tuner,
 	.s_tuner = tvaudio_g_tuner,
 };

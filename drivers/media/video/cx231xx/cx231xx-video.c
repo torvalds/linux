@@ -1089,7 +1089,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	dev->height = f.fmt.pix.height;
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
-	call_all(dev, tuner, s_std, dev->norm);
+	call_all(dev, core, s_std, dev->norm);
 
 	mutex_unlock(&dev->lock);
 
