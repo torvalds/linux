@@ -1810,7 +1810,7 @@ void __init paging_init(void)
 
 	if (tlb_type == hypervisor) {
 		sun4v_mdesc_init();
-		mdesc_fill_in_cpu_data(CPU_MASK_ALL);
+		mdesc_fill_in_cpu_data(CPU_MASK_ALL_PTR);
 	}
 
 	/* Once the OF device tree and MDESC have been setup, we know

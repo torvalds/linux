@@ -857,12 +857,12 @@ static void * __cpuinit fill_in_one_cpu(struct mdesc_handle *hp, u64 mp, int cpu
 	return NULL;
 }
 
-void __cpuinit mdesc_fill_in_cpu_data(cpumask_t mask)
+void __cpuinit mdesc_fill_in_cpu_data(cpumask_t *mask)
 {
 	struct mdesc_handle *hp;
 
-	mdesc_populate_present_mask(&mask);
-	mdesc_iterate_over_cpus(fill_in_one_cpu, NULL, &mask);
+	mdesc_populate_present_mask(mask);
+	mdesc_iterate_over_cpus(fill_in_one_cpu, NULL, mask);
 
 #ifdef CONFIG_SMP
 	sparc64_multi_core = 1;
