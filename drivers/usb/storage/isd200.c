@@ -548,14 +548,14 @@ static int isd200_action( struct us_data *us, int action,
 		ata.generic.ActionSelect = ACTION_SELECT_1|ACTION_SELECT_5;
 		ata.generic.RegisterSelect = REG_DEVICE_HEAD | REG_COMMAND;
 		ata.write.DeviceHeadByte = info->DeviceHead;
-		ata.write.CommandByte = WIN_SRST;
+		ata.write.CommandByte = ATA_CMD_DEV_RESET;
 		isd200_set_srb(info, DMA_NONE, NULL, 0);
 		break;
 
 	case ACTION_IDENTIFY:
 		US_DEBUGP("   isd200_action(IDENTIFY)\n");
 		ata.generic.RegisterSelect = REG_COMMAND;
-		ata.write.CommandByte = WIN_IDENTIFY;
+		ata.write.CommandByte = ATA_CMD_ID_ATA;
 		isd200_set_srb(info, DMA_FROM_DEVICE, info->id,
 				ATA_ID_WORDS * 2);
 		break;
@@ -1335,7 +1335,7 @@ static int isd200_scsi_to_ata(struct scsi_cmnd *srb, struct us_data *us,
 		ataCdb->write.CylinderHighByte = (unsigned char)(cylinder>>8);
 		ataCdb->write.CylinderLowByte = (unsigned char)cylinder;
 		ataCdb->write.DeviceHeadByte = (head | ATA_ADDRESS_DEVHEAD_STD);
-		ataCdb->write.CommandByte = WIN_READ;
+		ataCdb->write.CommandByte = ATA_CMD_PIO_READ;
 		break;
 
 	case WRITE_10:
@@ -1367,7 +1367,7 @@ static int isd200_scsi_to_ata(struct scsi_cmnd *srb, struct us_data *us,
 		ataCdb->write.CylinderHighByte = (unsigned char)(cylinder>>8);
 		ataCdb->write.CylinderLowByte = (unsigned char)cylinder;
 		ataCdb->write.DeviceHeadByte = (head | ATA_ADDRESS_DEVHEAD_STD);
-		ataCdb->write.CommandByte = WIN_WRITE;
+		ataCdb->write.CommandByte = ATA_CMD_PIO_WRITE;
 		break;
 
 	case ALLOW_MEDIUM_REMOVAL:
@@ -1381,7 +1381,7 @@ static int isd200_scsi_to_ata(struct scsi_cmnd *srb, struct us_data *us,
 			ataCdb->generic.TransferBlockSize = 1;
 			ataCdb->generic.RegisterSelect = REG_COMMAND;
 			ataCdb->write.CommandByte = (srb->cmnd[4] & 0x1) ?
-				WIN_DOORLOCK : WIN_DOORUNLOCK;
+				ATA_CMD_MEDIA_LOCK : ATA_CMD_MEDIA_UNLOCK;
 			isd200_srb_set_bufflen(srb, 0);
 		} else {
 			US_DEBUGP("   Not removeable media, just report okay\n");
