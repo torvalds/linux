@@ -5,6 +5,7 @@
  *  Copyright (C) 2008 Option International
  *                     Filip Aben <f.aben@option.com>
  *                     Denis Joseph Barrow <d.barow@option.com>
+ *                     Jan Dumon <j.dumon@option.com>
  *  Copyright (C) 2007 Andrew Bird (Sphere Systems Ltd)
  *  			<ajb@spheresystems.co.uk>
  *  Copyright (C) 2008 Greg Kroah-Hartman <gregkh@suse.de>
@@ -2417,20 +2418,22 @@ static void hso_free_net_device(struct hso_device *hso_dev)
 	if (!hso_net)
 		return;
 
-	/* start freeing */
-	for (i = 0; i < MUX_BULK_RX_BUF_COUNT; i++) {
-		usb_free_urb(hso_net->mux_bulk_rx_urb_pool[i]);
-		kfree(hso_net->mux_bulk_rx_buf_pool[i]);
-	}
-	usb_free_urb(hso_net->mux_bulk_tx_urb);
-	kfree(hso_net->mux_bulk_tx_buf);
-
 	remove_net_device(hso_net->parent);
 
 	if (hso_net->net) {
 		unregister_netdev(hso_net->net);
 		free_netdev(hso_net->net);
 	}
+
+	/* start freeing */
+	for (i = 0; i < MUX_BULK_RX_BUF_COUNT; i++) {
+		usb_free_urb(hso_net->mux_bulk_rx_urb_pool[i]);
+		kfree(hso_net->mux_bulk_rx_buf_pool[i]);
+		hso_net->mux_bulk_rx_buf_pool[i] = NULL;
+	}
+	usb_free_urb(hso_net->mux_bulk_tx_urb);
+	kfree(hso_net->mux_bulk_tx_buf);
+	hso_net->mux_bulk_tx_buf = NULL;
 
 	kfree(hso_dev);
 }
@@ -2620,12 +2623,12 @@ static void hso_free_tiomget(struct hso_serial *serial)
 {
 	struct hso_tiocmget *tiocmget = serial->tiocmget;
 	if (tiocmget) {
-		kfree(tiocmget);
 		if (tiocmget->urb) {
 			usb_free_urb(tiocmget->urb);
 			tiocmget->urb = NULL;
 		}
 		serial->tiocmget = NULL;
+		kfree(tiocmget);
 
 	}
 }
