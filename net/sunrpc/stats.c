@@ -141,12 +141,14 @@ EXPORT_SYMBOL_GPL(rpc_free_iostats);
 void rpc_count_iostats(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	struct rpc_iostats *stats = task->tk_client->cl_metrics;
+	struct rpc_iostats *stats;
 	struct rpc_iostats *op_metrics;
 	long rtt, execute, queue;
 
-	if (!stats || !req)
+	if (!task->tk_client || !task->tk_client->cl_metrics || !req)
 		return;
+
+	stats = task->tk_client->cl_metrics;
 	op_metrics = &stats[task->tk_msg.rpc_proc->p_statidx];
 
 	op_metrics->om_ops++;

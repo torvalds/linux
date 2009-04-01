@@ -215,6 +215,18 @@ struct rpc_xprt {
 						/* buffer in use */
 #endif /* CONFIG_NFS_V4_1 */
 
+#if defined(CONFIG_NFS_V4_1)
+static inline int bc_prealloc(struct rpc_rqst *req)
+{
+	return test_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
+}
+#else
+static inline int bc_prealloc(struct rpc_rqst *req)
+{
+	return 0;
+}
+#endif /* CONFIG_NFS_V4_1 */
+
 struct xprt_create {
 	int			ident;		/* XPRT_TRANSPORT identifier */
 	struct sockaddr *	srcaddr;	/* optional local address */
