@@ -162,11 +162,11 @@ struct nfs4_slot {
 };
 
 struct nfs4_sequence_args {
-	/* stub */
+	struct nfs4_session	*sa_session;
 };
 
 struct nfs4_sequence_res {
-	/* stub */
+	struct nfs4_session	*sr_session;
 };
 
 /*

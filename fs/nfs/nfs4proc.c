@@ -291,6 +291,7 @@ int _nfs4_call_sync(struct nfs_server *server,
 		    struct nfs4_sequence_res *res,
 		    int cache_reply)
 {
+	args->sa_session = res->sr_session = NULL;
 	return rpc_call_sync(server->client, msg, 0);
 }
 
