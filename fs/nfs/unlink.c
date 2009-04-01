@@ -241,6 +241,7 @@ nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 		status = PTR_ERR(data->cred);
 		goto out_free;
 	}
+	data->res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 
 	status = -EBUSY;
 	spin_lock(&dentry->d_lock);
