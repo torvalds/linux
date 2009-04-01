@@ -622,6 +622,14 @@ static int nfs4_stat_to_errno(int);
 #define NFS4_dec_exchange_id_sz \
 				(compound_decode_hdr_maxsz + \
 				 decode_exchange_id_maxsz)
+#define NFS4_enc_get_lease_time_sz	(compound_encode_hdr_maxsz + \
+					 encode_sequence_maxsz + \
+					 encode_putrootfh_maxsz + \
+					 encode_fsinfo_maxsz)
+#define NFS4_dec_get_lease_time_sz	(compound_decode_hdr_maxsz + \
+					 decode_sequence_maxsz + \
+					 decode_putrootfh_maxsz + \
+					 decode_fsinfo_maxsz)
 #endif /* CONFIG_NFS_V4_1 */
 
 static const umode_t nfs_type2fmt[] = {
@@ -2228,6 +2236,27 @@ static int nfs4_xdr_enc_exchange_id(struct rpc_rqst *req, uint32_t *p,
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, req, &hdr);
 	encode_exchange_id(&xdr, args, &hdr);
+	encode_nops(&hdr);
+	return 0;
+}
+
+/*
+ * a GET_LEASE_TIME request
+ */
+static int nfs4_xdr_enc_get_lease_time(struct rpc_rqst *req, uint32_t *p,
+				       struct nfs4_get_lease_time_args *args)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr = {
+		.minorversion = nfs4_xdr_minorversion(&args->la_seq_args),
+	};
+	const u32 lease_bitmap[2] = { FATTR4_WORD0_LEASE_TIME, 0 };
+
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+	encode_compound_hdr(&xdr, req, &hdr);
+	encode_sequence(&xdr, &args->la_seq_args, &hdr);
+	encode_putrootfh(&xdr, &hdr);
+	encode_fsinfo(&xdr, lease_bitmap, &hdr);
 	encode_nops(&hdr);
 	return 0;
 }
@@ -4908,6 +4937,27 @@ static int nfs4_xdr_dec_exchange_id(struct rpc_rqst *rqstp, uint32_t *p,
 		status = decode_exchange_id(&xdr, res);
 	return status;
 }
+
+/*
+ * a GET_LEASE_TIME request
+ */
+static int nfs4_xdr_dec_get_lease_time(struct rpc_rqst *rqstp, uint32_t *p,
+				       struct nfs4_get_lease_time_res *res)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr;
+	int status;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
+	if (!status)
+		status = decode_sequence(&xdr, &res->lr_seq_res, rqstp);
+	if (!status)
+		status = decode_putrootfh(&xdr);
+	if (!status)
+		status = decode_fsinfo(&xdr, res->lr_fsinfo);
+	return status;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
@@ -5081,6 +5131,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
   PROC(FS_LOCATIONS,	enc_fs_locations, dec_fs_locations),
 #if defined(CONFIG_NFS_V4_1)
   PROC(EXCHANGE_ID,	enc_exchange_id,	dec_exchange_id),
+  PROC(GET_LEASE_TIME,	enc_get_lease_time,	dec_get_lease_time),
 #endif /* CONFIG_NFS_V4_1 */
 };
 

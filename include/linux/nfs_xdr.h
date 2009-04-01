@@ -174,6 +174,15 @@ struct nfs4_sequence_res {
 	int			sr_status;	/* sequence operation status */
 };
 
+struct nfs4_get_lease_time_args {
+	struct nfs4_sequence_args	la_seq_args;
+};
+
+struct nfs4_get_lease_time_res {
+	struct nfs_fsinfo	       *lr_fsinfo;
+	struct nfs4_sequence_res	lr_seq_res;
+};
+
 /*
  * Arguments to the open call.
  */
