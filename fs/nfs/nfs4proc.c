@@ -330,6 +330,46 @@ void nfs41_sequence_free_slot(const struct nfs_client *clp,
 	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
 }
 
+static void nfs41_sequence_done(struct nfs_client *clp,
+				struct nfs4_sequence_res *res,
+				int rpc_status)
+{
+	unsigned long timestamp;
+	struct nfs4_slot_table *tbl;
+	struct nfs4_slot *slot;
+
+	/*
+	 * sr_status remains 1 if an RPC level error occurred. The server
+	 * may or may not have processed the sequence operation..
+	 * Proceed as if the server received and processed the sequence
+	 * operation.
+	 */
+	if (res->sr_status == 1)
+		res->sr_status = NFS_OK;
+
+	/* -ERESTARTSYS can result in skipping nfs41_sequence_setup */
+	if (res->sr_slotid == NFS4_MAX_SLOT_TABLE)
+		goto out;
+
+	tbl = &clp->cl_session->fc_slot_table;
+	slot = tbl->slots + res->sr_slotid;
+
+	if (res->sr_status == 0) {
+		/* Update the slot's sequence and clientid lease timer */
+		++slot->seq_nr;
+		timestamp = res->sr_renewal_time;
+		spin_lock(&clp->cl_lock);
+		if (time_before(clp->cl_last_renewal, timestamp))
+			clp->cl_last_renewal = timestamp;
+		spin_unlock(&clp->cl_lock);
+		return;
+	}
+out:
+	/* The session may be reset by one of the error handlers. */
+	dprintk("%s: Error %d free the slot \n", __func__, res->sr_status);
+	nfs41_sequence_free_slot(clp, res);
+}
+
 /*
  * nfs4_find_slot - efficiently look for a free slot
  *
@@ -514,6 +554,24 @@ int _nfs4_call_sync(struct nfs_server *server,
 #define nfs4_call_sync(server, msg, args, res, cache_reply) \
 	(server)->nfs_client->cl_call_sync((server), (msg), &(args)->seq_args, \
 			&(res)->seq_res, (cache_reply))
+
+static void nfs4_sequence_done(const struct nfs_server *server,
+			       struct nfs4_sequence_res *res, int rpc_status)
+{
+#ifdef CONFIG_NFS_V4_1
+	if (nfs4_has_session(server->nfs_client))
+		nfs41_sequence_done(server->nfs_client, res, rpc_status);
+#endif /* CONFIG_NFS_V4_1 */
+}
+
+/* no restart, therefore free slot here */
+static void nfs4_sequence_done_free_slot(const struct nfs_server *server,
+					 struct nfs4_sequence_res *res,
+					 int rpc_status)
+{
+	nfs4_sequence_done(server, res, rpc_status);
+	nfs4_sequence_free_slot(server->nfs_client, res);
+}
 
 static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
 {
