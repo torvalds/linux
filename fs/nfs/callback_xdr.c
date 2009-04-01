@@ -521,6 +521,14 @@ out:
 static __be32
 preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
 {
+	if (op_nr == OP_CB_SEQUENCE) {
+		if (nop != 0)
+			return htonl(NFS4ERR_SEQUENCE_POS);
+	} else {
+		if (nop == 0)
+			return htonl(NFS4ERR_OP_NOT_IN_SESSION);
+	}
+
 	switch (op_nr) {
 	case OP_CB_GETATTR:
 	case OP_CB_RECALL:
