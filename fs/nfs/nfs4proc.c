@@ -4382,6 +4382,16 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 	session = kzalloc(sizeof(struct nfs4_session), GFP_KERNEL);
 	if (!session)
 		return NULL;
+
+	set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
+	/*
+	 * The create session reply races with the server back
+	 * channel probe. Mark the client NFS_CS_SESSION_INITING
+	 * so that the client back channel can find the
+	 * nfs_client struct
+	 */
+	clp->cl_cons_state = NFS_CS_SESSION_INITING;
+
 	tbl = &session->fc_slot_table;
 	spin_lock_init(&tbl->slot_tbl_lock);
 	rpc_init_wait_queue(&tbl->slot_tbl_waitq, "Slot table");

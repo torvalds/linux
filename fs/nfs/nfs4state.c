@@ -1113,6 +1113,27 @@ static int nfs4_reclaim_lease(struct nfs_client *clp)
 	return status;
 }
 
+#ifdef CONFIG_NFS_V4_1
+
+static int nfs4_initialize_session(struct nfs_client *clp)
+{
+	int status;
+
+	status = nfs4_proc_create_session(clp, 0);
+	if (!status) {
+		nfs_mark_client_ready(clp, NFS_CS_READY);
+	} else if (status == -NFS4ERR_STALE_CLIENTID) {
+		set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+		set_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state);
+	} else {
+		nfs_mark_client_ready(clp, status);
+	}
+	return status;
+}
+#else /* CONFIG_NFS_V4_1 */
+static int nfs4_initialize_session(struct nfs_client *clp) { return 0; }
+#endif /* CONFIG_NFS_V4_1 */
+
 static void nfs4_state_manager(struct nfs_client *clp)
 {
 	int status = 0;
@@ -1126,6 +1147,9 @@ static void nfs4_state_manager(struct nfs_client *clp)
 				set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
 				if (status == -EAGAIN)
 					continue;
+				if (clp->cl_cons_state ==
+							NFS_CS_SESSION_INITING)
+					nfs_mark_client_ready(clp, status);
 				goto out_error;
 			}
 			clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
@@ -1136,7 +1160,16 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			if (status != 0)
 				continue;
 		}
-
+		/* Setup the session */
+		if (nfs4_has_session(clp) &&
+		   test_and_clear_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state)) {
+			status = nfs4_initialize_session(clp);
+			if (status) {
+				if (status == -NFS4ERR_STALE_CLIENTID)
+					continue;
+				goto out_error;
+			}
+		}
 		/* First recover reboot state... */
 		if (test_and_clear_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state)) {
 			status = nfs4_do_reclaim(clp, &nfs4_reboot_recovery_ops);
