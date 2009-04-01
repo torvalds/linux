@@ -1182,7 +1182,7 @@ static enum print_line_t print_one_line(struct trace_iterator *iter,
 	}
 
 	if (unlikely(what == 0 || what >= ARRAY_SIZE(what2act)))
-		ret = trace_seq_printf(s, "Bad pc action %x\n", what);
+		ret = trace_seq_printf(s, "Unknown action %x\n", what);
 	else {
 		ret = log_action(iter, what2act[what].act[long_act]);
 		if (ret)
