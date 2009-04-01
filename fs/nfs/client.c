@@ -1207,6 +1207,21 @@ static void nfs4_init_session(struct nfs_client *clp,
 }
 
 /*
+ * Session has been established, and the client marked ready.
+ * Set the mount rsize and wsize with negotiated fore channel
+ * attributes which will be bound checked in nfs_server_set_fsinfo.
+ */
+static void nfs4_session_set_rwsize(struct nfs_server *server)
+{
+#ifdef CONFIG_NFS_V4_1
+	if (!nfs4_has_session(server->nfs_client))
+		return;
+	server->rsize = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
+	server->wsize = server->nfs_client->cl_session->fc_attrs.max_rqst_sz;
+#endif /* CONFIG_NFS_V4_1 */
+}
+
+/*
  * Create a version 4 volume record
  */
 static int nfs4_init_server(struct nfs_server *server,
@@ -1295,6 +1310,8 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 		(unsigned long long) server->fsid.major,
 		(unsigned long long) server->fsid.minor);
 	dprintk("Mount FH: %d\n", mntfh->size);
+
+	nfs4_session_set_rwsize(server);
 
 	error = nfs_probe_fsinfo(server, mntfh, &fattr);
 	if (error < 0)
