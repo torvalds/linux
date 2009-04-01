@@ -3658,7 +3658,7 @@ decode_savefh(struct xdr_stream *xdr)
 	return decode_op_hdr(xdr, OP_SAVEFH);
 }
 
-static int decode_setattr(struct xdr_stream *xdr, struct nfs_setattrres *res)
+static int decode_setattr(struct xdr_stream *xdr)
 {
 	__be32 *p;
 	uint32_t bmlen;
@@ -4009,7 +4009,7 @@ nfs4_xdr_dec_setacl(struct rpc_rqst *rqstp, __be32 *p, void *res)
 	status = decode_putfh(&xdr);
 	if (status)
 		goto out;
-	status = decode_setattr(&xdr, res);
+	status = decode_setattr(&xdr);
 out:
 	return status;
 }
@@ -4162,7 +4162,7 @@ static int nfs4_xdr_dec_setattr(struct rpc_rqst *rqstp, __be32 *p, struct nfs_se
 	status = decode_putfh(&xdr);
 	if (status)
 		goto out;
-	status = decode_setattr(&xdr, res);
+	status = decode_setattr(&xdr);
 	if (status)
 		goto out;
 	decode_getfattr(&xdr, res->fattr, res->server);
