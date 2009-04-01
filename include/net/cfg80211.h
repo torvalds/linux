@@ -503,7 +503,7 @@ struct cfg80211_scan_request {
 	int n_ssids;
 	struct ieee80211_channel **channels;
 	u32 n_channels;
-	u8 *ie;
+	const u8 *ie;
 	size_t ie_len;
 
 	/* internal */

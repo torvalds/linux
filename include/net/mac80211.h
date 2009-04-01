@@ -1330,11 +1330,14 @@ enum ieee80211_ampdu_mlme_action {
  *	the scan state machine in stack. The scan must honour the channel
  *	configuration done by the regulatory agent in the wiphy's
  *	registered bands. The hardware (or the driver) needs to make sure
- *	that power save is disabled. When the scan finishes,
- *	ieee80211_scan_completed() must be called; note that it also must
- *	be called when the scan cannot finish because the hardware is
- *	turned off! Anything else is a bug! Returns a negative error code
- *	which will be seen in userspace.
+ *	that power save is disabled.
+ *	The @req ie/ie_len members are rewritten by mac80211 to contain the
+ *	entire IEs after the SSID, so that drivers need not look at these
+ *	at all but just send them after the SSID -- mac80211 includes the
+ *	(extended) supported rates and HT information (where applicable).
+ *	When the scan finishes, ieee80211_scan_completed() must be called;
+ *	note that it also must be called when the scan cannot finish due to
+ *	any error unless this callback returned a negative error code.
  *
  * @sw_scan_start: Notifier function that is called just before a software scan
  *	is started. Can be NULL, if the driver doesn't need this notification.

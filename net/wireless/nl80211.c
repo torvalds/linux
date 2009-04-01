@@ -2597,7 +2597,8 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_IE]) {
 		request->ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
-		memcpy(request->ie, nla_data(info->attrs[NL80211_ATTR_IE]),
+		memcpy((void *)request->ie,
+		       nla_data(info->attrs[NL80211_ATTR_IE]),
 		       request->ie_len);
 	}
 

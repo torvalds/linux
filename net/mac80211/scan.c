@@ -285,6 +285,12 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	if (WARN_ON(!local->scan_req))
 		return;
 
+	if (local->hw_scanning) {
+		kfree(local->scan_req->ie);
+		local->scan_req->ie = local->orig_ies;
+		local->scan_req->ie_len = local->orig_ies_len;
+	}
+
 	if (local->scan_req != &local->int_scan_req)
 		cfg80211_scan_done(local->scan_req, aborted);
 	local->scan_req = NULL;
@@ -457,12 +463,28 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 	}
 
 	if (local->ops->hw_scan) {
-		int rc;
+		u8 *ies;
+		int rc, ielen;
+
+		ies = kmalloc(2 + IEEE80211_MAX_SSID_LEN +
+			      local->scan_ies_len + req->ie_len, GFP_KERNEL);
+		if (!ies)
+			return -ENOMEM;
+
+		ielen = ieee80211_build_preq_ies(local, ies,
+						 req->ie, req->ie_len);
+		local->orig_ies = req->ie;
+		local->orig_ies_len = req->ie_len;
+		req->ie = ies;
+		req->ie_len = ielen;
 
 		local->hw_scanning = true;
 		rc = local->ops->hw_scan(local_to_hw(local), req);
 		if (rc) {
 			local->hw_scanning = false;
+			kfree(ies);
+			req->ie_len = local->orig_ies_len;
+			req->ie = local->orig_ies;
 			return rc;
 		}
 		local->scan_sdata = scan_sdata;

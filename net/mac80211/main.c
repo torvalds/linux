@@ -729,22 +729,12 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	wiphy->privid = mac80211_wiphy_privid;
 
-	if (!ops->hw_scan) {
-		/* For hw_scan, driver needs to set these up. */
-		wiphy->max_scan_ssids = 4;
-
-		/* we support a maximum of 32 rates in cfg80211 */
-		wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN
-					 - 2 - 32 /* SSID */
-					 - 4 - 32 /* (ext) supp rates */;
-
-	}
-
 	/* Yes, putting cfg80211_bss into ieee80211_bss is a hack */
 	wiphy->bss_priv_size = sizeof(struct ieee80211_bss) -
 			       sizeof(struct cfg80211_bss);
 
 	local = wiphy_priv(wiphy);
+
 	local->hw.wiphy = wiphy;
 
 	local->hw.priv = (char *)local +
@@ -831,7 +821,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	enum ieee80211_band band;
 	struct net_device *mdev;
 	struct ieee80211_master_priv *mpriv;
-	int channels, i, j;
+	int channels, i, j, max_bitrates;
 
 	/*
 	 * generic code guarantees at least one band,
@@ -839,18 +829,23 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	 * that hw.conf.channel is assigned
 	 */
 	channels = 0;
+	max_bitrates = 0;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		struct ieee80211_supported_band *sband;
 
 		sband = local->hw.wiphy->bands[band];
-		if (sband && !local->oper_channel) {
+		if (!sband)
+			continue;
+		if (!local->oper_channel) {
 			/* init channel we're on */
 			local->hw.conf.channel =
 			local->oper_channel =
 			local->scan_channel = &sband->channels[0];
 		}
-		if (sband)
-			channels += sband->n_channels;
+		channels += sband->n_channels;
+
+		if (max_bitrates < sband->n_bitrates)
+			max_bitrates = sband->n_bitrates;
 	}
 
 	local->int_scan_req.n_channels = channels;
@@ -869,6 +864,30 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
+
+	/*
+	 * Calculate scan IE length -- we need this to alloc
+	 * memory and to subtract from the driver limit. It
+	 * includes the (extended) supported rates and HT
+	 * information -- SSID is the driver's responsibility.
+	 */
+	local->scan_ies_len = 4 + max_bitrates; /* (ext) supp rates */
+
+	if (!local->ops->hw_scan) {
+		/* For hw_scan, driver needs to set these up. */
+		local->hw.wiphy->max_scan_ssids = 4;
+		local->hw.wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+	}
+
+	/*
+	 * If the driver supports any scan IEs, then assume the
+	 * limit includes the IEs mac80211 will add, otherwise
+	 * leave it at zero and let the driver sort it out; we
+	 * still pass our IEs to the driver but userspace will
+	 * not be allowed to in that case.
+	 */
+	if (local->hw.wiphy->max_scan_ie_len)
+		local->hw.wiphy->max_scan_ie_len -= local->scan_ies_len;
 
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)

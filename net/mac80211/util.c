@@ -831,16 +831,57 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb(sdata, skb, encrypt);
 }
 
+int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
+			     const u8 *ie, size_t ie_len)
+{
+	struct ieee80211_supported_band *sband;
+	u8 *pos, *supp_rates_len, *esupp_rates_len = NULL;
+	int i;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+
+	pos = buffer;
+
+	*pos++ = WLAN_EID_SUPP_RATES;
+	supp_rates_len = pos;
+	*pos++ = 0;
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		struct ieee80211_rate *rate = &sband->bitrates[i];
+
+		if (esupp_rates_len) {
+			*esupp_rates_len += 1;
+		} else if (*supp_rates_len == 8) {
+			*pos++ = WLAN_EID_EXT_SUPP_RATES;
+			esupp_rates_len = pos;
+			*pos++ = 1;
+		} else
+			*supp_rates_len += 1;
+
+		*pos++ = rate->bitrate / 5;
+	}
+
+	/*
+	 * If adding more here, adjust code in main.c
+	 * that calculates local->scan_ies_len.
+	 */
+
+	if (ie) {
+		memcpy(pos, ie, ie_len);
+		pos += ie_len;
+	}
+
+	return pos - buffer;
+}
+
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
-			      u8 *ssid, size_t ssid_len,
-			      u8 *ie, size_t ie_len)
+			      const u8 *ssid, size_t ssid_len,
+			      const u8 *ie, size_t ie_len)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos, *supp_rates, *esupp_rates = NULL;
-	int i;
+	u8 *pos;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt) + 200 +
 			    ie_len);
@@ -867,33 +908,9 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	*pos++ = WLAN_EID_SSID;
 	*pos++ = ssid_len;
 	memcpy(pos, ssid, ssid_len);
+	pos += ssid_len;
 
-	supp_rates = skb_put(skb, 2);
-	supp_rates[0] = WLAN_EID_SUPP_RATES;
-	supp_rates[1] = 0;
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-
-	for (i = 0; i < sband->n_bitrates; i++) {
-		struct ieee80211_rate *rate = &sband->bitrates[i];
-		if (esupp_rates) {
-			pos = skb_put(skb, 1);
-			esupp_rates[1]++;
-		} else if (supp_rates[1] == 8) {
-			esupp_rates = skb_put(skb, 3);
-			esupp_rates[0] = WLAN_EID_EXT_SUPP_RATES;
-			esupp_rates[1] = 1;
-			pos = &esupp_rates[2];
-		} else {
-			pos = skb_put(skb, 1);
-			supp_rates[1]++;
-		}
-		*pos = rate->bitrate / 5;
-	}
-
-	/* if adding more here, adjust max_scan_ie_len */
-
-	if (ie)
-		memcpy(skb_put(skb, ie_len), ie, ie_len);
+	skb_put(skb, ieee80211_build_preq_ies(local, pos, ie, ie_len));
 
 	ieee80211_tx_skb(sdata, skb, 0);
 }
