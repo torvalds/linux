@@ -4414,7 +4414,28 @@ static int nfs4_reset_slot_tables(struct nfs4_session *session)
 			session->fc_attrs.max_reqs,
 			session->fc_slot_table.max_slots,
 			1);
+	if (status)
+		return status;
+
+	status = nfs4_reset_slot_table(&session->bc_slot_table,
+			session->bc_attrs.max_reqs,
+			session->bc_slot_table.max_slots,
+			0);
 	return status;
+}
+
+/* Destroy the slot table */
+static void nfs4_destroy_slot_tables(struct nfs4_session *session)
+{
+	if (session->fc_slot_table.slots != NULL) {
+		kfree(session->fc_slot_table.slots);
+		session->fc_slot_table.slots = NULL;
+	}
+	if (session->bc_slot_table.slots != NULL) {
+		kfree(session->bc_slot_table.slots);
+		session->bc_slot_table.slots = NULL;
+	}
+	return;
 }
 
 /*
@@ -4470,17 +4491,15 @@ static int nfs4_init_slot_tables(struct nfs4_session *session)
 
 	status = nfs4_init_slot_table(&session->fc_slot_table,
 			session->fc_attrs.max_reqs, 1);
-	return status;
-}
+	if (status)
+		return status;
 
-/* Destroy the slot table */
-static void nfs4_destroy_slot_table(struct nfs4_session *session)
-{
-	if (session->fc_slot_table.slots == NULL)
-		return;
-	kfree(session->fc_slot_table.slots);
-	session->fc_slot_table.slots = NULL;
-	return;
+	status = nfs4_init_slot_table(&session->bc_slot_table,
+			session->bc_attrs.max_reqs, 0);
+	if (status)
+		nfs4_destroy_slot_tables(session);
+
+	return status;
 }
 
 struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
@@ -4503,7 +4522,12 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 
 	tbl = &session->fc_slot_table;
 	spin_lock_init(&tbl->slot_tbl_lock);
-	rpc_init_wait_queue(&tbl->slot_tbl_waitq, "Slot table");
+	rpc_init_wait_queue(&tbl->slot_tbl_waitq, "ForeChannel Slot table");
+
+	tbl = &session->bc_slot_table;
+	spin_lock_init(&tbl->slot_tbl_lock);
+	rpc_init_wait_queue(&tbl->slot_tbl_waitq, "BackChannel Slot table");
+
 	session->clp = clp;
 	return session;
 }
@@ -4515,7 +4539,7 @@ void nfs4_destroy_session(struct nfs4_session *session)
 		__func__, session->clp->cl_rpcclient->cl_xprt);
 	xprt_destroy_backchannel(session->clp->cl_rpcclient->cl_xprt,
 				NFS41_BC_MIN_CALLBACKS);
-	nfs4_destroy_slot_table(session);
+	nfs4_destroy_slot_tables(session);
 	kfree(session);
 }
 

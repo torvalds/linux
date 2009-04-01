@@ -205,7 +205,7 @@ struct nfs4_session {
 	struct nfs4_channel_attrs	fc_attrs;
 	struct nfs4_slot_table		fc_slot_table;
 	struct nfs4_channel_attrs	bc_attrs;
-					/* back channel has one slot */
+	struct nfs4_slot_table		bc_slot_table;
 	struct nfs_client		*clp;
 };
 
