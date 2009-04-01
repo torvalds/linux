@@ -3221,10 +3221,8 @@ static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen
 }
 
 static int
-nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, struct nfs4_state *state)
+_nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, struct nfs_client *clp, struct nfs4_state *state)
 {
-	struct nfs_client *clp = server->nfs_client;
-
 	if (!clp || task->tk_status >= 0)
 		return 0;
 	switch(task->tk_status) {
@@ -3244,7 +3242,8 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 			task->tk_status = 0;
 			return -EAGAIN;
 		case -NFS4ERR_DELAY:
-			nfs_inc_server_stats(server, NFSIOS_DELAY);
+			if (server)
+				nfs_inc_server_stats(server, NFSIOS_DELAY);
 		case -NFS4ERR_GRACE:
 			rpc_delay(task, NFS4_POLL_RETRY_MAX);
 			task->tk_status = 0;
@@ -3255,6 +3254,12 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 	}
 	task->tk_status = nfs4_map_errors(task->tk_status);
 	return 0;
+}
+
+static int
+nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, struct nfs4_state *state)
+{
+	return _nfs4_async_handle_error(task, server, server->nfs_client, state);
 }
 
 int nfs4_proc_setclientid(struct nfs_client *clp, u32 program, unsigned short port, struct rpc_cred *cred)
