@@ -917,10 +917,10 @@ static struct sony_nc_event sony_127_events[] = {
 static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
 {
 	u32 ev = event;
-	int result;
 
 	if (ev >= 0x90) {
 		/* New-style event */
+		int result;
 		int key_handle = 0;
 		ev -= 0x90;
 
@@ -932,38 +932,43 @@ static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
 		if (key_handle) {
 			struct sony_nc_event *key_event;
 
-			if (sony_call_snc_handle(key_handle, 0x200, &result))
+			if (sony_call_snc_handle(key_handle, 0x200, &result)) {
 				dprintk("sony_acpi_notify, unable to decode"
 					" event 0x%.2x 0x%.2x\n", key_handle,
 					ev);
-			else
+				/* restore the original event */
+				ev = event;
+			} else {
 				ev = result & 0xFF;
 
-			if (key_handle == 0x100)
-				key_event = sony_100_events;
-			else
-				key_event = sony_127_events;
+				if (key_handle == 0x100)
+					key_event = sony_100_events;
+				else
+					key_event = sony_127_events;
 
-			for (; key_event->data; key_event++) {
-				if (key_event->data == ev) {
-					ev = key_event->event;
-					break;
+				for (; key_event->data; key_event++) {
+					if (key_event->data == ev) {
+						ev = key_event->event;
+						break;
+					}
 				}
-			}
 
-			if (!key_event->data) {
-				printk(KERN_INFO DRV_PFX
-				       "Unknown event: 0x%x 0x%x\n", key_handle,
-				       ev);
+				if (!key_event->data)
+					printk(KERN_INFO DRV_PFX
+							"Unknown event: 0x%x 0x%x\n",
+							key_handle,
+							ev);
+				else
+					sony_laptop_report_input_event(ev);
 			}
 		} else if (sony_find_snc_handle(0x124) == ev) {
 			sony_nc_rfkill_update();
 			return;
 		}
-	}
+	} else
+		sony_laptop_report_input_event(ev);
 
 	dprintk("sony_acpi_notify, event: 0x%.2x\n", ev);
-	sony_laptop_report_input_event(ev);
 	acpi_bus_generate_proc_event(sony_nc_acpi_device, 1, ev);
 }
 
