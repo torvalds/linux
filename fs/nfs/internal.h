@@ -230,6 +230,20 @@ static inline int nfs4_has_session(const struct nfs_client *clp)
 	return 0;
 }
 
+#ifdef CONFIG_NFS_V4_1
+extern void nfs41_sequence_free_slot(const struct nfs_client *,
+				     struct nfs4_sequence_res *res);
+#endif /* CONFIG_NFS_V4_1 */
+
+static inline void nfs4_sequence_free_slot(const struct nfs_client *clp,
+					   struct nfs4_sequence_res *res)
+{
+#ifdef CONFIG_NFS_V4_1
+	if (nfs4_has_session(clp))
+		nfs41_sequence_free_slot(clp, res);
+#endif /* CONFIG_NFS_V4_1 */
+}
+
 /*
  * Determine the device name as a string
  */

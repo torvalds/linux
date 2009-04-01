@@ -309,6 +309,27 @@ nfs4_free_slot(struct nfs4_slot_table *tbl, u8 free_slotid)
 		free_slotid, tbl->highest_used_slotid);
 }
 
+void nfs41_sequence_free_slot(const struct nfs_client *clp,
+			      struct nfs4_sequence_res *res)
+{
+	struct nfs4_slot_table *tbl;
+
+	if (!nfs4_has_session(clp)) {
+		dprintk("%s: No session\n", __func__);
+		return;
+	}
+	tbl = &clp->cl_session->fc_slot_table;
+	if (res->sr_slotid == NFS4_MAX_SLOT_TABLE) {
+		dprintk("%s: No slot\n", __func__);
+		/* just wake up the next guy waiting since
+		 * we may have not consumed a slot after all */
+		rpc_wake_up_next(&tbl->slot_tbl_waitq);
+		return;
+	}
+	nfs4_free_slot(tbl, res->sr_slotid);
+	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
+}
+
 /*
  * nfs4_find_slot - efficiently look for a free slot
  *
