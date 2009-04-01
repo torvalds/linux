@@ -2297,6 +2297,7 @@ static void b43legacy_security_init(struct b43legacy_wldev *dev)
 				  dev->max_nr_keys - 8);
 }
 
+#ifdef CONFIG_B43LEGACY_HWRNG
 static int b43legacy_rng_read(struct hwrng *rng, u32 *data)
 {
 	struct b43legacy_wl *wl = (struct b43legacy_wl *)rng->priv;
@@ -2312,17 +2313,21 @@ static int b43legacy_rng_read(struct hwrng *rng, u32 *data)
 
 	return (sizeof(u16));
 }
+#endif
 
 static void b43legacy_rng_exit(struct b43legacy_wl *wl)
 {
+#ifdef CONFIG_B43LEGACY_HWRNG
 	if (wl->rng_initialized)
 		hwrng_unregister(&wl->rng);
+#endif
 }
 
 static int b43legacy_rng_init(struct b43legacy_wl *wl)
 {
-	int err;
+	int err = 0;
 
+#ifdef CONFIG_B43LEGACY_HWRNG
 	snprintf(wl->rng_name, ARRAY_SIZE(wl->rng_name),
 		 "%s_%s", KBUILD_MODNAME, wiphy_name(wl->hw->wiphy));
 	wl->rng.name = wl->rng_name;
@@ -2336,6 +2341,7 @@ static int b43legacy_rng_init(struct b43legacy_wl *wl)
 		       "number generator (%d)\n", err);
 	}
 
+#endif
 	return err;
 }
 
