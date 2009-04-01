@@ -4409,6 +4409,51 @@ static void nfs4_init_channel_attrs(struct nfs41_create_session_args *args)
 		args->bc_attrs.max_reqs);
 }
 
+static int _verify_channel_attr(char *chan, char *attr_name, u32 sent, u32 rcvd)
+{
+	if (rcvd <= sent)
+		return 0;
+	printk(KERN_WARNING "%s: Session INVALID: %s channel %s increased. "
+		"sent=%u rcvd=%u\n", __func__, chan, attr_name, sent, rcvd);
+	return -EINVAL;
+}
+
+#define _verify_fore_channel_attr(_name_) \
+	_verify_channel_attr("fore", #_name_, \
+			     args->fc_attrs._name_, \
+			     session->fc_attrs._name_)
+
+#define _verify_back_channel_attr(_name_) \
+	_verify_channel_attr("back", #_name_, \
+			     args->bc_attrs._name_, \
+			     session->bc_attrs._name_)
+
+/*
+ * The server is not allowed to increase the fore channel header pad size,
+ * maximum response size, or maximum number of operations.
+ *
+ * The back channel attributes are only negotiatied down: We send what the
+ * (back channel) server insists upon.
+ */
+static int nfs4_verify_channel_attrs(struct nfs41_create_session_args *args,
+				     struct nfs4_session *session)
+{
+	int ret = 0;
+
+	ret |= _verify_fore_channel_attr(headerpadsz);
+	ret |= _verify_fore_channel_attr(max_resp_sz);
+	ret |= _verify_fore_channel_attr(max_ops);
+
+	ret |= _verify_back_channel_attr(headerpadsz);
+	ret |= _verify_back_channel_attr(max_rqst_sz);
+	ret |= _verify_back_channel_attr(max_resp_sz);
+	ret |= _verify_back_channel_attr(max_resp_sz_cached);
+	ret |= _verify_back_channel_attr(max_ops);
+	ret |= _verify_back_channel_attr(max_reqs);
+
+	return ret;
+}
+
 static int _nfs4_proc_create_session(struct nfs_client *clp)
 {
 	struct nfs4_session *session = clp->cl_session;
@@ -4431,8 +4476,9 @@ static int _nfs4_proc_create_session(struct nfs_client *clp)
 
 	status = rpc_call_sync(session->clp->cl_rpcclient, &msg, 0);
 
-	/* Set the negotiated values in the session's channel_attrs struct */
-
+	if (!status)
+		/* Verify the session's negotiated channel_attrs values */
+		status = nfs4_verify_channel_attrs(&args, session);
 	if (!status) {
 		/* Increment the clientid slot sequence id */
 		clp->cl_seqid++;
