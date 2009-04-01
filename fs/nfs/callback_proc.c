@@ -104,6 +104,42 @@ out:
 
 #if defined(CONFIG_NFS_V4_1)
 
+/*
+ * Returns a pointer to a held 'struct nfs_client' that matches the server's
+ * address, major version number, and session ID.  It is the caller's
+ * responsibility to release the returned reference.
+ *
+ * Returns NULL if there are no connections with sessions, or if no session
+ * matches the one of interest.
+ */
+ static struct nfs_client *find_client_with_session(
+	const struct sockaddr *addr, u32 nfsversion,
+	struct nfs4_sessionid *sessionid)
+{
+	struct nfs_client *clp;
+
+	clp = nfs_find_client(addr, 4);
+	if (clp == NULL)
+		return NULL;
+
+	do {
+		struct nfs_client *prev = clp;
+
+		if (clp->cl_session != NULL) {
+			if (memcmp(clp->cl_session->sess_id.data,
+					sessionid->data,
+					NFS4_MAX_SESSIONID_LEN) == 0) {
+				/* Returns a held reference to clp */
+				return clp;
+			}
+		}
+		clp = nfs_find_client_next(prev);
+		nfs_put_client(prev);
+	} while (clp != NULL);
+
+	return NULL;
+}
+
 /* FIXME: validate args->cbs_{sequence,slot}id */
 /* FIXME: referring calls should be processed */
 unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
