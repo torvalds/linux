@@ -674,7 +674,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	/* Create v4l2 device */
 	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
 					"%s-%03d", "cx231xx", nr);
-	retval = v4l2_device_register(&udev->dev, &dev->v4l2_dev);
+	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
 		cx231xx_errdev("v4l2_device_register failed\n");
 		cx231xx_devused &= ~(1 << nr);
