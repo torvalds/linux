@@ -1208,15 +1208,6 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 		      vmx_capability.ept, vmx_capability.vpid);
 	}
 
-	if (!cpu_has_vmx_vpid())
-		enable_vpid = 0;
-
-	if (!cpu_has_vmx_ept())
-		enable_ept = 0;
-
-	if (!cpu_has_vmx_flexpriority())
-		flexpriority_enabled = 0;
-
 	min = 0;
 #ifdef CONFIG_X86_64
 	min |= VM_EXIT_HOST_ADDR_SPACE_SIZE;
@@ -1319,6 +1310,15 @@ static __init int hardware_setup(void)
 
 	if (boot_cpu_has(X86_FEATURE_NX))
 		kvm_enable_efer_bits(EFER_NX);
+
+	if (!cpu_has_vmx_vpid())
+		enable_vpid = 0;
+
+	if (!cpu_has_vmx_ept())
+		enable_ept = 0;
+
+	if (!cpu_has_vmx_flexpriority())
+		flexpriority_enabled = 0;
 
 	return alloc_kvm_area();
 }
