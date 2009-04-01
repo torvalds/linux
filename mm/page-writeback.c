@@ -92,14 +92,14 @@ int vm_dirty_ratio = 20;
 unsigned long vm_dirty_bytes;
 
 /*
- * The interval between `kupdate'-style writebacks, in jiffies
+ * The interval between `kupdate'-style writebacks
  */
-int dirty_writeback_interval = 5 * HZ;
+unsigned int dirty_writeback_interval = 5 * 100; /* sentiseconds */
 
 /*
- * The longest number of jiffies for which data is allowed to remain dirty
+ * The longest time for which data is allowed to remain dirty
  */
-int dirty_expire_interval = 30 * HZ;
+unsigned int dirty_expire_interval = 30 * 100; /* sentiseconds */
 
 /*
  * Flag that makes the machine dump writes/reads and block dirtyings.
@@ -770,9 +770,9 @@ static void wb_kupdate(unsigned long arg)
 
 	sync_supers();
 
-	oldest_jif = jiffies - dirty_expire_interval;
+	oldest_jif = jiffies - msecs_to_jiffies(dirty_expire_interval);
 	start_jif = jiffies;
-	next_jif = start_jif + dirty_writeback_interval;
+	next_jif = start_jif + msecs_to_jiffies(dirty_writeback_interval * 10);
 	nr_to_write = global_page_state(NR_FILE_DIRTY) +
 			global_page_state(NR_UNSTABLE_NFS) +
 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
@@ -801,9 +801,10 @@ static void wb_kupdate(unsigned long arg)
 int dirty_writeback_centisecs_handler(ctl_table *table, int write,
 	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
 {
-	proc_dointvec_userhz_jiffies(table, write, file, buffer, length, ppos);
+	proc_dointvec(table, write, file, buffer, length, ppos);
 	if (dirty_writeback_interval)
-		mod_timer(&wb_timer, jiffies + dirty_writeback_interval);
+		mod_timer(&wb_timer, jiffies +
+			msecs_to_jiffies(dirty_writeback_interval * 10));
 	else
 		del_timer(&wb_timer);
 	return 0;
@@ -905,7 +906,8 @@ void __init page_writeback_init(void)
 {
 	int shift;
 
-	mod_timer(&wb_timer, jiffies + dirty_writeback_interval);
+	mod_timer(&wb_timer,
+		  jiffies + msecs_to_jiffies(dirty_writeback_interval * 10));
 	writeback_set_ratelimit();
 	register_cpu_notifier(&ratelimit_nb);
 
@@ -1198,6 +1200,20 @@ int __set_page_dirty_no_writeback(struct page *page)
 }
 
 /*
+ * Helper function for set_page_dirty family.
+ * NOTE: This relies on being atomic wrt interrupts.
+ */
+void account_page_dirtied(struct page *page, struct address_space *mapping)
+{
+	if (mapping_cap_account_dirty(mapping)) {
+		__inc_zone_page_state(page, NR_FILE_DIRTY);
+		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+		task_dirty_inc(current);
+		task_io_account_write(PAGE_CACHE_SIZE);
+	}
+}
+
+/*
  * For address_spaces which do not use buffers.  Just tag the page as dirty in
  * its radix tree.
  *
@@ -1226,13 +1242,7 @@ int __set_page_dirty_nobuffers(struct page *page)
 		if (mapping2) { /* Race with truncate? */
 			BUG_ON(mapping2 != mapping);
 			WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
-			if (mapping_cap_account_dirty(mapping)) {
-				__inc_zone_page_state(page, NR_FILE_DIRTY);
-				__inc_bdi_stat(mapping->backing_dev_info,
-						BDI_RECLAIMABLE);
-				task_dirty_inc(current);
-				task_io_account_write(PAGE_CACHE_SIZE);
-			}
+			account_page_dirtied(page, mapping);
 			radix_tree_tag_set(&mapping->page_tree,
 				page_index(page), PAGECACHE_TAG_DIRTY);
 		}

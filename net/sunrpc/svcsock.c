@@ -1110,7 +1110,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	struct svc_sock	*svsk;
 	struct sock	*inet;
 	int		pmap_register = !(flags & SVC_SOCK_ANONYMOUS);
-	int		val;
 
 	dprintk("svc: svc_setup_socket %p\n", sock);
 	if (!(svsk = kzalloc(sizeof(*svsk), GFP_KERNEL))) {
@@ -1122,7 +1121,7 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 
 	/* Register socket with portmapper */
 	if (*errp >= 0 && pmap_register)
-		*errp = svc_register(serv, inet->sk_protocol,
+		*errp = svc_register(serv, inet->sk_family, inet->sk_protocol,
 				     ntohs(inet_sk(inet)->sport));
 
 	if (*errp < 0) {
@@ -1142,18 +1141,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 		svc_udp_init(svsk, serv);
 	else
 		svc_tcp_init(svsk, serv);
-
-	/*
-	 * We start one listener per sv_serv.  We want AF_INET
-	 * requests to be automatically shunted to our AF_INET6
-	 * listener using a mapped IPv4 address.  Make sure
-	 * no-one starts an equivalent IPv4 listener, which
-	 * would steal our incoming connections.
-	 */
-	val = 0;
-	if (serv->sv_family == AF_INET6)
-		kernel_setsockopt(sock, SOL_IPV6, IPV6_V6ONLY,
-					(char *)&val, sizeof(val));
 
 	dprintk("svc: svc_setup_socket created %p (inet %p)\n",
 				svsk, svsk->sk_sk);
@@ -1222,6 +1209,8 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 	struct sockaddr_storage addr;
 	struct sockaddr *newsin = (struct sockaddr *)&addr;
 	int		newlen;
+	int		family;
+	int		val;
 	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
 
 	dprintk("svc: svc_create_socket(%s, %d, %s)\n",
@@ -1233,13 +1222,34 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 				"sockets supported\n");
 		return ERR_PTR(-EINVAL);
 	}
-	type = (protocol == IPPROTO_UDP)? SOCK_DGRAM : SOCK_STREAM;
 
-	error = sock_create_kern(sin->sa_family, type, protocol, &sock);
+	type = (protocol == IPPROTO_UDP)? SOCK_DGRAM : SOCK_STREAM;
+	switch (sin->sa_family) {
+	case AF_INET6:
+		family = PF_INET6;
+		break;
+	case AF_INET:
+		family = PF_INET;
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+
+	error = sock_create_kern(family, type, protocol, &sock);
 	if (error < 0)
 		return ERR_PTR(error);
 
 	svc_reclassify_socket(sock);
+
+	/*
+	 * If this is an PF_INET6 listener, we want to avoid
+	 * getting requests from IPv4 remotes.  Those should
+	 * be shunted to a PF_INET listener via rpcbind.
+	 */
+	val = 1;
+	if (family == PF_INET6)
+		kernel_setsockopt(sock, SOL_IPV6, IPV6_V6ONLY,
+					(char *)&val, sizeof(val));
 
 	if (type == SOCK_STREAM)
 		sock->sk->sk_reuse = 1;		/* allow address reuse */

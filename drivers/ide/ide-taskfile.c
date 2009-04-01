@@ -80,8 +80,14 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 
 	if ((cmd->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0) {
 		ide_tf_dump(drive->name, tf);
-		tp_ops->set_irq(hwif, 1);
+		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 		SELECT_MASK(drive, 0);
+
+		if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
+			u8 data[2] = { tf->data, tf->hob_data };
+
+			tp_ops->output_data(drive, cmd, data, 2);
+		}
 		tp_ops->tf_load(drive, cmd);
 	}
 
@@ -100,9 +106,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 		ide_execute_command(drive, cmd, handler, WAIT_WORSTCASE);
 		return ide_started;
 	case ATA_PROT_DMA:
-		if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0 ||
-		    ide_build_sglist(drive, cmd) == 0 ||
-		    dma_ops->dma_setup(drive, cmd))
+		if (ide_dma_prepare(drive, cmd))
 			return ide_stopped;
 		hwif->expiry = dma_ops->dma_timer_expiry;
 		ide_execute_command(drive, cmd, ide_dma_intr, 2 * WAIT_CMD);
@@ -188,70 +192,68 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	return stat;
 }
 
-static void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
-			  unsigned int write, unsigned int nr_bytes)
+void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
+		   unsigned int write, unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
 	struct scatterlist *cursg = cmd->cursg;
 	struct page *page;
-#ifdef CONFIG_HIGHMEM
 	unsigned long flags;
-#endif
 	unsigned int offset;
 	u8 *buf;
 
 	cursg = cmd->cursg;
-	if (!cursg) {
-		cursg = sg;
-		cmd->cursg = sg;
+	if (cursg == NULL)
+		cursg = cmd->cursg = sg;
+
+	while (len) {
+		unsigned nr_bytes = min(len, cursg->length - cmd->cursg_ofs);
+
+		if (nr_bytes > PAGE_SIZE)
+			nr_bytes = PAGE_SIZE;
+
+		page = sg_page(cursg);
+		offset = cursg->offset + cmd->cursg_ofs;
+
+		/* get the current page and offset */
+		page = nth_page(page, (offset >> PAGE_SHIFT));
+		offset %= PAGE_SIZE;
+
+		if (PageHighMem(page))
+			local_irq_save(flags);
+
+		buf = kmap_atomic(page, KM_BIO_SRC_IRQ) + offset;
+
+		cmd->nleft -= nr_bytes;
+		cmd->cursg_ofs += nr_bytes;
+
+		if (cmd->cursg_ofs == cursg->length) {
+			cursg = cmd->cursg = sg_next(cmd->cursg);
+			cmd->cursg_ofs = 0;
+		}
+
+		/* do the actual data transfer */
+		if (write)
+			hwif->tp_ops->output_data(drive, cmd, buf, nr_bytes);
+		else
+			hwif->tp_ops->input_data(drive, cmd, buf, nr_bytes);
+
+		kunmap_atomic(buf, KM_BIO_SRC_IRQ);
+
+		if (PageHighMem(page))
+			local_irq_restore(flags);
+
+		len -= nr_bytes;
 	}
-
-	page = sg_page(cursg);
-	offset = cursg->offset + cmd->cursg_ofs;
-
-	/* get the current page and offset */
-	page = nth_page(page, (offset >> PAGE_SHIFT));
-	offset %= PAGE_SIZE;
-
-#ifdef CONFIG_HIGHMEM
-	local_irq_save(flags);
-#endif
-	buf = kmap_atomic(page, KM_BIO_SRC_IRQ) + offset;
-
-	cmd->nleft -= nr_bytes;
-	cmd->cursg_ofs += nr_bytes;
-
-	if (cmd->cursg_ofs == cursg->length) {
-		cmd->cursg = sg_next(cmd->cursg);
-		cmd->cursg_ofs = 0;
-	}
-
-	/* do the actual data transfer */
-	if (write)
-		hwif->tp_ops->output_data(drive, cmd, buf, nr_bytes);
-	else
-		hwif->tp_ops->input_data(drive, cmd, buf, nr_bytes);
-
-	kunmap_atomic(buf, KM_BIO_SRC_IRQ);
-#ifdef CONFIG_HIGHMEM
-	local_irq_restore(flags);
-#endif
 }
-
-static void ide_pio_multi(ide_drive_t *drive, struct ide_cmd *cmd,
-			  unsigned int write)
-{
-	unsigned int nsect;
-
-	nsect = min_t(unsigned int, cmd->nleft >> 9, drive->mult_count);
-	while (nsect--)
-		ide_pio_bytes(drive, cmd, write, SECTOR_SIZE);
-}
+EXPORT_SYMBOL_GPL(ide_pio_bytes);
 
 static void ide_pio_datablock(ide_drive_t *drive, struct ide_cmd *cmd,
 			      unsigned int write)
 {
+	unsigned int nr_bytes;
+
 	u8 saved_io_32bit = drive->io_32bit;
 
 	if (cmd->tf_flags & IDE_TFLAG_FS)
@@ -263,9 +265,11 @@ static void ide_pio_datablock(ide_drive_t *drive, struct ide_cmd *cmd,
 	touch_softlockup_watchdog();
 
 	if (cmd->tf_flags & IDE_TFLAG_MULTI_PIO)
-		ide_pio_multi(drive, cmd, write);
+		nr_bytes = min_t(unsigned, cmd->nleft, drive->mult_count << 9);
 	else
-		ide_pio_bytes(drive, cmd, write, SECTOR_SIZE);
+		nr_bytes = SECTOR_SIZE;
+
+	ide_pio_bytes(drive, cmd, write, nr_bytes);
 
 	drive->io_32bit = saved_io_32bit;
 }

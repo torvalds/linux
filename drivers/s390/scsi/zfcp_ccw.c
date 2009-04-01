@@ -176,6 +176,11 @@ static int zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 		zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
 					"ccnoti4", NULL);
 		break;
+	case CIO_BOXED:
+		dev_warn(&adapter->ccw_device->dev,
+			 "The ccw device did not respond in time.\n");
+		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti5", NULL);
+		break;
 	}
 	return 1;
 }

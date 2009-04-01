@@ -357,6 +357,7 @@ S:	Odd Fixes for 2.4; Maintained for 2.6.
 P:	Ivan Kokshaysky
 M:	ink@jurassic.park.msu.ru
 S:	Maintained for 2.4; PCI support for 2.6.
+L:	linux-alpha@vger.kernel.org
 
 AMD GEODE CS5536 USB DEVICE CONTROLLER DRIVER
 P:	Thomas Dahlmann
@@ -2201,23 +2202,10 @@ L:	linux-ide@vger.kernel.org
 T:	quilt kernel.org/pub/linux/kernel/people/bart/pata-2.6/
 S:	Maintained
 
-IDE/ATAPI CDROM DRIVER
+IDE/ATAPI DRIVERS
 P:	Borislav Petkov
 M:	petkovbb@gmail.com
 L:	linux-ide@vger.kernel.org
-S:	Maintained
-
-IDE/ATAPI FLOPPY DRIVERS
-P:	Paul Bristow
-M:	Paul Bristow <paul@paulbristow.net>
-W:	http://paulbristow.net/linux/idefloppy.html
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
-IDE/ATAPI TAPE DRIVERS
-P:	Gadi Oxman
-M:	Gadi Oxman <gadio@netvision.net.il>
-L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 IDLE-I7300

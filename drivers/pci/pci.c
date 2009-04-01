@@ -20,6 +20,8 @@
 #include <linux/pm_wakeup.h>
 #include <linux/interrupt.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
+#include <linux/device.h>
+#include <asm/setup.h>
 #include "pci.h"
 
 unsigned int pci_pm_d3_delay = PCI_PM_D3_WAIT;
@@ -677,6 +679,8 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 
 EXPORT_SYMBOL(pci_choose_state);
 
+#define PCI_EXP_SAVE_REGS	7
+
 static int pci_save_pcie_state(struct pci_dev *dev)
 {
 	int pos, i = 0;
@@ -689,7 +693,7 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
 	if (!save_state) {
-		dev_err(&dev->dev, "buffer not found in %s\n", __FUNCTION__);
+		dev_err(&dev->dev, "buffer not found in %s\n", __func__);
 		return -ENOMEM;
 	}
 	cap = (u16 *)&save_state->data[0];
@@ -698,6 +702,9 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	pci_read_config_word(dev, pos + PCI_EXP_LNKCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_SLTCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_RTCTL, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_LNKCTL2, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_SLTCTL2, &cap[i++]);
 
 	return 0;
 }
@@ -718,6 +725,9 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 	pci_write_config_word(dev, pos + PCI_EXP_LNKCTL, cap[i++]);
 	pci_write_config_word(dev, pos + PCI_EXP_SLTCTL, cap[i++]);
 	pci_write_config_word(dev, pos + PCI_EXP_RTCTL, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_LNKCTL2, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_SLTCTL2, cap[i++]);
 }
 
 
@@ -732,7 +742,7 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
 	if (!save_state) {
-		dev_err(&dev->dev, "buffer not found in %s\n", __FUNCTION__);
+		dev_err(&dev->dev, "buffer not found in %s\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -805,6 +815,7 @@ pci_restore_state(struct pci_dev *dev)
 	}
 	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
+	pci_restore_iov_state(dev);
 
 	return 0;
 }
@@ -1401,7 +1412,8 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 {
 	int error;
 
-	error = pci_add_cap_save_buffer(dev, PCI_CAP_ID_EXP, 4 * sizeof(u16));
+	error = pci_add_cap_save_buffer(dev, PCI_CAP_ID_EXP,
+					PCI_EXP_SAVE_REGS * sizeof(u16));
 	if (error)
 		dev_err(&dev->dev,
 			"unable to preallocate PCI Express save buffer\n");
@@ -1472,7 +1484,7 @@ pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge)
 	if (!pin)
 		return -1;
 
-	while (dev->bus->self) {
+	while (dev->bus->parent) {
 		pin = pci_swizzle_interrupt_pin(dev, pin);
 		dev = dev->bus->self;
 	}
@@ -1492,7 +1504,7 @@ u8 pci_common_swizzle(struct pci_dev *dev, u8 *pinp)
 {
 	u8 pin = *pinp;
 
-	while (dev->bus->self) {
+	while (dev->bus->parent) {
 		pin = pci_swizzle_interrupt_pin(dev, pin);
 		dev = dev->bus->self;
 	}
@@ -2016,18 +2028,24 @@ static int __pcie_flr(struct pci_dev *dev, int probe)
 	pci_block_user_cfg_access(dev);
 
 	/* Wait for Transaction Pending bit clean */
+	pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
+	if (!(status & PCI_EXP_DEVSTA_TRPND))
+		goto transaction_done;
+
 	msleep(100);
 	pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
-	if (status & PCI_EXP_DEVSTA_TRPND) {
-		dev_info(&dev->dev, "Busy after 100ms while trying to reset; "
-			"sleeping for 1 second\n");
-		ssleep(1);
-		pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
-		if (status & PCI_EXP_DEVSTA_TRPND)
-			dev_info(&dev->dev, "Still busy after 1s; "
-				"proceeding with reset anyway\n");
-	}
+	if (!(status & PCI_EXP_DEVSTA_TRPND))
+		goto transaction_done;
 
+	dev_info(&dev->dev, "Busy after 100ms while trying to reset; "
+			"sleeping for 1 second\n");
+	ssleep(1);
+	pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
+	if (status & PCI_EXP_DEVSTA_TRPND)
+		dev_info(&dev->dev, "Still busy after 1s; "
+				"proceeding with reset anyway\n");
+
+transaction_done:
 	pci_write_config_word(dev, exppos + PCI_EXP_DEVCTL,
 				PCI_EXP_DEVCTL_BCR_FLR);
 	mdelay(100);
@@ -2054,18 +2072,24 @@ static int __pci_af_flr(struct pci_dev *dev, int probe)
 	pci_block_user_cfg_access(dev);
 
 	/* Wait for Transaction Pending bit clean */
+	pci_read_config_byte(dev, cappos + PCI_AF_STATUS, &status);
+	if (!(status & PCI_AF_STATUS_TP))
+		goto transaction_done;
+
 	msleep(100);
 	pci_read_config_byte(dev, cappos + PCI_AF_STATUS, &status);
-	if (status & PCI_AF_STATUS_TP) {
-		dev_info(&dev->dev, "Busy after 100ms while trying to"
-				" reset; sleeping for 1 second\n");
-		ssleep(1);
-		pci_read_config_byte(dev,
-				cappos + PCI_AF_STATUS, &status);
-		if (status & PCI_AF_STATUS_TP)
-			dev_info(&dev->dev, "Still busy after 1s; "
-					"proceeding with reset anyway\n");
-	}
+	if (!(status & PCI_AF_STATUS_TP))
+		goto transaction_done;
+
+	dev_info(&dev->dev, "Busy after 100ms while trying to"
+			" reset; sleeping for 1 second\n");
+	ssleep(1);
+	pci_read_config_byte(dev, cappos + PCI_AF_STATUS, &status);
+	if (status & PCI_AF_STATUS_TP)
+		dev_info(&dev->dev, "Still busy after 1s; "
+				"proceeding with reset anyway\n");
+
+transaction_done:
 	pci_write_config_byte(dev, cappos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
 	mdelay(100);
 
@@ -2334,17 +2358,139 @@ int pci_select_bars(struct pci_dev *dev, unsigned long flags)
  */
 int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
 {
+	int reg;
+
 	if (resno < PCI_ROM_RESOURCE) {
 		*type = pci_bar_unknown;
 		return PCI_BASE_ADDRESS_0 + 4 * resno;
 	} else if (resno == PCI_ROM_RESOURCE) {
 		*type = pci_bar_mem32;
 		return dev->rom_base_reg;
+	} else if (resno < PCI_BRIDGE_RESOURCES) {
+		/* device specific resource */
+		reg = pci_iov_resource_bar(dev, resno, type);
+		if (reg)
+			return reg;
 	}
 
 	dev_err(&dev->dev, "BAR: invalid resource #%d\n", resno);
 	return 0;
 }
+
+#define RESOURCE_ALIGNMENT_PARAM_SIZE COMMAND_LINE_SIZE
+static char resource_alignment_param[RESOURCE_ALIGNMENT_PARAM_SIZE] = {0};
+spinlock_t resource_alignment_lock = SPIN_LOCK_UNLOCKED;
+
+/**
+ * pci_specified_resource_alignment - get resource alignment specified by user.
+ * @dev: the PCI device to get
+ *
+ * RETURNS: Resource alignment if it is specified.
+ *          Zero if it is not specified.
+ */
+resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
+{
+	int seg, bus, slot, func, align_order, count;
+	resource_size_t align = 0;
+	char *p;
+
+	spin_lock(&resource_alignment_lock);
+	p = resource_alignment_param;
+	while (*p) {
+		count = 0;
+		if (sscanf(p, "%d%n", &align_order, &count) == 1 &&
+							p[count] == '@') {
+			p += count + 1;
+		} else {
+			align_order = -1;
+		}
+		if (sscanf(p, "%x:%x:%x.%x%n",
+			&seg, &bus, &slot, &func, &count) != 4) {
+			seg = 0;
+			if (sscanf(p, "%x:%x.%x%n",
+					&bus, &slot, &func, &count) != 3) {
+				/* Invalid format */
+				printk(KERN_ERR "PCI: Can't parse resource_alignment parameter: %s\n",
+					p);
+				break;
+			}
+		}
+		p += count;
+		if (seg == pci_domain_nr(dev->bus) &&
+			bus == dev->bus->number &&
+			slot == PCI_SLOT(dev->devfn) &&
+			func == PCI_FUNC(dev->devfn)) {
+			if (align_order == -1) {
+				align = PAGE_SIZE;
+			} else {
+				align = 1 << align_order;
+			}
+			/* Found */
+			break;
+		}
+		if (*p != ';' && *p != ',') {
+			/* End of param or invalid format */
+			break;
+		}
+		p++;
+	}
+	spin_unlock(&resource_alignment_lock);
+	return align;
+}
+
+/**
+ * pci_is_reassigndev - check if specified PCI is target device to reassign
+ * @dev: the PCI device to check
+ *
+ * RETURNS: non-zero for PCI device is a target device to reassign,
+ *          or zero is not.
+ */
+int pci_is_reassigndev(struct pci_dev *dev)
+{
+	return (pci_specified_resource_alignment(dev) != 0);
+}
+
+ssize_t pci_set_resource_alignment_param(const char *buf, size_t count)
+{
+	if (count > RESOURCE_ALIGNMENT_PARAM_SIZE - 1)
+		count = RESOURCE_ALIGNMENT_PARAM_SIZE - 1;
+	spin_lock(&resource_alignment_lock);
+	strncpy(resource_alignment_param, buf, count);
+	resource_alignment_param[count] = '\0';
+	spin_unlock(&resource_alignment_lock);
+	return count;
+}
+
+ssize_t pci_get_resource_alignment_param(char *buf, size_t size)
+{
+	size_t count;
+	spin_lock(&resource_alignment_lock);
+	count = snprintf(buf, size, "%s", resource_alignment_param);
+	spin_unlock(&resource_alignment_lock);
+	return count;
+}
+
+static ssize_t pci_resource_alignment_show(struct bus_type *bus, char *buf)
+{
+	return pci_get_resource_alignment_param(buf, PAGE_SIZE);
+}
+
+static ssize_t pci_resource_alignment_store(struct bus_type *bus,
+					const char *buf, size_t count)
+{
+	return pci_set_resource_alignment_param(buf, count);
+}
+
+BUS_ATTR(resource_alignment, 0644, pci_resource_alignment_show,
+					pci_resource_alignment_store);
+
+static int __init pci_resource_alignment_sysfs_init(void)
+{
+	return bus_create_file(&pci_bus_type,
+					&bus_attr_resource_alignment);
+}
+
+late_initcall(pci_resource_alignment_sysfs_init);
 
 static void __devinit pci_no_domains(void)
 {
@@ -2394,6 +2540,9 @@ static int __init pci_setup(char *str)
 				pci_cardbus_io_size = memparse(str + 9, &str);
 			} else if (!strncmp(str, "cbmemsize=", 10)) {
 				pci_cardbus_mem_size = memparse(str + 10, &str);
+			} else if (!strncmp(str, "resource_alignment=", 19)) {
+				pci_set_resource_alignment_param(str + 19,
+							strlen(str + 19));
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);

@@ -2363,6 +2363,7 @@ int dasd_generic_notify(struct ccw_device *cdev, int event)
 	ret = 0;
 	switch (event) {
 	case CIO_GONE:
+	case CIO_BOXED:
 	case CIO_NO_PATH:
 		/* First of all call extended error reporting. */
 		dasd_eer_write(device, NULL, DASD_EER_NOPATH);

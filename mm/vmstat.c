@@ -135,11 +135,7 @@ static void refresh_zone_stat_thresholds(void)
 	int cpu;
 	int threshold;
 
-	for_each_zone(zone) {
-
-		if (!zone->present_pages)
-			continue;
-
+	for_each_populated_zone(zone) {
 		threshold = calculate_threshold(zone);
 
 		for_each_online_cpu(cpu)
@@ -301,11 +297,8 @@ void refresh_cpu_vm_stats(int cpu)
 	int i;
 	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		struct per_cpu_pageset *p;
-
-		if (!populated_zone(zone))
-			continue;
 
 		p = zone_pcp(zone, cpu);
 

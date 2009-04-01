@@ -92,13 +92,6 @@ static void tx4938ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
-		u16 data = (tf->hob_data << 8) | tf->data;
-
-		/* no endian swap */
-		__raw_writew(data, (void __iomem *)io_ports->data_addr);
-	}
-
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
 		tx4938ide_outb(tf->hob_feature, io_ports->feature_addr);
 	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
@@ -132,20 +125,11 @@ static void tx4938ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	struct ide_taskfile *tf = &cmd->tf;
 
-	if (cmd->ftf_flags & IDE_FTFLAG_IN_DATA) {
-		u16 data;
-
-		/* no endian swap */
-		data = __raw_readw((void __iomem *)io_ports->data_addr);
-		tf->data = data & 0xff;
-		tf->hob_data = (data >> 8) & 0xff;
-	}
-
 	/* be sure we're looking at the low order bits */
-	tx4938ide_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
+	tx4938ide_outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
-	if (cmd->tf_flags & IDE_TFLAG_IN_FEATURE)
-		tf->feature = tx4938ide_inb(io_ports->feature_addr);
+	if (cmd->tf_flags & IDE_TFLAG_IN_ERROR)
+		tf->error  = tx4938ide_inb(io_ports->feature_addr);
 	if (cmd->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = tx4938ide_inb(io_ports->nsect_addr);
 	if (cmd->tf_flags & IDE_TFLAG_IN_LBAL)
@@ -158,19 +142,18 @@ static void tx4938ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 		tf->device = tx4938ide_inb(io_ports->device_addr);
 
 	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
-		tx4938ide_outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
+		tx4938ide_outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
-			tf->hob_feature =
-				tx4938ide_inb(io_ports->feature_addr);
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_ERROR)
+			tf->hob_error = tx4938ide_inb(io_ports->feature_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
-			tf->hob_nsect   = tx4938ide_inb(io_ports->nsect_addr);
+			tf->hob_nsect = tx4938ide_inb(io_ports->nsect_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
-			tf->hob_lbal    = tx4938ide_inb(io_ports->lbal_addr);
+			tf->hob_lbal  = tx4938ide_inb(io_ports->lbal_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
-			tf->hob_lbam    = tx4938ide_inb(io_ports->lbam_addr);
+			tf->hob_lbam  = tx4938ide_inb(io_ports->lbam_addr);
 		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
-			tf->hob_lbah    = tx4938ide_inb(io_ports->lbah_addr);
+			tf->hob_lbah  = tx4938ide_inb(io_ports->lbah_addr);
 	}
 }
 
@@ -204,9 +187,9 @@ static const struct ide_tp_ops tx4938ide_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
 
-	.set_irq		= ide_set_irq,
-
+	.dev_select		= ide_dev_select,
 	.tf_load		= tx4938ide_tf_load,
 	.tf_read		= tx4938ide_tf_read,
 

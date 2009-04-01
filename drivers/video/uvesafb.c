@@ -189,7 +189,7 @@ static int uvesafb_exec(struct uvesafb_ktask *task)
 	uvfb_tasks[seq] = task;
 	mutex_unlock(&uvfb_lock);
 
-	err = cn_netlink_send(m, 0, gfp_any());
+	err = cn_netlink_send(m, 0, GFP_KERNEL);
 	if (err == -ESRCH) {
 		/*
 		 * Try to start the userspace helper if sending
@@ -850,14 +850,16 @@ static int __devinit uvesafb_vbe_init_mode(struct fb_info *info)
 	if (vbemode) {
 		for (i = 0; i < par->vbe_modes_cnt; i++) {
 			if (par->vbe_modes[i].mode_id == vbemode) {
+				modeid = i;
+				uvesafb_setup_var(&info->var, info,
+						&par->vbe_modes[modeid]);
 				fb_get_mode(FB_VSYNCTIMINGS | FB_IGNOREMON, 60,
-							&info->var, info);
+						&info->var, info);
 				/*
 				 * With pixclock set to 0, the default BIOS
 				 * timings will be used in set_par().
 				 */
 				info->var.pixclock = 0;
-				modeid = i;
 				goto gotmode;
 			}
 		}
@@ -904,8 +906,11 @@ static int __devinit uvesafb_vbe_init_mode(struct fb_info *info)
 			fb_videomode_to_var(&info->var, mode);
 		} else {
 			modeid = par->vbe_modes[0].mode_id;
+			uvesafb_setup_var(&info->var, info,
+					&par->vbe_modes[modeid]);
 			fb_get_mode(FB_VSYNCTIMINGS | FB_IGNOREMON, 60,
-				    &info->var, info);
+					&info->var, info);
+
 			goto gotmode;
 		}
 	}
@@ -917,9 +922,9 @@ static int __devinit uvesafb_vbe_init_mode(struct fb_info *info)
 	if (modeid == -1)
 		return -EINVAL;
 
-gotmode:
 	uvesafb_setup_var(&info->var, info, &par->vbe_modes[modeid]);
 
+gotmode:
 	/*
 	 * If we are not VBE3.0+ compliant, we're done -- the BIOS will
 	 * ignore our timings anyway.
@@ -1552,7 +1557,7 @@ static void __devinit uvesafb_init_info(struct fb_info *info,
 	}
 
 	info->flags = FBINFO_FLAG_DEFAULT |
-			(par->ypan) ? FBINFO_HWACCEL_YPAN : 0;
+			(par->ypan ? FBINFO_HWACCEL_YPAN : 0);
 
 	if (!par->ypan)
 		info->fbops->fb_pan_display = NULL;

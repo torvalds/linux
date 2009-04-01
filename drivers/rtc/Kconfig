@@ -129,13 +129,14 @@ comment "I2C RTC drivers"
 if I2C
 
 config RTC_DRV_DS1307
-	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00"
+	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025"
 	help
 	  If you say yes here you get support for various compatible RTC
 	  chips (often with battery backup) connected with I2C. This driver
 	  should handle DS1307, DS1337, DS1338, DS1339, DS1340, ST M41T00,
-	  and probably other chips. In some cases the RTC must already
-	  have been initialized (by manufacturing or a bootloader).
+	  EPSON RX-8025 and probably other chips. In some cases the RTC
+	  must already have been initialized (by manufacturing or a
+	  bootloader).
 
 	  The first seven registers on these chips hold an RTC, and other
 	  registers may add features such as NVRAM, a trickle charger for
@@ -439,6 +440,16 @@ config RTC_DRV_DS1742
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1742.
+
+config RTC_DRV_EFI
+	tristate "EFI RTC"
+	depends on IA64
+	help
+	  If you say yes here you will get support for the EFI
+	  Real Time Clock.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-efi.
 
 config RTC_DRV_STK17TA8
 	tristate "Simtek STK17TA8"

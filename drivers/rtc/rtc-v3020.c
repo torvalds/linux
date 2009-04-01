@@ -28,7 +28,7 @@
 #include <linux/rtc-v3020.h>
 #include <linux/delay.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 #undef DEBUG
 
@@ -63,7 +63,7 @@ static void v3020_set_reg(struct v3020 *chip, unsigned char address,
 
 static unsigned char v3020_get_reg(struct v3020 *chip, unsigned char address)
 {
-	unsigned int data=0;
+	unsigned int data = 0;
 	int i;
 
 	for (i = 0; i < 4; i++) {
@@ -106,16 +106,14 @@ static int v3020_read_time(struct device *dev, struct rtc_time *dt)
 	tmp = v3020_get_reg(chip, V3020_YEAR);
 	dt->tm_year = bcd2bin(tmp)+100;
 
-#ifdef DEBUG
-	printk("\n%s : Read RTC values\n",__func__);
-	printk("tm_hour: %i\n",dt->tm_hour);
-	printk("tm_min : %i\n",dt->tm_min);
-	printk("tm_sec : %i\n",dt->tm_sec);
-	printk("tm_year: %i\n",dt->tm_year);
-	printk("tm_mon : %i\n",dt->tm_mon);
-	printk("tm_mday: %i\n",dt->tm_mday);
-	printk("tm_wday: %i\n",dt->tm_wday);
-#endif
+	dev_dbg(dev, "\n%s : Read RTC values\n", __func__);
+	dev_dbg(dev, "tm_hour: %i\n", dt->tm_hour);
+	dev_dbg(dev, "tm_min : %i\n", dt->tm_min);
+	dev_dbg(dev, "tm_sec : %i\n", dt->tm_sec);
+	dev_dbg(dev, "tm_year: %i\n", dt->tm_year);
+	dev_dbg(dev, "tm_mon : %i\n", dt->tm_mon);
+	dev_dbg(dev, "tm_mday: %i\n", dt->tm_mday);
+	dev_dbg(dev, "tm_wday: %i\n", dt->tm_wday);
 
 	return 0;
 }
@@ -125,15 +123,13 @@ static int v3020_set_time(struct device *dev, struct rtc_time *dt)
 {
 	struct v3020 *chip = dev_get_drvdata(dev);
 
-#ifdef DEBUG
-	printk("\n%s : Setting RTC values\n",__func__);
-	printk("tm_sec : %i\n",dt->tm_sec);
-	printk("tm_min : %i\n",dt->tm_min);
-	printk("tm_hour: %i\n",dt->tm_hour);
-	printk("tm_mday: %i\n",dt->tm_mday);
-	printk("tm_wday: %i\n",dt->tm_wday);
-	printk("tm_year: %i\n",dt->tm_year);
-#endif
+	dev_dbg(dev, "\n%s : Setting RTC values\n", __func__);
+	dev_dbg(dev, "tm_sec : %i\n", dt->tm_sec);
+	dev_dbg(dev, "tm_min : %i\n", dt->tm_min);
+	dev_dbg(dev, "tm_hour: %i\n", dt->tm_hour);
+	dev_dbg(dev, "tm_mday: %i\n", dt->tm_mday);
+	dev_dbg(dev, "tm_wday: %i\n", dt->tm_wday);
+	dev_dbg(dev, "tm_year: %i\n", dt->tm_year);
 
 	/* Write all the values to ram... */
 	v3020_set_reg(chip, V3020_SECONDS, 	bin2bcd(dt->tm_sec));
@@ -191,7 +187,7 @@ static int rtc_probe(struct platform_device *pdev)
 	/* Test chip by doing a write/read sequence
 	 * to the chip ram */
 	v3020_set_reg(chip, V3020_SECONDS, 0x33);
-	if(v3020_get_reg(chip, V3020_SECONDS) != 0x33) {
+	if (v3020_get_reg(chip, V3020_SECONDS) != 0x33) {
 		retval = -ENODEV;
 		goto err_io;
 	}

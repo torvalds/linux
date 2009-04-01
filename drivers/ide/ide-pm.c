@@ -223,6 +223,7 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		 * point.
 		 */
 		ide_hwif_t *hwif = drive->hwif;
+		const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 		struct request_queue *q = drive->queue;
 		unsigned long flags;
 		int rc;
@@ -232,8 +233,8 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		rc = ide_wait_not_busy(hwif, 35000);
 		if (rc)
 			printk(KERN_WARNING "%s: bus not ready on wakeup\n", drive->name);
-		SELECT_DRIVE(drive);
-		hwif->tp_ops->set_irq(hwif, 1);
+		tp_ops->dev_select(drive);
+		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 		rc = ide_wait_not_busy(hwif, 100000);
 		if (rc)
 			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);

@@ -938,10 +938,12 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 		char transport[16];
 		int port;
 		if (sscanf(buf, "%15s %4d", transport, &port) == 2) {
+			if (port < 1 || port > 65535)
+				return -EINVAL;
 			err = nfsd_create_serv();
 			if (!err) {
 				err = svc_create_xprt(nfsd_serv,
-						      transport, port,
+						      transport, PF_INET, port,
 						      SVC_SOCK_ANONYMOUS);
 				if (err == -ENOENT)
 					/* Give a reasonable perror msg for
@@ -960,7 +962,7 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 		char transport[16];
 		int port;
 		if (sscanf(&buf[1], "%15s %4d", transport, &port) == 2) {
-			if (port == 0)
+			if (port < 1 || port > 65535)
 				return -EINVAL;
 			if (nfsd_serv) {
 				xprt = svc_find_xprt(nfsd_serv, transport,

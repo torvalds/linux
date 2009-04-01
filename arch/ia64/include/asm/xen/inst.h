@@ -33,6 +33,9 @@
 #define __paravirt_work_processed_syscall_target \
 						xen_work_processed_syscall
 
+#define paravirt_fsyscall_table			xen_fsyscall_table
+#define paravirt_fsys_bubble_down		xen_fsys_bubble_down
+
 #define MOV_FROM_IFA(reg)	\
 	movl reg = XSI_IFA;	\
 	;;			\
@@ -109,6 +112,27 @@
 	(\pred)	mov r8 = \clob
 .endm
 #define MOV_FROM_PSR(pred, reg, clob)	__MOV_FROM_PSR pred, reg, clob
+
+/* assuming ar.itc is read with interrupt disabled. */
+#define MOV_FROM_ITC(pred, pred_clob, reg, clob)		\
+(pred)	movl clob = XSI_ITC_OFFSET;				\
+	;;							\
+(pred)	ld8 clob = [clob];					\
+(pred)	mov reg = ar.itc;					\
+	;;							\
+(pred)	add reg = reg, clob;					\
+	;;							\
+(pred)	movl clob = XSI_ITC_LAST;				\
+	;;							\
+(pred)	ld8 clob = [clob];					\
+	;;							\
+(pred)	cmp.geu.unc pred_clob, p0 = clob, reg;			\
+	;;							\
+(pred_clob)	add reg = 1, clob;				\
+	;;							\
+(pred)	movl clob = XSI_ITC_LAST;				\
+	;;							\
+(pred)	st8 [clob] = reg
 
 
 #define MOV_TO_IFA(reg, clob)	\
@@ -361,6 +385,10 @@
 
 #define RSM_PSR_DT		\
 	XEN_HYPER_RSM_PSR_DT
+
+#define RSM_PSR_BE_I(clob0, clob1)	\
+	RSM_PSR_I(p0, clob0, clob1);	\
+	rum psr.be
 
 #define SSM_PSR_DT_AND_SRLZ_I	\
 	XEN_HYPER_SSM_PSR_DT
