@@ -795,10 +795,46 @@ static int __devexit sh_rtc_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+static void sh_rtc_set_irq_wake(struct device *dev, int enabled)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_rtc *rtc = platform_get_drvdata(pdev);
+
+	set_irq_wake(rtc->periodic_irq, enabled);
+	if (rtc->carry_irq > 0) {
+		set_irq_wake(rtc->carry_irq, enabled);
+		set_irq_wake(rtc->alarm_irq, enabled);
+	}
+
+}
+
+static int sh_rtc_suspend(struct device *dev)
+{
+	if (device_may_wakeup(dev))
+		sh_rtc_set_irq_wake(dev, 1);
+
+	return 0;
+}
+
+static int sh_rtc_resume(struct device *dev)
+{
+	if (device_may_wakeup(dev))
+		sh_rtc_set_irq_wake(dev, 0);
+
+	return 0;
+}
+
+static struct dev_pm_ops sh_rtc_dev_pm_ops = {
+	.suspend = sh_rtc_suspend,
+	.resume = sh_rtc_resume,
+};
+
 static struct platform_driver sh_rtc_platform_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
+		.pm	= &sh_rtc_dev_pm_ops,
 	},
 	.probe		= sh_rtc_probe,
 	.remove		= __devexit_p(sh_rtc_remove),
