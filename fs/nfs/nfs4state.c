@@ -1083,6 +1083,8 @@ restart:
 static int nfs4_check_lease(struct nfs_client *clp)
 {
 	struct rpc_cred *cred;
+	struct nfs4_state_maintenance_ops *ops =
+		nfs4_state_renewal_ops[clp->cl_minorversion];
 	int status = -NFS4ERR_EXPIRED;
 
 	/* Is the client already known to have an expired lease? */
@@ -1094,7 +1096,7 @@ static int nfs4_check_lease(struct nfs_client *clp)
 		if (cred == NULL)
 			goto out;
 	}
-	status = nfs4_proc_renew(clp, cred);
+	status = ops->renew_lease(clp, cred);
 	put_rpccred(cred);
 out:
 	nfs4_recovery_handle_error(clp, status);

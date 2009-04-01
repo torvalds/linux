@@ -182,6 +182,7 @@ struct nfs4_state_recovery_ops {
 
 struct nfs4_state_maintenance_ops {
 	int (*sched_state_renewal)(struct nfs_client *, struct rpc_cred *);
+	int (*renew_lease)(struct nfs_client *, struct rpc_cred *);
 };
 
 extern const struct dentry_operations nfs4_dentry_operations;
