@@ -397,7 +397,7 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 	sony_laptop_input.wq = create_singlethread_workqueue("sony-laptop");
 	if (!sony_laptop_input.wq) {
 		printk(KERN_ERR DRV_PFX
-				"Unabe to create workqueue.\n");
+				"Unable to create workqueue.\n");
 		error = -ENXIO;
 		goto err_free_kfifo;
 	}
@@ -1267,7 +1267,7 @@ static int sony_nc_add(struct acpi_device *device)
 	result = sony_laptop_setup_input(device);
 	if (result) {
 		printk(KERN_ERR DRV_PFX
-				"Unabe to create input devices.\n");
+				"Unable to create input devices.\n");
 		goto outwalk;
 	}
 
@@ -2816,7 +2816,7 @@ static int sony_pic_add(struct acpi_device *device)
 	result = sony_pic_possible_resources(device);
 	if (result) {
 		printk(KERN_ERR DRV_PFX
-				"Unabe to read possible resources.\n");
+				"Unable to read possible resources.\n");
 		goto err_free_resources;
 	}
 
@@ -2824,7 +2824,7 @@ static int sony_pic_add(struct acpi_device *device)
 	result = sony_laptop_setup_input(device);
 	if (result) {
 		printk(KERN_ERR DRV_PFX
-				"Unabe to create input devices.\n");
+				"Unable to create input devices.\n");
 		goto err_free_resources;
 	}
 
