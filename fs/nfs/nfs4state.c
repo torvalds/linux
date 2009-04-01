@@ -1107,6 +1107,8 @@ static int nfs4_reclaim_lease(struct nfs_client *clp)
 			nfs4_clear_machine_cred(clp);
 			status = -EAGAIN;
 		}
+		if (status == -NFS4ERR_MINOR_VERS_MISMATCH)
+			status = -EPROTONOSUPPORT;
 	}
 	return status;
 }
