@@ -47,6 +47,9 @@
 #include "internal.h"
 #include "fscache.h"
 
+static int nfs4_init_callback(struct nfs_client *);
+static void nfs4_destroy_callback(struct nfs_client *);
+
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
 static DEFINE_SPINLOCK(nfs_client_lock);
@@ -121,11 +124,8 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 
 	clp->rpc_ops = cl_init->rpc_ops;
 
-	if (cl_init->rpc_ops->version == 4) {
-		if (nfs_callback_up() < 0)
-			goto error_2;
-		__set_bit(NFS_CS_CALLBACK, &clp->cl_res_state);
-	}
+	if (nfs4_init_callback(clp) < 0)
+		goto error_2;
 
 	atomic_set(&clp->cl_count, 1);
 	clp->cl_cons_state = NFS_CS_INITING;
@@ -162,8 +162,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	return clp;
 
 error_3:
-	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
-		nfs_callback_down();
+	nfs4_destroy_callback(clp);
 error_2:
 	kfree(clp);
 error_0:
@@ -181,6 +180,17 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 
 	rpc_destroy_wait_queue(&clp->cl_rpcwaitq);
 #endif
+}
+
+/*
+ * Destroy the NFS4 callback service
+ */
+static void nfs4_destroy_callback(struct nfs_client *clp)
+{
+#ifdef CONFIG_NFS_V4
+	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
+		nfs_callback_down();
+#endif /* CONFIG_NFS_V4 */
 }
 
 /*
@@ -215,8 +225,7 @@ static void nfs_free_client(struct nfs_client *clp)
 	if (!IS_ERR(clp->cl_rpcclient))
 		rpc_shutdown_client(clp->cl_rpcclient);
 
-	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
-		nfs_callback_down();
+	nfs4_destroy_callback(clp);
 
 	if (clp->cl_machine_cred != NULL)
 		put_rpccred(clp->cl_machine_cred);
@@ -1087,6 +1096,25 @@ error:
 }
 
 #ifdef CONFIG_NFS_V4
+/*
+ * Initialize the NFS4 callback service
+ */
+static int nfs4_init_callback(struct nfs_client *clp)
+{
+	int error;
+
+	if (clp->rpc_ops->version == 4) {
+		error = nfs_callback_up();
+		if (error < 0) {
+			dprintk("%s: failed to start callback. Error = %d\n",
+				__func__, error);
+			return error;
+		}
+		__set_bit(NFS_CS_CALLBACK, &clp->cl_res_state);
+	}
+	return 0;
+}
+
 /*
  * Initialize the minor version specific parts of an NFS4 client record
  */
