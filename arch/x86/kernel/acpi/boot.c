@@ -1493,7 +1493,7 @@ static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
 
 /*
  * If your system is blacklisted here, but you find that acpi=force
- * works for you, please contact acpi-devel@sourceforge.net
+ * works for you, please contact linux-acpi@vger.kernel.org
  */
 static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	/*
