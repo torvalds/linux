@@ -146,16 +146,9 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
 
-	/* FIXME: There is a problem with i2c communications with xc5000 that
-	   requires us to slow down the i2c clock until we have a better
-	   strategy (such as using the secondary i2c bus to do firmware
-	   loading */
-	if ((msg->addr << 1) == 0xc2)
-		au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
-			     AU0828_I2C_CLK_30KHZ);
-	else
-		au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
-			     AU0828_I2C_CLK_250KHZ);
+	/* Set the I2C clock */
+	au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
+		     dev->board.i2c_clk_divider);
 
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, AU0828_I2C_DEST_ADDR_203, msg->addr << 1);
@@ -230,16 +223,9 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 
 	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
 
-	/* FIXME: There is a problem with i2c communications with xc5000 that
-	   requires us to slow down the i2c clock until we have a better
-	   strategy (such as using the secondary i2c bus to do firmware
-	   loading */
-	if ((msg->addr << 1) == 0xc2)
-		au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
-			     AU0828_I2C_CLK_30KHZ);
-	else
-		au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
-			     AU0828_I2C_CLK_250KHZ);
+	/* Set the I2C clock */
+	au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
+		     dev->board.i2c_clk_divider);
 
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, AU0828_I2C_DEST_ADDR_203, msg->addr << 1);

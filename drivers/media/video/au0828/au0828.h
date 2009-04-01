@@ -81,6 +81,7 @@ struct au0828_board {
 	char *name;
 	unsigned int tuner_type;
 	unsigned char tuner_addr;
+	unsigned char i2c_clk_divider;
 	struct au0828_input input[AU0828_MAX_INPUT];
 
 };
