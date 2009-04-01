@@ -132,7 +132,6 @@ static __be32 decode_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
 static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound_hdr_arg *hdr)
 {
 	__be32 *p;
-	unsigned int minor_version;
 	__be32 status;
 
 	status = decode_string(xdr, &hdr->taglen, &hdr->tag);
@@ -147,15 +146,18 @@ static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound
 	p = read_buf(xdr, 12);
 	if (unlikely(p == NULL))
 		return htonl(NFS4ERR_RESOURCE);
-	minor_version = ntohl(*p++);
+	hdr->minorversion = ntohl(*p++);
 	/* Check minor version is zero. */
-	if (minor_version != 0) {
-		printk(KERN_WARNING "%s: NFSv4 server callback with illegal minor version %u!\n",
-				__func__, minor_version);
+	if (hdr->minorversion != 0) {
+		printk(KERN_WARNING "%s: NFSv4 server callback with "
+			"illegal minor version %u!\n",
+			__func__, hdr->minorversion);
 		return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
 	}
 	hdr->callback_ident = ntohl(*p++);
 	hdr->nops = ntohl(*p);
+	dprintk("%s: minorversion %d nops %d\n", __func__,
+		hdr->minorversion, hdr->nops);
 	return 0;
 }
 
