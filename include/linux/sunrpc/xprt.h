@@ -183,6 +183,7 @@ struct rpc_xprt {
 #if defined(CONFIG_NFS_V4_1)
 	struct svc_serv		*bc_serv;       /* The RPC service which will */
 						/* process the callback */
+	unsigned int		bc_alloc_count;	/* Total number of preallocs */
 	spinlock_t		bc_pa_lock;	/* Protects the preallocated
 						 * items */
 	struct list_head	bc_pa_list;	/* List of preallocated
