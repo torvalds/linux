@@ -53,11 +53,30 @@ static LIST_HEAD(cxgb3i_snic_list);
 static DEFINE_RWLOCK(cxgb3i_snic_rwlock);
 
 /**
- * cxgb3i_adapter_add - init a s3 adapter structure and any h/w settings
+ * cxgb3i_adpater_find_by_tdev - find the cxgb3i_adapter structure via t3cdev
+ * @tdev: t3cdev pointer
+ */
+struct cxgb3i_adapter *cxgb3i_adapter_find_by_tdev(struct t3cdev *tdev)
+{
+	struct cxgb3i_adapter *snic;
+
+	read_lock(&cxgb3i_snic_rwlock);
+	list_for_each_entry(snic, &cxgb3i_snic_list, list_head) {
+		if (snic->tdev == tdev) {
+			read_unlock(&cxgb3i_snic_rwlock);
+			return snic;
+		}
+	}
+	read_unlock(&cxgb3i_snic_rwlock);
+	return NULL;
+}
+
+/**
+ * cxgb3i_adapter_open - init a s3 adapter structure and any h/w settings
  * @t3dev: t3cdev adapter
  * return the resulting cxgb3i_adapter struct
  */
-struct cxgb3i_adapter *cxgb3i_adapter_add(struct t3cdev *t3dev)
+struct cxgb3i_adapter *cxgb3i_adapter_open(struct t3cdev *t3dev)
 {
 	struct cxgb3i_adapter *snic;
 	struct adapter *adapter = tdev2adap(t3dev);
@@ -101,10 +120,10 @@ free_snic:
 }
 
 /**
- * cxgb3i_adapter_remove - release the resources held and cleanup h/w settings
+ * cxgb3i_adapter_close - release the resources held and cleanup h/w settings
  * @t3dev: t3cdev adapter
  */
-void cxgb3i_adapter_remove(struct t3cdev *t3dev)
+void cxgb3i_adapter_close(struct t3cdev *t3dev)
 {
 	int i;
 	struct cxgb3i_adapter *snic;
