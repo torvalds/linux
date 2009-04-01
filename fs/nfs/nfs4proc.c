@@ -4567,6 +4567,98 @@ int nfs4_proc_destroy_session(struct nfs4_session *session)
 	return status;
 }
 
+/*
+ * Renew the cl_session lease.
+ */
+static int nfs4_proc_sequence(struct nfs_client *clp, struct rpc_cred *cred)
+{
+	struct nfs4_sequence_args args;
+	struct nfs4_sequence_res res;
+
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SEQUENCE],
+		.rpc_argp = &args,
+		.rpc_resp = &res,
+		.rpc_cred = cred,
+	};
+
+	args.sa_cache_this = 0;
+
+	return nfs4_call_sync_sequence(clp, clp->cl_rpcclient, &msg, &args,
+				       &res, 0);
+}
+
+void nfs41_sequence_call_done(struct rpc_task *task, void *data)
+{
+	struct nfs_client *clp = (struct nfs_client *)data;
+
+	nfs41_sequence_done(clp, task->tk_msg.rpc_resp, task->tk_status);
+
+	if (task->tk_status < 0) {
+		dprintk("%s ERROR %d\n", __func__, task->tk_status);
+
+		if (_nfs4_async_handle_error(task, NULL, clp, NULL)
+								== -EAGAIN) {
+			rpc_restart_call(task);
+			return;
+		}
+	}
+	nfs41_sequence_free_slot(clp, task->tk_msg.rpc_resp);
+	dprintk("%s rpc_cred %p\n", __func__, task->tk_msg.rpc_cred);
+
+	put_rpccred(task->tk_msg.rpc_cred);
+	kfree(task->tk_msg.rpc_argp);
+	kfree(task->tk_msg.rpc_resp);
+
+	dprintk("<-- %s\n", __func__);
+}
+
+static void nfs41_sequence_prepare(struct rpc_task *task, void *data)
+{
+	struct nfs_client *clp;
+	struct nfs4_sequence_args *args;
+	struct nfs4_sequence_res *res;
+
+	clp = (struct nfs_client *)data;
+	args = task->tk_msg.rpc_argp;
+	res = task->tk_msg.rpc_resp;
+
+	if (nfs4_setup_sequence(clp, args, res, 0, task))
+		return;
+	rpc_call_start(task);
+}
+
+static const struct rpc_call_ops nfs41_sequence_ops = {
+	.rpc_call_done = nfs41_sequence_call_done,
+	.rpc_call_prepare = nfs41_sequence_prepare,
+};
+
+static int nfs41_proc_async_sequence(struct nfs_client *clp,
+				     struct rpc_cred *cred)
+{
+	struct nfs4_sequence_args *args;
+	struct nfs4_sequence_res *res;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SEQUENCE],
+		.rpc_cred = cred,
+	};
+
+	args = kzalloc(sizeof(*args), GFP_KERNEL);
+	if (!args)
+		return -ENOMEM;
+	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	if (!res) {
+		kfree(args);
+		return -ENOMEM;
+	}
+	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
+	msg.rpc_argp = args;
+	msg.rpc_resp = res;
+
+	return rpc_call_async(clp->cl_rpcclient, &msg, RPC_TASK_SOFT,
+			      &nfs41_sequence_ops, (void *)clp);
+}
+
 #endif /* CONFIG_NFS_V4_1 */
 
 struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops = {
