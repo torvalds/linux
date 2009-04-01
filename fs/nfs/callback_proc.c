@@ -105,6 +105,57 @@ out:
 #if defined(CONFIG_NFS_V4_1)
 
 /*
+ * Validate the sequenceID sent by the server.
+ * Return success if the sequenceID is one more than what we last saw on
+ * this slot, accounting for wraparound.  Increments the slot's sequence.
+ *
+ * We don't yet implement a duplicate request cache, so at this time
+ * we will log replays, and process them as if we had not seen them before,
+ * but we don't bump the sequence in the slot.  Not too worried about it,
+ * since we only currently implement idempotent callbacks anyway.
+ *
+ * We have a single slot backchannel at this time, so we don't bother
+ * checking the used_slots bit array on the table.  The lower layer guarantees
+ * a single outstanding callback request at a time.
+ */
+static int
+validate_seqid(struct nfs4_slot_table *tbl, u32 slotid, u32 seqid)
+{
+	struct nfs4_slot *slot;
+
+	dprintk("%s enter. slotid %d seqid %d\n",
+		__func__, slotid, seqid);
+
+	if (slotid > NFS41_BC_MAX_CALLBACKS)
+		return htonl(NFS4ERR_BADSLOT);
+
+	slot = tbl->slots + slotid;
+	dprintk("%s slot table seqid: %d\n", __func__, slot->seq_nr);
+
+	/* Normal */
+	if (likely(seqid == slot->seq_nr + 1)) {
+		slot->seq_nr++;
+		return htonl(NFS4_OK);
+	}
+
+	/* Replay */
+	if (seqid == slot->seq_nr) {
+		dprintk("%s seqid %d is a replay - no DRC available\n",
+			__func__, seqid);
+		return htonl(NFS4_OK);
+	}
+
+	/* Wraparound */
+	if (seqid == 1 && (slot->seq_nr + 1) == 0) {
+		slot->seq_nr = 1;
+		return htonl(NFS4_OK);
+	}
+
+	/* Misordered request */
+	return htonl(NFS4ERR_SEQ_MISORDERED);
+}
+
+/*
  * Returns a pointer to a held 'struct nfs_client' that matches the server's
  * address, major version number, and session ID.  It is the caller's
  * responsibility to release the returned reference.
@@ -140,17 +191,26 @@ out:
 	return NULL;
 }
 
-/* FIXME: validate args->cbs_{sequence,slot}id */
 /* FIXME: referring calls should be processed */
 unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
 				struct cb_sequenceres *res)
 {
-	int i;
-	unsigned status = 0;
+	struct nfs_client *clp;
+	int i, status;
 
 	for (i = 0; i < args->csa_nrclists; i++)
 		kfree(args->csa_rclists[i].rcl_refcalls);
 	kfree(args->csa_rclists);
+
+	status = htonl(NFS4ERR_BADSESSION);
+	clp = find_client_with_session(args->csa_addr, 4, &args->csa_sessionid);
+	if (clp == NULL)
+		goto out;
+
+	status = validate_seqid(&clp->cl_session->bc_slot_table,
+				args->csa_slotid, args->csa_sequenceid);
+	if (status)
+		goto out_putclient;
 
 	memcpy(&res->csr_sessionid, &args->csa_sessionid,
 	       sizeof(res->csr_sessionid));
@@ -159,9 +219,12 @@ unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
 	res->csr_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
 	res->csr_target_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
 
+out_putclient:
+	nfs_put_client(clp);
+out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	res->csr_status = status;
-	return status;
+	return res->csr_status;
 }
 
 #endif /* CONFIG_NFS_V4_1 */
