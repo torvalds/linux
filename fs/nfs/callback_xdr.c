@@ -356,31 +356,87 @@ out:
 	return status;
 }
 
-static __be32 process_op(struct svc_rqst *rqstp,
+#if defined(CONFIG_NFS_V4_1)
+
+static __be32
+preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
+{
+	switch (op_nr) {
+	case OP_CB_GETATTR:
+	case OP_CB_RECALL:
+		*op = &callback_ops[op_nr];
+		break;
+
+	case OP_CB_LAYOUTRECALL:
+	case OP_CB_NOTIFY_DEVICEID:
+	case OP_CB_NOTIFY:
+	case OP_CB_PUSH_DELEG:
+	case OP_CB_RECALL_ANY:
+	case OP_CB_RECALLABLE_OBJ_AVAIL:
+	case OP_CB_RECALL_SLOT:
+	case OP_CB_SEQUENCE:
+	case OP_CB_WANTS_CANCELLED:
+	case OP_CB_NOTIFY_LOCK:
+		return htonl(NFS4ERR_NOTSUPP);
+
+	default:
+		return htonl(NFS4ERR_OP_ILLEGAL);
+	}
+
+	return htonl(NFS_OK);
+}
+
+#else /* CONFIG_NFS_V4_1 */
+
+static __be32
+preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
+{
+	return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
+}
+
+#endif /* CONFIG_NFS_V4_1 */
+
+static __be32
+preprocess_nfs4_op(unsigned int op_nr, struct callback_op **op)
+{
+	switch (op_nr) {
+	case OP_CB_GETATTR:
+	case OP_CB_RECALL:
+		*op = &callback_ops[op_nr];
+		break;
+	default:
+		return htonl(NFS4ERR_OP_ILLEGAL);
+	}
+
+	return htonl(NFS_OK);
+}
+
+static __be32 process_op(uint32_t minorversion, int nop,
+		struct svc_rqst *rqstp,
 		struct xdr_stream *xdr_in, void *argp,
 		struct xdr_stream *xdr_out, void *resp)
 {
 	struct callback_op *op = &callback_ops[0];
 	unsigned int op_nr = OP_CB_ILLEGAL;
-	__be32 status = 0;
+	__be32 status;
 	long maxlen;
 	__be32 res;
 
 	dprintk("%s: start\n", __func__);
 	status = decode_op_hdr(xdr_in, &op_nr);
-	if (likely(status == 0)) {
-		switch (op_nr) {
-			case OP_CB_GETATTR:
-			case OP_CB_RECALL:
-				op = &callback_ops[op_nr];
-				break;
-			default:
-				op_nr = OP_CB_ILLEGAL;
-				op = &callback_ops[0];
-				status = htonl(NFS4ERR_OP_ILLEGAL);
-		}
+	if (unlikely(status)) {
+		status = htonl(NFS4ERR_OP_ILLEGAL);
+		goto out;
 	}
 
+	dprintk("%s: minorversion=%d nop=%d op_nr=%u\n",
+		__func__, minorversion, nop, op_nr);
+
+	status = minorversion ? preprocess_nfs41_op(nop, op_nr, &op) :
+				preprocess_nfs4_op(op_nr, &op);
+	if (status == htonl(NFS4ERR_OP_ILLEGAL))
+		op_nr = OP_CB_ILLEGAL;
+out:
 	maxlen = xdr_out->end - xdr_out->p;
 	if (maxlen > 0 && maxlen < PAGE_SIZE) {
 		if (likely(status == 0 && op->decode_args != NULL))
@@ -428,7 +484,8 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 		return rpc_system_err;
 
 	while (status == 0 && nops != hdr_arg.nops) {
-		status = process_op(rqstp, &xdr_in, argp, &xdr_out, resp);
+		status = process_op(hdr_arg.minorversion, nops,
+				    rqstp, &xdr_in, argp, &xdr_out, resp);
 		nops++;
 	}
 

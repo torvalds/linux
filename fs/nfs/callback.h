@@ -30,6 +30,7 @@ enum nfs4_callback_opnum {
 	OP_CB_SEQUENCE      = 11,
 	OP_CB_WANTS_CANCELLED = 12,
 	OP_CB_NOTIFY_LOCK   = 13,
+	OP_CB_NOTIFY_DEVICEID = 14,
 	OP_CB_ILLEGAL = 10044,
 };
 
