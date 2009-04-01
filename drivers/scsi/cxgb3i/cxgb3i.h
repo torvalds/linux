@@ -141,7 +141,7 @@ int cxgb3i_iscsi_init(void);
 void cxgb3i_iscsi_cleanup(void);
 
 struct cxgb3i_adapter *cxgb3i_adapter_find_by_tdev(struct t3cdev *);
-struct cxgb3i_adapter *cxgb3i_adapter_open(struct t3cdev *);
+void cxgb3i_adapter_open(struct t3cdev *);
 void cxgb3i_adapter_close(struct t3cdev *);
 
 struct cxgb3i_hba *cxgb3i_hba_find_by_netdev(struct net_device *);
