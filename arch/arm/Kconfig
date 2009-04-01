@@ -308,15 +308,6 @@ config ARCH_H720X
 	help
 	  This enables support for systems based on the Hynix HMS720x
 
-config ARCH_IMX
-	bool "IMX"
-	select CPU_ARM920T
-	select GENERIC_GPIO
-	select GENERIC_TIME
-	select GENERIC_CLOCKEVENTS
-	help
-	  Support for Motorola's i.MX family of processors (MX1, MXL).
-
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
 	depends on MMU
@@ -682,8 +673,6 @@ endif
 
 source "arch/arm/mach-lh7a40x/Kconfig"
 
-source "arch/arm/mach-imx/Kconfig"
-
 source "arch/arm/mach-h720x/Kconfig"
 
 source "arch/arm/mach-versatile/Kconfig"
@@ -1022,7 +1011,7 @@ source "mm/Kconfig"
 config LEDS
 	bool "Timer and CPU usage LEDs"
 	depends on ARCH_CDB89712 || ARCH_EBSA110 || \
-		   ARCH_EBSA285 || ARCH_IMX || ARCH_INTEGRATOR || \
+		   ARCH_EBSA285 || ARCH_INTEGRATOR || \
 		   ARCH_LUBBOCK || MACH_MAINSTONE || ARCH_NETWINDER || \
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
 		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
@@ -1188,7 +1177,7 @@ endmenu
 
 menu "CPU Power Management"
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA)
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_PXA)
 
 source "drivers/cpufreq/Kconfig"
 
@@ -1213,14 +1202,11 @@ config CPU_FREQ_INTEGRATOR
 
 	  If in doubt, say Y.
 
-config CPU_FREQ_IMX
-	tristate "CPUfreq driver for i.MX CPUs"
-	depends on ARCH_IMX && CPU_FREQ
-	default n
-	help
-	  This enables the CPUfreq driver for i.MX CPUs.
-
-	  If in doubt, say N.
+config CPU_FREQ_PXA
+	bool
+	depends on CPU_FREQ && ARCH_PXA && PXA25x
+	default y
+	select CPU_FREQ_DEFAULT_GOV_USERSPACE
 
 endif
 
