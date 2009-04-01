@@ -166,11 +166,11 @@ send_IPI_allbutself (int op)
  * Called with preemption disabled.
  */
 static inline void
-send_IPI_mask(cpumask_t mask, int op)
+send_IPI_mask(const struct cpumask *mask, int op)
 {
 	unsigned int cpu;
 
-	for_each_cpu_mask(cpu, mask) {
+	for_each_cpu(cpu, mask) {
 			send_IPI_single(cpu, op);
 	}
 }
@@ -316,7 +316,7 @@ void arch_send_call_function_single_ipi(int cpu)
 	send_IPI_single(cpu, IPI_CALL_FUNC_SINGLE);
 }
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	send_IPI_mask(mask, IPI_CALL_FUNC);
 }
