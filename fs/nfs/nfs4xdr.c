@@ -246,6 +246,8 @@ static int nfs4_stat_to_errno(int);
 				(0)
 
 #if defined(CONFIG_NFS_V4_1)
+#define NFS4_MAX_MACHINE_NAME_LEN (64)
+
 #define encode_exchange_id_maxsz (op_encode_hdr_maxsz + \
 				encode_verifier_maxsz + \
 				1 /* co_ownerid.len */ + \
@@ -267,6 +269,31 @@ static int nfs4_stat_to_errno(int);
 				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 + \
 				1 /* eir_server_impl_id array length */ + \
 				0 /* ignored eir_server_impl_id contents */)
+#define encode_channel_attrs_maxsz  (6 + 1 /* ca_rdma_ird.len (0) */)
+#define decode_channel_attrs_maxsz  (6 + \
+				     1 /* ca_rdma_ird.len */ + \
+				     1 /* ca_rdma_ird */)
+#define encode_create_session_maxsz  (op_encode_hdr_maxsz + \
+				     2 /* csa_clientid */ + \
+				     1 /* csa_sequence */ + \
+				     1 /* csa_flags */ + \
+				     encode_channel_attrs_maxsz + \
+				     encode_channel_attrs_maxsz + \
+				     1 /* csa_cb_program */ + \
+				     1 /* csa_sec_parms.len (1) */ + \
+				     1 /* cb_secflavor (AUTH_SYS) */ + \
+				     1 /* stamp */ + \
+				     1 /* machinename.len */ + \
+				     XDR_QUADLEN(NFS4_MAX_MACHINE_NAME_LEN) + \
+				     1 /* uid */ + \
+				     1 /* gid */ + \
+				     1 /* gids.len (0) */)
+#define decode_create_session_maxsz  (op_decode_hdr_maxsz +	\
+				     XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + \
+				     1 /* csr_sequence */ + \
+				     1 /* csr_flags */ + \
+				     decode_channel_attrs_maxsz + \
+				     decode_channel_attrs_maxsz)
 #define encode_sequence_maxsz	0 /* stub */
 #define decode_sequence_maxsz	0 /* stub */
 #else /* CONFIG_NFS_V4_1 */
@@ -622,6 +649,12 @@ static int nfs4_stat_to_errno(int);
 #define NFS4_dec_exchange_id_sz \
 				(compound_decode_hdr_maxsz + \
 				 decode_exchange_id_maxsz)
+#define NFS4_enc_create_session_sz \
+				(compound_encode_hdr_maxsz + \
+				 encode_create_session_maxsz)
+#define NFS4_dec_create_session_sz \
+				(compound_decode_hdr_maxsz + \
+				 decode_create_session_maxsz)
 #define NFS4_enc_get_lease_time_sz	(compound_encode_hdr_maxsz + \
 					 encode_sequence_maxsz + \
 					 encode_putrootfh_maxsz + \
@@ -712,6 +745,7 @@ static void encode_compound_hdr(struct xdr_stream *xdr,
 
 static void encode_nops(struct compound_hdr *hdr)
 {
+	BUG_ON(hdr->nops > NFS4_MAX_OPS);
 	*hdr->nops_p = htonl(hdr->nops);
 }
 
@@ -1513,6 +1547,68 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 	hdr->nops++;
 	hdr->replen += decode_exchange_id_maxsz;
 }
+
+static void encode_create_session(struct xdr_stream *xdr,
+				  struct nfs41_create_session_args *args,
+				  struct compound_hdr *hdr)
+{
+	__be32 *p;
+	char machine_name[NFS4_MAX_MACHINE_NAME_LEN];
+	uint32_t len;
+	struct nfs_client *clp = args->client;
+
+	RESERVE_SPACE(4);
+	WRITE32(OP_CREATE_SESSION);
+
+	RESERVE_SPACE(8);
+	WRITE64(clp->cl_ex_clid);
+
+	RESERVE_SPACE(8);
+	WRITE32(clp->cl_seqid);			/*Sequence id */
+	WRITE32(args->flags);			/*flags */
+
+	RESERVE_SPACE(2*28);			/* 2 channel_attrs */
+	/* Fore Channel */
+	WRITE32(args->fc_attrs.headerpadsz);	/* header padding size */
+	WRITE32(args->fc_attrs.max_rqst_sz);	/* max req size */
+	WRITE32(args->fc_attrs.max_resp_sz);	/* max resp size */
+	WRITE32(args->fc_attrs.max_resp_sz_cached);	/* Max resp sz cached */
+	WRITE32(args->fc_attrs.max_ops);	/* max operations */
+	WRITE32(args->fc_attrs.max_reqs);	/* max requests */
+	WRITE32(0);				/* rdmachannel_attrs */
+
+	/* Back Channel */
+	WRITE32(args->fc_attrs.headerpadsz);	/* header padding size */
+	WRITE32(args->bc_attrs.max_rqst_sz);	/* max req size */
+	WRITE32(args->bc_attrs.max_resp_sz);	/* max resp size */
+	WRITE32(args->bc_attrs.max_resp_sz_cached);	/* Max resp sz cached */
+	WRITE32(args->bc_attrs.max_ops);	/* max operations */
+	WRITE32(args->bc_attrs.max_reqs);	/* max requests */
+	WRITE32(0);				/* rdmachannel_attrs */
+
+	RESERVE_SPACE(4);
+	WRITE32(args->cb_program);		/* cb_program */
+
+	RESERVE_SPACE(4);			/* # of security flavors */
+	WRITE32(1);
+
+	RESERVE_SPACE(4);
+	WRITE32(RPC_AUTH_UNIX);			/* auth_sys */
+
+	/* authsys_parms rfc1831 */
+	RESERVE_SPACE(4);
+	WRITE32((u32)clp->cl_boot_time.tv_nsec);	/* stamp */
+	len = scnprintf(machine_name, sizeof(machine_name), "%s",
+			clp->cl_ipaddr);
+	RESERVE_SPACE(16 + len);
+	WRITE32(len);
+	WRITEMEM(machine_name, len);
+	WRITE32(0);				/* UID */
+	WRITE32(0);				/* GID */
+	WRITE32(0);				/* No more gids */
+	hdr->nops++;
+	hdr->replen += decode_create_session_maxsz;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 static void encode_sequence(struct xdr_stream *xdr,
@@ -2236,6 +2332,24 @@ static int nfs4_xdr_enc_exchange_id(struct rpc_rqst *req, uint32_t *p,
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, req, &hdr);
 	encode_exchange_id(&xdr, args, &hdr);
+	encode_nops(&hdr);
+	return 0;
+}
+
+/*
+ * a CREATE_SESSION request
+ */
+static int nfs4_xdr_enc_create_session(struct rpc_rqst *req, uint32_t *p,
+				       struct nfs41_create_session_args *args)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr = {
+		.minorversion = args->client->cl_minorversion,
+	};
+
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+	encode_compound_hdr(&xdr, req, &hdr);
+	encode_create_session(&xdr, args, &hdr);
 	encode_nops(&hdr);
 	return 0;
 }
@@ -4021,6 +4135,59 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 
 	return 0;
 }
+
+static int decode_chan_attrs(struct xdr_stream *xdr,
+			     struct nfs4_channel_attrs *attrs)
+{
+	__be32 *p;
+	u32 nr_attrs;
+
+	READ_BUF(28);
+	READ32(attrs->headerpadsz);
+	READ32(attrs->max_rqst_sz);
+	READ32(attrs->max_resp_sz);
+	READ32(attrs->max_resp_sz_cached);
+	READ32(attrs->max_ops);
+	READ32(attrs->max_reqs);
+	READ32(nr_attrs);
+	if (unlikely(nr_attrs > 1)) {
+		printk(KERN_WARNING "%s: Invalid rdma channel attrs count %u\n",
+			__func__, nr_attrs);
+		return -EINVAL;
+	}
+	if (nr_attrs == 1)
+		READ_BUF(4); /* skip rdma_attrs */
+	return 0;
+}
+
+static int decode_create_session(struct xdr_stream *xdr,
+				 struct nfs41_create_session_res *res)
+{
+	__be32 *p;
+	int status;
+	struct nfs_client *clp = res->client;
+	struct nfs4_session *session = clp->cl_session;
+
+	status = decode_op_hdr(xdr, OP_CREATE_SESSION);
+
+	if (status)
+		return status;
+
+	/* sessionid */
+	READ_BUF(NFS4_MAX_SESSIONID_LEN);
+	COPYMEM(&session->sess_id, NFS4_MAX_SESSIONID_LEN);
+
+	/* seqid, flags */
+	READ_BUF(8);
+	READ32(clp->cl_seqid);
+	READ32(session->flags);
+
+	/* Channel attributes */
+	status = decode_chan_attrs(xdr, &session->fc_attrs);
+	if (!status)
+		status = decode_chan_attrs(xdr, &session->bc_attrs);
+	return status;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 static int decode_sequence(struct xdr_stream *xdr,
@@ -4939,6 +5106,23 @@ static int nfs4_xdr_dec_exchange_id(struct rpc_rqst *rqstp, uint32_t *p,
 }
 
 /*
+ * a CREATE_SESSION request
+ */
+static int nfs4_xdr_dec_create_session(struct rpc_rqst *rqstp, uint32_t *p,
+				       struct nfs41_create_session_res *res)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr;
+	int status;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
+	if (!status)
+		status = decode_create_session(&xdr, res);
+	return status;
+}
+
+/*
  * a GET_LEASE_TIME request
  */
 static int nfs4_xdr_dec_get_lease_time(struct rpc_rqst *rqstp, uint32_t *p,
@@ -5131,6 +5315,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
   PROC(FS_LOCATIONS,	enc_fs_locations, dec_fs_locations),
 #if defined(CONFIG_NFS_V4_1)
   PROC(EXCHANGE_ID,	enc_exchange_id,	dec_exchange_id),
+  PROC(CREATE_SESSION,	enc_create_session,	dec_create_session),
   PROC(GET_LEASE_TIME,	enc_get_lease_time,	dec_get_lease_time),
 #endif /* CONFIG_NFS_V4_1 */
 };

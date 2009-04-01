@@ -926,6 +926,18 @@ struct nfs41_exchange_id_res {
 	struct nfs_client		*client;
 	u32				flags;
 };
+
+struct nfs41_create_session_args {
+	struct nfs_client	       *client;
+	uint32_t			flags;
+	uint32_t			cb_program;
+	struct nfs4_channel_attrs	fc_attrs;	/* Fore Channel */
+	struct nfs4_channel_attrs	bc_attrs;	/* Back Channel */
+};
+
+struct nfs41_create_session_res {
+	struct nfs_client	       *client;
+};
 #endif /* CONFIG_NFS_V4_1 */
 
 struct nfs_page;
