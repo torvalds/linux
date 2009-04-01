@@ -192,12 +192,16 @@ static int nfs4_stat_to_errno(int);
 				 decode_verifier_maxsz)
 #define encode_remove_maxsz	(op_encode_hdr_maxsz + \
 				nfs4_name_maxsz)
+#define decode_remove_maxsz	(op_decode_hdr_maxsz + \
+				 decode_change_info_maxsz)
 #define encode_rename_maxsz	(op_encode_hdr_maxsz + \
 				2 * nfs4_name_maxsz)
-#define decode_rename_maxsz	(op_decode_hdr_maxsz + 5 + 5)
+#define decode_rename_maxsz	(op_decode_hdr_maxsz + \
+				 decode_change_info_maxsz + \
+				 decode_change_info_maxsz)
 #define encode_link_maxsz	(op_encode_hdr_maxsz + \
 				nfs4_name_maxsz)
-#define decode_link_maxsz	(op_decode_hdr_maxsz + 5)
+#define decode_link_maxsz	(op_decode_hdr_maxsz + decode_change_info_maxsz)
 #define encode_lock_maxsz	(op_encode_hdr_maxsz + \
 				 7 + \
 				 1 + encode_stateid_maxsz + 8)
@@ -414,7 +418,7 @@ static int nfs4_stat_to_errno(int);
 				encode_getattr_maxsz)
 #define NFS4_dec_remove_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				op_decode_hdr_maxsz + 5 + \
+				decode_remove_maxsz + \
 				decode_getattr_maxsz)
 #define NFS4_enc_rename_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
