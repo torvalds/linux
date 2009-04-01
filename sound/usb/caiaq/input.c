@@ -20,8 +20,9 @@
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #include <sound/pcm.h>
-#include "caiaq-device.h"
-#include "caiaq-input.h"
+
+#include "device.h"
+#include "input.h"
 
 static unsigned short keycode_ak1[] =  { KEY_C, KEY_B, KEY_A };
 static unsigned short keycode_rk2[] =  { KEY_1, KEY_2, KEY_3, KEY_4,

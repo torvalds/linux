@@ -23,8 +23,8 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 
-#include "caiaq-device.h"
-#include "caiaq-control.h"
+#include "device.h"
+#include "control.h"
 
 #define CNT_INTVAL 0x10000
 

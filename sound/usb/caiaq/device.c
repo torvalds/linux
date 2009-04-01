@@ -28,11 +28,11 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 
-#include "caiaq-device.h"
-#include "caiaq-audio.h"
-#include "caiaq-midi.h"
-#include "caiaq-control.h"
-#include "caiaq-input.h"
+#include "device.h"
+#include "audio.h"
+#include "midi.h"
+#include "control.h"
+#include "input.h"
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("caiaq USB audio, version 1.3.13");

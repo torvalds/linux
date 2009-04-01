@@ -22,8 +22,8 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 
-#include "caiaq-device.h"
-#include "caiaq-audio.h"
+#include "device.h"
+#include "audio.h"
 
 #define N_URBS			32
 #define CLOCK_DRIFT_TOLERANCE	5

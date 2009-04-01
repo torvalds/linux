@@ -21,8 +21,8 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 
-#include "caiaq-device.h"
-#include "caiaq-midi.h"
+#include "device.h"
+#include "midi.h"
 
 static int snd_usb_caiaq_midi_input_open(struct snd_rawmidi_substream *substream)
 {
