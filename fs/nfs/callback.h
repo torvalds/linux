@@ -70,6 +70,41 @@ struct cb_recallargs {
 	uint32_t truncate;
 };
 
+#if defined(CONFIG_NFS_V4_1)
+
+struct referring_call {
+	uint32_t			rc_sequenceid;
+	uint32_t			rc_slotid;
+};
+
+struct referring_call_list {
+	struct nfs4_sessionid		rcl_sessionid;
+	uint32_t			rcl_nrefcalls;
+	struct referring_call 		*rcl_refcalls;
+};
+
+struct cb_sequenceargs {
+	struct sockaddr_in		*csa_addr;
+	struct nfs4_sessionid		csa_sessionid;
+	uint32_t			csa_sequenceid;
+	uint32_t			csa_slotid;
+	uint32_t			csa_highestslotid;
+	uint32_t			csa_cachethis;
+	uint32_t			csa_nrclists;
+	struct referring_call_list	*csa_rclists;
+};
+
+struct cb_sequenceres {
+	uint32_t			csr_status;
+	struct nfs4_sessionid		csr_sessionid;
+	uint32_t			csr_sequenceid;
+	uint32_t			csr_slotid;
+	uint32_t			csr_highestslotid;
+	uint32_t			csr_target_highestslotid;
+};
+
+#endif /* CONFIG_NFS_V4_1 */
+
 extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res);
 extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy);
 
