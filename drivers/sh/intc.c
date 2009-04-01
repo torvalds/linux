@@ -707,6 +707,9 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->chip.mask = intc_disable;
 	d->chip.unmask = intc_enable;
 	d->chip.mask_ack = intc_disable;
+	d->chip.enable = intc_enable;
+	d->chip.disable = intc_disable;
+	d->chip.shutdown = intc_disable;
 	d->chip.set_type = intc_set_sense;
 
 #if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
