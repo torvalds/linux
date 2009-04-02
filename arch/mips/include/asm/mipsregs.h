@@ -184,12 +184,19 @@
 #else
 
 #define PM_4K		0x00000000
+#define PM_8K		0x00002000
 #define PM_16K		0x00006000
+#define PM_32K		0x0000e000
 #define PM_64K		0x0001e000
+#define PM_128K		0x0003e000
 #define PM_256K		0x0007e000
+#define PM_512K		0x000fe000
 #define PM_1M		0x001fe000
+#define PM_2M		0x003fe000
 #define PM_4M		0x007fe000
+#define PM_8M		0x00ffe000
 #define PM_16M		0x01ffe000
+#define PM_32M		0x03ffe000
 #define PM_64M		0x07ffe000
 #define PM_256M		0x1fffe000
 #define PM_1G		0x7fffe000
@@ -201,8 +208,12 @@
  */
 #ifdef CONFIG_PAGE_SIZE_4KB
 #define PM_DEFAULT_MASK	PM_4K
+#elif defined(CONFIG_PAGE_SIZE_8KB)
+#define PM_DEFAULT_MASK	PM_8K
 #elif defined(CONFIG_PAGE_SIZE_16KB)
 #define PM_DEFAULT_MASK	PM_16K
+#elif defined(CONFIG_PAGE_SIZE_32KB)
+#define PM_DEFAULT_MASK	PM_32K
 #elif defined(CONFIG_PAGE_SIZE_64KB)
 #define PM_DEFAULT_MASK	PM_64K
 #else
