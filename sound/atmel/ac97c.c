@@ -1,5 +1,5 @@
 /*
- * Driver for the Atmel AC97C controller
+ * Driver for Atmel AC97C
  *
  * Copyright (C) 2005-2009 Atmel Corporation
  *
@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/bitmap.h>
+#include <linux/device.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
@@ -297,8 +298,10 @@ static int atmel_ac97c_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct atmel_ac97c *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned long word = 0;
+	unsigned long word = ac97c_readl(chip, OCA);
 	int retval;
+
+	word &= ~(AC97C_CH_MASK(PCM_LEFT) | AC97C_CH_MASK(PCM_RIGHT));
 
 	/* assign channels to AC97C channel A */
 	switch (runtime->channels) {
@@ -323,9 +326,13 @@ static int atmel_ac97c_playback_prepare(struct snd_pcm_substream *substream)
 		word |= AC97C_CMR_CEM_LITTLE;
 		break;
 	case SNDRV_PCM_FORMAT_S16_BE: /* fall through */
-	default:
 		word &= ~(AC97C_CMR_CEM_LITTLE);
 		break;
+	default:
+		word = ac97c_readl(chip, OCA);
+		word &= ~(AC97C_CH_MASK(PCM_LEFT) | AC97C_CH_MASK(PCM_RIGHT));
+		ac97c_writel(chip, OCA, word);
+		return -EINVAL;
 	}
 
 	ac97c_writel(chip, CAMR, word);
@@ -358,8 +365,10 @@ static int atmel_ac97c_capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct atmel_ac97c *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned long word = 0;
+	unsigned long word = ac97c_readl(chip, ICA);
 	int retval;
+
+	word &= ~(AC97C_CH_MASK(PCM_LEFT) | AC97C_CH_MASK(PCM_RIGHT));
 
 	/* assign channels to AC97C channel A */
 	switch (runtime->channels) {
@@ -384,9 +393,13 @@ static int atmel_ac97c_capture_prepare(struct snd_pcm_substream *substream)
 		word |= AC97C_CMR_CEM_LITTLE;
 		break;
 	case SNDRV_PCM_FORMAT_S16_BE: /* fall through */
-	default:
 		word &= ~(AC97C_CMR_CEM_LITTLE);
 		break;
+	default:
+		word = ac97c_readl(chip, ICA);
+		word &= ~(AC97C_CH_MASK(PCM_LEFT) | AC97C_CH_MASK(PCM_RIGHT));
+		ac97c_writel(chip, ICA, word);
+		return -EINVAL;
 	}
 
 	ac97c_writel(chip, CAMR, word);
