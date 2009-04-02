@@ -1,13 +1,12 @@
 #
 #	EDAC Kconfig
-#	Copyright (c) 2003 Linux Networx
+#	Copyright (c) 2008 Doug Thompson www.softwarebitmaker.com
 #	Licensed and distributed under the GPL
 #
 
 menuconfig EDAC
-	bool "EDAC - error detection and reporting (EXPERIMENTAL)"
+	bool "EDAC - error detection and reporting"
 	depends on HAS_IOMEM
-	depends on EXPERIMENTAL
 	depends on X86 || PPC
 	help
 	  EDAC is designed to report errors in the core system.
