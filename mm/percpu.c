@@ -110,9 +110,21 @@ static size_t pcpu_chunk_struct_size __read_mostly;
 void *pcpu_base_addr __read_mostly;
 EXPORT_SYMBOL_GPL(pcpu_base_addr);
 
-/* optional reserved chunk, only accessible for reserved allocations */
+/*
+ * The first chunk which always exists.  Note that unlike other
+ * chunks, this one can be allocated and mapped in several different
+ * ways and thus often doesn't live in the vmalloc area.
+ */
+static struct pcpu_chunk *pcpu_first_chunk;
+
+/*
+ * Optional reserved chunk.  This chunk reserves part of the first
+ * chunk and serves it for reserved allocations.  The amount of
+ * reserved offset is in pcpu_reserved_chunk_limit.  When reserved
+ * area doesn't exist, the following variables contain NULL and 0
+ * respectively.
+ */
 static struct pcpu_chunk *pcpu_reserved_chunk;
-/* offset limit of the reserved chunk */
 static int pcpu_reserved_chunk_limit;
 
 /*
@@ -297,15 +309,16 @@ static struct rb_node **pcpu_chunk_rb_search(void *addr,
  */
 static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 {
+	void *first_start = pcpu_first_chunk->vm->addr;
 	struct rb_node *n, *parent;
 	struct pcpu_chunk *chunk;
 
-	/* is it in the reserved chunk? */
-	if (pcpu_reserved_chunk) {
-		void *start = pcpu_reserved_chunk->vm->addr;
-
-		if (addr >= start && addr < start + pcpu_reserved_chunk_limit)
+	/* is it in the first chunk? */
+	if (addr >= first_start && addr < first_start + pcpu_chunk_size) {
+		/* is it in the reserved area? */
+		if (addr < first_start + pcpu_reserved_chunk_limit)
 			return pcpu_reserved_chunk;
+		return pcpu_first_chunk;
 	}
 
 	/* nah... search the regular ones */
@@ -1147,7 +1160,8 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 
 	if (reserved_size) {
 		schunk->free_size = reserved_size;
-		pcpu_reserved_chunk = schunk;	/* not for dynamic alloc */
+		pcpu_reserved_chunk = schunk;
+		pcpu_reserved_chunk_limit = static_size + reserved_size;
 	} else {
 		schunk->free_size = dyn_size;
 		dyn_size = 0;			/* dynamic area covered */
@@ -1157,8 +1171,6 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 	schunk->map[schunk->map_used++] = -static_size;
 	if (schunk->free_size)
 		schunk->map[schunk->map_used++] = schunk->free_size;
-
-	pcpu_reserved_chunk_limit = static_size + schunk->free_size;
 
 	/* init dynamic chunk if necessary */
 	if (dyn_size) {
@@ -1226,13 +1238,8 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 	}
 
 	/* link the first chunk in */
-	if (!dchunk) {
-		pcpu_chunk_relocate(schunk, -1);
-		pcpu_chunk_addr_insert(schunk);
-	} else {
-		pcpu_chunk_relocate(dchunk, -1);
-		pcpu_chunk_addr_insert(dchunk);
-	}
+	pcpu_first_chunk = dchunk ?: schunk;
+	pcpu_chunk_relocate(pcpu_first_chunk, -1);
 
 	/* we're done */
 	pcpu_base_addr = (void *)pcpu_chunk_addr(schunk, 0, 0);
