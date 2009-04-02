@@ -1758,7 +1758,7 @@ static int __tty_open(struct inode *inode, struct file *filp)
 	struct tty_driver *driver;
 	int index;
 	dev_t device = inode->i_rdev;
-	unsigned short saved_flags = filp->f_flags;
+	unsigned saved_flags = filp->f_flags;
 
 	nonseekable_open(inode, filp);
 
