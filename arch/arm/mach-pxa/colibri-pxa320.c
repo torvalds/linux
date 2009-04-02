@@ -38,8 +38,8 @@
  * Asix AX88796 Ethernet
  */
 static struct ax_plat_data colibri_asix_platdata = {
-	.flags		= AXFLG_MAC_FROMDEV,
-	.wordlength	= 2
+	.flags		= 0, /* defined later */
+	.wordlength	= 2,
 };
 
 static struct resource colibri_asix_resource[] = {
@@ -72,6 +72,7 @@ static mfp_cfg_t colibri_pxa320_eth_pin_config[] __initdata = {
 
 static void __init colibri_pxa320_init_eth(void)
 {
+	colibri_pxa3xx_init_eth(&colibri_asix_platdata);
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa320_eth_pin_config));
 	set_irq_type(gpio_to_irq(COLIBRI_ETH_IRQ_GPIO), IRQ_TYPE_EDGE_FALLING);
 	platform_device_register(&asix_device);
