@@ -3405,7 +3405,7 @@ unsigned short css_depth(struct cgroup_subsys_state *css)
 }
 
 bool css_is_ancestor(struct cgroup_subsys_state *child,
-		    struct cgroup_subsys_state *root)
+		    const struct cgroup_subsys_state *root)
 {
 	struct css_id *child_id = rcu_dereference(child->id);
 	struct css_id *root_id = rcu_dereference(root->id);

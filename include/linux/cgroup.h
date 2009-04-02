@@ -503,7 +503,7 @@ struct cgroup_subsys_state *css_get_next(struct cgroup_subsys *ss, int id,
 
 /* Returns true if root is ancestor of cg */
 bool css_is_ancestor(struct cgroup_subsys_state *cg,
-		     struct cgroup_subsys_state *root);
+		     const struct cgroup_subsys_state *root);
 
 /* Get id and depth of css */
 unsigned short css_id(struct cgroup_subsys_state *css);
