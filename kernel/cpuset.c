@@ -2181,26 +2181,24 @@ static const struct cpuset *nearest_hardwall_ancestor(const struct cpuset *cs)
 }
 
 /**
- * cpuset_zone_allowed_softwall - Can we allocate on zone z's memory node?
- * @z: is this zone on an allowed node?
+ * cpuset_node_allowed_softwall - Can we allocate on a memory node?
+ * @node: is this an allowed node?
  * @gfp_mask: memory allocation flags
  *
- * If we're in interrupt, yes, we can always allocate.  If
- * __GFP_THISNODE is set, yes, we can always allocate.  If zone
- * z's node is in our tasks mems_allowed, yes.  If it's not a
- * __GFP_HARDWALL request and this zone's nodes is in the nearest
- * hardwalled cpuset ancestor to this tasks cpuset, yes.
- * If the task has been OOM killed and has access to memory reserves
- * as specified by the TIF_MEMDIE flag, yes.
+ * If we're in interrupt, yes, we can always allocate.  If __GFP_THISNODE is
+ * set, yes, we can always allocate.  If node is in our task's mems_allowed,
+ * yes.  If it's not a __GFP_HARDWALL request and this node is in the nearest
+ * hardwalled cpuset ancestor to this task's cpuset, yes.  If the task has been
+ * OOM killed and has access to memory reserves as specified by the TIF_MEMDIE
+ * flag, yes.
  * Otherwise, no.
  *
- * If __GFP_HARDWALL is set, cpuset_zone_allowed_softwall()
- * reduces to cpuset_zone_allowed_hardwall().  Otherwise,
- * cpuset_zone_allowed_softwall() might sleep, and might allow a zone
- * from an enclosing cpuset.
+ * If __GFP_HARDWALL is set, cpuset_node_allowed_softwall() reduces to
+ * cpuset_node_allowed_hardwall().  Otherwise, cpuset_node_allowed_softwall()
+ * might sleep, and might allow a node from an enclosing cpuset.
  *
- * cpuset_zone_allowed_hardwall() only handles the simpler case of
- * hardwall cpusets, and never sleeps.
+ * cpuset_node_allowed_hardwall() only handles the simpler case of hardwall
+ * cpusets, and never sleeps.
  *
  * The __GFP_THISNODE placement logic is really handled elsewhere,
  * by forcibly using a zonelist starting at a specified node, and by
@@ -2239,20 +2237,17 @@ static const struct cpuset *nearest_hardwall_ancestor(const struct cpuset *cs)
  *	GFP_USER     - only nodes in current tasks mems allowed ok.
  *
  * Rule:
- *    Don't call cpuset_zone_allowed_softwall if you can't sleep, unless you
+ *    Don't call cpuset_node_allowed_softwall if you can't sleep, unless you
  *    pass in the __GFP_HARDWALL flag set in gfp_flag, which disables
  *    the code that might scan up ancestor cpusets and sleep.
  */
-
-int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
+int __cpuset_node_allowed_softwall(int node, gfp_t gfp_mask)
 {
-	int node;			/* node that zone z is on */
 	const struct cpuset *cs;	/* current cpuset ancestors */
 	int allowed;			/* is allocation in zone z allowed? */
 
 	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
 		return 1;
-	node = zone_to_nid(z);
 	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
 	if (node_isset(node, current->mems_allowed))
 		return 1;
@@ -2281,15 +2276,15 @@ int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
 }
 
 /*
- * cpuset_zone_allowed_hardwall - Can we allocate on zone z's memory node?
- * @z: is this zone on an allowed node?
+ * cpuset_node_allowed_hardwall - Can we allocate on a memory node?
+ * @node: is this an allowed node?
  * @gfp_mask: memory allocation flags
  *
- * If we're in interrupt, yes, we can always allocate.
- * If __GFP_THISNODE is set, yes, we can always allocate.  If zone
- * z's node is in our tasks mems_allowed, yes.   If the task has been
- * OOM killed and has access to memory reserves as specified by the
- * TIF_MEMDIE flag, yes.  Otherwise, no.
+ * If we're in interrupt, yes, we can always allocate.  If __GFP_THISNODE is
+ * set, yes, we can always allocate.  If node is in our task's mems_allowed,
+ * yes.  If the task has been OOM killed and has access to memory reserves as
+ * specified by the TIF_MEMDIE flag, yes.
+ * Otherwise, no.
  *
  * The __GFP_THISNODE placement logic is really handled elsewhere,
  * by forcibly using a zonelist starting at a specified node, and by
@@ -2297,20 +2292,16 @@ int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
  * any node on the zonelist except the first.  By the time any such
  * calls get to this routine, we should just shut up and say 'yes'.
  *
- * Unlike the cpuset_zone_allowed_softwall() variant, above,
- * this variant requires that the zone be in the current tasks
+ * Unlike the cpuset_node_allowed_softwall() variant, above,
+ * this variant requires that the node be in the current task's
  * mems_allowed or that we're in interrupt.  It does not scan up the
  * cpuset hierarchy for the nearest enclosing mem_exclusive cpuset.
  * It never sleeps.
  */
-
-int __cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask)
+int __cpuset_node_allowed_hardwall(int node, gfp_t gfp_mask)
 {
-	int node;			/* node that zone z is on */
-
 	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
 		return 1;
-	node = zone_to_nid(z);
 	if (node_isset(node, current->mems_allowed))
 		return 1;
 	/*
