@@ -1401,14 +1401,20 @@ static int dm_wait_for_completion(struct mapped_device *md)
 /*
  * Process the deferred bios
  */
-static void __flush_deferred_io(struct mapped_device *md)
+static void dm_wq_work(struct work_struct *work)
 {
+	struct mapped_device *md = container_of(work, struct mapped_device,
+						work);
 	struct bio *c;
+
+	down_write(&md->io_lock);
 
 	while ((c = bio_list_pop(&md->deferred)))
 		__split_and_process_bio(md, c);
 
 	clear_bit(DMF_BLOCK_IO, &md->flags);
+
+	up_write(&md->io_lock);
 }
 
 static void __merge_pushback_list(struct mapped_device *md)
@@ -1420,16 +1426,6 @@ static void __merge_pushback_list(struct mapped_device *md)
 	bio_list_merge_head(&md->deferred, &md->pushback);
 	bio_list_init(&md->pushback);
 	spin_unlock_irqrestore(&md->pushback_lock, flags);
-}
-
-static void dm_wq_work(struct work_struct *work)
-{
-	struct mapped_device *md = container_of(work, struct mapped_device,
-						work);
-
-	down_write(&md->io_lock);
-	__flush_deferred_io(md);
-	up_write(&md->io_lock);
 }
 
 static void dm_queue_flush(struct mapped_device *md)
