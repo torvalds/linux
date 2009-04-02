@@ -225,7 +225,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 	return 0; /* Task didn't use the fpu at all. */
 }
 
-int copy_thread(int nr, unsigned long clone_flags, unsigned long spu,
+int copy_thread(unsigned long clone_flags, unsigned long spu,
 	unsigned long unused, struct task_struct *tsk, struct pt_regs *regs)
 {
 	struct pt_regs *childregs = task_pt_regs(tsk);
