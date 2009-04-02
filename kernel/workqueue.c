@@ -48,8 +48,6 @@ struct cpu_workqueue_struct {
 
 	struct workqueue_struct *wq;
 	struct task_struct *thread;
-
-	int run_depth;		/* Detect run_workqueue() recursion depth */
 } ____cacheline_aligned;
 
 /*
@@ -262,13 +260,6 @@ EXPORT_SYMBOL_GPL(queue_delayed_work_on);
 static void run_workqueue(struct cpu_workqueue_struct *cwq)
 {
 	spin_lock_irq(&cwq->lock);
-	cwq->run_depth++;
-	if (cwq->run_depth > 3) {
-		/* morton gets to eat his hat */
-		printk("%s: recursion depth exceeded: %d\n",
-			__func__, cwq->run_depth);
-		dump_stack();
-	}
 	while (!list_empty(&cwq->worklist)) {
 		struct work_struct *work = list_entry(cwq->worklist.next,
 						struct work_struct, entry);
@@ -311,7 +302,6 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 		spin_lock_irq(&cwq->lock);
 		cwq->current_work = NULL;
 	}
-	cwq->run_depth--;
 	spin_unlock_irq(&cwq->lock);
 }
 
@@ -368,29 +358,20 @@ static void insert_wq_barrier(struct cpu_workqueue_struct *cwq,
 
 static int flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 {
-	int active;
+	int active = 0;
+	struct wq_barrier barr;
 
-	if (cwq->thread == current) {
-		/*
-		 * Probably keventd trying to flush its own queue. So simply run
-		 * it by hand rather than deadlocking.
-		 */
-		run_workqueue(cwq);
+	WARN_ON(cwq->thread == current);
+
+	spin_lock_irq(&cwq->lock);
+	if (!list_empty(&cwq->worklist) || cwq->current_work != NULL) {
+		insert_wq_barrier(cwq, &barr, &cwq->worklist);
 		active = 1;
-	} else {
-		struct wq_barrier barr;
-
-		active = 0;
-		spin_lock_irq(&cwq->lock);
-		if (!list_empty(&cwq->worklist) || cwq->current_work != NULL) {
-			insert_wq_barrier(cwq, &barr, &cwq->worklist);
-			active = 1;
-		}
-		spin_unlock_irq(&cwq->lock);
-
-		if (active)
-			wait_for_completion(&barr.done);
 	}
+	spin_unlock_irq(&cwq->lock);
+
+	if (active)
+		wait_for_completion(&barr.done);
 
 	return active;
 }
