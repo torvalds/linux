@@ -636,16 +636,20 @@ static void print_sym_table(void)
 	int counter;
 	float events_per_sec = events/delay_secs;
 	float kevents_per_sec = (events-userspace_events)/delay_secs;
+	float sum_kevents = 0.0;
 
 	events = userspace_events = 0;
 	memcpy(tmp, sym_table, sizeof(sym_table[0])*sym_table_count);
 	qsort(tmp, sym_table_count, sizeof(tmp[0]), compare);
 
+	for (i = 0; i < sym_table_count && tmp[i].count[0]; i++)
+		sum_kevents += tmp[i].count[0];
+
 	write(1, CONSOLE_CLEAR, strlen(CONSOLE_CLEAR));
 
 	printf(
 "------------------------------------------------------------------------------\n");
-	printf( " KernelTop:%8.0f irqs/sec  kernel:%3.1f%% [%s, ",
+	printf( " KernelTop:%8.0f irqs/sec  kernel:%4.1f%% [%s, ",
 		events_per_sec,
 		100.0 - (100.0*((events_per_sec-kevents_per_sec)/events_per_sec)),
 		nmi ? "NMI" : "IRQ");
@@ -679,34 +683,31 @@ static void print_sym_table(void)
 	printf("------------------------------------------------------------------------------\n\n");
 
 	if (nr_counters == 1)
-		printf("             events");
+		printf("             events    pcnt");
 	else
-		printf("  weight     events");
+		printf("  weight     events    pcnt");
 
 	printf("         RIP          kernel function\n"
-	       	       "  ______     ______   ________________   _______________\n\n"
+	       	       "  ______     ______   _____   ________________   _______________\n\n"
 	);
 
-	printed = 0;
-	for (i = 0; i < sym_table_count; i++) {
+	for (i = 0, printed = 0; i < sym_table_count; i++) {
+		float pcnt;
 		int count;
 
-		if (nr_counters == 1) {
-			if (printed <= 18 &&
-					tmp[i].count[0] >= count_filter) {
-				printf("%19.2f - %016llx : %s\n",
-				  sym_weight(tmp + i), tmp[i].addr, tmp[i].sym);
-				printed++;
-			}
-		} else {
-			if (printed <= 18 &&
-					tmp[i].count[0] >= count_filter) {
-				printf("%8.1f %10ld - %016llx : %s\n",
-				  sym_weight(tmp + i),
-				  tmp[i].count[0],
-				  tmp[i].addr, tmp[i].sym);
-				printed++;
-			}
+		if (printed <= 18 && tmp[i].count[0] >= count_filter) {
+			pcnt = 100.0 - (100.0*((sum_kevents-tmp[i].count[0])/sum_kevents));
+
+			if (nr_counters == 1)
+				printf("%19.2f - %4.1f%% - %016llx : %s\n",
+					sym_weight(tmp + i),
+					pcnt, tmp[i].addr, tmp[i].sym);
+			else
+				printf("%8.1f %10ld - %4.1f%% - %016llx : %s\n",
+					sym_weight(tmp + i),
+					tmp[i].count[0],
+					pcnt, tmp[i].addr, tmp[i].sym);
+			printed++;
 		}
 		/*
 		 * Add decay to the counts:
