@@ -923,8 +923,7 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	if (opts.release_agent)
 		strcpy(root->release_agent_path, opts.release_agent);
  out_unlock:
-	if (opts.release_agent)
-		kfree(opts.release_agent);
+	kfree(opts.release_agent);
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&cgrp->dentry->d_inode->i_mutex);
 	return ret;
@@ -1027,15 +1026,13 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 	/* First find the desired set of subsystems */
 	ret = parse_cgroupfs_options(data, &opts);
 	if (ret) {
-		if (opts.release_agent)
-			kfree(opts.release_agent);
+		kfree(opts.release_agent);
 		return ret;
 	}
 
 	root = kzalloc(sizeof(*root), GFP_KERNEL);
 	if (!root) {
-		if (opts.release_agent)
-			kfree(opts.release_agent);
+		kfree(opts.release_agent);
 		return -ENOMEM;
 	}
 
