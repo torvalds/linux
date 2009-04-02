@@ -1,6 +1,7 @@
 if ARCH_MX3
 
 config ARCH_MX31
+	select ARCH_HAS_RNGA
 	bool
 
 config ARCH_MX35

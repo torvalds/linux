@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
+#include <mach/common.h>
 #include <mach/imx-uart.h>
 
 #include "devices.h"
@@ -283,6 +284,21 @@ struct platform_device mxcsdhc_device1 = {
 	.num_resources = ARRAY_SIZE(mxcsdhc1_resources),
 	.resource = mxcsdhc1_resources,
 };
+
+static struct resource rnga_resources[] = {
+	{
+		.start = RNGA_BASE_ADDR,
+		.end = RNGA_BASE_ADDR + 0x28,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device mxc_rnga_device = {
+	.name = "mxc_rnga",
+	.id = -1,
+	.num_resources = 1,
+	.resource = rnga_resources,
+};
 #endif /* CONFIG_ARCH_MX31 */
 
 /* i.MX31 Image Processing Unit */
@@ -359,6 +375,7 @@ static int mx3_devices_init(void)
 	if (cpu_is_mx31()) {
 		mxc_nand_resources[0].start = MX31_NFC_BASE_ADDR;
 		mxc_nand_resources[0].end = MX31_NFC_BASE_ADDR + 0xfff;
+		mxc_register_device(&mxc_rnga_device, NULL);
 	}
 	if (cpu_is_mx35()) {
 		mxc_nand_resources[0].start = MX35_NFC_BASE_ADDR;
