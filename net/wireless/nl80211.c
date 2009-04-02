@@ -3491,6 +3491,60 @@ void nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,
 	nlmsg_free(msg);
 }
 
+void nl80211_send_beacon_hint_event(struct wiphy *wiphy,
+				    struct ieee80211_channel *channel_before,
+				    struct ieee80211_channel *channel_after)
+{
+	struct sk_buff *msg;
+	void *hdr;
+	struct nlattr *nl_freq;
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_REG_BEACON_HINT);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	/*
+	 * Since we are applying the beacon hint to a wiphy we know its
+	 * wiphy_idx is valid
+	 */
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, get_wiphy_idx(wiphy));
+
+	/* Before */
+	nl_freq = nla_nest_start(msg, NL80211_ATTR_FREQ_BEFORE);
+	if (!nl_freq)
+		goto nla_put_failure;
+	if (nl80211_msg_put_channel(msg, channel_before))
+		goto nla_put_failure;
+	nla_nest_end(msg, nl_freq);
+
+	/* After */
+	nl_freq = nla_nest_start(msg, NL80211_ATTR_FREQ_AFTER);
+	if (!nl_freq)
+		goto nla_put_failure;
+	if (nl80211_msg_put_channel(msg, channel_after))
+		goto nla_put_failure;
+	nla_nest_end(msg, nl_freq);
+
+	if (genlmsg_end(msg, hdr) < 0) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast(msg, 0, nl80211_regulatory_mcgrp.id, GFP_ATOMIC);
+
+	return;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
+}
+
 /* initialisation/exit functions */
 
 int nl80211_init(void)

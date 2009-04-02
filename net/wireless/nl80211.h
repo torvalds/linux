@@ -29,4 +29,9 @@ nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,
 			    enum nl80211_key_type key_type,
 			    int key_id, const u8 *tsc);
 
+extern void
+nl80211_send_beacon_hint_event(struct wiphy *wiphy,
+			       struct ieee80211_channel *channel_before,
+			       struct ieee80211_channel *channel_after);
+
 #endif /* __NET_WIRELESS_NL80211_H */

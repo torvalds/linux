@@ -7,7 +7,7 @@
  * Copyright 2008 Michael Wu <flamingice@sourmilk.net>
  * Copyright 2008 Luis Carlos Cobo <luisca@cozybit.com>
  * Copyright 2008 Michael Buesch <mb@bu3sch.de>
- * Copyright 2008 Luis R. Rodriguez <lrodriguez@atheros.com>
+ * Copyright 2008, 2009 Luis R. Rodriguez <lrodriguez@atheros.com>
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
  *
@@ -166,6 +166,22 @@
  * 	set (%NL80211_ATTR_REG_TYPE), if the type of regulatory domain is
  * 	%NL80211_REG_TYPE_COUNTRY the alpha2 to which we have moved on
  * 	to (%NL80211_ATTR_REG_ALPHA2).
+ * @NL80211_CMD_REG_BEACON_HINT: indicates to userspace that an AP beacon
+ * 	has been found while world roaming thus enabling active scan or
+ * 	any mode of operation that initiates TX (beacons) on a channel
+ * 	where we would not have been able to do either before. As an example
+ * 	if you are world roaming (regulatory domain set to world or if your
+ * 	driver is using a custom world roaming regulatory domain) and while
+ * 	doing a passive scan on the 5 GHz band you find an AP there (if not
+ * 	on a DFS channel) you will now be able to actively scan for that AP
+ * 	or use AP mode on your card on that same channel. Note that this will
+ * 	never be used for channels 1-11 on the 2 GHz band as they are always
+ * 	enabled world wide. This beacon hint is only sent if your device had
+ * 	either disabled active scanning or beaconing on a channel. We send to
+ * 	userspace the wiphy on which we removed a restriction from
+ * 	(%NL80211_ATTR_WIPHY) and the channel on which this occurred
+ * 	before (%NL80211_ATTR_FREQ_BEFORE) and after (%NL80211_ATTR_FREQ_AFTER)
+ * 	the beacon hint was processed.
  *
  * @NL80211_CMD_AUTHENTICATE: authentication request and notification.
  *	This command is used both as a command (request to authenticate) and
@@ -270,6 +286,8 @@ enum nl80211_commands {
 
 	NL80211_CMD_MICHAEL_MIC_FAILURE,
 
+	NL80211_CMD_REG_BEACON_HINT,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -288,6 +306,7 @@ enum nl80211_commands {
 #define NL80211_CMD_ASSOCIATE NL80211_CMD_ASSOCIATE
 #define NL80211_CMD_DEAUTHENTICATE NL80211_CMD_DEAUTHENTICATE
 #define NL80211_CMD_DISASSOCIATE NL80211_CMD_DISASSOCIATE
+#define NL80211_CMD_REG_BEACON_HINT NL80211_CMD_REG_BEACON_HINT
 
 /**
  * enum nl80211_attrs - nl80211 netlink attributes
@@ -423,6 +442,17 @@ enum nl80211_commands {
  * @NL80211_ATTR_KEY_TYPE: Key Type, see &enum nl80211_key_type, represented as
  *	a u32
  *
+ * @NL80211_ATTR_FREQ_BEFORE: A channel which has suffered a regulatory change
+ * 	due to considerations from a beacon hint. This attribute reflects
+ * 	the state of the channel _before_ the beacon hint processing. This
+ * 	attributes consists of a nested attribute containing
+ * 	NL80211_FREQUENCY_ATTR_*
+ * @NL80211_ATTR_FREQ_AFTER: A channel which has suffered a regulatory change
+ * 	due to considerations from a beacon hint. This attribute reflects
+ * 	the state of the channel _after_ the beacon hint processing. This
+ * 	attributes consists of a nested attribute containing
+ * 	NL80211_FREQUENCY_ATTR_*
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -511,6 +541,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_MAX_SCAN_IE_LEN,
 
+	NL80211_ATTR_FREQ_BEFORE,
+	NL80211_ATTR_FREQ_AFTER,
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
