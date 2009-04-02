@@ -125,10 +125,8 @@ static bool edid_is_valid(struct edid *edid)
 		DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
 		goto bad;
 	}
-	if (edid->revision > 3) {
-		DRM_ERROR("EDID has minor version %d, which is not between 0-3\n", edid->revision);
-		goto bad;
-	}
+	if (edid->revision > 4)
+		DRM_DEBUG("EDID minor > 4, assuming backward compatibility\n");
 
 	for (i = 0; i < EDID_LENGTH; i++)
 		csum += raw_edid[i];
