@@ -7,6 +7,7 @@
 
 #include "dm-exception-store.h"
 
+#include <linux/ctype.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
@@ -137,49 +138,129 @@ int dm_exception_store_type_unregister(struct dm_exception_store_type *type)
 }
 EXPORT_SYMBOL(dm_exception_store_type_unregister);
 
-int dm_exception_store_create(const char *type_name, struct dm_target *ti,
-			      chunk_t chunk_size, chunk_t chunk_mask,
-			      chunk_t chunk_shift, struct dm_dev *cow,
+/*
+ * Round a number up to the nearest 'size' boundary.  size must
+ * be a power of 2.
+ */
+static ulong round_up(ulong n, ulong size)
+{
+	size--;
+	return (n + size) & ~size;
+}
+
+static int set_chunk_size(struct dm_exception_store *store,
+			  const char *chunk_size_arg, char **error)
+{
+	unsigned long chunk_size_ulong;
+	char *value;
+
+	chunk_size_ulong = simple_strtoul(chunk_size_arg, &value, 10);
+	if (*chunk_size_arg == '\0' || *value != '\0') {
+		*error = "Invalid chunk size";
+		return -EINVAL;
+	}
+
+	if (!chunk_size_ulong) {
+		store->chunk_size = store->chunk_mask = store->chunk_shift = 0;
+		return 0;
+	}
+
+	/*
+	 * Chunk size must be multiple of page size.  Silently
+	 * round up if it's not.
+	 */
+	chunk_size_ulong = round_up(chunk_size_ulong, PAGE_SIZE >> 9);
+
+	/* Check chunk_size is a power of 2 */
+	if (!is_power_of_2(chunk_size_ulong)) {
+		*error = "Chunk size is not a power of 2";
+		return -EINVAL;
+	}
+
+	/* Validate the chunk size against the device block size */
+	if (chunk_size_ulong % (bdev_hardsect_size(store->cow->bdev) >> 9)) {
+		*error = "Chunk size is not a multiple of device blocksize";
+		return -EINVAL;
+	}
+
+	store->chunk_size = chunk_size_ulong;
+	store->chunk_mask = chunk_size_ulong - 1;
+	store->chunk_shift = ffs(chunk_size_ulong) - 1;
+
+	return 0;
+}
+
+int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
+			      unsigned *args_used,
 			      struct dm_exception_store **store)
 {
 	int r = 0;
 	struct dm_exception_store_type *type;
 	struct dm_exception_store *tmp_store;
+	char persistent;
+
+	if (argc < 3) {
+		ti->error = "Insufficient exception store arguments";
+		return -EINVAL;
+	}
 
 	tmp_store = kmalloc(sizeof(*tmp_store), GFP_KERNEL);
-	if (!tmp_store)
+	if (!tmp_store) {
+		ti->error = "Exception store allocation failed";
 		return -ENOMEM;
+	}
 
-	type = get_type(type_name);
-	if (!type) {
-		kfree(tmp_store);
+	persistent = toupper(*argv[1]);
+	if (persistent != 'P' && persistent != 'N') {
+		ti->error = "Persistent flag is not P or N";
 		return -EINVAL;
+	}
+
+	type = get_type(argv[1]);
+	if (!type) {
+		ti->error = "Exception store type not recognised";
+		r = -EINVAL;
+		goto bad_type;
 	}
 
 	tmp_store->type = type;
 	tmp_store->ti = ti;
 
-	tmp_store->chunk_size = chunk_size;
-	tmp_store->chunk_mask = chunk_mask;
-	tmp_store->chunk_shift = chunk_shift;
+	r = dm_get_device(ti, argv[0], 0, 0,
+			  FMODE_READ | FMODE_WRITE, &tmp_store->cow);
+	if (r) {
+		ti->error = "Cannot get COW device";
+		goto bad_cow;
+	}
 
-	tmp_store->cow = cow;
+	r = set_chunk_size(tmp_store, argv[2], &ti->error);
+	if (r)
+		goto bad_cow;
 
 	r = type->ctr(tmp_store, 0, NULL);
 	if (r) {
-		put_type(type);
-		kfree(tmp_store);
-		return r;
+		ti->error = "Exception store type constructor failed";
+		goto bad_ctr;
 	}
 
+	*args_used = 3;
 	*store = tmp_store;
 	return 0;
+
+bad_ctr:
+	dm_put_device(ti, tmp_store->cow);
+bad_cow:
+	put_type(type);
+bad_type:
+	kfree(tmp_store);
+	return r;
 }
 EXPORT_SYMBOL(dm_exception_store_create);
 
 void dm_exception_store_destroy(struct dm_exception_store *store)
 {
 	store->type->dtr(store);
+	dm_put_device(store->ti, store->cow);
 	put_type(store->type);
 	kfree(store);
 }
