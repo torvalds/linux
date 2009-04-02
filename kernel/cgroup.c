@@ -3084,18 +3084,19 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys,
 }
 
 /**
- * cgroup_is_descendant - see if @cgrp is a descendant of current task's cgrp
+ * cgroup_is_descendant - see if @cgrp is a descendant of @task's cgrp
  * @cgrp: the cgroup in question
+ * @task: the task in question
  *
- * See if @cgrp is a descendant of the current task's cgroup in
- * the appropriate hierarchy.
+ * See if @cgrp is a descendant of @task's cgroup in the appropriate
+ * hierarchy.
  *
  * If we are sending in dummytop, then presumably we are creating
  * the top cgroup in the subsystem.
  *
  * Called only by the ns (nsproxy) cgroup.
  */
-int cgroup_is_descendant(const struct cgroup *cgrp)
+int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task)
 {
 	int ret;
 	struct cgroup *target;
@@ -3105,7 +3106,7 @@ int cgroup_is_descendant(const struct cgroup *cgrp)
 		return 1;
 
 	get_first_subsys(cgrp, NULL, &subsys_id);
-	target = task_cgroup(current, subsys_id);
+	target = task_cgroup(task, subsys_id);
 	while (cgrp != target && cgrp!= cgrp->top_cgroup)
 		cgrp = cgrp->parent;
 	ret = (cgrp == target);
