@@ -198,7 +198,7 @@ MACHINE_START(MXLADS, "Freescale MXLADS")
 	.phys_io	= IMX_IO_PHYS,
 	.io_pg_offst	= (IMX_IO_BASE >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x100,
-	.map_io		= mxc_map_io,
+	.map_io		= mx1_map_io,
 	.init_irq	= mxc_init_irq,
 	.timer		= &mx1ads_timer,
 	.init_machine	= mx1ads_init,

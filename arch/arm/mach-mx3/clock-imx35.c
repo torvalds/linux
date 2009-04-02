@@ -440,8 +440,6 @@ int __init mx35_clocks_init()
 	int i;
 	unsigned int ll = 0;
 
-	mxc_set_cpu_type(MXC_CPU_MX35);
-
 #ifdef CONFIG_DEBUG_LL_CONSOLE
 	ll = (3 << 16);
 #endif

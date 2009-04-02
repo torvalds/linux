@@ -511,7 +511,7 @@ static struct map_desc mx31ads_io_desc[] __initdata = {
  */
 static void __init mx31ads_map_io(void)
 {
-	mxc_map_io();
+	mx31_map_io();
 	iotable_init(mx31ads_io_desc, ARRAY_SIZE(mx31ads_io_desc));
 }
 

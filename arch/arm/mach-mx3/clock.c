@@ -566,8 +566,6 @@ int __init mx31_clocks_init(unsigned long fref)
 	u32 reg;
 	int i;
 
-	mxc_set_cpu_type(MXC_CPU_MX31);
-
 	ckih_rate = fref;
 
 	for (i = 0; i < ARRAY_SIZE(lookups); i++)

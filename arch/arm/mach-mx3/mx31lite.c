@@ -59,7 +59,7 @@ static struct map_desc mx31lite_io_desc[] __initdata = {
  */
 void __init mx31lite_map_io(void)
 {
-	mxc_map_io();
+	mx31_map_io();
 	iotable_init(mx31lite_io_desc, ARRAY_SIZE(mx31lite_io_desc));
 }
 
