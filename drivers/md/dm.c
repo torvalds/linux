@@ -1112,6 +1112,7 @@ static struct mapped_device *alloc_dev(int minor)
 	md->queue->backing_dev_info.congested_fn = dm_any_congested;
 	md->queue->backing_dev_info.congested_data = md;
 	blk_queue_make_request(md->queue, dm_request);
+	blk_queue_ordered(md->queue, QUEUE_ORDERED_DRAIN, NULL);
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	md->queue->unplug_fn = dm_unplug_all;
 	blk_queue_merge_bvec(md->queue, dm_merge_bvec);
