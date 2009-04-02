@@ -2898,6 +2898,11 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 
 	sb = inode->i_sb;
 
+	if (btrfs_test_opt(root, NOTREELOG)) {
+		ret = 1;
+		goto end_no_trans;
+	}
+
 	if (root->fs_info->last_trans_log_full_commit >
 	    root->fs_info->last_trans_committed) {
 		ret = 1;

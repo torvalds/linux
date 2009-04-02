@@ -67,7 +67,8 @@ static void btrfs_put_super(struct super_block *sb)
 enum {
 	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
 	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
-	Opt_ssd, Opt_thread_pool, Opt_noacl,  Opt_compress, Opt_err,
+	Opt_ssd, Opt_thread_pool, Opt_noacl,  Opt_compress, Opt_notreelog,
+	Opt_err,
 };
 
 static match_table_t tokens = {
@@ -84,6 +85,7 @@ static match_table_t tokens = {
 	{Opt_compress, "compress"},
 	{Opt_ssd, "ssd"},
 	{Opt_noacl, "noacl"},
+	{Opt_notreelog, "notreelog"},
 	{Opt_err, NULL},
 };
 
@@ -222,6 +224,10 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			break;
 		case Opt_noacl:
 			root->fs_info->sb->s_flags &= ~MS_POSIXACL;
+			break;
+		case Opt_notreelog:
+			printk(KERN_INFO "btrfs: disabling tree log\n");
+			btrfs_set_opt(info->mount_opt, NOTREELOG);
 			break;
 		default:
 			break;
@@ -412,6 +418,8 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",compress");
 	if (btrfs_test_opt(root, SSD))
 		seq_puts(seq, ",ssd");
+	if (btrfs_test_opt(root, NOTREELOG))
+		seq_puts(seq, ",notreelog");
 	if (!(root->fs_info->sb->s_flags & MS_POSIXACL))
 		seq_puts(seq, ",noacl");
 	return 0;
