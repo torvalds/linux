@@ -95,6 +95,7 @@ struct dm_exception_store_type {
 
 struct dm_exception_store {
 	struct dm_exception_store_type *type;
+	struct dm_target *ti;
 
 	struct dm_snapshot *snap;
 
@@ -147,7 +148,7 @@ static inline void dm_consecutive_chunk_count_inc(struct dm_snap_exception *e)
 int dm_exception_store_type_register(struct dm_exception_store_type *type);
 int dm_exception_store_type_unregister(struct dm_exception_store_type *type);
 
-int dm_exception_store_create(const char *type_name,
+int dm_exception_store_create(const char *type_name, struct dm_target *ti,
 			      struct dm_exception_store **store);
 void dm_exception_store_destroy(struct dm_exception_store *store);
 

@@ -615,7 +615,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	atomic_set(&s->pending_exceptions_count, 0);
 	init_rwsem(&s->lock);
 	spin_lock_init(&s->pe_lock);
-	s->ti = ti;
 
 	/* Allocate hash table for COW data */
 	if (init_hash_tables(s)) {
@@ -624,7 +623,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad3;
 	}
 
-	r = dm_exception_store_create(argv[2], &s->store);
+	r = dm_exception_store_create(argv[2], ti, &s->store);
 	if (r) {
 		ti->error = "Couldn't create exception store";
 		r = -EINVAL;
@@ -820,7 +819,7 @@ static void __invalidate_snapshot(struct dm_snapshot *s, int err)
 
 	s->valid = 0;
 
-	dm_table_event(s->ti->table);
+	dm_table_event(s->store->ti->table);
 }
 
 static void get_pending_exception(struct dm_snap_pending_exception *pe)
@@ -1196,7 +1195,7 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 			goto next_snapshot;
 
 		/* Nothing to do if writing beyond end of snapshot */
-		if (bio->bi_sector >= dm_table_get_size(snap->ti->table))
+		if (bio->bi_sector >= dm_table_get_size(snap->store->ti->table))
 			goto next_snapshot;
 
 		/*

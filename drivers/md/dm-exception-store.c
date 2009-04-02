@@ -137,7 +137,7 @@ int dm_exception_store_type_unregister(struct dm_exception_store_type *type)
 }
 EXPORT_SYMBOL(dm_exception_store_type_unregister);
 
-int dm_exception_store_create(const char *type_name,
+int dm_exception_store_create(const char *type_name, struct dm_target *ti,
 			      struct dm_exception_store **store)
 {
 	int r = 0;
@@ -155,6 +155,7 @@ int dm_exception_store_create(const char *type_name,
 	}
 
 	tmp_store->type = type;
+	tmp_store->ti = ti;
 
 	r = type->ctr(tmp_store, 0, NULL);
 	if (r) {

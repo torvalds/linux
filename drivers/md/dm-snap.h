@@ -25,7 +25,6 @@ struct exception_table {
 
 struct dm_snapshot {
 	struct rw_semaphore lock;
-	struct dm_target *ti;
 
 	struct dm_dev *origin;
 	struct dm_dev *cow;
