@@ -818,6 +818,8 @@ static void reparent_thread(struct task_struct *p, struct task_struct *father)
 
 	list_move_tail(&p->sibling, &p->real_parent->children);
 
+	if (task_detached(p))
+		return;
 	/* If this is a threaded reparent there is no need to
 	 * notify anyone anything has happened.
 	 */
@@ -825,15 +827,13 @@ static void reparent_thread(struct task_struct *p, struct task_struct *father)
 		return;
 
 	/* We don't want people slaying init.  */
-	if (!task_detached(p))
-		p->exit_signal = SIGCHLD;
+	p->exit_signal = SIGCHLD;
 
 	/* If we'd notified the old parent about this child's death,
 	 * also notify the new parent.
 	 */
 	if (!ptrace_reparented(p) &&
-	    p->exit_state == EXIT_ZOMBIE &&
-	    !task_detached(p) && thread_group_empty(p))
+	    p->exit_state == EXIT_ZOMBIE && thread_group_empty(p))
 		do_notify_parent(p, p->exit_signal);
 
 	kill_orphaned_pgrp(p, father);
