@@ -489,7 +489,7 @@ enum gru_cbr_state {
  * 	 64m			26	8
  * 	...
  */
-#define GRU_PAGESIZE(sh)	((((sh) > 20 ? (sh) + 2: (sh)) >> 1) - 6)
+#define GRU_PAGESIZE(sh)	((((sh) > 20 ? (sh) + 2 : (sh)) >> 1) - 6)
 #define GRU_SIZEAVAIL(sh)	(1UL << GRU_PAGESIZE(sh))
 
 /* minimum TLB purge count to ensure a full purge */

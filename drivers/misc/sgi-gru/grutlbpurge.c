@@ -187,7 +187,7 @@ void gru_flush_tlb_range(struct gru_mm_struct *gms, unsigned long start,
 	"  FLUSH gruid %d, asid 0x%x, num %ld, cbmap 0x%x\n",
 				gid, asid, num, asids->mt_ctxbitmap);
 			tgh = get_lock_tgh_handle(gru);
-			tgh_invalidate(tgh, start, 0, asid, grupagesize, 0,
+			tgh_invalidate(tgh, start, ~0, asid, grupagesize, 0,
 				       num - 1, asids->mt_ctxbitmap);
 			get_unlock_tgh_handle(tgh);
 		} else {
@@ -212,9 +212,8 @@ void gru_flush_all_tlb(struct gru_state *gru)
 
 	gru_dbg(grudev, "gru %p, gid %d\n", gru, gru->gs_gid);
 	tgh = get_lock_tgh_handle(gru);
-	tgh_invalidate(tgh, 0, ~0, 0, 1, 1, GRUMAXINVAL - 1, 0);
+	tgh_invalidate(tgh, 0, ~0, 0, 1, 1, GRUMAXINVAL - 1, 0xffff);
 	get_unlock_tgh_handle(tgh);
-	preempt_enable();
 }
 
 /*

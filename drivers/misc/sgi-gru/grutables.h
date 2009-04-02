@@ -278,13 +278,12 @@ struct gru_stats_s {
 /* Generate a GRU asid value from a GRU base asid & a virtual address. */
 #if defined CONFIG_IA64
 #define VADDR_HI_BIT		64
-#define GRUREGION(addr)		((addr) >> (VADDR_HI_BIT - 3) & 3)
 #elif defined CONFIG_X86_64
 #define VADDR_HI_BIT		48
-#define GRUREGION(addr)		(0)		/* ZZZ could do better */
 #else
 #error "Unsupported architecture"
 #endif
+#define GRUREGION(addr)		((addr) >> (VADDR_HI_BIT - 3) & 3)
 #define GRUASID(asid, addr)	((asid) + GRUREGION(addr))
 
 /*------------------------------------------------------------------------------
@@ -297,12 +296,12 @@ struct gru_state;
  * This structure is pointed to from the mmstruct via the notifier pointer.
  * There is one of these per address space.
  */
-struct gru_mm_tracker {
-	unsigned int		mt_asid_gen;	/* ASID wrap count */
-	int			mt_asid;	/* current base ASID for gru */
-	unsigned short		mt_ctxbitmap;	/* bitmap of contexts using
+struct gru_mm_tracker {				/* pack to reduce size */
+	unsigned int		mt_asid_gen:24;	/* ASID wrap count */
+	unsigned int		mt_asid:24;	/* current base ASID for gru */
+	unsigned short		mt_ctxbitmap:16;/* bitmap of contexts using
 						   asid */
-};
+} __attribute__ ((packed));
 
 struct gru_mm_struct {
 	struct mmu_notifier	ms_notifier;
@@ -359,6 +358,8 @@ struct gru_thread_state {
 						   required for contest */
 	unsigned char		ts_cbr_au_count;/* Number of CBR resources
 						   required for contest */
+	char			ts_blade;	/* If >= 0, migrate context if
+						   ref from diferent blade */
 	char			ts_force_unload;/* force context to be unloaded
 						   after migration */
 	char			ts_cbr_idx[GRU_CBR_AU];/* CBR numbers of each

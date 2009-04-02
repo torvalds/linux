@@ -368,6 +368,7 @@ failupm:
 
 failfmm:
 	/* FMM state on UPM call */
+	gru_flush_cache(tfh);
 	STAT(tlb_dropin_fail_fmm);
 	gru_dbg(grudev, "FAILED fmm tfh: 0x%p, state %d\n", tfh, tfh->state);
 	return 0;
@@ -497,10 +498,8 @@ int gru_handle_user_call_os(unsigned long cb)
 	if (!gts)
 		return -EINVAL;
 
-	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE) {
-		ret = -EINVAL;
+	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE)
 		goto exit;
-	}
 
 	/*
 	 * If force_unload is set, the UPM TLB fault is phony. The task
@@ -508,6 +507,10 @@ int gru_handle_user_call_os(unsigned long cb)
 	 * unload the context. The task will page fault and assign a new
 	 * context.
 	 */
+	if (gts->ts_tgid_owner == current->tgid && gts->ts_blade >= 0 &&
+				gts->ts_blade != uv_numa_blade_id())
+		gts->ts_force_unload = 1;
+
 	ret = -EAGAIN;
 	cbrnum = thread_cbr_number(gts, ucbnum);
 	if (gts->ts_force_unload) {
@@ -541,11 +544,13 @@ int gru_get_exception_detail(unsigned long arg)
 	if (!gts)
 		return -EINVAL;
 
-	if (gts->ts_gru) {
-		ucbnum = get_cb_number((void *)excdet.cb);
+	ucbnum = get_cb_number((void *)excdet.cb);
+	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE) {
+		ret = -EINVAL;
+	} else if (gts->ts_gru) {
 		cbrnum = thread_cbr_number(gts, ucbnum);
 		cbe = get_cbe_by_index(gts->ts_gru, cbrnum);
-		prefetchw(cbe);		/* Harmless on hardware, required for emulator */
+		prefetchw(cbe);/* Harmless on hardware, required for emulator */
 		excdet.opc = cbe->opccpy;
 		excdet.exopc = cbe->exopccpy;
 		excdet.ecause = cbe->ecause;
@@ -609,7 +614,7 @@ int gru_user_flush_tlb(unsigned long arg)
 	if (!gts)
 		return -EINVAL;
 
-	gru_flush_tlb_range(gts->ts_gms, req.vaddr, req.vaddr + req.len);
+	gru_flush_tlb_range(gts->ts_gms, req.vaddr, req.len);
 	gru_unlock_gts(gts);
 
 	return 0;

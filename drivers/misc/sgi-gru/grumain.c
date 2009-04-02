@@ -432,8 +432,8 @@ static inline long gru_copy_handle(void *d, void *s)
 	return GRU_HANDLE_BYTES;
 }
 
-static void gru_prefetch_context(void *gseg, void *cb, void *cbe, unsigned long cbrmap,
-				unsigned long length)
+static void gru_prefetch_context(void *gseg, void *cb, void *cbe,
+				unsigned long cbrmap, unsigned long length)
 {
 	int i, scr;
 
@@ -773,8 +773,8 @@ int gru_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 
 again:
-	preempt_disable();
 	mutex_lock(&gts->ts_ctxlock);
+	preempt_disable();
 	if (gts->ts_gru) {
 		if (gts->ts_gru->gs_blade_id != uv_numa_blade_id()) {
 			STAT(migrated_nopfn_unload);
