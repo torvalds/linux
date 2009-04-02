@@ -237,6 +237,8 @@ out:
 
 int ptrace_detach(struct task_struct *child, unsigned int data)
 {
+	int dead = 0;
+
 	if (!valid_signal(data))
 		return -EIO;
 
@@ -244,17 +246,20 @@ int ptrace_detach(struct task_struct *child, unsigned int data)
 	ptrace_disable(child);
 	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 
-	/* protect against de_thread()->release_task() */
 	write_lock_irq(&tasklist_lock);
+	/* protect against de_thread()->release_task() */
 	if (child->ptrace) {
 		child->exit_code = data;
 
-		__ptrace_unlink(child);
+		dead = __ptrace_detach(current, child);
 
 		if (!child->exit_state)
 			wake_up_process(child);
 	}
 	write_unlock_irq(&tasklist_lock);
+
+	if (unlikely(dead))
+		release_task(child);
 
 	return 0;
 }
