@@ -1033,7 +1033,6 @@ static int ivtv_g_output(struct file *file, void *fh, unsigned int *i)
 static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
-	struct v4l2_routing route;
 
 	if (outp >= itv->card->nof_outputs)
 		return -EINVAL;
@@ -1046,9 +1045,9 @@ static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 		   itv->active_output, outp);
 
 	itv->active_output = outp;
-	route.input = SAA7127_INPUT_TYPE_NORMAL;
-	route.output = itv->card->video_outputs[outp].video_output;
-	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_routing, &route);
+	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_routing,
+			SAA7127_INPUT_TYPE_NORMAL,
+			itv->card->video_outputs[outp].video_output, 0);
 
 	return 0;
 }
@@ -1738,7 +1737,8 @@ static long ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 	case VIDIOC_INT_S_AUDIO_ROUTING: {
 		struct v4l2_routing *route = arg;
 
-		ivtv_call_hw(itv, itv->card->hw_audio, audio, s_routing, route);
+		ivtv_call_hw(itv, itv->card->hw_audio, audio, s_routing,
+				route->input, route->output, 0);
 		break;
 	}
 

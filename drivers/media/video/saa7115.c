@@ -1228,30 +1228,32 @@ static int saa711x_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int saa711x_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int saa711x_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
 {
 	struct saa711x_state *state = to_state(sd);
-	u32 input = route->input;
 	u8 mask = (state->ident == V4L2_IDENT_SAA7111) ? 0xf8 : 0xf0;
 
-	v4l2_dbg(1, debug, sd, "decoder set input %d output %d\n", route->input, route->output);
+	v4l2_dbg(1, debug, sd, "decoder set input %d output %d\n",
+		input, output);
+
 	/* saa7111/3 does not have these inputs */
 	if ((state->ident == V4L2_IDENT_SAA7113 ||
 	     state->ident == V4L2_IDENT_SAA7111) &&
-	    (route->input == SAA7115_COMPOSITE4 ||
-	     route->input == SAA7115_COMPOSITE5)) {
+	    (input == SAA7115_COMPOSITE4 ||
+	     input == SAA7115_COMPOSITE5)) {
 		return -EINVAL;
 	}
-	if (route->input > SAA7115_SVIDEO3)
+	if (input > SAA7115_SVIDEO3)
 		return -EINVAL;
-	if (route->output > SAA7115_IPORT_ON)
+	if (output > SAA7115_IPORT_ON)
 		return -EINVAL;
-	if (state->input == route->input && state->output == route->output)
+	if (state->input == input && state->output == output)
 		return 0;
 	v4l2_dbg(1, debug, sd, "now setting %s input %s output\n",
-		(route->input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite",
-		(route->output == SAA7115_IPORT_ON) ? "iport on" : "iport off");
-	state->input = route->input;
+		(input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite",
+		(output == SAA7115_IPORT_ON) ? "iport on" : "iport off");
+	state->input = input;
 
 	/* saa7111 has slightly different input numbering */
 	if (state->ident == V4L2_IDENT_SAA7111) {
@@ -1260,10 +1262,10 @@ static int saa711x_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *
 		/* saa7111 specific */
 		saa711x_write(sd, R_10_CHROMA_CNTL_2,
 				(saa711x_read(sd, R_10_CHROMA_CNTL_2) & 0x3f) |
-				((route->output & 0xc0) ^ 0x40));
+				((output & 0xc0) ^ 0x40));
 		saa711x_write(sd, R_13_RT_X_PORT_OUT_CNTL,
 				(saa711x_read(sd, R_13_RT_X_PORT_OUT_CNTL) & 0xf0) |
-				((route->output & 2) ? 0x0a : 0));
+				((output & 2) ? 0x0a : 0));
 	}
 
 	/* select mode */
@@ -1276,7 +1278,7 @@ static int saa711x_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *
 			(saa711x_read(sd, R_09_LUMA_CNTL) & 0x7f) |
 			(state->input >= SAA7115_SVIDEO0 ? 0x80 : 0x0));
 
-	state->output = route->output;
+	state->output = output;
 	if (state->ident == V4L2_IDENT_SAA7114 ||
 			state->ident == V4L2_IDENT_SAA7115) {
 		saa711x_write(sd, R_83_X_PORT_I_O_ENA_AND_OUT_CLK,

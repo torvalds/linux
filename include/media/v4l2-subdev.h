@@ -148,7 +148,8 @@ struct v4l2_subdev_tuner_ops {
 	board designs. Usual values for the frequency are 1024000 and 2048000.
 	If the frequency is not supported, then -EINVAL is returned.
 
-   s_routing: used to define the input and/or output pins of an audio chip.
+   s_routing: used to define the input and/or output pins of an audio chip,
+	and any additional configuration data.
 	Never attempt to use user-level input IDs (e.g. Composite, S-Video,
 	Tuner) at this level. An i2c device shouldn't know about whether an
 	input pin is connected to a Composite connector, become on another
@@ -159,7 +160,7 @@ struct v4l2_subdev_tuner_ops {
 struct v4l2_subdev_audio_ops {
 	int (*s_clock_freq)(struct v4l2_subdev *sd, u32 freq);
 	int (*s_i2s_clock_freq)(struct v4l2_subdev *sd, u32 freq);
-	int (*s_routing)(struct v4l2_subdev *sd, const struct v4l2_routing *route);
+	int (*s_routing)(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
 };
 
 /*
@@ -200,7 +201,7 @@ struct v4l2_subdev_audio_ops {
 	devices.
  */
 struct v4l2_subdev_video_ops {
-	int (*s_routing)(struct v4l2_subdev *sd, const struct v4l2_routing *route);
+	int (*s_routing)(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
 	int (*s_crystal_freq)(struct v4l2_subdev *sd, u32 freq, u32 flags);
 	int (*decode_vbi_line)(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi_line);
 	int (*s_vbi_data)(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_data *vbi_data);

@@ -393,9 +393,6 @@ static void res_free(struct cx23885_dev *dev, struct cx23885_fh *fh,
 
 static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 {
-	struct v4l2_routing route;
-	memset(&route, 0, sizeof(route));
-
 	dprintk(1, "%s() video_mux: %d [vmux=%d, gpio=0x%x,0x%x,0x%x,0x%x]\n",
 		__func__,
 		input, INPUT(input)->vmux,
@@ -403,10 +400,9 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 		INPUT(input)->gpio2, INPUT(input)->gpio3);
 	dev->input = input;
 
-	route.input = INPUT(input)->vmux;
-
 	/* Tell the internal A/V decoder */
-	v4l2_subdev_call(dev->sd_cx25840, video, s_routing, &route);
+	v4l2_subdev_call(dev->sd_cx25840, video, s_routing,
+			INPUT(input)->vmux, 0, 0);
 
 	return 0;
 }

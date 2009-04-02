@@ -428,10 +428,8 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 		   routes for different inputs. HVR-1300 surely does */
 		if (core->board.audio_chip &&
 		    core->board.audio_chip == V4L2_IDENT_WM8775) {
-			struct v4l2_routing route;
-
-			route.input = INPUT(input).audioroute;
-			call_all(core, audio, s_routing, &route);
+			call_all(core, audio, s_routing,
+					INPUT(input).audioroute, 0, 0);
 		}
 		/* cx2388's C-ADC is connected to the tuner only.
 		   When used with S-Video, that ADC is busy dealing with
@@ -823,10 +821,8 @@ static int video_open(struct file *file)
 		if (core->board.radio.audioroute) {
 			if(core->board.audio_chip &&
 				core->board.audio_chip == V4L2_IDENT_WM8775) {
-				struct v4l2_routing route;
-
-				route.input = core->board.radio.audioroute;
-				call_all(core, audio, s_routing, &route);
+				call_all(core, audio, s_routing,
+					core->board.radio.audioroute, 0, 0);
 			}
 			/* "I2S ADC mode" */
 			core->tvaudio = WW_I2SADC;

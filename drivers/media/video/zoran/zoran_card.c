@@ -1087,10 +1087,8 @@ zr36057_init (struct zoran *zr)
 		detect_guest_activity(zr);
 	test_interrupts(zr);
 	if (!pass_through) {
-		struct v4l2_routing route = { 2, 0 };
-
 		decoder_call(zr, video, s_stream, 0);
-		encoder_call(zr, video, s_routing, &route);
+		encoder_call(zr, video, s_routing, 2, 0, 0);
 	}
 
 	zr->zoran_proc = NULL;

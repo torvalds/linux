@@ -69,7 +69,8 @@ struct tvp5150 {
 	struct v4l2_subdev sd;
 
 	v4l2_std_id norm;	/* Current set standard */
-	struct v4l2_routing route;
+	u32 input;
+	u32 output;
 	int enable;
 	int bright;
 	int contrast;
@@ -280,10 +281,10 @@ static inline void tvp5150_selmux(struct v4l2_subdev *sd)
 	int input = 0;
 	unsigned char val;
 
-	if ((decoder->route.output & TVP5150_BLACK_SCREEN) || !decoder->enable)
+	if ((decoder->output & TVP5150_BLACK_SCREEN) || !decoder->enable)
 		input = 8;
 
-	switch (decoder->route.input) {
+	switch (decoder->input) {
 	case TVP5150_COMPOSITE1:
 		input |= 2;
 		/* fall through */
@@ -299,8 +300,8 @@ static inline void tvp5150_selmux(struct v4l2_subdev *sd)
 
 	v4l2_dbg(1, debug, sd, "Selecting video route: route input=%i, output=%i "
 			"=> tvp5150 input=%i, opmode=%i\n",
-			decoder->route.input,decoder->route.output,
-			input, opmode );
+			decoder->input, decoder->output,
+			input, opmode);
 
 	tvp5150_write(sd, TVP5150_OP_MODE_CTL, opmode);
 	tvp5150_write(sd, TVP5150_VD_IN_SRC_SEL_1, input);
@@ -309,7 +310,7 @@ static inline void tvp5150_selmux(struct v4l2_subdev *sd)
 	 * For Composite and TV, it should be the reverse
 	 */
 	val = tvp5150_read(sd, TVP5150_MISC_CTL);
-	if (decoder->route.input == TVP5150_SVIDEO)
+	if (decoder->input == TVP5150_SVIDEO)
 		val = (val & ~0x40) | 0x10;
 	else
 		val = (val & ~0x10) | 0x40;
@@ -878,11 +879,13 @@ static int tvp5150_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			I2C Command
  ****************************************************************************/
 
-static int tvp5150_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int tvp5150_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
-	decoder->route = *route;
+	decoder->input = input;
+	decoder->output = output;
 	tvp5150_selmux(sd);
 	return 0;
 }
@@ -1077,7 +1080,7 @@ static int tvp5150_probe(struct i2c_client *c,
 		 c->addr << 1, c->adapter->name);
 
 	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
-	core->route.input = TVP5150_COMPOSITE1;
+	core->input = TVP5150_COMPOSITE1;
 	core->enable = 1;
 	core->bright = 128;
 	core->contrast = 128;

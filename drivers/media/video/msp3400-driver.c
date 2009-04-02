@@ -505,25 +505,26 @@ static int msp_s_std(struct v4l2_subdev *sd, v4l2_std_id id)
 	return 0;
 }
 
-static int msp_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *rt)
+static int msp_s_routing(struct v4l2_subdev *sd,
+			 u32 input, u32 output, u32 config)
 {
 	struct msp_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int tuner = (rt->input >> 3) & 1;
-	int sc_in = rt->input & 0x7;
-	int sc1_out = rt->output & 0xf;
-	int sc2_out = (rt->output >> 4) & 0xf;
+	int tuner = (input >> 3) & 1;
+	int sc_in = input & 0x7;
+	int sc1_out = output & 0xf;
+	int sc2_out = (output >> 4) & 0xf;
 	u16 val, reg;
 	int i;
 	int extern_input = 1;
 
-	if (state->routing.input == rt->input &&
-			state->routing.output == rt->output)
+	if (state->route_in == input && state->route_out == output)
 		return 0;
-	state->routing = *rt;
+	state->route_in = input;
+	state->route_out = output;
 	/* check if the tuner input is used */
 	for (i = 0; i < 5; i++) {
-		if (((rt->input >> (4 + i * 4)) & 0xf) == 0)
+		if (((input >> (4 + i * 4)) & 0xf) == 0)
 			extern_input = 0;
 	}
 	state->mode = extern_input ? MSP_MODE_EXTERN : MSP_MODE_AM_DETECT;
@@ -673,7 +674,7 @@ static int msp_log_status(struct v4l2_subdev *sd)
 	}
 	v4l_info(client, "Audmode:  0x%04x\n", state->audmode);
 	v4l_info(client, "Routing:  0x%08x (input) 0x%08x (output)\n",
-			state->routing.input, state->routing.output);
+			state->route_in, state->route_out);
 	v4l_info(client, "ACB:      0x%04x\n", state->acb);
 	return 0;
 }
@@ -761,8 +762,8 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	state->i2s_mode = 0;
 	init_waitqueue_head(&state->wq);
 	/* These are the reset input/output positions */
-	state->routing.input = MSP_INPUT_DEFAULT;
-	state->routing.output = MSP_OUTPUT_DEFAULT;
+	state->route_in = MSP_INPUT_DEFAULT;
+	state->route_out = MSP_OUTPUT_DEFAULT;
 
 	state->rev1 = msp_read_dsp(client, 0x1e);
 	if (state->rev1 != -1)

@@ -248,15 +248,16 @@ static int subdev_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int subdev_s_audio_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int subdev_s_audio_routing(struct v4l2_subdev *sd,
+				  u32 input, u32 output, u32 config)
 {
 	struct ivtv *itv = sd_to_ivtv(sd);
 	u16 mask, data;
 
-	if (route->input > 2)
+	if (input > 2)
 		return -EINVAL;
 	mask = itv->card->gpio_audio_input.mask;
-	switch (route->input) {
+	switch (input) {
 	case 0:
 		data = itv->card->gpio_audio_input.tuner;
 		break;
@@ -318,17 +319,18 @@ static int subdev_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int subdev_s_video_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int subdev_s_video_routing(struct v4l2_subdev *sd,
+				  u32 input, u32 output, u32 config)
 {
 	struct ivtv *itv = sd_to_ivtv(sd);
 	u16 mask, data;
 
-	if (route->input > 2) /* 0:Tuner 1:Composite 2:S-Video */
+	if (input > 2) /* 0:Tuner 1:Composite 2:S-Video */
 		return -EINVAL;
 	mask = itv->card->gpio_video_input.mask;
-	if  (route->input == 0)
+	if (input == 0)
 		data = itv->card->gpio_video_input.tuner;
-	else if  (route->input == 1)
+	else if (input == 1)
 		data = itv->card->gpio_video_input.composite;
 	else
 		data = itv->card->gpio_video_input.svideo;

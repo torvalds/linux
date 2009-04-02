@@ -547,19 +547,19 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 }
 
 static int cx18_av_s_video_routing(struct v4l2_subdev *sd,
-				   const struct v4l2_routing *route)
+				   u32 input, u32 output, u32 config)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
-	return set_input(cx, route->input, state->aud_input);
+	return set_input(cx, input, state->aud_input);
 }
 
 static int cx18_av_s_audio_routing(struct v4l2_subdev *sd,
-				   const struct v4l2_routing *route)
+				   u32 input, u32 output, u32 config)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
-	return set_input(cx, state->vid_input, route->input);
+	return set_input(cx, state->vid_input, input);
 }
 
 static int cx18_av_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)

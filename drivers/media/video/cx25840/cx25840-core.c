@@ -1322,22 +1322,24 @@ static int cx25840_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int cx25840_s_video_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int cx25840_s_video_routing(struct v4l2_subdev *sd,
+				   u32 input, u32 output, u32 config)
 {
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	return set_input(client, route->input, state->aud_input);
+	return set_input(client, input, state->aud_input);
 }
 
-static int cx25840_s_audio_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int cx25840_s_audio_routing(struct v4l2_subdev *sd,
+				   u32 input, u32 output, u32 config)
 {
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (state->is_cx25836)
 		return -EINVAL;
-	return set_input(client, state->vid_input, route->input);
+	return set_input(client, state->vid_input, input);
 }
 
 static int cx25840_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)

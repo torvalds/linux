@@ -932,7 +932,7 @@ static long cx18_default(struct file *file, void *fh, int cmd, void *arg)
 		CX18_DEBUG_IOCTL("VIDIOC_INT_S_AUDIO_ROUTING(%d, %d)\n",
 			route->input, route->output);
 		cx18_call_hw(cx, cx->card->hw_audio_ctrl, audio, s_routing,
-			     route);
+			     route->input, route->output, 0);
 		break;
 	}
 

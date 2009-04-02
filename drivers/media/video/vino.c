@@ -2565,12 +2565,11 @@ static int vino_acquire_input(struct vino_channel_settings *vcs)
 		int input;
 		int data_norm;
 		v4l2_std_id norm;
-		struct v4l2_routing route = { 0, 0 };
 
 		input = VINO_INPUT_COMPOSITE;
 
-		route.input = vino_get_saa7191_input(input);
-		ret = decoder_call(video, s_routing, &route);
+		ret = decoder_call(video, s_routing,
+				vino_get_saa7191_input(input), 0, 0);
 		if (ret) {
 			ret = -EINVAL;
 			goto out;
@@ -2656,10 +2655,9 @@ static int vino_set_input(struct vino_channel_settings *vcs, int input)
 		if (vino_drvdata->decoder_owner == vcs->channel) {
 			int data_norm;
 			v4l2_std_id norm;
-			struct v4l2_routing route = { 0, 0 };
 
-			route.input = vino_get_saa7191_input(input);
-			ret = decoder_call(video, s_routing, &route);
+			ret = decoder_call(video, s_routing,
+					vino_get_saa7191_input(input), 0, 0);
 			if (ret) {
 				vino_drvdata->decoder_owner = VINO_NO_CHANNEL;
 				ret = -EINVAL;

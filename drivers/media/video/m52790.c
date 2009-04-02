@@ -69,12 +69,13 @@ static int m52790_write(struct v4l2_subdev *sd)
    part of the audio output routing. The normal case is that another
    chip takes care of the actual muting so making it part of the
    output routing seems to be the right thing to do for now. */
-static int m52790_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int m52790_s_routing(struct v4l2_subdev *sd,
+			    u32 input, u32 output, u32 config)
 {
 	struct m52790_state *state = to_state(sd);
 
-	state->input = route->input;
-	state->output = route->output;
+	state->input = input;
+	state->output = output;
 	m52790_write(sd);
 	return 0;
 }

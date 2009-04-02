@@ -357,10 +357,7 @@ int cx231xx_config(struct cx231xx *dev)
  */
 void cx231xx_config_i2c(struct cx231xx *dev)
 {
-	struct v4l2_routing route;
-
-	route.input = INPUT(dev->video_input)->vmux;
-	route.output = 0;
+	/* u32 input = INPUT(dev->video_input)->vmux; */
 
 	call_all(dev, video, s_stream, 1);
 }

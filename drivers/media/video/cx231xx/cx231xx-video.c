@@ -820,17 +820,12 @@ static struct videobuf_queue_ops cx231xx_video_qops = {
 
 void video_mux(struct cx231xx *dev, int index)
 {
-
-	struct v4l2_routing route;
-
-	route.input = INPUT(index)->vmux;
-	route.output = 0;
 	dev->video_input = index;
 	dev->ctl_ainput = INPUT(index)->amux;
 
 	cx231xx_set_video_input_mux(dev, index);
 
-	cx25840_call(dev, video, s_routing, &route);
+	cx25840_call(dev, video, s_routing, INPUT(index)->vmux, 0, 0);
 
 	cx231xx_set_audio_input(dev, dev->ctl_ainput);
 

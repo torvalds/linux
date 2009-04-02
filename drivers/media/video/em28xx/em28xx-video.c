@@ -515,10 +515,6 @@ static struct videobuf_queue_ops em28xx_video_qops = {
 
 static void video_mux(struct em28xx *dev, int index)
 {
-	struct v4l2_routing route;
-
-	route.input = INPUT(index)->vmux;
-	route.output = 0;
 	dev->ctl_input = index;
 	dev->ctl_ainput = INPUT(index)->amux;
 	dev->ctl_aoutput = INPUT(index)->aout;
@@ -526,25 +522,22 @@ static void video_mux(struct em28xx *dev, int index)
 	if (!dev->ctl_aoutput)
 		dev->ctl_aoutput = EM28XX_AOUT_MASTER;
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing, &route);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
+			INPUT(index)->vmux, 0, 0);
 
 	if (dev->board.has_msp34xx) {
 		if (dev->i2s_speed) {
 			v4l2_device_call_all(&dev->v4l2_dev, 0, audio,
 				s_i2s_clock_freq, dev->i2s_speed);
 		}
-		route.input  = dev->ctl_ainput;
-		route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
-
 		/* Note: this is msp3400 specific */
-		v4l2_device_call_all(&dev->v4l2_dev, 0, audio, s_routing, &route);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, audio, s_routing,
+			 dev->ctl_ainput, MSP_OUTPUT(MSP_SC_IN_DSP_SCART1), 0);
 	}
 
 	if (dev->board.adecoder != EM28XX_NOADECODER) {
-		route.input  = dev->ctl_ainput;
-		route.output = dev->ctl_aoutput;
-
-		v4l2_device_call_all(&dev->v4l2_dev, 0, audio, s_routing, &route);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, audio, s_routing,
+			dev->ctl_ainput, dev->ctl_aoutput, 0);
 	}
 
 	em28xx_audio_analog_set(dev);
