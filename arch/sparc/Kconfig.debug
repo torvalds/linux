@@ -22,15 +22,6 @@ config DEBUG_DCFLUSH
 config STACK_DEBUG
 	bool "Stack Overflow Detection Support"
 
-config DEBUG_PAGEALLOC
-	bool "Debug page memory allocations"
-	depends on DEBUG_KERNEL && !HIBERNATION
-	depends on ARCH_SUPPORTS_DEBUG_PAGEALLOC
-	help
-	  Unmap pages from the kernel linear mapping after free_pages().
-	  This results in a large slowdown, but helps to find certain types
-	  of memory corruptions.
-
 config MCOUNT
 	bool
 	depends on SPARC64
