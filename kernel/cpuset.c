@@ -2070,7 +2070,9 @@ static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
 	}
 
 	cgroup_lock();
+	mutex_lock(&callback_mutex);
 	cpumask_copy(top_cpuset.cpus_allowed, cpu_online_mask);
+	mutex_unlock(&callback_mutex);
 	scan_for_empty_cpusets(&top_cpuset);
 	ndoms = generate_sched_domains(&doms, &attr);
 	cgroup_unlock();
@@ -2093,11 +2095,12 @@ static int cpuset_track_online_nodes(struct notifier_block *self,
 	cgroup_lock();
 	switch (action) {
 	case MEM_ONLINE:
-		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
-		break;
 	case MEM_OFFLINE:
+		mutex_lock(&callback_mutex);
 		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
-		scan_for_empty_cpusets(&top_cpuset);
+		mutex_unlock(&callback_mutex);
+		if (action == MEM_OFFLINE)
+			scan_for_empty_cpusets(&top_cpuset);
 		break;
 	default:
 		break;
