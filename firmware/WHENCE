@@ -45,6 +45,19 @@ Found alsa-firmware package in hex form, with the following comment:
 
 --------------------------------------------------------------------------
 
+Driver: SCSI_ADVANSYS - AdvanSys SCSI
+
+File: advansys/mcode.bin
+File: advansys/3550.bin
+File: advansys/38C0800.bin
+File: advansys/38C1600.bin
+
+Licence: BSD, no source available.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
 Driver: SCSI_QLOGIC_1280 - Qlogic QLA 1240/1x80/1x160 SCSI support
 
 File: qlogic/1040.bin
