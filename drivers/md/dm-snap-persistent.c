@@ -162,9 +162,12 @@ static int alloc_area(struct pstore *ps)
 
 static void free_area(struct pstore *ps)
 {
-	vfree(ps->area);
+	if (ps->area)
+		vfree(ps->area);
 	ps->area = NULL;
-	vfree(ps->zero_area);
+
+	if (ps->zero_area)
+		vfree(ps->zero_area);
 	ps->zero_area = NULL;
 }
 
@@ -482,9 +485,16 @@ static void persistent_dtr(struct dm_exception_store *store)
 	struct pstore *ps = get_info(store);
 
 	destroy_workqueue(ps->metadata_wq);
-	dm_io_client_destroy(ps->io_client);
-	vfree(ps->callbacks);
+
+	/* Created in read_header */
+	if (ps->io_client)
+		dm_io_client_destroy(ps->io_client);
 	free_area(ps);
+
+	/* Allocated in persistent_read_metadata */
+	if (ps->callbacks)
+		vfree(ps->callbacks);
+
 	kfree(ps);
 }
 
@@ -661,7 +671,7 @@ static int persistent_ctr(struct dm_exception_store *store,
 	struct pstore *ps;
 
 	/* allocate the pstore */
-	ps = kmalloc(sizeof(*ps), GFP_KERNEL);
+	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
 	if (!ps)
 		return -ENOMEM;
 
