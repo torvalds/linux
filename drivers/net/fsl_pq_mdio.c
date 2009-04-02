@@ -204,6 +204,7 @@ void fsl_pq_mdio_bus_name(char *name, struct device_node *np)
 	snprintf(name, MII_BUS_ID_SIZE, "%s@%llx", np->name,
 		(unsigned long long)taddr);
 }
+EXPORT_SYMBOL_GPL(fsl_pq_mdio_bus_name);
 
 /* Scan the bus in reverse, looking for an empty spot */
 static int fsl_pq_mdio_find_free(struct mii_bus *new_bus)
