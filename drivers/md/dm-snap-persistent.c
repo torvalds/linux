@@ -189,7 +189,7 @@ static void do_metadata(struct work_struct *work)
 static int chunk_io(struct pstore *ps, chunk_t chunk, int rw, int metadata)
 {
 	struct dm_io_region where = {
-		.bdev = ps->snap->cow->bdev,
+		.bdev = ps->snap->store->cow->bdev,
 		.sector = ps->snap->store->chunk_size * chunk,
 		.count = ps->snap->store->chunk_size,
 	};
@@ -253,7 +253,7 @@ static void zero_memory_area(struct pstore *ps)
 static int zero_disk_area(struct pstore *ps, chunk_t area)
 {
 	struct dm_io_region where = {
-		.bdev = ps->snap->cow->bdev,
+		.bdev = ps->snap->store->cow->bdev,
 		.sector = ps->snap->store->chunk_size * area_location(ps, area),
 		.count = ps->snap->store->chunk_size,
 	};
@@ -280,7 +280,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	 */
 	if (!ps->snap->store->chunk_size) {
 		ps->snap->store->chunk_size = max(DM_CHUNK_SIZE_DEFAULT_SECTORS,
-		    bdev_hardsect_size(ps->snap->cow->bdev) >> 9);
+		    bdev_hardsect_size(ps->snap->store->cow->bdev) >> 9);
 		ps->snap->store->chunk_mask = ps->snap->store->chunk_size - 1;
 		ps->snap->store->chunk_shift = ffs(ps->snap->store->chunk_size)
 					       - 1;
@@ -476,7 +476,7 @@ static void persistent_fraction_full(struct dm_exception_store *store,
 				     sector_t *numerator, sector_t *denominator)
 {
 	*numerator = get_info(store)->next_free * store->chunk_size;
-	*denominator = get_dev_size(store->snap->cow->bdev);
+	*denominator = get_dev_size(store->cow->bdev);
 }
 
 static void persistent_dtr(struct dm_exception_store *store)
@@ -565,7 +565,7 @@ static int persistent_prepare_exception(struct dm_exception_store *store,
 	struct pstore *ps = get_info(store);
 	uint32_t stride;
 	chunk_t next_free;
-	sector_t size = get_dev_size(store->snap->cow->bdev);
+	sector_t size = get_dev_size(store->cow->bdev);
 
 	/* Is there enough room ? */
 	if (size < ((ps->next_free + 1) * store->chunk_size))

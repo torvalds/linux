@@ -27,7 +27,6 @@ struct dm_snapshot {
 	struct rw_semaphore lock;
 
 	struct dm_dev *origin;
-	struct dm_dev *cow;
 
 	/* List of snapshots per Origin */
 	struct list_head list;

@@ -40,7 +40,7 @@ static int transient_prepare_exception(struct dm_exception_store *store,
 				       struct dm_snap_exception *e)
 {
 	struct transient_c *tc = store->context;
-	sector_t size = get_dev_size(store->snap->cow->bdev);
+	sector_t size = get_dev_size(store->cow->bdev);
 
 	if (size < (tc->next_free + store->chunk_size))
 		return -1;
@@ -64,7 +64,7 @@ static void transient_fraction_full(struct dm_exception_store *store,
 				    sector_t *numerator, sector_t *denominator)
 {
 	*numerator = ((struct transient_c *) store->context)->next_free;
-	*denominator = get_dev_size(store->snap->cow->bdev);
+	*denominator = get_dev_size(store->cow->bdev);
 }
 
 static int transient_ctr(struct dm_exception_store *store,
