@@ -438,6 +438,7 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 	unsigned long		flags;
 	struct gpio_desc	*desc;
 	int			status = -EINVAL;
+	char			*ioname = NULL;
 
 	/* can't export until sysfs is available ... */
 	if (!gpio_class.p) {
@@ -461,11 +462,14 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 	}
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
+	if (desc->chip->names && desc->chip->names[gpio - desc->chip->base])
+		ioname = desc->chip->names[gpio - desc->chip->base];
+
 	if (status == 0) {
 		struct device	*dev;
 
 		dev = device_create(&gpio_class, desc->chip->dev, MKDEV(0, 0),
-					desc, "gpio%d", gpio);
+				    desc, ioname ? ioname : "gpio%d", gpio);
 		if (dev) {
 			if (direction_may_change)
 				status = sysfs_create_group(&dev->kobj,
@@ -513,6 +517,7 @@ void gpio_unexport(unsigned gpio)
 	mutex_lock(&sysfs_lock);
 
 	desc = &gpio_desc[gpio];
+
 	if (test_bit(FLAG_EXPORT, &desc->flags)) {
 		struct device	*dev = NULL;
 
