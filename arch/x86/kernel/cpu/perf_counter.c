@@ -1088,6 +1088,7 @@ perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
 	unsigned long bp;
 	char *stack;
+	int nr = entry->nr;
 
 	callchain_store(entry, instruction_pointer(regs));
 
@@ -1099,6 +1100,8 @@ perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 #endif
 
 	dump_trace(NULL, regs, (void *)stack, bp, &backtrace_ops, entry);
+
+	entry->kernel = entry->nr - nr;
 }
 
 
@@ -1128,6 +1131,7 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
 	struct stack_frame frame;
 	const void __user *fp;
+	int nr = entry->nr;
 
 	regs = (struct pt_regs *)current->thread.sp0 - 1;
 	fp   = (void __user *)regs->bp;
@@ -1147,6 +1151,8 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 		callchain_store(entry, frame.return_address);
 		fp = frame.next_fp;
 	}
+
+	entry->user = entry->nr - nr;
 }
 
 static void
@@ -1182,6 +1188,9 @@ struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 		entry = &__get_cpu_var(irq_entry);
 
 	entry->nr = 0;
+	entry->hv = 0;
+	entry->kernel = 0;
+	entry->user = 0;
 
 	perf_do_callchain(regs, entry);
 
