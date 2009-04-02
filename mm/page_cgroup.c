@@ -426,13 +426,6 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
 	}
 	mutex_unlock(&swap_cgroup_mutex);
 
-	printk(KERN_INFO
-		"swap_cgroup: uses %ld bytes of vmalloc for pointer array space"
-		" and %ld bytes to hold mem_cgroup information per swap ents\n",
-		array_size, length * PAGE_SIZE);
-	printk(KERN_INFO
-	"swap_cgroup can be disabled by noswapaccount boot option.\n");
-
 	return 0;
 nomem:
 	printk(KERN_INFO "couldn't allocate enough memory for swap_cgroup.\n");
