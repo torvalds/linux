@@ -1020,6 +1020,7 @@ static int __devinit if_spi_probe(struct spi_device *spi)
 	struct libertas_spi_platform_data *pdata = spi->dev.platform_data;
 	int err = 0;
 	u32 scratch;
+	struct sched_param param = { .sched_priority = 1 };
 
 	lbs_deb_enter(LBS_DEB_SPI);
 
@@ -1123,6 +1124,9 @@ static int __devinit if_spi_probe(struct spi_device *spi)
 		lbs_pr_err("error creating SPI thread: err=%d\n", err);
 		goto remove_card;
 	}
+	if (sched_setscheduler(card->spi_thread, SCHED_FIFO, &param))
+		lbs_pr_err("Error setting scheduler, using default.\n");
+
 	err = request_irq(spi->irq, if_spi_host_interrupt,
 			IRQF_TRIGGER_FALLING, "libertas_spi", card);
 	if (err) {
