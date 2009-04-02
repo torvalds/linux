@@ -856,7 +856,7 @@ static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
 		chip->dma.rx_chan = dma_request_channel(mask, filter, dws);
 
 		dev_info(&chip->pdev->dev, "using %s for DMA RX\n",
-					chip->dma.rx_chan->dev->device.bus_id);
+				dev_name(&chip->dma.rx_chan->dev->device));
 		set_bit(DMA_RX_CHAN_PRESENT, &chip->flags);
 	}
 
@@ -872,7 +872,7 @@ static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
 		chip->dma.tx_chan = dma_request_channel(mask, filter, dws);
 
 		dev_info(&chip->pdev->dev, "using %s for DMA TX\n",
-					chip->dma.tx_chan->dev->device.bus_id);
+				dev_name(&chip->dma.tx_chan->dev->device));
 		set_bit(DMA_TX_CHAN_PRESENT, &chip->flags);
 	}
 
