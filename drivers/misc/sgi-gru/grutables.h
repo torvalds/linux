@@ -242,6 +242,14 @@ struct gru_stats_s {
 enum mcs_op {cchop_allocate, cchop_start, cchop_interrupt, cchop_interrupt_sync,
 	cchop_deallocate, tghop_invalidate, mcsop_last};
 
+struct mcs_op_statistic {
+	atomic_long_t	count;
+	atomic_long_t	total;
+	unsigned long	max;
+};
+
+extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
+
 #define OPT_DPRINT	1
 #define OPT_STATS	2
 #define GRU_QUICKLOOK	4

@@ -35,6 +35,16 @@
 /* Extract the status field from a kernel handle */
 #define GET_MSEG_HANDLE_STATUS(h)	(((*(unsigned long *)(h)) >> 16) & 3)
 
+struct mcs_op_statistic mcs_op_statistics[mcsop_last];
+
+static void update_mcs_stats(enum mcs_op op, unsigned long clks)
+{
+	atomic_long_inc(&mcs_op_statistics[op].count);
+	atomic_long_add(clks, &mcs_op_statistics[op].total);
+	if (mcs_op_statistics[op].max < clks)
+		mcs_op_statistics[op].max = clks;
+}
+
 static void start_instruction(void *h)
 {
 	unsigned long *w0 = h;
@@ -57,6 +67,8 @@ static int wait_instruction_complete(void *h, enum mcs_op opc)
 		if (GRU_OPERATION_TIMEOUT < (get_cycles() - start_time))
 			panic("GRU %p is malfunctioning\n", h);
 	}
+	if (gru_options & OPT_STATS)
+		update_mcs_stats(opc, get_cycles() - start_time);
 	return status;
 }
 
