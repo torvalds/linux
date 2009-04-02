@@ -688,11 +688,19 @@ static int persistent_ctr(struct dm_exception_store *store,
 	return 0;
 }
 
-static int persistent_status(struct dm_exception_store *store,
-			     status_type_t status, char *result,
-			     unsigned int maxlen)
+static unsigned persistent_status(struct dm_exception_store *store,
+				  status_type_t status, char *result,
+				  unsigned maxlen)
 {
-	int sz = 0;
+	unsigned sz = 0;
+
+	switch (status) {
+	case STATUSTYPE_INFO:
+		break;
+	case STATUSTYPE_TABLE:
+		DMEMIT(" %s P %llu", store->cow->name,
+		       (unsigned long long)store->chunk_size);
+	}
 
 	return sz;
 }

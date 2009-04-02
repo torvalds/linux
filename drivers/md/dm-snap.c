@@ -70,9 +70,6 @@ struct dm_snapshot {
 	/* Origin writes don't trigger exceptions until this is set */
 	int active;
 
-	/* Used for display of table */
-	char type;
-
 	mempool_t *pending_pool;
 
 	atomic_t pending_exceptions_count;
@@ -1166,9 +1163,8 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 		 * make sense.
 		 */
 		DMEMIT("%s", snap->origin->name);
-		DMEMIT(" %s %s %llu", snap->store->cow->name,
-		       snap->store->type->name,
-		       (unsigned long long)snap->store->chunk_size);
+		snap->store->type->status(snap->store, type, result + sz,
+					  maxlen - sz);
 		break;
 	}
 

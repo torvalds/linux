@@ -81,11 +81,19 @@ static int transient_ctr(struct dm_exception_store *store,
 	return 0;
 }
 
-static int transient_status(struct dm_exception_store *store,
-			    status_type_t status, char *result,
-			    unsigned maxlen)
+static unsigned transient_status(struct dm_exception_store *store,
+				 status_type_t status, char *result,
+				 unsigned maxlen)
 {
-	int sz = 0;
+	unsigned sz = 0;
+
+	switch (status) {
+	case STATUSTYPE_INFO:
+		break;
+	case STATUSTYPE_TABLE:
+		DMEMIT(" %s N %llu", store->cow->name,
+		       (unsigned long long)store->chunk_size);
+	}
 
 	return sz;
 }

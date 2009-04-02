@@ -79,8 +79,9 @@ struct dm_exception_store_type {
 	 */
 	void (*drop_snapshot) (struct dm_exception_store *store);
 
-	int (*status) (struct dm_exception_store *store, status_type_t status,
-		       char *result, unsigned int maxlen);
+	unsigned (*status) (struct dm_exception_store *store,
+			    status_type_t status, char *result,
+			    unsigned maxlen);
 
 	/*
 	 * Return how full the snapshot is.
