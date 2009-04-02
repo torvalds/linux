@@ -298,6 +298,7 @@ struct slgt_info {
 
 	unsigned int rbuf_fill_level;
 	unsigned int if_mode;
+	unsigned int base_clock;
 
 	/* device status */
 
@@ -1156,22 +1157,26 @@ static long set_params32(struct slgt_info *info, struct MGSL_PARAMS32 __user *ne
 		return -EFAULT;
 
 	spin_lock(&info->lock);
-	info->params.mode            = tmp_params.mode;
-	info->params.loopback        = tmp_params.loopback;
-	info->params.flags           = tmp_params.flags;
-	info->params.encoding        = tmp_params.encoding;
-	info->params.clock_speed     = tmp_params.clock_speed;
-	info->params.addr_filter     = tmp_params.addr_filter;
-	info->params.crc_type        = tmp_params.crc_type;
-	info->params.preamble_length = tmp_params.preamble_length;
-	info->params.preamble        = tmp_params.preamble;
-	info->params.data_rate       = tmp_params.data_rate;
-	info->params.data_bits       = tmp_params.data_bits;
-	info->params.stop_bits       = tmp_params.stop_bits;
-	info->params.parity          = tmp_params.parity;
+	if (tmp_params.mode == MGSL_MODE_BASE_CLOCK) {
+		info->base_clock = tmp_params.clock_speed;
+	} else {
+		info->params.mode            = tmp_params.mode;
+		info->params.loopback        = tmp_params.loopback;
+		info->params.flags           = tmp_params.flags;
+		info->params.encoding        = tmp_params.encoding;
+		info->params.clock_speed     = tmp_params.clock_speed;
+		info->params.addr_filter     = tmp_params.addr_filter;
+		info->params.crc_type        = tmp_params.crc_type;
+		info->params.preamble_length = tmp_params.preamble_length;
+		info->params.preamble        = tmp_params.preamble;
+		info->params.data_rate       = tmp_params.data_rate;
+		info->params.data_bits       = tmp_params.data_bits;
+		info->params.stop_bits       = tmp_params.stop_bits;
+		info->params.parity          = tmp_params.parity;
+	}
 	spin_unlock(&info->lock);
 
- 	change_params(info);
+	program_hw(info);
 
 	return 0;
 }
@@ -2559,10 +2564,13 @@ static int set_params(struct slgt_info *info, MGSL_PARAMS __user *new_params)
 		return -EFAULT;
 
 	spin_lock_irqsave(&info->lock, flags);
-	memcpy(&info->params, &tmp_params, sizeof(MGSL_PARAMS));
+	if (tmp_params.mode == MGSL_MODE_BASE_CLOCK)
+		info->base_clock = tmp_params.clock_speed;
+	else
+		memcpy(&info->params, &tmp_params, sizeof(MGSL_PARAMS));
 	spin_unlock_irqrestore(&info->lock, flags);
 
- 	change_params(info);
+	program_hw(info);
 
 	return 0;
 }
@@ -3432,6 +3440,7 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 		info->magic = MGSL_MAGIC;
 		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;
+		info->base_clock = 14745600;
 		info->rbuf_fill_level = DMABUFSIZE;
 		info->port.close_delay = 5*HZ/10;
 		info->port.closing_wait = 30*HZ;
@@ -3779,7 +3788,7 @@ static void enable_loopback(struct slgt_info *info)
 static void set_rate(struct slgt_info *info, u32 rate)
 {
 	unsigned int div;
-	static unsigned int osc = 14745600;
+	unsigned int osc = info->base_clock;
 
 	/* div = osc/rate - 1
 	 *
@@ -4083,17 +4092,26 @@ static void async_mode(struct slgt_info *info)
 	 * 06  CTS      IRQ enable
 	 * 05  DCD      IRQ enable
 	 * 04  RI       IRQ enable
-	 * 03  reserved, must be zero
+	 * 03  0=16x sampling, 1=8x sampling
 	 * 02  1=txd->rxd internal loopback enable
 	 * 01  reserved, must be zero
 	 * 00  1=master IRQ enable
 	 */
 	val = BIT15 + BIT14 + BIT0;
+	/* JCR[8] : 1 = x8 async mode feature available */
+	if ((rd_reg32(info, JCR) & BIT8) && info->params.data_rate &&
+	    ((info->base_clock < (info->params.data_rate * 16)) ||
+	     (info->base_clock % (info->params.data_rate * 16)))) {
+		/* use 8x sampling */
+		val |= BIT3;
+		set_rate(info, info->params.data_rate * 8);
+	} else {
+		/* use 16x sampling */
+		set_rate(info, info->params.data_rate * 16);
+	}
 	wr_reg16(info, SCR, val);
 
 	slgt_irq_on(info, IRQ_RXBREAK | IRQ_RXOVER);
-
-	set_rate(info, info->params.data_rate * 16);
 
 	if (info->params.loopback)
 		enable_loopback(info);
