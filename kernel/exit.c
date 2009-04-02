@@ -810,8 +810,11 @@ static void ptrace_exit_finish(struct task_struct *parent,
 	}
 }
 
-static void reparent_thread(struct task_struct *p, struct task_struct *father)
+/* Returns nonzero if the child should be released. */
+static int reparent_thread(struct task_struct *p, struct task_struct *father)
 {
+	int dead;
+
 	if (p->pdeath_signal)
 		/* We already hold the tasklist_lock here.  */
 		group_send_sig_info(p->pdeath_signal, SEND_SIG_NOINFO, p);
@@ -819,12 +822,12 @@ static void reparent_thread(struct task_struct *p, struct task_struct *father)
 	list_move_tail(&p->sibling, &p->real_parent->children);
 
 	if (task_detached(p))
-		return;
+		return 0;
 	/* If this is a threaded reparent there is no need to
 	 * notify anyone anything has happened.
 	 */
 	if (same_thread_group(p->real_parent, father))
-		return;
+		return 0;
 
 	/* We don't want people slaying init.  */
 	p->exit_signal = SIGCHLD;
@@ -832,11 +835,19 @@ static void reparent_thread(struct task_struct *p, struct task_struct *father)
 	/* If we'd notified the old parent about this child's death,
 	 * also notify the new parent.
 	 */
+	dead = 0;
 	if (!p->ptrace &&
-	    p->exit_state == EXIT_ZOMBIE && thread_group_empty(p))
+	    p->exit_state == EXIT_ZOMBIE && thread_group_empty(p)) {
 		do_notify_parent(p, p->exit_signal);
+		if (task_detached(p)) {
+			p->exit_state = EXIT_DEAD;
+			dead = 1;
+		}
+	}
 
 	kill_orphaned_pgrp(p, father);
+
+	return dead;
 }
 
 /*
@@ -896,7 +907,8 @@ static void forget_original_parent(struct task_struct *father)
 			BUG_ON(p->ptrace);
 			p->parent = p->real_parent;
 		}
-		reparent_thread(p, father);
+		if (reparent_thread(p, father))
+			list_add(&p->ptrace_entry, &ptrace_dead);;
 	}
 
 	write_unlock_irq(&tasklist_lock);
