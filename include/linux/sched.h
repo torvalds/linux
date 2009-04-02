@@ -1519,17 +1519,23 @@ struct pid_namespace;
  *
  * see also pid_nr() etc in include/linux/pid.h
  */
+pid_t __task_pid_nr_ns(struct task_struct *task, enum pid_type type,
+			struct pid_namespace *ns);
 
 static inline pid_t task_pid_nr(struct task_struct *tsk)
 {
 	return tsk->pid;
 }
 
-pid_t task_pid_nr_ns(struct task_struct *tsk, struct pid_namespace *ns);
+static inline pid_t task_pid_nr_ns(struct task_struct *tsk,
+					struct pid_namespace *ns)
+{
+	return __task_pid_nr_ns(tsk, PIDTYPE_PID, ns);
+}
 
 static inline pid_t task_pid_vnr(struct task_struct *tsk)
 {
-	return pid_vnr(task_pid(tsk));
+	return __task_pid_nr_ns(tsk, PIDTYPE_PID, NULL);
 }
 
 
@@ -1551,11 +1557,15 @@ static inline pid_t task_pgrp_nr(struct task_struct *tsk)
 	return tsk->signal->__pgrp;
 }
 
-pid_t task_pgrp_nr_ns(struct task_struct *tsk, struct pid_namespace *ns);
+static inline pid_t task_pgrp_nr_ns(struct task_struct *tsk,
+					struct pid_namespace *ns)
+{
+	return __task_pid_nr_ns(tsk, PIDTYPE_PGID, ns);
+}
 
 static inline pid_t task_pgrp_vnr(struct task_struct *tsk)
 {
-	return pid_vnr(task_pgrp(tsk));
+	return __task_pid_nr_ns(tsk, PIDTYPE_PGID, NULL);
 }
 
 
@@ -1564,13 +1574,16 @@ static inline pid_t task_session_nr(struct task_struct *tsk)
 	return tsk->signal->__session;
 }
 
-pid_t task_session_nr_ns(struct task_struct *tsk, struct pid_namespace *ns);
+static inline pid_t task_session_nr_ns(struct task_struct *tsk,
+					struct pid_namespace *ns)
+{
+	return __task_pid_nr_ns(tsk, PIDTYPE_SID, ns);
+}
 
 static inline pid_t task_session_vnr(struct task_struct *tsk)
 {
-	return pid_vnr(task_session(tsk));
+	return __task_pid_nr_ns(tsk, PIDTYPE_SID, NULL);
 }
-
 
 /**
  * pid_alive - check that a task structure is not stale
