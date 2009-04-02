@@ -588,6 +588,9 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	int state;
 	struct bio *bio;
 	struct bio_list sync, nosync, recover, *this_list = NULL;
+	struct bio_list requeue;
+	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
+	region_t region;
 
 	if (!writes->head)
 		return;
@@ -598,10 +601,18 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	bio_list_init(&sync);
 	bio_list_init(&nosync);
 	bio_list_init(&recover);
+	bio_list_init(&requeue);
 
 	while ((bio = bio_list_pop(writes))) {
-		state = dm_rh_get_state(ms->rh,
-					dm_rh_bio_to_region(ms->rh, bio), 1);
+		region = dm_rh_bio_to_region(ms->rh, bio);
+
+		if (log->type->is_remote_recovering &&
+		    log->type->is_remote_recovering(log, region)) {
+			bio_list_add(&requeue, bio);
+			continue;
+		}
+
+		state = dm_rh_get_state(ms->rh, region, 1);
 		switch (state) {
 		case DM_RH_CLEAN:
 		case DM_RH_DIRTY:
@@ -618,6 +629,16 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		}
 
 		bio_list_add(this_list, bio);
+	}
+
+	/*
+	 * Add bios that are delayed due to remote recovery
+	 * back on to the write queue
+	 */
+	if (unlikely(requeue.head)) {
+		spin_lock_irq(&ms->lock);
+		bio_list_merge(&ms->writes, &requeue);
+		spin_unlock_irq(&ms->lock);
 	}
 
 	/*
