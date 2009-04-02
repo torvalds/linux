@@ -100,9 +100,6 @@ union map_info *dm_get_mapinfo(struct bio *bio)
  * Work processed by per-device workqueue.
  */
 struct dm_wq_req {
-	enum {
-		DM_WQ_FLUSH_DEFERRED,
-	} type;
 	struct work_struct work;
 	struct mapped_device *md;
 	void *context;
@@ -1434,32 +1431,24 @@ static void dm_wq_work(struct work_struct *work)
 	struct mapped_device *md = req->md;
 
 	down_write(&md->io_lock);
-	switch (req->type) {
-	case DM_WQ_FLUSH_DEFERRED:
-		__flush_deferred_io(md);
-		break;
-	default:
-		DMERR("dm_wq_work: unrecognised work type %d", req->type);
-		BUG();
-	}
+	__flush_deferred_io(md);
 	up_write(&md->io_lock);
 }
 
-static void dm_wq_queue(struct mapped_device *md, int type, void *context,
+static void dm_wq_queue(struct mapped_device *md, void *context,
 			struct dm_wq_req *req)
 {
-	req->type = type;
 	req->md = md;
 	req->context = context;
 	INIT_WORK(&req->work, dm_wq_work);
 	queue_work(md->wq, &req->work);
 }
 
-static void dm_queue_flush(struct mapped_device *md, int type, void *context)
+static void dm_queue_flush(struct mapped_device *md, void *context)
 {
 	struct dm_wq_req req;
 
-	dm_wq_queue(md, type, context, &req);
+	dm_wq_queue(md, context, &req);
 	flush_workqueue(md->wq);
 }
 
@@ -1605,7 +1594,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 
 	/* were we interrupted ? */
 	if (r < 0) {
-		dm_queue_flush(md, DM_WQ_FLUSH_DEFERRED, NULL);
+		dm_queue_flush(md, NULL);
 
 		unlock_fs(md);
 		goto out; /* pushback list is already flushed, so skip flush */
@@ -1645,7 +1634,7 @@ int dm_resume(struct mapped_device *md)
 	if (r)
 		goto out;
 
-	dm_queue_flush(md, DM_WQ_FLUSH_DEFERRED, NULL);
+	dm_queue_flush(md, NULL);
 
 	unlock_fs(md);
 
