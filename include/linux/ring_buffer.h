@@ -68,7 +68,36 @@ ring_buffer_event_time_delta(struct ring_buffer_event *event)
 	return event->time_delta;
 }
 
+/*
+ * ring_buffer_event_discard can discard any event in the ring buffer.
+ *   it is up to the caller to protect against a reader from
+ *   consuming it or a writer from wrapping and replacing it.
+ *
+ * No external protection is needed if this is called before
+ * the event is commited. But in that case it would be better to
+ * use ring_buffer_discard_commit.
+ *
+ * Note, if an event that has not been committed is discarded
+ * with ring_buffer_event_discard, it must still be committed.
+ */
 void ring_buffer_event_discard(struct ring_buffer_event *event);
+
+/*
+ * ring_buffer_discard_commit will remove an event that has not
+ *   ben committed yet. If this is used, then ring_buffer_unlock_commit
+ *   must not be called on the discarded event. This function
+ *   will try to remove the event from the ring buffer completely
+ *   if another event has not been written after it.
+ *
+ * Example use:
+ *
+ *  if (some_condition)
+ *    ring_buffer_discard_commit(buffer, event);
+ *  else
+ *    ring_buffer_unlock_commit(buffer, event);
+ */
+void ring_buffer_discard_commit(struct ring_buffer *buffer,
+				struct ring_buffer_event *event);
 
 /*
  * size is in bytes for each per CPU buffer.

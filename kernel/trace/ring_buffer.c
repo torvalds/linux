@@ -205,27 +205,6 @@ static void rb_event_set_padding(struct ring_buffer_event *event)
 	event->time_delta = 0;
 }
 
-/**
- * ring_buffer_event_discard - discard an event in the ring buffer
- * @buffer: the ring buffer
- * @event: the event to discard
- *
- * Sometimes a event that is in the ring buffer needs to be ignored.
- * This function lets the user discard an event in the ring buffer
- * and then that event will not be read later.
- *
- * Note, it is up to the user to be careful with this, and protect
- * against races. If the user discards an event that has been consumed
- * it is possible that it could corrupt the ring buffer.
- */
-void ring_buffer_event_discard(struct ring_buffer_event *event)
-{
-	event->type = RINGBUF_TYPE_PADDING;
-	/* time delta must be non zero */
-	if (!event->time_delta)
-		event->time_delta = 1;
-}
-
 static unsigned
 rb_event_data_length(struct ring_buffer_event *event)
 {
@@ -1569,6 +1548,110 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_unlock_commit);
+
+/**
+ * ring_buffer_event_discard - discard any event in the ring buffer
+ * @event: the event to discard
+ *
+ * Sometimes a event that is in the ring buffer needs to be ignored.
+ * This function lets the user discard an event in the ring buffer
+ * and then that event will not be read later.
+ *
+ * Note, it is up to the user to be careful with this, and protect
+ * against races. If the user discards an event that has been consumed
+ * it is possible that it could corrupt the ring buffer.
+ */
+void ring_buffer_event_discard(struct ring_buffer_event *event)
+{
+	event->type = RINGBUF_TYPE_PADDING;
+	/* time delta must be non zero */
+	if (!event->time_delta)
+		event->time_delta = 1;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_event_discard);
+
+/**
+ * ring_buffer_commit_discard - discard an event that has not been committed
+ * @buffer: the ring buffer
+ * @event: non committed event to discard
+ *
+ * This is similar to ring_buffer_event_discard but must only be
+ * performed on an event that has not been committed yet. The difference
+ * is that this will also try to free the event from the ring buffer
+ * if another event has not been added behind it.
+ *
+ * If another event has been added behind it, it will set the event
+ * up as discarded, and perform the commit.
+ *
+ * If this function is called, do not call ring_buffer_unlock_commit on
+ * the event.
+ */
+void ring_buffer_discard_commit(struct ring_buffer *buffer,
+				struct ring_buffer_event *event)
+{
+	struct ring_buffer_per_cpu *cpu_buffer;
+	unsigned long new_index, old_index;
+	struct buffer_page *bpage;
+	unsigned long index;
+	unsigned long addr;
+	int cpu;
+
+	/* The event is discarded regardless */
+	ring_buffer_event_discard(event);
+
+	/*
+	 * This must only be called if the event has not been
+	 * committed yet. Thus we can assume that preemption
+	 * is still disabled.
+	 */
+	RB_WARN_ON(buffer, !preempt_count());
+
+	cpu = smp_processor_id();
+	cpu_buffer = buffer->buffers[cpu];
+
+	new_index = rb_event_index(event);
+	old_index = new_index + rb_event_length(event);
+	addr = (unsigned long)event;
+	addr &= PAGE_MASK;
+
+	bpage = cpu_buffer->tail_page;
+
+	if (bpage == (void *)addr && rb_page_write(bpage) == old_index) {
+		/*
+		 * This is on the tail page. It is possible that
+		 * a write could come in and move the tail page
+		 * and write to the next page. That is fine
+		 * because we just shorten what is on this page.
+		 */
+		index = local_cmpxchg(&bpage->write, old_index, new_index);
+		if (index == old_index)
+			goto out;
+	}
+
+	/*
+	 * The commit is still visible by the reader, so we
+	 * must increment entries.
+	 */
+	cpu_buffer->entries++;
+ out:
+	/*
+	 * If a write came in and pushed the tail page
+	 * we still need to update the commit pointer
+	 * if we were the commit.
+	 */
+	if (rb_is_commit(cpu_buffer, event))
+		rb_set_commit_to_write(cpu_buffer);
+
+	/*
+	 * Only the last preempt count needs to restore preemption.
+	 */
+	if (preempt_count() == 1)
+		ftrace_preempt_enable(per_cpu(rb_need_resched, cpu));
+	else
+		preempt_enable_no_resched_notrace();
+
+}
+EXPORT_SYMBOL_GPL(ring_buffer_discard_commit);
 
 /**
  * ring_buffer_write - write data to the buffer without reserving
