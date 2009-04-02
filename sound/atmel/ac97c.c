@@ -151,10 +151,10 @@ static struct snd_pcm_hardware atmel_ac97c_hw = {
 	.rate_max		= 48000,
 	.channels_min		= 1,
 	.channels_max		= 2,
-	.buffer_bytes_max	= 64 * 4096,
+	.buffer_bytes_max	= 2 * 2 * 64 * 2048,
 	.period_bytes_min	= 4096,
 	.period_bytes_max	= 4096,
-	.periods_min		= 4,
+	.periods_min		= 6,
 	.periods_max		= 64,
 };
 
