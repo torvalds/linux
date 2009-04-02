@@ -972,6 +972,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	int ret;
 	int should_grow = 0;
 	unsigned long now = get_seconds();
+	int flush_on_commit = btrfs_test_opt(root, FLUSHONCOMMIT);
 
 	btrfs_run_ordered_operations(root, 0);
 
@@ -1051,7 +1052,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 		mutex_unlock(&root->fs_info->trans_mutex);
 
-		if (snap_pending) {
+		if (flush_on_commit || snap_pending) {
+			if (flush_on_commit)
+				btrfs_start_delalloc_inodes(root);
 			ret = btrfs_wait_ordered_extents(root, 1);
 			BUG_ON(ret);
 		}
