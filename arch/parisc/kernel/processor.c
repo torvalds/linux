@@ -100,8 +100,8 @@ static int __cpuinit processor_probe(struct parisc_device *dev)
 	struct cpuinfo_parisc *p;
 
 #ifdef CONFIG_SMP
-	if (num_online_cpus() >= NR_CPUS) {
-		printk(KERN_INFO "num_online_cpus() >= NR_CPUS\n");
+	if (num_online_cpus() >= nr_cpu_ids) {
+		printk(KERN_INFO "num_online_cpus() >= nr_cpu_ids\n");
 		return 1;
 	}
 #else
@@ -214,7 +214,7 @@ static int __cpuinit processor_probe(struct parisc_device *dev)
 	 */
 #ifdef CONFIG_SMP
 	if (cpuid) {
-		cpu_set(cpuid, cpu_present_map);
+		set_cpu_present(cpuid, true);
 		cpu_up(cpuid);
 	}
 #endif
