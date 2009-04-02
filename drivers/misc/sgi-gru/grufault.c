@@ -360,6 +360,13 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	if (ret == -2)
 		goto failupm;
 
+	if (!(gts->ts_sizeavail & GRU_SIZEAVAIL(pageshift))) {
+		gts->ts_sizeavail |= GRU_SIZEAVAIL(pageshift);
+		if (atomic || !gru_update_cch(gts, 0)) {
+			gts->ts_force_cch_reload = 1;
+			goto failupm;
+		}
+	}
 	gru_cb_set_istatus_active(cb);
 	tfh_write_restart(tfh, gpa, GAA_RAM, vaddr, asid, write,
 			  GRU_PAGESIZE(pageshift));
@@ -533,6 +540,14 @@ int gru_handle_user_call_os(unsigned long cb)
 				gts->ts_blade != uv_numa_blade_id()) {
 		STAT(call_os_offnode_reference);
 		gts->ts_force_unload = 1;
+	}
+
+	/*
+	 * CCH may contain stale data if ts_force_cch_reload is set.
+	 */
+	if (gts->ts_gru && gts->ts_force_cch_reload) {
+		gru_update_cch(gts, 0);
+		gts->ts_force_cch_reload = 0;
 	}
 
 	ret = -EAGAIN;

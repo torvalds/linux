@@ -672,7 +672,7 @@ int gru_kservices_init(struct gru_state *gru)
 	cch->tlb_int_enable = 0;
 	cch->tfm_done_bit_enable = 0;
 	cch->unmap_enable = 1;
-	err = cch_allocate(cch, 0, cbr_map, dsr_map);
+	err = cch_allocate(cch, 0, 0, cbr_map, dsr_map);
 	if (err) {
 		gru_dbg(grudev,
 			"Unable to allocate kernel CCH: gid %d, err %d\n",

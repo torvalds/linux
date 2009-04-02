@@ -496,7 +496,7 @@ enum gru_cbr_state {
 #define GRUMAXINVAL		1024UL
 
 int cch_allocate(struct gru_context_configuration_handle *cch,
-       int asidval, unsigned long cbrmap, unsigned long dsrmap);
+       int asidval, int sizeavail, unsigned long cbrmap, unsigned long dsrmap);
 
 int cch_start(struct gru_context_configuration_handle *cch);
 int cch_interrupt(struct gru_context_configuration_handle *cch);

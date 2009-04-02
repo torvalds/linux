@@ -361,6 +361,7 @@ struct gru_thread_state {
 	long			ts_user_options;/* misc user option flags */
 	pid_t			ts_tgid_owner;	/* task that is using the
 						   context - for migration */
+	unsigned short		ts_sizeavail;	/* Pagesizes in use */
 	int			ts_tsid;	/* thread that owns the
 						   structure */
 	int			ts_tlb_int_select;/* target cpu if interrupts
@@ -374,6 +375,7 @@ struct gru_thread_state {
 						   required for contest */
 	char			ts_blade;	/* If >= 0, migrate context if
 						   ref from diferent blade */
+	char			ts_force_cch_reload;
 	char			ts_force_unload;/* force context to be unloaded
 						   after migration */
 	char			ts_cbr_idx[GRU_CBR_AU];/* CBR numbers of each
@@ -597,6 +599,7 @@ extern struct gru_thread_state *gru_find_thread_state(struct vm_area_struct
 extern struct gru_thread_state *gru_alloc_thread_state(struct vm_area_struct
 				*vma, int tsid);
 extern void gru_unload_context(struct gru_thread_state *gts, int savestate);
+extern int gru_update_cch(struct gru_thread_state *gts, int force_unload);
 extern void gts_drop(struct gru_thread_state *gts);
 extern void gru_tgh_flush_init(struct gru_state *gru);
 extern int gru_kservices_init(struct gru_state *gru);

@@ -72,42 +72,16 @@ static int wait_instruction_complete(void *h, enum mcs_op opc)
 	return status;
 }
 
-#if defined CONFIG_IA64
-static void cch_allocate_set_asids(
-		  struct gru_context_configuration_handle *cch, int asidval)
+int cch_allocate(struct gru_context_configuration_handle *cch,
+		int asidval, int sizeavail, unsigned long cbrmap,
+		unsigned long dsrmap)
 {
 	int i;
 
 	for (i = 0; i < 8; i++) {
 		cch->asid[i] = (asidval++);
-#if 0
-		/* ZZZ hugepages not supported yet */
-		if (i == RGN_HPAGE)
-			cch->sizeavail[i] = GRU_SIZEAVAIL(hpage_shift);
-		else
-#endif
-			cch->sizeavail[i] = GRU_SIZEAVAIL(PAGE_SHIFT);
+		cch->sizeavail[i] = sizeavail;
 	}
-}
-#elif defined CONFIG_X86_64
-static void cch_allocate_set_asids(
-		  struct gru_context_configuration_handle *cch, int asidval)
-{
-	int i;
-
-	for (i = 0; i < 8; i++) {
-		cch->asid[i] = asidval++;
-		cch->sizeavail[i] = GRU_SIZEAVAIL(PAGE_SHIFT) |
-			GRU_SIZEAVAIL(21);
-	}
-}
-#endif
-
-int cch_allocate(struct gru_context_configuration_handle *cch,
-			       int asidval, unsigned long cbrmap,
-			       unsigned long dsrmap)
-{
-	cch_allocate_set_asids(cch, asidval);
 	cch->dsr_allocation_map = dsrmap;
 	cch->cbr_allocation_map = cbrmap;
 	cch->opc = CCHOP_ALLOCATE;
