@@ -99,6 +99,11 @@ struct dm_exception_store {
 
 	struct dm_snapshot *snap;
 
+	/* Size of data blocks saved - must be a power of 2 */
+	chunk_t chunk_size;
+	chunk_t chunk_mask;
+	chunk_t chunk_shift;
+
 	void *context;
 };
 
@@ -149,6 +154,8 @@ int dm_exception_store_type_register(struct dm_exception_store_type *type);
 int dm_exception_store_type_unregister(struct dm_exception_store_type *type);
 
 int dm_exception_store_create(const char *type_name, struct dm_target *ti,
+			      chunk_t chunk_size, chunk_t chunk_mask,
+			      chunk_t chunk_shift,
 			      struct dm_exception_store **store);
 void dm_exception_store_destroy(struct dm_exception_store *store);
 

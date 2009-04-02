@@ -42,11 +42,11 @@ static int transient_prepare_exception(struct dm_exception_store *store,
 	struct transient_c *tc = store->context;
 	sector_t size = get_dev_size(store->snap->cow->bdev);
 
-	if (size < (tc->next_free + store->snap->chunk_size))
+	if (size < (tc->next_free + store->chunk_size))
 		return -1;
 
 	e->new_chunk = sector_to_chunk(store->snap, tc->next_free);
-	tc->next_free += store->snap->chunk_size;
+	tc->next_free += store->chunk_size;
 
 	return 0;
 }

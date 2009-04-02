@@ -138,6 +138,8 @@ int dm_exception_store_type_unregister(struct dm_exception_store_type *type)
 EXPORT_SYMBOL(dm_exception_store_type_unregister);
 
 int dm_exception_store_create(const char *type_name, struct dm_target *ti,
+			      chunk_t chunk_size, chunk_t chunk_mask,
+			      chunk_t chunk_shift,
 			      struct dm_exception_store **store)
 {
 	int r = 0;
@@ -156,6 +158,10 @@ int dm_exception_store_create(const char *type_name, struct dm_target *ti,
 
 	tmp_store->type = type;
 	tmp_store->ti = ti;
+
+	tmp_store->chunk_size = chunk_size;
+	tmp_store->chunk_mask = chunk_mask;
+	tmp_store->chunk_shift = chunk_shift;
 
 	r = type->ctr(tmp_store, 0, NULL);
 	if (r) {

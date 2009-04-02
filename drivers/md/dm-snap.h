@@ -32,11 +32,6 @@ struct dm_snapshot {
 	/* List of snapshots per Origin */
 	struct list_head list;
 
-	/* Size of data blocks saved - must be a power of 2 */
-	chunk_t chunk_size;
-	chunk_t chunk_mask;
-	chunk_t chunk_shift;
-
 	/* You can't use a snapshot if this is 0 (e.g. if full) */
 	int valid;
 
@@ -84,12 +79,12 @@ static inline sector_t get_dev_size(struct block_device *bdev)
 
 static inline chunk_t sector_to_chunk(struct dm_snapshot *s, sector_t sector)
 {
-	return (sector & ~s->chunk_mask) >> s->chunk_shift;
+	return (sector & ~s->store->chunk_mask) >> s->store->chunk_shift;
 }
 
 static inline sector_t chunk_to_sector(struct dm_snapshot *s, chunk_t chunk)
 {
-	return chunk << s->chunk_shift;
+	return chunk << s->store->chunk_shift;
 }
 
 static inline int bdev_equal(struct block_device *lhs, struct block_device *rhs)

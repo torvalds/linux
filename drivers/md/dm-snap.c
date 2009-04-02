@@ -468,7 +468,7 @@ static int calc_max_buckets(void)
 /*
  * Allocate room for a suitable hash table.
  */
-static int init_hash_tables(struct dm_snapshot *s)
+static int init_hash_tables(struct dm_snapshot *s, chunk_t chunk_shift)
 {
 	sector_t hash_size, cow_dev_size, origin_dev_size, max_buckets;
 
@@ -480,7 +480,7 @@ static int init_hash_tables(struct dm_snapshot *s)
 	origin_dev_size = get_dev_size(s->origin->bdev);
 	max_buckets = calc_max_buckets();
 
-	hash_size = min(origin_dev_size, cow_dev_size) >> s->chunk_shift;
+	hash_size = min(origin_dev_size, cow_dev_size) >> chunk_shift;
 	hash_size = min(hash_size, max_buckets);
 
 	hash_size = rounddown_pow_of_two(hash_size);
@@ -515,19 +515,20 @@ static ulong round_up(ulong n, ulong size)
 }
 
 static int set_chunk_size(struct dm_snapshot *s, const char *chunk_size_arg,
-			  char **error)
+			  chunk_t *chunk_size, chunk_t *chunk_mask,
+			  chunk_t *chunk_shift, char **error)
 {
-	unsigned long chunk_size;
+	unsigned long chunk_size_ulong;
 	char *value;
 
-	chunk_size = simple_strtoul(chunk_size_arg, &value, 10);
+	chunk_size_ulong = simple_strtoul(chunk_size_arg, &value, 10);
 	if (*chunk_size_arg == '\0' || *value != '\0') {
 		*error = "Invalid chunk size";
 		return -EINVAL;
 	}
 
-	if (!chunk_size) {
-		s->chunk_size = s->chunk_mask = s->chunk_shift = 0;
+	if (!chunk_size_ulong) {
+		*chunk_size = *chunk_mask = *chunk_shift = 0;
 		return 0;
 	}
 
@@ -535,23 +536,23 @@ static int set_chunk_size(struct dm_snapshot *s, const char *chunk_size_arg,
 	 * Chunk size must be multiple of page size.  Silently
 	 * round up if it's not.
 	 */
-	chunk_size = round_up(chunk_size, PAGE_SIZE >> 9);
+	chunk_size_ulong = round_up(chunk_size_ulong, PAGE_SIZE >> 9);
 
 	/* Check chunk_size is a power of 2 */
-	if (!is_power_of_2(chunk_size)) {
+	if (!is_power_of_2(chunk_size_ulong)) {
 		*error = "Chunk size is not a power of 2";
 		return -EINVAL;
 	}
 
 	/* Validate the chunk size against the device block size */
-	if (chunk_size % (bdev_hardsect_size(s->cow->bdev) >> 9)) {
+	if (chunk_size_ulong % (bdev_hardsect_size(s->cow->bdev) >> 9)) {
 		*error = "Chunk size is not a multiple of device blocksize";
 		return -EINVAL;
 	}
 
-	s->chunk_size = chunk_size;
-	s->chunk_mask = chunk_size - 1;
-	s->chunk_shift = ffs(chunk_size) - 1;
+	*chunk_size = chunk_size_ulong;
+	*chunk_mask = chunk_size_ulong - 1;
+	*chunk_shift = ffs(chunk_size_ulong) - 1;
 
 	return 0;
 }
@@ -567,6 +568,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	char persistent;
 	char *origin_path;
 	char *cow_path;
+	chunk_t chunk_size, chunk_mask, chunk_shift;
 
 	if (argc != 4) {
 		ti->error = "requires exactly 4 arguments";
@@ -606,7 +608,8 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad2;
 	}
 
-	r = set_chunk_size(s, argv[3], &ti->error);
+	r = set_chunk_size(s, argv[3], &chunk_size, &chunk_mask, &chunk_shift,
+			   &ti->error);
 	if (r)
 		goto bad3;
 
@@ -617,13 +620,14 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	spin_lock_init(&s->pe_lock);
 
 	/* Allocate hash table for COW data */
-	if (init_hash_tables(s)) {
+	if (init_hash_tables(s, chunk_shift)) {
 		ti->error = "Unable to allocate hash table space";
 		r = -ENOMEM;
 		goto bad3;
 	}
 
-	r = dm_exception_store_create(argv[2], ti, &s->store);
+	r = dm_exception_store_create(argv[2], ti, chunk_size, chunk_mask,
+				      chunk_shift, &s->store);
 	if (r) {
 		ti->error = "Couldn't create exception store";
 		r = -EINVAL;
@@ -680,7 +684,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->private = s;
-	ti->split_io = s->chunk_size;
+	ti->split_io = s->store->chunk_size;
 
 	return 0;
 
@@ -955,7 +959,7 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 
 	src.bdev = bdev;
 	src.sector = chunk_to_sector(s, pe->e.old_chunk);
-	src.count = min(s->chunk_size, dev_size - src.sector);
+	src.count = min(s->store->chunk_size, dev_size - src.sector);
 
 	dest.bdev = s->cow->bdev;
 	dest.sector = chunk_to_sector(s, pe->e.new_chunk);
@@ -1021,7 +1025,7 @@ static void remap_exception(struct dm_snapshot *s, struct dm_snap_exception *e,
 	bio->bi_bdev = s->cow->bdev;
 	bio->bi_sector = chunk_to_sector(s, dm_chunk_number(e->new_chunk) +
 			 (chunk - e->old_chunk)) +
-			 (bio->bi_sector & s->chunk_mask);
+			 (bio->bi_sector & s->store->chunk_mask);
 }
 
 static int snapshot_map(struct dm_target *ti, struct bio *bio,
@@ -1166,7 +1170,7 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 		snprintf(result, maxlen, "%s %s %s %llu",
 			 snap->origin->name, snap->cow->name,
 			 snap->store->type->name,
-			 (unsigned long long)snap->chunk_size);
+			 (unsigned long long)snap->store->chunk_size);
 		break;
 	}
 
@@ -1377,7 +1381,8 @@ static void origin_resume(struct dm_target *ti)
 	o = __lookup_origin(dev->bdev);
 	if (o)
 		list_for_each_entry (snap, &o->snapshots, list)
-			chunk_size = min_not_zero(chunk_size, snap->chunk_size);
+			chunk_size = min_not_zero(chunk_size,
+						  snap->store->chunk_size);
 	up_read(&_origins_lock);
 
 	ti->split_io = chunk_size;
