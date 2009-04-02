@@ -992,23 +992,10 @@ __lookup_pending_exception(struct dm_snapshot *s, chunk_t chunk)
  * this.
  */
 static struct dm_snap_pending_exception *
-__find_pending_exception(struct dm_snapshot *s, struct bio *bio)
+__find_pending_exception(struct dm_snapshot *s,
+			 struct dm_snap_pending_exception *pe, chunk_t chunk)
 {
-	struct dm_snap_pending_exception *pe, *pe2;
-	chunk_t chunk = sector_to_chunk(s, bio->bi_sector);
-
-	/*
-	 * Create a new pending exception, we don't want
-	 * to hold the lock while we do this.
-	 */
-	up_write(&s->lock);
-	pe = alloc_pending_exception(s);
-	down_write(&s->lock);
-
-	if (!s->valid) {
-		free_pending_exception(pe);
-		return NULL;
-	}
+	struct dm_snap_pending_exception *pe2;
 
 	pe2 = __lookup_pending_exception(s, chunk);
 	if (pe2) {
@@ -1083,7 +1070,17 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	if (bio_rw(bio) == WRITE) {
 		pe = __lookup_pending_exception(s, chunk);
 		if (!pe) {
-			pe = __find_pending_exception(s, bio);
+			up_write(&s->lock);
+			pe = alloc_pending_exception(s);
+			down_write(&s->lock);
+
+			if (!s->valid) {
+				free_pending_exception(pe);
+				r = -EIO;
+				goto out_unlock;
+			}
+
+			pe = __find_pending_exception(s, pe, chunk);
 			if (!pe) {
 				__invalidate_snapshot(s, -ENOMEM);
 				r = -EIO;
@@ -1220,7 +1217,16 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 
 		pe = __lookup_pending_exception(snap, chunk);
 		if (!pe) {
-			pe = __find_pending_exception(snap, bio);
+			up_write(&snap->lock);
+			pe = alloc_pending_exception(snap);
+			down_write(&snap->lock);
+
+			if (!snap->valid) {
+				free_pending_exception(pe);
+				goto next_snapshot;
+			}
+
+			pe = __find_pending_exception(snap, pe, chunk);
 			if (!pe) {
 				__invalidate_snapshot(snap, -ENOMEM);
 				goto next_snapshot;
