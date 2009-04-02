@@ -312,7 +312,6 @@ static int atmel_ac97c_playback_prepare(struct snd_pcm_substream *substream)
 	default:
 		/* TODO: support more than two channels */
 		return -EINVAL;
-		break;
 	}
 	ac97c_writel(chip, OCA, word);
 
@@ -374,7 +373,6 @@ static int atmel_ac97c_capture_prepare(struct snd_pcm_substream *substream)
 	default:
 		/* TODO: support more than two channels */
 		return -EINVAL;
-		break;
 	}
 	ac97c_writel(chip, ICA, word);
 
