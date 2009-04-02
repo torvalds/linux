@@ -1080,6 +1080,13 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 				goto out_unlock;
 			}
 
+			e = lookup_exception(&s->complete, chunk);
+			if (e) {
+				free_pending_exception(pe);
+				remap_exception(s, e, bio, chunk);
+				goto out_unlock;
+			}
+
 			pe = __find_pending_exception(s, pe, chunk);
 			if (!pe) {
 				__invalidate_snapshot(s, -ENOMEM);
@@ -1222,6 +1229,12 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 			down_write(&snap->lock);
 
 			if (!snap->valid) {
+				free_pending_exception(pe);
+				goto next_snapshot;
+			}
+
+			e = lookup_exception(&snap->complete, chunk);
+			if (e) {
 				free_pending_exception(pe);
 				goto next_snapshot;
 			}
