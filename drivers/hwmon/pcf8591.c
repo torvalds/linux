@@ -1,6 +1,6 @@
 /*
     Copyright (C) 2001-2004 Aurelien Jarno <aurelien@aurel32.net>
-    Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with 
+    Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with
     the help of Jean Delvare <khali@linux-fr.org>
 
     This program is free software; you can redistribute it and/or modify
@@ -41,13 +41,13 @@ MODULE_PARM_DESC(input_mode,
 	" 3 = two differential inputs\n");
 
 /* The PCF8591 control byte
-      7    6    5    4    3    2    1    0  
+      7    6    5    4    3    2    1    0
    |  0 |AOEF|   AIP   |  0 |AINC|  AICH   | */
 
 /* Analog Output Enable Flag (analog output active if 1) */
 #define PCF8591_CONTROL_AOEF		0x40
-					
-/* Analog Input Programming 
+
+/* Analog Input Programming
    0x00 = four single ended inputs
    0x10 = three differential inputs
    0x20 = single ended and differential mixed
@@ -58,7 +58,7 @@ MODULE_PARM_DESC(input_mode,
 #define PCF8591_CONTROL_AINC		0x04
 
 /* Channel selection
-   0x00 = channel 0 
+   0x00 = channel 0
    0x01 = channel 1
    0x02 = channel 2
    0x03 = channel 3 */
@@ -114,7 +114,7 @@ static ssize_t set_out0_output(struct device *dev, struct device_attribute *attr
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(out0_output, S_IWUSR | S_IRUGO, 
+static DEVICE_ATTR(out0_output, S_IWUSR | S_IRUGO,
 		   show_out0_ouput, set_out0_output);
 
 static ssize_t show_out0_enable(struct device *dev, struct device_attribute *attr, char *buf)
@@ -139,7 +139,7 @@ static ssize_t set_out0_enable(struct device *dev, struct device_attribute *attr
 	return count;
 }
 
-static DEVICE_ATTR(out0_enable, S_IWUSR | S_IRUGO, 
+static DEVICE_ATTR(out0_enable, S_IWUSR | S_IRUGO,
 		   show_out0_enable, set_out0_enable);
 
 static struct attribute *pcf8591_attributes[] = {
@@ -196,7 +196,7 @@ static int pcf8591_probe(struct i2c_client *client,
 		err = -ENOMEM;
 		goto exit;
 	}
-	
+
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
 
@@ -249,8 +249,8 @@ static void pcf8591_init_client(struct i2c_client *client)
 	data->aout = PCF8591_INIT_AOUT;
 
 	i2c_smbus_write_byte_data(client, data->control, data->aout);
-	
-	/* The first byte transmitted contains the conversion code of the 
+
+	/* The first byte transmitted contains the conversion code of the
 	   previous read cycle. FLUSH IT! */
 	i2c_smbus_read_byte(client);
 }
@@ -267,8 +267,8 @@ static int pcf8591_read_channel(struct device *dev, int channel)
 		data->control = (data->control & ~PCF8591_CONTROL_AICH_MASK)
 			      | channel;
 		i2c_smbus_write_byte(client, data->control);
-	
-		/* The first byte transmitted contains the conversion code of 
+
+		/* The first byte transmitted contains the conversion code of
 		   the previous read cycle. FLUSH IT! */
 		i2c_smbus_read_byte(client);
 	}

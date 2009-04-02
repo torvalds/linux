@@ -359,7 +359,8 @@ void sni_rm200_init_8259A(void)
  * IRQ2 is cascade interrupt to second interrupt controller
  */
 static struct irqaction sni_rm200_irq2 = {
-	no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL
+	.handler = no_action,
+	.name = "cascade",
 };
 
 static struct resource sni_rm200_pic1_resource = {

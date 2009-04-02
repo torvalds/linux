@@ -96,6 +96,8 @@ enum pageflags {
 	PG_swapbacked,		/* Page is backed by RAM/swap */
 #ifdef CONFIG_UNEVICTABLE_LRU
 	PG_unevictable,		/* Page is "unevictable"  */
+#endif
+#ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
 	PG_mlocked,		/* Page is vma mlocked */
 #endif
 #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
@@ -234,20 +236,20 @@ PAGEFLAG_FALSE(SwapCache)
 #ifdef CONFIG_UNEVICTABLE_LRU
 PAGEFLAG(Unevictable, unevictable) __CLEARPAGEFLAG(Unevictable, unevictable)
 	TESTCLEARFLAG(Unevictable, unevictable)
-
-#define MLOCK_PAGES 1
-PAGEFLAG(Mlocked, mlocked) __CLEARPAGEFLAG(Mlocked, mlocked)
-	TESTSCFLAG(Mlocked, mlocked)
-
 #else
-
-#define MLOCK_PAGES 0
-PAGEFLAG_FALSE(Mlocked)
-	SETPAGEFLAG_NOOP(Mlocked) TESTCLEARFLAG_FALSE(Mlocked)
-
 PAGEFLAG_FALSE(Unevictable) TESTCLEARFLAG_FALSE(Unevictable)
 	SETPAGEFLAG_NOOP(Unevictable) CLEARPAGEFLAG_NOOP(Unevictable)
 	__CLEARPAGEFLAG_NOOP(Unevictable)
+#endif
+
+#ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
+#define MLOCK_PAGES 1
+PAGEFLAG(Mlocked, mlocked) __CLEARPAGEFLAG(Mlocked, mlocked)
+	TESTSCFLAG(Mlocked, mlocked)
+#else
+#define MLOCK_PAGES 0
+PAGEFLAG_FALSE(Mlocked)
+	SETPAGEFLAG_NOOP(Mlocked) TESTCLEARFLAG_FALSE(Mlocked)
 #endif
 
 #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
@@ -367,9 +369,13 @@ static inline void __ClearPageTail(struct page *page)
 
 #ifdef CONFIG_UNEVICTABLE_LRU
 #define __PG_UNEVICTABLE	(1 << PG_unevictable)
-#define __PG_MLOCKED		(1 << PG_mlocked)
 #else
 #define __PG_UNEVICTABLE	0
+#endif
+
+#ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
+#define __PG_MLOCKED		(1 << PG_mlocked)
+#else
 #define __PG_MLOCKED		0
 #endif
 

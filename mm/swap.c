@@ -457,29 +457,6 @@ void pagevec_strip(struct pagevec *pvec)
 }
 
 /**
- * pagevec_swap_free - try to free swap space from the pages in a pagevec
- * @pvec: pagevec with swapcache pages to free the swap space of
- *
- * The caller needs to hold an extra reference to each page and
- * not hold the page lock on the pages.  This function uses a
- * trylock on the page lock so it may not always free the swap
- * space associated with a page.
- */
-void pagevec_swap_free(struct pagevec *pvec)
-{
-	int i;
-
-	for (i = 0; i < pagevec_count(pvec); i++) {
-		struct page *page = pvec->pages[i];
-
-		if (PageSwapCache(page) && trylock_page(page)) {
-			try_to_free_swap(page);
-			unlock_page(page);
-		}
-	}
-}
-
-/**
  * pagevec_lookup - gang pagecache lookup
  * @pvec:	Where the resulting pages are placed
  * @mapping:	The address_space to search

@@ -574,7 +574,7 @@ int __init buffer_sync_init(void)
 		return 0;
 }
 
-void __exit buffer_sync_cleanup(void)
+void buffer_sync_cleanup(void)
 {
 	free_cpumask_var(marked_cpus);
 }

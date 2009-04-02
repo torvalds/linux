@@ -2,30 +2,40 @@ Kernel driver w83627ehf
 =======================
 
 Supported chips:
-  * Winbond W83627EHF/EHG/DHG (ISA access ONLY)
+  * Winbond W83627EHF/EHG (ISA access ONLY)
     Prefix: 'w83627ehf'
     Addresses scanned: ISA address retrieved from Super I/O registers
     Datasheet:
-        http://www.winbond-usa.com/products/winbond_products/pdfs/PCIC/W83627EHF_%20W83627EHGb.pdf
-        DHG datasheet confidential.
+        http://www.nuvoton.com.tw/NR/rdonlyres/A6A258F0-F0C9-4F97-81C0-C4D29E7E943E/0/W83627EHF.pdf
+  * Winbond W83627DHG
+    Prefix: 'w83627dhg'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet:
+        http://www.nuvoton.com.tw/NR/rdonlyres/7885623D-A487-4CF9-A47F-30C5F73D6FE6/0/W83627DHG.pdf
+  * Winbond W83667HG
+    Prefix: 'w83667hg'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: not available
 
 Authors:
         Jean Delvare <khali@linux-fr.org>
         Yuan Mu (Winbond)
         Rudolf Marek <r.marek@assembler.cz>
         David Hubbard <david.c.hubbard@gmail.com>
+        Gong Jun <JGong@nuvoton.com>
 
 Description
 -----------
 
-This driver implements support for the Winbond W83627EHF, W83627EHG, and
-W83627DHG super I/O chips. We will refer to them collectively as Winbond chips.
+This driver implements support for the Winbond W83627EHF, W83627EHG,
+W83627DHG and W83667HG super I/O chips. We will refer to them collectively
+as Winbond chips.
 
 The chips implement three temperature sensors, five fan rotation
 speed sensors, ten analog voltage sensors (only nine for the 627DHG), one
-VID (6 pins for the 627EHF/EHG, 8 pins for the 627DHG), alarms with beep
-warnings (control unimplemented), and some automatic fan regulation
-strategies (plus manual fan control mode).
+VID (6 pins for the 627EHF/EHG, 8 pins for the 627DHG and 667HG), alarms
+with beep warnings (control unimplemented), and some automatic fan
+regulation strategies (plus manual fan control mode).
 
 Temperatures are measured in degrees Celsius and measurement resolution is 1
 degC for temp1 and 0.5 degC for temp2 and temp3. An alarm is triggered when
@@ -54,7 +64,8 @@ follows:
 temp1 -> pwm1
 temp2 -> pwm2
 temp3 -> pwm3
-prog  -> pwm4 (the programmable setting is not supported by the driver)
+prog  -> pwm4 (not on 667HG; the programmable setting is not supported by
+	       the driver)
 
 /sys files
 ----------

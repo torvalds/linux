@@ -525,40 +525,13 @@ static int autofs_dev_ioctl_expire(struct file *fp,
 				   struct autofs_sb_info *sbi,
 				   struct autofs_dev_ioctl *param)
 {
-	struct dentry *dentry;
 	struct vfsmount *mnt;
-	int err = -EAGAIN;
 	int how;
 
 	how = param->expire.how;
 	mnt = fp->f_path.mnt;
 
-	if (autofs_type_trigger(sbi->type))
-		dentry = autofs4_expire_direct(sbi->sb, mnt, sbi, how);
-	else
-		dentry = autofs4_expire_indirect(sbi->sb, mnt, sbi, how);
-
-	if (dentry) {
-		struct autofs_info *ino = autofs4_dentry_ino(dentry);
-
-		/*
-		 * This is synchronous because it makes the daemon a
-		 * little easier
-		*/
-		err = autofs4_wait(sbi, dentry, NFY_EXPIRE);
-
-		spin_lock(&sbi->fs_lock);
-		if (ino->flags & AUTOFS_INF_MOUNTPOINT) {
-			ino->flags &= ~AUTOFS_INF_MOUNTPOINT;
-			sbi->sb->s_root->d_mounted++;
-		}
-		ino->flags &= ~AUTOFS_INF_EXPIRING;
-		complete_all(&ino->expire_complete);
-		spin_unlock(&sbi->fs_lock);
-		dput(dentry);
-	}
-
-	return err;
+	return autofs4_do_expire_multi(sbi->sb, mnt, sbi, how);
 }
 
 /* Check if autofs mount point is in use */

@@ -1782,7 +1782,7 @@ static inline void iommu_prepare_isa(void)
 	ret = iommu_prepare_identity_map(pdev, 0, 16*1024*1024);
 
 	if (ret)
-		printk("IOMMU: Failed to create 0-64M identity map, "
+		printk(KERN_ERR "IOMMU: Failed to create 0-64M identity map, "
 			"floppy might not work\n");
 
 }

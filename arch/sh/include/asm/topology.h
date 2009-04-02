@@ -33,7 +33,6 @@
 
 #define node_to_cpumask(node)	((void)node, cpu_online_map)
 #define cpumask_of_node(node)	((void)node, cpu_online_mask)
-#define node_to_first_cpu(node)	((void)(node),0)
 
 #define pcibus_to_node(bus)	((void)(bus), -1)
 #define pcibus_to_cpumask(bus)	(pcibus_to_node(bus) == -1 ? \

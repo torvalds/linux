@@ -297,19 +297,15 @@ static struct ide_tape_obj *ide_tape_chrdev_get(unsigned int i)
 	return tape;
 }
 
-static void idetape_input_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
+static int idetape_input_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 				  unsigned int bcount)
 {
 	struct idetape_bh *bh = pc->bh;
 	int count;
 
 	while (bcount) {
-		if (bh == NULL) {
-			printk(KERN_ERR "ide-tape: bh == NULL in "
-				"idetape_input_buffers\n");
-			ide_pad_transfer(drive, 0, bcount);
-			return;
-		}
+		if (bh == NULL)
+			break;
 		count = min(
 			(unsigned int)(bh->b_size - atomic_read(&bh->b_count)),
 			bcount);
@@ -323,21 +319,21 @@ static void idetape_input_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 				atomic_set(&bh->b_count, 0);
 		}
 	}
+
 	pc->bh = bh;
+
+	return bcount;
 }
 
-static void idetape_output_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
+static int idetape_output_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 				   unsigned int bcount)
 {
 	struct idetape_bh *bh = pc->bh;
 	int count;
 
 	while (bcount) {
-		if (bh == NULL) {
-			printk(KERN_ERR "ide-tape: bh == NULL in %s\n",
-					__func__);
-			return;
-		}
+		if (bh == NULL)
+			break;
 		count = min((unsigned int)pc->b_count, (unsigned int)bcount);
 		drive->hwif->tp_ops->output_data(drive, NULL, pc->b_data, count);
 		bcount -= count;
@@ -352,6 +348,8 @@ static void idetape_output_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 			}
 		}
 	}
+
+	return bcount;
 }
 
 static void idetape_update_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc)
@@ -563,12 +561,14 @@ static void ide_tape_handle_dsc(ide_drive_t *drive)
 static int ide_tape_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 				unsigned int bcount, int write)
 {
-	if (write)
-		idetape_output_buffers(drive, pc, bcount);
-	else
-		idetape_input_buffers(drive, pc, bcount);
+	unsigned int bleft;
 
-	return bcount;
+	if (write)
+		bleft = idetape_output_buffers(drive, pc, bcount);
+	else
+		bleft = idetape_input_buffers(drive, pc, bcount);
+
+	return bcount - bleft;
 }
 
 /*
@@ -2014,9 +2014,13 @@ static void idetape_get_inquiry_results(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc pc;
+	u8 pc_buf[256];
 	char fw_rev[4], vendor_id[8], product_id[16];
 
 	idetape_create_inquiry_cmd(&pc);
+	pc.buf = &pc_buf[0];
+	pc.buf_size = sizeof(pc_buf);
+
 	if (ide_queue_pc_tail(drive, tape->disk, &pc)) {
 		printk(KERN_ERR "ide-tape: %s: can't get INQUIRY results\n",
 				tape->name);

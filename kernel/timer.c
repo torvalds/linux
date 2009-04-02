@@ -491,14 +491,18 @@ static inline void debug_timer_free(struct timer_list *timer)
 	debug_object_free(timer, &timer_debug_descr);
 }
 
-static void __init_timer(struct timer_list *timer);
+static void __init_timer(struct timer_list *timer,
+			 const char *name,
+			 struct lock_class_key *key);
 
-void init_timer_on_stack(struct timer_list *timer)
+void init_timer_on_stack_key(struct timer_list *timer,
+			     const char *name,
+			     struct lock_class_key *key)
 {
 	debug_object_init_on_stack(timer, &timer_debug_descr);
-	__init_timer(timer);
+	__init_timer(timer, name, key);
 }
-EXPORT_SYMBOL_GPL(init_timer_on_stack);
+EXPORT_SYMBOL_GPL(init_timer_on_stack_key);
 
 void destroy_timer_on_stack(struct timer_list *timer)
 {
@@ -512,7 +516,9 @@ static inline void debug_timer_activate(struct timer_list *timer) { }
 static inline void debug_timer_deactivate(struct timer_list *timer) { }
 #endif
 
-static void __init_timer(struct timer_list *timer)
+static void __init_timer(struct timer_list *timer,
+			 const char *name,
+			 struct lock_class_key *key)
 {
 	timer->entry.next = NULL;
 	timer->base = __raw_get_cpu_var(tvec_bases);
@@ -521,6 +527,7 @@ static void __init_timer(struct timer_list *timer)
 	timer->start_pid = -1;
 	memset(timer->start_comm, 0, TASK_COMM_LEN);
 #endif
+	lockdep_init_map(&timer->lockdep_map, name, key, 0);
 }
 
 /**
@@ -530,19 +537,23 @@ static void __init_timer(struct timer_list *timer)
  * init_timer() must be done to a timer prior calling *any* of the
  * other timer functions.
  */
-void init_timer(struct timer_list *timer)
+void init_timer_key(struct timer_list *timer,
+		    const char *name,
+		    struct lock_class_key *key)
 {
 	debug_timer_init(timer);
-	__init_timer(timer);
+	__init_timer(timer, name, key);
 }
-EXPORT_SYMBOL(init_timer);
+EXPORT_SYMBOL(init_timer_key);
 
-void init_timer_deferrable(struct timer_list *timer)
+void init_timer_deferrable_key(struct timer_list *timer,
+			       const char *name,
+			       struct lock_class_key *key)
 {
-	init_timer(timer);
+	init_timer_key(timer, name, key);
 	timer_set_deferrable(timer);
 }
-EXPORT_SYMBOL(init_timer_deferrable);
+EXPORT_SYMBOL(init_timer_deferrable_key);
 
 static inline void detach_timer(struct timer_list *timer,
 				int clear_pending)
@@ -826,6 +837,15 @@ EXPORT_SYMBOL(try_to_del_timer_sync);
  */
 int del_timer_sync(struct timer_list *timer)
 {
+#ifdef CONFIG_LOCKDEP
+	unsigned long flags;
+
+	local_irq_save(flags);
+	lock_map_acquire(&timer->lockdep_map);
+	lock_map_release(&timer->lockdep_map);
+	local_irq_restore(flags);
+#endif
+
 	for (;;) {
 		int ret = try_to_del_timer_sync(timer);
 		if (ret >= 0)
@@ -897,10 +917,36 @@ static inline void __run_timers(struct tvec_base *base)
 
 			set_running_timer(base, timer);
 			detach_timer(timer, 1);
+
 			spin_unlock_irq(&base->lock);
 			{
 				int preempt_count = preempt_count();
+
+#ifdef CONFIG_LOCKDEP
+				/*
+				 * It is permissible to free the timer from
+				 * inside the function that is called from
+				 * it, this we need to take into account for
+				 * lockdep too. To avoid bogus "held lock
+				 * freed" warnings as well as problems when
+				 * looking into timer->lockdep_map, make a
+				 * copy and use that here.
+				 */
+				struct lockdep_map lockdep_map =
+					timer->lockdep_map;
+#endif
+				/*
+				 * Couple the lock chain with the lock chain at
+				 * del_timer_sync() by acquiring the lock_map
+				 * around the fn() call here and in
+				 * del_timer_sync().
+				 */
+				lock_map_acquire(&lockdep_map);
+
 				fn(data);
+
+				lock_map_release(&lockdep_map);
+
 				if (preempt_count != preempt_count()) {
 					printk(KERN_ERR "huh, entered %p "
 					       "with preempt_count %08x, exited"

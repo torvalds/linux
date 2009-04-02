@@ -903,8 +903,6 @@ static int __init input_proc_init(void)
 	if (!proc_bus_input_dir)
 		return -ENOMEM;
 
-	proc_bus_input_dir->owner = THIS_MODULE;
-
 	entry = proc_create("devices", 0, proc_bus_input_dir,
 			    &input_devices_fileops);
 	if (!entry)

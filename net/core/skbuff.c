@@ -2579,7 +2579,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 					  skb_network_header_len(skb));
 		skb_copy_from_linear_data(skb, nskb->data, doffset);
 
-		if (pos >= offset + len)
+		if (fskb != skb_shinfo(skb)->frag_list)
 			continue;
 
 		if (!sg) {

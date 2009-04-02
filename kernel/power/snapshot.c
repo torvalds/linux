@@ -321,12 +321,9 @@ static int create_mem_extents(struct list_head *list, gfp_t gfp_mask)
 
 	INIT_LIST_HEAD(list);
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		unsigned long zone_start, zone_end;
 		struct mem_extent *ext, *cur, *aux;
-
-		if (!populated_zone(zone))
-			continue;
 
 		zone_start = zone->zone_start_pfn;
 		zone_end = zone->zone_start_pfn + zone->spanned_pages;
@@ -804,8 +801,8 @@ static unsigned int count_free_highmem_pages(void)
 	struct zone *zone;
 	unsigned int cnt = 0;
 
-	for_each_zone(zone)
-		if (populated_zone(zone) && is_highmem(zone))
+	for_each_populated_zone(zone)
+		if (is_highmem(zone))
 			cnt += zone_page_state(zone, NR_FREE_PAGES);
 
 	return cnt;

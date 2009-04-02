@@ -3648,15 +3648,16 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		mdio = of_get_parent(phy);
 
 		if (mdio == NULL)
-			return -1;
+			return -ENODEV;
 
 		err = of_address_to_resource(mdio, 0, &res);
-		of_node_put(mdio);
 
-		if (err)
-			return -1;
-
+		if (err) {
+			of_node_put(mdio);
+			return err;
+		}
 		fsl_pq_mdio_bus_name(bus_name, mdio);
+		of_node_put(mdio);
 		snprintf(ug_info->phy_bus_id, sizeof(ug_info->phy_bus_id),
 			"%s:%02x", bus_name, *prop);
 	}

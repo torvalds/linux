@@ -380,7 +380,7 @@ asm(".text                      \n\t"
  *	This function checks whether or not a SMBIOS/DMI record is
  *	the 64bit CRU info or not
  */
-static void __devinit dmi_find_cru(const struct dmi_header *dm)
+static void __devinit dmi_find_cru(const struct dmi_header *dm, void *dummy)
 {
 	struct smbios_cru64_info *smbios_cru64_ptr;
 	unsigned long cru_physical_address;
@@ -403,7 +403,7 @@ static int __devinit detect_cru_service(void)
 {
 	cru_rom_addr = NULL;
 
-	dmi_walk(dmi_find_cru);
+	dmi_walk(dmi_find_cru, NULL);
 
 	/* if cru_rom_addr has been set then we found a CRU service */
 	return ((cru_rom_addr != NULL) ? 0 : -ENODEV);

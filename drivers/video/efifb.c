@@ -129,6 +129,8 @@ static int set_system(const struct dmi_system_id *id)
 		screen_info.lfb_width = info->width;
 	if (screen_info.lfb_height == 0)
 		screen_info.lfb_height = info->height;
+	if (screen_info.orig_video_isVGA == 0)
+		screen_info.orig_video_isVGA = VIDEO_TYPE_EFI;
 
 	return 0;
 }
@@ -374,9 +376,10 @@ static int __init efifb_init(void)
 	int ret;
 	char *option = NULL;
 
+	dmi_check_system(dmi_system_table);
+
 	if (screen_info.orig_video_isVGA != VIDEO_TYPE_EFI)
 		return -ENODEV;
-	dmi_check_system(dmi_system_table);
 
 	if (fb_get_options("efifb", &option))
 		return -ENODEV;

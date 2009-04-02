@@ -115,14 +115,12 @@ extern irqreturn_t crime_cpuerr_intr(int irq, void *dev_id);
 struct irqaction memerr_irq = {
 	.handler = crime_memerr_intr,
 	.flags = IRQF_DISABLED,
-	.mask = CPU_MASK_NONE,
 	.name = "CRIME memory error",
 };
 
 struct irqaction cpuerr_irq = {
 	.handler = crime_cpuerr_intr,
 	.flags = IRQF_DISABLED,
-	.mask = CPU_MASK_NONE,
 	.name = "CRIME CPU error",
 };
 

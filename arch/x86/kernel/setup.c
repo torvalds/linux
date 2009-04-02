@@ -1049,7 +1049,6 @@ void __init x86_quirk_trap_init(void)
 static struct irqaction irq0  = {
 	.handler = timer_interrupt,
 	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,
-	.mask = CPU_MASK_NONE,
 	.name = "timer"
 };
 

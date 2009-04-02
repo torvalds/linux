@@ -132,12 +132,15 @@ struct ext4_prealloc_space {
 	ext4_lblk_t		pa_lstart;	/* log. block */
 	unsigned short		pa_len;		/* len of preallocated chunk */
 	unsigned short		pa_free;	/* how many blocks are free */
-	unsigned short		pa_linear;	/* consumed in one direction
-						 * strictly, for grp prealloc */
+	unsigned short		pa_type;	/* pa type. inode or group */
 	spinlock_t		*pa_obj_lock;
 	struct inode		*pa_inode;	/* hack, for history only */
 };
 
+enum {
+	MB_INODE_PA = 0,
+	MB_GROUP_PA = 1
+};
 
 struct ext4_free_extent {
 	ext4_lblk_t fe_logical;
@@ -247,7 +250,6 @@ static inline void ext4_mb_store_history(struct ext4_allocation_context *ac)
 
 #define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
 
-struct buffer_head *read_block_bitmap(struct super_block *, ext4_group_t);
 static inline ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 					struct ext4_free_extent *fex)
 {
