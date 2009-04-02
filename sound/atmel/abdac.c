@@ -165,7 +165,7 @@ static struct snd_pcm_hardware atmel_abdac_hw = {
 	.buffer_bytes_max	= 64 * 4096,
 	.period_bytes_min	= 4096,
 	.period_bytes_max	= 4096,
-	.periods_min		= 4,
+	.periods_min		= 6,
 	.periods_max		= 64,
 };
 
