@@ -3285,7 +3285,7 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = info;
 
-	return 0;
+	return nonseekable_open(inode, filp);
 
  out:
 	kfree(info);
