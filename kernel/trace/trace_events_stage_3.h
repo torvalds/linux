@@ -223,9 +223,9 @@ static void ftrace_raw_event_##call(proto)				\
 	assign;								\
 									\
 	if (call->preds && !filter_match_preds(call, entry))		\
-		ring_buffer_event_discard(event);			\
-									\
-	trace_nowake_buffer_unlock_commit(event, irq_flags, pc);	\
+		trace_current_buffer_discard_commit(event);		\
+	else								\
+		trace_nowake_buffer_unlock_commit(event, irq_flags, pc); \
 									\
 }									\
 									\

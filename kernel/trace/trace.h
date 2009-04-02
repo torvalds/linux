@@ -497,6 +497,7 @@ void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
 					unsigned long flags, int pc);
 void trace_nowake_buffer_unlock_commit(struct ring_buffer_event *event,
 					unsigned long flags, int pc);
+void trace_current_buffer_discard_commit(struct ring_buffer_event *event);
 
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);

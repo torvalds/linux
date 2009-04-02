@@ -884,13 +884,18 @@ trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
 void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
 					unsigned long flags, int pc)
 {
-	return __trace_buffer_unlock_commit(&global_trace, event, flags, pc, 1);
+	__trace_buffer_unlock_commit(&global_trace, event, flags, pc, 1);
 }
 
 void trace_nowake_buffer_unlock_commit(struct ring_buffer_event *event,
 					unsigned long flags, int pc)
 {
-	return __trace_buffer_unlock_commit(&global_trace, event, flags, pc, 0);
+	__trace_buffer_unlock_commit(&global_trace, event, flags, pc, 0);
+}
+
+void trace_current_buffer_discard_commit(struct ring_buffer_event *event)
+{
+	ring_buffer_discard_commit(global_trace.buffer, event);
 }
 
 void
