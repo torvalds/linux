@@ -62,7 +62,9 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, asid_wrap);
 	printstat(s, asid_reuse);
 	printstat(s, intr);
+	printstat(s, intr_mm_lock_failed);
 	printstat(s, call_os);
+	printstat(s, call_os_offnode_reference);
 	printstat(s, call_os_check_for_bug);
 	printstat(s, call_os_wait_queue);
 	printstat(s, user_flush_tlb);

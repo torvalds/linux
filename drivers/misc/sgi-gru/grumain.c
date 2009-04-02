@@ -76,7 +76,7 @@ int gru_cpu_fault_map_id(void)
 /* Hit the asid limit. Start over */
 static int gru_wrap_asid(struct gru_state *gru)
 {
-	gru_dbg(grudev, "gru %p\n", gru);
+	gru_dbg(grudev, "gid %d\n", gru->gs_gid);
 	STAT(asid_wrap);
 	gru->gs_asid_gen++;
 	gru_flush_all_tlb(gru);
@@ -88,7 +88,7 @@ static int gru_reset_asid_limit(struct gru_state *gru, int asid)
 {
 	int i, gid, inuse_asid, limit;
 
-	gru_dbg(grudev, "gru %p, asid 0x%x\n", gru, asid);
+	gru_dbg(grudev, "gid %d, asid 0x%x\n", gru->gs_gid, asid);
 	STAT(asid_next);
 	limit = MAX_ASID;
 	if (asid >= limit)
@@ -99,8 +99,9 @@ again:
 		if (!gru->gs_gts[i])
 			continue;
 		inuse_asid = gru->gs_gts[i]->ts_gms->ms_asids[gid].mt_asid;
-		gru_dbg(grudev, "gru %p, inuse_asid 0x%x, cxtnum %d, gts %p\n",
-			gru, inuse_asid, i, gru->gs_gts[i]);
+		gru_dbg(grudev, "gid %d, gts %p, gms %p, inuse 0x%x, cxt %d\n",
+			gru->gs_gid, gru->gs_gts[i], gru->gs_gts[i]->ts_gms,
+			inuse_asid, i);
 		if (inuse_asid == asid) {
 			asid += ASID_INC;
 			if (asid >= limit) {
@@ -120,8 +121,8 @@ again:
 	}
 	gru->gs_asid_limit = limit;
 	gru->gs_asid = asid;
-	gru_dbg(grudev, "gru %p, new asid 0x%x, new_limit 0x%x\n", gru, asid,
-		limit);
+	gru_dbg(grudev, "gid %d, new asid 0x%x, new_limit 0x%x\n", gru->gs_gid,
+					asid, limit);
 	return asid;
 }
 
@@ -137,7 +138,7 @@ static int gru_assign_asid(struct gru_state *gru)
 		asid = gru_reset_asid_limit(gru, asid);
 	spin_unlock(&gru->gs_asid_lock);
 
-	gru_dbg(grudev, "gru %p, asid 0x%x\n", gru, asid);
+	gru_dbg(grudev, "gid %d, asid 0x%x\n", gru->gs_gid, asid);
 	return asid;
 }
 
@@ -215,11 +216,12 @@ static int check_gru_resources(struct gru_state *gru, int cbr_au_count,
  * TLB manangment requires tracking all GRU chiplets that have loaded a GSEG
  * context.
  */
-static int gru_load_mm_tracker(struct gru_state *gru, struct gru_mm_struct *gms,
-			       int ctxnum)
+static int gru_load_mm_tracker(struct gru_state *gru,
+					struct gru_thread_state *gts)
 {
+	struct gru_mm_struct *gms = gts->ts_gms;
 	struct gru_mm_tracker *asids = &gms->ms_asids[gru->gs_gid];
-	unsigned short ctxbitmap = (1 << ctxnum);
+	unsigned short ctxbitmap = (1 << gts->ts_ctxnum);
 	int asid;
 
 	spin_lock(&gms->ms_asid_lock);
@@ -241,24 +243,26 @@ static int gru_load_mm_tracker(struct gru_state *gru, struct gru_mm_struct *gms,
 	spin_unlock(&gms->ms_asid_lock);
 
 	gru_dbg(grudev,
-		"gru %x, gms %p, ctxnum 0x%d, asid 0x%x, asidmap 0x%lx\n",
-		gru->gs_gid, gms, ctxnum, asid, gms->ms_asidmap[0]);
+		"gid %d, gts %p, gms %p, ctxnum %d, asid 0x%x, asidmap 0x%lx\n",
+		gru->gs_gid, gts, gms, gts->ts_ctxnum, asid,
+		gms->ms_asidmap[0]);
 	return asid;
 }
 
 static void gru_unload_mm_tracker(struct gru_state *gru,
-				  struct gru_mm_struct *gms, int ctxnum)
+					struct gru_thread_state *gts)
 {
+	struct gru_mm_struct *gms = gts->ts_gms;
 	struct gru_mm_tracker *asids;
 	unsigned short ctxbitmap;
 
 	asids = &gms->ms_asids[gru->gs_gid];
-	ctxbitmap = (1 << ctxnum);
+	ctxbitmap = (1 << gts->ts_ctxnum);
 	spin_lock(&gms->ms_asid_lock);
 	BUG_ON((asids->mt_ctxbitmap & ctxbitmap) != ctxbitmap);
 	asids->mt_ctxbitmap ^= ctxbitmap;
-	gru_dbg(grudev, "gru %x, gms %p, ctxnum 0x%d, asidmap 0x%lx\n",
-		gru->gs_gid, gms, ctxnum, gms->ms_asidmap[0]);
+	gru_dbg(grudev, "gid %d, gts %p, gms %p, ctxnum 0x%d, asidmap 0x%lx\n",
+		gru->gs_gid, gts, gms, gts->ts_ctxnum, gms->ms_asidmap[0]);
 	spin_unlock(&gms->ms_asid_lock);
 }
 
@@ -399,7 +403,7 @@ static void gru_free_gru_context(struct gru_thread_state *gts)
 	struct gru_state *gru;
 
 	gru = gts->ts_gru;
-	gru_dbg(grudev, "gts %p, gru %p\n", gts, gru);
+	gru_dbg(grudev, "gts %p, gid %d\n", gts, gru->gs_gid);
 
 	spin_lock(&gru->gs_lock);
 	gru->gs_gts[gts->ts_ctxnum] = NULL;
@@ -500,12 +504,12 @@ void gru_unload_context(struct gru_thread_state *gts, int savestate)
 	zap_vma_ptes(gts->ts_vma, UGRUADDR(gts), GRU_GSEG_PAGESIZE);
 	cch = get_cch(gru->gs_gru_base_vaddr, ctxnum);
 
+	gru_dbg(grudev, "gts %p\n", gts);
 	lock_cch_handle(cch);
 	if (cch_interrupt_sync(cch))
 		BUG();
-	gru_dbg(grudev, "gts %p\n", gts);
 
-	gru_unload_mm_tracker(gru, gts->ts_gms, gts->ts_ctxnum);
+	gru_unload_mm_tracker(gru, gts);
 	if (savestate)
 		gru_unload_context_data(gts->ts_gdata, gru->gs_gru_base_vaddr,
 					ctxnum, gts->ts_cbr_map,
@@ -534,7 +538,7 @@ static void gru_load_context(struct gru_thread_state *gts)
 	cch = get_cch(gru->gs_gru_base_vaddr, ctxnum);
 
 	lock_cch_handle(cch);
-	asid = gru_load_mm_tracker(gru, gts->ts_gms, gts->ts_ctxnum);
+	asid = gru_load_mm_tracker(gru, gts);
 	cch->tfm_fault_bit_enable =
 	    (gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
 	     || gts->ts_user_options == GRU_OPT_MISS_FMM_INTR);
@@ -688,7 +692,7 @@ static void gru_steal_context(struct gru_thread_state *gts)
 		STAT(steal_context_failed);
 	}
 	gru_dbg(grudev,
-		"stole gru %x, ctxnum %d from gts %p. Need cb %d, ds %d;"
+		"stole gid %d, ctxnum %d from gts %p. Need cb %d, ds %d;"
 		" avail cb %ld, ds %ld\n",
 		gru->gs_gid, ctxnum, ngts, cbr, dsr, hweight64(gru->gs_cbr_map),
 		hweight64(gru->gs_dsr_map));
@@ -737,7 +741,7 @@ again:
 
 		STAT(assign_context);
 		gru_dbg(grudev,
-			"gseg %p, gts %p, gru %x, ctx %d, cbr %d, dsr %d\n",
+			"gseg %p, gts %p, gid %d, ctx %d, cbr %d, dsr %d\n",
 			gseg_virtual_address(gts->ts_gru, gts->ts_ctxnum), gts,
 			gts->ts_gru->gs_gid, gts->ts_ctxnum,
 			gts->ts_cbr_au_count, gts->ts_dsr_au_count);

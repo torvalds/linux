@@ -663,12 +663,12 @@ int gru_kservices_init(struct gru_state *gru)
 	err = cch_allocate(cch, 0, cbr_map, dsr_map);
 	if (err) {
 		gru_dbg(grudev,
-			"Unable to allocate kernel CCH: gru %d, err %d\n",
+			"Unable to allocate kernel CCH: gid %d, err %d\n",
 			gru->gs_gid, err);
 		BUG();
 	}
 	if (cch_start(cch)) {
-		gru_dbg(grudev, "Unable to start kernel CCH: gru %d, err %d\n",
+		gru_dbg(grudev, "Unable to start kernel CCH: gid %d, err %d\n",
 			gru->gs_gid, err);
 		BUG();
 	}

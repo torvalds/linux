@@ -184,7 +184,9 @@ struct gru_stats_s {
 	atomic_long_t asid_wrap;
 	atomic_long_t asid_reuse;
 	atomic_long_t intr;
+	atomic_long_t intr_mm_lock_failed;
 	atomic_long_t call_os;
+	atomic_long_t call_os_offnode_reference;
 	atomic_long_t call_os_check_for_bug;
 	atomic_long_t call_os_wait_queue;
 	atomic_long_t user_flush_tlb;

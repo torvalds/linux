@@ -210,7 +210,7 @@ void gru_flush_all_tlb(struct gru_state *gru)
 {
 	struct gru_tlb_global_handle *tgh;
 
-	gru_dbg(grudev, "gru %p, gid %d\n", gru, gru->gs_gid);
+	gru_dbg(grudev, "gid %d\n", gru->gs_gid);
 	tgh = get_lock_tgh_handle(gru);
 	tgh_invalidate(tgh, 0, ~0, 0, 1, 1, GRUMAXINVAL - 1, 0xffff);
 	get_unlock_tgh_handle(tgh);
