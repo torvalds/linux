@@ -102,7 +102,6 @@ union map_info *dm_get_mapinfo(struct bio *bio)
 struct mapped_device {
 	struct rw_semaphore io_lock;
 	struct mutex suspend_lock;
-	spinlock_t pushback_lock;
 	rwlock_t map_lock;
 	atomic_t holders;
 	atomic_t open_count;
@@ -122,7 +121,7 @@ struct mapped_device {
 	wait_queue_head_t wait;
 	struct work_struct work;
 	struct bio_list deferred;
-	struct bio_list pushback;
+	spinlock_t deferred_lock;
 
 	/*
 	 * Processing queue (flush/barriers)
@@ -445,7 +444,9 @@ static int queue_io(struct mapped_device *md, struct bio *bio)
 		return 1;
 	}
 
+	spin_lock_irq(&md->deferred_lock);
 	bio_list_add(&md->deferred, bio);
+	spin_unlock_irq(&md->deferred_lock);
 
 	up_write(&md->io_lock);
 	return 0;		/* deferred successfully */
@@ -529,16 +530,14 @@ static void dec_pending(struct dm_io *io, int error)
 		if (io->error == DM_ENDIO_REQUEUE) {
 			/*
 			 * Target requested pushing back the I/O.
-			 * This must be handled before the sleeper on
-			 * suspend queue merges the pushback list.
 			 */
-			spin_lock_irqsave(&md->pushback_lock, flags);
+			spin_lock_irqsave(&md->deferred_lock, flags);
 			if (__noflush_suspending(md))
-				bio_list_add(&md->pushback, io->bio);
+				bio_list_add(&md->deferred, io->bio);
 			else
 				/* noflush suspend was interrupted. */
 				io->error = -EIO;
-			spin_unlock_irqrestore(&md->pushback_lock, flags);
+			spin_unlock_irqrestore(&md->deferred_lock, flags);
 		}
 
 		end_io_acct(io);
@@ -1096,7 +1095,7 @@ static struct mapped_device *alloc_dev(int minor)
 
 	init_rwsem(&md->io_lock);
 	mutex_init(&md->suspend_lock);
-	spin_lock_init(&md->pushback_lock);
+	spin_lock_init(&md->deferred_lock);
 	rwlock_init(&md->map_lock);
 	atomic_set(&md->holders, 1);
 	atomic_set(&md->open_count, 0);
@@ -1410,23 +1409,19 @@ static void dm_wq_work(struct work_struct *work)
 
 	down_write(&md->io_lock);
 
-	while ((c = bio_list_pop(&md->deferred)))
+next_bio:
+	spin_lock_irq(&md->deferred_lock);
+	c = bio_list_pop(&md->deferred);
+	spin_unlock_irq(&md->deferred_lock);
+
+	if (c) {
 		__split_and_process_bio(md, c);
+		goto next_bio;
+	}
 
 	clear_bit(DMF_BLOCK_IO, &md->flags);
 
 	up_write(&md->io_lock);
-}
-
-static void __merge_pushback_list(struct mapped_device *md)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&md->pushback_lock, flags);
-	clear_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
-	bio_list_merge_head(&md->deferred, &md->pushback);
-	bio_list_init(&md->pushback);
-	spin_unlock_irqrestore(&md->pushback_lock, flags);
 }
 
 static void dm_queue_flush(struct mapped_device *md)
@@ -1572,7 +1567,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	remove_wait_queue(&md->wait, &wait);
 
 	if (noflush)
-		__merge_pushback_list(md);
+		clear_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
 	up_write(&md->io_lock);
 
 	/* were we interrupted ? */
