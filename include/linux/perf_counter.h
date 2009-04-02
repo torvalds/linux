@@ -73,15 +73,6 @@ enum sw_event_ids {
 	PERF_SW_EVENTS_MAX		= 7,
 };
 
-/*
- * IRQ-notification data record type:
- */
-enum perf_counter_record_type {
-	PERF_RECORD_SIMPLE		= 0,
-	PERF_RECORD_IRQ			= 1,
-	PERF_RECORD_GROUP		= 2,
-};
-
 #define __PERF_COUNTER_MASK(name) 			\
 	(((1ULL << PERF_COUNTER_##name##_BITS) - 1) <<	\
 	 PERF_COUNTER_##name##_SHIFT)
@@ -101,6 +92,17 @@ enum perf_counter_record_type {
 #define PERF_COUNTER_EVENT_BITS		56
 #define PERF_COUNTER_EVENT_SHIFT	0
 #define PERF_COUNTER_EVENT_MASK		__PERF_COUNTER_MASK(EVENT)
+
+/*
+ * Bits that can be set in hw_event.record_type to request information
+ * in the overflow packets.
+ */
+enum perf_counter_record_format {
+	PERF_RECORD_IP		= 1U << 0,
+	PERF_RECORD_TID		= 1U << 1,
+	PERF_RECORD_GROUP	= 1U << 2,
+	PERF_RECORD_CALLCHAIN	= 1U << 3,
+};
 
 /*
  * Bits that can be set in hw_event.read_format to request that
@@ -125,8 +127,8 @@ struct perf_counter_hw_event {
 	__u64			config;
 
 	__u64			irq_period;
-	__u64			record_type;
-	__u64			read_format;
+	__u32			record_type;
+	__u32			read_format;
 
 	__u64			disabled       :  1, /* off by default        */
 				nmi	       :  1, /* NMI sampling          */
@@ -137,12 +139,10 @@ struct perf_counter_hw_event {
 				exclude_kernel :  1, /* ditto kernel          */
 				exclude_hv     :  1, /* ditto hypervisor      */
 				exclude_idle   :  1, /* don't count when idle */
-				include_tid    :  1, /* include the tid       */
 				mmap           :  1, /* include mmap data     */
 				munmap         :  1, /* include munmap data   */
-				callchain      :  1, /* add callchain data    */
 
-				__reserved_1   : 51;
+				__reserved_1   : 53;
 
 	__u32			extra_config_len;
 	__u32			__reserved_4;
@@ -212,15 +212,21 @@ struct perf_event_header {
 
 enum perf_event_type {
 
-	PERF_EVENT_GROUP	= 1,
+	PERF_EVENT_MMAP			= 1,
+	PERF_EVENT_MUNMAP		= 2,
 
-	PERF_EVENT_MMAP		= 2,
-	PERF_EVENT_MUNMAP	= 3,
-
-	PERF_EVENT_OVERFLOW	= 1UL << 31,
-	__PERF_EVENT_IP		= 1UL << 30,
-	__PERF_EVENT_TID	= 1UL << 29,
-	__PERF_EVENT_CALLCHAIN  = 1UL << 28,
+	/*
+	 * Half the event type space is reserved for the counter overflow
+	 * bitfields, as found in hw_event.record_type.
+	 *
+	 * These events will have types of the form:
+	 *   PERF_EVENT_COUNTER_OVERFLOW { | __PERF_EVENT_* } *
+	 */
+	PERF_EVENT_COUNTER_OVERFLOW	= 1UL << 31,
+	__PERF_EVENT_IP			= PERF_RECORD_IP,
+	__PERF_EVENT_TID		= PERF_RECORD_TID,
+	__PERF_EVENT_GROUP		= PERF_RECORD_GROUP,
+	__PERF_EVENT_CALLCHAIN		= PERF_RECORD_CALLCHAIN,
 };
 
 #ifdef __KERNEL__

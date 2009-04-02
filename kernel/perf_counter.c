@@ -1765,27 +1765,34 @@ static void perf_output_end(struct perf_output_handle *handle)
 	rcu_read_unlock();
 }
 
-static void perf_output_simple(struct perf_counter *counter,
-			       int nmi, struct pt_regs *regs)
+void perf_counter_output(struct perf_counter *counter,
+			 int nmi, struct pt_regs *regs)
 {
 	int ret;
+	u64 record_type = counter->hw_event.record_type;
 	struct perf_output_handle handle;
 	struct perf_event_header header;
 	u64 ip;
 	struct {
 		u32 pid, tid;
 	} tid_entry;
+	struct {
+		u64 event;
+		u64 counter;
+	} group_entry;
 	struct perf_callchain_entry *callchain = NULL;
 	int callchain_size = 0;
 
-	header.type = PERF_EVENT_OVERFLOW;
+	header.type = PERF_EVENT_COUNTER_OVERFLOW;
 	header.size = sizeof(header);
 
-	ip = instruction_pointer(regs);
-	header.type |= __PERF_EVENT_IP;
-	header.size += sizeof(ip);
+	if (record_type & PERF_RECORD_IP) {
+		ip = instruction_pointer(regs);
+		header.type |= __PERF_EVENT_IP;
+		header.size += sizeof(ip);
+	}
 
-	if (counter->hw_event.include_tid) {
+	if (record_type & PERF_RECORD_TID) {
 		/* namespace issues */
 		tid_entry.pid = current->group_leader->pid;
 		tid_entry.tid = current->pid;
@@ -1794,7 +1801,13 @@ static void perf_output_simple(struct perf_counter *counter,
 		header.size += sizeof(tid_entry);
 	}
 
-	if (counter->hw_event.callchain) {
+	if (record_type & PERF_RECORD_GROUP) {
+		header.type |= __PERF_EVENT_GROUP;
+		header.size += sizeof(u64) +
+			counter->nr_siblings * sizeof(group_entry);
+	}
+
+	if (record_type & PERF_RECORD_CALLCHAIN) {
 		callchain = perf_callchain(regs);
 
 		if (callchain) {
@@ -1810,69 +1823,35 @@ static void perf_output_simple(struct perf_counter *counter,
 		return;
 
 	perf_output_put(&handle, header);
-	perf_output_put(&handle, ip);
 
-	if (counter->hw_event.include_tid)
+	if (record_type & PERF_RECORD_IP)
+		perf_output_put(&handle, ip);
+
+	if (record_type & PERF_RECORD_TID)
 		perf_output_put(&handle, tid_entry);
+
+	if (record_type & PERF_RECORD_GROUP) {
+		struct perf_counter *leader, *sub;
+		u64 nr = counter->nr_siblings;
+
+		perf_output_put(&handle, nr);
+
+		leader = counter->group_leader;
+		list_for_each_entry(sub, &leader->sibling_list, list_entry) {
+			if (sub != counter)
+				sub->hw_ops->read(sub);
+
+			group_entry.event = sub->hw_event.config;
+			group_entry.counter = atomic64_read(&sub->count);
+
+			perf_output_put(&handle, group_entry);
+		}
+	}
 
 	if (callchain)
 		perf_output_copy(&handle, callchain, callchain_size);
 
 	perf_output_end(&handle);
-}
-
-static void perf_output_group(struct perf_counter *counter, int nmi)
-{
-	struct perf_output_handle handle;
-	struct perf_event_header header;
-	struct perf_counter *leader, *sub;
-	unsigned int size;
-	struct {
-		u64 event;
-		u64 counter;
-	} entry;
-	int ret;
-
-	size = sizeof(header) + counter->nr_siblings * sizeof(entry);
-
-	ret = perf_output_begin(&handle, counter, size, nmi);
-	if (ret)
-		return;
-
-	header.type = PERF_EVENT_GROUP;
-	header.size = size;
-
-	perf_output_put(&handle, header);
-
-	leader = counter->group_leader;
-	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
-		if (sub != counter)
-			sub->hw_ops->read(sub);
-
-		entry.event = sub->hw_event.config;
-		entry.counter = atomic64_read(&sub->count);
-
-		perf_output_put(&handle, entry);
-	}
-
-	perf_output_end(&handle);
-}
-
-void perf_counter_output(struct perf_counter *counter,
-			 int nmi, struct pt_regs *regs)
-{
-	switch (counter->hw_event.record_type) {
-	case PERF_RECORD_SIMPLE:
-		return;
-
-	case PERF_RECORD_IRQ:
-		perf_output_simple(counter, nmi, regs);
-		break;
-
-	case PERF_RECORD_GROUP:
-		perf_output_group(counter, nmi);
-		break;
-	}
 }
 
 /*
