@@ -969,6 +969,10 @@ static int __devexit atmel_ac97c_remove(struct platform_device *pdev)
 	if (gpio_is_valid(chip->reset_pin))
 		gpio_free(chip->reset_pin);
 
+	ac97c_writel(chip, CAMR, 0);
+	ac97c_writel(chip, COMR, 0);
+	ac97c_writel(chip, MR,   0);
+
 	clk_disable(chip->pclk);
 	clk_put(chip->pclk);
 	iounmap(chip->regs);
