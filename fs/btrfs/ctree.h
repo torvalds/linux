@@ -143,12 +143,15 @@ static int btrfs_csum_sizes[] = { 4, 0 };
 #define BTRFS_FT_MAX		9
 
 /*
- * the key defines the order in the tree, and so it also defines (optimal)
- * block layout.  objectid corresonds to the inode number.  The flags
- * tells us things about the object, and is a kind of stream selector.
- * so for a given inode, keys with flags of 1 might refer to the inode
- * data, flags of 2 may point to file data in the btree and flags == 3
- * may point to extents.
+ * The key defines the order in the tree, and so it also defines (optimal)
+ * block layout.
+ *
+ * objectid corresponds to the inode number.
+ *
+ * type tells us things about the object, and is a kind of stream selector.
+ * so for a given inode, keys with type of 1 might refer to the inode data,
+ * type of 2 may point to file data in the btree and type == 3 may point to
+ * extents.
  *
  * offset is the starting byte offset for this key in the stream.
  *
@@ -200,7 +203,7 @@ struct btrfs_dev_item {
 
 	/*
 	 * starting byte of this partition on the device,
-	 * to allowr for stripe alignment in the future
+	 * to allow for stripe alignment in the future
 	 */
 	__le64 start_offset;
 
@@ -958,7 +961,6 @@ struct btrfs_root {
 };
 
 /*
-
  * inode items have the data typically returned from stat and store other
  * info about object characteristics.  There is one for every file and dir in
  * the FS
@@ -989,7 +991,7 @@ struct btrfs_root {
 #define BTRFS_EXTENT_CSUM_KEY	128
 
 /*
- * root items point to tree roots.  There are typically in the root
+ * root items point to tree roots.  They are typically in the root
  * tree used by the super block to find all the other trees
  */
 #define BTRFS_ROOT_ITEM_KEY	132
