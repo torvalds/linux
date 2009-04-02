@@ -337,6 +337,7 @@ struct cgroup_scanner {
 	void (*process_task)(struct task_struct *p,
 			struct cgroup_scanner *scan);
 	struct ptr_heap *heap;
+	void *data;
 };
 
 /*
