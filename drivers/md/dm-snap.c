@@ -637,8 +637,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad4;
 	}
 
-	s->store->snap = s;
-
 	r = dm_kcopyd_client_create(SNAPSHOT_PAGES, &s->kcopyd_client);
 	if (r) {
 		ti->error = "Could not create kcopyd client";
@@ -962,11 +960,11 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 	dev_size = get_dev_size(bdev);
 
 	src.bdev = bdev;
-	src.sector = chunk_to_sector(s, pe->e.old_chunk);
+	src.sector = chunk_to_sector(s->store, pe->e.old_chunk);
 	src.count = min(s->store->chunk_size, dev_size - src.sector);
 
 	dest.bdev = s->store->cow->bdev;
-	dest.sector = chunk_to_sector(s, pe->e.new_chunk);
+	dest.sector = chunk_to_sector(s->store, pe->e.new_chunk);
 	dest.count = src.count;
 
 	/* Hand over to kcopyd */
@@ -1027,9 +1025,11 @@ static void remap_exception(struct dm_snapshot *s, struct dm_snap_exception *e,
 			    struct bio *bio, chunk_t chunk)
 {
 	bio->bi_bdev = s->store->cow->bdev;
-	bio->bi_sector = chunk_to_sector(s, dm_chunk_number(e->new_chunk) +
-			 (chunk - e->old_chunk)) +
-			 (bio->bi_sector & s->store->chunk_mask);
+	bio->bi_sector = chunk_to_sector(s->store,
+					 dm_chunk_number(e->new_chunk) +
+					 (chunk - e->old_chunk)) +
+					 (bio->bi_sector &
+					  s->store->chunk_mask);
 }
 
 static int snapshot_map(struct dm_target *ti, struct bio *bio,
@@ -1041,7 +1041,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	chunk_t chunk;
 	struct dm_snap_pending_exception *pe = NULL;
 
-	chunk = sector_to_chunk(s, bio->bi_sector);
+	chunk = sector_to_chunk(s->store, bio->bi_sector);
 
 	/* Full snapshots are not usable */
 	/* To get here the table must be live so s->active is always set. */
@@ -1210,7 +1210,7 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 		 * Remember, different snapshots can have
 		 * different chunk sizes.
 		 */
-		chunk = sector_to_chunk(snap, bio->bi_sector);
+		chunk = sector_to_chunk(snap->store, bio->bi_sector);
 
 		/*
 		 * Check exception table to see if block

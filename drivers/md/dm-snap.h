@@ -68,22 +68,10 @@ struct dm_snapshot {
 	struct hlist_head tracked_chunk_hash[DM_TRACKED_CHUNK_HASH_SIZE];
 };
 
-/*
- * Return the number of sectors in the device.
- */
-static inline sector_t get_dev_size(struct block_device *bdev)
+static inline sector_t chunk_to_sector(struct dm_exception_store *store,
+				      chunk_t chunk)
 {
-	return bdev->bd_inode->i_size >> SECTOR_SHIFT;
-}
-
-static inline chunk_t sector_to_chunk(struct dm_snapshot *s, sector_t sector)
-{
-	return (sector & ~s->store->chunk_mask) >> s->store->chunk_shift;
-}
-
-static inline sector_t chunk_to_sector(struct dm_snapshot *s, chunk_t chunk)
-{
-	return chunk << s->store->chunk_shift;
+	return chunk << store->chunk_shift;
 }
 
 static inline int bdev_equal(struct block_device *lhs, struct block_device *rhs)

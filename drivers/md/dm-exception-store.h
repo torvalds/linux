@@ -97,8 +97,6 @@ struct dm_exception_store {
 	struct dm_exception_store_type *type;
 	struct dm_target *ti;
 
-	struct dm_snapshot *snap;
-
 	struct dm_dev *cow;
 
 	/* Size of data blocks saved - must be a power of 2 */
@@ -151,6 +149,20 @@ static inline void dm_consecutive_chunk_count_inc(struct dm_snap_exception *e)
 }
 
 #  endif
+
+/*
+ * Return the number of sectors in the device.
+ */
+static inline sector_t get_dev_size(struct block_device *bdev)
+{
+	return bdev->bd_inode->i_size >> SECTOR_SHIFT;
+}
+
+static inline chunk_t sector_to_chunk(struct dm_exception_store *store,
+				      sector_t sector)
+{
+	return (sector & ~store->chunk_mask) >> store->chunk_shift;
+}
 
 int dm_exception_store_type_register(struct dm_exception_store_type *type);
 int dm_exception_store_type_unregister(struct dm_exception_store_type *type);

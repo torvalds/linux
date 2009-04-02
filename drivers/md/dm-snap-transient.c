@@ -6,7 +6,6 @@
  */
 
 #include "dm-exception-store.h"
-#include "dm-snap.h"
 
 #include <linux/mm.h>
 #include <linux/pagemap.h>
@@ -45,7 +44,7 @@ static int transient_prepare_exception(struct dm_exception_store *store,
 	if (size < (tc->next_free + store->chunk_size))
 		return -1;
 
-	e->new_chunk = sector_to_chunk(store->snap, tc->next_free);
+	e->new_chunk = sector_to_chunk(store, tc->next_free);
 	tc->next_free += store->chunk_size;
 
 	return 0;

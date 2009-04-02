@@ -6,7 +6,6 @@
  */
 
 #include "dm-exception-store.h"
-#include "dm-snap.h"
 
 #include <linux/mm.h>
 #include <linux/pagemap.h>
@@ -89,7 +88,7 @@ struct commit_callback {
  * The top level structure for a persistent exception store.
  */
 struct pstore {
-	struct dm_snapshot *snap;	/* up pointer to my snapshot */
+	struct dm_exception_store *store;
 	int version;
 	int valid;
 	uint32_t exceptions_per_area;
@@ -141,7 +140,7 @@ static int alloc_area(struct pstore *ps)
 	int r = -ENOMEM;
 	size_t len;
 
-	len = ps->snap->store->chunk_size << SECTOR_SHIFT;
+	len = ps->store->chunk_size << SECTOR_SHIFT;
 
 	/*
 	 * Allocate the chunk_size block of memory that will hold
@@ -189,9 +188,9 @@ static void do_metadata(struct work_struct *work)
 static int chunk_io(struct pstore *ps, chunk_t chunk, int rw, int metadata)
 {
 	struct dm_io_region where = {
-		.bdev = ps->snap->store->cow->bdev,
-		.sector = ps->snap->store->chunk_size * chunk,
-		.count = ps->snap->store->chunk_size,
+		.bdev = ps->store->cow->bdev,
+		.sector = ps->store->chunk_size * chunk,
+		.count = ps->store->chunk_size,
 	};
 	struct dm_io_request io_req = {
 		.bi_rw = rw,
@@ -247,15 +246,15 @@ static int area_io(struct pstore *ps, int rw)
 
 static void zero_memory_area(struct pstore *ps)
 {
-	memset(ps->area, 0, ps->snap->store->chunk_size << SECTOR_SHIFT);
+	memset(ps->area, 0, ps->store->chunk_size << SECTOR_SHIFT);
 }
 
 static int zero_disk_area(struct pstore *ps, chunk_t area)
 {
 	struct dm_io_region where = {
-		.bdev = ps->snap->store->cow->bdev,
-		.sector = ps->snap->store->chunk_size * area_location(ps, area),
-		.count = ps->snap->store->chunk_size,
+		.bdev = ps->store->cow->bdev,
+		.sector = ps->store->chunk_size * area_location(ps, area),
+		.count = ps->store->chunk_size,
 	};
 	struct dm_io_request io_req = {
 		.bi_rw = WRITE,
@@ -278,17 +277,16 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	/*
 	 * Use default chunk size (or hardsect_size, if larger) if none supplied
 	 */
-	if (!ps->snap->store->chunk_size) {
-		ps->snap->store->chunk_size = max(DM_CHUNK_SIZE_DEFAULT_SECTORS,
-		    bdev_hardsect_size(ps->snap->store->cow->bdev) >> 9);
-		ps->snap->store->chunk_mask = ps->snap->store->chunk_size - 1;
-		ps->snap->store->chunk_shift = ffs(ps->snap->store->chunk_size)
-					       - 1;
+	if (!ps->store->chunk_size) {
+		ps->store->chunk_size = max(DM_CHUNK_SIZE_DEFAULT_SECTORS,
+		    bdev_hardsect_size(ps->store->cow->bdev) >> 9);
+		ps->store->chunk_mask = ps->store->chunk_size - 1;
+		ps->store->chunk_shift = ffs(ps->store->chunk_size) - 1;
 		chunk_size_supplied = 0;
 	}
 
-	ps->io_client = dm_io_client_create(sectors_to_pages(ps->snap->
-							    store->chunk_size));
+	ps->io_client = dm_io_client_create(sectors_to_pages(ps->store->
+							     chunk_size));
 	if (IS_ERR(ps->io_client))
 		return PTR_ERR(ps->io_client);
 
@@ -318,22 +316,22 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	ps->version = le32_to_cpu(dh->version);
 	chunk_size = le32_to_cpu(dh->chunk_size);
 
-	if (!chunk_size_supplied || ps->snap->store->chunk_size == chunk_size)
+	if (!chunk_size_supplied || ps->store->chunk_size == chunk_size)
 		return 0;
 
 	DMWARN("chunk size %llu in device metadata overrides "
 	       "table chunk size of %llu.",
 	       (unsigned long long)chunk_size,
-	       (unsigned long long)ps->snap->store->chunk_size);
+	       (unsigned long long)ps->store->chunk_size);
 
 	/* We had a bogus chunk_size. Fix stuff up. */
 	free_area(ps);
 
-	ps->snap->store->chunk_size = chunk_size;
-	ps->snap->store->chunk_mask = chunk_size - 1;
-	ps->snap->store->chunk_shift = ffs(chunk_size) - 1;
+	ps->store->chunk_size = chunk_size;
+	ps->store->chunk_mask = chunk_size - 1;
+	ps->store->chunk_shift = ffs(chunk_size) - 1;
 
-	r = dm_io_client_resize(sectors_to_pages(ps->snap->store->chunk_size),
+	r = dm_io_client_resize(sectors_to_pages(ps->store->chunk_size),
 				ps->io_client);
 	if (r)
 		return r;
@@ -350,13 +348,13 @@ static int write_header(struct pstore *ps)
 {
 	struct disk_header *dh;
 
-	memset(ps->area, 0, ps->snap->store->chunk_size << SECTOR_SHIFT);
+	memset(ps->area, 0, ps->store->chunk_size << SECTOR_SHIFT);
 
 	dh = (struct disk_header *) ps->area;
 	dh->magic = cpu_to_le32(SNAP_MAGIC);
 	dh->valid = cpu_to_le32(ps->valid);
 	dh->version = cpu_to_le32(ps->version);
-	dh->chunk_size = cpu_to_le32(ps->snap->store->chunk_size);
+	dh->chunk_size = cpu_to_le32(ps->store->chunk_size);
 
 	return chunk_io(ps, 0, WRITE, 1);
 }
@@ -508,8 +506,8 @@ static int persistent_read_metadata(struct dm_exception_store *store,
 	/*
 	 * Now we know correct chunk_size, complete the initialisation.
 	 */
-	ps->exceptions_per_area = (ps->snap->store->chunk_size << SECTOR_SHIFT)
-				  / sizeof(struct disk_exception);
+	ps->exceptions_per_area = (ps->store->chunk_size << SECTOR_SHIFT) /
+				  sizeof(struct disk_exception);
 	ps->callbacks = dm_vcalloc(ps->exceptions_per_area,
 			sizeof(*ps->callbacks));
 	if (!ps->callbacks)
@@ -667,7 +665,7 @@ static int persistent_ctr(struct dm_exception_store *store,
 	if (!ps)
 		return -ENOMEM;
 
-	ps->snap = store->snap;
+	ps->store = store;
 	ps->valid = 1;
 	ps->version = SNAPSHOT_DISK_VERSION;
 	ps->area = NULL;
