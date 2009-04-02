@@ -20,7 +20,6 @@ struct dm_dirty_log_internal {
 	struct dm_dirty_log_type *type;
 
 	struct list_head list;
-	long use;
 };
 
 static LIST_HEAD(_log_types);
@@ -44,12 +43,8 @@ static struct dm_dirty_log_internal *_get_dirty_log_type(const char *name)
 	spin_lock(&_lock);
 
 	log_type = __find_dirty_log_type(name);
-	if (log_type) {
-		if (!log_type->use && !try_module_get(log_type->type->module))
-			log_type = NULL;
-		else
-			log_type->use++;
-	}
+	if (log_type && !try_module_get(log_type->type->module))
+		log_type = NULL;
 
 	spin_unlock(&_lock);
 
@@ -120,10 +115,7 @@ static void put_type(struct dm_dirty_log_type *type)
 	if (!log_type)
 		goto out;
 
-	if (!--log_type->use)
-		module_put(type->module);
-
-	BUG_ON(log_type->use < 0);
+	module_put(type->module);
 
 out:
 	spin_unlock(&_lock);
@@ -171,11 +163,6 @@ int dm_dirty_log_type_unregister(struct dm_dirty_log_type *type)
 	if (!log_type) {
 		spin_unlock(&_lock);
 		return -EINVAL;
-	}
-
-	if (log_type->use) {
-		spin_unlock(&_lock);
-		return -ETXTBSY;
 	}
 
 	list_del(&log_type->list);
