@@ -267,6 +267,44 @@ err:
 	return 1;
 }
 
+static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
+		    int write, int atomic, unsigned long *gpa, int *pageshift)
+{
+	struct mm_struct *mm = gts->ts_mm;
+	struct vm_area_struct *vma;
+	unsigned long paddr;
+	int ret, ps;
+
+	vma = find_vma(mm, vaddr);
+	if (!vma)
+		goto inval;
+
+	/*
+	 * Atomic lookup is faster & usually works even if called in non-atomic
+	 * context.
+	 */
+	rmb();	/* Must/check ms_range_active before loading PTEs */
+	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
+	if (ret) {
+		if (atomic)
+			goto upm;
+		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
+			goto inval;
+	}
+	if (is_gru_paddr(paddr))
+		goto inval;
+	paddr = paddr & ~((1UL << ps) - 1);
+	*gpa = uv_soc_phys_ram_to_gpa(paddr);
+	*pageshift = ps;
+	return 0;
+
+inval:
+	return -1;
+upm:
+	return -2;
+}
+
+
 /*
  * Drop a TLB entry into the GRU. The fault is described by info in an TFH.
  *	Input:
@@ -281,10 +319,8 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 			  struct gru_tlb_fault_handle *tfh,
 			  unsigned long __user *cb)
 {
-	struct mm_struct *mm = gts->ts_mm;
-	struct vm_area_struct *vma;
-	int pageshift, asid, write, ret;
-	unsigned long paddr, gpa, vaddr;
+	int pageshift = 0, asid, write, ret, atomic = !cb;
+	unsigned long gpa = 0, vaddr = 0;
 
 	/*
 	 * NOTE: The GRU contains magic hardware that eliminates races between
@@ -318,28 +354,12 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	if (atomic_read(&gts->ts_gms->ms_range_active))
 		goto failactive;
 
-	vma = find_vma(mm, vaddr);
-	if (!vma)
+	ret = gru_vtop(gts, vaddr, write, atomic, &gpa, &pageshift);
+	if (ret == -1)
 		goto failinval;
+	if (ret == -2)
+		goto failupm;
 
-	/*
-	 * Atomic lookup is faster & usually works even if called in non-atomic
-	 * context.
-	 */
-	rmb();	/* Must/check ms_range_active before loading PTEs */
-	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &pageshift);
-	if (ret) {
-		if (!cb)
-			goto failupm;
-		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr,
-					  &pageshift))
-			goto failinval;
-	}
-	if (is_gru_paddr(paddr))
-		goto failinval;
-
-	paddr = paddr & ~((1UL << pageshift) - 1);
-	gpa = uv_soc_phys_ram_to_gpa(paddr);
 	gru_cb_set_istatus_active(cb);
 	tfh_write_restart(tfh, gpa, GAA_RAM, vaddr, asid, write,
 			  GRU_PAGESIZE(pageshift));
