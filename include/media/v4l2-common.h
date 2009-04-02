@@ -174,10 +174,10 @@ const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type);
 
 /* ------------------------------------------------------------------------- */
 
-/* Note: these remaining ioctls should be removed as well, but they are still
-   used in tuner-simple.c (TUNER_SET_CONFIG) and cx18/ivtv (RESET and
-   S_AUDIO_ROUTING). To remove these ioctls some more cleanup is needed in
-   those modules. */
+/* Note: these remaining ioctls/structs should be removed as well, but they are
+   still used in tuner-simple.c (TUNER_SET_CONFIG), cx18/ivtv (RESET) and
+   v4l2-int-device.h (v4l2_routing). To remove these ioctls some more cleanup
+   is needed in those modules. */
 
 /* s_config */
 struct v4l2_priv_tun_config {
@@ -186,13 +186,11 @@ struct v4l2_priv_tun_config {
 };
 #define TUNER_SET_CONFIG           _IOW('d', 92, struct v4l2_priv_tun_config)
 
-/* s_routing: routing definition, device dependent. It specifies which inputs
-   (if any) should be routed to which outputs (if any). */
+#define VIDIOC_INT_RESET            	_IOW ('d', 102, u32)
+
 struct v4l2_routing {
 	u32 input;
 	u32 output;
 };
-#define	VIDIOC_INT_S_AUDIO_ROUTING	_IOW ('d', 109, struct v4l2_routing)
-#define VIDIOC_INT_RESET            	_IOW ('d', 102, u32)
 
 #endif /* V4L2_COMMON_H_ */

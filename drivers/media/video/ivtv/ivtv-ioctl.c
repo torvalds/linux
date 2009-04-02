@@ -1734,14 +1734,6 @@ static long ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
 	switch (cmd) {
-	case VIDIOC_INT_S_AUDIO_ROUTING: {
-		struct v4l2_routing *route = arg;
-
-		ivtv_call_hw(itv, itv->card->hw_audio, audio, s_routing,
-				route->input, route->output, 0);
-		break;
-	}
-
 	case VIDIOC_INT_RESET: {
 		u32 val = *(u32 *)arg;
 
