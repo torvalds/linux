@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/ktime.h>
-#include <linux/fs.h>
+#include <linux/fs_struct.h>
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/mount.h>
