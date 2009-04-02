@@ -88,8 +88,6 @@ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
 /*
  * For memory reclaim.
  */
-extern long mem_cgroup_reclaim_imbalance(struct mem_cgroup *mem);
-
 extern int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem);
 extern void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem,
 							int priority);
@@ -208,11 +206,6 @@ static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
 					struct page *oldpage,
 					struct page *newpage)
 {
-}
-
-static inline int mem_cgroup_reclaim_imbalance(struct mem_cgroup *mem)
-{
-	return 0;
 }
 
 static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
