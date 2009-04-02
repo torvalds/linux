@@ -1737,7 +1737,7 @@ SYSCALL_DEFINE4(wait4, pid_t, upid, int __user *, stat_addr,
 		pid = find_get_pid(-upid);
 	} else if (upid == 0) {
 		type = PIDTYPE_PGID;
-		pid = get_pid(task_pgrp(current));
+		pid = get_task_pid(current, PIDTYPE_PGID);
 	} else /* upid > 0 */ {
 		type = PIDTYPE_PID;
 		pid = find_get_pid(upid);
