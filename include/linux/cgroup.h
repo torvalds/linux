@@ -15,6 +15,7 @@
 #include <linux/cgroupstats.h>
 #include <linux/prio_heap.h>
 #include <linux/rwsem.h>
+#include <linux/idr.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -22,6 +23,7 @@ struct cgroupfs_root;
 struct cgroup_subsys;
 struct inode;
 struct cgroup;
+struct css_id;
 
 extern int cgroup_init_early(void);
 extern int cgroup_init(void);
@@ -63,6 +65,8 @@ struct cgroup_subsys_state {
 	atomic_t refcnt;
 
 	unsigned long flags;
+	/* ID for this css, if possible */
+	struct css_id *id;
 };
 
 /* bits in struct cgroup_subsys_state flags field */
@@ -373,6 +377,11 @@ struct cgroup_subsys {
 	int active;
 	int disabled;
 	int early_init;
+	/*
+	 * True if this subsys uses ID. ID is not available before cgroup_init()
+	 * (not available in early_init time.)
+	 */
+	bool use_id;
 #define MAX_CGROUP_TYPE_NAMELEN 32
 	const char *name;
 
@@ -395,6 +404,9 @@ struct cgroup_subsys {
 	 */
 	struct cgroupfs_root *root;
 	struct list_head sibling;
+	/* used when use_id == true */
+	struct idr idr;
+	spinlock_t id_lock;
 };
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _subsys;
@@ -449,6 +461,44 @@ struct task_struct *cgroup_iter_next(struct cgroup *cgrp,
 void cgroup_iter_end(struct cgroup *cgrp, struct cgroup_iter *it);
 int cgroup_scan_tasks(struct cgroup_scanner *scan);
 int cgroup_attach_task(struct cgroup *, struct task_struct *);
+
+/*
+ * CSS ID is ID for cgroup_subsys_state structs under subsys. This only works
+ * if cgroup_subsys.use_id == true. It can be used for looking up and scanning.
+ * CSS ID is assigned at cgroup allocation (create) automatically
+ * and removed when subsys calls free_css_id() function. This is because
+ * the lifetime of cgroup_subsys_state is subsys's matter.
+ *
+ * Looking up and scanning function should be called under rcu_read_lock().
+ * Taking cgroup_mutex()/hierarchy_mutex() is not necessary for following calls.
+ * But the css returned by this routine can be "not populated yet" or "being
+ * destroyed". The caller should check css and cgroup's status.
+ */
+
+/*
+ * Typically Called at ->destroy(), or somewhere the subsys frees
+ * cgroup_subsys_state.
+ */
+void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
+
+/* Find a cgroup_subsys_state which has given ID */
+
+struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id);
+
+/*
+ * Get a cgroup whose id is greater than or equal to id under tree of root.
+ * Returning a cgroup_subsys_state or NULL.
+ */
+struct cgroup_subsys_state *css_get_next(struct cgroup_subsys *ss, int id,
+		struct cgroup_subsys_state *root, int *foundid);
+
+/* Returns true if root is ancestor of cg */
+bool css_is_ancestor(struct cgroup_subsys_state *cg,
+		     struct cgroup_subsys_state *root);
+
+/* Get id and depth of css */
+unsigned short css_id(struct cgroup_subsys_state *css);
+unsigned short css_depth(struct cgroup_subsys_state *css);
 
 #else /* !CONFIG_CGROUPS */
 
