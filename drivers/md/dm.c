@@ -1377,6 +1377,11 @@ EXPORT_SYMBOL_GPL(dm_put);
 static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 {
 	int r = 0;
+	DECLARE_WAITQUEUE(wait, current);
+
+	dm_unplug_all(md->queue);
+
+	add_wait_queue(&md->wait, &wait);
 
 	while (1) {
 		set_current_state(interruptible);
@@ -1394,6 +1399,8 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 		io_schedule();
 	}
 	set_current_state(TASK_RUNNING);
+
+	remove_wait_queue(&md->wait, &wait);
 
 	return r;
 }
@@ -1501,7 +1508,6 @@ static void unlock_fs(struct mapped_device *md)
 int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 {
 	struct dm_table *map = NULL;
-	DECLARE_WAITQUEUE(wait, current);
 	int r = 0;
 	int do_lockfs = suspend_flags & DM_SUSPEND_LOCKFS_FLAG ? 1 : 0;
 	int noflush = suspend_flags & DM_SUSPEND_NOFLUSH_FLAG ? 1 : 0;
@@ -1551,12 +1557,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	down_write(&md->io_lock);
 	set_bit(DMF_BLOCK_IO, &md->flags);
 
-	add_wait_queue(&md->wait, &wait);
 	up_write(&md->io_lock);
-
-	/* unplug */
-	if (map)
-		dm_table_unplug_all(map);
 
 	/*
 	 * Wait for the already-mapped ios to complete.
@@ -1564,7 +1565,6 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	r = dm_wait_for_completion(md, TASK_INTERRUPTIBLE);
 
 	down_write(&md->io_lock);
-	remove_wait_queue(&md->wait, &wait);
 
 	if (noflush)
 		clear_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
