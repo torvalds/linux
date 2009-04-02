@@ -3428,13 +3428,6 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	int size, i;
 	size_t ret;
 
-	/*
-	 * We can't seek on a buffer input
-	 */
-	if (unlikely(*ppos))
-		return -ESPIPE;
-
-
 	for (i = 0; i < PIPE_BUFFERS && len; i++, len -= size) {
 		struct page *page;
 		int r;
@@ -3474,6 +3467,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		spd.partial[i].offset = 0;
 		spd.partial[i].private = (unsigned long)ref;
 		spd.nr_pages++;
+		*ppos += size;
 	}
 
 	spd.nr_pages = i;
