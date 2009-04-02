@@ -208,6 +208,10 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	NLA_PUT_U16(msg, NL80211_ATTR_MAX_SCAN_IE_LEN,
 		    dev->wiphy.max_scan_ie_len);
 
+	NLA_PUT(msg, NL80211_ATTR_CIPHER_SUITES,
+		sizeof(u32) * dev->wiphy.n_cipher_suites,
+		dev->wiphy.cipher_suites);
+
 	nl_modes = nla_nest_start(msg, NL80211_ATTR_SUPPORTED_IFTYPES);
 	if (!nl_modes)
 		goto nla_put_failure;
@@ -979,7 +983,7 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *drv;
-	int err;
+	int err, i;
 	struct net_device *dev;
 	struct key_params params;
 	u8 key_idx = 0;
@@ -1047,6 +1051,14 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
 	if (err)
 		goto unlock_rtnl;
+
+	for (i = 0; i < drv->wiphy.n_cipher_suites; i++)
+		if (params.cipher == drv->wiphy.cipher_suites[i])
+			break;
+	if (i == drv->wiphy.n_cipher_suites) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	if (!drv->ops->add_key) {
 		err = -EOPNOTSUPP;

@@ -453,6 +453,9 @@ enum nl80211_commands {
  * 	attributes consists of a nested attribute containing
  * 	NL80211_FREQUENCY_ATTR_*
  *
+ * @NL80211_ATTR_CIPHER_SUITES: a set of u32 values indicating the supported
+ *	cipher suites
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -540,6 +543,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_KEY_TYPE,
 
 	NL80211_ATTR_MAX_SCAN_IE_LEN,
+	NL80211_ATTR_CIPHER_SUITES,
 
 	NL80211_ATTR_FREQ_BEFORE,
 	NL80211_ATTR_FREQ_AFTER,

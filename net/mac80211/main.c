@@ -823,6 +823,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	struct ieee80211_master_priv *mpriv;
 	int channels, i, j, max_bitrates;
 	bool supp_ht;
+	static const u32 cipher_suites[] = {
+		WLAN_CIPHER_SUITE_WEP40,
+		WLAN_CIPHER_SUITE_WEP104,
+		WLAN_CIPHER_SUITE_TKIP,
+		WLAN_CIPHER_SUITE_CCMP,
+
+		/* keep last -- depends on hw flags! */
+		WLAN_CIPHER_SUITE_AES_CMAC
+	};
 
 	/*
 	 * generic code guarantees at least one band,
@@ -893,6 +902,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	 */
 	if (local->hw.wiphy->max_scan_ie_len)
 		local->hw.wiphy->max_scan_ie_len -= local->scan_ies_len;
+
+	local->hw.wiphy->cipher_suites = cipher_suites;
+	local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
+	if (!(local->hw.flags & IEEE80211_HW_MFP_CAPABLE))
+		local->hw.wiphy->n_cipher_suites--;
 
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)

@@ -205,6 +205,8 @@ struct ieee80211_supported_band {
  *	on the reg_notifier() if it chooses to ignore future
  *	regulatory domain changes caused by other drivers.
  * @signal_type: signal type reported in &struct cfg80211_bss.
+ * @cipher_suites: supported cipher suites
+ * @n_cipher_suites: number of supported cipher suites
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -223,6 +225,9 @@ struct wiphy {
 	int bss_priv_size;
 	u8 max_scan_ssids;
 	u16 max_scan_ie_len;
+
+	int n_cipher_suites;
+	const u32 *cipher_suites;
 
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't
