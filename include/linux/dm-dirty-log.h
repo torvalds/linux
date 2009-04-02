@@ -28,6 +28,9 @@ struct dm_dirty_log_type {
 	const char *name;
 	struct module *module;
 
+	/* For internal device-mapper use */
+	struct list_head list;
+
 	int (*ctr)(struct dm_dirty_log *log, struct dm_target *ti,
 		   unsigned argc, char **argv);
 	void (*dtr)(struct dm_dirty_log *log);
