@@ -826,9 +826,9 @@ static int __clone_and_map(struct clone_info *ci)
 }
 
 /*
- * Split the bio into several clones.
+ * Split the bio into several clones and submit it to targets.
  */
-static int __split_bio(struct mapped_device *md, struct bio *bio)
+static int __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 {
 	struct clone_info ci;
 	int error = 0;
@@ -951,7 +951,7 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 		down_read(&md->io_lock);
 	}
 
-	r = __split_bio(md, bio);
+	r = __split_and_process_bio(md, bio);
 	up_read(&md->io_lock);
 
 out_req:
@@ -1405,7 +1405,7 @@ static void __flush_deferred_io(struct mapped_device *md)
 	struct bio *c;
 
 	while ((c = bio_list_pop(&md->deferred))) {
-		if (__split_bio(md, c))
+		if (__split_and_process_bio(md, c))
 			bio_io_error(c);
 	}
 
