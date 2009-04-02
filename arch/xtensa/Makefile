@@ -64,22 +64,22 @@ ifneq ($(VARIANT),)
   endif
 endif
 
-#
+# Only build variant and/or platform if it includes a Makefile
+
+buildvar := $(shell test -a $(srctree)/arch/xtensa/variants/$(VARIANT)/Makefile && echo arch/xtensa/variants/$(VARIANT)/)
+buildplf := $(shell test -a $(srctree)/arch/xtensa/platforms/$(PLATFORM)/Makefile && echo arch/xtensa/platforms/$(PLATFORM)/)
+
+# Find libgcc.a
 
 LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 head-y		:= arch/xtensa/kernel/head.o
 core-y		+= arch/xtensa/kernel/ arch/xtensa/mm/
-ifneq ($(VARIANT),)
-core-y		+= arch/xtensa/variants/$(VARIANT)/
-endif
-ifneq ($(PLATFORM),)
-core-y		+= arch/xtensa/platforms/$(PLATFORM)/
-endif
+core-y		+= $(buildvar) $(buildplf)
+
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
 
 boot		:= arch/xtensa/boot
-
 
 all: zImage
 
