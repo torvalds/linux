@@ -3428,7 +3428,19 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	int size, i;
 	size_t ret;
 
-	for (i = 0; i < PIPE_BUFFERS && len; i++, len -= size) {
+	if (*ppos & (PAGE_SIZE - 1)) {
+		WARN_ONCE(1, "Ftrace: previous read must page-align\n");
+		return -EINVAL;
+	}
+
+	if (len & (PAGE_SIZE - 1)) {
+		WARN_ONCE(1, "Ftrace: splice_read should page-align\n");
+		if (len < PAGE_SIZE)
+			return -EINVAL;
+		len &= PAGE_MASK;
+	}
+
+	for (i = 0; i < PIPE_BUFFERS && len; i++, len -= PAGE_SIZE) {
 		struct page *page;
 		int r;
 
@@ -3467,7 +3479,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		spd.partial[i].offset = 0;
 		spd.partial[i].private = (unsigned long)ref;
 		spd.nr_pages++;
-		*ppos += size;
+		*ppos += PAGE_SIZE;
 	}
 
 	spd.nr_pages = i;
