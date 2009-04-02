@@ -61,11 +61,6 @@ DEFINE_TRACE(sched_process_wait);
 
 static void exit_mm(struct task_struct * tsk);
 
-static inline int task_detached(struct task_struct *p)
-{
-	return p->exit_signal == -1;
-}
-
 static void __unhash_process(struct task_struct *p)
 {
 	nr_threads--;
@@ -731,85 +726,6 @@ static void exit_mm(struct task_struct * tsk)
 	mmput(mm);
 }
 
-/*
- * Called with irqs disabled, returns true if childs should reap themselves.
- */
-static int ignoring_children(struct sighand_struct *sigh)
-{
-	int ret;
-	spin_lock(&sigh->siglock);
-	ret = (sigh->action[SIGCHLD-1].sa.sa_handler == SIG_IGN) ||
-	      (sigh->action[SIGCHLD-1].sa.sa_flags & SA_NOCLDWAIT);
-	spin_unlock(&sigh->siglock);
-	return ret;
-}
-
-/* Returns nonzero if the tracee should be released. */
-int __ptrace_detach(struct task_struct *tracer, struct task_struct *p)
-{
-	__ptrace_unlink(p);
-
-	if (p->exit_state != EXIT_ZOMBIE)
-		return 0;
-	/*
-	 * If it's a zombie, our attachedness prevented normal
-	 * parent notification or self-reaping.  Do notification
-	 * now if it would have happened earlier.  If it should
-	 * reap itself we return true.
-	 *
-	 * If it's our own child, there is no notification to do.
-	 * But if our normal children self-reap, then this child
-	 * was prevented by ptrace and we must reap it now.
-	 */
-	if (!task_detached(p) && thread_group_empty(p)) {
-		if (!same_thread_group(p->real_parent, tracer))
-			do_notify_parent(p, p->exit_signal);
-		else if (ignoring_children(tracer->sighand))
-			p->exit_signal = -1;
-	}
-
-	if (!task_detached(p))
-		return 0;
-
-	/* Mark it as in the process of being reaped. */
-	p->exit_state = EXIT_DEAD;
-	return 1;
-}
-
-/*
- * Detach all tasks we were using ptrace on.
- * Any that need to be release_task'd are put on the @dead list.
- *
- * Called with write_lock(&tasklist_lock) held.
- */
-static void ptrace_exit(struct task_struct *parent, struct list_head *dead)
-{
-	struct task_struct *p, *n;
-
-	list_for_each_entry_safe(p, n, &parent->ptraced, ptrace_entry) {
-		if (__ptrace_detach(parent, p))
-			list_add(&p->ptrace_entry, dead);
-	}
-}
-
-/*
- * Finish up exit-time ptrace cleanup.
- *
- * Called without locks.
- */
-static void ptrace_exit_finish(struct task_struct *parent,
-			       struct list_head *dead)
-{
-	struct task_struct *p, *n;
-
-	BUG_ON(!list_empty(&parent->ptraced));
-
-	list_for_each_entry_safe(p, n, dead, ptrace_entry) {
-		list_del_init(&p->ptrace_entry);
-		release_task(p);
-	}
-}
-
 /* Returns nonzero if the child should be released. */
 static int reparent_thread(struct task_struct *p, struct task_struct *father)
 {
@@ -894,12 +810,10 @@ static void forget_original_parent(struct task_struct *father)
 	struct task_struct *p, *n, *reaper;
 	LIST_HEAD(ptrace_dead);
 
+	exit_ptrace(father);
+
 	write_lock_irq(&tasklist_lock);
 	reaper = find_new_reaper(father);
-	/*
-	 * First clean up ptrace if we were using it.
-	 */
-	ptrace_exit(father, &ptrace_dead);
 
 	list_for_each_entry_safe(p, n, &father->children, sibling) {
 		p->real_parent = reaper;
@@ -914,7 +828,10 @@ static void forget_original_parent(struct task_struct *father)
 	write_unlock_irq(&tasklist_lock);
 	BUG_ON(!list_empty(&father->children));
 
-	ptrace_exit_finish(father, &ptrace_dead);
+	list_for_each_entry_safe(p, n, &ptrace_dead, ptrace_entry) {
+		list_del_init(&p->ptrace_entry);
+		release_task(p);
+	}
 }
 
 /*
