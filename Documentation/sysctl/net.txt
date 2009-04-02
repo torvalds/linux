@@ -93,8 +93,9 @@ of struct cmsghdr structures with appended data.
 2. /proc/sys/net/unix - Parameters for Unix domain sockets
 -------------------------------------------------------
 
-There are  only  two  files  in this subdirectory. They control the delays for
-deleting and destroying socket descriptors.
+There is only one file in this directory.
+unix_dgram_qlen limits the max number of datagrams queued in Unix domain
+socket's buffer. It will not take effect unless PF_UNIX flag is spicified.
 
 
 3. /proc/sys/net/ipv4 - IPV4 settings
