@@ -2,6 +2,7 @@
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007 rPath, Inc. - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author H. Peter Anvin
  *
  *   This file is part of the Linux kernel, and is made available under
  *   the terms of the GNU General Public License version 2.
@@ -61,11 +62,10 @@ static void copy_boot_params(void)
  */
 static void keyboard_set_repeat(void)
 {
-	u16 ax = 0x0305;
-	u16 bx = 0;
-	asm volatile("int $0x16"
-		     : "+a" (ax), "+b" (bx)
-		     : : "ecx", "edx", "esi", "edi");
+	struct biosregs ireg;
+	initregs(&ireg);
+	ireg.ax = 0x0305;
+	intcall(0x16, &ireg, NULL);
 }
 
 /*
@@ -73,18 +73,22 @@ static void keyboard_set_repeat(void)
  */
 static void query_ist(void)
 {
+	struct biosregs ireg, oreg;
+
 	/* Some older BIOSes apparently crash on this call, so filter
 	   it from machines too old to have SpeedStep at all. */
 	if (cpu.level < 6)
 		return;
 
-	asm("int $0x15"
-	    : "=a" (boot_params.ist_info.signature),
-	      "=b" (boot_params.ist_info.command),
-	      "=c" (boot_params.ist_info.event),
-	      "=d" (boot_params.ist_info.perf_level)
-	    : "a" (0x0000e980),	 /* IST Support */
-	      "d" (0x47534943)); /* Request value */
+	initregs(&ireg);
+	ireg.ax  = 0xe980;	 /* IST Support */
+	ireg.edx = 0x47534943;	 /* Request value */
+	intcall(0x15, &ireg, &oreg);
+
+	boot_params.ist_info.signature  = oreg.eax;
+	boot_params.ist_info.command    = oreg.ebx;
+	boot_params.ist_info.event      = oreg.ecx;
+	boot_params.ist_info.perf_level = oreg.edx;
 }
 
 /*
@@ -93,13 +97,12 @@ static void query_ist(void)
 static void set_bios_mode(void)
 {
 #ifdef CONFIG_X86_64
-	u32 eax, ebx;
+	struct biosregs ireg;
 
-	eax = 0xec00;
-	ebx = 2;
-	asm volatile("int $0x15"
-		     : "+a" (eax), "+b" (ebx)
-		     : : "ecx", "edx", "esi", "edi");
+	initregs(&ireg);
+	ireg.ax = 0xec00;
+	ireg.bx = 2;
+	intcall(0x15, &ireg, NULL);
 #endif
 }
 

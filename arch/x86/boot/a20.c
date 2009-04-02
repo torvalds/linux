@@ -2,7 +2,7 @@
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007-2008 rPath, Inc. - All Rights Reserved
- *   Copyright 2009 Intel Corporation
+ *   Copyright 2009 Intel Corporation; author H. Peter Anvin
  *
  *   This file is part of the Linux kernel, and is made available under
  *   the terms of the GNU General Public License version 2.
@@ -90,8 +90,11 @@ static int a20_test_long(void)
 
 static void enable_a20_bios(void)
 {
-	asm volatile("pushfl; int $0x15; popfl"
-		     : : "a" ((u16)0x2401));
+	struct biosregs ireg;
+
+	initregs(&ireg);
+	ireg.ax = 0x2401;
+	intcall(0x15, &ireg, NULL);
 }
 
 static void enable_a20_kbc(void)
