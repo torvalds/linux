@@ -153,6 +153,7 @@
 extern struct gru_stats_s gru_stats;
 extern struct gru_blade_state *gru_base[];
 extern unsigned long gru_start_paddr, gru_end_paddr;
+extern unsigned int gru_max_gids;
 
 #define GRU_MAX_BLADES		MAX_NUMNODES
 #define GRU_MAX_GRUS		(GRU_MAX_BLADES * GRU_CHIPLETS_PER_BLADE)
@@ -406,12 +407,12 @@ struct gru_state {
 							   gru segments (64) */
 	void			*gs_gru_base_vaddr;	/* Virtual address of
 							   gru segments (64) */
-	unsigned char		gs_gid;			/* unique GRU number */
+	unsigned short		gs_gid;			/* unique GRU number */
+	unsigned short		gs_blade_id;		/* blade of GRU */
 	unsigned char		gs_tgh_local_shift;	/* used to pick TGH for
 							   local flush */
 	unsigned char		gs_tgh_first_remote;	/* starting TGH# for
 							   remote flush */
-	unsigned short		gs_blade_id;		/* blade of GRU */
 	spinlock_t		gs_asid_lock;		/* lock used for
 							   assigning asids */
 	spinlock_t		gs_lock;		/* lock used for
@@ -505,6 +506,10 @@ struct gru_blade_state {
 	for ((gru) = gru_base[nid]->bs_grus, (i) = 0;			\
 			(i) < GRU_CHIPLETS_PER_BLADE;			\
 			(i)++, (gru)++)
+
+/* Scan all GRUs */
+#define foreach_gid(gid)						\
+	for ((gid) = 0; (gid) < gru_max_gids; (gid)++)
 
 /* Scan all active GTSs on a gru. Note: must hold ss_lock to use this macro. */
 #define for_each_gts_on_gru(gts, gru, ctxnum)				\

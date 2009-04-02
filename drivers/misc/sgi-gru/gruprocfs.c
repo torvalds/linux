@@ -226,7 +226,7 @@ static void seq_stop(struct seq_file *file, void *data)
 
 static void *seq_start(struct seq_file *file, loff_t *gid)
 {
-	if (*gid < GRU_MAX_GRUS)
+	if (*gid < gru_max_gids)
 		return gid;
 	return NULL;
 }
@@ -234,7 +234,7 @@ static void *seq_start(struct seq_file *file, loff_t *gid)
 static void *seq_next(struct seq_file *file, void *data, loff_t *gid)
 {
 	(*gid)++;
-	if (*gid < GRU_MAX_GRUS)
+	if (*gid < gru_max_gids)
 		return gid;
 	return NULL;
 }

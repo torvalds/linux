@@ -47,6 +47,7 @@
 struct gru_blade_state *gru_base[GRU_MAX_BLADES] __read_mostly;
 unsigned long gru_start_paddr __read_mostly;
 unsigned long gru_end_paddr __read_mostly;
+unsigned int gru_max_gids __read_mostly;
 struct gru_stats_s gru_stats;
 
 /* Guaranteed user available resources on each node */
@@ -276,6 +277,8 @@ static void gru_init_chiplet(struct gru_state *gru, unsigned long paddr,
 	gru->gs_dsr_map = (1UL << GRU_DSR_AU) - 1;
 	gru->gs_asid_limit = MAX_ASID;
 	gru_tgh_flush_init(gru);
+	if (gru->gs_gid >= gru_max_gids)
+		gru_max_gids = gru->gs_gid + 1;
 	gru_dbg(grudev, "bid %d, nid %d, gid %d, vaddr %p (0x%lx)\n",
 		bid, nid, gru->gs_gid, gru->gs_gru_base_vaddr,
 		gru->gs_gru_base_paddr);

@@ -600,18 +600,11 @@ static int gru_unload_all_contexts(void)
 {
 	struct gru_thread_state *gts;
 	struct gru_state *gru;
-	int maxgid, gid, ctxnum;
-	int nodesperblade;
+	int gid, ctxnum;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (num_online_nodes() > 1 &&
-			(uv_node_to_blade_id(1) == uv_node_to_blade_id(0)))
-		nodesperblade = 2;
-	else
-		nodesperblade = 1;
-	maxgid = GRU_CHIPLETS_PER_BLADE * num_online_nodes() / nodesperblade;
-	for (gid = 0; gid < maxgid; gid++) {
+	foreach_gid(gid) {
 		gru = GID_TO_GRU(gid);
 		spin_lock(&gru->gs_lock);
 		for (ctxnum = 0; ctxnum < GRU_NUM_CCH; ctxnum++) {
