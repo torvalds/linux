@@ -99,11 +99,6 @@ union map_info *dm_get_mapinfo(struct bio *bio)
 /*
  * Work processed by per-device workqueue.
  */
-struct dm_wq_req {
-	struct work_struct work;
-	struct mapped_device *md;
-};
-
 struct mapped_device {
 	struct rw_semaphore io_lock;
 	struct mutex suspend_lock;
@@ -125,6 +120,7 @@ struct mapped_device {
 	 */
 	atomic_t pending;
 	wait_queue_head_t wait;
+	struct work_struct work;
 	struct bio_list deferred;
 	struct bio_list pushback;
 
@@ -1070,6 +1066,8 @@ out:
 
 static struct block_device_operations dm_blk_dops;
 
+static void dm_wq_work(struct work_struct *work);
+
 /*
  * Allocate and initialise a blank device with a given minor.
  */
@@ -1136,6 +1134,7 @@ static struct mapped_device *alloc_dev(int minor)
 
 	atomic_set(&md->pending, 0);
 	init_waitqueue_head(&md->wait);
+	INIT_WORK(&md->work, dm_wq_work);
 	init_waitqueue_head(&md->eventq);
 
 	md->disk->major = _major;
@@ -1426,26 +1425,17 @@ static void __merge_pushback_list(struct mapped_device *md)
 
 static void dm_wq_work(struct work_struct *work)
 {
-	struct dm_wq_req *req = container_of(work, struct dm_wq_req, work);
-	struct mapped_device *md = req->md;
+	struct mapped_device *md = container_of(work, struct mapped_device,
+						work);
 
 	down_write(&md->io_lock);
 	__flush_deferred_io(md);
 	up_write(&md->io_lock);
 }
 
-static void dm_wq_queue(struct mapped_device *md, struct dm_wq_req *req)
-{
-	req->md = md;
-	INIT_WORK(&req->work, dm_wq_work);
-	queue_work(md->wq, &req->work);
-}
-
 static void dm_queue_flush(struct mapped_device *md)
 {
-	struct dm_wq_req req;
-
-	dm_wq_queue(md, &req);
+	queue_work(md->wq, &md->work);
 	flush_workqueue(md->wq);
 }
 
