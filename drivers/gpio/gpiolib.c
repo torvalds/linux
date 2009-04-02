@@ -69,20 +69,24 @@ static inline void desc_set_label(struct gpio_desc *d, const char *label)
  * those calls have no teeth) we can't avoid autorequesting.  This nag
  * message should motivate switching to explicit requests... so should
  * the weaker cleanup after faults, compared to gpio_request().
+ *
+ * NOTE: the autorequest mechanism is going away; at this point it's
+ * only "legal" in the sense that (old) code using it won't break yet,
+ * but instead only triggers a WARN() stack dump.
  */
 static int gpio_ensure_requested(struct gpio_desc *desc, unsigned offset)
 {
-	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0) {
-		struct gpio_chip *chip = desc->chip;
-		int gpio = chip->base + offset;
+	const struct gpio_chip *chip = desc->chip;
+	const int gpio = chip->base + offset;
 
+	if (WARN(test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0,
+			"autorequest GPIO-%d\n", gpio)) {
 		if (!try_module_get(chip->owner)) {
 			pr_err("GPIO-%d: module can't be gotten \n", gpio);
 			clear_bit(FLAG_REQUESTED, &desc->flags);
 			/* lose */
 			return -EIO;
 		}
-		pr_warning("GPIO-%d autorequested\n", gpio);
 		desc_set_label(desc, "[auto]");
 		/* caller must chip->request() w/o spinlock */
 		if (chip->request)
