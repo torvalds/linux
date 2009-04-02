@@ -1413,8 +1413,6 @@ static int bio_ready_for_csum(struct bio *bio)
 
 	ret = extent_range_uptodate(io_tree, start + length,
 				    start + buf_len - 1);
-	if (ret == 1)
-		return ret;
 	return ret;
 }
 
