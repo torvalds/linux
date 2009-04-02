@@ -61,7 +61,7 @@ struct dm_snapshot {
 	spinlock_t pe_lock;
 
 	/* The on disk metadata handler */
-	struct dm_exception_store store;
+	struct dm_exception_store *store;
 
 	struct dm_kcopyd_client *kcopyd_client;
 

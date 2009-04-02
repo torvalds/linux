@@ -610,8 +610,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad3;
 
-	s->type = persistent;
-
 	s->valid = 1;
 	s->active = 0;
 	atomic_set(&s->pending_exceptions_count, 0);
@@ -626,18 +624,14 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad3;
 	}
 
-	s->store.snap = s;
-
-	if (persistent == 'P')
-		r = dm_create_persistent(&s->store);
-	else
-		r = dm_create_transient(&s->store);
-
+	r = dm_exception_store_create(argv[2], &s->store);
 	if (r) {
 		ti->error = "Couldn't create exception store";
 		r = -EINVAL;
 		goto bad4;
 	}
+
+	s->store->snap = s;
 
 	r = dm_kcopyd_client_create(SNAPSHOT_PAGES, &s->kcopyd_client);
 	if (r) {
@@ -665,7 +659,8 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	spin_lock_init(&s->tracked_chunk_lock);
 
 	/* Metadata must only be loaded into one table at once */
-	r = s->store.type.read_metadata(&s->store, dm_add_exception, (void *)s);
+	r = s->store->type->read_metadata(s->store, dm_add_exception,
+					  (void *)s);
 	if (r < 0) {
 		ti->error = "Failed to read snapshot metadata";
 		goto bad_load_and_register;
@@ -700,7 +695,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	dm_kcopyd_client_destroy(s->kcopyd_client);
 
  bad5:
-	s->store.type.dtr(&s->store);
+	s->store->type->dtr(s->store);
 
  bad4:
 	exit_exception_table(&s->pending, pending_cache);
@@ -725,7 +720,7 @@ static void __free_exceptions(struct dm_snapshot *s)
 	exit_exception_table(&s->pending, pending_cache);
 	exit_exception_table(&s->complete, exception_cache);
 
-	s->store.type.dtr(&s->store);
+	s->store->type->dtr(s->store);
 }
 
 static void snapshot_dtr(struct dm_target *ti)
@@ -820,8 +815,8 @@ static void __invalidate_snapshot(struct dm_snapshot *s, int err)
 	else if (err == -ENOMEM)
 		DMERR("Invalidating snapshot: Unable to allocate exception.");
 
-	if (s->store.type.drop_snapshot)
-		s->store.type.drop_snapshot(&s->store);
+	if (s->store->type->drop_snapshot)
+		s->store->type->drop_snapshot(s->store);
 
 	s->valid = 0;
 
@@ -943,8 +938,8 @@ static void copy_callback(int read_err, unsigned long write_err, void *context)
 
 	else
 		/* Update the metadata if we are persistent */
-		s->store.type.commit_exception(&s->store, &pe->e,
-					       commit_callback, pe);
+		s->store->type->commit_exception(s->store, &pe->e,
+						 commit_callback, pe);
 }
 
 /*
@@ -1010,7 +1005,7 @@ __find_pending_exception(struct dm_snapshot *s,
 	atomic_set(&pe->ref_count, 0);
 	pe->started = 0;
 
-	if (s->store.type.prepare_exception(&s->store, &pe->e)) {
+	if (s->store->type->prepare_exception(s->store, &pe->e)) {
 		free_pending_exception(pe);
 		return NULL;
 	}
@@ -1149,11 +1144,11 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 		if (!snap->valid)
 			snprintf(result, maxlen, "Invalid");
 		else {
-			if (snap->store.type.fraction_full) {
+			if (snap->store->type->fraction_full) {
 				sector_t numerator, denominator;
-				snap->store.type.fraction_full(&snap->store,
-							  &numerator,
-							  &denominator);
+				snap->store->type->fraction_full(snap->store,
+								 &numerator,
+								 &denominator);
 				snprintf(result, maxlen, "%llu/%llu",
 					(unsigned long long)numerator,
 					(unsigned long long)denominator);
@@ -1169,9 +1164,9 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 		 * to make private copies if the output is to
 		 * make sense.
 		 */
-		snprintf(result, maxlen, "%s %s %c %llu",
+		snprintf(result, maxlen, "%s %s %s %llu",
 			 snap->origin->name, snap->cow->name,
-			 snap->type,
+			 snap->store->type->name,
 			 (unsigned long long)snap->chunk_size);
 		break;
 	}

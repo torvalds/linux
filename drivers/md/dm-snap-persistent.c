@@ -478,7 +478,7 @@ static void persistent_fraction_full(struct dm_exception_store *store,
 	*denominator = get_dev_size(store->snap->cow->bdev);
 }
 
-static void persistent_destroy(struct dm_exception_store *store)
+static void persistent_dtr(struct dm_exception_store *store)
 {
 	struct pstore *ps = get_info(store);
 
@@ -656,7 +656,8 @@ static void persistent_drop_snapshot(struct dm_exception_store *store)
 		DMWARN("write header failed");
 }
 
-int dm_create_persistent(struct dm_exception_store *store)
+static int persistent_ctr(struct dm_exception_store *store,
+			  unsigned argc, char **argv)
 {
 	struct pstore *ps;
 
@@ -683,23 +684,69 @@ int dm_create_persistent(struct dm_exception_store *store)
 		return -ENOMEM;
 	}
 
-	store->type.dtr = persistent_destroy;
-	store->type.read_metadata = persistent_read_metadata;
-	store->type.prepare_exception = persistent_prepare_exception;
-	store->type.commit_exception = persistent_commit_exception;
-	store->type.drop_snapshot = persistent_drop_snapshot;
-	store->type.fraction_full = persistent_fraction_full;
-
 	store->context = ps;
 
 	return 0;
 }
 
+static int persistent_status(struct dm_exception_store *store,
+			     status_type_t status, char *result,
+			     unsigned int maxlen)
+{
+	int sz = 0;
+
+	return sz;
+}
+
+static struct dm_exception_store_type _persistent_type = {
+	.name = "persistent",
+	.module = THIS_MODULE,
+	.ctr = persistent_ctr,
+	.dtr = persistent_dtr,
+	.read_metadata = persistent_read_metadata,
+	.prepare_exception = persistent_prepare_exception,
+	.commit_exception = persistent_commit_exception,
+	.drop_snapshot = persistent_drop_snapshot,
+	.fraction_full = persistent_fraction_full,
+	.status = persistent_status,
+};
+
+static struct dm_exception_store_type _persistent_compat_type = {
+	.name = "P",
+	.module = THIS_MODULE,
+	.ctr = persistent_ctr,
+	.dtr = persistent_dtr,
+	.read_metadata = persistent_read_metadata,
+	.prepare_exception = persistent_prepare_exception,
+	.commit_exception = persistent_commit_exception,
+	.drop_snapshot = persistent_drop_snapshot,
+	.fraction_full = persistent_fraction_full,
+	.status = persistent_status,
+};
+
 int dm_persistent_snapshot_init(void)
 {
-	return 0;
+	int r;
+
+	r = dm_exception_store_type_register(&_persistent_type);
+	if (r) {
+		DMERR("Unable to register persistent exception store type");
+		return r;
+	}
+
+	r = dm_exception_store_type_register(&_persistent_compat_type);
+	if (r) {
+		DMERR("Unable to register old-style persistent exception "
+		      "store type");
+		dm_exception_store_type_unregister(&_persistent_type);
+		return r;
+	}
+
+	return r;
 }
 
 void dm_persistent_snapshot_exit(void)
 {
+	dm_exception_store_type_unregister(&_persistent_type);
+	dm_exception_store_type_unregister(&_persistent_compat_type);
 }

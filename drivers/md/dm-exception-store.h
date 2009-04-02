@@ -39,6 +39,9 @@ struct dm_snap_exception {
  */
 struct dm_exception_store;
 struct dm_exception_store_type {
+	const char *name;
+	struct module *module;
+
 	int (*ctr) (struct dm_exception_store *store,
 		    unsigned argc, char **argv);
 
@@ -85,10 +88,13 @@ struct dm_exception_store_type {
 	void (*fraction_full) (struct dm_exception_store *store,
 			       sector_t *numerator,
 			       sector_t *denominator);
+
+	/* For internal device-mapper use only. */
+	struct list_head list;
 };
 
 struct dm_exception_store {
-	struct dm_exception_store_type type;
+	struct dm_exception_store_type *type;
 
 	struct dm_snapshot *snap;
 
@@ -138,6 +144,13 @@ static inline void dm_consecutive_chunk_count_inc(struct dm_snap_exception *e)
 
 #  endif
 
+int dm_exception_store_type_register(struct dm_exception_store_type *type);
+int dm_exception_store_type_unregister(struct dm_exception_store_type *type);
+
+int dm_exception_store_create(const char *type_name,
+			      struct dm_exception_store **store);
+void dm_exception_store_destroy(struct dm_exception_store *store);
+
 int dm_exception_store_init(void);
 void dm_exception_store_exit(void);
 
@@ -149,9 +162,5 @@ void dm_persistent_snapshot_exit(void);
 
 int dm_transient_snapshot_init(void);
 void dm_transient_snapshot_exit(void);
-
-int dm_create_persistent(struct dm_exception_store *store);
-
-int dm_create_transient(struct dm_exception_store *store);
 
 #endif /* _LINUX_DM_EXCEPTION_STORE */
