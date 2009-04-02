@@ -3481,8 +3481,10 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 
 	if (dir) {
 		ret = btrfs_set_inode_index(dir, index);
-		if (ret)
+		if (ret) {
+			iput(inode);
 			return ERR_PTR(ret);
+		}
 	}
 	/*
 	 * index_cnt is ignored for everything but a dir,
@@ -3565,6 +3567,7 @@ fail:
 	if (dir)
 		BTRFS_I(dir)->index_cnt--;
 	btrfs_free_path(path);
+	iput(inode);
 	return ERR_PTR(ret);
 }
 
