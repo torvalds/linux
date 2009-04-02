@@ -1292,6 +1292,15 @@ static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
+static int fuse_direct_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	/* Can't provide the coherency needed for MAP_SHARED */
+	if (vma->vm_flags & VM_MAYSHARE)
+		return -ENODEV;
+
+	return generic_file_mmap(file, vma);
+}
+
 static int convert_fuse_file_lock(const struct fuse_file_lock *ffl,
 				  struct file_lock *fl)
 {
@@ -1926,6 +1935,7 @@ static const struct file_operations fuse_direct_io_file_operations = {
 	.llseek		= fuse_file_llseek,
 	.read		= fuse_direct_read,
 	.write		= fuse_direct_write,
+	.mmap		= fuse_direct_mmap,
 	.open		= fuse_open,
 	.flush		= fuse_flush,
 	.release	= fuse_release,
@@ -1935,7 +1945,7 @@ static const struct file_operations fuse_direct_io_file_operations = {
 	.unlocked_ioctl	= fuse_file_ioctl,
 	.compat_ioctl	= fuse_file_compat_ioctl,
 	.poll		= fuse_file_poll,
-	/* no mmap and splice_read */
+	/* no splice_read */
 };
 
 static const struct address_space_operations fuse_file_aops  = {
