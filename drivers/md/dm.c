@@ -102,7 +102,6 @@ union map_info *dm_get_mapinfo(struct bio *bio)
 struct dm_wq_req {
 	struct work_struct work;
 	struct mapped_device *md;
-	void *context;
 };
 
 struct mapped_device {
@@ -1435,20 +1434,18 @@ static void dm_wq_work(struct work_struct *work)
 	up_write(&md->io_lock);
 }
 
-static void dm_wq_queue(struct mapped_device *md, void *context,
-			struct dm_wq_req *req)
+static void dm_wq_queue(struct mapped_device *md, struct dm_wq_req *req)
 {
 	req->md = md;
-	req->context = context;
 	INIT_WORK(&req->work, dm_wq_work);
 	queue_work(md->wq, &req->work);
 }
 
-static void dm_queue_flush(struct mapped_device *md, void *context)
+static void dm_queue_flush(struct mapped_device *md)
 {
 	struct dm_wq_req req;
 
-	dm_wq_queue(md, context, &req);
+	dm_wq_queue(md, &req);
 	flush_workqueue(md->wq);
 }
 
@@ -1594,7 +1591,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 
 	/* were we interrupted ? */
 	if (r < 0) {
-		dm_queue_flush(md, NULL);
+		dm_queue_flush(md);
 
 		unlock_fs(md);
 		goto out; /* pushback list is already flushed, so skip flush */
@@ -1634,7 +1631,7 @@ int dm_resume(struct mapped_device *md)
 	if (r)
 		goto out;
 
-	dm_queue_flush(md, NULL);
+	dm_queue_flush(md);
 
 	unlock_fs(md);
 
