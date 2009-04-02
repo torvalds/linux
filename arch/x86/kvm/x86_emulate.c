@@ -1792,7 +1792,6 @@ special_insn:
 		}
 		c->src.val = (unsigned long) c->eip;
 		jmp_rel(c, rel);
-		c->op_bytes = c->ad_bytes;
 		emulate_push(ctxt);
 		break;
 	}
