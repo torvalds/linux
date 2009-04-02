@@ -1417,6 +1417,18 @@ static int wait_task_zombie(struct task_struct *p, int options,
 	return retval;
 }
 
+static int *task_stopped_code(struct task_struct *p, bool ptrace)
+{
+	if (ptrace) {
+		if (task_is_stopped_or_traced(p))
+			return &p->exit_code;
+	} else {
+		if (p->signal->flags & SIGNAL_STOP_STOPPED)
+			return &p->signal->group_exit_code;
+	}
+	return NULL;
+}
+
 /*
  * Handle sys_wait4 work for one task in state TASK_STOPPED.  We hold
  * read_lock(&tasklist_lock) on entry.  If we return zero, we still hold
@@ -1427,7 +1439,7 @@ static int wait_task_stopped(int ptrace, struct task_struct *p,
 			     int options, struct siginfo __user *infop,
 			     int __user *stat_addr, struct rusage __user *ru)
 {
-	int retval, exit_code, why;
+	int retval, exit_code, *p_code, why;
 	uid_t uid = 0; /* unneeded, required by compiler */
 	pid_t pid;
 
@@ -1437,22 +1449,16 @@ static int wait_task_stopped(int ptrace, struct task_struct *p,
 	exit_code = 0;
 	spin_lock_irq(&p->sighand->siglock);
 
-	if (unlikely(!task_is_stopped_or_traced(p)))
+	p_code = task_stopped_code(p, ptrace);
+	if (unlikely(!p_code))
 		goto unlock_sig;
 
-	if (!ptrace && p->signal->group_stop_count > 0)
-		/*
-		 * A group stop is in progress and this is the group leader.
-		 * We won't report until all threads have stopped.
-		 */
-		goto unlock_sig;
-
-	exit_code = p->exit_code;
+	exit_code = *p_code;
 	if (!exit_code)
 		goto unlock_sig;
 
 	if (!unlikely(options & WNOWAIT))
-		p->exit_code = 0;
+		*p_code = 0;
 
 	/* don't need the RCU readlock here as we're holding a spinlock */
 	uid = __task_cred(p)->uid;
@@ -1608,7 +1614,7 @@ static int wait_consider_task(struct task_struct *parent, int ptrace,
 	 */
 	*notask_error = 0;
 
-	if (task_is_stopped_or_traced(p))
+	if (task_stopped_code(p, ptrace))
 		return wait_task_stopped(ptrace, p, options,
 					 infop, stat_addr, ru);
 
