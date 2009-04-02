@@ -1760,7 +1760,15 @@ static void perf_output_copy(struct perf_output_handle *handle,
 
 static void perf_output_end(struct perf_output_handle *handle)
 {
-	if (handle->wakeup)
+	int wakeup_events = handle->counter->hw_event.wakeup_events;
+
+	if (wakeup_events) {
+		int events = atomic_inc_return(&handle->data->events);
+		if (events >= wakeup_events) {
+			atomic_sub(wakeup_events, &handle->data->events);
+			__perf_output_wakeup(handle);
+		}
+	} else if (handle->wakeup)
 		__perf_output_wakeup(handle);
 	rcu_read_unlock();
 }

@@ -145,7 +145,7 @@ struct perf_counter_hw_event {
 				__reserved_1   : 53;
 
 	__u32			extra_config_len;
-	__u32			__reserved_4;
+	__u32			wakeup_events;	/* wakeup every n events */
 
 	__u64			__reserved_2;
 	__u64			__reserved_3;
@@ -321,6 +321,7 @@ struct perf_mmap_data {
 	int				nr_pages;
 	atomic_t			wakeup;
 	atomic_t			head;
+	atomic_t			events;
 	struct perf_counter_mmap_page   *user_page;
 	void 				*data_pages[0];
 };
