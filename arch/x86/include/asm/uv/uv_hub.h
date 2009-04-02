@@ -17,6 +17,7 @@
 #include <linux/timer.h>
 #include <asm/types.h>
 #include <asm/percpu.h>
+#include <asm/uv/uv_mmrs.h>
 
 
 /*
@@ -398,12 +399,23 @@ static inline void uv_set_scir_bits(unsigned char value)
 		uv_write_local_mmr8(uv_hub_info->scir.offset, value);
 	}
 }
+
 static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
 {
 	if (uv_cpu_hub_info(cpu)->scir.state != value) {
 		uv_cpu_hub_info(cpu)->scir.state = value;
 		uv_write_local_mmr8(uv_cpu_hub_info(cpu)->scir.offset, value);
 	}
+}
+
+static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
+{
+	unsigned long val;
+
+	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
+			((apicid & 0x3f) << UVH_IPI_INT_APIC_ID_SHFT) |
+			(vector << UVH_IPI_INT_VECTOR_SHFT);
+	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 }
 
 #endif /* CONFIG_X86_64 */
