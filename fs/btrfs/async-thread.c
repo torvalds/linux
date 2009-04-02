@@ -195,6 +195,9 @@ again_locked:
 				if (!list_empty(&worker->pending))
 					continue;
 
+				if (kthread_should_stop())
+					break;
+
 				/* still no more work?, sleep for real */
 				spin_lock_irq(&worker->lock);
 				set_current_state(TASK_INTERRUPTIBLE);
@@ -208,7 +211,8 @@ again_locked:
 				worker->working = 0;
 				spin_unlock_irq(&worker->lock);
 
-				schedule();
+				if (!kthread_should_stop())
+					schedule();
 			}
 			__set_current_state(TASK_RUNNING);
 		}
