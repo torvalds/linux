@@ -274,6 +274,7 @@ static void gru_init_chiplet(struct gru_state *gru, unsigned long paddr,
 	gru->gs_blade_id = bid;
 	gru->gs_cbr_map = (GRU_CBR_AU == 64) ? ~0 : (1UL << GRU_CBR_AU) - 1;
 	gru->gs_dsr_map = (1UL << GRU_DSR_AU) - 1;
+	gru->gs_asid_limit = MAX_ASID;
 	gru_tgh_flush_init(gru);
 	gru_dbg(grudev, "bid %d, nid %d, gid %d, vaddr %p (0x%lx)\n",
 		bid, nid, gru->gs_gid, gru->gs_gru_base_vaddr,

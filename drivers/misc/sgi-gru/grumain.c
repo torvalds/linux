@@ -79,7 +79,6 @@ static int gru_wrap_asid(struct gru_state *gru)
 	gru_dbg(grudev, "gid %d\n", gru->gs_gid);
 	STAT(asid_wrap);
 	gru->gs_asid_gen++;
-	gru_flush_all_tlb(gru);
 	return MIN_ASID;
 }
 
@@ -93,6 +92,7 @@ static int gru_reset_asid_limit(struct gru_state *gru, int asid)
 	limit = MAX_ASID;
 	if (asid >= limit)
 		asid = gru_wrap_asid(gru);
+	gru_flush_all_tlb(gru);
 	gid = gru->gs_gid;
 again:
 	for (i = 0; i < GRU_NUM_CCH; i++) {
@@ -131,12 +131,10 @@ static int gru_assign_asid(struct gru_state *gru)
 {
 	int asid;
 
-	spin_lock(&gru->gs_asid_lock);
 	gru->gs_asid += ASID_INC;
 	asid = gru->gs_asid;
 	if (asid >= gru->gs_asid_limit)
 		asid = gru_reset_asid_limit(gru, asid);
-	spin_unlock(&gru->gs_asid_lock);
 
 	gru_dbg(grudev, "gid %d, asid 0x%x\n", gru->gs_gid, asid);
 	return asid;
@@ -227,7 +225,9 @@ static int gru_load_mm_tracker(struct gru_state *gru,
 	spin_lock(&gms->ms_asid_lock);
 	asid = asids->mt_asid;
 
-	if (asid == 0 || asids->mt_asid_gen != gru->gs_asid_gen) {
+	spin_lock(&gru->gs_asid_lock);
+	if (asid == 0 || (asids->mt_ctxbitmap == 0 && asids->mt_asid_gen !=
+			  gru->gs_asid_gen)) {
 		asid = gru_assign_asid(gru);
 		asids->mt_asid = asid;
 		asids->mt_asid_gen = gru->gs_asid_gen;
@@ -235,6 +235,7 @@ static int gru_load_mm_tracker(struct gru_state *gru,
 	} else {
 		STAT(asid_reuse);
 	}
+	spin_unlock(&gru->gs_asid_lock);
 
 	BUG_ON(asids->mt_ctxbitmap & ctxbitmap);
 	asids->mt_ctxbitmap |= ctxbitmap;
@@ -259,10 +260,12 @@ static void gru_unload_mm_tracker(struct gru_state *gru,
 	asids = &gms->ms_asids[gru->gs_gid];
 	ctxbitmap = (1 << gts->ts_ctxnum);
 	spin_lock(&gms->ms_asid_lock);
+	spin_lock(&gru->gs_asid_lock);
 	BUG_ON((asids->mt_ctxbitmap & ctxbitmap) != ctxbitmap);
 	asids->mt_ctxbitmap ^= ctxbitmap;
 	gru_dbg(grudev, "gid %d, gts %p, gms %p, ctxnum 0x%d, asidmap 0x%lx\n",
 		gru->gs_gid, gts, gms, gts->ts_ctxnum, gms->ms_asidmap[0]);
+	spin_unlock(&gru->gs_asid_lock);
 	spin_unlock(&gms->ms_asid_lock);
 }
 
@@ -412,6 +415,7 @@ static void gru_free_gru_context(struct gru_thread_state *gts)
 	__clear_bit(gts->ts_ctxnum, &gru->gs_context_map);
 	gts->ts_ctxnum = NULLCTX;
 	gts->ts_gru = NULL;
+	gts->ts_blade = -1;
 	spin_unlock(&gru->gs_lock);
 
 	gts_drop(gts);
@@ -731,6 +735,7 @@ again:
 		}
 		reserve_gru_resources(gru, gts);
 		gts->ts_gru = gru;
+		gts->ts_blade = gru->gs_blade_id;
 		gts->ts_ctxnum =
 		    find_first_zero_bit(&gru->gs_context_map, GRU_NUM_CCH);
 		BUG_ON(gts->ts_ctxnum == GRU_NUM_CCH);
