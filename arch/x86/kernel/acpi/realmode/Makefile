@@ -9,7 +9,7 @@
 always		:= wakeup.bin
 targets		:= wakeup.elf wakeup.lds
 
-wakeup-y	+= wakeup.o wakemain.o video-mode.o copy.o
+wakeup-y	+= wakeup.o wakemain.o video-mode.o copy.o bioscall.o regs.o
 
 # The link order of the video-*.o modules can matter.  In particular,
 # video-vga.o *must* be listed first, followed by video-vesa.o.
