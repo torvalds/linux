@@ -508,23 +508,6 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 }
 
 /*
- * Calculate mapped_ratio under memory controller. This will be used in
- * vmscan.c for deteremining we have to reclaim mapped pages.
- */
-int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem)
-{
-	long total, rss;
-
-	/*
-	 * usage is recorded in bytes. But, here, we assume the number of
-	 * physical pages can be represented by "long" on any arch.
-	 */
-	total = (long) (mem->res.usage >> PAGE_SHIFT) + 1L;
-	rss = (long)mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_RSS);
-	return (int)((rss * 100L) / total);
-}
-
-/*
  * prev_priority control...this will be used in memory reclaim path.
  */
 int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
