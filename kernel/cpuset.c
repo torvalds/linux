@@ -128,10 +128,6 @@ static inline struct cpuset *task_cs(struct task_struct *task)
 	return container_of(task_subsys_state(task, cpuset_subsys_id),
 			    struct cpuset, css);
 }
-struct cpuset_hotplug_scanner {
-	struct cgroup_scanner scan;
-	struct cgroup *to;
-};
 
 /* bits in struct cpuset flags field */
 typedef enum {
@@ -1890,10 +1886,9 @@ int __init cpuset_init(void)
 static void cpuset_do_move_task(struct task_struct *tsk,
 				struct cgroup_scanner *scan)
 {
-	struct cpuset_hotplug_scanner *chsp;
+	struct cgroup *new_cgroup = scan->data;
 
-	chsp = container_of(scan, struct cpuset_hotplug_scanner, scan);
-	cgroup_attach_task(chsp->to, tsk);
+	cgroup_attach_task(new_cgroup, tsk);
 }
 
 /**
@@ -1909,15 +1904,15 @@ static void cpuset_do_move_task(struct task_struct *tsk,
  */
 static void move_member_tasks_to_cpuset(struct cpuset *from, struct cpuset *to)
 {
-	struct cpuset_hotplug_scanner scan;
+	struct cgroup_scanner scan;
 
-	scan.scan.cg = from->css.cgroup;
-	scan.scan.test_task = NULL; /* select all tasks in cgroup */
-	scan.scan.process_task = cpuset_do_move_task;
-	scan.scan.heap = NULL;
-	scan.to = to->css.cgroup;
+	scan.cg = from->css.cgroup;
+	scan.test_task = NULL; /* select all tasks in cgroup */
+	scan.process_task = cpuset_do_move_task;
+	scan.heap = NULL;
+	scan.data = to->css.cgroup;
 
-	if (cgroup_scan_tasks(&scan.scan))
+	if (cgroup_scan_tasks(&scan))
 		printk(KERN_ERR "move_member_tasks_to_cpuset: "
 				"cgroup_scan_tasks failed\n");
 }
