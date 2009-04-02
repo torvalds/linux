@@ -972,6 +972,17 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 		    &src, 1, &dest, 0, copy_callback, pe);
 }
 
+static struct dm_snap_pending_exception *
+__lookup_pending_exception(struct dm_snapshot *s, chunk_t chunk)
+{
+	struct dm_snap_exception *e = lookup_exception(&s->pending, chunk);
+
+	if (!e)
+		return NULL;
+
+	return container_of(e, struct dm_snap_pending_exception, e);
+}
+
 /*
  * Looks to see if this snapshot already has a pending exception
  * for this chunk, otherwise it allocates a new one and inserts
@@ -983,19 +994,8 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 static struct dm_snap_pending_exception *
 __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 {
-	struct dm_snap_exception *e;
-	struct dm_snap_pending_exception *pe;
+	struct dm_snap_pending_exception *pe, *pe2;
 	chunk_t chunk = sector_to_chunk(s, bio->bi_sector);
-
-	/*
-	 * Is there a pending exception for this already ?
-	 */
-	e = lookup_exception(&s->pending, chunk);
-	if (e) {
-		/* cast the exception to a pending exception */
-		pe = container_of(e, struct dm_snap_pending_exception, e);
-		goto out;
-	}
 
 	/*
 	 * Create a new pending exception, we don't want
@@ -1010,11 +1010,10 @@ __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 		return NULL;
 	}
 
-	e = lookup_exception(&s->pending, chunk);
-	if (e) {
+	pe2 = __lookup_pending_exception(s, chunk);
+	if (pe2) {
 		free_pending_exception(pe);
-		pe = container_of(e, struct dm_snap_pending_exception, e);
-		goto out;
+		return pe2;
 	}
 
 	pe->e.old_chunk = chunk;
@@ -1032,7 +1031,6 @@ __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 	get_pending_exception(pe);
 	insert_exception(&s->pending, &pe->e);
 
- out:
 	return pe;
 }
 
@@ -1083,11 +1081,14 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	 * writeable.
 	 */
 	if (bio_rw(bio) == WRITE) {
-		pe = __find_pending_exception(s, bio);
+		pe = __lookup_pending_exception(s, chunk);
 		if (!pe) {
-			__invalidate_snapshot(s, -ENOMEM);
-			r = -EIO;
-			goto out_unlock;
+			pe = __find_pending_exception(s, bio);
+			if (!pe) {
+				__invalidate_snapshot(s, -ENOMEM);
+				r = -EIO;
+				goto out_unlock;
+			}
 		}
 
 		remap_exception(s, &pe->e, bio, chunk);
@@ -1217,10 +1218,13 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 		if (e)
 			goto next_snapshot;
 
-		pe = __find_pending_exception(snap, bio);
+		pe = __lookup_pending_exception(snap, chunk);
 		if (!pe) {
-			__invalidate_snapshot(snap, -ENOMEM);
-			goto next_snapshot;
+			pe = __find_pending_exception(snap, bio);
+			if (!pe) {
+				__invalidate_snapshot(snap, -ENOMEM);
+				goto next_snapshot;
+			}
 		}
 
 		if (!primary_pe) {
