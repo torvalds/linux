@@ -2,6 +2,7 @@
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007 rPath, Inc. - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author H. Peter Anvin
  *
  *   This file is part of the Linux kernel, and is made available under
  *   the terms of the GNU General Public License version 2.
@@ -22,17 +23,17 @@
  */
 static int read_mbr(u8 devno, void *buf)
 {
-	u16 ax, bx, cx, dx;
+	struct biosregs ireg, oreg;
 
-	ax = 0x0201;		/* Legacy Read, one sector */
-	cx = 0x0001;		/* Sector 0-0-1 */
-	dx = devno;
-	bx = (size_t)buf;
-	asm volatile("pushfl; stc; int $0x13; setc %%al; popfl"
-		     : "+a" (ax), "+c" (cx), "+d" (dx), "+b" (bx)
-		     : : "esi", "edi", "memory");
+	initregs(&ireg);
+	ireg.ax = 0x0201;		/* Legacy Read, one sector */
+	ireg.cx = 0x0001;		/* Sector 0-0-1 */
+	ireg.dl = devno;
+	ireg.bx = (size_t)buf;
 
-	return -(u8)ax;		/* 0 or -1 */
+	intcall(0x13, &ireg, &oreg);
+
+	return -(oreg.eflags & X86_EFLAGS_CF); /* 0 or -1 */
 }
 
 static u32 read_mbr_sig(u8 devno, struct edd_info *ei, u32 *mbrsig)
@@ -72,56 +73,46 @@ static u32 read_mbr_sig(u8 devno, struct edd_info *ei, u32 *mbrsig)
 
 static int get_edd_info(u8 devno, struct edd_info *ei)
 {
-	u16 ax, bx, cx, dx, di;
+	struct biosregs ireg, oreg;
 
 	memset(ei, 0, sizeof *ei);
 
 	/* Check Extensions Present */
 
-	ax = 0x4100;
-	bx = EDDMAGIC1;
-	dx = devno;
-	asm("pushfl; stc; int $0x13; setc %%al; popfl"
-	    : "+a" (ax), "+b" (bx), "=c" (cx), "+d" (dx)
-	    : : "esi", "edi");
+	initregs(&ireg);
+	ireg.ah = 0x41;
+	ireg.bx = EDDMAGIC1;
+	ireg.dl = devno;
+	intcall(0x13, &ireg, &oreg);
 
-	if ((u8)ax)
+	if (oreg.eflags & X86_EFLAGS_CF)
 		return -1;	/* No extended information */
 
-	if (bx != EDDMAGIC2)
+	if (oreg.bx != EDDMAGIC2)
 		return -1;
 
 	ei->device  = devno;
-	ei->version = ax >> 8;	/* EDD version number */
-	ei->interface_support = cx; /* EDD functionality subsets */
+	ei->version = oreg.ah;		 /* EDD version number */
+	ei->interface_support = oreg.cx; /* EDD functionality subsets */
 
 	/* Extended Get Device Parameters */
 
 	ei->params.length = sizeof(ei->params);
-	ax = 0x4800;
-	dx = devno;
-	asm("pushfl; int $0x13; popfl"
-	    : "+a" (ax), "+d" (dx), "=m" (ei->params)
-	    : "S" (&ei->params)
-	    : "ebx", "ecx", "edi");
+	ireg.ah = 0x48;
+	ireg.si = (size_t)&ei->params;
+	intcall(0x13, &ireg, &oreg);
 
 	/* Get legacy CHS parameters */
 
 	/* Ralf Brown recommends setting ES:DI to 0:0 */
-	ax = 0x0800;
-	dx = devno;
-	di = 0;
-	asm("pushw %%es; "
-	    "movw %%di,%%es; "
-	    "pushfl; stc; int $0x13; setc %%al; popfl; "
-	    "popw %%es"
-	    : "+a" (ax), "=b" (bx), "=c" (cx), "+d" (dx), "+D" (di)
-	    : : "esi");
+	ireg.ah = 0x08;
+	ireg.es = 0;
+	intcall(0x13, &ireg, &oreg);
 
-	if ((u8)ax == 0) {
-		ei->legacy_max_cylinder = (cx >> 8) + ((cx & 0xc0) << 2);
-		ei->legacy_max_head = dx >> 8;
-		ei->legacy_sectors_per_track = cx & 0x3f;
+	if (!(oreg.eflags & X86_EFLAGS_CF)) {
+		ei->legacy_max_cylinder = oreg.ch + ((oreg.cl & 0xc0) << 2);
+		ei->legacy_max_head = oreg.dh;
+		ei->legacy_sectors_per_track = oreg.cl & 0x3f;
 	}
 
 	return 0;
