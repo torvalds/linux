@@ -19,10 +19,10 @@
 #include <linux/types.h>
 #include <linux/usb/isp116x.h>
 
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
+#include <mach/pxa25x.h>
 #include "generic.h"
 
 static void isp116x_pfm_delay(struct device *dev, int delay)

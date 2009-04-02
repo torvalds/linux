@@ -306,7 +306,6 @@ static void init_8259A(int auto_eoi)
  */
 static struct irqaction irq2 = {
 	.handler = no_action,
-	.mask = CPU_MASK_NONE,
 	.name = "cascade",
 };
 

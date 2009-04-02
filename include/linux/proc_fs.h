@@ -41,9 +41,6 @@ enum {
  * while parent/subdir create the directory structure (every
  * /proc file has a parent, but "subdir" is NULL for all
  * non-directory entries).
- *
- * "owner" is used to protect module
- * from unloading while proc_dir_entry is in use
  */
 
 typedef	int (read_proc_t)(char *page, char **start, off_t off,
@@ -70,7 +67,6 @@ struct proc_dir_entry {
 	 * somewhere.
 	 */
 	const struct file_operations *proc_fops;
-	struct module *owner;
 	struct proc_dir_entry *next, *parent, *subdir;
 	void *data;
 	read_proc_t *read_proc;

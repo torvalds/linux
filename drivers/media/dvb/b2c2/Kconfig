@@ -13,7 +13,7 @@ config DVB_B2C2_FLEXCOP
 	select DVB_TUNER_ITD1000 if !DVB_FE_CUSTOMISE
 	select DVB_ISL6421 if !DVB_FE_CUSTOMISE
 	select DVB_CX24123 if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMISE
 	select DVB_TUNER_CX24113 if !DVB_FE_CUSTOMISE
 	help
 	  Support for the digital TV receiver chip made by B2C2 Inc. included in

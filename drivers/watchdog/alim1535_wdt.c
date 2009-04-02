@@ -60,7 +60,7 @@ static void ali_start(void)
 
 	pci_read_config_dword(ali_pci, 0xCC, &val);
 	val &= ~0x3F;	/* Mask count */
-	val |= (1<<25) | ali_timeout_bits;
+	val |= (1 << 25) | ali_timeout_bits;
 	pci_write_config_dword(ali_pci, 0xCC, val);
 
 	spin_unlock(&ali_lock);
@@ -79,8 +79,8 @@ static void ali_stop(void)
 	spin_lock(&ali_lock);
 
 	pci_read_config_dword(ali_pci, 0xCC, &val);
-	val &= ~0x3F;	/* Mask count to zero (disabled) */
-	val &= ~(1<<25);/* and for safety mask the reset enable */
+	val &= ~0x3F;		/* Mask count to zero (disabled) */
+	val &= ~(1 << 25);	/* and for safety mask the reset enable */
 	pci_write_config_dword(ali_pci, 0xCC, val);
 
 	spin_unlock(&ali_lock);
@@ -89,7 +89,7 @@ static void ali_stop(void)
 /*
  *	ali_keepalive	-	send a keepalive to the watchdog
  *
- *      Send a keepalive to the timer (actually we restart the timer).
+ *	Send a keepalive to the timer (actually we restart the timer).
  */
 
 static void ali_keepalive(void)
@@ -109,11 +109,11 @@ static int ali_settimer(int t)
 	if (t < 0)
 		return -EINVAL;
 	else if (t < 60)
-		ali_timeout_bits = t|(1<<6);
+		ali_timeout_bits = t|(1 << 6);
 	else if (t < 3600)
-		ali_timeout_bits = (t/60)|(1<<7);
+		ali_timeout_bits = (t / 60)|(1 << 7);
 	else if (t < 18000)
-		ali_timeout_bits = (t/300)|(1<<6)|(1<<7);
+		ali_timeout_bits = (t / 300)|(1 << 6)|(1 << 7);
 	else
 		return -EINVAL;
 
@@ -138,7 +138,7 @@ static int ali_settimer(int t)
  */
 
 static ssize_t ali_write(struct file *file, const char __user *data,
-			      size_t len, loff_t *ppos)
+						size_t len, loff_t *ppos)
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (len) {
@@ -348,9 +348,9 @@ static int __init ali_find_watchdog(void)
 	/* Timer bits */
 	wdog &= ~0x3F;
 	/* Issued events */
-	wdog &= ~((1<<27)|(1<<26)|(1<<25)|(1<<24));
+	wdog &= ~((1 << 27)|(1 << 26)|(1 << 25)|(1 << 24));
 	/* No monitor bits */
-	wdog &= ~((1<<16)|(1<<13)|(1<<12)|(1<<11)|(1<<10)|(1<<9));
+	wdog &= ~((1 << 16)|(1 << 13)|(1 << 12)|(1 << 11)|(1 << 10)|(1 << 9));
 
 	pci_write_config_dword(pdev, 0xCC, wdog);
 

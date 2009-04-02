@@ -216,17 +216,14 @@ void __init start_cpu_itimer(void)
 	per_cpu(cpu_data, cpu).it_value = next_tick;
 }
 
-struct platform_device rtc_parisc_dev = {
+static struct platform_device rtc_parisc_dev = {
 	.name = "rtc-parisc",
 	.id = -1,
 };
 
 static int __init rtc_init(void)
 {
-	int ret;
-
-	ret = platform_device_register(&rtc_parisc_dev);
-	if (ret < 0)
+	if (platform_device_register(&rtc_parisc_dev) < 0)
 		printk(KERN_ERR "unable to register rtc device...\n");
 
 	/* not necessarily an error */

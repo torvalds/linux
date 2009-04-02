@@ -166,8 +166,7 @@ struct nfs_inode {
 	 */
 	struct radix_tree_root	nfs_page_tree;
 
-	unsigned long		ncommit,
-				npages;
+	unsigned long		npages;
 
 	/* Open contexts for shared mmap writes */
 	struct list_head	open_files;
@@ -207,6 +206,7 @@ struct nfs_inode {
 #define NFS_INO_STALE		(1)		/* possible stale inode */
 #define NFS_INO_ACL_LRU_SET	(2)		/* Inode is on the LRU list */
 #define NFS_INO_MOUNTPOINT	(3)		/* inode is remote mountpoint */
+#define NFS_INO_FLUSHING	(4)		/* inode is flushing out data */
 
 static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {
@@ -415,7 +415,7 @@ extern const struct inode_operations nfs_dir_inode_operations;
 extern const struct inode_operations nfs3_dir_inode_operations;
 #endif /* CONFIG_NFS_V3 */
 extern const struct file_operations nfs_dir_operations;
-extern struct dentry_operations nfs_dentry_operations;
+extern const struct dentry_operations nfs_dentry_operations;
 
 extern void nfs_force_lookup_revalidate(struct inode *dir);
 extern int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fh, struct nfs_fattr *fattr);

@@ -1,6 +1,6 @@
 Driver for USB radios for the Silicon Labs Si470x FM Radio Receivers
 
-Copyright (c) 2008 Tobias Lorenz <tobias.lorenz@gmx.net>
+Copyright (c) 2009 Tobias Lorenz <tobias.lorenz@gmx.net>
 
 
 Information from Silicon Labs
@@ -41,7 +41,7 @@ chips are known to work:
 - 10c4:818a: Silicon Labs USB FM Radio Reference Design
 - 06e1:a155: ADS/Tech FM Radio Receiver (formerly Instant FM Music) (RDX-155-EF)
 - 1b80:d700: KWorld USB FM Radio SnapMusic Mobile 700 (FM700)
-- 10c5:819a: DealExtreme USB Radio
+- 10c5:819a: Sanei Electric, Inc. FM USB Radio (sold as DealExtreme.com PCear)
 
 
 Software
@@ -52,6 +52,7 @@ Testing is usually done with most application under Debian/testing:
 - gradio - GTK FM radio tuner
 - kradio - Comfortable Radio Application for KDE
 - radio - ncurses-based radio application
+- mplayer - The Ultimate Movie Player For Linux
 
 There is also a library libv4l, which can be used. It's going to have a function
 for frequency seeking, either by using hardware functionality as in radio-si470x
@@ -69,7 +70,7 @@ Audio Listing
 USB Audio is provided by the ALSA snd_usb_audio module. It is recommended to
 also select SND_USB_AUDIO, as this is required to get sound from the radio. For
 listing you have to redirect the sound, for example using one of the following
-commands.
+commands. Please adjust the audio devices to your needs (/dev/dsp* and hw:x,x).
 
 If you just want to test audio (very poor quality):
 cat /dev/dsp1 > /dev/dsp
@@ -80,6 +81,10 @@ sox -2 --endian little -r 96000 -t oss /dev/dsp1 -t oss /dev/dsp
 If you use arts try:
 arecord -D hw:1,0 -r96000 -c2 -f S16_LE | artsdsp aplay -B -
 
+If you use mplayer try:
+mplayer -radio adevice=hw=1.0:arate=96000 \
+	-rawaudio rate=96000 \
+	radio://<frequency>/capture
 
 Module Parameters
 =================

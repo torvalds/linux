@@ -3,8 +3,8 @@
 #
 
 # Common support (must be linked before board specific support)
-obj-y				+= clock.o devices.o generic.o irq.o dma.o \
-				   time.o gpio.o reset.o
+obj-y				+= clock.o devices.o generic.o irq.o \
+				   time.o reset.o
 obj-$(CONFIG_PM)		+= pm.o sleep.o standby.o
 
 ifeq ($(CONFIG_CPU_FREQ),y)
@@ -28,13 +28,16 @@ obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 # Specific board support
 obj-$(CONFIG_ARCH_GUMSTIX)	+= gumstix.o
 obj-$(CONFIG_GUMSTIX_AM200EPD)	+= am200epd.o
+obj-$(CONFIG_GUMSTIX_AM300EPD)	+= am300epd.o
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o
 obj-$(CONFIG_MACH_LOGICPD_PXA270) += lpd270.o
 obj-$(CONFIG_MACH_MAINSTONE)	+= mainstone.o
 obj-$(CONFIG_MACH_MP900C)	+= mp900.o
 obj-$(CONFIG_ARCH_PXA_IDP)	+= idp.o
 obj-$(CONFIG_MACH_TRIZEPS4)	+= trizeps4.o
-obj-$(CONFIG_MACH_COLIBRI)	+= colibri.o
+obj-$(CONFIG_MACH_COLIBRI)	+= colibri-pxa270.o
+obj-$(CONFIG_MACH_COLIBRI300)	+= colibri-pxa3xx.o colibri-pxa300.o
+obj-$(CONFIG_MACH_COLIBRI320)	+= colibri-pxa3xx.o colibri-pxa320.o
 obj-$(CONFIG_MACH_H5000)	+= h5000.o
 obj-$(CONFIG_PXA_SHARP_C7xx)	+= corgi.o sharpsl_pm.o corgi_pm.o
 obj-$(CONFIG_PXA_SHARP_Cxx00)	+= spitz.o sharpsl_pm.o spitz_pm.o
@@ -45,6 +48,7 @@ obj-$(CONFIG_MACH_PCM990_BASEBOARD)	+= pcm990-baseboard.o
 obj-$(CONFIG_MACH_TOSA)		+= tosa.o
 obj-$(CONFIG_MACH_EM_X270)	+= em-x270.o
 obj-$(CONFIG_MACH_MAGICIAN)	+= magician.o
+obj-$(CONFIG_MACH_HIMALAYA)	+= himalaya.o
 obj-$(CONFIG_MACH_MIOA701)	+= mioa701.o mioa701_bootresume.o
 obj-$(CONFIG_ARCH_PXA_ESERIES)	+= eseries.o
 obj-$(CONFIG_MACH_E330)		+= e330.o
@@ -53,7 +57,9 @@ obj-$(CONFIG_MACH_E740)		+= e740.o
 obj-$(CONFIG_MACH_E750)		+= e750.o
 obj-$(CONFIG_MACH_E400)		+= e400.o
 obj-$(CONFIG_MACH_E800)		+= e800.o
+obj-$(CONFIG_MACH_PALMT5)	+= palmt5.o
 obj-$(CONFIG_MACH_PALMTX)	+= palmtx.o
+obj-$(CONFIG_MACH_PALMLD)	+= palmld.o
 obj-$(CONFIG_MACH_PALMZ72)	+= palmz72.o
 obj-$(CONFIG_ARCH_VIPER)	+= viper.o
 
@@ -71,6 +77,8 @@ obj-$(CONFIG_MACH_CM_X300)      += cm-x300.o
 obj-$(CONFIG_PXA_EZX)           += ezx.o
 
 obj-$(CONFIG_MACH_INTELMOTE2)   += imote2.o
+obj-$(CONFIG_MACH_CSB726)	+= csb726.o
+obj-$(CONFIG_CSB726_CSB701)	+= csb701.o
 
 # Support for blinky lights
 led-y := leds.o

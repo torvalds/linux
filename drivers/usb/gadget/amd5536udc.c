@@ -551,7 +551,7 @@ udc_alloc_request(struct usb_ep *usbep, gfp_t gfp)
 		dma_desc->status = AMD_ADDBITS(dma_desc->status,
 						UDC_DMA_STP_STS_BS_HOST_BUSY,
 						UDC_DMA_STP_STS_BS);
-		dma_desc->bufptr = __constant_cpu_to_le32(DMA_DONT_USE);
+		dma_desc->bufptr = cpu_to_le32(DMA_DONT_USE);
 		req->td_data = dma_desc;
 		req->td_data_last = NULL;
 		req->chain_len = 1;

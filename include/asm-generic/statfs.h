@@ -1,8 +1,9 @@
 #ifndef _GENERIC_STATFS_H
 #define _GENERIC_STATFS_H
 
-#ifndef __KERNEL_STRICT_NAMES
-# include <linux/types.h>
+#include <linux/types.h>
+
+#ifdef __KERNEL__
 typedef __kernel_fsid_t	fsid_t;
 #endif
 

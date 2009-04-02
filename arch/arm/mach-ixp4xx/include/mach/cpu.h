@@ -17,26 +17,31 @@
 #include <asm/cputype.h>
 
 /* Processor id value in CP15 Register 0 */
-#define IXP425_PROCESSOR_ID_VALUE	0x690541c0
-#define IXP435_PROCESSOR_ID_VALUE	0x69054040
-#define IXP465_PROCESSOR_ID_VALUE	0x69054200
-#define IXP4XX_PROCESSOR_ID_MASK	0xfffffff0
+#define IXP42X_PROCESSOR_ID_VALUE	0x690541c0 /* including unused 0x690541Ex */
+#define IXP42X_PROCESSOR_ID_MASK	0xffffffc0
 
-#define cpu_is_ixp42x()	((read_cpuid_id() & IXP4XX_PROCESSOR_ID_MASK) == \
-			  IXP425_PROCESSOR_ID_VALUE)
-#define cpu_is_ixp43x()	((read_cpuid_id() & IXP4XX_PROCESSOR_ID_MASK) == \
-			  IXP435_PROCESSOR_ID_VALUE)
-#define cpu_is_ixp46x()	((read_cpuid_id() & IXP4XX_PROCESSOR_ID_MASK) == \
-			  IXP465_PROCESSOR_ID_VALUE)
+#define IXP43X_PROCESSOR_ID_VALUE	0x69054040
+#define IXP43X_PROCESSOR_ID_MASK	0xfffffff0
+
+#define IXP46X_PROCESSOR_ID_VALUE	0x69054200 /* including IXP455 */
+#define IXP46X_PROCESSOR_ID_MASK	0xfffffff0
+
+#define cpu_is_ixp42x()	((read_cpuid_id() & IXP42X_PROCESSOR_ID_MASK) == \
+			 IXP42X_PROCESSOR_ID_VALUE)
+#define cpu_is_ixp43x()	((read_cpuid_id() & IXP43X_PROCESSOR_ID_MASK) == \
+			 IXP43X_PROCESSOR_ID_VALUE)
+#define cpu_is_ixp46x()	((read_cpuid_id() & IXP46X_PROCESSOR_ID_MASK) == \
+			 IXP46X_PROCESSOR_ID_VALUE)
 
 static inline u32 ixp4xx_read_feature_bits(void)
 {
 	unsigned int val = ~*IXP4XX_EXP_CFG2;
-	val &= ~IXP4XX_FEATURE_RESERVED;
-	if (!cpu_is_ixp46x())
-		val &= ~IXP4XX_FEATURE_IXP46X_ONLY;
 
-	return val;
+	if (cpu_is_ixp42x())
+		return val & IXP42X_FEATURE_MASK;
+	if (cpu_is_ixp43x())
+		return val & IXP43X_FEATURE_MASK;
+	return val & IXP46X_FEATURE_MASK;
 }
 
 static inline void ixp4xx_write_feature_bits(u32 value)

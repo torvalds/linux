@@ -65,6 +65,7 @@
 #include <linux/i2c.h>
 #include <linux/acpi.h>
 #include <linux/io.h>
+#include <linux/dmi.h>
 
 /* I801 SMBus address offsets */
 #define SMBHSTSTS	(0 + i801_smba)
@@ -616,10 +617,81 @@ static void __init input_apanel_init(void)
 static void __init input_apanel_init(void) {}
 #endif
 
+#if defined CONFIG_SENSORS_FSCHMD || defined CONFIG_SENSORS_FSCHMD_MODULE
+struct dmi_onboard_device_info {
+	const char *name;
+	u8 type;
+	unsigned short i2c_addr;
+	const char *i2c_type;
+};
+
+static struct dmi_onboard_device_info __devinitdata dmi_devices[] = {
+	{ "Syleus", DMI_DEV_TYPE_OTHER, 0x73, "fscsyl" },
+	{ "Hermes", DMI_DEV_TYPE_OTHER, 0x73, "fscher" },
+	{ "Hades",  DMI_DEV_TYPE_OTHER, 0x73, "fschds" },
+};
+
+static void __devinit dmi_check_onboard_device(u8 type, const char *name,
+					       struct i2c_adapter *adap)
+{
+	int i;
+	struct i2c_board_info info;
+
+	for (i = 0; i < ARRAY_SIZE(dmi_devices); i++) {
+		/* & ~0x80, ignore enabled/disabled bit */
+		if ((type & ~0x80) != dmi_devices[i].type)
+			continue;
+		if (strcmp(name, dmi_devices[i].name))
+			continue;
+
+		memset(&info, 0, sizeof(struct i2c_board_info));
+		info.addr = dmi_devices[i].i2c_addr;
+		strlcpy(info.type, dmi_devices[i].i2c_type, I2C_NAME_SIZE);
+		i2c_new_device(adap, &info);
+		break;
+	}
+}
+
+/* We use our own function to check for onboard devices instead of
+   dmi_find_device() as some buggy BIOS's have the devices we are interested
+   in marked as disabled */
+static void __devinit dmi_check_onboard_devices(const struct dmi_header *dm,
+						void *adap)
+{
+	int i, count;
+
+	if (dm->type != 10)
+		return;
+
+	count = (dm->length - sizeof(struct dmi_header)) / 2;
+	for (i = 0; i < count; i++) {
+		const u8 *d = (char *)(dm + 1) + (i * 2);
+		const char *name = ((char *) dm) + dm->length;
+		u8 type = d[0];
+		u8 s = d[1];
+
+		if (!s)
+			continue;
+		s--;
+		while (s > 0 && name[0]) {
+			name += strlen(name) + 1;
+			s--;
+		}
+		if (name[0] == 0) /* Bogus string reference */
+			continue;
+
+		dmi_check_onboard_device(type, name, adap);
+	}
+}
+#endif
+
 static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	unsigned char temp;
 	int err;
+#if defined CONFIG_SENSORS_FSCHMD || defined CONFIG_SENSORS_FSCHMD_MODULE
+	const char *vendor;
+#endif
 
 	I801_dev = dev;
 	i801_features = 0;
@@ -711,6 +783,11 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 		strlcpy(info.type, "fujitsu_apanel", I2C_NAME_SIZE);
 		i2c_new_device(&i801_adapter, &info);
 	}
+#endif
+#if defined CONFIG_SENSORS_FSCHMD || defined CONFIG_SENSORS_FSCHMD_MODULE
+	vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
+	if (vendor && !strcmp(vendor, "FUJITSU SIEMENS"))
+		dmi_walk(dmi_check_onboard_devices, &i801_adapter);
 #endif
 
 	return 0;

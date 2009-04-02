@@ -142,8 +142,8 @@ static char *type_string (u8 bmAttributes)
 
 #include "net2280.h"
 
-#define valid_bit	__constant_cpu_to_le32 (1 << VALID_BIT)
-#define dma_done_ie	__constant_cpu_to_le32 (1 << DMA_DONE_INTERRUPT_ENABLE)
+#define valid_bit	cpu_to_le32 (1 << VALID_BIT)
+#define dma_done_ie	cpu_to_le32 (1 << DMA_DONE_INTERRUPT_ENABLE)
 
 /*-------------------------------------------------------------------------*/
 
@@ -425,7 +425,7 @@ net2280_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 			return NULL;
 		}
 		td->dmacount = 0;	/* not VALID */
-		td->dmaaddr = __constant_cpu_to_le32 (DMA_ADDR_INVALID);
+		td->dmaaddr = cpu_to_le32 (DMA_ADDR_INVALID);
 		td->dmadesc = td->dmaaddr;
 		req->td = td;
 	}
@@ -775,7 +775,7 @@ static void start_dma (struct net2280_ep *ep, struct net2280_request *req)
 	fill_dma_desc (ep, req, 1);
 
 	if (!use_dma_chaining)
-		req->td->dmacount |= __constant_cpu_to_le32 (1 << END_OF_CHAIN);
+		req->td->dmacount |= cpu_to_le32 (1 << END_OF_CHAIN);
 
 	start_queue (ep, tmp, req->td_dma);
 }
@@ -2407,9 +2407,9 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 
 			if (readl (&e->regs->ep_rsp)
 					& (1 << SET_ENDPOINT_HALT))
-				status = __constant_cpu_to_le32 (1);
+				status = cpu_to_le32 (1);
 			else
-				status = __constant_cpu_to_le32 (0);
+				status = cpu_to_le32 (0);
 
 			/* don't bother with a request object! */
 			writel (0, &dev->epregs [0].ep_irqenb);
@@ -2667,7 +2667,7 @@ static void handle_stat1_irqs (struct net2280 *dev, u32 stat)
 				req = list_entry (ep->queue.next,
 						struct net2280_request, queue);
 				dmacount = req->td->dmacount;
-				dmacount &= __constant_cpu_to_le32 (
+				dmacount &= cpu_to_le32 (
 						(1 << VALID_BIT)
 						| DMA_BYTE_COUNT_MASK);
 				if (dmacount && (dmacount & valid_bit) == 0)
@@ -2881,7 +2881,7 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 			goto done;
 		}
 		td->dmacount = 0;	/* not VALID */
-		td->dmaaddr = __constant_cpu_to_le32 (DMA_ADDR_INVALID);
+		td->dmaaddr = cpu_to_le32 (DMA_ADDR_INVALID);
 		td->dmadesc = td->dmaaddr;
 		dev->ep [i].dummy = td;
 	}

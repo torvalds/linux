@@ -252,7 +252,7 @@ sys32_chroot_wrapper:
 sys32_ustat_wrapper:
 	llgfr	%r2,%r2			# dev_t
 	llgtr	%r3,%r3			# struct ustat *
-	jg	sys_ustat
+	jg	compat_sys_ustat
 
 	.globl	sys32_dup2_wrapper
 sys32_dup2_wrapper:

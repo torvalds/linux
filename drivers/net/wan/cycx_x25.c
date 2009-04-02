@@ -355,12 +355,6 @@ static int cycx_wan_update(struct wan_device *wandev)
 	return 0;
 }
 
-/* callback to initialize device */
-static void cycx_x25_chan_setup(struct net_device *dev)
-{
-	dev->init = cycx_netdevice_init;
-}
-
 /* Create new logical channel.
  * This routine is called by the router when ROUTER_IFNEW IOCTL is being
  * handled.
@@ -476,6 +470,27 @@ static const struct header_ops cycx_header_ops = {
 	.rebuild = cycx_netdevice_rebuild_header,
 };
 
+static const struct net_device_ops cycx_netdev_ops = {
+	.ndo_init	= cycx_netdevice_init,
+	.ndo_open	= cycx_netdevice_open,
+	.ndo_stop	= cycx_netdevice_stop,
+	.ndo_start_xmit	= cycx_netdevice_hard_start_xmit,
+	.ndo_get_stats	= cycx_netdevice_get_stats,
+};
+
+static void cycx_x25_chan_setup(struct net_device *dev)
+{
+	/* Initialize device driver entry points */
+	dev->netdev_ops		= &cycx_netdev_ops;
+	dev->header_ops		= &cycx_header_ops;
+
+	/* Initialize media-specific parameters */
+	dev->mtu		= CYCX_X25_CHAN_MTU;
+	dev->type		= ARPHRD_HWX25;	/* ARP h/w type */
+	dev->hard_header_len	= 0;		/* media header length */
+	dev->addr_len		= 0;		/* hardware address length */
+}
+
 /* Initialize Linux network interface.
  *
  * This routine is called only once for each interface, during Linux network
@@ -486,20 +501,6 @@ static int cycx_netdevice_init(struct net_device *dev)
 	struct cycx_x25_channel *chan = netdev_priv(dev);
 	struct cycx_device *card = chan->card;
 	struct wan_device *wandev = &card->wandev;
-
-	/* Initialize device driver entry points */
-	dev->open		= cycx_netdevice_open;
-	dev->stop		= cycx_netdevice_stop;
-	dev->header_ops		= &cycx_header_ops;
-
-	dev->hard_start_xmit	= cycx_netdevice_hard_start_xmit;
-	dev->get_stats		= cycx_netdevice_get_stats;
-
-	/* Initialize media-specific parameters */
-	dev->mtu		= CYCX_X25_CHAN_MTU;
-	dev->type		= ARPHRD_HWX25;	/* ARP h/w type */
-	dev->hard_header_len	= 0;		/* media header length */
-	dev->addr_len		= 0;		/* hardware address length */
 
 	if (!chan->svc)
 		*(__be16*)dev->dev_addr = htons(chan->lcn);

@@ -108,6 +108,8 @@ SECTIONS
 		EXIT_TEXT
 	}
 
+	/* early.c uses stsi, which requires page aligned data. */
+	. = ALIGN(PAGE_SIZE);
 	.init.data : {
 		INIT_DATA
 	}

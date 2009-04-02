@@ -97,8 +97,7 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 		if (addr) {
 			addr->a.v6.sin6_family = AF_INET6;
 			addr->a.v6.sin6_port = 0;
-			memcpy(&addr->a.v6.sin6_addr, &ifa->addr,
-				 sizeof(struct in6_addr));
+			ipv6_addr_copy(&addr->a.v6.sin6_addr, &ifa->addr);
 			addr->a.v6.sin6_scope_id = ifa->idev->dev->ifindex;
 			addr->valid = 1;
 			spin_lock_bh(&sctp_local_addr_lock);
@@ -628,9 +627,7 @@ static sctp_scope_t sctp_v6_scope(union sctp_addr *addr)
 static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 					     struct sctp_association *asoc)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct sock *newsk;
-	struct inet_sock *newinet;
 	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
 	struct sctp6_sock *newsctp6sk;
 
@@ -640,17 +637,7 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 
 	sock_init_data(NULL, newsk);
 
-	newsk->sk_type = SOCK_STREAM;
-
-	newsk->sk_prot = sk->sk_prot;
-	newsk->sk_no_check = sk->sk_no_check;
-	newsk->sk_reuse = sk->sk_reuse;
-
-	newsk->sk_destruct = inet_sock_destruct;
-	newsk->sk_family = PF_INET6;
-	newsk->sk_protocol = IPPROTO_SCTP;
-	newsk->sk_backlog_rcv = sk->sk_prot->backlog_rcv;
-	newsk->sk_shutdown = sk->sk_shutdown;
+	sctp_copy_sock(newsk, sk, asoc);
 	sock_reset_flag(sk, SOCK_ZAPPED);
 
 	newsctp6sk = (struct sctp6_sock *)newsk;
@@ -658,7 +645,6 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 
 	sctp_sk(newsk)->v4mapped = sctp_sk(sk)->v4mapped;
 
-	newinet = inet_sk(newsk);
 	newnp = inet6_sk(newsk);
 
 	memcpy(newnp, np, sizeof(struct ipv6_pinfo));
@@ -666,25 +652,7 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	/* Initialize sk's sport, dport, rcv_saddr and daddr for getsockname()
 	 * and getpeername().
 	 */
-	newinet->sport = inet->sport;
-	newnp->saddr = np->saddr;
-	newnp->rcv_saddr = np->rcv_saddr;
-	newinet->dport = htons(asoc->peer.port);
 	sctp_v6_to_sk_daddr(&asoc->peer.primary_addr, newsk);
-
-	/* Init the ipv4 part of the socket since we can have sockets
-	 * using v6 API for ipv4.
-	 */
-	newinet->uc_ttl = -1;
-	newinet->mc_loop = 1;
-	newinet->mc_ttl = 1;
-	newinet->mc_index = 0;
-	newinet->mc_list = NULL;
-
-	if (ipv4_config.no_pmtu_disc)
-		newinet->pmtudisc = IP_PMTUDISC_DONT;
-	else
-		newinet->pmtudisc = IP_PMTUDISC_WANT;
 
 	sk_refcnt_debug_inc(newsk);
 

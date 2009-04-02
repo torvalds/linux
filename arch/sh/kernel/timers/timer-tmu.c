@@ -146,7 +146,14 @@ static irqreturn_t tmu_timer_interrupt(int irq, void *dummy)
 	_tmu_clear_status(TMU0);
 	_tmu_set_irq(TMU0,tmu0_clockevent.mode != CLOCK_EVT_MODE_ONESHOT);
 
-	evt->event_handler(evt);
+	switch (tmu0_clockevent.mode) {
+	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_PERIODIC:
+		evt->event_handler(evt);
+		break;
+	default:
+		break;
+	}
 
 	return IRQ_HANDLED;
 }
@@ -155,7 +162,6 @@ static struct irqaction tmu0_irq = {
 	.name		= "periodic/oneshot timer",
 	.handler	= tmu_timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.mask		= CPU_MASK_NONE,
 };
 
 static void __init tmu_clk_init(struct clk *clk)
@@ -237,6 +243,7 @@ static int tmu_timer_init(void)
     !defined(CONFIG_CPU_SUBTYPE_SH7721) && \
     !defined(CONFIG_CPU_SUBTYPE_SH7760) && \
     !defined(CONFIG_CPU_SUBTYPE_SH7785) && \
+    !defined(CONFIG_CPU_SUBTYPE_SH7786) && \
     !defined(CONFIG_CPU_SUBTYPE_SHX3)
 	ctrl_outb(TMU_TOCR_INIT, TMU_TOCR);
 #endif
@@ -254,7 +261,14 @@ static int tmu_timer_init(void)
 
 	_tmu_start(TMU1);
 
-	sh_hpt_frequency = clk_get_rate(&tmu1_clk);
+	clocksource_sh.rating = 200;
+	clocksource_sh.mask = CLOCKSOURCE_MASK(32);
+	clocksource_sh.read = tmu_timer_read;
+	clocksource_sh.shift = 10;
+	clocksource_sh.mult = clocksource_hz2mult(clk_get_rate(&tmu1_clk),
+						  clocksource_sh.shift);
+	clocksource_sh.flags = CLOCK_SOURCE_IS_CONTINUOUS;
+	clocksource_register(&clocksource_sh);
 
 	tmu0_clockevent.mult = div_sc(frequency, NSEC_PER_SEC,
 				      tmu0_clockevent.shift);
@@ -264,6 +278,7 @@ static int tmu_timer_init(void)
 			clockevent_delta2ns(1, &tmu0_clockevent);
 
 	tmu0_clockevent.cpumask = cpumask_of(0);
+	tmu0_clockevent.rating = 100;
 
 	clockevents_register_device(&tmu0_clockevent);
 
@@ -274,7 +289,6 @@ static struct sys_timer_ops tmu_timer_ops = {
 	.init		= tmu_timer_init,
 	.start		= tmu_timer_start,
 	.stop		= tmu_timer_stop,
-	.read		= tmu_timer_read,
 };
 
 struct sys_timer tmu_timer = {

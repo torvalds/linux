@@ -22,14 +22,13 @@
  */
 
 #include "cx18-driver.h"
-#include "cx18-av-core.h"
 #include "cx18-cards.h"
 #include "cx18-ioctl.h"
 #include "cx18-audio.h"
-#include "cx18-i2c.h"
 #include "cx18-mailbox.h"
 #include "cx18-controls.h"
 
+/* Must be sorted from low to high control ID! */
 static const u32 user_ctrls[] = {
 	V4L2_CID_USER_CLASS,
 	V4L2_CID_BRIGHTNESS,
@@ -66,7 +65,7 @@ int cx18_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 	case V4L2_CID_HUE:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_CONTRAST:
-		if (cx18_av_cmd(cx, VIDIOC_QUERYCTRL, qctrl))
+		if (v4l2_subdev_call(cx->sd_av, core, queryctrl, qctrl))
 			qctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
 		return 0;
 
@@ -76,7 +75,7 @@ int cx18_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_LOUDNESS:
-		if (cx18_i2c_hw(cx, cx->card->hw_audio_ctrl, VIDIOC_QUERYCTRL, qctrl))
+		if (v4l2_subdev_call(cx->sd_av, core, queryctrl, qctrl))
 			qctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
 		return 0;
 
@@ -125,7 +124,7 @@ static int cx18_s_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
 	case V4L2_CID_HUE:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_CONTRAST:
-		return cx18_av_cmd(cx, VIDIOC_S_CTRL, vctrl);
+		return v4l2_subdev_call(cx->sd_av, core, s_ctrl, vctrl);
 
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_MUTE:
@@ -133,7 +132,7 @@ static int cx18_s_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_LOUDNESS:
-		return cx18_i2c_hw(cx, cx->card->hw_audio_ctrl, VIDIOC_S_CTRL, vctrl);
+		return v4l2_subdev_call(cx->sd_av, core, s_ctrl, vctrl);
 
 	default:
 		CX18_DEBUG_IOCTL("invalid control 0x%x\n", vctrl->id);
@@ -150,7 +149,7 @@ static int cx18_g_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
 	case V4L2_CID_HUE:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_CONTRAST:
-		return cx18_av_cmd(cx, VIDIOC_G_CTRL, vctrl);
+		return v4l2_subdev_call(cx->sd_av, core, g_ctrl, vctrl);
 
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_MUTE:
@@ -158,7 +157,8 @@ static int cx18_g_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_LOUDNESS:
-		return cx18_i2c_hw(cx, cx->card->hw_audio_ctrl, VIDIOC_G_CTRL, vctrl);
+		return v4l2_subdev_call(cx->sd_av, core, g_ctrl, vctrl);
+
 	default:
 		CX18_DEBUG_IOCTL("invalid control 0x%x\n", vctrl->id);
 		return -EINVAL;
@@ -166,38 +166,57 @@ static int cx18_g_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
 	return 0;
 }
 
-static int cx18_setup_vbi_fmt(struct cx18 *cx, enum v4l2_mpeg_stream_vbi_fmt fmt)
+static int cx18_setup_vbi_fmt(struct cx18 *cx,
+			      enum v4l2_mpeg_stream_vbi_fmt fmt,
+			      enum v4l2_mpeg_stream_type type)
 {
 	if (!(cx->v4l2_cap & V4L2_CAP_SLICED_VBI_CAPTURE))
 		return -EINVAL;
 	if (atomic_read(&cx->ana_capturing) > 0)
 		return -EBUSY;
 
-	/* First try to allocate sliced VBI buffers if needed. */
-	if (fmt && cx->vbi.sliced_mpeg_data[0] == NULL) {
+	if (fmt != V4L2_MPEG_STREAM_VBI_FMT_IVTV ||
+	    type != V4L2_MPEG_STREAM_TYPE_MPEG2_PS) {
+		/* We don't do VBI insertion aside from IVTV format in a PS */
+		cx->vbi.insert_mpeg = V4L2_MPEG_STREAM_VBI_FMT_NONE;
+		CX18_DEBUG_INFO("disabled insertion of sliced VBI data into "
+				"the MPEG stream\n");
+		return 0;
+	}
+
+	/* Allocate sliced VBI buffers if needed. */
+	if (cx->vbi.sliced_mpeg_data[0] == NULL) {
 		int i;
 
 		for (i = 0; i < CX18_VBI_FRAMES; i++) {
-			/* Yuck, hardcoded. Needs to be a define */
-			cx->vbi.sliced_mpeg_data[i] = kmalloc(2049, GFP_KERNEL);
+			cx->vbi.sliced_mpeg_data[i] =
+			       kmalloc(CX18_SLICED_MPEG_DATA_BUFSZ, GFP_KERNEL);
 			if (cx->vbi.sliced_mpeg_data[i] == NULL) {
 				while (--i >= 0) {
 					kfree(cx->vbi.sliced_mpeg_data[i]);
 					cx->vbi.sliced_mpeg_data[i] = NULL;
 				}
+				cx->vbi.insert_mpeg =
+						  V4L2_MPEG_STREAM_VBI_FMT_NONE;
+				CX18_WARN("Unable to allocate buffers for "
+					  "sliced VBI data insertion\n");
 				return -ENOMEM;
 			}
 		}
 	}
 
 	cx->vbi.insert_mpeg = fmt;
+	CX18_DEBUG_INFO("enabled insertion of sliced VBI data into the MPEG PS,"
+			"when sliced VBI is enabled\n");
 
-	if (cx->vbi.insert_mpeg == 0)
-		return 0;
-	/* Need sliced data for mpeg insertion */
+	/*
+	 * If our current settings have no lines set for capture, store a valid,
+	 * default set of service lines to capture, in our current settings.
+	 */
 	if (cx18_get_service_set(cx->vbi.sliced_in) == 0) {
 		if (cx->is_60hz)
-			cx->vbi.sliced_in->service_set = V4L2_SLICED_CAPTION_525;
+			cx->vbi.sliced_in->service_set =
+							V4L2_SLICED_CAPTION_525;
 		else
 			cx->vbi.sliced_in->service_set = V4L2_SLICED_WSS_625;
 		cx18_expand_service_set(cx->vbi.sliced_in, cx->is_50hz);
@@ -259,10 +278,12 @@ int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		return err;
 	}
 	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
+		static u32 freqs[3] = { 44100, 48000, 32000 };
 		struct cx18_api_func_private priv;
 		struct cx2341x_mpeg_params p = cx->params;
 		int err = cx2341x_ext_ctrls(&p, atomic_read(&cx->ana_capturing),
 						c, VIDIOC_S_EXT_CTRLS);
+		unsigned int idx;
 
 		if (err)
 			return err;
@@ -277,16 +298,23 @@ int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 			fmt.fmt.pix.width = cx->params.width
 						/ (is_mpeg1 ? 2 : 1);
 			fmt.fmt.pix.height = cx->params.height;
-			cx18_av_cmd(cx, VIDIOC_S_FMT, &fmt);
+			v4l2_subdev_call(cx->sd_av, video, s_fmt, &fmt);
 		}
 		priv.cx = cx;
 		priv.s = &cx->streams[id->type];
 		err = cx2341x_update(&priv, cx18_api_func, &cx->params, &p);
-		if (!err && cx->params.stream_vbi_fmt != p.stream_vbi_fmt)
-			err = cx18_setup_vbi_fmt(cx, p.stream_vbi_fmt);
+		if (!err &&
+		    (cx->params.stream_vbi_fmt != p.stream_vbi_fmt ||
+		     cx->params.stream_type != p.stream_type))
+			err = cx18_setup_vbi_fmt(cx, p.stream_vbi_fmt,
+						 p.stream_type);
 		cx->params = p;
 		cx->dualwatch_stereo_mode = p.audio_properties & 0x0300;
-		cx18_audio_set_audio_clock_freq(cx, p.audio_properties & 0x03);
+		idx = p.audio_properties & 0x03;
+		/* The audio clock of the digitizer must match the codec sample
+		   rate otherwise you get some very strange effects. */
+		if (idx < sizeof(freqs))
+			cx18_call_all(cx, audio, s_clock_freq, freqs[idx]);
 		return err;
 	}
 	return -EINVAL;

@@ -47,7 +47,7 @@ static inline unsigned int wm8728_read_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
 	u16 *cache = codec->reg_cache;
-	BUG_ON(reg > ARRAY_SIZE(wm8728_reg_defaults));
+	BUG_ON(reg >= ARRAY_SIZE(wm8728_reg_defaults));
 	return cache[reg];
 }
 
@@ -55,7 +55,7 @@ static inline void wm8728_write_reg_cache(struct snd_soc_codec *codec,
 	u16 reg, unsigned int value)
 {
 	u16 *cache = codec->reg_cache;
-	BUG_ON(reg > ARRAY_SIZE(wm8728_reg_defaults));
+	BUG_ON(reg >= ARRAY_SIZE(wm8728_reg_defaults));
 	cache[reg] = value;
 }
 
@@ -91,21 +91,6 @@ SOC_DOUBLE_R_TLV("Digital Playback Volume", WM8728_DACLVOL, WM8728_DACRVOL,
 
 SOC_SINGLE("Deemphasis", WM8728_DACCTL, 1, 1, 0),
 };
-
-static int wm8728_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8728_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&wm8728_snd_controls[i],
-						codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
 
 /*
  * DAPM controls.
@@ -152,7 +137,7 @@ static int wm8728_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 dac = wm8728_read_reg_cache(codec, WM8728_DACCTL);
 
 	dac &= ~0x18;
@@ -259,6 +244,12 @@ static int wm8728_set_bias_level(struct snd_soc_codec *codec,
 #define WM8728_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
+static struct snd_soc_dai_ops wm8728_dai_ops = {
+	.hw_params	= wm8728_hw_params,
+	.digital_mute	= wm8728_mute,
+	.set_fmt	= wm8728_set_dai_fmt,
+};
+
 struct snd_soc_dai wm8728_dai = {
 	.name = "WM8728",
 	.playback = {
@@ -268,18 +259,14 @@ struct snd_soc_dai wm8728_dai = {
 		.rates = WM8728_RATES,
 		.formats = WM8728_FORMATS,
 	},
-	.ops = {
-		 .hw_params = wm8728_hw_params,
-		 .digital_mute = wm8728_mute,
-		 .set_fmt = wm8728_set_dai_fmt,
-	}
+	.ops = &wm8728_dai_ops,
 };
 EXPORT_SYMBOL_GPL(wm8728_dai);
 
 static int wm8728_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	wm8728_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -289,7 +276,7 @@ static int wm8728_suspend(struct platform_device *pdev, pm_message_t state)
 static int wm8728_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	wm8728_set_bias_level(codec, codec->suspend_bias_level);
 
@@ -302,7 +289,7 @@ static int wm8728_resume(struct platform_device *pdev)
  */
 static int wm8728_init(struct snd_soc_device *socdev)
 {
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret = 0;
 
 	codec->name = "WM8728";
@@ -330,7 +317,8 @@ static int wm8728_init(struct snd_soc_device *socdev)
 	/* power on device */
 	wm8728_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	wm8728_add_controls(codec);
+	snd_soc_add_controls(codec, wm8728_snd_controls,
+				ARRAY_SIZE(wm8728_snd_controls));
 	wm8728_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
@@ -363,7 +351,7 @@ static int wm8728_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct snd_soc_device *socdev = wm8728_socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret;
 
 	i2c_set_clientdata(i2c, codec);
@@ -444,7 +432,7 @@ err_driver:
 static int __devinit wm8728_spi_probe(struct spi_device *spi)
 {
 	struct snd_soc_device *socdev = wm8728_socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret;
 
 	codec->control_data = spi;
@@ -508,7 +496,7 @@ static int wm8728_probe(struct platform_device *pdev)
 	if (codec == NULL)
 		return -ENOMEM;
 
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
@@ -541,7 +529,7 @@ static int wm8728_probe(struct platform_device *pdev)
 static int wm8728_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	if (codec->control_data)
 		wm8728_set_bias_level(codec, SND_SOC_BIAS_OFF);

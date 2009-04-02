@@ -129,11 +129,6 @@ static int vp27smpx_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int vp27smpx_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops vp27smpx_core_ops = {
@@ -206,8 +201,6 @@ MODULE_DEVICE_TABLE(i2c, vp27smpx_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "vp27smpx",
-	.driverid = I2C_DRIVERID_VP27SMPX,
-	.command = vp27smpx_command,
 	.probe = vp27smpx_probe,
 	.remove = vp27smpx_remove,
 	.id_table = vp27smpx_id,

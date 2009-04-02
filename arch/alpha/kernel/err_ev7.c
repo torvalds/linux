@@ -246,13 +246,13 @@ ev7_process_pal_subpacket(struct el_subpacket *header)
 
 	switch(header->type) {
 	case EL_TYPE__PAL__LOGOUT_FRAME:
-		printk("%s*** MCHK occurred on LPID %ld (RBOX %lx)\n",
+		printk("%s*** MCHK occurred on LPID %ld (RBOX %llx)\n",
 		       err_print_prefix,
 		       packet->by_type.logout.whami, 
 		       packet->by_type.logout.rbox_whami);
 		el_print_timestamp(&packet->by_type.logout.timestamp);
-		printk("%s  EXC_ADDR: %016lx\n"
-		         "  HALT_CODE: %lx\n", 
+		printk("%s  EXC_ADDR: %016llx\n"
+		         "  HALT_CODE: %llx\n",
 		       err_print_prefix,
 		       packet->by_type.logout.exc_addr,
 		       packet->by_type.logout.halt_code);

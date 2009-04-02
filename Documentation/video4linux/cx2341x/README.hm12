@@ -32,6 +32,10 @@ Y, U and V planes. This code assumes frames of 720x576 (PAL) pixels.
 The width of a frame is always 720 pixels, regardless of the actual specified
 width.
 
+If the height is not a multiple of 32 lines, then the captured video is
+missing macroblocks at the end and is unusable. So the height must be a
+multiple of 32.
+
 --------------------------------------------------------------------------
 
 #include <stdio.h>

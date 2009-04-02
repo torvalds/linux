@@ -101,8 +101,7 @@ static const struct v4l2_pix_format sif_mode[] = {
  * Initialization data: this is the first set-up data written to the
  * device (before the open data).
  */
-static const __u16 spca508_init_data[][3] =
-#define IGN(x)			/* nothing */
+static const u16 spca508_init_data[][2] =
 {
 	/*  line   URB      value, index */
 	/* 44274  1804 */ {0x0000, 0x870b},
@@ -589,11 +588,10 @@ static const __u16 spca508_init_data[][3] =
 	{}
 };
 
-
 /*
  * Initialization data for Intel EasyPC Camera CS110
  */
-static const __u16 spca508cs110_init_data[][3] = {
+static const u16 spca508cs110_init_data[][2] = {
 	{0x0000, 0x870b}, /* Reset CTL3 */
 	{0x0003, 0x8111}, /* Soft Reset compression, memory, TG & CDSP */
 	{0x0000, 0x8111}, /* Normal operation on reset */
@@ -677,7 +675,7 @@ static const __u16 spca508cs110_init_data[][3] = {
 	{}
 };
 
-static const __u16 spca508_sightcam_init_data[][3] = {
+static const u16 spca508_sightcam_init_data[][2] = {
 /* This line seems to setup the frame/canvas */
 	/*368  */ {0x000f, 0x8402},
 
@@ -760,7 +758,7 @@ static const __u16 spca508_sightcam_init_data[][3] = {
 	{}
 };
 
-static const __u16 spca508_sightcam2_init_data[][3] = {
+static const u16 spca508_sightcam2_init_data[][2] = {
 /* 35 */ {0x0020, 0x8112},
 
 /* 36 */ {0x000f, 0x8402},
@@ -1107,7 +1105,7 @@ static const __u16 spca508_sightcam2_init_data[][3] = {
 /*
  * Initialization data for Creative Webcam Vista
  */
-static const __u16 spca508_vista_init_data[][3] = {
+static const u16 spca508_vista_init_data[][2] = {
 	{0x0008, 0x8200},	/* Clear register */
 	{0x0000, 0x870b},	/* Reset CTL3 */
 	{0x0020, 0x8112},	/* Video Drop packet enable */
@@ -1309,18 +1307,18 @@ static const __u16 spca508_vista_init_data[][3] = {
 
 	{0x0050, 0x8703},
 	{0x0002, 0x8704},	/* External input CKIx1 */
-	{0x0001, 0x870C},	/* Select CKOx2 output */
-	{0x009A, 0x8600},	/* Line memory Read Counter (L) */
+	{0x0001, 0x870c},	/* Select CKOx2 output */
+	{0x009a, 0x8600},	/* Line memory Read Counter (L) */
 	{0x0001, 0x8606},  /* 1 Line memory Read Counter (H) Result: (d)410 */
 	{0x0023, 0x8601},
 	{0x0010, 0x8602},
-	{0x000A, 0x8603},
+	{0x000a, 0x8603},
 	{0x009A, 0x8600},
-	{0x0001, 0x865B},	/* 1 Horizontal Offset for Valid Pixel(L) */
-	{0x0003, 0x865C},	/* Vertical offset for valid lines (L) */
-	{0x0058, 0x865D},	/* Horizontal valid pixels window (L) */
-	{0x0048, 0x865E},	/* Vertical valid lines window (L) */
-	{0x0000, 0x865F},
+	{0x0001, 0x865b},	/* 1 Horizontal Offset for Valid Pixel(L) */
+	{0x0003, 0x865c},	/* Vertical offset for valid lines (L) */
+	{0x0058, 0x865d},	/* Horizontal valid pixels window (L) */
+	{0x0048, 0x865e},	/* Vertical valid lines window (L) */
+	{0x0000, 0x865f},
 
 	{0x0006, 0x8660},
 		    /* Enable nibble data input, select nibble input order */
@@ -1328,63 +1326,63 @@ static const __u16 spca508_vista_init_data[][3] = {
 	{0x0013, 0x8608},	/* A11 Coeficients for color correction */
 	{0x0028, 0x8609},
 		    /* Note: these values are confirmed at the end of array */
-	{0x0005, 0x860A},	/* ... */
-	{0x0025, 0x860B},
-	{0x00E1, 0x860C},
-	{0x00FA, 0x860D},
-	{0x00F4, 0x860E},
-	{0x00E8, 0x860F},
+	{0x0005, 0x860a},	/* ... */
+	{0x0025, 0x860b},
+	{0x00e1, 0x860c},
+	{0x00fa, 0x860D},
+	{0x00f4, 0x860e},
+	{0x00e8, 0x860f},
 	{0x0025, 0x8610},	/* A33 Coef. */
-	{0x00FC, 0x8611},	/* White balance offset: R */
+	{0x00fc, 0x8611},	/* White balance offset: R */
 	{0x0001, 0x8612},	/* White balance offset: Gr */
-	{0x00FE, 0x8613},	/* White balance offset: B */
+	{0x00fe, 0x8613},	/* White balance offset: B */
 	{0x0000, 0x8614},	/* White balance offset: Gb */
 
 	{0x0064, 0x8651},	/* R gain for white balance (L) */
 	{0x0040, 0x8652},	/* Gr gain for white balance (L) */
 	{0x0066, 0x8653},	/* B gain for white balance (L) */
 	{0x0040, 0x8654},	/* Gb gain for white balance (L) */
-	{0x0001, 0x863F},	/* Enable fixed gamma correction */
+	{0x0001, 0x863f},	/* Enable fixed gamma correction */
 
-	{0x00A1, 0x8656},	/* Size - Window1: 256x256, Window2: 128x128 */
+	{0x00a1, 0x8656},	/* Size - Window1: 256x256, Window2: 128x128 */
 	/* UV division: UV no change, Enable New edge enhancement */
 	{0x0018, 0x8657},	/* Edge gain high threshold */
 	{0x0020, 0x8658},	/* Edge gain low threshold */
 	{0x000A, 0x8659},	/* Edge bandwidth high threshold */
-	{0x0005, 0x865A},	/* Edge bandwidth low threshold */
+	{0x0005, 0x865a},	/* Edge bandwidth low threshold */
 	{0x0064, 0x8607},	/* UV filter enable */
 
 	{0x0016, 0x8660},
-	{0x0000, 0x86B0},	/* Bad pixels compensation address */
-	{0x00DC, 0x86B1},	/* X coord for bad pixels compensation (L) */
-	{0x0000, 0x86B2},
-	{0x0009, 0x86B3},	/* Y coord for bad pixels compensation (L) */
-	{0x0000, 0x86B4},
+	{0x0000, 0x86b0},	/* Bad pixels compensation address */
+	{0x00dc, 0x86b1},	/* X coord for bad pixels compensation (L) */
+	{0x0000, 0x86b2},
+	{0x0009, 0x86b3},	/* Y coord for bad pixels compensation (L) */
+	{0x0000, 0x86b4},
 
-	{0x0001, 0x86B0},
-	{0x00F5, 0x86B1},
-	{0x0000, 0x86B2},
-	{0x00C6, 0x86B3},
-	{0x0000, 0x86B4},
+	{0x0001, 0x86b0},
+	{0x00f5, 0x86b1},
+	{0x0000, 0x86b2},
+	{0x00c6, 0x86b3},
+	{0x0000, 0x86b4},
 
-	{0x0002, 0x86B0},
-	{0x001C, 0x86B1},
-	{0x0001, 0x86B2},
-	{0x00D7, 0x86B3},
-	{0x0000, 0x86B4},
+	{0x0002, 0x86b0},
+	{0x001c, 0x86b1},
+	{0x0001, 0x86b2},
+	{0x00d7, 0x86b3},
+	{0x0000, 0x86b4},
 
-	{0x0003, 0x86B0},
-	{0x001C, 0x86B1},
-	{0x0001, 0x86B2},
-	{0x00D8, 0x86B3},
-	{0x0000, 0x86B4},
+	{0x0003, 0x86b0},
+	{0x001c, 0x86b1},
+	{0x0001, 0x86b2},
+	{0x00d8, 0x86b3},
+	{0x0000, 0x86b4},
 
-	{0x0004, 0x86B0},
-	{0x001D, 0x86B1},
-	{0x0001, 0x86B2},
-	{0x00D8, 0x86B3},
-	{0x0000, 0x86B4},
-	{0x001E, 0x8660},
+	{0x0004, 0x86b0},
+	{0x001d, 0x86b1},
+	{0x0001, 0x86b2},
+	{0x00d8, 0x86b3},
+	{0x0000, 0x86b4},
+	{0x001e, 0x8660},
 
 	/* READ { 0, 0x0000, 0x8608 } ->
 		0000: 13  */
@@ -1449,7 +1447,7 @@ static int reg_read(struct gspca_dev *gspca_dev,
 }
 
 static int write_vector(struct gspca_dev *gspca_dev,
-			const __u16 data[][3])
+			const u16 data[][2])
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int ret, i = 0;
@@ -1487,7 +1485,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	PDEBUG(D_PROBE, "Window 1 average luminance: %d", data1);
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x01;
 	cam->cam_mode = sif_mode;
 	cam->nmodes = ARRAY_SIZE(sif_mode);
 
@@ -1593,13 +1590,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	reg_write(gspca_dev->dev, 0x8654, brightness);
 }
 
-static void getbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->brightness = reg_read(gspca_dev, 0x8651);
-}
-
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1614,7 +1604,6 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getbrightness(gspca_dev);
 	*val = sd->brightness;
 	return 0;
 }
@@ -1666,8 +1655,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	if (usb_register(&sd_driver) < 0)
-		return -1;
+	int ret;
+
+	ret = usb_register(&sd_driver);
+	if (ret < 0)
+		return ret;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }

@@ -57,9 +57,9 @@ enum {
 	NV_MMIO_BAR			= 5,
 
 	NV_PORTS			= 2,
-	NV_PIO_MASK			= 0x1f,
-	NV_MWDMA_MASK			= 0x07,
-	NV_UDMA_MASK			= 0x7f,
+	NV_PIO_MASK			= ATA_PIO4,
+	NV_MWDMA_MASK			= ATA_MWDMA2,
+	NV_UDMA_MASK			= ATA_UDMA6,
 	NV_PORT0_SCR_REG_OFFSET		= 0x00,
 	NV_PORT1_SCR_REG_OFFSET		= 0x40,
 
@@ -408,6 +408,7 @@ static struct scsi_host_template nv_swncq_sht = {
 
 static struct ata_port_operations nv_common_ops = {
 	.inherits		= &ata_bmdma_port_ops,
+	.lost_interrupt		= ATA_OP_NULL,
 	.scr_read		= nv_scr_read,
 	.scr_write		= nv_scr_write,
 };

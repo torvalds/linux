@@ -8,9 +8,11 @@
 #ifndef _XT_NFQ_TARGET_H
 #define _XT_NFQ_TARGET_H
 
+#include <linux/types.h>
+
 /* target info */
 struct xt_NFQ_info {
-	u_int16_t queuenum;
+	__u16 queuenum;
 };
 
 #endif /* _XT_NFQ_TARGET_H */

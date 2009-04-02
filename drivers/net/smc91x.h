@@ -44,6 +44,7 @@
     defined(CONFIG_MACH_MAINSTONE) ||\
     defined(CONFIG_MACH_ZYLONITE) ||\
     defined(CONFIG_MACH_LITTLETON) ||\
+    defined(CONFIG_MACH_ZYLONITE2) ||\
     defined(CONFIG_ARCH_VIPER)
 
 #include <asm/mach-types.h>
@@ -345,38 +346,6 @@ static inline void LPD7_SMC_outsw (unsigned char* a, int r,
 #define RPC_LSA_DEFAULT		RPC_LED_TX_RX
 #define RPC_LSB_DEFAULT		RPC_LED_100_10
 
-#elif defined(CONFIG_SOC_AU1X00)
-
-#include <au1xxx.h>
-
-/* We can only do 16-bit reads and writes in the static memory space. */
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	0
-#define SMC_IO_SHIFT		0
-#define SMC_NOWAIT		1
-
-#define SMC_inw(a, r)		au_readw((unsigned long)((a) + (r)))
-#define SMC_insw(a, r, p, l)	\
-	do {	\
-		unsigned long _a = (unsigned long)((a) + (r)); \
-		int _l = (l); \
-		u16 *_p = (u16 *)(p); \
-		while (_l-- > 0) \
-			*_p++ = au_readw(_a); \
-	} while(0)
-#define SMC_outw(v, a, r)	au_writew(v, (unsigned long)((a) + (r)))
-#define SMC_outsw(a, r, p, l)	\
-	do {	\
-		unsigned long _a = (unsigned long)((a) + (r)); \
-		int _l = (l); \
-		const u16 *_p = (const u16 *)(p); \
-		while (_l-- > 0) \
-			au_writew(*_p++ , _a); \
-	} while(0)
-
-#define SMC_IRQ_FLAGS		(0)
-
 #elif	defined(CONFIG_ARCH_VERSATILE)
 
 #define SMC_CAN_USE_8BIT	1
@@ -494,8 +463,6 @@ struct smc_local {
  */
 #include <linux/dma-mapping.h>
 #include <mach/dma.h>
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 
 #ifdef SMC_insl
 #undef SMC_insl
@@ -1140,6 +1107,16 @@ static const char * chip_ids[ 16 ] =  {
 #define SMC_SET_CTL(lp, x)		SMC_outw(x, ioaddr, CTL_REG(lp))
 
 #define SMC_GET_MII(lp)		SMC_inw(ioaddr, MII_REG(lp))
+
+#define SMC_GET_GP(lp)		SMC_inw(ioaddr, GP_REG(lp))
+
+#define SMC_SET_GP(lp, x)						\
+	do {								\
+		if (SMC_MUST_ALIGN_WRITE(lp))				\
+			SMC_outl((x)<<16, ioaddr, SMC_REG(lp, 8, 1));	\
+		else							\
+			SMC_outw(x, ioaddr, GP_REG(lp));		\
+	} while (0)
 
 #define SMC_SET_MII(lp, x)		SMC_outw(x, ioaddr, MII_REG(lp))
 

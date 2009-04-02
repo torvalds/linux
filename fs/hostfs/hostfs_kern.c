@@ -31,12 +31,12 @@ static inline struct hostfs_inode_info *HOSTFS_I(struct inode *inode)
 
 #define FILE_HOSTFS_I(file) HOSTFS_I((file)->f_path.dentry->d_inode)
 
-int hostfs_d_delete(struct dentry *dentry)
+static int hostfs_d_delete(struct dentry *dentry)
 {
 	return 1;
 }
 
-struct dentry_operations hostfs_dentry_ops = {
+static const struct dentry_operations hostfs_dentry_ops = {
 	.d_delete		= hostfs_d_delete,
 };
 

@@ -149,16 +149,7 @@ static void bictcp_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 		tcp_slow_start(tp);
 	else {
 		bictcp_update(ca, tp->snd_cwnd);
-
-		/* In dangerous area, increase slowly.
-		 * In theory this is tp->snd_cwnd += 1 / tp->snd_cwnd
-		 */
-		if (tp->snd_cwnd_cnt >= ca->cnt) {
-			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-				tp->snd_cwnd++;
-			tp->snd_cwnd_cnt = 0;
-		} else
-			tp->snd_cwnd_cnt++;
+		tcp_cong_avoid_ai(tp, ca->cnt);
 	}
 
 }

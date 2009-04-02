@@ -2037,8 +2037,6 @@ static int __init i2o_proc_fs_create(void)
 	if (!i2o_proc_dir_root)
 		return -1;
 
-	i2o_proc_dir_root->owner = THIS_MODULE;
-
 	list_for_each_entry(c, &i2o_controllers, list)
 	    i2o_proc_iop_add(i2o_proc_dir_root, c);
 

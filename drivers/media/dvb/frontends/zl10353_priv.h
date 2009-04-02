@@ -22,7 +22,9 @@
 #ifndef _ZL10353_PRIV_
 #define _ZL10353_PRIV_
 
-#define ID_ZL10353	0x14
+#define ID_ZL10353	0x14 /* Zarlink ZL10353 */
+#define ID_CE6230	0x18 /* Intel CE6230 */
+#define ID_CE6231	0x19 /* Intel CE6231 */
 
 #define msb(x) (((x) >> 8) & 0xff)
 #define lsb(x) ((x) & 0xff)
@@ -50,6 +52,10 @@ enum zl10353_reg_addr {
 	TPS_RECEIVED_0     = 0x1E,
 	TPS_CURRENT_1      = 0x1F,
 	TPS_CURRENT_0      = 0x20,
+	CLOCK_CTL_0        = 0x51,
+	CLOCK_CTL_1        = 0x52,
+	PLL_0              = 0x53,
+	PLL_1              = 0x54,
 	RESET              = 0x55,
 	AGC_TARGET         = 0x56,
 	MCLK_RATIO         = 0x5C,

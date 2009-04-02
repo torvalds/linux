@@ -97,7 +97,7 @@ struct lppaca {
 	u64	saved_gpr4;		// Saved GPR4                   x28-x2F
 	u64	saved_gpr5;		// Saved GPR5                   x30-x37
 
-	u8	reserved4;		// Reserved			x38-x38
+	u8	dtl_enable_mask;	// Dispatch Trace Log mask	x38-x38
 	u8	donate_dedicated_cpu;	// Donate dedicated CPU cycles  x39-x39
 	u8	fpregs_in_use;		// FP regs in use               x3A-x3A
 	u8	pmcregs_in_use;		// PMC regs in use              x3B-x3B
@@ -133,8 +133,10 @@ struct lppaca {
 //=============================================================================
 // CACHE_LINE_4-5 0x0180 - 0x027F Contains PMC interrupt data
 //=============================================================================
-	u32	page_ins;			// CMO Hint - # page ins by OS  x00-x04
-	u8	pmc_save_area[252];	// PMC interrupt Area           x04-xFF
+	u32	page_ins;		// CMO Hint - # page ins by OS  x00-x03
+	u8	reserved8[148];		// Reserved                     x04-x97
+	volatile u64 dtl_idx;		// Dispatch Trace Log head idx	x98-x9F
+	u8	reserved9[96];		// Reserved                     xA0-xFF
 } __attribute__((__aligned__(0x400)));
 
 extern struct lppaca lppaca[];

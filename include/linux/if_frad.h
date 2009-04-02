@@ -153,7 +153,6 @@ struct frhdr
 
 struct dlci_local
 {
-   struct net_device_stats stats;
    struct net_device      *master;
    struct net_device      *slave;
    struct dlci_conf       config;

@@ -63,8 +63,8 @@ If you have some knowledge and spare time, please try to fix this
 yourself (patches very welcome of course...)  You know: The linux
 slogan is "Do it yourself".
 
-There is a mailing list: video4linux-list@redhat.com.
-https://listman.redhat.com/mailman/listinfo/video4linux-list
+There is a mailing list: linux-media@vger.kernel.org
+http://vger.kernel.org/vger-lists.html#linux-media
 
 If you have trouble with some specific TV card, try to ask there
 instead of mailing me directly.  The chance that someone with the

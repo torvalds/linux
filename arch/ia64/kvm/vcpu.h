@@ -703,7 +703,7 @@ extern u64 guest_vhpt_lookup(u64 iha, u64 *pte);
 extern void thash_purge_entries(struct kvm_vcpu *v, u64 va, u64 ps);
 extern void thash_purge_entries_remote(struct kvm_vcpu *v, u64 va, u64 ps);
 extern u64 translate_phy_pte(u64 *pte, u64 itir, u64 va);
-extern int thash_purge_and_insert(struct kvm_vcpu *v, u64 pte,
+extern void thash_purge_and_insert(struct kvm_vcpu *v, u64 pte,
 		u64 itir, u64 ifa, int type);
 extern void thash_purge_all(struct kvm_vcpu *v);
 extern struct thash_data *vtlb_lookup(struct kvm_vcpu *v,
@@ -738,7 +738,7 @@ void kvm_init_vhpt(struct kvm_vcpu *v);
 void thash_init(struct thash_cb *hcb, u64 sz);
 
 void panic_vm(struct kvm_vcpu *v, const char *fmt, ...);
-
+u64 kvm_gpa_to_mpa(u64 gpa);
 extern u64 ia64_call_vsa(u64 proc, u64 arg1, u64 arg2, u64 arg3,
 		u64 arg4, u64 arg5, u64 arg6, u64 arg7);
 

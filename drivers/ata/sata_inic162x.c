@@ -744,8 +744,8 @@ static struct ata_port_operations inic_port_ops = {
 
 static struct ata_port_info inic_port_info = {
 	.flags			= ATA_FLAG_SATA | ATA_FLAG_PIO_DMA,
-	.pio_mask		= 0x1f,	/* pio0-4 */
-	.mwdma_mask		= 0x07, /* mwdma0-2 */
+	.pio_mask		= ATA_PIO4,
+	.mwdma_mask		= ATA_MWDMA2,
 	.udma_mask		= ATA_UDMA6,
 	.port_ops		= &inic_port_ops
 };

@@ -1459,7 +1459,7 @@ static int dvb_net_close(struct inode *inode, struct file *file)
 }
 
 
-static struct file_operations dvb_net_fops = {
+static const struct file_operations dvb_net_fops = {
 	.owner = THIS_MODULE,
 	.ioctl = dvb_net_ioctl,
 	.open =	dvb_generic_open,

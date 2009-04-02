@@ -35,333 +35,318 @@
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
-#include <asm/io.h>		/* outb, outb_p			*/
-#include <asm/uaccess.h>	/* copy to/from user		*/
 #include <linux/videodev2.h>	/* V4L2 API defs		*/
-#include <media/v4l2-common.h>
-#include <media/v4l2-ioctl.h>
 #include <linux/param.h>
 #include <linux/pnp.h>
+#include <linux/io.h>		/* outb, outb_p			*/
+#include <media/v4l2-device.h>
+#include <media/v4l2-ioctl.h>
+
+MODULE_AUTHOR("Fred Gleason, Russell Kroll, Quay Lu, Donald Song, Jason Lewis, Scott McGrath, William McGrath");
+MODULE_DESCRIPTION("A driver for the ADS Cadet AM/FM/RDS radio card.");
+MODULE_LICENSE("GPL");
+
+static int io = -1;		/* default to isapnp activation */
+static int radio_nr = -1;
+
+module_param(io, int, 0);
+MODULE_PARM_DESC(io, "I/O address of Cadet card (0x330,0x332,0x334,0x336,0x338,0x33a,0x33c,0x33e)");
+module_param(radio_nr, int, 0);
+
+#define CADET_VERSION KERNEL_VERSION(0, 3, 3)
 
 #define RDS_BUFFER 256
 #define RDS_RX_FLAG 1
 #define MBS_RX_FLAG 2
 
-#define CADET_VERSION KERNEL_VERSION(0,3,3)
-
-static struct v4l2_queryctrl radio_qctrl[] = {
-	{
-		.id            = V4L2_CID_AUDIO_MUTE,
-		.name          = "Mute",
-		.minimum       = 0,
-		.maximum       = 1,
-		.default_value = 1,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},{
-		.id            = V4L2_CID_AUDIO_VOLUME,
-		.name          = "Volume",
-		.minimum       = 0,
-		.maximum       = 0xff,
-		.step          = 1,
-		.default_value = 0xff,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	}
+struct cadet {
+	struct v4l2_device v4l2_dev;
+	struct video_device vdev;
+	int io;
+	int users;
+	int curtuner;
+	int tunestat;
+	int sigstrength;
+	wait_queue_head_t read_queue;
+	struct timer_list readtimer;
+	__u8 rdsin, rdsout, rdsstat;
+	unsigned char rdsbuf[RDS_BUFFER];
+	struct mutex lock;
+	int reading;
 };
 
-static int io=-1;		/* default to isapnp activation */
-static int radio_nr = -1;
-static int users;
-static int curtuner;
-static int tunestat;
-static int sigstrength;
-static wait_queue_head_t read_queue;
-static struct timer_list readtimer;
-static __u8 rdsin, rdsout, rdsstat;
-static unsigned char rdsbuf[RDS_BUFFER];
-static spinlock_t cadet_io_lock;
-
-static int cadet_probe(void);
+static struct cadet cadet_card;
 
 /*
  * Signal Strength Threshold Values
  * The V4L API spec does not define any particular unit for the signal
  * strength value.  These values are in microvolts of RF at the tuner's input.
  */
-static __u16 sigtable[2][4]={{5,10,30,150},{28,40,63,1000}};
+static __u16 sigtable[2][4] = {
+	{  5, 10, 30,  150 },
+	{ 28, 40, 63, 1000 }
+};
 
 
-static int
-cadet_getstereo(void)
+static int cadet_getstereo(struct cadet *dev)
 {
 	int ret = V4L2_TUNER_SUB_MONO;
-	if(curtuner != 0)	/* Only FM has stereo capability! */
+
+	if (dev->curtuner != 0)	/* Only FM has stereo capability! */
 		return V4L2_TUNER_SUB_MONO;
 
-	spin_lock(&cadet_io_lock);
-	outb(7,io);          /* Select tuner control */
-	if( (inb(io+1) & 0x40) == 0)
+	mutex_lock(&dev->lock);
+	outb(7, dev->io);          /* Select tuner control */
+	if ((inb(dev->io + 1) & 0x40) == 0)
 		ret = V4L2_TUNER_SUB_STEREO;
-	spin_unlock(&cadet_io_lock);
+	mutex_unlock(&dev->lock);
 	return ret;
 }
 
-static unsigned
-cadet_gettune(void)
+static unsigned cadet_gettune(struct cadet *dev)
 {
-	int curvol,i;
-	unsigned fifo=0;
+	int curvol, i;
+	unsigned fifo = 0;
 
 	/*
 	 * Prepare for read
 	 */
 
-	spin_lock(&cadet_io_lock);
+	mutex_lock(&dev->lock);
 
-	outb(7,io);       /* Select tuner control */
-	curvol=inb(io+1); /* Save current volume/mute setting */
-	outb(0x00,io+1);  /* Ensure WRITE-ENABLE is LOW */
-	tunestat=0xffff;
+	outb(7, dev->io);       /* Select tuner control */
+	curvol = inb(dev->io + 1); /* Save current volume/mute setting */
+	outb(0x00, dev->io + 1);  /* Ensure WRITE-ENABLE is LOW */
+	dev->tunestat = 0xffff;
 
 	/*
 	 * Read the shift register
 	 */
-	for(i=0;i<25;i++) {
-		fifo=(fifo<<1)|((inb(io+1)>>7)&0x01);
-		if(i<24) {
-			outb(0x01,io+1);
-			tunestat&=inb(io+1);
-			outb(0x00,io+1);
+	for (i = 0; i < 25; i++) {
+		fifo = (fifo << 1) | ((inb(dev->io + 1) >> 7) & 0x01);
+		if (i < 24) {
+			outb(0x01, dev->io + 1);
+			dev->tunestat &= inb(dev->io + 1);
+			outb(0x00, dev->io + 1);
 		}
 	}
 
 	/*
 	 * Restore volume/mute setting
 	 */
-	outb(curvol,io+1);
-	spin_unlock(&cadet_io_lock);
+	outb(curvol, dev->io + 1);
+	mutex_unlock(&dev->lock);
 
 	return fifo;
 }
 
-static unsigned
-cadet_getfreq(void)
+static unsigned cadet_getfreq(struct cadet *dev)
 {
 	int i;
-	unsigned freq=0,test,fifo=0;
+	unsigned freq = 0, test, fifo = 0;
 
 	/*
 	 * Read current tuning
 	 */
-	fifo=cadet_gettune();
+	fifo = cadet_gettune(dev);
 
 	/*
 	 * Convert to actual frequency
 	 */
-	if(curtuner==0) {    /* FM */
-		test=12500;
-		for(i=0;i<14;i++) {
-			if((fifo&0x01)!=0) {
-				freq+=test;
-			}
-			test=test<<1;
-			fifo=fifo>>1;
+	if (dev->curtuner == 0) {    /* FM */
+		test = 12500;
+		for (i = 0; i < 14; i++) {
+			if ((fifo & 0x01) != 0)
+				freq += test;
+			test = test << 1;
+			fifo = fifo >> 1;
 		}
-		freq-=10700000;           /* IF frequency is 10.7 MHz */
-		freq=(freq*16)/1000000;   /* Make it 1/16 MHz */
+		freq -= 10700000;           /* IF frequency is 10.7 MHz */
+		freq = (freq * 16) / 1000000;   /* Make it 1/16 MHz */
 	}
-	if(curtuner==1) {    /* AM */
-		freq=((fifo&0x7fff)-2010)*16;
-	}
+	if (dev->curtuner == 1)    /* AM */
+		freq = ((fifo & 0x7fff) - 2010) * 16;
 
 	return freq;
 }
 
-static void
-cadet_settune(unsigned fifo)
+static void cadet_settune(struct cadet *dev, unsigned fifo)
 {
 	int i;
 	unsigned test;
 
-	spin_lock(&cadet_io_lock);
+	mutex_lock(&dev->lock);
 
-	outb(7,io);                /* Select tuner control */
+	outb(7, dev->io);                /* Select tuner control */
 	/*
 	 * Write the shift register
 	 */
-	test=0;
-	test=(fifo>>23)&0x02;      /* Align data for SDO */
-	test|=0x1c;                /* SDM=1, SWE=1, SEN=1, SCK=0 */
-	outb(7,io);                /* Select tuner control */
-	outb(test,io+1);           /* Initialize for write */
-	for(i=0;i<25;i++) {
-		test|=0x01;              /* Toggle SCK High */
-		outb(test,io+1);
-		test&=0xfe;              /* Toggle SCK Low */
-		outb(test,io+1);
-		fifo=fifo<<1;            /* Prepare the next bit */
-		test=0x1c|((fifo>>23)&0x02);
-		outb(test,io+1);
+	test = 0;
+	test = (fifo >> 23) & 0x02;      /* Align data for SDO */
+	test |= 0x1c;                /* SDM=1, SWE=1, SEN=1, SCK=0 */
+	outb(7, dev->io);                /* Select tuner control */
+	outb(test, dev->io + 1);           /* Initialize for write */
+	for (i = 0; i < 25; i++) {
+		test |= 0x01;              /* Toggle SCK High */
+		outb(test, dev->io + 1);
+		test &= 0xfe;              /* Toggle SCK Low */
+		outb(test, dev->io + 1);
+		fifo = fifo << 1;            /* Prepare the next bit */
+		test = 0x1c | ((fifo >> 23) & 0x02);
+		outb(test, dev->io + 1);
 	}
-	spin_unlock(&cadet_io_lock);
+	mutex_unlock(&dev->lock);
 }
 
-static void
-cadet_setfreq(unsigned freq)
+static void cadet_setfreq(struct cadet *dev, unsigned freq)
 {
 	unsigned fifo;
-	int i,j,test;
+	int i, j, test;
 	int curvol;
 
 	/*
 	 * Formulate a fifo command
 	 */
-	fifo=0;
-	if(curtuner==0) {    /* FM */
-		test=102400;
-		freq=(freq*1000)/16;       /* Make it kHz */
-		freq+=10700;               /* IF is 10700 kHz */
-		for(i=0;i<14;i++) {
-			fifo=fifo<<1;
-			if(freq>=test) {
-				fifo|=0x01;
-				freq-=test;
+	fifo = 0;
+	if (dev->curtuner == 0) {    /* FM */
+		test = 102400;
+		freq = (freq * 1000) / 16;       /* Make it kHz */
+		freq += 10700;               /* IF is 10700 kHz */
+		for (i = 0; i < 14; i++) {
+			fifo = fifo << 1;
+			if (freq >= test) {
+				fifo |= 0x01;
+				freq -= test;
 			}
-			test=test>>1;
+			test = test >> 1;
 		}
 	}
-	if(curtuner==1) {    /* AM */
-		fifo=(freq/16)+2010;            /* Make it kHz */
-		fifo|=0x100000;            /* Select AM Band */
+	if (dev->curtuner == 1) {    /* AM */
+		fifo = (freq / 16) + 2010;            /* Make it kHz */
+		fifo |= 0x100000;            /* Select AM Band */
 	}
 
 	/*
 	 * Save current volume/mute setting
 	 */
 
-	spin_lock(&cadet_io_lock);
-	outb(7,io);                /* Select tuner control */
-	curvol=inb(io+1);
-	spin_unlock(&cadet_io_lock);
+	mutex_lock(&dev->lock);
+	outb(7, dev->io);                /* Select tuner control */
+	curvol = inb(dev->io + 1);
+	mutex_unlock(&dev->lock);
 
 	/*
 	 * Tune the card
 	 */
-	for(j=3;j>-1;j--) {
-		cadet_settune(fifo|(j<<16));
+	for (j = 3; j > -1; j--) {
+		cadet_settune(dev, fifo | (j << 16));
 
-		spin_lock(&cadet_io_lock);
-		outb(7,io);         /* Select tuner control */
-		outb(curvol,io+1);
-		spin_unlock(&cadet_io_lock);
+		mutex_lock(&dev->lock);
+		outb(7, dev->io);         /* Select tuner control */
+		outb(curvol, dev->io + 1);
+		mutex_unlock(&dev->lock);
 
 		msleep(100);
 
-		cadet_gettune();
-		if((tunestat & 0x40) == 0) {   /* Tuned */
-			sigstrength=sigtable[curtuner][j];
+		cadet_gettune(dev);
+		if ((dev->tunestat & 0x40) == 0) {   /* Tuned */
+			dev->sigstrength = sigtable[dev->curtuner][j];
 			return;
 		}
 	}
-	sigstrength=0;
+	dev->sigstrength = 0;
 }
 
 
-static int
-cadet_getvol(void)
+static int cadet_getvol(struct cadet *dev)
 {
 	int ret = 0;
 
-	spin_lock(&cadet_io_lock);
+	mutex_lock(&dev->lock);
 
-	outb(7,io);                /* Select tuner control */
-	if((inb(io + 1) & 0x20) != 0)
+	outb(7, dev->io);                /* Select tuner control */
+	if ((inb(dev->io + 1) & 0x20) != 0)
 		ret = 0xffff;
 
-	spin_unlock(&cadet_io_lock);
+	mutex_unlock(&dev->lock);
 	return ret;
 }
 
 
-static void
-cadet_setvol(int vol)
+static void cadet_setvol(struct cadet *dev, int vol)
 {
-	spin_lock(&cadet_io_lock);
-	outb(7,io);                /* Select tuner control */
-	if(vol>0)
-		outb(0x20,io+1);
+	mutex_lock(&dev->lock);
+	outb(7, dev->io);                /* Select tuner control */
+	if (vol > 0)
+		outb(0x20, dev->io + 1);
 	else
-		outb(0x00,io+1);
-	spin_unlock(&cadet_io_lock);
+		outb(0x00, dev->io + 1);
+	mutex_unlock(&dev->lock);
 }
 
-static void
-cadet_handler(unsigned long data)
+static void cadet_handler(unsigned long data)
 {
-	/*
-	 * Service the RDS fifo
-	 */
+	struct cadet *dev = (void *)data;
 
-	if(spin_trylock(&cadet_io_lock))
-	{
-		outb(0x3,io);       /* Select RDS Decoder Control */
-		if((inb(io+1)&0x20)!=0) {
+	/* Service the RDS fifo */
+	if (mutex_trylock(&dev->lock)) {
+		outb(0x3, dev->io);       /* Select RDS Decoder Control */
+		if ((inb(dev->io + 1) & 0x20) != 0)
 			printk(KERN_CRIT "cadet: RDS fifo overflow\n");
-		}
-		outb(0x80,io);      /* Select RDS fifo */
-		while((inb(io)&0x80)!=0) {
-			rdsbuf[rdsin]=inb(io+1);
-			if(rdsin==rdsout)
+		outb(0x80, dev->io);      /* Select RDS fifo */
+		while ((inb(dev->io) & 0x80) != 0) {
+			dev->rdsbuf[dev->rdsin] = inb(dev->io + 1);
+			if (dev->rdsin == dev->rdsout)
 				printk(KERN_WARNING "cadet: RDS buffer overflow\n");
 			else
-				rdsin++;
+				dev->rdsin++;
 		}
-		spin_unlock(&cadet_io_lock);
+		mutex_unlock(&dev->lock);
 	}
 
 	/*
 	 * Service pending read
 	 */
-	if( rdsin!=rdsout)
-		wake_up_interruptible(&read_queue);
+	if (dev->rdsin != dev->rdsout)
+		wake_up_interruptible(&dev->read_queue);
 
 	/*
 	 * Clean up and exit
 	 */
-	init_timer(&readtimer);
-	readtimer.function=cadet_handler;
-	readtimer.data=(unsigned long)0;
-	readtimer.expires=jiffies+msecs_to_jiffies(50);
-	add_timer(&readtimer);
+	init_timer(&dev->readtimer);
+	dev->readtimer.function = cadet_handler;
+	dev->readtimer.data = (unsigned long)0;
+	dev->readtimer.expires = jiffies + msecs_to_jiffies(50);
+	add_timer(&dev->readtimer);
 }
 
 
-
-static ssize_t
-cadet_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
+static ssize_t cadet_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
-	int i=0;
+	struct cadet *dev = video_drvdata(file);
 	unsigned char readbuf[RDS_BUFFER];
+	int i = 0;
 
-	if(rdsstat==0) {
-		spin_lock(&cadet_io_lock);
-		rdsstat=1;
-		outb(0x80,io);        /* Select RDS fifo */
-		spin_unlock(&cadet_io_lock);
-		init_timer(&readtimer);
-		readtimer.function=cadet_handler;
-		readtimer.data=(unsigned long)0;
-		readtimer.expires=jiffies+msecs_to_jiffies(50);
-		add_timer(&readtimer);
+	if (dev->rdsstat == 0) {
+		mutex_lock(&dev->lock);
+		dev->rdsstat = 1;
+		outb(0x80, dev->io);        /* Select RDS fifo */
+		mutex_unlock(&dev->lock);
+		init_timer(&dev->readtimer);
+		dev->readtimer.function = cadet_handler;
+		dev->readtimer.data = (unsigned long)dev;
+		dev->readtimer.expires = jiffies + msecs_to_jiffies(50);
+		add_timer(&dev->readtimer);
 	}
-	if(rdsin==rdsout) {
+	if (dev->rdsin == dev->rdsout) {
 		if (file->f_flags & O_NONBLOCK)
 			return -EWOULDBLOCK;
-		interruptible_sleep_on(&read_queue);
+		interruptible_sleep_on(&dev->read_queue);
 	}
-	while( i<count && rdsin!=rdsout)
-		readbuf[i++]=rdsbuf[rdsout++];
+	while (i < count && dev->rdsin != dev->rdsout)
+		readbuf[i++] = dev->rdsbuf[dev->rdsout++];
 
-	if (copy_to_user(data,readbuf,i))
+	if (copy_to_user(data, readbuf, i))
 		return -EFAULT;
 	return i;
 }
@@ -370,38 +355,40 @@ cadet_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 static int vidioc_querycap(struct file *file, void *priv,
 				struct v4l2_capability *v)
 {
-	v->capabilities =
-		V4L2_CAP_TUNER |
-		V4L2_CAP_READWRITE;
+	strlcpy(v->driver, "ADS Cadet", sizeof(v->driver));
+	strlcpy(v->card, "ADS Cadet", sizeof(v->card));
+	strlcpy(v->bus_info, "ISA", sizeof(v->bus_info));
 	v->version = CADET_VERSION;
-	strcpy(v->driver, "ADS Cadet");
-	strcpy(v->card, "ADS Cadet");
+	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_READWRITE;
 	return 0;
 }
 
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
+	struct cadet *dev = video_drvdata(file);
+
 	v->type = V4L2_TUNER_RADIO;
 	switch (v->index) {
 	case 0:
-		strcpy(v->name, "FM");
+		strlcpy(v->name, "FM", sizeof(v->name));
 		v->capability = V4L2_TUNER_CAP_STEREO;
 		v->rangelow = 1400;     /* 87.5 MHz */
 		v->rangehigh = 1728;    /* 108.0 MHz */
-		v->rxsubchans=cadet_getstereo();
-		switch (v->rxsubchans){
+		v->rxsubchans = cadet_getstereo(dev);
+		switch (v->rxsubchans) {
 		case V4L2_TUNER_SUB_MONO:
 			v->audmode = V4L2_TUNER_MODE_MONO;
 			break;
 		case V4L2_TUNER_SUB_STEREO:
 			v->audmode = V4L2_TUNER_MODE_STEREO;
 			break;
-		default: ;
+		default:
+			break;
 		}
 		break;
 	case 1:
-		strcpy(v->name, "AM");
+		strlcpy(v->name, "AM", sizeof(v->name));
 		v->capability = V4L2_TUNER_CAP_LOW;
 		v->rangelow = 8320;      /* 520 kHz */
 		v->rangehigh = 26400;    /* 1650 kHz */
@@ -411,25 +398,29 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	default:
 		return -EINVAL;
 	}
-	v->signal = sigstrength; /* We might need to modify scaling of this */
+	v->signal = dev->sigstrength; /* We might need to modify scaling of this */
 	return 0;
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
-	if((v->index != 0)&&(v->index != 1))
+	struct cadet *dev = video_drvdata(file);
+
+	if (v->index != 0 && v->index != 1)
 		return -EINVAL;
-	curtuner = v->index;
+	dev->curtuner = v->index;
 	return 0;
 }
 
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	f->tuner = curtuner;
+	struct cadet *dev = video_drvdata(file);
+
+	f->tuner = dev->curtuner;
 	f->type = V4L2_TUNER_RADIO;
-	f->frequency = cadet_getfreq();
+	f->frequency = cadet_getfreq(dev);
 	return 0;
 }
 
@@ -437,27 +428,26 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
+	struct cadet *dev = video_drvdata(file);
+
 	if (f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
-	if((curtuner==0)&&((f->frequency<1400)||(f->frequency>1728)))
+	if (dev->curtuner == 0 && (f->frequency < 1400 || f->frequency > 1728))
 		return -EINVAL;
-	if((curtuner==1)&&((f->frequency<8320)||(f->frequency>26400)))
+	if (dev->curtuner == 1 && (f->frequency < 8320 || f->frequency > 26400))
 		return -EINVAL;
-	cadet_setfreq(f->frequency);
+	cadet_setfreq(dev, f->frequency);
 	return 0;
 }
 
 static int vidioc_queryctrl(struct file *file, void *priv,
 				struct v4l2_queryctrl *qc)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-		if (qc->id && qc->id == radio_qctrl[i].id) {
-			memcpy(qc, &(radio_qctrl[i]),
-						sizeof(*qc));
-			return 0;
-		}
+	switch (qc->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
+	case V4L2_CID_AUDIO_VOLUME:
+		return v4l2_ctrl_query_fill(qc, 0, 0xff, 1, 0xff);
 	}
 	return -EINVAL;
 }
@@ -465,12 +455,14 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 static int vidioc_g_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	switch (ctrl->id){
+	struct cadet *dev = video_drvdata(file);
+
+	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE: /* TODO: Handle this correctly */
-		ctrl->value = (cadet_getvol() == 0);
+		ctrl->value = (cadet_getvol(dev) == 0);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
-		ctrl->value = cadet_getvol();
+		ctrl->value = cadet_getvol(dev);
 		break;
 	default:
 		return -EINVAL;
@@ -481,29 +473,21 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
+	struct cadet *dev = video_drvdata(file);
+
 	switch (ctrl->id){
 	case V4L2_CID_AUDIO_MUTE: /* TODO: Handle this correctly */
 		if (ctrl->value)
-			cadet_setvol(0);
+			cadet_setvol(dev, 0);
 		else
-			cadet_setvol(0xffff);
+			cadet_setvol(dev, 0xffff);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
-		cadet_setvol(ctrl->value);
+		cadet_setvol(dev, ctrl->value);
 		break;
 	default:
 		return -EINVAL;
 	}
-	return 0;
-}
-
-static int vidioc_g_audio(struct file *file, void *priv,
-				struct v4l2_audio *a)
-{
-	if (a->index > 1)
-		return -EINVAL;
-	strcpy(a->name, "Radio");
-	a->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }
 
@@ -515,43 +499,52 @@ static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
 
 static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 {
-	if (i != 0)
-		return -EINVAL;
+	return i ? -EINVAL : 0;
+}
+
+static int vidioc_g_audio(struct file *file, void *priv,
+				struct v4l2_audio *a)
+{
+	a->index = 0;
+	strlcpy(a->name, "Radio", sizeof(a->name));
+	a->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }
 
 static int vidioc_s_audio(struct file *file, void *priv,
 				struct v4l2_audio *a)
 {
-	if (a->index != 0)
-		return -EINVAL;
+	return a->index ? -EINVAL : 0;
+}
+
+static int cadet_open(struct file *file)
+{
+	struct cadet *dev = video_drvdata(file);
+
+	dev->users++;
+	if (1 == dev->users)
+		init_waitqueue_head(&dev->read_queue);
 	return 0;
 }
 
-static int
-cadet_open(struct file *file)
+static int cadet_release(struct file *file)
 {
-	users++;
-	if (1 == users) init_waitqueue_head(&read_queue);
-	return 0;
-}
+	struct cadet *dev = video_drvdata(file);
 
-static int
-cadet_release(struct file *file)
-{
-	users--;
-	if (0 == users){
-		del_timer_sync(&readtimer);
-		rdsstat=0;
+	dev->users--;
+	if (0 == dev->users) {
+		del_timer_sync(&dev->readtimer);
+		dev->rdsstat = 0;
 	}
 	return 0;
 }
 
-static unsigned int
-cadet_poll(struct file *file, struct poll_table_struct *wait)
+static unsigned int cadet_poll(struct file *file, struct poll_table_struct *wait)
 {
-	poll_wait(file,&read_queue,wait);
-	if(rdsin != rdsout)
+	struct cadet *dev = video_drvdata(file);
+
+	poll_wait(file, &dev->read_queue, wait);
+	if (dev->rdsin != dev->rdsout)
 		return POLLIN | POLLRDNORM;
 	return 0;
 }
@@ -581,13 +574,6 @@ static const struct v4l2_ioctl_ops cadet_ioctl_ops = {
 	.vidioc_s_input     = vidioc_s_input,
 };
 
-static struct video_device cadet_radio = {
-	.name		= "Cadet radio",
-	.fops           = &cadet_fops,
-	.ioctl_ops 	= &cadet_ioctl_ops,
-	.release	= video_device_release_empty,
-};
-
 #ifdef CONFIG_PNP
 
 static struct pnp_device_id cadet_pnp_devices[] = {
@@ -598,7 +584,7 @@ static struct pnp_device_id cadet_pnp_devices[] = {
 
 MODULE_DEVICE_TABLE(pnp, cadet_pnp_devices);
 
-static int cadet_pnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev_id)
+static int cadet_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
 	if (!dev)
 		return -ENODEV;
@@ -606,13 +592,12 @@ static int cadet_pnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev
 	if (io > 0)
 		return -EBUSY;
 
-	if (!pnp_port_valid(dev, 0)) {
+	if (!pnp_port_valid(dev, 0))
 		return -ENODEV;
-	}
 
 	io = pnp_port_start(dev, 0);
 
-	printk ("radio-cadet: PnP reports device at %#x\n", io);
+	printk(KERN_INFO "radio-cadet: PnP reports device at %#x\n", io);
 
 	return io;
 }
@@ -628,23 +613,23 @@ static struct pnp_driver cadet_pnp_driver = {
 static struct pnp_driver cadet_pnp_driver;
 #endif
 
-static int cadet_probe(void)
+static void cadet_probe(struct cadet *dev)
 {
-	static int iovals[8]={0x330,0x332,0x334,0x336,0x338,0x33a,0x33c,0x33e};
+	static int iovals[8] = { 0x330, 0x332, 0x334, 0x336, 0x338, 0x33a, 0x33c, 0x33e };
 	int i;
 
-	for(i=0;i<8;i++) {
-		io=iovals[i];
-		if (request_region(io, 2, "cadet-probe")) {
-			cadet_setfreq(1410);
-			if(cadet_getfreq()==1410) {
-				release_region(io, 2);
-				return io;
+	for (i = 0; i < 8; i++) {
+		dev->io = iovals[i];
+		if (request_region(dev->io, 2, "cadet-probe")) {
+			cadet_setfreq(dev, 1410);
+			if (cadet_getfreq(dev) == 1410) {
+				release_region(dev->io, 2);
+				return;
 			}
-			release_region(io, 2);
+			release_region(dev->io, 2);
 		}
 	}
-	return -1;
+	dev->io = -1;
 }
 
 /*
@@ -654,59 +639,69 @@ static int cadet_probe(void)
 
 static int __init cadet_init(void)
 {
-	spin_lock_init(&cadet_io_lock);
+	struct cadet *dev = &cadet_card;
+	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	int res;
 
-	/*
-	 *	If a probe was requested then probe ISAPnP first (safest)
-	 */
+	strlcpy(v4l2_dev->name, "cadet", sizeof(v4l2_dev->name));
+	mutex_init(&dev->lock);
+
+	/* If a probe was requested then probe ISAPnP first (safest) */
 	if (io < 0)
 		pnp_register_driver(&cadet_pnp_driver);
-	/*
-	 *	If that fails then probe unsafely if probe is requested
-	 */
-	if(io < 0)
-		io = cadet_probe ();
+	dev->io = io;
 
-	/*
-	 *	Else we bail out
-	 */
+	/* If that fails then probe unsafely if probe is requested */
+	if (dev->io < 0)
+		cadet_probe(dev);
 
-	if(io < 0) {
+	/* Else we bail out */
+	if (dev->io < 0) {
 #ifdef MODULE
-		printk(KERN_ERR "You must set an I/O address with io=0x???\n");
+		v4l2_err(v4l2_dev, "you must set an I/O address with io=0x330, 0x332, 0x334,\n");
+		v4l2_err(v4l2_dev, "0x336, 0x338, 0x33a, 0x33c or 0x33e\n");
 #endif
 		goto fail;
 	}
-	if (!request_region(io,2,"cadet"))
+	if (!request_region(dev->io, 2, "cadet"))
 		goto fail;
-	if (video_register_device(&cadet_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
-		release_region(io,2);
+
+	res = v4l2_device_register(NULL, v4l2_dev);
+	if (res < 0) {
+		release_region(dev->io, 2);
+		v4l2_err(v4l2_dev, "could not register v4l2_device\n");
 		goto fail;
 	}
-	printk(KERN_INFO "ADS Cadet Radio Card at 0x%x\n",io);
+
+	strlcpy(dev->vdev.name, v4l2_dev->name, sizeof(dev->vdev.name));
+	dev->vdev.v4l2_dev = v4l2_dev;
+	dev->vdev.fops = &cadet_fops;
+	dev->vdev.ioctl_ops = &cadet_ioctl_ops;
+	dev->vdev.release = video_device_release_empty;
+	video_set_drvdata(&dev->vdev, dev);
+
+	if (video_register_device(&dev->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
+		v4l2_device_unregister(v4l2_dev);
+		release_region(dev->io, 2);
+		goto fail;
+	}
+	v4l2_info(v4l2_dev, "ADS Cadet Radio Card at 0x%x\n", dev->io);
 	return 0;
 fail:
 	pnp_unregister_driver(&cadet_pnp_driver);
-	return -1;
+	return -ENODEV;
 }
 
-
-
-MODULE_AUTHOR("Fred Gleason, Russell Kroll, Quay Lu, Donald Song, Jason Lewis, Scott McGrath, William McGrath");
-MODULE_DESCRIPTION("A driver for the ADS Cadet AM/FM/RDS radio card.");
-MODULE_LICENSE("GPL");
-
-module_param(io, int, 0);
-MODULE_PARM_DESC(io, "I/O address of Cadet card (0x330,0x332,0x334,0x336,0x338,0x33a,0x33c,0x33e)");
-module_param(radio_nr, int, 0);
-
-static void __exit cadet_cleanup_module(void)
+static void __exit cadet_exit(void)
 {
-	video_unregister_device(&cadet_radio);
-	release_region(io,2);
+	struct cadet *dev = &cadet_card;
+
+	video_unregister_device(&dev->vdev);
+	v4l2_device_unregister(&dev->v4l2_dev);
+	release_region(dev->io, 2);
 	pnp_unregister_driver(&cadet_pnp_driver);
 }
 
 module_init(cadet_init);
-module_exit(cadet_cleanup_module);
+module_exit(cadet_exit);
 

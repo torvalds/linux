@@ -28,8 +28,6 @@
 #include <asm/ucc.h>
 #include <asm/ucc_fast.h>
 
-#include "ucc_geth_mii.h"
-
 #define DRV_DESC "QE UCC Gigabit Ethernet Controller"
 #define DRV_NAME "ucc_geth"
 #define DRV_VERSION "1.1"
@@ -183,6 +181,18 @@ struct ucc_geth {
 
 #define UCCE_RX_EVENTS  (UCCE_RXF | UCC_GETH_UCCE_BSY)
 #define UCCE_TX_EVENTS	(UCCE_TXB | UCC_GETH_UCCE_TXE)
+
+/* TBI defines */
+#define	ENET_TBI_MII_CR		0x00	/* Control */
+#define	ENET_TBI_MII_SR		0x01	/* Status */
+#define	ENET_TBI_MII_ANA	0x04	/* AN advertisement */
+#define	ENET_TBI_MII_ANLPBPA	0x05	/* AN link partner base page ability */
+#define	ENET_TBI_MII_ANEX	0x06	/* AN expansion */
+#define	ENET_TBI_MII_ANNPT	0x07	/* AN next page transmit */
+#define	ENET_TBI_MII_ANLPANP	0x08	/* AN link partner ability next page */
+#define	ENET_TBI_MII_EXST	0x0F	/* Extended status */
+#define	ENET_TBI_MII_JD		0x10	/* Jitter diagnostics */
+#define	ENET_TBI_MII_TBICON	0x11	/* TBI control */
 
 /* UCC GETH MACCFG1 (MAC Configuration 1 Register) */
 #define MACCFG1_FLOW_RX                         0x00000020	/* Flow Control

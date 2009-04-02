@@ -41,13 +41,13 @@ config NET_DSA_MV88E6XXX_NEED_PPU
 	default n
 
 config NET_DSA_MV88E6131
-	bool "Marvell 88E6131 ethernet switch chip support"
+	bool "Marvell 88E6095/6095F/6131 ethernet switch chip support"
 	select NET_DSA_MV88E6XXX
 	select NET_DSA_MV88E6XXX_NEED_PPU
 	select NET_DSA_TAG_DSA
 	---help---
-	  This enables support for the Marvell 88E6131 ethernet switch
-	  chip.
+	  This enables support for the Marvell 88E6095/6095F/6131
+	  ethernet switch chips.
 
 config NET_DSA_MV88E6123_61_65
 	bool "Marvell 88E6123/6161/6165 ethernet switch chip support"

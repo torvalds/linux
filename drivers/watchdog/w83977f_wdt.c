@@ -426,7 +426,7 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		if (wdt_set_timeout(new_timeout))
-		    return -EINVAL;
+			return -EINVAL;
 
 		wdt_keepalive();
 		/* Fall */

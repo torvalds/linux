@@ -57,6 +57,8 @@ static inline struct mmu_gather *tlb_gather_mmu(struct mm_struct *mm, unsigned i
 
 static inline void tlb_flush_mmu(struct mmu_gather *mp)
 {
+	if (!mp->fullmm)
+		flush_tlb_pending();
 	if (mp->need_flush) {
 		free_pages_and_swap_cache(mp->pages, mp->pages_nr);
 		mp->pages_nr = 0;
@@ -78,8 +80,6 @@ static inline void tlb_finish_mmu(struct mmu_gather *mp, unsigned long start, un
 
 	if (mp->fullmm)
 		mp->fullmm = 0;
-	else
-		flush_tlb_pending();
 
 	/* keep the page table cache within bounds */
 	check_pgt_cache();

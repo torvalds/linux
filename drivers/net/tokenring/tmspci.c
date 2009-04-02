@@ -152,13 +152,13 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 
 	tp->tmspriv = cardinfo;
 
+	dev->netdev_ops = &tms380tr_netdev_ops;
+
 	ret = request_irq(pdev->irq, tms380tr_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (ret)
 		goto err_out_tmsdev;
 
-	dev->open = tms380tr_open;
-	dev->stop = tms380tr_close;
 	pci_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 

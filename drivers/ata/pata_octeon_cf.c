@@ -871,7 +871,7 @@ static int __devinit octeon_cf_probe(struct platform_device *pdev)
 	ap->private_data = cf_port;
 	cf_port->ap = ap;
 	ap->ops = &octeon_cf_ops;
-	ap->pio_mask = 0x7f; /* Support PIO 0-6 */
+	ap->pio_mask = ATA_PIO6;
 	ap->flags |= ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY
 		  | ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING;
 
@@ -900,7 +900,7 @@ static int __devinit octeon_cf_probe(struct platform_device *pdev)
 		ap->ioaddr.ctl_addr	= cs1 + (6 << 1) + 1;
 		octeon_cf_ops.sff_data_xfer = octeon_cf_data_xfer16;
 
-		ap->mwdma_mask	= 0x1f; /* Support MWDMA 0-4 */
+		ap->mwdma_mask	= ATA_MWDMA4;
 		irq = platform_get_irq(pdev, 0);
 		irq_handler = octeon_cf_interrupt;
 

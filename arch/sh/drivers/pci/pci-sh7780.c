@@ -127,8 +127,8 @@ int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
 	pci_write_reg(word, SH4_PCILSR0);
 	pci_write_reg(0x00000001, SH4_PCILSR1);
 	/* Set the values on window 0 PCI config registers */
-	word = (CONFIG_MEMORY_SIZE > 0x08000000) ? 0x10000000 : 0x08000000;
-	pci_write_reg(word | 0xa0000000, SH4_PCILAR0);
+	word = CONFIG_MEMORY_START | (CONFIG_MEMORY_SIZE - 0x01000000);
+	pci_write_reg(word, SH4_PCILAR0);
 	pci_write_reg(word, SH7780_PCIMBAR0);
 	/* Set the values on window 1 PCI config registers */
 	pci_write_reg(0x00000000, SH4_PCILAR1);

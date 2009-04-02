@@ -684,7 +684,6 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		return -ENODEV;
 
 	if ((dn_db = dev->dn_ptr) == NULL) {
-		int err;
 		dn_db = dn_dev_create(dev, &err);
 		if (!dn_db)
 			return err;
@@ -769,7 +768,8 @@ static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa)
 		kfree_skb(skb);
 		goto errout;
 	}
-	err = rtnl_notify(skb, &init_net, 0, RTNLGRP_DECnet_IFADDR, NULL, GFP_KERNEL);
+	rtnl_notify(skb, &init_net, 0, RTNLGRP_DECnet_IFADDR, NULL, GFP_KERNEL);
+	return;
 errout:
 	if (err < 0)
 		rtnl_set_sk_err(&init_net, RTNLGRP_DECnet_IFADDR, err);
@@ -1322,6 +1322,7 @@ static inline int is_dn_dev(struct net_device *dev)
 }
 
 static void *dn_dev_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(&dev_base_lock)
 {
 	int i;
 	struct net_device *dev;
@@ -1364,6 +1365,7 @@ static void *dn_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void dn_dev_seq_stop(struct seq_file *seq, void *v)
+	__releases(&dev_base_lock)
 {
 	read_unlock(&dev_base_lock);
 }

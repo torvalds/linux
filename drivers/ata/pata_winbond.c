@@ -193,7 +193,7 @@ static __init int winbond_init_one(unsigned long port)
 		ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", cmd_port, ctl_port);
 
 		ap->ops = &winbond_port_ops;
-		ap->pio_mask = 0x1F;
+		ap->pio_mask = ATA_PIO4;
 		ap->flags |= ATA_FLAG_SLAVE_POSS;
 		ap->ioaddr.cmd_addr = cmd_addr;
 		ap->ioaddr.altstatus_addr = ctl_addr;

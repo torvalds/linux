@@ -13,8 +13,8 @@
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 #include <linux/prefetch.h>
+#include <linux/blkdev.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -132,81 +132,90 @@ static inline unsigned char gfs2_testbit(struct gfs2_rgrpd *rgd,
 }
 
 /**
+ * gfs2_bit_search
+ * @ptr: Pointer to bitmap data
+ * @mask: Mask to use (normally 0x55555.... but adjusted for search start)
+ * @state: The state we are searching for
+ *
+ * We xor the bitmap data with a patter which is the bitwise opposite
+ * of what we are looking for, this gives rise to a pattern of ones
+ * wherever there is a match. Since we have two bits per entry, we
+ * take this pattern, shift it down by one place and then and it with
+ * the original. All the even bit positions (0,2,4, etc) then represent
+ * successful matches, so we mask with 0x55555..... to remove the unwanted
+ * odd bit positions.
+ *
+ * This allows searching of a whole u64 at once (32 blocks) with a
+ * single test (on 64 bit arches).
+ */
+
+static inline u64 gfs2_bit_search(const __le64 *ptr, u64 mask, u8 state)
+{
+	u64 tmp;
+	static const u64 search[] = {
+		[0] = 0xffffffffffffffffULL,
+		[1] = 0xaaaaaaaaaaaaaaaaULL,
+		[2] = 0x5555555555555555ULL,
+		[3] = 0x0000000000000000ULL,
+	};
+	tmp = le64_to_cpu(*ptr) ^ search[state];
+	tmp &= (tmp >> 1);
+	tmp &= mask;
+	return tmp;
+}
+
+/**
  * gfs2_bitfit - Search an rgrp's bitmap buffer to find a bit-pair representing
  *       a block in a given allocation state.
  * @buffer: the buffer that holds the bitmaps
- * @buflen: the length (in bytes) of the buffer
+ * @len: the length (in bytes) of the buffer
  * @goal: start search at this block's bit-pair (within @buffer)
- * @old_state: GFS2_BLKST_XXX the state of the block we're looking for.
+ * @state: GFS2_BLKST_XXX the state of the block we're looking for.
  *
  * Scope of @goal and returned block number is only within this bitmap buffer,
  * not entire rgrp or filesystem.  @buffer will be offset from the actual
- * beginning of a bitmap block buffer, skipping any header structures.
+ * beginning of a bitmap block buffer, skipping any header structures, but
+ * headers are always a multiple of 64 bits long so that the buffer is
+ * always aligned to a 64 bit boundary.
+ *
+ * The size of the buffer is in bytes, but is it assumed that it is
+ * always ok to to read a complete multiple of 64 bits at the end
+ * of the block in case the end is no aligned to a natural boundary.
  *
  * Return: the block number (bitmap buffer scope) that was found
  */
 
-static u32 gfs2_bitfit(const u8 *buffer, unsigned int buflen, u32 goal,
-		       u8 old_state)
+static u32 gfs2_bitfit(const u8 *buf, const unsigned int len,
+		       u32 goal, u8 state)
 {
-	const u8 *byte, *start, *end;
-	int bit, startbit;
-	u32 g1, g2, misaligned;
-	unsigned long *plong;
-	unsigned long lskipval;
+	u32 spoint = (goal << 1) & ((8*sizeof(u64)) - 1);
+	const __le64 *ptr = ((__le64 *)buf) + (goal >> 5);
+	const __le64 *end = (__le64 *)(buf + ALIGN(len, sizeof(u64)));
+	u64 tmp;
+	u64 mask = 0x5555555555555555ULL;
+	u32 bit;
 
-	lskipval = (old_state & GFS2_BLKST_USED) ? LBITSKIP00 : LBITSKIP55;
-	g1 = (goal / GFS2_NBBY);
-	start = buffer + g1;
-	byte = start;
-        end = buffer + buflen;
-	g2 = ALIGN(g1, sizeof(unsigned long));
-	plong = (unsigned long *)(buffer + g2);
-	startbit = bit = (goal % GFS2_NBBY) * GFS2_BIT_SIZE;
-	misaligned = g2 - g1;
-	if (!misaligned)
-		goto ulong_aligned;
-/* parse the bitmap a byte at a time */
-misaligned:
-	while (byte < end) {
-		if (((*byte >> bit) & GFS2_BIT_MASK) == old_state) {
-			return goal +
-				(((byte - start) * GFS2_NBBY) +
-				 ((bit - startbit) >> 1));
-		}
-		bit += GFS2_BIT_SIZE;
-		if (bit >= GFS2_NBBY * GFS2_BIT_SIZE) {
-			bit = 0;
-			byte++;
-			misaligned--;
-			if (!misaligned) {
-				plong = (unsigned long *)byte;
-				goto ulong_aligned;
-			}
-		}
-	}
-	return BFITNOENT;
+	BUG_ON(state > 3);
 
-/* parse the bitmap a unsigned long at a time */
-ulong_aligned:
-	/* Stop at "end - 1" or else prefetch can go past the end and segfault.
-	   We could "if" it but we'd lose some of the performance gained.
-	   This way will only slow down searching the very last 4/8 bytes
-	   depending on architecture.  I've experimented with several ways
-	   of writing this section such as using an else before the goto
-	   but this one seems to be the fastest. */
-	while ((unsigned char *)plong < end - sizeof(unsigned long)) {
-		prefetch(plong + 1);
-		if (((*plong) & LBITMASK) != lskipval)
-			break;
-		plong++;
+	/* Mask off bits we don't care about at the start of the search */
+	mask <<= spoint;
+	tmp = gfs2_bit_search(ptr, mask, state);
+	ptr++;
+	while(tmp == 0 && ptr < end) {
+		tmp = gfs2_bit_search(ptr, 0x5555555555555555ULL, state);
+		ptr++;
 	}
-	if ((unsigned char *)plong < end) {
-		byte = (const u8 *)plong;
-		misaligned += sizeof(unsigned long) - 1;
-		goto misaligned;
-	}
-	return BFITNOENT;
+	/* Mask off any bits which are more than len bytes from the start */
+	if (ptr == end && (len & (sizeof(u64) - 1)))
+		tmp &= (((u64)~0) >> (64 - 8*(len & (sizeof(u64) - 1))));
+	/* Didn't find anything, so return */
+	if (tmp == 0)
+		return BFITNOENT;
+	ptr--;
+	bit = fls64(tmp);
+	bit--;		/* fls64 always adds one to the bit count */
+	bit /= 2;	/* two bits per entry in the bitmap */
+	return (((const unsigned char *)ptr - buf) * GFS2_NBBY) + bit;
 }
 
 /**
@@ -831,6 +840,58 @@ void gfs2_rgrp_bh_put(struct gfs2_rgrpd *rgd)
 	spin_unlock(&sdp->sd_rindex_spin);
 }
 
+static void gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
+				    const struct gfs2_bitmap *bi)
+{
+	struct super_block *sb = sdp->sd_vfs;
+	struct block_device *bdev = sb->s_bdev;
+	const unsigned int sects_per_blk = sdp->sd_sb.sb_bsize /
+					   bdev_hardsect_size(sb->s_bdev);
+	u64 blk;
+	sector_t start = 0;
+	sector_t nr_sects = 0;
+	int rv;
+	unsigned int x;
+
+	for (x = 0; x < bi->bi_len; x++) {
+		const u8 *orig = bi->bi_bh->b_data + bi->bi_offset + x;
+		const u8 *clone = bi->bi_clone + bi->bi_offset + x;
+		u8 diff = ~(*orig | (*orig >> 1)) & (*clone | (*clone >> 1));
+		diff &= 0x55;
+		if (diff == 0)
+			continue;
+		blk = offset + ((bi->bi_start + x) * GFS2_NBBY);
+		blk *= sects_per_blk; /* convert to sectors */
+		while(diff) {
+			if (diff & 1) {
+				if (nr_sects == 0)
+					goto start_new_extent;
+				if ((start + nr_sects) != blk) {
+					rv = blkdev_issue_discard(bdev, start,
+							    nr_sects, GFP_NOFS);
+					if (rv)
+						goto fail;
+					nr_sects = 0;
+start_new_extent:
+					start = blk;
+				}
+				nr_sects += sects_per_blk;
+			}
+			diff >>= 2;
+			blk += sects_per_blk;
+		}
+	}
+	if (nr_sects) {
+		rv = blkdev_issue_discard(bdev, start, nr_sects, GFP_NOFS);
+		if (rv)
+			goto fail;
+	}
+	return;
+fail:
+	fs_warn(sdp, "error %d on discard request, turning discards off for this filesystem", rv);
+	sdp->sd_args.ar_discard = 0;
+}
+
 void gfs2_rgrp_repolish_clones(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
@@ -841,6 +902,8 @@ void gfs2_rgrp_repolish_clones(struct gfs2_rgrpd *rgd)
 		struct gfs2_bitmap *bi = rgd->rd_bits + x;
 		if (!bi->bi_clone)
 			continue;
+		if (sdp->sd_args.ar_discard)
+			gfs2_rgrp_send_discards(sdp, rgd->rd_data0, bi);
 		memcpy(bi->bi_clone + bi->bi_offset,
 		       bi->bi_bh->b_data + bi->bi_offset, bi->bi_len);
 	}

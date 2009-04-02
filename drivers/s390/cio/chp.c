@@ -17,8 +17,8 @@
 #include <linux/errno.h>
 #include <asm/chpid.h>
 #include <asm/sclp.h>
+#include <asm/crw.h>
 
-#include "../s390mach.h"
 #include "cio.h"
 #include "css.h"
 #include "ioasm.h"
@@ -706,12 +706,12 @@ static int __init chp_init(void)
 	struct chp_id chpid;
 	int ret;
 
-	ret = s390_register_crw_handler(CRW_RSC_CPATH, chp_process_crw);
+	ret = crw_register_handler(CRW_RSC_CPATH, chp_process_crw);
 	if (ret)
 		return ret;
 	chp_wq = create_singlethread_workqueue("cio_chp");
 	if (!chp_wq) {
-		s390_unregister_crw_handler(CRW_RSC_CPATH);
+		crw_unregister_handler(CRW_RSC_CPATH);
 		return -ENOMEM;
 	}
 	INIT_WORK(&cfg_work, cfg_func);
