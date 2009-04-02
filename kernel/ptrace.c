@@ -60,11 +60,15 @@ static void ptrace_untrace(struct task_struct *child)
 {
 	spin_lock(&child->sighand->siglock);
 	if (task_is_traced(child)) {
-		if (child->signal->flags & SIGNAL_STOP_STOPPED) {
+		/*
+		 * If the group stop is completed or in progress,
+		 * this thread was already counted as stopped.
+		 */
+		if (child->signal->flags & SIGNAL_STOP_STOPPED ||
+		    child->signal->group_stop_count)
 			__set_task_state(child, TASK_STOPPED);
-		} else {
+		else
 			signal_wake_up(child, 1);
-		}
 	}
 	spin_unlock(&child->sighand->siglock);
 }
