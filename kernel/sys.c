@@ -1013,10 +1013,8 @@ SYSCALL_DEFINE2(setpgid, pid_t, pid, pid_t, pgid)
 	if (err)
 		goto out;
 
-	if (task_pgrp(p) != pgrp) {
+	if (task_pgrp(p) != pgrp)
 		change_pid(p, PIDTYPE_PGID, pgrp);
-		set_task_pgrp(p, pid_nr(pgrp));
-	}
 
 	err = 0;
 out:
