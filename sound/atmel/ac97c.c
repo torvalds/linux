@@ -730,17 +730,17 @@ static bool filter(struct dma_chan *chan, void *slave)
 
 static void atmel_ac97c_reset(struct atmel_ac97c *chip)
 {
-	ac97c_writel(chip, MR, AC97C_MR_WRST);
+	ac97c_writel(chip, MR,   0);
+	ac97c_writel(chip, MR,   AC97C_MR_ENA);
+	ac97c_writel(chip, CAMR, 0);
+	ac97c_writel(chip, COMR, 0);
 
 	if (gpio_is_valid(chip->reset_pin)) {
 		gpio_set_value(chip->reset_pin, 0);
 		/* AC97 v2.2 specifications says minimum 1 us. */
-		udelay(10);
+		udelay(2);
 		gpio_set_value(chip->reset_pin, 1);
 	}
-
-	udelay(1);
-	ac97c_writel(chip, MR, AC97C_MR_ENA);
 }
 
 static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
@@ -826,6 +826,8 @@ static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
 
 	snd_card_set_dev(card, &pdev->dev);
 
+	atmel_ac97c_reset(chip);
+
 	/* Enable overrun interrupt from codec channel */
 	ac97c_writel(chip, COMR, AC97C_CSR_OVRUN);
 	ac97c_writel(chip, IER, ac97c_readl(chip, IMR) | AC97C_SR_COEVT);
@@ -835,8 +837,6 @@ static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "could not register on ac97 bus\n");
 		goto err_ac97_bus;
 	}
-
-	atmel_ac97c_reset(chip);
 
 	retval = atmel_ac97c_mixer_new(chip);
 	if (retval) {
