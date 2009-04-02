@@ -100,6 +100,9 @@ static int __init parse_memtest(char *arg)
 {
 	if (arg)
 		memtest_pattern = simple_strtoul(arg, NULL, 0);
+	else
+		memtest_pattern = ARRAY_SIZE(patterns);
+
 	return 0;
 }
 

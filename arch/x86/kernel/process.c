@@ -65,11 +65,11 @@ void exit_thread(void)
 {
 	struct task_struct *me = current;
 	struct thread_struct *t = &me->thread;
+	unsigned long *bp = t->io_bitmap_ptr;
 
-	if (me->thread.io_bitmap_ptr) {
+	if (bp) {
 		struct tss_struct *tss = &per_cpu(init_tss, get_cpu());
 
-		kfree(t->io_bitmap_ptr);
 		t->io_bitmap_ptr = NULL;
 		clear_thread_flag(TIF_IO_BITMAP);
 		/*
@@ -78,6 +78,7 @@ void exit_thread(void)
 		memset(tss->io_bitmap, 0xff, t->io_bitmap_max);
 		t->io_bitmap_max = 0;
 		put_cpu();
+		kfree(bp);
 	}
 
 	ds_exit_thread(current);

@@ -44,11 +44,6 @@
 #define parent_node(nid) (nid)
 
 /*
- * Returns the number of the first CPU on Node 'node'.
- */
-#define node_to_first_cpu(node) (cpumask_first(cpumask_of_node(node)))
-
-/*
  * Determines the node for a given pci bus
  */
 #define pcibus_to_node(bus) PCI_CONTROLLER(bus)->node
@@ -116,11 +111,6 @@ void build_cpu_to_node_map(void);
 #endif
 
 extern void arch_fix_phys_package_id(int num, u32 slot);
-
-#define pcibus_to_cpumask(bus)	(pcibus_to_node(bus) == -1 ? \
-					CPU_MASK_ALL : \
-					node_to_cpumask(pcibus_to_node(bus)) \
-				)
 
 #define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ?		\
 				 cpu_all_mask :				\

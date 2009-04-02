@@ -191,7 +191,7 @@ initialize_camera(struct vicam_camera *cam)
 {
 	int err;
 	const struct ihex_binrec *rec;
-	const struct firmware *fw;
+	const struct firmware *uninitialized_var(fw);
 
 	err = request_ihex_firmware(&fw, "vicam/firmware.fw", &cam->udev->dev);
 	if (err) {

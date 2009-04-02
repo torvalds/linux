@@ -123,8 +123,18 @@ ide_startstop_t ide_error(ide_drive_t *drive, const char *msg, u8 stat)
 
 	/* retry only "normal" I/O: */
 	if (!blk_fs_request(rq)) {
-		rq->errors = 1;
-		ide_end_drive_cmd(drive, stat, err);
+		if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
+			struct ide_cmd *cmd = rq->special;
+
+			if (cmd)
+				ide_complete_cmd(drive, cmd, stat, err);
+		} else if (blk_pm_request(rq)) {
+			rq->errors = 1;
+			ide_complete_pm_rq(drive, rq);
+			return ide_stopped;
+		}
+		rq->errors = err;
+		ide_complete_rq(drive, err ? -EIO : 0, blk_rq_bytes(rq));
 		return ide_stopped;
 	}
 
@@ -136,8 +146,11 @@ static inline void ide_complete_drive_reset(ide_drive_t *drive, int err)
 {
 	struct request *rq = drive->hwif->rq;
 
-	if (rq && blk_special_request(rq) && rq->cmd[0] == REQ_DRIVE_RESET)
-		ide_end_request(drive, err ? err : 1, 0);
+	if (rq && blk_special_request(rq) && rq->cmd[0] == REQ_DRIVE_RESET) {
+		if (err <= 0 && rq->errors == 0)
+			rq->errors = -EIO;
+		ide_complete_rq(drive, err ? err : 0, ide_rq_bytes(rq));
+	}
 }
 
 /* needed below */
@@ -152,18 +165,18 @@ static ide_startstop_t do_reset1(ide_drive_t *, int);
 static ide_startstop_t atapi_reset_pollfunc(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	u8 stat;
 
-	SELECT_DRIVE(drive);
+	tp_ops->dev_select(drive);
 	udelay(10);
-	stat = hwif->tp_ops->read_status(hwif);
+	stat = tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat, 0, ATA_BUSY))
 		printk(KERN_INFO "%s: ATAPI reset complete\n", drive->name);
 	else {
 		if (time_before(jiffies, hwif->poll_timeout)) {
-			ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20,
-					NULL);
+			ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20);
 			/* continue polling */
 			return ide_started;
 		}
@@ -225,7 +238,7 @@ static ide_startstop_t reset_pollfunc(ide_drive_t *drive)
 
 	if (!OK_STAT(tmp, 0, ATA_BUSY)) {
 		if (time_before(jiffies, hwif->poll_timeout)) {
-			ide_set_handler(drive, &reset_pollfunc, HZ/20, NULL);
+			ide_set_handler(drive, &reset_pollfunc, HZ/20);
 			/* continue polling */
 			return ide_started;
 		}
@@ -336,13 +349,13 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 	/* For an ATAPI device, first try an ATAPI SRST. */
 	if (drive->media != ide_disk && !do_not_try_atapi) {
 		pre_reset(drive);
-		SELECT_DRIVE(drive);
+		tp_ops->dev_select(drive);
 		udelay(20);
 		tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
 		ndelay(400);
 		hwif->poll_timeout = jiffies + WAIT_WORSTCASE;
 		hwif->polling = 1;
-		__ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20, NULL);
+		__ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20);
 		spin_unlock_irqrestore(&hwif->lock, flags);
 		return ide_started;
 	}
@@ -389,20 +402,19 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 	 * immediate interrupt due to the edge transition it produces.
 	 * This single interrupt gives us a "fast poll" for drives that
 	 * recover from reset very quickly, saving us the first 50ms wait time.
-	 *
-	 * TODO: add ->softreset method and stop abusing ->set_irq
 	 */
 	/* set SRST and nIEN */
-	tp_ops->set_irq(hwif, 4);
+	tp_ops->write_devctl(hwif, ATA_SRST | ATA_NIEN | ATA_DEVCTL_OBS);
 	/* more than enough time */
 	udelay(10);
 	/* clear SRST, leave nIEN (unless device is on the quirk list) */
-	tp_ops->set_irq(hwif, drive->quirk_list == 2);
+	tp_ops->write_devctl(hwif, (drive->quirk_list == 2 ? 0 : ATA_NIEN) |
+			     ATA_DEVCTL_OBS);
 	/* more than enough time */
 	udelay(10);
 	hwif->poll_timeout = jiffies + WAIT_WORSTCASE;
 	hwif->polling = 1;
-	__ide_set_handler(drive, &reset_pollfunc, HZ/20, NULL);
+	__ide_set_handler(drive, &reset_pollfunc, HZ/20);
 
 	/*
 	 * Some weird controller like resetting themselves to a strange

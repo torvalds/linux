@@ -90,6 +90,8 @@ obj-$(CONFIG_DYNAMIC_DEBUG) += dynamic_debug.o
 
 obj-$(CONFIG_NLATTR) += nlattr.o
 
+obj-$(CONFIG_DMA_API_DEBUG) += dma-debug.o
+
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
 

@@ -313,7 +313,6 @@ static int create_cache_proc_entries(struct cache_detail *cd)
 	cd->proc_ent = proc_mkdir(cd->name, proc_net_rpc);
 	if (cd->proc_ent == NULL)
 		goto out_nomem;
-	cd->proc_ent->owner = cd->owner;
 	cd->channel_ent = cd->content_ent = NULL;
 
 	p = proc_create_data("flush", S_IFREG|S_IRUSR|S_IWUSR,
@@ -321,7 +320,6 @@ static int create_cache_proc_entries(struct cache_detail *cd)
 	cd->flush_ent = p;
 	if (p == NULL)
 		goto out_nomem;
-	p->owner = cd->owner;
 
 	if (cd->cache_request || cd->cache_parse) {
 		p = proc_create_data("channel", S_IFREG|S_IRUSR|S_IWUSR,
@@ -329,7 +327,6 @@ static int create_cache_proc_entries(struct cache_detail *cd)
 		cd->channel_ent = p;
 		if (p == NULL)
 			goto out_nomem;
-		p->owner = cd->owner;
 	}
 	if (cd->cache_show) {
 		p = proc_create_data("content", S_IFREG|S_IRUSR|S_IWUSR,
@@ -337,7 +334,6 @@ static int create_cache_proc_entries(struct cache_detail *cd)
 		cd->content_ent = p;
 		if (p == NULL)
 			goto out_nomem;
-		p->owner = cd->owner;
 	}
 	return 0;
 out_nomem:

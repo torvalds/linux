@@ -32,7 +32,7 @@ struct _cache_table
 };
 
 /* all the cache descriptor types we care about (no TLB or trace cache entries) */
-static struct _cache_table cache_table[] __cpuinitdata =
+static const struct _cache_table __cpuinitconst cache_table[] =
 {
 	{ 0x06, LVL_1_INST, 8 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x08, LVL_1_INST, 16 },	/* 4-way set assoc, 32 byte line size */
@@ -206,15 +206,15 @@ union l3_cache {
 	unsigned val;
 };
 
-static unsigned short assocs[] __cpuinitdata = {
+static const unsigned short __cpuinitconst assocs[] = {
 	[1] = 1, [2] = 2, [4] = 4, [6] = 8,
 	[8] = 16, [0xa] = 32, [0xb] = 48,
 	[0xc] = 64,
 	[0xf] = 0xffff // ??
 };
 
-static unsigned char levels[] __cpuinitdata = { 1, 1, 2, 3 };
-static unsigned char types[] __cpuinitdata = { 1, 2, 3, 3 };
+static const unsigned char __cpuinitconst levels[] = { 1, 1, 2, 3 };
+static const unsigned char __cpuinitconst types[] = { 1, 2, 3, 3 };
 
 static void __cpuinit
 amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,

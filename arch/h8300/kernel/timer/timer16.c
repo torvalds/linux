@@ -55,7 +55,6 @@ static struct irqaction timer16_irq = {
 	.name		= "timer-16",
 	.handler	= timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_TIMER,
-	.mask		= CPU_MASK_NONE,
 };
 
 static const int __initdata divide_rate[] = {1, 2, 4, 8};

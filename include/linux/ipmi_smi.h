@@ -230,6 +230,6 @@ static inline void ipmi_free_smi_msg(struct ipmi_smi_msg *msg)
    automatically be dstroyed when the interface is destroyed. */
 int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 			    read_proc_t *read_proc,
-			    void *data, struct module *owner);
+			    void *data);
 
 #endif /* __LINUX_IPMI_SMI_H */

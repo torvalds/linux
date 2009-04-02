@@ -760,7 +760,6 @@ static int acpi_battery_add_fs(struct acpi_device *device)
 						     acpi_battery_dir);
 		if (!acpi_device_dir(device))
 			return -ENODEV;
-		acpi_device_dir(device)->owner = THIS_MODULE;
 	}
 
 	for (i = 0; i < ACPI_BATTERY_NUMFILES; ++i) {

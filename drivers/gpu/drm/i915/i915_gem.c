@@ -446,13 +446,16 @@ fast_shmem_write(struct page **pages,
 		 int length)
 {
 	char __iomem *vaddr;
+	unsigned long unwritten;
 
 	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT], KM_USER0);
 	if (vaddr == NULL)
 		return -ENOMEM;
-	__copy_from_user_inatomic(vaddr + page_offset, data, length);
+	unwritten = __copy_from_user_inatomic(vaddr + page_offset, data, length);
 	kunmap_atomic(vaddr, KM_USER0);
 
+	if (unwritten)
+		return -EFAULT;
 	return 0;
 }
 
@@ -1093,7 +1096,7 @@ i915_gem_create_mmap_offset(struct drm_gem_object *obj)
 	struct drm_gem_mm *mm = dev->mm_private;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	struct drm_map_list *list;
-	struct drm_map *map;
+	struct drm_local_map *map;
 	int ret = 0;
 
 	/* Set the object up for mmap'ing */

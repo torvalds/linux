@@ -592,14 +592,14 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 		fc->fe_sleep = ops->sleep;
 		ops->sleep = flexcop_sleep;
 
-		fc->dev_type = FC_SKY;
+		fc->dev_type = FC_SKY_REV26;
 		goto fe_found;
 	}
 
 	/* try the air dvb-t (mt352/Samsung tdtc9251dh0(??)) */
 	fc->fe = dvb_attach(mt352_attach, &samsung_tdtc9251dh0_config, i2c);
 	if (fc->fe != NULL) {
-		fc->dev_type = FC_AIR_DVB;
+		fc->dev_type = FC_AIR_DVBT;
 		fc->fe->ops.tuner_ops.calc_regs = samsung_tdtc9251dh0_calc_regs;
 		goto fe_found;
 	}
@@ -653,7 +653,7 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 		fc->fe_sleep                = ops->sleep;
 		ops->sleep                  = flexcop_sleep;
 
-		fc->dev_type                = FC_SKY_OLD;
+		fc->dev_type                = FC_SKY_REV23;
 		goto fe_found;
 	}
 

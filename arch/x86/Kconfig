@@ -40,6 +40,7 @@ config X86
 	select HAVE_GENERIC_DMA_COHERENT if X86_32
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select USER_STACKTRACE_SUPPORT
+	select HAVE_DMA_API_DEBUG
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
@@ -162,6 +163,9 @@ config AUDIT_ARCH
 	default X86_64
 
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
+	def_bool y
+
+config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
 # Use the generic interrupt handling code in kernel/irq/:
@@ -786,6 +790,11 @@ config X86_MCE_AMD
 	   Additional support for AMD specific MCE features such as
 	   the DRAM Error Threshold.
 
+config X86_MCE_THRESHOLD
+	depends on X86_MCE_AMD || X86_MCE_INTEL
+	bool
+	default y
+
 config X86_MCE_NONFATAL
 	tristate "Check for non-fatal errors on AMD Athlon/Duron / Intel Pentium 4"
 	depends on X86_32 && X86_MCE
@@ -928,6 +937,12 @@ config X86_CPUID
 	  be executed on a specific processor.  It is a character device
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
+
+config X86_CPU_DEBUG
+	tristate "/sys/kernel/debug/x86/cpu/* - CPU Debug support"
+	---help---
+	  If you select this option, this will provide various x86 CPUs
+	  information through debugfs.
 
 choice
 	prompt "High Memory Support"
@@ -1121,7 +1136,7 @@ config NUMA_EMU
 
 config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
-	range 1 9   if X86_64
+	range 1 9
 	default "9" if MAXSMP
 	default "6" if X86_64
 	default "4" if X86_NUMAQ
@@ -1429,7 +1444,7 @@ config CRASH_DUMP
 config KEXEC_JUMP
 	bool "kexec jump (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	depends on KEXEC && HIBERNATION && X86_32
+	depends on KEXEC && HIBERNATION
 	---help---
 	  Jump between original kernel and kexeced kernel and invoke
 	  code in physical address mode via KEXEC

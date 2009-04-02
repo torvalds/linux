@@ -25,7 +25,7 @@ struct cpupri {
 
 #ifdef CONFIG_SMP
 int  cpupri_find(struct cpupri *cp,
-		 struct task_struct *p, cpumask_t *lowest_mask);
+		 struct task_struct *p, struct cpumask *lowest_mask);
 void cpupri_set(struct cpupri *cp, int cpu, int pri);
 int cpupri_init(struct cpupri *cp, bool bootmem);
 void cpupri_cleanup(struct cpupri *cp);

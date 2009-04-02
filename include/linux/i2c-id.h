@@ -71,6 +71,7 @@
 #define I2C_DRIVERID_VP27SMPX	93	/* Panasonic VP27s tuner internal MPX */
 #define I2C_DRIVERID_M52790 	95      /* Mitsubishi M52790SP/FP AV switch */
 #define I2C_DRIVERID_CS5345	96	/* cs5345 audio processor	*/
+#define I2C_DRIVERID_AU8522	97	/* Auvitek au8522       */
 
 #define I2C_DRIVERID_OV7670 1048	/* Omnivision 7670 camera */
 
@@ -87,6 +88,7 @@
 #define I2C_HW_B_CX2341X	0x010020 /* Conexant CX2341X MPEG encoder cards */
 #define I2C_HW_B_CX23885	0x010022 /* conexant 23885 based tv cards (bus1) */
 #define I2C_HW_B_AU0828		0x010023 /* auvitek au0828 usb bridge */
+#define I2C_HW_B_HDPVR		0x010025 /* Hauppauge HD PVR */
 
 /* --- SGI adapters							*/
 #define I2C_HW_SGI_VINO		0x160000

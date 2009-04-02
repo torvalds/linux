@@ -58,35 +58,6 @@ struct timestruc_t {
 #define	ONES		0xffffffffu	/* all bit on		*/
 
 /*
- *	logical xd (lxd)
- */
-typedef struct {
-	unsigned len:24;
-	unsigned off1:8;
-	u32 off2;
-} lxd_t;
-
-/* lxd_t field construction */
-#define	LXDlength(lxd, length32)	( (lxd)->len = length32 )
-#define	LXDoffset(lxd, offset64)\
-{\
-	(lxd)->off1 = ((s64)offset64) >> 32;\
-	(lxd)->off2 = (offset64) & 0xffffffff;\
-}
-
-/* lxd_t field extraction */
-#define	lengthLXD(lxd)	( (lxd)->len )
-#define	offsetLXD(lxd)\
-	( ((s64)((lxd)->off1)) << 32 | (lxd)->off2 )
-
-/* lxd list */
-struct lxdlist {
-	s16 maxnlxd;
-	s16 nlxd;
-	lxd_t *lxd;
-};
-
-/*
  *	physical xd (pxd)
  */
 typedef struct {

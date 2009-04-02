@@ -9,11 +9,11 @@ static const char *udma_str[] =
 	 { "UDMA/16", "UDMA/25",  "UDMA/33",  "UDMA/44",
 	   "UDMA/66", "UDMA/100", "UDMA/133", "UDMA7" };
 static const char *mwdma_str[] =
-	{ "MWDMA0", "MWDMA1", "MWDMA2" };
+	{ "MWDMA0", "MWDMA1", "MWDMA2", "MWDMA3", "MWDMA4" };
 static const char *swdma_str[] =
 	{ "SWDMA0", "SWDMA1", "SWDMA2" };
 static const char *pio_str[] =
-	{ "PIO0", "PIO1", "PIO2", "PIO3", "PIO4", "PIO5" };
+	{ "PIO0", "PIO1", "PIO2", "PIO3", "PIO4", "PIO5", "PIO6" };
 
 /**
  *	ide_xfer_verbose	-	return IDE mode names
@@ -30,11 +30,11 @@ const char *ide_xfer_verbose(u8 mode)
 
 	if (mode >= XFER_UDMA_0 && mode <= XFER_UDMA_7)
 		s = udma_str[i];
-	else if (mode >= XFER_MW_DMA_0 && mode <= XFER_MW_DMA_2)
+	else if (mode >= XFER_MW_DMA_0 && mode <= XFER_MW_DMA_4)
 		s = mwdma_str[i];
 	else if (mode >= XFER_SW_DMA_0 && mode <= XFER_SW_DMA_2)
 		s = swdma_str[i];
-	else if (mode >= XFER_PIO_0 && mode <= XFER_PIO_5)
+	else if (mode >= XFER_PIO_0 && mode <= XFER_PIO_6)
 		s = pio_str[i & 0x7];
 	else if (mode == XFER_PIO_SLOW)
 		s = "PIO SLOW";
@@ -79,7 +79,10 @@ u8 ide_get_best_pio_mode(ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 		}
 
 		if (id[ATA_ID_FIELD_VALID] & 2) {	      /* ATA2? */
-			if (ata_id_has_iordy(id)) {
+			if (ata_id_is_cfa(id) && (id[ATA_ID_CFA_MODES] & 7))
+				pio_mode = 4 + min_t(int, 2,
+						     id[ATA_ID_CFA_MODES] & 7);
+			else if (ata_id_has_iordy(id)) {
 				if (id[ATA_ID_PIO_MODES] & 7) {
 					overridden = 0;
 					if (id[ATA_ID_PIO_MODES] & 4)
@@ -239,7 +242,7 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 
 	BUG_ON(rate < XFER_PIO_0);
 
-	if (rate >= XFER_PIO_0 && rate <= XFER_PIO_5)
+	if (rate >= XFER_PIO_0 && rate <= XFER_PIO_6)
 		return ide_set_pio_mode(drive, rate);
 
 	return ide_set_dma_mode(drive, rate);

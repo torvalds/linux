@@ -191,7 +191,6 @@ static int acpi_ac_add_fs(struct acpi_device *device)
 						     acpi_ac_dir);
 		if (!acpi_device_dir(device))
 			return -ENODEV;
-		acpi_device_dir(device)->owner = THIS_MODULE;
 	}
 
 	/* 'state' [R] */

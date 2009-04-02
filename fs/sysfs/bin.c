@@ -234,7 +234,7 @@ static int bin_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return ret;
 }
 
-static int bin_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+static int bin_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct file *file = vma->vm_file;
 	struct bin_buffer *bb = file->private_data;
@@ -242,15 +242,15 @@ static int bin_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	int ret;
 
 	if (!bb->vm_ops)
-		return -EINVAL;
+		return VM_FAULT_SIGBUS;
 
 	if (!bb->vm_ops->page_mkwrite)
 		return 0;
 
 	if (!sysfs_get_active_two(attr_sd))
-		return -EINVAL;
+		return VM_FAULT_SIGBUS;
 
-	ret = bb->vm_ops->page_mkwrite(vma, page);
+	ret = bb->vm_ops->page_mkwrite(vma, vmf);
 
 	sysfs_put_active_two(attr_sd);
 	return ret;

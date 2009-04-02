@@ -28,7 +28,7 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/io.h>
-#include <linux/smc911x.h>
+#include <linux/smsc911x.h>
 #include <linux/ata_platform.h>
 
 #include <asm/clkdev.h>
@@ -128,14 +128,15 @@ int realview_flash_register(struct resource *res, u32 num)
 	return platform_device_register(&realview_flash_device);
 }
 
-static struct smc911x_platdata realview_smc911x_platdata = {
-	.flags		= SMC911X_USE_32BIT,
-	.irq_flags	= IRQF_SHARED,
-	.irq_polarity	= 1,
+static struct smsc911x_platform_config smsc911x_config = {
+	.flags		= SMSC911X_USE_32BIT,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_HIGH,
+	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
 };
 
 static struct platform_device realview_eth_device = {
-	.name		= "smc911x",
+	.name		= "smsc911x",
 	.id		= 0,
 	.num_resources	= 2,
 };
@@ -145,8 +146,8 @@ int realview_eth_register(const char *name, struct resource *res)
 	if (name)
 		realview_eth_device.name = name;
 	realview_eth_device.resource = res;
-	if (strcmp(realview_eth_device.name, "smc911x") == 0)
-		realview_eth_device.dev.platform_data = &realview_smc911x_platdata;
+	if (strcmp(realview_eth_device.name, "smsc911x") == 0)
+		realview_eth_device.dev.platform_data = &smsc911x_config;
 
 	return platform_device_register(&realview_eth_device);
 }

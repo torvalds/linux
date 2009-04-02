@@ -488,7 +488,6 @@ acpi_sbs_add_fs(struct proc_dir_entry **dir,
 		if (!*dir) {
 			return -ENODEV;
 		}
-		(*dir)->owner = THIS_MODULE;
 	}
 
 	/* 'info' [R] */

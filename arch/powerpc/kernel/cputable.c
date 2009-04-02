@@ -35,6 +35,10 @@ const char *powerpc_base_platform;
  * and ppc64
  */
 #ifdef CONFIG_PPC32
+extern void __setup_cpu_e200(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_e500v1(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_e500v2(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_e500mc(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_440ep(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_440epx(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_440gx(unsigned long offset, struct cpu_spec* spec);
@@ -43,6 +47,7 @@ extern void __setup_cpu_440spe(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_440x5(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_460ex(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_460gt(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_460sx(unsigned long offset, struct cpu_spec *spec);
 extern void __setup_cpu_603(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_604(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_750(unsigned long offset, struct cpu_spec* spec);
@@ -726,6 +731,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_750,
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
+		.oprofile_cpu_type      = "ppc/750",
+		.oprofile_type		= PPC_OPROFILE_G4,
 	},
 	{	/* 750FX rev 2.0 must disable HID0[DPM] */
 		.pvr_mask		= 0xffffffff,
@@ -741,6 +748,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_750,
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
+		.oprofile_cpu_type      = "ppc/750",
+		.oprofile_type		= PPC_OPROFILE_G4,
 	},
 	{	/* 750FX (All revs except 2.0) */
 		.pvr_mask		= 0xffff0000,
@@ -756,6 +765,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_750fx,
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
+		.oprofile_cpu_type      = "ppc/750",
+		.oprofile_type		= PPC_OPROFILE_G4,
 	},
 	{	/* 750GX */
 		.pvr_mask		= 0xffff0000,
@@ -771,6 +782,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_750fx,
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
+		.oprofile_cpu_type      = "ppc/750",
+		.oprofile_type		= PPC_OPROFILE_G4,
 	},
 	{	/* 740/750 (L2CR bit need fixup for 740) */
 		.pvr_mask		= 0xffff0000,
@@ -1077,7 +1090,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_name		= "e300c2",
 		.cpu_features		= CPU_FTRS_E300C2,
 		.cpu_user_features	= PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU,
-		.mmu_features		= MMU_FTR_USE_HIGH_BATS,
+		.mmu_features		= MMU_FTR_USE_HIGH_BATS |
+			MMU_FTR_NEED_DTLB_SW_LRU,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.cpu_setup		= __setup_cpu_603,
@@ -1090,7 +1104,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_name		= "e300c3",
 		.cpu_features		= CPU_FTRS_E300,
 		.cpu_user_features	= COMMON_USER,
-		.mmu_features		= MMU_FTR_USE_HIGH_BATS,
+		.mmu_features		= MMU_FTR_USE_HIGH_BATS |
+			MMU_FTR_NEED_DTLB_SW_LRU,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.cpu_setup		= __setup_cpu_603,
@@ -1105,7 +1120,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_name		= "e300c4",
 		.cpu_features		= CPU_FTRS_E300,
 		.cpu_user_features	= COMMON_USER,
-		.mmu_features		= MMU_FTR_USE_HIGH_BATS,
+		.mmu_features		= MMU_FTR_USE_HIGH_BATS |
+			MMU_FTR_NEED_DTLB_SW_LRU,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.cpu_setup		= __setup_cpu_603,
@@ -1634,6 +1650,19 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_440A,
 		.platform		= "ppc440",
 	},
+	{ /* 460SX */
+		.pvr_mask		= 0xffffff00,
+		.pvr_value		= 0x13541800,
+		.cpu_name		= "460SX",
+		.cpu_features		= CPU_FTRS_44X,
+		.cpu_user_features	= COMMON_USER_BOOKE,
+		.mmu_features		= MMU_FTR_TYPE_44x,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_460sx,
+		.machine_check		= machine_check_440A,
+		.platform		= "ppc440",
+	},
 	{	/* default match */
 		.pvr_mask		= 0x00000000,
 		.pvr_value		= 0x00000000,
@@ -1687,6 +1716,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 			PPC_FEATURE_UNIFIED_CACHE,
 		.mmu_features		= MMU_FTR_TYPE_FSL_E,
 		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_e200,
 		.machine_check		= machine_check_e200,
 		.platform		= "ppc5554",
 	}
@@ -1706,6 +1736,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 4,
 		.oprofile_cpu_type	= "ppc/e500",
 		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
+		.cpu_setup		= __setup_cpu_e500v1,
 		.machine_check		= machine_check_e500,
 		.platform		= "ppc8540",
 	},
@@ -1724,6 +1755,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 4,
 		.oprofile_cpu_type	= "ppc/e500",
 		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
+		.cpu_setup		= __setup_cpu_e500v2,
 		.machine_check		= machine_check_e500,
 		.platform		= "ppc8548",
 	},
@@ -1733,12 +1765,14 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_name		= "e500mc",
 		.cpu_features		= CPU_FTRS_E500MC,
 		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
-		.mmu_features		= MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS,
+		.mmu_features		= MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS |
+			MMU_FTR_USE_TLBILX,
 		.icache_bsize		= 64,
 		.dcache_bsize		= 64,
 		.num_pmcs		= 4,
 		.oprofile_cpu_type	= "ppc/e500", /* xxx - galak, e500mc? */
 		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
+		.cpu_setup		= __setup_cpu_e500mc,
 		.machine_check		= machine_check_e500,
 		.platform		= "ppce500mc",
 	},
@@ -1762,74 +1796,84 @@ static struct cpu_spec __initdata cpu_specs[] = {
 
 static struct cpu_spec the_cpu_spec;
 
+static void __init setup_cpu_spec(unsigned long offset, struct cpu_spec *s)
+{
+	struct cpu_spec *t = &the_cpu_spec;
+	struct cpu_spec old;
+
+	t = PTRRELOC(t);
+	old = *t;
+
+	/* Copy everything, then do fixups */
+	*t = *s;
+
+	/*
+	 * If we are overriding a previous value derived from the real
+	 * PVR with a new value obtained using a logical PVR value,
+	 * don't modify the performance monitor fields.
+	 */
+	if (old.num_pmcs && !s->num_pmcs) {
+		t->num_pmcs = old.num_pmcs;
+		t->pmc_type = old.pmc_type;
+		t->oprofile_type = old.oprofile_type;
+		t->oprofile_mmcra_sihv = old.oprofile_mmcra_sihv;
+		t->oprofile_mmcra_sipr = old.oprofile_mmcra_sipr;
+		t->oprofile_mmcra_clear = old.oprofile_mmcra_clear;
+
+		/*
+		 * If we have passed through this logic once before and
+		 * have pulled the default case because the real PVR was
+		 * not found inside cpu_specs[], then we are possibly
+		 * running in compatibility mode. In that case, let the
+		 * oprofiler know which set of compatibility counters to
+		 * pull from by making sure the oprofile_cpu_type string
+		 * is set to that of compatibility mode. If the
+		 * oprofile_cpu_type already has a value, then we are
+		 * possibly overriding a real PVR with a logical one,
+		 * and, in that case, keep the current value for
+		 * oprofile_cpu_type.
+		 */
+		if (old.oprofile_cpu_type == NULL)
+			t->oprofile_cpu_type = s->oprofile_cpu_type;
+	}
+
+	*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
+
+	/*
+	 * Set the base platform string once; assumes
+	 * we're called with real pvr first.
+	 */
+	if (*PTRRELOC(&powerpc_base_platform) == NULL)
+		*PTRRELOC(&powerpc_base_platform) = t->platform;
+
+#if defined(CONFIG_PPC64) || defined(CONFIG_BOOKE)
+	/* ppc64 and booke expect identify_cpu to also call setup_cpu for
+	 * that processor. I will consolidate that at a later time, for now,
+	 * just use #ifdef. We also don't need to PTRRELOC the function
+	 * pointer on ppc64 and booke as we are running at 0 in real mode
+	 * on ppc64 and reloc_offset is always 0 on booke.
+	 */
+	if (s->cpu_setup) {
+		s->cpu_setup(offset, s);
+	}
+#endif /* CONFIG_PPC64 || CONFIG_BOOKE */
+}
+
 struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 {
 	struct cpu_spec *s = cpu_specs;
-	struct cpu_spec *t = &the_cpu_spec;
 	int i;
 
 	s = PTRRELOC(s);
-	t = PTRRELOC(t);
 
-	for (i = 0; i < ARRAY_SIZE(cpu_specs); i++,s++)
+	for (i = 0; i < ARRAY_SIZE(cpu_specs); i++,s++) {
 		if ((pvr & s->pvr_mask) == s->pvr_value) {
-			/*
-			 * If we are overriding a previous value derived
-			 * from the real PVR with a new value obtained
-			 * using a logical PVR value, don't modify the
-			 * performance monitor fields.
-			 */
-			if (t->num_pmcs && !s->num_pmcs) {
-				t->cpu_name = s->cpu_name;
-				t->cpu_features = s->cpu_features;
-				t->cpu_user_features = s->cpu_user_features;
-				t->icache_bsize = s->icache_bsize;
-				t->dcache_bsize = s->dcache_bsize;
-				t->cpu_setup = s->cpu_setup;
-				t->cpu_restore = s->cpu_restore;
-				t->platform = s->platform;
-				/*
-				 * If we have passed through this logic once
-				 * before and have pulled the default case
-				 * because the real PVR was not found inside
-				 * cpu_specs[], then we are possibly running in
-				 * compatibility mode. In that case, let the
-				 * oprofiler know which set of compatibility
-				 * counters to pull from by making sure the
-				 * oprofile_cpu_type string is set to that of
-				 * compatibility mode. If the oprofile_cpu_type
-				 * already has a value, then we are possibly
-				 * overriding a real PVR with a logical one, and,
-				 * in that case, keep the current value for
-				 * oprofile_cpu_type.
-				 */
-				if (t->oprofile_cpu_type == NULL)
-					t->oprofile_cpu_type = s->oprofile_cpu_type;
-			} else
-				*t = *s;
-			*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
-
-			/*
-			 * Set the base platform string once; assumes
-			 * we're called with real pvr first.
-			 */
-			if (*PTRRELOC(&powerpc_base_platform) == NULL)
-				*PTRRELOC(&powerpc_base_platform) = t->platform;
-
-#if defined(CONFIG_PPC64) || defined(CONFIG_BOOKE)
-			/* ppc64 and booke expect identify_cpu to also call
-			 * setup_cpu for that processor. I will consolidate
-			 * that at a later time, for now, just use #ifdef.
-			 * we also don't need to PTRRELOC the function pointer
-			 * on ppc64 and booke as we are running at 0 in real
-			 * mode on ppc64 and reloc_offset is always 0 on booke.
-			 */
-			if (s->cpu_setup) {
-				s->cpu_setup(offset, s);
-			}
-#endif /* CONFIG_PPC64 || CONFIG_BOOKE */
+			setup_cpu_spec(offset, s);
 			return s;
 		}
+	}
+
 	BUG();
+
 	return NULL;
 }

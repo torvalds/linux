@@ -268,64 +268,6 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap,
 	return retval;
 }
 
-static int attach_inform(struct i2c_client *client)
-{
-	struct cx23885_i2c *bus = i2c_get_adapdata(client->adapter);
-	struct cx23885_dev *dev = bus->dev;
-	struct tuner_setup tun_setup;
-
-	dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
-		client->driver->driver.name, client->addr, client->name);
-
-	if (!client->driver->command)
-		return 0;
-
-	if (dev->tuner_type != UNSET) {
-
-		dprintk(1, "%s  (tuner) i2c attach [addr=0x%x,client=%s]\n",
-			client->driver->driver.name, client->addr,
-			client->name);
-
-		if ((dev->tuner_addr == ADDR_UNSET) ||
-			(dev->tuner_addr == client->addr)) {
-
-			dprintk(1, "%s (tuner || addr UNSET)\n",
-				client->driver->driver.name);
-
-			dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
-				client->driver->driver.name,
-				client->addr, client->name);
-
-			tun_setup.mode_mask = T_ANALOG_TV;
-			tun_setup.type = dev->tuner_type;
-			tun_setup.addr = dev->tuner_addr;
-
-			client->driver->command(client, TUNER_SET_TYPE_ADDR,
-				&tun_setup);
-		}
-	}
-
-	return 0;
-}
-
-static int detach_inform(struct i2c_client *client)
-{
-	struct cx23885_dev *dev = i2c_get_adapdata(client->adapter);
-
-	dprintk(1, "i2c detach [client=%s]\n", client->name);
-
-	return 0;
-}
-
-void cx23885_call_i2c_clients(struct cx23885_i2c *bus,
-			      unsigned int cmd, void *arg)
-{
-	if (bus->i2c_rc != 0)
-		return;
-
-	i2c_clients_command(&bus->i2c_adap, cmd, arg);
-}
-
 static u32 cx23885_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
@@ -343,9 +285,6 @@ static struct i2c_adapter cx23885_i2c_adap_template = {
 	.owner             = THIS_MODULE,
 	.id                = I2C_HW_B_CX23885,
 	.algo              = &cx23885_i2c_algo_template,
-	.class             = I2C_CLASS_TV_ANALOG,
-	.client_register   = attach_inform,
-	.client_unregister = detach_inform,
 };
 
 static struct i2c_client cx23885_i2c_client_template = {
@@ -402,15 +341,18 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 
 	bus->i2c_algo.data = bus;
 	bus->i2c_adap.algo_data = bus;
-	i2c_set_adapdata(&bus->i2c_adap, bus);
+	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&bus->i2c_adap);
 
 	bus->i2c_client.adapter = &bus->i2c_adap;
 
 	if (0 == bus->i2c_rc) {
 		dprintk(1, "%s: i2c bus %d registered\n", dev->name, bus->nr);
-		if (i2c_scan)
+		if (i2c_scan) {
+			printk(KERN_INFO "%s: scan bus %d:\n",
+					dev->name, bus->nr);
 			do_i2c_scan(dev->name, &bus->i2c_client);
+		}
 	} else
 		printk(KERN_WARNING "%s: i2c bus %d register FAILED\n",
 			dev->name, bus->nr);

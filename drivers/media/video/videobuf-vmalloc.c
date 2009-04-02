@@ -425,7 +425,7 @@ void videobuf_vmalloc_free (struct videobuf_buffer *buf)
 	   So, it should free memory only if the memory were allocated for
 	   read() operation.
 	 */
-	if ((buf->memory != V4L2_MEMORY_USERPTR) || (buf->baddr == 0))
+	if ((buf->memory != V4L2_MEMORY_USERPTR) || buf->baddr)
 		return;
 
 	if (!mem)
