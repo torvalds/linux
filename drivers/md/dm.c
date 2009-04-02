@@ -828,18 +828,20 @@ static int __clone_and_map(struct clone_info *ci)
 /*
  * Split the bio into several clones and submit it to targets.
  */
-static int __split_and_process_bio(struct mapped_device *md, struct bio *bio)
+static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 {
 	struct clone_info ci;
 	int error = 0;
 
 	ci.map = dm_get_table(md);
-	if (unlikely(!ci.map))
-		return -EIO;
+	if (unlikely(!ci.map)) {
+		bio_io_error(bio);
+		return;
+	}
 	if (unlikely(bio_barrier(bio) && !dm_table_barrier_ok(ci.map))) {
 		dm_table_put(ci.map);
 		bio_endio(bio, -EOPNOTSUPP);
-		return 0;
+		return;
 	}
 	ci.md = md;
 	ci.bio = bio;
@@ -859,8 +861,6 @@ static int __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 	/* drop the extra reference count */
 	dec_pending(ci.io, error);
 	dm_table_put(ci.map);
-
-	return 0;
 }
 /*-----------------------------------------------------------------
  * CRUD END
@@ -951,8 +951,9 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 		down_read(&md->io_lock);
 	}
 
-	r = __split_and_process_bio(md, bio);
+	__split_and_process_bio(md, bio);
 	up_read(&md->io_lock);
+	return 0;
 
 out_req:
 	if (r < 0)
@@ -1404,10 +1405,8 @@ static void __flush_deferred_io(struct mapped_device *md)
 {
 	struct bio *c;
 
-	while ((c = bio_list_pop(&md->deferred))) {
-		if (__split_and_process_bio(md, c))
-			bio_io_error(c);
-	}
+	while ((c = bio_list_pop(&md->deferred)))
+		__split_and_process_bio(md, c);
 
 	clear_bit(DMF_BLOCK_IO, &md->flags);
 }
