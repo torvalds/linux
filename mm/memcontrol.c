@@ -994,13 +994,24 @@ nomem:
 static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
 {
 	struct mem_cgroup *mem;
+	struct page_cgroup *pc;
 	swp_entry_t ent;
+
+	VM_BUG_ON(!PageLocked(page));
 
 	if (!PageSwapCache(page))
 		return NULL;
 
-	ent.val = page_private(page);
-	mem = lookup_swap_cgroup(ent);
+	pc = lookup_page_cgroup(page);
+	/*
+	 * Used bit of swapcache is solid under page lock.
+	 */
+	if (PageCgroupUsed(pc))
+		mem = pc->mem_cgroup;
+	else {
+		ent.val = page_private(page);
+		mem = lookup_swap_cgroup(ent);
+	}
 	if (!mem)
 		return NULL;
 	if (!css_tryget(&mem->css))
