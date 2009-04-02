@@ -690,3 +690,22 @@ int gru_kservices_init(struct gru_state *gru)
 		quicktest(gru);
 	return 0;
 }
+
+void gru_kservices_exit(struct gru_state *gru)
+{
+	struct gru_context_configuration_handle *cch;
+	struct gru_blade_state *bs;
+
+	bs = gru->gs_blade;
+	if (gru != &bs->bs_grus[1])
+		return;
+
+	cch = get_cch(gru->gs_gru_base_vaddr, KERNEL_CTXNUM);
+	lock_cch_handle(cch);
+	if (cch_interrupt_sync(cch))
+		BUG();
+	if (cch_deallocate(cch))
+		BUG();
+	unlock_cch_handle(cch);
+}
+

@@ -600,6 +600,7 @@ extern void gru_unload_context(struct gru_thread_state *gts, int savestate);
 extern void gts_drop(struct gru_thread_state *gts);
 extern void gru_tgh_flush_init(struct gru_state *gru);
 extern int gru_kservices_init(struct gru_state *gru);
+extern void gru_kservices_exit(struct gru_state *gru);
 extern irqreturn_t gru_intr(int irq, void *dev_id);
 extern int gru_handle_user_call_os(unsigned long address);
 extern int gru_user_flush_tlb(unsigned long arg);

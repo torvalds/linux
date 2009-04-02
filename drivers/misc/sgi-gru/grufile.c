@@ -440,7 +440,7 @@ exit1:
 
 static void __exit gru_exit(void)
 {
-	int i, bid;
+	int i, bid, gid;
 	int order = get_order(sizeof(struct gru_state) *
 			      GRU_CHIPLETS_PER_BLADE);
 
@@ -449,6 +449,9 @@ static void __exit gru_exit(void)
 
 	for (i = 0; i < GRU_CHIPLETS_PER_BLADE; i++)
 		free_irq(IRQ_GRU + i, NULL);
+
+	foreach_gid(gid)
+		gru_kservices_exit(GID_TO_GRU(gid));
 
 	for (bid = 0; bid < GRU_MAX_BLADES; bid++)
 		free_pages((unsigned long)gru_base[bid], order);
