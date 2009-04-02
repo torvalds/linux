@@ -568,27 +568,17 @@ static void do_nbd_request(struct request_queue * q)
 	}
 }
 
-static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
-		     unsigned int cmd, unsigned long arg)
+/* Must be called with tx_lock held */
+
+static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *lo,
+		       unsigned int cmd, unsigned long arg)
 {
-	struct nbd_device *lo = bdev->bd_disk->private_data;
-	struct file *file;
-	int error;
-	struct request sreq ;
-	struct task_struct *thread;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	BUG_ON(lo->magic != LO_MAGIC);
-
-	/* Anyone capable of this syscall can do *real bad* things */
-	dprintk(DBG_IOCTL, "%s: nbd_ioctl cmd=%s(0x%x) arg=%lu\n",
-			lo->disk->disk_name, ioctl_cmd_to_ascii(cmd), cmd, arg);
-
 	switch (cmd) {
-	case NBD_DISCONNECT:
+	case NBD_DISCONNECT: {
+		struct request sreq;
+
 	        printk(KERN_INFO "%s: NBD_DISCONNECT\n", lo->disk->disk_name);
+
 		blk_rq_init(NULL, &sreq);
 		sreq.cmd_type = REQ_TYPE_SPECIAL;
 		nbd_cmd(&sreq) = NBD_CMD_DISC;
@@ -599,29 +589,29 @@ static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 		 */
 		sreq.sector = 0;
 		sreq.nr_sectors = 0;
-                if (!lo->sock)
+		if (!lo->sock)
 			return -EINVAL;
-		mutex_lock(&lo->tx_lock);
-                nbd_send_req(lo, &sreq);
-		mutex_unlock(&lo->tx_lock);
+		nbd_send_req(lo, &sreq);
                 return 0;
+	}
  
-	case NBD_CLEAR_SOCK:
-		error = 0;
-		mutex_lock(&lo->tx_lock);
+	case NBD_CLEAR_SOCK: {
+		struct file *file;
+
 		lo->sock = NULL;
-		mutex_unlock(&lo->tx_lock);
 		file = lo->file;
 		lo->file = NULL;
 		nbd_clear_que(lo);
 		BUG_ON(!list_empty(&lo->queue_head));
 		if (file)
 			fput(file);
-		return error;
-	case NBD_SET_SOCK:
+		return 0;
+	}
+
+	case NBD_SET_SOCK: {
+		struct file *file;
 		if (lo->file)
 			return -EBUSY;
-		error = -EINVAL;
 		file = fget(arg);
 		if (file) {
 			struct inode *inode = file->f_path.dentry->d_inode;
@@ -630,12 +620,14 @@ static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 				lo->sock = SOCKET_I(inode);
 				if (max_part > 0)
 					bdev->bd_invalidated = 1;
-				error = 0;
+				return 0;
 			} else {
 				fput(file);
 			}
 		}
-		return error;
+		return -EINVAL;
+	}
+
 	case NBD_SET_BLKSIZE:
 		lo->blksize = arg;
 		lo->bytesize &= ~(lo->blksize-1);
@@ -643,35 +635,50 @@ static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 		set_blocksize(bdev, lo->blksize);
 		set_capacity(lo->disk, lo->bytesize >> 9);
 		return 0;
+
 	case NBD_SET_SIZE:
 		lo->bytesize = arg & ~(lo->blksize-1);
 		bdev->bd_inode->i_size = lo->bytesize;
 		set_blocksize(bdev, lo->blksize);
 		set_capacity(lo->disk, lo->bytesize >> 9);
 		return 0;
+
 	case NBD_SET_TIMEOUT:
 		lo->xmit_timeout = arg * HZ;
 		return 0;
+
 	case NBD_SET_SIZE_BLOCKS:
 		lo->bytesize = ((u64) arg) * lo->blksize;
 		bdev->bd_inode->i_size = lo->bytesize;
 		set_blocksize(bdev, lo->blksize);
 		set_capacity(lo->disk, lo->bytesize >> 9);
 		return 0;
-	case NBD_DO_IT:
+
+	case NBD_DO_IT: {
+		struct task_struct *thread;
+		struct file *file;
+		int error;
+
 		if (lo->pid)
 			return -EBUSY;
 		if (!lo->file)
 			return -EINVAL;
+
+		mutex_unlock(&lo->tx_lock);
+
 		thread = kthread_create(nbd_thread, lo, lo->disk->disk_name);
-		if (IS_ERR(thread))
+		if (IS_ERR(thread)) {
+			mutex_lock(&lo->tx_lock);
 			return PTR_ERR(thread);
+		}
 		wake_up_process(thread);
 		error = nbd_do_it(lo);
 		kthread_stop(thread);
+
+		mutex_lock(&lo->tx_lock);
 		if (error)
 			return error;
-		sock_shutdown(lo, 1);
+		sock_shutdown(lo, 0);
 		file = lo->file;
 		lo->file = NULL;
 		nbd_clear_que(lo);
@@ -684,6 +691,8 @@ static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 		if (max_part > 0)
 			ioctl_by_bdev(bdev, BLKRRPART, 0);
 		return lo->harderror;
+	}
+
 	case NBD_CLEAR_QUE:
 		/*
 		 * This is for compatibility only.  The queue is always cleared
@@ -691,6 +700,7 @@ static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 		 */
 		BUG_ON(!lo->sock && !list_empty(&lo->queue_head));
 		return 0;
+
 	case NBD_PRINT_DEBUG:
 		printk(KERN_INFO "%s: next = %p, prev = %p, head = %p\n",
 			bdev->bd_disk->disk_name,
@@ -698,7 +708,29 @@ static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 			&lo->queue_head);
 		return 0;
 	}
-	return -EINVAL;
+	return -ENOTTY;
+}
+
+static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
+		     unsigned int cmd, unsigned long arg)
+{
+	struct nbd_device *lo = bdev->bd_disk->private_data;
+	int error;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	BUG_ON(lo->magic != LO_MAGIC);
+
+	/* Anyone capable of this syscall can do *real bad* things */
+	dprintk(DBG_IOCTL, "%s: nbd_ioctl cmd=%s(0x%x) arg=%lu\n",
+			lo->disk->disk_name, ioctl_cmd_to_ascii(cmd), cmd, arg);
+
+	mutex_lock(&lo->tx_lock);
+	error = __nbd_ioctl(bdev, lo, cmd, arg);
+	mutex_unlock(&lo->tx_lock);
+
+	return error;
 }
 
 static struct block_device_operations nbd_fops =
