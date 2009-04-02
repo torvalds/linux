@@ -442,7 +442,7 @@ static void create_perfstat_counter(int counter)
 
 	memset(&hw_event, 0, sizeof(hw_event));
 	hw_event.config		= event_id[counter];
-	hw_event.record_type	= PERF_RECORD_SIMPLE;
+	hw_event.record_type	= 0;
 	hw_event.nmi		= 0;
 	if (scale)
 		hw_event.read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -1277,8 +1277,8 @@ static void mmap_read(struct mmap_data *md)
 		old += size;
 
 		switch (event->header.type) {
-		case PERF_EVENT_OVERFLOW | __PERF_EVENT_IP:
-		case PERF_EVENT_OVERFLOW | __PERF_EVENT_IP | __PERF_EVENT_TID:
+		case PERF_EVENT_COUNTER_OVERFLOW | __PERF_EVENT_IP:
+		case PERF_EVENT_COUNTER_OVERFLOW | __PERF_EVENT_IP | __PERF_EVENT_TID:
 			process_event(event->ip.ip, md->counter);
 			break;
 
@@ -1337,9 +1337,8 @@ int main(int argc, char *argv[])
 			memset(&hw_event, 0, sizeof(hw_event));
 			hw_event.config		= event_id[counter];
 			hw_event.irq_period	= event_count[counter];
-			hw_event.record_type	= PERF_RECORD_IRQ;
+			hw_event.record_type	= PERF_RECORD_IP | PERF_RECORD_TID;
 			hw_event.nmi		= nmi;
-			hw_event.include_tid	= 1;
 			hw_event.mmap		= use_mmap;
 			hw_event.munmap		= use_munmap;
 
