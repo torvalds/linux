@@ -162,7 +162,7 @@ static bool edid_vendor(struct edid *edid, char *vendor)
 	edid_vendor[0] = ((edid->mfg_id[0] & 0x7c) >> 2) + '@';
 	edid_vendor[1] = (((edid->mfg_id[0] & 0x3) << 3) |
 			  ((edid->mfg_id[1] & 0xe0) >> 5)) + '@';
-	edid_vendor[2] = (edid->mfg_id[2] & 0x1f) + '@';
+	edid_vendor[2] = (edid->mfg_id[1] & 0x1f) + '@';
 
 	return !strncmp(edid_vendor, vendor, 3);
 }
