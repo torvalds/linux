@@ -27,6 +27,7 @@
 #include <linux/backing-dev.h>
 #include <linux/bit_spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/limits.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
@@ -721,6 +722,74 @@ static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
 	(*val)++;
 	return 0;
 }
+
+/**
+ * mem_cgroup_print_mem_info: Called from OOM with tasklist_lock held in read mode.
+ * @memcg: The memory cgroup that went over limit
+ * @p: Task that is going to be killed
+ *
+ * NOTE: @memcg and @p's mem_cgroup can be different when hierarchy is
+ * enabled
+ */
+void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+{
+	struct cgroup *task_cgrp;
+	struct cgroup *mem_cgrp;
+	/*
+	 * Need a buffer in BSS, can't rely on allocations. The code relies
+	 * on the assumption that OOM is serialized for memory controller.
+	 * If this assumption is broken, revisit this code.
+	 */
+	static char memcg_name[PATH_MAX];
+	int ret;
+
+	if (!memcg)
+		return;
+
+
+	rcu_read_lock();
+
+	mem_cgrp = memcg->css.cgroup;
+	task_cgrp = task_cgroup(p, mem_cgroup_subsys_id);
+
+	ret = cgroup_path(task_cgrp, memcg_name, PATH_MAX);
+	if (ret < 0) {
+		/*
+		 * Unfortunately, we are unable to convert to a useful name
+		 * But we'll still print out the usage information
+		 */
+		rcu_read_unlock();
+		goto done;
+	}
+	rcu_read_unlock();
+
+	printk(KERN_INFO "Task in %s killed", memcg_name);
+
+	rcu_read_lock();
+	ret = cgroup_path(mem_cgrp, memcg_name, PATH_MAX);
+	if (ret < 0) {
+		rcu_read_unlock();
+		goto done;
+	}
+	rcu_read_unlock();
+
+	/*
+	 * Continues from above, so we don't need an KERN_ level
+	 */
+	printk(KERN_CONT " as a result of limit of %s\n", memcg_name);
+done:
+
+	printk(KERN_INFO "memory: usage %llukB, limit %llukB, failcnt %llu\n",
+		res_counter_read_u64(&memcg->res, RES_USAGE) >> 10,
+		res_counter_read_u64(&memcg->res, RES_LIMIT) >> 10,
+		res_counter_read_u64(&memcg->res, RES_FAILCNT));
+	printk(KERN_INFO "memory+swap: usage %llukB, limit %llukB, "
+		"failcnt %llu\n",
+		res_counter_read_u64(&memcg->memsw, RES_USAGE) >> 10,
+		res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> 10,
+		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
+}
+
 /*
  * This function returns the number of memcg under hierarchy tree. Returns
  * 1(self count) if no children.

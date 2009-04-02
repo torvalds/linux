@@ -104,6 +104,8 @@ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
 						      struct zone *zone);
 struct zone_reclaim_stat*
 mem_cgroup_get_reclaim_stat_from_page(struct page *page);
+extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+					struct task_struct *p);
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 extern int do_swap_account;
@@ -268,6 +270,11 @@ static inline struct zone_reclaim_stat*
 mem_cgroup_get_reclaim_stat_from_page(struct page *page)
 {
 	return NULL;
+}
+
+static inline void
+mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+{
 }
 
 #endif /* CONFIG_CGROUP_MEM_CONT */
