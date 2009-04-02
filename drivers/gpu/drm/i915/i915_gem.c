@@ -43,8 +43,6 @@ static int i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 						     uint64_t offset,
 						     uint64_t size);
 static void i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj);
-static int i915_gem_object_get_pages(struct drm_gem_object *obj);
-static void i915_gem_object_put_pages(struct drm_gem_object *obj);
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
@@ -1285,7 +1283,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static void
+void
 i915_gem_object_put_pages(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
@@ -1884,7 +1882,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 	return ret;
 }
 
-static int
+int
 i915_gem_object_get_pages(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
@@ -3243,7 +3241,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	exec_offset = exec_list[args->buffer_count - 1].offset;
 
 #if WATCH_EXEC
-	i915_gem_dump_object(object_list[args->buffer_count - 1],
+	i915_gem_dump_object(batch_obj,
 			      args->batch_len,
 			      __func__,
 			      ~0);

@@ -635,6 +635,8 @@ int i915_gem_attach_phys_object(struct drm_device *dev,
 void i915_gem_detach_phys_object(struct drm_device *dev,
 				 struct drm_gem_object *obj);
 void i915_gem_free_all_phys_object(struct drm_device *dev);
+int i915_gem_object_get_pages(struct drm_gem_object *obj);
+void i915_gem_object_put_pages(struct drm_gem_object *obj);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
