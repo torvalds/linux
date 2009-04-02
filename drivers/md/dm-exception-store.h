@@ -37,11 +37,15 @@ struct dm_snap_exception {
  * Abstraction to handle the meta/layout of exception stores (the
  * COW device).
  */
-struct dm_exception_store {
+struct dm_exception_store;
+struct dm_exception_store_type {
+	int (*ctr) (struct dm_exception_store *store,
+		    unsigned argc, char **argv);
+
 	/*
 	 * Destroys this object when you've finished with it.
 	 */
-	void (*destroy) (struct dm_exception_store *store);
+	void (*dtr) (struct dm_exception_store *store);
 
 	/*
 	 * The target shouldn't read the COW device until this is
@@ -81,8 +85,13 @@ struct dm_exception_store {
 	void (*fraction_full) (struct dm_exception_store *store,
 			       sector_t *numerator,
 			       sector_t *denominator);
+};
+
+struct dm_exception_store {
+	struct dm_exception_store_type type;
 
 	struct dm_snapshot *snap;
+
 	void *context;
 };
 

@@ -683,12 +683,13 @@ int dm_create_persistent(struct dm_exception_store *store)
 		return -ENOMEM;
 	}
 
-	store->destroy = persistent_destroy;
-	store->read_metadata = persistent_read_metadata;
-	store->prepare_exception = persistent_prepare_exception;
-	store->commit_exception = persistent_commit_exception;
-	store->drop_snapshot = persistent_drop_snapshot;
-	store->fraction_full = persistent_fraction_full;
+	store->type.dtr = persistent_destroy;
+	store->type.read_metadata = persistent_read_metadata;
+	store->type.prepare_exception = persistent_prepare_exception;
+	store->type.commit_exception = persistent_commit_exception;
+	store->type.drop_snapshot = persistent_drop_snapshot;
+	store->type.fraction_full = persistent_fraction_full;
+
 	store->context = ps;
 
 	return 0;

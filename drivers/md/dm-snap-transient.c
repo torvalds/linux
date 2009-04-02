@@ -39,7 +39,7 @@ static int transient_read_metadata(struct dm_exception_store *store,
 static int transient_prepare_exception(struct dm_exception_store *store,
 				       struct dm_snap_exception *e)
 {
-	struct transient_c *tc = (struct transient_c *) store->context;
+	struct transient_c *tc = store->context;
 	sector_t size = get_dev_size(store->snap->cow->bdev);
 
 	if (size < (tc->next_free + store->snap->chunk_size))
@@ -71,12 +71,12 @@ int dm_create_transient(struct dm_exception_store *store)
 {
 	struct transient_c *tc;
 
-	store->destroy = transient_destroy;
-	store->read_metadata = transient_read_metadata;
-	store->prepare_exception = transient_prepare_exception;
-	store->commit_exception = transient_commit_exception;
-	store->drop_snapshot = NULL;
-	store->fraction_full = transient_fraction_full;
+	store->type.dtr = transient_destroy;
+	store->type.read_metadata = transient_read_metadata;
+	store->type.prepare_exception = transient_prepare_exception;
+	store->type.commit_exception = transient_commit_exception;
+	store->type.drop_snapshot = NULL;
+	store->type.fraction_full = transient_fraction_full;
 
 	tc = kmalloc(sizeof(struct transient_c), GFP_KERNEL);
 	if (!tc)
