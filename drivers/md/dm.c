@@ -1375,18 +1375,19 @@ void dm_put(struct mapped_device *md)
 }
 EXPORT_SYMBOL_GPL(dm_put);
 
-static int dm_wait_for_completion(struct mapped_device *md)
+static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 {
 	int r = 0;
 
 	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
+		set_current_state(interruptible);
 
 		smp_mb();
 		if (!atomic_read(&md->pending))
 			break;
 
-		if (signal_pending(current)) {
+		if (interruptible == TASK_INTERRUPTIBLE &&
+		    signal_pending(current)) {
 			r = -EINTR;
 			break;
 		}
@@ -1565,7 +1566,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	/*
 	 * Wait for the already-mapped ios to complete.
 	 */
-	r = dm_wait_for_completion(md);
+	r = dm_wait_for_completion(md, TASK_INTERRUPTIBLE);
 
 	down_write(&md->io_lock);
 	remove_wait_queue(&md->wait, &wait);
