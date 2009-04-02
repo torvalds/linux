@@ -1214,24 +1214,25 @@ static void snapshot_resume(struct dm_target *ti)
 static int snapshot_status(struct dm_target *ti, status_type_t type,
 			   char *result, unsigned int maxlen)
 {
+	unsigned sz = 0;
 	struct dm_snapshot *snap = ti->private;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
 		if (!snap->valid)
-			snprintf(result, maxlen, "Invalid");
+			DMEMIT("Invalid");
 		else {
 			if (snap->store->type->fraction_full) {
 				sector_t numerator, denominator;
 				snap->store->type->fraction_full(snap->store,
 								 &numerator,
 								 &denominator);
-				snprintf(result, maxlen, "%llu/%llu",
-					(unsigned long long)numerator,
-					(unsigned long long)denominator);
+				DMEMIT("%llu/%llu",
+				       (unsigned long long)numerator,
+				       (unsigned long long)denominator);
 			}
 			else
-				snprintf(result, maxlen, "Unknown");
+				DMEMIT("Unknown");
 		}
 		break;
 
@@ -1241,10 +1242,10 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 		 * to make private copies if the output is to
 		 * make sense.
 		 */
-		snprintf(result, maxlen, "%s %s %s %llu",
-			 snap->origin->name, snap->store->cow->name,
-			 snap->store->type->name,
-			 (unsigned long long)snap->store->chunk_size);
+		DMEMIT("%s", snap->origin->name);
+		DMEMIT(" %s %s %llu", snap->store->cow->name,
+		       snap->store->type->name,
+		       (unsigned long long)snap->store->chunk_size);
 		break;
 	}
 
