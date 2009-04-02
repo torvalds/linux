@@ -3277,19 +3277,13 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 
 	info->tr	= &global_trace;
 	info->cpu	= cpu;
-	info->spare	= ring_buffer_alloc_read_page(info->tr->buffer);
+	info->spare	= NULL;
 	/* Force reading ring buffer for first read */
 	info->read	= (unsigned int)-1;
-	if (!info->spare)
-		goto out;
 
 	filp->private_data = info;
 
 	return nonseekable_open(inode, filp);
-
- out:
-	kfree(info);
-	return -ENOMEM;
 }
 
 static ssize_t
@@ -3303,6 +3297,11 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 
 	if (!count)
 		return 0;
+
+	if (!info->spare)
+		info->spare = ring_buffer_alloc_read_page(info->tr->buffer);
+	if (!info->spare)
+		return -ENOMEM;
 
 	/* Do we have previous read data to read? */
 	if (info->read < PAGE_SIZE)
@@ -3342,7 +3341,8 @@ static int tracing_buffers_release(struct inode *inode, struct file *file)
 {
 	struct ftrace_buffer_info *info = file->private_data;
 
-	ring_buffer_free_read_page(info->tr->buffer, info->spare);
+	if (info->spare)
+		ring_buffer_free_read_page(info->tr->buffer, info->spare);
 	kfree(info);
 
 	return 0;
