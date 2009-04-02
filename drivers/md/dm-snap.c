@@ -20,9 +20,9 @@
 #include <linux/vmalloc.h>
 #include <linux/log2.h>
 #include <linux/dm-kcopyd.h>
+#include <linux/workqueue.h>
 
 #include "dm-exception-store.h"
-#include "dm-snap.h"
 #include "dm-bio-list.h"
 
 #define DM_MSG_PREFIX "snapshots"
@@ -47,8 +47,78 @@
  */
 #define MIN_IOS 256
 
+#define DM_TRACKED_CHUNK_HASH_SIZE	16
+#define DM_TRACKED_CHUNK_HASH(x)	((unsigned long)(x) & \
+					 (DM_TRACKED_CHUNK_HASH_SIZE - 1))
+
+struct exception_table {
+	uint32_t hash_mask;
+	unsigned hash_shift;
+	struct list_head *table;
+};
+
+struct dm_snapshot {
+	struct rw_semaphore lock;
+
+	struct dm_dev *origin;
+
+	/* List of snapshots per Origin */
+	struct list_head list;
+
+	/* You can't use a snapshot if this is 0 (e.g. if full) */
+	int valid;
+
+	/* Origin writes don't trigger exceptions until this is set */
+	int active;
+
+	/* Used for display of table */
+	char type;
+
+	mempool_t *pending_pool;
+
+	atomic_t pending_exceptions_count;
+
+	struct exception_table pending;
+	struct exception_table complete;
+
+	/*
+	 * pe_lock protects all pending_exception operations and access
+	 * as well as the snapshot_bios list.
+	 */
+	spinlock_t pe_lock;
+
+	/* The on disk metadata handler */
+	struct dm_exception_store *store;
+
+	struct dm_kcopyd_client *kcopyd_client;
+
+	/* Queue of snapshot writes for ksnapd to flush */
+	struct bio_list queued_bios;
+	struct work_struct queued_bios_work;
+
+	/* Chunks with outstanding reads */
+	mempool_t *tracked_chunk_pool;
+	spinlock_t tracked_chunk_lock;
+	struct hlist_head tracked_chunk_hash[DM_TRACKED_CHUNK_HASH_SIZE];
+};
+
 static struct workqueue_struct *ksnapd;
 static void flush_queued_bios(struct work_struct *work);
+
+static sector_t chunk_to_sector(struct dm_exception_store *store,
+				chunk_t chunk)
+{
+	return chunk << store->chunk_shift;
+}
+
+static int bdev_equal(struct block_device *lhs, struct block_device *rhs)
+{
+	/*
+	 * There is only ever one instance of a particular block
+	 * device so we can compare pointers safely.
+	 */
+	return lhs == rhs;
+}
 
 struct dm_snap_pending_exception {
 	struct dm_snap_exception e;
