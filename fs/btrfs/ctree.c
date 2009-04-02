@@ -2157,8 +2157,7 @@ static int insert_ptr(struct btrfs_trans_handle *trans, struct btrfs_root
 	BUG_ON(!path->nodes[level]);
 	lower = path->nodes[level];
 	nritems = btrfs_header_nritems(lower);
-	if (slot > nritems)
-		BUG();
+	BUG_ON(slot > nritems);
 	if (nritems == BTRFS_NODEPTRS_PER_BLOCK(root))
 		BUG();
 	if (slot != nritems) {

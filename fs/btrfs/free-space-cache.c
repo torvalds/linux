@@ -253,8 +253,7 @@ int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 
 	if (ret) {
 		printk(KERN_ERR "btrfs: unable to add free space :%d\n", ret);
-		if (ret == -EEXIST)
-			BUG();
+		BUG_ON(ret == -EEXIST);
 	}
 
 	return ret;

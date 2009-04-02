@@ -1222,8 +1222,7 @@ insert:
 	ret = insert_one_name(trans, root, path, key->objectid, key->offset,
 			      name, name_len, log_type, &log_key);
 
-	if (ret && ret != -ENOENT)
-		BUG();
+	BUG_ON(ret && ret != -ENOENT);
 	goto out;
 }
 
