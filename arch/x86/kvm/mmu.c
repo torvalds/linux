@@ -2194,7 +2194,7 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu, int level)
 			rsvd_bits(maxphyaddr, 63) |
 			rsvd_bits(7, 8) | rsvd_bits(1, 2);	/* PDPTE */
 		context->rsvd_bits_mask[0][1] = exb_bit_rsvd |
-			rsvd_bits(maxphyaddr, 62);		/* PDE */
+			rsvd_bits(maxphyaddr, 62);	/* PDE */
 		context->rsvd_bits_mask[0][0] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 62); 	/* PTE */
 		context->rsvd_bits_mask[1][1] = exb_bit_rsvd |
@@ -2208,13 +2208,14 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu, int level)
 		context->rsvd_bits_mask[0][2] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 51) | rsvd_bits(7, 8);
 		context->rsvd_bits_mask[0][1] = exb_bit_rsvd |
-			rsvd_bits(maxphyaddr, 51) | rsvd_bits(7, 8);
+			rsvd_bits(maxphyaddr, 51);
 		context->rsvd_bits_mask[0][0] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 51);
 		context->rsvd_bits_mask[1][3] = context->rsvd_bits_mask[0][3];
 		context->rsvd_bits_mask[1][2] = context->rsvd_bits_mask[0][2];
 		context->rsvd_bits_mask[1][1] = exb_bit_rsvd |
-			rsvd_bits(maxphyaddr, 51) | rsvd_bits(13, 20);
+			rsvd_bits(maxphyaddr, 51) |
+			rsvd_bits(13, 20);		/* large page */
 		context->rsvd_bits_mask[1][0] = ~0ull;
 		break;
 	}
