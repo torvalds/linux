@@ -1908,7 +1908,7 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 	do {
 		tc_writel(status, &tr->Int_Src);	/* write to clear */
 
-		handled = tc35815_do_interrupt(dev, status, limit);
+		handled = tc35815_do_interrupt(dev, status, budget - received);
 		if (handled >= 0) {
 			received += handled;
 			if (received >= budget)
