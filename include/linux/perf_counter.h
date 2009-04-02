@@ -167,30 +167,28 @@ struct perf_counter_mmap_page {
 	/*
 	 * Bits needed to read the hw counters in user-space.
 	 *
-	 * The index and offset should be read atomically using the seqlock:
-	 *
-	 *   __u32 seq, index;
-	 *   __s64 offset;
+	 *   u32 seq;
+	 *   s64 count;
 	 *
 	 * again:
-	 *   rmb();
 	 *   seq = pc->lock;
-	 *
 	 *   if (unlikely(seq & 1)) {
 	 *     cpu_relax();
 	 *     goto again;
 	 *   }
 	 *
-	 *   index = pc->index;
-	 *   offset = pc->offset;
+	 *   if (pc->index) {
+	 *     count = pmc_read(pc->index - 1);
+	 *     count += pc->offset;
+	 *   } else
+	 *     goto regular_read;
 	 *
-	 *   rmb();
+	 *   barrier();
 	 *   if (pc->lock != seq)
 	 *     goto again;
 	 *
-	 * After this, index contains architecture specific counter index + 1,
-	 * so that 0 means unavailable, offset contains the value to be added
-	 * to the result of the raw timer read to obtain this counter's value.
+	 * NOTE: for obvious reason this only works on self-monitoring
+	 *       processes.
 	 */
 	__u32	lock;			/* seqlock for synchronization */
 	__u32	index;			/* hardware counter identifier */

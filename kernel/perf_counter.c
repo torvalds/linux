@@ -1340,13 +1340,13 @@ void perf_counter_update_userpage(struct perf_counter *counter)
 	 */
 	preempt_disable();
 	++userpg->lock;
-	smp_wmb();
+	barrier();
 	userpg->index = counter->hw.idx;
 	userpg->offset = atomic64_read(&counter->count);
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
 		userpg->offset -= atomic64_read(&counter->hw.prev_count);
 
-	smp_wmb();
+	barrier();
 	++userpg->lock;
 	preempt_enable();
 unlock:
