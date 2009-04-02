@@ -145,6 +145,8 @@ struct dm_raid1_read_record {
 	struct dm_bio_details details;
 };
 
+static struct kmem_cache *_dm_raid1_read_record_cache;
+
 /*
  * Every mirror should look like this one.
  */
@@ -764,9 +766,9 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 	atomic_set(&ms->suspend, 0);
 	atomic_set(&ms->default_mirror, DEFAULT_MIRROR);
 
-	len = sizeof(struct dm_raid1_read_record);
-	ms->read_record_pool = mempool_create_kmalloc_pool(MIN_READ_RECORDS,
-							   len);
+	ms->read_record_pool = mempool_create_slab_pool(MIN_READ_RECORDS,
+						_dm_raid1_read_record_cache);
+
 	if (!ms->read_record_pool) {
 		ti->error = "Error creating mirror read_record_pool";
 		kfree(ms);
@@ -1279,16 +1281,31 @@ static int __init dm_mirror_init(void)
 {
 	int r;
 
-	r = dm_register_target(&mirror_target);
-	if (r < 0)
-		DMERR("Failed to register mirror target");
+	_dm_raid1_read_record_cache = KMEM_CACHE(dm_raid1_read_record, 0);
+	if (!_dm_raid1_read_record_cache) {
+		DMERR("Can't allocate dm_raid1_read_record cache");
+		r = -ENOMEM;
+		goto bad_cache;
+	}
 
+	r = dm_register_target(&mirror_target);
+	if (r < 0) {
+		DMERR("Failed to register mirror target");
+		goto bad_target;
+	}
+
+	return 0;
+
+bad_target:
+	kmem_cache_destroy(_dm_raid1_read_record_cache);
+bad_cache:
 	return r;
 }
 
 static void __exit dm_mirror_exit(void)
 {
 	dm_unregister_target(&mirror_target);
+	kmem_cache_destroy(_dm_raid1_read_record_cache);
 }
 
 /* Module hooks */
