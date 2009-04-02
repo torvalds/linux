@@ -569,3 +569,13 @@ Licence: Allegedly GPL, but no source visible. Marked:
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: SCSI_QLOGICPTI - PTI Qlogic, ISP Driver
+
+File: qlogic/isp1000.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
