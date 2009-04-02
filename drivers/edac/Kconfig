@@ -190,4 +190,11 @@ config EDAC_PPC4XX
 	  PowerPC 4xx embedded processors such as the 405EX[r],
 	  440SP, 440SPe, 460EX, 460GT and 460SX.
 
+config EDAC_AMD8131
+	tristate "AMD8131 HyperTransport PCI-X Tunnel"
+	depends on EDAC_MM_EDAC && PCI
+	help
+	  Support for error detection and correction on the
+	  AMD8131 HyperTransport PCI-X Tunnel chip.
+
 endif # EDAC
