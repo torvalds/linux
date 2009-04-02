@@ -197,4 +197,11 @@ config EDAC_AMD8131
 	  Support for error detection and correction on the
 	  AMD8131 HyperTransport PCI-X Tunnel chip.
 
+config EDAC_AMD8111
+	tristate "AMD8111 HyperTransport I/O Hub"
+	depends on EDAC_MM_EDAC && PCI
+	help
+	  Support for error detection and correction on the
+	  AMD8111 HyperTransport I/O Hub chip.
+
 endif # EDAC
