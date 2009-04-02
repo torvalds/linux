@@ -187,8 +187,17 @@ void musb_root_disconnect(struct musb *musb)
 	musb->is_active = 0;
 
 	switch (musb->xceiv->state) {
-	case OTG_STATE_A_HOST:
 	case OTG_STATE_A_SUSPEND:
+#ifdef	CONFIG_USB_MUSB_OTG
+		if (is_otg_enabled(musb)
+				&& musb->xceiv->host->b_hnp_enable) {
+			musb->xceiv->state = OTG_STATE_A_PERIPHERAL;
+			musb->g.is_a_peripheral = 1;
+			break;
+		}
+#endif
+		/* FALLTHROUGH */
+	case OTG_STATE_A_HOST:
 		musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
 		musb->is_active = 0;
 		break;

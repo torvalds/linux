@@ -1964,7 +1964,7 @@ void musb_g_disconnect(struct musb *musb)
 		musb->xceiv->state = OTG_STATE_A_IDLE;
 		break;
 	case OTG_STATE_A_PERIPHERAL:
-		musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
+		musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
 		break;
 	case OTG_STATE_B_WAIT_ACON:
 	case OTG_STATE_B_HOST:
