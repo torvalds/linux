@@ -298,7 +298,7 @@ static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 
 void mlx4_en_rx_refill(struct work_struct *work)
 {
-	struct delayed_work *delay = container_of(work, struct delayed_work, work);
+	struct delayed_work *delay = to_delayed_work(work);
 	struct mlx4_en_priv *priv = container_of(delay, struct mlx4_en_priv,
 						 refill_task);
 	struct mlx4_en_dev *mdev = priv->mdev;
