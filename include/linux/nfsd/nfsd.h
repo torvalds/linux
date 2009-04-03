@@ -375,7 +375,7 @@ extern struct timeval	nfssvc_boot;
 	NFSD4_SUPPORTED_ATTRS_WORD1
 
 #define NFSD4_1_SUPPORTED_ATTRS_WORD2 \
-	NFSD4_SUPPORTED_ATTRS_WORD2
+	(NFSD4_SUPPORTED_ATTRS_WORD2 | FATTR4_WORD2_SUPPATTR_EXCLCREAT)
 
 static inline u32 nfsd_suppattrs0(u32 minorversion)
 {
@@ -406,6 +406,18 @@ static inline u32 nfsd_suppattrs2(u32 minorversion)
 (FATTR4_WORD1_MODE              | FATTR4_WORD1_OWNER         | FATTR4_WORD1_OWNER_GROUP     \
  | FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_MODIFY_SET)
 #define NFSD_WRITEABLE_ATTRS_WORD2 0
+
+#define NFSD_SUPPATTR_EXCLCREAT_WORD0 \
+	NFSD_WRITEABLE_ATTRS_WORD0
+/*
+ * we currently store the exclusive create verifier in the v_{a,m}time
+ * attributes so the client can't set these at create time using EXCLUSIVE4_1
+ */
+#define NFSD_SUPPATTR_EXCLCREAT_WORD1 \
+	(NFSD_WRITEABLE_ATTRS_WORD1 & \
+	 ~(FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_MODIFY_SET))
+#define NFSD_SUPPATTR_EXCLCREAT_WORD2 \
+	NFSD_WRITEABLE_ATTRS_WORD2
 
 #endif /* CONFIG_NFSD_V4 */
 

@@ -404,6 +404,8 @@ enum lock_type4 {
 #define FATTR4_WORD0_UNIQUE_HANDLES     (1UL << 9)
 #define FATTR4_WORD0_LEASE_TIME         (1UL << 10)
 #define FATTR4_WORD0_RDATTR_ERROR       (1UL << 11)
+/* Mandatory in NFSv4.1 */
+#define FATTR4_WORD2_SUPPATTR_EXCLCREAT (1UL << 11)
 
 /* Recommended Attributes */
 #define FATTR4_WORD0_ACL                (1UL << 12)
