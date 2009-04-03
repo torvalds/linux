@@ -527,59 +527,6 @@ asmlinkage long sys32_sendfile64(int out_fd, int in_fd,
 	return ret;
 }
 
-#ifdef CONFIG_SYSCTL_SYSCALL
-struct __sysctl_args32 {
-	u32 name;
-	int nlen;
-	u32 oldval;
-	u32 oldlenp;
-	u32 newval;
-	u32 newlen;
-	u32 __unused[4];
-};
-
-asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
-{
-	struct __sysctl_args32 tmp;
-	int error;
-	size_t oldlen;
-	size_t __user *oldlenp = NULL;
-	unsigned long addr = (((unsigned long)&args->__unused[0]) + 7) & ~7;
-
-	if (copy_from_user(&tmp, args, sizeof(tmp)))
-		return -EFAULT;
-
-	if (tmp.oldval && tmp.oldlenp) {
-		/* Duh, this is ugly and might not work if sysctl_args
-		   is in read-only memory, but do_sysctl does indirectly
-		   a lot of uaccess in both directions and we'd have to
-		   basically copy the whole sysctl.c here, and
-		   glibc's __sysctl uses rw memory for the structure
-		   anyway.  */
-		if (get_user(oldlen, (u32 __user *)compat_ptr(tmp.oldlenp)) ||
-		    put_user(oldlen, (size_t __user *)addr))
-			return -EFAULT;
-		oldlenp = (size_t __user *)addr;
-	}
-
-	lock_kernel();
-	error = do_sysctl(compat_ptr(tmp.name), tmp.nlen, compat_ptr(tmp.oldval),
-			  oldlenp, compat_ptr(tmp.newval), tmp.newlen);
-	unlock_kernel();
-	if (oldlenp) {
-		if (!error) {
-			if (get_user(oldlen, (size_t __user *)addr) ||
-			    put_user(oldlen, (u32 __user *)compat_ptr(tmp.oldlenp)))
-				error = -EFAULT;
-		}
-		if (copy_to_user(args->__unused, tmp.__unused,
-				 sizeof(tmp.__unused)))
-			error = -EFAULT;
-	}
-	return error;
-}
-#endif
-
 struct stat64_emu31 {
 	unsigned long long  st_dev;
 	unsigned int    __pad1;
