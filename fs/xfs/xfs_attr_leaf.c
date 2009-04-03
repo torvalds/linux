@@ -155,7 +155,8 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 		 * minimum offset only needs to be the space required for 
 		 * the btree root.
 		 */ 
-		if (!dp->i_d.di_forkoff && dp->i_df.if_bytes > mp->m_attroffset)
+		if (!dp->i_d.di_forkoff && dp->i_df.if_bytes >
+		    xfs_default_attroffset(dp))
 			dsize = XFS_BMDR_SPACE_CALC(MINDBTPTRS);
 		break;
 		
@@ -298,6 +299,26 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
 }
 
 /*
+ * After the last attribute is removed revert to original inode format,
+ * making all literal area available to the data fork once more.
+ */
+STATIC void
+xfs_attr_fork_reset(
+	struct xfs_inode	*ip,
+	struct xfs_trans	*tp)
+{
+	xfs_idestroy_fork(ip, XFS_ATTR_FORK);
+	ip->i_d.di_forkoff = 0;
+	ip->i_d.di_aformat = XFS_DINODE_FMT_EXTENTS;
+
+	ASSERT(ip->i_d.di_anextents == 0);
+	ASSERT(ip->i_afp == NULL);
+
+	ip->i_df.if_ext_max = XFS_IFORK_DSIZE(ip) / sizeof(xfs_bmbt_rec_t);
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+}
+
+/*
  * Remove an attribute from the shortform attribute list structure.
  */
 int
@@ -344,22 +365,10 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 	 */
 	totsize -= size;
 	if (totsize == sizeof(xfs_attr_sf_hdr_t) &&
-				!(args->op_flags & XFS_DA_OP_ADDNAME) &&
-				(mp->m_flags & XFS_MOUNT_ATTR2) &&
-				(dp->i_d.di_format != XFS_DINODE_FMT_BTREE)) {
-		/*
-		 * Last attribute now removed, revert to original
-		 * inode format making all literal area available
-		 * to the data fork once more.
-		 */
-		xfs_idestroy_fork(dp, XFS_ATTR_FORK);
-		dp->i_d.di_forkoff = 0;
-		dp->i_d.di_aformat = XFS_DINODE_FMT_EXTENTS;
-		ASSERT(dp->i_d.di_anextents == 0);
-		ASSERT(dp->i_afp == NULL);
-		dp->i_df.if_ext_max =
-			XFS_IFORK_DSIZE(dp) / (uint)sizeof(xfs_bmbt_rec_t);
-		xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE);
+	    (mp->m_flags & XFS_MOUNT_ATTR2) &&
+	    (dp->i_d.di_format != XFS_DINODE_FMT_BTREE) &&
+	    !(args->op_flags & XFS_DA_OP_ADDNAME)) {
+		xfs_attr_fork_reset(dp, args->trans);
 	} else {
 		xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);
 		dp->i_d.di_forkoff = xfs_attr_shortform_bytesfit(dp, totsize);
@@ -786,20 +795,7 @@ xfs_attr_leaf_to_shortform(xfs_dabuf_t *bp, xfs_da_args_t *args, int forkoff)
 	if (forkoff == -1) {
 		ASSERT(dp->i_mount->m_flags & XFS_MOUNT_ATTR2);
 		ASSERT(dp->i_d.di_format != XFS_DINODE_FMT_BTREE);
-
-		/*
-		 * Last attribute was removed, revert to original
-		 * inode format making all literal area available
-		 * to the data fork once more.
-		 */
-		xfs_idestroy_fork(dp, XFS_ATTR_FORK);
-		dp->i_d.di_forkoff = 0;
-		dp->i_d.di_aformat = XFS_DINODE_FMT_EXTENTS;
-		ASSERT(dp->i_d.di_anextents == 0);
-		ASSERT(dp->i_afp == NULL);
-		dp->i_df.if_ext_max =
-			XFS_IFORK_DSIZE(dp) / (uint)sizeof(xfs_bmbt_rec_t);
-		xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE);
+		xfs_attr_fork_reset(dp, args->trans);
 		goto out;
 	}
 

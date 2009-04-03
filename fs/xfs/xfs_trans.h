@@ -292,7 +292,7 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
  * In a write transaction we can allocate a maximum of 2
  * extents.  This gives:
  *    the inode getting the new extents: inode size
- *    the inode\'s bmap btree: max depth * block size
+ *    the inode's bmap btree: max depth * block size
  *    the agfs of the ags from which the extents are allocated: 2 * sector
  *    the superblock free block counter: sector size
  *    the allocation btrees: 2 exts * 2 trees * (2 * max depth - 1) * block size
@@ -321,7 +321,7 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 /*
  * In truncating a file we free up to two extents at once.  We can modify:
  *    the inode being truncated: inode size
- *    the inode\'s bmap btree: (max depth + 1) * block size
+ *    the inode's bmap btree: (max depth + 1) * block size
  * And the bmap_finish transaction can free the blocks and bmap blocks:
  *    the agf for each of the ags: 4 * sector size
  *    the agfl for each of the ags: 4 * sector size
@@ -343,7 +343,7 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 	  (128 * (9 + XFS_ALLOCFREE_LOG_COUNT(mp, 4))) + \
 	  (128 * 5) + \
 	  XFS_ALLOCFREE_LOG_RES(mp, 1) + \
-	   (128 * (2 + XFS_IALLOC_BLOCKS(mp) + XFS_IN_MAXLEVELS(mp) + \
+	   (128 * (2 + XFS_IALLOC_BLOCKS(mp) + (mp)->m_in_maxlevels + \
 	    XFS_ALLOCFREE_LOG_COUNT(mp, 1))))))
 
 #define	XFS_ITRUNCATE_LOG_RES(mp)   ((mp)->m_reservations.tr_itruncate)
@@ -431,8 +431,8 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
  *    the new inode: inode size
  *    the inode btree entry: 1 block
  *    the directory btree: (max depth + v2) * dir block size
- *    the directory inode\'s bmap btree: (max depth + v2) * block size
- *    the blocks for the symlink: 1 KB
+ *    the directory inode's bmap btree: (max depth + v2) * block size
+ *    the blocks for the symlink: 1 kB
  * Or in the first xact we allocate some inodes giving:
  *    the agi and agf of the ag getting the new inodes: 2 * sectorsize
  *    the inode blocks allocated: XFS_IALLOC_BLOCKS * blocksize
@@ -449,9 +449,9 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 	  (128 * (4 + XFS_DIROP_LOG_COUNT(mp)))), \
 	 (2 * (mp)->m_sb.sb_sectsize + \
 	  XFS_FSB_TO_B((mp), XFS_IALLOC_BLOCKS((mp))) + \
-	  XFS_FSB_TO_B((mp), XFS_IN_MAXLEVELS(mp)) + \
+	  XFS_FSB_TO_B((mp), (mp)->m_in_maxlevels) + \
 	  XFS_ALLOCFREE_LOG_RES(mp, 1) + \
-	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + XFS_IN_MAXLEVELS(mp) + \
+	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + (mp)->m_in_maxlevels + \
 	   XFS_ALLOCFREE_LOG_COUNT(mp, 1))))))
 
 #define	XFS_SYMLINK_LOG_RES(mp)	((mp)->m_reservations.tr_symlink)
@@ -463,7 +463,7 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
  *    the inode btree entry: block size
  *    the superblock for the nlink flag: sector size
  *    the directory btree: (max depth + v2) * dir block size
- *    the directory inode\'s bmap btree: (max depth + v2) * block size
+ *    the directory inode's bmap btree: (max depth + v2) * block size
  * Or in the first xact we allocate some inodes giving:
  *    the agi and agf of the ag getting the new inodes: 2 * sectorsize
  *    the superblock for the nlink flag: sector size
@@ -481,9 +481,9 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 	  (128 * (3 + XFS_DIROP_LOG_COUNT(mp)))), \
 	 (3 * (mp)->m_sb.sb_sectsize + \
 	  XFS_FSB_TO_B((mp), XFS_IALLOC_BLOCKS((mp))) + \
-	  XFS_FSB_TO_B((mp), XFS_IN_MAXLEVELS(mp)) + \
+	  XFS_FSB_TO_B((mp), (mp)->m_in_maxlevels) + \
 	  XFS_ALLOCFREE_LOG_RES(mp, 1) + \
-	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + XFS_IN_MAXLEVELS(mp) + \
+	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + (mp)->m_in_maxlevels + \
 	   XFS_ALLOCFREE_LOG_COUNT(mp, 1))))))
 
 #define	XFS_CREATE_LOG_RES(mp)	((mp)->m_reservations.tr_create)
@@ -513,7 +513,7 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 	 MAX((__uint16_t)XFS_FSB_TO_B((mp), 1), XFS_INODE_CLUSTER_SIZE(mp)) + \
 	 (128 * 5) + \
 	  XFS_ALLOCFREE_LOG_RES(mp, 1) + \
-	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + XFS_IN_MAXLEVELS(mp) + \
+	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + (mp)->m_in_maxlevels + \
 	   XFS_ALLOCFREE_LOG_COUNT(mp, 1))))
 
 
@@ -637,7 +637,7 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 /*
  * Removing the attribute fork of a file
  *    the inode being truncated: inode size
- *    the inode\'s bmap btree: max depth * block size
+ *    the inode's bmap btree: max depth * block size
  * And the bmap_finish transaction can free the blocks and bmap blocks:
  *    the agf for each of the ags: 4 * sector size
  *    the agfl for each of the ags: 4 * sector size

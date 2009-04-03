@@ -574,7 +574,7 @@ xfs_log_mount(
 	error = xfs_trans_ail_init(mp);
 	if (error) {
 		cmn_err(CE_WARN, "XFS: AIL initialisation failed: error %d", error);
-		goto error;
+		goto out_free_log;
 	}
 	mp->m_log->l_ailp = mp->m_ail;
 
@@ -594,20 +594,22 @@ xfs_log_mount(
 			mp->m_flags |= XFS_MOUNT_RDONLY;
 		if (error) {
 			cmn_err(CE_WARN, "XFS: log mount/recovery failed: error %d", error);
-			goto error;
+			goto out_destroy_ail;
 		}
 	}
 
 	/* Normal transactions can now occur */
 	mp->m_log->l_flags &= ~XLOG_ACTIVE_RECOVERY;
 
-	/* End mounting message in xfs_log_mount_finish */
 	return 0;
-error:
-	xfs_log_unmount_dealloc(mp);
+
+out_destroy_ail:
+	xfs_trans_ail_destroy(mp);
+out_free_log:
+	xlog_dealloc_log(mp->m_log);
 out:
 	return error;
-}	/* xfs_log_mount */
+}
 
 /*
  * Finish the recovery of the file system.  This is separate from
@@ -629,19 +631,6 @@ xfs_log_mount_finish(xfs_mount_t *mp)
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 	}
 
-	return error;
-}
-
-/*
- * Unmount processing for the log.
- */
-int
-xfs_log_unmount(xfs_mount_t *mp)
-{
-	int		error;
-
-	error = xfs_log_unmount_write(mp);
-	xfs_log_unmount_dealloc(mp);
 	return error;
 }
 
@@ -795,7 +784,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
  * and deallocate the log as the aild references the log.
  */
 void
-xfs_log_unmount_dealloc(xfs_mount_t *mp)
+xfs_log_unmount(xfs_mount_t *mp)
 {
 	xfs_trans_ail_destroy(mp);
 	xlog_dealloc_log(mp->m_log);
@@ -1109,7 +1098,7 @@ xlog_bdstrat_cb(struct xfs_buf *bp)
 /*
  * Return size of each in-core log record buffer.
  *
- * All machines get 8 x 32KB buffers by default, unless tuned otherwise.
+ * All machines get 8 x 32kB buffers by default, unless tuned otherwise.
  *
  * If the filesystem blocksize is too large, we may need to choose a
  * larger size since the directory code currently logs entire blocks.
@@ -1139,8 +1128,8 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 		}
 
 		if (xfs_sb_version_haslogv2(&mp->m_sb)) {
-			/* # headers = size / 32K
-			 * one header holds cycles from 32K of data
+			/* # headers = size / 32k
+			 * one header holds cycles from 32k of data
 			 */
 
 			xhdrs = mp->m_logbsize / XLOG_HEADER_CYCLE_SIZE;
@@ -1156,7 +1145,7 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 		goto done;
 	}
 
-	/* All machines use 32KB buffers by default. */
+	/* All machines use 32kB buffers by default. */
 	log->l_iclog_size = XLOG_BIG_RECORD_BSIZE;
 	log->l_iclog_size_log = XLOG_BIG_RECORD_BSHIFT;
 
@@ -1164,32 +1153,8 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 	log->l_iclog_hsize = BBSIZE;
 	log->l_iclog_heads = 1;
 
-	/*
-	 * For 16KB, we use 3 32KB buffers.  For 32KB block sizes, we use
-	 * 4 32KB buffers.  For 64KB block sizes, we use 8 32KB buffers.
-	 */
-	if (mp->m_sb.sb_blocksize >= 16*1024) {
-		log->l_iclog_size = XLOG_BIG_RECORD_BSIZE;
-		log->l_iclog_size_log = XLOG_BIG_RECORD_BSHIFT;
-		if (mp->m_logbufs <= 0) {
-			switch (mp->m_sb.sb_blocksize) {
-			    case 16*1024:			/* 16 KB */
-				log->l_iclog_bufs = 3;
-				break;
-			    case 32*1024:			/* 32 KB */
-				log->l_iclog_bufs = 4;
-				break;
-			    case 64*1024:			/* 64 KB */
-				log->l_iclog_bufs = 8;
-				break;
-			    default:
-				xlog_panic("XFS: Invalid blocksize");
-				break;
-			}
-		}
-	}
-
-done:	/* are we being asked to make the sizes selected above visible? */
+done:
+	/* are we being asked to make the sizes selected above visible? */
 	if (mp->m_logbufs == 0)
 		mp->m_logbufs = log->l_iclog_bufs;
 	if (mp->m_logbsize == 0)
@@ -3214,7 +3179,7 @@ xlog_state_want_sync(xlog_t *log, xlog_in_core_t *iclog)
  */
 
 /*
- * Free a used ticket when it's refcount falls to zero.
+ * Free a used ticket when its refcount falls to zero.
  */
 void
 xfs_log_ticket_put(
