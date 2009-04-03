@@ -1113,7 +1113,16 @@ static __be32
 nfsd4_decode_sequence(struct nfsd4_compoundargs *argp,
 		      struct nfsd4_sequence *seq)
 {
-	return nfserr_opnotsupp;	/* stub */
+	DECODE_HEAD;
+
+	READ_BUF(NFS4_MAX_SESSIONID_LEN + 16);
+	COPYMEM(seq->sessionid.data, NFS4_MAX_SESSIONID_LEN);
+	READ32(seq->seqid);
+	READ32(seq->slotid);
+	READ32(seq->maxslots);
+	READ32(seq->cachethis);
+
+	DECODE_TAIL;
 }
 
 static __be32
@@ -2828,8 +2837,26 @@ static __be32
 nfsd4_encode_sequence(struct nfsd4_compoundres *resp, int nfserr,
 		      struct nfsd4_sequence *seq)
 {
-	/* stub */
-	return nfserr;
+	ENCODE_HEAD;
+
+	if (nfserr)
+		return nfserr;
+
+	RESERVE_SPACE(NFS4_MAX_SESSIONID_LEN + 20);
+	WRITEMEM(seq->sessionid.data, NFS4_MAX_SESSIONID_LEN);
+	WRITE32(seq->seqid);
+	WRITE32(seq->slotid);
+	WRITE32(seq->maxslots);
+	/*
+	 * FIXME: for now:
+	 *   target_maxslots = maxslots
+	 *   status_flags = 0
+	 */
+	WRITE32(seq->maxslots);
+	WRITE32(0);
+
+	ADJUST_ARGS();
+	return 0;
 }
 
 static __be32

@@ -48,6 +48,9 @@ struct nfsd4_compound_state {
 	struct svc_fh		current_fh;
 	struct svc_fh		save_fh;
 	struct nfs4_stateowner	*replay_owner;
+	/* For sessions DRC */
+	struct nfsd4_session	*session;
+	struct nfsd4_slot	*slot;
 };
 
 struct nfsd4_change_info {
@@ -358,7 +361,15 @@ struct nfsd4_create_session {
 };
 
 struct nfsd4_sequence {
-	int	foo;	/* stub */
+	struct nfs4_sessionid	sessionid;		/* request/response */
+	u32			seqid;			/* request/response */
+	u32			slotid;			/* request/response */
+	u32			maxslots;		/* request/response */
+	u32			cachethis;		/* request */
+#if 0
+	u32			target_maxslots;	/* response */
+	u32			status_flags;		/* response */
+#endif /* not yet */
 };
 
 struct nfsd4_destroy_session {

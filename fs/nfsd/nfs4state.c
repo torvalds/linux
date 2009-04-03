@@ -1000,6 +1000,32 @@ error:
 	return status;
 }
 
+static int
+check_slot_seqid(u32 seqid, struct nfsd4_slot *slot)
+{
+	dprintk("%s enter. seqid %d slot->sl_seqid %d\n", __func__, seqid,
+		slot->sl_seqid);
+
+	/* The slot is in use, and no response has been sent. */
+	if (slot->sl_inuse) {
+		if (seqid == slot->sl_seqid)
+			return nfserr_jukebox;
+		else
+			return nfserr_seq_misordered;
+	}
+	/* Normal */
+	if (likely(seqid == slot->sl_seqid + 1))
+		return nfs_ok;
+	/* Replay */
+	if (seqid == slot->sl_seqid)
+		return nfserr_replay_cache;
+	/* Wraparound */
+	if (seqid == 1 && (slot->sl_seqid + 1) == 0)
+		return nfs_ok;
+	/* Misordered replay or misordered new request */
+	return nfserr_seq_misordered;
+}
+
 __be32
 nfsd4_create_session(struct svc_rqst *rqstp,
 		     struct nfsd4_compound_state *cstate,
@@ -1017,11 +1043,54 @@ nfsd4_destroy_session(struct svc_rqst *r,
 }
 
 __be32
-nfsd4_sequence(struct svc_rqst *r,
+nfsd4_sequence(struct svc_rqst *rqstp,
 	       struct nfsd4_compound_state *cstate,
 	       struct nfsd4_sequence *seq)
 {
-	return -1;	/* stub */
+	struct nfsd4_session *session;
+	struct nfsd4_slot *slot;
+	int status;
+
+	spin_lock(&sessionid_lock);
+	status = nfserr_badsession;
+	session = find_in_sessionid_hashtbl(&seq->sessionid);
+	if (!session)
+		goto out;
+
+	status = nfserr_badslot;
+	if (seq->slotid >= session->se_fnumslots)
+		goto out;
+
+	slot = &session->se_slots[seq->slotid];
+	dprintk("%s: slotid %d\n", __func__, seq->slotid);
+
+	status = check_slot_seqid(seq->seqid, slot);
+	if (status == nfserr_replay_cache) {
+		cstate->slot = slot;
+		cstate->session = session;
+		goto replay_cache;
+	}
+	if (status)
+		goto out;
+
+	/* Success! bump slot seqid */
+	slot->sl_inuse = true;
+	slot->sl_seqid = seq->seqid;
+
+	cstate->slot = slot;
+	cstate->session = session;
+
+replay_cache:
+	/* Renew the clientid on success and on replay.
+	 * Hold a session reference until done processing the compound:
+	 * nfsd4_put_session called only if the cstate slot is set.
+	 */
+	renew_client(session->se_client);
+	nfsd4_get_session(session);
+out:
+	spin_unlock(&sessionid_lock);
+	dprintk("%s: return %d\n", __func__, ntohl(status));
+	return status;
 }
 
 __be32
