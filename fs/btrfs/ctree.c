@@ -4127,28 +4127,44 @@ next:
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 {
 	int slot;
-	int level = 1;
+	int level;
 	struct extent_buffer *c;
-	struct extent_buffer *next = NULL;
+	struct extent_buffer *next;
 	struct btrfs_key key;
 	u32 nritems;
 	int ret;
+	int old_spinning = path->leave_spinning;
+	int force_blocking = 0;
 
 	nritems = btrfs_header_nritems(path->nodes[0]);
 	if (nritems == 0)
 		return 1;
 
-	btrfs_item_key_to_cpu(path->nodes[0], &key, nritems - 1);
+	/*
+	 * we take the blocks in an order that upsets lockdep.  Using
+	 * blocking mode is the only way around it.
+	 */
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	force_blocking = 1;
+#endif
 
+	btrfs_item_key_to_cpu(path->nodes[0], &key, nritems - 1);
+again:
+	level = 1;
+	next = NULL;
 	btrfs_release_path(root, path);
+
 	path->keep_locks = 1;
+
+	if (!force_blocking)
+		path->leave_spinning = 1;
+
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	path->keep_locks = 0;
 
 	if (ret < 0)
 		return ret;
 
-	btrfs_set_path_blocking(path);
 	nritems = btrfs_header_nritems(path->nodes[0]);
 	/*
 	 * by releasing the path above we dropped all our locks.  A balance
@@ -4158,19 +4174,24 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 	 */
 	if (nritems > 0 && path->slots[0] < nritems - 1) {
 		path->slots[0]++;
+		ret = 0;
 		goto done;
 	}
 
 	while (level < BTRFS_MAX_LEVEL) {
-		if (!path->nodes[level])
-			return 1;
+		if (!path->nodes[level]) {
+			ret = 1;
+			goto done;
+		}
 
 		slot = path->slots[level] + 1;
 		c = path->nodes[level];
 		if (slot >= btrfs_header_nritems(c)) {
 			level++;
-			if (level == BTRFS_MAX_LEVEL)
-				return 1;
+			if (level == BTRFS_MAX_LEVEL) {
+				ret = 1;
+				goto done;
+			}
 			continue;
 		}
 
@@ -4179,16 +4200,22 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 			free_extent_buffer(next);
 		}
 
-		/* the path was set to blocking above */
-		if (level == 1 && (path->locks[1] || path->skip_locking) &&
-		    path->reada)
-			reada_for_search(root, path, level, slot, 0);
+		next = c;
+		ret = read_block_for_search(NULL, root, path, &next, level,
+					    slot, &key);
+		if (ret == -EAGAIN)
+			goto again;
 
-		next = read_node_slot(root, c, slot);
 		if (!path->skip_locking) {
-			btrfs_assert_tree_locked(c);
-			btrfs_tree_lock(next);
-			btrfs_set_lock_blocking(next);
+			ret = btrfs_try_spin_lock(next);
+			if (!ret) {
+				btrfs_set_path_blocking(path);
+				btrfs_tree_lock(next);
+				if (!force_blocking)
+					btrfs_clear_path_blocking(path, next);
+			}
+			if (force_blocking)
+				btrfs_set_lock_blocking(next);
 		}
 		break;
 	}
@@ -4198,27 +4225,42 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		c = path->nodes[level];
 		if (path->locks[level])
 			btrfs_tree_unlock(c);
+
 		free_extent_buffer(c);
 		path->nodes[level] = next;
 		path->slots[level] = 0;
 		if (!path->skip_locking)
 			path->locks[level] = 1;
+
 		if (!level)
 			break;
 
-		btrfs_set_path_blocking(path);
-		if (level == 1 && path->locks[1] && path->reada)
-			reada_for_search(root, path, level, slot, 0);
-		next = read_node_slot(root, next, 0);
+		ret = read_block_for_search(NULL, root, path, &next, level,
+					    0, &key);
+		if (ret == -EAGAIN)
+			goto again;
+
 		if (!path->skip_locking) {
 			btrfs_assert_tree_locked(path->nodes[level]);
-			btrfs_tree_lock(next);
-			btrfs_set_lock_blocking(next);
+			ret = btrfs_try_spin_lock(next);
+			if (!ret) {
+				btrfs_set_path_blocking(path);
+				btrfs_tree_lock(next);
+				if (!force_blocking)
+					btrfs_clear_path_blocking(path, next);
+			}
+			if (force_blocking)
+				btrfs_set_lock_blocking(next);
 		}
 	}
+	ret = 0;
 done:
 	unlock_up(path, 0, 1);
-	return 0;
+	path->leave_spinning = old_spinning;
+	if (!old_spinning)
+		btrfs_set_path_blocking(path);
+
+	return ret;
 }
 
 /*
