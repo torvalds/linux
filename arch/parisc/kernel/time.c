@@ -24,6 +24,7 @@
 #include <linux/profile.h>
 #include <linux/clocksource.h>
 #include <linux/platform_device.h>
+#include <linux/ftrace.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -53,7 +54,7 @@ static unsigned long clocktick __read_mostly;	/* timer cycles per tick */
  * held off for an arbitrarily long period of time by interrupts being
  * disabled, so we may miss one or more ticks.
  */
-irqreturn_t timer_interrupt(int irq, void *dev_id)
+irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 {
 	unsigned long now;
 	unsigned long next_tick;
