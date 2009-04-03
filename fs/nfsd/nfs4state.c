@@ -441,12 +441,19 @@ release_session(struct nfsd4_session *ses)
 	nfsd4_put_session(ses);
 }
 
+static void nfsd4_release_respages(struct page **respages, short resused);
+
 void
 free_session(struct kref *kref)
 {
 	struct nfsd4_session *ses;
+	int i;
 
 	ses = container_of(kref, struct nfsd4_session, se_ref);
+	for (i = 0; i < ses->se_fnumslots; i++) {
+		struct nfsd4_cache_entry *e = &ses->se_slots[i].sl_cache_entry;
+		nfsd4_release_respages(e->ce_respages, e->ce_resused);
+	}
 	kfree(ses->se_slots);
 	kfree(ses);
 }
