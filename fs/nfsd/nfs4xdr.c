@@ -3049,6 +3049,17 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 		iov = &rqstp->rq_res.head[0];
 	iov->iov_len = ((char*)resp->p) - (char*)iov->iov_base;
 	BUG_ON(iov->iov_len > PAGE_SIZE);
+	if (resp->cstate.slot != NULL) {
+		if (resp->cstate.status == nfserr_replay_cache) {
+			iov->iov_len = resp->cstate.iovlen;
+		} else {
+			nfsd4_store_cache_entry(resp);
+			dprintk("%s: SET SLOT STATE TO AVAILABLE\n", __func__);
+			resp->cstate.slot->sl_inuse = 0;
+		}
+		if (resp->cstate.session)
+			nfsd4_put_session(resp->cstate.session);
+	}
 	return 1;
 }
 

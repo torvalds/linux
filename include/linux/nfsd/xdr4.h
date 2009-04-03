@@ -52,6 +52,7 @@ struct nfsd4_compound_state {
 	struct nfsd4_session	*session;
 	struct nfsd4_slot	*slot;
 	__be32			*statp;
+	size_t			iovlen;
 	u32			status;
 };
 
