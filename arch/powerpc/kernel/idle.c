@@ -110,7 +110,6 @@ int powersave_nap;
  */
 static ctl_table powersave_nap_ctl_table[]={
 	{
-		.ctl_name	= KERN_PPC_POWERSAVE_NAP,
 		.procname	= "powersave-nap",
 		.data		= &powersave_nap,
 		.maxlen		= sizeof(int),
@@ -121,7 +120,6 @@ static ctl_table powersave_nap_ctl_table[]={
 };
 static ctl_table powersave_nap_sysctl_root[] = {
 	{
-		.ctl_name	= CTL_KERN,
 		.procname	= "kernel",
 		.mode		= 0555,
 		.child		= powersave_nap_ctl_table,
