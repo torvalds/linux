@@ -2975,7 +2975,7 @@ nfsd4_encode_destroy_session(struct nfsd4_compoundres *resp, int nfserr,
 	return nfserr;
 }
 
-static __be32
+__be32
 nfsd4_encode_sequence(struct nfsd4_compoundres *resp, int nfserr,
 		      struct nfsd4_sequence *seq)
 {
@@ -3192,7 +3192,8 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 	iov->iov_len = ((char*)resp->p) - (char*)iov->iov_base;
 	BUG_ON(iov->iov_len > PAGE_SIZE);
 	if (resp->cstate.slot != NULL) {
-		if (resp->cstate.status == nfserr_replay_cache) {
+		if (resp->cstate.status == nfserr_replay_cache &&
+				!nfsd4_not_cached(resp)) {
 			iov->iov_len = resp->cstate.iovlen;
 		} else {
 			nfsd4_store_cache_entry(resp);

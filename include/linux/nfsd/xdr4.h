@@ -480,6 +480,18 @@ struct nfsd4_compoundres {
 	struct nfsd4_compound_state	cstate;
 };
 
+static inline bool nfsd4_is_solo_sequence(struct nfsd4_compoundres *resp)
+{
+	struct nfsd4_compoundargs *args = resp->rqstp->rq_argp;
+	return args->opcnt == 1;
+}
+
+static inline bool nfsd4_not_cached(struct nfsd4_compoundres *resp)
+{
+	return !resp->cstate.slot->sl_cache_entry.ce_cachethis ||
+			nfsd4_is_solo_sequence(resp);
+}
+
 #define NFS4_SVC_XDRSIZE		sizeof(struct nfsd4_compoundargs)
 
 static inline void
@@ -510,7 +522,8 @@ extern __be32 nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *,
 		struct nfsd4_setclientid_confirm *setclientid_confirm);
 extern void nfsd4_store_cache_entry(struct nfsd4_compoundres *resp);
-extern __be32 nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp);
+extern __be32 nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
+		struct nfsd4_sequence *seq);
 extern __be32 nfsd4_exchange_id(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *,
 struct nfsd4_exchange_id *);

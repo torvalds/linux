@@ -110,6 +110,7 @@ struct nfsd4_cache_entry {
 	__be32		ce_status;
 	struct kvec	ce_datav; /* encoded NFSv4.1 data in rq_res.head[0] */
 	struct page	*ce_respages[NFSD_PAGES_PER_SLOT + 1];
+	int		ce_cachethis;
 	short		ce_resused;
 	int		ce_opcnt;
 	int		ce_rpchdrlen;
