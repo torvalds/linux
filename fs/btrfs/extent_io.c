@@ -2884,25 +2884,19 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		disko = 0;
 		flags = 0;
 
-		switch (em->block_start) {
-		case EXTENT_MAP_LAST_BYTE:
+		if (em->block_start == EXTENT_MAP_LAST_BYTE) {
 			end = 1;
 			flags |= FIEMAP_EXTENT_LAST;
-			break;
-		case EXTENT_MAP_HOLE:
+		} else if (em->block_start == EXTENT_MAP_HOLE) {
 			flags |= FIEMAP_EXTENT_UNWRITTEN;
-			break;
-		case EXTENT_MAP_INLINE:
+		} else if (em->block_start == EXTENT_MAP_INLINE) {
 			flags |= (FIEMAP_EXTENT_DATA_INLINE |
 				  FIEMAP_EXTENT_NOT_ALIGNED);
-			break;
-		case EXTENT_MAP_DELALLOC:
+		} else if (em->block_start == EXTENT_MAP_DELALLOC) {
 			flags |= (FIEMAP_EXTENT_DELALLOC |
 				  FIEMAP_EXTENT_UNKNOWN);
-			break;
-		default:
+		} else {
 			disko = em->block_start;
-			break;
 		}
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
 			flags |= FIEMAP_EXTENT_ENCODED;

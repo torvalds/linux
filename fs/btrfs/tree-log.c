@@ -262,11 +262,9 @@ static int process_one_buffer(struct btrfs_root *log,
 			      struct extent_buffer *eb,
 			      struct walk_control *wc, u64 gen)
 {
-	if (wc->pin) {
-		mutex_lock(&log->fs_info->pinned_mutex);
+	if (wc->pin)
 		btrfs_update_pinned_extents(log->fs_info->extent_root,
 					    eb->start, eb->len, 1);
-	}
 
 	if (btrfs_buffer_uptodate(eb, gen)) {
 		if (wc->write)
@@ -1224,8 +1222,7 @@ insert:
 	ret = insert_one_name(trans, root, path, key->objectid, key->offset,
 			      name, name_len, log_type, &log_key);
 
-	if (ret && ret != -ENOENT)
-		BUG();
+	BUG_ON(ret && ret != -ENOENT);
 	goto out;
 }
 
@@ -2899,6 +2896,11 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	u64 last_committed = root->fs_info->last_trans_committed;
 
 	sb = inode->i_sb;
+
+	if (btrfs_test_opt(root, NOTREELOG)) {
+		ret = 1;
+		goto end_no_trans;
+	}
 
 	if (root->fs_info->last_trans_log_full_commit >
 	    root->fs_info->last_trans_committed) {

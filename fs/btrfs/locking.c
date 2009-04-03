@@ -60,8 +60,8 @@ void btrfs_clear_lock_blocking(struct extent_buffer *eb)
 
 /*
  * unfortunately, many of the places that currently set a lock to blocking
- * don't end up blocking for every long, and often they don't block
- * at all.  For a dbench 50 run, if we don't spin one the blocking bit
+ * don't end up blocking for very long, and often they don't block
+ * at all.  For a dbench 50 run, if we don't spin on the blocking bit
  * at all, the context switch rate can jump up to 400,000/sec or more.
  *
  * So, we're still stuck with this crummy spin on the blocking bit,

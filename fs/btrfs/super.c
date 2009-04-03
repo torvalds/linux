@@ -24,6 +24,7 @@
 #include <linux/highmem.h>
 #include <linux/time.h>
 #include <linux/init.h>
+#include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
@@ -66,7 +67,8 @@ static void btrfs_put_super(struct super_block *sb)
 enum {
 	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
 	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
-	Opt_ssd, Opt_thread_pool, Opt_noacl,  Opt_compress, Opt_err,
+	Opt_ssd, Opt_thread_pool, Opt_noacl,  Opt_compress, Opt_notreelog,
+	Opt_flushoncommit, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -83,6 +85,8 @@ static match_table_t tokens = {
 	{Opt_compress, "compress"},
 	{Opt_ssd, "ssd"},
 	{Opt_noacl, "noacl"},
+	{Opt_notreelog, "notreelog"},
+	{Opt_flushoncommit, "flushoncommit"},
 	{Opt_err, NULL},
 };
 
@@ -221,6 +225,14 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			break;
 		case Opt_noacl:
 			root->fs_info->sb->s_flags &= ~MS_POSIXACL;
+			break;
+		case Opt_notreelog:
+			printk(KERN_INFO "btrfs: disabling tree log\n");
+			btrfs_set_opt(info->mount_opt, NOTREELOG);
+			break;
+		case Opt_flushoncommit:
+			printk(KERN_INFO "btrfs: turning on flush-on-commit\n");
+			btrfs_set_opt(info->mount_opt, FLUSHONCOMMIT);
 			break;
 		default:
 			break;
@@ -363,9 +375,8 @@ fail_close:
 int btrfs_sync_fs(struct super_block *sb, int wait)
 {
 	struct btrfs_trans_handle *trans;
-	struct btrfs_root *root;
+	struct btrfs_root *root = btrfs_sb(sb);
 	int ret;
-	root = btrfs_sb(sb);
 
 	if (sb->s_flags & MS_RDONLY)
 		return 0;
@@ -383,6 +394,41 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	ret = btrfs_commit_transaction(trans, root);
 	sb->s_dirt = 0;
 	return ret;
+}
+
+static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
+{
+	struct btrfs_root *root = btrfs_sb(vfs->mnt_sb);
+	struct btrfs_fs_info *info = root->fs_info;
+
+	if (btrfs_test_opt(root, DEGRADED))
+		seq_puts(seq, ",degraded");
+	if (btrfs_test_opt(root, NODATASUM))
+		seq_puts(seq, ",nodatasum");
+	if (btrfs_test_opt(root, NODATACOW))
+		seq_puts(seq, ",nodatacow");
+	if (btrfs_test_opt(root, NOBARRIER))
+		seq_puts(seq, ",nobarrier");
+	if (info->max_extent != (u64)-1)
+		seq_printf(seq, ",max_extent=%llu", info->max_extent);
+	if (info->max_inline != 8192 * 1024)
+		seq_printf(seq, ",max_inline=%llu", info->max_inline);
+	if (info->alloc_start != 0)
+		seq_printf(seq, ",alloc_start=%llu", info->alloc_start);
+	if (info->thread_pool_size !=  min_t(unsigned long,
+					     num_online_cpus() + 2, 8))
+		seq_printf(seq, ",thread_pool=%d", info->thread_pool_size);
+	if (btrfs_test_opt(root, COMPRESS))
+		seq_puts(seq, ",compress");
+	if (btrfs_test_opt(root, SSD))
+		seq_puts(seq, ",ssd");
+	if (btrfs_test_opt(root, NOTREELOG))
+		seq_puts(seq, ",no-treelog");
+	if (btrfs_test_opt(root, FLUSHONCOMMIT))
+		seq_puts(seq, ",flush-on-commit");
+	if (!(root->fs_info->sb->s_flags & MS_POSIXACL))
+		seq_puts(seq, ",noacl");
+	return 0;
 }
 
 static void btrfs_write_super(struct super_block *sb)
@@ -630,7 +676,7 @@ static struct super_operations btrfs_super_ops = {
 	.put_super	= btrfs_put_super,
 	.write_super	= btrfs_write_super,
 	.sync_fs	= btrfs_sync_fs,
-	.show_options	= generic_show_options,
+	.show_options	= btrfs_show_options,
 	.write_inode	= btrfs_write_inode,
 	.dirty_inode	= btrfs_dirty_inode,
 	.alloc_inode	= btrfs_alloc_inode,

@@ -18,7 +18,6 @@
 
 #include <linux/sched.h>
 #include <linux/sort.h>
-#include <linux/ftrace.h>
 #include "ctree.h"
 #include "delayed-ref.h"
 #include "transaction.h"
