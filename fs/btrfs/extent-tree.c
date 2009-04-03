@@ -2556,20 +2556,18 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = orig_root->fs_info->extent_root;
 	u64 total_needed = num_bytes;
 	u64 *last_ptr = NULL;
-	u64 last_wanted = 0;
 	struct btrfs_block_group_cache *block_group = NULL;
-	int chunk_alloc_done = 0;
 	int empty_cluster = 2 * 1024 * 1024;
 	int allowed_chunk_alloc = 0;
-	struct list_head *head = NULL, *cur = NULL;
-	int loop = 0;
-	int extra_loop = 0;
+	int using_hint = 0;
 	struct btrfs_space_info *space_info;
 
 	WARN_ON(num_bytes < root->sectorsize);
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
 	ins->objectid = 0;
 	ins->offset = 0;
+
+	space_info = __find_space_info(root->fs_info, data);
 
 	if (orig_root->ref_cows || empty_size)
 		allowed_chunk_alloc = 1;
@@ -2584,10 +2582,9 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 		last_ptr = &root->fs_info->last_data_alloc;
 
 	if (last_ptr) {
-		if (*last_ptr) {
+		if (*last_ptr)
 			hint_byte = *last_ptr;
-			last_wanted = *last_ptr;
-		} else
+		else
 			empty_size += empty_cluster;
 	} else {
 		empty_cluster = 0;
@@ -2595,187 +2592,125 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	search_start = max(search_start, first_logical_byte(root, 0));
 	search_start = max(search_start, hint_byte);
 
-	if (last_wanted && search_start != last_wanted) {
-		last_wanted = 0;
+	if (search_start == hint_byte) {
+		using_hint = 1;
+		block_group = btrfs_lookup_block_group(root->fs_info,
+						       search_start);
+		if (block_group && block_group_bits(block_group, data)) {
+			total_needed += empty_size;
+			down_read(&space_info->groups_sem);
+			goto have_block_group;
+		} else if (block_group) {
+			put_block_group(block_group);
+		}
+
 		empty_size += empty_cluster;
+		using_hint = 0;
 	}
 
-	total_needed += empty_size;
-	block_group = btrfs_lookup_block_group(root->fs_info, search_start);
-	if (!block_group)
-		block_group = btrfs_lookup_first_block_group(root->fs_info,
-							     search_start);
-	space_info = __find_space_info(root->fs_info, data);
-
+search:
 	down_read(&space_info->groups_sem);
-	while (1) {
+	list_for_each_entry(block_group, &space_info->block_groups, list) {
 		struct btrfs_free_space *free_space;
-		/*
-		 * the only way this happens if our hint points to a block
-		 * group thats not of the proper type, while looping this
-		 * should never happen
-		 */
-		if (empty_size)
-			extra_loop = 1;
 
-		if (!block_group)
-			goto new_group_no_lock;
+		atomic_inc(&block_group->count);
+		search_start = block_group->key.objectid;
 
+have_block_group:
 		if (unlikely(!block_group->cached)) {
 			mutex_lock(&block_group->cache_mutex);
 			ret = cache_block_group(root, block_group);
 			mutex_unlock(&block_group->cache_mutex);
-			if (ret)
+			if (ret) {
+				put_block_group(block_group);
 				break;
+			}
 		}
 
 		mutex_lock(&block_group->alloc_mutex);
-		if (unlikely(!block_group_bits(block_group, data)))
-			goto new_group;
 
 		if (unlikely(block_group->ro))
-			goto new_group;
+			goto loop;
 
 		free_space = btrfs_find_free_space(block_group, search_start,
 						   total_needed);
-		if (free_space) {
-			u64 start = block_group->key.objectid;
-			u64 end = block_group->key.objectid +
-				block_group->key.offset;
+		if (!free_space)
+			goto loop;
 
-			search_start = stripe_align(root, free_space->offset);
+		search_start = stripe_align(root, free_space->offset);
 
-			/* move on to the next group */
-			if (search_start + num_bytes >= search_end)
-				goto new_group;
+		/* move on to the next group */
+		if (search_start + num_bytes >= search_end)
+			goto loop;
 
-			/* move on to the next group */
-			if (search_start + num_bytes > end)
-				goto new_group;
+		/* move on to the next group */
+		if (search_start + num_bytes >
+		    block_group->key.objectid + block_group->key.offset)
+			goto loop;
 
-			if (last_wanted && search_start != last_wanted) {
-				total_needed += empty_cluster;
-				empty_size += empty_cluster;
-				last_wanted = 0;
-				/*
-				 * if search_start is still in this block group
-				 * then we just re-search this block group
-				 */
-				if (search_start >= start &&
-				    search_start < end) {
-					mutex_unlock(&block_group->alloc_mutex);
-					continue;
-				}
+		if (using_hint && search_start > hint_byte)
+			goto loop;
 
-				/* else we go to the next block group */
-				goto new_group;
+		if (exclude_nr > 0 &&
+		    (search_start + num_bytes > exclude_start &&
+		     search_start < exclude_start + exclude_nr)) {
+			search_start = exclude_start + exclude_nr;
+
+			/*
+			 * if search_start is still in this block group
+			 * then we just re-search this block group
+			 */
+			if (search_start >= block_group->key.objectid &&
+			    search_start < (block_group->key.objectid +
+					    block_group->key.offset)) {
+				mutex_unlock(&block_group->alloc_mutex);
+				goto have_block_group;
 			}
-
-			if (exclude_nr > 0 &&
-			    (search_start + num_bytes > exclude_start &&
-			     search_start < exclude_start + exclude_nr)) {
-				search_start = exclude_start + exclude_nr;
-				/*
-				 * if search_start is still in this block group
-				 * then we just re-search this block group
-				 */
-				if (search_start >= start &&
-				    search_start < end) {
-					mutex_unlock(&block_group->alloc_mutex);
-					last_wanted = 0;
-					continue;
-				}
-
-				/* else we go to the next block group */
-				goto new_group;
-			}
-
-			ins->objectid = search_start;
-			ins->offset = num_bytes;
-
-			btrfs_remove_free_space_lock(block_group, search_start,
-						     num_bytes);
-			/* we are all good, lets return */
-			mutex_unlock(&block_group->alloc_mutex);
-			break;
+			goto loop;
 		}
-new_group:
+
+		ins->objectid = search_start;
+		ins->offset = num_bytes;
+
+		btrfs_remove_free_space_lock(block_group, search_start,
+					     num_bytes);
+		/* we are all good, lets return */
+		mutex_unlock(&block_group->alloc_mutex);
+		break;
+loop:
 		mutex_unlock(&block_group->alloc_mutex);
 		put_block_group(block_group);
-		block_group = NULL;
-new_group_no_lock:
-		/* don't try to compare new allocations against the
-		 * last allocation any more
-		 */
-		last_wanted = 0;
+		if (using_hint) {
+			empty_size += empty_cluster;
+			total_needed += empty_cluster;
+			using_hint = 0;
+			up_read(&space_info->groups_sem);
+			goto search;
+		}
+	}
+	up_read(&space_info->groups_sem);
 
-		/*
-		 * Here's how this works.
-		 * loop == 0: we were searching a block group via a hint
-		 *		and didn't find anything, so we start at
-		 *		the head of the block groups and keep searching
-		 * loop == 1: we're searching through all of the block groups
-		 *		if we hit the head again we have searched
-		 *		all of the block groups for this space and we
-		 *		need to try and allocate, if we cant error out.
-		 * loop == 2: we allocated more space and are looping through
-		 *		all of the block groups again.
-		 */
-		if (loop == 0) {
-			head = &space_info->block_groups;
-			cur = head->next;
-			loop++;
-		} else if (loop == 1 && cur == head) {
-			int keep_going;
+	if (!ins->objectid && (empty_size || allowed_chunk_alloc)) {
+		int try_again = empty_size;
 
-			/* at this point we give up on the empty_size
-			 * allocations and just try to allocate the min
-			 * space.
-			 *
-			 * The extra_loop field was set if an empty_size
-			 * allocation was attempted above, and if this
-			 * is try we need to try the loop again without
-			 * the additional empty_size.
-			 */
-			total_needed -= empty_size;
-			empty_size = 0;
-			keep_going = extra_loop;
-			loop++;
+		total_needed -= empty_size;
+		empty_size = 0;
 
-			if (allowed_chunk_alloc && !chunk_alloc_done) {
-				up_read(&space_info->groups_sem);
-				ret = do_chunk_alloc(trans, root, num_bytes +
-						     2 * 1024 * 1024, data, 1);
-				down_read(&space_info->groups_sem);
-				if (ret < 0)
-					goto loop_check;
-				head = &space_info->block_groups;
-				/*
-				 * we've allocated a new chunk, keep
-				 * trying
-				 */
-				keep_going = 1;
-				chunk_alloc_done = 1;
-			} else if (!allowed_chunk_alloc) {
-				space_info->force_alloc = 1;
-			}
-loop_check:
-			if (keep_going) {
-				cur = head->next;
-				extra_loop = 0;
-			} else {
-				break;
-			}
-		} else if (cur == head) {
-			break;
+		if (allowed_chunk_alloc) {
+			ret = do_chunk_alloc(trans, root, num_bytes +
+					     2 * 1024 * 1024, data, 1);
+			if (!ret)
+				try_again = 1;
+			allowed_chunk_alloc = 0;
+		} else {
+			space_info->force_alloc = 1;
 		}
 
-		block_group = list_entry(cur, struct btrfs_block_group_cache,
-					 list);
-		atomic_inc(&block_group->count);
-
-		search_start = block_group->key.objectid;
-		cur = cur->next;
+		if (try_again)
+			goto search;
+		ret = -ENOSPC;
+	} else if (!ins->objectid) {
+		ret = -ENOSPC;
 	}
 
 	/* we found what we needed */
@@ -2785,19 +2720,10 @@ loop_check:
 
 		if (last_ptr)
 			*last_ptr = ins->objectid + ins->offset;
-		ret = 0;
-	} else if (!ret) {
-		printk(KERN_ERR "btrfs searching for %llu bytes, "
-		       "num_bytes %llu, loop %d, allowed_alloc %d\n",
-		       (unsigned long long)total_needed,
-		       (unsigned long long)num_bytes,
-		       loop, allowed_chunk_alloc);
-		ret = -ENOSPC;
-	}
-	if (block_group)
 		put_block_group(block_group);
+		ret = 0;
+	}
 
-	up_read(&space_info->groups_sem);
 	return ret;
 }
 
