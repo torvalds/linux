@@ -56,9 +56,15 @@ static int __init fscache_init(void)
 	if (ret < 0)
 		goto error_proc;
 
+	fscache_root = kobject_create_and_add("fscache", kernel_kobj);
+	if (!fscache_root)
+		goto error_kobj;
+
 	printk(KERN_NOTICE "FS-Cache: Loaded\n");
 	return 0;
 
+error_kobj:
+	fscache_proc_cleanup();
 error_proc:
 	slow_work_unregister_user();
 error_slow_work:
@@ -74,6 +80,7 @@ static void __exit fscache_exit(void)
 {
 	_enter("");
 
+	kobject_put(fscache_root);
 	fscache_proc_cleanup();
 	slow_work_unregister_user();
 	printk(KERN_NOTICE "FS-Cache: Unloaded\n");
