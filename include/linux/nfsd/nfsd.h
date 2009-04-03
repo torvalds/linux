@@ -346,7 +346,7 @@ extern struct timeval	nfssvc_boot;
  *    TIME_BACKUP   (unlikely to be supported any time soon)
  *    TIME_CREATE   (unlikely to be supported any time soon)
  */
-#define NFSD_SUPPORTED_ATTRS_WORD0                                                          \
+#define NFSD4_SUPPORTED_ATTRS_WORD0                                                         \
 (FATTR4_WORD0_SUPPORTED_ATTRS   | FATTR4_WORD0_TYPE         | FATTR4_WORD0_FH_EXPIRE_TYPE   \
  | FATTR4_WORD0_CHANGE          | FATTR4_WORD0_SIZE         | FATTR4_WORD0_LINK_SUPPORT     \
  | FATTR4_WORD0_SYMLINK_SUPPORT | FATTR4_WORD0_NAMED_ATTR   | FATTR4_WORD0_FSID             \
@@ -358,13 +358,42 @@ extern struct timeval	nfssvc_boot;
  | FATTR4_WORD0_MAXFILESIZE     | FATTR4_WORD0_MAXLINK      | FATTR4_WORD0_MAXNAME          \
  | FATTR4_WORD0_MAXREAD         | FATTR4_WORD0_MAXWRITE     | FATTR4_WORD0_ACL)
 
-#define NFSD_SUPPORTED_ATTRS_WORD1                                                          \
+#define NFSD4_SUPPORTED_ATTRS_WORD1                                                         \
 (FATTR4_WORD1_MODE              | FATTR4_WORD1_NO_TRUNC     | FATTR4_WORD1_NUMLINKS         \
  | FATTR4_WORD1_OWNER	        | FATTR4_WORD1_OWNER_GROUP  | FATTR4_WORD1_RAWDEV           \
  | FATTR4_WORD1_SPACE_AVAIL     | FATTR4_WORD1_SPACE_FREE   | FATTR4_WORD1_SPACE_TOTAL      \
  | FATTR4_WORD1_SPACE_USED      | FATTR4_WORD1_TIME_ACCESS  | FATTR4_WORD1_TIME_ACCESS_SET  \
  | FATTR4_WORD1_TIME_DELTA   | FATTR4_WORD1_TIME_METADATA    \
  | FATTR4_WORD1_TIME_MODIFY     | FATTR4_WORD1_TIME_MODIFY_SET | FATTR4_WORD1_MOUNTED_ON_FILEID)
+
+#define NFSD4_SUPPORTED_ATTRS_WORD2 0
+
+#define NFSD4_1_SUPPORTED_ATTRS_WORD0 \
+	NFSD4_SUPPORTED_ATTRS_WORD0
+
+#define NFSD4_1_SUPPORTED_ATTRS_WORD1 \
+	NFSD4_SUPPORTED_ATTRS_WORD1
+
+#define NFSD4_1_SUPPORTED_ATTRS_WORD2 \
+	NFSD4_SUPPORTED_ATTRS_WORD2
+
+static inline u32 nfsd_suppattrs0(u32 minorversion)
+{
+	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD0
+			    : NFSD4_SUPPORTED_ATTRS_WORD0;
+}
+
+static inline u32 nfsd_suppattrs1(u32 minorversion)
+{
+	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD1
+			    : NFSD4_SUPPORTED_ATTRS_WORD1;
+}
+
+static inline u32 nfsd_suppattrs2(u32 minorversion)
+{
+	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD2
+			    : NFSD4_SUPPORTED_ATTRS_WORD2;
+}
 
 /* These will return ERR_INVAL if specified in GETATTR or READDIR. */
 #define NFSD_WRITEONLY_ATTRS_WORD1							    \
@@ -376,6 +405,7 @@ extern struct timeval	nfssvc_boot;
 #define NFSD_WRITEABLE_ATTRS_WORD1                                                          \
 (FATTR4_WORD1_MODE              | FATTR4_WORD1_OWNER         | FATTR4_WORD1_OWNER_GROUP     \
  | FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_MODIFY_SET)
+#define NFSD_WRITEABLE_ATTRS_WORD2 0
 
 #endif /* CONFIG_NFSD_V4 */
 

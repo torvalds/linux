@@ -463,8 +463,9 @@ nfsd4_getattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (getattr->ga_bmval[1] & NFSD_WRITEONLY_ATTRS_WORD1)
 		return nfserr_inval;
 
-	getattr->ga_bmval[0] &= NFSD_SUPPORTED_ATTRS_WORD0;
-	getattr->ga_bmval[1] &= NFSD_SUPPORTED_ATTRS_WORD1;
+	getattr->ga_bmval[0] &= nfsd_suppattrs0(cstate->minorversion);
+	getattr->ga_bmval[1] &= nfsd_suppattrs1(cstate->minorversion);
+	getattr->ga_bmval[2] &= nfsd_suppattrs2(cstate->minorversion);
 
 	getattr->ga_fhp = &cstate->current_fh;
 	return nfs_ok;
@@ -555,8 +556,9 @@ nfsd4_readdir(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (readdir->rd_bmval[1] & NFSD_WRITEONLY_ATTRS_WORD1)
 		return nfserr_inval;
 
-	readdir->rd_bmval[0] &= NFSD_SUPPORTED_ATTRS_WORD0;
-	readdir->rd_bmval[1] &= NFSD_SUPPORTED_ATTRS_WORD1;
+	readdir->rd_bmval[0] &= nfsd_suppattrs0(cstate->minorversion);
+	readdir->rd_bmval[1] &= nfsd_suppattrs1(cstate->minorversion);
+	readdir->rd_bmval[2] &= nfsd_suppattrs2(cstate->minorversion);
 
 	if ((cookie > ~(u32)0) || (cookie == 1) || (cookie == 2) ||
 	    (cookie == 0 && memcmp(readdir->rd_verf.data, zeroverf.data, NFS4_VERIFIER_SIZE)))
@@ -746,8 +748,9 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		return status;
 
-	if ((verify->ve_bmval[0] & ~NFSD_SUPPORTED_ATTRS_WORD0)
-	    || (verify->ve_bmval[1] & ~NFSD_SUPPORTED_ATTRS_WORD1))
+	if ((verify->ve_bmval[0] & ~nfsd_suppattrs0(cstate->minorversion))
+	    || (verify->ve_bmval[1] & ~nfsd_suppattrs1(cstate->minorversion))
+	    || (verify->ve_bmval[2] & ~nfsd_suppattrs2(cstate->minorversion)))
 		return nfserr_attrnotsupp;
 	if ((verify->ve_bmval[0] & FATTR4_WORD0_RDATTR_ERROR)
 	    || (verify->ve_bmval[1] & NFSD_WRITEONLY_ATTRS_WORD1))

@@ -102,7 +102,7 @@ struct nfsd4_create {
 			u32 specdata2;
 		} dev;    /* NF4BLK, NF4CHR */
 	} u;
-	u32		cr_bmval[2];        /* request */
+	u32		cr_bmval[3];        /* request */
 	struct iattr	cr_iattr;           /* request */
 	struct nfsd4_change_info  cr_cinfo; /* response */
 	struct nfs4_acl *cr_acl;
@@ -117,7 +117,7 @@ struct nfsd4_delegreturn {
 };
 
 struct nfsd4_getattr {
-	u32		ga_bmval[2];        /* request */
+	u32		ga_bmval[3];        /* request */
 	struct svc_fh	*ga_fhp;            /* response */
 };
 
@@ -218,7 +218,7 @@ struct nfsd4_open {
 	stateid_t       op_delegate_stateid; /* request - response */
 	u32		op_create;     	    /* request */
 	u32		op_createmode;      /* request */
-	u32		op_bmval[2];        /* request */
+	u32		op_bmval[3];        /* request */
 	union {                             /* request */
 		struct iattr	iattr;                      /* UNCHECKED4,GUARDED4 */
 		nfs4_verifier	verf;                                /* EXCLUSIVE4 */
@@ -271,7 +271,7 @@ struct nfsd4_readdir {
 	nfs4_verifier	rd_verf;            /* request */
 	u32		rd_dircount;        /* request */
 	u32		rd_maxcount;        /* request */
-	u32		rd_bmval[2];        /* request */
+	u32		rd_bmval[3];        /* request */
 	struct svc_rqst *rd_rqstp;          /* response */
 	struct svc_fh * rd_fhp;             /* response */
 
@@ -313,7 +313,7 @@ struct nfsd4_secinfo {
 
 struct nfsd4_setattr {
 	stateid_t	sa_stateid;         /* request */
-	u32		sa_bmval[2];        /* request */
+	u32		sa_bmval[3];        /* request */
 	struct iattr	sa_iattr;           /* request */
 	struct nfs4_acl *sa_acl;
 };
@@ -339,7 +339,7 @@ struct nfsd4_setclientid_confirm {
 
 /* also used for NVERIFY */
 struct nfsd4_verify {
-	u32		ve_bmval[2];        /* request */
+	u32		ve_bmval[3];        /* request */
 	u32		ve_attrlen;         /* request */
 	char *		ve_attrval;         /* request */
 };
