@@ -1236,7 +1236,7 @@ compat_sys_readv(unsigned long fd, const struct compat_iovec __user *vec,
 
 asmlinkage ssize_t
 compat_sys_preadv(unsigned long fd, const struct compat_iovec __user *vec,
-		  unsigned long vlen, u32 pos_high, u32 pos_low)
+		  unsigned long vlen, u32 pos_low, u32 pos_high)
 {
 	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
 	struct file *file;
@@ -1293,7 +1293,7 @@ compat_sys_writev(unsigned long fd, const struct compat_iovec __user *vec,
 
 asmlinkage ssize_t
 compat_sys_pwritev(unsigned long fd, const struct compat_iovec __user *vec,
-		   unsigned long vlen, u32 pos_high, u32 pos_low)
+		   unsigned long vlen, u32 pos_low, u32 pos_high)
 {
 	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
 	struct file *file;

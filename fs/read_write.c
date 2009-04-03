@@ -731,10 +731,16 @@ SYSCALL_DEFINE3(writev, unsigned long, fd, const struct iovec __user *, vec,
 	return ret;
 }
 
-SYSCALL_DEFINE5(preadv, unsigned long, fd, const struct iovec __user *, vec,
-		unsigned long, vlen, u32, pos_high, u32, pos_low)
+static inline loff_t pos_from_hilo(unsigned long high, unsigned long low)
 {
-	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
+#define HALF_LONG_BITS (BITS_PER_LONG / 2)
+	return (((loff_t)high << HALF_LONG_BITS) << HALF_LONG_BITS) | low;
+}
+
+SYSCALL_DEFINE5(preadv, unsigned long, fd, const struct iovec __user *, vec,
+		unsigned long, vlen, unsigned long, pos_l, unsigned long, pos_h)
+{
+	loff_t pos = pos_from_hilo(pos_h, pos_l);
 	struct file *file;
 	ssize_t ret = -EBADF;
 	int fput_needed;
@@ -757,9 +763,9 @@ SYSCALL_DEFINE5(preadv, unsigned long, fd, const struct iovec __user *, vec,
 }
 
 SYSCALL_DEFINE5(pwritev, unsigned long, fd, const struct iovec __user *, vec,
-		unsigned long, vlen, u32, pos_high, u32, pos_low)
+		unsigned long, vlen, unsigned long, pos_l, unsigned long, pos_h)
 {
-	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
+	loff_t pos = pos_from_hilo(pos_h, pos_l);
 	struct file *file;
 	ssize_t ret = -EBADF;
 	int fput_needed;
