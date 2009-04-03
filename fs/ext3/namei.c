@@ -2265,7 +2265,7 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 	struct inode * old_inode, * new_inode;
 	struct buffer_head * old_bh, * new_bh, * dir_bh;
 	struct ext3_dir_entry_2 * old_de, * new_de;
-	int retval;
+	int retval, flush_file = 0;
 
 	old_bh = new_bh = dir_bh = NULL;
 
@@ -2401,6 +2401,8 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 		ext3_mark_inode_dirty(handle, new_inode);
 		if (!new_inode->i_nlink)
 			ext3_orphan_add(handle, new_inode);
+		if (ext3_should_writeback_data(new_inode))
+			flush_file = 1;
 	}
 	retval = 0;
 
@@ -2409,6 +2411,8 @@ end_rename:
 	brelse (old_bh);
 	brelse (new_bh);
 	ext3_journal_stop(handle);
+	if (retval == 0 && flush_file)
+		filemap_flush(old_inode->i_mapping);
 	return retval;
 }
 
