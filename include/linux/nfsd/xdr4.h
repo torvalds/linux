@@ -344,6 +344,22 @@ struct nfsd4_write {
 	nfs4_verifier	wr_verifier;        /* response */
 };
 
+struct nfsd4_exchange_id {
+	int	foo;	/* stub */
+};
+
+struct nfsd4_create_session {
+	int	foo;	/* stub */
+};
+
+struct nfsd4_sequence {
+	int	foo;	/* stub */
+};
+
+struct nfsd4_destroy_session {
+	int	foo;	/* stub */
+};
+
 struct nfsd4_op {
 	int					opnum;
 	__be32					status;
@@ -378,6 +394,12 @@ struct nfsd4_op {
 		struct nfsd4_verify		verify;
 		struct nfsd4_write		write;
 		struct nfsd4_release_lockowner	release_lockowner;
+
+		/* NFSv4.1 */
+		struct nfsd4_exchange_id	exchange_id;
+		struct nfsd4_create_session	create_session;
+		struct nfsd4_destroy_session	destroy_session;
+		struct nfsd4_sequence		sequence;
 	} u;
 	struct nfs4_replay *			replay;
 };
