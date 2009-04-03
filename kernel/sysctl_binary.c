@@ -135,7 +135,7 @@ static void deprecated_sysctl_warning(const int *name, int nlen)
 	return;
 }
 
-int do_sysctl(int __user *args_name, int nlen,
+static int do_sysctl(int __user *args_name, int nlen,
 	void __user *oldval, size_t __user *oldlenp,
 	void __user *newval, size_t newlen)
 {
