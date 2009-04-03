@@ -99,6 +99,39 @@ struct nfs4_callback {
 	struct rpc_clnt *       cb_client;
 };
 
+struct nfsd4_slot {
+	bool				sl_inuse;
+	u32				sl_seqid;
+};
+
+struct nfsd4_session {
+	struct kref		se_ref;
+	struct list_head	se_hash;	/* hash by sessionid */
+	struct list_head	se_perclnt;
+	u32			se_flags;
+	struct nfs4_client	*se_client;	/* for expire_client */
+	struct nfs4_sessionid	se_sessionid;
+	u32			se_fmaxreq_sz;
+	u32			se_fmaxresp_sz;
+	u32			se_fmaxresp_cached;
+	u32			se_fmaxops;
+	u32			se_fnumslots;
+	struct nfsd4_slot	*se_slots;	/* forward channel slots */
+};
+
+static inline void
+nfsd4_put_session(struct nfsd4_session *ses)
+{
+	extern void free_session(struct kref *kref);
+	kref_put(&ses->se_ref, free_session);
+}
+
+static inline void
+nfsd4_get_session(struct nfsd4_session *ses)
+{
+	kref_get(&ses->se_ref);
+}
+
 #define HEXDIR_LEN     33 /* hex version of 16 byte md5 of cl_name plus '\0' */
 
 /*
