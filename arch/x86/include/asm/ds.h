@@ -15,8 +15,8 @@
  * - buffer allocation (memory accounting)
  *
  *
- * Copyright (C) 2007-2008 Intel Corporation.
- * Markus Metzger <markus.t.metzger@intel.com>, 2007-2008
+ * Copyright (C) 2007-2009 Intel Corporation.
+ * Markus Metzger <markus.t.metzger@intel.com>, 2007-2009
  */
 
 #ifndef _ASM_X86_DS_H
@@ -83,8 +83,10 @@ enum ds_feature {
  * The interrupt threshold is independent from the overflow callback
  * to allow users to use their own overflow interrupt handling mechanism.
  *
- * task: the task to request recording for;
- *       NULL for per-cpu recording on the current cpu
+ * The function might sleep.
+ *
+ * task: the task to request recording for
+ * cpu:  the cpu to request recording for
  * base: the base pointer for the (non-pageable) buffer;
  * size: the size of the provided buffer in bytes
  * ovfl: pointer to a function to be called on buffer overflow;
@@ -93,18 +95,27 @@ enum ds_feature {
  *     -1 if no interrupt threshold is requested.
  * flags: a bit-mask of the above flags
  */
-extern struct bts_tracer *ds_request_bts(struct task_struct *task,
-					 void *base, size_t size,
-					 bts_ovfl_callback_t ovfl,
-					 size_t th, unsigned int flags);
-extern struct pebs_tracer *ds_request_pebs(struct task_struct *task,
-					   void *base, size_t size,
-					   pebs_ovfl_callback_t ovfl,
-					   size_t th, unsigned int flags);
+extern struct bts_tracer *ds_request_bts_task(struct task_struct *task,
+					      void *base, size_t size,
+					      bts_ovfl_callback_t ovfl,
+					      size_t th, unsigned int flags);
+extern struct bts_tracer *ds_request_bts_cpu(int cpu, void *base, size_t size,
+					     bts_ovfl_callback_t ovfl,
+					     size_t th, unsigned int flags);
+extern struct pebs_tracer *ds_request_pebs_task(struct task_struct *task,
+						void *base, size_t size,
+						pebs_ovfl_callback_t ovfl,
+						size_t th, unsigned int flags);
+extern struct pebs_tracer *ds_request_pebs_cpu(int cpu,
+					       void *base, size_t size,
+					       pebs_ovfl_callback_t ovfl,
+					       size_t th, unsigned int flags);
 
 /*
  * Release BTS or PEBS resources
  * Suspend and resume BTS or PEBS tracing
+ *
+ * Must be called with irq's enabled.
  *
  * tracer: the tracer handle returned from ds_request_~()
  */
@@ -114,6 +125,28 @@ extern void ds_resume_bts(struct bts_tracer *tracer);
 extern void ds_release_pebs(struct pebs_tracer *tracer);
 extern void ds_suspend_pebs(struct pebs_tracer *tracer);
 extern void ds_resume_pebs(struct pebs_tracer *tracer);
+
+/*
+ * Release BTS or PEBS resources
+ * Suspend and resume BTS or PEBS tracing
+ *
+ * Cpu tracers must call this on the traced cpu.
+ * Task tracers must call ds_release_~_noirq() for themselves.
+ *
+ * May be called with irq's disabled.
+ *
+ * Returns 0 if successful;
+ * -EPERM if the cpu tracer does not trace the current cpu.
+ * -EPERM if the task tracer does not trace itself.
+ *
+ * tracer: the tracer handle returned from ds_request_~()
+ */
+extern int ds_release_bts_noirq(struct bts_tracer *tracer);
+extern int ds_suspend_bts_noirq(struct bts_tracer *tracer);
+extern int ds_resume_bts_noirq(struct bts_tracer *tracer);
+extern int ds_release_pebs_noirq(struct pebs_tracer *tracer);
+extern int ds_suspend_pebs_noirq(struct pebs_tracer *tracer);
+extern int ds_resume_pebs_noirq(struct pebs_tracer *tracer);
 
 
 /*

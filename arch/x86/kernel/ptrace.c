@@ -800,8 +800,9 @@ static int ptrace_bts_config(struct task_struct *child,
 	if (cfg.flags & PTRACE_BTS_O_SCHED)
 		flags |= BTS_TIMESTAMPS;
 
-	context->tracer = ds_request_bts(child, context->buffer, context->size,
-					 NULL, (size_t)-1, flags);
+	context->tracer =
+		ds_request_bts_task(child, context->buffer, context->size,
+				    NULL, (size_t)-1, flags);
 	if (unlikely(IS_ERR(context->tracer))) {
 		int error = PTR_ERR(context->tracer);
 

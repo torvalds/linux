@@ -245,60 +245,50 @@ struct ds_context {
 	struct pebs_tracer	*pebs_master;
 
 	/* Use count: */
-	unsigned long count;
+	unsigned long		count;
 
 	/* Pointer to the context pointer field: */
 	struct ds_context	**this;
 
-	/* The traced task; NULL for current cpu: */
+	/* The traced task; NULL for cpu tracing: */
 	struct task_struct	*task;
+
+	/* The traced cpu; only valid if task is NULL: */
+	int			cpu;
 };
 
-static DEFINE_PER_CPU(struct ds_context *, system_context_array);
-
-#define system_context per_cpu(system_context_array, smp_processor_id())
+static DEFINE_PER_CPU(struct ds_context *, cpu_context);
 
 
-static inline struct ds_context *ds_get_context(struct task_struct *task)
+static struct ds_context *ds_get_context(struct task_struct *task, int cpu)
 {
 	struct ds_context **p_context =
-		(task ? &task->thread.ds_ctx : &system_context);
+		(task ? &task->thread.ds_ctx : &per_cpu(cpu_context, cpu));
 	struct ds_context *context = NULL;
 	struct ds_context *new_context = NULL;
-	unsigned long irq;
 
-	/*
-	 * Chances are small that we already have a context.
-	 *
-	 * Contexts for per-cpu tracing are allocated using
-	 * smp_call_function(). We must not sleep.
-	 */
-	new_context = kzalloc(sizeof(*new_context), GFP_ATOMIC);
+	/* Chances are small that we already have a context. */
+	new_context = kzalloc(sizeof(*new_context), GFP_KERNEL);
 	if (!new_context)
 		return NULL;
 
-	spin_lock_irqsave(&ds_lock, irq);
+	spin_lock_irq(&ds_lock);
 
 	context = *p_context;
-	if (!context) {
+	if (likely(!context)) {
 		context = new_context;
 
 		context->this = p_context;
 		context->task = task;
+		context->cpu = cpu;
 		context->count = 0;
-
-		if (task)
-			set_tsk_thread_flag(task, TIF_DS_AREA_MSR);
-
-		if (!task || (task == current))
-			wrmsrl(MSR_IA32_DS_AREA, (unsigned long)context->ds);
 
 		*p_context = context;
 	}
 
 	context->count++;
 
-	spin_unlock_irqrestore(&ds_lock, irq);
+	spin_unlock_irq(&ds_lock);
 
 	if (context != new_context)
 		kfree(new_context);
@@ -306,7 +296,7 @@ static inline struct ds_context *ds_get_context(struct task_struct *task)
 	return context;
 }
 
-static inline void ds_put_context(struct ds_context *context)
+static void ds_put_context(struct ds_context *context)
 {
 	struct task_struct *task;
 	unsigned long irq;
@@ -328,8 +318,15 @@ static inline void ds_put_context(struct ds_context *context)
 	if (task)
 		clear_tsk_thread_flag(task, TIF_DS_AREA_MSR);
 
-	if (!task || (task == current))
-		wrmsrl(MSR_IA32_DS_AREA, 0);
+	/*
+	 * We leave the (now dangling) pointer to the DS configuration in
+	 * the DS_AREA msr. This is as good or as bad as replacing it with
+	 * NULL - the hardware would crash if we enabled tracing.
+	 *
+	 * This saves us some problems with having to write an msr on a
+	 * different cpu while preventing others from doing the same for the
+	 * next context for that same cpu.
+	 */
 
 	spin_unlock_irqrestore(&ds_lock, irq);
 
@@ -340,6 +337,31 @@ static inline void ds_put_context(struct ds_context *context)
 	kfree(context);
 }
 
+static void ds_install_ds_area(struct ds_context *context)
+{
+	unsigned long ds;
+
+	ds = (unsigned long)context->ds;
+
+	/*
+	 * There is a race between the bts master and the pebs master.
+	 *
+	 * The thread/cpu access is synchronized via get/put_cpu() for
+	 * task tracing and via wrmsr_on_cpu for cpu tracing.
+	 *
+	 * If bts and pebs are collected for the same task or same cpu,
+	 * the same confiuration is written twice.
+	 */
+	if (context->task) {
+		get_cpu();
+		if (context->task == current)
+			wrmsrl(MSR_IA32_DS_AREA, ds);
+		set_tsk_thread_flag(context->task, TIF_DS_AREA_MSR);
+		put_cpu();
+	} else
+		wrmsr_on_cpu(context->cpu, MSR_IA32_DS_AREA,
+			     (u32)((u64)ds), (u32)((u64)ds >> 32));
+}
 
 /*
  * Call the tracer's callback on a buffer overflow.
@@ -622,6 +644,7 @@ static void ds_init_ds_trace(struct ds_trace *trace, enum ds_qualifier qual,
 	 * The value for 'no threshold' is -1, which will set the
 	 * threshold outside of the buffer, just like we want it.
 	 */
+	ith *= ds_cfg.sizeof_rec[qual];
 	trace->ith = (void *)(buffer + size - ith);
 
 	trace->flags = flags;
@@ -630,7 +653,7 @@ static void ds_init_ds_trace(struct ds_trace *trace, enum ds_qualifier qual,
 
 static int ds_request(struct ds_tracer *tracer, struct ds_trace *trace,
 		      enum ds_qualifier qual, struct task_struct *task,
-		      void *base, size_t size, size_t th, unsigned int flags)
+		      int cpu, void *base, size_t size, size_t th)
 {
 	struct ds_context *context;
 	int error;
@@ -643,7 +666,7 @@ static int ds_request(struct ds_tracer *tracer, struct ds_trace *trace,
 	if (!base)
 		goto out;
 
-	/* We require some space to do alignment adjustments below. */
+	/* We need space for alignment adjustments in ds_init_ds_trace(). */
 	error = -EINVAL;
 	if (size < (DS_ALIGNMENT + ds_cfg.sizeof_rec[qual]))
 		goto out;
@@ -660,25 +683,27 @@ static int ds_request(struct ds_tracer *tracer, struct ds_trace *trace,
 	tracer->size = size;
 
 	error = -ENOMEM;
-	context = ds_get_context(task);
+	context = ds_get_context(task, cpu);
 	if (!context)
 		goto out;
 	tracer->context = context;
 
-	ds_init_ds_trace(trace, qual, base, size, th, flags);
+	/*
+	 * Defer any tracer-specific initialization work for the context until
+	 * context ownership has been clarified.
+	 */
 
 	error = 0;
  out:
 	return error;
 }
 
-struct bts_tracer *ds_request_bts(struct task_struct *task,
-				  void *base, size_t size,
-				  bts_ovfl_callback_t ovfl, size_t th,
-				  unsigned int flags)
+static struct bts_tracer *ds_request_bts(struct task_struct *task, int cpu,
+					 void *base, size_t size,
+					 bts_ovfl_callback_t ovfl, size_t th,
+					 unsigned int flags)
 {
 	struct bts_tracer *tracer;
-	unsigned long irq;
 	int error;
 
 	/* Buffer overflow notification is not yet implemented. */
@@ -690,42 +715,46 @@ struct bts_tracer *ds_request_bts(struct task_struct *task,
 	if (error < 0)
 		goto out;
 
-	/*
-	 * Per-cpu tracing is typically requested using smp_call_function().
-	 * We must not sleep.
-	 */
 	error = -ENOMEM;
-	tracer = kzalloc(sizeof(*tracer), GFP_ATOMIC);
+	tracer = kzalloc(sizeof(*tracer), GFP_KERNEL);
 	if (!tracer)
 		goto out_put_tracer;
 	tracer->ovfl = ovfl;
 
+	/* Do some more error checking and acquire a tracing context. */
 	error = ds_request(&tracer->ds, &tracer->trace.ds,
-			   ds_bts, task, base, size, th, flags);
+			   ds_bts, task, cpu, base, size, th);
 	if (error < 0)
 		goto out_tracer;
 
-
-	spin_lock_irqsave(&ds_lock, irq);
+	/* Claim the bts part of the tracing context we acquired above. */
+	spin_lock_irq(&ds_lock);
 
 	error = -EPERM;
 	if (tracer->ds.context->bts_master)
 		goto out_unlock;
 	tracer->ds.context->bts_master = tracer;
 
-	spin_unlock_irqrestore(&ds_lock, irq);
+	spin_unlock_irq(&ds_lock);
 
+	/*
+	 * Now that we own the bts part of the context, let's complete the
+	 * initialization for that part.
+	 */
+	ds_init_ds_trace(&tracer->trace.ds, ds_bts, base, size, th, flags);
+	ds_write_config(tracer->ds.context, &tracer->trace.ds, ds_bts);
+	ds_install_ds_area(tracer->ds.context);
 
 	tracer->trace.read  = bts_read;
 	tracer->trace.write = bts_write;
 
-	ds_write_config(tracer->ds.context, &tracer->trace.ds, ds_bts);
+	/* Start tracing. */
 	ds_resume_bts(tracer);
 
 	return tracer;
 
  out_unlock:
-	spin_unlock_irqrestore(&ds_lock, irq);
+	spin_unlock_irq(&ds_lock);
 	ds_put_context(tracer->ds.context);
  out_tracer:
 	kfree(tracer);
@@ -735,13 +764,27 @@ struct bts_tracer *ds_request_bts(struct task_struct *task,
 	return ERR_PTR(error);
 }
 
-struct pebs_tracer *ds_request_pebs(struct task_struct *task,
-				    void *base, size_t size,
-				    pebs_ovfl_callback_t ovfl, size_t th,
-				    unsigned int flags)
+struct bts_tracer *ds_request_bts_task(struct task_struct *task,
+				       void *base, size_t size,
+				       bts_ovfl_callback_t ovfl,
+				       size_t th, unsigned int flags)
+{
+	return ds_request_bts(task, 0, base, size, ovfl, th, flags);
+}
+
+struct bts_tracer *ds_request_bts_cpu(int cpu, void *base, size_t size,
+				      bts_ovfl_callback_t ovfl,
+				      size_t th, unsigned int flags)
+{
+	return ds_request_bts(NULL, cpu, base, size, ovfl, th, flags);
+}
+
+static struct pebs_tracer *ds_request_pebs(struct task_struct *task, int cpu,
+					   void *base, size_t size,
+					   pebs_ovfl_callback_t ovfl, size_t th,
+					   unsigned int flags)
 {
 	struct pebs_tracer *tracer;
-	unsigned long irq;
 	int error;
 
 	/* Buffer overflow notification is not yet implemented. */
@@ -753,37 +796,43 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 	if (error < 0)
 		goto out;
 
-	/*
-	 * Per-cpu tracing is typically requested using smp_call_function().
-	 * We must not sleep.
-	 */
 	error = -ENOMEM;
-	tracer = kzalloc(sizeof(*tracer), GFP_ATOMIC);
+	tracer = kzalloc(sizeof(*tracer), GFP_KERNEL);
 	if (!tracer)
 		goto out_put_tracer;
 	tracer->ovfl = ovfl;
 
+	/* Do some more error checking and acquire a tracing context. */
 	error = ds_request(&tracer->ds, &tracer->trace.ds,
-			   ds_pebs, task, base, size, th, flags);
+			   ds_pebs, task, cpu, base, size, th);
 	if (error < 0)
 		goto out_tracer;
 
-	spin_lock_irqsave(&ds_lock, irq);
+	/* Claim the pebs part of the tracing context we acquired above. */
+	spin_lock_irq(&ds_lock);
 
 	error = -EPERM;
 	if (tracer->ds.context->pebs_master)
 		goto out_unlock;
 	tracer->ds.context->pebs_master = tracer;
 
-	spin_unlock_irqrestore(&ds_lock, irq);
+	spin_unlock_irq(&ds_lock);
 
+	/*
+	 * Now that we own the pebs part of the context, let's complete the
+	 * initialization for that part.
+	 */
+	ds_init_ds_trace(&tracer->trace.ds, ds_pebs, base, size, th, flags);
 	ds_write_config(tracer->ds.context, &tracer->trace.ds, ds_pebs);
+	ds_install_ds_area(tracer->ds.context);
+
+	/* Start tracing. */
 	ds_resume_pebs(tracer);
 
 	return tracer;
 
  out_unlock:
-	spin_unlock_irqrestore(&ds_lock, irq);
+	spin_unlock_irq(&ds_lock);
 	ds_put_context(tracer->ds.context);
  out_tracer:
 	kfree(tracer);
@@ -793,16 +842,26 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 	return ERR_PTR(error);
 }
 
-void ds_release_bts(struct bts_tracer *tracer)
+struct pebs_tracer *ds_request_pebs_task(struct task_struct *task,
+					 void *base, size_t size,
+					 pebs_ovfl_callback_t ovfl,
+					 size_t th, unsigned int flags)
+{
+	return ds_request_pebs(task, 0, base, size, ovfl, th, flags);
+}
+
+struct pebs_tracer *ds_request_pebs_cpu(int cpu, void *base, size_t size,
+					pebs_ovfl_callback_t ovfl,
+					size_t th, unsigned int flags)
+{
+	return ds_request_pebs(NULL, cpu, base, size, ovfl, th, flags);
+}
+
+static void ds_free_bts(struct bts_tracer *tracer)
 {
 	struct task_struct *task;
 
-	if (!tracer)
-		return;
-
 	task = tracer->ds.context->task;
-
-	ds_suspend_bts(tracer);
 
 	WARN_ON_ONCE(tracer->ds.context->bts_master != tracer);
 	tracer->ds.context->bts_master = NULL;
@@ -817,9 +876,69 @@ void ds_release_bts(struct bts_tracer *tracer)
 	kfree(tracer);
 }
 
+void ds_release_bts(struct bts_tracer *tracer)
+{
+	might_sleep();
+
+	if (!tracer)
+		return;
+
+	ds_suspend_bts(tracer);
+	ds_free_bts(tracer);
+}
+
+int ds_release_bts_noirq(struct bts_tracer *tracer)
+{
+	struct task_struct *task;
+	unsigned long irq;
+	int error;
+
+	if (!tracer)
+		return 0;
+
+	task = tracer->ds.context->task;
+
+	local_irq_save(irq);
+
+	error = -EPERM;
+	if (!task &&
+	    (tracer->ds.context->cpu != smp_processor_id()))
+		goto out;
+
+	error = -EPERM;
+	if (task && (task != current))
+		goto out;
+
+	ds_suspend_bts_noirq(tracer);
+	ds_free_bts(tracer);
+
+	error = 0;
+ out:
+	local_irq_restore(irq);
+	return error;
+}
+
+static void update_task_debugctlmsr(struct task_struct *task,
+				    unsigned long debugctlmsr)
+{
+	task->thread.debugctlmsr = debugctlmsr;
+
+	get_cpu();
+	if (task == current)
+		update_debugctlmsr(debugctlmsr);
+
+	if (task->thread.debugctlmsr)
+		set_tsk_thread_flag(task, TIF_DEBUGCTLMSR);
+	else
+		clear_tsk_thread_flag(task, TIF_DEBUGCTLMSR);
+	put_cpu();
+}
+
 void ds_suspend_bts(struct bts_tracer *tracer)
 {
 	struct task_struct *task;
+	unsigned long debugctlmsr;
+	int cpu;
 
 	if (!tracer)
 		return;
@@ -827,29 +946,60 @@ void ds_suspend_bts(struct bts_tracer *tracer)
 	tracer->flags = 0;
 
 	task = tracer->ds.context->task;
+	cpu  = tracer->ds.context->cpu;
 
-	if (!task || (task == current))
-		update_debugctlmsr(get_debugctlmsr() & ~BTS_CONTROL);
+	WARN_ON(!task && irqs_disabled());
 
-	if (task) {
-		task->thread.debugctlmsr &= ~BTS_CONTROL;
+	debugctlmsr = (task ?
+		       task->thread.debugctlmsr :
+		       get_debugctlmsr_on_cpu(cpu));
+	debugctlmsr &= ~BTS_CONTROL;
 
-		if (!task->thread.debugctlmsr)
-			clear_tsk_thread_flag(task, TIF_DEBUGCTLMSR);
-	}
+	if (task)
+		update_task_debugctlmsr(task, debugctlmsr);
+	else
+		update_debugctlmsr_on_cpu(cpu, debugctlmsr);
 }
 
-void ds_resume_bts(struct bts_tracer *tracer)
+int ds_suspend_bts_noirq(struct bts_tracer *tracer)
 {
 	struct task_struct *task;
-	unsigned long control;
+	unsigned long debugctlmsr, irq;
+	int cpu, error = 0;
 
 	if (!tracer)
-		return;
+		return 0;
 
-	tracer->flags = tracer->trace.ds.flags;
+	tracer->flags = 0;
 
 	task = tracer->ds.context->task;
+	cpu  = tracer->ds.context->cpu;
+
+	local_irq_save(irq);
+
+	error = -EPERM;
+	if (!task && (cpu != smp_processor_id()))
+		goto out;
+
+	debugctlmsr = (task ?
+		       task->thread.debugctlmsr :
+		       get_debugctlmsr());
+	debugctlmsr &= ~BTS_CONTROL;
+
+	if (task)
+		update_task_debugctlmsr(task, debugctlmsr);
+	else
+		update_debugctlmsr(debugctlmsr);
+
+	error = 0;
+ out:
+	local_irq_restore(irq);
+	return error;
+}
+
+static unsigned long ds_bts_control(struct bts_tracer *tracer)
+{
+	unsigned long control;
 
 	control = ds_cfg.ctl[dsf_bts];
 	if (!(tracer->trace.ds.flags & BTS_KERNEL))
@@ -857,25 +1007,77 @@ void ds_resume_bts(struct bts_tracer *tracer)
 	if (!(tracer->trace.ds.flags & BTS_USER))
 		control |= ds_cfg.ctl[dsf_bts_user];
 
-	if (task) {
-		task->thread.debugctlmsr |= control;
-		set_tsk_thread_flag(task, TIF_DEBUGCTLMSR);
-	}
-
-	if (!task || (task == current))
-		update_debugctlmsr(get_debugctlmsr() | control);
+	return control;
 }
 
-void ds_release_pebs(struct pebs_tracer *tracer)
+void ds_resume_bts(struct bts_tracer *tracer)
 {
 	struct task_struct *task;
+	unsigned long debugctlmsr;
+	int cpu;
 
 	if (!tracer)
 		return;
 
-	task = tracer->ds.context->task;
+	tracer->flags = tracer->trace.ds.flags;
 
-	ds_suspend_pebs(tracer);
+	task = tracer->ds.context->task;
+	cpu  = tracer->ds.context->cpu;
+
+	WARN_ON(!task && irqs_disabled());
+
+	debugctlmsr = (task ?
+		       task->thread.debugctlmsr :
+		       get_debugctlmsr_on_cpu(cpu));
+	debugctlmsr |= ds_bts_control(tracer);
+
+	if (task)
+		update_task_debugctlmsr(task, debugctlmsr);
+	else
+		update_debugctlmsr_on_cpu(cpu, debugctlmsr);
+}
+
+int ds_resume_bts_noirq(struct bts_tracer *tracer)
+{
+	struct task_struct *task;
+	unsigned long debugctlmsr, irq;
+	int cpu, error = 0;
+
+	if (!tracer)
+		return 0;
+
+	tracer->flags = tracer->trace.ds.flags;
+
+	task = tracer->ds.context->task;
+	cpu  = tracer->ds.context->cpu;
+
+	local_irq_save(irq);
+
+	error = -EPERM;
+	if (!task && (cpu != smp_processor_id()))
+		goto out;
+
+	debugctlmsr = (task ?
+		       task->thread.debugctlmsr :
+		       get_debugctlmsr());
+	debugctlmsr |= ds_bts_control(tracer);
+
+	if (task)
+		update_task_debugctlmsr(task, debugctlmsr);
+	else
+		update_debugctlmsr(debugctlmsr);
+
+	error = 0;
+ out:
+	local_irq_restore(irq);
+	return error;
+}
+
+static void ds_free_pebs(struct pebs_tracer *tracer)
+{
+	struct task_struct *task;
+
+	task = tracer->ds.context->task;
 
 	WARN_ON_ONCE(tracer->ds.context->pebs_master != tracer);
 	tracer->ds.context->pebs_master = NULL;
@@ -886,14 +1088,66 @@ void ds_release_pebs(struct pebs_tracer *tracer)
 	kfree(tracer);
 }
 
+void ds_release_pebs(struct pebs_tracer *tracer)
+{
+	might_sleep();
+
+	if (!tracer)
+		return;
+
+	ds_suspend_pebs(tracer);
+	ds_free_pebs(tracer);
+}
+
+int ds_release_pebs_noirq(struct pebs_tracer *tracer)
+{
+	struct task_struct *task;
+	unsigned long irq;
+	int error;
+
+	if (!tracer)
+		return 0;
+
+	task = tracer->ds.context->task;
+
+	local_irq_save(irq);
+
+	error = -EPERM;
+	if (!task &&
+	    (tracer->ds.context->cpu != smp_processor_id()))
+		goto out;
+
+	error = -EPERM;
+	if (task && (task != current))
+		goto out;
+
+	ds_suspend_pebs_noirq(tracer);
+	ds_free_pebs(tracer);
+
+	error = 0;
+ out:
+	local_irq_restore(irq);
+	return error;
+}
+
 void ds_suspend_pebs(struct pebs_tracer *tracer)
 {
 
 }
 
+int ds_suspend_pebs_noirq(struct pebs_tracer *tracer)
+{
+	return 0;
+}
+
 void ds_resume_pebs(struct pebs_tracer *tracer)
 {
 
+}
+
+int ds_resume_pebs_noirq(struct pebs_tracer *tracer)
+{
+	return 0;
 }
 
 const struct bts_trace *ds_read_bts(struct bts_tracer *tracer)
@@ -1004,26 +1258,6 @@ ds_configure(const struct ds_configuration *cfg,
 		printk(KERN_INFO "[ds] pebs not available\n");
 	}
 
-	if (ds_cfg.sizeof_rec[ds_bts]) {
-		int error;
-
-		error = ds_selftest_bts();
-		if (error) {
-			WARN(1, "[ds] selftest failed. disabling bts.\n");
-			ds_cfg.sizeof_rec[ds_bts] = 0;
-		}
-	}
-
-	if (ds_cfg.sizeof_rec[ds_pebs]) {
-		int error;
-
-		error = ds_selftest_pebs();
-		if (error) {
-			WARN(1, "[ds] selftest failed. disabling pebs.\n");
-			ds_cfg.sizeof_rec[ds_pebs] = 0;
-		}
-	}
-
 	printk(KERN_INFO "[ds] sizes: address: %u bit, ",
 	       8 * ds_cfg.sizeof_ptr_field);
 	printk("bts/pebs record: %u/%u bytes\n",
@@ -1127,3 +1361,29 @@ void ds_copy_thread(struct task_struct *tsk, struct task_struct *father)
 void ds_exit_thread(struct task_struct *tsk)
 {
 }
+
+static __init int ds_selftest(void)
+{
+	if (ds_cfg.sizeof_rec[ds_bts]) {
+		int error;
+
+		error = ds_selftest_bts();
+		if (error) {
+			WARN(1, "[ds] selftest failed. disabling bts.\n");
+			ds_cfg.sizeof_rec[ds_bts] = 0;
+		}
+	}
+
+	if (ds_cfg.sizeof_rec[ds_pebs]) {
+		int error;
+
+		error = ds_selftest_pebs();
+		if (error) {
+			WARN(1, "[ds] selftest failed. disabling pebs.\n");
+			ds_cfg.sizeof_rec[ds_pebs] = 0;
+		}
+	}
+
+	return 0;
+}
+device_initcall(ds_selftest);

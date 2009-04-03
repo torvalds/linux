@@ -10,11 +10,12 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/smp.h>
 
 #include <asm/ds.h>
 
 
-#define DS_SELFTEST_BUFFER_SIZE 1021 /* Intentionally chose an odd size. */
+#define BUFFER_SIZE 1021 /* Intentionally chose an odd size. */
 
 
 static int ds_selftest_bts_consistency(const struct bts_trace *trace)
@@ -125,12 +126,12 @@ int ds_selftest_bts(void)
 	struct bts_tracer *tracer;
 	int error = 0;
 	void *top;
-	unsigned char buffer[DS_SELFTEST_BUFFER_SIZE];
+	unsigned char buffer[BUFFER_SIZE];
 
 	printk(KERN_INFO "[ds] bts selftest...");
 
-	tracer = ds_request_bts(NULL, buffer, DS_SELFTEST_BUFFER_SIZE,
-				NULL, (size_t)-1, BTS_KERNEL);
+	tracer = ds_request_bts_cpu(smp_processor_id(), buffer, BUFFER_SIZE,
+				    NULL, (size_t)-1, BTS_KERNEL);
 	if (IS_ERR(tracer)) {
 		error = PTR_ERR(tracer);
 		tracer = NULL;
