@@ -229,6 +229,27 @@ static inline void fscache_cookie_put(struct fscache_cookie *cookie)
 		__fscache_cookie_put(cookie);
 }
 
+/*
+ * get an extra reference to a netfs retrieval context
+ */
+static inline
+void *fscache_get_context(struct fscache_cookie *cookie, void *context)
+{
+	if (cookie->def->get_context)
+		cookie->def->get_context(cookie->netfs_data, context);
+	return context;
+}
+
+/*
+ * release a reference to a netfs retrieval context
+ */
+static inline
+void fscache_put_context(struct fscache_cookie *cookie, void *context)
+{
+	if (cookie->def->put_context)
+		cookie->def->put_context(cookie->netfs_data, context);
+}
+
 /*****************************************************************************/
 /*
  * debug tracing

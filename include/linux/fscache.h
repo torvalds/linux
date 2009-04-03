@@ -184,6 +184,24 @@ extern struct fscache_cookie *__fscache_acquire_cookie(
 	void *);
 extern void __fscache_relinquish_cookie(struct fscache_cookie *, int);
 extern void __fscache_update_cookie(struct fscache_cookie *);
+extern int __fscache_attr_changed(struct fscache_cookie *);
+extern int __fscache_read_or_alloc_page(struct fscache_cookie *,
+					struct page *,
+					fscache_rw_complete_t,
+					void *,
+					gfp_t);
+extern int __fscache_read_or_alloc_pages(struct fscache_cookie *,
+					 struct address_space *,
+					 struct list_head *,
+					 unsigned *,
+					 fscache_rw_complete_t,
+					 void *,
+					 gfp_t);
+extern int __fscache_alloc_page(struct fscache_cookie *, struct page *, gfp_t);
+extern int __fscache_write_page(struct fscache_cookie *, struct page *, gfp_t);
+extern void __fscache_uncache_page(struct fscache_cookie *, struct page *);
+extern bool __fscache_check_page_write(struct fscache_cookie *, struct page *);
+extern void __fscache_wait_on_page_write(struct fscache_cookie *, struct page *);
 
 /**
  * fscache_register_netfs - Register a filesystem as desiring caching services
@@ -361,7 +379,10 @@ void fscache_unpin_cookie(struct fscache_cookie *cookie)
 static inline
 int fscache_attr_changed(struct fscache_cookie *cookie)
 {
-	return -ENOBUFS;
+	if (fscache_cookie_valid(cookie))
+		return __fscache_attr_changed(cookie);
+	else
+		return -ENOBUFS;
 }
 
 /**
@@ -418,7 +439,11 @@ int fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 			       void *context,
 			       gfp_t gfp)
 {
-	return -ENOBUFS;
+	if (fscache_cookie_valid(cookie))
+		return __fscache_read_or_alloc_page(cookie, page, end_io_func,
+						    context, gfp);
+	else
+		return -ENOBUFS;
 }
 
 /**
@@ -464,7 +489,12 @@ int fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 				void *context,
 				gfp_t gfp)
 {
-	return -ENOBUFS;
+	if (fscache_cookie_valid(cookie))
+		return __fscache_read_or_alloc_pages(cookie, mapping, pages,
+						     nr_pages, end_io_func,
+						     context, gfp);
+	else
+		return -ENOBUFS;
 }
 
 /**
@@ -490,7 +520,10 @@ int fscache_alloc_page(struct fscache_cookie *cookie,
 		       struct page *page,
 		       gfp_t gfp)
 {
-	return -ENOBUFS;
+	if (fscache_cookie_valid(cookie))
+		return __fscache_alloc_page(cookie, page, gfp);
+	else
+		return -ENOBUFS;
 }
 
 /**
@@ -516,7 +549,10 @@ int fscache_write_page(struct fscache_cookie *cookie,
 		       struct page *page,
 		       gfp_t gfp)
 {
-	return -ENOBUFS;
+	if (fscache_cookie_valid(cookie))
+		return __fscache_write_page(cookie, page, gfp);
+	else
+		return -ENOBUFS;
 }
 
 /**
@@ -537,6 +573,8 @@ static inline
 void fscache_uncache_page(struct fscache_cookie *cookie,
 			  struct page *page)
 {
+	if (fscache_cookie_valid(cookie))
+		__fscache_uncache_page(cookie, page);
 }
 
 /**
@@ -553,6 +591,8 @@ static inline
 bool fscache_check_page_write(struct fscache_cookie *cookie,
 			      struct page *page)
 {
+	if (fscache_cookie_valid(cookie))
+		return __fscache_check_page_write(cookie, page);
 	return false;
 }
 
@@ -571,6 +611,8 @@ static inline
 void fscache_wait_on_page_write(struct fscache_cookie *cookie,
 				struct page *page)
 {
+	if (fscache_cookie_valid(cookie))
+		__fscache_wait_on_page_write(cookie, page);
 }
 
 #endif /* _LINUX_FSCACHE_H */
