@@ -381,3 +381,115 @@ void __nfs_fscache_invalidate_page(struct page *page, struct inode *inode)
 	nfs_add_fscache_stats(page->mapping->host,
 			      NFSIOS_FSCACHE_PAGES_UNCACHED, 1);
 }
+
+/*
+ * Handle completion of a page being read from the cache.
+ * - Called in process (keventd) context.
+ */
+static void nfs_readpage_from_fscache_complete(struct page *page,
+					       void *context,
+					       int error)
+{
+	dfprintk(FSCACHE,
+		 "NFS: readpage_from_fscache_complete (0x%p/0x%p/%d)\n",
+		 page, context, error);
+
+	/* if the read completes with an error, we just unlock the page and let
+	 * the VM reissue the readpage */
+	if (!error) {
+		SetPageUptodate(page);
+		unlock_page(page);
+	} else {
+		error = nfs_readpage_async(context, page->mapping->host, page);
+		if (error)
+			unlock_page(page);
+	}
+}
+
+/*
+ * Retrieve a page from fscache
+ */
+int __nfs_readpage_from_fscache(struct nfs_open_context *ctx,
+				struct inode *inode, struct page *page)
+{
+	int ret;
+
+	dfprintk(FSCACHE,
+		 "NFS: readpage_from_fscache(fsc:%p/p:%p(i:%lx f:%lx)/0x%p)\n",
+		 NFS_I(inode)->fscache, page, page->index, page->flags, inode);
+
+	ret = fscache_read_or_alloc_page(NFS_I(inode)->fscache,
+					 page,
+					 nfs_readpage_from_fscache_complete,
+					 ctx,
+					 GFP_KERNEL);
+
+	switch (ret) {
+	case 0: /* read BIO submitted (page in fscache) */
+		dfprintk(FSCACHE,
+			 "NFS:    readpage_from_fscache: BIO submitted\n");
+		nfs_add_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_OK, 1);
+		return ret;
+
+	case -ENOBUFS: /* inode not in cache */
+	case -ENODATA: /* page not in cache */
+		nfs_add_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_FAIL, 1);
+		dfprintk(FSCACHE,
+			 "NFS:    readpage_from_fscache %d\n", ret);
+		return 1;
+
+	default:
+		dfprintk(FSCACHE, "NFS:    readpage_from_fscache %d\n", ret);
+		nfs_add_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_FAIL, 1);
+	}
+	return ret;
+}
+
+/*
+ * Retrieve a set of pages from fscache
+ */
+int __nfs_readpages_from_fscache(struct nfs_open_context *ctx,
+				 struct inode *inode,
+				 struct address_space *mapping,
+				 struct list_head *pages,
+				 unsigned *nr_pages)
+{
+	int ret, npages = *nr_pages;
+
+	dfprintk(FSCACHE, "NFS: nfs_getpages_from_fscache (0x%p/%u/0x%p)\n",
+		 NFS_I(inode)->fscache, npages, inode);
+
+	ret = fscache_read_or_alloc_pages(NFS_I(inode)->fscache,
+					  mapping, pages, nr_pages,
+					  nfs_readpage_from_fscache_complete,
+					  ctx,
+					  mapping_gfp_mask(mapping));
+	if (*nr_pages < npages)
+		nfs_add_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_OK,
+				      npages);
+	if (*nr_pages > 0)
+		nfs_add_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_FAIL,
+				      *nr_pages);
+
+	switch (ret) {
+	case 0: /* read submitted to the cache for all pages */
+		BUG_ON(!list_empty(pages));
+		BUG_ON(*nr_pages != 0);
+		dfprintk(FSCACHE,
+			 "NFS: nfs_getpages_from_fscache: submitted\n");
+
+		return ret;
+
+	case -ENOBUFS: /* some pages aren't cached and can't be */
+	case -ENODATA: /* some pages aren't cached */
+		dfprintk(FSCACHE,
+			 "NFS: nfs_getpages_from_fscache: no page: %d\n", ret);
+		return 1;
+
+	default:
+		dfprintk(FSCACHE,
+			 "NFS: nfs_getpages_from_fscache: ret  %d\n", ret);
+	}
+
+	return ret;
+}
