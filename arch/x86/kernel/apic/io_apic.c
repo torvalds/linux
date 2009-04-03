@@ -2524,7 +2524,7 @@ static void irq_complete_move(struct irq_desc **descp)
 static inline void irq_complete_move(struct irq_desc **descp) {}
 #endif
 
-#ifdef CONFIG_INTR_REMAP
+#ifdef CONFIG_X86_X2APIC
 static void __eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg)
 {
 	int apic, pin;
@@ -2569,7 +2569,6 @@ static void ack_x2apic_edge(unsigned int irq)
 {
 	ack_x2APIC_irq();
 }
-
 #endif
 
 static void ack_apic_edge(unsigned int irq)
@@ -2680,6 +2679,26 @@ static void ack_apic_level(unsigned int irq)
 #endif
 }
 
+#ifdef CONFIG_INTR_REMAP
+static void ir_ack_apic_edge(unsigned int irq)
+{
+#ifdef CONFIG_X86_X2APIC
+       if (x2apic_enabled())
+               return ack_x2apic_edge(irq);
+#endif
+       return ack_apic_edge(irq);
+}
+
+static void ir_ack_apic_level(unsigned int irq)
+{
+#ifdef CONFIG_X86_X2APIC
+       if (x2apic_enabled())
+               return ack_x2apic_level(irq);
+#endif
+       return ack_apic_level(irq);
+}
+#endif /* CONFIG_INTR_REMAP */
+
 static struct irq_chip ioapic_chip __read_mostly = {
 	.name		= "IO-APIC",
 	.startup	= startup_ioapic_irq,
@@ -2699,8 +2718,8 @@ static struct irq_chip ir_ioapic_chip __read_mostly = {
 	.mask		= mask_IO_APIC_irq,
 	.unmask		= unmask_IO_APIC_irq,
 #ifdef CONFIG_INTR_REMAP
-	.ack		= ack_x2apic_edge,
-	.eoi		= ack_x2apic_level,
+	.ack		= ir_ack_apic_edge,
+	.eoi		= ir_ack_apic_level,
 #ifdef CONFIG_SMP
 	.set_affinity	= set_ir_ioapic_affinity_irq,
 #endif
@@ -3426,7 +3445,7 @@ static struct irq_chip msi_ir_chip = {
 	.unmask		= unmask_msi_irq,
 	.mask		= mask_msi_irq,
 #ifdef CONFIG_INTR_REMAP
-	.ack		= ack_x2apic_edge,
+	.ack		= ir_ack_apic_edge,
 #ifdef CONFIG_SMP
 	.set_affinity	= ir_set_msi_irq_affinity,
 #endif
