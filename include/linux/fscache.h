@@ -178,6 +178,13 @@ extern void __fscache_unregister_netfs(struct fscache_netfs *);
 extern struct fscache_cache_tag *__fscache_lookup_cache_tag(const char *);
 extern void __fscache_release_cache_tag(struct fscache_cache_tag *);
 
+extern struct fscache_cookie *__fscache_acquire_cookie(
+	struct fscache_cookie *,
+	const struct fscache_cookie_def *,
+	void *);
+extern void __fscache_relinquish_cookie(struct fscache_cookie *, int);
+extern void __fscache_update_cookie(struct fscache_cookie *);
+
 /**
  * fscache_register_netfs - Register a filesystem as desiring caching services
  * @netfs: The description of the filesystem
@@ -269,7 +276,10 @@ struct fscache_cookie *fscache_acquire_cookie(
 	const struct fscache_cookie_def *def,
 	void *netfs_data)
 {
-	return NULL;
+	if (fscache_cookie_valid(parent))
+		return __fscache_acquire_cookie(parent, def, netfs_data);
+	else
+		return NULL;
 }
 
 /**
@@ -287,6 +297,8 @@ struct fscache_cookie *fscache_acquire_cookie(
 static inline
 void fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 {
+	if (fscache_cookie_valid(cookie))
+		__fscache_relinquish_cookie(cookie, retire);
 }
 
 /**
@@ -302,6 +314,8 @@ void fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 static inline
 void fscache_update_cookie(struct fscache_cookie *cookie)
 {
+	if (fscache_cookie_valid(cookie))
+		__fscache_update_cookie(cookie);
 }
 
 /**
