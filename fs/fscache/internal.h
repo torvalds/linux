@@ -82,6 +82,9 @@ extern unsigned fscache_defer_create;
 extern unsigned fscache_debug;
 extern struct kobject *fscache_root;
 
+extern int fscache_wait_bit(void *);
+extern int fscache_wait_bit_interruptible(void *);
+
 /*
  * fsc-proc.c
  */
