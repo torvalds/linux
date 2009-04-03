@@ -1765,7 +1765,7 @@ static void uart_line_info(struct seq_file *m, struct uart_driver *drv, int i)
 
 static int uart_proc_show(struct seq_file *m, void *v)
 {
-	struct tty_driver *ttydrv = v;
+	struct tty_driver *ttydrv = m->private;
 	struct uart_driver *drv = ttydrv->driver_state;
 	int i;
 

@@ -199,13 +199,13 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 	head = page_buffers(page);
 	bh = head;
 	do {
-		if (bh->b_blocknr == block) {
+		if (!buffer_mapped(bh))
+			all_mapped = 0;
+		else if (bh->b_blocknr == block) {
 			ret = bh;
 			get_bh(bh);
 			goto out_unlock;
 		}
-		if (!buffer_mapped(bh))
-			all_mapped = 0;
 		bh = bh->b_this_page;
 	} while (bh != head);
 
@@ -3315,7 +3315,6 @@ EXPORT_SYMBOL(cont_write_begin);
 EXPORT_SYMBOL(end_buffer_read_sync);
 EXPORT_SYMBOL(end_buffer_write_sync);
 EXPORT_SYMBOL(file_fsync);
-EXPORT_SYMBOL(fsync_bdev);
 EXPORT_SYMBOL(generic_block_bmap);
 EXPORT_SYMBOL(generic_cont_expand_simple);
 EXPORT_SYMBOL(init_buffer);

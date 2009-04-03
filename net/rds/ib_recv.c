@@ -395,10 +395,37 @@ void rds_ib_recv_init_ack(struct rds_ib_connection *ic)
  * room for it beyond the ring size.  Send completion notices its special
  * wr_id and avoids working with the ring in that case.
  */
+#ifndef KERNEL_HAS_ATOMIC64
 static void rds_ib_set_ack(struct rds_ib_connection *ic, u64 seq,
 				int ack_required)
 {
-	rds_ib_set_64bit(&ic->i_ack_next, seq);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ic->i_ack_lock, flags);
+	ic->i_ack_next = seq;
+	if (ack_required)
+		set_bit(IB_ACK_REQUESTED, &ic->i_ack_flags);
+	spin_unlock_irqrestore(&ic->i_ack_lock, flags);
+}
+
+static u64 rds_ib_get_ack(struct rds_ib_connection *ic)
+{
+	unsigned long flags;
+	u64 seq;
+
+	clear_bit(IB_ACK_REQUESTED, &ic->i_ack_flags);
+
+	spin_lock_irqsave(&ic->i_ack_lock, flags);
+	seq = ic->i_ack_next;
+	spin_unlock_irqrestore(&ic->i_ack_lock, flags);
+
+	return seq;
+}
+#else
+static void rds_ib_set_ack(struct rds_ib_connection *ic, u64 seq,
+				int ack_required)
+{
+	atomic64_set(&ic->i_ack_next, seq);
 	if (ack_required) {
 		smp_mb__before_clear_bit();
 		set_bit(IB_ACK_REQUESTED, &ic->i_ack_flags);
@@ -410,8 +437,10 @@ static u64 rds_ib_get_ack(struct rds_ib_connection *ic)
 	clear_bit(IB_ACK_REQUESTED, &ic->i_ack_flags);
 	smp_mb__after_clear_bit();
 
-	return ic->i_ack_next;
+	return atomic64_read(&ic->i_ack_next);
 }
+#endif
+
 
 static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credits)
 {
@@ -464,6 +493,10 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
  *  -	i_ack_next, which is the last sequence number we received
  *
  * Potentially, send queue and receive queue handlers can run concurrently.
+ * It would be nice to not have to use a spinlock to synchronize things,
+ * but the one problem that rules this out is that 64bit updates are
+ * not atomic on all platforms. Things would be a lot simpler if
+ * we had atomic64 or maybe cmpxchg64 everywhere.
  *
  * Reconnecting complicates this picture just slightly. When we
  * reconnect, we may be seeing duplicate packets. The peer

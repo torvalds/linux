@@ -2075,8 +2075,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!tp->pcie_cap && netif_msg_probe(tp))
 		dev_info(&pdev->dev, "no PCI Express capability\n");
 
-	/* Unneeded ? Don't mess with Mrs. Murphy. */
-	rtl8169_irq_mask_and_ack(ioaddr);
+	RTL_W16(IntrMask, 0x0000);
 
 	/* Soft reset the chip. */
 	RTL_W8(ChipCmd, CmdReset);
@@ -2087,6 +2086,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			break;
 		msleep_interruptible(1);
 	}
+
+	RTL_W16(IntrStatus, 0xffff);
 
 	/* Identify chip attached to board */
 	rtl8169_get_mac_version(tp, ioaddr);

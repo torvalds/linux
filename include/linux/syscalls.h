@@ -461,6 +461,10 @@ asmlinkage long sys_pread64(unsigned int fd, char __user *buf,
 			    size_t count, loff_t pos);
 asmlinkage long sys_pwrite64(unsigned int fd, const char __user *buf,
 			     size_t count, loff_t pos);
+asmlinkage long sys_preadv(unsigned long fd, const struct iovec __user *vec,
+			   unsigned long vlen, u32 pos_high, u32 pos_low);
+asmlinkage long sys_pwritev(unsigned long fd, const struct iovec __user *vec,
+			    unsigned long vlen, u32 pos_high, u32 pos_low);
 asmlinkage long sys_getcwd(char __user *buf, unsigned long size);
 asmlinkage long sys_mkdir(const char __user *pathname, int mode);
 asmlinkage long sys_chdir(const char __user *filename);

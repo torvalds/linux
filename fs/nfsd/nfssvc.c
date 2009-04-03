@@ -403,7 +403,6 @@ static int
 nfsd(void *vrqstp)
 {
 	struct svc_rqst *rqstp = (struct svc_rqst *) vrqstp;
-	struct fs_struct *fsp;
 	int err, preverr = 0;
 
 	/* Lock module and set up kernel thread */
@@ -412,13 +411,11 @@ nfsd(void *vrqstp)
 	/* At this point, the thread shares current->fs
 	 * with the init process. We need to create files with a
 	 * umask of 0 instead of init's umask. */
-	fsp = copy_fs_struct(current->fs);
-	if (!fsp) {
+	if (unshare_fs_struct() < 0) {
 		printk("Unable to start nfsd thread: out of memory\n");
 		goto out;
 	}
-	exit_fs(current);
-	current->fs = fsp;
+
 	current->fs->umask = 0;
 
 	/*

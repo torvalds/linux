@@ -255,6 +255,16 @@ Who:	Jan Engelhardt <jengelh@computergmbh.de>
 
 ---------------------------
 
+What:	GPIO autorequest on gpio_direction_{input,output}() in gpiolib
+When:	February 2010
+Why:	All callers should use explicit gpio_request()/gpio_free().
+	The autorequest mechanism in gpiolib was provided mostly as a
+	migration aid for legacy GPIO interfaces (for SOC based GPIOs).
+	Those users have now largely migrated.  Platforms implementing
+	the GPIO interfaces without using gpiolib will see no changes.
+Who:	David Brownell <dbrownell@users.sourceforge.net>
+---------------------------
+
 What:	b43 support for firmware revision < 410
 When:	The schedule was July 2008, but it was decided that we are going to keep the
         code as long as there are no major maintanance headaches.

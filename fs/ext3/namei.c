@@ -161,12 +161,12 @@ static struct dx_frame *dx_probe(struct qstr *entry,
 				 struct dx_frame *frame,
 				 int *err);
 static void dx_release (struct dx_frame *frames);
-static int dx_make_map (struct ext3_dir_entry_2 *de, int size,
+static int dx_make_map(struct ext3_dir_entry_2 *de, unsigned blocksize,
 			struct dx_hash_info *hinfo, struct dx_map_entry map[]);
 static void dx_sort_map(struct dx_map_entry *map, unsigned count);
 static struct ext3_dir_entry_2 *dx_move_dirents (char *from, char *to,
 		struct dx_map_entry *offsets, int count);
-static struct ext3_dir_entry_2* dx_pack_dirents (char *base, int size);
+static struct ext3_dir_entry_2 *dx_pack_dirents(char *base, unsigned blocksize);
 static void dx_insert_block (struct dx_frame *frame, u32 hash, u32 block);
 static int ext3_htree_next_block(struct inode *dir, __u32 hash,
 				 struct dx_frame *frame,
@@ -708,14 +708,14 @@ errout:
  * Create map of hash values, offsets, and sizes, stored at end of block.
  * Returns number of entries mapped.
  */
-static int dx_make_map (struct ext3_dir_entry_2 *de, int size,
-			struct dx_hash_info *hinfo, struct dx_map_entry *map_tail)
+static int dx_make_map(struct ext3_dir_entry_2 *de, unsigned blocksize,
+		struct dx_hash_info *hinfo, struct dx_map_entry *map_tail)
 {
 	int count = 0;
 	char *base = (char *) de;
 	struct dx_hash_info h = *hinfo;
 
-	while ((char *) de < base + size)
+	while ((char *) de < base + blocksize)
 	{
 		if (de->name_len && de->inode) {
 			ext3fs_dirhash(de->name, de->name_len, &h);
@@ -1047,8 +1047,16 @@ static struct dentry *ext3_lookup(struct inode * dir, struct dentry *dentry, str
 			return ERR_PTR(-EIO);
 		}
 		inode = ext3_iget(dir->i_sb, ino);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
+		if (unlikely(IS_ERR(inode))) {
+			if (PTR_ERR(inode) == -ESTALE) {
+				ext3_error(dir->i_sb, __func__,
+						"deleted inode referenced: %lu",
+						ino);
+				return ERR_PTR(-EIO);
+			} else {
+				return ERR_CAST(inode);
+			}
+		}
 	}
 	return d_splice_alias(inode, dentry);
 }
@@ -1120,13 +1128,14 @@ dx_move_dirents(char *from, char *to, struct dx_map_entry *map, int count)
  * Compact each dir entry in the range to the minimal rec_len.
  * Returns pointer to last entry in range.
  */
-static struct ext3_dir_entry_2* dx_pack_dirents(char *base, int size)
+static struct ext3_dir_entry_2 *dx_pack_dirents(char *base, unsigned blocksize)
 {
-	struct ext3_dir_entry_2 *next, *to, *prev, *de = (struct ext3_dir_entry_2 *) base;
+	struct ext3_dir_entry_2 *next, *to, *prev;
+	struct ext3_dir_entry_2 *de = (struct ext3_dir_entry_2 *)base;
 	unsigned rec_len = 0;
 
 	prev = to = de;
-	while ((char*)de < base + size) {
+	while ((char *)de < base + blocksize) {
 		next = ext3_next_entry(de);
 		if (de->inode && de->name_len) {
 			rec_len = EXT3_DIR_REC_LEN(de->name_len);

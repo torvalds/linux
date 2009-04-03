@@ -53,6 +53,7 @@
 #include <linux/tracehook.h>
 #include <linux/kmod.h>
 #include <linux/fsnotify.h>
+#include <linux/fs_struct.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -1056,28 +1057,35 @@ EXPORT_SYMBOL(install_exec_creds);
  * - the caller must hold current->cred_exec_mutex to protect against
  *   PTRACE_ATTACH
  */
-void check_unsafe_exec(struct linux_binprm *bprm)
+int check_unsafe_exec(struct linux_binprm *bprm)
 {
 	struct task_struct *p = current, *t;
 	unsigned long flags;
-	unsigned n_fs, n_sighand;
+	unsigned n_fs;
+	int res = 0;
 
 	bprm->unsafe = tracehook_unsafe_exec(p);
 
 	n_fs = 1;
-	n_sighand = 1;
+	write_lock(&p->fs->lock);
 	lock_task_sighand(p, &flags);
 	for (t = next_thread(p); t != p; t = next_thread(t)) {
 		if (t->fs == p->fs)
 			n_fs++;
-		n_sighand++;
 	}
 
-	if (atomic_read(&p->fs->count) > n_fs ||
-	    atomic_read(&p->sighand->count) > n_sighand)
+	if (p->fs->users > n_fs) {
 		bprm->unsafe |= LSM_UNSAFE_SHARE;
+	} else {
+		if (p->fs->in_exec)
+			res = -EAGAIN;
+		p->fs->in_exec = 1;
+	}
 
 	unlock_task_sighand(p, &flags);
+	write_unlock(&p->fs->lock);
+
+	return res;
 }
 
 /* 
@@ -1296,12 +1304,15 @@ int do_execve(char * filename,
 	bprm->cred = prepare_exec_creds();
 	if (!bprm->cred)
 		goto out_unlock;
-	check_unsafe_exec(bprm);
+
+	retval = check_unsafe_exec(bprm);
+	if (retval)
+		goto out_unlock;
 
 	file = open_exec(filename);
 	retval = PTR_ERR(file);
 	if (IS_ERR(file))
-		goto out_unlock;
+		goto out_unmark;
 
 	sched_exec();
 
@@ -1344,6 +1355,9 @@ int do_execve(char * filename,
 		goto out;
 
 	/* execve succeeded */
+	write_lock(&current->fs->lock);
+	current->fs->in_exec = 0;
+	write_unlock(&current->fs->lock);
 	current->in_execve = 0;
 	mutex_unlock(&current->cred_exec_mutex);
 	acct_update_integrals(current);
@@ -1361,6 +1375,11 @@ out_file:
 		allow_write_access(bprm->file);
 		fput(bprm->file);
 	}
+
+out_unmark:
+	write_lock(&current->fs->lock);
+	current->fs->in_exec = 0;
+	write_unlock(&current->fs->lock);
 
 out_unlock:
 	current->in_execve = 0;

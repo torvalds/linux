@@ -471,7 +471,7 @@ static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
  */
 static void wusbhc_keep_alive_run(struct work_struct *ws)
 {
-	struct delayed_work *dw = container_of(ws, struct delayed_work, work);
+	struct delayed_work *dw = to_delayed_work(ws);
 	struct wusbhc *wusbhc =	container_of(dw, struct wusbhc, keep_alive_timer);
 
 	mutex_lock(&wusbhc->mutex);

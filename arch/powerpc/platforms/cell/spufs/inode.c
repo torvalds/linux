@@ -635,7 +635,7 @@ long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode,
 	if (dentry->d_inode)
 		goto out_dput;
 
-	mode &= ~current->fs->umask;
+	mode &= ~current_umask();
 
 	if (flags & SPU_CREATE_GANG)
 		ret = spufs_create_gang(nd->path.dentry->d_inode,

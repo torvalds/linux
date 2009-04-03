@@ -3992,8 +3992,7 @@ static void cache_reap(struct work_struct *w)
 	struct kmem_cache *searchp;
 	struct kmem_list3 *l3;
 	int node = numa_node_id();
-	struct delayed_work *work =
-		container_of(w, struct delayed_work, work);
+	struct delayed_work *work = to_delayed_work(w);
 
 	if (!mutex_trylock(&cache_chain_mutex))
 		/* Give up. Setup the next iteration. */

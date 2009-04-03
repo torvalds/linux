@@ -333,12 +333,23 @@ The "xxx" is not interpreted by the cgroup code, but will appear in
 
 To mount a cgroup hierarchy with just the cpuset and numtasks
 subsystems, type:
-# mount -t cgroup -o cpuset,numtasks hier1 /dev/cgroup
+# mount -t cgroup -o cpuset,memory hier1 /dev/cgroup
 
 To change the set of subsystems bound to a mounted hierarchy, just
 remount with different options:
+# mount -o remount,cpuset,ns hier1 /dev/cgroup
 
-# mount -o remount,cpuset,ns  /dev/cgroup
+Now memory is removed from the hierarchy and ns is added.
+
+Note this will add ns to the hierarchy but won't remove memory or
+cpuset, because the new options are appended to the old ones:
+# mount -o remount,ns /dev/cgroup
+
+To Specify a hierarchy's release_agent:
+# mount -t cgroup -o cpuset,release_agent="/sbin/cpuset_release_agent" \
+  xxx /dev/cgroup
+
+Note that specifying 'release_agent' more than once will return failure.
 
 Note that changing the set of subsystems is currently only supported
 when the hierarchy consists of a single (root) cgroup. Supporting
@@ -348,6 +359,11 @@ cgroup hierarchy is intended to be implemented in the future.
 Then under /dev/cgroup you can find a tree that corresponds to the
 tree of the cgroups in the system. For instance, /dev/cgroup
 is the cgroup that holds the whole system.
+
+If you want to change the value of release_agent:
+# echo "/sbin/new_release_agent" > /dev/cgroup/release_agent
+
+It can also be changed via remount.
 
 If you want to create a new cgroup under /dev/cgroup:
 # cd /dev/cgroup
@@ -476,11 +492,13 @@ cgroup->parent is still valid. (Note - can also be called for a
 newly-created cgroup if an error occurs after this subsystem's
 create() method has been called for the new cgroup).
 
-void pre_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
+int pre_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
 
 Called before checking the reference count on each subsystem. This may
 be useful for subsystems which have some extra references even if
-there are not tasks in the cgroup.
+there are not tasks in the cgroup. If pre_destroy() returns error code,
+rmdir() will fail with it. From this behavior, pre_destroy() can be
+called multiple times against a cgroup.
 
 int can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 	       struct task_struct *task)

@@ -41,7 +41,7 @@ static void intel_crt_dpms(struct drm_encoder *encoder, int mode)
 
 	temp = I915_READ(ADPA);
 	temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
-	temp &= ~ADPA_DAC_ENABLE;
+	temp |= ADPA_DAC_ENABLE;
 
 	switch(mode) {
 	case DRM_MODE_DPMS_ON:
@@ -158,7 +158,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	else
 		tries = 1;
 	hotplug_en = I915_READ(PORT_HOTPLUG_EN);
-	hotplug_en &= ~(CRT_HOTPLUG_MASK);
+	hotplug_en &= CRT_FORCE_HOTPLUG_MASK;
 	hotplug_en |= CRT_HOTPLUG_FORCE_DETECT;
 
 	if (IS_GM45(dev))

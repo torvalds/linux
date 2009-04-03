@@ -972,9 +972,12 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 			params->elfhdr_addr = seg->addr;
 
 		/* clear any space allocated but not loaded */
-		if (phdr->p_filesz < phdr->p_memsz)
-			clear_user((void *) (seg->addr + phdr->p_filesz),
-				   phdr->p_memsz - phdr->p_filesz);
+		if (phdr->p_filesz < phdr->p_memsz) {
+			ret = clear_user((void *) (seg->addr + phdr->p_filesz),
+					 phdr->p_memsz - phdr->p_filesz);
+			if (ret)
+				return ret;
+		}
 
 		if (mm) {
 			if (phdr->p_flags & PF_X) {
@@ -1014,7 +1017,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 	struct elf32_fdpic_loadseg *seg;
 	struct elf32_phdr *phdr;
 	unsigned long load_addr, delta_vaddr;
-	int loop, dvset;
+	int loop, dvset, ret;
 
 	load_addr = params->load_addr;
 	delta_vaddr = 0;
@@ -1114,7 +1117,9 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 		 * PT_LOAD */
 		if (prot & PROT_WRITE && disp > 0) {
 			kdebug("clear[%d] ad=%lx sz=%lx", loop, maddr, disp);
-			clear_user((void __user *) maddr, disp);
+			ret = clear_user((void __user *) maddr, disp);
+			if (ret)
+				return ret;
 			maddr += disp;
 		}
 
@@ -1149,15 +1154,19 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 		if (prot & PROT_WRITE && excess1 > 0) {
 			kdebug("clear[%d] ad=%lx sz=%lx",
 			       loop, maddr + phdr->p_filesz, excess1);
-			clear_user((void __user *) maddr + phdr->p_filesz,
-				   excess1);
+			ret = clear_user((void __user *) maddr + phdr->p_filesz,
+					 excess1);
+			if (ret)
+				return ret;
 		}
 
 #else
 		if (excess > 0) {
 			kdebug("clear[%d] ad=%lx sz=%lx",
 			       loop, maddr + phdr->p_filesz, excess);
-			clear_user((void *) maddr + phdr->p_filesz, excess);
+			ret = clear_user((void *) maddr + phdr->p_filesz, excess);
+			if (ret)
+				return ret;
 		}
 #endif
 

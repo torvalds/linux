@@ -95,6 +95,9 @@ struct page {
 	void *virtual;			/* Kernel virtual address (NULL if
 					   not kmapped, ie. highmem) */
 #endif /* WANT_PAGE_VIRTUAL */
+#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
+	unsigned long debug_flags;	/* Use atomic bitops on this */
+#endif
 };
 
 /*
@@ -174,9 +177,6 @@ struct vm_area_struct {
 #endif
 #ifdef CONFIG_NUMA
 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
-#endif
-#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
-	unsigned long debug_flags;	/* Use atomic bitops on this */
 #endif
 };
 
