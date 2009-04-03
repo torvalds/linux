@@ -7,6 +7,8 @@
  * modify it under the terms of the GNU General Public Licence
  * as published by the Free Software Foundation; either version
  * 2 of the Licence, or (at your option) any later version.
+ *
+ * See Documentation/slow-work.txt
  */
 
 #ifndef _LINUX_SLOW_WORK_H
