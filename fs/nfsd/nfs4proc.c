@@ -775,7 +775,8 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		goto out_kfree;
 
-	p = buf + 3;
+	/* skip bitmap */
+	p = buf + 1 + ntohl(buf[0]);
 	status = nfserr_not_same;
 	if (ntohl(*p++) != verify->ve_attrlen)
 		goto out_kfree;
