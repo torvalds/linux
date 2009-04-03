@@ -83,6 +83,31 @@ extern void nfs_fscache_zap_inode_cookie(struct inode *);
 extern void nfs_fscache_set_inode_cookie(struct inode *, struct file *);
 extern void nfs_fscache_reset_inode_cookie(struct inode *);
 
+extern void __nfs_fscache_invalidate_page(struct page *, struct inode *);
+extern int nfs_fscache_release_page(struct page *, gfp_t);
+
+/*
+ * wait for a page to complete writing to the cache
+ */
+static inline void nfs_fscache_wait_on_page_write(struct nfs_inode *nfsi,
+						  struct page *page)
+{
+	if (PageFsCache(page))
+		fscache_wait_on_page_write(nfsi->fscache, page);
+}
+
+/*
+ * release the caching state associated with a page if undergoing complete page
+ * invalidation
+ */
+static inline void nfs_fscache_invalidate_page(struct page *page,
+					       struct inode *inode)
+{
+	if (PageFsCache(page))
+		__nfs_fscache_invalidate_page(page, inode);
+}
+
+
 #else /* CONFIG_NFS_FSCACHE */
 static inline int nfs_fscache_register(void) { return 0; }
 static inline void nfs_fscache_unregister(void) {}
@@ -103,6 +128,15 @@ static inline void nfs_fscache_zap_inode_cookie(struct inode *inode) {}
 static inline void nfs_fscache_set_inode_cookie(struct inode *inode,
 						struct file *filp) {}
 static inline void nfs_fscache_reset_inode_cookie(struct inode *inode) {}
+
+static inline int nfs_fscache_release_page(struct page *page, gfp_t gfp)
+{
+	return 1; /* True: may release page */
+}
+static inline void nfs_fscache_invalidate_page(struct page *page,
+					       struct inode *inode) {}
+static inline void nfs_fscache_wait_on_page_write(struct nfs_inode *nfsi,
+						  struct page *page) {}
 
 #endif /* CONFIG_NFS_FSCACHE */
 #endif /* _NFS_FSCACHE_H */

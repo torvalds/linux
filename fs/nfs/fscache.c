@@ -19,6 +19,7 @@
 #include <linux/seq_file.h>
 
 #include "internal.h"
+#include "iostat.h"
 #include "fscache.h"
 
 #define NFSDBG_FACILITY		NFSDBG_FSCACHE
@@ -327,4 +328,56 @@ void nfs_fscache_reset_inode_cookie(struct inode *inode)
 			 nfss, nfsi, old, nfsi->fscache);
 	}
 	nfs_fscache_inode_unlock(inode);
+}
+
+/*
+ * Release the caching state associated with a page, if the page isn't busy
+ * interacting with the cache.
+ * - Returns true (can release page) or false (page busy).
+ */
+int nfs_fscache_release_page(struct page *page, gfp_t gfp)
+{
+	struct nfs_inode *nfsi = NFS_I(page->mapping->host);
+	struct fscache_cookie *cookie = nfsi->fscache;
+
+	BUG_ON(!cookie);
+
+	if (fscache_check_page_write(cookie, page)) {
+		if (!(gfp & __GFP_WAIT))
+			return 0;
+		fscache_wait_on_page_write(cookie, page);
+	}
+
+	if (PageFsCache(page)) {
+		dfprintk(FSCACHE, "NFS: fscache releasepage (0x%p/0x%p/0x%p)\n",
+			 cookie, page, nfsi);
+
+		fscache_uncache_page(cookie, page);
+		nfs_add_fscache_stats(page->mapping->host,
+				      NFSIOS_FSCACHE_PAGES_UNCACHED, 1);
+	}
+
+	return 1;
+}
+
+/*
+ * Release the caching state associated with a page if undergoing complete page
+ * invalidation.
+ */
+void __nfs_fscache_invalidate_page(struct page *page, struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct fscache_cookie *cookie = nfsi->fscache;
+
+	BUG_ON(!cookie);
+
+	dfprintk(FSCACHE, "NFS: fscache invalidatepage (0x%p/0x%p/0x%p)\n",
+		 cookie, page, nfsi);
+
+	fscache_wait_on_page_write(cookie, page);
+
+	BUG_ON(!PageLocked(page));
+	fscache_uncache_page(cookie, page);
+	nfs_add_fscache_stats(page->mapping->host,
+			      NFSIOS_FSCACHE_PAGES_UNCACHED, 1);
 }
