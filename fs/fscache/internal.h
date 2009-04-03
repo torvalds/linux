@@ -28,6 +28,12 @@
 #define FSCACHE_MAX_THREADS	32
 
 /*
+ * fsc-fsdef.c
+ */
+extern struct fscache_cookie fscache_fsdef_index;
+extern struct fscache_cookie_def fscache_fsdef_netfs_def;
+
+/*
  * fsc-histogram.c
  */
 #ifdef CONFIG_FSCACHE_HISTOGRAM
