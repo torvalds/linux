@@ -56,6 +56,11 @@ struct nfsd4_compound_state {
 	u32			status;
 };
 
+static inline bool nfsd4_has_session(struct nfsd4_compound_state *cs)
+{
+	return cs->slot != NULL;
+}
+
 struct nfsd4_change_info {
 	u32		atomic;
 	u32		before_ctime_sec;
@@ -536,7 +541,8 @@ extern __be32 nfsd4_sequence(struct svc_rqst *,
 extern __be32 nfsd4_destroy_session(struct svc_rqst *,
 		struct nfsd4_compound_state *,
 		struct nfsd4_destroy_session *);
-extern __be32 nfsd4_process_open1(struct nfsd4_open *open);
+extern __be32 nfsd4_process_open1(struct nfsd4_compound_state *,
+		struct nfsd4_open *open);
 extern __be32 nfsd4_process_open2(struct svc_rqst *rqstp,
 		struct svc_fh *current_fh, struct nfsd4_open *open);
 extern __be32 nfsd4_open_confirm(struct svc_rqst *rqstp,
