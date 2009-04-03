@@ -1312,8 +1312,10 @@ static void sg_rq_end_io(struct request *rq, int uptodate)
 		wake_up_interruptible(&sfp->read_wait);
 		kill_fasync(&sfp->async_qp, SIGPOLL, POLL_IN);
 		kref_put(&sfp->f_ref, sg_remove_sfp);
-	} else
-		execute_in_process_context(sg_rq_end_io_usercontext, &srp->ew);
+	} else {
+		INIT_WORK(&srp->ew.work, sg_rq_end_io_usercontext);
+		schedule_work(&srp->ew.work);
+	}
 }
 
 static struct file_operations sg_fops = {
@@ -2099,7 +2101,8 @@ static void sg_remove_sfp(struct kref *kref)
 	write_unlock_irqrestore(&sg_index_lock, iflags);
 	wake_up_interruptible(&sdp->o_excl_wait);
 
-	execute_in_process_context(sg_remove_sfp_usercontext, &sfp->ew);
+	INIT_WORK(&sfp->ew.work, sg_remove_sfp_usercontext);
+	schedule_work(&sfp->ew.work);
 }
 
 static int
