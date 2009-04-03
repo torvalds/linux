@@ -51,11 +51,6 @@ asmlinkage long sys32_sched_rr_get_interval(compat_pid_t,
 asmlinkage long sys32_rt_sigpending(compat_sigset_t __user *, compat_size_t);
 asmlinkage long sys32_rt_sigqueueinfo(int, int, compat_siginfo_t __user *);
 
-#ifdef CONFIG_SYSCTL_SYSCALL
-struct sysctl_ia32;
-asmlinkage long sys32_sysctl(struct sysctl_ia32 __user *);
-#endif
-
 asmlinkage long sys32_pread(unsigned int, char __user *, u32, u32, u32);
 asmlinkage long sys32_pwrite(unsigned int, char __user *, u32, u32, u32);
 
