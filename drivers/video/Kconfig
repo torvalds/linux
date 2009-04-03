@@ -616,6 +616,8 @@ config FB_STI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select STI_CONSOLE
+	select VT
 	default y
 	---help---
 	  STI refers to the HP "Standard Text Interface" which is a set of
