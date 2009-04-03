@@ -83,7 +83,7 @@ struct xc5000_priv {
 #define XREG_D_CODE       0x04
 #define XREG_IF_OUT       0x05
 #define XREG_SEEK_MODE    0x07
-#define XREG_POWER_DOWN   0x0A
+#define XREG_POWER_DOWN   0x0A /* Obsolete */
 #define XREG_SIGNALSOURCE 0x0D /* 0=Air, 1=Cable */
 #define XREG_SMOOTHEDCVBS 0x0E
 #define XREG_XTALFREQ     0x0F
@@ -841,12 +841,14 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 
 static int xc5000_sleep(struct dvb_frontend *fe)
 {
-	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
 
 	dprintk(1, "%s()\n", __func__);
 
-	ret = xc_write_reg(priv, XREG_POWER_DOWN, 0);
+	/* According to Xceive technical support, the "powerdown" register
+	   was removed in newer versions of the firmware.  The "supported"
+	   way to sleep the tuner is to pull the reset pin low for 10ms */
+	ret = xc5000_TunerReset(fe);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR
 			"xc5000: %s() unable to shutdown tuner\n",
