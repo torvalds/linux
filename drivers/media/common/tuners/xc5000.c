@@ -100,6 +100,7 @@ struct xc5000_priv {
 #define XREG_VERSION      0x07
 #define XREG_PRODUCT_ID   0x08
 #define XREG_BUSY         0x09
+#define XREG_BUILD        0x0D
 
 /*
    Basic firmware description. This will remain with
@@ -452,6 +453,11 @@ static int xc_get_version(struct xc5000_priv *priv,
 	return 0;
 }
 
+static int xc_get_buildversion(struct xc5000_priv *priv, u16 *buildrev)
+{
+	return xc5000_readreg(priv, XREG_BUILD, buildrev);
+}
+
 static int xc_get_hsync_freq(struct xc5000_priv *priv, u32 *hsync_freq_hz)
 {
 	u16 regData;
@@ -574,6 +580,7 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	u16 quality;
 	u8 hw_majorversion = 0, hw_minorversion = 0;
 	u8 fw_majorversion = 0, fw_minorversion = 0;
+	u16 fw_buildversion = 0;
 
 	/* Wait for stats to stabilize.
 	 * Frame Lines needs two frame times after initial lock
@@ -593,9 +600,10 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 
 	xc_get_version(priv,  &hw_majorversion, &hw_minorversion,
 		&fw_majorversion, &fw_minorversion);
-	dprintk(1, "*** HW: V%02x.%02x, FW: V%02x.%02x\n",
+	xc_get_buildversion(priv,  &fw_buildversion);
+	dprintk(1, "*** HW: V%02x.%02x, FW: V%02x.%02x.%04x\n",
 		hw_majorversion, hw_minorversion,
-		fw_majorversion, fw_minorversion);
+		fw_majorversion, fw_minorversion, fw_buildversion);
 
 	xc_get_hsync_freq(priv,  &hsync_freq_hz);
 	dprintk(1, "*** Horizontal sync frequency = %d Hz\n", hsync_freq_hz);
