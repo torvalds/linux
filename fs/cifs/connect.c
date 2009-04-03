@@ -2522,6 +2522,7 @@ remote_path_check:
 
 	/* get referral if needed */
 	if (rc == -EREMOTE) {
+#ifdef CONFIG_CIFS_DFS_UPCALL
 		/* convert forward to back slashes in prepath here if needed */
 		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) == 0)
 			convert_delimiter(cifs_sb->prepath,
@@ -2557,6 +2558,9 @@ remote_path_check:
 			kfree(full_path);
 			goto try_mount_again;
 		}
+#else /* No DFS support, return error on mount */
+		rc = -EOPNOTSUPP;
+#endif
 	}
 
 mount_fail_check:
