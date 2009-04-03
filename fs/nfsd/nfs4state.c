@@ -1047,9 +1047,13 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	       struct nfsd4_compound_state *cstate,
 	       struct nfsd4_sequence *seq)
 {
+	struct nfsd4_compoundres *resp = rqstp->rq_resp;
 	struct nfsd4_session *session;
 	struct nfsd4_slot *slot;
 	int status;
+
+	if (resp->opcnt != 1)
+		return nfserr_sequence_pos;
 
 	spin_lock(&sessionid_lock);
 	status = nfserr_badsession;
