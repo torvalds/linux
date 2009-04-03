@@ -333,7 +333,9 @@ struct nfs4_stateid {
 	((err) != nfserr_stale_stateid) &&      \
 	((err) != nfserr_bad_stateid))
 
-extern __be32 nfs4_preprocess_stateid_op(struct svc_fh *current_fh,
+struct nfsd4_compound_state;
+
+extern __be32 nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 		stateid_t *stateid, int flags, struct file **filp);
 extern void nfs4_lock_state(void);
 extern void nfs4_unlock_state(void);

@@ -513,9 +513,8 @@ nfsd4_read(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfs4_lock_state();
 	/* check stateid */
-	if ((status = nfs4_preprocess_stateid_op(&cstate->current_fh,
-				&read->rd_stateid,
-				RD_STATE, &read->rd_filp))) {
+	if ((status = nfs4_preprocess_stateid_op(cstate, &read->rd_stateid,
+						 RD_STATE, &read->rd_filp))) {
 		dprintk("NFSD: nfsd4_read: couldn't process stateid!\n");
 		goto out;
 	}
@@ -646,7 +645,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	if (setattr->sa_iattr.ia_valid & ATTR_SIZE) {
 		nfs4_lock_state();
-		status = nfs4_preprocess_stateid_op(&cstate->current_fh,
+		status = nfs4_preprocess_stateid_op(cstate,
 			&setattr->sa_stateid, WR_STATE, NULL);
 		nfs4_unlock_state();
 		if (status) {
@@ -686,8 +685,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserr_inval;
 
 	nfs4_lock_state();
-	status = nfs4_preprocess_stateid_op(&cstate->current_fh, stateid,
-					WR_STATE, &filp);
+	status = nfs4_preprocess_stateid_op(cstate, stateid, WR_STATE, &filp);
 	if (filp)
 		get_file(filp);
 	nfs4_unlock_state();

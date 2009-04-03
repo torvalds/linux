@@ -2810,10 +2810,12 @@ static int is_delegation_stateid(stateid_t *stateid)
 * Checks for stateid operations
 */
 __be32
-nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int flags, struct file **filpp)
+nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
+			   stateid_t *stateid, int flags, struct file **filpp)
 {
 	struct nfs4_stateid *stp = NULL;
 	struct nfs4_delegation *dp = NULL;
+	struct svc_fh *current_fh = &cstate->current_fh;
 	struct inode *ino = current_fh->fh_dentry->d_inode;
 	__be32 status;
 
@@ -2878,10 +2880,14 @@ setlkflg (int type)
  * Checks for sequence id mutating operations. 
  */
 static __be32
-nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *stateid, int flags, struct nfs4_stateowner **sopp, struct nfs4_stateid **stpp, struct nfsd4_lock *lock)
+nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
+			 stateid_t *stateid, int flags,
+			 struct nfs4_stateowner **sopp,
+			 struct nfs4_stateid **stpp, struct nfsd4_lock *lock)
 {
 	struct nfs4_stateid *stp;
 	struct nfs4_stateowner *sop;
+	struct svc_fh *current_fh = &cstate->current_fh;
 	__be32 status;
 
 	dprintk("NFSD: preprocess_seqid_op: seqid=%d " 
@@ -3004,7 +3010,7 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfs4_lock_state();
 
-	if ((status = nfs4_preprocess_seqid_op(&cstate->current_fh,
+	if ((status = nfs4_preprocess_seqid_op(cstate,
 					oc->oc_seqid, &oc->oc_req_stateid,
 					CONFIRM | OPEN_STATE,
 					&oc->oc_stateowner, &stp, NULL)))
@@ -3074,7 +3080,7 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 		return nfserr_inval;
 
 	nfs4_lock_state();
-	if ((status = nfs4_preprocess_seqid_op(&cstate->current_fh,
+	if ((status = nfs4_preprocess_seqid_op(cstate,
 					od->od_seqid,
 					&od->od_stateid, 
 					OPEN_STATE,
@@ -3127,7 +3133,7 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfs4_lock_state();
 	/* check close_lru for replay */
-	if ((status = nfs4_preprocess_seqid_op(&cstate->current_fh,
+	if ((status = nfs4_preprocess_seqid_op(cstate,
 					close->cl_seqid,
 					&close->cl_stateid, 
 					OPEN_STATE | CLOSE_STATE,
@@ -3474,7 +3480,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			goto out;
 
 		/* validate and update open stateid and open seqid */
-		status = nfs4_preprocess_seqid_op(&cstate->current_fh,
+		status = nfs4_preprocess_seqid_op(cstate,
 				        lock->lk_new_open_seqid,
 		                        &lock->lk_new_open_stateid,
 					OPEN_STATE,
@@ -3501,7 +3507,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			goto out;
 	} else {
 		/* lock (lock owner + lock stateid) already exists */
-		status = nfs4_preprocess_seqid_op(&cstate->current_fh,
+		status = nfs4_preprocess_seqid_op(cstate,
 				       lock->lk_old_lock_seqid, 
 				       &lock->lk_old_lock_stateid, 
 				       LOCK_STATE,
@@ -3697,7 +3703,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfs4_lock_state();
 									        
-	if ((status = nfs4_preprocess_seqid_op(&cstate->current_fh,
+	if ((status = nfs4_preprocess_seqid_op(cstate,
 					locku->lu_seqid, 
 					&locku->lu_stateid, 
 					LOCK_STATE,
