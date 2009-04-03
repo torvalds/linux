@@ -77,6 +77,12 @@ extern void nfs_fscache_get_super_cookie(struct super_block *,
 					 struct nfs_parsed_mount_data *);
 extern void nfs_fscache_release_super_cookie(struct super_block *);
 
+extern void nfs_fscache_init_inode_cookie(struct inode *);
+extern void nfs_fscache_release_inode_cookie(struct inode *);
+extern void nfs_fscache_zap_inode_cookie(struct inode *);
+extern void nfs_fscache_set_inode_cookie(struct inode *, struct file *);
+extern void nfs_fscache_reset_inode_cookie(struct inode *);
+
 #else /* CONFIG_NFS_FSCACHE */
 static inline int nfs_fscache_register(void) { return 0; }
 static inline void nfs_fscache_unregister(void) {}
@@ -90,6 +96,13 @@ static inline void nfs_fscache_get_super_cookie(
 {
 }
 static inline void nfs_fscache_release_super_cookie(struct super_block *sb) {}
+
+static inline void nfs_fscache_init_inode_cookie(struct inode *inode) {}
+static inline void nfs_fscache_release_inode_cookie(struct inode *inode) {}
+static inline void nfs_fscache_zap_inode_cookie(struct inode *inode) {}
+static inline void nfs_fscache_set_inode_cookie(struct inode *inode,
+						struct file *filp) {}
+static inline void nfs_fscache_reset_inode_cookie(struct inode *inode) {}
 
 #endif /* CONFIG_NFS_FSCACHE */
 #endif /* _NFS_FSCACHE_H */

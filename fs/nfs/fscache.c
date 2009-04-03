@@ -166,3 +166,165 @@ void nfs_fscache_release_super_cookie(struct super_block *sb)
 		nfss->fscache_key = NULL;
 	}
 }
+
+/*
+ * Initialise the per-inode cache cookie pointer for an NFS inode.
+ */
+void nfs_fscache_init_inode_cookie(struct inode *inode)
+{
+	NFS_I(inode)->fscache = NULL;
+	if (S_ISREG(inode->i_mode))
+		set_bit(NFS_INO_FSCACHE, &NFS_I(inode)->flags);
+}
+
+/*
+ * Get the per-inode cache cookie for an NFS inode.
+ */
+static void nfs_fscache_enable_inode_cookie(struct inode *inode)
+{
+	struct super_block *sb = inode->i_sb;
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	if (nfsi->fscache || !NFS_FSCACHE(inode))
+		return;
+
+	if ((NFS_SB(sb)->options & NFS_OPTION_FSCACHE)) {
+		nfsi->fscache = fscache_acquire_cookie(
+			NFS_SB(sb)->fscache,
+			&nfs_fscache_inode_object_def,
+			nfsi);
+
+		dfprintk(FSCACHE, "NFS: get FH cookie (0x%p/0x%p/0x%p)\n",
+			 sb, nfsi, nfsi->fscache);
+	}
+}
+
+/*
+ * Release a per-inode cookie.
+ */
+void nfs_fscache_release_inode_cookie(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	dfprintk(FSCACHE, "NFS: clear cookie (0x%p/0x%p)\n",
+		 nfsi, nfsi->fscache);
+
+	fscache_relinquish_cookie(nfsi->fscache, 0);
+	nfsi->fscache = NULL;
+}
+
+/*
+ * Retire a per-inode cookie, destroying the data attached to it.
+ */
+void nfs_fscache_zap_inode_cookie(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	dfprintk(FSCACHE, "NFS: zapping cookie (0x%p/0x%p)\n",
+		 nfsi, nfsi->fscache);
+
+	fscache_relinquish_cookie(nfsi->fscache, 1);
+	nfsi->fscache = NULL;
+}
+
+/*
+ * Turn off the cache with regard to a per-inode cookie if opened for writing,
+ * invalidating all the pages in the page cache relating to the associated
+ * inode to clear the per-page caching.
+ */
+static void nfs_fscache_disable_inode_cookie(struct inode *inode)
+{
+	clear_bit(NFS_INO_FSCACHE, &NFS_I(inode)->flags);
+
+	if (NFS_I(inode)->fscache) {
+		dfprintk(FSCACHE,
+			 "NFS: nfsi 0x%p turning cache off\n", NFS_I(inode));
+
+		/* Need to invalidate any mapped pages that were read in before
+		 * turning off the cache.
+		 */
+		if (inode->i_mapping && inode->i_mapping->nrpages)
+			invalidate_inode_pages2(inode->i_mapping);
+
+		nfs_fscache_zap_inode_cookie(inode);
+	}
+}
+
+/*
+ * wait_on_bit() sleep function for uninterruptible waiting
+ */
+static int nfs_fscache_wait_bit(void *flags)
+{
+	schedule();
+	return 0;
+}
+
+/*
+ * Lock against someone else trying to also acquire or relinquish a cookie
+ */
+static inline void nfs_fscache_inode_lock(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	while (test_and_set_bit(NFS_INO_FSCACHE_LOCK, &nfsi->flags))
+		wait_on_bit(&nfsi->flags, NFS_INO_FSCACHE_LOCK,
+			    nfs_fscache_wait_bit, TASK_UNINTERRUPTIBLE);
+}
+
+/*
+ * Unlock cookie management lock
+ */
+static inline void nfs_fscache_inode_unlock(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	smp_mb__before_clear_bit();
+	clear_bit(NFS_INO_FSCACHE_LOCK, &nfsi->flags);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&nfsi->flags, NFS_INO_FSCACHE_LOCK);
+}
+
+/*
+ * Decide if we should enable or disable local caching for this inode.
+ * - For now, with NFS, only regular files that are open read-only will be able
+ *   to use the cache.
+ * - May be invoked multiple times in parallel by parallel nfs_open() functions.
+ */
+void nfs_fscache_set_inode_cookie(struct inode *inode, struct file *filp)
+{
+	if (NFS_FSCACHE(inode)) {
+		nfs_fscache_inode_lock(inode);
+		if ((filp->f_flags & O_ACCMODE) != O_RDONLY)
+			nfs_fscache_disable_inode_cookie(inode);
+		else
+			nfs_fscache_enable_inode_cookie(inode);
+		nfs_fscache_inode_unlock(inode);
+	}
+}
+
+/*
+ * Replace a per-inode cookie due to revalidation detecting a file having
+ * changed on the server.
+ */
+void nfs_fscache_reset_inode_cookie(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_server *nfss = NFS_SERVER(inode);
+	struct fscache_cookie *old = nfsi->fscache;
+
+	nfs_fscache_inode_lock(inode);
+	if (nfsi->fscache) {
+		/* retire the current fscache cache and get a new one */
+		fscache_relinquish_cookie(nfsi->fscache, 1);
+
+		nfsi->fscache = fscache_acquire_cookie(
+			nfss->nfs_client->fscache,
+			&nfs_fscache_inode_object_def,
+			nfsi);
+
+		dfprintk(FSCACHE,
+			 "NFS: revalidation new cookie (0x%p/0x%p/0x%p/0x%p)\n",
+			 nfss, nfsi, old, nfsi->fscache);
+	}
+	nfs_fscache_inode_unlock(inode);
+}

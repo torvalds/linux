@@ -185,6 +185,9 @@ struct nfs_inode {
 	fmode_t			 delegation_state;
 	struct rw_semaphore	rwsem;
 #endif /* CONFIG_NFS_V4*/
+#ifdef CONFIG_NFS_FSCACHE
+	struct fscache_cookie	*fscache;
+#endif
 	struct inode		vfs_inode;
 };
 
@@ -207,6 +210,8 @@ struct nfs_inode {
 #define NFS_INO_ACL_LRU_SET	(2)		/* Inode is on the LRU list */
 #define NFS_INO_MOUNTPOINT	(3)		/* inode is remote mountpoint */
 #define NFS_INO_FLUSHING	(4)		/* inode is flushing out data */
+#define NFS_INO_FSCACHE		(5)		/* inode can be cached by FS-Cache */
+#define NFS_INO_FSCACHE_LOCK	(6)		/* FS-Cache cookie management lock */
 
 static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {
@@ -258,6 +263,11 @@ static inline unsigned NFS_MAXATTRTIMEO(const struct inode *inode)
 static inline int NFS_STALE(const struct inode *inode)
 {
 	return test_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
+}
+
+static inline int NFS_FSCACHE(const struct inode *inode)
+{
+	return test_bit(NFS_INO_FSCACHE, &NFS_I(inode)->flags);
 }
 
 static inline __u64 NFS_FILEID(const struct inode *inode)
