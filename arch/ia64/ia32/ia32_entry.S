@@ -327,7 +327,7 @@ ia32_syscall_table:
 	data8 compat_sys_writev
 	data8 sys_getsid
 	data8 sys_fdatasync
-	data8 sys32_sysctl
+	data8 compat_sys_sysctl
 	data8 sys_mlock		  /* 150 */
 	data8 sys_munlock
 	data8 sys_mlockall
