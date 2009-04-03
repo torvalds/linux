@@ -887,36 +887,18 @@ static int ptrace_bts_size(struct task_struct *child)
 	return (trace->ds.top - trace->ds.begin) / trace->ds.size;
 }
 
-static inline void ptrace_bts_fork(struct task_struct *tsk)
-{
-	tsk->bts = NULL;
-}
-
 /*
  * Called from __ptrace_unlink() after the child has been moved back
  * to its original parent.
  */
-static inline void ptrace_bts_untrace(struct task_struct *child)
+void ptrace_bts_untrace(struct task_struct *child)
 {
 	if (unlikely(child->bts)) {
 		free_bts_context(child->bts);
 		child->bts = NULL;
 	}
 }
-#else
-static inline void ptrace_bts_fork(struct task_struct *tsk) {}
-static inline void ptrace_bts_untrace(struct task_struct *child) {}
 #endif /* CONFIG_X86_PTRACE_BTS */
-
-void x86_ptrace_fork(struct task_struct *child, unsigned long clone_flags)
-{
-	ptrace_bts_fork(child);
-}
-
-void x86_ptrace_untrace(struct task_struct *child)
-{
-	ptrace_bts_untrace(child);
-}
 
 /*
  * Called by kernel/ptrace.c when detaching..
