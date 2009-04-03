@@ -66,6 +66,12 @@ config GENERIC_ACL
 	bool
 	select FS_POSIX_ACL
 
+menu "Caches"
+
+source "fs/fscache/Kconfig"
+
+endmenu
+
 if BLOCK
 menu "CD-ROM/DVD Filesystems"
 
