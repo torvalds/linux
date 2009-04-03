@@ -1647,7 +1647,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->ordered_operations_mutex);
 	mutex_init(&fs_info->tree_log_mutex);
 	mutex_init(&fs_info->drop_mutex);
-	mutex_init(&fs_info->pinned_mutex);
 	mutex_init(&fs_info->chunk_mutex);
 	mutex_init(&fs_info->transaction_kthread_mutex);
 	mutex_init(&fs_info->cleaner_mutex);

@@ -166,7 +166,6 @@ static int add_new_free_space(struct btrfs_block_group_cache *block_group,
 	u64 extent_start, extent_end, size;
 	int ret;
 
-	mutex_lock(&info->pinned_mutex);
 	while (start < end) {
 		ret = find_first_extent_bit(&info->pinned_extents, start,
 					    &extent_start, &extent_end,
@@ -192,7 +191,6 @@ static int add_new_free_space(struct btrfs_block_group_cache *block_group,
 		ret = btrfs_add_free_space(block_group, start, size);
 		BUG_ON(ret);
 	}
-	mutex_unlock(&info->pinned_mutex);
 
 	return 0;
 }
@@ -2047,7 +2045,6 @@ int btrfs_update_pinned_extents(struct btrfs_root *root,
 	struct btrfs_block_group_cache *cache;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	WARN_ON(!mutex_is_locked(&root->fs_info->pinned_mutex));
 	if (pin) {
 		set_extent_dirty(&fs_info->pinned_extents,
 				bytenr, bytenr + num - 1, GFP_NOFS);
@@ -2055,7 +2052,6 @@ int btrfs_update_pinned_extents(struct btrfs_root *root,
 		clear_extent_dirty(&fs_info->pinned_extents,
 				bytenr, bytenr + num - 1, GFP_NOFS);
 	}
-	mutex_unlock(&root->fs_info->pinned_mutex);
 
 	while (num > 0) {
 		cache = btrfs_lookup_block_group(fs_info, bytenr);
@@ -2127,7 +2123,6 @@ int btrfs_copy_pinned(struct btrfs_root *root, struct extent_io_tree *copy)
 	struct extent_io_tree *pinned_extents = &root->fs_info->pinned_extents;
 	int ret;
 
-	mutex_lock(&root->fs_info->pinned_mutex);
 	while (1) {
 		ret = find_first_extent_bit(pinned_extents, last,
 					    &start, &end, EXTENT_DIRTY);
@@ -2136,7 +2131,6 @@ int btrfs_copy_pinned(struct btrfs_root *root, struct extent_io_tree *copy)
 		set_extent_dirty(copy, start, end, GFP_NOFS);
 		last = end + 1;
 	}
-	mutex_unlock(&root->fs_info->pinned_mutex);
 	return 0;
 }
 
@@ -2149,7 +2143,6 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 	int ret;
 
 	while (1) {
-		mutex_lock(&root->fs_info->pinned_mutex);
 		ret = find_first_extent_bit(unpin, 0, &start, &end,
 					    EXTENT_DIRTY);
 		if (ret)
@@ -2163,7 +2156,6 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 
 		cond_resched();
 	}
-	mutex_unlock(&root->fs_info->pinned_mutex);
 	return ret;
 }
 
@@ -2205,7 +2197,6 @@ static int pin_down_bytes(struct btrfs_trans_handle *trans,
 	free_extent_buffer(buf);
 pinit:
 	btrfs_set_path_blocking(path);
-	mutex_lock(&root->fs_info->pinned_mutex);
 	/* unlocks the pinned mutex */
 	btrfs_update_pinned_extents(root, bytenr, num_bytes, 1);
 
@@ -2511,8 +2502,6 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans,
 	 */
 	if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID &&
 	    owner_objectid < BTRFS_FIRST_FREE_OBJECTID) {
-		mutex_lock(&root->fs_info->pinned_mutex);
-
 		/* unlocks the pinned mutex */
 		btrfs_update_pinned_extents(root, bytenr, num_bytes, 1);
 		update_reserved_extents(root, bytenr, num_bytes, 0);
