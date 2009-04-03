@@ -23,7 +23,7 @@
 /*
  * nfsd version
  */
-#define NFSD_SUPPORTED_MINOR_VERSION	0
+#define NFSD_SUPPORTED_MINOR_VERSION	1
 
 /*
  * Flags for nfsd_permission
