@@ -288,8 +288,6 @@ static void serial_throttle(struct tty_struct *tty);
 static void serial_unthrottle(struct tty_struct *tty);
 static int serial_break(struct tty_struct *tty, int break_state);
 static int serial_chars_in_buffer(struct tty_struct *tty);
-static int serial_read_proc(char *page, char **start, off_t off, int count,
-			    int *eof, void *data);
 
 static int qt_open(struct usb_serial_port *port, struct file *filp);
 static int BoxSetPrebufferLevel(struct usb_serial *serial);
@@ -438,7 +436,6 @@ static const struct tty_operations serial_ops = {
 	.unthrottle = serial_unthrottle,
 	.break_ctl = serial_break,
 	.chars_in_buffer = serial_chars_in_buffer,
-	.read_proc = serial_read_proc,
 	.tiocmset = serial_tiocmset,
 	.tiocmget = serial_tiocmget,
 };
@@ -2415,52 +2412,6 @@ static int serial_break(struct tty_struct *tty, int break_state)
 exit:
 	up(&port->sem);
 	return 0;
-}
-
-static int serial_read_proc(char *page, char **start, off_t off, int count,
-			    int *eof, void *data)
-{
-	struct usb_serial *serial;
-	int length = 0;
-	int i;
-	off_t begin = 0;
-
-	mydbg("%s\n", __func__);
-	length += sprintf(page, "usbserinfo:1.0 driver:%s\n", DRIVER_VERSION);
-	for (i = 0; i < SERIAL_TTY_MINORS && length < PAGE_SIZE; ++i) {
-		serial = get_serial_by_minor(i);
-		if (serial == NULL)
-			continue;
-
-		length += sprintf(page + length, "%d:\n", i);
-		length +=
-		    sprintf(page + length, " vendor:%04x product:%04x\n",
-			    serial->vendor, serial->product);
-		length +=
-		    sprintf(page + length, " num_ports:%d\n",
-			    serial->num_ports);
-		length +=
-		    sprintf(page + length, " port:%d\n", i - serial->minor + 1);
-
-/*
-		usb_make_path(serial->dev, tmp, sizeof(tmp));
-		length += sprintf (page+length, " path:%s", tmp);
-*/
-
-		length += sprintf(page + length, "\n");
-		if ((length + begin) > (off + count))
-			goto done;
-		if ((length + begin) < off) {
-			begin += length;
-			length = 0;
-		}
-	}
-	*eof = 1;
-done:
-	if (off >= (length + begin))
-		return 0;
-	*start = page + (off - begin);
-	return ((count < begin + length - off) ? count : begin + length - off);
 }
 
 static int ioctl_serial_usb(struct inode *innod, struct file *filp, unsigned int cmd,
