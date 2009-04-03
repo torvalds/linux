@@ -148,7 +148,7 @@ static ssize_t is_enabled_store(struct device *dev,
 		return -EPERM;
 
 	if (!val) {
-		if (atomic_read(&pdev->enable_cnt) != 0)
+		if (pci_is_enabled(pdev))
 			pci_disable_device(pdev);
 		else
 			result = -EIO;
