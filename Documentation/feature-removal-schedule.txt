@@ -283,13 +283,6 @@ Who:	Glauber Costa <gcosta@redhat.com>
 
 ---------------------------
 
-What:	remove HID compat support
-When:	2.6.29
-Why:	needed only as a temporary solution until distros fix themselves up
-Who:	Jiri Slaby <jirislaby@gmail.com>
-
----------------------------
-
 What: print_fn_descriptor_symbol()
 When: October 2009
 Why:  The %pF vsprintf format provides the same functionality in a
