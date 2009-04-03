@@ -21,13 +21,14 @@ struct restart_block {
 		struct {
 			unsigned long arg0, arg1, arg2, arg3;
 		};
-		/* For futex_wait */
+		/* For futex_wait and futex_wait_requeue_pi */
 		struct {
 			u32 *uaddr;
 			u32 val;
 			u32 flags;
 			u32 bitset;
 			u64 time;
+			u32 *uaddr2;
 		} futex;
 		/* For nanosleep */
 		struct {
