@@ -22,6 +22,7 @@
 #include <linux/freezer.h>
 #include <linux/fs_struct.h>
 #include <linux/kthread.h>
+#include <linux/swap.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/stats.h>
@@ -197,6 +198,26 @@ void nfsd_reset_versions(void)
 	}
 }
 
+/*
+ * Each session guarantees a negotiated per slot memory cache for replies
+ * which in turn consumes memory beyond the v2/v3/v4.0 server. A dedicated
+ * NFSv4.1 server might want to use more memory for a DRC than a machine
+ * with mutiple services.
+ *
+ * Impose a hard limit on the number of pages for the DRC which varies
+ * according to the machines free pages. This is of course only a default.
+ *
+ * For now this is a #defined shift which could be under admin control
+ * in the future.
+ */
+static void set_max_drc(void)
+{
+	nfsd_serv->sv_drc_max_pages = nr_free_buffer_pages()
+						>> NFSD_DRC_SIZE_SHIFT;
+	nfsd_serv->sv_drc_pages_used = 0;
+	dprintk("%s svc_drc_max_pages %u\n", __func__,
+		nfsd_serv->sv_drc_max_pages);
+}
 
 int nfsd_create_serv(void)
 {
@@ -229,6 +250,8 @@ int nfsd_create_serv(void)
 				      nfsd_last_thread, nfsd, THIS_MODULE);
 	if (nfsd_serv == NULL)
 		err = -ENOMEM;
+	else
+		set_max_drc();
 
 	do_gettimeofday(&nfssvc_boot);		/* record boot time */
 	return err;
