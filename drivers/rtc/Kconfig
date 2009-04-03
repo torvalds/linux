@@ -225,11 +225,11 @@ config RTC_DRV_PCF8583
 	  will be called rtc-pcf8583.
 
 config RTC_DRV_M41T80
-	tristate "ST M41T65/M41T80/81/82/83/84/85/87"
+	tristate "ST M41T62/65/M41T80/81/82/83/84/85/87"
 	help
 	  If you say Y here you will get support for the ST M41T60
 	  and M41T80 RTC chips series. Currently, the following chips are
-	  supported: M41T65, M41T80, M41T81, M41T82, M41T83, M41ST84,
+	  supported: M41T62, M41T65, M41T80, M41T81, M41T82, M41T83, M41ST84,
 	  M41ST85, and M41ST87.
 
 	  This driver can also be built as a module. If so, the module

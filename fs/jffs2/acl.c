@@ -336,7 +336,7 @@ int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
 		return PTR_ERR(acl);
 
 	if (!acl) {
-		*i_mode &= ~current->fs->umask;
+		*i_mode &= ~current_umask();
 	} else {
 		if (S_ISDIR(*i_mode))
 			jffs2_iset_acl(inode, &f->i_acl_default, acl);

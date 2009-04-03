@@ -171,6 +171,7 @@ static struct notifier_block xpc_die_notifier = {
 };
 
 int (*xpc_setup_partitions_sn) (void);
+void (*xpc_teardown_partitions_sn) (void);
 enum xp_retval (*xpc_get_partition_rsvd_page_pa) (void *buf, u64 *cookie,
 						  unsigned long *rp_pa,
 						  size_t *len);
@@ -217,8 +218,8 @@ void (*xpc_send_chctl_openrequest) (struct xpc_channel *ch,
 void (*xpc_send_chctl_openreply) (struct xpc_channel *ch,
 				  unsigned long *irq_flags);
 
-void (*xpc_save_remote_msgqueue_pa) (struct xpc_channel *ch,
-				     unsigned long msgqueue_pa);
+enum xp_retval (*xpc_save_remote_msgqueue_pa) (struct xpc_channel *ch,
+					       unsigned long msgqueue_pa);
 
 enum xp_retval (*xpc_send_payload) (struct xpc_channel *ch, u32 flags,
 				    void *payload, u16 payload_size,
@@ -998,6 +999,7 @@ xpc_setup_partitions(void)
 static void
 xpc_teardown_partitions(void)
 {
+	xpc_teardown_partitions_sn();
 	kfree(xpc_partitions);
 }
 

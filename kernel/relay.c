@@ -797,13 +797,15 @@ void relay_subbufs_consumed(struct rchan *chan,
 	if (!chan)
 		return;
 
-	if (cpu >= NR_CPUS || !chan->buf[cpu])
+	if (cpu >= NR_CPUS || !chan->buf[cpu] ||
+					subbufs_consumed > chan->n_subbufs)
 		return;
 
 	buf = chan->buf[cpu];
-	buf->subbufs_consumed += subbufs_consumed;
-	if (buf->subbufs_consumed > buf->subbufs_produced)
+	if (subbufs_consumed > buf->subbufs_produced - buf->subbufs_consumed)
 		buf->subbufs_consumed = buf->subbufs_produced;
+	else
+		buf->subbufs_consumed += subbufs_consumed;
 }
 EXPORT_SYMBOL_GPL(relay_subbufs_consumed);
 

@@ -1937,7 +1937,8 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 
 	/* Decide whether to use autoneg or not. */
 	hw->mac.ops.check_link(hw, &speed, &link_up, false);
-	if (hw->phy.multispeed_fiber && (speed == IXGBE_LINK_SPEED_1GB_FULL))
+	if (!hw->fc.disable_fc_autoneg && hw->phy.multispeed_fiber &&
+	    (speed == IXGBE_LINK_SPEED_1GB_FULL))
 		ret_val = ixgbe_fc_autoneg(hw);
 
 	if (ret_val)

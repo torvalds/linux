@@ -1570,33 +1570,49 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 	struct drm_device *dev = connector->dev;
 	struct intel_output *intel_output = to_intel_output(connector);
 	struct intel_tv_priv *tv_priv = intel_output->dev_priv;
+	struct drm_encoder *encoder = &intel_output->enc;
+	struct drm_crtc *crtc = encoder->crtc;
 	int ret = 0;
+	bool changed = false;
 
 	ret = drm_connector_property_set_value(connector, property, val);
 	if (ret < 0)
 		goto out;
 
-	if (property == dev->mode_config.tv_left_margin_property)
+	if (property == dev->mode_config.tv_left_margin_property &&
+		tv_priv->margin[TV_MARGIN_LEFT] != val) {
 		tv_priv->margin[TV_MARGIN_LEFT] = val;
-	else if (property == dev->mode_config.tv_right_margin_property)
+		changed = true;
+	} else if (property == dev->mode_config.tv_right_margin_property &&
+		tv_priv->margin[TV_MARGIN_RIGHT] != val) {
 		tv_priv->margin[TV_MARGIN_RIGHT] = val;
-	else if (property == dev->mode_config.tv_top_margin_property)
+		changed = true;
+	} else if (property == dev->mode_config.tv_top_margin_property &&
+		tv_priv->margin[TV_MARGIN_TOP] != val) {
 		tv_priv->margin[TV_MARGIN_TOP] = val;
-	else if (property == dev->mode_config.tv_bottom_margin_property)
+		changed = true;
+	} else if (property == dev->mode_config.tv_bottom_margin_property &&
+		tv_priv->margin[TV_MARGIN_BOTTOM] != val) {
 		tv_priv->margin[TV_MARGIN_BOTTOM] = val;
-	else if (property == dev->mode_config.tv_mode_property) {
+		changed = true;
+	} else if (property == dev->mode_config.tv_mode_property) {
 		if (val >= NUM_TV_MODES) {
 			ret = -EINVAL;
 			goto out;
 		}
+		if (!strcmp(tv_priv->tv_format, tv_modes[val].name))
+			goto out;
+
 		tv_priv->tv_format = tv_modes[val].name;
-		intel_tv_mode_set(&intel_output->enc, NULL, NULL);
+		changed = true;
 	} else {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	intel_tv_mode_set(&intel_output->enc, NULL, NULL);
+	if (changed && crtc)
+		drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x,
+				crtc->y, crtc->fb);
 out:
 	return ret;
 }

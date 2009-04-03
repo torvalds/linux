@@ -531,7 +531,7 @@ config CGROUP_DEVICE
 
 config CPUSETS
 	bool "Cpuset support"
-	depends on SMP && CGROUPS
+	depends on CGROUPS
 	help
 	  This option will let you create and manage CPUSETs which
 	  allow dynamically partitioning a system into sets of CPUs and
@@ -597,6 +597,8 @@ config CGROUP_MEM_RES_CTLR_SWAP
 	  is disabled by boot option, this will be automatically disabled and
 	  there will be no overhead from this. Even when you set this config=y,
 	  if boot option "noswapaccount" is set, swap will not be accounted.
+	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
+	  size is 4096bytes, 512k per 1Gbytes of swap.
 
 endif # CGROUPS
 

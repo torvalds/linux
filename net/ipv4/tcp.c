@@ -1081,8 +1081,7 @@ out_err:
  *	this, no blocking and very strange errors 8)
  */
 
-static int tcp_recv_urg(struct sock *sk, long timeo,
-			struct msghdr *msg, int len, int flags)
+static int tcp_recv_urg(struct sock *sk, struct msghdr *msg, int len, int flags)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -1697,7 +1696,7 @@ out:
 	return err;
 
 recv_urg:
-	err = tcp_recv_urg(sk, timeo, msg, len, flags);
+	err = tcp_recv_urg(sk, msg, len, flags);
 	goto out;
 }
 

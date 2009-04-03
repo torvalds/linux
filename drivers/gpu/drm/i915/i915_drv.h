@@ -159,6 +159,9 @@ typedef struct drm_i915_private {
 	u32 irq_mask_reg;
 	u32 pipestat[2];
 
+	u32 hotplug_supported_mask;
+	struct work_struct hotplug_work;
+
 	int tex_lru_log_granularity;
 	int allow_batchbuffer;
 	struct mem_block *agp_heap;
@@ -297,6 +300,7 @@ typedef struct drm_i915_private {
 		 *
 		 * A reference is held on the buffer while on this list.
 		 */
+		spinlock_t active_list_lock;
 		struct list_head active_list;
 
 		/**
@@ -810,6 +814,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define HAS_128_BYTE_Y_TILING(dev) (IS_I9XX(dev) && !(IS_I915G(dev) || \
 						      IS_I915GM(dev)))
 #define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev))
+#define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 
