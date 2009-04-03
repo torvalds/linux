@@ -246,12 +246,6 @@ static const u8 vv6410_sensor_init[][2] = {
 	/* Pre-clock generator divide off */
 	{VV6410_DATAFORMAT,	BIT(7) | BIT(0)},
 
-	/* Exposure registers */
-	{VV6410_FINEH,		VV6410_FINE_EXPOSURE >> 8},
-	{VV6410_FINEL,		VV6410_FINE_EXPOSURE & 0xff},
-	{VV6410_COARSEH,	VV6410_COARSE_EXPOSURE >> 8},
-	{VV6410_COARSEL,	VV6410_COARSE_EXPOSURE & 0xff},
-	{VV6410_ANALOGGAIN,	0xf0 | VV6410_DEFAULT_GAIN},
 	{VV6410_CLKDIV,		VV6410_CLK_DIV_2},
 
 	/* System registers */
