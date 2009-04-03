@@ -17,7 +17,6 @@ static const int zero, one = 1, max = INT_MAX;
 
 ctl_table key_sysctls[] = {
 	{
-		.ctl_name = CTL_UNNUMBERED,
 		.procname = "maxkeys",
 		.data = &key_quota_maxkeys,
 		.maxlen = sizeof(unsigned),
@@ -27,7 +26,6 @@ ctl_table key_sysctls[] = {
 		.extra2 = (void *) &max,
 	},
 	{
-		.ctl_name = CTL_UNNUMBERED,
 		.procname = "maxbytes",
 		.data = &key_quota_maxbytes,
 		.maxlen = sizeof(unsigned),
@@ -37,7 +35,6 @@ ctl_table key_sysctls[] = {
 		.extra2 = (void *) &max,
 	},
 	{
-		.ctl_name = CTL_UNNUMBERED,
 		.procname = "root_maxkeys",
 		.data = &key_quota_root_maxkeys,
 		.maxlen = sizeof(unsigned),
@@ -47,7 +44,6 @@ ctl_table key_sysctls[] = {
 		.extra2 = (void *) &max,
 	},
 	{
-		.ctl_name = CTL_UNNUMBERED,
 		.procname = "root_maxbytes",
 		.data = &key_quota_root_maxbytes,
 		.maxlen = sizeof(unsigned),
@@ -57,7 +53,6 @@ ctl_table key_sysctls[] = {
 		.extra2 = (void *) &max,
 	},
 	{
-		.ctl_name = CTL_UNNUMBERED,
 		.procname = "gc_delay",
 		.data = &key_gc_delay,
 		.maxlen = sizeof(unsigned),
@@ -66,5 +61,5 @@ ctl_table key_sysctls[] = {
 		.extra1 = (void *) &zero,
 		.extra2 = (void *) &max,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
