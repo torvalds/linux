@@ -415,11 +415,26 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 
 	/* Set interrupt-remapping table pointer */
 	cmd = iommu->gcmd | DMA_GCMD_SIRTP;
+	iommu->gcmd |= DMA_GCMD_SIRTP;
 	writel(cmd, iommu->reg + DMAR_GCMD_REG);
 
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (sts & DMA_GSTS_IRTPS), sts);
 	spin_unlock_irqrestore(&iommu->register_lock, flags);
+
+	if (mode == 0) {
+		spin_lock_irqsave(&iommu->register_lock, flags);
+
+		/* enable comaptiblity format interrupt pass through */
+		cmd = iommu->gcmd | DMA_GCMD_CFI;
+		iommu->gcmd |= DMA_GCMD_CFI;
+		writel(cmd, iommu->reg + DMAR_GCMD_REG);
+
+		IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
+			      readl, (sts & DMA_GSTS_CFIS), sts);
+
+		spin_unlock_irqrestore(&iommu->register_lock, flags);
+	}
 
 	/*
 	 * global invalidation of interrupt entry cache before enabling

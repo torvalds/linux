@@ -164,6 +164,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_GCMD_QIE (((u32)1) << 26)
 #define DMA_GCMD_SIRTP (((u32)1) << 24)
 #define DMA_GCMD_IRE (((u32) 1) << 25)
+#define DMA_GCMD_CFI (((u32) 1) << 23)
 
 /* GSTS_REG */
 #define DMA_GSTS_TES (((u32)1) << 31)
@@ -174,6 +175,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_GSTS_QIES (((u32)1) << 26)
 #define DMA_GSTS_IRTPS (((u32)1) << 24)
 #define DMA_GSTS_IRES (((u32)1) << 25)
+#define DMA_GSTS_CFIS (((u32)1) << 23)
 
 /* CCMD_REG */
 #define DMA_CCMD_ICC (((u64)1) << 63)
