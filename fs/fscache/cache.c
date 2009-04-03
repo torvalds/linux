@@ -194,7 +194,7 @@ void fscache_init_cache(struct fscache_cache *cache,
 	vsnprintf(cache->identifier, sizeof(cache->identifier), idfmt, va);
 	va_end(va);
 
-	INIT_WORK(&cache->op_gc, NULL);
+	INIT_WORK(&cache->op_gc, fscache_operation_gc);
 	INIT_LIST_HEAD(&cache->link);
 	INIT_LIST_HEAD(&cache->object_list);
 	INIT_LIST_HEAD(&cache->op_gc_list);

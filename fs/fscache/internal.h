@@ -95,7 +95,13 @@ extern void fscache_enqueue_object(struct fscache_object *);
 /*
  * fsc-operation.c
  */
-#define fscache_start_operations(obj) BUG()
+extern int fscache_submit_exclusive_op(struct fscache_object *,
+				       struct fscache_operation *);
+extern int fscache_submit_op(struct fscache_object *,
+			     struct fscache_operation *);
+extern void fscache_abort_object(struct fscache_object *);
+extern void fscache_start_operations(struct fscache_object *);
+extern void fscache_operation_gc(struct work_struct *);
 
 /*
  * fsc-proc.c
