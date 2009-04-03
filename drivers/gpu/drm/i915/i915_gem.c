@@ -1072,6 +1072,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	case -EAGAIN:
 		return VM_FAULT_OOM;
 	case -EFAULT:
+	case -EINVAL:
 		return VM_FAULT_SIGBUS;
 	default:
 		return VM_FAULT_NOPAGE;
@@ -1324,8 +1325,10 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj, uint32_t seqno)
 		obj_priv->active = 1;
 	}
 	/* Move from whatever list we were on to the tail of execution. */
+	spin_lock(&dev_priv->mm.active_list_lock);
 	list_move_tail(&obj_priv->list,
 		       &dev_priv->mm.active_list);
+	spin_unlock(&dev_priv->mm.active_list_lock);
 	obj_priv->last_rendering_seqno = seqno;
 }
 
@@ -1467,6 +1470,7 @@ i915_gem_retire_request(struct drm_device *dev,
 	/* Move any buffers on the active list that are no longer referenced
 	 * by the ringbuffer to the flushing/inactive lists as appropriate.
 	 */
+	spin_lock(&dev_priv->mm.active_list_lock);
 	while (!list_empty(&dev_priv->mm.active_list)) {
 		struct drm_gem_object *obj;
 		struct drm_i915_gem_object *obj_priv;
@@ -1481,7 +1485,7 @@ i915_gem_retire_request(struct drm_device *dev,
 		 * this seqno.
 		 */
 		if (obj_priv->last_rendering_seqno != request->seqno)
-			return;
+			goto out;
 
 #if WATCH_LRU
 		DRM_INFO("%s: retire %d moves to inactive list %p\n",
@@ -1493,6 +1497,8 @@ i915_gem_retire_request(struct drm_device *dev,
 		else
 			i915_gem_object_move_to_inactive(obj);
 	}
+out:
+	spin_unlock(&dev_priv->mm.active_list_lock);
 }
 
 /**
@@ -1990,20 +1996,23 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 	int regnum = obj_priv->fence_reg;
 	uint32_t val;
 	uint32_t pitch_val;
+	uint32_t fence_size_bits;
 
-	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
+	if ((obj_priv->gtt_offset & ~I830_FENCE_START_MASK) ||
 	    (obj_priv->gtt_offset & (obj->size - 1))) {
-		WARN(1, "%s: object 0x%08x not 1M or size aligned\n",
+		WARN(1, "%s: object 0x%08x not 512K or size aligned\n",
 		     __func__, obj_priv->gtt_offset);
 		return;
 	}
 
 	pitch_val = (obj_priv->stride / 128) - 1;
-
+	WARN_ON(pitch_val & ~0x0000000f);
 	val = obj_priv->gtt_offset;
 	if (obj_priv->tiling_mode == I915_TILING_Y)
 		val |= 1 << I830_FENCE_TILING_Y_SHIFT;
-	val |= I830_FENCE_SIZE_BITS(obj->size);
+	fence_size_bits = I830_FENCE_SIZE_BITS(obj->size);
+	WARN_ON(fence_size_bits & ~0x00000f00);
+	val |= fence_size_bits;
 	val |= pitch_val << I830_FENCE_PITCH_SHIFT;
 	val |= I830_FENCE_REG_VALID;
 
@@ -2194,7 +2203,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		return -EBUSY;
 	if (alignment == 0)
 		alignment = i915_gem_get_gtt_alignment(obj);
-	if (alignment & (PAGE_SIZE - 1)) {
+	if (alignment & (i915_gem_get_gtt_alignment(obj) - 1)) {
 		DRM_ERROR("Invalid object alignment requested %u\n", alignment);
 		return -EINVAL;
 	}
@@ -2211,15 +2220,20 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		}
 	}
 	if (obj_priv->gtt_space == NULL) {
+		bool lists_empty;
+
 		/* If the gtt is empty and we're still having trouble
 		 * fitting our object in, we're out of memory.
 		 */
 #if WATCH_LRU
 		DRM_INFO("%s: GTT full, evicting something\n", __func__);
 #endif
-		if (list_empty(&dev_priv->mm.inactive_list) &&
-		    list_empty(&dev_priv->mm.flushing_list) &&
-		    list_empty(&dev_priv->mm.active_list)) {
+		spin_lock(&dev_priv->mm.active_list_lock);
+		lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
+			       list_empty(&dev_priv->mm.flushing_list) &&
+			       list_empty(&dev_priv->mm.active_list));
+		spin_unlock(&dev_priv->mm.active_list_lock);
+		if (lists_empty) {
 			DRM_ERROR("GTT full, but LRU list empty\n");
 			return -ENOMEM;
 		}
@@ -3675,6 +3689,7 @@ i915_gem_idle(struct drm_device *dev)
 
 	i915_gem_retire_requests(dev);
 
+	spin_lock(&dev_priv->mm.active_list_lock);
 	if (!dev_priv->mm.wedged) {
 		/* Active and flushing should now be empty as we've
 		 * waited for a sequence higher than any pending execbuffer
@@ -3701,6 +3716,7 @@ i915_gem_idle(struct drm_device *dev)
 		obj_priv->obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
 		i915_gem_object_move_to_inactive(obj_priv->obj);
 	}
+	spin_unlock(&dev_priv->mm.active_list_lock);
 
 	while (!list_empty(&dev_priv->mm.flushing_list)) {
 		struct drm_i915_gem_object *obj_priv;
@@ -3949,7 +3965,10 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	if (ret != 0)
 		return ret;
 
+	spin_lock(&dev_priv->mm.active_list_lock);
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
+	spin_unlock(&dev_priv->mm.active_list_lock);
+
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
 	BUG_ON(!list_empty(&dev_priv->mm.request_list));
@@ -3993,6 +4012,7 @@ i915_gem_load(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
+	spin_lock_init(&dev_priv->mm.active_list_lock);
 	INIT_LIST_HEAD(&dev_priv->mm.active_list);
 	INIT_LIST_HEAD(&dev_priv->mm.flushing_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);

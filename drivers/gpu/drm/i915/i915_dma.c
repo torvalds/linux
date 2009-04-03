@@ -922,7 +922,7 @@ static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
 	 * Some of the preallocated space is taken by the GTT
 	 * and popup.  GTT is 1K per MB of aperture size, and popup is 4K.
 	 */
-	if (IS_G4X(dev))
+	if (IS_G4X(dev) || IS_IGD(dev))
 		overhead = 4096;
 	else
 		overhead = (*aperture_size / 1024) + 4096;
@@ -1029,13 +1029,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	ret = drm_irq_install(dev);
 	if (ret)
 		goto destroy_ringbuffer;
-
-	/* FIXME: re-add hotplug support */
-#if 0
-	ret = drm_hotplug_init(dev);
-	if (ret)
-		goto destroy_ringbuffer;
-#endif
 
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
