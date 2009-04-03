@@ -1618,7 +1618,7 @@ int sysctl_perm(struct ctl_table_root *root, struct ctl_table *table, int op)
 
 static void sysctl_set_parent(struct ctl_table *parent, struct ctl_table *table)
 {
-	for (; table->ctl_name || table->procname; table++) {
+	for (; table->procname; table++) {
 		table->parent = parent;
 		if (table->child)
 			sysctl_set_parent(table, table->child);
@@ -1650,11 +1650,11 @@ static struct ctl_table *is_branch_in(struct ctl_table *branch,
 		return NULL;
 
 	/* ... and nothing else */
-	if (branch[1].procname || branch[1].ctl_name)
+	if (branch[1].procname)
 		return NULL;
 
 	/* table should contain subdirectory with the same name */
-	for (p = table; p->procname || p->ctl_name; p++) {
+	for (p = table; p->procname; p++) {
 		if (!p->child)
 			continue;
 		if (p->procname && strcmp(p->procname, s) == 0)
@@ -1699,8 +1699,7 @@ static void try_attach(struct ctl_table_header *p, struct ctl_table_header *q)
  *
  * The members of the &struct ctl_table structure are used as follows:
  *
- * ctl_name - This is the numeric sysctl value used by sysctl(2). The number
- *            must be unique within that level of sysctl
+ * ctl_name - Dead
  *
  * procname - the name of the sysctl file under /proc/sys. Set to %NULL to not
  *            enter a sysctl file
@@ -1716,7 +1715,7 @@ static void try_attach(struct ctl_table_header *p, struct ctl_table_header *q)
  *
  * proc_handler - the text handler routine (described below)
  *
- * strategy - the strategy routine (described below)
+ * strategy - Dead
  *
  * de - for internal use by the sysctl routines
  *
@@ -1729,19 +1728,6 @@ static void try_attach(struct ctl_table_header *p, struct ctl_table_header *q)
  * the sysctl table.  The data and maxlen fields of the ctl_table
  * struct enable minimal validation of the values being written to be
  * performed, and the mode field allows minimal authentication.
- *
- * More sophisticated management can be enabled by the provision of a
- * strategy routine with the table entry.  This will be called before
- * any automatic read or write of the data is performed.
- *
- * The strategy routine may return
- *
- * < 0 - Error occurred (error is passed to user process)
- *
- * 0   - OK - proceed with automatic read or write.
- *
- * > 0 - OK - read or write has been done by the strategy routine, so
- *       return immediately.
  *
  * There must be a proc_handler routine for any terminal nodes
  * mirrored under /proc/sys (non-terminals are handled by a built-in
@@ -1769,13 +1755,13 @@ struct ctl_table_header *__register_sysctl_paths(
 	struct ctl_table_set *set;
 
 	/* Count the path components */
-	for (npath = 0; path[npath].ctl_name || path[npath].procname; ++npath)
+	for (npath = 0; path[npath].procname; ++npath)
 		;
 
 	/*
 	 * For each path component, allocate a 2-element ctl_table array.
 	 * The first array element will be filled with the sysctl entry
-	 * for this, the second will be the sentinel (ctl_name == 0).
+	 * for this, the second will be the sentinel (procname == 0).
 	 *
 	 * We allocate everything in one go so that we don't have to
 	 * worry about freeing additional memory in unregister_sysctl_table.
@@ -1792,7 +1778,6 @@ struct ctl_table_header *__register_sysctl_paths(
 	for (n = 0; n < npath; ++n, ++path) {
 		/* Copy the procname */
 		new->procname = path->procname;
-		new->ctl_name = path->ctl_name;
 		new->mode     = 0555;
 
 		*prevp = new;
