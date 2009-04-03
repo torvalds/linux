@@ -38,6 +38,7 @@
 #include "locking.h"
 #include "ref-cache.h"
 #include "tree-log.h"
+#include "free-space-cache.h"
 
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
@@ -1652,6 +1653,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->cleaner_mutex);
 	mutex_init(&fs_info->volume_mutex);
 	mutex_init(&fs_info->tree_reloc_mutex);
+
+	btrfs_init_free_cluster(&fs_info->meta_alloc_cluster);
+	btrfs_init_free_cluster(&fs_info->data_alloc_cluster);
+
 	init_waitqueue_head(&fs_info->transaction_throttle);
 	init_waitqueue_head(&fs_info->transaction_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);

@@ -31,6 +31,7 @@
 #include "volumes.h"
 #include "locking.h"
 #include "ref-cache.h"
+#include "free-space-cache.h"
 
 #define PENDING_EXTENT_INSERT 0
 #define PENDING_EXTENT_DELETE 1
@@ -324,7 +325,7 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(
 	return cache;
 }
 
-static inline void put_block_group(struct btrfs_block_group_cache *cache)
+void btrfs_put_block_group(struct btrfs_block_group_cache *cache)
 {
 	if (atomic_dec_and_test(&cache->count))
 		kfree(cache);
@@ -397,12 +398,12 @@ again:
 			    div_factor(cache->key.offset, factor)) {
 				group_start = cache->key.objectid;
 				spin_unlock(&cache->lock);
-				put_block_group(cache);
+				btrfs_put_block_group(cache);
 				goto found;
 			}
 		}
 		spin_unlock(&cache->lock);
-		put_block_group(cache);
+		btrfs_put_block_group(cache);
 		cond_resched();
 	}
 	if (!wrapped) {
@@ -1592,7 +1593,7 @@ int btrfs_extent_readonly(struct btrfs_root *root, u64 bytenr)
 	if (!block_group || block_group->ro)
 		readonly = 1;
 	if (block_group)
-		put_block_group(block_group);
+		btrfs_put_block_group(block_group);
 	return readonly;
 }
 
@@ -2016,7 +2017,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 				WARN_ON(ret);
 			}
 		}
-		put_block_group(cache);
+		btrfs_put_block_group(cache);
 		total -= num_bytes;
 		bytenr += num_bytes;
 	}
@@ -2033,7 +2034,7 @@ static u64 first_logical_byte(struct btrfs_root *root, u64 search_start)
 		return 0;
 
 	bytenr = cache->key.objectid;
-	put_block_group(cache);
+	btrfs_put_block_group(cache);
 
 	return bytenr;
 }
@@ -2077,7 +2078,7 @@ int btrfs_update_pinned_extents(struct btrfs_root *root,
 			if (cache->cached)
 				btrfs_add_free_space(cache, bytenr, len);
 		}
-		put_block_group(cache);
+		btrfs_put_block_group(cache);
 		bytenr += len;
 		num -= len;
 	}
@@ -2108,7 +2109,7 @@ static int update_reserved_extents(struct btrfs_root *root,
 		}
 		spin_unlock(&cache->lock);
 		spin_unlock(&cache->space_info->lock);
-		put_block_group(cache);
+		btrfs_put_block_group(cache);
 		bytenr += len;
 		num -= len;
 	}
@@ -2543,12 +2544,13 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 {
 	int ret = 0;
 	struct btrfs_root *root = orig_root->fs_info->extent_root;
-	u64 *last_ptr = NULL;
+	struct btrfs_free_cluster *last_ptr = NULL;
 	struct btrfs_block_group_cache *block_group = NULL;
 	int empty_cluster = 2 * 1024 * 1024;
 	int allowed_chunk_alloc = 0;
-	int using_hint = 0;
 	struct btrfs_space_info *space_info;
+	int last_ptr_loop = 0;
+	int loop = 0;
 
 	WARN_ON(num_bytes < root->sectorsize);
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
@@ -2561,38 +2563,39 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 		allowed_chunk_alloc = 1;
 
 	if (data & BTRFS_BLOCK_GROUP_METADATA) {
-		last_ptr = &root->fs_info->last_alloc;
+		last_ptr = &root->fs_info->meta_alloc_cluster;
 		if (!btrfs_test_opt(root, SSD))
 			empty_cluster = 64 * 1024;
 	}
 
-	if ((data & BTRFS_BLOCK_GROUP_DATA) && btrfs_test_opt(root, SSD))
-		last_ptr = &root->fs_info->last_data_alloc;
+	if ((data & BTRFS_BLOCK_GROUP_DATA) && btrfs_test_opt(root, SSD)) {
+		last_ptr = &root->fs_info->data_alloc_cluster;
+	}
 
 	if (last_ptr) {
-		if (*last_ptr)
-			hint_byte = *last_ptr;
-		else
-			empty_size += empty_cluster;
-	} else {
-		empty_cluster = 0;
+		spin_lock(&last_ptr->lock);
+		if (last_ptr->block_group)
+			hint_byte = last_ptr->window_start;
+		spin_unlock(&last_ptr->lock);
 	}
+
 	search_start = max(search_start, first_logical_byte(root, 0));
 	search_start = max(search_start, hint_byte);
 
+	if (!last_ptr) {
+		empty_cluster = 0;
+		loop = 1;
+	}
+
 	if (search_start == hint_byte) {
-		using_hint = 1;
 		block_group = btrfs_lookup_block_group(root->fs_info,
 						       search_start);
 		if (block_group && block_group_bits(block_group, data)) {
 			down_read(&space_info->groups_sem);
 			goto have_block_group;
 		} else if (block_group) {
-			put_block_group(block_group);
+			btrfs_put_block_group(block_group);
 		}
-
-		empty_size += empty_cluster;
-		using_hint = 0;
 	}
 
 search:
@@ -2609,7 +2612,7 @@ have_block_group:
 			ret = cache_block_group(root, block_group);
 			mutex_unlock(&block_group->cache_mutex);
 			if (ret) {
-				put_block_group(block_group);
+				btrfs_put_block_group(block_group);
 				break;
 			}
 		}
@@ -2617,11 +2620,88 @@ have_block_group:
 		if (unlikely(block_group->ro))
 			goto loop;
 
+		if (last_ptr) {
+			/*
+			 * the refill lock keeps out other
+			 * people trying to start a new cluster
+			 */
+			spin_lock(&last_ptr->refill_lock);
+			offset = btrfs_alloc_from_cluster(block_group, last_ptr,
+						 num_bytes, search_start);
+			if (offset) {
+				/* we have a block, we're done */
+				spin_unlock(&last_ptr->refill_lock);
+				goto checks;
+			}
+
+			spin_lock(&last_ptr->lock);
+			/*
+			 * whoops, this cluster doesn't actually point to
+			 * this block group.  Get a ref on the block
+			 * group is does point to and try again
+			 */
+			if (!last_ptr_loop && last_ptr->block_group &&
+			    last_ptr->block_group != block_group) {
+
+				btrfs_put_block_group(block_group);
+				block_group = last_ptr->block_group;
+				atomic_inc(&block_group->count);
+				spin_unlock(&last_ptr->lock);
+				spin_unlock(&last_ptr->refill_lock);
+
+				last_ptr_loop = 1;
+				search_start = block_group->key.objectid;
+				goto have_block_group;
+			}
+			spin_unlock(&last_ptr->lock);
+
+			/*
+			 * this cluster didn't work out, free it and
+			 * start over
+			 */
+			btrfs_return_cluster_to_free_space(NULL, last_ptr);
+
+			last_ptr_loop = 0;
+
+			/* allocate a cluster in this block group */
+			ret = btrfs_find_space_cluster(trans,
+					       block_group, last_ptr,
+					       offset, num_bytes,
+					       empty_cluster + empty_size);
+			if (ret == 0) {
+				/*
+				 * now pull our allocation out of this
+				 * cluster
+				 */
+				offset = btrfs_alloc_from_cluster(block_group,
+						  last_ptr, num_bytes,
+						  search_start);
+				if (offset) {
+					/* we found one, proceed */
+					spin_unlock(&last_ptr->refill_lock);
+					goto checks;
+				}
+			}
+			/*
+			 * at this point we either didn't find a cluster
+			 * or we weren't able to allocate a block from our
+			 * cluster.  Free the cluster we've been trying
+			 * to use, and go to the next block group
+			 */
+			if (loop < 2) {
+				btrfs_return_cluster_to_free_space(NULL,
+								   last_ptr);
+				spin_unlock(&last_ptr->refill_lock);
+				goto loop;
+			}
+			spin_unlock(&last_ptr->refill_lock);
+		}
+
 		offset = btrfs_find_space_for_alloc(block_group, search_start,
 						    num_bytes, empty_size);
 		if (!offset)
 			goto loop;
-
+checks:
 		search_start = stripe_align(root, offset);
 
 		/* move on to the next group */
@@ -2633,11 +2713,6 @@ have_block_group:
 		/* move on to the next group */
 		if (search_start + num_bytes >
 		    block_group->key.objectid + block_group->key.offset) {
-			btrfs_add_free_space(block_group, offset, num_bytes);
-			goto loop;
-		}
-
-		if (using_hint && search_start > hint_byte) {
 			btrfs_add_free_space(block_group, offset, num_bytes);
 			goto loop;
 		}
@@ -2670,33 +2745,33 @@ have_block_group:
 		/* we are all good, lets return */
 		break;
 loop:
-		put_block_group(block_group);
-		if (using_hint) {
-			empty_size += empty_cluster;
-			using_hint = 0;
-			up_read(&space_info->groups_sem);
-			goto search;
-		}
+		btrfs_put_block_group(block_group);
 	}
 	up_read(&space_info->groups_sem);
 
-	if (!ins->objectid && (empty_size || allowed_chunk_alloc)) {
-		int try_again = empty_size;
-
-		empty_size = 0;
+	/* loop == 0, try to find a clustered alloc in every block group
+	 * loop == 1, try again after forcing a chunk allocation
+	 * loop == 2, set empty_size and empty_cluster to 0 and try again
+	 */
+	if (!ins->objectid && loop < 3 &&
+	    (empty_size || empty_cluster || allowed_chunk_alloc)) {
+		if (loop >= 2) {
+			empty_size = 0;
+			empty_cluster = 0;
+		}
 
 		if (allowed_chunk_alloc) {
 			ret = do_chunk_alloc(trans, root, num_bytes +
 					     2 * 1024 * 1024, data, 1);
-			if (!ret)
-				try_again = 1;
 			allowed_chunk_alloc = 0;
 		} else {
 			space_info->force_alloc = 1;
 		}
 
-		if (try_again)
+		if (loop < 3) {
+			loop++;
 			goto search;
+		}
 		ret = -ENOSPC;
 	} else if (!ins->objectid) {
 		ret = -ENOSPC;
@@ -2707,9 +2782,7 @@ loop:
 		if (!(data & BTRFS_BLOCK_GROUP_DATA))
 			trans->block_group = block_group->key.objectid;
 
-		if (last_ptr)
-			*last_ptr = ins->objectid + ins->offset;
-		put_block_group(block_group);
+		btrfs_put_block_group(block_group);
 		ret = 0;
 	}
 
@@ -2817,7 +2890,7 @@ int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len)
 	ret = btrfs_discard_extent(root, start, len);
 
 	btrfs_add_free_space(cache, start, len);
-	put_block_group(cache);
+	btrfs_put_block_group(cache);
 	update_reserved_extents(root, start, len, 0);
 
 	return ret;
@@ -2955,7 +3028,7 @@ int btrfs_alloc_logged_extent(struct btrfs_trans_handle *trans,
 	ret = btrfs_remove_free_space(block_group, ins->objectid,
 				      ins->offset);
 	BUG_ON(ret);
-	put_block_group(block_group);
+	btrfs_put_block_group(block_group);
 	ret = __btrfs_alloc_reserved_extent(trans, root, parent, root_objectid,
 					    ref_generation, owner, ins, 1);
 	return ret;
@@ -5644,7 +5717,7 @@ next:
 	WARN_ON(block_group->reserved > 0);
 	WARN_ON(btrfs_block_group_used(&block_group->item) > 0);
 	spin_unlock(&block_group->lock);
-	put_block_group(block_group);
+	btrfs_put_block_group(block_group);
 	ret = 0;
 out:
 	btrfs_free_path(path);
@@ -5774,6 +5847,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		spin_lock_init(&cache->tree_lock);
 		mutex_init(&cache->cache_mutex);
 		INIT_LIST_HEAD(&cache->list);
+		INIT_LIST_HEAD(&cache->cluster_list);
 		read_extent_buffer(leaf, &cache->item,
 				   btrfs_item_ptr_offset(leaf, path->slots[0]),
 				   sizeof(cache->item));
@@ -5830,6 +5904,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	spin_lock_init(&cache->tree_lock);
 	mutex_init(&cache->cache_mutex);
 	INIT_LIST_HEAD(&cache->list);
+	INIT_LIST_HEAD(&cache->cluster_list);
 
 	btrfs_set_block_group_used(&cache->item, bytes_used);
 	btrfs_set_block_group_chunk_objectid(&cache->item, chunk_objectid);
@@ -5889,8 +5964,8 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	spin_unlock(&block_group->space_info->lock);
 	block_group->space_info->full = 0;
 
-	put_block_group(block_group);
-	put_block_group(block_group);
+	btrfs_put_block_group(block_group);
+	btrfs_put_block_group(block_group);
 
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret > 0)

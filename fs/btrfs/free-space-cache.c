@@ -18,6 +18,15 @@
 
 #include <linux/sched.h>
 #include "ctree.h"
+#include "free-space-cache.h"
+#include "transaction.h"
+
+struct btrfs_free_space {
+	struct rb_node bytes_index;
+	struct rb_node offset_index;
+	u64 offset;
+	u64 bytes;
+};
 
 static int tree_insert_offset(struct rb_root *root, u64 offset,
 			      struct rb_node *node)
@@ -371,12 +380,58 @@ u64 btrfs_block_group_free_space(struct btrfs_block_group_cache *block_group)
 	return ret;
 }
 
+/*
+ * for a given cluster, put all of its extents back into the free
+ * space cache.  If the block group passed doesn't match the block group
+ * pointed to by the cluster, someone else raced in and freed the
+ * cluster already.  In that case, we just return without changing anything
+ */
+static int
+__btrfs_return_cluster_to_free_space(
+			     struct btrfs_block_group_cache *block_group,
+			     struct btrfs_free_cluster *cluster)
+{
+	struct btrfs_free_space *entry;
+	struct rb_node *node;
+
+	spin_lock(&cluster->lock);
+	if (cluster->block_group != block_group)
+		goto out;
+
+	cluster->window_start = 0;
+	node = rb_first(&cluster->root);
+	while(node) {
+		entry = rb_entry(node, struct btrfs_free_space, offset_index);
+		node = rb_next(&entry->offset_index);
+		rb_erase(&entry->offset_index, &cluster->root);
+		link_free_space(block_group, entry);
+	}
+	list_del_init(&cluster->block_group_list);
+
+	btrfs_put_block_group(cluster->block_group);
+	cluster->block_group = NULL;
+	cluster->root.rb_node = NULL;
+out:
+	spin_unlock(&cluster->lock);
+	return 0;
+}
+
 void btrfs_remove_free_space_cache(struct btrfs_block_group_cache *block_group)
 {
 	struct btrfs_free_space *info;
 	struct rb_node *node;
+	struct btrfs_free_cluster *cluster;
+	struct btrfs_free_cluster *safe;
 
 	spin_lock(&block_group->tree_lock);
+
+	list_for_each_entry_safe(cluster, safe, &block_group->cluster_list,
+				 block_group_list) {
+
+		WARN_ON(cluster->block_group != block_group);
+		__btrfs_return_cluster_to_free_space(block_group, cluster);
+	}
+
 	while ((node = rb_last(&block_group->free_space_bytes)) != NULL) {
 		info = rb_entry(node, struct btrfs_free_space, bytes_index);
 		unlink_free_space(block_group, info);
@@ -417,3 +472,245 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 
 	return ret;
 }
+
+/*
+ * given a cluster, put all of its extents back into the free space
+ * cache.  If a block group is passed, this function will only free
+ * a cluster that belongs to the passed block group.
+ *
+ * Otherwise, it'll get a reference on the block group pointed to by the
+ * cluster and remove the cluster from it.
+ */
+int btrfs_return_cluster_to_free_space(
+			       struct btrfs_block_group_cache *block_group,
+			       struct btrfs_free_cluster *cluster)
+{
+	int ret;
+
+	/* first, get a safe pointer to the block group */
+	spin_lock(&cluster->lock);
+	if (!block_group) {
+		block_group = cluster->block_group;
+		if (!block_group) {
+			spin_unlock(&cluster->lock);
+			return 0;
+		}
+	} else if (cluster->block_group != block_group) {
+		/* someone else has already freed it don't redo their work */
+		spin_unlock(&cluster->lock);
+		return 0;
+	}
+	atomic_inc(&block_group->count);
+	spin_unlock(&cluster->lock);
+
+	/* now return any extents the cluster had on it */
+	spin_lock(&block_group->tree_lock);
+	ret = __btrfs_return_cluster_to_free_space(block_group, cluster);
+	spin_unlock(&block_group->tree_lock);
+
+	/* finally drop our ref */
+	btrfs_put_block_group(block_group);
+	return ret;
+}
+
+/*
+ * given a cluster, try to allocate 'bytes' from it, returns 0
+ * if it couldn't find anything suitably large, or a logical disk offset
+ * if things worked out
+ */
+u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
+			     struct btrfs_free_cluster *cluster, u64 bytes,
+			     u64 min_start)
+{
+	struct btrfs_free_space *entry = NULL;
+	struct rb_node *node;
+	u64 ret = 0;
+
+	spin_lock(&cluster->lock);
+	if (bytes > cluster->max_size)
+		goto out;
+
+	if (cluster->block_group != block_group)
+		goto out;
+
+	node = rb_first(&cluster->root);
+	if (!node)
+		goto out;
+
+	entry = rb_entry(node, struct btrfs_free_space, offset_index);
+
+	while(1) {
+		if (entry->bytes < bytes || entry->offset < min_start) {
+			struct rb_node *node;
+
+			node = rb_next(&entry->offset_index);
+			if (!node)
+				break;
+			entry = rb_entry(node, struct btrfs_free_space,
+					 offset_index);
+			continue;
+		}
+		ret = entry->offset;
+
+		entry->offset += bytes;
+		entry->bytes -= bytes;
+
+		if (entry->bytes == 0) {
+			rb_erase(&entry->offset_index, &cluster->root);
+			kfree(entry);
+		}
+		break;
+	}
+out:
+	spin_unlock(&cluster->lock);
+	return ret;
+}
+
+/*
+ * here we try to find a cluster of blocks in a block group.  The goal
+ * is to find at least bytes free and up to empty_size + bytes free.
+ * We might not find them all in one contiguous area.
+ *
+ * returns zero and sets up cluster if things worked out, otherwise
+ * it returns -enospc
+ */
+int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
+			     struct btrfs_block_group_cache *block_group,
+			     struct btrfs_free_cluster *cluster,
+			     u64 offset, u64 bytes, u64 empty_size)
+{
+	struct btrfs_free_space *entry = NULL;
+	struct rb_node *node;
+	struct btrfs_free_space *next;
+	struct btrfs_free_space *last;
+	u64 min_bytes;
+	u64 window_start;
+	u64 window_free;
+	u64 max_extent = 0;
+	int total_retries = 0;
+	int ret;
+
+	/* for metadata, allow allocates with more holes */
+	if (block_group->flags & BTRFS_BLOCK_GROUP_METADATA) {
+		/*
+		 * we want to do larger allocations when we are
+		 * flushing out the delayed refs, it helps prevent
+		 * making more work as we go along.
+		 */
+		if (trans->transaction->delayed_refs.flushing)
+			min_bytes = max(bytes, (bytes + empty_size) >> 1);
+		else
+			min_bytes = max(bytes, (bytes + empty_size) >> 4);
+	} else
+		min_bytes = max(bytes, (bytes + empty_size) >> 2);
+
+	spin_lock(&block_group->tree_lock);
+	spin_lock(&cluster->lock);
+
+	/* someone already found a cluster, hooray */
+	if (cluster->block_group) {
+		ret = 0;
+		goto out;
+	}
+again:
+	min_bytes = min(min_bytes, bytes + empty_size);
+	entry = tree_search_bytes(&block_group->free_space_bytes,
+				  offset, min_bytes);
+	if (!entry) {
+		ret = -ENOSPC;
+		goto out;
+	}
+	window_start = entry->offset;
+	window_free = entry->bytes;
+	last = entry;
+	max_extent = entry->bytes;
+
+	while(1) {
+		/* out window is just right, lets fill it */
+		if (window_free >= bytes + empty_size)
+			break;
+
+		node = rb_next(&last->offset_index);
+		if (!node) {
+			ret = -ENOSPC;
+			goto out;
+		}
+		next = rb_entry(node, struct btrfs_free_space, offset_index);
+
+		/*
+		 * we haven't filled the empty size and the window is
+		 * very large.  reset and try again
+		 */
+		if (next->offset - window_start > (bytes + empty_size) * 2) {
+			entry = next;
+			window_start = entry->offset;
+			window_free = entry->bytes;
+			last = entry;
+			max_extent = 0;
+			total_retries++;
+			if (total_retries % 256 == 0) {
+				if (min_bytes >= (bytes + empty_size)) {
+					ret = -ENOSPC;
+					goto out;
+				}
+				/*
+				 * grow our allocation a bit, we're not having
+				 * much luck
+				 */
+				min_bytes *= 2;
+				goto again;
+			}
+		} else {
+			last = next;
+			window_free += next->bytes;
+			if (entry->bytes > max_extent)
+				max_extent = entry->bytes;
+		}
+	}
+
+	cluster->window_start = entry->offset;
+
+	/*
+	 * now we've found our entries, pull them out of the free space
+	 * cache and put them into the cluster rbtree
+	 *
+	 * The cluster includes an rbtree, but only uses the offset index
+	 * of each free space cache entry.
+	 */
+	while(1) {
+		node = rb_next(&entry->offset_index);
+		unlink_free_space(block_group, entry);
+		ret = tree_insert_offset(&cluster->root, entry->offset,
+					 &entry->offset_index);
+		BUG_ON(ret);
+
+		if (!node || entry == last)
+			break;
+
+		entry = rb_entry(node, struct btrfs_free_space, offset_index);
+	}
+	ret = 0;
+	cluster->max_size = max_extent;
+	atomic_inc(&block_group->count);
+	list_add_tail(&cluster->block_group_list, &block_group->cluster_list);
+	cluster->block_group = block_group;
+out:
+	spin_unlock(&cluster->lock);
+	spin_unlock(&block_group->tree_lock);
+
+	return ret;
+}
+
+/*
+ * simple code to zero out a cluster
+ */
+void btrfs_init_free_cluster(struct btrfs_free_cluster *cluster)
+{
+	spin_lock_init(&cluster->lock);
+	spin_lock_init(&cluster->refill_lock);
+	cluster->root.rb_node = NULL;
+	cluster->max_size = 0;
+	INIT_LIST_HEAD(&cluster->block_group_list);
+	cluster->block_group = NULL;
+}
+

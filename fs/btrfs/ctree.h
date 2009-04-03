@@ -633,11 +633,29 @@ struct btrfs_space_info {
 	struct rw_semaphore groups_sem;
 };
 
-struct btrfs_free_space {
-	struct rb_node bytes_index;
-	struct rb_node offset_index;
-	u64 offset;
-	u64 bytes;
+/*
+ * free clusters are used to claim free space in relatively large chunks,
+ * allowing us to do less seeky writes.  They are used for all metadata
+ * allocations and data allocations in ssd mode.
+ */
+struct btrfs_free_cluster {
+	spinlock_t lock;
+	spinlock_t refill_lock;
+	struct rb_root root;
+
+	/* largest extent in this cluster */
+	u64 max_size;
+
+	/* first extent starting offset */
+	u64 window_start;
+
+	struct btrfs_block_group_cache *block_group;
+	/*
+	 * when a cluster is allocated from a block group, we put the
+	 * cluster onto a list in the block group so that it can
+	 * be freed before the block group is freed.
+	 */
+	struct list_head block_group_list;
 };
 
 struct btrfs_block_group_cache {
@@ -667,6 +685,11 @@ struct btrfs_block_group_cache {
 
 	/* usage count */
 	atomic_t count;
+
+	/* List of struct btrfs_free_clusters for this block group.
+	 * Today it will only have one thing on it, but that may change
+	 */
+	struct list_head cluster_list;
 };
 
 struct btrfs_leaf_ref_tree {
@@ -838,8 +861,12 @@ struct btrfs_fs_info {
 	spinlock_t delalloc_lock;
 	spinlock_t new_trans_lock;
 	u64 delalloc_bytes;
-	u64 last_alloc;
-	u64 last_data_alloc;
+
+	/* data_alloc_cluster is only used in ssd mode */
+	struct btrfs_free_cluster data_alloc_cluster;
+
+	/* all metadata allocations go through this cluster */
+	struct btrfs_free_cluster meta_alloc_cluster;
 
 	spinlock_t ref_cache_lock;
 	u64 total_ref_cache_size;
@@ -1747,6 +1774,7 @@ static inline struct dentry *fdentry(struct file *file)
 }
 
 /* extent-tree.c */
+void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, unsigned long count);
 int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len);
@@ -2173,16 +2201,4 @@ int btrfs_check_acl(struct inode *inode, int mask);
 int btrfs_init_acl(struct inode *inode, struct inode *dir);
 int btrfs_acl_chmod(struct inode *inode);
 
-/* free-space-cache.c */
-int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
-			 u64 bytenr, u64 size);
-int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
-			    u64 bytenr, u64 size);
-void btrfs_remove_free_space_cache(struct btrfs_block_group_cache
-				   *block_group);
-u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
-			       u64 offset, u64 bytes, u64 empty_size);
-void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
-			   u64 bytes);
-u64 btrfs_block_group_free_space(struct btrfs_block_group_cache *block_group);
 #endif
