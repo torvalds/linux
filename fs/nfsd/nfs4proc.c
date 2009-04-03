@@ -162,6 +162,15 @@ do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_
 	return status;
 }
 
+static void
+copy_clientid(clientid_t *clid, struct nfsd4_session *session)
+{
+	struct nfsd4_sessionid *sid =
+			(struct nfsd4_sessionid *)session->se_sessionid.data;
+
+	clid->cl_boot = sid->clientid.cl_boot;
+	clid->cl_id = sid->clientid.cl_id;
+}
 
 static __be32
 nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
@@ -177,6 +186,9 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	/* This check required by spec. */
 	if (open->op_create && open->op_claim_type != NFS4_OPEN_CLAIM_NULL)
 		return nfserr_inval;
+
+	if (nfsd4_has_session(cstate))
+		copy_clientid(&open->op_clientid, cstate->session);
 
 	nfs4_lock_state();
 

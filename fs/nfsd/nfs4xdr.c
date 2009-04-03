@@ -189,6 +189,11 @@ static __be32 *read_buf(struct nfsd4_compoundargs *argp, u32 nbytes)
 	return p;
 }
 
+static int zero_clientid(clientid_t *clid)
+{
+	return (clid->cl_boot == 0) && (clid->cl_id == 0);
+}
+
 static int
 defer_free(struct nfsd4_compoundargs *argp,
 		void (*release)(const void *), void *p)
@@ -584,6 +589,8 @@ nfsd4_decode_lockt(struct nfsd4_compoundargs *argp, struct nfsd4_lockt *lockt)
 	READ_BUF(lockt->lt_owner.len);
 	READMEM(lockt->lt_owner.data, lockt->lt_owner.len);
 
+	if (argp->minorversion && !zero_clientid(&lockt->lt_clientid))
+		return nfserr_inval;
 	DECODE_TAIL;
 }
 
@@ -994,6 +1001,8 @@ nfsd4_decode_release_lockowner(struct nfsd4_compoundargs *argp, struct nfsd4_rel
 	READ_BUF(rlockowner->rl_owner.len);
 	READMEM(rlockowner->rl_owner.data, rlockowner->rl_owner.len);
 
+	if (argp->minorversion && !zero_clientid(&rlockowner->rl_clientid))
+		return nfserr_inval;
 	DECODE_TAIL;
 }
 
