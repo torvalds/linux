@@ -60,6 +60,7 @@
 #include "delegation.h"
 #include "iostat.h"
 #include "internal.h"
+#include "fscache.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
@@ -1870,8 +1871,6 @@ static void nfs_clone_super(struct super_block *sb,
  	nfs_initialise_sb(sb);
 }
 
-#define NFS_MS_MASK (MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC|MS_SYNCHRONOUS)
-
 static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b, int flags)
 {
 	const struct nfs_server *a = s->s_fs_info;
@@ -2036,6 +2035,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs_fill_super(s, data);
+		nfs_fscache_get_super_cookie(s, data);
 	}
 
 	mntroot = nfs_get_root(s, mntfh);
@@ -2056,6 +2056,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 out:
 	kfree(data->nfs_server.hostname);
 	kfree(data->mount_server.hostname);
+	kfree(data->fscache_uniq);
 	security_free_mnt_opts(&data->lsm_opts);
 out_free_fh:
 	kfree(mntfh);
@@ -2083,6 +2084,7 @@ static void nfs_kill_super(struct super_block *s)
 
 	bdi_unregister(&server->backing_dev_info);
 	kill_anon_super(s);
+	nfs_fscache_release_super_cookie(s);
 	nfs_free_server(server);
 }
 
@@ -2390,6 +2392,7 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs4_fill_super(s);
+		nfs_fscache_get_super_cookie(s, data);
 	}
 
 	mntroot = nfs4_get_root(s, mntfh);
@@ -2411,6 +2414,7 @@ out:
 	kfree(data->client_address);
 	kfree(data->nfs_server.export_path);
 	kfree(data->nfs_server.hostname);
+	kfree(data->fscache_uniq);
 	security_free_mnt_opts(&data->lsm_opts);
 out_free_fh:
 	kfree(mntfh);
@@ -2437,6 +2441,7 @@ static void nfs4_kill_super(struct super_block *sb)
 	kill_anon_super(sb);
 
 	nfs4_renewd_prepare_shutdown(server);
+	nfs_fscache_release_super_cookie(sb);
 	nfs_free_server(server);
 }
 

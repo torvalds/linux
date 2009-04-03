@@ -112,3 +112,37 @@ const struct fscache_cookie_def nfs_fscache_server_index_def = {
 	.type 		= FSCACHE_COOKIE_TYPE_INDEX,
 	.get_key	= nfs_server_get_key,
 };
+
+/*
+ * Generate a key to describe a superblock key in the main NFS index
+ */
+static uint16_t nfs_super_get_key(const void *cookie_netfs_data,
+				  void *buffer, uint16_t bufmax)
+{
+	const struct nfs_fscache_key *key;
+	const struct nfs_server *nfss = cookie_netfs_data;
+	uint16_t len;
+
+	key = nfss->fscache_key;
+	len = sizeof(key->key) + key->key.uniq_len;
+	if (len > bufmax) {
+		len = 0;
+	} else {
+		memcpy(buffer, &key->key, sizeof(key->key));
+		memcpy(buffer + sizeof(key->key),
+		       key->key.uniquifier, key->key.uniq_len);
+	}
+
+	return len;
+}
+
+/*
+ * Define the superblock object for FS-Cache.  This is used to describe a
+ * superblock object to fscache_acquire_cookie().  It is keyed by all the NFS
+ * parameters that might cause a separate superblock.
+ */
+const struct fscache_cookie_def nfs_fscache_super_index_def = {
+	.name		= "NFS.super",
+	.type 		= FSCACHE_COOKIE_TYPE_INDEX,
+	.get_key	= nfs_super_get_key,
+};

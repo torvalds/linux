@@ -108,6 +108,11 @@ struct nfs_server {
 	unsigned long		mount_time;	/* when this fs was mounted */
 	dev_t			s_dev;		/* superblock dev numbers */
 
+#ifdef CONFIG_NFS_FSCACHE
+	struct nfs_fscache_key	*fscache_key;	/* unique key for superblock */
+	struct fscache_cookie	*fscache;	/* superblock cookie */
+#endif
+
 #ifdef CONFIG_NFS_V4
 	u32			attr_bitmask[2];/* V4 bitmask representing the set
 						   of attributes supported on this
