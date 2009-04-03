@@ -42,8 +42,8 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 #define dprintk(level, fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
 
-#define XC5000_DEFAULT_FIRMWARE "dvb-fe-xc5000-1.1.fw"
-#define XC5000_DEFAULT_FIRMWARE_SIZE 12332
+#define XC5000_DEFAULT_FIRMWARE "dvb-fe-xc5000-1.4.68.fw"
+#define XC5000_DEFAULT_FIRMWARE_SIZE 12378
 
 struct xc5000_priv {
 	struct tuner_i2c_props i2c_props;
