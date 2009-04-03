@@ -3,6 +3,7 @@
 #
 
 fscache-y := \
+	cache.o \
 	fsdef.o \
 	main.o
 

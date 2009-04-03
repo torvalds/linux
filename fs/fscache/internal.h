@@ -28,6 +28,15 @@
 #define FSCACHE_MAX_THREADS	32
 
 /*
+ * fsc-cache.c
+ */
+extern struct list_head fscache_cache_list;
+extern struct rw_semaphore fscache_addremove_sem;
+
+extern struct fscache_cache *fscache_select_cache_for_object(
+	struct fscache_cookie *);
+
+/*
  * fsc-fsdef.c
  */
 extern struct fscache_cookie fscache_fsdef_index;
@@ -167,6 +176,17 @@ extern const struct file_operations fscache_stats_fops;
 
 #define fscache_stat(stat) do {} while (0)
 #endif
+
+/*
+ * raise an event on an object
+ * - if the event is not masked for that object, then the object is
+ *   queued for attention by the thread pool.
+ */
+static inline void fscache_raise_event(struct fscache_object *object,
+				       unsigned event)
+{
+	BUG();  // TODO
+}
 
 /*****************************************************************************/
 /*
