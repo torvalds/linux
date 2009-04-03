@@ -44,6 +44,9 @@ struct ds_configuration {
 	/* The size of a BTS/PEBS record in bytes: */
 	unsigned char		sizeof_rec[2];
 
+	/* The number of pebs counter reset values in the DS structure. */
+	unsigned char		nr_counter_reset;
+
 	/* Control bit-masks indexed by enum ds_feature: */
 	unsigned long		ctl[dsf_ctl_max];
 };
@@ -51,13 +54,19 @@ static struct ds_configuration ds_cfg __read_mostly;
 
 
 /* Maximal size of a DS configuration: */
-#define MAX_SIZEOF_DS		(12 * 8)
+#define MAX_SIZEOF_DS		0x80
 
 /* Maximal size of a BTS record: */
 #define MAX_SIZEOF_BTS		(3 * 8)
 
 /* BTS and PEBS buffer alignment: */
 #define DS_ALIGNMENT		(1 << 3)
+
+/* Number of buffer pointers in DS: */
+#define NUM_DS_PTR_FIELDS	8
+
+/* Size of a pebs reset value in DS: */
+#define PEBS_RESET_FIELD_SIZE	8
 
 /* Mask of control bits in the DS MSR register: */
 #define BTS_CONTROL				  \
@@ -1164,9 +1173,12 @@ const struct pebs_trace *ds_read_pebs(struct pebs_tracer *tracer)
 		return NULL;
 
 	ds_read_config(tracer->ds.context, &tracer->trace.ds, ds_pebs);
-	tracer->trace.reset_value =
-		*(u64 *)(tracer->ds.context->ds +
-			 (ds_cfg.sizeof_ptr_field * 8));
+
+	tracer->trace.counters = ds_cfg.nr_counter_reset;
+	memcpy(tracer->trace.counter_reset,
+	       tracer->ds.context->ds +
+	       (NUM_DS_PTR_FIELDS * ds_cfg.sizeof_ptr_field),
+	       ds_cfg.nr_counter_reset * PEBS_RESET_FIELD_SIZE);
 
 	return &tracer->trace;
 }
@@ -1197,13 +1209,18 @@ int ds_reset_pebs(struct pebs_tracer *tracer)
 	return 0;
 }
 
-int ds_set_pebs_reset(struct pebs_tracer *tracer, u64 value)
+int ds_set_pebs_reset(struct pebs_tracer *tracer,
+		      unsigned int counter, u64 value)
 {
 	if (!tracer)
 		return -EINVAL;
 
+	if (ds_cfg.nr_counter_reset < counter)
+		return -EINVAL;
+
 	*(u64 *)(tracer->ds.context->ds +
-		 (ds_cfg.sizeof_ptr_field * 8)) = value;
+		 (NUM_DS_PTR_FIELDS * ds_cfg.sizeof_ptr_field) +
+		 (counter * PEBS_RESET_FIELD_SIZE)) = value;
 
 	return 0;
 }
@@ -1213,16 +1230,26 @@ static const struct ds_configuration ds_cfg_netburst = {
 	.ctl[dsf_bts]		= (1 << 2) | (1 << 3),
 	.ctl[dsf_bts_kernel]	= (1 << 5),
 	.ctl[dsf_bts_user]	= (1 << 6),
+	.nr_counter_reset	= 1,
 };
 static const struct ds_configuration ds_cfg_pentium_m = {
 	.name = "Pentium M",
 	.ctl[dsf_bts]		= (1 << 6) | (1 << 7),
+	.nr_counter_reset	= 1,
 };
 static const struct ds_configuration ds_cfg_core2_atom = {
 	.name = "Core 2/Atom",
 	.ctl[dsf_bts]		= (1 << 6) | (1 << 7),
 	.ctl[dsf_bts_kernel]	= (1 << 9),
 	.ctl[dsf_bts_user]	= (1 << 10),
+	.nr_counter_reset	= 1,
+};
+static const struct ds_configuration ds_cfg_core_i7 = {
+	.name = "Core i7",
+	.ctl[dsf_bts]		= (1 << 6) | (1 << 7),
+	.ctl[dsf_bts_kernel]	= (1 << 9),
+	.ctl[dsf_bts_user]	= (1 << 10),
+	.nr_counter_reset	= 4,
 };
 
 static void
@@ -1238,6 +1265,32 @@ ds_configure(const struct ds_configuration *cfg,
 #else
 	nr_pebs_fields = 18;
 #endif
+
+	/*
+	 * Starting with version 2, architectural performance
+	 * monitoring supports a format specifier.
+	 */
+	if ((cpuid_eax(0xa) & 0xff) > 1) {
+		unsigned long perf_capabilities, format;
+
+		rdmsrl(MSR_IA32_PERF_CAPABILITIES, perf_capabilities);
+
+		format = (perf_capabilities >> 8) & 0xf;
+
+		switch (format) {
+		case 0:
+			nr_pebs_fields = 18;
+			break;
+		case 1:
+			nr_pebs_fields = 22;
+			break;
+		default:
+			printk(KERN_INFO
+			       "[ds] unknown PEBS format: %lu\n", format);
+			nr_pebs_fields = 0;
+			break;
+		}
+	}
 
 	memset(&ds_cfg, 0, sizeof(ds_cfg));
 	ds_cfg = *cfg;
@@ -1262,7 +1315,7 @@ ds_configure(const struct ds_configuration *cfg,
 	printk("bts/pebs record: %u/%u bytes\n",
 	       ds_cfg.sizeof_rec[ds_bts], ds_cfg.sizeof_rec[ds_pebs]);
 
-	WARN_ON_ONCE(MAX_SIZEOF_DS < (12 * ds_cfg.sizeof_ptr_field));
+	WARN_ON_ONCE(MAX_PEBS_COUNTERS < ds_cfg.nr_counter_reset);
 }
 
 void __cpuinit ds_init_intel(struct cpuinfo_x86 *c)
@@ -1284,6 +1337,8 @@ void __cpuinit ds_init_intel(struct cpuinfo_x86 *c)
 			ds_configure(&ds_cfg_core2_atom, c);
 			break;
 		case 0x1a: /* Core i7 */
+			ds_configure(&ds_cfg_core_i7, c);
+			break;
 		default:
 			/* Sorry, don't know about them. */
 			break;

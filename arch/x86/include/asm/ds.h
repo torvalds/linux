@@ -234,8 +234,12 @@ struct bts_trace {
 struct pebs_trace {
 	struct ds_trace ds;
 
-	/* the PEBS reset value */
-	unsigned long long reset_value;
+	/* the number of valid counters in the below array */
+	unsigned int counters;
+
+#define MAX_PEBS_COUNTERS 4
+	/* the counter reset value */
+	unsigned long long counter_reset[MAX_PEBS_COUNTERS];
 };
 
 
@@ -270,9 +274,11 @@ extern int ds_reset_pebs(struct pebs_tracer *tracer);
  * Returns 0 on success; -Eerrno on error
  *
  * tracer: the tracer handle returned from ds_request_pebs()
+ * counter: the index of the counter
  * value: the new counter reset value
  */
-extern int ds_set_pebs_reset(struct pebs_tracer *tracer, u64 value);
+extern int ds_set_pebs_reset(struct pebs_tracer *tracer,
+			     unsigned int counter, u64 value);
 
 /*
  * Initialization
