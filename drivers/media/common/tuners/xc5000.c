@@ -555,7 +555,7 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 		ret = XC_RESULT_RESET_FAILURE;
 		goto out;
 	} else {
-		printk(KERN_INFO "xc5000: firmware read %Zu bytes.\n",
+		printk(KERN_DEBUG "xc5000: firmware read %Zu bytes.\n",
 		       fw->size);
 		ret = XC_RESULT_SUCCESS;
 	}
@@ -564,8 +564,9 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 		printk(KERN_ERR "xc5000: firmware incorrect size\n");
 		ret = XC_RESULT_RESET_FAILURE;
 	} else {
-		printk(KERN_INFO "xc5000: firmware upload\n");
+		printk(KERN_INFO "xc5000: firmware uploading...\n");
 		ret = xc_load_i2c_sequence(fe,  fw->data);
+		printk(KERN_INFO "xc5000: firmware upload complete...\n");
 	}
 
 out:
