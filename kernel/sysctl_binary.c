@@ -176,3 +176,53 @@ SYSCALL_DEFINE1(sysctl, struct __sysctl_args __user *, args)
 
 	return error;
 }
+
+#ifdef CONFIG_COMPAT
+#include <asm/compat.h>
+
+struct compat_sysctl_args {
+	compat_uptr_t	name;
+	int		nlen;
+	compat_uptr_t	oldval;
+	compat_uptr_t	oldlenp;
+	compat_uptr_t	newval;
+	compat_size_t	newlen;
+	compat_ulong_t	__unused[4];
+};
+
+asmlinkage long compat_sys_sysctl(struct compat_sysctl_args __user *args)
+{
+	struct compat_sysctl_args tmp;
+	compat_size_t __user *compat_oldlenp;
+	size_t __user *oldlenp = NULL;
+	size_t oldlen = 0;
+	ssize_t result;
+
+	if (copy_from_user(&tmp, args, sizeof(tmp)))
+		return -EFAULT;
+
+	compat_oldlenp = compat_ptr(tmp.oldlenp);
+	if (compat_oldlenp) {
+		oldlenp = compat_alloc_user_space(sizeof(*compat_oldlenp));
+
+		if (get_user(oldlen, compat_oldlenp) ||
+		    put_user(oldlen, oldlenp))
+			return -EFAULT;
+	}
+
+	lock_kernel();
+	result = do_sysctl(compat_ptr(tmp.name), tmp.nlen,
+			   compat_ptr(tmp.oldval), oldlenp,
+			   compat_ptr(tmp.newval), tmp.newlen);
+	unlock_kernel();
+
+	if (oldlenp && !result) {
+		if (get_user(oldlen, oldlenp) ||
+		    put_user(oldlen, compat_oldlenp))
+			return -EFAULT;
+	}
+
+	return result;
+}
+
+#endif /* CONFIG_COMPAT */
