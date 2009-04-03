@@ -193,12 +193,28 @@ static DEFINE_SPINLOCK(ds_lock);
  */
 static atomic_t tracers = ATOMIC_INIT(0);
 
-static inline void get_tracer(struct task_struct *task)
+static inline int get_tracer(struct task_struct *task)
 {
-	if (task)
+	int error;
+
+	spin_lock_irq(&ds_lock);
+
+	if (task) {
+		error = -EPERM;
+		if (atomic_read(&tracers) < 0)
+			goto out;
 		atomic_inc(&tracers);
-	else
+	} else {
+		error = -EPERM;
+		if (atomic_read(&tracers) > 0)
+			goto out;
 		atomic_dec(&tracers);
+	}
+
+	error = 0;
+out:
+	spin_unlock_irq(&ds_lock);
+	return error;
 }
 
 static inline void put_tracer(struct task_struct *task)
@@ -208,14 +224,6 @@ static inline void put_tracer(struct task_struct *task)
 	else
 		atomic_inc(&tracers);
 }
-
-static inline int check_tracer(struct task_struct *task)
-{
-	return task ?
-		(atomic_read(&tracers) >= 0) :
-		(atomic_read(&tracers) <= 0);
-}
-
 
 /*
  * The DS context is either attached to a thread or to a cpu:
@@ -677,6 +685,10 @@ struct bts_tracer *ds_request_bts(struct task_struct *task,
 	if (ovfl)
 		goto out;
 
+	error = get_tracer(task);
+	if (error < 0)
+		goto out;
+
 	/*
 	 * Per-cpu tracing is typically requested using smp_call_function().
 	 * We must not sleep.
@@ -684,7 +696,7 @@ struct bts_tracer *ds_request_bts(struct task_struct *task,
 	error = -ENOMEM;
 	tracer = kzalloc(sizeof(*tracer), GFP_ATOMIC);
 	if (!tracer)
-		goto out;
+		goto out_put_tracer;
 	tracer->ovfl = ovfl;
 
 	error = ds_request(&tracer->ds, &tracer->trace.ds,
@@ -696,13 +708,8 @@ struct bts_tracer *ds_request_bts(struct task_struct *task,
 	spin_lock_irqsave(&ds_lock, irq);
 
 	error = -EPERM;
-	if (!check_tracer(task))
-		goto out_unlock;
-	get_tracer(task);
-
-	error = -EPERM;
 	if (tracer->ds.context->bts_master)
-		goto out_put_tracer;
+		goto out_unlock;
 	tracer->ds.context->bts_master = tracer;
 
 	spin_unlock_irqrestore(&ds_lock, irq);
@@ -716,13 +723,13 @@ struct bts_tracer *ds_request_bts(struct task_struct *task,
 
 	return tracer;
 
- out_put_tracer:
-	put_tracer(task);
  out_unlock:
 	spin_unlock_irqrestore(&ds_lock, irq);
 	ds_put_context(tracer->ds.context);
  out_tracer:
 	kfree(tracer);
+ out_put_tracer:
+	put_tracer(task);
  out:
 	return ERR_PTR(error);
 }
@@ -741,6 +748,10 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 	if (ovfl)
 		goto out;
 
+	error = get_tracer(task);
+	if (error < 0)
+		goto out;
+
 	/*
 	 * Per-cpu tracing is typically requested using smp_call_function().
 	 * We must not sleep.
@@ -748,7 +759,7 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 	error = -ENOMEM;
 	tracer = kzalloc(sizeof(*tracer), GFP_ATOMIC);
 	if (!tracer)
-		goto out;
+		goto out_put_tracer;
 	tracer->ovfl = ovfl;
 
 	error = ds_request(&tracer->ds, &tracer->trace.ds,
@@ -759,13 +770,8 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 	spin_lock_irqsave(&ds_lock, irq);
 
 	error = -EPERM;
-	if (!check_tracer(task))
-		goto out_unlock;
-	get_tracer(task);
-
-	error = -EPERM;
 	if (tracer->ds.context->pebs_master)
-		goto out_put_tracer;
+		goto out_unlock;
 	tracer->ds.context->pebs_master = tracer;
 
 	spin_unlock_irqrestore(&ds_lock, irq);
@@ -775,13 +781,13 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 
 	return tracer;
 
- out_put_tracer:
-	put_tracer(task);
  out_unlock:
 	spin_unlock_irqrestore(&ds_lock, irq);
 	ds_put_context(tracer->ds.context);
  out_tracer:
 	kfree(tracer);
+ out_put_tracer:
+	put_tracer(task);
  out:
 	return ERR_PTR(error);
 }
@@ -804,8 +810,8 @@ void ds_release_bts(struct bts_tracer *tracer)
 	if (task && (task != current))
 		wait_task_context_switch(task);
 
-	put_tracer(task);
 	ds_put_context(tracer->ds.context);
+	put_tracer(task);
 
 	kfree(tracer);
 }
@@ -861,16 +867,20 @@ void ds_resume_bts(struct bts_tracer *tracer)
 
 void ds_release_pebs(struct pebs_tracer *tracer)
 {
+	struct task_struct *task;
+
 	if (!tracer)
 		return;
+
+	task = tracer->ds.context->task;
 
 	ds_suspend_pebs(tracer);
 
 	WARN_ON_ONCE(tracer->ds.context->pebs_master != tracer);
 	tracer->ds.context->pebs_master = NULL;
 
-	put_tracer(tracer->ds.context->task);
 	ds_put_context(tracer->ds.context);
+	put_tracer(task);
 
 	kfree(tracer);
 }
