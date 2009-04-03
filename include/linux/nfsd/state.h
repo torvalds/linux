@@ -99,9 +99,22 @@ struct nfs4_callback {
 	struct rpc_clnt *       cb_client;
 };
 
+/* Maximum number of pages per slot cache entry */
+#define NFSD_PAGES_PER_SLOT	1
+
+struct nfsd4_cache_entry {
+	__be32		ce_status;
+	struct kvec	ce_datav; /* encoded NFSv4.1 data in rq_res.head[0] */
+	struct page	*ce_respages[NFSD_PAGES_PER_SLOT + 1];
+	short		ce_resused;
+	int		ce_opcnt;
+	int		ce_rpchdrlen;
+};
+
 struct nfsd4_slot {
 	bool				sl_inuse;
 	u32				sl_seqid;
+	struct nfsd4_cache_entry	sl_cache_entry;
 };
 
 struct nfsd4_session {
