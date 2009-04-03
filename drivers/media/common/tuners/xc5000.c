@@ -87,7 +87,7 @@ struct xc5000_priv {
 #define XREG_SIGNALSOURCE 0x0D /* 0=Air, 1=Cable */
 #define XREG_SMOOTHEDCVBS 0x0E
 #define XREG_XTALFREQ     0x0F
-#define XREG_FINERFFREQ   0x10
+#define XREG_FINERFREQ    0x10
 #define XREG_DDIMODE      0x11
 
 #define XREG_ADC_ENV      0x00
@@ -395,7 +395,10 @@ static int xc_set_RF_frequency(struct xc5000_priv *priv, u32 freq_hz)
 
 	freq_code = (u16)(freq_hz / 15625);
 
-	return xc_write_reg(priv, XREG_RF_FREQ, freq_code);
+	/* Starting in firmware version 1.1.44, Xceive recommends using the
+	   FINERFREQ for all normal tuning (the doc indicates reg 0x03 should
+	   only be used for fast scanning for channel lock) */
+	return xc_write_reg(priv, XREG_FINERFREQ, freq_code);
 }
 
 
