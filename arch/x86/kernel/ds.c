@@ -1352,16 +1352,6 @@ void ds_switch_to(struct task_struct *prev, struct task_struct *next)
 	update_debugctlmsr(debugctlmsr);
 }
 
-void ds_copy_thread(struct task_struct *tsk, struct task_struct *father)
-{
-	clear_tsk_thread_flag(tsk, TIF_DS_AREA_MSR);
-	tsk->thread.ds_ctx = NULL;
-}
-
-void ds_exit_thread(struct task_struct *tsk)
-{
-}
-
 static __init int ds_selftest(void)
 {
 	if (ds_cfg.sizeof_rec[ds_bts]) {
