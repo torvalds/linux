@@ -1339,12 +1339,12 @@ static int __devinit cpm_uart_probe(struct of_device *ofdev,
 
 	dev_set_drvdata(&ofdev->dev, pinfo);
 
+	/* initialize the device pointer for the port */
+	pinfo->port.dev = &ofdev->dev;
+
 	ret = cpm_uart_init_port(ofdev->node, pinfo);
 	if (ret)
 		return ret;
-
-	/* initialize the device pointer for the port */
-	pinfo->port.dev = &ofdev->dev;
 
 	return uart_add_one_port(&cpm_reg, &pinfo->port);
 }
