@@ -121,6 +121,7 @@ struct audioformat {
 	unsigned char attributes;	/* corresponding attributes of cs endpoint */
 	unsigned char endpoint;		/* endpoint */
 	unsigned char ep_attr;		/* endpoint attributes */
+	unsigned char datainterval;	/* log_2 of data packet interval */
 	unsigned int maxpacksize;	/* max. packet size */
 	unsigned int rates;		/* rate bitmasks */
 	unsigned int rate_min, rate_max;	/* min/max rates */
@@ -1350,12 +1351,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 		subs->datapipe = usb_sndisocpipe(dev, ep);
 	else
 		subs->datapipe = usb_rcvisocpipe(dev, ep);
-	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH &&
-	    get_endpoint(alts, 0)->bInterval >= 1 &&
-	    get_endpoint(alts, 0)->bInterval <= 4)
-		subs->datainterval = get_endpoint(alts, 0)->bInterval - 1;
-	else
-		subs->datainterval = 0;
+	subs->datainterval = fmt->datainterval;
 	subs->syncpipe = subs->syncinterval = 0;
 	subs->maxpacksize = fmt->maxpacksize;
 	subs->fill_max = 0;
@@ -2070,6 +2066,9 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 			}
 			snd_iprintf(buffer, "\n");
 		}
+		if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH)
+			snd_iprintf(buffer, "    Data packet interval: %d us\n",
+				    125 * (1 << fp->datainterval));
 		// snd_iprintf(buffer, "    Max Packet Size = %d\n", fp->maxpacksize);
 		// snd_iprintf(buffer, "    EP Attribute = %#x\n", fp->attributes);
 	}
@@ -2563,6 +2562,17 @@ static int parse_audio_format(struct snd_usb_audio *chip, struct audioformat *fp
 	return 0;
 }
 
+static unsigned char parse_datainterval(struct snd_usb_audio *chip,
+					struct usb_host_interface *alts)
+{
+	if (snd_usb_get_speed(chip->dev) == USB_SPEED_HIGH &&
+	    get_endpoint(alts, 0)->bInterval >= 1 &&
+	    get_endpoint(alts, 0)->bInterval <= 4)
+		return get_endpoint(alts, 0)->bInterval - 1;
+	else
+		return 0;
+}
+
 static int audiophile_skip_setting_quirk(struct snd_usb_audio *chip,
 					 int iface, int altno);
 static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
@@ -2668,6 +2678,7 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		fp->altset_idx = i;
 		fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
 		fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
+		fp->datainterval = parse_datainterval(chip, alts);
 		fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
 			fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
@@ -2859,6 +2870,7 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 		return -EINVAL;
 	}
 	alts = &iface->altsetting[fp->altset_idx];
+	fp->datainterval = parse_datainterval(chip, alts);
 	fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 	usb_set_interface(chip->dev, fp->iface, 0);
 	init_usb_pitch(chip->dev, fp->iface, alts, fp);
@@ -2953,6 +2965,7 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 	fp->iface = altsd->bInterfaceNumber;
 	fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
 	fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
+	fp->datainterval = 0;
 	fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 
 	switch (fp->maxpacksize) {
@@ -3020,6 +3033,7 @@ static int create_ua1000_quirk(struct snd_usb_audio *chip,
 	fp->iface = altsd->bInterfaceNumber;
 	fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
 	fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
+	fp->datainterval = parse_datainterval(chip, alts);
 	fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 	fp->rate_max = fp->rate_min = combine_triple(&alts->extra[8]);
 
@@ -3072,6 +3086,7 @@ static int create_ua101_quirk(struct snd_usb_audio *chip,
 	fp->iface = altsd->bInterfaceNumber;
 	fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
 	fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
+	fp->datainterval = parse_datainterval(chip, alts);
 	fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 	fp->rate_max = fp->rate_min = combine_triple(&alts->extra[15]);
 
