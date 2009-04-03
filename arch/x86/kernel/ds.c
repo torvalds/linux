@@ -25,6 +25,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/trace_clock.h>
 
 #include <asm/ds.h>
 
@@ -471,7 +472,7 @@ enum bts_field {
 	bts_flags,
 
 	bts_qual		= bts_from,
-	bts_jiffies		= bts_to,
+	bts_clock		= bts_to,
 	bts_pid			= bts_flags,
 
 	bts_qual_mask		= (bts_qual_max - 1),
@@ -517,8 +518,8 @@ bts_read(struct bts_tracer *tracer, const void *at, struct bts_struct *out)
 	memset(out, 0, sizeof(*out));
 	if ((bts_get(at, bts_qual) & ~bts_qual_mask) == bts_escape) {
 		out->qualifier = (bts_get(at, bts_qual) & bts_qual_mask);
-		out->variant.timestamp.jiffies = bts_get(at, bts_jiffies);
-		out->variant.timestamp.pid = bts_get(at, bts_pid);
+		out->variant.event.clock = bts_get(at, bts_clock);
+		out->variant.event.pid = bts_get(at, bts_pid);
 	} else {
 		out->qualifier = bts_branch;
 		out->variant.lbr.from = bts_get(at, bts_from);
@@ -555,8 +556,8 @@ static int bts_write(struct bts_tracer *tracer, const struct bts_struct *in)
 	case bts_task_arrives:
 	case bts_task_departs:
 		bts_set(raw, bts_qual, (bts_escape | in->qualifier));
-		bts_set(raw, bts_jiffies, in->variant.timestamp.jiffies);
-		bts_set(raw, bts_pid, in->variant.timestamp.pid);
+		bts_set(raw, bts_clock, in->variant.event.clock);
+		bts_set(raw, bts_pid, in->variant.event.pid);
 		break;
 	default:
 		return -EINVAL;
@@ -1083,9 +1084,9 @@ static inline void ds_take_timestamp(struct ds_context *context,
 		return;
 
 	memset(&ts, 0, sizeof(ts));
-	ts.qualifier			= qualifier;
-	ts.variant.timestamp.jiffies	= jiffies_64;
-	ts.variant.timestamp.pid	= task->pid;
+	ts.qualifier		= qualifier;
+	ts.variant.event.clock	= trace_clock_global();
+	ts.variant.event.pid	= task->pid;
 
 	bts_write(tracer, &ts);
 }

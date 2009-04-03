@@ -170,9 +170,9 @@ struct bts_struct {
 		} lbr;
 		/* BTS_TASK_ARRIVES or BTS_TASK_DEPARTS */
 		struct {
-			__u64 jiffies;
+			__u64 clock;
 			pid_t pid;
-		} timestamp;
+		} event;
 	} variant;
 };
 
