@@ -56,6 +56,18 @@ static int __init fscache_init(void)
 	if (ret < 0)
 		goto error_proc;
 
+	fscache_cookie_jar = kmem_cache_create("fscache_cookie_jar",
+					       sizeof(struct fscache_cookie),
+					       0,
+					       0,
+					       fscache_cookie_init_once);
+	if (!fscache_cookie_jar) {
+		printk(KERN_NOTICE
+		       "FS-Cache: Failed to allocate a cookie jar\n");
+		ret = -ENOMEM;
+		goto error_cookie_jar;
+	}
+
 	fscache_root = kobject_create_and_add("fscache", kernel_kobj);
 	if (!fscache_root)
 		goto error_kobj;
@@ -64,6 +76,8 @@ static int __init fscache_init(void)
 	return 0;
 
 error_kobj:
+	kmem_cache_destroy(fscache_cookie_jar);
+error_cookie_jar:
 	fscache_proc_cleanup();
 error_proc:
 	slow_work_unregister_user();
@@ -81,6 +95,7 @@ static void __exit fscache_exit(void)
 	_enter("");
 
 	kobject_put(fscache_root);
+	kmem_cache_destroy(fscache_cookie_jar);
 	fscache_proc_cleanup();
 	slow_work_unregister_user();
 	printk(KERN_NOTICE "FS-Cache: Unloaded\n");

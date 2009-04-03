@@ -4,6 +4,7 @@
 
 fscache-y := \
 	cache.o \
+	cookie.o \
 	fsdef.o \
 	main.o
 

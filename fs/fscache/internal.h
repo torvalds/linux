@@ -37,6 +37,14 @@ extern struct fscache_cache *fscache_select_cache_for_object(
 	struct fscache_cookie *);
 
 /*
+ * fsc-cookie.c
+ */
+extern struct kmem_cache *fscache_cookie_jar;
+
+extern void fscache_cookie_init_once(void *);
+extern void __fscache_cookie_put(struct fscache_cookie *);
+
+/*
  * fsc-fsdef.c
  */
 extern struct fscache_cookie fscache_fsdef_index;
