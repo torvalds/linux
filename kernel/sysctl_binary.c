@@ -14,8 +14,6 @@
 #include <linux/ctype.h>
 #include <linux/smp_lock.h>
 
-static int deprecated_sysctl_warning(struct __sysctl_args *args);
-
 #ifdef CONFIG_SYSCTL_SYSCALL
 
 /* Perform the actual read/write of a sysctl table entry. */
@@ -51,7 +49,7 @@ static int do_sysctl_strategy(struct ctl_table_root *root,
 	return 0;
 }
 
-static int parse_table(int __user *name, int nlen,
+static int parse_table(const int *name, int nlen,
 		       void __user *oldval, size_t __user *oldlenp,
 		       void __user *newval, size_t newlen,
 		       struct ctl_table_root *root,
@@ -61,8 +59,7 @@ static int parse_table(int __user *name, int nlen,
 repeat:
 	if (!nlen)
 		return -ENOTDIR;
-	if (get_user(n, name))
-		return -EFAULT;
+	n = *name;
 	for ( ; table->ctl_name || table->procname; table++) {
 		if (!table->ctl_name)
 			continue;
@@ -85,19 +82,13 @@ repeat:
 	return -ENOTDIR;
 }
 
-int do_sysctl(int __user *name, int nlen, void __user *oldval, size_t __user *oldlenp,
-	       void __user *newval, size_t newlen)
+static ssize_t binary_sysctl(const int *name, int nlen,
+	void __user *oldval, size_t __user *oldlenp,
+	void __user *newval, size_t newlen)
+
 {
 	struct ctl_table_header *head;
-	int error = -ENOTDIR;
-
-	if (nlen <= 0 || nlen >= CTL_MAXNAME)
-		return -ENOTDIR;
-	if (oldval) {
-		int old_len;
-		if (!oldlenp || get_user(old_len, oldlenp))
-			return -EFAULT;
-	}
+	ssize_t error = -ENOTDIR;
 
 	for (head = sysctl_head_next(NULL); head;
 			head = sysctl_head_next(head)) {
@@ -112,74 +103,76 @@ int do_sysctl(int __user *name, int nlen, void __user *oldval, size_t __user *ol
 	return error;
 }
 
-SYSCALL_DEFINE1(sysctl, struct __sysctl_args __user *, args)
-{
-	struct __sysctl_args tmp;
-	int error;
-
-	if (copy_from_user(&tmp, args, sizeof(tmp)))
-		return -EFAULT;
-
-	error = deprecated_sysctl_warning(&tmp);
-	if (error)
-		goto out;
-
-	lock_kernel();
-	error = do_sysctl(tmp.name, tmp.nlen, tmp.oldval, tmp.oldlenp,
-			  tmp.newval, tmp.newlen);
-	unlock_kernel();
-out:
-	return error;
-}
-
 #else /* CONFIG_SYSCTL_SYSCALL */
 
-SYSCALL_DEFINE1(sysctl, struct __sysctl_args __user *, args)
+static ssize_t binary_sysctl(const int *ctl_name, int nlen,
+	void __user *oldval, size_t __user *oldlenp,
+	void __user *newval, size_t newlen)
 {
-	struct __sysctl_args tmp;
-	int error;
-
-	if (copy_from_user(&tmp, args, sizeof(tmp)))
-		return -EFAULT;
-
-	error = deprecated_sysctl_warning(&tmp);
-
-	/* If no error reading the parameters then just -ENOSYS ... */
-	if (!error)
-		error = -ENOSYS;
-
-	return error;
+	return -ENOSYS;
 }
 
 #endif /* CONFIG_SYSCTL_SYSCALL */
 
-static int deprecated_sysctl_warning(struct __sysctl_args *args)
+static void deprecated_sysctl_warning(const int *name, int nlen)
 {
 	static int msg_count;
-	int name[CTL_MAXNAME];
 	int i;
 
-	/* Check args->nlen. */
-	if (args->nlen < 0 || args->nlen > CTL_MAXNAME)
-		return -ENOTDIR;
-
-	/* Read in the sysctl name for better debug message logging */
-	for (i = 0; i < args->nlen; i++)
-		if (get_user(name[i], args->name + i))
-			return -EFAULT;
-
 	/* Ignore accesses to kernel.version */
-	if ((args->nlen == 2) && (name[0] == CTL_KERN) && (name[1] == KERN_VERSION))
-		return 0;
+	if ((nlen == 2) && (name[0] == CTL_KERN) && (name[1] == KERN_VERSION))
+		return;
 
 	if (msg_count < 5) {
 		msg_count++;
 		printk(KERN_INFO
 			"warning: process `%s' used the deprecated sysctl "
 			"system call with ", current->comm);
-		for (i = 0; i < args->nlen; i++)
+		for (i = 0; i < nlen; i++)
 			printk("%d.", name[i]);
 		printk("\n");
 	}
-	return 0;
+	return;
+}
+
+int do_sysctl(int __user *args_name, int nlen,
+	void __user *oldval, size_t __user *oldlenp,
+	void __user *newval, size_t newlen)
+{
+	int name[CTL_MAXNAME];
+	size_t oldlen = 0;
+	int i;
+
+	if (nlen <= 0 || nlen >= CTL_MAXNAME)
+		return -ENOTDIR;
+	if (oldval && !oldlenp)
+		return -EFAULT;
+	if (oldlenp && get_user(oldlen, oldlenp))
+		return -EFAULT;
+
+	/* Read in the sysctl name for simplicity */
+	for (i = 0; i < nlen; i++)
+		if (get_user(name[i], args_name + i))
+			return -EFAULT;
+
+	deprecated_sysctl_warning(name, nlen);
+
+	return binary_sysctl(name, nlen, oldval, oldlenp, newval, newlen);
+}
+
+
+SYSCALL_DEFINE1(sysctl, struct __sysctl_args __user *, args)
+{
+	struct __sysctl_args tmp;
+	int error;
+
+	if (copy_from_user(&tmp, args, sizeof(tmp)))
+		return -EFAULT;
+
+	lock_kernel();
+	error = do_sysctl(tmp.name, tmp.nlen, tmp.oldval, tmp.oldlenp,
+			  tmp.newval, tmp.newlen);
+	unlock_kernel();
+
+	return error;
 }
