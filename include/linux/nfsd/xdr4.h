@@ -53,6 +53,7 @@ struct nfsd4_compound_state {
 	struct nfsd4_slot	*slot;
 	__be32			*statp;
 	size_t			iovlen;
+	u32			minorversion;
 	u32			status;
 };
 
