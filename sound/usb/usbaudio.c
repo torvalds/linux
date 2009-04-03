@@ -171,7 +171,6 @@ struct snd_usb_substream {
 	unsigned int curframesize;	/* current packet size in frames (for capture) */
 	unsigned int fill_max: 1;	/* fill max packet size always */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
-	unsigned int packs_per_ms;	/* packets per millisecond (for playback) */
 
 	unsigned int running: 1;	/* running status */
 
@@ -608,9 +607,7 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 				break;
 			}
  		}
-		/* finish at the frame boundary at/after the period boundary */
-		if (period_elapsed &&
-		    (i & (subs->packs_per_ms - 1)) == subs->packs_per_ms - 1)
+		if (period_elapsed) /* finish at the period boundary */
 			break;
 	}
 	if (subs->hwptr_done + offs > runtime->buffer_size) {
@@ -1068,7 +1065,6 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 		packs_per_ms = 8 >> subs->datainterval;
 	else
 		packs_per_ms = 1;
-	subs->packs_per_ms = packs_per_ms;
 
 	if (is_playback) {
 		urb_packs = max(nrpacks, 1);
@@ -1088,18 +1084,17 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 			minsize -= minsize >> 3;
 		minsize = max(minsize, 1u);
 		total_packs = (period_bytes + minsize - 1) / minsize;
-		/* round up to multiple of packs_per_ms */
-		total_packs = (total_packs + packs_per_ms - 1)
-				& ~(packs_per_ms - 1);
 		/* we need at least two URBs for queueing */
-		if (total_packs < 2 * packs_per_ms) {
-			total_packs = 2 * packs_per_ms;
+		if (total_packs < 2) {
+			total_packs = 2;
 		} else {
 			/* and we don't want too long a queue either */
 			maxpacks = max(MAX_QUEUE * packs_per_ms, urb_packs * 2);
 			total_packs = min(total_packs, maxpacks);
 		}
 	} else {
+		while (urb_packs > 1 && urb_packs * maxsize >= period_bytes)
+			urb_packs >>= 1;
 		total_packs = MAX_URBS * urb_packs;
 	}
 	subs->nurbs = (total_packs + urb_packs - 1) / urb_packs;
@@ -1564,11 +1559,15 @@ static struct snd_pcm_hardware snd_usb_hardware =
 #define hwc_debug(fmt, args...) /**/
 #endif
 
-static int hw_check_valid_format(struct snd_pcm_hw_params *params, struct audioformat *fp)
+static int hw_check_valid_format(struct snd_usb_substream *subs,
+				 struct snd_pcm_hw_params *params,
+				 struct audioformat *fp)
 {
 	struct snd_interval *it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *ct = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	struct snd_mask *fmts = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	struct snd_interval *pt = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIOD_TIME);
+	unsigned int ptime;
 
 	/* check the format */
 	if (!snd_mask_test(fmts, fp->format)) {
@@ -1589,6 +1588,14 @@ static int hw_check_valid_format(struct snd_pcm_hw_params *params, struct audiof
 		hwc_debug("   > check: rate_max %d < min %d\n", fp->rate_max, it->min);
 		return 0;
 	}
+	/* check whether the period time is >= the data packet interval */
+	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH) {
+		ptime = 125 * (1 << fp->datainterval);
+		if (ptime > pt->max || (ptime == pt->max && pt->openmax)) {
+			hwc_debug("   > check: ptime %u > max %u\n", ptime, pt->max);
+			return 0;
+		}
+	}
 	return 1;
 }
 
@@ -1607,7 +1614,7 @@ static int hw_rule_rate(struct snd_pcm_hw_params *params,
 	list_for_each(p, &subs->fmt_list) {
 		struct audioformat *fp;
 		fp = list_entry(p, struct audioformat, list);
-		if (!hw_check_valid_format(params, fp))
+		if (!hw_check_valid_format(subs, params, fp))
 			continue;
 		if (changed++) {
 			if (rmin > fp->rate_min)
@@ -1661,7 +1668,7 @@ static int hw_rule_channels(struct snd_pcm_hw_params *params,
 	list_for_each(p, &subs->fmt_list) {
 		struct audioformat *fp;
 		fp = list_entry(p, struct audioformat, list);
-		if (!hw_check_valid_format(params, fp))
+		if (!hw_check_valid_format(subs, params, fp))
 			continue;
 		if (changed++) {
 			if (rmin > fp->channels)
@@ -1714,7 +1721,7 @@ static int hw_rule_format(struct snd_pcm_hw_params *params,
 	list_for_each(p, &subs->fmt_list) {
 		struct audioformat *fp;
 		fp = list_entry(p, struct audioformat, list);
-		if (!hw_check_valid_format(params, fp))
+		if (!hw_check_valid_format(subs, params, fp))
 			continue;
 		fbits |= (1ULL << fp->format);
 	}
@@ -1729,6 +1736,44 @@ static int hw_rule_format(struct snd_pcm_hw_params *params,
 	}
 	changed = (oldbits[0] != fmt->bits[0] || oldbits[1] != fmt->bits[1]);
 	hwc_debug("  --> %x:%x (changed = %d)\n", fmt->bits[0], fmt->bits[1], changed);
+	return changed;
+}
+
+static int hw_rule_period_time(struct snd_pcm_hw_params *params,
+			       struct snd_pcm_hw_rule *rule)
+{
+	struct snd_usb_substream *subs = rule->private;
+	struct audioformat *fp;
+	struct snd_interval *it;
+	unsigned char min_datainterval;
+	unsigned int pmin;
+	int changed;
+
+	it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIOD_TIME);
+	hwc_debug("hw_rule_period_time: (%u,%u)\n", it->min, it->max);
+	min_datainterval = 0xff;
+	list_for_each_entry(fp, &subs->fmt_list, list) {
+		if (!hw_check_valid_format(subs, params, fp))
+			continue;
+		min_datainterval = min(min_datainterval, fp->datainterval);
+	}
+	if (min_datainterval == 0xff) {
+		hwc_debug("  --> get emtpy\n");
+		it->empty = 1;
+		return -EINVAL;
+	}
+	pmin = 125 * (1 << min_datainterval);
+	changed = 0;
+	if (it->min < pmin) {
+		it->min = pmin;
+		it->openmin = 0;
+		changed = 1;
+	}
+	if (snd_interval_checkempty(it)) {
+		it->empty = 1;
+		return -EINVAL;
+	}
+	hwc_debug("  --> (%u,%u) (changed = %d)\n", it->min, it->max, changed);
 	return changed;
 }
 
@@ -1777,6 +1822,8 @@ static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
 static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substream *subs)
 {
 	struct list_head *p;
+	unsigned int pt, ptmin;
+	int param_period_time_if_needed;
 	int err;
 
 	runtime->hw.formats = subs->formats;
@@ -1786,6 +1833,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	runtime->hw.channels_min = 256;
 	runtime->hw.channels_max = 0;
 	runtime->hw.rates = 0;
+	ptmin = UINT_MAX;
 	/* check min/max rates and channels */
 	list_for_each(p, &subs->fmt_list) {
 		struct audioformat *fp;
@@ -1804,34 +1852,52 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 			runtime->hw.period_bytes_min = runtime->hw.period_bytes_max =
 				fp->frame_size;
 		}
+		pt = 125 * (1 << fp->datainterval);
+		ptmin = min(ptmin, pt);
 	}
 
-	/* set the period time minimum 1ms */
-	/* FIXME: high-speed mode allows 125us minimum period, but many parts
-	 * in the current code assume the 1ms period.
-	 */
+	param_period_time_if_needed = SNDRV_PCM_HW_PARAM_PERIOD_TIME;
+	if (snd_usb_get_speed(subs->dev) != USB_SPEED_HIGH)
+		/* full speed devices have fixed data packet interval */
+		ptmin = 1000;
+	if (ptmin == 1000)
+		/* if period time doesn't go below 1 ms, no rules needed */
+		param_period_time_if_needed = -1;
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-				     1000,
-				     /*(nrpacks * MAX_URBS) * 1000*/ UINT_MAX);
+				     ptmin, UINT_MAX);
 
 	if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				       hw_rule_rate, subs,
 				       SNDRV_PCM_HW_PARAM_FORMAT,
 				       SNDRV_PCM_HW_PARAM_CHANNELS,
+				       param_period_time_if_needed,
 				       -1)) < 0)
 		return err;
 	if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 				       hw_rule_channels, subs,
 				       SNDRV_PCM_HW_PARAM_FORMAT,
 				       SNDRV_PCM_HW_PARAM_RATE,
+				       param_period_time_if_needed,
 				       -1)) < 0)
 		return err;
 	if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
 				       hw_rule_format, subs,
 				       SNDRV_PCM_HW_PARAM_RATE,
 				       SNDRV_PCM_HW_PARAM_CHANNELS,
+				       param_period_time_if_needed,
 				       -1)) < 0)
 		return err;
+	if (param_period_time_if_needed >= 0) {
+		err = snd_pcm_hw_rule_add(runtime, 0,
+					  SNDRV_PCM_HW_PARAM_PERIOD_TIME,
+					  hw_rule_period_time, subs,
+					  SNDRV_PCM_HW_PARAM_FORMAT,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  SNDRV_PCM_HW_PARAM_RATE,
+					  -1);
+		if (err < 0)
+			return err;
+	}
 	if ((err = snd_usb_pcm_check_knot(runtime, subs)) < 0)
 		return err;
 	return 0;
