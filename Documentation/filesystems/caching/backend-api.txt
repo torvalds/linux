@@ -100,12 +100,6 @@ A sysfs directory called /sys/fs/fscache/<cachetag>/ is created if CONFIG_SYSFS
 is enabled.  This is accessible through the kobject struct fscache_cache::kobj
 and is for use by the cache as it sees fit.
 
-The cache driver may create itself a directory named for the cache type in the
-/proc/fs/fscache/ directory.  This is available if CONFIG_FSCACHE_PROC is
-enabled and is accessible through:
-
-	struct proc_dir_entry *proc_fscache;
-
 
 ========================
 RELEVANT DATA STRUCTURES

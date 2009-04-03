@@ -195,7 +195,6 @@ STATISTICAL INFORMATION
 
 If FS-Cache is compiled with the following options enabled:
 
-	CONFIG_FSCACHE_PROC=y (implied by the following two)
 	CONFIG_FSCACHE_STATS=y
 	CONFIG_FSCACHE_HISTOGRAM=y
 
@@ -275,7 +274,7 @@ proc files.
  (*) /proc/fs/fscache/histogram
 
 	cat /proc/fs/fscache/histogram
-	+HZ   +TIME OBJ INST  OP RUNS   OBJ RUNS  RETRV DLY RETRIEVLS
+	JIFS  SECS  OBJ INST  OP RUNS   OBJ RUNS  RETRV DLY RETRIEVLS
 	===== ===== ========= ========= ========= ========= =========
 
      This shows the breakdown of the number of times each amount of time
@@ -291,16 +290,16 @@ proc files.
 	RETRIEVLS	Time between beginning and end of a retrieval
 
      Each row shows the number of events that took a particular range of times.
-     Each step is 1 jiffy in size.  The +HZ column indicates the particular
-     jiffy range covered, and the +TIME field the equivalent number of seconds.
+     Each step is 1 jiffy in size.  The JIFS column indicates the particular
+     jiffy range covered, and the SECS field the equivalent number of seconds.
 
 
 =========
 DEBUGGING
 =========
 
-The FS-Cache facility can have runtime debugging enabled by adjusting the value
-in:
+If CONFIG_FSCACHE_DEBUG is enabled, the FS-Cache facility can have runtime
+debugging enabled by adjusting the value in:
 
 	/sys/module/fscache/parameters/debug
 
@@ -327,4 +326,3 @@ the control file.  For example:
 	echo $((1|8|64)) >/sys/module/fscache/parameters/debug
 
 will turn on all function entry debugging.
-

@@ -52,9 +52,15 @@ static int __init fscache_init(void)
 	if (ret < 0)
 		goto error_slow_work;
 
+	ret = fscache_proc_init();
+	if (ret < 0)
+		goto error_proc;
+
 	printk(KERN_NOTICE "FS-Cache: Loaded\n");
 	return 0;
 
+error_proc:
+	slow_work_unregister_user();
 error_slow_work:
 	return ret;
 }
@@ -68,6 +74,7 @@ static void __exit fscache_exit(void)
 {
 	_enter("");
 
+	fscache_proc_cleanup();
 	slow_work_unregister_user();
 	printk(KERN_NOTICE "FS-Cache: Unloaded\n");
 }

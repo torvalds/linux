@@ -29,10 +29,6 @@ struct fscache_cache_ops;
 struct fscache_object;
 struct fscache_operation;
 
-#ifdef CONFIG_FSCACHE_PROC
-extern struct proc_dir_entry *proc_fscache;
-#endif
-
 /*
  * cache tag definition
  */
