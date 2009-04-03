@@ -477,11 +477,16 @@ static struct intel_iommu *device_to_iommu(u8 bus, u8 devfn)
 		if (drhd->ignored)
 			continue;
 
-		for (i = 0; i < drhd->devices_cnt; i++)
+		for (i = 0; i < drhd->devices_cnt; i++) {
 			if (drhd->devices[i] &&
 			    drhd->devices[i]->bus->number == bus &&
 			    drhd->devices[i]->devfn == devfn)
 				return drhd->iommu;
+			if (drhd->devices[i]->subordinate &&
+			    drhd->devices[i]->subordinate->number <= bus &&
+			    drhd->devices[i]->subordinate->subordinate >= bus)
+				return drhd->iommu;
+		}
 
 		if (drhd->include_all)
 			return drhd->iommu;
