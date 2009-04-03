@@ -64,6 +64,10 @@ struct nfs_client {
 	char			cl_ipaddr[48];
 	unsigned char		cl_id_uniquifier;
 #endif
+
+#ifdef CONFIG_NFS_FSCACHE
+	struct fscache_cookie	*fscache;	/* client index cache cookie */
+#endif
 };
 
 /*
@@ -96,11 +100,18 @@ struct nfs_server {
 	unsigned int		acdirmin;
 	unsigned int		acdirmax;
 	unsigned int		namelen;
+	unsigned int		options;	/* extra options enabled by mount */
+#define NFS_OPTION_FSCACHE	0x00000001	/* - local caching enabled */
 
 	struct nfs_fsid		fsid;
 	__u64			maxfilesize;	/* maximum file size */
 	unsigned long		mount_time;	/* when this fs was mounted */
 	dev_t			s_dev;		/* superblock dev numbers */
+
+#ifdef CONFIG_NFS_FSCACHE
+	struct nfs_fscache_key	*fscache_key;	/* unique key for superblock */
+	struct fscache_cookie	*fscache;	/* superblock cookie */
+#endif
 
 #ifdef CONFIG_NFS_V4
 	u32			attr_bitmask[2];/* V4 bitmask representing the set

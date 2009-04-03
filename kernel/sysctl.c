@@ -48,6 +48,7 @@
 #include <linux/acpi.h>
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
+#include <linux/slow-work.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
@@ -895,6 +896,14 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(scan_unevictable_pages),
 		.mode		= 0644,
 		.proc_handler	= &scan_unevictable_handler,
+	},
+#endif
+#ifdef CONFIG_SLOW_WORK
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "slow-work",
+		.mode		= 0555,
+		.child		= slow_work_sysctls,
 	},
 #endif
 /*
