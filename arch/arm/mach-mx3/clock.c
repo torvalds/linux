@@ -533,7 +533,7 @@ static struct clk_lookup lookups[] __initdata = {
 	_REGISTER_CLOCK(NULL, "kpp", kpp_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usb_clk1)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", usb_clk2)
-	_REGISTER_CLOCK("mx3-camera.0", "csi", csi_clk)
+	_REGISTER_CLOCK("mx3-camera.0", NULL, csi_clk)
 	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
 	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
 	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
