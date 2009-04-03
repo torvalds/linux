@@ -219,10 +219,8 @@ struct nfsd4_open {
 	u32		op_create;     	    /* request */
 	u32		op_createmode;      /* request */
 	u32		op_bmval[3];        /* request */
-	union {                             /* request */
-		struct iattr	iattr;                      /* UNCHECKED4,GUARDED4 */
-		nfs4_verifier	verf;                                /* EXCLUSIVE4 */
-	} u;
+	struct iattr	iattr;              /* UNCHECKED4, GUARDED4, EXCLUSIVE4_1 */
+	nfs4_verifier	verf;               /* EXCLUSIVE4 */
 	clientid_t	op_clientid;        /* request */
 	struct xdr_netobj op_owner;           /* request */
 	u32		op_seqid;           /* request */
@@ -236,8 +234,8 @@ struct nfsd4_open {
 	struct nfs4_stateowner *op_stateowner; /* used during processing */
 	struct nfs4_acl *op_acl;
 };
-#define op_iattr	u.iattr
-#define op_verf		u.verf
+#define op_iattr	iattr
+#define op_verf		verf
 
 struct nfsd4_open_confirm {
 	stateid_t	oc_req_stateid		/* request */;

@@ -368,7 +368,13 @@ enum opentype4 {
 enum createmode4 {
 	NFS4_CREATE_UNCHECKED = 0,
 	NFS4_CREATE_GUARDED = 1,
-	NFS4_CREATE_EXCLUSIVE = 2
+	NFS4_CREATE_EXCLUSIVE = 2,
+	/*
+	 * New to NFSv4.1. If session is persistent,
+	 * GUARDED4 MUST be used. Otherwise, use
+	 * EXCLUSIVE4_1 instead of EXCLUSIVE4.
+	 */
+	NFS4_CREATE_EXCLUSIVE4_1 = 3
 };
 
 enum limit_by4 {
