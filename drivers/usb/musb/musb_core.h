@@ -395,6 +395,9 @@ struct musb {
 	unsigned is_multipoint:1;
 	unsigned ignore_disconnect:1;	/* during bus resets */
 
+	unsigned		hb_iso_rx:1;	/* high bandwidth iso rx? */
+	unsigned		hb_iso_tx:1;	/* high bandwidth iso tx? */
+
 #ifdef C_MP_TX
 	unsigned bulk_split:1;
 #define	can_bulk_split(musb,type) \
