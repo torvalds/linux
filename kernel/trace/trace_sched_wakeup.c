@@ -154,7 +154,7 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	if (unlikely(!tracer_enabled || next != wakeup_task))
 		goto out_unlock;
 
-	trace_function(wakeup_trace, CALLER_ADDR1, CALLER_ADDR2, flags, pc);
+	trace_function(wakeup_trace, CALLER_ADDR0, CALLER_ADDR1, flags, pc);
 	tracing_sched_switch_trace(wakeup_trace, prev, next, flags, pc);
 
 	/*
@@ -257,6 +257,12 @@ probe_wakeup(struct rq *rq, struct task_struct *p, int success)
 	data = wakeup_trace->data[wakeup_cpu];
 	data->preempt_timestamp = ftrace_now(cpu);
 	tracing_sched_wakeup_trace(wakeup_trace, p, current, flags, pc);
+
+	/*
+	 * We must be careful in using CALLER_ADDR2. But since wake_up
+	 * is not called by an assembly function  (where as schedule is)
+	 * it should be safe to use it here.
+	 */
 	trace_function(wakeup_trace, CALLER_ADDR1, CALLER_ADDR2, flags, pc);
 
 out_locked:
