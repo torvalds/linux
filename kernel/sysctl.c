@@ -1699,8 +1699,6 @@ static void try_attach(struct ctl_table_header *p, struct ctl_table_header *q)
  *
  * The members of the &struct ctl_table structure are used as follows:
  *
- * ctl_name - Dead
- *
  * procname - the name of the sysctl file under /proc/sys. Set to %NULL to not
  *            enter a sysctl file
  *
@@ -1714,8 +1712,6 @@ static void try_attach(struct ctl_table_header *p, struct ctl_table_header *q)
  *         %NULL.
  *
  * proc_handler - the text handler routine (described below)
- *
- * strategy - Dead
  *
  * de - for internal use by the sysctl routines
  *
@@ -2639,41 +2635,6 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 
 #endif /* CONFIG_PROC_FS */
 
-int sysctl_data(struct ctl_table *table,
-		  void __user *oldval, size_t __user *oldlenp,
-		  void __user *newval, size_t newlen)
-{
-	return -ENOSYS;
-}
-
-int sysctl_string(struct ctl_table *table,
-		  void __user *oldval, size_t __user *oldlenp,
-		  void __user *newval, size_t newlen)
-{
-	return -ENOSYS;
-}
-
-int sysctl_intvec(struct ctl_table *table,
-		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen)
-{
-	return -ENOSYS;
-}
-
-int sysctl_jiffies(struct ctl_table *table,
-		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen)
-{
-	return -ENOSYS;
-}
-
-int sysctl_ms_jiffies(struct ctl_table *table,
-		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen)
-{
-	return -ENOSYS;
-}
-
 /*
  * No sense putting this after each symbol definition, twice,
  * exception granted :-)
@@ -2688,9 +2649,4 @@ EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
 EXPORT_SYMBOL(register_sysctl_table);
 EXPORT_SYMBOL(register_sysctl_paths);
-EXPORT_SYMBOL(sysctl_intvec);
-EXPORT_SYMBOL(sysctl_jiffies);
-EXPORT_SYMBOL(sysctl_ms_jiffies);
-EXPORT_SYMBOL(sysctl_string);
-EXPORT_SYMBOL(sysctl_data);
 EXPORT_SYMBOL(unregister_sysctl_table);
