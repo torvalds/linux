@@ -101,18 +101,17 @@ static struct ctl_table callhome_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_handler_callhome,
 	},
-	{ .ctl_name = 0 }
+	{}
 };
 
 static struct ctl_table kern_dir_table[] = {
 	{
-		.ctl_name	= CTL_KERN,
 		.procname	= "kernel",
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= callhome_table,
 	},
-	{ .ctl_name = 0 }
+	{}
 };
 
 /*

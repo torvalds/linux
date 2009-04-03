@@ -355,18 +355,17 @@ static struct ctl_table cmm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &cmm_timeout_handler,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_table cmm_dir_table[] = {
 	{
-		.ctl_name	= CTL_VM,
 		.procname	= "vm",
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= cmm_table,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 #endif
 
