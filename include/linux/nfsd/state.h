@@ -330,7 +330,7 @@ extern void nfsd4_init_recdir(char *recdir_name);
 extern int nfsd4_recdir_load(void);
 extern void nfsd4_shutdown_recdir(void);
 extern int nfs4_client_to_reclaim(const char *name);
-extern int nfs4_has_reclaimed_state(const char *name);
+extern int nfs4_has_reclaimed_state(const char *name, bool use_exchange_id);
 extern void nfsd4_recdir_purge_old(void);
 extern int nfsd4_create_clid_dir(struct nfs4_client *clp);
 extern void nfsd4_remove_clid_dir(struct nfs4_client *clp);

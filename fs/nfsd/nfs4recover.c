@@ -344,7 +344,8 @@ purge_old(struct dentry *parent, struct dentry *child)
 {
 	int status;
 
-	if (nfs4_has_reclaimed_state(child->d_name.name))
+	/* note: we currently use this path only for minorversion 0 */
+	if (nfs4_has_reclaimed_state(child->d_name.name, false))
 		return 0;
 
 	status = nfsd4_clear_clid_dir(parent, child);
