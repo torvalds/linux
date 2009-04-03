@@ -2346,6 +2346,9 @@ void ext3_truncate(struct inode *inode)
 	if (!ext3_can_truncate(inode))
 		return;
 
+	if (inode->i_size == 0 && ext3_should_writeback_data(inode))
+		ei->i_state |= EXT3_STATE_FLUSH_ON_CLOSE;
+
 	/*
 	 * We have to lock the EOF page here, because lock_page() nests
 	 * outside journal_start().
