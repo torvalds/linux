@@ -6,7 +6,8 @@ fscache-y := \
 	cache.o \
 	cookie.o \
 	fsdef.o \
-	main.o
+	main.o \
+	netfs.o
 
 fscache-$(CONFIG_PROC_FS) += proc.o
 fscache-$(CONFIG_FSCACHE_STATS) += stats.o
