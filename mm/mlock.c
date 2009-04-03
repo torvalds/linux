@@ -660,21 +660,20 @@ void *alloc_locked_buffer(size_t size)
 	return buffer;
 }
 
-void release_locked_buffer(void *buffer, size_t size)
+void refund_locked_buffer_memory(struct mm_struct *mm, size_t size)
 {
 	unsigned long pgsz = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
-	down_write(&current->mm->mmap_sem);
+	down_write(&mm->mmap_sem);
 
-	current->mm->total_vm  -= pgsz;
-	current->mm->locked_vm -= pgsz;
+	mm->total_vm  -= pgsz;
+	mm->locked_vm -= pgsz;
 
-	up_write(&current->mm->mmap_sem);
+	up_write(&mm->mmap_sem);
 }
 
 void free_locked_buffer(void *buffer, size_t size)
 {
-	release_locked_buffer(buffer, size);
-
+	refund_locked_buffer_memory(current->mm, size);
 	kfree(buffer);
 }
