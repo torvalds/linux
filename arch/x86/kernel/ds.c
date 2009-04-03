@@ -299,6 +299,7 @@ static inline struct ds_context *ds_get_context(struct task_struct *task)
 
 static inline void ds_put_context(struct ds_context *context)
 {
+	struct task_struct *task;
 	unsigned long irq;
 
 	if (!context)
@@ -313,13 +314,19 @@ static inline void ds_put_context(struct ds_context *context)
 
 	*(context->this) = NULL;
 
-	if (context->task)
-		clear_tsk_thread_flag(context->task, TIF_DS_AREA_MSR);
+	task = context->task;
 
-	if (!context->task || (context->task == current))
+	if (task)
+		clear_tsk_thread_flag(task, TIF_DS_AREA_MSR);
+
+	if (!task || (task == current))
 		wrmsrl(MSR_IA32_DS_AREA, 0);
 
 	spin_unlock_irqrestore(&ds_lock, irq);
+
+	/* The context might still be in use for context switching. */
+	if (task && (task != current))
+		wait_task_context_switch(task);
 
 	kfree(context);
 }
@@ -781,15 +788,23 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 
 void ds_release_bts(struct bts_tracer *tracer)
 {
+	struct task_struct *task;
+
 	if (!tracer)
 		return;
+
+	task = tracer->ds.context->task;
 
 	ds_suspend_bts(tracer);
 
 	WARN_ON_ONCE(tracer->ds.context->bts_master != tracer);
 	tracer->ds.context->bts_master = NULL;
 
-	put_tracer(tracer->ds.context->task);
+	/* Make sure tracing stopped and the tracer is not in use. */
+	if (task && (task != current))
+		wait_task_context_switch(task);
+
+	put_tracer(task);
 	ds_put_context(tracer->ds.context);
 
 	kfree(tracer);
