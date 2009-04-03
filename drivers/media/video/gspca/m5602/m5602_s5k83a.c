@@ -19,6 +19,17 @@
 #include <linux/kthread.h>
 #include "m5602_s5k83a.h"
 
+static int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int s5k83a_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val);
+static int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val);
+static int s5k83a_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
+static int s5k83a_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
+static int s5k83a_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
+static int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
+
 static struct v4l2_pix_format s5k83a_modes[] = {
 	{
 		640,
@@ -298,7 +309,7 @@ void s5k83a_disconnect(struct sd *sd)
 	kfree(sens_priv);
 }
 
-int s5k83a_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
+static int s5k83a_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct s5k83a_priv *sens_priv = sd->sensor_priv;
@@ -307,7 +318,7 @@ int s5k83a_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val)
+static int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 data[2];
@@ -337,7 +348,7 @@ int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val)
+static int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct s5k83a_priv *sens_priv = sd->sensor_priv;
@@ -346,7 +357,7 @@ int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
+static int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 data[1];
@@ -359,7 +370,7 @@ int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int s5k83a_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
+static int s5k83a_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct s5k83a_priv *sens_priv = sd->sensor_priv;
@@ -368,7 +379,7 @@ int s5k83a_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int s5k83a_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
+static int s5k83a_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 data[2];
@@ -382,7 +393,7 @@ int s5k83a_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int s5k83a_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int s5k83a_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct s5k83a_priv *sens_priv = sd->sensor_priv;
@@ -421,7 +432,7 @@ int s5k83a_set_flip_real(struct gspca_dev *gspca_dev, __s32 vflip, __s32 hflip)
 	return err;
 }
 
-int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
+static int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 reg;
@@ -445,7 +456,7 @@ int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct s5k83a_priv *sens_priv = sd->sensor_priv;
@@ -454,7 +465,7 @@ int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
+static int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 reg;

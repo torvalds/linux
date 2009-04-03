@@ -87,13 +87,6 @@ int mt9m111_probe(struct sd *sd);
 int mt9m111_init(struct sd *sd);
 void mt9m111_disconnect(struct sd *sd);
 
-int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
-int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
-int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
-int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
-int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
-int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val);
-
 const static struct m5602_sensor mt9m111 = {
 	.name = "MT9M111",
 

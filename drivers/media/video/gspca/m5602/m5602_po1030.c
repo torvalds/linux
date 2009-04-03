@@ -18,6 +18,23 @@
 
 #include "m5602_po1030.h"
 
+static int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
+static int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
+static int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int po1030_set_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int po1030_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int po1030_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int po1030_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
+static int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
+static int po1030_set_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 val);
+static int po1030_get_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 *val);
+
 static struct v4l2_pix_format po1030_modes[] = {
 	{
 		640,
@@ -277,7 +294,7 @@ int po1030_start(struct sd *sd)
 	return err;
 }
 
-int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
+static int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -287,7 +304,7 @@ int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
+static int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -315,7 +332,7 @@ int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
+static int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -325,7 +342,7 @@ int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int po1030_set_gain(struct gspca_dev *gspca_dev, __s32 val)
+static int po1030_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -341,7 +358,7 @@ int po1030_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int po1030_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int po1030_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -352,7 +369,7 @@ int po1030_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
+static int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -374,7 +391,7 @@ int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -385,7 +402,7 @@ int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
+static int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -407,7 +424,7 @@ int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int po1030_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
+static int po1030_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -417,7 +434,7 @@ int po1030_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
+static int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -433,7 +450,7 @@ int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int po1030_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
+static int po1030_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -444,7 +461,7 @@ int po1030_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
+static int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -461,7 +478,8 @@ int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int po1030_get_auto_white_balance(struct gspca_dev *gspca_dev, __s32 *val)
+static int po1030_get_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -472,7 +490,8 @@ int po1030_get_auto_white_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int po1030_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val)
+static int po1030_set_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;

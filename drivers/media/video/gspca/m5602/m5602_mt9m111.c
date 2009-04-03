@@ -18,6 +18,13 @@
 
 #include "m5602_mt9m111.h"
 
+static int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
+static int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
+static int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val);
+
 static struct v4l2_pix_format mt9m111_modes[] = {
 	{
 		640,
@@ -123,7 +130,8 @@ int mt9m111_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
-	sensor_settings = kmalloc(ARRAY_SIZE(mt9m111_ctrls) * sizeof(s32), GFP_KERNEL);
+	sensor_settings = kmalloc(ARRAY_SIZE(mt9m111_ctrls) * sizeof(s32),
+				  GFP_KERNEL);
 	if (!sensor_settings)
 		return -ENOMEM;
 
@@ -182,7 +190,7 @@ void mt9m111_disconnect(struct sd *sd)
 	kfree(sd->sensor_priv);
 }
 
-int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -193,7 +201,7 @@ int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
+static int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 data[2] = {0x00, 0x00};
@@ -219,7 +227,7 @@ int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -230,7 +238,7 @@ int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
+static int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 data[2] = {0x00, 0x00};
@@ -255,7 +263,7 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
+static int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -266,7 +274,7 @@ int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
+static int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err, tmp;
 	u8 data[2] = {0x00, 0x00};

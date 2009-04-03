@@ -139,25 +139,6 @@ int ov9650_start(struct sd *sd);
 int ov9650_stop(struct sd *sd);
 void ov9650_disconnect(struct sd *sd);
 
-int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_gain(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_brightness(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_brightness(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_auto_white_balance(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val);
-int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val);
-int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val);
-
 const static struct m5602_sensor ov9650 = {
 	.name = "OV9650",
 	.i2c_slave_id = 0x60,

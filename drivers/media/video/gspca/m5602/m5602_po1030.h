@@ -151,21 +151,6 @@ int po1030_init(struct sd *sd);
 int po1030_start(struct sd *sd);
 void po1030_disconnect(struct sd *sd);
 
-int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
-int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
-int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
-int po1030_set_gain(struct gspca_dev *gspca_dev, __s32 val);
-int po1030_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val);
-int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
-int po1030_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val);
-int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val);
-int po1030_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
-int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
-int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
-int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
-int po1030_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val);
-int po1030_get_auto_white_balance(struct gspca_dev *gspca_dev, __s32 *val);
-
 static const struct m5602_sensor po1030 = {
 	.name = "PO1030",
 

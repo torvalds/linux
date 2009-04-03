@@ -68,15 +68,6 @@ int s5k4aa_init(struct sd *sd);
 int s5k4aa_start(struct sd *sd);
 void s5k4aa_disconnect(struct sd *sd);
 
-int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
-int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
-int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
-int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
-int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
-int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
-int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
-int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val);
-
 static const struct m5602_sensor s5k4aa = {
 	.name = "S5K4AA",
 	.i2c_slave_id = 0x5a,

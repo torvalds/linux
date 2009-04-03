@@ -18,6 +18,25 @@
 
 #include "m5602_ov9650.h"
 
+static int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
+static int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov9650_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov9650_set_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int ov9650_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov9650_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int ov9650_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov9650_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int ov9650_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
+static int ov9650_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
+static int ov9650_get_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 *val);
+static int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 val);
+static int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val);
+
 /* Vertically and horizontally flips the image if matched, needed for machines
    where the sensor is mounted upside down */
 static
@@ -310,7 +329,8 @@ int ov9650_init(struct sd *sd)
 			err = m5602_write_bridge(sd, init_ov9650[i][1], data);
 	}
 
-	err = ov9650_set_exposure(&sd->gspca_dev, sensor_settings[EXPOSURE_IDX]);
+	err = ov9650_set_exposure(&sd->gspca_dev,
+				   sensor_settings[EXPOSURE_IDX]);
 	if (err < 0)
 		return err;
 
@@ -318,11 +338,13 @@ int ov9650_init(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	err = ov9650_set_red_balance(&sd->gspca_dev, sensor_settings[RED_BALANCE_IDX]);
+	err = ov9650_set_red_balance(&sd->gspca_dev,
+				      sensor_settings[RED_BALANCE_IDX]);
 	if (err < 0)
 		return err;
 
-	err = ov9650_set_blue_balance(&sd->gspca_dev, sensor_settings[BLUE_BALANCE_IDX]);
+	err = ov9650_set_blue_balance(&sd->gspca_dev,
+				       sensor_settings[BLUE_BALANCE_IDX]);
 	if (err < 0)
 		return err;
 
@@ -334,11 +356,13 @@ int ov9650_init(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	err = ov9650_set_auto_white_balance(&sd->gspca_dev, sensor_settings[AUTO_WHITE_BALANCE_IDX]);
+	err = ov9650_set_auto_white_balance(&sd->gspca_dev,
+				sensor_settings[AUTO_WHITE_BALANCE_IDX]);
 	if (err < 0)
 		return err;
 
-	err = ov9650_set_auto_gain(&sd->gspca_dev, sensor_settings[AUTO_GAIN_CTRL_IDX]);
+	err = ov9650_set_auto_gain(&sd->gspca_dev,
+				    sensor_settings[AUTO_GAIN_CTRL_IDX]);
 	return err;
 }
 
@@ -472,7 +496,7 @@ void ov9650_disconnect(struct sd *sd)
 	kfree(sd->sensor_priv);
 }
 
-int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
+static int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -482,7 +506,7 @@ int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
+static int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -512,7 +536,7 @@ int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int ov9650_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
+static int ov9650_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -522,7 +546,7 @@ int ov9650_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int ov9650_set_gain(struct gspca_dev *gspca_dev, __s32 val)
+static int ov9650_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 i2c_data;
@@ -553,7 +577,7 @@ int ov9650_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int ov9650_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
+static int ov9650_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -563,7 +587,7 @@ int ov9650_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int ov9650_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
+static int ov9650_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 i2c_data;
@@ -579,7 +603,7 @@ int ov9650_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int ov9650_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
+static int ov9650_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -590,7 +614,7 @@ int ov9650_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int ov9650_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
+static int ov9650_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 i2c_data;
@@ -606,7 +630,7 @@ int ov9650_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int ov9650_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int ov9650_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -616,7 +640,7 @@ int ov9650_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
+static int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 i2c_data;
@@ -628,16 +652,18 @@ int ov9650_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	sensor_settings[HFLIP_IDX] = val;
 
 	if (!dmi_check_system(ov9650_flip_dmi_table))
-		i2c_data = ((val & 0x01) << 5) | (sensor_settings[VFLIP_IDX] << 4);
+		i2c_data = ((val & 0x01) << 5) |
+				(sensor_settings[VFLIP_IDX] << 4);
 	else
-		i2c_data = ((val & 0x01) << 5) | (!sensor_settings[VFLIP_IDX] << 4);
+		i2c_data = ((val & 0x01) << 5) |
+				(!sensor_settings[VFLIP_IDX] << 4);
 
 	err = m5602_write_sensor(sd, OV9650_MVFP, &i2c_data, 1);
 
 	return err;
 }
 
-int ov9650_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int ov9650_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -648,7 +674,7 @@ int ov9650_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
+static int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 i2c_data;
@@ -673,48 +699,8 @@ int ov9650_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int ov9650_get_brightness(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	*val = sensor_settings[GAIN_IDX];
-	PDEBUG(D_V4L2, "Read gain %d", *val);
-
-	return 0;
-}
-
-int ov9650_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
-{
-	int err;
-	u8 i2c_data;
-	struct sd *sd = (struct sd *) gspca_dev;
-	s32 *sensor_settings = sd->sensor_priv;
-
-	PDEBUG(D_V4L2, "Set gain to %d", val);
-
-	sensor_settings[GAIN_IDX] = val;
-
-	/* Read the OV9650_VREF register first to avoid
-		corrupting the VREF high and low bits */
-	err = m5602_read_sensor(sd, OV9650_VREF, &i2c_data, 1);
-	if (err < 0)
-		return err;
-
-	/* Mask away all uninteresting bits */
-	i2c_data = ((val & 0x0300) >> 2) | (i2c_data & 0x3F);
-	err = m5602_write_sensor(sd, OV9650_VREF, &i2c_data, 1);
-	if (err < 0)
-		return err;
-
-	/* The 8 LSBs */
-	i2c_data = val & 0xff;
-	err = m5602_write_sensor(sd, OV9650_GAIN, &i2c_data, 1);
-
-	return err;
-}
-
-int ov9650_get_auto_white_balance(struct gspca_dev *gspca_dev, __s32 *val)
+static int ov9650_get_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -723,7 +709,8 @@ int ov9650_get_auto_white_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val)
+static int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 val)
 {
 	int err;
 	u8 i2c_data;
@@ -743,7 +730,7 @@ int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val)
+static int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -753,7 +740,7 @@ int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
+static int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	int err;
 	u8 i2c_data;

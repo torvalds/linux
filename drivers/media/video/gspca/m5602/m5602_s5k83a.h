@@ -49,17 +49,6 @@ int s5k83a_start(struct sd *sd);
 int s5k83a_stop(struct sd *sd);
 void s5k83a_disconnect(struct sd *sd);
 
-int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val);
-int s5k83a_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
-int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val);
-int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val);
-int s5k83a_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
-int s5k83a_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
-int s5k83a_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
-int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
-int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
-int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
-
 static const struct m5602_sensor s5k83a = {
 	.name = "S5K83A",
 	.probe = s5k83a_probe,

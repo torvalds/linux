@@ -18,6 +18,15 @@
 
 #include "m5602_s5k4aa.h"
 
+static int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
+static int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
+static int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
+static int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
+static int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val);
+
 static
     const
 	struct dmi_system_id s5k4aa_vflip_dmi_table[] = {
@@ -304,7 +313,7 @@ int s5k4aa_init(struct sd *sd)
 	return err;
 }
 
-int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
+static int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -315,7 +324,7 @@ int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
+static int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -337,7 +346,7 @@ int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -348,7 +357,7 @@ int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
+static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -396,7 +405,7 @@ int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -407,7 +416,7 @@ int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
+static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -448,7 +457,7 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	return err;
 }
 
-int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
+static int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
@@ -458,7 +467,7 @@ int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
+static int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 *sensor_settings = sd->sensor_priv;
