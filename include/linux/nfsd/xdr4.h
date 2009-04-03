@@ -395,7 +395,7 @@ struct nfsd4_sequence {
 };
 
 struct nfsd4_destroy_session {
-	int	foo;	/* stub */
+	struct nfs4_sessionid	sessionid;
 };
 
 struct nfsd4_op {
