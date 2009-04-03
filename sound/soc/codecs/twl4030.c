@@ -1311,6 +1311,9 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 	case 48000:
 		mode |= TWL4030_APLL_RATE_48000;
 		break;
+	case 96000:
+		mode |= TWL4030_APLL_RATE_96000;
+		break;
 	default:
 		printk(KERN_ERR "TWL4030 hw params: unknown rate %d\n",
 			params_rate(params));
