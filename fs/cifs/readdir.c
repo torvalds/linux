@@ -239,6 +239,7 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 	if (atomic_read(&cifsInfo->inUse) == 0)
 		atomic_set(&cifsInfo->inUse, 1);
 
+	cifsInfo->server_eof = end_of_file;
 	spin_lock(&tmp_inode->i_lock);
 	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/* can not safely change the file size here if the
@@ -375,6 +376,7 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 		tmp_inode->i_gid = le64_to_cpu(pfindData->Gid);
 	tmp_inode->i_nlink = le64_to_cpu(pfindData->Nlinks);
 
+	cifsInfo->server_eof = end_of_file;
 	spin_lock(&tmp_inode->i_lock);
 	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/* can not safely change the file size here if the

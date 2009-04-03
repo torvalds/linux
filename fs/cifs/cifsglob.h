@@ -370,6 +370,7 @@ struct cifsInodeInfo {
 	bool clientCanCacheAll:1;	/* read and writebehind oplock */
 	bool oplockPending:1;
 	bool delete_pending:1;		/* DELETE_ON_CLOSE is set */
+	u64  server_eof;		/* current file size on server */
 	struct inode vfs_inode;
 };
 

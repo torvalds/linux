@@ -971,6 +971,40 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 	return rc;
 }
 
+/*
+ * Set the timeout on write requests past EOF. For some servers (Windows)
+ * these calls can be very long.
+ *
+ * If we're writing >10M past the EOF we give a 180s timeout. Anything less
+ * than that gets a 45s timeout. Writes not past EOF get 15s timeouts.
+ * The 10M cutoff is totally arbitrary. A better scheme for this would be
+ * welcome if someone wants to suggest one.
+ *
+ * We may be able to do a better job with this if there were some way to
+ * declare that a file should be sparse.
+ */
+static int
+cifs_write_timeout(struct cifsInodeInfo *cifsi, loff_t offset)
+{
+	if (offset <= cifsi->server_eof)
+		return CIFS_STD_OP;
+	else if (offset > (cifsi->server_eof + (10 * 1024 * 1024)))
+		return CIFS_VLONG_OP;
+	else
+		return CIFS_LONG_OP;
+}
+
+/* update the file size (if needed) after a write */
+static void
+cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
+		      unsigned int bytes_written)
+{
+	loff_t end_of_write = offset + bytes_written;
+
+	if (end_of_write > cifsi->server_eof)
+		cifsi->server_eof = end_of_write;
+}
+
 ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	size_t write_size, loff_t *poffset)
 {
@@ -981,6 +1015,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	struct cifsTconInfo *pTcon;
 	int xid, long_op;
 	struct cifsFileInfo *open_file;
+	struct cifsInodeInfo *cifsi = CIFS_I(file->f_path.dentry->d_inode);
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 
@@ -1000,11 +1035,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 
 	xid = GetXid();
 
-	if (*poffset > file->f_path.dentry->d_inode->i_size)
-		long_op = CIFS_VLONG_OP; /* writes past EOF take long time */
-	else
-		long_op = CIFS_LONG_OP;
-
+	long_op = cifs_write_timeout(cifsi, *poffset);
 	for (total_written = 0; write_size > total_written;
 	     total_written += bytes_written) {
 		rc = -EAGAIN;
@@ -1048,8 +1079,10 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 				FreeXid(xid);
 				return rc;
 			}
-		} else
+		} else {
+			cifs_update_eof(cifsi, *poffset, bytes_written);
 			*poffset += bytes_written;
+		}
 		long_op = CIFS_STD_OP; /* subsequent writes fast -
 				    15 seconds is plenty */
 	}
@@ -1085,6 +1118,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	struct cifsTconInfo *pTcon;
 	int xid, long_op;
 	struct cifsFileInfo *open_file;
+	struct cifsInodeInfo *cifsi = CIFS_I(file->f_path.dentry->d_inode);
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 
@@ -1099,11 +1133,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 
 	xid = GetXid();
 
-	if (*poffset > file->f_path.dentry->d_inode->i_size)
-		long_op = CIFS_VLONG_OP; /* writes past EOF can be slow */
-	else
-		long_op = CIFS_LONG_OP;
-
+	long_op = cifs_write_timeout(cifsi, *poffset);
 	for (total_written = 0; write_size > total_written;
 	     total_written += bytes_written) {
 		rc = -EAGAIN;
@@ -1166,8 +1196,10 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 				FreeXid(xid);
 				return rc;
 			}
-		} else
+		} else {
+			cifs_update_eof(cifsi, *poffset, bytes_written);
 			*poffset += bytes_written;
+		}
 		long_op = CIFS_STD_OP; /* subsequent writes fast -
 				    15 seconds is plenty */
 	}
@@ -1380,11 +1412,12 @@ static int cifs_writepages(struct address_space *mapping,
 	int nr_pages;
 	__u64 offset = 0;
 	struct cifsFileInfo *open_file;
+	struct cifsInodeInfo *cifsi = CIFS_I(mapping->host);
 	struct page *page;
 	struct pagevec pvec;
 	int rc = 0;
 	int scanned = 0;
-	int xid;
+	int xid, long_op;
 
 	cifs_sb = CIFS_SB(mapping->host->i_sb);
 
@@ -1528,12 +1561,15 @@ retry:
 				cERROR(1, ("No writable handles for inode"));
 				rc = -EBADF;
 			} else {
+				long_op = cifs_write_timeout(cifsi, offset);
 				rc = CIFSSMBWrite2(xid, cifs_sb->tcon,
 						   open_file->netfid,
 						   bytes_to_write, offset,
 						   &bytes_written, iov, n_iov,
-						   CIFS_LONG_OP);
+						   long_op);
 				atomic_dec(&open_file->wrtPending);
+				cifs_update_eof(cifsi, offset, bytes_written);
+
 				if (rc || bytes_written < bytes_to_write) {
 					cERROR(1, ("Write2 ret %d, wrote %d",
 						  rc, bytes_written));

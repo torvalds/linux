@@ -143,6 +143,7 @@ static void cifs_unix_info_to_inode(struct inode *inode,
 
 	inode->i_nlink = le64_to_cpu(info->Nlinks);
 
+	cifsInfo->server_eof = end_of_file;
 	spin_lock(&inode->i_lock);
 	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/*
@@ -606,12 +607,12 @@ int cifs_get_inode_info(struct inode **pinode,
 			inode->i_mode |= S_IFREG;
 	}
 
+	cifsInfo->server_eof = le64_to_cpu(pfindData->EndOfFile);
 	spin_lock(&inode->i_lock);
-	if (is_size_safe_to_change(cifsInfo,
-				   le64_to_cpu(pfindData->EndOfFile))) {
+	if (is_size_safe_to_change(cifsInfo, cifsInfo->server_eof)) {
 		/* can not safely shrink the file size here if the
 		   client is writing to it due to potential races */
-		i_size_write(inode, le64_to_cpu(pfindData->EndOfFile));
+		i_size_write(inode, cifsInfo->server_eof);
 
 		/* 512 bytes (2**9) is the fake blocksize that must be
 		   used for this calculation */
@@ -1755,6 +1756,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	}
 
 	if (rc == 0) {
+		cifsInode->server_eof = attrs->ia_size;
 		rc = cifs_vmtruncate(inode, attrs->ia_size);
 		cifs_truncate_page(inode->i_mapping, inode->i_size);
 	}
