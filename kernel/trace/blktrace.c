@@ -327,7 +327,7 @@ static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
 	char *msg;
 	struct blk_trace *bt;
 
-	if (count > BLK_TN_MAX_MSG - 1)
+	if (count >= BLK_TN_MAX_MSG)
 		return -EINVAL;
 
 	msg = kmalloc(count + 1, GFP_KERNEL);
