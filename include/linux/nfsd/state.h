@@ -132,6 +132,13 @@ nfsd4_get_session(struct nfsd4_session *ses)
 	kref_get(&ses->se_ref);
 }
 
+/* formatted contents of nfs4_sessionid */
+struct nfsd4_sessionid {
+	clientid_t	clientid;
+	u32		sequence;
+	u32		reserved;
+};
+
 #define HEXDIR_LEN     33 /* hex version of 16 byte md5 of cl_name plus '\0' */
 
 /*
