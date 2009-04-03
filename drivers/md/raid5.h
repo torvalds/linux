@@ -1,7 +1,6 @@
 #ifndef _RAID5_H
 #define _RAID5_H
 
-#include <linux/raid/md.h>
 #include <linux/raid/xor.h>
 
 /*
@@ -197,15 +196,19 @@ enum reconstruct_states {
 
 struct stripe_head {
 	struct hlist_node	hash;
-	struct list_head	lru;			/* inactive_list or handle_list */
-	struct raid5_private_data	*raid_conf;
-	sector_t		sector;			/* sector of this row */
-	int			pd_idx;			/* parity disk index */
-	unsigned long		state;			/* state flags */
-	atomic_t		count;			/* nr of active thread/requests */
+	struct list_head	lru;	      /* inactive_list or handle_list */
+	struct raid5_private_data *raid_conf;
+	short			generation;	/* increments with every
+						 * reshape */
+	sector_t		sector;		/* sector of this row */
+	short			pd_idx;		/* parity disk index */
+	short			qd_idx;		/* 'Q' disk index for raid6 */
+	short			ddf_layout;/* use DDF ordering to calculate Q */
+	unsigned long		state;		/* state flags */
+	atomic_t		count;	      /* nr of active thread/requests */
 	spinlock_t		lock;
 	int			bm_seq;	/* sequence number for bitmap flushes */
-	int			disks;			/* disks in stripe */
+	int			disks;		/* disks in stripe */
 	enum check_states	check_state;
 	enum reconstruct_states reconstruct_state;
 	/* stripe_operations
@@ -238,7 +241,7 @@ struct stripe_head_state {
 
 /* r6_state - extra state data only relevant to r6 */
 struct r6_state {
-	int p_failed, q_failed, qd_idx, failed_num[2];
+	int p_failed, q_failed, failed_num[2];
 };
 
 /* Flags */
@@ -268,6 +271,8 @@ struct r6_state {
 #define READ_MODIFY_WRITE	2
 /* not a write method, but a compute_parity mode */
 #define	CHECK_PARITY		3
+/* Additional compute_parity mode -- updates the parity w/o LOCKING */
+#define UPDATE_PARITY		4
 
 /*
  * Stripe state
@@ -319,7 +324,7 @@ struct r6_state {
  * PREREAD_ACTIVE is set, else we set DELAYED which will send it to the delayed queue.
  * HANDLE gets cleared if stripe_handle leave nothing locked.
  */
- 
+
 
 struct disk_info {
 	mdk_rdev_t	*rdev;
@@ -334,12 +339,21 @@ struct raid5_private_data {
 	int			raid_disks;
 	int			max_nr_stripes;
 
-	/* used during an expand */
-	sector_t		expand_progress;	/* MaxSector when no expand happening */
-	sector_t		expand_lo; /* from here up to expand_progress it out-of-bounds
-					    * as we haven't flushed the metadata yet
-					    */
+	/* reshape_progress is the leading edge of a 'reshape'
+	 * It has value MaxSector when no reshape is happening
+	 * If delta_disks < 0, it is the last sector we started work on,
+	 * else is it the next sector to work on.
+	 */
+	sector_t		reshape_progress;
+	/* reshape_safe is the trailing edge of a reshape.  We know that
+	 * before (or after) this address, all reshape has completed.
+	 */
+	sector_t		reshape_safe;
 	int			previous_raid_disks;
+	int			prev_chunk, prev_algo;
+	short			generation; /* increments with every reshape */
+	unsigned long		reshape_checkpoint; /* Time we last updated
+						     * metadata */
 
 	struct list_head	handle_list; /* stripes needing handling */
 	struct list_head	hold_list; /* preread ready stripes */
@@ -385,6 +399,11 @@ struct raid5_private_data {
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
 	struct disk_info	*disks;
+
+	/* When taking over an array from a different personality, we store
+	 * the new thread here until we fully activate the array.
+	 */
+	struct mdk_thread_s	*thread;
 };
 
 typedef struct raid5_private_data raid5_conf_t;
@@ -394,9 +413,62 @@ typedef struct raid5_private_data raid5_conf_t;
 /*
  * Our supported algorithms
  */
-#define ALGORITHM_LEFT_ASYMMETRIC	0
-#define ALGORITHM_RIGHT_ASYMMETRIC	1
-#define ALGORITHM_LEFT_SYMMETRIC	2
-#define ALGORITHM_RIGHT_SYMMETRIC	3
+#define ALGORITHM_LEFT_ASYMMETRIC	0 /* Rotating Parity N with Data Restart */
+#define ALGORITHM_RIGHT_ASYMMETRIC	1 /* Rotating Parity 0 with Data Restart */
+#define ALGORITHM_LEFT_SYMMETRIC	2 /* Rotating Parity N with Data Continuation */
+#define ALGORITHM_RIGHT_SYMMETRIC	3 /* Rotating Parity 0 with Data Continuation */
 
+/* Define non-rotating (raid4) algorithms.  These allow
+ * conversion of raid4 to raid5.
+ */
+#define ALGORITHM_PARITY_0		4 /* P or P,Q are initial devices */
+#define ALGORITHM_PARITY_N		5 /* P or P,Q are final devices. */
+
+/* DDF RAID6 layouts differ from md/raid6 layouts in two ways.
+ * Firstly, the exact positioning of the parity block is slightly
+ * different between the 'LEFT_*' modes of md and the "_N_*" modes
+ * of DDF.
+ * Secondly, or order of datablocks over which the Q syndrome is computed
+ * is different.
+ * Consequently we have different layouts for DDF/raid6 than md/raid6.
+ * These layouts are from the DDFv1.2 spec.
+ * Interestingly DDFv1.2-Errata-A does not specify N_CONTINUE but
+ * leaves RLQ=3 as 'Vendor Specific'
+ */
+
+#define ALGORITHM_ROTATING_ZERO_RESTART	8 /* DDF PRL=6 RLQ=1 */
+#define ALGORITHM_ROTATING_N_RESTART	9 /* DDF PRL=6 RLQ=2 */
+#define ALGORITHM_ROTATING_N_CONTINUE	10 /*DDF PRL=6 RLQ=3 */
+
+
+/* For every RAID5 algorithm we define a RAID6 algorithm
+ * with exactly the same layout for data and parity, and
+ * with the Q block always on the last device (N-1).
+ * This allows trivial conversion from RAID5 to RAID6
+ */
+#define ALGORITHM_LEFT_ASYMMETRIC_6	16
+#define ALGORITHM_RIGHT_ASYMMETRIC_6	17
+#define ALGORITHM_LEFT_SYMMETRIC_6	18
+#define ALGORITHM_RIGHT_SYMMETRIC_6	19
+#define ALGORITHM_PARITY_0_6		20
+#define ALGORITHM_PARITY_N_6		ALGORITHM_PARITY_N
+
+static inline int algorithm_valid_raid5(int layout)
+{
+	return (layout >= 0) &&
+		(layout <= 5);
+}
+static inline int algorithm_valid_raid6(int layout)
+{
+	return (layout >= 0 && layout <= 5)
+		||
+		(layout == 8 || layout == 10)
+		||
+		(layout >= 16 && layout <= 20);
+}
+
+static inline int algorithm_is_DDF(int layout)
+{
+	return layout >= 8 && layout <= 10;
+}
 #endif

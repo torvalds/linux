@@ -23,7 +23,7 @@
 #include <linux/if.h>
 #include <linux/if_bridge.h>
 #include <linux/slab.h>
-#include <linux/raid/md.h>
+#include <linux/raid/md_u.h>
 #include <linux/kd.h>
 #include <linux/route.h>
 #include <linux/in6.h>

@@ -1,8 +1,6 @@
 #ifndef _RAID1_H
 #define _RAID1_H
 
-#include <linux/raid/md.h>
-
 typedef struct mirror_info mirror_info_t;
 
 struct mirror_info {

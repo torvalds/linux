@@ -15,20 +15,7 @@
 #ifndef _MD_K_H
 #define _MD_K_H
 
-/* and dm-bio-list.h is not under include/linux because.... ??? */
-#include "../../../drivers/md/dm-bio-list.h"
-
 #ifdef CONFIG_BLOCK
-
-#define	LEVEL_MULTIPATH		(-4)
-#define	LEVEL_LINEAR		(-1)
-#define	LEVEL_FAULTY		(-5)
-
-/* we need a value for 'no level specified' and 0
- * means 'raid0', so we need something else.  This is
- * for internal use only
- */
-#define	LEVEL_NONE		(-1000000)
 
 #define MaxSector (~(sector_t)0)
 
@@ -49,9 +36,9 @@ struct mdk_rdev_s
 {
 	struct list_head same_set;	/* RAID devices within the same set */
 
-	sector_t size;			/* Device size (in blocks) */
+	sector_t sectors;		/* Device size (in 512bytes sectors) */
 	mddev_t *mddev;			/* RAID array if running */
-	long last_events;		/* IO event timestamp */
+	int last_events;		/* IO event timestamp */
 
 	struct block_device *bdev;	/* block device handle */
 
@@ -132,6 +119,8 @@ struct mddev_s
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
 #define MD_CHANGE_PENDING 2	/* superblock update in progress */
 
+	int				suspended;
+	atomic_t			active_io;
 	int				ro;
 
 	struct gendisk			*gendisk;
@@ -155,8 +144,11 @@ struct mddev_s
 	char				clevel[16];
 	int				raid_disks;
 	int				max_disks;
-	sector_t			size; /* used size of component devices */
+	sector_t			dev_sectors; 	/* used size of
+							 * component devices */
 	sector_t			array_sectors; /* exported array size */
+	int				external_size; /* size managed
+							* externally */
 	__u64				events;
 
 	char				uuid[16];
@@ -172,6 +164,13 @@ struct mddev_s
 	struct mdk_thread_s		*thread;	/* management thread */
 	struct mdk_thread_s		*sync_thread;	/* doing resync or reconstruct */
 	sector_t			curr_resync;	/* last block scheduled */
+	/* As resync requests can complete out of order, we cannot easily track
+	 * how much resync has been completed.  So we occasionally pause until
+	 * everything completes, then set curr_resync_completed to curr_resync.
+	 * As such it may be well behind the real resync mark, but it is a value
+	 * we are certain of.
+	 */
+	sector_t			curr_resync_completed;
 	unsigned long			resync_mark;	/* a recent timestamp */
 	sector_t			resync_mark_cnt;/* blocks written at resync_mark */
 	sector_t			curr_mark_cnt; /* blocks scheduled now */
@@ -315,8 +314,10 @@ struct mdk_personality
 	int (*spare_active) (mddev_t *mddev);
 	sector_t (*sync_request)(mddev_t *mddev, sector_t sector_nr, int *skipped, int go_faster);
 	int (*resize) (mddev_t *mddev, sector_t sectors);
+	sector_t (*size) (mddev_t *mddev, sector_t sectors, int raid_disks);
 	int (*check_reshape) (mddev_t *mddev);
 	int (*start_reshape) (mddev_t *mddev);
+	void (*finish_reshape) (mddev_t *mddev);
 	int (*reconfig) (mddev_t *mddev, int layout, int chunk_size);
 	/* quiesce moves between quiescence states
 	 * 0 - fully active
@@ -324,6 +325,16 @@ struct mdk_personality
 	 * others - reserved
 	 */
 	void (*quiesce) (mddev_t *mddev, int state);
+	/* takeover is used to transition an array from one
+	 * personality to another.  The new personality must be able
+	 * to handle the data in the current layout.
+	 * e.g. 2drive raid1 -> 2drive raid5
+	 *      ndrive raid5 -> degraded n+1drive raid6 with special layout
+	 * If the takeover succeeds, a new 'private' structure is returned.
+	 * This needs to be installed and then ->run used to activate the
+	 * array.
+	 */
+	void *(*takeover) (mddev_t *mddev);
 };
 
 
@@ -400,3 +411,26 @@ static inline void safe_put_page(struct page *p)
 #endif /* CONFIG_BLOCK */
 #endif
 
+
+extern int register_md_personality(struct mdk_personality *p);
+extern int unregister_md_personality(struct mdk_personality *p);
+extern mdk_thread_t * md_register_thread(void (*run) (mddev_t *mddev),
+				mddev_t *mddev, const char *name);
+extern void md_unregister_thread(mdk_thread_t *thread);
+extern void md_wakeup_thread(mdk_thread_t *thread);
+extern void md_check_recovery(mddev_t *mddev);
+extern void md_write_start(mddev_t *mddev, struct bio *bi);
+extern void md_write_end(mddev_t *mddev);
+extern void md_done_sync(mddev_t *mddev, int blocks, int ok);
+extern void md_error(mddev_t *mddev, mdk_rdev_t *rdev);
+
+extern void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
+			   sector_t sector, int size, struct page *page);
+extern void md_super_wait(mddev_t *mddev);
+extern int sync_page_io(struct block_device *bdev, sector_t sector, int size,
+			struct page *page, int rw);
+extern void md_do_sync(mddev_t *mddev);
+extern void md_new_event(mddev_t *mddev);
+extern int md_allow_write(mddev_t *mddev);
+extern void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
+extern void md_set_array_sectors(mddev_t *mddev, sector_t array_sectors);
