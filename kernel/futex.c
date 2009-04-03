@@ -276,6 +276,25 @@ void put_futex_key(int fshared, union futex_key *key)
 	drop_futex_key_refs(key);
 }
 
+/**
+ * futex_top_waiter() - Return the highest priority waiter on a futex
+ * @hb:     the hash bucket the futex_q's reside in
+ * @key:    the futex key (to distinguish it from other futex futex_q's)
+ *
+ * Must be called with the hb lock held.
+ */
+static struct futex_q *futex_top_waiter(struct futex_hash_bucket *hb,
+					union futex_key *key)
+{
+	struct futex_q *this;
+
+	plist_for_each_entry(this, &hb->chain, list) {
+		if (match_futex(&this->key, key))
+			return this;
+	}
+	return NULL;
+}
+
 static u32 cmpxchg_futex_value_locked(u32 __user *uaddr, u32 uval, u32 newval)
 {
 	u32 curval;
