@@ -16,8 +16,8 @@
 #include <asm/ds.h>
 
 
-#define BUFFER_SIZE	521 /* Intentionally chose an odd size. */
-
+#define BUFFER_SIZE		521	/* Intentionally chose an odd size. */
+#define SMALL_BUFFER_SIZE	24	/* A single bts entry. */
 
 struct ds_selftest_bts_conf {
 	struct bts_tracer *tracer;
@@ -381,7 +381,7 @@ int ds_selftest_bts(void)
 	conf.suspend = ds_suspend_bts_noirq;
 	conf.resume = ds_resume_bts_noirq;
 	conf.tracer =
-		ds_request_bts_task(current, buffer, BUFFER_SIZE,
+		ds_request_bts_task(current, buffer, SMALL_BUFFER_SIZE,
 				   NULL, (size_t)-1, BTS_KERNEL);
 	local_irq_save(irq);
 	ds_selftest_bts_cpu(&conf);

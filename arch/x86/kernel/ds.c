@@ -656,6 +656,7 @@ static int ds_request(struct ds_tracer *tracer, struct ds_trace *trace,
 {
 	struct ds_context *context;
 	int error;
+	size_t req_size;
 
 	error = -EOPNOTSUPP;
 	if (!ds_cfg.sizeof_rec[qual])
@@ -665,9 +666,13 @@ static int ds_request(struct ds_tracer *tracer, struct ds_trace *trace,
 	if (!base)
 		goto out;
 
-	/* We need space for alignment adjustments in ds_init_ds_trace(). */
+	req_size = ds_cfg.sizeof_rec[qual];
+	/* We might need space for alignment adjustments. */
+	if (!IS_ALIGNED((unsigned long)base, DS_ALIGNMENT))
+		req_size += DS_ALIGNMENT;
+
 	error = -EINVAL;
-	if (size < (DS_ALIGNMENT + ds_cfg.sizeof_rec[qual]))
+	if (size < req_size)
 		goto out;
 
 	if (th != (size_t)-1) {
