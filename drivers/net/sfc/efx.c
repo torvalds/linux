@@ -448,6 +448,9 @@ static void efx_init_channels(struct efx_nic *efx)
 
 		WARN_ON(channel->rx_pkt != NULL);
 		efx_rx_strategy(channel);
+
+		netif_napi_add(channel->napi_dev, &channel->napi_str,
+			       efx_poll, napi_weight);
 	}
 }
 
@@ -461,10 +464,6 @@ static void efx_start_channel(struct efx_channel *channel)
 	struct efx_rx_queue *rx_queue;
 
 	EFX_LOG(channel->efx, "starting chan %d\n", channel->channel);
-
-	if (!(channel->efx->net_dev->flags & IFF_UP))
-		netif_napi_add(channel->napi_dev, &channel->napi_str,
-			       efx_poll, napi_weight);
 
 	/* The interrupt handler for this channel may set work_pending
 	 * as soon as we enable it.  Make sure it's cleared before

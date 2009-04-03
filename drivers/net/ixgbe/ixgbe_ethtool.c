@@ -129,6 +129,15 @@ static int ixgbe_get_settings(struct net_device *netdev,
 			ecmd->advertising |= ADVERTISED_10000baseT_Full;
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		/*
+		 * It's possible that phy.autoneg_advertised may not be
+		 * set yet.  If so display what the default would be -
+		 * both 1G and 10G supported.
+		 */
+		if (!(ecmd->advertising & (ADVERTISED_1000baseT_Full |
+					   ADVERTISED_10000baseT_Full)))
+			ecmd->advertising |= (ADVERTISED_10000baseT_Full |
+					      ADVERTISED_1000baseT_Full);
 
 		ecmd->port = PORT_TP;
 	} else if (hw->phy.media_type == ixgbe_media_type_backplane) {
@@ -225,7 +234,16 @@ static void ixgbe_get_pauseparam(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	pause->autoneg = (hw->fc.current_mode == ixgbe_fc_full ? 1 : 0);
+	/*
+	 * Flow Control Autoneg isn't on if
+	 *  - we didn't ask for it OR
+	 *  - it failed, we know this by tx & rx being off
+	 */
+	if (hw->fc.disable_fc_autoneg ||
+	    (hw->fc.current_mode == ixgbe_fc_none))
+		pause->autoneg = 0;
+	else
+		pause->autoneg = 1;
 
 	if (hw->fc.current_mode == ixgbe_fc_rx_pause) {
 		pause->rx_pause = 1;
@@ -243,8 +261,12 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	if ((pause->autoneg == AUTONEG_ENABLE) ||
-	    (pause->rx_pause && pause->tx_pause))
+	if (pause->autoneg != AUTONEG_ENABLE)
+		hw->fc.disable_fc_autoneg = true;
+	else
+		hw->fc.disable_fc_autoneg = false;
+
+	if (pause->rx_pause && pause->tx_pause)
 		hw->fc.requested_mode = ixgbe_fc_full;
 	else if (pause->rx_pause && !pause->tx_pause)
 		hw->fc.requested_mode = ixgbe_fc_rx_pause;
@@ -712,9 +734,10 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
                                struct ethtool_ringparam *ring)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_ring *temp_ring;
+	struct ixgbe_ring *temp_tx_ring, *temp_rx_ring;
 	int i, err;
 	u32 new_rx_count, new_tx_count;
+	bool need_update = false;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
@@ -733,80 +756,94 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 		return 0;
 	}
 
-	temp_ring = kcalloc(adapter->num_tx_queues,
-	                    sizeof(struct ixgbe_ring), GFP_KERNEL);
-	if (!temp_ring)
-		return -ENOMEM;
-
 	while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 		msleep(1);
 
-	if (new_tx_count != adapter->tx_ring->count) {
+	temp_tx_ring = kcalloc(adapter->num_tx_queues,
+	                       sizeof(struct ixgbe_ring), GFP_KERNEL);
+	if (!temp_tx_ring) {
+		err = -ENOMEM;
+		goto err_setup;
+	}
+
+	if (new_tx_count != adapter->tx_ring_count) {
+		memcpy(temp_tx_ring, adapter->tx_ring,
+		       adapter->num_tx_queues * sizeof(struct ixgbe_ring));
 		for (i = 0; i < adapter->num_tx_queues; i++) {
-			temp_ring[i].count = new_tx_count;
-			err = ixgbe_setup_tx_resources(adapter, &temp_ring[i]);
+			temp_tx_ring[i].count = new_tx_count;
+			err = ixgbe_setup_tx_resources(adapter,
+			                               &temp_tx_ring[i]);
 			if (err) {
 				while (i) {
 					i--;
 					ixgbe_free_tx_resources(adapter,
-					                        &temp_ring[i]);
+					                        &temp_tx_ring[i]);
 				}
 				goto err_setup;
 			}
-			temp_ring[i].v_idx = adapter->tx_ring[i].v_idx;
+			temp_tx_ring[i].v_idx = adapter->tx_ring[i].v_idx;
 		}
-		if (netif_running(netdev))
-			netdev->netdev_ops->ndo_stop(netdev);
-		ixgbe_reset_interrupt_capability(adapter);
-		ixgbe_napi_del_all(adapter);
-		INIT_LIST_HEAD(&netdev->napi_list);
-		kfree(adapter->tx_ring);
-		adapter->tx_ring = temp_ring;
-		temp_ring = NULL;
-		adapter->tx_ring_count = new_tx_count;
+		need_update = true;
 	}
 
-	temp_ring = kcalloc(adapter->num_rx_queues,
-	                    sizeof(struct ixgbe_ring), GFP_KERNEL);
-	if (!temp_ring) {
-		if (netif_running(netdev))
-			netdev->netdev_ops->ndo_open(netdev);
-		return -ENOMEM;
+	temp_rx_ring = kcalloc(adapter->num_rx_queues,
+	                       sizeof(struct ixgbe_ring), GFP_KERNEL);
+	if ((!temp_rx_ring) && (need_update)) {
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			ixgbe_free_tx_resources(adapter, &temp_tx_ring[i]);
+		kfree(temp_tx_ring);
+		err = -ENOMEM;
+		goto err_setup;
 	}
 
-	if (new_rx_count != adapter->rx_ring->count) {
+	if (new_rx_count != adapter->rx_ring_count) {
+		memcpy(temp_rx_ring, adapter->rx_ring,
+		       adapter->num_rx_queues * sizeof(struct ixgbe_ring));
 		for (i = 0; i < adapter->num_rx_queues; i++) {
-			temp_ring[i].count = new_rx_count;
-			err = ixgbe_setup_rx_resources(adapter, &temp_ring[i]);
+			temp_rx_ring[i].count = new_rx_count;
+			err = ixgbe_setup_rx_resources(adapter,
+			                               &temp_rx_ring[i]);
 			if (err) {
 				while (i) {
 					i--;
 					ixgbe_free_rx_resources(adapter,
-					                        &temp_ring[i]);
+					                      &temp_rx_ring[i]);
 				}
 				goto err_setup;
 			}
-			temp_ring[i].v_idx = adapter->rx_ring[i].v_idx;
+			temp_rx_ring[i].v_idx = adapter->rx_ring[i].v_idx;
 		}
-		if (netif_running(netdev))
-			netdev->netdev_ops->ndo_stop(netdev);
-		ixgbe_reset_interrupt_capability(adapter);
-		ixgbe_napi_del_all(adapter);
-		INIT_LIST_HEAD(&netdev->napi_list);
-		kfree(adapter->rx_ring);
-		adapter->rx_ring = temp_ring;
-		temp_ring = NULL;
+		need_update = true;
+	}
 
-		adapter->rx_ring_count = new_rx_count;
+	/* if rings need to be updated, here's the place to do it in one shot */
+	if (need_update) {
+		if (netif_running(netdev))
+			ixgbe_down(adapter);
+
+		/* tx */
+		if (new_tx_count != adapter->tx_ring_count) {
+			kfree(adapter->tx_ring);
+			adapter->tx_ring = temp_tx_ring;
+			temp_tx_ring = NULL;
+			adapter->tx_ring_count = new_tx_count;
+		}
+
+		/* rx */
+		if (new_rx_count != adapter->rx_ring_count) {
+			kfree(adapter->rx_ring);
+			adapter->rx_ring = temp_rx_ring;
+			temp_rx_ring = NULL;
+			adapter->rx_ring_count = new_rx_count;
+		}
 	}
 
 	/* success! */
 	err = 0;
-err_setup:
-	ixgbe_init_interrupt_scheme(adapter);
 	if (netif_running(netdev))
-		netdev->netdev_ops->ndo_open(netdev);
+		ixgbe_up(adapter);
 
+err_setup:
 	clear_bit(__IXGBE_RESETTING, &adapter->state);
 	return err;
 }
