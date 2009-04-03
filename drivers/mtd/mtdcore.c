@@ -89,11 +89,89 @@ static ssize_t mtd_type_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", type);
 }
-static DEVICE_ATTR(mtd_type, S_IRUGO, mtd_type_show, NULL);
+static DEVICE_ATTR(type, S_IRUGO, mtd_type_show, NULL);
+
+static ssize_t mtd_flags_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%lx\n", (unsigned long)mtd->flags);
+
+}
+static DEVICE_ATTR(flags, S_IRUGO, mtd_flags_show, NULL);
+
+static ssize_t mtd_size_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+		(unsigned long long)mtd->size);
+
+}
+static DEVICE_ATTR(size, S_IRUGO, mtd_size_show, NULL);
+
+static ssize_t mtd_erasesize_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->erasesize);
+
+}
+static DEVICE_ATTR(erasesize, S_IRUGO, mtd_erasesize_show, NULL);
+
+static ssize_t mtd_writesize_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->writesize);
+
+}
+static DEVICE_ATTR(writesize, S_IRUGO, mtd_writesize_show, NULL);
+
+static ssize_t mtd_oobsize_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->oobsize);
+
+}
+static DEVICE_ATTR(oobsize, S_IRUGO, mtd_oobsize_show, NULL);
+
+static ssize_t mtd_numeraseregions_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->numeraseregions);
+
+}
+static DEVICE_ATTR(numeraseregions, S_IRUGO, mtd_numeraseregions_show,
+	NULL);
+
+static ssize_t mtd_name_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", mtd->name);
+
+}
+static DEVICE_ATTR(name, S_IRUGO, mtd_name_show, NULL);
 
 static struct attribute *mtd_attrs[] = {
-	&dev_attr_mtd_type.attr,
-	/* FIXME provide a /proc/mtd superset */
+	&dev_attr_type.attr,
+	&dev_attr_flags.attr,
+	&dev_attr_size.attr,
+	&dev_attr_erasesize.attr,
+	&dev_attr_writesize.attr,
+	&dev_attr_oobsize.attr,
+	&dev_attr_numeraseregions.attr,
+	&dev_attr_name.attr,
 	NULL,
 };
 
@@ -235,6 +313,8 @@ int del_mtd_device (struct mtd_info *mtd)
 		ret = -EBUSY;
 	} else {
 		struct mtd_notifier *not;
+
+		device_unregister(&mtd->dev);
 
 		/* No need to get a refcount on the module containing
 		   the notifier, since we hold the mtd_table_mutex */
@@ -455,24 +535,6 @@ EXPORT_SYMBOL_GPL(register_mtd_user);
 EXPORT_SYMBOL_GPL(unregister_mtd_user);
 EXPORT_SYMBOL_GPL(default_mtd_writev);
 
-static int __init mtd_setup(void)
-{
-	mtd_class = class_create(THIS_MODULE, "mtd");
-
-	if (IS_ERR(mtd_class)) {
-		pr_err("Error creating mtd class.\n");
-		return PTR_ERR(mtd_class);
-	}
-	return 0;
-}
-core_initcall(mtd_setup);
-
-static void __exit mtd_teardown(void)
-{
-	class_destroy(mtd_class);
-}
-__exitcall(mtd_teardown);
-
 #ifdef CONFIG_PROC_FS
 
 /*====================================================================*/
@@ -528,6 +590,12 @@ done:
 
 static int __init init_mtd(void)
 {
+	mtd_class = class_create(THIS_MODULE, "mtd");
+
+	if (IS_ERR(mtd_class)) {
+		pr_err("Error creating mtd class.\n");
+		return PTR_ERR(mtd_class);
+	}
 	if ((proc_mtd = create_proc_entry( "mtd", 0, NULL )))
 		proc_mtd->read_proc = mtd_read_proc;
 	return 0;
@@ -537,6 +605,7 @@ static void __exit cleanup_mtd(void)
 {
         if (proc_mtd)
 		remove_proc_entry( "mtd", NULL);
+	class_destroy(mtd_class);
 }
 
 module_init(init_mtd);
