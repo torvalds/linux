@@ -89,6 +89,9 @@ struct bts_tracer {
 
 	/* Buffer overflow notification function: */
 	bts_ovfl_callback_t	ovfl;
+
+	/* Active flags affecting trace collection. */
+	unsigned int		flags;
 };
 
 struct pebs_tracer {
@@ -799,6 +802,8 @@ void ds_suspend_bts(struct bts_tracer *tracer)
 	if (!tracer)
 		return;
 
+	tracer->flags = 0;
+
 	task = tracer->ds.context->task;
 
 	if (!task || (task == current))
@@ -819,6 +824,8 @@ void ds_resume_bts(struct bts_tracer *tracer)
 
 	if (!tracer)
 		return;
+
+	tracer->flags = tracer->trace.ds.flags;
 
 	task = tracer->ds.context->task;
 
@@ -1037,43 +1044,52 @@ void __cpuinit ds_init_intel(struct cpuinfo_x86 *c)
 	}
 }
 
+static inline void ds_take_timestamp(struct ds_context *context,
+				     enum bts_qualifier qualifier,
+				     struct task_struct *task)
+{
+	struct bts_tracer *tracer = context->bts_master;
+	struct bts_struct ts;
+
+	/* Prevent compilers from reading the tracer pointer twice. */
+	barrier();
+
+	if (!tracer || !(tracer->flags & BTS_TIMESTAMPS))
+		return;
+
+	memset(&ts, 0, sizeof(ts));
+	ts.qualifier			= qualifier;
+	ts.variant.timestamp.jiffies	= jiffies_64;
+	ts.variant.timestamp.pid	= task->pid;
+
+	bts_write(tracer, &ts);
+}
+
 /*
  * Change the DS configuration from tracing prev to tracing next.
  */
 void ds_switch_to(struct task_struct *prev, struct task_struct *next)
 {
-	struct ds_context *prev_ctx = prev->thread.ds_ctx;
-	struct ds_context *next_ctx = next->thread.ds_ctx;
+	struct ds_context *prev_ctx	= prev->thread.ds_ctx;
+	struct ds_context *next_ctx	= next->thread.ds_ctx;
+	unsigned long debugctlmsr	= next->thread.debugctlmsr;
+
+	/* Make sure all data is read before we start. */
+	barrier();
 
 	if (prev_ctx) {
 		update_debugctlmsr(0);
 
-		if (prev_ctx->bts_master &&
-		    (prev_ctx->bts_master->trace.ds.flags & BTS_TIMESTAMPS)) {
-			struct bts_struct ts = {
-				.qualifier = bts_task_departs,
-				.variant.timestamp.jiffies = jiffies_64,
-				.variant.timestamp.pid = prev->pid
-			};
-			bts_write(prev_ctx->bts_master, &ts);
-		}
+		ds_take_timestamp(prev_ctx, bts_task_departs, prev);
 	}
 
 	if (next_ctx) {
-		if (next_ctx->bts_master &&
-		    (next_ctx->bts_master->trace.ds.flags & BTS_TIMESTAMPS)) {
-			struct bts_struct ts = {
-				.qualifier = bts_task_arrives,
-				.variant.timestamp.jiffies = jiffies_64,
-				.variant.timestamp.pid = next->pid
-			};
-			bts_write(next_ctx->bts_master, &ts);
-		}
+		ds_take_timestamp(next_ctx, bts_task_arrives, next);
 
 		wrmsrl(MSR_IA32_DS_AREA, (unsigned long)next_ctx->ds);
 	}
 
-	update_debugctlmsr(next->thread.debugctlmsr);
+	update_debugctlmsr(debugctlmsr);
 }
 
 void ds_copy_thread(struct task_struct *tsk, struct task_struct *father)
