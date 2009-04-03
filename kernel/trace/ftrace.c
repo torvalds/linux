@@ -3092,7 +3092,7 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-static atomic_t ftrace_graph_active;
+static int ftrace_graph_active;
 static struct notifier_block ftrace_suspend_notifier;
 
 int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace)
@@ -3244,7 +3244,7 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	mutex_lock(&ftrace_lock);
 
 	/* we currently allow only one tracer registered at a time */
-	if (atomic_read(&ftrace_graph_active)) {
+	if (ftrace_graph_active) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -3252,10 +3252,10 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	ftrace_suspend_notifier.notifier_call = ftrace_suspend_notifier_call;
 	register_pm_notifier(&ftrace_suspend_notifier);
 
-	atomic_inc(&ftrace_graph_active);
+	ftrace_graph_active++;
 	ret = start_graph_tracing();
 	if (ret) {
-		atomic_dec(&ftrace_graph_active);
+		ftrace_graph_active--;
 		goto out;
 	}
 
@@ -3273,10 +3273,10 @@ void unregister_ftrace_graph(void)
 {
 	mutex_lock(&ftrace_lock);
 
-	if (!unlikely(atomic_read(&ftrace_graph_active)))
+	if (unlikely(!ftrace_graph_active))
 		goto out;
 
-	atomic_dec(&ftrace_graph_active);
+	ftrace_graph_active--;
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = ftrace_graph_entry_stub;
@@ -3290,7 +3290,7 @@ void unregister_ftrace_graph(void)
 /* Allocate a return stack for newly created task */
 void ftrace_graph_init_task(struct task_struct *t)
 {
-	if (atomic_read(&ftrace_graph_active)) {
+	if (ftrace_graph_active) {
 		t->ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
 				* sizeof(struct ftrace_ret_stack),
 				GFP_KERNEL);
