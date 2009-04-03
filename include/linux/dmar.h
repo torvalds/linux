@@ -44,6 +44,14 @@ extern struct list_head dmar_drhd_units;
 #define for_each_drhd_unit(drhd) \
 	list_for_each_entry(drhd, &dmar_drhd_units, list)
 
+#define for_each_active_iommu(i, drhd)					\
+	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
+		if (i=drhd->iommu, drhd->ignored) {} else
+
+#define for_each_iommu(i, drhd)						\
+	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
+		if (i=drhd->iommu, 0) {} else 
+
 extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
 
