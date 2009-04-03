@@ -265,67 +265,6 @@ SYSCALL_DEFINE5(n32_msgrcv, int, msqid, u32, msgp, size_t, msgsz,
 }
 #endif
 
-struct sysctl_args32
-{
-	compat_caddr_t name;
-	int nlen;
-	compat_caddr_t oldval;
-	compat_caddr_t oldlenp;
-	compat_caddr_t newval;
-	compat_size_t newlen;
-	unsigned int __unused[4];
-};
-
-#ifdef CONFIG_SYSCTL_SYSCALL
-
-SYSCALL_DEFINE1(32_sysctl, struct sysctl_args32 __user *, args)
-{
-	struct sysctl_args32 tmp;
-	int error;
-	size_t oldlen;
-	size_t __user *oldlenp = NULL;
-	unsigned long addr = (((unsigned long)&args->__unused[0]) + 7) & ~7;
-
-	if (copy_from_user(&tmp, args, sizeof(tmp)))
-		return -EFAULT;
-
-	if (tmp.oldval && tmp.oldlenp) {
-		/* Duh, this is ugly and might not work if sysctl_args
-		   is in read-only memory, but do_sysctl does indirectly
-		   a lot of uaccess in both directions and we'd have to
-		   basically copy the whole sysctl.c here, and
-		   glibc's __sysctl uses rw memory for the structure
-		   anyway.  */
-		if (get_user(oldlen, (u32 __user *)A(tmp.oldlenp)) ||
-		    put_user(oldlen, (size_t __user *)addr))
-			return -EFAULT;
-		oldlenp = (size_t __user *)addr;
-	}
-
-	lock_kernel();
-	error = do_sysctl((int __user *)A(tmp.name), tmp.nlen, (void __user *)A(tmp.oldval),
-			  oldlenp, (void __user *)A(tmp.newval), tmp.newlen);
-	unlock_kernel();
-	if (oldlenp) {
-		if (!error) {
-			if (get_user(oldlen, (size_t __user *)addr) ||
-			    put_user(oldlen, (u32 __user *)A(tmp.oldlenp)))
-				error = -EFAULT;
-		}
-		copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused));
-	}
-	return error;
-}
-
-#else
-
-SYSCALL_DEFINE1(32_sysctl, struct sysctl_args32 __user *, args)
-{
-	return -ENOSYS;
-}
-
-#endif /* CONFIG_SYSCTL_SYSCALL */
-
 SYSCALL_DEFINE1(32_newuname, struct new_utsname __user *, name)
 {
 	int ret = 0;
