@@ -1656,10 +1656,30 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 		md->null_mapped = hp->dxferp ? 0 : 1;
 	}
 
-	if (iov_count)
-		res = blk_rq_map_user_iov(q, rq, md, hp->dxferp, iov_count,
-					  hp->dxfer_len, GFP_ATOMIC);
-	else
+	if (iov_count) {
+		int len, size = sizeof(struct sg_iovec) * iov_count;
+		struct iovec *iov;
+
+		iov = kmalloc(size, GFP_ATOMIC);
+		if (!iov)
+			return -ENOMEM;
+
+		if (copy_from_user(iov, hp->dxferp, size)) {
+			kfree(iov);
+			return -EFAULT;
+		}
+
+		len = iov_length(iov, iov_count);
+		if (hp->dxfer_len < len) {
+			iov_count = iov_shorten(iov, iov_count, hp->dxfer_len);
+			len = hp->dxfer_len;
+		}
+
+		res = blk_rq_map_user_iov(q, rq, md, (struct sg_iovec *)iov,
+					  iov_count,
+					  len, GFP_ATOMIC);
+		kfree(iov);
+	} else
 		res = blk_rq_map_user(q, rq, md, hp->dxferp,
 				      hp->dxfer_len, GFP_ATOMIC);
 
