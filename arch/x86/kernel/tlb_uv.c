@@ -445,24 +445,58 @@ void uv_bau_message_interrupt(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
+/*
+ * uv_enable_timeouts
+ *
+ * Each target blade (i.e. blades that have cpu's) needs to have
+ * shootdown message timeouts enabled.  The timeout does not cause
+ * an interrupt, but causes an error message to be returned to
+ * the sender.
+ */
 static void uv_enable_timeouts(void)
 {
-	int i;
 	int blade;
-	int last_blade;
+	int nblades;
 	int pnode;
-	int cur_cpu = 0;
-	unsigned long apicid;
+	unsigned long mmr_image;
 
-	last_blade = -1;
-	for_each_online_node(i) {
-		blade = uv_node_to_blade_id(i);
-		if (blade == last_blade)
+	nblades = uv_num_possible_blades();
+
+	for (blade = 0; blade < nblades; blade++) {
+		if (!uv_blade_nr_possible_cpus(blade))
 			continue;
-		last_blade = blade;
-		apicid = per_cpu(x86_cpu_to_apicid, cur_cpu);
+
 		pnode = uv_blade_to_pnode(blade);
-		cur_cpu += uv_blade_nr_possible_cpus(i);
+		mmr_image =
+		    uv_read_global_mmr64(pnode, UVH_LB_BAU_MISC_CONTROL);
+		/*
+		 * Set the timeout period and then lock it in, in three
+		 * steps; captures and locks in the period.
+		 *
+		 * To program the period, the SOFT_ACK_MODE must be off.
+		 */
+		mmr_image &= ~((unsigned long)1 <<
+			       UV_ENABLE_INTD_SOFT_ACK_MODE_SHIFT);
+		uv_write_global_mmr64
+		    (pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
+		/*
+		 * Set the 4-bit period.
+		 */
+		mmr_image &= ~((unsigned long)0xf <<
+			UV_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHIFT);
+		mmr_image |= (UV_INTD_SOFT_ACK_TIMEOUT_PERIOD <<
+			     UV_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHIFT);
+		uv_write_global_mmr64
+		    (pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
+		/*
+		 * Subsequent reversals of the timebase bit (3) cause an
+		 * immediate timeout of one or all INTD resources as
+		 * indicated in bits 2:0 (7 causes all of them to timeout).
+		 */
+		mmr_image |= ((unsigned long)1 <<
+			      UV_ENABLE_INTD_SOFT_ACK_MODE_SHIFT);
+		uv_write_global_mmr64
+		    (pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
 	}
 }
 
