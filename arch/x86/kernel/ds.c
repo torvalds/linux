@@ -925,11 +925,6 @@ static void update_task_debugctlmsr(struct task_struct *task,
 	get_cpu();
 	if (task == current)
 		update_debugctlmsr(debugctlmsr);
-
-	if (task->thread.debugctlmsr)
-		set_tsk_thread_flag(task, TIF_DEBUGCTLMSR);
-	else
-		clear_tsk_thread_flag(task, TIF_DEBUGCTLMSR);
 	put_cpu();
 }
 
