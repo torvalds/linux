@@ -23,13 +23,23 @@
  * fscache-index.c
  */
 extern struct fscache_netfs nfs_fscache_netfs;
+extern const struct fscache_cookie_def nfs_fscache_server_index_def;
 
 extern int nfs_fscache_register(void);
 extern void nfs_fscache_unregister(void);
 
+/*
+ * fscache.c
+ */
+extern void nfs_fscache_get_client_cookie(struct nfs_client *);
+extern void nfs_fscache_release_client_cookie(struct nfs_client *);
+
 #else /* CONFIG_NFS_FSCACHE */
 static inline int nfs_fscache_register(void) { return 0; }
 static inline void nfs_fscache_unregister(void) {}
+
+static inline void nfs_fscache_get_client_cookie(struct nfs_client *clp) {}
+static inline void nfs_fscache_release_client_cookie(struct nfs_client *clp) {}
 
 #endif /* CONFIG_NFS_FSCACHE */
 #endif /* _NFS_FSCACHE_H */
