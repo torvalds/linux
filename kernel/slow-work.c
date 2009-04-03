@@ -14,7 +14,6 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/wait.h>
-#include <asm/system.h>
 
 #define SLOW_WORK_CULL_TIMEOUT (5 * HZ)	/* cull threads 5s after running out of
 					 * things to do */
@@ -23,6 +22,14 @@
 
 static void slow_work_cull_timeout(unsigned long);
 static void slow_work_oom_timeout(unsigned long);
+
+#ifdef CONFIG_SYSCTL
+static int slow_work_min_threads_sysctl(struct ctl_table *, int, struct file *,
+					void __user *, size_t *, loff_t *);
+
+static int slow_work_max_threads_sysctl(struct ctl_table *, int , struct file *,
+					void __user *, size_t *, loff_t *);
+#endif
 
 /*
  * The pool of threads has at least min threads in it as long as someone is
@@ -34,6 +41,51 @@ static unsigned slow_work_min_threads = 2;
 static unsigned slow_work_max_threads = 4;
 static unsigned vslow_work_proportion = 50; /* % of threads that may process
 					     * very slow work */
+
+#ifdef CONFIG_SYSCTL
+static const int slow_work_min_min_threads = 2;
+static int slow_work_max_max_threads = 255;
+static const int slow_work_min_vslow = 1;
+static const int slow_work_max_vslow = 99;
+
+ctl_table slow_work_sysctls[] = {
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "min-threads",
+		.data		= &slow_work_min_threads,
+		.maxlen		= sizeof(unsigned),
+		.mode		= 0644,
+		.proc_handler	= slow_work_min_threads_sysctl,
+		.extra1		= (void *) &slow_work_min_min_threads,
+		.extra2		= &slow_work_max_threads,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "max-threads",
+		.data		= &slow_work_max_threads,
+		.maxlen		= sizeof(unsigned),
+		.mode		= 0644,
+		.proc_handler	= slow_work_max_threads_sysctl,
+		.extra1		= &slow_work_min_threads,
+		.extra2		= (void *) &slow_work_max_max_threads,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "vslow-percentage",
+		.data		= &vslow_work_proportion,
+		.maxlen		= sizeof(unsigned),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.extra1		= (void *) &slow_work_min_vslow,
+		.extra2		= (void *) &slow_work_max_vslow,
+	},
+	{ .ctl_name = 0 }
+};
+#endif
+
+/*
+ * The active state of the thread pool
+ */
 static atomic_t slow_work_thread_count;
 static atomic_t vslow_work_executing_count;
 
@@ -427,6 +479,64 @@ static void slow_work_oom_timeout(unsigned long data)
 	slow_work_may_not_start_new_thread = false;
 }
 
+#ifdef CONFIG_SYSCTL
+/*
+ * Handle adjustment of the minimum number of threads
+ */
+static int slow_work_min_threads_sysctl(struct ctl_table *table, int write,
+					struct file *filp, void __user *buffer,
+					size_t *lenp, loff_t *ppos)
+{
+	int ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+	int n;
+
+	if (ret == 0) {
+		mutex_lock(&slow_work_user_lock);
+		if (slow_work_user_count > 0) {
+			/* see if we need to start or stop threads */
+			n = atomic_read(&slow_work_thread_count) -
+				slow_work_min_threads;
+
+			if (n < 0 && !slow_work_may_not_start_new_thread)
+				slow_work_enqueue(&slow_work_new_thread);
+			else if (n > 0)
+				mod_timer(&slow_work_cull_timer,
+					  jiffies + SLOW_WORK_CULL_TIMEOUT);
+		}
+		mutex_unlock(&slow_work_user_lock);
+	}
+
+	return ret;
+}
+
+/*
+ * Handle adjustment of the maximum number of threads
+ */
+static int slow_work_max_threads_sysctl(struct ctl_table *table, int write,
+					struct file *filp, void __user *buffer,
+					size_t *lenp, loff_t *ppos)
+{
+	int ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+	int n;
+
+	if (ret == 0) {
+		mutex_lock(&slow_work_user_lock);
+		if (slow_work_user_count > 0) {
+			/* see if we need to stop threads */
+			n = slow_work_max_threads -
+				atomic_read(&slow_work_thread_count);
+
+			if (n < 0)
+				mod_timer(&slow_work_cull_timer,
+					  jiffies + SLOW_WORK_CULL_TIMEOUT);
+		}
+		mutex_unlock(&slow_work_user_lock);
+	}
+
+	return ret;
+}
+#endif /* CONFIG_SYSCTL */
+
 /**
  * slow_work_register_user - Register a user of the facility
  *
@@ -516,8 +626,12 @@ static int __init init_slow_work(void)
 {
 	unsigned nr_cpus = num_possible_cpus();
 
-	if (nr_cpus > slow_work_max_threads)
+	if (slow_work_max_threads < nr_cpus)
 		slow_work_max_threads = nr_cpus;
+#ifdef CONFIG_SYSCTL
+	if (slow_work_max_max_threads < nr_cpus * 2)
+		slow_work_max_max_threads = nr_cpus * 2;
+#endif
 	return 0;
 }
 

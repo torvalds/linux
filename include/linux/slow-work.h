@@ -14,6 +14,8 @@
 
 #ifdef CONFIG_SLOW_WORK
 
+#include <linux/sysctl.h>
+
 struct slow_work;
 
 /*
@@ -83,6 +85,9 @@ extern int slow_work_enqueue(struct slow_work *work);
 extern int slow_work_register_user(void);
 extern void slow_work_unregister_user(void);
 
+#ifdef CONFIG_SYSCTL
+extern ctl_table slow_work_sysctls[];
+#endif
 
 #endif /* CONFIG_SLOW_WORK */
 #endif /* _LINUX_SLOW_WORK_H */
