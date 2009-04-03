@@ -14,7 +14,7 @@ struct timeriomem_rng_data {
 	struct completion	completion;
 	unsigned int		present:1;
 
-	u32 __iomem		*address;
+	void __iomem		*address;
 
 	/* measures in usecs */
 	unsigned int		period;
