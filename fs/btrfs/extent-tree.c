@@ -291,8 +291,8 @@ next:
 			   block_group->key.objectid +
 			   block_group->key.offset);
 
-	remove_sb_from_cache(root, block_group);
 	block_group->cached = 1;
+	remove_sb_from_cache(root, block_group);
 	ret = 0;
 err:
 	btrfs_free_path(path);
