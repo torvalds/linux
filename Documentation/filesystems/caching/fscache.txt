@@ -188,6 +188,11 @@ The cache backend API to FS-Cache can be found in:
 
 	Documentation/filesystems/caching/backend-api.txt
 
+A description of the internal representations and object state machine can be
+found in:
+
+	Documentation/filesystems/caching/object.txt
+
 
 =======================
 STATISTICAL INFORMATION

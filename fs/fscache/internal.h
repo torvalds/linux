@@ -86,6 +86,18 @@ extern int fscache_wait_bit(void *);
 extern int fscache_wait_bit_interruptible(void *);
 
 /*
+ * fsc-object.c
+ */
+extern void fscache_withdrawing_object(struct fscache_cache *,
+				       struct fscache_object *);
+extern void fscache_enqueue_object(struct fscache_object *);
+
+/*
+ * fsc-operation.c
+ */
+#define fscache_start_operations(obj) BUG()
+
+/*
  * fsc-proc.c
  */
 #ifdef CONFIG_PROC_FS
@@ -196,7 +208,19 @@ extern const struct file_operations fscache_stats_fops;
 static inline void fscache_raise_event(struct fscache_object *object,
 				       unsigned event)
 {
-	BUG();  // TODO
+	if (!test_and_set_bit(event, &object->events) &&
+	    test_bit(event, &object->event_mask))
+		fscache_enqueue_object(object);
+}
+
+/*
+ * drop a reference to a cookie
+ */
+static inline void fscache_cookie_put(struct fscache_cookie *cookie)
+{
+	BUG_ON(atomic_read(&cookie->usage) <= 0);
+	if (atomic_dec_and_test(&cookie->usage))
+		__fscache_cookie_put(cookie);
 }
 
 /*****************************************************************************/
