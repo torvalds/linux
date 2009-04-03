@@ -56,7 +56,7 @@ hierarchy, and a set of subsystems; each subsystem has system-specific
 state attached to each cgroup in the hierarchy.  Each hierarchy has
 an instance of the cgroup virtual filesystem associated with it.
 
-At any one time there may be multiple active hierachies of task
+At any one time there may be multiple active hierarchies of task
 cgroups. Each hierarchy is a partition of all tasks in the system.
 
 User level code may create and destroy cgroups by name in an
@@ -124,10 +124,10 @@ following lines:
                                / \
                        Prof (15%) students (5%)
 
-Browsers like firefox/lynx go into the WWW network class, while (k)nfsd go
+Browsers like Firefox/Lynx go into the WWW network class, while (k)nfsd go
 into NFS network class.
 
-At the same time firefox/lynx will share an appropriate CPU/Memory class
+At the same time Firefox/Lynx will share an appropriate CPU/Memory class
 depending on who launched it (prof/student).
 
 With the ability to classify tasks differently for different resources
@@ -325,7 +325,7 @@ and then start a subshell 'sh' in that cgroup:
 Creating, modifying, using the cgroups can be done through the cgroup
 virtual filesystem.
 
-To mount a cgroup hierarchy will all available subsystems, type:
+To mount a cgroup hierarchy with all available subsystems, type:
 # mount -t cgroup xxx /dev/cgroup
 
 The "xxx" is not interpreted by the cgroup code, but will appear in
@@ -539,7 +539,7 @@ always handled well.
 void post_clone(struct cgroup_subsys *ss, struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
-Called at the end of cgroup_clone() to do any paramater
+Called at the end of cgroup_clone() to do any parameter
 initialization which might be required before a task could attach.  For
 example in cpusets, no task may attach before 'cpus' and 'mems' are set
 up.

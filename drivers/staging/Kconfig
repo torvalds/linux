@@ -4,7 +4,7 @@ menuconfig STAGING
 	---help---
 	  This option allows you to select a number of drivers that are
 	  not of the "normal" Linux kernel quality level.  These drivers
-	  are placed here in order to get a wider audience for use of
+	  are placed here in order to get a wider audience to make use of
 	  them.  Please note that these drivers are under heavy
 	  development, may or may not work, and may contain userspace
 	  interfaces that most likely will be changed in the near
@@ -12,7 +12,7 @@ menuconfig STAGING
 
 	  Using any of these drivers will taint your kernel which might
 	  affect support options from both the community, and various
-	  commercial support orginizations.
+	  commercial support organizations.
 
 	  If you wish to work on these drivers, to help improve them, or
 	  to report problems you have with them, please see the

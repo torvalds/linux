@@ -356,7 +356,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 	(Shell-B)
 	# move all tasks in /cgroup/test to /cgroup
 	# /sbin/swapoff -a
-	# rmdir /test/cgroup
+	# rmdir /cgroup/test
 	# kill malloc task.
 
 	Of course, tmpfs v.s. swapoff test should be tested, too.

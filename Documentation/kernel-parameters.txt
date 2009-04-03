@@ -1605,7 +1605,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	nosoftlockup	[KNL] Disable the soft-lockup detector.
 
 	noswapaccount	[KNL] Disable accounting of swap in memory resource
-			controller. (See Documentation/controllers/memory.txt)
+			controller. (See Documentation/cgroups/memory.txt)
 
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
@@ -1955,7 +1955,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
-			See Documentation/cpusets.txt.
+			See Documentation/cgroups/cpusets.txt.
 
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 

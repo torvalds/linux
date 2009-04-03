@@ -1374,7 +1374,7 @@ config SERIAL_BFIN_SPORT
 	depends on BLACKFIN && EXPERIMENTAL
 	select SERIAL_CORE
 	help
-	  Enble support SPORT emulate UART on Blackfin series.
+	  Enable SPORT emulate UART on Blackfin series.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bfin_sport_uart.

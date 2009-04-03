@@ -367,7 +367,7 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 		/*
 		 * Treat freezing temperatures as invalid as well; some
 		 * BIOSes return really low values and cause reboots at startup.
-		 * Below zero (Celcius) values clearly aren't right for sure..
+		 * Below zero (Celsius) values clearly aren't right for sure..
 		 * ... so lets discard those as invalid.
 		 */
 		if (ACPI_FAILURE(status) ||

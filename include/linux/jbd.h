@@ -35,7 +35,7 @@
 #define journal_oom_retry 1
 
 /*
- * Define JBD_PARANIOD_IOFAIL to cause a kernel BUG() if ext3 finds
+ * Define JBD_PARANOID_IOFAIL to cause a kernel BUG() if ext3 finds
  * certain classes of error which can occur due to failed IOs.  Under
  * normal use we want ext3 to continue after such errors, because
  * hardware _can_ fail, but for debugging purposes when running tests on

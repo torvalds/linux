@@ -346,7 +346,7 @@ config PHYP_DUMP
 	help
 	  Hypervisor-assisted dump is meant to be a kdump replacement
 	  offering robustness and speed not possible without system
-	  hypervisor assistence.
+	  hypervisor assistance.
 
 	  If unsure, say "N"
 

@@ -152,7 +152,7 @@ u16_t zfHpInit(zdev_t* dev, u32_t frequency)
     else
     {
     #ifndef ZM_OTUS_LINUX_PHASE_2
-        /* donwload the normal frimware */
+        /* download the normal firmware */
         if ((ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
                 (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
         {

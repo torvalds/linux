@@ -5811,7 +5811,7 @@ static struct ibm_struct volume_driver_data = {
  *	ThinkPads from this same time period (and earlier) probably lack the
  *	tachometer as well.
  *
- *	Unfortunately a lot of ThinkPads with new-style ECs but whose firwmare
+ *	Unfortunately a lot of ThinkPads with new-style ECs but whose firmware
  *	was never fixed by IBM to report the EC firmware version string
  *	probably support the tachometer (like the early X models), so
  *	detecting it is quite hard.  We need more data to know for sure.
