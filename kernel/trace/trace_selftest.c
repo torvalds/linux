@@ -757,7 +757,7 @@ int
 trace_selftest_startup_hw_branches(struct tracer *trace,
 				   struct trace_array *tr)
 {
-	struct trace_iterator iter;
+	struct trace_iterator *iter;
 	struct tracer tracer;
 	unsigned long count;
 	int ret;
@@ -777,17 +777,21 @@ trace_selftest_startup_hw_branches(struct tracer *trace,
 	 * The hw-branch tracer needs to collect the trace from the various
 	 * cpu trace buffers - before tracing is stopped.
 	 */
-	memset(&iter, 0, sizeof(iter));
+	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
+	if (!iter)
+		return -ENOMEM;
+
 	memcpy(&tracer, trace, sizeof(tracer));
 
-	iter.trace = &tracer;
-	iter.tr = tr;
-	iter.pos = -1;
-	mutex_init(&iter.mutex);
+	iter->trace = &tracer;
+	iter->tr = tr;
+	iter->pos = -1;
+	mutex_init(&iter->mutex);
 
-	trace->open(&iter);
+	trace->open(iter);
 
-	mutex_destroy(&iter.mutex);
+	mutex_destroy(&iter->mutex);
+	kfree(iter);
 
 	tracing_stop();
 
