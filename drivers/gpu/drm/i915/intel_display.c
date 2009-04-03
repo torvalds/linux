@@ -636,7 +636,7 @@ void
 intel_wait_for_vblank(struct drm_device *dev)
 {
 	/* Wait for 20ms, i.e. one cycle at 50hz. */
-	udelay(20000);
+	mdelay(20);
 }
 
 static int
@@ -1104,6 +1104,26 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
 		return -EINVAL;
+	}
+
+	/* SDVO TV has fixed PLL values depend on its clock range,
+	   this mirrors vbios setting. */
+	if (is_sdvo && is_tv) {
+		if (adjusted_mode->clock >= 100000
+				&& adjusted_mode->clock < 140500) {
+			clock.p1 = 2;
+			clock.p2 = 10;
+			clock.n = 3;
+			clock.m1 = 16;
+			clock.m2 = 8;
+		} else if (adjusted_mode->clock >= 140500
+				&& adjusted_mode->clock <= 200000) {
+			clock.p1 = 1;
+			clock.p2 = 10;
+			clock.n = 6;
+			clock.m1 = 12;
+			clock.m2 = 8;
+		}
 	}
 
 	if (IS_IGD(dev))
