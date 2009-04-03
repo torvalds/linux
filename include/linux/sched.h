@@ -68,7 +68,7 @@ struct sched_param {
 #include <linux/smp.h>
 #include <linux/sem.h>
 #include <linux/signal.h>
-#include <linux/fs_struct.h>
+#include <linux/path.h>
 #include <linux/compiler.h>
 #include <linux/completion.h>
 #include <linux/pid.h>
@@ -97,6 +97,7 @@ struct futex_pi_state;
 struct robust_list_head;
 struct bio;
 struct bts_tracer;
+struct fs_struct;
 
 /*
  * List of flags we want to share for kernel threads,

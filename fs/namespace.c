@@ -27,6 +27,7 @@
 #include <linux/ramfs.h>
 #include <linux/log2.h>
 #include <linux/idr.h>
+#include <linux/fs_struct.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include "pnode.h"
@@ -2090,66 +2091,6 @@ out2:
 out1:
 	free_page(type_page);
 	return retval;
-}
-
-/*
- * Replace the fs->{rootmnt,root} with {mnt,dentry}. Put the old values.
- * It can block. Requires the big lock held.
- */
-void set_fs_root(struct fs_struct *fs, struct path *path)
-{
-	struct path old_root;
-
-	write_lock(&fs->lock);
-	old_root = fs->root;
-	fs->root = *path;
-	path_get(path);
-	write_unlock(&fs->lock);
-	if (old_root.dentry)
-		path_put(&old_root);
-}
-
-/*
- * Replace the fs->{pwdmnt,pwd} with {mnt,dentry}. Put the old values.
- * It can block. Requires the big lock held.
- */
-void set_fs_pwd(struct fs_struct *fs, struct path *path)
-{
-	struct path old_pwd;
-
-	write_lock(&fs->lock);
-	old_pwd = fs->pwd;
-	fs->pwd = *path;
-	path_get(path);
-	write_unlock(&fs->lock);
-
-	if (old_pwd.dentry)
-		path_put(&old_pwd);
-}
-
-static void chroot_fs_refs(struct path *old_root, struct path *new_root)
-{
-	struct task_struct *g, *p;
-	struct fs_struct *fs;
-
-	read_lock(&tasklist_lock);
-	do_each_thread(g, p) {
-		task_lock(p);
-		fs = p->fs;
-		if (fs) {
-			atomic_inc(&fs->count);
-			task_unlock(p);
-			if (fs->root.dentry == old_root->dentry
-			    && fs->root.mnt == old_root->mnt)
-				set_fs_root(fs, new_root);
-			if (fs->pwd.dentry == old_root->dentry
-			    && fs->pwd.mnt == old_root->mnt)
-				set_fs_pwd(fs, new_root);
-			put_fs_struct(fs);
-		} else
-			task_unlock(p);
-	} while_each_thread(g, p);
-	read_unlock(&tasklist_lock);
 }
 
 /*

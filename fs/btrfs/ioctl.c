@@ -267,7 +267,7 @@ static noinline int btrfs_mksubvol(struct path *parent, char *name,
 		goto out_dput;
 
 	if (!IS_POSIXACL(parent->dentry->d_inode))
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 
 	error = mnt_want_write(parent->mnt);
 	if (error)
