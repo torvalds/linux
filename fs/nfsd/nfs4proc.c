@@ -854,6 +854,8 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	resp->cstate.replay_owner = NULL;
 	fh_init(&resp->cstate.current_fh, NFS4_FHSIZE);
 	fh_init(&resp->cstate.save_fh, NFS4_FHSIZE);
+	/* Use the deferral mechanism only for NFSv4.0 compounds */
+	rqstp->rq_usedeferral = (args->minorversion == 0);
 
 	/*
 	 * According to RFC3010, this takes precedence over all other errors.
@@ -933,12 +935,18 @@ encode_op:
 
 		nfsd4_increment_op_stats(op->opnum);
 	}
+	if (!rqstp->rq_usedeferral && status == nfserr_dropit) {
+		dprintk("%s Dropit - send NFS4ERR_DELAY\n", __func__);
+		status = nfserr_jukebox;
+	}
 
 	fh_put(&resp->cstate.current_fh);
 	fh_put(&resp->cstate.save_fh);
 	BUG_ON(resp->cstate.replay_owner);
 out:
 	nfsd4_release_compoundargs(args);
+	/* Reset deferral mechanism for RPC deferrals */
+	rqstp->rq_usedeferral = 1;
 	dprintk("nfsv4 compound returned %d\n", ntohl(status));
 	return status;
 }
