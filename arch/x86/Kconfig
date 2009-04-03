@@ -354,6 +354,7 @@ config X86_UV
 	bool "SGI Ultraviolet"
 	depends on X86_64
 	depends on X86_EXTENDED_PLATFORM
+	depends on NUMA
 	select X86_X2APIC
 	---help---
 	  This option is needed in order to support SGI Ultraviolet systems.
