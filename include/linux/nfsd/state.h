@@ -173,6 +173,8 @@ struct nfs4_client {
 
 	/* for nfs41 */
 	struct list_head	cl_sessions;
+	u32			cl_seqid;       /* seqid for create_session */
+	u32			cl_exchange_flags;
 };
 
 /* struct nfs4_client_reset

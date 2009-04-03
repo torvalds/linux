@@ -832,12 +832,152 @@ out_err:
 	return;
 }
 
+/*
+ * Set the exchange_id flags returned by the server.
+ */
+static void
+nfsd4_set_ex_flags(struct nfs4_client *new, struct nfsd4_exchange_id *clid)
+{
+	/* pNFS is not supported */
+	new->cl_exchange_flags |= EXCHGID4_FLAG_USE_NON_PNFS;
+
+	/* Referrals are supported, Migration is not. */
+	new->cl_exchange_flags |= EXCHGID4_FLAG_SUPP_MOVED_REFER;
+
+	/* set the wire flags to return to client. */
+	clid->flags = new->cl_exchange_flags;
+}
+
 __be32
 nfsd4_exchange_id(struct svc_rqst *rqstp,
 		  struct nfsd4_compound_state *cstate,
 		  struct nfsd4_exchange_id *exid)
 {
-	return -1;	/* stub */
+	struct nfs4_client *unconf, *conf, *new;
+	int status;
+	unsigned int		strhashval;
+	char			dname[HEXDIR_LEN];
+	nfs4_verifier		verf = exid->verifier;
+	u32			ip_addr = svc_addr_in(rqstp)->sin_addr.s_addr;
+
+	dprintk("%s rqstp=%p exid=%p clname.len=%u clname.data=%p "
+		" ip_addr=%u flags %x, spa_how %d\n",
+		__func__, rqstp, exid, exid->clname.len, exid->clname.data,
+		ip_addr, exid->flags, exid->spa_how);
+
+	if (!check_name(exid->clname) || (exid->flags & ~EXCHGID4_FLAG_MASK_A))
+		return nfserr_inval;
+
+	/* Currently only support SP4_NONE */
+	switch (exid->spa_how) {
+	case SP4_NONE:
+		break;
+	case SP4_SSV:
+		return nfserr_encr_alg_unsupp;
+	default:
+		BUG();				/* checked by xdr code */
+	case SP4_MACH_CRED:
+		return nfserr_serverfault;	/* no excuse :-/ */
+	}
+
+	status = nfs4_make_rec_clidname(dname, &exid->clname);
+
+	if (status)
+		goto error;
+
+	strhashval = clientstr_hashval(dname);
+
+	nfs4_lock_state();
+	status = nfs_ok;
+
+	conf = find_confirmed_client_by_str(dname, strhashval);
+	if (conf) {
+		if (!same_verf(&verf, &conf->cl_verifier)) {
+			/* 18.35.4 case 8 */
+			if (exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A) {
+				status = nfserr_not_same;
+				goto out;
+			}
+			/* Client reboot: destroy old state */
+			expire_client(conf);
+			goto out_new;
+		}
+		if (!same_creds(&conf->cl_cred, &rqstp->rq_cred)) {
+			/* 18.35.4 case 9 */
+			if (exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A) {
+				status = nfserr_perm;
+				goto out;
+			}
+			expire_client(conf);
+			goto out_new;
+		}
+		if (ip_addr != conf->cl_addr &&
+		    !(exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A)) {
+			/* Client collision. 18.35.4 case 3 */
+			status = nfserr_clid_inuse;
+			goto out;
+		}
+		/*
+		 * Set bit when the owner id and verifier map to an already
+		 * confirmed client id (18.35.3).
+		 */
+		exid->flags |= EXCHGID4_FLAG_CONFIRMED_R;
+
+		/*
+		 * Falling into 18.35.4 case 2, possible router replay.
+		 * Leave confirmed record intact and return same result.
+		 */
+		copy_verf(conf, &verf);
+		new = conf;
+		goto out_copy;
+	} else {
+		/* 18.35.4 case 7 */
+		if (exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A) {
+			status = nfserr_noent;
+			goto out;
+		}
+	}
+
+	unconf  = find_unconfirmed_client_by_str(dname, strhashval);
+	if (unconf) {
+		/*
+		 * Possible retry or client restart.  Per 18.35.4 case 4,
+		 * a new unconfirmed record should be generated regardless
+		 * of whether any properties have changed.
+		 */
+		expire_client(unconf);
+	}
+
+out_new:
+	/* Normal case */
+	new = create_client(exid->clname, dname);
+	if (new == NULL) {
+		status = nfserr_resource;
+		goto out;
+	}
+
+	copy_verf(new, &verf);
+	copy_cred(&new->cl_cred, &rqstp->rq_cred);
+	new->cl_addr = ip_addr;
+	gen_clid(new);
+	gen_confirm(new);
+	add_to_unconfirmed(new, strhashval);
+out_copy:
+	exid->clientid.cl_boot = new->cl_clientid.cl_boot;
+	exid->clientid.cl_id = new->cl_clientid.cl_id;
+
+	new->cl_seqid = exid->seqid = 1;
+	nfsd4_set_ex_flags(new, exid);
+
+	dprintk("nfsd4_exchange_id seqid %d flags %x\n",
+		new->cl_seqid, new->cl_exchange_flags);
+	status = nfs_ok;
+
+out:
+	nfs4_unlock_state();
+error:
+	dprintk("nfsd4_exchange_id returns %d\n", ntohl(status));
+	return status;
 }
 
 __be32

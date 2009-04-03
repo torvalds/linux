@@ -45,6 +45,7 @@
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/vfs.h>
+#include <linux/utsname.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/clnt.h>
@@ -998,9 +999,100 @@ nfsd4_decode_release_lockowner(struct nfsd4_compoundargs *argp, struct nfsd4_rel
 
 static __be32
 nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
-			 struct nfsd4_exchange_id *clid)
+			 struct nfsd4_exchange_id *exid)
 {
-	return nfserr_opnotsupp;	/* stub */
+	int dummy;
+	DECODE_HEAD;
+
+	READ_BUF(NFS4_VERIFIER_SIZE);
+	COPYMEM(exid->verifier.data, NFS4_VERIFIER_SIZE);
+
+	READ_BUF(4);
+	READ32(exid->clname.len);
+
+	READ_BUF(exid->clname.len);
+	SAVEMEM(exid->clname.data, exid->clname.len);
+
+	READ_BUF(4);
+	READ32(exid->flags);
+
+	/* Ignore state_protect4_a */
+	READ_BUF(4);
+	READ32(exid->spa_how);
+	switch (exid->spa_how) {
+	case SP4_NONE:
+		break;
+	case SP4_MACH_CRED:
+		/* spo_must_enforce */
+		READ_BUF(4);
+		READ32(dummy);
+		READ_BUF(dummy * 4);
+		p += dummy;
+
+		/* spo_must_allow */
+		READ_BUF(4);
+		READ32(dummy);
+		READ_BUF(dummy * 4);
+		p += dummy;
+		break;
+	case SP4_SSV:
+		/* ssp_ops */
+		READ_BUF(4);
+		READ32(dummy);
+		READ_BUF(dummy * 4);
+		p += dummy;
+
+		READ_BUF(4);
+		READ32(dummy);
+		READ_BUF(dummy * 4);
+		p += dummy;
+
+		/* ssp_hash_algs<> */
+		READ_BUF(4);
+		READ32(dummy);
+		READ_BUF(dummy);
+		p += XDR_QUADLEN(dummy);
+
+		/* ssp_encr_algs<> */
+		READ_BUF(4);
+		READ32(dummy);
+		READ_BUF(dummy);
+		p += XDR_QUADLEN(dummy);
+
+		/* ssp_window and ssp_num_gss_handles */
+		READ_BUF(8);
+		READ32(dummy);
+		READ32(dummy);
+		break;
+	default:
+		goto xdr_error;
+	}
+
+	/* Ignore Implementation ID */
+	READ_BUF(4);    /* nfs_impl_id4 array length */
+	READ32(dummy);
+
+	if (dummy > 1)
+		goto xdr_error;
+
+	if (dummy == 1) {
+		/* nii_domain */
+		READ_BUF(4);
+		READ32(dummy);
+		READ_BUF(dummy);
+		p += XDR_QUADLEN(dummy);
+
+		/* nii_name */
+		READ_BUF(4);
+		READ32(dummy);
+		READ_BUF(dummy);
+		p += XDR_QUADLEN(dummy);
+
+		/* nii_date */
+		READ_BUF(12);
+		p += 3;
+	}
+	DECODE_TAIL;
 }
 
 static __be32
@@ -2665,8 +2757,55 @@ static __be32
 nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, int nfserr,
 			 struct nfsd4_exchange_id *exid)
 {
-	/* stub */
-	return nfserr;
+	ENCODE_HEAD;
+	char *major_id;
+	char *server_scope;
+	int major_id_sz;
+	int server_scope_sz;
+	uint64_t minor_id = 0;
+
+	if (nfserr)
+		return nfserr;
+
+	major_id = utsname()->nodename;
+	major_id_sz = strlen(major_id);
+	server_scope = utsname()->nodename;
+	server_scope_sz = strlen(server_scope);
+
+	RESERVE_SPACE(
+		8 /* eir_clientid */ +
+		4 /* eir_sequenceid */ +
+		4 /* eir_flags */ +
+		4 /* spr_how (SP4_NONE) */ +
+		8 /* so_minor_id */ +
+		4 /* so_major_id.len */ +
+		(XDR_QUADLEN(major_id_sz) * 4) +
+		4 /* eir_server_scope.len */ +
+		(XDR_QUADLEN(server_scope_sz) * 4) +
+		4 /* eir_server_impl_id.count (0) */);
+
+	WRITEMEM(&exid->clientid, 8);
+	WRITE32(exid->seqid);
+	WRITE32(exid->flags);
+
+	/* state_protect4_r. Currently only support SP4_NONE */
+	BUG_ON(exid->spa_how != SP4_NONE);
+	WRITE32(exid->spa_how);
+
+	/* The server_owner struct */
+	WRITE64(minor_id);      /* Minor id */
+	/* major id */
+	WRITE32(major_id_sz);
+	WRITEMEM(major_id, major_id_sz);
+
+	/* Server scope */
+	WRITE32(server_scope_sz);
+	WRITEMEM(server_scope, server_scope_sz);
+
+	/* Implementation id */
+	WRITE32(0);	/* zero length nfs_impl_id4 array */
+	ADJUST_ARGS();
+	return 0;
 }
 
 static __be32

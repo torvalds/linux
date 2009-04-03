@@ -345,7 +345,12 @@ struct nfsd4_write {
 };
 
 struct nfsd4_exchange_id {
-	int	foo;	/* stub */
+	nfs4_verifier	verifier;
+	struct xdr_netobj clname;
+	u32		flags;
+	clientid_t	clientid;
+	u32		seqid;
+	int		spa_how;
 };
 
 struct nfsd4_create_session {
