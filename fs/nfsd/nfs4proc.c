@@ -921,7 +921,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	 * According to RFC3010, this takes precedence over all other errors.
 	 */
 	status = nfserr_minor_vers_mismatch;
-	if (args->minorversion > NFSD_SUPPORTED_MINOR_VERSION)
+	if (args->minorversion > nfsd_supported_minorversion)
 		goto out;
 
 	if (!nfs41_op_ordering_ok(args)) {
