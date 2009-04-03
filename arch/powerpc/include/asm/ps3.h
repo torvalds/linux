@@ -50,6 +50,9 @@ enum ps3_param_av_multi_out {
 
 enum ps3_param_av_multi_out ps3_os_area_get_av_multi_out(void);
 
+extern u64 ps3_os_area_get_rtc_diff(void);
+extern void ps3_os_area_set_rtc_diff(u64 rtc_diff);
+
 /* dma routines */
 
 enum ps3_dma_page_size {
