@@ -352,7 +352,7 @@ static struct irq_chip ipu_irq_chip = {
 };
 
 /* Install the IRQ handler */
-int ipu_irq_attach_irq(struct ipu *ipu, struct platform_device *dev)
+int __init ipu_irq_attach_irq(struct ipu *ipu, struct platform_device *dev)
 {
 	struct ipu_platform_data *pdata = dev->dev.platform_data;
 	unsigned int irq, irq_base, i;
