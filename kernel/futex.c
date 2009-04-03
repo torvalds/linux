@@ -1398,6 +1398,82 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
 	__set_current_state(TASK_RUNNING);
 }
 
+/**
+ * futex_wait_setup() - Prepare to wait on a futex
+ * @uaddr:	the futex userspace address
+ * @val:	the expected value
+ * @fshared:	whether the futex is shared (1) or not (0)
+ * @q:		the associated futex_q
+ * @hb:		storage for hash_bucket pointer to be returned to caller
+ *
+ * Setup the futex_q and locate the hash_bucket.  Get the futex value and
+ * compare it with the expected value.  Handle atomic faults internally.
+ * Return with the hb lock held and a q.key reference on success, and unlocked
+ * with no q.key reference on failure.
+ *
+ * Returns:
+ *  0 - uaddr contains val and hb has been locked
+ * <1 - -EFAULT or -EWOULDBLOCK (uaddr does not contain val) and hb is unlcoked
+ */
+static int futex_wait_setup(u32 __user *uaddr, u32 val, int fshared,
+			   struct futex_q *q, struct futex_hash_bucket **hb)
+{
+	u32 uval;
+	int ret;
+
+	/*
+	 * Access the page AFTER the hash-bucket is locked.
+	 * Order is important:
+	 *
+	 *   Userspace waiter: val = var; if (cond(val)) futex_wait(&var, val);
+	 *   Userspace waker:  if (cond(var)) { var = new; futex_wake(&var); }
+	 *
+	 * The basic logical guarantee of a futex is that it blocks ONLY
+	 * if cond(var) is known to be true at the time of blocking, for
+	 * any cond.  If we queued after testing *uaddr, that would open
+	 * a race condition where we could block indefinitely with
+	 * cond(var) false, which would violate the guarantee.
+	 *
+	 * A consequence is that futex_wait() can return zero and absorb
+	 * a wakeup when *uaddr != val on entry to the syscall.  This is
+	 * rare, but normal.
+	 */
+retry:
+	q->key = FUTEX_KEY_INIT;
+	ret = get_futex_key(uaddr, fshared, &q->key);
+	if (unlikely(ret != 0))
+		goto out;
+
+retry_private:
+	*hb = queue_lock(q);
+
+	ret = get_futex_value_locked(&uval, uaddr);
+
+	if (ret) {
+		queue_unlock(q, *hb);
+
+		ret = get_user(uval, uaddr);
+		if (ret)
+			goto out;
+
+		if (!fshared)
+			goto retry_private;
+
+		put_futex_key(fshared, &q->key);
+		goto retry;
+	}
+
+	if (uval != val) {
+		queue_unlock(q, *hb);
+		ret = -EWOULDBLOCK;
+	}
+
+out:
+	if (ret)
+		put_futex_key(fshared, &q->key);
+	return ret;
+}
+
 static int futex_wait(u32 __user *uaddr, int fshared,
 		      u32 val, ktime_t *abs_time, u32 bitset, int clockrt)
 {
@@ -1406,7 +1482,6 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 	struct restart_block *restart;
 	struct futex_hash_bucket *hb;
 	struct futex_q q;
-	u32 uval;
 	int ret;
 
 	if (!bitset)
@@ -1425,57 +1500,10 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 					     current->timer_slack_ns);
 	}
 
-retry:
-	q.key = FUTEX_KEY_INIT;
-	ret = get_futex_key(uaddr, fshared, &q.key);
-	if (unlikely(ret != 0))
+	/* Prepare to wait on uaddr. */
+	ret = futex_wait_setup(uaddr, val, fshared, &q, &hb);
+	if (ret)
 		goto out;
-
-retry_private:
-	hb = queue_lock(&q);
-
-	/*
-	 * Access the page AFTER the hash-bucket is locked.
-	 * Order is important:
-	 *
-	 *   Userspace waiter: val = var; if (cond(val)) futex_wait(&var, val);
-	 *   Userspace waker:  if (cond(var)) { var = new; futex_wake(&var); }
-	 *
-	 * The basic logical guarantee of a futex is that it blocks ONLY
-	 * if cond(var) is known to be true at the time of blocking, for
-	 * any cond.  If we queued after testing *uaddr, that would open
-	 * a race condition where we could block indefinitely with
-	 * cond(var) false, which would violate the guarantee.
-	 *
-	 * A consequence is that futex_wait() can return zero and absorb
-	 * a wakeup when *uaddr != val on entry to the syscall.  This is
-	 * rare, but normal.
-	 *
-	 * For shared futexes, we hold the mmap semaphore, so the mapping
-	 * cannot have changed since we looked it up in get_futex_key.
-	 */
-	ret = get_futex_value_locked(&uval, uaddr);
-
-	if (unlikely(ret)) {
-		queue_unlock(&q, hb);
-
-		ret = get_user(uval, uaddr);
-		if (ret)
-			goto out_put_key;
-
-		if (!fshared)
-			goto retry_private;
-
-		put_futex_key(fshared, &q.key);
-		goto retry;
-	}
-	ret = -EWOULDBLOCK;
-
-	/* Only actually queue if *uaddr contained val.  */
-	if (unlikely(uval != val)) {
-		queue_unlock(&q, hb);
-		goto out_put_key;
-	}
 
 	/* queue_me and wait for wakeup, timeout, or a signal. */
 	futex_wait_queue_me(hb, &q, to, &wait);
