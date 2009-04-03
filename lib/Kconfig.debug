@@ -912,7 +912,7 @@ config LATENCYTOP
 
 config SYSCTL_SYSCALL_CHECK
 	bool "Sysctl checks"
-	depends on SYSCTL_SYSCALL
+	depends on SYSCTL
 	---help---
 	  sys_sysctl uses binary paths that have been found challenging
 	  to properly maintain and use. This enables checks that help
