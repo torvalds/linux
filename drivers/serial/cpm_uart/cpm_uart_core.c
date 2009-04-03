@@ -1106,6 +1106,10 @@ static int cpm_uart_init_port(struct device_node *np,
 	for (i = 0; i < NUM_GPIOS; i++)
 		pinfo->gpios[i] = of_get_gpio(np, i);
 
+#ifdef CONFIG_PPC_EARLY_DEBUG_CPM
+	udbg_putc = NULL;
+#endif
+
 	return cpm_uart_request_port(&pinfo->port);
 
 out_pram:
@@ -1254,10 +1258,6 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 		if ((baud = uart_baudrate()) == -1)
 			baud = 9600;
 	}
-
-#ifdef CONFIG_PPC_EARLY_DEBUG_CPM
-	udbg_putc = NULL;
-#endif
 
 	if (IS_SMC(pinfo)) {
 		out_be16(&pinfo->smcup->smc_brkcr, 0);
