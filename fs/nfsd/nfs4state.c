@@ -68,6 +68,7 @@ static u32 current_delegid = 1;
 static u32 nfs4_init;
 static stateid_t zerostateid;             /* bits all 0 */
 static stateid_t onestateid;              /* bits all 1 */
+static u64 current_sessionid = 1;
 
 #define ZERO_STATEID(stateid) (!memcmp((stateid), &zerostateid, sizeof(stateid_t)))
 #define ONE_STATEID(stateid)  (!memcmp((stateid), &onestateid, sizeof(stateid_t)))
@@ -399,6 +400,131 @@ dump_sessionid(const char *fn, struct nfs4_sessionid *sessionid)
 {
 	u32 *ptr = (u32 *)(&sessionid->data[0]);
 	dprintk("%s: %u:%u:%u:%u\n", fn, ptr[0], ptr[1], ptr[2], ptr[3]);
+}
+
+static void
+gen_sessionid(struct nfsd4_session *ses)
+{
+	struct nfs4_client *clp = ses->se_client;
+	struct nfsd4_sessionid *sid;
+
+	sid = (struct nfsd4_sessionid *)ses->se_sessionid.data;
+	sid->clientid = clp->cl_clientid;
+	sid->sequence = current_sessionid++;
+	sid->reserved = 0;
+}
+
+/*
+ * Give the client the number of slots it requests bound by
+ * NFSD_MAX_SLOTS_PER_SESSION and by sv_drc_max_pages.
+ *
+ * If we run out of pages (sv_drc_pages_used == sv_drc_max_pages) we
+ * should (up to a point) re-negotiate active sessions and reduce their
+ * slot usage to make rooom for new connections. For now we just fail the
+ * create session.
+ */
+static int set_forechannel_maxreqs(struct nfsd4_channel_attrs *fchan)
+{
+	int status = 0, np = fchan->maxreqs * NFSD_PAGES_PER_SLOT;
+
+	spin_lock(&nfsd_serv->sv_lock);
+	if (np + nfsd_serv->sv_drc_pages_used > nfsd_serv->sv_drc_max_pages)
+		np = nfsd_serv->sv_drc_max_pages - nfsd_serv->sv_drc_pages_used;
+	nfsd_serv->sv_drc_pages_used += np;
+	spin_unlock(&nfsd_serv->sv_lock);
+
+	if (np <= 0) {
+		status = nfserr_resource;
+		fchan->maxreqs = 0;
+	} else
+		fchan->maxreqs = np / NFSD_PAGES_PER_SLOT;
+
+	return status;
+}
+
+/*
+ * fchan holds the client values on input, and the server values on output
+ */
+static int init_forechannel_attrs(struct svc_rqst *rqstp,
+				    struct nfsd4_session *session,
+				    struct nfsd4_channel_attrs *fchan)
+{
+	int status = 0;
+	__u32   maxcount = svc_max_payload(rqstp);
+
+	/* headerpadsz set to zero in encode routine */
+
+	/* Use the client's max request and max response size if possible */
+	if (fchan->maxreq_sz > maxcount)
+		fchan->maxreq_sz = maxcount;
+	session->se_fmaxreq_sz = fchan->maxreq_sz;
+
+	if (fchan->maxresp_sz > maxcount)
+		fchan->maxresp_sz = maxcount;
+	session->se_fmaxresp_sz = fchan->maxresp_sz;
+
+	/* Set the max response cached size our default which is
+	 * a multiple of PAGE_SIZE and small */
+	session->se_fmaxresp_cached = NFSD_PAGES_PER_SLOT * PAGE_SIZE;
+	fchan->maxresp_cached = session->se_fmaxresp_cached;
+
+	/* Use the client's maxops if possible */
+	if (fchan->maxops > NFSD_MAX_OPS_PER_COMPOUND)
+		fchan->maxops = NFSD_MAX_OPS_PER_COMPOUND;
+	session->se_fmaxops = fchan->maxops;
+
+	/* try to use the client requested number of slots */
+	if (fchan->maxreqs > NFSD_MAX_SLOTS_PER_SESSION)
+		fchan->maxreqs = NFSD_MAX_SLOTS_PER_SESSION;
+
+	/* FIXME: Error means no more DRC pages so the server should
+	 * recover pages from existing sessions. For now fail session
+	 * creation.
+	 */
+	status = set_forechannel_maxreqs(fchan);
+
+	session->se_fnumslots = fchan->maxreqs;
+	return status;
+}
+
+static int
+alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp,
+		   struct nfsd4_create_session *cses)
+{
+	struct nfsd4_session *new, tmp;
+	int idx, status = nfserr_resource, slotsize;
+
+	memset(&tmp, 0, sizeof(tmp));
+
+	/* FIXME: For now, we just accept the client back channel attributes. */
+	status = init_forechannel_attrs(rqstp, &tmp, &cses->fore_channel);
+	if (status)
+		goto out;
+
+	/* allocate struct nfsd4_session and slot table in one piece */
+	slotsize = tmp.se_fnumslots * sizeof(struct nfsd4_slot);
+	new = kzalloc(sizeof(*new) + slotsize, GFP_KERNEL);
+	if (!new)
+		goto out;
+
+	memcpy(new, &tmp, sizeof(*new));
+
+	new->se_client = clp;
+	gen_sessionid(new);
+	idx = hash_sessionid(&new->se_sessionid);
+	memcpy(clp->cl_sessionid.data, new->se_sessionid.data,
+	       NFS4_MAX_SESSIONID_LEN);
+
+	new->se_flags = cses->flags;
+	kref_init(&new->se_ref);
+	spin_lock(&sessionid_lock);
+	list_add(&new->se_hash, &sessionid_hashtbl[idx]);
+	list_add(&new->se_perclnt, &clp->cl_sessions);
+	spin_unlock(&sessionid_lock);
+
+	status = nfs_ok;
+out:
+	return status;
 }
 
 /* caller must hold sessionid_lock */
@@ -1182,7 +1308,67 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		     struct nfsd4_compound_state *cstate,
 		     struct nfsd4_create_session *cr_ses)
 {
-	return -1;	/* stub */
+	u32 ip_addr = svc_addr_in(rqstp)->sin_addr.s_addr;
+	struct nfs4_client *conf, *unconf;
+	int status = 0;
+
+	nfs4_lock_state();
+	unconf = find_unconfirmed_client(&cr_ses->clientid);
+	conf = find_confirmed_client(&cr_ses->clientid);
+
+	if (conf) {
+		status = nfs_ok;
+		if (conf->cl_seqid == cr_ses->seqid) {
+			dprintk("Got a create_session replay! seqid= %d\n",
+				conf->cl_seqid);
+			goto out_replay;
+		} else if (cr_ses->seqid != conf->cl_seqid + 1) {
+			status = nfserr_seq_misordered;
+			dprintk("Sequence misordered!\n");
+			dprintk("Expected seqid= %d but got seqid= %d\n",
+				conf->cl_seqid, cr_ses->seqid);
+			goto out;
+		}
+		conf->cl_seqid++;
+	} else if (unconf) {
+		if (!same_creds(&unconf->cl_cred, &rqstp->rq_cred) ||
+		    (ip_addr != unconf->cl_addr)) {
+			status = nfserr_clid_inuse;
+			goto out;
+		}
+
+		if (unconf->cl_seqid != cr_ses->seqid) {
+			status = nfserr_seq_misordered;
+			goto out;
+		}
+
+		move_to_confirmed(unconf);
+
+		/*
+		 * We do not support RDMA or persistent sessions
+		 */
+		cr_ses->flags &= ~SESSION4_PERSIST;
+		cr_ses->flags &= ~SESSION4_RDMA;
+
+		conf = unconf;
+	} else {
+		status = nfserr_stale_clientid;
+		goto out;
+	}
+
+	status = alloc_init_session(rqstp, conf, cr_ses);
+	if (status)
+		goto out;
+
+out_replay:
+	memcpy(cr_ses->sessionid.data, conf->cl_sessionid.data,
+	       NFS4_MAX_SESSIONID_LEN);
+	cr_ses->seqid = conf->cl_seqid;
+
+out:
+	nfs4_unlock_state();
+	dprintk("%s returns %d\n", __func__, ntohl(status));
+	return status;
 }
 
 __be32

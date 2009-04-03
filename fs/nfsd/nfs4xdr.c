@@ -1099,7 +1099,108 @@ static __be32
 nfsd4_decode_create_session(struct nfsd4_compoundargs *argp,
 			    struct nfsd4_create_session *sess)
 {
-	return nfserr_opnotsupp;	/* stub */
+	DECODE_HEAD;
+
+	u32 dummy;
+	char *machine_name;
+	int i;
+	int nr_secflavs;
+
+	READ_BUF(16);
+	COPYMEM(&sess->clientid, 8);
+	READ32(sess->seqid);
+	READ32(sess->flags);
+
+	/* Fore channel attrs */
+	READ_BUF(28);
+	READ32(dummy); /* headerpadsz is always 0 */
+	READ32(sess->fore_channel.maxreq_sz);
+	READ32(sess->fore_channel.maxresp_sz);
+	READ32(sess->fore_channel.maxresp_cached);
+	READ32(sess->fore_channel.maxops);
+	READ32(sess->fore_channel.maxreqs);
+	READ32(sess->fore_channel.nr_rdma_attrs);
+	if (sess->fore_channel.nr_rdma_attrs == 1) {
+		READ_BUF(4);
+		READ32(sess->fore_channel.rdma_attrs);
+	} else if (sess->fore_channel.nr_rdma_attrs > 1) {
+		dprintk("Too many fore channel attr bitmaps!\n");
+		goto xdr_error;
+	}
+
+	/* Back channel attrs */
+	READ_BUF(28);
+	READ32(dummy); /* headerpadsz is always 0 */
+	READ32(sess->back_channel.maxreq_sz);
+	READ32(sess->back_channel.maxresp_sz);
+	READ32(sess->back_channel.maxresp_cached);
+	READ32(sess->back_channel.maxops);
+	READ32(sess->back_channel.maxreqs);
+	READ32(sess->back_channel.nr_rdma_attrs);
+	if (sess->back_channel.nr_rdma_attrs == 1) {
+		READ_BUF(4);
+		READ32(sess->back_channel.rdma_attrs);
+	} else if (sess->back_channel.nr_rdma_attrs > 1) {
+		dprintk("Too many back channel attr bitmaps!\n");
+		goto xdr_error;
+	}
+
+	READ_BUF(8);
+	READ32(sess->callback_prog);
+
+	/* callback_sec_params4 */
+	READ32(nr_secflavs);
+	for (i = 0; i < nr_secflavs; ++i) {
+		READ_BUF(4);
+		READ32(dummy);
+		switch (dummy) {
+		case RPC_AUTH_NULL:
+			/* Nothing to read */
+			break;
+		case RPC_AUTH_UNIX:
+			READ_BUF(8);
+			/* stamp */
+			READ32(dummy);
+
+			/* machine name */
+			READ32(dummy);
+			READ_BUF(dummy);
+			SAVEMEM(machine_name, dummy);
+
+			/* uid, gid */
+			READ_BUF(8);
+			READ32(sess->uid);
+			READ32(sess->gid);
+
+			/* more gids */
+			READ_BUF(4);
+			READ32(dummy);
+			READ_BUF(dummy * 4);
+			for (i = 0; i < dummy; ++i)
+				READ32(dummy);
+			break;
+		case RPC_AUTH_GSS:
+			dprintk("RPC_AUTH_GSS callback secflavor "
+				"not supported!\n");
+			READ_BUF(8);
+			/* gcbp_service */
+			READ32(dummy);
+			/* gcbp_handle_from_server */
+			READ32(dummy);
+			READ_BUF(dummy);
+			p += XDR_QUADLEN(dummy);
+			/* gcbp_handle_from_client */
+			READ_BUF(4);
+			READ32(dummy);
+			READ_BUF(dummy);
+			p += XDR_QUADLEN(dummy);
+			break;
+		default:
+			dprintk("Illegal callback secflavor\n");
+			return nfserr_inval;
+		}
+	}
+	DECODE_TAIL;
 }
 
 static __be32
@@ -2821,8 +2922,49 @@ static __be32
 nfsd4_encode_create_session(struct nfsd4_compoundres *resp, int nfserr,
 			    struct nfsd4_create_session *sess)
 {
-	/* stub */
-	return nfserr;
+	ENCODE_HEAD;
+
+	if (nfserr)
+		return nfserr;
+
+	RESERVE_SPACE(24);
+	WRITEMEM(sess->sessionid.data, NFS4_MAX_SESSIONID_LEN);
+	WRITE32(sess->seqid);
+	WRITE32(sess->flags);
+	ADJUST_ARGS();
+
+	RESERVE_SPACE(28);
+	WRITE32(0); /* headerpadsz */
+	WRITE32(sess->fore_channel.maxreq_sz);
+	WRITE32(sess->fore_channel.maxresp_sz);
+	WRITE32(sess->fore_channel.maxresp_cached);
+	WRITE32(sess->fore_channel.maxops);
+	WRITE32(sess->fore_channel.maxreqs);
+	WRITE32(sess->fore_channel.nr_rdma_attrs);
+	ADJUST_ARGS();
+
+	if (sess->fore_channel.nr_rdma_attrs) {
+		RESERVE_SPACE(4);
+		WRITE32(sess->fore_channel.rdma_attrs);
+		ADJUST_ARGS();
+	}
+
+	RESERVE_SPACE(28);
+	WRITE32(0); /* headerpadsz */
+	WRITE32(sess->back_channel.maxreq_sz);
+	WRITE32(sess->back_channel.maxresp_sz);
+	WRITE32(sess->back_channel.maxresp_cached);
+	WRITE32(sess->back_channel.maxops);
+	WRITE32(sess->back_channel.maxreqs);
+	WRITE32(sess->back_channel.nr_rdma_attrs);
+	ADJUST_ARGS();
+
+	if (sess->back_channel.nr_rdma_attrs) {
+		RESERVE_SPACE(4);
+		WRITE32(sess->back_channel.rdma_attrs);
+		ADJUST_ARGS();
+	}
+	return 0;
 }
 
 static __be32
