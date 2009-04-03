@@ -703,7 +703,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 
 	if (bp->flags & B44_FLAG_RX_RING_HACK)
 		b44_sync_dma_desc_for_device(bp->sdev, bp->rx_ring_dma,
-			                    dest_idx * sizeof(dp),
+			                    dest_idx * sizeof(*dp),
 			                    DMA_BIDIRECTIONAL);
 
 	return RX_PKT_BUF_SZ;
@@ -731,7 +731,7 @@ static void b44_recycle_rx(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 
 	if (bp->flags & B44_FLAG_RX_RING_HACK)
 		b44_sync_dma_desc_for_cpu(bp->sdev, bp->rx_ring_dma,
-			                 src_idx * sizeof(src_desc),
+			                 src_idx * sizeof(*src_desc),
 			                 DMA_BIDIRECTIONAL);
 
 	ctrl = src_desc->ctrl;
@@ -747,7 +747,7 @@ static void b44_recycle_rx(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 
 	if (bp->flags & B44_FLAG_RX_RING_HACK)
 		b44_sync_dma_desc_for_device(bp->sdev, bp->rx_ring_dma,
-					     dest_idx * sizeof(dest_desc),
+					     dest_idx * sizeof(*dest_desc),
 					     DMA_BIDIRECTIONAL);
 
 	ssb_dma_sync_single_for_device(bp->sdev, le32_to_cpu(src_desc->addr),
