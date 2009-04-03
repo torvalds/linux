@@ -1736,97 +1736,6 @@ static int hw_rule_format(struct snd_pcm_hw_params *params,
 	return changed;
 }
 
-#define MAX_MASK	64
-
-/*
- * check whether the registered audio formats need special hw-constraints
- */
-static int check_hw_params_convention(struct snd_usb_substream *subs)
-{
-	int i;
-	u32 *channels;
-	u32 *rates;
-	u32 cmaster, rmaster;
-	u32 rate_min = 0, rate_max = 0;
-	struct list_head *p;
-	int err = 1;
-
-	channels = kcalloc(MAX_MASK, sizeof(u32), GFP_KERNEL);
-	rates = kcalloc(MAX_MASK, sizeof(u32), GFP_KERNEL);
-	if (!channels || !rates) {
-		err = -ENOMEM;
-		goto __out;
-	}
-
-	list_for_each(p, &subs->fmt_list) {
-		struct audioformat *f;
-		f = list_entry(p, struct audioformat, list);
-		/* unconventional channels? */
-		if (f->channels > 32)
-			goto __out;
-		/* continuous rate min/max matches? */
-		if (f->rates & SNDRV_PCM_RATE_CONTINUOUS) {
-			if (rate_min && f->rate_min != rate_min)
-				goto __out;
-			if (rate_max && f->rate_max != rate_max)
-				goto __out;
-			rate_min = f->rate_min;
-			rate_max = f->rate_max;
-		}
-		/* combination of continuous rates and fixed rates? */
-		if (rates[f->format] & SNDRV_PCM_RATE_CONTINUOUS) {
-			if (f->rates != rates[f->format])
-				goto __out;
-		}
-		if (f->rates & SNDRV_PCM_RATE_CONTINUOUS) {
-			if (rates[f->format] && rates[f->format] != f->rates)
-				goto __out;
-		}
-		channels[f->format] |= 1 << (f->channels - 1);
-		rates[f->format] |= f->rates;
-		/* needs knot? */
-		if (f->rates & SNDRV_PCM_RATE_KNOT)
-			goto __out;
-	}
-	/* check whether channels and rates match for all formats */
-	cmaster = rmaster = 0;
-	for (i = 0; i < MAX_MASK; i++) {
-		if (cmaster != channels[i] && cmaster && channels[i])
-			goto __out;
-		if (rmaster != rates[i] && rmaster && rates[i])
-			goto __out;
-		if (channels[i])
-			cmaster = channels[i];
-		if (rates[i])
-			rmaster = rates[i];
-	}
-	/* check whether channels match for all distinct rates */
-	memset(channels, 0, MAX_MASK * sizeof(u32));
-	list_for_each(p, &subs->fmt_list) {
-		struct audioformat *f;
-		f = list_entry(p, struct audioformat, list);
-		if (f->rates & SNDRV_PCM_RATE_CONTINUOUS)
-			continue;
-		for (i = 0; i < 32; i++) {
-			if (f->rates & (1 << i))
-				channels[i] |= 1 << (f->channels - 1);
-		}
-	}
-	cmaster = 0;
-	for (i = 0; i < 32; i++) {
-		if (cmaster != channels[i] && cmaster && channels[i])
-			goto __out;
-		if (channels[i])
-			cmaster = channels[i];
-	}
-	err = 0;
-
- __out:
-	kfree(channels);
-	kfree(rates);
-	return err;
-}
-
 /*
  *  If the device supports unusual bit rates, does the request meet these?
  */
@@ -1909,32 +1818,26 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 				     1000,
 				     /*(nrpacks * MAX_URBS) * 1000*/ UINT_MAX);
 
-	err = check_hw_params_convention(subs);
-	if (err < 0)
+	if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				       hw_rule_rate, subs,
+				       SNDRV_PCM_HW_PARAM_FORMAT,
+				       SNDRV_PCM_HW_PARAM_CHANNELS,
+				       -1)) < 0)
 		return err;
-	else if (err) {
-		hwc_debug("setting extra hw constraints...\n");
-		if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-					       hw_rule_rate, subs,
-					       SNDRV_PCM_HW_PARAM_FORMAT,
-					       SNDRV_PCM_HW_PARAM_CHANNELS,
-					       -1)) < 0)
-			return err;
-		if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-					       hw_rule_channels, subs,
-					       SNDRV_PCM_HW_PARAM_FORMAT,
-					       SNDRV_PCM_HW_PARAM_RATE,
-					       -1)) < 0)
-			return err;
-		if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
-					       hw_rule_format, subs,
-					       SNDRV_PCM_HW_PARAM_RATE,
-					       SNDRV_PCM_HW_PARAM_CHANNELS,
-					       -1)) < 0)
-			return err;
-		if ((err = snd_usb_pcm_check_knot(runtime, subs)) < 0)
-			return err;
-	}
+	if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				       hw_rule_channels, subs,
+				       SNDRV_PCM_HW_PARAM_FORMAT,
+				       SNDRV_PCM_HW_PARAM_RATE,
+				       -1)) < 0)
+		return err;
+	if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
+				       hw_rule_format, subs,
+				       SNDRV_PCM_HW_PARAM_RATE,
+				       SNDRV_PCM_HW_PARAM_CHANNELS,
+				       -1)) < 0)
+		return err;
+	if ((err = snd_usb_pcm_check_knot(runtime, subs)) < 0)
+		return err;
 	return 0;
 }
 
