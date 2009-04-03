@@ -1244,9 +1244,9 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
  * readahead one full node of leaves, finding things that are close
  * to the block in 'slot', and triggering ra on them.
  */
-static noinline void reada_for_search(struct btrfs_root *root,
-				      struct btrfs_path *path,
-				      int level, int slot, u64 objectid)
+static void reada_for_search(struct btrfs_root *root,
+			     struct btrfs_path *path,
+			     int level, int slot, u64 objectid)
 {
 	struct extent_buffer *node;
 	struct btrfs_disk_key disk_key;
@@ -1447,6 +1447,117 @@ noinline void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
 }
 
 /*
+ * helper function for btrfs_search_slot.  The goal is to find a block
+ * in cache without setting the path to blocking.  If we find the block
+ * we return zero and the path is unchanged.
+ *
+ * If we can't find the block, we set the path blocking and do some
+ * reada.  -EAGAIN is returned and the search must be repeated.
+ */
+static int
+read_block_for_search(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root, struct btrfs_path *p,
+		       struct extent_buffer **eb_ret, int level, int slot,
+		       struct btrfs_key *key)
+{
+	u64 blocknr;
+	u64 gen;
+	u32 blocksize;
+	struct extent_buffer *b = *eb_ret;
+	struct extent_buffer *tmp;
+
+	blocknr = btrfs_node_blockptr(b, slot);
+	gen = btrfs_node_ptr_generation(b, slot);
+	blocksize = btrfs_level_size(root, level - 1);
+
+	tmp = btrfs_find_tree_block(root, blocknr, blocksize);
+	if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
+		*eb_ret = tmp;
+		return 0;
+	}
+
+	/*
+	 * reduce lock contention at high levels
+	 * of the btree by dropping locks before
+	 * we read.
+	 */
+	btrfs_release_path(NULL, p);
+	if (tmp)
+		free_extent_buffer(tmp);
+	if (p->reada)
+		reada_for_search(root, p, level, slot, key->objectid);
+
+	tmp = read_tree_block(root, blocknr, blocksize, gen);
+	if (tmp)
+		free_extent_buffer(tmp);
+	return -EAGAIN;
+}
+
+/*
+ * helper function for btrfs_search_slot.  This does all of the checks
+ * for node-level blocks and does any balancing required based on
+ * the ins_len.
+ *
+ * If no extra work was required, zero is returned.  If we had to
+ * drop the path, -EAGAIN is returned and btrfs_search_slot must
+ * start over
+ */
+static int
+setup_nodes_for_search(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root, struct btrfs_path *p,
+		       struct extent_buffer *b, int level, int ins_len)
+{
+	int ret;
+	if ((p->search_for_split || ins_len > 0) && btrfs_header_nritems(b) >=
+	    BTRFS_NODEPTRS_PER_BLOCK(root) - 3) {
+		int sret;
+
+		sret = reada_for_balance(root, p, level);
+		if (sret)
+			goto again;
+
+		btrfs_set_path_blocking(p);
+		sret = split_node(trans, root, p, level);
+		btrfs_clear_path_blocking(p, NULL);
+
+		BUG_ON(sret > 0);
+		if (sret) {
+			ret = sret;
+			goto done;
+		}
+		b = p->nodes[level];
+	} else if (ins_len < 0 && btrfs_header_nritems(b) <
+		   BTRFS_NODEPTRS_PER_BLOCK(root) / 4) {
+		int sret;
+
+		sret = reada_for_balance(root, p, level);
+		if (sret)
+			goto again;
+
+		btrfs_set_path_blocking(p);
+		sret = balance_level(trans, root, p, level);
+		btrfs_clear_path_blocking(p, NULL);
+
+		if (sret) {
+			ret = sret;
+			goto done;
+		}
+		b = p->nodes[level];
+		if (!b) {
+			btrfs_release_path(NULL, p);
+			goto again;
+		}
+		BUG_ON(btrfs_header_nritems(b) == 1);
+	}
+	return 0;
+
+again:
+	ret = -EAGAIN;
+done:
+	return ret;
+}
+
+/*
  * look for key in the tree.  path is filled in with nodes along the way
  * if key is found, we return zero and you can find the item in the leaf
  * level of the path (level 0)
@@ -1464,16 +1575,11 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 		      ins_len, int cow)
 {
 	struct extent_buffer *b;
-	struct extent_buffer *tmp;
 	int slot;
 	int ret;
 	int level;
-	int should_reada = p->reada;
 	int lowest_unlock = 1;
-	int blocksize;
 	u8 lowest_level = 0;
-	u64 blocknr;
-	u64 gen;
 
 	lowest_level = p->lowest_level;
 	WARN_ON(lowest_level && ins_len > 0);
@@ -1502,7 +1608,11 @@ again:
 		if (cow) {
 			int wret;
 
-			/* is a cow on this block not required */
+			/*
+			 * if we don't really need to cow this block
+			 * then we don't want to set the path blocking,
+			 * so we test it here
+			 */
 			if (btrfs_header_generation(b) == trans->transid &&
 			    btrfs_header_owner(b) == root->root_key.objectid &&
 			    !btrfs_header_flag(b, BTRFS_HEADER_FLAG_WRITTEN)) {
@@ -1557,51 +1667,15 @@ cow_done:
 			if (ret && slot > 0)
 				slot -= 1;
 			p->slots[level] = slot;
-			if ((p->search_for_split || ins_len > 0) &&
-			    btrfs_header_nritems(b) >=
-			    BTRFS_NODEPTRS_PER_BLOCK(root) - 3) {
-				int sret;
+			ret = setup_nodes_for_search(trans, root, p, b, level,
+						     ins_len);
+			if (ret == -EAGAIN)
+				goto again;
+			else if (ret)
+				goto done;
+			b = p->nodes[level];
+			slot = p->slots[level];
 
-				sret = reada_for_balance(root, p, level);
-				if (sret)
-					goto again;
-
-				btrfs_set_path_blocking(p);
-				sret = split_node(trans, root, p, level);
-				btrfs_clear_path_blocking(p, NULL);
-
-				BUG_ON(sret > 0);
-				if (sret) {
-					ret = sret;
-					goto done;
-				}
-				b = p->nodes[level];
-				slot = p->slots[level];
-			} else if (ins_len < 0 &&
-				   btrfs_header_nritems(b) <
-				   BTRFS_NODEPTRS_PER_BLOCK(root) / 4) {
-				int sret;
-
-				sret = reada_for_balance(root, p, level);
-				if (sret)
-					goto again;
-
-				btrfs_set_path_blocking(p);
-				sret = balance_level(trans, root, p, level);
-				btrfs_clear_path_blocking(p, NULL);
-
-				if (sret) {
-					ret = sret;
-					goto done;
-				}
-				b = p->nodes[level];
-				if (!b) {
-					btrfs_release_path(NULL, p);
-					goto again;
-				}
-				slot = p->slots[level];
-				BUG_ON(btrfs_header_nritems(b) == 1);
-			}
 			unlock_up(p, level, lowest_unlock);
 
 			/* this is only true while dropping a snapshot */
@@ -1610,44 +1684,11 @@ cow_done:
 				goto done;
 			}
 
-			blocknr = btrfs_node_blockptr(b, slot);
-			gen = btrfs_node_ptr_generation(b, slot);
-			blocksize = btrfs_level_size(root, level - 1);
+			ret = read_block_for_search(trans, root, p,
+						    &b, level, slot, key);
+			if (ret == -EAGAIN)
+				goto again;
 
-			tmp = btrfs_find_tree_block(root, blocknr, blocksize);
-			if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
-				b = tmp;
-			} else {
-				/*
-				 * reduce lock contention at high levels
-				 * of the btree by dropping locks before
-				 * we read.
-				 */
-				if (level > 0) {
-					btrfs_release_path(NULL, p);
-					if (tmp)
-						free_extent_buffer(tmp);
-					if (should_reada)
-						reada_for_search(root, p,
-								 level, slot,
-								 key->objectid);
-
-					tmp = read_tree_block(root, blocknr,
-							 blocksize, gen);
-					if (tmp)
-						free_extent_buffer(tmp);
-					goto again;
-				} else {
-					btrfs_set_path_blocking(p);
-					if (tmp)
-						free_extent_buffer(tmp);
-					if (should_reada)
-						reada_for_search(root, p,
-								 level, slot,
-								 key->objectid);
-					b = read_node_slot(root, b, slot);
-				}
-			}
 			if (!p->skip_locking) {
 				int lret;
 
