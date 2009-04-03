@@ -2554,7 +2554,6 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 {
 	int ret = 0;
 	struct btrfs_root *root = orig_root->fs_info->extent_root;
-	u64 total_needed = num_bytes;
 	u64 *last_ptr = NULL;
 	struct btrfs_block_group_cache *block_group = NULL;
 	int empty_cluster = 2 * 1024 * 1024;
@@ -2597,7 +2596,6 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 		block_group = btrfs_lookup_block_group(root->fs_info,
 						       search_start);
 		if (block_group && block_group_bits(block_group, data)) {
-			total_needed += empty_size;
 			down_read(&space_info->groups_sem);
 			goto have_block_group;
 		} else if (block_group) {
@@ -2611,7 +2609,7 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 search:
 	down_read(&space_info->groups_sem);
 	list_for_each_entry(block_group, &space_info->block_groups, list) {
-		struct btrfs_free_space *free_space;
+		u64 offset;
 
 		atomic_inc(&block_group->count);
 		search_start = block_group->key.objectid;
@@ -2627,62 +2625,65 @@ have_block_group:
 			}
 		}
 
-		mutex_lock(&block_group->alloc_mutex);
-
 		if (unlikely(block_group->ro))
 			goto loop;
 
-		free_space = btrfs_find_free_space(block_group, search_start,
-						   total_needed);
-		if (!free_space)
+		offset = btrfs_find_space_for_alloc(block_group, search_start,
+						    num_bytes, empty_size);
+		if (!offset)
 			goto loop;
 
-		search_start = stripe_align(root, free_space->offset);
+		search_start = stripe_align(root, offset);
 
 		/* move on to the next group */
-		if (search_start + num_bytes >= search_end)
+		if (search_start + num_bytes >= search_end) {
+			btrfs_add_free_space(block_group, offset, num_bytes);
 			goto loop;
+		}
 
 		/* move on to the next group */
 		if (search_start + num_bytes >
-		    block_group->key.objectid + block_group->key.offset)
+		    block_group->key.objectid + block_group->key.offset) {
+			btrfs_add_free_space(block_group, offset, num_bytes);
 			goto loop;
+		}
 
-		if (using_hint && search_start > hint_byte)
+		if (using_hint && search_start > hint_byte) {
+			btrfs_add_free_space(block_group, offset, num_bytes);
 			goto loop;
+		}
 
 		if (exclude_nr > 0 &&
 		    (search_start + num_bytes > exclude_start &&
 		     search_start < exclude_start + exclude_nr)) {
 			search_start = exclude_start + exclude_nr;
 
+			btrfs_add_free_space(block_group, offset, num_bytes);
 			/*
 			 * if search_start is still in this block group
 			 * then we just re-search this block group
 			 */
 			if (search_start >= block_group->key.objectid &&
 			    search_start < (block_group->key.objectid +
-					    block_group->key.offset)) {
-				mutex_unlock(&block_group->alloc_mutex);
+					    block_group->key.offset))
 				goto have_block_group;
-			}
 			goto loop;
 		}
 
 		ins->objectid = search_start;
 		ins->offset = num_bytes;
 
-		btrfs_remove_free_space_lock(block_group, search_start,
-					     num_bytes);
+		if (offset < search_start)
+			btrfs_add_free_space(block_group, offset,
+					     search_start - offset);
+		BUG_ON(offset > search_start);
+
 		/* we are all good, lets return */
-		mutex_unlock(&block_group->alloc_mutex);
 		break;
 loop:
-		mutex_unlock(&block_group->alloc_mutex);
 		put_block_group(block_group);
 		if (using_hint) {
 			empty_size += empty_cluster;
-			total_needed += empty_cluster;
 			using_hint = 0;
 			up_read(&space_info->groups_sem);
 			goto search;
@@ -2693,7 +2694,6 @@ loop:
 	if (!ins->objectid && (empty_size || allowed_chunk_alloc)) {
 		int try_again = empty_size;
 
-		total_needed -= empty_size;
 		empty_size = 0;
 
 		if (allowed_chunk_alloc) {
@@ -5782,7 +5782,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 
 		atomic_set(&cache->count, 1);
 		spin_lock_init(&cache->lock);
-		mutex_init(&cache->alloc_mutex);
+		spin_lock_init(&cache->tree_lock);
 		mutex_init(&cache->cache_mutex);
 		INIT_LIST_HEAD(&cache->list);
 		read_extent_buffer(leaf, &cache->item,
@@ -5838,7 +5838,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 	atomic_set(&cache->count, 1);
 	spin_lock_init(&cache->lock);
-	mutex_init(&cache->alloc_mutex);
+	spin_lock_init(&cache->tree_lock);
 	mutex_init(&cache->cache_mutex);
 	INIT_LIST_HEAD(&cache->list);
 
