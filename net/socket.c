@@ -493,8 +493,7 @@ static struct socket *sock_alloc(void)
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
 
-	get_cpu_var(sockets_in_use)++;
-	put_cpu_var(sockets_in_use);
+	percpu_add(sockets_in_use, 1);
 	return sock;
 }
 
@@ -536,8 +535,7 @@ void sock_release(struct socket *sock)
 	if (sock->fasync_list)
 		printk(KERN_ERR "sock_release: fasync list not empty!\n");
 
-	get_cpu_var(sockets_in_use)--;
-	put_cpu_var(sockets_in_use);
+	percpu_sub(sockets_in_use, 1);
 	if (!sock->file) {
 		iput(SOCK_INODE(sock));
 		return;
