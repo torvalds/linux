@@ -1494,6 +1494,8 @@ to enable more than one output class, just add their values.
 				accessing some functions of the driver
 	0x0001			Initialization and probing
 	0x0002			Removal
+	0x0004			RF Transmitter control (RFKILL)
+				(bluetooth, WWAN, UWB...)
 
 There is also a kernel build option to enable more debugging
 information, which may be necessary to debug driver problems.
