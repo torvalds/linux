@@ -22,7 +22,7 @@
  */
 
 #define TPACPI_VERSION "0.22"
-#define TPACPI_SYSFS_VERSION 0x020200
+#define TPACPI_SYSFS_VERSION 0x020300
 
 /*
  *  Changelog:
@@ -1424,7 +1424,6 @@ static enum {	/* Reasons for waking up */
 
 static int hotkey_autosleep_ack;
 
-static int hotkey_orig_status;
 static u32 hotkey_orig_mask;
 static u32 hotkey_all_mask;
 static u32 hotkey_reserved_mask;
@@ -1571,9 +1570,9 @@ static int hotkey_status_get(int *status)
 	return 0;
 }
 
-static int hotkey_status_set(int status)
+static int hotkey_status_set(bool enable)
 {
-	if (!acpi_evalf(hkey_handle, NULL, "MHKC", "vd", status))
+	if (!acpi_evalf(hkey_handle, NULL, "MHKC", "vd", enable ? 1 : 0))
 		return -EIO;
 
 	return 0;
@@ -1889,6 +1888,9 @@ static ssize_t hotkey_enable_show(struct device *dev,
 {
 	int res, status;
 
+	printk_deprecated_attribute("hotkey_enable",
+			"Hotkey reporting is always enabled");
+
 	res = hotkey_status_get(&status);
 	if (res)
 		return res;
@@ -1901,14 +1903,17 @@ static ssize_t hotkey_enable_store(struct device *dev,
 			    const char *buf, size_t count)
 {
 	unsigned long t;
-	int res;
+
+	printk_deprecated_attribute("hotkey_enable",
+			"Hotkeys can be disabled through hotkey_mask");
 
 	if (parse_strtoul(buf, 1, &t))
 		return -EINVAL;
 
-	res = hotkey_status_set(t);
+	if (t == 0)
+		return -EPERM;
 
-	return (res) ? res : count;
+	return count;
 }
 
 static struct device_attribute dev_attr_hotkey_enable =
@@ -1964,7 +1969,7 @@ static ssize_t hotkey_bios_enabled_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", hotkey_orig_status);
+	return sprintf(buf, "0\n");
 }
 
 static struct device_attribute dev_attr_hotkey_bios_enabled =
@@ -2243,7 +2248,7 @@ static void hotkey_exit(void)
 			   "restoring original hot key mask\n");
 		/* no short-circuit boolean operator below! */
 		if ((hotkey_mask_set(hotkey_orig_mask) |
-		     hotkey_status_set(hotkey_orig_status)) != 0)
+		     hotkey_status_set(false)) != 0)
 			printk(TPACPI_ERR
 			       "failed to restore hot key mask "
 			       "to BIOS defaults\n");
@@ -2438,10 +2443,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 	/* hotkey_source_mask *must* be zero for
 	 * the first hotkey_mask_get */
-	res = hotkey_status_get(&hotkey_orig_status);
-	if (res)
-		goto err_exit;
-
 	if (tp_features.hotkey_mask) {
 		res = hotkey_mask_get();
 		if (res)
@@ -2581,7 +2582,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	}
 
 	dbg_printk(TPACPI_DBG_INIT, "enabling hot key handling\n");
-	res = hotkey_status_set(1);
+	res = hotkey_status_set(true);
 	if (res) {
 		hotkey_exit();
 		return res;
@@ -2926,9 +2927,17 @@ static int hotkey_read(char *p)
 	return len;
 }
 
+static void hotkey_enabledisable_warn(void)
+{
+	tpacpi_log_usertask("procfs hotkey enable/disable");
+	WARN(1, TPACPI_WARN
+	     "hotkey enable/disable functionality has been "
+	     "removed from the driver. Hotkeys are always enabled.\n");
+}
+
 static int hotkey_write(char *buf)
 {
-	int res, status;
+	int res;
 	u32 mask;
 	char *cmd;
 
@@ -2938,17 +2947,16 @@ static int hotkey_write(char *buf)
 	if (mutex_lock_killable(&hotkey_mutex))
 		return -ERESTARTSYS;
 
-	status = -1;
 	mask = hotkey_mask;
 
 	res = 0;
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "enable") == 0) {
-			status = 1;
+			hotkey_enabledisable_warn();
 		} else if (strlencmp(cmd, "disable") == 0) {
-			status = 0;
+			hotkey_enabledisable_warn();
+			res = -EPERM;
 		} else if (strlencmp(cmd, "reset") == 0) {
-			status = hotkey_orig_status;
 			mask = hotkey_orig_mask;
 		} else if (sscanf(cmd, "0x%x", &mask) == 1) {
 			/* mask set */
@@ -2959,9 +2967,6 @@ static int hotkey_write(char *buf)
 			goto errexit;
 		}
 	}
-	if (status != -1)
-		res = hotkey_status_set(status);
-
 	if (!res && mask != hotkey_mask)
 		res = hotkey_mask_set(mask);
 
