@@ -543,3 +543,13 @@ Licence: Allegedly GPL, but no source visible. Marked:
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: MYRI_SBUS - MyriCOM Gigabit Ethernet
+
+File: myricom/lanai.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
