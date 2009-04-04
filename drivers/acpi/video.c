@@ -217,7 +217,7 @@ static const struct file_operations acpi_video_bus_POST_info_fops = {
 };
 
 static int acpi_video_bus_POST_open_fs(struct inode *inode, struct file *file);
-static int acpi_video_bus_write_POST(struct file *file,
+static ssize_t acpi_video_bus_write_POST(struct file *file,
 	const char __user *buffer, size_t count, loff_t *data);
 static const struct file_operations acpi_video_bus_POST_fops = {
 	.owner = THIS_MODULE,
@@ -229,7 +229,7 @@ static const struct file_operations acpi_video_bus_POST_fops = {
 };
 
 static int acpi_video_bus_DOS_open_fs(struct inode *inode, struct file *file);
-static int acpi_video_bus_write_DOS(struct file *file,
+static ssize_t acpi_video_bus_write_DOS(struct file *file,
 	const char __user *buffer, size_t count, loff_t *data);
 static const struct file_operations acpi_video_bus_DOS_fops = {
 	.owner = THIS_MODULE,
@@ -253,7 +253,7 @@ static const struct file_operations acpi_video_device_info_fops = {
 
 static int acpi_video_device_state_open_fs(struct inode *inode,
 					   struct file *file);
-static int acpi_video_device_write_state(struct file *file,
+static ssize_t acpi_video_device_write_state(struct file *file,
 	const char __user *buffer, size_t count, loff_t *data);
 static const struct file_operations acpi_video_device_state_fops = {
 	.owner = THIS_MODULE,
@@ -266,7 +266,7 @@ static const struct file_operations acpi_video_device_state_fops = {
 
 static int acpi_video_device_brightness_open_fs(struct inode *inode,
 						struct file *file);
-static int acpi_video_device_write_brightness(struct file *file,
+static ssize_t acpi_video_device_write_brightness(struct file *file,
 	const char __user *buffer, size_t count, loff_t *data);
 static struct file_operations acpi_video_device_brightness_fops = {
 	.owner = THIS_MODULE,
