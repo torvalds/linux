@@ -184,17 +184,6 @@ enum {
 #define TPACPI_DBG_ALL		0xffff
 #define TPACPI_DBG_INIT		0x0001
 #define TPACPI_DBG_EXIT		0x0002
-#define dbg_printk(a_dbg_level, format, arg...) \
-	do { if (dbg_level & a_dbg_level) \
-		printk(TPACPI_DEBUG "%s: " format, __func__ , ## arg); \
-	} while (0)
-#ifdef CONFIG_THINKPAD_ACPI_DEBUG
-#define vdbg_printk(a_dbg_level, format, arg...) \
-	dbg_printk(a_dbg_level, format, ## arg)
-static const char *str_supported(int is_supported);
-#else
-#define vdbg_printk(a_dbg_level, format, arg...)
-#endif
 
 #define onoff(status, bit) ((status) & (1 << (bit)) ? "on" : "off")
 #define enabled(status, bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
@@ -323,6 +312,24 @@ static int dbg_wwanemul;
 static int tpacpi_wwan_emulstate;
 static int dbg_uwbemul;
 static int tpacpi_uwb_emulstate;
+#endif
+
+
+/*************************************************************************
+ *  Debugging helpers
+ */
+
+#define dbg_printk(a_dbg_level, format, arg...) \
+	do { if (dbg_level & (a_dbg_level)) \
+		printk(TPACPI_DEBUG "%s: " format, __func__ , ## arg); \
+	} while (0)
+
+#ifdef CONFIG_THINKPAD_ACPI_DEBUG
+#define vdbg_printk dbg_printk
+static const char *str_supported(int is_supported);
+#else
+#define vdbg_printk(a_dbg_level, format, arg...) \
+	do { } while (0)
 #endif
 
 
