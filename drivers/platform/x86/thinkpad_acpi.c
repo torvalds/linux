@@ -191,6 +191,7 @@ enum {
 #define TPACPI_DBG_EXIT		0x0002
 #define TPACPI_DBG_RFKILL	0x0004
 #define TPACPI_DBG_HKEY		0x0008
+#define TPACPI_DBG_FAN		0x0010
 
 #define onoff(status, bit) ((status) & (1 << (bit)) ? "on" : "off")
 #define enabled(status, bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
@@ -6271,6 +6272,9 @@ static int fan_set_level(int level)
 	default:
 		return -ENXIO;
 	}
+
+	vdbg_printk(TPACPI_DBG_FAN,
+		"fan control: set fan control register to 0x%02x\n", level);
 	return 0;
 }
 
@@ -6348,6 +6352,11 @@ static int fan_set_enable(void)
 	}
 
 	mutex_unlock(&fan_mutex);
+
+	if (!rc)
+		vdbg_printk(TPACPI_DBG_FAN,
+			"fan control: set fan control register to 0x%02x\n",
+			s);
 	return rc;
 }
 
@@ -6384,6 +6393,9 @@ static int fan_set_disable(void)
 		rc = -ENXIO;
 	}
 
+	if (!rc)
+		vdbg_printk(TPACPI_DBG_FAN,
+			"fan control: set fan control register to 0\n");
 
 	mutex_unlock(&fan_mutex);
 	return rc;
@@ -6512,6 +6524,9 @@ static ssize_t fan_pwm1_enable_store(struct device *dev,
 	if (parse_strtoul(buf, 2, &t))
 		return -EINVAL;
 
+	tpacpi_disclose_usertask("hwmon pwm1_enable",
+			"set fan mode to %lu\n", t);
+
 	switch (t) {
 	case 0:
 		level = TP_EC_FAN_FULLSPEED;
@@ -6576,6 +6591,9 @@ static ssize_t fan_pwm1_store(struct device *dev,
 
 	if (parse_strtoul(buf, 255, &s))
 		return -EINVAL;
+
+	tpacpi_disclose_usertask("hwmon pwm1",
+			"set fan speed to %lu\n", s);
 
 	/* scale down from 0-255 to 0-7 */
 	newlevel = (s >> 5) & 0x07;
@@ -6643,6 +6661,8 @@ static ssize_t fan_fan_watchdog_store(struct device_driver *drv,
 	fan_watchdog_maxinterval = t;
 	fan_watchdog_reset();
 
+	tpacpi_disclose_usertask("fan_watchdog", "set to %lu\n", t);
+
 	return count;
 }
 
@@ -6664,7 +6684,8 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 {
 	int rc;
 
-	vdbg_printk(TPACPI_DBG_INIT, "initializing fan subdriver\n");
+	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_FAN,
+			"initializing fan subdriver\n");
 
 	mutex_init(&fan_mutex);
 	fan_status_access_mode = TPACPI_FAN_NONE;
@@ -6723,7 +6744,8 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		}
 	}
 
-	vdbg_printk(TPACPI_DBG_INIT, "fan is %s, modes %d, %d\n",
+	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_FAN,
+		"fan is %s, modes %d, %d\n",
 		str_supported(fan_status_access_mode != TPACPI_FAN_NONE ||
 		  fan_control_access_mode != TPACPI_FAN_WR_NONE),
 		fan_status_access_mode, fan_control_access_mode);
@@ -6732,7 +6754,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 	if (!fan_control_allowed) {
 		fan_control_access_mode = TPACPI_FAN_WR_NONE;
 		fan_control_commands = 0;
-		dbg_printk(TPACPI_DBG_INIT,
+		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_FAN,
 			   "fan control features disabled by parameter\n");
 	}
 
@@ -6761,7 +6783,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 
 static void fan_exit(void)
 {
-	vdbg_printk(TPACPI_DBG_EXIT,
+	vdbg_printk(TPACPI_DBG_EXIT | TPACPI_DBG_FAN,
 		    "cancelling any pending fan watchdog tasks\n");
 
 	/* FIXME: can we really do this unconditionally? */
@@ -6942,6 +6964,9 @@ static int fan_write_cmd_level(const char *cmd, int *rc)
 	if (*rc == -ENXIO)
 		printk(TPACPI_ERR "level command accepted for unsupported "
 		       "access mode %d", fan_control_access_mode);
+	else if (!*rc)
+		tpacpi_disclose_usertask("procfs fan",
+			"set level to %d\n", level);
 
 	return 1;
 }
@@ -6955,6 +6980,8 @@ static int fan_write_cmd_enable(const char *cmd, int *rc)
 	if (*rc == -ENXIO)
 		printk(TPACPI_ERR "enable command accepted for unsupported "
 		       "access mode %d", fan_control_access_mode);
+	else if (!*rc)
+		tpacpi_disclose_usertask("procfs fan", "enable\n");
 
 	return 1;
 }
@@ -6968,6 +6995,8 @@ static int fan_write_cmd_disable(const char *cmd, int *rc)
 	if (*rc == -ENXIO)
 		printk(TPACPI_ERR "disable command accepted for unsupported "
 		       "access mode %d", fan_control_access_mode);
+	else if (!*rc)
+		tpacpi_disclose_usertask("procfs fan", "disable\n");
 
 	return 1;
 }
@@ -6986,6 +7015,9 @@ static int fan_write_cmd_speed(const char *cmd, int *rc)
 	if (*rc == -ENXIO)
 		printk(TPACPI_ERR "speed command accepted for unsupported "
 		       "access mode %d", fan_control_access_mode);
+	else if (!*rc)
+		tpacpi_disclose_usertask("procfs fan",
+			"set speed to %d\n", speed);
 
 	return 1;
 }
@@ -6999,8 +7031,12 @@ static int fan_write_cmd_watchdog(const char *cmd, int *rc)
 
 	if (interval < 0 || interval > 120)
 		*rc = -EINVAL;
-	else
+	else {
 		fan_watchdog_maxinterval = interval;
+		tpacpi_disclose_usertask("procfs fan",
+			"set watchdog timer to %d\n",
+			interval);
+	}
 
 	return 1;
 }
