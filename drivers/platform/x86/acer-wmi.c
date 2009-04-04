@@ -225,6 +225,25 @@ static struct quirk_entry quirk_fujitsu_amilo_li_1718 = {
 	.wireless = 2,
 };
 
+/* The Aspire One has a dummy ACPI-WMI interface - disable it */
+static struct dmi_system_id __devinitdata acer_blacklist[] = {
+	{
+		.ident = "Acer Aspire One (SSD)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AOA110"),
+		},
+	},
+	{
+		.ident = "Acer Aspire One (HDD)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AOA150"),
+		},
+	},
+	{}
+};
+
 static struct dmi_system_id acer_quirks[] = {
 	{
 		.callback = dmi_matched,
@@ -1253,6 +1272,12 @@ static int __init acer_wmi_init(void)
 	int err;
 
 	printk(ACER_INFO "Acer Laptop ACPI-WMI Extras\n");
+
+	if (dmi_check_system(acer_blacklist)) {
+		printk(ACER_INFO "Blacklisted hardware detected - "
+				"not loading\n");
+		return -ENODEV;
+	}
 
 	find_quirks();
 
