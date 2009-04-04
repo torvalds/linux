@@ -1157,10 +1157,15 @@ display backlight brightness control methods have 16 levels, ranging
 from 0 to 15.
 
 There are two interfaces to the firmware for direct brightness control,
-EC and CMOS.  To select which one should be used, use the
+EC and UCMS (or CMOS).  To select which one should be used, use the
 brightness_mode module parameter: brightness_mode=1 selects EC mode,
-brightness_mode=2 selects CMOS mode, brightness_mode=3 selects both EC
-and CMOS.  The driver tries to auto-detect which interface to use.
+brightness_mode=2 selects UCMS mode, brightness_mode=3 selects EC
+mode with NVRAM backing (so that brightness changes are remembered
+across shutdown/reboot).
+
+The driver tries to select which interface to use from a table of
+defaults for each ThinkPad model.  If it makes a wrong choice, please
+report this as a bug, so that we can fix it.
 
 When display backlight brightness controls are available through the
 standard ACPI interface, it is best to use it instead of this direct
@@ -1498,6 +1503,7 @@ to enable more than one output class, just add their values.
 				(bluetooth, WWAN, UWB...)
 	0x0008			HKEY event interface, hotkeys
 	0x0010			Fan control
+	0x0020			Backlight brightness
 
 There is also a kernel build option to enable more debugging
 information, which may be necessary to debug driver problems.
