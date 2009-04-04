@@ -1496,6 +1496,7 @@ to enable more than one output class, just add their values.
 	0x0002			Removal
 	0x0004			RF Transmitter control (RFKILL)
 				(bluetooth, WWAN, UWB...)
+	0x0008			HKEY event interface, hotkeys
 
 There is also a kernel build option to enable more debugging
 information, which may be necessary to debug driver problems.
