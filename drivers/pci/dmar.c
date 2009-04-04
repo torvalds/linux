@@ -180,6 +180,7 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 	dmaru->hdr = header;
 	drhd = (struct acpi_dmar_hardware_unit *)header;
 	dmaru->reg_base_addr = drhd->address;
+	dmaru->segment = drhd->segment;
 	dmaru->include_all = drhd->flags & 0x1; /* BIT0: INCLUDE_ALL */
 
 	ret = alloc_iommu(dmaru);

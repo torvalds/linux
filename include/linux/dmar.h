@@ -34,6 +34,7 @@ struct dmar_drhd_unit {
 	u64	reg_base_addr;		/* register base address*/
 	struct	pci_dev **devices; 	/* target device array	*/
 	int	devices_cnt;		/* target device count	*/
+	u16	segment;		/* PCI domain		*/
 	u8	ignored:1; 		/* ignore drhd		*/
 	u8	include_all:1;
 	struct intel_iommu *iommu;
