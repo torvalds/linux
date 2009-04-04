@@ -1,7 +1,7 @@
 /*
  *  Acer WMI Laptop Extras
  *
- *  Copyright (C) 2007-2008	Carlos Corbacho <carlos@strangeworlds.co.uk>
+ *  Copyright (C) 2007-2009	Carlos Corbacho <carlos@strangeworlds.co.uk>
  *
  *  Based on acer_acpi:
  *    Copyright (C) 2005-2007	E.M. Smith
