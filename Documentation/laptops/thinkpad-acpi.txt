@@ -901,6 +901,17 @@ some older ThinkPad models, it is possible to query the status of the
 LED indicators as well.  Newer ThinkPads cannot query the real status
 of the LED indicators.
 
+Because misuse of the LEDs could induce an unaware user to perform
+dangerous actions (like undocking or ejecting a bay device while the
+buses are still active), or mask an important alarm (such as a nearly
+empty battery, or a broken battery), access to most LEDs is
+restricted.
+
+Unrestricted access to all LEDs requires that thinkpad-acpi be
+compiled with the CONFIG_THINKPAD_ACPI_UNSAFE_LEDS option enabled.
+Distributions must never enable this option.  Individual users that
+are aware of the consequences are welcome to enabling it.
+
 procfs notes:
 
 The available commands are:

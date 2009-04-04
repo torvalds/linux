@@ -4657,6 +4657,16 @@ static const char * const tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
 	"tpacpi::unknown_led",
 	"tpacpi::standby",
 };
+#define TPACPI_SAFE_LEDS	0x0081U
+
+static inline bool tpacpi_is_led_restricted(const unsigned int led)
+{
+#ifdef CONFIG_THINKPAD_ACPI_UNSAFE_LEDS
+	return false;
+#else
+	return (TPACPI_SAFE_LEDS & (1 << led)) == 0;
+#endif
+}
 
 static int led_get_status(const unsigned int led)
 {
@@ -4694,16 +4704,20 @@ static int led_set_status(const unsigned int led,
 	switch (led_supported) {
 	case TPACPI_LED_570:
 		/* 570 */
-		if (led > 7)
+		if (unlikely(led > 7))
 			return -EINVAL;
+		if (unlikely(tpacpi_is_led_restricted(led)))
+			return -EPERM;
 		if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
 				(1 << led), led_sled_arg1[ledstatus]))
 			rc = -EIO;
 		break;
 	case TPACPI_LED_OLD:
 		/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
-		if (led > 7)
+		if (unlikely(led > 7))
 			return -EINVAL;
+		if (unlikely(tpacpi_is_led_restricted(led)))
+			return -EPERM;
 		rc = ec_write(TPACPI_LED_EC_HLMS, (1 << led));
 		if (rc >= 0)
 			rc = ec_write(TPACPI_LED_EC_HLBL,
@@ -4714,6 +4728,10 @@ static int led_set_status(const unsigned int led,
 		break;
 	case TPACPI_LED_NEW:
 		/* all others */
+		if (unlikely(led >= TPACPI_LED_NUMLEDS))
+			return -EINVAL;
+		if (unlikely(tpacpi_is_led_restricted(led)))
+			return -EPERM;
 		if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
 				led, led_led_arg1[ledstatus]))
 			rc = -EIO;
@@ -4806,6 +4824,30 @@ static void led_exit(void)
 	kfree(tpacpi_leds);
 }
 
+static int __init tpacpi_init_led(unsigned int led)
+{
+	int rc;
+
+	tpacpi_leds[led].led = led;
+
+	tpacpi_leds[led].led_classdev.brightness_set = &led_sysfs_set;
+	tpacpi_leds[led].led_classdev.blink_set = &led_sysfs_blink_set;
+	if (led_supported == TPACPI_LED_570)
+		tpacpi_leds[led].led_classdev.brightness_get =
+						&led_sysfs_get;
+
+	tpacpi_leds[led].led_classdev.name = tpacpi_led_names[led];
+
+	INIT_WORK(&tpacpi_leds[led].work, led_set_status_worker);
+
+	rc = led_classdev_register(&tpacpi_pdev->dev,
+				&tpacpi_leds[led].led_classdev);
+	if (rc < 0)
+		tpacpi_leds[led].led_classdev.name = NULL;
+
+	return rc;
+}
+
 static int __init led_init(struct ibm_init_struct *iibm)
 {
 	unsigned int i;
@@ -4839,27 +4881,21 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	}
 
 	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
-		tpacpi_leds[i].led = i;
-
-		tpacpi_leds[i].led_classdev.brightness_set = &led_sysfs_set;
-		tpacpi_leds[i].led_classdev.blink_set = &led_sysfs_blink_set;
-		if (led_supported == TPACPI_LED_570)
-			tpacpi_leds[i].led_classdev.brightness_get =
-							&led_sysfs_get;
-
-		tpacpi_leds[i].led_classdev.name = tpacpi_led_names[i];
-
-		INIT_WORK(&tpacpi_leds[i].work, led_set_status_worker);
-
-		rc = led_classdev_register(&tpacpi_pdev->dev,
-					   &tpacpi_leds[i].led_classdev);
-		if (rc < 0) {
-			tpacpi_leds[i].led_classdev.name = NULL;
-			led_exit();
-			return rc;
+		if (!tpacpi_is_led_restricted(i)) {
+			rc = tpacpi_init_led(i);
+			if (rc < 0) {
+				led_exit();
+				return rc;
+			}
 		}
 	}
 
+#ifdef CONFIG_THINKPAD_ACPI_UNSAFE_LEDS
+	if (led_supported != TPACPI_LED_NONE)
+		printk(TPACPI_NOTICE
+			"warning: userspace override of important "
+			"firmware LEDs is enabled\n");
+#endif
 	return (led_supported != TPACPI_LED_NONE)? 0 : 1;
 }
 
