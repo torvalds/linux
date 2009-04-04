@@ -585,6 +585,8 @@ done:
         return ((count < begin+len-off) ? count : begin+len-off);
 }
 
+#endif /* CONFIG_PROC_FS */
+
 /*====================================================================*/
 /* Init code */
 
@@ -596,23 +598,24 @@ static int __init init_mtd(void)
 		pr_err("Error creating mtd class.\n");
 		return PTR_ERR(mtd_class);
 	}
+#ifdef CONFIG_PROC_FS
 	if ((proc_mtd = create_proc_entry( "mtd", 0, NULL )))
 		proc_mtd->read_proc = mtd_read_proc;
+#endif /* CONFIG_PROC_FS */
 	return 0;
 }
 
 static void __exit cleanup_mtd(void)
 {
+#ifdef CONFIG_PROC_FS
         if (proc_mtd)
 		remove_proc_entry( "mtd", NULL);
+#endif /* CONFIG_PROC_FS */
 	class_destroy(mtd_class);
 }
 
 module_init(init_mtd);
 module_exit(cleanup_mtd);
-
-#endif /* CONFIG_PROC_FS */
-
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
