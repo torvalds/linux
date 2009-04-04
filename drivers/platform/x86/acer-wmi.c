@@ -1136,11 +1136,17 @@ static int __devinit acer_platform_probe(struct platform_device *device)
 	}
 
 	err = acer_rfkill_init(&device->dev);
+	if (err)
+		goto error_rfkill;
 
 	return err;
 
+error_rfkill:
+	if (has_cap(ACER_CAP_BRIGHTNESS))
+		acer_backlight_exit();
 error_brightness:
-	acer_led_exit();
+	if (has_cap(ACER_CAP_MAILLED))
+		acer_led_exit();
 error_mailled:
 	return err;
 }
