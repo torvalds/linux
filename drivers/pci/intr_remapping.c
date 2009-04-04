@@ -524,6 +524,13 @@ int __init enable_intr_remapping(int eim)
 		struct intel_iommu *iommu = drhd->iommu;
 
 		/*
+		 * If the queued invalidation is already initialized,
+		 * shouldn't disable it.
+		 */
+		if (iommu->qi)
+			continue;
+
+		/*
 		 * Clear previous faults.
 		 */
 		dmar_fault(-1, iommu);
