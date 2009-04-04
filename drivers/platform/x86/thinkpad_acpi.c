@@ -54,6 +54,7 @@
 #include <linux/string.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/delay.h>
@@ -185,6 +186,7 @@ enum {
 
 /* Debugging printk groups */
 #define TPACPI_DBG_ALL		0xffff
+#define TPACPI_DBG_DISCLOSETASK	0x8000
 #define TPACPI_DBG_INIT		0x0001
 #define TPACPI_DBG_EXIT		0x0002
 
@@ -335,6 +337,21 @@ static const char *str_supported(int is_supported);
 	do { } while (0)
 #endif
 
+static void tpacpi_log_usertask(const char * const what)
+{
+	printk(TPACPI_DEBUG "%s: access by process with PID %d\n",
+		what, task_tgid_vnr(current));
+}
+
+#define tpacpi_disclose_usertask(what, format, arg...) \
+	do { \
+		if (unlikely( \
+		    (dbg_level & TPACPI_DBG_DISCLOSETASK) && \
+		    (tpacpi_lifecycle == TPACPI_LIFE_RUNNING))) { \
+			printk(TPACPI_DEBUG "%s: PID %d: " format, \
+				what, task_tgid_vnr(current), ## arg); \
+		} \
+	} while (0)
 
 /****************************************************************************
  ****************************************************************************
@@ -1028,6 +1045,21 @@ static int __init tpacpi_new_rfkill(const unsigned int id,
 	}
 
 	return 0;
+}
+
+static void printk_deprecated_attribute(const char * const what,
+					const char * const details)
+{
+	tpacpi_log_usertask("deprecated sysfs attribute");
+	printk(TPACPI_WARN "WARNING: sysfs attribute %s is deprecated and "
+		"will be removed. %s\n",
+		what, details);
+}
+
+static void printk_deprecated_rfkill_attribute(const char * const what)
+{
+	printk_deprecated_attribute(what,
+			"Please switch to generic rfkill before year 2010");
 }
 
 /*************************************************************************
@@ -3070,6 +3102,8 @@ static ssize_t bluetooth_enable_show(struct device *dev,
 {
 	int status;
 
+	printk_deprecated_rfkill_attribute("bluetooth_enable");
+
 	status = bluetooth_get_radiosw();
 	if (status < 0)
 		return status;
@@ -3084,6 +3118,8 @@ static ssize_t bluetooth_enable_store(struct device *dev,
 {
 	unsigned long t;
 	int res;
+
+	printk_deprecated_rfkill_attribute("bluetooth_enable");
 
 	if (parse_strtoul(buf, 1, &t))
 		return -EINVAL;
@@ -3347,6 +3383,8 @@ static ssize_t wan_enable_show(struct device *dev,
 {
 	int status;
 
+	printk_deprecated_rfkill_attribute("wwan_enable");
+
 	status = wan_get_radiosw();
 	if (status < 0)
 		return status;
@@ -3361,6 +3399,8 @@ static ssize_t wan_enable_store(struct device *dev,
 {
 	unsigned long t;
 	int res;
+
+	printk_deprecated_rfkill_attribute("wwan_enable");
 
 	if (parse_strtoul(buf, 1, &t))
 		return -EINVAL;

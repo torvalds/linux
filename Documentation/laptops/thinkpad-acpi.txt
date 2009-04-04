@@ -1484,6 +1484,8 @@ will enable all debugging output classes.  It takes a bitmask, so
 to enable more than one output class, just add their values.
 
 	Debug bitmask		Description
+	0x8000			Disclose PID of userspace programs
+				accessing some functions of the driver
 	0x0001			Initialization and probing
 	0x0002			Removal
 
