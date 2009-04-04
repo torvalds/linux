@@ -7517,9 +7517,6 @@ static int __init thinkpad_acpi_module_init(void)
 	return 0;
 }
 
-/* Please remove this in year 2009 */
-MODULE_ALIAS("ibm_acpi");
-
 MODULE_ALIAS(TPACPI_DRVR_SHORTNAME);
 
 /*
