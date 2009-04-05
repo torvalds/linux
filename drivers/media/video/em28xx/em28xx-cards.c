@@ -2062,6 +2062,7 @@ void em28xx_release_resources(struct em28xx *dev)
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
 static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
+			   struct usb_interface *interface,
 			   int minor)
 {
 	struct em28xx *dev = *devhandle;
@@ -2095,7 +2096,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		}
 	}
 
-	retval = v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev);
+	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval < 0) {
 		em28xx_errdev("Call to v4l2_device_register() failed!\n");
 		return retval;
@@ -2333,7 +2334,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* allocate device struct */
 	mutex_init(&dev->lock);
 	mutex_lock(&dev->lock);
-	retval = em28xx_init_dev(&dev, udev, nr);
+	retval = em28xx_init_dev(&dev, udev, interface, nr);
 	if (retval) {
 		em28xx_devused &= ~(1<<dev->devno);
 		kfree(dev);
