@@ -1244,10 +1244,14 @@ struct p9_wstat *p9_client_stat(struct p9_fid *fid)
 		ret->name, ret->uid, ret->gid, ret->muid, ret->extension,
 		ret->n_uid, ret->n_gid, ret->n_muid);
 
+	p9_free_req(clnt, req);
+	return ret;
+
 free_and_error:
 	p9_free_req(clnt, req);
 error:
-	return ret;
+	kfree(ret);
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(p9_client_stat);
 
