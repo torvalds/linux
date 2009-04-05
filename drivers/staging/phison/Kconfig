@@ -1,0 +1,5 @@
+config IDE_PHISON
+	tristate "PCIE ATA PS5000 IDE support"
+	depends on PCI && ATA && ATA_SFF
+	---help---
+	  This is an experimental driver for PS5000 IDE driver.

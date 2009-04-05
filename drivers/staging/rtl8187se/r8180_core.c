@@ -3161,7 +3161,7 @@ void rtl8180_prepare_beacon(struct net_device *dev)
 		return ;
 
 	}
-	//while(! *tail & (1<<31)){
+	//while(! (*tail & (1<<31))){
 		*tail= 0; // zeroes header
 
 		*tail = *tail| (1<<29) ; //fist segment of the packet

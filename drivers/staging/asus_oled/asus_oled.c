@@ -56,10 +56,10 @@ MODULE_AUTHOR("Jakub Schmidtke, sjakub@gmail.com");
 MODULE_DESCRIPTION("Asus OLED Driver v" ASUS_OLED_VERSION);
 MODULE_LICENSE("GPL");
 
-static struct class *oled_class = 0;
-static int oled_num = 0;
+static struct class *oled_class;
+static int oled_num;
 
-static uint start_off = 0;
+static uint start_off;
 
 module_param(start_off, uint, 0644);
 
@@ -80,20 +80,20 @@ struct oled_dev_desc_str {
 };
 
 /* table of devices that work with this driver */
-static struct usb_device_id id_table [] = {
+static struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x0b05, 0x1726) }, // Asus G1/G2 (and variants)
 	{ USB_DEVICE(0x0b05, 0x175b) }, // Asus G50V (and possibly others - G70? G71?)
 	{ },
 };
 
 /* parameters of specific devices */
-static struct oled_dev_desc_str oled_dev_desc_table [] = {
+static struct oled_dev_desc_str oled_dev_desc_table[] = {
 	{ 0x0b05, 0x1726, 128, PACK_MODE_G1, "G1/G2" },
 	{ 0x0b05, 0x175b, 256, PACK_MODE_G50, "G50" },
 	{ },
 };
 
-MODULE_DEVICE_TABLE (usb, id_table);
+MODULE_DEVICE_TABLE(usb, id_table);
 
 #define SETUP_PACKET_HEADER(packet, val1, val2, val3, val4, val5, val6, val7) \
 	do {					\
@@ -107,7 +107,7 @@ MODULE_DEVICE_TABLE (usb, id_table);
 		packet->header.value6 = val5;		\
 		packet->header.value7 = val6;		\
 		packet->header.value8 = val7;		\
-	} while(0);
+	} while (0);
 
 struct asus_oled_header {
 	uint8_t		magic1;
@@ -160,10 +160,12 @@ static void enable_oled(struct asus_oled_dev *odev, uint8_t enabl)
 
 	SETUP_PACKET_HEADER(packet, 0x20, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00);
 
-	if (enabl) packet->bitmap[0] = 0xaf;
-	else packet->bitmap[0] = 0xae;
+	if (enabl)
+		packet->bitmap[0] = 0xaf;
+	else
+		packet->bitmap[0] = 0xae;
 
-	for (a=0; a<1; a++) {
+	for (a = 0; a < 1; a++) {
 		retval = usb_bulk_msg(odev->udev,
 			usb_sndbulkpipe(odev->udev, 2),
 			packet,
@@ -252,7 +254,7 @@ static void send_packets(struct usb_device *udev, struct asus_oled_packet *packe
 	}
 }
 
-static void send_packet(struct usb_device *udev, struct asus_oled_packet *packet, size_t offset, size_t len, char *buf, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint8_t b6){
+static void send_packet(struct usb_device *udev, struct asus_oled_packet *packet, size_t offset, size_t len, char *buf, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint8_t b6) {
 	int retval;
 	int act_len;
 
@@ -294,7 +296,7 @@ static void send_data(struct asus_oled_dev *odev)
 		return;
 	}
 
-	if (odev->pack_mode==PACK_MODE_G1){
+	if (odev->pack_mode == PACK_MODE_G1) {
 		// When sending roll-mode data the display updated only first packet.
 		// I have no idea why, but when static picture is send just before
 		// rolling picture - everything works fine.
@@ -308,7 +310,7 @@ static void send_data(struct asus_oled_dev *odev)
 		send_packets(odev->udev, packet, odev->buf, odev->pic_mode, packet_num);
 	}
 	else
-	if (odev->pack_mode==PACK_MODE_G50){
+	if (odev->pack_mode == PACK_MODE_G50) {
 		send_packets_g50(odev->udev, packet, odev->buf);
 	}
 
@@ -326,7 +328,7 @@ static int append_values(struct asus_oled_dev *odev, uint8_t val, size_t count)
 			x += odev->x_shift;
 			y += odev->y_shift;
 
-			switch(odev->pack_mode)
+			switch (odev->pack_mode)
 			{
 				case PACK_MODE_G1:
 					// i = (x/128)*640 + 127 - x + (y/8)*128;
@@ -377,30 +379,32 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 {
 	size_t offs = 0, max_offs;
 
-	if (count < 1) return 0;
+	if (count < 1)
+		return 0;
 
-	if (tolower(buf[0]) == 'b'){
+	if (tolower(buf[0]) == 'b') {
 	    // binary mode, set the entire memory
 
 	    size_t i;
 
 	    odev->buf_size = (odev->dev_width * ASUS_OLED_DISP_HEIGHT) / 8;
 
-	    if (odev->buf) kfree(odev->buf);
+	    if (odev->buf)
+		    kfree(odev->buf);
 	    odev->buf = kmalloc(odev->buf_size, GFP_KERNEL);
 
 	    memset(odev->buf, 0xff, odev->buf_size);
 
-	    for (i=1; i < count && i<=32*32; i++){
+	    for (i = 1; i < count && i <= 32 * 32; i++) {
 		odev->buf[i-1] = buf[i];
 		odev->buf_offs = i-1;
 	    }
 
-	    odev->width=odev->dev_width / 8;
-	    odev->height=ASUS_OLED_DISP_HEIGHT;
-	    odev->x_shift=0;
-	    odev->y_shift=0;
-	    odev->last_val=0;
+	    odev->width = odev->dev_width / 8;
+	    odev->height = ASUS_OLED_DISP_HEIGHT;
+	    odev->x_shift = 0;
+	    odev->y_shift = 0;
+	    odev->last_val =  0;
 
 	    send_data(odev);
 
@@ -416,7 +420,7 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 			goto error_header;
 		}
 
-		switch(tolower(buf[1])) {
+		switch (tolower(buf[1])) {
 			case ASUS_OLED_STATIC:
 			case ASUS_OLED_ROLL:
 			case ASUS_OLED_FLASH:
@@ -432,27 +436,36 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 			if (buf[i] >= '0' && buf[i] <= '9') {
 				w = 10*w + (buf[i] - '0');
 
-				if (w > ASUS_OLED_MAX_WIDTH) goto error_width;
+				if (w > ASUS_OLED_MAX_WIDTH)
+					goto error_width;
 			}
-			else if (tolower(buf[i]) == 'x') break;
-			else goto error_width;
+			else if (tolower(buf[i]) == 'x')
+				break;
+			else
+				goto error_width;
 		}
 
 		for (++i; i < count; ++i) {
 			if (buf[i] >= '0' && buf[i] <= '9') {
 				h = 10*h + (buf[i] - '0');
 
-				if (h > ASUS_OLED_DISP_HEIGHT) goto error_height;
+				if (h > ASUS_OLED_DISP_HEIGHT)
+					goto error_height;
 			}
-			else if (tolower(buf[i]) == '>') break;
-			else goto error_height;
+			else if (tolower(buf[i]) == '>')
+				break;
+			else
+				goto error_height;
 		}
 
-		if (w < 1 || w > ASUS_OLED_MAX_WIDTH) goto error_width;
+		if (w < 1 || w > ASUS_OLED_MAX_WIDTH)
+			goto error_width;
 
-		if (h < 1 || h > ASUS_OLED_DISP_HEIGHT) goto error_height;
+		if (h < 1 || h > ASUS_OLED_DISP_HEIGHT)
+			goto error_height;
 
-		if (i >= count || buf[i] != '>') goto error_header;
+		if (i >= count || buf[i] != '>')
+			goto error_header;
 
 		offs = i+1;
 
@@ -468,7 +481,8 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 
 		odev->buf_size = w_mem * h_mem / 8;
 
-		if (odev->buf) kfree(odev->buf);
+		if (odev->buf)
+			kfree(odev->buf);
 		odev->buf = kmalloc(odev->buf_size, GFP_KERNEL);
 
 		if (odev->buf == NULL) {
@@ -505,23 +519,30 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 		int ret;
 
 		if (buf[offs] == '1' || buf[offs] == '#') {
-			if ( (ret = append_values(odev, 1, 1)) < 0) return ret;
+			ret = append_values(odev, 1, 1);
+			if (ret < 0)
+				return ret;
 		}
 		else if (buf[offs] == '0' || buf[offs] == ' ') {
-			if ( (ret = append_values(odev, 0, 1)) < 0) return ret;
+			ret = append_values(odev, 0, 1);
+			if (ret < 0)
+				return ret;
 		}
 		else if (buf[offs] == '\n') {
 			// New line detected. Lets assume, that all characters till the end of the
 			// line were equal to the last character in this line.
 			if (odev->buf_offs % odev->width != 0)
-				if ( (ret = append_values(odev, odev->last_val,
-				      odev->width - (odev->buf_offs % odev->width))) < 0) return ret;
+				ret = append_values(odev, odev->last_val,
+				      odev->width - (odev->buf_offs % odev->width));
+				if (ret < 0)
+					return ret;
 		}
 
 		offs++;
 	}
 
-	if (odev->buf_offs >= max_offs) send_data(odev);
+	if (odev->buf_offs >= max_offs)
+		send_data(odev);
 
 	return count;
 
@@ -566,9 +587,9 @@ static int asus_oled_probe(struct usb_interface *interface, const struct usb_dev
 	uint16_t dev_width = 0;
 	oled_pack_mode_t pack_mode = PACK_MODE_LAST;
 	const struct oled_dev_desc_str * dev_desc = oled_dev_desc_table;
-	const char *desc = 0;
+	const char *desc = NULL;
 
-	if (id == 0) {
+	if (!id) {
 		// Even possible? Just to make sure...
 		dev_err(&interface->dev, "No usb_device_id provided!\n");
 		return -ENODEV;
@@ -586,7 +607,7 @@ static int asus_oled_probe(struct usb_interface *interface, const struct usb_dev
 		}
 	}
 
-	if ( !desc || dev_width < 1 || pack_mode == PACK_MODE_LAST) {
+	if (!desc || dev_width < 1 || pack_mode == PACK_MODE_LAST) {
 		dev_err(&interface->dev, "Missing or incomplete device description!\n");
 		return -ENODEV;
 	}
@@ -611,20 +632,20 @@ static int asus_oled_probe(struct usb_interface *interface, const struct usb_dev
 	odev->last_val = 0;
 	odev->buf = NULL;
 	odev->enabled = 1;
-	odev->dev = 0;
+	odev->dev = NULL;
 
-	usb_set_intfdata (interface, odev);
+	usb_set_intfdata(interface, odev);
 
-	if ((retval = device_create_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(enabled)))) {
+	retval = device_create_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(enabled));
+	if (retval)
 		goto err_files;
-	}
 
-	if ((retval = device_create_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(picture)))) {
+	retval = device_create_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(picture));
+	if (retval)
 		goto err_files;
-	}
 
-	odev->dev = device_create(oled_class, &interface->dev, MKDEV(0,0),
-				NULL,"oled_%d", ++oled_num);
+	odev->dev = device_create(oled_class, &interface->dev, MKDEV(0, 0),
+				NULL, "oled_%d", ++oled_num);
 
 	if (IS_ERR(odev->dev)) {
 		retval = PTR_ERR(odev->dev);
@@ -633,13 +654,13 @@ static int asus_oled_probe(struct usb_interface *interface, const struct usb_dev
 
 	dev_set_drvdata(odev->dev, odev);
 
-	if ( (retval = device_create_file(odev->dev, &dev_attr_enabled))) {
+	retval = device_create_file(odev->dev, &dev_attr_enabled);
+	if (retval)
 		goto err_class_enabled;
-	}
 
-	if ( (retval = device_create_file(odev->dev, &dev_attr_picture))) {
+	retval = device_create_file(odev->dev, &dev_attr_picture);
+	if (retval)
 		goto err_class_picture;
-	}
 
 	dev_info(&interface->dev, "Attached Asus OLED device: %s [width %u, pack_mode %d]\n", desc, odev->dev_width, odev->pack_mode);
 
@@ -659,7 +680,7 @@ err_files:
 	device_remove_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(enabled));
 	device_remove_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(picture));
 
-	usb_set_intfdata (interface, NULL);
+	usb_set_intfdata(interface, NULL);
 	usb_put_dev(odev->udev);
 	kfree(odev);
 
@@ -670,19 +691,20 @@ static void asus_oled_disconnect(struct usb_interface *interface)
 {
 	struct asus_oled_dev *odev;
 
-	odev = usb_get_intfdata (interface);
-	usb_set_intfdata (interface, NULL);
+	odev = usb_get_intfdata(interface);
+	usb_set_intfdata(interface, NULL);
 
 	device_remove_file(odev->dev, &dev_attr_picture);
 	device_remove_file(odev->dev, &dev_attr_enabled);
 	device_unregister(odev->dev);
 
-	device_remove_file(&interface->dev, & ASUS_OLED_DEVICE_ATTR(picture));
-	device_remove_file(&interface->dev, & ASUS_OLED_DEVICE_ATTR(enabled));
+	device_remove_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(picture));
+	device_remove_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(enabled));
 
 	usb_put_dev(odev->udev);
 
-	if (odev->buf) kfree(odev->buf);
+	if (odev->buf)
+		kfree(odev->buf);
 
 	kfree(odev);
 
@@ -713,7 +735,8 @@ static int __init asus_oled_init(void)
 		return PTR_ERR(oled_class);
 	}
 
-	if ((retval = class_create_file(oled_class, &class_attr_version))) {
+	retval = class_create_file(oled_class, &class_attr_version);
+	if (retval) {
 		err("Error creating class version file");
 		goto error;
 	}
@@ -740,6 +763,6 @@ static void __exit asus_oled_exit(void)
 	usb_deregister(&oled_driver);
 }
 
-module_init (asus_oled_init);
-module_exit (asus_oled_exit);
+module_init(asus_oled_init);
+module_exit(asus_oled_exit);
 

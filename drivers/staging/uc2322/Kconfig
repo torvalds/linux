@@ -1,0 +1,10 @@
+config USB_SERIAL_ATEN2011
+	tristate "ATEN 2011 USB to serial device support"
+	depends on USB_SERIAL
+	default N
+	---help---
+	  Say Y here if you want to use a ATEN 2011 dual port USB to serial
+	  adapter.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called aten2011.
