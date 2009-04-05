@@ -523,7 +523,7 @@ int nilfs_sufile_set_error(struct inode *sufile, __u64 segnum)
 	struct nilfs_segment_usage *su;
 	struct nilfs_sufile_header *header;
 	void *kaddr;
-	int ret;
+	int suclean, ret;
 
 	if (unlikely(segnum >= nilfs_sufile_get_nsegments(sufile))) {
 		printk(KERN_WARNING "%s: invalid segment number: %llu\n",
@@ -546,16 +546,19 @@ int nilfs_sufile_set_error(struct inode *sufile, __u64 segnum)
 		brelse(su_bh);
 		goto out_header;
 	}
+	suclean = nilfs_segment_usage_clean(su);
 
 	nilfs_segment_usage_set_error(su);
 	kunmap_atomic(kaddr, KM_USER0);
-	brelse(su_bh);
 
-	kaddr = kmap_atomic(header_bh->b_page, KM_USER0);
-	header = nilfs_sufile_block_get_header(sufile, header_bh, kaddr);
-	le64_add_cpu(&header->sh_ndirtysegs, -1);
-	kunmap_atomic(kaddr, KM_USER0);
-	nilfs_mdt_mark_buffer_dirty(header_bh);
+	if (suclean) {
+		kaddr = kmap_atomic(header_bh->b_page, KM_USER0);
+		header = nilfs_sufile_block_get_header(sufile, header_bh,
+						       kaddr);
+		le64_add_cpu(&header->sh_ncleansegs, -1);
+		kunmap_atomic(kaddr, KM_USER0);
+		nilfs_mdt_mark_buffer_dirty(header_bh);
+	}
 	nilfs_mdt_mark_buffer_dirty(su_bh);
 	nilfs_mdt_mark_dirty(sufile);
 	brelse(su_bh);
