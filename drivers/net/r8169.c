@@ -3791,16 +3791,13 @@ static struct net_device_stats *rtl8169_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
-#ifdef CONFIG_PM
-
-static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
+static void rtl8169_net_suspend(struct net_device *dev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 
 	if (!netif_running(dev))
-		goto out_pci_suspend;
+		return;
 
 	netif_device_detach(dev);
 	netif_stop_queue(dev);
@@ -3812,23 +3809,24 @@ static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
 	rtl8169_rx_missed(dev, ioaddr);
 
 	spin_unlock_irq(&tp->lock);
+}
 
-out_pci_suspend:
-	pci_save_state(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev, state),
-		(tp->features & RTL_FEATURE_WOL) ? 1 : 0);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+#ifdef CONFIG_PM
+
+static int rtl8169_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	rtl8169_net_suspend(dev);
 
 	return 0;
 }
 
-static int rtl8169_resume(struct pci_dev *pdev)
+static int rtl8169_resume(struct device *device)
 {
+	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	pci_enable_wake(pdev, PCI_D0, 0);
 
 	if (!netif_running(dev))
 		goto out;
@@ -3840,23 +3838,42 @@ out:
 	return 0;
 }
 
+static struct dev_pm_ops rtl8169_pm_ops = {
+	.suspend = rtl8169_suspend,
+	.resume = rtl8169_resume,
+	.freeze = rtl8169_suspend,
+	.thaw = rtl8169_resume,
+	.poweroff = rtl8169_suspend,
+	.restore = rtl8169_resume,
+};
+
+#define RTL8169_PM_OPS	(&rtl8169_pm_ops)
+
+#else /* !CONFIG_PM */
+
+#define RTL8169_PM_OPS	NULL
+
+#endif /* !CONFIG_PM */
+
 static void rtl_shutdown(struct pci_dev *pdev)
 {
-	rtl8169_suspend(pdev, PMSG_SUSPEND);
-}
+	struct net_device *dev = pci_get_drvdata(pdev);
 
-#endif /* CONFIG_PM */
+	rtl8169_net_suspend(dev);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, true);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+}
 
 static struct pci_driver rtl8169_pci_driver = {
 	.name		= MODULENAME,
 	.id_table	= rtl8169_pci_tbl,
 	.probe		= rtl8169_init_one,
 	.remove		= __devexit_p(rtl8169_remove_one),
-#ifdef CONFIG_PM
-	.suspend	= rtl8169_suspend,
-	.resume		= rtl8169_resume,
 	.shutdown	= rtl_shutdown,
-#endif
+	.driver.pm	= RTL8169_PM_OPS,
 };
 
 static int __init rtl8169_init_module(void)
