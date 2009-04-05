@@ -165,6 +165,7 @@ config SONY_LAPTOP
 	depends on ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
+	depends on RFKILL
 	  ---help---
 	  This mini-driver drives the SNC and SPIC devices present in the ACPI
 	  BIOS of the Sony Vaio laptops.
