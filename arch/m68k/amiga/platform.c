@@ -116,6 +116,13 @@ static const struct gayle_ide_platform_data a4000_ide_pdata __initconst = {
 };
 
 
+static const struct resource amiga_rtc_resource __initconst = {
+	.start	= 0x00dc0000,
+	.end	= 0x00dcffff,
+	.flags	= IORESOURCE_MEM,
+};
+
+
 static int __init amiga_init_devices(void)
 {
 	struct platform_device *pdev;
@@ -173,6 +180,16 @@ static int __init amiga_init_devices(void)
 
 	if (AMIGAHW_PRESENT(AMI_PARALLEL))
 		platform_device_register_simple("amiga-parallel", -1, NULL, 0);
+
+
+	/* real time clocks */
+	if (AMIGAHW_PRESENT(A2000_CLK))
+		platform_device_register_simple("rtc-msm6242", -1,
+						&amiga_rtc_resource, 1);
+
+	if (AMIGAHW_PRESENT(A3000_CLK))
+		platform_device_register_simple("rtc-rp5c01", -1,
+						&amiga_rtc_resource, 1);
 
 	return 0;
 }
