@@ -28,6 +28,7 @@ config SUPERH32
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_ARCH_KGDB
+	select ARCH_HIBERNATION_POSSIBLE if MMU
 
 config SUPERH64
 	def_bool y if CPU_SH5
@@ -127,6 +128,9 @@ config ARCH_HAS_ILOG2_U64
 	def_bool n
 
 config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+
+config ARCH_HAS_DEFAULT_IDLE
 	def_bool y
 
 config IO_TRAPPED
@@ -530,7 +534,7 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on SUPERH32 && EXPERIMENTAL
+	depends on SUPERH32 && EXPERIMENTAL && MMU
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot

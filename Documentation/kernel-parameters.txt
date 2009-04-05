@@ -1559,6 +1559,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			Valid arguments: on, off
 			Default: on
 
+	noiotrap	[SH] Disables trapped I/O port accesses.
+
 	noirqdebug	[X86-32] Disables the code which attempts to detect and
 			disable unhandled interrupt sources.
 

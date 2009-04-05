@@ -22,6 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/bootmem.h>
 #include <linux/sh_intc.h>
+#include <linux/sysdev.h>
+#include <linux/list.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -40,6 +42,8 @@ struct intc_handle_int {
 };
 
 struct intc_desc_int {
+	struct list_head list;
+	struct sys_device sysdev;
 	unsigned long *reg;
 #ifdef CONFIG_SMP
 	unsigned long *smp;
@@ -51,6 +55,8 @@ struct intc_desc_int {
 	unsigned int nr_sense;
 	struct irq_chip chip;
 };
+
+static LIST_HEAD(intc_list);
 
 #ifdef CONFIG_SMP
 #define IS_SMP(x) x.smp
@@ -230,6 +236,11 @@ static void intc_disable(unsigned int irq)
 		intc_disable_fns[_INTC_MODE(handle)](addr, handle,intc_reg_fns\
 						     [_INTC_FN(handle)], irq);
 	}
+}
+
+static int intc_set_wake(unsigned int irq, unsigned int on)
+{
+	return 0; /* allow wakeup, but setup hardware in intc_suspend() */
 }
 
 #if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
@@ -664,6 +675,9 @@ void __init register_intc_controller(struct intc_desc *desc)
 
 	d = alloc_bootmem(sizeof(*d));
 
+	INIT_LIST_HEAD(&d->list);
+	list_add(&d->list, &intc_list);
+
 	d->nr_reg = desc->mask_regs ? desc->nr_mask_regs * 2 : 0;
 	d->nr_reg += desc->prio_regs ? desc->nr_prio_regs * 2 : 0;
 	d->nr_reg += desc->sense_regs ? desc->nr_sense_regs : 0;
@@ -707,7 +721,11 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->chip.mask = intc_disable;
 	d->chip.unmask = intc_enable;
 	d->chip.mask_ack = intc_disable;
+	d->chip.enable = intc_enable;
+	d->chip.disable = intc_disable;
+	d->chip.shutdown = intc_disable;
 	d->chip.set_type = intc_set_sense;
+	d->chip.set_wake = intc_set_wake;
 
 #if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	if (desc->ack_regs) {
@@ -758,3 +776,53 @@ void __init register_intc_controller(struct intc_desc *desc)
 		intc_register_irq(desc, d, vect->enum_id, evt2irq(vect->vect));
 	}
 }
+
+static int intc_suspend(struct sys_device *dev, pm_message_t state)
+{
+	struct intc_desc_int *d;
+	struct irq_desc *desc;
+	int irq;
+
+	/* get intc controller associated with this sysdev */
+	d = container_of(dev, struct intc_desc_int, sysdev);
+
+	/* enable wakeup irqs belonging to this intc controller */
+	for_each_irq_desc(irq, desc) {
+		if ((desc->status & IRQ_WAKEUP) && (desc->chip == &d->chip))
+			intc_enable(irq);
+	}
+
+	return 0;
+}
+
+static struct sysdev_class intc_sysdev_class = {
+	.name = "intc",
+	.suspend = intc_suspend,
+};
+
+/* register this intc as sysdev to allow suspend/resume */
+static int __init register_intc_sysdevs(void)
+{
+	struct intc_desc_int *d;
+	int error;
+	int id = 0;
+
+	error = sysdev_class_register(&intc_sysdev_class);
+	if (!error) {
+		list_for_each_entry(d, &intc_list, list) {
+			d->sysdev.id = id;
+			d->sysdev.cls = &intc_sysdev_class;
+			error = sysdev_register(&d->sysdev);
+			if (error)
+				break;
+			id++;
+		}
+	}
+
+	if (error)
+		pr_warning("intc: sysdev registration error\n");
+
+	return error;
+}
+
+device_initcall(register_intc_sysdevs);
