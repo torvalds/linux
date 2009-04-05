@@ -990,7 +990,7 @@ static struct sysdev_attribute *mce_attributes[] = {
 	NULL
 };
 
-static cpumask_t mce_device_initialized = CPU_MASK_NONE;
+static cpumask_var_t mce_device_initialized;
 
 /* Per cpu sysdev init.  All of the cpus still share the same ctl bank */
 static __cpuinit int mce_create_device(unsigned int cpu)
@@ -1021,7 +1021,7 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 		if (err)
 			goto error2;
 	}
-	cpu_set(cpu, mce_device_initialized);
+	cpumask_set_cpu(cpu, mce_device_initialized);
 
 	return 0;
 error2:
@@ -1043,7 +1043,7 @@ static __cpuinit void mce_remove_device(unsigned int cpu)
 {
 	int i;
 
-	if (!cpu_isset(cpu, mce_device_initialized))
+	if (!cpumask_test_cpu(cpu, mce_device_initialized))
 		return;
 
 	for (i = 0; mce_attributes[i]; i++)
@@ -1053,7 +1053,7 @@ static __cpuinit void mce_remove_device(unsigned int cpu)
 		sysdev_remove_file(&per_cpu(device_mce, cpu),
 			&bank_attrs[i]);
 	sysdev_unregister(&per_cpu(device_mce,cpu));
-	cpu_clear(cpu, mce_device_initialized);
+	cpumask_clear_cpu(cpu, mce_device_initialized);
 }
 
 /* Make sure there are no machine checks on offlined CPUs. */
@@ -1161,6 +1161,8 @@ static __init int mce_init_device(void)
 
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
+
+	alloc_cpumask_var(&mce_device_initialized, GFP_KERNEL);
 
 	err = mce_init_banks();
 	if (err)
