@@ -268,8 +268,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	kvm_get_pfn(pfn);
 	mmu_set_spte(vcpu, spte, page->role.access, pte_access, 0, 0,
 		     gpte & PT_DIRTY_MASK, NULL, largepage,
-		     gpte & PT_GLOBAL_MASK, gpte_to_gfn(gpte),
-		     pfn, true);
+		     gpte_to_gfn(gpte), pfn, true);
 }
 
 /*
@@ -303,7 +302,6 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 				     user_fault, write_fault,
 				     gw->ptes[gw->level-1] & PT_DIRTY_MASK,
 				     ptwrite, largepage,
-				     gw->ptes[gw->level-1] & PT_GLOBAL_MASK,
 				     gw->gfn, pfn, false);
 			break;
 		}
@@ -592,7 +590,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		nr_present++;
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
-			 is_dirty_pte(gpte), 0, gpte & PT_GLOBAL_MASK, gfn,
+			 is_dirty_pte(gpte), 0, gfn,
 			 spte_to_pfn(sp->spt[i]), true, false);
 	}
 

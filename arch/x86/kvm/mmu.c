@@ -1075,18 +1075,10 @@ static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm *kvm, gfn_t gfn)
 	return NULL;
 }
 
-static void kvm_unlink_unsync_global(struct kvm *kvm, struct kvm_mmu_page *sp)
-{
-	list_del(&sp->oos_link);
-	--kvm->stat.mmu_unsync_global;
-}
-
 static void kvm_unlink_unsync_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	WARN_ON(!sp->unsync);
 	sp->unsync = 0;
-	if (sp->global)
-		kvm_unlink_unsync_global(kvm, sp);
 	--kvm->stat.mmu_unsync;
 }
 
@@ -1249,7 +1241,6 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	pgprintk("%s: adding gfn %lx role %x\n", __func__, gfn, role.word);
 	sp->gfn = gfn;
 	sp->role = role;
-	sp->global = 0;
 	hlist_add_head(&sp->hash_link, bucket);
 	if (!direct) {
 		if (rmap_write_protect(vcpu->kvm, gfn))
@@ -1647,11 +1638,7 @@ static int kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	++vcpu->kvm->stat.mmu_unsync;
 	sp->unsync = 1;
 
-	if (sp->global) {
-		list_add(&sp->oos_link, &vcpu->kvm->arch.oos_global_pages);
-		++vcpu->kvm->stat.mmu_unsync_global;
-	} else
-		kvm_mmu_mark_parents_unsync(vcpu, sp);
+	kvm_mmu_mark_parents_unsync(vcpu, sp);
 
 	mmu_convert_notrap(sp);
 	return 0;
@@ -1678,21 +1665,12 @@ static int mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 		    unsigned pte_access, int user_fault,
 		    int write_fault, int dirty, int largepage,
-		    int global, gfn_t gfn, pfn_t pfn, bool speculative,
+		    gfn_t gfn, pfn_t pfn, bool speculative,
 		    bool can_unsync)
 {
 	u64 spte;
 	int ret = 0;
 	u64 mt_mask = shadow_mt_mask;
-	struct kvm_mmu_page *sp = page_header(__pa(shadow_pte));
-
-	if (!global && sp->global) {
-		sp->global = 0;
-		if (sp->unsync) {
-			kvm_unlink_unsync_global(vcpu->kvm, sp);
-			kvm_mmu_mark_parents_unsync(vcpu, sp);
-		}
-	}
 
 	/*
 	 * We don't set the accessed bit, since we sometimes want to see
@@ -1766,8 +1744,8 @@ set_pte:
 static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 			 unsigned pt_access, unsigned pte_access,
 			 int user_fault, int write_fault, int dirty,
-			 int *ptwrite, int largepage, int global,
-			 gfn_t gfn, pfn_t pfn, bool speculative)
+			 int *ptwrite, int largepage, gfn_t gfn,
+			 pfn_t pfn, bool speculative)
 {
 	int was_rmapped = 0;
 	int was_writeble = is_writeble_pte(*shadow_pte);
@@ -1796,7 +1774,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 			was_rmapped = 1;
 	}
 	if (set_spte(vcpu, shadow_pte, pte_access, user_fault, write_fault,
-		      dirty, largepage, global, gfn, pfn, speculative, true)) {
+		      dirty, largepage, gfn, pfn, speculative, true)) {
 		if (write_fault)
 			*ptwrite = 1;
 		kvm_x86_ops->tlb_flush(vcpu);
@@ -1844,7 +1822,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 		    || (largepage && iterator.level == PT_DIRECTORY_LEVEL)) {
 			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL, ACC_ALL,
 				     0, write, 1, &pt_write,
-				     largepage, 0, gfn, pfn, false);
+				     largepage, gfn, pfn, false);
 			++vcpu->stat.pf_fixed;
 			break;
 		}
@@ -2015,26 +1993,10 @@ static void mmu_sync_roots(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void mmu_sync_global(struct kvm_vcpu *vcpu)
-{
-	struct kvm *kvm = vcpu->kvm;
-	struct kvm_mmu_page *sp, *n;
-
-	list_for_each_entry_safe(sp, n, &kvm->arch.oos_global_pages, oos_link)
-		kvm_sync_page(vcpu, sp);
-}
-
 void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 {
 	spin_lock(&vcpu->kvm->mmu_lock);
 	mmu_sync_roots(vcpu);
-	spin_unlock(&vcpu->kvm->mmu_lock);
-}
-
-void kvm_mmu_sync_global(struct kvm_vcpu *vcpu)
-{
-	spin_lock(&vcpu->kvm->mmu_lock);
-	mmu_sync_global(vcpu);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 }
 
