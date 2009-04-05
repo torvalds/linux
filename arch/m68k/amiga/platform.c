@@ -58,6 +58,13 @@ subsys_initcall(amiga_init_bus);
 #endif /* CONFIG_ZORRO */
 
 
+static const struct resource a3000_scsi_resource __initconst = {
+	.start	= 0xdd0000,
+	.end	= 0xdd00ff,
+	.flags	= IORESOURCE_MEM,
+};
+
+
 static int __init amiga_init_devices(void)
 {
 	if (!MACH_IS_AMIGA)
@@ -76,6 +83,10 @@ static int __init amiga_init_devices(void)
 	/* storage interfaces */
 	if (AMIGAHW_PRESENT(AMI_FLOPPY))
 		platform_device_register_simple("amiga-floppy", -1, NULL, 0);
+
+	if (AMIGAHW_PRESENT(A3000_SCSI))
+		platform_device_register_simple("amiga-a3000-scsi", -1,
+						&a3000_scsi_resource, 1);
 
 	return 0;
 }
