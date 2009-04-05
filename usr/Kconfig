@@ -72,10 +72,8 @@ config RD_LZMA
 	  Support loading of a LZMA encoded initial ramdisk or cpio buffer
 	  If unsure, say N.
 
-if INITRAMFS_SOURCE!=""
-
 choice
-	prompt "Built-in initramfs compression mode"
+	prompt "Built-in initramfs compression mode" if INITRAMFS_SOURCE!=""
 	help
 	  This option decides by which algorithm the builtin initramfs
 	  will be compressed.  Several compression algorithms are
@@ -134,14 +132,3 @@ config INITRAMFS_COMPRESSION_LZMA
 	  smaller with LZMA in comparison to gzip.
 
 endchoice
-
-endif
-
-if INITRAMFS_SOURCE=""
-# The builtin initramfs is so small so we don't want to bug the user...
-
-config INITRAMFS_COMPRESSION_NONE
-	bool
-	default y
-
-endif
