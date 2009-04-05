@@ -167,14 +167,13 @@ static const struct p54spi_spi_reg p54spi_registers_array[] =
 static int p54spi_wait_bit(struct p54s_priv *priv, u16 reg, __le32 bits)
 {
 	int i;
-	__le32 buffer;
 
 	for (i = 0; i < 2000; i++) {
-		p54spi_spi_read(priv, reg, &buffer, sizeof(buffer));
+		__le32 buffer = p54spi_read32(priv, reg);
 		if ((buffer & bits) == bits)
 			return 1;
 
-		msleep(1);
+		msleep(0);
 	}
 	return 0;
 }
@@ -185,10 +184,10 @@ static int p54spi_spi_write_dma(struct p54s_priv *priv, __le32 base,
 	p54spi_write16(priv, SPI_ADRS_DMA_WRITE_CTRL,
 		       cpu_to_le16(SPI_DMA_WRITE_CTRL_ENABLE));
 
-	if (p54spi_wait_bit(priv, SPI_ADRS_DMA_WRITE_CTRL,
-			    cpu_to_le32(HOST_ALLOWED)) == 0) {
+	if (!p54spi_wait_bit(priv, SPI_ADRS_DMA_WRITE_CTRL,
+			     cpu_to_le32(HOST_ALLOWED))) {
 		dev_err(&priv->spi->dev, "spi_write_dma not allowed "
-			"to DMA write.");
+			"to DMA write.\n");
 		return -EAGAIN;
 	}
 
@@ -330,21 +329,15 @@ static inline void p54spi_int_ack(struct p54s_priv *priv, u32 val)
 
 static void p54spi_wakeup(struct p54s_priv *priv)
 {
-	unsigned long timeout;
-	u32 ints;
-
 	/* wake the chip */
 	p54spi_write32(priv, SPI_ADRS_ARM_INTERRUPTS,
 		       cpu_to_le32(SPI_TARGET_INT_WAKEUP));
 
 	/* And wait for the READY interrupt */
-	timeout = jiffies + HZ;
-
-	ints =  p54spi_read32(priv, SPI_ADRS_HOST_INTERRUPTS);
-	while (!(ints & SPI_HOST_INT_READY)) {
-		if (time_after(jiffies, timeout))
-				goto out;
-		ints = p54spi_read32(priv, SPI_ADRS_HOST_INTERRUPTS);
+	if (!p54spi_wait_bit(priv, SPI_ADRS_HOST_INTERRUPTS,
+			     cpu_to_le32(SPI_HOST_INT_READY))) {
+		dev_err(&priv->spi->dev, "INT_READY timeout\n");
+		goto out;
 	}
 
 	p54spi_int_ack(priv, SPI_HOST_INT_READY);
@@ -432,9 +425,7 @@ static irqreturn_t p54spi_interrupt(int irq, void *config)
 static int p54spi_tx_frame(struct p54s_priv *priv, struct sk_buff *skb)
 {
 	struct p54_hdr *hdr = (struct p54_hdr *) skb->data;
-	unsigned long timeout;
 	int ret = 0;
-	u32 ints;
 
 	p54spi_wakeup(priv);
 
@@ -442,15 +433,11 @@ static int p54spi_tx_frame(struct p54s_priv *priv, struct sk_buff *skb)
 	if (ret < 0)
 		goto out;
 
-	timeout = jiffies + 2 * HZ;
-	ints = p54spi_read32(priv, SPI_ADRS_HOST_INTERRUPTS);
-	while (!(ints & SPI_HOST_INT_WR_READY)) {
-		if (time_after(jiffies, timeout)) {
-			dev_err(&priv->spi->dev, "WR_READY timeout\n");
-			ret = -1;
-			goto out;
-		}
-		ints = p54spi_read32(priv, SPI_ADRS_HOST_INTERRUPTS);
+	if (!p54spi_wait_bit(priv, SPI_ADRS_HOST_INTERRUPTS,
+			     cpu_to_le32(SPI_HOST_INT_WR_READY))) {
+		dev_err(&priv->spi->dev, "WR_READY timeout\n");
+		ret = -1;
+		goto out;
 	}
 
 	p54spi_int_ack(priv, SPI_HOST_INT_WR_READY);
