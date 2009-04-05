@@ -58,42 +58,6 @@ struct smscore_client_t {
 	onremove_t		onremove_handler;
 };
 
-struct smscore_device_t {
-	struct list_head entry;
-
-	struct list_head clients;
-	struct list_head subclients;
-	spinlock_t		clientslock;
-
-	struct list_head buffers;
-	spinlock_t		bufferslock;
-	int				num_buffers;
-
-	void			*common_buffer;
-	int				common_buffer_size;
-	dma_addr_t		common_buffer_phys;
-
-	void			*context;
-	struct device	*device;
-
-	char			devpath[32];
-	unsigned long	device_flags;
-
-	setmode_t		setmode_handler;
-	detectmode_t	detectmode_handler;
-	sendrequest_t	sendrequest_handler;
-	preload_t		preload_handler;
-	postload_t		postload_handler;
-
-	int				mode, modes_supported;
-
-	struct completion version_ex_done, data_download_done, trigger_done;
-	struct completion init_device_done, reload_start_done, resume_done;
-
-	int board_id;
-	int led_state;
-};
-
 void smscore_set_board_id(struct smscore_device_t *core, int id)
 {
 	core->board_id = id;

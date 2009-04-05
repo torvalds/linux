@@ -121,6 +121,60 @@ struct smsclient_params_t {
 	void			*context;
 };
 
+struct smscore_device_t {
+	struct list_head entry;
+
+	struct list_head clients;
+	struct list_head subclients;
+	spinlock_t clientslock;
+
+	struct list_head buffers;
+	spinlock_t bufferslock;
+	int num_buffers;
+
+	void *common_buffer;
+	int common_buffer_size;
+	dma_addr_t common_buffer_phys;
+
+	void *context;
+	struct device *device;
+
+	char devpath[32];
+	unsigned long device_flags;
+
+	setmode_t setmode_handler;
+	detectmode_t detectmode_handler;
+	sendrequest_t sendrequest_handler;
+	preload_t preload_handler;
+	postload_t postload_handler;
+
+	int mode, modes_supported;
+
+	/* host <--> device messages */
+	struct completion version_ex_done, data_download_done, trigger_done;
+	struct completion init_device_done, reload_start_done, resume_done;
+	struct completion gpio_configuration_done, gpio_set_level_done;
+	struct completion gpio_get_level_done, ir_init_done;
+
+	/* Buffer management */
+	wait_queue_head_t buffer_mng_waitq;
+
+	/* GPIO */
+	int gpio_get_res;
+
+	/* Target hardware board */
+	int board_id;
+
+	/* Firmware */
+	u8 *fw_buf;
+	u32 fw_buf_size;
+
+	/* Infrared (IR) */
+	/* struct ir_t ir; */
+
+	int led_state;
+};
+
 /* GPIO definitions for antenna frequency domain control (SMS8021) */
 #define SMS_ANTENNA_GPIO_0					1
 #define SMS_ANTENNA_GPIO_1					0
