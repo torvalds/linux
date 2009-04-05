@@ -67,6 +67,11 @@ static int __init amiga_init_devices(void)
 	if (AMIGAHW_PRESENT(AMI_VIDEO))
 		platform_device_register_simple("amiga-video", -1, NULL, 0);
 
+
+	/* sound hardware */
+	if (AMIGAHW_PRESENT(AMI_AUDIO))
+		platform_device_register_simple("amiga-audio", -1, NULL, 0);
+
 	return 0;
 }
 
