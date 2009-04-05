@@ -65,6 +65,13 @@ static const struct resource a3000_scsi_resource __initconst = {
 };
 
 
+static const struct resource a4000t_scsi_resource __initconst = {
+	.start	= 0xdd0000,
+	.end	= 0xdd0fff,
+	.flags	= IORESOURCE_MEM,
+};
+
+
 static int __init amiga_init_devices(void)
 {
 	if (!MACH_IS_AMIGA)
@@ -87,6 +94,10 @@ static int __init amiga_init_devices(void)
 	if (AMIGAHW_PRESENT(A3000_SCSI))
 		platform_device_register_simple("amiga-a3000-scsi", -1,
 						&a3000_scsi_resource, 1);
+
+	if (AMIGAHW_PRESENT(A4000_SCSI))
+		platform_device_register_simple("amiga-a4000t-scsi", -1,
+						&a4000t_scsi_resource, 1);
 
 	return 0;
 }
