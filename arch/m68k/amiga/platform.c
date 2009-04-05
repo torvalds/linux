@@ -168,6 +168,9 @@ static int __init amiga_init_devices(void)
 	if (AMIGAHW_PRESENT(AMI_MOUSE))
 		platform_device_register_simple("amiga-mouse", -1, NULL, 0);
 
+	if (AMIGAHW_PRESENT(AMI_SERIAL))
+		platform_device_register_simple("amiga-serial", -1, NULL, 0);
+
 	return 0;
 }
 
