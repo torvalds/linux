@@ -46,6 +46,7 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
+#define SMS_PROTOCOL_MAX_RAOUNDTRIP_MS				(10000)
 #define SMS_ALLOC_ALIGNMENT					128
 #define SMS_DMA_ALIGNMENT					16
 #define SMS_ALIGN_ADDRESS(addr) \
@@ -161,6 +162,7 @@ struct smsclient_params_t {
 #define MSG_SMS_GET_PID_FILTER_LIST_RES		609
 #define MSG_SMS_GET_STATISTICS_REQ			615
 #define MSG_SMS_GET_STATISTICS_RES			616
+#define MSG_SMS_HO_PER_SLICES_IND			630
 #define MSG_SMS_SET_ANTENNA_CONFIG_REQ		651
 #define MSG_SMS_SET_ANTENNA_CONFIG_RES		652
 #define MSG_SMS_GET_STATISTICS_EX_REQ		653
@@ -190,6 +192,13 @@ struct smsclient_params_t {
 #define MSG_SMS_GPIO_CONFIG_EX_RES			713
 #define MSG_SMS_ISDBT_TUNE_REQ				776
 #define MSG_SMS_ISDBT_TUNE_RES				777
+#define MSG_SMS_TRANSMISSION_IND			782
+#define MSG_SMS_START_IR_REQ				800
+#define MSG_SMS_START_IR_RES				801
+#define MSG_SMS_IR_SAMPLES_IND				802
+#define MSG_SMS_SIGNAL_DETECTED_IND			827
+#define MSG_SMS_NO_SIGNAL_IND				828
+
 
 #define SMS_INIT_MSG_EX(ptr, type, src, dst, len) do { \
 	(ptr)->msgType = type; (ptr)->msgSrcId = src; (ptr)->msgDstId = dst; \
@@ -197,6 +206,15 @@ struct smsclient_params_t {
 } while (0)
 #define SMS_INIT_MSG(ptr, type, len) \
 	SMS_INIT_MSG_EX(ptr, type, 0, HIF_TASK, len)
+enum SMS_DVB3_EVENTS {
+	DVB3_EVENT_INIT = 0,
+	DVB3_EVENT_SLEEP,
+	DVB3_EVENT_HOTPLUG,
+	DVB3_EVENT_FE_LOCK,
+	DVB3_EVENT_FE_UNLOCK,
+	DVB3_EVENT_UNC_OK,
+	DVB3_EVENT_UNC_ERR
+};
 
 enum SMS_DEVICE_MODE {
 	DEVICE_MODE_NONE = -1,
@@ -221,8 +239,13 @@ struct SmsMsgHdr_ST {
 };
 
 struct SmsMsgData_ST {
-	struct SmsMsgHdr_ST	xMsgHeader;
-	u32			msgData[1];
+	struct SmsMsgHdr_ST xMsgHeader;
+	u32 msgData[1];
+};
+
+struct SmsMsgData_ST2 {
+	struct SmsMsgHdr_ST xMsgHeader;
+	u32 msgData[2];
 };
 
 struct SmsDataDownload_ST {
