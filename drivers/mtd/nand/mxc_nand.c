@@ -1015,8 +1015,6 @@ static int mxcnd_suspend(struct platform_device *pdev, pm_message_t state)
 	int ret = 0;
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MXC_ND : NAND suspend\n");
-	if (info)
-		ret = info->suspend(info);
 
 	/* Disable the NFC clock */
 	clk_disable(nfc_clk);	/* FIXME */
@@ -1032,9 +1030,6 @@ static int mxcnd_resume(struct platform_device *pdev)
 	DEBUG(MTD_DEBUG_LEVEL0, "MXC_ND : NAND resume\n");
 	/* Enable the NFC clock */
 	clk_enable(nfc_clk);	/* FIXME */
-
-	if (info)
-		info->resume(info);
 
 	return ret;
 }

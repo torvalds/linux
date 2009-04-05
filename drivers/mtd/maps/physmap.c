@@ -195,42 +195,6 @@ err_out:
 }
 
 #ifdef CONFIG_PM
-static int physmap_flash_suspend(struct platform_device *dev, pm_message_t state)
-{
-	struct physmap_flash_info *info = platform_get_drvdata(dev);
-	int ret = 0;
-	int i;
-
-	for (i = 0; i < MAX_RESOURCES && info->mtd[i]; i++)
-		if (info->mtd[i]->suspend) {
-			ret = info->mtd[i]->suspend(info->mtd[i]);
-			if (ret)
-				goto fail;
-		}
-
-	return 0;
-fail:
-	for (--i; i >= 0; --i)
-		if (info->mtd[i]->suspend) {
-			BUG_ON(!info->mtd[i]->resume);
-			info->mtd[i]->resume(info->mtd[i]);
-		}
-
-	return ret;
-}
-
-static int physmap_flash_resume(struct platform_device *dev)
-{
-	struct physmap_flash_info *info = platform_get_drvdata(dev);
-	int i;
-
-	for (i = 0; i < MAX_RESOURCES && info->mtd[i]; i++)
-		if (info->mtd[i]->resume)
-			info->mtd[i]->resume(info->mtd[i]);
-
-	return 0;
-}
-
 static void physmap_flash_shutdown(struct platform_device *dev)
 {
 	struct physmap_flash_info *info = platform_get_drvdata(dev);
@@ -242,16 +206,12 @@ static void physmap_flash_shutdown(struct platform_device *dev)
 				info->mtd[i]->resume(info->mtd[i]);
 }
 #else
-#define physmap_flash_suspend NULL
-#define physmap_flash_resume NULL
 #define physmap_flash_shutdown NULL
 #endif
 
 static struct platform_driver physmap_flash_driver = {
 	.probe		= physmap_flash_probe,
 	.remove		= physmap_flash_remove,
-	.suspend	= physmap_flash_suspend,
-	.resume		= physmap_flash_resume,
 	.shutdown	= physmap_flash_shutdown,
 	.driver		= {
 		.name	= "physmap-flash",

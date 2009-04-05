@@ -145,25 +145,6 @@ err_out:
 }
 
 #ifdef CONFIG_PM
-static int rbtx4939_flash_suspend(struct platform_device *dev,
-				  pm_message_t state)
-{
-	struct rbtx4939_flash_info *info = platform_get_drvdata(dev);
-
-	if (info->mtd->suspend)
-		return info->mtd->suspend(info->mtd);
-	return 0;
-}
-
-static int rbtx4939_flash_resume(struct platform_device *dev)
-{
-	struct rbtx4939_flash_info *info = platform_get_drvdata(dev);
-
-	if (info->mtd->resume)
-		info->mtd->resume(info->mtd);
-	return 0;
-}
-
 static void rbtx4939_flash_shutdown(struct platform_device *dev)
 {
 	struct rbtx4939_flash_info *info = platform_get_drvdata(dev);
@@ -173,16 +154,12 @@ static void rbtx4939_flash_shutdown(struct platform_device *dev)
 			info->mtd->resume(info->mtd);
 }
 #else
-#define rbtx4939_flash_suspend NULL
-#define rbtx4939_flash_resume NULL
 #define rbtx4939_flash_shutdown NULL
 #endif
 
 static struct platform_driver rbtx4939_flash_driver = {
 	.probe		= rbtx4939_flash_probe,
 	.remove		= rbtx4939_flash_remove,
-	.suspend	= rbtx4939_flash_suspend,
-	.resume		= rbtx4939_flash_resume,
 	.shutdown	= rbtx4939_flash_shutdown,
 	.driver		= {
 		.name	= "rbtx4939-flash",
