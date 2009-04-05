@@ -298,6 +298,21 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			data->timeout_clks = 0;
 		}
 	}
+	/*
+	 * Some cards need very high timeouts if driven in SPI mode.
+	 * The worst observed timeout was 900ms after writing a
+	 * continuous stream of data until the internal logic
+	 * overflowed.
+	 */
+	if (mmc_host_is_spi(card->host)) {
+		if (data->flags & MMC_DATA_WRITE) {
+			if (data->timeout_ns < 1000000000)
+				data->timeout_ns = 1000000000;	/* 1s */
+		} else {
+			if (data->timeout_ns < 100000000)
+				data->timeout_ns =  100000000;	/* 100ms */
+		}
+	}
 }
 EXPORT_SYMBOL(mmc_set_data_timeout);
 
@@ -915,6 +930,7 @@ void mmc_stop_host(struct mmc_host *host)
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 
+	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
 
 	mmc_bus_get(host);
@@ -942,6 +958,7 @@ void mmc_stop_host(struct mmc_host *host)
  */
 int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 {
+	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
 
 	mmc_bus_get(host);
@@ -975,6 +992,7 @@ int mmc_resume_host(struct mmc_host *host)
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
 		mmc_power_up(host);
+		mmc_select_voltage(host, host->ocr);
 		BUG_ON(!host->bus_ops->resume);
 		host->bus_ops->resume(host);
 	}

@@ -2924,6 +2924,12 @@ M:	buytenh@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
 
+MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
+P:	Nicolas Pitre
+M:	nico@cam.org
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 MARVELL YUKON / SYSKONNECT DRIVER
 P:	Mirko Lindner
 M:	mlindner@syskonnect.de
@@ -3916,7 +3922,14 @@ S:	Maintained
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
 P:	Pierre Ossman
 M:	drzeus-sdhci@drzeus.cx
-L:	sdhci-devel@list.drzeus.cx
+L:	sdhci-devel@lists.ossman.eu
+S:	Maintained
+
+SECURE DIGITAL HOST CONTROLLER INTERFACE, OPEN FIRMWARE BINDINGS (SDHCI-OF)
+P:	Anton Vorontsov
+M:	avorontsov@ru.mvista.com
+L:	linuxppc-dev@ozlabs.org
+L:	sdhci-devel@lists.ossman.eu
 S:	Maintained
 
 SECURITY SUBSYSTEM
@@ -4392,6 +4405,11 @@ P:	Jonathan Buzzard
 M:	jonathan@buzzard.org.uk
 L:	tlinux-users@tce.toshiba-dme.co.jp
 W:	http://www.buzzard.org.uk/toshiba/
+S:	Maintained
+
+TMIO MMC DRIVER
+P:	Ian Molton
+M:	ian@mnementh.co.uk
 S:	Maintained
 
 TPM DEVICE DRIVER
