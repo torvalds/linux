@@ -56,3 +56,18 @@ static int __init amiga_init_bus(void)
 subsys_initcall(amiga_init_bus);
 
 #endif /* CONFIG_ZORRO */
+
+
+static int __init amiga_init_devices(void)
+{
+	if (!MACH_IS_AMIGA)
+		return -ENODEV;
+
+	/* video hardware */
+	if (AMIGAHW_PRESENT(AMI_VIDEO))
+		platform_device_register_simple("amiga-video", -1, NULL, 0);
+
+	return 0;
+}
+
+device_initcall(amiga_init_devices);
