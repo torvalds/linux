@@ -166,7 +166,7 @@ void __init setup_arch(char **cmdline_p)
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	return *pos < NR_CPUS ? (void *)(int)(*pos + 1): NULL;
+	return *pos < nr_cpu_ids ? (void *)(int)(*pos + 1) : NULL;
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
