@@ -3,7 +3,7 @@
  *
  * Global definitions for the zfcp device driver.
  *
- * Copyright IBM Corporation 2002, 2008
+ * Copyright IBM Corporation 2002, 2009
  */
 
 #ifndef ZFCP_DEF_H
@@ -243,9 +243,6 @@ struct zfcp_ls_adisc {
 
 /* remote port status */
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
-#define ZFCP_STATUS_PORT_PHYS_CLOSING		0x00000004
-#define ZFCP_STATUS_PORT_NO_WWPN		0x00000008
-#define ZFCP_STATUS_PORT_INVALID_WWPN		0x00000020
 
 /* well known address (WKA) port status*/
 enum zfcp_wka_status {
@@ -258,7 +255,6 @@ enum zfcp_wka_status {
 /* logical unit status */
 #define ZFCP_STATUS_UNIT_SHARED			0x00000004
 #define ZFCP_STATUS_UNIT_READONLY		0x00000008
-#define ZFCP_STATUS_UNIT_REGISTERED		0x00000010
 #define ZFCP_STATUS_UNIT_SCSI_WORK_PENDING	0x00000020
 
 /* FSF request status (this does not have a common part) */
@@ -447,8 +443,9 @@ struct zfcp_adapter {
 	spinlock_t		req_list_lock;	   /* request list lock */
 	struct zfcp_qdio_queue	req_q;		   /* request queue */
 	spinlock_t		req_q_lock;	   /* for operations on queue */
-	int			req_q_pci_batch;   /* SBALs since PCI indication
-						      was last set */
+	ktime_t			req_q_time; /* time of last fill level change */
+	u64			req_q_util; /* for accounting */
+	spinlock_t		qdio_stat_lock;
 	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
 	wait_queue_head_t	request_wq;	   /* can be used to wait for
 						      more avaliable SBALs */
@@ -514,6 +511,9 @@ struct zfcp_port {
 	u32                    maxframe_size;
 	u32                    supported_classes;
 	struct work_struct     gid_pn_work;
+	struct work_struct     test_link_work;
+	struct work_struct     rport_work;
+	enum { RPORT_NONE, RPORT_ADD, RPORT_DEL }  rport_task;
 };
 
 struct zfcp_unit {
@@ -586,9 +586,6 @@ struct zfcp_fsf_req_qtcb {
 };
 
 /********************** ZFCP SPECIFIC DEFINES ********************************/
-
-#define ZFCP_REQ_AUTO_CLEANUP	0x00000002
-#define ZFCP_REQ_NO_QTCB	0x00000008
 
 #define ZFCP_SET                0x00000100
 #define ZFCP_CLEAR              0x00000200

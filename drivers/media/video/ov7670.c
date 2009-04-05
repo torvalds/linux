@@ -12,17 +12,21 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/videodev.h>
-#include <media/v4l2-common.h>
-#include <media/v4l2-chip-ident.h>
 #include <linux/i2c.h>
+#include <linux/delay.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 
 
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
 MODULE_DESCRIPTION("A low-level driver for OmniVision ov7670 sensors");
 MODULE_LICENSE("GPL");
+
+static int debug;
+module_param(debug, bool, 0644);
+MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 /*
  * Basic window sizes.  These probably belong somewhere more globally
@@ -189,11 +193,16 @@ MODULE_LICENSE("GPL");
  */
 struct ov7670_format_struct;  /* coming later */
 struct ov7670_info {
+	struct v4l2_subdev sd;
 	struct ov7670_format_struct *fmt;  /* Current format */
 	unsigned char sat;		/* Saturation value */
 	int hue;			/* Hue value */
 };
 
+static inline struct ov7670_info *to_state(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct ov7670_info, sd);
+}
 
 
 
@@ -400,24 +409,27 @@ static struct regval_list ov7670_fmt_raw[] = {
  * Low-level register I/O.
  */
 
-static int ov7670_read(struct i2c_client *c, unsigned char reg,
+static int ov7670_read(struct v4l2_subdev *sd, unsigned char reg,
 		unsigned char *value)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(c, reg);
+	ret = i2c_smbus_read_byte_data(client, reg);
 	if (ret >= 0) {
-		*value = (unsigned char) ret;
+		*value = (unsigned char)ret;
 		ret = 0;
 	}
 	return ret;
 }
 
 
-static int ov7670_write(struct i2c_client *c, unsigned char reg,
+static int ov7670_write(struct v4l2_subdev *sd, unsigned char reg,
 		unsigned char value)
 {
-	int ret = i2c_smbus_write_byte_data(c, reg, value);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = i2c_smbus_write_byte_data(client, reg, value);
+
 	if (reg == REG_COM7 && (value & COM7_RESET))
 		msleep(2);  /* Wait for reset to run */
 	return ret;
@@ -427,10 +439,10 @@ static int ov7670_write(struct i2c_client *c, unsigned char reg,
 /*
  * Write a list of register settings; ff/ff stops the process.
  */
-static int ov7670_write_array(struct i2c_client *c, struct regval_list *vals)
+static int ov7670_write_array(struct v4l2_subdev *sd, struct regval_list *vals)
 {
 	while (vals->reg_num != 0xff || vals->value != 0xff) {
-		int ret = ov7670_write(c, vals->reg_num, vals->value);
+		int ret = ov7670_write(sd, vals->reg_num, vals->value);
 		if (ret < 0)
 			return ret;
 		vals++;
@@ -442,34 +454,35 @@ static int ov7670_write_array(struct i2c_client *c, struct regval_list *vals)
 /*
  * Stuff that knows about the sensor.
  */
-static void ov7670_reset(struct i2c_client *client)
+static int ov7670_reset(struct v4l2_subdev *sd, u32 val)
 {
-	ov7670_write(client, REG_COM7, COM7_RESET);
+	ov7670_write(sd, REG_COM7, COM7_RESET);
 	msleep(1);
+	return 0;
 }
 
 
-static int ov7670_init(struct i2c_client *client)
+static int ov7670_init(struct v4l2_subdev *sd, u32 val)
 {
-	return ov7670_write_array(client, ov7670_default_regs);
+	return ov7670_write_array(sd, ov7670_default_regs);
 }
 
 
 
-static int ov7670_detect(struct i2c_client *client)
+static int ov7670_detect(struct v4l2_subdev *sd)
 {
 	unsigned char v;
 	int ret;
 
-	ret = ov7670_init(client);
+	ret = ov7670_init(sd, 0);
 	if (ret < 0)
 		return ret;
-	ret = ov7670_read(client, REG_MIDH, &v);
+	ret = ov7670_read(sd, REG_MIDH, &v);
 	if (ret < 0)
 		return ret;
 	if (v != 0x7f) /* OV manuf. id. */
 		return -ENODEV;
-	ret = ov7670_read(client, REG_MIDL, &v);
+	ret = ov7670_read(sd, REG_MIDL, &v);
 	if (ret < 0)
 		return ret;
 	if (v != 0xa2)
@@ -477,12 +490,12 @@ static int ov7670_detect(struct i2c_client *client)
 	/*
 	 * OK, we know we have an OmniVision chip...but which one?
 	 */
-	ret = ov7670_read(client, REG_PID, &v);
+	ret = ov7670_read(sd, REG_PID, &v);
 	if (ret < 0)
 		return ret;
 	if (v != 0x76)  /* PID + VER = 0x76 / 0x73 */
 		return -ENODEV;
-	ret = ov7670_read(client, REG_VER, &v);
+	ret = ov7670_read(sd, REG_VER, &v);
 	if (ret < 0)
 		return ret;
 	if (v != 0x73)  /* PID + VER = 0x76 / 0x73 */
@@ -627,7 +640,7 @@ static struct ov7670_win_size {
 /*
  * Store a set of start/stop values into the camera.
  */
-static int ov7670_set_hw(struct i2c_client *client, int hstart, int hstop,
+static int ov7670_set_hw(struct v4l2_subdev *sd, int hstart, int hstop,
 		int vstart, int vstop)
 {
 	int ret;
@@ -637,26 +650,26 @@ static int ov7670_set_hw(struct i2c_client *client, int hstart, int hstop,
  * hstart are in href[2:0], bottom 3 of hstop in href[5:3].  There is
  * a mystery "edge offset" value in the top two bits of href.
  */
-	ret =  ov7670_write(client, REG_HSTART, (hstart >> 3) & 0xff);
-	ret += ov7670_write(client, REG_HSTOP, (hstop >> 3) & 0xff);
-	ret += ov7670_read(client, REG_HREF, &v);
+	ret =  ov7670_write(sd, REG_HSTART, (hstart >> 3) & 0xff);
+	ret += ov7670_write(sd, REG_HSTOP, (hstop >> 3) & 0xff);
+	ret += ov7670_read(sd, REG_HREF, &v);
 	v = (v & 0xc0) | ((hstop & 0x7) << 3) | (hstart & 0x7);
 	msleep(10);
-	ret += ov7670_write(client, REG_HREF, v);
+	ret += ov7670_write(sd, REG_HREF, v);
 /*
  * Vertical: similar arrangement, but only 10 bits.
  */
-	ret += ov7670_write(client, REG_VSTART, (vstart >> 2) & 0xff);
-	ret += ov7670_write(client, REG_VSTOP, (vstop >> 2) & 0xff);
-	ret += ov7670_read(client, REG_VREF, &v);
+	ret += ov7670_write(sd, REG_VSTART, (vstart >> 2) & 0xff);
+	ret += ov7670_write(sd, REG_VSTOP, (vstop >> 2) & 0xff);
+	ret += ov7670_read(sd, REG_VREF, &v);
 	v = (v & 0xf0) | ((vstop & 0x3) << 2) | (vstart & 0x3);
 	msleep(10);
-	ret += ov7670_write(client, REG_VREF, v);
+	ret += ov7670_write(sd, REG_VREF, v);
 	return ret;
 }
 
 
-static int ov7670_enum_fmt(struct i2c_client *c, struct v4l2_fmtdesc *fmt)
+static int ov7670_enum_fmt(struct v4l2_subdev *sd, struct v4l2_fmtdesc *fmt)
 {
 	struct ov7670_format_struct *ofmt;
 
@@ -671,7 +684,8 @@ static int ov7670_enum_fmt(struct i2c_client *c, struct v4l2_fmtdesc *fmt)
 }
 
 
-static int ov7670_try_fmt(struct i2c_client *c, struct v4l2_format *fmt,
+static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
+		struct v4l2_format *fmt,
 		struct ov7670_format_struct **ret_fmt,
 		struct ov7670_win_size **ret_wsize)
 {
@@ -715,18 +729,23 @@ static int ov7670_try_fmt(struct i2c_client *c, struct v4l2_format *fmt,
 	return 0;
 }
 
+static int ov7670_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+{
+	return ov7670_try_fmt_internal(sd, fmt, NULL, NULL);
+}
+
 /*
  * Set a format.
  */
-static int ov7670_s_fmt(struct i2c_client *c, struct v4l2_format *fmt)
+static int ov7670_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
 	int ret;
 	struct ov7670_format_struct *ovfmt;
 	struct ov7670_win_size *wsize;
-	struct ov7670_info *info = i2c_get_clientdata(c);
-	unsigned char com7, clkrc;
+	struct ov7670_info *info = to_state(sd);
+	unsigned char com7, clkrc = 0;
 
-	ret = ov7670_try_fmt(c, fmt, &ovfmt, &wsize);
+	ret = ov7670_try_fmt_internal(sd, fmt, &ovfmt, &wsize);
 	if (ret)
 		return ret;
 	/*
@@ -735,7 +754,7 @@ static int ov7670_s_fmt(struct i2c_client *c, struct v4l2_format *fmt)
 	 * the colors.
 	 */
 	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_RGB565) {
-		ret = ov7670_read(c, REG_CLKRC, &clkrc);
+		ret = ov7670_read(sd, REG_CLKRC, &clkrc);
 		if (ret)
 			return ret;
 	}
@@ -747,20 +766,20 @@ static int ov7670_s_fmt(struct i2c_client *c, struct v4l2_format *fmt)
 	 */
 	com7 = ovfmt->regs[0].value;
 	com7 |= wsize->com7_bit;
-	ov7670_write(c, REG_COM7, com7);
+	ov7670_write(sd, REG_COM7, com7);
 	/*
 	 * Now write the rest of the array.  Also store start/stops
 	 */
-	ov7670_write_array(c, ovfmt->regs + 1);
-	ov7670_set_hw(c, wsize->hstart, wsize->hstop, wsize->vstart,
+	ov7670_write_array(sd, ovfmt->regs + 1);
+	ov7670_set_hw(sd, wsize->hstart, wsize->hstop, wsize->vstart,
 			wsize->vstop);
 	ret = 0;
 	if (wsize->regs)
-		ret = ov7670_write_array(c, wsize->regs);
+		ret = ov7670_write_array(sd, wsize->regs);
 	info->fmt = ovfmt;
 
 	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_RGB565 && ret == 0)
-		ret = ov7670_write(c, REG_CLKRC, clkrc);
+		ret = ov7670_write(sd, REG_CLKRC, clkrc);
 	return ret;
 }
 
@@ -768,7 +787,7 @@ static int ov7670_s_fmt(struct i2c_client *c, struct v4l2_format *fmt)
  * Implement G/S_PARM.  There is a "high quality" mode we could try
  * to do someday; for now, we just do the frame rate tweak.
  */
-static int ov7670_g_parm(struct i2c_client *c, struct v4l2_streamparm *parms)
+static int ov7670_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 {
 	struct v4l2_captureparm *cp = &parms->parm.capture;
 	unsigned char clkrc;
@@ -776,7 +795,7 @@ static int ov7670_g_parm(struct i2c_client *c, struct v4l2_streamparm *parms)
 
 	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	ret = ov7670_read(c, REG_CLKRC, &clkrc);
+	ret = ov7670_read(sd, REG_CLKRC, &clkrc);
 	if (ret < 0)
 		return ret;
 	memset(cp, 0, sizeof(struct v4l2_captureparm));
@@ -788,7 +807,7 @@ static int ov7670_g_parm(struct i2c_client *c, struct v4l2_streamparm *parms)
 	return 0;
 }
 
-static int ov7670_s_parm(struct i2c_client *c, struct v4l2_streamparm *parms)
+static int ov7670_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 {
 	struct v4l2_captureparm *cp = &parms->parm.capture;
 	struct v4l2_fract *tpf = &cp->timeperframe;
@@ -802,7 +821,7 @@ static int ov7670_s_parm(struct i2c_client *c, struct v4l2_streamparm *parms)
 	/*
 	 * CLKRC has a reserved bit, so let's preserve it.
 	 */
-	ret = ov7670_read(c, REG_CLKRC, &clkrc);
+	ret = ov7670_read(sd, REG_CLKRC, &clkrc);
 	if (ret < 0)
 		return ret;
 	if (tpf->numerator == 0 || tpf->denominator == 0)
@@ -816,7 +835,7 @@ static int ov7670_s_parm(struct i2c_client *c, struct v4l2_streamparm *parms)
 	clkrc = (clkrc & 0x80) | div;
 	tpf->numerator = 1;
 	tpf->denominator = OV7670_FRAME_RATE/div;
-	return ov7670_write(c, REG_CLKRC, clkrc);
+	return ov7670_write(sd, REG_CLKRC, clkrc);
 }
 
 
@@ -829,7 +848,7 @@ static int ov7670_s_parm(struct i2c_client *c, struct v4l2_streamparm *parms)
 
 
 
-static int ov7670_store_cmatrix(struct i2c_client *client,
+static int ov7670_store_cmatrix(struct v4l2_subdev *sd,
 		int matrix[CMATRIX_LEN])
 {
 	int i, ret;
@@ -839,7 +858,7 @@ static int ov7670_store_cmatrix(struct i2c_client *client,
 	 * Weird crap seems to exist in the upper part of
 	 * the sign bits register, so let's preserve it.
 	 */
-	ret = ov7670_read(client, REG_CMATRIX_SIGN, &signbits);
+	ret = ov7670_read(sd, REG_CMATRIX_SIGN, &signbits);
 	signbits &= 0xc0;
 
 	for (i = 0; i < CMATRIX_LEN; i++) {
@@ -858,9 +877,9 @@ static int ov7670_store_cmatrix(struct i2c_client *client,
 			else
 				raw = matrix[i] & 0xff;
 		}
-		ret += ov7670_write(client, REG_CMATRIX_BASE + i, raw);
+		ret += ov7670_write(sd, REG_CMATRIX_BASE + i, raw);
 	}
-	ret += ov7670_write(client, REG_CMATRIX_SIGN, signbits);
+	ret += ov7670_write(sd, REG_CMATRIX_SIGN, signbits);
 	return ret;
 }
 
@@ -943,29 +962,29 @@ static void ov7670_calc_cmatrix(struct ov7670_info *info,
 
 
 
-static int ov7670_t_sat(struct i2c_client *client, int value)
+static int ov7670_s_sat(struct v4l2_subdev *sd, int value)
 {
-	struct ov7670_info *info = i2c_get_clientdata(client);
+	struct ov7670_info *info = to_state(sd);
 	int matrix[CMATRIX_LEN];
 	int ret;
 
 	info->sat = value;
 	ov7670_calc_cmatrix(info, matrix);
-	ret = ov7670_store_cmatrix(client, matrix);
+	ret = ov7670_store_cmatrix(sd, matrix);
 	return ret;
 }
 
-static int ov7670_q_sat(struct i2c_client *client, __s32 *value)
+static int ov7670_g_sat(struct v4l2_subdev *sd, __s32 *value)
 {
-	struct ov7670_info *info = i2c_get_clientdata(client);
+	struct ov7670_info *info = to_state(sd);
 
 	*value = info->sat;
 	return 0;
 }
 
-static int ov7670_t_hue(struct i2c_client *client, int value)
+static int ov7670_s_hue(struct v4l2_subdev *sd, int value)
 {
-	struct ov7670_info *info = i2c_get_clientdata(client);
+	struct ov7670_info *info = to_state(sd);
 	int matrix[CMATRIX_LEN];
 	int ret;
 
@@ -973,14 +992,14 @@ static int ov7670_t_hue(struct i2c_client *client, int value)
 		return -EINVAL;
 	info->hue = value;
 	ov7670_calc_cmatrix(info, matrix);
-	ret = ov7670_store_cmatrix(client, matrix);
+	ret = ov7670_store_cmatrix(sd, matrix);
 	return ret;
 }
 
 
-static int ov7670_q_hue(struct i2c_client *client, __s32 *value)
+static int ov7670_g_hue(struct v4l2_subdev *sd, __s32 *value)
 {
-	struct ov7670_info *info = i2c_get_clientdata(client);
+	struct ov7670_info *info = to_state(sd);
 
 	*value = info->hue;
 	return 0;
@@ -994,8 +1013,7 @@ static unsigned char ov7670_sm_to_abs(unsigned char v)
 {
 	if ((v & 0x80) == 0)
 		return v + 128;
-	else
-		return 128 - (v & 0x7f);
+	return 128 - (v & 0x7f);
 }
 
 
@@ -1003,369 +1021,275 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 {
 	if (v > 127)
 		return v & 0x7f;
-	else
-		return (128 - v) | 0x80;
+	return (128 - v) | 0x80;
 }
 
-static int ov7670_t_brightness(struct i2c_client *client, int value)
+static int ov7670_s_brightness(struct v4l2_subdev *sd, int value)
 {
 	unsigned char com8 = 0, v;
 	int ret;
 
-	ov7670_read(client, REG_COM8, &com8);
+	ov7670_read(sd, REG_COM8, &com8);
 	com8 &= ~COM8_AEC;
-	ov7670_write(client, REG_COM8, com8);
+	ov7670_write(sd, REG_COM8, com8);
 	v = ov7670_abs_to_sm(value);
-	ret = ov7670_write(client, REG_BRIGHT, v);
+	ret = ov7670_write(sd, REG_BRIGHT, v);
 	return ret;
 }
 
-static int ov7670_q_brightness(struct i2c_client *client, __s32 *value)
+static int ov7670_g_brightness(struct v4l2_subdev *sd, __s32 *value)
 {
 	unsigned char v = 0;
-	int ret = ov7670_read(client, REG_BRIGHT, &v);
+	int ret = ov7670_read(sd, REG_BRIGHT, &v);
 
 	*value = ov7670_sm_to_abs(v);
 	return ret;
 }
 
-static int ov7670_t_contrast(struct i2c_client *client, int value)
+static int ov7670_s_contrast(struct v4l2_subdev *sd, int value)
 {
-	return ov7670_write(client, REG_CONTRAS, (unsigned char) value);
+	return ov7670_write(sd, REG_CONTRAS, (unsigned char) value);
 }
 
-static int ov7670_q_contrast(struct i2c_client *client, __s32 *value)
+static int ov7670_g_contrast(struct v4l2_subdev *sd, __s32 *value)
 {
 	unsigned char v = 0;
-	int ret = ov7670_read(client, REG_CONTRAS, &v);
+	int ret = ov7670_read(sd, REG_CONTRAS, &v);
 
 	*value = v;
 	return ret;
 }
 
-static int ov7670_q_hflip(struct i2c_client *client, __s32 *value)
+static int ov7670_g_hflip(struct v4l2_subdev *sd, __s32 *value)
 {
 	int ret;
 	unsigned char v = 0;
 
-	ret = ov7670_read(client, REG_MVFP, &v);
+	ret = ov7670_read(sd, REG_MVFP, &v);
 	*value = (v & MVFP_MIRROR) == MVFP_MIRROR;
 	return ret;
 }
 
 
-static int ov7670_t_hflip(struct i2c_client *client, int value)
+static int ov7670_s_hflip(struct v4l2_subdev *sd, int value)
 {
 	unsigned char v = 0;
 	int ret;
 
-	ret = ov7670_read(client, REG_MVFP, &v);
+	ret = ov7670_read(sd, REG_MVFP, &v);
 	if (value)
 		v |= MVFP_MIRROR;
 	else
 		v &= ~MVFP_MIRROR;
 	msleep(10);  /* FIXME */
-	ret += ov7670_write(client, REG_MVFP, v);
+	ret += ov7670_write(sd, REG_MVFP, v);
 	return ret;
 }
 
 
 
-static int ov7670_q_vflip(struct i2c_client *client, __s32 *value)
+static int ov7670_g_vflip(struct v4l2_subdev *sd, __s32 *value)
 {
 	int ret;
 	unsigned char v = 0;
 
-	ret = ov7670_read(client, REG_MVFP, &v);
+	ret = ov7670_read(sd, REG_MVFP, &v);
 	*value = (v & MVFP_FLIP) == MVFP_FLIP;
 	return ret;
 }
 
 
-static int ov7670_t_vflip(struct i2c_client *client, int value)
+static int ov7670_s_vflip(struct v4l2_subdev *sd, int value)
 {
 	unsigned char v = 0;
 	int ret;
 
-	ret = ov7670_read(client, REG_MVFP, &v);
+	ret = ov7670_read(sd, REG_MVFP, &v);
 	if (value)
 		v |= MVFP_FLIP;
 	else
 		v &= ~MVFP_FLIP;
 	msleep(10);  /* FIXME */
-	ret += ov7670_write(client, REG_MVFP, v);
+	ret += ov7670_write(sd, REG_MVFP, v);
 	return ret;
 }
 
-
-static struct ov7670_control {
-	struct v4l2_queryctrl qc;
-	int (*query)(struct i2c_client *c, __s32 *value);
-	int (*tweak)(struct i2c_client *c, int value);
-} ov7670_controls[] =
-{
-	{
-		.qc = {
-			.id = V4L2_CID_BRIGHTNESS,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Brightness",
-			.minimum = 0,
-			.maximum = 255,
-			.step = 1,
-			.default_value = 0x80,
-			.flags = V4L2_CTRL_FLAG_SLIDER
-		},
-		.tweak = ov7670_t_brightness,
-		.query = ov7670_q_brightness,
-	},
-	{
-		.qc = {
-			.id = V4L2_CID_CONTRAST,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Contrast",
-			.minimum = 0,
-			.maximum = 127,
-			.step = 1,
-			.default_value = 0x40,   /* XXX ov7670 spec */
-			.flags = V4L2_CTRL_FLAG_SLIDER
-		},
-		.tweak = ov7670_t_contrast,
-		.query = ov7670_q_contrast,
-	},
-	{
-		.qc = {
-			.id = V4L2_CID_SATURATION,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Saturation",
-			.minimum = 0,
-			.maximum = 256,
-			.step = 1,
-			.default_value = 0x80,
-			.flags = V4L2_CTRL_FLAG_SLIDER
-		},
-		.tweak = ov7670_t_sat,
-		.query = ov7670_q_sat,
-	},
-	{
-		.qc = {
-			.id = V4L2_CID_HUE,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "HUE",
-			.minimum = -180,
-			.maximum = 180,
-			.step = 5,
-			.default_value = 0,
-			.flags = V4L2_CTRL_FLAG_SLIDER
-		},
-		.tweak = ov7670_t_hue,
-		.query = ov7670_q_hue,
-	},
-	{
-		.qc = {
-			.id = V4L2_CID_VFLIP,
-			.type = V4L2_CTRL_TYPE_BOOLEAN,
-			.name = "Vertical flip",
-			.minimum = 0,
-			.maximum = 1,
-			.step = 1,
-			.default_value = 0,
-		},
-		.tweak = ov7670_t_vflip,
-		.query = ov7670_q_vflip,
-	},
-	{
-		.qc = {
-			.id = V4L2_CID_HFLIP,
-			.type = V4L2_CTRL_TYPE_BOOLEAN,
-			.name = "Horizontal mirror",
-			.minimum = 0,
-			.maximum = 1,
-			.step = 1,
-			.default_value = 0,
-		},
-		.tweak = ov7670_t_hflip,
-		.query = ov7670_q_hflip,
-	},
-};
-#define N_CONTROLS (ARRAY_SIZE(ov7670_controls))
-
-static struct ov7670_control *ov7670_find_control(__u32 id)
-{
-	int i;
-
-	for (i = 0; i < N_CONTROLS; i++)
-		if (ov7670_controls[i].qc.id == id)
-			return ov7670_controls + i;
-	return NULL;
-}
-
-
-static int ov7670_queryctrl(struct i2c_client *client,
+static int ov7670_queryctrl(struct v4l2_subdev *sd,
 		struct v4l2_queryctrl *qc)
 {
-	struct ov7670_control *ctrl = ov7670_find_control(qc->id);
-
-	if (ctrl == NULL)
-		return -EINVAL;
-	*qc = ctrl->qc;
-	return 0;
-}
-
-static int ov7670_g_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
-{
-	struct ov7670_control *octrl = ov7670_find_control(ctrl->id);
-	int ret;
-
-	if (octrl == NULL)
-		return -EINVAL;
-	ret = octrl->query(client, &ctrl->value);
-	if (ret >= 0)
-		return 0;
-	return ret;
-}
-
-static int ov7670_s_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
-{
-	struct ov7670_control *octrl = ov7670_find_control(ctrl->id);
-	int ret;
-
-	if (octrl == NULL)
-		return -EINVAL;
-	ret =  octrl->tweak(client, ctrl->value);
-	if (ret >= 0)
-		return 0;
-	return ret;
-}
-
-
-
-
-
-
-/*
- * Basic i2c stuff.
- */
-static struct i2c_driver ov7670_driver;
-
-static int ov7670_attach(struct i2c_adapter *adapter)
-{
-	int ret;
-	struct i2c_client *client;
-	struct ov7670_info *info;
-
-	/*
-	 * For now: only deal with adapters we recognize.
-	 */
-	if (adapter->id != I2C_HW_SMBUS_CAFE)
-		return -ENODEV;
-
-	client = kzalloc(sizeof (struct i2c_client), GFP_KERNEL);
-	if (! client)
-		return -ENOMEM;
-	client->adapter = adapter;
-	client->addr = OV7670_I2C_ADDR;
-	client->driver = &ov7670_driver,
-	strcpy(client->name, "OV7670");
-	/*
-	 * Set up our info structure.
-	 */
-	info = kzalloc(sizeof (struct ov7670_info), GFP_KERNEL);
-	if (! info) {
-		ret = -ENOMEM;
-		goto out_free;
-	}
-	info->fmt = &ov7670_formats[0];
-	info->sat = 128;	/* Review this */
-	i2c_set_clientdata(client, info);
-
-	/*
-	 * Make sure it's an ov7670
-	 */
-	ret = ov7670_detect(client);
-	if (ret)
-		goto out_free_info;
-	ret = i2c_attach_client(client);
-	if (ret)
-		goto out_free_info;
-	return 0;
-
-  out_free_info:
-	kfree(info);
-  out_free:
-	kfree(client);
-	return ret;
-}
-
-
-static int ov7670_detach(struct i2c_client *client)
-{
-	i2c_detach_client(client);
-	kfree(i2c_get_clientdata(client));
-	kfree(client);
-	return 0;
-}
-
-
-static int ov7670_command(struct i2c_client *client, unsigned int cmd,
-		void *arg)
-{
-	switch (cmd) {
-	case VIDIOC_DBG_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_OV7670, 0);
-
-	case VIDIOC_INT_RESET:
-		ov7670_reset(client);
-		return 0;
-
-	case VIDIOC_INT_INIT:
-		return ov7670_init(client);
-
-	case VIDIOC_ENUM_FMT:
-		return ov7670_enum_fmt(client, (struct v4l2_fmtdesc *) arg);
-	case VIDIOC_TRY_FMT:
-		return ov7670_try_fmt(client, (struct v4l2_format *) arg, NULL, NULL);
-	case VIDIOC_S_FMT:
-		return ov7670_s_fmt(client, (struct v4l2_format *) arg);
-	case VIDIOC_QUERYCTRL:
-		return ov7670_queryctrl(client, (struct v4l2_queryctrl *) arg);
-	case VIDIOC_S_CTRL:
-		return ov7670_s_ctrl(client, (struct v4l2_control *) arg);
-	case VIDIOC_G_CTRL:
-		return ov7670_g_ctrl(client, (struct v4l2_control *) arg);
-	case VIDIOC_S_PARM:
-		return ov7670_s_parm(client, (struct v4l2_streamparm *) arg);
-	case VIDIOC_G_PARM:
-		return ov7670_g_parm(client, (struct v4l2_streamparm *) arg);
+	/* Fill in min, max, step and default value for these controls. */
+	switch (qc->id) {
+	case V4L2_CID_BRIGHTNESS:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
+	case V4L2_CID_CONTRAST:
+		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
+	case V4L2_CID_VFLIP:
+	case V4L2_CID_HFLIP:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
+	case V4L2_CID_SATURATION:
+		return v4l2_ctrl_query_fill(qc, 0, 256, 1, 128);
+	case V4L2_CID_HUE:
+		return v4l2_ctrl_query_fill(qc, -180, 180, 5, 0);
 	}
 	return -EINVAL;
 }
 
+static int ov7670_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		return ov7670_g_brightness(sd, &ctrl->value);
+	case V4L2_CID_CONTRAST:
+		return ov7670_g_contrast(sd, &ctrl->value);
+	case V4L2_CID_SATURATION:
+		return ov7670_g_sat(sd, &ctrl->value);
+	case V4L2_CID_HUE:
+		return ov7670_g_hue(sd, &ctrl->value);
+	case V4L2_CID_VFLIP:
+		return ov7670_g_vflip(sd, &ctrl->value);
+	case V4L2_CID_HFLIP:
+		return ov7670_g_hflip(sd, &ctrl->value);
+	}
+	return -EINVAL;
+}
 
+static int ov7670_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		return ov7670_s_brightness(sd, ctrl->value);
+	case V4L2_CID_CONTRAST:
+		return ov7670_s_contrast(sd, ctrl->value);
+	case V4L2_CID_SATURATION:
+		return ov7670_s_sat(sd, ctrl->value);
+	case V4L2_CID_HUE:
+		return ov7670_s_hue(sd, ctrl->value);
+	case V4L2_CID_VFLIP:
+		return ov7670_s_vflip(sd, ctrl->value);
+	case V4L2_CID_HFLIP:
+		return ov7670_s_hflip(sd, ctrl->value);
+	}
+	return -EINVAL;
+}
 
-static struct i2c_driver ov7670_driver = {
-	.driver = {
-		.name = "ov7670",
-	},
-	.id 		= I2C_DRIVERID_OV7670,
-	.attach_adapter = ov7670_attach,
-	.detach_client	= ov7670_detach,
-	.command	= ov7670_command,
+static int ov7670_g_chip_ident(struct v4l2_subdev *sd,
+		struct v4l2_dbg_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_OV7670, 0);
+}
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int ov7670_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	unsigned char val = 0;
+	int ret;
+
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	ret = ov7670_read(sd, reg->reg & 0xff, &val);
+	reg->val = val;
+	reg->size = 1;
+	return ret;
+}
+
+static int ov7670_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	ov7670_write(sd, reg->reg & 0xff, reg->val & 0xff);
+	return 0;
+}
+#endif
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops ov7670_core_ops = {
+	.g_chip_ident = ov7670_g_chip_ident,
+	.g_ctrl = ov7670_g_ctrl,
+	.s_ctrl = ov7670_s_ctrl,
+	.queryctrl = ov7670_queryctrl,
+	.reset = ov7670_reset,
+	.init = ov7670_init,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.g_register = ov7670_g_register,
+	.s_register = ov7670_s_register,
+#endif
 };
 
+static const struct v4l2_subdev_video_ops ov7670_video_ops = {
+	.enum_fmt = ov7670_enum_fmt,
+	.try_fmt = ov7670_try_fmt,
+	.s_fmt = ov7670_s_fmt,
+	.s_parm = ov7670_s_parm,
+	.g_parm = ov7670_g_parm,
+};
 
-/*
- * Module initialization
- */
-static int __init ov7670_mod_init(void)
+static const struct v4l2_subdev_ops ov7670_ops = {
+	.core = &ov7670_core_ops,
+	.video = &ov7670_video_ops,
+};
+
+/* ----------------------------------------------------------------------- */
+
+static int ov7670_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
-	printk(KERN_NOTICE "OmniVision ov7670 sensor driver, at your service\n");
-	return i2c_add_driver(&ov7670_driver);
+	struct v4l2_subdev *sd;
+	struct ov7670_info *info;
+	int ret;
+
+	info = kzalloc(sizeof(struct ov7670_info), GFP_KERNEL);
+	if (info == NULL)
+		return -ENOMEM;
+	sd = &info->sd;
+	v4l2_i2c_subdev_init(sd, client, &ov7670_ops);
+
+	/* Make sure it's an ov7670 */
+	ret = ov7670_detect(sd);
+	if (ret) {
+		v4l_dbg(1, debug, client,
+			"chip found @ 0x%x (%s) is not an ov7670 chip.\n",
+			client->addr << 1, client->adapter->name);
+		kfree(info);
+		return ret;
+	}
+	v4l_info(client, "chip found @ 0x%02x (%s)\n",
+			client->addr << 1, client->adapter->name);
+
+	info->fmt = &ov7670_formats[0];
+	info->sat = 128;	/* Review this */
+
+	return 0;
 }
 
-static void __exit ov7670_mod_exit(void)
+
+static int ov7670_remove(struct i2c_client *client)
 {
-	i2c_del_driver(&ov7670_driver);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_state(sd));
+	return 0;
 }
 
-module_init(ov7670_mod_init);
-module_exit(ov7670_mod_exit);
+static const struct i2c_device_id ov7670_id[] = {
+	{ "ov7670", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ov7670_id);
+
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "ov7670",
+	.probe = ov7670_probe,
+	.remove = ov7670_remove,
+	.id_table = ov7670_id,
+};

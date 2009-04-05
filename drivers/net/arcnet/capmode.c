@@ -119,7 +119,7 @@ static void rx(struct net_device *dev, int bufnum,
 	skb = alloc_skb(length + ARC_HDR_SIZE + sizeof(int), GFP_ATOMIC);
 	if (skb == NULL) {
 		BUGMSG(D_NORMAL, "Memory squeeze, dropping packet.\n");
-		lp->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 	skb_put(skb, length + ARC_HDR_SIZE + sizeof(int));
@@ -148,7 +148,7 @@ static void rx(struct net_device *dev, int bufnum,
 
 	BUGLVL(D_SKB) arcnet_dump_skb(dev, skb, "rx");
 
-	skb->protocol = __constant_htons(ETH_P_ARCNET);
+	skb->protocol = cpu_to_be16(ETH_P_ARCNET);
 ;
 	netif_rx(skb);
 }
@@ -282,7 +282,7 @@ static int ack_tx(struct net_device *dev, int acked)
   BUGMSG(D_PROTO, "Ackknowledge for cap packet %x.\n",
 	 *((int*)&ackpkt->soft.cap.cookie[0]));
 
-  ackskb->protocol = __constant_htons(ETH_P_ARCNET);
+  ackskb->protocol = cpu_to_be16(ETH_P_ARCNET);
 
   BUGLVL(D_SKB) arcnet_dump_skb(dev, ackskb, "ack_tx_recv");
   netif_rx(ackskb);

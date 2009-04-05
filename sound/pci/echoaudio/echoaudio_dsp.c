@@ -926,11 +926,11 @@ static int init_dsp_comm_page(struct echoaudio *chip)
 
 	/* Init the comm page */
 	chip->comm_page->comm_size =
-		__constant_cpu_to_le32(sizeof(struct comm_page));
+		cpu_to_le32(sizeof(struct comm_page));
 	chip->comm_page->handshake = 0xffffffff;
 	chip->comm_page->midi_out_free_count =
-		__constant_cpu_to_le32(DSP_MIDI_OUT_FIFO_SIZE);
-	chip->comm_page->sample_rate = __constant_cpu_to_le32(44100);
+		cpu_to_le32(DSP_MIDI_OUT_FIFO_SIZE);
+	chip->comm_page->sample_rate = cpu_to_le32(44100);
 	chip->sample_rate = 44100;
 
 	/* Set line levels so we don't blast any inputs on startup */

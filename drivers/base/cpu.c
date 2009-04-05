@@ -107,7 +107,7 @@ static SYSDEV_ATTR(crash_notes, 0400, show_crash_notes, NULL);
 /*
  * Print cpu online, possible, present, and system maps
  */
-static ssize_t print_cpus_map(char *buf, cpumask_t *map)
+static ssize_t print_cpus_map(char *buf, const struct cpumask *map)
 {
 	int n = cpulist_scnprintf(buf, PAGE_SIZE-2, map);
 
@@ -119,7 +119,7 @@ static ssize_t print_cpus_map(char *buf, cpumask_t *map)
 #define	print_cpus_func(type) \
 static ssize_t print_cpus_##type(struct sysdev_class *class, char *buf)	\
 {									\
-	return print_cpus_map(buf, &cpu_##type##_map);			\
+	return print_cpus_map(buf, cpu_##type##_mask);			\
 }									\
 static struct sysdev_class_attribute attr_##type##_map = 		\
 	_SYSDEV_CLASS_ATTR(type, 0444, print_cpus_##type, NULL)

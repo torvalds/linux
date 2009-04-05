@@ -346,8 +346,8 @@ static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	static int printed_version;
 	static const struct ata_port_info info = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.port_ops	= &ns87415_pata_ops,
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
@@ -355,8 +355,8 @@ static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 #if defined(CONFIG_SUPERIO)
 	static const struct ata_port_info info87560 = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.port_ops	= &ns87560_pata_ops,
 	};
 

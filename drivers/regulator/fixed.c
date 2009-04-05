@@ -73,7 +73,8 @@ static int regulator_fixed_voltage_probe(struct platform_device *pdev)
 
 	drvdata->microvolts = config->microvolts;
 
-	drvdata->dev = regulator_register(&drvdata->desc, drvdata);
+	drvdata->dev = regulator_register(&drvdata->desc, &pdev->dev,
+					  config->init_data, drvdata);
 	if (IS_ERR(drvdata->dev)) {
 		ret = PTR_ERR(drvdata->dev);
 		goto err_name;

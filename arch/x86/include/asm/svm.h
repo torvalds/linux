@@ -174,10 +174,6 @@ struct __attribute__ ((__packed__)) vmcb {
 #define SVM_CPUID_FEATURE_SHIFT 2
 #define SVM_CPUID_FUNC 0x8000000a
 
-#define MSR_EFER_SVME_MASK (1ULL << 12)
-#define MSR_VM_CR       0xc0010114
-#define MSR_VM_HSAVE_PA 0xc0010117ULL
-
 #define SVM_VM_CR_SVM_DISABLE 4
 
 #define SVM_SELECTOR_S_SHIFT 4

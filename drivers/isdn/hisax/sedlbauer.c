@@ -48,8 +48,6 @@
 #include <linux/pci.h>
 #include <linux/isapnp.h>
 
-extern const char *CardType[];
-
 static const char *Sedlbauer_revision = "$Revision: 1.34.2.6 $";
 
 static const char *Sedlbauer_Types[] =

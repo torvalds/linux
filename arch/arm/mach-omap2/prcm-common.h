@@ -113,33 +113,58 @@
 #define OMAP2430_EN_USBHS				(1 << 6)
 
 /* CM_IDLEST1_CORE, PM_WKST1_CORE shared bits */
-#define OMAP2420_ST_MMC					(1 << 26)
-#define OMAP24XX_ST_UART2				(1 << 22)
-#define OMAP24XX_ST_UART1				(1 << 21)
-#define OMAP24XX_ST_MCSPI2				(1 << 18)
-#define OMAP24XX_ST_MCSPI1				(1 << 17)
-#define OMAP24XX_ST_GPT12				(1 << 14)
-#define OMAP24XX_ST_GPT11				(1 << 13)
-#define OMAP24XX_ST_GPT10				(1 << 12)
-#define OMAP24XX_ST_GPT9				(1 << 11)
-#define OMAP24XX_ST_GPT8				(1 << 10)
-#define OMAP24XX_ST_GPT7				(1 << 9)
-#define OMAP24XX_ST_GPT6				(1 << 8)
-#define OMAP24XX_ST_GPT5				(1 << 7)
-#define OMAP24XX_ST_GPT4				(1 << 6)
-#define OMAP24XX_ST_GPT3				(1 << 5)
-#define OMAP24XX_ST_GPT2				(1 << 4)
-#define OMAP2420_ST_VLYNQ				(1 << 3)
+#define OMAP2420_ST_MMC_SHIFT				26
+#define OMAP2420_ST_MMC_MASK				(1 << 26)
+#define OMAP24XX_ST_UART2_SHIFT				22
+#define OMAP24XX_ST_UART2_MASK				(1 << 22)
+#define OMAP24XX_ST_UART1_SHIFT				21
+#define OMAP24XX_ST_UART1_MASK				(1 << 21)
+#define OMAP24XX_ST_MCSPI2_SHIFT			18
+#define OMAP24XX_ST_MCSPI2_MASK				(1 << 18)
+#define OMAP24XX_ST_MCSPI1_SHIFT			17
+#define OMAP24XX_ST_MCSPI1_MASK				(1 << 17)
+#define OMAP24XX_ST_GPT12_SHIFT				14
+#define OMAP24XX_ST_GPT12_MASK				(1 << 14)
+#define OMAP24XX_ST_GPT11_SHIFT				13
+#define OMAP24XX_ST_GPT11_MASK				(1 << 13)
+#define OMAP24XX_ST_GPT10_SHIFT				12
+#define OMAP24XX_ST_GPT10_MASK				(1 << 12)
+#define OMAP24XX_ST_GPT9_SHIFT				11
+#define OMAP24XX_ST_GPT9_MASK				(1 << 11)
+#define OMAP24XX_ST_GPT8_SHIFT				10
+#define OMAP24XX_ST_GPT8_MASK				(1 << 10)
+#define OMAP24XX_ST_GPT7_SHIFT				9
+#define OMAP24XX_ST_GPT7_MASK				(1 << 9)
+#define OMAP24XX_ST_GPT6_SHIFT				8
+#define OMAP24XX_ST_GPT6_MASK				(1 << 8)
+#define OMAP24XX_ST_GPT5_SHIFT				7
+#define OMAP24XX_ST_GPT5_MASK				(1 << 7)
+#define OMAP24XX_ST_GPT4_SHIFT				6
+#define OMAP24XX_ST_GPT4_MASK				(1 << 6)
+#define OMAP24XX_ST_GPT3_SHIFT				5
+#define OMAP24XX_ST_GPT3_MASK				(1 << 5)
+#define OMAP24XX_ST_GPT2_SHIFT				4
+#define OMAP24XX_ST_GPT2_MASK				(1 << 4)
+#define OMAP2420_ST_VLYNQ_SHIFT				3
+#define OMAP2420_ST_VLYNQ_MASK				(1 << 3)
 
 /* CM_IDLEST2_CORE, PM_WKST2_CORE shared bits */
-#define OMAP2430_ST_MDM_INTC				(1 << 11)
-#define OMAP2430_ST_GPIO5				(1 << 10)
-#define OMAP2430_ST_MCSPI3				(1 << 9)
-#define OMAP2430_ST_MMCHS2				(1 << 8)
-#define OMAP2430_ST_MMCHS1				(1 << 7)
-#define OMAP2430_ST_USBHS				(1 << 6)
-#define OMAP24XX_ST_UART3				(1 << 2)
-#define OMAP24XX_ST_USB					(1 << 0)
+#define OMAP2430_ST_MDM_INTC_SHIFT			11
+#define OMAP2430_ST_MDM_INTC_MASK			(1 << 11)
+#define OMAP2430_ST_GPIO5_SHIFT				10
+#define OMAP2430_ST_GPIO5_MASK				(1 << 10)
+#define OMAP2430_ST_MCSPI3_SHIFT			9
+#define OMAP2430_ST_MCSPI3_MASK				(1 << 9)
+#define OMAP2430_ST_MMCHS2_SHIFT			8
+#define OMAP2430_ST_MMCHS2_MASK				(1 << 8)
+#define OMAP2430_ST_MMCHS1_SHIFT			7
+#define OMAP2430_ST_MMCHS1_MASK				(1 << 7)
+#define OMAP2430_ST_USBHS_SHIFT				6
+#define OMAP2430_ST_USBHS_MASK				(1 << 6)
+#define OMAP24XX_ST_UART3_SHIFT				2
+#define OMAP24XX_ST_UART3_MASK				(1 << 2)
+#define OMAP24XX_ST_USB_SHIFT				0
+#define OMAP24XX_ST_USB_MASK				(1 << 0)
 
 /* CM_FCLKEN_WKUP, CM_ICLKEN_WKUP, PM_WKEN_WKUP shared bits */
 #define OMAP24XX_EN_GPIOS_SHIFT				2
@@ -148,11 +173,13 @@
 #define OMAP24XX_EN_GPT1				(1 << 0)
 
 /* PM_WKST_WKUP, CM_IDLEST_WKUP shared bits */
-#define OMAP24XX_ST_GPIOS				(1 << 2)
-#define OMAP24XX_ST_GPT1				(1 << 0)
+#define OMAP24XX_ST_GPIOS_SHIFT				(1 << 2)
+#define OMAP24XX_ST_GPIOS_MASK				2
+#define OMAP24XX_ST_GPT1_SHIFT				(1 << 0)
+#define OMAP24XX_ST_GPT1_MASK				0
 
 /* CM_IDLEST_MDM and PM_WKST_MDM shared bits */
-#define OMAP2430_ST_MDM					(1 << 0)
+#define OMAP2430_ST_MDM_SHIFT				(1 << 0)
 
 
 /* 3430 register bits shared between CM & PRM registers */
@@ -205,24 +232,46 @@
 #define OMAP3430_EN_HSOTGUSB_SHIFT				4
 
 /* PM_WKST1_CORE, CM_IDLEST1_CORE shared bits */
-#define OMAP3430_ST_MMC2				(1 << 25)
-#define OMAP3430_ST_MMC1				(1 << 24)
-#define OMAP3430_ST_MCSPI4				(1 << 21)
-#define OMAP3430_ST_MCSPI3				(1 << 20)
-#define OMAP3430_ST_MCSPI2				(1 << 19)
-#define OMAP3430_ST_MCSPI1				(1 << 18)
-#define OMAP3430_ST_I2C3				(1 << 17)
-#define OMAP3430_ST_I2C2				(1 << 16)
-#define OMAP3430_ST_I2C1				(1 << 15)
-#define OMAP3430_ST_UART2				(1 << 14)
-#define OMAP3430_ST_UART1				(1 << 13)
-#define OMAP3430_ST_GPT11				(1 << 12)
-#define OMAP3430_ST_GPT10				(1 << 11)
-#define OMAP3430_ST_MCBSP5				(1 << 10)
-#define OMAP3430_ST_MCBSP1				(1 << 9)
-#define OMAP3430_ST_FSHOSTUSB				(1 << 5)
-#define OMAP3430_ST_HSOTGUSB				(1 << 4)
-#define OMAP3430_ST_D2D					(1 << 3)
+#define OMAP3430_ST_MMC2_SHIFT				25
+#define OMAP3430_ST_MMC2_MASK				(1 << 25)
+#define OMAP3430_ST_MMC1_SHIFT				24
+#define OMAP3430_ST_MMC1_MASK				(1 << 24)
+#define OMAP3430_ST_MCSPI4_SHIFT			21
+#define OMAP3430_ST_MCSPI4_MASK				(1 << 21)
+#define OMAP3430_ST_MCSPI3_SHIFT			20
+#define OMAP3430_ST_MCSPI3_MASK				(1 << 20)
+#define OMAP3430_ST_MCSPI2_SHIFT			19
+#define OMAP3430_ST_MCSPI2_MASK				(1 << 19)
+#define OMAP3430_ST_MCSPI1_SHIFT			18
+#define OMAP3430_ST_MCSPI1_MASK				(1 << 18)
+#define OMAP3430_ST_I2C3_SHIFT				17
+#define OMAP3430_ST_I2C3_MASK				(1 << 17)
+#define OMAP3430_ST_I2C2_SHIFT				16
+#define OMAP3430_ST_I2C2_MASK				(1 << 16)
+#define OMAP3430_ST_I2C1_SHIFT				15
+#define OMAP3430_ST_I2C1_MASK				(1 << 15)
+#define OMAP3430_ST_UART2_SHIFT				14
+#define OMAP3430_ST_UART2_MASK				(1 << 14)
+#define OMAP3430_ST_UART1_SHIFT				13
+#define OMAP3430_ST_UART1_MASK				(1 << 13)
+#define OMAP3430_ST_GPT11_SHIFT				12
+#define OMAP3430_ST_GPT11_MASK				(1 << 12)
+#define OMAP3430_ST_GPT10_SHIFT				11
+#define OMAP3430_ST_GPT10_MASK				(1 << 11)
+#define OMAP3430_ST_MCBSP5_SHIFT			10
+#define OMAP3430_ST_MCBSP5_MASK				(1 << 10)
+#define OMAP3430_ST_MCBSP1_SHIFT			9
+#define OMAP3430_ST_MCBSP1_MASK				(1 << 9)
+#define OMAP3430ES1_ST_FSHOSTUSB_SHIFT			5
+#define OMAP3430ES1_ST_FSHOSTUSB_MASK			(1 << 5)
+#define OMAP3430ES1_ST_HSOTGUSB_SHIFT			4
+#define OMAP3430ES1_ST_HSOTGUSB_MASK			(1 << 4)
+#define OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT		5
+#define OMAP3430ES2_ST_HSOTGUSB_IDLE_MASK		(1 << 5)
+#define OMAP3430ES2_ST_HSOTGUSB_STDBY_SHIFT		4
+#define OMAP3430ES2_ST_HSOTGUSB_STDBY_MASK		(1 << 4)
+#define OMAP3430_ST_D2D_SHIFT				3
+#define OMAP3430_ST_D2D_MASK				(1 << 3)
 
 /* CM_FCLKEN_WKUP, CM_ICLKEN_WKUP, PM_WKEN_WKUP shared bits */
 #define OMAP3430_EN_GPIO1				(1 << 3)
@@ -241,11 +290,16 @@
 #define OMAP3430_EN_GPT12_SHIFT				1
 
 /* CM_IDLEST_WKUP, PM_WKST_WKUP shared bits */
-#define OMAP3430_ST_SR2					(1 << 7)
-#define OMAP3430_ST_SR1					(1 << 6)
-#define OMAP3430_ST_GPIO1				(1 << 3)
-#define OMAP3430_ST_GPT12				(1 << 1)
-#define OMAP3430_ST_GPT1				(1 << 0)
+#define OMAP3430_ST_SR2_SHIFT				7
+#define OMAP3430_ST_SR2_MASK				(1 << 7)
+#define OMAP3430_ST_SR1_SHIFT				6
+#define OMAP3430_ST_SR1_MASK				(1 << 6)
+#define OMAP3430_ST_GPIO1_SHIFT				3
+#define OMAP3430_ST_GPIO1_MASK				(1 << 3)
+#define OMAP3430_ST_GPT12_SHIFT				1
+#define OMAP3430_ST_GPT12_MASK				(1 << 1)
+#define OMAP3430_ST_GPT1_SHIFT				0
+#define OMAP3430_ST_GPT1_MASK				(1 << 0)
 
 /*
  * CM_SLEEPDEP_GFX, CM_SLEEPDEP_DSS, CM_SLEEPDEP_CAM,
@@ -296,20 +350,34 @@
 #define OMAP3430_EN_MCBSP2_SHIFT			0
 
 /* CM_IDLEST_PER, PM_WKST_PER shared bits */
-#define OMAP3430_ST_GPIO6				(1 << 17)
-#define OMAP3430_ST_GPIO5				(1 << 16)
-#define OMAP3430_ST_GPIO4				(1 << 15)
-#define OMAP3430_ST_GPIO3				(1 << 14)
-#define OMAP3430_ST_GPIO2				(1 << 13)
-#define OMAP3430_ST_UART3				(1 << 11)
-#define OMAP3430_ST_GPT9				(1 << 10)
-#define OMAP3430_ST_GPT8				(1 << 9)
-#define OMAP3430_ST_GPT7				(1 << 8)
-#define OMAP3430_ST_GPT6				(1 << 7)
-#define OMAP3430_ST_GPT5				(1 << 6)
-#define OMAP3430_ST_GPT4				(1 << 5)
-#define OMAP3430_ST_GPT3				(1 << 4)
-#define OMAP3430_ST_GPT2				(1 << 3)
+#define OMAP3430_ST_GPIO6_SHIFT				17
+#define OMAP3430_ST_GPIO6_MASK				(1 << 17)
+#define OMAP3430_ST_GPIO5_SHIFT				16
+#define OMAP3430_ST_GPIO5_MASK				(1 << 16)
+#define OMAP3430_ST_GPIO4_SHIFT				15
+#define OMAP3430_ST_GPIO4_MASK				(1 << 15)
+#define OMAP3430_ST_GPIO3_SHIFT				14
+#define OMAP3430_ST_GPIO3_MASK				(1 << 14)
+#define OMAP3430_ST_GPIO2_SHIFT				13
+#define OMAP3430_ST_GPIO2_MASK				(1 << 13)
+#define OMAP3430_ST_UART3_SHIFT				11
+#define OMAP3430_ST_UART3_MASK				(1 << 11)
+#define OMAP3430_ST_GPT9_SHIFT				10
+#define OMAP3430_ST_GPT9_MASK				(1 << 10)
+#define OMAP3430_ST_GPT8_SHIFT				9
+#define OMAP3430_ST_GPT8_MASK				(1 << 9)
+#define OMAP3430_ST_GPT7_SHIFT				8
+#define OMAP3430_ST_GPT7_MASK				(1 << 8)
+#define OMAP3430_ST_GPT6_SHIFT				7
+#define OMAP3430_ST_GPT6_MASK				(1 << 7)
+#define OMAP3430_ST_GPT5_SHIFT				6
+#define OMAP3430_ST_GPT5_MASK				(1 << 6)
+#define OMAP3430_ST_GPT4_SHIFT				5
+#define OMAP3430_ST_GPT4_MASK				(1 << 5)
+#define OMAP3430_ST_GPT3_SHIFT				4
+#define OMAP3430_ST_GPT3_MASK				(1 << 4)
+#define OMAP3430_ST_GPT2_SHIFT				3
+#define OMAP3430_ST_GPT2_MASK				(1 << 3)
 
 /* CM_SLEEPDEP_PER, PM_WKDEP_IVA2, PM_WKDEP_MPU, PM_WKDEP_PER shared bits */
 #define OMAP3430_EN_CORE_SHIFT				0

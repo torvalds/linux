@@ -16,6 +16,7 @@
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
+#include <linux/percpu.h>
 
 #include <asm/apic.h>
 
@@ -55,13 +56,13 @@ static inline void print_stack_overflow(void) { }
 union irq_ctx {
 	struct thread_info      tinfo;
 	u32                     stack[THREAD_SIZE/sizeof(u32)];
-};
+} __attribute__((aligned(PAGE_SIZE)));
 
-static union irq_ctx *hardirq_ctx[NR_CPUS] __read_mostly;
-static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
+static DEFINE_PER_CPU(union irq_ctx *, hardirq_ctx);
+static DEFINE_PER_CPU(union irq_ctx *, softirq_ctx);
 
-static char softirq_stack[NR_CPUS * THREAD_SIZE] __page_aligned_bss;
-static char hardirq_stack[NR_CPUS * THREAD_SIZE] __page_aligned_bss;
+static DEFINE_PER_CPU_PAGE_ALIGNED(union irq_ctx, hardirq_stack);
+static DEFINE_PER_CPU_PAGE_ALIGNED(union irq_ctx, softirq_stack);
 
 static void call_on_stack(void *func, void *stack)
 {
@@ -81,7 +82,7 @@ execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
 	u32 *isp, arg1, arg2;
 
 	curctx = (union irq_ctx *) current_thread_info();
-	irqctx = hardirq_ctx[smp_processor_id()];
+	irqctx = __get_cpu_var(hardirq_ctx);
 
 	/*
 	 * this is where we switch to the IRQ stack. However, if we are
@@ -125,34 +126,34 @@ void __cpuinit irq_ctx_init(int cpu)
 {
 	union irq_ctx *irqctx;
 
-	if (hardirq_ctx[cpu])
+	if (per_cpu(hardirq_ctx, cpu))
 		return;
 
-	irqctx = (union irq_ctx*) &hardirq_stack[cpu*THREAD_SIZE];
+	irqctx = &per_cpu(hardirq_stack, cpu);
 	irqctx->tinfo.task		= NULL;
 	irqctx->tinfo.exec_domain	= NULL;
 	irqctx->tinfo.cpu		= cpu;
 	irqctx->tinfo.preempt_count	= HARDIRQ_OFFSET;
 	irqctx->tinfo.addr_limit	= MAKE_MM_SEG(0);
 
-	hardirq_ctx[cpu] = irqctx;
+	per_cpu(hardirq_ctx, cpu) = irqctx;
 
-	irqctx = (union irq_ctx *) &softirq_stack[cpu*THREAD_SIZE];
+	irqctx = &per_cpu(softirq_stack, cpu);
 	irqctx->tinfo.task		= NULL;
 	irqctx->tinfo.exec_domain	= NULL;
 	irqctx->tinfo.cpu		= cpu;
 	irqctx->tinfo.preempt_count	= 0;
 	irqctx->tinfo.addr_limit	= MAKE_MM_SEG(0);
 
-	softirq_ctx[cpu] = irqctx;
+	per_cpu(softirq_ctx, cpu) = irqctx;
 
 	printk(KERN_DEBUG "CPU %u irqstacks, hard=%p soft=%p\n",
-	       cpu, hardirq_ctx[cpu], softirq_ctx[cpu]);
+	       cpu, per_cpu(hardirq_ctx, cpu),  per_cpu(softirq_ctx, cpu));
 }
 
 void irq_ctx_exit(int cpu)
 {
-	hardirq_ctx[cpu] = NULL;
+	per_cpu(hardirq_ctx, cpu) = NULL;
 }
 
 asmlinkage void do_softirq(void)
@@ -169,7 +170,7 @@ asmlinkage void do_softirq(void)
 
 	if (local_softirq_pending()) {
 		curctx = current_thread_info();
-		irqctx = softirq_ctx[smp_processor_id()];
+		irqctx = __get_cpu_var(softirq_ctx);
 		irqctx->tinfo.task = curctx->task;
 		irqctx->tinfo.previous_esp = current_stack_pointer;
 
@@ -191,33 +192,16 @@ static inline int
 execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq) { return 0; }
 #endif
 
-/*
- * do_IRQ handles all normal device IRQ's (the special
- * SMP cross-CPU interrupts have their own specific
- * handlers).
- */
-unsigned int do_IRQ(struct pt_regs *regs)
+bool handle_irq(unsigned irq, struct pt_regs *regs)
 {
-	struct pt_regs *old_regs;
-	/* high bit used in ret_from_ code */
-	int overflow;
-	unsigned vector = ~regs->orig_ax;
 	struct irq_desc *desc;
-	unsigned irq;
-
-
-	old_regs = set_irq_regs(regs);
-	irq_enter();
-	irq = __get_cpu_var(vector_irq)[vector];
+	int overflow;
 
 	overflow = check_stack_overflow();
 
 	desc = irq_to_desc(irq);
-	if (unlikely(!desc)) {
-		printk(KERN_EMERG "%s: cannot handle IRQ %d vector %#x cpu %d\n",
-					__func__, irq, vector, smp_processor_id());
-		BUG();
-	}
+	if (unlikely(!desc))
+		return false;
 
 	if (!execute_on_irq_stack(overflow, desc, irq)) {
 		if (unlikely(overflow))
@@ -225,13 +209,10 @@ unsigned int do_IRQ(struct pt_regs *regs)
 		desc->handle_irq(irq, desc);
 	}
 
-	irq_exit();
-	set_irq_regs(old_regs);
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-#include <mach_apic.h>
 
 /* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
 void fixup_irqs(void)
@@ -248,7 +229,7 @@ void fixup_irqs(void)
 		if (irq == 2)
 			continue;
 
-		affinity = &desc->affinity;
+		affinity = desc->affinity;
 		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 			printk("Breaking affinity for irq %i\n", irq);
 			affinity = cpu_all_mask;

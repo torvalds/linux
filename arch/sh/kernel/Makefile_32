@@ -30,5 +30,6 @@ obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_GENERIC_GPIO)	+= gpio.o
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_DUMP_CODE)		+= disassemble.o
+obj-$(CONFIG_HIBERNATION)	+= swsusp.o
 
 EXTRA_CFLAGS += -Werror

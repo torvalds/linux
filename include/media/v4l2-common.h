@@ -102,11 +102,15 @@ int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
 const char *v4l2_ctrl_get_name(u32 id);
 const char **v4l2_ctrl_get_menu(u32 id);
 int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 step, s32 def);
-int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl);
 int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu,
 		struct v4l2_queryctrl *qctrl, const char **menu_items);
 #define V4L2_CTRL_MENU_IDS_END (0xffffffff)
 int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *ids);
+
+/* Note: ctrl_classes points to an array of u32 pointers. Each u32 array is a
+   0-terminated array of control IDs. Each array must be sorted low to high
+   and belong to the same control class. The array of u32 pointers must also
+   be sorted, from low class IDs to high class IDs. */
 u32 v4l2_ctrl_next(const u32 * const *ctrl_classes, u32 id);
 
 /* ------------------------------------------------------------------------- */
@@ -149,6 +153,21 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
 /* Initialize an v4l2_subdev with data from an i2c_client struct */
 void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops);
+/* Return i2c client address of v4l2_subdev. */
+unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd);
+
+enum v4l2_i2c_tuner_type {
+	ADDRS_RADIO,	/* Radio tuner addresses */
+	ADDRS_DEMOD,	/* Demod tuner addresses */
+	ADDRS_TV,	/* TV tuner addresses */
+	/* TV tuner addresses if demod is present, this excludes
+	   addresses used by the demodulator from the list of
+	   candidates. */
+	ADDRS_TV_WITH_DEMOD,
+};
+/* Return a list of I2C tuner addresses to probe. Use only if the tuner
+   addresses are unknown. */
+const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type);
 
 /* ------------------------------------------------------------------------- */
 
@@ -283,5 +302,8 @@ struct v4l2_crystal_freq {
 /* Set GPIO pins. Very simple right now, might need to be extended with
    a v4l2_gpio struct if a direction is also needed. */
 #define VIDIOC_INT_S_GPIO		_IOW('d', 117, u32)
+
+/* Get input status. Same as the status field in the v4l2_input struct. */
+#define VIDIOC_INT_G_INPUT_STATUS	_IOR('d', 118, u32)
 
 #endif /* V4L2_COMMON_H_ */

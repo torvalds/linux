@@ -39,6 +39,9 @@
 #include <mach/common.h>
 #include <mach/mmc.h>
 
+/* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
+#define INNOVATOR1610_ETHR_START	0x04000300
+
 static int innovator_keymap[] = {
 	KEY(0, 0, KEY_F1),
 	KEY(0, 3, KEY_DOWN),
@@ -370,7 +373,6 @@ static struct omap_uart_config innovator_uart_config __initdata = {
 };
 
 static struct omap_board_config_kernel innovator_config[] = {
-	{ OMAP_TAG_USB,         NULL },
 	{ OMAP_TAG_LCD,		NULL },
 	{ OMAP_TAG_UART,	&innovator_uart_config },
 };
@@ -392,13 +394,13 @@ static void __init innovator_init(void)
 
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
-		innovator_config[0].data = &innovator1510_usb_config;
+		omap_usb_init(&innovator1510_usb_config);
 		innovator_config[1].data = &innovator1510_lcd_config;
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP16XX
 	if (cpu_is_omap1610()) {
-		innovator_config[0].data = &h2_usb_config;
+		omap_usb_init(&h2_usb_config);
 		innovator_config[1].data = &innovator1610_lcd_config;
 	}
 #endif

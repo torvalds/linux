@@ -524,7 +524,7 @@ int acpi_processor_preregister_performance(
 			goto err_out;
 		}
 
-		if (!performance || !percpu_ptr(performance, i)) {
+		if (!performance || !per_cpu_ptr(performance, i)) {
 			retval = -EINVAL;
 			goto err_out;
 		}
@@ -536,7 +536,7 @@ int acpi_processor_preregister_performance(
 		if (!pr)
 			continue;
 
-		pr->performance = percpu_ptr(performance, i);
+		pr->performance = per_cpu_ptr(performance, i);
 		cpumask_set_cpu(i, pr->performance->shared_cpu_map);
 		if (acpi_processor_get_psd(pr)) {
 			retval = -EINVAL;

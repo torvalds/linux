@@ -580,8 +580,7 @@ static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
 		break;
 
 	default:
-		scp->result = ((DRIVER_INVALID|SUGGEST_ABORT)<<24) |
-					(DID_ABORT<<16);
+		scp->result = DRIVER_INVALID << 24 | DID_ABORT << 16;
 		break;
 	}
 

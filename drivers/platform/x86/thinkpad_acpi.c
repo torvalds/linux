@@ -6116,7 +6116,7 @@ static struct ibm_struct volume_driver_data = {
  *	ThinkPads from this same time period (and earlier) probably lack the
  *	tachometer as well.
  *
- *	Unfortunately a lot of ThinkPads with new-style ECs but whose firwmare
+ *	Unfortunately a lot of ThinkPads with new-style ECs but whose firmware
  *	was never fixed by IBM to report the EC firmware version string
  *	probably support the tachometer (like the early X models), so
  *	detecting it is quite hard.  We need more data to know for sure.
@@ -7332,7 +7332,6 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 			ret = -ENODEV;
 			goto err_out;
 		}
-		entry->owner = THIS_MODULE;
 		entry->data = ibm;
 		entry->read_proc = &dispatch_procfs_read;
 		if (ibm->write)
@@ -7745,7 +7744,6 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return -ENODEV;
 	}
-	proc_dir->owner = THIS_MODULE;
 
 	ret = platform_driver_register(&tpacpi_pdriver);
 	if (ret) {

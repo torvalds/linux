@@ -70,6 +70,11 @@ static struct irq_desc bad_irq_desc = {
 #endif
 };
 
+#ifdef CONFIG_CPUMASK_OFFSTACK
+/* We are not allocating a variable-sized bad_irq_desc.affinity */
+#error "Blackfin architecture does not support CONFIG_CPUMASK_OFFSTACK."
+#endif
+
 int show_interrupts(struct seq_file *p, void *v)
 {
 	int i = *(loff_t *) v, j;
@@ -83,7 +88,7 @@ int show_interrupts(struct seq_file *p, void *v)
 			goto skip;
 		seq_printf(p, "%3d: ", i);
 		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
+			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 		seq_printf(p, " %8s", irq_desc[i].chip->name);
 		seq_printf(p, "  %s", action->name);
 		for (action = action->next; action; action = action->next)

@@ -31,6 +31,21 @@
 #include "../sgi-gru/grukservices.h"
 #include "xpc.h"
 
+#if defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+struct uv_IO_APIC_route_entry {
+	__u64	vector		:  8,
+		delivery_mode	:  3,
+		dest_mode	:  1,
+		delivery_status	:  1,
+		polarity	:  1,
+		__reserved_1	:  1,
+		trigger		:  1,
+		mask		:  1,
+		__reserved_2	: 15,
+		dest		: 32;
+};
+#endif
+
 static atomic64_t xpc_heartbeat_uv;
 static DECLARE_BITMAP(xpc_heartbeating_to_mask_uv, XP_MAX_NPARTITIONS_UV);
 
@@ -56,26 +71,52 @@ xpc_setup_partitions_sn_uv(void)
 	for (partid = 0; partid < XP_MAX_NPARTITIONS_UV; partid++) {
 		part_uv = &xpc_partitions[partid].sn.uv;
 
+		mutex_init(&part_uv->cached_activate_gru_mq_desc_mutex);
 		spin_lock_init(&part_uv->flags_lock);
 		part_uv->remote_act_state = XPC_P_AS_INACTIVE;
 	}
 	return 0;
 }
 
+static void
+xpc_teardown_partitions_sn_uv(void)
+{
+	short partid;
+	struct xpc_partition_uv *part_uv;
+	unsigned long irq_flags;
+
+	for (partid = 0; partid < XP_MAX_NPARTITIONS_UV; partid++) {
+		part_uv = &xpc_partitions[partid].sn.uv;
+
+		if (part_uv->cached_activate_gru_mq_desc != NULL) {
+			mutex_lock(&part_uv->cached_activate_gru_mq_desc_mutex);
+			spin_lock_irqsave(&part_uv->flags_lock, irq_flags);
+			part_uv->flags &= ~XPC_P_CACHED_ACTIVATE_GRU_MQ_DESC_UV;
+			spin_unlock_irqrestore(&part_uv->flags_lock, irq_flags);
+			kfree(part_uv->cached_activate_gru_mq_desc);
+			part_uv->cached_activate_gru_mq_desc = NULL;
+			mutex_unlock(&part_uv->
+				     cached_activate_gru_mq_desc_mutex);
+		}
+	}
+}
+
 static int
 xpc_get_gru_mq_irq_uv(struct xpc_gru_mq_uv *mq, int cpu, char *irq_name)
 {
+	int mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
+
 #if defined CONFIG_X86_64
 	mq->irq = uv_setup_irq(irq_name, cpu, mq->mmr_blade, mq->mmr_offset);
 	if (mq->irq < 0) {
 		dev_err(xpc_part, "uv_setup_irq() returned error=%d\n",
-			mq->irq);
+			-mq->irq);
+		return mq->irq;
 	}
 
-#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
-	int mmr_pnode;
-	unsigned long mmr_value;
+	mq->mmr_value = uv_read_global_mmr64(mmr_pnode, mq->mmr_offset);
 
+#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
 	if (strcmp(irq_name, XPC_ACTIVATE_IRQ_NAME) == 0)
 		mq->irq = SGI_XPC_ACTIVATE;
 	else if (strcmp(irq_name, XPC_NOTIFY_IRQ_NAME) == 0)
@@ -83,10 +124,8 @@ xpc_get_gru_mq_irq_uv(struct xpc_gru_mq_uv *mq, int cpu, char *irq_name)
 	else
 		return -EINVAL;
 
-	mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
-	mmr_value = (unsigned long)cpu_physical_id(cpu) << 32 | mq->irq;
-
-	uv_write_global_mmr64(mmr_pnode, mq->mmr_offset, mmr_value);
+	mq->mmr_value = (unsigned long)cpu_physical_id(cpu) << 32 | mq->irq;
+	uv_write_global_mmr64(mmr_pnode, mq->mmr_offset, mq->mmr_value);
 #else
 	#error not a supported configuration
 #endif
@@ -127,7 +166,7 @@ xpc_gru_mq_watchlist_alloc_uv(struct xpc_gru_mq_uv *mq)
 		return ret;
 	}
 #elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
-	ret = sn_mq_watchlist_alloc(mq->mmr_blade, uv_gpa(mq->address),
+	ret = sn_mq_watchlist_alloc(mq->mmr_blade, (void *)uv_gpa(mq->address),
 				    mq->order, &mq->mmr_offset);
 	if (ret < 0) {
 		dev_err(xpc_part, "sn_mq_watchlist_alloc() failed, ret=%d\n",
@@ -168,11 +207,21 @@ xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
 	int pg_order;
 	struct page *page;
 	struct xpc_gru_mq_uv *mq;
+	struct uv_IO_APIC_route_entry *mmr_value;
 
 	mq = kmalloc(sizeof(struct xpc_gru_mq_uv), GFP_KERNEL);
 	if (mq == NULL) {
 		dev_err(xpc_part, "xpc_create_gru_mq_uv() failed to kmalloc() "
 			"a xpc_gru_mq_uv structure\n");
+		ret = -ENOMEM;
+		goto out_0;
+	}
+
+	mq->gru_mq_desc = kzalloc(sizeof(struct gru_message_queue_desc),
+				  GFP_KERNEL);
+	if (mq->gru_mq_desc == NULL) {
+		dev_err(xpc_part, "xpc_create_gru_mq_uv() failed to kmalloc() "
+			"a gru_message_queue_desc structure\n");
 		ret = -ENOMEM;
 		goto out_1;
 	}
@@ -194,14 +243,6 @@ xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
 	}
 	mq->address = page_address(page);
 
-	ret = gru_create_message_queue(mq->address, mq_size);
-	if (ret != 0) {
-		dev_err(xpc_part, "gru_create_message_queue() returned "
-			"error=%d\n", ret);
-		ret = -EINVAL;
-		goto out_3;
-	}
-
 	/* enable generation of irq when GRU mq operation occurs to this mq */
 	ret = xpc_gru_mq_watchlist_alloc_uv(mq);
 	if (ret != 0)
@@ -214,8 +255,18 @@ xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
 	ret = request_irq(mq->irq, irq_handler, 0, irq_name, NULL);
 	if (ret != 0) {
 		dev_err(xpc_part, "request_irq(irq=%d) returned error=%d\n",
-			mq->irq, ret);
+			mq->irq, -ret);
 		goto out_5;
+	}
+
+	mmr_value = (struct uv_IO_APIC_route_entry *)&mq->mmr_value;
+	ret = gru_create_message_queue(mq->gru_mq_desc, mq->address, mq_size,
+				       nid, mmr_value->vector, mmr_value->dest);
+	if (ret != 0) {
+		dev_err(xpc_part, "gru_create_message_queue() returned "
+			"error=%d\n", ret);
+		ret = -EINVAL;
+		goto out_6;
 	}
 
 	/* allow other partitions to access this GRU mq */
@@ -237,8 +288,10 @@ out_4:
 out_3:
 	free_pages((unsigned long)mq->address, pg_order);
 out_2:
-	kfree(mq);
+	kfree(mq->gru_mq_desc);
 out_1:
+	kfree(mq);
+out_0:
 	return ERR_PTR(ret);
 }
 
@@ -268,13 +321,14 @@ xpc_destroy_gru_mq_uv(struct xpc_gru_mq_uv *mq)
 }
 
 static enum xp_retval
-xpc_send_gru_msg(unsigned long mq_gpa, void *msg, size_t msg_size)
+xpc_send_gru_msg(struct gru_message_queue_desc *gru_mq_desc, void *msg,
+		 size_t msg_size)
 {
 	enum xp_retval xp_ret;
 	int ret;
 
 	while (1) {
-		ret = gru_send_message_gpa(mq_gpa, msg, msg_size);
+		ret = gru_send_message_gpa(gru_mq_desc, msg, msg_size);
 		if (ret == MQE_OK) {
 			xp_ret = xpSuccess;
 			break;
@@ -421,7 +475,15 @@ xpc_handle_activate_mq_msg_uv(struct xpc_partition *part,
 		part_uv->act_state_req = XPC_P_ASR_ACTIVATE_UV;
 		part->remote_rp_pa = msg->rp_gpa; /* !!! _pa is _gpa */
 		part->remote_rp_ts_jiffies = msg_hdr->rp_ts_jiffies;
-		part_uv->remote_activate_mq_gpa = msg->activate_mq_gpa;
+
+		if (msg->activate_gru_mq_desc_gpa !=
+		    part_uv->activate_gru_mq_desc_gpa) {
+			spin_lock_irqsave(&part_uv->flags_lock, irq_flags);
+			part_uv->flags &= ~XPC_P_CACHED_ACTIVATE_GRU_MQ_DESC_UV;
+			spin_unlock_irqrestore(&part_uv->flags_lock, irq_flags);
+			part_uv->activate_gru_mq_desc_gpa =
+			    msg->activate_gru_mq_desc_gpa;
+		}
 		spin_unlock_irqrestore(&xpc_activate_IRQ_rcvd_lock, irq_flags);
 
 		(*wakeup_hb_checker)++;
@@ -498,7 +560,7 @@ xpc_handle_activate_mq_msg_uv(struct xpc_partition *part,
 		args = &part->remote_openclose_args[msg->ch_number];
 		args->remote_nentries = msg->remote_nentries;
 		args->local_nentries = msg->local_nentries;
-		args->local_msgqueue_pa = msg->local_notify_mq_gpa;
+		args->local_msgqueue_pa = msg->notify_gru_mq_desc_gpa;
 
 		spin_lock_irqsave(&part->chctl_lock, irq_flags);
 		part->chctl.flags[msg->ch_number] |= XPC_CHCTL_OPENREPLY;
@@ -558,9 +620,10 @@ xpc_handle_activate_IRQ_uv(int irq, void *dev_id)
 	short partid;
 	struct xpc_partition *part;
 	int wakeup_hb_checker = 0;
+	int part_referenced;
 
 	while (1) {
-		msg_hdr = gru_get_next_message(xpc_activate_mq_uv->address);
+		msg_hdr = gru_get_next_message(xpc_activate_mq_uv->gru_mq_desc);
 		if (msg_hdr == NULL)
 			break;
 
@@ -571,14 +634,15 @@ xpc_handle_activate_IRQ_uv(int irq, void *dev_id)
 				partid);
 		} else {
 			part = &xpc_partitions[partid];
-			if (xpc_part_ref(part)) {
-				xpc_handle_activate_mq_msg_uv(part, msg_hdr,
-							    &wakeup_hb_checker);
+
+			part_referenced = xpc_part_ref(part);
+			xpc_handle_activate_mq_msg_uv(part, msg_hdr,
+						      &wakeup_hb_checker);
+			if (part_referenced)
 				xpc_part_deref(part);
-			}
 		}
 
-		gru_free_message(xpc_activate_mq_uv->address, msg_hdr);
+		gru_free_message(xpc_activate_mq_uv->gru_mq_desc, msg_hdr);
 	}
 
 	if (wakeup_hb_checker)
@@ -588,21 +652,73 @@ xpc_handle_activate_IRQ_uv(int irq, void *dev_id)
 }
 
 static enum xp_retval
+xpc_cache_remote_gru_mq_desc_uv(struct gru_message_queue_desc *gru_mq_desc,
+				unsigned long gru_mq_desc_gpa)
+{
+	enum xp_retval ret;
+
+	ret = xp_remote_memcpy(uv_gpa(gru_mq_desc), gru_mq_desc_gpa,
+			       sizeof(struct gru_message_queue_desc));
+	if (ret == xpSuccess)
+		gru_mq_desc->mq = NULL;
+
+	return ret;
+}
+
+static enum xp_retval
 xpc_send_activate_IRQ_uv(struct xpc_partition *part, void *msg, size_t msg_size,
 			 int msg_type)
 {
 	struct xpc_activate_mq_msghdr_uv *msg_hdr = msg;
+	struct xpc_partition_uv *part_uv = &part->sn.uv;
+	struct gru_message_queue_desc *gru_mq_desc;
+	unsigned long irq_flags;
+	enum xp_retval ret;
 
 	DBUG_ON(msg_size > XPC_ACTIVATE_MSG_SIZE_UV);
 
 	msg_hdr->type = msg_type;
-	msg_hdr->partid = XPC_PARTID(part);
+	msg_hdr->partid = xp_partition_id;
 	msg_hdr->act_state = part->act_state;
 	msg_hdr->rp_ts_jiffies = xpc_rsvd_page->ts_jiffies;
 
+	mutex_lock(&part_uv->cached_activate_gru_mq_desc_mutex);
+again:
+	if (!(part_uv->flags & XPC_P_CACHED_ACTIVATE_GRU_MQ_DESC_UV)) {
+		gru_mq_desc = part_uv->cached_activate_gru_mq_desc;
+		if (gru_mq_desc == NULL) {
+			gru_mq_desc = kmalloc(sizeof(struct
+					      gru_message_queue_desc),
+					      GFP_KERNEL);
+			if (gru_mq_desc == NULL) {
+				ret = xpNoMemory;
+				goto done;
+			}
+			part_uv->cached_activate_gru_mq_desc = gru_mq_desc;
+		}
+
+		ret = xpc_cache_remote_gru_mq_desc_uv(gru_mq_desc,
+						      part_uv->
+						      activate_gru_mq_desc_gpa);
+		if (ret != xpSuccess)
+			goto done;
+
+		spin_lock_irqsave(&part_uv->flags_lock, irq_flags);
+		part_uv->flags |= XPC_P_CACHED_ACTIVATE_GRU_MQ_DESC_UV;
+		spin_unlock_irqrestore(&part_uv->flags_lock, irq_flags);
+	}
+
 	/* ??? Is holding a spin_lock (ch->lock) during this call a bad idea? */
-	return xpc_send_gru_msg(part->sn.uv.remote_activate_mq_gpa, msg,
-				msg_size);
+	ret = xpc_send_gru_msg(part_uv->cached_activate_gru_mq_desc, msg,
+			       msg_size);
+	if (ret != xpSuccess) {
+		smp_rmb();	/* ensure a fresh copy of part_uv->flags */
+		if (!(part_uv->flags & XPC_P_CACHED_ACTIVATE_GRU_MQ_DESC_UV))
+			goto again;
+	}
+done:
+	mutex_unlock(&part_uv->cached_activate_gru_mq_desc_mutex);
+	return ret;
 }
 
 static void
@@ -620,7 +736,7 @@ static void
 xpc_send_activate_IRQ_ch_uv(struct xpc_channel *ch, unsigned long *irq_flags,
 			 void *msg, size_t msg_size, int msg_type)
 {
-	struct xpc_partition *part = &xpc_partitions[ch->number];
+	struct xpc_partition *part = &xpc_partitions[ch->partid];
 	enum xp_retval ret;
 
 	ret = xpc_send_activate_IRQ_uv(part, msg, msg_size, msg_type);
@@ -692,7 +808,8 @@ xpc_get_partition_rsvd_page_pa_uv(void *buf, u64 *cookie, unsigned long *rp_pa,
 static int
 xpc_setup_rsvd_page_sn_uv(struct xpc_rsvd_page *rp)
 {
-	rp->sn.activate_mq_gpa = uv_gpa(xpc_activate_mq_uv->address);
+	rp->sn.activate_gru_mq_desc_gpa =
+	    uv_gpa(xpc_activate_mq_uv->gru_mq_desc);
 	return 0;
 }
 
@@ -787,7 +904,8 @@ xpc_request_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
 
 	part->remote_rp_pa = remote_rp_gpa; /* !!! _pa here is really _gpa */
 	part->remote_rp_ts_jiffies = remote_rp->ts_jiffies;
-	part->sn.uv.remote_activate_mq_gpa = remote_rp->sn.activate_mq_gpa;
+	part->sn.uv.activate_gru_mq_desc_gpa =
+	    remote_rp->sn.activate_gru_mq_desc_gpa;
 
 	/*
 	 * ??? Is it a good idea to make this conditional on what is
@@ -795,7 +913,8 @@ xpc_request_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
 	 */
 	if (part->sn.uv.remote_act_state == XPC_P_AS_INACTIVE) {
 		msg.rp_gpa = uv_gpa(xpc_rsvd_page);
-		msg.activate_mq_gpa = xpc_rsvd_page->sn.activate_mq_gpa;
+		msg.activate_gru_mq_desc_gpa =
+		    xpc_rsvd_page->sn.activate_gru_mq_desc_gpa;
 		xpc_send_activate_IRQ_part_uv(part, &msg, sizeof(msg),
 					   XPC_ACTIVATE_MQ_MSG_ACTIVATE_REQ_UV);
 	}
@@ -857,7 +976,8 @@ xpc_get_fifo_entry_uv(struct xpc_fifo_head_uv *head)
 		if (head->first == NULL)
 			head->last = NULL;
 	}
-	head->n_entries++;
+	head->n_entries--;
+	BUG_ON(head->n_entries < 0);
 	spin_unlock_irqrestore(&head->lock, irq_flags);
 	first->next = NULL;
 	return first;
@@ -876,8 +996,7 @@ xpc_put_fifo_entry_uv(struct xpc_fifo_head_uv *head,
 	else
 		head->first = last;
 	head->last = last;
-	head->n_entries--;
-	BUG_ON(head->n_entries < 0);
+	head->n_entries++;
 	spin_unlock_irqrestore(&head->lock, irq_flags);
 }
 
@@ -1037,6 +1156,12 @@ xpc_setup_msg_structures_uv(struct xpc_channel *ch)
 
 	DBUG_ON(ch->flags & XPC_C_SETUP);
 
+	ch_uv->cached_notify_gru_mq_desc = kmalloc(sizeof(struct
+						   gru_message_queue_desc),
+						   GFP_KERNEL);
+	if (ch_uv->cached_notify_gru_mq_desc == NULL)
+		return xpNoMemory;
+
 	ret = xpc_allocate_send_msg_slot_uv(ch);
 	if (ret == xpSuccess) {
 
@@ -1060,7 +1185,8 @@ xpc_teardown_msg_structures_uv(struct xpc_channel *ch)
 
 	DBUG_ON(!spin_is_locked(&ch->lock));
 
-	ch_uv->remote_notify_mq_gpa = 0;
+	kfree(ch_uv->cached_notify_gru_mq_desc);
+	ch_uv->cached_notify_gru_mq_desc = NULL;
 
 	if (ch->flags & XPC_C_SETUP) {
 		xpc_init_fifo_uv(&ch_uv->msg_slot_free_list);
@@ -1111,7 +1237,7 @@ xpc_send_chctl_openreply_uv(struct xpc_channel *ch, unsigned long *irq_flags)
 	msg.ch_number = ch->number;
 	msg.local_nentries = ch->local_nentries;
 	msg.remote_nentries = ch->remote_nentries;
-	msg.local_notify_mq_gpa = uv_gpa(xpc_notify_mq_uv);
+	msg.notify_gru_mq_desc_gpa = uv_gpa(xpc_notify_mq_uv->gru_mq_desc);
 	xpc_send_activate_IRQ_ch_uv(ch, irq_flags, &msg, sizeof(msg),
 				    XPC_ACTIVATE_MQ_MSG_CHCTL_OPENREPLY_UV);
 }
@@ -1128,11 +1254,15 @@ xpc_send_chctl_local_msgrequest_uv(struct xpc_partition *part, int ch_number)
 	xpc_wakeup_channel_mgr(part);
 }
 
-static void
+static enum xp_retval
 xpc_save_remote_msgqueue_pa_uv(struct xpc_channel *ch,
-			       unsigned long msgqueue_pa)
+			       unsigned long gru_mq_desc_gpa)
 {
-	ch->sn.uv.remote_notify_mq_gpa = msgqueue_pa;
+	struct xpc_channel_uv *ch_uv = &ch->sn.uv;
+
+	DBUG_ON(ch_uv->cached_notify_gru_mq_desc == NULL);
+	return xpc_cache_remote_gru_mq_desc_uv(ch_uv->cached_notify_gru_mq_desc,
+					       gru_mq_desc_gpa);
 }
 
 static void
@@ -1339,7 +1469,8 @@ xpc_handle_notify_IRQ_uv(int irq, void *dev_id)
 	short partid;
 	struct xpc_partition *part;
 
-	while ((msg = gru_get_next_message(xpc_notify_mq_uv)) != NULL) {
+	while ((msg = gru_get_next_message(xpc_notify_mq_uv->gru_mq_desc)) !=
+	       NULL) {
 
 		partid = msg->hdr.partid;
 		if (partid < 0 || partid >= XP_MAX_NPARTITIONS_UV) {
@@ -1354,7 +1485,7 @@ xpc_handle_notify_IRQ_uv(int irq, void *dev_id)
 			}
 		}
 
-		gru_free_message(xpc_notify_mq_uv, msg);
+		gru_free_message(xpc_notify_mq_uv->gru_mq_desc, msg);
 	}
 
 	return IRQ_HANDLED;
@@ -1438,7 +1569,8 @@ xpc_send_payload_uv(struct xpc_channel *ch, u32 flags, void *payload,
 	msg->hdr.msg_slot_number = msg_slot->msg_slot_number;
 	memcpy(&msg->payload, payload, payload_size);
 
-	ret = xpc_send_gru_msg(ch->sn.uv.remote_notify_mq_gpa, msg, msg_size);
+	ret = xpc_send_gru_msg(ch->sn.uv.cached_notify_gru_mq_desc, msg,
+			       msg_size);
 	if (ret == xpSuccess)
 		goto out_1;
 
@@ -1529,7 +1661,7 @@ xpc_received_payload_uv(struct xpc_channel *ch, void *payload)
 	msg->hdr.partid = xp_partition_id;
 	msg->hdr.size = 0;	/* size of zero indicates this is an ACK */
 
-	ret = xpc_send_gru_msg(ch->sn.uv.remote_notify_mq_gpa, msg,
+	ret = xpc_send_gru_msg(ch->sn.uv.cached_notify_gru_mq_desc, msg,
 			       sizeof(struct xpc_notify_mq_msghdr_uv));
 	if (ret != xpSuccess)
 		XPC_DEACTIVATE_PARTITION(&xpc_partitions[ch->partid], ret);
@@ -1541,6 +1673,7 @@ int
 xpc_init_uv(void)
 {
 	xpc_setup_partitions_sn = xpc_setup_partitions_sn_uv;
+	xpc_teardown_partitions_sn = xpc_teardown_partitions_sn_uv;
 	xpc_process_activate_IRQ_rcvd = xpc_process_activate_IRQ_rcvd_uv;
 	xpc_get_partition_rsvd_page_pa = xpc_get_partition_rsvd_page_pa_uv;
 	xpc_setup_rsvd_page_sn = xpc_setup_rsvd_page_sn_uv;

@@ -111,7 +111,7 @@ static void leaf_copy_dir_entries(struct buffer_info *dest_bi,
 	item_num_in_dest =
 	    (last_first == FIRST_TO_LAST) ? (B_NR_ITEMS(dest) - 1) : 0;
 
-	leaf_paste_entries(dest_bi->bi_bh, item_num_in_dest,
+	leaf_paste_entries(dest_bi, item_num_in_dest,
 			   (last_first ==
 			    FIRST_TO_LAST) ? I_ENTRY_COUNT(B_N_PITEM_HEAD(dest,
 									  item_num_in_dest))
@@ -119,8 +119,8 @@ static void leaf_copy_dir_entries(struct buffer_info *dest_bi,
 			   DEH_SIZE * copy_count + copy_records_len);
 }
 
-/* Copy the first (if last_first == FIRST_TO_LAST) or last (last_first == LAST_TO_FIRST) item or 
-   part of it or nothing (see the return 0 below) from SOURCE to the end 
+/* Copy the first (if last_first == FIRST_TO_LAST) or last (last_first == LAST_TO_FIRST) item or
+   part of it or nothing (see the return 0 below) from SOURCE to the end
    (if last_first) or beginning (!last_first) of the DEST */
 /* returns 1 if anything was copied, else 0 */
 static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
@@ -168,10 +168,11 @@ static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
 			if (bytes_or_entries == ih_item_len(ih)
 			    && is_indirect_le_ih(ih))
 				if (get_ih_free_space(ih))
-					reiserfs_panic(NULL,
-						       "vs-10020: leaf_copy_boundary_item: "
-						       "last unformatted node must be filled entirely (%h)",
-						       ih);
+					reiserfs_panic(sb_from_bi(dest_bi),
+						       "vs-10020",
+						       "last unformatted node "
+						       "must be filled "
+						       "entirely (%h)", ih);
 		}
 #endif
 
@@ -395,7 +396,7 @@ static void leaf_item_bottle(struct buffer_info *dest_bi,
 		else {
 			struct item_head n_ih;
 
-			/* copy part of the body of the item number 'item_num' of SOURCE to the end of the DEST 
+			/* copy part of the body of the item number 'item_num' of SOURCE to the end of the DEST
 			   part defined by 'cpy_bytes'; create new item header; change old item_header (????);
 			   n_ih = new item_header;
 			 */
@@ -425,7 +426,7 @@ static void leaf_item_bottle(struct buffer_info *dest_bi,
 		else {
 			struct item_head n_ih;
 
-			/* copy part of the body of the item number 'item_num' of SOURCE to the begin of the DEST 
+			/* copy part of the body of the item number 'item_num' of SOURCE to the begin of the DEST
 			   part defined by 'cpy_bytes'; create new item header;
 			   n_ih = new item_header;
 			 */
@@ -622,9 +623,8 @@ static void leaf_define_dest_src_infos(int shift_mode, struct tree_balance *tb,
 		break;
 
 	default:
-		reiserfs_panic(NULL,
-			       "vs-10250: leaf_define_dest_src_infos: shift type is unknown (%d)",
-			       shift_mode);
+		reiserfs_panic(sb_from_bi(src_bi), "vs-10250",
+			       "shift type is unknown (%d)", shift_mode);
 	}
 	RFALSE(!src_bi->bi_bh || !dest_bi->bi_bh,
 	       "vs-10260: mode==%d, source (%p) or dest (%p) buffer is initialized incorrectly",
@@ -674,9 +674,9 @@ int leaf_shift_left(struct tree_balance *tb, int shift_num, int shift_bytes)
 #ifdef CONFIG_REISERFS_CHECK
 			if (tb->tb_mode == M_PASTE || tb->tb_mode == M_INSERT) {
 				print_cur_tb("vs-10275");
-				reiserfs_panic(tb->tb_sb,
-					       "vs-10275: leaf_shift_left: balance condition corrupted (%c)",
-					       tb->tb_mode);
+				reiserfs_panic(tb->tb_sb, "vs-10275",
+					       "balance condition corrupted "
+					       "(%c)", tb->tb_mode);
 			}
 #endif
 
@@ -724,7 +724,7 @@ int leaf_shift_right(struct tree_balance *tb, int shift_num, int shift_bytes)
 static void leaf_delete_items_entirely(struct buffer_info *bi,
 				       int first, int del_num);
 /*  If del_bytes == -1, starting from position 'first' delete del_num items in whole in buffer CUR.
-    If not. 
+    If not.
     If last_first == 0. Starting from position 'first' delete del_num-1 items in whole. Delete part of body of
     the first item. Part defined by del_bytes. Don't delete first item header
     If last_first == 1. Starting from position 'first+1' delete del_num-1 items in whole. Delete part of body of
@@ -783,7 +783,7 @@ void leaf_delete_items(struct buffer_info *cur_bi, int last_first,
 				/* len = body len of item */
 				len = ih_item_len(ih);
 
-			/* delete the part of the last item of the bh 
+			/* delete the part of the last item of the bh
 			   do not delete item header
 			 */
 			leaf_cut_from_buffer(cur_bi, B_NR_ITEMS(bh) - 1,
@@ -865,7 +865,7 @@ void leaf_insert_into_buf(struct buffer_info *bi, int before,
 	}
 }
 
-/* paste paste_size bytes to affected_item_num-th item. 
+/* paste paste_size bytes to affected_item_num-th item.
    When item is a directory, this only prepare space for new entries */
 void leaf_paste_in_buffer(struct buffer_info *bi, int affected_item_num,
 			  int pos_in_item, int paste_size,
@@ -889,9 +889,12 @@ void leaf_paste_in_buffer(struct buffer_info *bi, int affected_item_num,
 
 #ifdef CONFIG_REISERFS_CHECK
 	if (zeros_number > paste_size) {
+		struct super_block *sb = NULL;
+		if (bi && bi->tb)
+			sb = bi->tb->tb_sb;
 		print_cur_tb("10177");
-		reiserfs_panic(NULL,
-			       "vs-10177: leaf_paste_in_buffer: ero number == %d, paste_size == %d",
+		reiserfs_panic(sb, "vs-10177",
+			       "zeros_number == %d, paste_size == %d",
 			       zeros_number, paste_size);
 	}
 #endif				/* CONFIG_REISERFS_CHECK */
@@ -1019,7 +1022,7 @@ static int leaf_cut_entries(struct buffer_head *bh,
 /*  when cut item is part of regular file
         pos_in_item - first byte that must be cut
         cut_size - number of bytes to be cut beginning from pos_in_item
- 
+
    when cut item is part of directory
         pos_in_item - number of first deleted entry
         cut_size - count of deleted entries
@@ -1191,7 +1194,7 @@ static void leaf_delete_items_entirely(struct buffer_info *bi,
 }
 
 /* paste new_entry_count entries (new_dehs, records) into position before to item_num-th item */
-void leaf_paste_entries(struct buffer_head *bh,
+void leaf_paste_entries(struct buffer_info *bi,
 			int item_num,
 			int before,
 			int new_entry_count,
@@ -1203,6 +1206,7 @@ void leaf_paste_entries(struct buffer_head *bh,
 	struct reiserfs_de_head *deh;
 	char *insert_point;
 	int i, old_entry_num;
+	struct buffer_head *bh = bi->bi_bh;
 
 	if (new_entry_count == 0)
 		return;
@@ -1271,7 +1275,7 @@ void leaf_paste_entries(struct buffer_head *bh,
 	/* change item key if necessary (when we paste before 0-th entry */
 	if (!before) {
 		set_le_ih_k_offset(ih, deh_offset(new_dehs));
-/*      memcpy (&ih->ih_key.k_offset, 
+/*      memcpy (&ih->ih_key.k_offset,
 		       &new_dehs->deh_offset, SHORT_KEY_SIZE);*/
 	}
 #ifdef CONFIG_REISERFS_CHECK
@@ -1287,13 +1291,17 @@ void leaf_paste_entries(struct buffer_head *bh,
 			prev = (i != 0) ? deh_location(&(deh[i - 1])) : 0;
 
 			if (prev && prev <= deh_location(&(deh[i])))
-				reiserfs_warning(NULL,
-						 "vs-10240: leaf_paste_entries: directory item (%h) corrupted (prev %a, cur(%d) %a)",
-						 ih, deh + i - 1, i, deh + i);
+				reiserfs_error(sb_from_bi(bi), "vs-10240",
+					       "directory item (%h) "
+					       "corrupted (prev %a, "
+					       "cur(%d) %a)",
+					       ih, deh + i - 1, i, deh + i);
 			if (next && next >= deh_location(&(deh[i])))
-				reiserfs_warning(NULL,
-						 "vs-10250: leaf_paste_entries: directory item (%h) corrupted (cur(%d) %a, next %a)",
-						 ih, i, deh + i, deh + i + 1);
+				reiserfs_error(sb_from_bi(bi), "vs-10250",
+					       "directory item (%h) "
+					       "corrupted (cur(%d) %a, "
+					       "next %a)",
+					       ih, i, deh + i, deh + i + 1);
 		}
 	}
 #endif

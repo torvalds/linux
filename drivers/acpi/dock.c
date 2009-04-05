@@ -977,7 +977,7 @@ static int dock_add(acpi_handle handle)
 		sizeof(struct dock_station *));
 
 	/* we want the dock device to send uevents */
-	dock_device->dev.uevent_suppress = 0;
+	dev_set_uevent_suppress(&dock_device->dev, 0);
 
 	if (is_dock(handle))
 		dock_station->flags |= DOCK_IS_DOCK;

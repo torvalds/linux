@@ -2899,7 +2899,7 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "type",
 				     type_file_read_proc,
-				     new_smi, THIS_MODULE);
+				     new_smi);
 	if (rv) {
 		printk(KERN_ERR
 		       "ipmi_si: Unable to create proc entry: %d\n",
@@ -2909,7 +2909,7 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "si_stats",
 				     stat_file_read_proc,
-				     new_smi, THIS_MODULE);
+				     new_smi);
 	if (rv) {
 		printk(KERN_ERR
 		       "ipmi_si: Unable to create proc entry: %d\n",
@@ -2919,7 +2919,7 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "params",
 				     param_read_proc,
-				     new_smi, THIS_MODULE);
+				     new_smi);
 	if (rv) {
 		printk(KERN_ERR
 		       "ipmi_si: Unable to create proc entry: %d\n",

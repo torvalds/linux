@@ -568,6 +568,10 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	if (!data[0] && data[1])
 		primary = 1;
 
+	if (!data[0] && !data[1])
+		pr_warning("intc: missing unique irq mask for "
+			   "irq %d (vect 0x%04x)\n", irq, irq2evt(irq));
+
 	data[0] = data[0] ? data[0] : intc_mask_data(desc, d, enum_id, 1);
 	data[1] = data[1] ? data[1] : intc_prio_data(desc, d, enum_id, 1);
 
@@ -641,6 +645,17 @@ static unsigned int __init save_reg(struct intc_desc_int *d,
 	return 0;
 }
 
+static unsigned char *intc_evt2irq_table;
+
+unsigned int intc_evt2irq(unsigned int vector)
+{
+	unsigned int irq = evt2irq(vector);
+
+	if (intc_evt2irq_table && intc_evt2irq_table[irq])
+		irq = intc_evt2irq_table[irq];
+
+	return irq;
+}
 
 void __init register_intc_controller(struct intc_desc *desc)
 {
@@ -705,8 +720,40 @@ void __init register_intc_controller(struct intc_desc *desc)
 
 	BUG_ON(k > 256); /* _INTC_ADDR_E() and _INTC_ADDR_D() are 8 bits */
 
+	/* keep the first vector only if same enum is used multiple times */
 	for (i = 0; i < desc->nr_vectors; i++) {
 		struct intc_vect *vect = desc->vectors + i;
+		int first_irq = evt2irq(vect->vect);
+
+		if (!vect->enum_id)
+			continue;
+
+		for (k = i + 1; k < desc->nr_vectors; k++) {
+			struct intc_vect *vect2 = desc->vectors + k;
+
+			if (vect->enum_id != vect2->enum_id)
+				continue;
+
+			vect2->enum_id = 0;
+
+			if (!intc_evt2irq_table)
+				intc_evt2irq_table = alloc_bootmem(NR_IRQS);
+
+			if (!intc_evt2irq_table) {
+				pr_warning("intc: cannot allocate evt2irq!\n");
+				continue;
+			}
+
+			intc_evt2irq_table[evt2irq(vect2->vect)] = first_irq;
+		}
+	}
+
+	/* register the vectors one by one */
+	for (i = 0; i < desc->nr_vectors; i++) {
+		struct intc_vect *vect = desc->vectors + i;
+
+		if (!vect->enum_id)
+			continue;
 
 		intc_register_irq(desc, d, vect->enum_id, evt2irq(vect->vect));
 	}

@@ -49,6 +49,10 @@
 #define edac_printk(level, prefix, fmt, arg...) \
 	printk(level "EDAC " prefix ": " fmt, ##arg)
 
+#define edac_printk_verbose(level, prefix, fmt, arg...) \
+	printk(level "EDAC " prefix ": " "in %s, line at %d: " fmt,	\
+	       __FILE__, __LINE__, ##arg)
+
 #define edac_mc_printk(mci, level, fmt, arg...) \
 	printk(level "EDAC MC%d: " fmt, mci->mc_idx, ##arg)
 
@@ -71,11 +75,20 @@
 #ifdef CONFIG_EDAC_DEBUG
 extern int edac_debug_level;
 
+#ifndef CONFIG_EDAC_DEBUG_VERBOSE
 #define edac_debug_printk(level, fmt, arg...)                            \
 	do {                                                             \
 		if (level <= edac_debug_level)                           \
 			edac_printk(KERN_DEBUG, EDAC_DEBUG, fmt, ##arg); \
-	} while(0)
+	} while (0)
+#else  /* CONFIG_EDAC_DEBUG_VERBOSE */
+#define edac_debug_printk(level, fmt, arg...)                            \
+	do {                                                             \
+		if (level <= edac_debug_level)                           \
+			edac_printk_verbose(KERN_DEBUG, EDAC_DEBUG, fmt, \
+					    ##arg);			\
+	} while (0)
+#endif
 
 #define debugf0( ... ) edac_debug_printk(0, __VA_ARGS__ )
 #define debugf1( ... ) edac_debug_printk(1, __VA_ARGS__ )
@@ -831,6 +844,7 @@ extern void edac_pci_free_ctl_info(struct edac_pci_ctl_info *pci);
 extern void edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci,
 				unsigned long value);
 
+extern int edac_pci_alloc_index(void);
 extern int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx);
 extern struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev);
 

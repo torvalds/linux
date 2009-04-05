@@ -83,6 +83,8 @@ static const struct cx18_api_info api_info[] = {
 	API_ENTRY(CPU, CX18_CPU_DE_SET_MDL_ACK,			0),
 	API_ENTRY(CPU, CX18_CPU_DE_SET_MDL,			API_FAST),
 	API_ENTRY(CPU, CX18_CPU_DE_RELEASE_MDL,			API_SLOW),
+	API_ENTRY(APU, CX18_APU_START,				0),
+	API_ENTRY(APU, CX18_APU_STOP,				0),
 	API_ENTRY(APU, CX18_APU_RESETAI,			0),
 	API_ENTRY(CPU, CX18_CPU_DEBUG_PEEK32,			0),
 	API_ENTRY(0, 0,						0),
@@ -98,21 +100,30 @@ static const struct cx18_api_info *find_api_info(u32 cmd)
 	return NULL;
 }
 
+/* Call with buf of n*11+1 bytes */
+static char *u32arr2hex(u32 data[], int n, char *buf)
+{
+	char *p;
+	int i;
+
+	for (i = 0, p = buf; i < n; i++, p += 11) {
+		/* kernel snprintf() appends '\0' always */
+		snprintf(p, 12, " %#010x", data[i]);
+	}
+	*p = '\0';
+	return buf;
+}
+
 static void dump_mb(struct cx18 *cx, struct cx18_mailbox *mb, char *name)
 {
 	char argstr[MAX_MB_ARGUMENTS*11+1];
-	char *p;
-	int i;
 
 	if (!(cx18_debug & CX18_DBGFLG_API))
 		return;
 
-	for (i = 0, p = argstr; i < MAX_MB_ARGUMENTS; i++, p += 11) {
-		/* kernel snprintf() appends '\0' always */
-		snprintf(p, 12, " %#010x", mb->args[i]);
-	}
 	CX18_DEBUG_API("%s: req %#010x ack %#010x cmd %#010x err %#010x args%s"
-		"\n", name, mb->request, mb->ack, mb->cmd, mb->error, argstr);
+		       "\n", name, mb->request, mb->ack, mb->cmd, mb->error,
+		       u32arr2hex(mb->args, MAX_MB_ARGUMENTS, argstr));
 }
 
 
@@ -439,7 +450,8 @@ void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu)
 				"incoming %s to EPU mailbox (sequence no. %u)"
 				"\n",
 				rpu_str[rpu], rpu_str[rpu], order_mb->request);
-		dump_mb(cx, order_mb, "incoming");
+		if (cx18_debug & CX18_DBGFLG_WARN)
+			dump_mb(cx, order_mb, "incoming");
 		order->flags = CX18_F_EWO_MB_STALE_UPON_RECEIPT;
 	}
 
@@ -468,16 +480,24 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	struct mutex *mb_lock;
 	long int timeout, ret;
 	int i;
+	char argstr[MAX_MB_ARGUMENTS*11+1];
 
 	if (info == NULL) {
 		CX18_WARN("unknown cmd %x\n", cmd);
 		return -EINVAL;
 	}
 
-	if (cmd == CX18_CPU_DE_SET_MDL)
-		CX18_DEBUG_HI_API("%s\n", info->name);
-	else
-		CX18_DEBUG_API("%s\n", info->name);
+	if (cx18_debug & CX18_DBGFLG_API) { /* only call u32arr2hex if needed */
+		if (cmd == CX18_CPU_DE_SET_MDL) {
+			if (cx18_debug & CX18_DBGFLG_HIGHVOL)
+				CX18_DEBUG_HI_API("%s\tcmd %#010x args%s\n",
+						info->name, cmd,
+						u32arr2hex(data, args, argstr));
+		} else
+			CX18_DEBUG_API("%s\tcmd %#010x args%s\n",
+				       info->name, cmd,
+				       u32arr2hex(data, args, argstr));
+	}
 
 	switch (info->rpu) {
 	case APU:

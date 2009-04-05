@@ -3,7 +3,7 @@
  *
  *      (c) Copyright 2000 Red Hat Software
  *      (c) Copyright 2000 Helge Deller <hdeller@redhat.com>
- *      (c) Copyright 2001-2005 Helge Deller <deller@gmx.de>
+ *      (c) Copyright 2001-2009 Helge Deller <deller@gmx.de>
  *      (c) Copyright 2001 Randolph Chung <tausq@debian.org>
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -243,13 +243,11 @@ static int __init led_create_procfs(void)
 
 	proc_pdc_root = proc_mkdir("pdc", 0);
 	if (!proc_pdc_root) return -1;
-	proc_pdc_root->owner = THIS_MODULE;
 	ent = create_proc_entry("led", S_IFREG|S_IRUGO|S_IWUSR, proc_pdc_root);
 	if (!ent) return -1;
 	ent->data = (void *)LED_NOLCD; /* LED */
 	ent->read_proc = led_proc_read;
 	ent->write_proc = led_proc_write;
-	ent->owner = THIS_MODULE;
 
 	if (led_type == LED_HASLCD)
 	{
@@ -258,7 +256,6 @@ static int __init led_create_procfs(void)
 		ent->data = (void *)LED_HASLCD; /* LCD */
 		ent->read_proc = led_proc_read;
 		ent->write_proc = led_proc_write;
-		ent->owner = THIS_MODULE;
 	}
 
 	return 0;
@@ -463,9 +460,20 @@ static void led_work_func (struct work_struct *unused)
 	if (likely(led_lanrxtx))  currentleds |= led_get_net_activity();
 	if (likely(led_diskio))   currentleds |= led_get_diskio_activity();
 
-	/* blink all LEDs twice a second if we got an Oops (HPMC) */
-	if (unlikely(oops_in_progress)) 
-		currentleds = (count_HZ<=(HZ/2)) ? 0 : 0xff;
+	/* blink LEDs if we got an Oops (HPMC) */
+	if (unlikely(oops_in_progress)) {
+		if (boot_cpu_data.cpu_type >= pcxl2) {
+			/* newer machines don't have loadavg. LEDs, so we
+			 * let all LEDs blink twice per second instead */
+			currentleds = (count_HZ <= (HZ/2)) ? 0 : 0xff;
+		} else {
+			/* old machines: blink loadavg. LEDs twice per second */
+			if (count_HZ <= (HZ/2))
+				currentleds &= ~(LED4|LED5|LED6|LED7);
+			else
+				currentleds |= (LED4|LED5|LED6|LED7);
+		}
+	}
 
 	if (currentleds != lastleds)
 	{
@@ -511,7 +519,7 @@ static int led_halt(struct notifier_block *nb, unsigned long event, void *buf)
 	
 	/* Cancel the work item and delete the queue */
 	if (led_wq) {
-		cancel_rearming_delayed_workqueue(led_wq, &led_task);
+		cancel_delayed_work_sync(&led_task);
 		destroy_workqueue(led_wq);
 		led_wq = NULL;
 	}
@@ -630,7 +638,7 @@ int lcd_print( const char *str )
 	
 	/* temporarily disable the led work task */
 	if (led_wq)
-		cancel_rearming_delayed_workqueue(led_wq, &led_task);
+		cancel_delayed_work_sync(&led_task);
 
 	/* copy display string to buffer for procfs */
 	strlcpy(lcd_text, str, sizeof(lcd_text));

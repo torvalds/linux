@@ -72,11 +72,10 @@ config FUNCTION_GRAPH_TRACER
 	help
 	  Enable the kernel to trace a function at both its return
 	  and its entry.
-	  It's first purpose is to trace the duration of functions and
-	  draw a call graph for each thread with some informations like
-	  the return value.
-	  This is done by setting the current return address on the current
-	  task structure into a stack of calls.
+	  Its first purpose is to trace the duration of functions and
+	  draw a call graph for each thread with some information like
+	  the return value. This is done by setting the current return 
+	  address on the current task structure into a stack of calls.
 
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"

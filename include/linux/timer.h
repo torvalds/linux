@@ -5,6 +5,7 @@
 #include <linux/ktime.h>
 #include <linux/stddef.h>
 #include <linux/debugobjects.h>
+#include <linux/stringify.h>
 
 struct tvec_base;
 
@@ -21,9 +22,25 @@ struct timer_list {
 	char start_comm[16];
 	int start_pid;
 #endif
+#ifdef CONFIG_LOCKDEP
+	struct lockdep_map lockdep_map;
+#endif
 };
 
 extern struct tvec_base boot_tvec_bases;
+
+#ifdef CONFIG_LOCKDEP
+/*
+ * NB: because we have to copy the lockdep_map, setting the lockdep_map key
+ * (second argument) here is required, otherwise it could be initialised to
+ * the copy of the lockdep_map later! We use the pointer to and the string
+ * "<file>:<line>" as the key resp. the name of the lockdep_map.
+ */
+#define __TIMER_LOCKDEP_MAP_INITIALIZER(_kn)				\
+	.lockdep_map = STATIC_LOCKDEP_MAP_INIT(_kn, &_kn),
+#else
+#define __TIMER_LOCKDEP_MAP_INITIALIZER(_kn)
+#endif
 
 #define TIMER_INITIALIZER(_function, _expires, _data) {		\
 		.entry = { .prev = TIMER_ENTRY_STATIC },	\
@@ -31,42 +48,100 @@ extern struct tvec_base boot_tvec_bases;
 		.expires = (_expires),				\
 		.data = (_data),				\
 		.base = &boot_tvec_bases,			\
+		__TIMER_LOCKDEP_MAP_INITIALIZER(		\
+			__FILE__ ":" __stringify(__LINE__))	\
 	}
 
 #define DEFINE_TIMER(_name, _function, _expires, _data)		\
 	struct timer_list _name =				\
 		TIMER_INITIALIZER(_function, _expires, _data)
 
-void init_timer(struct timer_list *timer);
-void init_timer_deferrable(struct timer_list *timer);
+void init_timer_key(struct timer_list *timer,
+		    const char *name,
+		    struct lock_class_key *key);
+void init_timer_deferrable_key(struct timer_list *timer,
+			       const char *name,
+			       struct lock_class_key *key);
+
+#ifdef CONFIG_LOCKDEP
+#define init_timer(timer)						\
+	do {								\
+		static struct lock_class_key __key;			\
+		init_timer_key((timer), #timer, &__key);		\
+	} while (0)
+
+#define init_timer_deferrable(timer)					\
+	do {								\
+		static struct lock_class_key __key;			\
+		init_timer_deferrable_key((timer), #timer, &__key);	\
+	} while (0)
+
+#define init_timer_on_stack(timer)					\
+	do {								\
+		static struct lock_class_key __key;			\
+		init_timer_on_stack_key((timer), #timer, &__key);	\
+	} while (0)
+
+#define setup_timer(timer, fn, data)					\
+	do {								\
+		static struct lock_class_key __key;			\
+		setup_timer_key((timer), #timer, &__key, (fn), (data));\
+	} while (0)
+
+#define setup_timer_on_stack(timer, fn, data)				\
+	do {								\
+		static struct lock_class_key __key;			\
+		setup_timer_on_stack_key((timer), #timer, &__key,	\
+					 (fn), (data));			\
+	} while (0)
+#else
+#define init_timer(timer)\
+	init_timer_key((timer), NULL, NULL)
+#define init_timer_deferrable(timer)\
+	init_timer_deferrable_key((timer), NULL, NULL)
+#define init_timer_on_stack(timer)\
+	init_timer_on_stack_key((timer), NULL, NULL)
+#define setup_timer(timer, fn, data)\
+	setup_timer_key((timer), NULL, NULL, (fn), (data))
+#define setup_timer_on_stack(timer, fn, data)\
+	setup_timer_on_stack_key((timer), NULL, NULL, (fn), (data))
+#endif
 
 #ifdef CONFIG_DEBUG_OBJECTS_TIMERS
-extern void init_timer_on_stack(struct timer_list *timer);
+extern void init_timer_on_stack_key(struct timer_list *timer,
+				    const char *name,
+				    struct lock_class_key *key);
 extern void destroy_timer_on_stack(struct timer_list *timer);
 #else
 static inline void destroy_timer_on_stack(struct timer_list *timer) { }
-static inline void init_timer_on_stack(struct timer_list *timer)
+static inline void init_timer_on_stack_key(struct timer_list *timer,
+					   const char *name,
+					   struct lock_class_key *key)
 {
-	init_timer(timer);
+	init_timer_key(timer, name, key);
 }
 #endif
 
-static inline void setup_timer(struct timer_list * timer,
+static inline void setup_timer_key(struct timer_list * timer,
+				const char *name,
+				struct lock_class_key *key,
 				void (*function)(unsigned long),
 				unsigned long data)
 {
 	timer->function = function;
 	timer->data = data;
-	init_timer(timer);
+	init_timer_key(timer, name, key);
 }
 
-static inline void setup_timer_on_stack(struct timer_list *timer,
+static inline void setup_timer_on_stack_key(struct timer_list *timer,
+					const char *name,
+					struct lock_class_key *key,
 					void (*function)(unsigned long),
 					unsigned long data)
 {
 	timer->function = function;
 	timer->data = data;
-	init_timer_on_stack(timer);
+	init_timer_on_stack_key(timer, name, key);
 }
 
 /**
@@ -86,8 +161,8 @@ static inline int timer_pending(const struct timer_list * timer)
 
 extern void add_timer_on(struct timer_list *timer, int cpu);
 extern int del_timer(struct timer_list * timer);
-extern int __mod_timer(struct timer_list *timer, unsigned long expires);
 extern int mod_timer(struct timer_list *timer, unsigned long expires);
+extern int mod_timer_pending(struct timer_list *timer, unsigned long expires);
 
 /*
  * The jiffies value which is added to now, when there is no timer
@@ -146,25 +221,7 @@ static inline void timer_stats_timer_clear_start_info(struct timer_list *timer)
 }
 #endif
 
-/**
- * add_timer - start a timer
- * @timer: the timer to be added
- *
- * The kernel will do a ->function(->data) callback from the
- * timer interrupt at the ->expires point in the future. The
- * current time is 'jiffies'.
- *
- * The timer's ->expires, ->function (and if the handler uses it, ->data)
- * fields must be set prior calling this function.
- *
- * Timers with an ->expires field in the past will be executed in the next
- * timer tick.
- */
-static inline void add_timer(struct timer_list *timer)
-{
-	BUG_ON(timer_pending(timer));
-	__mod_timer(timer, timer->expires);
-}
+extern void add_timer(struct timer_list *timer);
 
 #ifdef CONFIG_SMP
   extern int try_to_del_timer_sync(struct timer_list *timer);

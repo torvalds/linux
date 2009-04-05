@@ -258,6 +258,10 @@ int s390_enable_sie(void)
 	struct task_struct *tsk = current;
 	struct mm_struct *mm, *old_mm;
 
+	/* Do we have switched amode? If no, we cannot do sie */
+	if (!switch_amode)
+		return -EINVAL;
+
 	/* Do we have pgstes? if yes, we are done */
 	if (tsk->mm->context.has_pgste)
 		return 0;
@@ -292,7 +296,7 @@ int s390_enable_sie(void)
 	tsk->mm = tsk->active_mm = mm;
 	preempt_disable();
 	update_mm(mm, tsk);
-	cpu_set(smp_processor_id(), mm->cpu_vm_mask);
+	cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
 	preempt_enable();
 	task_unlock(tsk);
 	mmput(old_mm);

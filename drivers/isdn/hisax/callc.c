@@ -24,7 +24,6 @@
 const char *lli_revision = "$Revision: 2.59.2.4 $";
 
 extern struct IsdnCard cards[];
-extern int nrcards;
 
 static int init_b_st(struct Channel *chanp, int incoming);
 static void release_b_st(struct Channel *chanp);

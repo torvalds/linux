@@ -50,7 +50,7 @@ static int b43_plcp_get_bitrate_idx_cck(struct b43_plcp_hdr6 *plcp)
 }
 
 /* Extract the bitrate index out of an OFDM PLCP header. */
-static u8 b43_plcp_get_bitrate_idx_ofdm(struct b43_plcp_hdr6 *plcp, bool aphy)
+static int b43_plcp_get_bitrate_idx_ofdm(struct b43_plcp_hdr6 *plcp, bool aphy)
 {
 	int base = aphy ? 0 : 4;
 
@@ -538,8 +538,14 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	chanstat = le16_to_cpu(rxhdr->channel);
 	phytype = chanstat & B43_RX_CHAN_PHYTYPE;
 
-	if (macstat & B43_RX_MAC_FCSERR)
+	if (unlikely(macstat & B43_RX_MAC_FCSERR)) {
 		dev->wl->ieee_stats.dot11FCSErrorCount++;
+		status.flag |= RX_FLAG_FAILED_FCS_CRC;
+	}
+	if (unlikely(phystat0 & (B43_RX_PHYST0_PLCPHCF | B43_RX_PHYST0_PLCPFV)))
+		status.flag |= RX_FLAG_FAILED_PLCP_CRC;
+	if (phystat0 & B43_RX_PHYST0_SHORTPRMBL)
+		status.flag |= RX_FLAG_SHORTPRE;
 	if (macstat & B43_RX_MAC_DECERR) {
 		/* Decryption with the given key failed.
 		 * Drop the packet. We also won't be able to decrypt it with
@@ -606,8 +612,12 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 						phytype == B43_PHYTYPE_A);
 	else
 		status.rate_idx = b43_plcp_get_bitrate_idx_cck(plcp);
-	if (unlikely(status.rate_idx == -1))
-		goto drop;
+	if (unlikely(status.rate_idx == -1)) {
+		/* PLCP seems to be corrupted.
+		 * Drop the frame, if we are not interested in corrupted frames. */
+		if (!(dev->wl->filter_flags & FIF_PLCPFAIL))
+			goto drop;
+	}
 	status.antenna = !!(phystat0 & B43_RX_PHYST0_ANT);
 
 	/*
@@ -661,7 +671,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		goto drop;
 	}
 
-	dev->stats.last_rx = jiffies;
 	ieee80211_rx_irqsafe(dev->wl->hw, skb, &status);
 
 	return;

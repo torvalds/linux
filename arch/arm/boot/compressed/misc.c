@@ -46,6 +46,21 @@ static void icedcc_putc(int ch)
 
 	asm("mcr p14, 0, %0, c0, c5, 0" : : "r" (ch));
 }
+#elif defined(CONFIG_CPU_XSCALE)
+
+static void icedcc_putc(int ch)
+{
+	int status, i = 0x4000000;
+
+	do {
+		if (--i < 0)
+			return;
+
+		asm volatile ("mrc p14, 0, %0, c14, c0, 0" : "=r" (status));
+	} while (status & (1 << 28));
+
+	asm("mcr p14, 0, %0, c8, c0, 0" : : "r" (ch));
+}
 
 #else
 

@@ -3318,6 +3318,8 @@ __cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
 	unsigned long save_flags;
 	void *ptr;
 
+	lockdep_trace_alloc(flags);
+
 	if (slab_should_failslab(cachep, flags))
 		return NULL;
 
@@ -3393,6 +3395,8 @@ __cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
 {
 	unsigned long save_flags;
 	void *objp;
+
+	lockdep_trace_alloc(flags);
 
 	if (slab_should_failslab(cachep, flags))
 		return NULL;
@@ -3988,8 +3992,7 @@ static void cache_reap(struct work_struct *w)
 	struct kmem_cache *searchp;
 	struct kmem_list3 *l3;
 	int node = numa_node_id();
-	struct delayed_work *work =
-		container_of(w, struct delayed_work, work);
+	struct delayed_work *work = to_delayed_work(w);
 
 	if (!mutex_trylock(&cache_chain_mutex))
 		/* Give up. Setup the next iteration. */

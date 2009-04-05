@@ -199,10 +199,10 @@ DECLARE_USB_MS_ENDPOINT_DESCRIPTOR(1);
 static struct usb_device_descriptor device_desc = {
 	.bLength =		USB_DT_DEVICE_SIZE,
 	.bDescriptorType =	USB_DT_DEVICE,
-	.bcdUSB =		__constant_cpu_to_le16(0x0200),
+	.bcdUSB =		cpu_to_le16(0x0200),
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
-	.idVendor =		__constant_cpu_to_le16(DRIVER_VENDOR_NUM),
-	.idProduct =		__constant_cpu_to_le16(DRIVER_PRODUCT_NUM),
+	.idVendor =		cpu_to_le16(DRIVER_VENDOR_NUM),
+	.idProduct =		cpu_to_le16(DRIVER_PRODUCT_NUM),
 	.iManufacturer =	STRING_MANUFACTURER,
 	.iProduct =		STRING_PRODUCT,
 	.bNumConfigurations =	1,
@@ -241,8 +241,8 @@ static const struct usb_ac_header_descriptor_1 ac_header_desc = {
 	.bLength =		USB_DT_AC_HEADER_SIZE(1),
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	USB_MS_HEADER,
-	.bcdADC =		__constant_cpu_to_le16(0x0100),
-	.wTotalLength =		__constant_cpu_to_le16(USB_DT_AC_HEADER_SIZE(1)),
+	.bcdADC =		cpu_to_le16(0x0100),
+	.wTotalLength =		cpu_to_le16(USB_DT_AC_HEADER_SIZE(1)),
 	.bInCollection =	1,
 	.baInterfaceNr = {
 		[0] =		GMIDI_MS_INTERFACE,
@@ -265,8 +265,8 @@ static const struct usb_ms_header_descriptor ms_header_desc = {
 	.bLength =		USB_DT_MS_HEADER_SIZE,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	USB_MS_HEADER,
-	.bcdMSC =		__constant_cpu_to_le16(0x0100),
-	.wTotalLength =		__constant_cpu_to_le16(USB_DT_MS_HEADER_SIZE
+	.bcdMSC =		cpu_to_le16(0x0100),
+	.wTotalLength =		cpu_to_le16(USB_DT_MS_HEADER_SIZE
 				+ 2*USB_DT_MIDI_IN_SIZE
 				+ 2*USB_DT_MIDI_OUT_SIZE(1)),
 };
@@ -1099,10 +1099,9 @@ static int gmidi_register_card(struct gmidi_device *dev)
 		.dev_free = gmidi_snd_free,
 	};
 
-	card = snd_card_new(index, id, THIS_MODULE, 0);
-	if (!card) {
-		ERROR(dev, "snd_card_new failed\n");
-		err = -ENOMEM;
+	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	if (err < 0) {
+		ERROR(dev, "snd_card_create failed\n");
 		goto fail;
 	}
 	dev->card = card;
@@ -1227,7 +1226,7 @@ autoconf_fail:
 		 */
 		pr_warning("%s: controller '%s' not recognized\n",
 			shortname, gadget->name);
-		device_desc.bcdDevice = __constant_cpu_to_le16(0x9999);
+		device_desc.bcdDevice = cpu_to_le16(0x9999);
 	}
 
 

@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -113,9 +113,6 @@ static void rt2500pci_rf_write(struct rt2x00_dev *rt2x00dev,
 			       const unsigned int word, const u32 value)
 {
 	u32 reg;
-
-	if (!word)
-		return;
 
 	mutex_lock(&rt2x00dev->csr_mutex);
 
@@ -573,6 +570,32 @@ static void rt2500pci_config_duration(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, CSR12, reg);
 }
 
+static void rt2500pci_config_ps(struct rt2x00_dev *rt2x00dev,
+				struct rt2x00lib_conf *libconf)
+{
+	enum dev_state state =
+	    (libconf->conf->flags & IEEE80211_CONF_PS) ?
+		STATE_SLEEP : STATE_AWAKE;
+	u32 reg;
+
+	if (state == STATE_SLEEP) {
+		rt2x00pci_register_read(rt2x00dev, CSR20, &reg);
+		rt2x00_set_field32(&reg, CSR20_DELAY_AFTER_TBCN,
+				   (libconf->conf->beacon_int - 20) * 16);
+		rt2x00_set_field32(&reg, CSR20_TBCN_BEFORE_WAKEUP,
+				   libconf->conf->listen_interval - 1);
+
+		/* We must first disable autowake before it can be enabled */
+		rt2x00_set_field32(&reg, CSR20_AUTOWAKE, 0);
+		rt2x00pci_register_write(rt2x00dev, CSR20, reg);
+
+		rt2x00_set_field32(&reg, CSR20_AUTOWAKE, 1);
+		rt2x00pci_register_write(rt2x00dev, CSR20, reg);
+	}
+
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
+}
+
 static void rt2500pci_config(struct rt2x00_dev *rt2x00dev,
 			     struct rt2x00lib_conf *libconf,
 			     const unsigned int flags)
@@ -588,6 +611,8 @@ static void rt2500pci_config(struct rt2x00_dev *rt2x00dev,
 		rt2500pci_config_retry_limit(rt2x00dev, libconf);
 	if (flags & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
 		rt2500pci_config_duration(rt2x00dev, libconf);
+	if (flags & IEEE80211_CONF_CHANGE_PS)
+		rt2500pci_config_ps(rt2x00dev, libconf);
 }
 
 /*
@@ -611,28 +636,32 @@ static void rt2500pci_link_stats(struct rt2x00_dev *rt2x00dev,
 	qual->false_cca = rt2x00_get_field32(reg, CNT3_FALSE_CCA);
 }
 
-static void rt2500pci_reset_tuner(struct rt2x00_dev *rt2x00dev)
+static inline void rt2500pci_set_vgc(struct rt2x00_dev *rt2x00dev,
+				     struct link_qual *qual, u8 vgc_level)
 {
-	rt2500pci_bbp_write(rt2x00dev, 17, 0x48);
-	rt2x00dev->link.vgc_level = 0x48;
+	if (qual->vgc_level_reg != vgc_level) {
+		rt2500pci_bbp_write(rt2x00dev, 17, vgc_level);
+		qual->vgc_level_reg = vgc_level;
+	}
 }
 
-static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
+static void rt2500pci_reset_tuner(struct rt2x00_dev *rt2x00dev,
+				  struct link_qual *qual)
 {
-	int rssi = rt2x00_get_link_rssi(&rt2x00dev->link);
-	u8 r17;
+	rt2500pci_set_vgc(rt2x00dev, qual, 0x48);
+}
 
+static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev,
+				 struct link_qual *qual, const u32 count)
+{
 	/*
 	 * To prevent collisions with MAC ASIC on chipsets
 	 * up to version C the link tuning should halt after 20
 	 * seconds while being associated.
 	 */
 	if (rt2x00_rev(&rt2x00dev->chip) < RT2560_VERSION_D &&
-	    rt2x00dev->intf_associated &&
-	    rt2x00dev->link.count > 20)
+	    rt2x00dev->intf_associated && count > 20)
 		return;
-
-	rt2500pci_bbp_read(rt2x00dev, 17, &r17);
 
 	/*
 	 * Chipset versions C and lower should directly continue
@@ -649,29 +678,25 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * then corrupt the R17 tuning. To remidy this the tuning should
 	 * be stopped (While making sure the R17 value will not exceed limits)
 	 */
-	if (rssi < -80 && rt2x00dev->link.count > 20) {
-		if (r17 >= 0x41) {
-			r17 = rt2x00dev->link.vgc_level;
-			rt2500pci_bbp_write(rt2x00dev, 17, r17);
-		}
+	if (qual->rssi < -80 && count > 20) {
+		if (qual->vgc_level_reg >= 0x41)
+			rt2500pci_set_vgc(rt2x00dev, qual, qual->vgc_level);
 		return;
 	}
 
 	/*
 	 * Special big-R17 for short distance
 	 */
-	if (rssi >= -58) {
-		if (r17 != 0x50)
-			rt2500pci_bbp_write(rt2x00dev, 17, 0x50);
+	if (qual->rssi >= -58) {
+		rt2500pci_set_vgc(rt2x00dev, qual, 0x50);
 		return;
 	}
 
 	/*
 	 * Special mid-R17 for middle distance
 	 */
-	if (rssi >= -74) {
-		if (r17 != 0x41)
-			rt2500pci_bbp_write(rt2x00dev, 17, 0x41);
+	if (qual->rssi >= -74) {
+		rt2500pci_set_vgc(rt2x00dev, qual, 0x41);
 		return;
 	}
 
@@ -679,8 +704,8 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Leave short or middle distance condition, restore r17
 	 * to the dynamic tuning range.
 	 */
-	if (r17 >= 0x41) {
-		rt2500pci_bbp_write(rt2x00dev, 17, rt2x00dev->link.vgc_level);
+	if (qual->vgc_level_reg >= 0x41) {
+		rt2500pci_set_vgc(rt2x00dev, qual, qual->vgc_level);
 		return;
 	}
 
@@ -690,12 +715,12 @@ dynamic_cca_tune:
 	 * R17 is inside the dynamic tuning range,
 	 * start tuning the link based on the false cca counter.
 	 */
-	if (rt2x00dev->link.qual.false_cca > 512 && r17 < 0x40) {
-		rt2500pci_bbp_write(rt2x00dev, 17, ++r17);
-		rt2x00dev->link.vgc_level = r17;
-	} else if (rt2x00dev->link.qual.false_cca < 100 && r17 > 0x32) {
-		rt2500pci_bbp_write(rt2x00dev, 17, --r17);
-		rt2x00dev->link.vgc_level = r17;
+	if (qual->false_cca > 512 && qual->vgc_level_reg < 0x40) {
+		rt2500pci_set_vgc(rt2x00dev, qual, ++qual->vgc_level_reg);
+		qual->vgc_level = qual->vgc_level_reg;
+	} else if (qual->false_cca < 100 && qual->vgc_level_reg > 0x32) {
+		rt2500pci_set_vgc(rt2x00dev, qual, --qual->vgc_level_reg);
+		qual->vgc_level = qual->vgc_level_reg;
 	}
 }
 
@@ -1065,21 +1090,10 @@ static int rt2500pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 
 static void rt2500pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
-
+	/*
+	 * Disable power
+	 */
 	rt2x00pci_register_write(rt2x00dev, PWRCSR0, 0);
-
-	/*
-	 * Disable synchronisation.
-	 */
-	rt2x00pci_register_write(rt2x00dev, CSR14, 0);
-
-	/*
-	 * Cancel RX and TX.
-	 */
-	rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
-	rt2x00_set_field32(&reg, TXCSR0_ABORT, 1);
-	rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
 }
 
 static int rt2500pci_set_state(struct rt2x00_dev *rt2x00dev,
@@ -1205,7 +1219,7 @@ static void rt2500pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_TIMESTAMP,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_OFDM,
-			   test_bit(ENTRY_TXD_OFDM_RATE, &txdesc->flags));
+			   (txdesc->rate_mode == RATE_MODE_OFDM));
 	rt2x00_set_field32(&word, TXD_W0_CIPHER_OWNER, 1);
 	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
@@ -1273,6 +1287,20 @@ static void rt2500pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, TXCSR0_KICK_TX, (queue == QID_AC_BK));
 	rt2x00_set_field32(&reg, TXCSR0_KICK_ATIM, (queue == QID_ATIM));
 	rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
+}
+
+static void rt2500pci_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
+				    const enum data_queue_qid qid)
+{
+	u32 reg;
+
+	if (qid == QID_BEACON) {
+		rt2x00pci_register_write(rt2x00dev, CSR14, 0);
+	} else {
+		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
+		rt2x00_set_field32(&reg, TXCSR0_ABORT, 1);
+		rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
+	}
 }
 
 /*
@@ -1524,7 +1552,9 @@ static int rt2500pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
 
 	rt2500pci_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
-	if (value == LED_MODE_TXRX_ACTIVITY)
+	if (value == LED_MODE_TXRX_ACTIVITY ||
+	    value == LED_MODE_DEFAULT ||
+	    value == LED_MODE_ASUS)
 		rt2500pci_init_led(rt2x00dev, &rt2x00dev->led_qual,
 				   LED_TYPE_ACTIVITY);
 #endif /* CONFIG_RT2X00_LIB_LEDS */
@@ -1721,7 +1751,9 @@ static int rt2500pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 * Initialize all hw fields.
 	 */
 	rt2x00dev->hw->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-			       IEEE80211_HW_SIGNAL_DBM;
+			       IEEE80211_HW_SIGNAL_DBM |
+			       IEEE80211_HW_SUPPORTS_PS |
+			       IEEE80211_HW_PS_NULLFUNC_STACK;
 
 	rt2x00dev->hw->extra_tx_headroom = 0;
 
@@ -1873,6 +1905,7 @@ static const struct rt2x00lib_ops rt2500pci_rt2x00_ops = {
 	.write_tx_data		= rt2x00pci_write_tx_data,
 	.write_beacon		= rt2500pci_write_beacon,
 	.kick_tx_queue		= rt2500pci_kick_tx_queue,
+	.kill_tx_queue		= rt2500pci_kill_tx_queue,
 	.fill_rxdone		= rt2500pci_fill_rxdone,
 	.config_filter		= rt2500pci_config_filter,
 	.config_intf		= rt2500pci_config_intf,

@@ -116,4 +116,16 @@ enum nfs_stat_eventcounters {
 	__NFSIOS_COUNTSMAX,
 };
 
+/*
+ * NFS local caching servicing counters
+ */
+enum nfs_stat_fscachecounters {
+	NFSIOS_FSCACHE_PAGES_READ_OK,
+	NFSIOS_FSCACHE_PAGES_READ_FAIL,
+	NFSIOS_FSCACHE_PAGES_WRITTEN_OK,
+	NFSIOS_FSCACHE_PAGES_WRITTEN_FAIL,
+	NFSIOS_FSCACHE_PAGES_UNCACHED,
+	__NFSIOS_FSCACHEMAX,
+};
+
 #endif	/* _LINUX_NFS_IOSTAT */

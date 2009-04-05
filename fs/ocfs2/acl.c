@@ -296,7 +296,7 @@ int ocfs2_init_acl(handle_t *handle,
 				return PTR_ERR(acl);
 		}
 		if (!acl)
-			inode->i_mode &= ~current->fs->umask;
+			inode->i_mode &= ~current_umask();
 	}
 	if ((osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) && acl) {
 		struct posix_acl *clone;

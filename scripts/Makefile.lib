@@ -97,7 +97,7 @@ modname_flags  = $(if $(filter 1,$(words $(modname))),\
                  -D"KBUILD_MODNAME=KBUILD_STR($(call name-fix,$(modname)))")
 
 #hash values
-ifdef CONFIG_DYNAMIC_PRINTK_DEBUG
+ifdef CONFIG_DYNAMIC_DEBUG
 debug_flags = -D"DEBUG_HASH=$(shell ./scripts/basic/hash djb2 $(@D)$(modname))"\
               -D"DEBUG_HASH2=$(shell ./scripts/basic/hash r5 $(@D)$(modname))"
 else
@@ -186,3 +186,17 @@ quiet_cmd_gzip = GZIP    $@
 cmd_gzip = gzip -f -9 < $< > $@
 
 
+# Bzip2
+# ---------------------------------------------------------------------------
+
+# Bzip2 does not include size in file... so we have to fake that
+size_append=$(CONFIG_SHELL) $(srctree)/scripts/bin_size
+
+quiet_cmd_bzip2 = BZIP2    $@
+cmd_bzip2 = (bzip2 -9 < $< && $(size_append) $<) > $@ || (rm -f $@ ; false)
+
+# Lzma
+# ---------------------------------------------------------------------------
+
+quiet_cmd_lzma = LZMA    $@
+cmd_lzma = (lzma -9 -c $< && $(size_append) $<) >$@ || (rm -f $@ ; false)

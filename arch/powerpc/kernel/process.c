@@ -33,7 +33,10 @@
 #include <linux/mqueue.h>
 #include <linux/hardirq.h>
 #include <linux/utsname.h>
+#include <linux/ftrace.h>
 #include <linux/kernel_stat.h>
+#include <linux/personality.h>
+#include <linux/random.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -595,7 +598,7 @@ void prepare_to_copy(struct task_struct *tsk)
 /*
  * Copy a thread..
  */
-int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
+int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long unused, struct task_struct *p,
 		struct pt_regs *regs)
 {
@@ -1008,6 +1011,14 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	unsigned long sp, ip, lr, newsp;
 	int count = 0;
 	int firstframe = 1;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	int curr_frame = current->curr_ret_stack;
+	extern void return_to_handler(void);
+	unsigned long addr = (unsigned long)return_to_handler;
+#ifdef CONFIG_PPC64
+	addr = *(unsigned long*)addr;
+#endif
+#endif
 
 	sp = (unsigned long) stack;
 	if (tsk == NULL)
@@ -1030,6 +1041,13 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		ip = stack[STACK_FRAME_LR_SAVE];
 		if (!firstframe || ip != lr) {
 			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+			if (ip == addr && curr_frame >= 0) {
+				printk(" (%pS)",
+				       (void *)current->ret_stack[curr_frame].ret);
+				curr_frame--;
+			}
+#endif
 			if (firstframe)
 				printk(" (unreliable)");
 			printk("\n");
@@ -1122,3 +1140,43 @@ void thread_info_cache_init(void)
 }
 
 #endif /* THREAD_SHIFT < PAGE_SHIFT */
+
+unsigned long arch_align_stack(unsigned long sp)
+{
+	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+		sp -= get_random_int() & ~PAGE_MASK;
+	return sp & ~0xf;
+}
+
+static inline unsigned long brk_rnd(void)
+{
+        unsigned long rnd = 0;
+
+	/* 8MB for 32bit, 1GB for 64bit */
+	if (is_32bit_task())
+		rnd = (long)(get_random_int() % (1<<(23-PAGE_SHIFT)));
+	else
+		rnd = (long)(get_random_int() % (1<<(30-PAGE_SHIFT)));
+
+	return rnd << PAGE_SHIFT;
+}
+
+unsigned long arch_randomize_brk(struct mm_struct *mm)
+{
+	unsigned long ret = PAGE_ALIGN(mm->brk + brk_rnd());
+
+	if (ret < mm->brk)
+		return mm->brk;
+
+	return ret;
+}
+
+unsigned long randomize_et_dyn(unsigned long base)
+{
+	unsigned long ret = PAGE_ALIGN(base + brk_rnd());
+
+	if (ret < base)
+		return base;
+
+	return ret;
+}

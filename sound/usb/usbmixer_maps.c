@@ -261,6 +261,22 @@ static struct usbmix_name_map aureon_51_2_map[] = {
 	{} /* terminator */
 };
 
+static struct usbmix_name_map scratch_live_map[] = {
+	/* 1: IT Line 1 (USB streaming) */
+	/* 2: OT Line 1 (Speaker) */
+	/* 3: IT Line 1 (Line connector) */
+	{ 4, "Line 1 In" }, /* FU */
+	/* 5: OT Line 1 (USB streaming) */
+	/* 6: IT Line 2 (USB streaming) */
+	/* 7: OT Line 2 (Speaker) */
+	/* 8: IT Line 2 (Line connector) */
+	{ 9, "Line 2 In" }, /* FU */
+	/* 10: OT Line 2 (USB streaming) */
+	/* 11: IT Mic (Line connector) */
+	/* 12: OT Mic (USB streaming) */
+	{ 0 } /* terminator */
+};
+
 /*
  * Control map entries
  */
@@ -283,6 +299,11 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
  	{
 		.id = USB_ID(0x041e, 0x3040),
 		.map = live24ext_map,
+	},
+	{
+		.id = USB_ID(0x041e, 0x3048),
+		.map = audigy2nx_map,
+		.selector_map = audigy2nx_selectors,
 	},
 	{
 		/* Hercules DJ Console (Windows Edition) */
@@ -310,6 +331,11 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		.id = USB_ID(0x0ccd, 0x0028),
 		.map = aureon_51_2_map,
+	},
+	{
+		.id = USB_ID(0x13e5, 0x0001),
+		.map = scratch_live_map,
+		.ignore_ctl_error = 1,
 	},
 	{ 0 } /* terminator */
 };

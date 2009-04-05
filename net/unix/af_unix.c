@@ -832,7 +832,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		 * All right, let's create it.
 		 */
 		mode = S_IFSOCK |
-		       (SOCK_INODE(sock)->i_mode & ~current->fs->umask);
+		       (SOCK_INODE(sock)->i_mode & ~current_umask());
 		err = mnt_want_write(nd.path.mnt);
 		if (err)
 			goto out_mknod_dput;
@@ -1178,8 +1178,7 @@ out_unlock:
 		unix_state_unlock(other);
 
 out:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 	if (newsk)
 		unix_release_sock(newsk, 0);
 	if (other)

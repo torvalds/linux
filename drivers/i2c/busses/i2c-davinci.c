@@ -216,7 +216,7 @@ static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev,
 {
 	unsigned long timeout;
 
-	timeout = jiffies + DAVINCI_I2C_TIMEOUT;
+	timeout = jiffies + dev->adapter.timeout;
 	while (davinci_i2c_read_reg(dev, DAVINCI_I2C_STR_REG)
 	       & DAVINCI_I2C_STR_BB) {
 		if (time_after(jiffies, timeout)) {
@@ -289,7 +289,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
 
 	r = wait_for_completion_interruptible_timeout(&dev->cmd_complete,
-						      DAVINCI_I2C_TIMEOUT);
+						      dev->adapter.timeout);
 	if (r == 0) {
 		dev_err(dev->dev, "controller timed out\n");
 		i2c_davinci_init(dev);
@@ -546,9 +546,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	strlcpy(adap->name, "DaVinci I2C adapter", sizeof(adap->name));
 	adap->algo = &i2c_davinci_algo;
 	adap->dev.parent = &pdev->dev;
-
-	/* FIXME */
-	adap->timeout = 1;
+	adap->timeout = DAVINCI_I2C_TIMEOUT;
 
 	adap->nr = pdev->id;
 	r = i2c_add_numbered_adapter(adap);

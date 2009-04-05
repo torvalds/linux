@@ -8,7 +8,6 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <linux/delay.h>
-#include <linux/video_decoder.h>
 #include <media/v4l2-device.h>
 #include <media/tvp5150.h>
 #include <media/v4l2-i2c-drv-legacy.h>
@@ -632,7 +631,7 @@ static int tvp5150_g_sliced_vbi_cap(struct v4l2_subdev *sd,
 	const struct i2c_vbi_ram_value *regs = vbi_ram_default;
 	int line;
 
-	v4l2_dbg(1, debug, sd, "VIDIOC_G_SLICED_VBI_CAP\n");
+	v4l2_dbg(1, debug, sd, "g_sliced_vbi_cap\n");
 	memset(cap, 0, sizeof *cap);
 
 	while (regs->reg != (u16)-1 ) {
@@ -831,7 +830,7 @@ static int tvp5150_reset(struct v4l2_subdev *sd, u32 val)
 
 static int tvp5150_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	v4l2_dbg(1, debug, sd, "VIDIOC_G_CTRL called\n");
+	v4l2_dbg(1, debug, sd, "g_ctrl called\n");
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -861,7 +860,7 @@ static int tvp5150_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		if (ctrl->value < tvp5150_qctrl[i].minimum ||
 		    ctrl->value > tvp5150_qctrl[i].maximum)
 			return -ERANGE;
-		v4l2_dbg(1, debug, sd, "VIDIOC_S_CTRL: id=%d, value=%d\n",
+		v4l2_dbg(1, debug, sd, "s_ctrl: id=%d, value=%d\n",
 					ctrl->id, ctrl->value);
 		break;
 	}
@@ -1015,7 +1014,7 @@ static int tvp5150_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 {
 	int i;
 
-	v4l2_dbg(1, debug, sd, "VIDIOC_QUERYCTRL called\n");
+	v4l2_dbg(1, debug, sd, "queryctrl called\n");
 
 	for (i = 0; i < ARRAY_SIZE(tvp5150_qctrl); i++)
 		if (qc->id && qc->id == tvp5150_qctrl[i].id) {
@@ -1126,7 +1125,6 @@ MODULE_DEVICE_TABLE(i2c, tvp5150_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tvp5150",
-	.driverid = I2C_DRIVERID_TVP5150,
 	.command = tvp5150_command,
 	.probe = tvp5150_probe,
 	.remove = tvp5150_remove,

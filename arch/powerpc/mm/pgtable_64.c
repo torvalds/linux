@@ -144,8 +144,8 @@ void __iounmap_at(void *ea, unsigned long size)
 	unmap_kernel_range((unsigned long)ea, size);
 }
 
-void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
-			 unsigned long flags)
+void __iomem * __ioremap_caller(phys_addr_t addr, unsigned long size,
+				unsigned long flags, void *caller)
 {
 	phys_addr_t paligned;
 	void __iomem *ret;
@@ -168,8 +168,9 @@ void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
 	if (mem_init_done) {
 		struct vm_struct *area;
 
-		area = __get_vm_area(size, VM_IOREMAP,
-				     ioremap_bot, IOREMAP_END);
+		area = __get_vm_area_caller(size, VM_IOREMAP,
+					    ioremap_bot, IOREMAP_END,
+					    caller);
 		if (area == NULL)
 			return NULL;
 		ret = __ioremap_at(paligned, area->addr, size, flags);
@@ -186,19 +187,27 @@ void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
 	return ret;
 }
 
+void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
+			 unsigned long flags)
+{
+	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
+}
 
 void __iomem * ioremap(phys_addr_t addr, unsigned long size)
 {
 	unsigned long flags = _PAGE_NO_CACHE | _PAGE_GUARDED;
+	void *caller = __builtin_return_address(0);
 
 	if (ppc_md.ioremap)
-		return ppc_md.ioremap(addr, size, flags);
-	return __ioremap(addr, size, flags);
+		return ppc_md.ioremap(addr, size, flags, caller);
+	return __ioremap_caller(addr, size, flags, caller);
 }
 
 void __iomem * ioremap_flags(phys_addr_t addr, unsigned long size,
 			     unsigned long flags)
 {
+	void *caller = __builtin_return_address(0);
+
 	/* writeable implies dirty for kernel addresses */
 	if (flags & _PAGE_RW)
 		flags |= _PAGE_DIRTY;
@@ -207,8 +216,8 @@ void __iomem * ioremap_flags(phys_addr_t addr, unsigned long size,
 	flags &= ~(_PAGE_USER | _PAGE_EXEC);
 
 	if (ppc_md.ioremap)
-		return ppc_md.ioremap(addr, size, flags);
-	return __ioremap(addr, size, flags);
+		return ppc_md.ioremap(addr, size, flags, caller);
+	return __ioremap_caller(addr, size, flags, caller);
 }
 
 

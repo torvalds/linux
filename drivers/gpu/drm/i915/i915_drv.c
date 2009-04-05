@@ -42,6 +42,8 @@ module_param_named(modeset, i915_modeset, int, 0400);
 unsigned int i915_fbpercrtc = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 
+static struct drm_driver driver;
+
 static struct pci_device_id pciidlist[] = {
 	i915_PCI_IDS
 };
@@ -117,6 +119,36 @@ static int i915_resume(struct drm_device *dev)
 	return ret;
 }
 
+static int __devinit
+i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
+	return drm_get_dev(pdev, ent, &driver);
+}
+
+static void
+i915_pci_remove(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+
+	drm_put_dev(dev);
+}
+
+static int
+i915_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+
+	return i915_suspend(dev, state);
+}
+
+static int
+i915_pci_resume(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+
+	return i915_resume(dev);
+}
+
 static struct vm_operations_struct i915_gem_vm_ops = {
 	.fault = i915_gem_fault,
 	.open = drm_gem_vm_open,
@@ -150,8 +182,10 @@ static struct drm_driver driver = {
 	.get_reg_ofs = drm_core_get_reg_ofs,
 	.master_create = i915_master_create,
 	.master_destroy = i915_master_destroy,
-	.proc_init = i915_gem_proc_init,
-	.proc_cleanup = i915_gem_proc_cleanup,
+#if defined(CONFIG_DEBUG_FS)
+	.debugfs_init = i915_gem_debugfs_init,
+	.debugfs_cleanup = i915_gem_debugfs_cleanup,
+#endif
 	.gem_init_object = i915_gem_init_object,
 	.gem_free_object = i915_gem_free_object,
 	.gem_vm_ops = &i915_gem_vm_ops,
@@ -172,6 +206,12 @@ static struct drm_driver driver = {
 	.pci_driver = {
 		 .name = DRIVER_NAME,
 		 .id_table = pciidlist,
+		 .probe = i915_pci_probe,
+		 .remove = i915_pci_remove,
+#ifdef CONFIG_PM
+		 .resume = i915_pci_resume,
+		 .suspend = i915_pci_suspend,
+#endif
 	},
 
 	.name = DRIVER_NAME,

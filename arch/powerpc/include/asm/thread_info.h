@@ -12,8 +12,10 @@
 
 /* We have 8k stacks on ppc32 and 16k on ppc64 */
 
-#ifdef CONFIG_PPC64
+#if defined(CONFIG_PPC64)
 #define THREAD_SHIFT		14
+#elif defined(CONFIG_PPC_256K_PAGES)
+#define THREAD_SHIFT		15
 #else
 #define THREAD_SHIFT		13
 #endif
@@ -154,6 +156,13 @@ static inline void set_restore_sigmask(void)
 	ti->local_flags |= _TLF_RESTORE_SIGMASK;
 	set_bit(TIF_SIGPENDING, &ti->flags);
 }
+
+#ifdef CONFIG_PPC64
+#define is_32bit_task()	(test_thread_flag(TIF_32BIT))
+#else
+#define is_32bit_task()	(1)
+#endif
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

@@ -19,7 +19,8 @@
 
 static DEFINE_SPINLOCK(gpio_lock);
 static const char *gpio_label[GPIO_MAX];  /* non null for allocated GPIOs */
-static unsigned long gpio_valid[BITS_TO_LONGS(GPIO_MAX)];
+static unsigned long gpio_valid_input[BITS_TO_LONGS(GPIO_MAX)];
+static unsigned long gpio_valid_output[BITS_TO_LONGS(GPIO_MAX)];
 
 static inline void __set_direction(unsigned pin, int input)
 {
@@ -53,7 +54,7 @@ int gpio_direction_input(unsigned pin)
 {
 	unsigned long flags;
 
-	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid)) {
+	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid_input)) {
 		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
 		return -EINVAL;
 	}
@@ -83,7 +84,7 @@ int gpio_direction_output(unsigned pin, int value)
 	unsigned long flags;
 	u32 u;
 
-	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid)) {
+	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid_output)) {
 		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
 		return -EINVAL;
 	}
@@ -161,7 +162,9 @@ int gpio_request(unsigned pin, const char *label)
 	unsigned long flags;
 	int ret;
 
-	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid)) {
+	if (pin >= GPIO_MAX ||
+	    !(test_bit(pin, gpio_valid_input) ||
+	      test_bit(pin, gpio_valid_output))) {
 		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
 		return -EINVAL;
 	}
@@ -183,7 +186,9 @@ EXPORT_SYMBOL(gpio_request);
 
 void gpio_free(unsigned pin)
 {
-	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid)) {
+	if (pin >= GPIO_MAX ||
+	    !(test_bit(pin, gpio_valid_input) ||
+	      test_bit(pin, gpio_valid_output))) {
 		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
 		return;
 	}
@@ -208,12 +213,18 @@ void __init orion_gpio_set_unused(unsigned pin)
 	__set_direction(pin, 0);
 }
 
-void __init orion_gpio_set_valid(unsigned pin, int valid)
+void __init orion_gpio_set_valid(unsigned pin, int mode)
 {
-	if (valid)
-		__set_bit(pin, gpio_valid);
+	if (mode == 1)
+		mode = GPIO_INPUT_OK | GPIO_OUTPUT_OK;
+	if (mode & GPIO_INPUT_OK)
+		__set_bit(pin, gpio_valid_input);
 	else
-		__clear_bit(pin, gpio_valid);
+		__clear_bit(pin, gpio_valid_input);
+	if (mode & GPIO_OUTPUT_OK)
+		__set_bit(pin, gpio_valid_output);
+	else
+		__clear_bit(pin, gpio_valid_output);
 }
 
 void orion_gpio_set_blink(unsigned pin, int blink)

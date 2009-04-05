@@ -13,8 +13,13 @@
 
 #include <media/soc_camera.h>
 
+/* for flags */
+#define OV772X_FLAG_VFLIP     0x00000001 /* Vertical flip image */
+#define OV772X_FLAG_HFLIP     0x00000002 /* Horizontal flip image */
+
 struct ov772x_camera_info {
 	unsigned long          buswidth;
+	unsigned long          flags;
 	struct soc_camera_link link;
 };
 

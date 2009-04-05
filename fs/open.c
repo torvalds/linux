@@ -29,6 +29,7 @@
 #include <linux/rcupdate.h>
 #include <linux/audit.h>
 #include <linux/falloc.h>
+#include <linux/fs_struct.h>
 
 int vfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
@@ -273,7 +274,7 @@ static long do_sys_truncate(const char __user *pathname, loff_t length)
 	if (!error)
 		error = security_path_truncate(&path, length, 0);
 	if (!error) {
-		DQUOT_INIT(inode);
+		vfs_dq_init(inode);
 		error = do_truncate(path.dentry, length, 0, NULL);
 	}
 

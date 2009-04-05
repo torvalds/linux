@@ -236,7 +236,6 @@ int __init llc_proc_init(void)
 	llc_proc_dir = proc_mkdir("llc", init_net.proc_net);
 	if (!llc_proc_dir)
 		goto out;
-	llc_proc_dir->owner = THIS_MODULE;
 
 	p = proc_create("socket", S_IRUGO, llc_proc_dir, &llc_seq_socket_fops);
 	if (!p)

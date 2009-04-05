@@ -125,7 +125,7 @@ struct hpsb_protocol_driver {
 	 * probe function below can implement further protocol
 	 * dependent or vendor dependent checking.
 	 */
-	struct ieee1394_device_id *id_table;
+	const struct ieee1394_device_id *id_table;
 
 	/*
 	 * The update function is called when the node has just

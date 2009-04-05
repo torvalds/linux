@@ -42,34 +42,24 @@
 #define XFS_QI_QOFFLOCK(mp)	((mp)->m_quotainfo->qi_quotaofflock)
 
 #define XFS_QI_MPL_LIST(mp)	((mp)->m_quotainfo->qi_dqlist)
-#define XFS_QI_MPLLOCK(mp)	((mp)->m_quotainfo->qi_dqlist.qh_lock)
 #define XFS_QI_MPLNEXT(mp)	((mp)->m_quotainfo->qi_dqlist.qh_next)
 #define XFS_QI_MPLNDQUOTS(mp)	((mp)->m_quotainfo->qi_dqlist.qh_nelems)
 
-#define XQMLCK(h)			(mutex_lock(&((h)->qh_lock)))
-#define XQMUNLCK(h)			(mutex_unlock(&((h)->qh_lock)))
-#ifdef DEBUG
-struct xfs_dqhash;
-static inline int XQMISLCKD(struct xfs_dqhash *h)
-{
-	if (mutex_trylock(&h->qh_lock)) {
-		mutex_unlock(&h->qh_lock);
-		return 0;
-	}
-	return 1;
-}
-#endif
+#define xfs_qm_mplist_lock(mp) \
+	mutex_lock(&(XFS_QI_MPL_LIST(mp).qh_lock))
+#define xfs_qm_mplist_nowait(mp) \
+	mutex_trylock(&(XFS_QI_MPL_LIST(mp).qh_lock))
+#define xfs_qm_mplist_unlock(mp) \
+	mutex_unlock(&(XFS_QI_MPL_LIST(mp).qh_lock))
+#define XFS_QM_IS_MPLIST_LOCKED(mp) \
+	mutex_is_locked(&(XFS_QI_MPL_LIST(mp).qh_lock))
 
-#define XFS_DQ_HASH_LOCK(h)		XQMLCK(h)
-#define XFS_DQ_HASH_UNLOCK(h)		XQMUNLCK(h)
-#define XFS_DQ_IS_HASH_LOCKED(h)	XQMISLCKD(h)
-
-#define xfs_qm_mplist_lock(mp)		XQMLCK(&(XFS_QI_MPL_LIST(mp)))
-#define xfs_qm_mplist_unlock(mp)	XQMUNLCK(&(XFS_QI_MPL_LIST(mp)))
-#define XFS_QM_IS_MPLIST_LOCKED(mp)	XQMISLCKD(&(XFS_QI_MPL_LIST(mp)))
-
-#define xfs_qm_freelist_lock(qm)	XQMLCK(&((qm)->qm_dqfreelist))
-#define xfs_qm_freelist_unlock(qm)	XQMUNLCK(&((qm)->qm_dqfreelist))
+#define xfs_qm_freelist_lock(qm) \
+	mutex_lock(&((qm)->qm_dqfreelist.qh_lock))
+#define xfs_qm_freelist_lock_nowait(qm) \
+	mutex_trylock(&((qm)->qm_dqfreelist.qh_lock))
+#define xfs_qm_freelist_unlock(qm) \
+	mutex_unlock(&((qm)->qm_dqfreelist.qh_lock))
 
 /*
  * Hash into a bucket in the dquot hash table, based on <mp, id>.

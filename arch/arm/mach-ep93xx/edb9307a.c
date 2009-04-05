@@ -48,12 +48,24 @@ static struct ep93xx_eth_data edb9307a_eth_data = {
 	.phy_id		= 1,
 };
 
+static struct i2c_board_info __initdata edb9307a_i2c_data[] = {
+	{
+		/* On-board battery backed RTC */
+		I2C_BOARD_INFO("isl1208", 0x6f),
+	},
+	/*
+	 * The I2C signals are also routed to the Expansion Connector (J4)
+	 */
+};
+
 static void __init edb9307a_init_machine(void)
 {
 	ep93xx_init_devices();
 	platform_device_register(&edb9307a_flash);
 
 	ep93xx_register_eth(&edb9307a_eth_data, 1);
+
+	ep93xx_init_i2c(edb9307a_i2c_data, ARRAY_SIZE(edb9307a_i2c_data));
 }
 
 MACHINE_START(EDB9307A, "Cirrus Logic EDB9307A Evaluation Board")

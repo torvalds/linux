@@ -139,6 +139,9 @@ struct target_type {
 	dm_ioctl_fn ioctl;
 	dm_merge_fn merge;
 	dm_busy_fn busy;
+
+	/* For internal device-mapper use. */
+	struct list_head list;
 };
 
 struct io_restrictions {

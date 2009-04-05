@@ -24,6 +24,8 @@ The following mount options are supported:
 
 	gid=		Set the default group.
 	umask=		Set the default umask.
+	mode=		Set the default file permissions.
+	dmode=		Set the default directory permissions.
 	uid=		Set the default user.
 	bs=		Set the block size.
 	unhide		Show otherwise hidden files.

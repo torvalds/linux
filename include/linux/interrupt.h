@@ -61,6 +61,17 @@
 
 typedef irqreturn_t (*irq_handler_t)(int, void *);
 
+/**
+ * struct irqaction - per interrupt action descriptor
+ * @handler:	interrupt handler function
+ * @flags:	flags (see IRQF_* above)
+ * @mask:	no comment as it is useless and about to be removed
+ * @name:	name of the device
+ * @dev_id:	cookie to identify the device
+ * @next:	pointer to the next irqaction for shared interrupts
+ * @irq:	interrupt number
+ * @dir:	pointer to the proc/irq/NN/name entry
+ */
 struct irqaction {
 	irq_handler_t handler;
 	unsigned long flags;
@@ -105,6 +116,15 @@ extern void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id);
 extern void disable_irq_nosync(unsigned int irq);
 extern void disable_irq(unsigned int irq);
 extern void enable_irq(unsigned int irq);
+
+/* The following three functions are for the core kernel use only. */
+extern void suspend_device_irqs(void);
+extern void resume_device_irqs(void);
+#ifdef CONFIG_PM_SLEEP
+extern int check_wakeup_irqs(void);
+#else
+static inline int check_wakeup_irqs(void) { return 0; }
+#endif
 
 #if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_HARDIRQS)
 
@@ -462,11 +482,18 @@ static inline void init_irq_proc(void)
 }
 #endif
 
+#if defined(CONFIG_GENERIC_HARDIRQS) && defined(CONFIG_DEBUG_SHIRQ)
+extern void debug_poll_all_shared_irqs(void);
+#else
+static inline void debug_poll_all_shared_irqs(void) { }
+#endif
+
 int show_interrupts(struct seq_file *p, void *v);
 
 struct irq_desc;
 
 extern int early_irq_init(void);
+extern int arch_probe_nr_irqs(void);
 extern int arch_early_irq_init(void);
 extern int arch_init_chip_data(struct irq_desc *desc, int cpu);
 

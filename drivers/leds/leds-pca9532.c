@@ -1,7 +1,7 @@
 /*
  * pca9532.c - 16-bit Led dimmer
  *
- * Copyright (C) 2008 Riku Voipio <riku.voipio@movial.fi>
+ * Copyright (C) 2008 Riku Voipio
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -367,7 +367,7 @@ static void __exit pca9532_exit(void)
 	i2c_del_driver(&pca9532_driver);
 }
 
-MODULE_AUTHOR("Riku Voipio <riku.voipio@movial.fi>");
+MODULE_AUTHOR("Riku Voipio");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("PCA 9532 LED dimmer");
 

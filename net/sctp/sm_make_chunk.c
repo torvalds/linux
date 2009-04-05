@@ -100,11 +100,11 @@ int sctp_chunk_iif(const struct sctp_chunk *chunk)
  */
 static const struct sctp_paramhdr ecap_param = {
 	SCTP_PARAM_ECN_CAPABLE,
-	__constant_htons(sizeof(struct sctp_paramhdr)),
+	cpu_to_be16(sizeof(struct sctp_paramhdr)),
 };
 static const struct sctp_paramhdr prsctp_param = {
 	SCTP_PARAM_FWD_TSN_SUPPORT,
-	__constant_htons(sizeof(struct sctp_paramhdr)),
+	cpu_to_be16(sizeof(struct sctp_paramhdr)),
 };
 
 /* A helper to initialize to initialize an op error inside a
@@ -224,7 +224,9 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 		num_ext += 2;
 	}
 
-	chunksize += sizeof(aiparam);
+	if (sp->adaptation_ind)
+		chunksize += sizeof(aiparam);
+
 	chunksize += vparam_len;
 
 	/* Account for AUTH related parameters */
@@ -304,10 +306,12 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	if (sctp_prsctp_enable)
 		sctp_addto_chunk(retval, sizeof(prsctp_param), &prsctp_param);
 
-	aiparam.param_hdr.type = SCTP_PARAM_ADAPTATION_LAYER_IND;
-	aiparam.param_hdr.length = htons(sizeof(aiparam));
-	aiparam.adaptation_ind = htonl(sp->adaptation_ind);
-	sctp_addto_chunk(retval, sizeof(aiparam), &aiparam);
+	if (sp->adaptation_ind) {
+		aiparam.param_hdr.type = SCTP_PARAM_ADAPTATION_LAYER_IND;
+		aiparam.param_hdr.length = htons(sizeof(aiparam));
+		aiparam.adaptation_ind = htonl(sp->adaptation_ind);
+		sctp_addto_chunk(retval, sizeof(aiparam), &aiparam);
+	}
 
 	/* Add SCTP-AUTH chunks to the parameter list */
 	if (sctp_auth_enable) {
@@ -332,6 +336,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	sctp_inithdr_t initack;
 	struct sctp_chunk *retval;
 	union sctp_params addrs;
+	struct sctp_sock *sp;
 	int addrs_len;
 	sctp_cookie_param_t *cookie;
 	int cookie_len;
@@ -366,22 +371,24 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	/* Calculate the total size of allocation, include the reserved
 	 * space for reporting unknown parameters if it is specified.
 	 */
+	sp = sctp_sk(asoc->base.sk);
 	chunksize = sizeof(initack) + addrs_len + cookie_len + unkparam_len;
 
 	/* Tell peer that we'll do ECN only if peer advertised such cap.  */
 	if (asoc->peer.ecn_capable)
 		chunksize += sizeof(ecap_param);
 
-	if (sctp_prsctp_enable)
+	if (asoc->peer.prsctp_capable)
 		chunksize += sizeof(prsctp_param);
 
-	if (sctp_addip_enable) {
+	if (asoc->peer.asconf_capable) {
 		extensions[num_ext] = SCTP_CID_ASCONF;
 		extensions[num_ext+1] = SCTP_CID_ASCONF_ACK;
 		num_ext += 2;
 	}
 
-	chunksize += sizeof(aiparam);
+	if (sp->adaptation_ind)
+		chunksize += sizeof(aiparam);
 
 	if (asoc->peer.auth_capable) {
 		auth_random = (sctp_paramhdr_t *)asoc->c.auth_random;
@@ -432,10 +439,12 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	if (asoc->peer.prsctp_capable)
 		sctp_addto_chunk(retval, sizeof(prsctp_param), &prsctp_param);
 
-	aiparam.param_hdr.type = SCTP_PARAM_ADAPTATION_LAYER_IND;
-	aiparam.param_hdr.length = htons(sizeof(aiparam));
-	aiparam.adaptation_ind = htonl(sctp_sk(asoc->base.sk)->adaptation_ind);
-	sctp_addto_chunk(retval, sizeof(aiparam), &aiparam);
+	if (sp->adaptation_ind) {
+		aiparam.param_hdr.type = SCTP_PARAM_ADAPTATION_LAYER_IND;
+		aiparam.param_hdr.length = htons(sizeof(aiparam));
+		aiparam.adaptation_ind = htonl(sp->adaptation_ind);
+		sctp_addto_chunk(retval, sizeof(aiparam), &aiparam);
+	}
 
 	if (asoc->peer.auth_capable) {
 		sctp_addto_chunk(retval, ntohs(auth_random->length),

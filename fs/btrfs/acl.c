@@ -256,7 +256,7 @@ int btrfs_init_acl(struct inode *inode, struct inode *dir)
 		}
 
 		if (!acl)
-			inode->i_mode &= ~current->fs->umask;
+			inode->i_mode &= ~current_umask();
 	}
 
 	if (IS_POSIXACL(dir) && acl) {
