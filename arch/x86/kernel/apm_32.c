@@ -1234,8 +1234,10 @@ static int suspend(int vetoable)
 	struct apm_user	*as;
 
 	device_suspend(PMSG_SUSPEND);
-	local_irq_disable();
+
 	device_power_down(PMSG_SUSPEND);
+
+	local_irq_disable();
 	sysdev_suspend(PMSG_SUSPEND);
 
 	local_irq_enable();
@@ -1253,9 +1255,12 @@ static int suspend(int vetoable)
 	if (err != APM_SUCCESS)
 		apm_error("suspend", err);
 	err = (err == APM_SUCCESS) ? 0 : -EIO;
+
 	sysdev_resume();
-	device_power_up(PMSG_RESUME);
 	local_irq_enable();
+
+	device_power_up(PMSG_RESUME);
+
 	device_resume(PMSG_RESUME);
 	queue_event(APM_NORMAL_RESUME, NULL);
 	spin_lock(&user_list_lock);
@@ -1272,8 +1277,9 @@ static void standby(void)
 {
 	int err;
 
-	local_irq_disable();
 	device_power_down(PMSG_SUSPEND);
+
+	local_irq_disable();
 	sysdev_suspend(PMSG_SUSPEND);
 	local_irq_enable();
 
@@ -1283,8 +1289,9 @@ static void standby(void)
 
 	local_irq_disable();
 	sysdev_resume();
-	device_power_up(PMSG_RESUME);
 	local_irq_enable();
+
+	device_power_up(PMSG_RESUME);
 }
 
 static apm_event_t get_event(void)

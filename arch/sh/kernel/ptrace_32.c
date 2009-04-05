@@ -200,7 +200,8 @@ static int dspregs_get(struct task_struct *target,
 		       unsigned int pos, unsigned int count,
 		       void *kbuf, void __user *ubuf)
 {
-	const struct pt_dspregs *regs = task_pt_dspregs(target);
+	const struct pt_dspregs *regs =
+		(struct pt_dspregs *)&target->thread.dsp_status.dsp_regs;
 	int ret;
 
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, regs,
@@ -217,7 +218,8 @@ static int dspregs_set(struct task_struct *target,
 		       unsigned int pos, unsigned int count,
 		       const void *kbuf, const void __user *ubuf)
 {
-	struct pt_dspregs *regs = task_pt_dspregs(target);
+	struct pt_dspregs *regs =
+		(struct pt_dspregs *)&target->thread.dsp_status.dsp_regs;
 	int ret;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, regs,

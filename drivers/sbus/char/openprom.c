@@ -51,6 +51,7 @@ MODULE_AUTHOR("Thomas K. Dyas (tdyas@noc.rutgers.edu) and Eddie C. Dost  (ecd@sk
 MODULE_DESCRIPTION("OPENPROM Configuration Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
+MODULE_ALIAS_MISCDEV(SUN_OPENPROM_MINOR);
 
 /* Private data kept by the driver for each descriptor. */
 typedef struct openprom_private_data

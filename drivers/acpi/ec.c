@@ -67,7 +67,7 @@ enum ec_command {
 
 #define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
-#define ACPI_EC_UDELAY		100	/* Wait 100us before polling EC again */
+#define ACPI_EC_CDELAY		10	/* Wait 10us before polling EC */
 
 #define ACPI_EC_STORM_THRESHOLD 8	/* number of false interrupts
 					   per one transaction */
@@ -236,13 +236,23 @@ static int ec_check_sci(struct acpi_ec *ec, u8 state)
 	return 0;
 }
 
+static void ec_delay(void)
+{
+	/* EC in MSI notebooks don't tolerate delays other than 550 usec */
+	if (EC_FLAGS_MSI)
+		udelay(ACPI_EC_DELAY);
+	else
+		/* Use shortest sleep available */
+		msleep(1);
+}
+
 static int ec_poll(struct acpi_ec *ec)
 {
 	unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
-	udelay(ACPI_EC_UDELAY);
+	udelay(ACPI_EC_CDELAY);
 	while (time_before(jiffies, delay)) {
 		gpe_transaction(ec, acpi_ec_read_status(ec));
-		udelay(ACPI_EC_UDELAY);
+		ec_delay();
 		if (ec_transaction_done(ec))
 			return 0;
 	}
@@ -672,7 +682,7 @@ static int acpi_ec_info_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_ec_read_info, PDE(inode)->data);
 }
 
-static struct file_operations acpi_ec_info_ops = {
+static const struct file_operations acpi_ec_info_ops = {
 	.open = acpi_ec_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -755,6 +765,10 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	unsigned long long tmp = 0;
 
 	struct acpi_ec *ec = context;
+
+	/* clear addr values, ec_parse_io_ports depend on it */
+	ec->command_addr = ec->data_addr = 0;
+
 	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
 				     ec_parse_io_ports, ec);
 	if (ACPI_FAILURE(status))
@@ -804,11 +818,11 @@ static int acpi_ec_add(struct acpi_device *device)
 		ec = make_acpi_ec();
 		if (!ec)
 			return -ENOMEM;
-		if (ec_parse_device(device->handle, 0, ec, NULL) !=
-		    AE_CTRL_TERMINATE) {
+	}
+	if (ec_parse_device(device->handle, 0, ec, NULL) !=
+		AE_CTRL_TERMINATE) {
 			kfree(ec);
 			return -EINVAL;
-		}
 	}
 
 	ec->handle = device->handle;
@@ -986,12 +1000,12 @@ int __init acpi_ec_ecdt_probe(void)
 		boot_ec->handle = ACPI_ROOT_OBJECT;
 		acpi_get_handle(ACPI_ROOT_OBJECT, ecdt_ptr->id, &boot_ec->handle);
 		/* Don't trust ECDT, which comes from ASUSTek */
-		if (!dmi_name_in_vendors("ASUS"))
+		if (!dmi_name_in_vendors("ASUS") && EC_FLAGS_MSI == 0)
 			goto install;
 		saved_ec = kmalloc(sizeof(struct acpi_ec), GFP_KERNEL);
 		if (!saved_ec)
 			return -ENOMEM;
-		memcpy(saved_ec, boot_ec, sizeof(*saved_ec));
+		memcpy(saved_ec, boot_ec, sizeof(struct acpi_ec));
 	/* fall through */
 	}
 	/* This workaround is needed only on some broken machines,
@@ -1069,12 +1083,9 @@ static struct acpi_driver acpi_ec_driver = {
 		},
 };
 
-static int __init acpi_ec_init(void)
+int __init acpi_ec_init(void)
 {
 	int result = 0;
-
-	if (acpi_disabled)
-		return 0;
 
 	acpi_ec_dir = proc_mkdir(ACPI_EC_CLASS, acpi_root_dir);
 	if (!acpi_ec_dir)
@@ -1089,8 +1100,6 @@ static int __init acpi_ec_init(void)
 
 	return result;
 }
-
-subsys_initcall(acpi_ec_init);
 
 /* EC driver currently not unloadable */
 #if 0

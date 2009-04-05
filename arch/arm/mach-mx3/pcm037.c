@@ -24,8 +24,10 @@
 #include <linux/mtd/plat-ram.h>
 #include <linux/memory.h>
 #include <linux/gpio.h>
-#include <linux/smc911x.h>
+#include <linux/smsc911x.h>
 #include <linux/interrupt.h>
+#include <linux/i2c.h>
+#include <linux/i2c/at24.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -37,6 +39,10 @@
 #include <mach/iomux-mx3.h>
 #include <mach/board-pcm037.h>
 #include <mach/mxc_nand.h>
+#include <mach/mmc.h>
+#ifdef CONFIG_I2C_IMX
+#include <mach/i2c.h>
+#endif
 
 #include "devices.h"
 
@@ -64,7 +70,7 @@ static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct resource smc911x_resources[] = {
+static struct resource smsc911x_resources[] = {
 	[0] = {
 		.start		= CS1_BASE_ADDR + 0x300,
 		.end		= CS1_BASE_ADDR + 0x300 + SZ_64K - 1,
@@ -73,22 +79,25 @@ static struct resource smc911x_resources[] = {
 	[1] = {
 		.start		= IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
 		.end		= IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
-		.flags		= IORESOURCE_IRQ,
+		.flags		= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
 
-static struct smc911x_platdata smc911x_info = {
-	.flags		= SMC911X_USE_32BIT,
-	.irq_flags	= IRQF_SHARED | IRQF_TRIGGER_LOW,
+static struct smsc911x_platform_config smsc911x_info = {
+	.flags		= SMSC911X_USE_32BIT | SMSC911X_FORCE_INTERNAL_PHY |
+			  SMSC911X_SAVE_MAC_ADDRESS,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
 };
 
 static struct platform_device pcm037_eth = {
-	.name		= "smc911x",
+	.name		= "smsc911x",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(smc911x_resources),
-	.resource	= smc911x_resources,
+	.num_resources	= ARRAY_SIZE(smsc911x_resources),
+	.resource	= smsc911x_resources,
 	.dev		= {
-		.platform_data = &smc911x_info,
+		.platform_data = &smsc911x_info,
 	},
 };
 
@@ -117,10 +126,88 @@ static struct mxc_nand_platform_data pcm037_nand_board_info = {
 	.hw_ecc = 1,
 };
 
+#ifdef CONFIG_I2C_IMX
+static int i2c_1_pins[] = {
+	MX31_PIN_CSPI2_MOSI__SCL,
+	MX31_PIN_CSPI2_MISO__SDA,
+};
+
+static int pcm037_i2c_1_init(struct device *dev)
+{
+	return mxc_iomux_setup_multiple_pins(i2c_1_pins, ARRAY_SIZE(i2c_1_pins),
+			"i2c-1");
+}
+
+static void pcm037_i2c_1_exit(struct device *dev)
+{
+	mxc_iomux_release_multiple_pins(i2c_1_pins, ARRAY_SIZE(i2c_1_pins));
+}
+
+static struct imxi2c_platform_data pcm037_i2c_1_data = {
+	.bitrate = 100000,
+	.init = pcm037_i2c_1_init,
+	.exit = pcm037_i2c_1_exit,
+};
+
+static struct at24_platform_data board_eeprom = {
+	.byte_len = 4096,
+	.page_size = 32,
+	.flags = AT24_FLAG_ADDR16,
+};
+
+static struct i2c_board_info pcm037_i2c_devices[] = {
+       {
+		I2C_BOARD_INFO("at24", 0x52), /* E0=0, E1=1, E2=0 */
+		.platform_data = &board_eeprom,
+	}, {
+		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
+		.type = "pcf8563",
+	}
+};
+#endif
+
+static int sdhc1_pins[] = {
+	MX31_PIN_SD1_DATA3__SD1_DATA3,
+	MX31_PIN_SD1_DATA2__SD1_DATA2,
+	MX31_PIN_SD1_DATA1__SD1_DATA1,
+	MX31_PIN_SD1_DATA0__SD1_DATA0,
+	MX31_PIN_SD1_CLK__SD1_CLK,
+	MX31_PIN_SD1_CMD__SD1_CMD,
+};
+
+static int pcm970_sdhc1_init(struct device *dev, irq_handler_t h, void *data)
+{
+	return mxc_iomux_setup_multiple_pins(sdhc1_pins, ARRAY_SIZE(sdhc1_pins),
+				"sdhc-1");
+}
+
+static void pcm970_sdhc1_exit(struct device *dev, void *data)
+{
+	mxc_iomux_release_multiple_pins(sdhc1_pins, ARRAY_SIZE(sdhc1_pins));
+}
+
+/* No card and rw detection at the moment */
+static struct imxmmc_platform_data sdhc_pdata = {
+	.init = pcm970_sdhc1_init,
+	.exit = pcm970_sdhc1_exit,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&pcm037_flash,
 	&pcm037_eth,
 	&pcm037_sram_device,
+};
+
+static int uart0_pins[] = {
+	MX31_PIN_CTS1__CTS1,
+	MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1,
+	MX31_PIN_RXD1__RXD1
+};
+
+static int uart2_pins[] = {
+	MX31_PIN_CSPI3_MOSI__RXD3,
+	MX31_PIN_CSPI3_MISO__TXD3
 };
 
 /*
@@ -130,59 +217,33 @@ static void __init mxc_board_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_iomux_mode(MX31_PIN_CTS1__CTS1);
-	mxc_iomux_mode(MX31_PIN_RTS1__RTS1);
-	mxc_iomux_mode(MX31_PIN_TXD1__TXD1);
-	mxc_iomux_mode(MX31_PIN_RXD1__RXD1);
-
+	mxc_iomux_setup_multiple_pins(uart0_pins, ARRAY_SIZE(uart0_pins), "uart-0");
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 
-	mxc_iomux_mode(MX31_PIN_CSPI3_MOSI__RXD3);
-	mxc_iomux_mode(MX31_PIN_CSPI3_MISO__TXD3);
-
+	mxc_iomux_setup_multiple_pins(uart2_pins, ARRAY_SIZE(uart2_pins), "uart-2");
 	mxc_register_device(&mxc_uart_device2, &uart_pdata);
 
-	mxc_iomux_mode(MX31_PIN_BATT_LINE__OWIRE);
+	mxc_iomux_setup_pin(MX31_PIN_BATT_LINE__OWIRE, "batt-0wire");
 	mxc_register_device(&mxc_w1_master_device, NULL);
 
 	/* SMSC9215 IRQ pin */
-	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_GPIO3_1, IOMUX_CONFIG_GPIO));
-	if (!gpio_request(MX31_PIN_GPIO3_1, "pcm037-eth"))
+	if (!mxc_iomux_setup_pin(IOMUX_MODE(MX31_PIN_GPIO3_1, IOMUX_CONFIG_GPIO),
+				"pcm037-eth"))
 		gpio_direction_input(MX31_PIN_GPIO3_1);
 
+#ifdef CONFIG_I2C_IMX
+	i2c_register_board_info(1, pcm037_i2c_devices,
+			ARRAY_SIZE(pcm037_i2c_devices));
+
+	mxc_register_device(&mxc_i2c_device1, &pcm037_i2c_1_data);
+#endif
 	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
-}
-
-/*
- * This structure defines static mappings for the pcm037 board.
- */
-static struct map_desc pcm037_io_desc[] __initdata = {
-	{
-		.virtual	= AIPS1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS1_BASE_ADDR),
-		.length		= AIPS1_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= AIPS2_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
-		.length		= AIPS2_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-/*
- * Set up static virtual mappings.
- */
-void __init pcm037_map_io(void)
-{
-	mxc_map_io();
-	iotable_init(pcm037_io_desc, ARRAY_SIZE(pcm037_io_desc));
+	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);
 }
 
 static void __init pcm037_timer_init(void)
 {
-	mxc_clocks_init(26000000);
-	mxc_timer_init("ipg_clk.0");
+	mx31_clocks_init(26000000);
 }
 
 struct sys_timer pcm037_timer = {
@@ -194,7 +255,7 @@ MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	.phys_io	= AIPS1_BASE_ADDR,
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
-	.map_io         = pcm037_map_io,
+	.map_io         = mxc_map_io,
 	.init_irq       = mxc_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &pcm037_timer,

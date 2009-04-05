@@ -59,9 +59,9 @@ static inline int nf_bridge_maybe_copy_header(struct sk_buff *skb)
 static inline unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb)
 {
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_8021Q):
+	case __cpu_to_be16(ETH_P_8021Q):
 		return VLAN_HLEN;
-	case __constant_htons(ETH_P_PPP_SES):
+	case __cpu_to_be16(ETH_P_PPP_SES):
 		return PPPOE_SES_HLEN;
 	default:
 		return 0;

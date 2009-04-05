@@ -1,13 +1,13 @@
 /* cpwd.c - driver implementation for hardware watchdog
  * timers found on Sun Microsystems CP1400 and CP1500 boards.
  *
- * This device supports both the generic Linux watchdog 
+ * This device supports both the generic Linux watchdog
  * interface and Solaris-compatible ioctls as best it is
  * able.
  *
  * NOTE: 	CP1400 systems appear to have a defective intr_mask
  * 			register on the PLD, preventing the disabling of
- * 			timer interrupts.  We use a timer to periodically 
+ * 			timer interrupts.  We use a timer to periodically
  * 			reset 'stopped' watchdogs on affected platforms.
  *
  * Copyright (c) 2000 Eric Brower (ebrower@usa.net)
@@ -28,10 +28,9 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/uaccess.h>
 
 #include <asm/irq.h>
-#include <asm/uaccess.h>
-
 #include <asm/watchdog.h>
 
 #define DRIVER_NAME	"cpwd"
@@ -43,8 +42,8 @@
 #define WD_BLIMIT	0xFFFF
 
 #define WD0_MINOR	212
-#define WD1_MINOR	213	
-#define WD2_MINOR	214	
+#define WD1_MINOR	213
+#define WD2_MINOR	214
 
 /* Internal driver definitions.  */
 #define WD0_ID			0
@@ -91,16 +90,16 @@ struct cpwd {
 
 static struct cpwd *cpwd_device;
 
-/* Sun uses Altera PLD EPF8820ATC144-4 
+/* Sun uses Altera PLD EPF8820ATC144-4
  * providing three hardware watchdogs:
  *
- * 	1) RIC - sends an interrupt when triggered
- * 	2) XIR - asserts XIR_B_RESET when triggered, resets CPU
- * 	3) POR - asserts POR_B_RESET when triggered, resets CPU, backplane, board
+ * 1) RIC - sends an interrupt when triggered
+ * 2) XIR - asserts XIR_B_RESET when triggered, resets CPU
+ * 3) POR - asserts POR_B_RESET when triggered, resets CPU, backplane, board
  *
  *** Timer register block definition (struct wd_timer_regblk)
  *
- * dcntr and limit registers (halfword access):      
+ * dcntr and limit registers (halfword access):
  * -------------------
  * | 15 | ...| 1 | 0 |
  * -------------------
@@ -108,7 +107,8 @@ static struct cpwd *cpwd_device;
  * -------------------
  * dcntr - 	Current 16-bit downcounter value.
  * 			When downcounter reaches '0' watchdog expires.
- * 			Reading this register resets downcounter with 'limit' value.
+ * 			Reading this register resets downcounter with
+ * 			'limit' value.
  * limit - 	16-bit countdown value in 1/10th second increments.
  * 			Writing this register begins countdown with input value.
  * 			Reading from this register does not affect counter.
@@ -158,11 +158,11 @@ static int wd0_timeout = 0;
 static int wd1_timeout = 0;
 static int wd2_timeout = 0;
 
-module_param	(wd0_timeout, int, 0);
+module_param(wd0_timeout, int, 0);
 MODULE_PARM_DESC(wd0_timeout, "Default watchdog0 timeout in 1/10secs");
-module_param 	(wd1_timeout, int, 0);
+module_param(wd1_timeout, int, 0);
 MODULE_PARM_DESC(wd1_timeout, "Default watchdog1 timeout in 1/10secs");
-module_param 	(wd2_timeout, int, 0);
+module_param(wd2_timeout, int, 0);
 MODULE_PARM_DESC(wd2_timeout, "Default watchdog2 timeout in 1/10secs");
 
 MODULE_AUTHOR("Eric Brower <ebrower@usa.net>");
@@ -201,9 +201,9 @@ static u8 cpwd_readb(void __iomem *addr)
 static void cpwd_toggleintr(struct cpwd *p, int index, int enable)
 {
 	unsigned char curregs = cpwd_readb(p->regs + PLD_IMASK);
-	unsigned char setregs = 
-		(index == -1) ? 
-		(WD0_INTR_MASK | WD1_INTR_MASK | WD2_INTR_MASK) : 
+	unsigned char setregs =
+		(index == -1) ?
+		(WD0_INTR_MASK | WD1_INTR_MASK | WD2_INTR_MASK) :
 		(p->devs[index].intr_mask);
 
 	if (enable == WD_INTR_ON)
@@ -303,24 +303,24 @@ static int cpwd_getstatus(struct cpwd *p, int index)
 	unsigned char ret  = WD_STOPPED;
 
 	/* determine STOPPED */
-	if (!stat) 
+	if (!stat)
 		return ret;
 
 	/* determine EXPIRED vs FREERUN vs RUNNING */
 	else if (WD_S_EXPIRED & stat) {
 		ret = WD_EXPIRED;
-	} else if(WD_S_RUNNING & stat) {
+	} else if (WD_S_RUNNING & stat) {
 		if (intr & p->devs[index].intr_mask) {
 			ret = WD_FREERUN;
 		} else {
 			/* Fudge WD_EXPIRED status for defective CP1400--
-			 * IF timer is running 
-			 * 	AND brokenstop is set 
+			 * IF timer is running
+			 * 	AND brokenstop is set
 			 * 	AND an interrupt has been serviced
 			 * we are WD_EXPIRED.
 			 *
-			 * IF timer is running 
-			 * 	AND brokenstop is set 
+			 * IF timer is running
+			 * 	AND brokenstop is set
 			 * 	AND no interrupt has been serviced
 			 * we are WD_FREERUN.
 			 */
@@ -329,7 +329,8 @@ static int cpwd_getstatus(struct cpwd *p, int index)
 				if (p->devs[index].runstatus & WD_STAT_SVCD) {
 					ret = WD_EXPIRED;
 				} else {
-					/* we could as well pretend we are expired */
+					/* we could as well pretend
+					 * we are expired */
 					ret = WD_FREERUN;
 				}
 			} else {
@@ -342,7 +343,7 @@ static int cpwd_getstatus(struct cpwd *p, int index)
 	if (p->devs[index].runstatus & WD_STAT_SVCD)
 		ret |= WD_SERVICED;
 
-	return(ret);
+	return ret;
 }
 
 static irqreturn_t cpwd_interrupt(int irq, void *dev_id)
@@ -367,22 +368,22 @@ static int cpwd_open(struct inode *inode, struct file *f)
 	struct cpwd *p = cpwd_device;
 
 	lock_kernel();
-	switch(iminor(inode)) {
-		case WD0_MINOR:
-		case WD1_MINOR:
-		case WD2_MINOR:
-			break;
+	switch (iminor(inode)) {
+	case WD0_MINOR:
+	case WD1_MINOR:
+	case WD2_MINOR:
+		break;
 
-		default:
-			unlock_kernel();
-			return -ENODEV;
+	default:
+		unlock_kernel();
+		return -ENODEV;
 	}
 
 	/* Register IRQ on first open of device */
 	if (!p->initialized) {
-		if (request_irq(p->irq, &cpwd_interrupt, 
+		if (request_irq(p->irq, &cpwd_interrupt,
 				IRQF_SHARED, DRIVER_NAME, p)) {
-			printk(KERN_ERR PFX "Cannot register IRQ %d\n", 
+			printk(KERN_ERR PFX "Cannot register IRQ %d\n",
 				p->irq);
 			unlock_kernel();
 			return -EBUSY;
@@ -400,8 +401,7 @@ static int cpwd_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int cpwd_ioctl(struct inode *inode, struct file *file, 
-		      unsigned int cmd, unsigned long arg)
+static long cpwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	static struct watchdog_info info = {
 		.options		= WDIOF_SETTIMEOUT,
@@ -409,6 +409,7 @@ static int cpwd_ioctl(struct inode *inode, struct file *file,
 		.identity		= DRIVER_NAME,
 	};
 	void __user *argp = (void __user *)arg;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	int index = iminor(inode) - WD0_MINOR;
 	struct cpwd *p = cpwd_device;
 	int setopt = 0;
@@ -442,7 +443,7 @@ static int cpwd_ioctl(struct inode *inode, struct file *file,
 			cpwd_starttimer(p, index);
 		} else {
 			return -EINVAL;
-		}	
+		}
 		break;
 
 	/* Solaris-compatible IOCTLs */
@@ -458,7 +459,7 @@ static int cpwd_ioctl(struct inode *inode, struct file *file,
 
 	case WIOCSTOP:
 		if (p->enabled)
-			return(-EINVAL);
+			return -EINVAL;
 
 		cpwd_stoptimer(p, index);
 		break;
@@ -481,7 +482,7 @@ static long cpwd_compat_ioctl(struct file *file, unsigned int cmd,
 	case WIOCSTOP:
 	case WIOCGSTAT:
 		lock_kernel();
-		rval = cpwd_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
+		rval = cpwd_ioctl(file, cmd, arg);
 		unlock_kernel();
 		break;
 
@@ -493,7 +494,7 @@ static long cpwd_compat_ioctl(struct file *file, unsigned int cmd,
 	return rval;
 }
 
-static ssize_t cpwd_write(struct file *file, const char __user *buf, 
+static ssize_t cpwd_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
@@ -508,20 +509,20 @@ static ssize_t cpwd_write(struct file *file, const char __user *buf,
 	return 0;
 }
 
-static ssize_t cpwd_read(struct file * file, char __user *buffer,
+static ssize_t cpwd_read(struct file *file, char __user *buffer,
 			 size_t count, loff_t *ppos)
 {
 	return -EINVAL;
 }
 
 static const struct file_operations cpwd_fops = {
-	.owner =	THIS_MODULE,
-	.ioctl =	cpwd_ioctl,
-	.compat_ioctl =	cpwd_compat_ioctl,
-	.open =		cpwd_open,
-	.write =	cpwd_write,
-	.read =		cpwd_read,
-	.release =	cpwd_release,
+	.owner =		THIS_MODULE,
+	.unlocked_ioctl =	cpwd_ioctl,
+	.compat_ioctl =		cpwd_compat_ioctl,
+	.open =			cpwd_open,
+	.write =		cpwd_write,
+	.read =			cpwd_read,
+	.release =		cpwd_release,
 };
 
 static int __devinit cpwd_probe(struct of_device *op,

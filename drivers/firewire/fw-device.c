@@ -18,22 +18,26 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/module.h>
-#include <linux/wait.h>
-#include <linux/errno.h>
-#include <linux/kthread.h>
-#include <linux/device.h>
+#include <linux/ctype.h>
 #include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/errno.h>
 #include <linux/idr.h>
 #include <linux/jiffies.h>
-#include <linux/string.h>
+#include <linux/kobject.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/workqueue.h>
+
 #include <asm/system.h>
-#include <linux/ctype.h>
-#include "fw-transaction.h"
-#include "fw-topology.h"
+
 #include "fw-device.h"
+#include "fw-topology.h"
+#include "fw-transaction.h"
 
 void fw_csr_iterator_init(struct fw_csr_iterator *ci, u32 * p)
 {
@@ -132,8 +136,7 @@ static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)
 			vendor, model, specifier_id, version);
 }
 
-static int
-fw_unit_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int fw_unit_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct fw_unit *unit = fw_unit(dev);
 	char modalias[64];
@@ -151,27 +154,6 @@ struct bus_type fw_bus_type = {
 	.match = fw_unit_match,
 };
 EXPORT_SYMBOL(fw_bus_type);
-
-static void fw_device_release(struct device *dev)
-{
-	struct fw_device *device = fw_device(dev);
-	struct fw_card *card = device->card;
-	unsigned long flags;
-
-	/*
-	 * Take the card lock so we don't set this to NULL while a
-	 * FW_NODE_UPDATED callback is being handled or while the
-	 * bus manager work looks at this node.
-	 */
-	spin_lock_irqsave(&card->lock, flags);
-	device->node->data = NULL;
-	spin_unlock_irqrestore(&card->lock, flags);
-
-	fw_node_put(device->node);
-	kfree(device->config_rom);
-	kfree(device);
-	fw_card_put(card);
-}
 
 int fw_device_enable_phys_dma(struct fw_device *device)
 {
@@ -191,8 +173,8 @@ struct config_rom_attribute {
 	u32 key;
 };
 
-static ssize_t
-show_immediate(struct device *dev, struct device_attribute *dattr, char *buf)
+static ssize_t show_immediate(struct device *dev,
+			      struct device_attribute *dattr, char *buf)
 {
 	struct config_rom_attribute *attr =
 		container_of(dattr, struct config_rom_attribute, attr);
@@ -223,8 +205,8 @@ show_immediate(struct device *dev, struct device_attribute *dattr, char *buf)
 #define IMMEDIATE_ATTR(name, key)				\
 	{ __ATTR(name, S_IRUGO, show_immediate, NULL), key }
 
-static ssize_t
-show_text_leaf(struct device *dev, struct device_attribute *dattr, char *buf)
+static ssize_t show_text_leaf(struct device *dev,
+			      struct device_attribute *dattr, char *buf)
 {
 	struct config_rom_attribute *attr =
 		container_of(dattr, struct config_rom_attribute, attr);
@@ -293,10 +275,9 @@ static struct config_rom_attribute config_rom_attributes[] = {
 	TEXT_LEAF_ATTR(hardware_version_name, CSR_HARDWARE_VERSION),
 };
 
-static void
-init_fw_attribute_group(struct device *dev,
-			struct device_attribute *attrs,
-			struct fw_attribute_group *group)
+static void init_fw_attribute_group(struct device *dev,
+				    struct device_attribute *attrs,
+				    struct fw_attribute_group *group)
 {
 	struct device_attribute *attr;
 	int i, j;
@@ -319,9 +300,8 @@ init_fw_attribute_group(struct device *dev,
 	dev->groups = group->groups;
 }
 
-static ssize_t
-modalias_show(struct device *dev,
-	      struct device_attribute *attr, char *buf)
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct fw_unit *unit = fw_unit(dev);
 	int length;
@@ -332,9 +312,8 @@ modalias_show(struct device *dev,
 	return length + 1;
 }
 
-static ssize_t
-rom_index_show(struct device *dev,
-	       struct device_attribute *attr, char *buf)
+static ssize_t rom_index_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct fw_device *device = fw_device(dev->parent);
 	struct fw_unit *unit = fw_unit(dev);
@@ -349,8 +328,8 @@ static struct device_attribute fw_unit_attributes[] = {
 	__ATTR_NULL,
 };
 
-static ssize_t
-config_rom_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t config_rom_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct fw_device *device = fw_device(dev);
 	size_t length;
@@ -363,8 +342,8 @@ config_rom_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return length;
 }
 
-static ssize_t
-guid_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t guid_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct fw_device *device = fw_device(dev);
 	int ret;
@@ -383,8 +362,8 @@ static struct device_attribute fw_device_attributes[] = {
 	__ATTR_NULL,
 };
 
-static int
-read_rom(struct fw_device *device, int generation, int index, u32 *data)
+static int read_rom(struct fw_device *device,
+		    int generation, int index, u32 *data)
 {
 	int rcode;
 
@@ -539,7 +518,7 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 
 	kfree(old_rom);
 	ret = 0;
-	device->cmc = rom[2] & 1 << 30;
+	device->cmc = rom[2] >> 30 & 1;
  out:
 	kfree(rom);
 
@@ -679,11 +658,53 @@ static void fw_device_shutdown(struct work_struct *work)
 	fw_device_put(device);
 }
 
+static void fw_device_release(struct device *dev)
+{
+	struct fw_device *device = fw_device(dev);
+	struct fw_card *card = device->card;
+	unsigned long flags;
+
+	/*
+	 * Take the card lock so we don't set this to NULL while a
+	 * FW_NODE_UPDATED callback is being handled or while the
+	 * bus manager work looks at this node.
+	 */
+	spin_lock_irqsave(&card->lock, flags);
+	device->node->data = NULL;
+	spin_unlock_irqrestore(&card->lock, flags);
+
+	fw_node_put(device->node);
+	kfree(device->config_rom);
+	kfree(device);
+	fw_card_put(card);
+}
+
 static struct device_type fw_device_type = {
-	.release	= fw_device_release,
+	.release = fw_device_release,
 };
 
-static void fw_device_update(struct work_struct *work);
+static int update_unit(struct device *dev, void *data)
+{
+	struct fw_unit *unit = fw_unit(dev);
+	struct fw_driver *driver = (struct fw_driver *)dev->driver;
+
+	if (is_fw_unit(dev) && driver != NULL && driver->update != NULL) {
+		down(&dev->sem);
+		driver->update(unit);
+		up(&dev->sem);
+	}
+
+	return 0;
+}
+
+static void fw_device_update(struct work_struct *work)
+{
+	struct fw_device *device =
+		container_of(work, struct fw_device, work.work);
+
+	fw_device_cdev_update(device);
+	device_for_each_child(&device->device, NULL, update_unit);
+}
 
 /*
  * If a device was pending for deletion because its node went away but its
@@ -735,12 +756,50 @@ static int lookup_existing_device(struct device *dev, void *data)
 	return match;
 }
 
+enum { BC_UNKNOWN = 0, BC_UNIMPLEMENTED, BC_IMPLEMENTED, };
+
+void fw_device_set_broadcast_channel(struct fw_device *device, int generation)
+{
+	struct fw_card *card = device->card;
+	__be32 data;
+	int rcode;
+
+	if (!card->broadcast_channel_allocated)
+		return;
+
+	if (device->bc_implemented == BC_UNKNOWN) {
+		rcode = fw_run_transaction(card, TCODE_READ_QUADLET_REQUEST,
+				device->node_id, generation, device->max_speed,
+				CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
+				&data, 4);
+		switch (rcode) {
+		case RCODE_COMPLETE:
+			if (data & cpu_to_be32(1 << 31)) {
+				device->bc_implemented = BC_IMPLEMENTED;
+				break;
+			}
+			/* else fall through to case address error */
+		case RCODE_ADDRESS_ERROR:
+			device->bc_implemented = BC_UNIMPLEMENTED;
+		}
+	}
+
+	if (device->bc_implemented == BC_IMPLEMENTED) {
+		data = cpu_to_be32(BROADCAST_CHANNEL_INITIAL |
+				   BROADCAST_CHANNEL_VALID);
+		fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
+				device->node_id, generation, device->max_speed,
+				CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
+				&data, 4);
+	}
+}
+
 static void fw_device_init(struct work_struct *work)
 {
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
 	struct device *revived_dev;
-	int minor, err;
+	int minor, ret;
 
 	/*
 	 * All failure paths here set node->data to NULL, so that we
@@ -776,12 +835,12 @@ static void fw_device_init(struct work_struct *work)
 
 	fw_device_get(device);
 	down_write(&fw_device_rwsem);
-	err = idr_pre_get(&fw_device_idr, GFP_KERNEL) ?
+	ret = idr_pre_get(&fw_device_idr, GFP_KERNEL) ?
 	      idr_get_new(&fw_device_idr, device, &minor) :
 	      -ENOMEM;
 	up_write(&fw_device_rwsem);
 
-	if (err < 0)
+	if (ret < 0)
 		goto error;
 
 	device->device.bus = &fw_bus_type;
@@ -828,6 +887,8 @@ static void fw_device_init(struct work_struct *work)
 				  device->config_rom[3], device->config_rom[4],
 				  1 << device->max_speed);
 		device->config_rom_retries = 0;
+
+		fw_device_set_broadcast_channel(device, device->generation);
 	}
 
 	/*
@@ -851,29 +912,6 @@ static void fw_device_init(struct work_struct *work)
 	put_device(&device->device);	/* our reference */
 }
 
-static int update_unit(struct device *dev, void *data)
-{
-	struct fw_unit *unit = fw_unit(dev);
-	struct fw_driver *driver = (struct fw_driver *)dev->driver;
-
-	if (is_fw_unit(dev) && driver != NULL && driver->update != NULL) {
-		down(&dev->sem);
-		driver->update(unit);
-		up(&dev->sem);
-	}
-
-	return 0;
-}
-
-static void fw_device_update(struct work_struct *work)
-{
-	struct fw_device *device =
-		container_of(work, struct fw_device, work.work);
-
-	fw_device_cdev_update(device);
-	device_for_each_child(&device->device, NULL, update_unit);
-}
-
 enum {
 	REREAD_BIB_ERROR,
 	REREAD_BIB_GONE,
@@ -894,7 +932,7 @@ static int reread_bus_info_block(struct fw_device *device, int generation)
 		if (i == 0 && q == 0)
 			return REREAD_BIB_GONE;
 
-		if (i > device->config_rom_length || q != device->config_rom[i])
+		if (q != device->config_rom[i])
 			return REREAD_BIB_CHANGED;
 	}
 
@@ -1004,6 +1042,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		device->node = fw_node_get(node);
 		device->node_id = node->node_id;
 		device->generation = card->generation;
+		mutex_init(&device->client_list_mutex);
 		INIT_LIST_HEAD(&device->client_list);
 
 		/*

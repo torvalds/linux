@@ -25,6 +25,7 @@
 #define AR5K_EEPROM_MAGIC_5211		0x0000145b /* 5211 */
 #define AR5K_EEPROM_MAGIC_5210		0x0000145a /* 5210 */
 
+#define	AR5K_EEPROM_IS_HB63		0x000b	/* Talon detect */
 #define AR5K_EEPROM_REG_DOMAIN		0x00bf	/* EEPROM regdom */
 #define AR5K_EEPROM_CHECKSUM		0x00c0	/* EEPROM checksum */
 #define AR5K_EEPROM_INFO_BASE		0x00c0	/* EEPROM header */
@@ -172,6 +173,7 @@
 #define AR5K_EEPROM_N_5GHZ_CHAN		10
 #define AR5K_EEPROM_N_2GHZ_CHAN		3
 #define AR5K_EEPROM_N_2GHZ_CHAN_2413	4
+#define	AR5K_EEPROM_N_2GHZ_CHAN_MAX	4
 #define AR5K_EEPROM_MAX_CHAN		10
 #define AR5K_EEPROM_N_PWR_POINTS_5111	11
 #define AR5K_EEPROM_N_PCDAC		11
@@ -192,7 +194,7 @@
 #define AR5K_EEPROM_SCALE_OC_DELTA(_x)	(((_x) * 2) / 10)
 #define AR5K_EEPROM_N_CTLS(_v)		AR5K_EEPROM_OFF(_v, 16, 32)
 #define AR5K_EEPROM_MAX_CTLS		32
-#define AR5K_EEPROM_N_XPD_PER_CHANNEL	4
+#define AR5K_EEPROM_N_PD_CURVES		4
 #define AR5K_EEPROM_N_XPD0_POINTS	4
 #define AR5K_EEPROM_N_XPD3_POINTS	3
 #define AR5K_EEPROM_N_PD_GAINS		4
@@ -231,7 +233,7 @@ enum ath5k_ctl_mode {
 	AR5K_CTL_11B = 1,
 	AR5K_CTL_11G = 2,
 	AR5K_CTL_TURBO = 3,
-	AR5K_CTL_108G = 4,
+	AR5K_CTL_TURBOG = 4,
 	AR5K_CTL_2GHT20 = 5,
 	AR5K_CTL_5GHT20 = 6,
 	AR5K_CTL_2GHT40 = 7,
@@ -239,65 +241,114 @@ enum ath5k_ctl_mode {
 	AR5K_CTL_MODE_M = 15,
 };
 
+/* Default CTL ids for the 3 main reg domains.
+ * Atheros only uses these by default but vendors
+ * can have up to 32 different CTLs for different
+ * scenarios. Note that theese values are ORed with
+ * the mode id (above) so we can have up to 24 CTL
+ * datasets out of these 3 main regdomains. That leaves
+ * 8 ids that can be used by vendors and since 0x20 is
+ * missing from HAL sources i guess this is the set of
+ * custom CTLs vendors can use. */
+#define	AR5K_CTL_FCC	0x10
+#define	AR5K_CTL_CUSTOM	0x20
+#define	AR5K_CTL_ETSI	0x30
+#define	AR5K_CTL_MKK	0x40
+
+/* Indicates a CTL with only mode set and
+ * no reg domain mapping, such CTLs are used
+ * for world roaming domains or simply when
+ * a reg domain is not set */
+#define	AR5K_CTL_NO_REGDOMAIN	0xf0
+
+/* Indicates an empty (invalid) CTL */
+#define AR5K_CTL_NO_CTL		0xff
+
 /* Per channel calibration data, used for power table setup */
 struct ath5k_chan_pcal_info_rf5111 {
 	/* Power levels in half dbm units
 	 * for one power curve. */
-	u8		pwr[AR5K_EEPROM_N_PWR_POINTS_5111];
+	u8 pwr[AR5K_EEPROM_N_PWR_POINTS_5111];
 	/* PCDAC table steps
 	 * for the above values */
-	u8		pcdac[AR5K_EEPROM_N_PWR_POINTS_5111];
+	u8 pcdac[AR5K_EEPROM_N_PWR_POINTS_5111];
 	/* Starting PCDAC step */
-	u8		pcdac_min;
+	u8 pcdac_min;
 	/* Final PCDAC step */
-	u8		pcdac_max;
+	u8 pcdac_max;
 };
 
 struct ath5k_chan_pcal_info_rf5112 {
 	/* Power levels in quarter dBm units
 	 * for lower (0) and higher (3)
-	 * level curves */
-	s8		pwr_x0[AR5K_EEPROM_N_XPD0_POINTS];
-	s8		pwr_x3[AR5K_EEPROM_N_XPD3_POINTS];
+	 * level curves in 0.25dB units */
+	s8 pwr_x0[AR5K_EEPROM_N_XPD0_POINTS];
+	s8 pwr_x3[AR5K_EEPROM_N_XPD3_POINTS];
 	/* PCDAC table steps
 	 * for the above values */
-	u8	pcdac_x0[AR5K_EEPROM_N_XPD0_POINTS];
-	u8	pcdac_x3[AR5K_EEPROM_N_XPD3_POINTS];
+	u8 pcdac_x0[AR5K_EEPROM_N_XPD0_POINTS];
+	u8 pcdac_x3[AR5K_EEPROM_N_XPD3_POINTS];
 };
 
 struct ath5k_chan_pcal_info_rf2413 {
 	/* Starting pwr/pddac values */
-	s8		pwr_i[AR5K_EEPROM_N_PD_GAINS];
-	u8	pddac_i[AR5K_EEPROM_N_PD_GAINS];
-	/* (pwr,pddac) points */
-	s8		pwr[AR5K_EEPROM_N_PD_GAINS]
-				[AR5K_EEPROM_N_PD_POINTS];
-	u8	pddac[AR5K_EEPROM_N_PD_GAINS]
-				[AR5K_EEPROM_N_PD_POINTS];
+	s8 pwr_i[AR5K_EEPROM_N_PD_GAINS];
+	u8 pddac_i[AR5K_EEPROM_N_PD_GAINS];
+	/* (pwr,pddac) points
+	 * power levels in 0.5dB units */
+	s8 pwr[AR5K_EEPROM_N_PD_GAINS]
+		[AR5K_EEPROM_N_PD_POINTS];
+	u8 pddac[AR5K_EEPROM_N_PD_GAINS]
+		[AR5K_EEPROM_N_PD_POINTS];
+};
+
+enum ath5k_powertable_type {
+	AR5K_PWRTABLE_PWR_TO_PCDAC = 0,
+	AR5K_PWRTABLE_LINEAR_PCDAC = 1,
+	AR5K_PWRTABLE_PWR_TO_PDADC = 2,
+};
+
+struct ath5k_pdgain_info {
+	u8 pd_points;
+	u8 *pd_step;
+	/* Power values are in
+	 * 0.25dB units */
+	s16 *pd_pwr;
 };
 
 struct ath5k_chan_pcal_info {
 	/* Frequency */
 	u16	freq;
-	/* Max available power */
-	s8		max_pwr;
+	/* Tx power boundaries */
+	s16	max_pwr;
+	s16	min_pwr;
 	union {
 		struct ath5k_chan_pcal_info_rf5111 rf5111_info;
 		struct ath5k_chan_pcal_info_rf5112 rf5112_info;
 		struct ath5k_chan_pcal_info_rf2413 rf2413_info;
 	};
+	/* Raw values used by phy code
+	 * Curves are stored in order from lower
+	 * gain to higher gain (max txpower -> min txpower) */
+	struct ath5k_pdgain_info *pd_curves;
 };
 
-/* Per rate calibration data for each mode, used for power table setup */
+/* Per rate calibration data for each mode,
+ * used for rate power table setup.
+ * Note: Values in 0.5dB units */
 struct ath5k_rate_pcal_info {
 	u16	freq; /* Frequency */
-	/* Power level for 6-24Mbit/s rates */
+	/* Power level for 6-24Mbit/s rates or
+	 * 1Mb rate */
 	u16	target_power_6to24;
-	/* Power level for 36Mbit rate */
+	/* Power level for 36Mbit rate or
+	 * 2Mb rate */
 	u16	target_power_36;
-	/* Power level for 48Mbit rate */
+	/* Power level for 48Mbit rate or
+	 * 5.5Mbit rate */
 	u16	target_power_48;
-	/* Power level for 54Mbit rate */
+	/* Power level for 54Mbit rate or
+	 * 11Mbit rate */
 	u16	target_power_54;
 };
 
@@ -329,12 +380,6 @@ struct ath5k_eeprom_info {
 	u16	ee_cck_ofdm_power_delta;
 	u16	ee_scaled_cck_delta;
 
-	/* Used for tx thermal adjustment (eeprom_init, rfregs) */
-	u16	ee_tx_clip;
-	u16	ee_pwd_84;
-	u16	ee_pwd_90;
-	u16	ee_gain_select;
-
 	/* RF Calibration settings (reset, rfregs) */
 	u16	ee_i_cal[AR5K_EEPROM_N_MODES];
 	u16	ee_q_cal[AR5K_EEPROM_N_MODES];
@@ -362,23 +407,25 @@ struct ath5k_eeprom_info {
 	/* Power calibration data */
 	u16	ee_false_detect[AR5K_EEPROM_N_MODES];
 
-	/* Number of pd gain curves per mode (RF2413) */
-	u8 ee_pd_gains[AR5K_EEPROM_N_MODES];
+	/* Number of pd gain curves per mode */
+	u8	ee_pd_gains[AR5K_EEPROM_N_MODES];
+	/* Back mapping pdcurve number -> pdcurve index in pd->pd_curves */
+	u8	ee_pdc_to_idx[AR5K_EEPROM_N_MODES][AR5K_EEPROM_N_PD_GAINS];
 
-	u8 ee_n_piers[AR5K_EEPROM_N_MODES];
+	u8	ee_n_piers[AR5K_EEPROM_N_MODES];
 	struct ath5k_chan_pcal_info	ee_pwr_cal_a[AR5K_EEPROM_N_5GHZ_CHAN];
-	struct ath5k_chan_pcal_info	ee_pwr_cal_b[AR5K_EEPROM_N_2GHZ_CHAN];
-	struct ath5k_chan_pcal_info	ee_pwr_cal_g[AR5K_EEPROM_N_2GHZ_CHAN];
+	struct ath5k_chan_pcal_info	ee_pwr_cal_b[AR5K_EEPROM_N_2GHZ_CHAN_MAX];
+	struct ath5k_chan_pcal_info	ee_pwr_cal_g[AR5K_EEPROM_N_2GHZ_CHAN_MAX];
 
 	/* Per rate target power levels */
-	u16	ee_rate_target_pwr_num[AR5K_EEPROM_N_MODES];
+	u8	ee_rate_target_pwr_num[AR5K_EEPROM_N_MODES];
 	struct ath5k_rate_pcal_info	ee_rate_tpwr_a[AR5K_EEPROM_N_5GHZ_CHAN];
-	struct ath5k_rate_pcal_info	ee_rate_tpwr_b[AR5K_EEPROM_N_2GHZ_CHAN];
-	struct ath5k_rate_pcal_info	ee_rate_tpwr_g[AR5K_EEPROM_N_2GHZ_CHAN];
+	struct ath5k_rate_pcal_info	ee_rate_tpwr_b[AR5K_EEPROM_N_2GHZ_CHAN_MAX];
+	struct ath5k_rate_pcal_info	ee_rate_tpwr_g[AR5K_EEPROM_N_2GHZ_CHAN_MAX];
 
 	/* Conformance test limits (Unused) */
-	u16	ee_ctls;
-	u16	ee_ctl[AR5K_EEPROM_MAX_CTLS];
+	u8	ee_ctls;
+	u8	ee_ctl[AR5K_EEPROM_MAX_CTLS];
 	struct ath5k_edge_power ee_ctl_pwr[AR5K_EEPROM_N_EDGES * AR5K_EEPROM_MAX_CTLS];
 
 	/* Noise Floor Calibration settings */

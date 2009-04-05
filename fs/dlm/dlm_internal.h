@@ -99,7 +99,7 @@ struct dlm_direntry {
 
 struct dlm_dirtable {
 	struct list_head	list;
-	rwlock_t		lock;
+	spinlock_t		lock;
 };
 
 struct dlm_rsbtable {

@@ -105,8 +105,8 @@ int main(int argc, char ** argv)
   struct video_picture vpic;
 
   unsigned char *buffer, *src;
-  int bpp = 24, r, g, b;
-  unsigned int i, src_depth;
+  int bpp = 24, r = 0, g = 0, b = 0;
+  unsigned int i, src_depth = 16;
 
   if (fd < 0) {
     perror(VIDEO_DEV);

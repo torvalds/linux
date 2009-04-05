@@ -69,21 +69,28 @@ static inline void * phys_to_virt(unsigned long address)
 
 static inline void *ioremap(unsigned long offset, unsigned long size)
 {
+#ifdef CONFIG_MMU
 	if (offset >= XCHAL_KIO_PADDR
 	    && offset < XCHAL_KIO_PADDR + XCHAL_KIO_SIZE)
 		return (void*)(offset-XCHAL_KIO_PADDR+XCHAL_KIO_BYPASS_VADDR);
-
 	else
 		BUG();
+#else
+	return (void *)offset;
+#endif
 }
 
 static inline void *ioremap_nocache(unsigned long offset, unsigned long size)
 {
+#ifdef CONFIG_MMU
 	if (offset >= XCHAL_KIO_PADDR
 	    && offset < XCHAL_KIO_PADDR + XCHAL_KIO_SIZE)
 		return (void*)(offset-XCHAL_KIO_PADDR+XCHAL_KIO_CACHED_VADDR);
 	else
 		BUG();
+#else
+	return (void *)offset;
+#endif
 }
 
 static inline void iounmap(void *addr)

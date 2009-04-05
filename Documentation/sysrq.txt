@@ -81,6 +81,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 
 'i'     - Send a SIGKILL to all processes, except for init.
 
+'j'     - Forcibly "Just thaw it" - filesystems frozen by the FIFREEZE ioctl.
+
 'k'     - Secure Access Key (SAK) Kills all programs on the current virtual
           console. NOTE: See important comments below in SAK section.
 
@@ -112,6 +114,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 'w'	- Dumps tasks that are in uninterruptable (blocked) state.
 
 'x'	- Used by xmon interface on ppc/powerpc platforms.
+
+'z'	- Dump the ftrace buffer
 
 '0'-'9' - Sets the console log level, controlling which kernel messages
           will be printed to your console. ('0', for example would make
@@ -159,6 +163,9 @@ still be logged if syslogd/klogd are alive, though.)
 t'E'rm and k'I'll are useful if you have some sort of runaway process you
 are unable to kill any other way, especially if it's spawning other
 processes.
+
+"'J'ust thaw it" is useful if your system becomes unresponsive due to a frozen
+(probably root) filesystem via the FIFREEZE ioctl.
 
 *  Sometimes SysRq seems to get 'stuck' after using it, what can I do?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

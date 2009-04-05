@@ -11,6 +11,8 @@
  *
  */
 
+#define KMSG_COMPONENT "dasd"
+
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/blkpg.h>
@@ -163,9 +165,8 @@ int dasd_gendisk_init(void)
 	/* Register to static dasd major 94 */
 	rc = register_blkdev(DASD_MAJOR, "dasd");
 	if (rc != 0) {
-		MESSAGE(KERN_WARNING,
-			"Couldn't register successfully to "
-			"major no %d", DASD_MAJOR);
+		pr_warning("Registering the device driver with major number "
+			   "%d failed\n", DASD_MAJOR);
 		return rc;
 	}
 	return 0;

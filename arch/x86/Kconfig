@@ -34,12 +34,15 @@ config X86
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FTRACE_NMI_ENTER if DYNAMIC_FTRACE
+	select HAVE_FTRACE_SYSCALLS
 	select HAVE_KVM
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_GENERIC_DMA_COHERENT if X86_32
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select USER_STACKTRACE_SUPPORT
+	select HAVE_DMA_API_DEBUG
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
@@ -164,10 +167,16 @@ config AUDIT_ARCH
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
 	def_bool y
 
+config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	def_bool y
+
 # Use the generic interrupt handling code in kernel/irq/:
 config GENERIC_HARDIRQS
 	bool
 	default y
+
+config GENERIC_HARDIRQS_NO__DO_IRQ
+       def_bool y
 
 config GENERIC_IRQ_PROBE
 	bool
@@ -931,6 +940,12 @@ config X86_CPUID
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
 
+config X86_CPU_DEBUG
+	tristate "/sys/kernel/debug/x86/cpu/* - CPU Debug support"
+	---help---
+	  If you select this option, this will provide various x86 CPUs
+	  information through debugfs.
+
 choice
 	prompt "High Memory Support"
 	default HIGHMEM4G if !X86_NUMAQ
@@ -1123,7 +1138,7 @@ config NUMA_EMU
 
 config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
-	range 1 9   if X86_64
+	range 1 9
 	default "9" if MAXSMP
 	default "6" if X86_64
 	default "4" if X86_NUMAQ
@@ -1131,7 +1146,7 @@ config NODES_SHIFT
 	depends on NEED_MULTIPLE_NODES
 	---help---
 	  Specify the maximum number of NUMA Nodes available on the target
-	  system.  Increases memory reserved to accomodate various tables.
+	  system.  Increases memory reserved to accommodate various tables.
 
 config HAVE_ARCH_BOOTMEM
 	def_bool y
@@ -1309,7 +1324,7 @@ config MTRR_SANITIZER
 	  add writeback entries.
 
 	  Can be disabled with disable_mtrr_cleanup on the kernel command line.
-	  The largest mtrr entry size for a continous block can be set with
+	  The largest mtrr entry size for a continuous block can be set with
 	  mtrr_chunk_size.
 
 	  If unsure, say Y.
@@ -1824,8 +1839,8 @@ config PCI_MMCONFIG
 
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
-	depends on X86_64 && PCI_MSI && ACPI && EXPERIMENTAL
-	---help---
+	depends on PCI_MSI && ACPI && EXPERIMENTAL
+	help
 	  DMA remapping (DMAR) devices support enables independent address
 	  translations for Direct Memory Access (DMA) from devices.
 	  These DMA remapping devices are reported via ACPI tables

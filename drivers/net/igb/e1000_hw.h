@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007 Intel Corporation.
+  Copyright(c) 2007-2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -32,7 +32,6 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
-#include "e1000_mac.h"
 #include "e1000_regs.h"
 #include "e1000_defines.h"
 
@@ -41,6 +40,8 @@ struct e1000_hw;
 #define E1000_DEV_ID_82576                    0x10C9
 #define E1000_DEV_ID_82576_FIBER              0x10E6
 #define E1000_DEV_ID_82576_SERDES             0x10E7
+#define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
+#define E1000_DEV_ID_82576_NS                 0x150A
 #define E1000_DEV_ID_82575EB_COPPER           0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
@@ -144,144 +145,6 @@ enum e1000_fc_type {
 	e1000_fc_default = 0xFF
 };
 
-
-/* Receive Descriptor */
-struct e1000_rx_desc {
-	__le64 buffer_addr; /* Address of the descriptor's data buffer */
-	__le16 length;      /* Length of data DMAed into data buffer */
-	__le16 csum;        /* Packet checksum */
-	u8  status;      /* Descriptor status */
-	u8  errors;      /* Descriptor Errors */
-	__le16 special;
-};
-
-/* Receive Descriptor - Extended */
-union e1000_rx_desc_extended {
-	struct {
-		__le64 buffer_addr;
-		__le64 reserved;
-	} read;
-	struct {
-		struct {
-			__le32 mrq;              /* Multiple Rx Queues */
-			union {
-				__le32 rss;            /* RSS Hash */
-				struct {
-					__le16 ip_id;  /* IP id */
-					__le16 csum;   /* Packet Checksum */
-				} csum_ip;
-			} hi_dword;
-		} lower;
-		struct {
-			__le32 status_error;     /* ext status/error */
-			__le16 length;
-			__le16 vlan;             /* VLAN tag */
-		} upper;
-	} wb;  /* writeback */
-};
-
-#define MAX_PS_BUFFERS 4
-/* Receive Descriptor - Packet Split */
-union e1000_rx_desc_packet_split {
-	struct {
-		/* one buffer for protocol header(s), three data buffers */
-		__le64 buffer_addr[MAX_PS_BUFFERS];
-	} read;
-	struct {
-		struct {
-			__le32 mrq;              /* Multiple Rx Queues */
-			union {
-				__le32 rss;              /* RSS Hash */
-				struct {
-					__le16 ip_id;    /* IP id */
-					__le16 csum;     /* Packet Checksum */
-				} csum_ip;
-			} hi_dword;
-		} lower;
-		struct {
-			__le32 status_error;     /* ext status/error */
-			__le16 length0;          /* length of buffer 0 */
-			__le16 vlan;             /* VLAN tag */
-		} middle;
-		struct {
-			__le16 header_status;
-			__le16 length[3];        /* length of buffers 1-3 */
-		} upper;
-		__le64 reserved;
-	} wb; /* writeback */
-};
-
-/* Transmit Descriptor */
-struct e1000_tx_desc {
-	__le64 buffer_addr;      /* Address of the descriptor's data buffer */
-	union {
-		__le32 data;
-		struct {
-			__le16 length;    /* Data buffer length */
-			u8 cso;        /* Checksum offset */
-			u8 cmd;        /* Descriptor control */
-		} flags;
-	} lower;
-	union {
-		__le32 data;
-		struct {
-			u8 status;     /* Descriptor status */
-			u8 css;        /* Checksum start */
-			__le16 special;
-		} fields;
-	} upper;
-};
-
-/* Offload Context Descriptor */
-struct e1000_context_desc {
-	union {
-		__le32 ip_config;
-		struct {
-			u8 ipcss;      /* IP checksum start */
-			u8 ipcso;      /* IP checksum offset */
-			__le16 ipcse;     /* IP checksum end */
-		} ip_fields;
-	} lower_setup;
-	union {
-		__le32 tcp_config;
-		struct {
-			u8 tucss;      /* TCP checksum start */
-			u8 tucso;      /* TCP checksum offset */
-			__le16 tucse;     /* TCP checksum end */
-		} tcp_fields;
-	} upper_setup;
-	__le32 cmd_and_length;
-	union {
-		__le32 data;
-		struct {
-			u8 status;     /* Descriptor status */
-			u8 hdr_len;    /* Header length */
-			__le16 mss;       /* Maximum segment size */
-		} fields;
-	} tcp_seg_setup;
-};
-
-/* Offload data descriptor */
-struct e1000_data_desc {
-	__le64 buffer_addr;   /* Address of the descriptor's buffer address */
-	union {
-		__le32 data;
-		struct {
-			__le16 length;    /* Data buffer length */
-			u8 typ_len_ext;
-			u8 cmd;
-		} flags;
-	} lower;
-	union {
-		__le32 data;
-		struct {
-			u8 status;     /* Descriptor status */
-			u8 popts;      /* Packet Options */
-			__le16 special;
-		} fields;
-	} upper;
-};
-
 /* Statistics counters collected by the MAC */
 struct e1000_hw_stats {
 	u64 crcerrs;
@@ -359,6 +222,7 @@ struct e1000_hw_stats {
 	u64 lenerrs;
 	u64 scvpc;
 	u64 hrmpc;
+	u64 doosync;
 };
 
 struct e1000_phy_stats {
@@ -409,6 +273,7 @@ struct e1000_host_mng_command_info {
 #include "e1000_mac.h"
 #include "e1000_phy.h"
 #include "e1000_nvm.h"
+#include "e1000_mbx.h"
 
 struct e1000_mac_operations {
 	s32  (*check_for_link)(struct e1000_hw *);
@@ -422,25 +287,25 @@ struct e1000_mac_operations {
 };
 
 struct e1000_phy_operations {
-	s32  (*acquire_phy)(struct e1000_hw *);
+	s32  (*acquire)(struct e1000_hw *);
 	s32  (*check_reset_block)(struct e1000_hw *);
 	s32  (*force_speed_duplex)(struct e1000_hw *);
 	s32  (*get_cfg_done)(struct e1000_hw *hw);
 	s32  (*get_cable_length)(struct e1000_hw *);
 	s32  (*get_phy_info)(struct e1000_hw *);
-	s32  (*read_phy_reg)(struct e1000_hw *, u32, u16 *);
-	void (*release_phy)(struct e1000_hw *);
-	s32  (*reset_phy)(struct e1000_hw *);
+	s32  (*read_reg)(struct e1000_hw *, u32, u16 *);
+	void (*release)(struct e1000_hw *);
+	s32  (*reset)(struct e1000_hw *);
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
-	s32  (*write_phy_reg)(struct e1000_hw *, u32, u16);
+	s32  (*write_reg)(struct e1000_hw *, u32, u16);
 };
 
 struct e1000_nvm_operations {
-	s32  (*acquire_nvm)(struct e1000_hw *);
-	s32  (*read_nvm)(struct e1000_hw *, u16, u16, u16 *);
-	void (*release_nvm)(struct e1000_hw *);
-	s32  (*write_nvm)(struct e1000_hw *, u16, u16, u16 *);
+	s32  (*acquire)(struct e1000_hw *);
+	s32  (*read)(struct e1000_hw *, u16, u16, u16 *);
+	void (*release)(struct e1000_hw *);
+	s32  (*write)(struct e1000_hw *, u16, u16, u16 *);
 };
 
 struct e1000_info {
@@ -483,7 +348,6 @@ struct e1000_mac_info {
 	bool asf_firmware_present;
 	bool autoneg;
 	bool autoneg_failed;
-	bool disable_av;
 	bool disable_hw_init_bits;
 	bool get_link_status;
 	bool ifs_params_forced;
@@ -565,9 +429,40 @@ struct e1000_fc_info {
 	enum e1000_fc_type original_type;
 };
 
+struct e1000_mbx_operations {
+	s32 (*init_params)(struct e1000_hw *hw);
+	s32 (*read)(struct e1000_hw *, u32 *, u16,  u16);
+	s32 (*write)(struct e1000_hw *, u32 *, u16, u16);
+	s32 (*read_posted)(struct e1000_hw *, u32 *, u16,  u16);
+	s32 (*write_posted)(struct e1000_hw *, u32 *, u16, u16);
+	s32 (*check_for_msg)(struct e1000_hw *, u16);
+	s32 (*check_for_ack)(struct e1000_hw *, u16);
+	s32 (*check_for_rst)(struct e1000_hw *, u16);
+};
+
+struct e1000_mbx_stats {
+	u32 msgs_tx;
+	u32 msgs_rx;
+
+	u32 acks;
+	u32 reqs;
+	u32 rsts;
+};
+
+struct e1000_mbx_info {
+	struct e1000_mbx_operations ops;
+	struct e1000_mbx_stats stats;
+	u32 timeout;
+	u32 usec_delay;
+	u16 size;
+};
+
+struct e1000_dev_spec_82575 {
+	bool sgmii_active;
+};
+
 struct e1000_hw {
 	void *back;
-	void *dev_spec;
 
 	u8 __iomem *hw_addr;
 	u8 __iomem *flash_address;
@@ -578,9 +473,12 @@ struct e1000_hw {
 	struct e1000_phy_info  phy;
 	struct e1000_nvm_info  nvm;
 	struct e1000_bus_info  bus;
+	struct e1000_mbx_info mbx;
 	struct e1000_host_mng_dhcp_cookie mng_cookie;
 
-	u32 dev_spec_size;
+	union {
+		struct e1000_dev_spec_82575	_82575;
+	} dev_spec;
 
 	u16 device_id;
 	u16 subsystem_vendor_id;

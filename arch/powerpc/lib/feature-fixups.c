@@ -85,7 +85,7 @@ static int patch_feature_section(unsigned long value, struct fixup_entry *fcur)
 	}
 
 	for (; dest < end; dest++)
-		patch_instruction(dest, PPC_NOP_INSTR);
+		patch_instruction(dest, PPC_INST_NOP);
 
 	return 0;
 }
@@ -122,7 +122,7 @@ void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 
 	for (; start < end; start++) {
 		dest = (void *)start + *start;
-		patch_instruction(dest, PPC_LWSYNC_INSTR);
+		patch_instruction(dest, PPC_INST_LWSYNC);
 	}
 }
 

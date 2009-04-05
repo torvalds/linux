@@ -73,5 +73,3 @@ static void ts_exit(void)
 module_init(ts_init);
 module_exit(ts_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(topseed);

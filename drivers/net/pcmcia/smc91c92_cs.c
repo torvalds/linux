@@ -42,6 +42,7 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/jiffies.h>
+#include <linux/firmware.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -55,17 +56,18 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
-/* Ositech Seven of Diamonds firmware */
-#include "ositech.h"
-
 /*====================================================================*/
 
 static const char *if_names[] = { "auto", "10baseT", "10base2"};
+
+/* Firmware name */
+#define FIRMWARE_NAME		"ositech/Xilinx7OD.bin"
 
 /* Module parameters */
 
 MODULE_DESCRIPTION("SMC 91c92 series PCMCIA ethernet driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(FIRMWARE_NAME);
 
 #define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
 
@@ -108,7 +110,7 @@ struct smc_private {
     spinlock_t			lock;
     u_short			manfid;
     u_short			cardid;
-    struct net_device_stats	stats;
+
     dev_node_t			node;
     struct sk_buff		*saved_skb;
     int				packets_waiting;
@@ -289,7 +291,6 @@ static void smc_tx_timeout(struct net_device *dev);
 static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t smc_interrupt(int irq, void *dev_id);
 static void smc_rx(struct net_device *dev);
-static struct net_device_stats *smc_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static int s9k_config(struct net_device *dev, struct ifmap *map);
 static void smc_set_xcvr(struct net_device *dev, int if_port);
@@ -300,6 +301,19 @@ static int mdio_read(struct net_device *dev, int phy_id, int loc);
 static void mdio_write(struct net_device *dev, int phy_id, int loc, int value);
 static int smc_link_ok(struct net_device *dev);
 static const struct ethtool_ops ethtool_ops;
+
+static const struct net_device_ops smc_netdev_ops = {
+	.ndo_open		= smc_open,
+	.ndo_stop		= smc_close,
+	.ndo_start_xmit		= smc_start_xmit,
+	.ndo_tx_timeout 	= smc_tx_timeout,
+	.ndo_set_config 	= s9k_config,
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_do_ioctl		= &smc_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 /*======================================================================
 
@@ -336,18 +350,9 @@ static int smc91c92_probe(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* The SMC91c92-specific entries in the device structure. */
-    dev->hard_start_xmit = &smc_start_xmit;
-    dev->get_stats = &smc_get_stats;
-    dev->set_config = &s9k_config;
-    dev->set_multicast_list = &set_rx_mode;
-    dev->open = &smc_open;
-    dev->stop = &smc_close;
-    dev->do_ioctl = &smc_ioctl;
+    dev->netdev_ops = &smc_netdev_ops;
     SET_ETHTOOL_OPS(dev, &ethtool_ops);
-#ifdef HAVE_TX_TIMEOUT
-    dev->tx_timeout = smc_tx_timeout;
     dev->watchdog_timeo = TX_TIMEOUT;
-#endif
 
     smc->mii_if.dev = dev;
     smc->mii_if.mdio_read = mdio_read;
@@ -768,6 +773,26 @@ static int osi_config(struct pcmcia_device *link)
     return i;
 }
 
+static int osi_load_firmware(struct pcmcia_device *link)
+{
+	const struct firmware *fw;
+	int i, err;
+
+	err = request_firmware(&fw, FIRMWARE_NAME, &link->dev);
+	if (err) {
+		pr_err("Failed to load firmware \"%s\"\n", FIRMWARE_NAME);
+		return err;
+	}
+
+	/* Download the Seven of Diamonds firmware */
+	for (i = 0; i < fw->size; i++) {
+	    outb(fw->data[i], link->io.BasePort1 + 2);
+	    udelay(50);
+	}
+	release_firmware(fw);
+	return err;
+}
+
 static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
 {
     struct net_device *dev = link->priv;
@@ -808,11 +833,9 @@ static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
 	 (cardid == PRODID_OSITECH_SEVEN)) ||
 	((manfid == MANFID_PSION) &&
 	 (cardid == PRODID_PSION_NET100))) {
-	/* Download the Seven of Diamonds firmware */
-	for (i = 0; i < sizeof(__Xilinx7OD); i++) {
-	    outb(__Xilinx7OD[i], link->io.BasePort1+2);
-	    udelay(50);
-	}
+	rc = osi_load_firmware(link);
+	if (rc)
+		goto free_cfg_mem;
     } else if (manfid == MANFID_OSITECH) {
 	/* Make sure both functions are powered up */
 	set_bits(0x300, link->io.BasePort1 + OSITECH_AUI_PWR);
@@ -859,10 +882,10 @@ static int smc91c92_resume(struct pcmcia_device *link)
 	     (smc->cardid == PRODID_OSITECH_SEVEN)) ||
 	    ((smc->manfid == MANFID_PSION) &&
 	     (smc->cardid == PRODID_PSION_NET100))) {
-		/* Download the Seven of Diamonds firmware */
-		for (i = 0; i < sizeof(__Xilinx7OD); i++) {
-			outb(__Xilinx7OD[i], link->io.BasePort1+2);
-			udelay(50);
+		i = osi_load_firmware(link);
+		if (i) {
+			pr_err("smc91c92_cs: Failed to load firmware\n");
+			return i;
 		}
 	}
 	if (link->open) {
@@ -1291,7 +1314,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
 	return;
     }
 
-    smc->stats.tx_bytes += skb->len;
+    dev->stats.tx_bytes += skb->len;
     /* The card should use the just-allocated buffer. */
     outw(packet_no, ioaddr + PNR_ARR);
     /* point to the beginning of the packet */
@@ -1340,7 +1363,7 @@ static void smc_tx_timeout(struct net_device *dev)
     printk(KERN_NOTICE "%s: SMC91c92 transmit timed out, "
 	   "Tx_status %2.2x status %4.4x.\n",
 	   dev->name, inw(ioaddr)&0xff, inw(ioaddr + 2));
-    smc->stats.tx_errors++;
+    dev->stats.tx_errors++;
     smc_reset(dev);
     dev->trans_start = jiffies;
     smc->saved_skb = NULL;
@@ -1362,7 +1385,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
     if (smc->saved_skb) {
 	/* THIS SHOULD NEVER HAPPEN. */
-	smc->stats.tx_aborted_errors++;
+	dev->stats.tx_aborted_errors++;
 	printk(KERN_DEBUG "%s: Internal error -- sent packet while busy.\n",
 	       dev->name);
 	return 1;
@@ -1375,7 +1398,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	printk(KERN_ERR "%s: Far too big packet error.\n", dev->name);
 	dev_kfree_skb (skb);
 	smc->saved_skb = NULL;
-	smc->stats.tx_dropped++;
+	dev->stats.tx_dropped++;
 	return 0;		/* Do not re-queue this packet. */
     }
     /* A packet is now waiting. */
@@ -1433,11 +1456,11 @@ static void smc_tx_err(struct net_device * dev)
 
     tx_status = inw(ioaddr + DATA_1);
 
-    smc->stats.tx_errors++;
-    if (tx_status & TS_LOSTCAR) smc->stats.tx_carrier_errors++;
-    if (tx_status & TS_LATCOL)  smc->stats.tx_window_errors++;
+    dev->stats.tx_errors++;
+    if (tx_status & TS_LOSTCAR) dev->stats.tx_carrier_errors++;
+    if (tx_status & TS_LATCOL)  dev->stats.tx_window_errors++;
     if (tx_status & TS_16COL) {
-	smc->stats.tx_aborted_errors++;
+	dev->stats.tx_aborted_errors++;
 	smc->tx_err++;
     }
 
@@ -1474,10 +1497,10 @@ static void smc_eph_irq(struct net_device *dev)
     /* Could be a counter roll-over warning: update stats. */
     card_stats = inw(ioaddr + COUNTER);
     /* single collisions */
-    smc->stats.collisions += card_stats & 0xF;
+    dev->stats.collisions += card_stats & 0xF;
     card_stats >>= 4;
     /* multiple collisions */
-    smc->stats.collisions += card_stats & 0xF;
+    dev->stats.collisions += card_stats & 0xF;
 #if 0 		/* These are for when linux supports these statistics */
     card_stats >>= 4;			/* deferred */
     card_stats >>= 4;			/* excess deferred */
@@ -1551,7 +1574,7 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id)
 	if (status & IM_TX_EMPTY_INT) {
 	    outw(IM_TX_EMPTY_INT, ioaddr + INTERRUPT);
 	    mask &= ~IM_TX_EMPTY_INT;
-	    smc->stats.tx_packets += smc->packets_waiting;
+	    dev->stats.tx_packets += smc->packets_waiting;
 	    smc->packets_waiting = 0;
 	}
 	if (status & IM_ALLOC_INT) {
@@ -1567,8 +1590,8 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id)
 	    netif_wake_queue(dev);
 	}
 	if (status & IM_RX_OVRN_INT) {
-	    smc->stats.rx_errors++;
-	    smc->stats.rx_fifo_errors++;
+	    dev->stats.rx_errors++;
+	    dev->stats.rx_fifo_errors++;
 	    if (smc->duplex)
 		smc->rx_ovrn = 1; /* need MC_RESET outside smc_interrupt */
 	    outw(IM_RX_OVRN_INT, ioaddr + INTERRUPT);
@@ -1618,7 +1641,6 @@ irq_done:
 
 static void smc_rx(struct net_device *dev)
 {
-    struct smc_private *smc = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
     int rx_status;
     int packet_length;	/* Caution: not frame length, rather words
@@ -1649,7 +1671,7 @@ static void smc_rx(struct net_device *dev)
 	
 	if (skb == NULL) {
 	    DEBUG(1, "%s: Low memory, packet dropped.\n", dev->name);
-	    smc->stats.rx_dropped++;
+	    dev->stats.rx_dropped++;
 	    outw(MC_RELEASE, ioaddr + MMU_CMD);
 	    return;
 	}
@@ -1662,32 +1684,23 @@ static void smc_rx(struct net_device *dev)
 	
 	netif_rx(skb);
 	dev->last_rx = jiffies;
-	smc->stats.rx_packets++;
-	smc->stats.rx_bytes += packet_length;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += packet_length;
 	if (rx_status & RS_MULTICAST)
-	    smc->stats.multicast++;
+	    dev->stats.multicast++;
     } else {
 	/* error ... */
-	smc->stats.rx_errors++;
+	dev->stats.rx_errors++;
 	
-	if (rx_status & RS_ALGNERR)  smc->stats.rx_frame_errors++;
+	if (rx_status & RS_ALGNERR)  dev->stats.rx_frame_errors++;
 	if (rx_status & (RS_TOOSHORT | RS_TOOLONG))
-	    smc->stats.rx_length_errors++;
-	if (rx_status & RS_BADCRC)	smc->stats.rx_crc_errors++;
+	    dev->stats.rx_length_errors++;
+	if (rx_status & RS_BADCRC)	dev->stats.rx_crc_errors++;
     }
     /* Let the MMU free the memory of this packet. */
     outw(MC_RELEASE, ioaddr + MMU_CMD);
 
     return;
-}
-
-/*====================================================================*/
-
-static struct net_device_stats *smc_get_stats(struct net_device *dev)
-{
-    struct smc_private *smc = netdev_priv(dev);
-    /* Nothing to update - the 91c92 is a pretty primative chip. */
-    return &smc->stats;
 }
 
 /*======================================================================

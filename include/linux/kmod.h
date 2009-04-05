@@ -29,10 +29,15 @@
 #ifdef CONFIG_MODULES
 /* modprobe exit status on success, -ve on error.  Return value
  * usually useless though. */
-extern int request_module(const char * name, ...) __attribute__ ((format (printf, 1, 2)));
-#define try_then_request_module(x, mod...) ((x) ?: (request_module(mod), (x)))
+extern int __request_module(bool wait, const char *name, ...) \
+	__attribute__((format(printf, 2, 3)));
+#define request_module(mod...) __request_module(true, mod)
+#define request_module_nowait(mod...) __request_module(false, mod)
+#define try_then_request_module(x, mod...) \
+	((x) ?: (__request_module(false, mod), (x)))
 #else
-static inline int request_module(const char * name, ...) { return -ENOSYS; }
+static inline int request_module(const char *name, ...) { return -ENOSYS; }
+static inline int request_module_nowait(const char *name, ...) { return -ENOSYS; }
 #define try_then_request_module(x, mod...) (x)
 #endif
 

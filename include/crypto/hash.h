@@ -231,6 +231,11 @@ static inline unsigned int crypto_shash_alignmask(
 	return crypto_tfm_alg_alignmask(crypto_shash_tfm(tfm));
 }
 
+static inline unsigned int crypto_shash_blocksize(struct crypto_shash *tfm)
+{
+	return crypto_tfm_alg_blocksize(crypto_shash_tfm(tfm));
+}
+
 static inline struct shash_alg *__crypto_shash_alg(struct crypto_alg *alg)
 {
 	return container_of(alg, struct shash_alg, base);

@@ -25,8 +25,7 @@ mem_init(void)
 	int codesize, reservedpages, datasize, initsize;
 	unsigned long tmp;
 
-	if(!mem_map)
-		BUG();
+	BUG_ON(!mem_map);
 
 	/* max/min_low_pfn was set by setup.c
 	 * now we just copy it to some other necessary places...

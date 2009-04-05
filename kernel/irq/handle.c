@@ -17,6 +17,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/rculist.h>
 #include <linux/hash.h>
+#include <trace/irq.h>
 #include <linux/bootmem.h>
 
 #include "internals.h"
@@ -347,6 +348,9 @@ static void warn_no_thread(unsigned int irq, struct irqaction *action)
 	       "but no thread function available.", irq, action->name);
 }
 
+DEFINE_TRACE(irq_handler_entry);
+DEFINE_TRACE(irq_handler_exit);
+
 /**
  * handle_IRQ_event - irq action chain handler
  * @irq:	the interrupt number
@@ -365,7 +369,9 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 		local_irq_enable_in_hardirq();
 
 	do {
+		trace_irq_handler_entry(irq, action);
 		ret = action->handler(irq, action->dev_id);
+		trace_irq_handler_exit(irq, action, ret);
 
 		switch (ret) {
 		case IRQ_WAKE_THREAD:

@@ -90,7 +90,6 @@ void jfs_proc_init(void)
 
 	if (!(base = proc_mkdir("fs/jfs", NULL)))
 		return;
-	base->owner = THIS_MODULE;
 
 	for (i = 0; i < NPROCENT; i++)
 		proc_create(Entries[i].name, 0, base, Entries[i].proc_fops);

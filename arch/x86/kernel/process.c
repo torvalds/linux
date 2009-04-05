@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/clockchips.h>
-#include <linux/ftrace.h>
+#include <trace/power.h>
 #include <asm/system.h>
 #include <asm/apic.h>
 #include <asm/idle.h>
@@ -21,6 +21,9 @@ unsigned long idle_nomwait;
 EXPORT_SYMBOL(idle_nomwait);
 
 struct kmem_cache *task_xstate_cachep;
+
+DEFINE_TRACE(power_start);
+DEFINE_TRACE(power_end);
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
@@ -65,11 +68,11 @@ void exit_thread(void)
 {
 	struct task_struct *me = current;
 	struct thread_struct *t = &me->thread;
+	unsigned long *bp = t->io_bitmap_ptr;
 
-	if (me->thread.io_bitmap_ptr) {
+	if (bp) {
 		struct tss_struct *tss = &per_cpu(init_tss, get_cpu());
 
-		kfree(t->io_bitmap_ptr);
 		t->io_bitmap_ptr = NULL;
 		clear_thread_flag(TIF_IO_BITMAP);
 		/*
@@ -78,6 +81,7 @@ void exit_thread(void)
 		memset(tss->io_bitmap, 0xff, t->io_bitmap_max);
 		t->io_bitmap_max = 0;
 		put_cpu();
+		kfree(bp);
 	}
 
 	ds_exit_thread(current);

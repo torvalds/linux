@@ -2,7 +2,7 @@ menu "EEPROM support"
 
 config EEPROM_AT24
 	tristate "I2C EEPROMs from most vendors"
-	depends on I2C && SYSFS && EXPERIMENTAL
+	depends on I2C && SYSFS
 	help
 	  Enable this driver to get read/write support to most I2C EEPROMs,
 	  after you configure the driver to know about each EEPROM on

@@ -1417,8 +1417,7 @@ static void c3cn_active_close(struct s3_conn *c3cn)
 }
 
 /**
- * cxgb3i_c3cn_release - close and release an iscsi tcp connection and any
- * 	resource held
+ * cxgb3i_c3cn_release - close and release an iscsi tcp connection
  * @c3cn: the iscsi tcp connection
  */
 void cxgb3i_c3cn_release(struct s3_conn *c3cn)

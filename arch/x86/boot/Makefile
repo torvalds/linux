@@ -6,26 +6,24 @@
 # for more details.
 #
 # Copyright (C) 1994 by Linus Torvalds
+# Changed by many, many contributors over the years.
 #
 
 # ROOT_DEV specifies the default root-device when making the image.
 # This can be either FLOPPY, CURRENT, /dev/xxxx or empty, in which case
 # the default of FLOPPY is used by 'build'.
 
-ROOT_DEV := CURRENT
+ROOT_DEV	:= CURRENT
 
 # If you want to preset the SVGA mode, uncomment the next line and
 # set SVGA_MODE to whatever number you want.
 # Set it to -DSVGA_MODE=NORMAL_VGA if you just want the EGA/VGA mode.
 # The number is the same as you would ordinarily press at bootup.
 
-SVGA_MODE := -DSVGA_MODE=NORMAL_VGA
+SVGA_MODE	:= -DSVGA_MODE=NORMAL_VGA
 
-# If you want the RAM disk device, define this to be the size in blocks.
-
-#RAMDISK := -DRAMDISK=512
-
-targets		:= vmlinux.bin setup.bin setup.elf zImage bzImage
+targets		:= vmlinux.bin setup.bin setup.elf bzImage
+targets		+= fdimage fdimage144 fdimage288 image.iso mtools.conf
 subdir-		:= compressed
 
 setup-y		+= a20.o cmdline.o copy.o cpu.o cpucheck.o edd.o
@@ -59,6 +57,7 @@ $(obj)/cpustr.h: $(obj)/mkcpustr FORCE
 # How to compile the 16-bit code.  Note we always compile for -march=i386,
 # that way we can complain to the user if the CPU is insufficient.
 KBUILD_CFLAGS	:= $(LINUXINCLUDE) -g -Os -D_SETUP -D__KERNEL__ \
+		   -DDISABLE_BRANCH_PROFILING \
 		   -Wall -Wstrict-prototypes \
 		   -march=i386 -mregparm=3 \
 		   -include $(srctree)/$(src)/code16gcc.h \
@@ -68,20 +67,16 @@ KBUILD_CFLAGS	:= $(LINUXINCLUDE) -g -Os -D_SETUP -D__KERNEL__ \
 			$(call cc-option, -fno-unit-at-a-time)) \
 		   $(call cc-option, -fno-stack-protector) \
 		   $(call cc-option, -mpreferred-stack-boundary=2)
-KBUILD_CFLAGS +=   $(call cc-option,-m32)
+KBUILD_CFLAGS	+= $(call cc-option, -m32)
 KBUILD_AFLAGS	:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
 
-$(obj)/zImage:  asflags-y := $(SVGA_MODE) $(RAMDISK)
-$(obj)/bzImage: ccflags-y := -D__BIG_KERNEL__
-$(obj)/bzImage: asflags-y := $(SVGA_MODE) $(RAMDISK) -D__BIG_KERNEL__
-$(obj)/bzImage: BUILDFLAGS   := -b
+$(obj)/bzImage: asflags-y  := $(SVGA_MODE)
 
 quiet_cmd_image = BUILD   $@
-cmd_image = $(obj)/tools/build $(BUILDFLAGS) $(obj)/setup.bin \
-	    $(obj)/vmlinux.bin $(ROOT_DEV) > $@
+cmd_image = $(obj)/tools/build $(obj)/setup.bin $(obj)/vmlinux.bin \
+	$(ROOT_DEV) > $@
 
-$(obj)/zImage $(obj)/bzImage: $(obj)/setup.bin \
-			      $(obj)/vmlinux.bin $(obj)/tools/build FORCE
+$(obj)/bzImage: $(obj)/setup.bin $(obj)/vmlinux.bin $(obj)/tools/build FORCE
 	$(call if_changed,image)
 	@echo 'Kernel: $@ is ready' ' (#'`cat .version`')'
 
@@ -116,9 +111,11 @@ $(obj)/setup.bin: $(obj)/setup.elf FORCE
 $(obj)/compressed/vmlinux: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
-# Set this if you want to pass append arguments to the zdisk/fdimage/isoimage kernel
+# Set this if you want to pass append arguments to the
+# bzdisk/fdimage/isoimage kernel
 FDARGS =
-# Set this if you want an initrd included with the zdisk/fdimage/isoimage kernel
+# Set this if you want an initrd included with the
+# bzdisk/fdimage/isoimage kernel
 FDINITRD =
 
 image_cmdline = default linux $(FDARGS) $(if $(FDINITRD),initrd=initrd.img,)
@@ -127,7 +124,7 @@ $(obj)/mtools.conf: $(src)/mtools.conf.in
 	sed -e 's|@OBJ@|$(obj)|g' < $< > $@
 
 # This requires write access to /dev/fd0
-zdisk: $(BOOTIMAGE) $(obj)/mtools.conf
+bzdisk: $(obj)/bzImage $(obj)/mtools.conf
 	MTOOLSRC=$(obj)/mtools.conf mformat a:			; sync
 	syslinux /dev/fd0					; sync
 	echo '$(image_cmdline)' | \
@@ -135,10 +132,10 @@ zdisk: $(BOOTIMAGE) $(obj)/mtools.conf
 	if [ -f '$(FDINITRD)' ] ; then \
 		MTOOLSRC=$(obj)/mtools.conf mcopy '$(FDINITRD)' a:initrd.img ; \
 	fi
-	MTOOLSRC=$(obj)/mtools.conf mcopy $(BOOTIMAGE) a:linux	; sync
+	MTOOLSRC=$(obj)/mtools.conf mcopy $(obj)/bzImage a:linux	; sync
 
 # These require being root or having syslinux 2.02 or higher installed
-fdimage fdimage144: $(BOOTIMAGE) $(obj)/mtools.conf
+fdimage fdimage144: $(obj)/bzImage $(obj)/mtools.conf
 	dd if=/dev/zero of=$(obj)/fdimage bs=1024 count=1440
 	MTOOLSRC=$(obj)/mtools.conf mformat v:			; sync
 	syslinux $(obj)/fdimage					; sync
@@ -147,9 +144,9 @@ fdimage fdimage144: $(BOOTIMAGE) $(obj)/mtools.conf
 	if [ -f '$(FDINITRD)' ] ; then \
 		MTOOLSRC=$(obj)/mtools.conf mcopy '$(FDINITRD)' v:initrd.img ; \
 	fi
-	MTOOLSRC=$(obj)/mtools.conf mcopy $(BOOTIMAGE) v:linux	; sync
+	MTOOLSRC=$(obj)/mtools.conf mcopy $(obj)/bzImage v:linux	; sync
 
-fdimage288: $(BOOTIMAGE) $(obj)/mtools.conf
+fdimage288: $(obj)/bzImage $(obj)/mtools.conf
 	dd if=/dev/zero of=$(obj)/fdimage bs=1024 count=2880
 	MTOOLSRC=$(obj)/mtools.conf mformat w:			; sync
 	syslinux $(obj)/fdimage					; sync
@@ -158,9 +155,9 @@ fdimage288: $(BOOTIMAGE) $(obj)/mtools.conf
 	if [ -f '$(FDINITRD)' ] ; then \
 		MTOOLSRC=$(obj)/mtools.conf mcopy '$(FDINITRD)' w:initrd.img ; \
 	fi
-	MTOOLSRC=$(obj)/mtools.conf mcopy $(BOOTIMAGE) w:linux	; sync
+	MTOOLSRC=$(obj)/mtools.conf mcopy $(obj)/bzImage w:linux	; sync
 
-isoimage: $(BOOTIMAGE)
+isoimage: $(obj)/bzImage
 	-rm -rf $(obj)/isoimage
 	mkdir $(obj)/isoimage
 	for i in lib lib64 share end ; do \
@@ -170,7 +167,7 @@ isoimage: $(BOOTIMAGE)
 		fi ; \
 		if [ $$i = end ] ; then exit 1 ; fi ; \
 	done
-	cp $(BOOTIMAGE) $(obj)/isoimage/linux
+	cp $(obj)/bzImage $(obj)/isoimage/linux
 	echo '$(image_cmdline)' > $(obj)/isoimage/isolinux.cfg
 	if [ -f '$(FDINITRD)' ] ; then \
 		cp '$(FDINITRD)' $(obj)/isoimage/initrd.img ; \
@@ -181,12 +178,13 @@ isoimage: $(BOOTIMAGE)
 	isohybrid $(obj)/image.iso 2>/dev/null || true
 	rm -rf $(obj)/isoimage
 
-zlilo: $(BOOTIMAGE)
+bzlilo: $(obj)/bzImage
 	if [ -f $(INSTALL_PATH)/vmlinuz ]; then mv $(INSTALL_PATH)/vmlinuz $(INSTALL_PATH)/vmlinuz.old; fi
 	if [ -f $(INSTALL_PATH)/System.map ]; then mv $(INSTALL_PATH)/System.map $(INSTALL_PATH)/System.old; fi
-	cat $(BOOTIMAGE) > $(INSTALL_PATH)/vmlinuz
+	cat $(obj)/bzImage > $(INSTALL_PATH)/vmlinuz
 	cp System.map $(INSTALL_PATH)/
 	if [ -x /sbin/lilo ]; then /sbin/lilo; else /etc/lilo/install; fi
 
 install:
-	sh $(srctree)/$(src)/install.sh $(KERNELRELEASE) $(BOOTIMAGE) System.map "$(INSTALL_PATH)"
+	sh $(srctree)/$(src)/install.sh $(KERNELRELEASE) $(obj)/bzImage \
+		System.map "$(INSTALL_PATH)"

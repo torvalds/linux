@@ -13,6 +13,7 @@
 
 #include <variant/core.h>
 #include <asm/coprocessor.h>
+#include <platform/hardware.h>
 
 #include <linux/compiler.h>
 #include <asm/ptrace.h>
@@ -25,6 +26,8 @@
 # error Linux requires the Xtensa Windowed Registers Option.
 #endif
 
+#define ARCH_SLAB_MINALIGN	XCHAL_DATA_WIDTH
+
 /*
  * User space process size: 1 GB.
  * Windowed call ABI requires caller and callee to be located within the same
@@ -33,7 +36,12 @@
  * the 1 GB requirement applies to the stack as well.
  */
 
+#ifdef CONFIG_MMU
 #define TASK_SIZE	__XTENSA_UL_CONST(0x40000000)
+#else
+#define TASK_SIZE	(PLATFORM_DEFAULT_MEM_START + PLATFORM_DEFAULT_MEM_SIZE)
+#endif
+
 #define STACK_TOP	TASK_SIZE
 #define STACK_TOP_MAX	STACK_TOP
 

@@ -33,7 +33,6 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 
-#include <linux/version.h>
 
 #include "qlge.h"
 
@@ -271,7 +270,8 @@ static int ql_get_settings(struct net_device *ndev,
 	ecmd->advertising = ADVERTISED_10000baseT_Full;
 	ecmd->autoneg = AUTONEG_ENABLE;
 	ecmd->transceiver = XCVR_EXTERNAL;
-	if ((qdev->link_status & LINK_TYPE_MASK) == LINK_TYPE_10GBASET) {
+	if ((qdev->link_status & STS_LINK_TYPE_MASK) ==
+				STS_LINK_TYPE_10GBASET) {
 		ecmd->supported |= (SUPPORTED_TP | SUPPORTED_Autoneg);
 		ecmd->advertising |= (ADVERTISED_TP | ADVERTISED_Autoneg);
 		ecmd->port = PORT_TP;

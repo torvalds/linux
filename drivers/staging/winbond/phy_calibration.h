@@ -101,7 +101,7 @@
 //#define MASK_IQCAL_IMAGE_Q         0x03FFE000
 //#define SHIFT_IQCAL_IMAGE_Q(x)     ((x)>>13)
 
-void phy_set_rf_data(  phw_data_t pHwData,  u32 index,  u32 value );
+void phy_set_rf_data(  struct hw_data * pHwData,  u32 index,  u32 value );
 #define phy_init_rf( _A )	//RFSynthesizer_initial( _A )
 
 #endif

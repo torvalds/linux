@@ -72,26 +72,26 @@ static void q40_ide_setup_ports(hw_regs_t *hw, unsigned long base,
 	hw->chipset = ide_generic;
 }
 
-static void q40ide_input_data(ide_drive_t *drive, struct request *rq,
+static void q40ide_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			      void *buf, unsigned int len)
 {
 	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
-	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
+	if (drive->media == ide_disk && cmd && (cmd->tf_flags & IDE_TFLAG_FS))
 		return insw(data_addr, buf, (len + 1) / 2);
 
-	insw_swapw(data_addr, buf, (len + 1) / 2);
+	raw_insw_swapw((u16 *)data_addr, buf, (len + 1) / 2);
 }
 
-static void q40ide_output_data(ide_drive_t *drive, struct request *rq,
+static void q40ide_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			       void *buf, unsigned int len)
 {
 	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
-	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
+	if (drive->media == ide_disk && cmd && (cmd->tf_flags & IDE_TFLAG_FS))
 		return outsw(data_addr, buf, (len + 1) / 2);
 
-	outsw_swapw(data_addr, buf, (len + 1) / 2);
+	raw_outsw_swapw((u16 *)data_addr, buf, (len + 1) / 2);
 }
 
 /* Q40 has a byte-swapped IDE interface */
@@ -99,9 +99,9 @@ static const struct ide_tp_ops q40ide_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
 
-	.set_irq		= ide_set_irq,
-
+	.dev_select		= ide_dev_select,
 	.tf_load		= ide_tf_load,
 	.tf_read		= ide_tf_read,
 
@@ -111,7 +111,8 @@ static const struct ide_tp_ops q40ide_tp_ops = {
 
 static const struct ide_port_info q40ide_port_info = {
 	.tp_ops			= &q40ide_tp_ops,
-	.host_flags		= IDE_HFLAG_NO_DMA,
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
+	.irq_flags		= IRQF_SHARED,
 };
 
 /* 

@@ -69,11 +69,12 @@ void early_dump_pci_device(u8 bus, u8 slot, u8 func)
 	int j;
 	u32 val;
 
-	printk(KERN_INFO "PCI: %02x:%02x:%02x", bus, slot, func);
+	printk(KERN_INFO "pci 0000:%02x:%02x.%d config space:",
+	       bus, slot, func);
 
 	for (i = 0; i < 256; i += 4) {
 		if (!(i & 0x0f))
-			printk("\n%04x:",i);
+			printk("\n  %02x:",i);
 
 		val = read_pci_config(bus, slot, func, i);
 		for (j = 0; j < 4; j++) {
@@ -96,20 +97,22 @@ void early_dump_pci_devices(void)
 			for (func = 0; func < 8; func++) {
 				u32 class;
 				u8 type;
+
 				class = read_pci_config(bus, slot, func,
 							PCI_CLASS_REVISION);
 				if (class == 0xffffffff)
-					break;
+					continue;
 
 				early_dump_pci_device(bus, slot, func);
 
-				/* No multi-function device? */
-				type = read_pci_config_byte(bus, slot, func,
+				if (func == 0) {
+					type = read_pci_config_byte(bus, slot,
+								    func,
 							       PCI_HEADER_TYPE);
-				if (!(type & 0x80))
-					break;
+					if (!(type & 0x80))
+						break;
+				}
 			}
 		}
 	}
 }
-

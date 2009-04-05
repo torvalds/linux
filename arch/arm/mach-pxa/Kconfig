@@ -40,6 +40,9 @@ choice
 config GUMSTIX_AM200EPD
 	bool "Enable AM200EPD board support"
 
+config GUMSTIX_AM300EPD
+	bool "Enable AM300EPD board support"
+
 endchoice
 
 config MACH_INTELMOTE2
@@ -254,9 +257,23 @@ config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"
 	select PXA27x
 
-config MACH_COLIBRI
-	bool "Toradex Colibri PX27x"
+config MACH_EXEDA
+	bool "CompuLab eXeda platform"
 	select PXA27x
+
+config MACH_COLIBRI
+	bool "Toradex Colibri PXA270"
+	select PXA27x
+
+config MACH_COLIBRI300
+	bool "Toradex Colibri PXA300/310"
+	select PXA3xx
+	select CPU_PXA300
+
+config MACH_COLIBRI320
+	bool "Toradex Colibri PXA320"
+	select PXA3xx
+	select CPU_PXA320
 
 config MACH_ZYLONITE
 	bool "PXA3xx Development Platform (aka Zylonite)"
@@ -295,7 +312,14 @@ config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
 	select PXA27x
 	select IWMMXT
+	select PXA_SSP
+	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
+
+config MACH_HIMALAYA
+	bool "HTC Himalaya Support"
+	select CPU_PXA26x
+	select FB_W100
 
 config MACH_MIOA701
 	bool "Mitac Mio A701 Support"
@@ -319,6 +343,16 @@ config ARCH_PXA_PALM
 	bool "PXA based Palm PDAs"
 	select HAVE_PWM
 
+config MACH_PALMT5
+	bool "Palm Tungsten|T5"
+	default y
+	depends on ARCH_PXA_PALM
+	select PXA27x
+	select IWMMXT
+	help
+	  Say Y here if you intend to run this kernel on a Palm Tungsten|T5
+	  handheld computer.
+
 config MACH_PALMTX
 	bool "Palm T|X"
 	default y
@@ -337,6 +371,16 @@ config MACH_PALMZ72
 	select IWMMXT
 	help
 	  Say Y here if you intend to run this kernel on Palm Zire 72
+	  handheld computer.
+
+config MACH_PALMLD
+	bool "Palm LifeDrive"
+	default y
+	depends on ARCH_PXA_PALM
+	select PXA27x
+	select IWMMXT
+	help
+	  Say Y here if you intend to run this kernel on a Palm LifeDrive
 	  handheld computer.
 
 config MACH_PCM990_BASEBOARD
@@ -358,6 +402,18 @@ config PCM990_DISPLAY_NONE
 	bool "no display"
 
 endchoice
+
+config MACH_CSB726
+	bool "Enable Cogent CSB726 System On a Module"
+	select PXA27x
+	select IWMMXT
+	help
+	  Say Y here if you intend to run this kernel on a Cogent
+	  CSB726 System On Module.
+
+config CSB726_CSB701
+	bool "Enable supprot for CSB701 baseboard"
+	depends on MACH_CSB726
 
 config PXA_EZX
 	bool "Motorola EZX Platform"

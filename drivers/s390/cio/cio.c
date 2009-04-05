@@ -30,6 +30,8 @@
 #include <asm/isc.h>
 #include <asm/cpu.h>
 #include <asm/fcx.h>
+#include <asm/nmi.h>
+#include <asm/crw.h>
 #include "cio.h"
 #include "css.h"
 #include "chsc.h"
@@ -38,7 +40,6 @@
 #include "blacklist.h"
 #include "cio_debug.h"
 #include "chp.h"
-#include "../s390mach.h"
 
 debug_info_t *cio_debug_msg_id;
 debug_info_t *cio_debug_trace_id;
@@ -471,6 +472,7 @@ EXPORT_SYMBOL_GPL(cio_enable_subchannel);
 int cio_disable_subchannel(struct subchannel *sch)
 {
 	char dbf_txt[15];
+	int retry;
 	int ret;
 
 	CIO_TRACE_EVENT (2, "dissch");
@@ -481,16 +483,17 @@ int cio_disable_subchannel(struct subchannel *sch)
 	if (cio_update_schib(sch))
 		return -ENODEV;
 
-	if (scsw_actl(&sch->schib.scsw) != 0)
-		/*
-		 * the disable function must not be called while there are
-		 *  requests pending for completion !
-		 */
-		return -EBUSY;
-
 	sch->config.ena = 0;
-	ret = cio_commit_config(sch);
 
+	for (retry = 0; retry < 3; retry++) {
+		ret = cio_commit_config(sch);
+		if (ret == -EBUSY) {
+			struct irb irb;
+			if (tsch(sch->schid, &irb) != 0)
+				break;
+		} else
+			break;
+	}
 	sprintf (dbf_txt, "ret:%d", ret);
 	CIO_TRACE_EVENT (2, dbf_txt);
 	return ret;

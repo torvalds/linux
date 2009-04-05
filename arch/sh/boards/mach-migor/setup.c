@@ -352,8 +352,7 @@ static int tw9910_power(struct device *dev, int mode)
 }
 
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
-	.flags = SOCAM_MASTER | SOCAM_DATAWIDTH_8 | SOCAM_PCLK_SAMPLE_RISING \
-	| SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH,
+	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
 };
 
 static struct resource migor_ceu_resources[] = {
@@ -450,6 +449,14 @@ static struct spi_board_info migor_spi_devices[] = {
 
 static int __init migor_devices_setup(void)
 {
+
+#ifdef CONFIG_PM
+	/* Let D11 LED show STATUS0 */
+	gpio_request(GPIO_FN_STATUS0, NULL);
+
+	/* Lit D12 LED show PDSTATUS */
+	gpio_request(GPIO_FN_PDSTATUS, NULL);
+#else
 	/* Lit D11 LED */
 	gpio_request(GPIO_PTJ7, NULL);
 	gpio_direction_output(GPIO_PTJ7, 1);
@@ -459,6 +466,7 @@ static int __init migor_devices_setup(void)
 	gpio_request(GPIO_PTJ5, NULL);
 	gpio_direction_output(GPIO_PTJ5, 1);
 	gpio_export(GPIO_PTJ5, 0);
+#endif
 
 	/* SMC91C111 - Enable IRQ0, Setup CS4 for 16-bit fast access */
 	gpio_request(GPIO_FN_IRQ0, NULL);

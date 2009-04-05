@@ -139,6 +139,7 @@ enum c3cn_flags {
 
 /**
  * cxgb3i_sdev_data - Per adapter data.
+ *
  * Linked off of each Ethernet device port on the adapter.
  * Also available via the t3cdev structure since we have pointers to our port
  * net_device's there ...

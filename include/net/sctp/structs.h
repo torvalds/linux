@@ -218,6 +218,10 @@ extern struct sctp_globals {
 
 	/* Flag to idicate if SCTP-AUTH is enabled */
 	int auth_enable;
+
+	/* Flag to indicate whether computing and verifying checksum
+	 * is disabled. */
+        int checksum_disable;
 } sctp_globals;
 
 #define sctp_rto_initial		(sctp_globals.rto_initial)
@@ -252,6 +256,7 @@ extern struct sctp_globals {
 #define sctp_addip_noauth		(sctp_globals.addip_noauth_enable)
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
 #define sctp_auth_enable		(sctp_globals.auth_enable)
+#define sctp_checksum_disable		(sctp_globals.checksum_disable)
 
 /* SCTP Socket type: UDP or TCP style. */
 typedef enum {
@@ -905,8 +910,10 @@ struct sctp_transport {
 	 *		should be set. Every time the RTT
 	 *		calculation completes (i.e. the DATA chunk
 	 *		is SACK'd) clear this flag.
+	 * hb_sent : a flag that signals that we have a pending heartbeat.
 	 */
 	__u8 rto_pending;
+	__u8 hb_sent;
 
 	/* Flag to track the current fast recovery state */
 	__u8 fast_recovery;

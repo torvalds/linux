@@ -171,7 +171,7 @@ int show_interrupts(struct seq_file *p, void *v)
 {
 	int i = *(loff_t *)v, j;
 	struct irqaction *action;
-	irq_desc_t *desc;
+	struct irq_desc *desc;
 	unsigned long flags;
 
 	if (i == 0) {
@@ -1038,7 +1038,7 @@ arch_initcall(irq_late_init);
 static int virq_debug_show(struct seq_file *m, void *private)
 {
 	unsigned long flags;
-	irq_desc_t *desc;
+	struct irq_desc *desc;
 	const char *p;
 	char none[] = "none";
 	int i;

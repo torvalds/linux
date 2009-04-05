@@ -120,7 +120,7 @@ void *__alloc_percpu(size_t size, size_t align)
 	 * on it.  Larger alignment should only be used for module
 	 * percpu sections on SMP for which this path isn't used.
 	 */
-	WARN_ON_ONCE(align > __alignof__(unsigned long long));
+	WARN_ON_ONCE(align > SMP_CACHE_BYTES);
 
 	if (unlikely(!pdata))
 		return NULL;
@@ -143,7 +143,7 @@ void free_percpu(void *__pdata)
 {
 	if (unlikely(!__pdata))
 		return;
-	__percpu_depopulate_mask(__pdata, &cpu_possible_map);
+	__percpu_depopulate_mask(__pdata, cpu_possible_mask);
 	kfree(__percpu_disguise(__pdata));
 }
 EXPORT_SYMBOL_GPL(free_percpu);

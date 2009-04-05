@@ -103,7 +103,7 @@ static void parse_da_table(const struct dmi_header *dm)
 	da_num_tokens += tokens;
 }
 
-static void find_tokens(const struct dmi_header *dm)
+static void find_tokens(const struct dmi_header *dm, void *dummy)
 {
 	switch (dm->type) {
 	case 0xd4: /* Indexed IO */
@@ -356,7 +356,7 @@ static int __init dell_init(void)
 	if (!dmi_check_system(dell_device_table))
 		return -ENODEV;
 
-	dmi_walk(find_tokens);
+	dmi_walk(find_tokens, NULL);
 
 	if (!da_tokens)  {
 		printk(KERN_INFO "dell-laptop: Unable to find dmi tokens\n");

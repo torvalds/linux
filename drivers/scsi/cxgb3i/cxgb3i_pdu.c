@@ -479,7 +479,7 @@ void cxgb3i_conn_tx_open(struct s3_conn *c3cn)
 	cxgb3i_tx_debug("cn 0x%p.\n", c3cn);
 	if (conn) {
 		cxgb3i_tx_debug("cn 0x%p, cid %d.\n", c3cn, conn->id);
-		scsi_queue_work(conn->session->host, &conn->xmitwork);
+		iscsi_conn_queue_work(conn);
 	}
 }
 

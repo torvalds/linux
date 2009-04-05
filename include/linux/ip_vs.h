@@ -96,10 +96,10 @@
  */
 struct ip_vs_service_user {
 	/* virtual service addresses */
-	u_int16_t		protocol;
+	__u16		protocol;
 	__be32			addr;		/* virtual ip address */
 	__be16			port;
-	u_int32_t		fwmark;		/* firwall mark of service */
+	__u32		fwmark;		/* firwall mark of service */
 
 	/* virtual service options */
 	char			sched_name[IP_VS_SCHEDNAME_MAXLEN];
@@ -119,8 +119,8 @@ struct ip_vs_dest_user {
 	int			weight;		/* destination weight */
 
 	/* thresholds for active connections */
-	u_int32_t		u_threshold;	/* upper threshold */
-	u_int32_t		l_threshold;	/* lower threshold */
+	__u32		u_threshold;	/* upper threshold */
+	__u32		l_threshold;	/* lower threshold */
 };
 
 
@@ -159,10 +159,10 @@ struct ip_vs_getinfo {
 /* The argument to IP_VS_SO_GET_SERVICE */
 struct ip_vs_service_entry {
 	/* which service: user fills in these */
-	u_int16_t		protocol;
+	__u16		protocol;
 	__be32			addr;		/* virtual address */
 	__be16			port;
-	u_int32_t		fwmark;		/* firwall mark of service */
+	__u32		fwmark;		/* firwall mark of service */
 
 	/* service options */
 	char			sched_name[IP_VS_SCHEDNAME_MAXLEN];
@@ -184,12 +184,12 @@ struct ip_vs_dest_entry {
 	unsigned		conn_flags;	/* connection flags */
 	int			weight;		/* destination weight */
 
-	u_int32_t		u_threshold;	/* upper threshold */
-	u_int32_t		l_threshold;	/* lower threshold */
+	__u32		u_threshold;	/* upper threshold */
+	__u32		l_threshold;	/* lower threshold */
 
-	u_int32_t		activeconns;	/* active connections */
-	u_int32_t		inactconns;	/* inactive connections */
-	u_int32_t		persistconns;	/* persistent connections */
+	__u32		activeconns;	/* active connections */
+	__u32		inactconns;	/* inactive connections */
+	__u32		persistconns;	/* persistent connections */
 
 	/* statistics */
 	struct ip_vs_stats_user stats;
@@ -199,10 +199,10 @@ struct ip_vs_dest_entry {
 /* The argument to IP_VS_SO_GET_DESTS */
 struct ip_vs_get_dests {
 	/* which service: user fills in these */
-	u_int16_t		protocol;
+	__u16		protocol;
 	__be32			addr;		/* virtual address */
 	__be16			port;
-	u_int32_t		fwmark;		/* firwall mark of service */
+	__u32		fwmark;		/* firwall mark of service */
 
 	/* number of real servers */
 	unsigned int		num_dests;

@@ -72,6 +72,9 @@ config PGSTE
 config VIRT_CPU_ACCOUNTING
 	def_bool y
 
+config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	def_bool y
+
 mainmenu "Linux Kernel Configuration"
 
 config S390
@@ -343,13 +346,6 @@ source "mm/Kconfig"
 
 comment "I/O subsystem configuration"
 
-config MACHCHK_WARNING
-	bool "Process warning machine checks"
-	help
-	  Select this option if you want the machine check handler on IBM S/390 or
-	  zSeries to process warning machine checks (e.g. on power failures).
-	  If unsure, say "Y".
-
 config QDIO
 	tristate "QDIO support"
 	---help---
@@ -521,7 +517,7 @@ config APPLDATA_OS
 
 config APPLDATA_NET_SUM
 	tristate "Monitor overall network statistics"
-	depends on APPLDATA_BASE
+	depends on APPLDATA_BASE && NET
 	help
 	  This provides network related data to the Linux - VM Monitor Stream,
 	  currently there is only a total sum of network I/O statistics, no
@@ -552,7 +548,7 @@ config KEXEC
 	  but is independent of hardware/microcode support.
 
 config ZFCPDUMP
-	tristate "zfcpdump support"
+	bool "zfcpdump support"
 	select SMP
 	default n
 	help

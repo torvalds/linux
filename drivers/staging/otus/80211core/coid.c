@@ -214,9 +214,9 @@ u32_t zfiWlanQuerySupportMode(zdev_t* dev)
 
 u32_t zfiWlanQueryTransmitPower(zdev_t* dev)
 {
-    zmw_get_wlan_dev(dev);
-
     u32_t ret = 0;
+
+    zmw_get_wlan_dev(dev);
 
     if (zfStaIsConnected(dev)) {
         ret = wd->sta.connPowerInHalfDbm;
@@ -1432,11 +1432,11 @@ u32_t zfiWlanQueryCurrentFrequency(zdev_t* dev, u8_t qmode)
 
 u32_t zfiWlanQueryFrequencyAttribute(zdev_t* dev, u32_t freq)
 {
-    zmw_get_wlan_dev(dev);
-
     u8_t  i;
     u16_t frequency = (u16_t) (freq/1000);
     u32_t ret = 0;
+
+    zmw_get_wlan_dev(dev);
 
     for (i = 0; i < wd->regulationTable.allowChannelCnt; i++)
     {

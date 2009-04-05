@@ -654,12 +654,22 @@ module_param_string(hid, tpm_pnp_tbl[TIS_HID_USR_IDX].id,
 		    sizeof(tpm_pnp_tbl[TIS_HID_USR_IDX].id), 0444);
 MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
 
-static struct device_driver tis_drv = {
-	.name = "tpm_tis",
-	.bus = &platform_bus_type,
-	.owner = THIS_MODULE,
-	.suspend = tpm_pm_suspend,
-	.resume = tpm_pm_resume,
+static int tpm_tis_suspend(struct platform_device *dev, pm_message_t msg)
+{
+	return tpm_pm_suspend(&dev->dev, msg);
+}
+
+static int tpm_tis_resume(struct platform_device *dev)
+{
+	return tpm_pm_resume(&dev->dev);
+}
+static struct platform_driver tis_drv = {
+	.driver = {
+		.name = "tpm_tis",
+		.owner		= THIS_MODULE,
+	},
+	.suspend = tpm_tis_suspend,
+	.resume = tpm_tis_resume,
 };
 
 static struct platform_device *pdev;
@@ -672,14 +682,14 @@ static int __init init_tis(void)
 	int rc;
 
 	if (force) {
-		rc = driver_register(&tis_drv);
+		rc = platform_driver_register(&tis_drv);
 		if (rc < 0)
 			return rc;
 		if (IS_ERR(pdev=platform_device_register_simple("tpm_tis", -1, NULL, 0)))
 			return PTR_ERR(pdev);
 		if((rc=tpm_tis_init(&pdev->dev, TIS_MEM_BASE, TIS_MEM_LEN, 0)) != 0) {
 			platform_device_unregister(pdev);
-			driver_unregister(&tis_drv);
+			platform_driver_unregister(&tis_drv);
 		}
 		return rc;
 	}
@@ -711,7 +721,7 @@ static void __exit cleanup_tis(void)
 
 	if (force) {
 		platform_device_unregister(pdev);
-		driver_unregister(&tis_drv);
+		platform_driver_unregister(&tis_drv);
 	} else
 		pnp_unregister_driver(&tis_pnp_driver);
 }

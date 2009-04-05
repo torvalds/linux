@@ -24,11 +24,12 @@
  * The clock: sched_clock_cpu() is monotonic per cpu, and should be somewhat
  * consistent between cpus (never more than 2 jiffies difference).
  */
-#include <linux/sched.h>
-#include <linux/percpu.h>
 #include <linux/spinlock.h>
-#include <linux/ktime.h>
+#include <linux/hardirq.h>
 #include <linux/module.h>
+#include <linux/percpu.h>
+#include <linux/ktime.h>
+#include <linux/sched.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -43,6 +44,7 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 static __read_mostly int sched_clock_running;
 
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+__read_mostly int sched_clock_stable;
 
 struct sched_clock_data {
 	/*
@@ -87,7 +89,7 @@ void sched_clock_init(void)
 }
 
 /*
- * min,max except they take wrapping into account
+ * min, max except they take wrapping into account
  */
 
 static inline u64 wrap_min(u64 x, u64 y)
@@ -111,15 +113,13 @@ static u64 __update_sched_clock(struct sched_clock_data *scd, u64 now)
 	s64 delta = now - scd->tick_raw;
 	u64 clock, min_clock, max_clock;
 
-	WARN_ON_ONCE(!irqs_disabled());
-
 	if (unlikely(delta < 0))
 		delta = 0;
 
 	/*
 	 * scd->clock = clamp(scd->tick_gtod + delta,
-	 * 		      max(scd->tick_gtod, scd->clock),
-	 * 		      scd->tick_gtod + TICK_NSEC);
+	 *		      max(scd->tick_gtod, scd->clock),
+	 *		      scd->tick_gtod + TICK_NSEC);
 	 */
 
 	clock = scd->tick_gtod + delta;
@@ -148,8 +148,20 @@ static void lock_double_clock(struct sched_clock_data *data1,
 
 u64 sched_clock_cpu(int cpu)
 {
-	struct sched_clock_data *scd = cpu_sdc(cpu);
 	u64 now, clock, this_clock, remote_clock;
+	struct sched_clock_data *scd;
+
+	if (sched_clock_stable)
+		return sched_clock();
+
+	scd = cpu_sdc(cpu);
+
+	/*
+	 * Normally this is not called in NMI context - but if it is,
+	 * trying to do any locking here is totally lethal.
+	 */
+	if (unlikely(in_nmi()))
+		return scd->clock;
 
 	if (unlikely(!sched_clock_running))
 		return 0ull;
@@ -195,14 +207,18 @@ u64 sched_clock_cpu(int cpu)
 
 void sched_clock_tick(void)
 {
-	struct sched_clock_data *scd = this_scd();
+	struct sched_clock_data *scd;
 	u64 now, now_gtod;
+
+	if (sched_clock_stable)
+		return;
 
 	if (unlikely(!sched_clock_running))
 		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
 
+	scd = this_scd();
 	now_gtod = ktime_to_ns(ktime_get());
 	now = sched_clock();
 
@@ -250,7 +266,7 @@ u64 sched_clock_cpu(int cpu)
 	return sched_clock();
 }
 
-#endif
+#endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 
 unsigned long long cpu_clock(int cpu)
 {

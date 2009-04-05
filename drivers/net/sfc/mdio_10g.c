@@ -17,6 +17,21 @@
 #include "boards.h"
 #include "workarounds.h"
 
+unsigned mdio_id_oui(u32 id)
+{
+	unsigned oui = 0;
+	int i;
+
+	/* The bits of the OUI are designated a..x, with a=0 and b variable.
+	 * In the id register c is the MSB but the OUI is conventionally
+	 * written as bytes h..a, p..i, x..q.  Reorder the bits accordingly. */
+	for (i = 0; i < 22; ++i)
+		if (id & (1 << (i + 10)))
+			oui |= 1 << (i ^ 7);
+
+	return oui;
+}
+
 int mdio_clause45_reset_mmd(struct efx_nic *port, int mmd,
 			    int spins, int spintime)
 {
@@ -125,24 +140,25 @@ int mdio_clause45_wait_reset_mmds(struct efx_nic *efx,
 int mdio_clause45_check_mmds(struct efx_nic *efx,
 			     unsigned int mmd_mask, unsigned int fatal_mask)
 {
+	int mmd = 0, probe_mmd, devs0, devs1;
 	u32 devices;
-	int mmd = 0, probe_mmd;
 
 	/* Historically we have probed the PHYXS to find out what devices are
 	 * present,but that doesn't work so well if the PHYXS isn't expected
 	 * to exist, if so just find the first item in the list supplied. */
 	probe_mmd = (mmd_mask & MDIO_MMDREG_DEVS_PHYXS) ? MDIO_MMD_PHYXS :
 	    __ffs(mmd_mask);
-	devices = (mdio_clause45_read(efx, efx->mii.phy_id,
-				      probe_mmd, MDIO_MMDREG_DEVS0) |
-		   mdio_clause45_read(efx, efx->mii.phy_id,
-				      probe_mmd, MDIO_MMDREG_DEVS1) << 16);
 
 	/* Check all the expected MMDs are present */
-	if (devices < 0) {
+	devs0 = mdio_clause45_read(efx, efx->mii.phy_id,
+				   probe_mmd, MDIO_MMDREG_DEVS0);
+	devs1 = mdio_clause45_read(efx, efx->mii.phy_id,
+				   probe_mmd, MDIO_MMDREG_DEVS1);
+	if (devs0 < 0 || devs1 < 0) {
 		EFX_ERR(efx, "failed to read devices present\n");
 		return -EIO;
 	}
+	devices = devs0 | (devs1 << 16);
 	if ((devices & mmd_mask) != mmd_mask) {
 		EFX_ERR(efx, "required MMDs not present: got %x, "
 			"wanted %x\n", devices, mmd_mask);

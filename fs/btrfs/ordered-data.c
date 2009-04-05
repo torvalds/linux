@@ -310,6 +310,16 @@ int btrfs_remove_ordered_extent(struct inode *inode,
 
 	spin_lock(&BTRFS_I(inode)->root->fs_info->ordered_extent_lock);
 	list_del_init(&entry->root_extent_list);
+
+	/*
+	 * we have no more ordered extents for this inode and
+	 * no dirty pages.  We can safely remove it from the
+	 * list of ordered extents
+	 */
+	if (RB_EMPTY_ROOT(&tree->tree) &&
+	    !mapping_tagged(inode->i_mapping, PAGECACHE_TAG_DIRTY)) {
+		list_del_init(&BTRFS_I(inode)->ordered_operations);
+	}
 	spin_unlock(&BTRFS_I(inode)->root->fs_info->ordered_extent_lock);
 
 	mutex_unlock(&tree->mutex);
@@ -366,6 +376,68 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nocow_only)
 		spin_lock(&root->fs_info->ordered_extent_lock);
 	}
 	spin_unlock(&root->fs_info->ordered_extent_lock);
+	return 0;
+}
+
+/*
+ * this is used during transaction commit to write all the inodes
+ * added to the ordered operation list.  These files must be fully on
+ * disk before the transaction commits.
+ *
+ * we have two modes here, one is to just start the IO via filemap_flush
+ * and the other is to wait for all the io.  When we wait, we have an
+ * extra check to make sure the ordered operation list really is empty
+ * before we return
+ */
+int btrfs_run_ordered_operations(struct btrfs_root *root, int wait)
+{
+	struct btrfs_inode *btrfs_inode;
+	struct inode *inode;
+	struct list_head splice;
+
+	INIT_LIST_HEAD(&splice);
+
+	mutex_lock(&root->fs_info->ordered_operations_mutex);
+	spin_lock(&root->fs_info->ordered_extent_lock);
+again:
+	list_splice_init(&root->fs_info->ordered_operations, &splice);
+
+	while (!list_empty(&splice)) {
+		btrfs_inode = list_entry(splice.next, struct btrfs_inode,
+				   ordered_operations);
+
+		inode = &btrfs_inode->vfs_inode;
+
+		list_del_init(&btrfs_inode->ordered_operations);
+
+		/*
+		 * the inode may be getting freed (in sys_unlink path).
+		 */
+		inode = igrab(inode);
+
+		if (!wait && inode) {
+			list_add_tail(&BTRFS_I(inode)->ordered_operations,
+			      &root->fs_info->ordered_operations);
+		}
+		spin_unlock(&root->fs_info->ordered_extent_lock);
+
+		if (inode) {
+			if (wait)
+				btrfs_wait_ordered_range(inode, 0, (u64)-1);
+			else
+				filemap_flush(inode->i_mapping);
+			iput(inode);
+		}
+
+		cond_resched();
+		spin_lock(&root->fs_info->ordered_extent_lock);
+	}
+	if (wait && !list_empty(&root->fs_info->ordered_operations))
+		goto again;
+
+	spin_unlock(&root->fs_info->ordered_extent_lock);
+	mutex_unlock(&root->fs_info->ordered_operations_mutex);
+
 	return 0;
 }
 
@@ -725,4 +797,50 @@ int btrfs_wait_on_page_writeback_range(struct address_space *mapping,
 		ret = -EIO;
 
 	return ret;
+}
+
+/*
+ * add a given inode to the list of inodes that must be fully on
+ * disk before a transaction commit finishes.
+ *
+ * This basically gives us the ext3 style data=ordered mode, and it is mostly
+ * used to make sure renamed files are fully on disk.
+ *
+ * It is a noop if the inode is already fully on disk.
+ *
+ * If trans is not null, we'll do a friendly check for a transaction that
+ * is already flushing things and force the IO down ourselves.
+ */
+int btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				struct inode *inode)
+{
+	u64 last_mod;
+
+	last_mod = max(BTRFS_I(inode)->generation, BTRFS_I(inode)->last_trans);
+
+	/*
+	 * if this file hasn't been changed since the last transaction
+	 * commit, we can safely return without doing anything
+	 */
+	if (last_mod < root->fs_info->last_trans_committed)
+		return 0;
+
+	/*
+	 * the transaction is already committing.  Just start the IO and
+	 * don't bother with all of this list nonsense
+	 */
+	if (trans && root->fs_info->running_transaction->blocked) {
+		btrfs_wait_ordered_range(inode, 0, (u64)-1);
+		return 0;
+	}
+
+	spin_lock(&root->fs_info->ordered_extent_lock);
+	if (list_empty(&BTRFS_I(inode)->ordered_operations)) {
+		list_add_tail(&BTRFS_I(inode)->ordered_operations,
+			      &root->fs_info->ordered_operations);
+	}
+	spin_unlock(&root->fs_info->ordered_extent_lock);
+
+	return 0;
 }

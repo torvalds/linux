@@ -3898,6 +3898,13 @@ static struct pci_driver cciss_pci_driver = {
  */
 static int __init cciss_init(void)
 {
+	/*
+	 * The hardware requires that commands are aligned on a 64-bit
+	 * boundary. Given that we use pci_alloc_consistent() to allocate an
+	 * array of them, the size must be a multiple of 8 bytes.
+	 */
+	BUILD_BUG_ON(sizeof(CommandList_struct) % 8);
+
 	printk(KERN_INFO DRIVER_NAME "\n");
 
 	/* Register for our PCI devices */

@@ -332,7 +332,6 @@ static int m5602_configure(struct gspca_dev *gspca_dev,
 	int err;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = M5602_ISOC_ENDPOINT_ADDR;
 	sd->desc = &sd_desc;
 
 	if (dump_bridge)
@@ -374,8 +373,10 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init mod_m5602_init(void)
 {
-	if (usb_register(&sd_driver) < 0)
-		return -1;
+	int ret;
+	ret = usb_register(&sd_driver);
+	if (ret < 0)
+		return ret;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }

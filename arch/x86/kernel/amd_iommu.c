@@ -22,10 +22,9 @@
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>
+#include <linux/dma-mapping.h>
 #include <linux/iommu-helper.h>
-#ifdef CONFIG_IOMMU_API
 #include <linux/iommu.h>
-#endif
 #include <asm/proto.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -1297,8 +1296,10 @@ static void __unmap_single(struct amd_iommu *iommu,
 /*
  * The exported map_single function for dma_ops.
  */
-static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
-			     size_t size, int dir)
+static dma_addr_t map_page(struct device *dev, struct page *page,
+			   unsigned long offset, size_t size,
+			   enum dma_data_direction dir,
+			   struct dma_attrs *attrs)
 {
 	unsigned long flags;
 	struct amd_iommu *iommu;
@@ -1306,6 +1307,7 @@ static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
 	u16 devid;
 	dma_addr_t addr;
 	u64 dma_mask;
+	phys_addr_t paddr = page_to_phys(page) + offset;
 
 	INC_STATS_COUNTER(cnt_map_single);
 
@@ -1340,8 +1342,8 @@ out:
 /*
  * The exported unmap_single function for dma_ops.
  */
-static void unmap_single(struct device *dev, dma_addr_t dma_addr,
-			 size_t size, int dir)
+static void unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
+		       enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	unsigned long flags;
 	struct amd_iommu *iommu;
@@ -1390,7 +1392,8 @@ static int map_sg_no_iommu(struct device *dev, struct scatterlist *sglist,
  * lists).
  */
 static int map_sg(struct device *dev, struct scatterlist *sglist,
-		  int nelems, int dir)
+		  int nelems, enum dma_data_direction dir,
+		  struct dma_attrs *attrs)
 {
 	unsigned long flags;
 	struct amd_iommu *iommu;
@@ -1457,7 +1460,8 @@ unmap:
  * lists).
  */
 static void unmap_sg(struct device *dev, struct scatterlist *sglist,
-		     int nelems, int dir)
+		     int nelems, enum dma_data_direction dir,
+		     struct dma_attrs *attrs)
 {
 	unsigned long flags;
 	struct amd_iommu *iommu;
@@ -1644,11 +1648,11 @@ static void prealloc_protection_domains(void)
 	}
 }
 
-static struct dma_mapping_ops amd_iommu_dma_ops = {
+static struct dma_map_ops amd_iommu_dma_ops = {
 	.alloc_coherent = alloc_coherent,
 	.free_coherent = free_coherent,
-	.map_single = map_single,
-	.unmap_single = unmap_single,
+	.map_page = map_page,
+	.unmap_page = unmap_page,
 	.map_sg = map_sg,
 	.unmap_sg = unmap_sg,
 	.dma_supported = amd_iommu_dma_supported,
@@ -1924,6 +1928,12 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 	return paddr;
 }
 
+static int amd_iommu_domain_has_cap(struct iommu_domain *domain,
+				    unsigned long cap)
+{
+	return 0;
+}
+
 static struct iommu_ops amd_iommu_ops = {
 	.domain_init = amd_iommu_domain_init,
 	.domain_destroy = amd_iommu_domain_destroy,
@@ -1932,5 +1942,6 @@ static struct iommu_ops amd_iommu_ops = {
 	.map = amd_iommu_map_range,
 	.unmap = amd_iommu_unmap_range,
 	.iova_to_phys = amd_iommu_iova_to_phys,
+	.domain_has_cap = amd_iommu_domain_has_cap,
 };
 

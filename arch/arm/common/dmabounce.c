@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/page-flags.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
@@ -348,6 +349,12 @@ dma_addr_t dma_map_page(struct device *dev, struct page *page,
 		__func__, page, offset, size, dir);
 
 	BUG_ON(!valid_dma_direction(dir));
+
+	if (PageHighMem(page)) {
+		dev_err(dev, "DMA buffer bouncing of HIGHMEM pages "
+			     "is not supported\n");
+		return ~0;
+	}
 
 	return map_single(dev, page_address(page) + offset, size, dir);
 }

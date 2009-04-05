@@ -51,7 +51,8 @@ static void snd_ak4531_dump(struct snd_ak4531 *ak4531)
 	int idx;
 	
 	for (idx = 0; idx < 0x19; idx++)
-		printk("ak4531 0x%x: 0x%x\n", idx, ak4531->regs[idx]);
+		printk(KERN_DEBUG "ak4531 0x%x: 0x%x\n",
+		       idx, ak4531->regs[idx]);
 }
 
 #endif

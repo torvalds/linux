@@ -229,7 +229,6 @@ int nfsd_create_serv(void)
 
 	atomic_set(&nfsd_busy, 0);
 	nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
-				      AF_INET,
 				      nfsd_last_thread, nfsd, THIS_MODULE);
 	if (nfsd_serv == NULL)
 		err = -ENOMEM;
@@ -244,7 +243,7 @@ static int nfsd_init_socks(int port)
 	if (!list_empty(&nfsd_serv->sv_permsocks))
 		return 0;
 
-	error = svc_create_xprt(nfsd_serv, "udp", port,
+	error = svc_create_xprt(nfsd_serv, "udp", PF_INET, port,
 					SVC_SOCK_DEFAULTS);
 	if (error < 0)
 		return error;
@@ -253,7 +252,7 @@ static int nfsd_init_socks(int port)
 	if (error < 0)
 		return error;
 
-	error = svc_create_xprt(nfsd_serv, "tcp", port,
+	error = svc_create_xprt(nfsd_serv, "tcp", PF_INET, port,
 					SVC_SOCK_DEFAULTS);
 	if (error < 0)
 		return error;
@@ -404,7 +403,6 @@ static int
 nfsd(void *vrqstp)
 {
 	struct svc_rqst *rqstp = (struct svc_rqst *) vrqstp;
-	struct fs_struct *fsp;
 	int err, preverr = 0;
 
 	/* Lock module and set up kernel thread */
@@ -413,13 +411,11 @@ nfsd(void *vrqstp)
 	/* At this point, the thread shares current->fs
 	 * with the init process. We need to create files with a
 	 * umask of 0 instead of init's umask. */
-	fsp = copy_fs_struct(current->fs);
-	if (!fsp) {
+	if (unshare_fs_struct() < 0) {
 		printk("Unable to start nfsd thread: out of memory\n");
 		goto out;
 	}
-	exit_fs(current);
-	current->fs = fsp;
+
 	current->fs->umask = 0;
 
 	/*
