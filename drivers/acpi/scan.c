@@ -11,6 +11,8 @@
 
 #include <acpi/acpi_drivers.h>
 
+#include "internal.h"
+
 #define _COMPONENT		ACPI_BUS_COMPONENT
 ACPI_MODULE_NAME("scan");
 #define STRUCT_TO_INT(s)	(*((int*)&s))
@@ -1524,15 +1526,10 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 	return result;
 }
 
-
-static int __init acpi_scan_init(void)
+int __init acpi_scan_init(void)
 {
 	int result;
 	struct acpi_bus_ops ops;
-
-
-	if (acpi_disabled)
-		return 0;
 
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_add = 1;
@@ -1566,5 +1563,3 @@ static int __init acpi_scan_init(void)
       Done:
 	return result;
 }
-
-subsys_initcall(acpi_scan_init);
