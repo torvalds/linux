@@ -165,6 +165,9 @@ static int __init amiga_init_devices(void)
 	if (AMIGAHW_PRESENT(AMI_KEYBOARD))
 		platform_device_register_simple("amiga-keyboard", -1, NULL, 0);
 
+	if (AMIGAHW_PRESENT(AMI_MOUSE))
+		platform_device_register_simple("amiga-mouse", -1, NULL, 0);
+
 	return 0;
 }
 
