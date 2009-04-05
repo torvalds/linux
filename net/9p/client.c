@@ -203,7 +203,6 @@ static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
 	p9pdu_reset(req->tc);
 	p9pdu_reset(req->rc);
 
-	req->flush_tag = 0;
 	req->tc->tag = tag-1;
 	req->status = REQ_STATUS_ALLOC;
 
@@ -324,35 +323,9 @@ static void p9_free_req(struct p9_client *c, struct p9_req_t *r)
  */
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req)
 {
-	struct p9_req_t *other_req;
-	unsigned long flags;
-
 	P9_DPRINTK(P9_DEBUG_MUX, " tag %d\n", req->tc->tag);
-
-	if (req->status == REQ_STATUS_ERROR)
-		wake_up(req->wq);
-
-	if (req->flush_tag) { 			/* flush receive path */
-		P9_DPRINTK(P9_DEBUG_9P, "<<< RFLUSH %d\n", req->tc->tag);
-		spin_lock_irqsave(&c->lock, flags);
-		other_req = p9_tag_lookup(c, req->flush_tag);
-		if (other_req->status != REQ_STATUS_FLSH) /* stale flush */
-			spin_unlock_irqrestore(&c->lock, flags);
-		else {
-			other_req->status = REQ_STATUS_FLSHD;
-			spin_unlock_irqrestore(&c->lock, flags);
-			wake_up(other_req->wq);
-		}
-		p9_free_req(c, req);
-	} else { 				/* normal receive path */
-		P9_DPRINTK(P9_DEBUG_MUX, "normal: tag %d\n", req->tc->tag);
-		spin_lock_irqsave(&c->lock, flags);
-		if (req->status != REQ_STATUS_FLSHD)
-			req->status = REQ_STATUS_RCVD;
-		spin_unlock_irqrestore(&c->lock, flags);
-		wake_up(req->wq);
-		P9_DPRINTK(P9_DEBUG_MUX, "wakeup: %d\n", req->tc->tag);
-	}
+	wake_up(req->wq);
+	P9_DPRINTK(P9_DEBUG_MUX, "wakeup: %d\n", req->tc->tag);
 }
 EXPORT_SYMBOL(p9_client_cb);
 
@@ -486,9 +459,15 @@ static int p9_client_flush(struct p9_client *c, struct p9_req_t *oldreq)
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	req->flush_tag = oldtag;
 
-	/* we don't free anything here because RPC isn't complete */
+	/* if we haven't received a response for oldreq,
+	   remove it from the list. */
+	spin_lock(&c->lock);
+	if (oldreq->status == REQ_STATUS_FLSH)
+		list_del(&oldreq->req_list);
+	spin_unlock(&c->lock);
+
+	p9_free_req(c, req);
 	return 0;
 }
 
@@ -509,7 +488,6 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 	struct p9_req_t *req;
 	unsigned long flags;
 	int sigpending;
-	int flushed = 0;
 
 	P9_DPRINTK(P9_DEBUG_MUX, "client %p op %d\n", c, type);
 
@@ -546,42 +524,28 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 		goto reterr;
 	}
 
-	/* if it was a flush we just transmitted, return our tag */
-	if (type == P9_TFLUSH)
-		return req;
-again:
 	P9_DPRINTK(P9_DEBUG_MUX, "wait %p tag: %d\n", req->wq, tag);
 	err = wait_event_interruptible(*req->wq,
 						req->status >= REQ_STATUS_RCVD);
-	P9_DPRINTK(P9_DEBUG_MUX, "wait %p tag: %d returned %d (flushed=%d)\n",
-						req->wq, tag, err, flushed);
+	P9_DPRINTK(P9_DEBUG_MUX, "wait %p tag: %d returned %d\n",
+						req->wq, tag, err);
 
 	if (req->status == REQ_STATUS_ERROR) {
 		P9_DPRINTK(P9_DEBUG_ERROR, "req_status error %d\n", req->t_err);
 		err = req->t_err;
-	} else if (err == -ERESTARTSYS && flushed) {
-		P9_DPRINTK(P9_DEBUG_MUX, "flushed - going again\n");
-		goto again;
-	} else if (req->status == REQ_STATUS_FLSHD) {
-		P9_DPRINTK(P9_DEBUG_MUX, "flushed - erestartsys\n");
-		err = -ERESTARTSYS;
 	}
 
-	if ((err == -ERESTARTSYS) && (c->status == Connected) && (!flushed)) {
+	if ((err == -ERESTARTSYS) && (c->status == Connected)) {
 		P9_DPRINTK(P9_DEBUG_MUX, "flushing\n");
-		spin_lock_irqsave(&c->lock, flags);
-		if (req->status == REQ_STATUS_SENT)
-			req->status = REQ_STATUS_FLSH;
-		spin_unlock_irqrestore(&c->lock, flags);
 		sigpending = 1;
-		flushed = 1;
 		clear_thread_flag(TIF_SIGPENDING);
 
-		if (c->trans_mod->cancel(c, req)) {
-			err = p9_client_flush(c, req);
-			if (err == 0)
-				goto again;
-		}
+		if (c->trans_mod->cancel(c, req))
+			p9_client_flush(c, req);
+
+		/* if we received the response anyway, don't signal error */
+		if (req->status == REQ_STATUS_RCVD)
+			err = 0;
 	}
 
 	if (sigpending) {

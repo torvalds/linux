@@ -213,8 +213,8 @@ static void p9_conn_cancel(struct p9_conn *m, int err)
 	spin_unlock_irqrestore(&m->client->lock, flags);
 
 	list_for_each_entry_safe(req, rtmp, &cancel_list, req_list) {
-		list_del(&req->req_list);
 		P9_DPRINTK(P9_DEBUG_ERROR, "call back req %p\n", req);
+		list_del(&req->req_list);
 		p9_client_cb(m->client, req);
 	}
 }
@@ -336,7 +336,8 @@ static void p9_read_work(struct work_struct *work)
 			"mux %p pkt: size: %d bytes tag: %d\n", m, n, tag);
 
 		m->req = p9_tag_lookup(m->client, tag);
-		if (!m->req) {
+		if (!m->req || (m->req->status != REQ_STATUS_SENT &&
+					m->req->status != REQ_STATUS_FLSH)) {
 			P9_DPRINTK(P9_DEBUG_ERROR, "Unexpected packet tag %d\n",
 								 tag);
 			err = -EIO;
@@ -361,10 +362,11 @@ static void p9_read_work(struct work_struct *work)
 	if ((m->req) && (m->rpos == m->rsize)) { /* packet is read in */
 		P9_DPRINTK(P9_DEBUG_TRANS, "got new packet\n");
 		spin_lock(&m->client->lock);
+		if (m->req->status != REQ_STATUS_ERROR)
+			m->req->status = REQ_STATUS_RCVD;
 		list_del(&m->req->req_list);
 		spin_unlock(&m->client->lock);
 		p9_client_cb(m->client, m->req);
-
 		m->rbuf = NULL;
 		m->rpos = 0;
 		m->rsize = 0;
@@ -454,6 +456,7 @@ static void p9_write_work(struct work_struct *work)
 		req = list_entry(m->unsent_req_list.next, struct p9_req_t,
 			       req_list);
 		req->status = REQ_STATUS_SENT;
+		P9_DPRINTK(P9_DEBUG_TRANS, "move req %p\n", req);
 		list_move_tail(&req->req_list, &m->req_list);
 
 		m->wbuf = req->tc->sdata;
@@ -683,12 +686,13 @@ static int p9_fd_cancel(struct p9_client *client, struct p9_req_t *req)
 	P9_DPRINTK(P9_DEBUG_TRANS, "client %p req %p\n", client, req);
 
 	spin_lock(&client->lock);
-	list_del(&req->req_list);
 
 	if (req->status == REQ_STATUS_UNSENT) {
+		list_del(&req->req_list);
 		req->status = REQ_STATUS_FLSHD;
 		ret = 0;
-	}
+	} else if (req->status == REQ_STATUS_SENT)
+		req->status = REQ_STATUS_FLSH;
 
 	spin_unlock(&client->lock);
 
