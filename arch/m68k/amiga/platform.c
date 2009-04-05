@@ -160,6 +160,11 @@ static int __init amiga_init_devices(void)
 					 sizeof(a4000_ide_pdata));
 	}
 
+
+	/* other I/O hardware */
+	if (AMIGAHW_PRESENT(AMI_KEYBOARD))
+		platform_device_register_simple("amiga-keyboard", -1, NULL, 0);
+
 	return 0;
 }
 
