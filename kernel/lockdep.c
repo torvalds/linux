@@ -3061,6 +3061,8 @@ found_it:
 	put_lock_stats(stats);
 }
 
+DEFINE_TRACE(lock_acquired);
+
 static void
 __lock_acquired(struct lockdep_map *lock, unsigned long ip)
 {
@@ -3098,6 +3100,8 @@ found_it:
 		waittime = now - hlock->waittime_stamp;
 		hlock->holdtime_stamp = now;
 	}
+
+	trace_lock_acquired(lock, ip, waittime);
 
 	stats = get_lock_stats(hlock_class(hlock));
 	if (waittime) {
@@ -3137,13 +3141,9 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
 }
 EXPORT_SYMBOL_GPL(lock_contended);
 
-DEFINE_TRACE(lock_acquired);
-
 void lock_acquired(struct lockdep_map *lock, unsigned long ip)
 {
 	unsigned long flags;
-
-	trace_lock_acquired(lock, ip);
 
 	if (unlikely(!lock_stat))
 		return;
