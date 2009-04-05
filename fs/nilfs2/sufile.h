@@ -52,6 +52,8 @@ int nilfs_sufile_update(struct inode *, __u64, int,
 				       struct buffer_head *));
 void nilfs_sufile_do_cancel_free(struct inode *, __u64, struct buffer_head *,
 				 struct buffer_head *);
+void nilfs_sufile_do_scrap(struct inode *, __u64, struct buffer_head *,
+			   struct buffer_head *);
 void nilfs_sufile_do_free(struct inode *, __u64, struct buffer_head *,
 			  struct buffer_head *);
 void nilfs_sufile_do_set_error(struct inode *, __u64, struct buffer_head *,
@@ -75,6 +77,16 @@ static inline int nilfs_sufile_cancel_free(struct inode *sufile, __u64 segnum)
 {
 	return nilfs_sufile_update(sufile, segnum, 0,
 				   nilfs_sufile_do_cancel_free);
+}
+
+/**
+ * nilfs_sufile_scrap - make a segment garbage
+ * @sufile: inode of segment usage file
+ * @segnum: segment number to be freed
+ */
+static inline int nilfs_sufile_scrap(struct inode *sufile, __u64 segnum)
+{
+	return nilfs_sufile_update(sufile, segnum, 1, nilfs_sufile_do_scrap);
 }
 
 /**

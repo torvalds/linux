@@ -258,6 +258,35 @@ void nilfs_sufile_do_cancel_free(struct inode *sufile, __u64 segnum,
 	nilfs_mdt_mark_dirty(sufile);
 }
 
+void nilfs_sufile_do_scrap(struct inode *sufile, __u64 segnum,
+			   struct buffer_head *header_bh,
+			   struct buffer_head *su_bh)
+{
+	struct nilfs_segment_usage *su;
+	void *kaddr;
+	int clean, dirty;
+
+	kaddr = kmap_atomic(su_bh->b_page, KM_USER0);
+	su = nilfs_sufile_block_get_segment_usage(sufile, segnum, su_bh, kaddr);
+	if (su->su_flags == cpu_to_le32(1UL << NILFS_SEGMENT_USAGE_DIRTY) &&
+	    su->su_nblocks == cpu_to_le32(0)) {
+		kunmap_atomic(kaddr, KM_USER0);
+		return;
+	}
+	clean = nilfs_segment_usage_clean(su);
+	dirty = nilfs_segment_usage_dirty(su);
+
+	/* make the segment garbage */
+	su->su_lastmod = cpu_to_le64(0);
+	su->su_nblocks = cpu_to_le32(0);
+	su->su_flags = cpu_to_le32(1UL << NILFS_SEGMENT_USAGE_DIRTY);
+	kunmap_atomic(kaddr, KM_USER0);
+
+	nilfs_sufile_mod_counter(header_bh, clean ? (u64)-1 : 0, dirty ? 0 : 1);
+	nilfs_mdt_mark_buffer_dirty(su_bh);
+	nilfs_mdt_mark_dirty(sufile);
+}
+
 void nilfs_sufile_do_free(struct inode *sufile, __u64 segnum,
 			  struct buffer_head *header_bh,
 			  struct buffer_head *su_bh)
