@@ -103,7 +103,9 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: This function is called to add the ACPI table
+ * DESCRIPTION: This function is called to add an ACPI table. It is used to
+ *              dynamically load tables via the Load and load_table AML
+ *              operators.
  *
  ******************************************************************************/
 
@@ -112,6 +114,7 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 {
 	u32 i;
 	acpi_status status = AE_OK;
+	struct acpi_table_header *override_table = NULL;
 
 	ACPI_FUNCTION_TRACE(tb_add_table);
 
@@ -201,6 +204,29 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 		}
 	}
 
+	/*
+	 * ACPI Table Override:
+	 * Allow the host to override dynamically loaded tables.
+	 */
+	status = acpi_os_table_override(table_desc->pointer, &override_table);
+	if (ACPI_SUCCESS(status) && override_table) {
+		ACPI_INFO((AE_INFO,
+			   "%4.4s @ 0x%p Table override, replaced with:",
+			   table_desc->pointer->signature,
+			   ACPI_CAST_PTR(void, table_desc->address)));
+
+		/* We can delete the table that was passed as a parameter */
+
+		acpi_tb_delete_table(table_desc);
+
+		/* Setup descriptor for the new table */
+
+		table_desc->address = ACPI_PTR_TO_PHYSADDR(override_table);
+		table_desc->pointer = override_table;
+		table_desc->length = override_table->length;
+		table_desc->flags = ACPI_TABLE_ORIGIN_OVERRIDE;
+	}
+
 	/* Add the table to the global root table list */
 
 	status = acpi_tb_store_table(table_desc->address, table_desc->pointer,
@@ -247,8 +273,9 @@ acpi_status acpi_tb_resize_root_table_list(void)
 	/* Increase the Table Array size */
 
 	tables = ACPI_ALLOCATE_ZEROED(((acpi_size) acpi_gbl_root_table_list.
-				       size + ACPI_ROOT_TABLE_SIZE_INCREMENT)
-				      * sizeof(struct acpi_table_desc));
+				       size +
+				       ACPI_ROOT_TABLE_SIZE_INCREMENT) *
+				      sizeof(struct acpi_table_desc));
 	if (!tables) {
 		ACPI_ERROR((AE_INFO,
 			    "Could not allocate new root table array"));
@@ -407,27 +434,56 @@ void acpi_tb_terminate(void)
  *
  * PARAMETERS:  table_index         - Table index
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Delete all namespace objects created when this table was loaded.
  *
  ******************************************************************************/
 
-void acpi_tb_delete_namespace_by_owner(u32 table_index)
+acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index)
 {
 	acpi_owner_id owner_id;
+	acpi_status status;
 
-	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-	if (table_index < acpi_gbl_root_table_list.count) {
-		owner_id =
-		    acpi_gbl_root_table_list.tables[table_index].owner_id;
-	} else {
-		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-		return;
+	ACPI_FUNCTION_TRACE(tb_delete_namespace_by_owner);
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
+	if (table_index >= acpi_gbl_root_table_list.count) {
+
+		/* The table index does not exist */
+
+		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
+
+	/* Get the owner ID for this table, used to delete namespace nodes */
+
+	owner_id = acpi_gbl_root_table_list.tables[table_index].owner_id;
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+
+	/*
+	 * Need to acquire the namespace writer lock to prevent interference
+	 * with any concurrent namespace walks. The interpreter must be
+	 * released during the deletion since the acquisition of the deletion
+	 * lock may block, and also since the execution of a namespace walk
+	 * must be allowed to use the interpreter.
+	 */
+	acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
+	status = acpi_ut_acquire_write_lock(&acpi_gbl_namespace_rw_lock);
+
 	acpi_ns_delete_namespace_by_owner(owner_id);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	acpi_ut_release_write_lock(&acpi_gbl_namespace_rw_lock);
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -535,8 +591,8 @@ u8 acpi_tb_is_table_loaded(u32 table_index)
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	if (table_index < acpi_gbl_root_table_list.count) {
 		is_loaded = (u8)
-		    (acpi_gbl_root_table_list.tables[table_index].
-		     flags & ACPI_TABLE_IS_LOADED);
+		    (acpi_gbl_root_table_list.tables[table_index].flags &
+		     ACPI_TABLE_IS_LOADED);
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);

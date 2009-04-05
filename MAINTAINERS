@@ -1422,6 +1422,11 @@ P:	Doug Warzecha
 M:	Douglas_Warzecha@dell.com
 S:	Maintained
 
+DELL WMI EXTRAS DRIVER
+P:	Matthew Garrett
+M:	mjg59@srcf.ucam.org
+S:	Maintained
+
 DEVICE NUMBER REGISTRY
 P:	Torben Mathiasen
 M:	device@lanana.org
@@ -4401,10 +4406,7 @@ T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.2.x/tomoyo-lsm/patches
 S:	Maintained
 
 TOSHIBA ACPI EXTRAS DRIVER
-P:	John Belmonte
-M:	toshiba_acpi@memebeam.org
-W:	http://memebeam.org/toys/ToshibaAcpiDriver
-S:	Maintained
+S:	Orphan
 
 TOSHIBA SMM DRIVER
 P:	Jonathan Buzzard

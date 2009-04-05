@@ -279,7 +279,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 		return_UINT32(0);
 	}
 
-	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_BUFFER_FIELD) {
+	if (obj_desc->common.type == ACPI_TYPE_BUFFER_FIELD) {
 		/*
 		 * buffer_field access can be on any byte boundary, so the
 		 * byte_alignment is always 1 byte -- regardless of any byte_alignment

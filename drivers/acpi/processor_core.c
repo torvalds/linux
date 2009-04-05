@@ -82,7 +82,7 @@ static int acpi_processor_add(struct acpi_device *device);
 static int acpi_processor_start(struct acpi_device *device);
 static int acpi_processor_remove(struct acpi_device *device, int type);
 static int acpi_processor_info_open_fs(struct inode *inode, struct file *file);
-static void acpi_processor_notify(acpi_handle handle, u32 event, void *data);
+static void acpi_processor_notify(struct acpi_device *device, u32 event);
 static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu);
 static int acpi_processor_handle_eject(struct acpi_processor *pr);
 
@@ -104,6 +104,7 @@ static struct acpi_driver acpi_processor_driver = {
 		.start = acpi_processor_start,
 		.suspend = acpi_processor_suspend,
 		.resume = acpi_processor_resume,
+		.notify = acpi_processor_notify,
 		},
 };
 
@@ -426,6 +427,29 @@ static int map_lapic_id(struct acpi_subtable_header *entry,
 	return 0;
 }
 
+static int map_x2apic_id(struct acpi_subtable_header *entry,
+			 int device_declaration, u32 acpi_id, int *apic_id)
+{
+	struct acpi_madt_local_x2apic *apic =
+		(struct acpi_madt_local_x2apic *)entry;
+	u32 tmp = apic->local_apic_id;
+
+	/* Only check enabled APICs*/
+	if (!(apic->lapic_flags & ACPI_MADT_ENABLED))
+		return 0;
+
+	/* Device statement declaration type */
+	if (device_declaration) {
+		if (apic->uid == acpi_id)
+			goto found;
+	}
+
+	return 0;
+found:
+	*apic_id = tmp;
+	return 1;
+}
+
 static int map_lsapic_id(struct acpi_subtable_header *entry,
 		int device_declaration, u32 acpi_id, int *apic_id)
 {
@@ -474,6 +498,9 @@ static int map_madt_entry(int type, u32 acpi_id)
 			(struct acpi_subtable_header *)entry;
 		if (header->type == ACPI_MADT_TYPE_LOCAL_APIC) {
 			if (map_lapic_id(header, acpi_id, &apic_id))
+				break;
+		} else if (header->type == ACPI_MADT_TYPE_LOCAL_X2APIC) {
+			if (map_x2apic_id(header, type, acpi_id, &apic_id))
 				break;
 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
 			if (map_lsapic_id(header, type, acpi_id, &apic_id))
@@ -665,7 +692,6 @@ static DEFINE_PER_CPU(void *, processor_device_array);
 static int __cpuinit acpi_processor_start(struct acpi_device *device)
 {
 	int result = 0;
-	acpi_status status = AE_OK;
 	struct acpi_processor *pr;
 	struct sys_device *sysdev;
 
@@ -701,9 +727,6 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 	sysdev = get_cpu_sysdev(pr->id);
 	if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev"))
 		return -EFAULT;
-
-	status = acpi_install_notify_handler(pr->handle, ACPI_DEVICE_NOTIFY,
-					     acpi_processor_notify, pr);
 
 	/* _PDC call should be done before doing anything else (if reqd.). */
 	arch_acpi_processor_init_pdc(pr);
@@ -750,16 +773,12 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 	return result;
 }
 
-static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_processor_notify(struct acpi_device *device, u32 event)
 {
-	struct acpi_processor *pr = data;
-	struct acpi_device *device = NULL;
+	struct acpi_processor *pr = acpi_driver_data(device);
 	int saved;
 
 	if (!pr)
-		return;
-
-	if (acpi_bus_get_device(pr->handle, &device))
 		return;
 
 	switch (event) {
@@ -840,7 +859,6 @@ static int acpi_processor_add(struct acpi_device *device)
 
 static int acpi_processor_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = AE_OK;
 	struct acpi_processor *pr = NULL;
 
 
@@ -858,9 +876,6 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 	}
 
 	acpi_processor_power_exit(pr, device);
-
-	status = acpi_remove_notify_handler(pr->handle, ACPI_DEVICE_NOTIFY,
-					    acpi_processor_notify);
 
 	sysfs_remove_link(&device->dev.kobj, "sysdev");
 
