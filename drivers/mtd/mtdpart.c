@@ -395,7 +395,7 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 		slave->mtd.get_fact_prot_info = part_get_fact_prot_info;
 	if (master->sync)
 		slave->mtd.sync = part_sync;
-	if (!partno && master->suspend && master->resume) {
+	if (!partno && !master->dev.class && master->suspend && master->resume) {
 			slave->mtd.suspend = part_suspend;
 			slave->mtd.resume = part_resume;
 	}
