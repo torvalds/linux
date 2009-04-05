@@ -2777,7 +2777,7 @@ bool is_module_address(unsigned long addr)
  * Must be called with preempt disabled or module mutex held so that
  * module doesn't get freed during this.
  */
-__notrace_funcgraph struct module *__module_address(unsigned long addr)
+struct module *__module_address(unsigned long addr)
 {
 	struct module *mod;
 

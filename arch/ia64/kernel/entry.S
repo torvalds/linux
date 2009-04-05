@@ -47,6 +47,7 @@
 #include <asm/processor.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
+#include <asm/ftrace.h>
 
 #include "minstate.h"
 
@@ -1403,6 +1404,105 @@ GLOBAL_ENTRY(unw_init_running)
 	mov rp=loc0
 	br.ret.sptk.many rp
 END(unw_init_running)
+
+#ifdef CONFIG_FUNCTION_TRACER
+#ifdef CONFIG_DYNAMIC_FTRACE
+GLOBAL_ENTRY(_mcount)
+	br ftrace_stub
+END(_mcount)
+
+.here:
+	br.ret.sptk.many b0
+
+GLOBAL_ENTRY(ftrace_caller)
+	alloc out0 = ar.pfs, 8, 0, 4, 0
+	mov out3 = r0
+	;;
+	mov out2 = b0
+	add r3 = 0x20, r3
+	mov out1 = r1;
+	br.call.sptk.many b0 = ftrace_patch_gp
+	//this might be called from module, so we must patch gp
+ftrace_patch_gp:
+	movl gp=__gp
+	mov b0 = r3
+	;;
+.global ftrace_call;
+ftrace_call:
+{
+	.mlx
+	nop.m 0x0
+	movl r3 = .here;;
+}
+	alloc loc0 = ar.pfs, 4, 4, 2, 0
+	;;
+	mov loc1 = b0
+	mov out0 = b0
+	mov loc2 = r8
+	mov loc3 = r15
+	;;
+	adds out0 = -MCOUNT_INSN_SIZE, out0
+	mov out1 = in2
+	mov b6 = r3
+
+	br.call.sptk.many b0 = b6
+	;;
+	mov ar.pfs = loc0
+	mov b0 = loc1
+	mov r8 = loc2
+	mov r15 = loc3
+	br ftrace_stub
+	;;
+END(ftrace_caller)
+
+#else
+GLOBAL_ENTRY(_mcount)
+	movl r2 = ftrace_stub
+	movl r3 = ftrace_trace_function;;
+	ld8 r3 = [r3];;
+	ld8 r3 = [r3];;
+	cmp.eq p7,p0 = r2, r3
+(p7)	br.sptk.many ftrace_stub
+	;;
+
+	alloc loc0 = ar.pfs, 4, 4, 2, 0
+	;;
+	mov loc1 = b0
+	mov out0 = b0
+	mov loc2 = r8
+	mov loc3 = r15
+	;;
+	adds out0 = -MCOUNT_INSN_SIZE, out0
+	mov out1 = in2
+	mov b6 = r3
+
+	br.call.sptk.many b0 = b6
+	;;
+	mov ar.pfs = loc0
+	mov b0 = loc1
+	mov r8 = loc2
+	mov r15 = loc3
+	br ftrace_stub
+	;;
+END(_mcount)
+#endif
+
+GLOBAL_ENTRY(ftrace_stub)
+	mov r3 = b0
+	movl r2 = _mcount_ret_helper
+	;;
+	mov b6 = r2
+	mov b7 = r3
+	br.ret.sptk.many b6
+
+_mcount_ret_helper:
+	mov b0 = r42
+	mov r1 = r41
+	mov ar.pfs = r40
+	br b7
+END(ftrace_stub)
+
+#endif /* CONFIG_FUNCTION_TRACER */
 
 	.rodata
 	.align 8

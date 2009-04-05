@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/clockchips.h>
-#include <linux/ftrace.h>
+#include <trace/power.h>
 #include <asm/system.h>
 #include <asm/apic.h>
 #include <asm/idle.h>
@@ -21,6 +21,9 @@ unsigned long idle_nomwait;
 EXPORT_SYMBOL(idle_nomwait);
 
 struct kmem_cache *task_xstate_cachep;
+
+DEFINE_TRACE(power_start);
+DEFINE_TRACE(power_end);
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
