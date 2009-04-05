@@ -72,6 +72,11 @@ static int __init amiga_init_devices(void)
 	if (AMIGAHW_PRESENT(AMI_AUDIO))
 		platform_device_register_simple("amiga-audio", -1, NULL, 0);
 
+
+	/* storage interfaces */
+	if (AMIGAHW_PRESENT(AMI_FLOPPY))
+		platform_device_register_simple("amiga-floppy", -1, NULL, 0);
+
 	return 0;
 }
 
