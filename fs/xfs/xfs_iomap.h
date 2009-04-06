@@ -40,8 +40,7 @@ typedef enum {
 	BMAPI_IGNSTATE = (1 << 4),	/* ignore unwritten state on read */
 	BMAPI_DIRECT = (1 << 5),	/* direct instead of buffered write */
 	BMAPI_MMAP = (1 << 6),		/* allocate for mmap write */
-	BMAPI_SYNC = (1 << 7),		/* sync write to flush delalloc space */
-	BMAPI_TRYLOCK = (1 << 8),	/* non-blocking request */
+	BMAPI_TRYLOCK = (1 << 7),	/* non-blocking request */
 } bmapi_flags_t;
 
 
