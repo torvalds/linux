@@ -694,49 +694,49 @@ static struct ata_port_operations mv_iie_ops = {
 static const struct ata_port_info mv_port_info[] = {
 	{  /* chip_504x */
 		.flags		= MV_GEN_I_FLAGS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_508x */
 		.flags		= MV_GEN_I_FLAGS | MV_FLAG_DUAL_HC,
-		.pio_mask	= 0x1f,	/* pio0-4 */
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_5080 */
 		.flags		= MV_GEN_I_FLAGS | MV_FLAG_DUAL_HC,
-		.pio_mask	= 0x1f,	/* pio0-4 */
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_604x */
 		.flags		= MV_GEN_II_FLAGS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv6_ops,
 	},
 	{  /* chip_608x */
 		.flags		= MV_GEN_II_FLAGS | MV_FLAG_DUAL_HC,
-		.pio_mask	= 0x1f,	/* pio0-4 */
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv6_ops,
 	},
 	{  /* chip_6042 */
 		.flags		= MV_GEN_IIE_FLAGS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv_iie_ops,
 	},
 	{  /* chip_7042 */
 		.flags		= MV_GEN_IIE_FLAGS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv_iie_ops,
 	},
 	{  /* chip_soc */
 		.flags		= MV_GEN_IIE_FLAGS,
-		.pio_mask	= 0x1f,	/* pio0-4 */
+		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &mv_iie_ops,
 	},
