@@ -347,7 +347,7 @@ xfs_flush_space(
 	case 0:
 		if (ip->i_delayed_blks) {
 			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-			xfs_flush_inode(ip);
+			delay(1);
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
 			*fsynced = 1;
 		} else {
