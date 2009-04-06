@@ -1016,7 +1016,7 @@ source "arch/Kconfig"
 
 config SLOW_WORK
 	default n
-	bool "Enable slow work thread pool"
+	bool
 	help
 	  The slow work thread pool provides a number of dynamically allocated
 	  threads that can be used by the kernel to perform operations that
@@ -1025,6 +1025,8 @@ config SLOW_WORK
 	  An example of this would be CacheFiles doing a path lookup followed
 	  by a series of mkdirs and a create call, all of which have to touch
 	  disk.
+
+	  See Documentation/slow-work.txt.
 
 endmenu		# General setup
 
