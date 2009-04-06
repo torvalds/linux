@@ -507,10 +507,10 @@ extern void perf_counter_mmap(unsigned long addr, unsigned long len,
 extern void perf_counter_munmap(unsigned long addr, unsigned long len,
 				unsigned long pgoff, struct file *file);
 
-#define MAX_STACK_DEPTH		254
+#define MAX_STACK_DEPTH		255
 
 struct perf_callchain_entry {
-	u32	nr, hv, kernel, user;
+	u16	nr, hv, kernel, user;
 	u64	ip[MAX_STACK_DEPTH];
 };
 

@@ -1657,9 +1657,7 @@ void perf_counter_do_pending(void)
  * Callchain support -- arch specific
  */
 
-struct perf_callchain_entry *
-__attribute__((weak))
-perf_callchain(struct pt_regs *regs)
+__weak struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 {
 	return NULL;
 }
@@ -1819,7 +1817,7 @@ void perf_counter_output(struct perf_counter *counter,
 		callchain = perf_callchain(regs);
 
 		if (callchain) {
-			callchain_size = (2 + callchain->nr) * sizeof(u64);
+			callchain_size = (1 + callchain->nr) * sizeof(u64);
 
 			header.type |= __PERF_EVENT_CALLCHAIN;
 			header.size += callchain_size;
