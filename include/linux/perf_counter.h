@@ -102,6 +102,7 @@ enum perf_counter_record_format {
 	PERF_RECORD_TID		= 1U << 1,
 	PERF_RECORD_GROUP	= 1U << 2,
 	PERF_RECORD_CALLCHAIN	= 1U << 3,
+	PERF_RECORD_TIME	= 1U << 4,
 };
 
 /*
@@ -221,6 +222,7 @@ enum perf_event_type {
 	__PERF_EVENT_TID		= PERF_RECORD_TID,
 	__PERF_EVENT_GROUP		= PERF_RECORD_GROUP,
 	__PERF_EVENT_CALLCHAIN		= PERF_RECORD_CALLCHAIN,
+	__PERF_EVENT_TIME		= PERF_RECORD_TIME,
 };
 
 #ifdef __KERNEL__

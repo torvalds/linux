@@ -1826,6 +1826,7 @@ static void perf_counter_output(struct perf_counter *counter,
 	} group_entry;
 	struct perf_callchain_entry *callchain = NULL;
 	int callchain_size = 0;
+	u64 time;
 
 	header.type = PERF_EVENT_COUNTER_OVERFLOW;
 	header.size = sizeof(header);
@@ -1862,6 +1863,16 @@ static void perf_counter_output(struct perf_counter *counter,
 		}
 	}
 
+	if (record_type & PERF_RECORD_TIME) {
+		/*
+		 * Maybe do better on x86 and provide cpu_clock_nmi()
+		 */
+		time = sched_clock();
+
+		header.type |= __PERF_EVENT_TIME;
+		header.size += sizeof(u64);
+	}
+
 	ret = perf_output_begin(&handle, counter, header.size, nmi);
 	if (ret)
 		return;
@@ -1894,6 +1905,9 @@ static void perf_counter_output(struct perf_counter *counter,
 
 	if (callchain)
 		perf_output_copy(&handle, callchain, callchain_size);
+
+	if (record_type & PERF_RECORD_TIME)
+		perf_output_put(&handle, time);
 
 	perf_output_end(&handle);
 }
