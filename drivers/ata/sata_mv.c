@@ -1575,6 +1575,7 @@ static int mv_port_start(struct ata_port *ap)
 	struct device *dev = ap->host->dev;
 	struct mv_host_priv *hpriv = ap->host->private_data;
 	struct mv_port_priv *pp;
+	unsigned long flags;
 	int tag;
 
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
@@ -1610,8 +1611,12 @@ static int mv_port_start(struct ata_port *ap)
 			pp->sg_tbl_dma[tag] = pp->sg_tbl_dma[0];
 		}
 	}
+
+	spin_lock_irqsave(ap->lock, flags);
 	mv_save_cached_regs(ap);
 	mv_edma_cfg(ap, 0, 0);
+	spin_unlock_irqrestore(ap->lock, flags);
+
 	return 0;
 
 out_port_free_dma_mem:
@@ -1630,8 +1635,12 @@ out_port_free_dma_mem:
  */
 static void mv_port_stop(struct ata_port *ap)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(ap->lock, flags);
 	mv_stop_edma(ap);
 	mv_enable_port_irqs(ap, 0);
+	spin_unlock_irqrestore(ap->lock, flags);
 	mv_port_free_dma_mem(ap);
 }
 
