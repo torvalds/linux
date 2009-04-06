@@ -5058,19 +5058,9 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	}
 	spin_unlock_irq(&phba->hbalock);
 
-	while (!list_empty(&completions)) {
-		piocb = list_get_first(&completions, struct lpfc_iocbq, list);
-		cmd = &piocb->iocb;
-		list_del_init(&piocb->list);
-
-		if (!piocb->iocb_cmpl)
-			lpfc_sli_release_iocbq(phba, piocb);
-		else {
-			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-			cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-			(piocb->iocb_cmpl) (phba, piocb, piocb);
-		}
-	}
+	/* Cancell all the IOCBs from the completions list */
+	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_ABORTED);
 
 	return;
 }
@@ -5121,18 +5111,11 @@ lpfc_els_flush_all_cmd(struct lpfc_hba  *phba)
 		lpfc_sli_issue_abort_iotag(phba, pring, piocb);
 	}
 	spin_unlock_irq(&phba->hbalock);
-	while (!list_empty(&completions)) {
-		piocb = list_get_first(&completions, struct lpfc_iocbq, list);
-		cmd = &piocb->iocb;
-		list_del_init(&piocb->list);
-		if (!piocb->iocb_cmpl)
-			lpfc_sli_release_iocbq(phba, piocb);
-		else {
-			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-			cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-			(piocb->iocb_cmpl) (phba, piocb, piocb);
-		}
-	}
+
+	/* Cancel all the IOCBs from the completions list */
+	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_ABORTED);
+
 	return;
 }
 
@@ -6468,7 +6451,6 @@ static void lpfc_fabric_abort_vport(struct lpfc_vport *vport)
 	LIST_HEAD(completions);
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_iocbq *tmp_iocb, *piocb;
-	IOCB_t *cmd;
 
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(piocb, tmp_iocb, &phba->fabric_iocb_list,
@@ -6481,15 +6463,9 @@ static void lpfc_fabric_abort_vport(struct lpfc_vport *vport)
 	}
 	spin_unlock_irq(&phba->hbalock);
 
-	while (!list_empty(&completions)) {
-		piocb = list_get_first(&completions, struct lpfc_iocbq, list);
-		list_del_init(&piocb->list);
-
-		cmd = &piocb->iocb;
-		cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-		cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-		(piocb->iocb_cmpl) (phba, piocb, piocb);
-	}
+	/* Cancel all the IOCBs from the completions list */
+	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_ABORTED);
 }
 
 /**
@@ -6506,10 +6482,9 @@ static void lpfc_fabric_abort_vport(struct lpfc_vport *vport)
 void lpfc_fabric_abort_nport(struct lpfc_nodelist *ndlp)
 {
 	LIST_HEAD(completions);
-	struct lpfc_hba  *phba = ndlp->vport->phba;
+	struct lpfc_hba  *phba = ndlp->phba;
 	struct lpfc_iocbq *tmp_iocb, *piocb;
 	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
-	IOCB_t *cmd;
 
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(piocb, tmp_iocb, &phba->fabric_iocb_list,
@@ -6521,15 +6496,9 @@ void lpfc_fabric_abort_nport(struct lpfc_nodelist *ndlp)
 	}
 	spin_unlock_irq(&phba->hbalock);
 
-	while (!list_empty(&completions)) {
-		piocb = list_get_first(&completions, struct lpfc_iocbq, list);
-		list_del_init(&piocb->list);
-
-		cmd = &piocb->iocb;
-		cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-		cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-		(piocb->iocb_cmpl) (phba, piocb, piocb);
-	}
+	/* Cancel all the IOCBs from the completions list */
+	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_ABORTED);
 }
 
 /**
@@ -6546,20 +6515,12 @@ void lpfc_fabric_abort_nport(struct lpfc_nodelist *ndlp)
 void lpfc_fabric_abort_hba(struct lpfc_hba *phba)
 {
 	LIST_HEAD(completions);
-	struct lpfc_iocbq *piocb;
-	IOCB_t *cmd;
 
 	spin_lock_irq(&phba->hbalock);
 	list_splice_init(&phba->fabric_iocb_list, &completions);
 	spin_unlock_irq(&phba->hbalock);
 
-	while (!list_empty(&completions)) {
-		piocb = list_get_first(&completions, struct lpfc_iocbq, list);
-		list_del_init(&piocb->list);
-
-		cmd = &piocb->iocb;
-		cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-		cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-		(piocb->iocb_cmpl) (phba, piocb, piocb);
-	}
+	/* Cancel all the IOCBs from the completions list */
+	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_ABORTED);
 }

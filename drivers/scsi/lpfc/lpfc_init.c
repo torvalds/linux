@@ -302,6 +302,7 @@ int
 lpfc_config_port_post(struct lpfc_hba *phba)
 {
 	struct lpfc_vport *vport = phba->pport;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	LPFC_MBOXQ_t *pmb;
 	MAILBOX_t *mb;
 	struct lpfc_dmabuf *mp;
@@ -359,6 +360,11 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	       sizeof (struct lpfc_name));
 	memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
 	       sizeof (struct lpfc_name));
+
+	/* Update the fc_host data structures with new wwn. */
+	fc_host_node_name(shost) = wwn_to_u64(vport->fc_nodename.u.wwn);
+	fc_host_port_name(shost) = wwn_to_u64(vport->fc_portname.u.wwn);
+
 	/* If no serial number in VPD data, use low 6 bytes of WWNN */
 	/* This should be consolidated into parse_vpd ? - mr */
 	if (phba->SerialNumber[0] == 0) {
@@ -598,8 +604,6 @@ lpfc_hba_down_post(struct lpfc_hba *phba)
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
 	struct lpfc_dmabuf *mp, *next_mp;
-	struct lpfc_iocbq *iocb;
-	IOCB_t *cmd = NULL;
 	LIST_HEAD(completions);
 	int i;
 
@@ -627,20 +631,9 @@ lpfc_hba_down_post(struct lpfc_hba *phba)
 		pring->txcmplq_cnt = 0;
 		spin_unlock_irq(&phba->hbalock);
 
-		while (!list_empty(&completions)) {
-			iocb = list_get_first(&completions, struct lpfc_iocbq,
-				list);
-			cmd = &iocb->iocb;
-			list_del_init(&iocb->list);
-
-			if (!iocb->iocb_cmpl)
-				lpfc_sli_release_iocbq(phba, iocb);
-			else {
-				cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-				cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-				(iocb->iocb_cmpl) (phba, iocb, iocb);
-			}
-		}
+		/* Cancel all the IOCBs from the completions list */
+		lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+				      IOERR_SLI_ABORTED);
 
 		lpfc_sli_abort_iocb_ring(phba, pring);
 		spin_lock_irq(&phba->hbalock);
@@ -856,6 +849,72 @@ lpfc_offline_eratt(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_handle_deferred_eratt - The HBA hardware deferred error handler
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to handle the deferred HBA hardware error
+ * conditions. This type of error is indicated by HBA by setting ER1
+ * and another ER bit in the host status register. The driver will
+ * wait until the ER1 bit clears before handling the error condition.
+ **/
+static void
+lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
+{
+	uint32_t old_host_status = phba->work_hs;
+	struct lpfc_sli_ring  *pring;
+	struct lpfc_sli *psli = &phba->sli;
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		"0479 Deferred Adapter Hardware Error "
+		"Data: x%x x%x x%x\n",
+		phba->work_hs,
+		phba->work_status[0], phba->work_status[1]);
+
+	spin_lock_irq(&phba->hbalock);
+	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+	spin_unlock_irq(&phba->hbalock);
+
+
+	/*
+	 * Firmware stops when it triggred erratt. That could cause the I/Os
+	 * dropped by the firmware. Error iocb (I/O) on txcmplq and let the
+	 * SCSI layer retry it after re-establishing link.
+	 */
+	pring = &psli->ring[psli->fcp_ring];
+	lpfc_sli_abort_iocb_ring(phba, pring);
+
+	/*
+	 * There was a firmware error. Take the hba offline and then
+	 * attempt to restart it.
+	 */
+	lpfc_offline_prep(phba);
+	lpfc_offline(phba);
+
+	/* Wait for the ER1 bit to clear.*/
+	while (phba->work_hs & HS_FFER1) {
+		msleep(100);
+		phba->work_hs = readl(phba->HSregaddr);
+		/* If driver is unloading let the worker thread continue */
+		if (phba->pport->load_flag & FC_UNLOADING) {
+			phba->work_hs = 0;
+			break;
+		}
+	}
+
+	/*
+	 * This is to ptrotect against a race condition in which
+	 * first write to the host attention register clear the
+	 * host status register.
+	 */
+	if ((!phba->work_hs) && (!(phba->pport->load_flag & FC_UNLOADING)))
+		phba->work_hs = old_host_status & ~HS_FFER1;
+
+	phba->hba_flag &= ~DEFER_ERATT;
+	phba->work_status[0] = readl(phba->MBslimaddr + 0xa8);
+	phba->work_status[1] = readl(phba->MBslimaddr + 0xac);
+}
+
+/**
  * lpfc_handle_eratt - The HBA hardware error handler
  * @phba: pointer to lpfc hba data structure.
  *
@@ -893,6 +952,9 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 				  sizeof(board_event),
 				  (char *) &board_event,
 				  LPFC_NL_VENDOR_ID);
+
+	if (phba->hba_flag & DEFER_ERATT)
+		lpfc_handle_deferred_eratt(phba);
 
 	if (phba->work_hs & HS_FFER6) {
 		/* Re-establishing Link */
@@ -1321,7 +1383,8 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		m = (typeof(m)){"LPe11000", max_speed, "PCIe"};
 		break;
 	case PCI_DEVICE_ID_ZEPHYR_DCSP:
-		m = (typeof(m)){"LPe11002-SP", max_speed, "PCIe"};
+		m = (typeof(m)){"LP2105", max_speed, "PCIe"};
+		GE = 1;
 		break;
 	case PCI_DEVICE_ID_ZMID:
 		m = (typeof(m)){"LPe1150", max_speed, "PCIe"};
@@ -3032,8 +3095,6 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 
 	lpfc_free_sysfs_attr(vport);
 
-	kthread_stop(phba->worker_thread);
-
 	/* Release all the vports against this physical port */
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
@@ -3051,7 +3112,12 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	 * clears the rings, discards all mailbox commands, and resets
 	 * the HBA.
 	 */
+
+	/* HBA interrupt will be diabled after this call */
 	lpfc_sli_hba_down(phba);
+	/* Stop kthread signal shall trigger work_done one more time */
+	kthread_stop(phba->worker_thread);
+	/* Final cleanup of txcmplq and reset the HBA */
 	lpfc_sli_brdrestart(phba);
 
 	lpfc_stop_phba_timers(phba);

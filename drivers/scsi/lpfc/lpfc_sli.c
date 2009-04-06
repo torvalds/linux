@@ -185,6 +185,38 @@ lpfc_sli_release_iocbq(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 }
 
 /**
+ * lpfc_sli_cancel_iocbs - Cancel all iocbs from a list.
+ * @phba: Pointer to HBA context object.
+ * @iocblist: List of IOCBs.
+ * @ulpstatus: ULP status in IOCB command field.
+ * @ulpWord4: ULP word-4 in IOCB command field.
+ *
+ * This function is called with a list of IOCBs to cancel. It cancels the IOCB
+ * on the list by invoking the complete callback function associated with the
+ * IOCB with the provided @ulpstatus and @ulpword4 set to the IOCB commond
+ * fields.
+ **/
+void
+lpfc_sli_cancel_iocbs(struct lpfc_hba *phba, struct list_head *iocblist,
+		      uint32_t ulpstatus, uint32_t ulpWord4)
+{
+	struct lpfc_iocbq *piocb;
+
+	while (!list_empty(iocblist)) {
+		list_remove_head(iocblist, piocb, struct lpfc_iocbq, list);
+
+		if (!piocb->iocb_cmpl)
+			lpfc_sli_release_iocbq(phba, piocb);
+		else {
+			piocb->iocb.ulpStatus = ulpstatus;
+			piocb->iocb.un.ulpWord[4] = ulpWord4;
+			(piocb->iocb_cmpl) (phba, piocb, piocb);
+		}
+	}
+	return;
+}
+
+/**
  * lpfc_sli_iocb_cmd_type - Get the iocb type
  * @iocb_cmnd: iocb command code.
  *
@@ -818,8 +850,8 @@ static struct lpfc_hbq_init lpfc_els_hbq = {
 	.profile = 0,
 	.ring_mask = (1 << LPFC_ELS_RING),
 	.buffer_count = 0,
-	.init_count = 20,
-	.add_count = 5,
+	.init_count = 40,
+	.add_count = 40,
 };
 
 /* HBQ for the extra ring if needed */
@@ -1596,7 +1628,7 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			 * Ring <ringno> handler: unexpected completion IoTag
 			 * <IoTag>
 			 */
-			lpfc_printf_vlog(cmdiocbp->vport, KERN_WARNING, LOG_SLI,
+			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 					 "0322 Ring %d handler: "
 					 "unexpected completion IoTag x%x "
 					 "Data: x%x x%x x%x x%x\n",
@@ -2324,7 +2356,6 @@ lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
 	LIST_HEAD(completions);
 	struct lpfc_iocbq *iocb, *next_iocb;
-	IOCB_t *cmd = NULL;
 
 	if (pring->ringno == LPFC_ELS_RING) {
 		lpfc_fabric_abort_hba(phba);
@@ -2343,19 +2374,9 @@ lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 
 	spin_unlock_irq(&phba->hbalock);
 
-	while (!list_empty(&completions)) {
-		iocb = list_get_first(&completions, struct lpfc_iocbq, list);
-		cmd = &iocb->iocb;
-		list_del_init(&iocb->list);
-
-		if (!iocb->iocb_cmpl)
-			lpfc_sli_release_iocbq(phba, iocb);
-		else {
-			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-			cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-			(iocb->iocb_cmpl) (phba, iocb, iocb);
-		}
-	}
+	/* Cancel all the IOCBs from the completions list */
+	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_ABORTED);
 }
 
 /**
@@ -2373,8 +2394,6 @@ lpfc_sli_flush_fcp_rings(struct lpfc_hba *phba)
 {
 	LIST_HEAD(txq);
 	LIST_HEAD(txcmplq);
-	struct lpfc_iocbq *iocb;
-	IOCB_t *cmd = NULL;
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring  *pring;
 
@@ -2392,34 +2411,12 @@ lpfc_sli_flush_fcp_rings(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Flush the txq */
-	while (!list_empty(&txq)) {
-		iocb = list_get_first(&txq, struct lpfc_iocbq, list);
-		cmd = &iocb->iocb;
-		list_del_init(&iocb->list);
-
-		if (!iocb->iocb_cmpl)
-			lpfc_sli_release_iocbq(phba, iocb);
-		else {
-			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-			cmd->un.ulpWord[4] = IOERR_SLI_DOWN;
-			(iocb->iocb_cmpl) (phba, iocb, iocb);
-		}
-	}
+	lpfc_sli_cancel_iocbs(phba, &txq, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_DOWN);
 
 	/* Flush the txcmpq */
-	while (!list_empty(&txcmplq)) {
-		iocb = list_get_first(&txcmplq, struct lpfc_iocbq, list);
-		cmd = &iocb->iocb;
-		list_del_init(&iocb->list);
-
-		if (!iocb->iocb_cmpl)
-			lpfc_sli_release_iocbq(phba, iocb);
-		else {
-			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-			cmd->un.ulpWord[4] = IOERR_SLI_DOWN;
-			(iocb->iocb_cmpl) (phba, iocb, iocb);
-		}
-	}
+	lpfc_sli_cancel_iocbs(phba, &txcmplq, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_DOWN);
 }
 
 /**
@@ -3251,6 +3248,21 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
 
+	/* Check the pmbox pointer first.  There is a race condition
+	 * between the mbox timeout handler getting executed in the
+	 * worklist and the mailbox actually completing. When this
+	 * race condition occurs, the mbox_active will be NULL.
+	 */
+	spin_lock_irq(&phba->hbalock);
+	if (pmbox == NULL) {
+		lpfc_printf_log(phba, KERN_WARNING,
+				LOG_MBOX | LOG_SLI,
+				"0353 Active Mailbox cleared - mailbox timeout "
+				"exiting\n");
+		spin_unlock_irq(&phba->hbalock);
+		return;
+	}
+
 	/* Mbox cmd <mbxCommand> timeout */
 	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 			"0310 Mailbox command x%x timeout Data: x%x x%x x%p\n",
@@ -3258,6 +3270,7 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 			phba->pport->port_state,
 			phba->sli.sli_flag,
 			phba->sli.mbox_active);
+	spin_unlock_irq(&phba->hbalock);
 
 	/* Setting state unknown so lpfc_sli_abort_iocb_ring
 	 * would get IOCB_ERROR from lpfc_sli_issue_iocb, allowing
@@ -3360,6 +3373,12 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 
 	/* If the PCI channel is in offline state, do not post mbox. */
 	if (unlikely(pci_channel_offline(phba->pcidev))) {
+		spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
+		goto out_not_finished;
+	}
+
+	/* If HBA has a deferred error attention, fail the iocb. */
+	if (unlikely(phba->hba_flag & DEFER_ERATT)) {
 		spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 		goto out_not_finished;
 	}
@@ -3728,6 +3747,10 @@ __lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if (unlikely(pci_channel_offline(phba->pcidev)))
 		return IOCB_ERROR;
 
+	/* If HBA has a deferred error attention, fail the iocb. */
+	if (unlikely(phba->hba_flag & DEFER_ERATT))
+		return IOCB_ERROR;
+
 	/*
 	 * We should never get an IOCB if we are in a < LINK_DOWN state
 	 */
@@ -3906,6 +3929,7 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 	uint16_t temp;
 	struct temp_event temp_event_data;
 	struct Scsi_Host *shost;
+	uint32_t *iocb_w;
 
 	icmd = &iocbq->iocb;
 	evt_code = icmd->un.asyncstat.evt_code;
@@ -3913,13 +3937,23 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 
 	if ((evt_code != ASYNC_TEMP_WARN) &&
 		(evt_code != ASYNC_TEMP_SAFE)) {
+		iocb_w = (uint32_t *) icmd;
 		lpfc_printf_log(phba,
 			KERN_ERR,
 			LOG_SLI,
 			"0346 Ring %d handler: unexpected ASYNC_STATUS"
-			" evt_code 0x%x\n",
+			" evt_code 0x%x \n"
+			"W0  0x%08x W1  0x%08x W2  0x%08x W3  0x%08x\n"
+			"W4  0x%08x W5  0x%08x W6  0x%08x W7  0x%08x\n"
+			"W8  0x%08x W9  0x%08x W10 0x%08x W11 0x%08x\n"
+			"W12 0x%08x W13 0x%08x W14 0x%08x W15 0x%08x\n",
 			pring->ringno,
-			icmd->un.asyncstat.evt_code);
+			icmd->un.asyncstat.evt_code,
+			iocb_w[0], iocb_w[1], iocb_w[2], iocb_w[3],
+			iocb_w[4], iocb_w[5], iocb_w[6], iocb_w[7],
+			iocb_w[8], iocb_w[9], iocb_w[10], iocb_w[11],
+			iocb_w[12], iocb_w[13], iocb_w[14], iocb_w[15]);
+
 		return;
 	}
 	temp_event_data.data = (uint32_t)temp;
@@ -4178,17 +4212,9 @@ lpfc_sli_host_down(struct lpfc_vport *vport)
 
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
-	while (!list_empty(&completions)) {
-		list_remove_head(&completions, iocb, struct lpfc_iocbq, list);
-
-		if (!iocb->iocb_cmpl)
-			lpfc_sli_release_iocbq(phba, iocb);
-		else {
-			iocb->iocb.ulpStatus = IOSTAT_LOCAL_REJECT;
-			iocb->iocb.un.ulpWord[4] = IOERR_SLI_DOWN;
-			(iocb->iocb_cmpl) (phba, iocb, iocb);
-		}
-	}
+	/* Cancel all the IOCBs from the completions list */
+	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_DOWN);
 	return 1;
 }
 
@@ -4215,8 +4241,6 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 	struct lpfc_sli_ring *pring;
 	struct lpfc_dmabuf *buf_ptr;
 	LPFC_MBOXQ_t *pmb;
-	struct lpfc_iocbq *iocb;
-	IOCB_t *cmd = NULL;
 	int i;
 	unsigned long flags = 0;
 
@@ -4244,18 +4268,9 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 	}
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
-	while (!list_empty(&completions)) {
-		list_remove_head(&completions, iocb, struct lpfc_iocbq, list);
-		cmd = &iocb->iocb;
-
-		if (!iocb->iocb_cmpl)
-			lpfc_sli_release_iocbq(phba, iocb);
-		else {
-			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-			cmd->un.ulpWord[4] = IOERR_SLI_DOWN;
-			(iocb->iocb_cmpl) (phba, iocb, iocb);
-		}
-	}
+	/* Cancel all the IOCBs from the completions list */
+	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_DOWN);
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	list_splice_init(&phba->elsbuf, &completions);
@@ -5137,11 +5152,31 @@ lpfc_sli_check_eratt(struct lpfc_hba *phba)
 		return 0;
 	}
 
+	/*
+	 * If there is deferred error attention, do not check for error
+	 * attention
+	 */
+	if (unlikely(phba->hba_flag & DEFER_ERATT)) {
+		spin_unlock_irq(&phba->hbalock);
+		return 0;
+	}
+
 	/* Read chip Host Attention (HA) register */
 	ha_copy = readl(phba->HAregaddr);
 	if (ha_copy & HA_ERATT) {
 		/* Read host status register to retrieve error event */
 		lpfc_sli_read_hs(phba);
+
+		/* Check if there is a deferred error condition is active */
+		if ((HS_FFER1 & phba->work_hs) &&
+			((HS_FFER2 | HS_FFER3 | HS_FFER4 | HS_FFER5 |
+			HS_FFER6 | HS_FFER7) & phba->work_hs)) {
+			phba->hba_flag |= DEFER_ERATT;
+			/* Clear all interrupt enable conditions */
+			writel(0, phba->HCregaddr);
+			readl(phba->HCregaddr);
+		}
+
 		/* Set the driver HA work bitmap */
 		phba->work_ha |= HA_ERATT;
 		/* Indicate polling handles this ERATT */
@@ -5230,6 +5265,16 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 				/* Indicate interrupt handler handles ERATT */
 				phba->hba_flag |= HBA_ERATT_HANDLED;
 		}
+
+		/*
+		 * If there is deferred error attention, do not check for any
+		 * interrupt.
+		 */
+		if (unlikely(phba->hba_flag & DEFER_ERATT)) {
+			spin_unlock_irq(&phba->hbalock);
+			return IRQ_NONE;
+		}
+
 		/* Clear up only attention source related to slow-path */
 		writel((ha_copy & (HA_MBATT | HA_R2_CLR_MSK)),
 			phba->HAregaddr);
@@ -5301,8 +5346,22 @@ lpfc_sp_intr_handler(int irq, void *dev_id)
 			}
 		}
 		spin_lock_irqsave(&phba->hbalock, iflag);
-		if (work_ha_copy & HA_ERATT)
+		if (work_ha_copy & HA_ERATT) {
 			lpfc_sli_read_hs(phba);
+			/*
+			 * Check if there is a deferred error condition
+			 * is active
+			 */
+			if ((HS_FFER1 & phba->work_hs) &&
+				((HS_FFER2 | HS_FFER3 | HS_FFER4 | HS_FFER5 |
+				HS_FFER6 | HS_FFER7) & phba->work_hs)) {
+				phba->hba_flag |= DEFER_ERATT;
+				/* Clear all interrupt enable conditions */
+				writel(0, phba->HCregaddr);
+				readl(phba->HCregaddr);
+			}
+		}
+
 		if ((work_ha_copy & HA_MBATT) && (phba->sli.mbox_active)) {
 			pmb = phba->sli.mbox_active;
 			pmbox = &pmb->mb;
@@ -5466,6 +5525,14 @@ lpfc_fp_intr_handler(int irq, void *dev_id)
 		ha_copy = readl(phba->HAregaddr);
 		/* Clear up only attention source related to fast-path */
 		spin_lock_irqsave(&phba->hbalock, iflag);
+		/*
+		 * If there is deferred error attention, do not check for
+		 * any interrupt.
+		 */
+		if (unlikely(phba->hba_flag & DEFER_ERATT)) {
+			spin_unlock_irq(&phba->hbalock);
+			return IRQ_NONE;
+		}
 		writel((ha_copy & (HA_R0_CLR_MSK | HA_R1_CLR_MSK)),
 			phba->HAregaddr);
 		readl(phba->HAregaddr); /* flush */
@@ -5556,6 +5623,14 @@ lpfc_intr_handler(int irq, void *dev_id)
 		else
 			/* Indicate interrupt handler handles ERATT */
 			phba->hba_flag |= HBA_ERATT_HANDLED;
+	}
+
+	/*
+	 * If there is deferred error attention, do not check for any interrupt.
+	 */
+	if (unlikely(phba->hba_flag & DEFER_ERATT)) {
+		spin_unlock_irq(&phba->hbalock);
+		return IRQ_NONE;
 	}
 
 	/* Clear attention sources except link and error attentions */

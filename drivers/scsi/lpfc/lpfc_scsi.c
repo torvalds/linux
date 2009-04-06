@@ -272,14 +272,14 @@ lpfc_rampdown_queue_depth(struct lpfc_hba *phba)
  **/
 static inline void
 lpfc_rampup_queue_depth(struct lpfc_vport  *vport,
-			struct scsi_device *sdev)
+			uint32_t queue_depth)
 {
 	unsigned long flags;
 	struct lpfc_hba *phba = vport->phba;
 	uint32_t evt_posted;
 	atomic_inc(&phba->num_cmd_success);
 
-	if (vport->cfg_lun_queue_depth <= sdev->queue_depth)
+	if (vport->cfg_lun_queue_depth <= queue_depth)
 		return;
 	spin_lock_irqsave(&phba->hbalock, flags);
 	if (((phba->last_ramp_up_time + QUEUE_RAMP_UP_INTERVAL) > jiffies) ||
@@ -737,7 +737,7 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	 * Due to difference in data length between DIF/non-DIF paths,
 	 * we need to set word 4 of IOCB here
 	 */
-	iocb_cmd->un.fcpi.fcpi_parm = le32_to_cpu(scsi_bufflen(scsi_cmnd));
+	iocb_cmd->un.fcpi.fcpi_parm = scsi_bufflen(scsi_cmnd);
 	return 0;
 }
 
@@ -1693,10 +1693,12 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct lpfc_nodelist *pnode = rdata->pnode;
 	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
 	int result;
-	struct scsi_device *sdev, *tmp_sdev;
+	struct scsi_device *tmp_sdev;
 	int depth = 0;
 	unsigned long flags;
 	struct lpfc_fast_path_event *fast_path_evt;
+	struct Scsi_Host *shost = cmd->device->host;
+	uint32_t queue_depth, scsi_id;
 
 	lpfc_cmd->result = pIocbOut->iocb.un.ulpWord[4];
 	lpfc_cmd->status = pIocbOut->iocb.ulpStatus;
@@ -1807,11 +1809,10 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 
 	lpfc_update_stats(phba, lpfc_cmd);
 	result = cmd->result;
-	sdev = cmd->device;
 	if (vport->cfg_max_scsicmpl_time &&
 	   time_after(jiffies, lpfc_cmd->start_time +
 		msecs_to_jiffies(vport->cfg_max_scsicmpl_time))) {
-		spin_lock_irqsave(sdev->host->host_lock, flags);
+		spin_lock_irqsave(shost->host_lock, flags);
 		if (pnode && NLP_CHK_NODE_ACT(pnode)) {
 			if (pnode->cmd_qdepth >
 				atomic_read(&pnode->cmd_pending) &&
@@ -1824,22 +1825,26 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 
 			pnode->last_change_time = jiffies;
 		}
-		spin_unlock_irqrestore(sdev->host->host_lock, flags);
+		spin_unlock_irqrestore(shost->host_lock, flags);
 	} else if (pnode && NLP_CHK_NODE_ACT(pnode)) {
 		if ((pnode->cmd_qdepth < LPFC_MAX_TGT_QDEPTH) &&
 		   time_after(jiffies, pnode->last_change_time +
 			      msecs_to_jiffies(LPFC_TGTQ_INTERVAL))) {
-			spin_lock_irqsave(sdev->host->host_lock, flags);
+			spin_lock_irqsave(shost->host_lock, flags);
 			pnode->cmd_qdepth += pnode->cmd_qdepth *
 				LPFC_TGTQ_RAMPUP_PCENT / 100;
 			if (pnode->cmd_qdepth > LPFC_MAX_TGT_QDEPTH)
 				pnode->cmd_qdepth = LPFC_MAX_TGT_QDEPTH;
 			pnode->last_change_time = jiffies;
-			spin_unlock_irqrestore(sdev->host->host_lock, flags);
+			spin_unlock_irqrestore(shost->host_lock, flags);
 		}
 	}
 
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
+
+	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
+	queue_depth = cmd->device->queue_depth;
+	scsi_id = cmd->device->id;
 	cmd->scsi_done(cmd);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
@@ -1847,28 +1852,28 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		 * If there is a thread waiting for command completion
 		 * wake up the thread.
 		 */
-		spin_lock_irqsave(sdev->host->host_lock, flags);
+		spin_lock_irqsave(shost->host_lock, flags);
 		lpfc_cmd->pCmd = NULL;
 		if (lpfc_cmd->waitq)
 			wake_up(lpfc_cmd->waitq);
-		spin_unlock_irqrestore(sdev->host->host_lock, flags);
+		spin_unlock_irqrestore(shost->host_lock, flags);
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 		return;
 	}
 
 
 	if (!result)
-		lpfc_rampup_queue_depth(vport, sdev);
+		lpfc_rampup_queue_depth(vport, queue_depth);
 
 	if (!result && pnode && NLP_CHK_NODE_ACT(pnode) &&
 	   ((jiffies - pnode->last_ramp_up_time) >
 		LPFC_Q_RAMP_UP_INTERVAL * HZ) &&
 	   ((jiffies - pnode->last_q_full_time) >
 		LPFC_Q_RAMP_UP_INTERVAL * HZ) &&
-	   (vport->cfg_lun_queue_depth > sdev->queue_depth)) {
-		shost_for_each_device(tmp_sdev, sdev->host) {
+	   (vport->cfg_lun_queue_depth > queue_depth)) {
+		shost_for_each_device(tmp_sdev, shost) {
 			if (vport->cfg_lun_queue_depth > tmp_sdev->queue_depth){
-				if (tmp_sdev->id != sdev->id)
+				if (tmp_sdev->id != scsi_id)
 					continue;
 				if (tmp_sdev->ordered_tags)
 					scsi_adjust_queue_depth(tmp_sdev,
@@ -1884,7 +1889,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		}
 		lpfc_send_sdev_queuedepth_change_event(phba, vport, pnode,
 			0xFFFFFFFF,
-			sdev->queue_depth - 1, sdev->queue_depth);
+			queue_depth , queue_depth + 1);
 	}
 
 	/*
@@ -1895,8 +1900,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	    NLP_CHK_NODE_ACT(pnode)) {
 		pnode->last_q_full_time = jiffies;
 
-		shost_for_each_device(tmp_sdev, sdev->host) {
-			if (tmp_sdev->id != sdev->id)
+		shost_for_each_device(tmp_sdev, shost) {
+			if (tmp_sdev->id != scsi_id)
 				continue;
 			depth = scsi_track_queue_full(tmp_sdev,
 					tmp_sdev->queue_depth - 1);
@@ -1908,7 +1913,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		 * scsi_track_queue_full.
 		 */
 		if (depth == -1)
-			depth = sdev->host->cmd_per_lun;
+			depth = shost->cmd_per_lun;
 
 		if (depth) {
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
@@ -1924,11 +1929,11 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	 * If there is a thread waiting for command completion
 	 * wake up the thread.
 	 */
-	spin_lock_irqsave(sdev->host->host_lock, flags);
+	spin_lock_irqsave(shost->host_lock, flags);
 	lpfc_cmd->pCmd = NULL;
 	if (lpfc_cmd->waitq)
 		wake_up(lpfc_cmd->waitq);
-	spin_unlock_irqrestore(sdev->host->host_lock, flags);
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }

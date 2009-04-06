@@ -2216,18 +2216,41 @@ LPFC_VPORT_ATTR_R(scan_down, 1, 0, 1,
  * non-zero return value from lpfc_issue_lip()
  * -EINVAL val out of range
  **/
-static int
-lpfc_topology_set(struct lpfc_hba *phba, int val)
+static ssize_t
+lpfc_topology_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	int val = 0;
+	int nolip = 0;
+	const char *val_buf = buf;
 	int err;
 	uint32_t prev_val;
+
+	if (!strncmp(buf, "nolip ", strlen("nolip "))) {
+		nolip = 1;
+		val_buf = &buf[strlen("nolip ")];
+	}
+
+	if (!isdigit(val_buf[0]))
+		return -EINVAL;
+	if (sscanf(val_buf, "%i", &val) != 1)
+		return -EINVAL;
+
 	if (val >= 0 && val <= 6) {
 		prev_val = phba->cfg_topology;
 		phba->cfg_topology = val;
+		if (nolip)
+			return strlen(buf);
+
 		err = lpfc_issue_lip(lpfc_shost_from_vport(phba->pport));
-		if (err)
+		if (err) {
 			phba->cfg_topology = prev_val;
-		return err;
+			return -EINVAL;
+		} else
+			return strlen(buf);
 	}
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 		"%d:0467 lpfc_topology attribute cannot be set to %d, "
@@ -2240,7 +2263,6 @@ module_param(lpfc_topology, int, 0);
 MODULE_PARM_DESC(lpfc_topology, "Select Fibre Channel topology");
 lpfc_param_show(topology)
 lpfc_param_init(topology, 0, 0, 6)
-lpfc_param_store(topology)
 static DEVICE_ATTR(lpfc_topology, S_IRUGO | S_IWUSR,
 		lpfc_topology_show, lpfc_topology_store);
 
@@ -2281,7 +2303,7 @@ lpfc_stat_data_ctrl_store(struct device *dev, struct device_attribute *attr,
 	unsigned long base, step, bucket_type;
 
 	if (!strncmp(buf, "setbucket", strlen("setbucket"))) {
-		if (strlen(buf) > LPFC_MAX_DATA_CTRL_LEN)
+		if (strlen(buf) > (LPFC_MAX_DATA_CTRL_LEN - 1))
 			return -EINVAL;
 
 		strcpy(bucket_data, buf);
@@ -2598,11 +2620,28 @@ static struct bin_attribute sysfs_drvr_stat_data_attr = {
  * non-zero return value from lpfc_issue_lip()
  * -EINVAL val out of range
  **/
-static int
-lpfc_link_speed_set(struct lpfc_hba *phba, int val)
+static ssize_t
+lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	int val = 0;
+	int nolip = 0;
+	const char *val_buf = buf;
 	int err;
 	uint32_t prev_val;
+
+	if (!strncmp(buf, "nolip ", strlen("nolip "))) {
+		nolip = 1;
+		val_buf = &buf[strlen("nolip ")];
+	}
+
+	if (!isdigit(val_buf[0]))
+		return -EINVAL;
+	if (sscanf(val_buf, "%i", &val) != 1)
+		return -EINVAL;
 
 	if (((val == LINK_SPEED_1G) && !(phba->lmt & LMT_1Gb)) ||
 		((val == LINK_SPEED_2G) && !(phba->lmt & LMT_2Gb)) ||
@@ -2611,14 +2650,19 @@ lpfc_link_speed_set(struct lpfc_hba *phba, int val)
 		((val == LINK_SPEED_10G) && !(phba->lmt & LMT_10Gb)))
 		return -EINVAL;
 
-	if ((val >= 0 && val <= LPFC_MAX_LINK_SPEED)
+	if ((val >= 0 && val <= 8)
 		&& (LPFC_LINK_SPEED_BITMAP & (1 << val))) {
 		prev_val = phba->cfg_link_speed;
 		phba->cfg_link_speed = val;
+		if (nolip)
+			return strlen(buf);
+
 		err = lpfc_issue_lip(lpfc_shost_from_vport(phba->pport));
-		if (err)
+		if (err) {
 			phba->cfg_link_speed = prev_val;
-		return err;
+			return -EINVAL;
+		} else
+			return strlen(buf);
 	}
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -2665,7 +2709,6 @@ lpfc_link_speed_init(struct lpfc_hba *phba, int val)
 	return -EINVAL;
 }
 
-lpfc_param_store(link_speed)
 static DEVICE_ATTR(lpfc_link_speed, S_IRUGO | S_IWUSR,
 		lpfc_link_speed_show, lpfc_link_speed_store);
 
