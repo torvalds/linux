@@ -333,9 +333,6 @@ extern struct timeval	nfssvc_boot;
 #define NFSD_LEASE_TIME                 (nfs4_lease_time())
 #define NFSD_LAUNDROMAT_MINTIMEOUT      10   /* seconds */
 
-/* The percent of nr_free_buffer_pages used by the V4.1 server DRC */
-#define NFSD_DRC_SIZE_SHIFT	7
-
 /*
  * The following attributes are currently not supported by the NFSv4 server:
  *    ARCHIVE       (deprecated anyway)

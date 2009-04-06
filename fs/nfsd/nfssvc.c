@@ -236,6 +236,8 @@ void nfsd_reset_versions(void)
  */
 static void set_max_drc(void)
 {
+	/* The percent of nr_free_buffer_pages used by the V4.1 server DRC */
+	#define NFSD_DRC_SIZE_SHIFT	7
 	nfsd_serv->sv_drc_max_pages = nr_free_buffer_pages()
 						>> NFSD_DRC_SIZE_SHIFT;
 	nfsd_serv->sv_drc_pages_used = 0;
