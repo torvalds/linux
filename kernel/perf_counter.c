@@ -1461,13 +1461,14 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 
 	if (atomic_dec_and_mutex_lock(&counter->mmap_count,
 				      &counter->mmap_mutex)) {
+		vma->vm_mm->locked_vm -= counter->data->nr_pages + 1;
 		perf_mmap_data_free(counter);
 		mutex_unlock(&counter->mmap_mutex);
 	}
 }
 
 static struct vm_operations_struct perf_mmap_vmops = {
-	.open = perf_mmap_open,
+	.open  = perf_mmap_open,
 	.close = perf_mmap_close,
 	.fault = perf_mmap_fault,
 };
@@ -1499,24 +1500,32 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
 
-	locked = vma_size >>  PAGE_SHIFT;
-	locked += vma->vm_mm->locked_vm;
+	mutex_lock(&counter->mmap_mutex);
+	if (atomic_inc_not_zero(&counter->mmap_count)) {
+		if (nr_pages != counter->data->nr_pages)
+			ret = -EINVAL;
+		goto unlock;
+	}
+
+	locked = vma->vm_mm->locked_vm;
+	locked += nr_pages + 1;
 
 	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
 	lock_limit >>= PAGE_SHIFT;
 
-	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK))
-		return -EPERM;
-
-	mutex_lock(&counter->mmap_mutex);
-	if (atomic_inc_not_zero(&counter->mmap_count))
-		goto out;
+	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
+		ret = -EPERM;
+		goto unlock;
+	}
 
 	WARN_ON(counter->data);
 	ret = perf_mmap_data_alloc(counter, nr_pages);
-	if (!ret)
-		atomic_set(&counter->mmap_count, 1);
-out:
+	if (ret)
+		goto unlock;
+
+	atomic_set(&counter->mmap_count, 1);
+	vma->vm_mm->locked_vm += nr_pages + 1;
+unlock:
 	mutex_unlock(&counter->mmap_mutex);
 
 	vma->vm_flags &= ~VM_MAYWRITE;
