@@ -1136,6 +1136,15 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	blk_rq_bio_prep(req->q, req, bio);
 }
 
+/*
+ * Only disabling plugging for non-rotational devices if it does tagging
+ * as well, otherwise we do need the proper merging
+ */
+static inline bool queue_should_plug(struct request_queue *q)
+{
+	return !(blk_queue_nonrot(q) && blk_queue_tagged(q));
+}
+
 static int __make_request(struct request_queue *q, struct bio *bio)
 {
 	struct request *req;
@@ -1242,11 +1251,11 @@ get_rq:
 	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) ||
 	    bio_flagged(bio, BIO_CPU_AFFINE))
 		req->cpu = blk_cpu_to_group(smp_processor_id());
-	if (!blk_queue_nonrot(q) && elv_queue_empty(q))
+	if (queue_should_plug(q) && elv_queue_empty(q))
 		blk_plug_device(q);
 	add_request(q, req);
 out:
-	if (unplug || blk_queue_nonrot(q))
+	if (unplug || !queue_should_plug(q))
 		__generic_unplug_device(q);
 	spin_unlock_irq(q->queue_lock);
 	return 0;
