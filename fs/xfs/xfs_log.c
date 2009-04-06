@@ -562,9 +562,8 @@ xfs_log_mount(
 	}
 
 	mp->m_log = xlog_alloc_log(mp, log_target, blk_offset, num_bblks);
-	if (!mp->m_log) {
-		cmn_err(CE_WARN, "XFS: Log allocation failed: No memory!");
-		error = ENOMEM;
+	if (IS_ERR(mp->m_log)) {
+		error = -PTR_ERR(mp->m_log);
 		goto out;
 	}
 
@@ -1180,10 +1179,13 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	xfs_buf_t		*bp;
 	int			i;
 	int			iclogsize;
+	int			error = ENOMEM;
 
 	log = kmem_zalloc(sizeof(xlog_t), KM_MAYFAIL);
-	if (!log)
-		return NULL;
+	if (!log) {
+		xlog_warn("XFS: Log allocation failed: No memory!");
+		goto out;
+	}
 
 	log->l_mp	   = mp;
 	log->l_targ	   = log_target;
@@ -1201,19 +1203,35 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	log->l_grant_reserve_cycle = 1;
 	log->l_grant_write_cycle = 1;
 
+	error = EFSCORRUPTED;
 	if (xfs_sb_version_hassector(&mp->m_sb)) {
 		log->l_sectbb_log = mp->m_sb.sb_logsectlog - BBSHIFT;
-		ASSERT(log->l_sectbb_log <= mp->m_sectbb_log);
+		if (log->l_sectbb_log < 0 ||
+		    log->l_sectbb_log > mp->m_sectbb_log) {
+			xlog_warn("XFS: Log sector size (0x%x) out of range.",
+						log->l_sectbb_log);
+			goto out_free_log;
+		}
+
 		/* for larger sector sizes, must have v2 or external log */
-		ASSERT(log->l_sectbb_log == 0 ||
-			log->l_logBBstart == 0 ||
-			xfs_sb_version_haslogv2(&mp->m_sb));
-		ASSERT(mp->m_sb.sb_logsectlog >= BBSHIFT);
+		if (log->l_sectbb_log != 0 &&
+		    (log->l_logBBstart != 0 &&
+		     !xfs_sb_version_haslogv2(&mp->m_sb))) {
+			xlog_warn("XFS: log sector size (0x%x) invalid "
+				  "for configuration.", log->l_sectbb_log);
+			goto out_free_log;
+		}
+		if (mp->m_sb.sb_logsectlog < BBSHIFT) {
+			xlog_warn("XFS: Log sector log (0x%x) too small.",
+						mp->m_sb.sb_logsectlog);
+			goto out_free_log;
+		}
 	}
 	log->l_sectbb_mask = (1 << log->l_sectbb_log) - 1;
 
 	xlog_get_iclog_buffer_size(mp, log);
 
+	error = ENOMEM;
 	bp = xfs_buf_get_empty(log->l_iclog_size, mp->m_logdev_targp);
 	if (!bp)
 		goto out_free_log;
@@ -1313,7 +1331,8 @@ out_free_iclog:
 	xfs_buf_free(log->l_xbuf);
 out_free_log:
 	kmem_free(log);
-	return NULL;
+out:
+	return ERR_PTR(-error);
 }	/* xlog_alloc_log */
 
 
