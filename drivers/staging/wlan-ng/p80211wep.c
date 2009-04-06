@@ -49,7 +49,6 @@
 /* System Includes */
 
 
-#include <linux/version.h>
 
 #include <linux/netdevice.h>
 #include <linux/wireless.h>

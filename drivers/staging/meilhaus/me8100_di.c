@@ -39,7 +39,6 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
 
 #include "medefines.h"
 #include "meerror.h"

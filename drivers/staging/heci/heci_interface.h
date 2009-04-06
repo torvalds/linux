@@ -42,7 +42,6 @@
 #ifndef _HECI_INTERFACE_H_
 #define _HECI_INTERFACE_H_
 
-#include <linux/version.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/pci.h>

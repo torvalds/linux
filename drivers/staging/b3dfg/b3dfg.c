@@ -35,7 +35,6 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
-#include <linux/version.h>
 #include <linux/uaccess.h>
 
 static unsigned int b3dfg_nbuf = 2;

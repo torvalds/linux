@@ -12,7 +12,6 @@
 #include <linux/usb.h>
 #include <linux/wait.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/uaccess.h>
 
 /* Use our own dbg macro */

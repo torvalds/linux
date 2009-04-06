@@ -28,7 +28,6 @@
 #ifndef _ME4600_AI_H_
 #define _ME4600_AI_H_
 
-#include <linux/version.h>
 #include "mesubdevice.h"
 #include "meioctl.h"
 #include "mecirc_buf.h"
