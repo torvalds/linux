@@ -353,8 +353,8 @@ struct i2c_adapter {
 	void *algo_data;
 
 	/* --- administration stuff. */
-	int (*client_register)(struct i2c_client *);
-	int (*client_unregister)(struct i2c_client *);
+	int (*client_register)(struct i2c_client *) __deprecated;
+	int (*client_unregister)(struct i2c_client *) __deprecated;
 
 	/* data fields that are valid for all devices	*/
 	u8 level; 			/* nesting level for lockdep */
