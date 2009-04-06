@@ -357,8 +357,9 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 				path->long_name);
 			ret = snd_ctl_add(codec->card, path->kcontrol);
 			if (ret < 0) {
-				printk(KERN_ERR "asoc: failed to add dapm kcontrol %s\n",
-						path->long_name);
+				printk(KERN_ERR "asoc: failed to add dapm kcontrol %s: %d\n",
+				       path->long_name,
+				       ret);
 				kfree(path->long_name);
 				path->long_name = NULL;
 				return ret;
