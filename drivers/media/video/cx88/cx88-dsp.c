@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
+#include <asm/div64.h>
 
 #include "cx88.h"
 #include "cx88-reg.h"
@@ -100,13 +101,25 @@ static u32 int_goertzel(s16 x[], u32 N, u32 freq)
 	s32 s_prev2 = 0;
 	s32 coeff = 2*int_cos(freq);
 	u32 i;
+
+	u64 tmp;
+	u32 divisor;
+
 	for (i = 0; i < N; i++) {
 		s32 s = x[i] + ((s64)coeff*s_prev/32768) - s_prev2;
 		s_prev2 = s_prev;
 		s_prev = s;
 	}
-	return (u32)(((s64)s_prev2*s_prev2 + (s64)s_prev*s_prev -
-		      (s64)coeff*s_prev2*s_prev/32768)/N/N);
+
+	tmp = (s64)s_prev2 * s_prev2 + (s64)s_prev * s_prev -
+		      (s64)coeff * s_prev2 * s_prev / 32768;
+
+	/* XXX: N must be low enough so that N*N fits in s32.
+	 * Else we need two divisions. */
+	divisor = N * N;
+	do_div(tmp, divisor);
+
+	return (u32) tmp;
 }
 
 static u32 freq_magnitude(s16 x[], u32 N, u32 freq)
