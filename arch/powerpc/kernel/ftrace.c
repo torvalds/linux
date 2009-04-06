@@ -564,7 +564,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
 
-#if CONFIG_PPC64
+#ifdef CONFIG_PPC64
 	/* non core kernel code needs to save and restore the TOC */
 	if (REGION_ID(self_addr) != KERNEL_REGION_ID)
 		return_hooker = (unsigned long)&mod_return_to_handler;
