@@ -208,6 +208,20 @@ struct perf_event_header {
 
 enum perf_event_type {
 
+	/*
+	 * The MMAP events record the PROT_EXEC mappings so that we can
+	 * correlate userspace IPs to code. They have the following structure:
+	 *
+	 * struct {
+	 * 	struct perf_event_header	header;
+	 *
+	 * 	u32				pid, tid;
+	 * 	u64				addr;
+	 * 	u64				len;
+	 * 	u64				pgoff;
+	 * 	char				filename[];
+	 * };
+	 */
 	PERF_EVENT_MMAP			= 1,
 	PERF_EVENT_MUNMAP		= 2,
 
@@ -217,6 +231,24 @@ enum perf_event_type {
 	 *
 	 * These events will have types of the form:
 	 *   PERF_EVENT_COUNTER_OVERFLOW { | __PERF_EVENT_* } *
+	 *
+	 * struct {
+	 * 	struct perf_event_header	header;
+	 *
+	 * 	{ u64			ip;	  } && __PERF_EVENT_IP
+	 * 	{ u32			pid, tid; } && __PERF_EVENT_TID
+	 *
+	 * 	{ u64			nr;
+	 * 	  { u64 event, val; } 	cnt[nr];  } && __PERF_EVENT_GROUP
+	 *
+	 * 	{ u16			nr,
+	 * 				hv,
+	 * 				kernel,
+	 * 				user;
+	 * 	  u64			ips[nr];  } && __PERF_EVENT_CALLCHAIN
+	 *
+	 * 	{ u64			time;     } && __PERF_EVENT_TIME
+	 * };
 	 */
 	PERF_EVENT_COUNTER_OVERFLOW	= 1UL << 31,
 	__PERF_EVENT_IP			= PERF_RECORD_IP,
