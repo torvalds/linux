@@ -800,7 +800,8 @@ again:
 			continue;
 
 		perf_save_and_restart(counter);
-		perf_counter_output(counter, nmi, regs);
+		if (perf_counter_overflow(counter, nmi, regs))
+			__pmc_generic_disable(counter, &counter->hw, bit);
 	}
 
 	hw_perf_ack_status(ack);

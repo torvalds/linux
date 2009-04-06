@@ -1800,8 +1800,8 @@ static void perf_output_end(struct perf_output_handle *handle)
 	rcu_read_unlock();
 }
 
-void perf_counter_output(struct perf_counter *counter,
-			 int nmi, struct pt_regs *regs)
+static void perf_counter_output(struct perf_counter *counter,
+				int nmi, struct pt_regs *regs)
 {
 	int ret;
 	u64 record_type = counter->hw_event.record_type;
@@ -2034,6 +2034,17 @@ void perf_counter_munmap(unsigned long addr, unsigned long len,
 }
 
 /*
+ * Generic counter overflow handling.
+ */
+
+int perf_counter_overflow(struct perf_counter *counter,
+			  int nmi, struct pt_regs *regs)
+{
+	perf_counter_output(counter, nmi, regs);
+	return 0;
+}
+
+/*
  * Generic software counter infrastructure
  */
 
@@ -2077,6 +2088,7 @@ static void perf_swcounter_set_period(struct perf_counter *counter)
 
 static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 {
+	enum hrtimer_restart ret = HRTIMER_RESTART;
 	struct perf_counter *counter;
 	struct pt_regs *regs;
 
@@ -2092,12 +2104,14 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 			!counter->hw_event.exclude_user)
 		regs = task_pt_regs(current);
 
-	if (regs)
-		perf_counter_output(counter, 0, regs);
+	if (regs) {
+		if (perf_counter_overflow(counter, 0, regs))
+			ret = HRTIMER_NORESTART;
+	}
 
 	hrtimer_forward_now(hrtimer, ns_to_ktime(counter->hw.irq_period));
 
-	return HRTIMER_RESTART;
+	return ret;
 }
 
 static void perf_swcounter_overflow(struct perf_counter *counter,
@@ -2105,7 +2119,10 @@ static void perf_swcounter_overflow(struct perf_counter *counter,
 {
 	perf_swcounter_update(counter);
 	perf_swcounter_set_period(counter);
-	perf_counter_output(counter, nmi, regs);
+	if (perf_counter_overflow(counter, nmi, regs))
+		/* soft-disable the counter */
+		;
+
 }
 
 static int perf_swcounter_match(struct perf_counter *counter,

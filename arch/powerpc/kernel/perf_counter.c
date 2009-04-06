@@ -732,7 +732,7 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	 * Finally record data if requested.
 	 */
 	if (record)
-		perf_counter_output(counter, 1, regs);
+		perf_counter_overflow(counter, 1, regs);
 }
 
 /*
