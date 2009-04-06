@@ -9,6 +9,7 @@
 #include <asm/cpu.h>
 #include <linux/intel-iommu.h>
 #include "intr_remapping.h"
+#include <acpi/acpi.h>
 
 static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static int ir_ioapic_num;
