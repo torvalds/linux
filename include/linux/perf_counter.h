@@ -238,6 +238,7 @@ enum perf_event_type {
 #include <linux/rcupdate.h>
 #include <linux/spinlock.h>
 #include <linux/hrtimer.h>
+#include <linux/fs.h>
 #include <asm/atomic.h>
 
 struct task_struct;
@@ -398,6 +399,7 @@ struct perf_counter {
 
 	/* poll related */
 	wait_queue_head_t		waitq;
+	struct fasync_struct		*fasync;
 	/* optional: for NMIs */
 	struct perf_wakeup_entry	wakeup;
 

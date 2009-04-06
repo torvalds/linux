@@ -1526,6 +1526,22 @@ out:
 	return ret;
 }
 
+static int perf_fasync(int fd, struct file *filp, int on)
+{
+	struct perf_counter *counter = filp->private_data;
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	int retval;
+
+	mutex_lock(&inode->i_mutex);
+	retval = fasync_helper(fd, filp, on, &counter->fasync);
+	mutex_unlock(&inode->i_mutex);
+
+	if (retval < 0)
+		return retval;
+
+	return 0;
+}
+
 static const struct file_operations perf_fops = {
 	.release		= perf_release,
 	.read			= perf_read,
@@ -1533,6 +1549,7 @@ static const struct file_operations perf_fops = {
 	.unlocked_ioctl		= perf_ioctl,
 	.compat_ioctl		= perf_ioctl,
 	.mmap			= perf_mmap,
+	.fasync			= perf_fasync,
 };
 
 /*
@@ -1549,7 +1566,7 @@ void perf_counter_wakeup(struct perf_counter *counter)
 	rcu_read_lock();
 	data = rcu_dereference(counter->data);
 	if (data) {
-		(void)atomic_xchg(&data->wakeup, POLL_IN);
+		atomic_set(&data->wakeup, POLL_IN);
 		/*
 		 * Ensure all data writes are issued before updating the
 		 * user-space data head information. The matching rmb()
@@ -1561,6 +1578,7 @@ void perf_counter_wakeup(struct perf_counter *counter)
 	rcu_read_unlock();
 
 	wake_up_all(&counter->waitq);
+	kill_fasync(&counter->fasync, SIGIO, POLL_IN);
 }
 
 /*
