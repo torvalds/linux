@@ -123,6 +123,7 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 				goto out_free_pages;
 
 			bio->bi_io_vec[i].bv_page = page;
+			bio->bi_vcnt = i+1;
 		}
 	}
 	/* If not user-requests, copy the page pointers to all bios */
@@ -138,9 +139,9 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 	return r1_bio;
 
 out_free_pages:
-	for (i=0; i < RESYNC_PAGES ; i++)
-		for (j=0 ; j < pi->raid_disks; j++)
-			safe_put_page(r1_bio->bios[j]->bi_io_vec[i].bv_page);
+	for (j=0 ; j < pi->raid_disks; j++)
+		for (i=0; i < r1_bio->bios[j]->bi_vcnt ; i++)
+			put_page(r1_bio->bios[j]->bi_io_vec[i].bv_page);
 	j = -1;
 out_free_bio:
 	while ( ++j < pi->raid_disks )
