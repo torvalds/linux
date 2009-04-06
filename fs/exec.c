@@ -126,11 +126,7 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 	if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
 		goto exit;
 
-	error = inode_permission(nd.path.dentry->d_inode,
-				 MAY_READ | MAY_EXEC | MAY_OPEN);
-	if (error)
-		goto exit;
-	error = ima_path_check(&nd.path, MAY_READ | MAY_EXEC | MAY_OPEN);
+	error = may_open(&nd.path, MAY_READ | MAY_EXEC | MAY_OPEN, 0);
 	if (error)
 		goto exit;
 
@@ -677,10 +673,7 @@ struct file *open_exec(const char *name)
 	if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
 		goto out_path_put;
 
-	err = inode_permission(nd.path.dentry->d_inode, MAY_EXEC | MAY_OPEN);
-	if (err)
-		goto out_path_put;
-	err = ima_path_check(&nd.path, MAY_EXEC | MAY_OPEN);
+	err = may_open(&nd.path, MAY_EXEC | MAY_OPEN, 0);
 	if (err)
 		goto out_path_put;
 
