@@ -697,6 +697,23 @@ static snd_pcm_uframes_t fsl_dma_pointer(struct snd_pcm_substream *substream)
 	else
 		position = in_be32(&dma_channel->dar);
 
+	/*
+	 * When capture is started, the SSI immediately starts to fill its FIFO.
+	 * This means that the DMA controller is not started until the FIFO is
+	 * full.  However, ALSA calls this function before that happens, when
+	 * MR.DAR is still zero.  In this case, just return zero to indicate
+	 * that nothing has been received yet.
+	 */
+	if (!position)
+		return 0;
+
+	if ((position < dma_private->dma_buf_phys) ||
+	    (position > dma_private->dma_buf_end)) {
+		dev_err(substream->pcm->card->dev,
+			"dma pointer is out of range, halting stream\n");
+		return SNDRV_PCM_POS_XRUN;
+	}
+
 	frames = bytes_to_frames(runtime, position - dma_private->dma_buf_phys);
 
 	/*
