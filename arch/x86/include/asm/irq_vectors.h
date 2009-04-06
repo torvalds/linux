@@ -117,6 +117,11 @@
 #define GENERIC_INTERRUPT_VECTOR	0xed
 
 /*
+ * Performance monitoring pending work vector:
+ */
+#define LOCAL_PENDING_VECTOR		0xec
+
+/*
  * First APIC vector available to drivers: (vectors 0x30-0xee) we
  * start at 0x31(0x41) to spread out vectors evenly between priority
  * levels. (0x80 is the syscall vector)

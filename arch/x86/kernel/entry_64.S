@@ -1028,6 +1028,8 @@ apicinterrupt SPURIOUS_APIC_VECTOR \
 #ifdef CONFIG_PERF_COUNTERS
 apicinterrupt LOCAL_PERF_VECTOR \
 	perf_counter_interrupt smp_perf_counter_interrupt
+apicinterrupt LOCAL_PENDING_VECTOR \
+	perf_pending_interrupt smp_perf_pending_interrupt
 #endif
 
 /*

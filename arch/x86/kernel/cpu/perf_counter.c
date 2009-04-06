@@ -849,6 +849,20 @@ void smp_perf_counter_interrupt(struct pt_regs *regs)
 	irq_exit();
 }
 
+void smp_perf_pending_interrupt(struct pt_regs *regs)
+{
+	irq_enter();
+	ack_APIC_irq();
+	inc_irq_stat(apic_pending_irqs);
+	perf_counter_do_pending();
+	irq_exit();
+}
+
+void set_perf_counter_pending(void)
+{
+	apic->send_IPI_self(LOCAL_PENDING_VECTOR);
+}
+
 void perf_counters_lapic_init(int nmi)
 {
 	u32 apic_val;
