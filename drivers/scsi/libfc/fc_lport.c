@@ -267,10 +267,10 @@ EXPORT_SYMBOL(fc_get_host_speed);
 
 struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *shost)
 {
-	int i;
 	struct fc_host_statistics *fcoe_stats;
 	struct fc_lport *lp = shost_priv(shost);
 	struct timespec v0, v1;
+	unsigned int cpu;
 
 	fcoe_stats = &lp->host_stats;
 	memset(fcoe_stats, 0, sizeof(struct fc_host_statistics));
@@ -279,10 +279,11 @@ struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *shost)
 	jiffies_to_timespec(lp->boot_time, &v1);
 	fcoe_stats->seconds_since_last_reset = (v0.tv_sec - v1.tv_sec);
 
-	for_each_online_cpu(i) {
-		struct fcoe_dev_stats *stats = lp->dev_stats[i];
-		if (stats == NULL)
-			continue;
+	for_each_possible_cpu(cpu) {
+		struct fcoe_dev_stats *stats;
+
+		stats = per_cpu_ptr(lp->dev_stats, cpu);
+
 		fcoe_stats->tx_frames += stats->TxFrames;
 		fcoe_stats->tx_words += stats->TxWords;
 		fcoe_stats->rx_frames += stats->RxFrames;

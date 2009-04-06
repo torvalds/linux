@@ -1,5 +1,6 @@
 /*
- * Copyright(c) 2007 - 2008 Intel Corporation. All rights reserved.
+ * Copyright (c) 2008-2009 Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2009 Intel Corporation.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,1200 +18,1260 @@
  * Maintained at www.Open-FCoE.org
  */
 
+#include <linux/types.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/skbuff.h>
+#include <linux/timer.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
-#include <linux/kthread.h>
-#include <linux/crc32.h>
-#include <linux/cpu.h>
-#include <linux/fs.h>
-#include <linux/sysfs.h>
-#include <linux/ctype.h>
-#include <scsi/scsi_tcq.h>
-#include <scsi/scsicam.h>
-#include <scsi/scsi_transport.h>
-#include <scsi/scsi_transport_fc.h>
+#include <linux/netdevice.h>
+#include <linux/errno.h>
+#include <linux/bitops.h>
 #include <net/rtnetlink.h>
 
+#include <scsi/fc/fc_els.h>
+#include <scsi/fc/fc_fs.h>
+#include <scsi/fc/fc_fip.h>
 #include <scsi/fc/fc_encaps.h>
+#include <scsi/fc/fc_fcoe.h>
 
 #include <scsi/libfc.h>
-#include <scsi/fc_frame.h>
 #include <scsi/libfcoe.h>
-#include <scsi/fc_transport_fcoe.h>
-
-static int debug_fcoe;
-
-#define FCOE_MAX_QUEUE_DEPTH  256
-#define FCOE_LOW_QUEUE_DEPTH  32
-
-/* destination address mode */
-#define FCOE_GW_ADDR_MODE	    0x00
-#define FCOE_FCOUI_ADDR_MODE	    0x01
-
-#define FCOE_WORD_TO_BYTE  4
 
 MODULE_AUTHOR("Open-FCoE.org");
-MODULE_DESCRIPTION("FCoE");
-MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("FIP discovery protocol support for FCoE HBAs");
+MODULE_LICENSE("GPL v2");
 
-/* fcoe host list */
-LIST_HEAD(fcoe_hostlist);
-DEFINE_RWLOCK(fcoe_hostlist_lock);
-DEFINE_TIMER(fcoe_timer, NULL, 0, 0);
-struct fcoe_percpu_s *fcoe_percpu[NR_CPUS];
+#define	FCOE_CTLR_MIN_FKA	500		/* min keep alive (mS) */
+#define	FCOE_CTLR_DEF_FKA	FIP_DEF_FKA	/* default keep alive (mS) */
 
+static void fcoe_ctlr_timeout(unsigned long);
+static void fcoe_ctlr_link_work(struct work_struct *);
+static void fcoe_ctlr_recv_work(struct work_struct *);
 
-/* Function Prototyes */
-static int fcoe_check_wait_queue(struct fc_lport *);
-static void fcoe_recv_flogi(struct fcoe_softc *, struct fc_frame *, u8 *);
-#ifdef CONFIG_HOTPLUG_CPU
-static int fcoe_cpu_callback(struct notifier_block *, ulong, void *);
-#endif /* CONFIG_HOTPLUG_CPU */
-static int fcoe_device_notification(struct notifier_block *, ulong, void *);
-static void fcoe_dev_setup(void);
-static void fcoe_dev_cleanup(void);
+static u8 fcoe_all_fcfs[ETH_ALEN] = FIP_ALL_FCF_MACS;
 
-/* notification function from net device */
-static struct notifier_block fcoe_notifier = {
-	.notifier_call = fcoe_device_notification,
-};
+static u32 fcoe_ctlr_debug;	/* 1 for basic, 2 for noisy debug */
 
+#define FIP_DBG_LVL(level, fmt, args...) 				\
+		do {							\
+			if (fcoe_ctlr_debug >= (level))			\
+				FC_DBG(fmt, ##args);			\
+		} while (0)
 
-#ifdef CONFIG_HOTPLUG_CPU
-static struct notifier_block fcoe_cpu_notifier = {
-	.notifier_call = fcoe_cpu_callback,
-};
+#define FIP_DBG(fmt, args...)	FIP_DBG_LVL(1, fmt, ##args)
 
-/**
- * fcoe_create_percpu_data() - creates the associated cpu data
- * @cpu: index for the cpu where fcoe cpu data will be created
- *
- * create percpu stats block, from cpu add notifier
- *
- * Returns: none
+/*
+ * Return non-zero if FCF fcoe_size has been validated.
  */
-static void fcoe_create_percpu_data(int cpu)
+static inline int fcoe_ctlr_mtu_valid(const struct fcoe_fcf *fcf)
 {
-	struct fc_lport *lp;
-	struct fcoe_softc *fc;
+	return (fcf->flags & FIP_FL_SOL) != 0;
+}
 
-	write_lock_bh(&fcoe_hostlist_lock);
-	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		lp = fc->lp;
-		if (lp->dev_stats[cpu] == NULL)
-			lp->dev_stats[cpu] =
-				kzalloc(sizeof(struct fcoe_dev_stats),
-					GFP_KERNEL);
-	}
-	write_unlock_bh(&fcoe_hostlist_lock);
+/*
+ * Return non-zero if the FCF is usable.
+ */
+static inline int fcoe_ctlr_fcf_usable(struct fcoe_fcf *fcf)
+{
+	u16 flags = FIP_FL_SOL | FIP_FL_AVAIL;
+
+	return (fcf->flags & flags) == flags;
 }
 
 /**
- * fcoe_destroy_percpu_data() - destroys the associated cpu data
- * @cpu: index for the cpu where fcoe cpu data will destroyed
- *
- * destroy percpu stats block called by cpu add/remove notifier
- *
- * Retuns: none
+ * fcoe_ctlr_init() - Initialize the FCoE Controller instance.
+ * @fip:	FCoE controller.
  */
-static void fcoe_destroy_percpu_data(int cpu)
+void fcoe_ctlr_init(struct fcoe_ctlr *fip)
 {
-	struct fc_lport *lp;
-	struct fcoe_softc *fc;
+	fip->state = FIP_ST_LINK_WAIT;
+	INIT_LIST_HEAD(&fip->fcfs);
+	spin_lock_init(&fip->lock);
+	fip->flogi_oxid = FC_XID_UNKNOWN;
+	setup_timer(&fip->timer, fcoe_ctlr_timeout, (unsigned long)fip);
+	INIT_WORK(&fip->link_work, fcoe_ctlr_link_work);
+	INIT_WORK(&fip->recv_work, fcoe_ctlr_recv_work);
+	skb_queue_head_init(&fip->fip_recv_list);
+}
+EXPORT_SYMBOL(fcoe_ctlr_init);
 
-	write_lock_bh(&fcoe_hostlist_lock);
-	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		lp = fc->lp;
-		kfree(lp->dev_stats[cpu]);
-		lp->dev_stats[cpu] = NULL;
+/**
+ * fcoe_ctlr_reset_fcfs() - Reset and free all FCFs for a controller.
+ * @fip:	FCoE controller.
+ *
+ * Called with &fcoe_ctlr lock held.
+ */
+static void fcoe_ctlr_reset_fcfs(struct fcoe_ctlr *fip)
+{
+	struct fcoe_fcf *fcf;
+	struct fcoe_fcf *next;
+
+	fip->sel_fcf = NULL;
+	list_for_each_entry_safe(fcf, next, &fip->fcfs, list) {
+		list_del(&fcf->list);
+		kfree(fcf);
 	}
-	write_unlock_bh(&fcoe_hostlist_lock);
+	fip->fcf_count = 0;
+	fip->sel_time = 0;
 }
 
 /**
- * fcoe_cpu_callback() - fcoe cpu hotplug event callback
- * @nfb: callback data block
- * @action: event triggering the callback
- * @hcpu: index for the cpu of this event
+ * fcoe_ctrl_destroy() - Disable and tear-down the FCoE controller.
+ * @fip:	FCoE controller.
  *
- * this creates or destroys per cpu data for fcoe
+ * This is called by FCoE drivers before freeing the &fcoe_ctlr.
  *
- * Returns NOTIFY_OK always.
+ * The receive handler will have been deleted before this to guarantee
+ * that no more recv_work will be scheduled.
+ *
+ * The timer routine will simply return once we set FIP_ST_DISABLED.
+ * This guarantees that no further timeouts or work will be scheduled.
  */
-static int fcoe_cpu_callback(struct notifier_block *nfb, unsigned long action,
-			     void *hcpu)
+void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 {
-	unsigned int cpu = (unsigned long)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-		fcoe_create_percpu_data(cpu);
-		break;
-	case CPU_DEAD:
-		fcoe_destroy_percpu_data(cpu);
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
+	flush_work(&fip->recv_work);
+	spin_lock_bh(&fip->lock);
+	fip->state = FIP_ST_DISABLED;
+	fcoe_ctlr_reset_fcfs(fip);
+	spin_unlock_bh(&fip->lock);
+	del_timer_sync(&fip->timer);
+	flush_work(&fip->link_work);
 }
-#endif /* CONFIG_HOTPLUG_CPU */
+EXPORT_SYMBOL(fcoe_ctlr_destroy);
 
 /**
- * fcoe_rcv() - this is the fcoe receive function called by NET_RX_SOFTIRQ
- * @skb: the receive skb
- * @dev: associated net device
- * @ptype: context
- * @odldev: last device
+ * fcoe_ctlr_fcoe_size() - Return the maximum FCoE size required for VN_Port.
+ * @fip:	FCoE controller.
  *
- * this function will receive the packet and build fc frame and pass it up
- *
- * Returns: 0 for success
+ * Returns the maximum packet size including the FCoE header and trailer,
+ * but not including any Ethernet or VLAN headers.
  */
-int fcoe_rcv(struct sk_buff *skb, struct net_device *dev,
-	     struct packet_type *ptype, struct net_device *olddev)
+static inline u32 fcoe_ctlr_fcoe_size(struct fcoe_ctlr *fip)
 {
-	struct fc_lport *lp;
-	struct fcoe_rcv_info *fr;
-	struct fcoe_softc *fc;
-	struct fcoe_dev_stats *stats;
-	struct fc_frame_header *fh;
-	unsigned short oxid;
-	int cpu_idx;
-	struct fcoe_percpu_s *fps;
-
-	fc = container_of(ptype, struct fcoe_softc, fcoe_packet_type);
-	lp = fc->lp;
-	if (unlikely(lp == NULL)) {
-		FC_DBG("cannot find hba structure");
-		goto err2;
-	}
-
-	if (unlikely(debug_fcoe)) {
-		FC_DBG("skb_info: len:%d data_len:%d head:%p data:%p tail:%p "
-		       "end:%p sum:%d dev:%s", skb->len, skb->data_len,
-		       skb->head, skb->data, skb_tail_pointer(skb),
-		       skb_end_pointer(skb), skb->csum,
-		       skb->dev ? skb->dev->name : "<NULL>");
-
-	}
-
-	/* check for FCOE packet type */
-	if (unlikely(eth_hdr(skb)->h_proto != htons(ETH_P_FCOE))) {
-		FC_DBG("wrong FC type frame");
-		goto err;
-	}
-
 	/*
-	 * Check for minimum frame length, and make sure required FCoE
-	 * and FC headers are pulled into the linear data area.
+	 * Determine the max FCoE frame size allowed, including
+	 * FCoE header and trailer.
+	 * Note:  lp->mfs is currently the payload size, not the frame size.
 	 */
-	if (unlikely((skb->len < FCOE_MIN_FRAME) ||
-	    !pskb_may_pull(skb, FCOE_HEADER_LEN)))
-		goto err;
+	return fip->lp->mfs + sizeof(struct fc_frame_header) +
+		sizeof(struct fcoe_hdr) + sizeof(struct fcoe_crc_eof);
+}
 
-	skb_set_transport_header(skb, sizeof(struct fcoe_hdr));
-	fh = (struct fc_frame_header *) skb_transport_header(skb);
+/**
+ * fcoe_ctlr_solicit() - Send a solicitation.
+ * @fip:	FCoE controller.
+ * @fcf:	Destination FCF.  If NULL, a multicast solicitation is sent.
+ */
+static void fcoe_ctlr_solicit(struct fcoe_ctlr *fip, struct fcoe_fcf *fcf)
+{
+	struct sk_buff *skb;
+	struct fip_sol {
+		struct ethhdr eth;
+		struct fip_header fip;
+		struct {
+			struct fip_mac_desc mac;
+			struct fip_wwn_desc wwnn;
+			struct fip_size_desc size;
+		} __attribute__((packed)) desc;
+	}  __attribute__((packed)) *sol;
+	u32 fcoe_size;
 
-	oxid = ntohs(fh->fh_ox_id);
+	skb = dev_alloc_skb(sizeof(*sol));
+	if (!skb)
+		return;
 
-	fr = fcoe_dev_from_skb(skb);
-	fr->fr_dev = lp;
-	fr->ptype = ptype;
-	cpu_idx = 0;
-#ifdef CONFIG_SMP
-	/*
-	 * The incoming frame exchange id(oxid) is ANDed with num of online
-	 * cpu bits to get cpu_idx and then this cpu_idx is used for selecting
-	 * a per cpu kernel thread from fcoe_percpu. In case the cpu is
-	 * offline or no kernel thread for derived cpu_idx then cpu_idx is
-	 * initialize to first online cpu index.
-	 */
-	cpu_idx = oxid & (num_online_cpus() - 1);
-	if (!fcoe_percpu[cpu_idx] || !cpu_online(cpu_idx))
-		cpu_idx = first_cpu(cpu_online_map);
-#endif
-	fps = fcoe_percpu[cpu_idx];
+	sol = (struct fip_sol *)skb->data;
 
-	spin_lock_bh(&fps->fcoe_rx_list.lock);
-	__skb_queue_tail(&fps->fcoe_rx_list, skb);
-	if (fps->fcoe_rx_list.qlen == 1)
-		wake_up_process(fps->thread);
+	memset(sol, 0, sizeof(*sol));
+	memcpy(sol->eth.h_dest, fcf ? fcf->fcf_mac : fcoe_all_fcfs, ETH_ALEN);
+	memcpy(sol->eth.h_source, fip->ctl_src_addr, ETH_ALEN);
+	sol->eth.h_proto = htons(ETH_P_FIP);
 
-	spin_unlock_bh(&fps->fcoe_rx_list.lock);
+	sol->fip.fip_ver = FIP_VER_ENCAPS(FIP_VER);
+	sol->fip.fip_op = htons(FIP_OP_DISC);
+	sol->fip.fip_subcode = FIP_SC_SOL;
+	sol->fip.fip_dl_len = htons(sizeof(sol->desc) / FIP_BPW);
+	sol->fip.fip_flags = htons(FIP_FL_FPMA);
 
+	sol->desc.mac.fd_desc.fip_dtype = FIP_DT_MAC;
+	sol->desc.mac.fd_desc.fip_dlen = sizeof(sol->desc.mac) / FIP_BPW;
+	memcpy(sol->desc.mac.fd_mac, fip->ctl_src_addr, ETH_ALEN);
+
+	sol->desc.wwnn.fd_desc.fip_dtype = FIP_DT_NAME;
+	sol->desc.wwnn.fd_desc.fip_dlen = sizeof(sol->desc.wwnn) / FIP_BPW;
+	put_unaligned_be64(fip->lp->wwnn, &sol->desc.wwnn.fd_wwn);
+
+	fcoe_size = fcoe_ctlr_fcoe_size(fip);
+	sol->desc.size.fd_desc.fip_dtype = FIP_DT_FCOE_SIZE;
+	sol->desc.size.fd_desc.fip_dlen = sizeof(sol->desc.size) / FIP_BPW;
+	sol->desc.size.fd_size = htons(fcoe_size);
+
+	skb_put(skb, sizeof(*sol));
+	skb->protocol = htons(ETH_P_802_3);
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	fip->send(fip, skb);
+
+	if (!fcf)
+		fip->sol_time = jiffies;
+}
+
+/**
+ * fcoe_ctlr_link_up() - Start FCoE controller.
+ * @fip:	FCoE controller.
+ *
+ * Called from the LLD when the network link is ready.
+ */
+void fcoe_ctlr_link_up(struct fcoe_ctlr *fip)
+{
+	spin_lock_bh(&fip->lock);
+	if (fip->state == FIP_ST_NON_FIP || fip->state == FIP_ST_AUTO) {
+		fip->last_link = 1;
+		fip->link = 1;
+		spin_unlock_bh(&fip->lock);
+		fc_linkup(fip->lp);
+	} else if (fip->state == FIP_ST_LINK_WAIT) {
+		fip->state = FIP_ST_AUTO;
+		fip->last_link = 1;
+		fip->link = 1;
+		spin_unlock_bh(&fip->lock);
+		FIP_DBG("%s", "setting AUTO mode.\n");
+		fc_linkup(fip->lp);
+		fcoe_ctlr_solicit(fip, NULL);
+	} else
+		spin_unlock_bh(&fip->lock);
+}
+EXPORT_SYMBOL(fcoe_ctlr_link_up);
+
+/**
+ * fcoe_ctlr_reset() - Reset FIP.
+ * @fip:	FCoE controller.
+ * @new_state:	FIP state to be entered.
+ *
+ * Returns non-zero if the link was up and now isn't.
+ */
+static int fcoe_ctlr_reset(struct fcoe_ctlr *fip, enum fip_state new_state)
+{
+	struct fc_lport *lp = fip->lp;
+	int link_dropped;
+
+	spin_lock_bh(&fip->lock);
+	fcoe_ctlr_reset_fcfs(fip);
+	del_timer(&fip->timer);
+	fip->state = new_state;
+	fip->ctlr_ka_time = 0;
+	fip->port_ka_time = 0;
+	fip->sol_time = 0;
+	fip->flogi_oxid = FC_XID_UNKNOWN;
+	fip->map_dest = 0;
+	fip->last_link = 0;
+	link_dropped = fip->link;
+	fip->link = 0;
+	spin_unlock_bh(&fip->lock);
+
+	if (link_dropped)
+		fc_linkdown(lp);
+
+	if (new_state == FIP_ST_ENABLED) {
+		fcoe_ctlr_solicit(fip, NULL);
+		fc_linkup(lp);
+		link_dropped = 0;
+	}
+	return link_dropped;
+}
+
+/**
+ * fcoe_ctlr_link_down() - Stop FCoE controller.
+ * @fip:	FCoE controller.
+ *
+ * Returns non-zero if the link was up and now isn't.
+ *
+ * Called from the LLD when the network link is not ready.
+ * There may be multiple calls while the link is down.
+ */
+int fcoe_ctlr_link_down(struct fcoe_ctlr *fip)
+{
+	return fcoe_ctlr_reset(fip, FIP_ST_LINK_WAIT);
+}
+EXPORT_SYMBOL(fcoe_ctlr_link_down);
+
+/**
+ * fcoe_ctlr_send_keep_alive() - Send a keep-alive to the selected FCF.
+ * @fip:	FCoE controller.
+ * @ports:	0 for controller keep-alive, 1 for port keep-alive.
+ * @sa:		source MAC address.
+ *
+ * A controller keep-alive is sent every fka_period (typically 8 seconds).
+ * The source MAC is the native MAC address.
+ *
+ * A port keep-alive is sent every 90 seconds while logged in.
+ * The source MAC is the assigned mapped source address.
+ * The destination is the FCF's F-port.
+ */
+static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip, int ports, u8 *sa)
+{
+	struct sk_buff *skb;
+	struct fip_kal {
+		struct ethhdr eth;
+		struct fip_header fip;
+		struct fip_mac_desc mac;
+	} __attribute__((packed)) *kal;
+	struct fip_vn_desc *vn;
+	u32 len;
+	struct fc_lport *lp;
+	struct fcoe_fcf *fcf;
+
+	fcf = fip->sel_fcf;
+	lp = fip->lp;
+	if (!fcf || !fc_host_port_id(lp->host))
+		return;
+
+	len = fcoe_ctlr_fcoe_size(fip) + sizeof(struct ethhdr);
+	BUG_ON(len < sizeof(*kal) + sizeof(*vn));
+	skb = dev_alloc_skb(len);
+	if (!skb)
+		return;
+
+	kal = (struct fip_kal *)skb->data;
+	memset(kal, 0, len);
+	memcpy(kal->eth.h_dest, fcf->fcf_mac, ETH_ALEN);
+	memcpy(kal->eth.h_source, sa, ETH_ALEN);
+	kal->eth.h_proto = htons(ETH_P_FIP);
+
+	kal->fip.fip_ver = FIP_VER_ENCAPS(FIP_VER);
+	kal->fip.fip_op = htons(FIP_OP_CTRL);
+	kal->fip.fip_subcode = FIP_SC_KEEP_ALIVE;
+	kal->fip.fip_dl_len = htons((sizeof(kal->mac) +
+				    ports * sizeof(*vn)) / FIP_BPW);
+	kal->fip.fip_flags = htons(FIP_FL_FPMA);
+
+	kal->mac.fd_desc.fip_dtype = FIP_DT_MAC;
+	kal->mac.fd_desc.fip_dlen = sizeof(kal->mac) / FIP_BPW;
+	memcpy(kal->mac.fd_mac, fip->ctl_src_addr, ETH_ALEN);
+
+	if (ports) {
+		vn = (struct fip_vn_desc *)(kal + 1);
+		vn->fd_desc.fip_dtype = FIP_DT_VN_ID;
+		vn->fd_desc.fip_dlen = sizeof(*vn) / FIP_BPW;
+		memcpy(vn->fd_mac, fip->data_src_addr, ETH_ALEN);
+		hton24(vn->fd_fc_id, fc_host_port_id(lp->host));
+		put_unaligned_be64(lp->wwpn, &vn->fd_wwpn);
+	}
+
+	skb_put(skb, len);
+	skb->protocol = htons(ETH_P_802_3);
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	fip->send(fip, skb);
+}
+
+/**
+ * fcoe_ctlr_encaps() - Encapsulate an ELS frame for FIP, without sending it.
+ * @fip:	FCoE controller.
+ * @dtype:	FIP descriptor type for the frame.
+ * @skb:	FCoE ELS frame including FC header but no FCoE headers.
+ *
+ * Returns non-zero error code on failure.
+ *
+ * The caller must check that the length is a multiple of 4.
+ *
+ * The @skb must have enough headroom (28 bytes) and tailroom (8 bytes).
+ * Headroom includes the FIP encapsulation description, FIP header, and
+ * Ethernet header.  The tailroom is for the FIP MAC descriptor.
+ */
+static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
+			    u8 dtype, struct sk_buff *skb)
+{
+	struct fip_encaps_head {
+		struct ethhdr eth;
+		struct fip_header fip;
+		struct fip_encaps encaps;
+	} __attribute__((packed)) *cap;
+	struct fip_mac_desc *mac;
+	struct fcoe_fcf *fcf;
+	size_t dlen;
+
+	fcf = fip->sel_fcf;
+	if (!fcf)
+		return -ENODEV;
+	dlen = sizeof(struct fip_encaps) + skb->len;	/* len before push */
+	cap = (struct fip_encaps_head *)skb_push(skb, sizeof(*cap));
+
+	memset(cap, 0, sizeof(*cap));
+	memcpy(cap->eth.h_dest, fcf->fcf_mac, ETH_ALEN);
+	memcpy(cap->eth.h_source, fip->ctl_src_addr, ETH_ALEN);
+	cap->eth.h_proto = htons(ETH_P_FIP);
+
+	cap->fip.fip_ver = FIP_VER_ENCAPS(FIP_VER);
+	cap->fip.fip_op = htons(FIP_OP_LS);
+	cap->fip.fip_subcode = FIP_SC_REQ;
+	cap->fip.fip_dl_len = htons((dlen + sizeof(*mac)) / FIP_BPW);
+	cap->fip.fip_flags = htons(FIP_FL_FPMA);
+
+	cap->encaps.fd_desc.fip_dtype = dtype;
+	cap->encaps.fd_desc.fip_dlen = dlen / FIP_BPW;
+
+	mac = (struct fip_mac_desc *)skb_put(skb, sizeof(*mac));
+	memset(mac, 0, sizeof(mac));
+	mac->fd_desc.fip_dtype = FIP_DT_MAC;
+	mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
+	if (dtype != ELS_FLOGI)
+		memcpy(mac->fd_mac, fip->data_src_addr, ETH_ALEN);
+
+	skb->protocol = htons(ETH_P_802_3);
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
 	return 0;
-err:
-#ifdef CONFIG_SMP
-	stats = lp->dev_stats[smp_processor_id()];
-#else
-	stats = lp->dev_stats[0];
-#endif
-	if (stats)
-		stats->ErrorFrames++;
+}
 
-err2:
+/**
+ * fcoe_ctlr_els_send() - Send an ELS frame encapsulated by FIP if appropriate.
+ * @fip:	FCoE controller.
+ * @skb:	FCoE ELS frame including FC header but no FCoE headers.
+ *
+ * Returns a non-zero error code if the frame should not be sent.
+ * Returns zero if the caller should send the frame with FCoE encapsulation.
+ *
+ * The caller must check that the length is a multiple of 4.
+ * The SKB must have enough headroom (28 bytes) and tailroom (8 bytes).
+ */
+int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
+{
+	struct fc_frame_header *fh;
+	u16 old_xid;
+	u8 op;
+
+	if (fip->state == FIP_ST_NON_FIP)
+		return 0;
+
+	fh = (struct fc_frame_header *)skb->data;
+	op = *(u8 *)(fh + 1);
+
+	switch (op) {
+	case ELS_FLOGI:
+		old_xid = fip->flogi_oxid;
+		fip->flogi_oxid = ntohs(fh->fh_ox_id);
+		if (fip->state == FIP_ST_AUTO) {
+			if (old_xid == FC_XID_UNKNOWN)
+				fip->flogi_count = 0;
+			fip->flogi_count++;
+			if (fip->flogi_count < 3)
+				goto drop;
+			fip->map_dest = 1;
+			return 0;
+		}
+		op = FIP_DT_FLOGI;
+		break;
+	case ELS_FDISC:
+		if (ntoh24(fh->fh_s_id))
+			return 0;
+		op = FIP_DT_FDISC;
+		break;
+	case ELS_LOGO:
+		if (fip->state != FIP_ST_ENABLED)
+			return 0;
+		if (ntoh24(fh->fh_d_id) != FC_FID_FLOGI)
+			return 0;
+		op = FIP_DT_LOGO;
+		break;
+	case ELS_LS_ACC:
+		if (fip->flogi_oxid == FC_XID_UNKNOWN)
+			return 0;
+		if (!ntoh24(fh->fh_s_id))
+			return 0;
+		if (fip->state == FIP_ST_AUTO)
+			return 0;
+		/*
+		 * Here we must've gotten an SID by accepting an FLOGI
+		 * from a point-to-point connection.  Switch to using
+		 * the source mac based on the SID.  The destination
+		 * MAC in this case would have been set by receving the
+		 * FLOGI.
+		 */
+		fip->flogi_oxid = FC_XID_UNKNOWN;
+		fc_fcoe_set_mac(fip->data_src_addr, fh->fh_s_id);
+		return 0;
+	default:
+		if (fip->state != FIP_ST_ENABLED)
+			goto drop;
+		return 0;
+	}
+	if (fcoe_ctlr_encaps(fip, op, skb))
+		goto drop;
+	fip->send(fip, skb);
+	return -EINPROGRESS;
+drop:
+	kfree_skb(skb);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(fcoe_ctlr_els_send);
+
+/*
+ * fcoe_ctlr_age_fcfs() - Reset and free all old FCFs for a controller.
+ * @fip:	FCoE controller.
+ *
+ * Called with lock held.
+ *
+ * An FCF is considered old if we have missed three advertisements.
+ * That is, there have been no valid advertisement from it for three
+ * times its keep-alive period including fuzz.
+ *
+ * In addition, determine the time when an FCF selection can occur.
+ */
+static void fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
+{
+	struct fcoe_fcf *fcf;
+	struct fcoe_fcf *next;
+	unsigned long sel_time = 0;
+
+	list_for_each_entry_safe(fcf, next, &fip->fcfs, list) {
+		if (time_after(jiffies, fcf->time + fcf->fka_period * 3 +
+			       msecs_to_jiffies(FIP_FCF_FUZZ * 3))) {
+			if (fip->sel_fcf == fcf)
+				fip->sel_fcf = NULL;
+			list_del(&fcf->list);
+			WARN_ON(!fip->fcf_count);
+			fip->fcf_count--;
+			kfree(fcf);
+		} else if (fcoe_ctlr_mtu_valid(fcf) &&
+			   (!sel_time || time_before(sel_time, fcf->time))) {
+			sel_time = fcf->time;
+		}
+	}
+	if (sel_time) {
+		sel_time += msecs_to_jiffies(FCOE_CTLR_START_DELAY);
+		fip->sel_time = sel_time;
+		if (time_before(sel_time, fip->timer.expires))
+			mod_timer(&fip->timer, sel_time);
+	} else {
+		fip->sel_time = 0;
+	}
+}
+
+/**
+ * fcoe_ctlr_parse_adv() - Decode a FIP advertisement into a new FCF entry.
+ * @skb:	received FIP advertisement frame
+ * @fcf:	resulting FCF entry.
+ *
+ * Returns zero on a valid parsed advertisement,
+ * otherwise returns non zero value.
+ */
+static int fcoe_ctlr_parse_adv(struct sk_buff *skb, struct fcoe_fcf *fcf)
+{
+	struct fip_header *fiph;
+	struct fip_desc *desc = NULL;
+	struct fip_wwn_desc *wwn;
+	struct fip_fab_desc *fab;
+	struct fip_fka_desc *fka;
+	unsigned long t;
+	size_t rlen;
+	size_t dlen;
+
+	memset(fcf, 0, sizeof(*fcf));
+	fcf->fka_period = msecs_to_jiffies(FCOE_CTLR_DEF_FKA);
+
+	fiph = (struct fip_header *)skb->data;
+	fcf->flags = ntohs(fiph->fip_flags);
+
+	rlen = ntohs(fiph->fip_dl_len) * 4;
+	if (rlen + sizeof(*fiph) > skb->len)
+		return -EINVAL;
+
+	desc = (struct fip_desc *)(fiph + 1);
+	while (rlen > 0) {
+		dlen = desc->fip_dlen * FIP_BPW;
+		if (dlen < sizeof(*desc) || dlen > rlen)
+			return -EINVAL;
+		switch (desc->fip_dtype) {
+		case FIP_DT_PRI:
+			if (dlen != sizeof(struct fip_pri_desc))
+				goto len_err;
+			fcf->pri = ((struct fip_pri_desc *)desc)->fd_pri;
+			break;
+		case FIP_DT_MAC:
+			if (dlen != sizeof(struct fip_mac_desc))
+				goto len_err;
+			memcpy(fcf->fcf_mac,
+			       ((struct fip_mac_desc *)desc)->fd_mac,
+			       ETH_ALEN);
+			if (!is_valid_ether_addr(fcf->fcf_mac)) {
+				FIP_DBG("invalid MAC addr in FIP adv\n");
+				return -EINVAL;
+			}
+			break;
+		case FIP_DT_NAME:
+			if (dlen != sizeof(struct fip_wwn_desc))
+				goto len_err;
+			wwn = (struct fip_wwn_desc *)desc;
+			fcf->switch_name = get_unaligned_be64(&wwn->fd_wwn);
+			break;
+		case FIP_DT_FAB:
+			if (dlen != sizeof(struct fip_fab_desc))
+				goto len_err;
+			fab = (struct fip_fab_desc *)desc;
+			fcf->fabric_name = get_unaligned_be64(&fab->fd_wwn);
+			fcf->vfid = ntohs(fab->fd_vfid);
+			fcf->fc_map = ntoh24(fab->fd_map);
+			break;
+		case FIP_DT_FKA:
+			if (dlen != sizeof(struct fip_fka_desc))
+				goto len_err;
+			fka = (struct fip_fka_desc *)desc;
+			t = ntohl(fka->fd_fka_period);
+			if (t >= FCOE_CTLR_MIN_FKA)
+				fcf->fka_period = msecs_to_jiffies(t);
+			break;
+		case FIP_DT_MAP_OUI:
+		case FIP_DT_FCOE_SIZE:
+		case FIP_DT_FLOGI:
+		case FIP_DT_FDISC:
+		case FIP_DT_LOGO:
+		case FIP_DT_ELP:
+		default:
+			FIP_DBG("unexpected descriptor type %x in FIP adv\n",
+				desc->fip_dtype);
+			/* standard says ignore unknown descriptors >= 128 */
+			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
+				return -EINVAL;
+			continue;
+		}
+		desc = (struct fip_desc *)((char *)desc + dlen);
+		rlen -= dlen;
+	}
+	if (!fcf->fc_map || (fcf->fc_map & 0x10000))
+		return -EINVAL;
+	if (!fcf->switch_name || !fcf->fabric_name)
+		return -EINVAL;
+	return 0;
+
+len_err:
+	FIP_DBG("FIP length error in descriptor type %x len %zu\n",
+		desc->fip_dtype, dlen);
+	return -EINVAL;
+}
+
+/**
+ * fcoe_ctlr_recv_adv() - Handle an incoming advertisement.
+ * @fip:	FCoE controller.
+ * @skb:	Received FIP packet.
+ */
+static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
+{
+	struct fcoe_fcf *fcf;
+	struct fcoe_fcf new;
+	struct fcoe_fcf *found;
+	unsigned long sol_tov = msecs_to_jiffies(FCOE_CTRL_SOL_TOV);
+	int first = 0;
+	int mtu_valid;
+
+	if (fcoe_ctlr_parse_adv(skb, &new))
+		return;
+
+	spin_lock_bh(&fip->lock);
+	first = list_empty(&fip->fcfs);
+	found = NULL;
+	list_for_each_entry(fcf, &fip->fcfs, list) {
+		if (fcf->switch_name == new.switch_name &&
+		    fcf->fabric_name == new.fabric_name &&
+		    fcf->fc_map == new.fc_map &&
+		    compare_ether_addr(fcf->fcf_mac, new.fcf_mac) == 0) {
+			found = fcf;
+			break;
+		}
+	}
+	if (!found) {
+		if (fip->fcf_count >= FCOE_CTLR_FCF_LIMIT)
+			goto out;
+
+		fcf = kmalloc(sizeof(*fcf), GFP_ATOMIC);
+		if (!fcf)
+			goto out;
+
+		fip->fcf_count++;
+		memcpy(fcf, &new, sizeof(new));
+		list_add(&fcf->list, &fip->fcfs);
+	} else {
+		/*
+		 * Flags in advertisements are ignored once the FCF is
+		 * selected.  Flags in unsolicited advertisements are
+		 * ignored after a usable solicited advertisement
+		 * has been received.
+		 */
+		if (fcf == fip->sel_fcf) {
+			fip->ctlr_ka_time -= fcf->fka_period;
+			fip->ctlr_ka_time += new.fka_period;
+			if (time_before(fip->ctlr_ka_time, fip->timer.expires))
+				mod_timer(&fip->timer, fip->ctlr_ka_time);
+		} else if (!fcoe_ctlr_fcf_usable(fcf))
+			fcf->flags = new.flags;
+		fcf->fka_period = new.fka_period;
+		memcpy(fcf->fcf_mac, new.fcf_mac, ETH_ALEN);
+	}
+	mtu_valid = fcoe_ctlr_mtu_valid(fcf);
+	fcf->time = jiffies;
+	FIP_DBG_LVL(found ? 2 : 1, "%s FCF for fab %llx map %x val %d\n",
+		    found ? "old" : "new",
+		    fcf->fabric_name, fcf->fc_map, mtu_valid);
+
+	/*
+	 * If this advertisement is not solicited and our max receive size
+	 * hasn't been verified, send a solicited advertisement.
+	 */
+	if (!mtu_valid)
+		fcoe_ctlr_solicit(fip, fcf);
+
+	/*
+	 * If its been a while since we did a solicit, and this is
+	 * the first advertisement we've received, do a multicast
+	 * solicitation to gather as many advertisements as we can
+	 * before selection occurs.
+	 */
+	if (first && time_after(jiffies, fip->sol_time + sol_tov))
+		fcoe_ctlr_solicit(fip, NULL);
+
+	/*
+	 * If this is the first validated FCF, note the time and
+	 * set a timer to trigger selection.
+	 */
+	if (mtu_valid && !fip->sel_time && fcoe_ctlr_fcf_usable(fcf)) {
+		fip->sel_time = jiffies +
+				msecs_to_jiffies(FCOE_CTLR_START_DELAY);
+		if (!timer_pending(&fip->timer) ||
+		    time_before(fip->sel_time, fip->timer.expires))
+			mod_timer(&fip->timer, fip->sel_time);
+	}
+out:
+	spin_unlock_bh(&fip->lock);
+}
+
+/**
+ * fcoe_ctlr_recv_els() - Handle an incoming FIP-encapsulated ELS frame.
+ * @fip:	FCoE controller.
+ * @skb:	Received FIP packet.
+ */
+static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
+{
+	struct fc_lport *lp = fip->lp;
+	struct fip_header *fiph;
+	struct fc_frame *fp;
+	struct fc_frame_header *fh = NULL;
+	struct fip_desc *desc;
+	struct fip_encaps *els;
+	struct fcoe_dev_stats *stats;
+	enum fip_desc_type els_dtype = 0;
+	u8 els_op;
+	u8 sub;
+	u8 granted_mac[ETH_ALEN] = { 0 };
+	size_t els_len = 0;
+	size_t rlen;
+	size_t dlen;
+
+	fiph = (struct fip_header *)skb->data;
+	sub = fiph->fip_subcode;
+	if (sub != FIP_SC_REQ && sub != FIP_SC_REP)
+		goto drop;
+
+	rlen = ntohs(fiph->fip_dl_len) * 4;
+	if (rlen + sizeof(*fiph) > skb->len)
+		goto drop;
+
+	desc = (struct fip_desc *)(fiph + 1);
+	while (rlen > 0) {
+		dlen = desc->fip_dlen * FIP_BPW;
+		if (dlen < sizeof(*desc) || dlen > rlen)
+			goto drop;
+		switch (desc->fip_dtype) {
+		case FIP_DT_MAC:
+			if (dlen != sizeof(struct fip_mac_desc))
+				goto len_err;
+			memcpy(granted_mac,
+			       ((struct fip_mac_desc *)desc)->fd_mac,
+			       ETH_ALEN);
+			if (!is_valid_ether_addr(granted_mac)) {
+				FIP_DBG("invalid MAC addrs in FIP ELS\n");
+				goto drop;
+			}
+			break;
+		case FIP_DT_FLOGI:
+		case FIP_DT_FDISC:
+		case FIP_DT_LOGO:
+		case FIP_DT_ELP:
+			if (fh)
+				goto drop;
+			if (dlen < sizeof(*els) + sizeof(*fh) + 1)
+				goto len_err;
+			els_len = dlen - sizeof(*els);
+			els = (struct fip_encaps *)desc;
+			fh = (struct fc_frame_header *)(els + 1);
+			els_dtype = desc->fip_dtype;
+			break;
+		default:
+			FIP_DBG("unexpected descriptor type %x "
+				"in FIP adv\n", desc->fip_dtype);
+			/* standard says ignore unknown descriptors >= 128 */
+			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
+				goto drop;
+			continue;
+		}
+		desc = (struct fip_desc *)((char *)desc + dlen);
+		rlen -= dlen;
+	}
+
+	if (!fh)
+		goto drop;
+	els_op = *(u8 *)(fh + 1);
+
+	if (els_dtype == FIP_DT_FLOGI && sub == FIP_SC_REP &&
+	    fip->flogi_oxid == ntohs(fh->fh_ox_id) &&
+	    els_op == ELS_LS_ACC && is_valid_ether_addr(granted_mac)) {
+		fip->flogi_oxid = FC_XID_UNKNOWN;
+		fip->update_mac(fip, fip->data_src_addr, granted_mac);
+		memcpy(fip->data_src_addr, granted_mac, ETH_ALEN);
+	}
+
+	/*
+	 * Convert skb into an fc_frame containing only the ELS.
+	 */
+	skb_pull(skb, (u8 *)fh - skb->data);
+	skb_trim(skb, els_len);
+	fp = (struct fc_frame *)skb;
+	fc_frame_init(fp);
+	fr_sof(fp) = FC_SOF_I3;
+	fr_eof(fp) = FC_EOF_T;
+	fr_dev(fp) = lp;
+
+	stats = fc_lport_get_stats(lp);
+	stats->RxFrames++;
+	stats->RxWords += skb->len / FIP_BPW;
+
+	fc_exch_recv(lp, lp->emp, fp);
+	return;
+
+len_err:
+	FIP_DBG("FIP length error in descriptor type %x len %zu\n",
+		desc->fip_dtype, dlen);
+drop:
+	kfree_skb(skb);
+}
+
+/**
+ * fcoe_ctlr_recv_els() - Handle an incoming link reset frame.
+ * @fip:	FCoE controller.
+ * @fh:		Received FIP header.
+ *
+ * There may be multiple VN_Port descriptors.
+ * The overall length has already been checked.
+ */
+static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
+				      struct fip_header *fh)
+{
+	struct fip_desc *desc;
+	struct fip_mac_desc *mp;
+	struct fip_wwn_desc *wp;
+	struct fip_vn_desc *vp;
+	size_t rlen;
+	size_t dlen;
+	struct fcoe_fcf *fcf = fip->sel_fcf;
+	struct fc_lport *lp = fip->lp;
+	u32	desc_mask;
+
+	FIP_DBG("Clear Virtual Link received\n");
+	if (!fcf)
+		return;
+	if (!fcf || !fc_host_port_id(lp->host))
+		return;
+
+	/*
+	 * mask of required descriptors.  Validating each one clears its bit.
+	 */
+	desc_mask = BIT(FIP_DT_MAC) | BIT(FIP_DT_NAME) | BIT(FIP_DT_VN_ID);
+
+	rlen = ntohs(fh->fip_dl_len) * FIP_BPW;
+	desc = (struct fip_desc *)(fh + 1);
+	while (rlen >= sizeof(*desc)) {
+		dlen = desc->fip_dlen * FIP_BPW;
+		if (dlen > rlen)
+			return;
+		switch (desc->fip_dtype) {
+		case FIP_DT_MAC:
+			mp = (struct fip_mac_desc *)desc;
+			if (dlen < sizeof(*mp))
+				return;
+			if (compare_ether_addr(mp->fd_mac, fcf->fcf_mac))
+				return;
+			desc_mask &= ~BIT(FIP_DT_MAC);
+			break;
+		case FIP_DT_NAME:
+			wp = (struct fip_wwn_desc *)desc;
+			if (dlen < sizeof(*wp))
+				return;
+			if (get_unaligned_be64(&wp->fd_wwn) != fcf->switch_name)
+				return;
+			desc_mask &= ~BIT(FIP_DT_NAME);
+			break;
+		case FIP_DT_VN_ID:
+			vp = (struct fip_vn_desc *)desc;
+			if (dlen < sizeof(*vp))
+				return;
+			if (compare_ether_addr(vp->fd_mac,
+			    fip->data_src_addr) == 0 &&
+			    get_unaligned_be64(&vp->fd_wwpn) == lp->wwpn &&
+			    ntoh24(vp->fd_fc_id) == fc_host_port_id(lp->host))
+				desc_mask &= ~BIT(FIP_DT_VN_ID);
+			break;
+		default:
+			/* standard says ignore unknown descriptors >= 128 */
+			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
+				return;
+			break;
+		}
+		desc = (struct fip_desc *)((char *)desc + dlen);
+		rlen -= dlen;
+	}
+
+	/*
+	 * reset only if all required descriptors were present and valid.
+	 */
+	if (desc_mask) {
+		FIP_DBG("missing descriptors mask %x\n", desc_mask);
+	} else {
+		FIP_DBG("performing Clear Virtual Link\n");
+		fcoe_ctlr_reset(fip, FIP_ST_ENABLED);
+	}
+}
+
+/**
+ * fcoe_ctlr_recv() - Receive a FIP frame.
+ * @fip:	FCoE controller.
+ * @skb:	Received FIP packet.
+ *
+ * This is called from NET_RX_SOFTIRQ.
+ */
+void fcoe_ctlr_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
+{
+	spin_lock_bh(&fip->fip_recv_list.lock);
+	__skb_queue_tail(&fip->fip_recv_list, skb);
+	spin_unlock_bh(&fip->fip_recv_list.lock);
+	schedule_work(&fip->recv_work);
+}
+EXPORT_SYMBOL(fcoe_ctlr_recv);
+
+/**
+ * fcoe_ctlr_recv_handler() - Receive a FIP frame.
+ * @fip:	FCoE controller.
+ * @skb:	Received FIP packet.
+ *
+ * Returns non-zero if the frame is dropped.
+ */
+static int fcoe_ctlr_recv_handler(struct fcoe_ctlr *fip, struct sk_buff *skb)
+{
+	struct fip_header *fiph;
+	struct ethhdr *eh;
+	enum fip_state state;
+	u16 op;
+	u8 sub;
+
+	if (skb_linearize(skb))
+		goto drop;
+	if (skb->len < sizeof(*fiph))
+		goto drop;
+	eh = eth_hdr(skb);
+	if (compare_ether_addr(eh->h_dest, fip->ctl_src_addr) &&
+	    compare_ether_addr(eh->h_dest, FIP_ALL_ENODE_MACS))
+		goto drop;
+	fiph = (struct fip_header *)skb->data;
+	op = ntohs(fiph->fip_op);
+	sub = fiph->fip_subcode;
+
+	FIP_DBG_LVL(2, "ver %x op %x/%x dl %x fl %x\n",
+		    FIP_VER_DECAPS(fiph->fip_ver), op, sub,
+		    ntohs(fiph->fip_dl_len), ntohs(fiph->fip_flags));
+
+	if (FIP_VER_DECAPS(fiph->fip_ver) != FIP_VER)
+		goto drop;
+	if (ntohs(fiph->fip_dl_len) * FIP_BPW + sizeof(*fiph) > skb->len)
+		goto drop;
+
+	spin_lock_bh(&fip->lock);
+	state = fip->state;
+	if (state == FIP_ST_AUTO) {
+		fip->map_dest = 0;
+		fip->state = FIP_ST_ENABLED;
+		state = FIP_ST_ENABLED;
+		FIP_DBG("using FIP mode\n");
+	}
+	spin_unlock_bh(&fip->lock);
+	if (state != FIP_ST_ENABLED)
+		goto drop;
+
+	if (op == FIP_OP_LS) {
+		fcoe_ctlr_recv_els(fip, skb);	/* consumes skb */
+		return 0;
+	}
+	if (op == FIP_OP_DISC && sub == FIP_SC_ADV)
+		fcoe_ctlr_recv_adv(fip, skb);
+	else if (op == FIP_OP_CTRL && sub == FIP_SC_CLR_VLINK)
+		fcoe_ctlr_recv_clr_vlink(fip, fiph);
+	kfree_skb(skb);
+	return 0;
+drop:
 	kfree_skb(skb);
 	return -1;
 }
-EXPORT_SYMBOL_GPL(fcoe_rcv);
 
 /**
- * fcoe_start_io() - pass to netdev to start xmit for fcoe
- * @skb: the skb to be xmitted
+ * fcoe_ctlr_select() - Select the best FCF, if possible.
+ * @fip:	FCoE controller.
  *
- * Returns: 0 for success
+ * If there are conflicting advertisements, no FCF can be chosen.
+ *
+ * Called with lock held.
  */
-static inline int fcoe_start_io(struct sk_buff *skb)
+static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 {
-	int rc;
+	struct fcoe_fcf *fcf;
+	struct fcoe_fcf *best = NULL;
 
-	skb_get(skb);
-	rc = dev_queue_xmit(skb);
-	if (rc != 0)
-		return rc;
-	kfree_skb(skb);
-	return 0;
+	list_for_each_entry(fcf, &fip->fcfs, list) {
+		FIP_DBG("consider FCF for fab %llx VFID %d map %x val %d\n",
+			fcf->fabric_name, fcf->vfid,
+			fcf->fc_map, fcoe_ctlr_mtu_valid(fcf));
+		if (!fcoe_ctlr_fcf_usable(fcf)) {
+			FIP_DBG("FCF for fab %llx map %x %svalid %savailable\n",
+				fcf->fabric_name, fcf->fc_map,
+				(fcf->flags & FIP_FL_SOL) ? "" : "in",
+				(fcf->flags & FIP_FL_AVAIL) ? "" : "un");
+			continue;
+		}
+		if (!best) {
+			best = fcf;
+			continue;
+		}
+		if (fcf->fabric_name != best->fabric_name ||
+		    fcf->vfid != best->vfid ||
+		    fcf->fc_map != best->fc_map) {
+			FIP_DBG("conflicting fabric, VFID, or FC-MAP\n");
+			return;
+		}
+		if (fcf->pri < best->pri)
+			best = fcf;
+	}
+	fip->sel_fcf = best;
 }
 
 /**
- * fcoe_get_paged_crc_eof() - in case we need alloc a page for crc_eof
- * @skb: the skb to be xmitted
- * @tlen: total len
+ * fcoe_ctlr_timeout() - FIP timer function.
+ * @arg:	&fcoe_ctlr pointer.
  *
- * Returns: 0 for success
+ * Ages FCFs.  Triggers FCF selection if possible.  Sends keep-alives.
  */
-static int fcoe_get_paged_crc_eof(struct sk_buff *skb, int tlen)
+static void fcoe_ctlr_timeout(unsigned long arg)
 {
-	struct fcoe_percpu_s *fps;
-	struct page *page;
-	int cpu_idx;
+	struct fcoe_ctlr *fip = (struct fcoe_ctlr *)arg;
+	struct fcoe_fcf *sel;
+	struct fcoe_fcf *fcf;
+	unsigned long next_timer = jiffies + msecs_to_jiffies(FIP_VN_KA_PERIOD);
+	DECLARE_MAC_BUF(buf);
+	u8 send_ctlr_ka;
+	u8 send_port_ka;
 
-	cpu_idx = get_cpu();
-	fps = fcoe_percpu[cpu_idx];
-	page = fps->crc_eof_page;
-	if (!page) {
-		page = alloc_page(GFP_ATOMIC);
-		if (!page) {
-			put_cpu();
-			return -ENOMEM;
+	spin_lock_bh(&fip->lock);
+	if (fip->state == FIP_ST_DISABLED) {
+		spin_unlock_bh(&fip->lock);
+		return;
+	}
+
+	fcf = fip->sel_fcf;
+	fcoe_ctlr_age_fcfs(fip);
+
+	sel = fip->sel_fcf;
+	if (!sel && fip->sel_time && time_after_eq(jiffies, fip->sel_time)) {
+		fcoe_ctlr_select(fip);
+		sel = fip->sel_fcf;
+		fip->sel_time = 0;
+	}
+
+	if (sel != fcf) {
+		fcf = sel;		/* the old FCF may have been freed */
+		if (sel) {
+			printk(KERN_INFO "host%d: FIP selected "
+			       "Fibre-Channel Forwarder MAC %s\n",
+			       fip->lp->host->host_no,
+			       print_mac(buf, sel->fcf_mac));
+			memcpy(fip->dest_addr, sel->fcf_mac, ETH_ALEN);
+			fip->port_ka_time = jiffies +
+					    msecs_to_jiffies(FIP_VN_KA_PERIOD);
+			fip->ctlr_ka_time = jiffies + sel->fka_period;
+			fip->link = 1;
+		} else {
+			printk(KERN_NOTICE "host%d: "
+			       "FIP Fibre-Channel Forwarder timed out.  "
+			       "Starting FCF discovery.\n",
+			       fip->lp->host->host_no);
+			fip->link = 0;
 		}
-		fps->crc_eof_page = page;
-		WARN_ON(fps->crc_eof_offset != 0);
+		schedule_work(&fip->link_work);
 	}
 
-	get_page(page);
-	skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags, page,
-			   fps->crc_eof_offset, tlen);
-	skb->len += tlen;
-	skb->data_len += tlen;
-	skb->truesize += tlen;
-	fps->crc_eof_offset += sizeof(struct fcoe_crc_eof);
+	send_ctlr_ka = 0;
+	send_port_ka = 0;
+	if (sel) {
+		if (time_after_eq(jiffies, fip->ctlr_ka_time)) {
+			fip->ctlr_ka_time = jiffies + sel->fka_period;
+			send_ctlr_ka = 1;
+		}
+		if (time_after(next_timer, fip->ctlr_ka_time))
+			next_timer = fip->ctlr_ka_time;
 
-	if (fps->crc_eof_offset >= PAGE_SIZE) {
-		fps->crc_eof_page = NULL;
-		fps->crc_eof_offset = 0;
-		put_page(page);
+		if (time_after_eq(jiffies, fip->port_ka_time)) {
+			fip->port_ka_time += jiffies +
+					msecs_to_jiffies(FIP_VN_KA_PERIOD);
+			send_port_ka = 1;
+		}
+		if (time_after(next_timer, fip->port_ka_time))
+			next_timer = fip->port_ka_time;
+		mod_timer(&fip->timer, next_timer);
+	} else if (fip->sel_time) {
+		next_timer = fip->sel_time +
+				msecs_to_jiffies(FCOE_CTLR_START_DELAY);
+		mod_timer(&fip->timer, next_timer);
 	}
-	put_cpu();
-	return 0;
+	spin_unlock_bh(&fip->lock);
+
+	if (send_ctlr_ka)
+		fcoe_ctlr_send_keep_alive(fip, 0, fip->ctl_src_addr);
+	if (send_port_ka)
+		fcoe_ctlr_send_keep_alive(fip, 1, fip->data_src_addr);
 }
 
 /**
- * fcoe_fc_crc() - calculates FC CRC in this fcoe skb
- * @fp: the fc_frame containg data to be checksummed
+ * fcoe_ctlr_link_work() - worker thread function for link changes.
+ * @work:	pointer to link_work member inside &fcoe_ctlr.
  *
- * This uses crc32() to calculate the crc for fc frame
- * Return   : 32 bit crc
- */
-u32 fcoe_fc_crc(struct fc_frame *fp)
-{
-	struct sk_buff *skb = fp_skb(fp);
-	struct skb_frag_struct *frag;
-	unsigned char *data;
-	unsigned long off, len, clen;
-	u32 crc;
-	unsigned i;
-
-	crc = crc32(~0, skb->data, skb_headlen(skb));
-
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		frag = &skb_shinfo(skb)->frags[i];
-		off = frag->page_offset;
-		len = frag->size;
-		while (len > 0) {
-			clen = min(len, PAGE_SIZE - (off & ~PAGE_MASK));
-			data = kmap_atomic(frag->page + (off >> PAGE_SHIFT),
-					   KM_SKB_DATA_SOFTIRQ);
-			crc = crc32(crc, data + (off & ~PAGE_MASK), clen);
-			kunmap_atomic(data, KM_SKB_DATA_SOFTIRQ);
-			off += clen;
-			len -= clen;
-		}
-	}
-	return crc;
-}
-EXPORT_SYMBOL_GPL(fcoe_fc_crc);
-
-/**
- * fcoe_xmit() - FCoE frame transmit function
- * @lp:	the associated local port
- * @fp: the fc_frame to be transmitted
+ * See if the link status has changed and if so, report it.
  *
- * Return   : 0 for success
+ * This is here because fc_linkup() and fc_linkdown() must not
+ * be called from the timer directly, since they use a mutex.
  */
-int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
+static void fcoe_ctlr_link_work(struct work_struct *work)
 {
-	int wlen, rc = 0;
-	u32 crc;
-	struct ethhdr *eh;
-	struct fcoe_crc_eof *cp;
-	struct sk_buff *skb;
-	struct fcoe_dev_stats *stats;
-	struct fc_frame_header *fh;
-	unsigned int hlen;		/* header length implies the version */
-	unsigned int tlen;		/* trailer length */
-	unsigned int elen;		/* eth header, may include vlan */
-	int flogi_in_progress = 0;
-	struct fcoe_softc *fc;
-	u8 sof, eof;
-	struct fcoe_hdr *hp;
+	struct fcoe_ctlr *fip;
+	int link;
+	int last_link;
 
-	WARN_ON((fr_len(fp) % sizeof(u32)) != 0);
+	fip = container_of(work, struct fcoe_ctlr, link_work);
+	spin_lock_bh(&fip->lock);
+	last_link = fip->last_link;
+	link = fip->link;
+	fip->last_link = link;
+	spin_unlock_bh(&fip->lock);
 
-	fc = lport_priv(lp);
-	/*
-	 * if it is a flogi then we need to learn gw-addr
-	 * and my own fcid
-	 */
-	fh = fc_frame_header_get(fp);
-	if (unlikely(fh->fh_r_ctl == FC_RCTL_ELS_REQ)) {
-		if (fc_frame_payload_op(fp) == ELS_FLOGI) {
-			fc->flogi_oxid = ntohs(fh->fh_ox_id);
-			fc->address_mode = FCOE_FCOUI_ADDR_MODE;
-			fc->flogi_progress = 1;
-			flogi_in_progress = 1;
-		} else if (fc->flogi_progress && ntoh24(fh->fh_s_id) != 0) {
-			/*
-			 * Here we must've gotten an SID by accepting an FLOGI
-			 * from a point-to-point connection.  Switch to using
-			 * the source mac based on the SID.  The destination
-			 * MAC in this case would have been set by receving the
-			 * FLOGI.
-			 */
-			fc_fcoe_set_mac(fc->data_src_addr, fh->fh_s_id);
-			fc->flogi_progress = 0;
-		}
-	}
-
-	skb = fp_skb(fp);
-	sof = fr_sof(fp);
-	eof = fr_eof(fp);
-
-	elen = (fc->real_dev->priv_flags & IFF_802_1Q_VLAN) ?
-		sizeof(struct vlan_ethhdr) : sizeof(struct ethhdr);
-	hlen = sizeof(struct fcoe_hdr);
-	tlen = sizeof(struct fcoe_crc_eof);
-	wlen = (skb->len - tlen + sizeof(crc)) / FCOE_WORD_TO_BYTE;
-
-	/* crc offload */
-	if (likely(lp->crc_offload)) {
-		skb->ip_summed = CHECKSUM_PARTIAL;
-		skb->csum_start = skb_headroom(skb);
-		skb->csum_offset = skb->len;
-		crc = 0;
-	} else {
-		skb->ip_summed = CHECKSUM_NONE;
-		crc = fcoe_fc_crc(fp);
-	}
-
-	/* copy fc crc and eof to the skb buff */
-	if (skb_is_nonlinear(skb)) {
-		skb_frag_t *frag;
-		if (fcoe_get_paged_crc_eof(skb, tlen)) {
-			kfree_skb(skb);
-			return -ENOMEM;
-		}
-		frag = &skb_shinfo(skb)->frags[skb_shinfo(skb)->nr_frags - 1];
-		cp = kmap_atomic(frag->page, KM_SKB_DATA_SOFTIRQ)
-			+ frag->page_offset;
-	} else {
-		cp = (struct fcoe_crc_eof *)skb_put(skb, tlen);
-	}
-
-	memset(cp, 0, sizeof(*cp));
-	cp->fcoe_eof = eof;
-	cp->fcoe_crc32 = cpu_to_le32(~crc);
-
-	if (skb_is_nonlinear(skb)) {
-		kunmap_atomic(cp, KM_SKB_DATA_SOFTIRQ);
-		cp = NULL;
-	}
-
-	/* adjust skb netowrk/transport offsets to match mac/fcoe/fc */
-	skb_push(skb, elen + hlen);
-	skb_reset_mac_header(skb);
-	skb_reset_network_header(skb);
-	skb->mac_len = elen;
-	skb->protocol = htons(ETH_P_FCOE);
-	skb->dev = fc->real_dev;
-
-	/* fill up mac and fcoe headers */
-	eh = eth_hdr(skb);
-	eh->h_proto = htons(ETH_P_FCOE);
-	if (fc->address_mode == FCOE_FCOUI_ADDR_MODE)
-		fc_fcoe_set_mac(eh->h_dest, fh->fh_d_id);
-	else
-		/* insert GW address */
-		memcpy(eh->h_dest, fc->dest_addr, ETH_ALEN);
-
-	if (unlikely(flogi_in_progress))
-		memcpy(eh->h_source, fc->ctl_src_addr, ETH_ALEN);
-	else
-		memcpy(eh->h_source, fc->data_src_addr, ETH_ALEN);
-
-	hp = (struct fcoe_hdr *)(eh + 1);
-	memset(hp, 0, sizeof(*hp));
-	if (FC_FCOE_VER)
-		FC_FCOE_ENCAPS_VER(hp, FC_FCOE_VER);
-	hp->fcoe_sof = sof;
-
-#ifdef NETIF_F_FSO
-	/* fcoe lso, mss is in max_payload which is non-zero for FCP data */
-	if (lp->seq_offload && fr_max_payload(fp)) {
-		skb_shinfo(skb)->gso_type = SKB_GSO_FCOE;
-		skb_shinfo(skb)->gso_size = fr_max_payload(fp);
-	} else {
-		skb_shinfo(skb)->gso_type = 0;
-		skb_shinfo(skb)->gso_size = 0;
-	}
-#endif
-	/* update tx stats: regardless if LLD fails */
-	stats = lp->dev_stats[smp_processor_id()];
-	if (stats) {
-		stats->TxFrames++;
-		stats->TxWords += wlen;
-	}
-
-	/* send down to lld */
-	fr_dev(fp) = lp;
-	if (fc->fcoe_pending_queue.qlen)
-		rc = fcoe_check_wait_queue(lp);
-
-	if (rc == 0)
-		rc = fcoe_start_io(skb);
-
-	if (rc) {
-		spin_lock_bh(&fc->fcoe_pending_queue.lock);
-		__skb_queue_tail(&fc->fcoe_pending_queue, skb);
-		spin_unlock_bh(&fc->fcoe_pending_queue.lock);
-		if (fc->fcoe_pending_queue.qlen > FCOE_MAX_QUEUE_DEPTH)
-			lp->qfull = 1;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(fcoe_xmit);
-
-/**
- * fcoe_percpu_receive_thread() - recv thread per cpu
- * @arg: ptr to the fcoe per cpu struct
- *
- * Return: 0 for success
- */
-int fcoe_percpu_receive_thread(void *arg)
-{
-	struct fcoe_percpu_s *p = arg;
-	u32 fr_len;
-	struct fc_lport *lp;
-	struct fcoe_rcv_info *fr;
-	struct fcoe_dev_stats *stats;
-	struct fc_frame_header *fh;
-	struct sk_buff *skb;
-	struct fcoe_crc_eof crc_eof;
-	struct fc_frame *fp;
-	u8 *mac = NULL;
-	struct fcoe_softc *fc;
-	struct fcoe_hdr *hp;
-
-	set_user_nice(current, -20);
-
-	while (!kthread_should_stop()) {
-
-		spin_lock_bh(&p->fcoe_rx_list.lock);
-		while ((skb = __skb_dequeue(&p->fcoe_rx_list)) == NULL) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			spin_unlock_bh(&p->fcoe_rx_list.lock);
-			schedule();
-			set_current_state(TASK_RUNNING);
-			if (kthread_should_stop())
-				return 0;
-			spin_lock_bh(&p->fcoe_rx_list.lock);
-		}
-		spin_unlock_bh(&p->fcoe_rx_list.lock);
-		fr = fcoe_dev_from_skb(skb);
-		lp = fr->fr_dev;
-		if (unlikely(lp == NULL)) {
-			FC_DBG("invalid HBA Structure");
-			kfree_skb(skb);
-			continue;
-		}
-
-		stats = lp->dev_stats[smp_processor_id()];
-
-		if (unlikely(debug_fcoe)) {
-			FC_DBG("skb_info: len:%d data_len:%d head:%p data:%p "
-			       "tail:%p end:%p sum:%d dev:%s",
-			       skb->len, skb->data_len,
-			       skb->head, skb->data, skb_tail_pointer(skb),
-			       skb_end_pointer(skb), skb->csum,
-			       skb->dev ? skb->dev->name : "<NULL>");
-		}
-
-		/*
-		 * Save source MAC address before discarding header.
-		 */
-		fc = lport_priv(lp);
-		if (unlikely(fc->flogi_progress))
-			mac = eth_hdr(skb)->h_source;
-
-		if (skb_is_nonlinear(skb))
-			skb_linearize(skb);	/* not ideal */
-
-		/*
-		 * Frame length checks and setting up the header pointers
-		 * was done in fcoe_rcv already.
-		 */
-		hp = (struct fcoe_hdr *) skb_network_header(skb);
-		fh = (struct fc_frame_header *) skb_transport_header(skb);
-
-		if (unlikely(FC_FCOE_DECAPS_VER(hp) != FC_FCOE_VER)) {
-			if (stats) {
-				if (stats->ErrorFrames < 5)
-					FC_DBG("unknown FCoE version %x",
-					       FC_FCOE_DECAPS_VER(hp));
-				stats->ErrorFrames++;
-			}
-			kfree_skb(skb);
-			continue;
-		}
-
-		skb_pull(skb, sizeof(struct fcoe_hdr));
-		fr_len = skb->len - sizeof(struct fcoe_crc_eof);
-
-		if (stats) {
-			stats->RxFrames++;
-			stats->RxWords += fr_len / FCOE_WORD_TO_BYTE;
-		}
-
-		fp = (struct fc_frame *)skb;
-		fc_frame_init(fp);
-		fr_dev(fp) = lp;
-		fr_sof(fp) = hp->fcoe_sof;
-
-		/* Copy out the CRC and EOF trailer for access */
-		if (skb_copy_bits(skb, fr_len, &crc_eof, sizeof(crc_eof))) {
-			kfree_skb(skb);
-			continue;
-		}
-		fr_eof(fp) = crc_eof.fcoe_eof;
-		fr_crc(fp) = crc_eof.fcoe_crc32;
-		if (pskb_trim(skb, fr_len)) {
-			kfree_skb(skb);
-			continue;
-		}
-
-		/*
-		 * We only check CRC if no offload is available and if it is
-		 * it's solicited data, in which case, the FCP layer would
-		 * check it during the copy.
-		 */
-		if (lp->crc_offload && skb->ip_summed == CHECKSUM_UNNECESSARY)
-			fr_flags(fp) &= ~FCPHF_CRC_UNCHECKED;
+	if (last_link != link) {
+		if (link)
+			fc_linkup(fip->lp);
 		else
-			fr_flags(fp) |= FCPHF_CRC_UNCHECKED;
-
-		fh = fc_frame_header_get(fp);
-		if (fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA &&
-		    fh->fh_type == FC_TYPE_FCP) {
-			fc_exch_recv(lp, lp->emp, fp);
-			continue;
-		}
-		if (fr_flags(fp) & FCPHF_CRC_UNCHECKED) {
-			if (le32_to_cpu(fr_crc(fp)) !=
-			    ~crc32(~0, skb->data, fr_len)) {
-				if (debug_fcoe || stats->InvalidCRCCount < 5)
-					printk(KERN_WARNING "fcoe: dropping "
-					       "frame with CRC error\n");
-				stats->InvalidCRCCount++;
-				stats->ErrorFrames++;
-				fc_frame_free(fp);
-				continue;
-			}
-			fr_flags(fp) &= ~FCPHF_CRC_UNCHECKED;
-		}
-		/* non flogi and non data exchanges are handled here */
-		if (unlikely(fc->flogi_progress))
-			fcoe_recv_flogi(fc, fp, mac);
-		fc_exch_recv(lp, lp->emp, fp);
+			fcoe_ctlr_reset(fip, FIP_ST_LINK_WAIT);
 	}
-	return 0;
 }
 
 /**
- * fcoe_recv_flogi() - flogi receive function
- * @fc: associated fcoe_softc
- * @fp: the recieved frame
- * @sa: the source address of this flogi
- *
- * This is responsible to parse the flogi response and sets the corresponding
- * mac address for the initiator, eitehr OUI based or GW based.
- *
- * Returns: none
+ * fcoe_ctlr_recv_work() - Worker thread function for receiving FIP frames.
+ * @recv_work:	pointer to recv_work member inside &fcoe_ctlr.
  */
-static void fcoe_recv_flogi(struct fcoe_softc *fc, struct fc_frame *fp, u8 *sa)
+static void fcoe_ctlr_recv_work(struct work_struct *recv_work)
+{
+	struct fcoe_ctlr *fip;
+	struct sk_buff *skb;
+
+	fip = container_of(recv_work, struct fcoe_ctlr, recv_work);
+	spin_lock_bh(&fip->fip_recv_list.lock);
+	while ((skb = __skb_dequeue(&fip->fip_recv_list))) {
+		spin_unlock_bh(&fip->fip_recv_list.lock);
+		fcoe_ctlr_recv_handler(fip, skb);
+		spin_lock_bh(&fip->fip_recv_list.lock);
+	}
+	spin_unlock_bh(&fip->fip_recv_list.lock);
+}
+
+/**
+ * fcoe_ctlr_recv_flogi() - snoop Pre-FIP receipt of FLOGI response or request.
+ * @fip:	FCoE controller.
+ * @fp:		FC frame.
+ * @sa:		Ethernet source MAC address from received FCoE frame.
+ *
+ * Snoop potential response to FLOGI or even incoming FLOGI.
+ *
+ * The caller has checked that we are waiting for login as indicated
+ * by fip->flogi_oxid != FC_XID_UNKNOWN.
+ *
+ * The caller is responsible for freeing the frame.
+ *
+ * Return non-zero if the frame should not be delivered to libfc.
+ */
+int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_frame *fp, u8 *sa)
 {
 	struct fc_frame_header *fh;
 	u8 op;
+	u8 mac[ETH_ALEN];
 
 	fh = fc_frame_header_get(fp);
 	if (fh->fh_type != FC_TYPE_ELS)
-		return;
+		return 0;
+
 	op = fc_frame_payload_op(fp);
 	if (op == ELS_LS_ACC && fh->fh_r_ctl == FC_RCTL_ELS_REP &&
-	    fc->flogi_oxid == ntohs(fh->fh_ox_id)) {
+	    fip->flogi_oxid == ntohs(fh->fh_ox_id)) {
+
+		spin_lock_bh(&fip->lock);
+		if (fip->state != FIP_ST_AUTO && fip->state != FIP_ST_NON_FIP) {
+			spin_unlock_bh(&fip->lock);
+			return -EINVAL;
+		}
+		fip->state = FIP_ST_NON_FIP;
+		FIP_DBG("received FLOGI LS_ACC using non-FIP mode\n");
+
 		/*
 		 * FLOGI accepted.
 		 * If the src mac addr is FC_OUI-based, then we mark the
 		 * address_mode flag to use FC_OUI-based Ethernet DA.
 		 * Otherwise we use the FCoE gateway addr
 		 */
-		if (!compare_ether_addr(sa, (u8[6]) FC_FCOE_FLOGI_MAC)) {
-			fc->address_mode = FCOE_FCOUI_ADDR_MODE;
+		if (!compare_ether_addr(sa, (u8[6])FC_FCOE_FLOGI_MAC)) {
+			fip->map_dest = 1;
 		} else {
-			memcpy(fc->dest_addr, sa, ETH_ALEN);
-			fc->address_mode = FCOE_GW_ADDR_MODE;
+			memcpy(fip->dest_addr, sa, ETH_ALEN);
+			fip->map_dest = 0;
 		}
+		fip->flogi_oxid = FC_XID_UNKNOWN;
+		memcpy(mac, fip->data_src_addr, ETH_ALEN);
+		fc_fcoe_set_mac(fip->data_src_addr, fh->fh_d_id);
+		spin_unlock_bh(&fip->lock);
 
-		/*
-		 * Remove any previously-set unicast MAC filter.
-		 * Add secondary FCoE MAC address filter for our OUI.
-		 */
-		rtnl_lock();
-		if (compare_ether_addr(fc->data_src_addr, (u8[6]) { 0 }))
-			dev_unicast_delete(fc->real_dev, fc->data_src_addr,
-					   ETH_ALEN);
-		fc_fcoe_set_mac(fc->data_src_addr, fh->fh_d_id);
-		dev_unicast_add(fc->real_dev, fc->data_src_addr, ETH_ALEN);
-		rtnl_unlock();
-
-		fc->flogi_progress = 0;
+		fip->update_mac(fip, mac, fip->data_src_addr);
 	} else if (op == ELS_FLOGI && fh->fh_r_ctl == FC_RCTL_ELS_REQ && sa) {
 		/*
 		 * Save source MAC for point-to-point responses.
 		 */
-		memcpy(fc->dest_addr, sa, ETH_ALEN);
-		fc->address_mode = FCOE_GW_ADDR_MODE;
-	}
-}
-
-/**
- * fcoe_watchdog() - fcoe timer callback
- * @vp:
- *
- * This checks the pending queue length for fcoe and set lport qfull
- * if the FCOE_MAX_QUEUE_DEPTH is reached. This is done for all fc_lport on the
- * fcoe_hostlist.
- *
- * Returns: 0 for success
- */
-void fcoe_watchdog(ulong vp)
-{
-	struct fcoe_softc *fc;
-
-	read_lock(&fcoe_hostlist_lock);
-	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		if (fc->lp)
-			fcoe_check_wait_queue(fc->lp);
-	}
-	read_unlock(&fcoe_hostlist_lock);
-
-	fcoe_timer.expires = jiffies + (1 * HZ);
-	add_timer(&fcoe_timer);
-}
-
-
-/**
- * fcoe_check_wait_queue() - put the skb into fcoe pending xmit queue
- * @lp: the fc_port for this skb
- * @skb: the associated skb to be xmitted
- *
- * This empties the wait_queue, dequeue the head of the wait_queue queue
- * and calls fcoe_start_io() for each packet, if all skb have been
- * transmitted, return qlen or -1 if a error occurs, then restore
- * wait_queue and  try again later.
- *
- * The wait_queue is used when the skb transmit fails. skb will go
- * in the wait_queue which will be emptied by the time function OR
- * by the next skb transmit.
- *
- * Returns: 0 for success
- */
-static int fcoe_check_wait_queue(struct fc_lport *lp)
-{
-	struct fcoe_softc *fc = lport_priv(lp);
-	struct sk_buff *skb;
-	int rc = -1;
-
-	spin_lock_bh(&fc->fcoe_pending_queue.lock);
-	if (fc->fcoe_pending_queue_active)
-		goto out;
-	fc->fcoe_pending_queue_active = 1;
-
-	while (fc->fcoe_pending_queue.qlen) {
-		/* keep qlen > 0 until fcoe_start_io succeeds */
-		fc->fcoe_pending_queue.qlen++;
-		skb = __skb_dequeue(&fc->fcoe_pending_queue);
-
-		spin_unlock_bh(&fc->fcoe_pending_queue.lock);
-		rc = fcoe_start_io(skb);
-		spin_lock_bh(&fc->fcoe_pending_queue.lock);
-
-		if (rc) {
-			__skb_queue_head(&fc->fcoe_pending_queue, skb);
-			/* undo temporary increment above */
-			fc->fcoe_pending_queue.qlen--;
-			break;
+		spin_lock_bh(&fip->lock);
+		if (fip->state == FIP_ST_AUTO || fip->state == FIP_ST_NON_FIP) {
+			memcpy(fip->dest_addr, sa, ETH_ALEN);
+			fip->map_dest = 0;
+			if (fip->state == FIP_ST_NON_FIP)
+				FIP_DBG("received FLOGI REQ, "
+						"using non-FIP mode\n");
+			fip->state = FIP_ST_NON_FIP;
 		}
-		/* undo temporary increment above */
-		fc->fcoe_pending_queue.qlen--;
+		spin_unlock_bh(&fip->lock);
 	}
-
-	if (fc->fcoe_pending_queue.qlen < FCOE_LOW_QUEUE_DEPTH)
-		lp->qfull = 0;
-	fc->fcoe_pending_queue_active = 0;
-	rc = fc->fcoe_pending_queue.qlen;
-out:
-	spin_unlock_bh(&fc->fcoe_pending_queue.lock);
-	return rc;
-}
-
-/**
- * fcoe_dev_setup() - setup link change notification interface
- */
-static void fcoe_dev_setup()
-{
-	/*
-	 * here setup a interface specific wd time to
-	 * monitor the link state
-	 */
-	register_netdevice_notifier(&fcoe_notifier);
-}
-
-/**
- * fcoe_dev_setup() - cleanup link change notification interface
- */
-static void fcoe_dev_cleanup(void)
-{
-	unregister_netdevice_notifier(&fcoe_notifier);
-}
-
-/**
- * fcoe_device_notification() - netdev event notification callback
- * @notifier: context of the notification
- * @event: type of event
- * @ptr: fixed array for output parsed ifname
- *
- * This function is called by the ethernet driver in case of link change event
- *
- * Returns: 0 for success
- */
-static int fcoe_device_notification(struct notifier_block *notifier,
-				    ulong event, void *ptr)
-{
-	struct fc_lport *lp = NULL;
-	struct net_device *real_dev = ptr;
-	struct fcoe_softc *fc;
-	struct fcoe_dev_stats *stats;
-	u32 new_link_up;
-	u32 mfs;
-	int rc = NOTIFY_OK;
-
-	read_lock(&fcoe_hostlist_lock);
-	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		if (fc->real_dev == real_dev) {
-			lp = fc->lp;
-			break;
-		}
-	}
-	read_unlock(&fcoe_hostlist_lock);
-	if (lp == NULL) {
-		rc = NOTIFY_DONE;
-		goto out;
-	}
-
-	new_link_up = lp->link_up;
-	switch (event) {
-	case NETDEV_DOWN:
-	case NETDEV_GOING_DOWN:
-		new_link_up = 0;
-		break;
-	case NETDEV_UP:
-	case NETDEV_CHANGE:
-		new_link_up = !fcoe_link_ok(lp);
-		break;
-	case NETDEV_CHANGEMTU:
-		mfs = fc->real_dev->mtu -
-			(sizeof(struct fcoe_hdr) +
-			 sizeof(struct fcoe_crc_eof));
-		if (mfs >= FC_MIN_MAX_FRAME)
-			fc_set_mfs(lp, mfs);
-		new_link_up = !fcoe_link_ok(lp);
-		break;
-	case NETDEV_REGISTER:
-		break;
-	default:
-		FC_DBG("unknown event %ld call", event);
-	}
-	if (lp->link_up != new_link_up) {
-		if (new_link_up)
-			fc_linkup(lp);
-		else {
-			stats = lp->dev_stats[smp_processor_id()];
-			if (stats)
-				stats->LinkFailureCount++;
-			fc_linkdown(lp);
-			fcoe_clean_pending_queue(lp);
-		}
-	}
-out:
-	return rc;
-}
-
-/**
- * fcoe_if_to_netdev() - parse a name buffer to get netdev
- * @ifname: fixed array for output parsed ifname
- * @buffer: incoming buffer to be copied
- *
- * Returns: NULL or ptr to netdeive
- */
-static struct net_device *fcoe_if_to_netdev(const char *buffer)
-{
-	char *cp;
-	char ifname[IFNAMSIZ + 2];
-
-	if (buffer) {
-		strlcpy(ifname, buffer, IFNAMSIZ);
-		cp = ifname + strlen(ifname);
-		while (--cp >= ifname && *cp == '\n')
-			*cp = '\0';
-		return dev_get_by_name(&init_net, ifname);
-	}
-	return NULL;
-}
-
-/**
- * fcoe_netdev_to_module_owner() - finds out the nic drive moddule of the netdev
- * @netdev: the target netdev
- *
- * Returns: ptr to the struct module, NULL for failure
- */
-static struct module *
-fcoe_netdev_to_module_owner(const struct net_device *netdev)
-{
-	struct device *dev;
-
-	if (!netdev)
-		return NULL;
-
-	dev = netdev->dev.parent;
-	if (!dev)
-		return NULL;
-
-	if (!dev->driver)
-		return NULL;
-
-	return dev->driver->owner;
-}
-
-/**
- * fcoe_ethdrv_get() - Hold the Ethernet driver
- * @netdev: the target netdev
- *
- * Holds the Ethernet driver module by try_module_get() for
- * the corresponding netdev.
- *
- * Returns: 0 for succsss
- */
-static int fcoe_ethdrv_get(const struct net_device *netdev)
-{
-	struct module *owner;
-
-	owner = fcoe_netdev_to_module_owner(netdev);
-	if (owner) {
-		printk(KERN_DEBUG "fcoe:hold driver module %s for %s\n",
-		       module_name(owner), netdev->name);
-		return  try_module_get(owner);
-	}
-	return -ENODEV;
-}
-
-/**
- * fcoe_ethdrv_put() - Release the Ethernet driver
- * @netdev: the target netdev
- *
- * Releases the Ethernet driver module by module_put for
- * the corresponding netdev.
- *
- * Returns: 0 for succsss
- */
-static int fcoe_ethdrv_put(const struct net_device *netdev)
-{
-	struct module *owner;
-
-	owner = fcoe_netdev_to_module_owner(netdev);
-	if (owner) {
-		printk(KERN_DEBUG "fcoe:release driver module %s for %s\n",
-		       module_name(owner), netdev->name);
-		module_put(owner);
-		return 0;
-	}
-	return -ENODEV;
-}
-
-/**
- * fcoe_destroy() - handles the destroy from sysfs
- * @buffer: expcted to be a eth if name
- * @kp: associated kernel param
- *
- * Returns: 0 for success
- */
-static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
-{
-	int rc;
-	struct net_device *netdev;
-
-	netdev = fcoe_if_to_netdev(buffer);
-	if (!netdev) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
-	/* look for existing lport */
-	if (!fcoe_hostlist_lookup(netdev)) {
-		rc = -ENODEV;
-		goto out_putdev;
-	}
-	/* pass to transport */
-	rc = fcoe_transport_release(netdev);
-	if (rc) {
-		printk(KERN_ERR "fcoe: fcoe_transport_release(%s) failed\n",
-		       netdev->name);
-		rc = -EIO;
-		goto out_putdev;
-	}
-	fcoe_ethdrv_put(netdev);
-	rc = 0;
-out_putdev:
-	dev_put(netdev);
-out_nodev:
-	return rc;
-}
-
-/**
- * fcoe_create() - Handles the create call from sysfs
- * @buffer: expcted to be a eth if name
- * @kp: associated kernel param
- *
- * Returns: 0 for success
- */
-static int fcoe_create(const char *buffer, struct kernel_param *kp)
-{
-	int rc;
-	struct net_device *netdev;
-
-	netdev = fcoe_if_to_netdev(buffer);
-	if (!netdev) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
-	/* look for existing lport */
-	if (fcoe_hostlist_lookup(netdev)) {
-		rc = -EEXIST;
-		goto out_putdev;
-	}
-	fcoe_ethdrv_get(netdev);
-
-	/* pass to transport */
-	rc = fcoe_transport_attach(netdev);
-	if (rc) {
-		printk(KERN_ERR "fcoe: fcoe_transport_attach(%s) failed\n",
-		       netdev->name);
-		fcoe_ethdrv_put(netdev);
-		rc = -EIO;
-		goto out_putdev;
-	}
-	rc = 0;
-out_putdev:
-	dev_put(netdev);
-out_nodev:
-	return rc;
-}
-
-module_param_call(create, fcoe_create, NULL, NULL, S_IWUSR);
-__MODULE_PARM_TYPE(create, "string");
-MODULE_PARM_DESC(create, "Create fcoe port using net device passed in.");
-module_param_call(destroy, fcoe_destroy, NULL, NULL, S_IWUSR);
-__MODULE_PARM_TYPE(destroy, "string");
-MODULE_PARM_DESC(destroy, "Destroy fcoe port");
-
-/**
- * fcoe_link_ok() - Check if link is ok for the fc_lport
- * @lp: ptr to the fc_lport
- *
- * Any permanently-disqualifying conditions have been previously checked.
- * This also updates the speed setting, which may change with link for 100/1000.
- *
- * This function should probably be checking for PAUSE support at some point
- * in the future. Currently Per-priority-pause is not determinable using
- * ethtool, so we shouldn't be restrictive until that problem is resolved.
- *
- * Returns: 0 if link is OK for use by FCoE.
- *
- */
-int fcoe_link_ok(struct fc_lport *lp)
-{
-	struct fcoe_softc *fc = lport_priv(lp);
-	struct net_device *dev = fc->real_dev;
-	struct ethtool_cmd ecmd = { ETHTOOL_GSET };
-	int rc = 0;
-
-	if ((dev->flags & IFF_UP) && netif_carrier_ok(dev)) {
-		dev = fc->phys_dev;
-		if (dev->ethtool_ops->get_settings) {
-			dev->ethtool_ops->get_settings(dev, &ecmd);
-			lp->link_supported_speeds &=
-				~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
-			if (ecmd.supported & (SUPPORTED_1000baseT_Half |
-					      SUPPORTED_1000baseT_Full))
-				lp->link_supported_speeds |= FC_PORTSPEED_1GBIT;
-			if (ecmd.supported & SUPPORTED_10000baseT_Full)
-				lp->link_supported_speeds |=
-					FC_PORTSPEED_10GBIT;
-			if (ecmd.speed == SPEED_1000)
-				lp->link_speed = FC_PORTSPEED_1GBIT;
-			if (ecmd.speed == SPEED_10000)
-				lp->link_speed = FC_PORTSPEED_10GBIT;
-		}
-	} else
-		rc = -1;
-
-	return rc;
-}
-EXPORT_SYMBOL_GPL(fcoe_link_ok);
-
-/**
- * fcoe_percpu_clean() - Clear the pending skbs for an lport
- * @lp: the fc_lport
- */
-void fcoe_percpu_clean(struct fc_lport *lp)
-{
-	int idx;
-	struct fcoe_percpu_s *pp;
-	struct fcoe_rcv_info *fr;
-	struct sk_buff_head *list;
-	struct sk_buff *skb, *next;
-	struct sk_buff *head;
-
-	for (idx = 0; idx < NR_CPUS; idx++) {
-		if (fcoe_percpu[idx]) {
-			pp = fcoe_percpu[idx];
-			spin_lock_bh(&pp->fcoe_rx_list.lock);
-			list = &pp->fcoe_rx_list;
-			head = list->next;
-			for (skb = head; skb != (struct sk_buff *)list;
-			     skb = next) {
-				next = skb->next;
-				fr = fcoe_dev_from_skb(skb);
-				if (fr->fr_dev == lp) {
-					__skb_unlink(skb, list);
-					kfree_skb(skb);
-				}
-			}
-			spin_unlock_bh(&pp->fcoe_rx_list.lock);
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(fcoe_percpu_clean);
-
-/**
- * fcoe_clean_pending_queue() - Dequeue a skb and free it
- * @lp: the corresponding fc_lport
- *
- * Returns: none
- */
-void fcoe_clean_pending_queue(struct fc_lport *lp)
-{
-	struct fcoe_softc  *fc = lport_priv(lp);
-	struct sk_buff *skb;
-
-	spin_lock_bh(&fc->fcoe_pending_queue.lock);
-	while ((skb = __skb_dequeue(&fc->fcoe_pending_queue)) != NULL) {
-		spin_unlock_bh(&fc->fcoe_pending_queue.lock);
-		kfree_skb(skb);
-		spin_lock_bh(&fc->fcoe_pending_queue.lock);
-	}
-	spin_unlock_bh(&fc->fcoe_pending_queue.lock);
-}
-EXPORT_SYMBOL_GPL(fcoe_clean_pending_queue);
-
-/**
- * libfc_host_alloc() - Allocate a Scsi_Host with room for the fc_lport
- * @sht: ptr to the scsi host templ
- * @priv_size: size of private data after fc_lport
- *
- * Returns: ptr to Scsi_Host
- * TODO: to libfc?
- */
-static inline struct Scsi_Host *
-libfc_host_alloc(struct scsi_host_template *sht, int priv_size)
-{
-	return scsi_host_alloc(sht, sizeof(struct fc_lport) + priv_size);
-}
-
-/**
- * fcoe_host_alloc() - Allocate a Scsi_Host with room for the fcoe_softc
- * @sht: ptr to the scsi host templ
- * @priv_size: size of private data after fc_lport
- *
- * Returns: ptr to Scsi_Host
- */
-struct Scsi_Host *fcoe_host_alloc(struct scsi_host_template *sht, int priv_size)
-{
-	return libfc_host_alloc(sht, sizeof(struct fcoe_softc) + priv_size);
-}
-EXPORT_SYMBOL_GPL(fcoe_host_alloc);
-
-/**
- * fcoe_reset() - Resets the fcoe
- * @shost: shost the reset is from
- *
- * Returns: always 0
- */
-int fcoe_reset(struct Scsi_Host *shost)
-{
-	struct fc_lport *lport = shost_priv(shost);
-	fc_lport_reset(lport);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(fcoe_reset);
+EXPORT_SYMBOL(fcoe_ctlr_recv_flogi);
 
 /**
  * fcoe_wwn_from_mac() - Converts 48-bit IEEE MAC address to 64-bit FC WWN.
@@ -1254,85 +1315,6 @@ u64 fcoe_wwn_from_mac(unsigned char mac[MAX_ADDR_LEN],
 EXPORT_SYMBOL_GPL(fcoe_wwn_from_mac);
 
 /**
- * fcoe_hostlist_lookup_softc() - find the corresponding lport by a given device
- * @device: this is currently ptr to net_device
- *
- * Returns: NULL or the located fcoe_softc
- */
-static struct fcoe_softc *
-fcoe_hostlist_lookup_softc(const struct net_device *dev)
-{
-	struct fcoe_softc *fc;
-
-	read_lock(&fcoe_hostlist_lock);
-	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		if (fc->real_dev == dev) {
-			read_unlock(&fcoe_hostlist_lock);
-			return fc;
-		}
-	}
-	read_unlock(&fcoe_hostlist_lock);
-	return NULL;
-}
-
-/**
- * fcoe_hostlist_lookup() - Find the corresponding lport by netdev
- * @netdev: ptr to net_device
- *
- * Returns: 0 for success
- */
-struct fc_lport *fcoe_hostlist_lookup(const struct net_device *netdev)
-{
-	struct fcoe_softc *fc;
-
-	fc = fcoe_hostlist_lookup_softc(netdev);
-
-	return (fc) ? fc->lp : NULL;
-}
-EXPORT_SYMBOL_GPL(fcoe_hostlist_lookup);
-
-/**
- * fcoe_hostlist_add() - Add a lport to lports list
- * @lp: ptr to the fc_lport to badded
- *
- * Returns: 0 for success
- */
-int fcoe_hostlist_add(const struct fc_lport *lp)
-{
-	struct fcoe_softc *fc;
-
-	fc = fcoe_hostlist_lookup_softc(fcoe_netdev(lp));
-	if (!fc) {
-		fc = lport_priv(lp);
-		write_lock_bh(&fcoe_hostlist_lock);
-		list_add_tail(&fc->list, &fcoe_hostlist);
-		write_unlock_bh(&fcoe_hostlist_lock);
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(fcoe_hostlist_add);
-
-/**
- * fcoe_hostlist_remove() - remove a lport from lports list
- * @lp: ptr to the fc_lport to badded
- *
- * Returns: 0 for success
- */
-int fcoe_hostlist_remove(const struct fc_lport *lp)
-{
-	struct fcoe_softc *fc;
-
-	fc = fcoe_hostlist_lookup_softc(fcoe_netdev(lp));
-	BUG_ON(!fc);
-	write_lock_bh(&fcoe_hostlist_lock);
-	list_del(&fc->list);
-	write_unlock_bh(&fcoe_hostlist_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(fcoe_hostlist_remove);
-
-/**
  * fcoe_libfc_config() - sets up libfc related properties for lport
  * @lp: ptr to the fc_lport
  * @tt: libfc function template
@@ -1354,121 +1336,3 @@ int fcoe_libfc_config(struct fc_lport *lp, struct libfc_function_template *tt)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fcoe_libfc_config);
-
-/**
- * fcoe_init() - fcoe module loading initialization
- *
- * Initialization routine
- * 1. Will create fc transport software structure
- * 2. initialize the link list of port information structure
- *
- * Returns 0 on success, negative on failure
- */
-static int __init fcoe_init(void)
-{
-	int cpu;
-	struct fcoe_percpu_s *p;
-
-
-	INIT_LIST_HEAD(&fcoe_hostlist);
-	rwlock_init(&fcoe_hostlist_lock);
-
-#ifdef CONFIG_HOTPLUG_CPU
-	register_cpu_notifier(&fcoe_cpu_notifier);
-#endif /* CONFIG_HOTPLUG_CPU */
-
-	/*
-	 * initialize per CPU interrupt thread
-	 */
-	for_each_online_cpu(cpu) {
-		p = kzalloc(sizeof(struct fcoe_percpu_s), GFP_KERNEL);
-		if (p) {
-			p->thread = kthread_create(fcoe_percpu_receive_thread,
-						   (void *)p,
-						   "fcoethread/%d", cpu);
-
-			/*
-			 * if there is no error then bind the thread to the cpu
-			 * initialize the semaphore and skb queue head
-			 */
-			if (likely(!IS_ERR(p->thread))) {
-				p->cpu = cpu;
-				fcoe_percpu[cpu] = p;
-				skb_queue_head_init(&p->fcoe_rx_list);
-				kthread_bind(p->thread, cpu);
-				wake_up_process(p->thread);
-			} else {
-				fcoe_percpu[cpu] = NULL;
-				kfree(p);
-			}
-		}
-	}
-
-	/*
-	 * setup link change notification
-	 */
-	fcoe_dev_setup();
-
-	setup_timer(&fcoe_timer, fcoe_watchdog, 0);
-
-	mod_timer(&fcoe_timer, jiffies + (10 * HZ));
-
-	/* initiatlize the fcoe transport */
-	fcoe_transport_init();
-
-	fcoe_sw_init();
-
-	return 0;
-}
-module_init(fcoe_init);
-
-/**
- * fcoe_exit() - fcoe module unloading cleanup
- *
- * Returns 0 on success, negative on failure
- */
-static void __exit fcoe_exit(void)
-{
-	u32 idx;
-	struct fcoe_softc *fc, *tmp;
-	struct fcoe_percpu_s *p;
-	struct sk_buff *skb;
-
-	/*
-	 * Stop all call back interfaces
-	 */
-#ifdef CONFIG_HOTPLUG_CPU
-	unregister_cpu_notifier(&fcoe_cpu_notifier);
-#endif /* CONFIG_HOTPLUG_CPU */
-	fcoe_dev_cleanup();
-
-	/*
-	 * stop timer
-	 */
-	del_timer_sync(&fcoe_timer);
-
-	/* releases the associated fcoe transport for each lport */
-	list_for_each_entry_safe(fc, tmp, &fcoe_hostlist, list)
-		fcoe_transport_release(fc->real_dev);
-
-	for (idx = 0; idx < NR_CPUS; idx++) {
-		if (fcoe_percpu[idx]) {
-			kthread_stop(fcoe_percpu[idx]->thread);
-			p = fcoe_percpu[idx];
-			spin_lock_bh(&p->fcoe_rx_list.lock);
-			while ((skb = __skb_dequeue(&p->fcoe_rx_list)) != NULL)
-				kfree_skb(skb);
-			spin_unlock_bh(&p->fcoe_rx_list.lock);
-			if (fcoe_percpu[idx]->crc_eof_page)
-				put_page(fcoe_percpu[idx]->crc_eof_page);
-			kfree(fcoe_percpu[idx]);
-		}
-	}
-
-	/* remove sw trasnport */
-	fcoe_sw_exit();
-
-	/* detach the transport */
-	fcoe_transport_exit();
-}
-module_exit(fcoe_exit);
