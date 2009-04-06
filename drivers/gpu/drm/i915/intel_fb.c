@@ -864,8 +864,8 @@ static void intelfb_sysrq(int dummy1, struct tty_struct *dummy3)
 
 static struct sysrq_key_op sysrq_intelfb_restore_op = {
         .handler = intelfb_sysrq,
-        .help_msg = "force fb",
-        .action_msg = "force restore of fb console",
+        .help_msg = "force-fb(G)",
+        .action_msg = "Restore framebuffer console",
 };
 
 int intelfb_probe(struct drm_device *dev)
