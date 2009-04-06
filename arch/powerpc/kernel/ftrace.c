@@ -293,7 +293,7 @@ __ftrace_make_nop(struct module *mod,
 	if (tramp & 0x8000)
 		tramp -= 0x10000;
 
-	pr_debug(" %x ", tramp);
+	pr_debug(" %lx ", tramp);
 
 	if (tramp != addr) {
 		printk(KERN_ERR
