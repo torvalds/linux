@@ -728,7 +728,8 @@ static int pci_ni8430_init(struct pci_dev *dev)
 #define NI8430_PORTCON_TXVR_ENABLE	(1 << 3)
 
 static int
-pci_ni8430_setup(struct serial_private *priv, struct pciserial_board *board,
+pci_ni8430_setup(struct serial_private *priv,
+		 const struct pciserial_board *board,
 		 struct uart_port *port, int idx)
 {
 	void __iomem *p;
