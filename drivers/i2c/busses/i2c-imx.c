@@ -86,8 +86,6 @@
 /** Variables ******************************************************************
 *******************************************************************************/
 
-static unsigned int disable_delay;	/* Dummy delay */
-
 /*
  * sorted list of clock divider, register value pairs
  * taken from table 26-5, p.26-9, Freescale i.MX
@@ -121,6 +119,7 @@ struct imx_i2c_struct {
 	int			irq;
 	wait_queue_head_t	queue;
 	unsigned long		i2csr;
+	unsigned int 		disable_delay;
 };
 
 /** Functions for IMX I2C adapter driver ***************************************
@@ -212,7 +211,7 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 	 * This delay caused by an i.MXL hardware bug.
 	 * If no (or too short) delay, no "STOP" bit will be generated.
 	 */
-	udelay(disable_delay);
+	udelay(i2c_imx->disable_delay);
 	/* Disable I2C controller */
 	writeb(0, i2c_imx->base + IMX_I2C_I2CR);
 }
@@ -243,7 +242,7 @@ static void __init i2c_imx_set_clk(struct imx_i2c_struct *i2c_imx,
 	 * This delay is used in I2C bus disable function
 	 * to fix chip hardware bug.
 	 */
-	disable_delay = (500000U * i2c_clk_div[i][0]
+	i2c_imx->disable_delay = (500000U * i2c_clk_div[i][0]
 		+ (i2c_clk_rate / 2) - 1) / (i2c_clk_rate / 2);
 
 	/* dev_dbg() can't be used, because adapter is not yet registered */
