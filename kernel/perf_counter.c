@@ -1581,6 +1581,14 @@ void perf_counter_wakeup(struct perf_counter *counter)
 	kill_fasync(&counter->fasync, SIGIO, POLL_IN);
 }
 
+static void perf_pending_wakeup(struct perf_pending_entry *entry)
+{
+	struct perf_counter *counter = container_of(entry,
+			struct perf_counter, pending);
+
+	perf_counter_wakeup(counter);
+}
+
 /*
  * Pending wakeups
  *
@@ -1590,45 +1598,47 @@ void perf_counter_wakeup(struct perf_counter *counter)
  * single linked list and use cmpxchg() to add entries lockless.
  */
 
-#define PENDING_TAIL ((struct perf_wakeup_entry *)-1UL)
+#define PENDING_TAIL ((struct perf_pending_entry *)-1UL)
 
-static DEFINE_PER_CPU(struct perf_wakeup_entry *, perf_wakeup_head) = {
+static DEFINE_PER_CPU(struct perf_pending_entry *, perf_pending_head) = {
 	PENDING_TAIL,
 };
 
-static void perf_pending_queue(struct perf_counter *counter)
+static void perf_pending_queue(struct perf_pending_entry *entry,
+			       void (*func)(struct perf_pending_entry *))
 {
-	struct perf_wakeup_entry **head;
-	struct perf_wakeup_entry *prev, *next;
+	struct perf_pending_entry **head;
 
-	if (cmpxchg(&counter->wakeup.next, NULL, PENDING_TAIL) != NULL)
+	if (cmpxchg(&entry->next, NULL, PENDING_TAIL) != NULL)
 		return;
 
-	head = &get_cpu_var(perf_wakeup_head);
+	entry->func = func;
+
+	head = &get_cpu_var(perf_pending_head);
 
 	do {
-		prev = counter->wakeup.next = *head;
-		next = &counter->wakeup;
-	} while (cmpxchg(head, prev, next) != prev);
+		entry->next = *head;
+	} while (cmpxchg(head, entry->next, entry) != entry->next);
 
 	set_perf_counter_pending();
 
-	put_cpu_var(perf_wakeup_head);
+	put_cpu_var(perf_pending_head);
 }
 
 static int __perf_pending_run(void)
 {
-	struct perf_wakeup_entry *list;
+	struct perf_pending_entry *list;
 	int nr = 0;
 
-	list = xchg(&__get_cpu_var(perf_wakeup_head), PENDING_TAIL);
+	list = xchg(&__get_cpu_var(perf_pending_head), PENDING_TAIL);
 	while (list != PENDING_TAIL) {
-		struct perf_counter *counter = container_of(list,
-				struct perf_counter, wakeup);
+		void (*func)(struct perf_pending_entry *);
+		struct perf_pending_entry *entry = list;
 
 		list = list->next;
 
-		counter->wakeup.next = NULL;
+		func = entry->func;
+		entry->next = NULL;
 		/*
 		 * Ensure we observe the unqueue before we issue the wakeup,
 		 * so that we won't be waiting forever.
@@ -1636,7 +1646,7 @@ static int __perf_pending_run(void)
 		 */
 		smp_wmb();
 
-		perf_counter_wakeup(counter);
+		func(entry);
 		nr++;
 	}
 
@@ -1658,7 +1668,7 @@ static inline int perf_not_pending(struct perf_counter *counter)
 	 * so that we do not miss the wakeup. -- see perf_pending_handle()
 	 */
 	smp_rmb();
-	return counter->wakeup.next == NULL;
+	return counter->pending.next == NULL;
 }
 
 static void perf_pending_sync(struct perf_counter *counter)
@@ -1695,9 +1705,10 @@ struct perf_output_handle {
 
 static inline void __perf_output_wakeup(struct perf_output_handle *handle)
 {
-	if (handle->nmi)
-		perf_pending_queue(handle->counter);
-	else
+	if (handle->nmi) {
+		perf_pending_queue(&handle->counter->pending,
+				   perf_pending_wakeup);
+	} else
 		perf_counter_wakeup(handle->counter);
 }
 

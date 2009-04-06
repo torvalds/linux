@@ -321,8 +321,9 @@ struct perf_mmap_data {
 	void 				*data_pages[0];
 };
 
-struct perf_wakeup_entry {
-	struct perf_wakeup_entry *next;
+struct perf_pending_entry {
+	struct perf_pending_entry *next;
+	void (*func)(struct perf_pending_entry *);
 };
 
 /**
@@ -401,7 +402,7 @@ struct perf_counter {
 	wait_queue_head_t		waitq;
 	struct fasync_struct		*fasync;
 	/* optional: for NMIs */
-	struct perf_wakeup_entry	wakeup;
+	struct perf_pending_entry	pending;
 
 	void (*destroy)(struct perf_counter *);
 	struct rcu_head			rcu_head;
