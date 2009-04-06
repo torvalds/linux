@@ -2934,7 +2934,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	 */
 	BUG_ON(alloc > 2);
 
-	ret = ocfs2_reserve_clusters(osb, alloc, &data_ac);
+	ret = ocfs2_reserve_clusters(osb, alloc + dx_alloc, &data_ac);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
