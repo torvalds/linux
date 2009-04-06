@@ -36,17 +36,18 @@ EXPORT_SYMBOL(pcie_mch_quirk);
 
 #ifdef CONFIG_PCI_QUIRKS
 /*
- * This quirk function disables the device and releases resources
- * which is specified by kernel's boot parameter 'pci=resource_alignment='.
+ * This quirk function disables memory decoding and releases memory resources
+ * of the device specified by kernel's boot parameter 'pci=resource_alignment='.
  * It also rounds up size to specified alignment.
  * Later on, the kernel will assign page-aligned memory resource back
- * to that device.
+ * to the device.
  */
 static void __devinit quirk_resource_alignment(struct pci_dev *dev)
 {
 	int i;
 	struct resource *r;
 	resource_size_t align, size;
+	u16 command;
 
 	if (!pci_is_reassigndev(dev))
 		return;
@@ -58,8 +59,11 @@ static void __devinit quirk_resource_alignment(struct pci_dev *dev)
 		return;
 	}
 
-	dev_info(&dev->dev, "Disabling device and release resources.\n");
-	pci_disable_device(dev);
+	dev_info(&dev->dev,
+		"Disabling memory decoding and releasing memory resources.\n");
+	pci_read_config_word(dev, PCI_COMMAND, &command);
+	command &= ~PCI_COMMAND_MEMORY;
+	pci_write_config_word(dev, PCI_COMMAND, command);
 
 	align = pci_specified_resource_alignment(dev);
 	for (i=0; i < PCI_BRIDGE_RESOURCES; i++) {
