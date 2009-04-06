@@ -3,7 +3,7 @@
 
 	     Maintained by Alan Cox <device@lanana.org>
 
-		      Last revised: 29 November 2006
+		      Last revised: 6th April 2009
 
 This list is the Linux Device List, the official registry of allocated
 device numbers and /dev directory nodes for the Linux operating
