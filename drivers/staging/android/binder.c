@@ -246,7 +246,7 @@ struct binder_proc {
 	struct files_struct *files;
 	struct hlist_node release_files_node;
 	void *buffer;
-	size_t user_buffer_offset;
+	ptrdiff_t user_buffer_offset;
 
 	struct list_head buffers;
 	struct rb_root free_buffers;
@@ -614,7 +614,8 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
 			       proc->pid, page_addr);
 			goto err_map_kernel_failed;
 		}
-		user_page_addr = (size_t)page_addr + proc->user_buffer_offset;
+		user_page_addr =
+			(uintptr_t)page_addr + proc->user_buffer_offset;
 		ret = vm_insert_page(vma, user_page_addr, page[0]);
 		if (ret) {
 			printk(KERN_ERR "binder: %d: binder_alloc_buf failed "
@@ -635,7 +636,7 @@ free_range:
 	     page_addr -= PAGE_SIZE) {
 		page = &proc->pages[(page_addr - proc->buffer) / PAGE_SIZE];
 		if (vma)
-			zap_page_range(vma, (size_t)page_addr +
+			zap_page_range(vma, (uintptr_t)page_addr +
 				proc->user_buffer_offset, PAGE_SIZE, NULL);
 err_vm_insert_page_failed:
 		unmap_kernel_range((unsigned long)page_addr, PAGE_SIZE);
@@ -716,18 +717,19 @@ static struct binder_buffer *binder_alloc_buf(struct binder_proc *proc,
 		       "er %p size %zd\n", proc->pid, size, buffer, buffer_size);
 
 	has_page_addr =
-		(void *)(((size_t)buffer->data + buffer_size) & PAGE_MASK);
+		(void *)(((uintptr_t)buffer->data + buffer_size) & PAGE_MASK);
 	if (n == NULL) {
 		if (size + sizeof(struct binder_buffer) + 4 >= buffer_size)
 			buffer_size = size; /* no room for other buffers */
 		else
 			buffer_size = size + sizeof(struct binder_buffer);
 	}
-	end_page_addr = (void *)PAGE_ALIGN((size_t)buffer->data + buffer_size);
+	end_page_addr =
+		(void *)PAGE_ALIGN((uintptr_t)buffer->data + buffer_size);
 	if (end_page_addr > has_page_addr)
 		end_page_addr = has_page_addr;
 	if (binder_update_page_range(proc, 1,
-	    (void *)PAGE_ALIGN((size_t)buffer->data), end_page_addr, NULL))
+	    (void *)PAGE_ALIGN((uintptr_t)buffer->data), end_page_addr, NULL))
 		return NULL;
 
 	rb_erase(best_fit, &proc->free_buffers);
@@ -758,12 +760,12 @@ static struct binder_buffer *binder_alloc_buf(struct binder_proc *proc,
 
 static void *buffer_start_page(struct binder_buffer *buffer)
 {
-	return (void *)((size_t)buffer & PAGE_MASK);
+	return (void *)((uintptr_t)buffer & PAGE_MASK);
 }
 
 static void *buffer_end_page(struct binder_buffer *buffer)
 {
-	return (void *)(((size_t)(buffer + 1) - 1) & PAGE_MASK);
+	return (void *)(((uintptr_t)(buffer + 1) - 1) & PAGE_MASK);
 }
 
 static void binder_delete_free_buffer(
@@ -841,8 +843,8 @@ static void binder_free_buf(
 	}
 
 	binder_update_page_range(proc, 0,
-		(void *)PAGE_ALIGN((size_t)buffer->data),
-		(void *)(((size_t)buffer->data + buffer_size) & PAGE_MASK),
+		(void *)PAGE_ALIGN((uintptr_t)buffer->data),
+		(void *)(((uintptr_t)buffer->data + buffer_size) & PAGE_MASK),
 		NULL);
 	rb_erase(&buffer->rb_node, &proc->allocated_buffers);
 	buffer->free = 1;
@@ -2347,7 +2349,7 @@ retry:
 
 		tr.data_size = t->buffer->data_size;
 		tr.offsets_size = t->buffer->offsets_size;
-		tr.data.ptr.buffer = (void *)((void *)t->buffer->data + proc->user_buffer_offset);
+		tr.data.ptr.buffer = (void *)t->buffer->data + proc->user_buffer_offset;
 		tr.data.ptr.offsets = tr.data.ptr.buffer + ALIGN(t->buffer->data_size, sizeof(void *));
 
 		if (put_user(cmd, (uint32_t __user *)ptr))
@@ -2753,7 +2755,7 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 		goto err_get_vm_area_failed;
 	}
 	proc->buffer = area->addr;
-	proc->user_buffer_offset = vma->vm_start - (size_t)proc->buffer;
+	proc->user_buffer_offset = vma->vm_start - (uintptr_t)proc->buffer;
 
 #ifdef CONFIG_CPU_CACHE_VIPT
 	if (cache_is_vipt_aliasing()) {
