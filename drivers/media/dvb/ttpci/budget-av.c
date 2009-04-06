@@ -1404,6 +1404,41 @@ static int budget_av_detach(struct saa7146_dev *dev)
 	return err;
 }
 
+#define KNC1_INPUTS 2
+static struct v4l2_input knc1_inputs[KNC1_INPUTS] = {
+	{0, "Composite", V4L2_INPUT_TYPE_TUNER, 1, 0, V4L2_STD_PAL_BG | V4L2_STD_NTSC_M, 0},
+	{1, "S-Video", V4L2_INPUT_TYPE_CAMERA, 2, 0, V4L2_STD_PAL_BG | V4L2_STD_NTSC_M, 0},
+};
+
+static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
+{
+	dprintk(1, "VIDIOC_ENUMINPUT %d.\n", i->index);
+	if (i->index < 0 || i->index >= KNC1_INPUTS)
+		return -EINVAL;
+	memcpy(i, &knc1_inputs[i->index], sizeof(struct v4l2_input));
+	return 0;
+}
+
+static int vidioc_g_input(struct file *file, void *fh, unsigned int *i)
+{
+	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct budget_av *budget_av = (struct budget_av *)dev->ext_priv;
+
+	*i = budget_av->cur_input;
+
+	dprintk(1, "VIDIOC_G_INPUT %d.\n", *i);
+	return 0;
+}
+
+static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
+{
+	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct budget_av *budget_av = (struct budget_av *)dev->ext_priv;
+
+	dprintk(1, "VIDIOC_S_INPUT %d.\n", input);
+	return saa7113_setinput(budget_av, input);
+}
+
 static struct saa7146_ext_vv vv_data;
 
 static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data *info)
@@ -1442,6 +1477,9 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 			ERR(("cannot init vv subsystem.\n"));
 			return err;
 		}
+		vv_data.ops.vidioc_enum_input = vidioc_enum_input;
+		vv_data.ops.vidioc_g_input = vidioc_g_input;
+		vv_data.ops.vidioc_s_input = vidioc_s_input;
 
 		if ((err = saa7146_register_device(&budget_av->vd, dev, "knc1", VFL_TYPE_GRABBER))) {
 			/* fixme: proper cleanup here */
@@ -1480,54 +1518,6 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 	return 0;
 }
 
-#define KNC1_INPUTS 2
-static struct v4l2_input knc1_inputs[KNC1_INPUTS] = {
-	{0, "Composite", V4L2_INPUT_TYPE_TUNER, 1, 0, V4L2_STD_PAL_BG | V4L2_STD_NTSC_M, 0},
-	{1, "S-Video", V4L2_INPUT_TYPE_CAMERA, 2, 0, V4L2_STD_PAL_BG | V4L2_STD_NTSC_M, 0},
-};
-
-static struct saa7146_extension_ioctls ioctls[] = {
-	{VIDIOC_ENUMINPUT, SAA7146_EXCLUSIVE},
-	{VIDIOC_G_INPUT, SAA7146_EXCLUSIVE},
-	{VIDIOC_S_INPUT, SAA7146_EXCLUSIVE},
-	{0, 0}
-};
-
-static long av_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
-{
-	struct saa7146_dev *dev = fh->dev;
-	struct budget_av *budget_av = (struct budget_av *) dev->ext_priv;
-
-	switch (cmd) {
-	case VIDIOC_ENUMINPUT:{
-		struct v4l2_input *i = arg;
-
-		dprintk(1, "VIDIOC_ENUMINPUT %d.\n", i->index);
-		if (i->index < 0 || i->index >= KNC1_INPUTS) {
-			return -EINVAL;
-		}
-		memcpy(i, &knc1_inputs[i->index], sizeof(struct v4l2_input));
-		return 0;
-	}
-	case VIDIOC_G_INPUT:{
-		int *input = (int *) arg;
-
-		*input = budget_av->cur_input;
-
-		dprintk(1, "VIDIOC_G_INPUT %d.\n", *input);
-		return 0;
-	}
-	case VIDIOC_S_INPUT:{
-		int input = *(int *) arg;
-		dprintk(1, "VIDIOC_S_INPUT %d.\n", input);
-		return saa7113_setinput(budget_av, input);
-	}
-	default:
-		return -ENOIOCTLCMD;
-	}
-	return 0;
-}
-
 static struct saa7146_standard standard[] = {
 	{.name = "PAL",.id = V4L2_STD_PAL,
 	 .v_offset = 0x17,.v_field = 288,
@@ -1546,8 +1536,6 @@ static struct saa7146_ext_vv vv_data = {
 	.flags = 0,
 	.stds = &standard[0],
 	.num_stds = ARRAY_SIZE(standard),
-	.ioctls = &ioctls[0],
-	.ioctl = av_ioctl,
 };
 
 static struct saa7146_extension budget_extension;

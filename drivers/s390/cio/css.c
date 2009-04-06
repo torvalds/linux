@@ -18,8 +18,8 @@
 #include <linux/list.h>
 #include <linux/reboot.h>
 #include <asm/isc.h>
+#include <asm/crw.h>
 
-#include "../s390mach.h"
 #include "css.h"
 #include "cio.h"
 #include "cio_debug.h"
@@ -83,6 +83,25 @@ static int call_fn_unknown_sch(struct subchannel_id schid, void *data)
 	return rc;
 }
 
+static int call_fn_all_sch(struct subchannel_id schid, void *data)
+{
+	struct cb_data *cb = data;
+	struct subchannel *sch;
+	int rc = 0;
+
+	sch = get_subchannel_by_schid(schid);
+	if (sch) {
+		if (cb->fn_known_sch)
+			rc = cb->fn_known_sch(sch, cb->data);
+		put_device(&sch->dev);
+	} else {
+		if (cb->fn_unknown_sch)
+			rc = cb->fn_unknown_sch(schid, cb->data);
+	}
+
+	return rc;
+}
+
 int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 			       int (*fn_unknown)(struct subchannel_id,
 			       void *), void *data)
@@ -90,13 +109,17 @@ int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 	struct cb_data cb;
 	int rc;
 
-	cb.set = idset_sch_new();
-	if (!cb.set)
-		return -ENOMEM;
-	idset_fill(cb.set);
 	cb.data = data;
 	cb.fn_known_sch = fn_known;
 	cb.fn_unknown_sch = fn_unknown;
+
+	cb.set = idset_sch_new();
+	if (!cb.set)
+		/* fall back to brute force scanning in case of oom */
+		return for_each_subchannel(call_fn_all_sch, &cb);
+
+	idset_fill(cb.set);
+
 	/* Process registered subchannels. */
 	rc = bus_for_each_dev(&css_bus_type, NULL, &cb, call_fn_known_sch);
 	if (rc)
@@ -272,7 +295,7 @@ static int css_register_subchannel(struct subchannel *sch)
 	 * the subchannel driver can decide itself when it wants to inform
 	 * userspace of its existence.
 	 */
-	sch->dev.uevent_suppress = 1;
+	dev_set_uevent_suppress(&sch->dev, 1);
 	css_update_ssd_info(sch);
 	/* make it known to the system */
 	ret = css_sch_device_register(sch);
@@ -287,7 +310,7 @@ static int css_register_subchannel(struct subchannel *sch)
 		 * a fitting driver module may be loaded based on the
 		 * modalias.
 		 */
-		sch->dev.uevent_suppress = 0;
+		dev_set_uevent_suppress(&sch->dev, 0);
 		kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 	}
 	return ret;
@@ -510,6 +533,17 @@ static int reprobe_subchannel(struct subchannel_id schid, void *data)
 	return ret;
 }
 
+static void reprobe_after_idle(struct work_struct *unused)
+{
+	/* Make sure initial subchannel scan is done. */
+	wait_event(ccw_device_init_wq,
+		   atomic_read(&ccw_device_init_count) == 0);
+	if (need_reprobe)
+		css_schedule_reprobe();
+}
+
+static DECLARE_WORK(reprobe_idle_work, reprobe_after_idle);
+
 /* Work function used to reprobe all unregistered subchannels. */
 static void reprobe_all(struct work_struct *unused)
 {
@@ -517,10 +551,12 @@ static void reprobe_all(struct work_struct *unused)
 
 	CIO_MSG_EVENT(4, "reprobe start\n");
 
-	need_reprobe = 0;
 	/* Make sure initial subchannel scan is done. */
-	wait_event(ccw_device_init_wq,
-		   atomic_read(&ccw_device_init_count) == 0);
+	if (atomic_read(&ccw_device_init_count) != 0) {
+		queue_work(ccw_device_work, &reprobe_idle_work);
+		return;
+	}
+	need_reprobe = 0;
 	ret = for_each_subchannel_staged(NULL, reprobe_subchannel, NULL);
 
 	CIO_MSG_EVENT(4, "reprobe done (rc=%d, need_reprobe=%d)\n", ret,
@@ -619,7 +655,7 @@ css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 		css->global_pgid.pgid_high.ext_cssid.cssid = css->cssid;
 	} else {
 #ifdef CONFIG_SMP
-		css->global_pgid.pgid_high.cpu_addr = hard_smp_processor_id();
+		css->global_pgid.pgid_high.cpu_addr = stap();
 #else
 		css->global_pgid.pgid_high.cpu_addr = 0;
 #endif
@@ -765,7 +801,7 @@ init_channel_subsystem (void)
 	if (ret)
 		goto out;
 
-	ret = s390_register_crw_handler(CRW_RSC_SCH, css_process_crw);
+	ret = crw_register_handler(CRW_RSC_SCH, css_process_crw);
 	if (ret)
 		goto out;
 
@@ -845,7 +881,7 @@ out_unregister:
 out_bus:
 	bus_unregister(&css_bus_type);
 out:
-	s390_unregister_crw_handler(CRW_RSC_CSS);
+	crw_unregister_handler(CRW_RSC_CSS);
 	chsc_free_sei_area();
 	kfree(slow_subchannel_set);
 	pr_alert("The CSS device driver initialization failed with "

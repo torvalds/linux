@@ -111,13 +111,13 @@ static int ide_set_nice_ioctl(ide_drive_t *drive, unsigned long arg)
 	return 0;
 }
 
-static int ide_cmd_ioctl(ide_drive_t *drive, unsigned cmd, unsigned long arg)
+static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 {
 	u8 *buf = NULL;
 	int bufsize = 0, err = 0;
 	u8 args[4], xfer_rate = 0;
-	ide_task_t tfargs;
-	struct ide_taskfile *tf = &tfargs.tf;
+	struct ide_cmd cmd;
+	struct ide_taskfile *tf = &cmd.tf;
 	u16 *id = drive->id;
 
 	if (NULL == (void *) arg) {
@@ -134,24 +134,24 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned cmd, unsigned long arg)
 	if (copy_from_user(args, (void __user *)arg, 4))
 		return -EFAULT;
 
-	memset(&tfargs, 0, sizeof(ide_task_t));
+	memset(&cmd, 0, sizeof(cmd));
 	tf->feature = args[2];
 	if (args[0] == ATA_CMD_SMART) {
 		tf->nsect = args[3];
 		tf->lbal  = args[1];
 		tf->lbam  = 0x4f;
 		tf->lbah  = 0xc2;
-		tfargs.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_IN_NSECT;
+		cmd.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_IN_NSECT;
 	} else {
 		tf->nsect = args[1];
-		tfargs.tf_flags = IDE_TFLAG_OUT_FEATURE |
-				  IDE_TFLAG_OUT_NSECT | IDE_TFLAG_IN_NSECT;
+		cmd.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT |
+			       IDE_TFLAG_IN_NSECT;
 	}
 	tf->command = args[0];
-	tfargs.data_phase = args[3] ? TASKFILE_IN : TASKFILE_NO_DATA;
+	cmd.protocol = args[3] ? ATA_PROT_PIO : ATA_PROT_NODATA;
 
 	if (args[3]) {
-		tfargs.tf_flags |= IDE_TFLAG_IO_16BIT;
+		cmd.tf_flags |= IDE_TFLAG_IO_16BIT;
 		bufsize = SECTOR_SIZE * args[3];
 		buf = kzalloc(bufsize, GFP_KERNEL);
 		if (buf == NULL)
@@ -172,7 +172,7 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned cmd, unsigned long arg)
 		}
 	}
 
-	err = ide_raw_taskfile(drive, &tfargs, buf, args[3]);
+	err = ide_raw_taskfile(drive, &cmd, buf, args[3]);
 
 	args[0] = tf->status;
 	args[1] = tf->error;
@@ -194,25 +194,25 @@ abort:
 	return err;
 }
 
-static int ide_task_ioctl(ide_drive_t *drive, unsigned cmd, unsigned long arg)
+static int ide_task_ioctl(ide_drive_t *drive, unsigned long arg)
 {
 	void __user *p = (void __user *)arg;
 	int err = 0;
 	u8 args[7];
-	ide_task_t task;
+	struct ide_cmd cmd;
 
 	if (copy_from_user(args, p, 7))
 		return -EFAULT;
 
-	memset(&task, 0, sizeof(task));
-	memcpy(&task.tf_array[7], &args[1], 6);
-	task.tf.command = args[0];
-	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	memset(&cmd, 0, sizeof(cmd));
+	memcpy(&cmd.tf_array[7], &args[1], 6);
+	cmd.tf.command = args[0];
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
-	err = ide_no_data_taskfile(drive, &task);
+	err = ide_no_data_taskfile(drive, &cmd);
 
-	args[0] = task.tf.command;
-	memcpy(&args[1], &task.tf_array[7], 6);
+	args[0] = cmd.tf.command;
+	memcpy(&args[1], &cmd.tf_array[7], 6);
 
 	if (copy_to_user(p, args, 7))
 		err = -EFAULT;
@@ -262,17 +262,17 @@ int generic_ide_ioctl(ide_drive_t *drive, struct block_device *bdev,
 		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
 			return -EACCES;
 		if (drive->media == ide_disk)
-			return ide_taskfile_ioctl(drive, cmd, arg);
+			return ide_taskfile_ioctl(drive, arg);
 		return -ENOMSG;
 #endif
 	case HDIO_DRIVE_CMD:
 		if (!capable(CAP_SYS_RAWIO))
 			return -EACCES;
-		return ide_cmd_ioctl(drive, cmd, arg);
+		return ide_cmd_ioctl(drive, arg);
 	case HDIO_DRIVE_TASK:
 		if (!capable(CAP_SYS_RAWIO))
 			return -EACCES;
-		return ide_task_ioctl(drive, cmd, arg);
+		return ide_task_ioctl(drive, arg);
 	case HDIO_DRIVE_RESET:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;

@@ -28,6 +28,13 @@
 
 #endif
 
+/* FIXME: I don't want to stay hardcoded */
+#ifdef CONFIG_X86_64
+# define FTRACE_SYSCALL_MAX     296
+#else
+# define FTRACE_SYSCALL_MAX     333
+#endif
+
 #ifdef CONFIG_FUNCTION_TRACER
 #define MCOUNT_ADDR		((long)(mcount))
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */
@@ -54,30 +61,5 @@ struct dyn_arch_ftrace {
 #endif /*  CONFIG_DYNAMIC_FTRACE */
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_FUNCTION_TRACER */
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-
-#ifndef __ASSEMBLY__
-
-/*
- * Stack of return addresses for functions
- * of a thread.
- * Used in struct thread_info
- */
-struct ftrace_ret_stack {
-	unsigned long ret;
-	unsigned long func;
-	unsigned long long calltime;
-};
-
-/*
- * Primary handler of a function return.
- * It relays on ftrace_return_to_handler.
- * Defined in entry_32/64.S
- */
-extern void return_to_handler(void);
-
-#endif /* __ASSEMBLY__ */
-#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #endif /* _ASM_X86_FTRACE_H */

@@ -201,5 +201,5 @@ void __init smdk_machine_init(void)
 
 	platform_add_devices(smdk_devs, ARRAY_SIZE(smdk_devs));
 
-	s3c2410_pm_init();
+	s3c_pm_init();
 }

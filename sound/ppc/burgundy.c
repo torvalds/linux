@@ -35,7 +35,7 @@ snd_pmac_burgundy_busy_wait(struct snd_pmac *chip)
 	int timeout = 50;
 	while ((in_le32(&chip->awacs->codec_ctrl) & MASK_NEWECMD) && timeout--)
 		udelay(1);
-	if (! timeout)
+	if (timeout < 0)
 		printk(KERN_DEBUG "burgundy_busy_wait: timeout\n");
 }
 

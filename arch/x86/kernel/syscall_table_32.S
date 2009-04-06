@@ -333,3 +333,5 @@ ENTRY(sys_call_table)
 	.long sys_pipe2
 	.long sys_inotify_init1
 	.long sys_perf_counter_open
+	.long sys_preadv
+	.long sys_pwritev

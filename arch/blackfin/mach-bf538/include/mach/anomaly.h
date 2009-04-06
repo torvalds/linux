@@ -2,7 +2,7 @@
  * File: include/asm-blackfin/mach-bf538/anomaly.h
  * Bugs: Enter bugs at http://blackfin.uclinux.org/
  *
- * Copyright (C) 2004-2008 Analog Devices Inc.
+ * Copyright (C) 2004-2009 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */
 
@@ -120,13 +120,17 @@
 #define ANOMALY_05000198 (0)
 #define ANOMALY_05000230 (0)
 #define ANOMALY_05000263 (0)
+#define ANOMALY_05000305 (0)
 #define ANOMALY_05000311 (0)
 #define ANOMALY_05000323 (0)
 #define ANOMALY_05000353 (1)
 #define ANOMALY_05000363 (0)
+#define ANOMALY_05000380 (0)
 #define ANOMALY_05000386 (1)
 #define ANOMALY_05000412 (0)
 #define ANOMALY_05000432 (0)
 #define ANOMALY_05000435 (0)
+#define ANOMALY_05000447 (0)
+#define ANOMALY_05000448 (0)
 
 #endif

@@ -62,6 +62,8 @@ static int  option_tiocmget(struct tty_struct *tty, struct file *file);
 static int  option_tiocmset(struct tty_struct *tty, struct file *file,
 				unsigned int set, unsigned int clear);
 static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *port);
+static int  option_suspend(struct usb_serial *serial, pm_message_t message);
+static int  option_resume(struct usb_serial *serial);
 
 /* Vendor and product IDs */
 #define OPTION_VENDOR_ID			0x0AF0
@@ -89,6 +91,7 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 #define OPTION_PRODUCT_ETNA_MODEM_GT		0x7041
 #define OPTION_PRODUCT_ETNA_MODEM_EX		0x7061
 #define OPTION_PRODUCT_ETNA_KOI_MODEM		0x7100
+#define OPTION_PRODUCT_GTM380_MODEM		0x7201
 
 #define HUAWEI_VENDOR_ID			0x12D1
 #define HUAWEI_PRODUCT_E600			0x1001
@@ -197,6 +200,7 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 /* OVATION PRODUCTS */
 #define NOVATELWIRELESS_PRODUCT_MC727		0x4100
 #define NOVATELWIRELESS_PRODUCT_MC950D		0x4400
+#define NOVATELWIRELESS_PRODUCT_U727		0x5010
 
 /* FUTURE NOVATEL PRODUCTS */
 #define NOVATELWIRELESS_PRODUCT_EVDO_FULLSPEED	0X6000
@@ -288,14 +292,10 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 
 /* ZTE PRODUCTS */
 #define ZTE_VENDOR_ID				0x19d2
+#define ZTE_PRODUCT_MF622			0x0001
 #define ZTE_PRODUCT_MF628			0x0015
 #define ZTE_PRODUCT_MF626			0x0031
 #define ZTE_PRODUCT_CDMA_TECH			0xfffe
-
-/* Ericsson products */
-#define ERICSSON_VENDOR_ID			0x0bdb
-#define ERICSSON_PRODUCT_F3507G_1		0x1900
-#define ERICSSON_PRODUCT_F3507G_2		0x1902
 
 #define BENQ_VENDOR_ID				0x04a5
 #define BENQ_PRODUCT_H10			0x4068
@@ -325,6 +325,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_MODEM_GT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_MODEM_EX) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_KOI_MODEM) },
+	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_GTM380_MODEM) },
 	{ USB_DEVICE(QUANTA_VENDOR_ID, QUANTA_PRODUCT_Q101) },
 	{ USB_DEVICE(QUANTA_VENDOR_ID, QUANTA_PRODUCT_Q111) },
 	{ USB_DEVICE(QUANTA_VENDOR_ID, QUANTA_PRODUCT_GLX) },
@@ -415,6 +416,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_EU870D) }, /* Novatel EU850D/EU860D/EU870D */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_MC950D) }, /* Novatel MC930D/MC950D */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_MC727) }, /* Novatel MC727/U727/USB727 */
+	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_U727) }, /* Novatel MC727/U727/USB727 */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_EVDO_FULLSPEED) }, /* Novatel EVDO product */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_HSPA_FULLSPEED) }, /* Novatel HSPA product */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_EVDO_EMBEDDED_FULLSPEED) }, /* Novatel EVDO Embedded product */
@@ -442,7 +444,6 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(DELL_VENDOR_ID, DELL_PRODUCT_5520_MINICARD_CINGULAR) },	/* Dell Wireless HSDPA 5520 == Novatel Expedite EU860D */
 	{ USB_DEVICE(DELL_VENDOR_ID, DELL_PRODUCT_5520_MINICARD_GENERIC_L) },	/* Dell Wireless HSDPA 5520 */
 	{ USB_DEVICE(DELL_VENDOR_ID, DELL_PRODUCT_5520_MINICARD_GENERIC_I) },	/* Dell Wireless 5520 Voda I Mobile Broadband (3G HSDPA) Minicard */
-	{ USB_DEVICE(DELL_VENDOR_ID, 0x8147) },					/* Dell Wireless 5530 Mobile Broadband (3G HSPA) Mini-Card */
 	{ USB_DEVICE(DELL_VENDOR_ID, DELL_PRODUCT_5730_MINICARD_SPRINT) },	/* Dell Wireless 5730 Mobile Broadband EVDO/HSPA Mini-Card */
 	{ USB_DEVICE(DELL_VENDOR_ID, DELL_PRODUCT_5730_MINICARD_TELUS) },	/* Dell Wireless 5730 Mobile Broadband EVDO/HSPA Mini-Card */
 	{ USB_DEVICE(DELL_VENDOR_ID, DELL_PRODUCT_5730_MINICARD_VZW) }, 	/* Dell Wireless 5730 Mobile Broadband EVDO/HSPA Mini-Card */
@@ -510,11 +511,10 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x6613)}, /* Onda H600/ZTE MF330 */
 	{ USB_DEVICE(MAXON_VENDOR_ID, 0x6280) }, /* BP3-USB & BP3-EXT HSDPA */
 	{ USB_DEVICE(TELIT_VENDOR_ID, TELIT_PRODUCT_UC864E) },
+	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_MF622) },
 	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_MF626) },
 	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_MF628) },
 	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_CDMA_TECH) },
-	{ USB_DEVICE(ERICSSON_VENDOR_ID, ERICSSON_PRODUCT_F3507G_1) },
-	{ USB_DEVICE(ERICSSON_VENDOR_ID, ERICSSON_PRODUCT_F3507G_2) },
 	{ USB_DEVICE(BENQ_VENDOR_ID, BENQ_PRODUCT_H10) },
 	{ USB_DEVICE(0x1da5, 0x4515) }, /* BenQ H20 */
 	{ } /* Terminating entry */
@@ -525,6 +525,8 @@ static struct usb_driver option_driver = {
 	.name       = "option",
 	.probe      = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
+	.suspend    = usb_serial_suspend,
+	.resume     = usb_serial_resume,
 	.id_table   = option_ids,
 	.no_dynamic_id = 	1,
 };
@@ -553,6 +555,8 @@ static struct usb_serial_driver option_1port_device = {
 	.attach            = option_startup,
 	.shutdown          = option_shutdown,
 	.read_int_callback = option_instat_callback,
+	.suspend           = option_suspend,
+	.resume            = option_resume,
 };
 
 static int debug;
@@ -823,10 +827,10 @@ static void option_instat_callback(struct urb *urb)
 				req_pkt->bRequestType, req_pkt->bRequest);
 		}
 	} else
-		dbg("%s: error %d", __func__, status);
+		err("%s: error %d", __func__, status);
 
 	/* Resubmit urb so we continue receiving IRQ data */
-	if (status != -ESHUTDOWN) {
+	if (status != -ESHUTDOWN && status != -ENOENT) {
 		urb->dev = serial->dev;
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err)
@@ -844,7 +848,6 @@ static int option_write_room(struct tty_struct *tty)
 	struct urb *this_urb;
 
 	portdata = usb_get_serial_port_data(port);
-
 
 	for (i = 0; i < N_OUT_URB; i++) {
 		this_urb = portdata->out_urbs[i];
@@ -1107,13 +1110,11 @@ bail_out_error:
 	return 1;
 }
 
-static void option_shutdown(struct usb_serial *serial)
+static void stop_read_write_urbs(struct usb_serial *serial)
 {
 	int i, j;
 	struct usb_serial_port *port;
 	struct option_port_private *portdata;
-
-	dbg("%s", __func__);
 
 	/* Stop reading/writing urbs */
 	for (i = 0; i < serial->num_ports; ++i) {
@@ -1124,6 +1125,17 @@ static void option_shutdown(struct usb_serial *serial)
 		for (j = 0; j < N_OUT_URB; j++)
 			usb_kill_urb(portdata->out_urbs[j]);
 	}
+}
+
+static void option_shutdown(struct usb_serial *serial)
+{
+	int i, j;
+	struct usb_serial_port *port;
+	struct option_port_private *portdata;
+
+	dbg("%s", __func__);
+
+	stop_read_write_urbs(serial);
 
 	/* Now free them */
 	for (i = 0; i < serial->num_ports; ++i) {
@@ -1152,6 +1164,66 @@ static void option_shutdown(struct usb_serial *serial)
 		port = serial->port[i];
 		kfree(usb_get_serial_port_data(port));
 	}
+}
+
+static int option_suspend(struct usb_serial *serial, pm_message_t message)
+{
+	dbg("%s entered", __func__);
+	stop_read_write_urbs(serial);
+
+	return 0;
+}
+
+static int option_resume(struct usb_serial *serial)
+{
+	int err, i, j;
+	struct usb_serial_port *port;
+	struct urb *urb;
+	struct option_port_private *portdata;
+
+	dbg("%s entered", __func__);
+	/* get the interrupt URBs resubmitted unconditionally */
+	for (i = 0; i < serial->num_ports; i++) {
+		port = serial->port[i];
+		if (!port->interrupt_in_urb) {
+			dbg("%s: No interrupt URB for port %d\n", __func__, i);
+			continue;
+		}
+		port->interrupt_in_urb->dev = serial->dev;
+		err = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);
+		dbg("Submitted interrupt URB for port %d (result %d)", i, err);
+		if (err < 0) {
+			err("%s: Error %d for interrupt URB of port%d",
+				 __func__, err, i);
+			return err;
+		}
+	}
+
+	for (i = 0; i < serial->num_ports; i++) {
+		/* walk all ports */
+		port = serial->port[i];
+		portdata = usb_get_serial_port_data(port);
+		mutex_lock(&port->mutex);
+
+		/* skip closed ports */
+		if (!port->port.count) {
+			mutex_unlock(&port->mutex);
+			continue;
+		}
+
+		for (j = 0; j < N_IN_URB; j++) {
+			urb = portdata->in_urbs[j];
+			err = usb_submit_urb(urb, GFP_NOIO);
+			if (err < 0) {
+				mutex_unlock(&port->mutex);
+				err("%s: Error %d for bulk URB %d",
+					 __func__, err, i);
+				return err;
+			}
+		}
+		mutex_unlock(&port->mutex);
+	}
+	return 0;
 }
 
 MODULE_AUTHOR(DRIVER_AUTHOR);

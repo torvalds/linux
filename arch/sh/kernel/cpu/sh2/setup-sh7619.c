@@ -2,6 +2,7 @@
  * SH7619 Setup
  *
  *  Copyright (C) 2006  Yoshinori Sato
+ *  Copyright (C) 2009  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -18,15 +19,10 @@ enum {
 	/* interrupt sources */
 	IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7,
 	WDT, EDMAC, CMT0, CMT1,
-	SCIF0_ERI, SCIF0_RXI, SCIF0_BRI, SCIF0_TXI,
-	SCIF1_ERI, SCIF1_RXI, SCIF1_BRI, SCIF1_TXI,
-	SCIF2_ERI, SCIF2_RXI, SCIF2_BRI, SCIF2_TXI,
+	SCIF0, SCIF1, SCIF2,
 	HIF_HIFI, HIF_HIFBI,
 	DMAC0, DMAC1, DMAC2, DMAC3,
 	SIOF,
-
-	/* interrupt groups */
-	SCIF0, SCIF1, SCIF2,
 };
 
 static struct intc_vect vectors[] __initdata = {
@@ -36,22 +32,16 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_IRQ(IRQ6, 82), INTC_IRQ(IRQ7, 83),
 	INTC_IRQ(WDT, 84), INTC_IRQ(EDMAC, 85),
 	INTC_IRQ(CMT0, 86), INTC_IRQ(CMT1, 87),
-	INTC_IRQ(SCIF0_ERI, 88), INTC_IRQ(SCIF0_RXI, 89),
-	INTC_IRQ(SCIF0_BRI, 90), INTC_IRQ(SCIF0_TXI, 91),
-	INTC_IRQ(SCIF1_ERI, 92), INTC_IRQ(SCIF1_RXI, 93),
-	INTC_IRQ(SCIF1_BRI, 94), INTC_IRQ(SCIF1_TXI, 95),
-	INTC_IRQ(SCIF2_ERI, 96), INTC_IRQ(SCIF2_RXI, 97),
-	INTC_IRQ(SCIF2_BRI, 98), INTC_IRQ(SCIF2_TXI, 99),
+	INTC_IRQ(SCIF0, 88), INTC_IRQ(SCIF0, 89),
+	INTC_IRQ(SCIF0, 90), INTC_IRQ(SCIF0, 91),
+	INTC_IRQ(SCIF1, 92), INTC_IRQ(SCIF1, 93),
+	INTC_IRQ(SCIF1, 94), INTC_IRQ(SCIF1, 95),
+	INTC_IRQ(SCIF2, 96), INTC_IRQ(SCIF2, 97),
+	INTC_IRQ(SCIF2, 98), INTC_IRQ(SCIF2, 99),
 	INTC_IRQ(HIF_HIFI, 100), INTC_IRQ(HIF_HIFBI, 101),
 	INTC_IRQ(DMAC0, 104), INTC_IRQ(DMAC1, 105),
 	INTC_IRQ(DMAC2, 106), INTC_IRQ(DMAC3, 107),
 	INTC_IRQ(SIOF, 108),
-};
-
-static struct intc_group groups[] __initdata = {
-	INTC_GROUP(SCIF0, SCIF0_ERI, SCIF0_RXI, SCIF0_BRI, SCIF0_TXI),
-	INTC_GROUP(SCIF1, SCIF1_ERI, SCIF1_RXI, SCIF1_BRI, SCIF1_TXI),
-	INTC_GROUP(SCIF2, SCIF2_ERI, SCIF2_RXI, SCIF2_BRI, SCIF2_TXI),
 };
 
 static struct intc_prio_reg prio_registers[] __initdata = {
@@ -64,7 +54,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xf8080008, 0, 16, 4, /* IPRG */ { SIOF } },
 };
 
-static DECLARE_INTC_DESC(intc_desc, "sh7619", vectors, groups,
+static DECLARE_INTC_DESC(intc_desc, "sh7619", vectors, NULL,
 			 NULL, prio_registers, NULL);
 
 static struct plat_sci_port sci_platform_data[] = {
@@ -72,17 +62,17 @@ static struct plat_sci_port sci_platform_data[] = {
 		.mapbase	= 0xf8400000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		=  { 88, 89, 91, 90},
+		.irqs		= { 88, 88, 88, 88 },
 	}, {
 		.mapbase	= 0xf8410000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		=  { 92, 93, 95, 94},
+		.irqs		= { 92, 92, 92, 92 },
 	}, {
 		.mapbase	= 0xf8420000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		=  { 96, 97, 99, 98},
+		.irqs		= { 96, 96, 96, 96 },
 	}, {
 		.flags = 0,
 	}

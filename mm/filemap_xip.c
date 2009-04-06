@@ -89,8 +89,8 @@ do_xip_mapping_read(struct address_space *mapping,
 			}
 		}
 		nr = nr - offset;
-		if (nr > len)
-			nr = len;
+		if (nr > len - copied)
+			nr = len - copied;
 
 		error = mapping->a_ops->get_xip_mem(mapping, index, 0,
 							&xip_mem, &xip_pfn);
@@ -354,7 +354,7 @@ __xip_file_write(struct file *filp, const char __user *buf,
 			break;
 
 		copied = bytes -
-			__copy_from_user_nocache(xip_mem + offset, buf, bytes, bytes);
+			__copy_from_user_nocache(xip_mem + offset, buf, bytes);
 
 		if (likely(copied > 0)) {
 			status = copied;

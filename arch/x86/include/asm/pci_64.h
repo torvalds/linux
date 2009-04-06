@@ -24,28 +24,6 @@ extern int (*pci_config_write)(int seg, int bus, int dev, int fn,
 
 extern void dma32_reserve_bootmem(void);
 
-/* The PCI address space does equal the physical memory
- * address space.  The networking and block device layers use
- * this boolean for bounce buffer decisions
- *
- * On AMD64 it mostly equals, but we set it to zero if a hardware
- * IOMMU (gart) of sotware IOMMU (swiotlb) is available.
- */
-#define PCI_DMA_BUS_IS_PHYS (dma_ops->is_phys)
-
-#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)	\
-	dma_addr_t ADDR_NAME;
-#define DECLARE_PCI_UNMAP_LEN(LEN_NAME)		\
-	__u32 LEN_NAME;
-#define pci_unmap_addr(PTR, ADDR_NAME)			\
-	((PTR)->ADDR_NAME)
-#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL)		\
-	(((PTR)->ADDR_NAME) = (VAL))
-#define pci_unmap_len(PTR, LEN_NAME)			\
-	((PTR)->LEN_NAME)
-#define pci_unmap_len_set(PTR, LEN_NAME, VAL)		\
-	(((PTR)->LEN_NAME) = (VAL))
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_X86_PCI_64_H */

@@ -53,23 +53,19 @@ static unsigned summit_get_apic_id(unsigned long x)
 	return (x >> 24) & 0xFF;
 }
 
-static inline void summit_send_IPI_mask(const cpumask_t *mask, int vector)
+static inline void summit_send_IPI_mask(const struct cpumask *mask, int vector)
 {
 	default_send_IPI_mask_sequence_logical(mask, vector);
 }
 
 static void summit_send_IPI_allbutself(int vector)
 {
-	cpumask_t mask = cpu_online_map;
-	cpu_clear(smp_processor_id(), mask);
-
-	if (!cpus_empty(mask))
-		summit_send_IPI_mask(&mask, vector);
+	default_send_IPI_mask_allbutself_logical(cpu_online_mask, vector);
 }
 
 static void summit_send_IPI_all(int vector)
 {
-	summit_send_IPI_mask(&cpu_online_map, vector);
+	summit_send_IPI_mask(cpu_online_mask, vector);
 }
 
 #include <asm/tsc.h>
@@ -77,9 +73,9 @@ static void summit_send_IPI_all(int vector)
 extern int use_cyclone;
 
 #ifdef CONFIG_X86_SUMMIT_NUMA
-extern void setup_summit(void);
+static void setup_summit(void);
 #else
-#define setup_summit()	{}
+static inline void setup_summit(void) {}
 #endif
 
 static int summit_mps_oem_check(struct mpc_table *mpc, char *oem,
@@ -186,13 +182,13 @@ static inline int is_WPEG(struct rio_detail *rio){
 
 #define SUMMIT_APIC_DFR_VALUE	(APIC_DFR_CLUSTER)
 
-static const cpumask_t *summit_target_cpus(void)
+static const struct cpumask *summit_target_cpus(void)
 {
 	/* CPU_MASK_ALL (0xff) has undefined behaviour with
 	 * dest_LowestPrio mode logical clustered apic interrupt routing
 	 * Just start on cpu 0.  IRQ balancing will spread load
 	 */
-	return &cpumask_of_cpu(0);
+	return cpumask_of(0);
 }
 
 static unsigned long summit_check_apicid_used(physid_mask_t bitmap, int apicid)
@@ -289,35 +285,23 @@ static int summit_check_phys_apicid_present(int boot_cpu_physical_apicid)
 	return 1;
 }
 
-static unsigned int summit_cpu_mask_to_apicid(const cpumask_t *cpumask)
+static unsigned int summit_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
-	int cpus_found = 0;
-	int num_bits_set;
-	int apicid;
-	int cpu;
+	unsigned int round = 0;
+	int cpu, apicid = 0;
 
-	num_bits_set = cpus_weight(*cpumask);
-	if (num_bits_set >= nr_cpu_ids)
-		return BAD_APICID;
 	/*
 	 * The cpus in the mask must all be on the apic cluster.
 	 */
-	cpu = first_cpu(*cpumask);
-	apicid = summit_cpu_to_logical_apicid(cpu);
+	for_each_cpu(cpu, cpumask) {
+		int new_apicid = summit_cpu_to_logical_apicid(cpu);
 
-	while (cpus_found < num_bits_set) {
-		if (cpu_isset(cpu, *cpumask)) {
-			int new_apicid = summit_cpu_to_logical_apicid(cpu);
-
-			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-				printk("%s: Not a valid mask!\n", __func__);
-
-				return BAD_APICID;
-			}
-			apicid = apicid | new_apicid;
-			cpus_found++;
+		if (round && APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
+			printk("%s: Not a valid mask!\n", __func__);
+			return BAD_APICID;
 		}
-		cpu++;
+		apicid |= new_apicid;
+		round++;
 	}
 	return apicid;
 }
@@ -358,7 +342,7 @@ static int probe_summit(void)
 	return 0;
 }
 
-static void summit_vector_allocation_domain(int cpu, cpumask_t *retmask)
+static void summit_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
 	 * specified in the interrupt destination when using lowest
@@ -368,19 +352,20 @@ static void summit_vector_allocation_domain(int cpu, cpumask_t *retmask)
 	 * deliver interrupts to the wrong hyperthread when only one
 	 * hyperthread was specified in the interrupt desitination.
 	 */
-	*retmask = (cpumask_t){ { [0] = APIC_ALL_CPUS, } };
+	cpumask_clear(retmask);
+	cpumask_bits(retmask)[0] = APIC_ALL_CPUS;
 }
 
 #ifdef CONFIG_X86_SUMMIT_NUMA
-static struct rio_table_hdr *rio_table_hdr __initdata;
-static struct scal_detail   *scal_devs[MAX_NUMNODES] __initdata;
-static struct rio_detail    *rio_devs[MAX_NUMNODES*4] __initdata;
+static struct rio_table_hdr *rio_table_hdr;
+static struct scal_detail   *scal_devs[MAX_NUMNODES];
+static struct rio_detail    *rio_devs[MAX_NUMNODES*4];
 
 #ifndef CONFIG_X86_NUMAQ
-static int mp_bus_id_to_node[MAX_MP_BUSSES] __initdata;
+static int mp_bus_id_to_node[MAX_MP_BUSSES];
 #endif
 
-static int __init setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
+static int setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 {
 	int twister = 0, node = 0;
 	int i, bus, num_buses;
@@ -442,7 +427,7 @@ static int __init setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 	return bus;
 }
 
-static int __init build_detail_arrays(void)
+static int build_detail_arrays(void)
 {
 	unsigned long ptr;
 	int i, scal_detail_size, rio_detail_size;
@@ -476,7 +461,7 @@ static int __init build_detail_arrays(void)
 	return 1;
 }
 
-void __init setup_summit(void)
+void setup_summit(void)
 {
 	unsigned long		ptr;
 	unsigned short		offset;
@@ -574,7 +559,6 @@ struct apic apic_summit = {
 	.send_IPI_all			= summit_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.wakeup_cpu			= NULL,
 	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 

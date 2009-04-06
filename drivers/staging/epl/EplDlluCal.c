@@ -173,7 +173,7 @@ static tEplKernel EplDlluCalSetAsndServiceIdFilter(tEplDllAsndServiceId
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDlluCalAddInstance()
+tEplKernel EplDlluCalAddInstance(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -198,7 +198,7 @@ tEplKernel EplDlluCalAddInstance()
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDlluCalDelInstance()
+tEplKernel EplDlluCalDelInstance(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -355,7 +355,7 @@ tEplKernel EplDlluCalAsyncSend(tEplFrameInfo * pFrameInfo_p,
 //---------------------------------------------------------------------------
 
 tEplKernel EplDlluCalIssueRequest(tEplDllReqServiceId Service_p,
-				  unsigned int uiNodeId_p, BYTE bSoaFlag1_p)
+				  unsigned int uiNodeId_p, u8 bSoaFlag1_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 

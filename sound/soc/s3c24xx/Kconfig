@@ -1,19 +1,31 @@
 config SND_S3C24XX_SOC
-	tristate "SoC Audio for the Samsung S3C24XX chips"
-	depends on ARCH_S3C2410
+	tristate "SoC Audio for the Samsung S3CXXXX chips"
+	depends on ARCH_S3C2410 || ARCH_S3C64XX
 	help
 	  Say Y or M if you want to add support for codecs attached to
-	  the S3C24XX AC97, I2S or SSP interface. You will also need
-	  to select the audio interfaces to support below.
+	  the S3C24XX and S3C64XX AC97, I2S or SSP interface. You will
+	  also need to select the audio interfaces to support below.
 
 config SND_S3C24XX_SOC_I2S
+	tristate
+	select S3C2410_DMA
+
+config SND_S3C_I2SV2_SOC
 	tristate
 
 config SND_S3C2412_SOC_I2S
 	tristate
+	select SND_S3C_I2SV2_SOC
+	select S3C2410_DMA
+
+config SND_S3C64XX_SOC_I2S
+	tristate
+	select SND_S3C_I2SV2_SOC
+	select S3C64XX_DMA
 
 config SND_S3C2443_SOC_AC97
 	tristate
+	select S3C2410_DMA
 	select AC97_BUS
 	select SND_SOC_AC97_BUS
 	
@@ -25,6 +37,14 @@ config SND_S3C24XX_SOC_NEO1973_WM8753
 	help
 	  Say Y if you want to add support for SoC audio on smdk2440
 	  with the WM8753.
+
+config SND_S3C24XX_SOC_JIVE_WM8750
+	tristate "SoC I2S Audio support for Jive"
+	depends on SND_S3C24XX_SOC && MACH_JIVE
+	select SND_SOC_WM8750
+	select SND_S3C2412_SOC_I2S
+	help
+	  Sat Y if you want to add support for SoC audio on the Jive.
 
 config SND_S3C24XX_SOC_SMDK2443_WM9710
 	tristate "SoC AC97 Audio support for SMDK2443 - WM9710"
@@ -48,4 +68,5 @@ config SND_S3C24XX_SOC_S3C24XX_UDA134X
 	tristate "SoC I2S Audio support UDA134X wired to a S3C24XX"
        	depends on SND_S3C24XX_SOC
        	select SND_S3C24XX_SOC_I2S
+	select SND_SOC_L3
        	select SND_SOC_UDA134X

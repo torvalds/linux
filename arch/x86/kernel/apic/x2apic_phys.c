@@ -58,6 +58,8 @@ static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
 	unsigned long query_cpu;
 	unsigned long flags;
 
+	x2apic_wrmsr_fence();
+
 	local_irq_save(flags);
 	for_each_cpu(query_cpu, mask) {
 		__x2apic_send_IPI_dest(per_cpu(x86_cpu_to_apicid, query_cpu),
@@ -72,6 +74,8 @@ static void
 	unsigned long this_cpu = smp_processor_id();
 	unsigned long query_cpu;
 	unsigned long flags;
+
+	x2apic_wrmsr_fence();
 
 	local_irq_save(flags);
 	for_each_cpu(query_cpu, mask) {
@@ -88,6 +92,8 @@ static void x2apic_send_IPI_allbutself(int vector)
 	unsigned long this_cpu = smp_processor_id();
 	unsigned long query_cpu;
 	unsigned long flags;
+
+	x2apic_wrmsr_fence();
 
 	local_irq_save(flags);
 	for_each_online_cpu(query_cpu) {
@@ -213,7 +219,6 @@ struct apic apic_x2apic_phys = {
 	.send_IPI_all			= x2apic_send_IPI_all,
 	.send_IPI_self			= x2apic_send_IPI_self,
 
-	.wakeup_cpu			= NULL,
 	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 	.wait_for_init_deassert		= NULL,

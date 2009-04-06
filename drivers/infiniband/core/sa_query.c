@@ -395,6 +395,8 @@ static void update_sm_ah(struct work_struct *work)
 	}
 
 	spin_lock_irq(&port->ah_lock);
+	if (port->sm_ah)
+		kref_put(&port->sm_ah->ref, free_sm_ah);
 	port->sm_ah = new_ah;
 	spin_unlock_irq(&port->ah_lock);
 

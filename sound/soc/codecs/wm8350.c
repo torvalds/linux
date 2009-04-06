@@ -51,10 +51,17 @@ struct wm8350_output {
 	u16 mute;
 };
 
+struct wm8350_jack_data {
+	struct snd_soc_jack *jack;
+	int report;
+};
+
 struct wm8350_data {
 	struct snd_soc_codec codec;
 	struct wm8350_output out1;
 	struct wm8350_output out2;
+	struct wm8350_jack_data hpl;
+	struct wm8350_jack_data hpr;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(supply_names)];
 };
 
@@ -775,21 +782,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Beep", NULL, "IN3R PGA"},
 };
 
-static int wm8350_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8350_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&wm8350_snd_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 static int wm8350_add_widgets(struct snd_soc_codec *codec)
 {
 	int ret;
@@ -1309,7 +1301,7 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 static int wm8350_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -1318,7 +1310,7 @@ static int wm8350_suspend(struct platform_device *pdev, pm_message_t state)
 static int wm8350_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1327,6 +1319,95 @@ static int wm8350_resume(struct platform_device *pdev)
 
 	return 0;
 }
+
+static void wm8350_hp_jack_handler(struct wm8350 *wm8350, int irq, void *data)
+{
+	struct wm8350_data *priv = data;
+	u16 reg;
+	int report;
+	int mask;
+	struct wm8350_jack_data *jack = NULL;
+
+	switch (irq) {
+	case WM8350_IRQ_CODEC_JCK_DET_L:
+		jack = &priv->hpl;
+		mask = WM8350_JACK_L_LVL;
+		break;
+
+	case WM8350_IRQ_CODEC_JCK_DET_R:
+		jack = &priv->hpr;
+		mask = WM8350_JACK_R_LVL;
+		break;
+
+	default:
+		BUG();
+	}
+
+	if (!jack->jack) {
+		dev_warn(wm8350->dev, "Jack interrupt called with no jack\n");
+		return;
+	}
+
+	/* Debounce */
+	msleep(200);
+
+	reg = wm8350_reg_read(wm8350, WM8350_JACK_PIN_STATUS);
+	if (reg & mask)
+		report = jack->report;
+	else
+		report = 0;
+
+	snd_soc_jack_report(jack->jack, report, jack->report);
+}
+
+/**
+ * wm8350_hp_jack_detect - Enable headphone jack detection.
+ *
+ * @codec:  WM8350 codec
+ * @which:  left or right jack detect signal
+ * @jack:   jack to report detection events on
+ * @report: value to report
+ *
+ * Enables the headphone jack detection of the WM8350.
+ */
+int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
+			  struct snd_soc_jack *jack, int report)
+{
+	struct wm8350_data *priv = codec->private_data;
+	struct wm8350 *wm8350 = codec->control_data;
+	int irq;
+	int ena;
+
+	switch (which) {
+	case WM8350_JDL:
+		priv->hpl.jack = jack;
+		priv->hpl.report = report;
+		irq = WM8350_IRQ_CODEC_JCK_DET_L;
+		ena = WM8350_JDL_ENA;
+		break;
+
+	case WM8350_JDR:
+		priv->hpr.jack = jack;
+		priv->hpr.report = report;
+		irq = WM8350_IRQ_CODEC_JCK_DET_R;
+		ena = WM8350_JDR_ENA;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
+	wm8350_set_bits(wm8350, WM8350_JACK_DETECT, ena);
+
+	/* Sync status */
+	wm8350_hp_jack_handler(wm8350, irq, priv);
+
+	wm8350_unmask_irq(wm8350, irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm8350_hp_jack_detect);
 
 static struct snd_soc_codec *wm8350_codec;
 
@@ -1342,8 +1423,8 @@ static int wm8350_probe(struct platform_device *pdev)
 
 	BUG_ON(!wm8350_codec);
 
-	socdev->codec = wm8350_codec;
-	codec = socdev->codec;
+	socdev->card->codec = wm8350_codec;
+	codec = socdev->card->codec;
 	wm8350 = codec->control_data;
 	priv = codec->private_data;
 
@@ -1381,13 +1462,21 @@ static int wm8350_probe(struct platform_device *pdev)
 	wm8350_set_bits(wm8350, WM8350_ROUT2_VOLUME,
 			WM8350_OUT2_VU | WM8350_OUT2R_MUTE);
 
+	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
+	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
+	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L,
+			    wm8350_hp_jack_handler, priv);
+	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R,
+			    wm8350_hp_jack_handler, priv);
+
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to create pcms\n");
 		return ret;
 	}
 
-	wm8350_add_controls(codec);
+	snd_soc_add_controls(codec, wm8350_snd_controls,
+				ARRAY_SIZE(wm8350_snd_controls));
 	wm8350_add_widgets(codec);
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -1409,9 +1498,22 @@ card_err:
 static int wm8350_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8350 *wm8350 = codec->control_data;
+	struct wm8350_data *priv = codec->private_data;
 	int ret;
+
+	wm8350_clear_bits(wm8350, WM8350_JACK_DETECT,
+			  WM8350_JDL_ENA | WM8350_JDR_ENA);
+	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
+
+	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
+	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
+
+	priv->hpl.jack = NULL;
+	priv->hpr.jack = NULL;
 
 	/* cancel any work waiting to be queued. */
 	ret = cancel_delayed_work(&codec->delayed_work);
@@ -1436,6 +1538,16 @@ static int wm8350_remove(struct platform_device *pdev)
 			SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE)
 
+static struct snd_soc_dai_ops wm8350_dai_ops = {
+	 .hw_params	= wm8350_pcm_hw_params,
+	 .digital_mute	= wm8350_mute,
+	 .trigger	= wm8350_pcm_trigger,
+	 .set_fmt	= wm8350_set_dai_fmt,
+	 .set_sysclk	= wm8350_set_dai_sysclk,
+	 .set_pll	= wm8350_set_fll,
+	 .set_clkdiv	= wm8350_set_clkdiv,
+};
+
 struct snd_soc_dai wm8350_dai = {
 	.name = "WM8350",
 	.playback = {
@@ -1452,15 +1564,7 @@ struct snd_soc_dai wm8350_dai = {
 		 .rates = WM8350_RATES,
 		 .formats = WM8350_FORMATS,
 	 },
-	.ops = {
-		 .hw_params = wm8350_pcm_hw_params,
-		 .digital_mute = wm8350_mute,
-		 .trigger = wm8350_pcm_trigger,
-		 .set_fmt = wm8350_set_dai_fmt,
-		 .set_sysclk = wm8350_set_dai_sysclk,
-		 .set_pll = wm8350_set_fll,
-		 .set_clkdiv = wm8350_set_clkdiv,
-	 },
+	.ops = &wm8350_dai_ops,
 };
 EXPORT_SYMBOL_GPL(wm8350_dai);
 
@@ -1472,7 +1576,7 @@ struct snd_soc_codec_device soc_codec_dev_wm8350 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8350);
 
-static int wm8350_codec_probe(struct platform_device *pdev)
+static __devinit int wm8350_codec_probe(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_data *priv;

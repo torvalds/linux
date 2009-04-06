@@ -59,8 +59,8 @@ static long wdt_gpi_ioctl(struct file *, unsigned int, unsigned long);
 static int wdt_gpi_notify(struct notifier_block *, unsigned long, void *);
 static const struct resource *wdt_gpi_get_resource(struct platform_device *,
 						const char *, unsigned int);
-static int __init wdt_gpi_probe(struct device *);
-static int __exit wdt_gpi_remove(struct device *);
+static int __init wdt_gpi_probe(struct platform_device *);
+static int __exit wdt_gpi_remove(struct platform_device *);
 
 
 static const char wdt_gpi_name[] = "wdt_gpi";
@@ -346,10 +346,9 @@ static const struct resource *wdt_gpi_get_resource(struct platform_device *pdv,
 }
 
 /* No hotplugging on the platform bus - use __init */
-static int __init wdt_gpi_probe(struct device *dev)
+static int __init wdt_gpi_probe(struct platform_device *pdv)
 {
 	int res;
-	struct platform_device * const pdv = to_platform_device(dev);
 	const struct resource
 		* const rr = wdt_gpi_get_resource(pdv, WDT_RESOURCE_REGS,
 						  IORESOURCE_MEM),
@@ -374,7 +373,7 @@ static int __init wdt_gpi_probe(struct device *dev)
 	return res;
 }
 
-static int __exit wdt_gpi_remove(struct device *dev)
+static int __exit wdt_gpi_remove(struct platform_device *dev)
 {
 	int res;
 
@@ -387,15 +386,13 @@ static int __exit wdt_gpi_remove(struct device *dev)
 
 
 /* Device driver init & exit */
-static struct device_driver wdt_gpi_driver = {
-	.name		= (char *) wdt_gpi_name,
-	.bus		= &platform_bus_type,
-	.owner		= THIS_MODULE,
+static struct platform_driver wgt_gpi_driver = {
+	.driver = {
+		.name		= wdt_gpi_name,
+		.owner		= THIS_MODULE,
+	},
 	.probe		= wdt_gpi_probe,
-	.remove		= __exit_p(wdt_gpi_remove),
-	.shutdown	= NULL,
-	.suspend	= NULL,
-	.resume		= NULL,
+	.remove		= __devexit_p(wdt_gpi_remove),
 };
 
 static int __init wdt_gpi_init_module(void)
@@ -403,12 +400,12 @@ static int __init wdt_gpi_init_module(void)
 	atomic_set(&opencnt, 1);
 	if (timeout > MAX_TIMEOUT_SECONDS)
 		timeout = MAX_TIMEOUT_SECONDS;
-	return driver_register(&wdt_gpi_driver);
+	return platform_driver_register(&wdt_gpi_driver);
 }
 
 static void __exit wdt_gpi_cleanup_module(void)
 {
-	driver_unregister(&wdt_gpi_driver);
+	platform_driver_unregister(&wdt_gpi_driver);
 }
 
 module_init(wdt_gpi_init_module);

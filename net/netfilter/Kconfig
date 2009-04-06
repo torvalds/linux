@@ -52,7 +52,7 @@ config NF_CT_ACCT
 
 	  Please note that currently this option only sets a default state.
 	  You may change it at boot time with nf_conntrack.acct=0/1 kernel
-	  paramater or by loading the nf_conntrack module with acct=0/1.
+	  parameter or by loading the nf_conntrack module with acct=0/1.
 
 	  You may also disable/enable it on a running system with:
 	   sysctl net.netfilter.nf_conntrack_acct=0/1
@@ -357,6 +357,45 @@ config NETFILTER_XT_TARGET_DSCP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_TARGET_HL
+	tristate '"HL" hoplimit target support'
+	depends on IP_NF_MANGLE || IP6_NF_MANGLE
+	depends on NETFILTER_ADVANCED
+	---help---
+	This option adds the "HL" (for IPv6) and "TTL" (for IPv4)
+	targets, which enable the user to change the
+	hoplimit/time-to-live value of the IP header.
+
+	While it is safe to decrement the hoplimit/TTL value, the
+	modules also allow to increment and set the hoplimit value of
+	the header to arbitrary values. This is EXTREMELY DANGEROUS
+	since you can easily create immortal packets that loop
+	forever on the network.
+
+config NETFILTER_XT_TARGET_LED
+	tristate '"LED" target support'
+	depends on LEDS_CLASS && LED_TRIGGERS
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `LED' target, which allows you to blink LEDs in
+	  response to particular packets passing through your machine.
+
+	  This can be used to turn a spare LED into a network activity LED,
+	  which only flashes in response to FTP transfers, for example.  Or
+	  you could have an LED which lights up for a minute or two every time
+	  somebody connects to your machine via SSH.
+
+	  You will need support for the "led" class to make this work.
+
+	  To create an LED trigger for incoming SSH traffic:
+	    iptables -A INPUT -p tcp --dport 22 -j LED --led-trigger-id ssh --led-delay 1000
+
+	  Then attach the new trigger to an LED on your system:
+	    echo netfilter-ssh > /sys/class/leds/<ledname>/trigger
+
+	  For more information on the LEDs available on your system, see
+	  Documentation/leds-class.txt
+
 config NETFILTER_XT_TARGET_MARK
 	tristate '"MARK" target support'
 	default m if NETFILTER_ADVANCED=n
@@ -488,6 +527,22 @@ config NETFILTER_XT_TARGET_TCPOPTSTRIP
 	  This option adds a "TCPOPTSTRIP" target, which allows you to strip
 	  TCP options from TCP packets.
 
+config NETFILTER_XT_MATCH_CLUSTER
+	tristate '"cluster" match support'
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option allows you to build work-load-sharing clusters of
+	  network servers/stateful firewalls without having a dedicated
+	  load-balancing router/server/switch. Basically, this match returns
+	  true when the packet must be handled by this cluster node. Thus,
+	  all nodes see all packets and this match decides which node handles
+	  what packets. The work-load sharing algorithm is based on source
+	  address hashing.
+
+	  If you say Y or M here, try `iptables -m cluster --help` for
+	  more information.
+
 config NETFILTER_XT_MATCH_COMMENT
 	tristate  '"comment" match support'
 	depends on NETFILTER_ADVANCED
@@ -604,6 +659,14 @@ config NETFILTER_XT_MATCH_HELPER
 	  tracked by a conntrack-helper, ie. ip_conntrack_ftp
 
 	  To compile it as a module, choose M here.  If unsure, say Y.
+
+config NETFILTER_XT_MATCH_HL
+	tristate '"hl" hoplimit/TTL match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	HL matching allows you to match packets based on the hoplimit
+	in the IPv6 header, or the time-to-live field in the IPv4
+	header of the packet.
 
 config NETFILTER_XT_MATCH_IPRANGE
 	tristate '"iprange" address range match support'

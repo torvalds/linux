@@ -1384,6 +1384,10 @@ VOID	WpaGroupMsg1Action(
 			pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_TKIP;
 		else if (pAd->StaCfg.GroupCipher == Ndis802_11Encryption3Enabled)
 			pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_AES;
+		else if (pAd->StaCfg.GroupCipher == Ndis802_11GroupWEP40Enabled)
+			pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_WEP64;
+		else if (pAd->StaCfg.GroupCipher == Ndis802_11GroupWEP104Enabled)
+			pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_WEP128;
 
     	//hex_dump("Group Key :", pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].Key, LEN_TKIP_EK);
 	}
@@ -1760,7 +1764,7 @@ BOOLEAN ParseKeyData(
 	// Get GTK length - refer to IEEE 802.11i-2004 p.82
 	GTKLEN = pKDE->Len -6;
 
-	if (GTKLEN < LEN_AES_KEY)
+	if (GTKLEN < MIN_LEN_OF_GTK)
 	{
 		DBGPRINT(RT_DEBUG_ERROR, ("ERROR: GTK Key length is too short (%d) \n", GTKLEN));
         return FALSE;
@@ -1786,6 +1790,10 @@ BOOLEAN ParseKeyData(
 		pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_TKIP;
 	else if (pAd->StaCfg.GroupCipher == Ndis802_11Encryption3Enabled)
 		pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_AES;
+	else if (pAd->StaCfg.GroupCipher == Ndis802_11GroupWEP40Enabled)
+		pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_WEP64;
+	else if (pAd->StaCfg.GroupCipher == Ndis802_11GroupWEP104Enabled)
+		pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].CipherAlg = CIPHER_WEP128;
 
 	return TRUE;
 

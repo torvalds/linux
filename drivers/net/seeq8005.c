@@ -143,6 +143,17 @@ out:
 	return ERR_PTR(err);
 }
 
+static const struct net_device_ops seeq8005_netdev_ops = {
+	.ndo_open		= seeq8005_open,
+	.ndo_stop		= seeq8005_close,
+	.ndo_start_xmit 	= seeq8005_send_packet,
+	.ndo_tx_timeout		= seeq8005_timeout,
+	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /* This is the real probe routine.  Linux has a history of friendly device
    probes on the ISA bus.  A good device probes avoids doing writes, and
    verifies that the correct device exists and functions.  */
@@ -332,12 +343,8 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 		 }
 	}
 #endif
-	dev->open		= seeq8005_open;
-	dev->stop		= seeq8005_close;
-	dev->hard_start_xmit 	= seeq8005_send_packet;
-	dev->tx_timeout		= seeq8005_timeout;
+	dev->netdev_ops = &seeq8005_netdev_ops;
 	dev->watchdog_timeo	= HZ/20;
-	dev->set_multicast_list = set_multicast_list;
 	dev->flags &= ~IFF_MULTICAST;
 
 	return 0;

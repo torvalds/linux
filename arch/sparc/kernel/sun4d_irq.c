@@ -326,7 +326,6 @@ int sun4d_request_irq(unsigned int irq,
 
 	action->handler = handler;
 	action->flags = irqflags;
-	cpus_clear(action->mask);
 	action->name = devname;
 	action->next = NULL;
 	action->dev_id = dev_id;

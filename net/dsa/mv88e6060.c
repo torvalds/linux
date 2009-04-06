@@ -1,6 +1,6 @@
 /*
  * net/dsa/mv88e6060.c - Driver for Marvell 88e6060 switch chips
- * Copyright (c) 2008 Marvell Semiconductor
+ * Copyright (c) 2008-2009 Marvell Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ static int mv88e6060_switch_reset(struct dsa_switch *ds)
 	/*
 	 * Reset the switch.
 	 */
-	REG_WRITE(REG_GLOBAL, 0x0A, 0xa130);
+	REG_WRITE(REG_GLOBAL, 0x0a, 0xa130);
 
 	/*
 	 * Wait up to one second for reset to complete.
@@ -128,7 +128,7 @@ static int mv88e6060_setup_port(struct dsa_switch *ds, int p)
 	 * state to Forwarding.  Additionally, if this is the CPU
 	 * port, enable Ingress and Egress Trailer tagging mode.
 	 */
-	REG_WRITE(addr, 0x04, (p == ds->cpu_port) ? 0x4103 : 0x0003);
+	REG_WRITE(addr, 0x04, dsa_is_cpu_port(ds, p) ?  0x4103 : 0x0003);
 
 	/*
 	 * Port based VLAN map: give each port its own address
@@ -138,9 +138,9 @@ static int mv88e6060_setup_port(struct dsa_switch *ds, int p)
 	 */
 	REG_WRITE(addr, 0x06,
 			((p & 0xf) << 12) |
-			 ((p == ds->cpu_port) ?
-				ds->valid_port_mask :
-				(1 << ds->cpu_port)));
+			 (dsa_is_cpu_port(ds, p) ?
+				ds->phys_port_mask :
+				(1 << ds->dst->cpu_port)));
 
 	/*
 	 * Port Association Vector: when learning source addresses

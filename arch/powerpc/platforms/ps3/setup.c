@@ -270,8 +270,6 @@ define_machine(ps3) {
 	.init_IRQ			= ps3_init_IRQ,
 	.panic				= ps3_panic,
 	.get_boot_time			= ps3_get_boot_time,
-	.set_rtc_time			= ps3_set_rtc_time,
-	.get_rtc_time			= ps3_get_rtc_time,
 	.set_dabr			= ps3_set_dabr,
 	.calibrate_decr			= ps3_calibrate_decr,
 	.progress			= ps3_progress,

@@ -18,7 +18,7 @@
 
 /*
  * Timer function which is run every scan_ms ms when the device is opened.
- * The dev input varaible is set to the the input_dev pointer.
+ * The dev input variable is set to the the input_dev pointer.
  */
 static void gpio_mouse_scan(struct input_polled_dev *dev)
 {

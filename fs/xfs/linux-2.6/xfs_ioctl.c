@@ -34,6 +34,7 @@
 #include "xfs_dir2_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_ioctl.h"
 #include "xfs_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_rtalloc.h"
@@ -78,92 +79,74 @@ xfs_find_handle(
 	int			hsize;
 	xfs_handle_t		handle;
 	struct inode		*inode;
+	struct file		*file = NULL;
+	struct path		path;
+	int			error;
+	struct xfs_inode	*ip;
 
-	memset((char *)&handle, 0, sizeof(handle));
-
-	switch (cmd) {
-	case XFS_IOC_PATH_TO_FSHANDLE:
-	case XFS_IOC_PATH_TO_HANDLE: {
-		struct path path;
-		int error = user_lpath((const char __user *)hreq->path, &path);
-		if (error)
-			return error;
-
-		ASSERT(path.dentry);
-		ASSERT(path.dentry->d_inode);
-		inode = igrab(path.dentry->d_inode);
-		path_put(&path);
-		break;
-	}
-
-	case XFS_IOC_FD_TO_HANDLE: {
-		struct file	*file;
-
+	if (cmd == XFS_IOC_FD_TO_HANDLE) {
 		file = fget(hreq->fd);
 		if (!file)
-		    return -EBADF;
-
-		ASSERT(file->f_path.dentry);
-		ASSERT(file->f_path.dentry->d_inode);
-		inode = igrab(file->f_path.dentry->d_inode);
-		fput(file);
-		break;
+			return -EBADF;
+		inode = file->f_path.dentry->d_inode;
+	} else {
+		error = user_lpath((const char __user *)hreq->path, &path);
+		if (error)
+			return error;
+		inode = path.dentry->d_inode;
 	}
+	ip = XFS_I(inode);
 
-	default:
-		ASSERT(0);
-		return -XFS_ERROR(EINVAL);
-	}
+	/*
+	 * We can only generate handles for inodes residing on a XFS filesystem,
+	 * and only for regular files, directories or symbolic links.
+	 */
+	error = -EINVAL;
+	if (inode->i_sb->s_magic != XFS_SB_MAGIC)
+		goto out_put;
 
-	if (inode->i_sb->s_magic != XFS_SB_MAGIC) {
-		/* we're not in XFS anymore, Toto */
-		iput(inode);
-		return -XFS_ERROR(EINVAL);
-	}
+	error = -EBADF;
+	if (!S_ISREG(inode->i_mode) &&
+	    !S_ISDIR(inode->i_mode) &&
+	    !S_ISLNK(inode->i_mode))
+		goto out_put;
 
-	switch (inode->i_mode & S_IFMT) {
-	case S_IFREG:
-	case S_IFDIR:
-	case S_IFLNK:
-		break;
-	default:
-		iput(inode);
-		return -XFS_ERROR(EBADF);
-	}
 
-	/* now we can grab the fsid */
-	memcpy(&handle.ha_fsid, XFS_I(inode)->i_mount->m_fixedfsid,
-			sizeof(xfs_fsid_t));
-	hsize = sizeof(xfs_fsid_t);
+	memcpy(&handle.ha_fsid, ip->i_mount->m_fixedfsid, sizeof(xfs_fsid_t));
 
-	if (cmd != XFS_IOC_PATH_TO_FSHANDLE) {
-		xfs_inode_t	*ip = XFS_I(inode);
+	if (cmd == XFS_IOC_PATH_TO_FSHANDLE) {
+		/*
+		 * This handle only contains an fsid, zero the rest.
+		 */
+		memset(&handle.ha_fid, 0, sizeof(handle.ha_fid));
+		hsize = sizeof(xfs_fsid_t);
+	} else {
 		int		lock_mode;
 
-		/* need to get access to the xfs_inode to read the generation */
 		lock_mode = xfs_ilock_map_shared(ip);
-
-		/* fill in fid section of handle from inode */
 		handle.ha_fid.fid_len = sizeof(xfs_fid_t) -
 					sizeof(handle.ha_fid.fid_len);
 		handle.ha_fid.fid_pad = 0;
 		handle.ha_fid.fid_gen = ip->i_d.di_gen;
 		handle.ha_fid.fid_ino = ip->i_ino;
-
 		xfs_iunlock_map_shared(ip, lock_mode);
 
 		hsize = XFS_HSIZE(handle);
 	}
 
-	/* now copy our handle into the user buffer & write out the size */
+	error = -EFAULT;
 	if (copy_to_user(hreq->ohandle, &handle, hsize) ||
-	    copy_to_user(hreq->ohandlen, &hsize, sizeof(__s32))) {
-		iput(inode);
-		return -XFS_ERROR(EFAULT);
-	}
+	    copy_to_user(hreq->ohandlen, &hsize, sizeof(__s32)))
+		goto out_put;
 
-	iput(inode);
-	return 0;
+	error = 0;
+
+ out_put:
+	if (cmd == XFS_IOC_FD_TO_HANDLE)
+		fput(file);
+	else
+		path_put(&path);
+	return error;
 }
 
 /*

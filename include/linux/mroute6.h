@@ -65,7 +65,7 @@ struct mif6ctl {
 	mifi_t	mif6c_mifi;		/* Index of MIF */
 	unsigned char mif6c_flags;	/* MIFF_ flags */
 	unsigned char vifc_threshold;	/* ttl limit */
-	u_short	 mif6c_pifi;		/* the index of the physical IF */
+	__u16	 mif6c_pifi;		/* the index of the physical IF */
 	unsigned int vifc_rate_limit;	/* Rate limiter values (NI) */
 };
 

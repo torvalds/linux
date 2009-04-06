@@ -104,7 +104,7 @@ typedef struct _tEdrvTxBuffer {
 	unsigned int m_uiTxMsgLen;	// IN: length of message to be send (set for each transmit call)
 	// ----------------------
 	unsigned int m_uiBufferNumber;	// OUT: number of the buffer, set by ethernetdriver
-	BYTE *m_pbBuffer;	// OUT: pointer to the buffer, set by ethernetdriver
+	u8 *m_pbBuffer;	// OUT: pointer to the buffer, set by ethernetdriver
 	tEplNetTime m_NetTime;	// OUT: Timestamp of end of transmission, set by ethernetdriver
 	// ----------------------
 	unsigned int m_uiMaxBufferLen;	// IN/OUT: maximum length of the buffer
@@ -114,23 +114,23 @@ typedef struct _tEdrvTxBuffer {
 typedef struct _tEdrvRxBuffer {
 	tEdrvBufferInFrame m_BufferInFrame;	// OUT position of received buffer in an ethernet-frame
 	unsigned int m_uiRxMsgLen;	// OUT: length of received buffer (without CRC)
-	BYTE *m_pbBuffer;	// OUT: pointer to the buffer, set by ethernetdriver
+	u8 *m_pbBuffer;	// OUT: pointer to the buffer, set by ethernetdriver
 	tEplNetTime m_NetTime;	// OUT: Timestamp of end of receiption
 
 } tEdrvRxBuffer;
 
-//typedef void (*tEdrvRxHandler) (BYTE bBufferInFrame_p, tBufferDescr * pbBuffer_p);
-//typedef void (*tEdrvRxHandler) (BYTE bBufferInFrame_p, BYTE * pbEthernetData_p, WORD wDataLen_p);
+//typedef void (*tEdrvRxHandler) (u8 bBufferInFrame_p, tBufferDescr * pbBuffer_p);
+//typedef void (*tEdrvRxHandler) (u8 bBufferInFrame_p, u8 * pbEthernetData_p, u16 wDataLen_p);
 typedef void (*tEdrvRxHandler) (tEdrvRxBuffer * pRxBuffer_p);
 typedef void (*tEdrvTxHandler) (tEdrvTxBuffer * pTxBuffer_p);
 
 // format of init structure
 typedef struct {
-	BYTE m_abMyMacAddr[6];	// the own MAC address
+	u8 m_abMyMacAddr[6];	// the own MAC address
 
-//    BYTE            m_bNoOfRxBuffDescr;     // number of entries in rx bufferdescriptor table
+//    u8            m_bNoOfRxBuffDescr;     // number of entries in rx bufferdescriptor table
 //    tBufferDescr *  m_pRxBuffDescrTable;    // rx bufferdescriptor table
-//    WORD            m_wRxBufferSize;        // size of the whole rx buffer
+//    u16            m_wRxBufferSize;        // size of the whole rx buffer
 
 	tEdrvRxHandler m_pfnRxHandler;
 	tEdrvTxHandler m_pfnTxHandler;
@@ -145,11 +145,11 @@ tEplKernel EdrvInit(tEdrvInitParam * pEdrvInitParam_p);
 
 tEplKernel EdrvShutdown(void);
 
-tEplKernel EdrvDefineRxMacAddrEntry(BYTE * pbMacAddr_p);
-tEplKernel EdrvUndefineRxMacAddrEntry(BYTE * pbMacAddr_p);
+tEplKernel EdrvDefineRxMacAddrEntry(u8 * pbMacAddr_p);
+tEplKernel EdrvUndefineRxMacAddrEntry(u8 * pbMacAddr_p);
 
-//tEplKernel EdrvDefineUnicastEntry     (BYTE * pbUCEntry_p);
-//tEplKernel EdrvUndfineUnicastEntry    (BYTE * pbUCEntry_p);
+//tEplKernel EdrvDefineUnicastEntry     (u8 * pbUCEntry_p);
+//tEplKernel EdrvUndfineUnicastEntry    (u8 * pbUCEntry_p);
 
 tEplKernel EdrvAllocTxMsgBuffer(tEdrvTxBuffer * pBuffer_p);
 tEplKernel EdrvReleaseTxMsgBuffer(tEdrvTxBuffer * pBuffer_p);

@@ -221,7 +221,7 @@ void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
 	 */
 	if ((!obj_desc) ||
 	    (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) ||
-	    (ACPI_GET_OBJECT_TYPE(obj_desc) != ACPI_TYPE_INTEGER)) {
+	    (obj_desc->common.type != ACPI_TYPE_INTEGER)) {
 		return;
 	}
 

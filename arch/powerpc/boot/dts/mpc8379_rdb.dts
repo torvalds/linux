@@ -107,26 +107,72 @@
 			reg = <0x200 0x100>;
 		};
 
-		i2c@3000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <0>;
-			compatible = "fsl-i2c";
-			reg = <0x3000 0x100>;
-			interrupts = <14 0x8>;
+		gpio1: gpio-controller@c00 {
+			#gpio-cells = <2>;
+			compatible = "fsl,mpc8379-gpio", "fsl,mpc8349-gpio";
+			reg = <0xc00 0x100>;
+			interrupts = <74 0x8>;
 			interrupt-parent = <&ipic>;
-			dfsrr;
-			rtc@68 {
-				compatible = "dallas,ds1339";
-				reg = <0x68>;
+			gpio-controller;
+		};
+
+		gpio2: gpio-controller@d00 {
+			#gpio-cells = <2>;
+			compatible = "fsl,mpc8379-gpio", "fsl,mpc8349-gpio";
+			reg = <0xd00 0x100>;
+			interrupts = <75 0x8>;
+			interrupt-parent = <&ipic>;
+			gpio-controller;
+		};
+
+		sleep-nexus {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			sleep = <&pmc 0x0c000000>;
+			ranges;
+
+			i2c@3000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <0>;
+				compatible = "fsl-i2c";
+				reg = <0x3000 0x100>;
+				interrupts = <14 0x8>;
+				interrupt-parent = <&ipic>;
+				dfsrr;
+
+				dtt@48 {
+					compatible = "national,lm75";
+					reg = <0x48>;
+				};
+
+				at24@50 {
+					compatible = "at24,24c256";
+					reg = <0x50>;
+				};
+
+				rtc@68 {
+					compatible = "dallas,ds1339";
+					reg = <0x68>;
+				};
+
+				mcu_pio: mcu@a {
+					#gpio-cells = <2>;
+					compatible = "fsl,mc9s08qg8-mpc8379erdb",
+						     "fsl,mcu-mpc8349emitx";
+					reg = <0x0a>;
+					gpio-controller;
+				};
 			};
 
-			mcu_pio: mcu@a {
-				#gpio-cells = <2>;
-				compatible = "fsl,mc9s08qg8-mpc8379erdb",
-					     "fsl,mcu-mpc8349emitx";
-				reg = <0x0a>;
-				gpio-controller;
+			sdhci@2e000 {
+				compatible = "fsl,mpc8379-esdhc";
+				reg = <0x2e000 0x1000>;
+				interrupts = <42 0x8>;
+				interrupt-parent = <&ipic>;
+				/* Filled in by U-Boot */
+				clock-frequency = <0>;
 			};
 		};
 
@@ -197,63 +243,76 @@
 			interrupt-parent = <&ipic>;
 			interrupts = <38 0x8>;
 			phy_type = "ulpi";
-		};
-
-		mdio@24520 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "fsl,gianfar-mdio";
-			reg = <0x24520 0x20>;
-			phy2: ethernet-phy@2 {
-				interrupt-parent = <&ipic>;
-				interrupts = <17 0x8>;
-				reg = <0x2>;
-				device_type = "ethernet-phy";
-			};
-			tbi0: tbi-phy@11 {
-				reg = <0x11>;
-				device_type = "tbi-phy";
-			};
-		};
-
-		mdio@25520 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "fsl,gianfar-tbi";
-			reg = <0x25520 0x20>;
-
-			tbi1: tbi-phy@11 {
-				reg = <0x11>;
-				device_type = "tbi-phy";
-			};
+			sleep = <&pmc 0x00c00000>;
 		};
 
 		enet0: ethernet@24000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			cell-index = <0>;
 			device_type = "network";
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <0x24000 0x1000>;
+			ranges = <0x0 0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <32 0x8 33 0x8 34 0x8>;
 			phy-connection-type = "mii";
 			interrupt-parent = <&ipic>;
 			tbi-handle = <&tbi0>;
 			phy-handle = <&phy2>;
+			sleep = <&pmc 0xc0000000>;
+			fsl,magic-packet;
+
+			mdio@520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-mdio";
+				reg = <0x520 0x20>;
+
+				phy2: ethernet-phy@2 {
+					interrupt-parent = <&ipic>;
+					interrupts = <17 0x8>;
+					reg = <0x2>;
+					device_type = "ethernet-phy";
+				};
+
+				tbi0: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
+			};
 		};
 
 		enet1: ethernet@25000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			cell-index = <1>;
 			device_type = "network";
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <0x25000 0x1000>;
+			ranges = <0x0 0x25000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <35 0x8 36 0x8 37 0x8>;
 			phy-connection-type = "mii";
 			interrupt-parent = <&ipic>;
 			fixed-link = <1 1 1000 0 0>;
 			tbi-handle = <&tbi1>;
+			sleep = <&pmc 0x30000000>;
+			fsl,magic-packet;
+
+			mdio@520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-tbi";
+				reg = <0x520 0x20>;
+
+				tbi1: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
+			};
 		};
 
 		serial0: serial@4500 {
@@ -286,6 +345,7 @@
 			fsl,channel-fifo-len = <24>;
 			fsl,exec-units-mask = <0x9fe>;
 			fsl,descriptor-types-mask = <0x3ab0ebf>;
+			sleep = <&pmc 0x03000000>;
 		};
 
 		sata@18000 {
@@ -293,6 +353,7 @@
 			reg = <0x18000 0x1000>;
 			interrupts = <44 0x8>;
 			interrupt-parent = <&ipic>;
+			sleep = <&pmc 0x000000c0>;
 		};
 
 		sata@19000 {
@@ -300,6 +361,7 @@
 			reg = <0x19000 0x1000>;
 			interrupts = <45 0x8>;
 			interrupt-parent = <&ipic>;
+			sleep = <&pmc 0x00000030>;
 		};
 
 		sata@1a000 {
@@ -307,6 +369,7 @@
 			reg = <0x1a000 0x1000>;
 			interrupts = <46 0x8>;
 			interrupt-parent = <&ipic>;
+			sleep = <&pmc 0x0000000c>;
 		};
 
 		sata@1b000 {
@@ -314,6 +377,7 @@
 			reg = <0x1b000 0x1000>;
 			interrupts = <47 0x8>;
 			interrupt-parent = <&ipic>;
+			sleep = <&pmc 0x00000003>;
 		};
 
 		/* IPIC
@@ -328,6 +392,13 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <0x700 0x100>;
+		};
+
+		pmc: power@b00 {
+			compatible = "fsl,mpc8379-pmc", "fsl,mpc8349-pmc";
+			reg = <0xb00 0x100 0xa00 0x100>;
+			interrupts = <80 0x8>;
+			interrupt-parent = <&ipic>;
 		};
 	};
 
@@ -354,6 +425,7 @@
 		ranges = <0x02000000 0x0 0x90000000 0x90000000 0x0 0x10000000
 		          0x42000000 0x0 0x80000000 0x80000000 0x0 0x10000000
 		          0x01000000 0x0 0x00000000 0xe2000000 0x0 0x00100000>;
+		sleep = <&pmc 0x00010000>;
 		clock-frequency = <66666666>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;

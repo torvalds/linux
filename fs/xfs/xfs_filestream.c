@@ -140,7 +140,7 @@ _xfs_filestream_pick_ag(
 	xfs_extlen_t	minlen)
 {
 	int		err, trylock, nscan;
-	xfs_extlen_t	delta, longest, need, free, minfree, maxfree = 0;
+	xfs_extlen_t	longest, free, minfree, maxfree = 0;
 	xfs_agnumber_t	ag, max_ag = NULLAGNUMBER;
 	struct xfs_perag *pag;
 
@@ -186,12 +186,7 @@ _xfs_filestream_pick_ag(
 			goto next_ag;
 		}
 
-		need = XFS_MIN_FREELIST_PAG(pag, mp);
-		delta = need > pag->pagf_flcount ? need - pag->pagf_flcount : 0;
-		longest = (pag->pagf_longest > delta) ?
-		          (pag->pagf_longest - delta) :
-		          (pag->pagf_flcount > 0 || pag->pagf_longest > 0);
-
+		longest = xfs_alloc_longest_free_extent(mp, pag);
 		if (((minlen && longest >= minlen) ||
 		     (!minlen && pag->pagf_freeblks >= minfree)) &&
 		    (!pag->pagf_metadata || !(flags & XFS_PICK_USERDATA) ||

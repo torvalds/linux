@@ -69,8 +69,8 @@ struct detailed_pixel_timing {
 	u8 hborder;
 	u8 vborder;
 	u8 unknown0:1;
-	u8 vsync_positive:1;
 	u8 hsync_positive:1;
+	u8 vsync_positive:1;
 	u8 separate_sync:2;
 	u8 stereo:1;
 	u8 unknown6:1;

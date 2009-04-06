@@ -169,7 +169,6 @@ struct dvb_frontend* s921_attach(const struct s921_config *config,
 
 	struct s921_state *state;
 	state = kzalloc(sizeof(struct s921_state), GFP_KERNEL);
-	memset(state, 0x0, sizeof(struct s921_state));
 
 	state->addr = config->i2c_address;
 	state->i2c = i2c;

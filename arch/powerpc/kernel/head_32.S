@@ -108,18 +108,21 @@ __start:
  * because OF may have I/O devices mapped into that area
  * (particularly on CHRP).
  */
-#ifdef CONFIG_PPC_MULTIPLATFORM
 	cmpwi	0,r5,0
 	beq	1f
 
+#ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
 	/* find out where we are now */
 	bcl	20,31,$+4
 0:	mflr	r8			/* r8 = runtime addr here */
 	addis	r8,r8,(_stext - 0b)@ha
 	addi	r8,r8,(_stext - 0b)@l	/* current runtime base addr */
 	bl	prom_init
+#endif /* CONFIG_PPC_OF_BOOT_TRAMPOLINE */
+
+	/* We never return. We also hit that trap if trying to boot
+	 * from OF while CONFIG_PPC_OF_BOOT_TRAMPOLINE isn't selected */
 	trap
-#endif
 
 /*
  * Check for BootX signature when supporting PowerMac and branch to
@@ -472,12 +475,11 @@ SystemCall:
 	. = 0x1000
 InstructionTLBMiss:
 /*
- * r0:	stored ctr
+ * r0:	scratch
  * r1:	linux style pte ( later becomes ppc hardware pte )
  * r2:	ptr to linux-style pte
  * r3:	scratch
  */
-	mfctr	r0
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_IMISS
 	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
@@ -496,25 +498,27 @@ InstructionTLBMiss:
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
 	beq-	InstructionAddressInvalid	/* return if no mapping */
 	rlwimi	r2,r3,22,20,29		/* insert next 10 bits of address */
-	lwz	r3,0(r2)		/* get linux-style pte */
-	andc.	r1,r1,r3		/* check access & ~permission */
+	lwz	r0,0(r2)		/* get linux-style pte */
+	andc.	r1,r1,r0		/* check access & ~permission */
 	bne-	InstructionAddressInvalid /* return if access not permitted */
-	ori	r3,r3,_PAGE_ACCESSED	/* set _PAGE_ACCESSED in pte */
+	ori	r0,r0,_PAGE_ACCESSED	/* set _PAGE_ACCESSED in pte */
 	/*
 	 * NOTE! We are assuming this is not an SMP system, otherwise
 	 * we would need to update the pte atomically with lwarx/stwcx.
 	 */
-	stw	r3,0(r2)		/* update PTE (accessed bit) */
+	stw	r0,0(r2)		/* update PTE (accessed bit) */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
-	rlwinm	r1,r3,32-10,31,31	/* _PAGE_RW -> PP lsb */
-	rlwinm	r2,r3,32-7,31,31	/* _PAGE_DIRTY -> PP lsb */
+	rlwinm	r1,r0,32-10,31,31	/* _PAGE_RW -> PP lsb */
+	rlwinm	r2,r0,32-7,31,31	/* _PAGE_DIRTY -> PP lsb */
 	and	r1,r1,r2		/* writable if _RW and _DIRTY */
-	rlwimi	r3,r3,32-1,30,30	/* _PAGE_USER -> PP msb */
-	rlwimi	r3,r3,32-1,31,31	/* _PAGE_USER -> PP lsb */
-	ori	r1,r1,0xe14		/* clear out reserved bits and M */
-	andc	r1,r3,r1		/* PP = user? (rw&dirty? 2: 3): 0 */
+	rlwimi	r0,r0,32-1,30,30	/* _PAGE_USER -> PP msb */
+	rlwimi	r0,r0,32-1,31,31	/* _PAGE_USER -> PP lsb */
+	ori	r1,r1,0xe04		/* clear out reserved bits */
+	andc	r1,r0,r1		/* PP = user? (rw&dirty? 2: 3): 0 */
+BEGIN_FTR_SECTION
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
-	mfspr	r3,SPRN_IMISS
 	tlbli	r3
 	mfspr	r3,SPRN_SRR1		/* Need to restore CR0 */
 	mtcrf	0x80,r3
@@ -525,7 +529,6 @@ InstructionAddressInvalid:
 
 	addis	r1,r1,0x2000
 	mtspr	SPRN_DSISR,r1	/* (shouldn't be needed) */
-	mtctr	r0		/* Restore CTR */
 	andi.	r2,r3,0xFFFF	/* Clear upper bits of SRR1 */
 	or	r2,r2,r1
 	mtspr	SPRN_SRR1,r2
@@ -546,12 +549,11 @@ InstructionAddressInvalid:
 	. = 0x1100
 DataLoadTLBMiss:
 /*
- * r0:	stored ctr
+ * r0:	scratch
  * r1:	linux style pte ( later becomes ppc hardware pte )
  * r2:	ptr to linux-style pte
  * r3:	scratch
  */
-	mfctr	r0
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_DMISS
 	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
@@ -570,35 +572,48 @@ DataLoadTLBMiss:
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
 	beq-	DataAddressInvalid	/* return if no mapping */
 	rlwimi	r2,r3,22,20,29		/* insert next 10 bits of address */
-	lwz	r3,0(r2)		/* get linux-style pte */
-	andc.	r1,r1,r3		/* check access & ~permission */
+	lwz	r0,0(r2)		/* get linux-style pte */
+	andc.	r1,r1,r0		/* check access & ~permission */
 	bne-	DataAddressInvalid	/* return if access not permitted */
-	ori	r3,r3,_PAGE_ACCESSED	/* set _PAGE_ACCESSED in pte */
+	ori	r0,r0,_PAGE_ACCESSED	/* set _PAGE_ACCESSED in pte */
 	/*
 	 * NOTE! We are assuming this is not an SMP system, otherwise
 	 * we would need to update the pte atomically with lwarx/stwcx.
 	 */
-	stw	r3,0(r2)		/* update PTE (accessed bit) */
+	stw	r0,0(r2)		/* update PTE (accessed bit) */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
-	rlwinm	r1,r3,32-10,31,31	/* _PAGE_RW -> PP lsb */
-	rlwinm	r2,r3,32-7,31,31	/* _PAGE_DIRTY -> PP lsb */
+	rlwinm	r1,r0,32-10,31,31	/* _PAGE_RW -> PP lsb */
+	rlwinm	r2,r0,32-7,31,31	/* _PAGE_DIRTY -> PP lsb */
 	and	r1,r1,r2		/* writable if _RW and _DIRTY */
-	rlwimi	r3,r3,32-1,30,30	/* _PAGE_USER -> PP msb */
-	rlwimi	r3,r3,32-1,31,31	/* _PAGE_USER -> PP lsb */
-	ori	r1,r1,0xe14		/* clear out reserved bits and M */
-	andc	r1,r3,r1		/* PP = user? (rw&dirty? 2: 3): 0 */
+	rlwimi	r0,r0,32-1,30,30	/* _PAGE_USER -> PP msb */
+	rlwimi	r0,r0,32-1,31,31	/* _PAGE_USER -> PP lsb */
+	ori	r1,r1,0xe04		/* clear out reserved bits */
+	andc	r1,r0,r1		/* PP = user? (rw&dirty? 2: 3): 0 */
+BEGIN_FTR_SECTION
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
-	mfspr	r3,SPRN_DMISS
+	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
+	mtcrf	0x80,r2
+BEGIN_MMU_FTR_SECTION
+	li	r0,1
+	mfspr	r1,SPRN_SPRG4
+	rlwinm	r2,r3,20,27,31		/* Get Address bits 15:19 */
+	slw	r0,r0,r2
+	xor	r1,r0,r1
+	srw	r0,r1,r2
+	mtspr   SPRN_SPRG4,r1
+	mfspr	r2,SPRN_SRR1
+	rlwimi	r2,r0,31-14,14,14
+	mtspr   SPRN_SRR1,r2
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 	tlbld	r3
-	mfspr	r3,SPRN_SRR1		/* Need to restore CR0 */
-	mtcrf	0x80,r3
 	rfi
 DataAddressInvalid:
 	mfspr	r3,SPRN_SRR1
 	rlwinm	r1,r3,9,6,6	/* Get load/store bit */
 	addis	r1,r1,0x2000
 	mtspr	SPRN_DSISR,r1
-	mtctr	r0		/* Restore CTR */
 	andi.	r2,r3,0xFFFF	/* Clear upper bits of SRR1 */
 	mtspr	SPRN_SRR1,r2
 	mfspr	r1,SPRN_DMISS	/* Get failing address */
@@ -618,12 +633,11 @@ DataAddressInvalid:
 	. = 0x1200
 DataStoreTLBMiss:
 /*
- * r0:	stored ctr
+ * r0:	scratch
  * r1:	linux style pte ( later becomes ppc hardware pte )
  * r2:	ptr to linux-style pte
  * r3:	scratch
  */
-	mfctr	r0
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_DMISS
 	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
@@ -642,24 +656,38 @@ DataStoreTLBMiss:
 	rlwinm.	r2,r2,0,0,19		/* extract address of pte page */
 	beq-	DataAddressInvalid	/* return if no mapping */
 	rlwimi	r2,r3,22,20,29		/* insert next 10 bits of address */
-	lwz	r3,0(r2)		/* get linux-style pte */
-	andc.	r1,r1,r3		/* check access & ~permission */
+	lwz	r0,0(r2)		/* get linux-style pte */
+	andc.	r1,r1,r0		/* check access & ~permission */
 	bne-	DataAddressInvalid	/* return if access not permitted */
-	ori	r3,r3,_PAGE_ACCESSED|_PAGE_DIRTY
+	ori	r0,r0,_PAGE_ACCESSED|_PAGE_DIRTY
 	/*
 	 * NOTE! We are assuming this is not an SMP system, otherwise
 	 * we would need to update the pte atomically with lwarx/stwcx.
 	 */
-	stw	r3,0(r2)		/* update PTE (accessed/dirty bits) */
+	stw	r0,0(r2)		/* update PTE (accessed/dirty bits) */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
-	rlwimi	r3,r3,32-1,30,30	/* _PAGE_USER -> PP msb */
-	li	r1,0xe15		/* clear out reserved bits and M */
-	andc	r1,r3,r1		/* PP = user? 2: 0 */
+	rlwimi	r0,r0,32-1,30,30	/* _PAGE_USER -> PP msb */
+	li	r1,0xe05		/* clear out reserved bits & PP lsb */
+	andc	r1,r0,r1		/* PP = user? 2: 0 */
+BEGIN_FTR_SECTION
+	rlwinm	r1,r1,0,~_PAGE_COHERENT	/* clear M (coherence not required) */
+END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	mtspr	SPRN_RPA,r1
-	mfspr	r3,SPRN_DMISS
+	mfspr	r2,SPRN_SRR1		/* Need to restore CR0 */
+	mtcrf	0x80,r2
+BEGIN_MMU_FTR_SECTION
+	li	r0,1
+	mfspr	r1,SPRN_SPRG4
+	rlwinm	r2,r3,20,27,31		/* Get Address bits 15:19 */
+	slw	r0,r0,r2
+	xor	r1,r0,r1
+	srw	r0,r1,r2
+	mtspr   SPRN_SPRG4,r1
+	mfspr	r2,SPRN_SRR1
+	rlwimi	r2,r0,31-14,14,14
+	mtspr   SPRN_SRR1,r2
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 	tlbld	r3
-	mfspr	r3,SPRN_SRR1		/* Need to restore CR0 */
-	mtcrf	0x80,r3
 	rfi
 
 #ifndef CONFIG_ALTIVEC

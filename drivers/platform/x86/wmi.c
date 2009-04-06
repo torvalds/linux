@@ -708,7 +708,7 @@ static int __init acpi_wmi_add(struct acpi_device *device)
 
 static int __init acpi_wmi_init(void)
 {
-	acpi_status result;
+	int result;
 
 	INIT_LIST_HEAD(&wmi_blocks.list);
 

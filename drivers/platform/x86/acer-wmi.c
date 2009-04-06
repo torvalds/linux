@@ -1,7 +1,7 @@
 /*
  *  Acer WMI Laptop Extras
  *
- *  Copyright (C) 2007-2008	Carlos Corbacho <carlos@strangeworlds.co.uk>
+ *  Copyright (C) 2007-2009	Carlos Corbacho <carlos@strangeworlds.co.uk>
  *
  *  Based on acer_acpi:
  *    Copyright (C) 2005-2007	E.M. Smith
@@ -223,6 +223,25 @@ static struct quirk_entry quirk_medion_md_98300 = {
 
 static struct quirk_entry quirk_fujitsu_amilo_li_1718 = {
 	.wireless = 2,
+};
+
+/* The Aspire One has a dummy ACPI-WMI interface - disable it */
+static struct dmi_system_id __devinitdata acer_blacklist[] = {
+	{
+		.ident = "Acer Aspire One (SSD)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AOA110"),
+		},
+	},
+	{
+		.ident = "Acer Aspire One (HDD)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AOA150"),
+		},
+	},
+	{}
 };
 
 static struct dmi_system_id acer_quirks[] = {
@@ -1026,7 +1045,7 @@ static void acer_rfkill_exit(void)
 	kfree(wireless_rfkill->data);
 	rfkill_unregister(wireless_rfkill);
 	if (has_cap(ACER_CAP_BLUETOOTH)) {
-		kfree(wireless_rfkill->data);
+		kfree(bluetooth_rfkill->data);
 		rfkill_unregister(bluetooth_rfkill);
 	}
 	return;
@@ -1117,11 +1136,17 @@ static int __devinit acer_platform_probe(struct platform_device *device)
 	}
 
 	err = acer_rfkill_init(&device->dev);
+	if (err)
+		goto error_rfkill;
 
 	return err;
 
+error_rfkill:
+	if (has_cap(ACER_CAP_BRIGHTNESS))
+		acer_backlight_exit();
 error_brightness:
-	acer_led_exit();
+	if (has_cap(ACER_CAP_MAILLED))
+		acer_led_exit();
 error_mailled:
 	return err;
 }
@@ -1254,6 +1279,12 @@ static int __init acer_wmi_init(void)
 
 	printk(ACER_INFO "Acer Laptop ACPI-WMI Extras\n");
 
+	if (dmi_check_system(acer_blacklist)) {
+		printk(ACER_INFO "Blacklisted hardware detected - "
+				"not loading\n");
+		return -ENODEV;
+	}
+
 	find_quirks();
 
 	/*
@@ -1297,7 +1328,7 @@ static int __init acer_wmi_init(void)
 
 	set_quirks();
 
-	if (!acpi_video_backlight_support() && has_cap(ACER_CAP_BRIGHTNESS)) {
+	if (acpi_video_backlight_support() && has_cap(ACER_CAP_BRIGHTNESS)) {
 		interface->capability &= ~ACER_CAP_BRIGHTNESS;
 		printk(ACER_INFO "Brightness must be controlled by "
 		       "generic video driver\n");

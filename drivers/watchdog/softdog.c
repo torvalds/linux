@@ -1,7 +1,8 @@
 /*
  *	SoftDog	0.07:	A Software Watchdog Device
  *
- *	(c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>, All Rights Reserved.
+ *	(c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>,
+ *							All Rights Reserved.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -32,7 +33,7 @@
  *	Added WDIOC_GETTIMEOUT and WDIOC_SETTIMOUT.
  *
  *  20020530 Joel Becker <joel.becker@oracle.com>
- *  	Added Matt Domsch's nowayout module option.
+ *	Added Matt Domsch's nowayout module option.
  */
 
 #include <linux/module.h>

@@ -9,7 +9,7 @@
 #include "core.h"
 #include "mds_f.h"
 #include "mlmetxrx_f.h"
-#include "mto_f.h"
+#include "mto.h"
 #include "wbhal_f.h"
 #include "wblinux_f.h"
 
@@ -149,19 +149,19 @@ static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 	hal_set_current_channel(&priv->sHwData, ch);
 	hal_set_beacon_period(&priv->sHwData, conf->beacon_int);
 //	hal_set_cap_info(&priv->sHwData, ?? );
-// hal_set_ssid(phw_data_t pHwData,  u8 * pssid,  u8 ssid_len); ??
+// hal_set_ssid(struct hw_data * pHwData,  u8 * pssid,  u8 ssid_len); ??
 	hal_set_accept_broadcast(&priv->sHwData, 1);
 	hal_set_accept_promiscuous(&priv->sHwData,  1);
 	hal_set_accept_multicast(&priv->sHwData,  1);
 	hal_set_accept_beacon(&priv->sHwData,  1);
 	hal_set_radio_mode(&priv->sHwData,  0);
-	//hal_set_antenna_number(  phw_data_t pHwData, u8 number )
-	//hal_set_rf_power(phw_data_t pHwData, u8 PowerIndex)
+	//hal_set_antenna_number(  struct hw_data * pHwData, u8 number )
+	//hal_set_rf_power(struct hw_data * pHwData, u8 PowerIndex)
 
 
 //	hal_start_bss(&priv->sHwData, WLAN_BSSTYPE_INFRASTRUCTURE);	??
 
-//void hal_set_rates(phw_data_t pHwData, u8 * pbss_rates,
+//void hal_set_rates(struct hw_data * pHwData, u8 * pbss_rates,
 //		   u8 length, unsigned char basic_rate_set)
 
 	return 0;
@@ -199,7 +199,7 @@ static const struct ieee80211_ops wbsoft_ops = {
 static unsigned char wb35_hw_init(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t	pHwData;
+	struct hw_data *	pHwData;
 	u8		*pMacAddr;
 	u8		*pMacAddr2;
 	u32		InitStep = 0;
@@ -277,7 +277,7 @@ static unsigned char wb35_hw_init(struct ieee80211_hw *hw)
 	//get current antenna
 	priv->sLocalPara.bAntennaNo = hal_get_antenna_number(pHwData);
 #ifdef _PE_STATE_DUMP_
-	WBDEBUG(("Driver init, antenna no = %d\n", psLOCAL->bAntennaNo));
+	printk("Driver init, antenna no = %d\n", psLOCAL->bAntennaNo);
 #endif
 	hal_get_hw_radio_off( pHwData );
 
@@ -312,7 +312,7 @@ error:
 
 static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
 {
-	PWBUSB		pWbUsb;
+	struct wb_usb *pWbUsb;
         struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
 	u32	ltmp;
@@ -366,7 +366,7 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	SET_IEEE80211_DEV(dev, &udev->dev);
 	{
-		phw_data_t pHwData = &priv->sHwData;
+		struct hw_data * pHwData = &priv->sHwData;
 		unsigned char		dev_addr[MAX_ADDR_LEN];
 		hal_get_permanent_address(pHwData, dev_addr);
 		SET_IEEE80211_PERM_ADDR(dev, dev_addr);
@@ -404,7 +404,7 @@ static void wb35_hw_halt(struct wbsoft_priv *adapter)
 	// Turn off Rx and Tx hardware ability
 	hal_stop( &adapter->sHwData );
 #ifdef _PE_USB_INI_DUMP_
-	WBDEBUG(("[w35und] Hal_stop O.K.\n"));
+	printk("[w35und] Hal_stop O.K.\n");
 #endif
 	msleep(100);// Waiting Irp completed
 

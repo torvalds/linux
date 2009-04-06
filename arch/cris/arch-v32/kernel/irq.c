@@ -333,7 +333,7 @@ void set_affinity_crisv32_irq(unsigned int irq, const struct cpumask *dest)
 	spin_unlock_irqrestore(&irq_lock, flags);
 }
 
-static struct hw_interrupt_type crisv32_irq_type = {
+static struct irq_chip crisv32_irq_type = {
 	.typename =    "CRISv32",
 	.startup =     startup_crisv32_irq,
 	.shutdown =    shutdown_crisv32_irq,

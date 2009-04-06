@@ -31,7 +31,7 @@
 #include <plat/regs-ac97.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
-#include <mach/audio.h>
+#include <plat/audio.h>
 #include <asm/dma.h>
 #include <mach/dma.h>
 
@@ -355,6 +355,16 @@ static int s3c2443_ac97_mic_trigger(struct snd_pcm_substream *substream,
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | \
 		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
+static struct snd_soc_dai_ops s3c2443_ac97_dai_ops = {
+	.hw_params	= s3c2443_ac97_hw_params,
+	.trigger	= s3c2443_ac97_trigger,
+};
+
+static struct snd_soc_dai_ops s3c2443_ac97_mic_dai_ops = {
+	.hw_params	= s3c2443_ac97_hw_mic_params,
+	.trigger	= s3c2443_ac97_mic_trigger,
+};
+
 struct snd_soc_dai s3c2443_ac97_dai[] = {
 {
 	.name = "s3c2443-ac97",
@@ -374,9 +384,7 @@ struct snd_soc_dai s3c2443_ac97_dai[] = {
 		.channels_max = 2,
 		.rates = s3c2443_AC97_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.hw_params = s3c2443_ac97_hw_params,
-		.trigger = s3c2443_ac97_trigger},
+	.ops = &s3c2443_ac97_dai_ops,
 },
 {
 	.name = "pxa2xx-ac97-mic",
@@ -388,9 +396,7 @@ struct snd_soc_dai s3c2443_ac97_dai[] = {
 		.channels_max = 1,
 		.rates = s3c2443_AC97_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.hw_params = s3c2443_ac97_hw_mic_params,
-		.trigger = s3c2443_ac97_mic_trigger,},
+	.ops = &s3c2443_ac97_mic_dai_ops,
 },
 };
 EXPORT_SYMBOL_GPL(s3c2443_ac97_dai);

@@ -27,6 +27,7 @@
 
 /* Interrupt handlers registered during init_IRQ */
 extern void apic_timer_interrupt(void);
+extern void generic_interrupt(void);
 extern void error_interrupt(void);
 extern void perf_counter_interrupt(void);
 

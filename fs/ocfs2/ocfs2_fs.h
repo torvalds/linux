@@ -66,6 +66,8 @@
 #define OCFS2_GROUP_DESC_SIGNATURE      "GROUP01"
 #define OCFS2_XATTR_BLOCK_SIGNATURE	"XATTR01"
 #define OCFS2_DIR_TRAILER_SIGNATURE	"DIRTRL1"
+#define OCFS2_DX_ROOT_SIGNATURE		"DXDIR01"
+#define OCFS2_DX_LEAF_SIGNATURE		"DXLEAF1"
 
 /* Compatibility flags */
 #define OCFS2_HAS_COMPAT_FEATURE(sb,mask)			\
@@ -95,7 +97,8 @@
 					 | OCFS2_FEATURE_INCOMPAT_EXTENDED_SLOT_MAP \
 					 | OCFS2_FEATURE_INCOMPAT_USERSPACE_STACK \
 					 | OCFS2_FEATURE_INCOMPAT_XATTR \
-					 | OCFS2_FEATURE_INCOMPAT_META_ECC)
+					 | OCFS2_FEATURE_INCOMPAT_META_ECC \
+					 | OCFS2_FEATURE_INCOMPAT_INDEXED_DIRS)
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	(OCFS2_FEATURE_RO_COMPAT_UNWRITTEN \
 					 | OCFS2_FEATURE_RO_COMPAT_USRQUOTA \
 					 | OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)
@@ -150,6 +153,9 @@
 
 /* Support for extended attributes */
 #define OCFS2_FEATURE_INCOMPAT_XATTR		0x0200
+
+/* Support for indexed directores */
+#define OCFS2_FEATURE_INCOMPAT_INDEXED_DIRS	0x0400
 
 /* Metadata checksum and error correction */
 #define OCFS2_FEATURE_INCOMPAT_META_ECC		0x0800
@@ -411,8 +417,12 @@ static struct ocfs2_system_inode_info ocfs2_system_inodes[NUM_SYSTEM_INODES] = {
 #define OCFS2_DIR_REC_LEN(name_len)	(((name_len) + OCFS2_DIR_MEMBER_LEN + \
                                           OCFS2_DIR_ROUND) & \
 					 ~OCFS2_DIR_ROUND)
+#define OCFS2_DIR_MIN_REC_LEN	OCFS2_DIR_REC_LEN(1)
 
 #define OCFS2_LINK_MAX		32000
+#define	OCFS2_DX_LINK_MAX	((1U << 31) - 1U)
+#define	OCFS2_LINKS_HI_SHIFT	16
+#define	OCFS2_DX_ENTRIES_MAX	(0xffffffffU)
 
 #define S_SHIFT			12
 static unsigned char ocfs2_type_by_mode[S_IFMT >> S_SHIFT] = {
@@ -628,8 +638,9 @@ struct ocfs2_super_block {
 /*B8*/	__le16 s_xattr_inline_size;	/* extended attribute inline size
 					   for this fs*/
 	__le16 s_reserved0;
-	__le32 s_reserved1;
-/*C0*/  __le64 s_reserved2[16];		/* Fill out superblock */
+	__le32 s_dx_seed[3];		/* seed[0-2] for dx dir hash.
+					 * s_uuid_hash serves as seed[3]. */
+/*C0*/  __le64 s_reserved2[15];		/* Fill out superblock */
 /*140*/
 
 	/*
@@ -679,7 +690,7 @@ struct ocfs2_dinode {
 					   belongs to */
 	__le16 i_suballoc_bit;		/* Bit offset in suballocator
 					   block group */
-/*10*/	__le16 i_reserved0;
+/*10*/	__le16 i_links_count_hi;	/* High 16 bits of links count */
 	__le16 i_xattr_inline_size;
 	__le32 i_clusters;		/* Cluster count */
 	__le32 i_uid;			/* Owner UID */
@@ -705,7 +716,8 @@ struct ocfs2_dinode {
 	__le16 i_dyn_features;
 	__le64 i_xattr_loc;
 /*80*/	struct ocfs2_block_check i_check;	/* Error checking */
-/*88*/	__le64 i_reserved2[6];
+/*88*/	__le64 i_dx_root;		/* Pointer to dir index root block */
+	__le64 i_reserved2[5];
 /*B8*/	union {
 		__le64 i_pad1;		/* Generic way to refer to this
 					   64bit union */
@@ -779,6 +791,90 @@ struct ocfs2_dir_block_trailer {
 						   blocks */
 /*30*/	struct ocfs2_block_check db_check;	/* Error checking */
 /*40*/
+};
+
+ /*
+ * A directory entry in the indexed tree. We don't store the full name here,
+ * but instead provide a pointer to the full dirent in the unindexed tree.
+ *
+ * We also store name_len here so as to reduce the number of leaf blocks we
+ * need to search in case of collisions.
+ */
+struct ocfs2_dx_entry {
+	__le32		dx_major_hash;	/* Used to find logical
+					 * cluster in index */
+	__le32		dx_minor_hash;	/* Lower bits used to find
+					 * block in cluster */
+	__le64		dx_dirent_blk;	/* Physical block in unindexed
+					 * tree holding this dirent. */
+};
+
+struct ocfs2_dx_entry_list {
+	__le32		de_reserved;
+	__le16		de_count;	/* Maximum number of entries
+					 * possible in de_entries */
+	__le16		de_num_used;	/* Current number of
+					 * de_entries entries */
+	struct	ocfs2_dx_entry		de_entries[0];	/* Indexed dir entries
+							 * in a packed array of
+							 * length de_num_used */
+};
+
+#define OCFS2_DX_FLAG_INLINE	0x01
+
+/*
+ * A directory indexing block. Each indexed directory has one of these,
+ * pointed to by ocfs2_dinode.
+ *
+ * This block stores an indexed btree root, and a set of free space
+ * start-of-list pointers.
+ */
+struct ocfs2_dx_root_block {
+	__u8		dr_signature[8];	/* Signature for verification */
+	struct ocfs2_block_check dr_check;	/* Error checking */
+	__le16		dr_suballoc_slot;	/* Slot suballocator this
+						 * block belongs to. */
+	__le16		dr_suballoc_bit;	/* Bit offset in suballocator
+						 * block group */
+	__le32		dr_fs_generation;	/* Must match super block */
+	__le64		dr_blkno;		/* Offset on disk, in blocks */
+	__le64		dr_last_eb_blk;		/* Pointer to last
+						 * extent block */
+	__le32		dr_clusters;		/* Clusters allocated
+						 * to the indexed tree. */
+	__u8		dr_flags;		/* OCFS2_DX_FLAG_* flags */
+	__u8		dr_reserved0;
+	__le16		dr_reserved1;
+	__le64		dr_dir_blkno;		/* Pointer to parent inode */
+	__le32		dr_num_entries;		/* Total number of
+						 * names stored in
+						 * this directory.*/
+	__le32		dr_reserved2;
+	__le64		dr_free_blk;		/* Pointer to head of free
+						 * unindexed block list. */
+	__le64		dr_reserved3[15];
+	union {
+		struct ocfs2_extent_list dr_list; /* Keep this aligned to 128
+						   * bits for maximum space
+						   * efficiency. */
+		struct ocfs2_dx_entry_list dr_entries; /* In-root-block list of
+							* entries. We grow out
+							* to extents if this
+							* gets too big. */
+	};
+};
+
+/*
+ * The header of a leaf block in the indexed tree.
+ */
+struct ocfs2_dx_leaf {
+	__u8		dl_signature[8];/* Signature for verification */
+	struct ocfs2_block_check dl_check;	/* Error checking */
+	__le64		dl_blkno;	/* Offset on disk, in blocks */
+	__le32		dl_fs_generation;/* Must match super block */
+	__le32		dl_reserved0;
+	__le64		dl_reserved1;
+	struct ocfs2_dx_entry_list	dl_list;
 };
 
 /*
@@ -1070,12 +1166,6 @@ static inline int ocfs2_fast_symlink_chars(struct super_block *sb)
 		 offsetof(struct ocfs2_dinode, id2.i_symlink);
 }
 
-static inline int ocfs2_max_inline_data(struct super_block *sb)
-{
-	return sb->s_blocksize -
-		offsetof(struct ocfs2_dinode, id2.i_data.id_data);
-}
-
 static inline int ocfs2_max_inline_data_with_xattr(struct super_block *sb,
 						   struct ocfs2_dinode *di)
 {
@@ -1118,6 +1208,16 @@ static inline int ocfs2_extent_recs_per_inode_with_xattr(
 	return size / sizeof(struct ocfs2_extent_rec);
 }
 
+static inline int ocfs2_extent_recs_per_dx_root(struct super_block *sb)
+{
+	int size;
+
+	size = sb->s_blocksize -
+		offsetof(struct ocfs2_dx_root_block, dr_list.l_recs);
+
+	return size / sizeof(struct ocfs2_extent_rec);
+}
+
 static inline int ocfs2_chain_recs_per_inode(struct super_block *sb)
 {
 	int size;
@@ -1136,6 +1236,26 @@ static inline u16 ocfs2_extent_recs_per_eb(struct super_block *sb)
 		offsetof(struct ocfs2_extent_block, h_list.l_recs);
 
 	return size / sizeof(struct ocfs2_extent_rec);
+}
+
+static inline int ocfs2_dx_entries_per_leaf(struct super_block *sb)
+{
+	int size;
+
+	size = sb->s_blocksize -
+		offsetof(struct ocfs2_dx_leaf, dl_list.de_entries);
+
+	return size / sizeof(struct ocfs2_dx_entry);
+}
+
+static inline int ocfs2_dx_entries_per_root(struct super_block *sb)
+{
+	int size;
+
+	size = sb->s_blocksize -
+		offsetof(struct ocfs2_dx_root_block, dr_entries.de_entries);
+
+	return size / sizeof(struct ocfs2_dx_entry);
 }
 
 static inline u16 ocfs2_local_alloc_size(struct super_block *sb)

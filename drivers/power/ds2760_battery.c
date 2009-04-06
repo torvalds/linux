@@ -180,10 +180,13 @@ static int ds2760_battery_read_status(struct ds2760_device_info *di)
 	di->empty_uAh = battery_interpolate(scale, di->temp_C / 10);
 	di->empty_uAh *= 1000; /* convert to µAh */
 
-	/* From Maxim Application Note 131: remaining capacity =
-	 * ((ICA - Empty Value) / (Full Value - Empty Value)) x 100% */
-	di->rem_capacity = ((di->accum_current_uAh - di->empty_uAh) * 100L) /
-			    (di->full_active_uAh - di->empty_uAh);
+	if (di->full_active_uAh == di->empty_uAh)
+		di->rem_capacity = 0;
+	else
+		/* From Maxim Application Note 131: remaining capacity =
+		 * ((ICA - Empty Value) / (Full Value - Empty Value)) x 100% */
+		di->rem_capacity = ((di->accum_current_uAh - di->empty_uAh) * 100L) /
+				    (di->full_active_uAh - di->empty_uAh);
 
 	if (di->rem_capacity < 0)
 		di->rem_capacity = 0;

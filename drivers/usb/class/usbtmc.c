@@ -50,6 +50,7 @@
 
 static struct usb_device_id usbtmc_devices[] = {
 	{ USB_INTERFACE_INFO(USB_CLASS_APP_SPEC, 3, 0), },
+	{ USB_INTERFACE_INFO(USB_CLASS_APP_SPEC, 3, 1), },
 	{ 0, } /* terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, usbtmc_devices);
@@ -106,12 +107,13 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 {
 	struct usb_interface *intf;
 	struct usbtmc_device_data *data;
-	int retval = -ENODEV;
+	int retval = 0;
 
 	intf = usb_find_interface(&usbtmc_driver, iminor(inode));
 	if (!intf) {
 		printk(KERN_ERR KBUILD_MODNAME
 		       ": can not find device for minor %d", iminor(inode));
+		retval = -ENODEV;
 		goto exit;
 	}
 

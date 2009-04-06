@@ -244,12 +244,6 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		if (ha->optrom_state != QLA_SWAITING)
 			break;
 
-		if (start & 0xfff) {
-			qla_printk(KERN_WARNING, ha,
-			    "Invalid start region 0x%x/0x%x.\n", start, size);
-			return -EINVAL;
-		}
-
 		ha->optrom_region_start = start;
 		ha->optrom_region_size = start + size > ha->optrom_size ?
 		    ha->optrom_size - start : size;
@@ -303,8 +297,7 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		else if (start == (ha->flt_region_boot * 4) ||
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) &&
-		    start == (ha->flt_region_vpd_nvram * 4))
+		else if (IS_QLA25XX(ha) || IS_QLA81XX(ha))
 		    valid = 1;
 		if (!valid) {
 			qla_printk(KERN_WARNING, ha,

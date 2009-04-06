@@ -256,7 +256,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x05;
 	cam->cam_mode = sif_mode;
 	cam->nmodes = ARRAY_SIZE(sif_mode);
 	sd->brightness = PAC207_BRIGHTNESS_DEFAULT;
@@ -536,6 +535,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x093a, 0x2470)},
 	{USB_DEVICE(0x093a, 0x2471)},
 	{USB_DEVICE(0x093a, 0x2472)},
+	{USB_DEVICE(0x093a, 0x2474)},
 	{USB_DEVICE(0x093a, 0x2476)},
 	{USB_DEVICE(0x145f, 0x013a)},
 	{USB_DEVICE(0x2001, 0xf115)},
@@ -565,8 +565,10 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	if (usb_register(&sd_driver) < 0)
-		return -1;
+	int ret;
+	ret = usb_register(&sd_driver);
+	if (ret < 0)
+		return ret;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }

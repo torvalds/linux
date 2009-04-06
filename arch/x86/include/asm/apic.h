@@ -75,7 +75,14 @@ static inline void default_inquire_remote_apic(int apicid)
 #define setup_secondary_clock setup_secondary_APIC_clock
 #endif
 
+#ifdef CONFIG_X86_64
 extern int is_vsmp_box(void);
+#else
+static inline int is_vsmp_box(void)
+{
+	return 0;
+}
+#endif
 extern void xapic_wait_icr_idle(void);
 extern u32 safe_xapic_wait_icr_idle(void);
 extern void xapic_icr_write(u32, u32);
@@ -101,6 +108,16 @@ extern void native_apic_icr_write(u32 low, u32 id);
 extern u64 native_apic_icr_read(void);
 
 #ifdef CONFIG_X86_X2APIC
+/*
+ * Make previous memory operations globally visible before
+ * sending the IPI through x2apic wrmsr. We need a serializing instruction or
+ * mfence for this.
+ */
+static inline void x2apic_wrmsr_fence(void)
+{
+	asm volatile("mfence" : : : "memory");
+}
+
 static inline void native_apic_msr_write(u32 reg, u32 v)
 {
 	if (reg == APIC_DFR || reg == APIC_ID || reg == APIC_LDR ||
@@ -177,6 +194,9 @@ static inline int x2apic_enabled(void)
 {
 	return 0;
 }
+
+#define	x2apic	0
+
 #endif
 
 extern int get_physical_broadcast(void);
@@ -306,7 +326,7 @@ struct apic {
 	void (*send_IPI_self)(int vector);
 
 	/* wakeup_secondary_cpu */
-	int (*wakeup_cpu)(int apicid, unsigned long start_eip);
+	int (*wakeup_secondary_cpu)(int apicid, unsigned long start_eip);
 
 	int trampoline_phys_low;
 	int trampoline_phys_high;
@@ -324,7 +344,20 @@ struct apic {
 	u32 (*safe_wait_icr_idle)(void);
 };
 
+/*
+ * Pointer to the local APIC driver in use on this system (there's
+ * always just one such driver in use - the kernel decides via an
+ * early probing process which one it picks - and then sticks to it):
+ */
 extern struct apic *apic;
+
+/*
+ * APIC functionality to boot other CPUs - only used on SMP:
+ */
+#ifdef CONFIG_SMP
+extern atomic_t init_deasserted;
+extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
+#endif
 
 static inline u32 apic_read(u32 reg)
 {
@@ -359,6 +392,7 @@ static inline u32 safe_apic_wait_icr_idle(void)
 
 static inline void ack_APIC_irq(void)
 {
+#ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * ack_APIC_irq() actually gets compiled as a single instruction
 	 * ... yummie.
@@ -366,6 +400,7 @@ static inline void ack_APIC_irq(void)
 
 	/* Docs say use 0 for future compatibility */
 	apic_write(APIC_EOI, 0);
+#endif
 }
 
 static inline unsigned default_get_apic_id(unsigned long x)
@@ -384,9 +419,7 @@ static inline unsigned default_get_apic_id(unsigned long x)
 #define DEFAULT_TRAMPOLINE_PHYS_LOW		0x467
 #define DEFAULT_TRAMPOLINE_PHYS_HIGH		0x469
 
-#ifdef CONFIG_X86_32
-extern void es7000_update_apic_to_cluster(void);
-#else
+#ifdef CONFIG_X86_64
 extern struct apic apic_flat;
 extern struct apic apic_physflat;
 extern struct apic apic_x2apic_cluster;
@@ -456,10 +489,19 @@ static inline int default_apic_id_registered(void)
 	return physid_isset(read_apic_id(), phys_cpu_present_map);
 }
 
+static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
+{
+	return cpuid_apic >> index_msb;
+}
+
+extern int default_apicid_to_node(int logical_apicid);
+
+#endif
+
 static inline unsigned int
 default_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
-	return cpumask_bits(cpumask)[0];
+	return cpumask_bits(cpumask)[0] & APIC_ALL_CPUS;
 }
 
 static inline unsigned int
@@ -472,15 +514,6 @@ default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 
 	return (unsigned int)(mask1 & mask2 & mask3);
 }
-
-static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
-{
-	return cpuid_apic >> index_msb;
-}
-
-extern int default_apicid_to_node(int logical_apicid);
-
-#endif
 
 static inline unsigned long default_check_apicid_used(physid_mask_t bitmap, int apicid)
 {

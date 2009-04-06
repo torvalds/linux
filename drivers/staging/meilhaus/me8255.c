@@ -35,7 +35,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/types.h>
 
 #include "medefines.h"
@@ -318,7 +318,7 @@ me8255_subdevice_t *me8255_constructor(uint32_t device_id,
 				       unsigned int me8255_idx,
 				       unsigned int dio_idx,
 				       int *ctrl_reg_mirror,
-				       spinlock_t * ctrl_reg_lock)
+				       spinlock_t *ctrl_reg_lock)
 {
 	me8255_subdevice_t *subdevice;
 	int err;

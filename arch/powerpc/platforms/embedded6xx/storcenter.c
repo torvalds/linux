@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/initrd.h>
-#include <linux/mtd/physmap.h>
 #include <linux/of_platform.h>
 
 #include <asm/system.h>
@@ -24,32 +23,6 @@
 #include <asm/pci-bridge.h>
 
 #include "mpc10x.h"
-
-
-#ifdef CONFIG_MTD_PHYSMAP
-static struct mtd_partition storcenter_physmap_partitions[] = {
-	{
-		.name   = "kernel",
-		.offset = 0x000000,
-		.size   = 0x170000,
-	},
-	{
-		.name   = "rootfs",
-		.offset = 0x170000,
-		.size   = 0x590000,
-	},
-	{
-		.name   = "uboot",
-		.offset = 0x700000,
-		.size   = 0x040000,
-	},
-	{
-		.name   = "config",
-		.offset = 0x740000,
-		.size   = 0x0c0000,
-	},
-};
-#endif
 
 
 static __initdata struct of_device_id storcenter_of_bus[] = {
@@ -95,11 +68,6 @@ static int __init storcenter_add_bridge(struct device_node *dev)
 static void __init storcenter_setup_arch(void)
 {
 	struct device_node *np;
-
-#ifdef CONFIG_MTD_PHYSMAP
-	physmap_set_partitions(storcenter_physmap_partitions,
-			       ARRAY_SIZE(storcenter_physmap_partitions));
-#endif
 
 	/* Lookup PCI host bridges */
 	for_each_compatible_node(np, "pci", "mpc10x-pci")

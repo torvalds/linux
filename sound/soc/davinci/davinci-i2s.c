@@ -499,6 +499,13 @@ static void davinci_i2s_remove(struct platform_device *pdev,
 
 #define DAVINCI_I2S_RATES	SNDRV_PCM_RATE_8000_96000
 
+static struct snd_soc_dai_ops davinci_i2s_dai_ops = {
+	.startup	= davinci_i2s_startup,
+	.trigger	= davinci_i2s_trigger,
+	.hw_params	= davinci_i2s_hw_params,
+	.set_fmt	= davinci_i2s_set_dai_fmt,
+};
+
 struct snd_soc_dai davinci_i2s_dai = {
 	.name = "davinci-i2s",
 	.id = 0,
@@ -514,12 +521,7 @@ struct snd_soc_dai davinci_i2s_dai = {
 		.channels_max = 2,
 		.rates = DAVINCI_I2S_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.startup = davinci_i2s_startup,
-		.trigger = davinci_i2s_trigger,
-		.hw_params = davinci_i2s_hw_params,
-		.set_fmt = davinci_i2s_set_dai_fmt,
-	},
+	.ops = &davinci_i2s_dai_ops,
 };
 EXPORT_SYMBOL_GPL(davinci_i2s_dai);
 

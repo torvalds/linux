@@ -69,8 +69,12 @@ void __init default_setup_apic_routing(void)
 		printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
 	}
 
-	if (x86_quirks->update_apic)
-		x86_quirks->update_apic();
+	/*
+	 * Now that apic routing model is selected, configure the
+	 * fault handling for intr remapping.
+	 */
+	if (intr_remapping_enabled)
+		enable_drhd_fault_handling();
 }
 
 /* Same for both flat and physical. */

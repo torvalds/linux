@@ -367,6 +367,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	int tag_bytes = journal_tag_bytes(journal);
 	struct buffer_head *cbh = NULL; /* For transactional checksums */
 	__u32 crc32_sum = ~0;
+	int write_op = WRITE;
 
 	/*
 	 * First job: lock down the current transaction and wait for
@@ -401,6 +402,8 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	spin_lock(&journal->j_state_lock);
 	commit_transaction->t_state = T_LOCKED;
 
+	if (commit_transaction->t_synchronous_commit)
+		write_op = WRITE_SYNC;
 	stats.u.run.rs_wait = commit_transaction->t_max_wait;
 	stats.u.run.rs_locked = jiffies;
 	stats.u.run.rs_running = jbd2_time_diff(commit_transaction->t_start,
@@ -680,7 +683,7 @@ start_journal_io:
 				clear_buffer_dirty(bh);
 				set_buffer_uptodate(bh);
 				bh->b_end_io = journal_end_buffer_io_sync;
-				submit_bh(WRITE, bh);
+				submit_bh(write_op, bh);
 			}
 			cond_resched();
 			stats.u.run.rs_blocks_logged += bufs;

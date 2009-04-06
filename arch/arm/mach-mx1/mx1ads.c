@@ -16,15 +16,22 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
+#include <linux/i2c.h>
+#include <linux/i2c/pcf857x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
+#include <mach/irqs.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/imx-uart.h>
-#include <mach/iomux-mx1-mx2.h>
+#include <mach/irqs.h>
+#ifdef CONFIG_I2C_IMX
+#include <mach/i2c.h>
+#endif
+#include <mach/iomux.h>
 #include "devices.h"
 
 /*
@@ -104,6 +111,55 @@ static struct platform_device flash_device = {
 };
 
 /*
+ * I2C
+ */
+
+#ifdef CONFIG_I2C_IMX
+static int i2c_pins[] = {
+	PA15_PF_I2C_SDA,
+	PA16_PF_I2C_SCL,
+};
+
+static int i2c_init(struct device *dev)
+{
+	return mxc_gpio_setup_multiple_pins(i2c_pins,
+			ARRAY_SIZE(i2c_pins), "I2C");
+}
+
+static void i2c_exit(struct device *dev)
+{
+	mxc_gpio_release_multiple_pins(i2c_pins,
+			ARRAY_SIZE(i2c_pins));
+}
+
+static struct pcf857x_platform_data pcf857x_data[] = {
+	{
+		.gpio_base = 4 * 32,
+	}, {
+		.gpio_base = 4 * 32 + 16,
+	}
+};
+
+static struct imxi2c_platform_data mx1ads_i2c_data = {
+	.bitrate = 100000,
+	.init = i2c_init,
+	.exit = i2c_exit,
+};
+
+static struct i2c_board_info mx1ads_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("pcf857x", 0x22),
+		.type = "pcf8575",
+		.platform_data = &pcf857x_data[0],
+	}, {
+		I2C_BOARD_INFO("pcf857x", 0x24),
+		.type = "pcf8575",
+		.platform_data = &pcf857x_data[1],
+	},
+};
+#endif
+
+/*
  * Board init
  */
 static void __init mx1ads_init(void)
@@ -114,12 +170,19 @@ static void __init mx1ads_init(void)
 
 	/* Physmap flash */
 	mxc_register_device(&flash_device, &mx1ads_flash_data);
+
+	/* I2C */
+#ifdef CONFIG_I2C_IMX
+	i2c_register_board_info(0, mx1ads_i2c_devices,
+				ARRAY_SIZE(mx1ads_i2c_devices));
+
+	mxc_register_device(&imx_i2c_device, &mx1ads_i2c_data);
+#endif
 }
 
 static void __init mx1ads_timer_init(void)
 {
-	mxc_clocks_init(32000);
-	mxc_timer_init("gpt_clk");
+	mx1_clocks_init(32000);
 }
 
 struct sys_timer mx1ads_timer = {

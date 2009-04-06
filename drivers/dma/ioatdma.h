@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2004 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2004 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -29,7 +29,7 @@
 #include <linux/pci_ids.h>
 #include <net/tcp.h>
 
-#define IOAT_DMA_VERSION  "3.30"
+#define IOAT_DMA_VERSION  "3.64"
 
 enum ioat_interrupt {
 	none = 0,
@@ -135,11 +135,13 @@ static inline void ioat_set_tcp_copy_break(struct ioatdma_device *dev)
 	#ifdef CONFIG_NET_DMA
 	switch (dev->version) {
 	case IOAT_VER_1_2:
-	case IOAT_VER_3_0:
 		sysctl_tcp_dma_copybreak = 4096;
 		break;
 	case IOAT_VER_2_0:
 		sysctl_tcp_dma_copybreak = 2048;
+		break;
+	case IOAT_VER_3_0:
+		sysctl_tcp_dma_copybreak = 262144;
 		break;
 	}
 	#endif

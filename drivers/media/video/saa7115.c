@@ -778,7 +778,7 @@ static int saa711x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 
 	case V4L2_CID_HUE:
-		if (ctrl->value < -127 || ctrl->value > 127) {
+		if (ctrl->value < -128 || ctrl->value > 127) {
 			v4l2_err(sd, "invalid hue setting %d\n", ctrl->value);
 			return -ERANGE;
 		}
@@ -931,8 +931,8 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	/* Prevent unnecessary standard changes. During a standard
 	   change the I-Port is temporarily disabled. Any devices
 	   reading from that port can get confused.
-	   Note that VIDIOC_S_STD is also used to switch from
-	   radio to TV mode, so if a VIDIOC_S_STD is broadcast to
+	   Note that s_std is also used to switch from
+	   radio to TV mode, so if a s_std is broadcast to
 	   all I2C devices then you do not want to have an unwanted
 	   side-effect here. */
 	if (std == state->std)
@@ -1206,10 +1206,12 @@ static int saa711x_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 {
 	switch (qc->id) {
 	case V4L2_CID_BRIGHTNESS:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
 	case V4L2_CID_CONTRAST:
 	case V4L2_CID_SATURATION:
+		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
 	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill_std(qc);
+		return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
 	default:
 		return -EINVAL;
 	}
@@ -1308,11 +1310,12 @@ static int saa711x_s_stream(struct v4l2_subdev *sd, int enable)
 	v4l2_dbg(1, debug, sd, "%s output\n",
 			enable ? "enable" : "disable");
 
-	if (state->enable != enable) {
-		state->enable = enable;
-		saa711x_write(sd, R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED,
-				state->enable);
-	}
+	if (state->enable == enable)
+		return 0;
+	state->enable = enable;
+	if (!saa711x_has_reg(state->ident, R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED))
+		return 0;
+	saa711x_write(sd, R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED, state->enable);
 	return 0;
 }
 
@@ -1368,6 +1371,47 @@ static int saa711x_g_vbi_data(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_dat
 	default:
 		return -EINVAL;
 	}
+}
+
+static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
+{
+	struct saa711x_state *state = to_state(sd);
+	int reg1e;
+
+	*std = V4L2_STD_ALL;
+	if (state->ident != V4L2_IDENT_SAA7115)
+		return 0;
+	reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
+
+	switch (reg1e & 0x03) {
+	case 1:
+		*std = V4L2_STD_NTSC;
+		break;
+	case 2:
+		*std = V4L2_STD_PAL;
+		break;
+	case 3:
+		*std = V4L2_STD_SECAM;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int saa711x_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	struct saa711x_state *state = to_state(sd);
+	int reg1e = 0x80;
+	int reg1f;
+
+	*status = V4L2_IN_ST_NO_SIGNAL;
+	if (state->ident == V4L2_IDENT_SAA7115)
+		reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
+	reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
+	if ((reg1f & 0xc1) == 0x81 && (reg1e & 0xc0) == 0x80)
+		*status = 0;
+	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -1493,6 +1537,8 @@ static const struct v4l2_subdev_video_ops saa711x_video_ops = {
 	.g_vbi_data = saa711x_g_vbi_data,
 	.decode_vbi_line = saa711x_decode_vbi_line,
 	.s_stream = saa711x_s_stream,
+	.querystd = saa711x_querystd,
+	.g_input_status = saa711x_g_input_status,
 };
 
 static const struct v4l2_subdev_ops saa711x_ops = {

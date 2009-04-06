@@ -44,22 +44,6 @@ config LBD
 
 	  If unsure, say N.
 
-config BLK_DEV_IO_TRACE
-	bool "Support for tracing block io actions"
-	depends on SYSFS
-	select RELAY
-	select DEBUG_FS
-	select TRACEPOINTS
-	help
-	  Say Y here if you want to be able to trace the block layer actions
-	  on a given queue. Tracing allows you to see any traffic happening
-	  on a block device queue. For more information (and the userspace
-	  support tools needed), fetch the blktrace tools from:
-
-	  git://git.kernel.dk/blktrace.git
-
-	  If unsure, say N.
-
 config BLK_DEV_BSG
 	bool "Block layer SG support v4 (EXPERIMENTAL)"
 	depends on EXPERIMENTAL

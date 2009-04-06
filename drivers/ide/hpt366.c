@@ -835,12 +835,6 @@ static int hpt370_dma_end(ide_drive_t *drive)
 	return ide_dma_end(drive);
 }
 
-static void hpt370_dma_timeout(ide_drive_t *drive)
-{
-	hpt370_irq_timeout(drive);
-	ide_dma_timeout(drive);
-}
-
 /* returns 1 if DMA IRQ issued, 0 otherwise */
 static int hpt374_dma_test_irq(ide_drive_t *drive)
 {
@@ -995,7 +989,7 @@ static void hpt3xx_disable_fast_irq(struct pci_dev *dev, u8 mcr_addr)
 		pci_write_config_byte(dev, mcr_addr + 1, new_mcr);
 }
 
-static unsigned int init_chipset_hpt366(struct pci_dev *dev)
+static int init_chipset_hpt366(struct pci_dev *dev)
 {
 	unsigned long io_base	= pci_resource_start(dev, 4);
 	struct hpt_info *info	= hpt3xx_get_info(&dev->dev);
@@ -1237,7 +1231,7 @@ static unsigned int init_chipset_hpt366(struct pci_dev *dev)
 	hpt3xx_disable_fast_irq(dev, 0x50);
 	hpt3xx_disable_fast_irq(dev, 0x54);
 
-	return dev->irq;
+	return 0;
 }
 
 static u8 hpt3xx_cable_detect(ide_hwif_t *hwif)
@@ -1418,36 +1412,34 @@ static const struct ide_port_ops hpt3xx_port_ops = {
 static const struct ide_dma_ops hpt37x_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
 	.dma_end		= hpt374_dma_end,
 	.dma_test_irq		= hpt374_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
-	.dma_timeout		= ide_dma_timeout,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_dma_ops hpt370_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= hpt370_dma_start,
 	.dma_end		= hpt370_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
-	.dma_timeout		= hpt370_dma_timeout,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
+	.dma_clear		= hpt370_irq_timeout,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_dma_ops hpt36x_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
 	.dma_end		= ide_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= hpt366_dma_lost_irq,
-	.dma_timeout		= ide_dma_timeout,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 

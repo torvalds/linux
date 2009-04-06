@@ -35,7 +35,6 @@
 #include <linux/videodev2.h>
 
 #include <mach/dma.h>
-#include <mach/pxa-regs.h>
 #include <mach/camera.h>
 
 #define PXA_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 5)
@@ -879,6 +878,7 @@ static int test_platform_param(struct pxa_camera_dev *pcdev,
 		SOCAM_HSYNC_ACTIVE_LOW |
 		SOCAM_VSYNC_ACTIVE_HIGH |
 		SOCAM_VSYNC_ACTIVE_LOW |
+		SOCAM_DATA_ACTIVE_HIGH |
 		SOCAM_PCLK_SAMPLE_RISING |
 		SOCAM_PCLK_SAMPLE_FALLING;
 
@@ -1150,46 +1150,28 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 	return formats;
 }
 
-static int pxa_camera_set_fmt(struct soc_camera_device *icd,
-			      __u32 pixfmt, struct v4l2_rect *rect)
+static int pxa_camera_set_crop(struct soc_camera_device *icd,
+			       struct v4l2_rect *rect)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
-	const struct soc_camera_data_format *cam_fmt = NULL;
-	const struct soc_camera_format_xlate *xlate = NULL;
 	struct soc_camera_sense sense = {
 		.master_clock = pcdev->mclk,
 		.pixel_clock_max = pcdev->ciclk / 4,
 	};
 	int ret;
 
-	if (pixfmt) {
-		xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
-		if (!xlate) {
-			dev_warn(&ici->dev, "Format %x not found\n", pixfmt);
-			return -EINVAL;
-		}
-
-		cam_fmt = xlate->cam_fmt;
-	}
-
 	/* If PCLK is used to latch data from the sensor, check sense */
 	if (pcdev->platform_flags & PXA_CAMERA_PCLK_EN)
 		icd->sense = &sense;
 
-	switch (pixfmt) {
-	case 0:				/* Only geometry change */
-		ret = icd->ops->set_fmt(icd, pixfmt, rect);
-		break;
-	default:
-		ret = icd->ops->set_fmt(icd, cam_fmt->fourcc, rect);
-	}
+	ret = icd->ops->set_crop(icd, rect);
 
 	icd->sense = NULL;
 
 	if (ret < 0) {
-		dev_warn(&ici->dev, "Failed to configure for format %x\n",
-			 pixfmt);
+		dev_warn(&ici->dev, "Failed to crop to %ux%u@%u:%u\n",
+			 rect->width, rect->height, rect->left, rect->top);
 	} else if (sense.flags & SOCAM_SENSE_PCLK_CHANGED) {
 		if (sense.pixel_clock > sense.pixel_clock_max) {
 			dev_err(&ici->dev,
@@ -1200,7 +1182,55 @@ static int pxa_camera_set_fmt(struct soc_camera_device *icd,
 		recalculate_fifo_timeout(pcdev, sense.pixel_clock);
 	}
 
-	if (pixfmt && !ret) {
+	return ret;
+}
+
+static int pxa_camera_set_fmt(struct soc_camera_device *icd,
+			      struct v4l2_format *f)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct pxa_camera_dev *pcdev = ici->priv;
+	const struct soc_camera_data_format *cam_fmt = NULL;
+	const struct soc_camera_format_xlate *xlate = NULL;
+	struct soc_camera_sense sense = {
+		.master_clock = pcdev->mclk,
+		.pixel_clock_max = pcdev->ciclk / 4,
+	};
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_format cam_f = *f;
+	int ret;
+
+	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
+	if (!xlate) {
+		dev_warn(&ici->dev, "Format %x not found\n", pix->pixelformat);
+		return -EINVAL;
+	}
+
+	cam_fmt = xlate->cam_fmt;
+
+	/* If PCLK is used to latch data from the sensor, check sense */
+	if (pcdev->platform_flags & PXA_CAMERA_PCLK_EN)
+		icd->sense = &sense;
+
+	cam_f.fmt.pix.pixelformat = cam_fmt->fourcc;
+	ret = icd->ops->set_fmt(icd, &cam_f);
+
+	icd->sense = NULL;
+
+	if (ret < 0) {
+		dev_warn(&ici->dev, "Failed to configure for format %x\n",
+			 pix->pixelformat);
+	} else if (sense.flags & SOCAM_SENSE_PCLK_CHANGED) {
+		if (sense.pixel_clock > sense.pixel_clock_max) {
+			dev_err(&ici->dev,
+				"pixel clock %lu set by the camera too high!",
+				sense.pixel_clock);
+			return -EIO;
+		}
+		recalculate_fifo_timeout(pcdev, sense.pixel_clock);
+	}
+
+	if (!ret) {
 		icd->buswidth = xlate->buswidth;
 		icd->current_fmt = xlate->host_fmt;
 	}
@@ -1364,6 +1394,7 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.remove		= pxa_camera_remove_device,
 	.suspend	= pxa_camera_suspend,
 	.resume		= pxa_camera_resume,
+	.set_crop	= pxa_camera_set_crop,
 	.get_formats	= pxa_camera_get_formats,
 	.set_fmt	= pxa_camera_set_fmt,
 	.try_fmt	= pxa_camera_try_fmt,

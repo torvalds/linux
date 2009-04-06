@@ -48,8 +48,14 @@
 #include "isl6405.h"
 #include "lnbp21.h"
 #include "tuner-simple.h"
+#include "tda18271.h"
+#include "lgdt3305.h"
+#include "tda8290.h"
 
 #include "zl10353.h"
+
+#include "zl10036.h"
+#include "mt312.h"
 
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
@@ -189,7 +195,7 @@ static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
-	saa7134_i2c_call_clients(dev,VIDIOC_S_FREQUENCY,&f);
+	saa_call_all(dev, tuner, s_frequency, &f);
 	msg.buf = on;
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -860,6 +866,7 @@ static struct zl10353_config behold_h6_config = {
 	.demod_address = 0x1e>>1,
 	.no_tuner      = 1,
 	.parallel_ts   = 1,
+	.disable_i2c_gate_ctrl = 1,
 };
 
 /* ==================================================================
@@ -947,6 +954,45 @@ static struct nxt200x_config avertvhda180 = {
 
 static struct nxt200x_config kworldatsc110 = {
 	.demod_address    = 0x0a,
+};
+
+/* ------------------------------------------------------------------ */
+
+static struct mt312_config avertv_a700_mt312 = {
+	.demod_address = 0x0e,
+	.voltage_inverted = 1,
+};
+
+static struct zl10036_config avertv_a700_tuner = {
+	.tuner_address = 0x60,
+};
+
+static struct lgdt3305_config hcw_lgdt3305_config = {
+	.i2c_addr           = 0x0e,
+	.mpeg_mode          = LGDT3305_MPEG_SERIAL,
+	.tpclk_edge         = LGDT3305_TPCLK_RISING_EDGE,
+	.tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
+	.deny_i2c_rptr      = 1,
+	.spectral_inversion = 1,
+	.qam_if_khz         = 4000,
+	.vsb_if_khz         = 3250,
+};
+
+static struct tda18271_std_map hauppauge_tda18271_std_map = {
+	.atsc_6   = { .if_freq = 3250, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x58, },
+	.qam_6    = { .if_freq = 4000, .agc_mode = 3, .std = 5,
+		      .if_lvl = 1, .rfagc_top = 0x58, },
+};
+
+static struct tda18271_config hcw_tda18271_config = {
+	.std_map = &hauppauge_tda18271_std_map,
+	.gate    = TDA18271_GATE_ANALOG,
+	.config  = 3,
+};
+
+static struct tda829x_config tda829x_no_probe = {
+	.probe_tuner = TDA829X_DONT_PROBE,
 };
 
 /* ==================================================================
@@ -1074,6 +1120,19 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (configure_tda827x_fe(dev, &hauppauge_hvr_1110_config,
 					 &tda827x_cfg_1) < 0)
 			goto dettach_frontend;
+		break;
+	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
+		fe0->dvb.frontend = dvb_attach(lgdt3305_attach,
+					       &hcw_lgdt3305_config,
+					       &dev->i2c_adap);
+		if (fe0->dvb.frontend) {
+			dvb_attach(tda829x_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, 0x4b,
+				   &tda829x_no_probe);
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_adap,
+				   &hcw_tda18271_config);
+		}
 		break;
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 		if (configure_tda827x_fe(dev, &asus_p7131_dual_config,
@@ -1375,6 +1434,19 @@ static int dvb_init(struct saa7134_dev *dev)
 				   TUNER_PHILIPS_FMD1216ME_MK3);
 		}
 		break;
+	case SAA7134_BOARD_AVERMEDIA_A700_PRO:
+	case SAA7134_BOARD_AVERMEDIA_A700_HYBRID:
+		/* Zarlink ZL10313 */
+		fe0->dvb.frontend = dvb_attach(mt312_attach,
+			&avertv_a700_mt312, &dev->i2c_adap);
+		if (fe0->dvb.frontend) {
+			if (dvb_attach(zl10036_attach, fe0->dvb.frontend,
+					&avertv_a700_tuner, &dev->i2c_adap) == NULL) {
+				wprintk("%s: No zl10036 found!\n",
+					__func__);
+			}
+		}
+		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
 		break;
@@ -1448,7 +1520,7 @@ static int dvb_fini(struct saa7134_dev *dev)
 		tda9887_cfg.priv  = &on;
 
 		/* otherwise we don't detect the tuner on next insmod */
-		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &tda9887_cfg);
+		saa_call_all(dev, tuner, s_config, &tda9887_cfg);
 	} else if (dev->board == SAA7134_BOARD_MEDION_MD8800_QUADRO) {
 		if ((dev->eedata[2] == 0x07) && use_frontend) {
 			/* turn off the 2nd lnb supply */

@@ -44,8 +44,10 @@ static inline void rate_control_tx_status(struct ieee80211_local *local,
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	ref->ops->tx_status(ref->priv, sband, ista, priv_sta, skb);
+	if (likely(info->flags & IEEE80211_TX_INTFL_RCALGO))
+		ref->ops->tx_status(ref->priv, sband, ista, priv_sta, skb);
 }
 
 
@@ -62,6 +64,18 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 	ref->ops->rate_init(ref->priv, sband, ista, priv_sta);
 }
 
+static inline void rate_control_rate_update(struct ieee80211_local *local,
+				    struct ieee80211_supported_band *sband,
+				    struct sta_info *sta, u32 changed)
+{
+	struct rate_control_ref *ref = local->rate_ctrl;
+	struct ieee80211_sta *ista = &sta->sta;
+	void *priv_sta = sta->rate_ctrl_priv;
+
+	if (ref->ops->rate_update)
+		ref->ops->rate_update(ref->priv, sband, ista,
+				      priv_sta, changed);
+}
 
 static inline void *rate_control_alloc_sta(struct rate_control_ref *ref,
 					   struct ieee80211_sta *sta,

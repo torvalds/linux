@@ -37,6 +37,13 @@ config MMC_SDHCI
 
 	  If unsure, say N.
 
+config MMC_SDHCI_IO_ACCESSORS
+	bool
+	depends on MMC_SDHCI
+	help
+	  This is silent Kconfig symbol that is selected by the drivers that
+	  need to overwrite SDHCI IO memory accessors.
+
 config MMC_SDHCI_PCI
 	tristate "SDHCI support on PCI bus"
 	depends on MMC_SDHCI && PCI
@@ -64,6 +71,17 @@ config MMC_RICOH_MMC
 	  the module will be called ricoh_mmc.
 
 	  If unsure, say Y.
+
+config MMC_SDHCI_OF
+	tristate "SDHCI support on OpenFirmware platforms"
+	depends on MMC_SDHCI && PPC_OF
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the OF support for Secure Digital Host Controller
+	  Interfaces. So far, only the Freescale eSDHC controller is known
+	  to exist on OF platforms.
+
+	  If unsure, say N.
 
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
@@ -171,13 +189,24 @@ config MMC_TIFM_SD
           To compile this driver as a module, choose M here: the
 	  module will be called tifm_sd.
 
+config MMC_MVSDIO
+	tristate "Marvell MMC/SD/SDIO host driver"
+	depends on PLAT_ORION
+	---help---
+	  This selects the Marvell SDIO host driver.
+	  SDIO may currently be found on the Kirkwood 88F6281 and 88F6192
+	  SoC controllers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mvsdio.
+
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
 	depends on SPI_MASTER && !HIGHMEM && HAS_DMA
 	select CRC7
 	select CRC_ITU_T
 	help
-	  Some systems accss MMC/SD/SDIO cards using a SPI controller
+	  Some systems access MMC/SD/SDIO cards using a SPI controller
 	  instead of using a "native" MMC/SD/SDIO controller.  This has a
 	  disadvantage of being relatively high overhead, but a compensating
 	  advantage of working on many systems without dedicated MMC/SD/SDIO

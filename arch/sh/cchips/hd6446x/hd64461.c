@@ -53,21 +53,22 @@ static struct irq_chip hd64461_irq_chip = {
 	.unmask		= hd64461_unmask_irq,
 };
 
-int hd64461_irq_demux(int irq)
+static void hd64461_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
-	if (irq == CONFIG_HD64461_IRQ) {
-		unsigned short bit;
-		unsigned short nirr = inw(HD64461_NIRR);
-		unsigned short nimr = inw(HD64461_NIMR);
-		int i;
+	unsigned short intv = ctrl_inw(HD64461_NIRR);
+	struct irq_desc *ext_desc;
+	unsigned int ext_irq = HD64461_IRQBASE;
 
-		nirr &= ~nimr;
-		for (bit = 1, i = 0; i < 16; bit <<= 1, i++)
-			if (nirr & bit)
-				break;
-		irq = HD64461_IRQBASE + i;
+	intv &= (1 << HD64461_IRQ_NUM) - 1;
+
+	while (intv) {
+		if (intv & 1) {
+			ext_desc = irq_desc + ext_irq;
+			handle_level_irq(ext_irq, ext_desc);
+		}
+		intv >>= 1;
+		ext_irq++;
 	}
-	return irq;
 }
 
 int __init setup_hd64461(void)
@@ -92,6 +93,9 @@ int __init setup_hd64461(void)
 	for (i = HD64461_IRQBASE; i < HD64461_IRQBASE + 16; i++)
 		set_irq_chip_and_handler(i, &hd64461_irq_chip,
 					 handle_level_irq);
+
+	set_irq_chained_handler(CONFIG_HD64461_IRQ, hd64461_irq_demux);
+	set_irq_type(CONFIG_HD64461_IRQ, IRQ_TYPE_LEVEL_LOW);
 
 #ifdef CONFIG_HD64461_ENABLER
 	printk(KERN_INFO "HD64461: enabling PCMCIA devices\n");

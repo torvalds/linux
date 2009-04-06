@@ -53,6 +53,8 @@
 #define PCXHR_DSP_RESET_DSP	0x01
 #define PCXHR_DSP_RESET_MUTE	0x02
 #define PCXHR_DSP_RESET_CODEC	0x08
+#define PCXHR_DSP_RESET_GPO_OFFSET	5
+#define PCXHR_DSP_RESET_GPO_MASK	0x60
 
 /* values for PCHR_XLX_CFG register */
 #define PCXHR_CFG_SYNCDSP_MASK		0x80
@@ -81,6 +83,8 @@
 /* values for PCHR_XLX_STATUS register - READ */
 #define PCXHR_STAT_SRC_LOCK		0x01
 #define PCXHR_STAT_LEVEL_IN		0x02
+#define PCXHR_STAT_GPI_OFFSET		2
+#define PCXHR_STAT_GPI_MASK		0x0C
 #define PCXHR_STAT_MIC_CAPS		0x10
 /* values for PCHR_XLX_STATUS register - WRITE */
 #define PCXHR_STAT_FREQ_SYNC_MASK	0x01
@@ -291,10 +295,11 @@ int hr222_sub_init(struct pcxhr_mgr *mgr)
 	PCXHR_OUTPB(mgr, PCXHR_DSP_RESET,
 		    PCXHR_DSP_RESET_DSP);
 	msleep(5);
-	PCXHR_OUTPB(mgr, PCXHR_DSP_RESET,
-		    PCXHR_DSP_RESET_DSP  |
-		    PCXHR_DSP_RESET_MUTE |
-		    PCXHR_DSP_RESET_CODEC);
+	mgr->dsp_reset = PCXHR_DSP_RESET_DSP  |
+			 PCXHR_DSP_RESET_MUTE |
+			 PCXHR_DSP_RESET_CODEC;
+	PCXHR_OUTPB(mgr, PCXHR_DSP_RESET, mgr->dsp_reset);
+	/* hr222_write_gpo(mgr, 0); does the same */
 	msleep(5);
 
 	/* config AKM */
@@ -492,6 +497,33 @@ int hr222_get_external_clock(struct pcxhr_mgr *mgr,
 	snd_printdd("External clock is at %d Hz (measured %d Hz)\n",
 		    rate, calc_rate);
 	*sample_rate = rate;
+	return 0;
+}
+
+
+int hr222_read_gpio(struct pcxhr_mgr *mgr, int is_gpi, int *value)
+{
+	if (is_gpi) {
+		unsigned char reg = PCXHR_INPB(mgr, PCXHR_XLX_STATUS);
+		*value = (int)(reg & PCXHR_STAT_GPI_MASK) >>
+			      PCXHR_STAT_GPI_OFFSET;
+	} else {
+		*value = (int)(mgr->dsp_reset & PCXHR_DSP_RESET_GPO_MASK) >>
+			 PCXHR_DSP_RESET_GPO_OFFSET;
+	}
+	return 0;
+}
+
+
+int hr222_write_gpo(struct pcxhr_mgr *mgr, int value)
+{
+	unsigned char reg = mgr->dsp_reset & ~PCXHR_DSP_RESET_GPO_MASK;
+
+	reg |= (unsigned char)(value << PCXHR_DSP_RESET_GPO_OFFSET) &
+	       PCXHR_DSP_RESET_GPO_MASK;
+
+	PCXHR_OUTPB(mgr, PCXHR_DSP_RESET, reg);
+	mgr->dsp_reset = reg;
 	return 0;
 }
 

@@ -254,7 +254,7 @@ static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
 {
 	const uint8_t *ocu;
 	uint8_t cmp_id, ocu_len;
-	int i;
+	int i, len;
 
 
 	ocu_len = ocu_i->u_len;
@@ -279,8 +279,13 @@ static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
 		if (cmp_id == 16)
 			c = (c << 8) | ocu[i++];
 
-		utf_o->u_len += nls->uni2char(c, &utf_o->u_name[utf_o->u_len],
-					      UDF_NAME_LEN - utf_o->u_len);
+		len = nls->uni2char(c, &utf_o->u_name[utf_o->u_len],
+				    UDF_NAME_LEN - utf_o->u_len);
+		/* Valid character? */
+		if (len >= 0)
+			utf_o->u_len += len;
+		else
+			utf_o->u_name[utf_o->u_len++] = '?';
 	}
 	utf_o->u_cmpID = 8;
 
@@ -290,7 +295,8 @@ static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
 static int udf_NLStoCS0(struct nls_table *nls, dstring *ocu, struct ustr *uni,
 			int length)
 {
-	unsigned len, i, max_val;
+	int len;
+	unsigned i, max_val;
 	uint16_t uni_char;
 	int u_len;
 
@@ -302,8 +308,13 @@ try_again:
 	u_len = 0U;
 	for (i = 0U; i < uni->u_len; i++) {
 		len = nls->char2uni(&uni->u_name[i], uni->u_len - i, &uni_char);
-		if (len <= 0)
+		if (!len)
 			continue;
+		/* Invalid character, deal with it */
+		if (len < 0) {
+			len = 1;
+			uni_char = '?';
+		}
 
 		if (uni_char > max_val) {
 			max_val = 0xffffU;
@@ -324,34 +335,43 @@ try_again:
 int udf_get_filename(struct super_block *sb, uint8_t *sname, uint8_t *dname,
 		     int flen)
 {
-	struct ustr filename, unifilename;
-	int len;
+	struct ustr *filename, *unifilename;
+	int len = 0;
 
-	if (udf_build_ustr_exact(&unifilename, sname, flen))
+	filename = kmalloc(sizeof(struct ustr), GFP_NOFS);
+	if (!filename)
 		return 0;
+
+	unifilename = kmalloc(sizeof(struct ustr), GFP_NOFS);
+	if (!unifilename)
+		goto out1;
+
+	if (udf_build_ustr_exact(unifilename, sname, flen))
+		goto out2;
 
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
-		if (!udf_CS0toUTF8(&filename, &unifilename)) {
+		if (!udf_CS0toUTF8(filename, unifilename)) {
 			udf_debug("Failed in udf_get_filename: sname = %s\n",
 				  sname);
-			return 0;
+			goto out2;
 		}
 	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
-		if (!udf_CS0toNLS(UDF_SB(sb)->s_nls_map, &filename,
-				  &unifilename)) {
+		if (!udf_CS0toNLS(UDF_SB(sb)->s_nls_map, filename,
+				  unifilename)) {
 			udf_debug("Failed in udf_get_filename: sname = %s\n",
 				  sname);
-			return 0;
+			goto out2;
 		}
 	} else
-		return 0;
+		goto out2;
 
-	len = udf_translate_to_linux(dname, filename.u_name, filename.u_len,
-				     unifilename.u_name, unifilename.u_len);
-	if (len)
-		return len;
-
-	return 0;
+	len = udf_translate_to_linux(dname, filename->u_name, filename->u_len,
+				     unifilename->u_name, unifilename->u_len);
+out2:
+	kfree(unifilename);
+out1:
+	kfree(filename);
+	return len;
 }
 
 int udf_put_filename(struct super_block *sb, const uint8_t *sname,

@@ -304,6 +304,9 @@ static void dlm_free_ctxt_mem(struct dlm_ctxt *dlm)
 	if (dlm->lockres_hash)
 		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
 
+	if (dlm->master_hash)
+		dlm_free_pagevec((void **)dlm->master_hash, DLM_HASH_PAGES);
+
 	if (dlm->name)
 		kfree(dlm->name);
 
@@ -1534,12 +1537,27 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	for (i = 0; i < DLM_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(dlm_lockres_hash(dlm, i));
 
+	dlm->master_hash = (struct hlist_head **)
+				dlm_alloc_pagevec(DLM_HASH_PAGES);
+	if (!dlm->master_hash) {
+		mlog_errno(-ENOMEM);
+		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
+		kfree(dlm->name);
+		kfree(dlm);
+		dlm = NULL;
+		goto leave;
+	}
+
+	for (i = 0; i < DLM_HASH_BUCKETS; i++)
+		INIT_HLIST_HEAD(dlm_master_hash(dlm, i));
+
 	strcpy(dlm->name, domain);
 	dlm->key = key;
 	dlm->node_num = o2nm_this_node();
 
 	ret = dlm_create_debugfs_subroot(dlm);
 	if (ret < 0) {
+		dlm_free_pagevec((void **)dlm->master_hash, DLM_HASH_PAGES);
 		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
 		kfree(dlm->name);
 		kfree(dlm);
@@ -1579,7 +1597,6 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	init_waitqueue_head(&dlm->reco.event);
 	init_waitqueue_head(&dlm->ast_wq);
 	init_waitqueue_head(&dlm->migration_wq);
-	INIT_LIST_HEAD(&dlm->master_list);
 	INIT_LIST_HEAD(&dlm->mle_hb_events);
 
 	dlm->joining_node = DLM_LOCK_RES_OWNER_UNKNOWN;
@@ -1587,9 +1604,13 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 
 	dlm->reco.new_master = O2NM_INVALID_NODE_NUM;
 	dlm->reco.dead_node = O2NM_INVALID_NODE_NUM;
-	atomic_set(&dlm->local_resources, 0);
-	atomic_set(&dlm->remote_resources, 0);
-	atomic_set(&dlm->unknown_resources, 0);
+
+	atomic_set(&dlm->res_tot_count, 0);
+	atomic_set(&dlm->res_cur_count, 0);
+	for (i = 0; i < DLM_MLE_NUM_TYPES; ++i) {
+		atomic_set(&dlm->mle_tot_count[i], 0);
+		atomic_set(&dlm->mle_cur_count[i], 0);
+	}
 
 	spin_lock_init(&dlm->work_lock);
 	INIT_LIST_HEAD(&dlm->work_list);

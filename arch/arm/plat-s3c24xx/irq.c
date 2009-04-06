@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/irq.c
  *
- * Copyright (c) 2003,2004 Simtec Electronics
+ * Copyright (c) 2003,2004 Simtec Electronics 
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,38 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Changelog:
- *
- *   22-Jul-2004  Ben Dooks <ben@simtec.co.uk>
- *                Fixed compile warnings
- *
- *   22-Jul-2004  Roc Wu <cooloney@yahoo.com.cn>
- *                Fixed s3c_extirq_type
- *
- *   21-Jul-2004  Arnaud Patard (Rtp) <arnaud.patard@rtp-net.org>
- *                Addition of ADC/TC demux
- *
- *   04-Oct-2004  Klaus Fetscher <k.fetscher@fetron.de>
- *		  Fix for set_irq_type() on low EINT numbers
- *
- *   05-Oct-2004  Ben Dooks <ben@simtec.co.uk>
- *		  Tidy up KF's patch and sort out new release
- *
- *   05-Oct-2004  Ben Dooks <ben@simtec.co.uk>
- *		  Add support for power management controls
- *
- *   04-Nov-2004  Ben Dooks
- *		  Fix standard IRQ wake for EINT0..4 and RTC
- *
- *   22-Feb-2005  Ben Dooks
- *		  Fixed edge-triggering on ADC IRQ
- *
- *   28-Jun-2005  Ben Dooks
- *		  Mark IRQ_LCD valid
- *
- *   25-Jul-2005  Ben Dooks
- *		  Split the S3C2440 IRQ code to separate file
 */
 
 #include <linux/init.h>
@@ -55,80 +23,15 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
-#include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <asm/irq.h>
-
 #include <asm/mach/irq.h>
 
 #include <plat/regs-irqtype.h>
-#include <mach/regs-irq.h>
-#include <mach/regs-gpio.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/irq.h>
-
-/* wakeup irq control */
-
-#ifdef CONFIG_PM
-
-/* state for IRQs over sleep */
-
-/* default is to allow for EINT0..EINT15, and IRQ_RTC as wakeup sources
- *
- * set bit to 1 in allow bitfield to enable the wakeup settings on it
-*/
-
-unsigned long s3c_irqwake_intallow	= 1L << (IRQ_RTC - IRQ_EINT0) | 0xfL;
-unsigned long s3c_irqwake_intmask	= 0xffffffffL;
-unsigned long s3c_irqwake_eintallow	= 0x0000fff0L;
-unsigned long s3c_irqwake_eintmask	= 0xffffffffL;
-
-int
-s3c_irq_wake(unsigned int irqno, unsigned int state)
-{
-	unsigned long irqbit = 1 << (irqno - IRQ_EINT0);
-
-	if (!(s3c_irqwake_intallow & irqbit))
-		return -ENOENT;
-
-	printk(KERN_INFO "wake %s for irq %d\n",
-	       state ? "enabled" : "disabled", irqno);
-
-	if (!state)
-		s3c_irqwake_intmask |= irqbit;
-	else
-		s3c_irqwake_intmask &= ~irqbit;
-
-	return 0;
-}
-
-static int
-s3c_irqext_wake(unsigned int irqno, unsigned int state)
-{
-	unsigned long bit = 1L << (irqno - EXTINT_OFF);
-
-	if (!(s3c_irqwake_eintallow & bit))
-		return -ENOENT;
-
-	printk(KERN_INFO "wake %s for irq %d\n",
-	       state ? "enabled" : "disabled", irqno);
-
-	if (!state)
-		s3c_irqwake_eintmask |= bit;
-	else
-		s3c_irqwake_eintmask &= ~bit;
-
-	return 0;
-}
-
-#else
-#define s3c_irqext_wake NULL
-#define s3c_irq_wake NULL
-#endif
-
 
 static void
 s3c_irq_mask(unsigned int irqno)
@@ -589,59 +492,6 @@ s3c_irq_demux_extint4t7(unsigned int irq,
 		generic_handle_irq(irq);
 	}
 }
-
-#ifdef CONFIG_PM
-
-static struct sleep_save irq_save[] = {
-	SAVE_ITEM(S3C2410_INTMSK),
-	SAVE_ITEM(S3C2410_INTSUBMSK),
-};
-
-/* the extint values move between the s3c2410/s3c2440 and the s3c2412
- * so we use an array to hold them, and to calculate the address of
- * the register at run-time
-*/
-
-static unsigned long save_extint[3];
-static unsigned long save_eintflt[4];
-static unsigned long save_eintmask;
-
-int s3c24xx_irq_suspend(struct sys_device *dev, pm_message_t state)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(save_extint); i++)
-		save_extint[i] = __raw_readl(S3C24XX_EXTINT0 + (i*4));
-
-	for (i = 0; i < ARRAY_SIZE(save_eintflt); i++)
-		save_eintflt[i] = __raw_readl(S3C24XX_EINFLT0 + (i*4));
-
-	s3c2410_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
-	save_eintmask = __raw_readl(S3C24XX_EINTMASK);
-
-	return 0;
-}
-
-int s3c24xx_irq_resume(struct sys_device *dev)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(save_extint); i++)
-		__raw_writel(save_extint[i], S3C24XX_EXTINT0 + (i*4));
-
-	for (i = 0; i < ARRAY_SIZE(save_eintflt); i++)
-		__raw_writel(save_eintflt[i], S3C24XX_EINFLT0 + (i*4));
-
-	s3c2410_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
-	__raw_writel(save_eintmask, S3C24XX_EINTMASK);
-
-	return 0;
-}
-
-#else
-#define s3c24xx_irq_suspend NULL
-#define s3c24xx_irq_resume  NULL
-#endif
 
 /* s3c24xx_init_irq
  *

@@ -194,12 +194,47 @@ void sta_info_destroy(struct sta_info *sta)
 		dev_kfree_skb_any(skb);
 
 	for (i = 0; i <  STA_TID_NUM; i++) {
+		struct tid_ampdu_rx *tid_rx;
+		struct tid_ampdu_tx *tid_tx;
+
 		spin_lock_bh(&sta->lock);
-		if (sta->ampdu_mlme.tid_rx[i])
-		  del_timer_sync(&sta->ampdu_mlme.tid_rx[i]->session_timer);
-		if (sta->ampdu_mlme.tid_tx[i])
-		  del_timer_sync(&sta->ampdu_mlme.tid_tx[i]->addba_resp_timer);
+		tid_rx = sta->ampdu_mlme.tid_rx[i];
+		/* Make sure timer won't free the tid_rx struct, see below */
+		if (tid_rx)
+			tid_rx->shutdown = true;
+
 		spin_unlock_bh(&sta->lock);
+
+		/*
+		 * Outside spinlock - shutdown is true now so that the timer
+		 * won't free tid_rx, we have to do that now. Can't let the
+		 * timer do it because we have to sync the timer outside the
+		 * lock that it takes itself.
+		 */
+		if (tid_rx) {
+			del_timer_sync(&tid_rx->session_timer);
+			kfree(tid_rx);
+		}
+
+		/*
+		 * No need to do such complications for TX agg sessions, the
+		 * path leading to freeing the tid_tx struct goes via a call
+		 * from the driver, and thus needs to look up the sta struct
+		 * again, which cannot be found when we get here. Hence, we
+		 * just need to delete the timer and free the aggregation
+		 * info; we won't be telling the peer about it then but that
+		 * doesn't matter if we're not talking to it again anyway.
+		 */
+		tid_tx = sta->ampdu_mlme.tid_tx[i];
+		if (tid_tx) {
+			del_timer_sync(&tid_tx->addba_resp_timer);
+			/*
+			 * STA removed while aggregation session being
+			 * started? Bit odd, but purge frames anyway.
+			 */
+			skb_queue_purge(&tid_tx->pending);
+			kfree(tid_tx);
+		}
 	}
 
 	__sta_info_free(local, sta);
@@ -246,8 +281,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		 * enable session_timer's data differentiation. refer to
 		 * sta_rx_agg_session_timer_expired for useage */
 		sta->timer_to_tid[i] = i;
-		/* tid to tx queue: initialize according to HW (0 is valid) */
-		sta->tid_to_tx_q[i] = ieee80211_num_queues(&local->hw);
 		/* rx */
 		sta->ampdu_mlme.tid_state_rx[i] = HT_AGG_STATE_IDLE;
 		sta->ampdu_mlme.tid_rx[i] = NULL;

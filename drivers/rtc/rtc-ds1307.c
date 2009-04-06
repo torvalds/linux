@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2005 James Chapman (ds1337 core)
  *  Copyright (C) 2006 David Brownell
+ *  Copyright (C) 2009 Matthias Fuchs (rx8025 support)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,6 +32,7 @@ enum ds_type {
 	ds_1339,
 	ds_1340,
 	m41t00,
+	rx_8025,
 	// rs5c372 too?  different address...
 };
 
@@ -83,6 +85,12 @@ enum ds_type {
 #define DS1339_REG_ALARM1_SECS	0x07
 #define DS1339_REG_TRICKLE	0x10
 
+#define RX8025_REG_CTRL1	0x0e
+#	define RX8025_BIT_2412		0x20
+#define RX8025_REG_CTRL2	0x0f
+#	define RX8025_BIT_PON		0x10
+#	define RX8025_BIT_VDET		0x40
+#	define RX8025_BIT_XST		0x20
 
 
 struct ds1307 {
@@ -94,6 +102,10 @@ struct ds1307 {
 	struct i2c_client	*client;
 	struct rtc_device	*rtc;
 	struct work_struct	work;
+	s32 (*read_block_data)(struct i2c_client *client, u8 command,
+			       u8 length, u8 *values);
+	s32 (*write_block_data)(struct i2c_client *client, u8 command,
+				u8 length, const u8 *values);
 };
 
 struct chip_desc {
@@ -117,6 +129,8 @@ static const struct chip_desc chips[] = {
 [ds_1340] = {
 },
 [m41t00] = {
+},
+[rx_8025] = {
 }, };
 
 static const struct i2c_device_id ds1307_id[] = {
@@ -126,9 +140,83 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1339", ds_1339 },
 	{ "ds1340", ds_1340 },
 	{ "m41t00", m41t00 },
+	{ "rx8025", rx_8025 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1307_id);
+
+/*----------------------------------------------------------------------*/
+
+#define BLOCK_DATA_MAX_TRIES 10
+
+static s32 ds1307_read_block_data_once(struct i2c_client *client, u8 command,
+				  u8 length, u8 *values)
+{
+	s32 i, data;
+
+	for (i = 0; i < length; i++) {
+		data = i2c_smbus_read_byte_data(client, command + i);
+		if (data < 0)
+			return data;
+		values[i] = data;
+	}
+	return i;
+}
+
+static s32 ds1307_read_block_data(struct i2c_client *client, u8 command,
+				  u8 length, u8 *values)
+{
+	u8 oldvalues[I2C_SMBUS_BLOCK_MAX];
+	s32 ret;
+	int tries = 0;
+
+	dev_dbg(&client->dev, "ds1307_read_block_data (length=%d)\n", length);
+	ret = ds1307_read_block_data_once(client, command, length, values);
+	if (ret < 0)
+		return ret;
+	do {
+		if (++tries > BLOCK_DATA_MAX_TRIES) {
+			dev_err(&client->dev,
+				"ds1307_read_block_data failed\n");
+			return -EIO;
+		}
+		memcpy(oldvalues, values, length);
+		ret = ds1307_read_block_data_once(client, command, length,
+						  values);
+		if (ret < 0)
+			return ret;
+	} while (memcmp(oldvalues, values, length));
+	return length;
+}
+
+static s32 ds1307_write_block_data(struct i2c_client *client, u8 command,
+				   u8 length, const u8 *values)
+{
+	u8 currvalues[I2C_SMBUS_BLOCK_MAX];
+	int tries = 0;
+
+	dev_dbg(&client->dev, "ds1307_write_block_data (length=%d)\n", length);
+	do {
+		s32 i, ret;
+
+		if (++tries > BLOCK_DATA_MAX_TRIES) {
+			dev_err(&client->dev,
+				"ds1307_write_block_data failed\n");
+			return -EIO;
+		}
+		for (i = 0; i < length; i++) {
+			ret = i2c_smbus_write_byte_data(client, command + i,
+							values[i]);
+			if (ret < 0)
+				return ret;
+		}
+		ret = ds1307_read_block_data_once(client, command, length,
+						  currvalues);
+		if (ret < 0)
+			return ret;
+	} while (memcmp(currvalues, values, length));
+	return length;
+}
 
 /*----------------------------------------------------------------------*/
 
@@ -202,7 +290,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 	int		tmp;
 
 	/* read the RTC date and time registers all at once */
-	tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
+	tmp = ds1307->read_block_data(ds1307->client,
 		DS1307_REG_SECS, 7, ds1307->regs);
 	if (tmp != 7) {
 		dev_err(dev, "%s error %d\n", "read", tmp);
@@ -279,7 +367,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		"write", buf[0], buf[1], buf[2], buf[3],
 		buf[4], buf[5], buf[6]);
 
-	result = i2c_smbus_write_i2c_block_data(ds1307->client, 0, 7, buf);
+	result = ds1307->write_block_data(ds1307->client, 0, 7, buf);
 	if (result < 0) {
 		dev_err(dev, "%s error %d\n", "write", result);
 		return result;
@@ -297,7 +385,7 @@ static int ds1337_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 		return -EINVAL;
 
 	/* read all ALARM1, ALARM2, and status registers at once */
-	ret = i2c_smbus_read_i2c_block_data(client,
+	ret = ds1307->read_block_data(client,
 			DS1339_REG_ALARM1_SECS, 9, ds1307->regs);
 	if (ret != 9) {
 		dev_err(dev, "%s error %d\n", "alarm read", ret);
@@ -356,7 +444,7 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 		t->enabled, t->pending);
 
 	/* read current status of both alarms and the chip */
-	ret = i2c_smbus_read_i2c_block_data(client,
+	ret = ds1307->read_block_data(client,
 			DS1339_REG_ALARM1_SECS, 9, buf);
 	if (ret != 9) {
 		dev_err(dev, "%s error %d\n", "alarm write", ret);
@@ -391,7 +479,7 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	}
 	buf[8] = status & ~(DS1337_BIT_A1I | DS1337_BIT_A2I);
 
-	ret = i2c_smbus_write_i2c_block_data(client,
+	ret = ds1307->write_block_data(client,
 			DS1339_REG_ALARM1_SECS, 9, buf);
 	if (ret < 0) {
 		dev_err(dev, "can't set alarm time\n");
@@ -479,7 +567,7 @@ ds1307_nvram_read(struct kobject *kobj, struct bin_attribute *attr,
 	if (unlikely(!count))
 		return count;
 
-	result = i2c_smbus_read_i2c_block_data(client, 8 + off, count, buf);
+	result = ds1307->read_block_data(client, 8 + off, count, buf);
 	if (result < 0)
 		dev_err(&client->dev, "%s error %d\n", "nvram read", result);
 	return result;
@@ -490,9 +578,11 @@ ds1307_nvram_write(struct kobject *kobj, struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct i2c_client	*client;
+	struct ds1307		*ds1307;
 	int			result;
 
 	client = kobj_to_i2c_client(kobj);
+	ds1307 = i2c_get_clientdata(client);
 
 	if (unlikely(off >= NVRAM_SIZE))
 		return -EFBIG;
@@ -501,7 +591,7 @@ ds1307_nvram_write(struct kobject *kobj, struct bin_attribute *attr,
 	if (unlikely(!count))
 		return count;
 
-	result = i2c_smbus_write_i2c_block_data(client, 8 + off, count, buf);
+	result = ds1307->write_block_data(client, 8 + off, count, buf);
 	if (result < 0) {
 		dev_err(&client->dev, "%s error %d\n", "nvram write", result);
 		return result;
@@ -535,9 +625,8 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	int			want_irq = false;
 	unsigned char		*buf;
 
-	if (!i2c_check_functionality(adapter,
-			I2C_FUNC_SMBUS_WRITE_BYTE_DATA |
-			I2C_FUNC_SMBUS_I2C_BLOCK))
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)
+	    && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
 
 	if (!(ds1307 = kzalloc(sizeof(struct ds1307), GFP_KERNEL)))
@@ -547,6 +636,13 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, ds1307);
 	ds1307->type = id->driver_data;
 	buf = ds1307->regs;
+	if (i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
+		ds1307->read_block_data = i2c_smbus_read_i2c_block_data;
+		ds1307->write_block_data = i2c_smbus_write_i2c_block_data;
+	} else {
+		ds1307->read_block_data = ds1307_read_block_data;
+		ds1307->write_block_data = ds1307_write_block_data;
+	}
 
 	switch (ds1307->type) {
 	case ds_1337:
@@ -557,7 +653,7 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 			want_irq = true;
 		}
 		/* get registers that the "rtc" read below won't read... */
-		tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
+		tmp = ds1307->read_block_data(ds1307->client,
 				DS1337_REG_CONTROL, 2, buf);
 		if (tmp != 2) {
 			pr_debug("read error %d\n", tmp);
@@ -589,13 +685,79 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 			dev_warn(&client->dev, "SET TIME!\n");
 		}
 		break;
+
+	case rx_8025:
+		tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
+				RX8025_REG_CTRL1 << 4 | 0x08, 2, buf);
+		if (tmp != 2) {
+			pr_debug("read error %d\n", tmp);
+			err = -EIO;
+			goto exit_free;
+		}
+
+		/* oscillator off?  turn it on, so clock can tick. */
+		if (!(ds1307->regs[1] & RX8025_BIT_XST)) {
+			ds1307->regs[1] |= RX8025_BIT_XST;
+			i2c_smbus_write_byte_data(client,
+						  RX8025_REG_CTRL2 << 4 | 0x08,
+						  ds1307->regs[1]);
+			dev_warn(&client->dev,
+				 "oscillator stop detected - SET TIME!\n");
+		}
+
+		if (ds1307->regs[1] & RX8025_BIT_PON) {
+			ds1307->regs[1] &= ~RX8025_BIT_PON;
+			i2c_smbus_write_byte_data(client,
+						  RX8025_REG_CTRL2 << 4 | 0x08,
+						  ds1307->regs[1]);
+			dev_warn(&client->dev, "power-on detected\n");
+		}
+
+		if (ds1307->regs[1] & RX8025_BIT_VDET) {
+			ds1307->regs[1] &= ~RX8025_BIT_VDET;
+			i2c_smbus_write_byte_data(client,
+						  RX8025_REG_CTRL2 << 4 | 0x08,
+						  ds1307->regs[1]);
+			dev_warn(&client->dev, "voltage drop detected\n");
+		}
+
+		/* make sure we are running in 24hour mode */
+		if (!(ds1307->regs[0] & RX8025_BIT_2412)) {
+			u8 hour;
+
+			/* switch to 24 hour mode */
+			i2c_smbus_write_byte_data(client,
+						  RX8025_REG_CTRL1 << 4 | 0x08,
+						  ds1307->regs[0] |
+						  RX8025_BIT_2412);
+
+			tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
+					RX8025_REG_CTRL1 << 4 | 0x08, 2, buf);
+			if (tmp != 2) {
+				pr_debug("read error %d\n", tmp);
+				err = -EIO;
+				goto exit_free;
+			}
+
+			/* correct hour */
+			hour = bcd2bin(ds1307->regs[DS1307_REG_HOUR]);
+			if (hour == 12)
+				hour = 0;
+			if (ds1307->regs[DS1307_REG_HOUR] & DS1307_BIT_PM)
+				hour += 12;
+
+			i2c_smbus_write_byte_data(client,
+						  DS1307_REG_HOUR << 4 | 0x08,
+						  hour);
+		}
+		break;
 	default:
 		break;
 	}
 
 read_rtc:
 	/* read RTC registers */
-	tmp = i2c_smbus_read_i2c_block_data(ds1307->client, 0, 8, buf);
+	tmp = ds1307->read_block_data(ds1307->client, 0, 8, buf);
 	if (tmp != 8) {
 		pr_debug("read error %d\n", tmp);
 		err = -EIO;
@@ -649,6 +811,7 @@ read_rtc:
 			dev_warn(&client->dev, "SET TIME!\n");
 		}
 		break;
+	case rx_8025:
 	case ds_1337:
 	case ds_1339:
 		break;
@@ -661,6 +824,8 @@ read_rtc:
 		/* NOTE: ignores century bits; fix before deploying
 		 * systems that will run through year 2100.
 		 */
+		break;
+	case rx_8025:
 		break;
 	default:
 		if (!(tmp & DS1307_BIT_12HR))

@@ -26,6 +26,7 @@
  */
 
 #include <linux/acpi.h>
+#include <acpi/video.h>
 
 #include "drmP.h"
 #include "i915_drm.h"
@@ -135,6 +136,12 @@ struct opregion_asle {
 #define ASLE_PFMB_PWM_VALID (1<<31)
 
 #define ASLE_CBLV_VALID         (1<<31)
+
+#define ACPI_OTHER_OUTPUT (0<<8)
+#define ACPI_VGA_OUTPUT (1<<8)
+#define ACPI_TV_OUTPUT (2<<8)
+#define ACPI_DIGITAL_OUTPUT (3<<8)
+#define ACPI_LVDS_OUTPUT (4<<8)
 
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
@@ -282,7 +289,58 @@ static struct notifier_block intel_opregion_notifier = {
 	.notifier_call = intel_opregion_video_event,
 };
 
-int intel_opregion_init(struct drm_device *dev)
+/*
+ * Initialise the DIDL field in opregion. This passes a list of devices to
+ * the firmware. Values are defined by section B.4.2 of the ACPI specification
+ * (version 3)
+ */
+
+static void intel_didl_outputs(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_opregion *opregion = &dev_priv->opregion;
+	struct drm_connector *connector;
+	int i = 0;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		int output_type = ACPI_OTHER_OUTPUT;
+		if (i >= 8) {
+			dev_printk (KERN_ERR, &dev->pdev->dev,
+				    "More than 8 outputs detected\n");
+			return;
+		}
+		switch (connector->connector_type) {
+		case DRM_MODE_CONNECTOR_VGA:
+		case DRM_MODE_CONNECTOR_DVIA:
+			output_type = ACPI_VGA_OUTPUT;
+			break;
+		case DRM_MODE_CONNECTOR_Composite:
+		case DRM_MODE_CONNECTOR_SVIDEO:
+		case DRM_MODE_CONNECTOR_Component:
+		case DRM_MODE_CONNECTOR_9PinDIN:
+			output_type = ACPI_TV_OUTPUT;
+			break;
+		case DRM_MODE_CONNECTOR_DVII:
+		case DRM_MODE_CONNECTOR_DVID:
+		case DRM_MODE_CONNECTOR_DisplayPort:
+		case DRM_MODE_CONNECTOR_HDMIA:
+		case DRM_MODE_CONNECTOR_HDMIB:
+			output_type = ACPI_DIGITAL_OUTPUT;
+			break;
+		case DRM_MODE_CONNECTOR_LVDS:
+			output_type = ACPI_LVDS_OUTPUT;
+			break;
+		}
+		opregion->acpi->didl[i] |= (1<<31) | output_type | i;
+		i++;
+	}
+
+	/* If fewer than 8 outputs, the list must be null terminated */
+	if (i < 8)
+		opregion->acpi->didl[i] = 0;
+}
+
+int intel_opregion_init(struct drm_device *dev, int resume)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
@@ -312,6 +370,11 @@ int intel_opregion_init(struct drm_device *dev)
 	if (mboxes & MBOX_ACPI) {
 		DRM_DEBUG("Public ACPI methods supported\n");
 		opregion->acpi = base + OPREGION_ACPI_OFFSET;
+		if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+			intel_didl_outputs(dev);
+			if (!resume)
+				acpi_video_register();
+		}
 	} else {
 		DRM_DEBUG("Public ACPI methods not supported\n");
 		err = -ENOTSUPP;

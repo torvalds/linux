@@ -14,16 +14,7 @@
 #ifndef __ASM_ARCH_REGS_GPIO_H
 #define __ASM_ARCH_REGS_GPIO_H
 
-#define S3C2410_GPIONO(bank,offset) ((bank) + (offset))
-
-#define S3C2410_GPIO_BANKA   (32*0)
-#define S3C2410_GPIO_BANKB   (32*1)
-#define S3C2410_GPIO_BANKC   (32*2)
-#define S3C2410_GPIO_BANKD   (32*3)
-#define S3C2410_GPIO_BANKE   (32*4)
-#define S3C2410_GPIO_BANKF   (32*5)
-#define S3C2410_GPIO_BANKG   (32*6)
-#define S3C2410_GPIO_BANKH   (32*7)
+#include <mach/gpio-nrs.h>
 
 #ifdef CONFIG_CPU_S3C2400
 #define S3C24XX_GPIO_BASE(x)  S3C2400_GPIO_BASE(x)

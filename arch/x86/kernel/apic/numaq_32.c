@@ -69,7 +69,7 @@ struct mpc_trans {
 /* x86_quirks member */
 static int				mpc_record;
 
-static __cpuinitdata struct mpc_trans	*translation_table[MAX_MPC_ENTRY];
+static struct mpc_trans			*translation_table[MAX_MPC_ENTRY];
 
 int					mp_bus_id_to_node[MAX_MP_BUSSES];
 int					mp_bus_id_to_local[MAX_MP_BUSSES];
@@ -256,13 +256,6 @@ static int __init numaq_setup_ioapic_ids(void)
 	return 1;
 }
 
-static int __init numaq_update_apic(void)
-{
-	apic->wakeup_cpu = wakeup_secondary_cpu_via_nmi;
-
-	return 0;
-}
-
 static struct x86_quirks numaq_x86_quirks __initdata = {
 	.arch_pre_time_init		= numaq_pre_time_init,
 	.arch_time_init			= NULL,
@@ -278,7 +271,6 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.mpc_oem_pci_bus		= mpc_oem_pci_bus,
 	.smp_read_mpc_oem		= smp_read_mpc_oem,
 	.setup_ioapic_ids		= numaq_setup_ioapic_ids,
-	.update_apic			= numaq_update_apic,
 };
 
 static __init void early_check_numaq(void)
@@ -342,9 +334,9 @@ static inline void numaq_smp_callin_clear_local_apic(void)
 	clear_local_APIC();
 }
 
-static inline const cpumask_t *numaq_target_cpus(void)
+static inline const struct cpumask *numaq_target_cpus(void)
 {
-	return &CPU_MASK_ALL;
+	return cpu_all_mask;
 }
 
 static inline unsigned long
@@ -435,7 +427,7 @@ static inline int numaq_check_phys_apicid_present(int boot_cpu_physical_apicid)
  * We use physical apicids here, not logical, so just return the default
  * physical broadcast to stop people from breaking us
  */
-static inline unsigned int numaq_cpu_mask_to_apicid(const cpumask_t *cpumask)
+static unsigned int numaq_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
 	return 0x0F;
 }
@@ -470,7 +462,7 @@ static int probe_numaq(void)
 	return found_numaq;
 }
 
-static void numaq_vector_allocation_domain(int cpu, cpumask_t *retmask)
+static void numaq_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
 	 * specified in the interrupt destination when using lowest
@@ -480,7 +472,8 @@ static void numaq_vector_allocation_domain(int cpu, cpumask_t *retmask)
 	 * deliver interrupts to the wrong hyperthread when only one
 	 * hyperthread was specified in the interrupt desitination.
 	 */
-	*retmask = (cpumask_t){ { [0] = APIC_ALL_CPUS, } };
+	cpumask_clear(retmask);
+	cpumask_bits(retmask)[0] = APIC_ALL_CPUS;
 }
 
 static void numaq_setup_portio_remap(void)
@@ -546,7 +539,7 @@ struct apic apic_numaq = {
 	.send_IPI_all			= numaq_send_IPI_all,
 	.send_IPI_self			= default_send_IPI_self,
 
-	.wakeup_cpu			= NULL,
+	.wakeup_secondary_cpu		= wakeup_secondary_cpu_via_nmi,
 	.trampoline_phys_low		= NUMAQ_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= NUMAQ_TRAMPOLINE_PHYS_HIGH,
 

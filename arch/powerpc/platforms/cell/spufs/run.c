@@ -117,6 +117,9 @@ static int spu_setup_isolated(struct spu_context *ctx)
 		cond_resched();
 	}
 
+	/* clear purge status */
+	out_be64(mfc_cntl, 0);
+
 	/* put the SPE in kernel mode to allow access to the loader */
 	sr1 = spu_mfc_sr1_get(ctx->spu);
 	sr1 &= ~MFC_STATE1_PROBLEM_STATE_MASK;

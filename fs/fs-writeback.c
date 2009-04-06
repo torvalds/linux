@@ -196,7 +196,7 @@ static void redirty_tail(struct inode *inode)
 		struct inode *tail_inode;
 
 		tail_inode = list_entry(sb->s_dirty.next, struct inode, i_list);
-		if (!time_after_eq(inode->dirtied_when,
+		if (time_before(inode->dirtied_when,
 				tail_inode->dirtied_when))
 			inode->dirtied_when = jiffies;
 	}
@@ -220,6 +220,21 @@ static void inode_sync_complete(struct inode *inode)
 	wake_up_bit(&inode->i_state, __I_SYNC);
 }
 
+static bool inode_dirtied_after(struct inode *inode, unsigned long t)
+{
+	bool ret = time_after(inode->dirtied_when, t);
+#ifndef CONFIG_64BIT
+	/*
+	 * For inodes being constantly redirtied, dirtied_when can get stuck.
+	 * It _appears_ to be in the future, but is actually in distant past.
+	 * This test is necessary to prevent such wrapped-around relative times
+	 * from permanently stopping the whole pdflush writeback.
+	 */
+	ret = ret && time_before_eq(inode->dirtied_when, jiffies);
+#endif
+	return ret;
+}
+
 /*
  * Move expired dirty inodes from @delaying_queue to @dispatch_queue.
  */
@@ -231,7 +246,7 @@ static void move_expired_inodes(struct list_head *delaying_queue,
 		struct inode *inode = list_entry(delaying_queue->prev,
 						struct inode, i_list);
 		if (older_than_this &&
-			time_after(inode->dirtied_when, *older_than_this))
+		    inode_dirtied_after(inode, *older_than_this))
 			break;
 		list_move(&inode->i_list, dispatch_queue);
 	}
@@ -274,6 +289,7 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 	int ret;
 
 	BUG_ON(inode->i_state & I_SYNC);
+	WARN_ON(inode->i_state & I_NEW);
 
 	/* Set I_SYNC, reset I_DIRTY */
 	dirty = inode->i_state & I_DIRTY;
@@ -298,6 +314,7 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 	}
 
 	spin_lock(&inode_lock);
+	WARN_ON(inode->i_state & I_NEW);
 	inode->i_state &= ~I_SYNC;
 	if (!(inode->i_state & I_FREEING)) {
 		if (!(inode->i_state & I_DIRTY) &&
@@ -418,7 +435,7 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
  * If older_than_this is non-NULL, then only write out inodes which
  * had their first dirtying at a time earlier than *older_than_this.
  *
- * If we're a pdlfush thread, then implement pdflush collision avoidance
+ * If we're a pdflush thread, then implement pdflush collision avoidance
  * against the entire list.
  *
  * If `bdi' is non-zero then we're being asked to writeback a specific queue.
@@ -470,6 +487,11 @@ void generic_sync_sb_inodes(struct super_block *sb,
 			break;
 		}
 
+		if (inode->i_state & I_NEW) {
+			requeue_io(inode);
+			continue;
+		}
+
 		if (wbc->nonblocking && bdi_write_congested(bdi)) {
 			wbc->encountered_congestion = 1;
 			if (!sb_is_blkdev_sb(sb))
@@ -485,8 +507,11 @@ void generic_sync_sb_inodes(struct super_block *sb,
 			continue;		/* blockdev has wrong queue */
 		}
 
-		/* Was this inode dirtied after sync_sb_inodes was called? */
-		if (time_after(inode->dirtied_when, start))
+		/*
+		 * Was this inode dirtied after sync_sb_inodes was called?
+		 * This keeps sync from extra jobs and livelock.
+		 */
+		if (inode_dirtied_after(inode, start))
 			break;
 
 		/* Is another pdflush already flushing this queue? */
@@ -531,7 +556,8 @@ void generic_sync_sb_inodes(struct super_block *sb,
 		list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
 			struct address_space *mapping;
 
-			if (inode->i_state & (I_FREEING|I_WILL_FREE))
+			if (inode->i_state &
+					(I_FREEING|I_CLEAR|I_WILL_FREE|I_NEW))
 				continue;
 			mapping = inode->i_mapping;
 			if (mapping->nrpages == 0)

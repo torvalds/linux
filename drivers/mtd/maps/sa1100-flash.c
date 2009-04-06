@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
+#include <linux/io.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -19,7 +20,6 @@
 #include <linux/mtd/concat.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/sizes.h>
 #include <asm/mach/flash.h>
 

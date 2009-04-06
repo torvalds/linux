@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2008 NetEffect, Inc. All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -111,7 +111,7 @@ static int nes_netdev_poll(struct napi_struct *napi, int budget)
 	nes_nic_ce_handler(nesdev, nescq);
 
 	if (nescq->cqes_pending == 0) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		/* clear out completed cqes and arm */
 		nes_write32(nesdev->regs+NES_CQE_ALLOC, NES_CQE_ALLOC_NOTIFY_NEXT |
 				nescq->cq_number | (nescq->cqe_allocs_pending << 16));
@@ -400,8 +400,7 @@ static int nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 	if (skb_headlen(skb) == skb->len) {
 		if (skb_headlen(skb) <= NES_FIRST_FRAG_SIZE) {
 			nic_sqe->wqe_words[NES_NIC_SQ_WQE_LENGTH_2_1_IDX] = 0;
-			nesnic->tx_skb[nesnic->sq_head] = NULL;
-			dev_kfree_skb(skb);
+			nesnic->tx_skb[nesnic->sq_head] = skb;
 		}
 	} else {
 		/* Deal with Fragments */
@@ -453,7 +452,6 @@ static int nes_netdev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	u32 wqe_count=1;
 	u32 send_rc;
 	struct iphdr *iph;
-	unsigned long flags;
 	__le16 *wqe_fragment_length;
 	u32 nr_frags;
 	u32 original_first_length;
@@ -480,13 +478,6 @@ static int nes_netdev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (netif_queue_stopped(netdev))
 		return NETDEV_TX_BUSY;
 
-	local_irq_save(flags);
-	if (!spin_trylock(&nesnic->sq_lock)) {
-		local_irq_restore(flags);
-		nesvnic->sq_locked++;
-		return NETDEV_TX_LOCKED;
-	}
-
 	/* Check if SQ is full */
 	if ((((nesnic->sq_tail+(nesnic->sq_size*2))-nesnic->sq_head) & (nesnic->sq_size - 1)) == 1) {
 		if (!netif_queue_stopped(netdev)) {
@@ -498,7 +489,6 @@ static int nes_netdev_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 			}
 		}
 		nesvnic->sq_full++;
-		spin_unlock_irqrestore(&nesnic->sq_lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -531,7 +521,6 @@ sq_no_longer_full:
 					}
 				}
 				nesvnic->sq_full++;
-				spin_unlock_irqrestore(&nesnic->sq_lock, flags);
 				nes_debug(NES_DBG_NIC_TX, "%s: HNIC SQ full- TSO request has too many frags!\n",
 						netdev->name);
 				return NETDEV_TX_BUSY;
@@ -656,17 +645,13 @@ tso_sq_no_longer_full:
 			skb_set_transport_header(skb, hoffset);
 			skb_set_network_header(skb, nhoffset);
 			send_rc = nes_nic_send(skb, netdev);
-			if (send_rc != NETDEV_TX_OK) {
-				spin_unlock_irqrestore(&nesnic->sq_lock, flags);
+			if (send_rc != NETDEV_TX_OK)
 				return NETDEV_TX_OK;
-			}
 		}
 	} else {
 		send_rc = nes_nic_send(skb, netdev);
-		if (send_rc != NETDEV_TX_OK) {
-			spin_unlock_irqrestore(&nesnic->sq_lock, flags);
+		if (send_rc != NETDEV_TX_OK)
 			return NETDEV_TX_OK;
-		}
 	}
 
 	barrier();
@@ -676,7 +661,6 @@ tso_sq_no_longer_full:
 				(wqe_count << 24) | (1 << 23) | nesvnic->nic.qp_id);
 
 	netdev->trans_start = jiffies;
-	spin_unlock_irqrestore(&nesnic->sq_lock, flags);
 
 	return NETDEV_TX_OK;
 }
@@ -1012,7 +996,6 @@ static const char nes_ethtool_stringset[][ETH_GSTRING_LEN] = {
 	"Pause Frames Received",
 	"Internal Routing Errors",
 	"SQ SW Dropped SKBs",
-	"SQ Locked",
 	"SQ Full",
 	"Segmented TSO Requests",
 	"Rx Symbol Errors",
@@ -1129,16 +1112,17 @@ static void nes_netdev_get_ethtool_stats(struct net_device *netdev,
 	struct nes_device *nesdev = nesvnic->nesdev;
 	u32 nic_count;
 	u32 u32temp;
+	u32 index = 0;
 
 	target_ethtool_stats->n_stats = NES_ETHTOOL_STAT_COUNT;
-	target_stat_values[0] = nesvnic->nesdev->link_status_interrupts;
-	target_stat_values[1] = nesvnic->linearized_skbs;
-	target_stat_values[2] = nesvnic->tso_requests;
+	target_stat_values[index] = nesvnic->nesdev->link_status_interrupts;
+	target_stat_values[++index] = nesvnic->linearized_skbs;
+	target_stat_values[++index] = nesvnic->tso_requests;
 
 	u32temp = nes_read_indexed(nesdev,
 			NES_IDX_MAC_TX_PAUSE_FRAMES + (nesvnic->nesdev->mac_index*0x200));
 	nesvnic->nesdev->mac_pause_frames_sent += u32temp;
-	target_stat_values[3] = nesvnic->nesdev->mac_pause_frames_sent;
+	target_stat_values[++index] = nesvnic->nesdev->mac_pause_frames_sent;
 
 	u32temp = nes_read_indexed(nesdev,
 			NES_IDX_MAC_RX_PAUSE_FRAMES + (nesvnic->nesdev->mac_index*0x200));
@@ -1209,60 +1193,59 @@ static void nes_netdev_get_ethtool_stats(struct net_device *netdev,
 		nesvnic->endnode_ipv4_tcp_retransmits += u32temp;
 	}
 
-	target_stat_values[4] = nesvnic->nesdev->mac_pause_frames_received;
-	target_stat_values[5] = nesdev->nesadapter->nic_rx_eth_route_err;
-	target_stat_values[6] = nesvnic->tx_sw_dropped;
-	target_stat_values[7] = nesvnic->sq_locked;
-	target_stat_values[8] = nesvnic->sq_full;
-	target_stat_values[9] = nesvnic->segmented_tso_requests;
-	target_stat_values[10] = nesvnic->nesdev->mac_rx_symbol_err_frames;
-	target_stat_values[11] = nesvnic->nesdev->mac_rx_jabber_frames;
-	target_stat_values[12] = nesvnic->nesdev->mac_rx_oversized_frames;
-	target_stat_values[13] = nesvnic->nesdev->mac_rx_short_frames;
-	target_stat_values[14] = nesvnic->endnode_nstat_rx_discard;
-	target_stat_values[15] = nesvnic->endnode_nstat_rx_octets;
-	target_stat_values[16] = nesvnic->endnode_nstat_rx_frames;
-	target_stat_values[17] = nesvnic->endnode_nstat_tx_octets;
-	target_stat_values[18] = nesvnic->endnode_nstat_tx_frames;
-	target_stat_values[19] = mh_detected;
-	target_stat_values[20] = mh_pauses_sent;
-	target_stat_values[21] = nesvnic->endnode_ipv4_tcp_retransmits;
-	target_stat_values[22] = atomic_read(&cm_connects);
-	target_stat_values[23] = atomic_read(&cm_accepts);
-	target_stat_values[24] = atomic_read(&cm_disconnects);
-	target_stat_values[25] = atomic_read(&cm_connecteds);
-	target_stat_values[26] = atomic_read(&cm_connect_reqs);
-	target_stat_values[27] = atomic_read(&cm_rejects);
-	target_stat_values[28] = atomic_read(&mod_qp_timouts);
-	target_stat_values[29] = atomic_read(&qps_created);
-	target_stat_values[30] = atomic_read(&sw_qps_destroyed);
-	target_stat_values[31] = atomic_read(&qps_destroyed);
-	target_stat_values[32] = atomic_read(&cm_closes);
-	target_stat_values[33] = cm_packets_sent;
-	target_stat_values[34] = cm_packets_bounced;
-	target_stat_values[35] = cm_packets_created;
-	target_stat_values[36] = cm_packets_received;
-	target_stat_values[37] = cm_packets_dropped;
-	target_stat_values[38] = cm_packets_retrans;
-	target_stat_values[39] = cm_listens_created;
-	target_stat_values[40] = cm_listens_destroyed;
-	target_stat_values[41] = cm_backlog_drops;
-	target_stat_values[42] = atomic_read(&cm_loopbacks);
-	target_stat_values[43] = atomic_read(&cm_nodes_created);
-	target_stat_values[44] = atomic_read(&cm_nodes_destroyed);
-	target_stat_values[45] = atomic_read(&cm_accel_dropped_pkts);
-	target_stat_values[46] = atomic_read(&cm_resets_recvd);
-	target_stat_values[47] = int_mod_timer_init;
-	target_stat_values[48] = int_mod_cq_depth_1;
-	target_stat_values[49] = int_mod_cq_depth_4;
-	target_stat_values[50] = int_mod_cq_depth_16;
-	target_stat_values[51] = int_mod_cq_depth_24;
-	target_stat_values[52] = int_mod_cq_depth_32;
-	target_stat_values[53] = int_mod_cq_depth_128;
-	target_stat_values[54] = int_mod_cq_depth_256;
-	target_stat_values[55] = nesvnic->lro_mgr.stats.aggregated;
-	target_stat_values[56] = nesvnic->lro_mgr.stats.flushed;
-	target_stat_values[57] = nesvnic->lro_mgr.stats.no_desc;
+	target_stat_values[++index] = nesvnic->nesdev->mac_pause_frames_received;
+	target_stat_values[++index] = nesdev->nesadapter->nic_rx_eth_route_err;
+	target_stat_values[++index] = nesvnic->tx_sw_dropped;
+	target_stat_values[++index] = nesvnic->sq_full;
+	target_stat_values[++index] = nesvnic->segmented_tso_requests;
+	target_stat_values[++index] = nesvnic->nesdev->mac_rx_symbol_err_frames;
+	target_stat_values[++index] = nesvnic->nesdev->mac_rx_jabber_frames;
+	target_stat_values[++index] = nesvnic->nesdev->mac_rx_oversized_frames;
+	target_stat_values[++index] = nesvnic->nesdev->mac_rx_short_frames;
+	target_stat_values[++index] = nesvnic->endnode_nstat_rx_discard;
+	target_stat_values[++index] = nesvnic->endnode_nstat_rx_octets;
+	target_stat_values[++index] = nesvnic->endnode_nstat_rx_frames;
+	target_stat_values[++index] = nesvnic->endnode_nstat_tx_octets;
+	target_stat_values[++index] = nesvnic->endnode_nstat_tx_frames;
+	target_stat_values[++index] = mh_detected;
+	target_stat_values[++index] = mh_pauses_sent;
+	target_stat_values[++index] = nesvnic->endnode_ipv4_tcp_retransmits;
+	target_stat_values[++index] = atomic_read(&cm_connects);
+	target_stat_values[++index] = atomic_read(&cm_accepts);
+	target_stat_values[++index] = atomic_read(&cm_disconnects);
+	target_stat_values[++index] = atomic_read(&cm_connecteds);
+	target_stat_values[++index] = atomic_read(&cm_connect_reqs);
+	target_stat_values[++index] = atomic_read(&cm_rejects);
+	target_stat_values[++index] = atomic_read(&mod_qp_timouts);
+	target_stat_values[++index] = atomic_read(&qps_created);
+	target_stat_values[++index] = atomic_read(&sw_qps_destroyed);
+	target_stat_values[++index] = atomic_read(&qps_destroyed);
+	target_stat_values[++index] = atomic_read(&cm_closes);
+	target_stat_values[++index] = cm_packets_sent;
+	target_stat_values[++index] = cm_packets_bounced;
+	target_stat_values[++index] = cm_packets_created;
+	target_stat_values[++index] = cm_packets_received;
+	target_stat_values[++index] = cm_packets_dropped;
+	target_stat_values[++index] = cm_packets_retrans;
+	target_stat_values[++index] = cm_listens_created;
+	target_stat_values[++index] = cm_listens_destroyed;
+	target_stat_values[++index] = cm_backlog_drops;
+	target_stat_values[++index] = atomic_read(&cm_loopbacks);
+	target_stat_values[++index] = atomic_read(&cm_nodes_created);
+	target_stat_values[++index] = atomic_read(&cm_nodes_destroyed);
+	target_stat_values[++index] = atomic_read(&cm_accel_dropped_pkts);
+	target_stat_values[++index] = atomic_read(&cm_resets_recvd);
+	target_stat_values[++index] = int_mod_timer_init;
+	target_stat_values[++index] = int_mod_cq_depth_1;
+	target_stat_values[++index] = int_mod_cq_depth_4;
+	target_stat_values[++index] = int_mod_cq_depth_16;
+	target_stat_values[++index] = int_mod_cq_depth_24;
+	target_stat_values[++index] = int_mod_cq_depth_32;
+	target_stat_values[++index] = int_mod_cq_depth_128;
+	target_stat_values[++index] = int_mod_cq_depth_256;
+	target_stat_values[++index] = nesvnic->lro_mgr.stats.aggregated;
+	target_stat_values[++index] = nesvnic->lro_mgr.stats.flushed;
+	target_stat_values[++index] = nesvnic->lro_mgr.stats.no_desc;
 
 }
 
@@ -1568,6 +1551,19 @@ static void nes_netdev_vlan_rx_register(struct net_device *netdev, struct vlan_g
 	spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 }
 
+static const struct net_device_ops nes_netdev_ops = {
+	.ndo_open 		= nes_netdev_open,
+	.ndo_stop		= nes_netdev_stop,
+	.ndo_start_xmit 	= nes_netdev_start_xmit,
+	.ndo_get_stats		= nes_netdev_get_stats,
+	.ndo_tx_timeout 	= nes_netdev_tx_timeout,
+	.ndo_set_mac_address	= nes_netdev_set_mac_address,
+	.ndo_set_multicast_list = nes_netdev_set_multicast_list,
+	.ndo_change_mtu		= nes_netdev_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_vlan_rx_register 	= nes_netdev_vlan_rx_register,
+};
 
 /**
  * nes_netdev_init - initialize network device
@@ -1576,7 +1572,7 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 		void __iomem *mmio_addr)
 {
 	u64 u64temp;
-	struct nes_vnic *nesvnic = NULL;
+	struct nes_vnic *nesvnic;
 	struct net_device *netdev;
 	struct nic_qp_map *curr_qp_map;
 	u32 u32temp;
@@ -1588,22 +1584,12 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 		printk(KERN_ERR PFX "nesvnic etherdev alloc failed");
 		return NULL;
 	}
+	nesvnic = netdev_priv(netdev);
 
 	nes_debug(NES_DBG_INIT, "netdev = %p, %s\n", netdev, netdev->name);
 
 	SET_NETDEV_DEV(netdev, &nesdev->pcidev->dev);
 
-	nesvnic = netdev_priv(netdev);
-	memset(nesvnic, 0, sizeof(*nesvnic));
-
-	netdev->open = nes_netdev_open;
-	netdev->stop = nes_netdev_stop;
-	netdev->hard_start_xmit = nes_netdev_start_xmit;
-	netdev->get_stats = nes_netdev_get_stats;
-	netdev->tx_timeout = nes_netdev_tx_timeout;
-	netdev->set_mac_address = nes_netdev_set_mac_address;
-	netdev->set_multicast_list = nes_netdev_set_multicast_list;
-	netdev->change_mtu = nes_netdev_change_mtu;
 	netdev->watchdog_timeo = NES_TX_TIMEOUT;
 	netdev->irq = nesdev->pcidev->irq;
 	netdev->mtu = ETH_DATA_LEN;
@@ -1611,12 +1597,11 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	netdev->addr_len = ETH_ALEN;
 	netdev->type = ARPHRD_ETHER;
 	netdev->features = NETIF_F_HIGHDMA;
+	netdev->netdev_ops = &nes_netdev_ops;
 	netdev->ethtool_ops = &nes_ethtool_ops;
 	netif_napi_add(netdev, &nesvnic->napi, nes_netdev_poll, 128);
 	nes_debug(NES_DBG_INIT, "Enabling VLAN Insert/Delete.\n");
 	netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	netdev->vlan_rx_register = nes_netdev_vlan_rx_register;
-	netdev->features |= NETIF_F_LLTX;
 
 	/* Fill in the port structure */
 	nesvnic->netdev = netdev;

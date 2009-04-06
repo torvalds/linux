@@ -8,7 +8,12 @@
  * not a major issue.  However, for interoperability, libraries still
  * need to be careful to avoid a name clashes.
  */
+
+#ifdef __KERNEL__
+#include <asm-generic/int-ll64.h>
+#else
 #include <asm-generic/int-l64.h>
+#endif
 
 #ifndef __ASSEMBLY__
 

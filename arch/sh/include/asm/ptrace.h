@@ -119,18 +119,8 @@ struct task_struct;
 extern void user_enable_single_step(struct task_struct *);
 extern void user_disable_single_step(struct task_struct *);
 
-#ifdef CONFIG_SH_DSP
 #define task_pt_regs(task) \
-	((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE \
-		 - sizeof(struct pt_dspregs) - sizeof(unsigned long)) - 1)
-#define task_pt_dspregs(task) \
-	((struct pt_dspregs *) (task_stack_page(task) + THREAD_SIZE \
-		 - sizeof(unsigned long)) - 1)
-#else
-#define task_pt_regs(task) \
-	((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE \
-		 - sizeof(unsigned long)) - 1)
-#endif
+	((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE) - 1)
 
 static inline unsigned long profile_pc(struct pt_regs *regs)
 {

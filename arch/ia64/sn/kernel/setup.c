@@ -732,8 +732,7 @@ void __init build_cnode_tables(void)
 		kl_config_hdr_t *klgraph_header;
 		nasid = cnodeid_to_nasid(node);
 		klgraph_header = ia64_sn_get_klconfig_addr(nasid);
-		if (klgraph_header == NULL)
-			BUG();
+		BUG_ON(klgraph_header == NULL);
 		brd = NODE_OFFSET_TO_LBOARD(nasid, klgraph_header->ch_board_info);
 		while (brd) {
 			if (board_needs_cnode(brd->brd_type) && physical_node_map[brd->brd_nasid] < 0) {
@@ -750,7 +749,7 @@ nasid_slice_to_cpuid(int nasid, int slice)
 {
 	long cpu;
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
+	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
 		if (cpuid_to_nasid(cpu) == nasid &&
 					cpuid_to_slice(cpu) == slice)
 			return cpu;

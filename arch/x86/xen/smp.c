@@ -158,7 +158,7 @@ static void __init xen_fill_possible_map(void)
 		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
 		if (rc >= 0) {
 			num_processors++;
-			cpu_set(i, cpu_possible_map);
+			set_cpu_possible(i, true);
 		}
 	}
 }
@@ -197,7 +197,7 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 	while ((num_possible_cpus() > 1) && (num_possible_cpus() > max_cpus)) {
 		for (cpu = nr_cpu_ids - 1; !cpu_possible(cpu); cpu--)
 			continue;
-		cpu_clear(cpu, cpu_possible_map);
+		set_cpu_possible(cpu, false);
 	}
 
 	for_each_possible_cpu (cpu) {
@@ -210,7 +210,7 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 		if (IS_ERR(idle))
 			panic("failed fork for CPU %d", cpu);
 
-		cpu_set(cpu, cpu_present_map);
+		set_cpu_present(cpu, true);
 	}
 }
 
@@ -219,6 +219,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 {
 	struct vcpu_guest_context *ctxt;
 	struct desc_struct *gdt;
+	unsigned long gdt_mfn;
 
 	if (cpumask_test_and_set_cpu(cpu, xen_cpu_initialized_map))
 		return 0;
@@ -248,9 +249,12 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->ldt_ents = 0;
 
 	BUG_ON((unsigned long)gdt & ~PAGE_MASK);
-	make_lowmem_page_readonly(gdt);
 
-	ctxt->gdt_frames[0] = virt_to_mfn(gdt);
+	gdt_mfn = arbitrary_virt_to_mfn(gdt);
+	make_lowmem_page_readonly(gdt);
+	make_lowmem_page_readonly(mfn_to_virt(gdt_mfn));
+
+	ctxt->gdt_frames[0] = gdt_mfn;
 	ctxt->gdt_ents      = GDT_ENTRIES;
 
 	ctxt->user_regs.cs = __KERNEL_CS;

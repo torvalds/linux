@@ -46,6 +46,7 @@ struct fcoe_softc {
 	struct net_device *phys_dev;		/* device with ethtool_ops */
 	struct packet_type  fcoe_packet_type;
 	struct sk_buff_head fcoe_pending_queue;
+	u8	fcoe_pending_queue_active;
 
 	u8 dest_addr[ETH_ALEN];
 	u8 ctl_src_addr[ETH_ALEN];
@@ -58,16 +59,10 @@ struct fcoe_softc {
 	u8 address_mode;
 };
 
-static inline struct fcoe_softc *fcoe_softc(
-	const struct fc_lport *lp)
-{
-	return (struct fcoe_softc *)lport_priv(lp);
-}
-
 static inline struct net_device *fcoe_netdev(
 	const struct fc_lport *lp)
 {
-	return fcoe_softc(lp)->real_dev;
+	return ((struct fcoe_softc *)lport_priv(lp))->real_dev;
 }
 
 static inline struct fcoe_hdr *skb_fcoe_header(const struct sk_buff *skb)
@@ -127,24 +122,6 @@ static inline u16 skb_fc_oxid(const struct sk_buff *skb)
 static inline u16 skb_fc_rxid(const struct sk_buff *skb)
 {
 	return be16_to_cpu(skb_fc_header(skb)->fh_rx_id);
-}
-
-/* FIXME - DMA_BIDIRECTIONAL ? */
-#define skb_cb(skb)	((struct fcoe_rcv_info *)&((skb)->cb[0]))
-#define skb_cmd(skb)	(skb_cb(skb)->fr_cmd)
-#define skb_dir(skb)	(skb_cmd(skb)->sc_data_direction)
-static inline bool skb_fc_is_read(const struct sk_buff *skb)
-{
-	if (skb_fc_is_cmd(skb) && skb_cmd(skb))
-		return skb_dir(skb) == DMA_FROM_DEVICE;
-	return false;
-}
-
-static inline bool skb_fc_is_write(const struct sk_buff *skb)
-{
-	if (skb_fc_is_cmd(skb) && skb_cmd(skb))
-		return skb_dir(skb) == DMA_TO_DEVICE;
-	return false;
 }
 
 /* libfcoe funcs */

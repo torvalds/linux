@@ -10,7 +10,7 @@ static void enable_hotplug_cpu(int cpu)
 	if (!cpu_present(cpu))
 		arch_register_cpu(cpu);
 
-	cpu_set(cpu, cpu_present_map);
+	set_cpu_present(cpu, true);
 }
 
 static void disable_hotplug_cpu(int cpu)
@@ -18,7 +18,7 @@ static void disable_hotplug_cpu(int cpu)
 	if (cpu_present(cpu))
 		arch_unregister_cpu(cpu);
 
-	cpu_clear(cpu, cpu_present_map);
+	set_cpu_present(cpu, false);
 }
 
 static void vcpu_hotplug(unsigned int cpu)

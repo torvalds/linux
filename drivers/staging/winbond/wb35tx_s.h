@@ -18,8 +18,7 @@
 //====================================
 
 
-typedef struct _WB35TX
-{
+struct wb35_tx {
 	// For Tx buffer
 	u8	TxBuffer[ MAX_USB_TX_BUFFER_NUMBER ][ MAX_USB_TX_BUFFER ];
 
@@ -43,7 +42,6 @@ typedef struct _WB35TX
 
 	u32	TxFillCount; // 20060928
 	u32	TxTimer; // 20060928 Add if sending packet not great than 13
-
-} WB35TX, *PWB35TX;
+};
 
 #endif

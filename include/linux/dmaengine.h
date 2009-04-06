@@ -23,9 +23,6 @@
 
 #include <linux/device.h>
 #include <linux/uio.h>
-#include <linux/kref.h>
-#include <linux/completion.h>
-#include <linux/rcupdate.h>
 #include <linux/dma-mapping.h>
 
 /**
@@ -97,7 +94,6 @@ typedef struct { DECLARE_BITMAP(bits, DMA_TX_TYPE_END); } dma_cap_mask_t;
 
 /**
  * struct dma_chan_percpu - the per-CPU part of struct dma_chan
- * @refcount: local_t used for open-coded "bigref" counting
  * @memcpy_count: transaction counter
  * @bytes_transferred: byte counter
  */
@@ -114,9 +110,6 @@ struct dma_chan_percpu {
  * @cookie: last cookie value returned to client
  * @chan_id: channel ID for sysfs
  * @dev: class device for sysfs
- * @refcount: kref, used in "bigref" slow-mode
- * @slow_ref: indicates that the DMA channel is free
- * @rcu: the DMA channel's RCU head
  * @device_node: used to add this to the device chan list
  * @local: per-cpu pointer to a struct dma_chan_percpu
  * @client-count: how many clients are using this channel
@@ -209,12 +202,11 @@ struct dma_async_tx_descriptor {
 /**
  * struct dma_device - info on the entity supplying DMA services
  * @chancnt: how many DMA channels are supported
+ * @privatecnt: how many DMA channels are requested by dma_request_channel
  * @channels: the list of struct dma_chan
  * @global_node: list_head for global dma_device_list
  * @cap_mask: one or more dma_capability flags
  * @max_xor: maximum number of xor sources, 0 if no capability
- * @refcount: reference count
- * @done: IO completion struct
  * @dev_id: unique device ID
  * @dev: struct device reference for dma mapping api
  * @device_alloc_chan_resources: allocate resources and return the
@@ -227,11 +219,13 @@ struct dma_async_tx_descriptor {
  * @device_prep_dma_interrupt: prepares an end of chain interrupt operation
  * @device_prep_slave_sg: prepares a slave dma operation
  * @device_terminate_all: terminate all pending operations
+ * @device_is_tx_complete: poll for transaction completion
  * @device_issue_pending: push pending transactions to hardware
  */
 struct dma_device {
 
 	unsigned int chancnt;
+	unsigned int privatecnt;
 	struct list_head channels;
 	struct list_head global_node;
 	dma_cap_mask_t  cap_mask;
@@ -296,6 +290,24 @@ static inline void net_dmaengine_put(void)
 }
 #endif
 
+#ifdef CONFIG_ASYNC_TX_DMA
+#define async_dmaengine_get()	dmaengine_get()
+#define async_dmaengine_put()	dmaengine_put()
+#define async_dma_find_channel(type) dma_find_channel(type)
+#else
+static inline void async_dmaengine_get(void)
+{
+}
+static inline void async_dmaengine_put(void)
+{
+}
+static inline struct dma_chan *
+async_dma_find_channel(enum dma_transaction_type type)
+{
+	return NULL;
+}
+#endif
+
 dma_cookie_t dma_async_memcpy_buf_to_buf(struct dma_chan *chan,
 	void *dest, void *src, size_t len);
 dma_cookie_t dma_async_memcpy_buf_to_pg(struct dma_chan *chan,
@@ -340,6 +352,13 @@ static inline void
 __dma_cap_set(enum dma_transaction_type tx_type, dma_cap_mask_t *dstp)
 {
 	set_bit(tx_type, dstp->bits);
+}
+
+#define dma_cap_clear(tx, mask) __dma_cap_clear((tx), &(mask))
+static inline void
+__dma_cap_clear(enum dma_transaction_type tx_type, dma_cap_mask_t *dstp)
+{
+	clear_bit(tx_type, dstp->bits);
 }
 
 #define dma_cap_zero(mask) __dma_cap_zero(&(mask))

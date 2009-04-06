@@ -1,38 +1,38 @@
 #include <linux/kernel.h>
 #include <linux/ide.h>
-#include <linux/hdreg.h>
 
 #include "ide-disk.h"
 
 static int smart_enable(ide_drive_t *drive)
 {
-	ide_task_t args;
-	struct ide_taskfile *tf = &args.tf;
+	struct ide_cmd cmd;
+	struct ide_taskfile *tf = &cmd.tf;
 
-	memset(&args, 0, sizeof(ide_task_t));
+	memset(&cmd, 0, sizeof(cmd));
 	tf->feature = ATA_SMART_ENABLE;
 	tf->lbam    = ATA_SMART_LBAM_PASS;
 	tf->lbah    = ATA_SMART_LBAH_PASS;
 	tf->command = ATA_CMD_SMART;
-	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	return ide_no_data_taskfile(drive, &args);
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+
+	return ide_no_data_taskfile(drive, &cmd);
 }
 
 static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
 {
-	ide_task_t args;
-	struct ide_taskfile *tf = &args.tf;
+	struct ide_cmd cmd;
+	struct ide_taskfile *tf = &cmd.tf;
 
-	memset(&args, 0, sizeof(ide_task_t));
+	memset(&cmd, 0, sizeof(cmd));
 	tf->feature = sub_cmd;
 	tf->nsect   = 0x01;
 	tf->lbam    = ATA_SMART_LBAM_PASS;
 	tf->lbah    = ATA_SMART_LBAH_PASS;
 	tf->command = ATA_CMD_SMART;
-	args.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	args.data_phase	= TASKFILE_IN;
-	(void) smart_enable(drive);
-	return ide_raw_taskfile(drive, &args, buf, 1);
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd.protocol = ATA_PROT_PIO;
+
+	return ide_raw_taskfile(drive, &cmd, buf, 1);
 }
 
 static int proc_idedisk_read_cache
@@ -66,6 +66,8 @@ static int proc_idedisk_read_smart(char *page, char **start, off_t off,
 {
 	ide_drive_t	*drive = (ide_drive_t *)data;
 	int		len = 0, i = 0;
+
+	(void)smart_enable(drive);
 
 	if (get_smart_data(drive, page, sub_cmd) == 0) {
 		unsigned short *val = (unsigned short *) page;
@@ -125,5 +127,5 @@ const struct ide_proc_devset ide_disk_settings[] = {
 	IDE_PROC_DEVSET(multcount,	0,    16),
 	IDE_PROC_DEVSET(nowerr,		0,     1),
 	IDE_PROC_DEVSET(wcache,		0,     1),
-	{ 0 },
+	{ NULL },
 };

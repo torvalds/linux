@@ -109,6 +109,13 @@ slot, pass `probe_mask=1`.  For the first and the third slots, pass
 Since 2.6.29 kernel, the driver has a more robust probing method, so
 this error might happen rarely, though.
 
+On a machine with a broken BIOS, sometimes you need to force the
+driver to probe the codec slots the hardware doesn't report for use.
+In such a case, turn the bit 8 (0x100) of `probe_mask` option on.
+Then the rest 8 bits are passed as the codec slots to probe
+unconditionally.  For example, `probe_mask=0x103` will force to probe
+the codec slots 0 and 1 no matter what the hardware reports.
+
 
 Interrupt Handling
 ~~~~~~~~~~~~~~~~~~
@@ -358,10 +365,26 @@ modelname::
   to this file.
 init_verbs::
   The extra verbs to execute at initialization.  You can add a verb by
-  writing to this file.  Pass tree numbers, nid, verb and parameter.
+  writing to this file.  Pass three numbers: nid, verb and parameter
+  (separated with a space).
 hints::
-  Shows hint strings for codec parsers for any use.  Right now it's
-  not used.
+  Shows / stores hint strings for codec parsers for any use.
+  Its format is `key = value`.  For example, passing `hp_detect = yes`
+  to IDT/STAC codec parser will result in the disablement of the
+  headphone detection.
+init_pin_configs::
+  Shows the initial pin default config values set by BIOS.
+driver_pin_configs::
+  Shows the pin default values set by the codec parser explicitly.
+  This doesn't show all pin values but only the changed values by
+  the parser.  That is, if the parser doesn't change the pin default
+  config values by itself, this will contain nothing.
+user_pin_configs::
+  Shows the pin default config values to override the BIOS setup.
+  Writing this (with two numbers, NID and value) appends the new
+  value.  The given will be used instead of the initial BIOS value at
+  the next reconfiguration time.  Note that this config will override
+  even the driver pin configs, too.
 reconfig::
   Triggers the codec re-configuration.  When any value is written to
   this file, the driver re-initialize and parses the codec tree
@@ -370,6 +393,14 @@ reconfig::
 clear::
   Resets the codec, removes the mixer elements and PCM stuff of the
   specified codec, and clear all init verbs and hints.
+
+For example, when you want to change the pin default configuration
+value of the pin widget 0x14 to 0x9993013f, and let the driver
+re-configure based on that state, run like below:
+------------------------------------------------------------------------
+  # echo 0x14 0x9993013f > /sys/class/sound/hwC0D0/user_pin_configs
+  # echo 1 > /sys/class/sound/hwC0D0/reconfig  
+------------------------------------------------------------------------
 
 
 Power-Saving
@@ -460,6 +491,16 @@ run with `--no-upload` option, and attach the generated file.
 
 There are some other useful options.  See `--help` option output for
 details.
+
+When a probe error occurs or when the driver obviously assigns a
+mismatched model, it'd be helpful to load the driver with
+`probe_only=1` option (at best after the cold reboot) and run
+alsa-info at this state.  With this option, the driver won't configure
+the mixer and PCM but just tries to probe the codec slot.  After
+probing, the proc file is available, so you can get the raw codec
+information before modified by the driver.  Of course, the driver
+isn't usable with `probe_only=1`.  But you can continue the
+configuration via hwdep sysfs file if hda-reconfig option is enabled.
 
 
 hda-verb

@@ -14,8 +14,9 @@
 #ifndef _BTTV_H_
 #define _BTTV_H_
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/i2c.h>
+#include <media/v4l2-device.h>
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/i2c-addr.h>
@@ -180,6 +181,10 @@
 #define BTTV_BOARD_VD012		   0x99
 #define BTTV_BOARD_VD012_X1		   0x9a
 #define BTTV_BOARD_VD012_X2		   0x9b
+#define BTTV_BOARD_IVCE8784		   0x9c
+#define BTTV_BOARD_GEOVISION_GV800S	   0x9d
+#define BTTV_BOARD_GEOVISION_GV800S_SL	   0x9e
+#define BTTV_BOARD_PV183                   0x9f
 
 
 /* more card-specific defines */
@@ -191,12 +196,9 @@
 #define WINVIEW_PT2254_DATA 0x20
 #define WINVIEW_PT2254_STROBE 0x80
 
-/* digital_mode */
-#define DIGITAL_MODE_VIDEO 1
-#define DIGITAL_MODE_CAMERA 2
-
 struct bttv_core {
 	/* device structs */
+	struct v4l2_device   v4l2_dev;
 	struct pci_dev       *pci;
 	struct i2c_adapter   i2c_adap;
 	struct list_head     subs;     /* struct bttv_sub_device */
@@ -204,25 +206,33 @@ struct bttv_core {
 	/* device config */
 	unsigned int         nr;       /* dev nr (for printk("bttv%d: ...");  */
 	unsigned int         type;     /* card type (pointer into tvcards[])  */
-	char                 name[8];  /* dev name */
 };
 
 struct bttv;
 
-
-struct tvcard
-{
+struct tvcard {
 	char *name;
-	unsigned int video_inputs;
-	unsigned int audio_inputs;
-	unsigned int tuner;
-	unsigned int svhs;
-	unsigned int digital_mode; // DIGITAL_MODE_CAMERA or DIGITAL_MODE_VIDEO
+	void (*volume_gpio)(struct bttv *btv, __u16 volume);
+	void (*audio_mode_gpio)(struct bttv *btv, struct v4l2_tuner *tuner, int set);
+	void (*muxsel_hook)(struct bttv *btv, unsigned int input);
+
+	/* MUX bits for each input, two bits per input starting with the LSB */
+	u32 muxsel; /* Use MUXSEL() to set */
+
 	u32 gpiomask;
-	u32 muxsel[16];
 	u32 gpiomux[4];  /* Tuner, Radio, external, internal */
 	u32 gpiomute;    /* GPIO mute setting */
 	u32 gpiomask2;   /* GPIO MUX mask */
+
+	unsigned int tuner_type;
+	u8 tuner_addr;
+	u8 video_inputs;	/* Number of inputs */
+	unsigned int svhs:4;	/* Which input is s-video */
+#define NO_SVHS	15
+	unsigned int pll:2;
+#define PLL_NONE 0
+#define PLL_28   1
+#define PLL_35   2
 
 	/* i2c audio flags */
 	unsigned int no_msp34xx:1;
@@ -230,32 +240,44 @@ struct tvcard
 	unsigned int no_tda7432:1;
 	unsigned int needs_tvaudio:1;
 	unsigned int msp34xx_alt:1;
+	/* Note: currently no card definition needs to mark the presence
+	   of a RDS saa6588 chip. If this is ever needed, then add a new
+	   'has_saa6588' bit here. */
 
-	/* flag: video pci function is unused */
-	unsigned int no_video:1;
+	unsigned int no_video:1; /* video pci function is unused */
 	unsigned int has_dvb:1;
 	unsigned int has_remote:1;
+	unsigned int has_radio:1;
+	unsigned int has_dig_in:1; /* Has digital input (always last input) */
 	unsigned int no_gpioirq:1;
-
-	/* other settings */
-	unsigned int pll;
-#define PLL_NONE 0
-#define PLL_28   1
-#define PLL_35   2
-
-	unsigned int tuner_type;
-	unsigned int tuner_addr;
-	unsigned int radio_addr;
-
-	unsigned int has_radio;
-
-	void (*volume_gpio)(struct bttv *btv, __u16 volume);
-	void (*audio_mode_gpio)(struct bttv *btv, struct v4l2_tuner *tuner, int set);
-
-	void (*muxsel_hook)(struct bttv *btv, unsigned int input);
 };
 
 extern struct tvcard bttv_tvcards[];
+
+/*
+ * This bit of cpp voodoo is used to create a macro with a variable number of
+ * arguments (1 to 16).  It will pack each argument into a word two bits at a
+ * time.  It can't be a function because it needs to be compile time constant to
+ * initialize structures.  Since each argument must fit in two bits, it's ok
+ * that they are changed to octal.  One should not use hex number, macros, or
+ * anything else with this macro.  Just use plain integers from 0 to 3.
+ */
+#define _MUXSELf(a)      	0##a << 30
+#define _MUXSELe(a, b...)	0##a << 28 | _MUXSELf(b)
+#define _MUXSELd(a, b...)	0##a << 26 | _MUXSELe(b)
+#define _MUXSELc(a, b...)	0##a << 24 | _MUXSELd(b)
+#define _MUXSELb(a, b...)	0##a << 22 | _MUXSELc(b)
+#define _MUXSELa(a, b...)	0##a << 20 | _MUXSELb(b)
+#define _MUXSEL9(a, b...)	0##a << 18 | _MUXSELa(b)
+#define _MUXSEL8(a, b...)	0##a << 16 | _MUXSEL9(b)
+#define _MUXSEL7(a, b...)	0##a << 14 | _MUXSEL8(b)
+#define _MUXSEL6(a, b...)	0##a << 12 | _MUXSEL7(b)
+#define _MUXSEL5(a, b...)	0##a << 10 | _MUXSEL6(b)
+#define _MUXSEL4(a, b...)	0##a << 8  | _MUXSEL5(b)
+#define _MUXSEL3(a, b...)	0##a << 6  | _MUXSEL4(b)
+#define _MUXSEL2(a, b...)	0##a << 4  | _MUXSEL3(b)
+#define _MUXSEL1(a, b...)	0##a << 2  | _MUXSEL2(b)
+#define MUXSEL(a, b...)		(a | _MUXSEL1(b))
 
 /* identification / initialization of the card */
 extern void bttv_idcard(struct bttv *btv);
@@ -264,7 +286,7 @@ extern void bttv_init_card2(struct bttv *btv);
 
 /* card-specific funtions */
 extern void tea5757_set_freq(struct bttv *btv, unsigned short freq);
-extern void bttv_tda9880_setnorm(struct bttv *btv, int norm);
+extern u32 bttv_tda9880_setnorm(struct bttv *btv, u32 gpiobits);
 
 /* extra tweaks for some chipsets */
 extern void bttv_check_chipset(void);
@@ -336,7 +358,9 @@ void bttv_gpio_bits(struct bttv_core *core, u32 mask, u32 bits);
 /* ---------------------------------------------------------- */
 /* i2c                                                        */
 
-extern void bttv_call_i2c_clients(struct bttv *btv, unsigned int cmd, void *arg);
+#define bttv_call_all(btv, o, f, args...) \
+	v4l2_device_call_all(&btv->c.v4l2_dev, 0, o, f, ##args)
+
 extern int bttv_I2CRead(struct bttv *btv, unsigned char addr, char *probe_for);
 extern int bttv_I2CWrite(struct bttv *btv, unsigned char addr, unsigned char b1,
 			 unsigned char b2, int both);

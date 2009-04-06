@@ -24,6 +24,8 @@
 #ifndef _VIA_DRM_H_
 #define _VIA_DRM_H_
 
+#include <linux/types.h>
+
 /* WARNING: These defines must be the same as what the Xserver uses.
  * if you change them, you must change the defines in the Xserver.
  */
@@ -114,19 +116,19 @@
 #define VIA_MEM_UNKNOWN 4
 
 typedef struct {
-	uint32_t offset;
-	uint32_t size;
+	__u32 offset;
+	__u32 size;
 } drm_via_agp_t;
 
 typedef struct {
-	uint32_t offset;
-	uint32_t size;
+	__u32 offset;
+	__u32 size;
 } drm_via_fb_t;
 
 typedef struct {
-	uint32_t context;
-	uint32_t type;
-	uint32_t size;
+	__u32 context;
+	__u32 type;
+	__u32 size;
 	unsigned long index;
 	unsigned long offset;
 } drm_via_mem_t;
@@ -148,9 +150,9 @@ typedef struct _drm_via_futex {
 		VIA_FUTEX_WAIT = 0x00,
 		VIA_FUTEX_WAKE = 0X01
 	} func;
-	uint32_t ms;
-	uint32_t lock;
-	uint32_t val;
+	__u32 ms;
+	__u32 lock;
+	__u32 val;
 } drm_via_futex_t;
 
 typedef struct _drm_via_dma_init {
@@ -211,7 +213,7 @@ typedef struct _drm_via_cmdbuf_size {
 		VIA_CMDBUF_LAG = 0x02
 	} func;
 	int wait;
-	uint32_t size;
+	__u32 size;
 } drm_via_cmdbuf_size_t;
 
 typedef enum {
@@ -236,8 +238,8 @@ enum drm_via_irqs {
 struct drm_via_wait_irq_request {
 	unsigned irq;
 	via_irq_seq_type_t type;
-	uint32_t sequence;
-	uint32_t signal;
+	__u32 sequence;
+	__u32 signal;
 };
 
 typedef union drm_via_irqwait {
@@ -246,7 +248,7 @@ typedef union drm_via_irqwait {
 } drm_via_irqwait_t;
 
 typedef struct drm_via_blitsync {
-	uint32_t sync_handle;
+	__u32 sync_handle;
 	unsigned engine;
 } drm_via_blitsync_t;
 
@@ -257,16 +259,16 @@ typedef struct drm_via_blitsync {
  */
 
 typedef struct drm_via_dmablit {
-	uint32_t num_lines;
-	uint32_t line_length;
+	__u32 num_lines;
+	__u32 line_length;
 
-	uint32_t fb_addr;
-	uint32_t fb_stride;
+	__u32 fb_addr;
+	__u32 fb_stride;
 
 	unsigned char *mem_addr;
-	uint32_t mem_stride;
+	__u32 mem_stride;
 
-	uint32_t flags;
+	__u32 flags;
 	int to_fb;
 
 	drm_via_blitsync_t sync;

@@ -110,15 +110,6 @@ typedef void (*tShbCirSigHndlrReset) (tShbInstance pShbInstance_p,
 extern "C" {
 #endif
 
-/*#if defined(INLINE_FUNCTION_DEF)
-    #undef  INLINE_FUNCTION
-    #define INLINE_FUNCTION     INLINE_FUNCTION_DEF
-    #define INLINE_ENABLED      TRUE
-    #define SHAREDBUFF_INLINED
-    #include "SharedBuff.c"
-#endif
-*/
-
 	tShbError ShbInit(void);
 	tShbError ShbExit(void);
 
@@ -129,7 +120,6 @@ extern "C" {
 				    unsigned int *pfShbNewCreated_p);
 	tShbError ShbCirReleaseBuffer(tShbInstance pShbInstance_p);
 
-#if !defined(INLINE_ENABLED)
 
 	tShbError ShbCirResetBuffer(tShbInstance pShbInstance_p,
 				    unsigned long ulTimeOut_p,
@@ -159,7 +149,6 @@ extern "C" {
 						pfnShbSignalHandlerNewData_p,
 						tShbPriority ShbPriority_p);
 
-#endif
 
 // Linear Shared Buffer
 	tShbError ShbLinAllocBuffer(unsigned long ulBufferSize_p,
@@ -168,7 +157,6 @@ extern "C" {
 				    unsigned int *pfShbNewCreated_p);
 	tShbError ShbLinReleaseBuffer(tShbInstance pShbInstance_p);
 
-#if !defined(INLINE_ENABLED)
 
 	tShbError ShbLinWriteDataBlock(tShbInstance pShbInstance_p,
 				       unsigned long ulDstBufferOffs_p,
@@ -179,7 +167,6 @@ extern "C" {
 				      unsigned long ulSrcBufferOffs_p,
 				      unsigned long ulDataBlockSize_p);
 
-#endif
 
 #ifndef NDEBUG
 	tShbError ShbCirTraceBuffer(tShbInstance pShbInstance_p);
@@ -193,10 +180,6 @@ extern "C" {
 #define ShbLinTraceBuffer(p0)
 #define ShbTraceDump(p0, p1, p2, p3)
 #endif
-
-#undef  INLINE_ENABLED		// disable actual inlining of functions
-#undef  INLINE_FUNCTION
-#define INLINE_FUNCTION		// define INLINE_FUNCTION to nothing
 
 #ifdef __cplusplus
 }

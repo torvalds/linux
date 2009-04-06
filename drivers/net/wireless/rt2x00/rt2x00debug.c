@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -130,9 +130,11 @@ struct rt2x00debug_intf {
 };
 
 void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
-			       enum cipher cipher, enum rx_crypto status)
+			       struct rxdone_entry_desc *rxdesc)
 {
 	struct rt2x00debug_intf *intf = rt2x00dev->debugfs_intf;
+	enum cipher cipher = rxdesc->cipher;
+	enum rx_crypto status = rxdesc->cipher_status;
 
 	if (cipher == CIPHER_TKIP_NO_MIC)
 		cipher = CIPHER_TKIP;
@@ -433,10 +435,11 @@ static ssize_t rt2x00debug_read_##__name(struct file *file,	\
 	if (index >= debug->__name.word_count)			\
 		return -EINVAL;					\
 								\
+	index += (debug->__name.word_base /			\
+		  debug->__name.word_size);			\
+								\
 	if (debug->__name.flags & RT2X00DEBUGFS_OFFSET)		\
 		index *= debug->__name.word_size;		\
-								\
-	index += debug->__name.word_base;			\
 								\
 	debug->__name.read(intf->rt2x00dev, index, &value);	\
 								\
@@ -474,10 +477,11 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 	size = strlen(line);					\
 	value = simple_strtoul(line, NULL, 0);			\
 								\
+	index += (debug->__name.word_base /			\
+		  debug->__name.word_size);			\
+								\
 	if (debug->__name.flags & RT2X00DEBUGFS_OFFSET)		\
 		index *= debug->__name.word_size;		\
-								\
-	index += debug->__name.word_base;			\
 								\
 	debug->__name.write(intf->rt2x00dev, index, value);	\
 								\
@@ -543,9 +547,9 @@ static struct dentry *rt2x00debug_create_file_driver(const char *name,
 		return NULL;
 
 	blob->data = data;
-	data += sprintf(data, "driver: %s\n", intf->rt2x00dev->ops->name);
-	data += sprintf(data, "version: %s\n", DRV_VERSION);
-	data += sprintf(data, "compiled: %s %s\n", __DATE__, __TIME__);
+	data += sprintf(data, "driver:\t%s\n", intf->rt2x00dev->ops->name);
+	data += sprintf(data, "version:\t%s\n", DRV_VERSION);
+	data += sprintf(data, "compiled:\t%s %s\n", __DATE__, __TIME__);
 	blob->size = strlen(blob->data);
 
 	return debugfs_create_blob(name, S_IRUSR, intf->driver_folder, blob);
@@ -566,14 +570,27 @@ static struct dentry *rt2x00debug_create_file_chipset(const char *name,
 		return NULL;
 
 	blob->data = data;
-	data += sprintf(data, "rt chip: %04x\n", intf->rt2x00dev->chip.rt);
-	data += sprintf(data, "rf chip: %04x\n", intf->rt2x00dev->chip.rf);
-	data += sprintf(data, "revision:%08x\n", intf->rt2x00dev->chip.rev);
+	data += sprintf(data, "rt chip:\t%04x\n", intf->rt2x00dev->chip.rt);
+	data += sprintf(data, "rf chip:\t%04x\n", intf->rt2x00dev->chip.rf);
+	data += sprintf(data, "revision:\t%08x\n", intf->rt2x00dev->chip.rev);
 	data += sprintf(data, "\n");
-	data += sprintf(data, "csr length: %d\n", debug->csr.word_count);
-	data += sprintf(data, "eeprom length: %d\n", debug->eeprom.word_count);
-	data += sprintf(data, "bbp length: %d\n", debug->bbp.word_count);
-	data += sprintf(data, "rf length: %d\n", debug->rf.word_count);
+	data += sprintf(data, "register\tbase\twords\twordsize\n");
+	data += sprintf(data, "csr\t%d\t%d\t%d\n",
+			debug->csr.word_base,
+			debug->csr.word_count,
+			debug->csr.word_size);
+	data += sprintf(data, "eeprom\t%d\t%d\t%d\n",
+			debug->eeprom.word_base,
+			debug->eeprom.word_count,
+			debug->eeprom.word_size);
+	data += sprintf(data, "bbp\t%d\t%d\t%d\n",
+			debug->bbp.word_base,
+			debug->bbp.word_count,
+			debug->bbp.word_size);
+	data += sprintf(data, "rf\t%d\t%d\t%d\n",
+			debug->rf.word_base,
+			debug->rf.word_count,
+			debug->rf.word_size);
 	blob->size = strlen(blob->data);
 
 	return debugfs_create_blob(name, S_IRUSR, intf->driver_folder, blob);

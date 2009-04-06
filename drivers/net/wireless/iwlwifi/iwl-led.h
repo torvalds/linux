@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -35,7 +35,7 @@ struct iwl_priv;
 
 #define IWL_LED_SOLID 11
 #define IWL_LED_NAME_LEN 31
-#define IWL_DEF_LED_INTRVL __constant_cpu_to_le32(1000)
+#define IWL_DEF_LED_INTRVL cpu_to_le32(1000)
 
 #define IWL_LED_ACTIVITY       (0<<1)
 #define IWL_LED_LINK           (1<<1)
@@ -47,7 +47,9 @@ enum led_type {
 	IWL_LED_TRG_RADIO,
 	IWL_LED_TRG_MAX,
 };
+#endif
 
+#ifdef CONFIG_IWLWIFI_LEDS
 
 struct iwl_led {
 	struct iwl_priv *priv;
