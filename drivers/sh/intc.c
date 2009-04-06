@@ -44,6 +44,7 @@ struct intc_handle_int {
 struct intc_desc_int {
 	struct list_head list;
 	struct sys_device sysdev;
+	pm_message_t state;
 	unsigned long *reg;
 #ifdef CONFIG_SMP
 	unsigned long *smp;
@@ -786,18 +787,44 @@ static int intc_suspend(struct sys_device *dev, pm_message_t state)
 	/* get intc controller associated with this sysdev */
 	d = container_of(dev, struct intc_desc_int, sysdev);
 
-	/* enable wakeup irqs belonging to this intc controller */
-	for_each_irq_desc(irq, desc) {
-		if ((desc->status & IRQ_WAKEUP) && (desc->chip == &d->chip))
-			intc_enable(irq);
+	switch (state.event) {
+	case PM_EVENT_ON:
+		if (d->state.event != PM_EVENT_FREEZE)
+			break;
+		for_each_irq_desc(irq, desc) {
+			if (desc->chip != &d->chip)
+				continue;
+			if (desc->status & IRQ_DISABLED)
+				intc_disable(irq);
+			else
+				intc_enable(irq);
+		}
+		break;
+	case PM_EVENT_FREEZE:
+		/* nothing has to be done */
+		break;
+	case PM_EVENT_SUSPEND:
+		/* enable wakeup irqs belonging to this intc controller */
+		for_each_irq_desc(irq, desc) {
+			if ((desc->status & IRQ_WAKEUP) && (desc->chip == &d->chip))
+				intc_enable(irq);
+		}
+		break;
 	}
+	d->state = state;
 
 	return 0;
+}
+
+static int intc_resume(struct sys_device *dev)
+{
+	return intc_suspend(dev, PMSG_ON);
 }
 
 static struct sysdev_class intc_sysdev_class = {
 	.name = "intc",
 	.suspend = intc_suspend,
+	.resume = intc_resume,
 };
 
 /* register this intc as sysdev to allow suspend/resume */
