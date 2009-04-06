@@ -141,15 +141,18 @@ fast_shmem_read(struct page **pages,
 		int length)
 {
 	char __iomem *vaddr;
-	int ret;
+	int unwritten;
 
 	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT], KM_USER0);
 	if (vaddr == NULL)
 		return -ENOMEM;
-	ret = __copy_to_user_inatomic(data, vaddr + page_offset, length);
+	unwritten = __copy_to_user_inatomic(data, vaddr + page_offset, length);
 	kunmap_atomic(vaddr, KM_USER0);
 
-	return ret;
+	if (unwritten)
+		return -EFAULT;
+
+	return 0;
 }
 
 static inline int
@@ -3000,13 +3003,13 @@ i915_gem_get_relocs_from_user(struct drm_i915_gem_exec_object *exec_list,
 			drm_free(*relocs, reloc_count * sizeof(**relocs),
 				 DRM_MEM_DRIVER);
 			*relocs = NULL;
-			return ret;
+			return -EFAULT;
 		}
 
 		reloc_index += exec_list[i].relocation_count;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int
@@ -3015,23 +3018,28 @@ i915_gem_put_relocs_to_user(struct drm_i915_gem_exec_object *exec_list,
 			    struct drm_i915_gem_relocation_entry *relocs)
 {
 	uint32_t reloc_count = 0, i;
-	int ret;
+	int ret = 0;
 
 	for (i = 0; i < buffer_count; i++) {
 		struct drm_i915_gem_relocation_entry __user *user_relocs;
+		int unwritten;
 
 		user_relocs = (void __user *)(uintptr_t)exec_list[i].relocs_ptr;
 
-		if (ret == 0) {
-			ret = copy_to_user(user_relocs,
-					   &relocs[reloc_count],
-					   exec_list[i].relocation_count *
-					   sizeof(*relocs));
+		unwritten = copy_to_user(user_relocs,
+					 &relocs[reloc_count],
+					 exec_list[i].relocation_count *
+					 sizeof(*relocs));
+
+		if (unwritten) {
+			ret = -EFAULT;
+			goto err;
 		}
 
 		reloc_count += exec_list[i].relocation_count;
 	}
 
+err:
 	drm_free(relocs, reloc_count * sizeof(*relocs), DRM_MEM_DRIVER);
 
 	return ret;
@@ -3306,10 +3314,12 @@ err:
 				   (uintptr_t) args->buffers_ptr,
 				   exec_list,
 				   sizeof(*exec_list) * args->buffer_count);
-		if (ret)
+		if (ret) {
+			ret = -EFAULT;
 			DRM_ERROR("failed to copy %d exec entries "
 				  "back to user (%d)\n",
 				  args->buffer_count, ret);
+		}
 	}
 
 	/* Copy the updated relocations out regardless of current error
