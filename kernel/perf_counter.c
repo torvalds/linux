@@ -974,9 +974,6 @@ int perf_counter_task_disable(void)
 	curr_rq_lock_irq_save(&flags);
 	cpu = smp_processor_id();
 
-	/* force the update of the task clock: */
-	__task_delta_exec(curr, 1);
-
 	perf_counter_task_sched_out(curr, cpu);
 
 	spin_lock(&ctx->lock);
@@ -1016,9 +1013,6 @@ int perf_counter_task_enable(void)
 
 	curr_rq_lock_irq_save(&flags);
 	cpu = smp_processor_id();
-
-	/* force the update of the task clock: */
-	__task_delta_exec(curr, 1);
 
 	perf_counter_task_sched_out(curr, cpu);
 
@@ -2347,38 +2341,28 @@ static const struct hw_perf_counter_ops perf_ops_cpu_clock = {
  * Software counter: task time clock
  */
 
-/*
- * Called from within the scheduler:
- */
-static u64 task_clock_perf_counter_val(struct perf_counter *counter, int update)
+static void task_clock_perf_counter_update(struct perf_counter *counter)
 {
-	struct task_struct *curr = counter->task;
-	u64 delta;
-
-	delta = __task_delta_exec(curr, update);
-
-	return curr->se.sum_exec_runtime + delta;
-}
-
-static void task_clock_perf_counter_update(struct perf_counter *counter, u64 now)
-{
-	u64 prev;
+	u64 prev, now;
 	s64 delta;
 
-	prev = atomic64_read(&counter->hw.prev_count);
+	update_context_time(counter->ctx);
+	now = counter->ctx->time;
 
-	atomic64_set(&counter->hw.prev_count, now);
-
+	prev = atomic64_xchg(&counter->hw.prev_count, now);
 	delta = now - prev;
-
 	atomic64_add(delta, &counter->count);
 }
 
 static int task_clock_perf_counter_enable(struct perf_counter *counter)
 {
 	struct hw_perf_counter *hwc = &counter->hw;
+	u64 now;
 
-	atomic64_set(&hwc->prev_count, task_clock_perf_counter_val(counter, 0));
+	update_context_time(counter->ctx);
+	now = counter->ctx->time;
+
+	atomic64_set(&hwc->prev_count, now);
 	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hwc->hrtimer.function = perf_swcounter_hrtimer;
 	if (hwc->irq_period) {
@@ -2393,14 +2377,12 @@ static int task_clock_perf_counter_enable(struct perf_counter *counter)
 static void task_clock_perf_counter_disable(struct perf_counter *counter)
 {
 	hrtimer_cancel(&counter->hw.hrtimer);
-	task_clock_perf_counter_update(counter,
-			task_clock_perf_counter_val(counter, 0));
+	task_clock_perf_counter_update(counter);
 }
 
 static void task_clock_perf_counter_read(struct perf_counter *counter)
 {
-	task_clock_perf_counter_update(counter,
-			task_clock_perf_counter_val(counter, 1));
+	task_clock_perf_counter_update(counter);
 }
 
 static const struct hw_perf_counter_ops perf_ops_task_clock = {
