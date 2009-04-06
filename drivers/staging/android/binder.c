@@ -1343,6 +1343,17 @@ binder_transaction(struct binder_proc *proc, struct binder_thread *thread,
 		if (!(tr->flags & TF_ONE_WAY) && thread->transaction_stack) {
 			struct binder_transaction *tmp;
 			tmp = thread->transaction_stack;
+			if (tmp->to_thread != thread) {
+				binder_user_error("binder: %d:%d got new "
+					"transaction with bad transaction stack"
+					", transaction %d has target %d:%d\n",
+					proc->pid, thread->pid, tmp->debug_id,
+					tmp->to_proc ? tmp->to_proc->pid : 0,
+					tmp->to_thread ?
+					tmp->to_thread->pid : 0);
+				return_error = BR_FAILED_REPLY;
+				goto err_bad_call_stack;
+			}
 			while (tmp) {
 				if (tmp->from && tmp->from->proc == target_proc)
 					target_thread = tmp->from;
