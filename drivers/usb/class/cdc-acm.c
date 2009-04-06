@@ -1358,6 +1358,9 @@ static struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x079b, 0x000f), /* BT On-Air USB MODEM */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
+	{ USB_DEVICE(0x0ace, 0x1602), /* ZyDAS 56K USB MODEM */
+	.driver_info = SINGLE_RX_URB,
+	},
 	{ USB_DEVICE(0x0ace, 0x1608), /* ZyDAS 56K USB MODEM */
 	.driver_info = SINGLE_RX_URB, /* firmware bug */
 	},
