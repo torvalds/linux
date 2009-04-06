@@ -276,7 +276,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 }
 
 /**
- * lpfc_alloc_fast_evt: Allocates data structure for posting event.
+ * lpfc_alloc_fast_evt - Allocates data structure for posting event
  * @phba: Pointer to hba context object.
  *
  * This function is called from the functions which need to post
@@ -303,7 +303,7 @@ lpfc_alloc_fast_evt(struct lpfc_hba *phba) {
 }
 
 /**
- * lpfc_free_fast_evt: Frees event data structure.
+ * lpfc_free_fast_evt - Frees event data structure
  * @phba: Pointer to hba context object.
  * @evt:  Event object which need to be freed.
  *
@@ -319,7 +319,7 @@ lpfc_free_fast_evt(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_send_fastpath_evt: Posts events generated from fast path.
+ * lpfc_send_fastpath_evt - Posts events generated from fast path
  * @phba: Pointer to hba context object.
  * @evtp: Event data structure.
  *
@@ -1858,7 +1858,7 @@ lpfc_disable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				NLP_STE_UNUSED_NODE);
 }
 /**
- * lpfc_initialize_node: Initialize all fields of node object.
+ * lpfc_initialize_node - Initialize all fields of node object
  * @vport: Pointer to Virtual Port object.
  * @ndlp: Pointer to FC node object.
  * @did: FC_ID of the node.
