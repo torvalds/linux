@@ -272,17 +272,17 @@ enum {
 	SATA_FIS_IRQ_CAUSE_OFS	= 0x364,
 	SATA_FIS_IRQ_AN		= (1 << 9),	/* async notification */
 
-	LTMODE_OFS		= 0x30c,
+	LTMODE_OFS		= 0x30c,	/* requires read-after-write */
 	LTMODE_BIT8		= (1 << 8),	/* unknown, but necessary */
 
-	PHY_MODE3		= 0x310,
-	PHY_MODE4		= 0x314,
+	PHY_MODE2_OFS		= 0x330,
+	PHY_MODE3_OFS		= 0x310,
+	PHY_MODE4_OFS		= 0x314,	/* requires read-after-write */
 	PHY_MODE4_CFG_MASK	= 0x00000003,	/* phy internal config field */
 	PHY_MODE4_CFG_VALUE	= 0x00000001,	/* phy internal config field */
 	PHY_MODE4_RSVD_ZEROS	= 0x5de3fffa,	/* Gen2e always write zeros */
 	PHY_MODE4_RSVD_ONES	= 0x00000005,	/* Gen2e always write ones */
 
-	PHY_MODE2		= 0x330,
 	SATA_IFCTL_OFS		= 0x344,
 	SATA_TESTCTL_OFS	= 0x348,
 	SATA_IFSTAT_OFS		= 0x34c,
@@ -3168,7 +3168,7 @@ static void mv6_read_preamp(struct mv_host_priv *hpriv, int idx,
 	}
 
 	port_mmio = mv_port_base(mmio, idx);
-	tmp = readl(port_mmio + PHY_MODE2);
+	tmp = readl(port_mmio + PHY_MODE2_OFS);
 
 	hpriv->signal[idx].amps = tmp & 0x700;	/* bits 10:8 */
 	hpriv->signal[idx].pre = tmp & 0xe0;	/* bits 7:5 */
@@ -3192,25 +3192,25 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 	u32 m2, m3;
 
 	if (fix_phy_mode2) {
-		m2 = readl(port_mmio + PHY_MODE2);
+		m2 = readl(port_mmio + PHY_MODE2_OFS);
 		m2 &= ~(1 << 16);
 		m2 |= (1 << 31);
-		writel(m2, port_mmio + PHY_MODE2);
+		writel(m2, port_mmio + PHY_MODE2_OFS);
 
 		udelay(200);
 
-		m2 = readl(port_mmio + PHY_MODE2);
+		m2 = readl(port_mmio + PHY_MODE2_OFS);
 		m2 &= ~((1 << 16) | (1 << 31));
-		writel(m2, port_mmio + PHY_MODE2);
+		writel(m2, port_mmio + PHY_MODE2_OFS);
 
 		udelay(200);
 	}
 
 	/*
-	 * Gen-II/IIe PHY_MODE3 errata RM#2:
+	 * Gen-II/IIe PHY_MODE3_OFS errata RM#2:
 	 * Achieves better receiver noise performance than the h/w default:
 	 */
-	m3 = readl(port_mmio + PHY_MODE3);
+	m3 = readl(port_mmio + PHY_MODE3_OFS);
 	m3 = (m3 & 0x1f) | (0x5555601 << 5);
 
 	/* Guideline 88F5182 (GL# SATA-S11) */
@@ -3218,7 +3218,7 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 		m3 &= ~0x1c;
 
 	if (fix_phy_mode4) {
-		u32 m4 = readl(port_mmio + PHY_MODE4);
+		u32 m4 = readl(port_mmio + PHY_MODE4_OFS);
 		/*
 		 * Enforce reserved-bit restrictions on GenIIe devices only.
 		 * For earlier chipsets, force only the internal config field
@@ -3228,17 +3228,18 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 			m4 = (m4 & ~PHY_MODE4_RSVD_ZEROS) | PHY_MODE4_RSVD_ONES;
 		else
 			m4 = (m4 & ~PHY_MODE4_CFG_MASK) | PHY_MODE4_CFG_VALUE;
-		writel(m4, port_mmio + PHY_MODE4);
+		writel(m4, port_mmio + PHY_MODE4_OFS);
 	}
 	/*
 	 * Workaround for 60x1-B2 errata SATA#13:
 	 * Any write to PHY_MODE4 (above) may corrupt PHY_MODE3,
 	 * so we must always rewrite PHY_MODE3 after PHY_MODE4.
+	 * Or ensure we use writelfl() when writing PHY_MODE4.
 	 */
-	writel(m3, port_mmio + PHY_MODE3);
+	writel(m3, port_mmio + PHY_MODE3_OFS);
 
 	/* Revert values of pre-emphasis and signal amps to the saved ones */
-	m2 = readl(port_mmio + PHY_MODE2);
+	m2 = readl(port_mmio + PHY_MODE2_OFS);
 
 	m2 &= ~MV_M2_PREAMP_MASK;
 	m2 |= hpriv->signal[port].amps;
@@ -3251,7 +3252,7 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 		m2 |= 0x0000900F;
 	}
 
-	writel(m2, port_mmio + PHY_MODE2);
+	writel(m2, port_mmio + PHY_MODE2_OFS);
 }
 
 /* TODO: use the generic LED interface to configure the SATA Presence */
@@ -3269,7 +3270,7 @@ static void mv_soc_read_preamp(struct mv_host_priv *hpriv, int idx,
 	u32 tmp;
 
 	port_mmio = mv_port_base(mmio, idx);
-	tmp = readl(port_mmio + PHY_MODE2);
+	tmp = readl(port_mmio + PHY_MODE2_OFS);
 
 	hpriv->signal[idx].amps = tmp & 0x700;	/* bits 10:8 */
 	hpriv->signal[idx].pre = tmp & 0xe0;	/* bits 7:5 */
