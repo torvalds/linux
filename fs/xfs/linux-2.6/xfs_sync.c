@@ -404,7 +404,8 @@ STATIC void
 xfs_syncd_queue_work(
 	struct xfs_mount *mp,
 	void		*data,
-	void		(*syncer)(struct xfs_mount *, void *))
+	void		(*syncer)(struct xfs_mount *, void *),
+	struct completion *completion)
 {
 	struct xfs_sync_work *work;
 
@@ -413,6 +414,7 @@ xfs_syncd_queue_work(
 	work->w_syncer = syncer;
 	work->w_data = data;
 	work->w_mount = mp;
+	work->w_completion = completion;
 	spin_lock(&mp->m_sync_lock);
 	list_add_tail(&work->w_list, &mp->m_sync_list);
 	spin_unlock(&mp->m_sync_lock);
@@ -441,10 +443,11 @@ xfs_flush_inodes(
 	xfs_inode_t	*ip)
 {
 	struct inode	*inode = VFS_I(ip);
+	DECLARE_COMPLETION_ONSTACK(completion);
 
 	igrab(inode);
-	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_inodes_work);
-	delay(msecs_to_jiffies(500));
+	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_inodes_work, &completion);
+	wait_for_completion(&completion);
 	xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
 
@@ -514,6 +517,8 @@ xfssyncd(
 			list_del(&work->w_list);
 			if (work == &mp->m_sync_work)
 				continue;
+			if (work->w_completion)
+				complete(work->w_completion);
 			kmem_free(work);
 		}
 	}
@@ -527,6 +532,7 @@ xfs_syncd_init(
 {
 	mp->m_sync_work.w_syncer = xfs_sync_worker;
 	mp->m_sync_work.w_mount = mp;
+	mp->m_sync_work.w_completion = NULL;
 	mp->m_sync_task = kthread_run(xfssyncd, mp, "xfssyncd");
 	if (IS_ERR(mp->m_sync_task))
 		return -PTR_ERR(mp->m_sync_task);

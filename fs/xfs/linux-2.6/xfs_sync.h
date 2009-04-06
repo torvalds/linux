@@ -26,6 +26,7 @@ typedef struct xfs_sync_work {
 	struct xfs_mount	*w_mount;
 	void			*w_data;	/* syncer routine argument */
 	void			(*w_syncer)(struct xfs_mount *, void *);
+	struct completion	*w_completion;
 } xfs_sync_work_t;
 
 #define SYNC_ATTR		0x0001	/* sync attributes */
