@@ -1296,7 +1296,25 @@ static int mv_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val)
 	unsigned int ofs = mv_scr_offset(sc_reg_in);
 
 	if (ofs != 0xffffffffU) {
-		writelfl(val, mv_ap_base(link->ap) + ofs);
+		void __iomem *addr = mv_ap_base(link->ap) + ofs;
+		if (sc_reg_in == SCR_CONTROL) {
+			/*
+			 * Workaround for 88SX60x1 FEr SATA#26:
+			 *
+			 * COMRESETs have to take care not to accidently
+			 * put the drive to sleep when writing SCR_CONTROL.
+			 * Setting bits 12..15 prevents this problem.
+			 *
+			 * So if we see an outbound COMMRESET, set those bits.
+			 * Ditto for the followup write that clears the reset.
+			 *
+			 * The proprietary driver does this for
+			 * all chip versions, and so do we.
+			 */
+			if ((val & 0xf) == 1 || (readl(addr) & 0xf) == 1)
+				val |= 0xf000;
+		}
+		writelfl(val, addr);
 		return 0;
 	} else
 		return -EINVAL;
