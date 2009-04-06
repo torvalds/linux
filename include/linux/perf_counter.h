@@ -477,14 +477,10 @@ struct perf_counter_context {
 	struct task_struct	*task;
 
 	/*
-	 * time_now is the current time in nanoseconds since an arbitrary
-	 * point in the past.  For per-task counters, this is based on the
-	 * task clock, and for per-cpu counters it is based on the cpu clock.
-	 * time_lost is an offset from the task/cpu clock, used to make it
-	 * appear that time only passes while the context is scheduled in.
+	 * Context clock, runs when context enabled.
 	 */
-	u64			time_now;
-	u64			time_lost;
+	u64			time;
+	u64			timestamp;
 #endif
 };
 

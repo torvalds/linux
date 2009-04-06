@@ -117,7 +117,7 @@ counter_sched_out(struct perf_counter *counter,
 		return;
 
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
-	counter->tstamp_stopped = ctx->time_now;
+	counter->tstamp_stopped = ctx->time;
 	counter->hw_ops->disable(counter);
 	counter->oncpu = -1;
 
@@ -253,27 +253,20 @@ retry:
 	spin_unlock_irq(&ctx->lock);
 }
 
-/*
- * Get the current time for this context.
- * If this is a task context, we use the task's task clock,
- * or for a per-cpu context, we use the cpu clock.
- */
-static u64 get_context_time(struct perf_counter_context *ctx, int update)
+static inline u64 perf_clock(void)
 {
-	struct task_struct *curr = ctx->task;
-
-	if (!curr)
-		return cpu_clock(smp_processor_id());
-
-	return __task_delta_exec(curr, update) + curr->se.sum_exec_runtime;
+	return cpu_clock(smp_processor_id());
 }
 
 /*
  * Update the record of the current time in a context.
  */
-static void update_context_time(struct perf_counter_context *ctx, int update)
+static void update_context_time(struct perf_counter_context *ctx)
 {
-	ctx->time_now = get_context_time(ctx, update) - ctx->time_lost;
+	u64 now = perf_clock();
+
+	ctx->time += now - ctx->timestamp;
+	ctx->timestamp = now;
 }
 
 /*
@@ -284,15 +277,17 @@ static void update_counter_times(struct perf_counter *counter)
 	struct perf_counter_context *ctx = counter->ctx;
 	u64 run_end;
 
-	if (counter->state >= PERF_COUNTER_STATE_INACTIVE) {
-		counter->total_time_enabled = ctx->time_now -
-			counter->tstamp_enabled;
-		if (counter->state == PERF_COUNTER_STATE_INACTIVE)
-			run_end = counter->tstamp_stopped;
-		else
-			run_end = ctx->time_now;
-		counter->total_time_running = run_end - counter->tstamp_running;
-	}
+	if (counter->state < PERF_COUNTER_STATE_INACTIVE)
+		return;
+
+	counter->total_time_enabled = ctx->time - counter->tstamp_enabled;
+
+	if (counter->state == PERF_COUNTER_STATE_INACTIVE)
+		run_end = counter->tstamp_stopped;
+	else
+		run_end = ctx->time;
+
+	counter->total_time_running = run_end - counter->tstamp_running;
 }
 
 /*
@@ -332,7 +327,7 @@ static void __perf_counter_disable(void *info)
 	 * If it is in error state, leave it in error state.
 	 */
 	if (counter->state >= PERF_COUNTER_STATE_INACTIVE) {
-		update_context_time(ctx, 1);
+		update_context_time(ctx);
 		update_counter_times(counter);
 		if (counter == counter->group_leader)
 			group_sched_out(counter, cpuctx, ctx);
@@ -426,7 +421,7 @@ counter_sched_in(struct perf_counter *counter,
 		return -EAGAIN;
 	}
 
-	counter->tstamp_running += ctx->time_now - counter->tstamp_stopped;
+	counter->tstamp_running += ctx->time - counter->tstamp_stopped;
 
 	if (!is_software_counter(counter))
 		cpuctx->active_oncpu++;
@@ -493,9 +488,9 @@ static void add_counter_to_ctx(struct perf_counter *counter,
 	list_add_counter(counter, ctx);
 	ctx->nr_counters++;
 	counter->prev_state = PERF_COUNTER_STATE_OFF;
-	counter->tstamp_enabled = ctx->time_now;
-	counter->tstamp_running = ctx->time_now;
-	counter->tstamp_stopped = ctx->time_now;
+	counter->tstamp_enabled = ctx->time;
+	counter->tstamp_running = ctx->time;
+	counter->tstamp_stopped = ctx->time;
 }
 
 /*
@@ -522,7 +517,7 @@ static void __perf_install_in_context(void *info)
 
 	curr_rq_lock_irq_save(&flags);
 	spin_lock(&ctx->lock);
-	update_context_time(ctx, 1);
+	update_context_time(ctx);
 
 	/*
 	 * Protect the list operation against NMI by disabling the
@@ -648,13 +643,13 @@ static void __perf_counter_enable(void *info)
 
 	curr_rq_lock_irq_save(&flags);
 	spin_lock(&ctx->lock);
-	update_context_time(ctx, 1);
+	update_context_time(ctx);
 
 	counter->prev_state = counter->state;
 	if (counter->state >= PERF_COUNTER_STATE_INACTIVE)
 		goto unlock;
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
-	counter->tstamp_enabled = ctx->time_now - counter->total_time_enabled;
+	counter->tstamp_enabled = ctx->time - counter->total_time_enabled;
 
 	/*
 	 * If the counter is in a group and isn't the group leader,
@@ -737,8 +732,8 @@ static void perf_counter_enable(struct perf_counter *counter)
 	 */
 	if (counter->state == PERF_COUNTER_STATE_OFF) {
 		counter->state = PERF_COUNTER_STATE_INACTIVE;
-		counter->tstamp_enabled = ctx->time_now -
-			counter->total_time_enabled;
+		counter->tstamp_enabled =
+			ctx->time - counter->total_time_enabled;
 	}
  out:
 	spin_unlock_irq(&ctx->lock);
@@ -778,7 +773,7 @@ void __perf_counter_sched_out(struct perf_counter_context *ctx,
 	ctx->is_active = 0;
 	if (likely(!ctx->nr_counters))
 		goto out;
-	update_context_time(ctx, 0);
+	update_context_time(ctx);
 
 	flags = hw_perf_save_disable();
 	if (ctx->nr_active) {
@@ -883,12 +878,7 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 	if (likely(!ctx->nr_counters))
 		goto out;
 
-	/*
-	 * Add any time since the last sched_out to the lost time
-	 * so it doesn't get included in the total_time_enabled and
-	 * total_time_running measures for counters in the context.
-	 */
-	ctx->time_lost = get_context_time(ctx, 0) - ctx->time_now;
+	ctx->timestamp = perf_clock();
 
 	flags = hw_perf_save_disable();
 
@@ -1043,8 +1033,8 @@ int perf_counter_task_enable(void)
 		if (counter->state > PERF_COUNTER_STATE_OFF)
 			continue;
 		counter->state = PERF_COUNTER_STATE_INACTIVE;
-		counter->tstamp_enabled = ctx->time_now -
-			counter->total_time_enabled;
+		counter->tstamp_enabled =
+			ctx->time - counter->total_time_enabled;
 		counter->hw_event.disabled = 0;
 	}
 	hw_perf_restore(perf_flags);
@@ -1113,7 +1103,7 @@ static void __read(void *info)
 
 	curr_rq_lock_irq_save(&flags);
 	if (ctx->is_active)
-		update_context_time(ctx, 1);
+		update_context_time(ctx);
 	counter->hw_ops->read(counter);
 	update_counter_times(counter);
 	curr_rq_unlock_irq_restore(&flags);
