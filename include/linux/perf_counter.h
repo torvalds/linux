@@ -170,22 +170,18 @@ struct perf_counter_mmap_page {
 	 *   u32 seq;
 	 *   s64 count;
 	 *
-	 * again:
-	 *   seq = pc->lock;
-	 *   if (unlikely(seq & 1)) {
-	 *     cpu_relax();
-	 *     goto again;
-	 *   }
+	 *   do {
+	 *     seq = pc->lock;
 	 *
-	 *   if (pc->index) {
-	 *     count = pmc_read(pc->index - 1);
-	 *     count += pc->offset;
-	 *   } else
-	 *     goto regular_read;
+	 *     barrier()
+	 *     if (pc->index) {
+	 *       count = pmc_read(pc->index - 1);
+	 *       count += pc->offset;
+	 *     } else
+	 *       goto regular_read;
 	 *
-	 *   barrier();
-	 *   if (pc->lock != seq)
-	 *     goto again;
+	 *     barrier();
+	 *   } while (pc->lock != seq);
 	 *
 	 * NOTE: for obvious reason this only works on self-monitoring
 	 *       processes.
