@@ -306,6 +306,33 @@ static void __devexit pci_plx9050_exit(struct pci_dev *dev)
 	}
 }
 
+#define NI8420_INT_ENABLE_REG	0x38
+#define NI8420_INT_ENABLE_BIT	0x2000
+
+static void __devexit pci_ni8420_exit(struct pci_dev *dev)
+{
+	void __iomem *p;
+	unsigned long base, len;
+	unsigned int bar = 0;
+
+	if ((pci_resource_flags(dev, bar) & IORESOURCE_MEM) == 0) {
+		moan_device("no memory in bar", dev);
+		return;
+	}
+
+	base = pci_resource_start(dev, bar);
+	len =  pci_resource_len(dev, bar);
+	p = ioremap_nocache(base, len);
+	if (p == NULL)
+		return;
+
+	/* Disable the CPU Interrupt */
+	writel(readl(p + NI8420_INT_ENABLE_REG) & ~(NI8420_INT_ENABLE_BIT),
+	       p + NI8420_INT_ENABLE_REG);
+	iounmap(p);
+}
+
+
 /* MITE registers */
 #define MITE_IOWBSR1	0xc4
 #define MITE_IOWCR1	0xf4
@@ -624,6 +651,31 @@ titan_400l_800l_setup(struct serial_private *priv,
 static int pci_xircom_init(struct pci_dev *dev)
 {
 	msleep(100);
+	return 0;
+}
+
+static int pci_ni8420_init(struct pci_dev *dev)
+{
+	void __iomem *p;
+	unsigned long base, len;
+	unsigned int bar = 0;
+
+	if ((pci_resource_flags(dev, bar) & IORESOURCE_MEM) == 0) {
+		moan_device("no memory in bar", dev);
+		return 0;
+	}
+
+	base = pci_resource_start(dev, bar);
+	len =  pci_resource_len(dev, bar);
+	p = ioremap_nocache(base, len);
+	if (p == NULL)
+		return -ENOMEM;
+
+	/* Enable CPU Interrupt */
+	writel(readl(p + NI8420_INT_ENABLE_REG) | NI8420_INT_ENABLE_BIT,
+	       p + NI8420_INT_ENABLE_REG);
+
+	iounmap(p);
 	return 0;
 }
 
@@ -1023,6 +1075,114 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCI23216,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCI2328,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCI2324,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCI2322,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCI2324I,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCI2322I,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PXI8420_23216,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PXI8420_2328,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PXI8420_2324,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PXI8420_2322,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PXI8422_2324,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PXI8422_2322,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_ni8420_init,
+		.setup		= pci_default_setup,
+		.exit		= __devexit_p(pci_ni8420_exit),
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_NI,
 		.device		= PCI_ANY_ID,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
@@ -1334,6 +1494,7 @@ enum pci_board_num_t {
 	pbn_b1_2_115200,
 	pbn_b1_4_115200,
 	pbn_b1_8_115200,
+	pbn_b1_16_115200,
 
 	pbn_b1_1_921600,
 	pbn_b1_2_921600,
@@ -1343,6 +1504,9 @@ enum pci_board_num_t {
 	pbn_b1_2_1250000,
 
 	pbn_b1_bt_1_115200,
+	pbn_b1_bt_2_115200,
+	pbn_b1_bt_4_115200,
+
 	pbn_b1_bt_2_921600,
 
 	pbn_b1_1_1382400,
@@ -1609,6 +1773,12 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.base_baud	= 115200,
 		.uart_offset	= 8,
 	},
+	[pbn_b1_16_115200] = {
+		.flags		= FL_BASE1,
+		.num_ports	= 16,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
 
 	[pbn_b1_1_921600] = {
 		.flags		= FL_BASE1,
@@ -1644,6 +1814,18 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 	[pbn_b1_bt_1_115200] = {
 		.flags		= FL_BASE1|FL_BASE_BARS,
 		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[pbn_b1_bt_2_115200] = {
+		.flags		= FL_BASE1|FL_BASE_BARS,
+		.num_ports	= 2,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[pbn_b1_bt_4_115200] = {
+		.flags		= FL_BASE1|FL_BASE_BARS,
+		.num_ports	= 4,
 		.base_baud	= 115200,
 		.uart_offset	= 8,
 	},
@@ -3207,6 +3389,42 @@ static struct pci_device_id serial_pci_tbl[] = {
 	/*
 	 * National Instruments
 	 */
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI23216,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_16_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI2328,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_8_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI2324,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_bt_4_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI2322,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_bt_2_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI2324I,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_bt_4_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI2322I,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_bt_2_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI8420_23216,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_16_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI8420_2328,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_8_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI8420_2324,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_bt_4_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI8420_2322,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_bt_2_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI8422_2324,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_bt_4_115200 },
+	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI8422_2322,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_bt_2_115200 },
 	{	PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI8430_2322,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_ni8430_2 },
