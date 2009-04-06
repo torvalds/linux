@@ -319,6 +319,8 @@ static void __perf_counter_disable(void *info)
 
 	spin_lock_irqsave(&ctx->lock, flags);
 
+	update_context_time(ctx);
+
 	/*
 	 * If the counter is on, turn it off.
 	 * If it is in error state, leave it in error state.
@@ -796,6 +798,8 @@ void perf_counter_task_sched_out(struct task_struct *task, int cpu)
 
 	if (likely(!cpuctx->task_ctx))
 		return;
+
+	update_context_time(ctx);
 
 	regs = task_pt_regs(task);
 	perf_swcounter_event(PERF_COUNT_CONTEXT_SWITCHES, 1, 1, regs);
@@ -2336,7 +2340,6 @@ static void task_clock_perf_counter_update(struct perf_counter *counter)
 	u64 prev, now;
 	s64 delta;
 
-	update_context_time(counter->ctx);
 	now = counter->ctx->time;
 
 	prev = atomic64_xchg(&counter->hw.prev_count, now);
@@ -2349,7 +2352,6 @@ static int task_clock_perf_counter_enable(struct perf_counter *counter)
 	struct hw_perf_counter *hwc = &counter->hw;
 	u64 now;
 
-	update_context_time(counter->ctx);
 	now = counter->ctx->time;
 
 	atomic64_set(&hwc->prev_count, now);
@@ -2372,6 +2374,7 @@ static void task_clock_perf_counter_disable(struct perf_counter *counter)
 
 static void task_clock_perf_counter_read(struct perf_counter *counter)
 {
+	update_context_time(counter->ctx);
 	task_clock_perf_counter_update(counter);
 }
 
