@@ -28,10 +28,6 @@
 /*
  * sata_mv TODO list:
  *
- * --> More errata workarounds for PCI-X.
- *
- * --> Complete a full errata audit for all chipsets to identify others.
- *
  * --> Develop a low-power-consumption strategy, and implement it.
  *
  * --> Add sysfs attributes for per-chip / per-HC IRQ coalescing thresholds.
@@ -42,6 +38,15 @@
  *
  *       Target mode, for those without docs, is the ability to directly
  *       connect two SATA ports.
+ */
+
+/*
+ * 80x1-B2 errata PCI#11:
+ *
+ * Users of the 6041/6081 Rev.B2 chips (current is C0)
+ * should be careful to insert those cards only onto PCI-X bus #0,
+ * and only in device slots 0..7, not higher.  The chips may not
+ * work correctly otherwise  (note: this is a pretty rare condition).
  */
 
 #include <linux/kernel.h>
@@ -181,6 +186,7 @@ enum {
 	/* PCI interface registers */
 
 	PCI_COMMAND_OFS		= 0xc00,
+	PCI_COMMAND_MWRCOM	= (1 << 4),	/* PCI Master Write Combining */
 	PCI_COMMAND_MRDTRIG	= (1 << 7),	/* PCI Master Read Trigger */
 
 	PCI_MAIN_CMD_STS_OFS	= 0xd30,
@@ -3527,6 +3533,18 @@ static int mv_pci_cut_through_okay(struct ata_host *host)
 	return 1; /* okay */
 }
 
+static void mv_60x1b2_errata_pci7(struct ata_host *host)
+{
+	struct mv_host_priv *hpriv = host->private_data;
+	void __iomem *mmio = hpriv->base;
+
+	/* workaround for 60x1-B2 errata PCI#7 */
+	if (mv_in_pcix_mode(host)) {
+		u32 reg = readl(mmio + PCI_COMMAND_OFS);
+		writelfl(reg & ~PCI_COMMAND_MWRCOM, mmio + PCI_COMMAND_OFS);
+	}
+}
+
 static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
@@ -3580,6 +3598,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 
 		switch (pdev->revision) {
 		case 0x7:
+			mv_60x1b2_errata_pci7(host);
 			hp_flags |= MV_HP_ERRATA_60X1B2;
 			break;
 		case 0x9:
