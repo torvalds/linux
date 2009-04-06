@@ -142,6 +142,15 @@ static const unsigned char *module_i2c_addresses[] = {
 };
 
 
+static const char *ir_scheme_names[] = {
+	[PVR2_IR_SCHEME_NONE] = "none",
+	[PVR2_IR_SCHEME_29XXX] = "29xxx",
+	[PVR2_IR_SCHEME_24XXX] = "24xxx (29xxx emulation)",
+	[PVR2_IR_SCHEME_24XXX_MCE] = "24xxx (MCE device)",
+	[PVR2_IR_SCHEME_ZILOG] = "Zilog",
+};
+
+
 /* Define the list of additional controls we'll dynamically construct based
    on query of the cx2341x module. */
 struct pvr2_mpeg_ids {
@@ -2170,7 +2179,7 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	}
 
 	/* Take the IR chip out of reset, if appropriate */
-	if (hdw->hdw_desc->ir_scheme == PVR2_IR_SCHEME_ZILOG) {
+	if (hdw->ir_scheme_active == PVR2_IR_SCHEME_ZILOG) {
 		pvr2_issue_simple_cmd(hdw,
 				      FX2CMD_HCW_ZILOG_RESET |
 				      (1 << 8) |
@@ -2451,6 +2460,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 				GFP_KERNEL);
 	if (!hdw->controls) goto fail;
 	hdw->hdw_desc = hdw_desc;
+	hdw->ir_scheme_active = hdw->hdw_desc->ir_scheme;
 	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
 		cptr->hdw = hdw;
@@ -4808,6 +4818,12 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 			stats.buffers_in_ready,
 			stats.buffers_processed,
 			stats.buffers_failed);
+	}
+	case 6: {
+		unsigned int id = hdw->ir_scheme_active;
+		return scnprintf(buf, acnt, "ir scheme: id=%d %s", id,
+				 (id >= ARRAY_SIZE(ir_scheme_names) ?
+				  "?" : ir_scheme_names[id]));
 	}
 	default: break;
 	}

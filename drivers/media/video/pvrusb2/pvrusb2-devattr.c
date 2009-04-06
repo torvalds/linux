@@ -71,6 +71,7 @@ static const struct pvr2_device_desc pvr2_device_29xxx = {
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_29XXX,
 };
 
 

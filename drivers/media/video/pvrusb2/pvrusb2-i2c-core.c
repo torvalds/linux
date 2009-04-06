@@ -574,7 +574,9 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 		printk(KERN_INFO "%s: IR disabled\n",hdw->name);
 		hdw->i2c_func[0x18] = i2c_black_hole;
 	} else if (ir_mode[hdw->unit_number] == 1) {
-		if (hdw->hdw_desc->ir_scheme == PVR2_IR_SCHEME_24XXX) {
+		if (hdw->ir_scheme_active == PVR2_IR_SCHEME_24XXX) {
+			/* Set up translation so that our IR looks like a
+			   29xxx device */
 			hdw->i2c_func[0x18] = i2c_24xxx_ir;
 		}
 	}
@@ -597,12 +599,18 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	i2c_add_adapter(&hdw->i2c_adap);
 	if (hdw->i2c_func[0x18] == i2c_24xxx_ir) {
 		/* Probe for a different type of IR receiver on this
-		   device.  If present, disable the emulated IR receiver. */
+		   device.  This is really the only way to differentiate
+		   older 24xxx devices from 24xxx variants that include an
+		   IR blaster.  If the IR blaster is present, the IR
+		   receiver is part of that chip and thus we must disable
+		   the emulated IR receiver. */
 		if (do_i2c_probe(hdw, 0x71)) {
 			pvr2_trace(PVR2_TRACE_INFO,
 				   "Device has newer IR hardware;"
 				   " disabling unneeded virtual IR device");
 			hdw->i2c_func[0x18] = NULL;
+			/* Remember that this is a different device... */
+			hdw->ir_scheme_active = PVR2_IR_SCHEME_24XXX_MCE;
 		}
 	}
 	if (i2c_scan) do_i2c_scan(hdw);
