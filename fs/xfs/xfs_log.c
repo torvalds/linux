@@ -2560,18 +2560,19 @@ redo:
 			xlog_ins_ticketq(&log->l_reserve_headq, tic);
 		xlog_trace_loggrant(log, tic,
 				    "xlog_grant_log_space: sleep 2");
+		spin_unlock(&log->l_grant_lock);
+		xlog_grant_push_ail(log->l_mp, need_bytes);
+		spin_lock(&log->l_grant_lock);
+
 		XFS_STATS_INC(xs_sleep_logspace);
 		sv_wait(&tic->t_wait, PINOD|PLTWAIT, &log->l_grant_lock, s);
 
-		if (XLOG_FORCED_SHUTDOWN(log)) {
-			spin_lock(&log->l_grant_lock);
+		spin_lock(&log->l_grant_lock);
+		if (XLOG_FORCED_SHUTDOWN(log))
 			goto error_return;
-		}
 
 		xlog_trace_loggrant(log, tic,
 				    "xlog_grant_log_space: wake 2");
-		xlog_grant_push_ail(log->l_mp, need_bytes);
-		spin_lock(&log->l_grant_lock);
 		goto redo;
 	} else if (tic->t_flags & XLOG_TIC_IN_Q)
 		xlog_del_ticketq(&log->l_reserve_headq, tic);
@@ -2650,7 +2651,7 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 	 * for more free space, otherwise try to get some space for
 	 * this transaction.
 	 */
-
+	need_bytes = tic->t_unit_res;
 	if ((ntic = log->l_write_headq)) {
 		free_bytes = xlog_space_left(log, log->l_grant_write_cycle,
 					     log->l_grant_write_bytes);
@@ -2670,25 +2671,24 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 
 			xlog_trace_loggrant(log, tic,
 				    "xlog_regrant_write_log_space: sleep 1");
+			spin_unlock(&log->l_grant_lock);
+			xlog_grant_push_ail(log->l_mp, need_bytes);
+			spin_lock(&log->l_grant_lock);
+
 			XFS_STATS_INC(xs_sleep_logspace);
 			sv_wait(&tic->t_wait, PINOD|PLTWAIT,
 				&log->l_grant_lock, s);
 
 			/* If we're shutting down, this tic is already
 			 * off the queue */
-			if (XLOG_FORCED_SHUTDOWN(log)) {
-				spin_lock(&log->l_grant_lock);
+			spin_lock(&log->l_grant_lock);
+			if (XLOG_FORCED_SHUTDOWN(log))
 				goto error_return;
-			}
 
 			xlog_trace_loggrant(log, tic,
 				    "xlog_regrant_write_log_space: wake 1");
-			xlog_grant_push_ail(log->l_mp, tic->t_unit_res);
-			spin_lock(&log->l_grant_lock);
 		}
 	}
-
-	need_bytes = tic->t_unit_res;
 
 redo:
 	if (XLOG_FORCED_SHUTDOWN(log))
@@ -2699,19 +2699,20 @@ redo:
 	if (free_bytes < need_bytes) {
 		if ((tic->t_flags & XLOG_TIC_IN_Q) == 0)
 			xlog_ins_ticketq(&log->l_write_headq, tic);
+		spin_unlock(&log->l_grant_lock);
+		xlog_grant_push_ail(log->l_mp, need_bytes);
+		spin_lock(&log->l_grant_lock);
+
 		XFS_STATS_INC(xs_sleep_logspace);
 		sv_wait(&tic->t_wait, PINOD|PLTWAIT, &log->l_grant_lock, s);
 
 		/* If we're shutting down, this tic is already off the queue */
-		if (XLOG_FORCED_SHUTDOWN(log)) {
-			spin_lock(&log->l_grant_lock);
+		spin_lock(&log->l_grant_lock);
+		if (XLOG_FORCED_SHUTDOWN(log))
 			goto error_return;
-		}
 
 		xlog_trace_loggrant(log, tic,
 				    "xlog_regrant_write_log_space: wake 2");
-		xlog_grant_push_ail(log->l_mp, need_bytes);
-		spin_lock(&log->l_grant_lock);
 		goto redo;
 	} else if (tic->t_flags & XLOG_TIC_IN_Q)
 		xlog_del_ticketq(&log->l_write_headq, tic);
