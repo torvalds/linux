@@ -919,8 +919,26 @@ static void mv_save_cached_regs(struct ata_port *ap)
 static inline void mv_write_cached_reg(void __iomem *addr, u32 *old, u32 new)
 {
 	if (new != *old) {
+		unsigned long laddr;
 		*old = new;
-		writel(new, addr);
+		/*
+		 * Workaround for 88SX60x1-B2 FEr SATA#13:
+		 * Read-after-write is needed to prevent generating 64-bit
+		 * write cycles on the PCI bus for SATA interface registers
+		 * at offsets ending in 0x4 or 0xc.
+		 *
+		 * Looks like a lot of fuss, but it avoids an unnecessary
+		 * +1 usec read-after-write delay for unaffected registers.
+		 */
+		laddr = (long)addr & 0xffff;
+		if (laddr >= 0x300 && laddr <= 0x33c) {
+			laddr &= 0x000f;
+			if (laddr == 0x4 || laddr == 0xc) {
+				writelfl(new, addr); /* read after write */
+				return;
+			}
+		}
+		writel(new, addr); /* unaffected by the errata */
 	}
 }
 
