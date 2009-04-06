@@ -43,7 +43,7 @@ static int s6105_hw_params(struct snd_pcm_substream *substream,
 
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBM_CFM |
-					   SND_SOC_DAIFMT_IB_IF);
+					   SND_SOC_DAIFMT_NB_NF);
 	if (ret < 0)
 		return ret;
 

@@ -252,10 +252,10 @@ static int s6000_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_IB_IF:
+	case SND_SOC_DAIFMT_NB_NF:
 		w |= S6_I2S_LEFT_FIRST;
 		break;
-	case SND_SOC_DAIFMT_IB_NF:
+	case SND_SOC_DAIFMT_NB_IF:
 		w |= S6_I2S_RIGHT_FIRST;
 		break;
 	default:
