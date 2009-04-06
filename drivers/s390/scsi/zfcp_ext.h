@@ -106,8 +106,12 @@ extern int zfcp_fc_ns_gid_pn(struct zfcp_erp_action *);
 extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 extern void zfcp_test_link(struct zfcp_port *);
 extern void zfcp_fc_link_test_work(struct work_struct *);
-extern void zfcp_fc_nameserver_init(struct zfcp_adapter *);
 extern void zfcp_fc_wka_port_force_offline(struct zfcp_wka_port *);
+extern void zfcp_fc_wka_ports_init(struct zfcp_adapter *);
+extern int zfcp_fc_execute_els_fc_job(struct fc_bsg_job *);
+extern int zfcp_fc_execute_ct_fc_job(struct fc_bsg_job *);
+extern void zfcp_fc_wka_port_force_offline(struct zfcp_wka_port *);
+
 
 /* zfcp_fsf.c */
 extern int zfcp_fsf_open_port(struct zfcp_erp_action *);
