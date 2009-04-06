@@ -1128,6 +1128,8 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 		req->cmd_flags |= REQ_UNPLUG;
 	if (bio_rw_meta(bio))
 		req->cmd_flags |= REQ_RW_META;
+	if (bio_noidle(bio))
+		req->cmd_flags |= REQ_NOIDLE;
 
 	req->errors = 0;
 	req->hard_sector = req->sector = bio->bi_sector;

@@ -1992,8 +1992,10 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 		}
 		if (cfq_slice_used(cfqq) || cfq_class_idle(cfqq))
 			cfq_slice_expired(cfqd, 1);
-		else if (sync && RB_EMPTY_ROOT(&cfqq->sort_list))
+		else if (sync && !rq_noidle(rq) &&
+			 RB_EMPTY_ROOT(&cfqq->sort_list)) {
 			cfq_arm_slice_timer(cfqd);
+		}
 	}
 
 	if (!cfqd->rq_in_driver)

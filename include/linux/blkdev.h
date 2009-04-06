@@ -118,6 +118,7 @@ enum rq_flag_bits {
 	__REQ_COPY_USER,	/* contains copies of user pages */
 	__REQ_INTEGRITY,	/* integrity metadata has been remapped */
 	__REQ_UNPLUG,		/* unplug queue on submission */
+	__REQ_NOIDLE,		/* Don't anticipate more IO after this one */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -145,6 +146,7 @@ enum rq_flag_bits {
 #define REQ_COPY_USER	(1 << __REQ_COPY_USER)
 #define REQ_INTEGRITY	(1 << __REQ_INTEGRITY)
 #define REQ_UNPLUG	(1 << __REQ_UNPLUG)
+#define REQ_NOIDLE	(1 << __REQ_NOIDLE)
 
 #define BLK_MAX_CDB	16
 
@@ -633,6 +635,7 @@ static inline bool rq_is_sync(struct request *rq)
 }
 
 #define rq_is_meta(rq)		((rq)->cmd_flags & REQ_RW_META)
+#define rq_noidle(rq)		((rq)->cmd_flags & REQ_NOIDLE)
 
 static inline int blk_queue_full(struct request_queue *q, int sync)
 {
