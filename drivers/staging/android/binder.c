@@ -2694,6 +2694,12 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 	vma->vm_flags = (vma->vm_flags | VM_DONTCOPY) & ~VM_MAYWRITE;
 
+	if (proc->buffer) {
+		ret = -EBUSY;
+		failure_string = "already mapped";
+		goto err_already_mapped;
+	}
+
 	area = get_vm_area(vma->vm_end - vma->vm_start, VM_IOREMAP);
 	if (area == NULL) {
 		ret = -ENOMEM;
@@ -2741,10 +2747,12 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 
 err_alloc_small_buf_failed:
 	kfree(proc->pages);
+	proc->pages = NULL;
 err_alloc_pages_failed:
 	vfree(proc->buffer);
+	proc->buffer = NULL;
 err_get_vm_area_failed:
-	mutex_unlock(&binder_lock);
+err_already_mapped:
 err_bad_arg:
 	printk(KERN_ERR "binder_mmap: %d %lx-%lx %s failed %d\n", proc->pid, vma->vm_start, vma->vm_end, failure_string, ret);
 	return ret;
