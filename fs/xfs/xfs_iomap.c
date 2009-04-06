@@ -361,7 +361,7 @@ xfs_flush_space(
 		return 0;
 	case 2:
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		xfs_flush_device(ip);
+		xfs_flush_inodes(ip);
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		*fsynced = 3;
 		return 0;

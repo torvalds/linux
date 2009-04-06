@@ -62,12 +62,6 @@ xfs_sync_inodes_ag(
 	uint32_t	first_index = 0;
 	int		error = 0;
 	int		last_error = 0;
-	int		fflag = XFS_B_ASYNC;
-
-	if (flags & SYNC_DELWRI)
-		fflag = XFS_B_DELWRI;
-	if (flags & SYNC_WAIT)
-		fflag = 0;		/* synchronous overrides all */
 
 	do {
 		struct inode	*inode;
@@ -128,11 +122,23 @@ xfs_sync_inodes_ag(
 		 * If we have to flush data or wait for I/O completion
 		 * we need to hold the iolock.
 		 */
-		if ((flags & SYNC_DELWRI) && VN_DIRTY(inode)) {
-			xfs_ilock(ip, XFS_IOLOCK_SHARED);
-			lock_flags |= XFS_IOLOCK_SHARED;
-			error = xfs_flush_pages(ip, 0, -1, fflag, FI_NONE);
-			if (flags & SYNC_IOWAIT)
+		if (flags & SYNC_DELWRI) {
+			if (VN_DIRTY(inode)) {
+				if (flags & SYNC_TRYLOCK) {
+					if (xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED))
+						lock_flags |= XFS_IOLOCK_SHARED;
+				} else {
+					xfs_ilock(ip, XFS_IOLOCK_SHARED);
+					lock_flags |= XFS_IOLOCK_SHARED;
+				}
+				if (lock_flags & XFS_IOLOCK_SHARED) {
+					error = xfs_flush_pages(ip, 0, -1,
+							(flags & SYNC_WAIT) ? 0
+								: XFS_B_ASYNC,
+							FI_NONE);
+				}
+			}
+			if (VN_CACHED(inode) && (flags & SYNC_IOWAIT))
 				xfs_ioend_wait(ip);
 		}
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
@@ -400,9 +406,9 @@ xfs_syncd_queue_work(
 	void		*data,
 	void		(*syncer)(struct xfs_mount *, void *))
 {
-	struct bhv_vfs_sync_work *work;
+	struct xfs_sync_work *work;
 
-	work = kmem_alloc(sizeof(struct bhv_vfs_sync_work), KM_SLEEP);
+	work = kmem_alloc(sizeof(struct xfs_sync_work), KM_SLEEP);
 	INIT_LIST_HEAD(&work->w_list);
 	work->w_syncer = syncer;
 	work->w_data = data;
@@ -445,23 +451,24 @@ xfs_flush_inode(
  * (IOW, "If at first you don't succeed, use a Bigger Hammer").
  */
 STATIC void
-xfs_flush_device_work(
+xfs_flush_inodes_work(
 	struct xfs_mount *mp,
 	void		*arg)
 {
 	struct inode	*inode = arg;
-	sync_blockdev(mp->m_super->s_bdev);
+	xfs_sync_inodes(mp, SYNC_DELWRI | SYNC_TRYLOCK);
+	xfs_sync_inodes(mp, SYNC_DELWRI | SYNC_TRYLOCK | SYNC_IOWAIT);
 	iput(inode);
 }
 
 void
-xfs_flush_device(
+xfs_flush_inodes(
 	xfs_inode_t	*ip)
 {
 	struct inode	*inode = VFS_I(ip);
 
 	igrab(inode);
-	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_device_work);
+	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_inodes_work);
 	delay(msecs_to_jiffies(500));
 	xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
@@ -497,7 +504,7 @@ xfssyncd(
 {
 	struct xfs_mount	*mp = arg;
 	long			timeleft;
-	bhv_vfs_sync_work_t	*work, *n;
+	xfs_sync_work_t		*work, *n;
 	LIST_HEAD		(tmp);
 
 	set_freezable();
