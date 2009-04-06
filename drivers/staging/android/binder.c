@@ -41,8 +41,8 @@ static int binder_last_id;
 static struct proc_dir_entry *binder_proc_dir_entry_root;
 static struct proc_dir_entry *binder_proc_dir_entry_proc;
 static struct hlist_head binder_dead_nodes;
-static HLIST_HEAD(binder_release_files_list);
-static DEFINE_MUTEX(binder_release_files_lock);
+static HLIST_HEAD(binder_deferred_list);
+static DEFINE_MUTEX(binder_deferred_lock);
 
 static int binder_read_proc_proc(
 	char *page, char **start, off_t off, int count, int *eof, void *data);
@@ -234,6 +234,12 @@ struct binder_buffer {
 	uint8_t data[0];
 };
 
+enum {
+	BINDER_DEFERRED_PUT_FILES    = 0x01,
+	BINDER_DEFERRED_FLUSH        = 0x02,
+	BINDER_DEFERRED_RELEASE      = 0x04,
+};
+
 struct binder_proc {
 	struct hlist_node proc_node;
 	struct rb_root threads;
@@ -244,7 +250,8 @@ struct binder_proc {
 	struct vm_area_struct *vma;
 	struct task_struct *tsk;
 	struct files_struct *files;
-	struct hlist_node release_files_node;
+	struct hlist_node deferred_work_node;
+	int deferred_work;
 	void *buffer;
 	ptrdiff_t user_buffer_offset;
 
@@ -309,6 +316,8 @@ struct binder_transaction {
 	long	saved_priority;
 	uid_t	sender_euid;
 };
+
+static void binder_defer_work(struct binder_proc *proc, int defer);
 
 /*
  * copied from get_unused_fd_flags
@@ -2677,33 +2686,6 @@ static void binder_vma_open(struct vm_area_struct *vma)
 	dump_stack();
 }
 
-static void binder_release_files(struct work_struct *work)
-{
-	struct binder_proc *proc;
-	struct files_struct *files;
-	do {
-		mutex_lock(&binder_lock);
-		mutex_lock(&binder_release_files_lock);
-		if (!hlist_empty(&binder_release_files_list)) {
-			proc = hlist_entry(binder_release_files_list.first,
-					struct binder_proc, release_files_node);
-			hlist_del_init(&proc->release_files_node);
-			files = proc->files;
-			if (files)
-				proc->files = NULL;
-		} else {
-			proc = NULL;
-			files = NULL;
-		}
-		mutex_unlock(&binder_release_files_lock);
-		mutex_unlock(&binder_lock);
-		if (files)
-			put_files_struct(files);
-	} while (proc);
-}
-
-static DECLARE_WORK(binder_release_files_work, binder_release_files);
-
 static void binder_vma_close(struct vm_area_struct *vma)
 {
 	struct binder_proc *proc = vma->vm_private_data;
@@ -2714,13 +2696,7 @@ static void binder_vma_close(struct vm_area_struct *vma)
 			(vma->vm_end - vma->vm_start) / SZ_1K, vma->vm_flags,
 			(unsigned long)pgprot_val(vma->vm_page_prot));
 	proc->vma = NULL;
-	mutex_lock(&binder_release_files_lock);
-	if (proc->files) {
-		hlist_add_head(&proc->release_files_node,
-				&binder_release_files_list);
-		schedule_work(&binder_release_files_work);
-	}
-	mutex_unlock(&binder_release_files_lock);
+	binder_defer_work(proc, BINDER_DEFERRED_PUT_FILES);
 }
 
 static struct vm_operations_struct binder_vm_ops = {
@@ -2853,11 +2829,17 @@ static int binder_open(struct inode *nodp, struct file *filp)
 
 static int binder_flush(struct file *filp, fl_owner_t id)
 {
-	struct rb_node *n;
 	struct binder_proc *proc = filp->private_data;
-	int wake_count = 0;
 
-	mutex_lock(&binder_lock);
+	binder_defer_work(proc, BINDER_DEFERRED_FLUSH);
+
+	return 0;
+}
+
+static void binder_deferred_flush(struct binder_proc *proc)
+{
+	struct rb_node *n;
+	int wake_count = 0;
 	for (n = rb_first(&proc->threads); n != NULL; n = rb_next(n)) {
 		struct binder_thread *thread = rb_entry(n, struct binder_thread, rb_node);
 		thread->looper |= BINDER_LOOPER_STATE_NEED_RETURN;
@@ -2867,36 +2849,34 @@ static int binder_flush(struct file *filp, fl_owner_t id)
 		}
 	}
 	wake_up_interruptible_all(&proc->wait);
-	mutex_unlock(&binder_lock);
 
 	if (binder_debug_mask & BINDER_DEBUG_OPEN_CLOSE)
 		printk(KERN_INFO "binder_flush: %d woke %d threads\n", proc->pid, wake_count);
-
-	return 0;
 }
 
 static int binder_release(struct inode *nodp, struct file *filp)
 {
-	struct hlist_node *pos;
-	struct binder_transaction *t;
-	struct rb_node *n;
-	struct files_struct *files;
 	struct binder_proc *proc = filp->private_data;
-	int threads, nodes, incoming_refs, outgoing_refs, buffers, active_transactions, page_count;
-
 	if (binder_proc_dir_entry_proc) {
 		char strbuf[11];
 		snprintf(strbuf, sizeof(strbuf), "%u", proc->pid);
 		remove_proc_entry(strbuf, binder_proc_dir_entry_proc);
 	}
-	mutex_lock(&binder_lock);
-	mutex_lock(&binder_release_files_lock);
-	if (!hlist_unhashed(&proc->release_files_node))
-		hlist_del(&proc->release_files_node);
-	files = proc->files;
-	if (files)
-		proc->files = NULL;
-	mutex_unlock(&binder_release_files_lock);
+
+	binder_defer_work(proc, BINDER_DEFERRED_RELEASE);
+
+	return 0;
+}
+
+static void binder_deferred_release(struct binder_proc *proc)
+{
+	struct hlist_node *pos;
+	struct binder_transaction *t;
+	struct rb_node *n;
+	int threads, nodes, incoming_refs, outgoing_refs, buffers, active_transactions, page_count;
+
+	BUG_ON(proc->vma);
+	BUG_ON(proc->files);
 
 	hlist_del(&proc->proc_node);
 	if (binder_context_mgr_node && binder_context_mgr_node->proc == proc) {
@@ -2971,7 +2951,6 @@ static int binder_release(struct inode *nodp, struct file *filp)
 	}
 
 	binder_stats.obj_deleted[BINDER_STAT_PROC]++;
-	mutex_unlock(&binder_lock);
 
 	page_count = 0;
 	if (proc->pages) {
@@ -2995,9 +2974,57 @@ static int binder_release(struct inode *nodp, struct file *filp)
 		       proc->pid, threads, nodes, incoming_refs, outgoing_refs, active_transactions, buffers, page_count);
 
 	kfree(proc);
-	if (files)
-		put_files_struct(files);
-	return 0;
+}
+
+static void binder_deferred_func(struct work_struct *work)
+{
+	struct binder_proc *proc;
+	struct files_struct *files;
+
+	int defer;
+	do {
+		mutex_lock(&binder_lock);
+		mutex_lock(&binder_deferred_lock);
+		if (!hlist_empty(&binder_deferred_list)) {
+			proc = hlist_entry(binder_deferred_list.first,
+					struct binder_proc, deferred_work_node);
+			hlist_del_init(&proc->deferred_work_node);
+			defer = proc->deferred_work;
+			proc->deferred_work = 0;
+		} else {
+			proc = NULL;
+			defer = 0;
+		}
+		mutex_unlock(&binder_deferred_lock);
+
+		files = NULL;
+		if (defer & BINDER_DEFERRED_PUT_FILES)
+			if ((files = proc->files))
+				proc->files = NULL;
+
+		if (defer & BINDER_DEFERRED_FLUSH)
+			binder_deferred_flush(proc);
+
+		if (defer & BINDER_DEFERRED_RELEASE)
+			binder_deferred_release(proc); /* frees proc */
+
+		mutex_unlock(&binder_lock);
+		if (files)
+			put_files_struct(files);
+	} while (proc);
+}
+static DECLARE_WORK(binder_deferred_work, binder_deferred_func);
+
+static void binder_defer_work(struct binder_proc *proc, int defer)
+{
+	mutex_lock(&binder_deferred_lock);
+	proc->deferred_work |= defer;
+	if (hlist_unhashed(&proc->deferred_work_node)) {
+		hlist_add_head(&proc->deferred_work_node,
+				&binder_deferred_list);
+		schedule_work(&binder_deferred_work);
+	}
+	mutex_unlock(&binder_deferred_lock);
 }
 
 static char *print_binder_transaction(char *buf, char *end, const char *prefix, struct binder_transaction *t)
