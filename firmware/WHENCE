@@ -642,3 +642,15 @@ Licence: GPLv2 or later
 ARM assembly source code available at http://www.linuxtv.org/downloads/firmware/Boot.S
 
 --------------------------------------------------------------------------
+
+Driver: wavefront - ISA WaveFront sound card
+
+File: yamaha/yss225_registers.bin
+
+Licence: Allegedly GPLv2+, but no source visible.
+
+Found in hex form in kernel source, with the following comment:
+   Copyright (c) 1998-2002 by Paul Davis <pbd@op.net>
+
+
+--------------------------------------------------------------------------

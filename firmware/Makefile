@@ -63,6 +63,7 @@ fw-shipped-$(CONFIG_SXG) += sxg/saharadownloadB.sys \
 				sxg/saharadbgdownloadB.sys
 fw-shipped-$(CONFIG_SND_YMFPCI) += yamaha/ds1_ctrl.fw yamaha/ds1_dsp.fw \
 				   yamaha/ds1e_ctrl.fw
+fw-shipped-$(CONFIG_SND_WAVEFRONT) += yamaha/yss225_registers.bin
 fw-shipped-$(CONFIG_TEHUTI) += tehuti/bdx.bin
 fw-shipped-$(CONFIG_TIGON3) += tigon/tg3.bin tigon/tg3_tso.bin \
 			       tigon/tg3_tso5.bin
