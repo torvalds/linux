@@ -773,7 +773,7 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	if ((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0)
 		goto cs_failed;
 	last_fn = ParseTuple;
-	if ((last_ret = pcmcia_parse_tuple(link, &tuple, &parse)) != 0)
+	if ((last_ret = pcmcia_parse_tuple(&tuple, &parse)) != 0)
 		goto cs_failed;
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
@@ -798,7 +798,7 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 		if (pcmcia_get_tuple_data(link, &tuple))
 			goto next_entry;
-		if (pcmcia_parse_tuple(link, &tuple, &parse))
+		if (pcmcia_parse_tuple(&tuple, &parse))
 			goto next_entry;
 
 		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
