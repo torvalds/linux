@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for PIKA Warp
  *
- * Copyright (c) 2008 PIKA Technologies
+ * Copyright (c) 2008-2009 PIKA Technologies
  *   Sean MacLennan <smaclennan@pikatech.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -158,7 +158,7 @@
 
 					partition@0 {
 						label = "splash";
-						reg = <0x00000000 0x00020000>;
+						reg = <0x00000000 0x00010000>;
 					};
 					partition@300000 {
 						label = "fpga";
@@ -244,28 +244,27 @@
 			};
 
 			GPIO0: gpio@ef600b00 {
-				compatible = "ibm,gpio-440ep";
+				compatible = "ibm,ppc4xx-gpio";
 				reg = <0xef600b00 0x00000048>;
 				#gpio-cells = <2>;
 				gpio-controller;
 			};
 
 			GPIO1: gpio@ef600c00 {
-				compatible = "ibm,gpio-440ep";
+				compatible = "ibm,ppc4xx-gpio";
 				reg = <0xef600c00 0x00000048>;
 				#gpio-cells = <2>;
 				gpio-controller;
+			};
 
-				led@31 {
-					compatible = "linux,gpio-led";
-					linux,name = ":green:";
-					gpios = <&GPIO1 31 0>;
-				};		
-	
-				led@30 {	
-					compatible = "linux,gpio-led";
-					linux,name = ":red:";
-					gpios = <&GPIO1 30 0>;
+			power-leds {
+				compatible = "gpio-leds";
+				green {
+					gpios = <&GPIO1 0 0>;
+					default-state = "on";
+				};
+				red {
+					gpios = <&GPIO1 1 0>;
 				};
 			};
 
