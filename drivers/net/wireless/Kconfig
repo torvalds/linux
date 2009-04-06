@@ -146,10 +146,10 @@ config LIBERTAS_CS
 	  A driver for Marvell Libertas 8385 CompactFlash devices.
 
 config LIBERTAS_SDIO
-	tristate "Marvell Libertas 8385 and 8686 SDIO 802.11b/g cards"
+	tristate "Marvell Libertas 8385/8686/8688 SDIO 802.11b/g cards"
 	depends on LIBERTAS && MMC
 	---help---
-	  A driver for Marvell Libertas 8385 and 8686 SDIO devices.
+	  A driver for Marvell Libertas 8385/8686/8688 SDIO devices.
 
 config LIBERTAS_SPI
 	tristate "Marvell Libertas 8686 SPI 802.11b/g cards"

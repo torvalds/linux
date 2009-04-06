@@ -25,7 +25,6 @@ struct rfc1042hdr {
 } __attribute__ ((packed));
 
 struct rxpackethdr {
-	struct rxpd rx_pd;
 	struct eth803hdr eth803_hdr;
 	struct rfc1042hdr rfc1042_hdr;
 } __attribute__ ((packed));
@@ -158,8 +157,9 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	if (priv->monitormode)
 		return process_rxed_802_11_packet(priv, skb);
 
-	p_rx_pkt = (struct rxpackethdr *) skb->data;
-	p_rx_pd = &p_rx_pkt->rx_pd;
+	p_rx_pd = (struct rxpd *) skb->data;
+	p_rx_pkt = (struct rxpackethdr *) ((u8 *)p_rx_pd +
+		le32_to_cpu(p_rx_pd->pkt_ptr));
 	if (priv->mesh_dev) {
 		if (priv->mesh_fw_ver == MESH_FW_OLD) {
 			if (p_rx_pd->rx_control & RxPD_MESH_FRAME)
@@ -181,8 +181,9 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 		goto done;
 	}
 
-	lbs_deb_rx("rx data: skb->len-sizeof(RxPd) = %d-%zd = %zd\n",
-	       skb->len, sizeof(struct rxpd), skb->len - sizeof(struct rxpd));
+	lbs_deb_rx("rx data: skb->len - pkt_ptr = %d-%zd = %zd\n",
+		skb->len, le32_to_cpu(p_rx_pd->pkt_ptr),
+		skb->len - le32_to_cpu(p_rx_pd->pkt_ptr));
 
 	lbs_deb_hex(LBS_DEB_RX, "RX Data: Dest", p_rx_pkt->eth803_hdr.dest_addr,
 		sizeof(p_rx_pkt->eth803_hdr.dest_addr));
@@ -216,14 +217,14 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 		/* Chop off the rxpd + the excess memory from the 802.2/llc/snap header
 		 *   that was removed
 		 */
-		hdrchop = (u8 *) p_ethhdr - (u8 *) p_rx_pkt;
+		hdrchop = (u8 *)p_ethhdr - (u8 *)p_rx_pd;
 	} else {
 		lbs_deb_hex(LBS_DEB_RX, "RX Data: LLC/SNAP",
 			(u8 *) & p_rx_pkt->rfc1042_hdr,
 			sizeof(p_rx_pkt->rfc1042_hdr));
 
 		/* Chop off the rxpd */
-		hdrchop = (u8 *) & p_rx_pkt->eth803_hdr - (u8 *) p_rx_pkt;
+		hdrchop = (u8 *)&p_rx_pkt->eth803_hdr - (u8 *)p_rx_pd;
 	}
 
 	/* Chop off the leading header bytes so the skb points to the start of

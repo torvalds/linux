@@ -42,4 +42,6 @@
 
 #define IF_SDIO_EVENT           0x80fc
 
+#define IF_SDIO_BLOCK_SIZE	256
+
 #endif
