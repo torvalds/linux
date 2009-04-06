@@ -43,7 +43,7 @@
 
 #define PPC_INST_STSWI			0x7c0005aa
 #define PPC_INST_STSWX			0x7c00052a
-#define PPC_INST_TLBILX			0x7c000626
+#define PPC_INST_TLBILX			0x7c000024
 #define PPC_INST_WAIT			0x7c00007c
 
 /* macros to insert fields into opcodes */
