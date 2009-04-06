@@ -54,11 +54,7 @@ static int binder_read_proc_proc(
 #define SZ_4M                               0x400000
 #endif
 
-#ifndef __i386__
-#define FORBIDDEN_MMAP_FLAGS                (VM_WRITE | VM_EXEC)
-#else
 #define FORBIDDEN_MMAP_FLAGS                (VM_WRITE)
-#endif
 
 #define BINDER_SMALL_BUF_SIZE (PAGE_SIZE * 64)
 
