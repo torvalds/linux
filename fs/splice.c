@@ -737,10 +737,19 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 	 * ->write_end. Most of the time, these expect i_mutex to
 	 * be held. Since this may result in an ABBA deadlock with
 	 * pipe->inode, we have to order lock acquiry here.
+	 *
+	 * Outer lock must be inode->i_mutex, as pipe_wait() will
+	 * release and reacquire pipe->inode->i_mutex, AND inode must
+	 * never be a pipe.
 	 */
-	inode_double_lock(inode, pipe->inode);
+	WARN_ON(S_ISFIFO(inode->i_mode));
+	mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
+	if (pipe->inode)
+		mutex_lock_nested(&pipe->inode->i_mutex, I_MUTEX_CHILD);
 	ret = __splice_from_pipe(pipe, &sd, actor);
-	inode_double_unlock(inode, pipe->inode);
+	if (pipe->inode)
+		mutex_unlock(&pipe->inode->i_mutex);
+	mutex_unlock(&inode->i_mutex);
 
 	return ret;
 }
@@ -831,11 +840,17 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	};
 	ssize_t ret;
 
-	inode_double_lock(inode, pipe->inode);
+	WARN_ON(S_ISFIFO(inode->i_mode));
+	mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
 	ret = file_remove_suid(out);
-	if (likely(!ret))
+	if (likely(!ret)) {
+		if (pipe->inode)
+			mutex_lock_nested(&pipe->inode->i_mutex, I_MUTEX_CHILD);
 		ret = __splice_from_pipe(pipe, &sd, pipe_to_file);
-	inode_double_unlock(inode, pipe->inode);
+		if (pipe->inode)
+			mutex_unlock(&pipe->inode->i_mutex);
+	}
+	mutex_unlock(&inode->i_mutex);
 	if (ret > 0) {
 		unsigned long nr_pages;
 
