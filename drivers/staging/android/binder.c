@@ -2776,6 +2776,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	if (binder_proc_dir_entry_proc) {
 		char strbuf[11];
 		snprintf(strbuf, sizeof(strbuf), "%u", proc->pid);
+		remove_proc_entry(strbuf, binder_proc_dir_entry_proc);
 		create_proc_read_entry(strbuf, S_IRUGO, binder_proc_dir_entry_proc, binder_read_proc_proc, proc);
 	}
 
