@@ -997,26 +997,6 @@ static struct rq *task_rq_lock(struct task_struct *p, unsigned long *flags)
 	}
 }
 
-void curr_rq_lock_irq_save(unsigned long *flags)
-	__acquires(rq->lock)
-{
-	struct rq *rq;
-
-	local_irq_save(*flags);
-	rq = cpu_rq(smp_processor_id());
-	spin_lock(&rq->lock);
-}
-
-void curr_rq_unlock_irq_restore(unsigned long *flags)
-	__releases(rq->lock)
-{
-	struct rq *rq;
-
-	rq = cpu_rq(smp_processor_id());
-	spin_unlock(&rq->lock);
-	local_irq_restore(*flags);
-}
-
 void task_rq_unlock_wait(struct task_struct *p)
 {
 	struct rq *rq = task_rq(p);

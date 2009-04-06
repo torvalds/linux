@@ -172,8 +172,7 @@ static void __perf_counter_remove_from_context(void *info)
 	if (ctx->task && cpuctx->task_ctx != ctx)
 		return;
 
-	curr_rq_lock_irq_save(&flags);
-	spin_lock(&ctx->lock);
+	spin_lock_irqsave(&ctx->lock, flags);
 
 	counter_sched_out(counter, cpuctx, ctx);
 
@@ -198,8 +197,7 @@ static void __perf_counter_remove_from_context(void *info)
 			    perf_max_counters - perf_reserved_percpu);
 	}
 
-	spin_unlock(&ctx->lock);
-	curr_rq_unlock_irq_restore(&flags);
+	spin_unlock_irqrestore(&ctx->lock, flags);
 }
 
 
@@ -319,8 +317,7 @@ static void __perf_counter_disable(void *info)
 	if (ctx->task && cpuctx->task_ctx != ctx)
 		return;
 
-	curr_rq_lock_irq_save(&flags);
-	spin_lock(&ctx->lock);
+	spin_lock_irqsave(&ctx->lock, flags);
 
 	/*
 	 * If the counter is on, turn it off.
@@ -336,8 +333,7 @@ static void __perf_counter_disable(void *info)
 		counter->state = PERF_COUNTER_STATE_OFF;
 	}
 
-	spin_unlock(&ctx->lock);
-	curr_rq_unlock_irq_restore(&flags);
+	spin_unlock_irqrestore(&ctx->lock, flags);
 }
 
 /*
@@ -515,8 +511,7 @@ static void __perf_install_in_context(void *info)
 	if (ctx->task && cpuctx->task_ctx != ctx)
 		return;
 
-	curr_rq_lock_irq_save(&flags);
-	spin_lock(&ctx->lock);
+	spin_lock_irqsave(&ctx->lock, flags);
 	update_context_time(ctx);
 
 	/*
@@ -565,8 +560,7 @@ static void __perf_install_in_context(void *info)
  unlock:
 	hw_perf_restore(perf_flags);
 
-	spin_unlock(&ctx->lock);
-	curr_rq_unlock_irq_restore(&flags);
+	spin_unlock_irqrestore(&ctx->lock, flags);
 }
 
 /*
@@ -641,8 +635,7 @@ static void __perf_counter_enable(void *info)
 	if (ctx->task && cpuctx->task_ctx != ctx)
 		return;
 
-	curr_rq_lock_irq_save(&flags);
-	spin_lock(&ctx->lock);
+	spin_lock_irqsave(&ctx->lock, flags);
 	update_context_time(ctx);
 
 	counter->prev_state = counter->state;
@@ -678,8 +671,7 @@ static void __perf_counter_enable(void *info)
 	}
 
  unlock:
-	spin_unlock(&ctx->lock);
-	curr_rq_unlock_irq_restore(&flags);
+	spin_unlock_irqrestore(&ctx->lock, flags);
 }
 
 /*
@@ -971,7 +963,7 @@ int perf_counter_task_disable(void)
 	if (likely(!ctx->nr_counters))
 		return 0;
 
-	curr_rq_lock_irq_save(&flags);
+	local_irq_save(flags);
 	cpu = smp_processor_id();
 
 	perf_counter_task_sched_out(curr, cpu);
@@ -992,9 +984,7 @@ int perf_counter_task_disable(void)
 
 	hw_perf_restore(perf_flags);
 
-	spin_unlock(&ctx->lock);
-
-	curr_rq_unlock_irq_restore(&flags);
+	spin_unlock_irqrestore(&ctx->lock, flags);
 
 	return 0;
 }
@@ -1011,7 +1001,7 @@ int perf_counter_task_enable(void)
 	if (likely(!ctx->nr_counters))
 		return 0;
 
-	curr_rq_lock_irq_save(&flags);
+	local_irq_save(flags);
 	cpu = smp_processor_id();
 
 	perf_counter_task_sched_out(curr, cpu);
@@ -1037,7 +1027,7 @@ int perf_counter_task_enable(void)
 
 	perf_counter_task_sched_in(curr, cpu);
 
-	curr_rq_unlock_irq_restore(&flags);
+	local_irq_restore(flags);
 
 	return 0;
 }
@@ -1095,12 +1085,12 @@ static void __read(void *info)
 	struct perf_counter_context *ctx = counter->ctx;
 	unsigned long flags;
 
-	curr_rq_lock_irq_save(&flags);
+	local_irq_save(flags);
 	if (ctx->is_active)
 		update_context_time(ctx);
 	counter->hw_ops->read(counter);
 	update_counter_times(counter);
-	curr_rq_unlock_irq_restore(&flags);
+	local_irq_restore(flags);
 }
 
 static u64 perf_counter_read(struct perf_counter *counter)
@@ -2890,7 +2880,7 @@ __perf_counter_exit_task(struct task_struct *child,
 		 * Be careful about zapping the list - IRQ/NMI context
 		 * could still be processing it:
 		 */
-		curr_rq_lock_irq_save(&flags);
+		local_irq_save(flags);
 		perf_flags = hw_perf_save_disable();
 
 		cpuctx = &__get_cpu_var(perf_cpu_context);
@@ -2903,7 +2893,7 @@ __perf_counter_exit_task(struct task_struct *child,
 		child_ctx->nr_counters--;
 
 		hw_perf_restore(perf_flags);
-		curr_rq_unlock_irq_restore(&flags);
+		local_irq_restore(flags);
 	}
 
 	parent_counter = child_counter->parent;
