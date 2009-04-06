@@ -278,9 +278,8 @@ static const int ni_irqpin[] =
 
 struct ni_private {
 	struct pnp_dev *isapnp_dev;
-         NI_PRIVATE_COMMON
+	NI_PRIVATE_COMMON
 };
-
 #define devpriv ((struct ni_private *)dev->private)
 
 /* How we access registers */
