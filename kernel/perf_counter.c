@@ -1596,7 +1596,11 @@ void perf_counter_wakeup(struct perf_counter *counter)
 	rcu_read_unlock();
 
 	wake_up_all(&counter->waitq);
-	kill_fasync(&counter->fasync, SIGIO, POLL_IN);
+
+	if (counter->pending_kill) {
+		kill_fasync(&counter->fasync, SIGIO, counter->pending_kill);
+		counter->pending_kill = 0;
+	}
 }
 
 /*
@@ -1727,6 +1731,7 @@ struct perf_output_handle {
 	unsigned int		head;
 	int			wakeup;
 	int			nmi;
+	int			overflow;
 };
 
 static inline void __perf_output_wakeup(struct perf_output_handle *handle)
@@ -1741,7 +1746,7 @@ static inline void __perf_output_wakeup(struct perf_output_handle *handle)
 
 static int perf_output_begin(struct perf_output_handle *handle,
 			     struct perf_counter *counter, unsigned int size,
-			     int nmi)
+			     int nmi, int overflow)
 {
 	struct perf_mmap_data *data;
 	unsigned int offset, head;
@@ -1751,8 +1756,9 @@ static int perf_output_begin(struct perf_output_handle *handle,
 	if (!data)
 		goto out;
 
-	handle->counter	= counter;
-	handle->nmi	= nmi;
+	handle->counter	 = counter;
+	handle->nmi	 = nmi;
+	handle->overflow = overflow;
 
 	if (!data->nr_pages)
 		goto fail;
@@ -1816,7 +1822,7 @@ static void perf_output_end(struct perf_output_handle *handle)
 {
 	int wakeup_events = handle->counter->hw_event.wakeup_events;
 
-	if (wakeup_events) {
+	if (handle->overflow && wakeup_events) {
 		int events = atomic_inc_return(&handle->data->events);
 		if (events >= wakeup_events) {
 			atomic_sub(wakeup_events, &handle->data->events);
@@ -1891,7 +1897,7 @@ static void perf_counter_output(struct perf_counter *counter,
 		header.size += sizeof(u64);
 	}
 
-	ret = perf_output_begin(&handle, counter, header.size, nmi);
+	ret = perf_output_begin(&handle, counter, header.size, nmi, 1);
 	if (ret)
 		return;
 
@@ -1955,7 +1961,7 @@ static void perf_counter_mmap_output(struct perf_counter *counter,
 {
 	struct perf_output_handle handle;
 	int size = mmap_event->event.header.size;
-	int ret = perf_output_begin(&handle, counter, size, 0);
+	int ret = perf_output_begin(&handle, counter, size, 0, 0);
 
 	if (ret)
 		return;
@@ -2084,8 +2090,10 @@ int perf_counter_overflow(struct perf_counter *counter,
 	int events = atomic_read(&counter->event_limit);
 	int ret = 0;
 
+	counter->pending_kill = POLL_IN;
 	if (events && atomic_dec_and_test(&counter->event_limit)) {
 		ret = 1;
+		counter->pending_kill = POLL_HUP;
 		if (nmi) {
 			counter->pending_disable = 1;
 			perf_pending_queue(&counter->pending,

@@ -439,6 +439,7 @@ struct perf_counter {
 
 	/* delayed work for NMIs and such */
 	int				pending_wakeup;
+	int				pending_kill;
 	int				pending_disable;
 	struct perf_pending_entry	pending;
 
