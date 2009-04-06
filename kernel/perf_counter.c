@@ -744,6 +744,12 @@ static void perf_counter_enable(struct perf_counter *counter)
 	spin_unlock_irq(&ctx->lock);
 }
 
+static void perf_counter_refresh(struct perf_counter *counter, int refresh)
+{
+	atomic_add(refresh, &counter->event_limit);
+	perf_counter_enable(counter);
+}
+
 /*
  * Enable a counter and all its children.
  */
@@ -1311,6 +1317,9 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case PERF_COUNTER_IOC_DISABLE:
 		perf_counter_disable_family(counter);
 		break;
+	case PERF_COUNTER_IOC_REFRESH:
+		perf_counter_refresh(counter, arg);
+		break;
 	default:
 		err = -ENOTTY;
 	}
@@ -1590,14 +1599,6 @@ void perf_counter_wakeup(struct perf_counter *counter)
 	kill_fasync(&counter->fasync, SIGIO, POLL_IN);
 }
 
-static void perf_pending_wakeup(struct perf_pending_entry *entry)
-{
-	struct perf_counter *counter = container_of(entry,
-			struct perf_counter, pending);
-
-	perf_counter_wakeup(counter);
-}
-
 /*
  * Pending wakeups
  *
@@ -1606,6 +1607,22 @@ static void perf_pending_wakeup(struct perf_pending_entry *entry)
  * The NMI bit means we cannot possibly take locks. Therefore, maintain a
  * single linked list and use cmpxchg() to add entries lockless.
  */
+
+static void perf_pending_counter(struct perf_pending_entry *entry)
+{
+	struct perf_counter *counter = container_of(entry,
+			struct perf_counter, pending);
+
+	if (counter->pending_disable) {
+		counter->pending_disable = 0;
+		perf_counter_disable(counter);
+	}
+
+	if (counter->pending_wakeup) {
+		counter->pending_wakeup = 0;
+		perf_counter_wakeup(counter);
+	}
+}
 
 #define PENDING_TAIL ((struct perf_pending_entry *)-1UL)
 
@@ -1715,8 +1732,9 @@ struct perf_output_handle {
 static inline void __perf_output_wakeup(struct perf_output_handle *handle)
 {
 	if (handle->nmi) {
+		handle->counter->pending_wakeup = 1;
 		perf_pending_queue(&handle->counter->pending,
-				   perf_pending_wakeup);
+				   perf_pending_counter);
 	} else
 		perf_counter_wakeup(handle->counter);
 }
@@ -2063,8 +2081,21 @@ void perf_counter_munmap(unsigned long addr, unsigned long len,
 int perf_counter_overflow(struct perf_counter *counter,
 			  int nmi, struct pt_regs *regs)
 {
+	int events = atomic_read(&counter->event_limit);
+	int ret = 0;
+
+	if (events && atomic_dec_and_test(&counter->event_limit)) {
+		ret = 1;
+		if (nmi) {
+			counter->pending_disable = 1;
+			perf_pending_queue(&counter->pending,
+					   perf_pending_counter);
+		} else
+			perf_counter_disable(counter);
+	}
+
 	perf_counter_output(counter, nmi, regs);
-	return 0;
+	return ret;
 }
 
 /*

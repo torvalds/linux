@@ -155,8 +155,9 @@ struct perf_counter_hw_event {
 /*
  * Ioctls that can be done on a perf counter fd:
  */
-#define PERF_COUNTER_IOC_ENABLE		_IO('$', 0)
-#define PERF_COUNTER_IOC_DISABLE	_IO('$', 1)
+#define PERF_COUNTER_IOC_ENABLE		_IO ('$', 0)
+#define PERF_COUNTER_IOC_DISABLE	_IO ('$', 1)
+#define PERF_COUNTER_IOC_REFRESH	_IOW('$', 2, u32)
 
 /*
  * Structure of the page that can be mapped via mmap
@@ -403,8 +404,13 @@ struct perf_counter {
 	/* poll related */
 	wait_queue_head_t		waitq;
 	struct fasync_struct		*fasync;
-	/* optional: for NMIs */
+
+	/* delayed work for NMIs and such */
+	int				pending_wakeup;
+	int				pending_disable;
 	struct perf_pending_entry	pending;
+
+	atomic_t			event_limit;
 
 	void (*destroy)(struct perf_counter *);
 	struct rcu_head			rcu_head;
