@@ -41,6 +41,8 @@ static int binder_last_id;
 static struct proc_dir_entry *binder_proc_dir_entry_root;
 static struct proc_dir_entry *binder_proc_dir_entry_proc;
 static struct hlist_head binder_dead_nodes;
+static HLIST_HEAD(binder_release_files_list);
+static DEFINE_MUTEX(binder_release_files_lock);
 
 static int binder_read_proc_proc(
 	char *page, char **start, off_t off, int count, int *eof, void *data);
@@ -241,6 +243,8 @@ struct binder_proc {
 	int pid;
 	struct vm_area_struct *vma;
 	struct task_struct *tsk;
+	struct files_struct *files;
+	struct hlist_node release_files_node;
 	void *buffer;
 	size_t user_buffer_offset;
 
@@ -309,9 +313,9 @@ struct binder_transaction {
 /*
  * copied from get_unused_fd_flags
  */
-int task_get_unused_fd_flags(struct task_struct *tsk, int flags)
+int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
 {
-	struct files_struct *files = get_files_struct(tsk);
+	struct files_struct *files = proc->files;
 	int fd, error;
 	struct fdtable *fdt;
 	unsigned long rlim_cur;
@@ -333,9 +337,9 @@ repeat:
 	 * will limit the total number of files that can be opened.
 	 */
 	rlim_cur = 0;
-	if (lock_task_sighand(tsk, &irqs)) {
-		rlim_cur = tsk->signal->rlim[RLIMIT_NOFILE].rlim_cur;
-		unlock_task_sighand(tsk, &irqs);
+	if (lock_task_sighand(proc->tsk, &irqs)) {
+		rlim_cur = proc->tsk->signal->rlim[RLIMIT_NOFILE].rlim_cur;
+		unlock_task_sighand(proc->tsk, &irqs);
 	}
 	if (fd >= rlim_cur)
 		goto out;
@@ -371,7 +375,6 @@ repeat:
 
 out:
 	spin_unlock(&files->file_lock);
-	put_files_struct(files);
 	return error;
 }
 
@@ -379,9 +382,9 @@ out:
  * copied from fd_install
  */
 static void task_fd_install(
-	struct task_struct *tsk, unsigned int fd, struct file *file)
+	struct binder_proc *proc, unsigned int fd, struct file *file)
 {
-	struct files_struct *files = get_files_struct(tsk);
+	struct files_struct *files = proc->files;
 	struct fdtable *fdt;
 
 	if (files == NULL)
@@ -392,7 +395,6 @@ static void task_fd_install(
 	BUG_ON(fdt->fd[fd] != NULL);
 	rcu_assign_pointer(fdt->fd[fd], file);
 	spin_unlock(&files->file_lock);
-	put_files_struct(files);
 }
 
 /*
@@ -409,10 +411,10 @@ static void __put_unused_fd(struct files_struct *files, unsigned int fd)
 /*
  * copied from sys_close
  */
-static long task_close_fd(struct task_struct *tsk, unsigned int fd)
+static long task_close_fd(struct binder_proc *proc, unsigned int fd)
 {
 	struct file *filp;
-	struct files_struct *files = get_files_struct(tsk);
+	struct files_struct *files = proc->files;
 	struct fdtable *fdt;
 	int retval;
 
@@ -439,12 +441,10 @@ static long task_close_fd(struct task_struct *tsk, unsigned int fd)
 		     retval == -ERESTART_RESTARTBLOCK))
 		retval = -EINTR;
 
-	put_files_struct(files);
 	return retval;
 
 out_unlock:
 	spin_unlock(&files->file_lock);
-	put_files_struct(files);
 	return -EBADF;
 }
 
@@ -1549,13 +1549,13 @@ binder_transaction(struct binder_proc *proc, struct binder_thread *thread,
 				return_error = BR_FAILED_REPLY;
 				goto err_fget_failed;
 			}
-			target_fd = task_get_unused_fd_flags(target_proc->tsk, O_CLOEXEC);
+			target_fd = task_get_unused_fd_flags(target_proc, O_CLOEXEC);
 			if (target_fd < 0) {
 				fput(file);
 				return_error = BR_FAILED_REPLY;
 				goto err_get_unused_fd_failed;
 			}
-			task_fd_install(target_proc->tsk, target_fd, file);
+			task_fd_install(target_proc, target_fd, file);
 			if (binder_debug_mask & BINDER_DEBUG_TRANSACTION)
 				printk(KERN_INFO "        fd %ld -> %d\n", fp->handle, target_fd);
 			/* TODO: fput? */
@@ -1698,7 +1698,7 @@ binder_transaction_buffer_release(struct binder_proc *proc, struct binder_buffer
 			if (binder_debug_mask & BINDER_DEBUG_TRANSACTION)
 				printk(KERN_INFO "        fd %ld\n", fp->handle);
 			if (failed_at)
-				task_close_fd(proc->tsk, fp->handle);
+				task_close_fd(proc, fp->handle);
 			break;
 
 		default:
@@ -2663,6 +2663,34 @@ static void binder_vma_open(struct vm_area_struct *vma)
 			(unsigned long)pgprot_val(vma->vm_page_prot));
 	dump_stack();
 }
+
+static void binder_release_files(struct work_struct *work)
+{
+	struct binder_proc *proc;
+	struct files_struct *files;
+	do {
+		mutex_lock(&binder_lock);
+		mutex_lock(&binder_release_files_lock);
+		if (!hlist_empty(&binder_release_files_list)) {
+			proc = hlist_entry(binder_release_files_list.first,
+					struct binder_proc, release_files_node);
+			hlist_del_init(&proc->release_files_node);
+			files = proc->files;
+			if (files)
+				proc->files = NULL;
+		} else {
+			proc = NULL;
+			files = NULL;
+		}
+		mutex_unlock(&binder_release_files_lock);
+		mutex_unlock(&binder_lock);
+		if (files)
+			put_files_struct(files);
+	} while (proc);
+}
+
+static DECLARE_WORK(binder_release_files_work, binder_release_files);
+
 static void binder_vma_close(struct vm_area_struct *vma)
 {
 	struct binder_proc *proc = vma->vm_private_data;
@@ -2673,6 +2701,13 @@ static void binder_vma_close(struct vm_area_struct *vma)
 			(vma->vm_end - vma->vm_start) / SZ_1K, vma->vm_flags,
 			(unsigned long)pgprot_val(vma->vm_page_prot));
 	proc->vma = NULL;
+	mutex_lock(&binder_release_files_lock);
+	if (proc->files) {
+		hlist_add_head(&proc->release_files_node,
+				&binder_release_files_list);
+		schedule_work(&binder_release_files_work);
+	}
+	mutex_unlock(&binder_release_files_lock);
 }
 
 static struct vm_operations_struct binder_vm_ops = {
@@ -2751,6 +2786,7 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 	binder_insert_free_buffer(proc, buffer);
 	proc->free_async_space = proc->buffer_size / 2;
 	barrier();
+	proc->files = get_files_struct(current);
 	proc->vma = vma;
 
 	/*printk(KERN_INFO "binder_mmap: %d %lx-%lx maps %p\n", proc->pid, vma->vm_start, vma->vm_end, proc->buffer);*/
@@ -2831,6 +2867,7 @@ static int binder_release(struct inode *nodp, struct file *filp)
 	struct hlist_node *pos;
 	struct binder_transaction *t;
 	struct rb_node *n;
+	struct files_struct *files;
 	struct binder_proc *proc = filp->private_data;
 	int threads, nodes, incoming_refs, outgoing_refs, buffers, active_transactions, page_count;
 
@@ -2840,6 +2877,14 @@ static int binder_release(struct inode *nodp, struct file *filp)
 		remove_proc_entry(strbuf, binder_proc_dir_entry_proc);
 	}
 	mutex_lock(&binder_lock);
+	mutex_lock(&binder_release_files_lock);
+	if (!hlist_unhashed(&proc->release_files_node))
+		hlist_del(&proc->release_files_node);
+	files = proc->files;
+	if (files)
+		proc->files = NULL;
+	mutex_unlock(&binder_release_files_lock);
+
 	hlist_del(&proc->proc_node);
 	if (binder_context_mgr_node && binder_context_mgr_node->proc == proc) {
 		if (binder_debug_mask & BINDER_DEBUG_DEAD_BINDER)
@@ -2937,6 +2982,8 @@ static int binder_release(struct inode *nodp, struct file *filp)
 		       proc->pid, threads, nodes, incoming_refs, outgoing_refs, active_transactions, buffers, page_count);
 
 	kfree(proc);
+	if (files)
+		put_files_struct(files);
 	return 0;
 }
 
