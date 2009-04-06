@@ -24,11 +24,7 @@
 #ifndef _8253_H
 #define _8253_H
 
-#ifndef CMDTEST
 #include "../comedi.h"
-#else
-#include "../comedi.h"
-#endif
 
 #define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_2div
 
