@@ -1304,6 +1304,7 @@ void __init enable_IR_x2apic(void)
 #ifdef CONFIG_INTR_REMAP
 	int ret;
 	unsigned long flags;
+	struct IO_APIC_route_entry **ioapic_entries = NULL;
 
 	if (!cpu_has_x2apic)
 		return;
@@ -1334,17 +1335,23 @@ void __init enable_IR_x2apic(void)
 		return;
 	}
 
-	ret = save_IO_APIC_setup();
+	ioapic_entries = alloc_ioapic_entries();
+	if (!ioapic_entries) {
+		pr_info("Allocate ioapic_entries failed: %d\n", ret);
+		goto end;
+	}
+
+	ret = save_IO_APIC_setup(ioapic_entries);
 	if (ret) {
 		pr_info("Saving IO-APIC state failed: %d\n", ret);
 		goto end;
 	}
 
 	local_irq_save(flags);
-	mask_IO_APIC_setup();
+	mask_IO_APIC_setup(ioapic_entries);
 	mask_8259A();
 
-	ret = enable_intr_remapping(1);
+	ret = enable_intr_remapping(EIM_32BIT_APIC_ID);
 
 	if (ret && x2apic_preenabled) {
 		local_irq_restore(flags);
@@ -1364,9 +1371,9 @@ end_restore:
 		/*
 		 * IR enabling failed
 		 */
-		restore_IO_APIC_setup();
+		restore_IO_APIC_setup(ioapic_entries);
 	else
-		reinit_intr_remapped_IO_APIC(x2apic_preenabled);
+		reinit_intr_remapped_IO_APIC(x2apic_preenabled, ioapic_entries);
 
 	unmask_8259A();
 	local_irq_restore(flags);
@@ -1379,6 +1386,8 @@ end:
 			pr_info("Enabled Interrupt-remapping\n");
 	} else
 		pr_err("Failed to enable Interrupt-remapping and x2apic\n");
+	if (ioapic_entries)
+		free_ioapic_entries(ioapic_entries);
 #else
 	if (!cpu_has_x2apic)
 		return;
@@ -1954,6 +1963,10 @@ static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 
 	local_irq_save(flags);
 	disable_local_APIC();
+#ifdef CONFIG_INTR_REMAP
+	if (intr_remapping_enabled)
+		disable_intr_remapping();
+#endif
 	local_irq_restore(flags);
 	return 0;
 }
@@ -1964,15 +1977,41 @@ static int lapic_resume(struct sys_device *dev)
 	unsigned long flags;
 	int maxlvt;
 
+#ifdef CONFIG_INTR_REMAP
+	int ret;
+	struct IO_APIC_route_entry **ioapic_entries = NULL;
+
 	if (!apic_pm_state.active)
 		return 0;
 
-	maxlvt = lapic_get_maxlvt();
+	local_irq_save(flags);
+	if (x2apic) {
+		ioapic_entries = alloc_ioapic_entries();
+		if (!ioapic_entries) {
+			WARN(1, "Alloc ioapic_entries in lapic resume failed.");
+			return -ENOMEM;
+		}
+
+		ret = save_IO_APIC_setup(ioapic_entries);
+		if (ret) {
+			WARN(1, "Saving IO-APIC state failed: %d\n", ret);
+			free_ioapic_entries(ioapic_entries);
+			return ret;
+		}
+
+		mask_IO_APIC_setup(ioapic_entries);
+		mask_8259A();
+		enable_x2apic();
+	}
+#else
+	if (!apic_pm_state.active)
+		return 0;
 
 	local_irq_save(flags);
-
 	if (x2apic)
 		enable_x2apic();
+#endif
+
 	else {
 		/*
 		 * Make sure the APICBASE points to the right address
@@ -1986,6 +2025,7 @@ static int lapic_resume(struct sys_device *dev)
 		wrmsr(MSR_IA32_APICBASE, l, h);
 	}
 
+	maxlvt = lapic_get_maxlvt();
 	apic_write(APIC_LVTERR, ERROR_APIC_VECTOR | APIC_LVT_MASKED);
 	apic_write(APIC_ID, apic_pm_state.apic_id);
 	apic_write(APIC_DFR, apic_pm_state.apic_dfr);
@@ -2009,7 +2049,19 @@ static int lapic_resume(struct sys_device *dev)
 	apic_write(APIC_ESR, 0);
 	apic_read(APIC_ESR);
 
+#ifdef CONFIG_INTR_REMAP
+	if (intr_remapping_enabled)
+		reenable_intr_remapping(EIM_32BIT_APIC_ID);
+
+	if (x2apic) {
+		unmask_8259A();
+		restore_IO_APIC_setup(ioapic_entries);
+		free_ioapic_entries(ioapic_entries);
+	}
+#endif
+
 	local_irq_restore(flags);
+
 
 	return 0;
 }
@@ -2048,7 +2100,9 @@ static int __init init_lapic_sysfs(void)
 		error = sysdev_register(&device_lapic);
 	return error;
 }
-device_initcall(init_lapic_sysfs);
+
+/* local apic needs to resume before other devices access its registers. */
+core_initcall(init_lapic_sysfs);
 
 #else	/* CONFIG_PM */
 
