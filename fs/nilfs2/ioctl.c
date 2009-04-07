@@ -41,6 +41,7 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 						   void *, size_t, size_t))
 {
 	void *buf;
+	void __user *base = (void __user *)(unsigned long)argv->v_base;
 	size_t maxmembs, total, n;
 	ssize_t nr;
 	int ret, i;
@@ -64,9 +65,8 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 		n = (argv->v_nmembs - i < maxmembs) ?
 			argv->v_nmembs - i : maxmembs;
 		if ((dir & _IOC_WRITE) &&
-		    copy_from_user(buf,
-			    (void __user *)argv->v_base + argv->v_size * i,
-			    argv->v_size * n)) {
+		    copy_from_user(buf, base + argv->v_size * i,
+				   argv->v_size * n)) {
 			ret = -EFAULT;
 			break;
 		}
@@ -78,9 +78,8 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 			break;
 		}
 		if ((dir & _IOC_READ) &&
-		    copy_to_user(
-			    (void __user *)argv->v_base + argv->v_size * i,
-			    buf, argv->v_size * nr)) {
+		    copy_to_user(base + argv->v_size * i, buf,
+				 argv->v_size * nr)) {
 			ret = -EFAULT;
 			break;
 		}

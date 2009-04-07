@@ -499,6 +499,7 @@ NILFS_CHECKPOINT_FNS(SKETCH, sketch)
 /**
  * struct nilfs_cpinfo - checkpoint information
  * @ci_flags: flags
+ * @ci_pad: padding
  * @ci_cno: checkpoint number
  * @ci_create: creation timestamp
  * @ci_nblk_inc: number of blocks incremented by this checkpoint
@@ -508,6 +509,7 @@ NILFS_CHECKPOINT_FNS(SKETCH, sketch)
  */
 struct nilfs_cpinfo {
 	__u32 ci_flags;
+	__u32 ci_pad;
 	__u64 ci_cno;
 	__u64 ci_create;
 	__u64 ci_nblk_inc;
@@ -668,7 +670,8 @@ enum {
  */
 struct nilfs_cpmode {
 	__u64 cm_cno;
-	int cm_mode;
+	__u32 cm_mode;
+	__u32 cm_pad;
 };
 
 /**
@@ -676,15 +679,15 @@ struct nilfs_cpmode {
  * @v_base:
  * @v_nmembs:
  * @v_size:
- * @v_index:
  * @v_flags:
+ * @v_index:
  */
 struct nilfs_argv {
-	void *v_base;
-	size_t v_nmembs;	/* number of members */
-	size_t v_size;		/* size of members */
-	int v_index;
-	int v_flags;
+	__u64 v_base;
+	__u32 v_nmembs;	/* number of members */
+	__u16 v_size;	/* size of members */
+	__u16 v_flags;
+	__u64 v_index;
 };
 
 /**
@@ -721,8 +724,8 @@ struct nilfs_sustat {
 	__u64 ss_nsegs;
 	__u64 ss_ncleansegs;
 	__u64 ss_ndirtysegs;
-	time_t ss_ctime;
-	time_t ss_nongc_ctime;
+	__u64 ss_ctime;
+	__u64 ss_nongc_ctime;
 };
 
 /**
@@ -750,6 +753,7 @@ struct nilfs_vdesc {
 	__u64 vd_blocknr;
 	__u64 vd_offset;
 	__u32 vd_flags;
+	__u32 vd_pad;
 };
 
 /**
@@ -761,6 +765,7 @@ struct nilfs_bdesc {
 	__u64 bd_blocknr;
 	__u64 bd_offset;
 	__u32 bd_level;
+	__u32 bd_pad;
 };
 
 #define NILFS_IOCTL_IDENT		'n'
