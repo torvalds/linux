@@ -238,7 +238,7 @@ static inline unsigned long dma_alloc_coherent_mask(struct device *dev,
 
 	dma_mask = dev->coherent_dma_mask;
 	if (!dma_mask)
-		dma_mask = (gfp & GFP_DMA) ? DMA_24BIT_MASK : DMA_BIT_MASK(32);
+		dma_mask = (gfp & GFP_DMA) ? DMA_BIT_MASK(24) : DMA_BIT_MASK(32);
 
 	return dma_mask;
 }
@@ -247,7 +247,7 @@ static inline gfp_t dma_alloc_coherent_gfp_flags(struct device *dev, gfp_t gfp)
 {
 	unsigned long dma_mask = dma_alloc_coherent_mask(dev, gfp);
 
-	if (dma_mask <= DMA_24BIT_MASK)
+	if (dma_mask <= DMA_BIT_MASK(24))
 		gfp |= GFP_DMA;
 #ifdef CONFIG_X86_64
 	if (dma_mask <= DMA_BIT_MASK(32) && !(gfp & GFP_DMA))
