@@ -49,6 +49,17 @@ enum stv090x_clkmode {
 	STV090x_CLK_EXT = 2 /* Clk i/p = XTALI */
 };
 
+enum stv090x_i2crpt {
+	STV090x_RPTLEVEL_256	= 0,
+	STV090x_RPTLEVEL_128	= 1,
+	STV090x_RPTLEVEL_64	= 2,
+	STV090x_RPTLEVEL_32	= 3,
+	STV090x_RPTLEVEL_16	= 4,
+	STV090x_RPTLEVEL_8	= 5,
+	STV090x_RPTLEVEL_4	= 6,
+	STV090x_RPTLEVEL_2	= 7,
+};
+
 struct stv090x_config {
 	enum stv090x_device	device;
 	enum stv090x_mode	demod_mode;
@@ -61,6 +72,8 @@ struct stv090x_config {
 
 	u8 ts1_mode;
 	u8 ts2_mode;
+
+	enum stv090x_i2crpt	repeater_level;
 
 	int (*tuner_init) (struct dvb_frontend *fe);
 	int (*tuner_set_mode) (struct dvb_frontend *fe, enum tuner_mode mode);

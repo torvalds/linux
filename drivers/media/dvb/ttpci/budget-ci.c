@@ -1361,6 +1361,8 @@ static struct stv090x_config tt1600_stv090x_config = {
 	.ts1_mode		= STV090x_TSMODE_DVBCI,
 	.ts2_mode		= STV090x_TSMODE_DVBCI,
 
+	.repeater_level		= STV090x_RPTLEVEL_16,
+
 	.tuner_init		= NULL,
 	.tuner_set_mode		= NULL,
 	.tuner_set_frequency	= NULL,

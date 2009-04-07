@@ -640,16 +640,19 @@ static int stv090x_write_reg(struct stv090x_state *state, unsigned int reg, u8 d
 static int stv090x_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
+	const struct stv090x_config *config = state->config;
 	u32 reg;
 
 	reg = STV090x_READ_DEMOD(state, I2CRPT);
-
+//	STV090x_SETFIELD_Px(reg, ENARPT_LEVEL_FIELD, config->repeater_level);
 	if (enable) {
+		dprintk(FE_DEBUG, 1, "Enable Gate");
 		STV090x_SETFIELD_Px(reg, I2CT_ON_FIELD, 1);
 		if (STV090x_WRITE_DEMOD(state, I2CRPT, reg) < 0)
 			goto err;
 
 	} else {
+		dprintk(FE_DEBUG, 1, "Disable Gate");
 		STV090x_SETFIELD_Px(reg, I2CT_ON_FIELD, 0);
 		if ((STV090x_WRITE_DEMOD(state, I2CRPT, reg)) < 0)
 			goto err;
@@ -3773,6 +3776,7 @@ static int stv090x_setup(struct dvb_frontend *fe)
 	const struct stv090x_reg *stv090x_initval = NULL;
 	const struct stv090x_reg *stv090x_cut20_val = NULL;
 	unsigned long t1_size = 0, t2_size = 0;
+	u32 reg = 0;
 
 	int i;
 
@@ -3799,7 +3803,8 @@ static int stv090x_setup(struct dvb_frontend *fe)
 	if (STV090x_WRITE_DEMOD(state, TNRCFG, 0x6c) < 0) /* check register ! (No Tuner Mode) */
 		goto err;
 
-	if (STV090x_WRITE_DEMOD(state, I2CRPT, 0x00) < 0) /* repeater OFF */
+	STV090x_SETFIELD_Px(reg, ENARPT_LEVEL_FIELD, config->repeater_level);
+	if (STV090x_WRITE_DEMOD(state, I2CRPT, reg) < 0) /* repeater OFF */
 		goto err;
 
 	if (stv090x_write_reg(state, STV090x_NCOARSE, 0x13) < 0) /* set PLL divider */
