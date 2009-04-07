@@ -29,7 +29,7 @@
  */
 
 #include <linux/vmalloc.h>
-#include <linux/highmem.h>
+#include <linux/interrupt.h>
 #include "netxen_nic_hw.h"
 
 #include "netxen_nic.h"
@@ -1598,10 +1598,6 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 	netif_wake_queue(adapter->netdev);
 }
 
-/*
- * netxen_nic_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- */
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
@@ -1609,22 +1605,11 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 
 	memset(stats, 0, sizeof(*stats));
 
-	/* total packets received   */
 	stats->rx_packets = adapter->stats.no_rcv;
-	/* total packets transmitted    */
-	stats->tx_packets = adapter->stats.xmitedframes +
-		adapter->stats.xmitfinished;
-	/* total bytes received     */
+	stats->tx_packets = adapter->stats.xmitfinished;
 	stats->rx_bytes = adapter->stats.rxbytes;
-	/* total bytes transmitted  */
 	stats->tx_bytes = adapter->stats.txbytes;
-	/* bad packets received     */
-	stats->rx_errors = adapter->stats.rcvdbadskb;
-	/* packet transmit problems */
-	stats->tx_errors = adapter->stats.nocmddescriptor;
-	/* no space in linux buffers    */
 	stats->rx_dropped = adapter->stats.rxdropped;
-	/* no space available in linux  */
 	stats->tx_dropped = adapter->stats.txdropped;
 
 	return stats;

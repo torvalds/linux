@@ -41,18 +41,18 @@
 #define CRB_PHAN_CNTRL_HI_OFFSET    NETXEN_NIC_REG(0x04)
 #define CRB_CMD_PRODUCER_OFFSET     NETXEN_NIC_REG(0x08)
 #define CRB_CMD_CONSUMER_OFFSET     NETXEN_NIC_REG(0x0c)
-#define CRB_PAUSE_ADDR_LO           NETXEN_NIC_REG(0x10)	/* C0 EPG BUG  */
+#define CRB_PAUSE_ADDR_LO           NETXEN_NIC_REG(0x10)
 #define CRB_PAUSE_ADDR_HI           NETXEN_NIC_REG(0x14)
 #define NX_CDRP_CRB_OFFSET          NETXEN_NIC_REG(0x18)
 #define NX_ARG1_CRB_OFFSET          NETXEN_NIC_REG(0x1c)
 #define NX_ARG2_CRB_OFFSET          NETXEN_NIC_REG(0x20)
 #define NX_ARG3_CRB_OFFSET          NETXEN_NIC_REG(0x24)
 #define NX_SIGN_CRB_OFFSET          NETXEN_NIC_REG(0x28)
-#define CRB_CMD_INTR_LOOP           NETXEN_NIC_REG(0x20)	/* 4 regs for perf */
+#define CRB_CMD_INTR_LOOP           NETXEN_NIC_REG(0x20)
 #define CRB_CMD_DMA_LOOP            NETXEN_NIC_REG(0x24)
 #define CRB_RCV_INTR_LOOP           NETXEN_NIC_REG(0x28)
 #define CRB_RCV_DMA_LOOP            NETXEN_NIC_REG(0x2c)
-#define CRB_ENABLE_TX_INTR          NETXEN_NIC_REG(0x30)	/* phantom init status */
+#define CRB_ENABLE_TX_INTR          NETXEN_NIC_REG(0x30)
 #define CRB_MMAP_ADDR_3             NETXEN_NIC_REG(0x34)
 #define CRB_CMDPEG_CMDRING          NETXEN_NIC_REG(0x38)
 #define CRB_HOST_DUMMY_BUF_ADDR_HI  NETXEN_NIC_REG(0x3c)
@@ -65,7 +65,7 @@
 #define CRB_MMAP_SIZE_1             NETXEN_NIC_REG(0x58)
 #define CRB_MMAP_SIZE_2             NETXEN_NIC_REG(0x5c)
 #define CRB_MMAP_SIZE_3             NETXEN_NIC_REG(0x60)
-#define CRB_GLOBAL_INT_COAL         NETXEN_NIC_REG(0x64)	/* interrupt coalescing */
+#define CRB_GLOBAL_INT_COAL         NETXEN_NIC_REG(0x64)
 #define CRB_INT_COAL_MODE           NETXEN_NIC_REG(0x68)
 #define CRB_MAX_RCV_BUFS            NETXEN_NIC_REG(0x6c)
 #define CRB_TX_INT_THRESHOLD        NETXEN_NIC_REG(0x70)
@@ -83,13 +83,13 @@
 #define CRB_AGENT_TX_TYPE           NETXEN_NIC_REG(0xa0)
 #define CRB_AGENT_TX_ADDR           NETXEN_NIC_REG(0xa4)
 #define CRB_AGENT_TX_MSS            NETXEN_NIC_REG(0xa8)
-#define CRB_TX_STATE                NETXEN_NIC_REG(0xac)	/* Debug -performance */
+#define CRB_TX_STATE                NETXEN_NIC_REG(0xac)
 #define CRB_TX_COUNT                NETXEN_NIC_REG(0xb0)
 #define CRB_RX_STATE                NETXEN_NIC_REG(0xb4)
 #define CRB_RX_PERF_DEBUG_1         NETXEN_NIC_REG(0xb8)
-#define CRB_RX_LRO_CONTROL          NETXEN_NIC_REG(0xbc)	/* LRO On/OFF */
+#define CRB_RX_LRO_CONTROL          NETXEN_NIC_REG(0xbc)
 #define CRB_RX_LRO_START_NUM        NETXEN_NIC_REG(0xc0)
-#define CRB_MPORT_MODE              NETXEN_NIC_REG(0xc4)	/* Multiport Mode */
+#define CRB_MPORT_MODE              NETXEN_NIC_REG(0xc4)
 #define CRB_CMD_RING_SIZE           NETXEN_NIC_REG(0xc8)
 #define CRB_DMA_SHIFT               NETXEN_NIC_REG(0xcc)
 #define CRB_INT_VECTOR              NETXEN_NIC_REG(0xd4)
@@ -109,8 +109,6 @@
 #define CRB_CMD_CONSUMER_OFFSET_1   NETXEN_NIC_REG(0x1b0)
 #define CRB_CMD_PRODUCER_OFFSET_2   NETXEN_NIC_REG(0x1b8)
 #define CRB_CMD_CONSUMER_OFFSET_2   NETXEN_NIC_REG(0x1bc)
-
-// 1c0 to 1cc used for signature reg
 #define CRB_CMD_PRODUCER_OFFSET_3   NETXEN_NIC_REG(0x1d0)
 #define CRB_CMD_CONSUMER_OFFSET_3   NETXEN_NIC_REG(0x1d4)
 #define CRB_TEMP_STATE              NETXEN_NIC_REG(0x1b4)
@@ -120,8 +118,7 @@
 #define CRB_V2P_2		    NETXEN_NIC_REG(0x298)
 #define CRB_V2P_3		    NETXEN_NIC_REG(0x29c)
 #define CRB_V2P(port)		    (CRB_V2P_0+((port)*4))
-#define CRB_DRIVER_VERSION	    NETXEN_NIC_REG(0x2a0)
-/* sw int status/mask registers */
+#define CRB_DRIVER_VERSION	   NETXEN_NIC_REG(0x2a0)
 #define CRB_SW_INT_MASK_0	   NETXEN_NIC_REG(0x1d8)
 #define CRB_SW_INT_MASK_1	   NETXEN_NIC_REG(0x1e0)
 #define CRB_SW_INT_MASK_2	   NETXEN_NIC_REG(0x1e4)
@@ -136,7 +133,7 @@
 #define CRB_NIC_CAPABILITIES_HOST	NETXEN_NIC_REG(0x1a8)
 #define CRB_NIC_CAPABILITIES_FW	  	NETXEN_NIC_REG(0x1dc)
 #define CRB_NIC_MSI_MODE_HOST		NETXEN_NIC_REG(0x270)
-#define CRB_NIC_MSI_MODE_FW	  		NETXEN_NIC_REG(0x274)
+#define CRB_NIC_MSI_MODE_FW	  	NETXEN_NIC_REG(0x274)
 
 #define INTR_SCHEME_PERPORT	      	0x1
 #define MSI_MODE_MULTIFUNC	      	0x1

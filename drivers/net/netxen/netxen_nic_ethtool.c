@@ -30,7 +30,6 @@
 
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <asm/uaccess.h>
 #include <linux/pci.h>
 #include <asm/io.h>
 #include <linux/netdevice.h>
@@ -53,13 +52,9 @@ struct netxen_nic_stats {
 #define NETXEN_NIC_INVALID_DATA 0xDEADBEEF
 
 static const struct netxen_nic_stats netxen_nic_gstrings_stats[] = {
-	{"rcvd_bad_skb", NETXEN_NIC_STAT(stats.rcvdbadskb)},
 	{"xmit_called", NETXEN_NIC_STAT(stats.xmitcalled)},
-	{"xmited_frames", NETXEN_NIC_STAT(stats.xmitedframes)},
 	{"xmit_finished", NETXEN_NIC_STAT(stats.xmitfinished)},
-	{"bad_skb_len", NETXEN_NIC_STAT(stats.badskblen)},
-	{"no_cmd_desc", NETXEN_NIC_STAT(stats.nocmddescriptor)},
-	{"polled", NETXEN_NIC_STAT(stats.polled)},
+	{"rx_dropped", NETXEN_NIC_STAT(stats.rxdropped)},
 	{"tx_dropped", NETXEN_NIC_STAT(stats.txdropped)},
 	{"csummed", NETXEN_NIC_STAT(stats.csummed)},
 	{"no_rcv", NETXEN_NIC_STAT(stats.no_rcv)},
@@ -168,7 +163,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	ecmd->phy_address = adapter->physical_port;
 	ecmd->transceiver = XCVR_EXTERNAL;
 
-	switch ((netxen_brdtype_t)adapter->ahw.board_type) {
+	switch (adapter->ahw.board_type) {
 	case NETXEN_BRDTYPE_P2_SB35_4G:
 	case NETXEN_BRDTYPE_P2_SB31_2G:
 	case NETXEN_BRDTYPE_P3_REF_QG:
@@ -227,7 +222,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		break;
 	default:
 		printk(KERN_ERR "netxen-nic: Unsupported board model %d\n",
-		       (netxen_brdtype_t)adapter->ahw.board_type);
+				adapter->ahw.board_type);
 		return -EIO;
 	}
 

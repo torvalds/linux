@@ -48,6 +48,21 @@
 #define CRB_HI(off)	((crb_hub_agt[CRB_BLK(off)] << 20) | ((off) & 0xf0000))
 #define CRB_INDIRECT_2M	(0x1e0000UL)
 
+#ifndef readq
+static inline u64 readq(void __iomem *addr)
+{
+	return readl(addr) | (((u64) readl(addr + 4)) << 32LL);
+}
+#endif
+
+#ifndef writeq
+static inline void writeq(u64 val, void __iomem *addr)
+{
+	writel(((u32) (val)), (addr));
+	writel(((u32) (val >> 32)), (addr + 4));
+}
+#endif
+
 #define CRB_WIN_LOCK_TIMEOUT 100000000
 static crb_128M_2M_block_map_t crb_128M_2M_map[64] = {
     {{{0, 0,         0,         0} } },		/* 0: PCI */
@@ -2148,7 +2163,7 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 			board_type = NETXEN_BRDTYPE_P3_10G_TP;
 	}
 
-	switch ((netxen_brdtype_t)board_type) {
+	switch (board_type) {
 	case NETXEN_BRDTYPE_P2_SB35_4G:
 		adapter->ahw.port_type = NETXEN_NIC_GBE;
 		break;

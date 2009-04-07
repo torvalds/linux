@@ -34,10 +34,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/compiler.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -49,18 +45,12 @@
 
 #include <linux/ethtool.h>
 #include <linux/mii.h>
-#include <linux/interrupt.h>
 #include <linux/timer.h>
 
-#include <linux/mm.h>
-#include <linux/mman.h>
 #include <linux/vmalloc.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
-#include <asm/pgtable.h>
 
 #include "netxen_nic_hw.h"
 
@@ -118,6 +108,7 @@
 #define NX_P3_A2		0x30
 #define NX_P3_B0		0x40
 #define NX_P3_B1		0x41
+#define NX_P3_B2		0x42
 
 #define NX_IS_REVISION_P2(REVISION)     (REVISION <= NX_P2_C1)
 #define NX_IS_REVISION_P3(REVISION)     (REVISION >= NX_P3_A0)
@@ -203,18 +194,8 @@
 #define MAX_RCV_DESCRIPTORS_10G		4096
 #define MAX_JUMBO_RCV_DESCRIPTORS	1024
 #define MAX_LRO_RCV_DESCRIPTORS		8
-#define MAX_RCVSTATUS_DESCRIPTORS	MAX_RCV_DESCRIPTORS
-#define MAX_JUMBO_RCV_DESC	MAX_JUMBO_RCV_DESCRIPTORS
-#define MAX_RCV_DESC		MAX_RCV_DESCRIPTORS
-#define MAX_RCVSTATUS_DESC	MAX_RCV_DESCRIPTORS
-#define MAX_EPG_DESCRIPTORS	(MAX_CMD_DESCRIPTORS * 8)
-#define NUM_RCV_DESC		(MAX_RCV_DESC + MAX_JUMBO_RCV_DESCRIPTORS + \
-				 MAX_LRO_RCV_DESCRIPTORS)
-#define MIN_TX_COUNT	4096
-#define MIN_RX_COUNT	4096
 #define NETXEN_CTX_SIGNATURE	0xdee0
 #define NETXEN_RCV_PRODUCER(ringid)	(ringid)
-#define MAX_FRAME_SIZE	0x10000	/* 64K MAX size for LSO */
 
 #define PHAN_PEG_RCV_INITIALIZED	0xff01
 #define PHAN_PEG_RCV_START_INITIALIZE	0xff00
@@ -384,11 +365,6 @@ struct rcv_desc {
 
 /* Note: sizeof(status_desc) should always be a mutliple of 2 */
 
-#define netxen_get_sts_desc_lro_cnt(status_desc)	\
-	((status_desc)->lro & 0x7F)
-#define netxen_get_sts_desc_lro_last_frag(status_desc)	\
-	(((status_desc)->lro & 0x80) >> 7)
-
 #define netxen_get_sts_port(sts_data)	\
 	((sts_data) & 0x0F)
 #define netxen_get_sts_status(sts_data)	\
@@ -434,10 +410,6 @@ struct status_desc {
 	};
 } __attribute__ ((aligned(16)));
 
-enum {
-	NETXEN_RCV_PEG_0 = 0,
-	NETXEN_RCV_PEG_1
-};
 /* The version of the main data structure */
 #define	NETXEN_BDINFO_VERSION 1
 
@@ -447,85 +419,35 @@ enum {
 /* Max number of Gig ports on a Phantom board */
 #define NETXEN_MAX_PORTS 4
 
-typedef enum {
-	NETXEN_BRDTYPE_P1_BD = 0x0000,
-	NETXEN_BRDTYPE_P1_SB = 0x0001,
-	NETXEN_BRDTYPE_P1_SMAX = 0x0002,
-	NETXEN_BRDTYPE_P1_SOCK = 0x0003,
+#define NETXEN_BRDTYPE_P1_BD		0x0000
+#define NETXEN_BRDTYPE_P1_SB		0x0001
+#define NETXEN_BRDTYPE_P1_SMAX		0x0002
+#define NETXEN_BRDTYPE_P1_SOCK		0x0003
 
-	NETXEN_BRDTYPE_P2_SOCK_31 = 0x0008,
-	NETXEN_BRDTYPE_P2_SOCK_35 = 0x0009,
-	NETXEN_BRDTYPE_P2_SB35_4G = 0x000a,
-	NETXEN_BRDTYPE_P2_SB31_10G = 0x000b,
-	NETXEN_BRDTYPE_P2_SB31_2G = 0x000c,
+#define NETXEN_BRDTYPE_P2_SOCK_31	0x0008
+#define NETXEN_BRDTYPE_P2_SOCK_35	0x0009
+#define NETXEN_BRDTYPE_P2_SB35_4G	0x000a
+#define NETXEN_BRDTYPE_P2_SB31_10G	0x000b
+#define NETXEN_BRDTYPE_P2_SB31_2G	0x000c
 
-	NETXEN_BRDTYPE_P2_SB31_10G_IMEZ = 0x000d,
-	NETXEN_BRDTYPE_P2_SB31_10G_HMEZ = 0x000e,
-	NETXEN_BRDTYPE_P2_SB31_10G_CX4 = 0x000f,
+#define NETXEN_BRDTYPE_P2_SB31_10G_IMEZ		0x000d
+#define NETXEN_BRDTYPE_P2_SB31_10G_HMEZ		0x000e
+#define NETXEN_BRDTYPE_P2_SB31_10G_CX4		0x000f
 
-	NETXEN_BRDTYPE_P3_REF_QG = 0x0021,
-	NETXEN_BRDTYPE_P3_HMEZ = 0x0022,
-	NETXEN_BRDTYPE_P3_10G_CX4_LP = 0x0023,
-	NETXEN_BRDTYPE_P3_4_GB = 0x0024,
-	NETXEN_BRDTYPE_P3_IMEZ = 0x0025,
-	NETXEN_BRDTYPE_P3_10G_SFP_PLUS = 0x0026,
-	NETXEN_BRDTYPE_P3_10000_BASE_T = 0x0027,
-	NETXEN_BRDTYPE_P3_XG_LOM = 0x0028,
-	NETXEN_BRDTYPE_P3_4_GB_MM = 0x0029,
-	NETXEN_BRDTYPE_P3_10G_SFP_CT = 0x002a,
-	NETXEN_BRDTYPE_P3_10G_SFP_QT = 0x002b,
-	NETXEN_BRDTYPE_P3_10G_CX4 = 0x0031,
-	NETXEN_BRDTYPE_P3_10G_XFP = 0x0032,
-	NETXEN_BRDTYPE_P3_10G_TP = 0x0080
-
-} netxen_brdtype_t;
-
-typedef enum {
-	NETXEN_BRDMFG_INVENTEC = 1
-} netxen_brdmfg;
-
-typedef enum {
-	MEM_ORG_128Mbx4 = 0x0,	/* DDR1 only */
-	MEM_ORG_128Mbx8 = 0x1,	/* DDR1 only */
-	MEM_ORG_128Mbx16 = 0x2,	/* DDR1 only */
-	MEM_ORG_256Mbx4 = 0x3,
-	MEM_ORG_256Mbx8 = 0x4,
-	MEM_ORG_256Mbx16 = 0x5,
-	MEM_ORG_512Mbx4 = 0x6,
-	MEM_ORG_512Mbx8 = 0x7,
-	MEM_ORG_512Mbx16 = 0x8,
-	MEM_ORG_1Gbx4 = 0x9,
-	MEM_ORG_1Gbx8 = 0xa,
-	MEM_ORG_1Gbx16 = 0xb,
-	MEM_ORG_2Gbx4 = 0xc,
-	MEM_ORG_2Gbx8 = 0xd,
-	MEM_ORG_2Gbx16 = 0xe,
-	MEM_ORG_128Mbx32 = 0x10002,	/* GDDR only */
-	MEM_ORG_256Mbx32 = 0x10005	/* GDDR only */
-} netxen_mn_mem_org_t;
-
-typedef enum {
-	MEM_ORG_512Kx36 = 0x0,
-	MEM_ORG_1Mx36 = 0x1,
-	MEM_ORG_2Mx36 = 0x2
-} netxen_sn_mem_org_t;
-
-typedef enum {
-	MEM_DEPTH_4MB = 0x1,
-	MEM_DEPTH_8MB = 0x2,
-	MEM_DEPTH_16MB = 0x3,
-	MEM_DEPTH_32MB = 0x4,
-	MEM_DEPTH_64MB = 0x5,
-	MEM_DEPTH_128MB = 0x6,
-	MEM_DEPTH_256MB = 0x7,
-	MEM_DEPTH_512MB = 0x8,
-	MEM_DEPTH_1GB = 0x9,
-	MEM_DEPTH_2GB = 0xa,
-	MEM_DEPTH_4GB = 0xb,
-	MEM_DEPTH_8GB = 0xc,
-	MEM_DEPTH_16GB = 0xd,
-	MEM_DEPTH_32GB = 0xe
-} netxen_mem_depth_t;
+#define NETXEN_BRDTYPE_P3_REF_QG	0x0021
+#define NETXEN_BRDTYPE_P3_HMEZ		0x0022
+#define NETXEN_BRDTYPE_P3_10G_CX4_LP	0x0023
+#define NETXEN_BRDTYPE_P3_4_GB		0x0024
+#define NETXEN_BRDTYPE_P3_IMEZ		0x0025
+#define NETXEN_BRDTYPE_P3_10G_SFP_PLUS	0x0026
+#define NETXEN_BRDTYPE_P3_10000_BASE_T	0x0027
+#define NETXEN_BRDTYPE_P3_XG_LOM	0x0028
+#define NETXEN_BRDTYPE_P3_4_GB_MM	0x0029
+#define NETXEN_BRDTYPE_P3_10G_SFP_CT	0x002a
+#define NETXEN_BRDTYPE_P3_10G_SFP_QT	0x002b
+#define NETXEN_BRDTYPE_P3_10G_CX4	0x0031
+#define NETXEN_BRDTYPE_P3_10G_XFP	0x0032
+#define NETXEN_BRDTYPE_P3_10G_TP	0x0080
 
 struct netxen_board_info {
 	u32 header_version;
@@ -676,17 +598,15 @@ struct netxen_new_user_info {
 #define PRIMARY_IMAGE_BAD	0xffffffff
 
 /* Flash memory map */
-typedef enum {
-	NETXEN_CRBINIT_START = 0,	/* Crbinit section */
-	NETXEN_BRDCFG_START = 0x4000,	/* board config */
-	NETXEN_INITCODE_START = 0x6000,	/* pegtune code */
-	NETXEN_BOOTLD_START = 0x10000,	/* bootld */
-	NETXEN_IMAGE_START = 0x43000,	/* compressed image */
-	NETXEN_SECONDARY_START = 0x200000,	/* backup images */
-	NETXEN_PXE_START = 0x3E0000,	/* user defined region */
-	NETXEN_USER_START = 0x3E8000,	/* User defined region for new boards */
-	NETXEN_FIXED_START = 0x3F0000	/* backup of crbinit */
-} netxen_flash_map_t;
+#define NETXEN_CRBINIT_START	0	/* crbinit section */
+#define NETXEN_BRDCFG_START	0x4000	/* board config */
+#define NETXEN_INITCODE_START	0x6000	/* pegtune code */
+#define NETXEN_BOOTLD_START	0x10000	/* bootld */
+#define NETXEN_IMAGE_START	0x43000	/* compressed image */
+#define NETXEN_SECONDARY_START	0x200000	/* backup images */
+#define NETXEN_PXE_START	0x3E0000	/* PXE boot rom */
+#define NETXEN_USER_START	0x3E8000	/* Firmare info */
+#define NETXEN_FIXED_START	0x3F0000	/* backup of crbinit */
 
 #define NX_FW_VERSION_OFFSET	(NETXEN_USER_START+0x408)
 #define NX_FW_SIZE_OFFSET	(NETXEN_USER_START+0x40c)
@@ -708,20 +628,7 @@ typedef enum {
 #define NETXEN_FLASH_SECONDARY_SIZE 	(NETXEN_USER_START-NETXEN_SECONDARY_START)
 #define NETXEN_NUM_PRIMARY_SECTORS	(0x20)
 #define NETXEN_NUM_CONFIG_SECTORS 	(1)
-#define PFX "NetXen: "
 extern char netxen_nic_driver_name[];
-
-/* Note: Make sure to not call this before adapter->port is valid */
-#if !defined(NETXEN_DEBUG)
-#define DPRINTK(klevel, fmt, args...)	do { \
-	} while (0)
-#else
-#define DPRINTK(klevel, fmt, args...)	do { \
-	printk(KERN_##klevel PFX "%s: %s: " fmt, __func__,\
-		(adapter != NULL && adapter->netdev != NULL) ? \
-		adapter->netdev->name : NULL, \
-		## args); } while(0)
-#endif
 
 /* Number of status descriptors to handle per interrupt */
 #define MAX_STATUS_HANDLE	(64)
@@ -807,20 +714,14 @@ struct netxen_hardware_context {
 #define ETHERNET_FCS_SIZE		4
 
 struct netxen_adapter_stats {
-	u64  rcvdbadskb;
 	u64  xmitcalled;
-	u64  xmitedframes;
 	u64  xmitfinished;
-	u64  badskblen;
-	u64  nocmddescriptor;
-	u64  polled;
 	u64  rxdropped;
 	u64  txdropped;
 	u64  csummed;
 	u64  no_rcv;
 	u64  rxbytes;
 	u64  txbytes;
-	u64  ints;
 };
 
 /*
@@ -1154,26 +1055,53 @@ typedef struct {
 
 #define NX_MAC_EVENT		0x1
 
-enum {
-	NX_NIC_H2C_OPCODE_START = 0,
-	NX_NIC_H2C_OPCODE_CONFIG_RSS,
-	NX_NIC_H2C_OPCODE_CONFIG_RSS_TBL,
-	NX_NIC_H2C_OPCODE_CONFIG_INTR_COALESCE,
-	NX_NIC_H2C_OPCODE_CONFIG_LED,
-	NX_NIC_H2C_OPCODE_CONFIG_PROMISCUOUS,
-	NX_NIC_H2C_OPCODE_CONFIG_L2_MAC,
-	NX_NIC_H2C_OPCODE_LRO_REQUEST,
-	NX_NIC_H2C_OPCODE_GET_SNMP_STATS,
-	NX_NIC_H2C_OPCODE_PROXY_START_REQUEST,
-	NX_NIC_H2C_OPCODE_PROXY_STOP_REQUEST,
-	NX_NIC_H2C_OPCODE_PROXY_SET_MTU,
-	NX_NIC_H2C_OPCODE_PROXY_SET_VPORT_MISS_MODE,
-	NX_H2P_OPCODE_GET_FINGER_PRINT_REQUEST,
-	NX_H2P_OPCODE_INSTALL_LICENSE_REQUEST,
-	NX_H2P_OPCODE_GET_LICENSE_CAPABILITY_REQUEST,
-	NX_NIC_H2C_OPCODE_GET_NET_STATS,
-	NX_NIC_H2C_OPCODE_LAST
-};
+/*
+ * Driver --> Firmware
+ */
+#define NX_NIC_H2C_OPCODE_START				0
+#define NX_NIC_H2C_OPCODE_CONFIG_RSS			1
+#define NX_NIC_H2C_OPCODE_CONFIG_RSS_TBL		2
+#define NX_NIC_H2C_OPCODE_CONFIG_INTR_COALESCE		3
+#define NX_NIC_H2C_OPCODE_CONFIG_LED			4
+#define NX_NIC_H2C_OPCODE_CONFIG_PROMISCUOUS		5
+#define NX_NIC_H2C_OPCODE_CONFIG_L2_MAC			6
+#define NX_NIC_H2C_OPCODE_LRO_REQUEST			7
+#define NX_NIC_H2C_OPCODE_GET_SNMP_STATS		8
+#define NX_NIC_H2C_OPCODE_PROXY_START_REQUEST		9
+#define NX_NIC_H2C_OPCODE_PROXY_STOP_REQUEST		10
+#define NX_NIC_H2C_OPCODE_PROXY_SET_MTU			11
+#define NX_NIC_H2C_OPCODE_PROXY_SET_VPORT_MISS_MODE	12
+#define NX_NIC_H2C_OPCODE_GET_FINGER_PRINT_REQUEST	13
+#define NX_NIC_H2C_OPCODE_INSTALL_LICENSE_REQUEST	14
+#define NX_NIC_H2C_OPCODE_GET_LICENSE_CAPABILITY_REQUEST	15
+#define NX_NIC_H2C_OPCODE_GET_NET_STATS			16
+#define NX_NIC_H2C_OPCODE_PROXY_UPDATE_P2V		17
+#define NX_NIC_H2C_OPCODE_CONFIG_IPADDR			18
+#define NX_NIC_H2C_OPCODE_CONFIG_LOOPBACK		19
+#define NX_NIC_H2C_OPCODE_PROXY_STOP_DONE		20
+#define NX_NIC_H2C_OPCODE_GET_LINKEVENT			21
+#define NX_NIC_C2C_OPCODE				22
+#define NX_NIC_H2C_OPCODE_LAST				23
+
+/*
+ * Firmware --> Driver
+ */
+
+#define NX_NIC_C2H_OPCODE_START				128
+#define NX_NIC_C2H_OPCODE_CONFIG_RSS_RESPONSE		129
+#define NX_NIC_C2H_OPCODE_CONFIG_RSS_TBL_RESPONSE	130
+#define NX_NIC_C2H_OPCODE_CONFIG_MAC_RESPONSE		131
+#define NX_NIC_C2H_OPCODE_CONFIG_PROMISCUOUS_RESPONSE	132
+#define NX_NIC_C2H_OPCODE_CONFIG_L2_MAC_RESPONSE	133
+#define NX_NIC_C2H_OPCODE_LRO_DELETE_RESPONSE		134
+#define NX_NIC_C2H_OPCODE_LRO_ADD_FAILURE_RESPONSE	135
+#define NX_NIC_C2H_OPCODE_GET_SNMP_STATS		136
+#define NX_NIC_C2H_OPCODE_GET_FINGER_PRINT_REPLY	137
+#define NX_NIC_C2H_OPCODE_INSTALL_LICENSE_REPLY		138
+#define NX_NIC_C2H_OPCODE_GET_LICENSE_CAPABILITIES_REPLY 139
+#define NX_NIC_C2H_OPCODE_GET_NET_STATS_RESPONSE	140
+#define NX_NIC_C2H_OPCODE_GET_LINKEVENT_RESPONSE	141
+#define NX_NIC_C2H_OPCODE_LAST				142
 
 #define VPORT_MISS_MODE_DROP		0 /* drop all unmatched */
 #define VPORT_MISS_MODE_ACCEPT_ALL	1 /* accept all packets */
@@ -1491,7 +1419,7 @@ void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 
 #define NETXEN_MAX_SHORT_NAME 32
 struct netxen_brdinfo {
-	netxen_brdtype_t brdtype;	/* type of board */
+	int brdtype;	/* type of board */
 	long ports;		/* max no of physical ports */
 	char short_name[NETXEN_MAX_SHORT_NAME];
 };

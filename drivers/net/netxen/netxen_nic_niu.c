@@ -342,9 +342,9 @@ static void netxen_niu_gbe_set_mii_mode(struct netxen_adapter *adapter,
 	}
 
 	if (netxen_niu_gbe_enable_phy_interrupts(adapter))
-		printk(KERN_ERR PFX "ERROR enabling PHY interrupts\n");
+		printk(KERN_ERR "ERROR enabling PHY interrupts\n");
 	if (netxen_niu_gbe_clear_phy_interrupts(adapter))
-		printk(KERN_ERR PFX "ERROR clearing PHY interrupts\n");
+		printk(KERN_ERR "ERROR clearing PHY interrupts\n");
 }
 
 /*
@@ -380,9 +380,9 @@ static void netxen_niu_gbe_set_gmii_mode(struct netxen_adapter *adapter,
 	}
 
 	if (netxen_niu_gbe_enable_phy_interrupts(adapter))
-		printk(KERN_ERR PFX "ERROR enabling PHY interrupts\n");
+		printk(KERN_ERR "ERROR enabling PHY interrupts\n");
 	if (netxen_niu_gbe_clear_phy_interrupts(adapter))
-		printk(KERN_ERR PFX "ERROR clearing PHY interrupts\n");
+		printk(KERN_ERR "ERROR clearing PHY interrupts\n");
 }
 
 int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
@@ -428,13 +428,13 @@ int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port)
 						    |
 						    NETXEN_GB_MAC_PAUSED_FRMS);
 			if (netxen_niu_gbe_clear_phy_interrupts(adapter))
-				printk(KERN_ERR PFX
+				printk(KERN_ERR
 				       "ERROR clearing PHY interrupts\n");
 			if (netxen_niu_gbe_enable_phy_interrupts(adapter))
-				printk(KERN_ERR PFX
+				printk(KERN_ERR
 				       "ERROR enabling PHY interrupts\n");
 			if (netxen_niu_gbe_clear_phy_interrupts(adapter))
-				printk(KERN_ERR PFX
+				printk(KERN_ERR
 				       "ERROR clearing PHY interrupts\n");
 			result = -1;
 		}
