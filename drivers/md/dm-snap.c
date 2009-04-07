@@ -22,7 +22,6 @@
 #include <linux/workqueue.h>
 
 #include "dm-exception-store.h"
-#include "dm-bio-list.h"
 
 #define DM_MSG_PREFIX "snapshots"
 
