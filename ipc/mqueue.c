@@ -88,7 +88,6 @@ static const struct file_operations mqueue_file_operations;
 static struct super_operations mqueue_super_ops;
 static void remove_notification(struct mqueue_inode_info *info);
 
-static spinlock_t mq_lock;
 static struct kmem_cache *mqueue_inode_cachep;
 
 static struct ctl_table_header * mq_sysctl_table;
@@ -98,27 +97,30 @@ static inline struct mqueue_inode_info *MQUEUE_I(struct inode *inode)
 	return container_of(inode, struct mqueue_inode_info, vfs_inode);
 }
 
-void mq_init_ns(struct ipc_namespace *ns)
+/*
+ * This routine should be called with the mq_lock held.
+ */
+static inline struct ipc_namespace *__get_ns_from_inode(struct inode *inode)
 {
-	ns->mq_queues_count  = 0;
-	ns->mq_queues_max    = DFLT_QUEUESMAX;
-	ns->mq_msg_max       = DFLT_MSGMAX;
-	ns->mq_msgsize_max   = DFLT_MSGSIZEMAX;
-	ns->mq_mnt           = mntget(init_ipc_ns.mq_mnt);
+	return get_ipc_ns(inode->i_sb->s_fs_info);
 }
 
-void mq_exit_ns(struct ipc_namespace *ns)
+static struct ipc_namespace *get_ns_from_inode(struct inode *inode)
 {
-	/* will need to clear out ns->mq_mnt->mnt_sb->s_fs_info here */
-	mntput(ns->mq_mnt);
+	struct ipc_namespace *ns;
+
+	spin_lock(&mq_lock);
+	ns = __get_ns_from_inode(inode);
+	spin_unlock(&mq_lock);
+	return ns;
 }
 
-static struct inode *mqueue_get_inode(struct super_block *sb, int mode,
-							struct mq_attr *attr)
+static struct inode *mqueue_get_inode(struct super_block *sb,
+		struct ipc_namespace *ipc_ns, int mode,
+		struct mq_attr *attr)
 {
 	struct user_struct *u = current_user();
 	struct inode *inode;
-	struct ipc_namespace *ipc_ns = &init_ipc_ns;
 
 	inode = new_inode(sb);
 	if (inode) {
@@ -193,30 +195,38 @@ out_inode:
 static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
+	struct ipc_namespace *ns = data;
+	int error = 0;
 
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = MQUEUE_MAGIC;
 	sb->s_op = &mqueue_super_ops;
 
-	inode = mqueue_get_inode(sb, S_IFDIR | S_ISVTX | S_IRWXUGO, NULL);
-	if (!inode)
-		return -ENOMEM;
+	inode = mqueue_get_inode(sb, ns, S_IFDIR | S_ISVTX | S_IRWXUGO,
+				NULL);
+	if (!inode) {
+		error = -ENOMEM;
+		goto out;
+	}
 
 	sb->s_root = d_alloc_root(inode);
 	if (!sb->s_root) {
 		iput(inode);
-		return -ENOMEM;
+		error = -ENOMEM;
 	}
 
-	return 0;
+out:
+	return error;
 }
 
 static int mqueue_get_sb(struct file_system_type *fs_type,
 			 int flags, const char *dev_name,
 			 void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, mqueue_fill_super, mnt);
+	if (!(flags & MS_KERNMOUNT))
+		data = current->nsproxy->ipc_ns;
+	return get_sb_ns(fs_type, flags, data, mqueue_fill_super, mnt);
 }
 
 static void init_once(void *foo)
@@ -247,12 +257,13 @@ static void mqueue_delete_inode(struct inode *inode)
 	struct user_struct *user;
 	unsigned long mq_bytes;
 	int i;
-	struct ipc_namespace *ipc_ns = &init_ipc_ns;
+	struct ipc_namespace *ipc_ns;
 
 	if (S_ISDIR(inode->i_mode)) {
 		clear_inode(inode);
 		return;
 	}
+	ipc_ns = get_ns_from_inode(inode);
 	info = MQUEUE_I(inode);
 	spin_lock(&info->lock);
 	for (i = 0; i < info->attr.mq_curmsgs; i++)
@@ -268,10 +279,19 @@ static void mqueue_delete_inode(struct inode *inode)
 	if (user) {
 		spin_lock(&mq_lock);
 		user->mq_bytes -= mq_bytes;
-		ipc_ns->mq_queues_count--;
+		/*
+		 * get_ns_from_inode() ensures that the
+		 * (ipc_ns = sb->s_fs_info) is either a valid ipc_ns
+		 * to which we now hold a reference, or it is NULL.
+		 * We can't put it here under mq_lock, though.
+		 */
+		if (ipc_ns)
+			ipc_ns->mq_queues_count--;
 		spin_unlock(&mq_lock);
 		free_uid(user);
 	}
+	if (ipc_ns)
+		put_ipc_ns(ipc_ns);
 }
 
 static int mqueue_create(struct inode *dir, struct dentry *dentry,
@@ -280,9 +300,14 @@ static int mqueue_create(struct inode *dir, struct dentry *dentry,
 	struct inode *inode;
 	struct mq_attr *attr = dentry->d_fsdata;
 	int error;
-	struct ipc_namespace *ipc_ns = &init_ipc_ns;
+	struct ipc_namespace *ipc_ns;
 
 	spin_lock(&mq_lock);
+	ipc_ns = __get_ns_from_inode(dir);
+	if (!ipc_ns) {
+		error = -EACCES;
+		goto out_unlock;
+	}
 	if (ipc_ns->mq_queues_count >= ipc_ns->mq_queues_max &&
 			!capable(CAP_SYS_RESOURCE)) {
 		error = -ENOSPC;
@@ -291,7 +316,7 @@ static int mqueue_create(struct inode *dir, struct dentry *dentry,
 	ipc_ns->mq_queues_count++;
 	spin_unlock(&mq_lock);
 
-	inode = mqueue_get_inode(dir->i_sb, mode, attr);
+	inode = mqueue_get_inode(dir->i_sb, ipc_ns, mode, attr);
 	if (!inode) {
 		error = -ENOMEM;
 		spin_lock(&mq_lock);
@@ -299,6 +324,7 @@ static int mqueue_create(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 	}
 
+	put_ipc_ns(ipc_ns);
 	dir->i_size += DIRENT_SIZE;
 	dir->i_ctime = dir->i_mtime = dir->i_atime = CURRENT_TIME;
 
@@ -307,6 +333,8 @@ static int mqueue_create(struct inode *dir, struct dentry *dentry,
 	return 0;
 out_unlock:
 	spin_unlock(&mq_lock);
+	if (ipc_ns)
+		put_ipc_ns(ipc_ns);
 	return error;
 }
 
@@ -668,7 +696,7 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
 	char *name;
 	struct mq_attr attr;
 	int fd, error;
-	struct ipc_namespace *ipc_ns = &init_ipc_ns;
+	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
 
 	if (u_attr && copy_from_user(&attr, u_attr, sizeof(struct mq_attr)))
 		return -EFAULT;
@@ -738,7 +766,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 	char *name;
 	struct dentry *dentry;
 	struct inode *inode = NULL;
-	struct ipc_namespace *ipc_ns = &init_ipc_ns;
+	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
 
 	name = getname(u_name);
 	if (IS_ERR(name))
@@ -1217,6 +1245,32 @@ static struct file_system_type mqueue_fs_type = {
 	.kill_sb = kill_litter_super,
 };
 
+int mq_init_ns(struct ipc_namespace *ns)
+{
+	ns->mq_queues_count  = 0;
+	ns->mq_queues_max    = DFLT_QUEUESMAX;
+	ns->mq_msg_max       = DFLT_MSGMAX;
+	ns->mq_msgsize_max   = DFLT_MSGSIZEMAX;
+
+	ns->mq_mnt = kern_mount_data(&mqueue_fs_type, ns);
+	if (IS_ERR(ns->mq_mnt)) {
+		int err = PTR_ERR(ns->mq_mnt);
+		ns->mq_mnt = NULL;
+		return err;
+	}
+	return 0;
+}
+
+void mq_clear_sbinfo(struct ipc_namespace *ns)
+{
+	ns->mq_mnt->mnt_sb->s_fs_info = NULL;
+}
+
+void mq_put_mnt(struct ipc_namespace *ns)
+{
+	mntput(ns->mq_mnt);
+}
+
 static int msg_max_limit_min = MIN_MSGMAX;
 static int msg_max_limit_max = MAX_MSGMAX;
 
@@ -1288,14 +1342,13 @@ static int __init init_mqueue_fs(void)
 	if (error)
 		goto out_sysctl;
 
-	init_ipc_ns.mq_mnt = kern_mount(&mqueue_fs_type);
+	spin_lock_init(&mq_lock);
+
+	init_ipc_ns.mq_mnt = kern_mount_data(&mqueue_fs_type, &init_ipc_ns);
 	if (IS_ERR(init_ipc_ns.mq_mnt)) {
 		error = PTR_ERR(init_ipc_ns.mq_mnt);
 		goto out_filesystem;
 	}
-
-	/* internal initialization - not common for vfs */
-	spin_lock_init(&mq_lock);
 
 	return 0;
 

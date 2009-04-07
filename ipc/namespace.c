@@ -9,23 +9,31 @@
 #include <linux/rcupdate.h>
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
+#include <linux/fs.h>
+#include <linux/mount.h>
 
 #include "util.h"
 
 static struct ipc_namespace *clone_ipc_ns(struct ipc_namespace *old_ns)
 {
 	struct ipc_namespace *ns;
+	int err;
 
 	ns = kmalloc(sizeof(struct ipc_namespace), GFP_KERNEL);
 	if (ns == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	atomic_set(&ns->count, 1);
+	err = mq_init_ns(ns);
+	if (err) {
+		kfree(ns);
+		return ERR_PTR(err);
+	}
 	atomic_inc(&nr_ipc_ns);
 
 	sem_init_ns(ns);
 	msg_init_ns(ns);
 	shm_init_ns(ns);
-	mq_init_ns(ns);
 
 	/*
 	 * msgmni has already been computed for the new ipc ns.
@@ -35,7 +43,6 @@ static struct ipc_namespace *clone_ipc_ns(struct ipc_namespace *old_ns)
 	ipcns_notify(IPCNS_CREATED);
 	register_ipcns_notifier(ns);
 
-	kref_init(&ns->kref);
 	return ns;
 }
 
@@ -85,11 +92,34 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 	up_write(&ids->rw_mutex);
 }
 
-void free_ipc_ns(struct kref *kref)
+/*
+ * put_ipc_ns - drop a reference to an ipc namespace.
+ * @ns: the namespace to put
+ *
+ * If this is the last task in the namespace exiting, and
+ * it is dropping the refcount to 0, then it can race with
+ * a task in another ipc namespace but in a mounts namespace
+ * which has this ipcns's mqueuefs mounted, doing some action
+ * with one of the mqueuefs files.  That can raise the refcount.
+ * So dropping the refcount, and raising the refcount when
+ * accessing it through the VFS, are protected with mq_lock.
+ *
+ * (Clearly, a task raising the refcount on its own ipc_ns
+ * needn't take mq_lock since it can't race with the last task
+ * in the ipcns exiting).
+ */
+void put_ipc_ns(struct ipc_namespace *ns)
 {
-	struct ipc_namespace *ns;
+	if (atomic_dec_and_lock(&ns->count, &mq_lock)) {
+		mq_clear_sbinfo(ns);
+		spin_unlock(&mq_lock);
+		mq_put_mnt(ns);
+		free_ipc_ns(ns);
+	}
+}
 
-	ns = container_of(kref, struct ipc_namespace, kref);
+void free_ipc_ns(struct ipc_namespace *ns)
+{
 	/*
 	 * Unregistering the hotplug notifier at the beginning guarantees
 	 * that the ipc namespace won't be freed while we are inside the
@@ -102,7 +132,6 @@ void free_ipc_ns(struct kref *kref)
 	sem_exit_ns(ns);
 	msg_exit_ns(ns);
 	shm_exit_ns(ns);
-	mq_exit_ns(ns);
 	kfree(ns);
 	atomic_dec(&nr_ipc_ns);
 
