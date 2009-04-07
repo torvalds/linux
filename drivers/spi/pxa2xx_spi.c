@@ -54,6 +54,7 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 #define RESET_DMA_CHANNEL	(DCSR_NODESC | DMA_INT_MASK)
 #define IS_DMA_ALIGNED(x)	((((u32)(x)) & 0x07) == 0)
 #define MAX_DMA_LEN		8191
+#define DMA_ALIGNMENT		8
 
 /*
  * for testing SSCR1 changes that require SSP restart, basically
@@ -1498,6 +1499,7 @@ static int __init pxa2xx_spi_probe(struct platform_device *pdev)
 
 	master->bus_num = pdev->id;
 	master->num_chipselect = platform_info->num_chipselect;
+	master->dma_alignment = DMA_ALIGNMENT;
 	master->cleanup = cleanup;
 	master->setup = setup;
 	master->transfer = transfer;
