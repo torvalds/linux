@@ -1945,8 +1945,8 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	    !(err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))) {
 		pci_using_dac = 1;
 	} else {
-		if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) ||
-		    (err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))) {
+		if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) ||
+		    (err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))) {
 			printk(KERN_ERR "tehuti: No usable DMA configuration"
 					", aborting\n");
 			goto err_dma;

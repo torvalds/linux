@@ -1188,8 +1188,8 @@ qla2x00_config_dma_addressing(struct qla_hw_data *ha)
 		}
 	}
 
-	dma_set_mask(&ha->pdev->dev, DMA_32BIT_MASK);
-	pci_set_consistent_dma_mask(ha->pdev, DMA_32BIT_MASK);
+	dma_set_mask(&ha->pdev->dev, DMA_BIT_MASK(32));
+	pci_set_consistent_dma_mask(ha->pdev, DMA_BIT_MASK(32));
 }
 
 static void

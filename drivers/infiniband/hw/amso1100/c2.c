@@ -995,7 +995,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 			goto bail2;
 		}
 	} else {
-		ret = pci_set_dma_mask(pcidev, DMA_32BIT_MASK);
+		ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
 		if (ret < 0) {
 			printk(KERN_ERR PFX "32b DMA configuration failed\n");
 			goto bail2;

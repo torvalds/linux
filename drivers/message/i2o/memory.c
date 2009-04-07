@@ -187,7 +187,7 @@ int i2o_dma_alloc(struct device *dev, struct i2o_dma *addr, size_t len)
 	mutex_lock(&mem_lock);
 	if ((sizeof(dma_addr_t) > 4) && (pdev->dma_mask == DMA_BIT_MASK(64))) {
 		dma_64 = 1;
-		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			mutex_unlock(&mem_lock);
 			return -ENOMEM;
 		}

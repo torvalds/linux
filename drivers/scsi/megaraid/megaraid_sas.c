@@ -2499,11 +2499,11 @@ megasas_set_dma_mask(struct pci_dev *pdev)
 	if (IS_DMA64) {
 		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) {
 
-			if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0)
+			if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0)
 				goto fail_set_dma_mask;
 		}
 	} else {
-		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0)
+		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0)
 			goto fail_set_dma_mask;
 	}
 	return 0;

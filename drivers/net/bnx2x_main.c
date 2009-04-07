@@ -10988,7 +10988,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 			goto err_out_release;
 		}
 
-	} else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0) {
+	} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
 		printk(KERN_ERR PFX "System does not support DMA,"
 		       " aborting\n");
 		rc = -EIO;

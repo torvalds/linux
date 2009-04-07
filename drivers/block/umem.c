@@ -830,7 +830,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev,
 	  "Micro Memory(tm) controller found (PCI Mem Module (Battery Backup))\n");
 
 	if (pci_set_dma_mask(dev, DMA_BIT_MASK(64)) &&
-	    pci_set_dma_mask(dev, DMA_32BIT_MASK)) {
+	    pci_set_dma_mask(dev, DMA_BIT_MASK(32))) {
 		dev_printk(KERN_WARNING, &dev->dev, "NO suitable DMA found\n");
 		return  -ENOMEM;
 	}

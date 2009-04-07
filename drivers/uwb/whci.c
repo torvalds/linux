@@ -162,8 +162,8 @@ static int whci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	err = -ENXIO;
 	if (!pci_set_dma_mask(pci, DMA_BIT_MASK(64)))
 		pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(64));
-	else if (!pci_set_dma_mask(pci, DMA_32BIT_MASK))
-		pci_set_consistent_dma_mask(pci, DMA_32BIT_MASK);
+	else if (!pci_set_dma_mask(pci, DMA_BIT_MASK(32)))
+		pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(32));
 	else
 		goto error_dma;
 

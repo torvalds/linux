@@ -854,7 +854,7 @@ static u64 supported_dma_mask(struct b43legacy_wldev *dev)
 	tmp = b43legacy_read32(dev, mmio_base +
 			       B43legacy_DMA32_TXCTL);
 	if (tmp & B43legacy_DMA32_TXADDREXT_MASK)
-		return DMA_32BIT_MASK;
+		return DMA_BIT_MASK(32);
 
 	return DMA_30BIT_MASK;
 }
@@ -863,7 +863,7 @@ static enum b43legacy_dmatype dma_mask_to_engine_type(u64 dmamask)
 {
 	if (dmamask == DMA_30BIT_MASK)
 		return B43legacy_DMA_30BIT;
-	if (dmamask == DMA_32BIT_MASK)
+	if (dmamask == DMA_BIT_MASK(32))
 		return B43legacy_DMA_32BIT;
 	if (dmamask == DMA_BIT_MASK(64))
 		return B43legacy_DMA_64BIT;
@@ -1043,11 +1043,11 @@ static int b43legacy_dma_set_mask(struct b43legacy_wldev *dev, u64 mask)
 		if (!err)
 			break;
 		if (mask == DMA_BIT_MASK(64)) {
-			mask = DMA_32BIT_MASK;
+			mask = DMA_BIT_MASK(32);
 			fallback = 1;
 			continue;
 		}
-		if (mask == DMA_32BIT_MASK) {
+		if (mask == DMA_BIT_MASK(32)) {
 			mask = DMA_30BIT_MASK;
 			fallback = 1;
 			continue;

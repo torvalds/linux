@@ -855,9 +855,9 @@ static int __devinit probe(struct pci_dev *dev, const struct pci_device_id *id)
 		printk(KERN_DEBUG "Using a 64-bit DMA mask.\n");
 	} else
 #endif
-	if (!pci_set_dma_mask(dev, DMA_32BIT_MASK)) {
+	if (!pci_set_dma_mask(dev, DMA_BIT_MASK(32))) {
 		printk(KERN_DEBUG "Could not set 64-bit DMA mask.\n");
-		pci_set_consistent_dma_mask(dev, DMA_32BIT_MASK);
+		pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(32));
 		/* use 32-bit DMA */
 		printk(KERN_DEBUG "Using a 32-bit DMA mask.\n");
 	} else {

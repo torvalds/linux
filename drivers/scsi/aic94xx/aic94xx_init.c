@@ -793,8 +793,8 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 	if (!pci_set_dma_mask(dev, DMA_BIT_MASK(64))
 	    && !pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(64)))
 		;
-	else if (!pci_set_dma_mask(dev, DMA_32BIT_MASK)
-		 && !pci_set_consistent_dma_mask(dev, DMA_32BIT_MASK))
+	else if (!pci_set_dma_mask(dev, DMA_BIT_MASK(32))
+		 && !pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(32)))
 		;
 	else {
 		asd_printk("no suitable DMA mask for %s\n", pci_name(dev));

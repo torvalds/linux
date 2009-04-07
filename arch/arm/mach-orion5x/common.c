@@ -463,7 +463,7 @@ static struct platform_device orion5x_xor_shared = {
 	.resource	= orion5x_xor_shared_resources,
 };
 
-static u64 orion5x_xor_dmamask = DMA_32BIT_MASK;
+static u64 orion5x_xor_dmamask = DMA_BIT_MASK(32);
 
 static struct resource orion5x_xor0_resources[] = {
 	[0] = {

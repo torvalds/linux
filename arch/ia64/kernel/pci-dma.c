@@ -37,7 +37,7 @@ int force_iommu __read_mostly;
    to i386. */
 struct device fallback_dev = {
 	.init_name = "fallback device",
-	.coherent_dma_mask = DMA_32BIT_MASK,
+	.coherent_dma_mask = DMA_BIT_MASK(32),
 	.dma_mask = &fallback_dev.coherent_dma_mask,
 };
 

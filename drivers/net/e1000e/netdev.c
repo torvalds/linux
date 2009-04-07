@@ -2203,7 +2203,7 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 	tdba = tx_ring->dma;
 	tdlen = tx_ring->count * sizeof(struct e1000_tx_desc);
-	ew32(TDBAL, (tdba & DMA_32BIT_MASK));
+	ew32(TDBAL, (tdba & DMA_BIT_MASK(32)));
 	ew32(TDBAH, (tdba >> 32));
 	ew32(TDLEN, tdlen);
 	ew32(TDH, 0);
@@ -2459,7 +2459,7 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	 * the Base and Length of the Rx Descriptor Ring
 	 */
 	rdba = rx_ring->dma;
-	ew32(RDBAL, (rdba & DMA_32BIT_MASK));
+	ew32(RDBAL, (rdba & DMA_BIT_MASK(32)));
 	ew32(RDBAH, (rdba >> 32));
 	ew32(RDLEN, rdlen);
 	ew32(RDH, 0);
@@ -4769,10 +4769,10 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		if (!err)
 			pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			err = pci_set_consistent_dma_mask(pdev,
-							  DMA_32BIT_MASK);
+							  DMA_BIT_MASK(32));
 			if (err) {
 				dev_err(&pdev->dev, "No usable DMA "
 					"configuration, aborting\n");

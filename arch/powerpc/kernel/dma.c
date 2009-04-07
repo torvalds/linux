@@ -94,7 +94,7 @@ static int dma_direct_dma_supported(struct device *dev, u64 mask)
 	 * done via some global so platforms can set the limit in case
 	 * they have limited DMA windows
 	 */
-	return mask >= DMA_32BIT_MASK;
+	return mask >= DMA_BIT_MASK(32);
 #else
 	return 1;
 #endif

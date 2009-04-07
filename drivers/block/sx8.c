@@ -1597,7 +1597,7 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_dac = 1;
 	} else {
 #endif
-		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
 			printk(KERN_ERR DRV_NAME "(%s): DMA mask failure\n",
 				pci_name(pdev));

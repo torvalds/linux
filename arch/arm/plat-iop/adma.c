@@ -119,7 +119,7 @@ static struct resource iop3xx_aau_resources[] = {
 	}
 };
 
-static u64 iop3xx_adma_dmamask = DMA_32BIT_MASK;
+static u64 iop3xx_adma_dmamask = DMA_BIT_MASK(32);
 
 static struct iop_adma_platform_data iop3xx_dma_0_data = {
 	.hw_id = DMA0_ID,

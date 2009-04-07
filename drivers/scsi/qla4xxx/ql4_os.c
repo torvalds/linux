@@ -1375,10 +1375,10 @@ static void qla4xxx_config_dma_addressing(struct scsi_qla_host *ha)
 				  "Failed to set 64 bit PCI consistent mask; "
 				   "using 32 bit.\n");
 			retval = pci_set_consistent_dma_mask(ha->pdev,
-							     DMA_32BIT_MASK);
+							     DMA_BIT_MASK(32));
 		}
 	} else
-		retval = pci_set_dma_mask(ha->pdev, DMA_32BIT_MASK);
+		retval = pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(32));
 }
 
 static int qla4xxx_slave_alloc(struct scsi_device *sdev)

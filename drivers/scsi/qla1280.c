@@ -4276,7 +4276,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 #ifdef QLA_64BIT_PTR
 	if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(64))) {
-		if (pci_set_dma_mask(ha->pdev, DMA_32BIT_MASK)) {
+		if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(32))) {
 			printk(KERN_WARNING "scsi(%li): Unable to set a "
 			       "suitable DMA mask - aborting\n", ha->host_no);
 			error = -ENODEV;
@@ -4286,7 +4286,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		dprintk(2, "scsi(%li): 64 Bit PCI Addressing Enabled\n",
 			ha->host_no);
 #else
-	if (pci_set_dma_mask(ha->pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING "scsi(%li): Unable to set a "
 		       "suitable DMA mask - aborting\n", ha->host_no);
 		error = -ENODEV;

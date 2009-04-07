@@ -1095,8 +1095,8 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 		goto out;
 	error = -ENODEV;
 
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) ||
-			pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) ||
+			pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))
 		goto out_disable_pdev;
 	/*
 	 * If the quirk31 bit is set, the adapter needs adapter
@@ -1154,7 +1154,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 * address space.
 	 */
 	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT)
-		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK))
+		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
 			goto out_deinit;
 
 	aac->maximum_num_channels = aac_drivers[index].channels;

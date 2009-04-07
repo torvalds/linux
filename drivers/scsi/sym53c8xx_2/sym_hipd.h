@@ -1080,7 +1080,7 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
  */
 
 #if   SYM_CONF_DMA_ADDRESSING_MODE == 0
-#define DMA_DAC_MASK	DMA_32BIT_MASK
+#define DMA_DAC_MASK	DMA_BIT_MASK(32)
 #define sym_build_sge(np, data, badd, len)	\
 do {						\
 	(data)->addr = cpu_to_scr(badd);	\

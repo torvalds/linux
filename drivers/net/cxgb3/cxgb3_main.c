@@ -3046,7 +3046,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 			       "coherent allocations\n");
 			goto out_disable_device;
 		}
-	} else if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) != 0) {
+	} else if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) != 0) {
 		dev_err(&pdev->dev, "no usable DMA configuration\n");
 		goto out_disable_device;
 	}

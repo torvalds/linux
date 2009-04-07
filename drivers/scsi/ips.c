@@ -7051,7 +7051,7 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	    !pci_set_dma_mask(ha->pcidev, DMA_BIT_MASK(64))) {
 		(ha)->flags |= IPS_HA_ENH_SG;
 	} else {
-		if (pci_set_dma_mask(ha->pcidev, DMA_32BIT_MASK) != 0) {
+		if (pci_set_dma_mask(ha->pcidev, DMA_BIT_MASK(32)) != 0) {
 			printk(KERN_WARNING "Unable to set DMA Mask\n");
 			return ips_abort_init(ha, index);
 		}

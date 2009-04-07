@@ -1530,7 +1530,7 @@ static void cp_get_ethtool_stats (struct net_device *dev,
 
 	/* begin NIC statistics dump */
 	cpw32(StatsAddr + 4, (u64)dma >> 32);
-	cpw32(StatsAddr, ((u64)dma & DMA_32BIT_MASK) | DumpStats);
+	cpw32(StatsAddr, ((u64)dma & DMA_BIT_MASK(32)) | DumpStats);
 	cpr32(StatsAddr);
 
 	for (i = 0; i < 1000; i++) {
@@ -1935,13 +1935,13 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		pci_using_dac = 0;
 
-		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_err(&pdev->dev,
 				   "No usable DMA configuration, aborting.\n");
 			goto err_out_res;
 		}
-		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_err(&pdev->dev,
 				   "No usable consistent DMA configuration, "

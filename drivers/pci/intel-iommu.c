@@ -56,7 +56,7 @@
 #define DOMAIN_MAX_ADDR(gaw) ((((u64)1) << gaw) - 1)
 
 #define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
-#define DMA_32BIT_PFN		IOVA_PFN(DMA_32BIT_MASK)
+#define DMA_32BIT_PFN		IOVA_PFN(DMA_BIT_MASK(32))
 #define DMA_64BIT_PFN		IOVA_PFN(DMA_BIT_MASK(64))
 
 /* global iommu list, set NULL for ignored DMAR units */
@@ -2080,15 +2080,15 @@ __intel_alloc_iova(struct device *dev, struct dmar_domain *domain,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct iova *iova = NULL;
 
-	if (dma_mask <= DMA_32BIT_MASK || dmar_forcedac)
+	if (dma_mask <= DMA_BIT_MASK(32) || dmar_forcedac)
 		iova = iommu_alloc_iova(domain, size, dma_mask);
 	else {
 		/*
 		 * First try to allocate an io virtual address in
-		 * DMA_32BIT_MASK and if that fails then try allocating
+		 * DMA_BIT_MASK(32) and if that fails then try allocating
 		 * from higher range
 		 */
-		iova = iommu_alloc_iova(domain, size, DMA_32BIT_MASK);
+		iova = iommu_alloc_iova(domain, size, DMA_BIT_MASK(32));
 		if (!iova)
 			iova = iommu_alloc_iova(domain, size, dma_mask);
 	}

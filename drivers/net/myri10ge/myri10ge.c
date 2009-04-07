@@ -1130,7 +1130,7 @@ myri10ge_submit_8rx(struct mcp_kreq_ether_recv __iomem * dst,
 	__be32 low;
 
 	low = src->addr_low;
-	src->addr_low = htonl(DMA_32BIT_MASK);
+	src->addr_low = htonl(DMA_BIT_MASK(32));
 	myri10ge_pio_copy(dst, src, 4 * sizeof(*src));
 	mb();
 	myri10ge_pio_copy(dst + 4, src + 4, 4 * sizeof(*src));
@@ -3798,7 +3798,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev,
 			"64-bit pci address mask was refused, "
 			"trying 32-bit\n");
-		status = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		status = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	}
 	if (status != 0) {
 		dev_err(&pdev->dev, "Error %d setting DMA mask\n", status);

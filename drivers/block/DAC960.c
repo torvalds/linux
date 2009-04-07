@@ -1169,9 +1169,9 @@ static bool DAC960_V1_EnableMemoryMailboxInterface(DAC960_Controller_T
   int i;
 
   
-  if (pci_set_dma_mask(Controller->PCIDevice, DMA_32BIT_MASK))
+  if (pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(32)))
 	return DAC960_Failure(Controller, "DMA mask out of range");
-  Controller->BounceBufferLimit = DMA_32BIT_MASK;
+  Controller->BounceBufferLimit = DMA_BIT_MASK(32);
 
   if ((hw_type == DAC960_PD_Controller) || (hw_type == DAC960_P_Controller)) {
     CommandMailboxesSize =  0;
@@ -1374,8 +1374,8 @@ static bool DAC960_V2_EnableMemoryMailboxInterface(DAC960_Controller_T
 
 	if (!pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(64)))
 		Controller->BounceBufferLimit = DMA_BIT_MASK(64);
-	else if (!pci_set_dma_mask(Controller->PCIDevice, DMA_32BIT_MASK))
-		Controller->BounceBufferLimit = DMA_32BIT_MASK;
+	else if (!pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(32)))
+		Controller->BounceBufferLimit = DMA_BIT_MASK(32);
 	else
 		return DAC960_Failure(Controller, "DMA mask out of range");
 

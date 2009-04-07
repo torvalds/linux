@@ -2242,7 +2242,7 @@ static int __devinit ipg_probe(struct pci_dev *pdev,
 
 	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(40));
 	if (rc < 0) {
-		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc < 0) {
 			printk(KERN_ERR "%s: DMA config failed.\n",
 			       pci_name(pdev));

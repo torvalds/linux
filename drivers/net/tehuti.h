@@ -99,10 +99,6 @@
 #define READ_REG(pp, reg)         readl(pp->pBdxRegs + reg)
 #define WRITE_REG(pp, reg, val)   writel(val, pp->pBdxRegs + reg)
 
-#ifndef DMA_32BIT_MASK
-#   define DMA_32BIT_MASK  0x00000000ffffffffULL
-#endif
-
 #ifndef NET_IP_ALIGN
 #   define NET_IP_ALIGN 2
 #endif
