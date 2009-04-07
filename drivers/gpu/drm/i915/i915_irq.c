@@ -48,10 +48,6 @@
 /** Interrupts that we mask and unmask at runtime. */
 #define I915_INTERRUPT_ENABLE_VAR (I915_USER_INTERRUPT)
 
-/** These are all of the interrupts used by the driver */
-#define I915_INTERRUPT_ENABLE_MASK (I915_INTERRUPT_ENABLE_FIX | \
-				    I915_INTERRUPT_ENABLE_VAR)
-
 #define I915_PIPE_VBLANK_STATUS	(PIPE_START_VBLANK_INTERRUPT_STATUS |\
 				 PIPE_VBLANK_INTERRUPT_STATUS)
 
@@ -187,6 +183,19 @@ u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 	return I915_READ(reg);
 }
 
+/*
+ * Handle hotplug events outside the interrupt handler proper.
+ */
+static void i915_hotplug_work_func(struct work_struct *work)
+{
+	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
+						    hotplug_work);
+	struct drm_device *dev = dev_priv->dev;
+
+	/* Just fire off a uevent and let userspace tell us what to do */
+	drm_sysfs_hotplug_event(dev);
+}
+
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -243,6 +252,20 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 			break;
 
 		ret = IRQ_HANDLED;
+
+		/* Consume port.  Then clear IIR or we'll miss events */
+		if ((I915_HAS_HOTPLUG(dev)) &&
+		    (iir & I915_DISPLAY_PORT_INTERRUPT)) {
+			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
+
+			DRM_DEBUG("hotplug event received, stat 0x%08x\n",
+				  hotplug_status);
+			if (hotplug_status & dev_priv->hotplug_supported_mask)
+				schedule_work(&dev_priv->hotplug_work);
+
+			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
+			I915_READ(PORT_HOTPLUG_STAT);
+		}
 
 		I915_WRITE(IIR, iir);
 		new_iir = I915_READ(IIR); /* Flush posted writes */
@@ -528,17 +551,24 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 
 	atomic_set(&dev_priv->irq_received, 0);
 
+	if (I915_HAS_HOTPLUG(dev)) {
+		I915_WRITE(PORT_HOTPLUG_EN, 0);
+		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
+	}
+
 	I915_WRITE(HWSTAM, 0xeffe);
 	I915_WRITE(PIPEASTAT, 0);
 	I915_WRITE(PIPEBSTAT, 0);
 	I915_WRITE(IMR, 0xffffffff);
 	I915_WRITE(IER, 0x0);
 	(void) I915_READ(IER);
+	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 }
 
 int i915_driver_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 enable_mask = I915_INTERRUPT_ENABLE_FIX | I915_INTERRUPT_ENABLE_VAR;
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 
@@ -550,13 +580,35 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	dev_priv->pipestat[0] = 0;
 	dev_priv->pipestat[1] = 0;
 
+	if (I915_HAS_HOTPLUG(dev)) {
+		u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
+
+		/* Leave other bits alone */
+		hotplug_en |= HOTPLUG_EN_MASK;
+		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
+
+		dev_priv->hotplug_supported_mask = CRT_HOTPLUG_INT_STATUS |
+			TV_HOTPLUG_INT_STATUS | SDVOC_HOTPLUG_INT_STATUS |
+			SDVOB_HOTPLUG_INT_STATUS;
+		if (IS_G4X(dev)) {
+			dev_priv->hotplug_supported_mask |=
+				HDMIB_HOTPLUG_INT_STATUS |
+				HDMIC_HOTPLUG_INT_STATUS |
+				HDMID_HOTPLUG_INT_STATUS;
+		}
+		/* Enable in IER... */
+		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
+		/* and unmask in IMR */
+		i915_enable_irq(dev_priv, I915_DISPLAY_PORT_INTERRUPT);
+	}
+
 	/* Disable pipe interrupt enables, clear pending pipe status */
 	I915_WRITE(PIPEASTAT, I915_READ(PIPEASTAT) & 0x8000ffff);
 	I915_WRITE(PIPEBSTAT, I915_READ(PIPEBSTAT) & 0x8000ffff);
 	/* Clear pending interrupt status */
 	I915_WRITE(IIR, I915_READ(IIR));
 
-	I915_WRITE(IER, I915_INTERRUPT_ENABLE_MASK);
+	I915_WRITE(IER, enable_mask);
 	I915_WRITE(IMR, dev_priv->irq_mask_reg);
 	(void) I915_READ(IER);
 
@@ -574,6 +626,11 @@ void i915_driver_irq_uninstall(struct drm_device * dev)
 		return;
 
 	dev_priv->vblank_pipe = 0;
+
+	if (I915_HAS_HOTPLUG(dev)) {
+		I915_WRITE(PORT_HOTPLUG_EN, 0);
+		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
+	}
 
 	I915_WRITE(HWSTAM, 0xffffffff);
 	I915_WRITE(PIPEASTAT, 0);

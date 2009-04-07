@@ -20,6 +20,20 @@ config HW_RANDOM
 
 	  If unsure, say Y.
 
+config HW_RANDOM_TIMERIOMEM
+	tristate "Timer IOMEM HW Random Number Generator support"
+	depends on HW_RANDOM && HAS_IOMEM
+	---help---
+	  This driver provides kernel-side support for a generic Random
+	  Number Generator used by reading a 'dumb' iomem address that
+	  is to be read no faster than, for example, once a second;
+	  the default FPGA bitstream on the TS-7800 has such functionality.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called timeriomem-rng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_INTEL
 	tristate "Intel HW Random Number Generator support"
 	depends on HW_RANDOM && (X86 || IA64) && PCI

@@ -13,7 +13,7 @@
 
 #include <linux/posix_types.h>
 
-#ifndef __KERNEL_STRICT_NAMES
+#ifdef __KERNEL__
 
 typedef __u32 __kernel_dev_t;
 
@@ -31,7 +31,6 @@ typedef __kernel_timer_t	timer_t;
 typedef __kernel_clockid_t	clockid_t;
 typedef __kernel_mqd_t		mqd_t;
 
-#ifdef __KERNEL__
 typedef _Bool			bool;
 
 typedef __kernel_uid32_t	uid_t;
@@ -46,14 +45,6 @@ typedef unsigned long		uintptr_t;
 typedef __kernel_old_uid_t	old_uid_t;
 typedef __kernel_old_gid_t	old_gid_t;
 #endif /* CONFIG_UID16 */
-
-/* libc5 includes this file to define uid_t, thus uid_t can never change
- * when it is included by non-kernel code
- */
-#else
-typedef __kernel_uid_t		uid_t;
-typedef __kernel_gid_t		gid_t;
-#endif /* __KERNEL__ */
 
 #if defined(__GNUC__)
 typedef __kernel_loff_t		loff_t;
@@ -156,7 +147,7 @@ typedef unsigned long blkcnt_t;
 #define pgoff_t unsigned long
 #endif
 
-#endif /* __KERNEL_STRICT_NAMES */
+#endif /* __KERNEL__ */
 
 /*
  * Below are truly Linux-specific types that should never collide with

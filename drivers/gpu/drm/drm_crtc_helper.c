@@ -42,6 +42,26 @@ static struct drm_display_mode std_modes[] = {
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
 };
 
+static void drm_mode_validate_flag(struct drm_connector *connector,
+				   int flags)
+{
+	struct drm_display_mode *mode, *t;
+
+	if (flags == (DRM_MODE_FLAG_DBLSCAN | DRM_MODE_FLAG_INTERLACE))
+		return;
+
+	list_for_each_entry_safe(mode, t, &connector->modes, head) {
+		if ((mode->flags & DRM_MODE_FLAG_INTERLACE) &&
+				!(flags & DRM_MODE_FLAG_INTERLACE))
+			mode->status = MODE_NO_INTERLACE;
+		if ((mode->flags & DRM_MODE_FLAG_DBLSCAN) &&
+				!(flags & DRM_MODE_FLAG_DBLSCAN))
+			mode->status = MODE_NO_DBLESCAN;
+	}
+
+	return;
+}
+
 /**
  * drm_helper_probe_connector_modes - get complete set of display modes
  * @dev: DRM device
@@ -72,6 +92,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	struct drm_connector_helper_funcs *connector_funcs =
 		connector->helper_private;
 	int count = 0;
+	int mode_flags = 0;
 
 	DRM_DEBUG("%s\n", drm_get_connector_name(connector));
 	/* set all modes to the unverified state */
@@ -96,6 +117,13 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	if (maxX && maxY)
 		drm_mode_validate_size(dev, &connector->modes, maxX,
 				       maxY, 0);
+
+	if (connector->interlace_allowed)
+		mode_flags |= DRM_MODE_FLAG_INTERLACE;
+	if (connector->doublescan_allowed)
+		mode_flags |= DRM_MODE_FLAG_DBLSCAN;
+	drm_mode_validate_flag(connector, mode_flags);
+
 	list_for_each_entry_safe(mode, t, &connector->modes, head) {
 		if (mode->status == MODE_OK)
 			mode->status = connector_funcs->mode_valid(connector,
@@ -885,7 +913,6 @@ bool drm_helper_plugged_event(struct drm_device *dev)
 /**
  * drm_initial_config - setup a sane initial connector configuration
  * @dev: DRM device
- * @can_grow: this configuration is growable
  *
  * LOCKING:
  * Called at init time, must take mode config lock.
@@ -897,7 +924,7 @@ bool drm_helper_plugged_event(struct drm_device *dev)
  * RETURNS:
  * Zero if everything went ok, nonzero otherwise.
  */
-bool drm_helper_initial_config(struct drm_device *dev, bool can_grow)
+bool drm_helper_initial_config(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 	int count = 0;

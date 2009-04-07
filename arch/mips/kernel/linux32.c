@@ -32,7 +32,6 @@
 #include <linux/module.h>
 #include <linux/binfmts.h>
 #include <linux/security.h>
-#include <linux/syscalls.h>
 #include <linux/compat.h>
 #include <linux/vfs.h>
 #include <linux/ipc.h>
@@ -134,9 +133,9 @@ SYSCALL_DEFINE4(32_ftruncate64, unsigned long, fd, unsigned long, __dummy,
 	return sys_ftruncate(fd, merge_64(a2, a3));
 }
 
-SYSCALL_DEFINE5(32_llseek, unsigned long, fd, unsigned long, offset_high,
-	unsigned long, offset_low, loff_t __user *, result,
-	unsigned long, origin)
+SYSCALL_DEFINE5(32_llseek, unsigned int, fd, unsigned int, offset_high,
+		unsigned int, offset_low, loff_t __user *, result,
+		unsigned int, origin)
 {
 	return sys_llseek(fd, offset_high, offset_low, result, origin);
 }
@@ -354,40 +353,6 @@ SYSCALL_DEFINE1(32_personality, unsigned long, personality)
 	if (ret == PER_LINUX32)
 		ret = PER_LINUX;
 	return ret;
-}
-
-/* ustat compatibility */
-struct ustat32 {
-	compat_daddr_t	f_tfree;
-	compat_ino_t	f_tinode;
-	char		f_fname[6];
-	char		f_fpack[6];
-};
-
-extern asmlinkage long sys_ustat(dev_t dev, struct ustat __user * ubuf);
-
-SYSCALL_DEFINE2(32_ustat, dev_t, dev, struct ustat32 __user *, ubuf32)
-{
-	int err;
-	struct ustat tmp;
-	struct ustat32 tmp32;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	err = sys_ustat(dev, (struct ustat __user *)&tmp);
-	set_fs(old_fs);
-
-	if (err)
-		goto out;
-
-	memset(&tmp32, 0, sizeof(struct ustat32));
-	tmp32.f_tfree = tmp.f_tfree;
-	tmp32.f_tinode = tmp.f_tinode;
-
-	err = copy_to_user(ubuf32, &tmp32, sizeof(struct ustat32)) ? -EFAULT : 0;
-
-out:
-	return err;
 }
 
 SYSCALL_DEFINE4(32_sendfile, long, out_fd, long, in_fd,

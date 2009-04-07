@@ -147,7 +147,7 @@ int trace_seq_putc(struct trace_seq *s, unsigned char c)
 	return 1;
 }
 
-int trace_seq_putmem(struct trace_seq *s, void *mem, size_t len)
+int trace_seq_putmem(struct trace_seq *s, const void *mem, size_t len)
 {
 	if (len > ((PAGE_SIZE - 1) - s->len))
 		return 0;
@@ -158,10 +158,10 @@ int trace_seq_putmem(struct trace_seq *s, void *mem, size_t len)
 	return len;
 }
 
-int trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
+int trace_seq_putmem_hex(struct trace_seq *s, const void *mem, size_t len)
 {
 	unsigned char hex[HEX_CHARS];
-	unsigned char *data = mem;
+	const unsigned char *data = mem;
 	int i, j;
 
 #ifdef __BIG_ENDIAN
@@ -175,6 +175,19 @@ int trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
 	hex[j++] = ' ';
 
 	return trace_seq_putmem(s, hex, j);
+}
+
+void *trace_seq_reserve(struct trace_seq *s, size_t len)
+{
+	void *ret;
+
+	if (len > ((PAGE_SIZE - 1) - s->len))
+		return NULL;
+
+	ret = s->buffer + s->len;
+	s->len += len;
+
+	return ret;
 }
 
 int trace_seq_path(struct trace_seq *s, struct path *path)

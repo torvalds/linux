@@ -33,7 +33,7 @@ choice
 	---help---
 	  This option selects the default rate control algorithm
 	  mac80211 will use. Note that this default can still be
-	  overriden through the ieee80211_default_rc_algo module
+	  overridden through the ieee80211_default_rc_algo module
 	  parameter if different algorithms are available.
 
 config MAC80211_RC_DEFAULT_PID

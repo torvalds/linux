@@ -1883,10 +1883,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x12, sd->brightness);
 }
 
-static void getbrightness(struct gspca_dev *gspca_dev)
-{
-}
-
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1897,19 +1893,11 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 				  sd->contrast & 0xff);
 }
 
-static void getcontrast(struct gspca_dev *gspca_dev)
-{
-}
-
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x0c, sd->colors);
-}
-
-static void getcolors(struct gspca_dev *gspca_dev)
-{
 }
 
 static void setblue_balance(struct gspca_dev *gspca_dev)
@@ -1934,7 +1922,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x01;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
 	sd->subtype = id->driver_info;
@@ -2084,7 +2071,6 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getbrightness(gspca_dev);
 	*val = sd->brightness;
 	return 0;
 }
@@ -2103,7 +2089,6 @@ static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getcontrast(gspca_dev);
 	*val = sd->contrast;
 	return 0;
 }
@@ -2122,7 +2107,6 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getcolors(gspca_dev);
 	*val = sd->colors;
 	return 0;
 }
@@ -2211,8 +2195,10 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	if (usb_register(&sd_driver) < 0)
-		return -1;
+	int ret;
+	ret = usb_register(&sd_driver);
+	if (ret < 0)
+		return ret;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }

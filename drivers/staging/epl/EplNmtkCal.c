@@ -69,8 +69,6 @@
 
 ****************************************************************************/
 
-#include "kernel/EplNmtkCal.h"
-
 // TODO: init function needed to prepare EplNmtkGetNmtState for
 //       io-controll-call from EplNmtuCal-Modul
 

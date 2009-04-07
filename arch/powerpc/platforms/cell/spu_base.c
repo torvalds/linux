@@ -114,7 +114,7 @@ static inline void mm_needs_global_tlbie(struct mm_struct *mm)
 	int nr = (NR_CPUS > 1) ? NR_CPUS : NR_CPUS + 1;
 
 	/* Global TLBIE broadcast required with SPEs. */
-	__cpus_setall(&mm->cpu_vm_mask, nr);
+	bitmap_fill(cpumask_bits(mm_cpumask(mm)), nr);
 }
 
 void spu_associate_mm(struct spu *spu, struct mm_struct *mm)

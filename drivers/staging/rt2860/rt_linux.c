@@ -48,10 +48,8 @@ BUILD_TIMER_FUNCTION(LeapAuthTimeout);
 #endif
 BUILD_TIMER_FUNCTION(StaQuickResponeForRateUpExec);
 BUILD_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
-#ifdef RT2860
 BUILD_TIMER_FUNCTION(PsPollWakeExec);
 BUILD_TIMER_FUNCTION(RadioOnExec);
-#endif // RT2860 //
 #ifdef QOS_DLS_SUPPORT
 BUILD_TIMER_FUNCTION(DlsTimeoutAction);
 #endif // QOS_DLS_SUPPORT //
@@ -293,9 +291,7 @@ VOID	RTMPFreeAdapter(
 
 	NdisFreeSpinLock(&pAd->MgmtRingLock);
 
-#ifdef RT2860
 	NdisFreeSpinLock(&pAd->RxRingLock);
-#endif // RT2860 //
 
 	for (index =0 ; index < NUM_OF_TX_RING; index++)
 	{
@@ -854,7 +850,7 @@ void send_monitor_packets(
 
     if (pRxBlk->DataSize + sizeof(wlan_ng_prism2_header) > RX_BUFFER_AGGRESIZE)
     {
-        DBGPRINT(RT_DEBUG_ERROR, ("%s : Size is too large! (%d)\n", __func__, pRxBlk->DataSize + sizeof(wlan_ng_prism2_header)));
+        DBGPRINT(RT_DEBUG_ERROR, ("%s : Size is too large! (%zu)\n", __func__, pRxBlk->DataSize + sizeof(wlan_ng_prism2_header)));
 		goto err_free_sk_buff;
     }
 
@@ -1005,35 +1001,14 @@ err_free_sk_buff:
 
 void rtmp_os_thread_init(PUCHAR pThreadName, PVOID pNotify)
 {
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	daemonize(pThreadName /*"%s",pAd->net_dev->name*/);
 
 	allow_signal(SIGTERM);
 	allow_signal(SIGKILL);
 	current->flags |= PF_NOFREEZE;
-#else
-	unsigned long flags;
 
-	daemonize();
-	reparent_to_init();
-	strcpy(current->comm, pThreadName);
-
-	siginitsetinv(&current->blocked, sigmask(SIGTERM) | sigmask(SIGKILL));
-
-	/* Allow interception of SIGKILL only
-	 * Don't allow other signals to interrupt the transmission */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,22)
-	spin_lock_irqsave(&current->sigmask_lock, flags);
-	flush_signals(current);
-	recalc_sigpending(current);
-	spin_unlock_irqrestore(&current->sigmask_lock, flags);
-#endif
-#endif
-
-    /* signal that we've started the thread */
+	/* signal that we've started the thread */
 	complete(pNotify);
-
 }
 
 void RTMP_IndicateMediaState(

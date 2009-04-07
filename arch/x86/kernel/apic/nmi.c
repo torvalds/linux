@@ -39,7 +39,7 @@
 int unknown_nmi_panic;
 int nmi_watchdog_enabled;
 
-static cpumask_t backtrace_mask = CPU_MASK_NONE;
+static cpumask_var_t backtrace_mask;
 
 /* nmi_active:
  * >0: the lapic NMI watchdog is active, but can be disabled
@@ -138,6 +138,7 @@ int __init check_nmi_watchdog(void)
 	if (!prev_nmi_count)
 		goto error;
 
+	alloc_cpumask_var(&backtrace_mask, GFP_KERNEL);
 	printk(KERN_INFO "Testing NMI watchdog ... ");
 
 #ifdef CONFIG_SMP
@@ -413,14 +414,14 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		touched = 1;
 	}
 
-	if (cpu_isset(cpu, backtrace_mask)) {
+	if (cpumask_test_cpu(cpu, backtrace_mask)) {
 		static DEFINE_SPINLOCK(lock);	/* Serialise the printks */
 
 		spin_lock(&lock);
 		printk(KERN_WARNING "NMI backtrace for cpu %d\n", cpu);
 		dump_stack();
 		spin_unlock(&lock);
-		cpu_clear(cpu, backtrace_mask);
+		cpumask_clear_cpu(cpu, backtrace_mask);
 	}
 
 	/* Could check oops_in_progress here too, but it's safer not to */
@@ -554,10 +555,10 @@ void __trigger_all_cpu_backtrace(void)
 {
 	int i;
 
-	backtrace_mask = cpu_online_map;
+	cpumask_copy(backtrace_mask, cpu_online_mask);
 	/* Wait for up to 10 seconds for all CPUs to do the backtrace */
 	for (i = 0; i < 10 * 1000; i++) {
-		if (cpus_empty(backtrace_mask))
+		if (cpumask_empty(backtrace_mask))
 			break;
 		mdelay(1);
 	}

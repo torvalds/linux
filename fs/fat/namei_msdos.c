@@ -188,7 +188,7 @@ old_compare:
 	goto out;
 }
 
-static struct dentry_operations msdos_dentry_operations = {
+static const struct dentry_operations msdos_dentry_operations = {
 	.d_hash		= msdos_hash,
 	.d_compare	= msdos_cmp,
 };

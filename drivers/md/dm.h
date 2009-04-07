@@ -60,7 +60,7 @@ int dm_table_barrier_ok(struct dm_table *t);
 int dm_target_init(void);
 void dm_target_exit(void);
 struct target_type *dm_get_target_type(const char *name);
-void dm_put_target_type(struct target_type *t);
+void dm_put_target_type(struct target_type *tt);
 int dm_target_iterate(void (*iter_func)(struct target_type *tt,
 					void *param), void *param);
 

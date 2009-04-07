@@ -102,7 +102,7 @@ static inline int blk_cpu_to_group(int cpu)
 	const struct cpumask *mask = cpu_coregroup_mask(cpu);
 	return cpumask_first(mask);
 #elif defined(CONFIG_SCHED_SMT)
-	return first_cpu(per_cpu(cpu_sibling_map, cpu));
+	return cpumask_first(topology_thread_cpumask(cpu));
 #else
 	return cpu;
 #endif

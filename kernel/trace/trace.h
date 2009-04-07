@@ -182,6 +182,12 @@ struct trace_power {
 	struct power_trace	state_data;
 };
 
+enum kmemtrace_type_id {
+	KMEMTRACE_TYPE_KMALLOC = 0,	/* kmalloc() or kfree(). */
+	KMEMTRACE_TYPE_CACHE,		/* kmem_cache_*(). */
+	KMEMTRACE_TYPE_PAGES,		/* __get_free_pages() and friends. */
+};
+
 struct kmemtrace_alloc_entry {
 	struct trace_entry	ent;
 	enum kmemtrace_type_id type_id;
@@ -483,6 +489,8 @@ trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
 				  unsigned long flags, int pc);
 void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
 					unsigned long flags, int pc);
+void trace_nowake_buffer_unlock_commit(struct ring_buffer_event *event,
+					unsigned long flags, int pc);
 
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
@@ -778,16 +786,27 @@ enum {
 	TRACE_EVENT_TYPE_RAW		= 2,
 };
 
+struct ftrace_event_field {
+	struct list_head	link;
+	char			*name;
+	char			*type;
+	int			offset;
+	int			size;
+};
+
 struct ftrace_event_call {
-	char		*name;
-	char		*system;
-	struct dentry	*dir;
-	int		enabled;
-	int		(*regfunc)(void);
-	void		(*unregfunc)(void);
-	int		id;
-	int		(*raw_init)(void);
-	int		(*show_format)(struct trace_seq *s);
+	char			*name;
+	char			*system;
+	struct dentry		*dir;
+	int			enabled;
+	int			(*regfunc)(void);
+	void			(*unregfunc)(void);
+	int			id;
+	int			(*raw_init)(void);
+	int			(*show_format)(struct trace_seq *s);
+	int			(*define_fields)(void);
+	struct list_head	fields;
+	struct filter_pred	**preds;
 
 #ifdef CONFIG_EVENT_PROFILE
 	atomic_t	profile_count;
@@ -795,6 +814,51 @@ struct ftrace_event_call {
 	void		(*profile_disable)(struct ftrace_event_call *);
 #endif
 };
+
+struct event_subsystem {
+	struct list_head	list;
+	const char		*name;
+	struct dentry		*entry;
+	struct filter_pred	**preds;
+};
+
+#define events_for_each(event)						\
+	for (event = __start_ftrace_events;				\
+	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
+	     event++)
+
+#define MAX_FILTER_PRED 8
+
+struct filter_pred;
+
+typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
+
+struct filter_pred {
+	filter_pred_fn_t fn;
+	u64 val;
+	char *str_val;
+	int str_len;
+	char *field_name;
+	int offset;
+	int not;
+	int or;
+	int compound;
+	int clear;
+};
+
+int trace_define_field(struct ftrace_event_call *call, char *type,
+		       char *name, int offset, int size);
+extern void filter_free_pred(struct filter_pred *pred);
+extern void filter_print_preds(struct filter_pred **preds,
+			       struct trace_seq *s);
+extern int filter_parse(char **pbuf, struct filter_pred *pred);
+extern int filter_add_pred(struct ftrace_event_call *call,
+			   struct filter_pred *pred);
+extern void filter_free_preds(struct ftrace_event_call *call);
+extern int filter_match_preds(struct ftrace_event_call *call, void *rec);
+extern void filter_free_subsystem_preds(struct event_subsystem *system);
+extern int filter_add_subsystem_pred(struct event_subsystem *system,
+				     struct filter_pred *pred);
 
 void event_trace_printk(unsigned long ip, const char *fmt, ...);
 extern struct ftrace_event_call __start_ftrace_events[];

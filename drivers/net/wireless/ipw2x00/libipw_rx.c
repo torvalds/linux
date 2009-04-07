@@ -33,7 +33,8 @@
 #include <linux/ctype.h>
 
 #include <net/lib80211.h>
-#include <net/ieee80211.h>
+
+#include "ieee80211.h"
 
 static void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 					struct sk_buff *skb,
@@ -334,7 +335,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	struct ieee80211_hdr_4addr *hdr;
 	size_t hdrlen;
 	u16 fc, type, stype, sc;
-	struct net_device_stats *stats;
 	unsigned int frag;
 	u8 *payload;
 	u16 ethertype;
@@ -353,8 +353,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	int can_be_decrypted = 0;
 
 	hdr = (struct ieee80211_hdr_4addr *)skb->data;
-	stats = &ieee->stats;
-
 	if (skb->len < 10) {
 		printk(KERN_INFO "%s: SKB length < 10\n", dev->name);
 		goto rx_dropped;
@@ -411,8 +409,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 #endif
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
-		stats->rx_packets++;
-		stats->rx_bytes += skb->len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += skb->len;
 		ieee80211_monitor_rx(ieee, skb, rx_stats);
 		return 1;
 	}
@@ -768,8 +766,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 #endif
 
-	stats->rx_packets++;
-	stats->rx_bytes += skb->len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
 
 #ifdef NOT_YET
 	if (ieee->iw_mode == IW_MODE_MASTER && !wds && ieee->ap->bridge_packets) {
@@ -811,7 +809,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			 * in our stats. */
 			IEEE80211_DEBUG_DROP
 			    ("RX: netif_rx dropped the packet\n");
-			stats->rx_dropped++;
+			dev->stats.rx_dropped++;
 		}
 	}
 
@@ -823,7 +821,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	return 1;
 
       rx_dropped:
-	stats->rx_dropped++;
+	dev->stats.rx_dropped++;
 
 	/* Returning 0 indicates to caller that we have not handled the SKB--
 	 * so it is still allocated and can be used again by underlying
@@ -918,7 +916,7 @@ void ieee80211_rx_any(struct ieee80211_device *ieee,
 
 drop_free:
 	dev_kfree_skb_irq(skb);
-	ieee->stats.rx_dropped++;
+	ieee->dev->stats.rx_dropped++;
 	return;
 }
 
@@ -1079,37 +1077,37 @@ static int ieee80211_parse_qos_info_param_IE(struct ieee80211_info_element
 	return rc;
 }
 
-#ifdef CONFIG_IEEE80211_DEBUG
-#define MFIE_STRING(x) case MFIE_TYPE_ ##x: return #x
+#ifdef CONFIG_LIBIPW_DEBUG
+#define MFIE_STRING(x) case WLAN_EID_ ##x: return #x
 
 static const char *get_info_element_string(u16 id)
 {
 	switch (id) {
 		MFIE_STRING(SSID);
-		MFIE_STRING(RATES);
-		MFIE_STRING(FH_SET);
-		MFIE_STRING(DS_SET);
-		MFIE_STRING(CF_SET);
+		MFIE_STRING(SUPP_RATES);
+		MFIE_STRING(FH_PARAMS);
+		MFIE_STRING(DS_PARAMS);
+		MFIE_STRING(CF_PARAMS);
 		MFIE_STRING(TIM);
-		MFIE_STRING(IBSS_SET);
+		MFIE_STRING(IBSS_PARAMS);
 		MFIE_STRING(COUNTRY);
-		MFIE_STRING(HOP_PARAMS);
-		MFIE_STRING(HOP_TABLE);
+		MFIE_STRING(HP_PARAMS);
+		MFIE_STRING(HP_TABLE);
 		MFIE_STRING(REQUEST);
 		MFIE_STRING(CHALLENGE);
-		MFIE_STRING(POWER_CONSTRAINT);
-		MFIE_STRING(POWER_CAPABILITY);
+		MFIE_STRING(PWR_CONSTRAINT);
+		MFIE_STRING(PWR_CAPABILITY);
 		MFIE_STRING(TPC_REQUEST);
 		MFIE_STRING(TPC_REPORT);
-		MFIE_STRING(SUPP_CHANNELS);
-		MFIE_STRING(CSA);
+		MFIE_STRING(SUPPORTED_CHANNELS);
+		MFIE_STRING(CHANNEL_SWITCH);
 		MFIE_STRING(MEASURE_REQUEST);
 		MFIE_STRING(MEASURE_REPORT);
 		MFIE_STRING(QUIET);
 		MFIE_STRING(IBSS_DFS);
 		MFIE_STRING(ERP_INFO);
 		MFIE_STRING(RSN);
-		MFIE_STRING(RATES_EX);
+		MFIE_STRING(EXT_SUPP_RATES);
 		MFIE_STRING(GENERIC);
 		MFIE_STRING(QOS_PARAMETER);
 	default:
@@ -1124,7 +1122,7 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 {
 	DECLARE_SSID_BUF(ssid);
 	u8 i;
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 	char rates_str[64];
 	char *p;
 #endif
@@ -1144,7 +1142,7 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 		}
 
 		switch (info_element->id) {
-		case MFIE_TYPE_SSID:
+		case WLAN_EID_SSID:
 			network->ssid_len = min(info_element->len,
 						(u8) IW_ESSID_MAX_SIZE);
 			memcpy(network->ssid, info_element->data,
@@ -1153,21 +1151,21 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 				memset(network->ssid + network->ssid_len, 0,
 				       IW_ESSID_MAX_SIZE - network->ssid_len);
 
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_SSID: '%s' len=%d.\n",
+			IEEE80211_DEBUG_MGMT("WLAN_EID_SSID: '%s' len=%d.\n",
 					     print_ssid(ssid, network->ssid,
 							network->ssid_len),
 					     network->ssid_len);
 			break;
 
-		case MFIE_TYPE_RATES:
-#ifdef CONFIG_IEEE80211_DEBUG
+		case WLAN_EID_SUPP_RATES:
+#ifdef CONFIG_LIBIPW_DEBUG
 			p = rates_str;
 #endif
 			network->rates_len = min(info_element->len,
 						 MAX_RATES_LENGTH);
 			for (i = 0; i < network->rates_len; i++) {
 				network->rates[i] = info_element->data[i];
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 				p += snprintf(p, sizeof(rates_str) -
 					      (p - rates_str), "%02X ",
 					      network->rates[i]);
@@ -1182,19 +1180,19 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 				}
 			}
 
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_RATES: '%s' (%d)\n",
+			IEEE80211_DEBUG_MGMT("WLAN_EID_SUPP_RATES: '%s' (%d)\n",
 					     rates_str, network->rates_len);
 			break;
 
-		case MFIE_TYPE_RATES_EX:
-#ifdef CONFIG_IEEE80211_DEBUG
+		case WLAN_EID_EXT_SUPP_RATES:
+#ifdef CONFIG_LIBIPW_DEBUG
 			p = rates_str;
 #endif
 			network->rates_ex_len = min(info_element->len,
 						    MAX_RATES_EX_LENGTH);
 			for (i = 0; i < network->rates_ex_len; i++) {
 				network->rates_ex[i] = info_element->data[i];
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 				p += snprintf(p, sizeof(rates_str) -
 					      (p - rates_str), "%02X ",
 					      network->rates[i]);
@@ -1209,49 +1207,49 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 				}
 			}
 
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_RATES_EX: '%s' (%d)\n",
+			IEEE80211_DEBUG_MGMT("WLAN_EID_EXT_SUPP_RATES: '%s' (%d)\n",
 					     rates_str, network->rates_ex_len);
 			break;
 
-		case MFIE_TYPE_DS_SET:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_DS_SET: %d\n",
+		case WLAN_EID_DS_PARAMS:
+			IEEE80211_DEBUG_MGMT("WLAN_EID_DS_PARAMS: %d\n",
 					     info_element->data[0]);
 			network->channel = info_element->data[0];
 			break;
 
-		case MFIE_TYPE_FH_SET:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_FH_SET: ignored\n");
+		case WLAN_EID_FH_PARAMS:
+			IEEE80211_DEBUG_MGMT("WLAN_EID_FH_PARAMS: ignored\n");
 			break;
 
-		case MFIE_TYPE_CF_SET:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_CF_SET: ignored\n");
+		case WLAN_EID_CF_PARAMS:
+			IEEE80211_DEBUG_MGMT("WLAN_EID_CF_PARAMS: ignored\n");
 			break;
 
-		case MFIE_TYPE_TIM:
+		case WLAN_EID_TIM:
 			network->tim.tim_count = info_element->data[0];
 			network->tim.tim_period = info_element->data[1];
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_TIM: partially ignored\n");
+			IEEE80211_DEBUG_MGMT("WLAN_EID_TIM: partially ignored\n");
 			break;
 
-		case MFIE_TYPE_ERP_INFO:
+		case WLAN_EID_ERP_INFO:
 			network->erp_value = info_element->data[0];
 			network->flags |= NETWORK_HAS_ERP_VALUE;
 			IEEE80211_DEBUG_MGMT("MFIE_TYPE_ERP_SET: %d\n",
 					     network->erp_value);
 			break;
 
-		case MFIE_TYPE_IBSS_SET:
+		case WLAN_EID_IBSS_PARAMS:
 			network->atim_window = info_element->data[0];
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_IBSS_SET: %d\n",
+			IEEE80211_DEBUG_MGMT("WLAN_EID_IBSS_PARAMS: %d\n",
 					     network->atim_window);
 			break;
 
-		case MFIE_TYPE_CHALLENGE:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_CHALLENGE: ignored\n");
+		case WLAN_EID_CHALLENGE:
+			IEEE80211_DEBUG_MGMT("WLAN_EID_CHALLENGE: ignored\n");
 			break;
 
-		case MFIE_TYPE_GENERIC:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_GENERIC: %d bytes\n",
+		case WLAN_EID_GENERIC:
+			IEEE80211_DEBUG_MGMT("WLAN_EID_GENERIC: %d bytes\n",
 					     info_element->len);
 			if (!ieee80211_parse_qos_info_param_IE(info_element,
 							       network))
@@ -1269,8 +1267,8 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 			}
 			break;
 
-		case MFIE_TYPE_RSN:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_RSN: %d bytes\n",
+		case WLAN_EID_RSN:
+			IEEE80211_DEBUG_MGMT("WLAN_EID_RSN: %d bytes\n",
 					     info_element->len);
 			network->rsn_ie_len = min(info_element->len + 2,
 						  MAX_WPA_IE_LEN);
@@ -1278,22 +1276,22 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 			       network->rsn_ie_len);
 			break;
 
-		case MFIE_TYPE_QOS_PARAMETER:
+		case WLAN_EID_QOS_PARAMETER:
 			printk(KERN_ERR
 			       "QoS Error need to parse QOS_PARAMETER IE\n");
 			break;
 			/* 802.11h */
-		case MFIE_TYPE_POWER_CONSTRAINT:
+		case WLAN_EID_PWR_CONSTRAINT:
 			network->power_constraint = info_element->data[0];
 			network->flags |= NETWORK_HAS_POWER_CONSTRAINT;
 			break;
 
-		case MFIE_TYPE_CSA:
+		case WLAN_EID_CHANNEL_SWITCH:
 			network->power_constraint = info_element->data[0];
 			network->flags |= NETWORK_HAS_CSA;
 			break;
 
-		case MFIE_TYPE_QUIET:
+		case WLAN_EID_QUIET:
 			network->quiet.count = info_element->data[0];
 			network->quiet.period = info_element->data[1];
 			network->quiet.duration = info_element->data[2];
@@ -1301,7 +1299,7 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 			network->flags |= NETWORK_HAS_QUIET;
 			break;
 
-		case MFIE_TYPE_IBSS_DFS:
+		case WLAN_EID_IBSS_DFS:
 			if (network->ibss_dfs)
 				break;
 			network->ibss_dfs = kmemdup(info_element->data,
@@ -1312,7 +1310,7 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 			network->flags |= NETWORK_HAS_IBSS_DFS;
 			break;
 
-		case MFIE_TYPE_TPC_REPORT:
+		case WLAN_EID_TPC_REPORT:
 			network->tpc_report.transmit_power =
 			    info_element->data[0];
 			network->tpc_report.link_margin = info_element->data[1];
@@ -1561,7 +1559,7 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 	};
 	struct ieee80211_network *target;
 	struct ieee80211_network *oldest = NULL;
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 	struct ieee80211_info_element *info_element = beacon->info_element;
 #endif
 	unsigned long flags;
@@ -1615,7 +1613,7 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 			break;
 
 		if ((oldest == NULL) ||
-		    (target->last_scanned < oldest->last_scanned))
+		    time_before(target->last_scanned, oldest->last_scanned))
 			oldest = target;
 	}
 
@@ -1639,7 +1637,7 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 			list_del(ieee->network_free_list.next);
 		}
 
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 		IEEE80211_DEBUG_SCAN("Adding '%s' (%pM) via %s.\n",
 				     print_ssid(ssid, network.ssid,
 						 network.ssid_len),

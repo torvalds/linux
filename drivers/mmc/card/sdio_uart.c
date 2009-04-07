@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/seq_file.h>
 #include <linux/serial_reg.h>
 #include <linux/circ_buf.h>
 #include <linux/gfp.h>
@@ -933,66 +934,63 @@ static int sdio_uart_tiocmset(struct tty_struct *tty, struct file *file,
 	return result;
 }
 
-static int sdio_uart_read_proc(char *page, char **start, off_t off,
-			       int count, int *eof, void *data)
+static int sdio_uart_proc_show(struct seq_file *m, void *v)
 {
-	int i, len = 0;
-	off_t begin = 0;
+	int i;
 
-	len += sprintf(page, "serinfo:1.0 driver%s%s revision:%s\n",
+	seq_printf(m, "serinfo:1.0 driver%s%s revision:%s\n",
 		       "", "", "");
-	for (i = 0; i < UART_NR && len < PAGE_SIZE - 96; i++) {
+	for (i = 0; i < UART_NR; i++) {
 		struct sdio_uart_port *port = sdio_uart_port_get(i);
 		if (port) {
-			len += sprintf(page+len, "%d: uart:SDIO", i);
+			seq_printf(m, "%d: uart:SDIO", i);
 			if(capable(CAP_SYS_ADMIN)) {
-				len += sprintf(page + len, " tx:%d rx:%d",
+				seq_printf(m, " tx:%d rx:%d",
 					       port->icount.tx, port->icount.rx);
 				if (port->icount.frame)
-					len += sprintf(page + len, " fe:%d",
+					seq_printf(m, " fe:%d",
 						       port->icount.frame);
 				if (port->icount.parity)
-					len += sprintf(page + len, " pe:%d",
+					seq_printf(m, " pe:%d",
 						       port->icount.parity);
 				if (port->icount.brk)
-					len += sprintf(page + len, " brk:%d",
+					seq_printf(m, " brk:%d",
 						       port->icount.brk);
 				if (port->icount.overrun)
-					len += sprintf(page + len, " oe:%d",
+					seq_printf(m, " oe:%d",
 						       port->icount.overrun);
 				if (port->icount.cts)
-					len += sprintf(page + len, " cts:%d",
+					seq_printf(m, " cts:%d",
 						       port->icount.cts);
 				if (port->icount.dsr)
-					len += sprintf(page + len, " dsr:%d",
+					seq_printf(m, " dsr:%d",
 						       port->icount.dsr);
 				if (port->icount.rng)
-					len += sprintf(page + len, " rng:%d",
+					seq_printf(m, " rng:%d",
 						       port->icount.rng);
 				if (port->icount.dcd)
-					len += sprintf(page + len, " dcd:%d",
+					seq_printf(m, " dcd:%d",
 						       port->icount.dcd);
 			}
-			strcat(page, "\n");
-			len++;
 			sdio_uart_port_put(port);
-		}
-
-		if (len + begin > off + count)
-			goto done;
-		if (len + begin < off) {
-			begin += len;
-			len = 0;
+			seq_putc(m, '\n');
 		}
 	}
-	*eof = 1;
-
-done:
-	if (off >= len + begin)
-		return 0;
-	*start = page + (off - begin);
-	return (count < begin + len - off) ? count : (begin + len - off);
+	return 0;
 }
+
+static int sdio_uart_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, sdio_uart_proc_show, NULL);
+}
+
+static const struct file_operations sdio_uart_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= sdio_uart_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static const struct tty_operations sdio_uart_ops = {
 	.open			= sdio_uart_open,
@@ -1007,7 +1005,7 @@ static const struct tty_operations sdio_uart_ops = {
 	.break_ctl		= sdio_uart_break_ctl,
 	.tiocmget		= sdio_uart_tiocmget,
 	.tiocmset		= sdio_uart_tiocmset,
-	.read_proc		= sdio_uart_read_proc,
+	.proc_fops		= &sdio_uart_proc_fops,
 };
 
 static struct tty_driver *sdio_uart_tty_driver;

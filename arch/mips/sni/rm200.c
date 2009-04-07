@@ -359,7 +359,8 @@ void sni_rm200_init_8259A(void)
  * IRQ2 is cascade interrupt to second interrupt controller
  */
 static struct irqaction sni_rm200_irq2 = {
-	no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL
+	.handler = no_action,
+	.name = "cascade",
 };
 
 static struct resource sni_rm200_pic1_resource = {
@@ -487,7 +488,7 @@ void __init sni_rm200_irq_init(void)
 	mips_cpu_irq_init();
 	/* Actually we've got more interrupts to handle ...  */
 	for (i = SNI_RM200_INT_START; i <= SNI_RM200_INT_END; i++)
-		set_irq_chip(i, &rm200_irq_type);
+		set_irq_chip_and_handler(i, &rm200_irq_type, handle_level_irq);
 	sni_hwint = sni_rm200_hwint;
 	change_c0_status(ST0_IM, IE_IRQ0);
 	setup_irq(SNI_RM200_INT_START + 0, &sni_rm200_i8259A_irq);

@@ -436,6 +436,19 @@ static const struct ethtool_ops netdev_ethtool_ops;
 
 static void nmclan_detach(struct pcmcia_device *p_dev);
 
+static const struct net_device_ops mace_netdev_ops = {
+	.ndo_open		= mace_open,
+	.ndo_stop		= mace_close,
+	.ndo_start_xmit		= mace_start_xmit,
+	.ndo_tx_timeout		= mace_tx_timeout,
+	.ndo_set_config		= mace_config,
+	.ndo_get_stats		= mace_get_stats,
+	.ndo_set_multicast_list	= set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /* ----------------------------------------------------------------------------
 nmclan_attach
 	Creates an "instance" of the driver, allocating local data
@@ -474,17 +487,9 @@ static int nmclan_probe(struct pcmcia_device *link)
 
     lp->tx_free_frames=AM2150_MAX_TX_FRAMES;
 
-    dev->hard_start_xmit = &mace_start_xmit;
-    dev->set_config = &mace_config;
-    dev->get_stats = &mace_get_stats;
-    dev->set_multicast_list = &set_multicast_list;
+    dev->netdev_ops = &mace_netdev_ops;
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
-    dev->open = &mace_open;
-    dev->stop = &mace_close;
-#ifdef HAVE_TX_TIMEOUT
-    dev->tx_timeout = mace_tx_timeout;
     dev->watchdog_timeo = TX_TIMEOUT;
-#endif
 
     return nmclan_config(link);
 } /* nmclan_attach */

@@ -16,6 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 #include <linux/ftrace.h>
+#include <linux/memory.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
@@ -51,6 +52,14 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
 	return e;
 }
 
+static inline int init_kernel_text(unsigned long addr)
+{
+	if (addr >= (unsigned long)_sinittext &&
+	    addr <= (unsigned long)_einittext)
+		return 1;
+	return 0;
+}
+
 int core_kernel_text(unsigned long addr)
 {
 	if (addr >= (unsigned long)_stext &&
@@ -58,8 +67,7 @@ int core_kernel_text(unsigned long addr)
 		return 1;
 
 	if (system_state == SYSTEM_BOOTING &&
-	    addr >= (unsigned long)_sinittext &&
-	    addr <= (unsigned long)_einittext)
+	    init_kernel_text(addr))
 		return 1;
 	return 0;
 }
@@ -68,14 +76,26 @@ int __kernel_text_address(unsigned long addr)
 {
 	if (core_kernel_text(addr))
 		return 1;
-	return __module_text_address(addr) != NULL;
+	if (is_module_text_address(addr))
+		return 1;
+	/*
+	 * There might be init symbols in saved stacktraces.
+	 * Give those symbols a chance to be printed in
+	 * backtraces (such as lockdep traces).
+	 *
+	 * Since we are after the module-symbols check, there's
+	 * no danger of address overlap:
+	 */
+	if (init_kernel_text(addr))
+		return 1;
+	return 0;
 }
 
 int kernel_text_address(unsigned long addr)
 {
 	if (core_kernel_text(addr))
 		return 1;
-	return module_text_address(addr) != NULL;
+	return is_module_text_address(addr);
 }
 
 /*
@@ -91,5 +111,5 @@ int func_ptr_is_kernel_text(void *ptr)
 	addr = (unsigned long) dereference_function_descriptor(ptr);
 	if (core_kernel_text(addr))
 		return 1;
-	return module_text_address(addr) != NULL;
+	return is_module_text_address(addr);
 }

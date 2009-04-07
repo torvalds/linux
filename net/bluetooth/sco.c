@@ -195,7 +195,7 @@ static int sco_connect(struct sock *sk)
 	else
 		type = SCO_LINK;
 
-	hcon = hci_connect(hdev, type, dst, HCI_AT_NO_BONDING);
+	hcon = hci_connect(hdev, type, dst, BT_SECURITY_LOW, HCI_AT_NO_BONDING);
 	if (!hcon)
 		goto done;
 
@@ -668,7 +668,7 @@ static int sco_sock_setsockopt(struct socket *sock, int level, int optname, char
 	return err;
 }
 
-static int sco_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
+static int sco_sock_getsockopt_old(struct socket *sock, int optname, char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
 	struct sco_options opts;
@@ -714,6 +714,31 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname, char
 
 		break;
 
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+	return err;
+}
+
+static int sco_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
+{
+	struct sock *sk = sock->sk;
+	int len, err = 0;
+
+	BT_DBG("sk %p", sk);
+
+	if (level == SOL_SCO)
+		return sco_sock_getsockopt_old(sock, optname, optval, optlen);
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	lock_sock(sk);
+
+	switch (optname) {
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -832,10 +857,30 @@ done:
 /* ----- SCO interface with lower layer (HCI) ----- */
 static int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type)
 {
+	register struct sock *sk;
+	struct hlist_node *node;
+	int lm = 0;
+
+	if (type != SCO_LINK && type != ESCO_LINK)
+		return 0;
+
 	BT_DBG("hdev %s, bdaddr %s", hdev->name, batostr(bdaddr));
 
-	/* Always accept connection */
-	return HCI_LM_ACCEPT;
+	/* Find listening sockets */
+	read_lock(&sco_sk_list.lock);
+	sk_for_each(sk, node, &sco_sk_list.head) {
+		if (sk->sk_state != BT_LISTEN)
+			continue;
+
+		if (!bacmp(&bt_sk(sk)->src, &hdev->bdaddr) ||
+				!bacmp(&bt_sk(sk)->src, BDADDR_ANY)) {
+			lm |= HCI_LM_ACCEPT;
+			break;
+		}
+	}
+	read_unlock(&sco_sk_list.lock);
+
+	return lm;
 }
 
 static int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
@@ -857,7 +902,7 @@ static int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 	return 0;
 }
 
-static int sco_disconn_ind(struct hci_conn *hcon, __u8 reason)
+static int sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 {
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
@@ -940,7 +985,7 @@ static struct hci_proto sco_hci_proto = {
 	.id		= HCI_PROTO_SCO,
 	.connect_ind	= sco_connect_ind,
 	.connect_cfm	= sco_connect_cfm,
-	.disconn_ind	= sco_disconn_ind,
+	.disconn_cfm	= sco_disconn_cfm,
 	.recv_scodata	= sco_recv_scodata
 };
 

@@ -21,8 +21,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * $Id: bit_operations.h,v 1.11 2006/11/28 15:37:03 steveu Exp $
  */
 
 /*! \file */
@@ -34,7 +32,7 @@
 /*! \brief Find the bit position of the highest set bit in a word
     \param bits The word to be searched
     \return The bit number of the highest set bit, or -1 if the word is zero. */
-static __inline__ int top_bit(unsigned int bits)
+static inline int top_bit(unsigned int bits)
 {
 	int res;
 
@@ -50,7 +48,7 @@ static __inline__ int top_bit(unsigned int bits)
 /*! \brief Find the bit position of the lowest set bit in a word
     \param bits The word to be searched
     \return The bit number of the lowest set bit, or -1 if the word is zero. */
-static __inline__ int bottom_bit(unsigned int bits)
+static inline int bottom_bit(unsigned int bits)
 {
 	int res;
 
@@ -63,7 +61,7 @@ static __inline__ int bottom_bit(unsigned int bits)
 	return res;
 }
 #else
-static __inline__ int top_bit(unsigned int bits)
+static inline int top_bit(unsigned int bits)
 {
 	int i;
 
@@ -93,7 +91,7 @@ static __inline__ int top_bit(unsigned int bits)
 	return i;
 }
 
-static __inline__ int bottom_bit(unsigned int bits)
+static inline int bottom_bit(unsigned int bits)
 {
 	int i;
 
@@ -127,7 +125,7 @@ static __inline__ int bottom_bit(unsigned int bits)
 /*! \brief Bit reverse a byte.
     \param data The byte to be reversed.
     \return The bit reversed version of data. */
-static __inline__ uint8_t bit_reverse8(uint8_t x)
+static inline uint8_t bit_reverse8(uint8_t x)
 {
 #if defined(__i386__)  ||  defined(__x86_64__)
 	/* If multiply is fast */
@@ -172,32 +170,32 @@ uint32_t make_mask32(uint32_t x);
 uint16_t make_mask16(uint16_t x);
 
 /*! \brief Find the least significant one in a word, and return a word
-           with just that bit set.
+	    with just that bit set.
     \param x The word to be searched.
     \return The word with the single set bit. */
-static __inline__ uint32_t least_significant_one32(uint32_t x)
+static inline uint32_t least_significant_one32(uint32_t x)
 {
-	return (x & (-(int32_t) x));
+	return x & (-(int32_t) x);
 }
 
 /*! \brief Find the most significant one in a word, and return a word
-           with just that bit set.
+	    with just that bit set.
     \param x The word to be searched.
     \return The word with the single set bit. */
-static __inline__ uint32_t most_significant_one32(uint32_t x)
+static inline uint32_t most_significant_one32(uint32_t x)
 {
 #if defined(__i386__)  ||  defined(__x86_64__)
 	return 1 << top_bit(x);
 #else
 	x = make_mask32(x);
-	return (x ^ (x >> 1));
+	return x ^ (x >> 1);
 #endif
 }
 
 /*! \brief Find the parity of a byte.
     \param x The byte to be checked.
     \return 1 for odd, or 0 for even. */
-static __inline__ int parity8(uint8_t x)
+static inline int parity8(uint8_t x)
 {
 	x = (x ^ (x >> 4)) & 0x0F;
 	return (0x6996 >> x) & 1;
@@ -206,7 +204,7 @@ static __inline__ int parity8(uint8_t x)
 /*! \brief Find the parity of a 16 bit word.
     \param x The word to be checked.
     \return 1 for odd, or 0 for even. */
-static __inline__ int parity16(uint16_t x)
+static inline int parity16(uint16_t x)
 {
 	x ^= (x >> 8);
 	x = (x ^ (x >> 4)) & 0x0F;
@@ -216,7 +214,7 @@ static __inline__ int parity16(uint16_t x)
 /*! \brief Find the parity of a 32 bit word.
     \param x The word to be checked.
     \return 1 for odd, or 0 for even. */
-static __inline__ int parity32(uint32_t x)
+static inline int parity32(uint32_t x)
 {
 	x ^= (x >> 16);
 	x ^= (x >> 8);

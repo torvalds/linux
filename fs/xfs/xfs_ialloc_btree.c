@@ -164,7 +164,7 @@ xfs_inobt_init_rec_from_cur(
 }
 
 /*
- * intial value of ptr for lookup
+ * initial value of ptr for lookup
  */
 STATIC void
 xfs_inobt_init_ptr_from_cur(

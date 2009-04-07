@@ -671,10 +671,7 @@ struct vmap_block {
 	DECLARE_BITMAP(alloc_map, VMAP_BBMAP_BITS);
 	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
 	union {
-		struct {
-			struct list_head free_list;
-			struct list_head dirty_list;
-		};
+		struct list_head free_list;
 		struct rcu_head rcu_head;
 	};
 };
@@ -741,7 +738,6 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
 	bitmap_zero(vb->alloc_map, VMAP_BBMAP_BITS);
 	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
 	INIT_LIST_HEAD(&vb->free_list);
-	INIT_LIST_HEAD(&vb->dirty_list);
 
 	vb_idx = addr_to_vb_idx(va->va_start);
 	spin_lock(&vmap_block_tree_lock);
@@ -772,12 +768,7 @@ static void free_vmap_block(struct vmap_block *vb)
 	struct vmap_block *tmp;
 	unsigned long vb_idx;
 
-	spin_lock(&vb->vbq->lock);
-	if (!list_empty(&vb->free_list))
-		list_del(&vb->free_list);
-	if (!list_empty(&vb->dirty_list))
-		list_del(&vb->dirty_list);
-	spin_unlock(&vb->vbq->lock);
+	BUG_ON(!list_empty(&vb->free_list));
 
 	vb_idx = addr_to_vb_idx(vb->va->va_start);
 	spin_lock(&vmap_block_tree_lock);
@@ -862,11 +853,7 @@ static void vb_free(const void *addr, unsigned long size)
 
 	spin_lock(&vb->lock);
 	bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order);
-	if (!vb->dirty) {
-		spin_lock(&vb->vbq->lock);
-		list_add(&vb->dirty_list, &vb->vbq->dirty);
-		spin_unlock(&vb->vbq->lock);
-	}
+
 	vb->dirty += 1UL << order;
 	if (vb->dirty == VMAP_BBMAP_BITS) {
 		BUG_ON(vb->free || !list_empty(&vb->free_list));

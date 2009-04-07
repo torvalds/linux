@@ -86,6 +86,7 @@ static int (*g5_query_freq)(void);
 
 static DEFINE_MUTEX(g5_switch_mutex);
 
+static unsigned long transition_latency;
 
 #ifdef CONFIG_PMAC_SMU
 
@@ -357,7 +358,7 @@ static unsigned int g5_cpufreq_get_speed(unsigned int cpu)
 
 static int g5_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
+	policy->cpuinfo.transition_latency = transition_latency;
 	policy->cur = g5_cpu_freqs[g5_query_freq()].frequency;
 	/* secondary CPUs are tied to the primary one by the
 	 * cpufreq core if in the secondary policy we tell it that
@@ -500,6 +501,7 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 	g5_cpu_freqs[1].frequency = max_freq/2;
 
 	/* Set callbacks */
+	transition_latency = 12000;
 	g5_switch_freq = g5_scom_switch_freq;
 	g5_query_freq = g5_scom_query_freq;
 	freq_method = "SCOM";
@@ -675,6 +677,7 @@ static int __init g5_pm72_cpufreq_init(struct device_node *cpus)
 	g5_cpu_freqs[1].frequency = min_freq;
 
 	/* Set callbacks */
+	transition_latency = CPUFREQ_ETERNAL;
 	g5_switch_volt = g5_pfunc_switch_volt;
 	g5_switch_freq = g5_pfunc_switch_freq;
 	g5_query_freq = g5_pfunc_query_freq;

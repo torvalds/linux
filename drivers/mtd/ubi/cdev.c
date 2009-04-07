@@ -186,6 +186,16 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 	return new_offset;
 }
 
+static int vol_cdev_fsync(struct file *file, struct dentry *dentry,
+			  int datasync)
+{
+	struct ubi_volume_desc *desc = file->private_data;
+	struct ubi_device *ubi = desc->vol->ubi;
+
+	return ubi_sync(ubi->ubi_num);
+}
+
+
 static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 			     loff_t *offp)
 {
@@ -1073,6 +1083,7 @@ const struct file_operations ubi_vol_cdev_operations = {
 	.llseek         = vol_cdev_llseek,
 	.read           = vol_cdev_read,
 	.write          = vol_cdev_write,
+	.fsync		= vol_cdev_fsync,
 	.unlocked_ioctl = vol_cdev_ioctl,
 	.compat_ioctl   = vol_cdev_compat_ioctl,
 };

@@ -18,10 +18,13 @@ struct ring_buffer_event {
 /**
  * enum ring_buffer_type - internal ring buffer types
  *
- * @RINGBUF_TYPE_PADDING:	Left over page padding
- *				 array is ignored
- *				 size is variable depending on how much
+ * @RINGBUF_TYPE_PADDING:	Left over page padding or discarded event
+ *				 If time_delta is 0:
+ *				  array is ignored
+ *				  size is variable depending on how much
  *				  padding is needed
+ *				 If time_delta is non zero:
+ *				  everything else same as RINGBUF_TYPE_DATA
  *
  * @RINGBUF_TYPE_TIME_EXTEND:	Extend the time delta
  *				 array[0] = time delta (28 .. 59)
@@ -64,6 +67,8 @@ ring_buffer_event_time_delta(struct ring_buffer_event *event)
 {
 	return event->time_delta;
 }
+
+void ring_buffer_event_discard(struct ring_buffer_event *event);
 
 /*
  * size is in bytes for each per CPU buffer.

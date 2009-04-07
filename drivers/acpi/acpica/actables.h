@@ -49,7 +49,7 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count);
 /*
  * tbfadt - FADT parse/convert/validate
  */
-void acpi_tb_parse_fadt(u32 table_index, u8 flags);
+void acpi_tb_parse_fadt(u32 table_index);
 
 void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length);
 
@@ -79,7 +79,7 @@ void acpi_tb_delete_table(struct acpi_table_desc *table_desc);
 
 void acpi_tb_terminate(void);
 
-void acpi_tb_delete_namespace_by_owner(u32 table_index);
+acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index);
 
 acpi_status acpi_tb_allocate_owner_id(u32 table_index);
 
@@ -109,9 +109,8 @@ acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length);
 
 void
 acpi_tb_install_table(acpi_physical_address address,
-		      u8 flags, char *signature, u32 table_index);
+		      char *signature, u32 table_index);
 
-acpi_status
-acpi_tb_parse_root_table(acpi_physical_address rsdp_address, u8 flags);
+acpi_status acpi_tb_parse_root_table(acpi_physical_address rsdp_address);
 
 #endif				/* __ACTABLES_H__ */

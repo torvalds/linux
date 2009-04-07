@@ -257,8 +257,7 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 
 	if (hdr & 0x10) {
 		BT_ERR("%s error in block", data->hdev->name);
-		if (data->reassembly)
-			kfree_skb(data->reassembly);
+		kfree_skb(data->reassembly);
 		data->reassembly = NULL;
 		return -EIO;
 	}

@@ -74,14 +74,6 @@
 #include "../EplDll.h"
 #include "../EplEvent.h"
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
-
 typedef struct {
 	unsigned long m_ulCurTxFrameCountGen;
 	unsigned long m_ulCurTxFrameCountNmt;
@@ -91,10 +83,6 @@ typedef struct {
 	unsigned long m_ulMaxRxFrameCount;
 
 } tEplDllkCalStatistics;
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) != 0)
 
@@ -124,7 +112,7 @@ tEplKernel EplDllkCalProcess(tEplEvent * pEvent_p);
 tEplKernel EplDllkCalAsyncClearQueues(void);
 
 tEplKernel EplDllkCalIssueRequest(tEplDllReqServiceId Service_p,
-				  unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
+				  unsigned int uiNodeId_p, u8 bSoaFlag1_p);
 
 tEplKernel EplDllkCalAsyncGetSoaRequest(tEplDllReqServiceId * pReqServiceId_p,
 					unsigned int *puiNodeId_p);

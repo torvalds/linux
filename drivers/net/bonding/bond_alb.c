@@ -822,7 +822,7 @@ static int rlb_initialize(struct bonding *bond)
 	_unlock_rx_hashtbl(bond);
 
 	/*initialize packet type*/
-	pk_type->type = __constant_htons(ETH_P_ARP);
+	pk_type->type = cpu_to_be16(ETH_P_ARP);
 	pk_type->dev = NULL;
 	pk_type->func = rlb_arp_recv;
 
@@ -892,7 +892,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 	memset(&pkt, 0, size);
 	memcpy(pkt.mac_dst, mac_addr, ETH_ALEN);
 	memcpy(pkt.mac_src, mac_addr, ETH_ALEN);
-	pkt.type = __constant_htons(ETH_P_LOOP);
+	pkt.type = cpu_to_be16(ETH_P_LOOP);
 
 	for (i = 0; i < MAX_LP_BURST; i++) {
 		struct sk_buff *skb;
@@ -1628,6 +1628,10 @@ void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char
  * no other locks may be held.
  */
 void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave)
+	__releases(&bond->curr_slave_lock)
+	__releases(&bond->lock)
+	__acquires(&bond->lock)
+	__acquires(&bond->curr_slave_lock)
 {
 	struct slave *swap_slave;
 	int i;
@@ -1704,6 +1708,10 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
  * Called with RTNL
  */
 int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
+	__releases(&bond->curr_slave_lock)
+	__releases(&bond->lock)
+	__acquires(&bond->lock)
+	__acquires(&bond->curr_slave_lock)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct sockaddr *sa = addr;

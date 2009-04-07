@@ -559,7 +559,7 @@ struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 		kzalloc(sizeof(struct cx24113_state), GFP_KERNEL);
 	int rc;
 	if (state == NULL) {
-		err("Unable to kmalloc\n");
+		err("Unable to kzalloc\n");
 		goto error;
 	}
 

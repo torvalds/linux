@@ -57,9 +57,6 @@ extern "C" {
 /* max length of device and driver names */
 #define COMEDI_NAMELEN 20
 
-	typedef unsigned int lsampl_t;
-	typedef unsigned short sampl_t;
-
 /* packs and unpacks a channel/range number */
 
 #define CR_PACK(chan, rng, aref)		((((aref)&0x3)<<24) | (((rng)&0xff)<<16) | (chan))
@@ -261,10 +258,11 @@ enum configuration_ids {
 	INSN_CONFIG_GET_CLOCK_SRC = 2004,	/* Get master clock source */
 	INSN_CONFIG_SET_OTHER_SRC = 2005,	/* Set other source */
 /*	INSN_CONFIG_GET_OTHER_SRC = 2006,*/	/* Get other source */
-	INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE,	/* Get size in bytes of
-						  subdevice's on-board fifos
-						  used during streaming
-						  input/output */
+	INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE = 2006,	/* Get size in bytes of
+							   subdevice's on-board
+							   fifos used during
+							   streaming
+							   input/output */
 	INSN_CONFIG_SET_COUNTER_MODE = 4097,
 	INSN_CONFIG_8254_SET_MODE = INSN_CONFIG_SET_COUNTER_MODE,	/* deprecated */
 	INSN_CONFIG_8254_READ_STATUS = 4098,
@@ -293,45 +291,32 @@ enum comedi_support_level {
 /* ioctls */
 
 #define CIO 'd'
-#define COMEDI_DEVCONFIG _IOW(CIO, 0, comedi_devconfig)
-#define COMEDI_DEVINFO _IOR(CIO, 1, comedi_devinfo)
-#define COMEDI_SUBDINFO _IOR(CIO, 2, comedi_subdinfo)
-#define COMEDI_CHANINFO _IOR(CIO, 3, comedi_chaninfo)
+#define COMEDI_DEVCONFIG _IOW(CIO, 0, struct comedi_devconfig)
+#define COMEDI_DEVINFO _IOR(CIO, 1, struct comedi_devinfo)
+#define COMEDI_SUBDINFO _IOR(CIO, 2, struct comedi_subdinfo)
+#define COMEDI_CHANINFO _IOR(CIO, 3, struct comedi_chaninfo)
 #define COMEDI_TRIG _IOWR(CIO, 4, comedi_trig)
 #define COMEDI_LOCK _IO(CIO, 5)
 #define COMEDI_UNLOCK _IO(CIO, 6)
 #define COMEDI_CANCEL _IO(CIO, 7)
-#define COMEDI_RANGEINFO _IOR(CIO, 8, comedi_rangeinfo)
-#define COMEDI_CMD _IOR(CIO, 9, comedi_cmd)
-#define COMEDI_CMDTEST _IOR(CIO, 10, comedi_cmd)
-#define COMEDI_INSNLIST _IOR(CIO, 11, comedi_insnlist)
-#define COMEDI_INSN _IOR(CIO, 12, comedi_insn)
-#define COMEDI_BUFCONFIG _IOR(CIO, 13, comedi_bufconfig)
-#define COMEDI_BUFINFO _IOWR(CIO, 14, comedi_bufinfo)
+#define COMEDI_RANGEINFO _IOR(CIO, 8, struct comedi_rangeinfo)
+#define COMEDI_CMD _IOR(CIO, 9, struct comedi_cmd)
+#define COMEDI_CMDTEST _IOR(CIO, 10, struct comedi_cmd)
+#define COMEDI_INSNLIST _IOR(CIO, 11, struct comedi_insnlist)
+#define COMEDI_INSN _IOR(CIO, 12, struct comedi_insn)
+#define COMEDI_BUFCONFIG _IOR(CIO, 13, struct comedi_bufconfig)
+#define COMEDI_BUFINFO _IOWR(CIO, 14, struct comedi_bufinfo)
 #define COMEDI_POLL _IO(CIO, 15)
 
 /* structures */
 
-typedef struct comedi_trig_struct comedi_trig;
-typedef struct comedi_cmd_struct comedi_cmd;
-typedef struct comedi_insn_struct comedi_insn;
-typedef struct comedi_insnlist_struct comedi_insnlist;
-typedef struct comedi_chaninfo_struct comedi_chaninfo;
-typedef struct comedi_subdinfo_struct comedi_subdinfo;
-typedef struct comedi_devinfo_struct comedi_devinfo;
-typedef struct comedi_devconfig_struct comedi_devconfig;
-typedef struct comedi_rangeinfo_struct comedi_rangeinfo;
-typedef struct comedi_krange_struct comedi_krange;
-typedef struct comedi_bufconfig_struct comedi_bufconfig;
-typedef struct comedi_bufinfo_struct comedi_bufinfo;
-
-struct comedi_trig_struct {
+struct comedi_trig {
 	unsigned int subdev;	/* subdevice */
 	unsigned int mode;	/* mode */
 	unsigned int flags;
 	unsigned int n_chan;	/* number of channels */
 	unsigned int *chanlist;	/* channel/range list */
-	sampl_t *data;	/* data list, size depends on subd flags */
+	short *data;	/* data list, size depends on subd flags */
 	unsigned int n;	/* number of scans */
 	unsigned int trigsrc;
 	unsigned int trigvar;
@@ -340,21 +325,21 @@ struct comedi_trig_struct {
 	unsigned int unused[3];
 };
 
-struct comedi_insn_struct {
+struct comedi_insn {
 	unsigned int insn;
 	unsigned int n;
-	lsampl_t *data;
+	unsigned int *data;
 	unsigned int subdev;
 	unsigned int chanspec;
 	unsigned int unused[3];
 };
 
-struct comedi_insnlist_struct {
+struct comedi_insnlist {
 	unsigned int n_insns;
-	comedi_insn *insns;
+	struct comedi_insn *insns;
 };
 
-struct comedi_cmd_struct {
+struct comedi_cmd {
 	unsigned int subdev;
 	unsigned int flags;
 
@@ -376,37 +361,37 @@ struct comedi_cmd_struct {
 	unsigned int *chanlist;	/* channel/range list */
 	unsigned int chanlist_len;
 
-	sampl_t *data;	/* data list, size depends on subd flags */
+	short *data;	/* data list, size depends on subd flags */
 	unsigned int data_len;
 };
 
-struct comedi_chaninfo_struct {
+struct comedi_chaninfo {
 	unsigned int subdev;
-	lsampl_t *maxdata_list;
+	unsigned int *maxdata_list;
 	unsigned int *flaglist;
 	unsigned int *rangelist;
 	unsigned int unused[4];
 };
 
-struct comedi_rangeinfo_struct {
+struct comedi_rangeinfo {
 	unsigned int range_type;
 	void *range_ptr;
 };
 
-struct comedi_krange_struct {
+struct comedi_krange {
 	int min;	/* fixed point, multiply by 1e-6 */
 	int max;	/* fixed point, multiply by 1e-6 */
 	unsigned int flags;
 };
 
 
-struct comedi_subdinfo_struct {
+struct comedi_subdinfo {
 	unsigned int type;
 	unsigned int n_chan;
 	unsigned int subd_flags;
 	unsigned int timer_type;
 	unsigned int len_chanlist;
-	lsampl_t maxdata;
+	unsigned int maxdata;
 	unsigned int flags;	/* channel flags */
 	unsigned int range_type;	/* lookup in kernel */
 	unsigned int settling_time_0;
@@ -414,7 +399,7 @@ struct comedi_subdinfo_struct {
 	unsigned int unused[8];
 };
 
-struct comedi_devinfo_struct {
+struct comedi_devinfo {
 	unsigned int version_code;
 	unsigned int n_subdevs;
 	char driver_name[COMEDI_NAMELEN];
@@ -424,12 +409,12 @@ struct comedi_devinfo_struct {
 	int unused[30];
 };
 
-struct comedi_devconfig_struct {
+struct comedi_devconfig {
 	char board_name[COMEDI_NAMELEN];
 	int options[COMEDI_NDEVCONFOPTS];
 };
 
-struct comedi_bufconfig_struct {
+struct comedi_bufconfig {
 	unsigned int subdevice;
 	unsigned int flags;
 
@@ -439,7 +424,7 @@ struct comedi_bufconfig_struct {
 	unsigned int unused[4];
 };
 
-struct comedi_bufinfo_struct {
+struct comedi_bufinfo {
 	unsigned int subdevice;
 	unsigned int bytes_read;
 

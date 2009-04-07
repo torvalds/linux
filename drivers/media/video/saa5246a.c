@@ -46,10 +46,11 @@
 #include <linux/smp_lock.h>
 #include <linux/mutex.h>
 #include <linux/videotext.h>
-#include <linux/videodev.h>
-#include <media/v4l2-common.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_AUTHOR("Michael Geng <linux@MichaelGeng.de>");
 MODULE_DESCRIPTION("Philips SAA5246A, SAA5281 Teletext decoder driver");
@@ -388,12 +389,18 @@ MODULE_LICENSE("GPL");
 
 struct saa5246a_device
 {
+	struct v4l2_subdev sd;
+	struct video_device *vdev;
 	u8     pgbuf[NUM_DAUS][VTX_VIRTUALSIZE];
 	int    is_searching[NUM_DAUS];
-	struct i2c_client *client;
 	unsigned long in_use;
 	struct mutex lock;
 };
+
+static inline struct saa5246a_device *to_dev(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct saa5246a_device, sd);
+}
 
 static struct video_device saa_template;	/* Declared near bottom */
 
@@ -403,12 +410,13 @@ static struct video_device saa_template;	/* Declared near bottom */
 
 static int i2c_sendbuf(struct saa5246a_device *t, int reg, int count, u8 *data)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&t->sd);
 	char buf[64];
 
 	buf[0] = reg;
 	memcpy(buf+1, data, count);
 
-	if(i2c_master_send(t->client, buf, count+1)==count+1)
+	if (i2c_master_send(client, buf, count + 1) == count + 1)
 		return 0;
 	return -1;
 }
@@ -436,7 +444,9 @@ static int i2c_senddata(struct saa5246a_device *t, ...)
  */
 static int i2c_getdata(struct saa5246a_device *t, int count, u8 *buf)
 {
-	if(i2c_master_recv(t->client, buf, count)!=count)
+	struct i2c_client *client = v4l2_get_subdevdata(&t->sd);
+
+	if (i2c_master_recv(client, buf, count) != count)
 		return -1;
 	return 0;
 }
@@ -961,9 +971,6 @@ static int saa5246a_open(struct file *file)
 {
 	struct saa5246a_device *t = video_drvdata(file);
 
-	if (t->client == NULL)
-		return -ENODEV;
-
 	if (test_and_set_bit(0, &t->in_use))
 		return -EBUSY;
 
@@ -1033,18 +1040,29 @@ static struct video_device saa_template =
 	.minor    = -1,
 };
 
-/* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x22 >> 1, I2C_CLIENT_END };
+static int saa5246a_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-I2C_CLIENT_INSMOD;
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_SAA5246A, 0);
+}
+
+static const struct v4l2_subdev_core_ops saa5246a_core_ops = {
+	.g_chip_ident = saa5246a_g_chip_ident,
+};
+
+static const struct v4l2_subdev_ops saa5246a_ops = {
+	.core = &saa5246a_core_ops,
+};
+
 
 static int saa5246a_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	int pgbuf;
 	int err;
-	struct video_device *vd;
 	struct saa5246a_device *t;
+	struct v4l2_subdev *sd;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
@@ -1053,40 +1071,43 @@ static int saa5246a_probe(struct i2c_client *client,
 	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
 		return -ENOMEM;
+	sd = &t->sd;
+	v4l2_i2c_subdev_init(sd, client, &saa5246a_ops);
 	mutex_init(&t->lock);
 
 	/* Now create a video4linux device */
-	vd = video_device_alloc();
-	if (vd == NULL) {
+	t->vdev = video_device_alloc();
+	if (t->vdev == NULL) {
 		kfree(t);
 		return -ENOMEM;
 	}
-	i2c_set_clientdata(client, vd);
-	memcpy(vd, &saa_template, sizeof(*vd));
+	memcpy(t->vdev, &saa_template, sizeof(*t->vdev));
 
 	for (pgbuf = 0; pgbuf < NUM_DAUS; pgbuf++) {
 		memset(t->pgbuf[pgbuf], ' ', sizeof(t->pgbuf[0]));
 		t->is_searching[pgbuf] = false;
 	}
-	video_set_drvdata(vd, t);
+	video_set_drvdata(t->vdev, t);
 
 	/* Register it */
-	err = video_register_device(vd, VFL_TYPE_VTX, -1);
+	err = video_register_device(t->vdev, VFL_TYPE_VTX, -1);
 	if (err < 0) {
 		kfree(t);
-		video_device_release(vd);
+		video_device_release(t->vdev);
+		t->vdev = NULL;
 		return err;
 	}
-	t->client = client;
 	return 0;
 }
 
 static int saa5246a_remove(struct i2c_client *client)
 {
-	struct video_device *vd = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct saa5246a_device *t = to_dev(sd);
 
-	video_unregister_device(vd);
-	kfree(video_get_drvdata(vd));
+	video_unregister_device(t->vdev);
+	v4l2_device_unregister_subdev(sd);
+	kfree(t);
 	return 0;
 }
 
@@ -1098,7 +1119,6 @@ MODULE_DEVICE_TABLE(i2c, saa5246a_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa5246a",
-	.driverid = I2C_DRIVERID_SAA5249,
 	.probe = saa5246a_probe,
 	.remove = saa5246a_remove,
 	.id_table = saa5246a_id,

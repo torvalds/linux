@@ -83,7 +83,6 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 	acpi_handle handle = dev->data;
 	struct acpi_buffer buffer;
 	int ret;
-	acpi_status status;
 
 	pnp_dbg(&dev->dev, "set resources\n");
 	ret = pnpacpi_build_resource_template(dev, &buffer);
@@ -94,21 +93,31 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 		kfree(buffer.pointer);
 		return ret;
 	}
-	status = acpi_set_current_resources(handle, &buffer);
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(acpi_set_current_resources(handle, &buffer)))
 		ret = -EINVAL;
+	else if (acpi_bus_power_manageable(handle))
+		ret = acpi_bus_set_power(handle, ACPI_STATE_D0);
 	kfree(buffer.pointer);
 	return ret;
 }
 
 static int pnpacpi_disable_resources(struct pnp_dev *dev)
 {
-	acpi_status status;
+	acpi_handle handle = dev->data;
+	int ret;
+
+	dev_dbg(&dev->dev, "disable resources\n");
 
 	/* acpi_unregister_gsi(pnp_irq(dev, 0)); */
-	status = acpi_evaluate_object((acpi_handle) dev->data,
-				      "_DIS", NULL, NULL);
-	return ACPI_FAILURE(status) ? -ENODEV : 0;
+	ret = 0;
+	if (acpi_bus_power_manageable(handle)) {
+		ret = acpi_bus_set_power(handle, ACPI_STATE_D3);
+		if (ret)
+			return ret;
+	}
+	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_DIS", NULL, NULL)))
+		ret = -ENODEV;
+	return ret;
 }
 
 #ifdef CONFIG_ACPI_SLEEP

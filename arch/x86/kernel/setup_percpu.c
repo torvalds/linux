@@ -153,7 +153,6 @@ static struct page * __init pcpur_get_page(unsigned int cpu, int pageno)
 static ssize_t __init setup_pcpu_remap(size_t static_size)
 {
 	static struct vm_struct vm;
-	pg_data_t *last;
 	size_t ptrs_size, dyn_size;
 	unsigned int cpu;
 	ssize_t ret;
@@ -162,22 +161,9 @@ static ssize_t __init setup_pcpu_remap(size_t static_size)
 	 * If large page isn't supported, there's no benefit in doing
 	 * this.  Also, on non-NUMA, embedding is better.
 	 */
-	if (!cpu_has_pse || pcpu_need_numa())
+	if (!cpu_has_pse || !pcpu_need_numa())
 		return -EINVAL;
 
-	last = NULL;
-	for_each_possible_cpu(cpu) {
-		int node = early_cpu_to_node(cpu);
-
-		if (node_online(node) && NODE_DATA(node) &&
-		    last && last != NODE_DATA(node))
-			goto proceed;
-
-		last = NODE_DATA(node);
-	}
-	return -EINVAL;
-
-proceed:
 	/*
 	 * Currently supports only single page.  Supporting multiple
 	 * pages won't be too difficult if it ever becomes necessary.
@@ -233,8 +219,8 @@ proceed:
 		"%zu bytes\n", vm.addr, static_size);
 
 	ret = pcpu_setup_first_chunk(pcpur_get_page, static_size,
-				     PERCPU_FIRST_CHUNK_RESERVE,
-				     PMD_SIZE, dyn_size, vm.addr, NULL);
+				     PERCPU_FIRST_CHUNK_RESERVE, dyn_size,
+				     PMD_SIZE, vm.addr, NULL);
 	goto out_free_ar;
 
 enomem:
@@ -257,31 +243,13 @@ static ssize_t __init setup_pcpu_remap(size_t static_size)
  * Embedding allocator
  *
  * The first chunk is sized to just contain the static area plus
- * module and dynamic reserves, and allocated as a contiguous area
- * using bootmem allocator and used as-is without being mapped into
- * vmalloc area.  This enables the first chunk to piggy back on the
- * linear physical PMD mapping and doesn't add any additional pressure
- * to TLB.  Note that if the needed size is smaller than the minimum
- * unit size, the leftover is returned to the bootmem allocator.
+ * module and dynamic reserves and embedded into linear physical
+ * mapping so that it can use PMD mapping without additional TLB
+ * pressure.
  */
-static void *pcpue_ptr __initdata;
-static size_t pcpue_size __initdata;
-static size_t pcpue_unit_size __initdata;
-
-static struct page * __init pcpue_get_page(unsigned int cpu, int pageno)
-{
-	size_t off = (size_t)pageno << PAGE_SHIFT;
-
-	if (off >= pcpue_size)
-		return NULL;
-
-	return virt_to_page(pcpue_ptr + cpu * pcpue_unit_size + off);
-}
-
 static ssize_t __init setup_pcpu_embed(size_t static_size)
 {
-	unsigned int cpu;
-	size_t dyn_size;
+	size_t reserve = PERCPU_MODULE_RESERVE + PERCPU_DYNAMIC_RESERVE;
 
 	/*
 	 * If large page isn't supported, there's no benefit in doing
@@ -291,33 +259,8 @@ static ssize_t __init setup_pcpu_embed(size_t static_size)
 	if (!cpu_has_pse || pcpu_need_numa())
 		return -EINVAL;
 
-	/* allocate and copy */
-	pcpue_size = PFN_ALIGN(static_size + PERCPU_MODULE_RESERVE +
-			       PERCPU_DYNAMIC_RESERVE);
-	pcpue_unit_size = max_t(size_t, pcpue_size, PCPU_MIN_UNIT_SIZE);
-	dyn_size = pcpue_size - static_size - PERCPU_FIRST_CHUNK_RESERVE;
-
-	pcpue_ptr = pcpu_alloc_bootmem(0, num_possible_cpus() * pcpue_unit_size,
-				       PAGE_SIZE);
-	if (!pcpue_ptr)
-		return -ENOMEM;
-
-	for_each_possible_cpu(cpu) {
-		void *ptr = pcpue_ptr + cpu * pcpue_unit_size;
-
-		free_bootmem(__pa(ptr + pcpue_size),
-			     pcpue_unit_size - pcpue_size);
-		memcpy(ptr, __per_cpu_load, static_size);
-	}
-
-	/* we're ready, commit */
-	pr_info("PERCPU: Embedded %zu pages at %p, static data %zu bytes\n",
-		pcpue_size >> PAGE_SHIFT, pcpue_ptr, static_size);
-
-	return pcpu_setup_first_chunk(pcpue_get_page, static_size,
-				      PERCPU_FIRST_CHUNK_RESERVE,
-				      pcpue_unit_size, dyn_size,
-				      pcpue_ptr, NULL);
+	return pcpu_embed_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
+				      reserve - PERCPU_FIRST_CHUNK_RESERVE, -1);
 }
 
 /*
@@ -375,8 +318,8 @@ static ssize_t __init setup_pcpu_4k(size_t static_size)
 		pcpu4k_nr_static_pages, static_size);
 
 	ret = pcpu_setup_first_chunk(pcpu4k_get_page, static_size,
-				     PERCPU_FIRST_CHUNK_RESERVE, -1, -1, NULL,
-				     pcpu4k_populate_pte);
+				     PERCPU_FIRST_CHUNK_RESERVE, -1,
+				     -1, NULL, pcpu4k_populate_pte);
 	goto out_free_ar;
 
 enomem:

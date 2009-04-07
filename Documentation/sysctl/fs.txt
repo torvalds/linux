@@ -1,5 +1,6 @@
 Documentation for /proc/sys/fs/*	kernel version 2.2.10
 	(c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
+	(c) 2009,        Shen Feng<shen@cn.fujitsu.com>
 
 For general info and legal blurb, please look in README.
 
@@ -14,7 +15,12 @@ kernel. Since some of the files _can_ be used to screw up your
 system, it is advisable to read both documentation and source
 before actually making adjustments.
 
+1. /proc/sys/fs
+----------------------------------------------------------
+
 Currently, these files are in /proc/sys/fs:
+- aio-max-nr
+- aio-nr
 - dentry-state
 - dquot-max
 - dquot-nr
@@ -30,8 +36,15 @@ Currently, these files are in /proc/sys/fs:
 - super-max
 - super-nr
 
-Documentation for the files in /proc/sys/fs/binfmt_misc is
-in Documentation/binfmt_misc.txt.
+==============================================================
+
+aio-nr & aio-max-nr:
+
+aio-nr is the running total of the number of events specified on the
+io_setup system call for all currently active aio contexts.  If aio-nr
+reaches aio-max-nr then io_setup will fail with EAGAIN.  Note that
+raising aio-max-nr does not result in the pre-allocation or re-sizing
+of any kernel data structures.
 
 ==============================================================
 
@@ -178,3 +191,60 @@ requests.  aio-max-nr allows you to change the maximum value
 aio-nr can grow to.
 
 ==============================================================
+
+
+2. /proc/sys/fs/binfmt_misc
+----------------------------------------------------------
+
+Documentation for the files in /proc/sys/fs/binfmt_misc is
+in Documentation/binfmt_misc.txt.
+
+
+3. /proc/sys/fs/mqueue - POSIX message queues filesystem
+----------------------------------------------------------
+
+The "mqueue"  filesystem provides  the necessary kernel features to enable the
+creation of a  user space  library that  implements  the  POSIX message queues
+API (as noted by the  MSG tag in the  POSIX 1003.1-2001 version  of the System
+Interfaces specification.)
+
+The "mqueue" filesystem contains values for determining/setting  the amount of
+resources used by the file system.
+
+/proc/sys/fs/mqueue/queues_max is a read/write  file for  setting/getting  the
+maximum number of message queues allowed on the system.
+
+/proc/sys/fs/mqueue/msg_max  is  a  read/write file  for  setting/getting  the
+maximum number of messages in a queue value.  In fact it is the limiting value
+for another (user) limit which is set in mq_open invocation. This attribute of
+a queue must be less or equal then msg_max.
+
+/proc/sys/fs/mqueue/msgsize_max is  a read/write  file for setting/getting the
+maximum  message size value (it is every  message queue's attribute set during
+its creation).
+
+
+4. /proc/sys/fs/epoll - Configuration options for the epoll interface
+--------------------------------------------------------
+
+This directory contains configuration options for the epoll(7) interface.
+
+max_user_instances
+------------------
+
+This is the maximum number of epoll file descriptors that a single user can
+have open at a given time. The default value is 128, and should be enough
+for normal users.
+
+max_user_watches
+----------------
+
+Every epoll file descriptor can store a number of files to be monitored
+for event readiness. Each one of these monitored files constitutes a "watch".
+This configuration option sets the maximum number of "watches" that are
+allowed for each user.
+Each "watch" costs roughly 90 bytes on a 32bit kernel, and roughly 160 bytes
+on a 64bit one.
+The current default value for  max_user_watches  is the 1/32 of the available
+low memory, divided for the "watch" cost in bytes.
+

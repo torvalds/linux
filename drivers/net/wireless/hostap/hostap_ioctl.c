@@ -2,6 +2,7 @@
 
 #include <linux/types.h>
 #include <linux/ethtool.h>
+#include <linux/if_arp.h>
 #include <net/lib80211.h>
 
 #include "hostap_wlan.h"
@@ -1638,7 +1639,7 @@ static int prism2_request_hostscan(struct net_device *dev,
 	memset(&scan_req, 0, sizeof(scan_req));
 	scan_req.channel_list = cpu_to_le16(local->channel_mask &
 					    local->scan_channel_mask);
-	scan_req.txrate = __constant_cpu_to_le16(HFA384X_RATES_1MBPS);
+	scan_req.txrate = cpu_to_le16(HFA384X_RATES_1MBPS);
 	if (ssid) {
 		if (ssid_len > 32)
 			return -EINVAL;
@@ -1668,7 +1669,7 @@ static int prism2_request_scan(struct net_device *dev)
 	memset(&scan_req, 0, sizeof(scan_req));
 	scan_req.channel_list = cpu_to_le16(local->channel_mask &
 					    local->scan_channel_mask);
-	scan_req.txrate = __constant_cpu_to_le16(HFA384X_RATES_1MBPS);
+	scan_req.txrate = cpu_to_le16(HFA384X_RATES_1MBPS);
 
 	/* FIX:
 	 * It seems to be enough to set roaming mode for a short moment to
@@ -2514,7 +2515,7 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 		u16 rate;
 
 		memset(&scan_req, 0, sizeof(scan_req));
-		scan_req.channel_list = __constant_cpu_to_le16(0x3fff);
+		scan_req.channel_list = cpu_to_le16(0x3fff);
 		switch (value) {
 		case 1: rate = HFA384X_RATES_1MBPS; break;
 		case 2: rate = HFA384X_RATES_2MBPS; break;

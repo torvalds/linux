@@ -61,6 +61,8 @@
 
 #define T3_MAX_DEV_NAME_LEN 32
 
+#define CXIO_FW_MAJ 7
+
 struct cxio_hal_ctrl_qp {
 	u32 wptr;
 	u32 rptr;
@@ -108,6 +110,9 @@ struct cxio_rdev {
 	struct gen_pool *pbl_pool;
 	struct gen_pool *rqt_pool;
 	struct list_head entry;
+	struct ch_embedded_info fw_info;
+	u32	flags;
+#define	CXIO_ERROR_FATAL	1
 };
 
 static inline int cxio_num_stags(struct cxio_rdev *rdev_p)

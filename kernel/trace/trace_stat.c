@@ -125,23 +125,21 @@ static int stat_seq_init(struct tracer_stat_session *session)
 		INIT_LIST_HEAD(&new_entry->list);
 		new_entry->stat = stat;
 
-		list_for_each_entry(iter_entry, &session->stat_list, list) {
+		list_for_each_entry_reverse(iter_entry, &session->stat_list,
+				list) {
 
 			/* Insertion with a descendent sorting */
-			if (ts->stat_cmp(new_entry->stat,
-						iter_entry->stat) > 0) {
+			if (ts->stat_cmp(iter_entry->stat,
+					new_entry->stat) >= 0) {
 
-				list_add_tail(&new_entry->list,
-						&iter_entry->list);
-				break;
-
-			/* The current smaller value */
-			} else if (list_is_last(&iter_entry->list,
-						&session->stat_list)) {
 				list_add(&new_entry->list, &iter_entry->list);
 				break;
 			}
 		}
+
+		/* The current larger value */
+		if (list_empty(&new_entry->list))
+			list_add(&new_entry->list, &session->stat_list);
 	}
 exit:
 	mutex_unlock(&session->stat_mutex);
@@ -163,7 +161,7 @@ static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 
 	/* If we are in the beginning of the file, print the headers */
 	if (!*pos && session->ts->stat_headers)
-		session->ts->stat_headers(s);
+		return SEQ_START_TOKEN;
 
 	return seq_list_start(&session->stat_list, *pos);
 }
@@ -171,6 +169,9 @@ static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 static void *stat_seq_next(struct seq_file *s, void *p, loff_t *pos)
 {
 	struct tracer_stat_session *session = s->private;
+
+	if (p == SEQ_START_TOKEN)
+		return seq_list_start(&session->stat_list, *pos);
 
 	return seq_list_next(p, &session->stat_list, pos);
 }
@@ -185,6 +186,9 @@ static int stat_seq_show(struct seq_file *s, void *v)
 {
 	struct tracer_stat_session *session = s->private;
 	struct trace_stat_list *l = list_entry(v, struct trace_stat_list, list);
+
+	if (v == SEQ_START_TOKEN)
+		return session->ts->stat_headers(s);
 
 	return session->ts->stat_show(s, l->stat);
 }

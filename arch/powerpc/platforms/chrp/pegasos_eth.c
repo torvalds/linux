@@ -21,8 +21,8 @@
 #define PEGASOS2_SRAM_BASE 			(0xf2000000)
 #define PEGASOS2_SRAM_SIZE			(256*1024)
 
-#define PEGASOS2_SRAM_BASE_ETH0			(PEGASOS2_SRAM_BASE)
-#define PEGASOS2_SRAM_BASE_ETH1			(PEGASOS2_SRAM_BASE_ETH0 + (PEGASOS2_SRAM_SIZE / 2) )
+#define PEGASOS2_SRAM_BASE_ETH_PORT0			(PEGASOS2_SRAM_BASE)
+#define PEGASOS2_SRAM_BASE_ETH_PORT1			(PEGASOS2_SRAM_BASE_ETH_PORT0 + (PEGASOS2_SRAM_SIZE / 2) )
 
 
 #define PEGASOS2_SRAM_RXRING_SIZE		(PEGASOS2_SRAM_SIZE/4)
@@ -47,75 +47,42 @@ static struct platform_device mv643xx_eth_shared_device = {
 	.resource	= mv643xx_eth_shared_resources,
 };
 
-static struct resource mv643xx_eth0_resources[] = {
+static struct resource mv643xx_eth_port1_resources[] = {
 	[0] = {
-		.name	= "eth0 irq",
+		.name	= "eth port1 irq",
 		.start	= 9,
 		.end	= 9,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
 
-
-static struct mv643xx_eth_platform_data eth0_pd = {
-	.shared		= &mv643xx_eth_shared_device,
-	.port_number	= 0,
-
-	.tx_sram_addr = PEGASOS2_SRAM_BASE_ETH0,
-	.tx_sram_size = PEGASOS2_SRAM_TXRING_SIZE,
-	.tx_queue_size = PEGASOS2_SRAM_TXRING_SIZE/16,
-
-	.rx_sram_addr = PEGASOS2_SRAM_BASE_ETH0 + PEGASOS2_SRAM_TXRING_SIZE,
-	.rx_sram_size = PEGASOS2_SRAM_RXRING_SIZE,
-	.rx_queue_size = PEGASOS2_SRAM_RXRING_SIZE/16,
-};
-
-static struct platform_device eth0_device = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(mv643xx_eth0_resources),
-	.resource	= mv643xx_eth0_resources,
-	.dev = {
-		.platform_data = &eth0_pd,
-	},
-};
-
-static struct resource mv643xx_eth1_resources[] = {
-	[0] = {
-		.name	= "eth1 irq",
-		.start	= 9,
-		.end	= 9,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct mv643xx_eth_platform_data eth1_pd = {
+static struct mv643xx_eth_platform_data eth_port1_pd = {
 	.shared		= &mv643xx_eth_shared_device,
 	.port_number	= 1,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(7),
 
-	.tx_sram_addr = PEGASOS2_SRAM_BASE_ETH1,
+	.tx_sram_addr = PEGASOS2_SRAM_BASE_ETH_PORT1,
 	.tx_sram_size = PEGASOS2_SRAM_TXRING_SIZE,
 	.tx_queue_size = PEGASOS2_SRAM_TXRING_SIZE/16,
 
-	.rx_sram_addr = PEGASOS2_SRAM_BASE_ETH1 + PEGASOS2_SRAM_TXRING_SIZE,
+	.rx_sram_addr = PEGASOS2_SRAM_BASE_ETH_PORT1 + PEGASOS2_SRAM_TXRING_SIZE,
 	.rx_sram_size = PEGASOS2_SRAM_RXRING_SIZE,
 	.rx_queue_size = PEGASOS2_SRAM_RXRING_SIZE/16,
 };
 
-static struct platform_device eth1_device = {
+static struct platform_device eth_port1_device = {
 	.name		= MV643XX_ETH_NAME,
 	.id		= 1,
-	.num_resources	= ARRAY_SIZE(mv643xx_eth1_resources),
-	.resource	= mv643xx_eth1_resources,
+	.num_resources	= ARRAY_SIZE(mv643xx_eth_port1_resources),
+	.resource	= mv643xx_eth_port1_resources,
 	.dev = {
-		.platform_data = &eth1_pd,
+		.platform_data = &eth_port1_pd,
 	},
 };
 
 static struct platform_device *mv643xx_eth_pd_devs[] __initdata = {
 	&mv643xx_eth_shared_device,
-	&eth0_device,
-	&eth1_device,
+	&eth_port1_device,
 };
 
 /***********/
@@ -191,15 +158,10 @@ static int __init mv643xx_eth_add_pds(void)
 
 		if ( Enable_SRAM() < 0)
 		{
-			eth0_pd.tx_sram_addr = 0;
-			eth0_pd.tx_sram_size = 0;
-			eth0_pd.rx_sram_addr = 0;
-			eth0_pd.rx_sram_size = 0;
-
-			eth1_pd.tx_sram_addr = 0;
-			eth1_pd.tx_sram_size = 0;
-			eth1_pd.rx_sram_addr = 0;
-			eth1_pd.rx_sram_size = 0;
+			eth_port1_pd.tx_sram_addr = 0;
+			eth_port1_pd.tx_sram_size = 0;
+			eth_port1_pd.rx_sram_addr = 0;
+			eth_port1_pd.rx_sram_size = 0;
 
 #ifdef BE_VERBOSE
 			printk("Pegasos II/Marvell MV64361: Can't enable the "

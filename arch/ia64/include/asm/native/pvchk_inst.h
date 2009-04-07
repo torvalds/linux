@@ -180,6 +180,11 @@
 	IS_PRED_IN(pred)			\
 	IS_RREG_OUT(reg)			\
 	IS_RREG_CLOB(clob)
+#define MOV_FROM_ITC(pred, pred_clob, reg, clob)	\
+	IS_PRED_IN(pred)				\
+	IS_PRED_CLOB(pred_clob)				\
+	IS_RREG_OUT(reg)				\
+	IS_RREG_CLOB(clob)
 #define MOV_TO_IFA(reg, clob)			\
 	IS_RREG_IN(reg)				\
 	IS_RREG_CLOB(clob)
@@ -246,6 +251,9 @@
 	IS_RREG_CLOB(clob2)
 #define RSM_PSR_DT				\
 	nop 0
+#define RSM_PSR_BE_I(clob0, clob1)		\
+	IS_RREG_CLOB(clob0)			\
+	IS_RREG_CLOB(clob1)
 #define SSM_PSR_DT_AND_SRLZ_I			\
 	nop 0
 #define BSW_0(clob0, clob1, clob2)		\

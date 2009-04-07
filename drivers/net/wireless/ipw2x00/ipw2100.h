@@ -39,14 +39,14 @@
 #include <linux/wireless.h>
 #include <net/iw_handler.h>	// new driver API
 
-#include <net/ieee80211.h>
-
 #ifdef CONFIG_IPW2100_MONITOR
 #include <net/ieee80211_radiotap.h>
 #endif
 
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+
+#include "ieee80211.h"
 
 struct ipw2100_priv;
 struct ipw2100_tx_packet;
@@ -590,6 +590,10 @@ struct ipw2100_priv {
 	struct delayed_work scan_event_later;
 
 	int user_requested_scan;
+
+	/* Track time in suspend */
+	unsigned long suspend_at;
+	unsigned long suspend_time;
 
 	u32 interrupts;
 	int tx_interrupts;

@@ -928,9 +928,14 @@ void ftrace_release(void *start, unsigned long size)
 
 	mutex_lock(&ftrace_lock);
 	do_for_each_ftrace_rec(pg, rec) {
-		if ((rec->ip >= s) && (rec->ip < e) &&
-		    !(rec->flags & FTRACE_FL_FREE))
+		if ((rec->ip >= s) && (rec->ip < e)) {
+			/*
+			 * rec->ip is changed in ftrace_free_rec()
+			 * It should not between s and e if record was freed.
+			 */
+			FTRACE_WARN_ON(rec->flags & FTRACE_FL_FREE);
 			ftrace_free_rec(rec);
+		}
 	} while_for_each_ftrace_rec();
 	mutex_unlock(&ftrace_lock);
 }
@@ -3287,6 +3292,9 @@ void unregister_ftrace_graph(void)
 {
 	mutex_lock(&ftrace_lock);
 
+	if (!unlikely(atomic_read(&ftrace_graph_active)))
+		goto out;
+
 	atomic_dec(&ftrace_graph_active);
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
@@ -3294,6 +3302,7 @@ void unregister_ftrace_graph(void)
 	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
 	unregister_pm_notifier(&ftrace_suspend_notifier);
 
+ out:
 	mutex_unlock(&ftrace_lock);
 }
 

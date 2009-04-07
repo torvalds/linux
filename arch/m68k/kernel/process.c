@@ -233,7 +233,7 @@ asmlinkage int m68k_clone(struct pt_regs *regs)
 		       parent_tidptr, child_tidptr);
 }
 
-int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
+int copy_thread(unsigned long clone_flags, unsigned long usp,
 		 unsigned long unused,
 		 struct task_struct * p, struct pt_regs * regs)
 {

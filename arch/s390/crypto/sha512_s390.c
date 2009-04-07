@@ -12,16 +12,16 @@
  * any later version.
  *
  */
+#include <crypto/internal/hash.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/crypto.h>
 
 #include "sha.h"
 #include "crypt_s390.h"
 
-static void sha512_init(struct crypto_tfm *tfm)
+static int sha512_init(struct shash_desc *desc)
 {
-	struct s390_sha_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
 
 	*(__u64 *)&ctx->state[0] = 0x6a09e667f3bcc908ULL;
 	*(__u64 *)&ctx->state[2] = 0xbb67ae8584caa73bULL;
@@ -33,29 +33,31 @@ static void sha512_init(struct crypto_tfm *tfm)
 	*(__u64 *)&ctx->state[14] = 0x5be0cd19137e2179ULL;
 	ctx->count = 0;
 	ctx->func = KIMD_SHA_512;
+
+	return 0;
 }
 
-static struct crypto_alg sha512_alg = {
-	.cra_name	=	"sha512",
-	.cra_driver_name =	"sha512-s390",
-	.cra_priority	=	CRYPT_S390_PRIORITY,
-	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
-	.cra_blocksize	=	SHA512_BLOCK_SIZE,
-	.cra_ctxsize	=	sizeof(struct s390_sha_ctx),
-	.cra_module	=	THIS_MODULE,
-	.cra_list	=	LIST_HEAD_INIT(sha512_alg.cra_list),
-	.cra_u		=	{ .digest = {
-	.dia_digestsize	=	SHA512_DIGEST_SIZE,
-	.dia_init	=	sha512_init,
-	.dia_update	=	s390_sha_update,
-	.dia_final	=	s390_sha_final } }
+static struct shash_alg sha512_alg = {
+	.digestsize	=	SHA512_DIGEST_SIZE,
+	.init		=	sha512_init,
+	.update		=	s390_sha_update,
+	.final		=	s390_sha_final,
+	.descsize	=	sizeof(struct s390_sha_ctx),
+	.base		=	{
+		.cra_name	=	"sha512",
+		.cra_driver_name=	"sha512-s390",
+		.cra_priority	=	CRYPT_S390_PRIORITY,
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	SHA512_BLOCK_SIZE,
+		.cra_module	=	THIS_MODULE,
+	}
 };
 
 MODULE_ALIAS("sha512");
 
-static void sha384_init(struct crypto_tfm *tfm)
+static int sha384_init(struct shash_desc *desc)
 {
-	struct s390_sha_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
 
 	*(__u64 *)&ctx->state[0] = 0xcbbb9d5dc1059ed8ULL;
 	*(__u64 *)&ctx->state[2] = 0x629a292a367cd507ULL;
@@ -67,22 +69,25 @@ static void sha384_init(struct crypto_tfm *tfm)
 	*(__u64 *)&ctx->state[14] = 0x47b5481dbefa4fa4ULL;
 	ctx->count = 0;
 	ctx->func = KIMD_SHA_512;
+
+	return 0;
 }
 
-static struct crypto_alg sha384_alg = {
-	.cra_name	=	"sha384",
-	.cra_driver_name =	"sha384-s390",
-	.cra_priority	=	CRYPT_S390_PRIORITY,
-	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
-	.cra_blocksize	=	SHA384_BLOCK_SIZE,
-	.cra_ctxsize	=	sizeof(struct s390_sha_ctx),
-	.cra_module	=	THIS_MODULE,
-	.cra_list	=	LIST_HEAD_INIT(sha384_alg.cra_list),
-	.cra_u		=	{ .digest = {
-	.dia_digestsize	=	SHA384_DIGEST_SIZE,
-	.dia_init	=	sha384_init,
-	.dia_update	=	s390_sha_update,
-	.dia_final	=	s390_sha_final } }
+static struct shash_alg sha384_alg = {
+	.digestsize	=	SHA384_DIGEST_SIZE,
+	.init		=	sha384_init,
+	.update		=	s390_sha_update,
+	.final		=	s390_sha_final,
+	.descsize	=	sizeof(struct s390_sha_ctx),
+	.base		=	{
+		.cra_name	=	"sha384",
+		.cra_driver_name=	"sha384-s390",
+		.cra_priority	=	CRYPT_S390_PRIORITY,
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	SHA384_BLOCK_SIZE,
+		.cra_ctxsize	=	sizeof(struct s390_sha_ctx),
+		.cra_module	=	THIS_MODULE,
+	}
 };
 
 MODULE_ALIAS("sha384");
@@ -93,18 +98,18 @@ static int __init init(void)
 
 	if (!crypt_s390_func_available(KIMD_SHA_512))
 		return -EOPNOTSUPP;
-	if ((ret = crypto_register_alg(&sha512_alg)) < 0)
+	if ((ret = crypto_register_shash(&sha512_alg)) < 0)
 		goto out;
-	if ((ret = crypto_register_alg(&sha384_alg)) < 0)
-		crypto_unregister_alg(&sha512_alg);
+	if ((ret = crypto_register_shash(&sha384_alg)) < 0)
+		crypto_unregister_shash(&sha512_alg);
 out:
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	crypto_unregister_alg(&sha512_alg);
-	crypto_unregister_alg(&sha384_alg);
+	crypto_unregister_shash(&sha512_alg);
+	crypto_unregister_shash(&sha384_alg);
 }
 
 module_init(init);

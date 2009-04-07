@@ -70,8 +70,6 @@ struct old_utsname;
 asmlinkage long sys32_olduname(struct oldold_utsname __user *);
 long sys32_uname(struct old_utsname __user *);
 
-long sys32_ustat(unsigned, struct ustat32 __user *);
-
 asmlinkage long sys32_execve(char __user *, compat_uptr_t __user *,
 			     compat_uptr_t __user *, struct pt_regs *);
 asmlinkage long sys32_clone(unsigned int, unsigned int, struct pt_regs *);

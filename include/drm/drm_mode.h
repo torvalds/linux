@@ -27,11 +27,8 @@
 #ifndef _DRM_MODE_H
 #define _DRM_MODE_H
 
-#if !defined(__KERNEL__) && !defined(_KERNEL)
-#include <stdint.h>
-#else
 #include <linux/kernel.h>
-#endif
+#include <linux/types.h>
 
 #define DRM_DISPLAY_INFO_LEN	32
 #define DRM_CONNECTOR_NAME_LEN	32
@@ -81,41 +78,41 @@
 #define DRM_MODE_DITHERING_ON	1
 
 struct drm_mode_modeinfo {
-	uint32_t clock;
-	uint16_t hdisplay, hsync_start, hsync_end, htotal, hskew;
-	uint16_t vdisplay, vsync_start, vsync_end, vtotal, vscan;
+	__u32 clock;
+	__u16 hdisplay, hsync_start, hsync_end, htotal, hskew;
+	__u16 vdisplay, vsync_start, vsync_end, vtotal, vscan;
 
-	uint32_t vrefresh; /* vertical refresh * 1000 */
+	__u32 vrefresh; /* vertical refresh * 1000 */
 
-	uint32_t flags;
-	uint32_t type;
+	__u32 flags;
+	__u32 type;
 	char name[DRM_DISPLAY_MODE_LEN];
 };
 
 struct drm_mode_card_res {
-	uint64_t fb_id_ptr;
-	uint64_t crtc_id_ptr;
-	uint64_t connector_id_ptr;
-	uint64_t encoder_id_ptr;
-	uint32_t count_fbs;
-	uint32_t count_crtcs;
-	uint32_t count_connectors;
-	uint32_t count_encoders;
-	uint32_t min_width, max_width;
-	uint32_t min_height, max_height;
+	__u64 fb_id_ptr;
+	__u64 crtc_id_ptr;
+	__u64 connector_id_ptr;
+	__u64 encoder_id_ptr;
+	__u32 count_fbs;
+	__u32 count_crtcs;
+	__u32 count_connectors;
+	__u32 count_encoders;
+	__u32 min_width, max_width;
+	__u32 min_height, max_height;
 };
 
 struct drm_mode_crtc {
-	uint64_t set_connectors_ptr;
-	uint32_t count_connectors;
+	__u64 set_connectors_ptr;
+	__u32 count_connectors;
 
-	uint32_t crtc_id; /**< Id */
-	uint32_t fb_id; /**< Id of framebuffer */
+	__u32 crtc_id; /**< Id */
+	__u32 fb_id; /**< Id of framebuffer */
 
-	uint32_t x, y; /**< Position on the frameuffer */
+	__u32 x, y; /**< Position on the frameuffer */
 
-	uint32_t gamma_size;
-	uint32_t mode_valid;
+	__u32 gamma_size;
+	__u32 mode_valid;
 	struct drm_mode_modeinfo mode;
 };
 
@@ -126,13 +123,13 @@ struct drm_mode_crtc {
 #define DRM_MODE_ENCODER_TVDAC	4
 
 struct drm_mode_get_encoder {
-	uint32_t encoder_id;
-	uint32_t encoder_type;
+	__u32 encoder_id;
+	__u32 encoder_type;
 
-	uint32_t crtc_id; /**< Id of crtc */
+	__u32 crtc_id; /**< Id of crtc */
 
-	uint32_t possible_crtcs;
-	uint32_t possible_clones;
+	__u32 possible_crtcs;
+	__u32 possible_clones;
 };
 
 /* This is for connectors with multiple signal types. */
@@ -161,23 +158,23 @@ struct drm_mode_get_encoder {
 
 struct drm_mode_get_connector {
 
-	uint64_t encoders_ptr;
-	uint64_t modes_ptr;
-	uint64_t props_ptr;
-	uint64_t prop_values_ptr;
+	__u64 encoders_ptr;
+	__u64 modes_ptr;
+	__u64 props_ptr;
+	__u64 prop_values_ptr;
 
-	uint32_t count_modes;
-	uint32_t count_props;
-	uint32_t count_encoders;
+	__u32 count_modes;
+	__u32 count_props;
+	__u32 count_encoders;
 
-	uint32_t encoder_id; /**< Current Encoder */
-	uint32_t connector_id; /**< Id */
-	uint32_t connector_type;
-	uint32_t connector_type_id;
+	__u32 encoder_id; /**< Current Encoder */
+	__u32 connector_id; /**< Id */
+	__u32 connector_type;
+	__u32 connector_type_id;
 
-	uint32_t connection;
-	uint32_t mm_width, mm_height; /**< HxW in millimeters */
-	uint32_t subpixel;
+	__u32 connection;
+	__u32 mm_width, mm_height; /**< HxW in millimeters */
+	__u32 subpixel;
 };
 
 #define DRM_MODE_PROP_PENDING	(1<<0)
@@ -187,46 +184,46 @@ struct drm_mode_get_connector {
 #define DRM_MODE_PROP_BLOB	(1<<4)
 
 struct drm_mode_property_enum {
-	uint64_t value;
+	__u64 value;
 	char name[DRM_PROP_NAME_LEN];
 };
 
 struct drm_mode_get_property {
-	uint64_t values_ptr; /* values and blob lengths */
-	uint64_t enum_blob_ptr; /* enum and blob id ptrs */
+	__u64 values_ptr; /* values and blob lengths */
+	__u64 enum_blob_ptr; /* enum and blob id ptrs */
 
-	uint32_t prop_id;
-	uint32_t flags;
+	__u32 prop_id;
+	__u32 flags;
 	char name[DRM_PROP_NAME_LEN];
 
-	uint32_t count_values;
-	uint32_t count_enum_blobs;
+	__u32 count_values;
+	__u32 count_enum_blobs;
 };
 
 struct drm_mode_connector_set_property {
-	uint64_t value;
-	uint32_t prop_id;
-	uint32_t connector_id;
+	__u64 value;
+	__u32 prop_id;
+	__u32 connector_id;
 };
 
 struct drm_mode_get_blob {
-	uint32_t blob_id;
-	uint32_t length;
-	uint64_t data;
+	__u32 blob_id;
+	__u32 length;
+	__u64 data;
 };
 
 struct drm_mode_fb_cmd {
-	uint32_t fb_id;
-	uint32_t width, height;
-	uint32_t pitch;
-	uint32_t bpp;
-	uint32_t depth;
+	__u32 fb_id;
+	__u32 width, height;
+	__u32 pitch;
+	__u32 bpp;
+	__u32 depth;
 	/* driver specific handle */
-	uint32_t handle;
+	__u32 handle;
 };
 
 struct drm_mode_mode_cmd {
-	uint32_t connector_id;
+	__u32 connector_id;
 	struct drm_mode_modeinfo mode;
 };
 
@@ -248,24 +245,24 @@ struct drm_mode_mode_cmd {
  *    y
  */
 struct drm_mode_cursor {
-	uint32_t flags;
-	uint32_t crtc_id;
-	int32_t x;
-	int32_t y;
-	uint32_t width;
-	uint32_t height;
+	__u32 flags;
+	__u32 crtc_id;
+	__s32 x;
+	__s32 y;
+	__u32 width;
+	__u32 height;
 	/* driver specific handle */
-	uint32_t handle;
+	__u32 handle;
 };
 
 struct drm_mode_crtc_lut {
-	uint32_t crtc_id;
-	uint32_t gamma_size;
+	__u32 crtc_id;
+	__u32 gamma_size;
 
 	/* pointers to arrays */
-	uint64_t red;
-	uint64_t green;
-	uint64_t blue;
+	__u64 red;
+	__u64 green;
+	__u64 blue;
 };
 
 #endif

@@ -627,16 +627,8 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	pvr2_sysfs_trace("Creating class_dev id=%p",class_dev);
 
 	class_dev->class = &class_ptr->class;
-	if (pvr2_hdw_get_sn(sfp->channel.hdw)) {
-		dev_set_name(class_dev, "sn-%lu",
-			 pvr2_hdw_get_sn(sfp->channel.hdw));
-	} else if (pvr2_hdw_get_unit_number(sfp->channel.hdw) >= 0) {
-		dev_set_name(class_dev, "unit-%c",
-			 pvr2_hdw_get_unit_number(sfp->channel.hdw) + 'a');
-	} else {
-		kfree(class_dev);
-		return;
-	}
+	dev_set_name(class_dev, "%s",
+		     pvr2_hdw_get_device_identifier(sfp->channel.hdw));
 
 	class_dev->parent = &usb_dev->dev;
 

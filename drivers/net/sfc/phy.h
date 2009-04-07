@@ -18,12 +18,16 @@ extern struct efx_phy_operations falcon_sft9001_phy_ops;
 
 extern void tenxpress_phy_blink(struct efx_nic *efx, bool blink);
 
+/* Wait for the PHY to boot. Return 0 on success, -EINVAL if the PHY failed
+ * to boot due to corrupt flash, or some other negative error code. */
+extern int sft9001_wait_boot(struct efx_nic *efx);
+
 /****************************************************************************
- * Exported functions from the driver for XFP optical PHYs
+ * AMCC/Quake QT20xx PHYs
  */
 extern struct efx_phy_operations falcon_xfp_phy_ops;
 
-/* The QUAKE XFP PHY provides various H/W control states for LEDs */
+/* These PHYs provide various H/W control states for LEDs */
 #define QUAKE_LED_LINK_INVAL	(0)
 #define QUAKE_LED_LINK_STAT	(1)
 #define QUAKE_LED_LINK_ACT	(2)

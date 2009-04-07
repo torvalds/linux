@@ -18,6 +18,11 @@ obj-y				+= pwm-clock.o
 obj-y				+= gpio.o
 obj-y				+= gpio-config.o
 
+# PM support
+
+obj-$(CONFIG_PM)		+= pm.o
+obj-$(CONFIG_S3C2410_PM_CHECK)	+= pm-check.o
+
 # devices
 
 obj-$(CONFIG_S3C_DEV_HSMMC)	+= dev-hsmmc.o

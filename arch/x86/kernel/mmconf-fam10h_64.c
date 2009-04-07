@@ -226,7 +226,7 @@ static int __devinit set_check_enable_amd_mmconf(const struct dmi_system_id *d)
         return 0;
 }
 
-static struct dmi_system_id __devinitdata mmconf_dmi_table[] = {
+static const struct dmi_system_id __cpuinitconst mmconf_dmi_table[] = {
         {
                 .callback = set_check_enable_amd_mmconf,
                 .ident = "Sun Microsystems Machine",
