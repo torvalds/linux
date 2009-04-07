@@ -489,10 +489,14 @@ static int reiserfs_get_blocks_direct_io(struct inode *inode,
 	   disappeared */
 	if (REISERFS_I(inode)->i_flags & i_pack_on_close_mask) {
 		int err;
-		lock_kernel();
+
+		reiserfs_write_lock(inode->i_sb);
+
 		err = reiserfs_commit_for_inode(inode);
 		REISERFS_I(inode)->i_flags &= ~i_pack_on_close_mask;
-		unlock_kernel();
+
+		reiserfs_write_unlock(inode->i_sb);
+
 		if (err < 0)
 			ret = err;
 	}
@@ -616,7 +620,6 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 	loff_t new_offset =
 	    (((loff_t) block) << inode->i_sb->s_blocksize_bits) + 1;
 
-	/* bad.... */
 	reiserfs_write_lock(inode->i_sb);
 	version = get_inode_item_key_version(inode);
 
@@ -997,10 +1000,14 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 			if (retval)
 				goto failure;
 		}
-		/* inserting indirect pointers for a hole can take a
-		 ** long time.  reschedule if needed
+		/*
+		 * inserting indirect pointers for a hole can take a
+		 * long time.  reschedule if needed and also release the write
+		 * lock for others.
 		 */
+		reiserfs_write_unlock(inode->i_sb);
 		cond_resched();
+		reiserfs_write_lock(inode->i_sb);
 
 		retval = search_for_position_by_key(inode->i_sb, &key, &path);
 		if (retval == IO_ERROR) {
@@ -2608,7 +2615,10 @@ int reiserfs_prepare_write(struct file *f, struct page *page,
 	int ret;
 	int old_ref = 0;
 
+	reiserfs_write_unlock(inode->i_sb);
 	reiserfs_wait_on_write_block(inode->i_sb);
+	reiserfs_write_lock(inode->i_sb);
+
 	fix_tail_page_for_writing(page);
 	if (reiserfs_transaction_running(inode->i_sb)) {
 		struct reiserfs_transaction_handle *th;
@@ -2758,7 +2768,10 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 	int update_sd = 0;
 	struct reiserfs_transaction_handle *th = NULL;
 
+	reiserfs_write_unlock(inode->i_sb);
 	reiserfs_wait_on_write_block(inode->i_sb);
+	reiserfs_write_lock(inode->i_sb);
+
 	if (reiserfs_transaction_running(inode->i_sb)) {
 		th = current->journal_info;
 	}

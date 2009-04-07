@@ -1256,7 +1256,9 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 	else {
 		if (buffer_locked(bh)) {
 			PROC_INFO_INC(sb, scan_bitmap.wait);
+			reiserfs_write_unlock(sb);
 			__wait_on_buffer(bh);
+			reiserfs_write_lock(sb);
 		}
 		BUG_ON(!buffer_uptodate(bh));
 		BUG_ON(atomic_read(&bh->b_count) == 0);

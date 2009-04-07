@@ -629,7 +629,9 @@ int search_by_key(struct super_block *sb, const struct cpu_key *key,	/* Key to s
 				search_by_key_reada(sb, reada_bh,
 						    reada_blocks, reada_count);
 			ll_rw_block(READ, 1, &bh);
+			reiserfs_write_unlock(sb);
 			wait_on_buffer(bh);
+			reiserfs_write_lock(sb);
 			if (!buffer_uptodate(bh))
 				goto io_error;
 		} else {

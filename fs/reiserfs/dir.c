@@ -174,14 +174,22 @@ int reiserfs_readdir_dentry(struct dentry *dentry, void *dirent,
 				// user space buffer is swapped out. At that time
 				// entry can move to somewhere else
 				memcpy(local_buf, d_name, d_reclen);
+
+				/*
+				 * Since filldir might sleep, we can release
+				 * the write lock here for other waiters
+				 */
+				reiserfs_write_unlock(inode->i_sb);
 				if (filldir
 				    (dirent, local_buf, d_reclen, d_off, d_ino,
 				     DT_UNKNOWN) < 0) {
+					reiserfs_write_lock(inode->i_sb);
 					if (local_buf != small_buf) {
 						kfree(local_buf);
 					}
 					goto end;
 				}
+				reiserfs_write_lock(inode->i_sb);
 				if (local_buf != small_buf) {
 					kfree(local_buf);
 				}

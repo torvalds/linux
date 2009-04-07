@@ -141,9 +141,11 @@ long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
 	default:
 		return -ENOIOCTLCMD;
 	}
-	lock_kernel();
+
+	reiserfs_write_lock(inode->i_sb);
 	ret = reiserfs_ioctl(inode, file, cmd, (unsigned long) compat_ptr(arg));
-	unlock_kernel();
+	reiserfs_write_unlock(inode->i_sb);
+
 	return ret;
 }
 #endif

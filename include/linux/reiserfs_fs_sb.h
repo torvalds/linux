@@ -7,6 +7,8 @@
 #ifdef __KERNEL__
 #include <linux/workqueue.h>
 #include <linux/rwsem.h>
+#include <linux/mutex.h>
+#include <linux/sched.h>
 #endif
 
 typedef enum {
@@ -354,6 +356,13 @@ struct reiserfs_sb_info {
 	struct reiserfs_bitmap_info *s_ap_bitmap;
 	struct reiserfs_journal *s_journal;	/* pointer to journal information */
 	unsigned short s_mount_state;	/* reiserfs state (valid, invalid) */
+
+	/* Serialize writers access, replace the old bkl */
+	struct mutex lock;
+	/* Owner of the lock (can be recursive) */
+	struct task_struct *lock_owner;
+	/* Depth of the lock, start from -1 like the bkl */
+	int lock_depth;
 
 	/* Comment? -Hans */
 	void (*end_io_handler) (struct buffer_head *, int);

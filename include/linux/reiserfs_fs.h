@@ -52,11 +52,13 @@
 #define REISERFS_IOC32_GETVERSION	FS_IOC32_GETVERSION
 #define REISERFS_IOC32_SETVERSION	FS_IOC32_SETVERSION
 
-/* Locking primitives */
-/* Right now we are still falling back to (un)lock_kernel, but eventually that
-   would evolve into real per-fs locks */
-#define reiserfs_write_lock( sb ) lock_kernel()
-#define reiserfs_write_unlock( sb ) unlock_kernel()
+/*
+ * Locking primitives. The write lock is a per superblock
+ * special mutex that has properties close to the Big Kernel Lock
+ * which was used in the previous locking scheme.
+ */
+void reiserfs_write_lock(struct super_block *s);
+void reiserfs_write_unlock(struct super_block *s);
 
 struct fid;
 

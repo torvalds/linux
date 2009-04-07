@@ -429,21 +429,6 @@ static void clear_prepared_bits(struct buffer_head *bh)
 	clear_buffer_journal_restore_dirty(bh);
 }
 
-/* utility function to force a BUG if it is called without the big
-** kernel lock held.  caller is the string printed just before calling BUG()
-*/
-void reiserfs_check_lock_depth(struct super_block *sb, char *caller)
-{
-#ifdef CONFIG_SMP
-	if (current->lock_depth < 0) {
-		reiserfs_panic(sb, "journal-1", "%s called without kernel "
-			       "lock held", caller);
-	}
-#else
-	;
-#endif
-}
-
 /* return a cnode with same dev, block number and size in table, or null if not found */
 static inline struct reiserfs_journal_cnode *get_journal_hash_dev(struct
 								  super_block
@@ -552,11 +537,48 @@ static inline void insert_journal_hash(struct reiserfs_journal_cnode **table,
 	journal_hash(table, cn->sb, cn->blocknr) = cn;
 }
 
+/*
+ * Several mutexes depend on the write lock.
+ * However sometimes we want to relax the write lock while we hold
+ * these mutexes, according to the release/reacquire on schedule()
+ * properties of the Bkl that were used.
+ * Reiserfs performances and locking were based on this scheme.
+ * Now that the write lock is a mutex and not the bkl anymore, doing so
+ * may result in a deadlock:
+ *
+ * A acquire write_lock
+ * A acquire j_commit_mutex
+ * A release write_lock and wait for something
+ * B acquire write_lock
+ * B can't acquire j_commit_mutex and sleep
+ * A can't acquire write lock anymore
+ * deadlock
+ *
+ * What we do here is avoiding such deadlock by playing the same game
+ * than the Bkl: if we can't acquire a mutex that depends on the write lock,
+ * we release the write lock, wait a bit and then retry.
+ *
+ * The mutexes concerned by this hack are:
+ * - The commit mutex of a journal list
+ * - The flush mutex
+ * - The journal lock
+ */
+static inline void reiserfs_mutex_lock_safe(struct mutex *m,
+			       struct super_block *s)
+{
+	while (!mutex_trylock(m)) {
+		reiserfs_write_unlock(s);
+		schedule();
+		reiserfs_write_lock(s);
+	}
+}
+
 /* lock the current transaction */
 static inline void lock_journal(struct super_block *sb)
 {
 	PROC_INFO_INC(sb, journal.lock_journal);
-	mutex_lock(&SB_JOURNAL(sb)->j_mutex);
+
+	reiserfs_mutex_lock_safe(&SB_JOURNAL(sb)->j_mutex, sb);
 }
 
 /* unlock the current transaction */
@@ -708,7 +730,9 @@ static void check_barrier_completion(struct super_block *s,
 		disable_barrier(s);
 		set_buffer_uptodate(bh);
 		set_buffer_dirty(bh);
+		reiserfs_write_unlock(s);
 		sync_dirty_buffer(bh);
+		reiserfs_write_lock(s);
 	}
 }
 
@@ -996,8 +1020,13 @@ static int reiserfs_async_progress_wait(struct super_block *s)
 {
 	DEFINE_WAIT(wait);
 	struct reiserfs_journal *j = SB_JOURNAL(s);
-	if (atomic_read(&j->j_async_throttle))
+
+	if (atomic_read(&j->j_async_throttle)) {
+		reiserfs_write_unlock(s);
 		congestion_wait(BLK_RW_ASYNC, HZ / 10);
+		reiserfs_write_lock(s);
+	}
+
 	return 0;
 }
 
@@ -1043,7 +1072,8 @@ static int flush_commit_list(struct super_block *s,
 	}
 
 	/* make sure nobody is trying to flush this one at the same time */
-	mutex_lock(&jl->j_commit_mutex);
+	reiserfs_mutex_lock_safe(&jl->j_commit_mutex, s);
+
 	if (!journal_list_still_alive(s, trans_id)) {
 		mutex_unlock(&jl->j_commit_mutex);
 		goto put_jl;
@@ -1061,12 +1091,17 @@ static int flush_commit_list(struct super_block *s,
 
 	if (!list_empty(&jl->j_bh_list)) {
 		int ret;
-		unlock_kernel();
+
+		/*
+		 * We might sleep in numerous places inside
+		 * write_ordered_buffers. Relax the write lock.
+		 */
+		reiserfs_write_unlock(s);
 		ret = write_ordered_buffers(&journal->j_dirty_buffers_lock,
 					    journal, jl, &jl->j_bh_list);
 		if (ret < 0 && retval == 0)
 			retval = ret;
-		lock_kernel();
+		reiserfs_write_lock(s);
 	}
 	BUG_ON(!list_empty(&jl->j_bh_list));
 	/*
@@ -1114,12 +1149,19 @@ static int flush_commit_list(struct super_block *s,
 		bn = SB_ONDISK_JOURNAL_1st_BLOCK(s) +
 		    (jl->j_start + i) % SB_ONDISK_JOURNAL_SIZE(s);
 		tbh = journal_find_get_block(s, bn);
+
+		reiserfs_write_unlock(s);
 		wait_on_buffer(tbh);
+		reiserfs_write_lock(s);
 		// since we're using ll_rw_blk above, it might have skipped over
 		// a locked buffer.  Double check here
 		//
-		if (buffer_dirty(tbh))	/* redundant, sync_dirty_buffer() checks */
+		/* redundant, sync_dirty_buffer() checks */
+		if (buffer_dirty(tbh)) {
+			reiserfs_write_unlock(s);
 			sync_dirty_buffer(tbh);
+			reiserfs_write_lock(s);
+		}
 		if (unlikely(!buffer_uptodate(tbh))) {
 #ifdef CONFIG_REISERFS_CHECK
 			reiserfs_warning(s, "journal-601",
@@ -1143,10 +1185,15 @@ static int flush_commit_list(struct super_block *s,
 			if (buffer_dirty(jl->j_commit_bh))
 				BUG();
 			mark_buffer_dirty(jl->j_commit_bh) ;
+			reiserfs_write_unlock(s);
 			sync_dirty_buffer(jl->j_commit_bh) ;
+			reiserfs_write_lock(s);
 		}
-	} else
+	} else {
+		reiserfs_write_unlock(s);
 		wait_on_buffer(jl->j_commit_bh);
+		reiserfs_write_lock(s);
+	}
 
 	check_barrier_completion(s, jl->j_commit_bh);
 
@@ -1286,7 +1333,9 @@ static int _update_journal_header_block(struct super_block *sb,
 
 	if (trans_id >= journal->j_last_flush_trans_id) {
 		if (buffer_locked((journal->j_header_bh))) {
+			reiserfs_write_unlock(sb);
 			wait_on_buffer((journal->j_header_bh));
+			reiserfs_write_lock(sb);
 			if (unlikely(!buffer_uptodate(journal->j_header_bh))) {
 #ifdef CONFIG_REISERFS_CHECK
 				reiserfs_warning(sb, "journal-699",
@@ -1312,12 +1361,16 @@ static int _update_journal_header_block(struct super_block *sb,
 				disable_barrier(sb);
 				goto sync;
 			}
+			reiserfs_write_unlock(sb);
 			wait_on_buffer(journal->j_header_bh);
+			reiserfs_write_lock(sb);
 			check_barrier_completion(sb, journal->j_header_bh);
 		} else {
 		      sync:
 			set_buffer_dirty(journal->j_header_bh);
+			reiserfs_write_unlock(sb);
 			sync_dirty_buffer(journal->j_header_bh);
+			reiserfs_write_lock(sb);
 		}
 		if (!buffer_uptodate(journal->j_header_bh)) {
 			reiserfs_warning(sb, "journal-837",
@@ -1409,7 +1462,7 @@ static int flush_journal_list(struct super_block *s,
 
 	/* if flushall == 0, the lock is already held */
 	if (flushall) {
-		mutex_lock(&journal->j_flush_mutex);
+		reiserfs_mutex_lock_safe(&journal->j_flush_mutex, s);
 	} else if (mutex_trylock(&journal->j_flush_mutex)) {
 		BUG();
 	}
@@ -1553,7 +1606,11 @@ static int flush_journal_list(struct super_block *s,
 					reiserfs_panic(s, "journal-1011",
 						       "cn->bh is NULL");
 				}
+
+				reiserfs_write_unlock(s);
 				wait_on_buffer(cn->bh);
+				reiserfs_write_lock(s);
+
 				if (!cn->bh) {
 					reiserfs_panic(s, "journal-1012",
 						       "cn->bh is NULL");
@@ -1973,11 +2030,19 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 	reiserfs_mounted_fs_count--;
 	/* wait for all commits to finish */
 	cancel_delayed_work(&SB_JOURNAL(sb)->j_work);
+
+	/*
+	 * We must release the write lock here because
+	 * the workqueue job (flush_async_commit) needs this lock
+	 */
+	reiserfs_write_unlock(sb);
 	flush_workqueue(commit_wq);
+
 	if (!reiserfs_mounted_fs_count) {
 		destroy_workqueue(commit_wq);
 		commit_wq = NULL;
 	}
+	reiserfs_write_lock(sb);
 
 	free_journal_ram(sb);
 
@@ -2243,7 +2308,11 @@ static int journal_read_transaction(struct super_block *sb,
 	/* read in the log blocks, memcpy to the corresponding real block */
 	ll_rw_block(READ, get_desc_trans_len(desc), log_blocks);
 	for (i = 0; i < get_desc_trans_len(desc); i++) {
+
+		reiserfs_write_unlock(sb);
 		wait_on_buffer(log_blocks[i]);
+		reiserfs_write_lock(sb);
+
 		if (!buffer_uptodate(log_blocks[i])) {
 			reiserfs_warning(sb, "journal-1212",
 					 "REPLAY FAILURE fsck required! "
@@ -2964,8 +3033,11 @@ static void queue_log_writer(struct super_block *s)
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&journal->j_join_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
-	if (test_bit(J_WRITERS_QUEUED, &journal->j_state))
+	if (test_bit(J_WRITERS_QUEUED, &journal->j_state)) {
+		reiserfs_write_unlock(s);
 		schedule();
+		reiserfs_write_lock(s);
+	}
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&journal->j_join_wait, &wait);
 }
@@ -2982,7 +3054,9 @@ static void let_transaction_grow(struct super_block *sb, unsigned int trans_id)
 	struct reiserfs_journal *journal = SB_JOURNAL(sb);
 	unsigned long bcount = journal->j_bcount;
 	while (1) {
+		reiserfs_write_unlock(sb);
 		schedule_timeout_uninterruptible(1);
+		reiserfs_write_lock(sb);
 		journal->j_current_jl->j_state |= LIST_COMMIT_PENDING;
 		while ((atomic_read(&journal->j_wcount) > 0 ||
 			atomic_read(&journal->j_jlock)) &&
@@ -3033,7 +3107,9 @@ static int do_journal_begin_r(struct reiserfs_transaction_handle *th,
 
 	if (test_bit(J_WRITERS_BLOCKED, &journal->j_state)) {
 		unlock_journal(sb);
+		reiserfs_write_unlock(sb);
 		reiserfs_wait_on_write_block(sb);
+		reiserfs_write_lock(sb);
 		PROC_INFO_INC(sb, journal.journal_relock_writers);
 		goto relock;
 	}
@@ -3506,14 +3582,14 @@ static void flush_async_commits(struct work_struct *work)
 	struct reiserfs_journal_list *jl;
 	struct list_head *entry;
 
-	lock_kernel();
+	reiserfs_write_lock(sb);
 	if (!list_empty(&journal->j_journal_list)) {
 		/* last entry is the youngest, commit it and you get everything */
 		entry = journal->j_journal_list.prev;
 		jl = JOURNAL_LIST_ENTRY(entry);
 		flush_commit_list(sb, jl, 1);
 	}
-	unlock_kernel();
+	reiserfs_write_unlock(sb);
 }
 
 /*
@@ -4041,7 +4117,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 	 * the new transaction is fully setup, and we've already flushed the
 	 * ordered bh list
 	 */
-	mutex_lock(&jl->j_commit_mutex);
+	reiserfs_mutex_lock_safe(&jl->j_commit_mutex, sb);
 
 	/* save the transaction id in case we need to commit it later */
 	commit_trans_id = jl->j_trans_id;
@@ -4203,10 +4279,10 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 	 * is lost.
 	 */
 	if (!list_empty(&jl->j_tail_bh_list)) {
-		unlock_kernel();
+		reiserfs_write_unlock(sb);
 		write_ordered_buffers(&journal->j_dirty_buffers_lock,
 				      journal, jl, &jl->j_tail_bh_list);
-		lock_kernel();
+		reiserfs_write_lock(sb);
 	}
 	BUG_ON(!list_empty(&jl->j_tail_bh_list));
 	mutex_unlock(&jl->j_commit_mutex);

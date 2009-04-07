@@ -1022,7 +1022,11 @@ static int get_far_parent(struct tree_balance *tb,
 	/* Check whether the common parent is locked. */
 
 	if (buffer_locked(*pcom_father)) {
+
+		/* Release the write lock while the buffer is busy */
+		reiserfs_write_unlock(tb->tb_sb);
 		__wait_on_buffer(*pcom_father);
+		reiserfs_write_lock(tb->tb_sb);
 		if (FILESYSTEM_CHANGED_TB(tb)) {
 			brelse(*pcom_father);
 			return REPEAT_SEARCH;
@@ -1927,7 +1931,9 @@ static int get_direct_parent(struct tree_balance *tb, int h)
 		return REPEAT_SEARCH;
 
 	if (buffer_locked(bh)) {
+		reiserfs_write_unlock(tb->tb_sb);
 		__wait_on_buffer(bh);
+		reiserfs_write_lock(tb->tb_sb);
 		if (FILESYSTEM_CHANGED_TB(tb))
 			return REPEAT_SEARCH;
 	}
@@ -2278,7 +2284,9 @@ static int wait_tb_buffers_until_unlocked(struct tree_balance *tb)
 				    REPEAT_SEARCH : CARRY_ON;
 			}
 #endif
+			reiserfs_write_unlock(tb->tb_sb);
 			__wait_on_buffer(locked);
+			reiserfs_write_lock(tb->tb_sb);
 			if (FILESYSTEM_CHANGED_TB(tb))
 				return REPEAT_SEARCH;
 		}
@@ -2349,7 +2357,9 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 
 	/* if it possible in indirect_to_direct conversion */
 	if (buffer_locked(tbS0)) {
+		reiserfs_write_unlock(tb->tb_sb);
 		__wait_on_buffer(tbS0);
+		reiserfs_write_lock(tb->tb_sb);
 		if (FILESYSTEM_CHANGED_TB(tb))
 			return REPEAT_SEARCH;
 	}
