@@ -11,6 +11,7 @@
 #include <linux/string.h>
 #include <asm/prom.h>
 #include <asm/uaccess.h>
+#include "internal.h"
 
 #ifndef HAVE_ARCH_DEVTREE_FIXUPS
 static inline void set_node_proc_entry(struct device_node *np,
