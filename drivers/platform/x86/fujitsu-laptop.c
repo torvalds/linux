@@ -174,8 +174,7 @@ struct fujitsu_hotkey_t {
 
 static struct fujitsu_hotkey_t *fujitsu_hotkey;
 
-static void acpi_fujitsu_hotkey_notify(acpi_handle handle, u32 event,
-				       void *data);
+static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event);
 
 #ifdef CONFIG_LEDS_CLASS
 static enum led_brightness logolamp_get(struct led_classdev *cdev);
@@ -816,7 +815,6 @@ static void acpi_fujitsu_notify(struct acpi_device *device, u32 event)
 
 static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 {
-	acpi_status status;
 	acpi_handle handle;
 	int result = 0;
 	int state = 0;
@@ -833,17 +831,6 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	sprintf(acpi_device_class(device), "%s", ACPI_FUJITSU_CLASS);
 	device->driver_data = fujitsu_hotkey;
 
-	status = acpi_install_notify_handler(device->handle,
-					     ACPI_DEVICE_NOTIFY,
-					     acpi_fujitsu_hotkey_notify,
-					     fujitsu_hotkey);
-
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR "Error installing notify handler\n");
-		error = -ENODEV;
-		goto err_stop;
-	}
-
 	/* kfifo */
 	spin_lock_init(&fujitsu_hotkey->fifo_lock);
 	fujitsu_hotkey->fifo =
@@ -858,7 +845,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	fujitsu_hotkey->input = input = input_allocate_device();
 	if (!input) {
 		error = -ENOMEM;
-		goto err_uninstall_notify;
+		goto err_free_fifo;
 	}
 
 	snprintf(fujitsu_hotkey->phys, sizeof(fujitsu_hotkey->phys),
@@ -954,9 +941,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 end:
 err_free_input_dev:
 	input_free_device(input);
-err_uninstall_notify:
-	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-				   acpi_fujitsu_hotkey_notify);
+err_free_fifo:
 	kfifo_free(fujitsu_hotkey->fifo);
 err_stop:
 
@@ -965,17 +950,12 @@ err_stop:
 
 static int acpi_fujitsu_hotkey_remove(struct acpi_device *device, int type)
 {
-	acpi_status status;
 	struct fujitsu_hotkey_t *fujitsu_hotkey = NULL;
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
 	fujitsu_hotkey = acpi_driver_data(device);
-
-	status = acpi_remove_notify_handler(fujitsu_hotkey->acpi_handle,
-					    ACPI_DEVICE_NOTIFY,
-					    acpi_fujitsu_hotkey_notify);
 
 	fujitsu_hotkey->acpi_handle = NULL;
 
@@ -984,8 +964,7 @@ static int acpi_fujitsu_hotkey_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static void acpi_fujitsu_hotkey_notify(acpi_handle handle, u32 event,
-				       void *data)
+static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 {
 	struct input_dev *input;
 	int keycode, keycode_r;
@@ -1068,8 +1047,6 @@ static void acpi_fujitsu_hotkey_notify(acpi_handle handle, u32 event,
 		input_sync(input);
 		break;
 	}
-
-	return;
 }
 
 /* Initialization */
@@ -1102,6 +1079,7 @@ static struct acpi_driver acpi_fujitsu_hotkey_driver = {
 	.ops = {
 		.add = acpi_fujitsu_hotkey_add,
 		.remove = acpi_fujitsu_hotkey_remove,
+		.notify = acpi_fujitsu_hotkey_notify,
 		},
 };
 
