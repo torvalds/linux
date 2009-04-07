@@ -135,7 +135,7 @@ int nilfs_dat_prepare_start(struct inode *dat, struct nilfs_palloc_req *req)
 	int ret;
 
 	ret = nilfs_dat_prepare_entry(dat, req, 0);
-	BUG_ON(ret == -ENOENT);
+	WARN_ON(ret == -ENOENT);
 	return ret;
 }
 
@@ -157,7 +157,6 @@ void nilfs_dat_commit_start(struct inode *dat, struct nilfs_palloc_req *req,
 		       (unsigned long long)le64_to_cpu(entry->de_start),
 		       (unsigned long long)le64_to_cpu(entry->de_end),
 		       (unsigned long long)le64_to_cpu(entry->de_blocknr));
-		BUG();
 	}
 	entry->de_blocknr = cpu_to_le64(blocknr);
 	kunmap_atomic(kaddr, KM_USER0);
@@ -180,7 +179,7 @@ int nilfs_dat_prepare_end(struct inode *dat, struct nilfs_palloc_req *req)
 
 	ret = nilfs_dat_prepare_entry(dat, req, 0);
 	if (ret < 0) {
-		BUG_ON(ret == -ENOENT);
+		WARN_ON(ret == -ENOENT);
 		return ret;
 	}
 
@@ -216,7 +215,7 @@ void nilfs_dat_commit_end(struct inode *dat, struct nilfs_palloc_req *req,
 	end = start = le64_to_cpu(entry->de_start);
 	if (!dead) {
 		end = nilfs_mdt_cno(dat);
-		BUG_ON(start > end);
+		WARN_ON(start > end);
 	}
 	entry->de_end = cpu_to_le64(end);
 	blocknr = le64_to_cpu(entry->de_blocknr);
@@ -324,14 +323,16 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
 		return ret;
 	kaddr = kmap_atomic(entry_bh->b_page, KM_USER0);
 	entry = nilfs_palloc_block_get_entry(dat, vblocknr, entry_bh, kaddr);
-	if (entry->de_blocknr == cpu_to_le64(0)) {
+	if (unlikely(entry->de_blocknr == cpu_to_le64(0))) {
 		printk(KERN_CRIT "%s: vbn = %llu, [%llu, %llu)\n", __func__,
 		       (unsigned long long)vblocknr,
 		       (unsigned long long)le64_to_cpu(entry->de_start),
 		       (unsigned long long)le64_to_cpu(entry->de_end));
-		BUG();
+		kunmap_atomic(kaddr, KM_USER0);
+		brelse(entry_bh);
+		return -EINVAL;
 	}
-	BUG_ON(blocknr == 0);
+	WARN_ON(blocknr == 0);
 	entry->de_blocknr = cpu_to_le64(blocknr);
 	kunmap_atomic(kaddr, KM_USER0);
 

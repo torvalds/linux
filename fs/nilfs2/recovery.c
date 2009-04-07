@@ -92,9 +92,6 @@ static int nilfs_warn_segment_error(int err)
 		printk(KERN_WARNING
 		       "NILFS warning: No super root in the last segment\n");
 		break;
-	case NILFS_SEG_VALID:
-	default:
-		BUG();
 	}
 	return -EINVAL;
 }

@@ -210,7 +210,6 @@ static int nilfs_direct_last_key(const struct nilfs_bmap *bmap, __u64 *keyp)
 	if (lastkey == NILFS_DIRECT_KEY_MAX + 1)
 		return -ENOENT;
 
-	BUG_ON(keyp == NULL);
 	*keyp = lastkey;
 
 	return 0;
@@ -366,9 +365,17 @@ static int nilfs_direct_assign(struct nilfs_bmap *bmap,
 
 	direct = (struct nilfs_direct *)bmap;
 	key = nilfs_bmap_data_get_key(bmap, *bh);
-	BUG_ON(key > NILFS_DIRECT_KEY_MAX);
+	if (unlikely(key > NILFS_DIRECT_KEY_MAX)) {
+		printk(KERN_CRIT "%s: invalid key: %llu\n", __func__,
+		       (unsigned long long)key);
+		return -EINVAL;
+	}
 	ptr = nilfs_direct_get_ptr(direct, key);
-	BUG_ON(ptr == NILFS_BMAP_INVALID_PTR);
+	if (unlikely(ptr == NILFS_BMAP_INVALID_PTR)) {
+		printk(KERN_CRIT "%s: invalid pointer: %llu\n", __func__,
+		       (unsigned long long)ptr);
+		return -EINVAL;
+	}
 
 	return direct->d_ops->dop_assign(direct, key, ptr, bh,
 					 blocknr, binfo);

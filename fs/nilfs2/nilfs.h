@@ -173,7 +173,6 @@ static inline void nilfs_set_transaction_flag(unsigned int flag)
 {
 	struct nilfs_transaction_info *ti = current->journal_info;
 
-	BUG_ON(!ti);
 	ti->ti_flags |= flag;
 }
 

@@ -417,7 +417,7 @@ repeat:
 		dpage = find_lock_page(dmap, offset);
 		if (dpage) {
 			/* override existing page on the destination cache */
-			BUG_ON(PageDirty(dpage));
+			WARN_ON(PageDirty(dpage));
 			nilfs_copy_page(dpage, page, 0);
 			unlock_page(dpage);
 			page_cache_release(dpage);
@@ -427,17 +427,15 @@ repeat:
 			/* move the page to the destination cache */
 			spin_lock_irq(&smap->tree_lock);
 			page2 = radix_tree_delete(&smap->page_tree, offset);
-			if (unlikely(page2 != page))
-				NILFS_PAGE_BUG(page, "page removal failed "
-					       "(offset=%lu, page2=%p)",
-					       offset, page2);
+			WARN_ON(page2 != page);
+
 			smap->nrpages--;
 			spin_unlock_irq(&smap->tree_lock);
 
 			spin_lock_irq(&dmap->tree_lock);
 			err = radix_tree_insert(&dmap->page_tree, offset, page);
 			if (unlikely(err < 0)) {
-				BUG_ON(err == -EEXIST);
+				WARN_ON(err == -EEXIST);
 				page->mapping = NULL;
 				page_cache_release(page); /* for cache */
 			} else {

@@ -40,10 +40,7 @@ nilfs_cpfile_checkpoints_per_block(const struct inode *cpfile)
 static unsigned long
 nilfs_cpfile_get_blkoff(const struct inode *cpfile, __u64 cno)
 {
-	__u64 tcno;
-
-	BUG_ON(cno == 0); /* checkpoint number 0 is invalid */
-	tcno = cno + NILFS_MDT(cpfile)->mi_first_entry_offset - 1;
+	__u64 tcno = cno + NILFS_MDT(cpfile)->mi_first_entry_offset - 1;
 	do_div(tcno, nilfs_cpfile_checkpoints_per_block(cpfile));
 	return (unsigned long)tcno;
 }
@@ -96,7 +93,7 @@ nilfs_cpfile_block_sub_valid_checkpoints(const struct inode *cpfile,
 	struct nilfs_checkpoint *cp = kaddr + bh_offset(bh);
 	unsigned int count;
 
-	BUG_ON(le32_to_cpu(cp->cp_checkpoints_count) < n);
+	WARN_ON(le32_to_cpu(cp->cp_checkpoints_count) < n);
 	count = le32_to_cpu(cp->cp_checkpoints_count) - n;
 	cp->cp_checkpoints_count = cpu_to_le32(count);
 	return count;
@@ -178,6 +175,8 @@ static inline int nilfs_cpfile_delete_checkpoint_block(struct inode *cpfile,
  * %-ENOMEM - Insufficient amount of memory available.
  *
  * %-ENOENT - No such checkpoint.
+ *
+ * %-EINVAL - invalid checkpoint.
  */
 int nilfs_cpfile_get_checkpoint(struct inode *cpfile,
 				__u64 cno,
@@ -191,8 +190,9 @@ int nilfs_cpfile_get_checkpoint(struct inode *cpfile,
 	void *kaddr;
 	int ret;
 
-	BUG_ON(cno < 1 || cno > nilfs_mdt_cno(cpfile) ||
-	       (cno < nilfs_mdt_cno(cpfile) && create));
+	if (unlikely(cno < 1 || cno > nilfs_mdt_cno(cpfile) ||
+		     (cno < nilfs_mdt_cno(cpfile) && create)))
+		return -EINVAL;
 
 	down_write(&NILFS_MDT(cpfile)->mi_sem);
 
@@ -288,12 +288,11 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 	unsigned long tnicps;
 	int ret, ncps, nicps, count, i;
 
-	if ((start == 0) || (start > end)) {
-		printk(KERN_CRIT "%s: start = %llu, end = %llu\n",
-		       __func__,
-		       (unsigned long long)start,
-		       (unsigned long long)end);
-		BUG();
+	if (unlikely(start == 0 || start > end)) {
+		printk(KERN_ERR "%s: invalid range of checkpoint numbers: "
+		       "[%llu, %llu)\n", __func__,
+		       (unsigned long long)start, (unsigned long long)end);
+		return -EINVAL;
 	}
 
 	/* cannot delete the latest checkpoint */
@@ -323,7 +322,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 			cpfile, cno, cp_bh, kaddr);
 		nicps = 0;
 		for (i = 0; i < ncps; i++, cp = (void *)cp + cpsz) {
-			BUG_ON(nilfs_checkpoint_snapshot(cp));
+			WARN_ON(nilfs_checkpoint_snapshot(cp));
 			if (!nilfs_checkpoint_invalid(cp)) {
 				nilfs_checkpoint_set_invalid(cp);
 				nicps++;
@@ -393,6 +392,8 @@ static ssize_t nilfs_cpfile_do_get_cpinfo(struct inode *cpfile, __u64 *cnop,
 	int n, ret;
 	int ncps, i;
 
+	if (cno == 0)
+		return -ENOENT; /* checkpoint number 0 is invalid */
 	down_read(&NILFS_MDT(cpfile)->mi_sem);
 
 	for (n = 0; cno < cur_cno && n < nci; cno += ncps) {
@@ -532,9 +533,6 @@ int nilfs_cpfile_delete_checkpoint(struct inode *cpfile, __u64 cno)
 	ssize_t nci;
 	int ret;
 
-	/* checkpoint number 0 is invalid */
-	if (cno == 0)
-		return -ENOENT;
 	nci = nilfs_cpfile_do_get_cpinfo(cpfile, &tcno, &ci, 1);
 	if (nci < 0)
 		return nci;
@@ -582,6 +580,8 @@ static int nilfs_cpfile_set_snapshot(struct inode *cpfile, __u64 cno)
 	void *kaddr;
 	int ret;
 
+	if (cno == 0)
+		return -ENOENT; /* checkpoint number 0 is invalid */
 	down_write(&NILFS_MDT(cpfile)->mi_sem);
 
 	ret = nilfs_cpfile_get_checkpoint_block(cpfile, cno, 0, &cp_bh);
@@ -698,6 +698,8 @@ static int nilfs_cpfile_clear_snapshot(struct inode *cpfile, __u64 cno)
 	void *kaddr;
 	int ret;
 
+	if (cno == 0)
+		return -ENOENT; /* checkpoint number 0 is invalid */
 	down_write(&NILFS_MDT(cpfile)->mi_sem);
 
 	ret = nilfs_cpfile_get_checkpoint_block(cpfile, cno, 0, &cp_bh);
@@ -813,6 +815,8 @@ int nilfs_cpfile_is_snapshot(struct inode *cpfile, __u64 cno)
 	void *kaddr;
 	int ret;
 
+	if (cno == 0)
+		return -ENOENT; /* checkpoint number 0 is invalid */
 	down_read(&NILFS_MDT(cpfile)->mi_sem);
 
 	ret = nilfs_cpfile_get_checkpoint_block(cpfile, cno, 0, &bh);

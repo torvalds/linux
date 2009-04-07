@@ -154,10 +154,8 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
 			ret = -EBUSY;
 			goto failed_bh;
 		}
-	} else {
-		BUG_ON(mode != READ);
+	} else /* mode == READ */
 		lock_buffer(bh);
-	}
 
 	if (buffer_uptodate(bh)) {
 		unlock_buffer(bh);

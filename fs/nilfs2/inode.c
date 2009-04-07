@@ -61,12 +61,6 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 		map_bh(bh_result, inode->i_sb, blknum);
 		goto out;
 	}
-	if (unlikely(ret == 1)) {
-		printk(KERN_ERR "nilfs_get_block: bmap_lookup returns "
-		       "buffer_head pointer (blkoff=%llu, blknum=%lu)\n",
-		       (unsigned long long)blkoff, blknum);
-		BUG();
-	}
 	/* data block was not found */
 	if (ret == -ENOENT && create) {
 		struct nilfs_transaction_info ti;
@@ -85,14 +79,14 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 				 * However, the page having this block must
 				 * be locked in this case.
 				 */
-				printk(KERN_ERR
+				printk(KERN_WARNING
 				       "nilfs_get_block: a race condition "
 				       "while inserting a data block. "
 				       "(inode number=%lu, file block "
 				       "offset=%llu)\n",
 				       inode->i_ino,
 				       (unsigned long long)blkoff);
-				BUG();
+				err = 0;
 			} else if (err == -EINVAL) {
 				nilfs_error(inode->i_sb, __func__,
 					    "broken bmap (inode=%lu)\n",
@@ -621,7 +615,6 @@ void nilfs_truncate(struct inode *inode)
 	struct nilfs_transaction_info ti;
 	struct super_block *sb = inode->i_sb;
 	struct nilfs_inode_info *ii = NILFS_I(inode);
-	int ret;
 
 	if (!test_bit(NILFS_I_BMAP, &ii->i_state))
 		return;
@@ -630,8 +623,7 @@ void nilfs_truncate(struct inode *inode)
 
 	blocksize = sb->s_blocksize;
 	blkoff = (inode->i_size + blocksize - 1) >> sb->s_blocksize_bits;
-	ret = nilfs_transaction_begin(sb, &ti, 0);
-	BUG_ON(ret);
+	nilfs_transaction_begin(sb, &ti, 0); /* never fails */
 
 	block_truncate_page(inode->i_mapping, inode->i_size, nilfs_get_block);
 
@@ -652,7 +644,6 @@ void nilfs_delete_inode(struct inode *inode)
 	struct nilfs_transaction_info ti;
 	struct super_block *sb = inode->i_sb;
 	struct nilfs_inode_info *ii = NILFS_I(inode);
-	int err;
 
 	if (unlikely(is_bad_inode(inode))) {
 		if (inode->i_data.nrpages)
@@ -660,8 +651,8 @@ void nilfs_delete_inode(struct inode *inode)
 		clear_inode(inode);
 		return;
 	}
-	err = nilfs_transaction_begin(sb, &ti, 0);
-	BUG_ON(err);
+	nilfs_transaction_begin(sb, &ti, 0); /* never fails */
+
 	if (inode->i_data.nrpages)
 		truncate_inode_pages(&inode->i_data, 0);
 

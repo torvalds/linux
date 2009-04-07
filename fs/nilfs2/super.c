@@ -841,8 +841,11 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 
 	if (sb->s_flags & MS_RDONLY) {
 		if (nilfs_test_opt(sbi, SNAPSHOT)) {
-			if (!nilfs_cpfile_is_snapshot(nilfs->ns_cpfile,
-						      sbi->s_snapshot_cno)) {
+			err = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile,
+						       sbi->s_snapshot_cno);
+			if (err < 0)
+				goto failed_sbi;
+			if (!err) {
 				printk(KERN_ERR
 				       "NILFS: The specified checkpoint is "
 				       "not a snapshot "
@@ -1163,7 +1166,6 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	} else {
 		struct nilfs_sb_info *sbi = NILFS_SB(s);
 
-		BUG_ON(!sbi || !sbi->s_nilfs);
 		/*
 		 * s_umount protects super_block from unmount process;
 		 * It covers pointers of nilfs_sb_info and the_nilfs.

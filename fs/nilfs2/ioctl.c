@@ -489,14 +489,14 @@ nilfs_ioctl_do_mark_blocks_dirty(struct the_nilfs *nilfs, __u64 *posp,
 			ret = nilfs_mdt_mark_block_dirty(dat,
 							 bdescs[i].bd_offset);
 			if (ret < 0) {
-				BUG_ON(ret == -ENOENT);
+				WARN_ON(ret == -ENOENT);
 				return ret;
 			}
 		} else {
 			ret = nilfs_bmap_mark(bmap, bdescs[i].bd_offset,
 					      bdescs[i].bd_level);
 			if (ret < 0) {
-				BUG_ON(ret == -ENOENT);
+				WARN_ON(ret == -ENOENT);
 				return ret;
 			}
 		}
@@ -519,7 +519,8 @@ nilfs_ioctl_do_free_segments(struct the_nilfs *nilfs, __u64 *posp, int flags,
 	struct nilfs_sb_info *sbi = nilfs_get_writer(nilfs);
 	int ret;
 
-	BUG_ON(!sbi);
+	if (unlikely(!sbi))
+		return -EROFS;
 	ret = nilfs_segctor_add_segments_to_be_freed(
 		NILFS_SC(sbi), buf, nmembs);
 	nilfs_put_writer(nilfs);
@@ -539,6 +540,7 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 				       void __user *argp)
 {
 	struct nilfs_argv argv[5];
+	const char *msg;
 	int dir, ret;
 
 	if (copy_from_user(argv, argp, sizeof(argv)))
@@ -546,31 +548,50 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 
 	dir = _IOC_WRITE;
 	ret = nilfs_ioctl_move_blocks(nilfs, &argv[0], dir);
-	if (ret < 0)
-		goto out_move_blks;
+	if (ret < 0) {
+		msg = "cannot read source blocks";
+		goto failed;
+	}
 	ret = nilfs_ioctl_delete_checkpoints(nilfs, &argv[1], dir);
-	if (ret < 0)
-		goto out_del_cps;
+	if (ret < 0) {
+		/*
+		 * can safely abort because checkpoints can be removed
+		 * independently.
+		 */
+		msg = "cannot delete checkpoints";
+		goto failed;
+	}
 	ret = nilfs_ioctl_free_vblocknrs(nilfs, &argv[2], dir);
-	if (ret < 0)
-		goto out_free_vbns;
+	if (ret < 0) {
+		/*
+		 * can safely abort because DAT file is updated atomically
+		 * using a copy-on-write technique.
+		 */
+		msg = "cannot delete virtual blocks from DAT file";
+		goto failed;
+	}
 	ret = nilfs_ioctl_mark_blocks_dirty(nilfs, &argv[3], dir);
-	if (ret < 0)
-		goto out_free_vbns;
+	if (ret < 0) {
+		/*
+		 * can safely abort because the operation is nondestructive.
+		 */
+		msg = "cannot mark copying blocks dirty";
+		goto failed;
+	}
 	ret = nilfs_ioctl_free_segments(nilfs, &argv[4], dir);
-	if (ret < 0)
-		goto out_free_segs;
-
+	if (ret < 0) {
+		/*
+		 * can safely abort because this operation is atomic.
+		 */
+		msg = "cannot set segments to be freed";
+		goto failed;
+	}
 	return 0;
 
- out_free_segs:
-	BUG(); /* XXX: not implemented yet */
- out_free_vbns:
-	BUG();/* XXX: not implemented yet */
- out_del_cps:
-	BUG();/* XXX: not implemented yet */
- out_move_blks:
+ failed:
 	nilfs_remove_all_gcinode(nilfs);
+	printk(KERN_ERR "NILFS: GC failed during preparation: %s: err=%d\n",
+	       msg, ret);
 	return ret;
 }
 
