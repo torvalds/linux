@@ -52,7 +52,6 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/udc.h>
-#include <plat/iic.h>
 
 static struct map_desc jive_iodesc[] __initdata = {
 };
