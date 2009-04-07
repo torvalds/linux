@@ -13,6 +13,8 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/bio.h>
+#include <linux/fs.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -189,7 +191,7 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 		}
 
 		gfs2_log_unlock(sdp);
-		submit_bh(WRITE, bh);
+		submit_bh(WRITE_SYNC_PLUG, bh);
 		gfs2_log_lock(sdp);
 
 		n = 0;
@@ -199,7 +201,7 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 			gfs2_log_unlock(sdp);
 			lock_buffer(bd2->bd_bh);
 			bh = gfs2_log_fake_buf(sdp, bd2->bd_bh);
-			submit_bh(WRITE, bh);
+			submit_bh(WRITE_SYNC_PLUG, bh);
 			gfs2_log_lock(sdp);
 			if (++n >= num)
 				break;
@@ -341,7 +343,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 		sdp->sd_log_num_revoke--;
 
 		if (offset + sizeof(u64) > sdp->sd_sb.sb_bsize) {
-			submit_bh(WRITE, bh);
+			submit_bh(WRITE_SYNC_PLUG, bh);
 
 			bh = gfs2_log_get_buf(sdp);
 			mh = (struct gfs2_meta_header *)bh->b_data;
@@ -358,7 +360,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	}
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
 
-	submit_bh(WRITE, bh);
+	submit_bh(WRITE_SYNC_PLUG, bh);
 }
 
 static void revoke_lo_before_scan(struct gfs2_jdesc *jd,
@@ -560,7 +562,7 @@ static void gfs2_write_blocks(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	ptr = bh_log_ptr(bh);
 	
 	get_bh(bh);
-	submit_bh(WRITE, bh);
+	submit_bh(WRITE_SYNC_PLUG, bh);
 	gfs2_log_lock(sdp);
 	while(!list_empty(list)) {
 		bd = list_entry(list->next, struct gfs2_bufdata, bd_le.le_list);
@@ -586,7 +588,7 @@ static void gfs2_write_blocks(struct gfs2_sbd *sdp, struct buffer_head *bh,
 		} else {
 			bh1 = gfs2_log_fake_buf(sdp, bd->bd_bh);
 		}
-		submit_bh(WRITE, bh1);
+		submit_bh(WRITE_SYNC_PLUG, bh1);
 		gfs2_log_lock(sdp);
 		ptr += 2;
 	}

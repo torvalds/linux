@@ -201,16 +201,32 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
 int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		   struct buffer_head **bhp)
 {
-	*bhp = gfs2_getbuf(gl, blkno, CREATE);
-	if (!buffer_uptodate(*bhp)) {
-		ll_rw_block(READ_META, 1, bhp);
-		if (flags & DIO_WAIT) {
-			int error = gfs2_meta_wait(gl->gl_sbd, *bhp);
-			if (error) {
-				brelse(*bhp);
-				return error;
-			}
-		}
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct buffer_head *bh;
+
+	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		return -EIO;
+
+	*bhp = bh = gfs2_getbuf(gl, blkno, CREATE);
+
+	lock_buffer(bh);
+	if (buffer_uptodate(bh)) {
+		unlock_buffer(bh);
+		return 0;
+	}
+	bh->b_end_io = end_buffer_read_sync;
+	get_bh(bh);
+	submit_bh(READ_SYNC | (1 << BIO_RW_META), bh);
+	if (!(flags & DIO_WAIT))
+		return 0;
+
+	wait_on_buffer(bh);
+	if (unlikely(!buffer_uptodate(bh))) {
+		struct gfs2_trans *tr = current->journal_info;
+		if (tr && tr->tr_touched)
+			gfs2_io_error_bh(sdp, bh);
+		brelse(bh);
+		return -EIO;
 	}
 
 	return 0;
@@ -404,7 +420,7 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 	if (buffer_uptodate(first_bh))
 		goto out;
 	if (!buffer_locked(first_bh))
-		ll_rw_block(READ_META, 1, &first_bh);
+		ll_rw_block(READ_SYNC | (1 << BIO_RW_META), 1, &first_bh);
 
 	dblock++;
 	extlen--;
