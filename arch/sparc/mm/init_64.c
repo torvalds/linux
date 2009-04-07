@@ -968,7 +968,7 @@ int of_node_to_nid(struct device_node *dp)
 	return nid;
 }
 
-static void add_node_ranges(void)
+static void __init add_node_ranges(void)
 {
 	int i;
 
