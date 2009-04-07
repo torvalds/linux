@@ -2058,6 +2058,27 @@ config IGB_DCA
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.
 
+config IGBVF
+       tristate "Intel(R) 82576 Virtual Function Ethernet support"
+       depends on PCI
+       ---help---
+         This driver supports Intel(R) 82576 virtual functions.  For more
+         information on how to identify your adapter, go to the Adapter &
+         Driver ID Guide at:
+
+         <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+         For general information and support, go to the Intel support
+         website at:
+
+         <http://support.intel.com>
+
+         More specific information on configuring the driver is in
+         <file:Documentation/networking/e1000.txt>.
+
+         To compile this driver as a module, choose M here. The module
+         will be called igbvf.
+
 source "drivers/net/ixp2000/Kconfig"
 
 config MYRI_SBUS
