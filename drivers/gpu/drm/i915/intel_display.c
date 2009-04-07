@@ -29,6 +29,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "intel_dp.h"
 
 #include "drm_crtc_helper.h"
 
@@ -135,10 +136,11 @@ struct intel_limit {
 #define INTEL_LIMIT_G4X_HDMI_DAC   5
 #define INTEL_LIMIT_G4X_SINGLE_CHANNEL_LVDS   6
 #define INTEL_LIMIT_G4X_DUAL_CHANNEL_LVDS   7
-#define INTEL_LIMIT_IGD_SDVO_DAC    8
-#define INTEL_LIMIT_IGD_LVDS	    9
-#define INTEL_LIMIT_IGDNG_SDVO_DAC  10
-#define INTEL_LIMIT_IGDNG_LVDS	    11
+#define INTEL_LIMIT_G4X_DISPLAY_PORT	8
+#define INTEL_LIMIT_IGD_SDVO_DAC    9
+#define INTEL_LIMIT_IGD_LVDS	    10
+#define INTEL_LIMIT_IGDNG_SDVO_DAC  11
+#define INTEL_LIMIT_IGDNG_LVDS	    12
 
 /*The parameter is for SDVO on G4x platform*/
 #define G4X_DOT_SDVO_MIN           25000
@@ -218,6 +220,25 @@ struct intel_limit {
 #define G4X_P2_DUAL_CHANNEL_LVDS_FAST           7
 #define G4X_P2_DUAL_CHANNEL_LVDS_LIMIT          0
 
+/*The parameter is for DISPLAY PORT on G4x platform*/
+#define G4X_DOT_DISPLAY_PORT_MIN           161670
+#define G4X_DOT_DISPLAY_PORT_MAX           227000
+#define G4X_N_DISPLAY_PORT_MIN             1
+#define G4X_N_DISPLAY_PORT_MAX             2
+#define G4X_M_DISPLAY_PORT_MIN             97
+#define G4X_M_DISPLAY_PORT_MAX             108
+#define G4X_M1_DISPLAY_PORT_MIN            0x10
+#define G4X_M1_DISPLAY_PORT_MAX            0x12
+#define G4X_M2_DISPLAY_PORT_MIN            0x05
+#define G4X_M2_DISPLAY_PORT_MAX            0x06
+#define G4X_P_DISPLAY_PORT_MIN             10
+#define G4X_P_DISPLAY_PORT_MAX             20
+#define G4X_P1_DISPLAY_PORT_MIN            1
+#define G4X_P1_DISPLAY_PORT_MAX            2
+#define G4X_P2_DISPLAY_PORT_SLOW           10
+#define G4X_P2_DISPLAY_PORT_FAST           10
+#define G4X_P2_DISPLAY_PORT_LIMIT          0
+
 /* IGDNG */
 /* as we calculate clock using (register_value + 2) for
    N/M1/M2, so here the range value for them is (actual_value-2).
@@ -255,6 +276,10 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 static bool
 intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *best_clock);
+
+static bool
+intel_find_pll_g4x_dp(const intel_limit_t *, struct drm_crtc *crtc,
+		      int target, int refclk, intel_clock_t *best_clock);
 
 static const intel_limit_t intel_limits[] = {
     { /* INTEL_LIMIT_I8XX_DVO_DAC */
@@ -389,6 +414,28 @@ static const intel_limit_t intel_limits[] = {
 	},
 	.find_pll = intel_g4x_find_best_PLL,
     },
+    {   /* INTEL_LIMIT_G4X_DISPLAY_PORT */
+        .dot = { .min = G4X_DOT_DISPLAY_PORT_MIN,
+                 .max = G4X_DOT_DISPLAY_PORT_MAX },
+        .vco = { .min = G4X_VCO_MIN,
+                 .max = G4X_VCO_MAX},
+        .n   = { .min = G4X_N_DISPLAY_PORT_MIN,
+                 .max = G4X_N_DISPLAY_PORT_MAX },
+        .m   = { .min = G4X_M_DISPLAY_PORT_MIN,
+                 .max = G4X_M_DISPLAY_PORT_MAX },
+        .m1  = { .min = G4X_M1_DISPLAY_PORT_MIN,
+                 .max = G4X_M1_DISPLAY_PORT_MAX },
+        .m2  = { .min = G4X_M2_DISPLAY_PORT_MIN,
+                 .max = G4X_M2_DISPLAY_PORT_MAX },
+        .p   = { .min = G4X_P_DISPLAY_PORT_MIN,
+                 .max = G4X_P_DISPLAY_PORT_MAX },
+        .p1  = { .min = G4X_P1_DISPLAY_PORT_MIN,
+                 .max = G4X_P1_DISPLAY_PORT_MAX},
+        .p2  = { .dot_limit = G4X_P2_DISPLAY_PORT_LIMIT,
+                 .p2_slow = G4X_P2_DISPLAY_PORT_SLOW,
+                 .p2_fast = G4X_P2_DISPLAY_PORT_FAST },
+        .find_pll = intel_find_pll_g4x_dp,
+    },
     { /* INTEL_LIMIT_IGD_SDVO */
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX},
         .vco = { .min = IGD_VCO_MIN,		.max = IGD_VCO_MAX },
@@ -478,6 +525,8 @@ static const intel_limit_t *intel_g4x_limit(struct drm_crtc *crtc)
 		limit = &intel_limits[INTEL_LIMIT_G4X_HDMI_DAC];
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO)) {
 		limit = &intel_limits[INTEL_LIMIT_G4X_SDVO];
+	} else if (intel_pipe_has_type (crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+		limit = &intel_limits[INTEL_LIMIT_G4X_DISPLAY_PORT];
 	} else /* The option is for other outputs */
 		limit = &intel_limits[INTEL_LIMIT_I9XX_SDVO_DAC];
 
@@ -762,6 +811,35 @@ intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	}
 out:
 	return found;
+}
+
+/* DisplayPort has only two frequencies, 162MHz and 270MHz */
+static bool
+intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
+		      int target, int refclk, intel_clock_t *best_clock)
+{
+    intel_clock_t clock;
+    if (target < 200000) {
+	clock.dot = 161670;
+	clock.p = 20;
+	clock.p1 = 2;
+	clock.p2 = 10;
+	clock.n = 0x01;
+	clock.m = 97;
+	clock.m1 = 0x10;
+	clock.m2 = 0x05;
+    } else {
+	clock.dot = 270000;
+	clock.p = 10;
+	clock.p1 = 1;
+	clock.p2 = 10;
+	clock.n = 0x02;
+	clock.m = 108;
+	clock.m1 = 0x12;
+	clock.m2 = 0x06;
+    }
+    memcpy(best_clock, &clock, sizeof(intel_clock_t));
+    return true;
 }
 
 void
@@ -1541,7 +1619,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	intel_clock_t clock;
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
 	bool ok, is_sdvo = false, is_dvo = false;
-	bool is_crt = false, is_lvds = false, is_tv = false;
+	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
 	const intel_limit_t *limit;
@@ -1585,6 +1663,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_ANALOG:
 			is_crt = true;
 			break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+			is_dp = true;
+			break;
 		}
 
 		num_outputs++;
@@ -1600,6 +1681,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	} else {
 		refclk = 48000;
 	}
+	
 
 	/*
 	 * Returns a set of divisors for the desired target clock with the given
@@ -1662,6 +1744,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			else if (IS_IGDNG(dev))
 				dpll |= (sdvo_pixel_multiply - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
 		}
+		if (is_dp)
+			dpll |= DPLL_DVO_HIGH_SPEED;
 
 		/* compute bitmask from p1 value */
 		if (IS_IGD(dev))
@@ -1809,6 +1893,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(lvds_reg, lvds);
 		I915_READ(lvds_reg);
 	}
+	if (is_dp)
+		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 
 	I915_WRITE(fp_reg, fp);
 	I915_WRITE(dpll_reg, dpll);
@@ -2475,6 +2561,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 			found = intel_sdvo_init(dev, SDVOB);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
 				intel_hdmi_init(dev, SDVOB);
+			if (!found && SUPPORTS_INTEGRATED_DP(dev))
+				intel_dp_init(dev, DP_B);
 		}
 
 		/* Before G4X SDVOC doesn't have its own detect register */
@@ -2487,7 +2575,11 @@ static void intel_setup_outputs(struct drm_device *dev)
 			found = intel_sdvo_init(dev, SDVOC);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
 				intel_hdmi_init(dev, SDVOC);
+			if (!found && SUPPORTS_INTEGRATED_DP(dev))
+				intel_dp_init(dev, DP_C);
 		}
+		if (SUPPORTS_INTEGRATED_DP(dev) && (I915_READ(DP_D) & DP_DETECTED))
+			intel_dp_init(dev, DP_D);
 	} else
 		intel_dvo_init(dev);
 
@@ -2529,6 +2621,11 @@ static void intel_setup_outputs(struct drm_device *dev)
 			crtc_mask = ((1 << 0) |
 				     (1 << 1));
 			clone_mask = (1 << INTEL_OUTPUT_TVOUT);
+			break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+			crtc_mask = ((1 << 0) |
+				     (1 << 1));
+			clone_mask = (1 << INTEL_OUTPUT_DISPLAYPORT);
 			break;
 		}
 		encoder->possible_crtcs = crtc_mask;

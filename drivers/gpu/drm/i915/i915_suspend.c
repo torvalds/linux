@@ -322,6 +322,20 @@ int i915_save_state(struct drm_device *dev)
 	dev_priv->savePP_OFF_DELAYS = I915_READ(PP_OFF_DELAYS);
 	dev_priv->savePP_DIVISOR = I915_READ(PP_DIVISOR);
 
+	/* Display Port state */
+	if (SUPPORTS_INTEGRATED_DP(dev)) {
+		dev_priv->saveDP_B = I915_READ(DP_B);
+		dev_priv->saveDP_C = I915_READ(DP_C);
+		dev_priv->saveDP_D = I915_READ(DP_D);
+		dev_priv->savePIPEA_GMCH_DATA_M = I915_READ(PIPEA_GMCH_DATA_M);
+		dev_priv->savePIPEB_GMCH_DATA_M = I915_READ(PIPEB_GMCH_DATA_M);
+		dev_priv->savePIPEA_GMCH_DATA_N = I915_READ(PIPEA_GMCH_DATA_N);
+		dev_priv->savePIPEB_GMCH_DATA_N = I915_READ(PIPEB_GMCH_DATA_N);
+		dev_priv->savePIPEA_DP_LINK_M = I915_READ(PIPEA_DP_LINK_M);
+		dev_priv->savePIPEB_DP_LINK_M = I915_READ(PIPEB_DP_LINK_M);
+		dev_priv->savePIPEA_DP_LINK_N = I915_READ(PIPEA_DP_LINK_N);
+		dev_priv->savePIPEB_DP_LINK_N = I915_READ(PIPEB_DP_LINK_N);
+	}
 	/* FIXME: save TV & SDVO state */
 
 	/* FBC state */
@@ -404,7 +418,19 @@ int i915_restore_state(struct drm_device *dev)
 			for (i = 0; i < 8; i++)
 				I915_WRITE(FENCE_REG_945_8 + (i * 4), dev_priv->saveFENCE[i+8]);
 	}
-
+	
+	/* Display port ratios (must be done before clock is set) */
+	if (SUPPORTS_INTEGRATED_DP(dev)) {
+		I915_WRITE(PIPEA_GMCH_DATA_M, dev_priv->savePIPEA_GMCH_DATA_M);
+		I915_WRITE(PIPEB_GMCH_DATA_M, dev_priv->savePIPEB_GMCH_DATA_M);
+		I915_WRITE(PIPEA_GMCH_DATA_N, dev_priv->savePIPEA_GMCH_DATA_N);
+		I915_WRITE(PIPEB_GMCH_DATA_N, dev_priv->savePIPEB_GMCH_DATA_N);
+		I915_WRITE(PIPEA_DP_LINK_M, dev_priv->savePIPEA_DP_LINK_M);
+		I915_WRITE(PIPEB_DP_LINK_M, dev_priv->savePIPEB_DP_LINK_M);
+		I915_WRITE(PIPEA_DP_LINK_N, dev_priv->savePIPEA_DP_LINK_N);
+		I915_WRITE(PIPEB_DP_LINK_N, dev_priv->savePIPEB_DP_LINK_N);
+	}
+	
 	/* Pipe & plane A info */
 	/* Prime the clock */
 	if (dev_priv->saveDPLL_A & DPLL_VCO_ENABLE) {
@@ -518,6 +544,12 @@ int i915_restore_state(struct drm_device *dev)
 	I915_WRITE(PP_DIVISOR, dev_priv->savePP_DIVISOR);
 	I915_WRITE(PP_CONTROL, dev_priv->savePP_CONTROL);
 
+	/* Display Port state */
+	if (SUPPORTS_INTEGRATED_DP(dev)) {
+		I915_WRITE(DP_B, dev_priv->saveDP_B);
+		I915_WRITE(DP_C, dev_priv->saveDP_C);
+		I915_WRITE(DP_D, dev_priv->saveDP_D);
+	}
 	/* FIXME: restore TV & SDVO state */
 
 	/* FBC info */
