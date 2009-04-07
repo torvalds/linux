@@ -533,6 +533,13 @@ config SERIAL_S3C6400
 	  Serial port support for the Samsung S3C6400 and S3C6410
 	  SoCs
 
+config SERIAL_MAX3100
+	tristate "MAX3100 support"
+	depends on SPI
+	select SERIAL_CORE
+	help
+	  MAX3100 chip support
+
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
 	depends on MACH_DECSTATION && 32BIT
