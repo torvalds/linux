@@ -92,11 +92,11 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	strncpy(drvinfo->driver, netxen_nic_driver_name, 32);
 	strncpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID, 32);
 	write_lock_irqsave(&adapter->adapter_lock, flags);
-	fw_major = adapter->pci_read_normalize(adapter,
+	fw_major = adapter->hw_read_wx(adapter,
 					NETXEN_FW_VERSION_MAJOR);
-	fw_minor = adapter->pci_read_normalize(adapter,
+	fw_minor = adapter->hw_read_wx(adapter,
 					NETXEN_FW_VERSION_MINOR);
-	fw_build = adapter->pci_read_normalize(adapter,
+	fw_build = adapter->hw_read_wx(adapter,
 					NETXEN_FW_VERSION_SUB);
 	write_unlock_irqrestore(&adapter->adapter_lock, flags);
 	sprintf(drvinfo->fw_version, "%d.%d.%d", fw_major, fw_minor, fw_build);
@@ -135,7 +135,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	} else if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
 		u32 val;
 
-		adapter->hw_read_wx(adapter, NETXEN_PORT_MODE_ADDR, &val, 4);
+		val = adapter->hw_read_wx(adapter, NETXEN_PORT_MODE_ADDR);
 		if (val == NETXEN_PORT_MODE_802_3_AP) {
 			ecmd->supported = SUPPORTED_1000baseT_Full;
 			ecmd->advertising = ADVERTISED_1000baseT_Full;
@@ -156,8 +156,8 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 			u16 pcifn = adapter->ahw.pci_func;
 
-			adapter->hw_read_wx(adapter,
-				P3_LINK_SPEED_REG(pcifn), &val, 4);
+			val = adapter->hw_read_wx(adapter,
+				P3_LINK_SPEED_REG(pcifn));
 			ecmd->speed = P3_LINK_SPEED_MHZ *
 					P3_LINK_SPEED_VAL(pcifn, val);
 		} else
@@ -423,12 +423,12 @@ netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	regs->version = (1 << 24) | (adapter->ahw.revision_id << 16) |
 	    (adapter->pdev)->device;
 	/* which mode */
-	adapter->hw_read_wx(adapter, NETXEN_NIU_MODE, &regs_buff[0], 4);
+	regs_buff[0] = adapter->hw_read_wx(adapter, NETXEN_NIU_MODE);
 	mode = regs_buff[0];
 
 	/* Common registers to all the modes */
-	adapter->hw_read_wx(adapter,
-			NETXEN_NIU_STRAP_VALUE_SAVE_HIGHER, &regs_buff[2], 4);
+	regs_buff[2] = adapter->hw_read_wx(adapter,
+			NETXEN_NIU_STRAP_VALUE_SAVE_HIGHER);
 	/* GB/XGB Mode */
 	mode = (mode / 2) - 1;
 	window = 0;
@@ -439,9 +439,8 @@ netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 				window = adapter->physical_port *
 					NETXEN_NIC_PORT_WINDOW;
 
-			adapter->hw_read_wx(adapter,
-				niu_registers[mode].reg[i - 3] + window,
-				&regs_buff[i], 4);
+			regs_buff[i] = adapter->hw_read_wx(adapter,
+				niu_registers[mode].reg[i - 3] + window);
 		}
 
 	}
@@ -465,7 +464,7 @@ static u32 netxen_nic_test_link(struct net_device *dev)
 			return !val;
 		}
 	} else if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
-		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
+		val = adapter->hw_read_wx(adapter, CRB_XG_STATE);
 		return (val == XG_LINK_UP) ? 0 : 1;
 	}
 	return -EIO;
@@ -529,10 +528,10 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 		if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
 			return;
 		/* get flow control settings */
-		netxen_nic_read_w0(adapter,NETXEN_NIU_GB_MAC_CONFIG_0(port),
-				&val);
+		val = netxen_nic_read_w0(adapter,
+				NETXEN_NIU_GB_MAC_CONFIG_0(port));
 		pause->rx_pause = netxen_gb_get_rx_flowctl(val);
-		netxen_nic_read_w0(adapter, NETXEN_NIU_GB_PAUSE_CTL, &val);
+		val = netxen_nic_read_w0(adapter, NETXEN_NIU_GB_PAUSE_CTL);
 		switch (port) {
 			case 0:
 				pause->tx_pause = !(netxen_gb_get_gb0_mask(val));
@@ -552,7 +551,7 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 		if ((port < 0) || (port > NETXEN_NIU_MAX_XG_PORTS))
 			return;
 		pause->rx_pause = 1;
-		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_PAUSE_CTL, &val);
+		val = netxen_nic_read_w0(adapter, NETXEN_NIU_XG_PAUSE_CTL);
 		if (port == 0)
 			pause->tx_pause = !(netxen_xg_get_xg0_mask(val));
 		else
@@ -575,8 +574,8 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 		if ((port < 0) || (port > NETXEN_NIU_MAX_GBE_PORTS))
 			return -EIO;
 		/* set flow control */
-		netxen_nic_read_w0(adapter,
-					NETXEN_NIU_GB_MAC_CONFIG_0(port), &val);
+		val = netxen_nic_read_w0(adapter,
+					NETXEN_NIU_GB_MAC_CONFIG_0(port));
 
 		if (pause->rx_pause)
 			netxen_gb_rx_flowctl(val);
@@ -586,7 +585,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 		netxen_nic_write_w0(adapter, NETXEN_NIU_GB_MAC_CONFIG_0(port),
 				val);
 		/* set autoneg */
-		netxen_nic_read_w0(adapter, NETXEN_NIU_GB_PAUSE_CTL, &val);
+		val = netxen_nic_read_w0(adapter, NETXEN_NIU_GB_PAUSE_CTL);
 		switch (port) {
 			case 0:
 				if (pause->tx_pause)
@@ -618,7 +617,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 	} else if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
 		if ((port < 0) || (port > NETXEN_NIU_MAX_XG_PORTS))
 			return -EIO;
-		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_PAUSE_CTL, &val);
+		val = netxen_nic_read_w0(adapter, NETXEN_NIU_XG_PAUSE_CTL);
 		if (port == 0) {
 			if (pause->tx_pause)
 				netxen_xg_unset_xg0_mask(val);
@@ -644,14 +643,14 @@ static int netxen_nic_reg_test(struct net_device *dev)
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	u32 data_read, data_written;
 
-	netxen_nic_read_w0(adapter, NETXEN_PCIX_PH_REG(0), &data_read);
+	data_read = netxen_nic_read_w0(adapter, NETXEN_PCIX_PH_REG(0));
 	if ((data_read & 0xffff) != PHAN_VENDOR_ID)
 	return 1;
 
 	data_written = (u32)0xa5a5a5a5;
 
 	netxen_nic_reg_write(adapter, CRB_SCRATCHPAD_TEST, data_written);
-	data_read = adapter->pci_read_normalize(adapter, CRB_SCRATCHPAD_TEST);
+	data_read = adapter->hw_read_wx(adapter, CRB_SCRATCHPAD_TEST);
 	if (data_written != data_read)
 		return 1;
 

@@ -368,8 +368,8 @@ static int rom_lock(struct netxen_adapter *adapter)
 
 	while (!done) {
 		/* acquire semaphore2 from PCI HW block */
-		netxen_nic_read_w0(adapter, NETXEN_PCIE_REG(PCIE_SEM2_LOCK),
-				   &done);
+		done = netxen_nic_read_w0(adapter,
+				NETXEN_PCIE_REG(PCIE_SEM2_LOCK));
 		if (done == 1)
 			break;
 		if (timeout >= rom_lock_timeout)
@@ -411,10 +411,8 @@ static int netxen_wait_rom_done(struct netxen_adapter *adapter)
 
 static void netxen_rom_unlock(struct netxen_adapter *adapter)
 {
-	u32 val;
-
 	/* release semaphore2 */
-	netxen_nic_read_w0(adapter, NETXEN_PCIE_REG(PCIE_SEM2_UNLOCK), &val);
+	netxen_nic_read_w0(adapter, NETXEN_PCIE_REG(PCIE_SEM2_UNLOCK));
 
 }
 
@@ -623,7 +621,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 			}
 		}
 
-		adapter->hw_write_wx(adapter, off, &buf[i].data, 4);
+		adapter->hw_write_wx(adapter, off, buf[i].data);
 
 		msleep(init_delay);
 	}
@@ -633,8 +631,8 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 
 	/* unreset_net_cache */
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-		adapter->hw_read_wx(adapter,
-				NETXEN_ROMUSB_GLB_SW_RESET, &val, 4);
+		val = adapter->hw_read_wx(adapter,
+				NETXEN_ROMUSB_GLB_SW_RESET);
 		netxen_crb_writelit_adapter(adapter,
 				NETXEN_ROMUSB_GLB_SW_RESET, (val & 0xffffff0f));
 	}
@@ -683,12 +681,12 @@ int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
 	hi = (addr >> 32) & 0xffffffff;
 	lo = addr & 0xffffffff;
 
-	adapter->pci_write_normalize(adapter, CRB_HOST_DUMMY_BUF_ADDR_HI, hi);
-	adapter->pci_write_normalize(adapter, CRB_HOST_DUMMY_BUF_ADDR_LO, lo);
+	adapter->hw_write_wx(adapter, CRB_HOST_DUMMY_BUF_ADDR_HI, hi);
+	adapter->hw_write_wx(adapter, CRB_HOST_DUMMY_BUF_ADDR_LO, lo);
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		uint32_t temp = 0;
-		adapter->hw_write_wx(adapter, CRB_HOST_DUMMY_BUF, &temp, 4);
+		adapter->hw_write_wx(adapter, CRB_HOST_DUMMY_BUF, temp);
 	}
 
 	return 0;
@@ -730,7 +728,7 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 
 	if (!pegtune_val) {
 		do {
-			val = adapter->pci_read_normalize(adapter,
+			val = adapter->hw_read_wx(adapter,
 					CRB_CMDPEG_STATE);
 
 			if (val == PHAN_INITIALIZE_COMPLETE ||
@@ -742,7 +740,7 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 		} while (--retries);
 
 		if (!retries) {
-			pegtune_val = adapter->pci_read_normalize(adapter,
+			pegtune_val = adapter->hw_read_wx(adapter,
 					NETXEN_ROMUSB_GLB_PEGTUNE_DONE);
 			printk(KERN_WARNING "netxen_phantom_init: init failed, "
 					"pegtune_val=%x\n", pegtune_val);
@@ -760,7 +758,7 @@ netxen_receive_peg_ready(struct netxen_adapter *adapter)
 	int retries = 2000;
 
 	do {
-		val = adapter->pci_read_normalize(adapter, CRB_RCVPEG_STATE);
+		val = adapter->hw_read_wx(adapter, CRB_RCVPEG_STATE);
 
 		if (val == PHAN_PEG_RCV_INITIALIZED)
 			return 0;
@@ -786,13 +784,13 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 	if (err)
 		return err;
 
-	adapter->pci_write_normalize(adapter,
+	adapter->hw_write_wx(adapter,
 			CRB_NIC_CAPABILITIES_HOST, INTR_SCHEME_PERPORT);
-	adapter->pci_write_normalize(adapter,
+	adapter->hw_write_wx(adapter,
 			CRB_NIC_MSI_MODE_HOST, MSI_MODE_MULTIFUNC);
-	adapter->pci_write_normalize(adapter,
+	adapter->hw_write_wx(adapter,
 			CRB_MPORT_MODE, MPORT_MULTI_FUNCTION_MODE);
-	adapter->pci_write_normalize(adapter,
+	adapter->hw_write_wx(adapter,
 			CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
 
 	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222)) {
@@ -1059,7 +1057,7 @@ skip:
 
 	if (count) {
 		sds_ring->consumer = consumer;
-		adapter->pci_write_normalize(adapter,
+		adapter->hw_write_wx(adapter,
 				sds_ring->crb_sts_consumer, consumer);
 	}
 
@@ -1178,7 +1176,7 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 
 	if (count) {
 		rds_ring->producer = producer;
-		adapter->pci_write_normalize(adapter,
+		adapter->hw_write_wx(adapter,
 				rds_ring->crb_rcv_producer,
 				(producer-1) & (rds_ring->num_desc-1));
 
@@ -1239,7 +1237,7 @@ netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 
 	if (count) {
 		rds_ring->producer = producer;
-		adapter->pci_write_normalize(adapter,
+		adapter->hw_write_wx(adapter,
 			rds_ring->crb_rcv_producer,
 				(producer - 1) & (rds_ring->num_desc - 1));
 			wmb();

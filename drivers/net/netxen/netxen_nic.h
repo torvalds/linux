@@ -1258,14 +1258,12 @@ struct netxen_adapter {
 	int (*init_port) (struct netxen_adapter *, int);
 	int (*stop_port) (struct netxen_adapter *);
 
-	int (*hw_read_wx)(struct netxen_adapter *, ulong, void *, int);
-	int (*hw_write_wx)(struct netxen_adapter *, ulong, void *, int);
+	u32 (*hw_read_wx)(struct netxen_adapter *, ulong);
+	int (*hw_write_wx)(struct netxen_adapter *, ulong, u32);
 	int (*pci_mem_read)(struct netxen_adapter *, u64, void *, int);
 	int (*pci_mem_write)(struct netxen_adapter *, u64, void *, int);
 	int (*pci_write_immediate)(struct netxen_adapter *, u64, u32);
 	u32 (*pci_read_immediate)(struct netxen_adapter *, u64);
-	void (*pci_write_normalize)(struct netxen_adapter *, u64, u32);
-	u32 (*pci_read_normalize)(struct netxen_adapter *, u64);
 	unsigned long (*pci_set_window)(struct netxen_adapter *,
 			unsigned long long);
 
@@ -1302,46 +1300,6 @@ struct netxen_adapter {
 #define netxen_get_dma_watchdog_disabled(config_word) \
 	(((config_word) >> 1) & 0x1)
 
-/* Max number of xmit producer threads that can run simultaneously */
-#define	MAX_XMIT_PRODUCERS		16
-
-#define PCI_OFFSET_FIRST_RANGE(adapter, off)    \
-	((adapter)->ahw.pci_base0 + (off))
-#define PCI_OFFSET_SECOND_RANGE(adapter, off)   \
-	((adapter)->ahw.pci_base1 + (off) - SECOND_PAGE_GROUP_START)
-#define PCI_OFFSET_THIRD_RANGE(adapter, off)    \
-	((adapter)->ahw.pci_base2 + (off) - THIRD_PAGE_GROUP_START)
-
-static inline void __iomem *pci_base_offset(struct netxen_adapter *adapter,
-					    unsigned long off)
-{
-	if ((off < FIRST_PAGE_GROUP_END) && (off >= FIRST_PAGE_GROUP_START)) {
-		return (adapter->ahw.pci_base0 + off);
-	} else if ((off < SECOND_PAGE_GROUP_END) &&
-		   (off >= SECOND_PAGE_GROUP_START)) {
-		return (adapter->ahw.pci_base1 + off - SECOND_PAGE_GROUP_START);
-	} else if ((off < THIRD_PAGE_GROUP_END) &&
-		   (off >= THIRD_PAGE_GROUP_START)) {
-		return (adapter->ahw.pci_base2 + off - THIRD_PAGE_GROUP_START);
-	}
-	return NULL;
-}
-
-static inline void __iomem *pci_base(struct netxen_adapter *adapter,
-				     unsigned long off)
-{
-	if ((off < FIRST_PAGE_GROUP_END) && (off >= FIRST_PAGE_GROUP_START)) {
-		return adapter->ahw.pci_base0;
-	} else if ((off < SECOND_PAGE_GROUP_END) &&
-		   (off >= SECOND_PAGE_GROUP_START)) {
-		return adapter->ahw.pci_base1;
-	} else if ((off < THIRD_PAGE_GROUP_END) &&
-		   (off >= THIRD_PAGE_GROUP_START)) {
-		return adapter->ahw.pci_base2;
-	}
-	return NULL;
-}
-
 int netxen_niu_xgbe_enable_phy_interrupts(struct netxen_adapter *adapter);
 int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter);
 int netxen_niu_xgbe_disable_phy_interrupts(struct netxen_adapter *adapter);
@@ -1357,18 +1315,17 @@ int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu);
 void netxen_nic_reg_write(struct netxen_adapter *adapter, u64 off, u32 val);
 int netxen_nic_reg_read(struct netxen_adapter *adapter, u64 off);
 void netxen_nic_write_w0(struct netxen_adapter *adapter, u32 index, u32 value);
-void netxen_nic_read_w0(struct netxen_adapter *adapter, u32 index, u32 *value);
+u32 netxen_nic_read_w0(struct netxen_adapter *adapter, u32 index);
 void netxen_nic_write_w1(struct netxen_adapter *adapter, u32 index, u32 value);
-void netxen_nic_read_w1(struct netxen_adapter *adapter, u32 index, u32 *value);
+u32 netxen_nic_read_w1(struct netxen_adapter *adapter, u32 index);
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter);
 void netxen_nic_get_firmware_info(struct netxen_adapter *adapter);
 int netxen_nic_wol_supported(struct netxen_adapter *adapter);
 
-int netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter,
-		ulong off, void *data, int len);
+u32 netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter, ulong off);
 int netxen_nic_hw_write_wx_128M(struct netxen_adapter *adapter,
-		ulong off, void *data, int len);
+		ulong off, u32 data);
 int netxen_nic_pci_mem_read_128M(struct netxen_adapter *adapter,
 		u64 off, void *data, int size);
 int netxen_nic_pci_mem_write_128M(struct netxen_adapter *adapter,
@@ -1384,10 +1341,9 @@ unsigned long netxen_nic_pci_set_window_128M(struct netxen_adapter *adapter,
 void netxen_nic_pci_change_crbwindow_128M(struct netxen_adapter *adapter,
 		u32 wndw);
 
-int netxen_nic_hw_read_wx_2M(struct netxen_adapter *adapter,
-		ulong off, void *data, int len);
+u32 netxen_nic_hw_read_wx_2M(struct netxen_adapter *adapter, ulong off);
 int netxen_nic_hw_write_wx_2M(struct netxen_adapter *adapter,
-		ulong off, void *data, int len);
+		ulong off, u32 data);
 int netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
 		u64 off, void *data, int size);
 int netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
@@ -1514,9 +1470,8 @@ dma_watchdog_shutdown_request(struct netxen_adapter *adapter)
 	u32 ctrl;
 
 	/* check if already inactive */
-	if (adapter->hw_read_wx(adapter,
-	    NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), &ctrl, 4))
-		printk(KERN_ERR "failed to read dma watchdog status\n");
+	ctrl = adapter->hw_read_wx(adapter,
+			NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL));
 
 	if (netxen_get_dma_watchdog_enabled(ctrl) == 0)
 		return 1;
@@ -1534,9 +1489,8 @@ dma_watchdog_shutdown_poll_result(struct netxen_adapter *adapter)
 {
 	u32 ctrl;
 
-	if (adapter->hw_read_wx(adapter,
-	    NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), &ctrl, 4))
-		printk(KERN_ERR "failed to read dma watchdog status\n");
+	ctrl = adapter->hw_read_wx(adapter,
+			NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL));
 
 	return (netxen_get_dma_watchdog_enabled(ctrl) == 0);
 }
@@ -1546,9 +1500,8 @@ dma_watchdog_wakeup(struct netxen_adapter *adapter)
 {
 	u32 ctrl;
 
-	if (adapter->hw_read_wx(adapter,
-		NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), &ctrl, 4))
-		printk(KERN_ERR "failed to read dma watchdog status\n");
+	ctrl = adapter->hw_read_wx(adapter,
+			NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL));
 
 	if (netxen_get_dma_watchdog_enabled(ctrl))
 		return 1;
