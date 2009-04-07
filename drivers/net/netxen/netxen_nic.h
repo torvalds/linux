@@ -354,6 +354,7 @@ struct rcv_desc {
 /* opcode field in status_desc */
 #define NETXEN_NIC_RXPKT_DESC  0x04
 #define NETXEN_OLD_RXPKT_DESC  0x3f
+#define NETXEN_NIC_RESPONSE_DESC 0x05
 
 /* for status field in status_desc */
 #define STATUS_NEED_CKSUM	(1)
@@ -363,8 +364,11 @@ struct rcv_desc {
 #define STATUS_OWNER_HOST	(0x1ULL << 56)
 #define STATUS_OWNER_PHANTOM	(0x2ULL << 56)
 
-/* Note: sizeof(status_desc) should always be a mutliple of 2 */
-
+/* Status descriptor:
+   0-3 port, 4-7 status, 8-11 type, 12-27 total_length
+   28-43 reference_handle, 44-47 protocol, 48-52 pkt_offset
+   53-55 desc_cnt, 56-57 owner, 58-63 opcode
+ */
 #define netxen_get_sts_port(sts_data)	\
 	((sts_data) & 0x0F)
 #define netxen_get_sts_status(sts_data)	\
@@ -379,35 +383,13 @@ struct rcv_desc {
 	(((sts_data) >> 44) & 0x0F)
 #define netxen_get_sts_pkt_offset(sts_data)	\
 	(((sts_data) >> 48) & 0x1F)
+#define netxen_get_sts_desc_cnt(sts_data)	\
+	(((sts_data) >> 53) & 0x7)
 #define netxen_get_sts_opcode(sts_data)	\
 	(((sts_data) >> 58) & 0x03F)
 
 struct status_desc {
-	/* Bit pattern: 0-3 port, 4-7 status, 8-11 type, 12-27 total_length
-	   28-43 reference_handle, 44-47 protocol, 48-52 pkt_offset
-	   53-55 desc_cnt, 56-57 owner, 58-63 opcode
-	 */
-	__le64 status_desc_data;
-	union {
-		struct {
-			__le32 hash_value;
-			u8 hash_type;
-			u8 msg_type;
-			u8 unused;
-			union {
-				/* Bit pattern: 0-6 lro_count indicates frag
-				 * sequence, 7 last_frag indicates last frag
-				 */
-				u8 lro;
-
-				/* chained buffers */
-				u8 nr_frags;
-			};
-		};
-		struct {
-			__le16 frag_handles[4];
-		};
-	};
+	__le64 status_desc_data[2];
 } __attribute__ ((aligned(16)));
 
 /* The version of the main data structure */
@@ -1114,6 +1096,66 @@ typedef struct {
 #define VPORT_MISS_MODE_ACCEPT_ALL	1 /* accept all packets */
 #define VPORT_MISS_MODE_ACCEPT_MULTI	2 /* accept unmatched multicast */
 
+#define NX_FW_CAPABILITY_LINK_NOTIFICATION	(1 << 5)
+#define NX_FW_CAPABILITY_SWITCHING		(1 << 6)
+
+/* module types */
+#define LINKEVENT_MODULE_NOT_PRESENT			1
+#define LINKEVENT_MODULE_OPTICAL_UNKNOWN		2
+#define LINKEVENT_MODULE_OPTICAL_SRLR			3
+#define LINKEVENT_MODULE_OPTICAL_LRM			4
+#define LINKEVENT_MODULE_OPTICAL_SFP_1G			5
+#define LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLE	6
+#define LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLELEN	7
+#define LINKEVENT_MODULE_TWINAX				8
+
+#define LINKSPEED_10GBPS	10000
+#define LINKSPEED_1GBPS		1000
+#define LINKSPEED_100MBPS	100
+#define LINKSPEED_10MBPS	10
+
+#define LINKSPEED_ENCODED_10MBPS	0
+#define LINKSPEED_ENCODED_100MBPS	1
+#define LINKSPEED_ENCODED_1GBPS		2
+
+#define LINKEVENT_AUTONEG_DISABLED	0
+#define LINKEVENT_AUTONEG_ENABLED	1
+
+#define LINKEVENT_HALF_DUPLEX		0
+#define LINKEVENT_FULL_DUPLEX		1
+
+#define LINKEVENT_LINKSPEED_MBPS	0
+#define LINKEVENT_LINKSPEED_ENCODED	1
+
+/* firmware response header:
+ *	63:58 - message type
+ *	57:56 - owner
+ *	55:53 - desc count
+ *	52:48 - reserved
+ *	47:40 - completion id
+ *	39:32 - opcode
+ *	31:16 - error code
+ *	15:00 - reserved
+ */
+#define netxen_get_nic_msgtype(msg_hdr)	\
+	((msg_hdr >> 58) & 0x3F)
+#define netxen_get_nic_msg_compid(msg_hdr)	\
+	((msg_hdr >> 40) & 0xFF)
+#define netxen_get_nic_msg_opcode(msg_hdr)	\
+	((msg_hdr >> 32) & 0xFF)
+#define netxen_get_nic_msg_errcode(msg_hdr)	\
+	((msg_hdr >> 16) & 0xFFFF)
+
+typedef struct {
+	union {
+		struct {
+			u64 hdr;
+			u64 body[7];
+		};
+		u64 words[8];
+	};
+} nx_fw_msg_t;
+
 typedef struct {
 	__le64 qhdr;
 	__le64 req_hdr;
@@ -1177,15 +1219,21 @@ struct netxen_adapter {
 
 	u8 mc_enabled;
 	u8 max_mc_count;
+	u16 resv2;
+	u32 resv3;
+
+	u8 has_link_events;
+	u8 resv1;
 	u16 tx_context_id;
 	u16 mtu;
 	u16 is_up;
+
 	u16 link_speed;
 	u16 link_duplex;
 	u16 link_autoneg;
-	u16 resv1;
+	u16 module_type;
 
-	u32 resv2;
+	u32 capabilities;
 	u32 flags;
 	u32 irq;
 	u32 temp;
@@ -1398,6 +1446,8 @@ void netxen_p3_free_mac_list(struct netxen_adapter *adapter);
 int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32);
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
 int netxen_config_rss(struct netxen_adapter *adapter, int enable);
+int netxen_linkevent_request(struct netxen_adapter *adapter, int enable);
+void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup);
 
 int nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);

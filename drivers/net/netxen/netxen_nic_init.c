@@ -795,7 +795,79 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 	adapter->pci_write_normalize(adapter,
 			CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
 
+	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222)) {
+		adapter->capabilities = netxen_nic_reg_read(adapter,
+				CRB_FW_CAPABILITIES_1);
+	}
+
 	return err;
+}
+
+static void
+netxen_handle_linkevent(struct netxen_adapter *adapter, nx_fw_msg_t *msg)
+{
+	u32 cable_OUI;
+	u16 cable_len;
+	u16 link_speed;
+	u8  link_status, module, duplex, autoneg;
+	struct net_device *netdev = adapter->netdev;
+
+	adapter->has_link_events = 1;
+
+	cable_OUI = msg->body[1] & 0xffffffff;
+	cable_len = (msg->body[1] >> 32) & 0xffff;
+	link_speed = (msg->body[1] >> 48) & 0xffff;
+
+	link_status = msg->body[2] & 0xff;
+	duplex = (msg->body[2] >> 16) & 0xff;
+	autoneg = (msg->body[2] >> 24) & 0xff;
+
+	module = (msg->body[2] >> 8) & 0xff;
+	if (module == LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLE) {
+		printk(KERN_INFO "%s: unsupported cable: OUI 0x%x, length %d\n",
+				netdev->name, cable_OUI, cable_len);
+	} else if (module == LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLELEN) {
+		printk(KERN_INFO "%s: unsupported cable length %d\n",
+				netdev->name, cable_len);
+	}
+
+	netxen_advert_link_change(adapter, link_status);
+
+	/* update link parameters */
+	if (duplex == LINKEVENT_FULL_DUPLEX)
+		adapter->link_duplex = DUPLEX_FULL;
+	else
+		adapter->link_duplex = DUPLEX_HALF;
+	adapter->module_type = module;
+	adapter->link_autoneg = autoneg;
+	adapter->link_speed = link_speed;
+}
+
+static void
+netxen_handle_fw_message(int desc_cnt, int index,
+		struct nx_host_sds_ring *sds_ring)
+{
+	nx_fw_msg_t msg;
+	struct status_desc *desc;
+	int i = 0, opcode;
+
+	while (desc_cnt > 0 && i < 8) {
+		desc = &sds_ring->desc_head[index];
+		msg.words[i++] = le64_to_cpu(desc->status_desc_data[0]);
+		msg.words[i++] = le64_to_cpu(desc->status_desc_data[1]);
+
+		index = get_next_index(index, sds_ring->num_desc);
+		desc_cnt--;
+	}
+
+	opcode = netxen_get_nic_msg_opcode(msg.body[0]);
+	switch (opcode) {
+	case NX_NIC_C2H_OPCODE_GET_LINKEVENT_RESPONSE:
+		netxen_handle_linkevent(sds_ring->adapter, &msg);
+		break;
+	default:
+		break;
+	}
 }
 
 static int
@@ -916,20 +988,34 @@ netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max)
 
 	int count = 0;
 	u64 sts_data;
-	int opcode, ring, index, length, cksum, pkt_offset;
+	int opcode, ring, index, length, cksum, pkt_offset, desc_cnt;
 
 	while (count < max) {
 		desc = &sds_ring->desc_head[consumer];
-		sts_data = le64_to_cpu(desc->status_desc_data);
+		sts_data = le64_to_cpu(desc->status_desc_data[0]);
 
 		if (!(sts_data & STATUS_OWNER_HOST))
 			break;
 
+		desc_cnt = netxen_get_sts_desc_cnt(sts_data);
 		ring   = netxen_get_sts_type(sts_data);
+
 		if (ring > RCV_RING_JUMBO)
-			continue;
+			goto skip;
 
 		opcode = netxen_get_sts_opcode(sts_data);
+
+		switch (opcode) {
+		case NETXEN_NIC_RXPKT_DESC:
+		case NETXEN_OLD_RXPKT_DESC:
+			break;
+		case NETXEN_NIC_RESPONSE_DESC:
+			netxen_handle_fw_message(desc_cnt, consumer, sds_ring);
+		default:
+			goto skip;
+		}
+
+		WARN_ON(desc_cnt > 1);
 
 		index  = netxen_get_sts_refhandle(sts_data);
 		length = netxen_get_sts_totallength(sts_data);
@@ -942,9 +1028,13 @@ netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max)
 		if (rxbuf)
 			list_add_tail(&rxbuf->list, &sds_ring->free_list[ring]);
 
-		desc->status_desc_data = cpu_to_le64(STATUS_OWNER_PHANTOM);
-
-		consumer = get_next_index(consumer, sds_ring->num_desc);
+skip:
+		for (; desc_cnt > 0; desc_cnt--) {
+			desc = &sds_ring->desc_head[consumer];
+			desc->status_desc_data[0] =
+				cpu_to_le64(STATUS_OWNER_PHANTOM);
+			consumer = get_next_index(consumer, sds_ring->num_desc);
+		}
 		count++;
 	}
 

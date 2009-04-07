@@ -110,6 +110,7 @@ static int
 netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
+	int check_sfp_module = 0;
 
 	/* read which mode */
 	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
@@ -143,6 +144,13 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			ecmd->advertising = ADVERTISED_10000baseT_Full;
 		}
 
+		if (netif_running(dev) && adapter->has_link_events) {
+			ecmd->speed = adapter->link_speed;
+			ecmd->autoneg = adapter->link_autoneg;
+			ecmd->duplex = adapter->link_duplex;
+			goto skip;
+		}
+
 		ecmd->port = PORT_TP;
 
 		if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
@@ -160,6 +168,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	} else
 		return -EIO;
 
+skip:
 	ecmd->phy_address = adapter->physical_port;
 	ecmd->transceiver = XCVR_EXTERNAL;
 
@@ -190,7 +199,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	case NETXEN_BRDTYPE_P3_HMEZ:
 		ecmd->supported |= SUPPORTED_MII;
 		ecmd->advertising |= ADVERTISED_MII;
-		ecmd->port = PORT_FIBRE;
+		ecmd->port = PORT_MII;
 		ecmd->autoneg = AUTONEG_DISABLE;
 		break;
 	case NETXEN_BRDTYPE_P3_10G_SFP_PLUS:
@@ -198,6 +207,8 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	case NETXEN_BRDTYPE_P3_10G_SFP_QT:
 		ecmd->advertising |= ADVERTISED_TP;
 		ecmd->supported |= SUPPORTED_TP;
+		check_sfp_module = netif_running(dev) &&
+			adapter->has_link_events;
 	case NETXEN_BRDTYPE_P2_SB31_10G:
 	case NETXEN_BRDTYPE_P3_10G_XFP:
 		ecmd->supported |= SUPPORTED_FIBRE;
@@ -212,6 +223,8 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			ecmd->advertising |=
 				(ADVERTISED_FIBRE | ADVERTISED_TP);
 			ecmd->port = PORT_FIBRE;
+			check_sfp_module = netif_running(dev) &&
+				adapter->has_link_events;
 		} else {
 			ecmd->autoneg = AUTONEG_ENABLE;
 			ecmd->supported |= (SUPPORTED_TP |SUPPORTED_Autoneg);
@@ -224,6 +237,23 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		printk(KERN_ERR "netxen-nic: Unsupported board model %d\n",
 				adapter->ahw.board_type);
 		return -EIO;
+	}
+
+	if (check_sfp_module) {
+		switch (adapter->module_type) {
+		case LINKEVENT_MODULE_OPTICAL_UNKNOWN:
+		case LINKEVENT_MODULE_OPTICAL_SRLR:
+		case LINKEVENT_MODULE_OPTICAL_LRM:
+		case LINKEVENT_MODULE_OPTICAL_SFP_1G:
+			ecmd->port = PORT_FIBRE;
+			break;
+		case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLE:
+		case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLELEN:
+		case LINKEVENT_MODULE_TWINAX:
+			ecmd->port = PORT_TP;
+		default:
+			ecmd->port = -1;
+		}
 	}
 
 	return 0;

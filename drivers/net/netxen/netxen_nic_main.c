@@ -787,6 +787,9 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 	if (adapter->max_sds_rings > 1)
 		netxen_config_rss(adapter, 1);
 
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		netxen_linkevent_request(adapter, 1);
+
 	return 0;
 }
 
@@ -1493,9 +1496,38 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 	return rv;
 }
 
-static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
+void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup)
 {
 	struct net_device *netdev = adapter->netdev;
+
+	if (adapter->ahw.linkup && !linkup) {
+		printk(KERN_INFO "%s: %s NIC Link is down\n",
+		       netxen_nic_driver_name, netdev->name);
+		adapter->ahw.linkup = 0;
+		if (netif_running(netdev)) {
+			netif_carrier_off(netdev);
+			netif_stop_queue(netdev);
+		}
+
+		if (!adapter->has_link_events)
+			netxen_nic_set_link_parameters(adapter);
+
+	} else if (!adapter->ahw.linkup && linkup) {
+		printk(KERN_INFO "%s: %s NIC Link is up\n",
+		       netxen_nic_driver_name, netdev->name);
+		adapter->ahw.linkup = 1;
+		if (netif_running(netdev)) {
+			netif_carrier_on(netdev);
+			netif_wake_queue(netdev);
+		}
+
+		if (!adapter->has_link_events)
+			netxen_nic_set_link_parameters(adapter);
+	}
+}
+
+static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
+{
 	u32 val, port, linkup;
 
 	port = adapter->physical_port;
@@ -1514,27 +1546,7 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 		}
 	}
 
-	if (adapter->ahw.linkup && !linkup) {
-		printk(KERN_INFO "%s: %s NIC Link is down\n",
-		       netxen_nic_driver_name, netdev->name);
-		adapter->ahw.linkup = 0;
-		if (netif_running(netdev)) {
-			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
-		}
-
-		netxen_nic_set_link_parameters(adapter);
-	} else if (!adapter->ahw.linkup && linkup) {
-		printk(KERN_INFO "%s: %s NIC Link is up\n",
-		       netxen_nic_driver_name, netdev->name);
-		adapter->ahw.linkup = 1;
-		if (netif_running(netdev)) {
-			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
-		}
-
-		netxen_nic_set_link_parameters(adapter);
-	}
+	netxen_advert_link_change(adapter, linkup);
 }
 
 static void netxen_watchdog(unsigned long v)
@@ -1552,7 +1564,8 @@ void netxen_watchdog_task(struct work_struct *work)
 	if ((adapter->portnum  == 0) && netxen_nic_check_temp(adapter))
 		return;
 
-	netxen_nic_handle_phy_intr(adapter);
+	if (!adapter->has_link_events)
+		netxen_nic_handle_phy_intr(adapter);
 
 	if (netif_running(adapter->netdev))
 		mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
