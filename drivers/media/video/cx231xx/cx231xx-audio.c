@@ -478,9 +478,10 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	cx231xx_info("cx231xx-audio.c: probing for cx231xx "
 		     "non standard usbaudio\n");
 
-	card = snd_card_new(index[devnr], "Cx231xx Audio", THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[devnr], "Cx231xx Audio", THIS_MODULE,
+			      0, &card);
+	if (err < 0)
+		return err;
 
 	spin_lock_init(&adev->slock);
 	err = snd_pcm_new(card, "Cx231xx Audio", 0, 0, 1, &pcm);
