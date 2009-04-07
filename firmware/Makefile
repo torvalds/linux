@@ -41,6 +41,11 @@ fw-shipped-$(CONFIG_DVB_TTUSB_BUDGET) += ttusb-budget/dspbootcode.bin
 fw-shipped-$(CONFIG_E100) += e100/d101m_ucode.bin e100/d101s_ucode.bin \
 			     e100/d102e_ucode.bin
 fw-shipped-$(CONFIG_PCMCIA_SMC91C92) += ositech/Xilinx7OD.bin
+fw-shipped-$(CONFIG_SCSI_ADVANSYS) += advansys/mcode.bin advansys/38C1600.bin \
+				      advansys/3550.bin advansys/38C0800.bin
+fw-shipped-$(CONFIG_SCSI_QLOGIC_1280) += qlogic/1040.bin qlogic/1280.bin \
+					 qlogic/12160.bin
+fw-shipped-$(CONFIG_SCSI_QLOGICPTI) += qlogic/isp1000.bin
 fw-shipped-$(CONFIG_SMCTR) += tr_smctr.bin
 fw-shipped-$(CONFIG_SND_KORG1212) += korg/k1212.dsp
 fw-shipped-$(CONFIG_SND_MAESTRO3) += ess/maestro3_assp_kernel.fw \

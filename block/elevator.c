@@ -677,7 +677,7 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 	}
 
 	if (unplug_it && blk_queue_plugged(q)) {
-		int nrq = q->rq.count[READ] + q->rq.count[WRITE]
+		int nrq = q->rq.count[BLK_RW_SYNC] + q->rq.count[BLK_RW_ASYNC]
 			- q->in_flight;
 
 		if (nrq >= q->unplug_thresh)

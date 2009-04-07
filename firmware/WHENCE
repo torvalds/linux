@@ -45,6 +45,32 @@ Found alsa-firmware package in hex form, with the following comment:
 
 --------------------------------------------------------------------------
 
+Driver: SCSI_ADVANSYS - AdvanSys SCSI
+
+File: advansys/mcode.bin
+File: advansys/3550.bin
+File: advansys/38C0800.bin
+File: advansys/38C1600.bin
+
+Licence: BSD, no source available.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: SCSI_QLOGIC_1280 - Qlogic QLA 1240/1x80/1x160 SCSI support
+
+File: qlogic/1040.bin
+File: qlogic/1280.bin
+File: qlogic/12160.bin
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+
+                   QLOGIC LINUX SOFTWARE
+  QLogic ISP1280/ device driver for Linux 2.2.x and 2.4.x
+  Copyright (C) 2001 Qlogic Corporation (www.qlogic.com)
+
+--------------------------------------------------------------------------
 Driver: smctr -- SMC ISA/MCA Token Ring adapter
 
 File: tr_smctr.bin
@@ -592,6 +618,16 @@ File: ositech/Xilinx7OD.bin
 Licence: Allegedly GPL, but no source visible. Marked:
     This file contains the firmware of Seven of Diamonds from OSITECH.
     (Special thanks to Kevin MacPherson of OSITECH)
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: SCSI_QLOGICPTI - PTI Qlogic, ISP Driver
+
+File: qlogic/isp1000.bin
+
+Licence: Unknown
 
 Found in hex form in kernel source.
 

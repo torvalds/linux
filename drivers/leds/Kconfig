@@ -31,6 +31,13 @@ config LEDS_LOCOMO
 	  This option enables support for the LEDs on Sharp Locomo.
 	  Zaurus models SL-5500 and SL-5600.
 
+config LEDS_MIKROTIK_RB532
+	tristate "LED Support for Mikrotik Routerboard 532"
+	depends on LEDS_CLASS && MIKROTIK_RB532
+	help
+	  This option enables support for the so called "User LED" of
+	  Mikrotik's Routerboard 532.
+
 config LEDS_S3C24XX
 	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
 	depends on LEDS_CLASS && ARCH_S3C2410
@@ -117,11 +124,40 @@ config LEDS_GPIO
 	help
 	  This option enables support for the LEDs connected to GPIO
 	  outputs. To be useful the particular board must have LEDs
-	  and they must be connected to the GPIO lines.
+	  and they must be connected to the GPIO lines.  The LEDs must be
+	  defined as platform devices and/or OpenFirmware platform devices.
+	  The code to use these bindings can be selected below.
+
+config LEDS_GPIO_PLATFORM
+	bool "Platform device bindings for GPIO LEDs"
+	depends on LEDS_GPIO
+	default y
+	help
+	  Let the leds-gpio driver drive LEDs which have been defined as
+	  platform devices.  If you don't know what this means, say yes.
+
+config LEDS_GPIO_OF
+	bool "OpenFirmware platform device bindings for GPIO LEDs"
+	depends on LEDS_GPIO && OF_DEVICE
+	default y
+	help
+	  Let the leds-gpio driver drive LEDs which have been defined as
+	  of_platform devices.  For instance, LEDs which are listed in a "dts"
+	  file.
+
+config LEDS_LP5521
+	tristate "LED Support for the LP5521 LEDs"
+	depends on LEDS_CLASS && I2C
+	help
+	  If you say 'Y' here you get support for the National Semiconductor
+	  LP5521 LED driver used in n8x0 boards.
+
+	  This driver can be built as a module by choosing 'M'. The module
+	  will be called leds-lp5521.
 
 config LEDS_CLEVO_MAIL
-	tristate "Mail LED on Clevo notebook (EXPERIMENTAL)"
-	depends on LEDS_CLASS && X86 && SERIO_I8042 && DMI && EXPERIMENTAL
+	tristate "Mail LED on Clevo notebook"
+	depends on LEDS_CLASS && X86 && SERIO_I8042 && DMI
 	help
 	  This driver makes the mail LED accessible from userspace
 	  programs through the leds subsystem. This LED have three
@@ -171,6 +207,26 @@ config LEDS_DA903X
 	  This option enables support for on-chip LED drivers found
 	  on Dialog Semiconductor DA9030/DA9034 PMICs.
 
+config LEDS_DAC124S085
+	tristate "LED Support for DAC124S085 SPI DAC"
+	depends on LEDS_CLASS && SPI
+	help
+	  This option enables support for DAC124S085 SPI DAC from NatSemi,
+	  which can be used to control up to four LEDs.
+
+config LEDS_PWM
+	tristate "PWM driven LED Support"
+	depends on LEDS_CLASS && HAVE_PWM
+	help
+	  This option enables support for pwm driven LEDs
+
+config LEDS_BD2802
+	tristate "LED driver for BD2802 RGB LED"
+	depends on LEDS_CLASS && I2C
+	help
+	  This option enables support for BD2802GU RGB LED driver chips
+	  accessed via the I2C bus.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS
@@ -213,6 +269,19 @@ config LEDS_TRIGGER_BACKLIGHT
 	help
 	  This allows LEDs to be controlled as a backlight device: they
 	  turn off and on when the display is blanked and unblanked.
+
+	  If unsure, say N.
+
+config LEDS_TRIGGER_GPIO
+	tristate "LED GPIO Trigger"
+	depends on LEDS_TRIGGERS
+	depends on GPIOLIB
+	help
+	  This allows LEDs to be controlled by gpio events. It's good
+	  when using gpios as switches and triggering the needed LEDs
+	  from there. One use case is n810's keypad LEDs that could
+	  be triggered by this trigger when user slides up to show
+	  keypad.
 
 	  If unsure, say N.
 

@@ -351,8 +351,13 @@ void journal_commit_transaction(journal_t *journal)
 	spin_lock(&journal->j_state_lock);
 	commit_transaction->t_state = T_LOCKED;
 
+	/*
+	 * Use plugged writes here, since we want to submit several before
+	 * we unplug the device. We don't do explicit unplugging in here,
+	 * instead we rely on sync_buffer() doing the unplug for us.
+	 */
 	if (commit_transaction->t_synchronous_commit)
-		write_op = WRITE_SYNC;
+		write_op = WRITE_SYNC_PLUG;
 	spin_lock(&commit_transaction->t_handle_lock);
 	while (commit_transaction->t_updates) {
 		DEFINE_WAIT(wait);

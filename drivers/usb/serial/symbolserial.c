@@ -139,14 +139,6 @@ static int symbol_open(struct tty_struct *tty, struct usb_serial_port *port,
 	priv->port = port;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/*
-	 * Force low_latency on so that our tty_push actually forces the data
-	 * through, otherwise it is scheduled, and with high data rates (like
-	 * with OHCI) data can get lost.
-	 */
-	if (tty)
-		tty->low_latency = 1;
-
 	/* Start reading from the device */
 	usb_fill_int_urb(priv->int_urb, priv->udev,
 			 usb_rcvintpipe(priv->udev, priv->int_address),
@@ -203,62 +195,6 @@ static void symbol_unthrottle(struct tty_struct *tty)
 		dev_err(&port->dev,
 			"%s - failed submitting read urb, error %d\n",
 							__func__, result);
-}
-
-static int symbol_ioctl(struct tty_struct *tty, struct file *file,
-			unsigned int cmd, unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct device *dev = &port->dev;
-
-	/*
-	 * Right now we need to figure out what commands
-	 * most userspace tools want to see for this driver,
-	 * so just log the things.
-	 */
-	switch (cmd) {
-	case TIOCSERGETLSR:
-		dev_info(dev, "%s: TIOCSERGETLSR\n", __func__);
-		break;
-
-	case TIOCGSERIAL:
-		dev_info(dev, "%s: TIOCGSERIAL\n", __func__);
-		break;
-
-	case TIOCMIWAIT:
-		dev_info(dev, "%s: TIOCMIWAIT\n", __func__);
-		break;
-
-	case TIOCGICOUNT:
-		dev_info(dev, "%s: TIOCGICOUNT\n", __func__);
-		break;
-	default:
-		dev_info(dev, "%s: unknown (%d)\n", __func__, cmd);
-	}
-	return -ENOIOCTLCMD;
-}
-
-static int symbol_tiocmget(struct tty_struct *tty, struct file *file)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct device *dev = &port->dev;
-
-	/* TODO */
-	/* probably just need to shadow whatever was sent to us here */
-	dev_info(dev, "%s\n", __func__);
-	return 0;
-}
-
-static int symbol_tiocmset(struct tty_struct *tty, struct file *file,
-			   unsigned int set, unsigned int clear)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct device *dev = &port->dev;
-
-	/* TODO */
-	/* probably just need to shadow whatever was sent to us here */
-	dev_info(dev, "%s\n", __func__);
-	return 0;
 }
 
 static int symbol_startup(struct usb_serial *serial)
@@ -367,9 +303,6 @@ static struct usb_serial_driver symbol_device = {
 	.shutdown =		symbol_shutdown,
 	.throttle = 		symbol_throttle,
 	.unthrottle =		symbol_unthrottle,
-	.ioctl = 		symbol_ioctl,
-	.tiocmget = 		symbol_tiocmget,
-	.tiocmset = 		symbol_tiocmset,
 };
 
 static int __init symbol_init(void)

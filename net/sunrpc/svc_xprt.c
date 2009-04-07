@@ -14,6 +14,8 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
+#define SVC_MAX_WAKING 5
+
 static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt);
 static int svc_deferred_recv(struct svc_rqst *rqstp);
 static struct cache_deferred_req *svc_defer(struct cache_req *req);
@@ -301,6 +303,7 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	struct svc_pool *pool;
 	struct svc_rqst	*rqstp;
 	int cpu;
+	int thread_avail;
 
 	if (!(xprt->xpt_flags &
 	      ((1<<XPT_CONN)|(1<<XPT_DATA)|(1<<XPT_CLOSE)|(1<<XPT_DEFERRED))))
@@ -312,17 +315,13 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 
 	spin_lock_bh(&pool->sp_lock);
 
-	if (!list_empty(&pool->sp_threads) &&
-	    !list_empty(&pool->sp_sockets))
-		printk(KERN_ERR
-		       "svc_xprt_enqueue: "
-		       "threads and transports both waiting??\n");
-
 	if (test_bit(XPT_DEAD, &xprt->xpt_flags)) {
 		/* Don't enqueue dead transports */
 		dprintk("svc: transport %p is dead, not enqueued\n", xprt);
 		goto out_unlock;
 	}
+
+	pool->sp_stats.packets++;
 
 	/* Mark transport as busy. It will remain in this state until
 	 * the provider calls svc_xprt_received. We update XPT_BUSY
@@ -356,7 +355,15 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	}
 
  process:
-	if (!list_empty(&pool->sp_threads)) {
+	/* Work out whether threads are available */
+	thread_avail = !list_empty(&pool->sp_threads);	/* threads are asleep */
+	if (pool->sp_nwaking >= SVC_MAX_WAKING) {
+		/* too many threads are runnable and trying to wake up */
+		thread_avail = 0;
+		pool->sp_stats.overloads_avoided++;
+	}
+
+	if (thread_avail) {
 		rqstp = list_entry(pool->sp_threads.next,
 				   struct svc_rqst,
 				   rq_list);
@@ -371,11 +378,15 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 		svc_xprt_get(xprt);
 		rqstp->rq_reserved = serv->sv_max_mesg;
 		atomic_add(rqstp->rq_reserved, &xprt->xpt_reserved);
+		rqstp->rq_waking = 1;
+		pool->sp_nwaking++;
+		pool->sp_stats.threads_woken++;
 		BUG_ON(xprt->xpt_pool != pool);
 		wake_up(&rqstp->rq_wait);
 	} else {
 		dprintk("svc: transport %p put into queue\n", xprt);
 		list_add_tail(&xprt->xpt_ready, &pool->sp_sockets);
+		pool->sp_stats.sockets_queued++;
 		BUG_ON(xprt->xpt_pool != pool);
 	}
 
@@ -588,6 +599,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 	int			pages;
 	struct xdr_buf		*arg;
 	DECLARE_WAITQUEUE(wait, current);
+	long			time_left;
 
 	dprintk("svc: server %p waiting for data (to = %ld)\n",
 		rqstp, timeout);
@@ -636,6 +648,11 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		return -EINTR;
 
 	spin_lock_bh(&pool->sp_lock);
+	if (rqstp->rq_waking) {
+		rqstp->rq_waking = 0;
+		pool->sp_nwaking--;
+		BUG_ON(pool->sp_nwaking < 0);
+	}
 	xprt = svc_xprt_dequeue(pool);
 	if (xprt) {
 		rqstp->rq_xprt = xprt;
@@ -668,12 +685,14 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		add_wait_queue(&rqstp->rq_wait, &wait);
 		spin_unlock_bh(&pool->sp_lock);
 
-		schedule_timeout(timeout);
+		time_left = schedule_timeout(timeout);
 
 		try_to_freeze();
 
 		spin_lock_bh(&pool->sp_lock);
 		remove_wait_queue(&rqstp->rq_wait, &wait);
+		if (!time_left)
+			pool->sp_stats.threads_timedout++;
 
 		xprt = rqstp->rq_xprt;
 		if (!xprt) {
@@ -958,7 +977,7 @@ static struct cache_deferred_req *svc_defer(struct cache_req *req)
 	struct svc_rqst *rqstp = container_of(req, struct svc_rqst, rq_chandle);
 	struct svc_deferred_req *dr;
 
-	if (rqstp->rq_arg.page_len)
+	if (rqstp->rq_arg.page_len || !rqstp->rq_usedeferral)
 		return NULL; /* if more than a page, give up FIXME */
 	if (rqstp->rq_deferred) {
 		dr = rqstp->rq_deferred;
@@ -1112,3 +1131,93 @@ int svc_xprt_names(struct svc_serv *serv, char *buf, int buflen)
 	return totlen;
 }
 EXPORT_SYMBOL_GPL(svc_xprt_names);
+
+
+/*----------------------------------------------------------------------------*/
+
+static void *svc_pool_stats_start(struct seq_file *m, loff_t *pos)
+{
+	unsigned int pidx = (unsigned int)*pos;
+	struct svc_serv *serv = m->private;
+
+	dprintk("svc_pool_stats_start, *pidx=%u\n", pidx);
+
+	lock_kernel();
+	/* bump up the pseudo refcount while traversing */
+	svc_get(serv);
+	unlock_kernel();
+
+	if (!pidx)
+		return SEQ_START_TOKEN;
+	return (pidx > serv->sv_nrpools ? NULL : &serv->sv_pools[pidx-1]);
+}
+
+static void *svc_pool_stats_next(struct seq_file *m, void *p, loff_t *pos)
+{
+	struct svc_pool *pool = p;
+	struct svc_serv *serv = m->private;
+
+	dprintk("svc_pool_stats_next, *pos=%llu\n", *pos);
+
+	if (p == SEQ_START_TOKEN) {
+		pool = &serv->sv_pools[0];
+	} else {
+		unsigned int pidx = (pool - &serv->sv_pools[0]);
+		if (pidx < serv->sv_nrpools-1)
+			pool = &serv->sv_pools[pidx+1];
+		else
+			pool = NULL;
+	}
+	++*pos;
+	return pool;
+}
+
+static void svc_pool_stats_stop(struct seq_file *m, void *p)
+{
+	struct svc_serv *serv = m->private;
+
+	lock_kernel();
+	/* this function really, really should have been called svc_put() */
+	svc_destroy(serv);
+	unlock_kernel();
+}
+
+static int svc_pool_stats_show(struct seq_file *m, void *p)
+{
+	struct svc_pool *pool = p;
+
+	if (p == SEQ_START_TOKEN) {
+		seq_puts(m, "# pool packets-arrived sockets-enqueued threads-woken overloads-avoided threads-timedout\n");
+		return 0;
+	}
+
+	seq_printf(m, "%u %lu %lu %lu %lu %lu\n",
+		pool->sp_id,
+		pool->sp_stats.packets,
+		pool->sp_stats.sockets_queued,
+		pool->sp_stats.threads_woken,
+		pool->sp_stats.overloads_avoided,
+		pool->sp_stats.threads_timedout);
+
+	return 0;
+}
+
+static const struct seq_operations svc_pool_stats_seq_ops = {
+	.start	= svc_pool_stats_start,
+	.next	= svc_pool_stats_next,
+	.stop	= svc_pool_stats_stop,
+	.show	= svc_pool_stats_show,
+};
+
+int svc_pool_stats_open(struct svc_serv *serv, struct file *file)
+{
+	int err;
+
+	err = seq_open(file, &svc_pool_stats_seq_ops);
+	if (!err)
+		((struct seq_file *) file->private_data)->private = serv;
+	return err;
+}
+EXPORT_SYMBOL(svc_pool_stats_open);
+
+/*----------------------------------------------------------------------------*/

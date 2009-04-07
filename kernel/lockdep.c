@@ -793,6 +793,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 
 		printk("BUG: MAX_LOCKDEP_KEYS too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		dump_stack();
 		return NULL;
 	}
 	class = lock_classes + nr_lock_classes++;
@@ -856,6 +857,7 @@ static struct lock_list *alloc_list_entry(void)
 
 		printk("BUG: MAX_LOCKDEP_ENTRIES too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		dump_stack();
 		return NULL;
 	}
 	return list_entries + nr_list_entries++;
@@ -1682,6 +1684,7 @@ cache_hit:
 
 		printk("BUG: MAX_LOCKDEP_CHAINS too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		dump_stack();
 		return 0;
 	}
 	chain = lock_chains + nr_lock_chains++;
@@ -2541,6 +2544,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		debug_locks_off();
 		printk("BUG: MAX_LOCKDEP_SUBCLASSES too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		dump_stack();
 		return 0;
 	}
 
@@ -2637,6 +2641,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		debug_locks_off();
 		printk("BUG: MAX_LOCK_DEPTH too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		dump_stack();
 		return 0;
 	}
 

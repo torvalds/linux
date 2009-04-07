@@ -53,36 +53,52 @@ static LIST_HEAD(cxgb3i_snic_list);
 static DEFINE_RWLOCK(cxgb3i_snic_rwlock);
 
 /**
- * cxgb3i_adapter_add - init a s3 adapter structure and any h/w settings
- * @t3dev: t3cdev adapter
- * return the resulting cxgb3i_adapter struct
+ * cxgb3i_adpater_find_by_tdev - find the cxgb3i_adapter structure via t3cdev
+ * @tdev: t3cdev pointer
  */
-struct cxgb3i_adapter *cxgb3i_adapter_add(struct t3cdev *t3dev)
+struct cxgb3i_adapter *cxgb3i_adapter_find_by_tdev(struct t3cdev *tdev)
 {
 	struct cxgb3i_adapter *snic;
-	struct adapter *adapter = tdev2adap(t3dev);
-	int i;
 
-	snic = kzalloc(sizeof(*snic), GFP_KERNEL);
-	if (!snic) {
-		cxgb3i_api_debug("cxgb3 %s, OOM.\n", t3dev->name);
-		return NULL;
+	read_lock(&cxgb3i_snic_rwlock);
+	list_for_each_entry(snic, &cxgb3i_snic_list, list_head) {
+		if (snic->tdev == tdev) {
+			read_unlock(&cxgb3i_snic_rwlock);
+			return snic;
+		}
 	}
-	spin_lock_init(&snic->lock);
+	read_unlock(&cxgb3i_snic_rwlock);
+	return NULL;
+}
 
-	snic->tdev = t3dev;
+static inline int adapter_update(struct cxgb3i_adapter *snic)
+{
+	cxgb3i_log_info("snic 0x%p, t3dev 0x%p, updating.\n",
+			snic, snic->tdev);
+	return cxgb3i_adapter_ddp_info(snic->tdev, &snic->tag_format,
+					&snic->tx_max_size,
+					&snic->rx_max_size);
+}
+
+static int adapter_add(struct cxgb3i_adapter *snic)
+{
+	struct t3cdev *t3dev = snic->tdev;
+	struct adapter *adapter = tdev2adap(t3dev);
+	int i, err;
+
 	snic->pdev = adapter->pdev;
 	snic->tag_format.sw_bits = sw_tag_idx_bits + sw_tag_age_bits;
 
-	if (cxgb3i_adapter_ddp_init(t3dev, &snic->tag_format,
+	err = cxgb3i_adapter_ddp_info(t3dev, &snic->tag_format,
 				    &snic->tx_max_size,
-				    &snic->rx_max_size) < 0)
-		goto free_snic;
+				    &snic->rx_max_size);
+	if (err < 0)
+		return err;
 
 	for_each_port(adapter, i) {
 		snic->hba[i] = cxgb3i_hba_host_add(snic, adapter->port[i]);
 		if (!snic->hba[i])
-			goto ulp_cleanup;
+			return -EINVAL;
 	}
 	snic->hba_cnt = adapter->params.nports;
 
@@ -91,46 +107,71 @@ struct cxgb3i_adapter *cxgb3i_adapter_add(struct t3cdev *t3dev)
 	list_add_tail(&snic->list_head, &cxgb3i_snic_list);
 	write_unlock(&cxgb3i_snic_rwlock);
 
-	return snic;
-
-ulp_cleanup:
-	cxgb3i_adapter_ddp_cleanup(t3dev);
-free_snic:
-	kfree(snic);
-	return NULL;
+	cxgb3i_log_info("t3dev 0x%p open, snic 0x%p, %u scsi hosts added.\n",
+			t3dev, snic, snic->hba_cnt);
+	return 0;
 }
 
 /**
- * cxgb3i_adapter_remove - release the resources held and cleanup h/w settings
+ * cxgb3i_adapter_open - init a s3 adapter structure and any h/w settings
  * @t3dev: t3cdev adapter
  */
-void cxgb3i_adapter_remove(struct t3cdev *t3dev)
+void cxgb3i_adapter_open(struct t3cdev *t3dev)
 {
+	struct cxgb3i_adapter *snic = cxgb3i_adapter_find_by_tdev(t3dev);
+	int err;
+
+	if (snic)
+		err = adapter_update(snic);
+	else {
+		snic = kzalloc(sizeof(*snic), GFP_KERNEL);
+		if (snic) {
+			spin_lock_init(&snic->lock);
+			snic->tdev = t3dev;
+			err = adapter_add(snic);
+		} else
+			err = -ENOMEM;
+	}
+
+	if (err < 0) {
+		cxgb3i_log_info("snic 0x%p, f 0x%x, t3dev 0x%p open, err %d.\n",
+				snic, snic ? snic->flags : 0, t3dev, err);
+		if (snic) {
+			snic->flags &= ~CXGB3I_ADAPTER_FLAG_RESET;
+			cxgb3i_adapter_close(t3dev);
+		}
+	}
+}
+
+/**
+ * cxgb3i_adapter_close - release the resources held and cleanup h/w settings
+ * @t3dev: t3cdev adapter
+ */
+void cxgb3i_adapter_close(struct t3cdev *t3dev)
+{
+	struct cxgb3i_adapter *snic = cxgb3i_adapter_find_by_tdev(t3dev);
 	int i;
-	struct cxgb3i_adapter *snic;
+
+	if (!snic || snic->flags & CXGB3I_ADAPTER_FLAG_RESET) {
+		cxgb3i_log_info("t3dev 0x%p close, snic 0x%p, f 0x%x.\n",
+				t3dev, snic, snic ? snic->flags : 0);
+		return;
+	}
 
 	/* remove from the list */
 	write_lock(&cxgb3i_snic_rwlock);
-	list_for_each_entry(snic, &cxgb3i_snic_list, list_head) {
-		if (snic->tdev == t3dev) {
-			list_del(&snic->list_head);
-			break;
-		}
-	}
+	list_del(&snic->list_head);
 	write_unlock(&cxgb3i_snic_rwlock);
 
-	if (snic) {
-		for (i = 0; i < snic->hba_cnt; i++) {
-			if (snic->hba[i]) {
-				cxgb3i_hba_host_remove(snic->hba[i]);
-				snic->hba[i] = NULL;
-			}
+	for (i = 0; i < snic->hba_cnt; i++) {
+		if (snic->hba[i]) {
+			cxgb3i_hba_host_remove(snic->hba[i]);
+			snic->hba[i] = NULL;
 		}
-
-		/* release ddp resources */
-		cxgb3i_adapter_ddp_cleanup(snic->tdev);
-		kfree(snic);
 	}
+	cxgb3i_log_info("t3dev 0x%p close, snic 0x%p, %u scsi hosts removed.\n",
+			t3dev, snic, snic->hba_cnt);
+	kfree(snic);
 }
 
 /**
@@ -170,7 +211,8 @@ struct cxgb3i_hba *cxgb3i_hba_host_add(struct cxgb3i_adapter *snic,
 	shost = iscsi_host_alloc(&cxgb3i_host_template,
 				 sizeof(struct cxgb3i_hba), 1);
 	if (!shost) {
-		cxgb3i_log_info("iscsi_host_alloc failed.\n");
+		cxgb3i_log_info("snic 0x%p, ndev 0x%p, host_alloc failed.\n",
+				snic, ndev);
 		return NULL;
 	}
 
@@ -188,7 +230,8 @@ struct cxgb3i_hba *cxgb3i_hba_host_add(struct cxgb3i_adapter *snic,
 	pci_dev_get(snic->pdev);
 	err = iscsi_host_add(shost, &snic->pdev->dev);
 	if (err) {
-		cxgb3i_log_info("iscsi_host_add failed.\n");
+		cxgb3i_log_info("snic 0x%p, ndev 0x%p, host_add failed.\n",
+				snic, ndev);
 		goto pci_dev_put;
 	}
 
