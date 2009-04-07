@@ -140,7 +140,7 @@ struct file_operations nilfs_file_operations = {
 	.write		= do_sync_write,
 	.aio_read	= generic_file_aio_read,
 	.aio_write	= generic_file_aio_write,
-	.ioctl		= nilfs_ioctl,
+	.unlocked_ioctl	= nilfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= nilfs_ioctl,
 #endif	/* CONFIG_COMPAT */

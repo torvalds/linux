@@ -600,9 +600,9 @@ static int nilfs_ioctl_sync(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-int nilfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-		unsigned long arg)
+long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = filp->f_dentry->d_inode;
 	void __user *argp = (void * __user *)arg;
 
 	switch (cmd) {

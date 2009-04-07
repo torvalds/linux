@@ -702,7 +702,7 @@ struct file_operations nilfs_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= nilfs_readdir,
-	.ioctl		= nilfs_ioctl,
+	.unlocked_ioctl	= nilfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= nilfs_ioctl,
 #endif	/* CONFIG_COMPAT */
