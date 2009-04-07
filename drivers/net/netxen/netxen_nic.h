@@ -1359,7 +1359,6 @@ unsigned long netxen_nic_pci_set_window_2M(struct netxen_adapter *adapter,
 void netxen_free_adapter_offload(struct netxen_adapter *adapter);
 int netxen_initialize_adapter_offload(struct netxen_adapter *adapter);
 int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
-int netxen_receive_peg_ready(struct netxen_adapter *adapter);
 int netxen_load_firmware(struct netxen_adapter *adapter);
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose);
 

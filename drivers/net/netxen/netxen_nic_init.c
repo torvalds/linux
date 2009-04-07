@@ -108,42 +108,6 @@ static void crb_addr_transform_setup(void)
 	crb_addr_transform(I2C0);
 }
 
-int netxen_init_firmware(struct netxen_adapter *adapter)
-{
-	u32 state = 0, loops = 0, err = 0;
-
-	/* Window 1 call */
-	state = adapter->pci_read_normalize(adapter, CRB_CMDPEG_STATE);
-
-	if (state == PHAN_INITIALIZE_ACK)
-		return 0;
-
-	while (state != PHAN_INITIALIZE_COMPLETE && loops < 2000) {
-		msleep(1);
-		/* Window 1 call */
-		state = adapter->pci_read_normalize(adapter, CRB_CMDPEG_STATE);
-
-		loops++;
-	}
-	if (loops >= 2000) {
-		printk(KERN_ERR "Cmd Peg initialization not complete:%x.\n",
-		       state);
-		err = -EIO;
-		return err;
-	}
-	/* Window 1 call */
-	adapter->pci_write_normalize(adapter,
-			CRB_NIC_CAPABILITIES_HOST, INTR_SCHEME_PERPORT);
-	adapter->pci_write_normalize(adapter,
-			CRB_NIC_MSI_MODE_HOST, MSI_MODE_MULTIFUNC);
-	adapter->pci_write_normalize(adapter,
-			CRB_MPORT_MODE, MPORT_MULTI_FUNCTION_MODE);
-	adapter->pci_write_normalize(adapter,
-			CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
-
-	return err;
-}
-
 void netxen_release_rx_buffers(struct netxen_adapter *adapter)
 {
 	struct netxen_recv_context *recv_ctx;
@@ -789,7 +753,8 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 	return 0;
 }
 
-int netxen_receive_peg_ready(struct netxen_adapter *adapter)
+static int
+netxen_receive_peg_ready(struct netxen_adapter *adapter)
 {
 	u32 val = 0;
 	int retries = 2000;
@@ -811,6 +776,26 @@ int netxen_receive_peg_ready(struct netxen_adapter *adapter)
 	}
 
 	return 0;
+}
+
+int netxen_init_firmware(struct netxen_adapter *adapter)
+{
+	int err;
+
+	err = netxen_receive_peg_ready(adapter);
+	if (err)
+		return err;
+
+	adapter->pci_write_normalize(adapter,
+			CRB_NIC_CAPABILITIES_HOST, INTR_SCHEME_PERPORT);
+	adapter->pci_write_normalize(adapter,
+			CRB_NIC_MSI_MODE_HOST, MSI_MODE_MULTIFUNC);
+	adapter->pci_write_normalize(adapter,
+			CRB_MPORT_MODE, MPORT_MULTI_FUNCTION_MODE);
+	adapter->pci_write_normalize(adapter,
+			CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
+
+	return err;
 }
 
 static int

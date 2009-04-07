@@ -1027,10 +1027,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netxen_napi_add(adapter, netdev);
 
-	err = netxen_receive_peg_ready(adapter);
-	if (err)
-		goto err_out_disable_msi;
-
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = &netxen_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
