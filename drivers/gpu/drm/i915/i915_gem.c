@@ -287,7 +287,7 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 
 	down_read(&mm->mmap_sem);
 	pinned_pages = get_user_pages(current, mm, (uintptr_t)args->data_ptr,
-				      num_pages, 0, 0, user_pages, NULL);
+				      num_pages, 1, 0, user_pages, NULL);
 	up_read(&mm->mmap_sem);
 	if (pinned_pages < num_pages) {
 		ret = -EFAULT;
