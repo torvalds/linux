@@ -34,9 +34,6 @@
 #include "dat.h"
 
 
-#define KMALLOC_SIZE_MIN	4096	/* 4KB */
-#define KMALLOC_SIZE_MAX	131072	/* 128 KB */
-
 static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 				 struct nilfs_argv *argv, int dir,
 				 ssize_t (*dofunc)(struct the_nilfs *,
@@ -44,21 +41,20 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 						   void *, size_t, size_t))
 {
 	void *buf;
-	size_t ksize, maxmembs, total, n;
+	size_t maxmembs, total, n;
 	ssize_t nr;
 	int ret, i;
 
 	if (argv->v_nmembs == 0)
 		return 0;
 
-	for (ksize = KMALLOC_SIZE_MAX; ksize >= KMALLOC_SIZE_MIN; ksize /= 2) {
-		buf = kmalloc(ksize, GFP_NOFS);
-		if (buf != NULL)
-			break;
-	}
-	if (ksize < KMALLOC_SIZE_MIN)
+	if (argv->v_size > PAGE_SIZE)
+		return -EINVAL;
+
+	buf = (void *)__get_free_pages(GFP_NOFS, 0);
+	if (unlikely(!buf))
 		return -ENOMEM;
-	maxmembs = ksize / argv->v_size;
+	maxmembs = PAGE_SIZE / argv->v_size;
 
 	ret = 0;
 	total = 0;
@@ -89,7 +85,7 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 	}
 	argv->v_nmembs = total;
 
-	kfree(buf);
+	free_pages((unsigned long)buf, 0);
 	return ret;
 }
 
