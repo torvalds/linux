@@ -862,8 +862,9 @@ static void pump_transfers(unsigned long data)
 		set_dma_start_addr(drv_data->dma_channel, dma_start_addr);
 		set_dma_config(drv_data->dma_channel, dma_config);
 		local_irq_save(flags);
-		enable_dma(drv_data->dma_channel);
+		SSYNC();
 		write_CTRL(drv_data, cr);
+		enable_dma(drv_data->dma_channel);
 		dma_enable_irq(drv_data->dma_channel);
 		local_irq_restore(flags);
 
