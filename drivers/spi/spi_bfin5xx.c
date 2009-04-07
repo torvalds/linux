@@ -1077,13 +1077,13 @@ static int setup(struct spi_device *spi)
 	 */
 	if (chip->enable_dma && !drv_data->dma_requested) {
 		/* register dma irq handler */
-		if (request_dma(drv_data->dma_channel, "BF53x_SPI_DMA") < 0) {
+		if (request_dma(drv_data->dma_channel, "BFIN_SPI_DMA") < 0) {
 			dev_dbg(&spi->dev,
 				"Unable to request BlackFin SPI DMA channel\n");
 			return -ENODEV;
 		}
 		if (set_dma_callback(drv_data->dma_channel,
-			(void *)dma_irq_handler, drv_data) < 0) {
+		    dma_irq_handler, drv_data) < 0) {
 			dev_dbg(&spi->dev, "Unable to set dma callback\n");
 			return -EPERM;
 		}
