@@ -2959,7 +2959,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		sctp_assoc_set_primary(asoc, peer);
 		break;
 	default:
-		return SCTP_ERROR_INV_PARAM;
+		return SCTP_ERROR_UNKNOWN_PARAM;
 		break;
 	}
 
@@ -3273,7 +3273,7 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 			retval = 1;
 			break;
 
-		case SCTP_ERROR_INV_PARAM:
+		case SCTP_ERROR_UNKNOWN_PARAM:
 			/* Disable sending this type of asconf parameter in
 			 * future.
 			 */
