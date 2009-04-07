@@ -1377,7 +1377,7 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 	if (parent_path) {
 		detach_mnt(source_mnt, parent_path);
 		attach_mnt(source_mnt, path);
-		touch_mnt_namespace(current->nsproxy->mnt_ns);
+		touch_mnt_namespace(parent_path->mnt->mnt_ns);
 	} else {
 		mnt_set_mountpoint(dest_mnt, dest_dentry, source_mnt);
 		commit_tree(source_mnt);
