@@ -501,45 +501,44 @@ static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
 
 static int
 netxen_send_cmd_descs(struct netxen_adapter *adapter,
-		struct cmd_desc_type0 *cmd_desc_arr, int nr_elements)
+		struct cmd_desc_type0 *cmd_desc_arr, int nr_desc)
 {
-	uint32_t i, producer;
+	u32 i, producer, consumer;
 	struct netxen_cmd_buffer *pbuf;
 	struct cmd_desc_type0 *cmd_desc;
-
-	if (nr_elements > MAX_PENDING_DESC_BLOCK_SIZE || nr_elements == 0) {
-		printk(KERN_WARNING "%s: Too many command descriptors in a "
-			      "request\n", __func__);
-		return -EINVAL;
-	}
+	struct nx_host_tx_ring *tx_ring;
 
 	i = 0;
 
+	tx_ring = &adapter->tx_ring;
 	netif_tx_lock_bh(adapter->netdev);
 
-	producer = adapter->cmd_producer;
+	producer = tx_ring->producer;
+	consumer = tx_ring->sw_consumer;
+
+	if (nr_desc > find_diff_among(producer, consumer, tx_ring->num_desc)) {
+		netif_tx_unlock_bh(adapter->netdev);
+		return -EBUSY;
+	}
+
 	do {
 		cmd_desc = &cmd_desc_arr[i];
 
-		pbuf = &adapter->cmd_buf_arr[producer];
+		pbuf = &tx_ring->cmd_buf_arr[producer];
 		pbuf->skb = NULL;
 		pbuf->frag_count = 0;
 
-		/* adapter->ahw.cmd_desc_head[producer] = *cmd_desc; */
-		memcpy(&adapter->ahw.cmd_desc_head[producer],
+		memcpy(&tx_ring->desc_head[producer],
 			&cmd_desc_arr[i], sizeof(struct cmd_desc_type0));
 
-		producer = get_next_index(producer,
-				adapter->num_txd);
+		producer = get_next_index(producer, tx_ring->num_desc);
 		i++;
 
-	} while (i != nr_elements);
+	} while (i != nr_desc);
 
-	adapter->cmd_producer = producer;
+	tx_ring->producer = producer;
 
-	/* write producer index to start the xmit */
-
-	netxen_nic_update_cmd_producer(adapter, adapter->cmd_producer);
+	netxen_nic_update_cmd_producer(adapter, tx_ring, producer);
 
 	netif_tx_unlock_bh(adapter->netdev);
 

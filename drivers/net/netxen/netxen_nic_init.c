@@ -173,9 +173,10 @@ void netxen_release_tx_buffers(struct netxen_adapter *adapter)
 	struct netxen_cmd_buffer *cmd_buf;
 	struct netxen_skb_frag *buffrag;
 	int i, j;
+	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
 
-	cmd_buf = adapter->cmd_buf_arr;
-	for (i = 0; i < adapter->num_txd; i++) {
+	cmd_buf = tx_ring->cmd_buf_arr;
+	for (i = 0; i < tx_ring->num_desc; i++) {
 		buffrag = cmd_buf->frag_array;
 		if (buffrag->dma) {
 			pci_unmap_single(adapter->pdev, buffrag->dma,
@@ -203,6 +204,7 @@ void netxen_free_sw_resources(struct netxen_adapter *adapter)
 {
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
+	struct nx_host_tx_ring *tx_ring;
 	int ring;
 
 	recv_ctx = &adapter->recv_ctx;
@@ -214,8 +216,9 @@ void netxen_free_sw_resources(struct netxen_adapter *adapter)
 		}
 	}
 
-	if (adapter->cmd_buf_arr)
-		vfree(adapter->cmd_buf_arr);
+	tx_ring = &adapter->tx_ring;
+	if (tx_ring->cmd_buf_arr)
+		vfree(tx_ring->cmd_buf_arr);
 	return;
 }
 
@@ -224,21 +227,24 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
 	struct nx_host_sds_ring *sds_ring;
+	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
 	struct netxen_rx_buffer *rx_buf;
 	int ring, i, num_rx_bufs;
 
 	struct netxen_cmd_buffer *cmd_buf_arr;
 	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
 
+	tx_ring->num_desc = adapter->num_txd;
 	cmd_buf_arr =
-		(struct netxen_cmd_buffer *)vmalloc(TX_BUFF_RINGSIZE(adapter));
+		(struct netxen_cmd_buffer *)vmalloc(TX_BUFF_RINGSIZE(tx_ring));
 	if (cmd_buf_arr == NULL) {
-		printk(KERN_ERR "%s: Failed to allocate cmd buffer ring\n",
+		dev_err(&pdev->dev, "%s: failed to allocate cmd buffer ring\n",
 		       netdev->name);
 		return -ENOMEM;
 	}
-	memset(cmd_buf_arr, 0, TX_BUFF_RINGSIZE(adapter));
-	adapter->cmd_buf_arr = cmd_buf_arr;
+	memset(cmd_buf_arr, 0, TX_BUFF_RINGSIZE(tx_ring));
+	tx_ring->cmd_buf_arr = cmd_buf_arr;
 
 	recv_ctx = &adapter->recv_ctx;
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
@@ -307,8 +313,6 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		sds_ring->irq = adapter->msix_entries[ring].vector;
-		sds_ring->clean_tx = (ring == 0);
-		sds_ring->post_rxd = (ring == 0);
 		sds_ring->adapter = adapter;
 		sds_ring->num_desc = adapter->num_rxd;
 
@@ -990,23 +994,24 @@ netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max)
 /* Process Command status ring */
 int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 {
-	u32 last_consumer, consumer;
+	u32 sw_consumer, hw_consumer;
 	int count = 0, i;
 	struct netxen_cmd_buffer *buffer;
 	struct pci_dev *pdev = adapter->pdev;
 	struct net_device *netdev = adapter->netdev;
 	struct netxen_skb_frag *frag;
 	int done = 0;
+	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
 
 	if (!spin_trylock(&adapter->tx_clean_lock))
 		return 1;
 
-	last_consumer = adapter->last_cmd_consumer;
-	barrier(); /* cmd_consumer can change underneath */
-	consumer = le32_to_cpu(*(adapter->cmd_consumer));
+	sw_consumer = tx_ring->sw_consumer;
+	barrier(); /* hw_consumer can change underneath */
+	hw_consumer = le32_to_cpu(*(tx_ring->hw_consumer));
 
-	while (last_consumer != consumer) {
-		buffer = &adapter->cmd_buf_arr[last_consumer];
+	while (sw_consumer != hw_consumer) {
+		buffer = &tx_ring->cmd_buf_arr[sw_consumer];
 		if (buffer->skb) {
 			frag = &buffer->frag_array[0];
 			pci_unmap_single(pdev, frag->dma, frag->length,
@@ -1024,14 +1029,13 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 			buffer->skb = NULL;
 		}
 
-		last_consumer = get_next_index(last_consumer,
-					       adapter->num_txd);
+		sw_consumer = get_next_index(sw_consumer, tx_ring->num_desc);
 		if (++count >= MAX_STATUS_HANDLE)
 			break;
 	}
 
 	if (count) {
-		adapter->last_cmd_consumer = last_consumer;
+		tx_ring->sw_consumer = sw_consumer;
 		smp_mb();
 		if (netif_queue_stopped(netdev) && netif_running(netdev)) {
 			netif_tx_lock(netdev);
@@ -1053,9 +1057,9 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 	 * There is still a possible race condition and the host could miss an
 	 * interrupt. The card has to take care of this.
 	 */
-	barrier(); /* cmd_consumer can change underneath */
-	consumer = le32_to_cpu(*(adapter->cmd_consumer));
-	done = (last_consumer == consumer);
+	barrier(); /* hw_consumer can change underneath */
+	hw_consumer = le32_to_cpu(*(tx_ring->hw_consumer));
+	done = (sw_consumer == hw_consumer);
 	spin_unlock(&adapter->tx_clean_lock);
 
 	return (done);

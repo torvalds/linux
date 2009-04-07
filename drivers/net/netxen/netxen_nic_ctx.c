@@ -328,6 +328,7 @@ nx_fw_cmd_create_tx_ctx(struct netxen_adapter *adapter)
 	int	err = 0;
 	u64	offset, phys_addr;
 	dma_addr_t	rq_phys_addr, rsp_phys_addr;
+	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
 
 	rq_size = SIZEOF_HOSTRQ_TX(nx_hostrq_tx_ctx_t);
 	rq_addr = pci_alloc_consistent(adapter->pdev,
@@ -367,10 +368,8 @@ nx_fw_cmd_create_tx_ctx(struct netxen_adapter *adapter)
 
 	prq_cds = &prq->cds_ring;
 
-	prq_cds->host_phys_addr =
-		cpu_to_le64(adapter->ahw.cmd_desc_phys_addr);
-
-	prq_cds->ring_size = cpu_to_le32(adapter->num_txd);
+	prq_cds->host_phys_addr = cpu_to_le64(tx_ring->phys_addr);
+	prq_cds->ring_size = cpu_to_le32(tx_ring->num_desc);
 
 	phys_addr = rq_phys_addr;
 	err = netxen_issue_cmd(adapter,
@@ -383,8 +382,7 @@ nx_fw_cmd_create_tx_ctx(struct netxen_adapter *adapter)
 
 	if (err == NX_RCODE_SUCCESS) {
 		temp = le32_to_cpu(prsp->cds_ring.host_producer_crb);
-		adapter->crb_addr_cmd_producer =
-			NETXEN_NIC_REG(temp - 0x200);
+		tx_ring->crb_cmd_producer = NETXEN_NIC_REG(temp - 0x200);
 #if 0
 		adapter->tx_state =
 			le32_to_cpu(prsp->host_ctx_state);
@@ -497,13 +495,13 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
 	struct nx_host_sds_ring *sds_ring;
+	struct nx_host_tx_ring *tx_ring;
 	int ring;
 	int func_id = adapter->portnum;
 
-	adapter->ctx_desc->cmd_ring_addr =
-		cpu_to_le64(adapter->ahw.cmd_desc_phys_addr);
-	adapter->ctx_desc->cmd_ring_size =
-		cpu_to_le32(adapter->num_txd);
+	tx_ring = &adapter->tx_ring;
+	adapter->ctx_desc->cmd_ring_addr = cpu_to_le64(tx_ring->phys_addr);
+	adapter->ctx_desc->cmd_ring_size = cpu_to_le32(tx_ring->num_desc);
 
 	recv_ctx = &adapter->recv_ctx;
 
@@ -535,24 +533,16 @@ static uint32_t sw_int_mask[4] = {
 
 int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 {
-	struct netxen_hardware_context *hw = &adapter->ahw;
-	u32 state = 0;
 	void *addr;
 	int err = 0;
 	int ring;
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
 	struct nx_host_sds_ring *sds_ring;
+	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
 
 	struct pci_dev *pdev = adapter->pdev;
 	struct net_device *netdev = adapter->netdev;
-
-	err = netxen_receive_peg_ready(adapter);
-	if (err) {
-		printk(KERN_ERR "Rcv Peg initialization not complete:%x.\n",
-				state);
-		return err;
-	}
 
 	addr = pci_alloc_consistent(pdev,
 			sizeof(struct netxen_ring_ctx) + sizeof(uint32_t),
@@ -568,13 +558,12 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	adapter->ctx_desc->cmd_consumer_offset =
 		cpu_to_le64(adapter->ctx_desc_phys_addr +
 			sizeof(struct netxen_ring_ctx));
-	adapter->cmd_consumer =
+	tx_ring->hw_consumer =
 		(__le32 *)(((char *)addr) + sizeof(struct netxen_ring_ctx));
 
 	/* cmd desc ring */
-	addr = pci_alloc_consistent(pdev,
-			TX_DESC_RINGSIZE(adapter),
-			&hw->cmd_desc_phys_addr);
+	addr = pci_alloc_consistent(pdev, TX_DESC_RINGSIZE(tx_ring),
+			&tx_ring->phys_addr);
 
 	if (addr == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate tx desc ring\n",
@@ -582,7 +571,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		return -ENOMEM;
 	}
 
-	hw->cmd_desc_head = (struct cmd_desc_type0 *)addr;
+	tx_ring->desc_head = (struct cmd_desc_type0 *)addr;
 
 	recv_ctx = &adapter->recv_ctx;
 
@@ -658,6 +647,7 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
 	struct nx_host_sds_ring *sds_ring;
+	struct nx_host_tx_ring *tx_ring;
 	int ring;
 
 	if (adapter->fw_major >= 4) {
@@ -674,13 +664,12 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 		adapter->ctx_desc = NULL;
 	}
 
-	if (adapter->ahw.cmd_desc_head != NULL) {
+	tx_ring = &adapter->tx_ring;
+	if (tx_ring->desc_head != NULL) {
 		pci_free_consistent(adapter->pdev,
-				sizeof(struct cmd_desc_type0) *
-				adapter->num_txd,
-				adapter->ahw.cmd_desc_head,
-				adapter->ahw.cmd_desc_phys_addr);
-		adapter->ahw.cmd_desc_head = NULL;
+				TX_DESC_RINGSIZE(tx_ring),
+				tx_ring->desc_head, tx_ring->phys_addr);
+		tx_ring->desc_head = NULL;
 	}
 
 	recv_ctx = &adapter->recv_ctx;

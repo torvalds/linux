@@ -74,10 +74,10 @@
 	(sizeof(struct netxen_rx_buffer) * rds_ring->num_desc)
 #define STATUS_DESC_RINGSIZE(sds_ring)	\
 	(sizeof(struct status_desc) * (sds_ring)->num_desc)
-#define TX_BUFF_RINGSIZE(adapter)	\
-	(sizeof(struct netxen_cmd_buffer) * adapter->num_txd)
-#define TX_DESC_RINGSIZE(adapter)	\
-	(sizeof(struct cmd_desc_type0) * adapter->num_txd)
+#define TX_BUFF_RINGSIZE(tx_ring)	\
+	(sizeof(struct netxen_cmd_buffer) * tx_ring->num_desc)
+#define TX_DESC_RINGSIZE(tx_ring)	\
+	(sizeof(struct cmd_desc_type0) * tx_ring->num_desc)
 
 #define find_diff_among(a,b,range) ((a)<(b)?((b)-(a)):((b)+(range)-(a)))
 
@@ -639,7 +639,7 @@ extern char netxen_nic_driver_name[];
  */
 struct netxen_skb_frag {
 	u64 dma;
-	ulong length;
+	u64 length;
 };
 
 #define _netxen_set_bits(config_word, start, bits, val)	{\
@@ -704,9 +704,6 @@ struct netxen_hardware_context {
 	u8 linkup;
 	u16 port_type;
 	u16 board_type;
-	/* Address of cmd ring in Phantom */
-	struct cmd_desc_type0 *cmd_desc_head;
-	dma_addr_t cmd_desc_phys_addr;
 };
 
 #define MINIMUM_ETHERNET_FRAME_SIZE	64	/* With FCS */
@@ -752,12 +749,23 @@ struct nx_host_sds_ring {
 	struct napi_struct napi;
 	struct list_head free_list[NUM_RCV_DESC_RINGS];
 
-	u16 clean_tx;
-	u16 post_rxd;
 	int irq;
 
 	dma_addr_t phys_addr;
 	char name[IFNAMSIZ+4];
+};
+
+struct nx_host_tx_ring {
+	u32 producer;
+	__le32 *hw_consumer;
+	u32 sw_consumer;
+	u32 crb_cmd_producer;
+	u32 crb_cmd_consumer;
+	u32 num_desc;
+
+	struct netxen_cmd_buffer *cmd_buf_arr;
+	struct cmd_desc_type0 *desc_head;
+	dma_addr_t phys_addr;
 };
 
 /*
@@ -1152,11 +1160,6 @@ struct netxen_adapter {
 	rwlock_t adapter_lock;
 
 	spinlock_t tx_clean_lock;
-	u32 cmd_producer;
-	u32 last_cmd_consumer;
-	u32 crb_addr_cmd_producer;
-	u32 crb_addr_cmd_consumer;
-	__le32 *cmd_consumer;
 
 	u32 num_txd;
 	u32 num_rxd;
@@ -1191,13 +1194,8 @@ struct netxen_adapter {
 
 	struct netxen_adapter_stats stats;
 
-	struct netxen_cmd_buffer *cmd_buf_arr;	/* Command buffers for xmit */
-
-	/*
-	 * Receive instances. These can be either one per port,
-	 * or one per peg, etc.
-	 */
 	struct netxen_recv_context recv_ctx;
+	struct nx_host_tx_ring tx_ring;
 
 	/* Context interface shared between card and host */
 	struct netxen_ring_ctx *ctx_desc;
@@ -1409,7 +1407,7 @@ int netxen_nic_set_mac(struct net_device *netdev, void *p);
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
 
 void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
-		uint32_t crb_producer);
+		struct nx_host_tx_ring *tx_ring, uint32_t crb_producer);
 
 /*
  * NetXen Board information

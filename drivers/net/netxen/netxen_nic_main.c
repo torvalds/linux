@@ -107,10 +107,10 @@ static uint32_t crb_cmd_producer[4] = {
 
 void
 netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
-		uint32_t crb_producer)
+		struct nx_host_tx_ring *tx_ring, u32 producer)
 {
 	adapter->pci_write_normalize(adapter,
-			adapter->crb_addr_cmd_producer, crb_producer);
+			tx_ring->crb_cmd_producer, producer);
 }
 
 static uint32_t crb_cmd_consumer[4] = {
@@ -120,10 +120,10 @@ static uint32_t crb_cmd_consumer[4] = {
 
 static inline void
 netxen_nic_update_cmd_consumer(struct netxen_adapter *adapter,
-		u32 crb_consumer)
+		struct nx_host_tx_ring *tx_ring, u32 consumer)
 {
 	adapter->pci_write_normalize(adapter,
-			adapter->crb_addr_cmd_consumer, crb_consumer);
+			tx_ring->crb_cmd_consumer, consumer);
 }
 
 static uint32_t msi_tgt_status[8] = {
@@ -814,6 +814,7 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	int err, ring;
 	struct nx_host_rds_ring *rds_ring;
+	struct nx_host_tx_ring *tx_ring;
 
 	err = netxen_init_firmware(adapter);
 	if (err != 0) {
@@ -843,13 +844,12 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 	}
 
 	if (adapter->fw_major < 4) {
-		adapter->crb_addr_cmd_producer =
-			crb_cmd_producer[adapter->portnum];
-		adapter->crb_addr_cmd_consumer =
-			crb_cmd_consumer[adapter->portnum];
+		tx_ring = &adapter->tx_ring;
+		tx_ring->crb_cmd_producer = crb_cmd_producer[adapter->portnum];
+		tx_ring->crb_cmd_consumer = crb_cmd_consumer[adapter->portnum];
 
-		netxen_nic_update_cmd_producer(adapter, 0);
-		netxen_nic_update_cmd_consumer(adapter, 0);
+		netxen_nic_update_cmd_producer(adapter, tx_ring, 0);
+		netxen_nic_update_cmd_consumer(adapter, tx_ring, 0);
 	}
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
@@ -1304,7 +1304,7 @@ static int
 netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct netxen_hardware_context *hw = &adapter->ahw;
+	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
 	unsigned int first_seg_len = skb->len - skb->data_len;
 	struct netxen_cmd_buffer *pbuf;
 	struct netxen_skb_frag *buffrag;
@@ -1315,28 +1315,26 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	u32 producer, consumer;
 	int frag_count, no_of_desc;
-	u32 num_txd = adapter->num_txd;
+	u32 num_txd = tx_ring->num_desc;
 	bool is_tso = false;
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
 
-	/* There 4 fragments per descriptor */
+	/* 4 fragments per cmd des */
 	no_of_desc = (frag_count + 3) >> 2;
 
-	producer = adapter->cmd_producer;
+	producer = tx_ring->producer;
 	smp_mb();
-	consumer = adapter->last_cmd_consumer;
+	consumer = tx_ring->sw_consumer;
 	if ((no_of_desc+2) > find_diff_among(producer, consumer, num_txd)) {
 		netif_stop_queue(netdev);
 		smp_mb();
 		return NETDEV_TX_BUSY;
 	}
 
-	/* Copy the descriptors into the hardware    */
-	hwdesc = &hw->cmd_desc_head[producer];
+	hwdesc = &tx_ring->desc_head[producer];
 	netxen_clear_cmddesc((u64 *)hwdesc);
-	/* Take skb->data itself */
-	pbuf = &adapter->cmd_buf_arr[producer];
+	pbuf = &tx_ring->cmd_buf_arr[producer];
 
 	is_tso = netxen_tso_check(netdev, hwdesc, skb);
 
@@ -1365,9 +1363,9 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		if ((i & 0x3) == 0) {
 			k = 0;
 			producer = get_next_index(producer, num_txd);
-			hwdesc = &hw->cmd_desc_head[producer];
+			hwdesc = &tx_ring->desc_head[producer];
 			netxen_clear_cmddesc((u64 *)hwdesc);
-			pbuf = &adapter->cmd_buf_arr[producer];
+			pbuf = &tx_ring->cmd_buf_arr[producer];
 			pbuf->skb = NULL;
 		}
 		frag = &skb_shinfo(skb)->frags[i - 1];
@@ -1419,8 +1417,8 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			more_hdr = 0;
 		}
 		/* copy the MAC/IP/TCP headers to the cmd descriptor list */
-		hwdesc = &hw->cmd_desc_head[producer];
-		pbuf = &adapter->cmd_buf_arr[producer];
+		hwdesc = &tx_ring->desc_head[producer];
+		pbuf = &tx_ring->cmd_buf_arr[producer];
 		pbuf->skb = NULL;
 
 		/* copy the first 64 bytes */
@@ -1429,8 +1427,8 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		producer = get_next_index(producer, num_txd);
 
 		if (more_hdr) {
-			hwdesc = &hw->cmd_desc_head[producer];
-			pbuf = &adapter->cmd_buf_arr[producer];
+			hwdesc = &tx_ring->desc_head[producer];
+			pbuf = &tx_ring->cmd_buf_arr[producer];
 			pbuf->skb = NULL;
 			/* copy the next 64 bytes - should be enough except
 			 * for pathological case
@@ -1443,10 +1441,10 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		}
 	}
 
-	adapter->cmd_producer = producer;
+	tx_ring->producer = producer;
 	adapter->stats.txbytes += skb->len;
 
-	netxen_nic_update_cmd_producer(adapter, adapter->cmd_producer);
+	netxen_nic_update_cmd_producer(adapter, tx_ring, producer);
 
 	adapter->stats.xmitcalled++;
 	netdev->trans_start = jiffies;
