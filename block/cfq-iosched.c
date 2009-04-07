@@ -179,11 +179,9 @@ enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_wait_request,	/* waiting for a request */
 	CFQ_CFQQ_FLAG_must_alloc,	/* must be allowed rq alloc */
 	CFQ_CFQQ_FLAG_must_alloc_slice,	/* per-slice must_alloc flag */
-	CFQ_CFQQ_FLAG_must_dispatch,	/* must dispatch, even if expired */
 	CFQ_CFQQ_FLAG_fifo_expire,	/* FIFO checked in this slice */
 	CFQ_CFQQ_FLAG_idle_window,	/* slice idling enabled */
 	CFQ_CFQQ_FLAG_prio_changed,	/* task priority has changed */
-	CFQ_CFQQ_FLAG_queue_new,	/* queue never been serviced */
 	CFQ_CFQQ_FLAG_slice_new,	/* no requests dispatched in slice */
 	CFQ_CFQQ_FLAG_sync,		/* synchronous queue */
 };
@@ -206,11 +204,9 @@ CFQ_CFQQ_FNS(on_rr);
 CFQ_CFQQ_FNS(wait_request);
 CFQ_CFQQ_FNS(must_alloc);
 CFQ_CFQQ_FNS(must_alloc_slice);
-CFQ_CFQQ_FNS(must_dispatch);
 CFQ_CFQQ_FNS(fifo_expire);
 CFQ_CFQQ_FNS(idle_window);
 CFQ_CFQQ_FNS(prio_changed);
-CFQ_CFQQ_FNS(queue_new);
 CFQ_CFQQ_FNS(slice_new);
 CFQ_CFQQ_FNS(sync);
 #undef CFQ_CFQQ_FNS
@@ -777,12 +773,10 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
 		cfqq->slice_end = 0;
 		cfqq->slice_dispatch = 0;
 
-		cfq_clear_cfqq_must_dispatch(cfqq);
 		cfq_clear_cfqq_wait_request(cfqq);
 		cfq_clear_cfqq_must_alloc_slice(cfqq);
 		cfq_clear_cfqq_fifo_expire(cfqq);
 		cfq_mark_cfqq_slice_new(cfqq);
-		cfq_clear_cfqq_queue_new(cfqq);
 
 		del_timer(&cfqd->idle_slice_timer);
 	}
@@ -802,7 +796,6 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	if (cfq_cfqq_wait_request(cfqq))
 		del_timer(&cfqd->idle_slice_timer);
 
-	cfq_clear_cfqq_must_dispatch(cfqq);
 	cfq_clear_cfqq_wait_request(cfqq);
 
 	/*
@@ -931,7 +924,6 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	    (sample_valid(cic->ttime_samples) && cic->ttime_mean > 2))
 		return;
 
-	cfq_mark_cfqq_must_dispatch(cfqq);
 	cfq_mark_cfqq_wait_request(cfqq);
 
 	/*
@@ -1520,7 +1512,6 @@ retry:
 		cfqq->cfqd = cfqd;
 
 		cfq_mark_cfqq_prio_changed(cfqq);
-		cfq_mark_cfqq_queue_new(cfqq);
 
 		cfq_init_prio_data(cfqq, ioc);
 
@@ -1912,7 +1903,6 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 * just now
 		 */
 		if (cfq_cfqq_wait_request(cfqq)) {
-			cfq_mark_cfqq_must_dispatch(cfqq);
 			del_timer(&cfqd->idle_slice_timer);
 			blk_start_queueing(cfqd->queue);
 		}
@@ -1924,7 +1914,6 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 * this new queue is RT and the current one is BE
 		 */
 		cfq_preempt_queue(cfqd, cfqq);
-		cfq_mark_cfqq_must_dispatch(cfqq);
 		blk_start_queueing(cfqd->queue);
 	}
 }
@@ -2201,10 +2190,8 @@ static void cfq_idle_slice_timer(unsigned long data)
 		/*
 		 * not expired and it has a request pending, let it dispatch
 		 */
-		if (!RB_EMPTY_ROOT(&cfqq->sort_list)) {
-			cfq_mark_cfqq_must_dispatch(cfqq);
+		if (!RB_EMPTY_ROOT(&cfqq->sort_list))
 			goto out_kick;
-		}
 	}
 expire:
 	cfq_slice_expired(cfqd, timed_out);
