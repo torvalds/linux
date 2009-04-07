@@ -160,6 +160,7 @@ struct cfq_queue {
 
 	unsigned long slice_end;
 	long slice_resid;
+	unsigned int slice_dispatch;
 
 	/* pending metadata requests */
 	int meta_pending;
@@ -774,10 +775,16 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
 	if (cfqq) {
 		cfq_log_cfqq(cfqd, cfqq, "set_active");
 		cfqq->slice_end = 0;
+		cfqq->slice_dispatch = 0;
+
+		cfq_clear_cfqq_must_dispatch(cfqq);
+		cfq_clear_cfqq_wait_request(cfqq);
 		cfq_clear_cfqq_must_alloc_slice(cfqq);
 		cfq_clear_cfqq_fifo_expire(cfqq);
 		cfq_mark_cfqq_slice_new(cfqq);
 		cfq_clear_cfqq_queue_new(cfqq);
+
+		del_timer(&cfqd->idle_slice_timer);
 	}
 
 	cfqd->active_queue = cfqq;
@@ -1053,66 +1060,6 @@ keep_queue:
 	return cfqq;
 }
 
-/*
- * Dispatch some requests from cfqq, moving them to the request queue
- * dispatch list.
- */
-static int
-__cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
-			int max_dispatch)
-{
-	int dispatched = 0;
-
-	BUG_ON(RB_EMPTY_ROOT(&cfqq->sort_list));
-
-	do {
-		struct request *rq;
-
-		/*
-		 * follow expired path, else get first next available
-		 */
-		rq = cfq_check_fifo(cfqq);
-		if (rq == NULL)
-			rq = cfqq->next_rq;
-
-		/*
-		 * finally, insert request into driver dispatch list
-		 */
-		cfq_dispatch_insert(cfqd->queue, rq);
-
-		dispatched++;
-
-		if (!cfqd->active_cic) {
-			atomic_inc(&RQ_CIC(rq)->ioc->refcount);
-			cfqd->active_cic = RQ_CIC(rq);
-		}
-
-		if (RB_EMPTY_ROOT(&cfqq->sort_list))
-			break;
-
-		/*
-		 * If there is a non-empty RT cfqq waiting for current
-		 * cfqq's timeslice to complete, pre-empt this cfqq
-		 */
-		if (!cfq_class_rt(cfqq) && cfqd->busy_rt_queues)
-			break;
-
-	} while (dispatched < max_dispatch);
-
-	/*
-	 * expire an async queue immediately if it has used up its slice. idle
-	 * queue always expire after 1 dispatch round.
-	 */
-	if (cfqd->busy_queues > 1 && ((!cfq_cfqq_sync(cfqq) &&
-	    dispatched >= cfq_prio_to_maxrq(cfqd, cfqq)) ||
-	    cfq_class_idle(cfqq))) {
-		cfqq->slice_end = jiffies + 1;
-		cfq_slice_expired(cfqd, 0);
-	}
-
-	return dispatched;
-}
-
 static int __cfq_forced_dispatch_cfqq(struct cfq_queue *cfqq)
 {
 	int dispatched = 0;
@@ -1146,11 +1093,45 @@ static int cfq_forced_dispatch(struct cfq_data *cfqd)
 	return dispatched;
 }
 
+/*
+ * Dispatch a request from cfqq, moving them to the request queue
+ * dispatch list.
+ */
+static void cfq_dispatch_request(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+{
+	struct request *rq;
+
+	BUG_ON(RB_EMPTY_ROOT(&cfqq->sort_list));
+
+	/*
+	 * follow expired path, else get first next available
+	 */
+	rq = cfq_check_fifo(cfqq);
+	if (!rq)
+		rq = cfqq->next_rq;
+
+	/*
+	 * insert request into driver dispatch list
+	 */
+	cfq_dispatch_insert(cfqd->queue, rq);
+
+	if (!cfqd->active_cic) {
+		struct cfq_io_context *cic = RQ_CIC(rq);
+
+		atomic_inc(&cic->ioc->refcount);
+		cfqd->active_cic = cic;
+	}
+}
+
+/*
+ * Find the cfqq that we need to service and move a request from that to the
+ * dispatch list
+ */
 static int cfq_dispatch_requests(struct request_queue *q, int force)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct cfq_queue *cfqq;
-	int dispatched;
+	unsigned int max_dispatch;
 
 	if (!cfqd->busy_queues)
 		return 0;
@@ -1158,29 +1139,62 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 	if (unlikely(force))
 		return cfq_forced_dispatch(cfqd);
 
-	dispatched = 0;
-	while ((cfqq = cfq_select_queue(cfqd)) != NULL) {
-		int max_dispatch;
+	cfqq = cfq_select_queue(cfqd);
+	if (!cfqq)
+		return 0;
 
-		max_dispatch = cfqd->cfq_quantum;
+	/*
+	 * If this is an async queue and we have sync IO in flight, let it wait
+	 */
+	if (cfqd->sync_flight && !cfq_cfqq_sync(cfqq))
+		return 0;
+
+	max_dispatch = cfqd->cfq_quantum;
+	if (cfq_class_idle(cfqq))
+		max_dispatch = 1;
+
+	/*
+	 * Does this cfqq already have too much IO in flight?
+	 */
+	if (cfqq->dispatched >= max_dispatch) {
+		/*
+		 * idle queue must always only have a single IO in flight
+		 */
 		if (cfq_class_idle(cfqq))
-			max_dispatch = 1;
+			return 0;
 
-		if (cfqq->dispatched >= max_dispatch && cfqd->busy_queues > 1)
-			break;
+		/*
+		 * We have other queues, don't allow more IO from this one
+		 */
+		if (cfqd->busy_queues > 1)
+			return 0;
 
-		if (cfqd->sync_flight && !cfq_cfqq_sync(cfqq))
-			break;
-
-		cfq_clear_cfqq_must_dispatch(cfqq);
-		cfq_clear_cfqq_wait_request(cfqq);
-		del_timer(&cfqd->idle_slice_timer);
-
-		dispatched += __cfq_dispatch_requests(cfqd, cfqq, max_dispatch);
+		/*
+		 * we are the only queue, allow up to 4 times of 'quantum'
+		 */
+		if (cfqq->dispatched >= 4 * max_dispatch)
+			return 0;
 	}
 
-	cfq_log(cfqd, "dispatched=%d", dispatched);
-	return dispatched;
+	/*
+	 * Dispatch a request from this cfqq
+	 */
+	cfq_dispatch_request(cfqd, cfqq);
+	cfqq->slice_dispatch++;
+
+	/*
+	 * expire an async queue immediately if it has used up its slice. idle
+	 * queue always expire after 1 dispatch round.
+	 */
+	if (cfqd->busy_queues > 1 && ((!cfq_cfqq_sync(cfqq) &&
+	    cfqq->slice_dispatch >= cfq_prio_to_maxrq(cfqd, cfqq)) ||
+	    cfq_class_idle(cfqq))) {
+		cfqq->slice_end = jiffies + 1;
+		cfq_slice_expired(cfqd, 0);
+	}
+
+	cfq_log(cfqd, "dispatched a request");
+	return 1;
 }
 
 /*
