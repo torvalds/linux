@@ -1017,9 +1017,7 @@ static int path_walk(const char *name, struct nameidata *nd)
 	return link_path_walk(name, nd);
 }
 
-/* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
-static int do_path_lookup(int dfd, const char *name,
-				unsigned int flags, struct nameidata *nd)
+static int path_init(int dfd, const char *name, unsigned int flags, struct nameidata *nd)
 {
 	int retval = 0;
 	int fput_needed;
@@ -1063,17 +1061,25 @@ static int do_path_lookup(int dfd, const char *name,
 
 		fput_light(file, fput_needed);
 	}
-
-	retval = path_walk(name, nd);
-	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
-				nd->path.dentry->d_inode))
-		audit_inode(name, nd->path.dentry);
-out_fail:
-	return retval;
+	return 0;
 
 fput_fail:
 	fput_light(file, fput_needed);
-	goto out_fail;
+out_fail:
+	return retval;
+}
+
+/* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
+static int do_path_lookup(int dfd, const char *name,
+				unsigned int flags, struct nameidata *nd)
+{
+	int retval = path_init(dfd, name, flags, nd);
+	if (!retval)
+		retval = path_walk(name, nd);
+	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
+				nd->path.dentry->d_inode))
+		audit_inode(name, nd->path.dentry);
+	return retval;
 }
 
 int path_lookup(const char *name, unsigned int flags,
@@ -1676,9 +1682,14 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	/*
 	 * Create - we need to know the parent.
 	 */
-	error = do_path_lookup(dfd, pathname, LOOKUP_PARENT, &nd);
+	error = path_init(dfd, pathname, LOOKUP_PARENT, &nd);
 	if (error)
 		return ERR_PTR(error);
+	error = path_walk(pathname, &nd);
+	if (error)
+		return ERR_PTR(error);
+	if (unlikely(!audit_dummy_context()))
+		audit_inode(pathname, nd.path.dentry);
 
 	/*
 	 * We have the parent and last component. First of all, check
