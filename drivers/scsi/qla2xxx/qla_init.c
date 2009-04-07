@@ -3573,14 +3573,15 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	nv = ha->nvram;
 
 	/* Determine NVRAM starting address. */
-	ha->nvram_size = sizeof(struct nvram_24xx);
-	ha->nvram_base = FA_NVRAM_FUNC0_ADDR;
-	ha->vpd_size = FA_NVRAM_VPD_SIZE;
-	ha->vpd_base = FA_NVRAM_VPD0_ADDR;
-	if (PCI_FUNC(ha->pdev->devfn)) {
+	if (ha->flags.port0) {
+		ha->nvram_base = FA_NVRAM_FUNC0_ADDR;
+		ha->vpd_base = FA_NVRAM_VPD0_ADDR;
+	} else {
 		ha->nvram_base = FA_NVRAM_FUNC1_ADDR;
 		ha->vpd_base = FA_NVRAM_VPD1_ADDR;
 	}
+	ha->nvram_size = sizeof(struct nvram_24xx);
+	ha->vpd_size = FA_NVRAM_VPD_SIZE;
 
 	/* Get VPD data into cache */
 	ha->vpd = ha->nvram + VPD_OFFSET;
@@ -3619,7 +3620,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 		nv->exchange_count = __constant_cpu_to_le16(0);
 		nv->hard_address = __constant_cpu_to_le16(124);
 		nv->port_name[0] = 0x21;
-		nv->port_name[1] = 0x00 + PCI_FUNC(ha->pdev->devfn);
+		nv->port_name[1] = 0x00 + ha->port_no;
 		nv->port_name[2] = 0x00;
 		nv->port_name[3] = 0xe0;
 		nv->port_name[4] = 0x8b;
@@ -4348,7 +4349,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		nv->execution_throttle = __constant_cpu_to_le16(0xFFFF);
 		nv->exchange_count = __constant_cpu_to_le16(0);
 		nv->port_name[0] = 0x21;
-		nv->port_name[1] = 0x00 + PCI_FUNC(ha->pdev->devfn);
+		nv->port_name[1] = 0x00 + ha->port_no;
 		nv->port_name[2] = 0x00;
 		nv->port_name[3] = 0xe0;
 		nv->port_name[4] = 0x8b;
@@ -4382,7 +4383,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		nv->enode_mac[2] = 0x03;
 		nv->enode_mac[3] = 0x04;
 		nv->enode_mac[4] = 0x05;
-		nv->enode_mac[5] = 0x06 + PCI_FUNC(ha->pdev->devfn);
+		nv->enode_mac[5] = 0x06 + ha->port_no;
 
 		rval = 1;
 	}
@@ -4415,7 +4416,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		icb->enode_mac[2] = 0x03;
 		icb->enode_mac[3] = 0x04;
 		icb->enode_mac[4] = 0x05;
-		icb->enode_mac[5] = 0x06 + PCI_FUNC(ha->pdev->devfn);
+		icb->enode_mac[5] = 0x06 + ha->port_no;
 	}
 
 	/* Use extended-initialization control block. */

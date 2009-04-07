@@ -702,30 +702,30 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 			break;
 		case FLT_REG_VPD_0:
 			ha->flt_region_vpd_nvram = start;
-			if (!(PCI_FUNC(ha->pdev->devfn) & 1))
+			if (ha->flags.port0)
 				ha->flt_region_vpd = start;
 			break;
 		case FLT_REG_VPD_1:
-			if (PCI_FUNC(ha->pdev->devfn) & 1)
+			if (!ha->flags.port0)
 				ha->flt_region_vpd = start;
 			break;
 		case FLT_REG_NVRAM_0:
-			if (!(PCI_FUNC(ha->pdev->devfn) & 1))
+			if (ha->flags.port0)
 				ha->flt_region_nvram = start;
 			break;
 		case FLT_REG_NVRAM_1:
-			if (PCI_FUNC(ha->pdev->devfn) & 1)
+			if (!ha->flags.port0)
 				ha->flt_region_nvram = start;
 			break;
 		case FLT_REG_FDT:
 			ha->flt_region_fdt = start;
 			break;
 		case FLT_REG_NPIV_CONF_0:
-			if (!(PCI_FUNC(ha->pdev->devfn) & 1))
+			if (ha->flags.port0)
 				ha->flt_region_npiv_conf = start;
 			break;
 		case FLT_REG_NPIV_CONF_1:
-			if (PCI_FUNC(ha->pdev->devfn) & 1)
+			if (!ha->flags.port0)
 				ha->flt_region_npiv_conf = start;
 			break;
 		}
@@ -745,12 +745,12 @@ no_flash_data:
 	ha->flt_region_fw = def_fw[def];
 	ha->flt_region_boot = def_boot[def];
 	ha->flt_region_vpd_nvram = def_vpd_nvram[def];
-	ha->flt_region_vpd = !(PCI_FUNC(ha->pdev->devfn) & 1) ?
+	ha->flt_region_vpd = ha->flags.port0 ?
 	    def_vpd0[def]: def_vpd1[def];
-	ha->flt_region_nvram = !(PCI_FUNC(ha->pdev->devfn) & 1) ?
+	ha->flt_region_nvram = ha->flags.port0 ?
 	    def_nvram0[def]: def_nvram1[def];
 	ha->flt_region_fdt = def_fdt[def];
-	ha->flt_region_npiv_conf = !(PCI_FUNC(ha->pdev->devfn) & 1) ?
+	ha->flt_region_npiv_conf = ha->flags.port0 ?
 	    def_npiv_conf0[def]: def_npiv_conf1[def];
 done:
 	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLT[%s]: boot=0x%x fw=0x%x "

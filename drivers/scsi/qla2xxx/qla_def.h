@@ -2222,6 +2222,7 @@ struct qla_hw_data {
 		uint32_t	fce_enabled		:1;
 		uint32_t	fac_supported		:1;
 		uint32_t	chip_reset_done		:1;
+		uint32_t	port0			:1;
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -2256,6 +2257,9 @@ struct qla_hw_data {
 #define FLOGI_MID_SUPPORT       BIT_10
 #define FLOGI_VSAN_SUPPORT      BIT_12
 #define FLOGI_SP_SUPPORT        BIT_13
+
+	uint8_t		port_no;		/* Physical port of adapter */
+
 	/* Timeout timers. */
 	uint8_t 	loop_down_abort_time;    /* port down timer */
 	atomic_t	loop_down_timer;         /* loop down timer */

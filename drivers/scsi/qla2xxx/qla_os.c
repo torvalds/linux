@@ -1581,6 +1581,13 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	}
+
+	/* Get adapter physical port no from interrupt pin register. */
+	pci_read_config_byte(ha->pdev, PCI_INTERRUPT_PIN, &ha->port_no);
+	if (ha->port_no & 1)
+		ha->flags.port0 = 1;
+	else
+		ha->flags.port0 = 0;
 }
 
 static int
