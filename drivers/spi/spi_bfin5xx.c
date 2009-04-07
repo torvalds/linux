@@ -111,6 +111,7 @@ struct chip_data {
 	u8 bits_per_word;	/* 8 or 16 */
 	u8 cs_change_per_word;
 	u16 cs_chg_udelay;	/* Some devices require > 255usec delay */
+	u32 cs_gpio;
 	void (*write) (struct driver_data *);
 	void (*read) (struct driver_data *);
 	void (*duplex) (struct driver_data *);
@@ -177,22 +178,30 @@ static int bfin_spi_flush(struct driver_data *drv_data)
 /* Chip select operation functions for cs_change flag */
 static void bfin_spi_cs_active(struct driver_data *drv_data, struct chip_data *chip)
 {
-	u16 flag = read_FLAG(drv_data);
+	if (likely(chip->chip_select_num)) {
+		u16 flag = read_FLAG(drv_data);
 
-	flag |= chip->flag;
-	flag &= ~(chip->flag << 8);
+		flag |= chip->flag;
+		flag &= ~(chip->flag << 8);
 
-	write_FLAG(drv_data, flag);
+		write_FLAG(drv_data, flag);
+	} else {
+		gpio_set_value(chip->cs_gpio, 0);
+	}
 }
 
 static void bfin_spi_cs_deactive(struct driver_data *drv_data, struct chip_data *chip)
 {
-	u16 flag = read_FLAG(drv_data);
+	if (likely(chip->chip_select_num)) {
+		u16 flag = read_FLAG(drv_data);
 
-	flag &= ~chip->flag;
-	flag |= (chip->flag << 8);
+		flag &= ~chip->flag;
+		flag |= (chip->flag << 8);
 
-	write_FLAG(drv_data, flag);
+		write_FLAG(drv_data, flag);
+	} else {
+		gpio_set_value(chip->cs_gpio, 1);
+	}
 
 	/* Move delay here for consistency */
 	if (chip->cs_chg_udelay)
@@ -1036,6 +1045,7 @@ static int bfin_spi_setup(struct spi_device *spi)
 	struct bfin5xx_spi_chip *chip_info = NULL;
 	struct chip_data *chip;
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
+	int ret;
 
 	/* Abort device setup if requested features are not supported */
 	if (spi->mode & ~(SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST)) {
@@ -1081,6 +1091,7 @@ static int bfin_spi_setup(struct spi_device *spi)
 		chip->bits_per_word = chip_info->bits_per_word;
 		chip->cs_change_per_word = chip_info->cs_change_per_word;
 		chip->cs_chg_udelay = chip_info->cs_chg_udelay;
+		chip->cs_gpio = chip_info->cs_gpio;
 	}
 
 	/* translate common spi framework into our register */
@@ -1120,6 +1131,16 @@ static int bfin_spi_setup(struct spi_device *spi)
 	chip->baud = hz_to_spi_baud(spi->max_speed_hz);
 	chip->flag = 1 << (spi->chip_select);
 	chip->chip_select_num = spi->chip_select;
+
+	if (chip->chip_select_num == 0) {
+		ret = gpio_request(chip->cs_gpio, spi->modalias);
+		if (ret) {
+			if (drv_data->dma_requested)
+				free_dma(drv_data->dma_channel);
+			return ret;
+		}
+		gpio_direction_output(chip->cs_gpio, 1);
+	}
 
 	switch (chip->bits_per_word) {
 	case 8:
@@ -1185,6 +1206,9 @@ static void bfin_spi_cleanup(struct spi_device *spi)
 		&& (chip->chip_select_num <= spi->master->num_chipselect))
 		peripheral_free(ssel[spi->master->bus_num]
 					[chip->chip_select_num-1]);
+
+	if (chip->chip_select_num == 0)
+		gpio_free(chip->cs_gpio);
 
 	kfree(chip);
 }
