@@ -58,6 +58,14 @@ static DEFINE_SPINLOCK(pdflush_lock);
 int nr_pdflush_threads = 0;
 
 /*
+ * The max/min number of pdflush threads. R/W by sysctl at
+ * /proc/sys/vm/nr_pdflush_threads_max/min
+ */
+int nr_pdflush_threads_max __read_mostly = MAX_PDFLUSH_THREADS;
+int nr_pdflush_threads_min __read_mostly = MIN_PDFLUSH_THREADS;
+
+
+/*
  * The time at which the pdflush thread pool last went empty
  */
 static unsigned long last_empty_jifs;
@@ -68,7 +76,7 @@ static unsigned long last_empty_jifs;
  * Thread pool management algorithm:
  * 
  * - The minimum and maximum number of pdflush instances are bound
- *   by MIN_PDFLUSH_THREADS and MAX_PDFLUSH_THREADS.
+ *   by nr_pdflush_threads_min and nr_pdflush_threads_max.
  * 
  * - If there have been no idle pdflush instances for 1 second, create
  *   a new one.
@@ -134,14 +142,13 @@ static int __pdflush(struct pdflush_work *my_work)
 		 * To throttle creation, we reset last_empty_jifs.
 		 */
 		if (time_after(jiffies, last_empty_jifs + 1 * HZ)) {
-			if (list_empty(&pdflush_list)) {
-				if (nr_pdflush_threads < MAX_PDFLUSH_THREADS) {
-					last_empty_jifs = jiffies;
-					nr_pdflush_threads++;
-					spin_unlock_irq(&pdflush_lock);
-					start_one_pdflush_thread();
-					spin_lock_irq(&pdflush_lock);
-				}
+			if (list_empty(&pdflush_list) &&
+			    nr_pdflush_threads < nr_pdflush_threads_max) {
+				last_empty_jifs = jiffies;
+				nr_pdflush_threads++;
+				spin_unlock_irq(&pdflush_lock);
+				start_one_pdflush_thread();
+				spin_lock_irq(&pdflush_lock);
 			}
 		}
 
@@ -153,7 +160,7 @@ static int __pdflush(struct pdflush_work *my_work)
 		 */
 		if (list_empty(&pdflush_list))
 			continue;
-		if (nr_pdflush_threads <= MIN_PDFLUSH_THREADS)
+		if (nr_pdflush_threads <= nr_pdflush_threads_min)
 			continue;
 		pdf = list_entry(pdflush_list.prev, struct pdflush_work, list);
 		if (time_after(jiffies, pdf->when_i_went_to_sleep + 1 * HZ)) {
@@ -259,9 +266,9 @@ static int __init pdflush_init(void)
 	 * Pre-set nr_pdflush_threads...  If we fail to create,
 	 * the count will be decremented.
 	 */
-	nr_pdflush_threads = MIN_PDFLUSH_THREADS;
+	nr_pdflush_threads = nr_pdflush_threads_min;
 
-	for (i = 0; i < MIN_PDFLUSH_THREADS; i++)
+	for (i = 0; i < nr_pdflush_threads_min; i++)
 		start_one_pdflush_thread();
 	return 0;
 }
