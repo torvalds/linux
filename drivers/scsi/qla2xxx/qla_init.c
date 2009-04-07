@@ -4111,6 +4111,9 @@ qla24xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 {
 	int rval;
 
+	if (ql2xfwloadbin == 1)
+		return qla81xx_load_risc(vha, srisc_addr);
+
 	/*
 	 * FW Load priority:
 	 * 1) Firmware via request-firmware interface (.bin file).
@@ -4127,6 +4130,9 @@ int
 qla81xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 {
 	int rval;
+
+	if (ql2xfwloadbin == 2)
+		return qla24xx_load_risc(vha, srisc_addr);
 
 	/*
 	 * FW Load priority:

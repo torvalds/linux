@@ -111,6 +111,16 @@ MODULE_PARM_DESC(ql2xmultique_tag,
 		"Enables CPU affinity settings for the driver "
 		"Default is 0 for no affinity of request and response IO. "
 		"Set it to 1 to turn on the cpu affinity.");
+
+int ql2xfwloadbin;
+module_param(ql2xfwloadbin, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xfwloadbin,
+		"Option to specify location from which to load ISP firmware:\n"
+		" 2 -- load firmware via the request_firmware() (hotplug)\n"
+		"      interface.\n"
+		" 1 -- load firmware from flash.\n"
+		" 0 -- use default semantics.\n");
+
 /*
  * SCSI host template entry points
  */
