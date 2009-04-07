@@ -128,4 +128,18 @@ static inline void put_ipc_ns(struct ipc_namespace *ns)
 {
 }
 #endif
+
+#ifdef CONFIG_POSIX_MQUEUE_SYSCTL
+
+struct ctl_table_header;
+extern struct ctl_table_header *mq_register_sysctl_table(void);
+
+#else /* CONFIG_POSIX_MQUEUE_SYSCTL */
+
+static inline struct ctl_table_header *mq_register_sysctl_table(void)
+{
+	return NULL;
+}
+
+#endif /* CONFIG_POSIX_MQUEUE_SYSCTL */
 #endif
