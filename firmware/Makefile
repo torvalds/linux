@@ -55,12 +55,6 @@ fw-shipped-$(CONFIG_SND_SB16_CSP) += sb16/mulaw_main.csp sb16/alaw_main.csp \
 				     sb16/ima_adpcm_init.csp \
 				     sb16/ima_adpcm_playback.csp \
 				     sb16/ima_adpcm_capture.csp
-fw-shipped-$(CONFIG_SLICOSS) += slicoss/gbdownload.sys slicoss/gbrcvucode.sys \
-				slicoss/oasisdbgdownload.sys \
-				slicoss/oasisdownload.sys \
-				slicoss/oasisrcvucode.sys
-fw-shipped-$(CONFIG_SXG) += sxg/saharadownloadB.sys \
-				sxg/saharadbgdownloadB.sys
 fw-shipped-$(CONFIG_SND_YMFPCI) += yamaha/ds1_ctrl.fw yamaha/ds1_dsp.fw \
 				   yamaha/ds1e_ctrl.fw
 fw-shipped-$(CONFIG_SND_WAVEFRONT) += yamaha/yss225_registers.bin

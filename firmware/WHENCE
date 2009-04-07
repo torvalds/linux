@@ -408,59 +408,6 @@ Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
 
-Driver: SLICOSS - Alacritech IS-NIC products
-
-File: slicoss/gbdownload.sys.ihex
-File: slicoss/gbrcvucode.sys.ihex
-File: slicoss/oasisdbgdownload.sys.ihex
-File: slicoss/oasisdownload.sys.ihex
-File: slicoss/oasisrcvucode.sys.ihex
-
-Licence:
-		Copyright (C) 1999-2009 Alacritech, Inc.
-
-	as an unpublished work. This notice does not imply unrestricted or
-	public access to the source code from which this firmware image is
-	derived.  Except as noted below this firmware image may not be
-	reproduced, used, sold or transferred to any third party without
-	Alacritech's prior written consent.  All Rights Reserved.
-
-	Permission is hereby granted for the distribution of this firmware
-	image as part of a Linux or other Open Source operating system kernel
-	in text or binary form as required.
-
-	This firmware may not be modified and may only be used with
-	Alacritech hardware.
-
-Found in hex form in kernel source.
-
---------------------------------------------------------------------------
-
-Driver: SXG - Alacritech IS-NIC products
-
-File: sxg/saharadownloadB.sys.ihex
-File: sxg/saharadbgdownloadB.sys.ihex
-
-Licence:
-		Copyright (C) 1999-2009 Alacritech, Inc.
-
-	as an unpublished work. This notice does not imply unrestricted or
-	public access to the source code from which this firmware image is
-	derived.  Except as noted below this firmware image may not be
-	reproduced, used, sold or transferred to any third party without
-	Alacritech's prior written consent.  All Rights Reserved.
-
-	Permission is hereby granted for the distribution of this firmware
-	image as part of a Linux or other Open Source operating system kernel
-	in text or binary form as required.
-
-	This firmware may not be modified and may only be used with
-	Alacritech hardware.
-
-Found in hex form in kernel source.
-
---------------------------------------------------------------------------
-
 Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
 
 File: cxgb3/t3b_psram-1.1.0.bin.ihex
