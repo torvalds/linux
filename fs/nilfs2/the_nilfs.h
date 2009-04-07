@@ -112,8 +112,8 @@ struct the_nilfs {
 	/*
 	 * Following fields are dedicated to a writable FS-instance.
 	 * Except for the period seeking checkpoint, code outside the segment
-	 * constructor must lock a segment semaphore with transaction_begin()
-	 * and transaction_end(), when accessing these fields.
+	 * constructor must lock a segment semaphore while accessing these
+	 * fields.
 	 * The writable FS-instance is sole during a lifetime of the_nilfs.
 	 */
 	u64			ns_seg_seq;

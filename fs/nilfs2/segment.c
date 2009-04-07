@@ -163,8 +163,8 @@ static int nilfs_prepare_segment_lock(struct nilfs_transaction_info *ti)
 		else {
 			/*
 			 * If journal_info field is occupied by other FS,
-			 * we save it and restore on nilfs_transaction_end().
-			 * But this should never happen.
+			 * it is saved and will be restored on
+			 * nilfs_transaction_commit().
 			 */
 			printk(KERN_WARNING
 			       "NILFS warning: journal info from a different "
@@ -195,7 +195,7 @@ static int nilfs_prepare_segment_lock(struct nilfs_transaction_info *ti)
  *
  * nilfs_transaction_begin() acquires a reader/writer semaphore, called
  * the segment semaphore, to make a segment construction and write tasks
- * exclusive.  The function is used with nilfs_transaction_end() in pairs.
+ * exclusive.  The function is used with nilfs_transaction_commit() in pairs.
  * The region enclosed by these two functions can be nested.  To avoid a
  * deadlock, the semaphore is only acquired or released in the outermost call.
  *
@@ -211,8 +211,6 @@ static int nilfs_prepare_segment_lock(struct nilfs_transaction_info *ti)
  * negative error code is returned.
  *
  * %-ENOMEM - Insufficient memory available.
- *
- * %-ERESTARTSYS - Interrupted
  *
  * %-ENOSPC - No space left on device
  */
@@ -248,16 +246,17 @@ int nilfs_transaction_begin(struct super_block *sb,
 }
 
 /**
- * nilfs_transaction_end - end indivisible file operations.
+ * nilfs_transaction_commit - commit indivisible file operations.
  * @sb: super block
- * @commit: commit flag (0 for no change)
  *
- * nilfs_transaction_end() releases the read semaphore which is
- * acquired by nilfs_transaction_begin(). Its releasing is only done
- * in outermost call of this function. If the nilfs_transaction_info
- * was allocated dynamically, it is given back to a slab cache.
+ * nilfs_transaction_commit() releases the read semaphore which is
+ * acquired by nilfs_transaction_begin(). This is only performed
+ * in outermost call of this function.  If a commit flag is set,
+ * nilfs_transaction_commit() sets a timer to start the segment
+ * constructor.  If a sync flag is set, it starts construction
+ * directly.
  */
-int nilfs_transaction_end(struct super_block *sb, int commit)
+int nilfs_transaction_commit(struct super_block *sb)
 {
 	struct nilfs_transaction_info *ti = current->journal_info;
 	struct nilfs_sb_info *sbi;
@@ -265,9 +264,7 @@ int nilfs_transaction_end(struct super_block *sb, int commit)
 	int err = 0;
 
 	BUG_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
-
-	if (commit)
-		ti->ti_flags |= NILFS_TI_COMMIT;
+	ti->ti_flags |= NILFS_TI_COMMIT;
 	if (ti->ti_count > 0) {
 		ti->ti_count--;
 		return 0;
@@ -289,6 +286,22 @@ int nilfs_transaction_end(struct super_block *sb, int commit)
 	if (ti->ti_flags & NILFS_TI_DYNAMIC_ALLOC)
 		kmem_cache_free(nilfs_transaction_cachep, ti);
 	return err;
+}
+
+void nilfs_transaction_abort(struct super_block *sb)
+{
+	struct nilfs_transaction_info *ti = current->journal_info;
+
+	BUG_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
+	if (ti->ti_count > 0) {
+		ti->ti_count--;
+		return;
+	}
+	up_read(&NILFS_SB(sb)->s_nilfs->ns_segctor_sem);
+
+	current->journal_info = ti->ti_save;
+	if (ti->ti_flags & NILFS_TI_DYNAMIC_ALLOC)
+		kmem_cache_free(nilfs_transaction_cachep, ti);
 }
 
 void nilfs_relax_pressure_in_lock(struct super_block *sb)

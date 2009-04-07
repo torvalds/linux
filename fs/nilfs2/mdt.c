@@ -123,7 +123,10 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 	brelse(bh);
 
  failed_unlock:
-	nilfs_transaction_end(sb, !err);
+	if (likely(!err))
+		err = nilfs_transaction_commit(sb);
+	else
+		nilfs_transaction_abort(sb);
 	if (writer)
 		nilfs_put_writer(nilfs);
  out:

@@ -166,7 +166,8 @@ struct nilfs_transaction_info {
 
 int nilfs_transaction_begin(struct super_block *,
 			    struct nilfs_transaction_info *, int);
-int nilfs_transaction_end(struct super_block *, int);
+int nilfs_transaction_commit(struct super_block *);
+void nilfs_transaction_abort(struct super_block *);
 
 static inline void nilfs_set_transaction_flag(unsigned int flag)
 {

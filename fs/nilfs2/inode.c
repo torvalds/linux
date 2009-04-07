@@ -77,7 +77,6 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 			goto out;
 		err = nilfs_bmap_insert(ii->i_bmap, (unsigned long)blkoff,
 					(unsigned long)bh_result);
-		nilfs_transaction_end(inode->i_sb, !err);
 		if (unlikely(err != 0)) {
 			if (err == -EEXIST) {
 				/*
@@ -100,8 +99,10 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 					    inode->i_ino);
 				err = -EIO;
 			}
+			nilfs_transaction_abort(inode->i_sb);
 			goto out;
 		}
+		nilfs_transaction_commit(inode->i_sb); /* never fails */
 		/* Error handling should be detailed */
 		set_buffer_new(bh_result);
 		map_bh(bh_result, inode->i_sb, 0); /* dbn must be changed
@@ -203,7 +204,7 @@ static int nilfs_write_begin(struct file *file, struct address_space *mapping,
 	err = block_write_begin(file, mapping, pos, len, flags, pagep,
 				fsdata, nilfs_get_block);
 	if (unlikely(err))
-		nilfs_transaction_end(inode->i_sb, 0);
+		nilfs_transaction_abort(inode->i_sb);
 	return err;
 }
 
@@ -221,7 +222,7 @@ static int nilfs_write_end(struct file *file, struct address_space *mapping,
 	copied = generic_write_end(file, mapping, pos, len, copied, page,
 				   fsdata);
 	nilfs_set_file_dirty(NILFS_SB(inode->i_sb), inode, nr_dirty);
-	err = nilfs_transaction_end(inode->i_sb, 1);
+	err = nilfs_transaction_commit(inode->i_sb);
 	return err ? : copied;
 }
 
@@ -641,7 +642,7 @@ void nilfs_truncate(struct inode *inode)
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 
 	nilfs_set_file_dirty(NILFS_SB(sb), inode, 0);
-	nilfs_transaction_end(sb, 1);
+	nilfs_transaction_commit(sb);
 	/* May construct a logical segment and may fail in sync mode.
 	   But truncate has no return value. */
 }
@@ -669,7 +670,7 @@ void nilfs_delete_inode(struct inode *inode)
 	/* nilfs_free_inode() marks inode buffer dirty */
 	if (IS_SYNC(inode))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
-	nilfs_transaction_end(sb, 1);
+	nilfs_transaction_commit(sb);
 	/* May construct a logical segment and may fail in sync mode.
 	   But delete_inode has no return value. */
 }
@@ -679,7 +680,7 @@ int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct nilfs_transaction_info ti;
 	struct inode *inode = dentry->d_inode;
 	struct super_block *sb = inode->i_sb;
-	int err, err2;
+	int err;
 
 	err = inode_change_ok(inode, iattr);
 	if (err)
@@ -691,8 +692,12 @@ int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	err = inode_setattr(inode, iattr);
 	if (!err && (iattr->ia_valid & ATTR_MODE))
 		err = nilfs_acl_chmod(inode);
-	err2 = nilfs_transaction_end(sb, 1);
-	return err ? : err2;
+	if (likely(!err))
+		err = nilfs_transaction_commit(sb);
+	else
+		nilfs_transaction_abort(sb);
+
+	return err;
 }
 
 int nilfs_load_inode_block(struct nilfs_sb_info *sbi, struct inode *inode,
@@ -817,5 +822,5 @@ void nilfs_dirty_inode(struct inode *inode)
 	nilfs_transaction_begin(inode->i_sb, &ti, 0);
 	if (likely(inode->i_ino != NILFS_SKETCH_INO))
 		nilfs_mark_inode_dirty(inode);
-	nilfs_transaction_end(inode->i_sb, 1); /* never fails */
+	nilfs_transaction_commit(inode->i_sb); /* never fails */
 }

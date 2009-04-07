@@ -105,7 +105,11 @@ static int nilfs_ioctl_change_cpmode(struct inode *inode, struct file *filp,
 	nilfs_transaction_begin(inode->i_sb, &ti, 0);
 	ret = nilfs_cpfile_change_cpmode(
 		cpfile, cpmode.cm_cno, cpmode.cm_mode);
-	nilfs_transaction_end(inode->i_sb, !ret);
+	if (unlikely(ret < 0)) {
+		nilfs_transaction_abort(inode->i_sb);
+		return ret;
+	}
+	nilfs_transaction_commit(inode->i_sb); /* never fails */
 	return ret;
 }
 
@@ -125,7 +129,11 @@ nilfs_ioctl_delete_checkpoint(struct inode *inode, struct file *filp,
 
 	nilfs_transaction_begin(inode->i_sb, &ti, 0);
 	ret = nilfs_cpfile_delete_checkpoint(cpfile, cno);
-	nilfs_transaction_end(inode->i_sb, !ret);
+	if (unlikely(ret < 0)) {
+		nilfs_transaction_abort(inode->i_sb);
+		return ret;
+	}
+	nilfs_transaction_commit(inode->i_sb); /* never fails */
 	return ret;
 }
 
@@ -142,16 +150,17 @@ static int nilfs_ioctl_get_cpinfo(struct inode *inode, struct file *filp,
 {
 	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
 	struct nilfs_argv argv;
-	struct nilfs_transaction_info ti;
 	int ret;
 
 	if (copy_from_user(&argv, argp, sizeof(argv)))
 		return -EFAULT;
 
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
+	down_read(&nilfs->ns_segctor_sem);
 	ret = nilfs_ioctl_wrap_copy(nilfs, &argv, _IOC_DIR(cmd),
 				    nilfs_ioctl_do_get_cpinfo);
-	nilfs_transaction_end(inode->i_sb, 0);
+	up_read(&nilfs->ns_segctor_sem);
+	if (ret < 0)
+		return ret;
 
 	if (copy_to_user(argp, &argv, sizeof(argv)))
 		ret = -EFAULT;
@@ -161,14 +170,13 @@ static int nilfs_ioctl_get_cpinfo(struct inode *inode, struct file *filp,
 static int nilfs_ioctl_get_cpstat(struct inode *inode, struct file *filp,
 				  unsigned int cmd, void __user *argp)
 {
-	struct inode *cpfile = NILFS_SB(inode->i_sb)->s_nilfs->ns_cpfile;
+	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
 	struct nilfs_cpstat cpstat;
-	struct nilfs_transaction_info ti;
 	int ret;
 
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
-	ret = nilfs_cpfile_get_stat(cpfile, &cpstat);
-	nilfs_transaction_end(inode->i_sb, 0);
+	down_read(&nilfs->ns_segctor_sem);
+	ret = nilfs_cpfile_get_stat(nilfs->ns_cpfile, &cpstat);
+	up_read(&nilfs->ns_segctor_sem);
 	if (ret < 0)
 		return ret;
 
@@ -189,16 +197,17 @@ static int nilfs_ioctl_get_suinfo(struct inode *inode, struct file *filp,
 {
 	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
 	struct nilfs_argv argv;
-	struct nilfs_transaction_info ti;
 	int ret;
 
 	if (copy_from_user(&argv, argp, sizeof(argv)))
 		return -EFAULT;
 
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
+	down_read(&nilfs->ns_segctor_sem);
 	ret = nilfs_ioctl_wrap_copy(nilfs, &argv, _IOC_DIR(cmd),
 				    nilfs_ioctl_do_get_suinfo);
-	nilfs_transaction_end(inode->i_sb, 0);
+	up_read(&nilfs->ns_segctor_sem);
+	if (ret < 0)
+		return ret;
 
 	if (copy_to_user(argp, &argv, sizeof(argv)))
 		ret = -EFAULT;
@@ -208,14 +217,13 @@ static int nilfs_ioctl_get_suinfo(struct inode *inode, struct file *filp,
 static int nilfs_ioctl_get_sustat(struct inode *inode, struct file *filp,
 				  unsigned int cmd, void __user *argp)
 {
-	struct inode *sufile = NILFS_SB(inode->i_sb)->s_nilfs->ns_sufile;
+	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
 	struct nilfs_sustat sustat;
-	struct nilfs_transaction_info ti;
 	int ret;
 
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
-	ret = nilfs_sufile_get_stat(sufile, &sustat);
-	nilfs_transaction_end(inode->i_sb, 0);
+	down_read(&nilfs->ns_segctor_sem);
+	ret = nilfs_sufile_get_stat(nilfs->ns_sufile, &sustat);
+	up_read(&nilfs->ns_segctor_sem);
 	if (ret < 0)
 		return ret;
 
@@ -236,16 +244,17 @@ static int nilfs_ioctl_get_vinfo(struct inode *inode, struct file *filp,
 {
 	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
 	struct nilfs_argv argv;
-	struct nilfs_transaction_info ti;
 	int ret;
 
 	if (copy_from_user(&argv, argp, sizeof(argv)))
 		return -EFAULT;
 
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
+	down_read(&nilfs->ns_segctor_sem);
 	ret = nilfs_ioctl_wrap_copy(nilfs, &argv, _IOC_DIR(cmd),
 				    nilfs_ioctl_do_get_vinfo);
-	nilfs_transaction_end(inode->i_sb, 0);
+	up_read(&nilfs->ns_segctor_sem);
+	if (ret < 0)
+		return ret;
 
 	if (copy_to_user(argp, &argv, sizeof(argv)))
 		ret = -EFAULT;
@@ -280,16 +289,17 @@ static int nilfs_ioctl_get_bdescs(struct inode *inode, struct file *filp,
 {
 	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
 	struct nilfs_argv argv;
-	struct nilfs_transaction_info ti;
 	int ret;
 
 	if (copy_from_user(&argv, argp, sizeof(argv)))
 		return -EFAULT;
 
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
+	down_read(&nilfs->ns_segctor_sem);
 	ret = nilfs_ioctl_wrap_copy(nilfs, &argv, _IOC_DIR(cmd),
 				    nilfs_ioctl_do_get_bdescs);
-	nilfs_transaction_end(inode->i_sb, 0);
+	up_read(&nilfs->ns_segctor_sem);
+	if (ret < 0)
+		return ret;
 
 	if (copy_to_user(argp, &argv, sizeof(argv)))
 		ret = -EFAULT;
