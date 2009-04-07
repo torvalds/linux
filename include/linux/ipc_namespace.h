@@ -44,24 +44,55 @@ struct ipc_namespace {
 	int		shm_tot;
 
 	struct notifier_block ipcns_nb;
+
+	/* The kern_mount of the mqueuefs sb.  We take a ref on it */
+	struct vfsmount	*mq_mnt;
+
+	/* # queues in this ns, protected by mq_lock */
+	unsigned int    mq_queues_count;
+
+	/* next fields are set through sysctl */
+	unsigned int    mq_queues_max;   /* initialized to DFLT_QUEUESMAX */
+	unsigned int    mq_msg_max;      /* initialized to DFLT_MSGMAX */
+	unsigned int    mq_msgsize_max;  /* initialized to DFLT_MSGSIZEMAX */
+
 };
 
 extern struct ipc_namespace init_ipc_ns;
 extern atomic_t nr_ipc_ns;
 
-#ifdef CONFIG_SYSVIPC
+#if defined(CONFIG_POSIX_MQUEUE) || defined(CONFIG_SYSVIPC)
 #define INIT_IPC_NS(ns)		.ns		= &init_ipc_ns,
+#else
+#define INIT_IPC_NS(ns)
+#endif
 
+#ifdef CONFIG_SYSVIPC
 extern int register_ipcns_notifier(struct ipc_namespace *);
 extern int cond_register_ipcns_notifier(struct ipc_namespace *);
 extern void unregister_ipcns_notifier(struct ipc_namespace *);
 extern int ipcns_notify(unsigned long);
-
 #else /* CONFIG_SYSVIPC */
-#define INIT_IPC_NS(ns)
+static inline int register_ipcns_notifier(struct ipc_namespace *ns)
+{ return 0; }
+static inline int cond_register_ipcns_notifier(struct ipc_namespace *ns)
+{ return 0; }
+static inline void unregister_ipcns_notifier(struct ipc_namespace *ns) { }
+static inline int ipcns_notify(unsigned long l) { return 0; }
 #endif /* CONFIG_SYSVIPC */
 
-#if defined(CONFIG_SYSVIPC) && defined(CONFIG_IPC_NS)
+#ifdef CONFIG_POSIX_MQUEUE
+extern void mq_init_ns(struct ipc_namespace *ns);
+/* default values */
+#define DFLT_QUEUESMAX 256     /* max number of message queues */
+#define DFLT_MSGMAX    10      /* max number of messages in each queue */
+#define HARD_MSGMAX    (131072/sizeof(void *))
+#define DFLT_MSGSIZEMAX 8192   /* max message size */
+#else
+#define mq_init_ns(ns) ((void) 0)
+#endif
+
+#if defined(CONFIG_IPC_NS)
 extern void free_ipc_ns(struct kref *kref);
 extern struct ipc_namespace *copy_ipcs(unsigned long flags,
 				       struct ipc_namespace *ns);

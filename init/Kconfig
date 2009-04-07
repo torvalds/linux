@@ -670,10 +670,10 @@ config UTS_NS
 
 config IPC_NS
 	bool "IPC namespace"
-	depends on NAMESPACES && SYSVIPC
+	depends on NAMESPACES && (SYSVIPC || POSIX_MQUEUE)
 	help
 	  In this namespace tasks work with IPC ids which correspond to
-	  different IPC objects in different namespaces
+	  different IPC objects in different namespaces.
 
 config USER_NS
 	bool "User namespace (EXPERIMENTAL)"
