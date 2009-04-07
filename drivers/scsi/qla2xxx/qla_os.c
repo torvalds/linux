@@ -77,6 +77,14 @@ module_param(ql2xmaxqdepth, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xmaxqdepth,
 		"Maximum queue depth to report for target devices.");
 
+int ql2xqfulltracking = 1;
+module_param(ql2xqfulltracking, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xqfulltracking,
+		"Controls whether the driver tracks queue full status "
+		"returns and dynamically adjusts a scsi device's queue "
+		"depth.  Default is 1, perform tracking.  Set to 0 to "
+		"disable dynamic tracking and adjustment of queue depth.");
+
 int ql2xqfullrampup = 120;
 module_param(ql2xqfullrampup, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xqfullrampup,

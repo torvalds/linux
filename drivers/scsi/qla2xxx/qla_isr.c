@@ -765,6 +765,9 @@ qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, void *data)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = NULL;
 
+	if (!ql2xqfulltracking)
+		return;
+
 	req = vha->req;
 	if (!req)
 		return;
@@ -806,6 +809,9 @@ qla2x00_ramp_up_queue_depth(scsi_qla_host_t *vha, struct req_que *req,
 {
 	fc_port_t *fcport;
 	struct scsi_device *sdev;
+
+	if (!ql2xqfulltracking)
+		return;
 
 	sdev = sp->cmd->device;
 	if (sdev->queue_depth >= req->max_q_depth)
@@ -1125,6 +1131,8 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			    scsi_status));
 
 			/* Adjust queue depth for all luns on the port. */
+			if (!ql2xqfulltracking)
+				break;
 			fcport->last_queue_full = jiffies;
 			starget_for_each_device(cp->device->sdev_target,
 			    fcport, qla2x00_adjust_sdev_qdepth_down);
@@ -1183,6 +1191,8 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				 * Adjust queue depth for all luns on the
 				 * port.
 				 */
+				if (!ql2xqfulltracking)
+					break;
 				fcport->last_queue_full = jiffies;
 				starget_for_each_device(
 				    cp->device->sdev_target, fcport,
