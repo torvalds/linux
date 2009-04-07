@@ -291,6 +291,28 @@ atomic64_cmpxchg(atomic64_t *ptr, unsigned long long old_val,
 }
 
 /**
+ * atomic64_xchg - xchg atomic64 variable
+ * @ptr:      pointer to type atomic64_t
+ * @new_val:  value to assign
+ * @old_val:  old value that was there
+ *
+ * Atomically xchgs the value of @ptr to @new_val and returns
+ * the old value.
+ */
+
+static inline unsigned long long
+atomic64_xchg(atomic64_t *ptr, unsigned long long new_val)
+{
+	unsigned long long old_val;
+
+	do {
+		old_val = atomic_read(ptr);
+	} while (atomic64_cmpxchg(ptr, old_val, new_val) != old_val);
+
+	return old_val;
+}
+
+/**
  * atomic64_set - set atomic64 variable
  * @ptr:      pointer to type atomic64_t
  * @new_val:  value to assign
@@ -299,11 +321,7 @@ atomic64_cmpxchg(atomic64_t *ptr, unsigned long long old_val,
  */
 static inline void atomic64_set(atomic64_t *ptr, unsigned long long new_val)
 {
-	unsigned long long old_val;
-
-	do {
-		old_val = atomic_read(ptr);
-	} while (atomic64_cmpxchg(ptr, old_val, new_val) != old_val);
+	atomic64_xchg(ptr, new_val);
 }
 
 /**
