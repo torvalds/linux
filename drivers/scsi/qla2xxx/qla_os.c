@@ -187,7 +187,7 @@ static void qla2x00_sp_free_dma(srb_t *);
 /* -------------------------------------------------------------------------- */
 static int qla2x00_alloc_queues(struct qla_hw_data *ha)
 {
-	ha->req_q_map = kzalloc(sizeof(struct req_que *) * ha->max_queues,
+	ha->req_q_map = kzalloc(sizeof(struct req_que *) * ha->max_req_queues,
 				GFP_KERNEL);
 	if (!ha->req_q_map) {
 		qla_printk(KERN_WARNING, ha,
@@ -195,7 +195,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha)
 		goto fail_req_map;
 	}
 
-	ha->rsp_q_map = kzalloc(sizeof(struct rsp_que *) * ha->max_queues,
+	ha->rsp_q_map = kzalloc(sizeof(struct rsp_que *) * ha->max_rsp_queues,
 				GFP_KERNEL);
 	if (!ha->rsp_q_map) {
 		qla_printk(KERN_WARNING, ha,
@@ -213,16 +213,8 @@ fail_req_map:
 	return -ENOMEM;
 }
 
-static void qla2x00_free_que(struct qla_hw_data *ha, struct req_que *req,
-	struct rsp_que *rsp)
+static void qla2x00_free_req_que(struct qla_hw_data *ha, struct req_que *req)
 {
-	if (rsp && rsp->ring)
-		dma_free_coherent(&ha->pdev->dev,
-		(rsp->length + 1) * sizeof(response_t),
-		rsp->ring, rsp->dma);
-
-	kfree(rsp);
-	rsp = NULL;
 	if (req && req->ring)
 		dma_free_coherent(&ha->pdev->dev,
 		(req->length + 1) * sizeof(request_t),
@@ -232,22 +224,36 @@ static void qla2x00_free_que(struct qla_hw_data *ha, struct req_que *req,
 	req = NULL;
 }
 
+static void qla2x00_free_rsp_que(struct qla_hw_data *ha, struct rsp_que *rsp)
+{
+	if (rsp && rsp->ring)
+		dma_free_coherent(&ha->pdev->dev,
+		(rsp->length + 1) * sizeof(response_t),
+		rsp->ring, rsp->dma);
+
+	kfree(rsp);
+	rsp = NULL;
+}
+
 static void qla2x00_free_queues(struct qla_hw_data *ha)
 {
 	struct req_que *req;
 	struct rsp_que *rsp;
 	int cnt;
 
-	for (cnt = 0; cnt < ha->max_queues; cnt++) {
-		rsp = ha->rsp_q_map[cnt];
+	for (cnt = 0; cnt < ha->max_req_queues; cnt++) {
 		req = ha->req_q_map[cnt];
-		qla2x00_free_que(ha, req, rsp);
+		qla2x00_free_req_que(ha, req);
+	}
+	kfree(ha->req_q_map);
+	ha->req_q_map = NULL;
+
+	for (cnt = 0; cnt < ha->max_rsp_queues; cnt++) {
+		rsp = ha->rsp_q_map[cnt];
+		qla2x00_free_rsp_que(ha, rsp);
 	}
 	kfree(ha->rsp_q_map);
 	ha->rsp_q_map = NULL;
-
-	kfree(ha->req_q_map);
-	ha->req_q_map = NULL;
 }
 
 static char *
@@ -612,7 +618,7 @@ qla2x00_wait_for_loop_ready(scsi_qla_host_t *vha)
 void
 qla2x00_abort_fcport_cmds(fc_port_t *fcport)
 {
-	int cnt, que, id;
+	int cnt;
 	unsigned long flags;
 	srb_t *sp;
 	scsi_qla_host_t *vha = fcport->vha;
@@ -620,32 +626,27 @@ qla2x00_abort_fcport_cmds(fc_port_t *fcport)
 	struct req_que *req;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	for (que = 0; que < QLA_MAX_HOST_QUES; que++) {
-		id = vha->req_ques[que];
-		req = ha->req_q_map[id];
-		if (!req)
+	req = vha->req;
+	for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+		sp = req->outstanding_cmds[cnt];
+		if (!sp)
 			continue;
-		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
-			sp = req->outstanding_cmds[cnt];
-			if (!sp)
-				continue;
-			if (sp->fcport != fcport)
-				continue;
+		if (sp->fcport != fcport)
+			continue;
 
-			spin_unlock_irqrestore(&ha->hardware_lock, flags);
-			if (ha->isp_ops->abort_command(vha, sp, req)) {
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+		if (ha->isp_ops->abort_command(sp)) {
+			DEBUG2(qla_printk(KERN_WARNING, ha,
+			"Abort failed --  %lx\n",
+			sp->cmd->serial_number));
+		} else {
+			if (qla2x00_eh_wait_on_command(sp->cmd) !=
+				QLA_SUCCESS)
 				DEBUG2(qla_printk(KERN_WARNING, ha,
-				"Abort failed --  %lx\n",
+				"Abort failed while waiting --  %lx\n",
 				sp->cmd->serial_number));
-			} else {
-				if (qla2x00_eh_wait_on_command(sp->cmd) !=
-					QLA_SUCCESS)
-					DEBUG2(qla_printk(KERN_WARNING, ha,
-					"Abort failed while waiting --  %lx\n",
-					sp->cmd->serial_number));
-			}
-			spin_lock_irqsave(&ha->hardware_lock, flags);
 		}
+		spin_lock_irqsave(&ha->hardware_lock, flags);
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
@@ -726,7 +727,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		" pid=%ld.\n", __func__, vha->host_no, sp, serial));
 
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-		if (ha->isp_ops->abort_command(vha, sp, req)) {
+		if (ha->isp_ops->abort_command(sp)) {
 			DEBUG2(printk("%s(%ld): abort_command "
 			"mbx failed.\n", __func__, vha->host_no));
 			ret = FAILED;
@@ -820,7 +821,7 @@ static char *reset_errors[] = {
 
 static int
 __qla2xxx_eh_generic_reset(char *name, enum nexus_wait_type type,
-    struct scsi_cmnd *cmd, int (*do_reset)(struct fc_port *, unsigned int))
+    struct scsi_cmnd *cmd, int (*do_reset)(struct fc_port *, unsigned int, int))
 {
 	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
@@ -841,7 +842,8 @@ __qla2xxx_eh_generic_reset(char *name, enum nexus_wait_type type,
 	if (qla2x00_wait_for_loop_ready(vha) != QLA_SUCCESS)
 		goto eh_reset_failed;
 	err = 2;
-	if (do_reset(fcport, cmd->device->lun) != QLA_SUCCESS)
+	if (do_reset(fcport, cmd->device->lun, cmd->request->cpu + 1)
+		!= QLA_SUCCESS)
 		goto eh_reset_failed;
 	err = 3;
 	if (qla2x00_eh_wait_for_pending_commands(vha, cmd->device->id,
@@ -1065,7 +1067,7 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 			if (fcport->port_type != FCT_TARGET)
 				continue;
 
-			ret = ha->isp_ops->target_reset(fcport, 0);
+			ret = ha->isp_ops->target_reset(fcport, 0, 0);
 			if (ret != QLA_SUCCESS) {
 				DEBUG2_3(printk("%s(%ld): bus_reset failed: "
 				    "target_reset=%d d_id=%x.\n", __func__,
@@ -1089,7 +1091,7 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 	struct req_que *req;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	for (que = 0; que < ha->max_queues; que++) {
+	for (que = 0; que < ha->max_req_queues; que++) {
 		req = ha->req_q_map[que];
 		if (!req)
 			continue;
@@ -1124,7 +1126,7 @@ qla2xxx_slave_configure(struct scsi_device *sdev)
 	scsi_qla_host_t *vha = shost_priv(sdev->host);
 	struct qla_hw_data *ha = vha->hw;
 	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
-	struct req_que *req = ha->req_q_map[vha->req_ques[0]];
+	struct req_que *req = vha->req;
 
 	if (sdev->tagged_supported)
 		scsi_activate_tcq(sdev, req->max_q_depth);
@@ -1572,8 +1574,9 @@ skip_pio:
 	}
 
 	/* Determine queue resources */
-	ha->max_queues = 1;
-	if (ql2xmaxqueues <= 1 || (!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
+	ha->max_req_queues = ha->max_rsp_queues = 1;
+	if (ql2xmaxqueues <= 1  &&
+		(!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
 		goto mqiobase_exit;
 	ha->mqiobase = ioremap(pci_resource_start(ha->pdev, 3),
 			pci_resource_len(ha->pdev, 3));
@@ -1581,20 +1584,17 @@ skip_pio:
 		/* Read MSIX vector size of the board */
 		pci_read_config_word(ha->pdev, QLA_PCI_MSIX_CONTROL, &msix);
 		ha->msix_count = msix;
-		/* Max queues are bounded by available msix vectors */
-		/* queue 0 uses two msix vectors */
-		if (ha->msix_count - 1 < ql2xmaxqueues)
-			ha->max_queues = ha->msix_count - 1;
-		else if (ql2xmaxqueues > QLA_MQ_SIZE)
-			ha->max_queues = QLA_MQ_SIZE;
-		else
-			ha->max_queues = ql2xmaxqueues;
-		qla_printk(KERN_INFO, ha,
-			"MSI-X vector count: %d\n", msix);
-	}
+		if (ql2xmaxqueues > 1) {
+			ha->max_req_queues = ql2xmaxqueues > QLA_MQ_SIZE ?
+						QLA_MQ_SIZE : ql2xmaxqueues;
+			DEBUG2(qla_printk(KERN_INFO, ha, "QoS mode set, max no"
+			" of request queues:%d\n", ha->max_req_queues));
+		}
+	} else
+		qla_printk(KERN_INFO, ha, "BAR 3 not enabled\n");
 
 mqiobase_exit:
-	ha->msix_count = ha->max_queues + 1;
+	ha->msix_count = ha->max_rsp_queues + 1;
 	return (0);
 
 iospace_error_exit:
@@ -1804,14 +1804,15 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		ret = -ENOMEM;
 		qla2x00_mem_free(ha);
-		qla2x00_free_que(ha, req, rsp);
+		qla2x00_free_req_que(ha, req);
+		qla2x00_free_rsp_que(ha, rsp);
 		goto probe_hw_failed;
 	}
 
 	pci_set_drvdata(pdev, base_vha);
 
 	host = base_vha->host;
-	base_vha->req_ques[0] = req->id;
+	base_vha->req = req;
 	host->can_queue = req->length + 128;
 	if (IS_QLA2XXX_MIDTYPE(ha))
 		base_vha->mgmt_svr_loop_id = 10 + base_vha->vp_idx;
@@ -1842,7 +1843,10 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	ha->rsp_q_map[0] = rsp;
 	ha->req_q_map[0] = req;
-
+	rsp->req = req;
+	req->rsp = rsp;
+	set_bit(0, ha->req_qid_map);
+	set_bit(0, ha->rsp_qid_map);
 	/* FWI2-capable only. */
 	req->req_q_in = &ha->iobase->isp24.req_q_in;
 	req->req_q_out = &ha->iobase->isp24.req_q_out;
@@ -1918,8 +1922,9 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 probe_init_failed:
-	qla2x00_free_que(ha, req, rsp);
-	ha->max_queues = 0;
+	qla2x00_free_req_que(ha, req);
+	qla2x00_free_rsp_que(ha, rsp);
+	ha->max_req_queues = ha->max_rsp_queues = 0;
 
 probe_failed:
 	if (base_vha->timer_active)
@@ -2017,6 +2022,8 @@ static void
 qla2x00_free_device(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+
+	qla25xx_delete_queues(vha);
 
 	if (ha->flags.fce_enabled)
 		qla2x00_disable_fce_trace(vha, NULL, NULL);

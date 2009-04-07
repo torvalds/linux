@@ -93,6 +93,7 @@
 #define LSD(x)	((uint32_t)((uint64_t)(x)))
 #define MSD(x)	((uint32_t)((((uint64_t)(x)) >> 16) >> 16))
 
+#define MAKE_HANDLE(x, y) ((uint32_t)((((uint32_t)(x)) << 16) | (uint32_t)(y)))
 
 /*
  * I/O register
@@ -179,6 +180,7 @@
 #define REQUEST_ENTRY_CNT_24XX		2048	/* Number of request entries. */
 #define RESPONSE_ENTRY_CNT_2100		64	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_2300		512	/* Number of response entries.*/
+#define RESPONSE_ENTRY_CNT_MQ		128	/* Number of response entries.*/
 
 struct req_que;
 
@@ -2008,7 +2010,8 @@ typedef struct vport_params {
 #define VP_RET_CODE_NOT_FOUND		6
 
 struct qla_hw_data;
-
+struct req_que;
+struct rsp_que;
 /*
  * ISP operations
  */
@@ -2030,10 +2033,9 @@ struct isp_operations {
 	void (*enable_intrs) (struct qla_hw_data *);
 	void (*disable_intrs) (struct qla_hw_data *);
 
-	int (*abort_command) (struct scsi_qla_host *, srb_t *,
-		struct req_que *);
-	int (*target_reset) (struct fc_port *, unsigned int);
-	int (*lun_reset) (struct fc_port *, unsigned int);
+	int (*abort_command) (srb_t *);
+	int (*target_reset) (struct fc_port *, unsigned int, int);
+	int (*lun_reset) (struct fc_port *, unsigned int, int);
 	int (*fabric_login) (struct scsi_qla_host *, uint16_t, uint8_t,
 		uint8_t, uint8_t, uint16_t *, uint8_t);
 	int (*fabric_logout) (struct scsi_qla_host *, uint16_t, uint8_t,
@@ -2079,7 +2081,6 @@ struct isp_operations {
 #define QLA_PCI_MSIX_CONTROL	0xa2
 
 struct scsi_qla_host;
-struct rsp_que;
 
 struct qla_msix_entry {
 	int have_irq;
@@ -2140,7 +2141,6 @@ struct qla_statistics {
 #define MBC_INITIALIZE_MULTIQ 0x1f
 #define QLA_QUE_PAGE 0X1000
 #define QLA_MQ_SIZE 32
-#define QLA_MAX_HOST_QUES 16
 #define QLA_MAX_QUEUES 256
 #define ISP_QUE_REG(ha, id) \
 	((ha->mqenable) ? \
@@ -2170,6 +2170,7 @@ struct rsp_que {
 	struct qla_hw_data *hw;
 	struct qla_msix_entry *msix;
 	struct req_que *req;
+	srb_t *status_srb; /* status continuation entry */
 };
 
 /* Request queue data structure */
@@ -2246,7 +2247,8 @@ struct qla_hw_data {
 	struct rsp_que **rsp_q_map;
 	unsigned long req_qid_map[(QLA_MAX_QUEUES / 8) / sizeof(unsigned long)];
 	unsigned long rsp_qid_map[(QLA_MAX_QUEUES / 8) / sizeof(unsigned long)];
-	uint16_t 	max_queues;
+	uint8_t 	max_req_queues;
+	uint8_t 	max_rsp_queues;
 	struct qla_npiv_entry *npiv_info;
 	uint16_t	nvram_npiv_size;
 
@@ -2532,6 +2534,7 @@ struct qla_hw_data {
 	uint16_t        num_vsans;      /* number of vsan created */
 	uint16_t        max_npiv_vports;        /* 63 or 125 per topoloty */
 	int             cur_vport_count;
+	uint16_t	flex_port_count;
 
 	struct qla_chip_state_84xx *cs84xx;
 	struct qla_statistics qla_stats;
@@ -2591,8 +2594,6 @@ typedef struct scsi_qla_host {
 #define SWITCH_FOUND		BIT_0
 #define DFLG_NO_CABLE		BIT_1
 
-	srb_t		*status_srb;	/* Status continuation entry. */
-
 	/* ISP configuration data. */
 	uint16_t	loop_id;		/* Host adapter loop id */
 
@@ -2648,7 +2649,7 @@ typedef struct scsi_qla_host {
 #define VP_ERR_FAB_LOGOUT	4
 #define VP_ERR_ADAP_NORESOURCES	5
 	struct qla_hw_data *hw;
-	int	req_ques[QLA_MAX_HOST_QUES];
+	struct req_que *req;
 } scsi_qla_host_t;
 
 /*

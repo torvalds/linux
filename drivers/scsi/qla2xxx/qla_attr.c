@@ -1469,11 +1469,12 @@ static int
 qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 {
 	int	ret = 0;
-	int	cnt = 0;
-	uint8_t	qos = QLA_DEFAULT_QUE_QOS;
+	uint8_t	qos = 0;
 	scsi_qla_host_t *base_vha = shost_priv(fc_vport->shost);
 	scsi_qla_host_t *vha = NULL;
 	struct qla_hw_data *ha = base_vha->hw;
+	uint16_t options = 0;
+	int	cnt;
 
 	ret = qla24xx_vport_create_req_sanity_check(fc_vport);
 	if (ret) {
@@ -1529,23 +1530,35 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	qla24xx_vport_disable(fc_vport, disable);
 
-	/* Create a queue pair for the vport */
-	if (ha->mqenable) {
-		if (ha->npiv_info) {
-			for (; cnt < ha->nvram_npiv_size; cnt++) {
-				if (ha->npiv_info[cnt].port_name ==
-					vha->port_name &&
-					ha->npiv_info[cnt].node_name ==
-					vha->node_name) {
-					qos = ha->npiv_info[cnt].q_qos;
-					break;
-				}
-			}
+	ret = 0;
+	if (ha->cur_vport_count <= ha->flex_port_count
+		|| ha->max_req_queues == 1 || !ha->npiv_info)
+		goto vport_queue;
+	/* Create a request queue in QoS mode for the vport */
+	for (cnt = ha->flex_port_count; cnt < ha->nvram_npiv_size; cnt++) {
+		if (ha->npiv_info[cnt].port_name == vha->port_name &&
+			ha->npiv_info[cnt].node_name == vha->node_name) {
+			qos = ha->npiv_info[cnt].q_qos;
+			break;
 		}
-		qla25xx_create_queues(vha, qos);
+	}
+	if (qos) {
+		ret = qla25xx_create_req_que(ha, options, vha->vp_idx, 0, 0,
+			qos);
+		if (!ret)
+			qla_printk(KERN_WARNING, ha,
+			"Can't create request queue for vp_idx:%d\n",
+			vha->vp_idx);
+		else
+			DEBUG2(qla_printk(KERN_INFO, ha,
+			"Request Que:%d created for vp_idx:%d\n",
+			ret, vha->vp_idx));
 	}
 
+vport_queue:
+	vha->req = ha->req_q_map[ret];
 	return 0;
+
 vport_create_failed_2:
 	qla24xx_disable_vp(vha);
 	qla24xx_deallocate_vp_id(vha);
@@ -1586,8 +1599,8 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 		    vha->host_no, vha->vp_idx, vha));
         }
 
-	if (ha->mqenable) {
-		if (qla25xx_delete_queues(vha, 0) != QLA_SUCCESS)
+	if (vha->req->id) {
+		if (qla25xx_delete_req_que(vha, vha->req) != QLA_SUCCESS)
 			qla_printk(KERN_WARNING, ha,
 				"Queue delete failed.\n");
 	}

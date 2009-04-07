@@ -748,19 +748,19 @@ qla2x00_issue_iocb(scsi_qla_host_t *vha, void *buffer, dma_addr_t phys_addr,
  *	Kernel context.
  */
 int
-qla2x00_abort_command(scsi_qla_host_t *vha, srb_t *sp, struct req_que *req)
+qla2x00_abort_command(srb_t *sp)
 {
 	unsigned long   flags = 0;
-	fc_port_t	*fcport;
 	int		rval;
 	uint32_t	handle = 0;
 	mbx_cmd_t	mc;
 	mbx_cmd_t	*mcp = &mc;
+	fc_port_t	*fcport = sp->fcport;
+	scsi_qla_host_t *vha = fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req = vha->req;
 
 	DEBUG11(printk("qla2x00_abort_command(%ld): entered.\n", vha->host_no));
-
-	fcport = sp->fcport;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
@@ -800,7 +800,7 @@ qla2x00_abort_command(scsi_qla_host_t *vha, srb_t *sp, struct req_que *req)
 }
 
 int
-qla2x00_abort_target(struct fc_port *fcport, unsigned int l)
+qla2x00_abort_target(struct fc_port *fcport, unsigned int l, int tag)
 {
 	int rval, rval2;
 	mbx_cmd_t  mc;
@@ -813,8 +813,8 @@ qla2x00_abort_target(struct fc_port *fcport, unsigned int l)
 
 	l = l;
 	vha = fcport->vha;
-	req = vha->hw->req_q_map[0];
-	rsp = vha->hw->rsp_q_map[0];
+	req = vha->hw->req_q_map[tag];
+	rsp = vha->hw->rsp_q_map[tag];
 	mcp->mb[0] = MBC_ABORT_TARGET;
 	mcp->out_mb = MBX_9|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(vha->hw)) {
@@ -850,7 +850,7 @@ qla2x00_abort_target(struct fc_port *fcport, unsigned int l)
 }
 
 int
-qla2x00_lun_reset(struct fc_port *fcport, unsigned int l)
+qla2x00_lun_reset(struct fc_port *fcport, unsigned int l, int tag)
 {
 	int rval, rval2;
 	mbx_cmd_t  mc;
@@ -862,8 +862,8 @@ qla2x00_lun_reset(struct fc_port *fcport, unsigned int l)
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, fcport->vha->host_no));
 
 	vha = fcport->vha;
-	req = vha->hw->req_q_map[0];
-	rsp = vha->hw->rsp_q_map[0];
+	req = vha->hw->req_q_map[tag];
+	rsp = vha->hw->rsp_q_map[tag];
 	mcp->mb[0] = MBC_LUN_RESET;
 	mcp->out_mb = MBX_9|MBX_3|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(vha->hw))
@@ -1492,8 +1492,13 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	dma_addr_t	lg_dma;
 	uint32_t	iop[2];
 	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req;
+	struct rsp_que *rsp;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
+
+	req = vha->req;
+	rsp = req->rsp;
 
 	lg = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
 	if (lg == NULL) {
@@ -1505,6 +1510,7 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 
 	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	lg->entry_count = 1;
+	lg->handle = MAKE_HANDLE(req->id, lg->handle);
 	lg->nport_handle = cpu_to_le16(loop_id);
 	lg->control_flags = __constant_cpu_to_le16(LCF_COMMAND_PLOGI);
 	if (opt & BIT_0)
@@ -1753,6 +1759,8 @@ qla24xx_fabric_logout(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	struct logio_entry_24xx *lg;
 	dma_addr_t	lg_dma;
 	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req;
+	struct rsp_que *rsp;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
 
@@ -1764,8 +1772,14 @@ qla24xx_fabric_logout(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	}
 	memset(lg, 0, sizeof(struct logio_entry_24xx));
 
+	if (ql2xmaxqueues > 1)
+		req = ha->req_q_map[0];
+	else
+		req = vha->req;
+	rsp = req->rsp;
 	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	lg->entry_count = 1;
+	lg->handle = MAKE_HANDLE(req->id, lg->handle);
 	lg->nport_handle = cpu_to_le16(loop_id);
 	lg->control_flags =
 	    __constant_cpu_to_le16(LCF_COMMAND_LOGO|LCF_IMPL_LOGO);
@@ -2204,20 +2218,20 @@ qla24xx_get_isp_stats(scsi_qla_host_t *vha, struct link_statistics *stats,
 }
 
 int
-qla24xx_abort_command(scsi_qla_host_t *vha, srb_t *sp, struct req_que *req)
+qla24xx_abort_command(srb_t *sp)
 {
 	int		rval;
-	fc_port_t	*fcport;
 	unsigned long   flags = 0;
 
 	struct abort_entry_24xx *abt;
 	dma_addr_t	abt_dma;
 	uint32_t	handle;
+	fc_port_t	*fcport = sp->fcport;
+	struct scsi_qla_host *vha = fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req = sp->que;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
-
-	fcport = sp->fcport;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
@@ -2240,6 +2254,7 @@ qla24xx_abort_command(scsi_qla_host_t *vha, srb_t *sp, struct req_que *req)
 
 	abt->entry_type = ABORT_IOCB_TYPE;
 	abt->entry_count = 1;
+	abt->handle = MAKE_HANDLE(req->id, abt->handle);
 	abt->nport_handle = cpu_to_le16(fcport->loop_id);
 	abt->handle_to_abort = handle;
 	abt->port_id[0] = fcport->d_id.b.al_pa;
@@ -2281,7 +2296,7 @@ struct tsk_mgmt_cmd {
 
 static int
 __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
-    unsigned int l)
+    unsigned int l, int tag)
 {
 	int		rval, rval2;
 	struct tsk_mgmt_cmd *tsk;
@@ -2295,8 +2310,8 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 
 	vha = fcport->vha;
 	ha = vha->hw;
-	req = ha->req_q_map[0];
-	rsp = ha->rsp_q_map[0];
+	req = vha->req;
+	rsp = req->rsp;
 	tsk = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &tsk_dma);
 	if (tsk == NULL) {
 		DEBUG2_3(printk("%s(%ld): failed to allocate Task Management "
@@ -2307,6 +2322,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 
 	tsk->p.tsk.entry_type = TSK_MGMT_IOCB_TYPE;
 	tsk->p.tsk.entry_count = 1;
+	tsk->p.tsk.handle = MAKE_HANDLE(req->id, tsk->p.tsk.handle);
 	tsk->p.tsk.nport_handle = cpu_to_le16(fcport->loop_id);
 	tsk->p.tsk.timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	tsk->p.tsk.control_flags = cpu_to_le32(type);
@@ -2353,15 +2369,15 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 }
 
 int
-qla24xx_abort_target(struct fc_port *fcport, unsigned int l)
+qla24xx_abort_target(struct fc_port *fcport, unsigned int l, int tag)
 {
-	return __qla24xx_issue_tmf("Target", TCF_TARGET_RESET, fcport, l);
+	return __qla24xx_issue_tmf("Target", TCF_TARGET_RESET, fcport, l, tag);
 }
 
 int
-qla24xx_lun_reset(struct fc_port *fcport, unsigned int l)
+qla24xx_lun_reset(struct fc_port *fcport, unsigned int l, int tag)
 {
-	return __qla24xx_issue_tmf("Lun", TCF_LUN_RESET, fcport, l);
+	return __qla24xx_issue_tmf("Lun", TCF_LUN_RESET, fcport, l, tag);
 }
 
 int
@@ -3150,6 +3166,8 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 		WRT_REG_DWORD(&reg->req_q_in, 0);
 		WRT_REG_DWORD(&reg->req_q_out, 0);
 	}
+	req->req_q_in = &reg->req_q_in;
+	req->req_q_out = &reg->req_q_out;
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -3176,7 +3194,6 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	mcp->mb[6] = MSW(MSD(rsp->dma));
 	mcp->mb[7] = LSW(MSD(rsp->dma));
 	mcp->mb[5] = rsp->length;
-	mcp->mb[11] = rsp->vp_idx;
 	mcp->mb[14] = rsp->msix->entry;
 	mcp->mb[13] = rsp->rid;
 
@@ -3188,7 +3205,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	mcp->mb[8] = 0;
 	/* que out ptr index */
 	mcp->mb[9] = 0;
-	mcp->out_mb = MBX_14|MBX_13|MBX_12|MBX_11|MBX_10|MBX_9|MBX_8|MBX_7
+	mcp->out_mb = MBX_14|MBX_13|MBX_9|MBX_8|MBX_7
 			|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->in_mb = MBX_0;
 	mcp->flags = MBX_DMA_OUT;

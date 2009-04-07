@@ -453,6 +453,7 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 			mrk24->lun[2] = MSB(lun);
 			host_to_fcp_swap(mrk24->lun, sizeof(mrk24->lun));
 			mrk24->vp_index = vha->vp_idx;
+			mrk24->handle = MAKE_HANDLE(req->id, mrk24->handle);
 		} else {
 			SET_TARGET_ID(ha, mrk->target, loop_id);
 			mrk->lun = cpu_to_le16(lun);
@@ -530,9 +531,6 @@ qla2x00_req_pkt(struct scsi_qla_host *vha, struct req_que *req,
 			dword_ptr = (uint32_t *)pkt;
 			for (cnt = 0; cnt < REQUEST_ENTRY_SIZE / 4; cnt++)
 				*dword_ptr++ = 0;
-
-			/* Set system defined field. */
-			pkt->sys_define = (uint8_t)req->ring_index;
 
 			/* Set entry count. */
 			pkt->entry_count = 1;
@@ -724,19 +722,14 @@ qla24xx_start_scsi(srb_t *sp)
 	struct scsi_cmnd *cmd = sp->cmd;
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
-	uint16_t que_id;
 
 	/* Setup device pointers. */
 	ret = 0;
-	que_id = vha->req_ques[0];
 
-	req = ha->req_q_map[que_id];
+	req = vha->req;
+	rsp = ha->rsp_q_map[0];
 	sp->que = req;
 
-	if (req->rsp)
-		rsp = req->rsp;
-	else
-		rsp = ha->rsp_q_map[que_id];
 	/* So we know we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
@@ -794,7 +787,7 @@ qla24xx_start_scsi(srb_t *sp)
 	req->cnt -= req_cnt;
 
 	cmd_pkt = (struct cmd_type_7 *)req->ring_ptr;
-	cmd_pkt->handle = handle;
+	cmd_pkt->handle = MAKE_HANDLE(req->id, handle);
 
 	/* Zero out remaining portion of packet. */
 	/*    tagged queuing modifier -- default is TSK_SIMPLE (0). */
@@ -823,6 +816,8 @@ qla24xx_start_scsi(srb_t *sp)
 
 	/* Set total data segment count. */
 	cmd_pkt->entry_count = (uint8_t)req_cnt;
+	/* Specify response queue number where completion should happen */
+	cmd_pkt->entry_status = (uint8_t) rsp->id;
 	wmb();
 
 	/* Adjust ring index. */
@@ -842,7 +837,7 @@ qla24xx_start_scsi(srb_t *sp)
 	/* Manage unprocessed RIO/ZIO commands in response queue. */
 	if (vha->flags.process_response_queue &&
 		rsp->ring_ptr->signature != RESPONSE_PROCESSED)
-		qla24xx_process_response_queue(rsp);
+		qla24xx_process_response_queue(vha, rsp);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return QLA_SUCCESS;

@@ -351,7 +351,7 @@ static inline void *
 qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 {
 	uint32_t cnt, que_idx;
-	uint8_t req_cnt, rsp_cnt, que_cnt;
+	uint8_t que_cnt;
 	struct qla2xxx_mq_chain *mq = ptr;
 	struct device_reg_25xxmq __iomem *reg;
 
@@ -363,9 +363,8 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	mq->type = __constant_htonl(DUMP_CHAIN_MQ);
 	mq->chain_size = __constant_htonl(sizeof(struct qla2xxx_mq_chain));
 
-	req_cnt = find_first_zero_bit(ha->req_qid_map, ha->max_queues);
-	rsp_cnt = find_first_zero_bit(ha->rsp_qid_map, ha->max_queues);
-	que_cnt = req_cnt > rsp_cnt ? req_cnt : rsp_cnt;
+	que_cnt = ha->max_req_queues > ha->max_rsp_queues ?
+		ha->max_req_queues : ha->max_rsp_queues;
 	mq->count = htonl(que_cnt);
 	for (cnt = 0; cnt < que_cnt; cnt++) {
 		reg = (struct device_reg_25xxmq *) ((void *)

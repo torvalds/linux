@@ -67,6 +67,7 @@ extern int ql2xextended_error_logging;
 extern int ql2xqfullrampup;
 extern int ql2xiidmaenable;
 extern int ql2xmaxqueues;
+extern int ql2xmultique_tag;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -165,13 +166,13 @@ extern int
 qla2x00_issue_iocb(scsi_qla_host_t *, void *, dma_addr_t, size_t);
 
 extern int
-qla2x00_abort_command(scsi_qla_host_t *, srb_t *, struct req_que *);
+qla2x00_abort_command(srb_t *);
 
 extern int
-qla2x00_abort_target(struct fc_port *, unsigned int);
+qla2x00_abort_target(struct fc_port *, unsigned int, int);
 
 extern int
-qla2x00_lun_reset(struct fc_port *, unsigned int);
+qla2x00_lun_reset(struct fc_port *, unsigned int, int);
 
 extern int
 qla2x00_get_adapter_id(scsi_qla_host_t *, uint16_t *, uint8_t *, uint8_t *,
@@ -236,9 +237,11 @@ extern int
 qla24xx_get_isp_stats(scsi_qla_host_t *, struct link_statistics *,
     dma_addr_t);
 
-extern int qla24xx_abort_command(scsi_qla_host_t *, srb_t *, struct req_que *);
-extern int qla24xx_abort_target(struct fc_port *, unsigned int);
-extern int qla24xx_lun_reset(struct fc_port *, unsigned int);
+extern int qla24xx_abort_command(srb_t *);
+extern int
+qla24xx_abort_target(struct fc_port *, unsigned int, int);
+extern int
+qla24xx_lun_reset(struct fc_port *, unsigned int, int);
 
 extern int
 qla2x00_system_error(scsi_qla_host_t *);
@@ -295,8 +298,8 @@ extern irqreturn_t qla2100_intr_handler(int, void *);
 extern irqreturn_t qla2300_intr_handler(int, void *);
 extern irqreturn_t qla24xx_intr_handler(int, void *);
 extern void qla2x00_process_response_queue(struct rsp_que *);
-extern void qla24xx_process_response_queue(struct rsp_que *);
-
+extern void
+qla24xx_process_response_queue(struct scsi_qla_host *, struct rsp_que *);
 extern int qla2x00_request_irqs(struct qla_hw_data *, struct rsp_que *);
 extern void qla2x00_free_irqs(scsi_qla_host_t *);
 
@@ -401,19 +404,21 @@ extern int qla25xx_request_irq(struct rsp_que *);
 extern int qla25xx_init_req_que(struct scsi_qla_host *, struct req_que *);
 extern int qla25xx_init_rsp_que(struct scsi_qla_host *, struct rsp_que *);
 extern int qla25xx_create_req_que(struct qla_hw_data *, uint16_t, uint8_t,
-	uint16_t, uint8_t, uint8_t);
+	uint16_t, int, uint8_t);
 extern int qla25xx_create_rsp_que(struct qla_hw_data *, uint16_t, uint8_t,
-	uint16_t);
+	uint16_t, int);
 extern int qla25xx_update_req_que(struct scsi_qla_host *, uint8_t, uint8_t);
 extern void qla2x00_init_response_q_entries(struct rsp_que *);
 extern int qla25xx_delete_req_que(struct scsi_qla_host *, struct req_que *);
 extern int qla25xx_delete_rsp_que(struct scsi_qla_host *, struct rsp_que *);
 extern int qla25xx_create_queues(struct scsi_qla_host *, uint8_t);
-extern int qla25xx_delete_queues(struct scsi_qla_host *, uint8_t);
+extern int qla25xx_delete_queues(struct scsi_qla_host *);
 extern uint16_t qla24xx_rd_req_reg(struct qla_hw_data *, uint16_t);
 extern uint16_t qla25xx_rd_req_reg(struct qla_hw_data *, uint16_t);
 extern void qla24xx_wrt_req_reg(struct qla_hw_data *, uint16_t, uint16_t);
 extern void qla25xx_wrt_req_reg(struct qla_hw_data *, uint16_t, uint16_t);
 extern void qla25xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
 extern void qla24xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
+extern struct scsi_qla_host * qla25xx_get_host(struct rsp_que *);
+
 #endif /* _QLA_GBL_H */
