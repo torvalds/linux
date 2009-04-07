@@ -552,6 +552,17 @@ static __always_inline int link_path_walk(const char *name, struct nameidata *nd
 	return result;
 }
 
+static __always_inline void set_root(struct nameidata *nd)
+{
+	if (!nd->root.mnt) {
+		struct fs_struct *fs = current->fs;
+		read_lock(&fs->lock);
+		nd->root = fs->root;
+		path_get(&nd->root);
+		read_unlock(&fs->lock);
+	}
+}
+
 static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link)
 {
 	int res = 0;
@@ -560,14 +571,10 @@ static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *l
 		goto fail;
 
 	if (*link == '/') {
-		struct fs_struct *fs = current->fs;
-
+		set_root(nd);
 		path_put(&nd->path);
-
-		read_lock(&fs->lock);
-		nd->path = fs->root;
-		path_get(&fs->root);
-		read_unlock(&fs->lock);
+		nd->path = nd->root;
+		path_get(&nd->root);
 	}
 
 	res = link_path_walk(link, nd);
@@ -741,19 +748,16 @@ int follow_down(struct vfsmount **mnt, struct dentry **dentry)
 
 static __always_inline void follow_dotdot(struct nameidata *nd)
 {
-	struct fs_struct *fs = current->fs;
+	set_root(nd);
 
 	while(1) {
 		struct vfsmount *parent;
 		struct dentry *old = nd->path.dentry;
 
-                read_lock(&fs->lock);
-		if (nd->path.dentry == fs->root.dentry &&
-		    nd->path.mnt == fs->root.mnt) {
-                        read_unlock(&fs->lock);
+		if (nd->path.dentry == nd->root.dentry &&
+		    nd->path.mnt == nd->root.mnt) {
 			break;
 		}
-                read_unlock(&fs->lock);
 		spin_lock(&dcache_lock);
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
 			nd->path.dentry = dget(nd->path.dentry->d_parent);
@@ -1022,18 +1026,18 @@ static int path_init(int dfd, const char *name, unsigned int flags, struct namei
 	int retval = 0;
 	int fput_needed;
 	struct file *file;
-	struct fs_struct *fs = current->fs;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags;
 	nd->depth = 0;
+	nd->root.mnt = NULL;
 
 	if (*name=='/') {
-		read_lock(&fs->lock);
-		nd->path = fs->root;
-		path_get(&fs->root);
-		read_unlock(&fs->lock);
+		set_root(nd);
+		nd->path = nd->root;
+		path_get(&nd->root);
 	} else if (dfd == AT_FDCWD) {
+		struct fs_struct *fs = current->fs;
 		read_lock(&fs->lock);
 		nd->path = fs->pwd;
 		path_get(&fs->pwd);
@@ -1079,6 +1083,10 @@ static int do_path_lookup(int dfd, const char *name,
 	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
 				nd->path.dentry->d_inode))
 		audit_inode(name, nd->path.dentry);
+	if (nd->root.mnt) {
+		path_put(&nd->root);
+		nd->root.mnt = NULL;
+	}
 	return retval;
 }
 
@@ -1115,6 +1123,7 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 	nd->last_type = LAST_ROOT;
 	nd->flags = flags;
 	nd->depth = 0;
+	nd->root.mnt = NULL;
 
 	nd->path.dentry = dentry;
 	nd->path.mnt = mnt;
@@ -1125,8 +1134,12 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 				nd->path.dentry->d_inode))
 		audit_inode(name, nd->path.dentry);
 
-	return retval;
+	if (nd->root.mnt) {
+		path_put(&nd->root);
+		nd->root.mnt = NULL;
+	}
 
+	return retval;
 }
 
 /**
@@ -1817,6 +1830,8 @@ exit:
 	if (!IS_ERR(nd.intent.open.file))
 		release_open_intent(&nd);
 exit_parent:
+	if (nd.root.mnt)
+		path_put(&nd.root);
 	path_put(&nd.path);
 	return ERR_PTR(error);
 

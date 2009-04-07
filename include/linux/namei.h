@@ -18,6 +18,7 @@ enum { MAX_NESTED_LINKS = 8 };
 struct nameidata {
 	struct path	path;
 	struct qstr	last;
+	struct path	root;
 	unsigned int	flags;
 	int		last_type;
 	unsigned	depth;
