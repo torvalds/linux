@@ -96,6 +96,13 @@ MODULE_PARM_DESC(ql2xmaxqueues,
 		"Enables MQ settings "
 		"Default is 1 for single queue. Set it to number \
 			of queues in MQ mode.");
+
+int ql2xmultique_tag;
+module_param(ql2xmultique_tag, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xmultique_tag,
+		"Enables CPU affinity settings for the driver "
+		"Default is 0 for no affinity of request and response IO. "
+		"Set it to 1 to turn on the cpu affinity.");
 /*
  * SCSI host template entry points
  */
@@ -254,6 +261,47 @@ static void qla2x00_free_queues(struct qla_hw_data *ha)
 	}
 	kfree(ha->rsp_q_map);
 	ha->rsp_q_map = NULL;
+}
+
+static int qla25xx_setup_mode(struct scsi_qla_host *vha)
+{
+	uint16_t options = 0;
+	int ques, req, ret;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (ql2xmultique_tag) {
+		/* CPU affinity mode */
+		ha->wq = create_workqueue("qla2xxx_wq");
+		/* create a request queue for IO */
+		options |= BIT_7;
+		req = qla25xx_create_req_que(ha, options, 0, 0, -1,
+			QLA_DEFAULT_QUE_QOS);
+		if (!req) {
+			qla_printk(KERN_WARNING, ha,
+				"Can't create request queue\n");
+			goto fail;
+		}
+		vha->req = ha->req_q_map[req];
+		options |= BIT_1;
+		for (ques = 1; ques < ha->max_rsp_queues; ques++) {
+			ret = qla25xx_create_rsp_que(ha, options, 0, 0, req);
+			if (!ret) {
+				qla_printk(KERN_WARNING, ha,
+					"Response Queue create failed\n");
+				goto fail2;
+			}
+		}
+		DEBUG2(qla_printk(KERN_INFO, ha,
+			"CPU affinity mode enabled, no. of response"
+			" queues:%d, no. of request queues:%d\n",
+			ha->max_rsp_queues, ha->max_req_queues));
+	}
+	return 0;
+fail2:
+	qla25xx_delete_queues(vha);
+fail:
+	ha->mqenable = 0;
+	return 1;
 }
 
 static char *
@@ -998,6 +1046,9 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 		if (qla2x00_vp_abort_isp(vha))
 			goto eh_host_reset_lock;
 	} else {
+		if (ha->wq)
+			flush_workqueue(ha->wq);
+
 		set_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags);
 		if (qla2x00_abort_isp(base_vha)) {
 			clear_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags);
@@ -1521,6 +1572,7 @@ qla2x00_iospace_config(struct qla_hw_data *ha)
 {
 	resource_size_t pio;
 	uint16_t msix;
+	int cpus;
 
 	if (pci_request_selected_regions(ha->pdev, ha->bars,
 	    QLA2XXX_DRIVER_NAME)) {
@@ -1575,7 +1627,7 @@ skip_pio:
 
 	/* Determine queue resources */
 	ha->max_req_queues = ha->max_rsp_queues = 1;
-	if (ql2xmaxqueues <= 1  &&
+	if ((ql2xmaxqueues <= 1 || ql2xmultique_tag < 1) &&
 		(!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
 		goto mqiobase_exit;
 	ha->mqiobase = ioremap(pci_resource_start(ha->pdev, 3),
@@ -1584,12 +1636,21 @@ skip_pio:
 		/* Read MSIX vector size of the board */
 		pci_read_config_word(ha->pdev, QLA_PCI_MSIX_CONTROL, &msix);
 		ha->msix_count = msix;
-		if (ql2xmaxqueues > 1) {
+		/* Max queues are bounded by available msix vectors */
+		/* queue 0 uses two msix vectors */
+		if (ql2xmultique_tag) {
+			cpus = num_online_cpus();
+			ha->max_rsp_queues = (ha->msix_count - 1 - cpus) ?
+				(cpus + 1) : (ha->msix_count - 1);
+			ha->max_req_queues = 2;
+		} else if (ql2xmaxqueues > 1) {
 			ha->max_req_queues = ql2xmaxqueues > QLA_MQ_SIZE ?
 						QLA_MQ_SIZE : ql2xmaxqueues;
 			DEBUG2(qla_printk(KERN_INFO, ha, "QoS mode set, max no"
 			" of request queues:%d\n", ha->max_req_queues));
 		}
+		qla_printk(KERN_INFO, ha,
+			"MSI-X vector count: %d\n", msix);
 	} else
 		qla_printk(KERN_INFO, ha, "BAR 3 not enabled\n");
 
@@ -1871,6 +1932,12 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto probe_failed;
 	}
 
+	if (ha->mqenable)
+		if (qla25xx_setup_mode(base_vha))
+			qla_printk(KERN_WARNING, ha,
+				"Can't create queues, falling back to single"
+				" queue mode\n");
+
 	/*
 	 * Startup the kernel thread for this host adapter
 	 */
@@ -1981,6 +2048,13 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		qla2x00_stop_timer(base_vha);
 
 	base_vha->flags.online = 0;
+
+	/* Flush the work queue and remove it */
+	if (ha->wq) {
+		flush_workqueue(ha->wq);
+		destroy_workqueue(ha->wq);
+		ha->wq = NULL;
+	}
 
 	/* Kill the kernel thread for this host */
 	if (ha->dpc_thread) {

@@ -1718,6 +1718,25 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 }
 
 static irqreturn_t
+qla25xx_msix_rsp_q(int irq, void *dev_id)
+{
+	struct qla_hw_data *ha;
+	struct rsp_que *rsp;
+
+	rsp = (struct rsp_que *) dev_id;
+	if (!rsp) {
+		printk(KERN_INFO
+			"%s(): NULL response queue pointer\n", __func__);
+		return IRQ_NONE;
+	}
+	ha = rsp->hw;
+
+	queue_work_on((int) (rsp->id - 1), ha->wq, &rsp->q_work);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t
 qla24xx_msix_default(int irq, void *dev_id)
 {
 	scsi_qla_host_t	*vha;
@@ -1806,9 +1825,10 @@ struct qla_init_msix_entry {
 	irq_handler_t handler;
 };
 
-static struct qla_init_msix_entry msix_entries[2] = {
+static struct qla_init_msix_entry msix_entries[3] = {
 	{ "qla2xxx (default)", qla24xx_msix_default },
 	{ "qla2xxx (rsp_q)", qla24xx_msix_rsp_q },
+	{ "qla2xxx (multiq)", qla25xx_msix_rsp_q },
 };
 
 static void

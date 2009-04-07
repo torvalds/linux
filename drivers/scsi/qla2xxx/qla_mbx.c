@@ -1497,7 +1497,10 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
 
-	req = vha->req;
+	if (ql2xmultique_tag)
+		req = ha->req_q_map[0];
+	else
+		req = vha->req;
 	rsp = req->rsp;
 
 	lg = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
@@ -2311,7 +2314,10 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	vha = fcport->vha;
 	ha = vha->hw;
 	req = vha->req;
-	rsp = req->rsp;
+	if (ql2xmultique_tag)
+		rsp = ha->rsp_q_map[tag + 1];
+	else
+		rsp = req->rsp;
 	tsk = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &tsk_dma);
 	if (tsk == NULL) {
 		DEBUG2_3(printk("%s(%ld): failed to allocate Task Management "

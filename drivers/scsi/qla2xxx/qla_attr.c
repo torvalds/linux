@@ -1531,7 +1531,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	qla24xx_vport_disable(fc_vport, disable);
 
 	ret = 0;
-	if (ha->cur_vport_count <= ha->flex_port_count
+	if (ha->cur_vport_count <= ha->flex_port_count || ql2xmultique_tag
 		|| ha->max_req_queues == 1 || !ha->npiv_info)
 		goto vport_queue;
 	/* Create a request queue in QoS mode for the vport */
@@ -1599,7 +1599,7 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 		    vha->host_no, vha->vp_idx, vha));
         }
 
-	if (vha->req->id) {
+	if (vha->req->id && !ql2xmultique_tag) {
 		if (qla25xx_delete_req_que(vha, vha->req) != QLA_SUCCESS)
 			qla_printk(KERN_WARNING, ha,
 				"Queue delete failed.\n");

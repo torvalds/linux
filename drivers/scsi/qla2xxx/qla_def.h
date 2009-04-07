@@ -2171,6 +2171,7 @@ struct rsp_que {
 	struct qla_msix_entry *msix;
 	struct req_que *req;
 	srb_t *status_srb; /* status continuation entry */
+	struct work_struct q_work;
 };
 
 /* Request queue data structure */
@@ -2539,6 +2540,7 @@ struct qla_hw_data {
 	struct qla_chip_state_84xx *cs84xx;
 	struct qla_statistics qla_stats;
 	struct isp_operations *isp_ops;
+	struct workqueue_struct *wq;
 };
 
 /*

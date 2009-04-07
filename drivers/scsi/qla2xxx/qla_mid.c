@@ -633,6 +633,15 @@ que_failed:
 	return 0;
 }
 
+static void qla_do_work(struct work_struct *work)
+{
+	struct rsp_que *rsp = container_of(work, struct rsp_que, q_work);
+	struct scsi_qla_host *vha;
+
+	vha = qla25xx_get_host(rsp);
+	qla24xx_process_response_queue(vha, rsp);
+}
+
 /* create response queue */
 int
 qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
@@ -711,6 +720,8 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 		rsp->req = NULL;
 
 	qla2x00_init_response_q_entries(rsp);
+	if (rsp->hw->wq)
+		INIT_WORK(&rsp->q_work, qla_do_work);
 	return rsp->id;
 
 que_failed:
