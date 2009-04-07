@@ -112,18 +112,28 @@ struct kprobe {
 	/* copy of the original instruction */
 	struct arch_specific_insn ainsn;
 
-	/* Indicates various status flags.  Protected by kprobe_mutex. */
+	/*
+	 * Indicates various status flags.
+	 * Protected by kprobe_mutex after this kprobe is registered.
+	 */
 	u32 flags;
 };
 
 /* Kprobe status flags */
 #define KPROBE_FLAG_GONE	1 /* breakpoint has already gone */
+#define KPROBE_FLAG_DISABLED	2 /* probe is temporarily disabled */
 
+/* Has this kprobe gone ? */
 static inline int kprobe_gone(struct kprobe *p)
 {
 	return p->flags & KPROBE_FLAG_GONE;
 }
 
+/* Is this kprobe disabled ? */
+static inline int kprobe_disabled(struct kprobe *p)
+{
+	return p->flags & (KPROBE_FLAG_DISABLED | KPROBE_FLAG_GONE);
+}
 /*
  * Special probe type that uses setjmp-longjmp type tricks to resume
  * execution at a specified entry with a matching prototype corresponding
@@ -283,6 +293,9 @@ void unregister_kretprobes(struct kretprobe **rps, int num);
 void kprobe_flush_task(struct task_struct *tk);
 void recycle_rp_inst(struct kretprobe_instance *ri, struct hlist_head *head);
 
+int disable_kprobe(struct kprobe *kp);
+int enable_kprobe(struct kprobe *kp);
+
 #else /* !CONFIG_KPROBES: */
 
 static inline int kprobes_built_in(void)
@@ -348,6 +361,14 @@ static inline void unregister_kretprobes(struct kretprobe **rps, int num)
 }
 static inline void kprobe_flush_task(struct task_struct *tk)
 {
+}
+static inline int disable_kprobe(struct kprobe *kp)
+{
+	return -ENOSYS;
+}
+static inline int enable_kprobe(struct kprobe *kp)
+{
+	return -ENOSYS;
 }
 #endif /* CONFIG_KPROBES */
 #endif /* _LINUX_KPROBES_H */

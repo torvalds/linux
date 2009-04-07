@@ -328,7 +328,7 @@ static int __kprobes aggr_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	struct kprobe *kp;
 
 	list_for_each_entry_rcu(kp, &p->list, list) {
-		if (kp->pre_handler && !kprobe_gone(kp)) {
+		if (kp->pre_handler && likely(!kprobe_disabled(kp))) {
 			set_kprobe_instance(kp);
 			if (kp->pre_handler(kp, regs))
 				return 1;
@@ -344,7 +344,7 @@ static void __kprobes aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
 	struct kprobe *kp;
 
 	list_for_each_entry_rcu(kp, &p->list, list) {
-		if (kp->post_handler && !kprobe_gone(kp)) {
+		if (kp->post_handler && likely(!kprobe_disabled(kp))) {
 			set_kprobe_instance(kp);
 			kp->post_handler(kp, regs, flags);
 			reset_kprobe_instance();
@@ -523,6 +523,7 @@ static inline void copy_kprobe(struct kprobe *old_p, struct kprobe *p)
 */
 static int __kprobes add_new_kprobe(struct kprobe *ap, struct kprobe *p)
 {
+	BUG_ON(kprobe_gone(ap) || kprobe_gone(p));
 	if (p->break_handler) {
 		if (ap->break_handler)
 			return -EEXIST;
@@ -532,6 +533,13 @@ static int __kprobes add_new_kprobe(struct kprobe *ap, struct kprobe *p)
 		list_add_rcu(&p->list, &ap->list);
 	if (p->post_handler && !ap->post_handler)
 		ap->post_handler = aggr_post_handler;
+
+	if (kprobe_disabled(ap) && !kprobe_disabled(p)) {
+		ap->flags &= ~KPROBE_FLAG_DISABLED;
+		if (!kprobes_all_disarmed)
+			/* Arm the breakpoint again. */
+			arch_arm_kprobe(ap);
+	}
 	return 0;
 }
 
@@ -592,18 +600,34 @@ static int __kprobes register_aggr_kprobe(struct kprobe *old_p,
 			 * freed by unregister_kprobe.
 			 */
 			return ret;
-		/* Clear gone flag to prevent allocating new slot again. */
-		ap->flags &= ~KPROBE_FLAG_GONE;
+
 		/*
-		 * If the old_p has gone, its breakpoint has been disarmed.
-		 * We have to arm it again after preparing real kprobes.
+		 * Clear gone flag to prevent allocating new slot again, and
+		 * set disabled flag because it is not armed yet.
 		 */
-		if (!kprobes_all_disarmed)
-			arch_arm_kprobe(ap);
+		ap->flags = (ap->flags & ~KPROBE_FLAG_GONE)
+			    | KPROBE_FLAG_DISABLED;
 	}
 
 	copy_kprobe(ap, p);
 	return add_new_kprobe(ap, p);
+}
+
+/* Try to disable aggr_kprobe, and return 1 if succeeded.*/
+static int __kprobes try_to_disable_aggr_kprobe(struct kprobe *p)
+{
+	struct kprobe *kp;
+
+	list_for_each_entry_rcu(kp, &p->list, list) {
+		if (!kprobe_disabled(kp))
+			/*
+			 * There is an active probe on the list.
+			 * We can't disable aggr_kprobe.
+			 */
+			return 0;
+	}
+	p->flags |= KPROBE_FLAG_DISABLED;
+	return 1;
 }
 
 static int __kprobes in_kprobes_functions(unsigned long addr)
@@ -664,7 +688,9 @@ int __kprobes register_kprobe(struct kprobe *p)
 		return -EINVAL;
 	}
 
-	p->flags = 0;
+	/* User can pass only KPROBE_FLAG_DISABLED to register_kprobe */
+	p->flags &= KPROBE_FLAG_DISABLED;
+
 	/*
 	 * Check if are we probing a module.
 	 */
@@ -709,7 +735,7 @@ int __kprobes register_kprobe(struct kprobe *p)
 	hlist_add_head_rcu(&p->hlist,
 		       &kprobe_table[hash_ptr(p->addr, KPROBE_HASH_BITS)]);
 
-	if (!kprobes_all_disarmed)
+	if (!kprobes_all_disarmed && !kprobe_disabled(p))
 		arch_arm_kprobe(p);
 
 out_unlock_text:
@@ -724,6 +750,26 @@ out:
 }
 EXPORT_SYMBOL_GPL(register_kprobe);
 
+/* Check passed kprobe is valid and return kprobe in kprobe_table. */
+static struct kprobe * __kprobes __get_valid_kprobe(struct kprobe *p)
+{
+	struct kprobe *old_p, *list_p;
+
+	old_p = get_kprobe(p->addr);
+	if (unlikely(!old_p))
+		return NULL;
+
+	if (p != old_p) {
+		list_for_each_entry_rcu(list_p, &old_p->list, list)
+			if (list_p == p)
+			/* kprobe p is a valid probe */
+				goto valid;
+		return NULL;
+	}
+valid:
+	return old_p;
+}
+
 /*
  * Unregister a kprobe without a scheduler synchronization.
  */
@@ -731,18 +777,10 @@ static int __kprobes __unregister_kprobe_top(struct kprobe *p)
 {
 	struct kprobe *old_p, *list_p;
 
-	old_p = get_kprobe(p->addr);
-	if (unlikely(!old_p))
+	old_p = __get_valid_kprobe(p);
+	if (old_p == NULL)
 		return -EINVAL;
 
-	if (p != old_p) {
-		list_for_each_entry_rcu(list_p, &old_p->list, list)
-			if (list_p == p)
-			/* kprobe p is a valid probe */
-				goto valid_p;
-		return -EINVAL;
-	}
-valid_p:
 	if (old_p == p ||
 	    (old_p->pre_handler == aggr_pre_handler &&
 	     list_is_singular(&old_p->list))) {
@@ -751,7 +789,7 @@ valid_p:
 		 * enabled and not gone - otherwise, the breakpoint would
 		 * already have been removed. We save on flushing icache.
 		 */
-		if (!kprobes_all_disarmed && !kprobe_gone(old_p)) {
+		if (!kprobes_all_disarmed && !kprobe_disabled(old_p)) {
 			mutex_lock(&text_mutex);
 			arch_disarm_kprobe(p);
 			mutex_unlock(&text_mutex);
@@ -769,6 +807,11 @@ valid_p:
 		}
 noclean:
 		list_del_rcu(&p->list);
+		if (!kprobe_disabled(old_p)) {
+			try_to_disable_aggr_kprobe(old_p);
+			if (!kprobes_all_disarmed && kprobe_disabled(old_p))
+				arch_disarm_kprobe(old_p);
+		}
 	}
 	return 0;
 }
@@ -1078,6 +1121,7 @@ static int __kprobes pre_handler_kretprobe(struct kprobe *p,
 static void __kprobes kill_kprobe(struct kprobe *p)
 {
 	struct kprobe *kp;
+
 	p->flags |= KPROBE_FLAG_GONE;
 	if (p->pre_handler == aggr_pre_handler) {
 		/*
@@ -1219,12 +1263,18 @@ static void __kprobes report_probe(struct seq_file *pi, struct kprobe *p,
 	else
 		kprobe_type = "k";
 	if (sym)
-		seq_printf(pi, "%p  %s  %s+0x%x  %s %s\n", p->addr, kprobe_type,
-			sym, offset, (modname ? modname : " "),
-			(kprobe_gone(p) ? "[GONE]" : ""));
+		seq_printf(pi, "%p  %s  %s+0x%x  %s %s%s\n",
+			p->addr, kprobe_type, sym, offset,
+			(modname ? modname : " "),
+			(kprobe_gone(p) ? "[GONE]" : ""),
+			((kprobe_disabled(p) && !kprobe_gone(p)) ?
+			 "[DISABLED]" : ""));
 	else
-		seq_printf(pi, "%p  %s  %p %s\n", p->addr, kprobe_type, p->addr,
-			(kprobe_gone(p) ? "[GONE]" : ""));
+		seq_printf(pi, "%p  %s  %p %s%s\n",
+			p->addr, kprobe_type, p->addr,
+			(kprobe_gone(p) ? "[GONE]" : ""),
+			((kprobe_disabled(p) && !kprobe_gone(p)) ?
+			 "[DISABLED]" : ""));
 }
 
 static void __kprobes *kprobe_seq_start(struct seq_file *f, loff_t *pos)
@@ -1289,6 +1339,71 @@ static struct file_operations debugfs_kprobes_operations = {
 	.release        = seq_release,
 };
 
+/* Disable one kprobe */
+int __kprobes disable_kprobe(struct kprobe *kp)
+{
+	int ret = 0;
+	struct kprobe *p;
+
+	mutex_lock(&kprobe_mutex);
+
+	/* Check whether specified probe is valid. */
+	p = __get_valid_kprobe(kp);
+	if (unlikely(p == NULL)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* If the probe is already disabled (or gone), just return */
+	if (kprobe_disabled(kp))
+		goto out;
+
+	kp->flags |= KPROBE_FLAG_DISABLED;
+	if (p != kp)
+		/* When kp != p, p is always enabled. */
+		try_to_disable_aggr_kprobe(p);
+
+	if (!kprobes_all_disarmed && kprobe_disabled(p))
+		arch_disarm_kprobe(p);
+out:
+	mutex_unlock(&kprobe_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(disable_kprobe);
+
+/* Enable one kprobe */
+int __kprobes enable_kprobe(struct kprobe *kp)
+{
+	int ret = 0;
+	struct kprobe *p;
+
+	mutex_lock(&kprobe_mutex);
+
+	/* Check whether specified probe is valid. */
+	p = __get_valid_kprobe(kp);
+	if (unlikely(p == NULL)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (kprobe_gone(kp)) {
+		/* This kprobe has gone, we couldn't enable it. */
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!kprobes_all_disarmed && kprobe_disabled(p))
+		arch_arm_kprobe(p);
+
+	p->flags &= ~KPROBE_FLAG_DISABLED;
+	if (p != kp)
+		kp->flags &= ~KPROBE_FLAG_DISABLED;
+out:
+	mutex_unlock(&kprobe_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(enable_kprobe);
+
 static void __kprobes arm_all_kprobes(void)
 {
 	struct hlist_head *head;
@@ -1306,7 +1421,7 @@ static void __kprobes arm_all_kprobes(void)
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
 		hlist_for_each_entry_rcu(p, node, head, hlist)
-			if (!kprobe_gone(p))
+			if (!kprobe_disabled(p))
 				arch_arm_kprobe(p);
 	}
 	mutex_unlock(&text_mutex);
@@ -1338,7 +1453,7 @@ static void __kprobes disarm_all_kprobes(void)
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
 		hlist_for_each_entry_rcu(p, node, head, hlist) {
-			if (!arch_trampoline_kprobe(p) && !kprobe_gone(p))
+			if (!arch_trampoline_kprobe(p) && !kprobe_disabled(p))
 				arch_disarm_kprobe(p);
 		}
 	}
