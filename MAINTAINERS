@@ -3244,6 +3244,13 @@ M:	andi@lisas.de
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+NILFS2 FILESYSTEM
+P:	KONISHI Ryusuke
+M:	konishi.ryusuke@lab.ntt.co.jp
+L:	users@nilfs.org
+W:	http://www.nilfs.org/en/
+S:	Supported
+
 NINJA SCSI-3 / NINJA SCSI-32Bi (16bit/CardBus) PCMCIA SCSI HOST ADAPTER DRIVER
 P:	YOKOTA Hiroshi
 M:	yokota@netlab.is.tsukuba.ac.jp
