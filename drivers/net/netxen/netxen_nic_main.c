@@ -175,7 +175,8 @@ netxen_napi_add(struct netxen_adapter *adapter, struct net_device *netdev)
 	struct nx_host_sds_ring *sds_ring;
 	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 
-	if (adapter->flags & NETXEN_NIC_MSIX_ENABLED)
+	if ((adapter->flags & NETXEN_NIC_MSIX_ENABLED) &&
+			adapter->rss_supported)
 		adapter->max_sds_rings = (num_online_cpus() >= 4) ? 4 : 2;
 	else
 		adapter->max_sds_rings = 1;
@@ -288,10 +289,22 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 	else if (adapter->ahw.port_type == NETXEN_NIC_GBE)
 		adapter->num_rxd = MAX_RCV_DESCRIPTORS_1G;
 
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+	adapter->msix_supported = 0;
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		adapter->msix_supported = !!use_msi_x;
-	else
-		adapter->msix_supported = 0;
+		adapter->rss_supported = !!use_msi_x;
+	} else if (adapter->fw_version >= NETXEN_VERSION_CODE(3, 4, 336)) {
+		switch (adapter->ahw.board_type) {
+		case NETXEN_BRDTYPE_P2_SB31_10G:
+		case NETXEN_BRDTYPE_P2_SB31_10G_CX4:
+		case NETXEN_BRDTYPE_P2_SB31_10G_HMEZ:
+			adapter->msix_supported = !!use_msi_x;
+			adapter->rss_supported = !!use_msi_x;
+			break;
+		default:
+			break;
+		}
+	}
 
 	adapter->num_txd = MAX_CMD_DESCRIPTORS_HOST;
 	adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS;

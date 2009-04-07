@@ -36,6 +36,8 @@
  */
 #define NIC_CRB_BASE               NETXEN_CAM_RAM(0x200)
 #define NETXEN_NIC_REG(X)             (NIC_CRB_BASE+(X))
+#define NIC_CRB_BASE_2             NETXEN_CAM_RAM(0x700)
+#define NETXEN_NIC_REG_2(X)         (NIC_CRB_BASE_2+(X))
 
 #define CRB_PHAN_CNTRL_LO_OFFSET    NETXEN_NIC_REG(0x00)
 #define CRB_PHAN_CNTRL_HI_OFFSET    NETXEN_NIC_REG(0x04)
@@ -160,7 +162,8 @@
 
 struct netxen_recv_crb {
 	u32 crb_rcv_producer[NUM_RCV_DESC_RINGS];
-	u32 crb_sts_consumer;
+	u32 crb_sts_consumer[NUM_STS_DESC_RINGS];
+	u32 sw_int_mask[NUM_STS_DESC_RINGS];
 };
 
 /*

@@ -195,6 +195,8 @@
 #define MAX_JUMBO_RCV_DESCRIPTORS	1024
 #define MAX_LRO_RCV_DESCRIPTORS		8
 #define NETXEN_CTX_SIGNATURE	0xdee0
+#define NETXEN_CTX_SIGNATURE_V2	0x0002dee0
+#define NETXEN_CTX_RESET	0xbad0
 #define NETXEN_RCV_PRODUCER(ringid)	(ringid)
 
 #define PHAN_PEG_RCV_INITIALIZED	0xff01
@@ -234,11 +236,18 @@ typedef u32 netxen_ctx_msg;
 #define netxen_set_msg_opcode(config_word, val)	\
 	((config_word) &= ~(0xf<<28), (config_word) |= (val & 0xf) << 28)
 
-struct netxen_rcv_context {
-	__le64 rcv_ring_addr;
-	__le32 rcv_ring_size;
+struct netxen_rcv_ring {
+	__le64 addr;
+	__le32 size;
 	__le32 rsrvd;
 };
+
+struct netxen_sts_ring {
+	__le64 addr;
+	__le32 size;
+	__le16 msi_index;
+	__le16 rsvd;
+} ;
 
 struct netxen_ring_ctx {
 
@@ -249,13 +258,18 @@ struct netxen_ring_ctx {
 	__le32 rsrvd;
 
 	/* three receive rings */
-	struct netxen_rcv_context rcv_ctx[3];
+	struct netxen_rcv_ring rcv_rings[NUM_RCV_DESC_RINGS];
 
-	/* one status ring */
 	__le64 sts_ring_addr;
 	__le32 sts_ring_size;
 
 	__le32 ctx_id;
+
+	__le64 rsrvd_2[3];
+	__le32 sts_ring_count;
+	__le32 rsrvd_3;
+	struct netxen_sts_ring sts_rings[NUM_STS_DESC_RINGS];
+
 } __attribute__ ((aligned(64)));
 
 /*
@@ -1219,7 +1233,8 @@ struct netxen_adapter {
 
 	u8 mc_enabled;
 	u8 max_mc_count;
-	u16 resv2;
+	u8 rss_supported;
+	u8 resv2;
 	u32 resv3;
 
 	u8 has_link_events;

@@ -441,7 +441,19 @@ static struct netxen_recv_crb recv_crb_registers[] = {
 			NETXEN_NIC_REG(0x120)
 		},
 		/* crb_sts_consumer: */
-		NETXEN_NIC_REG(0x138),
+		{
+			NETXEN_NIC_REG(0x138),
+			NETXEN_NIC_REG_2(0x000),
+			NETXEN_NIC_REG_2(0x004),
+			NETXEN_NIC_REG_2(0x008),
+		},
+		/* sw_int_mask */
+		{
+			CRB_SW_INT_MASK_0,
+			NETXEN_NIC_REG_2(0x044),
+			NETXEN_NIC_REG_2(0x048),
+			NETXEN_NIC_REG_2(0x04c),
+		},
 	},
 	/* Instance 1 */
 	{
@@ -454,7 +466,19 @@ static struct netxen_recv_crb recv_crb_registers[] = {
 			NETXEN_NIC_REG(0x164)
 		},
 		/* crb_sts_consumer: */
-		NETXEN_NIC_REG(0x17c),
+		{
+			NETXEN_NIC_REG(0x17c),
+			NETXEN_NIC_REG_2(0x020),
+			NETXEN_NIC_REG_2(0x024),
+			NETXEN_NIC_REG_2(0x028),
+		},
+		/* sw_int_mask */
+		{
+			CRB_SW_INT_MASK_1,
+			NETXEN_NIC_REG_2(0x064),
+			NETXEN_NIC_REG_2(0x068),
+			NETXEN_NIC_REG_2(0x06c),
+		},
 	},
 	/* Instance 2 */
 	{
@@ -467,7 +491,19 @@ static struct netxen_recv_crb recv_crb_registers[] = {
 			NETXEN_NIC_REG(0x208)
 		},
 		/* crb_sts_consumer: */
-		NETXEN_NIC_REG(0x220),
+		{
+			NETXEN_NIC_REG(0x220),
+			NETXEN_NIC_REG_2(0x03c),
+			NETXEN_NIC_REG_2(0x03c),
+			NETXEN_NIC_REG_2(0x03c),
+		},
+		/* sw_int_mask */
+		{
+			CRB_SW_INT_MASK_2,
+			NETXEN_NIC_REG_2(0x03c),
+			NETXEN_NIC_REG_2(0x03c),
+			NETXEN_NIC_REG_2(0x03c),
+		},
 	},
 	/* Instance 3 */
 	{
@@ -480,7 +516,19 @@ static struct netxen_recv_crb recv_crb_registers[] = {
 			NETXEN_NIC_REG(0x24c)
 		},
 		/* crb_sts_consumer: */
-		NETXEN_NIC_REG(0x264),
+		{
+			NETXEN_NIC_REG(0x264),
+			NETXEN_NIC_REG_2(0x03c),
+			NETXEN_NIC_REG_2(0x03c),
+			NETXEN_NIC_REG_2(0x03c),
+		},
+		/* sw_int_mask */
+		{
+			CRB_SW_INT_MASK_3,
+			NETXEN_NIC_REG_2(0x03c),
+			NETXEN_NIC_REG_2(0x03c),
+			NETXEN_NIC_REG_2(0x03c),
+		},
 	},
 };
 
@@ -492,39 +540,49 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 	struct nx_host_sds_ring *sds_ring;
 	struct nx_host_tx_ring *tx_ring;
 	int ring;
-	int func_id = adapter->portnum;
+	int port = adapter->portnum;
+	struct netxen_ring_ctx *hwctx = adapter->ctx_desc;
+	u32 signature;
 
 	tx_ring = &adapter->tx_ring;
-	adapter->ctx_desc->cmd_ring_addr = cpu_to_le64(tx_ring->phys_addr);
-	adapter->ctx_desc->cmd_ring_size = cpu_to_le32(tx_ring->num_desc);
+	hwctx->cmd_ring_addr = cpu_to_le64(tx_ring->phys_addr);
+	hwctx->cmd_ring_size = cpu_to_le32(tx_ring->num_desc);
 
 	recv_ctx = &adapter->recv_ctx;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
 
-		adapter->ctx_desc->rcv_ctx[ring].rcv_ring_addr =
+		hwctx->rcv_rings[ring].addr =
 			cpu_to_le64(rds_ring->phys_addr);
-		adapter->ctx_desc->rcv_ctx[ring].rcv_ring_size =
+		hwctx->rcv_rings[ring].size =
 			cpu_to_le32(rds_ring->num_desc);
 	}
-	sds_ring = &recv_ctx->sds_rings[0];
-	adapter->ctx_desc->sts_ring_addr = cpu_to_le64(sds_ring->phys_addr);
-	adapter->ctx_desc->sts_ring_size = cpu_to_le32(sds_ring->num_desc);
 
-	NXWR32(adapter, CRB_CTX_ADDR_REG_LO(func_id),
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+
+		if (ring == 0) {
+			hwctx->sts_ring_addr = cpu_to_le64(sds_ring->phys_addr);
+			hwctx->sts_ring_size = cpu_to_le32(sds_ring->num_desc);
+		}
+		hwctx->sts_rings[ring].addr = cpu_to_le64(sds_ring->phys_addr);
+		hwctx->sts_rings[ring].size = cpu_to_le32(sds_ring->num_desc);
+		hwctx->sts_rings[ring].msi_index = cpu_to_le16(ring);
+	}
+	hwctx->sts_ring_count = cpu_to_le32(adapter->max_sds_rings);
+
+	signature = (adapter->max_sds_rings > 1) ?
+		NETXEN_CTX_SIGNATURE_V2 : NETXEN_CTX_SIGNATURE;
+
+	NXWR32(adapter, CRB_CTX_ADDR_REG_LO(port),
 			lower32(adapter->ctx_desc_phys_addr));
-	NXWR32(adapter, CRB_CTX_ADDR_REG_HI(func_id),
+	NXWR32(adapter, CRB_CTX_ADDR_REG_HI(port),
 			upper32(adapter->ctx_desc_phys_addr));
-	NXWR32(adapter, CRB_CTX_SIGNATURE_REG(func_id),
-			NETXEN_CTX_SIGNATURE | func_id);
+	NXWR32(adapter, CRB_CTX_SIGNATURE_REG(port),
+			signature | port);
 	return 0;
 }
-
-static uint32_t sw_int_mask[4] = {
-	CRB_SW_INT_MASK_0, CRB_SW_INT_MASK_1,
-	CRB_SW_INT_MASK_2, CRB_SW_INT_MASK_3
-};
 
 int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 {
@@ -538,6 +596,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 
 	struct pci_dev *pdev = adapter->pdev;
 	struct net_device *netdev = adapter->netdev;
+	int port = adapter->portnum;
 
 	addr = pci_alloc_consistent(pdev,
 			sizeof(struct netxen_ring_ctx) + sizeof(uint32_t),
@@ -549,7 +608,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	}
 	memset(addr, 0, sizeof(struct netxen_ring_ctx));
 	adapter->ctx_desc = (struct netxen_ring_ctx *)addr;
-	adapter->ctx_desc->ctx_id = cpu_to_le32(adapter->portnum);
+	adapter->ctx_desc->ctx_id = cpu_to_le32(port);
 	adapter->ctx_desc->cmd_consumer_offset =
 		cpu_to_le64(adapter->ctx_desc_phys_addr +
 			sizeof(struct netxen_ring_ctx));
@@ -586,8 +645,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 
 		if (adapter->fw_major < 4)
 			rds_ring->crb_rcv_producer =
-				recv_crb_registers[adapter->portnum].
-				crb_rcv_producer[ring];
+				recv_crb_registers[port].crb_rcv_producer[ring];
 	}
 
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
@@ -604,6 +662,12 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 			goto err_out_free;
 		}
 		sds_ring->desc_head = (struct status_desc *)addr;
+
+		sds_ring->crb_sts_consumer =
+			recv_crb_registers[port].crb_sts_consumer[ring];
+
+		sds_ring->crb_intr_mask =
+			recv_crb_registers[port].sw_int_mask[ring];
 	}
 
 
@@ -615,19 +679,11 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		if (err)
 			goto err_out_free;
 	} else {
-		sds_ring = &recv_ctx->sds_rings[0];
-		sds_ring->crb_sts_consumer =
-			recv_crb_registers[adapter->portnum].crb_sts_consumer;
-
-		recv_ctx->sds_rings[0].crb_intr_mask =
-				sw_int_mask[adapter->portnum];
-
 		err = netxen_init_old_ctx(adapter);
 		if (err) {
 			netxen_free_hw_resources(adapter);
 			return err;
 		}
-
 	}
 
 	return 0;
@@ -645,9 +701,16 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 	struct nx_host_tx_ring *tx_ring;
 	int ring;
 
+	int port = adapter->portnum;
+
 	if (adapter->fw_major >= 4) {
 		nx_fw_cmd_destroy_tx_ctx(adapter);
 		nx_fw_cmd_destroy_rx_ctx(adapter);
+	} else {
+		netxen_api_lock(adapter);
+		NXWR32(adapter, CRB_CTX_SIGNATURE_REG(port),
+				NETXEN_CTX_RESET | port);
+		netxen_api_unlock(adapter);
 	}
 
 	if (adapter->ctx_desc != NULL) {
