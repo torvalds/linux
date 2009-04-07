@@ -458,6 +458,18 @@ static int marvell_read_status(struct phy_device *phydev)
 	return 0;
 }
 
+static int m88e1121_did_interrupt(struct phy_device *phydev)
+{
+	int imask;
+
+	imask = phy_read(phydev, MII_M1011_IEVENT);
+
+	if (imask & MII_M1011_IMASK_INIT)
+		return 1;
+
+	return 0;
+}
+
 static struct phy_driver marvell_drivers[] = {
 	{
 		.phy_id = 0x01410c60,
@@ -520,6 +532,7 @@ static struct phy_driver marvell_drivers[] = {
 		.read_status = &marvell_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
+		.did_interrupt = &m88e1121_did_interrupt,
 		.driver = { .owner = THIS_MODULE },
 	},
 	{
