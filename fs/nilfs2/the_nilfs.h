@@ -51,7 +51,6 @@ enum {
  * @ns_writer_refcount: number of referrers on ns_writer
  * @ns_sbh: buffer head of the on-disk super block
  * @ns_sbp: pointer to the super block data
- * @ns_used_segments: list of full segments in volatile active state
  * @ns_supers: list of nilfs super block structs
  * @ns_seg_seq: segment sequence counter
  * @ns_segnum: index number of the latest full segment.
@@ -65,6 +64,7 @@ enum {
  * @ns_last_pseg: start block number of the latest segment
  * @ns_last_seq: sequence value of the latest segment
  * @ns_last_cno: checkpoint number of the latest segment
+ * @ns_prot_seq: least sequence number of segments which must not be reclaimed
  * @ns_free_segments_count: counter of free segments
  * @ns_segctor_sem: segment constructor semaphore
  * @ns_dat: DAT file inode
@@ -103,7 +103,6 @@ struct the_nilfs {
 	 */
 	struct buffer_head     *ns_sbh;
 	struct nilfs_super_block *ns_sbp;
-	struct list_head	ns_used_segments;
 	unsigned		ns_mount_state;
 	struct list_head	ns_supers;
 
@@ -132,6 +131,7 @@ struct the_nilfs {
 	sector_t		ns_last_pseg;
 	u64			ns_last_seq;
 	__u64			ns_last_cno;
+	u64			ns_prot_seq;
 	unsigned long		ns_free_segments_count;
 
 	struct rw_semaphore	ns_segctor_sem;
@@ -188,7 +188,6 @@ void put_nilfs(struct the_nilfs *);
 int init_nilfs(struct the_nilfs *, struct nilfs_sb_info *, char *);
 int load_nilfs(struct the_nilfs *, struct nilfs_sb_info *);
 int nilfs_count_free_blocks(struct the_nilfs *, sector_t *);
-void nilfs_dispose_used_segments(struct the_nilfs *);
 int nilfs_checkpoint_is_mounted(struct the_nilfs *, __u64, int);
 int nilfs_near_disk_full(struct the_nilfs *);
 

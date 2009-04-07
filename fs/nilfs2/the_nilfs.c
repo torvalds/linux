@@ -71,7 +71,6 @@ struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 	INIT_LIST_HEAD(&nilfs->ns_supers);
 	spin_lock_init(&nilfs->ns_last_segment_lock);
 	nilfs->ns_gc_inodes_h = NULL;
-	INIT_LIST_HEAD(&nilfs->ns_used_segments);
 	init_rwsem(&nilfs->ns_segctor_sem);
 
 	return nilfs;
@@ -95,7 +94,6 @@ void put_nilfs(struct the_nilfs *nilfs)
 	 */
 	might_sleep();
 	if (nilfs_loaded(nilfs)) {
-		nilfs_dispose_used_segments(nilfs);
 		nilfs_mdt_clear(nilfs->ns_sufile);
 		nilfs_mdt_destroy(nilfs->ns_sufile);
 		nilfs_mdt_clear(nilfs->ns_cpfile);
@@ -461,22 +459,6 @@ int nilfs_count_free_blocks(struct the_nilfs *nilfs, sector_t *nblocks)
 	if (likely(!err))
 		*nblocks = (sector_t)ncleansegs * nilfs->ns_blocks_per_segment;
 	return err;
-}
-
-void nilfs_dispose_used_segments(struct the_nilfs *nilfs)
-{
-	struct nilfs_segment_entry *ent, *n;
-
-	/* nilfs->sem must be locked by the caller. */
-	if (!nilfs_loaded(nilfs))
-		return;
-
-	list_for_each_entry_safe(ent, n, &nilfs->ns_used_segments, list) {
-		list_del_init(&ent->list);
-		nilfs_segment_usage_clear_volatile_active(ent->raw_su);
-		nilfs_close_segment_entry(ent, nilfs->ns_sufile);
-		nilfs_free_segment_entry(ent);
-	}
 }
 
 int nilfs_near_disk_full(struct the_nilfs *nilfs)

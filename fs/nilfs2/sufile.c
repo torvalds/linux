@@ -446,6 +446,7 @@ int nilfs_sufile_get_stat(struct inode *sufile, struct nilfs_sustat *sustat)
 {
 	struct buffer_head *header_bh;
 	struct nilfs_sufile_header *header;
+	struct the_nilfs *nilfs = NILFS_MDT(sufile)->mi_nilfs;
 	void *kaddr;
 	int ret;
 
@@ -460,8 +461,11 @@ int nilfs_sufile_get_stat(struct inode *sufile, struct nilfs_sustat *sustat)
 	sustat->ss_nsegs = nilfs_sufile_get_nsegments(sufile);
 	sustat->ss_ncleansegs = le64_to_cpu(header->sh_ncleansegs);
 	sustat->ss_ndirtysegs = le64_to_cpu(header->sh_ndirtysegs);
-	sustat->ss_ctime = NILFS_MDT(sufile)->mi_nilfs->ns_ctime;
-	sustat->ss_nongc_ctime = NILFS_MDT(sufile)->mi_nilfs->ns_nongc_ctime;
+	sustat->ss_ctime = nilfs->ns_ctime;
+	sustat->ss_nongc_ctime = nilfs->ns_nongc_ctime;
+	spin_lock(&nilfs->ns_last_segment_lock);
+	sustat->ss_prot_seq = nilfs->ns_prot_seq;
+	spin_unlock(&nilfs->ns_last_segment_lock);
 	kunmap_atomic(kaddr, KM_USER0);
 	brelse(header_bh);
 

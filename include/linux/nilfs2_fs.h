@@ -565,8 +565,6 @@ enum {
 	NILFS_SEGMENT_USAGE_DIRTY,
 	NILFS_SEGMENT_USAGE_ERROR,
 
-	/* on-memory only */
-	NILFS_SEGMENT_USAGE_VOLATILE_ACTIVE,
 	/* ... */
 };
 
@@ -594,7 +592,6 @@ nilfs_segment_usage_##name(const struct nilfs_segment_usage *su)	\
 NILFS_SEGMENT_USAGE_FNS(ACTIVE, active)
 NILFS_SEGMENT_USAGE_FNS(DIRTY, dirty)
 NILFS_SEGMENT_USAGE_FNS(ERROR, error)
-NILFS_SEGMENT_USAGE_FNS(VOLATILE_ACTIVE, volatile_active)
 
 static inline void
 nilfs_segment_usage_set_clean(struct nilfs_segment_usage *su)
@@ -650,7 +647,6 @@ nilfs_suinfo_##name(const struct nilfs_suinfo *si)			\
 NILFS_SUINFO_FNS(ACTIVE, active)
 NILFS_SUINFO_FNS(DIRTY, dirty)
 NILFS_SUINFO_FNS(ERROR, error)
-NILFS_SUINFO_FNS(VOLATILE_ACTIVE, volatile_active)
 
 static inline int nilfs_suinfo_clean(const struct nilfs_suinfo *si)
 {
@@ -717,8 +713,9 @@ struct nilfs_cpstat {
  * @ss_nsegs: number of segments
  * @ss_ncleansegs: number of clean segments
  * @ss_ndirtysegs: number of dirty segments
- * @ss_ctime:
- * @ss_nongc_ctime:
+ * @ss_ctime: creation time of the last segment
+ * @ss_nongc_ctime: creation time of the last segment not for GC
+ * @ss_prot_seq: least sequence number of segments which must not be reclaimed
  */
 struct nilfs_sustat {
 	__u64 ss_nsegs;
@@ -726,6 +723,7 @@ struct nilfs_sustat {
 	__u64 ss_ndirtysegs;
 	__u64 ss_ctime;
 	__u64 ss_nongc_ctime;
+	__u64 ss_prot_seq;
 };
 
 /**

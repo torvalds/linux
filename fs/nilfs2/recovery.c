@@ -416,6 +416,7 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	struct nilfs_segment_entry *ent, *n;
 	struct inode *sufile = nilfs->ns_sufile;
 	__u64 segnum[4];
+	time_t mtime;
 	int err;
 	int i;
 
@@ -442,9 +443,9 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 
 	/*
 	 * Collecting segments written after the latest super root.
-	 * These are marked volatile active, and won't be reallocated in
-	 * the next construction.
+	 * These are marked dirty to avoid being reallocated in the next write.
 	 */
+	mtime = get_seconds();
 	list_for_each_entry_safe(ent, n, head, list) {
 		if (ent->segnum == segnum[0]) {
 			list_del(&ent->list);
@@ -454,17 +455,16 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 		err = nilfs_open_segment_entry(ent, sufile);
 		if (unlikely(err))
 			goto failed;
-		if (nilfs_segment_usage_clean(ent->raw_su)) {
-			nilfs_segment_usage_set_volatile_active(ent->raw_su);
-			/* Keep it open */
-		} else {
-			/* Removing duplicated entries */
-			list_del(&ent->list);
-			nilfs_close_segment_entry(ent, sufile);
-			nilfs_free_segment_entry(ent);
+		if (!nilfs_segment_usage_dirty(ent->raw_su)) {
+			/* make the segment garbage */
+			ent->raw_su->su_nblocks = cpu_to_le32(0);
+			ent->raw_su->su_lastmod = cpu_to_le32(mtime);
+			nilfs_segment_usage_set_dirty(ent->raw_su);
 		}
+		list_del(&ent->list);
+		nilfs_close_segment_entry(ent, sufile);
+		nilfs_free_segment_entry(ent);
 	}
-	list_splice_init(head, nilfs->ns_used_segments.prev);
 
 	/*
 	 * The segment having the latest super root is active, and
@@ -882,10 +882,12 @@ int nilfs_search_super_root(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi,
 
 		if (scan_newer)
 			ri->ri_need_recovery = NILFS_RECOVERY_SR_UPDATED;
-		else if (nilfs->ns_mount_state & NILFS_VALID_FS)
-			goto super_root_found;
-
-		scan_newer = 1;
+		else {
+			nilfs->ns_prot_seq = ssi.seg_seq;
+			if (nilfs->ns_mount_state & NILFS_VALID_FS)
+				goto super_root_found;
+			scan_newer = 1;
+		}
 
 		/* reset region for roll-forward */
 		pseg_start += ssi.nblocks;

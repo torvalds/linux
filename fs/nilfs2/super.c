@@ -262,8 +262,10 @@ static int nilfs_sync_super(struct nilfs_sb_info *sbi)
 		printk(KERN_ERR
 		       "NILFS: unable to write superblock (err=%d)\n", err);
 	else {
-		nilfs_dispose_used_segments(nilfs);
 		clear_nilfs_discontinued(nilfs);
+		spin_lock(&nilfs->ns_last_segment_lock);
+		nilfs->ns_prot_seq = le64_to_cpu(nilfs->ns_sbp->s_last_seq);
+		spin_unlock(&nilfs->ns_last_segment_lock);
 	}
 
 	return err;
