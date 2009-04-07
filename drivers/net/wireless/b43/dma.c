@@ -779,12 +779,12 @@ static u64 supported_dma_mask(struct b43_wldev *dev)
 	if (tmp & B43_DMA32_TXADDREXT_MASK)
 		return DMA_BIT_MASK(32);
 
-	return DMA_30BIT_MASK;
+	return DMA_BIT_MASK(30);
 }
 
 static enum b43_dmatype dma_mask_to_engine_type(u64 dmamask)
 {
-	if (dmamask == DMA_30BIT_MASK)
+	if (dmamask == DMA_BIT_MASK(30))
 		return B43_DMA_30BIT;
 	if (dmamask == DMA_BIT_MASK(32))
 		return B43_DMA_32BIT;
@@ -1005,7 +1005,7 @@ static int b43_dma_set_mask(struct b43_wldev *dev, u64 mask)
 			continue;
 		}
 		if (mask == DMA_BIT_MASK(32)) {
-			mask = DMA_30BIT_MASK;
+			mask = DMA_BIT_MASK(30);
 			fallback = 1;
 			continue;
 		}

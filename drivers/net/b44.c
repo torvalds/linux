@@ -660,7 +660,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 	/* Hardware bug work-around, the chip is unable to do PCI DMA
 	   to/from anything above 1GB :-( */
 	if (ssb_dma_mapping_error(bp->sdev, mapping) ||
-		mapping + RX_PKT_BUF_SZ > DMA_30BIT_MASK) {
+		mapping + RX_PKT_BUF_SZ > DMA_BIT_MASK(30)) {
 		/* Sigh... */
 		if (!ssb_dma_mapping_error(bp->sdev, mapping))
 			ssb_dma_unmap_single(bp->sdev, mapping,
@@ -673,7 +673,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 					     RX_PKT_BUF_SZ,
 					     DMA_FROM_DEVICE);
 		if (ssb_dma_mapping_error(bp->sdev, mapping) ||
-			mapping + RX_PKT_BUF_SZ > DMA_30BIT_MASK) {
+			mapping + RX_PKT_BUF_SZ > DMA_BIT_MASK(30)) {
 			if (!ssb_dma_mapping_error(bp->sdev, mapping))
 				ssb_dma_unmap_single(bp->sdev, mapping, RX_PKT_BUF_SZ,DMA_FROM_DEVICE);
 			dev_kfree_skb_any(skb);
@@ -965,7 +965,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	mapping = ssb_dma_map_single(bp->sdev, skb->data, len, DMA_TO_DEVICE);
-	if (ssb_dma_mapping_error(bp->sdev, mapping) || mapping + len > DMA_30BIT_MASK) {
+	if (ssb_dma_mapping_error(bp->sdev, mapping) || mapping + len > DMA_BIT_MASK(30)) {
 		struct sk_buff *bounce_skb;
 
 		/* Chip can't handle DMA to/from >1GB, use bounce buffer */
@@ -979,7 +979,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		mapping = ssb_dma_map_single(bp->sdev, bounce_skb->data,
 					     len, DMA_TO_DEVICE);
-		if (ssb_dma_mapping_error(bp->sdev, mapping) || mapping + len > DMA_30BIT_MASK) {
+		if (ssb_dma_mapping_error(bp->sdev, mapping) || mapping + len > DMA_BIT_MASK(30)) {
 			if (!ssb_dma_mapping_error(bp->sdev, mapping))
 				ssb_dma_unmap_single(bp->sdev, mapping,
 						     len, DMA_TO_DEVICE);
@@ -1204,7 +1204,7 @@ static int b44_alloc_consistent(struct b44 *bp, gfp_t gfp)
 						 DMA_BIDIRECTIONAL);
 
 		if (ssb_dma_mapping_error(bp->sdev, rx_ring_dma) ||
-			rx_ring_dma + size > DMA_30BIT_MASK) {
+			rx_ring_dma + size > DMA_BIT_MASK(30)) {
 			kfree(rx_ring);
 			goto out_err;
 		}
@@ -1231,7 +1231,7 @@ static int b44_alloc_consistent(struct b44 *bp, gfp_t gfp)
 			                    DMA_TO_DEVICE);
 
 		if (ssb_dma_mapping_error(bp->sdev, tx_ring_dma) ||
-			tx_ring_dma + size > DMA_30BIT_MASK) {
+			tx_ring_dma + size > DMA_BIT_MASK(30)) {
 			kfree(tx_ring);
 			goto out_err;
 		}
@@ -2180,7 +2180,7 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 			"Failed to powerup the bus\n");
 		goto err_out_free_dev;
 	}
-	err = ssb_dma_set_mask(sdev, DMA_30BIT_MASK);
+	err = ssb_dma_set_mask(sdev, DMA_BIT_MASK(30));
 	if (err) {
 		dev_err(sdev->dev,
 			"Required 30BIT DMA mask unsupported by the system.\n");
