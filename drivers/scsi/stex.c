@@ -1395,8 +1395,8 @@ static int stex_set_dma_mask(struct pci_dev * pdev)
 {
 	int ret;
 
-	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)
-		&& !pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))
+	if (!pci_set_dma_mask(pdev,  DMA_BIT_MASK(64))
+		&& !pci_set_consistent_dma_mask(pdev,  DMA_BIT_MASK(64)))
 		return 0;
 	ret = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (!ret)

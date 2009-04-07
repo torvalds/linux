@@ -397,7 +397,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 		}
 #ifdef CONFIG_I2O_EXT_ADAPTEC_DMA64
 		if (sizeof(dma_addr_t) > 4) {
-			if (pci_set_dma_mask(pdev, DMA_64BIT_MASK))
+			if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))
 				printk(KERN_INFO "%s: 64-bit DMA unavailable\n",
 				       c->name);
 			else {

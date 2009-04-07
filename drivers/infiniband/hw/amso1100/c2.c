@@ -989,7 +989,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 	}
 
 	if ((sizeof(dma_addr_t) > 4)) {
-		ret = pci_set_dma_mask(pcidev, DMA_64BIT_MASK);
+		ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(64));
 		if (ret < 0) {
 			printk(KERN_ERR PFX "64b DMA configuration failed\n");
 			goto bail2;

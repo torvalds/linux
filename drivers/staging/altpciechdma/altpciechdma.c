@@ -849,8 +849,8 @@ static int __devinit probe(struct pci_dev *dev, const struct pci_device_id *id)
 #if 1   /* @todo For now, disable 64-bit, because I do not understand the implications (DAC!) */
 	/* query for DMA transfer */
 	/* @see Documentation/PCI/PCI-DMA-mapping.txt */
-	if (!pci_set_dma_mask(dev, DMA_64BIT_MASK)) {
-		pci_set_consistent_dma_mask(dev, DMA_64BIT_MASK);
+	if (!pci_set_dma_mask(dev, DMA_BIT_MASK(64))) {
+		pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(64));
 		/* use 64-bit DMA */
 		printk(KERN_DEBUG "Using a 64-bit DMA mask.\n");
 	} else

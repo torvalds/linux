@@ -13232,10 +13232,10 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	else if (tp->tg3_flags & TG3_FLAG_40BIT_DMA_BUG) {
 		persist_dma_mask = dma_mask = DMA_40BIT_MASK;
 #ifdef CONFIG_HIGHMEM
-		dma_mask = DMA_64BIT_MASK;
+		dma_mask = DMA_BIT_MASK(64);
 #endif
 	} else
-		persist_dma_mask = dma_mask = DMA_64BIT_MASK;
+		persist_dma_mask = dma_mask = DMA_BIT_MASK(64);
 
 	/* Configure DMA attributes. */
 	if (dma_mask > DMA_32BIT_MASK) {

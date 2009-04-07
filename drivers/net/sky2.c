@@ -4374,9 +4374,9 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	if (sizeof(dma_addr_t) > sizeof(u32) &&
-	    !(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK))) {
+	    !(err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))) {
 		using_dac = 1;
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (err < 0) {
 			dev_err(&pdev->dev, "unable to obtain 64 bit DMA "
 				"for consistent allocations\n");

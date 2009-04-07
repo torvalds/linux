@@ -3637,7 +3637,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	hba[i]->pdev = pdev;
 
 	/* configure PCI DMA stuff */
-	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK))
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))
 		dac = 1;
 	else if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK))
 		dac = 0;

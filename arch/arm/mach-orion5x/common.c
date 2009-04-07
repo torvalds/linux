@@ -486,7 +486,7 @@ static struct platform_device orion5x_xor0_channel = {
 	.resource	= orion5x_xor0_resources,
 	.dev		= {
 		.dma_mask		= &orion5x_xor_dmamask,
-		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
 		.platform_data		= (void *)&orion5x_xor0_data,
 	},
 };
@@ -512,7 +512,7 @@ static struct platform_device orion5x_xor1_channel = {
 	.resource	= orion5x_xor1_resources,
 	.dev		= {
 		.dma_mask		= &orion5x_xor_dmamask,
-		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
 		.platform_data		= (void *)&orion5x_xor1_data,
 	},
 };

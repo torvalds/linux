@@ -2497,7 +2497,7 @@ megasas_set_dma_mask(struct pci_dev *pdev)
 	 * All our contollers are capable of performing 64-bit DMA
 	 */
 	if (IS_DMA64) {
-		if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) != 0) {
+		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) {
 
 			if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0)
 				goto fail_set_dma_mask;

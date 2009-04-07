@@ -5030,7 +5030,7 @@ static int __devinit gdth_pci_probe_one(gdth_pci_str *pcistr,
 		}
 	} else {
 		shp->max_cmd_len = 16;
-		if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+		if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 			printk("GDT-PCI %d: 64-bit DMA enabled\n", ha->hanum);
 		} else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 			printk(KERN_WARNING "GDT-PCI %d: "

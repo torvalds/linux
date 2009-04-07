@@ -1076,7 +1076,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit PCI DMA mask.\n");
 		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
@@ -1085,7 +1085,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto err_release_bar2;
 		}
 	}
-	err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit "
 			 "consistent PCI DMA mask.\n");

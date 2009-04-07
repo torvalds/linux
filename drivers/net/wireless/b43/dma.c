@@ -772,7 +772,7 @@ static u64 supported_dma_mask(struct b43_wldev *dev)
 
 	tmp = b43_read32(dev, SSB_TMSHIGH);
 	if (tmp & SSB_TMSHIGH_DMA64)
-		return DMA_64BIT_MASK;
+		return DMA_BIT_MASK(64);
 	mmio_base = b43_dmacontroller_base(0, 0);
 	b43_write32(dev, mmio_base + B43_DMA32_TXCTL, B43_DMA32_TXADDREXT_MASK);
 	tmp = b43_read32(dev, mmio_base + B43_DMA32_TXCTL);
@@ -788,7 +788,7 @@ static enum b43_dmatype dma_mask_to_engine_type(u64 dmamask)
 		return B43_DMA_30BIT;
 	if (dmamask == DMA_32BIT_MASK)
 		return B43_DMA_32BIT;
-	if (dmamask == DMA_64BIT_MASK)
+	if (dmamask == DMA_BIT_MASK(64))
 		return B43_DMA_64BIT;
 	B43_WARN_ON(1);
 	return B43_DMA_30BIT;
@@ -999,7 +999,7 @@ static int b43_dma_set_mask(struct b43_wldev *dev, u64 mask)
 		err = ssb_dma_set_mask(dev->dev, mask);
 		if (!err)
 			break;
-		if (mask == DMA_64BIT_MASK) {
+		if (mask == DMA_BIT_MASK(64)) {
 			mask = DMA_32BIT_MASK;
 			fallback = 1;
 			continue;

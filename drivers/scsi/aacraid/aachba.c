@@ -1402,8 +1402,8 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	}
 
 	if(dev->dac_support != 0) {
-		if (!pci_set_dma_mask(dev->pdev, DMA_64BIT_MASK) &&
-			!pci_set_consistent_dma_mask(dev->pdev, DMA_64BIT_MASK)) {
+		if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(64)) &&
+			!pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(64))) {
 			if (!dev->in_reset)
 				printk(KERN_INFO"%s%d: 64 Bit DAC enabled\n",
 					dev->name, dev->id);

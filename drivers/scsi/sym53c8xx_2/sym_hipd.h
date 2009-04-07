@@ -1094,7 +1094,7 @@ do {									\
 	(data)->size = cpu_to_scr((((badd) >> 8) & 0xff000000) + len);	\
 } while (0)
 #elif SYM_CONF_DMA_ADDRESSING_MODE == 2
-#define DMA_DAC_MASK	DMA_64BIT_MASK
+#define DMA_DAC_MASK	DMA_BIT_MASK(64)
 int sym_lookup_dmap(struct sym_hcb *np, u32 h, int s);
 static inline void
 sym_build_sge(struct sym_hcb *np, struct sym_tblmove *data, u64 badd, int len)

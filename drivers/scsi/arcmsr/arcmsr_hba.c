@@ -393,7 +393,7 @@ static int arcmsr_probe(struct pci_dev *pdev,
 	acb = (struct AdapterControlBlock *)host->hostdata;
 	memset(acb, 0, sizeof (struct AdapterControlBlock));
 
-	error = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	error = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (error) {
 		error = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (error) {

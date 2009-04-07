@@ -1941,8 +1941,8 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((err = pci_enable_device(pdev)))	/* it trigers interrupt, dunno why. */
 		goto err_pci;			/* it's not a problem though */
 
-	if (!(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK)) &&
-	    !(err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))) {
+	if (!(err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) &&
+	    !(err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))) {
 		pci_using_dac = 1;
 	} else {
 		if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) ||

@@ -958,7 +958,7 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 	pci_set_master(pcidev);
 
 	/* Enable 64bit DMA if possible */
-	if (pci_set_dma_mask(pcidev, DMA_64BIT_MASK)) {
+	if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(64))) {
 		if (pci_set_dma_mask(pcidev, DMA_32BIT_MASK)) {
 			printk(KERN_ERR "hptiop: fail to set dma_mask\n");
 			goto disable_pci_device;

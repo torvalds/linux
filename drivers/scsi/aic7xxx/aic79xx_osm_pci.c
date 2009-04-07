@@ -195,7 +195,7 @@ ahd_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		const u64 required_mask = dma_get_required_mask(dev);
 
 		if (required_mask > DMA_39BIT_MASK &&
-		    dma_set_mask(dev, DMA_64BIT_MASK) == 0)
+		    dma_set_mask(dev, DMA_BIT_MASK(64)) == 0)
 			ahd->flags |= AHD_64BIT_ADDRESSING;
 		else if (required_mask > DMA_32BIT_MASK &&
 			 dma_set_mask(dev, DMA_39BIT_MASK) == 0)

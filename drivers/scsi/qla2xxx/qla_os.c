@@ -1176,10 +1176,10 @@ qla2x00_config_dma_addressing(struct qla_hw_data *ha)
 	/* Assume a 32bit DMA mask. */
 	ha->flags.enable_64bit_addressing = 0;
 
-	if (!dma_set_mask(&ha->pdev->dev, DMA_64BIT_MASK)) {
+	if (!dma_set_mask(&ha->pdev->dev, DMA_BIT_MASK(64))) {
 		/* Any upper-dword bits set? */
 		if (MSD(dma_get_required_mask(&ha->pdev->dev)) &&
-		    !pci_set_consistent_dma_mask(ha->pdev, DMA_64BIT_MASK)) {
+		    !pci_set_consistent_dma_mask(ha->pdev, DMA_BIT_MASK(64))) {
 			/* Ok, a 64bit DMA mask is applicable. */
 			ha->flags.enable_64bit_addressing = 1;
 			ha->isp_ops->calc_req_entries = qla2x00_calc_iocbs_64;

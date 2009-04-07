@@ -1586,9 +1586,9 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out;
 
 #ifdef IF_64BIT_DMA_IS_POSSIBLE /* grrrr... */
-	rc = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (!rc) {
-		rc = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (rc) {
 			printk(KERN_ERR DRV_NAME "(%s): consistent DMA mask failure\n",
 				pci_name(pdev));

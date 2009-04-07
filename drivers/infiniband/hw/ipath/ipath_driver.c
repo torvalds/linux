@@ -470,7 +470,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		goto bail_disable;
 	}
 
-	ret = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (ret) {
 		/*
 		 * if the 64 bit setup fails, try 32 bit.  Some systems
@@ -496,7 +496,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		}
 	}
 	else {
-		ret = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (ret)
 			dev_info(&pdev->dev,
 				"Unable to set DMA consistent mask "

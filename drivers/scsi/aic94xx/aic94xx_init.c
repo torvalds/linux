@@ -790,8 +790,8 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 		goto Err_remove;
 
 	err = -ENODEV;
-	if (!pci_set_dma_mask(dev, DMA_64BIT_MASK)
-	    && !pci_set_consistent_dma_mask(dev, DMA_64BIT_MASK))
+	if (!pci_set_dma_mask(dev, DMA_BIT_MASK(64))
+	    && !pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(64)))
 		;
 	else if (!pci_set_dma_mask(dev, DMA_32BIT_MASK)
 		 && !pci_set_consistent_dma_mask(dev, DMA_32BIT_MASK))

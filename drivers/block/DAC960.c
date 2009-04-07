@@ -1372,8 +1372,8 @@ static bool DAC960_V2_EnableMemoryMailboxInterface(DAC960_Controller_T
   dma_addr_t	CommandMailboxDMA;
   DAC960_V2_CommandStatus_T CommandStatus;
 
-	if (!pci_set_dma_mask(Controller->PCIDevice, DMA_64BIT_MASK))
-		Controller->BounceBufferLimit = DMA_64BIT_MASK;
+	if (!pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(64)))
+		Controller->BounceBufferLimit = DMA_BIT_MASK(64);
 	else if (!pci_set_dma_mask(Controller->PCIDevice, DMA_32BIT_MASK))
 		Controller->BounceBufferLimit = DMA_32BIT_MASK;
 	else

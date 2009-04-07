@@ -7048,7 +7048,7 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	 * are guaranteed to be < 4G.
 	 */
 	if (IPS_ENABLE_DMA64 && IPS_HAS_ENH_SGLIST(ha) &&
-	    !pci_set_dma_mask(ha->pcidev, DMA_64BIT_MASK)) {
+	    !pci_set_dma_mask(ha->pcidev, DMA_BIT_MASK(64))) {
 		(ha)->flags |= IPS_HA_ENH_SG;
 	} else {
 		if (pci_set_dma_mask(ha->pcidev, DMA_32BIT_MASK) != 0) {

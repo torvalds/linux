@@ -3726,9 +3726,9 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	}
 
 	pci_set_master(pdev);
-	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		set_bit(QL_DMA64, &qdev->flags);
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	} else {
 		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (!err)

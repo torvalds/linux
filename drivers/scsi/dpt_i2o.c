@@ -1014,7 +1014,7 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	 *	See if we should enable dma64 mode.
 	 */
 	if (sizeof(dma_addr_t) > 4 &&
-	    pci_set_dma_mask(pDev, DMA_64BIT_MASK) == 0) {
+	    pci_set_dma_mask(pDev, DMA_BIT_MASK(64)) == 0) {
 		if (dma_get_required_mask(&pDev->dev) > DMA_32BIT_MASK)
 			dma64 = 1;
 	}

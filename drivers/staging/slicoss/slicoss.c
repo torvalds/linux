@@ -371,9 +371,9 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 		printk(KERN_DEBUG "%s\n", slic_proc_version);
 	}
 
-	err = pci_set_dma_mask(pcidev, DMA_64BIT_MASK);
+	err = pci_set_dma_mask(pcidev, DMA_BIT_MASK(64));
 	if (err) {
-		err = pci_set_dma_mask(pcidev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
 		if (err)
 			goto err_out_disable_pci;
 	}
