@@ -168,7 +168,7 @@ static void lazy_hcall3(unsigned long call,
  * issue the do-nothing hypercall to flush any stored calls. */
 static void lguest_leave_lazy_mmu_mode(void)
 {
-	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
+	kvm_hypercall0(LHCALL_FLUSH_ASYNC);
 	paravirt_leave_lazy_mmu();
 }
 
