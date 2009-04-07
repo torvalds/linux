@@ -184,8 +184,6 @@ static inline void nilfs_destroy_inode_cache(void)
 static void nilfs_clear_inode(struct inode *inode)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
-	struct nilfs_transaction_info ti;
-	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
 
 #ifdef CONFIG_NILFS_POSIX_ACL
 	if (ii->i_acl && ii->i_acl != NILFS_ACL_NOT_CACHED) {
@@ -200,21 +198,14 @@ static void nilfs_clear_inode(struct inode *inode)
 	/*
 	 * Free resources allocated in nilfs_read_inode(), here.
 	 */
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
-
-	spin_lock(&sbi->s_inode_lock);
-	if (!list_empty(&ii->i_dirty))
-		list_del_init(&ii->i_dirty);
+	BUG_ON(!list_empty(&ii->i_dirty));
 	brelse(ii->i_bh);
 	ii->i_bh = NULL;
-	spin_unlock(&sbi->s_inode_lock);
 
 	if (test_bit(NILFS_I_BMAP, &ii->i_state))
 		nilfs_bmap_clear(ii->i_bmap);
 
 	nilfs_btnode_cache_clear(&ii->i_btnode_cache);
-
-	nilfs_transaction_end(inode->i_sb, 0);
 }
 
 /**
