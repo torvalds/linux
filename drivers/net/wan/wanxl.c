@@ -586,8 +586,8 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 	   We set both dma_mask and consistent_dma_mask to 28 bits
 	   and pray pci_alloc_consistent() will use this info. It should
 	   work on most platforms */
-	if (pci_set_consistent_dma_mask(pdev, DMA_28BIT_MASK) ||
-	    pci_set_dma_mask(pdev, DMA_28BIT_MASK)) {
+	if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(28)) ||
+	    pci_set_dma_mask(pdev, DMA_BIT_MASK(28))) {
 		printk(KERN_ERR "wanXL: No usable DMA configuration\n");
 		return -EIO;
 	}
