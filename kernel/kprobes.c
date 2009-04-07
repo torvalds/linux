@@ -722,6 +722,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(register_kprobe);
 
 /*
  * Unregister a kprobe without a scheduler synchronization.
@@ -803,11 +804,13 @@ int __kprobes register_kprobes(struct kprobe **kps, int num)
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(register_kprobes);
 
 void __kprobes unregister_kprobe(struct kprobe *p)
 {
 	unregister_kprobes(&p, 1);
 }
+EXPORT_SYMBOL_GPL(unregister_kprobe);
 
 void __kprobes unregister_kprobes(struct kprobe **kps, int num)
 {
@@ -826,6 +829,7 @@ void __kprobes unregister_kprobes(struct kprobe **kps, int num)
 		if (kps[i]->addr)
 			__unregister_kprobe_bottom(kps[i]);
 }
+EXPORT_SYMBOL_GPL(unregister_kprobes);
 
 static struct notifier_block kprobe_exceptions_nb = {
 	.notifier_call = kprobe_exceptions_notify,
@@ -865,16 +869,19 @@ int __kprobes register_jprobes(struct jprobe **jps, int num)
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(register_jprobes);
 
 int __kprobes register_jprobe(struct jprobe *jp)
 {
 	return register_jprobes(&jp, 1);
 }
+EXPORT_SYMBOL_GPL(register_jprobe);
 
 void __kprobes unregister_jprobe(struct jprobe *jp)
 {
 	unregister_jprobes(&jp, 1);
 }
+EXPORT_SYMBOL_GPL(unregister_jprobe);
 
 void __kprobes unregister_jprobes(struct jprobe **jps, int num)
 {
@@ -894,6 +901,7 @@ void __kprobes unregister_jprobes(struct jprobe **jps, int num)
 			__unregister_kprobe_bottom(&jps[i]->kp);
 	}
 }
+EXPORT_SYMBOL_GPL(unregister_jprobes);
 
 #ifdef CONFIG_KRETPROBES
 /*
@@ -987,6 +995,7 @@ int __kprobes register_kretprobe(struct kretprobe *rp)
 		free_rp_inst(rp);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(register_kretprobe);
 
 int __kprobes register_kretprobes(struct kretprobe **rps, int num)
 {
@@ -1004,11 +1013,13 @@ int __kprobes register_kretprobes(struct kretprobe **rps, int num)
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(register_kretprobes);
 
 void __kprobes unregister_kretprobe(struct kretprobe *rp)
 {
 	unregister_kretprobes(&rp, 1);
 }
+EXPORT_SYMBOL_GPL(unregister_kretprobe);
 
 void __kprobes unregister_kretprobes(struct kretprobe **rps, int num)
 {
@@ -1030,24 +1041,30 @@ void __kprobes unregister_kretprobes(struct kretprobe **rps, int num)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(unregister_kretprobes);
 
 #else /* CONFIG_KRETPROBES */
 int __kprobes register_kretprobe(struct kretprobe *rp)
 {
 	return -ENOSYS;
 }
+EXPORT_SYMBOL_GPL(register_kretprobe);
 
 int __kprobes register_kretprobes(struct kretprobe **rps, int num)
 {
 	return -ENOSYS;
 }
+EXPORT_SYMBOL_GPL(register_kretprobes);
+
 void __kprobes unregister_kretprobe(struct kretprobe *rp)
 {
 }
+EXPORT_SYMBOL_GPL(unregister_kretprobe);
 
 void __kprobes unregister_kretprobes(struct kretprobe **rps, int num)
 {
 }
+EXPORT_SYMBOL_GPL(unregister_kretprobes);
 
 static int __kprobes pre_handler_kretprobe(struct kprobe *p,
 					   struct pt_regs *regs)
@@ -1418,16 +1435,5 @@ late_initcall(debugfs_kprobe_init);
 
 module_init(init_kprobes);
 
-EXPORT_SYMBOL_GPL(register_kprobe);
-EXPORT_SYMBOL_GPL(unregister_kprobe);
-EXPORT_SYMBOL_GPL(register_kprobes);
-EXPORT_SYMBOL_GPL(unregister_kprobes);
-EXPORT_SYMBOL_GPL(register_jprobe);
-EXPORT_SYMBOL_GPL(unregister_jprobe);
-EXPORT_SYMBOL_GPL(register_jprobes);
-EXPORT_SYMBOL_GPL(unregister_jprobes);
+/* defined in arch/.../kernel/kprobes.c */
 EXPORT_SYMBOL_GPL(jprobe_return);
-EXPORT_SYMBOL_GPL(register_kretprobe);
-EXPORT_SYMBOL_GPL(unregister_kretprobe);
-EXPORT_SYMBOL_GPL(register_kretprobes);
-EXPORT_SYMBOL_GPL(unregister_kretprobes);
