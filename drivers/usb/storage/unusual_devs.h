@@ -1376,6 +1376,14 @@ UNUSUAL_DEV(  0x10d6, 0x2200, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		0),
 
+/* Reported by Pascal Terjan <pterjan@mandriva.com>
+ * Ignore driver CD mode and force into modem mode by default.
+ */
+UNUSUAL_DEV(  0x1186, 0x3e04, 0x0000, 0x0000,
+           "D-Link",
+           "USB Mass Storage",
+           US_SC_DEVICE, US_PR_DEVICE, option_ms_init, 0),
+
 /* Reported by Kevin Lloyd <linux@sierrawireless.com>
  * Entry is needed for the initializer function override,
  * which instructs the device to load as a modem
