@@ -293,7 +293,8 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * told otherwise.
 	 */
 	asoc->peer.ipv4_address = 1;
-	asoc->peer.ipv6_address = 1;
+	if (asoc->base.sk->sk_family == PF_INET6)
+		asoc->peer.ipv6_address = 1;
 	INIT_LIST_HEAD(&asoc->asocs);
 
 	asoc->autoclose = sp->autoclose;
