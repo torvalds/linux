@@ -37,7 +37,6 @@ enum {
 	THE_NILFS_LOADED,       /* Roll-back/roll-forward has done and
 				   the latest checkpoint was loaded */
 	THE_NILFS_DISCONTINUED,	/* 'next' pointer chain has broken */
-	THE_NILFS_COND_NONGC_WRITE,	/* Condition to wake up cleanerd */
 };
 
 /**
@@ -74,7 +73,6 @@ enum {
  * @ns_gc_dat: shadow inode of the DAT file inode for GC
  * @ns_gc_inodes: dummy inodes to keep live blocks
  * @ns_gc_inodes_h: hash list to keep dummy inode holding live blocks
- * @ns_cleanerd_wq: wait queue for cleanerd
  * @ns_blocksize_bits: bit length of block size
  * @ns_nsegments: number of segments in filesystem
  * @ns_blocks_per_segment: number of blocks per segment
@@ -151,9 +149,6 @@ struct the_nilfs {
 	struct list_head	ns_gc_inodes;
 	struct hlist_head      *ns_gc_inodes_h;
 
-	/* cleanerd */
-	wait_queue_head_t	ns_cleanerd_wq;
-
 	/* Disk layout information (static) */
 	unsigned int		ns_blocksize_bits;
 	unsigned long		ns_nsegments;
@@ -186,7 +181,6 @@ static inline int nilfs_##name(struct the_nilfs *nilfs)			\
 THE_NILFS_FNS(INIT, init)
 THE_NILFS_FNS(LOADED, loaded)
 THE_NILFS_FNS(DISCONTINUED, discontinued)
-THE_NILFS_FNS(COND_NONGC_WRITE, cond_nongc_write)
 
 void nilfs_set_last_segment(struct the_nilfs *, sector_t, u64, __u64);
 struct the_nilfs *alloc_nilfs(struct block_device *);

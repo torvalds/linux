@@ -763,18 +763,6 @@ struct nilfs_bdesc {
 	__u32 bd_level;
 };
 
-#define	NILFS_TIMEDWAIT_WRITE_LOCKED	0x1
-#define	NILFS_TIMEDWAIT_SEG_WRITE	0x2
-
-/**
- * struct nilfs_wait_cond -
- */
-struct nilfs_wait_cond {
-	int wc_cond;
-	int wc_flags;
-	struct timespec wc_timeout;
-};
-
 #define NILFS_IOCTL_IDENT		'n'
 
 #define NILFS_IOCTL_CHANGE_CPMODE  \
@@ -795,8 +783,6 @@ struct nilfs_wait_cond {
 	_IOWR(NILFS_IOCTL_IDENT, 0x87, struct nilfs_argv)
 #define NILFS_IOCTL_CLEAN_SEGMENTS  \
 	_IOW(NILFS_IOCTL_IDENT, 0x88, struct nilfs_argv[5])
-#define NILFS_IOCTL_TIMEDWAIT  \
-	_IOWR(NILFS_IOCTL_IDENT, 0x89, struct nilfs_wait_cond)
 #define NILFS_IOCTL_SYNC  \
 	_IOR(NILFS_IOCTL_IDENT, 0x8A, __u64)
 #define NILFS_IOCTL_RESIZE  \
@@ -827,12 +813,6 @@ struct nilfs_sustat32 {
 	compat_time_t ss_nongc_ctime;
 };
 
-struct nilfs_wait_cond32 {
-	compat_int_t wc_cond;
-	compat_int_t wc_flags;
-	struct compat_timespec wc_timeout;
-};
-
 #define NILFS_IOCTL32_CHANGE_CPMODE  \
 	_IOW(NILFS_IOCTL_IDENT, 0x80, struct nilfs_cpmode32)
 #define NILFS_IOCTL32_GET_CPINFO  \
@@ -847,8 +827,6 @@ struct nilfs_wait_cond32 {
 	_IOWR(NILFS_IOCTL_IDENT, 0x87, struct nilfs_argv32)
 #define NILFS_IOCTL32_CLEAN_SEGMENTS  \
 	_IOW(NILFS_IOCTL_IDENT, 0x88, struct nilfs_argv32[5])
-#define NILFS_IOCTL32_TIMEDWAIT  \
-	_IOWR(NILFS_IOCTL_IDENT, 0x89, struct nilfs_wait_cond32)
 #endif	/* CONFIG_COMPAT */
 
 #endif	/* _LINUX_NILFS_FS_H */

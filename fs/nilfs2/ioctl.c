@@ -578,62 +578,9 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 				      unsigned int cmd, void __user *argp)
 {
-	int ret;
-
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-
-	ret = nilfs_clean_segments(inode->i_sb, argp);
-	clear_nilfs_cond_nongc_write(NILFS_SB(inode->i_sb)->s_nilfs);
-	return ret;
-}
-
-static int nilfs_ioctl_test_cond(struct the_nilfs *nilfs, int cond)
-{
-	return (cond & NILFS_TIMEDWAIT_SEG_WRITE) &&
-		nilfs_cond_nongc_write(nilfs);
-}
-
-static void nilfs_ioctl_clear_cond(struct the_nilfs *nilfs, int cond)
-{
-	if (cond & NILFS_TIMEDWAIT_SEG_WRITE)
-		clear_nilfs_cond_nongc_write(nilfs);
-}
-
-static int nilfs_ioctl_timedwait(struct inode *inode, struct file *filp,
-				 unsigned int cmd, void __user *argp)
-{
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
-	struct nilfs_wait_cond wc;
-	long ret;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	if (copy_from_user(&wc, argp, sizeof(wc)))
-		return -EFAULT;
-
-	unlock_kernel();
-	ret = wc.wc_flags ?
-		wait_event_interruptible_timeout(
-			nilfs->ns_cleanerd_wq,
-			nilfs_ioctl_test_cond(nilfs, wc.wc_cond),
-			timespec_to_jiffies(&wc.wc_timeout)) :
-		wait_event_interruptible(
-			nilfs->ns_cleanerd_wq,
-			nilfs_ioctl_test_cond(nilfs, wc.wc_cond));
-	lock_kernel();
-	nilfs_ioctl_clear_cond(nilfs, wc.wc_cond);
-
-	if (ret > 0) {
-		jiffies_to_timespec(ret, &wc.wc_timeout);
-		if (copy_to_user(argp, &wc, sizeof(wc)))
-			return -EFAULT;
-		return 0;
-	}
-	if (ret != 0)
-		return -EINTR;
-
-	return wc.wc_flags ? -ETIME : 0;
+	return nilfs_clean_segments(inode->i_sb, argp);
 }
 
 static int nilfs_ioctl_sync(struct inode *inode, struct file *filp,
@@ -679,8 +626,6 @@ int nilfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		return nilfs_ioctl_get_bdescs(inode, filp, cmd, argp);
 	case NILFS_IOCTL_CLEAN_SEGMENTS:
 		return nilfs_ioctl_clean_segments(inode, filp, cmd, argp);
-	case NILFS_IOCTL_TIMEDWAIT:
-		return nilfs_ioctl_timedwait(inode, filp, cmd, argp);
 	case NILFS_IOCTL_SYNC:
 		return nilfs_ioctl_sync(inode, filp, cmd, argp);
 	default:
@@ -871,41 +816,6 @@ nilfs_compat_ioctl_clean_segments(struct inode *inode, struct file *filp,
 		inode, filp, cmd, (unsigned long)uargv);
 }
 
-static int
-nilfs_compat_ioctl_timedwait(struct inode *inode, struct file *filp,
-			     unsigned int cmd, unsigned long arg)
-{
-	struct nilfs_wait_cond __user *uwcond;
-	struct nilfs_wait_cond32 __user *uwcond32;
-	struct timespec ts;
-	int cond, flags, ret;
-
-	uwcond = compat_alloc_user_space(sizeof(struct nilfs_wait_cond));
-	uwcond32 = compat_ptr(arg);
-	if (get_user(cond, &uwcond32->wc_cond) ||
-	    put_user(cond, &uwcond->wc_cond) ||
-	    get_user(flags, &uwcond32->wc_flags) ||
-	    put_user(flags, &uwcond->wc_flags) ||
-	    get_user(ts.tv_sec, &uwcond32->wc_timeout.tv_sec) ||
-	    get_user(ts.tv_nsec, &uwcond32->wc_timeout.tv_nsec) ||
-	    put_user(ts.tv_sec, &uwcond->wc_timeout.tv_sec) ||
-	    put_user(ts.tv_nsec, &uwcond->wc_timeout.tv_nsec))
-		return -EFAULT;
-
-	ret = nilfs_compat_locked_ioctl(inode, filp, cmd,
-					(unsigned long)uwcond);
-	if (ret < 0)
-		return ret;
-
-	if (get_user(ts.tv_sec, &uwcond->wc_timeout.tv_sec) ||
-	    get_user(ts.tv_nsec, &uwcond->wc_timeout.tv_nsec) ||
-	    put_user(ts.tv_sec, &uwcond32->wc_timeout.tv_sec) ||
-	    put_user(ts.tv_nsec, &uwcond32->wc_timeout.tv_nsec))
-		return -EFAULT;
-
-	return 0;
-}
-
 static int nilfs_compat_ioctl_sync(struct inode *inode, struct file *filp,
 				   unsigned int cmd, unsigned long arg)
 {
@@ -943,9 +853,6 @@ long nilfs_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case NILFS_IOCTL32_CLEAN_SEGMENTS:
 		return nilfs_compat_ioctl_clean_segments(
 			inode, filp, NILFS_IOCTL_CLEAN_SEGMENTS, arg);
-	case NILFS_IOCTL32_TIMEDWAIT:
-		return nilfs_compat_ioctl_timedwait(
-			inode, filp, NILFS_IOCTL_TIMEDWAIT, arg);
 	case NILFS_IOCTL_SYNC:
 		return nilfs_compat_ioctl_sync(inode, filp, cmd, arg);
 	default:

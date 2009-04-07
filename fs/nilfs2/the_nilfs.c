@@ -73,7 +73,6 @@ struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 	nilfs->ns_gc_inodes_h = NULL;
 	INIT_LIST_HEAD(&nilfs->ns_used_segments);
 	init_rwsem(&nilfs->ns_segctor_sem);
-	init_waitqueue_head(&nilfs->ns_cleanerd_wq);
 
 	return nilfs;
 }
