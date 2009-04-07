@@ -793,45 +793,4 @@ struct nilfs_bdesc {
 #define NILFS_IOCTL_RESIZE  \
 	_IOW(NILFS_IOCTL_IDENT, 0x8B, __u64)
 
-/* compat_ioctl */
-#ifdef CONFIG_COMPAT
-#include <linux/compat.h>
-
-struct nilfs_cpmode32 {
-	__u64 cm_cno;
-	compat_int_t cm_mode;
-};
-
-struct nilfs_argv32 {
-	compat_caddr_t v_base;
-	compat_size_t v_nmembs;
-	compat_size_t v_size;
-	compat_int_t v_index;
-	compat_int_t v_flags;
-};
-
-struct nilfs_sustat32 {
-	__u64 ss_nsegs;
-	__u64 ss_ncleansegs;
-	__u64 ss_ndirtysegs;
-	compat_time_t ss_ctime;
-	compat_time_t ss_nongc_ctime;
-};
-
-#define NILFS_IOCTL32_CHANGE_CPMODE  \
-	_IOW(NILFS_IOCTL_IDENT, 0x80, struct nilfs_cpmode32)
-#define NILFS_IOCTL32_GET_CPINFO  \
-	_IOR(NILFS_IOCTL_IDENT, 0x82, struct nilfs_argv32)
-#define NILFS_IOCTL32_GET_SUINFO  \
-	_IOR(NILFS_IOCTL_IDENT, 0x84, struct nilfs_argv32)
-#define NILFS_IOCTL32_GET_SUSTAT  \
-	_IOR(NILFS_IOCTL_IDENT, 0x85, struct nilfs_sustat32)
-#define NILFS_IOCTL32_GET_VINFO  \
-	_IOWR(NILFS_IOCTL_IDENT, 0x86, struct nilfs_argv32)
-#define NILFS_IOCTL32_GET_BDESCS  \
-	_IOWR(NILFS_IOCTL_IDENT, 0x87, struct nilfs_argv32)
-#define NILFS_IOCTL32_CLEAN_SEGMENTS  \
-	_IOW(NILFS_IOCTL_IDENT, 0x88, struct nilfs_argv32[5])
-#endif	/* CONFIG_COMPAT */
-
 #endif	/* _LINUX_NILFS_FS_H */

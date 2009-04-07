@@ -704,7 +704,7 @@ struct file_operations nilfs_dir_operations = {
 	.readdir	= nilfs_readdir,
 	.ioctl		= nilfs_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= nilfs_compat_ioctl,
+	.compat_ioctl	= nilfs_ioctl,
 #endif	/* CONFIG_COMPAT */
 	.fsync		= nilfs_sync_file,
 

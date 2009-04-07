@@ -243,7 +243,6 @@ extern int nilfs_sync_file(struct file *, struct dentry *, int);
 
 /* ioctl.c */
 int nilfs_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
-long nilfs_compat_ioctl(struct file *, unsigned int, unsigned long);
 int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *, void __user *);
 
 /* inode.c */
