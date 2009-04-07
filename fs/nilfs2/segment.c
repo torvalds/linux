@@ -67,7 +67,6 @@ enum {
 	NILFS_ST_INIT = 0,
 	NILFS_ST_GC,		/* Collecting dirty blocks for GC */
 	NILFS_ST_FILE,
-	NILFS_ST_SKETCH,
 	NILFS_ST_IFILE,
 	NILFS_ST_CPFILE,
 	NILFS_ST_SUFILE,
@@ -887,8 +886,7 @@ static int nilfs_segctor_fill_in_checkpoint(struct nilfs_sc_info *sci)
 		cpu_to_le64(sci->sc_nblk_inc + sci->sc_nblk_this_inc);
 	raw_cp->cp_create = cpu_to_le64(sci->sc_seg_ctime);
 	raw_cp->cp_cno = cpu_to_le64(nilfs->ns_cno);
-	if (sci->sc_sketch_inode && i_size_read(sci->sc_sketch_inode) > 0)
-		nilfs_checkpoint_set_sketch(raw_cp);
+
 	nilfs_write_inode_common(sbi->s_ifile, &raw_cp->cp_ifile_inode, 1);
 	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, nilfs->ns_cno, bh_cp);
 	return 0;
@@ -922,11 +920,6 @@ static void nilfs_segctor_fill_in_file_bmap(struct nilfs_sc_info *sci,
 	list_for_each_entry(ii, &sci->sc_dirty_files, i_dirty) {
 		nilfs_fill_in_file_bmap(ifile, ii);
 		set_bit(NILFS_I_COLLECTED, &ii->i_state);
-	}
-	if (sci->sc_sketch_inode) {
-		ii = NILFS_I(sci->sc_sketch_inode);
-		if (test_bit(NILFS_I_DIRTY, &ii->i_state))
-			nilfs_fill_in_file_bmap(ifile, ii);
 	}
 }
 
@@ -1227,26 +1220,6 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
 		if (mode == SC_FLUSH_FILE) {
 			sci->sc_stage.scnt = NILFS_ST_DONE;
 			return 0;
-		}
-		sci->sc_stage.scnt++;  /* Fall through */
-	case NILFS_ST_SKETCH:
-		if (mode == SC_LSEG_SR && sci->sc_sketch_inode) {
-			ii = NILFS_I(sci->sc_sketch_inode);
-			if (test_bit(NILFS_I_DIRTY, &ii->i_state)) {
-				sci->sc_sketch_inode->i_ctime.tv_sec
-					= sci->sc_seg_ctime;
-				sci->sc_sketch_inode->i_mtime.tv_sec
-					= sci->sc_seg_ctime;
-				err = nilfs_mark_inode_dirty(
-					sci->sc_sketch_inode);
-				if (unlikely(err))
-					goto break_or_fail;
-			}
-			err = nilfs_segctor_scan_file(sci,
-						      sci->sc_sketch_inode,
-						      &nilfs_sc_file_ops);
-			if (unlikely(err))
-				goto break_or_fail;
 		}
 		sci->sc_stage.scnt++;
 		sci->sc_stage.flags |= NILFS_CF_IFILE_STARTED;
@@ -2385,13 +2358,6 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 
 	} while (sci->sc_stage.scnt != NILFS_ST_DONE);
 
-	/* Clearing sketch data */
-	if (has_sr && sci->sc_sketch_inode) {
-		if (i_size_read(sci->sc_sketch_inode) == 0)
-			clear_bit(NILFS_I_DIRTY,
-				  &NILFS_I(sci->sc_sketch_inode)->i_state);
-		i_size_write(sci->sc_sketch_inode, 0);
-	}
  out:
 	nilfs_segctor_destroy_segment_buffers(sci);
 	nilfs_segctor_check_out_files(sci, sbi);
@@ -2971,11 +2937,6 @@ static int nilfs_segctor_init(struct nilfs_sc_info *sci,
 			      struct nilfs_recovery_info *ri)
 {
 	int err;
-	struct inode *inode = nilfs_iget(sci->sc_super, NILFS_SKETCH_INO);
-
-	sci->sc_sketch_inode = IS_ERR(inode) ? NULL : inode;
-	if (sci->sc_sketch_inode)
-		i_size_write(sci->sc_sketch_inode, 0);
 
 	sci->sc_seq_done = sci->sc_seq_request;
 	if (ri)
@@ -2987,10 +2948,6 @@ static int nilfs_segctor_init(struct nilfs_sc_info *sci,
 		if (ri)
 			list_splice_init(&sci->sc_active_segments,
 					 ri->ri_used_segments.prev);
-		if (sci->sc_sketch_inode) {
-			iput(sci->sc_sketch_inode);
-			sci->sc_sketch_inode = NULL;
-		}
 	}
 	return err;
 }
@@ -3090,10 +3047,6 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 
 	WARN_ON(!list_empty(&sci->sc_segbufs));
 
-	if (sci->sc_sketch_inode) {
-		iput(sci->sc_sketch_inode);
-		sci->sc_sketch_inode = NULL;
-	}
 	down_write(&sbi->s_nilfs->ns_segctor_sem);
 
 	kfree(sci);

@@ -161,8 +161,6 @@ the following meta data files:
  4) Data address translation file  -- Maps virtual block numbers to usual
     (DAT)                             block numbers.  This file serves to
                                       make on-disk blocks relocatable.
- 5) Sketch file (sketch)           -- Keeps read-only data which can be
-                                      associated with checkpoints (optional)
 
 The following figure shows a typical organization of the logs:
 

@@ -108,7 +108,6 @@ struct nilfs_segsum_pointer {
  * @sc_nblk_this_inc: Number of blocks included in the current logical segment
  * @sc_seg_ctime: Creation time
  * @sc_flags: Internal flags
- * @sc_sketch_inode: Inode of the sketch file
  * @sc_state_lock: spinlock for sc_state and so on
  * @sc_state: Segctord state flags
  * @sc_flush_request: inode bitmap of metadata files to be flushed
@@ -157,13 +156,6 @@ struct nilfs_sc_info {
 	time_t			sc_seg_ctime;
 
 	unsigned long		sc_flags;
-
-	/*
-	 * Pointer to an inode of the sketch.
-	 * This pointer is kept only while it contains data.
-	 * We protect it with a semaphore of the segment constructor.
-	 */
-	struct inode	       *sc_sketch_inode;
 
 	spinlock_t		sc_state_lock;
 	unsigned long		sc_state;

@@ -418,30 +418,6 @@ int nilfs_read_inode_common(struct inode *inode,
 	return 0;
 }
 
-static int nilfs_read_sketch_inode(struct inode *inode)
-{
-	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
-	int err = 0;
-
-	if (sbi->s_snapshot_cno) {
-		struct the_nilfs *nilfs = sbi->s_nilfs;
-		struct buffer_head *bh_cp;
-		struct nilfs_checkpoint *raw_cp;
-
-		err = nilfs_cpfile_get_checkpoint(
-			nilfs->ns_cpfile, sbi->s_snapshot_cno, 0, &raw_cp,
-			&bh_cp);
-		if (likely(!err)) {
-			if (!nilfs_checkpoint_sketch(raw_cp))
-				inode->i_size = 0;
-			nilfs_cpfile_put_checkpoint(
-				nilfs->ns_cpfile, sbi->s_snapshot_cno, bh_cp);
-		}
-		inode->i_flags |= S_NOCMTIME;
-	}
-	return err;
-}
-
 static int __nilfs_read_inode(struct super_block *sb, unsigned long ino,
 			      struct inode *inode)
 {
@@ -469,11 +445,6 @@ static int __nilfs_read_inode(struct super_block *sb, unsigned long ino,
 		inode->i_op = &nilfs_file_inode_operations;
 		inode->i_fop = &nilfs_file_operations;
 		inode->i_mapping->a_ops = &nilfs_aops;
-		if (unlikely(inode->i_ino == NILFS_SKETCH_INO)) {
-			err = nilfs_read_sketch_inode(inode);
-			if (unlikely(err))
-				goto failed_unmap;
-		}
 	} else if (S_ISDIR(inode->i_mode)) {
 		inode->i_op = &nilfs_dir_inode_operations;
 		inode->i_fop = &nilfs_dir_operations;
@@ -742,8 +713,7 @@ int nilfs_set_file_dirty(struct nilfs_sb_info *sbi, struct inode *inode,
 
 	atomic_add(nr_dirty, &sbi->s_nilfs->ns_ndirtyblks);
 
-	if (test_and_set_bit(NILFS_I_DIRTY, &ii->i_state) ||
-	    unlikely(inode->i_ino == NILFS_SKETCH_INO))
+	if (test_and_set_bit(NILFS_I_DIRTY, &ii->i_state))
 		return 0;
 
 	spin_lock(&sbi->s_inode_lock);
@@ -811,7 +781,6 @@ void nilfs_dirty_inode(struct inode *inode)
 		return;
 	}
 	nilfs_transaction_begin(inode->i_sb, &ti, 0);
-	if (likely(inode->i_ino != NILFS_SKETCH_INO))
-		nilfs_mark_inode_dirty(inode);
+	nilfs_mark_inode_dirty(inode);
 	nilfs_transaction_commit(inode->i_sb); /* never fails */
 }

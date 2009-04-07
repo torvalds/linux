@@ -494,7 +494,6 @@ nilfs_checkpoint_##name(const struct nilfs_checkpoint *cp)		\
 
 NILFS_CHECKPOINT_FNS(SNAPSHOT, snapshot)
 NILFS_CHECKPOINT_FNS(INVALID, invalid)
-NILFS_CHECKPOINT_FNS(SKETCH, sketch)
 
 /**
  * struct nilfs_cpinfo - checkpoint information
@@ -527,7 +526,6 @@ nilfs_cpinfo_##name(const struct nilfs_cpinfo *cpinfo)			\
 
 NILFS_CPINFO_FNS(SNAPSHOT, snapshot)
 NILFS_CPINFO_FNS(INVALID, invalid)
-NILFS_CPINFO_FNS(SKETCH, sketch)
 
 
 /**
