@@ -381,6 +381,7 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		pci_set_drvdata(pdev, dev);
 		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
 		if (ret)
 			goto err_g2;
@@ -404,9 +405,9 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	list_add_tail(&dev->driver_item, &driver->device_list);
 
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
+	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
-		 driver->date, dev->primary->index);
+		 driver->date, pci_name(pdev), dev->primary->index);
 
 	return 0;
 
@@ -418,29 +419,7 @@ err_g1:
 	drm_free(dev, sizeof(*dev), DRM_MEM_STUB);
 	return ret;
 }
-
-/**
- * Put a device minor number.
- *
- * \param dev device data structure
- * \return always zero
- *
- * Cleans up the proc resources. If it is the last minor then release the foreign
- * "drm" data, otherwise unregisters the "drm" data, frees the dev list and
- * unregisters the character device.
- */
-int drm_put_dev(struct drm_device * dev)
-{
-	DRM_DEBUG("release primary %s\n", dev->driver->pci_driver.name);
-
-	if (dev->devname) {
-		drm_free(dev->devname, strlen(dev->devname) + 1,
-			 DRM_MEM_DRIVER);
-		dev->devname = NULL;
-	}
-	drm_free(dev, sizeof(*dev), DRM_MEM_STUB);
-	return 0;
-}
+EXPORT_SYMBOL(drm_get_dev);
 
 /**
  * Put a secondary minor number.
@@ -472,3 +451,67 @@ int drm_put_minor(struct drm_minor **minor_p)
 	*minor_p = NULL;
 	return 0;
 }
+
+/**
+ * Called via drm_exit() at module unload time or when pci device is
+ * unplugged.
+ *
+ * Cleans up all DRM device, calling drm_lastclose().
+ *
+ * \sa drm_init
+ */
+void drm_put_dev(struct drm_device *dev)
+{
+	struct drm_driver *driver = dev->driver;
+	struct drm_map_list *r_list, *list_temp;
+
+	DRM_DEBUG("\n");
+
+	if (!dev) {
+		DRM_ERROR("cleanup called no dev\n");
+		return;
+	}
+
+	drm_vblank_cleanup(dev);
+
+	drm_lastclose(dev);
+
+	if (drm_core_has_MTRR(dev) && drm_core_has_AGP(dev) &&
+	    dev->agp && dev->agp->agp_mtrr >= 0) {
+		int retval;
+		retval = mtrr_del(dev->agp->agp_mtrr,
+				  dev->agp->agp_info.aper_base,
+				  dev->agp->agp_info.aper_size * 1024 * 1024);
+		DRM_DEBUG("mtrr_del=%d\n", retval);
+	}
+
+	if (dev->driver->unload)
+		dev->driver->unload(dev);
+
+	if (drm_core_has_AGP(dev) && dev->agp) {
+		drm_free(dev->agp, sizeof(*dev->agp), DRM_MEM_AGPLISTS);
+		dev->agp = NULL;
+	}
+
+	drm_ht_remove(&dev->map_hash);
+	drm_ctxbitmap_cleanup(dev);
+
+	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
+		drm_rmmap(dev, r_list->map);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_put_minor(&dev->control);
+
+	if (driver->driver_features & DRIVER_GEM)
+		drm_gem_destroy(dev);
+
+	drm_put_minor(&dev->primary);
+
+	if (dev->devname) {
+		drm_free(dev->devname, strlen(dev->devname) + 1,
+			 DRM_MEM_DRIVER);
+		dev->devname = NULL;
+	}
+	drm_free(dev, sizeof(*dev), DRM_MEM_STUB);
+}
+EXPORT_SYMBOL(drm_put_dev);

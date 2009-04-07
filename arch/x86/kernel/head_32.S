@@ -38,42 +38,40 @@
 #define X86_VENDOR_ID	new_cpu_data+CPUINFO_x86_vendor_id
 
 /*
- * This is how much memory *in addition to the memory covered up to
- * and including _end* we need mapped initially.
+ * This is how much memory in addition to the memory covered up to
+ * and including _end we need mapped initially.
  * We need:
- *  - one bit for each possible page, but only in low memory, which means
- *     2^32/4096/8 = 128K worst case (4G/4G split.)
- *  - enough space to map all low memory, which means
- *     (2^32/4096) / 1024 pages (worst case, non PAE)
- *     (2^32/4096) / 512 + 4 pages (worst case for PAE)
- *  - a few pages for allocator use before the kernel pagetable has
- *     been set up
+ *     (KERNEL_IMAGE_SIZE/4096) / 1024 pages (worst case, non PAE)
+ *     (KERNEL_IMAGE_SIZE/4096) / 512 + 4 pages (worst case for PAE)
  *
  * Modulo rounding, each megabyte assigned here requires a kilobyte of
  * memory, which is currently unreclaimed.
  *
  * This should be a multiple of a page.
+ *
+ * KERNEL_IMAGE_SIZE should be greater than pa(_end)
+ * and small than max_low_pfn, otherwise will waste some page table entries
  */
-LOW_PAGES = 1<<(32-PAGE_SHIFT_asm)
-
-/*
- * To preserve the DMA pool in PAGEALLOC kernels, we'll allocate
- * pagetables from above the 16MB DMA limit, so we'll have to set
- * up pagetables 16MB more (worst-case):
- */
-#ifdef CONFIG_DEBUG_PAGEALLOC
-LOW_PAGES = LOW_PAGES + 0x1000000
-#endif
 
 #if PTRS_PER_PMD > 1
-PAGE_TABLE_SIZE = (LOW_PAGES / PTRS_PER_PMD) + PTRS_PER_PGD
+#define PAGE_TABLE_SIZE(pages) (((pages) / PTRS_PER_PMD) + PTRS_PER_PGD)
 #else
-PAGE_TABLE_SIZE = (LOW_PAGES / PTRS_PER_PGD)
+#define PAGE_TABLE_SIZE(pages) ((pages) / PTRS_PER_PGD)
 #endif
-BOOTBITMAP_SIZE = LOW_PAGES / 8
-ALLOCATOR_SLOP = 4
 
-INIT_MAP_BEYOND_END = BOOTBITMAP_SIZE + (PAGE_TABLE_SIZE + ALLOCATOR_SLOP)*PAGE_SIZE_asm
+/* Enough space to fit pagetables for the low memory linear map */
+MAPPING_BEYOND_END = \
+	PAGE_TABLE_SIZE(((1<<32) - __PAGE_OFFSET) >> PAGE_SHIFT) << PAGE_SHIFT
+
+/*
+ * Worst-case size of the kernel mapping we need to make:
+ * the worst-case size of the kernel itself, plus the extra we need
+ * to map for the linear map.
+ */
+KERNEL_PAGES = (KERNEL_IMAGE_SIZE + MAPPING_BEYOND_END)>>PAGE_SHIFT
+
+INIT_MAP_SIZE = PAGE_TABLE_SIZE(KERNEL_PAGES) * PAGE_SIZE_asm
+RESERVE_BRK(pagetables, INIT_MAP_SIZE)
 
 /*
  * 32-bit kernel entrypoint; only used by the boot CPU.  On entry,
@@ -166,10 +164,10 @@ num_subarch_entries = (. - subarch_entries) / 4
 
 /*
  * Initialize page tables.  This creates a PDE and a set of page
- * tables, which are located immediately beyond _end.  The variable
- * init_pg_tables_end is set up to point to the first "safe" location.
+ * tables, which are located immediately beyond __brk_base.  The variable
+ * _brk_end is set up to point to the first "safe" location.
  * Mappings are created both at virtual address 0 (identity mapping)
- * and PAGE_OFFSET for up to _end+sizeof(page tables)+INIT_MAP_BEYOND_END.
+ * and PAGE_OFFSET for up to _end.
  *
  * Note that the stack is not yet set up!
  */
@@ -190,8 +188,7 @@ default_entry:
 
 	xorl %ebx,%ebx				/* %ebx is kept at zero */
 
-	movl $pa(pg0), %edi
-	movl %edi, pa(init_pg_tables_start)
+	movl $pa(__brk_base), %edi
 	movl $pa(swapper_pg_pmd), %edx
 	movl $PTE_IDENT_ATTR, %eax
 10:
@@ -209,14 +206,14 @@ default_entry:
 	loop 11b
 
 	/*
-	 * End condition: we must map up to and including INIT_MAP_BEYOND_END
-	 * bytes beyond the end of our own page tables.
+	 * End condition: we must map up to the end + MAPPING_BEYOND_END.
 	 */
-	leal (INIT_MAP_BEYOND_END+PTE_IDENT_ATTR)(%edi),%ebp
+	movl $pa(_end) + MAPPING_BEYOND_END + PTE_IDENT_ATTR, %ebp
 	cmpl %ebp,%eax
 	jb 10b
 1:
-	movl %edi,pa(init_pg_tables_end)
+	addl $__PAGE_OFFSET, %edi
+	movl %edi, pa(_brk_end)
 	shrl $12, %eax
 	movl %eax, pa(max_pfn_mapped)
 
@@ -227,8 +224,7 @@ default_entry:
 
 page_pde_offset = (__PAGE_OFFSET >> 20);
 
-	movl $pa(pg0), %edi
-	movl %edi, pa(init_pg_tables_start)
+	movl $pa(__brk_base), %edi
 	movl $pa(swapper_pg_dir), %edx
 	movl $PTE_IDENT_ATTR, %eax
 10:
@@ -242,14 +238,13 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 	addl $0x1000,%eax
 	loop 11b
 	/*
-	 * End condition: we must map up to and including INIT_MAP_BEYOND_END
-	 * bytes beyond the end of our own page tables; the +0x007 is
-	 * the attribute bits
+	 * End condition: we must map up to the end + MAPPING_BEYOND_END.
 	 */
-	leal (INIT_MAP_BEYOND_END+PTE_IDENT_ATTR)(%edi),%ebp
+	movl $pa(_end) + MAPPING_BEYOND_END + PTE_IDENT_ATTR, %ebp
 	cmpl %ebp,%eax
 	jb 10b
-	movl %edi,pa(init_pg_tables_end)
+	addl $__PAGE_OFFSET, %edi
+	movl %edi, pa(_brk_end)
 	shrl $12, %eax
 	movl %eax, pa(max_pfn_mapped)
 
@@ -636,6 +631,7 @@ swapper_pg_fixmap:
 	.fill 1024,4,0
 ENTRY(empty_zero_page)
 	.fill 4096,1,0
+
 /*
  * This starts the data section.
  */

@@ -25,7 +25,7 @@ use IO::Handle;
 		"tda10046lifeview", "av7110", "dec2000t", "dec2540t",
 		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
-		"opera1");
+		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2" );
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -37,8 +37,8 @@ for ($i=0; $i < scalar(@components); $i++) {
 	$outfile = eval($cid);
 	die $@ if $@;
 	print STDERR <<EOF;
-Firmware $outfile extracted successfully.
-Now copy it to either /usr/lib/hotplug/firmware or /lib/firmware
+Firmware(s) $outfile extracted successfully.
+Now copy it(they) to either /usr/lib/hotplug/firmware or /lib/firmware
 (depending on configuration of firmware hotplug).
 EOF
 	exit(0);
@@ -343,6 +343,85 @@ sub or51211 {
     verify($fwfile, $hash);
 
     $fwfile;
+}
+
+sub cx231xx {
+    my $fwfile = "v4l-cx231xx-avcore-01.fw";
+    my $url = "http://linuxtv.org/downloads/firmware/$fwfile";
+    my $hash = "7d3bb956dc9df0eafded2b56ba57cc42";
+
+    checkstandard();
+
+    wgetfile($fwfile, $url);
+    verify($fwfile, $hash);
+
+    $fwfile;
+}
+
+sub cx18 {
+    my $url = "http://linuxtv.org/downloads/firmware/";
+
+    my %files = (
+	'v4l-cx23418-apu.fw' => '588f081b562f5c653a3db1ad8f65939a',
+	'v4l-cx23418-cpu.fw' => 'b6c7ed64bc44b1a6e0840adaeac39d79',
+	'v4l-cx23418-dig.fw' => '95bc688d3e7599fd5800161e9971cc55',
+    );
+
+    checkstandard();
+
+    my $allfiles;
+    foreach my $fwfile (keys %files) {
+	wgetfile($fwfile, "$url/$fwfile");
+	verify($fwfile, $files{$fwfile});
+	$allfiles .= " $fwfile";
+    }
+
+    $allfiles =~ s/^\s//;
+
+    $allfiles;
+}
+
+sub cx23885 {
+    my $url = "http://linuxtv.org/downloads/firmware/";
+
+    my %files = (
+	'v4l-cx23885-avcore-01.fw' => 'a9f8f5d901a7fb42f552e1ee6384f3bb',
+	'v4l-cx23885-enc.fw'       => 'a9f8f5d901a7fb42f552e1ee6384f3bb',
+    );
+
+    checkstandard();
+
+    my $allfiles;
+    foreach my $fwfile (keys %files) {
+	wgetfile($fwfile, "$url/$fwfile");
+	verify($fwfile, $files{$fwfile});
+	$allfiles .= " $fwfile";
+    }
+
+    $allfiles =~ s/^\s//;
+
+    $allfiles;
+}
+
+sub pvrusb2 {
+    my $url = "http://linuxtv.org/downloads/firmware/";
+
+    my %files = (
+	'v4l-cx25840.fw'           => 'dadb79e9904fc8af96e8111d9cb59320',
+    );
+
+    checkstandard();
+
+    my $allfiles;
+    foreach my $fwfile (keys %files) {
+	wgetfile($fwfile, "$url/$fwfile");
+	verify($fwfile, $files{$fwfile});
+	$allfiles .= " $fwfile";
+    }
+
+    $allfiles =~ s/^\s//;
+
+    $allfiles;
 }
 
 sub or51132_qam {

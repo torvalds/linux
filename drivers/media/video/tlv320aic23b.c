@@ -31,15 +31,12 @@
 #include <linux/i2c-id.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("tlv320aic23b driver");
 MODULE_AUTHOR("Scott Alfter, Ulf Eklund, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static unsigned short normal_i2c[] = { 0x34 >> 1, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
 
@@ -119,11 +116,6 @@ static int tlv320aic23b_log_status(struct v4l2_subdev *sd)
 
 	v4l2_info(sd, "Input: %s\n", state->muted ? "muted" : "active");
 	return 0;
-}
-
-static int tlv320aic23b_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -208,8 +200,6 @@ MODULE_DEVICE_TABLE(i2c, tlv320aic23b_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tlv320aic23b",
-	.driverid = I2C_DRIVERID_TLV320AIC23B,
-	.command = tlv320aic23b_command,
 	.probe = tlv320aic23b_probe,
 	.remove = tlv320aic23b_remove,
 	.id_table = tlv320aic23b_id,

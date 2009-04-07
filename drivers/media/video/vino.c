@@ -8,6 +8,12 @@
  *
  * Based on the previous version of the driver for 2.4 kernels by:
  * Copyright (C) 2003 Ladislav Michl <ladis@linux-mips.org>
+ *
+ * v4l2_device/v4l2_subdev conversion by:
+ * Copyright (C) 2009 Hans Verkuil <hverkuil@xs4all.nl>
+ *
+ * Note: this conversion is untested! Please contact the linux-media
+ * mailinglist if you can test this, together with the test results.
  */
 
 /*
@@ -33,12 +39,10 @@
 #include <linux/kmod.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c-algo-sgi.h>
 
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <linux/video_decoder.h>
 #include <linux/mutex.h>
 
 #include <asm/paccess.h>
@@ -56,8 +60,8 @@
 // #define VINO_DEBUG
 // #define VINO_DEBUG_INT
 
-#define VINO_MODULE_VERSION "0.0.5"
-#define VINO_VERSION_CODE KERNEL_VERSION(0, 0, 5)
+#define VINO_MODULE_VERSION "0.0.6"
+#define VINO_VERSION_CODE KERNEL_VERSION(0, 0, 6)
 
 MODULE_DESCRIPTION("SGI VINO Video4Linux2 driver");
 MODULE_VERSION(VINO_MODULE_VERSION);
@@ -139,12 +143,22 @@ MODULE_LICENSE("GPL");
 #define VINO_DATA_NORM_PAL		1
 #define VINO_DATA_NORM_SECAM		2
 #define VINO_DATA_NORM_D1		3
-/* The following are special entries that can be used to
- * autodetect the norm. */
-#define VINO_DATA_NORM_AUTO		0xfe
-#define VINO_DATA_NORM_AUTO_EXT		0xff
 
 #define VINO_DATA_NORM_COUNT		4
+
+/* I2C controller flags */
+#define SGI_I2C_FORCE_IDLE		(0 << 0)
+#define SGI_I2C_NOT_IDLE		(1 << 0)
+#define SGI_I2C_WRITE			(0 << 1)
+#define SGI_I2C_READ			(1 << 1)
+#define SGI_I2C_RELEASE_BUS		(0 << 2)
+#define SGI_I2C_HOLD_BUS		(1 << 2)
+#define SGI_I2C_XFER_DONE		(0 << 4)
+#define SGI_I2C_XFER_BUSY		(1 << 4)
+#define SGI_I2C_ACK			(0 << 5)
+#define SGI_I2C_NACK			(1 << 5)
+#define SGI_I2C_BUS_OK			(0 << 7)
+#define SGI_I2C_BUS_ERR			(1 << 7)
 
 /* Internal data structure definitions */
 
@@ -289,22 +303,20 @@ struct vino_channel_settings {
 	struct vino_interrupt_data int_data;
 
 	/* V4L support */
-	struct video_device *v4l_device;
-};
-
-struct vino_client {
-	/* the channel which owns this client:
-	 * VINO_NO_CHANNEL, VINO_CHANNEL_A or VINO_CHANNEL_B */
-	unsigned int owner;
-	struct i2c_client *driver;
+	struct video_device *vdev;
 };
 
 struct vino_settings {
+	struct v4l2_device v4l2_dev;
 	struct vino_channel_settings a;
 	struct vino_channel_settings b;
 
-	struct vino_client decoder;
-	struct vino_client camera;
+	/* the channel which owns this client:
+	 * VINO_NO_CHANNEL, VINO_CHANNEL_A or VINO_CHANNEL_B */
+	unsigned int decoder_owner;
+	struct v4l2_subdev *decoder;
+	unsigned int camera_owner;
+	struct v4l2_subdev *camera;
 
 	/* a lock for vino register access */
 	spinlock_t vino_lock;
@@ -344,11 +356,16 @@ static struct sgi_vino *vino;
 
 static struct vino_settings *vino_drvdata;
 
+#define camera_call(o, f, args...) \
+	v4l2_subdev_call(vino_drvdata->camera, o, f, ##args)
+#define decoder_call(o, f, args...) \
+	v4l2_subdev_call(vino_drvdata->decoder, o, f, ##args)
+
 static const char *vino_driver_name = "vino";
 static const char *vino_driver_description = "SGI VINO";
 static const char *vino_bus_name = "GIO64 bus";
-static const char *vino_v4l_device_name_a = "SGI VINO Channel A";
-static const char *vino_v4l_device_name_b = "SGI VINO Channel B";
+static const char *vino_vdev_name_a = "SGI VINO Channel A";
+static const char *vino_vdev_name_b = "SGI VINO Channel B";
 
 static void vino_capture_tasklet(unsigned long channel);
 
@@ -360,11 +377,11 @@ static const struct vino_input vino_inputs[] = {
 		.name		= "Composite",
 		.std		= V4L2_STD_NTSC | V4L2_STD_PAL
 		| V4L2_STD_SECAM,
-	},{
+	}, {
 		.name		= "S-Video",
 		.std		= V4L2_STD_NTSC | V4L2_STD_PAL
 		| V4L2_STD_SECAM,
-	},{
+	}, {
 		.name		= "D1/IndyCam",
 		.std		= V4L2_STD_NTSC,
 	}
@@ -376,17 +393,17 @@ static const struct vino_data_format vino_data_formats[] = {
 		.bpp		= 1,
 		.pixelformat	= V4L2_PIX_FMT_GREY,
 		.colorspace	= V4L2_COLORSPACE_SMPTE170M,
-	},{
+	}, {
 		.description	= "8-bit dithered RGB 3-3-2",
 		.bpp		= 1,
 		.pixelformat	= V4L2_PIX_FMT_RGB332,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
-	},{
+	}, {
 		.description	= "32-bit RGB",
 		.bpp		= 4,
 		.pixelformat	= V4L2_PIX_FMT_RGB32,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
-	},{
+	}, {
 		.description	= "YUV 4:2:2",
 		.bpp		= 2,
 		.pixelformat	= V4L2_PIX_FMT_YUYV, // XXX: swapped?
@@ -417,7 +434,7 @@ static const struct vino_data_norm vino_data_norms[] = {
 			+ VINO_NTSC_HEIGHT / 2 - 1,
 			.right	= VINO_NTSC_WIDTH,
 		},
-	},{
+	}, {
 		.description	= "PAL",
 		.std		= V4L2_STD_PAL,
 		.fps_min	= 5,
@@ -439,7 +456,7 @@ static const struct vino_data_norm vino_data_norms[] = {
 			+ VINO_PAL_HEIGHT / 2 - 1,
 			.right	= VINO_PAL_WIDTH,
 		},
-	},{
+	}, {
 		.description	= "SECAM",
 		.std		= V4L2_STD_SECAM,
 		.fps_min	= 5,
@@ -461,7 +478,7 @@ static const struct vino_data_norm vino_data_norms[] = {
 			+ VINO_PAL_HEIGHT / 2 - 1,
 			.right	= VINO_PAL_WIDTH,
 		},
-	},{
+	}, {
 		.description	= "NTSC/D1",
 		.std		= V4L2_STD_NTSC,
 		.fps_min	= 6,
@@ -497,9 +514,7 @@ struct v4l2_queryctrl vino_indycam_v4l2_controls[] = {
 		.maximum = 1,
 		.step = 1,
 		.default_value = INDYCAM_AGC_DEFAULT,
-		.flags = 0,
-		.reserved = { INDYCAM_CONTROL_AGC, 0 },
-	},{
+	}, {
 		.id = V4L2_CID_AUTO_WHITE_BALANCE,
 		.type = V4L2_CTRL_TYPE_BOOLEAN,
 		.name = "Automatic White Balance",
@@ -507,9 +522,7 @@ struct v4l2_queryctrl vino_indycam_v4l2_controls[] = {
 		.maximum = 1,
 		.step = 1,
 		.default_value = INDYCAM_AWB_DEFAULT,
-		.flags = 0,
-		.reserved = { INDYCAM_CONTROL_AWB, 0 },
-	},{
+	}, {
 		.id = V4L2_CID_GAIN,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Gain",
@@ -517,29 +530,23 @@ struct v4l2_queryctrl vino_indycam_v4l2_controls[] = {
 		.maximum = INDYCAM_GAIN_MAX,
 		.step = 1,
 		.default_value = INDYCAM_GAIN_DEFAULT,
-		.flags = 0,
-		.reserved = { INDYCAM_CONTROL_GAIN, 0 },
-	},{
-		.id = V4L2_CID_PRIVATE_BASE,
+	}, {
+		.id = INDYCAM_CONTROL_RED_SATURATION,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Red Saturation",
 		.minimum = INDYCAM_RED_SATURATION_MIN,
 		.maximum = INDYCAM_RED_SATURATION_MAX,
 		.step = 1,
 		.default_value = INDYCAM_RED_SATURATION_DEFAULT,
-		.flags = 0,
-		.reserved = { INDYCAM_CONTROL_RED_SATURATION, 0 },
-	},{
-		.id = V4L2_CID_PRIVATE_BASE + 1,
+	}, {
+		.id = INDYCAM_CONTROL_BLUE_SATURATION,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Blue Saturation",
 		.minimum = INDYCAM_BLUE_SATURATION_MIN,
 		.maximum = INDYCAM_BLUE_SATURATION_MAX,
 		.step = 1,
 		.default_value = INDYCAM_BLUE_SATURATION_DEFAULT,
-		.flags = 0,
-		.reserved = { INDYCAM_CONTROL_BLUE_SATURATION, 0 },
-	},{
+	}, {
 		.id = V4L2_CID_RED_BALANCE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Red Balance",
@@ -547,9 +554,7 @@ struct v4l2_queryctrl vino_indycam_v4l2_controls[] = {
 		.maximum = INDYCAM_RED_BALANCE_MAX,
 		.step = 1,
 		.default_value = INDYCAM_RED_BALANCE_DEFAULT,
-		.flags = 0,
-		.reserved = { INDYCAM_CONTROL_RED_BALANCE, 0 },
-	},{
+	}, {
 		.id = V4L2_CID_BLUE_BALANCE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Blue Balance",
@@ -557,9 +562,7 @@ struct v4l2_queryctrl vino_indycam_v4l2_controls[] = {
 		.maximum = INDYCAM_BLUE_BALANCE_MAX,
 		.step = 1,
 		.default_value = INDYCAM_BLUE_BALANCE_DEFAULT,
-		.flags = 0,
-		.reserved = { INDYCAM_CONTROL_BLUE_BALANCE, 0 },
-	},{
+	}, {
 		.id = V4L2_CID_EXPOSURE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Shutter Control",
@@ -567,9 +570,7 @@ struct v4l2_queryctrl vino_indycam_v4l2_controls[] = {
 		.maximum = INDYCAM_SHUTTER_MAX,
 		.step = 1,
 		.default_value = INDYCAM_SHUTTER_DEFAULT,
-		.flags = 0,
-		.reserved = { INDYCAM_CONTROL_SHUTTER, 0 },
-	},{
+	}, {
 		.id = V4L2_CID_GAMMA,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Gamma",
@@ -577,8 +578,6 @@ struct v4l2_queryctrl vino_indycam_v4l2_controls[] = {
 		.maximum = INDYCAM_GAMMA_MAX,
 		.step = 1,
 		.default_value = INDYCAM_GAMMA_DEFAULT,
-		.flags = 0,
-		.reserved = { INDYCAM_CONTROL_GAMMA, 0 },
 	}
 };
 
@@ -593,208 +592,72 @@ struct v4l2_queryctrl vino_saa7191_v4l2_controls[] = {
 		.maximum = SAA7191_HUE_MAX,
 		.step = 1,
 		.default_value = SAA7191_HUE_DEFAULT,
-		.flags = 0,
-		.reserved = { SAA7191_CONTROL_HUE, 0 },
-	},{
-		.id = V4L2_CID_PRIVATE_BASE,
+	}, {
+		.id = SAA7191_CONTROL_BANDPASS,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Luminance Bandpass",
 		.minimum = SAA7191_BANDPASS_MIN,
 		.maximum = SAA7191_BANDPASS_MAX,
 		.step = 1,
 		.default_value = SAA7191_BANDPASS_DEFAULT,
-		.flags = 0,
-		.reserved = { SAA7191_CONTROL_BANDPASS, 0 },
-	},{
-		.id = V4L2_CID_PRIVATE_BASE + 1,
+	}, {
+		.id = SAA7191_CONTROL_BANDPASS_WEIGHT,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Luminance Bandpass Weight",
 		.minimum = SAA7191_BANDPASS_WEIGHT_MIN,
 		.maximum = SAA7191_BANDPASS_WEIGHT_MAX,
 		.step = 1,
 		.default_value = SAA7191_BANDPASS_WEIGHT_DEFAULT,
-		.flags = 0,
-		.reserved = { SAA7191_CONTROL_BANDPASS_WEIGHT, 0 },
-	},{
-		.id = V4L2_CID_PRIVATE_BASE + 2,
+	}, {
+		.id = SAA7191_CONTROL_CORING,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "HF Luminance Coring",
 		.minimum = SAA7191_CORING_MIN,
 		.maximum = SAA7191_CORING_MAX,
 		.step = 1,
 		.default_value = SAA7191_CORING_DEFAULT,
-		.flags = 0,
-		.reserved = { SAA7191_CONTROL_CORING, 0 },
-	},{
-		.id = V4L2_CID_PRIVATE_BASE + 3,
+	}, {
+		.id = SAA7191_CONTROL_FORCE_COLOUR,
 		.type = V4L2_CTRL_TYPE_BOOLEAN,
 		.name = "Force Colour",
 		.minimum = SAA7191_FORCE_COLOUR_MIN,
 		.maximum = SAA7191_FORCE_COLOUR_MAX,
 		.step = 1,
 		.default_value = SAA7191_FORCE_COLOUR_DEFAULT,
-		.flags = 0,
-		.reserved = { SAA7191_CONTROL_FORCE_COLOUR, 0 },
-	},{
-		.id = V4L2_CID_PRIVATE_BASE + 4,
+	}, {
+		.id = SAA7191_CONTROL_CHROMA_GAIN,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Chrominance Gain Control",
 		.minimum = SAA7191_CHROMA_GAIN_MIN,
 		.maximum = SAA7191_CHROMA_GAIN_MAX,
 		.step = 1,
 		.default_value = SAA7191_CHROMA_GAIN_DEFAULT,
-		.flags = 0,
-		.reserved = { SAA7191_CONTROL_CHROMA_GAIN, 0 },
-	},{
-		.id = V4L2_CID_PRIVATE_BASE + 5,
+	}, {
+		.id = SAA7191_CONTROL_VTRC,
 		.type = V4L2_CTRL_TYPE_BOOLEAN,
 		.name = "VTR Time Constant",
 		.minimum = SAA7191_VTRC_MIN,
 		.maximum = SAA7191_VTRC_MAX,
 		.step = 1,
 		.default_value = SAA7191_VTRC_DEFAULT,
-		.flags = 0,
-		.reserved = { SAA7191_CONTROL_VTRC, 0 },
-	},{
-		.id = V4L2_CID_PRIVATE_BASE + 6,
+	}, {
+		.id = SAA7191_CONTROL_LUMA_DELAY,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Luminance Delay Compensation",
 		.minimum = SAA7191_LUMA_DELAY_MIN,
 		.maximum = SAA7191_LUMA_DELAY_MAX,
 		.step = 1,
 		.default_value = SAA7191_LUMA_DELAY_DEFAULT,
-		.flags = 0,
-		.reserved = { SAA7191_CONTROL_LUMA_DELAY, 0 },
-	},{
-		.id = V4L2_CID_PRIVATE_BASE + 7,
+	}, {
+		.id = SAA7191_CONTROL_VNR,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Vertical Noise Reduction",
 		.minimum = SAA7191_VNR_MIN,
 		.maximum = SAA7191_VNR_MAX,
 		.step = 1,
 		.default_value = SAA7191_VNR_DEFAULT,
-		.flags = 0,
-		.reserved = { SAA7191_CONTROL_VNR, 0 },
 	}
 };
-
-/* VINO I2C bus functions */
-
-unsigned i2c_vino_getctrl(void *data)
-{
-	return vino->i2c_control;
-}
-
-void i2c_vino_setctrl(void *data, unsigned val)
-{
-	vino->i2c_control = val;
-}
-
-unsigned i2c_vino_rdata(void *data)
-{
-	return vino->i2c_data;
-}
-
-void i2c_vino_wdata(void *data, unsigned val)
-{
-	vino->i2c_data = val;
-}
-
-static struct i2c_algo_sgi_data i2c_sgi_vino_data =
-{
-	.getctrl = &i2c_vino_getctrl,
-	.setctrl = &i2c_vino_setctrl,
-	.rdata   = &i2c_vino_rdata,
-	.wdata   = &i2c_vino_wdata,
-	.xfer_timeout = 200,
-	.ack_timeout  = 1000,
-};
-
-/*
- * There are two possible clients on VINO I2C bus, so we limit usage only
- * to them.
- */
-static int i2c_vino_client_reg(struct i2c_client *client)
-{
-	unsigned long flags;
-	int ret = 0;
-
-	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
-	switch (client->driver->id) {
-	case I2C_DRIVERID_SAA7191:
-		if (vino_drvdata->decoder.driver)
-			ret = -EBUSY;
-		else
-			vino_drvdata->decoder.driver = client;
-		break;
-	case I2C_DRIVERID_INDYCAM:
-		if (vino_drvdata->camera.driver)
-			ret = -EBUSY;
-		else
-			vino_drvdata->camera.driver = client;
-		break;
-	default:
-		ret = -ENODEV;
-	}
-	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
-
-	return ret;
-}
-
-static int i2c_vino_client_unreg(struct i2c_client *client)
-{
-	unsigned long flags;
-	int ret = 0;
-
-	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
-	if (client == vino_drvdata->decoder.driver) {
-		if (vino_drvdata->decoder.owner != VINO_NO_CHANNEL)
-			ret = -EBUSY;
-		else
-			vino_drvdata->decoder.driver = NULL;
-	} else if (client == vino_drvdata->camera.driver) {
-		if (vino_drvdata->camera.owner != VINO_NO_CHANNEL)
-			ret = -EBUSY;
-		else
-			vino_drvdata->camera.driver = NULL;
-	}
-	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
-
-	return ret;
-}
-
-static struct i2c_adapter vino_i2c_adapter =
-{
-	.name			= "VINO I2C bus",
-	.id			= I2C_HW_SGI_VINO,
-	.algo_data		= &i2c_sgi_vino_data,
-	.client_register	= &i2c_vino_client_reg,
-	.client_unregister	= &i2c_vino_client_unreg,
-};
-
-static int vino_i2c_add_bus(void)
-{
-	return i2c_sgi_add_bus(&vino_i2c_adapter);
-}
-
-static int vino_i2c_del_bus(void)
-{
-	return i2c_del_adapter(&vino_i2c_adapter);
-}
-
-static int i2c_camera_command(unsigned int cmd, void *arg)
-{
-	return vino_drvdata->camera.driver->
-		driver->command(vino_drvdata->camera.driver,
-				cmd, arg);
-}
-
-static int i2c_decoder_command(unsigned int cmd, void *arg)
-{
-	return vino_drvdata->decoder.driver->
-		driver->command(vino_drvdata->decoder.driver,
-				cmd, arg);
-}
 
 /* VINO framebuffer/DMA descriptor management */
 
@@ -1741,6 +1604,184 @@ static inline void vino_set_default_framerate(struct
 	vino_set_framerate(vcs, vino_data_norms[vcs->data_norm].fps_max);
 }
 
+/* VINO I2C bus functions */
+
+struct i2c_algo_sgi_data {
+	void *data;	/* private data for lowlevel routines */
+	unsigned (*getctrl)(void *data);
+	void (*setctrl)(void *data, unsigned val);
+	unsigned (*rdata)(void *data);
+	void (*wdata)(void *data, unsigned val);
+
+	int xfer_timeout;
+	int ack_timeout;
+};
+
+static int wait_xfer_done(struct i2c_algo_sgi_data *adap)
+{
+	int i;
+
+	for (i = 0; i < adap->xfer_timeout; i++) {
+		if ((adap->getctrl(adap->data) & SGI_I2C_XFER_BUSY) == 0)
+			return 0;
+		udelay(1);
+	}
+
+	return -ETIMEDOUT;
+}
+
+static int wait_ack(struct i2c_algo_sgi_data *adap)
+{
+	int i;
+
+	if (wait_xfer_done(adap))
+		return -ETIMEDOUT;
+	for (i = 0; i < adap->ack_timeout; i++) {
+		if ((adap->getctrl(adap->data) & SGI_I2C_NACK) == 0)
+			return 0;
+		udelay(1);
+	}
+
+	return -ETIMEDOUT;
+}
+
+static int force_idle(struct i2c_algo_sgi_data *adap)
+{
+	int i;
+
+	adap->setctrl(adap->data, SGI_I2C_FORCE_IDLE);
+	for (i = 0; i < adap->xfer_timeout; i++) {
+		if ((adap->getctrl(adap->data) & SGI_I2C_NOT_IDLE) == 0)
+			goto out;
+		udelay(1);
+	}
+	return -ETIMEDOUT;
+out:
+	if (adap->getctrl(adap->data) & SGI_I2C_BUS_ERR)
+		return -EIO;
+	return 0;
+}
+
+static int do_address(struct i2c_algo_sgi_data *adap, unsigned int addr,
+		      int rd)
+{
+	if (rd)
+		adap->setctrl(adap->data, SGI_I2C_NOT_IDLE);
+	/* Check if bus is idle, eventually force it to do so */
+	if (adap->getctrl(adap->data) & SGI_I2C_NOT_IDLE)
+		if (force_idle(adap))
+			return -EIO;
+	/* Write out the i2c chip address and specify operation */
+	adap->setctrl(adap->data,
+		      SGI_I2C_HOLD_BUS | SGI_I2C_WRITE | SGI_I2C_NOT_IDLE);
+	if (rd)
+		addr |= 1;
+	adap->wdata(adap->data, addr);
+	if (wait_ack(adap))
+		return -EIO;
+	return 0;
+}
+
+static int i2c_read(struct i2c_algo_sgi_data *adap, unsigned char *buf,
+		    unsigned int len)
+{
+	int i;
+
+	adap->setctrl(adap->data,
+		      SGI_I2C_HOLD_BUS | SGI_I2C_READ | SGI_I2C_NOT_IDLE);
+	for (i = 0; i < len; i++) {
+		if (wait_xfer_done(adap))
+			return -EIO;
+		buf[i] = adap->rdata(adap->data);
+	}
+	adap->setctrl(adap->data, SGI_I2C_RELEASE_BUS | SGI_I2C_FORCE_IDLE);
+
+	return 0;
+
+}
+
+static int i2c_write(struct i2c_algo_sgi_data *adap, unsigned char *buf,
+		     unsigned int len)
+{
+	int i;
+
+	/* We are already in write state */
+	for (i = 0; i < len; i++) {
+		adap->wdata(adap->data, buf[i]);
+		if (wait_ack(adap))
+			return -EIO;
+	}
+	return 0;
+}
+
+static int sgi_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
+		    int num)
+{
+	struct i2c_algo_sgi_data *adap = i2c_adap->algo_data;
+	struct i2c_msg *p;
+	int i, err = 0;
+
+	for (i = 0; !err && i < num; i++) {
+		p = &msgs[i];
+		err = do_address(adap, p->addr, p->flags & I2C_M_RD);
+		if (err || !p->len)
+			continue;
+		if (p->flags & I2C_M_RD)
+			err = i2c_read(adap, p->buf, p->len);
+		else
+			err = i2c_write(adap, p->buf, p->len);
+	}
+
+	return (err < 0) ? err : i;
+}
+
+static u32 sgi_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_SMBUS_EMUL;
+}
+
+static const struct i2c_algorithm sgi_algo = {
+	.master_xfer	= sgi_xfer,
+	.functionality	= sgi_func,
+};
+
+static unsigned i2c_vino_getctrl(void *data)
+{
+	return vino->i2c_control;
+}
+
+static void i2c_vino_setctrl(void *data, unsigned val)
+{
+	vino->i2c_control = val;
+}
+
+static unsigned i2c_vino_rdata(void *data)
+{
+	return vino->i2c_data;
+}
+
+static void i2c_vino_wdata(void *data, unsigned val)
+{
+	vino->i2c_data = val;
+}
+
+static struct i2c_algo_sgi_data i2c_sgi_vino_data = {
+	.getctrl = &i2c_vino_getctrl,
+	.setctrl = &i2c_vino_setctrl,
+	.rdata   = &i2c_vino_rdata,
+	.wdata   = &i2c_vino_wdata,
+	.xfer_timeout = 200,
+	.ack_timeout  = 1000,
+};
+
+static struct i2c_adapter vino_i2c_adapter = {
+	.name			= "VINO I2C bus",
+	.id			= I2C_HW_SGI_VINO,
+	.algo			= &sgi_algo,
+	.algo_data		= &i2c_sgi_vino_data,
+	.owner 			= THIS_MODULE,
+};
+
 /*
  * Prepare VINO for DMA transfer...
  * (execute only with vino_lock and input_lock locked)
@@ -2490,86 +2531,15 @@ static int vino_get_saa7191_input(int input)
 	}
 }
 
-static int vino_get_saa7191_norm(unsigned int data_norm)
-{
-	switch (data_norm) {
-	case VINO_DATA_NORM_AUTO:
-		return SAA7191_NORM_AUTO;
-	case VINO_DATA_NORM_AUTO_EXT:
-		return SAA7191_NORM_AUTO_EXT;
-	case VINO_DATA_NORM_PAL:
-		return SAA7191_NORM_PAL;
-	case VINO_DATA_NORM_NTSC:
-		return SAA7191_NORM_NTSC;
-	case VINO_DATA_NORM_SECAM:
-		return SAA7191_NORM_SECAM;
-	default:
-		printk(KERN_ERR "VINO: vino_get_saa7191_norm(): "
-		       "invalid norm!\n");
-		return -1;
-	}
-}
-
-static int vino_get_from_saa7191_norm(int saa7191_norm)
-{
-	switch (saa7191_norm) {
-	case SAA7191_NORM_PAL:
-		return VINO_DATA_NORM_PAL;
-	case SAA7191_NORM_NTSC:
-		return VINO_DATA_NORM_NTSC;
-	case SAA7191_NORM_SECAM:
-		return VINO_DATA_NORM_SECAM;
-	default:
-		printk(KERN_ERR "VINO: vino_get_from_saa7191_norm(): "
-		       "invalid norm!\n");
-		return VINO_DATA_NORM_NONE;
-	}
-}
-
-static int vino_saa7191_set_norm(unsigned int *data_norm)
-{
-	int saa7191_norm, new_data_norm;
-	int err = 0;
-
-	saa7191_norm = vino_get_saa7191_norm(*data_norm);
-
-	err = i2c_decoder_command(DECODER_SAA7191_SET_NORM,
-				  &saa7191_norm);
-	if (err)
-		goto out;
-
-	if ((*data_norm == VINO_DATA_NORM_AUTO)
-	    || (*data_norm == VINO_DATA_NORM_AUTO_EXT)) {
-		struct saa7191_status status;
-
-		err = i2c_decoder_command(DECODER_SAA7191_GET_STATUS,
-					  &status);
-		if (err)
-			goto out;
-
-		new_data_norm =
-			vino_get_from_saa7191_norm(status.norm);
-		if (new_data_norm == VINO_DATA_NORM_NONE) {
-			err = -EINVAL;
-			goto out;
-		}
-
-		*data_norm = (unsigned int)new_data_norm;
-	}
-
-out:
-	return err;
-}
-
 /* execute with input_lock locked */
 static int vino_is_input_owner(struct vino_channel_settings *vcs)
 {
 	switch(vcs->input) {
 	case VINO_INPUT_COMPOSITE:
 	case VINO_INPUT_SVIDEO:
-		return (vino_drvdata->decoder.owner == vcs->channel);
+		return vino_drvdata->decoder_owner == vcs->channel;
 	case VINO_INPUT_D1:
-		return (vino_drvdata->camera.owner == vcs->channel);
+		return vino_drvdata->camera_owner == vcs->channel;
 	default:
 		return 0;
 	}
@@ -2585,23 +2555,21 @@ static int vino_acquire_input(struct vino_channel_settings *vcs)
 	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
 
 	/* First try D1 and then SAA7191 */
-	if (vino_drvdata->camera.driver
-	    && (vino_drvdata->camera.owner == VINO_NO_CHANNEL)) {
-		i2c_use_client(vino_drvdata->camera.driver);
-		vino_drvdata->camera.owner = vcs->channel;
+	if (vino_drvdata->camera
+	    && (vino_drvdata->camera_owner == VINO_NO_CHANNEL)) {
+		vino_drvdata->camera_owner = vcs->channel;
 		vcs->input = VINO_INPUT_D1;
 		vcs->data_norm = VINO_DATA_NORM_D1;
-	} else if (vino_drvdata->decoder.driver
-		   && (vino_drvdata->decoder.owner == VINO_NO_CHANNEL)) {
-		int input, data_norm;
-		int saa7191_input;
+	} else if (vino_drvdata->decoder
+		   && (vino_drvdata->decoder_owner == VINO_NO_CHANNEL)) {
+		int input;
+		int data_norm;
+		v4l2_std_id norm;
 
-		i2c_use_client(vino_drvdata->decoder.driver);
 		input = VINO_INPUT_COMPOSITE;
 
-		saa7191_input = vino_get_saa7191_input(input);
-		ret = i2c_decoder_command(DECODER_SET_INPUT,
-					  &saa7191_input);
+		ret = decoder_call(video, s_routing,
+				vino_get_saa7191_input(input), 0, 0);
 		if (ret) {
 			ret = -EINVAL;
 			goto out;
@@ -2612,12 +2580,15 @@ static int vino_acquire_input(struct vino_channel_settings *vcs)
 		/* Don't hold spinlocks while auto-detecting norm
 		 * as it may take a while... */
 
-		data_norm = VINO_DATA_NORM_AUTO_EXT;
-
-		ret = vino_saa7191_set_norm(&data_norm);
-		if ((ret == -EBUSY) || (ret == -EAGAIN)) {
-			data_norm = VINO_DATA_NORM_PAL;
-			ret = vino_saa7191_set_norm(&data_norm);
+		ret = decoder_call(video, querystd, &norm);
+		if (!ret) {
+			for (data_norm = 0; data_norm < 3; data_norm++) {
+				if (vino_data_norms[data_norm].std & norm)
+					break;
+			}
+			if (data_norm == 3)
+				data_norm = VINO_DATA_NORM_PAL;
+			ret = decoder_call(core, s_std, norm);
 		}
 
 		spin_lock_irqsave(&vino_drvdata->input_lock, flags);
@@ -2627,7 +2598,7 @@ static int vino_acquire_input(struct vino_channel_settings *vcs)
 			goto out;
 		}
 
-		vino_drvdata->decoder.owner = vcs->channel;
+		vino_drvdata->decoder_owner = vcs->channel;
 
 		vcs->input = input;
 		vcs->data_norm = data_norm;
@@ -2672,25 +2643,23 @@ static int vino_set_input(struct vino_channel_settings *vcs, int input)
 	switch (input) {
 	case VINO_INPUT_COMPOSITE:
 	case VINO_INPUT_SVIDEO:
-		if (!vino_drvdata->decoder.driver) {
+		if (!vino_drvdata->decoder) {
 			ret = -EINVAL;
 			goto out;
 		}
 
-		if (vino_drvdata->decoder.owner == VINO_NO_CHANNEL) {
-			i2c_use_client(vino_drvdata->decoder.driver);
-			vino_drvdata->decoder.owner = vcs->channel;
+		if (vino_drvdata->decoder_owner == VINO_NO_CHANNEL) {
+			vino_drvdata->decoder_owner = vcs->channel;
 		}
 
-		if (vino_drvdata->decoder.owner == vcs->channel) {
+		if (vino_drvdata->decoder_owner == vcs->channel) {
 			int data_norm;
-			int saa7191_input;
+			v4l2_std_id norm;
 
-			saa7191_input = vino_get_saa7191_input(input);
-			ret = i2c_decoder_command(DECODER_SET_INPUT,
-						  &saa7191_input);
+			ret = decoder_call(video, s_routing,
+					vino_get_saa7191_input(input), 0, 0);
 			if (ret) {
-				vino_drvdata->decoder.owner = VINO_NO_CHANNEL;
+				vino_drvdata->decoder_owner = VINO_NO_CHANNEL;
 				ret = -EINVAL;
 				goto out;
 			}
@@ -2700,18 +2669,21 @@ static int vino_set_input(struct vino_channel_settings *vcs, int input)
 			/* Don't hold spinlocks while auto-detecting norm
 			 * as it may take a while... */
 
-			data_norm = VINO_DATA_NORM_AUTO_EXT;
-
-			ret = vino_saa7191_set_norm(&data_norm);
-			if ((ret  == -EBUSY) || (ret == -EAGAIN)) {
-				data_norm = VINO_DATA_NORM_PAL;
-				ret = vino_saa7191_set_norm(&data_norm);
+			ret = decoder_call(video, querystd, &norm);
+			if (!ret) {
+				for (data_norm = 0; data_norm < 3; data_norm++) {
+					if (vino_data_norms[data_norm].std & norm)
+						break;
+				}
+				if (data_norm == 3)
+					data_norm = VINO_DATA_NORM_PAL;
+				ret = decoder_call(core, s_std, norm);
 			}
 
 			spin_lock_irqsave(&vino_drvdata->input_lock, flags);
 
 			if (ret) {
-				vino_drvdata->decoder.owner = VINO_NO_CHANNEL;
+				vino_drvdata->decoder_owner = VINO_NO_CHANNEL;
 				ret = -EINVAL;
 				goto out;
 			}
@@ -2728,37 +2700,31 @@ static int vino_set_input(struct vino_channel_settings *vcs, int input)
 			vcs->data_norm = vcs2->data_norm;
 		}
 
-		if (vino_drvdata->camera.owner == vcs->channel) {
+		if (vino_drvdata->camera_owner == vcs->channel) {
 			/* Transfer the ownership or release the input */
 			if (vcs2->input == VINO_INPUT_D1) {
-				vino_drvdata->camera.owner = vcs2->channel;
+				vino_drvdata->camera_owner = vcs2->channel;
 			} else {
-				i2c_release_client(vino_drvdata->
-						   camera.driver);
-				vino_drvdata->camera.owner = VINO_NO_CHANNEL;
+				vino_drvdata->camera_owner = VINO_NO_CHANNEL;
 			}
 		}
 		break;
 	case VINO_INPUT_D1:
-		if (!vino_drvdata->camera.driver) {
+		if (!vino_drvdata->camera) {
 			ret = -EINVAL;
 			goto out;
 		}
 
-		if (vino_drvdata->camera.owner == VINO_NO_CHANNEL) {
-			i2c_use_client(vino_drvdata->camera.driver);
-			vino_drvdata->camera.owner = vcs->channel;
-		}
+		if (vino_drvdata->camera_owner == VINO_NO_CHANNEL)
+			vino_drvdata->camera_owner = vcs->channel;
 
-		if (vino_drvdata->decoder.owner == vcs->channel) {
+		if (vino_drvdata->decoder_owner == vcs->channel) {
 			/* Transfer the ownership or release the input */
 			if ((vcs2->input == VINO_INPUT_COMPOSITE) ||
 				 (vcs2->input == VINO_INPUT_SVIDEO)) {
-				vino_drvdata->decoder.owner = vcs2->channel;
+				vino_drvdata->decoder_owner = vcs2->channel;
 			} else {
-				i2c_release_client(vino_drvdata->
-						   decoder.driver);
-				vino_drvdata->decoder.owner = VINO_NO_CHANNEL;
+				vino_drvdata->decoder_owner = VINO_NO_CHANNEL;
 			}
 		}
 
@@ -2795,20 +2761,18 @@ static void vino_release_input(struct vino_channel_settings *vcs)
 	/* Release ownership of the channel
 	 * and if the other channel takes input from
 	 * the same source, transfer the ownership */
-	if (vino_drvdata->camera.owner == vcs->channel) {
+	if (vino_drvdata->camera_owner == vcs->channel) {
 		if (vcs2->input == VINO_INPUT_D1) {
-			vino_drvdata->camera.owner = vcs2->channel;
+			vino_drvdata->camera_owner = vcs2->channel;
 		} else {
-			i2c_release_client(vino_drvdata->camera.driver);
-			vino_drvdata->camera.owner = VINO_NO_CHANNEL;
+			vino_drvdata->camera_owner = VINO_NO_CHANNEL;
 		}
-	} else if (vino_drvdata->decoder.owner == vcs->channel) {
+	} else if (vino_drvdata->decoder_owner == vcs->channel) {
 		if ((vcs2->input == VINO_INPUT_COMPOSITE) ||
 			 (vcs2->input == VINO_INPUT_SVIDEO)) {
-			vino_drvdata->decoder.owner = vcs2->channel;
+			vino_drvdata->decoder_owner = vcs2->channel;
 		} else {
-			i2c_release_client(vino_drvdata->decoder.driver);
-			vino_drvdata->decoder.owner = VINO_NO_CHANNEL;
+			vino_drvdata->decoder_owner = VINO_NO_CHANNEL;
 		}
 	}
 	vcs->input = VINO_INPUT_NONE;
@@ -2829,18 +2793,16 @@ static int vino_set_data_norm(struct vino_channel_settings *vcs,
 	switch (vcs->input) {
 	case VINO_INPUT_D1:
 		/* only one "norm" supported */
-		if ((data_norm != VINO_DATA_NORM_D1)
-		    && (data_norm != VINO_DATA_NORM_AUTO)
-		    && (data_norm != VINO_DATA_NORM_AUTO_EXT))
+		if (data_norm != VINO_DATA_NORM_D1)
 			return -EINVAL;
 		break;
 	case VINO_INPUT_COMPOSITE:
 	case VINO_INPUT_SVIDEO: {
+		v4l2_std_id norm;
+
 		if ((data_norm != VINO_DATA_NORM_PAL)
 		    && (data_norm != VINO_DATA_NORM_NTSC)
-		    && (data_norm != VINO_DATA_NORM_SECAM)
-		    && (data_norm != VINO_DATA_NORM_AUTO)
-		    && (data_norm != VINO_DATA_NORM_AUTO_EXT))
+		    && (data_norm != VINO_DATA_NORM_SECAM))
 			return -EINVAL;
 
 		spin_unlock_irqrestore(&vino_drvdata->input_lock, *flags);
@@ -2848,7 +2810,8 @@ static int vino_set_data_norm(struct vino_channel_settings *vcs,
 		/* Don't hold spinlocks while setting norm
 		 * as it may take a while... */
 
-		err = vino_saa7191_set_norm(&data_norm);
+		norm = vino_data_norms[data_norm].std;
+		err = decoder_call(core, s_std, norm);
 
 		spin_lock_irqsave(&vino_drvdata->input_lock, *flags);
 
@@ -2884,41 +2847,13 @@ static int vino_find_data_format(__u32 pixelformat)
 	return VINO_DATA_FMT_NONE;
 }
 
-static int vino_enum_data_norm(struct vino_channel_settings *vcs, __u32 index)
-{
-	int data_norm = VINO_DATA_NORM_NONE;
-	unsigned long flags;
-
-	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
-	switch(vcs->input) {
-	case VINO_INPUT_COMPOSITE:
-	case VINO_INPUT_SVIDEO:
-		if (index == 0) {
-			data_norm = VINO_DATA_NORM_PAL;
-		} else if (index == 1) {
-			data_norm = VINO_DATA_NORM_NTSC;
-		} else if (index == 2) {
-			data_norm = VINO_DATA_NORM_SECAM;
-		}
-		break;
-	case VINO_INPUT_D1:
-		if (index == 0) {
-			data_norm = VINO_DATA_NORM_D1;
-		}
-		break;
-	}
-	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
-
-	return data_norm;
-}
-
-static int vino_enum_input(struct vino_channel_settings *vcs, __u32 index)
+static int vino_int_enum_input(struct vino_channel_settings *vcs, __u32 index)
 {
 	int input = VINO_INPUT_NONE;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
-	if (vino_drvdata->decoder.driver && vino_drvdata->camera.driver) {
+	if (vino_drvdata->decoder && vino_drvdata->camera) {
 		switch (index) {
 		case 0:
 			input = VINO_INPUT_COMPOSITE;
@@ -2930,7 +2865,7 @@ static int vino_enum_input(struct vino_channel_settings *vcs, __u32 index)
 			input = VINO_INPUT_D1;
 			break;
 		}
-	} else if (vino_drvdata->decoder.driver) {
+	} else if (vino_drvdata->decoder) {
 		switch (index) {
 		case 0:
 			input = VINO_INPUT_COMPOSITE;
@@ -2939,7 +2874,7 @@ static int vino_enum_input(struct vino_channel_settings *vcs, __u32 index)
 			input = VINO_INPUT_SVIDEO;
 			break;
 		}
-	} else if (vino_drvdata->camera.driver) {
+	} else if (vino_drvdata->camera) {
 		switch (index) {
 		case 0:
 			input = VINO_INPUT_D1;
@@ -2957,7 +2892,7 @@ static __u32 vino_find_input_index(struct vino_channel_settings *vcs)
 	__u32 index = 0;
 	// FIXME: detect when no inputs available
 
-	if (vino_drvdata->decoder.driver && vino_drvdata->camera.driver) {
+	if (vino_drvdata->decoder && vino_drvdata->camera) {
 		switch (vcs->input) {
 		case VINO_INPUT_COMPOSITE:
 			index = 0;
@@ -2969,7 +2904,7 @@ static __u32 vino_find_input_index(struct vino_channel_settings *vcs)
 			index = 2;
 			break;
 		}
-	} else if (vino_drvdata->decoder.driver) {
+	} else if (vino_drvdata->decoder) {
 		switch (vcs->input) {
 		case VINO_INPUT_COMPOSITE:
 			index = 0;
@@ -2978,7 +2913,7 @@ static __u32 vino_find_input_index(struct vino_channel_settings *vcs)
 			index = 1;
 			break;
 		}
-	} else if (vino_drvdata->camera.driver) {
+	} else if (vino_drvdata->camera) {
 		switch (vcs->input) {
 		case VINO_INPUT_D1:
 			index = 0;
@@ -2991,7 +2926,8 @@ static __u32 vino_find_input_index(struct vino_channel_settings *vcs)
 
 /* V4L2 ioctls */
 
-static void vino_v4l2_querycap(struct v4l2_capability *cap)
+static int vino_querycap(struct file *file, void *__fh,
+		struct v4l2_capability *cap)
 {
 	memset(cap, 0, sizeof(struct v4l2_capability));
 
@@ -3003,16 +2939,18 @@ static void vino_v4l2_querycap(struct v4l2_capability *cap)
 		V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_STREAMING;
 	// V4L2_CAP_OVERLAY, V4L2_CAP_READWRITE
+	return 0;
 }
 
-static int vino_v4l2_enuminput(struct vino_channel_settings *vcs,
+static int vino_enum_input(struct file *file, void *__fh,
 			       struct v4l2_input *i)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	__u32 index = i->index;
 	int input;
 	dprintk("requested index = %d\n", index);
 
-	input = vino_enum_input(vcs, index);
+	input = vino_int_enum_input(vcs, index);
 	if (input == VINO_INPUT_NONE)
 		return -EINVAL;
 
@@ -3023,20 +2961,15 @@ static int vino_v4l2_enuminput(struct vino_channel_settings *vcs,
 	i->std = vino_inputs[input].std;
 	strcpy(i->name, vino_inputs[input].name);
 
-	if ((input == VINO_INPUT_COMPOSITE)
-	    || (input == VINO_INPUT_SVIDEO)) {
-		struct saa7191_status status;
-		i2c_decoder_command(DECODER_SAA7191_GET_STATUS, &status);
-		i->status |= status.signal ? 0 : V4L2_IN_ST_NO_SIGNAL;
-		i->status |= status.color ? 0 : V4L2_IN_ST_NO_COLOR;
-	}
-
+	if (input == VINO_INPUT_COMPOSITE || input == VINO_INPUT_SVIDEO)
+		decoder_call(video, g_input_status, &i->status);
 	return 0;
 }
 
-static int vino_v4l2_g_input(struct vino_channel_settings *vcs,
+static int vino_g_input(struct file *file, void *__fh,
 			     unsigned int *i)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	__u32 index;
 	int input;
 	unsigned long flags;
@@ -3057,52 +2990,24 @@ static int vino_v4l2_g_input(struct vino_channel_settings *vcs,
 	return 0;
 }
 
-static int vino_v4l2_s_input(struct vino_channel_settings *vcs,
-			     unsigned int *i)
+static int vino_s_input(struct file *file, void *__fh,
+			     unsigned int i)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	int input;
-	dprintk("requested input = %d\n", *i);
+	dprintk("requested input = %d\n", i);
 
-	input = vino_enum_input(vcs, *i);
+	input = vino_int_enum_input(vcs, i);
 	if (input == VINO_INPUT_NONE)
 		return -EINVAL;
 
 	return vino_set_input(vcs, input);
 }
 
-static int vino_v4l2_enumstd(struct vino_channel_settings *vcs,
-			     struct v4l2_standard *s)
-{
-	int index = s->index;
-	int data_norm;
-
-	data_norm = vino_enum_data_norm(vcs, index);
-	dprintk("standard index = %d\n", index);
-
-	if (data_norm == VINO_DATA_NORM_NONE)
-		return -EINVAL;
-
-	dprintk("standard name = %s\n",
-	       vino_data_norms[data_norm].description);
-
-	memset(s, 0, sizeof(struct v4l2_standard));
-	s->index = index;
-
-	s->id = vino_data_norms[data_norm].std;
-	s->frameperiod.numerator = 1;
-	s->frameperiod.denominator =
-		vino_data_norms[data_norm].fps_max;
-	s->framelines =
-		vino_data_norms[data_norm].framelines;
-	strcpy(s->name,
-	       vino_data_norms[data_norm].description);
-
-	return 0;
-}
-
-static int vino_v4l2_querystd(struct vino_channel_settings *vcs,
+static int vino_querystd(struct file *file, void *__fh,
 			      v4l2_std_id *std)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
 	int err = 0;
 
@@ -3114,19 +3019,7 @@ static int vino_v4l2_querystd(struct vino_channel_settings *vcs,
 		break;
 	case VINO_INPUT_COMPOSITE:
 	case VINO_INPUT_SVIDEO: {
-		struct saa7191_status status;
-
-		i2c_decoder_command(DECODER_SAA7191_GET_STATUS, &status);
-
-		if (status.signal) {
-			if (status.signal_60hz) {
-				*std = V4L2_STD_NTSC;
-			} else {
-				*std = V4L2_STD_PAL | V4L2_STD_SECAM;
-			}
-		} else {
-			*std = vino_inputs[vcs->input].std;
-		}
+		decoder_call(video, querystd, std);
 		break;
 	}
 	default:
@@ -3138,9 +3031,10 @@ static int vino_v4l2_querystd(struct vino_channel_settings *vcs,
 	return err;
 }
 
-static int vino_v4l2_g_std(struct vino_channel_settings *vcs,
+static int vino_g_std(struct file *file, void *__fh,
 			   v4l2_std_id *std)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
 
 	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
@@ -3153,9 +3047,10 @@ static int vino_v4l2_g_std(struct vino_channel_settings *vcs,
 	return 0;
 }
 
-static int vino_v4l2_s_std(struct vino_channel_settings *vcs,
+static int vino_s_std(struct file *file, void *__fh,
 			   v4l2_std_id *std)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
 	int ret = 0;
 
@@ -3176,12 +3071,7 @@ static int vino_v4l2_s_std(struct vino_channel_settings *vcs,
 		if (vcs->input == VINO_INPUT_D1)
 			goto out;
 
-		if (((*std) & V4L2_STD_PAL)
-		    && ((*std) & V4L2_STD_NTSC)
-		    && ((*std) & V4L2_STD_SECAM)) {
-			ret = vino_set_data_norm(vcs, VINO_DATA_NORM_AUTO_EXT,
-						 &flags);
-		} else if ((*std) & V4L2_STD_PAL) {
+		if ((*std) & V4L2_STD_PAL) {
 			ret = vino_set_data_norm(vcs, VINO_DATA_NORM_PAL,
 						 &flags);
 		} else if ((*std) & V4L2_STD_NTSC) {
@@ -3207,185 +3097,144 @@ out:
 	return ret;
 }
 
-static int vino_v4l2_enum_fmt(struct vino_channel_settings *vcs,
+static int vino_enum_fmt_vid_cap(struct file *file, void *__fh,
 			      struct v4l2_fmtdesc *fd)
 {
-	enum v4l2_buf_type type = fd->type;
-	int index = fd->index;
-	dprintk("format index = %d\n", index);
+	dprintk("format index = %d\n", fd->index);
 
-	switch (fd->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		if ((fd->index < 0) ||
-		    (fd->index >= VINO_DATA_FMT_COUNT))
-			return -EINVAL;
-		dprintk("format name = %s\n",
-		       vino_data_formats[index].description);
-
-		memset(fd, 0, sizeof(struct v4l2_fmtdesc));
-		fd->index = index;
-		fd->type = type;
-		fd->pixelformat = vino_data_formats[index].pixelformat;
-		strcpy(fd->description, vino_data_formats[index].description);
-		break;
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
+	if (fd->index >= VINO_DATA_FMT_COUNT)
 		return -EINVAL;
-	}
+	dprintk("format name = %s\n", vino_data_formats[fd->index].description);
 
+	fd->pixelformat = vino_data_formats[fd->index].pixelformat;
+	strcpy(fd->description, vino_data_formats[fd->index].description);
 	return 0;
 }
 
-static int vino_v4l2_try_fmt(struct vino_channel_settings *vcs,
+static int vino_try_fmt_vid_cap(struct file *file, void *__fh,
 			     struct v4l2_format *f)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	struct vino_channel_settings tempvcs;
 	unsigned long flags;
+	struct v4l2_pix_format *pf = &f->fmt.pix;
 
-	switch (f->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct v4l2_pix_format *pf = &f->fmt.pix;
+	dprintk("requested: w = %d, h = %d\n",
+			pf->width, pf->height);
 
-		dprintk("requested: w = %d, h = %d\n",
-		       pf->width, pf->height);
+	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
+	memcpy(&tempvcs, vcs, sizeof(struct vino_channel_settings));
+	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
 
-		spin_lock_irqsave(&vino_drvdata->input_lock, flags);
-		memcpy(&tempvcs, vcs, sizeof(struct vino_channel_settings));
-		spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
-
-		tempvcs.data_format = vino_find_data_format(pf->pixelformat);
-		if (tempvcs.data_format == VINO_DATA_FMT_NONE) {
-			tempvcs.data_format = VINO_DATA_FMT_GREY;
-			pf->pixelformat =
-				vino_data_formats[tempvcs.data_format].
-				pixelformat;
-		}
-
-		/* data format must be set before clipping/scaling */
-		vino_set_scaling(&tempvcs, pf->width, pf->height);
-
-		dprintk("data format = %s\n",
-		       vino_data_formats[tempvcs.data_format].description);
-
-		pf->width = (tempvcs.clipping.right - tempvcs.clipping.left) /
-			tempvcs.decimation;
-		pf->height = (tempvcs.clipping.bottom - tempvcs.clipping.top) /
-			tempvcs.decimation;
-
-		pf->field = V4L2_FIELD_INTERLACED;
-		pf->bytesperline = tempvcs.line_size;
-		pf->sizeimage = tempvcs.line_size *
-			(tempvcs.clipping.bottom - tempvcs.clipping.top) /
-			tempvcs.decimation;
-		pf->colorspace =
-			vino_data_formats[tempvcs.data_format].colorspace;
-
-		pf->priv = 0;
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int vino_v4l2_g_fmt(struct vino_channel_settings *vcs,
-			   struct v4l2_format *f)
-{
-	unsigned long flags;
-
-	switch (f->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct v4l2_pix_format *pf = &f->fmt.pix;
-
-		spin_lock_irqsave(&vino_drvdata->input_lock, flags);
-
-		pf->width = (vcs->clipping.right - vcs->clipping.left) /
-			vcs->decimation;
-		pf->height = (vcs->clipping.bottom - vcs->clipping.top) /
-			vcs->decimation;
+	tempvcs.data_format = vino_find_data_format(pf->pixelformat);
+	if (tempvcs.data_format == VINO_DATA_FMT_NONE) {
+		tempvcs.data_format = VINO_DATA_FMT_GREY;
 		pf->pixelformat =
-			vino_data_formats[vcs->data_format].pixelformat;
-
-		pf->field = V4L2_FIELD_INTERLACED;
-		pf->bytesperline = vcs->line_size;
-		pf->sizeimage = vcs->line_size *
-			(vcs->clipping.bottom - vcs->clipping.top) /
-			vcs->decimation;
-		pf->colorspace =
-			vino_data_formats[vcs->data_format].colorspace;
-
-		pf->priv = 0;
-
-		spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
-		return -EINVAL;
+			vino_data_formats[tempvcs.data_format].
+			pixelformat;
 	}
 
+	/* data format must be set before clipping/scaling */
+	vino_set_scaling(&tempvcs, pf->width, pf->height);
+
+	dprintk("data format = %s\n",
+			vino_data_formats[tempvcs.data_format].description);
+
+	pf->width = (tempvcs.clipping.right - tempvcs.clipping.left) /
+		tempvcs.decimation;
+	pf->height = (tempvcs.clipping.bottom - tempvcs.clipping.top) /
+		tempvcs.decimation;
+
+	pf->field = V4L2_FIELD_INTERLACED;
+	pf->bytesperline = tempvcs.line_size;
+	pf->sizeimage = tempvcs.line_size *
+		(tempvcs.clipping.bottom - tempvcs.clipping.top) /
+		tempvcs.decimation;
+	pf->colorspace =
+		vino_data_formats[tempvcs.data_format].colorspace;
+
+	pf->priv = 0;
 	return 0;
 }
 
-static int vino_v4l2_s_fmt(struct vino_channel_settings *vcs,
+static int vino_g_fmt_vid_cap(struct file *file, void *__fh,
 			   struct v4l2_format *f)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
+	unsigned long flags;
+	struct v4l2_pix_format *pf = &f->fmt.pix;
+
+	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
+
+	pf->width = (vcs->clipping.right - vcs->clipping.left) /
+		vcs->decimation;
+	pf->height = (vcs->clipping.bottom - vcs->clipping.top) /
+		vcs->decimation;
+	pf->pixelformat =
+		vino_data_formats[vcs->data_format].pixelformat;
+
+	pf->field = V4L2_FIELD_INTERLACED;
+	pf->bytesperline = vcs->line_size;
+	pf->sizeimage = vcs->line_size *
+		(vcs->clipping.bottom - vcs->clipping.top) /
+		vcs->decimation;
+	pf->colorspace =
+		vino_data_formats[vcs->data_format].colorspace;
+
+	pf->priv = 0;
+
+	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
+	return 0;
+}
+
+static int vino_s_fmt_vid_cap(struct file *file, void *__fh,
+			   struct v4l2_format *f)
+{
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	int data_format;
 	unsigned long flags;
+	struct v4l2_pix_format *pf = &f->fmt.pix;
 
-	switch (f->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct v4l2_pix_format *pf = &f->fmt.pix;
+	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
 
-		spin_lock_irqsave(&vino_drvdata->input_lock, flags);
+	data_format = vino_find_data_format(pf->pixelformat);
 
-		data_format = vino_find_data_format(pf->pixelformat);
-
-		if (data_format == VINO_DATA_FMT_NONE) {
-			vcs->data_format = VINO_DATA_FMT_GREY;
-			pf->pixelformat =
-				vino_data_formats[vcs->data_format].
-				pixelformat;
-		} else {
-			vcs->data_format = data_format;
-		}
-
-		/* data format must be set before clipping/scaling */
-		vino_set_scaling(vcs, pf->width, pf->height);
-
-		dprintk("data format = %s\n",
-		       vino_data_formats[vcs->data_format].description);
-
-		pf->width = vcs->clipping.right - vcs->clipping.left;
-		pf->height = vcs->clipping.bottom - vcs->clipping.top;
-
-		pf->field = V4L2_FIELD_INTERLACED;
-		pf->bytesperline = vcs->line_size;
-		pf->sizeimage = vcs->line_size *
-			(vcs->clipping.bottom - vcs->clipping.top) /
-			vcs->decimation;
-		pf->colorspace =
-			vino_data_formats[vcs->data_format].colorspace;
-
-		pf->priv = 0;
-
-		spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
-		return -EINVAL;
+	if (data_format == VINO_DATA_FMT_NONE) {
+		vcs->data_format = VINO_DATA_FMT_GREY;
+		pf->pixelformat =
+			vino_data_formats[vcs->data_format].
+			pixelformat;
+	} else {
+		vcs->data_format = data_format;
 	}
 
+	/* data format must be set before clipping/scaling */
+	vino_set_scaling(vcs, pf->width, pf->height);
+
+	dprintk("data format = %s\n",
+	       vino_data_formats[vcs->data_format].description);
+
+	pf->width = vcs->clipping.right - vcs->clipping.left;
+	pf->height = vcs->clipping.bottom - vcs->clipping.top;
+
+	pf->field = V4L2_FIELD_INTERLACED;
+	pf->bytesperline = vcs->line_size;
+	pf->sizeimage = vcs->line_size *
+		(vcs->clipping.bottom - vcs->clipping.top) /
+		vcs->decimation;
+	pf->colorspace =
+		vino_data_formats[vcs->data_format].colorspace;
+
+	pf->priv = 0;
+
+	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
 	return 0;
 }
 
-static int vino_v4l2_cropcap(struct vino_channel_settings *vcs,
+static int vino_cropcap(struct file *file, void *__fh,
 			     struct v4l2_cropcap *ccap)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	const struct vino_data_norm *norm;
 	unsigned long flags;
 
@@ -3415,9 +3264,10 @@ static int vino_v4l2_cropcap(struct vino_channel_settings *vcs,
 	return 0;
 }
 
-static int vino_v4l2_g_crop(struct vino_channel_settings *vcs,
+static int vino_g_crop(struct file *file, void *__fh,
 			    struct v4l2_crop *c)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
 
 	switch (c->type) {
@@ -3439,9 +3289,10 @@ static int vino_v4l2_g_crop(struct vino_channel_settings *vcs,
 	return 0;
 }
 
-static int vino_v4l2_s_crop(struct vino_channel_settings *vcs,
+static int vino_s_crop(struct file *file, void *__fh,
 			    struct v4l2_crop *c)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
 
 	switch (c->type) {
@@ -3461,108 +3312,83 @@ static int vino_v4l2_s_crop(struct vino_channel_settings *vcs,
 	return 0;
 }
 
-static int vino_v4l2_g_parm(struct vino_channel_settings *vcs,
+static int vino_g_parm(struct file *file, void *__fh,
 			    struct v4l2_streamparm *sp)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
+	struct v4l2_captureparm *cp = &sp->parm.capture;
 
-	switch (sp->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct v4l2_captureparm *cp = &sp->parm.capture;
-		memset(cp, 0, sizeof(struct v4l2_captureparm));
+	cp->capability = V4L2_CAP_TIMEPERFRAME;
+	cp->timeperframe.numerator = 1;
 
-		cp->capability = V4L2_CAP_TIMEPERFRAME;
-		cp->timeperframe.numerator = 1;
+	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
 
-		spin_lock_irqsave(&vino_drvdata->input_lock, flags);
+	cp->timeperframe.denominator = vcs->fps;
 
-		cp->timeperframe.denominator = vcs->fps;
+	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
 
-		spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
-
-		// TODO: cp->readbuffers = xxx;
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
-		return -EINVAL;
-	}
+	/* TODO: cp->readbuffers = xxx; */
 
 	return 0;
 }
 
-static int vino_v4l2_s_parm(struct vino_channel_settings *vcs,
+static int vino_s_parm(struct file *file, void *__fh,
 			    struct v4l2_streamparm *sp)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
+	struct v4l2_captureparm *cp = &sp->parm.capture;
 
-	switch (sp->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct v4l2_captureparm *cp = &sp->parm.capture;
+	spin_lock_irqsave(&vino_drvdata->input_lock, flags);
 
-		spin_lock_irqsave(&vino_drvdata->input_lock, flags);
-
-		if ((cp->timeperframe.numerator == 0) ||
-		    (cp->timeperframe.denominator == 0)) {
-			/* reset framerate */
-			vino_set_default_framerate(vcs);
-		} else {
-			vino_set_framerate(vcs, cp->timeperframe.denominator /
-					   cp->timeperframe.numerator);
-		}
-
-		spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
-
-		// TODO: set buffers according to cp->readbuffers
-		break;
+	if ((cp->timeperframe.numerator == 0) ||
+	    (cp->timeperframe.denominator == 0)) {
+		/* reset framerate */
+		vino_set_default_framerate(vcs);
+	} else {
+		vino_set_framerate(vcs, cp->timeperframe.denominator /
+				   cp->timeperframe.numerator);
 	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
-		return -EINVAL;
-	}
+
+	spin_unlock_irqrestore(&vino_drvdata->input_lock, flags);
 
 	return 0;
 }
 
-static int vino_v4l2_reqbufs(struct vino_channel_settings *vcs,
+static int vino_reqbufs(struct file *file, void *__fh,
 			     struct v4l2_requestbuffers *rb)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
+
 	if (vcs->reading)
 		return -EBUSY;
 
-	switch (rb->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		// TODO: check queue type
-		if (rb->memory != V4L2_MEMORY_MMAP) {
-			dprintk("type not mmap\n");
-			return -EINVAL;
+	/* TODO: check queue type */
+	if (rb->memory != V4L2_MEMORY_MMAP) {
+		dprintk("type not mmap\n");
+		return -EINVAL;
+	}
+
+	dprintk("count = %d\n", rb->count);
+	if (rb->count > 0) {
+		if (vino_is_capturing(vcs)) {
+			dprintk("busy, capturing\n");
+			return -EBUSY;
 		}
 
-		dprintk("count = %d\n", rb->count);
-		if (rb->count > 0) {
-			if (vino_is_capturing(vcs)) {
-				dprintk("busy, capturing\n");
-				return -EBUSY;
-			}
-
-			if (vino_queue_has_mapped_buffers(&vcs->fb_queue)) {
-				dprintk("busy, buffers still mapped\n");
-				return -EBUSY;
-			} else {
-				vcs->streaming = 0;
-				vino_queue_free(&vcs->fb_queue);
-				vino_queue_init(&vcs->fb_queue, &rb->count);
-			}
+		if (vino_queue_has_mapped_buffers(&vcs->fb_queue)) {
+			dprintk("busy, buffers still mapped\n");
+			return -EBUSY;
 		} else {
 			vcs->streaming = 0;
-			vino_capture_stop(vcs);
 			vino_queue_free(&vcs->fb_queue);
+			vino_queue_init(&vcs->fb_queue, &rb->count);
 		}
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
-		return -EINVAL;
+	} else {
+		vcs->streaming = 0;
+		vino_capture_stop(vcs);
+		vino_queue_free(&vcs->fb_queue);
 	}
 
 	return 0;
@@ -3606,156 +3432,135 @@ static void vino_v4l2_get_buffer_status(struct vino_channel_settings *vcs,
 		fb->id, fb->size, fb->data_size, fb->offset);
 }
 
-static int vino_v4l2_querybuf(struct vino_channel_settings *vcs,
+static int vino_querybuf(struct file *file, void *__fh,
 			      struct v4l2_buffer *b)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
+	struct vino_framebuffer *fb;
+
 	if (vcs->reading)
 		return -EBUSY;
 
-	switch (b->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct vino_framebuffer *fb;
-
-		// TODO: check queue type
-		if (b->index >= vino_queue_get_length(&vcs->fb_queue)) {
-			dprintk("invalid index = %d\n",
-			       b->index);
-			return -EINVAL;
-		}
-
-		fb = vino_queue_get_buffer(&vcs->fb_queue,
-					   b->index);
-		if (fb == NULL) {
-			dprintk("vino_queue_get_buffer() failed");
-			return -EINVAL;
-		}
-
-		vino_v4l2_get_buffer_status(vcs, fb, b);
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
+	/* TODO: check queue type */
+	if (b->index >= vino_queue_get_length(&vcs->fb_queue)) {
+		dprintk("invalid index = %d\n",
+		       b->index);
 		return -EINVAL;
 	}
+
+	fb = vino_queue_get_buffer(&vcs->fb_queue,
+				   b->index);
+	if (fb == NULL) {
+		dprintk("vino_queue_get_buffer() failed");
+		return -EINVAL;
+	}
+
+	vino_v4l2_get_buffer_status(vcs, fb, b);
 
 	return 0;
 }
 
-static int vino_v4l2_qbuf(struct vino_channel_settings *vcs,
+static int vino_qbuf(struct file *file, void *__fh,
 			  struct v4l2_buffer *b)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
+	struct vino_framebuffer *fb;
+	int ret;
+
 	if (vcs->reading)
 		return -EBUSY;
 
-	switch (b->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct vino_framebuffer *fb;
-		int ret;
-
-		// TODO: check queue type
-		if (b->memory != V4L2_MEMORY_MMAP) {
-			dprintk("type not mmap\n");
-			return -EINVAL;
-		}
-
-		fb = vino_capture_enqueue(vcs, b->index);
-		if (fb == NULL)
-			return -EINVAL;
-
-		vino_v4l2_get_buffer_status(vcs, fb, b);
-
-		if (vcs->streaming) {
-			ret = vino_capture_next(vcs, 1);
-			if (ret)
-				return ret;
-		}
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
+	/* TODO: check queue type */
+	if (b->memory != V4L2_MEMORY_MMAP) {
+		dprintk("type not mmap\n");
 		return -EINVAL;
+	}
+
+	fb = vino_capture_enqueue(vcs, b->index);
+	if (fb == NULL)
+		return -EINVAL;
+
+	vino_v4l2_get_buffer_status(vcs, fb, b);
+
+	if (vcs->streaming) {
+		ret = vino_capture_next(vcs, 1);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
 }
 
-static int vino_v4l2_dqbuf(struct vino_channel_settings *vcs,
-			   struct v4l2_buffer *b,
-			   unsigned int nonblocking)
+static int vino_dqbuf(struct file *file, void *__fh,
+			   struct v4l2_buffer *b)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
+	unsigned int nonblocking = file->f_flags & O_NONBLOCK;
+	struct vino_framebuffer *fb;
+	unsigned int incoming, outgoing;
+	int err;
+
 	if (vcs->reading)
 		return -EBUSY;
 
-	switch (b->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		struct vino_framebuffer *fb;
-		unsigned int incoming, outgoing;
-		int err;
+	/* TODO: check queue type */
 
-		// TODO: check queue type
+	err = vino_queue_get_incoming(&vcs->fb_queue, &incoming);
+	if (err) {
+		dprintk("vino_queue_get_incoming() failed\n");
+		return -EINVAL;
+	}
+	err = vino_queue_get_outgoing(&vcs->fb_queue, &outgoing);
+	if (err) {
+		dprintk("vino_queue_get_outgoing() failed\n");
+		return -EINVAL;
+	}
 
-		err = vino_queue_get_incoming(&vcs->fb_queue, &incoming);
-		if (err) {
-			dprintk("vino_queue_get_incoming() failed\n");
+	dprintk("incoming = %d, outgoing = %d\n", incoming, outgoing);
+
+	if (outgoing == 0) {
+		if (incoming == 0) {
+			dprintk("no incoming or outgoing buffers\n");
 			return -EINVAL;
 		}
-		err = vino_queue_get_outgoing(&vcs->fb_queue, &outgoing);
-		if (err) {
-			dprintk("vino_queue_get_outgoing() failed\n");
-			return -EINVAL;
+		if (nonblocking) {
+			dprintk("non-blocking I/O was selected and "
+				"there are no buffers to dequeue\n");
+			return -EAGAIN;
 		}
 
-		dprintk("incoming = %d, outgoing = %d\n", incoming, outgoing);
-
-		if (outgoing == 0) {
-			if (incoming == 0) {
-				dprintk("no incoming or outgoing buffers\n");
-				return -EINVAL;
-			}
-			if (nonblocking) {
-				dprintk("non-blocking I/O was selected and "
-					"there are no buffers to dequeue\n");
-				return -EAGAIN;
-			}
-
+		err = vino_wait_for_frame(vcs);
+		if (err) {
 			err = vino_wait_for_frame(vcs);
 			if (err) {
-				err = vino_wait_for_frame(vcs);
-				if (err) {
-					/* interrupted or
-					 * no frames captured because
-					 * of frame skipping */
-					// vino_capture_failed(vcs);
-					return -EIO;
-				}
+				/* interrupted or no frames captured because of
+				 * frame skipping */
+				/* vino_capture_failed(vcs); */
+				return -EIO;
 			}
 		}
-
-		fb = vino_queue_remove(&vcs->fb_queue, &b->index);
-		if (fb == NULL) {
-			dprintk("vino_queue_remove() failed\n");
-			return -EINVAL;
-		}
-
-		err = vino_check_buffer(vcs, fb);
-
-		vino_v4l2_get_buffer_status(vcs, fb, b);
-
-		if (err)
-			return -EIO;
-
-		break;
 	}
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-	default:
+
+	fb = vino_queue_remove(&vcs->fb_queue, &b->index);
+	if (fb == NULL) {
+		dprintk("vino_queue_remove() failed\n");
 		return -EINVAL;
 	}
+
+	err = vino_check_buffer(vcs, fb);
+
+	vino_v4l2_get_buffer_status(vcs, fb, b);
+
+	if (err)
+		return -EIO;
 
 	return 0;
 }
 
-static int vino_v4l2_streamon(struct vino_channel_settings *vcs)
+static int vino_streamon(struct file *file, void *__fh,
+		enum v4l2_buf_type i)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned int incoming;
 	int ret;
 	if (vcs->reading)
@@ -3792,8 +3597,10 @@ static int vino_v4l2_streamon(struct vino_channel_settings *vcs)
 	return 0;
 }
 
-static int vino_v4l2_streamoff(struct vino_channel_settings *vcs)
+static int vino_streamoff(struct file *file, void *__fh,
+		enum v4l2_buf_type i)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	if (vcs->reading)
 		return -EBUSY;
 
@@ -3806,9 +3613,10 @@ static int vino_v4l2_streamoff(struct vino_channel_settings *vcs)
 	return 0;
 }
 
-static int vino_v4l2_queryctrl(struct vino_channel_settings *vcs,
+static int vino_queryctrl(struct file *file, void *__fh,
 			       struct v4l2_queryctrl *queryctrl)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
 	int i;
 	int err = 0;
@@ -3855,9 +3663,10 @@ static int vino_v4l2_queryctrl(struct vino_channel_settings *vcs,
 	return err;
 }
 
-static int vino_v4l2_g_ctrl(struct vino_channel_settings *vcs,
+static int vino_g_ctrl(struct file *file, void *__fh,
 			    struct v4l2_control *control)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
 	int i;
 	int err = 0;
@@ -3866,56 +3675,38 @@ static int vino_v4l2_g_ctrl(struct vino_channel_settings *vcs,
 
 	switch (vcs->input) {
 	case VINO_INPUT_D1: {
-		struct indycam_control indycam_ctrl;
-
+		err = -EINVAL;
 		for (i = 0; i < VINO_INDYCAM_V4L2_CONTROL_COUNT; i++) {
-			if (vino_indycam_v4l2_controls[i].id ==
-			    control->id) {
-				goto found1;
+			if (vino_indycam_v4l2_controls[i].id == control->id) {
+				err = 0;
+				break;
 			}
 		}
 
-		err = -EINVAL;
-		goto out;
-
-found1:
-		indycam_ctrl.type = vino_indycam_v4l2_controls[i].reserved[0];
-
-		err = i2c_camera_command(DECODER_INDYCAM_GET_CONTROL,
-					 &indycam_ctrl);
-		if (err) {
-			err = -EINVAL;
+		if (err)
 			goto out;
-		}
 
-		control->value = indycam_ctrl.value;
+		err = camera_call(core, g_ctrl, control);
+		if (err)
+			err = -EINVAL;
 		break;
 	}
 	case VINO_INPUT_COMPOSITE:
 	case VINO_INPUT_SVIDEO: {
-		struct saa7191_control saa7191_ctrl;
-
+		err = -EINVAL;
 		for (i = 0; i < VINO_SAA7191_V4L2_CONTROL_COUNT; i++) {
-			if (vino_saa7191_v4l2_controls[i].id ==
-			    control->id) {
-				goto found2;
+			if (vino_saa7191_v4l2_controls[i].id == control->id) {
+				err = 0;
+				break;
 			}
 		}
 
-		err = -EINVAL;
-		goto out;
-
-found2:
-		saa7191_ctrl.type = vino_saa7191_v4l2_controls[i].reserved[0];
-
-		err = i2c_decoder_command(DECODER_SAA7191_GET_CONTROL,
-					  &saa7191_ctrl);
-		if (err) {
-			err = -EINVAL;
+		if (err)
 			goto out;
-		}
 
-		control->value = saa7191_ctrl.value;
+		err = decoder_call(core, g_ctrl, control);
+		if (err)
+			err = -EINVAL;
 		break;
 	}
 	default:
@@ -3928,9 +3719,10 @@ out:
 	return err;
 }
 
-static int vino_v4l2_s_ctrl(struct vino_channel_settings *vcs,
+static int vino_s_ctrl(struct file *file, void *__fh,
 			    struct v4l2_control *control)
 {
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
 	int i;
 	int err = 0;
@@ -3944,65 +3736,43 @@ static int vino_v4l2_s_ctrl(struct vino_channel_settings *vcs,
 
 	switch (vcs->input) {
 	case VINO_INPUT_D1: {
-		struct indycam_control indycam_ctrl;
-
+		err = -EINVAL;
 		for (i = 0; i < VINO_INDYCAM_V4L2_CONTROL_COUNT; i++) {
-			if (vino_indycam_v4l2_controls[i].id ==
-			    control->id) {
-				if ((control->value >=
-				     vino_indycam_v4l2_controls[i].minimum)
-				    && (control->value <=
-					vino_indycam_v4l2_controls[i].
-					maximum)) {
-					goto found1;
-				} else {
-					err = -ERANGE;
-					goto out;
-				}
+			if (vino_indycam_v4l2_controls[i].id == control->id) {
+				err = 0;
+				break;
 			}
 		}
-
-		err = -EINVAL;
-		goto out;
-
-found1:
-		indycam_ctrl.type = vino_indycam_v4l2_controls[i].reserved[0];
-		indycam_ctrl.value = control->value;
-
-		err = i2c_camera_command(DECODER_INDYCAM_SET_CONTROL,
-					 &indycam_ctrl);
+		if (err)
+			goto out;
+		if (control->value < vino_indycam_v4l2_controls[i].minimum ||
+		    control->value > vino_indycam_v4l2_controls[i].maximum) {
+			err = -ERANGE;
+			goto out;
+		}
+		err = camera_call(core, s_ctrl, control);
 		if (err)
 			err = -EINVAL;
 		break;
 	}
 	case VINO_INPUT_COMPOSITE:
 	case VINO_INPUT_SVIDEO: {
-		struct saa7191_control saa7191_ctrl;
-
+		err = -EINVAL;
 		for (i = 0; i < VINO_SAA7191_V4L2_CONTROL_COUNT; i++) {
-			if (vino_saa7191_v4l2_controls[i].id ==
-			    control->id) {
-				if ((control->value >=
-				     vino_saa7191_v4l2_controls[i].minimum)
-				    && (control->value <=
-					vino_saa7191_v4l2_controls[i].
-					maximum)) {
-					goto found2;
-				} else {
-					err = -ERANGE;
-					goto out;
-				}
+			if (vino_saa7191_v4l2_controls[i].id == control->id) {
+				err = 0;
+				break;
 			}
 		}
-		err = -EINVAL;
-		goto out;
+		if (err)
+			goto out;
+		if (control->value < vino_saa7191_v4l2_controls[i].minimum ||
+		    control->value > vino_saa7191_v4l2_controls[i].maximum) {
+			err = -ERANGE;
+			goto out;
+		}
 
-found2:
-		saa7191_ctrl.type = vino_saa7191_v4l2_controls[i].reserved[0];
-		saa7191_ctrl.value = control->value;
-
-		err = i2c_decoder_command(DECODER_SAA7191_SET_CONTROL,
-					  &saa7191_ctrl);
+		err = decoder_call(core, s_ctrl, control);
 		if (err)
 			err = -EINVAL;
 		break;
@@ -4233,114 +4003,7 @@ over:
 		ret = POLLIN | POLLRDNORM;
 
 error:
-
 	return ret;
-}
-
-static long vino_do_ioctl(struct file *file, unsigned int cmd, void *arg)
-{
-	struct vino_channel_settings *vcs = video_drvdata(file);
-
-#ifdef VINO_DEBUG
-	switch (_IOC_TYPE(cmd)) {
-	case 'v':
-		dprintk("ioctl(): V4L1 unsupported (0x%08x)\n", cmd);
-		break;
-	case 'V':
-		dprintk("ioctl(): V4L2 %s (0x%08x)\n",
-			v4l2_ioctl_names[_IOC_NR(cmd)], cmd);
-		break;
-	default:
-		dprintk("ioctl(): unsupported command 0x%08x\n", cmd);
-	}
-#endif
-
-	switch (cmd) {
-	/* V4L2 interface */
-	case VIDIOC_QUERYCAP: {
-		vino_v4l2_querycap(arg);
-		break;
-	}
-	case VIDIOC_ENUMINPUT: {
-		return vino_v4l2_enuminput(vcs, arg);
-	}
-	case VIDIOC_G_INPUT: {
-		return vino_v4l2_g_input(vcs, arg);
-	}
-	case VIDIOC_S_INPUT: {
-		return vino_v4l2_s_input(vcs, arg);
-	}
-	case VIDIOC_ENUMSTD: {
-		return vino_v4l2_enumstd(vcs, arg);
-	}
-	case VIDIOC_QUERYSTD: {
-		return vino_v4l2_querystd(vcs, arg);
-	}
-	case VIDIOC_G_STD: {
-		return vino_v4l2_g_std(vcs, arg);
-	}
-	case VIDIOC_S_STD: {
-		return vino_v4l2_s_std(vcs, arg);
-	}
-	case VIDIOC_ENUM_FMT: {
-		return vino_v4l2_enum_fmt(vcs, arg);
-	}
-	case VIDIOC_TRY_FMT: {
-		return vino_v4l2_try_fmt(vcs, arg);
-	}
-	case VIDIOC_G_FMT: {
-		return vino_v4l2_g_fmt(vcs, arg);
-	}
-	case VIDIOC_S_FMT: {
-		return vino_v4l2_s_fmt(vcs, arg);
-	}
-	case VIDIOC_CROPCAP: {
-		return vino_v4l2_cropcap(vcs, arg);
-	}
-	case VIDIOC_G_CROP: {
-		return vino_v4l2_g_crop(vcs, arg);
-	}
-	case VIDIOC_S_CROP: {
-		return vino_v4l2_s_crop(vcs, arg);
-	}
-	case VIDIOC_G_PARM: {
-		return vino_v4l2_g_parm(vcs, arg);
-	}
-	case VIDIOC_S_PARM: {
-		return vino_v4l2_s_parm(vcs, arg);
-	}
-	case VIDIOC_REQBUFS: {
-		return vino_v4l2_reqbufs(vcs, arg);
-	}
-	case VIDIOC_QUERYBUF: {
-		return vino_v4l2_querybuf(vcs, arg);
-	}
-	case VIDIOC_QBUF: {
-		return vino_v4l2_qbuf(vcs, arg);
-	}
-	case VIDIOC_DQBUF: {
-		return vino_v4l2_dqbuf(vcs, arg, file->f_flags & O_NONBLOCK);
-	}
-	case VIDIOC_STREAMON: {
-		return vino_v4l2_streamon(vcs);
-	}
-	case VIDIOC_STREAMOFF: {
-		return vino_v4l2_streamoff(vcs);
-	}
-	case VIDIOC_QUERYCTRL: {
-		return vino_v4l2_queryctrl(vcs, arg);
-	}
-	case VIDIOC_G_CTRL: {
-		return vino_v4l2_g_ctrl(vcs, arg);
-	}
-	case VIDIOC_S_CTRL: {
-		return vino_v4l2_s_ctrl(vcs, arg);
-	}
-	default:
-		return -ENOIOCTLCMD;
-	}
-
-	return 0;
 }
 
 static long vino_ioctl(struct file *file,
@@ -4352,7 +4015,7 @@ static long vino_ioctl(struct file *file,
 	if (mutex_lock_interruptible(&vcs->mutex))
 		return -EINTR;
 
-	ret = video_usercopy(file, cmd, arg, vino_do_ioctl);
+	ret = video_ioctl2(file, cmd, arg);
 
 	mutex_unlock(&vcs->mutex);
 
@@ -4364,45 +4027,75 @@ static long vino_ioctl(struct file *file,
 /* __initdata */
 static int vino_init_stage;
 
+const struct v4l2_ioctl_ops vino_ioctl_ops = {
+	.vidioc_enum_fmt_vid_cap     = vino_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap 	     = vino_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap  	     = vino_s_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap	     = vino_try_fmt_vid_cap,
+	.vidioc_querycap    	     = vino_querycap,
+	.vidioc_enum_input   	     = vino_enum_input,
+	.vidioc_g_input      	     = vino_g_input,
+	.vidioc_s_input      	     = vino_s_input,
+	.vidioc_g_std 		     = vino_g_std,
+	.vidioc_s_std 		     = vino_s_std,
+	.vidioc_querystd             = vino_querystd,
+	.vidioc_cropcap      	     = vino_cropcap,
+	.vidioc_s_crop       	     = vino_s_crop,
+	.vidioc_g_crop       	     = vino_g_crop,
+	.vidioc_s_parm 		     = vino_s_parm,
+	.vidioc_g_parm 		     = vino_g_parm,
+	.vidioc_reqbufs              = vino_reqbufs,
+	.vidioc_querybuf             = vino_querybuf,
+	.vidioc_qbuf                 = vino_qbuf,
+	.vidioc_dqbuf                = vino_dqbuf,
+	.vidioc_streamon             = vino_streamon,
+	.vidioc_streamoff            = vino_streamoff,
+	.vidioc_queryctrl            = vino_queryctrl,
+	.vidioc_g_ctrl               = vino_g_ctrl,
+	.vidioc_s_ctrl               = vino_s_ctrl,
+};
+
 static const struct v4l2_file_operations vino_fops = {
 	.owner		= THIS_MODULE,
 	.open		= vino_open,
 	.release	= vino_close,
-	.ioctl		= vino_ioctl,
+	.unlocked_ioctl	= vino_ioctl,
 	.mmap		= vino_mmap,
 	.poll		= vino_poll,
 };
 
-static struct video_device v4l_device_template = {
+static struct video_device vdev_template = {
 	.name		= "NOT SET",
 	.fops		= &vino_fops,
+	.ioctl_ops 	= &vino_ioctl_ops,
+	.tvnorms 	= V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 	.minor		= -1,
 };
 
 static void vino_module_cleanup(int stage)
 {
 	switch(stage) {
+	case 11:
+		video_unregister_device(vino_drvdata->b.vdev);
+		vino_drvdata->b.vdev = NULL;
 	case 10:
-		video_unregister_device(vino_drvdata->b.v4l_device);
-		vino_drvdata->b.v4l_device = NULL;
+		video_unregister_device(vino_drvdata->a.vdev);
+		vino_drvdata->a.vdev = NULL;
 	case 9:
-		video_unregister_device(vino_drvdata->a.v4l_device);
-		vino_drvdata->a.v4l_device = NULL;
+		i2c_del_adapter(&vino_i2c_adapter);
 	case 8:
-		vino_i2c_del_bus();
-	case 7:
 		free_irq(SGI_VINO_IRQ, NULL);
+	case 7:
+		if (vino_drvdata->b.vdev) {
+			video_device_release(vino_drvdata->b.vdev);
+			vino_drvdata->b.vdev = NULL;
+		}
 	case 6:
-		if (vino_drvdata->b.v4l_device) {
-			video_device_release(vino_drvdata->b.v4l_device);
-			vino_drvdata->b.v4l_device = NULL;
+		if (vino_drvdata->a.vdev) {
+			video_device_release(vino_drvdata->a.vdev);
+			vino_drvdata->a.vdev = NULL;
 		}
 	case 5:
-		if (vino_drvdata->a.v4l_device) {
-			video_device_release(vino_drvdata->a.v4l_device);
-			vino_drvdata->a.v4l_device = NULL;
-		}
-	case 4:
 		/* all entries in dma_cpu dummy table have the same address */
 		dma_unmap_single(NULL,
 				 vino_drvdata->dummy_desc_table.dma_cpu[0],
@@ -4412,8 +4105,10 @@ static void vino_module_cleanup(int stage)
 				  (void *)vino_drvdata->
 				  dummy_desc_table.dma_cpu,
 				  vino_drvdata->dummy_desc_table.dma);
-	case 3:
+	case 4:
 		free_page(vino_drvdata->dummy_page);
+	case 3:
+		v4l2_device_unregister(&vino_drvdata->v4l2_dev);
 	case 2:
 		kfree(vino_drvdata);
 	case 1:
@@ -4468,6 +4163,7 @@ static int vino_probe(void)
 static int vino_init(void)
 {
 	dma_addr_t dma_dummy_address;
+	int err;
 	int i;
 
 	vino_drvdata = kzalloc(sizeof(struct vino_settings), GFP_KERNEL);
@@ -4475,6 +4171,12 @@ static int vino_init(void)
 		vino_module_cleanup(vino_init_stage);
 		return -ENOMEM;
 	}
+	vino_init_stage++;
+	strlcpy(vino_drvdata->v4l2_dev.name, "vino",
+			sizeof(vino_drvdata->v4l2_dev.name));
+	err = v4l2_device_register(NULL, &vino_drvdata->v4l2_dev);
+	if (err)
+		return err;
 	vino_init_stage++;
 
 	/* create a dummy dma descriptor */
@@ -4542,19 +4244,20 @@ static int vino_init_channel_settings(struct vino_channel_settings *vcs,
 	spin_lock_init(&vcs->fb_queue.queue_lock);
 	init_waitqueue_head(&vcs->fb_queue.frame_wait_queue);
 
-	vcs->v4l_device = video_device_alloc();
-	if (!vcs->v4l_device) {
+	vcs->vdev = video_device_alloc();
+	if (!vcs->vdev) {
 		vino_module_cleanup(vino_init_stage);
 		return -ENOMEM;
 	}
 	vino_init_stage++;
 
-	memcpy(vcs->v4l_device, &v4l_device_template,
+	memcpy(vcs->vdev, &vdev_template,
 	       sizeof(struct video_device));
-	strcpy(vcs->v4l_device->name, name);
-	vcs->v4l_device->release = video_device_release;
+	strcpy(vcs->vdev->name, name);
+	vcs->vdev->release = video_device_release;
+	vcs->vdev->v4l2_dev = &vino_drvdata->v4l2_dev;
 
-	video_set_drvdata(vcs->v4l_device, vcs);
+	video_set_drvdata(vcs->vdev, vcs);
 
 	return 0;
 }
@@ -4580,12 +4283,12 @@ static int __init vino_module_init(void)
 	spin_lock_init(&vino_drvdata->input_lock);
 
 	ret = vino_init_channel_settings(&vino_drvdata->a, VINO_CHANNEL_A,
-				    vino_v4l_device_name_a);
+				    vino_vdev_name_a);
 	if (ret)
 		return ret;
 
 	ret = vino_init_channel_settings(&vino_drvdata->b, VINO_CHANNEL_B,
-				    vino_v4l_device_name_b);
+				    vino_vdev_name_b);
 	if (ret)
 		return ret;
 
@@ -4601,15 +4304,16 @@ static int __init vino_module_init(void)
 	}
 	vino_init_stage++;
 
-	ret = vino_i2c_add_bus();
+	ret = i2c_add_adapter(&vino_i2c_adapter);
 	if (ret) {
 		printk(KERN_ERR "VINO I2C bus registration failed\n");
 		vino_module_cleanup(vino_init_stage);
 		return ret;
 	}
+	i2c_set_adapdata(&vino_i2c_adapter, &vino_drvdata->v4l2_dev);
 	vino_init_stage++;
 
-	ret = video_register_device(vino_drvdata->a.v4l_device,
+	ret = video_register_device(vino_drvdata->a.vdev,
 				    VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		printk(KERN_ERR "VINO channel A Video4Linux-device "
@@ -4619,7 +4323,7 @@ static int __init vino_module_init(void)
 	}
 	vino_init_stage++;
 
-	ret = video_register_device(vino_drvdata->b.v4l_device,
+	ret = video_register_device(vino_drvdata->b.vdev,
 				    VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		printk(KERN_ERR "VINO channel B Video4Linux-device "
@@ -4629,10 +4333,12 @@ static int __init vino_module_init(void)
 	}
 	vino_init_stage++;
 
-#ifdef MODULE
-	request_module("saa7191");
-	request_module("indycam");
-#endif
+	vino_drvdata->decoder =
+		v4l2_i2c_new_probed_subdev_addr(&vino_drvdata->v4l2_dev,
+			&vino_i2c_adapter, "saa7191", "saa7191", 0x45);
+	vino_drvdata->camera =
+		v4l2_i2c_new_probed_subdev_addr(&vino_drvdata->v4l2_dev,
+			&vino_i2c_adapter, "indycam", "indycam", 0x2b);
 
 	dprintk("init complete!\n");
 

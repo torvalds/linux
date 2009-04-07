@@ -466,7 +466,6 @@ struct pv_mmu_ops pv_mmu_ops = {
 #if PAGETABLE_LEVELS >= 3
 #ifdef CONFIG_X86_PAE
 	.set_pte_atomic = native_set_pte_atomic,
-	.set_pte_present = native_set_pte_present,
 	.pte_clear = native_pte_clear,
 	.pmd_clear = native_pmd_clear,
 #endif

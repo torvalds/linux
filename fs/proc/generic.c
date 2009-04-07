@@ -37,7 +37,7 @@ static int proc_match(int len, const char *name, struct proc_dir_entry *de)
 #define PROC_BLOCK_SIZE	(PAGE_SIZE - 1024)
 
 static ssize_t
-proc_file_read(struct file *file, char __user *buf, size_t nbytes,
+__proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	       loff_t *ppos)
 {
 	struct inode * inode = file->f_path.dentry->d_inode;
@@ -183,19 +183,47 @@ proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 }
 
 static ssize_t
+proc_file_read(struct file *file, char __user *buf, size_t nbytes,
+	       loff_t *ppos)
+{
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	ssize_t rv = -EIO;
+
+	spin_lock(&pde->pde_unload_lock);
+	if (!pde->proc_fops) {
+		spin_unlock(&pde->pde_unload_lock);
+		return rv;
+	}
+	pde->pde_users++;
+	spin_unlock(&pde->pde_unload_lock);
+
+	rv = __proc_file_read(file, buf, nbytes, ppos);
+
+	pde_users_dec(pde);
+	return rv;
+}
+
+static ssize_t
 proc_file_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	struct proc_dir_entry * dp;
-	
-	dp = PDE(inode);
+	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	ssize_t rv = -EIO;
 
-	if (!dp->write_proc)
-		return -EIO;
+	if (pde->write_proc) {
+		spin_lock(&pde->pde_unload_lock);
+		if (!pde->proc_fops) {
+			spin_unlock(&pde->pde_unload_lock);
+			return rv;
+		}
+		pde->pde_users++;
+		spin_unlock(&pde->pde_unload_lock);
 
-	/* FIXME: does this routine need ppos?  probably... */
-	return dp->write_proc(file, buffer, count, dp->data);
+		/* FIXME: does this routine need ppos?  probably... */
+		rv = pde->write_proc(file, buffer, count, pde->data);
+		pde_users_dec(pde);
+	}
+	return rv;
 }
 
 
@@ -307,6 +335,21 @@ static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
 /*
  * Return an inode number between PROC_DYNAMIC_FIRST and
  * 0xffffffff, or zero on failure.
+ *
+ * Current inode allocations in the proc-fs (hex-numbers):
+ *
+ * 00000000		reserved
+ * 00000001-00000fff	static entries	(goners)
+ *      001		root-ino
+ *
+ * 00001000-00001fff	unused
+ * 0001xxxx-7fffxxxx	pid-dir entries for pid 1-7fff
+ * 80000000-efffffff	unused
+ * f0000000-ffffffff	dynamic entries
+ *
+ * Goal:
+ *	Once we split the thing into several virtual filesystems,
+ *	we will get rid of magical ranges (and this comment, BTW).
  */
 static unsigned int get_inode_number(void)
 {

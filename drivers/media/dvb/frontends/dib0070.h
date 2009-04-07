@@ -58,6 +58,4 @@ static inline u16 dib0070_wbd_offset(struct dvb_frontend *fe)
 }
 #endif
 
-extern void dib0070_ctrl_agc_filter(struct dvb_frontend *, uint8_t open);
-
 #endif

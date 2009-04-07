@@ -33,7 +33,7 @@
 #include <linux/cpufreq.h>
 #include <linux/compiler.h>
 #include <linux/dmi.h>
-#include <linux/ftrace.h>
+#include <trace/power.h>
 
 #include <linux/acpi.h>
 #include <linux/io.h>
@@ -71,6 +71,8 @@ struct acpi_cpufreq_data {
 };
 
 static DEFINE_PER_CPU(struct acpi_cpufreq_data *, drv_data);
+
+DEFINE_TRACE(power_mark);
 
 /* acpi_perf_data is a pointer to percpu data. */
 static struct acpi_processor_performance *acpi_perf_data;
@@ -678,6 +680,18 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		    policy->cpuinfo.transition_latency)
 			policy->cpuinfo.transition_latency =
 			    perf->states[i].transition_latency * 1000;
+	}
+
+	/* Check for high latency (>20uS) from buggy BIOSes, like on T42 */
+	if (perf->control_register.space_id == ACPI_ADR_SPACE_FIXED_HARDWARE &&
+	    policy->cpuinfo.transition_latency > 20 * 1000) {
+		static int print_once;
+		policy->cpuinfo.transition_latency = 20 * 1000;
+		if (!print_once) {
+			print_once = 1;
+			printk(KERN_INFO "Capping off P-state tranision latency"
+				" at 20 uS\n");
+		}
 	}
 
 	data->max_freq = perf->states[0].core_frequency * 1000;

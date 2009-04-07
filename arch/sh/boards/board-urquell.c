@@ -129,6 +129,10 @@ static int __init urquell_devices_setup(void)
 	gpio_request(GPIO_FN_USB_OVC0,  NULL);
 	gpio_request(GPIO_FN_USB_PENC0, NULL);
 
+	/* enable LAN */
+	__raw_writew(__raw_readw(UBOARDREG(IRL2MSKR)) & ~0x00000001,
+		  UBOARDREG(IRL2MSKR));
+
 	return platform_add_devices(urquell_devices,
 				    ARRAY_SIZE(urquell_devices));
 }

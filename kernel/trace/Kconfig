@@ -9,6 +9,9 @@ config USER_STACKTRACE_SUPPORT
 config NOP_TRACER
 	bool
 
+config HAVE_FTRACE_NMI_ENTER
+	bool
+
 config HAVE_FUNCTION_TRACER
 	bool
 
@@ -31,11 +34,19 @@ config HAVE_FTRACE_MCOUNT_RECORD
 config HAVE_HW_BRANCH_TRACER
 	bool
 
+config HAVE_FTRACE_SYSCALLS
+	bool
+
 config TRACER_MAX_TRACE
 	bool
 
 config RING_BUFFER
 	bool
+
+config FTRACE_NMI_ENTER
+       bool
+       depends on HAVE_FTRACE_NMI_ENTER
+       default y
 
 config TRACING
 	bool
@@ -44,13 +55,29 @@ config TRACING
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select TRACEPOINTS
 	select NOP_TRACER
+	select BINARY_PRINTF
+
+#
+# Minimum requirements an architecture has to meet for us to
+# be able to offer generic tracing facilities:
+#
+config TRACING_SUPPORT
+	bool
+	# PPC32 has no irqflags tracing support, but it can use most of the
+	# tracers anyway, they were tested to build and work. Note that new
+	# exceptions to this list aren't welcomed, better implement the
+	# irqflags tracing for your architecture.
+	depends on TRACE_IRQFLAGS_SUPPORT || PPC32
+	depends on STACKTRACE_SUPPORT
+	default y
+
+if TRACING_SUPPORT
 
 menu "Tracers"
 
 config FUNCTION_TRACER
 	bool "Kernel Function Tracer"
 	depends on HAVE_FUNCTION_TRACER
-	depends on DEBUG_KERNEL
 	select FRAME_POINTER
 	select KALLSYMS
 	select TRACING
@@ -72,18 +99,16 @@ config FUNCTION_GRAPH_TRACER
 	help
 	  Enable the kernel to trace a function at both its return
 	  and its entry.
-	  It's first purpose is to trace the duration of functions and
-	  draw a call graph for each thread with some informations like
-	  the return value.
-	  This is done by setting the current return address on the current
-	  task structure into a stack of calls.
+	  Its first purpose is to trace the duration of functions and
+	  draw a call graph for each thread with some information like
+	  the return value. This is done by setting the current return 
+	  address on the current task structure into a stack of calls.
 
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"
 	default n
 	depends on TRACE_IRQFLAGS_SUPPORT
 	depends on GENERIC_TIME
-	depends on DEBUG_KERNEL
 	select TRACE_IRQFLAGS
 	select TRACING
 	select TRACER_MAX_TRACE
@@ -106,7 +131,6 @@ config PREEMPT_TRACER
 	default n
 	depends on GENERIC_TIME
 	depends on PREEMPT
-	depends on DEBUG_KERNEL
 	select TRACING
 	select TRACER_MAX_TRACE
 	help
@@ -127,13 +151,13 @@ config SYSPROF_TRACER
 	bool "Sysprof Tracer"
 	depends on X86
 	select TRACING
+	select CONTEXT_SWITCH_TRACER
 	help
 	  This tracer provides the trace needed by the 'Sysprof' userspace
 	  tool.
 
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
-	depends on DEBUG_KERNEL
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
 	select TRACER_MAX_TRACE
@@ -143,16 +167,30 @@ config SCHED_TRACER
 
 config CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
-	depends on DEBUG_KERNEL
 	select TRACING
 	select MARKERS
 	help
 	  This tracer gets called from the context switch and records
 	  all switching of tasks.
 
+config EVENT_TRACER
+	bool "Trace various events in the kernel"
+	select TRACING
+	help
+	  This tracer hooks to various trace points in the kernel
+	  allowing the user to pick and choose which trace point they
+	  want to trace.
+
+config FTRACE_SYSCALLS
+	bool "Trace syscalls"
+	depends on HAVE_FTRACE_SYSCALLS
+	select TRACING
+	select KALLSYMS
+	help
+	  Basic tracer to catch the syscall entry and exit events.
+
 config BOOT_TRACER
 	bool "Trace boot initcalls"
-	depends on DEBUG_KERNEL
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
 	help
@@ -165,13 +203,11 @@ config BOOT_TRACER
 	  representation of the delays during initcalls - but the raw
 	  /debug/tracing/trace text output is readable too.
 
-	  ( Note that tracing self tests can't be enabled if this tracer is
-	    selected, because the self-tests are an initcall as well and that
-	    would invalidate the boot trace. )
+	  You must pass in ftrace=initcall to the kernel command line
+	  to enable this on bootup.
 
 config TRACE_BRANCH_PROFILING
 	bool "Trace likely/unlikely profiler"
-	depends on DEBUG_KERNEL
 	select TRACING
 	help
 	  This tracer profiles all the the likely and unlikely macros
@@ -224,7 +260,6 @@ config BRANCH_TRACER
 
 config POWER_TRACER
 	bool "Trace power consumption behavior"
-	depends on DEBUG_KERNEL
 	depends on X86
 	select TRACING
 	help
@@ -236,7 +271,6 @@ config POWER_TRACER
 config STACK_TRACER
 	bool "Trace max stack"
 	depends on HAVE_FUNCTION_TRACER
-	depends on DEBUG_KERNEL
 	select FUNCTION_TRACER
 	select STACKTRACE
 	select KALLSYMS
@@ -266,11 +300,66 @@ config HW_BRANCH_TRACER
 	  This tracer records all branches on the system in a circular
 	  buffer giving access to the last N branches for each cpu.
 
+config KMEMTRACE
+	bool "Trace SLAB allocations"
+	select TRACING
+	help
+	  kmemtrace provides tracing for slab allocator functions, such as
+	  kmalloc, kfree, kmem_cache_alloc, kmem_cache_free etc.. Collected
+	  data is then fed to the userspace application in order to analyse
+	  allocation hotspots, internal fragmentation and so on, making it
+	  possible to see how well an allocator performs, as well as debug
+	  and profile kernel code.
+
+	  This requires an userspace application to use. See
+	  Documentation/vm/kmemtrace.txt for more information.
+
+	  Saying Y will make the kernel somewhat larger and slower. However,
+	  if you disable kmemtrace at run-time or boot-time, the performance
+	  impact is minimal (depending on the arch the kernel is built for).
+
+	  If unsure, say N.
+
+config WORKQUEUE_TRACER
+	bool "Trace workqueues"
+	select TRACING
+	help
+	  The workqueue tracer provides some statistical informations
+          about each cpu workqueue thread such as the number of the
+          works inserted and executed since their creation. It can help
+          to evaluate the amount of work each of them have to perform.
+          For example it can help a developer to decide whether he should
+          choose a per cpu workqueue instead of a singlethreaded one.
+
+config BLK_DEV_IO_TRACE
+	bool "Support for tracing block io actions"
+	depends on SYSFS
+	depends on BLOCK
+	select RELAY
+	select DEBUG_FS
+	select TRACEPOINTS
+	select TRACING
+	select STACKTRACE
+	help
+	  Say Y here if you want to be able to trace the block layer actions
+	  on a given queue. Tracing allows you to see any traffic happening
+	  on a block device queue. For more information (and the userspace
+	  support tools needed), fetch the blktrace tools from:
+
+	  git://git.kernel.dk/blktrace.git
+
+	  Tracing also is possible using the ftrace interface, e.g.:
+
+	    echo 1 > /sys/block/sda/sda1/trace/enable
+	    echo blk > /sys/kernel/debug/tracing/current_tracer
+	    cat /sys/kernel/debug/tracing/trace_pipe
+
+	  If unsure, say N.
+
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"
 	depends on FUNCTION_TRACER
 	depends on HAVE_DYNAMIC_FTRACE
-	depends on DEBUG_KERNEL
 	default y
 	help
          This option will modify all the calls to ftrace dynamically
@@ -296,7 +385,7 @@ config FTRACE_SELFTEST
 
 config FTRACE_STARTUP_TEST
 	bool "Perform a startup test on ftrace"
-	depends on TRACING && DEBUG_KERNEL && !BOOT_TRACER
+	depends on TRACING
 	select FTRACE_SELFTEST
 	help
 	  This option performs a series of startup tests on ftrace. On bootup
@@ -306,7 +395,7 @@ config FTRACE_STARTUP_TEST
 
 config MMIOTRACE
 	bool "Memory mapped IO tracing"
-	depends on HAVE_MMIOTRACE_SUPPORT && DEBUG_KERNEL && PCI
+	depends on HAVE_MMIOTRACE_SUPPORT && PCI
 	select TRACING
 	help
 	  Mmiotrace traces Memory Mapped I/O access and is meant for
@@ -328,3 +417,6 @@ config MMIOTRACE_TEST
 	  Say N, unless you absolutely know what you are doing.
 
 endmenu
+
+endif # TRACING_SUPPORT
+

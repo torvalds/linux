@@ -47,7 +47,7 @@ config XEN_COMPAT_XENFS
          The old xenstore userspace tools expect to find "xenbus"
          under /proc/xen, but "xenbus" is now found at the root of the
          xenfs filesystem.  Selecting this causes the kernel to create
-         the compatibilty mount point /proc/xen if it is running on
+         the compatibility mount point /proc/xen if it is running on
          a xen platform.
          If in doubt, say yes.
 

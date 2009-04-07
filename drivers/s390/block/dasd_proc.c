@@ -320,7 +320,6 @@ dasd_proc_init(void)
 	dasd_proc_root_entry = proc_mkdir("dasd", NULL);
 	if (!dasd_proc_root_entry)
 		goto out_nodasd;
-	dasd_proc_root_entry->owner = THIS_MODULE;
 	dasd_devices_entry = proc_create("devices",
 					 S_IFREG | S_IRUGO | S_IWUSR,
 					 dasd_proc_root_entry,
@@ -334,7 +333,6 @@ dasd_proc_init(void)
 		goto out_nostatistics;
 	dasd_statistics_entry->read_proc = dasd_statistics_read;
 	dasd_statistics_entry->write_proc = dasd_statistics_write;
-	dasd_statistics_entry->owner = THIS_MODULE;
 	return 0;
 
  out_nostatistics:

@@ -153,7 +153,6 @@ static struct page * __init pcpur_get_page(unsigned int cpu, int pageno)
 static ssize_t __init setup_pcpu_remap(size_t static_size)
 {
 	static struct vm_struct vm;
-	pg_data_t *last;
 	size_t ptrs_size, dyn_size;
 	unsigned int cpu;
 	ssize_t ret;
@@ -162,22 +161,9 @@ static ssize_t __init setup_pcpu_remap(size_t static_size)
 	 * If large page isn't supported, there's no benefit in doing
 	 * this.  Also, on non-NUMA, embedding is better.
 	 */
-	if (!cpu_has_pse || pcpu_need_numa())
+	if (!cpu_has_pse || !pcpu_need_numa())
 		return -EINVAL;
 
-	last = NULL;
-	for_each_possible_cpu(cpu) {
-		int node = early_cpu_to_node(cpu);
-
-		if (node_online(node) && NODE_DATA(node) &&
-		    last && last != NODE_DATA(node))
-			goto proceed;
-
-		last = NODE_DATA(node);
-	}
-	return -EINVAL;
-
-proceed:
 	/*
 	 * Currently supports only single page.  Supporting multiple
 	 * pages won't be too difficult if it ever becomes necessary.

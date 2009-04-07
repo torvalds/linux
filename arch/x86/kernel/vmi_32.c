@@ -395,11 +395,6 @@ static void vmi_set_pte_atomic(pte_t *ptep, pte_t pteval)
 	vmi_ops.update_pte(ptep, VMI_PAGE_PT);
 }
 
-static void vmi_set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
-{
-	vmi_ops.set_pte(pte, ptep, vmi_flags_addr_defer(mm, addr, VMI_PAGE_PT, 1));
-}
-
 static void vmi_set_pud(pud_t *pudp, pud_t pudval)
 {
 	/* Um, eww */
@@ -756,7 +751,6 @@ static inline int __init activate_vmi(void)
 		pv_mmu_ops.set_pmd = vmi_set_pmd;
 #ifdef CONFIG_X86_PAE
 		pv_mmu_ops.set_pte_atomic = vmi_set_pte_atomic;
-		pv_mmu_ops.set_pte_present = vmi_set_pte_present;
 		pv_mmu_ops.set_pud = vmi_set_pud;
 		pv_mmu_ops.pte_clear = vmi_pte_clear;
 		pv_mmu_ops.pmd_clear = vmi_pmd_clear;

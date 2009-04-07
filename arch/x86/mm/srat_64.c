@@ -116,6 +116,36 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 	reserve_early(phys, phys + length, "ACPI SLIT");
 }
 
+/* Callback for Proximity Domain -> x2APIC mapping */
+void __init
+acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa)
+{
+	int pxm, node;
+	int apic_id;
+
+	if (srat_disabled())
+		return;
+	if (pa->header.length < sizeof(struct acpi_srat_x2apic_cpu_affinity)) {
+		bad_srat();
+		return;
+	}
+	if ((pa->flags & ACPI_SRAT_CPU_ENABLED) == 0)
+		return;
+	pxm = pa->proximity_domain;
+	node = setup_node(pxm);
+	if (node < 0) {
+		printk(KERN_ERR "SRAT: Too many proximity domains %x\n", pxm);
+		bad_srat();
+		return;
+	}
+
+	apic_id = pa->apic_id;
+	apicid_to_node[apic_id] = node;
+	acpi_numa = 1;
+	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> Node %u\n",
+	       pxm, apic_id, node);
+}
+
 /* Callback for Proximity Domain -> LAPIC mapping */
 void __init
 acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)

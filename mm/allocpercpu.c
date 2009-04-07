@@ -31,7 +31,7 @@ static void percpu_depopulate(void *__pdata, int cpu)
  * @__pdata: per-cpu data to depopulate
  * @mask: depopulate per-cpu data for cpu's selected through mask bits
  */
-static void __percpu_depopulate_mask(void *__pdata, cpumask_t *mask)
+static void __percpu_depopulate_mask(void *__pdata, const cpumask_t *mask)
 {
 	int cpu;
 	for_each_cpu_mask_nr(cpu, *mask)
@@ -143,7 +143,7 @@ void free_percpu(void *__pdata)
 {
 	if (unlikely(!__pdata))
 		return;
-	__percpu_depopulate_mask(__pdata, &cpu_possible_map);
+	__percpu_depopulate_mask(__pdata, cpu_possible_mask);
 	kfree(__percpu_disguise(__pdata));
 }
 EXPORT_SYMBOL_GPL(free_percpu);

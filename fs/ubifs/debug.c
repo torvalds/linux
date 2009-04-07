@@ -479,9 +479,9 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 					  "bad or corrupted node)");
 		else {
 			for (i = 0; i < nlen && dent->name[i]; i++)
-				printk("%c", dent->name[i]);
+				printk(KERN_CONT "%c", dent->name[i]);
 		}
-		printk("\n");
+		printk(KERN_CONT "\n");
 
 		break;
 	}
@@ -1214,7 +1214,7 @@ static int dbg_check_znode(struct ubifs_info *c, struct ubifs_zbranch *zbr)
 
 			/*
 			 * Make sure the last key in our znode is less or
-			 * equivalent than the the key in zbranch which goes
+			 * equivalent than the key in the zbranch which goes
 			 * after our pointing zbranch.
 			 */
 			cmp = keys_cmp(c, max,

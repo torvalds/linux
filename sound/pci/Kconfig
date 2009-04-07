@@ -507,7 +507,7 @@ config SND_FM801
 config SND_FM801_TEA575X_BOOL
 	bool "ForteMedia FM801 + TEA5757 tuner"
 	depends on SND_FM801
-	depends on VIDEO_V4L1=y || VIDEO_V4L1=SND_FM801
+	depends on VIDEO_V4L2=y || VIDEO_V4L2=SND_FM801
 	help
 	  Say Y here to include support for soundcards based on the ForteMedia
 	  FM801 chip with a TEA5757 tuner connected to GPIO1-3 pins (Media

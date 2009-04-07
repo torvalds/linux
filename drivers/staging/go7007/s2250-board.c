@@ -149,7 +149,7 @@ static int go7007_usb_vendor_request(struct go7007 *go, u16 request,
 static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 {
 	struct go7007 *go = i2c_get_adapdata(client->adapter);
-	struct go7007_usb *usb = go->hpi_context;
+	struct go7007_usb *usb;
 	int rc;
 	int dev_addr = client->addr;
 	u8 *buf;
@@ -164,8 +164,10 @@ static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 	if (buf == NULL)
 		return -ENOMEM;
 
+	usb = go->hpi_context;
 	if (down_interruptible(&usb->i2c_lock) != 0) {
 		printk(KERN_INFO "i2c lock failed\n");
+		kfree(buf);
 		return -EINTR;
 	}
 	rc = go7007_usb_vendor_request(go, 0x55, dev_addr,
@@ -181,7 +183,7 @@ static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 {
 	struct go7007 *go = i2c_get_adapdata(client->adapter);
-	struct go7007_usb *usb = go->hpi_context;
+	struct go7007_usb *usb;
 	u8 *buf;
 	struct s2250 *dec = i2c_get_clientdata(client);
 
@@ -200,6 +202,7 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 
 	memset(buf, 0xcd, 6);
 
+	usb = go->hpi_context;
 	if (down_interruptible(&usb->i2c_lock) != 0) {
 		printk(KERN_INFO "i2c lock failed\n");
 		return -EINTR;

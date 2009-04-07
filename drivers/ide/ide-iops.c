@@ -27,21 +27,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-void SELECT_DRIVE(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_port_ops *port_ops = hwif->port_ops;
-	ide_task_t task;
-
-	if (port_ops && port_ops->selectproc)
-		port_ops->selectproc(drive);
-
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_OUT_DEVICE;
-
-	drive->hwif->tp_ops->tf_load(drive, &task);
-}
-
 void SELECT_MASK(ide_drive_t *drive, int mask)
 {
 	const struct ide_port_ops *port_ops = drive->hwif->port_ops;
@@ -52,14 +37,14 @@ void SELECT_MASK(ide_drive_t *drive, int mask)
 
 u8 ide_read_error(ide_drive_t *drive)
 {
-	ide_task_t task;
+	struct ide_cmd cmd;
 
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_IN_FEATURE;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf_flags = IDE_TFLAG_IN_ERROR;
 
-	drive->hwif->tp_ops->tf_read(drive, &task);
+	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
-	return task.tf.error;
+	return cmd.tf.error;
 }
 EXPORT_SYMBOL_GPL(ide_read_error);
 
@@ -306,6 +291,7 @@ int ide_driveid_update(ide_drive_t *drive)
 	drive->id[ATA_ID_UDMA_MODES]  = id[ATA_ID_UDMA_MODES];
 	drive->id[ATA_ID_MWDMA_MODES] = id[ATA_ID_MWDMA_MODES];
 	drive->id[ATA_ID_SWDMA_MODES] = id[ATA_ID_SWDMA_MODES];
+	drive->id[ATA_ID_CFA_MODES]   = id[ATA_ID_CFA_MODES];
 	/* anything more ? */
 
 	kfree(id);
@@ -329,7 +315,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	u16 *id = drive->id, i;
 	int error = 0;
 	u8 stat;
-	ide_task_t task;
+	struct ide_cmd cmd;
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (hwif->dma_ops)	/* check if host supports DMA */
@@ -356,22 +342,22 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	disable_irq_nosync(hwif->irq);
 
 	udelay(1);
-	SELECT_DRIVE(drive);
+	tp_ops->dev_select(drive);
 	SELECT_MASK(drive, 1);
 	udelay(1);
-	tp_ops->set_irq(hwif, 0);
+	tp_ops->write_devctl(hwif, ATA_NIEN | ATA_DEVCTL_OBS);
 
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT;
-	task.tf.feature = SETFEATURES_XFER;
-	task.tf.nsect   = speed;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT;
+	cmd.tf.feature = SETFEATURES_XFER;
+	cmd.tf.nsect   = speed;
 
-	tp_ops->tf_load(drive, &task);
+	tp_ops->tf_load(drive, &cmd);
 
 	tp_ops->exec_command(hwif, ATA_CMD_SET_FEATURES);
 
 	if (drive->quirk_list == 2)
-		tp_ops->set_irq(hwif, 1);
+		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	error = __ide_wait_stat(drive, drive->ready_stat,
 				ATA_BUSY | ATA_DRQ | ATA_ERR,
@@ -386,9 +372,14 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 		return error;
 	}
 
-	id[ATA_ID_UDMA_MODES]  &= ~0xFF00;
-	id[ATA_ID_MWDMA_MODES] &= ~0x0F00;
-	id[ATA_ID_SWDMA_MODES] &= ~0x0F00;
+	if (speed >= XFER_SW_DMA_0) {
+		id[ATA_ID_UDMA_MODES]  &= ~0xFF00;
+		id[ATA_ID_MWDMA_MODES] &= ~0x0700;
+		id[ATA_ID_SWDMA_MODES] &= ~0x0700;
+		if (ata_id_is_cfa(id))
+			id[ATA_ID_CFA_MODES] &= ~0x0E00;
+	} else	if (ata_id_is_cfa(id))
+		id[ATA_ID_CFA_MODES] &= ~0x01C0;
 
  skip:
 #ifdef CONFIG_BLK_DEV_IDEDMA
@@ -401,12 +392,18 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	if (speed >= XFER_UDMA_0) {
 		i = 1 << (speed - XFER_UDMA_0);
 		id[ATA_ID_UDMA_MODES] |= (i << 8 | i);
+	} else if (ata_id_is_cfa(id) && speed >= XFER_MW_DMA_3) {
+		i = speed - XFER_MW_DMA_2;
+		id[ATA_ID_CFA_MODES] |= i << 9;
 	} else if (speed >= XFER_MW_DMA_0) {
 		i = 1 << (speed - XFER_MW_DMA_0);
 		id[ATA_ID_MWDMA_MODES] |= (i << 8 | i);
 	} else if (speed >= XFER_SW_DMA_0) {
 		i = 1 << (speed - XFER_SW_DMA_0);
 		id[ATA_ID_SWDMA_MODES] |= (i << 8 | i);
+	} else if (ata_id_is_cfa(id) && speed >= XFER_PIO_5) {
+		i = speed - XFER_PIO_4;
+		id[ATA_ID_CFA_MODES] |= i << 6;
 	}
 
 	if (!drive->init_speed)
@@ -425,26 +422,25 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
  * See also ide_execute_command
  */
 void __ide_set_handler(ide_drive_t *drive, ide_handler_t *handler,
-		       unsigned int timeout, ide_expiry_t *expiry)
+		       unsigned int timeout)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
 	BUG_ON(hwif->handler);
 	hwif->handler		= handler;
-	hwif->expiry		= expiry;
 	hwif->timer.expires	= jiffies + timeout;
 	hwif->req_gen_timer	= hwif->req_gen;
 	add_timer(&hwif->timer);
 }
 
-void ide_set_handler (ide_drive_t *drive, ide_handler_t *handler,
-		      unsigned int timeout, ide_expiry_t *expiry)
+void ide_set_handler(ide_drive_t *drive, ide_handler_t *handler,
+		     unsigned int timeout)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hwif->lock, flags);
-	__ide_set_handler(drive, handler, timeout, expiry);
+	__ide_set_handler(drive, handler, timeout);
 	spin_unlock_irqrestore(&hwif->lock, flags);
 }
 EXPORT_SYMBOL(ide_set_handler);
@@ -452,10 +448,9 @@ EXPORT_SYMBOL(ide_set_handler);
 /**
  *	ide_execute_command	-	execute an IDE command
  *	@drive: IDE drive to issue the command against
- *	@command: command byte to write
+ *	@cmd: command
  *	@handler: handler for next phase
  *	@timeout: timeout for command
- *	@expiry:  handler to run on timeout
  *
  *	Helper function to issue an IDE command. This handles the
  *	atomicity requirements, command timing and ensures that the
@@ -463,15 +458,18 @@ EXPORT_SYMBOL(ide_set_handler);
  *	should go via this function or do equivalent locking.
  */
 
-void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
-			 unsigned timeout, ide_expiry_t *expiry)
+void ide_execute_command(ide_drive_t *drive, struct ide_cmd *cmd,
+			 ide_handler_t *handler, unsigned timeout)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hwif->lock, flags);
-	__ide_set_handler(drive, handler, timeout, expiry);
-	hwif->tp_ops->exec_command(hwif, cmd);
+	if ((cmd->protocol != ATAPI_PROT_DMA &&
+	     cmd->protocol != ATAPI_PROT_PIO) ||
+	    (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT))
+		__ide_set_handler(drive, handler, timeout);
+	hwif->tp_ops->exec_command(hwif, cmd->tf.command);
 	/*
 	 * Drive takes 400nS to respond, we must avoid the IRQ being
 	 * serviced before that.
@@ -481,19 +479,6 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 	ndelay(400);
 	spin_unlock_irqrestore(&hwif->lock, flags);
 }
-EXPORT_SYMBOL(ide_execute_command);
-
-void ide_execute_pkt_cmd(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	unsigned long flags;
-
-	spin_lock_irqsave(&hwif->lock, flags);
-	hwif->tp_ops->exec_command(hwif, ATA_CMD_PACKET);
-	ndelay(400);
-	spin_unlock_irqrestore(&hwif->lock, flags);
-}
-EXPORT_SYMBOL_GPL(ide_execute_pkt_cmd);
 
 /*
  * ide_wait_not_busy() waits for the currently selected device on the hwif

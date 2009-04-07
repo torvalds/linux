@@ -2752,7 +2752,6 @@ static const struct net_device_ops airo_netdev_ops = {
 	.ndo_set_mac_address	= airo_set_mac_address,
 	.ndo_do_ioctl		= airo_ioctl,
 	.ndo_change_mtu		= airo_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -2765,7 +2764,6 @@ static const struct net_device_ops mpi_netdev_ops = {
 	.ndo_set_mac_address	= airo_set_mac_address,
 	.ndo_do_ioctl		= airo_ioctl,
 	.ndo_change_mtu		= airo_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -4494,7 +4492,6 @@ static int setup_proc_entry( struct net_device *dev,
 		goto fail;
 	apriv->proc_entry->uid = proc_uid;
 	apriv->proc_entry->gid = proc_gid;
-	apriv->proc_entry->owner = THIS_MODULE;
 
 	/* Setup the StatsDelta */
 	entry = proc_create_data("StatsDelta",

@@ -1999,8 +1999,10 @@ iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
 
 	q->queue = kfifo_init((void*)q->pool, max * sizeof(void*),
 			      GFP_KERNEL, NULL);
-	if (q->queue == ERR_PTR(-ENOMEM))
+	if (IS_ERR(q->queue)) {
+		q->queue = NULL;
 		goto enomem;
+	}
 
 	for (i = 0; i < max; i++) {
 		q->pool[i] = kzalloc(item_size, GFP_KERNEL);

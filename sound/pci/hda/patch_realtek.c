@@ -8764,6 +8764,10 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	{}
 };
 
+static hda_nid_t alc883_slave_dig_outs[] = {
+	ALC1200_DIGOUT_NID, 0,
+};
+
 static hda_nid_t alc1200_slave_dig_outs[] = {
 	ALC883_DIGOUT_NID, 0,
 };
@@ -8809,6 +8813,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.dac_nids = alc883_dac_nids,
 		.dig_out_nid = ALC883_DIGOUT_NID,
 		.dig_in_nid = ALC883_DIGIN_NID,
+		.slave_dig_outs = alc883_slave_dig_outs,
 		.num_channel_mode = ARRAY_SIZE(alc883_3ST_6ch_intel_modes),
 		.channel_mode = alc883_3ST_6ch_intel_modes,
 		.need_dac_fix = 1,

@@ -18,6 +18,88 @@
 
 #include "m5602_s5k83a.h"
 
+static struct v4l2_pix_format s5k83a_modes[] = {
+	{
+		640,
+		480,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			640 * 480,
+		.bytesperline = 640,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}
+};
+
+const static struct ctrl s5k83a_ctrls[] = {
+	{
+		{
+			.id = V4L2_CID_BRIGHTNESS,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "brightness",
+			.minimum = 0x00,
+			.maximum = 0xff,
+			.step = 0x01,
+			.default_value = S5K83A_DEFAULT_BRIGHTNESS,
+			.flags = V4L2_CTRL_FLAG_SLIDER
+		},
+			.set = s5k83a_set_brightness,
+			.get = s5k83a_get_brightness
+
+	}, {
+		{
+			.id = V4L2_CID_WHITENESS,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "whiteness",
+			.minimum = 0x00,
+			.maximum = 0xff,
+			.step = 0x01,
+			.default_value = S5K83A_DEFAULT_WHITENESS,
+			.flags = V4L2_CTRL_FLAG_SLIDER
+		},
+			.set = s5k83a_set_whiteness,
+			.get = s5k83a_get_whiteness,
+	}, {
+		{
+			.id = V4L2_CID_GAIN,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "gain",
+			.minimum = 0x00,
+			.maximum = S5K83A_MAXIMUM_GAIN,
+			.step = 0x01,
+			.default_value = S5K83A_DEFAULT_GAIN,
+			.flags = V4L2_CTRL_FLAG_SLIDER
+		},
+			.set = s5k83a_set_gain,
+			.get = s5k83a_get_gain
+	}, {
+		{
+			.id         = V4L2_CID_HFLIP,
+			.type       = V4L2_CTRL_TYPE_BOOLEAN,
+			.name       = "horizontal flip",
+			.minimum    = 0,
+			.maximum    = 1,
+			.step       = 1,
+			.default_value  = 0
+		},
+			.set = s5k83a_set_hflip,
+			.get = s5k83a_get_hflip
+	}, {
+		{
+		 .id         = V4L2_CID_VFLIP,
+		.type       = V4L2_CTRL_TYPE_BOOLEAN,
+		.name       = "vertical flip",
+		.minimum    = 0,
+		.maximum    = 1,
+		.step       = 1,
+		.default_value  = 0
+		},
+		.set = s5k83a_set_vflip,
+		.get = s5k83a_get_vflip
+	}
+};
+
 static void s5k83a_dump_registers(struct sd *sd);
 
 int s5k83a_probe(struct sd *sd)
@@ -63,10 +145,10 @@ int s5k83a_probe(struct sd *sd)
 		info("Detected a s5k83a sensor");
 
 sensor_found:
-	sd->gspca_dev.cam.cam_mode = s5k83a.modes;
-	sd->gspca_dev.cam.nmodes = s5k83a.nmodes;
-	sd->desc->ctrls = s5k83a.ctrls;
-	sd->desc->nctrls = s5k83a.nctrls;
+	sd->gspca_dev.cam.cam_mode = s5k83a_modes;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(s5k83a_modes);
+	sd->desc->ctrls = s5k83a_ctrls;
+	sd->desc->nctrls = ARRAY_SIZE(s5k83a_ctrls);
 	return 0;
 }
 
@@ -106,6 +188,16 @@ int s5k83a_init(struct sd *sd)
 		s5k83a_dump_registers(sd);
 
 	return (err < 0) ? err : 0;
+}
+
+int s5k83a_start(struct sd *sd)
+{
+	return s5k83a_set_led_indication(sd, 1);
+}
+
+int s5k83a_stop(struct sd *sd)
+{
+	return s5k83a_set_led_indication(sd, 0);
 }
 
 int s5k83a_power_down(struct sd *sd)
@@ -163,12 +255,11 @@ int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = m5602_read_sensor(sd, S5K83A_BRIGHTNESS, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data[1] = data[1] << 1;
 	*val = data[1];
 
-out:
 	return err;
 }
 
@@ -182,13 +273,13 @@ int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 	data[1] = 0x20;
 	err = m5602_write_sensor(sd, 0x14, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data[0] = 0x01;
 	data[1] = 0x00;
 	err = m5602_write_sensor(sd, 0x0d, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	/* FIXME: This is not sane, we need to figure out the composition
 		  of these registers */
@@ -196,7 +287,6 @@ int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 	data[1] = val >> 1; /* brightness, high 7 bits */
 	err = m5602_write_sensor(sd, S5K83A_BRIGHTNESS, data, 2);
 
-out:
 	return err;
 }
 
@@ -208,11 +298,10 @@ int s5k83a_get_whiteness(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = m5602_read_sensor(sd, S5K83A_WHITENESS, &data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	*val = data;
 
-out:
 	return err;
 }
 
@@ -236,7 +325,7 @@ int s5k83a_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = m5602_read_sensor(sd, S5K83A_GAIN, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data[1] = data[1] & 0x3f;
 	if (data[1] > S5K83A_MAXIMUM_GAIN)
@@ -244,7 +333,6 @@ int s5k83a_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 
 	*val = data[1];
 
-out:
 	return err;
 }
 
@@ -269,12 +357,11 @@ int s5k83a_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	data[0] = 0x05;
 	err = m5602_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, S5K83A_FLIP, data, 1);
 	*val = (data[0] | 0x40) ? 1 : 0;
 
-out:
 	return err;
 }
 
@@ -287,23 +374,22 @@ int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	data[0] = 0x05;
 	err = m5602_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, S5K83A_FLIP, data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	/* set or zero six bit, seven is hflip */
 	data[0] = (val) ? (data[0] & 0x80) | 0x40 | S5K83A_FLIP_MASK
 			: (data[0] & 0x80) | S5K83A_FLIP_MASK;
 	err = m5602_write_sensor(sd, S5K83A_FLIP, data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data[0] = (val) ? 0x0b : 0x0a;
 	err = m5602_write_sensor(sd, S5K83A_VFLIP_TUNE, data, 1);
 
-out:
 	return err;
 }
 
@@ -316,12 +402,11 @@ int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	data[0] = 0x05;
 	err = m5602_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, S5K83A_FLIP, data, 1);
 	*val = (data[0] | 0x80) ? 1 : 0;
 
-out:
 	return err;
 }
 
@@ -334,21 +419,40 @@ int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	data[0] = 0x05;
 	err = m5602_write_sensor(sd, S5K83A_PAGE_MAP, data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, S5K83A_FLIP, data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	/* set or zero seven bit, six is vflip */
 	data[0] = (val) ? (data[0] & 0x40) | 0x80 | S5K83A_FLIP_MASK
 			: (data[0] & 0x40) | S5K83A_FLIP_MASK;
 	err = m5602_write_sensor(sd, S5K83A_FLIP, data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data[0] = (val) ? 0x0a : 0x0b;
 	err = m5602_write_sensor(sd, S5K83A_HFLIP_TUNE, data, 1);
-out:
+
 	return err;
+}
+
+int s5k83a_set_led_indication(struct sd *sd, u8 val)
+{
+	int err = 0;
+	u8 data[1];
+
+	err = m5602_read_bridge(sd, M5602_XB_GPIO_DAT, data);
+	if (err < 0)
+		return err;
+
+	if (val)
+		data[0] = data[0] | S5K83A_GPIO_LED_MASK;
+	else
+		data[0] = data[0] & ~S5K83A_GPIO_LED_MASK;
+
+	err = m5602_write_bridge(sd, M5602_XB_GPIO_DAT, data[0]);
+
+	return (err < 0) ? err : 0;
 }

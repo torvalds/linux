@@ -512,7 +512,7 @@ int ocfs2_calc_xattr_init(struct inode *dir,
 			  struct ocfs2_security_xattr_info *si,
 			  int *want_clusters,
 			  int *xattr_credits,
-			  struct ocfs2_alloc_context **xattr_ac)
+			  int *want_meta)
 {
 	int ret = 0;
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
@@ -554,11 +554,7 @@ int ocfs2_calc_xattr_init(struct inode *dir,
 	if (dir->i_sb->s_blocksize == OCFS2_MIN_BLOCKSIZE ||
 	    (S_ISDIR(mode) && ocfs2_supports_inline_data(osb)) ||
 	    (s_size + a_size) > OCFS2_XATTR_FREE_IN_IBODY) {
-		ret = ocfs2_reserve_new_metadata_blocks(osb, 1, xattr_ac);
-		if (ret) {
-			mlog_errno(ret);
-			return ret;
-		}
+		*want_meta = *want_meta + 1;
 		*xattr_credits += OCFS2_XATTR_BLOCK_CREATE_CREDITS;
 	}
 

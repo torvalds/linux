@@ -32,7 +32,8 @@
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 #include "tea6415c.h"
 
 MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
@@ -44,25 +45,21 @@ module_param(debug, int, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-/* addresses to scan, found only at 0x03 and/or 0x43 (7-bit) */
-static unsigned short normal_i2c[] = { I2C_TEA6415C_1, I2C_TEA6415C_2, I2C_CLIENT_END };
 
-/* magic definition of all other variables and things */
-I2C_CLIENT_INSMOD;
-
-/* makes a connection between the input-pin 'i' and the output-pin 'o'
-   for the tea6415c-client 'client' */
-static int switch_matrix(struct i2c_client *client, int i, int o)
+/* makes a connection between the input-pin 'i' and the output-pin 'o' */
+static int tea6415c_s_routing(struct v4l2_subdev *sd,
+			      u32 i, u32 o, u32 config)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u8 byte = 0;
 	int ret;
 
-	v4l_dbg(1, debug, client, "i=%d, o=%d\n", i, o);
+	v4l2_dbg(1, debug, sd, "i=%d, o=%d\n", i, o);
 
 	/* check if the pins are valid */
 	if (0 == ((1 == i ||  3 == i ||  5 == i ||  6 == i ||  8 == i || 10 == i || 20 == i || 11 == i)
 	      && (18 == o || 17 == o || 16 == o || 15 == o || 14 == o || 13 == o)))
-		return -1;
+		return -EINVAL;
 
 	/* to understand this, have a look at the tea6415c-specs (p.5) */
 	switch (o) {
@@ -115,37 +112,33 @@ static int switch_matrix(struct i2c_client *client, int i, int o)
 
 	ret = i2c_smbus_write_byte(client, byte);
 	if (ret) {
-		v4l_dbg(1, debug, client,
+		v4l2_dbg(1, debug, sd,
 			"i2c_smbus_write_byte() failed, ret:%d\n", ret);
 		return -EIO;
 	}
 	return ret;
 }
 
-static long tea6415c_ioctl(struct v4l2_subdev *sd, unsigned cmd, void *arg)
+static int tea6415c_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
-	if (cmd == TEA6415C_SWITCH) {
-		struct i2c_client *client = v4l2_get_subdevdata(sd);
-		struct tea6415c_multiplex *v = (struct tea6415c_multiplex *)arg;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-		return switch_matrix(client, v->in, v->out);
-	}
-	return -ENOIOCTLCMD;
-}
-
-static int tea6415c_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TEA6415C, 0);
 }
 
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops tea6415c_core_ops = {
-	.ioctl = tea6415c_ioctl,
+	.g_chip_ident = tea6415c_g_chip_ident,
+};
+
+static const struct v4l2_subdev_video_ops tea6415c_video_ops = {
+	.s_routing = tea6415c_s_routing,
 };
 
 static const struct v4l2_subdev_ops tea6415c_ops = {
 	.core = &tea6415c_core_ops,
+	.video = &tea6415c_video_ops,
 };
 
 /* this function is called by i2c_probe */
@@ -176,13 +169,6 @@ static int tea6415c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int tea6415c_legacy_probe(struct i2c_adapter *adapter)
-{
-	/* Let's see whether this is a known adapter we can attach to.
-	   Prevents conflicts with tvaudio.c. */
-	return adapter->id == I2C_HW_SAA7146;
-}
-
 static const struct i2c_device_id tea6415c_id[] = {
 	{ "tea6415c", 0 },
 	{ }
@@ -191,10 +177,7 @@ MODULE_DEVICE_TABLE(i2c, tea6415c_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tea6415c",
-	.driverid = I2C_DRIVERID_TEA6415C,
-	.command = tea6415c_command,
 	.probe = tea6415c_probe,
 	.remove = tea6415c_remove,
-	.legacy_probe = tea6415c_legacy_probe,
 	.id_table = tea6415c_id,
 };

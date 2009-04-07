@@ -64,10 +64,10 @@ Who:	Pavel Machek <pavel@suse.cz>
 
 ---------------------------
 
-What:	Video4Linux API 1 ioctls and video_decoder.h from Video devices.
-When:	December 2008
-Files:	include/linux/video_decoder.h include/linux/videodev.h
-Check:	include/linux/video_decoder.h include/linux/videodev.h
+What:	Video4Linux API 1 ioctls and from Video devices.
+When:	July 2009
+Files:	include/linux/videodev.h
+Check:	include/linux/videodev.h
 Why:	V4L1 AP1 was replaced by V4L2 API during migration from 2.4 to 2.6
 	series. The old API have lots of drawbacks and don't provide enough
 	means to work with all video and audio standards. The newer API is
@@ -255,6 +255,16 @@ Who:	Jan Engelhardt <jengelh@computergmbh.de>
 
 ---------------------------
 
+What:	GPIO autorequest on gpio_direction_{input,output}() in gpiolib
+When:	February 2010
+Why:	All callers should use explicit gpio_request()/gpio_free().
+	The autorequest mechanism in gpiolib was provided mostly as a
+	migration aid for legacy GPIO interfaces (for SOC based GPIOs).
+	Those users have now largely migrated.  Platforms implementing
+	the GPIO interfaces without using gpiolib will see no changes.
+Who:	David Brownell <dbrownell@users.sourceforge.net>
+---------------------------
+
 What:	b43 support for firmware revision < 410
 When:	The schedule was July 2008, but it was decided that we are going to keep the
         code as long as there are no major maintanance headaches.
@@ -270,13 +280,6 @@ What:	usedac i386 kernel parameter
 When:	2.6.27
 Why:	replaced by allowdac and no dac combination
 Who:	Glauber Costa <gcosta@redhat.com>
-
----------------------------
-
-What:	remove HID compat support
-When:	2.6.29
-Why:	needed only as a temporary solution until distros fix themselves up
-Who:	Jiri Slaby <jirislaby@gmail.com>
 
 ---------------------------
 
@@ -311,6 +314,18 @@ Who:	Vlad Yasevich <vladislav.yasevich@hp.com>
 
 ---------------------------
 
+What:	Ability for non root users to shm_get hugetlb pages based on mlock
+	resource limits
+When:	2.6.31
+Why:	Non root users need to be part of /proc/sys/vm/hugetlb_shm_group or
+	have CAP_IPC_LOCK to be able to allocate shm segments backed by
+	huge pages.  The mlock based rlimit check to allow shm hugetlb is
+	inconsistent with mmap based allocations.  Hence it is being
+	deprecated.
+Who:	Ravikiran Thirumalai <kiran@scalex86.org>
+
+---------------------------
+
 What:	CONFIG_THERMAL_HWMON
 When:	January 2009
 Why:	This option was introduced just to allow older lm-sensors userspace
@@ -339,7 +354,8 @@ Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
 
 ---------------------------
 
-What:	i2c_attach_client(), i2c_detach_client(), i2c_driver->detach_client()
+What:	i2c_attach_client(), i2c_detach_client(), i2c_driver->detach_client(),
+	i2c_adapter->client_register(), i2c_adapter->client_unregister
 When:	2.6.30
 Check:	i2c_attach_client i2c_detach_client
 Why:	Deprecated by the new (standard) device driver binding model. Use
@@ -380,3 +396,35 @@ Why:	The defines and typedefs (hw_interrupt_type, no_irq_type, irq_desc_t)
 	have been kept around for migration reasons. After more than two years
 	it's time to remove them finally
 Who:	Thomas Gleixner <tglx@linutronix.de>
+
+---------------------------
+
+What:	fakephp and associated sysfs files in /sys/bus/pci/slots/
+When:	2011
+Why:	In 2.6.27, the semantics of /sys/bus/pci/slots was redefined to
+	represent a machine's physical PCI slots. The change in semantics
+	had userspace implications, as the hotplug core no longer allowed
+	drivers to create multiple sysfs files per physical slot (required
+	for multi-function devices, e.g.). fakephp was seen as a developer's
+	tool only, and its interface changed. Too late, we learned that
+	there were some users of the fakephp interface.
+
+	In 2.6.30, the original fakephp interface was restored. At the same
+	time, the PCI core gained the ability that fakephp provided, namely
+	function-level hot-remove and hot-add.
+
+	Since the PCI core now provides the same functionality, exposed in:
+
+		/sys/bus/pci/rescan
+		/sys/bus/pci/devices/.../remove
+		/sys/bus/pci/devices/.../rescan
+
+	there is no functional reason to maintain fakephp as well.
+
+	We will keep the existing module so that 'modprobe fakephp' will
+	present the old /sys/bus/pci/slots/... interface for compatibility,
+	but users are urged to migrate their applications to the API above.
+
+	After a reasonable transition period, we will remove the legacy
+	fakephp interface.
+Who:	Alex Chiang <achiang@hp.com>

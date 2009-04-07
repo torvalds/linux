@@ -24,7 +24,6 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
-#include <linux/fsl_devices.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/workqueue.h>
@@ -223,10 +222,10 @@ static struct sk_buff *get_new_skb(struct ucc_geth_private *ugeth,
 		    (((unsigned)skb->data) & (UCC_GETH_RX_DATA_BUF_ALIGNMENT -
 					      1)));
 
-	skb->dev = ugeth->dev;
+	skb->dev = ugeth->ndev;
 
 	out_be32(&((struct qe_bd __iomem *)bd)->buf,
-		      dma_map_single(&ugeth->dev->dev,
+		      dma_map_single(ugeth->dev,
 				     skb->data,
 				     ugeth->ug_info->uf_info.max_rx_buf_length +
 				     UCC_GETH_RX_DATA_BUF_ALIGNMENT,
@@ -1872,7 +1871,7 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 			continue;
 		for (j = 0; j < ugeth->ug_info->bdRingLenTx[i]; j++) {
 			if (ugeth->tx_skbuff[i][j]) {
-				dma_unmap_single(&ugeth->dev->dev,
+				dma_unmap_single(ugeth->dev,
 						 in_be32(&((struct qe_bd __iomem *)bd)->buf),
 						 (in_be32((u32 __iomem *)bd) &
 						  BD_LENGTH_MASK),
@@ -1900,7 +1899,7 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 			bd = ugeth->p_rx_bd_ring[i];
 			for (j = 0; j < ugeth->ug_info->bdRingLenRx[i]; j++) {
 				if (ugeth->rx_skbuff[i][j]) {
-					dma_unmap_single(&ugeth->dev->dev,
+					dma_unmap_single(ugeth->dev,
 						in_be32(&((struct qe_bd __iomem *)bd)->buf),
 						ugeth->ug_info->
 						uf_info.max_rx_buf_length +
@@ -3071,7 +3070,7 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* set up the buffer descriptor */
 	out_be32(&((struct qe_bd __iomem *)bd)->buf,
-		      dma_map_single(&ugeth->dev->dev, skb->data,
+		      dma_map_single(ugeth->dev, skb->data,
 			      skb->len, DMA_TO_DEVICE));
 
 	/* printk(KERN_DEBUG"skb->data is 0x%x\n",skb->data); */
@@ -3127,7 +3126,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 
 	ugeth_vdbg("%s: IN", __func__);
 
-	dev = ugeth->dev;
+	dev = ugeth->ndev;
 
 	/* collect received buffers */
 	bd = ugeth->rxBd[rxQ];
@@ -3161,7 +3160,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 			skb_put(skb, length);
 
 			/* Tell the skb what kind of packet this is */
-			skb->protocol = eth_type_trans(skb, ugeth->dev);
+			skb->protocol = eth_type_trans(skb, ugeth->ndev);
 
 			dev->stats.rx_bytes += length;
 			/* Send the packet up the stack */
@@ -3432,7 +3431,7 @@ static int ucc_geth_close(struct net_device *dev)
 
 	ucc_geth_stop(ugeth);
 
-	free_irq(ugeth->ug_info->uf_info.irq, ugeth->dev);
+	free_irq(ugeth->ug_info->uf_info.irq, ugeth->ndev);
 
 	netif_stop_queue(dev);
 
@@ -3446,7 +3445,7 @@ static void ucc_geth_timeout_work(struct work_struct *work)
 	struct net_device *dev;
 
 	ugeth = container_of(work, struct ucc_geth_private, timeout_work);
-	dev = ugeth->dev;
+	dev = ugeth->ndev;
 
 	ugeth_vdbg("%s: IN", __func__);
 
@@ -3648,15 +3647,16 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		mdio = of_get_parent(phy);
 
 		if (mdio == NULL)
-			return -1;
+			return -ENODEV;
 
 		err = of_address_to_resource(mdio, 0, &res);
-		of_node_put(mdio);
 
-		if (err)
-			return -1;
-
+		if (err) {
+			of_node_put(mdio);
+			return err;
+		}
 		fsl_pq_mdio_bus_name(bus_name, mdio);
+		of_node_put(mdio);
 		snprintf(ug_info->phy_bus_id, sizeof(ug_info->phy_bus_id),
 			"%s:%02x", bus_name, *prop);
 	}
@@ -3755,7 +3755,8 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		memcpy(dev->dev_addr, mac_addr, 6);
 
 	ugeth->ug_info = ug_info;
-	ugeth->dev = dev;
+	ugeth->dev = device;
+	ugeth->ndev = dev;
 	ugeth->node = np;
 
 	return 0;

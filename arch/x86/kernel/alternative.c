@@ -5,6 +5,7 @@
 #include <linux/kprobes.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/memory.h>
 #include <asm/alternative.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
@@ -12,7 +13,9 @@
 #include <asm/nmi.h>
 #include <asm/vsyscall.h>
 #include <asm/cacheflush.h>
+#include <asm/tlbflush.h>
 #include <asm/io.h>
+#include <asm/fixmap.h>
 
 #define MAX_PATCH_LEN (255-1)
 
@@ -226,6 +229,7 @@ static void alternatives_smp_lock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 {
 	u8 **ptr;
 
+	mutex_lock(&text_mutex);
 	for (ptr = start; ptr < end; ptr++) {
 		if (*ptr < text)
 			continue;
@@ -234,6 +238,7 @@ static void alternatives_smp_lock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 		/* turn DS segment override prefix into lock prefix */
 		text_poke(*ptr, ((unsigned char []){0xf0}), 1);
 	};
+	mutex_unlock(&text_mutex);
 }
 
 static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end)
@@ -243,6 +248,7 @@ static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end
 	if (noreplace_smp)
 		return;
 
+	mutex_lock(&text_mutex);
 	for (ptr = start; ptr < end; ptr++) {
 		if (*ptr < text)
 			continue;
@@ -251,6 +257,7 @@ static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end
 		/* turn lock prefix into DS segment override prefix */
 		text_poke(*ptr, ((unsigned char []){0x3E}), 1);
 	};
+	mutex_unlock(&text_mutex);
 }
 
 struct smp_alt_module {
@@ -414,9 +421,17 @@ void __init alternative_instructions(void)
 	   that might execute the to be patched code.
 	   Other CPUs are not running. */
 	stop_nmi();
-#ifdef CONFIG_X86_MCE
-	stop_mce();
-#endif
+
+	/*
+	 * Don't stop machine check exceptions while patching.
+	 * MCEs only happen when something got corrupted and in this
+	 * case we must do something about the corruption.
+	 * Ignoring it is worse than a unlikely patching race.
+	 * Also machine checks tend to be broadcast and if one CPU
+	 * goes into machine check the others follow quickly, so we don't
+	 * expect a machine check to cause undue problems during to code
+	 * patching.
+	 */
 
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 
@@ -456,9 +471,6 @@ void __init alternative_instructions(void)
 				(unsigned long)__smp_locks_end);
 
 	restart_nmi();
-#ifdef CONFIG_X86_MCE
-	restart_mce();
-#endif
 }
 
 /**
@@ -495,15 +507,16 @@ void *text_poke_early(void *addr, const void *opcode, size_t len)
  * It means the size must be writable atomically and the address must be aligned
  * in a way that permits an atomic write. It also makes sure we fit on a single
  * page.
+ *
+ * Note: Must be called under text_mutex.
  */
 void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
 {
+	unsigned long flags;
 	char *vaddr;
-	int nr_pages = 2;
 	struct page *pages[2];
 	int i;
 
-	might_sleep();
 	if (!core_kernel_text((unsigned long)addr)) {
 		pages[0] = vmalloc_to_page(addr);
 		pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
@@ -513,18 +526,21 @@ void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
 		pages[1] = virt_to_page(addr + PAGE_SIZE);
 	}
 	BUG_ON(!pages[0]);
-	if (!pages[1])
-		nr_pages = 1;
-	vaddr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
-	BUG_ON(!vaddr);
-	local_irq_disable();
+	local_irq_save(flags);
+	set_fixmap(FIX_TEXT_POKE0, page_to_phys(pages[0]));
+	if (pages[1])
+		set_fixmap(FIX_TEXT_POKE1, page_to_phys(pages[1]));
+	vaddr = (char *)fix_to_virt(FIX_TEXT_POKE0);
 	memcpy(&vaddr[(unsigned long)addr & ~PAGE_MASK], opcode, len);
-	local_irq_enable();
-	vunmap(vaddr);
+	clear_fixmap(FIX_TEXT_POKE0);
+	if (pages[1])
+		clear_fixmap(FIX_TEXT_POKE1);
+	local_flush_tlb();
 	sync_core();
 	/* Could also do a CLFLUSH here to speed up CPU recovery; but
 	   that causes hangs on some VIA CPUs. */
 	for (i = 0; i < len; i++)
 		BUG_ON(((char *)addr)[i] != ((char *)opcode)[i]);
+	local_irq_restore(flags);
 	return addr;
 }

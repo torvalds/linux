@@ -55,8 +55,7 @@
 #include <linux/wireless.h>
 #include <linux/slab.h>
 #include <linux/random.h>
-
-#include "wlan_compat.h"
+#include <linux/kernel.h>
 
 // #define WEP_DEBUG
 
@@ -72,16 +71,7 @@
 /*================================================================*/
 /* Local Constants */
 
-#define SSWAP(a,b) {u8 tmp = s[a]; s[a] = s[b]; s[b] = tmp;}
 #define WEP_KEY(x)       (((x) & 0xC0) >> 6)
-
-/*================================================================*/
-/* Local Macros */
-
-
-/*================================================================*/
-/* Local Types */
-
 
 /*================================================================*/
 /* Local Static Definitions */
@@ -211,7 +201,7 @@ int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override, u8 *i
 	j = 0;
 	for (i = 0; i < 256; i++) {
 		j = (j + s[i] + key[i % keylen]) & 0xff;
-		SSWAP(i,j);
+		swap(i,j);
 	}
 
 	/* Apply the RC4 to the data, update the CRC32 */
@@ -220,7 +210,7 @@ int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override, u8 *i
 	for (k = 0; k < len; k++) {
 		i = (i+1) & 0xff;
 		j = (j+s[i]) & 0xff;
-		SSWAP(i,j);
+		swap(i,j);
 		buf[k] ^= s[(s[i] + s[j]) & 0xff];
 		crc = wep_crc32_table[(crc ^ buf[k]) & 0xff] ^ (crc >> 8);
 	}
@@ -235,7 +225,7 @@ int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override, u8 *i
 	for (k = 0; k < 4; k++) {
 		i = (i + 1) & 0xff;
 		j = (j+s[i]) & 0xff;
-		SSWAP(i,j);
+		swap(i,j);
 		if ((c_crc[k] ^ s[(s[i] + s[j]) & 0xff]) != icv[k])
 			return -(4 | (k << 4)) ; /* ICV mismatch */
 	}
@@ -283,7 +273,7 @@ int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum, u8
 	j = 0;
 	for (i = 0; i < 256; i++) {
 		j = (j + s[i] + key[i % keylen]) & 0xff;
-		SSWAP(i,j);
+		swap(i,j);
 	}
 
 	/* Update CRC32 then apply RC4 to the data */
@@ -293,7 +283,7 @@ int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum, u8
 		crc = wep_crc32_table[(crc ^ buf[k]) & 0xff] ^ (crc >> 8);
 		i = (i+1) & 0xff;
 		j = (j+s[i]) & 0xff;
-		SSWAP(i,j);
+		swap(i,j);
 		dst[k] = buf[k] ^ s[(s[i] + s[j]) & 0xff];
 	}
 	crc = ~crc;
@@ -307,7 +297,7 @@ int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum, u8
 	for (k = 0; k < 4; k++) {
 		i = (i + 1) & 0xff;
 		j = (j+s[i]) & 0xff;
-		SSWAP(i,j);
+		swap(i,j);
 		icv[k] ^= s[(s[i] + s[j]) & 0xff];
 	}
 

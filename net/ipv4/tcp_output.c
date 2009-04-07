@@ -754,6 +754,36 @@ static void tcp_adjust_fackets_out(struct sock *sk, struct sk_buff *skb,
 		tp->fackets_out -= decr;
 }
 
+/* Pcount in the middle of the write queue got changed, we need to do various
+ * tweaks to fix counters
+ */
+static void tcp_adjust_pcount(struct sock *sk, struct sk_buff *skb, int decr)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	tp->packets_out -= decr;
+
+	if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)
+		tp->sacked_out -= decr;
+	if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS)
+		tp->retrans_out -= decr;
+	if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST)
+		tp->lost_out -= decr;
+
+	/* Reno case is special. Sigh... */
+	if (tcp_is_reno(tp) && decr > 0)
+		tp->sacked_out -= min_t(u32, tp->sacked_out, decr);
+
+	tcp_adjust_fackets_out(sk, skb, decr);
+
+	if (tp->lost_skb_hint &&
+	    before(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(tp->lost_skb_hint)->seq) &&
+	    (tcp_is_fack(tp) || TCP_SKB_CB(skb)->sacked))
+		tp->lost_cnt_hint -= decr;
+
+	tcp_verify_left_out(tp);
+}
+
 /* Function to create two new TCP segments.  Shrinks the given segment
  * to the specified size and appends a new segment with the rest of the
  * packet to the list.  This won't be called frequently, I hope.
@@ -836,28 +866,8 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len,
 		int diff = old_factor - tcp_skb_pcount(skb) -
 			tcp_skb_pcount(buff);
 
-		tp->packets_out -= diff;
-
-		if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)
-			tp->sacked_out -= diff;
-		if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS)
-			tp->retrans_out -= diff;
-
-		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST)
-			tp->lost_out -= diff;
-
-		/* Adjust Reno SACK estimate. */
-		if (tcp_is_reno(tp) && diff > 0) {
-			tcp_dec_pcount_approx_int(&tp->sacked_out, diff);
-			tcp_verify_left_out(tp);
-		}
-		tcp_adjust_fackets_out(sk, skb, diff);
-
-		if (tp->lost_skb_hint &&
-		    before(TCP_SKB_CB(skb)->seq,
-			   TCP_SKB_CB(tp->lost_skb_hint)->seq) &&
-		    (tcp_is_fack(tp) || TCP_SKB_CB(skb)->sacked))
-			tp->lost_cnt_hint -= diff;
+		if (diff)
+			tcp_adjust_pcount(sk, skb, diff);
 	}
 
 	/* Link BUFF into the send queue. */
@@ -1768,21 +1778,13 @@ static void tcp_collapse_retrans(struct sock *sk, struct sk_buff *skb)
 	 * packet counting does not break.
 	 */
 	TCP_SKB_CB(skb)->sacked |= TCP_SKB_CB(next_skb)->sacked & TCPCB_EVER_RETRANS;
-	if (TCP_SKB_CB(next_skb)->sacked & TCPCB_SACKED_RETRANS)
-		tp->retrans_out -= tcp_skb_pcount(next_skb);
-	if (TCP_SKB_CB(next_skb)->sacked & TCPCB_LOST)
-		tp->lost_out -= tcp_skb_pcount(next_skb);
-	/* Reno case is special. Sigh... */
-	if (tcp_is_reno(tp) && tp->sacked_out)
-		tcp_dec_pcount_approx(&tp->sacked_out, next_skb);
-
-	tcp_adjust_fackets_out(sk, next_skb, tcp_skb_pcount(next_skb));
-	tp->packets_out -= tcp_skb_pcount(next_skb);
 
 	/* changed transmit queue under us so clear hints */
 	tcp_clear_retrans_hints_partial(tp);
 	if (next_skb == tp->retransmit_skb_hint)
 		tp->retransmit_skb_hint = skb;
+
+	tcp_adjust_pcount(sk, next_skb, tcp_skb_pcount(next_skb));
 
 	sk_wmem_free_skb(sk, next_skb);
 }
@@ -1891,7 +1893,12 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 		if (tcp_fragment(sk, skb, cur_mss, cur_mss))
 			return -ENOMEM; /* We'll try again later. */
 	} else {
-		tcp_init_tso_segs(sk, skb, cur_mss);
+		int oldpcount = tcp_skb_pcount(skb);
+
+		if (unlikely(oldpcount > 1)) {
+			tcp_init_tso_segs(sk, skb, cur_mss);
+			tcp_adjust_pcount(sk, skb, oldpcount - tcp_skb_pcount(skb));
+		}
 	}
 
 	tcp_retrans_try_collapse(sk, skb, cur_mss);

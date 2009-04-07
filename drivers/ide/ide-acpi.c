@@ -304,7 +304,7 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 	/* send all taskfile registers (0x1f1-0x1f7) *in*that*order* */
 	for (ix = 0; ix < gtf_count; ix++) {
 		u8 *gtf = (u8 *)(gtf_address + ix * REGS_PER_GTF);
-		ide_task_t task;
+		struct ide_cmd cmd;
 
 		DEBPRINT("(0x1f1-1f7): "
 			 "hex: %02x %02x %02x %02x %02x %02x %02x\n",
@@ -317,11 +317,11 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 		}
 
 		/* convert GTF to taskfile */
-		memset(&task, 0, sizeof(ide_task_t));
-		memcpy(&task.tf_array[7], gtf, REGS_PER_GTF);
-		task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+		memset(&cmd, 0, sizeof(cmd));
+		memcpy(&cmd.tf_array[7], gtf, REGS_PER_GTF);
+		cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
-		err = ide_no_data_taskfile(drive, &task);
+		err = ide_no_data_taskfile(drive, &cmd);
 		if (err) {
 			printk(KERN_ERR "%s: ide_no_data_taskfile failed: %u\n",
 					__func__, err);

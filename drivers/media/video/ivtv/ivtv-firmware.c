@@ -52,7 +52,7 @@ static int load_fw_direct(const char *fn, volatile u8 __iomem *mem, struct ivtv 
 	int retries = 3;
 
 retry:
-	if (retries && request_firmware(&fw, fn, &itv->dev->dev) == 0) {
+	if (retries && request_firmware(&fw, fn, &itv->pdev->dev) == 0) {
 		int i;
 		volatile u32 __iomem *dst = (volatile u32 __iomem *)mem;
 		const u32 *src = (const u32 *)fw->data;

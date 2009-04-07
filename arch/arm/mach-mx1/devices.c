@@ -44,7 +44,7 @@ static struct resource imx_csi_resources[] = {
 static u64 imx_csi_dmamask = 0xffffffffUL;
 
 struct platform_device imx_csi_device = {
-	.name           = "imx-csi",
+	.name           = "mx1-camera",
 	.id             = 0, /* This is used to put cameras on this interface */
 	.dev		= {
 		.dma_mask = &imx_csi_dmamask,

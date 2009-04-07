@@ -12,6 +12,7 @@ typedef struct {
 	unsigned int apic_timer_irqs;	/* arch dependent */
 	unsigned int irq_spurious_count;
 #endif
+	unsigned int generic_irqs;	/* arch dependent */
 #ifdef CONFIG_SMP
 	unsigned int irq_resched_count;
 	unsigned int irq_call_count;

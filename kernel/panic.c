@@ -8,19 +8,19 @@
  * This function is used through-out the kernel (including mm and fs)
  * to indicate a major problem.
  */
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/delay.h>
-#include <linux/reboot.h>
-#include <linux/notifier.h>
-#include <linux/init.h>
-#include <linux/sysrq.h>
-#include <linux/interrupt.h>
-#include <linux/nmi.h>
-#include <linux/kexec.h>
 #include <linux/debug_locks.h>
-#include <linux/random.h>
+#include <linux/interrupt.h>
 #include <linux/kallsyms.h>
+#include <linux/notifier.h>
+#include <linux/module.h>
+#include <linux/random.h>
+#include <linux/reboot.h>
+#include <linux/delay.h>
+#include <linux/kexec.h>
+#include <linux/sched.h>
+#include <linux/sysrq.h>
+#include <linux/init.h>
+#include <linux/nmi.h>
 #include <linux/dmi.h>
 
 int panic_on_oops;
@@ -52,19 +52,15 @@ EXPORT_SYMBOL(panic_blink);
  *
  *	This function never returns.
  */
-
 NORET_TYPE void panic(const char * fmt, ...)
 {
-	long i;
 	static char buf[1024];
 	va_list args;
-#if defined(CONFIG_S390)
-	unsigned long caller = (unsigned long) __builtin_return_address(0);
-#endif
+	long i;
 
 	/*
-	 * It's possible to come here directly from a panic-assertion and not
-	 * have preempt disabled. Some functions called from here want
+	 * It's possible to come here directly from a panic-assertion and
+	 * not have preempt disabled. Some functions called from here want
 	 * preempt to be disabled. No point enabling it later though...
 	 */
 	preempt_disable();
@@ -77,7 +73,6 @@ NORET_TYPE void panic(const char * fmt, ...)
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	dump_stack();
 #endif
-	bust_spinlocks(0);
 
 	/*
 	 * If we have crashed and we have a crash kernel loaded let it handle
@@ -86,14 +81,12 @@ NORET_TYPE void panic(const char * fmt, ...)
 	 */
 	crash_kexec(NULL);
 
-#ifdef CONFIG_SMP
 	/*
 	 * Note smp_send_stop is the usual smp shutdown function, which
 	 * unfortunately means it may not be hardened to work in a panic
 	 * situation.
 	 */
 	smp_send_stop();
-#endif
 
 	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
 
@@ -102,19 +95,21 @@ NORET_TYPE void panic(const char * fmt, ...)
 
 	if (panic_timeout > 0) {
 		/*
-	 	 * Delay timeout seconds before rebooting the machine. 
-		 * We can't use the "normal" timers since we just panicked..
-	 	 */
-		printk(KERN_EMERG "Rebooting in %d seconds..",panic_timeout);
+		 * Delay timeout seconds before rebooting the machine.
+		 * We can't use the "normal" timers since we just panicked.
+		 */
+		printk(KERN_EMERG "Rebooting in %d seconds..", panic_timeout);
+
 		for (i = 0; i < panic_timeout*1000; ) {
 			touch_nmi_watchdog();
 			i += panic_blink(i);
 			mdelay(1);
 			i++;
 		}
-		/*	This will not be a clean reboot, with everything
-		 *	shutting down.  But if there is a chance of
-		 *	rebooting the system it will be rebooted.
+		/*
+		 * This will not be a clean reboot, with everything
+		 * shutting down.  But if there is a chance of
+		 * rebooting the system it will be rebooted.
 		 */
 		emergency_restart();
 	}
@@ -127,38 +122,44 @@ NORET_TYPE void panic(const char * fmt, ...)
 	}
 #endif
 #if defined(CONFIG_S390)
-	disabled_wait(caller);
+	{
+		unsigned long caller;
+
+		caller = (unsigned long)__builtin_return_address(0);
+		disabled_wait(caller);
+	}
 #endif
 	local_irq_enable();
-	for (i = 0;;) {
+	for (i = 0; ; ) {
 		touch_softlockup_watchdog();
 		i += panic_blink(i);
 		mdelay(1);
 		i++;
 	}
+	bust_spinlocks(0);
 }
 
 EXPORT_SYMBOL(panic);
 
 
 struct tnt {
-	u8 bit;
-	char true;
-	char false;
+	u8	bit;
+	char	true;
+	char	false;
 };
 
 static const struct tnt tnts[] = {
-	{ TAINT_PROPRIETARY_MODULE, 'P', 'G' },
-	{ TAINT_FORCED_MODULE, 'F', ' ' },
-	{ TAINT_UNSAFE_SMP, 'S', ' ' },
-	{ TAINT_FORCED_RMMOD, 'R', ' ' },
-	{ TAINT_MACHINE_CHECK, 'M', ' ' },
-	{ TAINT_BAD_PAGE, 'B', ' ' },
-	{ TAINT_USER, 'U', ' ' },
-	{ TAINT_DIE, 'D', ' ' },
-	{ TAINT_OVERRIDDEN_ACPI_TABLE, 'A', ' ' },
-	{ TAINT_WARN, 'W', ' ' },
-	{ TAINT_CRAP, 'C', ' ' },
+	{ TAINT_PROPRIETARY_MODULE,	'P', 'G' },
+	{ TAINT_FORCED_MODULE,		'F', ' ' },
+	{ TAINT_UNSAFE_SMP,		'S', ' ' },
+	{ TAINT_FORCED_RMMOD,		'R', ' ' },
+	{ TAINT_MACHINE_CHECK,		'M', ' ' },
+	{ TAINT_BAD_PAGE,		'B', ' ' },
+	{ TAINT_USER,			'U', ' ' },
+	{ TAINT_DIE,			'D', ' ' },
+	{ TAINT_OVERRIDDEN_ACPI_TABLE,	'A', ' ' },
+	{ TAINT_WARN,			'W', ' ' },
+	{ TAINT_CRAP,			'C', ' ' },
 };
 
 /**
@@ -195,7 +196,8 @@ const char *print_tainted(void)
 		*s = 0;
 	} else
 		snprintf(buf, sizeof(buf), "Not tainted");
-	return(buf);
+
+	return buf;
 }
 
 int test_taint(unsigned flag)
@@ -211,7 +213,8 @@ unsigned long get_taint(void)
 
 void add_taint(unsigned flag)
 {
-	debug_locks = 0; /* can't trust the integrity of the kernel anymore */
+	/* can't trust the integrity of the kernel anymore: */
+	debug_locks = 0;
 	set_bit(flag, &tainted_mask);
 }
 EXPORT_SYMBOL(add_taint);
@@ -266,8 +269,8 @@ static void do_oops_enter_exit(void)
 }
 
 /*
- * Return true if the calling CPU is allowed to print oops-related info.  This
- * is a bit racy..
+ * Return true if the calling CPU is allowed to print oops-related info.
+ * This is a bit racy..
  */
 int oops_may_print(void)
 {
@@ -276,20 +279,22 @@ int oops_may_print(void)
 
 /*
  * Called when the architecture enters its oops handler, before it prints
- * anything.  If this is the first CPU to oops, and it's oopsing the first time
- * then let it proceed.
+ * anything.  If this is the first CPU to oops, and it's oopsing the first
+ * time then let it proceed.
  *
- * This is all enabled by the pause_on_oops kernel boot option.  We do all this
- * to ensure that oopses don't scroll off the screen.  It has the side-effect
- * of preventing later-oopsing CPUs from mucking up the display, too.
+ * This is all enabled by the pause_on_oops kernel boot option.  We do all
+ * this to ensure that oopses don't scroll off the screen.  It has the
+ * side-effect of preventing later-oopsing CPUs from mucking up the display,
+ * too.
  *
- * It turns out that the CPU which is allowed to print ends up pausing for the
- * right duration, whereas all the other CPUs pause for twice as long: once in
- * oops_enter(), once in oops_exit().
+ * It turns out that the CPU which is allowed to print ends up pausing for
+ * the right duration, whereas all the other CPUs pause for twice as long:
+ * once in oops_enter(), once in oops_exit().
  */
 void oops_enter(void)
 {
-	debug_locks_off(); /* can't trust the integrity of the kernel anymore */
+	/* can't trust the integrity of the kernel anymore: */
+	debug_locks_off();
 	do_oops_enter_exit();
 }
 

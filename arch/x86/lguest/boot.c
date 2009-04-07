@@ -107,7 +107,7 @@ static void async_hcall(unsigned long call, unsigned long arg1,
 	local_irq_save(flags);
 	if (lguest_data.hcall_status[next_call] != 0xFF) {
 		/* Table full, so do normal hcall which will flush table. */
-		hcall(call, arg1, arg2, arg3);
+		kvm_hypercall3(call, arg1, arg2, arg3);
 	} else {
 		lguest_data.hcalls[next_call].arg0 = call;
 		lguest_data.hcalls[next_call].arg1 = arg1;
@@ -134,13 +134,32 @@ static void async_hcall(unsigned long call, unsigned long arg1,
  *
  * So, when we're in lazy mode, we call async_hcall() to store the call for
  * future processing: */
-static void lazy_hcall(unsigned long call,
+static void lazy_hcall1(unsigned long call,
+		       unsigned long arg1)
+{
+	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
+		kvm_hypercall1(call, arg1);
+	else
+		async_hcall(call, arg1, 0, 0);
+}
+
+static void lazy_hcall2(unsigned long call,
+		       unsigned long arg1,
+		       unsigned long arg2)
+{
+	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
+		kvm_hypercall2(call, arg1, arg2);
+	else
+		async_hcall(call, arg1, arg2, 0);
+}
+
+static void lazy_hcall3(unsigned long call,
 		       unsigned long arg1,
 		       unsigned long arg2,
 		       unsigned long arg3)
 {
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
-		hcall(call, arg1, arg2, arg3);
+		kvm_hypercall3(call, arg1, arg2, arg3);
 	else
 		async_hcall(call, arg1, arg2, arg3);
 }
@@ -155,7 +174,7 @@ static void lguest_leave_lazy_mmu_mode(void)
 
 static void lguest_end_context_switch(struct task_struct *next)
 {
-	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
+	kvm_hypercall0(LHCALL_FLUSH_ASYNC);
 	paravirt_end_context_switch(next);
 }
 
@@ -235,7 +254,7 @@ static void lguest_write_idt_entry(gate_desc *dt,
 	/* Keep the local copy up to date. */
 	native_write_idt_entry(dt, entrynum, g);
 	/* Tell Host about this new entry. */
-	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, desc[0], desc[1]);
+	kvm_hypercall3(LHCALL_LOAD_IDT_ENTRY, entrynum, desc[0], desc[1]);
 }
 
 /* Changing to a different IDT is very rare: we keep the IDT up-to-date every
@@ -247,7 +266,7 @@ static void lguest_load_idt(const struct desc_ptr *desc)
 	struct desc_struct *idt = (void *)desc->address;
 
 	for (i = 0; i < (desc->size+1)/8; i++)
-		hcall(LHCALL_LOAD_IDT_ENTRY, i, idt[i].a, idt[i].b);
+		kvm_hypercall3(LHCALL_LOAD_IDT_ENTRY, i, idt[i].a, idt[i].b);
 }
 
 /*
@@ -267,8 +286,8 @@ static void lguest_load_idt(const struct desc_ptr *desc)
  */
 static void lguest_load_gdt(const struct desc_ptr *desc)
 {
-	BUG_ON((desc->size+1)/8 != GDT_ENTRIES);
-	hcall(LHCALL_LOAD_GDT, __pa(desc->address), GDT_ENTRIES, 0);
+	BUG_ON((desc->size + 1) / 8 != GDT_ENTRIES);
+	kvm_hypercall2(LHCALL_LOAD_GDT, __pa(desc->address), GDT_ENTRIES);
 }
 
 /* For a single GDT entry which changes, we do the lazy thing: alter our GDT,
@@ -278,7 +297,7 @@ static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
 				   const void *desc, int type)
 {
 	native_write_gdt_entry(dt, entrynum, desc, type);
-	hcall(LHCALL_LOAD_GDT, __pa(dt), GDT_ENTRIES, 0);
+	kvm_hypercall2(LHCALL_LOAD_GDT, __pa(dt), GDT_ENTRIES);
 }
 
 /* OK, I lied.  There are three "thread local storage" GDT entries which change
@@ -290,7 +309,7 @@ static void lguest_load_tls(struct thread_struct *t, unsigned int cpu)
 	 * can't handle us removing entries we're currently using.  So we clear
 	 * the GS register here: if it's needed it'll be reloaded anyway. */
 	lazy_load_gs(0);
-	lazy_hcall(LHCALL_LOAD_TLS, __pa(&t->tls_array), cpu, 0);
+	lazy_hcall2(LHCALL_LOAD_TLS, __pa(&t->tls_array), cpu);
 }
 
 /*G:038 That's enough excitement for now, back to ploughing through each of
@@ -388,7 +407,7 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 static unsigned long current_cr0;
 static void lguest_write_cr0(unsigned long val)
 {
-	lazy_hcall(LHCALL_TS, val & X86_CR0_TS, 0, 0);
+	lazy_hcall1(LHCALL_TS, val & X86_CR0_TS);
 	current_cr0 = val;
 }
 
@@ -402,7 +421,7 @@ static unsigned long lguest_read_cr0(void)
  * the vowels have been optimized out. */
 static void lguest_clts(void)
 {
-	lazy_hcall(LHCALL_TS, 0, 0, 0);
+	lazy_hcall1(LHCALL_TS, 0);
 	current_cr0 &= ~X86_CR0_TS;
 }
 
@@ -424,7 +443,7 @@ static bool cr3_changed = false;
 static void lguest_write_cr3(unsigned long cr3)
 {
 	lguest_data.pgdir = cr3;
-	lazy_hcall(LHCALL_NEW_PGTABLE, cr3, 0, 0);
+	lazy_hcall1(LHCALL_NEW_PGTABLE, cr3);
 	cr3_changed = true;
 }
 
@@ -496,11 +515,17 @@ static void lguest_write_cr4(unsigned long val)
  * into a process' address space.  We set the entry then tell the Host the
  * toplevel and address this corresponds to.  The Guest uses one pagetable per
  * process, so we need to tell the Host which one we're changing (mm->pgd). */
+static void lguest_pte_update(struct mm_struct *mm, unsigned long addr,
+			       pte_t *ptep)
+{
+	lazy_hcall3(LHCALL_SET_PTE, __pa(mm->pgd), addr, ptep->pte_low);
+}
+
 static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
-	lazy_hcall(LHCALL_SET_PTE, __pa(mm->pgd), addr, pteval.pte_low);
+	lguest_pte_update(mm, addr, ptep);
 }
 
 /* The Guest calls this to set a top-level entry.  Again, we set the entry then
@@ -509,8 +534,8 @@ static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
 static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 	*pmdp = pmdval;
-	lazy_hcall(LHCALL_SET_PMD, __pa(pmdp)&PAGE_MASK,
-		   (__pa(pmdp)&(PAGE_SIZE-1))/4, 0);
+	lazy_hcall2(LHCALL_SET_PMD, __pa(pmdp) & PAGE_MASK,
+		   (__pa(pmdp) & (PAGE_SIZE - 1)) / 4);
 }
 
 /* There are a couple of legacy places where the kernel sets a PTE, but we
@@ -526,7 +551,7 @@ static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
 	if (cr3_changed)
-		lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0);
+		lazy_hcall1(LHCALL_FLUSH_TLB, 1);
 }
 
 /* Unfortunately for Lguest, the pv_mmu_ops for page tables were based on
@@ -542,7 +567,7 @@ static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 static void lguest_flush_tlb_single(unsigned long addr)
 {
 	/* Simply set it to zero: if it was not, it will fault back in. */
-	lazy_hcall(LHCALL_SET_PTE, lguest_data.pgdir, addr, 0);
+	lazy_hcall3(LHCALL_SET_PTE, lguest_data.pgdir, addr, 0);
 }
 
 /* This is what happens after the Guest has removed a large number of entries.
@@ -550,7 +575,7 @@ static void lguest_flush_tlb_single(unsigned long addr)
  * have changed, ie. virtual addresses below PAGE_OFFSET. */
 static void lguest_flush_tlb_user(void)
 {
-	lazy_hcall(LHCALL_FLUSH_TLB, 0, 0, 0);
+	lazy_hcall1(LHCALL_FLUSH_TLB, 0);
 }
 
 /* This is called when the kernel page tables have changed.  That's not very
@@ -558,7 +583,7 @@ static void lguest_flush_tlb_user(void)
  * slow), so it's worth separating this from the user flushing above. */
 static void lguest_flush_tlb_kernel(void)
 {
-	lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0);
+	lazy_hcall1(LHCALL_FLUSH_TLB, 1);
 }
 
 /*
@@ -695,7 +720,7 @@ static int lguest_clockevent_set_next_event(unsigned long delta,
 	}
 
 	/* Please wake us this far in the future. */
-	hcall(LHCALL_SET_CLOCKEVENT, delta, 0, 0);
+	kvm_hypercall1(LHCALL_SET_CLOCKEVENT, delta);
 	return 0;
 }
 
@@ -706,7 +731,7 @@ static void lguest_clockevent_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		/* A 0 argument shuts the clock down. */
-		hcall(LHCALL_SET_CLOCKEVENT, 0, 0, 0);
+		kvm_hypercall0(LHCALL_SET_CLOCKEVENT);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		/* This is what we expect. */
@@ -781,8 +806,8 @@ static void lguest_time_init(void)
 static void lguest_load_sp0(struct tss_struct *tss,
 			    struct thread_struct *thread)
 {
-	lazy_hcall(LHCALL_SET_STACK, __KERNEL_DS|0x1, thread->sp0,
-		   THREAD_SIZE/PAGE_SIZE);
+	lazy_hcall3(LHCALL_SET_STACK, __KERNEL_DS | 0x1, thread->sp0,
+		   THREAD_SIZE / PAGE_SIZE);
 }
 
 /* Let's just say, I wouldn't do debugging under a Guest. */
@@ -855,7 +880,7 @@ static void set_lguest_basic_apic_ops(void)
 /* STOP!  Until an interrupt comes in. */
 static void lguest_safe_halt(void)
 {
-	hcall(LHCALL_HALT, 0, 0, 0);
+	kvm_hypercall0(LHCALL_HALT);
 }
 
 /* The SHUTDOWN hypercall takes a string to describe what's happening, and
@@ -865,7 +890,8 @@ static void lguest_safe_halt(void)
  * rather than virtual addresses, so we use __pa() here. */
 static void lguest_power_off(void)
 {
-	hcall(LHCALL_SHUTDOWN, __pa("Power down"), LGUEST_SHUTDOWN_POWEROFF, 0);
+	kvm_hypercall2(LHCALL_SHUTDOWN, __pa("Power down"),
+					LGUEST_SHUTDOWN_POWEROFF);
 }
 
 /*
@@ -875,7 +901,7 @@ static void lguest_power_off(void)
  */
 static int lguest_panic(struct notifier_block *nb, unsigned long l, void *p)
 {
-	hcall(LHCALL_SHUTDOWN, __pa(p), LGUEST_SHUTDOWN_POWEROFF, 0);
+	kvm_hypercall2(LHCALL_SHUTDOWN, __pa(p), LGUEST_SHUTDOWN_POWEROFF);
 	/* The hcall won't return, but to keep gcc happy, we're "done". */
 	return NOTIFY_DONE;
 }
@@ -916,7 +942,7 @@ static __init int early_put_chars(u32 vtermno, const char *buf, int count)
 		len = sizeof(scratch) - 1;
 	scratch[len] = '\0';
 	memcpy(scratch, buf, len);
-	hcall(LHCALL_NOTIFY, __pa(scratch), 0, 0);
+	kvm_hypercall1(LHCALL_NOTIFY, __pa(scratch));
 
 	/* This routine returns the number of bytes actually written. */
 	return len;
@@ -926,7 +952,7 @@ static __init int early_put_chars(u32 vtermno, const char *buf, int count)
  * Launcher to reboot us. */
 static void lguest_restart(char *reason)
 {
-	hcall(LHCALL_SHUTDOWN, __pa(reason), LGUEST_SHUTDOWN_RESTART, 0);
+	kvm_hypercall2(LHCALL_SHUTDOWN, __pa(reason), LGUEST_SHUTDOWN_RESTART);
 }
 
 /*G:050
@@ -1046,6 +1072,8 @@ __init void lguest_init(void)
 	pv_mmu_ops.read_cr3 = lguest_read_cr3;
 	pv_mmu_ops.lazy_mode.enter = paravirt_enter_lazy_mmu;
 	pv_mmu_ops.lazy_mode.leave = lguest_leave_lazy_mmu_mode;
+	pv_mmu_ops.pte_update = lguest_pte_update;
+	pv_mmu_ops.pte_update_defer = lguest_pte_update;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* apic read/write intercepts */
@@ -1063,14 +1091,6 @@ __init void lguest_init(void)
 	/*G:070 Now we've seen all the paravirt_ops, we return to
 	 * lguest_init() where the rest of the fairly chaotic boot setup
 	 * occurs. */
-
-	/* The native boot code sets up initial page tables immediately after
-	 * the kernel itself, and sets init_pg_tables_end so they're not
-	 * clobbered.  The Launcher places our initial pagetables somewhere at
-	 * the top of our physical memory, so we don't need extra space: set
-	 * init_pg_tables_end to the end of the kernel. */
-	init_pg_tables_start = __pa(pg0);
-	init_pg_tables_end = __pa(pg0);
 
 	/* As described in head_32.S, we map the first 128M of memory. */
 	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;

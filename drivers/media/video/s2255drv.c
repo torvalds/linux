@@ -336,13 +336,18 @@ static long s2255_vendor_req(struct s2255_dev *dev, unsigned char req,
 			     u16 index, u16 value, void *buf,
 			     s32 buf_len, int bOut);
 
+/* dev_err macro with driver name */
+#define S2255_DRIVER_NAME "s2255"
+#define s2255_dev_err(dev, fmt, arg...)					\
+		dev_err(dev, S2255_DRIVER_NAME " - " fmt, ##arg)
+
 #define dprintk(level, fmt, arg...)					\
 	do {								\
 		if (*s2255_debug >= (level)) {				\
-			printk(KERN_DEBUG "s2255: " fmt, ##arg);	\
+			printk(KERN_DEBUG S2255_DRIVER_NAME		\
+				": " fmt, ##arg);			\
 		}							\
 	} while (0)
-
 
 static struct usb_driver s2255_driver;
 
@@ -528,14 +533,14 @@ static void s2255_fwchunk_complete(struct urb *urb)
 	int len;
 	dprintk(100, "udev %p urb %p", udev, urb);
 	if (urb->status) {
-		dev_err(&udev->dev, "URB failed with status %d", urb->status);
+		dev_err(&udev->dev, "URB failed with status %d\n", urb->status);
 		atomic_set(&data->fw_state, S2255_FW_FAILED);
 		/* wake up anything waiting for the firmware */
 		wake_up(&data->wait_fw);
 		return;
 	}
 	if (data->fw_urb == NULL) {
-		dev_err(&udev->dev, "s2255 disconnected\n");
+		s2255_dev_err(&udev->dev, "disconnected\n");
 		atomic_set(&data->fw_state, S2255_FW_FAILED);
 		/* wake up anything waiting for the firmware */
 		wake_up(&data->wait_fw);
@@ -717,7 +722,6 @@ static void free_buffer(struct videobuf_queue *vq, struct s2255_buffer *buf)
 {
 	dprintk(4, "%s\n", __func__);
 
-	videobuf_waiton(&buf->vb, 0, 0);
 	videobuf_vmalloc_free(&buf->vb);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
@@ -841,8 +845,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 	struct s2255_dev *dev = fh->dev;
 	strlcpy(cap->driver, "s2255", sizeof(cap->driver));
 	strlcpy(cap->card, "s2255", sizeof(cap->card));
-	strlcpy(cap->bus_info, dev_name(&dev->udev->dev),
-		sizeof(cap->bus_info));
+	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->version = S2255_VERSION;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	return 0;
@@ -1278,7 +1281,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	}
 
 	if (!res_get(dev, fh)) {
-		dev_err(&dev->udev->dev, "s2255: stream busy\n");
+		s2255_dev_err(&dev->udev->dev, "stream busy\n");
 		return -EBUSY;
 	}
 
@@ -1320,7 +1323,6 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
-	int res;
 	struct s2255_fh *fh = priv;
 	struct s2255_dev *dev = fh->dev;
 
@@ -1334,9 +1336,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 		return -EINVAL;
 	}
 	s2255_stop_acquire(dev, fh->channel);
-	res = videobuf_streamoff(&fh->vb_vidq);
-	if (res < 0)
-		return res;
+	videobuf_streamoff(&fh->vb_vidq);
 	res_free(dev, fh);
 	return 0;
 }
@@ -1545,7 +1545,8 @@ static int s2255_open(struct file *file)
 
 	switch (atomic_read(&dev->fw_data->fw_state)) {
 	case S2255_FW_FAILED:
-		err("2255 firmware load failed. retrying.\n");
+		s2255_dev_err(&dev->udev->dev,
+			"firmware load failed. retrying.\n");
 		s2255_fwload_start(dev, 1);
 		wait_event_timeout(dev->fw_data->wait_fw,
 				   ((atomic_read(&dev->fw_data->fw_state)
@@ -1702,13 +1703,13 @@ static void s2255_destroy(struct kref *kref)
 	kfree(dev->fw_data);
 	usb_put_dev(dev->udev);
 	dprintk(1, "%s", __func__);
-	kfree(dev);
 
 	while (!list_empty(&s2255_devlist)) {
 		list = s2255_devlist.next;
 		list_del(list);
 	}
 	mutex_unlock(&dev->open_lock);
+	kfree(dev);
 }
 
 static int s2255_close(struct file *file)
@@ -2173,7 +2174,8 @@ static int s2255_board_init(struct s2255_dev *dev)
 
 	printk(KERN_INFO "2255 usb firmware version %d \n", fw_ver);
 	if (fw_ver < CUR_USB_FWVER)
-		err("usb firmware not up to date %d\n", fw_ver);
+		dev_err(&dev->udev->dev,
+			"usb firmware not up to date %d\n", fw_ver);
 
 	for (j = 0; j < MAX_CHANNELS; j++) {
 		dev->b_acquire[j] = 0;
@@ -2228,13 +2230,13 @@ static void read_pipe_completion(struct urb *purb)
 	dprintk(100, "read pipe completion %p, status %d\n", purb,
 		purb->status);
 	if (pipe_info == NULL) {
-		err("no context !");
+		dev_err(&purb->dev->dev, "no context!\n");
 		return;
 	}
 
 	dev = pipe_info->dev;
 	if (dev == NULL) {
-		err("no context !");
+		dev_err(&purb->dev->dev, "no context!\n");
 		return;
 	}
 	status = purb->status;
@@ -2286,7 +2288,7 @@ static int s2255_start_readpipe(struct s2255_dev *dev)
 		pipe_info->stream_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!pipe_info->stream_urb) {
 			dev_err(&dev->udev->dev,
-				"ReadStream: Unable to alloc URB");
+				"ReadStream: Unable to alloc URB\n");
 			return -ENOMEM;
 		}
 		/* transfer buffer allocated in board_init */
@@ -2391,7 +2393,7 @@ static void s2255_stop_readpipe(struct s2255_dev *dev)
 	int j;
 
 	if (dev == NULL) {
-		err("s2255: invalid device");
+		s2255_dev_err(&dev->udev->dev, "invalid device\n");
 		return;
 	}
 	dprintk(4, "stop read pipe\n");
@@ -2453,7 +2455,7 @@ static int s2255_probe(struct usb_interface *interface,
 	/* allocate memory for our device state and initialize it to zero */
 	dev = kzalloc(sizeof(struct s2255_dev), GFP_KERNEL);
 	if (dev == NULL) {
-		err("s2255: out of memory");
+		s2255_dev_err(&interface->dev, "out of memory\n");
 		goto error;
 	}
 
@@ -2487,7 +2489,7 @@ static int s2255_probe(struct usb_interface *interface,
 	}
 
 	if (!dev->read_endpoint) {
-		dev_err(&interface->dev, "Could not find bulk-in endpoint");
+		dev_err(&interface->dev, "Could not find bulk-in endpoint\n");
 		goto error;
 	}
 
@@ -2583,7 +2585,7 @@ static void s2255_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver s2255_driver = {
-	.name = "s2255",
+	.name = S2255_DRIVER_NAME,
 	.probe = s2255_probe,
 	.disconnect = s2255_disconnect,
 	.id_table = s2255_table,
@@ -2597,7 +2599,8 @@ static int __init usb_s2255_init(void)
 	result = usb_register(&s2255_driver);
 
 	if (result)
-		err("usb_register failed. Error number %d", result);
+		pr_err(KBUILD_MODNAME
+			": usb_register failed. Error number %d\n", result);
 
 	dprintk(2, "s2255_init: done\n");
 	return result;

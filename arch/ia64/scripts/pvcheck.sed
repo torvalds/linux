@@ -17,6 +17,7 @@ s/mov.*=.*cr\.iip/.warning \"cr.iip should not used directly\"/g
 s/mov.*=.*cr\.ivr/.warning \"cr.ivr should not used directly\"/g
 s/mov.*=[^\.]*psr/.warning \"psr should not used directly\"/g	# avoid ar.fpsr
 s/mov.*=.*ar\.eflags/.warning \"ar.eflags should not used directly\"/g
+s/mov.*=.*ar\.itc.*/.warning \"ar.itc should not used directly\"/g
 s/mov.*cr\.ifa.*=.*/.warning \"cr.ifa should not used directly\"/g
 s/mov.*cr\.itir.*=.*/.warning \"cr.itir should not used directly\"/g
 s/mov.*cr\.iha.*=.*/.warning \"cr.iha should not used directly\"/g

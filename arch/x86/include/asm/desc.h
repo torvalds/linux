@@ -91,7 +91,6 @@ static inline int desc_empty(const void *ptr)
 #define store_gdt(dtr) native_store_gdt(dtr)
 #define store_idt(dtr) native_store_idt(dtr)
 #define store_tr(tr) (tr = native_store_tr())
-#define store_ldt(ldt) asm("sldt %0":"=m" (ldt))
 
 #define load_TLS(t, cpu) native_load_tls(t, cpu)
 #define set_ldt native_set_ldt
@@ -111,6 +110,8 @@ static inline void paravirt_free_ldt(struct desc_struct *ldt, unsigned entries)
 {
 }
 #endif	/* CONFIG_PARAVIRT */
+
+#define store_ldt(ldt) asm("sldt %0" : "=m"(ldt))
 
 static inline void native_write_idt_entry(gate_desc *idt, int entry,
 					  const gate_desc *gate)

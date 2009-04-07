@@ -1312,8 +1312,10 @@ static void sg_rq_end_io(struct request *rq, int uptodate)
 		wake_up_interruptible(&sfp->read_wait);
 		kill_fasync(&sfp->async_qp, SIGPOLL, POLL_IN);
 		kref_put(&sfp->f_ref, sg_remove_sfp);
-	} else
-		execute_in_process_context(sg_rq_end_io_usercontext, &srp->ew);
+	} else {
+		INIT_WORK(&srp->ew.work, sg_rq_end_io_usercontext);
+		schedule_work(&srp->ew.work);
+	}
 }
 
 static struct file_operations sg_fops = {
@@ -1656,10 +1658,30 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 		md->null_mapped = hp->dxferp ? 0 : 1;
 	}
 
-	if (iov_count)
-		res = blk_rq_map_user_iov(q, rq, md, hp->dxferp, iov_count,
-					  hp->dxfer_len, GFP_ATOMIC);
-	else
+	if (iov_count) {
+		int len, size = sizeof(struct sg_iovec) * iov_count;
+		struct iovec *iov;
+
+		iov = kmalloc(size, GFP_ATOMIC);
+		if (!iov)
+			return -ENOMEM;
+
+		if (copy_from_user(iov, hp->dxferp, size)) {
+			kfree(iov);
+			return -EFAULT;
+		}
+
+		len = iov_length(iov, iov_count);
+		if (hp->dxfer_len < len) {
+			iov_count = iov_shorten(iov, iov_count, hp->dxfer_len);
+			len = hp->dxfer_len;
+		}
+
+		res = blk_rq_map_user_iov(q, rq, md, (struct sg_iovec *)iov,
+					  iov_count,
+					  len, GFP_ATOMIC);
+		kfree(iov);
+	} else
 		res = blk_rq_map_user(q, rq, md, hp->dxferp,
 				      hp->dxfer_len, GFP_ATOMIC);
 
@@ -2079,7 +2101,8 @@ static void sg_remove_sfp(struct kref *kref)
 	write_unlock_irqrestore(&sg_index_lock, iflags);
 	wake_up_interruptible(&sdp->o_excl_wait);
 
-	execute_in_process_context(sg_remove_sfp_usercontext, &sfp->ew);
+	INIT_WORK(&sfp->ew.work, sg_remove_sfp_usercontext);
+	schedule_work(&sfp->ew.work);
 }
 
 static int

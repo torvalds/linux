@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
+#include <linux/smc91x.h>
 
 #include <asm/mach-au1x00/au1xxx.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
@@ -118,17 +119,23 @@ static struct resource ide_resources[] = {
 	}
 };
 
-static u64 ide_dmamask = DMA_32BIT_MASK;
+static u64 ide_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device ide_device = {
 	.name		= "au1200-ide",
 	.id		= 0,
 	.dev = {
 		.dma_mask 		= &ide_dmamask,
-		.coherent_dma_mask	= DMA_32BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(ide_resources),
 	.resource	= ide_resources
+};
+
+static struct smc91x_platdata smc_data = {
+	.flags	= SMC91X_NOWAIT | SMC91X_USE_16BIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
 };
 
 static struct resource smc91c111_resources[] = {
@@ -146,6 +153,9 @@ static struct resource smc91c111_resources[] = {
 };
 
 static struct platform_device smc91c111_device = {
+	.dev	= {
+		.platform_data	= &smc_data,
+	},
 	.name		= "smc91x",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(smc91c111_resources),

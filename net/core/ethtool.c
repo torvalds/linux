@@ -261,8 +261,7 @@ static int ethtool_get_rxnfc(struct net_device *dev, void __user *useraddr)
 	ret = 0;
 
 err_out:
-	if (rule_buf)
-		kfree(rule_buf);
+	kfree(rule_buf);
 
 	return ret;
 }

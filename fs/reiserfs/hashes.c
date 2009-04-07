@@ -7,7 +7,7 @@
  * (see Applied Cryptography, 2nd edition, p448).
  *
  * Jeremy Fitzhardinge <jeremy@zip.com.au> 1998
- * 
+ *
  * Jeremy has agreed to the contents of reiserfs/README. -Hans
  * Yura's function is added (04/07/2000)
  */

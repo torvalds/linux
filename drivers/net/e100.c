@@ -2604,7 +2604,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		goto err_out_disable_pdev;
 	}
 
-	if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK))) {
+	if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))) {
 		DPRINTK(PROBE, ERR, "No usable DMA configuration, aborting.\n");
 		goto err_out_free_res;
 	}

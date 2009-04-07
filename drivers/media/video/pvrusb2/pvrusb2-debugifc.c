@@ -23,7 +23,6 @@
 #include "pvrusb2-debugifc.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-debug.h"
-#include "pvrusb2-i2c-core.h"
 
 struct debugifc_mask_item {
 	const char *name;
@@ -146,10 +145,6 @@ int pvr2_debugifc_print_info(struct pvr2_hdw *hdw,char *buf,unsigned int acnt)
 	ccnt = scnprintf(buf,acnt,"Driver state info:\n");
 	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
 	ccnt = pvr2_hdw_state_report(hdw,buf,acnt);
-	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
-	ccnt = scnprintf(buf,acnt,"Attached I2C modules:\n");
-	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
-	ccnt = pvr2_i2c_report(hdw,buf,acnt);
 	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
 
 	return bcnt;

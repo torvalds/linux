@@ -81,7 +81,7 @@ o	I hear that RCU needs work in order to support realtime kernels?
 	This work is largely completed.  Realtime-friendly RCU can be
 	enabled via the CONFIG_PREEMPT_RCU kernel configuration parameter.
 	However, work is in progress for enabling priority boosting of
-	preempted RCU read-side critical sections.This is needed if you
+	preempted RCU read-side critical sections.  This is needed if you
 	have CPU-bound realtime threads.
 
 o	Where can I find more information on RCU?

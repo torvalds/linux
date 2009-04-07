@@ -108,7 +108,12 @@ struct rds_ib_connection {
 
 	/* sending acks */
 	unsigned long		i_ack_flags;
+#ifdef KERNEL_HAS_ATOMIC64
+	atomic64_t		i_ack_next;	/* next ACK to send */
+#else
+	spinlock_t		i_ack_lock;	/* protect i_ack_next */
 	u64			i_ack_next;	/* next ACK to send */
+#endif
 	struct rds_header	*i_ack;
 	struct ib_send_wr	i_ack_wr;
 	struct ib_sge		i_ack_sge;
@@ -267,9 +272,17 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn,
 
 /* ib_rdma.c */
 int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr);
-int rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
-void rds_ib_remove_nodev_conns(void);
-void rds_ib_remove_conns(struct rds_ib_device *rds_ibdev);
+void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
+void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
+void __rds_ib_destroy_conns(struct list_head *list, spinlock_t *list_lock);
+static inline void rds_ib_destroy_nodev_conns(void)
+{
+	__rds_ib_destroy_conns(&ib_nodev_conns, &ib_nodev_conns_lock);
+}
+static inline void rds_ib_destroy_conns(struct rds_ib_device *rds_ibdev)
+{
+	__rds_ib_destroy_conns(&rds_ibdev->conn_list, &rds_ibdev->spinlock);
+}
 struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *);
 void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_connection *iinfo);
 void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *);
@@ -353,15 +366,6 @@ static inline struct ib_sge *
 rds_ib_data_sge(struct rds_ib_connection *ic, struct ib_sge *sge)
 {
 	return &sge[1];
-}
-
-static inline void rds_ib_set_64bit(u64 *ptr, u64 val)
-{
-#if BITS_PER_LONG == 64
-	*ptr = val;
-#else
-	set_64bit(ptr, val);
-#endif
 }
 
 #endif

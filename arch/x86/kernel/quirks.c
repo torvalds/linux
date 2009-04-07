@@ -74,8 +74,7 @@ static void ich_force_hpet_resume(void)
 	if (!force_hpet_address)
 		return;
 
-	if (rcba_base == NULL)
-		BUG();
+	BUG_ON(rcba_base == NULL);
 
 	/* read the Function Disable register, dword mode only */
 	val = readl(rcba_base + 0x3404);

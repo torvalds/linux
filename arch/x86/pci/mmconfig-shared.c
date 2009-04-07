@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/bitmap.h>
+#include <linux/sort.h>
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
 
@@ -24,24 +25,49 @@
 /* Indicate if the mmcfg resources have been placed into the resource table. */
 static int __initdata pci_mmcfg_resources_inserted;
 
+static __init int extend_mmcfg(int num)
+{
+	struct acpi_mcfg_allocation *new;
+	int new_num = pci_mmcfg_config_num + num;
+
+	new = kzalloc(sizeof(pci_mmcfg_config[0]) * new_num, GFP_KERNEL);
+	if (!new)
+		return -1;
+
+	if (pci_mmcfg_config) {
+		memcpy(new, pci_mmcfg_config,
+			 sizeof(pci_mmcfg_config[0]) * new_num);
+		kfree(pci_mmcfg_config);
+	}
+	pci_mmcfg_config = new;
+
+	return 0;
+}
+
+static __init void fill_one_mmcfg(u64 addr, int segment, int start, int end)
+{
+	int i = pci_mmcfg_config_num;
+
+	pci_mmcfg_config_num++;
+	pci_mmcfg_config[i].address = addr;
+	pci_mmcfg_config[i].pci_segment = segment;
+	pci_mmcfg_config[i].start_bus_number = start;
+	pci_mmcfg_config[i].end_bus_number = end;
+}
+
 static const char __init *pci_mmcfg_e7520(void)
 {
 	u32 win;
 	raw_pci_ops->read(0, 0, PCI_DEVFN(0, 0), 0xce, 2, &win);
 
 	win = win & 0xf000;
-	if(win == 0x0000 || win == 0xf000)
-		pci_mmcfg_config_num = 0;
-	else {
-		pci_mmcfg_config_num = 1;
-		pci_mmcfg_config = kzalloc(sizeof(pci_mmcfg_config[0]), GFP_KERNEL);
-		if (!pci_mmcfg_config)
-			return NULL;
-		pci_mmcfg_config[0].address = win << 16;
-		pci_mmcfg_config[0].pci_segment = 0;
-		pci_mmcfg_config[0].start_bus_number = 0;
-		pci_mmcfg_config[0].end_bus_number = 255;
-	}
+	if (win == 0x0000 || win == 0xf000)
+		return NULL;
+
+	if (extend_mmcfg(1) == -1)
+		return NULL;
+
+	fill_one_mmcfg(win << 16, 0, 0, 255);
 
 	return "Intel Corporation E7520 Memory Controller Hub";
 }
@@ -50,13 +76,11 @@ static const char __init *pci_mmcfg_intel_945(void)
 {
 	u32 pciexbar, mask = 0, len = 0;
 
-	pci_mmcfg_config_num = 1;
-
 	raw_pci_ops->read(0, 0, PCI_DEVFN(0, 0), 0x48, 4, &pciexbar);
 
 	/* Enable bit */
 	if (!(pciexbar & 1))
-		pci_mmcfg_config_num = 0;
+		return NULL;
 
 	/* Size bits */
 	switch ((pciexbar >> 1) & 3) {
@@ -73,28 +97,23 @@ static const char __init *pci_mmcfg_intel_945(void)
 		len  = 0x04000000U;
 		break;
 	default:
-		pci_mmcfg_config_num = 0;
+		return NULL;
 	}
 
 	/* Errata #2, things break when not aligned on a 256Mb boundary */
 	/* Can only happen in 64M/128M mode */
 
 	if ((pciexbar & mask) & 0x0fffffffU)
-		pci_mmcfg_config_num = 0;
+		return NULL;
 
 	/* Don't hit the APIC registers and their friends */
 	if ((pciexbar & mask) >= 0xf0000000U)
-		pci_mmcfg_config_num = 0;
+		return NULL;
 
-	if (pci_mmcfg_config_num) {
-		pci_mmcfg_config = kzalloc(sizeof(pci_mmcfg_config[0]), GFP_KERNEL);
-		if (!pci_mmcfg_config)
-			return NULL;
-		pci_mmcfg_config[0].address = pciexbar & mask;
-		pci_mmcfg_config[0].pci_segment = 0;
-		pci_mmcfg_config[0].start_bus_number = 0;
-		pci_mmcfg_config[0].end_bus_number = (len >> 20) - 1;
-	}
+	if (extend_mmcfg(1) == -1)
+		return NULL;
+
+	fill_one_mmcfg(pciexbar & mask, 0, 0, (len >> 20) - 1);
 
 	return "Intel Corporation 945G/GZ/P/PL Express Memory Controller Hub";
 }
@@ -138,20 +157,75 @@ static const char __init *pci_mmcfg_amd_fam10h(void)
 		busnbits = 8;
 	}
 
-	pci_mmcfg_config_num = (1 << segnbits);
-	pci_mmcfg_config = kzalloc(sizeof(pci_mmcfg_config[0]) *
-				   pci_mmcfg_config_num, GFP_KERNEL);
-	if (!pci_mmcfg_config)
+	if (extend_mmcfg(1 << segnbits) == -1)
 		return NULL;
 
-	for (i = 0; i < (1 << segnbits); i++) {
-		pci_mmcfg_config[i].address = base + (1<<28) * i;
-		pci_mmcfg_config[i].pci_segment = i;
-		pci_mmcfg_config[i].start_bus_number = 0;
-		pci_mmcfg_config[i].end_bus_number = (1 << busnbits) - 1;
-	}
+	for (i = 0; i < (1 << segnbits); i++)
+		fill_one_mmcfg(base + (1<<28) * i, i, 0, (1 << busnbits) - 1);
 
 	return "AMD Family 10h NB";
+}
+
+static bool __initdata mcp55_checked;
+static const char __init *pci_mmcfg_nvidia_mcp55(void)
+{
+	int bus;
+	int mcp55_mmconf_found = 0;
+
+	static const u32 extcfg_regnum		= 0x90;
+	static const u32 extcfg_regsize		= 4;
+	static const u32 extcfg_enable_mask	= 1<<31;
+	static const u32 extcfg_start_mask	= 0xff<<16;
+	static const int extcfg_start_shift	= 16;
+	static const u32 extcfg_size_mask	= 0x3<<28;
+	static const int extcfg_size_shift	= 28;
+	static const int extcfg_sizebus[]	= {0x100, 0x80, 0x40, 0x20};
+	static const u32 extcfg_base_mask[]	= {0x7ff8, 0x7ffc, 0x7ffe, 0x7fff};
+	static const int extcfg_base_lshift	= 25;
+
+	/*
+	 * do check if amd fam10h already took over
+	 */
+	if (!acpi_disabled || pci_mmcfg_config_num || mcp55_checked)
+		return NULL;
+
+	mcp55_checked = true;
+	for (bus = 0; bus < 256; bus++) {
+		u64 base;
+		u32 l, extcfg;
+		u16 vendor, device;
+		int start, size_index, end;
+
+		raw_pci_ops->read(0, bus, PCI_DEVFN(0, 0), 0, 4, &l);
+		vendor = l & 0xffff;
+		device = (l >> 16) & 0xffff;
+
+		if (PCI_VENDOR_ID_NVIDIA != vendor || 0x0369 != device)
+			continue;
+
+		raw_pci_ops->read(0, bus, PCI_DEVFN(0, 0), extcfg_regnum,
+				  extcfg_regsize, &extcfg);
+
+		if (!(extcfg & extcfg_enable_mask))
+			continue;
+
+		if (extend_mmcfg(1) == -1)
+			continue;
+
+		size_index = (extcfg & extcfg_size_mask) >> extcfg_size_shift;
+		base = extcfg & extcfg_base_mask[size_index];
+		/* base could > 4G */
+		base <<= extcfg_base_lshift;
+		start = (extcfg & extcfg_start_mask) >> extcfg_start_shift;
+		end = start + extcfg_sizebus[size_index] - 1;
+		fill_one_mmcfg(base, 0, start, end);
+		mcp55_mmconf_found++;
+	}
+
+	if (!mcp55_mmconf_found)
+		return NULL;
+
+	return "nVidia MCP55";
 }
 
 struct pci_mmcfg_hostbridge_probe {
@@ -171,7 +245,51 @@ static struct pci_mmcfg_hostbridge_probe pci_mmcfg_probes[] __initdata = {
 	  0x1200, pci_mmcfg_amd_fam10h },
 	{ 0xff, PCI_DEVFN(0, 0), PCI_VENDOR_ID_AMD,
 	  0x1200, pci_mmcfg_amd_fam10h },
+	{ 0, PCI_DEVFN(0, 0), PCI_VENDOR_ID_NVIDIA,
+	  0x0369, pci_mmcfg_nvidia_mcp55 },
 };
+
+static int __init cmp_mmcfg(const void *x1, const void *x2)
+{
+	const typeof(pci_mmcfg_config[0]) *m1 = x1;
+	const typeof(pci_mmcfg_config[0]) *m2 = x2;
+	int start1, start2;
+
+	start1 = m1->start_bus_number;
+	start2 = m2->start_bus_number;
+
+	return start1 - start2;
+}
+
+static void __init pci_mmcfg_check_end_bus_number(void)
+{
+	int i;
+	typeof(pci_mmcfg_config[0]) *cfg, *cfgx;
+
+	/* sort them at first */
+	sort(pci_mmcfg_config, pci_mmcfg_config_num,
+		 sizeof(pci_mmcfg_config[0]), cmp_mmcfg, NULL);
+
+	/* last one*/
+	if (pci_mmcfg_config_num > 0) {
+		i = pci_mmcfg_config_num - 1;
+		cfg = &pci_mmcfg_config[i];
+		if (cfg->end_bus_number < cfg->start_bus_number)
+			cfg->end_bus_number = 255;
+	}
+
+	/* don't overlap please */
+	for (i = 0; i < pci_mmcfg_config_num - 1; i++) {
+		cfg = &pci_mmcfg_config[i];
+		cfgx = &pci_mmcfg_config[i+1];
+
+		if (cfg->end_bus_number < cfg->start_bus_number)
+			cfg->end_bus_number = 255;
+
+		if (cfg->end_bus_number >= cfgx->start_bus_number)
+			cfg->end_bus_number = cfgx->start_bus_number - 1;
+	}
+}
 
 static int __init pci_mmcfg_check_hostbridge(void)
 {
@@ -186,31 +304,33 @@ static int __init pci_mmcfg_check_hostbridge(void)
 
 	pci_mmcfg_config_num = 0;
 	pci_mmcfg_config = NULL;
-	name = NULL;
 
-	for (i = 0; !name && i < ARRAY_SIZE(pci_mmcfg_probes); i++) {
+	for (i = 0; i < ARRAY_SIZE(pci_mmcfg_probes); i++) {
 		bus =  pci_mmcfg_probes[i].bus;
 		devfn = pci_mmcfg_probes[i].devfn;
 		raw_pci_ops->read(0, bus, devfn, 0, 4, &l);
 		vendor = l & 0xffff;
 		device = (l >> 16) & 0xffff;
 
+		name = NULL;
 		if (pci_mmcfg_probes[i].vendor == vendor &&
 		    pci_mmcfg_probes[i].device == device)
 			name = pci_mmcfg_probes[i].probe();
+
+		if (name)
+			printk(KERN_INFO "PCI: Found %s with MMCONFIG support.\n",
+			       name);
 	}
 
-	if (name) {
-		printk(KERN_INFO "PCI: Found %s %s MMCONFIG support.\n",
-		       name, pci_mmcfg_config_num ? "with" : "without");
-	}
+	/* some end_bus_number is crazy, fix it */
+	pci_mmcfg_check_end_bus_number();
 
-	return name != NULL;
+	return pci_mmcfg_config_num != 0;
 }
 
 static void __init pci_mmcfg_insert_resources(void)
 {
-#define PCI_MMCFG_RESOURCE_NAME_LEN 19
+#define PCI_MMCFG_RESOURCE_NAME_LEN 24
 	int i;
 	struct resource *res;
 	char *names;
@@ -228,9 +348,10 @@ static void __init pci_mmcfg_insert_resources(void)
 		struct acpi_mcfg_allocation *cfg = &pci_mmcfg_config[i];
 		num_buses = cfg->end_bus_number - cfg->start_bus_number + 1;
 		res->name = names;
-		snprintf(names, PCI_MMCFG_RESOURCE_NAME_LEN, "PCI MMCONFIG %u",
-			 cfg->pci_segment);
-		res->start = cfg->address;
+		snprintf(names, PCI_MMCFG_RESOURCE_NAME_LEN,
+			 "PCI MMCONFIG %u [%02x-%02x]", cfg->pci_segment,
+			 cfg->start_bus_number, cfg->end_bus_number);
+		res->start = cfg->address + (cfg->start_bus_number << 20);
 		res->end = res->start + (num_buses << 20) - 1;
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		insert_resource(&iomem_resource, res);
@@ -354,8 +475,6 @@ static void __init pci_mmcfg_reject_broken(int early)
 	    (pci_mmcfg_config[0].address == 0))
 		return;
 
-	cfg = &pci_mmcfg_config[0];
-
 	for (i = 0; i < pci_mmcfg_config_num; i++) {
 		int valid = 0;
 		u64 addr, size;
@@ -423,10 +542,10 @@ static void __init __pci_mmcfg_init(int early)
 			known_bridge = 1;
 	}
 
-	if (!known_bridge) {
+	if (!known_bridge)
 		acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg);
-		pci_mmcfg_reject_broken(early);
-	}
+
+	pci_mmcfg_reject_broken(early);
 
 	if ((pci_mmcfg_config_num == 0) ||
 	    (pci_mmcfg_config == NULL) ||

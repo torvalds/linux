@@ -111,6 +111,7 @@ config PPC
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_GRAPH_TRACER
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_IDE
 	select HAVE_IOREMAP_PROT
@@ -227,6 +228,9 @@ config PPC_OF_PLATFORM_PCI
 	depends on PPC64 # not supported on 32 bits yet
 	default n
 
+config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	def_bool y
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -312,7 +316,7 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on (PPC_PRPMC2800 || PPC_MULTIPLATFORM) && EXPERIMENTAL
+	depends on PPC_BOOK3S && EXPERIMENTAL
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -342,7 +346,7 @@ config PHYP_DUMP
 	help
 	  Hypervisor-assisted dump is meant to be a kdump replacement
 	  offering robustness and speed not possible without system
-	  hypervisor assistence.
+	  hypervisor assistance.
 
 	  If unsure, say "N"
 
@@ -409,6 +413,18 @@ config PPC_HAS_HASH_64K
 	depends on PPC64
 	default n
 
+config STDBINUTILS
+	bool "Using standard binutils settings"
+	depends on 44x
+	default y
+	help
+	  Turning this option off allows you to select 256KB PAGE_SIZE on 44x.
+	  Note, that kernel will be able to run only those applications,
+	  which had been compiled using binutils later than 2.17.50.0.3 with
+	  '-zmax-page-size' set to 256K (the default is 64K). Or, if using
+	  the older binutils, you can patch them with a trivial patch, which
+	  changes the ELF_MAXPAGESIZE definition from 0x10000 to 0x40000.
+
 choice
 	prompt "Page size"
 	default PPC_4K_PAGES
@@ -444,6 +460,19 @@ config PPC_64K_PAGES
 	bool "64k page size" if 44x || PPC_STD_MMU_64
 	select PPC_HAS_HASH_64K if PPC_STD_MMU_64
 
+config PPC_256K_PAGES
+	bool "256k page size" if 44x
+	depends on !STDBINUTILS && (!SHMEM || BROKEN)
+	help
+	  Make the page size 256k.
+
+	  As the ELF standard only requires alignment to support page
+	  sizes up to 64k, you will need to compile all of your user
+	  space applications with a non-standard binutils settings
+	  (see the STDBINUTILS description for details).
+
+	  Say N unless you know what you are doing.
+
 endchoice
 
 config FORCE_MAX_ZONEORDER
@@ -456,6 +485,8 @@ config FORCE_MAX_ZONEORDER
 	default "9" if PPC_STD_MMU_32 && PPC_16K_PAGES
 	range 7 64 if PPC_STD_MMU_32 && PPC_64K_PAGES
 	default "7" if PPC_STD_MMU_32 && PPC_64K_PAGES
+	range 5 64 if PPC_STD_MMU_32 && PPC_256K_PAGES
+	default "5" if PPC_STD_MMU_32 && PPC_256K_PAGES
 	range 11 64
 	default "11"
 	help
@@ -594,6 +625,7 @@ config FSL_SOC
 config FSL_PCI
  	bool
 	select PPC_INDIRECT_PCI
+	select PCI_QUIRKS
 
 config 4xx_SOC
 	bool
@@ -730,6 +762,23 @@ config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
 	default "0x30000000"
 
+config LOWMEM_CAM_NUM_BOOL
+	bool "Set number of CAMs to use to map low memory"
+	depends on ADVANCED_OPTIONS && FSL_BOOKE
+	help
+	  This option allows you to set the maximum number of CAM slots that
+	  will be used to map low memory.  There are a limited number of slots
+	  available and even more limited number that will fit in the L1 MMU.
+	  However, using more entries will allow mapping more low memory.  This
+	  can be useful in optimizing the layout of kernel virtual memory.
+
+	  Say N here unless you know what you are doing.
+
+config LOWMEM_CAM_NUM
+	depends on FSL_BOOKE
+	int "Number of CAMs to use to map low memory" if LOWMEM_CAM_NUM_BOOL
+	default 3
+
 config RELOCATABLE
 	bool "Build a relocatable kernel (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && ADVANCED_OPTIONS && FLATMEM && FSL_BOOKE
@@ -794,7 +843,7 @@ config PHYSICAL_START
 
 config PHYSICAL_ALIGN
 	hex
-	default "0x10000000" if FSL_BOOKE
+	default "0x04000000" if FSL_BOOKE
 	help
 	  This value puts the alignment restrictions on physical address
 	  where kernel is loaded and run from. Kernel is compiled for an
@@ -814,31 +863,6 @@ config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
 	default "0x80000000" if PPC_PREP || PPC_8xx
 	default "0xc0000000"
-
-config CONSISTENT_START_BOOL
-	bool "Set custom consistent memory pool address"
-	depends on ADVANCED_OPTIONS && NOT_COHERENT_CACHE
-	help
-	  This option allows you to set the base virtual address
-	  of the consistent memory pool.  This pool of virtual
-	  memory is used to make consistent memory allocations.
-
-config CONSISTENT_START
-	hex "Base virtual address of consistent memory pool" if CONSISTENT_START_BOOL
-	default "0xfd000000" if (NOT_COHERENT_CACHE && 8xx)
-	default "0xff100000" if NOT_COHERENT_CACHE
-
-config CONSISTENT_SIZE_BOOL
-	bool "Set custom consistent memory pool size"
-	depends on ADVANCED_OPTIONS && NOT_COHERENT_CACHE
-	help
-	  This option allows you to set the size of the
-	  consistent memory pool.  This pool of virtual memory
-	  is used to make consistent memory allocations.
-
-config CONSISTENT_SIZE
-	hex "Size of consistent memory pool" if CONSISTENT_SIZE_BOOL
-	default "0x00200000" if NOT_COHERENT_CACHE
 
 config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"

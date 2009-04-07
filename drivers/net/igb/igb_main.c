@@ -135,8 +135,8 @@ static inline int igb_set_vf_rlpml(struct igb_adapter *, int, int);
 static int igb_set_vf_mac(struct igb_adapter *adapter, int, unsigned char *);
 static void igb_restore_vf_multicasts(struct igb_adapter *adapter);
 
-static int igb_suspend(struct pci_dev *, pm_message_t);
 #ifdef CONFIG_PM
+static int igb_suspend(struct pci_dev *, pm_message_t);
 static int igb_resume(struct pci_dev *);
 #endif
 static void igb_shutdown(struct pci_dev *);
@@ -419,6 +419,9 @@ static void igb_free_queues(struct igb_adapter *adapter)
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		netif_napi_del(&adapter->rx_ring[i].napi);
+
+	adapter->num_rx_queues = 0;
+	adapter->num_tx_queues = 0;
 
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
@@ -1151,15 +1154,15 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		return err;
 
 	pci_using_dac = 0;
-	err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (!err)
 			pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 			if (err) {
 				dev_err(&pdev->dev, "No usable DMA "
 					"configuration, aborting\n");
@@ -1476,9 +1479,10 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		 netdev->name,
 		 ((hw->bus.speed == e1000_bus_speed_2500)
 		  ? "2.5Gb/s" : "unknown"),
-		 ((hw->bus.width == e1000_bus_width_pcie_x4)
-		  ? "Width x4" : (hw->bus.width == e1000_bus_width_pcie_x1)
-		  ? "Width x1" : "unknown"),
+		 ((hw->bus.width == e1000_bus_width_pcie_x4) ? "Width x4" :
+		  (hw->bus.width == e1000_bus_width_pcie_x2) ? "Width x2" :
+		  (hw->bus.width == e1000_bus_width_pcie_x1) ? "Width x1" :
+		   "unknown"),
 		 netdev->dev_addr);
 
 	igb_read_part_num(hw, &part_num);
@@ -5056,7 +5060,7 @@ int igb_set_spd_dplx(struct igb_adapter *adapter, u16 spddplx)
 	return 0;
 }
 
-static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -5115,15 +5119,9 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 		wr32(E1000_WUFC, 0);
 	}
 
-	/* make sure adapter isn't asleep if manageability/wol is enabled */
-	if (wufc || adapter->en_mng_pt) {
-		pci_enable_wake(pdev, PCI_D3hot, 1);
-		pci_enable_wake(pdev, PCI_D3cold, 1);
-	} else {
+	*enable_wake = wufc || adapter->en_mng_pt;
+	if (!*enable_wake)
 		igb_shutdown_fiber_serdes_link_82575(hw);
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
-	}
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant. */
@@ -5131,12 +5129,29 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	pci_disable_device(pdev);
 
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
 	return 0;
 }
 
 #ifdef CONFIG_PM
+static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	int retval;
+	bool wake;
+
+	retval = __igb_shutdown(pdev, &wake);
+	if (retval)
+		return retval;
+
+	if (wake) {
+		pci_prepare_to_sleep(pdev);
+	} else {
+		pci_wake_from_d3(pdev, false);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+
+	return 0;
+}
+
 static int igb_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -5189,7 +5204,14 @@ static int igb_resume(struct pci_dev *pdev)
 
 static void igb_shutdown(struct pci_dev *pdev)
 {
-	igb_suspend(pdev, PMSG_SUSPEND);
+	bool wake;
+
+	__igb_shutdown(pdev, &wake);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, wake);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

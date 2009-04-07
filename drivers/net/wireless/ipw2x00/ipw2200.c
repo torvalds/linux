@@ -8844,7 +8844,7 @@ static int ipw_wx_set_mode(struct net_device *dev,
 #endif				/* CONFIG_IPW2200_MONITOR */
 
 	/* Free the existing firmware and reset the fw_loaded
-	 * flag so ipw_load() will bring in the new firmawre */
+	 * flag so ipw_load() will bring in the new firmware */
 	free_firmware();
 
 	priv->ieee->iw_mode = wrqu->mode;
@@ -11593,7 +11593,6 @@ static const struct net_device_ops ipw_netdev_ops = {
 	.ndo_set_mac_address	= ipw_net_set_mac_address,
 	.ndo_start_xmit		= ieee80211_xmit,
 	.ndo_change_mtu		= ieee80211_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -11632,9 +11631,9 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (!err)
-		err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
 		printk(KERN_WARNING DRV_NAME ": No suitable DMA available.\n");
 		goto out_pci_disable_device;

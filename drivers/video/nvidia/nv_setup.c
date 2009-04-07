@@ -362,6 +362,7 @@ int NVCommonSetup(struct fb_info *info)
 	case 0x0186:
 	case 0x0187:
 	case 0x018D:
+	case 0x01D7:
 	case 0x0228:
 	case 0x0286:
 	case 0x028C:

@@ -338,20 +338,6 @@ struct osd_request *osd_start_request(struct osd_dev *dev, gfp_t gfp)
 }
 EXPORT_SYMBOL(osd_start_request);
 
-/*
- * If osd_finalize_request() was called but the request was not executed through
- * the block layer, then we must release BIOs.
- */
-static void _abort_unexecuted_bios(struct request *rq)
-{
-	struct bio *bio;
-
-	while ((bio = rq->bio) != NULL) {
-		rq->bio = bio->bi_next;
-		bio_endio(bio, 0);
-	}
-}
-
 static void _osd_free_seg(struct osd_request *or __unused,
 	struct _osd_req_data_segment *seg)
 {
@@ -363,9 +349,30 @@ static void _osd_free_seg(struct osd_request *or __unused,
 	seg->alloc_size = 0;
 }
 
+static void _put_request(struct request *rq , bool is_async)
+{
+	if (is_async) {
+		WARN_ON(rq->bio);
+		__blk_put_request(rq->q, rq);
+	} else {
+		/*
+		 * If osd_finalize_request() was called but the request was not
+		 * executed through the block layer, then we must release BIOs.
+		 * TODO: Keep error code in or->async_error. Need to audit all
+		 *       code paths.
+		 */
+		if (unlikely(rq->bio))
+			blk_end_request(rq, -ENOMEM, blk_rq_bytes(rq));
+		else
+			blk_put_request(rq);
+	}
+}
+
 void osd_end_request(struct osd_request *or)
 {
 	struct request *rq = or->request;
+	/* IMPORTANT: make sure this agrees with osd_execute_request_async */
+	bool is_async = (or->request->end_io_data == or);
 
 	_osd_free_seg(or, &or->set_attr);
 	_osd_free_seg(or, &or->enc_get_attr);
@@ -373,12 +380,11 @@ void osd_end_request(struct osd_request *or)
 
 	if (rq) {
 		if (rq->next_rq) {
-			_abort_unexecuted_bios(rq->next_rq);
-			blk_put_request(rq->next_rq);
+			_put_request(rq->next_rq, is_async);
+			rq->next_rq = NULL;
 		}
 
-		_abort_unexecuted_bios(rq);
-		blk_put_request(rq);
+		_put_request(rq, is_async);
 	}
 	_osd_request_free(or);
 }

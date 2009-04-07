@@ -45,7 +45,9 @@
 #include <asm/uv/uv_mmrs.h>
 
 struct gru_blade_state *gru_base[GRU_MAX_BLADES] __read_mostly;
-unsigned long gru_start_paddr, gru_end_paddr __read_mostly;
+unsigned long gru_start_paddr __read_mostly;
+unsigned long gru_end_paddr __read_mostly;
+unsigned int gru_max_gids __read_mostly;
 struct gru_stats_s gru_stats;
 
 /* Guaranteed user available resources on each node */
@@ -101,7 +103,7 @@ static int gru_file_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EPERM;
 
 	if (vma->vm_start & (GRU_GSEG_PAGESIZE - 1) ||
-	    			vma->vm_end & (GRU_GSEG_PAGESIZE - 1))
+				vma->vm_end & (GRU_GSEG_PAGESIZE - 1))
 		return -EINVAL;
 
 	vma->vm_flags |=
@@ -273,8 +275,11 @@ static void gru_init_chiplet(struct gru_state *gru, unsigned long paddr,
 	gru->gs_blade_id = bid;
 	gru->gs_cbr_map = (GRU_CBR_AU == 64) ? ~0 : (1UL << GRU_CBR_AU) - 1;
 	gru->gs_dsr_map = (1UL << GRU_DSR_AU) - 1;
+	gru->gs_asid_limit = MAX_ASID;
 	gru_tgh_flush_init(gru);
-	gru_dbg(grudev, "bid %d, nid %d, gru %x, vaddr %p (0x%lx)\n",
+	if (gru->gs_gid >= gru_max_gids)
+		gru_max_gids = gru->gs_gid + 1;
+	gru_dbg(grudev, "bid %d, nid %d, gid %d, vaddr %p (0x%lx)\n",
 		bid, nid, gru->gs_gid, gru->gs_gru_base_vaddr,
 		gru->gs_gru_base_paddr);
 	gru_kservices_init(gru);
@@ -295,7 +300,7 @@ static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 	for_each_online_node(nid) {
 		bid = uv_node_to_blade_id(nid);
 		pnode = uv_node_to_pnode(nid);
-		if (gru_base[bid])
+		if (bid < 0 || gru_base[bid])
 			continue;
 		page = alloc_pages_node(nid, GFP_KERNEL, order);
 		if (!page)
@@ -308,11 +313,11 @@ static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 		dsrbytes = 0;
 		cbrs = 0;
 		for (gru = gru_base[bid]->bs_grus, chip = 0;
-		     		chip < GRU_CHIPLETS_PER_BLADE;
+				chip < GRU_CHIPLETS_PER_BLADE;
 				chip++, gru++) {
 			paddr = gru_chiplet_paddr(gru_base_paddr, pnode, chip);
 			vaddr = gru_chiplet_vaddr(gru_base_vaddr, pnode, chip);
-			gru_init_chiplet(gru, paddr, vaddr, bid, nid, chip);
+			gru_init_chiplet(gru, paddr, vaddr, nid, bid, chip);
 			n = hweight64(gru->gs_cbr_map) * GRU_CBR_AU_SIZE;
 			cbrs = max(cbrs, n);
 			n = hweight64(gru->gs_dsr_map) * GRU_DSR_AU_BYTES;
@@ -370,26 +375,26 @@ static int __init gru_init(void)
 	void *gru_start_vaddr;
 
 	if (!is_uv_system())
-		return 0;
+		return -ENODEV;
 
 #if defined CONFIG_IA64
 	gru_start_paddr = 0xd000000000UL; /* ZZZZZZZZZZZZZZZZZZZ fixme */
 #else
 	gru_start_paddr = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR) &
 				0x7fffffffffffUL;
-
 #endif
 	gru_start_vaddr = __va(gru_start_paddr);
-	gru_end_paddr = gru_start_paddr + MAX_NUMNODES * GRU_SIZE;
+	gru_end_paddr = gru_start_paddr + GRU_MAX_BLADES * GRU_SIZE;
 	printk(KERN_INFO "GRU space: 0x%lx - 0x%lx\n",
 	       gru_start_paddr, gru_end_paddr);
 	irq = get_base_irq();
 	for (chip = 0; chip < GRU_CHIPLETS_PER_BLADE; chip++) {
 		ret = request_irq(irq + chip, gru_intr, 0, id, NULL);
-		/* TODO: fix irq handling on x86. For now ignore failures because
+		/* TODO: fix irq handling on x86. For now ignore failure because
 		 * interrupts are not required & not yet fully supported */
 		if (ret) {
-			printk("!!!WARNING: GRU ignoring request failure!!!\n");
+			printk(KERN_WARNING
+			       "!!!WARNING: GRU ignoring request failure!!!\n");
 			ret = 0;
 		}
 		if (ret) {
@@ -435,7 +440,7 @@ exit1:
 
 static void __exit gru_exit(void)
 {
-	int i, bid;
+	int i, bid, gid;
 	int order = get_order(sizeof(struct gru_state) *
 			      GRU_CHIPLETS_PER_BLADE);
 
@@ -444,6 +449,9 @@ static void __exit gru_exit(void)
 
 	for (i = 0; i < GRU_CHIPLETS_PER_BLADE; i++)
 		free_irq(IRQ_GRU + i, NULL);
+
+	foreach_gid(gid)
+		gru_kservices_exit(GID_TO_GRU(gid));
 
 	for (bid = 0; bid < GRU_MAX_BLADES; bid++)
 		free_pages((unsigned long)gru_base[bid], order);
@@ -469,7 +477,11 @@ struct vm_operations_struct gru_vm_ops = {
 	.fault		= gru_fault,
 };
 
+#ifndef MODULE
 fs_initcall(gru_init);
+#else
+module_init(gru_init);
+#endif
 module_exit(gru_exit);
 
 module_param(gru_options, ulong, 0644);

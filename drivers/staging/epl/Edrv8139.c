@@ -81,7 +81,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/major.h>
-#include <linux/version.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
@@ -234,8 +233,8 @@
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
@@ -282,9 +281,9 @@ typedef struct
 typedef struct {
 	struct pci_dev *m_pPciDev;	// pointer to PCI device structure
 	void *m_pIoAddr;	// pointer to register space of Ethernet controller
-	BYTE *m_pbRxBuf;	// pointer to Rx buffer
+	u8 *m_pbRxBuf;	// pointer to Rx buffer
 	dma_addr_t m_pRxBufDma;
-	BYTE *m_pbTxBuf;	// pointer to Tx buffer
+	u8 *m_pbTxBuf;	// pointer to Tx buffer
 	dma_addr_t m_pTxBufDma;
 	BOOL m_afTxBufUsed[EDRV_MAX_TX_BUFFERS];
 	unsigned int m_uiCurTxDesc;
@@ -359,7 +358,7 @@ static struct pci_driver EdrvDriver = {
 // local function prototypes
 //---------------------------------------------------------------------------
 
-static BYTE EdrvCalcHash(BYTE * pbMAC_p);
+static u8 EdrvCalcHash(u8 * pbMAC_p);
 
 //---------------------------------------------------------------------------
 //
@@ -453,20 +452,20 @@ tEplKernel EdrvShutdown(void)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel EdrvDefineRxMacAddrEntry(BYTE * pbMacAddr_p)
+tEplKernel EdrvDefineRxMacAddrEntry(u8 * pbMacAddr_p)
 {
 	tEplKernel Ret = kEplSuccessful;
-	DWORD dwData;
-	BYTE bHash;
+	u32 dwData;
+	u8 bHash;
 
 	bHash = EdrvCalcHash(pbMacAddr_p);
 /*
     dwData = ether_crc(6, pbMacAddr_p);
 
     printk("EdrvDefineRxMacAddrEntry('%02X:%02X:%02X:%02X:%02X:%02X') hash = %u / %u  ether_crc = 0x%08lX\n",
-        (WORD) pbMacAddr_p[0], (WORD) pbMacAddr_p[1], (WORD) pbMacAddr_p[2],
-        (WORD) pbMacAddr_p[3], (WORD) pbMacAddr_p[4], (WORD) pbMacAddr_p[5],
-        (WORD) bHash, (WORD) (dwData >> 26), dwData);
+        (u16) pbMacAddr_p[0], (u16) pbMacAddr_p[1], (u16) pbMacAddr_p[2],
+        (u16) pbMacAddr_p[3], (u16) pbMacAddr_p[4], (u16) pbMacAddr_p[5],
+        (u16) bHash, (u16) (dwData >> 26), dwData);
 */
 	if (bHash > 31) {
 		dwData = EDRV_REGDW_READ(EDRV_REGDW_MAR4);
@@ -494,11 +493,11 @@ tEplKernel EdrvDefineRxMacAddrEntry(BYTE * pbMacAddr_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel EdrvUndefineRxMacAddrEntry(BYTE * pbMacAddr_p)
+tEplKernel EdrvUndefineRxMacAddrEntry(u8 * pbMacAddr_p)
 {
 	tEplKernel Ret = kEplSuccessful;
-	DWORD dwData;
-	BYTE bHash;
+	u32 dwData;
+	u8 bHash;
 
 	bHash = EdrvCalcHash(pbMacAddr_p);
 
@@ -532,7 +531,7 @@ tEplKernel EdrvUndefineRxMacAddrEntry(BYTE * pbMacAddr_p)
 tEplKernel EdrvAllocTxMsgBuffer(tEdrvTxBuffer * pBuffer_p)
 {
 	tEplKernel Ret = kEplSuccessful;
-	DWORD i;
+	u32 i;
 
 	if (pBuffer_p->m_uiMaxBufferLen > EDRV_MAX_FRAME_SIZE) {
 		Ret = kEplEdrvNoFreeBufEntry;
@@ -605,7 +604,7 @@ tEplKernel EdrvSendTxMsg(tEdrvTxBuffer * pBuffer_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiBufferNumber;
-	DWORD dwTemp;
+	u32 dwTemp;
 
 	uiBufferNumber = pBuffer_p->m_uiBufferNumber;
 
@@ -620,11 +619,11 @@ tEplKernel EdrvSendTxMsg(tEdrvTxBuffer * pBuffer_p)
 		dwTemp =
 		    EDRV_REGDW_READ((EDRV_REGDW_TSD0 +
 				     (EdrvInstance_l.m_uiCurTxDesc *
-				      sizeof(DWORD))));
-		printk("%s InvOp TSD%u = 0x%08lX", __func__,
+				      sizeof(u32))));
+		printk("%s InvOp TSD%u = 0x%08X", __func__,
 		       EdrvInstance_l.m_uiCurTxDesc, dwTemp);
 		printk("  Cmd = 0x%02X\n",
-		       (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
+		       (u16) EDRV_REGB_READ(EDRV_REGB_COMMAND));
 		goto Exit;
 	}
 	// save pointer to buffer structure for TxHandler
@@ -640,22 +639,22 @@ tEplKernel EdrvSendTxMsg(tEdrvTxBuffer * pBuffer_p)
 	}
 	// set DMA address of buffer
 	EDRV_REGDW_WRITE((EDRV_REGDW_TSAD0 +
-			  (EdrvInstance_l.m_uiCurTxDesc * sizeof(DWORD))),
+			  (EdrvInstance_l.m_uiCurTxDesc * sizeof(u32))),
 			 (EdrvInstance_l.m_pTxBufDma +
 			  (uiBufferNumber * EDRV_MAX_FRAME_SIZE)));
 	dwTemp =
 	    EDRV_REGDW_READ((EDRV_REGDW_TSAD0 +
-			     (EdrvInstance_l.m_uiCurTxDesc * sizeof(DWORD))));
+			     (EdrvInstance_l.m_uiCurTxDesc * sizeof(u32))));
 //    printk("%s TSAD%u = 0x%08lX", __func__, EdrvInstance_l.m_uiCurTxDesc, dwTemp);
 
 	// start transmission
 	EDRV_REGDW_WRITE((EDRV_REGDW_TSD0 +
-			  (EdrvInstance_l.m_uiCurTxDesc * sizeof(DWORD))),
+			  (EdrvInstance_l.m_uiCurTxDesc * sizeof(u32))),
 			 (EDRV_REGDW_TSD_TXTH_DEF | pBuffer_p->m_uiTxMsgLen));
 	dwTemp =
 	    EDRV_REGDW_READ((EDRV_REGDW_TSD0 +
-			     (EdrvInstance_l.m_uiCurTxDesc * sizeof(DWORD))));
-//    printk(" TSD%u = 0x%08lX / 0x%08lX\n", EdrvInstance_l.m_uiCurTxDesc, dwTemp, (DWORD)(EDRV_REGDW_TSD_TXTH_DEF | pBuffer_p->m_uiTxMsgLen));
+			     (EdrvInstance_l.m_uiCurTxDesc * sizeof(u32))));
+//    printk(" TSD%u = 0x%08lX / 0x%08lX\n", EdrvInstance_l.m_uiCurTxDesc, dwTemp, (u32)(EDRV_REGDW_TSD_TXTH_DEF | pBuffer_p->m_uiTxMsgLen));
 
       Exit:
 	return Ret;
@@ -720,7 +719,7 @@ tEplKernel EdrvTxMsgStart(tEdrvTxBuffer * pBuffer_p)
 //---------------------------------------------------------------------------
 static void EdrvReinitRx(void)
 {
-	BYTE bCmd;
+	u8 bCmd;
 
 	// simply switch off and on the receiver
 	// this will reset the CAPR register
@@ -751,21 +750,16 @@ void EdrvInterruptHandler(void)
 }
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p)
-#else
-static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
-		     struct pt_regs *ptRegs_p)
-#endif
 {
 //    EdrvInterruptHandler();
 	tEdrvRxBuffer RxBuffer;
 	tEdrvTxBuffer *pTxBuffer;
-	WORD wStatus;
-	DWORD dwTxStatus;
-	DWORD dwRxStatus;
-	WORD wCurRx;
-	BYTE *pbRxBuf;
+	u16 wStatus;
+	u32 dwTxStatus;
+	u32 dwRxStatus;
+	u16 wCurRx;
+	u8 *pbRxBuf;
 	unsigned int uiLength;
 	int iHandled = IRQ_HANDLED;
 
@@ -793,7 +787,7 @@ static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
 		dwTxStatus =
 		    EDRV_REGDW_READ((EDRV_REGDW_TSD0 +
 				     (EdrvInstance_l.m_uiCurTxDesc *
-				      sizeof(DWORD))));
+				      sizeof(u32))));
 		if ((dwTxStatus & (EDRV_REGDW_TSD_TOK | EDRV_REGDW_TSD_TABT | EDRV_REGDW_TSD_TUN)) != 0) {	// transmit finished
 			EdrvInstance_l.m_uiCurTxDesc =
 			    (EdrvInstance_l.m_uiCurTxDesc + 1) & 0x03;
@@ -855,8 +849,8 @@ static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
 			// calculate pointer to current frame in receive buffer
 			pbRxBuf = EdrvInstance_l.m_pbRxBuf + wCurRx;
 
-			// read receive status DWORD
-			dwRxStatus = le32_to_cpu(*((DWORD *) pbRxBuf));
+			// read receive status u32
+			dwRxStatus = le32_to_cpu(*((u32 *) pbRxBuf));
 
 			// calculate length of received frame
 			uiLength = dwRxStatus >> 16;
@@ -896,9 +890,9 @@ static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
 				    m_pfnRxHandler(&RxBuffer);
 			}
 
-			// calulate new offset (DWORD aligned)
+			// calulate new offset (u32 aligned)
 			wCurRx =
-			    (WORD) ((wCurRx + uiLength + sizeof(dwRxStatus) +
+			    (u16) ((wCurRx + uiLength + sizeof(dwRxStatus) +
 				     3) & ~0x3);
 			EDRV_TRACE_CAPR(wCurRx - 0x10);
 			EDRV_REGW_WRITE(EDRV_REGW_CAPR, wCurRx - 0x10);
@@ -941,7 +935,7 @@ static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
 static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 {
 	int iResult = 0;
-	DWORD dwTemp;
+	u32 dwTemp;
 
 	if (EdrvInstance_l.m_pPciDev != NULL) {	// Edrv is already connected to a PCI device
 		printk("%s device %s discarded\n", __func__,
@@ -1008,7 +1002,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	dwTemp = EDRV_REGDW_READ(EDRV_REGDW_TCR);
 	if (((dwTemp & EDRV_REGDW_TCR_VER_MASK) != EDRV_REGDW_TCR_VER_C)
 	    && ((dwTemp & EDRV_REGDW_TCR_VER_MASK) != EDRV_REGDW_TCR_VER_D)) {	// unsupported chip
-		printk("%s Unsupported chip! TCR = 0x%08lX\n", __func__,
+		printk("%s Unsupported chip! TCR = 0x%08X\n", __func__,
 		       dwTemp);
 		iResult = -ENODEV;
 		goto Exit;
@@ -1043,11 +1037,11 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
             printk("%s set local MAC address\n", __func__);
             // write this MAC address to controller
             EDRV_REGDW_WRITE(EDRV_REGDW_IDR0,
-                le32_to_cpu(*((DWORD*)&EdrvInstance_l.m_InitParam.m_abMyMacAddr[0])));
+                le32_to_cpu(*((u32*)&EdrvInstance_l.m_InitParam.m_abMyMacAddr[0])));
             dwTemp = EDRV_REGDW_READ(EDRV_REGDW_IDR0);
 
             EDRV_REGDW_WRITE(EDRV_REGDW_IDR4,
-                le32_to_cpu(*((DWORD*)&EdrvInstance_l.m_InitParam.m_abMyMacAddr[4])));
+                le32_to_cpu(*((u32*)&EdrvInstance_l.m_InitParam.m_abMyMacAddr[4])));
             dwTemp = EDRV_REGDW_READ(EDRV_REGDW_IDR4);
             break;
         }
@@ -1087,7 +1081,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	dwTemp = EDRV_REGDW_READ(EDRV_REGDW_TSAD3);
 
 	printk("    Command = 0x%02X\n",
-	       (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
+	       (u16) EDRV_REGB_READ(EDRV_REGB_COMMAND));
 
 	// set pointer for receive buffer in controller
 	printk("%s set pointer to Rx buffer\n", __func__);
@@ -1098,7 +1092,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	EDRV_REGB_WRITE(EDRV_REGB_COMMAND,
 			(EDRV_REGB_COMMAND_RE | EDRV_REGB_COMMAND_TE));
 	printk("  Command = 0x%02X\n",
-	       (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
+	       (u16) EDRV_REGB_READ(EDRV_REGB_COMMAND));
 
 	// clear missed packet counter to enable Rx/Tx process
 	EDRV_REGDW_WRITE(EDRV_REGDW_MPC, 0);
@@ -1123,7 +1117,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
     // enable transmitter and receiver
     printk("%s enable Tx and Rx", __func__);
     EDRV_REGB_WRITE(EDRV_REGB_COMMAND, (EDRV_REGB_COMMAND_RE | EDRV_REGB_COMMAND_TE));
-    printk("  Command = 0x%02X\n", (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
+    printk("  Command = 0x%02X\n", (u16) EDRV_REGB_READ(EDRV_REGB_COMMAND));
 */
 	// disable early interrupts
 	EDRV_REGW_WRITE(EDRV_REGW_MULINT, 0);
@@ -1215,15 +1209,15 @@ static void EdrvRemoveOne(struct pci_dev *pPciDev)
 //#define CRC32_POLY    0xEDB88320  //
 // G(x) = x32 + x26 + x23 + x22 + x16 + x12 + x11 + x10 + x8 + x7 + x5 + x4 + x2 + x + 1
 
-static BYTE EdrvCalcHash(BYTE * pbMAC_p)
+static u8 EdrvCalcHash(u8 * pbMAC_p)
 {
-	DWORD dwByteCounter;
-	DWORD dwBitCounter;
-	DWORD dwData;
-	DWORD dwCrc;
-	DWORD dwCarry;
-	BYTE *pbData;
-	BYTE bHash;
+	u32 dwByteCounter;
+	u32 dwBitCounter;
+	u32 dwData;
+	u32 dwCrc;
+	u32 dwCarry;
+	u8 *pbData;
+	u8 bHash;
 
 	pbData = pbMAC_p;
 
@@ -1246,7 +1240,7 @@ static BYTE EdrvCalcHash(BYTE * pbMAC_p)
 //    printk("MyCRC = 0x%08lX\n", dwCrc);
 	// only upper 6 bits (HASH_BITS) are used
 	// which point to specific bit in the hash registers
-	bHash = (BYTE) ((dwCrc >> (32 - HASH_BITS)) & 0x3f);
+	bHash = (u8) ((dwCrc >> (32 - HASH_BITS)) & 0x3f);
 
 	return bHash;
 }

@@ -39,12 +39,6 @@ static int xen_suspend(void *data)
 
 	BUG_ON(!irqs_disabled());
 
-	err = device_power_down(PMSG_SUSPEND);
-	if (err) {
-		printk(KERN_ERR "xen_suspend: device_power_down failed: %d\n",
-		       err);
-		return err;
-	}
 	err = sysdev_suspend(PMSG_SUSPEND);
 	if (err) {
 		printk(KERN_ERR "xen_suspend: sysdev_suspend failed: %d\n",
@@ -107,6 +101,12 @@ static void do_suspend(void)
 	printk(KERN_DEBUG "suspending xenstore...\n");
 	xs_suspend();
 
+	err = device_power_down(PMSG_SUSPEND);
+	if (err) {
+		printk(KERN_ERR "device_power_down failed: %d\n", err);
+		goto resume_devices;
+	}
+
 	err = stop_machine(xen_suspend, &cancelled, cpumask_of(0));
 	if (err) {
 		printk(KERN_ERR "failed to start xen_suspend: %d\n", err);
@@ -119,6 +119,9 @@ static void do_suspend(void)
 	} else
 		xs_suspend_cancel();
 
+	device_power_up(PMSG_RESUME);
+
+resume_devices:
 	device_resume(PMSG_RESUME);
 
 	/* Make sure timer events get retriggered on all CPUs */

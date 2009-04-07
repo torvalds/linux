@@ -654,6 +654,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	}
 	cafe = (void *)(&mtd[1]);
 
+	mtd->dev.parent = &pdev->dev;
 	mtd->priv = cafe;
 	mtd->owner = THIS_MODULE;
 

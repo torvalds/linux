@@ -148,10 +148,10 @@ void ivtv_release_stream(struct ivtv_stream *s)
 static void ivtv_dualwatch(struct ivtv *itv)
 {
 	struct v4l2_tuner vt;
-	u16 new_bitmap;
-	u16 new_stereo_mode;
-	const u16 stereo_mask = 0x0300;
-	const u16 dual = 0x0200;
+	u32 new_bitmap;
+	u32 new_stereo_mode;
+	const u32 stereo_mask = 0x0300;
+	const u32 dual = 0x0200;
 
 	new_stereo_mode = itv->params.audio_properties & stereo_mask;
 	memset(&vt, 0, sizeof(vt));
@@ -857,15 +857,12 @@ int ivtv_v4l2_close(struct file *filp)
 		/* Mark that the radio is no longer in use */
 		clear_bit(IVTV_F_I_RADIO_USER, &itv->i_flags);
 		/* Switch tuner to TV */
-		ivtv_call_all(itv, tuner, s_std, itv->std);
+		ivtv_call_all(itv, core, s_std, itv->std);
 		/* Select correct audio input (i.e. TV tuner or Line in) */
 		ivtv_audio_set_io(itv);
-		if (itv->hw_flags & IVTV_HW_SAA711X)
-		{
-			struct v4l2_crystal_freq crystal_freq;
-			crystal_freq.freq = SAA7115_FREQ_32_11_MHZ;
-			crystal_freq.flags = 0;
-			ivtv_call_hw(itv, IVTV_HW_SAA711X, video, s_crystal_freq, &crystal_freq);
+		if (itv->hw_flags & IVTV_HW_SAA711X) {
+			ivtv_call_hw(itv, IVTV_HW_SAA711X, video, s_crystal_freq,
+					SAA7115_FREQ_32_11_MHZ, 0);
 		}
 		if (atomic_read(&itv->capturing) > 0) {
 			/* Undo video mute */
@@ -956,10 +953,8 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 		/* Select the correct audio input (i.e. radio tuner) */
 		ivtv_audio_set_io(itv);
 		if (itv->hw_flags & IVTV_HW_SAA711X) {
-			struct v4l2_crystal_freq crystal_freq;
-			crystal_freq.freq = SAA7115_FREQ_32_11_MHZ;
-			crystal_freq.flags = SAA7115_FREQ_FL_APLL;
-			ivtv_call_hw(itv, IVTV_HW_SAA711X, video, s_crystal_freq, &crystal_freq);
+			ivtv_call_hw(itv, IVTV_HW_SAA711X, video, s_crystal_freq,
+				SAA7115_FREQ_32_11_MHZ, SAA7115_FREQ_FL_APLL);
 		}
 		/* Done! Unmute and continue. */
 		ivtv_unmute(itv);
@@ -991,7 +986,7 @@ int ivtv_v4l2_open(struct file *filp)
 	mutex_lock(&itv->serialize_lock);
 	if (ivtv_init_on_first_open(itv)) {
 		IVTV_ERR("Failed to initialize on minor %d\n",
-				s->v4l2dev->minor);
+				vdev->minor);
 		mutex_unlock(&itv->serialize_lock);
 		return -ENXIO;
 	}

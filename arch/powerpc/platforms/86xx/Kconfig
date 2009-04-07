@@ -1,7 +1,7 @@
 config PPC_86xx
 menuconfig PPC_86xx
 	bool "86xx-based boards"
-	depends on 6xx && PPC_MULTIPLATFORM
+	depends on 6xx
 	select FSL_SOC
 	select ALTIVEC
 	help
@@ -31,6 +31,22 @@ config MPC8610_HPCD
 	help
 	  This option enables support for the MPC8610 HPCD board.
 
+config GEF_PPC9A
+	bool "GE Fanuc PPC9A"
+	select DEFAULT_UIMAGE
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  This option enables support for GE Fanuc's PPC9A.
+
+config GEF_SBC310
+	bool "GE Fanuc SBC310"
+	select DEFAULT_UIMAGE
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  This option enables support for GE Fanuc's SBC310.
+
 config GEF_SBC610
 	bool "GE Fanuc SBC610"
 	select DEFAULT_UIMAGE
@@ -48,7 +64,7 @@ config MPC8641
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
-	default y if MPC8641_HPCN || SBC8641D || GEF_SBC610
+	default y if MPC8641_HPCN || SBC8641D || GEF_SBC610 || GEF_SBC310 || GEF_PPC9A
 
 config MPC8610
 	bool

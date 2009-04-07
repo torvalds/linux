@@ -1762,9 +1762,9 @@ __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd,
 {
 	pmd_t *kernel_pmd;
 
-	init_pg_tables_start = __pa(pgd);
-	init_pg_tables_end = __pa(pgd) + xen_start_info->nr_pt_frames*PAGE_SIZE;
-	max_pfn_mapped = PFN_DOWN(init_pg_tables_end + 512*1024);
+	max_pfn_mapped = PFN_DOWN(__pa(xen_start_info->pt_base) +
+				  xen_start_info->nr_pt_frames * PAGE_SIZE +
+				  512*1024);
 
 	kernel_pmd = m2v(pgd[KERNEL_PGD_BOUNDARY].pgd);
 	memcpy(level2_kernel_pgt, kernel_pmd, sizeof(pmd_t) * PTRS_PER_PMD);
@@ -1916,7 +1916,6 @@ const struct pv_mmu_ops xen_mmu_ops __initdata = {
 
 #ifdef CONFIG_X86_PAE
 	.set_pte_atomic = xen_set_pte_atomic,
-	.set_pte_present = xen_set_pte_at,
 	.pte_clear = xen_pte_clear,
 	.pmd_clear = xen_pmd_clear,
 #endif	/* CONFIG_X86_PAE */

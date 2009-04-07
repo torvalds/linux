@@ -208,7 +208,7 @@ static int ide_pci_enable(struct pci_dev *dev, const struct ide_port_info *d)
 	 * a DMA mask field to the struct ide_port_info if we need it
 	 * (or let lower level driver set the DMA mask)
 	 */
-	ret = pci_set_dma_mask(dev, DMA_32BIT_MASK);
+	ret = pci_set_dma_mask(dev, DMA_BIT_MASK(32));
 	if (ret < 0) {
 		printk(KERN_ERR "%s %s: can't set DMA mask\n",
 			d->name, pci_name(dev));
@@ -558,6 +558,8 @@ int ide_pci_init_one(struct pci_dev *dev, const struct ide_port_info *d,
 
 	host->host_priv = priv;
 
+	host->irq_flags = IRQF_SHARED;
+
 	pci_set_drvdata(dev, host);
 
 	ret = do_ide_setup_pci_device(dev, d, 1);
@@ -605,6 +607,8 @@ int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
 	host->dev[1] = &dev2->dev;
 
 	host->host_priv = priv;
+
+	host->irq_flags = IRQF_SHARED;
 
 	pci_set_drvdata(pdev[0], host);
 	pci_set_drvdata(pdev[1], host);

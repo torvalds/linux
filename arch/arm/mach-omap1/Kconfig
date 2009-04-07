@@ -109,7 +109,7 @@ config MACH_OMAP_PALMZ71
 	help
 	 Support for the Palm Zire71 PDA. To boot the kernel,
 	 you'll need a PalmOS compatible bootloader; check out
-	 http://hackndev.com/palm/z71 for more informations.
+	 http://hackndev.com/palm/z71 for more information.
 	 Say Y here if you have such a PDA, say N otherwise.
 
 config MACH_OMAP_PALMTT

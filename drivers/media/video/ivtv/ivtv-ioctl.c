@@ -345,10 +345,8 @@ static int ivtv_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 	pixfmt->priv = 0;
 	if (id->type == IVTV_ENC_STREAM_TYPE_YUV) {
 		pixfmt->pixelformat = V4L2_PIX_FMT_HM12;
-		/* YUV size is (Y=(h*w) + UV=(h*(w/2))) */
-		pixfmt->sizeimage =
-			pixfmt->height * pixfmt->width +
-			pixfmt->height * (pixfmt->width / 2);
+		/* YUV size is (Y=(h*720) + UV=(h*(720/2))) */
+		pixfmt->sizeimage = pixfmt->height * 720 * 3 / 2;
 		pixfmt->bytesperline = 720;
 	} else {
 		pixfmt->pixelformat = V4L2_PIX_FMT_MPEG;
@@ -469,11 +467,17 @@ static int ivtv_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format 
 	struct ivtv *itv = id->itv;
 	int w = fmt->fmt.pix.width;
 	int h = fmt->fmt.pix.height;
+	int min_h = 2;
 
 	w = min(w, 720);
 	w = max(w, 2);
+	if (id->type == IVTV_ENC_STREAM_TYPE_YUV) {
+		/* YUV height must be a multiple of 32 */
+		h &= ~0x1f;
+		min_h = 32;
+	}
 	h = min(h, itv->is_50hz ? 576 : 480);
-	h = max(h, 2);
+	h = max(h, min_h);
 	ivtv_g_fmt_vid_cap(file, fh, fmt);
 	fmt->fmt.pix.width = w;
 	fmt->fmt.pix.height = h;
@@ -766,7 +770,7 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 
 	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
-	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->dev));
+	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
 	vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 	vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
 	return 0;
@@ -1029,7 +1033,6 @@ static int ivtv_g_output(struct file *file, void *fh, unsigned int *i)
 static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
-	struct v4l2_routing route;
 
 	if (outp >= itv->card->nof_outputs)
 		return -EINVAL;
@@ -1042,9 +1045,9 @@ static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 		   itv->active_output, outp);
 
 	itv->active_output = outp;
-	route.input = SAA7127_INPUT_TYPE_NORMAL;
-	route.output = itv->card->video_outputs[outp].video_output;
-	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_routing, &route);
+	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_routing,
+			SAA7127_INPUT_TYPE_NORMAL,
+			itv->card->video_outputs[outp].video_output, 0);
 
 	return 0;
 }
@@ -1117,7 +1120,7 @@ int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	IVTV_DEBUG_INFO("Switching standard to %llx.\n", (unsigned long long)itv->std);
 
 	/* Tuner */
-	ivtv_call_all(itv, tuner, s_std, itv->std);
+	ivtv_call_all(itv, core, s_std, itv->std);
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		/* set display standard */
@@ -1513,12 +1516,12 @@ static int ivtv_log_status(struct file *file, void *fh)
 	}
 	IVTV_INFO("Tuner:  %s\n",
 		test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? "Radio" : "TV");
-	cx2341x_log_status(&itv->params, itv->device.name);
+	cx2341x_log_status(&itv->params, itv->v4l2_dev.name);
 	IVTV_INFO("Status flags:    0x%08lx\n", itv->i_flags);
 	for (i = 0; i < IVTV_MAX_STREAMS; i++) {
 		struct ivtv_stream *s = &itv->streams[i];
 
-		if (s->v4l2dev == NULL || s->buffers == 0)
+		if (s->vdev == NULL || s->buffers == 0)
 			continue;
 		IVTV_INFO("Stream %s: status 0x%04lx, %d%% of %d KiB (%d buffers) in use\n", s->name, s->s_flags,
 				(s->buffers - s->q_free.buffers) * 100 / s->buffers,
@@ -1731,13 +1734,6 @@ static long ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
 	switch (cmd) {
-	case VIDIOC_INT_S_AUDIO_ROUTING: {
-		struct v4l2_routing *route = arg;
-
-		ivtv_call_hw(itv, itv->card->hw_audio, audio, s_routing, route);
-		break;
-	}
-
 	case VIDIOC_INT_RESET: {
 		u32 val = *(u32 *)arg;
 

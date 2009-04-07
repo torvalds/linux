@@ -254,7 +254,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		return -ENOMEM;
 	}
 
-	mode &= ~current->fs->umask;
+	mode &= ~current_umask();
 	if (oplockEnabled)
 		oplock = REQ_OPLOCK;
 
@@ -479,7 +479,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 		rc = -ENOMEM;
 	else if (pTcon->unix_ext) {
 		struct cifs_unix_set_info_args args = {
-			.mode	= mode & ~current->fs->umask,
+			.mode	= mode & ~current_umask(),
 			.ctime	= NO_CHANGE_64,
 			.atime	= NO_CHANGE_64,
 			.mtime	= NO_CHANGE_64,

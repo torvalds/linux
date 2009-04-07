@@ -115,8 +115,6 @@ void scsi_proc_hostdir_add(struct scsi_host_template *sht)
         	if (!sht->proc_dir)
 			printk(KERN_ERR "%s: proc_mkdir failed for %s\n",
 			       __func__, sht->proc_name);
-		else
-			sht->proc_dir->owner = sht->module;
 	}
 	mutex_unlock(&global_host_template_mutex);
 }
@@ -163,7 +161,6 @@ void scsi_proc_host_add(struct Scsi_Host *shost)
 	} 
 
 	p->write_proc = proc_scsi_write_proc;
-	p->owner = sht->module;
 }
 
 /**

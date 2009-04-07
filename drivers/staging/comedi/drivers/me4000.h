@@ -28,37 +28,37 @@
   Debug section
   ===========================================================================*/
 
-#undef ME4000_CALL_DEBUG	// Debug function entry and exit
-#undef ME4000_PORT_DEBUG	// Debug port access
-#undef ME4000_ISR_DEBUG		// Debug the interrupt service routine
-#undef ME4000_DEBUG		// General purpose debug masseges
+#undef ME4000_CALL_DEBUG	/*  Debug function entry and exit */
+#undef ME4000_PORT_DEBUG	/*  Debug port access */
+#undef ME4000_ISR_DEBUG		/*  Debug the interrupt service routine */
+#undef ME4000_DEBUG		/*  General purpose debug masseges */
 
 #ifdef ME4000_CALL_DEBUG
 #undef CALL_PDEBUG
 #define CALL_PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor, ##args)
 #else
-# define CALL_PDEBUG(fmt, args...)	// no debugging, do nothing
+# define CALL_PDEBUG(fmt, args...)	/*  no debugging, do nothing */
 #endif
 
 #ifdef ME4000_PORT_DEBUG
 #undef PORT_PDEBUG
 #define PORT_PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor,  ##args)
 #else
-#define PORT_PDEBUG(fmt, args...)	// no debugging, do nothing
+#define PORT_PDEBUG(fmt, args...)	/*  no debugging, do nothing */
 #endif
 
 #ifdef ME4000_ISR_DEBUG
 #undef ISR_PDEBUG
 #define ISR_PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor,  ##args)
 #else
-#define ISR_PDEBUG(fmt, args...)	// no debugging, do nothing
+#define ISR_PDEBUG(fmt, args...)	/*  no debugging, do nothing */
 #endif
 
 #ifdef ME4000_DEBUG
 #undef PDEBUG
 #define PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor,  ##args)
 #else
-#define PDEBUG(fmt, args...)	// no debugging, do nothing
+#define PDEBUG(fmt, args...)	/*  no debugging, do nothing */
 #endif
 
 /*=============================================================================
@@ -67,78 +67,78 @@
 
 #define PCI_VENDOR_ID_MEILHAUS 0x1402
 
-#define PCI_DEVICE_ID_MEILHAUS_ME4650	0x4650	// Low Cost version
+#define PCI_DEVICE_ID_MEILHAUS_ME4650	0x4650	/*  Low Cost version */
 
-#define PCI_DEVICE_ID_MEILHAUS_ME4660	0x4660	// Standard version
-#define PCI_DEVICE_ID_MEILHAUS_ME4660I	0x4661	// Isolated version
-#define PCI_DEVICE_ID_MEILHAUS_ME4660S	0x4662	// Standard version with Sample and Hold
-#define PCI_DEVICE_ID_MEILHAUS_ME4660IS	0x4663	// Isolated version with Sample and Hold
+#define PCI_DEVICE_ID_MEILHAUS_ME4660	0x4660	/*  Standard version */
+#define PCI_DEVICE_ID_MEILHAUS_ME4660I	0x4661	/*  Isolated version */
+#define PCI_DEVICE_ID_MEILHAUS_ME4660S	0x4662	/*  Standard version with Sample and Hold */
+#define PCI_DEVICE_ID_MEILHAUS_ME4660IS	0x4663	/*  Isolated version with Sample and Hold */
 
-#define PCI_DEVICE_ID_MEILHAUS_ME4670	0x4670	// Standard version
-#define PCI_DEVICE_ID_MEILHAUS_ME4670I	0x4671	// Isolated version
-#define PCI_DEVICE_ID_MEILHAUS_ME4670S	0x4672	// Standard version with Sample and Hold
-#define PCI_DEVICE_ID_MEILHAUS_ME4670IS	0x4673	// Isolated version with Sample and Hold
+#define PCI_DEVICE_ID_MEILHAUS_ME4670	0x4670	/*  Standard version */
+#define PCI_DEVICE_ID_MEILHAUS_ME4670I	0x4671	/*  Isolated version */
+#define PCI_DEVICE_ID_MEILHAUS_ME4670S	0x4672	/*  Standard version with Sample and Hold */
+#define PCI_DEVICE_ID_MEILHAUS_ME4670IS	0x4673	/*  Isolated version with Sample and Hold */
 
-#define PCI_DEVICE_ID_MEILHAUS_ME4680	0x4680	// Standard version
-#define PCI_DEVICE_ID_MEILHAUS_ME4680I	0x4681	// Isolated version
-#define PCI_DEVICE_ID_MEILHAUS_ME4680S	0x4682	// Standard version with Sample and Hold
-#define PCI_DEVICE_ID_MEILHAUS_ME4680IS	0x4683	// Isolated version with Sample and Hold
+#define PCI_DEVICE_ID_MEILHAUS_ME4680	0x4680	/*  Standard version */
+#define PCI_DEVICE_ID_MEILHAUS_ME4680I	0x4681	/*  Isolated version */
+#define PCI_DEVICE_ID_MEILHAUS_ME4680S	0x4682	/*  Standard version with Sample and Hold */
+#define PCI_DEVICE_ID_MEILHAUS_ME4680IS	0x4683	/*  Isolated version with Sample and Hold */
 
 /*=============================================================================
   ME-4000 base register offsets
   ===========================================================================*/
 
-#define ME4000_AO_00_CTRL_REG			0x00	// R/W
-#define ME4000_AO_00_STATUS_REG			0x04	// R/_
-#define ME4000_AO_00_FIFO_REG			0x08	// _/W
-#define ME4000_AO_00_SINGLE_REG			0x0C	// R/W
-#define ME4000_AO_00_TIMER_REG			0x10	// _/W
+#define ME4000_AO_00_CTRL_REG			0x00	/*  R/W */
+#define ME4000_AO_00_STATUS_REG			0x04	/*  R/_ */
+#define ME4000_AO_00_FIFO_REG			0x08	/*  _/W */
+#define ME4000_AO_00_SINGLE_REG			0x0C	/*  R/W */
+#define ME4000_AO_00_TIMER_REG			0x10	/*  _/W */
 
-#define ME4000_AO_01_CTRL_REG			0x18	// R/W
-#define ME4000_AO_01_STATUS_REG			0x1C	// R/_
-#define ME4000_AO_01_FIFO_REG			0x20	// _/W
-#define ME4000_AO_01_SINGLE_REG			0x24	// R/W
-#define ME4000_AO_01_TIMER_REG			0x28	// _/W
+#define ME4000_AO_01_CTRL_REG			0x18	/*  R/W */
+#define ME4000_AO_01_STATUS_REG			0x1C	/*  R/_ */
+#define ME4000_AO_01_FIFO_REG			0x20	/*  _/W */
+#define ME4000_AO_01_SINGLE_REG			0x24	/*  R/W */
+#define ME4000_AO_01_TIMER_REG			0x28	/*  _/W */
 
-#define ME4000_AO_02_CTRL_REG			0x30	// R/W
-#define ME4000_AO_02_STATUS_REG			0x34	// R/_
-#define ME4000_AO_02_FIFO_REG			0x38	// _/W
-#define ME4000_AO_02_SINGLE_REG			0x3C	// R/W
-#define ME4000_AO_02_TIMER_REG			0x40	// _/W
+#define ME4000_AO_02_CTRL_REG			0x30	/*  R/W */
+#define ME4000_AO_02_STATUS_REG			0x34	/*  R/_ */
+#define ME4000_AO_02_FIFO_REG			0x38	/*  _/W */
+#define ME4000_AO_02_SINGLE_REG			0x3C	/*  R/W */
+#define ME4000_AO_02_TIMER_REG			0x40	/*  _/W */
 
-#define ME4000_AO_03_CTRL_REG			0x48	// R/W
-#define ME4000_AO_03_STATUS_REG			0x4C	// R/_
-#define ME4000_AO_03_FIFO_REG			0x50	// _/W
-#define ME4000_AO_03_SINGLE_REG			0x54	// R/W
-#define ME4000_AO_03_TIMER_REG			0x58	// _/W
+#define ME4000_AO_03_CTRL_REG			0x48	/*  R/W */
+#define ME4000_AO_03_STATUS_REG			0x4C	/*  R/_ */
+#define ME4000_AO_03_FIFO_REG			0x50	/*  _/W */
+#define ME4000_AO_03_SINGLE_REG			0x54	/*  R/W */
+#define ME4000_AO_03_TIMER_REG			0x58	/*  _/W */
 
-#define ME4000_AI_CTRL_REG			0x74	// _/W
-#define ME4000_AI_STATUS_REG			0x74	// R/_
-#define ME4000_AI_CHANNEL_LIST_REG		0x78	// _/W
-#define ME4000_AI_DATA_REG			0x7C	// R/_
-#define ME4000_AI_CHAN_TIMER_REG		0x80	// _/W
-#define ME4000_AI_CHAN_PRE_TIMER_REG		0x84	// _/W
-#define ME4000_AI_SCAN_TIMER_LOW_REG		0x88	// _/W
-#define ME4000_AI_SCAN_TIMER_HIGH_REG		0x8C	// _/W
-#define ME4000_AI_SCAN_PRE_TIMER_LOW_REG	0x90	// _/W
-#define ME4000_AI_SCAN_PRE_TIMER_HIGH_REG	0x94	// _/W
-#define ME4000_AI_START_REG			0x98	// R/_
+#define ME4000_AI_CTRL_REG			0x74	/*  _/W */
+#define ME4000_AI_STATUS_REG			0x74	/*  R/_ */
+#define ME4000_AI_CHANNEL_LIST_REG		0x78	/*  _/W */
+#define ME4000_AI_DATA_REG			0x7C	/*  R/_ */
+#define ME4000_AI_CHAN_TIMER_REG		0x80	/*  _/W */
+#define ME4000_AI_CHAN_PRE_TIMER_REG		0x84	/*  _/W */
+#define ME4000_AI_SCAN_TIMER_LOW_REG		0x88	/*  _/W */
+#define ME4000_AI_SCAN_TIMER_HIGH_REG		0x8C	/*  _/W */
+#define ME4000_AI_SCAN_PRE_TIMER_LOW_REG	0x90	/*  _/W */
+#define ME4000_AI_SCAN_PRE_TIMER_HIGH_REG	0x94	/*  _/W */
+#define ME4000_AI_START_REG			0x98	/*  R/_ */
 
-#define ME4000_IRQ_STATUS_REG			0x9C	// R/_
+#define ME4000_IRQ_STATUS_REG			0x9C	/*  R/_ */
 
-#define ME4000_DIO_PORT_0_REG			0xA0	// R/W
-#define ME4000_DIO_PORT_1_REG			0xA4	// R/W
-#define ME4000_DIO_PORT_2_REG			0xA8	// R/W
-#define ME4000_DIO_PORT_3_REG			0xAC	// R/W
-#define ME4000_DIO_DIR_REG			0xB0	// R/W
+#define ME4000_DIO_PORT_0_REG			0xA0	/*  R/W */
+#define ME4000_DIO_PORT_1_REG			0xA4	/*  R/W */
+#define ME4000_DIO_PORT_2_REG			0xA8	/*  R/W */
+#define ME4000_DIO_PORT_3_REG			0xAC	/*  R/W */
+#define ME4000_DIO_DIR_REG			0xB0	/*  R/W */
 
-#define ME4000_AO_LOADSETREG_XX			0xB4	// R/W
+#define ME4000_AO_LOADSETREG_XX			0xB4	/*  R/W */
 
-#define ME4000_DIO_CTRL_REG			0xB8	// R/W
+#define ME4000_DIO_CTRL_REG			0xB8	/*  R/W */
 
-#define ME4000_AO_DEMUX_ADJUST_REG		0xBC	// -/W
+#define ME4000_AO_DEMUX_ADJUST_REG		0xBC	/*  -/W */
 
-#define ME4000_AI_SAMPLE_COUNTER_REG		0xC0	// _/W
+#define ME4000_AI_SAMPLE_COUNTER_REG		0xC0	/*  _/W */
 
 /*=============================================================================
   Value to adjust Demux
@@ -159,21 +159,21 @@
   PLX base register offsets
   ===========================================================================*/
 
-#define PLX_INTCSR	0x4C	// Interrupt control and status register
-#define PLX_ICR		0x50	// Initialization control register
+#define PLX_INTCSR	0x4C	/*  Interrupt control and status register */
+#define PLX_ICR		0x50	/*  Initialization control register */
 
 /*=============================================================================
   Bits for the PLX_ICSR register
   ===========================================================================*/
 
-#define PLX_INTCSR_LOCAL_INT1_EN             0x01	// If set, local interrupt 1 is enabled (r/w)
-#define PLX_INTCSR_LOCAL_INT1_POL            0x02	// If set, local interrupt 1 polarity is active high (r/w)
-#define PLX_INTCSR_LOCAL_INT1_STATE          0x04	// If set, local interrupt 1 is active (r/_)
-#define PLX_INTCSR_LOCAL_INT2_EN             0x08	// If set, local interrupt 2 is enabled (r/w)
-#define PLX_INTCSR_LOCAL_INT2_POL            0x10	// If set, local interrupt 2 polarity is active high (r/w)
-#define PLX_INTCSR_LOCAL_INT2_STATE          0x20	// If set, local interrupt 2 is active  (r/_)
-#define PLX_INTCSR_PCI_INT_EN                0x40	// If set, PCI interrupt is enabled (r/w)
-#define PLX_INTCSR_SOFT_INT                  0x80	// If set, a software interrupt is generated (r/w)
+#define PLX_INTCSR_LOCAL_INT1_EN             0x01	/*  If set, local interrupt 1 is enabled (r/w) */
+#define PLX_INTCSR_LOCAL_INT1_POL            0x02	/*  If set, local interrupt 1 polarity is active high (r/w) */
+#define PLX_INTCSR_LOCAL_INT1_STATE          0x04	/*  If set, local interrupt 1 is active (r/_) */
+#define PLX_INTCSR_LOCAL_INT2_EN             0x08	/*  If set, local interrupt 2 is enabled (r/w) */
+#define PLX_INTCSR_LOCAL_INT2_POL            0x10	/*  If set, local interrupt 2 polarity is active high (r/w) */
+#define PLX_INTCSR_LOCAL_INT2_STATE          0x20	/*  If set, local interrupt 2 is active  (r/_) */
+#define PLX_INTCSR_PCI_INT_EN                0x40	/*  If set, PCI interrupt is enabled (r/w) */
+#define PLX_INTCSR_SOFT_INT                  0x80	/*  If set, a software interrupt is generated (r/w) */
 
 /*=============================================================================
   Bits for the PLX_ICR register
@@ -293,45 +293,45 @@
   Information about the hardware capabilities
   ===========================================================================*/
 
-typedef struct me4000_ao_info {
+struct me4000_ao_info {
 	int count;
 	int fifo_count;
-} me4000_ao_info_t;
+};
 
-typedef struct me4000_ai_info {
+struct me4000_ai_info {
 	int count;
 	int sh_count;
 	int diff_count;
 	int ex_trig_analog;
-} me4000_ai_info_t;
+};
 
-typedef struct me4000_dio_info {
+struct me4000_dio_info {
 	int count;
-} me4000_dio_info_t;
+};
 
-typedef struct me4000_cnt_info {
+struct me4000_cnt_info {
 	int count;
-} me4000_cnt_info_t;
+};
 
-typedef struct me4000_board {
+struct me4000_board {
 	const char *name;
 	unsigned short device_id;
-	me4000_ao_info_t ao;
-	me4000_ai_info_t ai;
-	me4000_dio_info_t dio;
-	me4000_cnt_info_t cnt;
-} me4000_board_t;
+	struct me4000_ao_info ao;
+	struct me4000_ai_info ai;
+	struct me4000_dio_info dio;
+	struct me4000_cnt_info cnt;
+};
 
-#define thisboard ((const me4000_board_t *)dev->board_ptr)
+#define thisboard ((const struct me4000_board *)dev->board_ptr)
 
 /*=============================================================================
   Global board and subdevice information structures
   ===========================================================================*/
 
-typedef struct me4000_ao_context {
+struct me4000_ao_context {
 	int irq;
 
-	unsigned long mirror;	// Store the last written value
+	unsigned long mirror;	/*  Store the last written value */
 
 	unsigned long ctrl_reg;
 	unsigned long status_reg;
@@ -340,9 +340,9 @@ typedef struct me4000_ao_context {
 	unsigned long timer_reg;
 	unsigned long irq_status_reg;
 	unsigned long preload_reg;
-} me4000_ao_context_t;
+};
 
-typedef struct me4000_ai_context {
+struct me4000_ai_context {
 	int irq;
 
 	unsigned long ctrl_reg;
@@ -358,51 +358,51 @@ typedef struct me4000_ai_context {
 	unsigned long start_reg;
 	unsigned long irq_status_reg;
 	unsigned long sample_counter_reg;
-} me4000_ai_context_t;
+};
 
-typedef struct me4000_dio_context {
+struct me4000_dio_context {
 	unsigned long dir_reg;
 	unsigned long ctrl_reg;
 	unsigned long port_0_reg;
 	unsigned long port_1_reg;
 	unsigned long port_2_reg;
 	unsigned long port_3_reg;
-} me4000_dio_context_t;
+};
 
-typedef struct me4000_cnt_context {
+struct me4000_cnt_context {
 	unsigned long ctrl_reg;
 	unsigned long counter_0_reg;
 	unsigned long counter_1_reg;
 	unsigned long counter_2_reg;
-} me4000_cnt_context_t;
+};
 
-typedef struct me4000_info {
-	unsigned long plx_regbase;	// PLX configuration space base address
-	unsigned long me4000_regbase;	// Base address of the ME4000
-	unsigned long timer_regbase;	// Base address of the timer circuit
-	unsigned long program_regbase;	// Base address to set the program pin for the xilinx
+struct me4000_info {
+	unsigned long plx_regbase;	/*  PLX configuration space base address */
+	unsigned long me4000_regbase;	/*  Base address of the ME4000 */
+	unsigned long timer_regbase;	/*  Base address of the timer circuit */
+	unsigned long program_regbase;	/*  Base address to set the program pin for the xilinx */
 
-	unsigned long plx_regbase_size;	// PLX register set space
-	unsigned long me4000_regbase_size;	// ME4000 register set space
-	unsigned long timer_regbase_size;	// Timer circuit register set space
-	unsigned long program_regbase_size;	// Size of program base address of the ME4000
+	unsigned long plx_regbase_size;	/*  PLX register set space */
+	unsigned long me4000_regbase_size;	/*  ME4000 register set space */
+	unsigned long timer_regbase_size;	/*  Timer circuit register set space */
+	unsigned long program_regbase_size;	/*  Size of program base address of the ME4000 */
 
-	unsigned int serial_no;	// Serial number of the board
-	unsigned char hw_revision;	// Hardware revision of the board
-	unsigned short vendor_id;	// Meilhaus vendor id
-	unsigned short device_id;	// Device id
+	unsigned int serial_no;	/*  Serial number of the board */
+	unsigned char hw_revision;	/*  Hardware revision of the board */
+	unsigned short vendor_id;	/*  Meilhaus vendor id */
+	unsigned short device_id;	/*  Device id */
 
-	struct pci_dev *pci_dev_p;	// General PCI information
+	struct pci_dev *pci_dev_p;	/*  General PCI information */
 
-	unsigned int irq;	// IRQ assigned from the PCI BIOS
+	unsigned int irq;	/*  IRQ assigned from the PCI BIOS */
 
-	struct me4000_ai_context ai_context;	// Analog input  specific context
-	struct me4000_ao_context ao_context[4];	// Vector with analog output specific context
-	struct me4000_dio_context dio_context;	// Digital I/O specific context
-	struct me4000_cnt_context cnt_context;	// Counter specific context
-} me4000_info_t;
+	struct me4000_ai_context ai_context;	/*  Analog input  specific context */
+	struct me4000_ao_context ao_context[4];	/*  Vector with analog output specific context */
+	struct me4000_dio_context dio_context;	/*  Digital I/O specific context */
+	struct me4000_cnt_context cnt_context;	/*  Counter specific context */
+};
 
-#define info	((me4000_info_t *)dev->private)
+#define info	((struct me4000_info *)dev->private)
 
 /*-----------------------------------------------------------------------------
   Defines for analog input
@@ -412,7 +412,7 @@ typedef struct me4000_info {
 #define ME4000_AI_FIFO_COUNT			2048
 
 #define ME4000_AI_MIN_TICKS			66
-#define ME4000_AI_MIN_SAMPLE_TIME		2000	// Minimum sample time [ns]
+#define ME4000_AI_MIN_SAMPLE_TIME		2000	/*  Minimum sample time [ns] */
 #define ME4000_AI_BASE_FREQUENCY		(unsigned int) 33E6
 
 /* Channel list defines and masks */
@@ -436,11 +436,11 @@ typedef struct me4000_info {
 #define ME4000_CNT_COUNTER_1  0x40
 #define ME4000_CNT_COUNTER_2  0x80
 
-#define ME4000_CNT_MODE_0     0x00	// Change state if zero crossing
-#define ME4000_CNT_MODE_1     0x02	// Retriggerable One-Shot
-#define ME4000_CNT_MODE_2     0x04	// Asymmetrical divider
-#define ME4000_CNT_MODE_3     0x06	// Symmetrical divider
-#define ME4000_CNT_MODE_4     0x08	// Counter start by software trigger
-#define ME4000_CNT_MODE_5     0x0A	// Counter start by hardware trigger
+#define ME4000_CNT_MODE_0     0x00	/*  Change state if zero crossing */
+#define ME4000_CNT_MODE_1     0x02	/*  Retriggerable One-Shot */
+#define ME4000_CNT_MODE_2     0x04	/*  Asymmetrical divider */
+#define ME4000_CNT_MODE_3     0x06	/*  Symmetrical divider */
+#define ME4000_CNT_MODE_4     0x08	/*  Counter start by software trigger */
+#define ME4000_CNT_MODE_5     0x0A	/*  Counter start by hardware trigger */
 
 #endif
