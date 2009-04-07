@@ -93,6 +93,9 @@ struct nilfs_segsum_pointer {
  * @sc_active_segments: List of active segments that were already written out
  * @sc_cleaning_segments: List of segments to be freed through construction
  * @sc_copied_buffers: List of copied buffers (buffer heads) to freeze data
+ * @sc_dsync_inode: inode whose data pages are written for a sync operation
+ * @sc_dsync_start: start byte offset of data pages
+ * @sc_dsync_end: end byte offset of data pages (inclusive)
  * @sc_segbufs: List of segment buffers
  * @sc_segbuf_nblocks: Number of available blocks in segment buffers.
  * @sc_curseg: Current segment buffer
@@ -133,6 +136,10 @@ struct nilfs_sc_info {
 	struct list_head	sc_active_segments;
 	struct list_head	sc_cleaning_segments;
 	struct list_head	sc_copied_buffers;
+
+	struct nilfs_inode_info *sc_dsync_inode;
+	loff_t			sc_dsync_start;
+	loff_t			sc_dsync_end;
 
 	/* Segment buffers */
 	struct list_head	sc_segbufs;
@@ -221,8 +228,8 @@ extern void nilfs_destroy_transaction_cache(void);
 extern void nilfs_relax_pressure_in_lock(struct super_block *);
 
 extern int nilfs_construct_segment(struct super_block *);
-extern int nilfs_construct_dsync_segment(struct super_block *,
-					 struct inode *);
+extern int nilfs_construct_dsync_segment(struct super_block *, struct inode *,
+					 loff_t, loff_t);
 extern void nilfs_flush_segment(struct super_block *, ino_t);
 extern int nilfs_clean_segments(struct super_block *, void __user *);
 

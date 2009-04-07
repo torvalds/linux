@@ -24,6 +24,7 @@
 #include <linux/buffer_head.h>
 #include <linux/mpage.h>
 #include <linux/writeback.h>
+#include <linux/uio.h>
 #include "nilfs.h"
 #include "segment.h"
 #include "page.h"
@@ -145,8 +146,14 @@ static int nilfs_readpages(struct file *file, struct address_space *mapping,
 static int nilfs_writepages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
-	/* This empty method is required not to call generic_writepages() */
-	return 0;
+	struct inode *inode = mapping->host;
+	int err = 0;
+
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		err = nilfs_construct_dsync_segment(inode->i_sb, inode,
+						    wbc->range_start,
+						    wbc->range_end);
+	return err;
 }
 
 static int nilfs_writepage(struct page *page, struct writeback_control *wbc)
@@ -225,11 +232,6 @@ nilfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	ssize_t size;
-	int err;
-
-	err = nilfs_construct_dsync_segment(inode->i_sb, inode);
-	if (unlikely(err))
-		return err;
 
 	if (rw == WRITE)
 		return 0;
