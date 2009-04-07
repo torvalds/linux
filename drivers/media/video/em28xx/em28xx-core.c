@@ -1018,14 +1018,10 @@ EXPORT_SYMBOL_GPL(em28xx_init_isoc);
  */
 void em28xx_wake_i2c(struct em28xx *dev)
 {
-	struct v4l2_routing route;
-	int zero = 0;
-
-	route.input = INPUT(dev->ctl_input)->vmux;
-	route.output = 0;
-	em28xx_i2c_call_clients(dev, VIDIOC_INT_RESET, &zero);
-	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
-	em28xx_i2c_call_clients(dev, VIDIOC_STREAMON, NULL);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core,  reset, 0);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
+			INPUT(dev->ctl_input)->vmux, 0, 0);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
 }
 
 /*

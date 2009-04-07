@@ -1954,7 +1954,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		goto out_freeirq;
 
 	cam->sensor_addr = 0x42;
-	cam->sensor = v4l2_i2c_new_subdev(&cam->i2c_adapter,
+	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, &cam->i2c_adapter,
 			"ov7670", "ov7670", cam->sensor_addr);
 	if (cam->sensor == NULL) {
 		ret = -ENODEV;

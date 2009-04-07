@@ -1,5 +1,5 @@
 /*
- * USB USBVISION Video device driver 0.9.9
+ * USB USBVISION Video device driver 0.9.10
  *
  *
  *
@@ -79,7 +79,7 @@
 #define DRIVER_LICENSE "GPL"
 #define USBVISION_DRIVER_VERSION_MAJOR 0
 #define USBVISION_DRIVER_VERSION_MINOR 9
-#define USBVISION_DRIVER_VERSION_PATCHLEVEL 9
+#define USBVISION_DRIVER_VERSION_PATCHLEVEL 10
 #define USBVISION_DRIVER_VERSION KERNEL_VERSION(USBVISION_DRIVER_VERSION_MAJOR,\
 USBVISION_DRIVER_VERSION_MINOR,\
 USBVISION_DRIVER_VERSION_PATCHLEVEL)
@@ -621,7 +621,7 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 	usbvision->tvnormId=*id;
 
 	mutex_lock(&usbvision->lock);
-	call_all(usbvision, tuner, s_std, usbvision->tvnormId);
+	call_all(usbvision, core, s_std, usbvision->tvnormId);
 	mutex_unlock(&usbvision->lock);
 	/* propagate the change to the decoder */
 	usbvision_muxsel(usbvision, usbvision->ctl_input);
@@ -1522,7 +1522,8 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
  * Returns NULL on error, a pointer to usb_usbvision else.
  *
  */
-static struct usb_usbvision *usbvision_alloc(struct usb_device *dev)
+static struct usb_usbvision *usbvision_alloc(struct usb_device *dev,
+					     struct usb_interface *intf)
 {
 	struct usb_usbvision *usbvision;
 
@@ -1531,7 +1532,7 @@ static struct usb_usbvision *usbvision_alloc(struct usb_device *dev)
 		return NULL;
 
 	usbvision->dev = dev;
-	if (v4l2_device_register(&dev->dev, &usbvision->v4l2_dev))
+	if (v4l2_device_register(&intf->dev, &usbvision->v4l2_dev))
 		goto err_free;
 
 	mutex_init(&usbvision->lock);	/* available */
@@ -1669,7 +1670,8 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	if ((usbvision = usbvision_alloc(dev)) == NULL) {
+	usbvision = usbvision_alloc(dev, intf);
+	if (usbvision == NULL) {
 		dev_err(&intf->dev, "%s: couldn't allocate USBVision struct\n", __func__);
 		return -ENOMEM;
 	}

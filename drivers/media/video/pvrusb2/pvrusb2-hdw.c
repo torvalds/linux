@@ -2039,7 +2039,7 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 			   "Module ID %u:"
 			   " Setting up with specified i2c address 0x%x",
 			   mid, i2caddr[0]);
-		sd = v4l2_i2c_new_subdev(&hdw->i2c_adap,
+		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
 					 fname, fname,
 					 i2caddr[0]);
 	} else {
@@ -2047,7 +2047,7 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 			   "Module ID %u:"
 			   " Setting up with address probe list",
 			   mid);
-		sd = v4l2_i2c_new_probed_subdev(&hdw->i2c_adap,
+		sd = v4l2_i2c_new_probed_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
 						fname, fname,
 						i2caddr);
 	}
@@ -2185,7 +2185,7 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	pvr2_hdw_load_modules(hdw);
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
-	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, init, 0);
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, load_fw);
 
 	for (idx = 0; idx < CTRLDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx;
@@ -2574,7 +2574,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->ctl_read_urb = usb_alloc_urb(0,GFP_KERNEL);
 	if (!hdw->ctl_read_urb) goto fail;
 
-	if (v4l2_device_register(&usb_dev->dev, &hdw->v4l2_dev) != 0) {
+	if (v4l2_device_register(&intf->dev, &hdw->v4l2_dev) != 0) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Error registering with v4l core, giving up");
 		goto fail;
@@ -2926,6 +2926,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev tuner set_type(%d)",
 			   hdw->tuner_type);
 		if (((int)(hdw->tuner_type)) >= 0) {
+			memset(&setup, 0, sizeof(setup));
 			setup.addr = ADDR_UNSET;
 			setup.type = hdw->tuner_type;
 			setup.mode_mask = T_RADIO | T_ANALOG_TV;
@@ -2943,7 +2944,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 			v4l2_std_id vs;
 			vs = hdw->std_mask_cur;
 			v4l2_device_call_all(&hdw->v4l2_dev, 0,
-					     tuner, s_std, vs);
+					     core, s_std, vs);
 		}
 		hdw->tuner_signal_stale = !0;
 		hdw->cropcap_stale = !0;
