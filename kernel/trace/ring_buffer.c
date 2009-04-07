@@ -180,29 +180,6 @@ EXPORT_SYMBOL_GPL(tracing_is_on);
 
 #include "trace.h"
 
-/* Up this if you want to test the TIME_EXTENTS and normalization */
-#define DEBUG_SHIFT 0
-
-u64 ring_buffer_time_stamp(int cpu)
-{
-	u64 time;
-
-	preempt_disable_notrace();
-	/* shift to debug/test normalization and TIME_EXTENTS */
-	time = trace_clock_local() << DEBUG_SHIFT;
-	preempt_enable_no_resched_notrace();
-
-	return time;
-}
-EXPORT_SYMBOL_GPL(ring_buffer_time_stamp);
-
-void ring_buffer_normalize_time_stamp(int cpu, u64 *ts)
-{
-	/* Just stupid testing the normalize function and deltas */
-	*ts >>= DEBUG_SHIFT;
-}
-EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
-
 #define RB_EVNT_HDR_SIZE (offsetof(struct ring_buffer_event, array))
 #define RB_ALIGNMENT		4U
 #define RB_MAX_SMALL_DATA	28
@@ -212,16 +189,65 @@ enum {
 	RB_LEN_TIME_STAMP = 16,
 };
 
+static inline int rb_null_event(struct ring_buffer_event *event)
+{
+	return event->type == RINGBUF_TYPE_PADDING && event->time_delta == 0;
+}
+
+static inline int rb_discarded_event(struct ring_buffer_event *event)
+{
+	return event->type == RINGBUF_TYPE_PADDING && event->time_delta;
+}
+
+static void rb_event_set_padding(struct ring_buffer_event *event)
+{
+	event->type = RINGBUF_TYPE_PADDING;
+	event->time_delta = 0;
+}
+
+/**
+ * ring_buffer_event_discard - discard an event in the ring buffer
+ * @buffer: the ring buffer
+ * @event: the event to discard
+ *
+ * Sometimes a event that is in the ring buffer needs to be ignored.
+ * This function lets the user discard an event in the ring buffer
+ * and then that event will not be read later.
+ *
+ * Note, it is up to the user to be careful with this, and protect
+ * against races. If the user discards an event that has been consumed
+ * it is possible that it could corrupt the ring buffer.
+ */
+void ring_buffer_event_discard(struct ring_buffer_event *event)
+{
+	event->type = RINGBUF_TYPE_PADDING;
+	/* time delta must be non zero */
+	if (!event->time_delta)
+		event->time_delta = 1;
+}
+
+static unsigned
+rb_event_data_length(struct ring_buffer_event *event)
+{
+	unsigned length;
+
+	if (event->len)
+		length = event->len * RB_ALIGNMENT;
+	else
+		length = event->array[0];
+	return length + RB_EVNT_HDR_SIZE;
+}
+
 /* inline for ring buffer fast paths */
 static unsigned
 rb_event_length(struct ring_buffer_event *event)
 {
-	unsigned length;
-
 	switch (event->type) {
 	case RINGBUF_TYPE_PADDING:
-		/* undefined */
-		return -1;
+		if (rb_null_event(event))
+			/* undefined */
+			return -1;
+		return rb_event_data_length(event);
 
 	case RINGBUF_TYPE_TIME_EXTEND:
 		return RB_LEN_TIME_EXTEND;
@@ -230,11 +256,7 @@ rb_event_length(struct ring_buffer_event *event)
 		return RB_LEN_TIME_STAMP;
 
 	case RINGBUF_TYPE_DATA:
-		if (event->len)
-			length = event->len * RB_ALIGNMENT;
-		else
-			length = event->array[0];
-		return length + RB_EVNT_HDR_SIZE;
+		return rb_event_data_length(event);
 	default:
 		BUG();
 	}
@@ -374,6 +396,7 @@ struct ring_buffer {
 #ifdef CONFIG_HOTPLUG_CPU
 	struct notifier_block		cpu_notify;
 #endif
+	u64				(*clock)(void);
 };
 
 struct ring_buffer_iter {
@@ -393,6 +416,30 @@ struct ring_buffer_iter {
 		}						\
 		_____ret;					\
 	})
+
+/* Up this if you want to test the TIME_EXTENTS and normalization */
+#define DEBUG_SHIFT 0
+
+u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu)
+{
+	u64 time;
+
+	preempt_disable_notrace();
+	/* shift to debug/test normalization and TIME_EXTENTS */
+	time = buffer->clock() << DEBUG_SHIFT;
+	preempt_enable_no_resched_notrace();
+
+	return time;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_time_stamp);
+
+void ring_buffer_normalize_time_stamp(struct ring_buffer *buffer,
+				      int cpu, u64 *ts)
+{
+	/* Just stupid testing the normalize function and deltas */
+	*ts >>= DEBUG_SHIFT;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
 
 /**
  * check_pages - integrity check of buffer pages
@@ -516,7 +563,6 @@ static void rb_free_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
 	struct list_head *head = &cpu_buffer->pages;
 	struct buffer_page *bpage, *tmp;
 
-	list_del_init(&cpu_buffer->reader_page->list);
 	free_buffer_page(cpu_buffer->reader_page);
 
 	list_for_each_entry_safe(bpage, tmp, head, list) {
@@ -533,8 +579,8 @@ static void rb_free_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
 extern int ring_buffer_page_too_big(void);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int __cpuinit rb_cpu_notify(struct notifier_block *self,
-				   unsigned long action, void *hcpu);
+static int rb_cpu_notify(struct notifier_block *self,
+			 unsigned long action, void *hcpu);
 #endif
 
 /**
@@ -569,13 +615,23 @@ struct ring_buffer *ring_buffer_alloc(unsigned long size, unsigned flags)
 
 	buffer->pages = DIV_ROUND_UP(size, BUF_PAGE_SIZE);
 	buffer->flags = flags;
+	buffer->clock = trace_clock_local;
 
 	/* need at least two pages */
 	if (buffer->pages == 1)
 		buffer->pages++;
 
+	/*
+	 * In case of non-hotplug cpu, if the ring-buffer is allocated
+	 * in early initcall, it will not be notified of secondary cpus.
+	 * In that off case, we need to allocate for all possible cpus.
+	 */
+#ifdef CONFIG_HOTPLUG_CPU
 	get_online_cpus();
 	cpumask_copy(buffer->cpumask, cpu_online_mask);
+#else
+	cpumask_copy(buffer->cpumask, cpu_possible_mask);
+#endif
 	buffer->cpus = nr_cpu_ids;
 
 	bsize = sizeof(void *) * nr_cpu_ids;
@@ -644,6 +700,12 @@ ring_buffer_free(struct ring_buffer *buffer)
 	kfree(buffer);
 }
 EXPORT_SYMBOL_GPL(ring_buffer_free);
+
+void ring_buffer_set_clock(struct ring_buffer *buffer,
+			   u64 (*clock)(void))
+{
+	buffer->clock = clock;
+}
 
 static void rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer);
 
@@ -826,11 +888,6 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 	return -1;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_resize);
-
-static inline int rb_null_event(struct ring_buffer_event *event)
-{
-	return event->type == RINGBUF_TYPE_PADDING;
-}
 
 static inline void *
 __rb_data_page_index(struct buffer_data_page *bpage, unsigned index)
@@ -1191,7 +1248,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 			cpu_buffer->tail_page = next_page;
 
 			/* reread the time stamp */
-			*ts = ring_buffer_time_stamp(cpu_buffer->cpu);
+			*ts = ring_buffer_time_stamp(buffer, cpu_buffer->cpu);
 			cpu_buffer->tail_page->page->time_stamp = *ts;
 		}
 
@@ -1201,7 +1258,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		if (tail < BUF_PAGE_SIZE) {
 			/* Mark the rest of the page with padding */
 			event = __rb_page_index(tail_page, tail);
-			event->type = RINGBUF_TYPE_PADDING;
+			rb_event_set_padding(event);
 		}
 
 		if (tail <= BUF_PAGE_SIZE)
@@ -1334,7 +1391,7 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 1000))
 		return NULL;
 
-	ts = ring_buffer_time_stamp(cpu_buffer->cpu);
+	ts = ring_buffer_time_stamp(cpu_buffer->buffer, cpu_buffer->cpu);
 
 	/*
 	 * Only the first commit can update the timestamp.
@@ -1951,7 +2008,7 @@ static void rb_advance_reader(struct ring_buffer_per_cpu *cpu_buffer)
 
 	event = rb_reader_event(cpu_buffer);
 
-	if (event->type == RINGBUF_TYPE_DATA)
+	if (event->type == RINGBUF_TYPE_DATA || rb_discarded_event(event))
 		cpu_buffer->entries--;
 
 	rb_update_read_stamp(cpu_buffer, event);
@@ -2034,9 +2091,18 @@ rb_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 
 	switch (event->type) {
 	case RINGBUF_TYPE_PADDING:
-		RB_WARN_ON(cpu_buffer, 1);
+		if (rb_null_event(event))
+			RB_WARN_ON(cpu_buffer, 1);
+		/*
+		 * Because the writer could be discarding every
+		 * event it creates (which would probably be bad)
+		 * if we were to go back to "again" then we may never
+		 * catch up, and will trigger the warn on, or lock
+		 * the box. Return the padding, and we will release
+		 * the current locks, and try again.
+		 */
 		rb_advance_reader(cpu_buffer);
-		return NULL;
+		return event;
 
 	case RINGBUF_TYPE_TIME_EXTEND:
 		/* Internal data, OK to advance */
@@ -2051,7 +2117,8 @@ rb_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	case RINGBUF_TYPE_DATA:
 		if (ts) {
 			*ts = cpu_buffer->read_stamp + event->time_delta;
-			ring_buffer_normalize_time_stamp(cpu_buffer->cpu, ts);
+			ring_buffer_normalize_time_stamp(buffer,
+							 cpu_buffer->cpu, ts);
 		}
 		return event;
 
@@ -2096,8 +2163,12 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 
 	switch (event->type) {
 	case RINGBUF_TYPE_PADDING:
-		rb_inc_iter(iter);
-		goto again;
+		if (rb_null_event(event)) {
+			rb_inc_iter(iter);
+			goto again;
+		}
+		rb_advance_iter(iter);
+		return event;
 
 	case RINGBUF_TYPE_TIME_EXTEND:
 		/* Internal data, OK to advance */
@@ -2112,7 +2183,8 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	case RINGBUF_TYPE_DATA:
 		if (ts) {
 			*ts = iter->read_stamp + event->time_delta;
-			ring_buffer_normalize_time_stamp(cpu_buffer->cpu, ts);
+			ring_buffer_normalize_time_stamp(buffer,
+							 cpu_buffer->cpu, ts);
 		}
 		return event;
 
@@ -2143,9 +2215,15 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return NULL;
 
+ again:
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 	event = rb_buffer_peek(buffer, cpu, ts);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
+
+	if (event && event->type == RINGBUF_TYPE_PADDING) {
+		cpu_relax();
+		goto again;
+	}
 
 	return event;
 }
@@ -2165,9 +2243,15 @@ ring_buffer_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	struct ring_buffer_event *event;
 	unsigned long flags;
 
+ again:
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 	event = rb_iter_peek(iter, ts);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
+
+	if (event && event->type == RINGBUF_TYPE_PADDING) {
+		cpu_relax();
+		goto again;
+	}
 
 	return event;
 }
@@ -2187,6 +2271,7 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
 	struct ring_buffer_event *event = NULL;
 	unsigned long flags;
 
+ again:
 	/* might be called in atomic */
 	preempt_disable();
 
@@ -2207,6 +2292,11 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
 
  out:
 	preempt_enable();
+
+	if (event && event->type == RINGBUF_TYPE_PADDING) {
+		cpu_relax();
+		goto again;
+	}
 
 	return event;
 }
@@ -2286,6 +2376,7 @@ ring_buffer_read(struct ring_buffer_iter *iter, u64 *ts)
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
 	unsigned long flags;
 
+ again:
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 	event = rb_iter_peek(iter, ts);
 	if (!event)
@@ -2294,6 +2385,11 @@ ring_buffer_read(struct ring_buffer_iter *iter, u64 *ts)
 	rb_advance_iter(iter);
  out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
+
+	if (event && event->type == RINGBUF_TYPE_PADDING) {
+		cpu_relax();
+		goto again;
+	}
 
 	return event;
 }
@@ -2764,8 +2860,8 @@ static __init int rb_init_debugfs(void)
 fs_initcall(rb_init_debugfs);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int __cpuinit rb_cpu_notify(struct notifier_block *self,
-				   unsigned long action, void *hcpu)
+static int rb_cpu_notify(struct notifier_block *self,
+			 unsigned long action, void *hcpu)
 {
 	struct ring_buffer *buffer =
 		container_of(self, struct ring_buffer, cpu_notify);

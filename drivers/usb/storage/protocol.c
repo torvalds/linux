@@ -121,6 +121,7 @@ void usb_stor_transparent_scsi_command(struct scsi_cmnd *srb,
 	/* send the command to the transport layer */
 	usb_stor_invoke_transport(srb, us);
 }
+EXPORT_SYMBOL_GPL(usb_stor_transparent_scsi_command);
 
 /***********************************************************************
  * Scatter-gather transfer buffer access routines
@@ -199,6 +200,7 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 	/* Return the amount actually transferred */
 	return cnt;
 }
+EXPORT_SYMBOL_GPL(usb_stor_access_xfer_buf);
 
 /* Store the contents of buffer into srb's transfer buffer and set the
  * SCSI residue.
@@ -215,3 +217,4 @@ void usb_stor_set_xfer_buf(unsigned char *buffer,
 	if (buflen < scsi_bufflen(srb))
 		scsi_set_resid(srb, scsi_bufflen(srb) - buflen);
 }
+EXPORT_SYMBOL_GPL(usb_stor_set_xfer_buf);

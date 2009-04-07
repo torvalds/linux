@@ -135,22 +135,22 @@ typedef struct {
 	unsigned int m_uiNodeId;	// local node ID
 
 	// 0x1F82: NMT_FeatureFlags_U32
-	DWORD m_dwFeatureFlags;
+	u32 m_dwFeatureFlags;
 	// Cycle Length (0x1006: NMT_CycleLen_U32) in [us]
-	DWORD m_dwCycleLen;	// required for error detection
+	u32 m_dwCycleLen;	// required for error detection
 	// 0x1F98: NMT_CycleTiming_REC
 	// 0x1F98.1: IsochrTxMaxPayload_U16
 	unsigned int m_uiIsochrTxMaxPayload;	// const
 	// 0x1F98.2: IsochrRxMaxPayload_U16
 	unsigned int m_uiIsochrRxMaxPayload;	// const
 	// 0x1F98.3: PResMaxLatency_U32
-	DWORD m_dwPresMaxLatency;	// const in [ns], only required for IdentRes
+	u32 m_dwPresMaxLatency;	// const in [ns], only required for IdentRes
 	// 0x1F98.4: PReqActPayloadLimit_U16
 	unsigned int m_uiPreqActPayloadLimit;	// required for initialisation (+24 bytes)
 	// 0x1F98.5: PResActPayloadLimit_U16
 	unsigned int m_uiPresActPayloadLimit;	// required for initialisation of Pres frame (+24 bytes)
 	// 0x1F98.6: ASndMaxLatency_U32
-	DWORD m_dwAsndMaxLatency;	// const in [ns], only required for IdentRes
+	u32 m_dwAsndMaxLatency;	// const in [ns], only required for IdentRes
 	// 0x1F98.7: MultiplCycleCnt_U8
 	unsigned int m_uiMultiplCycleCnt;	// required for error detection
 	// 0x1F98.8: AsyncMTU_U16
@@ -159,42 +159,42 @@ typedef struct {
 	// $$$ Multiplexed Slot
 
 	// 0x1C14: DLL_LossOfFrameTolerance_U32 in [ns]
-	DWORD m_dwLossOfFrameTolerance;
+	u32 m_dwLossOfFrameTolerance;
 
 	// 0x1F8A: NMT_MNCycleTiming_REC
 	// 0x1F8A.1: WaitSoCPReq_U32 in [ns]
-	DWORD m_dwWaitSocPreq;
+	u32 m_dwWaitSocPreq;
 
 	// 0x1F8A.2: AsyncSlotTimeout_U32 in [ns]
-	DWORD m_dwAsyncSlotTimeout;
+	u32 m_dwAsyncSlotTimeout;
 
 } tEplDllConfigParam;
 
 typedef struct {
 	unsigned int m_uiSizeOfStruct;
-	DWORD m_dwDeviceType;	// NMT_DeviceType_U32
-	DWORD m_dwVendorId;	// NMT_IdentityObject_REC.VendorId_U32
-	DWORD m_dwProductCode;	// NMT_IdentityObject_REC.ProductCode_U32
-	DWORD m_dwRevisionNumber;	// NMT_IdentityObject_REC.RevisionNo_U32
-	DWORD m_dwSerialNumber;	// NMT_IdentityObject_REC.SerialNo_U32
-	QWORD m_qwVendorSpecificExt1;
-	DWORD m_dwVerifyConfigurationDate;	// CFM_VerifyConfiguration_REC.ConfDate_U32
-	DWORD m_dwVerifyConfigurationTime;	// CFM_VerifyConfiguration_REC.ConfTime_U32
-	DWORD m_dwApplicationSwDate;	// PDL_LocVerApplSw_REC.ApplSwDate_U32 on programmable device or date portion of NMT_ManufactSwVers_VS on non-programmable device
-	DWORD m_dwApplicationSwTime;	// PDL_LocVerApplSw_REC.ApplSwTime_U32 on programmable device or time portion of NMT_ManufactSwVers_VS on non-programmable device
-	DWORD m_dwIpAddress;
-	DWORD m_dwSubnetMask;
-	DWORD m_dwDefaultGateway;
-	BYTE m_sHostname[32];
-	BYTE m_abVendorSpecificExt2[48];
+	u32 m_dwDeviceType;	// NMT_DeviceType_U32
+	u32 m_dwVendorId;	// NMT_IdentityObject_REC.VendorId_U32
+	u32 m_dwProductCode;	// NMT_IdentityObject_REC.ProductCode_U32
+	u32 m_dwRevisionNumber;	// NMT_IdentityObject_REC.RevisionNo_U32
+	u32 m_dwSerialNumber;	// NMT_IdentityObject_REC.SerialNo_U32
+	u64 m_qwVendorSpecificExt1;
+	u32 m_dwVerifyConfigurationDate;	// CFM_VerifyConfiguration_REC.ConfDate_U32
+	u32 m_dwVerifyConfigurationTime;	// CFM_VerifyConfiguration_REC.ConfTime_U32
+	u32 m_dwApplicationSwDate;	// PDL_LocVerApplSw_REC.ApplSwDate_U32 on programmable device or date portion of NMT_ManufactSwVers_VS on non-programmable device
+	u32 m_dwApplicationSwTime;	// PDL_LocVerApplSw_REC.ApplSwTime_U32 on programmable device or time portion of NMT_ManufactSwVers_VS on non-programmable device
+	u32 m_dwIpAddress;
+	u32 m_dwSubnetMask;
+	u32 m_dwDefaultGateway;
+	u8 m_sHostname[32];
+	u8 m_abVendorSpecificExt2[48];
 
 } tEplDllIdentParam;
 
 typedef struct {
 	unsigned int m_uiNodeId;
-	WORD m_wPreqPayloadLimit;	// object 0x1F8B: NMT_MNPReqPayloadLimitList_AU16
-	WORD m_wPresPayloadLimit;	// object 0x1F8D: NMT_PResPayloadLimitList_AU16
-	DWORD m_dwPresTimeout;	// object 0x1F92: NMT_MNCNPResTimeout_AU32
+	u16 m_wPreqPayloadLimit;	// object 0x1F8B: NMT_MNPReqPayloadLimitList_AU16
+	u16 m_wPresPayloadLimit;	// object 0x1F8D: NMT_PResPayloadLimitList_AU16
+	u32 m_dwPresTimeout;	// object 0x1F92: NMT_MNCNPResTimeout_AU32
 
 } tEplDllNodeInfo;
 

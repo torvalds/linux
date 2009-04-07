@@ -1104,7 +1104,7 @@ xfs_dir2_leafn_remove(
 	}
 	xfs_dir2_leafn_check(dp, bp);
 	/*
-	 * Return indication of whether this leaf block is emtpy enough
+	 * Return indication of whether this leaf block is empty enough
 	 * to justify trying to join it with a neighbor.
 	 */
 	*rval =

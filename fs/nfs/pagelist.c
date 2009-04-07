@@ -176,17 +176,6 @@ void nfs_release_request(struct nfs_page *req)
 	kref_put(&req->wb_kref, nfs_free_request);
 }
 
-static int nfs_wait_bit_killable(void *word)
-{
-	int ret = 0;
-
-	if (fatal_signal_pending(current))
-		ret = -ERESTARTSYS;
-	else
-		schedule();
-	return ret;
-}
-
 /**
  * nfs_wait_on_request - Wait for a request to complete.
  * @req: request to wait upon.

@@ -97,7 +97,7 @@ modname_flags  = $(if $(filter 1,$(words $(modname))),\
                  -D"KBUILD_MODNAME=KBUILD_STR($(call name-fix,$(modname)))")
 
 #hash values
-ifdef CONFIG_DYNAMIC_PRINTK_DEBUG
+ifdef CONFIG_DYNAMIC_DEBUG
 debug_flags = -D"DEBUG_HASH=$(shell ./scripts/basic/hash djb2 $(@D)$(modname))"\
               -D"DEBUG_HASH2=$(shell ./scripts/basic/hash r5 $(@D)$(modname))"
 else

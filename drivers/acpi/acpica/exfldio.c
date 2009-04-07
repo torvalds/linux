@@ -94,9 +94,9 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 
 	/* We must have a valid region */
 
-	if (ACPI_GET_OBJECT_TYPE(rgn_desc) != ACPI_TYPE_REGION) {
+	if (rgn_desc->common.type != ACPI_TYPE_REGION) {
 		ACPI_ERROR((AE_INFO, "Needed Region, found type %X (%s)",
-			    ACPI_GET_OBJECT_TYPE(rgn_desc),
+			    rgn_desc->common.type,
 			    acpi_ut_get_object_type_name(rgn_desc)));
 
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
@@ -111,12 +111,6 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
-	}
-
-	/* Exit if Address/Length have been disallowed by the host OS */
-
-	if (rgn_desc->common.flags & AOPOBJ_INVALID) {
-		return_ACPI_STATUS(AE_AML_ILLEGAL_ADDRESS);
 	}
 
 	/*
@@ -390,7 +384,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 	 * index_field - Write to an Index Register, then read/write from/to a
 	 *               Data Register
 	 */
-	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+	switch (obj_desc->common.type) {
 	case ACPI_TYPE_BUFFER_FIELD:
 		/*
 		 * If the buffer_field arguments have not been previously evaluated,
@@ -527,7 +521,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 	default:
 
 		ACPI_ERROR((AE_INFO, "Wrong object type in field I/O %X",
-			    ACPI_GET_OBJECT_TYPE(obj_desc)));
+			    obj_desc->common.type));
 		status = AE_AML_INTERNAL;
 		break;
 	}

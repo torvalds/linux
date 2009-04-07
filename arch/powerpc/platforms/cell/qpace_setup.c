@@ -81,16 +81,6 @@ static int __init qpace_publish_devices(void)
 }
 machine_subsys_initcall(qpace, qpace_publish_devices);
 
-extern int qpace_notify(struct device *dev)
-{
-	/* set dma_ops for of_platform bus */
-	if (dev->bus && dev->bus->name
-			&& !strcmp(dev->bus->name, "of_platform"))
-		set_dma_ops(dev, &dma_direct_ops);
-
-	return 0;
-}
-
 static void __init qpace_setup_arch(void)
 {
 #ifdef CONFIG_SPU_BASE
@@ -115,9 +105,6 @@ static void __init qpace_setup_arch(void)
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
-
-	/* set notifier function */
-	platform_notify = &qpace_notify;
 }
 
 static int __init qpace_probe(void)
@@ -141,6 +128,8 @@ define_machine(qpace) {
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
 	.get_boot_time		= rtas_get_boot_time,
+	.get_rtc_time		= rtas_get_rtc_time,
+	.set_rtc_time		= rtas_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= qpace_progress,
 	.init_IRQ		= iic_init_IRQ,

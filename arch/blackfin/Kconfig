@@ -777,7 +777,7 @@ config CACHELINE_ALIGNED_L1
 	default n if BF54x
 	depends on !BF531
 	help
-	  If enabled, cacheline_anligned data is linked
+	  If enabled, cacheline_aligned data is linked
 	  into L1 data memory. (less latency)
 
 config SYSCALL_TAB_L1
@@ -957,7 +957,7 @@ config MPU
 	  memory they do not own.  This comes at a performance penalty
 	  and is recommended only for debugging.
 
-comment "Asynchonous Memory Configuration"
+comment "Asynchronous Memory Configuration"
 
 menu "EBIU_AMGCTL Global Control"
 config C_AMCKEN
@@ -989,7 +989,7 @@ config C_B3PEN
 	default n
 
 choice
-	prompt"Enable Asynchonous Memory Banks"
+	prompt "Enable Asynchronous Memory Banks"
 	default C_AMBEN_ALL
 
 config C_AMBEN

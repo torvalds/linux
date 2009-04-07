@@ -15,6 +15,8 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/sysdev.h>
+#include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
@@ -402,3 +404,39 @@ static int __init pmb_debugfs_init(void)
 	return 0;
 }
 postcore_initcall(pmb_debugfs_init);
+
+#ifdef CONFIG_PM
+static int pmb_sysdev_suspend(struct sys_device *dev, pm_message_t state)
+{
+	static pm_message_t prev_state;
+
+	/* Restore the PMB after a resume from hibernation */
+	if (state.event == PM_EVENT_ON &&
+	    prev_state.event == PM_EVENT_FREEZE) {
+		struct pmb_entry *pmbe;
+		spin_lock_irq(&pmb_list_lock);
+		for (pmbe = pmb_list; pmbe; pmbe = pmbe->next)
+			set_pmb_entry(pmbe);
+		spin_unlock_irq(&pmb_list_lock);
+	}
+	prev_state = state;
+	return 0;
+}
+
+static int pmb_sysdev_resume(struct sys_device *dev)
+{
+	return pmb_sysdev_suspend(dev, PMSG_ON);
+}
+
+static struct sysdev_driver pmb_sysdev_driver = {
+	.suspend = pmb_sysdev_suspend,
+	.resume = pmb_sysdev_resume,
+};
+
+static int __init pmb_sysdev_init(void)
+{
+	return sysdev_driver_register(&cpu_sysdev_class, &pmb_sysdev_driver);
+}
+
+subsys_initcall(pmb_sysdev_init);
+#endif

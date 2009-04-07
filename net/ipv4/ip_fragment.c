@@ -463,6 +463,7 @@ err:
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 			 struct net_device *dev)
 {
+	struct net *net = container_of(qp->q.net, struct net, ipv4.frags);
 	struct iphdr *iph;
 	struct sk_buff *fp, *head = qp->q.fragments;
 	int len;
@@ -548,7 +549,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	iph = ip_hdr(head);
 	iph->frag_off = 0;
 	iph->tot_len = htons(len);
-	IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_REASMOKS);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMOKS);
 	qp->q.fragments = NULL;
 	return 0;
 

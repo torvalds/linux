@@ -125,7 +125,7 @@ typedef struct xfs_bmalloca {
 	struct xfs_bmbt_irec	*gotp;	/* extent after, or delayed */
 	xfs_extlen_t		alen;	/* i/o length asked/allocated */
 	xfs_extlen_t		total;	/* total blocks needed for xaction */
-	xfs_extlen_t		minlen;	/* mininum allocation size (blocks) */
+	xfs_extlen_t		minlen;	/* minimum allocation size (blocks) */
 	xfs_extlen_t		minleft; /* amount must be left after alloc */
 	char			eof;	/* set if allocating past last extent */
 	char			wasdel;	/* replacing a delayed allocation */
@@ -337,6 +337,10 @@ xfs_check_nostate_extents(
 	struct xfs_ifork	*ifp,
 	xfs_extnum_t		idx,
 	xfs_extnum_t		num);
+
+uint
+xfs_default_attroffset(
+	struct xfs_inode	*ip);
 
 #ifdef __KERNEL__
 

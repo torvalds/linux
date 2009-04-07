@@ -95,14 +95,15 @@ struct fsl_usb2_platform_data {
 #define FSL_USB2_PORT0_ENABLED	0x00000001
 #define FSL_USB2_PORT1_ENABLED	0x00000002
 
+struct spi_device;
+
 struct fsl_spi_platform_data {
 	u32 	initial_spmode;	/* initial SPMODE value */
-	u16	bus_num;
+	s16	bus_num;
 	bool	qe_mode;
 	/* board specific information */
 	u16	max_chipselect;
-	void	(*activate_cs)(u8 cs, u8 polarity);
-	void	(*deactivate_cs)(u8 cs, u8 polarity);
+	void	(*cs_control)(struct spi_device *spi, bool on);
 	u32	sysclk;
 };
 

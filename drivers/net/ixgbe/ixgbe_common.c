@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2008 Intel Corporation.
+  Copyright(c) 1999 - 2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 
+#include "ixgbe.h"
 #include "ixgbe_common.h"
 #include "ixgbe_phy.h"
 
@@ -79,9 +80,6 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 
 	/* Clear the VLAN filter table */
 	hw->mac.ops.clear_vfta(hw);
-
-	/* Set up link */
-	hw->mac.ops.setup_link(hw);
 
 	/* Clear statistics registers */
 	hw->mac.ops.clear_hw_cntrs(hw);
@@ -254,6 +252,81 @@ s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr)
 }
 
 /**
+ *  ixgbe_get_bus_info_generic - Generic set PCI bus info
+ *  @hw: pointer to hardware structure
+ *
+ *  Sets the PCI bus info (speed, width, type) within the ixgbe_hw structure
+ **/
+s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
+{
+	struct ixgbe_adapter *adapter = hw->back;
+	struct ixgbe_mac_info *mac = &hw->mac;
+	u16 link_status;
+
+	hw->bus.type = ixgbe_bus_type_pci_express;
+
+	/* Get the negotiated link width and speed from PCI config space */
+	pci_read_config_word(adapter->pdev, IXGBE_PCI_LINK_STATUS,
+	                     &link_status);
+
+	switch (link_status & IXGBE_PCI_LINK_WIDTH) {
+	case IXGBE_PCI_LINK_WIDTH_1:
+		hw->bus.width = ixgbe_bus_width_pcie_x1;
+		break;
+	case IXGBE_PCI_LINK_WIDTH_2:
+		hw->bus.width = ixgbe_bus_width_pcie_x2;
+		break;
+	case IXGBE_PCI_LINK_WIDTH_4:
+		hw->bus.width = ixgbe_bus_width_pcie_x4;
+		break;
+	case IXGBE_PCI_LINK_WIDTH_8:
+		hw->bus.width = ixgbe_bus_width_pcie_x8;
+		break;
+	default:
+		hw->bus.width = ixgbe_bus_width_unknown;
+		break;
+	}
+
+	switch (link_status & IXGBE_PCI_LINK_SPEED) {
+	case IXGBE_PCI_LINK_SPEED_2500:
+		hw->bus.speed = ixgbe_bus_speed_2500;
+		break;
+	case IXGBE_PCI_LINK_SPEED_5000:
+		hw->bus.speed = ixgbe_bus_speed_5000;
+		break;
+	default:
+		hw->bus.speed = ixgbe_bus_speed_unknown;
+		break;
+	}
+
+	mac->ops.set_lan_id(hw);
+
+	return 0;
+}
+
+/**
+ *  ixgbe_set_lan_id_multi_port_pcie - Set LAN id for PCIe multiple port devices
+ *  @hw: pointer to the HW structure
+ *
+ *  Determines the LAN function id by reading memory-mapped registers
+ *  and swaps the port value if requested.
+ **/
+void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
+{
+	struct ixgbe_bus_info *bus = &hw->bus;
+	u32 reg;
+
+	reg = IXGBE_READ_REG(hw, IXGBE_STATUS);
+	bus->func = (reg & IXGBE_STATUS_LAN_ID) >> IXGBE_STATUS_LAN_ID_SHIFT;
+	bus->lan_id = bus->func;
+
+	/* check for a port swap */
+	reg = IXGBE_READ_REG(hw, IXGBE_FACTPS);
+	if (reg & IXGBE_FACTPS_LFS)
+		bus->func ^= 0x1;
+}
+
+/**
  *  ixgbe_stop_adapter_generic - Generic stop Tx/Rx units
  *  @hw: pointer to hardware structure
  *
@@ -393,6 +466,73 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_write_eeprom_generic - Writes 16 bit value to EEPROM
+ *  @hw: pointer to hardware structure
+ *  @offset: offset within the EEPROM to be written to
+ *  @data: 16 bit word to be written to the EEPROM
+ *
+ *  If ixgbe_eeprom_update_checksum is not called after this function, the
+ *  EEPROM will most likely contain an invalid checksum.
+ **/
+s32 ixgbe_write_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 data)
+{
+	s32 status;
+	u8 write_opcode = IXGBE_EEPROM_WRITE_OPCODE_SPI;
+
+	hw->eeprom.ops.init_params(hw);
+
+	if (offset >= hw->eeprom.word_size) {
+		status = IXGBE_ERR_EEPROM;
+		goto out;
+	}
+
+	/* Prepare the EEPROM for writing  */
+	status = ixgbe_acquire_eeprom(hw);
+
+	if (status == 0) {
+		if (ixgbe_ready_eeprom(hw) != 0) {
+			ixgbe_release_eeprom(hw);
+			status = IXGBE_ERR_EEPROM;
+		}
+	}
+
+	if (status == 0) {
+		ixgbe_standby_eeprom(hw);
+
+		/*  Send the WRITE ENABLE command (8 bit opcode )  */
+		ixgbe_shift_out_eeprom_bits(hw, IXGBE_EEPROM_WREN_OPCODE_SPI,
+		                            IXGBE_EEPROM_OPCODE_BITS);
+
+		ixgbe_standby_eeprom(hw);
+
+		/*
+		 * Some SPI eeproms use the 8th address bit embedded in the
+		 * opcode
+		 */
+		if ((hw->eeprom.address_bits == 8) && (offset >= 128))
+			write_opcode |= IXGBE_EEPROM_A8_OPCODE_SPI;
+
+		/* Send the Write command (8-bit opcode + addr) */
+		ixgbe_shift_out_eeprom_bits(hw, write_opcode,
+		                            IXGBE_EEPROM_OPCODE_BITS);
+		ixgbe_shift_out_eeprom_bits(hw, (u16)(offset*2),
+		                            hw->eeprom.address_bits);
+
+		/* Send the data */
+		data = (data >> 8) | (data << 8);
+		ixgbe_shift_out_eeprom_bits(hw, data, 16);
+		ixgbe_standby_eeprom(hw);
+
+		msleep(hw->eeprom.semaphore_delay);
+		/* Done with writing - release the EEPROM */
+		ixgbe_release_eeprom(hw);
+	}
+
+out:
+	return status;
+}
+
+/**
  *  ixgbe_read_eeprom_bit_bang_generic - Read EEPROM word using bit-bang
  *  @hw: pointer to hardware structure
  *  @offset: offset within the EEPROM to be read
@@ -521,7 +661,7 @@ static s32 ixgbe_poll_eeprom_eerd_done(struct ixgbe_hw *hw)
 static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw)
 {
 	s32 status = 0;
-	u32 eec;
+	u32 eec = 0;
 	u32 i;
 
 	if (ixgbe_acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) != 0)
@@ -1490,6 +1630,327 @@ s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_fc_enable - Enable flow control
+ *  @hw: pointer to hardware structure
+ *  @packetbuf_num: packet buffer number (0-7)
+ *
+ *  Enable flow control according to the current settings.
+ **/
+s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num)
+{
+	s32 ret_val = 0;
+	u32 mflcn_reg;
+	u32 fccfg_reg;
+	u32 reg;
+
+	mflcn_reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
+	mflcn_reg &= ~(IXGBE_MFLCN_RFCE | IXGBE_MFLCN_RPFCE);
+
+	fccfg_reg = IXGBE_READ_REG(hw, IXGBE_FCCFG);
+	fccfg_reg &= ~(IXGBE_FCCFG_TFCE_802_3X | IXGBE_FCCFG_TFCE_PRIORITY);
+
+	/*
+	 * The possible values of fc.current_mode are:
+	 * 0: Flow control is completely disabled
+	 * 1: Rx flow control is enabled (we can receive pause frames,
+	 *    but not send pause frames).
+	 * 2: Tx flow control is enabled (we can send pause frames but
+	 *    we do not support receiving pause frames).
+	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
+	 * 4: Priority Flow Control is enabled.
+	 * other: Invalid.
+	 */
+	switch (hw->fc.current_mode) {
+	case ixgbe_fc_none:
+		/* Flow control completely disabled by software override. */
+		break;
+	case ixgbe_fc_rx_pause:
+		/*
+		 * Rx Flow control is enabled and Tx Flow control is
+		 * disabled by software override. Since there really
+		 * isn't a way to advertise that we are capable of RX
+		 * Pause ONLY, we will advertise that we support both
+		 * symmetric and asymmetric Rx PAUSE.  Later, we will
+		 * disable the adapter's ability to send PAUSE frames.
+		 */
+		mflcn_reg |= IXGBE_MFLCN_RFCE;
+		break;
+	case ixgbe_fc_tx_pause:
+		/*
+		 * Tx Flow control is enabled, and Rx Flow control is
+		 * disabled by software override.
+		 */
+		fccfg_reg |= IXGBE_FCCFG_TFCE_802_3X;
+		break;
+	case ixgbe_fc_full:
+		/* Flow control (both Rx and Tx) is enabled by SW override. */
+		mflcn_reg |= IXGBE_MFLCN_RFCE;
+		fccfg_reg |= IXGBE_FCCFG_TFCE_802_3X;
+		break;
+#ifdef CONFIG_DCB
+	case ixgbe_fc_pfc:
+		goto out;
+		break;
+#endif
+	default:
+		hw_dbg(hw, "Flow control param set incorrectly\n");
+		ret_val = -IXGBE_ERR_CONFIG;
+		goto out;
+		break;
+	}
+
+	/* Enable 802.3x based flow control settings. */
+	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, mflcn_reg);
+	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, fccfg_reg);
+
+	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
+	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
+		if (hw->fc.send_xon)
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num),
+			                (hw->fc.low_water | IXGBE_FCRTL_XONE));
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num),
+			                hw->fc.low_water);
+
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num),
+		                (hw->fc.high_water | IXGBE_FCRTH_FCEN));
+	}
+
+	/* Configure pause time (2 TCs per register) */
+	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num));
+	if ((packetbuf_num & 1) == 0)
+		reg = (reg & 0xFFFF0000) | hw->fc.pause_time;
+	else
+		reg = (reg & 0x0000FFFF) | (hw->fc.pause_time << 16);
+	IXGBE_WRITE_REG(hw, IXGBE_FCTTV(packetbuf_num / 2), reg);
+
+	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, (hw->fc.pause_time >> 1));
+
+out:
+	return ret_val;
+}
+
+/**
+ *  ixgbe_fc_autoneg - Configure flow control
+ *  @hw: pointer to hardware structure
+ *
+ *  Negotiates flow control capabilities with link partner using autoneg and
+ *  applies the results.
+ **/
+s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
+{
+	s32 ret_val = 0;
+	u32 i, reg, pcs_anadv_reg, pcs_lpab_reg;
+
+	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+
+	/*
+	 * The possible values of fc.current_mode are:
+	 * 0:  Flow control is completely disabled
+	 * 1:  Rx flow control is enabled (we can receive pause frames,
+	 *     but not send pause frames).
+	 * 2:  Tx flow control is enabled (we can send pause frames but
+	 *     we do not support receiving pause frames).
+	 * 3:  Both Rx and Tx flow control (symmetric) are enabled.
+	 * 4:  Priority Flow Control is enabled.
+	 * other: Invalid.
+	 */
+	switch (hw->fc.current_mode) {
+	case ixgbe_fc_none:
+		/* Flow control completely disabled by software override. */
+		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+	case ixgbe_fc_rx_pause:
+		/*
+		 * Rx Flow control is enabled and Tx Flow control is
+		 * disabled by software override. Since there really
+		 * isn't a way to advertise that we are capable of RX
+		 * Pause ONLY, we will advertise that we support both
+		 * symmetric and asymmetric Rx PAUSE.  Later, we will
+		 * disable the adapter's ability to send PAUSE frames.
+		 */
+		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+	case ixgbe_fc_tx_pause:
+		/*
+		 * Tx Flow control is enabled, and Rx Flow control is
+		 * disabled by software override.
+		 */
+		reg |= (IXGBE_PCS1GANA_ASM_PAUSE);
+		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE);
+		break;
+	case ixgbe_fc_full:
+		/* Flow control (both Rx and Tx) is enabled by SW override. */
+		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+#ifdef CONFIG_DCB
+	case ixgbe_fc_pfc:
+		goto out;
+		break;
+#endif
+	default:
+		hw_dbg(hw, "Flow control param set incorrectly\n");
+		ret_val = -IXGBE_ERR_CONFIG;
+		goto out;
+		break;
+	}
+
+	IXGBE_WRITE_REG(hw, IXGBE_PCS1GANA, reg);
+	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLCTL);
+
+	/* Set PCS register for autoneg */
+	/* Enable and restart autoneg */
+	reg |= IXGBE_PCS1GLCTL_AN_ENABLE | IXGBE_PCS1GLCTL_AN_RESTART;
+
+	/* Disable AN timeout */
+	if (hw->fc.strict_ieee)
+		reg &= ~IXGBE_PCS1GLCTL_AN_1G_TIMEOUT_EN;
+
+	hw_dbg(hw, "Configuring Autoneg; PCS_LCTL = 0x%08X\n", reg);
+	IXGBE_WRITE_REG(hw, IXGBE_PCS1GLCTL, reg);
+
+	/* See if autonegotiation has succeeded */
+	hw->mac.autoneg_succeeded = 0;
+	for (i = 0; i < FIBER_LINK_UP_LIMIT; i++) {
+		msleep(10);
+		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLSTA);
+		if ((reg & (IXGBE_PCS1GLSTA_LINK_OK |
+		     IXGBE_PCS1GLSTA_AN_COMPLETE)) ==
+		    (IXGBE_PCS1GLSTA_LINK_OK |
+		     IXGBE_PCS1GLSTA_AN_COMPLETE)) {
+			if (!(reg & IXGBE_PCS1GLSTA_AN_TIMED_OUT))
+				hw->mac.autoneg_succeeded = 1;
+			break;
+		}
+	}
+
+	if (!hw->mac.autoneg_succeeded) {
+		/* Autoneg failed to achieve a link, so we turn fc off */
+		hw->fc.current_mode = ixgbe_fc_none;
+		hw_dbg(hw, "Flow Control = NONE.\n");
+		goto out;
+	}
+
+	/*
+	 * Read the AN advertisement and LP ability registers and resolve
+	 * local flow control settings accordingly
+	 */
+	pcs_anadv_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+	pcs_lpab_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANLP);
+	if ((pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		(pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE)) {
+		/*
+		 * Now we need to check if the user selected Rx ONLY
+		 * of pause frames.  In this case, we had to advertise
+		 * FULL flow control because we could not advertise RX
+		 * ONLY. Hence, we must now check to see if we need to
+		 * turn OFF the TRANSMISSION of PAUSE frames.
+		 */
+		if (hw->fc.requested_mode == ixgbe_fc_full) {
+			hw->fc.current_mode = ixgbe_fc_full;
+			hw_dbg(hw, "Flow Control = FULL.\n");
+		} else {
+			hw->fc.current_mode = ixgbe_fc_rx_pause;
+			hw_dbg(hw, "Flow Control = RX PAUSE frames only.\n");
+		}
+	} else if (!(pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_anadv_reg & IXGBE_PCS1GANA_ASM_PAUSE) &&
+		   (pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_lpab_reg & IXGBE_PCS1GANA_ASM_PAUSE)) {
+		hw->fc.current_mode = ixgbe_fc_tx_pause;
+		hw_dbg(hw, "Flow Control = TX PAUSE frames only.\n");
+	} else if ((pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_anadv_reg & IXGBE_PCS1GANA_ASM_PAUSE) &&
+		   !(pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_lpab_reg & IXGBE_PCS1GANA_ASM_PAUSE)) {
+		hw->fc.current_mode = ixgbe_fc_rx_pause;
+		hw_dbg(hw, "Flow Control = RX PAUSE frames only.\n");
+	} else {
+		hw->fc.current_mode = ixgbe_fc_none;
+		hw_dbg(hw, "Flow Control = NONE.\n");
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  ixgbe_setup_fc_generic - Set up flow control
+ *  @hw: pointer to hardware structure
+ *
+ *  Sets up flow control.
+ **/
+s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
+{
+	s32 ret_val = 0;
+	ixgbe_link_speed speed;
+	bool link_up;
+
+#ifdef CONFIG_DCB
+	if (hw->fc.requested_mode == ixgbe_fc_pfc) {
+		hw->fc.current_mode = hw->fc.requested_mode;
+		goto out;
+	}
+
+#endif
+	/* Validate the packetbuf configuration */
+	if (packetbuf_num < 0 || packetbuf_num > 7) {
+		hw_dbg(hw, "Invalid packet buffer number [%d], expected range "
+		       "is 0-7\n", packetbuf_num);
+		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+		goto out;
+	}
+
+	/*
+	 * Validate the water mark configuration.  Zero water marks are invalid
+	 * because it causes the controller to just blast out fc packets.
+	 */
+	if (!hw->fc.low_water || !hw->fc.high_water || !hw->fc.pause_time) {
+		hw_dbg(hw, "Invalid water mark configuration\n");
+		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+		goto out;
+	}
+
+	/*
+	 * Validate the requested mode.  Strict IEEE mode does not allow
+	 * ixgbe_fc_rx_pause because it will cause testing anomalies.
+	 */
+	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {
+		hw_dbg(hw, "ixgbe_fc_rx_pause not valid in strict "
+		       "IEEE mode\n");
+		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+		goto out;
+	}
+
+	/*
+	 * 10gig parts do not have a word in the EEPROM to determine the
+	 * default flow control setting, so we explicitly set it to full.
+	 */
+	if (hw->fc.requested_mode == ixgbe_fc_default)
+		hw->fc.requested_mode = ixgbe_fc_full;
+
+	/*
+	 * Save off the requested flow control mode for use later.  Depending
+	 * on the link partner's capabilities, we may or may not use this mode.
+	 */
+	hw->fc.current_mode = hw->fc.requested_mode;
+
+	/* Decide whether to use autoneg or not. */
+	hw->mac.ops.check_link(hw, &speed, &link_up, false);
+	if (!hw->fc.disable_fc_autoneg && hw->phy.multispeed_fiber &&
+	    (speed == IXGBE_LINK_SPEED_1GB_FULL))
+		ret_val = ixgbe_fc_autoneg(hw);
+
+	if (ret_val)
+		goto out;
+
+	ret_val = ixgbe_fc_enable(hw, packetbuf_num);
+
+out:
+	return ret_val;
+}
+
+/**
  *  ixgbe_disable_pcie_master - Disable PCI-express master access
  *  @hw: pointer to hardware structure
  *
@@ -1597,3 +2058,16 @@ void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u16 mask)
 	ixgbe_release_eeprom_semaphore(hw);
 }
 
+/**
+ *  ixgbe_enable_rx_dma_generic - Enable the Rx DMA unit
+ *  @hw: pointer to hardware structure
+ *  @regval: register value to write to RXCTRL
+ *
+ *  Enables the Rx DMA unit
+ **/
+s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval)
+{
+	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, regval);
+
+	return 0;
+}

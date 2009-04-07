@@ -275,6 +275,8 @@ const struct cpumask *uv_flush_send_and_wait(int cpu, int this_blade,
 	return NULL;
 }
 
+static DEFINE_PER_CPU(cpumask_var_t, uv_flush_tlb_mask);
+
 /**
  * uv_flush_tlb_others - globally purge translation cache of a virtual
  * address or all TLB's
@@ -304,8 +306,7 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 					  struct mm_struct *mm,
 					  unsigned long va, unsigned int cpu)
 {
-	static DEFINE_PER_CPU(cpumask_t, flush_tlb_mask);
-	struct cpumask *flush_mask = &__get_cpu_var(flush_tlb_mask);
+	struct cpumask *flush_mask = __get_cpu_var(uv_flush_tlb_mask);
 	int i;
 	int bit;
 	int blade;
@@ -750,16 +751,21 @@ static int __init uv_bau_init(void)
 	int node;
 	int nblades;
 	int last_blade;
-	int cur_cpu = 0;
+	int cur_cpu;
 
 	if (!is_uv_system())
 		return 0;
+
+	for_each_possible_cpu(cur_cpu)
+		alloc_cpumask_var_node(&per_cpu(uv_flush_tlb_mask, cur_cpu),
+				       GFP_KERNEL, cpu_to_node(cur_cpu));
 
 	uv_bau_retry_limit = 1;
 	uv_nshift = uv_hub_info->n_val;
 	uv_mmask = (1UL << uv_hub_info->n_val) - 1;
 	nblades = 0;
 	last_blade = -1;
+	cur_cpu = 0;
 	for_each_online_node(node) {
 		blade = uv_node_to_blade_id(node);
 		if (blade == last_blade)

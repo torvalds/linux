@@ -7,6 +7,11 @@ config ARCH_OMAP730
 	select CPU_ARM926T
 	select ARCH_OMAP_OTG
 
+config ARCH_OMAP850
+	depends on ARCH_OMAP1
+	bool "OMAP850 Based System"
+	select CPU_ARM926T
+
 config ARCH_OMAP15XX
 	depends on ARCH_OMAP1
 	default y
@@ -45,6 +50,12 @@ config MACH_OMAP_H3
     	help
 	  TI OMAP 1710 H3 board support. Say Y here if you have such
 	  a board.
+
+config MACH_OMAP_HTCWIZARD
+	bool "HTC Wizard"
+	depends on ARCH_OMAP850
+	help
+	  HTC Wizard smartphone support (AKA QTEK 9100, ...)
 
 config MACH_OMAP_OSK
 	bool "TI OSK Support"
@@ -98,7 +109,7 @@ config MACH_OMAP_PALMZ71
 	help
 	 Support for the Palm Zire71 PDA. To boot the kernel,
 	 you'll need a PalmOS compatible bootloader; check out
-	 http://hackndev.com/palm/z71 for more informations.
+	 http://hackndev.com/palm/z71 for more information.
 	 Say Y here if you have such a PDA, say N otherwise.
 
 config MACH_OMAP_PALMTT
@@ -163,7 +174,7 @@ config OMAP_ARM_216MHZ
 
 config OMAP_ARM_195MHZ
 	bool "OMAP ARM 195 MHz CPU"
-	depends on ARCH_OMAP1 && ARCH_OMAP730
+	depends on ARCH_OMAP1 && (ARCH_OMAP730 || ARCH_OMAP850)
 	help
           Enable 195MHz clock for OMAP CPU. If unsure, say N.
 
@@ -175,13 +186,13 @@ config OMAP_ARM_192MHZ
 
 config OMAP_ARM_182MHZ
 	bool "OMAP ARM 182 MHz CPU"
-	depends on ARCH_OMAP1 && ARCH_OMAP730
+	depends on ARCH_OMAP1 && (ARCH_OMAP730 || ARCH_OMAP850)
 	help
           Enable 182MHz clock for OMAP CPU. If unsure, say N.
 
 config OMAP_ARM_168MHZ
 	bool "OMAP ARM 168 MHz CPU"
-	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730)
+	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_OMAP850)
 	help
           Enable 168MHz clock for OMAP CPU. If unsure, say N.
 
@@ -193,20 +204,20 @@ config OMAP_ARM_150MHZ
 
 config OMAP_ARM_120MHZ
 	bool "OMAP ARM 120 MHz CPU"
-	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730)
+	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_OMAP850)
 	help
           Enable 120MHz clock for OMAP CPU. If unsure, say N.
 
 config OMAP_ARM_60MHZ
 	bool "OMAP ARM 60 MHz CPU"
-	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730)
+	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_OMAP850)
         default y
 	help
           Enable 60MHz clock for OMAP CPU. If unsure, say Y.
 
 config OMAP_ARM_30MHZ
 	bool "OMAP ARM 30 MHz CPU"
-	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730)
+	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_OMAP850)
 	help
           Enable 30MHz clock for OMAP CPU. If unsure, say N.
 

@@ -1,14 +1,5 @@
 menu "Platform support"
 
-config PPC_MULTIPLATFORM
-	bool
-	depends on PPC64 || 6xx
-	default y
-
-config CLASSIC32
-	def_bool y
-	depends on 6xx && PPC_MULTIPLATFORM
-
 source "arch/powerpc/platforms/pseries/Kconfig"
 source "arch/powerpc/platforms/iseries/Kconfig"
 source "arch/powerpc/platforms/chrp/Kconfig"
@@ -28,14 +19,27 @@ source "arch/powerpc/platforms/86xx/Kconfig"
 source "arch/powerpc/platforms/embedded6xx/Kconfig"
 source "arch/powerpc/platforms/44x/Kconfig"
 source "arch/powerpc/platforms/40x/Kconfig"
+source "arch/powerpc/platforms/amigaone/Kconfig"
 
 config PPC_NATIVE
 	bool
-	depends on PPC_MULTIPLATFORM
+	depends on 6xx || PPC64
 	help
 	  Support for running natively on the hardware, i.e. without
 	  a hypervisor. This option is not user-selectable but should
 	  be selected by all platforms that need it.
+
+config PPC_OF_BOOT_TRAMPOLINE
+	bool "Support booting from Open Firmware or yaboot"
+	depends on 6xx || PPC64
+	default y
+	help
+	  Support from booting from Open Firmware or yaboot using an
+	  Open Firmware client interface. This enables the kernel to
+	  communicate with open firmware to retrieve system informations
+	  such as the device tree.
+
+	  In case of doubt, say Y
 
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
@@ -70,7 +74,7 @@ config PPC_I8259
 
 config U3_DART
 	bool
-	depends on PPC_MULTIPLATFORM && PPC64
+	depends on PPC64
 	default n
 
 config PPC_RTAS
@@ -90,15 +94,6 @@ config RTAS_PROC
 config RTAS_FLASH
 	tristate "Firmware flash interface"
 	depends on PPC64 && RTAS_PROC
-
-config PPC_PMI
-	tristate "Support for PMI"
-	depends on PPC_IBM_CELL_BLADE
-	help
-	  PMI (Platform Management Interrupt) is a way to
-	  communicate with the BMC (Baseboard Management Controller).
-	  It is used in some IBM Cell blades.
-	default m
 
 config MMIO_NVRAM
 	bool
@@ -196,7 +191,7 @@ config PPC601_SYNC_FIX
 
 config TAU
 	bool "On-chip CPU temperature sensor support"
-	depends on CLASSIC32
+	depends on 6xx
 	help
 	  G3 and G4 processors have an on-chip temperature sensor called the
 	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die
@@ -274,7 +269,7 @@ config CPM2
 
 config AXON_RAM
 	tristate "Axon DDR2 memory device driver"
-	depends on PPC_IBM_CELL_BLADE
+	depends on PPC_IBM_CELL_BLADE && BLOCK
 	default m
 	help
 	  It registers one block device per Axon's DDR2 memory bank found
@@ -298,7 +293,7 @@ config CPM
 config OF_RTC
 	bool
 	help
-	  Uses information from the OF or flattened device tree to instatiate
+	  Uses information from the OF or flattened device tree to instantiate
 	  platform devices for direct mapped RTC chips like the DS1742 or DS1743.
 
 source "arch/powerpc/sysdev/bestcomm/Kconfig"

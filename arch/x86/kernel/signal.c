@@ -211,31 +211,27 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 {
 	/* Default to using normal stack */
 	unsigned long sp = regs->sp;
+	int onsigstack = on_sig_stack(sp);
 
 #ifdef CONFIG_X86_64
 	/* redzone */
 	sp -= 128;
 #endif /* CONFIG_X86_64 */
 
-	/*
-	 * If we are on the alternate signal stack and would overflow it, don't.
-	 * Return an always-bogus address instead so we will die with SIGSEGV.
-	 */
-	if (on_sig_stack(sp) && !likely(on_sig_stack(sp - frame_size)))
-		return (void __user *) -1L;
-
-	/* This is the X/Open sanctioned signal stack switching.  */
-	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (sas_ss_flags(sp) == 0)
-			sp = current->sas_ss_sp + current->sas_ss_size;
-	} else {
+	if (!onsigstack) {
+		/* This is the X/Open sanctioned signal stack switching.  */
+		if (ka->sa.sa_flags & SA_ONSTACK) {
+			if (current->sas_ss_size)
+				sp = current->sas_ss_sp + current->sas_ss_size;
+		} else {
 #ifdef CONFIG_X86_32
-		/* This is the legacy signal stack switching. */
-		if ((regs->ss & 0xffff) != __USER_DS &&
-			!(ka->sa.sa_flags & SA_RESTORER) &&
-				ka->sa.sa_restorer)
-			sp = (unsigned long) ka->sa.sa_restorer;
+			/* This is the legacy signal stack switching. */
+			if ((regs->ss & 0xffff) != __USER_DS &&
+				!(ka->sa.sa_flags & SA_RESTORER) &&
+					ka->sa.sa_restorer)
+				sp = (unsigned long) ka->sa.sa_restorer;
 #endif /* CONFIG_X86_32 */
+		}
 	}
 
 	if (used_math()) {
@@ -244,12 +240,22 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 		sp = round_down(sp, 64);
 #endif /* CONFIG_X86_64 */
 		*fpstate = (void __user *)sp;
-
-		if (save_i387_xstate(*fpstate) < 0)
-			return (void __user *)-1L;
 	}
 
-	return (void __user *)align_sigframe(sp - frame_size);
+	sp = align_sigframe(sp - frame_size);
+
+	/*
+	 * If we are on the alternate signal stack and would overflow it, don't.
+	 * Return an always-bogus address instead so we will die with SIGSEGV.
+	 */
+	if (onsigstack && !likely(on_sig_stack(sp)))
+		return (void __user *)-1L;
+
+	/* save i387 state */
+	if (used_math() && save_i387_xstate(*fpstate) < 0)
+		return (void __user *)-1L;
+
+	return (void __user *)sp;
 }
 
 #ifdef CONFIG_X86_32

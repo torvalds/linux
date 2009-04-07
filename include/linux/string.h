@@ -13,6 +13,7 @@
 #include <stdarg.h>
 
 extern char *strndup_user(const char __user *, long);
+extern void *memdup_user(const void __user *, size_t);
 
 /*
  * Include machine specific inline routines
@@ -121,5 +122,14 @@ int bprintf(u32 *bin_buf, size_t size, const char *fmt, ...) __printf(3, 4);
 extern ssize_t memory_read_from_buffer(void *to, size_t count, loff_t *ppos,
 			const void *from, size_t available);
 
+/**
+ * strstarts - does @str start with @prefix?
+ * @str: string to examine
+ * @prefix: prefix to look for.
+ */
+static inline bool strstarts(const char *str, const char *prefix)
+{
+	return strncmp(str, prefix, strlen(prefix)) == 0;
+}
 #endif
 #endif /* _LINUX_STRING_H_ */

@@ -64,19 +64,6 @@ config SENSORS_PCA9539
 	  This driver is deprecated and will be dropped soon. Use
 	  drivers/gpio/pca953x.c instead.
 
-config SENSORS_PCF8591
-	tristate "Philips PCF8591"
-	depends on EXPERIMENTAL
-	default n
-	help
-	  If you say yes here you get support for Philips PCF8591 chips.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called pcf8591.
-
-	  These devices are hard to detect and rarely found on mainstream
-	  hardware.  If unsure, say N.
-
 config SENSORS_MAX6875
 	tristate "Maxim MAX6875 Power supply supervisor"
 	depends on EXPERIMENTAL

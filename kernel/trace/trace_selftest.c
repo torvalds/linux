@@ -250,6 +250,28 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+
+/* Maximum number of functions to trace before diagnosing a hang */
+#define GRAPH_MAX_FUNC_TEST	100000000
+
+static void __ftrace_dump(bool disable_tracing);
+static unsigned int graph_hang_thresh;
+
+/* Wrap the real function entry probe to avoid possible hanging */
+static int trace_graph_entry_watchdog(struct ftrace_graph_ent *trace)
+{
+	/* This is harmlessly racy, we want to approximately detect a hang */
+	if (unlikely(++graph_hang_thresh > GRAPH_MAX_FUNC_TEST)) {
+		ftrace_graph_stop();
+		printk(KERN_WARNING "BUG: Function graph tracer hang!\n");
+		if (ftrace_dump_on_oops)
+			__ftrace_dump(false);
+		return 0;
+	}
+
+	return trace_graph_entry(trace);
+}
+
 /*
  * Pretty much the same than for the function tracer from which the selftest
  * has been borrowed.
@@ -261,14 +283,28 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 	int ret;
 	unsigned long count;
 
-	ret = tracer_init(trace, tr);
+	/*
+	 * Simulate the init() callback but we attach a watchdog callback
+	 * to detect and recover from possible hangs
+	 */
+	tracing_reset_online_cpus(tr);
+	ret = register_ftrace_graph(&trace_graph_return,
+				    &trace_graph_entry_watchdog);
 	if (ret) {
 		warn_failed_init_tracer(trace, ret);
 		goto out;
 	}
+	tracing_start_cmdline_record();
 
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
+
+	/* Have we just recovered from a hang? */
+	if (graph_hang_thresh > GRAPH_MAX_FUNC_TEST) {
+		tracing_selftest_disabled = true;
+		ret = -1;
+		goto out;
+	}
 
 	tracing_stop();
 
@@ -317,6 +353,14 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 	local_irq_disable();
 	udelay(100);
 	local_irq_enable();
+
+	/*
+	 * Stop the tracer to avoid a warning subsequent
+	 * to buffer flipping failure because tracing_stop()
+	 * disables the tr and max buffers, making flipping impossible
+	 * in case of parallels max irqs off latencies.
+	 */
+	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
 	/* check both trace buffers */
@@ -371,6 +415,14 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	preempt_disable();
 	udelay(100);
 	preempt_enable();
+
+	/*
+	 * Stop the tracer to avoid a warning subsequent
+	 * to buffer flipping failure because tracing_stop()
+	 * disables the tr and max buffers, making flipping impossible
+	 * in case of parallels max preempt off latencies.
+	 */
+	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
 	/* check both trace buffers */
@@ -416,7 +468,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	ret = tracer_init(trace, tr);
 	if (ret) {
 		warn_failed_init_tracer(trace, ret);
-		goto out;
+		goto out_no_start;
 	}
 
 	/* reset the max latency */
@@ -430,31 +482,35 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	/* reverse the order of preempt vs irqs */
 	local_irq_enable();
 
+	/*
+	 * Stop the tracer to avoid a warning subsequent
+	 * to buffer flipping failure because tracing_stop()
+	 * disables the tr and max buffers, making flipping impossible
+	 * in case of parallels max irqs/preempt off latencies.
+	 */
+	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
 	/* check both trace buffers */
 	ret = trace_test_buffer(tr, NULL);
-	if (ret) {
-		tracing_start();
+	if (ret)
 		goto out;
-	}
 
 	ret = trace_test_buffer(&max_tr, &count);
-	if (ret) {
-		tracing_start();
+	if (ret)
 		goto out;
-	}
 
 	if (!ret && !count) {
 		printk(KERN_CONT ".. no entries found ..");
 		ret = -1;
-		tracing_start();
 		goto out;
 	}
 
 	/* do the test by disabling interrupts first this time */
 	tracing_max_latency = 0;
 	tracing_start();
+	trace->start(tr);
+
 	preempt_disable();
 	local_irq_disable();
 	udelay(100);
@@ -462,6 +518,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	/* reverse the order of preempt vs irqs */
 	local_irq_enable();
 
+	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
 	/* check both trace buffers */
@@ -477,9 +534,10 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 		goto out;
 	}
 
- out:
-	trace->reset(tr);
+out:
 	tracing_start();
+out_no_start:
+	trace->reset(tr);
 	tracing_max_latency = save_max;
 
 	return ret;

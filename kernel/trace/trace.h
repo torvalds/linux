@@ -123,7 +123,6 @@ struct userstack_entry {
 struct bprint_entry {
 	struct trace_entry	ent;
 	unsigned long		ip;
-	int			depth;
 	const char		*fmt;
 	u32			buf[];
 };
@@ -131,7 +130,6 @@ struct bprint_entry {
 struct print_entry {
 	struct trace_entry	ent;
 	unsigned long		ip;
-	int			depth;
 	char			buf[];
 };
 
@@ -184,6 +182,12 @@ struct trace_power {
 	struct power_trace	state_data;
 };
 
+enum kmemtrace_type_id {
+	KMEMTRACE_TYPE_KMALLOC = 0,	/* kmalloc() or kfree(). */
+	KMEMTRACE_TYPE_CACHE,		/* kmem_cache_*(). */
+	KMEMTRACE_TYPE_PAGES,		/* __get_free_pages() and friends. */
+};
+
 struct kmemtrace_alloc_entry {
 	struct trace_entry	ent;
 	enum kmemtrace_type_id type_id;
@@ -201,6 +205,19 @@ struct kmemtrace_free_entry {
 	unsigned long call_site;
 	const void *ptr;
 };
+
+struct syscall_trace_enter {
+	struct trace_entry	ent;
+	int			nr;
+	unsigned long		args[];
+};
+
+struct syscall_trace_exit {
+	struct trace_entry	ent;
+	int			nr;
+	unsigned long		ret;
+};
+
 
 /*
  * trace_flag_type is an enumeration that holds different
@@ -315,6 +332,10 @@ extern void __ftrace_bad_type(void);
 			  TRACE_KMEM_ALLOC);	\
 		IF_ASSIGN(var, ent, struct kmemtrace_free_entry,	\
 			  TRACE_KMEM_FREE);	\
+		IF_ASSIGN(var, ent, struct syscall_trace_enter,		\
+			  TRACE_SYSCALL_ENTER);				\
+		IF_ASSIGN(var, ent, struct syscall_trace_exit,		\
+			  TRACE_SYSCALL_EXIT);				\
 		__ftrace_bad_type();					\
 	} while (0)
 
@@ -468,6 +489,8 @@ trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
 				  unsigned long flags, int pc);
 void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
 					unsigned long flags, int pc);
+void trace_nowake_buffer_unlock_commit(struct ring_buffer_event *event,
+					unsigned long flags, int pc);
 
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
@@ -547,7 +570,7 @@ struct tracer_switch_ops {
 };
 #endif /* CONFIG_CONTEXT_SWITCH_TRACER */
 
-extern char *trace_find_cmdline(int pid);
+extern void trace_find_cmdline(int pid, char comm[]);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern unsigned long ftrace_update_tot_cnt;
@@ -583,9 +606,9 @@ extern int trace_selftest_startup_hw_branches(struct tracer *trace,
 extern void *head_page(struct trace_array_cpu *data);
 extern long ns2usecs(cycle_t nsec);
 extern int
-trace_vbprintk(unsigned long ip, int depth, const char *fmt, va_list args);
+trace_vbprintk(unsigned long ip, const char *fmt, va_list args);
 extern int
-trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args);
+trace_vprintk(unsigned long ip, const char *fmt, va_list args);
 
 extern unsigned long trace_flags;
 
@@ -669,6 +692,8 @@ enum trace_iterator_flags {
 	TRACE_ITER_PRINTK_MSGONLY	= 0x10000,
 	TRACE_ITER_CONTEXT_INFO		= 0x20000, /* Print pid/cpu/time */
 	TRACE_ITER_LATENCY_FMT		= 0x40000,
+	TRACE_ITER_GLOBAL_CLK		= 0x80000,
+	TRACE_ITER_SLEEP_TIME		= 0x100000,
 };
 
 /*
@@ -761,21 +786,88 @@ enum {
 	TRACE_EVENT_TYPE_RAW		= 2,
 };
 
-struct ftrace_event_call {
-	char		*name;
-	char		*system;
-	struct dentry	*dir;
-	int		enabled;
-	int		(*regfunc)(void);
-	void		(*unregfunc)(void);
-	int		id;
-	int		(*raw_init)(void);
-	int		(*show_format)(struct trace_seq *s);
+struct ftrace_event_field {
+	struct list_head	link;
+	char			*name;
+	char			*type;
+	int			offset;
+	int			size;
 };
+
+struct ftrace_event_call {
+	char			*name;
+	char			*system;
+	struct dentry		*dir;
+	int			enabled;
+	int			(*regfunc)(void);
+	void			(*unregfunc)(void);
+	int			id;
+	int			(*raw_init)(void);
+	int			(*show_format)(struct trace_seq *s);
+	int			(*define_fields)(void);
+	struct list_head	fields;
+	struct filter_pred	**preds;
+
+#ifdef CONFIG_EVENT_PROFILE
+	atomic_t	profile_count;
+	int		(*profile_enable)(struct ftrace_event_call *);
+	void		(*profile_disable)(struct ftrace_event_call *);
+#endif
+};
+
+struct event_subsystem {
+	struct list_head	list;
+	const char		*name;
+	struct dentry		*entry;
+	struct filter_pred	**preds;
+};
+
+#define events_for_each(event)						\
+	for (event = __start_ftrace_events;				\
+	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
+	     event++)
+
+#define MAX_FILTER_PRED 8
+
+struct filter_pred;
+
+typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
+
+struct filter_pred {
+	filter_pred_fn_t fn;
+	u64 val;
+	char *str_val;
+	int str_len;
+	char *field_name;
+	int offset;
+	int not;
+	int or;
+	int compound;
+	int clear;
+};
+
+int trace_define_field(struct ftrace_event_call *call, char *type,
+		       char *name, int offset, int size);
+extern void filter_free_pred(struct filter_pred *pred);
+extern void filter_print_preds(struct filter_pred **preds,
+			       struct trace_seq *s);
+extern int filter_parse(char **pbuf, struct filter_pred *pred);
+extern int filter_add_pred(struct ftrace_event_call *call,
+			   struct filter_pred *pred);
+extern void filter_free_preds(struct ftrace_event_call *call);
+extern int filter_match_preds(struct ftrace_event_call *call, void *rec);
+extern void filter_free_subsystem_preds(struct event_subsystem *system);
+extern int filter_add_subsystem_pred(struct event_subsystem *system,
+				     struct filter_pred *pred);
 
 void event_trace_printk(unsigned long ip, const char *fmt, ...);
 extern struct ftrace_event_call __start_ftrace_events[];
 extern struct ftrace_event_call __stop_ftrace_events[];
+
+#define for_each_event(event)						\
+	for (event = __start_ftrace_events;				\
+	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
+	     event++)
 
 extern const char *__start___trace_bprintk_fmt[];
 extern const char *__stop___trace_bprintk_fmt[];

@@ -241,7 +241,8 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 						status = AE_OK;
 					} else {
 						ACPI_EXCEPTION((AE_INFO, status,
-								"Could not install PciConfig handler for Root Bridge %4.4s",
+								"Could not install PciConfig handler "
+								"for Root Bridge %4.4s",
 								acpi_ut_get_node_name
 								(pci_root_node)));
 					}
@@ -293,9 +294,8 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	 * Get the PCI device and function numbers from the _ADR object contained
 	 * in the parent's scope.
 	 */
-	status =
-	    acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR, pci_device_node,
-					    &pci_value);
+	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR,
+						 pci_device_node, &pci_value);
 
 	/*
 	 * The default is zero, and since the allocation above zeroed the data,
@@ -308,18 +308,16 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 
 	/* The PCI segment number comes from the _SEG method */
 
-	status =
-	    acpi_ut_evaluate_numeric_object(METHOD_NAME__SEG, pci_root_node,
-					    &pci_value);
+	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__SEG,
+						 pci_root_node, &pci_value);
 	if (ACPI_SUCCESS(status)) {
 		pci_id->segment = ACPI_LOWORD(pci_value);
 	}
 
 	/* The PCI bus number comes from the _BBN method */
 
-	status =
-	    acpi_ut_evaluate_numeric_object(METHOD_NAME__BBN, pci_root_node,
-					    &pci_value);
+	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__BBN,
+						 pci_root_node, &pci_value);
 	if (ACPI_SUCCESS(status)) {
 		pci_id->bus = ACPI_LOWORD(pci_value);
 	}
@@ -632,8 +630,8 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 								  acpi_ns_locked);
 
 					/*
-					 * Tell all users that this region is usable by running the _REG
-					 * method
+					 * Tell all users that this region is usable by
+					 * running the _REG method
 					 */
 					if (acpi_ns_locked) {
 						status =

@@ -108,9 +108,9 @@ static tEplNmtCnuInstance EplNmtCnuInstance_g;
 
 static tEplNmtCommand EplNmtCnuGetNmtCommand(tEplFrameInfo * pFrameInfo_p);
 
-static BOOL EplNmtCnuNodeIdList(BYTE * pbNmtCommandDate_p);
+static BOOL EplNmtCnuNodeIdList(u8 * pbNmtCommandDate_p);
 
-static tEplKernel PUBLIC EplNmtCnuCommandCb(tEplFrameInfo * pFrameInfo_p);
+static tEplKernel EplNmtCnuCommandCb(tEplFrameInfo *pFrameInfo_p);
 
 //=========================================================================//
 //                                                                         //
@@ -135,7 +135,7 @@ static tEplKernel PUBLIC EplNmtCnuCommandCb(tEplFrameInfo * pFrameInfo_p);
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuInit(unsigned int uiNodeId_p)
+tEplKernel EplNmtCnuInit(unsigned int uiNodeId_p)
 {
 	tEplKernel Ret;
 
@@ -161,7 +161,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuInit(unsigned int uiNodeId_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuAddInstance(unsigned int uiNodeId_p)
+tEplKernel EplNmtCnuAddInstance(unsigned int uiNodeId_p)
 {
 	tEplKernel Ret;
 
@@ -201,7 +201,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuAddInstance(unsigned int uiNodeId_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuDelInstance()
+tEplKernel EplNmtCnuDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -234,9 +234,8 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuDelInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p,
-						       tEplNmtCommand
-						       NmtCommand_p)
+tEplKernel EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p,
+				   tEplNmtCommand NmtCommand_p)
 {
 	tEplKernel Ret;
 	tEplFrameInfo NmtRequestFrameInfo;
@@ -249,15 +248,15 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p,
 	EPL_MEMSET(&NmtRequestFrame.m_be_abSrcMac[0], 0x00, sizeof(NmtRequestFrame.m_be_abSrcMac));	// set by DLL
 	AmiSetWordToBe(&NmtRequestFrame.m_be_wEtherType,
 		       EPL_C_DLL_ETHERTYPE_EPL);
-	AmiSetByteToLe(&NmtRequestFrame.m_le_bDstNodeId, (BYTE) EPL_C_ADR_MN_DEF_NODE_ID);	// node id of the MN
+	AmiSetByteToLe(&NmtRequestFrame.m_le_bDstNodeId, (u8) EPL_C_ADR_MN_DEF_NODE_ID);	// node id of the MN
 	AmiSetByteToLe(&NmtRequestFrame.m_le_bMessageType,
-		       (BYTE) kEplMsgTypeAsnd);
+		       (u8) kEplMsgTypeAsnd);
 	AmiSetByteToLe(&NmtRequestFrame.m_Data.m_Asnd.m_le_bServiceId,
-		       (BYTE) kEplDllAsndNmtRequest);
+		       (u8) kEplDllAsndNmtRequest);
 	AmiSetByteToLe(&NmtRequestFrame.m_Data.m_Asnd.m_Payload.
 		       m_NmtRequestService.m_le_bNmtCommandId,
-		       (BYTE) NmtCommand_p);
-	AmiSetByteToLe(&NmtRequestFrame.m_Data.m_Asnd.m_Payload.m_NmtRequestService.m_le_bTargetNodeId, (BYTE) uiNodeId_p);	// target for the nmt command
+		       (u8) NmtCommand_p);
+	AmiSetByteToLe(&NmtRequestFrame.m_Data.m_Asnd.m_Payload.m_NmtRequestService.m_le_bTargetNodeId, (u8) uiNodeId_p);	// target for the nmt command
 	EPL_MEMSET(&NmtRequestFrame.m_Data.m_Asnd.m_Payload.m_NmtRequestService.
 		   m_le_abNmtCommandData[0], 0x00,
 		   sizeof(NmtRequestFrame.m_Data.m_Asnd.m_Payload.
@@ -297,9 +296,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtCnuSendNmtRequest(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC
-EplNmtCnuRegisterCheckEventCb(tEplNmtuCheckEventCallback
-			      pfnEplNmtCheckEventCb_p)
+tEplKernel EplNmtCnuRegisterCheckEventCb(tEplNmtuCheckEventCallback pfnEplNmtCheckEventCb_p)
 {
 	tEplKernel Ret;
 
@@ -335,7 +332,7 @@ EplNmtCnuRegisterCheckEventCb(tEplNmtuCheckEventCallback
 // State:
 //
 //---------------------------------------------------------------------------
-static tEplKernel PUBLIC EplNmtCnuCommandCb(tEplFrameInfo * pFrameInfo_p)
+static tEplKernel EplNmtCnuCommandCb(tEplFrameInfo *pFrameInfo_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplNmtCommand NmtCommand;
@@ -676,18 +673,18 @@ static tEplNmtCommand EplNmtCnuGetNmtCommand(tEplFrameInfo * pFrameInfo_p)
 // State:
 //
 //---------------------------------------------------------------------------
-static BOOL EplNmtCnuNodeIdList(BYTE * pbNmtCommandDate_p)
+static BOOL EplNmtCnuNodeIdList(u8 * pbNmtCommandDate_p)
 {
 	BOOL fNodeIdInList;
 	unsigned int uiByteOffset;
-	BYTE bBitOffset;
-	BYTE bNodeListByte;
+	u8 bBitOffset;
+	u8 bNodeListByte;
 
 	// get byte-offset of the own nodeid in NodeIdList
 	// devide though 8
 	uiByteOffset = (unsigned int)(EplNmtCnuInstance_g.m_uiNodeId >> 3);
 	// get bitoffset
-	bBitOffset = (BYTE) EplNmtCnuInstance_g.m_uiNodeId % 8;
+	bBitOffset = (u8) EplNmtCnuInstance_g.m_uiNodeId % 8;
 
 	bNodeListByte = AmiGetByteFromLe(&pbNmtCommandDate_p[uiByteOffset]);
 	if ((bNodeListByte & bBitOffset) == 0) {

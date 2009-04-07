@@ -52,6 +52,7 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 	file_key.offset = pos;
 	btrfs_set_key_type(&file_key, BTRFS_EXTENT_DATA_KEY);
 
+	path->leave_spinning = 1;
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
 				      sizeof(*item));
 	if (ret < 0)
@@ -523,6 +524,7 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 		key.offset = end_byte - 1;
 		key.type = BTRFS_EXTENT_CSUM_KEY;
 
+		path->leave_spinning = 1;
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 		if (ret > 0) {
 			if (path->slots[0] == 0)
@@ -757,8 +759,10 @@ insert:
 	} else {
 		ins_size = csum_size;
 	}
+	path->leave_spinning = 1;
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
 				      ins_size);
+	path->leave_spinning = 0;
 	if (ret < 0)
 		goto fail_unlock;
 	if (ret != 0) {
@@ -776,7 +780,6 @@ found:
 	item_end = (struct btrfs_csum_item *)((unsigned char *)item_end +
 				      btrfs_item_size_nr(leaf, path->slots[0]));
 	eb_token = NULL;
-	cond_resched();
 next_sector:
 
 	if (!eb_token ||
@@ -817,9 +820,9 @@ next_sector:
 		eb_token = NULL;
 	}
 	btrfs_mark_buffer_dirty(path->nodes[0]);
-	cond_resched();
 	if (total_bytes < sums->len) {
 		btrfs_release_path(root, path);
+		cond_resched();
 		goto again;
 	}
 out:

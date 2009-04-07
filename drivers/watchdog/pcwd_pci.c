@@ -24,7 +24,8 @@
  *	A bells and whistles driver is available from:
  *	http://www.kernel.org/pub/linux/kernel/people/wim/pcwd/pcwd_pci/
  *
- *	More info available at http://www.berkprod.com/ or http://www.pcwatchdog.com/
+ *	More info available at
+ *	http://www.berkprod.com/ or http://www.pcwatchdog.com/
  */
 
 /*
@@ -51,11 +52,10 @@
 
 /* Module and version information */
 #define WATCHDOG_VERSION "1.03"
-#define WATCHDOG_DATE "21 Jan 2007"
 #define WATCHDOG_DRIVER_NAME "PCI-PC Watchdog"
 #define WATCHDOG_NAME "pcwd_pci"
 #define PFX WATCHDOG_NAME ": "
-#define DRIVER_VERSION WATCHDOG_DRIVER_NAME " driver, v" WATCHDOG_VERSION " (" WATCHDOG_DATE ")\n"
+#define DRIVER_VERSION WATCHDOG_DRIVER_NAME " driver, v" WATCHDOG_VERSION "\n"
 
 /* Stuff for the PCI ID's  */
 #ifndef PCI_VENDOR_ID_QUICKLOGIC
@@ -76,7 +76,8 @@
 #define WD_PCI_TTRP		0x04	/* Temperature Trip status */
 #define WD_PCI_RL2A		0x08	/* Relay 2 Active */
 #define WD_PCI_RL1A		0x10	/* Relay 1 Active */
-#define WD_PCI_R2DS		0x40	/* Relay 2 Disable Temperature-trip/reset */
+#define WD_PCI_R2DS		0x40	/* Relay 2 Disable Temperature-trip /
+									reset */
 #define WD_PCI_RLY2		0x80	/* Activate Relay 2 on the board */
 /* Port 2 : Control Status #2 */
 #define WD_PCI_WDIS		0x10	/* Watchdog Disable */
@@ -114,12 +115,18 @@ static int cards_found;
 static int temp_panic;
 static unsigned long is_active;
 static char expect_release;
-static struct {				/* this is private data for each PCI-PC watchdog card */
-	int supports_temp;		/* Wether or not the card has a temperature device */
-	int boot_status;		/* The card's boot status */
-	unsigned long io_addr;		/* The cards I/O address */
-	spinlock_t io_lock;		/* the lock for io operations */
-	struct pci_dev *pdev;		/* the PCI-device */
+/* this is private data for each PCI-PC watchdog card */
+static struct {
+	/* Wether or not the card has a temperature device */
+	int supports_temp;
+	/* The card's boot status */
+	int boot_status;
+	/* The cards I/O address */
+	unsigned long io_addr;
+	/* the lock for io operations */
+	spinlock_t io_lock;
+	/* the PCI-device */
+	struct pci_dev *pdev;
 } pcipcwd_private;
 
 /* module parameters */
@@ -130,14 +137,18 @@ static int debug = QUIET;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level: 0=Quiet, 1=Verbose, 2=Debug (default=0)");
 
-#define WATCHDOG_HEARTBEAT 0	/* default heartbeat = delay-time from dip-switches */
+#define WATCHDOG_HEARTBEAT 0	/* default heartbeat =
+						delay-time from dip-switches */
 static int heartbeat = WATCHDOG_HEARTBEAT;
 module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (0<heartbeat<65536 or 0=delay-time from dip-switches, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
+MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. "
+	"(0<heartbeat<65536 or 0=delay-time from dip-switches, default="
+				__MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+					__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
  *	Internal functions
@@ -148,8 +159,8 @@ static int send_command(int cmd, int *msb, int *lsb)
 	int got_response, count;
 
 	if (debug >= DEBUG)
-		printk(KERN_DEBUG PFX "sending following data cmd=0x%02x msb=0x%02x lsb=0x%02x\n",
-		cmd, *msb, *lsb);
+		printk(KERN_DEBUG PFX "sending following data "
+		"cmd=0x%02x msb=0x%02x lsb=0x%02x\n", cmd, *msb, *lsb);
 
 	spin_lock(&pcipcwd_private.io_lock);
 	/* If a command requires data it should be written first.
@@ -166,17 +177,20 @@ static int send_command(int cmd, int *msb, int *lsb)
 	 * the WRSP bit in port 2 and give it a max. timeout of
 	 * PCI_COMMAND_TIMEOUT to process */
 	got_response = inb_p(pcipcwd_private.io_addr + 2) & WD_PCI_WRSP;
-	for (count = 0; (count < PCI_COMMAND_TIMEOUT) && (!got_response); count++) {
+	for (count = 0; (count < PCI_COMMAND_TIMEOUT) && (!got_response);
+								count++) {
 		mdelay(1);
 		got_response = inb_p(pcipcwd_private.io_addr + 2) & WD_PCI_WRSP;
 	}
 
 	if (debug >= DEBUG) {
 		if (got_response) {
-			printk(KERN_DEBUG PFX "time to process command was: %d ms\n",
+			printk(KERN_DEBUG PFX
+				"time to process command was: %d ms\n",
 				count);
 		} else {
-			printk(KERN_DEBUG PFX "card did not respond on command!\n");
+			printk(KERN_DEBUG PFX
+				"card did not respond on command!\n");
 		}
 	}
 
@@ -189,7 +203,8 @@ static int send_command(int cmd, int *msb, int *lsb)
 		inb_p(pcipcwd_private.io_addr + 6);
 
 		if (debug >= DEBUG)
-			printk(KERN_DEBUG PFX "received following data for cmd=0x%02x: msb=0x%02x lsb=0x%02x\n",
+			printk(KERN_DEBUG PFX "received following data for "
+				"cmd=0x%02x: msb=0x%02x lsb=0x%02x\n",
 				cmd, *msb, *lsb);
 	}
 
@@ -218,7 +233,8 @@ static void pcipcwd_show_card_info(void)
 	char fw_ver_str[20];		/* The cards firmware version */
 	int option_switches;
 
-	got_fw_rev = send_command(CMD_GET_FIRMWARE_VERSION, &fw_rev_major, &fw_rev_minor);
+	got_fw_rev = send_command(CMD_GET_FIRMWARE_VERSION, &fw_rev_major,
+								&fw_rev_minor);
 	if (got_fw_rev)
 		sprintf(fw_ver_str, "%u.%02u", fw_rev_major, fw_rev_minor);
 	else
@@ -227,23 +243,27 @@ static void pcipcwd_show_card_info(void)
 	/* Get switch settings */
 	option_switches = pcipcwd_get_option_switches();
 
-	printk(KERN_INFO PFX "Found card at port 0x%04x (Firmware: %s) %s temp option\n",
+	printk(KERN_INFO PFX "Found card at port "
+		"0x%04x (Firmware: %s) %s temp option\n",
 		(int) pcipcwd_private.io_addr, fw_ver_str,
 		(pcipcwd_private.supports_temp ? "with" : "without"));
 
-	printk(KERN_INFO PFX "Option switches (0x%02x): Temperature Reset Enable=%s, Power On Delay=%s\n",
+	printk(KERN_INFO PFX "Option switches (0x%02x): "
+		"Temperature Reset Enable=%s, Power On Delay=%s\n",
 		option_switches,
 		((option_switches & 0x10) ? "ON" : "OFF"),
 		((option_switches & 0x08) ? "ON" : "OFF"));
 
 	if (pcipcwd_private.boot_status & WDIOF_CARDRESET)
-		printk(KERN_INFO PFX "Previous reset was caused by the Watchdog card\n");
+		printk(KERN_INFO PFX
+			"Previous reset was caused by the Watchdog card\n");
 
 	if (pcipcwd_private.boot_status & WDIOF_OVERHEAT)
 		printk(KERN_INFO PFX "Card sensed a CPU Overheat\n");
 
 	if (pcipcwd_private.boot_status == 0)
-		printk(KERN_INFO PFX "No previous trip detected - Cold boot or reset\n");
+		printk(KERN_INFO PFX
+			"No previous trip detected - Cold boot or reset\n");
 }
 
 static int pcipcwd_start(void)
@@ -283,7 +303,8 @@ static int pcipcwd_stop(void)
 	spin_unlock(&pcipcwd_private.io_lock);
 
 	if (!(stat_reg & WD_PCI_WDIS)) {
-		printk(KERN_ERR PFX "Card did not acknowledge disable attempt\n");
+		printk(KERN_ERR PFX
+			"Card did not acknowledge disable attempt\n");
 		return -1;
 	}
 
@@ -364,7 +385,8 @@ static int pcipcwd_clear_status(void)
 	}
 
 	/* clear trip status & LED and keep mode of relay 2 */
-	outb_p((control_status & WD_PCI_R2DS) | WD_PCI_WTRP, pcipcwd_private.io_addr + 1);
+	outb_p((control_status & WD_PCI_R2DS) | WD_PCI_WTRP,
+						pcipcwd_private.io_addr + 1);
 
 	/* clear reset counter */
 	msb = 0;
@@ -437,7 +459,8 @@ static ssize_t pcipcwd_write(struct file *file, const char __user *data,
 			 * five months ago... */
 			expect_release = 0;
 
-			/* scan to see whether or not we got the magic character */
+			/* scan to see whether or not we got the
+			 * magic character */
 			for (i = 0; i != len; i++) {
 				char c;
 				if (get_user(c, data + i))
@@ -531,7 +554,7 @@ static long pcipcwd_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		if (pcipcwd_set_heartbeat(new_heartbeat))
-		    return -EINVAL;
+			return -EINVAL;
 
 		pcipcwd_keepalive();
 		/* Fall */
@@ -560,7 +583,8 @@ static int pcipcwd_open(struct inode *inode, struct file *file)
 	/* /dev/watchdog can only be opened once */
 	if (test_and_set_bit(0, &is_active)) {
 		if (debug >= VERBOSE)
-			printk(KERN_ERR PFX "Attempt to open already opened device.\n");
+			printk(KERN_ERR PFX
+				"Attempt to open already opened device.\n");
 		return -EBUSY;
 	}
 
@@ -578,7 +602,8 @@ static int pcipcwd_release(struct inode *inode, struct file *file)
 	if (expect_release == 42) {
 		pcipcwd_stop();
 	} else {
-		printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
+		printk(KERN_CRIT PFX
+			"Unexpected close, not stopping watchdog!\n");
 		pcipcwd_keepalive();
 	}
 	expect_release = 0;
@@ -621,7 +646,8 @@ static int pcipcwd_temp_release(struct inode *inode, struct file *file)
  *	Notify system
  */
 
-static int pcipcwd_notify_sys(struct notifier_block *this, unsigned long code, void *unused)
+static int pcipcwd_notify_sys(struct notifier_block *this, unsigned long code,
+								void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		pcipcwd_stop();	/* Turn the WDT off */
@@ -722,34 +748,38 @@ static int __devinit pcipcwd_card_init(struct pci_dev *pdev,
 
 	/* If heartbeat = 0 then we use the heartbeat from the dip-switches */
 	if (heartbeat == 0)
-		heartbeat = heartbeat_tbl[(pcipcwd_get_option_switches() & 0x07)];
+		heartbeat =
+			heartbeat_tbl[(pcipcwd_get_option_switches() & 0x07)];
 
-	/* Check that the heartbeat value is within it's range ; if not reset to the default */
+	/* Check that the heartbeat value is within it's range ;
+	 * if not reset to the default */
 	if (pcipcwd_set_heartbeat(heartbeat)) {
 		pcipcwd_set_heartbeat(WATCHDOG_HEARTBEAT);
-		printk(KERN_INFO PFX "heartbeat value must be 0<heartbeat<65536, using %d\n",
+		printk(KERN_INFO PFX
+			"heartbeat value must be 0<heartbeat<65536, using %d\n",
 			WATCHDOG_HEARTBEAT);
 	}
 
 	ret = register_reboot_notifier(&pcipcwd_notifier);
 	if (ret != 0) {
-		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-			ret);
+		printk(KERN_ERR PFX
+			"cannot register reboot notifier (err=%d)\n", ret);
 		goto err_out_release_region;
 	}
 
 	if (pcipcwd_private.supports_temp) {
 		ret = misc_register(&pcipcwd_temp_miscdev);
 		if (ret != 0) {
-			printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-				TEMP_MINOR, ret);
+			printk(KERN_ERR PFX "cannot register miscdev on "
+				"minor=%d (err=%d)\n", TEMP_MINOR, ret);
 			goto err_out_unregister_reboot;
 		}
 	}
 
 	ret = misc_register(&pcipcwd_miscdev);
 	if (ret != 0) {
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+		printk(KERN_ERR PFX
+			"cannot register miscdev on minor=%d (err=%d)\n",
 			WATCHDOG_MINOR, ret);
 		goto err_out_misc_deregister;
 	}

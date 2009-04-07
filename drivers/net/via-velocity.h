@@ -183,7 +183,7 @@ struct rdesc1 {
 };
 
 enum {
-	RX_INTEN = __constant_cpu_to_le16(0x8000)
+	RX_INTEN = cpu_to_le16(0x8000)
 };
 
 struct rx_desc {
@@ -210,7 +210,7 @@ struct tdesc1 {
 } __attribute__ ((__packed__));
 
 enum {
-	TD_QUEUE = __constant_cpu_to_le16(0x8000)
+	TD_QUEUE = cpu_to_le16(0x8000)
 };
 
 struct td_buf {
@@ -242,7 +242,7 @@ struct velocity_td_info {
 
 enum  velocity_owner {
 	OWNED_BY_HOST = 0,
-	OWNED_BY_NIC = __constant_cpu_to_le16(0x8000)
+	OWNED_BY_NIC = cpu_to_le16(0x8000)
 };
 
 

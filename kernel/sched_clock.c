@@ -45,9 +45,6 @@ static __read_mostly int sched_clock_running;
 
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
 __read_mostly int sched_clock_stable;
-#else
-static const int sched_clock_stable = 1;
-#endif
 
 struct sched_clock_data {
 	/*
@@ -116,13 +113,8 @@ static u64 __update_sched_clock(struct sched_clock_data *scd, u64 now)
 	s64 delta = now - scd->tick_raw;
 	u64 clock, min_clock, max_clock;
 
-	WARN_ON_ONCE(!irqs_disabled());
-
 	if (unlikely(delta < 0))
 		delta = 0;
-
-	if (unlikely(!sched_clock_running))
-		return 0ull;
 
 	/*
 	 * scd->clock = clamp(scd->tick_gtod + delta,
@@ -213,18 +205,20 @@ u64 sched_clock_cpu(int cpu)
 	return clock;
 }
 
-#ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-
 void sched_clock_tick(void)
 {
-	struct sched_clock_data *scd = this_scd();
+	struct sched_clock_data *scd;
 	u64 now, now_gtod;
+
+	if (sched_clock_stable)
+		return;
 
 	if (unlikely(!sched_clock_running))
 		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
 
+	scd = this_scd();
 	now_gtod = ktime_to_ns(ktime_get());
 	now = sched_clock();
 
@@ -256,6 +250,21 @@ void sched_clock_idle_wakeup_event(u64 delta_ns)
 	touch_softlockup_watchdog();
 }
 EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
+
+#else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
+
+void sched_clock_init(void)
+{
+	sched_clock_running = 1;
+}
+
+u64 sched_clock_cpu(int cpu)
+{
+	if (unlikely(!sched_clock_running))
+		return 0;
+
+	return sched_clock();
+}
 
 #endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 

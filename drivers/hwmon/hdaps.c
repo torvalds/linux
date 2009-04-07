@@ -65,6 +65,10 @@
 #define HDAPS_INPUT_FUZZ	4	/* input event threshold */
 #define HDAPS_INPUT_FLAT	4
 
+#define HDAPS_X_AXIS		(1 << 0)
+#define HDAPS_Y_AXIS		(1 << 1)
+#define HDAPS_BOTH_AXES		(HDAPS_X_AXIS | HDAPS_Y_AXIS)
+
 static struct platform_device *pdev;
 static struct input_polled_dev *hdaps_idev;
 static unsigned int hdaps_invert;
@@ -182,11 +186,11 @@ static int __hdaps_read_pair(unsigned int port1, unsigned int port2,
 	km_activity = inb(HDAPS_PORT_KMACT);
 	__device_complete();
 
-	/* if hdaps_invert is set, negate the two values */
-	if (hdaps_invert) {
+	/* hdaps_invert is a bitvector to negate the axes */
+	if (hdaps_invert & HDAPS_X_AXIS)
 		*x = -*x;
+	if (hdaps_invert & HDAPS_Y_AXIS)
 		*y = -*y;
-	}
 
 	return 0;
 }
@@ -436,7 +440,8 @@ static ssize_t hdaps_invert_store(struct device *dev,
 {
 	int invert;
 
-	if (sscanf(buf, "%d", &invert) != 1 || (invert != 1 && invert != 0))
+	if (sscanf(buf, "%d", &invert) != 1 ||
+	    invert < 0 || invert > HDAPS_BOTH_AXES)
 		return -EINVAL;
 
 	hdaps_invert = invert;
@@ -483,56 +488,52 @@ static int __init hdaps_dmi_match(const struct dmi_system_id *id)
 /* hdaps_dmi_match_invert - found an inverted match. */
 static int __init hdaps_dmi_match_invert(const struct dmi_system_id *id)
 {
-	hdaps_invert = 1;
-	printk(KERN_INFO "hdaps: inverting axis readings.\n");
+	hdaps_invert = (unsigned long)id->driver_data;
+	printk(KERN_INFO "hdaps: inverting axis (%u) readings.\n",
+	       hdaps_invert);
 	return hdaps_dmi_match(id);
 }
 
-#define HDAPS_DMI_MATCH_NORMAL(vendor, model) {		\
+#define HDAPS_DMI_MATCH_INVERT(vendor, model, axes) {	\
 	.ident = vendor " " model,			\
-	.callback = hdaps_dmi_match,			\
+	.callback = hdaps_dmi_match_invert,		\
+	.driver_data = (void *)axes,			\
 	.matches = {					\
 		DMI_MATCH(DMI_BOARD_VENDOR, vendor),	\
 		DMI_MATCH(DMI_PRODUCT_VERSION, model)	\
 	}						\
 }
 
-#define HDAPS_DMI_MATCH_INVERT(vendor, model) {		\
-	.ident = vendor " " model,			\
-	.callback = hdaps_dmi_match_invert,		\
-	.matches = {					\
-		DMI_MATCH(DMI_BOARD_VENDOR, vendor),	\
-		DMI_MATCH(DMI_PRODUCT_VERSION, model)	\
-	}						\
-}
+#define HDAPS_DMI_MATCH_NORMAL(vendor, model)		\
+	HDAPS_DMI_MATCH_INVERT(vendor, model, 0)
 
 /* Note that HDAPS_DMI_MATCH_NORMAL("ThinkPad T42") would match
    "ThinkPad T42p", so the order of the entries matters.
    If your ThinkPad is not recognized, please update to latest
    BIOS. This is especially the case for some R52 ThinkPads. */
 static struct dmi_system_id __initdata hdaps_whitelist[] = {
-	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad R50p"),
+	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad R50p", HDAPS_BOTH_AXES),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad R50"),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad R51"),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad R52"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad R61i"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad R61"),
-	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad T41p"),
+	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad R61i", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad R61", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad T41p", HDAPS_BOTH_AXES),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad T41"),
-	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad T42p"),
+	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad T42p", HDAPS_BOTH_AXES),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad T42"),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad T43"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad T60"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad T61p"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad T61"),
+	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad T60", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad T61p", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad T61", HDAPS_BOTH_AXES),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad X40"),
-	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad X41"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad X60"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad X61s"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad X61"),
+	HDAPS_DMI_MATCH_INVERT("IBM", "ThinkPad X41", HDAPS_Y_AXIS),
+	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad X60", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad X61s", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad X61", HDAPS_BOTH_AXES),
 	HDAPS_DMI_MATCH_NORMAL("IBM", "ThinkPad Z60m"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad Z61m"),
-	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad Z61p"),
+	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad Z61m", HDAPS_BOTH_AXES),
+	HDAPS_DMI_MATCH_INVERT("LENOVO", "ThinkPad Z61p", HDAPS_BOTH_AXES),
 	{ .ident = NULL }
 };
 
@@ -627,8 +628,9 @@ static void __exit hdaps_exit(void)
 module_init(hdaps_init);
 module_exit(hdaps_exit);
 
-module_param_named(invert, hdaps_invert, bool, 0);
-MODULE_PARM_DESC(invert, "invert data along each axis");
+module_param_named(invert, hdaps_invert, int, 0);
+MODULE_PARM_DESC(invert, "invert data along each axis. 1 invert x-axis, "
+		 "2 invert y-axis, 3 invert both axes.");
 
 MODULE_AUTHOR("Robert Love");
 MODULE_DESCRIPTION("IBM Hard Drive Active Protection System (HDAPS) driver");

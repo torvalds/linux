@@ -94,5 +94,3 @@ static void gyration_exit(void)
 module_init(gyration_init);
 module_exit(gyration_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(gyration);

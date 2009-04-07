@@ -15,6 +15,7 @@
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
+#include <linux/highmem.h>
 
 #include <asm/mach-types.h>
 #include <asm/sections.h>
@@ -382,7 +383,7 @@ void __init bootmem_init(void)
 	for_each_node(node)
 		bootmem_free_node(node, mi);
 
-	high_memory = __va(memend_pfn << PAGE_SHIFT);
+	high_memory = __va((memend_pfn << PAGE_SHIFT) - 1) + 1;
 
 	/*
 	 * This doesn't seem to be used by the Linux memory manager any
@@ -485,7 +486,7 @@ void __init mem_init(void)
 	int i, node;
 
 #ifndef CONFIG_DISCONTIGMEM
-	max_mapnr   = virt_to_page(high_memory) - mem_map;
+	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
 #endif
 
 	/* this will put all unused low memory onto the freelists */
@@ -502,6 +503,19 @@ void __init mem_init(void)
 	/* now that our DMA memory is actually so designated, we can free it */
 	totalram_pages += free_area(PHYS_PFN_OFFSET,
 				    __phys_to_pfn(__pa(swapper_pg_dir)), NULL);
+#endif
+
+#ifdef CONFIG_HIGHMEM
+	/* set highmem page free */
+	for_each_online_node(node) {
+		for_each_nodebank (i, &meminfo, node) {
+			unsigned long start = bank_pfn_start(&meminfo.bank[i]);
+			unsigned long end = bank_pfn_end(&meminfo.bank[i]);
+			if (start >= max_low_pfn + PHYS_PFN_OFFSET)
+				totalhigh_pages += free_area(start, end, NULL);
+		}
+	}
+	totalram_pages += totalhigh_pages;
 #endif
 
 	/*
@@ -521,9 +535,10 @@ void __init mem_init(void)
 	initsize = __init_end - __init_begin;
 
 	printk(KERN_NOTICE "Memory: %luKB available (%dK code, "
-		"%dK data, %dK init)\n",
+		"%dK data, %dK init, %luK highmem)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
-		codesize >> 10, datasize >> 10, initsize >> 10);
+		codesize >> 10, datasize >> 10, initsize >> 10,
+		(unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
 
 	if (PAGE_SIZE >= 16384 && num_physpages <= 128) {
 		extern int sysctl_overcommit_memory;

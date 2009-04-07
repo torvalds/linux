@@ -27,6 +27,10 @@
 #include "smscoreapi.h"
 #include "sms-cards.h"
 
+static int sms_dbg;
+module_param_named(debug, sms_dbg, int, 0644);
+MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
+
 #define USB1_BUFFER_SIZE		0x1000
 #define USB2_BUFFER_SIZE		0x4000
 
@@ -424,6 +428,7 @@ static int smsusb_probe(struct usb_interface *intf,
 
 	rc = smsusb_init_device(intf, id->driver_info);
 	sms_info("rc %d", rc);
+	sms_board_load_modules(id->driver_info);
 	return rc;
 }
 
@@ -436,7 +441,7 @@ static int smsusb_suspend(struct usb_interface *intf, pm_message_t msg)
 {
 	struct smsusb_device_t *dev =
 		(struct smsusb_device_t *)usb_get_intfdata(intf);
-	printk(KERN_INFO "%s  Entering status %d.\n", __func__, msg.event);
+	printk(KERN_INFO "%s: Entering status %d.\n", __func__, msg.event);
 	smsusb_stop_streaming(dev);
 	return 0;
 }
@@ -448,7 +453,7 @@ static int smsusb_resume(struct usb_interface *intf)
 		(struct smsusb_device_t *)usb_get_intfdata(intf);
 	struct usb_device *udev = interface_to_usbdev(intf);
 
-	printk(KERN_INFO "%s  Entering.\n", __func__);
+	printk(KERN_INFO "%s: Entering.\n", __func__);
 	usb_clear_halt(udev, usb_rcvbulkpipe(udev, 0x81));
 	usb_clear_halt(udev, usb_rcvbulkpipe(udev, 0x02));
 
@@ -463,9 +468,8 @@ static int smsusb_resume(struct usb_interface *intf)
 				       intf->cur_altsetting->desc.
 				       bInterfaceNumber, 0);
 		if (rc < 0) {
-			printk(KERN_INFO
-			       "%s usb_set_interface failed, rc %d\n",
-			       __func__, rc);
+			printk(KERN_INFO "%s usb_set_interface failed, "
+			       "rc %d\n", __func__, rc);
 			return rc;
 		}
 	}
@@ -474,8 +478,55 @@ static int smsusb_resume(struct usb_interface *intf)
 	return 0;
 }
 
+struct usb_device_id smsusb_id_table[] = {
+#ifdef CONFIG_DVB_SIANO_SMS1XXX_SMS_IDS
+	{ USB_DEVICE(0x187f, 0x0010),
+		.driver_info = SMS1XXX_BOARD_SIANO_STELLAR },
+	{ USB_DEVICE(0x187f, 0x0100),
+		.driver_info = SMS1XXX_BOARD_SIANO_STELLAR },
+	{ USB_DEVICE(0x187f, 0x0200),
+		.driver_info = SMS1XXX_BOARD_SIANO_NOVA_A },
+	{ USB_DEVICE(0x187f, 0x0201),
+		.driver_info = SMS1XXX_BOARD_SIANO_NOVA_B },
+	{ USB_DEVICE(0x187f, 0x0300),
+		.driver_info = SMS1XXX_BOARD_SIANO_VEGA },
+#endif
+	{ USB_DEVICE(0x2040, 0x1700),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT },
+	{ USB_DEVICE(0x2040, 0x1800),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A },
+	{ USB_DEVICE(0x2040, 0x1801),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B },
+	{ USB_DEVICE(0x2040, 0x2000),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
+	{ USB_DEVICE(0x2040, 0x2009),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2 },
+	{ USB_DEVICE(0x2040, 0x200a),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
+	{ USB_DEVICE(0x2040, 0x2010),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
+	{ USB_DEVICE(0x2040, 0x2011),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
+	{ USB_DEVICE(0x2040, 0x2019),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
+	{ USB_DEVICE(0x2040, 0x5500),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x2040, 0x5510),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x2040, 0x5520),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x2040, 0x5530),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x2040, 0x5580),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ USB_DEVICE(0x2040, 0x5590),
+		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
+	{ }		/* Terminating entry */
+};
+MODULE_DEVICE_TABLE(usb, smsusb_id_table);
+
 static struct usb_driver smsusb_driver = {
-	.name			= "sms1xxx",
+	.name			= "smsusb",
 	.probe			= smsusb_probe,
 	.disconnect		= smsusb_disconnect,
 	.id_table		= smsusb_id_table,
@@ -484,7 +535,7 @@ static struct usb_driver smsusb_driver = {
 	.resume			= smsusb_resume,
 };
 
-int smsusb_register(void)
+int smsusb_module_init(void)
 {
 	int rc = usb_register(&smsusb_driver);
 	if (rc)
@@ -495,10 +546,16 @@ int smsusb_register(void)
 	return rc;
 }
 
-void smsusb_unregister(void)
+void smsusb_module_exit(void)
 {
 	sms_debug("");
 	/* Regular USB Cleanup */
 	usb_deregister(&smsusb_driver);
 }
 
+module_init(smsusb_module_init);
+module_exit(smsusb_module_exit);
+
+MODULE_DESCRIPTION("Driver for the Siano SMS1XXX USB dongle");
+MODULE_AUTHOR("Siano Mobile Silicon, INC. (uris@siano-ms.com)");
+MODULE_LICENSE("GPL");

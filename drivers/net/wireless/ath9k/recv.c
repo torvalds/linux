@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Atheros Communications Inc.
+ * Copyright (c) 2008-2009 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,28 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "core.h"
+#include "ath9k.h"
+
+static struct ieee80211_hw * ath_get_virt_hw(struct ath_softc *sc,
+					     struct ieee80211_hdr *hdr)
+{
+	struct ieee80211_hw *hw = sc->pri_wiphy->hw;
+	int i;
+
+	spin_lock_bh(&sc->wiphy_lock);
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		struct ath_wiphy *aphy = sc->sec_wiphy[i];
+		if (aphy == NULL)
+			continue;
+		if (compare_ether_addr(hdr->addr1, aphy->hw->wiphy->perm_addr)
+		    == 0) {
+			hw = aphy->hw;
+			break;
+		}
+	}
+	spin_unlock_bh(&sc->wiphy_lock);
+	return hw;
+}
 
 /*
  * Setup and link descriptors.
@@ -26,7 +47,7 @@
  */
 static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_desc *ds;
 	struct sk_buff *skb;
 
@@ -79,7 +100,7 @@ static u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp)
 	return (tsf & ~0x7fff) | rstamp;
 }
 
-static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
+static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len, gfp_t gfp_mask)
 {
 	struct sk_buff *skb;
 	u32 off;
@@ -97,11 +118,11 @@ static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
 	 * Unfortunately this means we may get 8 KB here from the
 	 * kernel... and that is actually what is observed on some
 	 * systems :( */
-	skb = dev_alloc_skb(len + sc->sc_cachelsz - 1);
+	skb = __dev_alloc_skb(len + sc->cachelsz - 1, gfp_mask);
 	if (skb != NULL) {
-		off = ((unsigned long) skb->data) % sc->sc_cachelsz;
+		off = ((unsigned long) skb->data) % sc->cachelsz;
 		if (off != 0)
-			skb_reserve(skb, sc->sc_cachelsz - off);
+			skb_reserve(skb, sc->cachelsz - off);
 	} else {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"skbuff alloc of size %u failed\n", len);
@@ -123,10 +144,12 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 	struct ieee80211_hdr *hdr;
 	u8 ratecode;
 	__le16 fc;
+	struct ieee80211_hw *hw;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
 	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
+	hw = ath_get_virt_hw(sc, hdr);
 
 	if (ds->ds_rxstat.rs_more) {
 		/*
@@ -135,7 +158,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 		 * discard the frame. Enable this if you want to see
 		 * error frames in Monitor mode.
 		 */
-		if (sc->sc_ah->ah_opmode != NL80211_IFTYPE_MONITOR)
+		if (sc->sc_ah->opmode != NL80211_IFTYPE_MONITOR)
 			goto rx_next;
 	} else if (ds->ds_rxstat.rs_status != 0) {
 		if (ds->ds_rxstat.rs_status & ATH9K_RXERR_CRC)
@@ -161,7 +184,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 		 * decryption and MIC failures. For monitor mode,
 		 * we also ignore the CRC error.
 		 */
-		if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_MONITOR) {
+		if (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR) {
 			if (ds->ds_rxstat.rs_status &
 			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
 			      ATH9K_RXERR_CRC))
@@ -186,7 +209,6 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 		rx_status->rate_idx = ratecode & 0x7f;
 	} else {
 		int i = 0, cur_band, n_rates;
-		struct ieee80211_hw *hw = sc->hw;
 
 		cur_band = hw->conf.channel->band;
 		n_rates = sc->sbands[cur_band].n_bitrates;
@@ -208,9 +230,9 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 	}
 
 	rx_status->mactime = ath_extend_tsf(sc, ds->ds_rxstat.rs_tstamp);
-	rx_status->band = sc->hw->conf.channel->band;
-	rx_status->freq =  sc->hw->conf.channel->center_freq;
-	rx_status->noise = sc->sc_ani.sc_noise_floor;
+	rx_status->band = hw->conf.channel->band;
+	rx_status->freq = hw->conf.channel->center_freq;
+	rx_status->noise = sc->ani.noise_floor;
 	rx_status->signal = rx_status->noise + ds->ds_rxstat.rs_rssi;
 	rx_status->antenna = ds->ds_rxstat.rs_antenna;
 
@@ -233,7 +255,7 @@ rx_next:
 
 static void ath_opmode_init(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	u32 rfilt, mfilt[2];
 
 	/* configure rx filter */
@@ -241,14 +263,14 @@ static void ath_opmode_init(struct ath_softc *sc)
 	ath9k_hw_setrxfilter(ah, rfilt);
 
 	/* configure bssid mask */
-	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath9k_hw_setbssidmask(ah, sc->sc_bssidmask);
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
+		ath9k_hw_setbssidmask(sc);
 
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);
 
 	/* Handle any link-level address change. */
-	ath9k_hw_setmac(ah, sc->sc_myaddr);
+	ath9k_hw_setmac(ah, sc->sc_ah->macaddr);
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
@@ -267,11 +289,11 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 		spin_lock_init(&sc->rx.rxbuflock);
 
 		sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
-					   min(sc->sc_cachelsz,
+					   min(sc->cachelsz,
 					       (u16)64));
 
 		DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
-			sc->sc_cachelsz, sc->rx.bufsize);
+			sc->cachelsz, sc->rx.bufsize);
 
 		/* Initialize rx descriptors */
 
@@ -284,22 +306,22 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 		}
 
 		list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-			skb = ath_rxbuf_alloc(sc, sc->rx.bufsize);
+			skb = ath_rxbuf_alloc(sc, sc->rx.bufsize, GFP_KERNEL);
 			if (skb == NULL) {
 				error = -ENOMEM;
 				break;
 			}
 
 			bf->bf_mpdu = skb;
-			bf->bf_buf_addr = pci_map_single(sc->pdev, skb->data,
+			bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
 							 sc->rx.bufsize,
-							 PCI_DMA_FROMDEVICE);
-			if (unlikely(pci_dma_mapping_error(sc->pdev,
+							 DMA_FROM_DEVICE);
+			if (unlikely(dma_mapping_error(sc->dev,
 				  bf->bf_buf_addr))) {
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
 				DPRINTF(sc, ATH_DBG_CONFIG,
-					"pci_dma_mapping_error() on RX init\n");
+					"dma_mapping_error() on RX init\n");
 				error = -ENOMEM;
 				break;
 			}
@@ -322,8 +344,13 @@ void ath_rx_cleanup(struct ath_softc *sc)
 
 	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
 		skb = bf->bf_mpdu;
-		if (skb)
+		if (skb) {
+			dma_unmap_single(sc->dev,
+					 bf->bf_buf_addr,
+					 sc->rx.bufsize,
+					 DMA_FROM_DEVICE);
 			dev_kfree_skb(skb);
+		}
 	}
 
 	if (sc->rx.rxdma.dd_desc_len != 0)
@@ -360,26 +387,39 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		| ATH9K_RX_FILTER_MCAST;
 
 	/* If not a STA, enable processing of Probe Requests */
-	if (sc->sc_ah->ah_opmode != NL80211_IFTYPE_STATION)
+	if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
-	/* Can't set HOSTAP into promiscous mode */
-	if (((sc->sc_ah->ah_opmode != NL80211_IFTYPE_AP) &&
+	/*
+	 * Set promiscuous mode when FIF_PROMISC_IN_BSS is enabled for station
+	 * mode interface or when in monitor mode. AP mode does not need this
+	 * since it receives all in-BSS frames anyway.
+	 */
+	if (((sc->sc_ah->opmode != NL80211_IFTYPE_AP) &&
 	     (sc->rx.rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (sc->sc_ah->ah_opmode == NL80211_IFTYPE_MONITOR)) {
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR))
 		rfilt |= ATH9K_RX_FILTER_PROM;
-		/* ??? To prevent from sending ACK */
-		rfilt &= ~ATH9K_RX_FILTER_UCAST;
-	}
 
-	if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION ||
-	    sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC)
+	if (sc->rx.rxfilter & FIF_CONTROL)
+		rfilt |= ATH9K_RX_FILTER_CONTROL;
+
+	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) &&
+	    !(sc->rx.rxfilter & FIF_BCN_PRBRESP_PROMISC))
+		rfilt |= ATH9K_RX_FILTER_MYBEACON;
+	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	/* If in HOSTAP mode, want to enable reception of PSPOLL frames
-	   & beacon frames */
-	if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP)
-		rfilt |= (ATH9K_RX_FILTER_BEACON | ATH9K_RX_FILTER_PSPOLL);
+	/* If in HOSTAP mode, want to enable reception of PSPOLL frames */
+	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP)
+		rfilt |= ATH9K_RX_FILTER_PSPOLL;
+
+	if (sc->sec_wiphy) {
+		/* TODO: only needed if more than one BSSID is in use in
+		 * station/adhoc mode */
+		/* TODO: for older chips, may need to add ATH9K_RX_FILTER_PROM
+		 */
+		rfilt |= ATH9K_RX_FILTER_MCAST_BCAST_ALL;
+	}
 
 	return rfilt;
 
@@ -388,7 +428,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 
 int ath_startrecv(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf, *tbf;
 
 	spin_lock_bh(&sc->rx.rxbuflock);
@@ -418,13 +458,12 @@ start_recv:
 
 bool ath_stoprecv(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	bool stopped;
 
 	ath9k_hw_stoppcurecv(ah);
 	ath9k_hw_setrxfilter(ah, 0);
 	stopped = ath9k_hw_stopdmarecv(ah);
-	mdelay(3); /* 3ms is long enough for 1 frame */
 	sc->rx.rxlink = NULL;
 
 	return stopped;
@@ -449,7 +488,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 	struct ath_desc *ds;
 	struct sk_buff *skb = NULL, *requeue_skb;
 	struct ieee80211_rx_status rx_status;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ieee80211_hdr *hdr;
 	int hdrlen, padsize, retval;
 	bool decrypt_error = false;
@@ -524,9 +563,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * 1. accessing the frame
 		 * 2. requeueing the same buffer to h/w
 		 */
-		pci_dma_sync_single_for_cpu(sc->pdev, bf->bf_buf_addr,
+		dma_sync_single_for_cpu(sc->dev, bf->bf_buf_addr,
 				sc->rx.bufsize,
-				PCI_DMA_FROMDEVICE);
+				DMA_FROM_DEVICE);
 
 		/*
 		 * If we're asked to flush receive queue, directly
@@ -547,7 +586,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		/* Ensure we always have an skb to requeue once we are done
 		 * processing the current buffer's skb */
-		requeue_skb = ath_rxbuf_alloc(sc, sc->rx.bufsize);
+		requeue_skb = ath_rxbuf_alloc(sc, sc->rx.bufsize, GFP_ATOMIC);
 
 		/* If there is no memory we ignore the current RX'd frame,
 		 * tell hardware it can give us a new frame using the old
@@ -557,9 +596,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			goto requeue;
 
 		/* Unmap the frame */
-		pci_unmap_single(sc->pdev, bf->bf_buf_addr,
+		dma_unmap_single(sc->dev, bf->bf_buf_addr,
 				 sc->rx.bufsize,
-				 PCI_DMA_FROMDEVICE);
+				 DMA_FROM_DEVICE);
 
 		skb_put(skb, ds->ds_rxstat.rs_datalen);
 		skb->protocol = cpu_to_be16(ETH_P_CONTROL);
@@ -590,24 +629,52 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			   && !decrypt_error && skb->len >= hdrlen + 4) {
 			keyix = skb->data[hdrlen + 3] >> 6;
 
-			if (test_bit(keyix, sc->sc_keymap))
+			if (test_bit(keyix, sc->keymap))
 				rx_status.flag |= RX_FLAG_DECRYPTED;
+		}
+		if (ah->sw_mgmt_crypto &&
+		    (rx_status.flag & RX_FLAG_DECRYPTED) &&
+		    ieee80211_is_mgmt(hdr->frame_control)) {
+			/* Use software decrypt for management frames. */
+			rx_status.flag &= ~RX_FLAG_DECRYPTED;
 		}
 
 		/* Send the frame to mac80211 */
-		__ieee80211_rx(sc->hw, skb, &rx_status);
+		if (hdr->addr1[5] & 0x01) {
+			int i;
+			/*
+			 * Deliver broadcast/multicast frames to all suitable
+			 * virtual wiphys.
+			 */
+			/* TODO: filter based on channel configuration */
+			for (i = 0; i < sc->num_sec_wiphy; i++) {
+				struct ath_wiphy *aphy = sc->sec_wiphy[i];
+				struct sk_buff *nskb;
+				if (aphy == NULL)
+					continue;
+				nskb = skb_copy(skb, GFP_ATOMIC);
+				if (nskb)
+					__ieee80211_rx(aphy->hw, nskb,
+						       &rx_status);
+			}
+			__ieee80211_rx(sc->hw, skb, &rx_status);
+		} else {
+			/* Deliver unicast frames based on receiver address */
+			__ieee80211_rx(ath_get_virt_hw(sc, hdr), skb,
+				       &rx_status);
+		}
 
 		/* We will now give hardware our shiny new allocated skb */
 		bf->bf_mpdu = requeue_skb;
-		bf->bf_buf_addr = pci_map_single(sc->pdev, requeue_skb->data,
+		bf->bf_buf_addr = dma_map_single(sc->dev, requeue_skb->data,
 					 sc->rx.bufsize,
-					 PCI_DMA_FROMDEVICE);
-		if (unlikely(pci_dma_mapping_error(sc->pdev,
+					 DMA_FROM_DEVICE);
+		if (unlikely(dma_mapping_error(sc->dev,
 			  bf->bf_buf_addr))) {
 			dev_kfree_skb_any(requeue_skb);
 			bf->bf_mpdu = NULL;
 			DPRINTF(sc, ATH_DBG_CONFIG,
-				"pci_dma_mapping_error() on RX\n");
+				"dma_mapping_error() on RX\n");
 			break;
 		}
 		bf->bf_dmacontext = bf->bf_buf_addr;
@@ -621,6 +688,12 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 				ath_setdefantenna(sc, ds->ds_rxstat.rs_antenna);
 		} else {
 			sc->rx.rxotherant = 0;
+		}
+
+		if (ieee80211_is_beacon(hdr->frame_control) &&
+				(sc->sc_flags & SC_OP_WAIT_FOR_BEACON)) {
+			sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
+			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
 		}
 requeue:
 		list_move_tail(&bf->list, &sc->rx.rxbuf);

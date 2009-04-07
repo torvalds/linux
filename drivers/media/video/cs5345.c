@@ -141,11 +141,6 @@ static int cs5345_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int cs5345_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops cs5345_core_ops = {
@@ -214,8 +209,6 @@ MODULE_DEVICE_TABLE(i2c, cs5345_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "cs5345",
-	.driverid = I2C_DRIVERID_CS5345,
-	.command = cs5345_command,
 	.probe = cs5345_probe,
 	.remove = cs5345_remove,
 	.id_table = cs5345_id,

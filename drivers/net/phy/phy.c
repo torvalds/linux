@@ -414,7 +414,6 @@ EXPORT_SYMBOL(phy_start_aneg);
 
 static void phy_change(struct work_struct *work);
 static void phy_state_machine(struct work_struct *work);
-static void phy_timer(unsigned long data);
 
 /**
  * phy_start_machine - start PHY state machine tracking
@@ -434,11 +433,8 @@ void phy_start_machine(struct phy_device *phydev,
 {
 	phydev->adjust_state = handler;
 
-	INIT_WORK(&phydev->state_queue, phy_state_machine);
-	init_timer(&phydev->phy_timer);
-	phydev->phy_timer.function = &phy_timer;
-	phydev->phy_timer.data = (unsigned long) phydev;
-	mod_timer(&phydev->phy_timer, jiffies + HZ);
+	INIT_DELAYED_WORK(&phydev->state_queue, phy_state_machine);
+	schedule_delayed_work(&phydev->state_queue, jiffies + HZ);
 }
 
 /**
@@ -451,8 +447,7 @@ void phy_start_machine(struct phy_device *phydev,
  */
 void phy_stop_machine(struct phy_device *phydev)
 {
-	del_timer_sync(&phydev->phy_timer);
-	cancel_work_sync(&phydev->state_queue);
+	cancel_delayed_work_sync(&phydev->state_queue);
 
 	mutex_lock(&phydev->lock);
 	if (phydev->state > PHY_UP)
@@ -680,11 +675,9 @@ static void phy_change(struct work_struct *work)
 	if (err)
 		goto irq_enable_err;
 
-	/* Stop timer and run the state queue now.  The work function for
-	 * state_queue will start the timer up again.
-	 */
-	del_timer(&phydev->phy_timer);
-	schedule_work(&phydev->state_queue);
+	/* reschedule state queue work to run as soon as possible */
+	cancel_delayed_work_sync(&phydev->state_queue);
+	schedule_delayed_work(&phydev->state_queue, 0);
 
 	return;
 
@@ -761,14 +754,12 @@ EXPORT_SYMBOL(phy_start);
 /**
  * phy_state_machine - Handle the state machine
  * @work: work_struct that describes the work to be done
- *
- * Description: Scheduled by the state_queue workqueue each time
- *   phy_timer is triggered.
  */
 static void phy_state_machine(struct work_struct *work)
 {
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct phy_device *phydev =
-			container_of(work, struct phy_device, state_queue);
+			container_of(dwork, struct phy_device, state_queue);
 	int needs_aneg = 0;
 	int err = 0;
 
@@ -946,17 +937,6 @@ static void phy_state_machine(struct work_struct *work)
 	if (err < 0)
 		phy_error(phydev);
 
-	mod_timer(&phydev->phy_timer, jiffies + PHY_STATE_TIME * HZ);
-}
-
-/* PHY timer which schedules the state machine work */
-static void phy_timer(unsigned long data)
-{
-	struct phy_device *phydev = (struct phy_device *)data;
-
-	/*
-	 * PHY I/O operations can potentially sleep so we ensure that
-	 * it's done from a process context
-	 */
-	schedule_work(&phydev->state_queue);
+	schedule_delayed_work(&phydev->state_queue,
+				jiffies + PHY_STATE_TIME * HZ);
 }

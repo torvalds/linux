@@ -82,26 +82,24 @@
 #define NFS3_commitres_sz	(1+NFS3_wcc_data_sz+2)
 
 #define ACL3_getaclargs_sz	(NFS3_fh_sz+1)
-#define ACL3_setaclargs_sz	(NFS3_fh_sz+1+2*(2+5*3))
-#define ACL3_getaclres_sz	(1+NFS3_post_op_attr_sz+1+2*(2+5*3))
+#define ACL3_setaclargs_sz	(NFS3_fh_sz+1+ \
+				XDR_QUADLEN(NFS_ACL_INLINE_BUFSIZE))
+#define ACL3_getaclres_sz	(1+NFS3_post_op_attr_sz+1+ \
+				XDR_QUADLEN(NFS_ACL_INLINE_BUFSIZE))
 #define ACL3_setaclres_sz	(1+NFS3_post_op_attr_sz)
 
 /*
  * Map file type to S_IFMT bits
  */
-static struct {
-	unsigned int	mode;
-	unsigned int	nfs2type;
-} nfs_type2fmt[] = {
-      { 0,		NFNON	},
-      { S_IFREG,	NFREG	},
-      { S_IFDIR,	NFDIR	},
-      { S_IFBLK,	NFBLK	},
-      { S_IFCHR,	NFCHR	},
-      { S_IFLNK,	NFLNK	},
-      { S_IFSOCK,	NFSOCK	},
-      { S_IFIFO,	NFFIFO	},
-      { 0,		NFBAD	}
+static const umode_t nfs_type2fmt[] = {
+	[NF3BAD] = 0,
+	[NF3REG] = S_IFREG,
+	[NF3DIR] = S_IFDIR,
+	[NF3BLK] = S_IFBLK,
+	[NF3CHR] = S_IFCHR,
+	[NF3LNK] = S_IFLNK,
+	[NF3SOCK] = S_IFSOCK,
+	[NF3FIFO] = S_IFIFO,
 };
 
 /*
@@ -146,13 +144,12 @@ static __be32 *
 xdr_decode_fattr(__be32 *p, struct nfs_fattr *fattr)
 {
 	unsigned int	type, major, minor;
-	int		fmode;
+	umode_t		fmode;
 
 	type = ntohl(*p++);
-	if (type >= NF3BAD)
-		type = NF3BAD;
-	fmode = nfs_type2fmt[type].mode;
-	fattr->type = nfs_type2fmt[type].nfs2type;
+	if (type > NF3FIFO)
+		type = NF3NON;
+	fmode = nfs_type2fmt[type];
 	fattr->mode = (ntohl(*p++) & ~S_IFMT) | fmode;
 	fattr->nlink = ntohl(*p++);
 	fattr->uid = ntohl(*p++);
@@ -175,7 +172,7 @@ xdr_decode_fattr(__be32 *p, struct nfs_fattr *fattr)
 	p = xdr_decode_time3(p, &fattr->ctime);
 
 	/* Update the mode bits */
-	fattr->valid |= (NFS_ATTR_FATTR | NFS_ATTR_FATTR_V3);
+	fattr->valid |= NFS_ATTR_FATTR_V3;
 	return p;
 }
 
@@ -231,7 +228,9 @@ xdr_decode_wcc_attr(__be32 *p, struct nfs_fattr *fattr)
 	p = xdr_decode_hyper(p, &fattr->pre_size);
 	p = xdr_decode_time3(p, &fattr->pre_mtime);
 	p = xdr_decode_time3(p, &fattr->pre_ctime);
-	fattr->valid |= NFS_ATTR_WCC;
+	fattr->valid |= NFS_ATTR_FATTR_PRESIZE
+		| NFS_ATTR_FATTR_PREMTIME
+		| NFS_ATTR_FATTR_PRECTIME;
 	return p;
 }
 
@@ -703,28 +702,18 @@ nfs3_xdr_setaclargs(struct rpc_rqst *req, __be32 *p,
                    struct nfs3_setaclargs *args)
 {
 	struct xdr_buf *buf = &req->rq_snd_buf;
-	unsigned int base, len_in_head, len = nfsacl_size(
-		(args->mask & NFS_ACL)   ? args->acl_access  : NULL,
-		(args->mask & NFS_DFACL) ? args->acl_default : NULL);
-	int count, err;
+	unsigned int base;
+	int err;
 
 	p = xdr_encode_fhandle(p, NFS_FH(args->inode));
 	*p++ = htonl(args->mask);
-	base = (char *)p - (char *)buf->head->iov_base;
-	/* put as much of the acls into head as possible. */
-	len_in_head = min_t(unsigned int, buf->head->iov_len - base, len);
-	len -= len_in_head;
-	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p + (len_in_head >> 2));
+	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
+	base = req->rq_slen;
 
-	for (count = 0; (count << PAGE_SHIFT) < len; count++) {
-		args->pages[count] = alloc_page(GFP_KERNEL);
-		if (!args->pages[count]) {
-			while (count)
-				__free_page(args->pages[--count]);
-			return -ENOMEM;
-		}
-	}
-	xdr_encode_pages(buf, args->pages, 0, len);
+	if (args->npages != 0)
+		xdr_encode_pages(buf, args->pages, 0, args->len);
+	else
+		req->rq_slen += args->len;
 
 	err = nfsacl_encode(buf, base, args->inode,
 			    (args->mask & NFS_ACL) ?

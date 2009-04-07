@@ -151,7 +151,7 @@ static void convert_to_wide(unsigned long *addr)
 }
 
 #ifdef CONFIG_64BIT
-void __init set_firmware_width_unlocked(void)
+void __cpuinit set_firmware_width_unlocked(void)
 {
 	int ret;
 
@@ -168,7 +168,7 @@ void __init set_firmware_width_unlocked(void)
  * This function must be called before any pdc_* function that uses the
  * convert_to_wide function.
  */
-void __init set_firmware_width(void)
+void __cpuinit set_firmware_width(void)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&pdc_lock, flags);
@@ -176,11 +176,11 @@ void __init set_firmware_width(void)
 	spin_unlock_irqrestore(&pdc_lock, flags);
 }
 #else
-void __init set_firmware_width_unlocked(void) {
+void __cpuinit set_firmware_width_unlocked(void) {
 	return;
 }
 
-void __init set_firmware_width(void) {
+void __cpuinit set_firmware_width(void) {
 	return;
 }
 #endif /*CONFIG_64BIT*/
@@ -302,7 +302,7 @@ int pdc_chassis_warn(unsigned long *warn)
 	return retval;
 }
 
-int __init pdc_coproc_cfg_unlocked(struct pdc_coproc_cfg *pdc_coproc_info)
+int __cpuinit pdc_coproc_cfg_unlocked(struct pdc_coproc_cfg *pdc_coproc_info)
 {
 	int ret;
 
@@ -323,7 +323,7 @@ int __init pdc_coproc_cfg_unlocked(struct pdc_coproc_cfg *pdc_coproc_info)
  * This PDC call returns the presence and status of all the coprocessors
  * attached to the processor.
  */
-int __init pdc_coproc_cfg(struct pdc_coproc_cfg *pdc_coproc_info)
+int __cpuinit pdc_coproc_cfg(struct pdc_coproc_cfg *pdc_coproc_info)
 {
 	int ret;
 	unsigned long flags;
@@ -527,7 +527,11 @@ int pdc_model_capabilities(unsigned long *capabilities)
         pdc_result[0] = 0; /* preset zero (call may not be implemented!) */
         retval = mem_pdc_call(PDC_MODEL, PDC_MODEL_CAPABILITIES, __pa(pdc_result), 0);
         convert_to_wide(pdc_result);
-        *capabilities = pdc_result[0];
+        if (retval == PDC_OK) {
+                *capabilities = pdc_result[0];
+        } else {
+                *capabilities = PDC_MODEL_OS32;
+        }
         spin_unlock_irqrestore(&pdc_lock, flags);
 
         return retval;

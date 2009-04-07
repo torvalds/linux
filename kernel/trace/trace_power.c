@@ -122,10 +122,14 @@ fail_start:
 static void start_power_trace(struct trace_array *tr)
 {
 	trace_power_enabled = 1;
-	tracing_power_register();
 }
 
 static void stop_power_trace(struct trace_array *tr)
+{
+	trace_power_enabled = 0;
+}
+
+static void power_trace_reset(struct trace_array *tr)
 {
 	trace_power_enabled = 0;
 	unregister_trace_power_start(probe_power_start);
@@ -188,7 +192,7 @@ static struct tracer power_tracer __read_mostly =
 	.init		= power_trace_init,
 	.start		= start_power_trace,
 	.stop		= stop_power_trace,
-	.reset		= stop_power_trace,
+	.reset		= power_trace_reset,
 	.print_line	= power_print_line,
 };
 

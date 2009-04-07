@@ -392,20 +392,18 @@ static const struct {
 	}
 };
 
-static void
-free_orb(struct kref *kref)
+static void free_orb(struct kref *kref)
 {
 	struct sbp2_orb *orb = container_of(kref, struct sbp2_orb, kref);
 
 	kfree(orb);
 }
 
-static void
-sbp2_status_write(struct fw_card *card, struct fw_request *request,
-		  int tcode, int destination, int source,
-		  int generation, int speed,
-		  unsigned long long offset,
-		  void *payload, size_t length, void *callback_data)
+static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
+			      int tcode, int destination, int source,
+			      int generation, int speed,
+			      unsigned long long offset,
+			      void *payload, size_t length, void *callback_data)
 {
 	struct sbp2_logical_unit *lu = callback_data;
 	struct sbp2_orb *orb;
@@ -451,9 +449,8 @@ sbp2_status_write(struct fw_card *card, struct fw_request *request,
 	fw_send_response(card, request, RCODE_COMPLETE);
 }
 
-static void
-complete_transaction(struct fw_card *card, int rcode,
-		     void *payload, size_t length, void *data)
+static void complete_transaction(struct fw_card *card, int rcode,
+				 void *payload, size_t length, void *data)
 {
 	struct sbp2_orb *orb = data;
 	unsigned long flags;
@@ -482,9 +479,8 @@ complete_transaction(struct fw_card *card, int rcode,
 	kref_put(&orb->kref, free_orb);
 }
 
-static void
-sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
-	      int node_id, int generation, u64 offset)
+static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
+			  int node_id, int generation, u64 offset)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	unsigned long flags;
@@ -531,8 +527,8 @@ static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
 	return retval;
 }
 
-static void
-complete_management_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
+static void complete_management_orb(struct sbp2_orb *base_orb,
+				    struct sbp2_status *status)
 {
 	struct sbp2_management_orb *orb =
 		container_of(base_orb, struct sbp2_management_orb, base);
@@ -542,10 +538,9 @@ complete_management_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 	complete(&orb->done);
 }
 
-static int
-sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
-			 int generation, int function, int lun_or_login_id,
-			 void *response)
+static int sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
+				    int generation, int function,
+				    int lun_or_login_id, void *response)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct sbp2_management_orb *orb;
@@ -652,9 +647,8 @@ static void sbp2_agent_reset(struct sbp2_logical_unit *lu)
 			   &d, sizeof(d));
 }
 
-static void
-complete_agent_reset_write_no_wait(struct fw_card *card, int rcode,
-				   void *payload, size_t length, void *data)
+static void complete_agent_reset_write_no_wait(struct fw_card *card,
+		int rcode, void *payload, size_t length, void *data)
 {
 	kfree(data);
 }
@@ -1299,8 +1293,7 @@ static void sbp2_unmap_scatterlist(struct device *card_device,
 				 sizeof(orb->page_table), DMA_TO_DEVICE);
 }
 
-static unsigned int
-sbp2_status_to_sense_data(u8 *sbp2_status, u8 *sense_data)
+static unsigned int sbp2_status_to_sense_data(u8 *sbp2_status, u8 *sense_data)
 {
 	int sam_status;
 
@@ -1337,8 +1330,8 @@ sbp2_status_to_sense_data(u8 *sbp2_status, u8 *sense_data)
 	}
 }
 
-static void
-complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
+static void complete_command_orb(struct sbp2_orb *base_orb,
+				 struct sbp2_status *status)
 {
 	struct sbp2_command_orb *orb =
 		container_of(base_orb, struct sbp2_command_orb, base);
@@ -1384,9 +1377,8 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 	orb->done(orb->cmd);
 }
 
-static int
-sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
-		     struct sbp2_logical_unit *lu)
+static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
+		struct fw_device *device, struct sbp2_logical_unit *lu)
 {
 	struct scatterlist *sg = scsi_sglist(orb->cmd);
 	int i, n;
@@ -1584,9 +1576,8 @@ static int sbp2_scsi_abort(struct scsi_cmnd *cmd)
  * This is the concatenation of target port identifier and logical unit
  * identifier as per SAM-2...SAM-4 annex A.
  */
-static ssize_t
-sbp2_sysfs_ieee1394_id_show(struct device *dev, struct device_attribute *attr,
-			    char *buf)
+static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct sbp2_logical_unit *lu;

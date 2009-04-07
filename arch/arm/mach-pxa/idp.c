@@ -31,8 +31,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/mfp-pxa25x.h>
+#include <mach/pxa25x.h>
 #include <mach/idp.h>
 #include <mach/pxafb.h>
 #include <mach/bitfield.h>

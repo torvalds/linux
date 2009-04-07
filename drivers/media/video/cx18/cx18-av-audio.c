@@ -464,82 +464,76 @@ static void set_mute(struct cx18 *cx, int mute)
 	}
 }
 
-int cx18_av_audio(struct cx18 *cx, unsigned int cmd, void *arg)
+int cx18_av_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 {
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
 	struct cx18_av_state *state = &cx->av_state;
-	struct v4l2_control *ctrl = arg;
 	int retval;
+	u8 v;
 
-	switch (cmd) {
-	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-	{
-		u8 v;
-		if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
-			v = cx18_av_read(cx, 0x803) & ~0x10;
-			cx18_av_write_expect(cx, 0x803, v, v, 0x1f);
-			cx18_av_write(cx, 0x8d3, 0x1f);
-		}
-		v = cx18_av_read(cx, 0x810) | 0x1;
-		cx18_av_write_expect(cx, 0x810, v, v, 0x0f);
-
-		retval = set_audclk_freq(cx, *(u32 *)arg);
-
-		v = cx18_av_read(cx, 0x810) & ~0x1;
-		cx18_av_write_expect(cx, 0x810, v, v, 0x0f);
-		if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
-			v = cx18_av_read(cx, 0x803) | 0x10;
-			cx18_av_write_expect(cx, 0x803, v, v, 0x1f);
-		}
-		return retval;
+	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
+		v = cx18_av_read(cx, 0x803) & ~0x10;
+		cx18_av_write_expect(cx, 0x803, v, v, 0x1f);
+		cx18_av_write(cx, 0x8d3, 0x1f);
 	}
+	v = cx18_av_read(cx, 0x810) | 0x1;
+	cx18_av_write_expect(cx, 0x810, v, v, 0x0f);
 
-	case VIDIOC_G_CTRL:
-		switch (ctrl->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-			ctrl->value = get_volume(cx);
-			break;
-		case V4L2_CID_AUDIO_BASS:
-			ctrl->value = get_bass(cx);
-			break;
-		case V4L2_CID_AUDIO_TREBLE:
-			ctrl->value = get_treble(cx);
-			break;
-		case V4L2_CID_AUDIO_BALANCE:
-			ctrl->value = get_balance(cx);
-			break;
-		case V4L2_CID_AUDIO_MUTE:
-			ctrl->value = get_mute(cx);
-			break;
-		default:
-			return -EINVAL;
-		}
+	retval = set_audclk_freq(cx, freq);
+
+	v = cx18_av_read(cx, 0x810) & ~0x1;
+	cx18_av_write_expect(cx, 0x810, v, v, 0x0f);
+	if (state->aud_input > CX18_AV_AUDIO_SERIAL2) {
+		v = cx18_av_read(cx, 0x803) | 0x10;
+		cx18_av_write_expect(cx, 0x803, v, v, 0x1f);
+	}
+	return retval;
+}
+
+int cx18_av_audio_g_ctrl(struct cx18 *cx, struct v4l2_control *ctrl)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+		ctrl->value = get_volume(cx);
 		break;
-
-	case VIDIOC_S_CTRL:
-		switch (ctrl->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-			set_volume(cx, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_BASS:
-			set_bass(cx, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_TREBLE:
-			set_treble(cx, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_BALANCE:
-			set_balance(cx, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_MUTE:
-			set_mute(cx, ctrl->value);
-			break;
-		default:
-			return -EINVAL;
-		}
+	case V4L2_CID_AUDIO_BASS:
+		ctrl->value = get_bass(cx);
 		break;
-
+	case V4L2_CID_AUDIO_TREBLE:
+		ctrl->value = get_treble(cx);
+		break;
+	case V4L2_CID_AUDIO_BALANCE:
+		ctrl->value = get_balance(cx);
+		break;
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = get_mute(cx);
+		break;
 	default:
 		return -EINVAL;
 	}
+	return 0;
+}
 
+int cx18_av_audio_s_ctrl(struct cx18 *cx, struct v4l2_control *ctrl)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+		set_volume(cx, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_BASS:
+		set_bass(cx, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_TREBLE:
+		set_treble(cx, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_BALANCE:
+		set_balance(cx, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_MUTE:
+		set_mute(cx, ctrl->value);
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }

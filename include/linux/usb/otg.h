@@ -80,12 +80,17 @@ struct otg_transceiver {
 
 /* for board-specific init logic */
 extern int otg_set_transceiver(struct otg_transceiver *);
+#ifdef CONFIG_NOP_USB_XCEIV
+extern void usb_nop_xceiv_register(void);
+extern void usb_nop_xceiv_unregister(void);
+#endif
 
 
 /* for usb host and peripheral controller drivers */
 extern struct otg_transceiver *otg_get_transceiver(void);
 extern void otg_put_transceiver(struct otg_transceiver *);
 
+/* Context: can sleep */
 static inline int
 otg_start_hnp(struct otg_transceiver *otg)
 {
@@ -102,6 +107,8 @@ otg_set_host(struct otg_transceiver *otg, struct usb_bus *host)
 
 
 /* for usb peripheral controller drivers */
+
+/* Context: can sleep */
 static inline int
 otg_set_peripheral(struct otg_transceiver *otg, struct usb_gadget *periph)
 {
@@ -114,6 +121,7 @@ otg_set_power(struct otg_transceiver *otg, unsigned mA)
 	return otg->set_power(otg, mA);
 }
 
+/* Context: can sleep */
 static inline int
 otg_set_suspend(struct otg_transceiver *otg, int suspend)
 {

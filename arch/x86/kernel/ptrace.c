@@ -686,9 +686,8 @@ static int ptrace_bts_config(struct task_struct *child,
 		if (!cfg.signal)
 			return -EINVAL;
 
-		return -EOPNOTSUPP;
-
 		child->thread.bts_ovfl_signal = cfg.signal;
+		return -EOPNOTSUPP;
 	}
 
 	if ((cfg.flags & PTRACE_BTS_O_ALLOC) &&
@@ -1463,6 +1462,6 @@ asmregparm void syscall_trace_leave(struct pt_regs *regs)
 	 * system call instruction.
 	 */
 	if (test_thread_flag(TIF_SINGLESTEP) &&
-	    tracehook_consider_fatal_signal(current, SIGTRAP, SIG_DFL))
+	    tracehook_consider_fatal_signal(current, SIGTRAP))
 		send_sigtrap(current, regs, 0, TRAP_BRKPT);
 }

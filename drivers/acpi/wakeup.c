@@ -8,6 +8,8 @@
 #include <acpi/acpi_drivers.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+
+#include "internal.h"
 #include "sleep.h"
 
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
@@ -136,12 +138,9 @@ void acpi_disable_wakeup_device(u8 sleep_state)
 	spin_unlock(&acpi_device_lock);
 }
 
-static int __init acpi_wakeup_device_init(void)
+int __init acpi_wakeup_device_init(void)
 {
 	struct list_head *node, *next;
-
-	if (acpi_disabled)
-		return 0;
 
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
@@ -163,5 +162,3 @@ static int __init acpi_wakeup_device_init(void)
 	spin_unlock(&acpi_device_lock);
 	return 0;
 }
-
-late_initcall(acpi_wakeup_device_init);

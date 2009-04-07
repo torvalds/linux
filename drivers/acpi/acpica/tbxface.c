@@ -150,8 +150,7 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
 	 * Root Table Array. This array contains the information of the RSDT/XSDT
 	 * in a common, more useable format.
 	 */
-	status =
-	    acpi_tb_parse_root_table(rsdp_address, ACPI_TABLE_ORIGIN_MAPPED);
+	status = acpi_tb_parse_root_table(rsdp_address);
 	return_ACPI_STATUS(status);
 }
 
@@ -247,7 +246,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 
 ACPI_EXPORT_SYMBOL(acpi_load_table)
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_get_table_header
  *
@@ -262,7 +261,7 @@ ACPI_EXPORT_SYMBOL(acpi_load_table)
  * NOTE:        Caller is responsible in unmapping the header with
  *              acpi_os_unmap_memory
  *
- *****************************************************************************/
+ ******************************************************************************/
 acpi_status
 acpi_get_table_header(char *signature,
 		      u32 instance, struct acpi_table_header *out_table_header)
@@ -277,9 +276,8 @@ acpi_get_table_header(char *signature,
 		return (AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * Walk the root table list
-	 */
+	/* Walk the root table list */
+
 	for (i = 0, j = 0; i < acpi_gbl_root_table_list.count; i++) {
 		if (!ACPI_COMPARE_NAME
 		    (&(acpi_gbl_root_table_list.tables[i].signature),
@@ -292,8 +290,8 @@ acpi_get_table_header(char *signature,
 		}
 
 		if (!acpi_gbl_root_table_list.tables[i].pointer) {
-			if ((acpi_gbl_root_table_list.tables[i].
-			     flags & ACPI_TABLE_ORIGIN_MASK) ==
+			if ((acpi_gbl_root_table_list.tables[i].flags &
+			     ACPI_TABLE_ORIGIN_MASK) ==
 			    ACPI_TABLE_ORIGIN_MAPPED) {
 				header =
 				    acpi_os_map_memory(acpi_gbl_root_table_list.
@@ -324,7 +322,7 @@ acpi_get_table_header(char *signature,
 
 ACPI_EXPORT_SYMBOL(acpi_get_table_header)
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_unload_table_id
  *
@@ -375,7 +373,7 @@ ACPI_EXPORT_SYMBOL(acpi_unload_table_id)
  *
  * DESCRIPTION: Finds and verifies an ACPI table.
  *
- *****************************************************************************/
+ ******************************************************************************/
 acpi_status
 acpi_get_table_with_size(char *signature,
 	       u32 instance, struct acpi_table_header **out_table,
@@ -391,9 +389,8 @@ acpi_get_table_with_size(char *signature,
 		return (AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * Walk the root table list
-	 */
+	/* Walk the root table list */
+
 	for (i = 0, j = 0; i < acpi_gbl_root_table_list.count; i++) {
 		if (!ACPI_COMPARE_NAME
 		    (&(acpi_gbl_root_table_list.tables[i].signature),
@@ -502,7 +499,6 @@ ACPI_EXPORT_SYMBOL(acpi_get_table_by_index)
 static acpi_status acpi_tb_load_namespace(void)
 {
 	acpi_status status;
-	struct acpi_table_header *table;
 	u32 i;
 
 	ACPI_FUNCTION_TRACE(tb_load_namespace);
@@ -526,40 +522,12 @@ static acpi_status acpi_tb_load_namespace(void)
 		goto unlock_and_exit;
 	}
 
-	/*
-	 * Find DSDT table
-	 */
-	status =
-	    acpi_os_table_override(acpi_gbl_root_table_list.
-				   tables[ACPI_TABLE_INDEX_DSDT].pointer,
-				   &table);
-	if (ACPI_SUCCESS(status) && table) {
-		/*
-		 * DSDT table has been found
-		 */
-		acpi_tb_delete_table(&acpi_gbl_root_table_list.
-				     tables[ACPI_TABLE_INDEX_DSDT]);
-		acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].pointer =
-		    table;
-		acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].length =
-		    table->length;
-		acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].flags =
-		    ACPI_TABLE_ORIGIN_UNKNOWN;
-
-		ACPI_INFO((AE_INFO, "Table DSDT replaced by host OS"));
-		acpi_tb_print_table_header(0, table);
-
-		if (no_auto_ssdt == 0) {
-			printk(KERN_WARNING "ACPI: DSDT override uses original SSDTs unless \"acpi_no_auto_ssdt\"\n");
-		}
-	}
+	/* A valid DSDT is required */
 
 	status =
 	    acpi_tb_verify_table(&acpi_gbl_root_table_list.
 				 tables[ACPI_TABLE_INDEX_DSDT]);
 	if (ACPI_FAILURE(status)) {
-
-		/* A valid DSDT is required */
 
 		status = AE_NO_ACPI_TABLES;
 		goto unlock_and_exit;
@@ -567,17 +535,15 @@ static acpi_status acpi_tb_load_namespace(void)
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 
-	/*
-	 * Load and parse tables.
-	 */
+	/* Load and parse tables */
+
 	status = acpi_ns_load_table(ACPI_TABLE_INDEX_DSDT, acpi_gbl_root_node);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	/*
-	 * Load any SSDT or PSDT tables. Note: Loop leaves tables locked
-	 */
+	/* Load any SSDT or PSDT tables. Note: Loop leaves tables locked */
+
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	for (i = 0; i < acpi_gbl_root_table_list.count; ++i) {
 		if ((!ACPI_COMPARE_NAME
@@ -630,9 +596,8 @@ acpi_status acpi_load_tables(void)
 
 	ACPI_FUNCTION_TRACE(acpi_load_tables);
 
-	/*
-	 * Load the namespace from the tables
-	 */
+	/* Load the namespace from the tables */
+
 	status = acpi_tb_load_namespace();
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,

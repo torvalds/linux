@@ -63,8 +63,9 @@ static int qstat_show(struct seq_file *m, void *v)
 	seq_printf(m, "device state indicator: %d\n", *(u32 *)q->irq_ptr->dsci);
 	seq_printf(m, "nr_used: %d\n", atomic_read(&q->nr_buf_used));
 	seq_printf(m, "ftc: %d\n", q->first_to_check);
-	seq_printf(m, "last_move_ftc: %d\n", q->last_move_ftc);
+	seq_printf(m, "last_move: %d\n", q->last_move);
 	seq_printf(m, "polling: %d\n", q->u.in.polling);
+	seq_printf(m, "ack start: %d\n", q->u.in.ack_start);
 	seq_printf(m, "ack count: %d\n", q->u.in.ack_count);
 	seq_printf(m, "slsb buffer states:\n");
 	seq_printf(m, "|0      |8      |16     |24     |32     |40     |48     |56  63|\n");

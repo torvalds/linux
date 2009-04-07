@@ -145,10 +145,15 @@ enum {
 };
 
 struct dyn_ftrace {
-	struct list_head	list;
-	unsigned long		ip; /* address of mcount call-site */
-	unsigned long		flags;
-	struct dyn_arch_ftrace	arch;
+	union {
+		unsigned long		ip; /* address of mcount call-site */
+		struct dyn_ftrace	*freelist;
+	};
+	union {
+		unsigned long		flags;
+		struct dyn_ftrace	*newlist;
+	};
+	struct dyn_arch_ftrace		arch;
 };
 
 int ftrace_force_update(void);
@@ -370,8 +375,7 @@ struct ftrace_ret_stack {
 extern void return_to_handler(void);
 
 extern int
-ftrace_push_return_trace(unsigned long ret, unsigned long long time,
-			 unsigned long func, int *depth);
+ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth);
 extern void
 ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret);
 
@@ -506,13 +510,21 @@ static inline void trace_hw_branch_oops(void) {}
 /*
  * A syscall entry in the ftrace syscalls array.
  *
- * @syscall_nr: syscall number
+ * @name: name of the syscall
+ * @nb_args: number of parameters it takes
+ * @types: list of types as strings
+ * @args: list of args as strings (args[i] matches types[i])
  */
-struct syscall_trace_entry {
-	int		syscall_nr;
+struct syscall_metadata {
+	const char	*name;
+	int		nb_args;
+	const char	**types;
+	const char	**args;
 };
 
 #ifdef CONFIG_FTRACE_SYSCALLS
+extern void arch_init_ftrace_syscalls(void);
+extern struct syscall_metadata *syscall_nr_to_meta(int nr);
 extern void start_ftrace_syscalls(void);
 extern void stop_ftrace_syscalls(void);
 extern void ftrace_syscall_enter(struct pt_regs *regs);

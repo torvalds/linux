@@ -27,6 +27,10 @@ static struct pnp_device_id idepnp_devices[] = {
 	{.id = ""}
 };
 
+static const struct ide_port_info ide_pnp_port_info = {
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
 static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
 	struct ide_host *host;
@@ -60,7 +64,7 @@ static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	hw.irq = pnp_irq(dev, 0);
 	hw.chipset = ide_generic;
 
-	rc = ide_host_add(NULL, hws, &host);
+	rc = ide_host_add(&ide_pnp_port_info, hws, &host);
 	if (rc)
 		goto out;
 

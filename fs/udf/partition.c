@@ -273,7 +273,7 @@ static uint32_t udf_try_read_meta(struct inode *inode, uint32_t block,
 {
 	struct super_block *sb = inode->i_sb;
 	struct udf_part_map *map;
-	kernel_lb_addr eloc;
+	struct kernel_lb_addr eloc;
 	uint32_t elen;
 	sector_t ext_offset;
 	struct extent_position epos = {};

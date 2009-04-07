@@ -63,7 +63,11 @@ config TRACING
 #
 config TRACING_SUPPORT
 	bool
-	depends on TRACE_IRQFLAGS_SUPPORT
+	# PPC32 has no irqflags tracing support, but it can use most of the
+	# tracers anyway, they were tested to build and work. Note that new
+	# exceptions to this list aren't welcomed, better implement the
+	# irqflags tracing for your architecture.
+	depends on TRACE_IRQFLAGS_SUPPORT || PPC32
 	depends on STACKTRACE_SUPPORT
 	default y
 
@@ -95,11 +99,10 @@ config FUNCTION_GRAPH_TRACER
 	help
 	  Enable the kernel to trace a function at both its return
 	  and its entry.
-	  It's first purpose is to trace the duration of functions and
-	  draw a call graph for each thread with some informations like
-	  the return value.
-	  This is done by setting the current return address on the current
-	  task structure into a stack of calls.
+	  Its first purpose is to trace the duration of functions and
+	  draw a call graph for each thread with some information like
+	  the return value. This is done by setting the current return 
+	  address on the current task structure into a stack of calls.
 
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"
@@ -182,6 +185,7 @@ config FTRACE_SYSCALLS
 	bool "Trace syscalls"
 	depends on HAVE_FTRACE_SYSCALLS
 	select TRACING
+	select KALLSYMS
 	help
 	  Basic tracer to catch the syscall entry and exit events.
 

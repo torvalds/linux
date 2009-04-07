@@ -11,9 +11,9 @@
  *
  *	http://www.cymru.net
  *
- *	This driver is provided under the GNU General Public License, incorporated
- *	herein by reference. The driver is provided without warranty or
- *	support.
+ *	This driver is provided under the GNU General Public License,
+ *	incorporated herein by reference. The driver is provided without
+ *	warranty or support.
  *
  *	Release 0.04.
  *
@@ -39,13 +39,13 @@
 /* programmable outputs: */
 #define WDT_PROGOUT		(io+15)	/* wr=enable, rd=disable */
 
-								/* FAN 501 500 */
-#define WDC_SR_WCCR		1	/* Active low */	/*  X   X   X  */
-#define WDC_SR_TGOOD		2				/*  X   X   -  */
-#define WDC_SR_ISOI0		4				/*  X   X   X  */
-#define WDC_SR_ISII1		8				/*  X   X   X  */
-#define WDC_SR_FANGOOD		16				/*  X   -   -  */
-#define WDC_SR_PSUOVER		32	/* Active low */	/*  X   X   -  */
-#define WDC_SR_PSUUNDR		64	/* Active low */	/*  X   X   -  */
-#define WDC_SR_IRQ		128	/* Active low */	/*  X   X   X  */
+							 /* FAN 501 500 */
+#define WDC_SR_WCCR		1	/* Active low */ /*  X   X   X  */
+#define WDC_SR_TGOOD		2			 /*  X   X   -  */
+#define WDC_SR_ISOI0		4			 /*  X   X   X  */
+#define WDC_SR_ISII1		8			 /*  X   X   X  */
+#define WDC_SR_FANGOOD		16			 /*  X   -   -  */
+#define WDC_SR_PSUOVER		32	/* Active low */ /*  X   X   -  */
+#define WDC_SR_PSUUNDR		64	/* Active low */ /*  X   X   -  */
+#define WDC_SR_IRQ		128	/* Active low */ /*  X   X   X  */
 

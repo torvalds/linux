@@ -103,13 +103,14 @@ used to export the defined tracepoints.
 
 * Probe / tracepoint example
 
-See the example provided in samples/tracepoints/src
+See the example provided in samples/tracepoints
 
-Compile them with your kernel.
+Compile them with your kernel.  They are built during 'make' (not
+'make modules') when CONFIG_SAMPLE_TRACEPOINTS=m.
 
 Run, as root :
-modprobe tracepoint-example (insmod order is not important)
-modprobe tracepoint-probe-example
-cat /proc/tracepoint-example (returns an expected error)
-rmmod tracepoint-example tracepoint-probe-example
+modprobe tracepoint-sample (insmod order is not important)
+modprobe tracepoint-probe-sample
+cat /proc/tracepoint-sample (returns an expected error)
+rmmod tracepoint-sample tracepoint-probe-sample
 dmesg

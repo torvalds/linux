@@ -103,12 +103,11 @@ static int __init early_parse_mem(char *p)
 	size = memparse(p, &p);
 
 	if (size > __MEMORY_SIZE) {
-		static char msg[] __initdata = KERN_ERR
+		printk(KERN_ERR
 			"Using mem= to increase the size of kernel memory "
 			"is not allowed.\n"
 			"  Recompile the kernel with the correct value for "
-			"CONFIG_MEMORY_SIZE.\n";
-		printk(msg);
+			"CONFIG_MEMORY_SIZE.\n");
 		return 0;
 	}
 
@@ -432,6 +431,7 @@ static const char *cpu_name[] = {
 	[CPU_SH7763]	= "SH7763",	[CPU_SH7770]	= "SH7770",
 	[CPU_SH7780]	= "SH7780",	[CPU_SH7781]	= "SH7781",
 	[CPU_SH7343]	= "SH7343",	[CPU_SH7785]	= "SH7785",
+	[CPU_SH7786]	= "SH7786",
 	[CPU_SH7722]	= "SH7722",	[CPU_SHX3]	= "SH-X3",
 	[CPU_SH5_101]	= "SH5-101",	[CPU_SH5_103]	= "SH5-103",
 	[CPU_MXG]	= "MX-G",	[CPU_SH7723]	= "SH7723",
@@ -448,7 +448,7 @@ EXPORT_SYMBOL(get_cpu_subtype);
 /* Symbolic CPU flags, keep in sync with asm/cpu-features.h */
 static const char *cpu_flags[] = {
 	"none", "fpu", "p2flush", "mmuassoc", "dsp", "perfctr",
-	"ptea", "llsc", "l2", "op32", NULL
+	"ptea", "llsc", "l2", "op32", "pteaex", NULL
 };
 
 static void show_cpuflags(struct seq_file *m, struct sh_cpuinfo *c)

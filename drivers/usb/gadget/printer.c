@@ -225,12 +225,12 @@ module_param(qlen, uint, S_IRUGO|S_IWUSR);
 static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
-	.bcdUSB =		__constant_cpu_to_le16(0x0200),
+	.bcdUSB =		cpu_to_le16(0x0200),
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
 	.bDeviceSubClass =	0,
 	.bDeviceProtocol =	0,
-	.idVendor =		__constant_cpu_to_le16(PRINTER_VENDOR_NUM),
-	.idProduct =		__constant_cpu_to_le16(PRINTER_PRODUCT_NUM),
+	.idVendor =		cpu_to_le16(PRINTER_VENDOR_NUM),
+	.idProduct =		cpu_to_le16(PRINTER_PRODUCT_NUM),
 	.iManufacturer =	STRING_MANUFACTURER,
 	.iProduct =		STRING_PRODUCT,
 	.iSerialNumber =	STRING_SERIALNUM,
@@ -299,20 +299,20 @@ static struct usb_endpoint_descriptor hs_ep_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512)
+	.wMaxPacketSize =	cpu_to_le16(512)
 };
 
 static struct usb_endpoint_descriptor hs_ep_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512)
+	.wMaxPacketSize =	cpu_to_le16(512)
 };
 
 static struct usb_qualifier_descriptor dev_qualifier = {
 	.bLength =		sizeof dev_qualifier,
 	.bDescriptorType =	USB_DT_DEVICE_QUALIFIER,
-	.bcdUSB =		__constant_cpu_to_le16(0x0200),
+	.bcdUSB =		cpu_to_le16(0x0200),
 	.bDeviceClass =		USB_CLASS_PRINTER,
 	.bNumConfigurations =	1
 };
@@ -1406,16 +1406,16 @@ printer_bind(struct usb_gadget *gadget)
 			gadget->name);
 		/* unrecognized, but safe unless bulk is REALLY quirky */
 		device_desc.bcdDevice =
-			__constant_cpu_to_le16(0xFFFF);
+			cpu_to_le16(0xFFFF);
 	}
 	snprintf(manufacturer, sizeof(manufacturer), "%s %s with %s",
 		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
 
 	device_desc.idVendor =
-		__constant_cpu_to_le16(PRINTER_VENDOR_NUM);
+		cpu_to_le16(PRINTER_VENDOR_NUM);
 	device_desc.idProduct =
-		__constant_cpu_to_le16(PRINTER_PRODUCT_NUM);
+		cpu_to_le16(PRINTER_PRODUCT_NUM);
 
 	/* support optional vendor/distro customization */
 	if (idVendor) {

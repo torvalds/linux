@@ -30,12 +30,12 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
+#include <linux/timex.h>
+#include <linux/io.h>
+#include <linux/acpi.h>
+#include <linux/kernel.h>
 
 #include <asm/msr.h>
-#include <asm/timex.h>
-#include <asm/io.h>
-#include <asm/acpi.h>
-#include <linux/acpi.h>
 #include <acpi/processor.h>
 
 #include "longhaul.h"
@@ -58,7 +58,7 @@
 #define USE_NORTHBRIDGE		(1 << 2)
 
 static int cpu_model;
-static unsigned int numscales=16;
+static unsigned int numscales = 16;
 static unsigned int fsb;
 
 static const struct mV_pos *vrm_mV_table;
@@ -67,8 +67,8 @@ static const unsigned char *mV_vrm_table;
 static unsigned int highest_speed, lowest_speed; /* kHz */
 static unsigned int minmult, maxmult;
 static int can_scale_voltage;
-static struct acpi_processor *pr = NULL;
-static struct acpi_processor_cx *cx = NULL;
+static struct acpi_processor *pr;
+static struct acpi_processor_cx *cx;
 static u32 acpi_regs_addr;
 static u8 longhaul_flags;
 static unsigned int longhaul_index;
@@ -78,12 +78,13 @@ static int scale_voltage;
 static int disable_acpi_c3;
 static int revid_errata;
 
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "longhaul", msg)
+#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
+		"longhaul", msg)
 
 
 /* Clock ratios multiplied by 10 */
-static int clock_ratio[32];
-static int eblcr_table[32];
+static int mults[32];
+static int eblcr[32];
 static int longhaul_version;
 static struct cpufreq_frequency_table *longhaul_table;
 
@@ -93,7 +94,7 @@ static char speedbuffer[8];
 static char *print_speed(int speed)
 {
 	if (speed < 1000) {
-		snprintf(speedbuffer, sizeof(speedbuffer),"%dMHz", speed);
+		snprintf(speedbuffer, sizeof(speedbuffer), "%dMHz", speed);
 		return speedbuffer;
 	}
 
@@ -122,27 +123,28 @@ static unsigned int calc_speed(int mult)
 
 static int longhaul_get_cpu_mult(void)
 {
-	unsigned long invalue=0,lo, hi;
+	unsigned long invalue = 0, lo, hi;
 
-	rdmsr (MSR_IA32_EBL_CR_POWERON, lo, hi);
-	invalue = (lo & (1<<22|1<<23|1<<24|1<<25)) >>22;
-	if (longhaul_version==TYPE_LONGHAUL_V2 || longhaul_version==TYPE_POWERSAVER) {
+	rdmsr(MSR_IA32_EBL_CR_POWERON, lo, hi);
+	invalue = (lo & (1<<22|1<<23|1<<24|1<<25))>>22;
+	if (longhaul_version == TYPE_LONGHAUL_V2 ||
+	    longhaul_version == TYPE_POWERSAVER) {
 		if (lo & (1<<27))
-			invalue+=16;
+			invalue += 16;
 	}
-	return eblcr_table[invalue];
+	return eblcr[invalue];
 }
 
 /* For processor with BCR2 MSR */
 
-static void do_longhaul1(unsigned int clock_ratio_index)
+static void do_longhaul1(unsigned int mults_index)
 {
 	union msr_bcr2 bcr2;
 
 	rdmsrl(MSR_VIA_BCR2, bcr2.val);
 	/* Enable software clock multiplier */
 	bcr2.bits.ESOFTBF = 1;
-	bcr2.bits.CLOCKMUL = clock_ratio_index & 0xff;
+	bcr2.bits.CLOCKMUL = mults_index & 0xff;
 
 	/* Sync to timer tick */
 	safe_halt();
@@ -161,7 +163,7 @@ static void do_longhaul1(unsigned int clock_ratio_index)
 
 /* For processor with Longhaul MSR */
 
-static void do_powersaver(int cx_address, unsigned int clock_ratio_index,
+static void do_powersaver(int cx_address, unsigned int mults_index,
 			  unsigned int dir)
 {
 	union msr_longhaul longhaul;
@@ -173,11 +175,11 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index,
 		longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
 	else
 		longhaul.bits.RevisionKey = 0;
-	longhaul.bits.SoftBusRatio = clock_ratio_index & 0xf;
-	longhaul.bits.SoftBusRatio4 = (clock_ratio_index & 0x10) >> 4;
+	longhaul.bits.SoftBusRatio = mults_index & 0xf;
+	longhaul.bits.SoftBusRatio4 = (mults_index & 0x10) >> 4;
 	/* Setup new voltage */
 	if (can_scale_voltage)
-		longhaul.bits.SoftVID = (clock_ratio_index >> 8) & 0x1f;
+		longhaul.bits.SoftVID = (mults_index >> 8) & 0x1f;
 	/* Sync to timer tick */
 	safe_halt();
 	/* Raise voltage if necessary */
@@ -240,14 +242,14 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index,
 
 /**
  * longhaul_set_cpu_frequency()
- * @clock_ratio_index : bitpattern of the new multiplier.
+ * @mults_index : bitpattern of the new multiplier.
  *
  * Sets a new clock ratio.
  */
 
 static void longhaul_setstate(unsigned int table_index)
 {
-	unsigned int clock_ratio_index;
+	unsigned int mults_index;
 	int speed, mult;
 	struct cpufreq_freqs freqs;
 	unsigned long flags;
@@ -256,9 +258,9 @@ static void longhaul_setstate(unsigned int table_index)
 	u32 bm_timeout = 1000;
 	unsigned int dir = 0;
 
-	clock_ratio_index = longhaul_table[table_index].index;
+	mults_index = longhaul_table[table_index].index;
 	/* Safety precautions */
-	mult = clock_ratio[clock_ratio_index & 0x1f];
+	mult = mults[mults_index & 0x1f];
 	if (mult == -1)
 		return;
 	speed = calc_speed(mult);
@@ -274,7 +276,7 @@ static void longhaul_setstate(unsigned int table_index)
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
-	dprintk ("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
+	dprintk("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
 			fsb, mult/10, mult%10, print_speed(speed/1000));
 retry_loop:
 	preempt_disable();
@@ -282,8 +284,8 @@ retry_loop:
 
 	pic2_mask = inb(0xA1);
 	pic1_mask = inb(0x21);	/* works on C3. save mask. */
-	outb(0xFF,0xA1);	/* Overkill */
-	outb(0xFE,0x21);	/* TMR0 only */
+	outb(0xFF, 0xA1);	/* Overkill */
+	outb(0xFE, 0x21);	/* TMR0 only */
 
 	/* Wait while PCI bus is busy. */
 	if (acpi_regs_addr && (longhaul_flags & USE_NORTHBRIDGE
@@ -303,7 +305,7 @@ retry_loop:
 		outb(3, 0x22);
 	} else if ((pr != NULL) && pr->flags.bm_control) {
 		/* Disable bus master arbitration */
-		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1);
+		acpi_write_bit_register(ACPI_BITREG_ARB_DISABLE, 1);
 	}
 	switch (longhaul_version) {
 
@@ -312,7 +314,7 @@ retry_loop:
 	 * Software controlled multipliers only.
 	 */
 	case TYPE_LONGHAUL_V1:
-		do_longhaul1(clock_ratio_index);
+		do_longhaul1(mults_index);
 		break;
 
 	/*
@@ -326,10 +328,10 @@ retry_loop:
 	case TYPE_POWERSAVER:
 		if (longhaul_flags & USE_ACPI_C3) {
 			/* Don't allow wakeup */
-			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0);
-			do_powersaver(cx->address, clock_ratio_index, dir);
+			acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, 0);
+			do_powersaver(cx->address, mults_index, dir);
 		} else {
-			do_powersaver(0, clock_ratio_index, dir);
+			do_powersaver(0, mults_index, dir);
 		}
 		break;
 	}
@@ -339,10 +341,10 @@ retry_loop:
 		outb(0, 0x22);
 	} else if ((pr != NULL) && pr->flags.bm_control) {
 		/* Enable bus master arbitration */
-		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0);
+		acpi_write_bit_register(ACPI_BITREG_ARB_DISABLE, 0);
 	}
-	outb(pic2_mask,0xA1);	/* restore mask */
-	outb(pic1_mask,0x21);
+	outb(pic2_mask, 0xA1);	/* restore mask */
+	outb(pic1_mask, 0x21);
 
 	local_irq_restore(flags);
 	preempt_enable();
@@ -392,7 +394,8 @@ retry_loop:
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	if (!bm_timeout)
-		printk(KERN_INFO PFX "Warning: Timeout while waiting for idle PCI bus.\n");
+		printk(KERN_INFO PFX "Warning: Timeout while waiting for "
+				"idle PCI bus.\n");
 }
 
 /*
@@ -458,31 +461,32 @@ static int __init longhaul_get_ranges(void)
 		break;
 	}
 
-	dprintk ("MinMult:%d.%dx MaxMult:%d.%dx\n",
+	dprintk("MinMult:%d.%dx MaxMult:%d.%dx\n",
 		 minmult/10, minmult%10, maxmult/10, maxmult%10);
 
 	highest_speed = calc_speed(maxmult);
 	lowest_speed = calc_speed(minmult);
-	dprintk ("FSB:%dMHz  Lowest speed: %s   Highest speed:%s\n", fsb,
+	dprintk("FSB:%dMHz  Lowest speed: %s   Highest speed:%s\n", fsb,
 		 print_speed(lowest_speed/1000),
 		 print_speed(highest_speed/1000));
 
 	if (lowest_speed == highest_speed) {
-		printk (KERN_INFO PFX "highestspeed == lowest, aborting.\n");
+		printk(KERN_INFO PFX "highestspeed == lowest, aborting.\n");
 		return -EINVAL;
 	}
 	if (lowest_speed > highest_speed) {
-		printk (KERN_INFO PFX "nonsense! lowest (%d > %d) !\n",
+		printk(KERN_INFO PFX "nonsense! lowest (%d > %d) !\n",
 			lowest_speed, highest_speed);
 		return -EINVAL;
 	}
 
-	longhaul_table = kmalloc((numscales + 1) * sizeof(struct cpufreq_frequency_table), GFP_KERNEL);
-	if(!longhaul_table)
+	longhaul_table = kmalloc((numscales + 1) * sizeof(*longhaul_table),
+			GFP_KERNEL);
+	if (!longhaul_table)
 		return -ENOMEM;
 
 	for (j = 0; j < numscales; j++) {
-		ratio = clock_ratio[j];
+		ratio = mults[j];
 		if (ratio == -1)
 			continue;
 		if (ratio > maxmult || ratio < minmult)
@@ -507,13 +511,10 @@ static int __init longhaul_get_ranges(void)
 			}
 		}
 		if (min_i != j) {
-			unsigned int temp;
-			temp = longhaul_table[j].frequency;
-			longhaul_table[j].frequency = longhaul_table[min_i].frequency;
-			longhaul_table[min_i].frequency = temp;
-			temp = longhaul_table[j].index;
-			longhaul_table[j].index = longhaul_table[min_i].index;
-			longhaul_table[min_i].index = temp;
+			swap(longhaul_table[j].frequency,
+			     longhaul_table[min_i].frequency);
+			swap(longhaul_table[j].index,
+			     longhaul_table[min_i].index);
 		}
 	}
 
@@ -521,7 +522,7 @@ static int __init longhaul_get_ranges(void)
 
 	/* Find index we are running on */
 	for (j = 0; j < k; j++) {
-		if (clock_ratio[longhaul_table[j].index & 0x1f] == mult) {
+		if (mults[longhaul_table[j].index & 0x1f] == mult) {
 			longhaul_index = j;
 			break;
 		}
@@ -559,20 +560,22 @@ static void __init longhaul_setup_voltagescaling(void)
 	maxvid = vrm_mV_table[longhaul.bits.MaximumVID];
 
 	if (minvid.mV == 0 || maxvid.mV == 0 || minvid.mV > maxvid.mV) {
-		printk (KERN_INFO PFX "Bogus values Min:%d.%03d Max:%d.%03d. "
+		printk(KERN_INFO PFX "Bogus values Min:%d.%03d Max:%d.%03d. "
 					"Voltage scaling disabled.\n",
-					minvid.mV/1000, minvid.mV%1000, maxvid.mV/1000, maxvid.mV%1000);
+					minvid.mV/1000, minvid.mV%1000,
+					maxvid.mV/1000, maxvid.mV%1000);
 		return;
 	}
 
 	if (minvid.mV == maxvid.mV) {
-		printk (KERN_INFO PFX "Claims to support voltage scaling but min & max are "
-				"both %d.%03d. Voltage scaling disabled\n",
+		printk(KERN_INFO PFX "Claims to support voltage scaling but "
+				"min & max are both %d.%03d. "
+				"Voltage scaling disabled\n",
 				maxvid.mV/1000, maxvid.mV%1000);
 		return;
 	}
 
-	/* How many voltage steps */
+	/* How many voltage steps*/
 	numvscales = maxvid.pos - minvid.pos + 1;
 	printk(KERN_INFO PFX
 		"Max VID=%d.%03d  "
@@ -586,7 +589,7 @@ static void __init longhaul_setup_voltagescaling(void)
 	j = longhaul.bits.MinMHzBR;
 	if (longhaul.bits.MinMHzBR4)
 		j += 16;
-	min_vid_speed = eblcr_table[j];
+	min_vid_speed = eblcr[j];
 	if (min_vid_speed == -1)
 		return;
 	switch (longhaul.bits.MinMHzFSB) {
@@ -617,7 +620,8 @@ static void __init longhaul_setup_voltagescaling(void)
 			pos = minvid.pos;
 		longhaul_table[j].index |= mV_vrm_table[pos] << 8;
 		vid = vrm_mV_table[mV_vrm_table[pos]];
-		printk(KERN_INFO PFX "f: %d kHz, index: %d, vid: %d mV\n", speed, j, vid.mV);
+		printk(KERN_INFO PFX "f: %d kHz, index: %d, vid: %d mV\n",
+				speed, j, vid.mV);
 		j++;
 	}
 
@@ -640,7 +644,8 @@ static int longhaul_target(struct cpufreq_policy *policy,
 	unsigned int dir = 0;
 	u8 vid, current_vid;
 
-	if (cpufreq_frequency_table_target(policy, longhaul_table, target_freq, relation, &table_index))
+	if (cpufreq_frequency_table_target(policy, longhaul_table, target_freq,
+				relation, &table_index))
 		return -EINVAL;
 
 	/* Don't set same frequency again */
@@ -656,7 +661,8 @@ static int longhaul_target(struct cpufreq_policy *policy,
 		 * this in hardware, C3 is old and we need to do this
 		 * in software. */
 		i = longhaul_index;
-		current_vid = (longhaul_table[longhaul_index].index >> 8) & 0x1f;
+		current_vid = (longhaul_table[longhaul_index].index >> 8);
+		current_vid &= 0x1f;
 		if (table_index > longhaul_index)
 			dir = 1;
 		while (i != table_index) {
@@ -691,9 +697,9 @@ static acpi_status longhaul_walk_callback(acpi_handle obj_handle,
 {
 	struct acpi_device *d;
 
-	if ( acpi_bus_get_device(obj_handle, &d) ) {
+	if (acpi_bus_get_device(obj_handle, &d))
 		return 0;
-	}
+
 	*return_value = acpi_driver_data(d);
 	return 1;
 }
@@ -750,7 +756,7 @@ static int longhaul_setup_southbridge(void)
 	/* Find VT8235 southbridge */
 	dev = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235, NULL);
 	if (dev == NULL)
-	/* Find VT8237 southbridge */
+		/* Find VT8237 southbridge */
 		dev = pci_get_device(PCI_VENDOR_ID_VIA,
 				     PCI_DEVICE_ID_VIA_8237, NULL);
 	if (dev != NULL) {
@@ -769,7 +775,8 @@ static int longhaul_setup_southbridge(void)
 		if (pci_cmd & 1 << 7) {
 			pci_read_config_dword(dev, 0x88, &acpi_regs_addr);
 			acpi_regs_addr &= 0xff00;
-			printk(KERN_INFO PFX "ACPI I/O at 0x%x\n", acpi_regs_addr);
+			printk(KERN_INFO PFX "ACPI I/O at 0x%x\n",
+					acpi_regs_addr);
 		}
 
 		pci_dev_put(dev);
@@ -781,7 +788,7 @@ static int longhaul_setup_southbridge(void)
 static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
-	char *cpuname=NULL;
+	char *cpuname = NULL;
 	int ret;
 	u32 lo, hi;
 
@@ -791,8 +798,8 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		cpu_model = CPU_SAMUEL;
 		cpuname = "C3 'Samuel' [C5A]";
 		longhaul_version = TYPE_LONGHAUL_V1;
-		memcpy (clock_ratio, samuel1_clock_ratio, sizeof(samuel1_clock_ratio));
-		memcpy (eblcr_table, samuel1_eblcr, sizeof(samuel1_eblcr));
+		memcpy(mults, samuel1_mults, sizeof(samuel1_mults));
+		memcpy(eblcr, samuel1_eblcr, sizeof(samuel1_eblcr));
 		break;
 
 	case 7:
@@ -803,10 +810,8 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 			cpuname = "C3 'Samuel 2' [C5B]";
 			/* Note, this is not a typo, early Samuel2's had
 			 * Samuel1 ratios. */
-			memcpy(clock_ratio, samuel1_clock_ratio,
-				sizeof(samuel1_clock_ratio));
-			memcpy(eblcr_table, samuel2_eblcr,
-				sizeof(samuel2_eblcr));
+			memcpy(mults, samuel1_mults, sizeof(samuel1_mults));
+			memcpy(eblcr, samuel2_eblcr, sizeof(samuel2_eblcr));
 			break;
 		case 1 ... 15:
 			longhaul_version = TYPE_LONGHAUL_V1;
@@ -817,10 +822,8 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 				cpu_model = CPU_EZRA;
 				cpuname = "C3 'Ezra' [C5C]";
 			}
-			memcpy(clock_ratio, ezra_clock_ratio,
-				sizeof(ezra_clock_ratio));
-			memcpy(eblcr_table, ezra_eblcr,
-				sizeof(ezra_eblcr));
+			memcpy(mults, ezra_mults, sizeof(ezra_mults));
+			memcpy(eblcr, ezra_eblcr, sizeof(ezra_eblcr));
 			break;
 		}
 		break;
@@ -829,18 +832,16 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		cpu_model = CPU_EZRA_T;
 		cpuname = "C3 'Ezra-T' [C5M]";
 		longhaul_version = TYPE_POWERSAVER;
-		numscales=32;
-		memcpy (clock_ratio, ezrat_clock_ratio, sizeof(ezrat_clock_ratio));
-		memcpy (eblcr_table, ezrat_eblcr, sizeof(ezrat_eblcr));
+		numscales = 32;
+		memcpy(mults, ezrat_mults, sizeof(ezrat_mults));
+		memcpy(eblcr, ezrat_eblcr, sizeof(ezrat_eblcr));
 		break;
 
 	case 9:
 		longhaul_version = TYPE_POWERSAVER;
 		numscales = 32;
-		memcpy(clock_ratio,
-		       nehemiah_clock_ratio,
-		       sizeof(nehemiah_clock_ratio));
-		memcpy(eblcr_table, nehemiah_eblcr, sizeof(nehemiah_eblcr));
+		memcpy(mults, nehemiah_mults, sizeof(nehemiah_mults));
+		memcpy(eblcr, nehemiah_eblcr, sizeof(nehemiah_eblcr));
 		switch (c->x86_mask) {
 		case 0 ... 1:
 			cpu_model = CPU_NEHEMIAH;
@@ -869,14 +870,14 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 			longhaul_version = TYPE_LONGHAUL_V1;
 	}
 
-	printk (KERN_INFO PFX "VIA %s CPU detected.  ", cpuname);
+	printk(KERN_INFO PFX "VIA %s CPU detected.  ", cpuname);
 	switch (longhaul_version) {
 	case TYPE_LONGHAUL_V1:
 	case TYPE_LONGHAUL_V2:
-		printk ("Longhaul v%d supported.\n", longhaul_version);
+		printk(KERN_CONT "Longhaul v%d supported.\n", longhaul_version);
 		break;
 	case TYPE_POWERSAVER:
-		printk ("Powersaver supported.\n");
+		printk(KERN_CONT "Powersaver supported.\n");
 		break;
 	};
 
@@ -940,7 +941,7 @@ static int __devexit longhaul_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static struct freq_attr* longhaul_attr[] = {
+static struct freq_attr *longhaul_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
 };
@@ -966,13 +967,15 @@ static int __init longhaul_init(void)
 
 #ifdef CONFIG_SMP
 	if (num_online_cpus() > 1) {
-		printk(KERN_ERR PFX "More than 1 CPU detected, longhaul disabled.\n");
+		printk(KERN_ERR PFX "More than 1 CPU detected, "
+				"longhaul disabled.\n");
 		return -ENODEV;
 	}
 #endif
 #ifdef CONFIG_X86_IO_APIC
 	if (cpu_has_apic) {
-		printk(KERN_ERR PFX "APIC detected. Longhaul is currently broken in this configuration.\n");
+		printk(KERN_ERR PFX "APIC detected. Longhaul is currently "
+				"broken in this configuration.\n");
 		return -ENODEV;
 	}
 #endif
@@ -993,8 +996,8 @@ static void __exit longhaul_exit(void)
 {
 	int i;
 
-	for (i=0; i < numscales; i++) {
-		if (clock_ratio[i] == maxmult) {
+	for (i = 0; i < numscales; i++) {
+		if (mults[i] == maxmult) {
 			longhaul_setstate(i);
 			break;
 		}
@@ -1007,11 +1010,11 @@ static void __exit longhaul_exit(void)
 /* Even if BIOS is exporting ACPI C3 state, and it is used
  * with success when CPU is idle, this state doesn't
  * trigger frequency transition in some cases. */
-module_param (disable_acpi_c3, int, 0644);
+module_param(disable_acpi_c3, int, 0644);
 MODULE_PARM_DESC(disable_acpi_c3, "Don't use ACPI C3 support");
 /* Change CPU voltage with frequency. Very usefull to save
  * power, but most VIA C3 processors aren't supporting it. */
-module_param (scale_voltage, int, 0644);
+module_param(scale_voltage, int, 0644);
 MODULE_PARM_DESC(scale_voltage, "Scale voltage of processor");
 /* Force revision key to 0 for processors which doesn't
  * support voltage scaling, but are introducing itself as
@@ -1019,9 +1022,9 @@ MODULE_PARM_DESC(scale_voltage, "Scale voltage of processor");
 module_param(revid_errata, int, 0644);
 MODULE_PARM_DESC(revid_errata, "Ignore CPU Revision ID");
 
-MODULE_AUTHOR ("Dave Jones <davej@redhat.com>");
-MODULE_DESCRIPTION ("Longhaul driver for VIA Cyrix processors.");
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("Dave Jones <davej@redhat.com>");
+MODULE_DESCRIPTION("Longhaul driver for VIA Cyrix processors.");
+MODULE_LICENSE("GPL");
 
 late_initcall(longhaul_init);
 module_exit(longhaul_exit);

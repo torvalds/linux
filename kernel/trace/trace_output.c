@@ -19,6 +19,38 @@ static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
 
 static int next_event_type = __TRACE_LAST_TYPE + 1;
 
+enum print_line_t trace_print_bprintk_msg_only(struct trace_iterator *iter)
+{
+	struct trace_seq *s = &iter->seq;
+	struct trace_entry *entry = iter->ent;
+	struct bprint_entry *field;
+	int ret;
+
+	trace_assign_type(field, entry);
+
+	ret = trace_seq_bprintf(s, field->fmt, field->buf);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
+enum print_line_t trace_print_printk_msg_only(struct trace_iterator *iter)
+{
+	struct trace_seq *s = &iter->seq;
+	struct trace_entry *entry = iter->ent;
+	struct print_entry *field;
+	int ret;
+
+	trace_assign_type(field, entry);
+
+	ret = trace_seq_printf(s, "%s", field->buf);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
 /**
  * trace_seq_printf - sequence printing of trace information
  * @s: trace sequence descriptor
@@ -105,7 +137,7 @@ int trace_seq_putc(struct trace_seq *s, unsigned char c)
 	return 1;
 }
 
-int trace_seq_putmem(struct trace_seq *s, void *mem, size_t len)
+int trace_seq_putmem(struct trace_seq *s, const void *mem, size_t len)
 {
 	if (len > ((PAGE_SIZE - 1) - s->len))
 		return 0;
@@ -116,10 +148,10 @@ int trace_seq_putmem(struct trace_seq *s, void *mem, size_t len)
 	return len;
 }
 
-int trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
+int trace_seq_putmem_hex(struct trace_seq *s, const void *mem, size_t len)
 {
 	unsigned char hex[HEX_CHARS];
-	unsigned char *data = mem;
+	const unsigned char *data = mem;
 	int i, j;
 
 #ifdef __BIG_ENDIAN
@@ -133,6 +165,19 @@ int trace_seq_putmem_hex(struct trace_seq *s, void *mem, size_t len)
 	hex[j++] = ' ';
 
 	return trace_seq_putmem(s, hex, j);
+}
+
+void *trace_seq_reserve(struct trace_seq *s, size_t len)
+{
+	void *ret;
+
+	if (len > ((PAGE_SIZE - 1) - s->len))
+		return NULL;
+
+	ret = s->buffer + s->len;
+	s->len += len;
+
+	return ret;
 }
 
 int trace_seq_path(struct trace_seq *s, struct path *path)
@@ -309,9 +354,9 @@ static int
 lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 {
 	int hardirq, softirq;
-	char *comm;
+	char comm[TASK_COMM_LEN];
 
-	comm = trace_find_cmdline(entry->pid);
+	trace_find_cmdline(entry->pid, comm);
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
 	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
 
@@ -346,10 +391,12 @@ int trace_print_context(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry = iter->ent;
-	char *comm = trace_find_cmdline(entry->pid);
 	unsigned long long t = ns2usecs(iter->ts);
 	unsigned long usec_rem = do_div(t, USEC_PER_SEC);
 	unsigned long secs = (unsigned long)t;
+	char comm[TASK_COMM_LEN];
+
+	trace_find_cmdline(entry->pid, comm);
 
 	return trace_seq_printf(s, "%16s-%-5d [%03d] %5lu.%06lu: ",
 				comm, entry->pid, iter->cpu, secs, usec_rem);
@@ -372,7 +419,10 @@ int trace_print_lat_context(struct trace_iterator *iter)
 	rel_usecs = ns2usecs(next_ts - iter->ts);
 
 	if (verbose) {
-		char *comm = trace_find_cmdline(entry->pid);
+		char comm[TASK_COMM_LEN];
+
+		trace_find_cmdline(entry->pid, comm);
+
 		ret = trace_seq_printf(s, "%16s %5d %3d %d %08x %08lx [%08lx]"
 				       " %ld.%03ldms (+%ld.%03ldms): ", comm,
 				       entry->pid, iter->cpu, entry->flags,
@@ -443,6 +493,11 @@ int register_ftrace_event(struct trace_event *event)
 	int ret = 0;
 
 	mutex_lock(&trace_event_mutex);
+
+	if (!event) {
+		ret = next_event_type++;
+		goto out;
+	}
 
 	if (!event->type)
 		event->type = next_event_type++;
@@ -577,14 +632,15 @@ static enum print_line_t trace_ctxwake_print(struct trace_iterator *iter,
 					     char *delim)
 {
 	struct ctx_switch_entry *field;
-	char *comm;
+	char comm[TASK_COMM_LEN];
 	int S, T;
+
 
 	trace_assign_type(field, iter->ent);
 
 	T = task_state_char(field->next_state);
 	S = task_state_char(field->prev_state);
-	comm = trace_find_cmdline(field->next_pid);
+	trace_find_cmdline(field->next_pid, comm);
 	if (!trace_seq_printf(&iter->seq,
 			      " %5d:%3d:%c %s [%03d] %5d:%3d:%c %s\n",
 			      field->prev_pid,

@@ -429,7 +429,6 @@ static int stv06xx_config(struct gspca_dev *gspca_dev,
 	PDEBUG(D_PROBE, "Configuring camera");
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = STV_ISOC_ENDPOINT_ADDR;
 	sd->desc = sd_desc;
 	gspca_dev->sd_desc = &sd->desc;
 
@@ -501,8 +500,10 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	if (usb_register(&sd_driver) < 0)
-		return -1;
+	int ret;
+	ret = usb_register(&sd_driver);
+	if (ret < 0)
+		return ret;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }

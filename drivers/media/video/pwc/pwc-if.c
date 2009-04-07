@@ -53,6 +53,7 @@
    - Xavier Roche: QuickCam Pro 4000 ID
    - Jens Knudsen: QuickCam Zoom ID
    - J. Debert: QuickCam for Notebooks ID
+   - Pham Thanh Nam: webcam snapshot button as an event input device
 */
 
 #include <linux/errno.h>
@@ -61,6 +62,9 @@
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
+#ifdef CONFIG_USB_PWC_INPUT_EVDEV
+#include <linux/usb/input.h>
+#endif
 #include <linux/vmalloc.h>
 #include <asm/io.h>
 
@@ -586,6 +590,23 @@ static void pwc_frame_dumped(struct pwc_device *pdev)
 				pdev->vframe_count);
 }
 
+static void pwc_snapshot_button(struct pwc_device *pdev, int down)
+{
+	if (down) {
+		PWC_TRACE("Snapshot button pressed.\n");
+		pdev->snapshot_button_status = 1;
+	} else {
+		PWC_TRACE("Snapshot button released.\n");
+	}
+
+#ifdef CONFIG_USB_PWC_INPUT_EVDEV
+	if (pdev->button_dev) {
+		input_report_key(pdev->button_dev, BTN_0, down);
+		input_sync(pdev->button_dev);
+	}
+#endif
+}
+
 static int pwc_rcv_short_packet(struct pwc_device *pdev, const struct pwc_frame_buf *fbuf)
 {
 	int awake = 0;
@@ -603,13 +624,7 @@ static int pwc_rcv_short_packet(struct pwc_device *pdev, const struct pwc_frame_
 			pdev->vframes_error++;
 		}
 		if ((ptr[0] ^ pdev->vmirror) & 0x01) {
-			if (ptr[0] & 0x01) {
-				pdev->snapshot_button_status = 1;
-				PWC_TRACE("Snapshot button pressed.\n");
-			}
-			else {
-				PWC_TRACE("Snapshot button released.\n");
-			}
+			pwc_snapshot_button(pdev, ptr[0] & 0x01);
 		}
 		if ((ptr[0] ^ pdev->vmirror) & 0x02) {
 			if (ptr[0] & 0x02)
@@ -633,12 +648,7 @@ static int pwc_rcv_short_packet(struct pwc_device *pdev, const struct pwc_frame_
 	else if (pdev->type == 740 || pdev->type == 720) {
 		unsigned char *ptr = (unsigned char *)fbuf->data;
 		if ((ptr[0] ^ pdev->vmirror) & 0x01) {
-			if (ptr[0] & 0x01) {
-				pdev->snapshot_button_status = 1;
-				PWC_TRACE("Snapshot button pressed.\n");
-			}
-			else
-				PWC_TRACE("Snapshot button released.\n");
+			pwc_snapshot_button(pdev, ptr[0] & 0x01);
 		}
 		pdev->vmirror = ptr[0] & 0x03;
 	}
@@ -1115,6 +1125,7 @@ static int pwc_video_open(struct file *file)
 	}
 
 	mutex_lock(&pdev->modlock);
+	pwc_construct(pdev); /* set min/max sizes correct */
 	if (!pdev->usb_init) {
 		PWC_DEBUG_OPEN("Doing first time initialization.\n");
 		pdev->usb_init = 1;
@@ -1139,7 +1150,6 @@ static int pwc_video_open(struct file *file)
 	if (pwc_set_leds(pdev, led_on, led_off) < 0)
 		PWC_DEBUG_OPEN("Failed to set LED on/off time.\n");
 
-	pwc_construct(pdev); /* set min/max sizes correct */
 
 	/* So far, so good. Allocate memory. */
 	i = pwc_allocate_buffers(pdev);
@@ -1216,6 +1226,15 @@ static void pwc_cleanup(struct pwc_device *pdev)
 {
 	pwc_remove_sysfs_files(pdev->vdev);
 	video_unregister_device(pdev->vdev);
+
+#ifdef CONFIG_USB_PWC_INPUT_EVDEV
+	if (pdev->button_dev) {
+		input_unregister_device(pdev->button_dev);
+		input_free_device(pdev->button_dev);
+		kfree(pdev->button_dev->phys);
+		pdev->button_dev = NULL;
+	}
+#endif
 }
 
 /* Note that all cleanup is done in the reverse order as in _open */
@@ -1483,6 +1502,9 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	int features = 0;
 	int video_nr = -1; /* default: use next available device */
 	char serial_number[30], *name;
+#ifdef CONFIG_USB_PWC_INPUT_EVDEV
+	char *phys = NULL;
+#endif
 
 	vendor_id = le16_to_cpu(udev->descriptor.idVendor);
 	product_id = le16_to_cpu(udev->descriptor.idProduct);
@@ -1806,6 +1828,35 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	/* Set the leds off */
 	pwc_set_leds(pdev, 0, 0);
 	pwc_camera_power(pdev, 0);
+
+#ifdef CONFIG_USB_PWC_INPUT_EVDEV
+	/* register webcam snapshot button input device */
+	pdev->button_dev = input_allocate_device();
+	if (!pdev->button_dev) {
+		PWC_ERROR("Err, insufficient memory for webcam snapshot button device.");
+		return -ENOMEM;
+	}
+
+	pdev->button_dev->name = "PWC snapshot button";
+	phys = kasprintf(GFP_KERNEL,"usb-%s-%s", pdev->udev->bus->bus_name, pdev->udev->devpath);
+	if (!phys) {
+		input_free_device(pdev->button_dev);
+		return -ENOMEM;
+	}
+	pdev->button_dev->phys = phys;
+	usb_to_input_id(pdev->udev, &pdev->button_dev->id);
+	pdev->button_dev->dev.parent = &pdev->udev->dev;
+	pdev->button_dev->evbit[0] = BIT_MASK(EV_KEY);
+	pdev->button_dev->keybit[BIT_WORD(BTN_0)] = BIT_MASK(BTN_0);
+
+	rc = input_register_device(pdev->button_dev);
+	if (rc) {
+		input_free_device(pdev->button_dev);
+		kfree(pdev->button_dev->phys);
+		pdev->button_dev = NULL;
+		return rc;
+	}
+#endif
 
 	return 0;
 

@@ -31,6 +31,7 @@
 
 /* list of thin interrupt input queues */
 static LIST_HEAD(tiq_list);
+DEFINE_MUTEX(tiq_list_lock);
 
 /* adapter local summary indicator */
 static unsigned char *tiqdio_alsi;
@@ -95,12 +96,11 @@ void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)
 	if (!css_qdio_omit_svs && irq_ptr->siga_flag.sync)
 		css_qdio_omit_svs = 1;
 
-	for_each_input_queue(irq_ptr, q, i) {
+	mutex_lock(&tiq_list_lock);
+	for_each_input_queue(irq_ptr, q, i)
 		list_add_rcu(&q->entry, &tiq_list);
-		synchronize_rcu();
-	}
+	mutex_unlock(&tiq_list_lock);
 	xchg(irq_ptr->dsci, 1);
-	tasklet_schedule(&tiqdio_tasklet);
 }
 
 /*
@@ -118,7 +118,10 @@ void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 		/* if establish triggered an error */
 		if (!q || !q->entry.prev || !q->entry.next)
 			continue;
+
+		mutex_lock(&tiq_list_lock);
 		list_del_rcu(&q->entry);
+		mutex_unlock(&tiq_list_lock);
 		synchronize_rcu();
 	}
 }
@@ -155,15 +158,15 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 	 */
 	qdio_check_outbound_after_thinint(q);
 
-again:
 	if (!qdio_inbound_q_moved(q))
 		return;
 
-	qdio_kick_inbound_handler(q);
+	qdio_kick_handler(q);
 
 	if (!tiqdio_inbound_q_done(q)) {
 		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop);
-		goto again;
+		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
+			tasklet_schedule(&q->tasklet);
 	}
 
 	qdio_stop_polling(q);
@@ -173,7 +176,8 @@ again:
 	 */
 	if (!tiqdio_inbound_q_done(q)) {
 		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop2);
-		goto again;
+		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
+			tasklet_schedule(&q->tasklet);
 	}
 }
 
@@ -366,10 +370,11 @@ void qdio_shutdown_thinint(struct qdio_irq *irq_ptr)
 
 void __exit tiqdio_unregister_thinints(void)
 {
-	tasklet_disable(&tiqdio_tasklet);
+	WARN_ON(!list_empty(&tiq_list));
 
 	if (tiqdio_alsi) {
 		s390_unregister_adapter_interrupt(tiqdio_alsi, QDIO_AIRQ_ISC);
 		isc_unregister(QDIO_AIRQ_ISC);
 	}
+	tasklet_kill(&tiqdio_tasklet);
 }

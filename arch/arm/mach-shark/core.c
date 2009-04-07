@@ -16,11 +16,27 @@
 #include <asm/leds.h>
 #include <asm/param.h>
 
-#include <mach/hardware.h>
-
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+
+#define IO_BASE                 0xe0000000
+#define IO_SIZE                 0x08000000
+#define IO_START                0x40000000
+#define ROMCARD_SIZE            0x08000000
+#define ROMCARD_START           0x10000000
+
+void arch_reset(char mode, const char *cmd)
+{
+        short temp;
+        local_irq_disable();
+        /* Reset the Machine via pc[3] of the sequoia chipset */
+        outw(0x09,0x24);
+        temp=inw(0x26);
+        temp = temp | (1<<3) | (1<<10);
+        outw(0x09,0x24);
+        outw(temp,0x26);
+}
 
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
@@ -50,14 +66,38 @@ static struct platform_device serial_device = {
 	},
 };
 
+static struct resource rtc_resources[] = {
+	[0] = {
+		.start	= 0x70,
+		.end	= 0x73,
+		.flags	= IORESOURCE_IO,
+	},
+	[1] = {
+		.start	= IRQ_ISA_RTC_ALARM,
+		.end	= IRQ_ISA_RTC_ALARM,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device rtc_device = {
+	.name		= "rtc_cmos",
+	.id		= -1,
+	.resource	= rtc_resources,
+	.num_resources	= ARRAY_SIZE(rtc_resources),
+};
+
 static int __init shark_init(void)
 {
 	int ret;
 
 	if (machine_is_shark())
+	{
+	        ret = platform_device_register(&rtc_device);
+		if (ret) printk(KERN_ERR "Unable to register RTC device: %d\n", ret);
 		ret = platform_device_register(&serial_device);
-
-	return ret;
+		if (ret) printk(KERN_ERR "Unable to register Serial device: %d\n", ret);
+	}
+	return 0;
 }
 
 arch_initcall(shark_init);

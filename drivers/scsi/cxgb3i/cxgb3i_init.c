@@ -12,8 +12,8 @@
 #include "cxgb3i.h"
 
 #define DRV_MODULE_NAME         "cxgb3i"
-#define DRV_MODULE_VERSION	"1.0.1"
-#define DRV_MODULE_RELDATE	"Jan. 2009"
+#define DRV_MODULE_VERSION	"1.0.2"
+#define DRV_MODULE_RELDATE	"Mar. 2009"
 
 static char version[] =
 	"Chelsio S3xx iSCSI Driver " DRV_MODULE_NAME
@@ -26,6 +26,7 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 static void open_s3_dev(struct t3cdev *);
 static void close_s3_dev(struct t3cdev *);
+static void s3_err_handler(struct t3cdev *tdev, u32 status, u32 error);
 
 static cxgb3_cpl_handler_func cxgb3i_cpl_handlers[NUM_CPL_CMDS];
 static struct cxgb3_client t3c_client = {
@@ -33,6 +34,7 @@ static struct cxgb3_client t3c_client = {
 	.handlers = cxgb3i_cpl_handlers,
 	.add = open_s3_dev,
 	.remove = close_s3_dev,
+	.err_handler = s3_err_handler,
 };
 
 /**
@@ -48,8 +50,9 @@ static void open_s3_dev(struct t3cdev *t3dev)
 		vers_printed = 1;
 	}
 
+	cxgb3i_ddp_init(t3dev);
 	cxgb3i_sdev_add(t3dev, &t3c_client);
-	cxgb3i_adapter_add(t3dev);
+	cxgb3i_adapter_open(t3dev);
 }
 
 /**
@@ -58,8 +61,28 @@ static void open_s3_dev(struct t3cdev *t3dev)
  */
 static void close_s3_dev(struct t3cdev *t3dev)
 {
-	cxgb3i_adapter_remove(t3dev);
+	cxgb3i_adapter_close(t3dev);
 	cxgb3i_sdev_remove(t3dev);
+	cxgb3i_ddp_cleanup(t3dev);
+}
+
+static void s3_err_handler(struct t3cdev *tdev, u32 status, u32 error)
+{
+	struct cxgb3i_adapter *snic = cxgb3i_adapter_find_by_tdev(tdev);
+
+	cxgb3i_log_info("snic 0x%p, tdev 0x%p, status 0x%x, err 0x%x.\n",
+			snic, tdev, status, error);
+	if (!snic)
+		return;
+
+	switch (status) {
+	case OFFLOAD_STATUS_DOWN:
+		snic->flags |= CXGB3I_ADAPTER_FLAG_RESET;
+		break;
+	case OFFLOAD_STATUS_UP:
+		snic->flags &= ~CXGB3I_ADAPTER_FLAG_RESET;
+		break;
+	}
 }
 
 /**

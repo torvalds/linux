@@ -134,7 +134,7 @@ generic_acl_init(struct inode *inode, struct inode *dir,
 	mode_t mode = inode->i_mode;
 	int error;
 
-	inode->i_mode = mode & ~current->fs->umask;
+	inode->i_mode = mode & ~current_umask();
 	if (!S_ISLNK(inode->i_mode))
 		acl = ops->getacl(dir, ACL_TYPE_DEFAULT);
 	if (acl) {
