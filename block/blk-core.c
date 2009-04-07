@@ -1123,8 +1123,6 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 
 	if (bio_sync(bio))
 		req->cmd_flags |= REQ_RW_SYNC;
-	if (bio_unplug(bio))
-		req->cmd_flags |= REQ_UNPLUG;
 	if (bio_rw_meta(bio))
 		req->cmd_flags |= REQ_RW_META;
 	if (bio_noidle(bio))
