@@ -1220,7 +1220,7 @@ EXPORT_SYMBOL(pci_scan_bus_parented);
  *
  * Returns the max number of subordinate bus discovered.
  */
-unsigned int __devinit pci_rescan_bus(struct pci_bus *bus)
+unsigned int __ref pci_rescan_bus(struct pci_bus *bus)
 {
 	unsigned int max;
 	struct pci_dev *dev;

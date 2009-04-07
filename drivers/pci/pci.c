@@ -844,7 +844,7 @@ static int do_pci_enable_device(struct pci_dev *dev, int bars)
  */
 int pci_reenable_device(struct pci_dev *dev)
 {
-	if (atomic_read(&dev->enable_cnt))
+	if (pci_is_enabled(dev))
 		return do_pci_enable_device(dev, (1 << PCI_NUM_RESOURCES) - 1);
 	return 0;
 }
@@ -1042,7 +1042,7 @@ static void do_pci_disable_device(struct pci_dev *dev)
  */
 void pci_disable_enabled_device(struct pci_dev *dev)
 {
-	if (atomic_read(&dev->enable_cnt))
+	if (pci_is_enabled(dev))
 		do_pci_disable_device(dev);
 }
 
