@@ -176,8 +176,10 @@ static const struct stv090x_tab stv090x_rf_tab[] = {
 static struct stv090x_reg stv0900_initval[] = {
 
 	{ STV090x_OUTCFG,		0x00 },
+	{ STV090x_MODECFG,		0xff },
 	{ STV090x_AGCRF1CFG,		0x11 },
 	{ STV090x_AGCRF2CFG,		0x13 },
+	{ STV090x_TSGENERAL1X,		0x14 },
 	{ STV090x_TSTTNR2,		0x21 },
 	{ STV090x_TSTTNR4,		0x21 },
 	{ STV090x_P2_DISTXCTL,		0x22 },
@@ -203,8 +205,10 @@ static struct stv090x_reg stv0900_initval[] = {
 	{ STV090x_P2_ERRCTRL2,		0xc1 },
 	{ STV090x_P2_CFRICFG,		0xf8 },
 	{ STV090x_P2_NOSCFG,		0x1c },
+	{ STV090x_P2_DMDTOM,		0x20 },
 	{ STV090x_P2_CORRELMANT,	0x70 },
 	{ STV090x_P2_CORRELABS,		0x88 },
+	{ STV090x_P2_AGC2O,		0x5b },
 	{ STV090x_P2_AGC2REF,		0x38 },
 	{ STV090x_P2_CARCFG,		0xe4 },
 	{ STV090x_P2_ACLC,		0x1A },
@@ -246,6 +250,7 @@ static struct stv090x_reg stv0900_initval[] = {
 	{ STV090x_P1_DMDCFGMD,		0xf9 },
 	{ STV090x_P1_DEMOD,		0x08 },
 	{ STV090x_P1_DMDCFG3,		0xc4 },
+	{ STV090x_P1_DMDTOM,		0x20 },
 	{ STV090x_P1_CARFREQ,		0xed },
 	{ STV090x_P1_LDT,		0xd0 },
 	{ STV090x_P1_LDT2,		0xb8 },
@@ -265,6 +270,7 @@ static struct stv090x_reg stv0900_initval[] = {
 	{ STV090x_P1_NOSCFG,		0x1c },
 	{ STV090x_P1_CORRELMANT,	0x70 },
 	{ STV090x_P1_CORRELABS,		0x88 },
+	{ STV090x_P1_AGC2O,		0x5b },
 	{ STV090x_P1_AGC2REF,		0x38 },
 	{ STV090x_P1_CARCFG,		0xe4 },
 	{ STV090x_P1_ACLC,		0x1A },
@@ -326,6 +332,7 @@ static struct stv090x_reg stv0900_initval[] = {
 	{ STV090x_GAINLLR_NF15,		0x1A },
 	{ STV090x_GAINLLR_NF16,		0x1F },
 	{ STV090x_GAINLLR_NF17,		0x21 },
+	{ STV090x_RCCFGH,		0x20 },
 	{ STV090x_P1_FECM,		0x01 }, /* disable DSS modes */
 	{ STV090x_P2_FECM,		0x01 }, /* disable DSS modes */
 	{ STV090x_P1_PRVIT,		0x2F }, /* disable PR 6/7 */
@@ -364,12 +371,14 @@ static struct stv090x_reg stv0903_initval[] = {
 	{ STV090x_P1_ERRCTRL2,		0xc1 },
 	{ STV090x_P1_CFRICFG,		0xf8 },
 	{ STV090x_P1_NOSCFG,		0x1c },
+	{ STV090x_P1_DMDTOM,		0x20 },
 	{ STV090x_P1_CORRELMANT,	0x70 },
 	{ STV090x_P1_CORRELABS,		0x88 },
-	{ STV090x_P1_AGC2REF,		0x38 } ,
+	{ STV090x_P1_AGC2O,		0x5b },
+	{ STV090x_P1_AGC2REF,		0x38 },
 	{ STV090x_P1_CARCFG,		0xe4 },
 	{ STV090x_P1_ACLC,		0x1A },
-	{ STV090x_P1_BCLC,		0x09 } ,
+	{ STV090x_P1_BCLC,		0x09 },
 	{ STV090x_P1_CARHDR,		0x08 },
 	{ STV090x_P1_KREFTMG,		0xc1 },
 	{ STV090x_P1_SFRSTEP,		0x58 },
@@ -427,6 +436,7 @@ static struct stv090x_reg stv0903_initval[] = {
 	{ STV090x_GAINLLR_NF15,		0x1A },
 	{ STV090x_GAINLLR_NF16,		0x1F },
 	{ STV090x_GAINLLR_NF17,		0x21 },
+	{ STV090x_RCCFGH,		0x20 },
 	{ STV090x_P1_FECM,		0x01 }, /*disable the DSS mode */
 	{ STV090x_P1_PRVIT,		0x2f }  /*disable puncture rate 6/7*/
 };
@@ -434,6 +444,7 @@ static struct stv090x_reg stv0903_initval[] = {
 static struct stv090x_reg stv0900_cut20_val[] = {
 
 	{ STV090x_P2_DMDCFG3,		0xe8 },
+	{ STV090x_P2_DMDCFG4,		0x10 },
 	{ STV090x_P2_CARFREQ,		0x38 },
 	{ STV090x_P2_CARHDR,		0x20 },
 	{ STV090x_P2_KREFTMG,		0x5a },
@@ -442,6 +453,7 @@ static struct stv090x_reg stv0900_cut20_val[] = {
 	{ STV090x_P2_SMAPCOEF5,		0x04 },
 	{ STV090x_P2_NOSCFG,		0x0c },
 	{ STV090x_P1_DMDCFG3,		0xe8 },
+	{ STV090x_P1_DMDCFG4,		0x10 },
 	{ STV090x_P1_CARFREQ,		0x38 },
 	{ STV090x_P1_CARHDR,		0x20 },
 	{ STV090x_P1_KREFTMG,		0x5a },
@@ -467,6 +479,7 @@ static struct stv090x_reg stv0900_cut20_val[] = {
 
 static struct stv090x_reg stv0903_cut20_val[] = {
 	{ STV090x_P1_DMDCFG3,		0xe8 },
+	{ STV090x_P1_DMDCFG4,		0x10 },
 	{ STV090x_P1_CARFREQ,		0x38 },
 	{ STV090x_P1_CARHDR,		0x20 },
 	{ STV090x_P1_KREFTMG,		0x5a },
@@ -640,11 +653,9 @@ static int stv090x_write_reg(struct stv090x_state *state, unsigned int reg, u8 d
 static int stv090x_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
-	const struct stv090x_config *config = state->config;
 	u32 reg;
 
 	reg = STV090x_READ_DEMOD(state, I2CRPT);
-//	STV090x_SETFIELD_Px(reg, ENARPT_LEVEL_FIELD, config->repeater_level);
 	if (enable) {
 		dprintk(FE_DEBUG, 1, "Enable Gate");
 		STV090x_SETFIELD_Px(reg, I2CT_ON_FIELD, 1);
@@ -3605,10 +3616,12 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 			case STV090x_TSMODE_SERIAL_PUNCTURED:
 			case STV090x_TSMODE_SERIAL_CONTINUOUS:
 			default:
+				stv090x_write_reg(state, STV090x_TSGENERAL1X, 0x10);
 				break;
 
 			case STV090x_TSMODE_PARALLEL_PUNCTURED:
 			case STV090x_TSMODE_DVBCI:
+				stv090x_write_reg(state, STV090x_TSGENERAL1X, 0x16);
 				reg = stv090x_read_reg(state, STV090x_P1_TSCFGM);
 				STV090x_SETFIELD_Px(reg, TSFIFO_MANSPEED_FIELD, 3);
 				if (stv090x_write_reg(state, STV090x_P1_TSCFGM, reg) < 0)
@@ -3632,10 +3645,12 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 			case STV090x_TSMODE_SERIAL_PUNCTURED:
 			case STV090x_TSMODE_SERIAL_CONTINUOUS:
 			default:
+				stv090x_write_reg(state, STV090x_TSGENERAL1X, 0x14);
 				break;
 
 			case STV090x_TSMODE_PARALLEL_PUNCTURED:
 			case STV090x_TSMODE_DVBCI:
+				stv090x_write_reg(state, STV090x_TSGENERAL1X, 0x12);
 				break;
 			}
 			break;
@@ -3893,6 +3908,7 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 	state->i2c				= i2c;
 	state->frontend.ops			= stv090x_ops;
 	state->frontend.demodulator_priv	= state;
+	state->demod				= demod;
 	state->demod_mode 			= config->demod_mode; /* Single or Dual mode */
 	state->device				= config->device;
 	state->rolloff				= 35; /* default */
