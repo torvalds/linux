@@ -71,7 +71,7 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 			break;
 		}
 		ppos = pos;
-		nr = (*dofunc)(nilfs, &pos, argv->v_flags, buf, argv->v_size,
+		nr = dofunc(nilfs, &pos, argv->v_flags, buf, argv->v_size,
 			       n);
 		if (nr < 0) {
 			ret = nr;

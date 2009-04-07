@@ -38,11 +38,11 @@ int nilfs_bmap_lookup_at_level(struct nilfs_bmap *bmap, __u64 key, int level,
 	int ret;
 
 	down_read(&bmap->b_sem);
-	ret = (*bmap->b_ops->bop_lookup)(bmap, key, level, ptrp);
+	ret = bmap->b_ops->bop_lookup(bmap, key, level, ptrp);
 	if (ret < 0)
 		goto out;
 	if (bmap->b_pops->bpop_translate != NULL) {
-		ret = (*bmap->b_pops->bpop_translate)(bmap, *ptrp, &ptr);
+		ret = bmap->b_pops->bpop_translate(bmap, *ptrp, &ptr);
 		if (ret < 0)
 			goto out;
 		*ptrp = ptr;
@@ -94,9 +94,9 @@ static int nilfs_bmap_do_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 	int ret, n;
 
 	if (bmap->b_ops->bop_check_insert != NULL) {
-		ret = (*bmap->b_ops->bop_check_insert)(bmap, key);
+		ret = bmap->b_ops->bop_check_insert(bmap, key);
 		if (ret > 0) {
-			n = (*bmap->b_ops->bop_gather_data)(
+			n = bmap->b_ops->bop_gather_data(
 				bmap, keys, ptrs, NILFS_BMAP_SMALL_HIGH + 1);
 			if (n < 0)
 				return n;
@@ -111,7 +111,7 @@ static int nilfs_bmap_do_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 			return ret;
 	}
 
-	return (*bmap->b_ops->bop_insert)(bmap, key, ptr);
+	return bmap->b_ops->bop_insert(bmap, key, ptr);
 }
 
 /**
@@ -151,9 +151,9 @@ static int nilfs_bmap_do_delete(struct nilfs_bmap *bmap, __u64 key)
 	int ret, n;
 
 	if (bmap->b_ops->bop_check_delete != NULL) {
-		ret = (*bmap->b_ops->bop_check_delete)(bmap, key);
+		ret = bmap->b_ops->bop_check_delete(bmap, key);
 		if (ret > 0) {
-			n = (*bmap->b_ops->bop_gather_data)(
+			n = bmap->b_ops->bop_gather_data(
 				bmap, keys, ptrs, NILFS_BMAP_LARGE_LOW + 1);
 			if (n < 0)
 				return n;
@@ -168,7 +168,7 @@ static int nilfs_bmap_do_delete(struct nilfs_bmap *bmap, __u64 key)
 			return ret;
 	}
 
-	return (*bmap->b_ops->bop_delete)(bmap, key);
+	return bmap->b_ops->bop_delete(bmap, key);
 }
 
 int nilfs_bmap_last_key(struct nilfs_bmap *bmap, unsigned long *key)
@@ -177,7 +177,7 @@ int nilfs_bmap_last_key(struct nilfs_bmap *bmap, unsigned long *key)
 	int ret;
 
 	down_read(&bmap->b_sem);
-	ret = (*bmap->b_ops->bop_last_key)(bmap, &lastkey);
+	ret = bmap->b_ops->bop_last_key(bmap, &lastkey);
 	if (!ret)
 		*key = lastkey;
 	up_read(&bmap->b_sem);
@@ -216,7 +216,7 @@ static int nilfs_bmap_do_truncate(struct nilfs_bmap *bmap, unsigned long key)
 	__u64 lastkey;
 	int ret;
 
-	ret = (*bmap->b_ops->bop_last_key)(bmap, &lastkey);
+	ret = bmap->b_ops->bop_last_key(bmap, &lastkey);
 	if (ret < 0) {
 		if (ret == -ENOENT)
 			ret = 0;
@@ -227,7 +227,7 @@ static int nilfs_bmap_do_truncate(struct nilfs_bmap *bmap, unsigned long key)
 		ret = nilfs_bmap_do_delete(bmap, lastkey);
 		if (ret < 0)
 			return ret;
-		ret = (*bmap->b_ops->bop_last_key)(bmap, &lastkey);
+		ret = bmap->b_ops->bop_last_key(bmap, &lastkey);
 		if (ret < 0) {
 			if (ret == -ENOENT)
 				ret = 0;
@@ -272,7 +272,7 @@ void nilfs_bmap_clear(struct nilfs_bmap *bmap)
 {
 	down_write(&bmap->b_sem);
 	if (bmap->b_ops->bop_clear != NULL)
-		(*bmap->b_ops->bop_clear)(bmap);
+		bmap->b_ops->bop_clear(bmap);
 	up_write(&bmap->b_sem);
 }
 
@@ -296,7 +296,7 @@ int nilfs_bmap_propagate(struct nilfs_bmap *bmap, struct buffer_head *bh)
 	int ret;
 
 	down_write(&bmap->b_sem);
-	ret = (*bmap->b_ops->bop_propagate)(bmap, bh);
+	ret = bmap->b_ops->bop_propagate(bmap, bh);
 	up_write(&bmap->b_sem);
 	return ret;
 }
@@ -310,7 +310,7 @@ void nilfs_bmap_lookup_dirty_buffers(struct nilfs_bmap *bmap,
 				     struct list_head *listp)
 {
 	if (bmap->b_ops->bop_lookup_dirty_buffers != NULL)
-		(*bmap->b_ops->bop_lookup_dirty_buffers)(bmap, listp);
+		bmap->b_ops->bop_lookup_dirty_buffers(bmap, listp);
 }
 
 /**
@@ -340,7 +340,7 @@ int nilfs_bmap_assign(struct nilfs_bmap *bmap,
 	int ret;
 
 	down_write(&bmap->b_sem);
-	ret = (*bmap->b_ops->bop_assign)(bmap, bh, blocknr, binfo);
+	ret = bmap->b_ops->bop_assign(bmap, bh, blocknr, binfo);
 	up_write(&bmap->b_sem);
 	return ret;
 }
@@ -369,7 +369,7 @@ int nilfs_bmap_mark(struct nilfs_bmap *bmap, __u64 key, int level)
 		return 0;
 
 	down_write(&bmap->b_sem);
-	ret = (*bmap->b_ops->bop_mark)(bmap, key, level);
+	ret = bmap->b_ops->bop_mark(bmap, key, level);
 	up_write(&bmap->b_sem);
 	return ret;
 }
@@ -572,12 +572,12 @@ int nilfs_bmap_prepare_update(struct nilfs_bmap *bmap,
 {
 	int ret;
 
-	ret = (*bmap->b_pops->bpop_prepare_end_ptr)(bmap, oldreq);
+	ret = bmap->b_pops->bpop_prepare_end_ptr(bmap, oldreq);
 	if (ret < 0)
 		return ret;
-	ret = (*bmap->b_pops->bpop_prepare_alloc_ptr)(bmap, newreq);
+	ret = bmap->b_pops->bpop_prepare_alloc_ptr(bmap, newreq);
 	if (ret < 0)
-		(*bmap->b_pops->bpop_abort_end_ptr)(bmap, oldreq);
+		bmap->b_pops->bpop_abort_end_ptr(bmap, oldreq);
 
 	return ret;
 }
@@ -586,16 +586,16 @@ void nilfs_bmap_commit_update(struct nilfs_bmap *bmap,
 			      union nilfs_bmap_ptr_req *oldreq,
 			      union nilfs_bmap_ptr_req *newreq)
 {
-	(*bmap->b_pops->bpop_commit_end_ptr)(bmap, oldreq);
-	(*bmap->b_pops->bpop_commit_alloc_ptr)(bmap, newreq);
+	bmap->b_pops->bpop_commit_end_ptr(bmap, oldreq);
+	bmap->b_pops->bpop_commit_alloc_ptr(bmap, newreq);
 }
 
 void nilfs_bmap_abort_update(struct nilfs_bmap *bmap,
 			     union nilfs_bmap_ptr_req *oldreq,
 			     union nilfs_bmap_ptr_req *newreq)
 {
-	(*bmap->b_pops->bpop_abort_end_ptr)(bmap, oldreq);
-	(*bmap->b_pops->bpop_abort_alloc_ptr)(bmap, newreq);
+	bmap->b_pops->bpop_abort_end_ptr(bmap, oldreq);
+	bmap->b_pops->bpop_abort_alloc_ptr(bmap, newreq);
 }
 
 static int nilfs_bmap_translate_v(const struct nilfs_bmap *bmap, __u64 ptr,

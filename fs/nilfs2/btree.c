@@ -902,9 +902,9 @@ static int nilfs_btree_prepare_insert(struct nilfs_btree *btree,
 	/* allocate a new ptr for data block */
 	if (btree->bt_ops->btop_find_target != NULL)
 		path[level].bp_newreq.bpr_ptr =
-			(*btree->bt_ops->btop_find_target)(btree, path, key);
+			btree->bt_ops->btop_find_target(btree, path, key);
 
-	ret = (*btree->bt_bmap.b_pops->bpop_prepare_alloc_ptr)(
+	ret = btree->bt_bmap.b_pops->bpop_prepare_alloc_ptr(
 		&btree->bt_bmap, &path[level].bp_newreq);
 	if (ret < 0)
 		goto err_out_data;
@@ -965,7 +965,7 @@ static int nilfs_btree_prepare_insert(struct nilfs_btree *btree,
 		/* split */
 		path[level].bp_newreq.bpr_ptr =
 			path[level - 1].bp_newreq.bpr_ptr + 1;
-		ret = (*btree->bt_bmap.b_pops->bpop_prepare_alloc_ptr)(
+		ret = btree->bt_bmap.b_pops->bpop_prepare_alloc_ptr(
 			&btree->bt_bmap, &path[level].bp_newreq);
 		if (ret < 0)
 			goto err_out_child_node;
@@ -997,7 +997,7 @@ static int nilfs_btree_prepare_insert(struct nilfs_btree *btree,
 
 	/* grow */
 	path[level].bp_newreq.bpr_ptr = path[level - 1].bp_newreq.bpr_ptr + 1;
-	ret = (*btree->bt_bmap.b_pops->bpop_prepare_alloc_ptr)(
+	ret = btree->bt_bmap.b_pops->bpop_prepare_alloc_ptr(
 		&btree->bt_bmap, &path[level].bp_newreq);
 	if (ret < 0)
 		goto err_out_child_node;
@@ -1026,17 +1026,17 @@ static int nilfs_btree_prepare_insert(struct nilfs_btree *btree,
 
 	/* error */
  err_out_curr_node:
-	(*btree->bt_bmap.b_pops->bpop_abort_alloc_ptr)(&btree->bt_bmap,
-						       &path[level].bp_newreq);
+	btree->bt_bmap.b_pops->bpop_abort_alloc_ptr(&btree->bt_bmap,
+						    &path[level].bp_newreq);
  err_out_child_node:
 	for (level--; level > NILFS_BTREE_LEVEL_DATA; level--) {
 		nilfs_bmap_delete_block(&btree->bt_bmap, path[level].bp_sib_bh);
-		(*btree->bt_bmap.b_pops->bpop_abort_alloc_ptr)(
+		btree->bt_bmap.b_pops->bpop_abort_alloc_ptr(
 			&btree->bt_bmap, &path[level].bp_newreq);
 
 	}
 
-	(*btree->bt_bmap.b_pops->bpop_abort_alloc_ptr)(&btree->bt_bmap,
+	btree->bt_bmap.b_pops->bpop_abort_alloc_ptr(&btree->bt_bmap,
 						       &path[level].bp_newreq);
  err_out_data:
 	*levelp = level;
@@ -1053,14 +1053,14 @@ static void nilfs_btree_commit_insert(struct nilfs_btree *btree,
 	set_buffer_nilfs_volatile((struct buffer_head *)((unsigned long)ptr));
 	ptr = path[NILFS_BTREE_LEVEL_DATA].bp_newreq.bpr_ptr;
 	if (btree->bt_ops->btop_set_target != NULL)
-		(*btree->bt_ops->btop_set_target)(btree, key, ptr);
+		btree->bt_ops->btop_set_target(btree, key, ptr);
 
 	for (level = NILFS_BTREE_LEVEL_NODE_MIN; level <= maxlevel; level++) {
 		if (btree->bt_bmap.b_pops->bpop_commit_alloc_ptr != NULL) {
-			(*btree->bt_bmap.b_pops->bpop_commit_alloc_ptr)(
+			btree->bt_bmap.b_pops->bpop_commit_alloc_ptr(
 				&btree->bt_bmap, &path[level - 1].bp_newreq);
 		}
-		(*path[level].bp_op)(btree, path, level, &key, &ptr);
+		path[level].bp_op(btree, path, level, &key, &ptr);
 	}
 
 	if (!nilfs_bmap_dirty(&btree->bt_bmap))
@@ -1304,7 +1304,7 @@ static int nilfs_btree_prepare_delete(struct nilfs_btree *btree,
 			nilfs_btree_node_get_ptr(btree, node,
 						 path[level].bp_index);
 		if (btree->bt_bmap.b_pops->bpop_prepare_end_ptr != NULL) {
-			ret = (*btree->bt_bmap.b_pops->bpop_prepare_end_ptr)(
+			ret = btree->bt_bmap.b_pops->bpop_prepare_end_ptr(
 				&btree->bt_bmap, &path[level].bp_oldreq);
 			if (ret < 0)
 				goto err_out_child_node;
@@ -1385,7 +1385,7 @@ static int nilfs_btree_prepare_delete(struct nilfs_btree *btree,
 	path[level].bp_oldreq.bpr_ptr =
 		nilfs_btree_node_get_ptr(btree, node, path[level].bp_index);
 	if (btree->bt_bmap.b_pops->bpop_prepare_end_ptr != NULL) {
-		ret = (*btree->bt_bmap.b_pops->bpop_prepare_end_ptr)(
+		ret = btree->bt_bmap.b_pops->bpop_prepare_end_ptr(
 			&btree->bt_bmap, &path[level].bp_oldreq);
 		if (ret < 0)
 			goto err_out_child_node;
@@ -1402,13 +1402,13 @@ static int nilfs_btree_prepare_delete(struct nilfs_btree *btree,
 	/* error */
  err_out_curr_node:
 	if (btree->bt_bmap.b_pops->bpop_abort_end_ptr != NULL)
-		(*btree->bt_bmap.b_pops->bpop_abort_end_ptr)(
+		btree->bt_bmap.b_pops->bpop_abort_end_ptr(
 			&btree->bt_bmap, &path[level].bp_oldreq);
  err_out_child_node:
 	for (level--; level >= NILFS_BTREE_LEVEL_NODE_MIN; level--) {
 		nilfs_bmap_put_block(&btree->bt_bmap, path[level].bp_sib_bh);
 		if (btree->bt_bmap.b_pops->bpop_abort_end_ptr != NULL)
-			(*btree->bt_bmap.b_pops->bpop_abort_end_ptr)(
+			btree->bt_bmap.b_pops->bpop_abort_end_ptr(
 				&btree->bt_bmap, &path[level].bp_oldreq);
 	}
 	*levelp = level;
@@ -1424,9 +1424,9 @@ static void nilfs_btree_commit_delete(struct nilfs_btree *btree,
 
 	for (level = NILFS_BTREE_LEVEL_NODE_MIN; level <= maxlevel; level++) {
 		if (btree->bt_bmap.b_pops->bpop_commit_end_ptr != NULL)
-			(*btree->bt_bmap.b_pops->bpop_commit_end_ptr)(
+			btree->bt_bmap.b_pops->bpop_commit_end_ptr(
 				&btree->bt_bmap, &path[level].bp_oldreq);
-		(*path[level].bp_op)(btree, path, level, NULL, NULL);
+		path[level].bp_op(btree, path, level, NULL, NULL);
 	}
 
 	if (!nilfs_bmap_dirty(&btree->bt_bmap))
@@ -1589,8 +1589,8 @@ nilfs_btree_prepare_convert_and_insert(struct nilfs_bmap *bmap, __u64 key,
 	/* cannot find near ptr */
 	if (btree->bt_ops->btop_find_target != NULL)
 		dreq->bpr_ptr
-			= (*btree->bt_ops->btop_find_target)(btree, NULL, key);
-	ret = (*bmap->b_pops->bpop_prepare_alloc_ptr)(bmap, dreq);
+			= btree->bt_ops->btop_find_target(btree, NULL, key);
+	ret = bmap->b_pops->bpop_prepare_alloc_ptr(bmap, dreq);
 	if (ret < 0)
 		return ret;
 
@@ -1598,7 +1598,7 @@ nilfs_btree_prepare_convert_and_insert(struct nilfs_bmap *bmap, __u64 key,
 	stats->bs_nblocks++;
 	if (nreq != NULL) {
 		nreq->bpr_ptr = dreq->bpr_ptr + 1;
-		ret = (*bmap->b_pops->bpop_prepare_alloc_ptr)(bmap, nreq);
+		ret = bmap->b_pops->bpop_prepare_alloc_ptr(bmap, nreq);
 		if (ret < 0)
 			goto err_out_dreq;
 
@@ -1615,9 +1615,9 @@ nilfs_btree_prepare_convert_and_insert(struct nilfs_bmap *bmap, __u64 key,
 
 	/* error */
  err_out_nreq:
-	(*bmap->b_pops->bpop_abort_alloc_ptr)(bmap, nreq);
+	bmap->b_pops->bpop_abort_alloc_ptr(bmap, nreq);
  err_out_dreq:
-	(*bmap->b_pops->bpop_abort_alloc_ptr)(bmap, dreq);
+	bmap->b_pops->bpop_abort_alloc_ptr(bmap, dreq);
 	stats->bs_nblocks = 0;
 	return ret;
 
@@ -1638,7 +1638,7 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *bmap,
 
 	/* free resources */
 	if (bmap->b_ops->bop_clear != NULL)
-		(*bmap->b_ops->bop_clear)(bmap);
+		bmap->b_ops->bop_clear(bmap);
 
 	/* ptr must be a pointer to a buffer head. */
 	set_buffer_nilfs_volatile((struct buffer_head *)((unsigned long)ptr));
@@ -1648,8 +1648,8 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *bmap,
 	nilfs_btree_init(bmap, low, high);
 	if (nreq != NULL) {
 		if (bmap->b_pops->bpop_commit_alloc_ptr != NULL) {
-			(*bmap->b_pops->bpop_commit_alloc_ptr)(bmap, dreq);
-			(*bmap->b_pops->bpop_commit_alloc_ptr)(bmap, nreq);
+			bmap->b_pops->bpop_commit_alloc_ptr(bmap, dreq);
+			bmap->b_pops->bpop_commit_alloc_ptr(bmap, nreq);
 		}
 
 		/* create child node at level 1 */
@@ -1673,7 +1673,7 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *bmap,
 				      2, 1, &keys[0], &tmpptr);
 	} else {
 		if (bmap->b_pops->bpop_commit_alloc_ptr != NULL)
-			(*bmap->b_pops->bpop_commit_alloc_ptr)(bmap, dreq);
+			bmap->b_pops->bpop_commit_alloc_ptr(bmap, dreq);
 
 		/* create root node at level 1 */
 		node = nilfs_btree_get_root(btree);
@@ -1686,7 +1686,7 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *bmap,
 	}
 
 	if (btree->bt_ops->btop_set_target != NULL)
-		(*btree->bt_ops->btop_set_target)(btree, key, dreq->bpr_ptr);
+		btree->bt_ops->btop_set_target(btree, key, dreq->bpr_ptr);
 }
 
 /**
@@ -1937,7 +1937,7 @@ static int nilfs_btree_propagate(const struct nilfs_bmap *bmap,
 		goto out;
 	}
 
-	ret = (*btree->bt_ops->btop_propagate)(btree, path, level, bh);
+	ret = btree->bt_ops->btop_propagate(btree, path, level, bh);
 
  out:
 	nilfs_btree_clear_path(btree, path);
@@ -2073,11 +2073,11 @@ static int nilfs_btree_assign_v(struct nilfs_btree *btree,
 	ptr = nilfs_btree_node_get_ptr(btree, parent,
 				       path[level + 1].bp_index);
 	req.bpr_ptr = ptr;
-	ret = (*btree->bt_bmap.b_pops->bpop_prepare_start_ptr)(&btree->bt_bmap,
+	ret = btree->bt_bmap.b_pops->bpop_prepare_start_ptr(&btree->bt_bmap,
 							       &req);
 	if (ret < 0)
 		return ret;
-	(*btree->bt_bmap.b_pops->bpop_commit_start_ptr)(&btree->bt_bmap,
+	btree->bt_bmap.b_pops->bpop_commit_start_ptr(&btree->bt_bmap,
 							&req, blocknr);
 
 	key = nilfs_btree_node_get_key(btree, parent,
@@ -2121,7 +2121,7 @@ static int nilfs_btree_assign(struct nilfs_bmap *bmap,
 		goto out;
 	}
 
-	ret = (*btree->bt_ops->btop_assign)(btree, path, level, bh,
+	ret = btree->bt_ops->btop_assign(btree, path, level, bh,
 					    blocknr, binfo);
 
  out:

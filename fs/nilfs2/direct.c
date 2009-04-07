@@ -91,8 +91,8 @@ static int nilfs_direct_prepare_insert(struct nilfs_direct *direct,
 	int ret;
 
 	if (direct->d_ops->dop_find_target != NULL)
-		req->bpr_ptr = (*direct->d_ops->dop_find_target)(direct, key);
-	ret = (*direct->d_bmap.b_pops->bpop_prepare_alloc_ptr)(&direct->d_bmap,
+		req->bpr_ptr = direct->d_ops->dop_find_target(direct, key);
+	ret = direct->d_bmap.b_pops->bpop_prepare_alloc_ptr(&direct->d_bmap,
 							       req);
 	if (ret < 0)
 		return ret;
@@ -112,7 +112,7 @@ static void nilfs_direct_commit_insert(struct nilfs_direct *direct,
 	set_buffer_nilfs_volatile(bh);
 
 	if (direct->d_bmap.b_pops->bpop_commit_alloc_ptr != NULL)
-		(*direct->d_bmap.b_pops->bpop_commit_alloc_ptr)(
+		direct->d_bmap.b_pops->bpop_commit_alloc_ptr(
 			&direct->d_bmap, req);
 	nilfs_direct_set_ptr(direct, key, req->bpr_ptr);
 
@@ -120,7 +120,7 @@ static void nilfs_direct_commit_insert(struct nilfs_direct *direct,
 		nilfs_bmap_set_dirty(&direct->d_bmap);
 
 	if (direct->d_ops->dop_set_target != NULL)
-		(*direct->d_ops->dop_set_target)(direct, key, req->bpr_ptr);
+		direct->d_ops->dop_set_target(direct, key, req->bpr_ptr);
 }
 
 static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
@@ -154,7 +154,7 @@ static int nilfs_direct_prepare_delete(struct nilfs_direct *direct,
 
 	if (direct->d_bmap.b_pops->bpop_prepare_end_ptr != NULL) {
 		req->bpr_ptr = nilfs_direct_get_ptr(direct, key);
-		ret = (*direct->d_bmap.b_pops->bpop_prepare_end_ptr)(
+		ret = direct->d_bmap.b_pops->bpop_prepare_end_ptr(
 			&direct->d_bmap, req);
 		if (ret < 0)
 			return ret;
@@ -169,7 +169,7 @@ static void nilfs_direct_commit_delete(struct nilfs_direct *direct,
 				       __u64 key)
 {
 	if (direct->d_bmap.b_pops->bpop_commit_end_ptr != NULL)
-		(*direct->d_bmap.b_pops->bpop_commit_end_ptr)(
+		direct->d_bmap.b_pops->bpop_commit_end_ptr(
 			&direct->d_bmap, req);
 	nilfs_direct_set_ptr(direct, key, NILFS_BMAP_INVALID_PTR);
 }
@@ -255,13 +255,13 @@ int nilfs_direct_delete_and_convert(struct nilfs_bmap *bmap,
 	/* no need to allocate any resource for conversion */
 
 	/* delete */
-	ret = (*bmap->b_ops->bop_delete)(bmap, key);
+	ret = bmap->b_ops->bop_delete(bmap, key);
 	if (ret < 0)
 		return ret;
 
 	/* free resources */
 	if (bmap->b_ops->bop_clear != NULL)
-		(*bmap->b_ops->bop_clear)(bmap);
+		bmap->b_ops->bop_clear(bmap);
 
 	/* convert */
 	direct = (struct nilfs_direct *)bmap;
@@ -314,7 +314,7 @@ static int nilfs_direct_propagate(const struct nilfs_bmap *bmap,
 
 	direct = (struct nilfs_direct *)bmap;
 	return (direct->d_ops->dop_propagate != NULL) ?
-		(*direct->d_ops->dop_propagate)(direct, bh) :
+		direct->d_ops->dop_propagate(direct, bh) :
 		0;
 }
 
@@ -328,12 +328,12 @@ static int nilfs_direct_assign_v(struct nilfs_direct *direct,
 	int ret;
 
 	req.bpr_ptr = ptr;
-	ret = (*direct->d_bmap.b_pops->bpop_prepare_start_ptr)(
+	ret = direct->d_bmap.b_pops->bpop_prepare_start_ptr(
 		&direct->d_bmap, &req);
 	if (ret < 0)
 		return ret;
-	(*direct->d_bmap.b_pops->bpop_commit_start_ptr)(&direct->d_bmap,
-							&req, blocknr);
+	direct->d_bmap.b_pops->bpop_commit_start_ptr(&direct->d_bmap,
+						     &req, blocknr);
 
 	binfo->bi_v.bi_vblocknr = nilfs_bmap_ptr_to_dptr(ptr);
 	binfo->bi_v.bi_blkoff = nilfs_bmap_key_to_dkey(key);
@@ -370,8 +370,8 @@ static int nilfs_direct_assign(struct nilfs_bmap *bmap,
 	ptr = nilfs_direct_get_ptr(direct, key);
 	BUG_ON(ptr == NILFS_BMAP_INVALID_PTR);
 
-	return (*direct->d_ops->dop_assign)(direct, key, ptr, bh,
-					    blocknr, binfo);
+	return direct->d_ops->dop_assign(direct, key, ptr, bh,
+					 blocknr, binfo);
 }
 
 static const struct nilfs_bmap_operations nilfs_direct_ops = {
