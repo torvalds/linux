@@ -493,25 +493,32 @@ int t3_phy_lasi_intr_handler(struct cphy *phy)
 }
 
 static const struct adapter_info t3_adap_info[] = {
-	{2, 0,
+	{1, 1, 0,
 	 F_GPIO2_OEN | F_GPIO4_OEN |
 	 F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, { S_GPIO3, S_GPIO5 }, 0,
 	 &mi1_mdio_ops, "Chelsio PE9000"},
-	{2, 0,
+	{1, 1, 0,
 	 F_GPIO2_OEN | F_GPIO4_OEN |
 	 F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, { S_GPIO3, S_GPIO5 }, 0,
 	 &mi1_mdio_ops, "Chelsio T302"},
-	{1, 0,
+	{1, 0, 0,
 	 F_GPIO1_OEN | F_GPIO6_OEN | F_GPIO7_OEN | F_GPIO10_OEN |
 	 F_GPIO11_OEN | F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
 	 { 0 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	 &mi1_mdio_ext_ops, "Chelsio T310"},
-	{2, 0,
+	{1, 1, 0,
 	 F_GPIO1_OEN | F_GPIO2_OEN | F_GPIO4_OEN | F_GPIO5_OEN | F_GPIO6_OEN |
 	 F_GPIO7_OEN | F_GPIO10_OEN | F_GPIO11_OEN | F_GPIO1_OUT_VAL |
 	 F_GPIO5_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
 	 { S_GPIO9, S_GPIO3 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	 &mi1_mdio_ext_ops, "Chelsio T320"},
+	{},
+	{},
+	{1, 0, 0,
+	 F_GPIO1_OEN | F_GPIO2_OEN | F_GPIO4_OEN | F_GPIO6_OEN | F_GPIO7_OEN |
+	 F_GPIO10_OEN | F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
+	 { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
+	 &mi1_mdio_ext_ops, "Chelsio T310" },
 };
 
 /*
@@ -1146,6 +1153,38 @@ int t3_cim_ctl_blk_read(struct adapter *adap, unsigned int addr,
 	return ret;
 }
 
+static void t3_gate_rx_traffic(struct cmac *mac, u32 *rx_cfg,
+			       u32 *rx_hash_high, u32 *rx_hash_low)
+{
+	/* stop Rx unicast traffic */
+	t3_mac_disable_exact_filters(mac);
+
+	/* stop broadcast, multicast, promiscuous mode traffic */
+	*rx_cfg = t3_read_reg(mac->adapter, A_XGM_RX_CFG);
+	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG,
+			 F_ENHASHMCAST | F_DISBCAST | F_COPYALLFRAMES,
+			 F_DISBCAST);
+
+	*rx_hash_high = t3_read_reg(mac->adapter, A_XGM_RX_HASH_HIGH);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_HIGH, 0);
+
+	*rx_hash_low = t3_read_reg(mac->adapter, A_XGM_RX_HASH_LOW);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW, 0);
+
+	/* Leave time to drain max RX fifo */
+	msleep(1);
+}
+
+static void t3_open_rx_traffic(struct cmac *mac, u32 rx_cfg,
+			       u32 rx_hash_high, u32 rx_hash_low)
+{
+	t3_mac_enable_exact_filters(mac);
+	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG,
+			 F_ENHASHMCAST | F_DISBCAST | F_COPYALLFRAMES,
+			 rx_cfg);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_HIGH, rx_hash_high);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW, rx_hash_low);
+}
 
 /**
  *	t3_link_changed - handle interface link changes
@@ -1163,8 +1202,31 @@ void t3_link_changed(struct adapter *adapter, int port_id)
 	struct cphy *phy = &pi->phy;
 	struct cmac *mac = &pi->mac;
 	struct link_config *lc = &pi->link_config;
+	int force_link_down = 0;
 
 	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
+
+	if (!lc->link_ok && link_ok) {
+		u32 rx_cfg, rx_hash_high, rx_hash_low;
+		u32 status;
+
+		t3_xgm_intr_enable(adapter, port_id);
+		t3_gate_rx_traffic(mac, &rx_cfg, &rx_hash_high, &rx_hash_low);
+		t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, 0);
+		t3_mac_enable(mac, MAC_DIRECTION_RX);
+
+		status = t3_read_reg(adapter, A_XGM_INT_STATUS + mac->offset);
+		if (status & F_LINKFAULTCHANGE) {
+			mac->stats.link_faults++;
+			force_link_down = 1;
+		}
+		t3_open_rx_traffic(mac, rx_cfg, rx_hash_high, rx_hash_low);
+
+		if (force_link_down) {
+			t3_os_link_fault_handler(adapter, port_id);
+			return;
+		}
+	}
 
 	if (lc->requested_fc & PAUSE_AUTONEG)
 		fc &= lc->requested_fc;
@@ -1193,6 +1255,57 @@ void t3_link_changed(struct adapter *adapter, int port_id)
 	}
 
 	t3_os_link_changed(adapter, port_id, link_ok, speed, duplex, fc);
+}
+
+void t3_link_fault(struct adapter *adapter, int port_id)
+{
+	struct port_info *pi = adap2pinfo(adapter, port_id);
+	struct cmac *mac = &pi->mac;
+	struct cphy *phy = &pi->phy;
+	struct link_config *lc = &pi->link_config;
+	int link_ok, speed, duplex, fc, link_fault;
+	u32 rx_cfg, rx_hash_high, rx_hash_low;
+
+	t3_gate_rx_traffic(mac, &rx_cfg, &rx_hash_high, &rx_hash_low);
+
+	if (adapter->params.rev > 0 && uses_xaui(adapter))
+		t3_write_reg(adapter, A_XGM_XAUI_ACT_CTRL + mac->offset, 0);
+
+	t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, 0);
+	t3_mac_enable(mac, MAC_DIRECTION_RX);
+
+	t3_open_rx_traffic(mac, rx_cfg, rx_hash_high, rx_hash_low);
+
+	link_fault = t3_read_reg(adapter,
+				 A_XGM_INT_STATUS + mac->offset);
+	link_fault &= F_LINKFAULTCHANGE;
+
+	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
+
+	if (link_fault) {
+		lc->link_ok = 0;
+		lc->speed = SPEED_INVALID;
+		lc->duplex = DUPLEX_INVALID;
+
+		t3_os_link_fault(adapter, port_id, 0);
+
+		/* Account link faults only when the phy reports a link up */
+		if (link_ok)
+			mac->stats.link_faults++;
+
+		msleep(1000);
+		t3_os_link_fault_handler(adapter, port_id);
+	} else {
+		if (link_ok)
+			t3_write_reg(adapter, A_XGM_XAUI_ACT_CTRL + mac->offset,
+				     F_TXACTENABLE | F_RXEN);
+
+		pi->link_fault = 0;
+		lc->link_ok = (unsigned char)link_ok;
+		lc->speed = speed < 0 ? SPEED_INVALID : speed;
+		lc->duplex = duplex < 0 ? DUPLEX_INVALID : duplex;
+		t3_os_link_fault(adapter, port_id, link_ok);
+	}
 }
 
 /**
@@ -1316,7 +1429,7 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 #define MC7_INTR_MASK (F_AE | F_UE | F_CE | V_PE(M_PE))
 #define XGM_INTR_MASK (V_TXFIFO_PRTY_ERR(M_TXFIFO_PRTY_ERR) | \
 		       V_RXFIFO_PRTY_ERR(M_RXFIFO_PRTY_ERR) | \
-		       F_TXFIFO_UNDERRUN | F_RXFIFO_OVERFLOW)
+		       F_TXFIFO_UNDERRUN)
 #define PCIX_INTR_MASK (F_MSTDETPARERR | F_SIGTARABT | F_RCVTARABT | \
 			F_RCVMSTABT | F_SIGSYSERR | F_DETPARERR | \
 			F_SPLCMPDIS | F_UNXSPLCMP | F_RCVSPLCMPERR | \
@@ -1353,11 +1466,11 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 		       V_TX1TPPARERRENB(M_TX1TPPARERRENB) | \
 		       V_RXTPPARERRENB(M_RXTPPARERRENB) | \
 		       V_MCAPARERRENB(M_MCAPARERRENB))
+#define XGM_EXTRA_INTR_MASK (F_LINKFAULTCHANGE)
 #define PL_INTR_MASK (F_T3DBG | F_XGMAC0_0 | F_XGMAC0_1 | F_MC5A | F_PM1_TX | \
 		      F_PM1_RX | F_ULP2_TX | F_ULP2_RX | F_TP1 | F_CIM | \
 		      F_MC7_CM | F_MC7_PMTX | F_MC7_PMRX | F_SGE3 | F_PCIM0 | \
 		      F_MPS0 | F_CPL_SWITCH)
-
 /*
  * Interrupt handler for the PCIX1 module.
  */
@@ -1688,7 +1801,14 @@ static void mc7_intr_handler(struct mc7 *mc7)
 static int mac_intr_handler(struct adapter *adap, unsigned int idx)
 {
 	struct cmac *mac = &adap2pinfo(adap, idx)->mac;
-	u32 cause = t3_read_reg(adap, A_XGM_INT_CAUSE + mac->offset);
+	/*
+	 * We mask out interrupt causes for which we're not taking interrupts.
+	 * This allows us to use polling logic to monitor some of the other
+	 * conditions when taking interrupts would impose too much load on the
+	 * system.
+	 */
+	u32 cause = t3_read_reg(adap, A_XGM_INT_CAUSE + mac->offset) &
+		    ~F_RXFIFO_OVERFLOW;
 
 	if (cause & V_TXFIFO_PRTY_ERR(M_TXFIFO_PRTY_ERR)) {
 		mac->stats.tx_fifo_parity_err++;
@@ -1708,10 +1828,20 @@ static int mac_intr_handler(struct adapter *adap, unsigned int idx)
 		mac->stats.xaui_pcs_ctc_err++;
 	if (cause & F_XAUIPCSALIGNCHANGE)
 		mac->stats.xaui_pcs_align_change++;
+	if (cause & F_XGM_INT) {
+		t3_set_reg_field(adap,
+				 A_XGM_INT_ENABLE + mac->offset,
+				 F_XGM_INT, 0);
+		mac->stats.link_faults++;
+
+		t3_os_link_fault_handler(adap, idx);
+	}
 
 	t3_write_reg(adap, A_XGM_INT_CAUSE + mac->offset, cause);
+
 	if (cause & XGM_INTR_FATAL)
 		t3_fatal_err(adap);
+
 	return cause != 0;
 }
 
@@ -1917,6 +2047,22 @@ void t3_intr_clear(struct adapter *adapter)
 	t3_read_reg(adapter, A_PL_INT_CAUSE0);	/* flush */
 }
 
+void t3_xgm_intr_enable(struct adapter *adapter, int idx)
+{
+	struct port_info *pi = adap2pinfo(adapter, idx);
+
+	t3_write_reg(adapter, A_XGM_XGM_INT_ENABLE + pi->mac.offset,
+		     XGM_EXTRA_INTR_MASK);
+}
+
+void t3_xgm_intr_disable(struct adapter *adapter, int idx)
+{
+	struct port_info *pi = adap2pinfo(adapter, idx);
+
+	t3_write_reg(adapter, A_XGM_XGM_INT_DISABLE + pi->mac.offset,
+		     0x7ff);
+}
+
 /**
  *	t3_port_intr_enable - enable port-specific interrupts
  *	@adapter: associated adapter
@@ -1982,16 +2128,40 @@ void t3_port_intr_clear(struct adapter *adapter, int idx)
 static int t3_sge_write_context(struct adapter *adapter, unsigned int id,
 				unsigned int type)
 {
-	t3_write_reg(adapter, A_SG_CONTEXT_MASK0, 0xffffffff);
-	t3_write_reg(adapter, A_SG_CONTEXT_MASK1, 0xffffffff);
-	t3_write_reg(adapter, A_SG_CONTEXT_MASK2, 0xffffffff);
-	t3_write_reg(adapter, A_SG_CONTEXT_MASK3, 0xffffffff);
+	if (type == F_RESPONSEQ) {
+		/*
+		 * Can't write the Response Queue Context bits for
+		 * Interrupt Armed or the Reserve bits after the chip
+		 * has been initialized out of reset.  Writing to these
+		 * bits can confuse the hardware.
+		 */
+		t3_write_reg(adapter, A_SG_CONTEXT_MASK0, 0xffffffff);
+		t3_write_reg(adapter, A_SG_CONTEXT_MASK1, 0xffffffff);
+		t3_write_reg(adapter, A_SG_CONTEXT_MASK2, 0x17ffffff);
+		t3_write_reg(adapter, A_SG_CONTEXT_MASK3, 0xffffffff);
+	} else {
+		t3_write_reg(adapter, A_SG_CONTEXT_MASK0, 0xffffffff);
+		t3_write_reg(adapter, A_SG_CONTEXT_MASK1, 0xffffffff);
+		t3_write_reg(adapter, A_SG_CONTEXT_MASK2, 0xffffffff);
+		t3_write_reg(adapter, A_SG_CONTEXT_MASK3, 0xffffffff);
+	}
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | type | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
 			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
+/**
+ *	clear_sge_ctxt - completely clear an SGE context
+ *	@adapter: the adapter
+ *	@id: the context id
+ *	@type: the context type
+ *
+ *	Completely clear an SGE context.  Used predominantly at post-reset
+ *	initialization.  Note in particular that we don't skip writing to any
+ *	"sensitive bits" in the contexts the way that t3_sge_write_context()
+ *	does ...
+ */
 static int clear_sge_ctxt(struct adapter *adap, unsigned int id,
 			  unsigned int type)
 {
@@ -1999,7 +2169,14 @@ static int clear_sge_ctxt(struct adapter *adap, unsigned int id,
 	t3_write_reg(adap, A_SG_CONTEXT_DATA1, 0);
 	t3_write_reg(adap, A_SG_CONTEXT_DATA2, 0);
 	t3_write_reg(adap, A_SG_CONTEXT_DATA3, 0);
-	return t3_sge_write_context(adap, id, type);
+	t3_write_reg(adap, A_SG_CONTEXT_MASK0, 0xffffffff);
+	t3_write_reg(adap, A_SG_CONTEXT_MASK1, 0xffffffff);
+	t3_write_reg(adap, A_SG_CONTEXT_MASK2, 0xffffffff);
+	t3_write_reg(adap, A_SG_CONTEXT_MASK3, 0xffffffff);
+	t3_write_reg(adap, A_SG_CONTEXT_CMD,
+		     V_CONTEXT_CMD_OPCODE(1) | type | V_CONTEXT(id));
+	return t3_wait_op_done(adap, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2583,10 +2760,10 @@ static void tp_config(struct adapter *adap, const struct tp_params *p)
 		     F_TCPCHECKSUMOFFLOAD | V_IPTTL(64));
 	t3_write_reg(adap, A_TP_TCP_OPTIONS, V_MTUDEFAULT(576) |
 		     F_MTUENABLE | V_WINDOWSCALEMODE(1) |
-		     V_TIMESTAMPSMODE(0) | V_SACKMODE(1) | V_SACKRX(1));
+		     V_TIMESTAMPSMODE(1) | V_SACKMODE(1) | V_SACKRX(1));
 	t3_write_reg(adap, A_TP_DACK_CONFIG, V_AUTOSTATE3(1) |
 		     V_AUTOSTATE2(1) | V_AUTOSTATE1(0) |
-		     V_BYTETHRESHOLD(16384) | V_MSSTHRESHOLD(2) |
+		     V_BYTETHRESHOLD(26880) | V_MSSTHRESHOLD(2) |
 		     F_AUTOCAREFUL | F_AUTOENABLE | V_DACK_MODE(1));
 	t3_set_reg_field(adap, A_TP_IN_CONFIG, F_RXFBARBPRIO | F_TXFBARBPRIO,
 			 F_IPV6ENABLE | F_NICMODE);
@@ -3050,20 +3227,22 @@ int t3_mps_set_active_ports(struct adapter *adap, unsigned int port_mask)
 }
 
 /*
- * Perform the bits of HW initialization that are dependent on the number
- * of available ports.
+ * Perform the bits of HW initialization that are dependent on the Tx
+ * channels being used.
  */
-static void init_hw_for_avail_ports(struct adapter *adap, int nports)
+static void chan_init_hw(struct adapter *adap, unsigned int chan_map)
 {
 	int i;
 
-	if (nports == 1) {
+	if (chan_map != 3) {                                 /* one channel */
 		t3_set_reg_field(adap, A_ULPRX_CTL, F_ROUND_ROBIN, 0);
 		t3_set_reg_field(adap, A_ULPTX_CONFIG, F_CFG_RR_ARB, 0);
-		t3_write_reg(adap, A_MPS_CFG, F_TPRXPORTEN | F_TPTXPORT0EN |
-			     F_PORT0ACTIVE | F_ENFORCEPKT);
-		t3_write_reg(adap, A_PM1_TX_CFG, 0xffffffff);
-	} else {
+		t3_write_reg(adap, A_MPS_CFG, F_TPRXPORTEN | F_ENFORCEPKT |
+			     (chan_map == 1 ? F_TPTXPORT0EN | F_PORT0ACTIVE :
+					      F_TPTXPORT1EN | F_PORT1ACTIVE));
+		t3_write_reg(adap, A_PM1_TX_CFG,
+			     chan_map == 1 ? 0xffffffff : 0);
+	} else {                                             /* two channels */
 		t3_set_reg_field(adap, A_ULPRX_CTL, 0, F_ROUND_ROBIN);
 		t3_set_reg_field(adap, A_ULPTX_CONFIG, 0, F_CFG_RR_ARB);
 		t3_write_reg(adap, A_ULPTX_DMA_WEIGHT,
@@ -3371,7 +3550,7 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 	t3_write_reg(adapter, A_PM1_RX_CFG, 0xffffffff);
 	t3_write_reg(adapter, A_PM1_RX_MODE, 0);
 	t3_write_reg(adapter, A_PM1_TX_MODE, 0);
-	init_hw_for_avail_ports(adapter, adapter->params.nports);
+	chan_init_hw(adapter, adapter->params.chan_map);
 	t3_sge_init(adapter, &adapter->params.sge);
 
 	t3_write_reg(adapter, A_T3DBG_GPIO_ACT_LOW, calc_gpio_intr(adapter));
@@ -3608,9 +3787,18 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 	get_pci_mode(adapter, &adapter->params.pci);
 
 	adapter->params.info = ai;
-	adapter->params.nports = ai->nports;
+	adapter->params.nports = ai->nports0 + ai->nports1;
+	adapter->params.chan_map = !!ai->nports0 | (!!ai->nports1 << 1);
 	adapter->params.rev = t3_read_reg(adapter, A_PL_REV);
-	adapter->params.linkpoll_period = 0;
+	/*
+	 * We used to only run the "adapter check task" once a second if
+	 * we had PHYs which didn't support interrupts (we would check
+	 * their link status once a second).  Now we check other conditions
+	 * in that routine which could potentially impose a very high
+	 * interrupt load on the system.  As such, we now always scan the
+	 * adapter state once a second ...
+	 */
+	adapter->params.linkpoll_period = 10;
 	adapter->params.stats_update_period = is_10G(adapter) ?
 	    MAC_STATS_ACCUM_SECS : (MAC_STATS_ACCUM_SECS * 10);
 	adapter->params.pci.vpd_cap_addr =
@@ -3631,7 +3819,7 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		mc7_prep(adapter, &adapter->pmtx, MC7_PMTX_BASE_ADDR, "PMTX");
 		mc7_prep(adapter, &adapter->cm, MC7_CM_BASE_ADDR, "CM");
 
-		p->nchan = ai->nports;
+		p->nchan = adapter->params.chan_map == 3 ? 2 : 1;
 		p->pmrx_size = t3_mc7_size(&adapter->pmrx);
 		p->pmtx_size = t3_mc7_size(&adapter->pmtx);
 		p->cm_size = t3_mc7_size(&adapter->cm);
@@ -3700,7 +3888,14 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		       ETH_ALEN);
 		init_link_config(&p->link_config, p->phy.caps);
 		p->phy.ops->power_down(&p->phy, 1);
-		if (!(p->phy.caps & SUPPORTED_IRQ))
+
+		/*
+		 * If the PHY doesn't support interrupts for link status
+		 * changes, schedule a scan of the adapter links at least
+		 * once a second.
+		 */
+		if (!(p->phy.caps & SUPPORTED_IRQ) &&
+		    adapter->params.linkpoll_period > 10)
 			adapter->params.linkpoll_period = 10;
 	}
 

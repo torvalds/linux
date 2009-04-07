@@ -328,6 +328,7 @@ struct ecryptfs_dentry_info {
  */
 struct ecryptfs_global_auth_tok {
 #define ECRYPTFS_AUTH_TOK_INVALID 0x00000001
+#define ECRYPTFS_AUTH_TOK_FNEK    0x00000002
 	u32 flags;
 	struct list_head mount_crypt_stat_list;
 	struct key *global_auth_tok_key;
@@ -579,7 +580,7 @@ extern const struct inode_operations ecryptfs_main_iops;
 extern const struct inode_operations ecryptfs_dir_iops;
 extern const struct inode_operations ecryptfs_symlink_iops;
 extern const struct super_operations ecryptfs_sops;
-extern struct dentry_operations ecryptfs_dops;
+extern const struct dentry_operations ecryptfs_dops;
 extern struct address_space_operations ecryptfs_aops;
 extern int ecryptfs_verbosity;
 extern unsigned int ecryptfs_message_buf_len;
@@ -619,7 +620,6 @@ int ecryptfs_interpose(struct dentry *hidden_dentry,
 		       u32 flags);
 int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 					struct dentry *lower_dentry,
-					struct ecryptfs_crypt_stat *crypt_stat,
 					struct inode *ecryptfs_dir_inode,
 					struct nameidata *ecryptfs_nd);
 int ecryptfs_decode_and_decrypt_filename(char **decrypted_name,
@@ -696,7 +696,7 @@ ecryptfs_write_header_metadata(char *virt,
 int ecryptfs_add_keysig(struct ecryptfs_crypt_stat *crypt_stat, char *sig);
 int
 ecryptfs_add_global_auth_tok(struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
-			   char *sig);
+			   char *sig, u32 global_auth_tok_flags);
 int ecryptfs_get_global_auth_tok_for_sig(
 	struct ecryptfs_global_auth_tok **global_auth_tok,
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat, char *sig);

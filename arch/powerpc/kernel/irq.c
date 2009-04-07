@@ -171,7 +171,7 @@ int show_interrupts(struct seq_file *p, void *v)
 {
 	int i = *(loff_t *)v, j;
 	struct irqaction *action;
-	irq_desc_t *desc;
+	struct irq_desc *desc;
 	unsigned long flags;
 
 	if (i == 0) {
@@ -190,7 +190,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "%3d: ", i);
 #ifdef CONFIG_SMP
 		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
+			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #else
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif /* CONFIG_SMP */
@@ -231,7 +231,7 @@ void fixup_irqs(cpumask_t map)
 		if (irq_desc[irq].status & IRQ_PER_CPU)
 			continue;
 
-		cpus_and(mask, irq_desc[irq].affinity, map);
+		cpumask_and(&mask, irq_desc[irq].affinity, &map);
 		if (any_online_cpu(mask) == NR_CPUS) {
 			printk("Breaking affinity for irq %i\n", irq);
 			mask = map;
@@ -1038,7 +1038,7 @@ arch_initcall(irq_late_init);
 static int virq_debug_show(struct seq_file *m, void *private)
 {
 	unsigned long flags;
-	irq_desc_t *desc;
+	struct irq_desc *desc;
 	const char *p;
 	char none[] = "none";
 	int i;

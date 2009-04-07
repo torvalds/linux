@@ -5,72 +5,72 @@
 #include <linux/tracepoint.h>
 
 DECLARE_TRACE(block_rq_abort,
-	TPPROTO(struct request_queue *q, struct request *rq),
-		TPARGS(q, rq));
+	TP_PROTO(struct request_queue *q, struct request *rq),
+	      TP_ARGS(q, rq));
 
 DECLARE_TRACE(block_rq_insert,
-	TPPROTO(struct request_queue *q, struct request *rq),
-		TPARGS(q, rq));
+	TP_PROTO(struct request_queue *q, struct request *rq),
+	      TP_ARGS(q, rq));
 
 DECLARE_TRACE(block_rq_issue,
-	TPPROTO(struct request_queue *q, struct request *rq),
-		TPARGS(q, rq));
+	TP_PROTO(struct request_queue *q, struct request *rq),
+	      TP_ARGS(q, rq));
 
 DECLARE_TRACE(block_rq_requeue,
-	TPPROTO(struct request_queue *q, struct request *rq),
-		TPARGS(q, rq));
+	TP_PROTO(struct request_queue *q, struct request *rq),
+	      TP_ARGS(q, rq));
 
 DECLARE_TRACE(block_rq_complete,
-	TPPROTO(struct request_queue *q, struct request *rq),
-		TPARGS(q, rq));
+	TP_PROTO(struct request_queue *q, struct request *rq),
+	      TP_ARGS(q, rq));
 
 DECLARE_TRACE(block_bio_bounce,
-	TPPROTO(struct request_queue *q, struct bio *bio),
-		TPARGS(q, bio));
+	TP_PROTO(struct request_queue *q, struct bio *bio),
+	      TP_ARGS(q, bio));
 
 DECLARE_TRACE(block_bio_complete,
-	TPPROTO(struct request_queue *q, struct bio *bio),
-		TPARGS(q, bio));
+	TP_PROTO(struct request_queue *q, struct bio *bio),
+	      TP_ARGS(q, bio));
 
 DECLARE_TRACE(block_bio_backmerge,
-	TPPROTO(struct request_queue *q, struct bio *bio),
-		TPARGS(q, bio));
+	TP_PROTO(struct request_queue *q, struct bio *bio),
+	      TP_ARGS(q, bio));
 
 DECLARE_TRACE(block_bio_frontmerge,
-	TPPROTO(struct request_queue *q, struct bio *bio),
-		TPARGS(q, bio));
+	TP_PROTO(struct request_queue *q, struct bio *bio),
+	      TP_ARGS(q, bio));
 
 DECLARE_TRACE(block_bio_queue,
-	TPPROTO(struct request_queue *q, struct bio *bio),
-		TPARGS(q, bio));
+	TP_PROTO(struct request_queue *q, struct bio *bio),
+	      TP_ARGS(q, bio));
 
 DECLARE_TRACE(block_getrq,
-	TPPROTO(struct request_queue *q, struct bio *bio, int rw),
-		TPARGS(q, bio, rw));
+	TP_PROTO(struct request_queue *q, struct bio *bio, int rw),
+	      TP_ARGS(q, bio, rw));
 
 DECLARE_TRACE(block_sleeprq,
-	TPPROTO(struct request_queue *q, struct bio *bio, int rw),
-		TPARGS(q, bio, rw));
+	TP_PROTO(struct request_queue *q, struct bio *bio, int rw),
+	      TP_ARGS(q, bio, rw));
 
 DECLARE_TRACE(block_plug,
-	TPPROTO(struct request_queue *q),
-		TPARGS(q));
+	TP_PROTO(struct request_queue *q),
+	      TP_ARGS(q));
 
 DECLARE_TRACE(block_unplug_timer,
-	TPPROTO(struct request_queue *q),
-		TPARGS(q));
+	TP_PROTO(struct request_queue *q),
+	      TP_ARGS(q));
 
 DECLARE_TRACE(block_unplug_io,
-	TPPROTO(struct request_queue *q),
-		TPARGS(q));
+	TP_PROTO(struct request_queue *q),
+	      TP_ARGS(q));
 
 DECLARE_TRACE(block_split,
-	TPPROTO(struct request_queue *q, struct bio *bio, unsigned int pdu),
-		TPARGS(q, bio, pdu));
+	TP_PROTO(struct request_queue *q, struct bio *bio, unsigned int pdu),
+	      TP_ARGS(q, bio, pdu));
 
 DECLARE_TRACE(block_remap,
-	TPPROTO(struct request_queue *q, struct bio *bio, dev_t dev,
-		sector_t from, sector_t to),
-		TPARGS(q, bio, dev, from, to));
+	TP_PROTO(struct request_queue *q, struct bio *bio, dev_t dev,
+		 sector_t from, sector_t to),
+	      TP_ARGS(q, bio, dev, from, to));
 
 #endif

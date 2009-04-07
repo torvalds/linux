@@ -1975,8 +1975,7 @@ int ntfs_read_inode_mount(struct inode *vi)
 				goto em_put_err_out;
 			next_al_entry = (ATTR_LIST_ENTRY*)((u8*)al_entry +
 					le16_to_cpu(al_entry->length));
-			if (le32_to_cpu(al_entry->type) >
-					const_le32_to_cpu(AT_DATA))
+			if (le32_to_cpu(al_entry->type) > le32_to_cpu(AT_DATA))
 				goto em_put_err_out;
 			if (AT_DATA != al_entry->type)
 				continue;

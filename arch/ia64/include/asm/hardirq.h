@@ -20,16 +20,6 @@
 
 #define local_softirq_pending()		(local_cpu_data->softirq_pending)
 
-#define HARDIRQ_BITS	14
-
-/*
- * The hardirq mask has to be large enough to have space for potentially all IRQ sources
- * in the system nesting on a single CPU:
- */
-#if (1 << HARDIRQ_BITS) < NR_IRQS
-# error HARDIRQ_BITS is too low!
-#endif
-
 extern void __iomem *ipi_base_addr;
 
 void ack_bad_irq(unsigned int irq);

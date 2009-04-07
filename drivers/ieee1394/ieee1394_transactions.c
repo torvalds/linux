@@ -501,8 +501,6 @@ int hpsb_read(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	if (length == 0)
 		return -EINVAL;
 
-	BUG_ON(in_interrupt());	// We can't be called in an interrupt, yet
-
 	packet = hpsb_make_readpacket(host, node, addr, length);
 
 	if (!packet) {
@@ -550,8 +548,6 @@ int hpsb_write(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	if (length == 0)
 		return -EINVAL;
 
-	BUG_ON(in_interrupt());	// We can't be called in an interrupt, yet
-
 	packet = hpsb_make_writepacket(host, node, addr, buffer, length);
 
 	if (!packet)
@@ -565,6 +561,33 @@ int hpsb_write(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	retval = hpsb_packet_success(packet);
 
       hpsb_write_fail:
+	hpsb_free_tlabel(packet);
+	hpsb_free_packet(packet);
+
+	return retval;
+}
+
+int hpsb_lock(struct hpsb_host *host, nodeid_t node, unsigned int generation,
+	      u64 addr, int extcode, quadlet_t *data, quadlet_t arg)
+{
+	struct hpsb_packet *packet;
+	int retval = 0;
+
+	packet = hpsb_make_lockpacket(host, node, addr, extcode, data, arg);
+	if (!packet)
+		return -ENOMEM;
+
+	packet->generation = generation;
+	retval = hpsb_send_packet_and_wait(packet);
+	if (retval < 0)
+		goto hpsb_lock_fail;
+
+	retval = hpsb_packet_success(packet);
+
+	if (retval == 0)
+		*data = packet->data[0];
+
+hpsb_lock_fail:
 	hpsb_free_tlabel(packet);
 	hpsb_free_packet(packet);
 

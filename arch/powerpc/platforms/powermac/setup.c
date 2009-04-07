@@ -746,4 +746,7 @@ define_machine(powermac) {
 #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC64)
 	.cpu_die		= pmac_cpu_die,
 #endif
+#if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC32)
+	.cpu_die		= generic_mach_cpu_die,
+#endif
 };

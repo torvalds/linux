@@ -70,7 +70,7 @@ static irqreturn_t mpc_i2c_isr(int irq, void *dev_id)
 		/* Read again to allow register to stabilise */
 		i2c->interrupt = readb(i2c->base + MPC_I2C_SR);
 		writeb(0, i2c->base + MPC_I2C_SR);
-		wake_up_interruptible(&i2c->queue);
+		wake_up(&i2c->queue);
 	}
 	return IRQ_HANDLED;
 }
@@ -115,13 +115,10 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 		writeb(0, i2c->base + MPC_I2C_SR);
 	} else {
 		/* Interrupt mode */
-		result = wait_event_interruptible_timeout(i2c->queue,
-			(i2c->interrupt & CSR_MIF), timeout * HZ);
+		result = wait_event_timeout(i2c->queue,
+			(i2c->interrupt & CSR_MIF), timeout);
 
-		if (unlikely(result < 0)) {
-			pr_debug("I2C: wait interrupted\n");
-			writeccr(i2c, 0);
-		} else if (unlikely(!(i2c->interrupt & CSR_MIF))) {
+		if (unlikely(!(i2c->interrupt & CSR_MIF))) {
 			pr_debug("I2C: wait timeout\n");
 			writeccr(i2c, 0);
 			result = -ETIMEDOUT;
@@ -311,7 +308,7 @@ static struct i2c_adapter mpc_ops = {
 	.owner = THIS_MODULE,
 	.name = "MPC adapter",
 	.algo = &mpc_algo,
-	.timeout = 1,
+	.timeout = HZ,
 };
 
 static int __devinit fsl_i2c_probe(struct of_device *op, const struct of_device_id *match)

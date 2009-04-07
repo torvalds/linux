@@ -49,8 +49,8 @@
 #include "mesubdevice.h"
 #include "me1000_dio.h"
 
-static int me1000_config_load(me_device_t * me_device, struct file *filep,
-			      me_cfg_device_entry_t * config)
+static int me1000_config_load(me_device_t *me_device, struct file *filep,
+			      me_cfg_device_entry_t *config)
 {
 	me1000_device_t *me1000_device;
 	me1000_dio_subdevice_t *dio;
@@ -181,6 +181,7 @@ me_device_t *me1000_pci_constructor(struct pci_dev * pci_device)
 
 	return (me_device_t *) me1000_device;
 }
+EXPORT_SYMBOL(me1000_pci_constructor);
 
 // Init and exit of module.
 static int __init me1000_init(void)
@@ -203,6 +204,3 @@ MODULE_AUTHOR
 MODULE_DESCRIPTION("Device Driver Module for Meilhaus ME-1000 Devices");
 MODULE_SUPPORTED_DEVICE("Meilhaus ME-1000 Digital I/O Devices");
 MODULE_LICENSE("GPL");
-
-// Export the constructor.
-EXPORT_SYMBOL(me1000_pci_constructor);

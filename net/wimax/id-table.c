@@ -94,12 +94,13 @@ struct wimax_dev *wimax_dev_get_by_genl_info(
 	list_for_each_entry(wimax_dev, &wimax_id_table, id_table_node) {
 		if (wimax_dev->net_dev->ifindex == ifindex) {
 			dev_hold(wimax_dev->net_dev);
-			break;
+			goto found;
 		}
 	}
-	if (wimax_dev == NULL)
-		d_printf(1, NULL, "wimax: no devices found with ifindex %d\n",
-			 ifindex);
+	wimax_dev = NULL;
+	d_printf(1, NULL, "wimax: no devices found with ifindex %d\n",
+		 ifindex);
+found:
 	spin_unlock(&wimax_id_table_lock);
 	d_fnend(3, NULL, "(info %p ifindex %d) = %p\n",
 		info, ifindex, wimax_dev);

@@ -401,13 +401,6 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 	if (ret)
 		goto failure;
 
-	iser_dbg("path.mtu is %d setting it to %d\n",
-		 cma_id->route.path_rec->mtu, IB_MTU_1024);
-
-	/* we must set the MTU to 1024 as this is what the target is assuming */
-	if (cma_id->route.path_rec->mtu > IB_MTU_1024)
-		cma_id->route.path_rec->mtu = IB_MTU_1024;
-
 	memset(&conn_param, 0, sizeof conn_param);
 	conn_param.responder_resources = 4;
 	conn_param.initiator_depth     = 1;

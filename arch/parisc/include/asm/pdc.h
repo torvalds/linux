@@ -49,6 +49,8 @@
 #define PDC_MODEL_CPU_ID	6	/* returns cpu-id (only newer machines!) */
 #define PDC_MODEL_CAPABILITIES	7	/* returns OS32/OS64-flags	*/
 /* Values for PDC_MODEL_CAPABILITIES non-equivalent virtual aliasing support */
+#define  PDC_MODEL_OS64			(1 << 0)
+#define  PDC_MODEL_OS32			(1 << 1)
 #define  PDC_MODEL_IOPDIR_FDC		(1 << 2)
 #define  PDC_MODEL_NVA_MASK		(3 << 4)
 #define  PDC_MODEL_NVA_SUPPORTED	(0 << 4)
@@ -336,9 +338,12 @@
 #define NUM_PDC_RESULT	32
 
 #if !defined(__ASSEMBLY__)
-#ifdef __KERNEL__
 
 #include <linux/types.h>
+
+#ifdef __KERNEL__
+
+#include <asm/page.h> /* for __PAGE_OFFSET */
 
 extern int pdc_type;
 

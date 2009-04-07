@@ -10,6 +10,9 @@
  */
 
 #include <linux/scatterlist.h>
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <linux/io.h>
 
 /*
  * Controller registers
@@ -123,6 +126,7 @@
 		SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL | \
 		SDHCI_INT_DATA_TIMEOUT | SDHCI_INT_DATA_CRC | \
 		SDHCI_INT_DATA_END_BIT)
+#define SDHCI_INT_ALL_MASK	((unsigned int)-1)
 
 #define SDHCI_ACMD12_ERR	0x3C
 
@@ -208,8 +212,20 @@ struct sdhci_host {
 #define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<12)
 /* Controller has an issue with buffer bits for small transfers */
 #define SDHCI_QUIRK_BROKEN_SMALL_PIO			(1<<13)
-/* Controller supports high speed but doesn't have the caps bit set */
-#define SDHCI_QUIRK_FORCE_HIGHSPEED			(1<<14)
+/* Controller does not provide transfer-complete interrupt when not busy */
+#define SDHCI_QUIRK_NO_BUSY_IRQ				(1<<14)
+/* Controller has unreliable card detection */
+#define SDHCI_QUIRK_BROKEN_CARD_DETECTION		(1<<15)
+/* Controller reports inverted write-protect state */
+#define SDHCI_QUIRK_INVERTED_WRITE_PROTECT		(1<<16)
+/* Controller has nonstandard clock management */
+#define SDHCI_QUIRK_NONSTANDARD_CLOCK			(1<<17)
+/* Controller does not like fast PIO transfers */
+#define SDHCI_QUIRK_PIO_NEEDS_DELAY			(1<<18)
+/* Controller losing signal/interrupt enable states after reset */
+#define SDHCI_QUIRK_RESTORE_IRQS_AFTER_RESET		(1<<19)
+/* Controller has to be forced to use block size of 2048 bytes */
+#define SDHCI_QUIRK_FORCE_BLK_SZ_2048			(1<<20)
 
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */
@@ -222,6 +238,7 @@ struct sdhci_host {
 
 #if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
 	struct led_classdev	led;		/* LED control */
+	char   led_name[32];
 #endif
 
 	spinlock_t		lock;		/* Mutex */
@@ -266,9 +283,105 @@ struct sdhci_host {
 
 
 struct sdhci_ops {
+#ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS
+	u32		(*readl)(struct sdhci_host *host, int reg);
+	u16		(*readw)(struct sdhci_host *host, int reg);
+	u8		(*readb)(struct sdhci_host *host, int reg);
+	void		(*writel)(struct sdhci_host *host, u32 val, int reg);
+	void		(*writew)(struct sdhci_host *host, u16 val, int reg);
+	void		(*writeb)(struct sdhci_host *host, u8 val, int reg);
+#endif
+
+	void	(*set_clock)(struct sdhci_host *host, unsigned int clock);
+
 	int		(*enable_dma)(struct sdhci_host *host);
+	unsigned int	(*get_max_clock)(struct sdhci_host *host);
+	unsigned int	(*get_timeout_clock)(struct sdhci_host *host);
 };
 
+#ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS
+
+static inline void sdhci_writel(struct sdhci_host *host, u32 val, int reg)
+{
+	if (unlikely(host->ops->writel))
+		host->ops->writel(host, val, reg);
+	else
+		writel(val, host->ioaddr + reg);
+}
+
+static inline void sdhci_writew(struct sdhci_host *host, u16 val, int reg)
+{
+	if (unlikely(host->ops->writew))
+		host->ops->writew(host, val, reg);
+	else
+		writew(val, host->ioaddr + reg);
+}
+
+static inline void sdhci_writeb(struct sdhci_host *host, u8 val, int reg)
+{
+	if (unlikely(host->ops->writeb))
+		host->ops->writeb(host, val, reg);
+	else
+		writeb(val, host->ioaddr + reg);
+}
+
+static inline u32 sdhci_readl(struct sdhci_host *host, int reg)
+{
+	if (unlikely(host->ops->readl))
+		return host->ops->readl(host, reg);
+	else
+		return readl(host->ioaddr + reg);
+}
+
+static inline u16 sdhci_readw(struct sdhci_host *host, int reg)
+{
+	if (unlikely(host->ops->readw))
+		return host->ops->readw(host, reg);
+	else
+		return readw(host->ioaddr + reg);
+}
+
+static inline u8 sdhci_readb(struct sdhci_host *host, int reg)
+{
+	if (unlikely(host->ops->readb))
+		return host->ops->readb(host, reg);
+	else
+		return readb(host->ioaddr + reg);
+}
+
+#else
+
+static inline void sdhci_writel(struct sdhci_host *host, u32 val, int reg)
+{
+	writel(val, host->ioaddr + reg);
+}
+
+static inline void sdhci_writew(struct sdhci_host *host, u16 val, int reg)
+{
+	writew(val, host->ioaddr + reg);
+}
+
+static inline void sdhci_writeb(struct sdhci_host *host, u8 val, int reg)
+{
+	writeb(val, host->ioaddr + reg);
+}
+
+static inline u32 sdhci_readl(struct sdhci_host *host, int reg)
+{
+	return readl(host->ioaddr + reg);
+}
+
+static inline u16 sdhci_readw(struct sdhci_host *host, int reg)
+{
+	return readw(host->ioaddr + reg);
+}
+
+static inline u8 sdhci_readb(struct sdhci_host *host, int reg)
+{
+	return readb(host->ioaddr + reg);
+}
+
+#endif /* CONFIG_MMC_SDHCI_IO_ACCESSORS */
 
 extern struct sdhci_host *sdhci_alloc_host(struct device *dev,
 	size_t priv_size);

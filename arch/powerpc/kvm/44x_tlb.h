@@ -25,8 +25,6 @@
 
 extern int kvmppc_44x_tlb_index(struct kvm_vcpu *vcpu, gva_t eaddr,
                                 unsigned int pid, unsigned int as);
-extern int kvmppc_44x_dtlb_index(struct kvm_vcpu *vcpu, gva_t eaddr);
-extern int kvmppc_44x_itlb_index(struct kvm_vcpu *vcpu, gva_t eaddr);
 
 extern int kvmppc_44x_emul_tlbsx(struct kvm_vcpu *vcpu, u8 rt, u8 ra, u8 rb,
                                  u8 rc);
@@ -83,13 +81,6 @@ static inline unsigned int get_mmucr_stid(const struct kvm_vcpu *vcpu)
 static inline unsigned int get_mmucr_sts(const struct kvm_vcpu *vcpu)
 {
 	return (vcpu->arch.mmucr >> 16) & 0x1;
-}
-
-static inline gpa_t tlb_xlate(struct kvmppc_44x_tlbe *tlbe, gva_t eaddr)
-{
-	unsigned int pgmask = get_tlb_bytes(tlbe) - 1;
-
-	return get_tlb_raddr(tlbe) | (eaddr & pgmask);
 }
 
 #endif /* __KVM_POWERPC_TLB_H__ */

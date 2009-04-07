@@ -298,19 +298,6 @@ int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t message)
 EXPORT_SYMBOL_GPL(usb_hcd_pci_suspend);
 
 /**
- * usb_hcd_pci_resume_early - resume a PCI-based HCD before IRQs are enabled
- * @dev: USB Host Controller being resumed
- *
- * Store this function in the HCD's struct pci_driver as .resume_early.
- */
-int usb_hcd_pci_resume_early(struct pci_dev *dev)
-{
-	pci_restore_state(dev);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(usb_hcd_pci_resume_early);
-
-/**
  * usb_hcd_pci_resume - power management resume of a PCI-based HCD
  * @dev: USB Host Controller being resumed
  *
@@ -332,6 +319,8 @@ int usb_hcd_pci_resume(struct pci_dev *dev)
 						of_node, 0, 1);
 	}
 #endif
+
+	pci_restore_state(dev);
 
 	hcd = pci_get_drvdata(dev);
 	if (hcd->state != HC_STATE_SUSPENDED) {

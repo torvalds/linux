@@ -26,8 +26,8 @@
 
 #include <linux/linkage.h>
 #include <asm/segment.h>
-#include <asm/pgtable.h>
-#include <asm/page.h>
+#include <asm/pgtable_types.h>
+#include <asm/page_types.h>
 #include <asm/boot.h>
 #include <asm/msr.h>
 #include <asm/processor-flags.h>
@@ -35,9 +35,7 @@
 
 .section ".text.head"
 	.code32
-	.globl startup_32
-
-startup_32:
+ENTRY(startup_32)
 	cld
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 	 * us to not reload segments */
@@ -176,6 +174,7 @@ startup_32:
 
 	/* Jump from 32bit compatibility mode into 64bit mode. */
 	lret
+ENDPROC(startup_32)
 
 no_longmode:
 	/* This isn't an x86-64 CPU so hang */
@@ -294,7 +293,6 @@ relocated:
 	movq	%rbp, %r8		# output
 	call	decompress_kernel
 	popq	%rsi
-
 
 /*
  * Jump to the decompressed kernel.

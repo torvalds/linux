@@ -1519,7 +1519,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	/* A_PUT_STEREO_OUTPUT(A_EXTOUT_FRONT_L, A_EXTOUT_FRONT_R, playback + SND_EMU10K1_PLAYBACK_CHANNELS); */
 	if (emu->card_capabilities->emu_model) {
 		/* EMU1010 Outputs from PCM Front, Rear, Center, LFE, Side */
-		snd_printk("EMU outputs on\n");
+		snd_printk(KERN_INFO "EMU outputs on\n");
 		for (z = 0; z < 8; z++) {
 			if (emu->card_capabilities->ca0108_chip) {
 				A_OP(icode, &ptr, iACC3, A3_EMU32OUT(z), A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + z), A_C_00000000, A_C_00000000);
@@ -1567,7 +1567,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 
 	if (emu->card_capabilities->emu_model) {
 		if (emu->card_capabilities->ca0108_chip) {
-			snd_printk("EMU2 inputs on\n");
+			snd_printk(KERN_INFO "EMU2 inputs on\n");
 			for (z = 0; z < 0x10; z++) {
 				snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, 
 									bit_shifter16,
@@ -1575,10 +1575,13 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 									A_FXBUS2(z*2) );
 			}
 		} else {
-			snd_printk("EMU inputs on\n");
+			snd_printk(KERN_INFO "EMU inputs on\n");
 			/* Capture 16 (originally 8) channels of S32_LE sound */
 
-			/* printk("emufx.c: gpr=0x%x, tmp=0x%x\n",gpr, tmp); */
+			/*
+			printk(KERN_DEBUG "emufx.c: gpr=0x%x, tmp=0x%x\n",
+			       gpr, tmp);
+			*/
 			/* For the EMU1010: How to get 32bit values from the DSP. High 16bits into L, low 16bits into R. */
 			/* A_P16VIN(0) is delayed by one sample,
 			 * so all other A_P16VIN channels will need to also be delayed

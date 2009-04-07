@@ -2,4 +2,4 @@
 # Makefile for the netlink driver.
 #
 
-obj-y  				:= af_netlink.o attr.o genetlink.o
+obj-y  				:= af_netlink.o genetlink.o

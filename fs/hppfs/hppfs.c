@@ -280,7 +280,12 @@ static ssize_t hppfs_read(struct file *file, char __user *buf, size_t count,
 			       "errno = %d\n", err);
 			return err;
 		}
-		count = hppfs_read_file(hppfs->host_fd, buf, count);
+		err = hppfs_read_file(hppfs->host_fd, buf, count);
+		if (err < 0) {
+			printk(KERN_ERR "hppfs_read: read failed: %d\n", err);
+			return err;
+		}
+		count = err;
 		if (count > 0)
 			*ppos += count;
 	}

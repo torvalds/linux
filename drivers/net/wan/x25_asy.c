@@ -142,7 +142,7 @@ static int x25_asy_change_mtu(struct net_device *dev, int newmtu)
 			memcpy(sl->xbuff, sl->xhead, sl->xleft);
 		} else  {
 			sl->xleft = 0;
-			sl->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 		}
 	}
 	sl->xhead = sl->xbuff;
@@ -153,7 +153,7 @@ static int x25_asy_change_mtu(struct net_device *dev, int newmtu)
 			memcpy(sl->rbuff, rbuff, sl->rcount);
 		} else  {
 			sl->rcount = 0;
-			sl->stats.rx_over_errors++;
+			dev->stats.rx_over_errors++;
 			set_bit(SLF_ERROR, &sl->flags);
 		}
 	}
@@ -188,18 +188,19 @@ static inline void x25_asy_unlock(struct x25_asy *sl)
 
 static void x25_asy_bump(struct x25_asy *sl)
 {
+	struct net_device *dev = sl->dev;
 	struct sk_buff *skb;
 	int count;
 	int err;
 
 	count = sl->rcount;
-	sl->stats.rx_bytes += count;
+	dev->stats.rx_bytes += count;
 
 	skb = dev_alloc_skb(count+1);
 	if (skb == NULL) {
 		printk(KERN_WARNING "%s: memory squeeze, dropping packet.\n",
 			sl->dev->name);
-		sl->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 	skb_push(skb, 1);	/* LAPB internal control */
@@ -211,7 +212,7 @@ static void x25_asy_bump(struct x25_asy *sl)
 		printk(KERN_DEBUG "x25_asy: data received err - %d\n", err);
 	} else {
 		netif_rx(skb);
-		sl->stats.rx_packets++;
+		dev->stats.rx_packets++;
 	}
 }
 
@@ -226,7 +227,7 @@ static void x25_asy_encaps(struct x25_asy *sl, unsigned char *icp, int len)
 		len = mtu;
 		printk(KERN_DEBUG "%s: truncating oversized transmit packet!\n",
 					sl->dev->name);
-		sl->stats.tx_dropped++;
+		sl->dev->stats.tx_dropped++;
 		x25_asy_unlock(sl);
 		return;
 	}
@@ -266,7 +267,7 @@ static void x25_asy_write_wakeup(struct tty_struct *tty)
 	if (sl->xleft <= 0) {
 		/* Now serial buffer is almost free & we can start
 		 * transmission of another packet */
-		sl->stats.tx_packets++;
+		sl->dev->stats.tx_packets++;
 		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 		x25_asy_unlock(sl);
 		return;
@@ -383,7 +384,7 @@ static void x25_asy_data_transmit(struct net_device *dev, struct sk_buff *skb)
 	/* We were not busy, so we are now... :-) */
 	if (skb != NULL) {
 		x25_asy_lock(sl);
-		sl->stats.tx_bytes += skb->len;
+		dev->stats.tx_bytes += skb->len;
 		x25_asy_encaps(sl, skb->data, skb->len);
 		dev_kfree_skb(skb);
 	}
@@ -533,7 +534,7 @@ static void x25_asy_receive_buf(struct tty_struct *tty,
 	while (count--) {
 		if (fp && *fp++) {
 			if (!test_and_set_bit(SLF_ERROR, &sl->flags))
-				sl->stats.rx_errors++;
+				sl->dev->stats.rx_errors++;
 			cp++;
 			continue;
 		}
@@ -608,14 +609,6 @@ static void x25_asy_close_tty(struct tty_struct *tty)
 	x25_asy_free(sl);
 }
 
-
-static struct net_device_stats *x25_asy_get_stats(struct net_device *dev)
-{
-	struct x25_asy *sl = netdev_priv(dev);
-	return &sl->stats;
-}
-
-
  /************************************************************************
   *			STANDARD X.25 ENCAPSULATION		  	 *
   ************************************************************************/
@@ -682,7 +675,7 @@ static void x25_asy_unesc(struct x25_asy *sl, unsigned char s)
 			sl->rbuff[sl->rcount++] = s;
 			return;
 		}
-		sl->stats.rx_over_errors++;
+		sl->dev->stats.rx_over_errors++;
 		set_bit(SLF_ERROR, &sl->flags);
 	}
 }
@@ -719,6 +712,14 @@ static int x25_asy_open_dev(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops x25_asy_netdev_ops = {
+	.ndo_open	= x25_asy_open_dev,
+	.ndo_stop	= x25_asy_close,
+	.ndo_start_xmit	= x25_asy_xmit,
+	.ndo_tx_timeout	= x25_asy_timeout,
+	.ndo_change_mtu	= x25_asy_change_mtu,
+};
+
 /* Initialise the X.25 driver.  Called by the device init code */
 static void x25_asy_setup(struct net_device *dev)
 {
@@ -734,13 +735,8 @@ static void x25_asy_setup(struct net_device *dev)
 	 */
 
 	dev->mtu		= SL_MTU;
-	dev->hard_start_xmit	= x25_asy_xmit;
-	dev->tx_timeout		= x25_asy_timeout;
+	dev->netdev_ops		= &x25_asy_netdev_ops;
 	dev->watchdog_timeo	= HZ*20;
-	dev->open		= x25_asy_open_dev;
-	dev->stop		= x25_asy_close;
-	dev->get_stats	        = x25_asy_get_stats;
-	dev->change_mtu		= x25_asy_change_mtu;
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
 	dev->type		= ARPHRD_X25;

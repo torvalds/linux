@@ -31,6 +31,9 @@
 #ifdef CONFIG_MACH_MX31_3DS
 #include <mach/board-mx31pdk.h>
 #endif
+#ifdef CONFIG_MACH_QONG
+#include <mach/board-qong.h>
+#endif
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?

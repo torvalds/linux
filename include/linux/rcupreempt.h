@@ -36,34 +36,19 @@
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
-#include <linux/percpu.h>
+#include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
 
-struct rcu_dyntick_sched {
-	int dynticks;
-	int dynticks_snap;
-	int sched_qs;
-	int sched_qs_snap;
-	int sched_dynticks_snap;
-};
-
-DECLARE_PER_CPU(struct rcu_dyntick_sched, rcu_dyntick_sched);
-
-static inline void rcu_qsctr_inc(int cpu)
-{
-	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
-
-	rdssp->sched_qs++;
-}
-#define rcu_bh_qsctr_inc(cpu)
+extern void rcu_qsctr_inc(int cpu);
+static inline void rcu_bh_qsctr_inc(int cpu) { }
 
 /*
  * Someone might want to pass call_rcu_bh as a function pointer.
  * So this needs to just be a rename and not a macro function.
  *  (no parentheses)
  */
-#define call_rcu_bh	 	call_rcu
+#define call_rcu_bh		call_rcu
 
 /**
  * call_rcu_sched - Queue RCU callback for invocation after sched grace period.
@@ -117,29 +102,26 @@ extern struct rcupreempt_trace *rcupreempt_trace_cpu(int cpu);
 struct softirq_action;
 
 #ifdef CONFIG_NO_HZ
+extern void rcu_enter_nohz(void);
+extern void rcu_exit_nohz(void);
+#else
+# define rcu_enter_nohz()	do { } while (0)
+# define rcu_exit_nohz()	do { } while (0)
+#endif
 
-static inline void rcu_enter_nohz(void)
+/*
+ * A context switch is a grace period for rcupreempt synchronize_rcu()
+ * only during early boot, before the scheduler has been initialized.
+ * So, how the heck do we get a context switch?  Well, if the caller
+ * invokes synchronize_rcu(), they are willing to accept a context
+ * switch, so we simply pretend that one happened.
+ *
+ * After boot, there might be a blocked or preempted task in an RCU
+ * read-side critical section, so we cannot then take the fastpath.
+ */
+static inline int rcu_blocking_is_gp(void)
 {
-	static DEFINE_RATELIMIT_STATE(rs, 10 * HZ, 1);
-
-	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
-	__get_cpu_var(rcu_dyntick_sched).dynticks++;
-	WARN_ON_RATELIMIT(__get_cpu_var(rcu_dyntick_sched).dynticks & 0x1, &rs);
+	return num_online_cpus() == 1 && !rcu_scheduler_active;
 }
-
-static inline void rcu_exit_nohz(void)
-{
-	static DEFINE_RATELIMIT_STATE(rs, 10 * HZ, 1);
-
-	__get_cpu_var(rcu_dyntick_sched).dynticks++;
-	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
-	WARN_ON_RATELIMIT(!(__get_cpu_var(rcu_dyntick_sched).dynticks & 0x1),
-				&rs);
-}
-
-#else /* CONFIG_NO_HZ */
-#define rcu_enter_nohz()	do { } while (0)
-#define rcu_exit_nohz()		do { } while (0)
-#endif /* CONFIG_NO_HZ */
 
 #endif /* __LINUX_RCUPREEMPT_H */

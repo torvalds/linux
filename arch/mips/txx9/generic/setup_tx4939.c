@@ -27,6 +27,7 @@
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9/generic.h>
+#include <asm/txx9/ndfmc.h>
 #include <asm/txx9/tx4939.h>
 
 static void __init tx4939_wdr_init(void)
@@ -455,6 +456,22 @@ void __init tx4939_rtc_init(void)
 	};
 
 	platform_device_register(&rtc_dev);
+}
+
+void __init tx4939_ndfmc_init(unsigned int hold, unsigned int spw,
+			      unsigned char ch_mask, unsigned char wide_mask)
+{
+	struct txx9ndfmc_platform_data plat_data = {
+		.shift = 1,
+		.gbus_clock = txx9_gbus_clock,
+		.hold = hold,
+		.spw = spw,
+		.flags = NDFMC_PLAT_FLAG_NO_RSTR | NDFMC_PLAT_FLAG_HOLDADD |
+			 NDFMC_PLAT_FLAG_DUMMYWRITE,
+		.ch_mask = ch_mask,
+		.wide_mask = wide_mask,
+	};
+	txx9_ndfmc_init(TX4939_NDFMC_REG & 0xfffffffffULL, &plat_data);
 }
 
 static void __init tx4939_stop_unused_modules(void)

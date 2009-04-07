@@ -112,7 +112,7 @@ typedef struct {
 typedef struct {
 	tEplDllReqServiceId m_Service;
 	unsigned int m_uiNodeId;
-	BYTE m_bSoaFlag1;
+	u8 m_bSoaFlag1;
 
 } tEplDllCalIssueRequest;
 

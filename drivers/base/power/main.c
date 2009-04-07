@@ -23,6 +23,7 @@
 #include <linux/pm.h>
 #include <linux/resume-trace.h>
 #include <linux/rwsem.h>
+#include <linux/interrupt.h>
 
 #include "../base.h"
 #include "power.h"
@@ -104,6 +105,50 @@ void device_pm_remove(struct device *dev)
 	mutex_lock(&dpm_list_mtx);
 	list_del_init(&dev->power.entry);
 	mutex_unlock(&dpm_list_mtx);
+}
+
+/**
+ *	device_pm_move_before - move device in dpm_list
+ *	@deva:  Device to move in dpm_list
+ *	@devb:  Device @deva should come before
+ */
+void device_pm_move_before(struct device *deva, struct device *devb)
+{
+	pr_debug("PM: Moving %s:%s before %s:%s\n",
+		 deva->bus ? deva->bus->name : "No Bus",
+		 kobject_name(&deva->kobj),
+		 devb->bus ? devb->bus->name : "No Bus",
+		 kobject_name(&devb->kobj));
+	/* Delete deva from dpm_list and reinsert before devb. */
+	list_move_tail(&deva->power.entry, &devb->power.entry);
+}
+
+/**
+ *	device_pm_move_after - move device in dpm_list
+ *	@deva:  Device to move in dpm_list
+ *	@devb:  Device @deva should come after
+ */
+void device_pm_move_after(struct device *deva, struct device *devb)
+{
+	pr_debug("PM: Moving %s:%s after %s:%s\n",
+		 deva->bus ? deva->bus->name : "No Bus",
+		 kobject_name(&deva->kobj),
+		 devb->bus ? devb->bus->name : "No Bus",
+		 kobject_name(&devb->kobj));
+	/* Delete deva from dpm_list and reinsert after devb. */
+	list_move(&deva->power.entry, &devb->power.entry);
+}
+
+/**
+ * 	device_pm_move_last - move device to end of dpm_list
+ * 	@dev:   Device to move in dpm_list
+ */
+void device_pm_move_last(struct device *dev)
+{
+	pr_debug("PM: Moving %s:%s to end of list\n",
+		 dev->bus ? dev->bus->name : "No Bus",
+		 kobject_name(&dev->kobj));
+	list_move_tail(&dev->power.entry, &dpm_list);
 }
 
 /**
@@ -305,7 +350,8 @@ static int resume_device_noirq(struct device *dev, pm_message_t state)
  *	Execute the appropriate "noirq resume" callback for all devices marked
  *	as DPM_OFF_IRQ.
  *
- *	Must be called with interrupts disabled and only one CPU running.
+ *	Must be called under dpm_list_mtx.  Device drivers should not receive
+ *	interrupts while it's being executed.
  */
 static void dpm_power_up(pm_message_t state)
 {
@@ -326,15 +372,13 @@ static void dpm_power_up(pm_message_t state)
  *	device_power_up - Turn on all devices that need special attention.
  *	@state: PM transition of the system being carried out.
  *
- *	Power on system devices, then devices that required we shut them down
- *	with interrupts disabled.
- *
- *	Must be called with interrupts disabled.
+ *	Call the "early" resume handlers and enable device drivers to receive
+ *	interrupts.
  */
 void device_power_up(pm_message_t state)
 {
-	sysdev_resume();
 	dpm_power_up(state);
+	resume_device_irqs();
 }
 EXPORT_SYMBOL_GPL(device_power_up);
 
@@ -559,16 +603,17 @@ static int suspend_device_noirq(struct device *dev, pm_message_t state)
  *	device_power_down - Shut down special devices.
  *	@state: PM transition of the system being carried out.
  *
- *	Power down devices that require interrupts to be disabled.
- *	Then power down system devices.
+ *	Prevent device drivers from receiving interrupts and call the "late"
+ *	suspend handlers.
  *
- *	Must be called with interrupts disabled and only one CPU running.
+ *	Must be called under dpm_list_mtx.
  */
 int device_power_down(pm_message_t state)
 {
 	struct device *dev;
 	int error = 0;
 
+	suspend_device_irqs();
 	list_for_each_entry_reverse(dev, &dpm_list, power.entry) {
 		error = suspend_device_noirq(dev, state);
 		if (error) {
@@ -577,10 +622,8 @@ int device_power_down(pm_message_t state)
 		}
 		dev->power.status = DPM_OFF_IRQ;
 	}
-	if (!error)
-		error = sysdev_suspend(state);
 	if (error)
-		dpm_power_up(resume_event(state));
+		device_power_up(resume_event(state));
 	return error;
 }
 EXPORT_SYMBOL_GPL(device_power_down);

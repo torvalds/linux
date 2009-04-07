@@ -401,7 +401,7 @@ static int get_cur_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 	return 0;
 }
 
-static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_id *id)
+static int pciehp_probe(struct pcie_device *dev)
 {
 	int rc;
 	struct controller *ctrl;
@@ -431,6 +431,13 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 				  "hotplug driver\n");
 		else
 			ctrl_err(ctrl, "Slot initialization failed\n");
+		goto err_out_release_ctlr;
+	}
+
+	/* Enable events after we have setup the data structures */
+	rc = pcie_init_notification(ctrl);
+	if (rc) {
+		ctrl_err(ctrl, "Notification initialization failed\n");
 		goto err_out_release_ctlr;
 	}
 
@@ -468,7 +475,7 @@ static void pciehp_remove (struct pcie_device *dev)
 }
 
 #ifdef CONFIG_PM
-static int pciehp_suspend (struct pcie_device *dev, pm_message_t state)
+static int pciehp_suspend (struct pcie_device *dev)
 {
 	dev_info(&dev->device, "%s ENTRY\n", __func__);
 	return 0;
@@ -496,20 +503,12 @@ static int pciehp_resume (struct pcie_device *dev)
 	}
 	return 0;
 }
-#endif
-
-static struct pcie_port_service_id port_pci_ids[] = { {
-	.vendor = PCI_ANY_ID,
-	.device = PCI_ANY_ID,
-	.port_type = PCIE_ANY_PORT,
-	.service_type = PCIE_PORT_SERVICE_HP,
-	.driver_data =	0,
-	}, { /* end: all zeroes */ }
-};
+#endif /* PM */
 
 static struct pcie_port_service_driver hpdriver_portdrv = {
 	.name		= PCIE_MODULE_NAME,
-	.id_table	= &port_pci_ids[0],
+	.port_type	= PCIE_ANY_PORT,
+	.service	= PCIE_PORT_SERVICE_HP,
 
 	.probe		= pciehp_probe,
 	.remove		= pciehp_remove,

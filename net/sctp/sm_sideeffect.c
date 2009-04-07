@@ -434,7 +434,8 @@ sctp_timer_event_t *sctp_timer_events[SCTP_NUM_TIMEOUT_TYPES] = {
  *
  */
 static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
-					 struct sctp_transport *transport)
+					 struct sctp_transport *transport,
+					 int is_hb)
 {
 	/* The check for association's overall error counter exceeding the
 	 * threshold is done in the state function.
@@ -461,9 +462,15 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	 * expires, set RTO <- RTO * 2 ("back off the timer").  The
 	 * maximum value discussed in rule C7 above (RTO.max) may be
 	 * used to provide an upper bound to this doubling operation.
+	 *
+	 * Special Case:  the first HB doesn't trigger exponential backoff.
+	 * The first unacknowleged HB triggers it.  We do this with a flag
+	 * that indicates that we have an outstanding HB.
 	 */
-	transport->last_rto = transport->rto;
-	transport->rto = min((transport->rto * 2), transport->asoc->rto_max);
+	if (!is_hb || transport->hb_sent) {
+		transport->last_rto = transport->rto;
+		transport->rto = min((transport->rto * 2), transport->asoc->rto_max);
+	}
 }
 
 /* Worker routine to handle INIT command failure.  */
@@ -621,6 +628,11 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	t->error_count = 0;
 	t->asoc->overall_error_count = 0;
 
+	/* Clear the hb_sent flag to signal that we had a good
+	 * acknowledgement.
+	 */
+	t->hb_sent = 0;
+
 	/* Mark the destination transport address as active if it is not so
 	 * marked.
 	 */
@@ -646,18 +658,6 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 		sctp_transport_hold(t);
 }
 
-/* Helper function to do a transport reset at the expiry of the hearbeat
- * timer.
- */
-static void sctp_cmd_transport_reset(sctp_cmd_seq_t *cmds,
-				     struct sctp_association *asoc,
-				     struct sctp_transport *t)
-{
-	sctp_transport_lower_cwnd(t, SCTP_LOWER_CWND_INACTIVE);
-
-	/* Mark one strike against a transport.  */
-	sctp_do_8_2_transport_strike(asoc, t);
-}
 
 /* Helper function to process the process SACK command.  */
 static int sctp_cmd_process_sack(sctp_cmd_seq_t *cmds,
@@ -787,36 +787,48 @@ static void sctp_cmd_process_operr(sctp_cmd_seq_t *cmds,
 				   struct sctp_association *asoc,
 				   struct sctp_chunk *chunk)
 {
-	struct sctp_operr_chunk *operr_chunk;
 	struct sctp_errhdr *err_hdr;
+	struct sctp_ulpevent *ev;
 
-	operr_chunk = (struct sctp_operr_chunk *)chunk->chunk_hdr;
-	err_hdr = &operr_chunk->err_hdr;
+	while (chunk->chunk_end > chunk->skb->data) {
+		err_hdr = (struct sctp_errhdr *)(chunk->skb->data);
 
-	switch (err_hdr->cause) {
-	case SCTP_ERROR_UNKNOWN_CHUNK:
-	{
-		struct sctp_chunkhdr *unk_chunk_hdr;
+		ev = sctp_ulpevent_make_remote_error(asoc, chunk, 0,
+						     GFP_ATOMIC);
+		if (!ev)
+			return;
 
-		unk_chunk_hdr = (struct sctp_chunkhdr *)err_hdr->variable;
-		switch (unk_chunk_hdr->type) {
-		/* ADDIP 4.1 A9) If the peer responds to an ASCONF with an
-		 * ERROR chunk reporting that it did not recognized the ASCONF
-		 * chunk type, the sender of the ASCONF MUST NOT send any
-		 * further ASCONF chunks and MUST stop its T-4 timer.
-		 */
-		case SCTP_CID_ASCONF:
-			asoc->peer.asconf_capable = 0;
-			sctp_add_cmd_sf(cmds, SCTP_CMD_TIMER_STOP,
+		sctp_ulpq_tail_event(&asoc->ulpq, ev);
+
+		switch (err_hdr->cause) {
+		case SCTP_ERROR_UNKNOWN_CHUNK:
+		{
+			sctp_chunkhdr_t *unk_chunk_hdr;
+
+			unk_chunk_hdr = (sctp_chunkhdr_t *)err_hdr->variable;
+			switch (unk_chunk_hdr->type) {
+			/* ADDIP 4.1 A9) If the peer responds to an ASCONF with
+			 * an ERROR chunk reporting that it did not recognized
+			 * the ASCONF chunk type, the sender of the ASCONF MUST
+			 * NOT send any further ASCONF chunks and MUST stop its
+			 * T-4 timer.
+			 */
+			case SCTP_CID_ASCONF:
+				if (asoc->peer.asconf_capable == 0)
+					break;
+
+				asoc->peer.asconf_capable = 0;
+				sctp_add_cmd_sf(cmds, SCTP_CMD_TIMER_STOP,
 					SCTP_TO(SCTP_EVENT_TIMEOUT_T4_RTO));
+				break;
+			default:
+				break;
+			}
 			break;
+		}
 		default:
 			break;
 		}
-		break;
-	}
-	default:
-		break;
 	}
 }
 
@@ -1446,12 +1458,19 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 
 		case SCTP_CMD_STRIKE:
 			/* Mark one strike against a transport.  */
-			sctp_do_8_2_transport_strike(asoc, cmd->obj.transport);
+			sctp_do_8_2_transport_strike(asoc, cmd->obj.transport,
+						    0);
 			break;
 
-		case SCTP_CMD_TRANSPORT_RESET:
+		case SCTP_CMD_TRANSPORT_IDLE:
 			t = cmd->obj.transport;
-			sctp_cmd_transport_reset(commands, asoc, t);
+			sctp_transport_lower_cwnd(t, SCTP_LOWER_CWND_INACTIVE);
+			break;
+
+		case SCTP_CMD_TRANSPORT_HB_SENT:
+			t = cmd->obj.transport;
+			sctp_do_8_2_transport_strike(asoc, t, 1);
+			t->hb_sent = 1;
 			break;
 
 		case SCTP_CMD_TRANSPORT_ON:

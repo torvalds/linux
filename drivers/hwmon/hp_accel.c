@@ -85,25 +85,31 @@ MODULE_DEVICE_TABLE(acpi, lis3lv02d_device_ids);
 
 /**
  * lis3lv02d_acpi_init - ACPI _INI method: initialize the device.
- * @handle: the handle of the device
+ * @lis3: pointer to the device struct
  *
- * Returns AE_OK on success.
+ * Returns 0 on success.
  */
-acpi_status lis3lv02d_acpi_init(acpi_handle handle)
+int lis3lv02d_acpi_init(struct lis3lv02d *lis3)
 {
-	return acpi_evaluate_object(handle, METHOD_NAME__INI, NULL, NULL);
+	struct acpi_device *dev = lis3->bus_priv;
+	if (acpi_evaluate_object(dev->handle, METHOD_NAME__INI,
+				 NULL, NULL) != AE_OK)
+		return -EINVAL;
+
+	return 0;
 }
 
 /**
  * lis3lv02d_acpi_read - ACPI ALRD method: read a register
- * @handle: the handle of the device
+ * @lis3: pointer to the device struct
  * @reg:    the register to read
  * @ret:    result of the operation
  *
- * Returns AE_OK on success.
+ * Returns 0 on success.
  */
-acpi_status lis3lv02d_acpi_read(acpi_handle handle, int reg, u8 *ret)
+int lis3lv02d_acpi_read(struct lis3lv02d *lis3, int reg, u8 *ret)
 {
+	struct acpi_device *dev = lis3->bus_priv;
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
 	struct acpi_object_list args = { 1, &arg0 };
 	unsigned long long lret;
@@ -111,21 +117,22 @@ acpi_status lis3lv02d_acpi_read(acpi_handle handle, int reg, u8 *ret)
 
 	arg0.integer.value = reg;
 
-	status = acpi_evaluate_integer(handle, "ALRD", &args, &lret);
+	status = acpi_evaluate_integer(dev->handle, "ALRD", &args, &lret);
 	*ret = lret;
-	return status;
+	return (status != AE_OK) ? -EINVAL : 0;
 }
 
 /**
  * lis3lv02d_acpi_write - ACPI ALWR method: write to a register
- * @handle: the handle of the device
+ * @lis3: pointer to the device struct
  * @reg:    the register to write to
  * @val:    the value to write
  *
- * Returns AE_OK on success.
+ * Returns 0 on success.
  */
-acpi_status lis3lv02d_acpi_write(acpi_handle handle, int reg, u8 val)
+int lis3lv02d_acpi_write(struct lis3lv02d *lis3, int reg, u8 val)
 {
+	struct acpi_device *dev = lis3->bus_priv;
 	unsigned long long ret; /* Not used when writting */
 	union acpi_object in_obj[2];
 	struct acpi_object_list args = { 2, in_obj };
@@ -135,12 +142,15 @@ acpi_status lis3lv02d_acpi_write(acpi_handle handle, int reg, u8 val)
 	in_obj[1].type          = ACPI_TYPE_INTEGER;
 	in_obj[1].integer.value = val;
 
-	return acpi_evaluate_integer(handle, "ALWR", &args, &ret);
+	if (acpi_evaluate_integer(dev->handle, "ALWR", &args, &ret) != AE_OK)
+		return -EINVAL;
+
+	return 0;
 }
 
 static int lis3lv02d_dmi_matched(const struct dmi_system_id *dmi)
 {
-	adev.ac = *((struct axis_conversion *)dmi->driver_data);
+	lis3_dev.ac = *((struct axis_conversion *)dmi->driver_data);
 	printk(KERN_INFO DRIVER_NAME ": hardware type %s found.\n", dmi->ident);
 
 	return 1;
@@ -166,6 +176,18 @@ static struct axis_conversion lis3lv02d_axis_xy_swap_yz_inverted = {2, -1, -3};
 	},						\
 	.driver_data = &lis3lv02d_axis_##_axis		\
 }
+
+#define AXIS_DMI_MATCH2(_ident, _class1, _name1,	\
+				_class2, _name2,	\
+				_axis) {		\
+	.ident = _ident,				\
+	.callback = lis3lv02d_dmi_matched,		\
+	.matches = {					\
+		DMI_MATCH(DMI_##_class1, _name1),	\
+		DMI_MATCH(DMI_##_class2, _name2),	\
+	},						\
+	.driver_data = &lis3lv02d_axis_##_axis		\
+}
 static struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	/* product names are truncated to match all kinds of a same model */
 	AXIS_DMI_MATCH("NC64x0", "HP Compaq nc64", x_inverted),
@@ -175,10 +197,23 @@ static struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	AXIS_DMI_MATCH("NC2510", "HP Compaq 2510", y_inverted),
 	AXIS_DMI_MATCH("NC8510", "HP Compaq 8510", xy_swap_inverted),
 	AXIS_DMI_MATCH("HP2133", "HP 2133", xy_rotated_left),
+	AXIS_DMI_MATCH("HP2140", "HP 2140", xy_swap_inverted),
 	AXIS_DMI_MATCH("NC653x", "HP Compaq 653", xy_rotated_left_usd),
 	AXIS_DMI_MATCH("NC673x", "HP Compaq 673", xy_rotated_left_usd),
 	AXIS_DMI_MATCH("NC651xx", "HP Compaq 651", xy_rotated_right),
 	AXIS_DMI_MATCH("NC671xx", "HP Compaq 671", xy_swap_yz_inverted),
+	/* Intel-based HP Pavilion dv5 */
+	AXIS_DMI_MATCH2("HPDV5_I",
+			PRODUCT_NAME, "HP Pavilion dv5",
+			BOARD_NAME, "3603",
+			x_inverted),
+	/* AMD-based HP Pavilion dv5 */
+	AXIS_DMI_MATCH2("HPDV5_A",
+			PRODUCT_NAME, "HP Pavilion dv5",
+			BOARD_NAME, "3600",
+			y_inverted),
+	AXIS_DMI_MATCH("DV7", "HP Pavilion dv7", x_inverted),
+	AXIS_DMI_MATCH("HP8710", "HP Compaq 8710", y_inverted),
 	{ NULL, }
 /* Laptop models without axis info (yet):
  * "NC6910" "HP Compaq 6910"
@@ -192,7 +227,7 @@ static struct dmi_system_id lis3lv02d_dmi_ids[] = {
 
 static void hpled_set(struct delayed_led_classdev *led_cdev, enum led_brightness value)
 {
-	acpi_handle handle = adev.device->handle;
+	struct acpi_device *dev = lis3_dev.bus_priv;
 	unsigned long long ret; /* Not used when writing */
 	union acpi_object in_obj[1];
 	struct acpi_object_list args = { 1, in_obj };
@@ -200,7 +235,7 @@ static void hpled_set(struct delayed_led_classdev *led_cdev, enum led_brightness
 	in_obj[0].type          = ACPI_TYPE_INTEGER;
 	in_obj[0].integer.value = !!value;
 
-	acpi_evaluate_integer(handle, "ALED", &args, &ret);
+	acpi_evaluate_integer(dev->handle, "ALED", &args, &ret);
 }
 
 static struct delayed_led_classdev hpled_led = {
@@ -213,44 +248,66 @@ static struct delayed_led_classdev hpled_led = {
 	.set_brightness = hpled_set,
 };
 
+static acpi_status
+lis3lv02d_get_resource(struct acpi_resource *resource, void *context)
+{
+	if (resource->type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ) {
+		struct acpi_resource_extended_irq *irq;
+		u32 *device_irq = context;
+
+		irq = &resource->data.extended_irq;
+		*device_irq = irq->interrupts[0];
+	}
+
+	return AE_OK;
+}
+
+static void lis3lv02d_enum_resources(struct acpi_device *device)
+{
+	acpi_status status;
+
+	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
+					lis3lv02d_get_resource, &lis3_dev.irq);
+	if (ACPI_FAILURE(status))
+		printk(KERN_DEBUG DRIVER_NAME ": Error getting resources\n");
+}
+
 static int lis3lv02d_add(struct acpi_device *device)
 {
-	u8 val;
 	int ret;
 
 	if (!device)
 		return -EINVAL;
 
-	adev.device = device;
-	adev.init = lis3lv02d_acpi_init;
-	adev.read = lis3lv02d_acpi_read;
-	adev.write = lis3lv02d_acpi_write;
+	lis3_dev.bus_priv = device;
+	lis3_dev.init = lis3lv02d_acpi_init;
+	lis3_dev.read = lis3lv02d_acpi_read;
+	lis3_dev.write = lis3lv02d_acpi_write;
 	strcpy(acpi_device_name(device), DRIVER_NAME);
 	strcpy(acpi_device_class(device), ACPI_MDPS_CLASS);
-	device->driver_data = &adev;
+	device->driver_data = &lis3_dev;
 
-	lis3lv02d_acpi_read(device->handle, WHO_AM_I, &val);
-	if ((val != LIS3LV02DL_ID) && (val != LIS302DL_ID)) {
-		printk(KERN_ERR DRIVER_NAME
-				": Accelerometer chip not LIS3LV02D{L,Q}\n");
-	}
+	/* obtain IRQ number of our device from ACPI */
+	lis3lv02d_enum_resources(device);
 
 	/* If possible use a "standard" axes order */
 	if (dmi_check_system(lis3lv02d_dmi_ids) == 0) {
 		printk(KERN_INFO DRIVER_NAME ": laptop model unknown, "
 				 "using default axes configuration\n");
-		adev.ac = lis3lv02d_axis_normal;
+		lis3_dev.ac = lis3lv02d_axis_normal;
 	}
 
-	INIT_WORK(&hpled_led.work, delayed_set_status_worker);
-	ret = led_classdev_register(NULL, &hpled_led.led_classdev);
+	/* call the core layer do its init */
+	ret = lis3lv02d_init_device(&lis3_dev);
 	if (ret)
 		return ret;
 
-	ret = lis3lv02d_init_device(&adev);
+	INIT_WORK(&hpled_led.work, delayed_set_status_worker);
+	ret = led_classdev_register(NULL, &hpled_led.led_classdev);
 	if (ret) {
+		lis3lv02d_joystick_disable();
+		lis3lv02d_poweroff(&lis3_dev);
 		flush_work(&hpled_led.work);
-		led_classdev_unregister(&hpled_led.led_classdev);
 		return ret;
 	}
 
@@ -263,7 +320,7 @@ static int lis3lv02d_remove(struct acpi_device *device, int type)
 		return -EINVAL;
 
 	lis3lv02d_joystick_disable();
-	lis3lv02d_poweroff(device->handle);
+	lis3lv02d_poweroff(&lis3_dev);
 
 	flush_work(&hpled_led.work);
 	led_classdev_unregister(&hpled_led.led_classdev);
@@ -276,19 +333,19 @@ static int lis3lv02d_remove(struct acpi_device *device, int type)
 static int lis3lv02d_suspend(struct acpi_device *device, pm_message_t state)
 {
 	/* make sure the device is off when we suspend */
-	lis3lv02d_poweroff(device->handle);
+	lis3lv02d_poweroff(&lis3_dev);
 	return 0;
 }
 
 static int lis3lv02d_resume(struct acpi_device *device)
 {
 	/* put back the device in the right state (ACPI might turn it on) */
-	mutex_lock(&adev.lock);
-	if (adev.usage > 0)
-		lis3lv02d_poweron(device->handle);
+	mutex_lock(&lis3_dev.lock);
+	if (lis3_dev.usage > 0)
+		lis3lv02d_poweron(&lis3_dev);
 	else
-		lis3lv02d_poweroff(device->handle);
-	mutex_unlock(&adev.lock);
+		lis3lv02d_poweroff(&lis3_dev);
+	mutex_unlock(&lis3_dev.lock);
 	return 0;
 }
 #else

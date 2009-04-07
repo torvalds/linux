@@ -48,7 +48,8 @@
  * Base address of PBC controller, CS4
  */
 #define PBC_BASE_ADDRESS        0xEB000000
-#define PBC_REG_ADDR(offset)    (PBC_BASE_ADDRESS + (offset))
+#define PBC_REG_ADDR(offset)    (void __force __iomem *) \
+		(PBC_BASE_ADDRESS + (offset))
 
 /*
  * PBC Interupt name definitions

@@ -34,8 +34,6 @@
 #include <asm/delay.h>
 
 #include <mach/dma.h>
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 #include <mach/regs-ssp.h>
 #include <mach/ssp.h>
 #include <mach/pxa2xx_spi.h>
@@ -1333,7 +1331,7 @@ static int __init init_queue(struct driver_data *drv_data)
 
 	INIT_WORK(&drv_data->pump_messages, pump_messages);
 	drv_data->workqueue = create_singlethread_workqueue(
-					drv_data->master->dev.parent->bus_id);
+				dev_name(drv_data->master->dev.parent));
 	if (drv_data->workqueue == NULL)
 		return -EBUSY;
 
@@ -1462,7 +1460,7 @@ static int __init pxa2xx_spi_probe(struct platform_device *pdev)
 		drv_data->mask_sr = SSSR_TINT | SSSR_RFS | SSSR_TFS | SSSR_ROR;
 	}
 
-	status = request_irq(ssp->irq, ssp_int, 0, dev->bus_id, drv_data);
+	status = request_irq(ssp->irq, ssp_int, 0, dev_name(dev), drv_data);
 	if (status < 0) {
 		dev_err(&pdev->dev, "cannot get IRQ %d\n", ssp->irq);
 		goto out_error_master_alloc;

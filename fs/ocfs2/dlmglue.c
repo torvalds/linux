@@ -244,6 +244,10 @@ static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
 	.flags		= 0,
 };
 
+static struct ocfs2_lock_res_ops ocfs2_nfs_sync_lops = {
+	.flags		= 0,
+};
+
 static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
 	.get_osb	= ocfs2_get_dentry_osb,
 	.post_unlock	= ocfs2_dentry_post_unlock,
@@ -320,9 +324,14 @@ static void ocfs2_schedule_blocked_lock(struct ocfs2_super *osb,
 					struct ocfs2_lock_res *lockres);
 static inline void ocfs2_recover_from_dlm_error(struct ocfs2_lock_res *lockres,
 						int convert);
-#define ocfs2_log_dlm_error(_func, _err, _lockres) do {			\
-	mlog(ML_ERROR, "DLM error %d while calling %s on resource %s\n", \
-	     _err, _func, _lockres->l_name);				\
+#define ocfs2_log_dlm_error(_func, _err, _lockres) do {					\
+	if ((_lockres)->l_type != OCFS2_LOCK_TYPE_DENTRY)				\
+		mlog(ML_ERROR, "DLM error %d while calling %s on resource %s\n",	\
+		     _err, _func, _lockres->l_name);					\
+	else										\
+		mlog(ML_ERROR, "DLM error %d while calling %s on resource %.*s%08x\n",	\
+		     _err, _func, OCFS2_DENTRY_LOCK_INO_START - 1, (_lockres)->l_name,	\
+		     (unsigned int)ocfs2_get_dentry_lock_ino(_lockres));		\
 } while (0)
 static int ocfs2_downconvert_thread(void *arg);
 static void ocfs2_downconvert_on_unlock(struct ocfs2_super *osb,
@@ -615,6 +624,17 @@ static void ocfs2_rename_lock_res_init(struct ocfs2_lock_res *res,
 	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_RENAME, 0, 0, res->l_name);
 	ocfs2_lock_res_init_common(osb, res, OCFS2_LOCK_TYPE_RENAME,
 				   &ocfs2_rename_lops, osb);
+}
+
+static void ocfs2_nfs_sync_lock_res_init(struct ocfs2_lock_res *res,
+					 struct ocfs2_super *osb)
+{
+	/* nfs_sync lockres doesn't come from a slab so we call init
+	 * once on it manually.  */
+	ocfs2_lock_res_init_once(res);
+	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_NFS_SYNC, 0, 0, res->l_name);
+	ocfs2_lock_res_init_common(osb, res, OCFS2_LOCK_TYPE_NFS_SYNC,
+				   &ocfs2_nfs_sync_lops, osb);
 }
 
 void ocfs2_file_lock_res_init(struct ocfs2_lock_res *lockres,
@@ -2412,6 +2432,34 @@ void ocfs2_rename_unlock(struct ocfs2_super *osb)
 		ocfs2_cluster_unlock(osb, lockres, DLM_LOCK_EX);
 }
 
+int ocfs2_nfs_sync_lock(struct ocfs2_super *osb, int ex)
+{
+	int status;
+	struct ocfs2_lock_res *lockres = &osb->osb_nfs_sync_lockres;
+
+	if (ocfs2_is_hard_readonly(osb))
+		return -EROFS;
+
+	if (ocfs2_mount_local(osb))
+		return 0;
+
+	status = ocfs2_cluster_lock(osb, lockres, ex ? LKM_EXMODE : LKM_PRMODE,
+				    0, 0);
+	if (status < 0)
+		mlog(ML_ERROR, "lock on nfs sync lock failed %d\n", status);
+
+	return status;
+}
+
+void ocfs2_nfs_sync_unlock(struct ocfs2_super *osb, int ex)
+{
+	struct ocfs2_lock_res *lockres = &osb->osb_nfs_sync_lockres;
+
+	if (!ocfs2_mount_local(osb))
+		ocfs2_cluster_unlock(osb, lockres,
+				     ex ? LKM_EXMODE : LKM_PRMODE);
+}
+
 int ocfs2_dentry_lock(struct dentry *dentry, int ex)
 {
 	int ret;
@@ -2793,6 +2841,7 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 local:
 	ocfs2_super_lock_res_init(&osb->osb_super_lockres, osb);
 	ocfs2_rename_lock_res_init(&osb->osb_rename_lockres, osb);
+	ocfs2_nfs_sync_lock_res_init(&osb->osb_nfs_sync_lockres, osb);
 
 	osb->cconn = conn;
 
@@ -2828,6 +2877,7 @@ void ocfs2_dlm_shutdown(struct ocfs2_super *osb,
 
 	ocfs2_lock_res_free(&osb->osb_super_lockres);
 	ocfs2_lock_res_free(&osb->osb_rename_lockres);
+	ocfs2_lock_res_free(&osb->osb_nfs_sync_lockres);
 
 	ocfs2_cluster_disconnect(osb->cconn, hangup_pending);
 	osb->cconn = NULL;
@@ -3010,6 +3060,7 @@ static void ocfs2_drop_osb_locks(struct ocfs2_super *osb)
 {
 	ocfs2_simple_drop_lockres(osb, &osb->osb_super_lockres);
 	ocfs2_simple_drop_lockres(osb, &osb->osb_rename_lockres);
+	ocfs2_simple_drop_lockres(osb, &osb->osb_nfs_sync_lockres);
 }
 
 int ocfs2_drop_inode_locks(struct inode *inode)

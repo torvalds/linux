@@ -36,6 +36,8 @@
 #define EFX_WORKAROUND_11482 EFX_WORKAROUND_ALWAYS
 /* Flush events can take a very long time to appear */
 #define EFX_WORKAROUND_11557 EFX_WORKAROUND_ALWAYS
+/* Truncated IPv4 packets can confuse the TX packet parser */
+#define EFX_WORKAROUND_15592 EFX_WORKAROUND_ALWAYS
 
 /* Spurious parity errors in TSORT buffers */
 #define EFX_WORKAROUND_5129 EFX_WORKAROUND_FALCON_A

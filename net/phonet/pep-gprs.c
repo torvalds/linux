@@ -207,7 +207,6 @@ static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 				dev->name, err);
 		dev->stats.tx_aborted_errors++;
 		dev->stats.tx_errors++;
-		dev_kfree_skb(skb);
 	} else {
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += len;

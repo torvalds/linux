@@ -15,6 +15,7 @@ enum blktrace_cat {
 	BLK_TC_WRITE	= 1 << 1,	/* writes */
 	BLK_TC_BARRIER	= 1 << 2,	/* barrier */
 	BLK_TC_SYNC	= 1 << 3,	/* sync IO */
+	BLK_TC_SYNCIO	= BLK_TC_SYNC,
 	BLK_TC_QUEUE	= 1 << 4,	/* queueing/merging */
 	BLK_TC_REQUEUE	= 1 << 5,	/* requeueing */
 	BLK_TC_ISSUE	= 1 << 6,	/* issue */
@@ -143,6 +144,9 @@ struct blk_user_trace_setup {
 
 #ifdef __KERNEL__
 #if defined(CONFIG_BLK_DEV_IO_TRACE)
+
+#include <linux/sysfs.h>
+
 struct blk_trace {
 	int trace_state;
 	struct rchan *rchan;
@@ -192,6 +196,8 @@ extern int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 			   char __user *arg);
 extern int blk_trace_startstop(struct request_queue *q, int start);
 extern int blk_trace_remove(struct request_queue *q);
+
+extern struct attribute_group blk_trace_attr_group;
 
 #else /* !CONFIG_BLK_DEV_IO_TRACE */
 #define blk_trace_ioctl(bdev, cmd, arg)		(-ENOTTY)

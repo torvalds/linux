@@ -261,12 +261,19 @@ static void rfcomm_sock_init(struct sock *sk, struct sock *parent)
 
 	if (parent) {
 		sk->sk_type = parent->sk_type;
-		pi->link_mode = rfcomm_pi(parent)->link_mode;
+		pi->dlc->defer_setup = bt_sk(parent)->defer_setup;
+
+		pi->sec_level = rfcomm_pi(parent)->sec_level;
+		pi->role_switch = rfcomm_pi(parent)->role_switch;
 	} else {
-		pi->link_mode = 0;
+		pi->dlc->defer_setup = 0;
+
+		pi->sec_level = BT_SECURITY_LOW;
+		pi->role_switch = 0;
 	}
 
-	pi->dlc->link_mode = pi->link_mode;
+	pi->dlc->sec_level = pi->sec_level;
+	pi->dlc->role_switch = pi->role_switch;
 }
 
 static struct proto rfcomm_proto = {
@@ -406,7 +413,8 @@ static int rfcomm_sock_connect(struct socket *sock, struct sockaddr *addr, int a
 	bacpy(&bt_sk(sk)->dst, &sa->rc_bdaddr);
 	rfcomm_pi(sk)->channel = sa->rc_channel;
 
-	d->link_mode = rfcomm_pi(sk)->link_mode;
+	d->sec_level = rfcomm_pi(sk)->sec_level;
+	d->role_switch = rfcomm_pi(sk)->role_switch;
 
 	err = rfcomm_dlc_open(d, &bt_sk(sk)->src, &sa->rc_bdaddr, sa->rc_channel);
 	if (!err)
@@ -554,6 +562,9 @@ static int rfcomm_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct sk_buff *skb;
 	int sent = 0;
 
+	if (test_bit(RFCOMM_DEFER_SETUP, &d->flags))
+		return -ENOTCONN;
+
 	if (msg->msg_flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
@@ -570,8 +581,11 @@ static int rfcomm_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		skb = sock_alloc_send_skb(sk, size + RFCOMM_SKB_RESERVE,
 				msg->msg_flags & MSG_DONTWAIT, &err);
-		if (!skb)
+		if (!skb) {
+			if (sent == 0)
+				sent = err;
 			break;
+		}
 		skb_reserve(skb, RFCOMM_SKB_HEAD_RESERVE);
 
 		err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
@@ -630,9 +644,15 @@ static int rfcomm_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 			       struct msghdr *msg, size_t size, int flags)
 {
 	struct sock *sk = sock->sk;
+	struct rfcomm_dlc *d = rfcomm_pi(sk)->dlc;
 	int err = 0;
 	size_t target, copied = 0;
 	long timeo;
+
+	if (test_and_clear_bit(RFCOMM_DEFER_SETUP, &d->flags)) {
+		rfcomm_dlc_accept(d);
+		return 0;
+	}
 
 	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
@@ -710,7 +730,7 @@ out:
 	return copied ? : err;
 }
 
-static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
+static int rfcomm_sock_setsockopt_old(struct socket *sock, int optname, char __user *optval, int optlen)
 {
 	struct sock *sk = sock->sk;
 	int err = 0;
@@ -727,7 +747,144 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, c
 			break;
 		}
 
-		rfcomm_pi(sk)->link_mode = opt;
+		if (opt & RFCOMM_LM_AUTH)
+			rfcomm_pi(sk)->sec_level = BT_SECURITY_LOW;
+		if (opt & RFCOMM_LM_ENCRYPT)
+			rfcomm_pi(sk)->sec_level = BT_SECURITY_MEDIUM;
+		if (opt & RFCOMM_LM_SECURE)
+			rfcomm_pi(sk)->sec_level = BT_SECURITY_HIGH;
+
+		rfcomm_pi(sk)->role_switch = (opt & RFCOMM_LM_MASTER);
+		break;
+
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+	return err;
+}
+
+static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
+{
+	struct sock *sk = sock->sk;
+	struct bt_security sec;
+	int len, err = 0;
+	u32 opt;
+
+	BT_DBG("sk %p", sk);
+
+	if (level == SOL_RFCOMM)
+		return rfcomm_sock_setsockopt_old(sock, optname, optval, optlen);
+
+	if (level != SOL_BLUETOOTH)
+		return -ENOPROTOOPT;
+
+	lock_sock(sk);
+
+	switch (optname) {
+	case BT_SECURITY:
+		if (sk->sk_type != SOCK_STREAM) {
+			err = -EINVAL;
+			break;
+		}
+
+		sec.level = BT_SECURITY_LOW;
+
+		len = min_t(unsigned int, sizeof(sec), optlen);
+		if (copy_from_user((char *) &sec, optval, len)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (sec.level > BT_SECURITY_HIGH) {
+			err = -EINVAL;
+			break;
+		}
+
+		rfcomm_pi(sk)->sec_level = sec.level;
+		break;
+
+	case BT_DEFER_SETUP:
+		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		bt_sk(sk)->defer_setup = opt;
+		break;
+
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+	return err;
+}
+
+static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __user *optval, int __user *optlen)
+{
+	struct sock *sk = sock->sk;
+	struct sock *l2cap_sk;
+	struct rfcomm_conninfo cinfo;
+	int len, err = 0;
+	u32 opt;
+
+	BT_DBG("sk %p", sk);
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	lock_sock(sk);
+
+	switch (optname) {
+	case RFCOMM_LM:
+		switch (rfcomm_pi(sk)->sec_level) {
+		case BT_SECURITY_LOW:
+			opt = RFCOMM_LM_AUTH;
+			break;
+		case BT_SECURITY_MEDIUM:
+			opt = RFCOMM_LM_AUTH | RFCOMM_LM_ENCRYPT;
+			break;
+		case BT_SECURITY_HIGH:
+			opt = RFCOMM_LM_AUTH | RFCOMM_LM_ENCRYPT |
+							RFCOMM_LM_SECURE;
+			break;
+		default:
+			opt = 0;
+			break;
+		}
+
+		if (rfcomm_pi(sk)->role_switch)
+			opt |= RFCOMM_LM_MASTER;
+
+		if (put_user(opt, (u32 __user *) optval))
+			err = -EFAULT;
+		break;
+
+	case RFCOMM_CONNINFO:
+		if (sk->sk_state != BT_CONNECTED &&
+					!rfcomm_pi(sk)->dlc->defer_setup) {
+			err = -ENOTCONN;
+			break;
+		}
+
+		l2cap_sk = rfcomm_pi(sk)->dlc->session->sock->sk;
+
+		cinfo.hci_handle = l2cap_pi(l2cap_sk)->conn->hcon->handle;
+		memcpy(cinfo.dev_class, l2cap_pi(l2cap_sk)->conn->hcon->dev_class, 3);
+
+		len = min_t(unsigned int, len, sizeof(cinfo));
+		if (copy_to_user(optval, (char *) &cinfo, len))
+			err = -EFAULT;
+
 		break;
 
 	default:
@@ -742,11 +899,16 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, c
 static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
-	struct sock *l2cap_sk;
-	struct rfcomm_conninfo cinfo;
+	struct bt_security sec;
 	int len, err = 0;
 
 	BT_DBG("sk %p", sk);
+
+	if (level == SOL_RFCOMM)
+		return rfcomm_sock_getsockopt_old(sock, optname, optval, optlen);
+
+	if (level != SOL_BLUETOOTH)
+		return -ENOPROTOOPT;
 
 	if (get_user(len, optlen))
 		return -EFAULT;
@@ -754,24 +916,27 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 	lock_sock(sk);
 
 	switch (optname) {
-	case RFCOMM_LM:
-		if (put_user(rfcomm_pi(sk)->link_mode, (u32 __user *) optval))
-			err = -EFAULT;
-		break;
-
-	case RFCOMM_CONNINFO:
-		if (sk->sk_state != BT_CONNECTED) {
-			err = -ENOTCONN;
+	case BT_SECURITY:
+		if (sk->sk_type != SOCK_STREAM) {
+			err = -EINVAL;
 			break;
 		}
 
-		l2cap_sk = rfcomm_pi(sk)->dlc->session->sock->sk;
+		sec.level = rfcomm_pi(sk)->sec_level;
 
-		cinfo.hci_handle = l2cap_pi(l2cap_sk)->conn->hcon->handle;
-		memcpy(cinfo.dev_class, l2cap_pi(l2cap_sk)->conn->hcon->dev_class, 3);
+		len = min_t(unsigned int, len, sizeof(sec));
+		if (copy_to_user(optval, (char *) &sec, len))
+			err = -EFAULT;
 
-		len = min_t(unsigned int, len, sizeof(cinfo));
-		if (copy_to_user(optval, (char *) &cinfo, len))
+		break;
+
+	case BT_DEFER_SETUP:
+		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (put_user(bt_sk(sk)->defer_setup, (u32 __user *) optval))
 			err = -EFAULT;
 
 		break;
@@ -888,6 +1053,10 @@ int rfcomm_connect_ind(struct rfcomm_session *s, u8 channel, struct rfcomm_dlc *
 
 done:
 	bh_unlock_sock(parent);
+
+	if (bt_sk(parent)->defer_setup)
+		parent->sk_state_change(parent);
+
 	return result;
 }
 

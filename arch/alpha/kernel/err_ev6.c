@@ -157,8 +157,8 @@ ev6_parse_cbox(u64 c_addr, u64 c1_syn, u64 c2_syn,
 		       err_print_prefix,
 		       streamname[stream], bitsname[bits], sourcename[source]);
 
-	printk("%s    Address: 0x%016lx\n"
-	         "    Syndrome[upper.lower]: %02lx.%02lx\n", 
+	printk("%s    Address: 0x%016llx\n"
+	         "    Syndrome[upper.lower]: %02llx.%02llx\n",
 	       err_print_prefix,
 	       c_addr,
 	       c2_syn, c1_syn);

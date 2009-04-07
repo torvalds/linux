@@ -194,20 +194,20 @@ ide_devset_get(xfer_rate, current_speed);
 
 static int set_xfer_rate (ide_drive_t *drive, int arg)
 {
-	ide_task_t task;
+	struct ide_cmd cmd;
 	int err;
 
 	if (arg < XFER_PIO_0 || arg > XFER_UDMA_6)
 		return -EINVAL;
 
-	memset(&task, 0, sizeof(task));
-	task.tf.command = ATA_CMD_SET_FEATURES;
-	task.tf.feature = SETFEATURES_XFER;
-	task.tf.nsect   = (u8)arg;
-	task.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT |
-			IDE_TFLAG_IN_NSECT;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf.command = ATA_CMD_SET_FEATURES;
+	cmd.tf.feature = SETFEATURES_XFER;
+	cmd.tf.nsect   = (u8)arg;
+	cmd.tf_flags   = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT |
+			 IDE_TFLAG_IN_NSECT;
 
-	err = ide_no_data_taskfile(drive, &task);
+	err = ide_no_data_taskfile(drive, &cmd);
 
 	if (!err) {
 		ide_set_xfer_rate(drive, (u8) arg);
@@ -231,7 +231,7 @@ static const struct ide_proc_devset ide_generic_settings[] = {
 	IDE_PROC_DEVSET(pio_mode, 0, 255),
 	IDE_PROC_DEVSET(unmaskirq, 0, 1),
 	IDE_PROC_DEVSET(using_dma, 0, 1),
-	{ 0 },
+	{ NULL },
 };
 
 static void proc_ide_settings_warn(void)
@@ -600,7 +600,7 @@ void ide_proc_port_register_devices(ide_hwif_t *hwif)
 	int i;
 
 	ide_port_for_each_dev(i, drive, hwif) {
-		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0 || drive->proc)
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
 		drive->proc = proc_mkdir(drive->name, parent);

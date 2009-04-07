@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <mach/common.h>
 
 int __init mxc_register_device(struct platform_device *pdev, void *data)
 {

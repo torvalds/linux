@@ -847,23 +847,23 @@ static int __init AtaIrqInit(void)
 	   of events. So all we need to keep the music playing is
 	   to provide the sound hardware with new data upon
 	   an interrupt from timer A. */
-	mfp.tim_ct_a = 0;	/* ++roman: Stop timer before programming! */
-	mfp.tim_dt_a = 1;	/* Cause interrupt after first event. */
-	mfp.tim_ct_a = 8;	/* Turn on event counting. */
+	st_mfp.tim_ct_a = 0;	/* ++roman: Stop timer before programming! */
+	st_mfp.tim_dt_a = 1;	/* Cause interrupt after first event. */
+	st_mfp.tim_ct_a = 8;	/* Turn on event counting. */
 	/* Register interrupt handler. */
 	if (request_irq(IRQ_MFP_TIMA, AtaInterrupt, IRQ_TYPE_SLOW, "DMA sound",
 			AtaInterrupt))
 		return 0;
-	mfp.int_en_a |= 0x20;	/* Turn interrupt on. */
-	mfp.int_mk_a |= 0x20;
+	st_mfp.int_en_a |= 0x20;	/* Turn interrupt on. */
+	st_mfp.int_mk_a |= 0x20;
 	return 1;
 }
 
 #ifdef MODULE
 static void AtaIrqCleanUp(void)
 {
-	mfp.tim_ct_a = 0;	/* stop timer */
-	mfp.int_en_a &= ~0x20;	/* turn interrupt off */
+	st_mfp.tim_ct_a = 0;		/* stop timer */
+	st_mfp.int_en_a &= ~0x20;	/* turn interrupt off */
 	free_irq(IRQ_MFP_TIMA, AtaInterrupt);
 }
 #endif /* MODULE */
@@ -1524,7 +1524,7 @@ static SETTINGS def_soft = {
 	.speed	= 8000
 } ;
 
-static MACHINE machTT = {
+static __initdata MACHINE machTT = {
 	.name		= "Atari",
 	.name2		= "TT",
 	.owner		= THIS_MODULE,
@@ -1553,7 +1553,7 @@ static MACHINE machTT = {
 	.capabilities	=  DSP_CAP_BATCH	/* As per SNDCTL_DSP_GETCAPS */
 };
 
-static MACHINE machFalcon = {
+static __initdata MACHINE machFalcon = {
 	.name		= "Atari",
 	.name2		= "FALCON",
 	.dma_alloc	= AtaAlloc,
@@ -1599,7 +1599,7 @@ static int __init dmasound_atari_init(void)
 		is_falcon = 0;
 	    } else
 		return -ENODEV;
-	    if ((mfp.int_en_a & mfp.int_mk_a & 0x20) == 0)
+	    if ((st_mfp.int_en_a & st_mfp.int_mk_a & 0x20) == 0)
 		return dmasound_init();
 	    else {
 		printk("DMA sound driver: Timer A interrupt already in use\n");

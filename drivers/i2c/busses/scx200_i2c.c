@@ -76,7 +76,7 @@ static struct i2c_algo_bit_data scx200_i2c_data = {
 	.getsda		= scx200_i2c_getsda,
 	.getscl		= scx200_i2c_getscl,
 	.udelay		= 10,
-	.timeout	= 100,
+	.timeout	= HZ,
 };
 
 static struct i2c_adapter scx200_i2c_ops = {

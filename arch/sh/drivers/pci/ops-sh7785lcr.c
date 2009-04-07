@@ -48,13 +48,8 @@ EXPORT_SYMBOL(board_pci_channels);
 
 static struct sh4_pci_address_map sh7785_pci_map = {
 	.window0	= {
-		.base	= SH7780_CS2_BASE_ADDR,
-		.size	= 0x04000000,
-	},
-
-	.window1	= {
-		.base	= SH7780_CS3_BASE_ADDR,
-		.size	= 0x04000000,
+		.base	= SH7780_CS0_BASE_ADDR,
+		.size	= 0x20000000,
 	},
 
 	.flags	= SH4_PCIC_NO_RESET,

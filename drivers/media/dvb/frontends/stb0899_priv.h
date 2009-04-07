@@ -59,10 +59,6 @@
 #define MAKEWORD32(a, b, c, d)			(((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
 #define MAKEWORD16(a, b)			(((a) << 8) | (b))
 
-#define MIN(x, y)				((x) <= (y) ? (x) : (y))
-#define MAX(x, y)				((x) >= (y) ? (x) : (y))
-#define ABS(x)					((x) >= 0 ? (x) : -(x))
-
 #define LSB(x)					((x & 0xff))
 #define MSB(y)					((y >> 8) & 0xff)
 
@@ -168,10 +164,10 @@ struct stb0899_internal {
 	u32			freq;			/* Demod internal Frequency		*/
 	u32			srate;			/* Demod internal Symbol rate		*/
 	enum stb0899_fec	fecrate;		/* Demod internal FEC rate		*/
-	u32			srch_range;		/* Demod internal Search Range		*/
-	u32			sub_range;		/* Demod current sub range (Hz)		*/
-	u32			tuner_step;		/* Tuner step (Hz)			*/
-	u32			tuner_offst;		/* Relative offset to carrier (Hz)	*/
+	s32			srch_range;		/* Demod internal Search Range		*/
+	s32			sub_range;		/* Demod current sub range (Hz)		*/
+	s32			tuner_step;		/* Tuner step (Hz)			*/
+	s32			tuner_offst;		/* Relative offset to carrier (Hz)	*/
 	u32			tuner_bw;		/* Current bandwidth of the tuner (Hz)	*/
 
 	s32			mclk;			/* Masterclock Divider factor (binary)	*/

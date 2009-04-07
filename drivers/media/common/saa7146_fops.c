@@ -308,14 +308,6 @@ static int fops_release(struct file *file)
 	return 0;
 }
 
-static long fops_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-/*
-	DEB_EE(("file:%p, cmd:%d, arg:%li\n", file, cmd, arg));
-*/
-	return video_usercopy(file, cmd, arg, saa7146_video_do_ioctl);
-}
-
 static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 {
 	struct saa7146_fh *fh = file->private_data;
@@ -425,7 +417,7 @@ static const struct v4l2_file_operations video_fops =
 	.write		= fops_write,
 	.poll		= fops_poll,
 	.mmap		= fops_mmap,
-	.ioctl		= fops_ioctl,
+	.ioctl		= video_ioctl2,
 };
 
 static void vv_callback(struct saa7146_dev *dev, unsigned long status)
@@ -452,19 +444,22 @@ static void vv_callback(struct saa7146_dev *dev, unsigned long status)
 	}
 }
 
-static struct video_device device_template =
-{
-	.fops		= &video_fops,
-	.minor		= -1,
-};
-
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 {
-	struct saa7146_vv *vv = kzalloc (sizeof(struct saa7146_vv),GFP_KERNEL);
-	if( NULL == vv ) {
+	struct saa7146_vv *vv;
+	int err;
+
+	err = v4l2_device_register(&dev->pci->dev, &dev->v4l2_dev);
+	if (err)
+		return err;
+
+	vv = kzalloc(sizeof(struct saa7146_vv), GFP_KERNEL);
+	if (vv == NULL) {
 		ERR(("out of memory. aborting.\n"));
-		return -1;
+		return -ENOMEM;
 	}
+	ext_vv->ops = saa7146_video_ioctl_ops;
+	ext_vv->core_ops = &saa7146_video_ioctl_ops;
 
 	DEB_EE(("dev:%p\n",dev));
 
@@ -507,6 +502,7 @@ int saa7146_vv_release(struct saa7146_dev* dev)
 
 	DEB_EE(("dev:%p\n",dev));
 
+	v4l2_device_unregister(&dev->v4l2_dev);
 	pci_free_consistent(dev->pci, SAA7146_CLIPPING_MEM, vv->d_clipping.cpu_addr, vv->d_clipping.dma_handle);
 	kfree(vv);
 	dev->vv_data = NULL;
@@ -521,6 +517,8 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 {
 	struct saa7146_vv *vv = dev->vv_data;
 	struct video_device *vfd;
+	int err;
+	int i;
 
 	DEB_EE(("dev:%p, name:'%s', type:%d\n",dev,name,type));
 
@@ -529,16 +527,20 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	if (vfd == NULL)
 		return -ENOMEM;
 
-	memcpy(vfd, &device_template, sizeof(struct video_device));
-	strlcpy(vfd->name, name, sizeof(vfd->name));
+	vfd->fops = &video_fops;
+	vfd->ioctl_ops = &dev->ext_vv_data->ops;
 	vfd->release = video_device_release;
+	vfd->tvnorms = 0;
+	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
+		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
+	strlcpy(vfd->name, name, sizeof(vfd->name));
 	video_set_drvdata(vfd, dev);
 
-	// fixme: -1 should be an insmod parameter *for the extension* (like "video_nr");
-	if (video_register_device(vfd, type, -1) < 0) {
+	err = video_register_device(vfd, type, -1);
+	if (err < 0) {
 		ERR(("cannot register v4l2 device. skipping.\n"));
 		video_device_release(vfd);
-		return -1;
+		return err;
 	}
 
 	if( VFL_TYPE_GRABBER == type ) {

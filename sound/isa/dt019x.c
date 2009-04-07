@@ -150,9 +150,10 @@ static int __devinit snd_card_dt019x_probe(int dev, struct pnp_card_link *pcard,
 	struct snd_card_dt019x *acard;
 	struct snd_opl3 *opl3;
 
-	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-				 sizeof(struct snd_card_dt019x))) == NULL)
-		return -ENOMEM;
+	error = snd_card_create(index[dev], id[dev], THIS_MODULE,
+				sizeof(struct snd_card_dt019x), &card);
+	if (error < 0)
+		return error;
 	acard = card->private_data;
 
 	snd_card_set_dev(card, &pcard->card->dev);

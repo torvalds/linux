@@ -26,6 +26,10 @@
 #define PCI_DEVICE_ID_INTEL_82965GME_IG     0x2A12
 #define PCI_DEVICE_ID_INTEL_82945GME_HB     0x27AC
 #define PCI_DEVICE_ID_INTEL_82945GME_IG     0x27AE
+#define PCI_DEVICE_ID_INTEL_IGDGM_HB        0xA010
+#define PCI_DEVICE_ID_INTEL_IGDGM_IG        0xA011
+#define PCI_DEVICE_ID_INTEL_IGDG_HB         0xA000
+#define PCI_DEVICE_ID_INTEL_IGDG_IG         0xA001
 #define PCI_DEVICE_ID_INTEL_G33_HB          0x29C0
 #define PCI_DEVICE_ID_INTEL_G33_IG          0x29C2
 #define PCI_DEVICE_ID_INTEL_Q35_HB          0x29B0
@@ -60,7 +64,12 @@
 
 #define IS_G33 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G33_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q35_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q33_HB)
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q33_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDGM_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDG_HB)
+
+#define IS_IGD (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDGM_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDG_HB)
 
 #define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGD_E_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
@@ -510,7 +519,7 @@ static void intel_i830_init_gtt_entries(void)
 			size = 512;
 		}
 		size += 4; /* add in BIOS popup space */
-	} else if (IS_G33) {
+	} else if (IS_G33 && !IS_IGD) {
 	/* G33's GTT size defined in gmch_ctrl */
 		switch (gmch_ctrl & G33_PGETBL_SIZE_MASK) {
 		case G33_PGETBL_SIZE_1M:
@@ -526,7 +535,7 @@ static void intel_i830_init_gtt_entries(void)
 			size = 512;
 		}
 		size += 4;
-	} else if (IS_G4X) {
+	} else if (IS_G4X || IS_IGD) {
 		/* On 4 series hardware, GTT stolen is separate from graphics
 		 * stolen, ignore it in stolen gtt entries counting.  However,
 		 * 4KB of the stolen memory doesn't get mapped to the GTT.
@@ -633,13 +642,15 @@ static void intel_i830_init_gtt_entries(void)
 			break;
 		}
 	}
-	if (gtt_entries > 0)
+	if (gtt_entries > 0) {
 		dev_info(&agp_bridge->dev->dev, "detected %dK %s memory\n",
 		       gtt_entries / KB(1), local ? "local" : "stolen");
-	else
+		gtt_entries /= KB(4);
+	} else {
 		dev_info(&agp_bridge->dev->dev,
 		       "no pre-allocated video memory detected\n");
-	gtt_entries /= KB(4);
+		gtt_entries = 0;
+	}
 
 	intel_private.gtt_entries = gtt_entries;
 }
@@ -2159,6 +2170,10 @@ static const struct intel_driver_description {
 		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_Q33_HB, PCI_DEVICE_ID_INTEL_Q33_IG, 0, "Q33",
 		NULL, &intel_g33_driver },
+	{ PCI_DEVICE_ID_INTEL_IGDGM_HB, PCI_DEVICE_ID_INTEL_IGDGM_IG, 0, "IGD",
+		NULL, &intel_g33_driver },
+	{ PCI_DEVICE_ID_INTEL_IGDG_HB, PCI_DEVICE_ID_INTEL_IGDG_IG, 0, "IGD",
+		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_GM45_HB, PCI_DEVICE_ID_INTEL_GM45_IG, 0,
 	    "Mobile Intel® GM45 Express", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IGD_E_HB, PCI_DEVICE_ID_INTEL_IGD_E_IG, 0,
@@ -2353,6 +2368,8 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_82945G_HB),
 	ID(PCI_DEVICE_ID_INTEL_82945GM_HB),
 	ID(PCI_DEVICE_ID_INTEL_82945GME_HB),
+	ID(PCI_DEVICE_ID_INTEL_IGDGM_HB),
+	ID(PCI_DEVICE_ID_INTEL_IGDG_HB),
 	ID(PCI_DEVICE_ID_INTEL_82946GZ_HB),
 	ID(PCI_DEVICE_ID_INTEL_82G35_HB),
 	ID(PCI_DEVICE_ID_INTEL_82965Q_HB),

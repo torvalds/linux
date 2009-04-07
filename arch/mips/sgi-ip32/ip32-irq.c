@@ -115,14 +115,12 @@ extern irqreturn_t crime_cpuerr_intr(int irq, void *dev_id);
 struct irqaction memerr_irq = {
 	.handler = crime_memerr_intr,
 	.flags = IRQF_DISABLED,
-	.mask = CPU_MASK_NONE,
 	.name = "CRIME memory error",
 };
 
 struct irqaction cpuerr_irq = {
 	.handler = crime_cpuerr_intr,
 	.flags = IRQF_DISABLED,
-	.mask = CPU_MASK_NONE,
 	.name = "CRIME CPU error",
 };
 
@@ -325,16 +323,11 @@ static void mask_and_ack_maceisa_irq(unsigned int irq)
 {
 	unsigned long mace_int;
 
-	switch (irq) {
-	case MACEISA_PARALLEL_IRQ:
-	case MACEISA_SERIAL1_TDMAPR_IRQ:
-	case MACEISA_SERIAL2_TDMAPR_IRQ:
-		/* edge triggered */
-		mace_int = mace->perif.ctrl.istat;
-		mace_int &= ~(1 << (irq - MACEISA_AUDIO_SW_IRQ));
-		mace->perif.ctrl.istat = mace_int;
-		break;
-	}
+	/* edge triggered */
+	mace_int = mace->perif.ctrl.istat;
+	mace_int &= ~(1 << (irq - MACEISA_AUDIO_SW_IRQ));
+	mace->perif.ctrl.istat = mace_int;
+
 	disable_maceisa_irq(irq);
 }
 
@@ -344,7 +337,16 @@ static void end_maceisa_irq(unsigned irq)
 		enable_maceisa_irq(irq);
 }
 
-static struct irq_chip ip32_maceisa_interrupt = {
+static struct irq_chip ip32_maceisa_level_interrupt = {
+	.name		= "IP32 MACE ISA",
+	.ack		= disable_maceisa_irq,
+	.mask		= disable_maceisa_irq,
+	.mask_ack	= disable_maceisa_irq,
+	.unmask		= enable_maceisa_irq,
+	.end		= end_maceisa_irq,
+};
+
+static struct irq_chip ip32_maceisa_edge_interrupt = {
 	.name		= "IP32 MACE ISA",
 	.ack		= mask_and_ack_maceisa_irq,
 	.mask		= disable_maceisa_irq,
@@ -500,27 +502,50 @@ void __init arch_init_irq(void)
 	for (irq = CRIME_IRQ_BASE; irq <= IP32_IRQ_MAX; irq++) {
 		switch (irq) {
 		case MACE_VID_IN1_IRQ ... MACE_PCI_BRIDGE_IRQ:
-			set_irq_chip(irq, &ip32_mace_interrupt);
+			set_irq_chip_and_handler_name(irq,&ip32_mace_interrupt,
+				handle_level_irq, "level");
 			break;
+
 		case MACEPCI_SCSI0_IRQ ...  MACEPCI_SHARED2_IRQ:
-			set_irq_chip(irq, &ip32_macepci_interrupt);
+			set_irq_chip_and_handler_name(irq,
+				&ip32_macepci_interrupt, handle_level_irq,
+				"level");
 			break;
+
 		case CRIME_GBE0_IRQ ... CRIME_GBE3_IRQ:
-			set_irq_chip(irq, &crime_edge_interrupt);
+			set_irq_chip_and_handler_name(irq,
+				&crime_edge_interrupt, handle_edge_irq, "edge");
 			break;
 		case CRIME_CPUERR_IRQ:
 		case CRIME_MEMERR_IRQ:
-			set_irq_chip(irq, &crime_level_interrupt);
+			set_irq_chip_and_handler_name(irq,
+				&crime_level_interrupt, handle_level_irq,
+				"level");
 			break;
+
 		case CRIME_RE_EMPTY_E_IRQ ... CRIME_RE_IDLE_E_IRQ:
 		case CRIME_SOFT0_IRQ ... CRIME_SOFT2_IRQ:
-			set_irq_chip(irq, &crime_edge_interrupt);
+			set_irq_chip_and_handler_name(irq,
+				&crime_edge_interrupt, handle_edge_irq, "edge");
 			break;
+
 		case CRIME_VICE_IRQ:
-			set_irq_chip(irq, &crime_edge_interrupt);
+			set_irq_chip_and_handler_name(irq,
+				&crime_edge_interrupt, handle_edge_irq, "edge");
 			break;
+
+		case MACEISA_PARALLEL_IRQ:
+		case MACEISA_SERIAL1_TDMAPR_IRQ:
+		case MACEISA_SERIAL2_TDMAPR_IRQ:
+			set_irq_chip_and_handler_name(irq,
+				&ip32_maceisa_edge_interrupt, handle_edge_irq,
+				"edge");
+			break;
+
 		default:
-			set_irq_chip(irq, &ip32_maceisa_interrupt);
+			set_irq_chip_and_handler_name(irq,
+				&ip32_maceisa_level_interrupt, handle_level_irq,
+				"level");
 			break;
 		}
 	}

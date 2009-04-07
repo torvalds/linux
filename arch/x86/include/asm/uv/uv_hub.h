@@ -11,11 +11,13 @@
 #ifndef _ASM_X86_UV_UV_HUB_H
 #define _ASM_X86_UV_UV_HUB_H
 
+#ifdef CONFIG_X86_64
 #include <linux/numa.h>
 #include <linux/percpu.h>
 #include <linux/timer.h>
 #include <asm/types.h>
 #include <asm/percpu.h>
+#include <asm/uv/uv_mmrs.h>
 
 
 /*
@@ -198,6 +200,10 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 #define SCIR_CPU_HEARTBEAT	0x01	/* timer interrupt */
 #define SCIR_CPU_ACTIVITY	0x02	/* not idle */
 #define SCIR_CPU_HB_INTERVAL	(HZ)	/* once per second */
+
+/* Loop through all installed blades */
+#define for_each_possible_blade(bid)		\
+	for ((bid) = 0; (bid) < uv_num_possible_blades(); (bid)++)
 
 /*
  * Macros for converting between kernel virtual addresses, socket local physical
@@ -393,6 +399,7 @@ static inline void uv_set_scir_bits(unsigned char value)
 		uv_write_local_mmr8(uv_hub_info->scir.offset, value);
 	}
 }
+
 static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
 {
 	if (uv_cpu_hub_info(cpu)->scir.state != value) {
@@ -401,4 +408,15 @@ static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
 	}
 }
 
+static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
+{
+	unsigned long val;
+
+	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
+			((apicid & 0x3f) << UVH_IPI_INT_APIC_ID_SHFT) |
+			(vector << UVH_IPI_INT_VECTOR_SHFT);
+	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
+}
+
+#endif /* CONFIG_X86_64 */
 #endif /* _ASM_X86_UV_UV_HUB_H */

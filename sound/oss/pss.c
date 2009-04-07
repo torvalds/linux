@@ -46,7 +46,7 @@
  *          load the driver as it did in previous versions.
  * 04-07-1999: Anthony Barbachan <barbcode@xmen.cis.fordham.edu>
  *          Added module parameter pss_firmware to allow the user to tell 
- *          the driver where the fireware file is located.  The default 
+ *          the driver where the firmware file is located.  The default 
  *          setting is the previous hardcoded setting "/etc/sound/pss_synth".
  * 00-03-03: Christoph Hellwig <chhellwig@infradead.org>
  *	    Adapted to module_init/module_exit
@@ -457,10 +457,9 @@ static void pss_mixer_reset(pss_confdata *devc)
 	}
 }
 
-static int set_volume_mono(unsigned __user *p, int *aleft)
+static int set_volume_mono(unsigned __user *p, unsigned int *aleft)
 {
-	int left;
-	unsigned volume;
+	unsigned int left, volume;
 	if (get_user(volume, p))
 		return -EFAULT;
 	
@@ -471,10 +470,11 @@ static int set_volume_mono(unsigned __user *p, int *aleft)
 	return 0;
 }
 
-static int set_volume_stereo(unsigned __user *p, int *aleft, int *aright)
+static int set_volume_stereo(unsigned __user *p,
+			     unsigned int *aleft,
+			     unsigned int *aright)
 {
-	int left, right;
-	unsigned volume;
+	unsigned int left, right, volume;
 	if (get_user(volume, p))
 		return -EFAULT;
 

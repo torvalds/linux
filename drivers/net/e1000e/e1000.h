@@ -101,6 +101,7 @@ enum e1000_boards {
 	board_82572,
 	board_82573,
 	board_82574,
+	board_82583,
 	board_80003es2lan,
 	board_ich8lan,
 	board_ich9lan,
@@ -194,8 +195,6 @@ struct e1000_adapter {
 	u16 link_speed;
 	u16 link_duplex;
 	u16 eeprom_vers;
-
-	spinlock_t tx_queue_lock; /* prevent concurrent tail updates */
 
 	/* track device up/down/testing state */
 	unsigned long state;
@@ -401,6 +400,7 @@ extern struct e1000_info e1000_82571_info;
 extern struct e1000_info e1000_82572_info;
 extern struct e1000_info e1000_82573_info;
 extern struct e1000_info e1000_82574_info;
+extern struct e1000_info e1000_82583_info;
 extern struct e1000_info e1000_ich8_info;
 extern struct e1000_info e1000_ich9_info;
 extern struct e1000_info e1000_ich10_info;

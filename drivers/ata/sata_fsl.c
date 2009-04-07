@@ -1279,8 +1279,8 @@ static struct ata_port_operations sata_fsl_ops = {
 static const struct ata_port_info sata_fsl_port_info[] = {
 	{
 	 .flags = SATA_FSL_HOST_FLAGS,
-	 .pio_mask = 0x1f,	/* pio 0-4 */
-	 .udma_mask = 0x7f,	/* udma 0-6 */
+	 .pio_mask = ATA_PIO4,
+	 .udma_mask = ATA_UDMA6,
 	 .port_ops = &sata_fsl_ops,
 	 },
 };

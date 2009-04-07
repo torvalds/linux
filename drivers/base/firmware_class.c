@@ -319,7 +319,7 @@ static int fw_register_device(struct device **dev_p, const char *fw_name,
 	f_dev->parent = device;
 	f_dev->class = &firmware_class;
 	dev_set_drvdata(f_dev, fw_priv);
-	f_dev->uevent_suppress = 1;
+	dev_set_uevent_suppress(f_dev, 1);
 	retval = device_register(f_dev);
 	if (retval) {
 		dev_err(device, "%s: device_register failed\n", __func__);
@@ -366,7 +366,7 @@ static int fw_setup_device(struct firmware *fw, struct device **dev_p,
 	}
 
 	if (uevent)
-		f_dev->uevent_suppress = 0;
+		dev_set_uevent_suppress(f_dev, 0);
 	*dev_p = f_dev;
 	goto out;
 

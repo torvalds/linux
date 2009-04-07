@@ -28,6 +28,7 @@
 #define BUS_ID_SIZE		20
 
 struct device;
+struct device_private;
 struct device_driver;
 struct driver_private;
 struct class;
@@ -147,6 +148,8 @@ extern void put_driver(struct device_driver *drv);
 extern struct device_driver *driver_find(const char *name,
 					 struct bus_type *bus);
 extern int driver_probe_done(void);
+extern void wait_for_device_probe(void);
+
 
 /* sysfs interface for exporting driver attributes */
 
@@ -365,15 +368,11 @@ struct device_dma_parameters {
 };
 
 struct device {
-	struct klist		klist_children;
-	struct klist_node	knode_parent;	/* node in sibling list */
-	struct klist_node	knode_driver;
-	struct klist_node	knode_bus;
 	struct device		*parent;
 
+	struct device_private	*p;
+
 	struct kobject kobj;
-	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
-	unsigned		uevent_suppress:1;
 	const char		*init_name; /* initial name of the device */
 	struct device_type	*type;
 
@@ -385,8 +384,13 @@ struct device {
 	struct device_driver *driver;	/* which driver has allocated this
 					   device */
 	void		*driver_data;	/* data private to the driver */
-	void		*platform_data;	/* Platform specific data, device
-					   core doesn't touch it */
+
+	void		*platform_data;	/* We will remove platform_data
+					   field if all platform devices
+					   pass its platform specific data
+					   from platform_device->platform_data,
+					   other kind of devices should not
+					   use platform_data. */
 	struct dev_pm_info	power;
 
 #ifdef CONFIG_NUMA
@@ -425,8 +429,7 @@ struct device {
 
 static inline const char *dev_name(const struct device *dev)
 {
-	/* will be changed into kobject_name(&dev->kobj) in the near future */
-	return dev->bus_id;
+	return kobject_name(&dev->kobj);
 }
 
 extern int dev_set_name(struct device *dev, const char *name, ...)
@@ -461,6 +464,16 @@ static inline void dev_set_drvdata(struct device *dev, void *data)
 	dev->driver_data = data;
 }
 
+static inline unsigned int dev_get_uevent_suppress(const struct device *dev)
+{
+	return dev->kobj.uevent_suppress;
+}
+
+static inline void dev_set_uevent_suppress(struct device *dev, int val)
+{
+	dev->kobj.uevent_suppress = val;
+}
+
 static inline int device_is_registered(struct device *dev)
 {
 	return dev->kobj.state_in_sysfs;
@@ -481,7 +494,8 @@ extern int device_for_each_child(struct device *dev, void *data,
 extern struct device *device_find_child(struct device *dev, void *data,
 				int (*match)(struct device *dev, void *data));
 extern int device_rename(struct device *dev, char *new_name);
-extern int device_move(struct device *dev, struct device *new_parent);
+extern int device_move(struct device *dev, struct device *new_parent,
+		       enum dpm_order dpm_order);
 
 /*
  * Root device objects for grouping under /sys/devices
@@ -568,7 +582,7 @@ extern const char *dev_driver_string(const struct device *dev);
 #if defined(DEBUG)
 #define dev_dbg(dev, format, arg...)		\
 	dev_printk(KERN_DEBUG , dev , format , ## arg)
-#elif defined(CONFIG_DYNAMIC_PRINTK_DEBUG)
+#elif defined(CONFIG_DYNAMIC_DEBUG)
 #define dev_dbg(dev, format, ...) do { \
 	dynamic_dev_dbg(dev, format, ##__VA_ARGS__); \
 	} while (0)

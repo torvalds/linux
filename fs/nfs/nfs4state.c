@@ -62,8 +62,14 @@ static LIST_HEAD(nfs4_clientid_list);
 
 static int nfs4_init_client(struct nfs_client *clp, struct rpc_cred *cred)
 {
-	int status = nfs4_proc_setclientid(clp, NFS4_CALLBACK,
-			nfs_callback_tcpport, cred);
+	unsigned short port;
+	int status;
+
+	port = nfs_callback_tcpport;
+	if (clp->cl_addr.ss_family == AF_INET6)
+		port = nfs_callback_tcpport6;
+
+	status = nfs4_proc_setclientid(clp, NFS4_CALLBACK, port, cred);
 	if (status == 0)
 		status = nfs4_proc_setclientid_confirm(clp, cred);
 	if (status == 0)

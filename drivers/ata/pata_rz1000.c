@@ -88,7 +88,7 @@ static int rz1000_init_one (struct pci_dev *pdev, const struct pci_device_id *en
 	static int printed_version;
 	static const struct ata_port_info info = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
+		.pio_mask = ATA_PIO4,
 		.port_ops = &rz1000_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };

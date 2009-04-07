@@ -171,7 +171,7 @@ static int tx_params[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <asm/unaligned.h>
 #include <asm/cache.h>
 
-static char version[] __devinitdata =
+static const char version[] __devinitconst =
 KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE "  Written by Donald Becker\n"
 KERN_INFO "   Some modifications by Eric kasten <kasten@nscl.msu.edu>\n"
 KERN_INFO "   Further modifications by Keith Underwood <keithu@parl.clemson.edu>\n";
@@ -1244,7 +1244,7 @@ do { \
     csum_add(sum, (ih)->saddr & 0xffff); \
     csum_add(sum, (ih)->daddr >> 16); \
     csum_add(sum, (ih)->daddr & 0xffff); \
-    csum_add(sum, __constant_htons(IPPROTO_UDP)); \
+    csum_add(sum, cpu_to_be16(IPPROTO_UDP)); \
     csum_add(sum, (uh)->len); \
 } while (0)
 
@@ -1255,7 +1255,7 @@ do { \
     csum_add(sum, (ih)->saddr & 0xffff); \
     csum_add(sum, (ih)->daddr >> 16); \
     csum_add(sum, (ih)->daddr & 0xffff); \
-    csum_add(sum, __constant_htons(IPPROTO_TCP)); \
+    csum_add(sum, cpu_to_be16(IPPROTO_TCP)); \
     csum_add(sum, htons(len)); \
 } while (0)
 #endif
@@ -1296,7 +1296,7 @@ static int hamachi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	    /* tack on checksum tag */
 	    u32 tagval = 0;
 	    struct ethhdr *eh = (struct ethhdr *)skb->data;
-	    if (eh->h_proto == __constant_htons(ETH_P_IP)) {
+	    if (eh->h_proto == cpu_to_be16(ETH_P_IP)) {
 		struct iphdr *ih = (struct iphdr *)((char *)eh + ETH_HLEN);
 		if (ih->protocol == IPPROTO_UDP) {
 		    struct udphdr *uh
@@ -1605,7 +1605,7 @@ static int hamachi_rx(struct net_device *dev)
 				 */
 				if (ntohs(ih->tot_len) >= 46){
 					/* don't worry about frags */
-					if (!(ih->frag_off & __constant_htons(IP_MF|IP_OFFSET))) {
+					if (!(ih->frag_off & cpu_to_be16(IP_MF|IP_OFFSET))) {
 						u32 inv = *(u32 *) &buf_addr[data_size - 16];
 						u32 *p = (u32 *) &buf_addr[data_size - 20];
 						register u32 crc, p_r, p_r1;

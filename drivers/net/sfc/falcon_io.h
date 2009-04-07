@@ -238,18 +238,21 @@ static inline void falcon_writel_page(struct efx_nic *efx, efx_dword_t *value,
 /* Write dword to Falcon page-mapped register with an extra lock.
  *
  * As for falcon_writel_page(), but for a register that suffers from
- * SFC bug 3181. Take out a lock so the BIU collector cannot be
- * confused. */
+ * SFC bug 3181.  If writing to page 0, take out a lock so the BIU
+ * collector cannot be confused.
+ */
 static inline void falcon_writel_page_locked(struct efx_nic *efx,
 					     efx_dword_t *value,
 					     unsigned int reg,
 					     unsigned int page)
 {
-	unsigned long flags;
+	unsigned long flags = 0;
 
-	spin_lock_irqsave(&efx->biu_lock, flags);
+	if (page == 0)
+		spin_lock_irqsave(&efx->biu_lock, flags);
 	falcon_writel(efx, value, FALCON_PAGED_REG(page, reg));
-	spin_unlock_irqrestore(&efx->biu_lock, flags);
+	if (page == 0)
+		spin_unlock_irqrestore(&efx->biu_lock, flags);
 }
 
 #endif /* EFX_FALCON_IO_H */

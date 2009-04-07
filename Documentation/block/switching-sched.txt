@@ -35,9 +35,3 @@ noop anticipatory deadline [cfq]
 # echo anticipatory > /sys/block/hda/queue/scheduler
 # cat /sys/block/hda/queue/scheduler
 noop [anticipatory] deadline cfq
-
-Each io queue has a set of io scheduler tunables associated with it. These
-tunables control how the io scheduler works. You can find these entries
-in:
-
-/sys/block/<device>/queue/iosched

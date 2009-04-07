@@ -56,8 +56,8 @@ config SND_AD1848
 	  Say Y here to include support for AD1848 (Analog Devices) or
 	  CS4248 (Cirrus Logic - Crystal Semiconductors) chips.
 	  
-	  For newer chips from Cirrus Logic, use the CS4231, CS4232 or
-	  CS4236+ drivers.
+	  For newer chips from Cirrus Logic, use the CS4231 or CS4232+
+	  drivers.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ad1848.
@@ -94,6 +94,8 @@ config SND_CMI8330
 	tristate "C-Media CMI8330"
 	select SND_WSS_LIB
 	select SND_SB16_DSP
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
 	help
 	  Say Y here to include support for soundcards based on the
 	  C-Media CMI8330 chip.
@@ -112,26 +114,15 @@ config SND_CS4231
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs4231.
 
-config SND_CS4232
-	tristate "Generic Cirrus Logic CS4232 driver"
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_WSS_LIB
-	help
-	  Say Y here to include support for CS4232 chips from Cirrus
-	  Logic - Crystal Semiconductors.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-cs4232.
-
 config SND_CS4236
-	tristate "Generic Cirrus Logic CS4236+ driver"
+	tristate "Generic Cirrus Logic CS4232/CS4236+ driver"
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_WSS_LIB
 	help
-	  Say Y to include support for CS4235,CS4236,CS4237B,CS4238B,
-	  CS4239 chips from Cirrus Logic - Crystal Semiconductors.
+	  Say Y to include support for CS4232,CS4235,CS4236,CS4237B,
+	  CS4238B,CS4239 chips from Cirrus Logic - Crystal
+	  Semiconductors.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs4236.
@@ -377,13 +368,16 @@ config SND_SGALAXY
 	  will be called snd-sgalaxy.
 
 config SND_SSCAPE
-	tristate "Ensoniq SoundScape PnP driver"
+	tristate "Ensoniq SoundScape driver"
 	select SND_HWDEP
 	select SND_MPU401_UART
 	select SND_WSS_LIB
 	help
-	  Say Y here to include support for Ensoniq SoundScape PnP
+	  Say Y here to include support for Ensoniq SoundScape 
 	  soundcards.
+
+	  The PCM audio is supported on SoundScape Classic, Elite, PnP
+	  and VIVO cards. The MIDI support is very experimental.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sscape.
@@ -410,6 +404,37 @@ config SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 	  the kernel for the Wavefront driver.  If you choose N here,
 	  you need to install the firmware files from the
 	  alsa-firmware package.
+
+config SND_MSND_PINNACLE
+	tristate "Turtle Beach MultiSound Pinnacle/Fiji driver"
+	depends on X86 && EXPERIMENTAL
+	select FW_LOADER
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say Y to include support for Turtle Beach MultiSound Pinnacle/
+	  Fiji soundcards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-msnd-pinnacle.
+
+config SND_MSND_CLASSIC
+	tristate "Support for Turtle Beach MultiSound Classic, Tahiti, Monterey"
+	depends on X86 && EXPERIMENTAL
+	select FW_LOADER
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say M here if you have a Turtle Beach MultiSound Classic, Tahiti or
+	  Monterey (not for the Pinnacle or Fiji).
+
+	  See <file:Documentation/sound/oss/MultiSound> for important information
+	  about this driver.  Note that it has been discontinued, but the
+	  Voyetra Turtle Beach knowledge base entry for it is still available
+	  at <http://www.turtlebeach.com/site/kb_ftp/790.asp>.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-msnd-classic.
 
 endif	# SND_ISA
 

@@ -58,11 +58,7 @@ UINT32 CW_MAX_IN_BITS;
 
 char *mac = "";		   // default 00:00:00:00:00:00
 char *hostname = "";		   // default CMPC
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,12)
-MODULE_PARM (mac, "s");
-#else
 module_param (mac, charp, 0);
-#endif
 MODULE_PARM_DESC (mac, "rt28xx: wireless mac addr");
 
 
@@ -75,9 +71,7 @@ extern void ba_reordering_resource_release(PRTMP_ADAPTER pAd);
 #endif // DOT11_N_SUPPORT //
 extern NDIS_STATUS NICLoadRateSwitchingParams(IN PRTMP_ADAPTER pAd);
 
-#ifdef RT2860
 extern void init_thread_task(PRTMP_ADAPTER pAd);
-#endif // RT2860 //
 
 // public function prototype
 INT __devinit rt28xx_probe(IN void *_dev_p, IN void *_dev_id_p,
@@ -86,13 +80,6 @@ INT __devinit rt28xx_probe(IN void *_dev_p, IN void *_dev_id_p,
 // private function prototype
 static int rt28xx_init(IN struct net_device *net_dev);
 INT rt28xx_send_packets(IN struct sk_buff *skb_p, IN struct net_device *net_dev);
-
-#if LINUX_VERSION_CODE <= 0x20402	// Red Hat 7.1
-struct net_device *alloc_netdev(
-	int sizeof_priv,
-	const char *mask,
-	void (*setup)(struct net_device *));
-#endif // LINUX_VERSION_CODE //
 
 static void CfgInitHook(PRTMP_ADAPTER pAd);
 
@@ -235,15 +222,13 @@ int rt28xx_close(IN PNET_DEV dev)
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
-#ifdef RT2860
-		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_CLOSE);
-#endif // RT2860 //
-
 		// If dirver doesn't wake up firmware here,
 		// NICLoadFirmware will hang forever when interface is up again.
-		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE) ||
+			RTMP_SET_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND) ||
+			RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF))
         {
-		    AsicForceWakeup(pAd, TRUE);
+		    AsicForceWakeup(pAd, RTMP_HALT);
         }
 
 #ifdef QOS_DLS_SUPPORT
@@ -323,9 +308,7 @@ int rt28xx_close(IN PNET_DEV dev)
 #endif // WPA_SUPPLICANT_SUPPORT //
 
 		MlmeRadioOff(pAd);
-#ifdef RT2860
 		pAd->bPCIclkOff = FALSE;
-#endif // RT2860 //
 	}
 #endif // CONFIG_STA_SUPPORT //
 
@@ -359,7 +342,6 @@ int rt28xx_close(IN PNET_DEV dev)
 	TpcReqTabExit(pAd);
 
 
-#ifdef RT2860
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE))
 	{
 		NICDisableInterrupt(pAd);
@@ -375,7 +357,6 @@ int rt28xx_close(IN PNET_DEV dev)
 		RT28XX_IRQ_RELEASE(net_dev)
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE);
 	}
-#endif // RT2860 //
 
 
 	// Free Ring or USB buffers
@@ -439,12 +420,10 @@ static int rt28xx_init(IN struct net_device *net_dev)
 
 	// Disable interrupts here which is as soon as possible
 	// This statement should never be true. We might consider to remove it later
-#ifdef RT2860
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE))
 	{
 		NICDisableInterrupt(pAd);
 	}
-#endif // RT2860 //
 
 	Status = RTMPAllocTxRxRingMemory(pAd);
 	if (Status != NDIS_STATUS_SUCCESS)
@@ -667,26 +646,6 @@ int rt28xx_open(IN PNET_DEV dev)
 #endif // WIRELESS_EXT >= 12 //
 #endif // CONFIG_APSTA_MIXED_SUPPORT //
 
-#ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-    	// If dirver doesn't wake up firmware here,
-    	// NICLoadFirmware will hang forever when interface is up again.
-    	// RT2860 PCI
-    	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE) &&
-        	OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
-    	{
-        	AUTO_WAKEUP_STRUC AutoWakeupCfg;
-			AsicForceWakeup(pAd, TRUE);
-        	AutoWakeupCfg.word = 0;
-	    	RTMP_IO_WRITE32(pAd, AUTO_WAKEUP_CFG, AutoWakeupCfg.word);
-        	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
-    	}
-	}
-#endif // RT2860 //
-#endif // CONFIG_STA_SUPPORT //
-
 	// Init
  	pObj = (POS_COOKIE)pAd->OS_Cookie;
 
@@ -753,10 +712,8 @@ int rt28xx_open(IN PNET_DEV dev)
 	}
 
 #ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
         RTMPInitPCIeLinkCtrlValue(pAd);
-#endif // RT2860 //
 #endif // CONFIG_STA_SUPPORT //
 
 	return (retval);
@@ -808,9 +765,7 @@ static NDIS_STATUS rt_ieee80211_if_setup(struct net_device *dev, PRTMP_ADAPTER p
 	dev->stop = MainVirtualIF_close; //rt28xx_close;
 	dev->priv_flags = INT_MAIN;
 	dev->do_ioctl = rt28xx_ioctl;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
-    dev->validate_addr = NULL;
-#endif
+	dev->validate_addr = NULL;
 	// find available device name
 	for (i = 0; i < 8; i++)
 	{
@@ -821,25 +776,11 @@ static NDIS_STATUS rt_ieee80211_if_setup(struct net_device *dev, PRTMP_ADAPTER p
 #endif // MULTIPLE_CARD_SUPPORT //
 		sprintf(slot_name, "ra%d", i);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-        device = dev_get_by_name(dev_net(dev), slot_name);
-#else
-        device = dev_get_by_name(dev->nd_net, slot_name);
-#endif
-#else
-		device = dev_get_by_name(slot_name);
-#endif
-		if (device != NULL) dev_put(device);
-#else
-		for (device = dev_base; device != NULL; device = device->next)
-		{
-			if (strncmp(device->name, slot_name, 4) == 0)
-				break;
-		}
-#endif
-		if(device == NULL)
+		device = dev_get_by_name(dev_net(dev), slot_name);
+		if (device != NULL)
+			dev_put(device);
+
+		if (device == NULL)
 			break;
 	}
 
@@ -1252,37 +1193,20 @@ INT __devinit   rt28xx_probe(
     PRTMP_ADAPTER       pAd = (PRTMP_ADAPTER) NULL;
     INT                 status;
 	PVOID				handle;
-#ifdef RT2860
 	struct pci_dev *dev_p = (struct pci_dev *)_dev_p;
-#endif // RT2860 //
 
 
 #ifdef CONFIG_STA_SUPPORT
     DBGPRINT(RT_DEBUG_TRACE, ("STA Driver version-%s\n", STA_DRIVER_VERSION));
 #endif // CONFIG_STA_SUPPORT //
 
-#if LINUX_VERSION_CODE <= 0x20402       // Red Hat 7.1
-    net_dev = alloc_netdev(sizeof(PRTMP_ADAPTER), "eth%d", ether_setup);
-#else
     net_dev = alloc_etherdev(sizeof(PRTMP_ADAPTER));
-#endif
     if (net_dev == NULL)
     {
         printk("alloc_netdev failed\n");
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-		module_put(THIS_MODULE);
-#endif //LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-#else
-		MOD_DEC_USE_COUNT;
-#endif
         goto err_out;
     }
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-    SET_MODULE_OWNER(net_dev);
-#endif
 
 	netif_stop_queue(net_dev);
 #ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
@@ -1290,9 +1214,7 @@ INT __devinit   rt28xx_probe(
 /* Set the sysfs physical device reference for the network logical device
  * if set prior to registration will cause a symlink during initialization.
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))
     SET_NETDEV_DEV(net_dev, &(dev_p->dev));
-#endif
 #endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 
 	// Allocate RTMP_ADAPTER miniport adapter structure
@@ -1313,13 +1235,8 @@ INT __devinit   rt28xx_probe(
 #endif // CONFIG_STA_SUPPORT //
 
 	// Post config
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	if (RT28XXProbePostConfig(_dev_p, pAd, argc) == FALSE)
-		goto err_out_unmap;
-#else
 	if (RT28XXProbePostConfig(_dev_p, pAd, 0) == FALSE)
 		goto err_out_unmap;
-#endif // LINUX_VERSION_CODE //
 
 #ifdef CONFIG_STA_SUPPORT
 	pAd->OpMode = OPMODE_STA;
@@ -1362,20 +1279,12 @@ err_out_unmap:
 	RT28XX_UNMAP();
 
 err_out_free_netdev:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-    free_netdev(net_dev);
-#else
-	kfree(net_dev);
-#endif
+	free_netdev(net_dev);
 
 err_out:
 	RT28XX_PUT_DEVICE(dev_p);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	return (LONG)NULL;
-#else
-    return -ENODEV; /* probe fail */
-#endif // LINUX_VERSION_CODE //
+	return -ENODEV; /* probe fail */
 } /* End of rt28xx_probe */
 
 
@@ -1493,40 +1402,6 @@ INT rt28xx_send_packets(
 } /* End of MBSS_VirtualIF_PacketSend */
 
 
-
-
-#if LINUX_VERSION_CODE <= 0x20402	// Red Hat 7.1
-struct net_device *alloc_netdev(
-	int sizeof_priv,
-	const char *mask,
-	void (*setup)(struct net_device *))
-{
-    struct net_device	*dev;
-    INT					alloc_size;
-
-
-    /* ensure 32-byte alignment of the private area */
-    alloc_size = sizeof (*dev) + sizeof_priv + 31;
-
-    dev = (struct net_device *) kmalloc(alloc_size, GFP_KERNEL);
-    if (dev == NULL)
-    {
-        DBGPRINT(RT_DEBUG_ERROR,
-				("alloc_netdev: Unable to allocate device memory.\n"));
-        return NULL;
-    }
-
-    memset(dev, 0, alloc_size);
-
-    if (sizeof_priv)
-        dev->priv = (void *) (((long)(dev + 1) + 31) & ~31);
-
-    setup(dev);
-    strcpy(dev->name, mask);
-
-    return dev;
-}
-#endif // LINUX_VERSION_CODE //
 
 
 void CfgInitHook(PRTMP_ADAPTER pAd)

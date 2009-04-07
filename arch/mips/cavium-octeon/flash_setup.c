@@ -57,7 +57,7 @@ static int __init flash_init(void)
 		flash_map.bankwidth = 1;
 		flash_map.virt = ioremap(flash_map.phys, flash_map.size);
 		pr_notice("Bootbus flash: Setting flash for %luMB flash at "
-			  "0x%08lx\n", flash_map.size >> 20, flash_map.phys);
+			  "0x%08llx\n", flash_map.size >> 20, flash_map.phys);
 		simple_map_init(&flash_map);
 		mymtd = do_map_probe("cfi_probe", &flash_map);
 		if (mymtd) {

@@ -31,10 +31,13 @@
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "dm-bio-list.h"
 #include <linux/delay.h>
-#include <linux/raid/raid1.h>
-#include <linux/raid/bitmap.h>
+#include <linux/blkdev.h>
+#include <linux/seq_file.h>
+#include "md.h"
+#include "dm-bio-list.h"
+#include "raid1.h"
+#include "bitmap.h"
 
 #define DEBUG 0
 #if DEBUG
@@ -120,6 +123,7 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 				goto out_free_pages;
 
 			bio->bi_io_vec[i].bv_page = page;
+			bio->bi_vcnt = i+1;
 		}
 	}
 	/* If not user-requests, copy the page pointers to all bios */
@@ -135,9 +139,9 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 	return r1_bio;
 
 out_free_pages:
-	for (i=0; i < RESYNC_PAGES ; i++)
-		for (j=0 ; j < pi->raid_disks; j++)
-			safe_put_page(r1_bio->bios[j]->bi_io_vec[i].bv_page);
+	for (j=0 ; j < pi->raid_disks; j++)
+		for (i=0; i < r1_bio->bios[j]->bi_vcnt ; i++)
+			put_page(r1_bio->bios[j]->bi_io_vec[i].bv_page);
 	j = -1;
 out_free_bio:
 	while ( ++j < pi->raid_disks )
@@ -582,7 +586,7 @@ static int raid1_congested(void *data, int bits)
 			/* Note the '|| 1' - when read_balance prefers
 			 * non-congested targets, it can be removed
 			 */
-			if ((bits & (1<<BDI_write_congested)) || 1)
+			if ((bits & (1<<BDI_async_congested)) || 1)
 				ret |= bdi_congested(&q->backing_dev_info, bits);
 			else
 				ret &= bdi_congested(&q->backing_dev_info, bits);
@@ -1237,8 +1241,9 @@ static void end_sync_write(struct bio *bio, int error)
 	update_head_pos(mirror, r1_bio);
 
 	if (atomic_dec_and_test(&r1_bio->remaining)) {
-		md_done_sync(mddev, r1_bio->sectors, uptodate);
+		sector_t s = r1_bio->sectors;
 		put_buf(r1_bio);
+		md_done_sync(mddev, s, uptodate);
 	}
 }
 
@@ -1722,7 +1727,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			return 0;
 	}
 
-	max_sector = mddev->size << 1;
+	max_sector = mddev->dev_sectors;
 	if (sector_nr >= max_sector) {
 		/* If we aborted, we need to abort the
 		 * sync on the 'current' bitmap chunk (there will
@@ -1918,6 +1923,14 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	return nr_sectors;
 }
 
+static sector_t raid1_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+{
+	if (sectors)
+		return sectors;
+
+	return mddev->dev_sectors;
+}
+
 static int run(mddev_t *mddev)
 {
 	conf_t *conf;
@@ -2047,7 +2060,7 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_sectors = mddev->size * 2;
+	md_set_array_sectors(mddev, raid1_size(mddev, 0, 0));
 
 	mddev->queue->unplug_fn = raid1_unplug;
 	mddev->queue->backing_dev_info.congested_fn = raid1_congested;
@@ -2088,6 +2101,9 @@ static int stop(mddev_t *mddev)
 		/* need to kick something here to make sure I/O goes? */
 	}
 
+	raise_barrier(conf);
+	lower_barrier(conf);
+
 	md_unregister_thread(mddev->thread);
 	mddev->thread = NULL;
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
@@ -2109,15 +2125,17 @@ static int raid1_resize(mddev_t *mddev, sector_t sectors)
 	 * any io in the removed space completes, but it hardly seems
 	 * worth it.
 	 */
-	mddev->array_sectors = sectors;
+	md_set_array_sectors(mddev, raid1_size(mddev, sectors, 0));
+	if (mddev->array_sectors > raid1_size(mddev, sectors, 0))
+		return -EINVAL;
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
-	if (mddev->array_sectors / 2 > mddev->size &&
+	if (sectors > mddev->dev_sectors &&
 	    mddev->recovery_cp == MaxSector) {
-		mddev->recovery_cp = mddev->size << 1;
+		mddev->recovery_cp = mddev->dev_sectors;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	}
-	mddev->size = mddev->array_sectors / 2;
+	mddev->dev_sectors = sectors;
 	mddev->resync_max_sectors = sectors;
 	return 0;
 }
@@ -2263,6 +2281,7 @@ static struct mdk_personality raid1_personality =
 	.spare_active	= raid1_spare_active,
 	.sync_request	= sync_request,
 	.resize		= raid1_resize,
+	.size		= raid1_size,
 	.check_reshape	= raid1_reshape,
 	.quiesce	= raid1_quiesce,
 };

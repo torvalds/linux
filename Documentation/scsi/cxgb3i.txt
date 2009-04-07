@@ -4,7 +4,7 @@ Introduction
 ============
 
 The Chelsio T3 ASIC based Adapters (S310, S320, S302, S304, Mezz cards, etc.
-series of products) supports iSCSI acceleration and iSCSI Direct Data Placement
+series of products) support iSCSI acceleration and iSCSI Direct Data Placement
 (DDP) where the hardware handles the expensive byte touching operations, such
 as CRC computation and verification, and direct DMA to the final host memory
 destination:
@@ -31,9 +31,9 @@ destination:
 	  the TCP segments onto the wire. It handles TCP retransmission if
 	  needed.
 
-	  On receving, S3 h/w recovers the iSCSI PDU by reassembling TCP
+	  On receiving, S3 h/w recovers the iSCSI PDU by reassembling TCP
 	  segments, separating the header and data, calculating and verifying
-	  the digests, then forwards the header to the host. The payload data,
+	  the digests, then forwarding the header to the host. The payload data,
 	  if possible, will be directly placed into the pre-posted host DDP
 	  buffer. Otherwise, the payload data will be sent to the host too.
 
@@ -68,9 +68,8 @@ The following steps need to be taken to accelerates the open-iscsi initiator:
 	sure the ip address is unique in the network.
 
 3. edit /etc/iscsi/iscsid.conf
-   The default setting for MaxRecvDataSegmentLength (131072) is too big,
-   replace "node.conn[0].iscsi.MaxRecvDataSegmentLength" to be a value no
-   bigger than 15360 (for example 8192):
+   The default setting for MaxRecvDataSegmentLength (131072) is too big;
+   replace with a value no bigger than 15360 (for example 8192):
 
 	node.conn[0].iscsi.MaxRecvDataSegmentLength = 8192
 

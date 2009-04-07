@@ -6,20 +6,47 @@ be removed from this file.
 
 ---------------------------
 
-What:	old static regulatory information and ieee80211_regdom module parameter
-When:	2.6.29
+What:	The ieee80211_regdom module parameter
+When:	March 2010 / desktop catchup
+
+Why:	This was inherited by the CONFIG_WIRELESS_OLD_REGULATORY code,
+	and currently serves as an option for users to define an
+	ISO / IEC 3166 alpha2 code for the country they are currently
+	present in. Although there are userspace API replacements for this
+	through nl80211 distributions haven't yet caught up with implementing
+	decent alternatives through standard GUIs. Although available as an
+	option through iw or wpa_supplicant its just a matter of time before
+	distributions pick up good GUI options for this. The ideal solution
+	would actually consist of intelligent designs which would do this for
+	the user automatically even when travelling through different countries.
+	Until then we leave this module parameter as a compromise.
+
+	When userspace improves with reasonable widely-available alternatives for
+	this we will no longer need this module parameter. This entry hopes that
+	by the super-futuristically looking date of "March 2010" we will have
+	such replacements widely available.
+
+Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
+
+---------------------------
+
+What:	CONFIG_WIRELESS_OLD_REGULATORY - old static regulatory information
+When:	March 2010 / desktop catchup
+
 Why:	The old regulatory infrastructure has been replaced with a new one
 	which does not require statically defined regulatory domains. We do
 	not want to keep static regulatory domains in the kernel due to the
 	the dynamic nature of regulatory law and localization. We kept around
 	the old static definitions for the regulatory domains of:
+
 		* US
 		* JP
 		* EU
+
 	and used by default the US when CONFIG_WIRELESS_OLD_REGULATORY was
-	set. We also kept around the ieee80211_regdom module parameter in case
-	some applications were relying on it. Changing regulatory domains
-	can now be done instead by using nl80211, as is done with iw.
+	set. We will remove this option once the standard Linux desktop catches
+	up with the new userspace APIs we have implemented.
+
 Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
 ---------------------------
@@ -37,10 +64,10 @@ Who:	Pavel Machek <pavel@suse.cz>
 
 ---------------------------
 
-What:	Video4Linux API 1 ioctls and video_decoder.h from Video devices.
-When:	December 2008
-Files:	include/linux/video_decoder.h include/linux/videodev.h
-Check:	include/linux/video_decoder.h include/linux/videodev.h
+What:	Video4Linux API 1 ioctls and from Video devices.
+When:	July 2009
+Files:	include/linux/videodev.h
+Check:	include/linux/videodev.h
 Why:	V4L1 AP1 was replaced by V4L2 API during migration from 2.4 to 2.6
 	series. The old API have lots of drawbacks and don't provide enough
 	means to work with all video and audio standards. The newer API is
@@ -228,8 +255,20 @@ Who:	Jan Engelhardt <jengelh@computergmbh.de>
 
 ---------------------------
 
+What:	GPIO autorequest on gpio_direction_{input,output}() in gpiolib
+When:	February 2010
+Why:	All callers should use explicit gpio_request()/gpio_free().
+	The autorequest mechanism in gpiolib was provided mostly as a
+	migration aid for legacy GPIO interfaces (for SOC based GPIOs).
+	Those users have now largely migrated.  Platforms implementing
+	the GPIO interfaces without using gpiolib will see no changes.
+Who:	David Brownell <dbrownell@users.sourceforge.net>
+---------------------------
+
 What:	b43 support for firmware revision < 410
-When:	July 2008
+When:	The schedule was July 2008, but it was decided that we are going to keep the
+        code as long as there are no major maintanance headaches.
+	So it _could_ be removed _any_ time now, if it conflicts with something new.
 Why:	The support code for the old firmware hurts code readability/maintainability
 	and slightly hurts runtime performance. Bugfixes for the old firmware
 	are not provided by Broadcom anymore.
@@ -241,13 +280,6 @@ What:	usedac i386 kernel parameter
 When:	2.6.27
 Why:	replaced by allowdac and no dac combination
 Who:	Glauber Costa <gcosta@redhat.com>
-
----------------------------
-
-What:	remove HID compat support
-When:	2.6.29
-Why:	needed only as a temporary solution until distros fix themselves up
-Who:	Jiri Slaby <jirislaby@gmail.com>
 
 ---------------------------
 
@@ -282,6 +314,18 @@ Who:	Vlad Yasevich <vladislav.yasevich@hp.com>
 
 ---------------------------
 
+What:	Ability for non root users to shm_get hugetlb pages based on mlock
+	resource limits
+When:	2.6.31
+Why:	Non root users need to be part of /proc/sys/vm/hugetlb_shm_group or
+	have CAP_IPC_LOCK to be able to allocate shm segments backed by
+	huge pages.  The mlock based rlimit check to allow shm hugetlb is
+	inconsistent with mmap based allocations.  Hence it is being
+	deprecated.
+Who:	Ravikiran Thirumalai <kiran@scalex86.org>
+
+---------------------------
+
 What:	CONFIG_THERMAL_HWMON
 When:	January 2009
 Why:	This option was introduced just to allow older lm-sensors userspace
@@ -310,8 +354,10 @@ Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
 
 ---------------------------
 
-What:	i2c_attach_client(), i2c_detach_client(), i2c_driver->detach_client()
-When:	2.6.29 (ideally) or 2.6.30 (more likely)
+What:	i2c_attach_client(), i2c_detach_client(), i2c_driver->detach_client(),
+	i2c_adapter->client_register(), i2c_adapter->client_unregister
+When:	2.6.30
+Check:	i2c_attach_client i2c_detach_client
 Why:	Deprecated by the new (standard) device driver binding model. Use
 	i2c_driver->probe() and ->remove() instead.
 Who:	Jean Delvare <khali@linux-fr.org>
@@ -326,12 +372,59 @@ Who:	Hans de Goede <hdegoede@redhat.com>
 
 ---------------------------
 
-What:	SELinux "compat_net" functionality
-When:	2.6.30 at the earliest
-Why:	In 2.6.18 the Secmark concept was introduced to replace the "compat_net"
-	network access control functionality of SELinux.  Secmark offers both
-	better performance and greater flexibility than the "compat_net"
-	mechanism.  Now that the major Linux distributions have moved to
-	Secmark, it is time to deprecate the older mechanism and start the
-	process of removing the old code.
-Who:	Paul Moore <paul.moore@hp.com>
+What:	sysfs ui for changing p4-clockmod parameters
+When:	September 2009
+Why:	See commits 129f8ae9b1b5be94517da76009ea956e89104ce8 and
+	e088e4c9cdb618675874becb91b2fd581ee707e6.
+	Removal is subject to fixing any remaining bugs in ACPI which may
+	cause the thermal throttling not to happen at the right time.
+Who:	Dave Jones <davej@redhat.com>, Matthew Garrett <mjg@redhat.com>
+
+-----------------------------
+
+What:	__do_IRQ all in one fits nothing interrupt handler
+When:	2.6.32
+Why:	__do_IRQ was kept for easy migration to the type flow handlers.
+	More than two years of migration time is enough.
+Who:	Thomas Gleixner <tglx@linutronix.de>
+
+-----------------------------
+
+What:	obsolete generic irq defines and typedefs
+When:	2.6.30
+Why:	The defines and typedefs (hw_interrupt_type, no_irq_type, irq_desc_t)
+	have been kept around for migration reasons. After more than two years
+	it's time to remove them finally
+Who:	Thomas Gleixner <tglx@linutronix.de>
+
+---------------------------
+
+What:	fakephp and associated sysfs files in /sys/bus/pci/slots/
+When:	2011
+Why:	In 2.6.27, the semantics of /sys/bus/pci/slots was redefined to
+	represent a machine's physical PCI slots. The change in semantics
+	had userspace implications, as the hotplug core no longer allowed
+	drivers to create multiple sysfs files per physical slot (required
+	for multi-function devices, e.g.). fakephp was seen as a developer's
+	tool only, and its interface changed. Too late, we learned that
+	there were some users of the fakephp interface.
+
+	In 2.6.30, the original fakephp interface was restored. At the same
+	time, the PCI core gained the ability that fakephp provided, namely
+	function-level hot-remove and hot-add.
+
+	Since the PCI core now provides the same functionality, exposed in:
+
+		/sys/bus/pci/rescan
+		/sys/bus/pci/devices/.../remove
+		/sys/bus/pci/devices/.../rescan
+
+	there is no functional reason to maintain fakephp as well.
+
+	We will keep the existing module so that 'modprobe fakephp' will
+	present the old /sys/bus/pci/slots/... interface for compatibility,
+	but users are urged to migrate their applications to the API above.
+
+	After a reasonable transition period, we will remove the legacy
+	fakephp interface.
+Who:	Alex Chiang <achiang@hp.com>

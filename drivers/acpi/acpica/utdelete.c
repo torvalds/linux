@@ -86,7 +86,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	 * Must delete or free any pointers within the object that are not
 	 * actual ACPI objects (for example, a raw buffer pointer).
 	 */
-	switch (ACPI_GET_OBJECT_TYPE(object)) {
+	switch (object->common.type) {
 	case ACPI_TYPE_STRING:
 
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
@@ -382,7 +382,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 					  object, new_count));
 		}
 
-		if (ACPI_GET_OBJECT_TYPE(object) == ACPI_TYPE_METHOD) {
+		if (object->common.type == ACPI_TYPE_METHOD) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
 					  "Method Obj %p Refs=%X, [Decremented]\n",
 					  object, new_count));
@@ -469,7 +469,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		 * All sub-objects must have their reference count incremented also.
 		 * Different object types have different subobjects.
 		 */
-		switch (ACPI_GET_OBJECT_TYPE(object)) {
+		switch (object->common.type) {
 		case ACPI_TYPE_DEVICE:
 		case ACPI_TYPE_PROCESSOR:
 		case ACPI_TYPE_POWER:

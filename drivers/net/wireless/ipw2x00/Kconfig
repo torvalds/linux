@@ -150,6 +150,7 @@ config IPW2200_DEBUG
 
 config LIBIPW
 	tristate
+	depends on PCI && WLAN_80211
 	select WIRELESS_EXT
 	select CRYPTO
 	select CRYPTO_ARC4
@@ -185,7 +186,7 @@ config LIBIPW_DEBUG
 	  % echo 0x00000FFO > /proc/net/ieee80211/debug_level
 
 	  For a list of values you can assign to debug_level, you
-	  can look at the bit mask values in <net/ieee80211.h>
+	  can look at the bit mask values in ieee80211.h
 
 	  If you are not trying to debug or develop the libipw
 	  component, you most likely want to say N here.

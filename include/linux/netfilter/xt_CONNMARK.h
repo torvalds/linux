@@ -1,6 +1,8 @@
 #ifndef _XT_CONNMARK_H_target
 #define _XT_CONNMARK_H_target
 
+#include <linux/types.h>
+
 /* Copyright (C) 2002,2004 MARA Systems AB <http://www.marasystems.com>
  * by Henrik Nordstrom <hno@marasystems.com>
  *
@@ -19,12 +21,12 @@ enum {
 struct xt_connmark_target_info {
 	unsigned long mark;
 	unsigned long mask;
-	u_int8_t mode;
+	__u8 mode;
 };
 
 struct xt_connmark_tginfo1 {
-	u_int32_t ctmark, ctmask, nfmask;
-	u_int8_t mode;
+	__u32 ctmark, ctmask, nfmask;
+	__u8 mode;
 };
 
 #endif /*_XT_CONNMARK_H_target*/

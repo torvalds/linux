@@ -15,8 +15,6 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 #include <mach/pxa3xx-regs.h>
 
 #include "generic.h"

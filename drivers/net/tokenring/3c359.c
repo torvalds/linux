@@ -62,6 +62,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
+#include <linux/firmware.h>
 
 #include <net/checksum.h>
 
@@ -73,8 +74,10 @@
 static char version[] __devinitdata  = 
 "3c359.c v1.2.0 2/17/01 - Mike Phillips (mikep@linuxtr.net)" ; 
 
+#define FW_NAME		"3com/3C359.bin"
 MODULE_AUTHOR("Mike Phillips <mikep@linuxtr.net>") ; 
 MODULE_DESCRIPTION("3Com 3C359 Velocity XL Token Ring Adapter Driver \n") ;
+MODULE_FIRMWARE(FW_NAME);
 
 /* Module paramters */
 
@@ -113,8 +116,6 @@ MODULE_PARM_DESC(message_level, "3c359: Level of reported messages") ;
  *	This is a real nasty way of doing this, but otherwise you
  *	will be stuck with 1555 lines of hex #'s in the code.
  */
-
-#include "3c359_microcode.h" 
 
 static struct pci_device_id xl_pci_tbl[] =
 {
@@ -274,6 +275,15 @@ static void  xl_ee_write(struct net_device *dev, int ee_addr, u16 ee_value)
 	
 	return ; 
 }
+
+static const struct net_device_ops xl_netdev_ops = {
+	.ndo_open		= xl_open,
+	.ndo_stop		= xl_close,
+	.ndo_start_xmit		= xl_xmit,
+	.ndo_change_mtu		= xl_change_mtu,
+	.ndo_set_multicast_list = xl_set_rx_mode,
+	.ndo_set_mac_address	= xl_set_mac_address,
+};
  
 static int __devinit xl_probe(struct pci_dev *pdev,
 			      const struct pci_device_id *ent) 
@@ -337,13 +347,7 @@ static int __devinit xl_probe(struct pci_dev *pdev,
 		return i ; 
 	}				
 
-	dev->open=&xl_open;
-	dev->hard_start_xmit=&xl_xmit;
-	dev->change_mtu=&xl_change_mtu;
-	dev->stop=&xl_close;
-	dev->do_ioctl=NULL;
-	dev->set_multicast_list=&xl_set_rx_mode;
-	dev->set_mac_address=&xl_set_mac_address ; 
+	dev->netdev_ops = &xl_netdev_ops;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	pci_set_drvdata(pdev,dev) ; 
@@ -361,10 +365,30 @@ static int __devinit xl_probe(struct pci_dev *pdev,
 	return 0; 
 }
 
+static int xl_init_firmware(struct xl_private *xl_priv)
+{
+	int err;
+
+	err = request_firmware(&xl_priv->fw, FW_NAME, &xl_priv->pdev->dev);
+	if (err) {
+		printk(KERN_ERR "Failed to load firmware \"%s\"\n", FW_NAME);
+		return err;
+	}
+
+	if (xl_priv->fw->size < 16) {
+		printk(KERN_ERR "Bogus length %zu in \"%s\"\n",
+		       xl_priv->fw->size, FW_NAME);
+		release_firmware(xl_priv->fw);
+		err = -EINVAL;
+	}
+
+	return err;
+}
 
 static int __devinit xl_init(struct net_device *dev) 
 {
 	struct xl_private *xl_priv = netdev_priv(dev);
+	int err;
 
 	printk(KERN_INFO "%s \n", version);
 	printk(KERN_INFO "%s: I/O at %hx, MMIO at %p, using irq %d\n",
@@ -372,8 +396,11 @@ static int __devinit xl_init(struct net_device *dev)
 
 	spin_lock_init(&xl_priv->xl_lock) ; 
 
-	return xl_hw_reset(dev) ; 
+	err = xl_init_firmware(xl_priv);
+	if (err == 0)
+		err = xl_hw_reset(dev);
 
+	return err;
 }
 
 
@@ -383,7 +410,7 @@ static int __devinit xl_init(struct net_device *dev)
  */
 
 static int xl_hw_reset(struct net_device *dev) 
-{ 
+{
 	struct xl_private *xl_priv = netdev_priv(dev);
 	u8 __iomem *xl_mmio = xl_priv->xl_mmio ; 
 	unsigned long t ; 
@@ -392,6 +419,9 @@ static int xl_hw_reset(struct net_device *dev)
 	u8 result_8 ;
 	u16 start ; 
 	int j ;
+
+	if (xl_priv->fw == NULL)
+		return -EINVAL;
 
 	/*
 	 *  Reset the card.  If the card has got the microcode on board, we have 
@@ -455,25 +485,30 @@ static int xl_hw_reset(struct net_device *dev)
 
 		/* 
 		 * Now to write the microcode into the shared ram 
-	 	 * The microcode must finish at position 0xFFFF, so we must subtract
-		 * to get the start position for the code
+	 	 * The microcode must finish at position 0xFFFF,
+	 	 * so we must subtract to get the start position for the code
+	 	 *
+		 * Looks strange but ensures compiler only uses
+		 * 16 bit unsigned int
 		 */
+		start = (0xFFFF - (xl_priv->fw->size) + 1) ;
 
-		start = (0xFFFF - (mc_size) + 1 ) ; /* Looks strange but ensures compiler only uses 16 bit unsigned int for this */ 
-		
 		printk(KERN_INFO "3C359: Uploading Microcode: "); 
-		
-		for (i = start, j = 0; j < mc_size; i++, j++) { 
-			writel(MEM_BYTE_WRITE | 0XD0000 | i, xl_mmio + MMIO_MAC_ACCESS_CMD) ; 
-			writeb(microcode[j],xl_mmio + MMIO_MACDATA) ; 
+
+		for (i = start, j = 0; j < xl_priv->fw->size; i++, j++) {
+			writel(MEM_BYTE_WRITE | 0XD0000 | i,
+			       xl_mmio + MMIO_MAC_ACCESS_CMD);
+			writeb(xl_priv->fw->data[j], xl_mmio + MMIO_MACDATA);
 			if (j % 1024 == 0)
 				printk(".");
 		}
 		printk("\n") ; 
 
-		for (i=0;i < 16; i++) { 
-			writel( (MEM_BYTE_WRITE | 0xDFFF0) + i, xl_mmio + MMIO_MAC_ACCESS_CMD) ; 
-			writeb(microcode[mc_size - 16 + i], xl_mmio + MMIO_MACDATA) ; 
+		for (i = 0; i < 16; i++) {
+			writel((MEM_BYTE_WRITE | 0xDFFF0) + i,
+			       xl_mmio + MMIO_MAC_ACCESS_CMD);
+			writeb(xl_priv->fw->data[xl_priv->fw->size - 16 + i],
+			       xl_mmio + MMIO_MACDATA);
 		}
 
 		/*
@@ -1779,6 +1814,7 @@ static void __devexit xl_remove_one (struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct xl_private *xl_priv=netdev_priv(dev);
 	
+	release_firmware(xl_priv->fw);
 	unregister_netdev(dev);
 	iounmap(xl_priv->xl_mmio) ; 
 	pci_release_regions(pdev) ; 

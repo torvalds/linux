@@ -17,8 +17,8 @@
 #include "debug.h"
 #include "phy.h"
 
-unsigned int rx_frame_cnt = 0;
-//unsigned int local_tx_sent_cnt = 0;
+unsigned int rx_frame_cnt;
+/* unsigned int local_tx_sent_cnt = 0; */
 
 static inline void disable_rx_engine(struct agnx_priv *priv)
 {
@@ -242,15 +242,15 @@ static void get_rx_stats(struct agnx_priv *priv, struct agnx_hdr *hdr,
 	memset(stat, 0, sizeof(*stat));
 	/* RSSI */
 	rssi = (u8 *)&hdr->phy_stats_lo;
-//	stat->ssi = (rssi[0] + rssi[1] + rssi[2]) / 3;
+/*	stat->ssi = (rssi[0] + rssi[1] + rssi[2]) / 3; */
 	/* Noise */
 	noise = ioread32(ctl + AGNX_GCR_NOISE0);
 	noise += ioread32(ctl + AGNX_GCR_NOISE1);
 	noise += ioread32(ctl + AGNX_GCR_NOISE2);
 	stat->noise = noise / 3;
 	/* Signal quality */
-	//snr = stat->ssi - stat->noise;
-	if (snr >=0 && snr < 40)
+/*	snr = stat->ssi - stat->noise; */
+	if (snr >= 0 && snr < 40)
 		stat->signal = 5 * snr / 2;
 	else if (snr >= 40)
 		stat->signal = 100;
@@ -269,10 +269,9 @@ static void get_rx_stats(struct agnx_priv *priv, struct agnx_hdr *hdr,
 
 	stat->band = IEEE80211_BAND_2GHZ;
 	stat->freq = agnx_channels[priv->channel - 1].center_freq;
-//	stat->antenna = 3;
-//	stat->mactime = be32_to_cpu(hdr->time_stamp);
-//	stat->channel = priv->channel;
-
+/*	stat->antenna = 3;
+	stat->mactime = be32_to_cpu(hdr->time_stamp);
+	stat->channel = priv->channel; */
 }
 
 static inline void combine_hdr_frag(struct ieee80211_hdr *ieeehdr,
@@ -296,7 +295,7 @@ static inline void combine_hdr_frag(struct ieee80211_hdr *ieeehdr,
 static inline int agnx_packet_check(struct agnx_priv *priv, struct agnx_hdr *agnxhdr,
 				    unsigned packet_len)
 {
-	if (agnx_get_bits(CRC_FAIL, CRC_FAIL_SHIFT, be32_to_cpu(agnxhdr->reg1)) == 1){
+	if (agnx_get_bits(CRC_FAIL, CRC_FAIL_SHIFT, be32_to_cpu(agnxhdr->reg1)) == 1) {
 		printk(PFX "RX: CRC check fail\n");
 		goto drop;
 	}
@@ -320,7 +319,7 @@ void handle_rx_irq(struct agnx_priv *priv)
 {
 	struct ieee80211_rx_status status;
 	unsigned int len;
-//	AGNX_TRACE;
+/*	AGNX_TRACE; */
 
 	do {
 		struct agnx_desc *desc;
@@ -341,54 +340,54 @@ void handle_rx_irq(struct agnx_priv *priv)
 
 		len = (frag & PACKET_LEN) >> PACKET_LEN_SHIFT;
 		if (agnx_packet_check(priv, hdr, len) == -1) {
- 			rx_desc_reusing(priv, i);
+			rx_desc_reusing(priv, i);
 			continue;
 		}
 		skb_put(skb, len);
 
 		do {
-			u16 fctl;
+				u16 fctl;
 			fctl = le16_to_cpu(((struct ieee80211_hdr *)hdr->mac_hdr)->frame_control);
-			if ((fctl & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_BEACON)// && !(fctl & IEEE80211_STYPE_BEACON))
+			if ((fctl & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_BEACON)/* && !(fctl & IEEE80211_STYPE_BEACON)) */
 				dump_ieee80211_hdr((struct ieee80211_hdr *)hdr->mac_hdr, "RX");
 		} while (0);
 
 		if (hdr->_11b0 && !hdr->_11g0) {
-/* 			int j; */
-/* 			u16 fctl = le16_to_cpu(((struct ieee80211_hdr *)hdr->mac_hdr) */
-/* 					       ->frame_control); */
-/* 			if ( (fctl & IEEE80211_FCTL_FTYPE) ==  IEEE80211_FTYPE_DATA) { */
-/* 				agnx_print_rx_hdr(hdr); */
-// 				agnx_print_sta(priv, BSSID_STAID);
-/* 				for (j = 0; j < 8; j++) */
-/* 					agnx_print_sta_tx_wq(priv, BSSID_STAID, j);		 */
-/* 			} */
+/*			int j;
+			u16 fctl = le16_to_cpu(((struct ieee80211_hdr *)hdr->mac_hdr)
+					       ->frame_control);
+			if ( (fctl & IEEE80211_FCTL_FTYPE) ==  IEEE80211_FTYPE_DATA) {
+				agnx_print_rx_hdr(hdr);
+				agnx_print_sta(priv, BSSID_STAID);
+				for (j = 0; j < 8; j++)
+					agnx_print_sta_tx_wq(priv, BSSID_STAID, j);
+			} */
 
 			get_rx_stats(priv, hdr, &status);
 			skb_pull(skb, sizeof(*hdr));
 			combine_hdr_frag((struct ieee80211_hdr *)hdr->mac_hdr, skb);
 		} else if (!hdr->_11b0 && hdr->_11g0) {
-//			int j;
+/*			int j; */
 			agnx_print_rx_hdr(hdr);
 			agnx_print_sta(priv, BSSID_STAID);
-//			for (j = 0; j < 8; j++)
+/*			for (j = 0; j < 8; j++) */
 			agnx_print_sta_tx_wq(priv, BSSID_STAID, 0);
 
 			print_hex_dump_bytes("agnx: RX_PACKET: ", DUMP_PREFIX_NONE,
 					     skb->data, skb->len + 8);
 
-//			if (agnx_plcp_get_bitrate_ofdm(&hdr->_11g0) == 0)
+/*			if (agnx_plcp_get_bitrate_ofdm(&hdr->_11g0) == 0) */
 			get_rx_stats(priv, hdr, &status);
 			skb_pull(skb, sizeof(*hdr));
 			combine_hdr_frag((struct ieee80211_hdr *)
 					 ((void *)&hdr->mac_hdr), skb);
-//			dump_ieee80211_hdr((struct ieee80211_hdr *)skb->data, "RX G");
+/*			dump_ieee80211_hdr((struct ieee80211_hdr *)skb->data, "RX G"); */
 		} else
 			agnx_bug("Unknown packets type");
 		ieee80211_rx_irqsafe(priv->hw, skb, &status);
 		rx_desc_reinit(priv, i);
 
-	} while ( priv->rx.idx++ );
+	} while (priv->rx.idx++);
 } /* handle_rx_irq */
 
 static inline void handle_tx_irq(struct agnx_priv *priv, struct agnx_ring *ring)
@@ -415,40 +414,40 @@ static inline void handle_tx_irq(struct agnx_priv *priv, struct agnx_ring *ring)
 		pci_unmap_single(priv->pdev, info->mapping, info->dma_len, PCI_DMA_TODEVICE);
 
 		do {
-//			int j;
+/*			int j; */
 			size_t len;
 			len = info->skb->len - sizeof(struct agnx_hdr) + info->hdr_len;
-			//	if (len == 614) {
-//				agnx_print_desc(desc);
+/*			if (len == 614) { */
+/*				agnx_print_desc(desc); */
 				if (info->type == PACKET) {
-//					agnx_print_tx_hdr((struct agnx_hdr *)info->skb->data);
-/* 					agnx_print_sta_power(priv, LOCAL_STAID); */
-/* 					agnx_print_sta(priv, LOCAL_STAID); */
-/* //					for (j = 0; j < 8; j++) */
-/* 					agnx_print_sta_tx_wq(priv, LOCAL_STAID, 0); */
-//					agnx_print_sta_power(priv, BSSID_STAID);
-//					agnx_print_sta(priv, BSSID_STAID);
-//					for (j = 0; j < 8; j++)
-//					agnx_print_sta_tx_wq(priv, BSSID_STAID, 0);
+/*					agnx_print_tx_hdr((struct agnx_hdr *)info->skb->data); */
+/*					agnx_print_sta_power(priv, LOCAL_STAID); */
+/*					agnx_print_sta(priv, LOCAL_STAID); */
+/*					for (j = 0; j < 8; j++) */
+/*					agnx_print_sta_tx_wq(priv, LOCAL_STAID, 0); */
+/*					agnx_print_sta_power(priv, BSSID_STAID); */
+/*					agnx_print_sta(priv, BSSID_STAID); */
+/*					for (j = 0; j < 8; j++) */
+/*					agnx_print_sta_tx_wq(priv, BSSID_STAID, 0); */
 				}
-//			}
+/*			} */
 		} while (0);
 
 		if (info->type == PACKET) {
-//			dump_txm_registers(priv);
-//			dump_rxm_registers(priv);
-//			dump_bm_registers(priv);
-//			dump_cir_registers(priv);
+/*			dump_txm_registers(priv);
+			dump_rxm_registers(priv);
+			dump_bm_registers(priv);
+			dump_cir_registers(priv); */
 		}
 
 		if (info->type == PACKET) {
-//			struct ieee80211_hdr *hdr;
+/*			struct ieee80211_hdr *hdr; */
 			struct ieee80211_tx_info *txi = IEEE80211_SKB_CB(info->skb);
 
 			skb_pull(info->skb, sizeof(struct agnx_hdr));
 			memcpy(skb_push(info->skb, info->hdr_len), &info->hdr, info->hdr_len);
 
-//			dump_ieee80211_hdr((struct ieee80211_hdr *)info->skb->data, "TX_HANDLE");
+/*			dump_ieee80211_hdr((struct ieee80211_hdr *)info->skb->data, "TX_HANDLE"); */
 /* 			print_hex_dump_bytes("agnx: TX_HANDLE: ", DUMP_PREFIX_NONE, */
 /* 					     info->skb->data, info->skb->len); */
 
@@ -462,7 +461,7 @@ static inline void handle_tx_irq(struct agnx_priv *priv, struct agnx_ring *ring)
 /* 				ieee80211_tx_status_irqsafe(priv->hw, info->skb, &(info->tx_status)); */
 /* 			} else */
 /* 				dev_kfree_skb_irq(info->skb); */
- 		}
+		}
 		memset(desc, 0, sizeof(*desc));
 		memset(info, 0, sizeof(*info));
 	}
@@ -485,7 +484,7 @@ void handle_txd_irq(struct agnx_priv *priv)
 
 void handle_other_irq(struct agnx_priv *priv)
 {
-//	void __iomem *ctl = priv->ctl;
+/*	void __iomem *ctl = priv->ctl; */
 	u32 status = priv->irq_status;
 	void __iomem *ctl = priv->ctl;
 	u32 reg;
@@ -526,11 +525,11 @@ void handle_other_irq(struct agnx_priv *priv)
 		iowrite32(reg, ctl + AGNX_INT_MASK);
 		iowrite32(IRQ_RX_FRAME, ctl + AGNX_INT_STAT);
 		printk(PFX "IRQ: RX Frame\n");
- 		rx_frame_cnt++;
+		rx_frame_cnt++;
 	}
 	if (status & IRQ_ERR_INT) {
 		iowrite32(IRQ_ERR_INT, ctl + AGNX_INT_STAT);
-//		agnx_hw_reset(priv);
+/*		agnx_hw_reset(priv); */
 		printk(PFX "IRQ: Error Interrupt\n");
 	}
 	if (status & IRQ_TX_QUE_FULL)
@@ -558,14 +557,14 @@ void handle_other_irq(struct agnx_priv *priv)
 
 static inline void route_flag_set(struct agnx_hdr *txhdr)
 {
-//	u32 reg = 0;
+/*	u32 reg = 0; */
 
 	/* FIXME */
-/*  	reg = (0x7 << ROUTE_COMPRESSION_SHIFT) & ROUTE_COMPRESSION; */
-/* 	txhdr->reg5 = cpu_to_be32(reg); */
- 	txhdr->reg5 = (0xa << 0x0) | (0x7 << 0x18);
-// 	txhdr->reg5 = cpu_to_be32((0xa << 0x0) | (0x7 << 0x18));
-// 	txhdr->reg5 = cpu_to_be32(0x7 << 0x0);
+/*	reg = (0x7 << ROUTE_COMPRESSION_SHIFT) & ROUTE_COMPRESSION; */
+/*	txhdr->reg5 = cpu_to_be32(reg); */
+	txhdr->reg5 = (0xa << 0x0) | (0x7 << 0x18);
+/*	txhdr->reg5 = cpu_to_be32((0xa << 0x0) | (0x7 << 0x18)); */
+/*	txhdr->reg5 = cpu_to_be32(0x7 << 0x0); */
 }
 
 /* Return 0 if no match */
@@ -579,12 +578,29 @@ static inline unsigned int get_power_level(unsigned int rate, unsigned int anten
 	case 55:
 	case 60:
 	case 90:
-	case 120: power_level = 22; break;
-	case 180: power_level = 19; break;
-	case 240: power_level = 18; break;
-	case 360: power_level = 16; break;
-	case 480: power_level = 15; break;
-	case 540: power_level = 14; break;
+	case 120:
+		power_level = 22;
+		break;
+
+	case 180:
+		power_level = 19;
+		break;
+
+	case 240:
+		power_level = 18;
+		break;
+
+	case 360:
+		power_level = 16;
+		break;
+
+	case 480:
+		power_level = 15;
+		break;
+
+	case 540:
+		power_level = 14;
+		break;
 	default:
 		agnx_bug("Error rate setting\n");
 	}
@@ -604,30 +620,30 @@ static inline void fill_agnx_hdr(struct agnx_priv *priv, struct agnx_info *tx_in
 
 	memset(txhdr, 0, sizeof(*txhdr));
 
-//	reg = agnx_set_bits(STATION_ID, STATION_ID_SHIFT, LOCAL_STAID);
+/*	reg = agnx_set_bits(STATION_ID, STATION_ID_SHIFT, LOCAL_STAID); */
 	reg = agnx_set_bits(STATION_ID, STATION_ID_SHIFT, BSSID_STAID);
 	reg |= agnx_set_bits(WORKQUEUE_ID, WORKQUEUE_ID_SHIFT, 0);
 	txhdr->reg4 = cpu_to_be32(reg);
 
 	/* Set the Hardware Sequence Number to 1? */
 	reg = agnx_set_bits(SEQUENCE_NUMBER, SEQUENCE_NUMBER_SHIFT, 0);
-//	reg = agnx_set_bits(SEQUENCE_NUMBER, SEQUENCE_NUMBER_SHIFT, 1);
+/*	reg = agnx_set_bits(SEQUENCE_NUMBER, SEQUENCE_NUMBER_SHIFT, 1); */
 	reg |= agnx_set_bits(MAC_HDR_LEN, MAC_HDR_LEN_SHIFT, tx_info->hdr_len);
 	txhdr->reg1 = cpu_to_be32(reg);
 	/* Set the agnx_hdr's MAC header */
 	memcpy(txhdr->mac_hdr, &tx_info->hdr, tx_info->hdr_len);
 
 	reg = agnx_set_bits(ACK, ACK_SHIFT, 1);
-//	reg = agnx_set_bits(ACK, ACK_SHIFT, 0);
+/*	reg = agnx_set_bits(ACK, ACK_SHIFT, 0); */
 	reg |= agnx_set_bits(MULTICAST, MULTICAST_SHIFT, 0);
-//	reg |= agnx_set_bits(MULTICAST, MULTICAST_SHIFT, 1);
+/*	reg |= agnx_set_bits(MULTICAST, MULTICAST_SHIFT, 1); */
 	reg |= agnx_set_bits(RELAY, RELAY_SHIFT, 0);
 	reg |= agnx_set_bits(TM, TM_SHIFT, 0);
 	txhdr->reg0 = cpu_to_be32(reg);
 
 	/* Set the long and short retry limits */
- 	txhdr->tx.short_retry_limit = tx_info->txi->control.rates[0].count;
- 	txhdr->tx.long_retry_limit = tx_info->txi->control.rates[0].count;
+	txhdr->tx.short_retry_limit = tx_info->txi->control.rates[0].count;
+	txhdr->tx.long_retry_limit = tx_info->txi->control.rates[0].count;
 
 	/* FIXME */
 	len = tx_info->skb->len - sizeof(*txhdr) + tx_info->hdr_len + FCS_LEN;
@@ -652,23 +668,23 @@ static void txm_power_set(struct agnx_priv *priv,
 	if (txi->control.rates[0].idx < 0) {
 		/* For B mode Short Preamble */
 		reg = agnx_set_bits(PHY_MODE, PHY_MODE_SHIFT, AGNX_MODE_80211B_SHORT);
-//		control->tx_rate = -control->tx_rate;
+/*		control->tx_rate = -control->tx_rate; */
 	} else
 		reg = agnx_set_bits(PHY_MODE, PHY_MODE_SHIFT, AGNX_MODE_80211G);
-//		reg = agnx_set_bits(PHY_MODE, PHY_MODE_SHIFT, AGNX_MODE_80211B_LONG);
+/*		reg = agnx_set_bits(PHY_MODE, PHY_MODE_SHIFT, AGNX_MODE_80211B_LONG); */
 	reg |= agnx_set_bits(SIGNAL, SIGNAL_SHIFT, 0xB);
 	reg |= agnx_set_bits(RATE, RATE_SHIFT, 0xB);
-//	reg |= agnx_set_bits(POWER_LEVEL, POWER_LEVEL_SHIFT, 15);
+/*	reg |= agnx_set_bits(POWER_LEVEL, POWER_LEVEL_SHIFT, 15); */
 	reg |= agnx_set_bits(POWER_LEVEL, POWER_LEVEL_SHIFT, 20);
 	/* if rate < 11M set it to 0 */
 	reg |= agnx_set_bits(NUM_TRANSMITTERS, NUM_TRANSMITTERS_SHIFT, 1);
-//	reg |= agnx_set_bits(EDCF, EDCF_SHIFT, 1);
-//	reg |= agnx_set_bits(TIFS, TIFS_SHIFT, 1);
+/*	reg |= agnx_set_bits(EDCF, EDCF_SHIFT, 1); */
+/*	reg |= agnx_set_bits(TIFS, TIFS_SHIFT, 1); */
 
 	power.reg = reg;
-//	power.reg = cpu_to_le32(reg);
+/*	power.reg = cpu_to_le32(reg); */
 
-//	set_sta_power(priv, &power, LOCAL_STAID);
+/*	set_sta_power(priv, &power, LOCAL_STAID); */
 	set_sta_power(priv, &power, BSSID_STAID);
 }
 
@@ -759,24 +775,24 @@ static int __agnx_tx(struct agnx_priv *priv, struct sk_buff *skb,
 
 	txm_power_set(priv, txi);
 
-/* 	do { */
-/* 		int j; */
-/* 		size_t len; */
-/* 		len = skb->len - hdr_info->dma_len + hdr_info->hdr_len;  */
-/* //		if (len == 614) { */
-/* 			agnx_print_desc(hdr_desc); */
-/* 			agnx_print_desc(frag_desc); */
-/* 			agnx_print_tx_hdr((struct agnx_hdr *)skb->data); */
-/* 			agnx_print_sta_power(priv, LOCAL_STAID); */
-/* 			agnx_print_sta(priv, LOCAL_STAID); */
-/* 			for (j = 0; j < 8; j++) */
-/* 				agnx_print_sta_tx_wq(priv, LOCAL_STAID, j); */
-/* 			agnx_print_sta_power(priv, BSSID_STAID); */
-/* 			agnx_print_sta(priv, BSSID_STAID); */
-/* 			for (j = 0; j < 8; j++) */
-/* 				agnx_print_sta_tx_wq(priv, BSSID_STAID, j); */
-/* 			//	} */
-/* 	} while (0); */
+/*	do { */
+/*		int j; */
+/*		size_t len; */
+/*		len = skb->len - hdr_info->dma_len + hdr_info->hdr_len;  */
+/*		if (len == 614) { */
+/*			agnx_print_desc(hdr_desc); */
+/*			agnx_print_desc(frag_desc); */
+/*			agnx_print_tx_hdr((struct agnx_hdr *)skb->data); */
+/*			agnx_print_sta_power(priv, LOCAL_STAID); */
+/*			agnx_print_sta(priv, LOCAL_STAID); */
+/*			for (j = 0; j < 8; j++) */
+/*				agnx_print_sta_tx_wq(priv, LOCAL_STAID, j); */
+/*			agnx_print_sta_power(priv, BSSID_STAID); */
+/*			agnx_print_sta(priv, BSSID_STAID); */
+/*			for (j = 0; j < 8; j++) */
+/*				agnx_print_sta_tx_wq(priv, BSSID_STAID, j); */
+/*			} */
+/*	} while (0); */
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -787,7 +803,7 @@ static int __agnx_tx(struct agnx_priv *priv, struct sk_buff *skb,
 		reg = (ioread32(priv->ctl + AGNX_CIR_TXMCTL));
 		reg |= 0x8;
 		iowrite32((reg), priv->ctl + AGNX_CIR_TXMCTL);
-	}while (0);
+	} while (0);
 
 	/* Trigger TXD */
 	do {
@@ -795,7 +811,7 @@ static int __agnx_tx(struct agnx_priv *priv, struct sk_buff *skb,
 		reg = (ioread32(priv->ctl + AGNX_CIR_TXDCTL));
 		reg |= 0x8;
 		iowrite32((reg), priv->ctl + AGNX_CIR_TXDCTL);
-	}while (0);
+	} while (0);
 
 	return 0;
 }
@@ -807,12 +823,12 @@ int _agnx_tx(struct agnx_priv *priv, struct sk_buff *skb)
 	if (tx_packet_check(skb))
 		return 0;
 
-/* 	print_hex_dump_bytes("agnx: TX_PACKET: ", DUMP_PREFIX_NONE, */
-/* 			     skb->data, skb->len); */
+/*	print_hex_dump_bytes("agnx: TX_PACKET: ", DUMP_PREFIX_NONE, */
+/*			     skb->data, skb->len); */
 
-        fctl = le16_to_cpu(*((__le16 *)skb->data));
+	fctl = le16_to_cpu(*((__le16 *)skb->data));
 
-	if ( (fctl & IEEE80211_FCTL_FTYPE)  == IEEE80211_FTYPE_DATA )
+	if ((fctl & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)
 		return __agnx_tx(priv, skb, &priv->txd);
 	else
 		return __agnx_tx(priv, skb, &priv->txm);

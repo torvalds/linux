@@ -8,10 +8,10 @@
 #define IP6T_OWNER_SID	0x08
 
 struct ip6t_owner_info {
-    uid_t uid;
-    gid_t gid;
-    pid_t pid;
-    pid_t sid;
+    __kernel_uid32_t uid;
+    __kernel_gid32_t gid;
+    __kernel_pid_t pid;
+    __kernel_pid_t sid;
     u_int8_t match, invert;	/* flags */
 };
 

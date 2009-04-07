@@ -267,6 +267,7 @@ static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
 
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 		struct inet_frags *f, void *key, unsigned int hash)
+	__releases(&f->lock)
 {
 	struct inet_frag_queue *q;
 	struct hlist_node *n;

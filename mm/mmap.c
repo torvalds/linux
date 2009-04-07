@@ -20,6 +20,7 @@
 #include <linux/fs.h>
 #include <linux/personality.h>
 #include <linux/security.h>
+#include <linux/ima.h>
 #include <linux/hugetlb.h>
 #include <linux/profile.h>
 #include <linux/module.h>
@@ -1047,6 +1048,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 	}
 
 	error = security_file_mmap(file, reqprot, prot, flags, addr, 0);
+	if (error)
+		return error;
+	error = ima_file_mmap(file, prot);
 	if (error)
 		return error;
 
@@ -2477,7 +2481,4 @@ void mm_drop_all_locks(struct mm_struct *mm)
  */
 void __init mmap_init(void)
 {
-	vm_area_cachep = kmem_cache_create("vm_area_struct",
-			sizeof(struct vm_area_struct), 0,
-			SLAB_PANIC, NULL);
 }

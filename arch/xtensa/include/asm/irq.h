@@ -14,6 +14,13 @@
 #include <platform/hardware.h>
 #include <variant/core.h>
 
+#ifdef CONFIG_VARIANT_IRQ_SWITCH
+#include <variant/irq.h>
+#else
+static inline void variant_irq_enable(unsigned int irq) { }
+static inline void variant_irq_disable(unsigned int irq) { }
+#endif
+
 #ifndef PLATFORM_NR_IRQS
 # define PLATFORM_NR_IRQS 0
 #endif

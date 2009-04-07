@@ -172,7 +172,7 @@ static struct resource __devinitdata tc6393xb_mmc_resources[] = {
 	},
 };
 
-const static struct resource tc6393xb_ohci_resources[] = {
+static const struct resource tc6393xb_ohci_resources[] = {
 	{
 		.start	= 0x3000,
 		.end	= 0x31ff,

@@ -61,20 +61,38 @@ void __ipipe_restore_root(unsigned long flags);
 #define raw_irqs_disabled_flags(flags)	(!irqs_enabled_from_flags_hw(flags))
 #define local_test_iflag_hw(x)		irqs_enabled_from_flags_hw(x)
 
-#define local_save_flags(x)						\
-	do {								\
-		(x) = __ipipe_test_root() ? \
+#define local_save_flags(x)					 \
+	do {							 \
+		(x) = __ipipe_test_root() ?			 \
 			__all_masked_irq_flags : bfin_irq_flags; \
+		barrier();					 \
 	} while (0)
 
-#define local_irq_save(x)				\
-	do {						\
-		(x) = __ipipe_test_and_stall_root();	\
+#define local_irq_save(x)					 \
+	do {						 	 \
+		(x) = __ipipe_test_and_stall_root() ?		 \
+			__all_masked_irq_flags : bfin_irq_flags; \
+		barrier();					 \
 	} while (0)
 
-#define local_irq_restore(x)	__ipipe_restore_root(x)
-#define local_irq_disable()	__ipipe_stall_root()
-#define local_irq_enable()	__ipipe_unstall_root()
+static inline void local_irq_restore(unsigned long x)
+{
+	barrier();
+	__ipipe_restore_root(x == __all_masked_irq_flags);
+}
+
+#define local_irq_disable()			\
+	do {					\
+		__ipipe_stall_root();		\
+		barrier();			\
+	} while (0)
+
+static inline void local_irq_enable(void)
+{
+	barrier();
+	__ipipe_unstall_root();
+}
+
 #define irqs_disabled()		__ipipe_test_root()
 
 #define local_save_flags_hw(x) \

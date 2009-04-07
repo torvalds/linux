@@ -1,3 +1,12 @@
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+/* read ar.itc in advance, and use it before leaving bank 0 */
+#define XEN_ACCOUNT_GET_STAMP		\
+	MOV_FROM_ITC(pUStk, p6, r20, r2);
+#else
+#define XEN_ACCOUNT_GET_STAMP
+#endif
+
 /*
  * DO_SAVE_MIN switches to the kernel stacks (if necessary) and saves
  * the minimum state necessary that allows us to turn psr.ic back
@@ -123,7 +132,7 @@
 	;;											\
 .mem.offset 0,0; st8.spill [r16]=r2,16;								\
 .mem.offset 8,0; st8.spill [r17]=r3,16;								\
-	ACCOUNT_GET_STAMP									\
+	XEN_ACCOUNT_GET_STAMP									\
 	adds r2=IA64_PT_REGS_R16_OFFSET,r1;							\
 	;;											\
 	EXTRA;											\

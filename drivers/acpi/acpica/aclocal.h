@@ -108,6 +108,14 @@ static char *acpi_gbl_mutex_names[ACPI_NUM_MUTEX] = {
 #endif
 #endif
 
+/* Lock structure for reader/writer interfaces */
+
+struct acpi_rw_lock {
+	acpi_mutex writer_mutex;
+	acpi_mutex reader_mutex;
+	u32 num_readers;
+};
+
 /*
  * Predefined handles for spinlocks used within the subsystem.
  * These spinlocks are created by acpi_ut_mutex_initialize
@@ -772,7 +780,19 @@ struct acpi_bit_register_info {
  * must be preserved.
  */
 #define ACPI_PM1_STATUS_PRESERVED_BITS          0x0800	/* Bit 11 */
-#define ACPI_PM1_CONTROL_PRESERVED_BITS         0x0200	/* Bit 9 (whatever) */
+
+/* Write-only bits must be zeroed by software */
+
+#define ACPI_PM1_CONTROL_WRITEONLY_BITS         0x2004	/* Bits 13, 2 */
+
+/* For control registers, both ignored and reserved bits must be preserved */
+
+#define ACPI_PM1_CONTROL_IGNORED_BITS           0x0201	/* Bits 9, 0(SCI_EN) */
+#define ACPI_PM1_CONTROL_RESERVED_BITS          0xC1F8	/* Bits 14-15, 3-8 */
+#define ACPI_PM1_CONTROL_PRESERVED_BITS \
+	       (ACPI_PM1_CONTROL_IGNORED_BITS | ACPI_PM1_CONTROL_RESERVED_BITS)
+
+#define ACPI_PM2_CONTROL_PRESERVED_BITS         0xFFFFFFFE	/* All except bit 0 */
 
 /*
  * Register IDs
@@ -781,12 +801,10 @@ struct acpi_bit_register_info {
 #define ACPI_REGISTER_PM1_STATUS                0x01
 #define ACPI_REGISTER_PM1_ENABLE                0x02
 #define ACPI_REGISTER_PM1_CONTROL               0x03
-#define ACPI_REGISTER_PM1A_CONTROL              0x04
-#define ACPI_REGISTER_PM1B_CONTROL              0x05
-#define ACPI_REGISTER_PM2_CONTROL               0x06
-#define ACPI_REGISTER_PM_TIMER                  0x07
-#define ACPI_REGISTER_PROCESSOR_BLOCK           0x08
-#define ACPI_REGISTER_SMI_COMMAND_BLOCK         0x09
+#define ACPI_REGISTER_PM2_CONTROL               0x04
+#define ACPI_REGISTER_PM_TIMER                  0x05
+#define ACPI_REGISTER_PROCESSOR_BLOCK           0x06
+#define ACPI_REGISTER_SMI_COMMAND_BLOCK         0x07
 
 /* Masks used to access the bit_registers */
 
@@ -818,7 +836,7 @@ struct acpi_bit_register_info {
 #define ACPI_BITMASK_SCI_ENABLE                 0x0001
 #define ACPI_BITMASK_BUS_MASTER_RLD             0x0002
 #define ACPI_BITMASK_GLOBAL_LOCK_RELEASE        0x0004
-#define ACPI_BITMASK_SLEEP_TYPE_X               0x1C00
+#define ACPI_BITMASK_SLEEP_TYPE                 0x1C00
 #define ACPI_BITMASK_SLEEP_ENABLE               0x2000
 
 #define ACPI_BITMASK_ARB_DISABLE                0x0001
@@ -844,10 +862,34 @@ struct acpi_bit_register_info {
 #define ACPI_BITPOSITION_SCI_ENABLE             0x00
 #define ACPI_BITPOSITION_BUS_MASTER_RLD         0x01
 #define ACPI_BITPOSITION_GLOBAL_LOCK_RELEASE    0x02
-#define ACPI_BITPOSITION_SLEEP_TYPE_X           0x0A
+#define ACPI_BITPOSITION_SLEEP_TYPE             0x0A
 #define ACPI_BITPOSITION_SLEEP_ENABLE           0x0D
 
 #define ACPI_BITPOSITION_ARB_DISABLE            0x00
+
+/* Structs and definitions for _OSI support and I/O port validation */
+
+#define ACPI_OSI_WIN_2000               0x01
+#define ACPI_OSI_WIN_XP                 0x02
+#define ACPI_OSI_WIN_XP_SP1             0x03
+#define ACPI_OSI_WINSRV_2003            0x04
+#define ACPI_OSI_WIN_XP_SP2             0x05
+#define ACPI_OSI_WINSRV_2003_SP1        0x06
+#define ACPI_OSI_WIN_VISTA              0x07
+
+#define ACPI_ALWAYS_ILLEGAL             0x00
+
+struct acpi_interface_info {
+	char *name;
+	u8 value;
+};
+
+struct acpi_port_info {
+	char *name;
+	u16 start;
+	u16 end;
+	u8 osi_dependency;
+};
 
 /*****************************************************************************
  *

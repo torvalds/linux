@@ -12,30 +12,31 @@
 
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
+#include <crypto/cryptd.h>
+#include <crypto/crypto_wq.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 
-#define CRYPTD_MAX_QLEN 100
+#define CRYPTD_MAX_CPU_QLEN 100
 
-struct cryptd_state {
-	spinlock_t lock;
-	struct mutex mutex;
+struct cryptd_cpu_queue {
 	struct crypto_queue queue;
-	struct task_struct *task;
+	struct work_struct work;
+};
+
+struct cryptd_queue {
+	struct cryptd_cpu_queue *cpu_queue;
 };
 
 struct cryptd_instance_ctx {
 	struct crypto_spawn spawn;
-	struct cryptd_state *state;
+	struct cryptd_queue *queue;
 };
 
 struct cryptd_blkcipher_ctx {
@@ -54,11 +55,85 @@ struct cryptd_hash_request_ctx {
 	crypto_completion_t complete;
 };
 
-static inline struct cryptd_state *cryptd_get_state(struct crypto_tfm *tfm)
+static void cryptd_queue_worker(struct work_struct *work);
+
+static int cryptd_init_queue(struct cryptd_queue *queue,
+			     unsigned int max_cpu_qlen)
+{
+	int cpu;
+	struct cryptd_cpu_queue *cpu_queue;
+
+	queue->cpu_queue = alloc_percpu(struct cryptd_cpu_queue);
+	if (!queue->cpu_queue)
+		return -ENOMEM;
+	for_each_possible_cpu(cpu) {
+		cpu_queue = per_cpu_ptr(queue->cpu_queue, cpu);
+		crypto_init_queue(&cpu_queue->queue, max_cpu_qlen);
+		INIT_WORK(&cpu_queue->work, cryptd_queue_worker);
+	}
+	return 0;
+}
+
+static void cryptd_fini_queue(struct cryptd_queue *queue)
+{
+	int cpu;
+	struct cryptd_cpu_queue *cpu_queue;
+
+	for_each_possible_cpu(cpu) {
+		cpu_queue = per_cpu_ptr(queue->cpu_queue, cpu);
+		BUG_ON(cpu_queue->queue.qlen);
+	}
+	free_percpu(queue->cpu_queue);
+}
+
+static int cryptd_enqueue_request(struct cryptd_queue *queue,
+				  struct crypto_async_request *request)
+{
+	int cpu, err;
+	struct cryptd_cpu_queue *cpu_queue;
+
+	cpu = get_cpu();
+	cpu_queue = per_cpu_ptr(queue->cpu_queue, cpu);
+	err = crypto_enqueue_request(&cpu_queue->queue, request);
+	queue_work_on(cpu, kcrypto_wq, &cpu_queue->work);
+	put_cpu();
+
+	return err;
+}
+
+/* Called in workqueue context, do one real cryption work (via
+ * req->complete) and reschedule itself if there are more work to
+ * do. */
+static void cryptd_queue_worker(struct work_struct *work)
+{
+	struct cryptd_cpu_queue *cpu_queue;
+	struct crypto_async_request *req, *backlog;
+
+	cpu_queue = container_of(work, struct cryptd_cpu_queue, work);
+	/* Only handle one request at a time to avoid hogging crypto
+	 * workqueue. preempt_disable/enable is used to prevent
+	 * being preempted by cryptd_enqueue_request() */
+	preempt_disable();
+	backlog = crypto_get_backlog(&cpu_queue->queue);
+	req = crypto_dequeue_request(&cpu_queue->queue);
+	preempt_enable();
+
+	if (!req)
+		return;
+
+	if (backlog)
+		backlog->complete(backlog, -EINPROGRESS);
+	req->complete(req, 0);
+
+	if (cpu_queue->queue.qlen)
+		queue_work(kcrypto_wq, &cpu_queue->work);
+}
+
+static inline struct cryptd_queue *cryptd_get_queue(struct crypto_tfm *tfm)
 {
 	struct crypto_instance *inst = crypto_tfm_alg_instance(tfm);
 	struct cryptd_instance_ctx *ictx = crypto_instance_ctx(inst);
-	return ictx->state;
+	return ictx->queue;
 }
 
 static int cryptd_blkcipher_setkey(struct crypto_ablkcipher *parent,
@@ -130,19 +205,13 @@ static int cryptd_blkcipher_enqueue(struct ablkcipher_request *req,
 {
 	struct cryptd_blkcipher_request_ctx *rctx = ablkcipher_request_ctx(req);
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
-	struct cryptd_state *state =
-		cryptd_get_state(crypto_ablkcipher_tfm(tfm));
-	int err;
+	struct cryptd_queue *queue;
 
+	queue = cryptd_get_queue(crypto_ablkcipher_tfm(tfm));
 	rctx->complete = req->base.complete;
 	req->base.complete = complete;
 
-	spin_lock_bh(&state->lock);
-	err = ablkcipher_enqueue_request(&state->queue, req);
-	spin_unlock_bh(&state->lock);
-
-	wake_up_process(state->task);
-	return err;
+	return cryptd_enqueue_request(queue, &req->base);
 }
 
 static int cryptd_blkcipher_encrypt_enqueue(struct ablkcipher_request *req)
@@ -176,21 +245,12 @@ static int cryptd_blkcipher_init_tfm(struct crypto_tfm *tfm)
 static void cryptd_blkcipher_exit_tfm(struct crypto_tfm *tfm)
 {
 	struct cryptd_blkcipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct cryptd_state *state = cryptd_get_state(tfm);
-	int active;
-
-	mutex_lock(&state->mutex);
-	active = ablkcipher_tfm_in_queue(&state->queue,
-					 __crypto_ablkcipher_cast(tfm));
-	mutex_unlock(&state->mutex);
-
-	BUG_ON(active);
 
 	crypto_free_blkcipher(ctx->child);
 }
 
 static struct crypto_instance *cryptd_alloc_instance(struct crypto_alg *alg,
-						     struct cryptd_state *state)
+						     struct cryptd_queue *queue)
 {
 	struct crypto_instance *inst;
 	struct cryptd_instance_ctx *ctx;
@@ -213,7 +273,7 @@ static struct crypto_instance *cryptd_alloc_instance(struct crypto_alg *alg,
 	if (err)
 		goto out_free_inst;
 
-	ctx->state = state;
+	ctx->queue = queue;
 
 	memcpy(inst->alg.cra_name, alg->cra_name, CRYPTO_MAX_ALG_NAME);
 
@@ -231,7 +291,7 @@ out_free_inst:
 }
 
 static struct crypto_instance *cryptd_alloc_blkcipher(
-	struct rtattr **tb, struct cryptd_state *state)
+	struct rtattr **tb, struct cryptd_queue *queue)
 {
 	struct crypto_instance *inst;
 	struct crypto_alg *alg;
@@ -241,7 +301,7 @@ static struct crypto_instance *cryptd_alloc_blkcipher(
 	if (IS_ERR(alg))
 		return ERR_CAST(alg);
 
-	inst = cryptd_alloc_instance(alg, state);
+	inst = cryptd_alloc_instance(alg, queue);
 	if (IS_ERR(inst))
 		goto out_put_alg;
 
@@ -289,15 +349,6 @@ static int cryptd_hash_init_tfm(struct crypto_tfm *tfm)
 static void cryptd_hash_exit_tfm(struct crypto_tfm *tfm)
 {
 	struct cryptd_hash_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct cryptd_state *state = cryptd_get_state(tfm);
-	int active;
-
-	mutex_lock(&state->mutex);
-	active = ahash_tfm_in_queue(&state->queue,
-				__crypto_ahash_cast(tfm));
-	mutex_unlock(&state->mutex);
-
-	BUG_ON(active);
 
 	crypto_free_hash(ctx->child);
 }
@@ -323,19 +374,13 @@ static int cryptd_hash_enqueue(struct ahash_request *req,
 {
 	struct cryptd_hash_request_ctx *rctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct cryptd_state *state =
-		cryptd_get_state(crypto_ahash_tfm(tfm));
-	int err;
+	struct cryptd_queue *queue =
+		cryptd_get_queue(crypto_ahash_tfm(tfm));
 
 	rctx->complete = req->base.complete;
 	req->base.complete = complete;
 
-	spin_lock_bh(&state->lock);
-	err = ahash_enqueue_request(&state->queue, req);
-	spin_unlock_bh(&state->lock);
-
-	wake_up_process(state->task);
-	return err;
+	return cryptd_enqueue_request(queue, &req->base);
 }
 
 static void cryptd_hash_init(struct crypto_async_request *req_async, int err)
@@ -468,7 +513,7 @@ static int cryptd_hash_digest_enqueue(struct ahash_request *req)
 }
 
 static struct crypto_instance *cryptd_alloc_hash(
-	struct rtattr **tb, struct cryptd_state *state)
+	struct rtattr **tb, struct cryptd_queue *queue)
 {
 	struct crypto_instance *inst;
 	struct crypto_alg *alg;
@@ -478,7 +523,7 @@ static struct crypto_instance *cryptd_alloc_hash(
 	if (IS_ERR(alg))
 		return ERR_PTR(PTR_ERR(alg));
 
-	inst = cryptd_alloc_instance(alg, state);
+	inst = cryptd_alloc_instance(alg, queue);
 	if (IS_ERR(inst))
 		goto out_put_alg;
 
@@ -502,7 +547,7 @@ out_put_alg:
 	return inst;
 }
 
-static struct cryptd_state state;
+static struct cryptd_queue queue;
 
 static struct crypto_instance *cryptd_alloc(struct rtattr **tb)
 {
@@ -514,9 +559,9 @@ static struct crypto_instance *cryptd_alloc(struct rtattr **tb)
 
 	switch (algt->type & algt->mask & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_BLKCIPHER:
-		return cryptd_alloc_blkcipher(tb, &state);
+		return cryptd_alloc_blkcipher(tb, &queue);
 	case CRYPTO_ALG_TYPE_DIGEST:
-		return cryptd_alloc_hash(tb, &state);
+		return cryptd_alloc_hash(tb, &queue);
 	}
 
 	return ERR_PTR(-EINVAL);
@@ -537,82 +582,58 @@ static struct crypto_template cryptd_tmpl = {
 	.module = THIS_MODULE,
 };
 
-static inline int cryptd_create_thread(struct cryptd_state *state,
-				       int (*fn)(void *data), const char *name)
+struct cryptd_ablkcipher *cryptd_alloc_ablkcipher(const char *alg_name,
+						  u32 type, u32 mask)
 {
-	spin_lock_init(&state->lock);
-	mutex_init(&state->mutex);
-	crypto_init_queue(&state->queue, CRYPTD_MAX_QLEN);
+	char cryptd_alg_name[CRYPTO_MAX_ALG_NAME];
+	struct crypto_ablkcipher *tfm;
 
-	state->task = kthread_run(fn, state, name);
-	if (IS_ERR(state->task))
-		return PTR_ERR(state->task);
+	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
+		     "cryptd(%s)", alg_name) >= CRYPTO_MAX_ALG_NAME)
+		return ERR_PTR(-EINVAL);
+	tfm = crypto_alloc_ablkcipher(cryptd_alg_name, type, mask);
+	if (IS_ERR(tfm))
+		return ERR_CAST(tfm);
+	if (crypto_ablkcipher_tfm(tfm)->__crt_alg->cra_module != THIS_MODULE) {
+		crypto_free_ablkcipher(tfm);
+		return ERR_PTR(-EINVAL);
+	}
 
-	return 0;
+	return __cryptd_ablkcipher_cast(tfm);
 }
+EXPORT_SYMBOL_GPL(cryptd_alloc_ablkcipher);
 
-static inline void cryptd_stop_thread(struct cryptd_state *state)
+struct crypto_blkcipher *cryptd_ablkcipher_child(struct cryptd_ablkcipher *tfm)
 {
-	BUG_ON(state->queue.qlen);
-	kthread_stop(state->task);
+	struct cryptd_blkcipher_ctx *ctx = crypto_ablkcipher_ctx(&tfm->base);
+	return ctx->child;
 }
+EXPORT_SYMBOL_GPL(cryptd_ablkcipher_child);
 
-static int cryptd_thread(void *data)
+void cryptd_free_ablkcipher(struct cryptd_ablkcipher *tfm)
 {
-	struct cryptd_state *state = data;
-	int stop;
-
-	current->flags |= PF_NOFREEZE;
-
-	do {
-		struct crypto_async_request *req, *backlog;
-
-		mutex_lock(&state->mutex);
-		__set_current_state(TASK_INTERRUPTIBLE);
-
-		spin_lock_bh(&state->lock);
-		backlog = crypto_get_backlog(&state->queue);
-		req = crypto_dequeue_request(&state->queue);
-		spin_unlock_bh(&state->lock);
-
-		stop = kthread_should_stop();
-
-		if (stop || req) {
-			__set_current_state(TASK_RUNNING);
-			if (req) {
-				if (backlog)
-					backlog->complete(backlog,
-							  -EINPROGRESS);
-				req->complete(req, 0);
-			}
-		}
-
-		mutex_unlock(&state->mutex);
-
-		schedule();
-	} while (!stop);
-
-	return 0;
+	crypto_free_ablkcipher(&tfm->base);
 }
+EXPORT_SYMBOL_GPL(cryptd_free_ablkcipher);
 
 static int __init cryptd_init(void)
 {
 	int err;
 
-	err = cryptd_create_thread(&state, cryptd_thread, "cryptd");
+	err = cryptd_init_queue(&queue, CRYPTD_MAX_CPU_QLEN);
 	if (err)
 		return err;
 
 	err = crypto_register_template(&cryptd_tmpl);
 	if (err)
-		kthread_stop(state.task);
+		cryptd_fini_queue(&queue);
 
 	return err;
 }
 
 static void __exit cryptd_exit(void)
 {
-	cryptd_stop_thread(&state);
+	cryptd_fini_queue(&queue);
 	crypto_unregister_template(&cryptd_tmpl);
 }
 

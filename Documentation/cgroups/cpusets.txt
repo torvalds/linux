@@ -131,7 +131,7 @@ Cpusets extends these two mechanisms as follows:
  - The hierarchy of cpusets can be mounted at /dev/cpuset, for
    browsing and manipulation from user space.
  - A cpuset may be marked exclusive, which ensures that no other
-   cpuset (except direct ancestors and descendents) may contain
+   cpuset (except direct ancestors and descendants) may contain
    any overlapping CPUs or Memory Nodes.
  - You can list all the tasks (by pid) attached to any cpuset.
 
@@ -142,7 +142,7 @@ into the rest of the kernel, none in performance critical paths:
  - in fork and exit, to attach and detach a task from its cpuset.
  - in sched_setaffinity, to mask the requested CPUs by what's
    allowed in that tasks cpuset.
- - in sched.c migrate_all_tasks(), to keep migrating tasks within
+ - in sched.c migrate_live_tasks(), to keep migrating tasks within
    the CPUs allowed by their cpuset, if possible.
  - in the mbind and set_mempolicy system calls, to mask the requested
    Memory Nodes by what's allowed in that tasks cpuset.
@@ -175,6 +175,10 @@ files describing that cpuset:
  - mem_exclusive flag: is memory placement exclusive?
  - mem_hardwall flag:  is memory allocation hardwalled
  - memory_pressure: measure of how much paging pressure in cpuset
+ - memory_spread_page flag: if set, spread page cache evenly on allowed nodes
+ - memory_spread_slab flag: if set, spread slab cache evenly on allowed nodes
+ - sched_load_balance flag: if set, load balance within CPUs on that cpuset
+ - sched_relax_domain_level: the searching range when migrating tasks
 
 In addition, the root cpuset only has the following file:
  - memory_pressure_enabled flag: compute memory_pressure?
@@ -222,7 +226,7 @@ nodes with memory--using the cpuset_track_online_nodes() hook.
 --------------------------------
 
 If a cpuset is cpu or mem exclusive, no other cpuset, other than
-a direct ancestor or descendent, may share any of the same CPUs or
+a direct ancestor or descendant, may share any of the same CPUs or
 Memory Nodes.
 
 A cpuset that is mem_exclusive *or* mem_hardwall is "hardwalled",
@@ -252,7 +256,7 @@ is causing.
 
 This is useful both on tightly managed systems running a wide mix of
 submitted jobs, which may choose to terminate or re-prioritize jobs that
-are trying to use more memory than allowed on the nodes assigned them,
+are trying to use more memory than allowed on the nodes assigned to them,
 and with tightly coupled, long running, massively parallel scientific
 computing jobs that will dramatically fail to meet required performance
 goals if they start to use more memory than allowed to them.
@@ -378,7 +382,7 @@ as cpusets and sched_setaffinity.
 The algorithmic cost of load balancing and its impact on key shared
 kernel data structures such as the task list increases more than
 linearly with the number of CPUs being balanced.  So the scheduler
-has support to  partition the systems CPUs into a number of sched
+has support to partition the systems CPUs into a number of sched
 domains such that it only load balances within each sched domain.
 Each sched domain covers some subset of the CPUs in the system;
 no two sched domains overlap; some CPUs might not be in any sched
@@ -423,7 +427,7 @@ child cpusets have this flag enabled.
 When doing this, you don't usually want to leave any unpinned tasks in
 the top cpuset that might use non-trivial amounts of CPU, as such tasks
 may be artificially constrained to some subset of CPUs, depending on
-the particulars of this flag setting in descendent cpusets.  Even if
+the particulars of this flag setting in descendant cpusets.  Even if
 such a task could use spare CPU cycles in some other CPUs, the kernel
 scheduler might not consider the possibility of load balancing that
 task to that underused CPU.
@@ -485,17 +489,22 @@ of CPUs allowed to a cpuset having 'sched_load_balance' enabled.
 The internal kernel cpuset to scheduler interface passes from the
 cpuset code to the scheduler code a partition of the load balanced
 CPUs in the system. This partition is a set of subsets (represented
-as an array of cpumask_t) of CPUs, pairwise disjoint, that cover all
-the CPUs that must be load balanced.
+as an array of struct cpumask) of CPUs, pairwise disjoint, that cover
+all the CPUs that must be load balanced.
 
-Whenever the 'sched_load_balance' flag changes, or CPUs come or go
-from a cpuset with this flag enabled, or a cpuset with this flag
-enabled is removed, the cpuset code builds a new such partition and
-passes it to the scheduler sched domain setup code, to have the sched
-domains rebuilt as necessary.
+The cpuset code builds a new such partition and passes it to the
+scheduler sched domain setup code, to have the sched domains rebuilt
+as necessary, whenever:
+ - the 'sched_load_balance' flag of a cpuset with non-empty CPUs changes,
+ - or CPUs come or go from a cpuset with this flag enabled,
+ - or 'sched_relax_domain_level' value of a cpuset with non-empty CPUs
+   and with this flag enabled changes,
+ - or a cpuset with non-empty CPUs and with this flag enabled is removed,
+ - or a cpu is offlined/onlined.
 
 This partition exactly defines what sched domains the scheduler should
-setup - one sched domain for each element (cpumask_t) in the partition.
+setup - one sched domain for each element (struct cpumask) in the
+partition.
 
 The scheduler remembers the currently active sched domain partitions.
 When the scheduler routine partition_sched_domains() is invoked from
@@ -522,9 +531,9 @@ be idle.
 
 Of course it takes some searching cost to find movable tasks and/or
 idle CPUs, the scheduler might not search all CPUs in the domain
-everytime.  In fact, in some architectures, the searching ranges on
+every time.  In fact, in some architectures, the searching ranges on
 events are limited in the same socket or node where the CPU locates,
-while the load balance on tick searchs all.
+while the load balance on tick searches all.
 
 For example, assume CPU Z is relatively far from CPU X.  Even if CPU Z
 is idle while CPU X and the siblings are busy, scheduler can't migrate
@@ -559,7 +568,7 @@ domain, the largest value among those is used.  Be careful, if one
 requests 0 and others are -1 then 0 is used.
 
 Note that modifying this file will have both good and bad effects,
-and whether it is acceptable or not will be depend on your situation.
+and whether it is acceptable or not depends on your situation.
 Don't modify this file if you are not sure.
 
 If your situation is:
@@ -592,7 +601,7 @@ its new cpuset, then the task will continue to use whatever subset
 of MPOL_BIND nodes are still allowed in the new cpuset.  If the task
 was using MPOL_BIND and now none of its MPOL_BIND nodes are allowed
 in the new cpuset, then the task will be essentially treated as if it
-was MPOL_BIND bound to the new cpuset (even though its numa placement,
+was MPOL_BIND bound to the new cpuset (even though its NUMA placement,
 as queried by get_mempolicy(), doesn't change).  If a task is moved
 from one cpuset to another, then the kernel will adjust the tasks
 memory placement, as above, the next time that the kernel attempts
@@ -600,19 +609,15 @@ to allocate a page of memory for that task.
 
 If a cpuset has its 'cpus' modified, then each task in that cpuset
 will have its allowed CPU placement changed immediately.  Similarly,
-if a tasks pid is written to a cpusets 'tasks' file, in either its
-current cpuset or another cpuset, then its allowed CPU placement is
-changed immediately.  If such a task had been bound to some subset
-of its cpuset using the sched_setaffinity() call, the task will be
-allowed to run on any CPU allowed in its new cpuset, negating the
-affect of the prior sched_setaffinity() call.
+if a tasks pid is written to another cpusets 'tasks' file, then its
+allowed CPU placement is changed immediately.  If such a task had been
+bound to some subset of its cpuset using the sched_setaffinity() call,
+the task will be allowed to run on any CPU allowed in its new cpuset,
+negating the effect of the prior sched_setaffinity() call.
 
 In summary, the memory placement of a task whose cpuset is changed is
 updated by the kernel, on the next allocation of a page for that task,
-but the processor placement is not updated, until that tasks pid is
-rewritten to the 'tasks' file of its cpuset.  This is done to avoid
-impacting the scheduler code in the kernel with a check for changes
-in a tasks processor placement.
+and the processor placement is updated immediately.
 
 Normally, once a page is allocated (given a physical page
 of main memory) then that page stays on whatever node it
@@ -681,10 +686,14 @@ and then start a subshell 'sh' in that cpuset:
   # The next line should display '/Charlie'
   cat /proc/self/cpuset
 
-In the future, a C library interface to cpusets will likely be
-available.  For now, the only way to query or modify cpusets is
-via the cpuset file system, using the various cd, mkdir, echo, cat,
-rmdir commands from the shell, or their equivalent from C.
+There are ways to query or modify cpusets:
+ - via the cpuset file system directly, using the various cd, mkdir, echo,
+   cat, rmdir commands from the shell, or their equivalent from C.
+ - via the C library libcpuset.
+ - via the C library libcgroup.
+   (http://sourceforge.net/proects/libcg/)
+ - via the python application cset.
+   (http://developer.novell.com/wiki/index.php/Cpuset)
 
 The sched_setaffinity calls can also be done at the shell prompt using
 SGI's runon or Robert Love's taskset.  The mbind and set_mempolicy
@@ -756,7 +765,7 @@ mount -t cpuset X /dev/cpuset
 
 is equivalent to
 
-mount -t cgroup -ocpuset X /dev/cpuset
+mount -t cgroup -ocpuset,noprefix X /dev/cpuset
 echo "/sbin/cpuset_release_agent" > /dev/cpuset/release_agent
 
 2.2 Adding/removing cpus

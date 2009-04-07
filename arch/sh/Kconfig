@@ -28,6 +28,7 @@ config SUPERH32
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_ARCH_KGDB
+	select ARCH_HIBERNATION_POSSIBLE if MMU
 
 config SUPERH64
 	def_bool y if CPU_SH5
@@ -107,6 +108,9 @@ config SYS_SUPPORTS_NUMA
 config SYS_SUPPORTS_PCI
 	bool
 
+config SYS_SUPPORTS_CMT
+	bool
+
 config STACKTRACE_SUPPORT
 	def_bool y
 
@@ -124,6 +128,9 @@ config ARCH_HAS_ILOG2_U64
 	def_bool n
 
 config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+
+config ARCH_HAS_DEFAULT_IDLE
 	def_bool y
 
 config IO_TRAPPED
@@ -176,6 +183,10 @@ config CPU_SHX2
 config CPU_SHX3
 	bool
 
+config ARCH_SHMOBILE
+	bool
+	select ARCH_SUSPEND_POSSIBLE
+
 choice
 	prompt "Processor sub-type selection"
 
@@ -188,6 +199,7 @@ choice
 config CPU_SUBTYPE_SH7619
 	bool "Support SH7619 processor"
 	select CPU_SH2
+	select SYS_SUPPORTS_CMT
 
 # SH-2A Processor Support
 
@@ -200,15 +212,18 @@ config CPU_SUBTYPE_SH7203
 	bool "Support SH7203 processor"
 	select CPU_SH2A
 	select CPU_HAS_FPU
+	select SYS_SUPPORTS_CMT
 
 config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
 	select CPU_SH2A
+	select SYS_SUPPORTS_CMT
 
 config CPU_SUBTYPE_SH7263
 	bool "Support SH7263 processor"
 	select CPU_SH2A
 	select CPU_HAS_FPU
+	select SYS_SUPPORTS_CMT
 
 config CPU_SUBTYPE_MXG
 	bool "Support MX-G processor"
@@ -323,7 +338,9 @@ config CPU_SUBTYPE_SH7723
 	bool "Support SH7723 processor"
 	select CPU_SH4A
 	select CPU_SHX2
+	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_CMT
 	help
 	  Select SH7723 if you have an SH-MobileR2 CPU.
 
@@ -348,6 +365,14 @@ config CPU_SUBTYPE_SH7785
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 
+config CPU_SUBTYPE_SH7786
+	bool "Support SH7786 processor"
+	select CPU_SH4A
+	select CPU_SHX3
+	select CPU_HAS_PTEAEX
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_NUMA
+
 config CPU_SUBTYPE_SHX3
 	bool "Support SH-X3 processor"
 	select CPU_SH4A
@@ -362,20 +387,26 @@ config CPU_SUBTYPE_SHX3
 config CPU_SUBTYPE_SH7343
 	bool "Support SH7343 processor"
 	select CPU_SH4AL_DSP
+	select ARCH_SHMOBILE
+	select SYS_SUPPORTS_CMT
 
 config CPU_SUBTYPE_SH7722
 	bool "Support SH7722 processor"
 	select CPU_SH4AL_DSP
 	select CPU_SHX2
+	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
+	select SYS_SUPPORTS_CMT
 
 config CPU_SUBTYPE_SH7366
 	bool "Support SH7366 processor"
 	select CPU_SH4AL_DSP
 	select CPU_SHX2
+	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
+	select SYS_SUPPORTS_CMT
 
 # SH-5 Processor Support
 
@@ -398,25 +429,34 @@ source "arch/sh/boards/Kconfig"
 menu "Timer and clock configuration"
 
 config SH_TMU
-	def_bool y
-	prompt "TMU timer support"
+	bool "TMU timer support"
 	depends on CPU_SH3 || CPU_SH4
+	default y
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
 	  This enables the use of the TMU as the system timer.
 
 config SH_CMT
-	def_bool y
-	prompt "CMT timer support"
-	depends on CPU_SH2 && !CPU_SUBTYPE_MXG
+	bool "CMT timer support"
+	depends on SYS_SUPPORTS_CMT && CPU_SH2
+	default y
 	help
 	  This enables the use of the CMT as the system timer.
 
+#
+# Support for the new-style CMT driver. This will replace SH_CMT
+# once its other dependencies are merged.
+#
+config SH_TIMER_CMT
+	bool "CMT clockevents driver"
+	depends on SYS_SUPPORTS_CMT && !SH_CMT
+	select GENERIC_CLOCKEVENTS
+
 config SH_MTU2
-	def_bool n
-	prompt "MTU2 timer support"
+	bool "MTU2 timer support"
 	depends on CPU_SH2A
+	default y
 	help
 	  This enables the use of the MTU2 as the system timer.
 
@@ -426,7 +466,8 @@ config SH_TIMER_IRQ
 			CPU_SUBTYPE_SH7763
 	default "86" if CPU_SUBTYPE_SH7619
 	default "140" if CPU_SUBTYPE_SH7206
-	default "142" if CPU_SUBTYPE_SH7203
+	default "142" if CPU_SUBTYPE_SH7203 && SH_CMT
+	default "153" if CPU_SUBTYPE_SH7203 && SH_MTU2
 	default "238" if CPU_SUBTYPE_MXG
 	default "16"
 
@@ -438,7 +479,8 @@ config SH_PCLK_FREQ
 	default "33333333" if CPU_SUBTYPE_SH7770 || CPU_SUBTYPE_SH7723 || \
 			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
 			      CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7206 || \
-			      CPU_SUBTYPE_SH7263 || CPU_SUBTYPE_MXG
+			      CPU_SUBTYPE_SH7263 || CPU_SUBTYPE_MXG    || \
+			      CPU_SUBTYPE_SH7786
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
@@ -492,7 +534,7 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on SUPERH32 && EXPERIMENTAL
+	depends on SUPERH32 && EXPERIMENTAL && MMU
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -520,6 +562,13 @@ config CRASH_DUMP
 	  MEMORY_START.
 
 	  For more details see Documentation/kdump/kdump.txt
+
+config KEXEC_JUMP
+	bool "kexec jump (EXPERIMENTAL)"
+	depends on SUPERH32 && KEXEC && HIBERNATION && EXPERIMENTAL
+	help
+	  Jump between original kernel and kexeced kernel and invoke
+	  code via KEXEC
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
@@ -595,10 +644,10 @@ config GUSA_RB
 	depends on GUSA && CPU_SH3 || (CPU_SH4 && !CPU_SH4A)
 	help
 	  Enabling this option will allow the kernel to implement some
-	  atomic operations using a software implemention of load-locked/
+	  atomic operations using a software implementation of load-locked/
 	  store-conditional (LLSC). On machines which do not have hardware
 	  LLSC, this should be more efficient than the other alternative of
-	  disabling insterrupts around the atomic sequence.
+	  disabling interrupts around the atomic sequence.
 
 endmenu
 

@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/major.h>
 #include <linux/param.h>
+#include <linux/seq_file.h>
 #include <linux/serial.h>
 #include <linux/serialP.h>
 
@@ -140,16 +141,14 @@ static void rs_poll(unsigned long priv)
 }
 
 
-static void rs_put_char(struct tty_struct *tty, unsigned char ch)
+static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	char buf[2];
-
-	if (!tty)
-		return;
 
 	buf[0] = ch;
 	buf[1] = '\0';		/* Is this NULL necessary? */
 	__simc (SYS_write, 1, (unsigned long) buf, 1, 0, 0);
+	return 1;
 }
 
 static void rs_flush_chars(struct tty_struct *tty)
@@ -178,22 +177,24 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	/* Stub, once again.. */
 }
 
-static int rs_read_proc(char *page, char **start, off_t off, int count,
-			int *eof, void *data)
+static int rs_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
-	off_t begin = 0;
-
-	len += sprintf(page, "serinfo:1.0 driver:%s\n", serial_version);
-	*eof = 1;
-
-	if (off >= len + begin)
-		return 0;
-
-	*start = page + (off - begin);
-	return ((count < begin + len - off) ? count : begin + len - off);
+	seq_printf(m, "serinfo:1.0 driver:%s\n", serial_version);
+	return 0;
 }
 
+static int rs_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rs_proc_show, NULL);
+}
+
+static const struct file_operations rs_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rs_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static struct tty_operations serial_ops = {
 	.open = rs_open,
@@ -205,7 +206,7 @@ static struct tty_operations serial_ops = {
 	.chars_in_buffer = rs_chars_in_buffer,
 	.hangup = rs_hangup,
 	.wait_until_sent = rs_wait_until_sent,
-	.read_proc = rs_read_proc
+	.proc_fops = &rs_proc_fops,
 };
 
 int __init rs_init(void)

@@ -140,12 +140,38 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	dprintk(4, "%s()\n", __func__);
 
 	au0828_write(dev, REG_2FF, 0x01);
-	au0828_write(dev, REG_202, 0x07);
+
+	/* FIXME: There is a problem with i2c communications with xc5000 that
+	   requires us to slow down the i2c clock until we have a better
+	   strategy (such as using the secondary i2c bus to do firmware
+	   loading */
+	if ((msg->addr << 1) == 0xc2)
+		au0828_write(dev, REG_202, 0x40);
+	else
+		au0828_write(dev, REG_202, 0x07);
 
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, REG_203, msg->addr << 1);
 
 	dprintk(4, "SEND: %02x\n", msg->addr);
+
+	/* Deal with i2c_scan */
+	if (msg->len == 0) {
+		/* The analog tuner detection code makes use of the SMBUS_QUICK
+		   message (which involves a zero length i2c write).  To avoid
+		   checking the status register when we didn't strobe out any
+		   actual bytes to the bus, just do a read check.  This is
+		   consistent with how I saw i2c device checking done in the
+		   USB trace of the Windows driver */
+		au0828_write(dev, REG_200, 0x20);
+		if (!i2c_wait_done(i2c_adap))
+			return -EIO;
+
+		if (i2c_wait_read_ack(i2c_adap))
+			return -EIO;
+
+		return 0;
+	}
 
 	for (i = 0; i < msg->len;) {
 
@@ -191,7 +217,15 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	dprintk(4, "%s()\n", __func__);
 
 	au0828_write(dev, REG_2FF, 0x01);
-	au0828_write(dev, REG_202, 0x07);
+
+	/* FIXME: There is a problem with i2c communications with xc5000 that
+	   requires us to slow down the i2c clock until we have a better
+	   strategy (such as using the secondary i2c bus to do firmware
+	   loading */
+	if ((msg->addr << 1) == 0xc2)
+		au0828_write(dev, REG_202, 0x40);
+	else
+		au0828_write(dev, REG_202, 0x07);
 
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, REG_203, msg->addr << 1);
@@ -265,33 +299,6 @@ err:
 	return retval;
 }
 
-static int attach_inform(struct i2c_client *client)
-{
-	dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
-		client->driver->driver.name, client->addr, client->name);
-
-	if (!client->driver->command)
-		return 0;
-
-	return 0;
-}
-
-static int detach_inform(struct i2c_client *client)
-{
-	dprintk(1, "i2c detach [client=%s]\n", client->name);
-
-	return 0;
-}
-
-void au0828_call_i2c_clients(struct au0828_dev *dev,
-			      unsigned int cmd, void *arg)
-{
-	if (dev->i2c_rc != 0)
-		return;
-
-	i2c_clients_command(&dev->i2c_adap, cmd, arg);
-}
-
 static u32 au0828_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
@@ -309,9 +316,6 @@ static struct i2c_adapter au0828_i2c_adap_template = {
 	.owner             = THIS_MODULE,
 	.id                = I2C_HW_B_AU0828,
 	.algo              = &au0828_i2c_algo_template,
-	.class             = I2C_CLASS_TV_ANALOG,
-	.client_register   = attach_inform,
-	.client_unregister = detach_inform,
 };
 
 static struct i2c_client au0828_i2c_client_template = {
@@ -356,9 +360,9 @@ int au0828_i2c_register(struct au0828_dev *dev)
 	strlcpy(dev->i2c_adap.name, DRIVER_NAME,
 		sizeof(dev->i2c_adap.name));
 
-	dev->i2c_algo.data = dev;
+	dev->i2c_adap.algo = &dev->i2c_algo;
 	dev->i2c_adap.algo_data = dev;
-	i2c_set_adapdata(&dev->i2c_adap, dev);
+	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&dev->i2c_adap);
 
 	dev->i2c_client.adapter = &dev->i2c_adap;

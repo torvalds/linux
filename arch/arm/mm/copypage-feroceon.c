@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 
-static void __attribute__((naked))
+static void __naked
 feroceon_copy_user_page(void *kto, const void *kfrom)
 {
 	asm("\

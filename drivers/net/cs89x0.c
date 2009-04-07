@@ -501,6 +501,21 @@ static void net_poll_controller(struct net_device *dev)
 }
 #endif
 
+static const struct net_device_ops net_ops = {
+	.ndo_open		= net_open,
+	.ndo_stop		= net_close,
+	.ndo_tx_timeout		= net_timeout,
+	.ndo_start_xmit 	= net_send_packet,
+	.ndo_get_stats		= net_get_stats,
+	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_set_mac_address 	= set_mac_address,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= net_poll_controller,
+#endif
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /* This is the real probe routine.  Linux has a history of friendly device
    probes on the ISA bus.  A good device probes avoids doing writes, and
    verifies that the correct device exists and functions.
@@ -843,17 +858,8 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 	/* print the ethernet address. */
 	printk(", MAC %pM", dev->dev_addr);
 
-	dev->open		= net_open;
-	dev->stop		= net_close;
-	dev->tx_timeout		= net_timeout;
-	dev->watchdog_timeo	= HZ;
-	dev->hard_start_xmit 	= net_send_packet;
-	dev->get_stats		= net_get_stats;
-	dev->set_multicast_list = set_multicast_list;
-	dev->set_mac_address 	= set_mac_address;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller	= net_poll_controller;
-#endif
+	dev->netdev_ops	= &net_ops;
+	dev->watchdog_timeo = HZ;
 
 	printk("\n");
 	if (net_debug)

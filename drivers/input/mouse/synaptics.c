@@ -182,11 +182,6 @@ static int synaptics_identify(struct psmouse *psmouse)
 
 static int synaptics_query_hardware(struct psmouse *psmouse)
 {
-	int retries = 0;
-
-	while ((retries++ < 3) && psmouse_reset(psmouse))
-		/* empty */;
-
 	if (synaptics_identify(psmouse))
 		return -1;
 	if (synaptics_model_id(psmouse))
@@ -582,6 +577,8 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 	struct synaptics_data *priv = psmouse->private;
 	struct synaptics_data old_priv = *priv;
 
+	psmouse_reset(psmouse);
+
 	if (synaptics_detect(psmouse, 0))
 		return -1;
 
@@ -639,6 +636,8 @@ int synaptics_init(struct psmouse *psmouse)
 	psmouse->private = priv = kzalloc(sizeof(struct synaptics_data), GFP_KERNEL);
 	if (!priv)
 		return -1;
+
+	psmouse_reset(psmouse);
 
 	if (synaptics_query_hardware(psmouse)) {
 		printk(KERN_ERR "Unable to query Synaptics hardware.\n");

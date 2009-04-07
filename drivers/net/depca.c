@@ -566,6 +566,18 @@ MODULE_LICENSE("GPL");
     outw(CSR0, DEPCA_ADDR);\
     outw(STOP, DEPCA_DATA)
 
+static const struct net_device_ops depca_netdev_ops = {
+	.ndo_open 		= depca_open,
+	.ndo_start_xmit 	= depca_start_xmit,
+	.ndo_stop 		= depca_close,
+	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_do_ioctl 		= depca_ioctl,
+	.ndo_tx_timeout 	= depca_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __init depca_hw_init (struct net_device *dev, struct device *device)
 {
 	struct depca_private *lp;
@@ -606,8 +618,8 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 	if (!mem_start || lp->adapter < DEPCA || lp->adapter >=unknown)
 		return -ENXIO;
 
-	printk ("%s: %s at 0x%04lx",
-	        device->bus_id, depca_signature[lp->adapter], ioaddr);
+	printk("%s: %s at 0x%04lx",
+	       dev_name(device), depca_signature[lp->adapter], ioaddr);
 
 	switch (lp->depca_bus) {
 #ifdef CONFIG_MCA
@@ -669,7 +681,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 
 	spin_lock_init(&lp->lock);
 	sprintf(lp->adapter_name, "%s (%s)",
-		depca_signature[lp->adapter], device->bus_id);
+		depca_signature[lp->adapter], dev_name(device));
 	status = -EBUSY;
 
 	/* Initialisation Block */
@@ -793,12 +805,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 	}
 
 	/* The DEPCA-specific entries in the device structure. */
-	dev->open = &depca_open;
-	dev->hard_start_xmit = &depca_start_xmit;
-	dev->stop = &depca_close;
-	dev->set_multicast_list = &set_multicast_list;
-	dev->do_ioctl = &depca_ioctl;
-	dev->tx_timeout = depca_tx_timeout;
+	dev->netdev_ops = &depca_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	dev->mem_start = 0;

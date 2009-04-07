@@ -16,6 +16,8 @@
  *      Henry Wong <henry@stuffedcow.net>
  *      Mark Schultz <n9xmj@yahoo.com>
  *      Brian Rogers <brian_rogers@comcast.net>
+ * modified for AVerMedia Cardbus by
+ *      Oldrich Jedlicka <oldium.pro@seznam.cz>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -216,6 +218,46 @@ static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
+static int get_key_avermedia_cardbus(struct IR_i2c *ir,
+				     u32 *ir_key, u32 *ir_raw)
+{
+	unsigned char subaddr, key, keygroup;
+	struct i2c_msg msg[] = { { .addr = ir->c.addr, .flags = 0,
+				   .buf = &subaddr, .len = 1},
+				 { .addr = ir->c.addr, .flags = I2C_M_RD,
+				  .buf = &key, .len = 1} };
+	subaddr = 0x0d;
+	if (2 != i2c_transfer(ir->c.adapter, msg, 2)) {
+		dprintk(1, "read error\n");
+		return -EIO;
+	}
+
+	if (key == 0xff)
+		return 0;
+
+	subaddr = 0x0b;
+	msg[1].buf = &keygroup;
+	if (2 != i2c_transfer(ir->c.adapter, msg, 2)) {
+		dprintk(1, "read error\n");
+		return -EIO;
+	}
+
+	if (keygroup == 0xff)
+		return 0;
+
+	dprintk(1, "read key 0x%02x/0x%02x\n", key, keygroup);
+	if (keygroup < 2 || keygroup > 3) {
+		/* Only a warning */
+		dprintk(1, "warning: invalid key group 0x%02x for key 0x%02x\n",
+								keygroup, key);
+	}
+	key |= (keygroup & 1) << 6;
+
+	*ir_key = key;
+	*ir_raw = key;
+	return 1;
+}
+
 /* ----------------------------------------------------------------------- */
 
 static void ir_key_poll(struct IR_i2c *ir)
@@ -237,15 +279,9 @@ static void ir_key_poll(struct IR_i2c *ir)
 	}
 }
 
-static void ir_timer(unsigned long data)
-{
-	struct IR_i2c *ir = (struct IR_i2c*)data;
-	schedule_work(&ir->work);
-}
-
 static void ir_work(struct work_struct *work)
 {
-	struct IR_i2c *ir = container_of(work, struct IR_i2c, work);
+	struct IR_i2c *ir = container_of(work, struct IR_i2c, work.work);
 	int polling_interval = 100;
 
 	/* MSI TV@nywhere Plus requires more frequent polling
@@ -254,7 +290,7 @@ static void ir_work(struct work_struct *work)
 		polling_interval = 50;
 
 	ir_key_poll(ir);
-	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(polling_interval));
+	schedule_delayed_work(&ir->work, msecs_to_jiffies(polling_interval));
 }
 
 /* ----------------------------------------------------------------------- */
@@ -360,6 +396,12 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 			ir_type     = IR_TYPE_OTHER;
 		}
 		break;
+	case 0x40:
+		name        = "AVerMedia Cardbus remote";
+		ir->get_key = get_key_avermedia_cardbus;
+		ir_type     = IR_TYPE_OTHER;
+		ir_codes    = ir_codes_avermedia_cardbus;
+		break;
 	default:
 		/* shouldn't happen */
 		printk(DEVNAME ": Huh? unknown i2c address (0x%02x)?\n", addr);
@@ -404,11 +446,8 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	       ir->input->name, ir->input->phys, adap->name);
 
 	/* start polling via eventd */
-	INIT_WORK(&ir->work, ir_work);
-	init_timer(&ir->timer);
-	ir->timer.function = ir_timer;
-	ir->timer.data     = (unsigned long)ir;
-	schedule_work(&ir->work);
+	INIT_DELAYED_WORK(&ir->work, ir_work);
+	schedule_delayed_work(&ir->work, 0);
 
 	return 0;
 
@@ -425,8 +464,7 @@ static int ir_detach(struct i2c_client *client)
 	struct IR_i2c *ir = i2c_get_clientdata(client);
 
 	/* kill outstanding polls */
-	del_timer_sync(&ir->timer);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&ir->work);
 
 	/* unregister devices */
 	input_unregister_device(ir->input);
@@ -522,6 +560,22 @@ static int ir_probe(struct i2c_adapter *adap)
 			(1 == rc) ? "yes" : "no");
 		if (1 == rc)
 			ir_attach(adap, msg.addr, 0, 0);
+	}
+
+	/* Special case for AVerMedia Cardbus remote */
+	if (adap->id == I2C_HW_SAA7134) {
+		unsigned char subaddr, data;
+		struct i2c_msg msg[] = { { .addr = 0x40, .flags = 0,
+					   .buf = &subaddr, .len = 1},
+					 { .addr = 0x40, .flags = I2C_M_RD,
+					   .buf = &data, .len = 1} };
+		subaddr = 0x0d;
+		rc = i2c_transfer(adap, msg, 2);
+		dprintk(1, "probe 0x%02x/0x%02x @ %s: %s\n",
+			msg[0].addr, subaddr, adap->name,
+			(2 == rc) ? "yes" : "no");
+		if (2 == rc)
+			ir_attach(adap, msg[0].addr, 0, 0);
 	}
 
 	return 0;

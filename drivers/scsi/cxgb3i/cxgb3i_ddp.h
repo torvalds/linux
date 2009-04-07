@@ -13,6 +13,8 @@
 #ifndef __CXGB3I_ULP2_DDP_H__
 #define __CXGB3I_ULP2_DDP_H__
 
+#include <linux/vmalloc.h>
+
 /**
  * struct cxgb3i_tag_format - cxgb3i ulp tag format for an iscsi entity
  *
@@ -85,8 +87,9 @@ struct cxgb3i_ddp_info {
 	struct sk_buff **gl_skb;
 };
 
+#define ISCSI_PDU_NONPAYLOAD_LEN	312 /* bhs(48) + ahs(256) + digest(8) */
 #define ULP2_MAX_PKT_SIZE	16224
-#define ULP2_MAX_PDU_PAYLOAD	(ULP2_MAX_PKT_SIZE - ISCSI_PDU_NONPAYLOAD_MAX)
+#define ULP2_MAX_PDU_PAYLOAD	(ULP2_MAX_PKT_SIZE - ISCSI_PDU_NONPAYLOAD_LEN)
 #define PPOD_PAGES_MAX		4
 #define PPOD_PAGES_SHIFT	2	/* 4 pages per pod */
 
@@ -182,12 +185,11 @@ static inline int cxgb3i_is_ddp_tag(struct cxgb3i_tag_format *tformat, u32 tag)
 }
 
 /**
- * cxgb3i_sw_tag_usable - check if a given s/w tag has enough bits left for
- *			  the reserved/hw bits
+ * cxgb3i_sw_tag_usable - check if s/w tag has enough bits left for hw bits
  * @tformat: tag format information
  * @sw_tag: s/w tag to be checked
  *
- * return true if the tag is a ddp tag, false otherwise.
+ * return true if the tag can be used for hw ddp tag, false otherwise.
  */
 static inline int cxgb3i_sw_tag_usable(struct cxgb3i_tag_format *tformat,
 					u32 sw_tag)
@@ -219,8 +221,7 @@ static inline u32 cxgb3i_set_non_ddp_tag(struct cxgb3i_tag_format *tformat,
 }
 
 /**
- * cxgb3i_ddp_tag_base - shift the s/w tag bits so that reserved bits are not
- *			 used.
+ * cxgb3i_ddp_tag_base - shift s/w tag bits so that reserved bits are not used
  * @tformat: tag format information
  * @sw_tag: s/w tag to be checked
  */
@@ -300,7 +301,9 @@ int cxgb3i_setup_conn_pagesize(struct t3cdev *, unsigned int tid, int reply,
 int cxgb3i_setup_conn_digest(struct t3cdev *, unsigned int tid,
 				int hcrc, int dcrc, int reply);
 int cxgb3i_ddp_find_page_index(unsigned long pgsz);
-int cxgb3i_adapter_ddp_init(struct t3cdev *, struct cxgb3i_tag_format *,
+int cxgb3i_adapter_ddp_info(struct t3cdev *, struct cxgb3i_tag_format *,
 			    unsigned int *txsz, unsigned int *rxsz);
-void cxgb3i_adapter_ddp_cleanup(struct t3cdev *);
+
+void cxgb3i_ddp_init(struct t3cdev *);
+void cxgb3i_ddp_cleanup(struct t3cdev *);
 #endif

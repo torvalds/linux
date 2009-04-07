@@ -30,7 +30,7 @@ static int ac97_prepare(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	int reg = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
 		  AC97_PCM_FRONT_DAC_RATE : AC97_PCM_LR_ADC_RATE;
@@ -40,6 +40,10 @@ static int ac97_prepare(struct snd_pcm_substream *substream,
 #define STD_AC97_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
 		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 |\
 		SNDRV_PCM_RATE_48000)
+
+static struct snd_soc_dai_ops ac97_dai_ops = {
+	.prepare	= ac97_prepare,
+};
 
 struct snd_soc_dai ac97_dai = {
 	.name = "AC97 HiFi",
@@ -56,8 +60,7 @@ struct snd_soc_dai ac97_dai = {
 		.channels_max = 2,
 		.rates = STD_AC97_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.prepare = ac97_prepare,},
+	.ops = &ac97_dai_ops,
 };
 EXPORT_SYMBOL_GPL(ac97_dai);
 
@@ -84,10 +87,10 @@ static int ac97_soc_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "AC97 SoC Audio Codec %s\n", AC97_VERSION);
 
-	socdev->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (!socdev->codec)
+	socdev->card->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
+	if (!socdev->card->codec)
 		return -ENOMEM;
-	codec = socdev->codec;
+	codec = socdev->card->codec;
 	mutex_init(&codec->mutex);
 
 	codec->name = "AC97";
@@ -123,23 +126,21 @@ bus_err:
 	snd_soc_free_pcms(socdev);
 
 err:
-	kfree(socdev->codec->reg_cache);
-	kfree(socdev->codec);
-	socdev->codec = NULL;
+	kfree(socdev->card->codec);
+	socdev->card->codec = NULL;
 	return ret;
 }
 
 static int ac97_soc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	if (!codec)
 		return 0;
 
 	snd_soc_free_pcms(socdev);
-	kfree(socdev->codec->reg_cache);
-	kfree(socdev->codec);
+	kfree(socdev->card->codec);
 
 	return 0;
 }
@@ -149,7 +150,7 @@ static int ac97_soc_suspend(struct platform_device *pdev, pm_message_t msg)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 
-	snd_ac97_suspend(socdev->codec->ac97);
+	snd_ac97_suspend(socdev->card->codec->ac97);
 
 	return 0;
 }
@@ -158,7 +159,7 @@ static int ac97_soc_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 
-	snd_ac97_resume(socdev->codec->ac97);
+	snd_ac97_resume(socdev->card->codec->ac97);
 
 	return 0;
 }

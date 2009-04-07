@@ -32,6 +32,7 @@ spca561		041e:403b	Creative Webcam Vista (VF0010)
 zc3xx		041e:4051	Creative Live!Cam Notebook Pro (VF0250)
 ov519		041e:4052	Creative Live! VISTA IM
 zc3xx		041e:4053	Creative Live!Cam Video IM
+vc032x		041e:405b	Creative Live! Cam Notebook Ultra (VC0130)
 ov519		041e:405f	Creative Live! VISTA VF0330
 ov519		041e:4060	Creative Live! VISTA VF0350
 ov519		041e:4061	Creative Live! VISTA VF0400
@@ -193,6 +194,7 @@ spca500		084d:0003	D-Link DSC-350
 spca500		08ca:0103	Aiptek PocketDV
 sunplus		08ca:0104	Aiptek PocketDVII 1.3
 sunplus		08ca:0106	Aiptek Pocket DV3100+
+mr97310a	08ca:0111	Aiptek PenCam VGA+
 sunplus		08ca:2008	Aiptek Mini PenCam 2 M
 sunplus		08ca:2010	Aiptek PocketCam 3M
 sunplus		08ca:2016	Aiptek PocketCam 2 Mega
@@ -215,6 +217,7 @@ pac207		093a:2468	PAC207
 pac207		093a:2470	Genius GF112
 pac207		093a:2471	Genius VideoCam ge111
 pac207		093a:2472	Genius VideoCam ge110
+pac207		093a:2474	Genius iLook 111
 pac207		093a:2476	Genius e-Messenger 112
 pac7311		093a:2600	PAC7311 Typhoon
 pac7311		093a:2601	Philips SPC 610 NC
@@ -279,6 +282,7 @@ spca561		10fd:7e50	FlyCam Usb 100
 zc3xx		10fd:8050	Typhoon Webshot II USB 300k
 ov534		1415:2000	Sony HD Eye for PS3 (SLEH 00201)
 pac207		145f:013a	Trust WB-1300N
+vc032x		15b8:6001	HP 2.0 Megapixel
 vc032x		15b8:6002	HP 2.0 Megapixel rz406aa
 spca501		1776:501c	Arowana 300K CMOS Camera
 t613		17a1:0128	TASCORP JPEG Webcam, NGS Cyclops

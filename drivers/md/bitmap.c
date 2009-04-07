@@ -16,6 +16,7 @@
  * wait if count gets too high, wake when it drops to half.
  */
 
+#include <linux/blkdev.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -26,8 +27,8 @@
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/buffer_head.h>
-#include <linux/raid/md.h>
-#include <linux/raid/bitmap.h>
+#include "md.h"
+#include "bitmap.h"
 
 /* debug macros */
 
@@ -111,9 +112,10 @@ static int bitmap_checkpage(struct bitmap *bitmap, unsigned long page, int creat
 	unsigned char *mappage;
 
 	if (page >= bitmap->pages) {
-		printk(KERN_ALERT
-			"%s: invalid bitmap page request: %lu (> %lu)\n",
-			bmname(bitmap), page, bitmap->pages-1);
+		/* This can happen if bitmap_start_sync goes beyond
+		 * End-of-device while looking for a whole page.
+		 * It is harmless.
+		 */
 		return -EINVAL;
 	}
 
@@ -265,7 +267,6 @@ static mdk_rdev_t *next_active_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
 	list_for_each_continue_rcu(pos, &mddev->disks) {
 		rdev = list_entry(pos, mdk_rdev_t, same_set);
 		if (rdev->raid_disk >= 0 &&
-		    test_bit(In_sync, &rdev->flags) &&
 		    !test_bit(Faulty, &rdev->flags)) {
 			/* this is a usable devices */
 			atomic_inc(&rdev->nr_pending);
@@ -297,7 +298,7 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 				    + size/512 > 0)
 					/* bitmap runs in to metadata */
 					goto bad_alignment;
-				if (rdev->data_offset + mddev->size*2
+				if (rdev->data_offset + mddev->dev_sectors
 				    > rdev->sb_start + bitmap->offset)
 					/* data runs in to bitmap */
 					goto bad_alignment;
@@ -570,7 +571,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 	else if (le32_to_cpu(sb->version) < BITMAP_MAJOR_LO ||
 		 le32_to_cpu(sb->version) > BITMAP_MAJOR_HI)
 		reason = "unrecognized superblock version";
-	else if (chunksize < PAGE_SIZE)
+	else if (chunksize < 512)
 		reason = "bitmap chunksize too small";
 	else if ((1 << ffz(~chunksize)) != chunksize)
 		reason = "bitmap chunksize not a power of 2";
@@ -1306,6 +1307,9 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 		PRINTK(KERN_DEBUG "dec write-behind count %d/%d\n",
 		  atomic_read(&bitmap->behind_writes), bitmap->max_write_behind);
 	}
+	if (bitmap->mddev->degraded)
+		/* Never clear bits or update events_cleared when degraded */
+		success = 0;
 
 	while (sectors) {
 		int blocks;
@@ -1345,8 +1349,8 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 	}
 }
 
-int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
-			int degraded)
+static int __bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
+			       int degraded)
 {
 	bitmap_counter_t *bmc;
 	int rv;
@@ -1371,6 +1375,29 @@ int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
 	}
 	spin_unlock_irq(&bitmap->lock);
 	bitmap->allclean = 0;
+	return rv;
+}
+
+int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks,
+		      int degraded)
+{
+	/* bitmap_start_sync must always report on multiples of whole
+	 * pages, otherwise resync (which is very PAGE_SIZE based) will
+	 * get confused.
+	 * So call __bitmap_start_sync repeatedly (if needed) until
+	 * At least PAGE_SIZE>>9 blocks are covered.
+	 * Return the 'or' of the result.
+	 */
+	int rv = 0;
+	int blocks1;
+
+	*blocks = 0;
+	while (*blocks < (PAGE_SIZE>>9)) {
+		rv |= __bitmap_start_sync(bitmap, offset,
+					  &blocks1, degraded);
+		offset += blocks1;
+		*blocks += blocks1;
+	}
 	return rv;
 }
 
@@ -1443,6 +1470,8 @@ void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector)
 	wait_event(bitmap->mddev->recovery_wait,
 		   atomic_read(&bitmap->mddev->recovery_active) == 0);
 
+	bitmap->mddev->curr_resync_completed = bitmap->mddev->curr_resync;
+	set_bit(MD_CHANGE_CLEAN, &bitmap->mddev->flags);
 	sector &= ~((1ULL << CHUNK_BLOCK_SHIFT(bitmap)) - 1);
 	s = 0;
 	while (s < sector && s < bitmap->mddev->resync_max_sectors) {

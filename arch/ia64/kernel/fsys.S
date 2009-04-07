@@ -25,6 +25,7 @@
 #include <asm/unistd.h>
 
 #include "entry.h"
+#include "paravirt_inst.h"
 
 /*
  * See Documentation/ia64/fsys.txt for details on fsyscalls.
@@ -279,7 +280,7 @@ ENTRY(fsys_gettimeofday)
 (p9)	cmp.eq p13,p0 = 0,r30	// if mmio_ptr, clear p13 jitter control
 	;;
 	.pred.rel.mutex p8,p9
-(p8)	mov r2 = ar.itc		// CPU_TIMER. 36 clocks latency!!!
+	MOV_FROM_ITC(p8, p6, r2, r10)	// CPU_TIMER. 36 clocks latency!!!
 (p9)	ld8 r2 = [r30]		// MMIO_TIMER. Could also have latency issues..
 (p13)	ld8 r25 = [r19]		// get itc_lastcycle value
 	ld8 r9 = [r22],IA64_TIMESPEC_TV_NSEC_OFFSET	// tv_sec
@@ -418,7 +419,7 @@ EX(.fail_efault, ld8 r14=[r33])			// r14 <- *set
 	mov r17=(1 << (SIGKILL - 1)) | (1 << (SIGSTOP - 1))
 	;;
 
-	rsm psr.i				// mask interrupt delivery
+	RSM_PSR_I(p0, r18, r19)			// mask interrupt delivery
 	mov ar.ccv=0
 	andcm r14=r14,r17			// filter out SIGKILL & SIGSTOP
 
@@ -491,7 +492,7 @@ EX(.fail_efault, ld8 r14=[r33])			// r14 <- *set
 #ifdef CONFIG_SMP
 	st4.rel [r31]=r0			// release the lock
 #endif
-	ssm psr.i
+	SSM_PSR_I(p0, p9, r31)
 	;;
 
 	srlz.d					// ensure psr.i is set again
@@ -513,7 +514,7 @@ EX(.fail_efault, (p15) st8 [r34]=r3)
 #ifdef CONFIG_SMP
 	st4.rel [r31]=r0			// release the lock
 #endif
-	ssm psr.i
+	SSM_PSR_I(p0, p9, r17)
 	;;
 	srlz.d
 	br.sptk.many fsys_fallback_syscall	// with signal pending, do the heavy-weight syscall
@@ -521,7 +522,7 @@ EX(.fail_efault, (p15) st8 [r34]=r3)
 #ifdef CONFIG_SMP
 .lock_contention:
 	/* Rather than spinning here, fall back on doing a heavy-weight syscall.  */
-	ssm psr.i
+	SSM_PSR_I(p0, p9, r17)
 	;;
 	srlz.d
 	br.sptk.many fsys_fallback_syscall
@@ -592,17 +593,17 @@ ENTRY(fsys_fallback_syscall)
 	adds r17=-1024,r15
 	movl r14=sys_call_table
 	;;
-	rsm psr.i
+	RSM_PSR_I(p0, r26, r27)
 	shladd r18=r17,3,r14
 	;;
 	ld8 r18=[r18]				// load normal (heavy-weight) syscall entry-point
-	mov r29=psr				// read psr (12 cyc load latency)
+	MOV_FROM_PSR(p0, r29, r26)		// read psr (12 cyc load latency)
 	mov r27=ar.rsc
 	mov r21=ar.fpsr
 	mov r26=ar.pfs
 END(fsys_fallback_syscall)
 	/* FALL THROUGH */
-GLOBAL_ENTRY(fsys_bubble_down)
+GLOBAL_ENTRY(paravirt_fsys_bubble_down)
 	.prologue
 	.altrp b6
 	.body
@@ -640,7 +641,7 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	 *
 	 * PSR.BE : already is turned off in __kernel_syscall_via_epc()
 	 * PSR.AC : don't care (kernel normally turns PSR.AC on)
-	 * PSR.I  : already turned off by the time fsys_bubble_down gets
+	 * PSR.I  : already turned off by the time paravirt_fsys_bubble_down gets
 	 *	    invoked
 	 * PSR.DFL: always 0 (kernel never turns it on)
 	 * PSR.DFH: don't care --- kernel never touches f32-f127 on its own
@@ -650,7 +651,7 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	 * PSR.DB : don't care --- kernel never enables kernel-level
 	 *	    breakpoints
 	 * PSR.TB : must be 0 already; if it wasn't zero on entry to
-	 *          __kernel_syscall_via_epc, the branch to fsys_bubble_down
+	 *          __kernel_syscall_via_epc, the branch to paravirt_fsys_bubble_down
 	 *          will trigger a taken branch; the taken-trap-handler then
 	 *          converts the syscall into a break-based system-call.
 	 */
@@ -683,7 +684,7 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	;;
 	mov ar.rsc=0				// M2   set enforced lazy mode, pl 0, LE, loadrs=0
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	mov.m r30=ar.itc			// M    get cycle for accounting
+	MOV_FROM_ITC(p0, p6, r30, r23)		// M    get cycle for accounting
 #else
 	nop.m 0
 #endif
@@ -734,21 +735,21 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	mov rp=r14				// I0   set the real return addr
 	and r3=_TIF_SYSCALL_TRACEAUDIT,r3	// A
 	;;
-	ssm psr.i				// M2   we're on kernel stacks now, reenable irqs
+	SSM_PSR_I(p0, p6, r22)			// M2   we're on kernel stacks now, reenable irqs
 	cmp.eq p8,p0=r3,r0			// A
 (p10)	br.cond.spnt.many ia64_ret_from_syscall	// B    return if bad call-frame or r15 is a NaT
 
 	nop.m 0
 (p8)	br.call.sptk.many b6=b6			// B    (ignore return address)
 	br.cond.spnt ia64_trace_syscall		// B
-END(fsys_bubble_down)
+END(paravirt_fsys_bubble_down)
 
 	.rodata
 	.align 8
-	.globl fsyscall_table
+	.globl paravirt_fsyscall_table
 
-	data8 fsys_bubble_down
-fsyscall_table:
+	data8 paravirt_fsys_bubble_down
+paravirt_fsyscall_table:
 	data8 fsys_ni_syscall
 	data8 0				// exit			// 1025
 	data8 0				// read
@@ -1033,4 +1034,4 @@ fsyscall_table:
 
 	// fill in zeros for the remaining entries
 	.zero:
-	.space fsyscall_table + 8*NR_syscalls - .zero, 0
+	.space paravirt_fsyscall_table + 8*NR_syscalls - .zero, 0

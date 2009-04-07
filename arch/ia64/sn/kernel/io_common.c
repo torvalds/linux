@@ -135,8 +135,7 @@ static s64 sn_device_fixup_war(u64 nasid, u64 widget, int device,
 	}
 
 	war_list = kzalloc(DEV_PER_WIDGET * sizeof(*war_list), GFP_KERNEL);
-	if (!war_list)
-		BUG();
+	BUG_ON(!war_list);
 
 	SAL_CALL_NOLOCK(isrv, SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST,
 			nasid, widget, __pa(war_list), 0, 0, 0 ,0);
@@ -180,23 +179,20 @@ sn_common_hubdev_init(struct hubdev_info *hubdev)
 		sizeof(struct sn_flush_device_kernel *);
 	hubdev->hdi_flush_nasid_list.widget_p =
 		kzalloc(size, GFP_KERNEL);
-	if (!hubdev->hdi_flush_nasid_list.widget_p)
-		BUG();
+	BUG_ON(!hubdev->hdi_flush_nasid_list.widget_p);
 
 	for (widget = 0; widget <= HUB_WIDGET_ID_MAX; widget++) {
 		size = DEV_PER_WIDGET *
 			sizeof(struct sn_flush_device_kernel);
 		sn_flush_device_kernel = kzalloc(size, GFP_KERNEL);
-		if (!sn_flush_device_kernel)
-			BUG();
+		BUG_ON(!sn_flush_device_kernel);
 
 		dev_entry = sn_flush_device_kernel;
 		for (device = 0; device < DEV_PER_WIDGET;
 		     device++, dev_entry++) {
 			size = sizeof(struct sn_flush_device_common);
 			dev_entry->common = kzalloc(size, GFP_KERNEL);
-			if (!dev_entry->common)
-				BUG();
+			BUG_ON(!dev_entry->common);
 			if (sn_prom_feature_available(PRF_DEVICE_FLUSH_LIST))
 				status = sal_get_device_dmaflush_list(
 					     hubdev->hdi_nasid, widget, device,
@@ -326,8 +322,7 @@ sn_common_bus_fixup(struct pci_bus *bus,
 	 */
 	controller->platform_data = kzalloc(sizeof(struct sn_platform_data),
 					    GFP_KERNEL);
-	if (controller->platform_data == NULL)
-		BUG();
+	BUG_ON(controller->platform_data == NULL);
 	sn_platform_data =
 			(struct sn_platform_data *) controller->platform_data;
 	sn_platform_data->provider_soft = provider_soft;

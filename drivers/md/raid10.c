@@ -18,10 +18,13 @@
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "dm-bio-list.h"
 #include <linux/delay.h>
-#include <linux/raid/raid10.h>
-#include <linux/raid/bitmap.h>
+#include <linux/blkdev.h>
+#include <linux/seq_file.h>
+#include "md.h"
+#include "dm-bio-list.h"
+#include "raid10.h"
+#include "bitmap.h"
 
 /*
  * RAID10 provides a combination of RAID0 and RAID1 functionality.
@@ -1236,6 +1239,7 @@ static void end_sync_read(struct bio *bio, int error)
 	/* for reconstruct, we always reschedule after a read.
 	 * for resync, only after all reads
 	 */
+	rdev_dec_pending(conf->mirrors[d].rdev, conf->mddev);
 	if (test_bit(R10BIO_IsRecover, &r10_bio->state) ||
 	    atomic_dec_and_test(&r10_bio->remaining)) {
 		/* we have read all the blocks,
@@ -1243,7 +1247,6 @@ static void end_sync_read(struct bio *bio, int error)
 		 */
 		reschedule_retry(r10_bio);
 	}
-	rdev_dec_pending(conf->mirrors[d].rdev, conf->mddev);
 }
 
 static void end_sync_write(struct bio *bio, int error)
@@ -1264,11 +1267,13 @@ static void end_sync_write(struct bio *bio, int error)
 
 	update_head_pos(i, r10_bio);
 
+	rdev_dec_pending(conf->mirrors[d].rdev, mddev);
 	while (atomic_dec_and_test(&r10_bio->remaining)) {
 		if (r10_bio->master_bio == NULL) {
 			/* the primary of several recovery bios */
-			md_done_sync(mddev, r10_bio->sectors, 1);
+			sector_t s = r10_bio->sectors;
 			put_buf(r10_bio);
+			md_done_sync(mddev, s, 1);
 			break;
 		} else {
 			r10bio_t *r10_bio2 = (r10bio_t *)r10_bio->master_bio;
@@ -1276,7 +1281,6 @@ static void end_sync_write(struct bio *bio, int error)
 			r10_bio = r10_bio2;
 		}
 	}
-	rdev_dec_pending(conf->mirrors[d].rdev, mddev);
 }
 
 /*
@@ -1694,7 +1698,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			return 0;
 
  skipped:
-	max_sector = mddev->size << 1;
+	max_sector = mddev->dev_sectors;
 	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
 		max_sector = mddev->resync_max_sectors;
 	if (sector_nr >= max_sector) {
@@ -1748,8 +1752,6 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	 */
 	if (!go_faster && conf->nr_waiting)
 		msleep_interruptible(1000);
-
-	bitmap_cond_end_sync(mddev->bitmap, sector_nr);
 
 	/* Again, very different code for resync and recovery.
 	 * Both must result in an r10bio with a list of bios that
@@ -1886,6 +1888,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		/* resync. Schedule a read for every block at this virt offset */
 		int count = 0;
 
+		bitmap_cond_end_sync(mddev->bitmap, sector_nr);
+
 		if (!bitmap_start_sync(mddev->bitmap, sector_nr,
 				       &sync_blocks, mddev->degraded) &&
 		    !conf->fullsync && !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery)) {
@@ -2010,13 +2014,32 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	/* There is nowhere to write, so all non-sync
 	 * drives must be failed, so try the next chunk...
 	 */
-	{
-	sector_t sec = max_sector - sector_nr;
-	sectors_skipped += sec;
+	if (sector_nr + max_sync < max_sector)
+		max_sector = sector_nr + max_sync;
+
+	sectors_skipped += (max_sector - sector_nr);
 	chunks_skipped ++;
 	sector_nr = max_sector;
 	goto skipped;
-	}
+}
+
+static sector_t
+raid10_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+{
+	sector_t size;
+	conf_t *conf = mddev_to_conf(mddev);
+
+	if (!raid_disks)
+		raid_disks = mddev->raid_disks;
+	if (!sectors)
+		sectors = mddev->dev_sectors;
+
+	size = sectors >> conf->chunk_shift;
+	sector_div(size, conf->far_copies);
+	size = size * raid_disks;
+	sector_div(size, conf->near_copies);
+
+	return size << conf->chunk_shift;
 }
 
 static int run(mddev_t *mddev)
@@ -2075,7 +2098,7 @@ static int run(mddev_t *mddev)
 	conf->far_offset = fo;
 	conf->chunk_mask = (sector_t)(mddev->chunk_size>>9)-1;
 	conf->chunk_shift = ffz(~mddev->chunk_size) - 9;
-	size = mddev->size >> (conf->chunk_shift-1);
+	size = mddev->dev_sectors >> conf->chunk_shift;
 	sector_div(size, fc);
 	size = size * conf->raid_disks;
 	sector_div(size, nc);
@@ -2088,7 +2111,7 @@ static int run(mddev_t *mddev)
 	 */
 	stride += conf->raid_disks - 1;
 	sector_div(stride, conf->raid_disks);
-	mddev->size = stride  << (conf->chunk_shift-1);
+	mddev->dev_sectors = stride << conf->chunk_shift;
 
 	if (fo)
 		stride = 1;
@@ -2170,8 +2193,8 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_sectors = size << conf->chunk_shift;
-	mddev->resync_max_sectors = size << conf->chunk_shift;
+	md_set_array_sectors(mddev, raid10_size(mddev, 0, 0));
+	mddev->resync_max_sectors = raid10_size(mddev, 0, 0);
 
 	mddev->queue->unplug_fn = raid10_unplug;
 	mddev->queue->backing_dev_info.congested_fn = raid10_congested;
@@ -2206,6 +2229,9 @@ out:
 static int stop(mddev_t *mddev)
 {
 	conf_t *conf = mddev_to_conf(mddev);
+
+	raise_barrier(conf, 0);
+	lower_barrier(conf);
 
 	md_unregister_thread(mddev->thread);
 	mddev->thread = NULL;
@@ -2254,6 +2280,7 @@ static struct mdk_personality raid10_personality =
 	.spare_active	= raid10_spare_active,
 	.sync_request	= sync_request,
 	.quiesce	= raid10_quiesce,
+	.size		= raid10_size,
 };
 
 static int __init raid_init(void)

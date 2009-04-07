@@ -248,7 +248,7 @@ void bio_free(struct bio *bio, struct bio_set *bs)
 		bvec_free_bs(bs, bio->bi_io_vec, BIO_POOL_IDX(bio));
 
 	if (bio_integrity(bio))
-		bio_integrity_free(bio, bs);
+		bio_integrity_free(bio);
 
 	/*
 	 * If we have front padding, adjust the bio pointer before freeing
@@ -301,47 +301,51 @@ void bio_init(struct bio *bio)
  **/
 struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 {
+	struct bio_vec *bvl = NULL;
 	struct bio *bio = NULL;
+	unsigned long idx = 0;
+	void *p = NULL;
 
 	if (bs) {
-		void *p = mempool_alloc(bs->bio_pool, gfp_mask);
-
-		if (p)
-			bio = p + bs->front_pad;
-	} else
+		p = mempool_alloc(bs->bio_pool, gfp_mask);
+		if (!p)
+			goto err;
+		bio = p + bs->front_pad;
+	} else {
 		bio = kmalloc(sizeof(*bio), gfp_mask);
-
-	if (likely(bio)) {
-		struct bio_vec *bvl = NULL;
-
-		bio_init(bio);
-		if (likely(nr_iovecs)) {
-			unsigned long uninitialized_var(idx);
-
-			if (nr_iovecs <= BIO_INLINE_VECS) {
-				idx = 0;
-				bvl = bio->bi_inline_vecs;
-				nr_iovecs = BIO_INLINE_VECS;
-			} else {
-				bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx,
-							bs);
-				nr_iovecs = bvec_nr_vecs(idx);
-			}
-			if (unlikely(!bvl)) {
-				if (bs)
-					mempool_free(bio, bs->bio_pool);
-				else
-					kfree(bio);
-				bio = NULL;
-				goto out;
-			}
-			bio->bi_flags |= idx << BIO_POOL_OFFSET;
-			bio->bi_max_vecs = nr_iovecs;
-		}
-		bio->bi_io_vec = bvl;
+		if (!bio)
+			goto err;
 	}
-out:
+
+	bio_init(bio);
+
+	if (unlikely(!nr_iovecs))
+		goto out_set;
+
+	if (nr_iovecs <= BIO_INLINE_VECS) {
+		bvl = bio->bi_inline_vecs;
+		nr_iovecs = BIO_INLINE_VECS;
+	} else {
+		bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx, bs);
+		if (unlikely(!bvl))
+			goto err_free;
+
+		nr_iovecs = bvec_nr_vecs(idx);
+	}
+	bio->bi_flags |= idx << BIO_POOL_OFFSET;
+	bio->bi_max_vecs = nr_iovecs;
+out_set:
+	bio->bi_io_vec = bvl;
+
 	return bio;
+
+err_free:
+	if (bs)
+		mempool_free(p, bs->bio_pool);
+	else
+		kfree(bio);
+err:
+	return NULL;
 }
 
 struct bio *bio_alloc(gfp_t gfp_mask, int nr_iovecs)
@@ -462,10 +466,12 @@ struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
 	if (bio_integrity(bio)) {
 		int ret;
 
-		ret = bio_integrity_clone(b, bio, fs_bio_set);
+		ret = bio_integrity_clone(b, bio, gfp_mask);
 
-		if (ret < 0)
+		if (ret < 0) {
+			bio_put(b);
 			return NULL;
+		}
 	}
 
 	return b;
@@ -1414,8 +1420,7 @@ static void bio_pair_end_2(struct bio *bi, int err)
 }
 
 /*
- * split a bio - only worry about a bio with a single page
- * in it's iovec
+ * split a bio - only worry about a bio with a single page in its iovec
  */
 struct bio_pair *bio_split(struct bio *bi, int first_sectors)
 {
@@ -1523,7 +1528,6 @@ void bioset_free(struct bio_set *bs)
 	if (bs->bio_pool)
 		mempool_destroy(bs->bio_pool);
 
-	bioset_integrity_free(bs);
 	biovec_free_pools(bs);
 	bio_put_slab(bs);
 
@@ -1564,9 +1568,6 @@ struct bio_set *bioset_create(unsigned int pool_size, unsigned int front_pad)
 	if (!bs->bio_pool)
 		goto bad;
 
-	if (bioset_integrity_create(bs, pool_size))
-		goto bad;
-
 	if (!biovec_create_pools(bs, pool_size))
 		return bs;
 
@@ -1583,6 +1584,13 @@ static void __init biovec_init_slabs(void)
 		int size;
 		struct biovec_slab *bvs = bvec_slabs + i;
 
+#ifndef CONFIG_BLK_DEV_INTEGRITY
+		if (bvs->nr_vecs <= BIO_INLINE_VECS) {
+			bvs->slab = NULL;
+			continue;
+		}
+#endif
+
 		size = bvs->nr_vecs * sizeof(struct bio_vec);
 		bvs->slab = kmem_cache_create(bvs->name, size, 0,
                                 SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
@@ -1597,7 +1605,6 @@ static int __init init_bio(void)
 	if (!bio_slabs)
 		panic("bio: can't allocate bios\n");
 
-	bio_integrity_init_slab();
 	biovec_init_slabs();
 
 	fs_bio_set = bioset_create(BIO_POOL_SIZE, 0);

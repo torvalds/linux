@@ -215,8 +215,19 @@ struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask)
 	mask &= ~(CRYPTO_ALG_LARVAL | CRYPTO_ALG_DEAD);
 	type &= mask;
 
-	alg = try_then_request_module(crypto_alg_lookup(name, type, mask),
-				      name);
+	alg = crypto_alg_lookup(name, type, mask);
+	if (!alg) {
+		char tmp[CRYPTO_MAX_ALG_NAME];
+
+		request_module(name);
+
+		if (!((type ^ CRYPTO_ALG_NEED_FALLBACK) & mask) &&
+		    snprintf(tmp, sizeof(tmp), "%s-all", name) < sizeof(tmp))
+			request_module(tmp);
+
+		alg = crypto_alg_lookup(name, type, mask);
+	}
+
 	if (alg)
 		return crypto_is_larval(alg) ? crypto_larval_wait(alg) : alg;
 
@@ -244,7 +255,7 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 	struct crypto_alg *larval;
 	int ok;
 
-	if (!(mask & CRYPTO_ALG_TESTED)) {
+	if (!((type | mask) & CRYPTO_ALG_TESTED)) {
 		type |= CRYPTO_ALG_TESTED;
 		mask |= CRYPTO_ALG_TESTED;
 	}
@@ -453,8 +464,8 @@ err:
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_base);
 
-struct crypto_tfm *crypto_create_tfm(struct crypto_alg *alg,
-				     const struct crypto_type *frontend)
+void *crypto_create_tfm(struct crypto_alg *alg,
+			const struct crypto_type *frontend)
 {
 	char *mem;
 	struct crypto_tfm *tfm = NULL;
@@ -488,9 +499,9 @@ out_free_tfm:
 		crypto_shoot_alg(alg);
 	kfree(mem);
 out_err:
-	tfm = ERR_PTR(err);
+	mem = ERR_PTR(err);
 out:
-	return tfm;
+	return mem;
 }
 EXPORT_SYMBOL_GPL(crypto_create_tfm);
 
@@ -514,12 +525,11 @@ EXPORT_SYMBOL_GPL(crypto_create_tfm);
  *
  *	In case of error the return value is an error pointer.
  */
-struct crypto_tfm *crypto_alloc_tfm(const char *alg_name,
-				    const struct crypto_type *frontend,
-				    u32 type, u32 mask)
+void *crypto_alloc_tfm(const char *alg_name,
+		       const struct crypto_type *frontend, u32 type, u32 mask)
 {
 	struct crypto_alg *(*lookup)(const char *name, u32 type, u32 mask);
-	struct crypto_tfm *tfm;
+	void *tfm;
 	int err;
 
 	type &= frontend->maskclear;

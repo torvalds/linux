@@ -48,7 +48,7 @@ static struct file_system_type anon_inode_fs_type = {
 	.get_sb		= anon_inodefs_get_sb,
 	.kill_sb	= kill_anon_super,
 };
-static struct dentry_operations anon_inodefs_dentry_operations = {
+static const struct dentry_operations anon_inodefs_dentry_operations = {
 	.d_delete	= anon_inodefs_delete_dentry,
 };
 

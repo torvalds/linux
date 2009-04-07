@@ -201,6 +201,170 @@ static const match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
+#ifdef CONFIG_DEBUG_FS
+static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
+{
+	int out = 0;
+	int i;
+	struct ocfs2_cluster_connection *cconn = osb->cconn;
+	struct ocfs2_recovery_map *rm = osb->recovery_map;
+
+	out += snprintf(buf + out, len - out,
+			"%10s => Id: %-s  Uuid: %-s  Gen: 0x%X  Label: %-s\n",
+			"Device", osb->dev_str, osb->uuid_str,
+			osb->fs_generation, osb->vol_label);
+
+	out += snprintf(buf + out, len - out,
+			"%10s => State: %d  Flags: 0x%lX\n", "Volume",
+			atomic_read(&osb->vol_state), osb->osb_flags);
+
+	out += snprintf(buf + out, len - out,
+			"%10s => Block: %lu  Cluster: %d\n", "Sizes",
+			osb->sb->s_blocksize, osb->s_clustersize);
+
+	out += snprintf(buf + out, len - out,
+			"%10s => Compat: 0x%X  Incompat: 0x%X  "
+			"ROcompat: 0x%X\n",
+			"Features", osb->s_feature_compat,
+			osb->s_feature_incompat, osb->s_feature_ro_compat);
+
+	out += snprintf(buf + out, len - out,
+			"%10s => Opts: 0x%lX  AtimeQuanta: %u\n", "Mount",
+			osb->s_mount_opt, osb->s_atime_quantum);
+
+	out += snprintf(buf + out, len - out,
+			"%10s => Stack: %s  Name: %*s  Version: %d.%d\n",
+			"Cluster",
+			(*osb->osb_cluster_stack == '\0' ?
+			 "o2cb" : osb->osb_cluster_stack),
+			cconn->cc_namelen, cconn->cc_name,
+			cconn->cc_version.pv_major, cconn->cc_version.pv_minor);
+
+	spin_lock(&osb->dc_task_lock);
+	out += snprintf(buf + out, len - out,
+			"%10s => Pid: %d  Count: %lu  WakeSeq: %lu  "
+			"WorkSeq: %lu\n", "DownCnvt",
+			task_pid_nr(osb->dc_task), osb->blocked_lock_count,
+			osb->dc_wake_sequence, osb->dc_work_sequence);
+	spin_unlock(&osb->dc_task_lock);
+
+	spin_lock(&osb->osb_lock);
+	out += snprintf(buf + out, len - out, "%10s => Pid: %d  Nodes:",
+			"Recovery",
+			(osb->recovery_thread_task ?
+			 task_pid_nr(osb->recovery_thread_task) : -1));
+	if (rm->rm_used == 0)
+		out += snprintf(buf + out, len - out, " None\n");
+	else {
+		for (i = 0; i < rm->rm_used; i++)
+			out += snprintf(buf + out, len - out, " %d",
+					rm->rm_entries[i]);
+		out += snprintf(buf + out, len - out, "\n");
+	}
+	spin_unlock(&osb->osb_lock);
+
+	out += snprintf(buf + out, len - out,
+			"%10s => Pid: %d  Interval: %lu  Needs: %d\n", "Commit",
+			task_pid_nr(osb->commit_task), osb->osb_commit_interval,
+			atomic_read(&osb->needs_checkpoint));
+
+	out += snprintf(buf + out, len - out,
+			"%10s => State: %d  NumTxns: %d  TxnId: %lu\n",
+			"Journal", osb->journal->j_state,
+			atomic_read(&osb->journal->j_num_trans),
+			osb->journal->j_trans_id);
+
+	out += snprintf(buf + out, len - out,
+			"%10s => GlobalAllocs: %d  LocalAllocs: %d  "
+			"SubAllocs: %d  LAWinMoves: %d  SAExtends: %d\n",
+			"Stats",
+			atomic_read(&osb->alloc_stats.bitmap_data),
+			atomic_read(&osb->alloc_stats.local_data),
+			atomic_read(&osb->alloc_stats.bg_allocs),
+			atomic_read(&osb->alloc_stats.moves),
+			atomic_read(&osb->alloc_stats.bg_extends));
+
+	out += snprintf(buf + out, len - out,
+			"%10s => State: %u  Descriptor: %llu  Size: %u bits  "
+			"Default: %u bits\n",
+			"LocalAlloc", osb->local_alloc_state,
+			(unsigned long long)osb->la_last_gd,
+			osb->local_alloc_bits, osb->local_alloc_default_bits);
+
+	spin_lock(&osb->osb_lock);
+	out += snprintf(buf + out, len - out,
+			"%10s => Slot: %d  NumStolen: %d\n", "Steal",
+			osb->s_inode_steal_slot,
+			atomic_read(&osb->s_num_inodes_stolen));
+	spin_unlock(&osb->osb_lock);
+
+	out += snprintf(buf + out, len - out, "%10s => %3s  %10s\n",
+			"Slots", "Num", "RecoGen");
+
+	for (i = 0; i < osb->max_slots; ++i) {
+		out += snprintf(buf + out, len - out,
+				"%10s  %c %3d  %10d\n",
+				" ",
+				(i == osb->slot_num ? '*' : ' '),
+				i, osb->slot_recovery_generations[i]);
+	}
+
+	return out;
+}
+
+static int ocfs2_osb_debug_open(struct inode *inode, struct file *file)
+{
+	struct ocfs2_super *osb = inode->i_private;
+	char *buf = NULL;
+
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		goto bail;
+
+	i_size_write(inode, ocfs2_osb_dump(osb, buf, PAGE_SIZE));
+
+	file->private_data = buf;
+
+	return 0;
+bail:
+	return -ENOMEM;
+}
+
+static int ocfs2_debug_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+static ssize_t ocfs2_debug_read(struct file *file, char __user *buf,
+				size_t nbytes, loff_t *ppos)
+{
+	return simple_read_from_buffer(buf, nbytes, ppos, file->private_data,
+				       i_size_read(file->f_mapping->host));
+}
+#else
+static int ocfs2_osb_debug_open(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+static int ocfs2_debug_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+static ssize_t ocfs2_debug_read(struct file *file, char __user *buf,
+				size_t nbytes, loff_t *ppos)
+{
+	return 0;
+}
+#endif	/* CONFIG_DEBUG_FS */
+
+static struct file_operations ocfs2_osb_debug_fops = {
+	.open =		ocfs2_osb_debug_open,
+	.release =	ocfs2_debug_release,
+	.read =		ocfs2_debug_read,
+	.llseek =	generic_file_llseek,
+};
+
 /*
  * write_super and sync_fs ripped right out of ext3.
  */
@@ -926,6 +1090,16 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 		goto read_super_error;
 	}
 
+	osb->osb_ctxt = debugfs_create_file("fs_state", S_IFREG|S_IRUSR,
+					    osb->osb_debug_root,
+					    osb,
+					    &ocfs2_osb_debug_fops);
+	if (!osb->osb_ctxt) {
+		status = -EINVAL;
+		mlog_errno(status);
+		goto read_super_error;
+	}
+
 	status = ocfs2_mount_volume(sb);
 	if (osb->root_inode)
 		inode = igrab(osb->root_inode);
@@ -1537,6 +1711,13 @@ static int ocfs2_get_sector(struct super_block *sb,
 	unlock_buffer(*bh);
 	ll_rw_block(READ, 1, bh);
 	wait_on_buffer(*bh);
+	if (!buffer_uptodate(*bh)) {
+		mlog_errno(-EIO);
+		brelse(*bh);
+		*bh = NULL;
+		return -EIO;
+	}
+
 	return 0;
 }
 
@@ -1612,6 +1793,8 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 	BUG_ON(!sb);
 	osb = OCFS2_SB(sb);
 	BUG_ON(!osb);
+
+	debugfs_remove(osb->osb_ctxt);
 
 	ocfs2_disable_quotas(osb);
 
@@ -1735,6 +1918,12 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	bbits = le32_to_cpu(di->id2.i_super.s_blocksize_bits);
 	sb->s_maxbytes = ocfs2_max_file_offset(bbits, cbits);
 
+	osb->osb_dx_mask = (1 << (cbits - bbits)) - 1;
+
+	for (i = 0; i < 3; i++)
+		osb->osb_dx_seed[i] = le32_to_cpu(di->id2.i_super.s_dx_seed[i]);
+	osb->osb_dx_seed[3] = le32_to_cpu(di->id2.i_super.s_uuid_hash);
+
 	osb->sb = sb;
 	/* Save off for ocfs2_rw_direct */
 	osb->s_sectsize_bits = blksize_bits(sector_size);
@@ -1747,6 +1936,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	INIT_LIST_HEAD(&osb->blocked_lock_list);
 	osb->blocked_lock_count = 0;
 	spin_lock_init(&osb->osb_lock);
+	spin_lock_init(&osb->osb_xattr_lock);
 	ocfs2_init_inode_steal_slot(osb);
 
 	atomic_set(&osb->alloc_stats.moves, 0);
@@ -2122,6 +2312,12 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 	 * lock, and it's marked as dirty, set the bit in the recover
 	 * map and launch a recovery thread for it. */
 	status = ocfs2_mark_dead_nodes(osb);
+	if (status < 0) {
+		mlog_errno(status);
+		goto finally;
+	}
+
+	status = ocfs2_compute_replay_slots(osb);
 	if (status < 0)
 		mlog_errno(status);
 

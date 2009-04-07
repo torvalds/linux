@@ -25,7 +25,7 @@ module_param(debug_mask, ulong, 0644);
 
 static DEFINE_MUTEX(ide_disk_ref_mutex);
 
-static void ide_disk_release(struct kref *);
+static void ide_disk_release(struct device *);
 
 static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
 {
@@ -37,7 +37,7 @@ static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
 		if (ide_device_get(idkp->drive))
 			idkp = NULL;
 		else
-			kref_get(&idkp->kref);
+			get_device(&idkp->dev);
 	}
 	mutex_unlock(&ide_disk_ref_mutex);
 	return idkp;
@@ -48,7 +48,7 @@ static void ide_disk_put(struct ide_disk_obj *idkp)
 	ide_drive_t *drive = idkp->drive;
 
 	mutex_lock(&ide_disk_ref_mutex);
-	kref_put(&idkp->kref, ide_disk_release);
+	put_device(&idkp->dev);
 	ide_device_put(drive);
 	mutex_unlock(&ide_disk_ref_mutex);
 }
@@ -66,17 +66,18 @@ static void ide_gd_remove(ide_drive_t *drive)
 	struct gendisk *g = idkp->disk;
 
 	ide_proc_unregister_driver(drive, idkp->driver);
-
+	device_del(&idkp->dev);
 	del_gendisk(g);
-
 	drive->disk_ops->flush(drive);
 
-	ide_disk_put(idkp);
+	mutex_lock(&ide_disk_ref_mutex);
+	put_device(&idkp->dev);
+	mutex_unlock(&ide_disk_ref_mutex);
 }
 
-static void ide_disk_release(struct kref *kref)
+static void ide_disk_release(struct device *dev)
 {
-	struct ide_disk_obj *idkp = to_ide_drv(kref, ide_disk_obj);
+	struct ide_disk_obj *idkp = to_ide_drv(dev, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 	struct gendisk *g = idkp->disk;
 
@@ -144,11 +145,6 @@ static ide_startstop_t ide_gd_do_request(ide_drive_t *drive,
 	return drive->disk_ops->do_request(drive, rq, sector);
 }
 
-static int ide_gd_end_request(ide_drive_t *drive, int uptodate, int nrsecs)
-{
-	return drive->disk_ops->end_request(drive, uptodate, nrsecs);
-}
-
 static struct ide_driver ide_gd_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
@@ -161,7 +157,6 @@ static struct ide_driver ide_gd_driver = {
 	.shutdown		= ide_gd_shutdown,
 	.version		= IDE_GD_VERSION,
 	.do_request		= ide_gd_do_request,
-	.end_request		= ide_gd_end_request,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc_entries		= ide_disk_proc_entries,
 	.proc_devsets		= ide_disk_proc_devsets,
@@ -181,7 +176,7 @@ static int ide_gd_open(struct block_device *bdev, fmode_t mode)
 
 	drive = idkp->drive;
 
-	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
+	ide_debug_log(IDE_DBG_FUNC, "enter");
 
 	idkp->openers++;
 
@@ -231,7 +226,7 @@ static int ide_gd_release(struct gendisk *disk, fmode_t mode)
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
-	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
+	ide_debug_log(IDE_DBG_FUNC, "enter");
 
 	if (idkp->openers == 1)
 		drive->disk_ops->flush(drive);
@@ -348,7 +343,12 @@ static int ide_gd_probe(ide_drive_t *drive)
 
 	ide_init_disk(g, drive);
 
-	kref_init(&idkp->kref);
+	idkp->dev.parent = &drive->gendev;
+	idkp->dev.release = ide_disk_release;
+	dev_set_name(&idkp->dev, dev_name(&drive->gendev));
+
+	if (device_register(&idkp->dev))
+		goto out_free_disk;
 
 	idkp->drive = drive;
 	idkp->driver = &ide_gd_driver;
@@ -373,6 +373,8 @@ static int ide_gd_probe(ide_drive_t *drive)
 	add_disk(g);
 	return 0;
 
+out_free_disk:
+	put_disk(g);
 out_free_idkp:
 	kfree(idkp);
 failed:

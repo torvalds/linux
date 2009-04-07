@@ -40,8 +40,6 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 #define node_end_pfn(nid)       (NODE_DATA(nid)->node_start_pfn +	\
 				 NODE_DATA(nid)->node_spanned_pages)
 
-extern int early_pfn_to_nid(unsigned long pfn);
-
 #ifdef CONFIG_NUMA_EMU
 #define FAKE_NODE_MIN_SIZE	(64 * 1024 * 1024)
 #define FAKE_NODE_MIN_HASH_MASK	(~(FAKE_NODE_MIN_SIZE - 1UL))

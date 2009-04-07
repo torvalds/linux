@@ -33,12 +33,10 @@ typedef struct xfs_extent {
  * conversion routine.
  */
 
-#ifndef HAVE_FORMAT32
 typedef struct xfs_extent_32 {
 	__uint64_t	ext_start;
 	__uint32_t	ext_len;
 } __attribute__((packed)) xfs_extent_32_t;
-#endif
 
 typedef struct xfs_extent_64 {
 	__uint64_t	ext_start;
@@ -59,7 +57,6 @@ typedef struct xfs_efi_log_format {
 	xfs_extent_t		efi_extents[1];	/* array of extents to free */
 } xfs_efi_log_format_t;
 
-#ifndef HAVE_FORMAT32
 typedef struct xfs_efi_log_format_32 {
 	__uint16_t		efi_type;	/* efi log item type */
 	__uint16_t		efi_size;	/* size of this item */
@@ -67,7 +64,6 @@ typedef struct xfs_efi_log_format_32 {
 	__uint64_t		efi_id;		/* efi identifier */
 	xfs_extent_32_t		efi_extents[1];	/* array of extents to free */
 } __attribute__((packed)) xfs_efi_log_format_32_t;
-#endif
 
 typedef struct xfs_efi_log_format_64 {
 	__uint16_t		efi_type;	/* efi log item type */
@@ -90,7 +86,6 @@ typedef struct xfs_efd_log_format {
 	xfs_extent_t		efd_extents[1];	/* array of extents freed */
 } xfs_efd_log_format_t;
 
-#ifndef HAVE_FORMAT32
 typedef struct xfs_efd_log_format_32 {
 	__uint16_t		efd_type;	/* efd log item type */
 	__uint16_t		efd_size;	/* size of this item */
@@ -98,7 +93,6 @@ typedef struct xfs_efd_log_format_32 {
 	__uint64_t		efd_efi_id;	/* id of corresponding efi */
 	xfs_extent_32_t		efd_extents[1];	/* array of extents freed */
 } __attribute__((packed)) xfs_efd_log_format_32_t;
-#endif
 
 typedef struct xfs_efd_log_format_64 {
 	__uint16_t		efd_type;	/* efd log item type */

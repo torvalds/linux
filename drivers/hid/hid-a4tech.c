@@ -158,5 +158,3 @@ static void a4_exit(void)
 module_init(a4_init);
 module_exit(a4_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(a4tech);

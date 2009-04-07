@@ -121,6 +121,15 @@
 
 #ifdef __KERNEL__
 
+extern const char *CardType[];
+extern int nrcards;
+
+extern const char *l1_revision;
+extern const char *l2_revision;
+extern const char *l3_revision;
+extern const char *lli_revision;
+extern const char *tei_revision;
+
 /* include l3dss1 & ni1 specific process structures, but no other defines */
 #ifdef CONFIG_HISAX_EURO
   #define l3dss1_process

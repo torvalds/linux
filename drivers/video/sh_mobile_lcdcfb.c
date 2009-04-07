@@ -33,6 +33,8 @@ struct sh_mobile_lcdc_chan {
 	struct fb_info info;
 	dma_addr_t dma_handle;
 	struct fb_deferred_io defio;
+	unsigned long frame_end;
+	wait_queue_head_t frame_end_wait;
 };
 
 struct sh_mobile_lcdc_priv {
@@ -226,7 +228,10 @@ static void sh_mobile_lcdc_deferred_io_touch(struct fb_info *info)
 static irqreturn_t sh_mobile_lcdc_irq(int irq, void *data)
 {
 	struct sh_mobile_lcdc_priv *priv = data;
+	struct sh_mobile_lcdc_chan *ch;
 	unsigned long tmp;
+	int is_sub;
+	int k;
 
 	/* acknowledge interrupt */
 	tmp = lcdc_read(priv, _LDINTR);
@@ -234,8 +239,24 @@ static irqreturn_t sh_mobile_lcdc_irq(int irq, void *data)
 	tmp |= 0x000000ff ^ LDINTR_FS; /* status in low 8 */
 	lcdc_write(priv, _LDINTR, tmp);
 
-	/* disable clocks */
-	sh_mobile_lcdc_clk_off(priv);
+	/* figure out if this interrupt is for main or sub lcd */
+	is_sub = (lcdc_read(priv, _LDSR) & (1 << 10)) ? 1 : 0;
+
+	/* wake up channel and disable clocks*/
+	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
+		ch = &priv->ch[k];
+
+		if (!ch->enabled)
+			continue;
+
+		if (is_sub == lcdc_chan_is_sublcd(ch)) {
+			ch->frame_end = 1;
+			wake_up(&ch->frame_end_wait);
+
+			sh_mobile_lcdc_clk_off(priv);
+		}
+	}
+
 	return IRQ_HANDLED;
 }
 
@@ -446,22 +467,29 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 {
 	struct sh_mobile_lcdc_chan *ch;
 	struct sh_mobile_lcdc_board_cfg	*board_cfg;
-	unsigned long tmp;
 	int k;
 
-	/* tell the board code to disable the panel */
+	/* clean up deferred io and ask board code to disable panel */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		ch = &priv->ch[k];
+
+		/* deferred io mode:
+		 * flush frame, and wait for frame end interrupt
+		 * clean up deferred io and enable clock
+		 */
+		if (ch->info.fbdefio) {
+			ch->frame_end = 0;
+			schedule_delayed_work(&ch->info.deferred_work, 0);
+			wait_event(ch->frame_end_wait, ch->frame_end);
+			fb_deferred_io_cleanup(&ch->info);
+			ch->info.fbdefio = NULL;
+			sh_mobile_lcdc_clk_on(priv);
+		}
+
 		board_cfg = &ch->cfg.board_cfg;
 		if (board_cfg->display_off)
 			board_cfg->display_off(board_cfg->board_data);
 
-		/* cleanup deferred io if SYS bus */
-		tmp = ch->cfg.sys_bus_cfg.deferred_io_msec;
-		if (ch->ldmt1r_value & (1 << 12) && tmp) {
-			fb_deferred_io_cleanup(&ch->info);
-			ch->info.fbdefio = NULL;
-		}
 	}
 
 	/* stop the lcdc */
@@ -654,6 +682,26 @@ static int sh_mobile_lcdc_set_bpp(struct fb_var_screeninfo *var, int bpp)
 	return 0;
 }
 
+static int sh_mobile_lcdc_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	sh_mobile_lcdc_stop(platform_get_drvdata(pdev));
+	return 0;
+}
+
+static int sh_mobile_lcdc_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	return sh_mobile_lcdc_start(platform_get_drvdata(pdev));
+}
+
+static struct dev_pm_ops sh_mobile_lcdc_dev_pm_ops = {
+	.suspend = sh_mobile_lcdc_suspend,
+	.resume = sh_mobile_lcdc_resume,
+};
+
 static int sh_mobile_lcdc_remove(struct platform_device *pdev);
 
 static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
@@ -689,7 +737,7 @@ static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
 	}
 
 	error = request_irq(i, sh_mobile_lcdc_irq, IRQF_DISABLED,
-			    pdev->dev.bus_id, priv);
+			    dev_name(&pdev->dev), priv);
 	if (error) {
 		dev_err(&pdev->dev, "unable to request irq\n");
 		goto err1;
@@ -709,6 +757,7 @@ static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "unsupported interface type\n");
 			goto err1;
 		}
+		init_waitqueue_head(&priv->ch[i].frame_end_wait);
 
 		switch (pdata->ch[i].chan) {
 		case LCDC_CHAN_MAINLCD:
@@ -862,6 +911,7 @@ static struct platform_driver sh_mobile_lcdc_driver = {
 	.driver		= {
 		.name		= "sh_mobile_lcdc_fb",
 		.owner		= THIS_MODULE,
+		.pm		= &sh_mobile_lcdc_dev_pm_ops,
 	},
 	.probe		= sh_mobile_lcdc_probe,
 	.remove		= sh_mobile_lcdc_remove,

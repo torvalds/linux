@@ -22,17 +22,17 @@ menuconfig IPV6
 if IPV6
 
 config IPV6_PRIVACY
-	bool "IPv6: Privacy Extensions support"
+	bool "IPv6: Privacy Extensions (RFC 3041) support"
 	---help---
 	  Privacy Extensions for Stateless Address Autoconfiguration in IPv6
-	  support.  With this option, additional periodically-alter 
-	  pseudo-random global-scope unicast address(es) will assigned to
+	  support.  With this option, additional periodically-altered
+	  pseudo-random global-scope unicast address(es) will be assigned to
 	  your interface(s).
 	
-	  We use our standard pseudo random algorithm to generate randomized
-	  interface identifier, instead of one described in RFC 3041.
+	  We use our standard pseudo-random algorithm to generate the
+          randomized interface identifier, instead of one described in RFC 3041.
 
-	  By default, kernel do not generate temporary addresses.
+	  By default the kernel does not generate temporary addresses.
 	  To use temporary addresses, do
 	
 	        echo 2 >/proc/sys/net/ipv6/conf/all/use_tempaddr 
@@ -43,9 +43,9 @@ config IPV6_ROUTER_PREF
 	bool "IPv6: Router Preference (RFC 4191) support"
 	---help---
 	  Router Preference is an optional extension to the Router
-	  Advertisement message to improve the ability of hosts
-	  to pick more appropriate router, especially when the hosts
-	  is placed in a multi-homed network.
+	  Advertisement message which improves the ability of hosts
+	  to pick an appropriate router, especially when the hosts
+	  are placed in a multi-homed network.
 
 	  If unsure, say N.
 

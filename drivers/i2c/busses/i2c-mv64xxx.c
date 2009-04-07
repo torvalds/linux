@@ -358,7 +358,7 @@ mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 	char		abort = 0;
 
 	time_left = wait_event_interruptible_timeout(drv_data->waitq,
-		!drv_data->block, msecs_to_jiffies(drv_data->adapter.timeout));
+		!drv_data->block, drv_data->adapter.timeout);
 
 	spin_lock_irqsave(&drv_data->lock, flags);
 	if (!time_left) { /* Timed out */
@@ -374,8 +374,7 @@ mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 		spin_unlock_irqrestore(&drv_data->lock, flags);
 
 		time_left = wait_event_timeout(drv_data->waitq,
-			!drv_data->block,
-			msecs_to_jiffies(drv_data->adapter.timeout));
+			!drv_data->block, drv_data->adapter.timeout);
 
 		if ((time_left <= 0) && drv_data->block) {
 			drv_data->state = MV64XXX_I2C_STATE_IDLE;
@@ -482,7 +481,7 @@ mv64xxx_i2c_map_regs(struct platform_device *pd,
 	return 0;
 }
 
-static void __devexit
+static void
 mv64xxx_i2c_unmap_regs(struct mv64xxx_i2c_data *drv_data)
 {
 	if (drv_data->reg_base) {
@@ -530,7 +529,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	drv_data->adapter.algo = &mv64xxx_i2c_algo;
 	drv_data->adapter.owner = THIS_MODULE;
 	drv_data->adapter.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
-	drv_data->adapter.timeout = pdata->timeout;
+	drv_data->adapter.timeout = msecs_to_jiffies(pdata->timeout);
 	drv_data->adapter.nr = pd->id;
 	platform_set_drvdata(pd, drv_data);
 	i2c_set_adapdata(&drv_data->adapter, drv_data);
@@ -577,7 +576,7 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 
 static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
-	.remove	= mv64xxx_i2c_remove,
+	.remove	= __devexit_p(mv64xxx_i2c_remove),
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= MV64XXX_I2C_CTLR_NAME,

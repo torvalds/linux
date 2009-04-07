@@ -17,12 +17,14 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/init.h>
-#include <linux/spinlock.h>
-#include <linux/io.h>
-
 #include <asm/system.h>
 #include <asm/cputype.h>
 #include <asm/cacheflush.h>
+#include <asm/kmap_types.h>
+#include <asm/fixmap.h>
+#include <asm/pgtable.h>
+#include <asm/tlbflush.h>
+#include "mm.h"
 
 #define CR_L2	(1 << 26)
 
@@ -47,19 +49,9 @@ static inline void xsc3_l2_clean_mva(unsigned long addr)
 	__asm__("mcr p15, 1, %0, c7, c11, 1" : : "r" (addr));
 }
 
-static inline void xsc3_l2_clean_pa(unsigned long addr)
-{
-	xsc3_l2_clean_mva(__phys_to_virt(addr));
-}
-
 static inline void xsc3_l2_inv_mva(unsigned long addr)
 {
 	__asm__("mcr p15, 1, %0, c7, c7, 1" : : "r" (addr));
-}
-
-static inline void xsc3_l2_inv_pa(unsigned long addr)
-{
-	xsc3_l2_inv_mva(__phys_to_virt(addr));
 }
 
 static inline void xsc3_l2_inv_all(void)
@@ -79,49 +71,102 @@ static inline void xsc3_l2_inv_all(void)
 	dsb();
 }
 
+#ifdef CONFIG_HIGHMEM
+#define l2_map_save_flags(x)		raw_local_save_flags(x)
+#define l2_map_restore_flags(x)		raw_local_irq_restore(x)
+#else
+#define l2_map_save_flags(x)		((x) = 0)
+#define l2_map_restore_flags(x)		((void)(x))
+#endif
+
+static inline unsigned long l2_map_va(unsigned long pa, unsigned long prev_va,
+				      unsigned long flags)
+{
+#ifdef CONFIG_HIGHMEM
+	unsigned long va = prev_va & PAGE_MASK;
+	unsigned long pa_offset = pa << (32 - PAGE_SHIFT);
+	if (unlikely(pa_offset < (prev_va << (32 - PAGE_SHIFT)))) {
+		/*
+		 * Switching to a new page.  Because cache ops are
+		 * using virtual addresses only, we must put a mapping
+		 * in place for it.  We also enable interrupts for a
+		 * short while and disable them again to protect this
+		 * mapping.
+		 */
+		unsigned long idx;
+		raw_local_irq_restore(flags);
+		idx = KM_L2_CACHE + KM_TYPE_NR * smp_processor_id();
+		va = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+		raw_local_irq_restore(flags | PSR_I_BIT);
+		set_pte_ext(TOP_PTE(va), pfn_pte(pa >> PAGE_SHIFT, PAGE_KERNEL), 0);
+		local_flush_tlb_kernel_page(va);
+	}
+	return va + (pa_offset >> (32 - PAGE_SHIFT));
+#else
+	return __phys_to_virt(pa);
+#endif
+}
+
 static void xsc3_l2_inv_range(unsigned long start, unsigned long end)
 {
+	unsigned long vaddr, flags;
+
 	if (start == 0 && end == -1ul) {
 		xsc3_l2_inv_all();
 		return;
 	}
 
+	vaddr = -1;  /* to force the first mapping */
+	l2_map_save_flags(flags);
+
 	/*
 	 * Clean and invalidate partial first cache line.
 	 */
 	if (start & (CACHE_LINE_SIZE - 1)) {
-		xsc3_l2_clean_pa(start & ~(CACHE_LINE_SIZE - 1));
-		xsc3_l2_inv_pa(start & ~(CACHE_LINE_SIZE - 1));
+		vaddr = l2_map_va(start & ~(CACHE_LINE_SIZE - 1), vaddr, flags);
+		xsc3_l2_clean_mva(vaddr);
+		xsc3_l2_inv_mva(vaddr);
 		start = (start | (CACHE_LINE_SIZE - 1)) + 1;
-	}
-
-	/*
-	 * Clean and invalidate partial last cache line.
-	 */
-	if (start < end && (end & (CACHE_LINE_SIZE - 1))) {
-		xsc3_l2_clean_pa(end & ~(CACHE_LINE_SIZE - 1));
-		xsc3_l2_inv_pa(end & ~(CACHE_LINE_SIZE - 1));
-		end &= ~(CACHE_LINE_SIZE - 1);
 	}
 
 	/*
 	 * Invalidate all full cache lines between 'start' and 'end'.
 	 */
-	while (start < end) {
-		xsc3_l2_inv_pa(start);
+	while (start < (end & ~(CACHE_LINE_SIZE - 1))) {
+		vaddr = l2_map_va(start, vaddr, flags);
+		xsc3_l2_inv_mva(vaddr);
 		start += CACHE_LINE_SIZE;
 	}
+
+	/*
+	 * Clean and invalidate partial last cache line.
+	 */
+	if (start < end) {
+		vaddr = l2_map_va(start, vaddr, flags);
+		xsc3_l2_clean_mva(vaddr);
+		xsc3_l2_inv_mva(vaddr);
+	}
+
+	l2_map_restore_flags(flags);
 
 	dsb();
 }
 
 static void xsc3_l2_clean_range(unsigned long start, unsigned long end)
 {
+	unsigned long vaddr, flags;
+
+	vaddr = -1;  /* to force the first mapping */
+	l2_map_save_flags(flags);
+
 	start &= ~(CACHE_LINE_SIZE - 1);
 	while (start < end) {
-		xsc3_l2_clean_pa(start);
+		vaddr = l2_map_va(start, vaddr, flags);
+		xsc3_l2_clean_mva(vaddr);
 		start += CACHE_LINE_SIZE;
 	}
+
+	l2_map_restore_flags(flags);
 
 	dsb();
 }
@@ -148,17 +193,25 @@ static inline void xsc3_l2_flush_all(void)
 
 static void xsc3_l2_flush_range(unsigned long start, unsigned long end)
 {
+	unsigned long vaddr, flags;
+
 	if (start == 0 && end == -1ul) {
 		xsc3_l2_flush_all();
 		return;
 	}
 
+	vaddr = -1;  /* to force the first mapping */
+	l2_map_save_flags(flags);
+
 	start &= ~(CACHE_LINE_SIZE - 1);
 	while (start < end) {
-		xsc3_l2_clean_pa(start);
-		xsc3_l2_inv_pa(start);
+		vaddr = l2_map_va(start, vaddr, flags);
+		xsc3_l2_clean_mva(vaddr);
+		xsc3_l2_inv_mva(vaddr);
 		start += CACHE_LINE_SIZE;
 	}
+
+	l2_map_restore_flags(flags);
 
 	dsb();
 }

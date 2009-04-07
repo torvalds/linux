@@ -4,6 +4,7 @@
 
 menuconfig NET
 	bool "Networking support"
+	select NLATTR
 	---help---
 	  Unless you really know what you are doing, you should say Y here.
 	  The reason is that some programs need kernel networking support even
@@ -23,9 +24,6 @@ menuconfig NET
 if NET
 
 menu "Networking options"
-
-config COMPAT_NET_DEV_OPS
-       def_bool y
 
 source "net/packet/Kconfig"
 source "net/unix/Kconfig"
@@ -142,7 +140,7 @@ config NETFILTER_ADVANCED
 	default y
 	help
 	  If you say Y here you can select between all the netfilter modules.
-	  If you say N the more ununsual ones will not be shown and the
+	  If you say N the more unusual ones will not be shown and the
 	  basic ones needed by most people will default to 'M'.
 
 	  If unsure, say Y.
@@ -171,6 +169,7 @@ endif
 
 source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
+source "net/rds/Kconfig"
 source "net/tipc/Kconfig"
 source "net/atm/Kconfig"
 source "net/802/Kconfig"
@@ -185,6 +184,7 @@ source "net/x25/Kconfig"
 source "net/lapb/Kconfig"
 source "net/econet/Kconfig"
 source "net/wanrouter/Kconfig"
+source "net/phonet/Kconfig"
 source "net/sched/Kconfig"
 source "net/dcb/Kconfig"
 
@@ -220,6 +220,17 @@ config NET_TCPPROBE
 	To compile this code as a module, choose M here: the
 	module will be called tcp_probe.
 
+config NET_DROP_MONITOR
+	boolean "Network packet drop alerting service"
+	depends on INET && EXPERIMENTAL && TRACEPOINTS
+	---help---
+	This feature provides an alerting service to userspace in the
+	event that packets are discarded in the network stack.  Alerts
+	are broadcast via netlink socket to any listening user space
+	process.  If you don't need network drop alerts, or if you are ok
+	just checking the various proc files and other utilities for
+	drop statistics, say N here.
+
 endmenu
 
 endmenu
@@ -229,7 +240,6 @@ source "net/can/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
 source "net/rxrpc/Kconfig"
-source "net/phonet/Kconfig"
 
 config FIB_RULES
 	bool

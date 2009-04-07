@@ -2,6 +2,9 @@
 # Library configuration
 #
 
+config BINARY_PRINTF
+	def_bool n
+
 menu "Library routines"
 
 config BITREVERSE
@@ -98,6 +101,20 @@ config LZO_DECOMPRESS
 	tristate
 
 #
+# These all provide a common interface (hence the apparent duplication with
+# ZLIB_INFLATE; DECOMPRESS_GZIP is just a wrapper.)
+#
+config DECOMPRESS_GZIP
+	select ZLIB_INFLATE
+	tristate
+
+config DECOMPRESS_BZIP2
+	tristate
+
+config DECOMPRESS_LZMA
+	tristate
+
+#
 # Generic allocator support is selected if needed
 #
 config GENERIC_ALLOCATOR
@@ -136,12 +153,6 @@ config TEXTSEARCH_BM
 config TEXTSEARCH_FSM
 	tristate
 
-#
-# plist support is select#ed if needed
-#
-config PLIST
-	boolean
-
 config HAS_IOMEM
 	boolean
 	depends on !NO_IOMEM
@@ -173,5 +184,11 @@ config CPUMASK_OFFSTACK
 config DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
        bool "Disable obsolete cpumask functions" if DEBUG_PER_CPU_MAPS
        depends on EXPERIMENTAL && BROKEN
+
+#
+# Netlink attribute parsing support is select'ed if needed
+#
+config NLATTR
+	bool
 
 endmenu

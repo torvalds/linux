@@ -553,7 +553,7 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct pep_sock *pn = pep_sk(sk);
 	struct sock *sknode;
-	struct pnpipehdr *hdr = pnp_hdr(skb);
+	struct pnpipehdr *hdr;
 	struct sockaddr_pn dst;
 	int err = NET_RX_SUCCESS;
 	u8 pipe_handle;

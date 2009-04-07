@@ -726,7 +726,7 @@ long keyctl_chown_key(key_serial_t id, uid_t uid, gid_t gid)
 	/* change the UID */
 	if (uid != (uid_t) -1 && uid != key->uid) {
 		ret = -ENOMEM;
-		newowner = key_user_lookup(uid);
+		newowner = key_user_lookup(uid, current_user_ns());
 		if (!newowner)
 			goto error_put;
 

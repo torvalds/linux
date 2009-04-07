@@ -22,6 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/bootmem.h>
 #include <linux/sh_intc.h>
+#include <linux/sysdev.h>
+#include <linux/list.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -40,6 +42,8 @@ struct intc_handle_int {
 };
 
 struct intc_desc_int {
+	struct list_head list;
+	struct sys_device sysdev;
 	unsigned long *reg;
 #ifdef CONFIG_SMP
 	unsigned long *smp;
@@ -51,6 +55,8 @@ struct intc_desc_int {
 	unsigned int nr_sense;
 	struct irq_chip chip;
 };
+
+static LIST_HEAD(intc_list);
 
 #ifdef CONFIG_SMP
 #define IS_SMP(x) x.smp
@@ -230,6 +236,11 @@ static void intc_disable(unsigned int irq)
 		intc_disable_fns[_INTC_MODE(handle)](addr, handle,intc_reg_fns\
 						     [_INTC_FN(handle)], irq);
 	}
+}
+
+static int intc_set_wake(unsigned int irq, unsigned int on)
+{
+	return 0; /* allow wakeup, but setup hardware in intc_suspend() */
 }
 
 #if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
@@ -568,6 +579,10 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	if (!data[0] && data[1])
 		primary = 1;
 
+	if (!data[0] && !data[1])
+		pr_warning("intc: missing unique irq mask for "
+			   "irq %d (vect 0x%04x)\n", irq, irq2evt(irq));
+
 	data[0] = data[0] ? data[0] : intc_mask_data(desc, d, enum_id, 1);
 	data[1] = data[1] ? data[1] : intc_prio_data(desc, d, enum_id, 1);
 
@@ -641,6 +656,17 @@ static unsigned int __init save_reg(struct intc_desc_int *d,
 	return 0;
 }
 
+static unsigned char *intc_evt2irq_table;
+
+unsigned int intc_evt2irq(unsigned int vector)
+{
+	unsigned int irq = evt2irq(vector);
+
+	if (intc_evt2irq_table && intc_evt2irq_table[irq])
+		irq = intc_evt2irq_table[irq];
+
+	return irq;
+}
 
 void __init register_intc_controller(struct intc_desc *desc)
 {
@@ -648,6 +674,9 @@ void __init register_intc_controller(struct intc_desc *desc)
 	struct intc_desc_int *d;
 
 	d = alloc_bootmem(sizeof(*d));
+
+	INIT_LIST_HEAD(&d->list);
+	list_add(&d->list, &intc_list);
 
 	d->nr_reg = desc->mask_regs ? desc->nr_mask_regs * 2 : 0;
 	d->nr_reg += desc->prio_regs ? desc->nr_prio_regs * 2 : 0;
@@ -692,7 +721,11 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->chip.mask = intc_disable;
 	d->chip.unmask = intc_enable;
 	d->chip.mask_ack = intc_disable;
+	d->chip.enable = intc_enable;
+	d->chip.disable = intc_disable;
+	d->chip.shutdown = intc_disable;
 	d->chip.set_type = intc_set_sense;
+	d->chip.set_wake = intc_set_wake;
 
 #if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	if (desc->ack_regs) {
@@ -705,9 +738,91 @@ void __init register_intc_controller(struct intc_desc *desc)
 
 	BUG_ON(k > 256); /* _INTC_ADDR_E() and _INTC_ADDR_D() are 8 bits */
 
+	/* keep the first vector only if same enum is used multiple times */
 	for (i = 0; i < desc->nr_vectors; i++) {
 		struct intc_vect *vect = desc->vectors + i;
+		int first_irq = evt2irq(vect->vect);
+
+		if (!vect->enum_id)
+			continue;
+
+		for (k = i + 1; k < desc->nr_vectors; k++) {
+			struct intc_vect *vect2 = desc->vectors + k;
+
+			if (vect->enum_id != vect2->enum_id)
+				continue;
+
+			vect2->enum_id = 0;
+
+			if (!intc_evt2irq_table)
+				intc_evt2irq_table = alloc_bootmem(NR_IRQS);
+
+			if (!intc_evt2irq_table) {
+				pr_warning("intc: cannot allocate evt2irq!\n");
+				continue;
+			}
+
+			intc_evt2irq_table[evt2irq(vect2->vect)] = first_irq;
+		}
+	}
+
+	/* register the vectors one by one */
+	for (i = 0; i < desc->nr_vectors; i++) {
+		struct intc_vect *vect = desc->vectors + i;
+
+		if (!vect->enum_id)
+			continue;
 
 		intc_register_irq(desc, d, vect->enum_id, evt2irq(vect->vect));
 	}
 }
+
+static int intc_suspend(struct sys_device *dev, pm_message_t state)
+{
+	struct intc_desc_int *d;
+	struct irq_desc *desc;
+	int irq;
+
+	/* get intc controller associated with this sysdev */
+	d = container_of(dev, struct intc_desc_int, sysdev);
+
+	/* enable wakeup irqs belonging to this intc controller */
+	for_each_irq_desc(irq, desc) {
+		if ((desc->status & IRQ_WAKEUP) && (desc->chip == &d->chip))
+			intc_enable(irq);
+	}
+
+	return 0;
+}
+
+static struct sysdev_class intc_sysdev_class = {
+	.name = "intc",
+	.suspend = intc_suspend,
+};
+
+/* register this intc as sysdev to allow suspend/resume */
+static int __init register_intc_sysdevs(void)
+{
+	struct intc_desc_int *d;
+	int error;
+	int id = 0;
+
+	error = sysdev_class_register(&intc_sysdev_class);
+	if (!error) {
+		list_for_each_entry(d, &intc_list, list) {
+			d->sysdev.id = id;
+			d->sysdev.cls = &intc_sysdev_class;
+			error = sysdev_register(&d->sysdev);
+			if (error)
+				break;
+			id++;
+		}
+	}
+
+	if (error)
+		pr_warning("intc: sysdev registration error\n");
+
+	return error;
+}
+
+device_initcall(register_intc_sysdevs);

@@ -7,6 +7,10 @@
  *	(at your option) any later version.
  * 
  */
+
+#define BENQ_VENDOR_ID			0x04a5
+#define BENQ_PRODUCT_ID_S81		0x4027
+
 #define PL2303_VENDOR_ID	0x067b
 #define PL2303_PRODUCT_ID	0x2303
 #define PL2303_PRODUCT_ID_RSAQ2		0x04bb

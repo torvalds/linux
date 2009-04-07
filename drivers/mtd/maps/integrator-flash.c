@@ -31,6 +31,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -38,7 +39,6 @@
 
 #include <asm/mach/flash.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/system.h>
 
 #ifdef CONFIG_ARCH_P720T

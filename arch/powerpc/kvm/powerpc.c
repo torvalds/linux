@@ -125,6 +125,10 @@ static void kvmppc_free_vcpus(struct kvm *kvm)
 	}
 }
 
+void kvm_arch_sync_events(struct kvm *kvm)
+{
+}
+
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvmppc_free_vcpus(kvm);
@@ -212,46 +216,23 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
-	kvmppc_core_destroy_mmu(vcpu);
+	kvmppc_mmu_destroy(vcpu);
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
-	if (vcpu->guest_debug.enabled)
-		kvmppc_core_load_guest_debugstate(vcpu);
-
 	kvmppc_core_vcpu_load(vcpu, cpu);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->guest_debug.enabled)
-		kvmppc_core_load_host_debugstate(vcpu);
-
-	/* Don't leave guest TLB entries resident when being de-scheduled. */
-	/* XXX It would be nice to differentiate between heavyweight exit and
-	 * sched_out here, since we could avoid the TLB flush for heavyweight
-	 * exits. */
-	_tlbil_all();
 	kvmppc_core_vcpu_put(vcpu);
 }
 
-int kvm_arch_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,
-                                    struct kvm_debug_guest *dbg)
+int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
+                                        struct kvm_guest_debug *dbg)
 {
-	int i;
-
-	vcpu->guest_debug.enabled = dbg->enabled;
-	if (vcpu->guest_debug.enabled) {
-		for (i=0; i < ARRAY_SIZE(vcpu->guest_debug.bp); i++) {
-			if (dbg->breakpoints[i].enabled)
-				vcpu->guest_debug.bp[i] = dbg->breakpoints[i].address;
-			else
-				vcpu->guest_debug.bp[i] = 0;
-		}
-	}
-
-	return 0;
+	return -EINVAL;
 }
 
 static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,

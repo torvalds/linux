@@ -22,12 +22,16 @@
 #include <asm/pgalloc.h>
 #include <asm/pat.h>
 
-#ifdef CONFIG_X86_64
-
-static inline int phys_addr_valid(unsigned long addr)
+static inline int phys_addr_valid(resource_size_t addr)
 {
-	return addr < (1UL << boot_cpu_data.x86_phys_bits);
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+	return !(addr >> boot_cpu_data.x86_phys_bits);
+#else
+	return 1;
+#endif
 }
+
+#ifdef CONFIG_X86_64
 
 unsigned long __phys_addr(unsigned long x)
 {
@@ -38,8 +42,7 @@ unsigned long __phys_addr(unsigned long x)
 	} else {
 		VIRTUAL_BUG_ON(x < PAGE_OFFSET);
 		x -= PAGE_OFFSET;
-		VIRTUAL_BUG_ON(system_state == SYSTEM_BOOTING ? x > MAXMEM :
-					!phys_addr_valid(x));
+		VIRTUAL_BUG_ON(!phys_addr_valid(x));
 	}
 	return x;
 }
@@ -56,10 +59,8 @@ bool __virt_addr_valid(unsigned long x)
 		if (x < PAGE_OFFSET)
 			return false;
 		x -= PAGE_OFFSET;
-		if (system_state == SYSTEM_BOOTING ?
-				x > MAXMEM : !phys_addr_valid(x)) {
+		if (!phys_addr_valid(x))
 			return false;
-		}
 	}
 
 	return pfn_valid(x >> PAGE_SHIFT);
@@ -68,18 +69,12 @@ EXPORT_SYMBOL(__virt_addr_valid);
 
 #else
 
-static inline int phys_addr_valid(unsigned long addr)
-{
-	return 1;
-}
-
 #ifdef CONFIG_DEBUG_VIRTUAL
 unsigned long __phys_addr(unsigned long x)
 {
-	/* VMALLOC_* aren't constants; not available at the boot time */
+	/* VMALLOC_* aren't constants  */
 	VIRTUAL_BUG_ON(x < PAGE_OFFSET);
-	VIRTUAL_BUG_ON(system_state != SYSTEM_BOOTING &&
-		is_vmalloc_addr((void *) x));
+	VIRTUAL_BUG_ON(__vmalloc_start_set && is_vmalloc_addr((void *) x));
 	return x - PAGE_OFFSET;
 }
 EXPORT_SYMBOL(__phys_addr);
@@ -89,7 +84,9 @@ bool __virt_addr_valid(unsigned long x)
 {
 	if (x < PAGE_OFFSET)
 		return false;
-	if (system_state != SYSTEM_BOOTING && is_vmalloc_addr((void *) x))
+	if (__vmalloc_start_set && is_vmalloc_addr((void *) x))
+		return false;
+	if (x >= FIXADDR_START)
 		return false;
 	return pfn_valid((x - PAGE_OFFSET) >> PAGE_SHIFT);
 }
@@ -132,25 +129,6 @@ int page_is_ram(unsigned long pagenr)
 			return 1;
 	}
 	return 0;
-}
-
-int pagerange_is_ram(unsigned long start, unsigned long end)
-{
-	int ram_page = 0, not_rampage = 0;
-	unsigned long page_nr;
-
-	for (page_nr = (start >> PAGE_SHIFT); page_nr < (end >> PAGE_SHIFT);
-	     ++page_nr) {
-		if (page_is_ram(page_nr))
-			ram_page = 1;
-		else
-			not_rampage = 1;
-
-		if (ram_page == not_rampage)
-			return -1;
-	}
-
-	return ram_page;
 }
 
 /*
@@ -367,7 +345,7 @@ EXPORT_SYMBOL(ioremap_nocache);
  *
  * Must be freed with iounmap.
  */
-void __iomem *ioremap_wc(unsigned long phys_addr, unsigned long size)
+void __iomem *ioremap_wc(resource_size_t phys_addr, unsigned long size)
 {
 	if (pat_enabled)
 		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_WC,
@@ -527,12 +505,18 @@ static inline pte_t * __init early_ioremap_pte(unsigned long addr)
 	return &bm_pte[pte_index(addr)];
 }
 
+static unsigned long slot_virt[FIX_BTMAPS_SLOTS] __initdata;
+
 void __init early_ioremap_init(void)
 {
 	pmd_t *pmd;
+	int i;
 
 	if (early_ioremap_debug)
 		printk(KERN_INFO "early_ioremap_init()\n");
+
+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++)
+		slot_virt[i] = __fix_to_virt(FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*i);
 
 	pmd = early_ioremap_pmd(fix_to_virt(FIX_BTMAP_BEGIN));
 	memset(bm_pte, 0, sizeof(bm_pte));
@@ -600,6 +584,7 @@ static inline void __init early_clear_fixmap(enum fixed_addresses idx)
 
 static void __iomem *prev_map[FIX_BTMAPS_SLOTS] __initdata;
 static unsigned long prev_size[FIX_BTMAPS_SLOTS] __initdata;
+
 static int __init check_early_ioremap_leak(void)
 {
 	int count = 0;
@@ -621,7 +606,8 @@ static int __init check_early_ioremap_leak(void)
 }
 late_initcall(check_early_ioremap_leak);
 
-static void __init __iomem *__early_ioremap(unsigned long phys_addr, unsigned long size, pgprot_t prot)
+static void __init __iomem *
+__early_ioremap(unsigned long phys_addr, unsigned long size, pgprot_t prot)
 {
 	unsigned long offset, last_addr;
 	unsigned int nrpages;
@@ -687,9 +673,9 @@ static void __init __iomem *__early_ioremap(unsigned long phys_addr, unsigned lo
 		--nrpages;
 	}
 	if (early_ioremap_debug)
-		printk(KERN_CONT "%08lx + %08lx\n", offset, fix_to_virt(idx0));
+		printk(KERN_CONT "%08lx + %08lx\n", offset, slot_virt[slot]);
 
-	prev_map[slot] = (void __iomem *)(offset + fix_to_virt(idx0));
+	prev_map[slot] = (void __iomem *)(offset + slot_virt[slot]);
 	return prev_map[slot];
 }
 
@@ -756,9 +742,4 @@ void __init early_iounmap(void __iomem *addr, unsigned long size)
 		--nrpages;
 	}
 	prev_map[slot] = NULL;
-}
-
-void __this_fixmap_does_not_exist(void)
-{
-	WARN_ON(1);
 }

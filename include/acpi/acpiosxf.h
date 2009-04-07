@@ -144,6 +144,7 @@ void __iomem *acpi_os_map_memory(acpi_physical_address where,
 				acpi_size length);
 
 void acpi_os_unmap_memory(void __iomem * logical_address, acpi_size size);
+void early_acpi_os_unmap_memory(void __iomem * virt, acpi_size size);
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
@@ -240,10 +241,6 @@ acpi_os_derive_pci_id(acpi_handle rhandle,
  */
 acpi_status acpi_os_validate_interface(char *interface);
 acpi_status acpi_osi_invalidate(char* interface);
-
-acpi_status
-acpi_os_validate_address(u8 space_id, acpi_physical_address address,
-			 acpi_size length, char *name);
 
 u64 acpi_os_get_timer(void);
 

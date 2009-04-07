@@ -38,7 +38,7 @@ struct xfs_trans;
 
 /*
  * Directory address space divided into sections,
- * spaces separated by 32gb.
+ * spaces separated by 32GB.
  */
 #define	XFS_DIR2_SPACE_SIZE	(1ULL << (32 + XFS_DIR2_DATA_ALIGN_LOG))
 #define	XFS_DIR2_DATA_SPACE	0

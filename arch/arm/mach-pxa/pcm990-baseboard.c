@@ -31,13 +31,12 @@
 #include <mach/i2c.h>
 #include <mach/camera.h>
 #include <asm/mach/map.h>
-#include <mach/pxa-regs.h>
+#include <mach/pxa27x.h>
 #include <mach/audio.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pcm990_baseboard.h>
 #include <mach/pxafb.h>
-#include <mach/mfp-pxa27x.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -381,14 +380,49 @@ static struct pca953x_platform_data pca9536_data = {
 	.gpio_base	= NR_BUILTIN_GPIO + 1,
 };
 
-static struct soc_camera_link iclink[] = {
-	{
-		.bus_id	= 0, /* Must match with the camera ID above */
-		.gpio	= NR_BUILTIN_GPIO + 1,
-	}, {
-		.bus_id	= 0, /* Must match with the camera ID above */
-		.gpio	= -ENXIO,
+static int gpio_bus_switch;
+
+static int pcm990_camera_set_bus_param(struct soc_camera_link *link,
+		unsigned long flags)
+{
+	if (gpio_bus_switch <= 0) {
+		if (flags == SOCAM_DATAWIDTH_10)
+			return 0;
+		else
+			return -EINVAL;
 	}
+
+	if (flags & SOCAM_DATAWIDTH_8)
+		gpio_set_value(gpio_bus_switch, 1);
+	else
+		gpio_set_value(gpio_bus_switch, 0);
+
+	return 0;
+}
+
+static unsigned long pcm990_camera_query_bus_param(struct soc_camera_link *link)
+{
+	int ret;
+
+	if (!gpio_bus_switch) {
+		ret = gpio_request(NR_BUILTIN_GPIO + 1, "camera");
+		if (!ret) {
+			gpio_bus_switch = NR_BUILTIN_GPIO + 1;
+			gpio_direction_output(gpio_bus_switch, 0);
+		} else
+			gpio_bus_switch = -EINVAL;
+	}
+
+	if (gpio_bus_switch > 0)
+		return SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_10;
+	else
+		return SOCAM_DATAWIDTH_10;
+}
+
+static struct soc_camera_link iclink = {
+	.bus_id	= 0, /* Must match with the camera ID above */
+	.query_bus_param = pcm990_camera_query_bus_param,
+	.set_bus_param = pcm990_camera_set_bus_param,
 };
 
 /* Board I2C devices. */
@@ -399,10 +433,10 @@ static struct i2c_board_info __initdata pcm990_i2c_devices[] = {
 		.platform_data = &pca9536_data,
 	}, {
 		I2C_BOARD_INFO("mt9v022", 0x48),
-		.platform_data = &iclink[0], /* With extender */
+		.platform_data = &iclink, /* With extender */
 	}, {
 		I2C_BOARD_INFO("mt9m001", 0x5d),
-		.platform_data = &iclink[0], /* With extender */
+		.platform_data = &iclink, /* With extender */
 	},
 };
 #endif /* CONFIG_VIDEO_PXA27x ||CONFIG_VIDEO_PXA27x_MODULE */

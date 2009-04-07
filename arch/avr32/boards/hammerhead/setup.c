@@ -29,6 +29,8 @@
 #include <mach/init.h>
 #include <mach/portmux.h>
 
+#include <sound/atmel-ac97c.h>
+
 #include "../../mach-at32ap/clock.h"
 #include "flash.h"
 
@@ -163,7 +165,7 @@ static void __init set_hw_addr(struct platform_device *pdev)
 
 void __init setup_board(void)
 {
-	at32_map_usart(1, 0);	/* USART 1: /dev/ttyS0, DB9 */
+	at32_map_usart(1, 0, 0);	/* USART 1: /dev/ttyS0, DB9 */
 	at32_setup_serial_console(0);
 }
 
@@ -233,7 +235,7 @@ static int __init hammerhead_init(void)
 	i2c_register_board_info(0, i2c_info, ARRAY_SIZE(i2c_info));
 
 #ifdef CONFIG_BOARD_HAMMERHEAD_SND
-	at32_add_device_ac97c(0, &ac97c_data);
+	at32_add_device_ac97c(0, &ac97c_data, AC97C_BOTH);
 #endif
 
 	/* Select the Touchscreen interrupt pin mode */

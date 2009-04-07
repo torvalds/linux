@@ -53,11 +53,6 @@
 
 #define GAYLE_NEXT_PORT	0x1000
 
-#ifndef CONFIG_BLK_DEV_IDEDOUBLER
-#define GAYLE_NUM_HWIFS		1
-#define GAYLE_NUM_PROBE_HWIFS	GAYLE_NUM_HWIFS
-#define GAYLE_HAS_CONTROL_REG	1
-#else /* CONFIG_BLK_DEV_IDEDOUBLER */
 #define GAYLE_NUM_HWIFS		2
 #define GAYLE_NUM_PROBE_HWIFS	(ide_doubler ? GAYLE_NUM_HWIFS : \
 					       GAYLE_NUM_HWIFS-1)
@@ -66,8 +61,6 @@
 static int ide_doubler;
 module_param_named(doubler, ide_doubler, bool, 0);
 MODULE_PARM_DESC(doubler, "enable support for IDE doublers");
-#endif /* CONFIG_BLK_DEV_IDEDOUBLER */
-
 
     /*
      *  Check and acknowledge the interrupt status
@@ -118,7 +111,9 @@ static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
 }
 
 static const struct ide_port_info gayle_port_info = {
-	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_NO_DMA,
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_SERIALIZE |
+				  IDE_HFLAG_NO_DMA,
+	.irq_flags		= IRQF_SHARED,
 };
 
     /*
@@ -149,10 +144,7 @@ static int __init gayle_init(void)
 found:
 	printk(KERN_INFO "ide: Gayle IDE controller (A%d style%s)\n",
 			 a4000 ? 4000 : 1200,
-#ifdef CONFIG_BLK_DEV_IDEDOUBLER
-			 ide_doubler ? ", IDE doubler" :
-#endif
-			 "");
+			 ide_doubler ? ", IDE doubler" : "");
 
 	if (a4000) {
 	    phys_base = GAYLE_BASE_4000;
@@ -163,9 +155,6 @@ found:
 	    irqport = (unsigned long)ZTWO_VADDR(GAYLE_IRQ_1200);
 	    ack_intr = gayle_ack_intr_a1200;
 	}
-/*
- * FIXME: we now have selectable modes between mmio v/s iomio
- */
 
 	res_start = ((unsigned long)phys_base) & ~(GAYLE_NEXT_PORT-1);
 	res_n = GAYLE_IDEREG_SIZE;

@@ -315,8 +315,7 @@ struct phy_device {
 
 	/* Interrupt and Polling infrastructure */
 	struct work_struct phy_queue;
-	struct work_struct state_queue;
-	struct timer_list phy_timer;
+	struct delayed_work state_queue;
 	atomic_t irq_disable;
 
 	struct mutex lock;

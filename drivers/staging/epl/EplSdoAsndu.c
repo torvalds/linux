@@ -110,7 +110,7 @@ static tEplSdoAsndInstance SdoAsndInstance_g;
 // local function prototypes
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplSdoAsnduCb(tEplFrameInfo * pFrameInfo_p);
+tEplKernel EplSdoAsnduCb(tEplFrameInfo *pFrameInfo_p);
 
 /***************************************************************************/
 /*                                                                         */
@@ -149,7 +149,7 @@ tEplKernel PUBLIC EplSdoAsnduCb(tEplFrameInfo * pFrameInfo_p);
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsnduInit(tEplSequLayerReceiveCb fpReceiveCb_p)
+tEplKernel EplSdoAsnduInit(tEplSequLayerReceiveCb fpReceiveCb_p)
 {
 	tEplKernel Ret;
 
@@ -176,7 +176,7 @@ tEplKernel PUBLIC EplSdoAsnduInit(tEplSequLayerReceiveCb fpReceiveCb_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsnduAddInstance(tEplSequLayerReceiveCb fpReceiveCb_p)
+tEplKernel EplSdoAsnduAddInstance(tEplSequLayerReceiveCb fpReceiveCb_p)
 {
 	tEplKernel Ret;
 
@@ -218,7 +218,7 @@ tEplKernel PUBLIC EplSdoAsnduAddInstance(tEplSequLayerReceiveCb fpReceiveCb_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsnduDelInstance()
+tEplKernel EplSdoAsnduDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -251,8 +251,8 @@ tEplKernel PUBLIC EplSdoAsnduDelInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsnduInitCon(tEplSdoConHdl * pSdoConHandle_p,
-				     unsigned int uiTargetNodeId_p)
+tEplKernel EplSdoAsnduInitCon(tEplSdoConHdl *pSdoConHandle_p,
+			      unsigned int uiTargetNodeId_p)
 {
 	tEplKernel Ret;
 	unsigned int uiCount;
@@ -319,9 +319,9 @@ tEplKernel PUBLIC EplSdoAsnduInitCon(tEplSdoConHdl * pSdoConHandle_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsnduSendData(tEplSdoConHdl SdoConHandle_p,
-				      tEplFrame * pSrcData_p,
-				      DWORD dwDataSize_p)
+tEplKernel EplSdoAsnduSendData(tEplSdoConHdl SdoConHandle_p,
+			       tEplFrame *pSrcData_p,
+			       u32 dwDataSize_p)
 {
 	tEplKernel Ret;
 	unsigned int uiArray;
@@ -339,10 +339,10 @@ tEplKernel PUBLIC EplSdoAsnduSendData(tEplSdoConHdl SdoConHandle_p,
 	// own node id not needed -> filled by DLL
 
 	// set message type
-	AmiSetByteToLe(&pSrcData_p->m_le_bMessageType, (BYTE) kEplMsgTypeAsnd);	// ASnd == 0x06
+	AmiSetByteToLe(&pSrcData_p->m_le_bMessageType, (u8) kEplMsgTypeAsnd);	// ASnd == 0x06
 	// target node id
 	AmiSetByteToLe(&pSrcData_p->m_le_bDstNodeId,
-		       (BYTE) SdoAsndInstance_g.
+		       (u8) SdoAsndInstance_g.
 		       m_auiSdoAsndConnection[uiArray]);
 	// set source-nodeid (filled by DLL 0)
 	AmiSetByteToLe(&pSrcData_p->m_le_bSrcNodeId, 0x00);
@@ -379,7 +379,7 @@ tEplKernel PUBLIC EplSdoAsnduSendData(tEplSdoConHdl SdoConHandle_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsnduDelCon(tEplSdoConHdl SdoConHandle_p)
+tEplKernel EplSdoAsnduDelCon(tEplSdoConHdl SdoConHandle_p)
 {
 	tEplKernel Ret;
 	unsigned int uiArray;
@@ -422,7 +422,7 @@ tEplKernel PUBLIC EplSdoAsnduDelCon(tEplSdoConHdl SdoConHandle_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsnduCb(tEplFrameInfo * pFrameInfo_p)
+tEplKernel EplSdoAsnduCb(tEplFrameInfo *pFrameInfo_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiCount;

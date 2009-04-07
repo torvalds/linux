@@ -66,6 +66,7 @@
 #include <linux/syscalls.h>
 #include <linux/inotify.h>
 #include <linux/capability.h>
+#include <linux/fs_struct.h>
 
 #include "audit.h"
 
@@ -328,6 +329,14 @@ static int audit_match_filetype(struct audit_context *ctx, int which)
  */
 
 #ifdef CONFIG_AUDIT_TREE
+static void audit_set_auditable(struct audit_context *ctx)
+{
+	if (!ctx->prio) {
+		ctx->prio = 1;
+		ctx->current_state = AUDIT_RECORD_CONTEXT;
+	}
+}
+
 static int put_tree_ref(struct audit_context *ctx, struct audit_chunk *chunk)
 {
 	struct audit_tree_refs *p = ctx->trees;
@@ -741,17 +750,9 @@ void audit_filter_inodes(struct task_struct *tsk, struct audit_context *ctx)
 	rcu_read_unlock();
 }
 
-static void audit_set_auditable(struct audit_context *ctx)
-{
-	if (!ctx->prio) {
-		ctx->prio = 1;
-		ctx->current_state = AUDIT_RECORD_CONTEXT;
-	}
-}
-
 static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 						      int return_valid,
-						      int return_code)
+						      long return_code)
 {
 	struct audit_context *context = tsk->audit_context;
 
@@ -1023,7 +1024,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 {
 	char arg_num_len_buf[12];
 	const char __user *tmp_p = p;
-	/* how many digits are in arg_num? 3 is the length of a=\n */
+	/* how many digits are in arg_num? 3 is the length of " a=" */
 	size_t arg_num_len = snprintf(arg_num_len_buf, 12, "%d", arg_num) + 3;
 	size_t len, len_left, to_send;
 	size_t max_execve_audit_len = MAX_EXECVE_AUDIT_LEN;
@@ -1109,7 +1110,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 		 * so we can be sure nothing was lost.
 		 */
 		if ((i == 0) && (too_long))
-			audit_log_format(*ab, "a%d_len=%zu ", arg_num,
+			audit_log_format(*ab, " a%d_len=%zu", arg_num,
 					 has_cntl ? 2*len : len);
 
 		/*
@@ -1129,7 +1130,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 		buf[to_send] = '\0';
 
 		/* actually log it */
-		audit_log_format(*ab, "a%d", arg_num);
+		audit_log_format(*ab, " a%d", arg_num);
 		if (too_long)
 			audit_log_format(*ab, "[%d]", i);
 		audit_log_format(*ab, "=");
@@ -1137,7 +1138,6 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 			audit_log_n_hex(*ab, buf, to_send);
 		else
 			audit_log_format(*ab, "\"%s\"", buf);
-		audit_log_format(*ab, "\n");
 
 		p += to_send;
 		len_left -= to_send;
@@ -1165,7 +1165,7 @@ static void audit_log_execve_info(struct audit_context *context,
 
 	p = (const char __user *)axi->mm->arg_start;
 
-	audit_log_format(*ab, "argc=%d ", axi->argc);
+	audit_log_format(*ab, "argc=%d", axi->argc);
 
 	/*
 	 * we need some kernel buffer to hold the userspace args.  Just
@@ -1478,7 +1478,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			case 0:
 				/* name was specified as a relative path and the
 				 * directory component is the cwd */
-				audit_log_d_path(ab, " name=", &context->pwd);
+				audit_log_d_path(ab, "name=", &context->pwd);
 				break;
 			default:
 				/* log the name's directory component */
@@ -2149,7 +2149,7 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
  * __audit_mq_open - record audit data for a POSIX MQ open
  * @oflag: open flag
  * @mode: mode bits
- * @u_attr: queue attributes
+ * @attr: queue attributes
  *
  */
 void __audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr)
@@ -2196,7 +2196,7 @@ void __audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio,
 /**
  * __audit_mq_notify - record audit data for a POSIX MQ notify
  * @mqdes: MQ descriptor
- * @u_notification: Notification event
+ * @notification: Notification event
  *
  */
 

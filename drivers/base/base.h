@@ -63,6 +63,32 @@ struct class_private {
 #define to_class(obj)	\
 	container_of(obj, struct class_private, class_subsys.kobj)
 
+/**
+ * struct device_private - structure to hold the private to the driver core portions of the device structure.
+ *
+ * @klist_children - klist containing all children of this device
+ * @knode_parent - node in sibling list
+ * @knode_driver - node in driver list
+ * @knode_bus - node in bus list
+ * @device - pointer back to the struct class that this structure is
+ * associated with.
+ *
+ * Nothing outside of the driver core should ever touch these fields.
+ */
+struct device_private {
+	struct klist klist_children;
+	struct klist_node knode_parent;
+	struct klist_node knode_driver;
+	struct klist_node knode_bus;
+	struct device *device;
+};
+#define to_device_private_parent(obj)	\
+	container_of(obj, struct device_private, knode_parent)
+#define to_device_private_driver(obj)	\
+	container_of(obj, struct device_private, knode_driver)
+#define to_device_private_bus(obj)	\
+	container_of(obj, struct device_private, knode_bus)
+
 /* initialisation functions */
 extern int devices_init(void);
 extern int buses_init(void);
@@ -86,10 +112,13 @@ extern void bus_remove_driver(struct device_driver *drv);
 
 extern void driver_detach(struct device_driver *drv);
 extern int driver_probe_device(struct device_driver *drv, struct device *dev);
+static inline int driver_match_device(struct device_driver *drv,
+				      struct device *dev)
+{
+	return drv->bus->match && drv->bus->match(dev, drv);
+}
 
 extern void sysdev_shutdown(void);
-extern int sysdev_suspend(pm_message_t state);
-extern int sysdev_resume(void);
 
 extern char *make_class_name(const char *name, struct kobject *kobj);
 

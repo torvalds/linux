@@ -1402,6 +1402,23 @@ struct access_chip_rsp_84xx {
 #define MBA_IDC_NOTIFY		0x8101
 #define MBA_IDC_TIME_EXT	0x8102
 
+#define MBC_IDC_ACK		0x101
+#define MBC_RESTART_MPI_FW	0x3d
+#define MBC_FLASH_ACCESS_CTRL	0x3e	/* Control flash access. */
+
+/* Flash access control option field bit definitions */
+#define FAC_OPT_FORCE_SEMAPHORE		BIT_15
+#define FAC_OPT_REQUESTOR_ID		BIT_14
+#define FAC_OPT_CMD_SUBCODE		0xff
+
+/* Flash access control command subcodes */
+#define FAC_OPT_CMD_WRITE_PROTECT	0x00
+#define FAC_OPT_CMD_WRITE_ENABLE	0x01
+#define FAC_OPT_CMD_ERASE_SECTOR	0x02
+#define FAC_OPT_CMD_LOCK_SEMAPHORE	0x03
+#define FAC_OPT_CMD_UNLOCK_SEMAPHORE	0x04
+#define FAC_OPT_CMD_GET_SECTOR_SIZE	0x05
+
 struct nvram_81xx {
 	/* NVRAM header. */
 	uint8_t id[4];
@@ -1438,7 +1455,17 @@ struct nvram_81xx {
 	uint16_t reserved_6[24];
 
 	/* Offset 128. */
-	uint16_t reserved_7[64];
+	uint16_t ex_version;
+	uint8_t prio_fcf_matching_flags;
+	uint8_t reserved_6_1[3];
+	uint16_t pri_fcf_vlan_id;
+	uint8_t pri_fcf_fabric_name[8];
+	uint16_t reserved_6_2[7];
+	uint8_t spma_mac_addr[6];
+	uint16_t reserved_6_3[14];
+
+	/* Offset 192. */
+	uint16_t reserved_7[32];
 
 	/*
 	 * BIT 0  = Enable spinup delay
@@ -1662,6 +1689,17 @@ struct mid_init_cb_81xx {
 	struct mid_conf_entry_24xx entries[MAX_MULTI_ID_FABRIC];
 };
 
+struct ex_init_cb_81xx {
+	uint16_t ex_version;
+	uint8_t prio_fcf_matching_flags;
+	uint8_t reserved_1[3];
+	uint16_t pri_fcf_vlan_id;
+	uint8_t pri_fcf_fabric_name[8];
+	uint16_t reserved_2[7];
+	uint8_t spma_mac_addr[6];
+	uint16_t reserved_3[14];
+};
+
 #define FARX_ACCESS_FLASH_CONF_81XX	0x7FFD0000
 #define FARX_ACCESS_FLASH_DATA_81XX	0x7F800000
 
@@ -1670,6 +1708,10 @@ struct mid_init_cb_81xx {
 #define FA_RISC_CODE_ADDR_81	0xA0000
 #define FA_FW_AREA_ADDR_81	0xC0000
 #define FA_VPD_NVRAM_ADDR_81	0xD0000
+#define FA_VPD0_ADDR_81		0xD0000
+#define FA_VPD1_ADDR_81		0xD0400
+#define FA_NVRAM0_ADDR_81	0xD0080
+#define FA_NVRAM1_ADDR_81	0xD0480
 #define FA_FEATURE_ADDR_81	0xD4000
 #define FA_FLASH_DESCR_ADDR_81	0xD8000
 #define FA_FLASH_LAYOUT_ADDR_81	0xD8400

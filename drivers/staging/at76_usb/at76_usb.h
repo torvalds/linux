@@ -22,6 +22,93 @@
 #ifndef _AT76_USB_H
 #define _AT76_USB_H
 
+/*
+ * ieee80211 definitions copied from net/ieee80211.h
+ */
+
+#define WEP_KEY_LEN		13
+#define WEP_KEYS		4
+
+#define IEEE80211_DATA_LEN		2304
+/* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
+   6.2.1.1.2.
+
+   The figure in section 7.1.2 suggests a body size of up to 2312
+   bytes is allowed, which is a bit confusing, I suspect this
+   represents the 2304 bytes of real data, plus a possible 8 bytes of
+   WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
+
+#define IEEE80211_1ADDR_LEN 10
+#define IEEE80211_2ADDR_LEN 16
+#define IEEE80211_3ADDR_LEN 24
+#define IEEE80211_4ADDR_LEN 30
+#define IEEE80211_FCS_LEN    4
+#define IEEE80211_HLEN			(IEEE80211_4ADDR_LEN)
+#define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
+
+#define MIN_FRAG_THRESHOLD     256U
+#define	MAX_FRAG_THRESHOLD     2346U
+
+struct ieee80211_info_element {
+	u8 id;
+	u8 len;
+	u8 data[0];
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_3addr {
+	__le16 frame_ctl;
+	__le16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctl;
+	u8 payload[0];
+} __attribute__ ((packed));
+
+struct ieee80211_auth {
+	struct ieee80211_hdr_3addr header;
+	__le16 algorithm;
+	__le16 transaction;
+	__le16 status;
+	/* challenge */
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+struct ieee80211_assoc_request {
+	struct ieee80211_hdr_3addr header;
+	__le16 capability;
+	__le16 listen_interval;
+	/* SSID, supported rates, RSN */
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+struct ieee80211_probe_response {
+	struct ieee80211_hdr_3addr header;
+	__le32 time_stamp[2];
+	__le16 beacon_interval;
+	__le16 capability;
+	/* SSID, supported rates, FH params, DS params,
+	 * CF params, IBSS params, TIM (if beacon), RSN */
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+/* Alias beacon for probe_response */
+#define ieee80211_beacon ieee80211_probe_response
+
+struct ieee80211_assoc_response {
+	struct ieee80211_hdr_3addr header;
+	__le16 capability;
+	__le16 status;
+	__le16 aid;
+	/* supported rates */
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+struct ieee80211_disassoc {
+	struct ieee80211_hdr_3addr header;
+	__le16 reason;
+} __attribute__ ((packed));
+
 /* Board types */
 enum board_type {
 	BOARD_503_ISL3861 = 1,

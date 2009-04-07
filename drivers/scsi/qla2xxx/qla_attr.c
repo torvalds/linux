@@ -96,7 +96,9 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return 0;
 
-	/* Read NVRAM data from cache. */
+	if (IS_NOCACHE_VPD_TYPE(ha))
+		ha->isp_ops->read_optrom(vha, ha->vpd, ha->flt_region_nvram << 2,
+		    ha->nvram_size);
 	return memory_read_from_buffer(buf, count, &off, ha->nvram,
 					ha->nvram_size);
 }
@@ -111,7 +113,8 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj,
 	struct qla_hw_data *ha = vha->hw;
 	uint16_t	cnt;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->nvram_size)
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->nvram_size ||
+	    !ha->isp_ops->write_nvram)
 		return 0;
 
 	/* Checksum NVRAM. */
@@ -137,12 +140,21 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj,
 		*iter = chksum;
 	}
 
+	if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "HBA not online, failing NVRAM update.\n");
+		return -EAGAIN;
+	}
+
 	/* Write NVRAM. */
 	ha->isp_ops->write_nvram(vha, (uint8_t *)buf, ha->nvram_base, count);
 	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->nvram, ha->nvram_base,
 	    count);
 
+	/* NVRAM settings take effect immediately. */
 	set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+	qla2xxx_wake_dpc(vha);
+	qla2x00_wait_for_chip_reset(vha);
 
 	return (count);
 }
@@ -244,12 +256,6 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		if (ha->optrom_state != QLA_SWAITING)
 			break;
 
-		if (start & 0xfff) {
-			qla_printk(KERN_WARNING, ha,
-			    "Invalid start region 0x%x/0x%x.\n", start, size);
-			return -EINVAL;
-		}
-
 		ha->optrom_region_start = start;
 		ha->optrom_region_size = start + size > ha->optrom_size ?
 		    ha->optrom_size - start : size;
@@ -303,8 +309,7 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		else if (start == (ha->flt_region_boot * 4) ||
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) &&
-		    start == (ha->flt_region_vpd_nvram * 4))
+		else if (IS_QLA25XX(ha) || IS_QLA81XX(ha))
 		    valid = 1;
 		if (!valid) {
 			qla_printk(KERN_WARNING, ha,
@@ -336,6 +341,12 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 	case 3:
 		if (ha->optrom_state != QLA_SWRITING)
 			break;
+
+		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
+			qla_printk(KERN_WARNING, ha,
+			    "HBA not online, failing flash update.\n");
+			return -EAGAIN;
+		}
 
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Writing flash region -- 0x%x/0x%x.\n",
@@ -371,7 +382,9 @@ qla2x00_sysfs_read_vpd(struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return 0;
 
-	/* Read NVRAM data from cache. */
+	if (IS_NOCACHE_VPD_TYPE(ha))
+		ha->isp_ops->read_optrom(vha, ha->vpd, ha->flt_region_vpd << 2,
+		    ha->vpd_size);
 	return memory_read_from_buffer(buf, count, &off, ha->vpd, ha->vpd_size);
 }
 
@@ -383,14 +396,35 @@ qla2x00_sysfs_write_vpd(struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
+	uint8_t *tmp_data;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size)
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size ||
+	    !ha->isp_ops->write_nvram)
 		return 0;
+
+	if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "HBA not online, failing VPD update.\n");
+		return -EAGAIN;
+	}
 
 	/* Write NVRAM. */
 	ha->isp_ops->write_nvram(vha, (uint8_t *)buf, ha->vpd_base, count);
 	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->vpd, ha->vpd_base, count);
 
+	/* Update flash version information for 4Gb & above. */
+	if (!IS_FWI2_CAPABLE(ha))
+		goto done;
+
+	tmp_data = vmalloc(256);
+	if (!tmp_data) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to allocate memory for VPD information update.\n");
+		goto done;
+	}
+	ha->isp_ops->get_flash_version(vha, tmp_data);
+	vfree(tmp_data);
+done:
 	return count;
 }
 
@@ -465,6 +499,199 @@ static struct bin_attribute sysfs_sfp_attr = {
 	.read = qla2x00_sysfs_read_sfp,
 };
 
+static ssize_t
+qla2x00_sysfs_write_reset(struct kobject *kobj,
+			struct bin_attribute *bin_attr,
+			char *buf, loff_t off, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	struct qla_hw_data *ha = vha->hw;
+	int type;
+
+	if (off != 0)
+		return 0;
+
+	type = simple_strtol(buf, NULL, 10);
+	switch (type) {
+	case 0x2025c:
+		qla_printk(KERN_INFO, ha,
+		    "Issuing ISP reset on (%ld).\n", vha->host_no);
+
+		scsi_block_requests(vha->host);
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		qla2xxx_wake_dpc(vha);
+		qla2x00_wait_for_chip_reset(vha);
+		scsi_unblock_requests(vha->host);
+		break;
+	case 0x2025d:
+		if (!IS_QLA81XX(ha))
+			break;
+
+		qla_printk(KERN_INFO, ha,
+		    "Issuing MPI reset on (%ld).\n", vha->host_no);
+
+		/* Make sure FC side is not in reset */
+		qla2x00_wait_for_hba_online(vha);
+
+		/* Issue MPI reset */
+		scsi_block_requests(vha->host);
+		if (qla81xx_restart_mpi_firmware(vha) != QLA_SUCCESS)
+			qla_printk(KERN_WARNING, ha,
+			    "MPI reset failed on (%ld).\n", vha->host_no);
+		scsi_unblock_requests(vha->host);
+		break;
+	}
+	return count;
+}
+
+static struct bin_attribute sysfs_reset_attr = {
+	.attr = {
+		.name = "reset",
+		.mode = S_IWUSR,
+	},
+	.size = 0,
+	.write = qla2x00_sysfs_write_reset,
+};
+
+static ssize_t
+qla2x00_sysfs_write_edc(struct kobject *kobj,
+			struct bin_attribute *bin_attr,
+			char *buf, loff_t off, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t dev, adr, opt, len;
+	int rval;
+
+	ha->edc_data_len = 0;
+
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count < 8)
+		return 0;
+
+	if (!ha->edc_data) {
+		ha->edc_data = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
+		    &ha->edc_data_dma);
+		if (!ha->edc_data) {
+			DEBUG2(qla_printk(KERN_INFO, ha,
+			    "Unable to allocate memory for EDC write.\n"));
+			return 0;
+		}
+	}
+
+	dev = le16_to_cpup((void *)&buf[0]);
+	adr = le16_to_cpup((void *)&buf[2]);
+	opt = le16_to_cpup((void *)&buf[4]);
+	len = le16_to_cpup((void *)&buf[6]);
+
+	if (!(opt & BIT_0))
+		if (len == 0 || len > DMA_POOL_SIZE || len > count - 8)
+			return -EINVAL;
+
+	memcpy(ha->edc_data, &buf[8], len);
+
+	rval = qla2x00_write_edc(vha, dev, adr, ha->edc_data_dma,
+	    ha->edc_data, len, opt);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "Unable to write EDC (%x) %02x:%02x:%04x:%02x:%02x.\n",
+		    rval, dev, adr, opt, len, *buf));
+		return 0;
+	}
+
+	return count;
+}
+
+static struct bin_attribute sysfs_edc_attr = {
+	.attr = {
+		.name = "edc",
+		.mode = S_IWUSR,
+	},
+	.size = 0,
+	.write = qla2x00_sysfs_write_edc,
+};
+
+static ssize_t
+qla2x00_sysfs_write_edc_status(struct kobject *kobj,
+			struct bin_attribute *bin_attr,
+			char *buf, loff_t off, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t dev, adr, opt, len;
+	int rval;
+
+	ha->edc_data_len = 0;
+
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count < 8)
+		return 0;
+
+	if (!ha->edc_data) {
+		ha->edc_data = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
+		    &ha->edc_data_dma);
+		if (!ha->edc_data) {
+			DEBUG2(qla_printk(KERN_INFO, ha,
+			    "Unable to allocate memory for EDC status.\n"));
+			return 0;
+		}
+	}
+
+	dev = le16_to_cpup((void *)&buf[0]);
+	adr = le16_to_cpup((void *)&buf[2]);
+	opt = le16_to_cpup((void *)&buf[4]);
+	len = le16_to_cpup((void *)&buf[6]);
+
+	if (!(opt & BIT_0))
+		if (len == 0 || len > DMA_POOL_SIZE)
+			return -EINVAL;
+
+	memset(ha->edc_data, 0, len);
+	rval = qla2x00_read_edc(vha, dev, adr, ha->edc_data_dma,
+	    ha->edc_data, len, opt);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "Unable to write EDC status (%x) %02x:%02x:%04x:%02x.\n",
+		    rval, dev, adr, opt, len));
+		return 0;
+	}
+
+	ha->edc_data_len = len;
+
+	return count;
+}
+
+static ssize_t
+qla2x00_sysfs_read_edc_status(struct kobject *kobj,
+			   struct bin_attribute *bin_attr,
+			   char *buf, loff_t off, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count == 0)
+		return 0;
+
+	if (!ha->edc_data || ha->edc_data_len == 0 || ha->edc_data_len > count)
+		return -EINVAL;
+
+	memcpy(buf, ha->edc_data, ha->edc_data_len);
+
+	return ha->edc_data_len;
+}
+
+static struct bin_attribute sysfs_edc_status_attr = {
+	.attr = {
+		.name = "edc_status",
+		.mode = S_IRUSR | S_IWUSR,
+	},
+	.size = 0,
+	.write = qla2x00_sysfs_write_edc_status,
+	.read = qla2x00_sysfs_read_edc_status,
+};
+
 static struct sysfs_entry {
 	char *name;
 	struct bin_attribute *attr;
@@ -476,6 +703,9 @@ static struct sysfs_entry {
 	{ "optrom_ctl", &sysfs_optrom_ctl_attr, },
 	{ "vpd", &sysfs_vpd_attr, 1 },
 	{ "sfp", &sysfs_sfp_attr, 1 },
+	{ "reset", &sysfs_reset_attr, },
+	{ "edc", &sysfs_edc_attr, 2 },
+	{ "edc_status", &sysfs_edc_status_attr, 2 },
 	{ NULL },
 };
 
@@ -488,6 +718,8 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 
 	for (iter = bin_file_entries; iter->name; iter++) {
 		if (iter->is4GBp_only && !IS_FWI2_CAPABLE(vha->hw))
+			continue;
+		if (iter->is4GBp_only == 2 && !IS_QLA25XX(vha->hw))
 			continue;
 
 		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
@@ -508,6 +740,8 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha)
 
 	for (iter = bin_file_entries; iter->name; iter++) {
 		if (iter->is4GBp_only && !IS_FWI2_CAPABLE(ha))
+			continue;
+		if (iter->is4GBp_only == 2 && !IS_QLA25XX(ha))
 			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
@@ -825,9 +1059,33 @@ qla2x00_mpi_version_show(struct device *dev, struct device_attribute *attr,
 	if (!IS_QLA81XX(ha))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
-	return snprintf(buf, PAGE_SIZE, "%02x.%02x.%02x.%02x (%x)\n",
+	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d (%x)\n",
 	    ha->mpi_version[0], ha->mpi_version[1], ha->mpi_version[2],
-	    ha->mpi_version[3], ha->mpi_capabilities);
+	    ha->mpi_capabilities);
+}
+
+static ssize_t
+qla2x00_phy_version_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA81XX(ha))
+		return snprintf(buf, PAGE_SIZE, "\n");
+
+	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d\n",
+	    ha->phy_version[0], ha->phy_version[1], ha->phy_version[2]);
+}
+
+static ssize_t
+qla2x00_flash_block_size_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", ha->fdt_block_size);
 }
 
 static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
@@ -855,6 +1113,9 @@ static DEVICE_ATTR(optrom_fw_version, S_IRUGO, qla2x00_optrom_fw_version_show,
 static DEVICE_ATTR(total_isp_aborts, S_IRUGO, qla2x00_total_isp_aborts_show,
 		   NULL);
 static DEVICE_ATTR(mpi_version, S_IRUGO, qla2x00_mpi_version_show, NULL);
+static DEVICE_ATTR(phy_version, S_IRUGO, qla2x00_phy_version_show, NULL);
+static DEVICE_ATTR(flash_block_size, S_IRUGO, qla2x00_flash_block_size_show,
+		   NULL);
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -875,6 +1136,8 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_optrom_fw_version,
 	&dev_attr_total_isp_aborts,
 	&dev_attr_mpi_version,
+	&dev_attr_phy_version,
+	&dev_attr_flash_block_size,
 	NULL,
 };
 
@@ -1019,7 +1282,10 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (!fcport)
 		return;
 
-	qla2x00_abort_fcport_cmds(fcport);
+	if (unlikely(pci_channel_offline(fcport->vha->hw->pdev)))
+		qla2x00_abort_all_cmds(fcport->vha, DID_NO_CONNECT << 16);
+	else
+		qla2x00_abort_fcport_cmds(fcport);
 
 	/*
 	 * Transport has effectively 'deleted' the rport, clear
@@ -1039,16 +1305,18 @@ qla2x00_terminate_rport_io(struct fc_rport *rport)
 	if (!fcport)
 		return;
 
+	if (unlikely(pci_channel_offline(fcport->vha->hw->pdev))) {
+		qla2x00_abort_all_cmds(fcport->vha, DID_NO_CONNECT << 16);
+		return;
+	}
 	/*
 	 * At this point all fcport's software-states are cleared.  Perform any
 	 * final cleanup of firmware resources (PCBs and XCBs).
 	 */
-	if (fcport->loop_id != FC_NO_LOOP_ID) {
+	if (fcport->loop_id != FC_NO_LOOP_ID)
 		fcport->vha->hw->isp_ops->fabric_logout(fcport->vha,
 			fcport->loop_id, fcport->d_id.b.domain,
 			fcport->d_id.b.area, fcport->d_id.b.al_pa);
-		fcport->loop_id = FC_NO_LOOP_ID;
-	}
 
 	qla2x00_abort_fcport_cmds(fcport);
 }
@@ -1265,13 +1533,6 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 	    test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags))
 		msleep(1000);
 
-	if (ha->mqenable) {
-		if (qla25xx_delete_queues(vha, 0) != QLA_SUCCESS)
-			qla_printk(KERN_WARNING, ha,
-				"Queue delete failed.\n");
-		vha->req_ques[0] = ha->req_q_map[0]->id;
-	}
-
 	qla24xx_disable_vp(vha);
 
 	fc_remove_host(vha->host);
@@ -1292,6 +1553,12 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 		    "has stopped\n",
 		    vha->host_no, vha->vp_idx, vha));
         }
+
+	if (ha->mqenable) {
+		if (qla25xx_delete_queues(vha, 0) != QLA_SUCCESS)
+			qla_printk(KERN_WARNING, ha,
+				"Queue delete failed.\n");
+	}
 
 	scsi_host_put(vha->host);
 	qla_printk(KERN_INFO, ha, "vport %d deleted\n", id);

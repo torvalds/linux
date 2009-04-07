@@ -147,7 +147,51 @@ struct rcu_ctrlblk {
 	wait_queue_head_t sched_wq;	/* Place for rcu_sched to sleep. */
 };
 
+struct rcu_dyntick_sched {
+	int dynticks;
+	int dynticks_snap;
+	int sched_qs;
+	int sched_qs_snap;
+	int sched_dynticks_snap;
+};
+
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_dyntick_sched, rcu_dyntick_sched) = {
+	.dynticks = 1,
+};
+
+void rcu_qsctr_inc(int cpu)
+{
+	struct rcu_dyntick_sched *rdssp = &per_cpu(rcu_dyntick_sched, cpu);
+
+	rdssp->sched_qs++;
+}
+
+#ifdef CONFIG_NO_HZ
+
+void rcu_enter_nohz(void)
+{
+	static DEFINE_RATELIMIT_STATE(rs, 10 * HZ, 1);
+
+	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
+	__get_cpu_var(rcu_dyntick_sched).dynticks++;
+	WARN_ON_RATELIMIT(__get_cpu_var(rcu_dyntick_sched).dynticks & 0x1, &rs);
+}
+
+void rcu_exit_nohz(void)
+{
+	static DEFINE_RATELIMIT_STATE(rs, 10 * HZ, 1);
+
+	__get_cpu_var(rcu_dyntick_sched).dynticks++;
+	smp_mb(); /* CPUs seeing ++ must see later RCU read-side crit sects */
+	WARN_ON_RATELIMIT(!(__get_cpu_var(rcu_dyntick_sched).dynticks & 0x1),
+				&rs);
+}
+
+#endif /* CONFIG_NO_HZ */
+
+
 static DEFINE_PER_CPU(struct rcu_data, rcu_data);
+
 static struct rcu_ctrlblk rcu_ctrlblk = {
 	.fliplock = __SPIN_LOCK_UNLOCKED(rcu_ctrlblk.fliplock),
 	.completed = 0,
@@ -426,10 +470,6 @@ static void __rcu_advance_callbacks(struct rcu_data *rdp)
 			   /*  seen -after- acknowledgement. */
 	}
 }
-
-DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_dyntick_sched, rcu_dyntick_sched) = {
-	.dynticks = 1,
-};
 
 #ifdef CONFIG_NO_HZ
 static DEFINE_PER_CPU(int, rcu_update_flag);
@@ -1180,6 +1220,9 @@ EXPORT_SYMBOL_GPL(call_rcu_sched);
 void __synchronize_sched(void)
 {
 	struct rcu_synchronize rcu;
+
+	if (num_online_cpus() == 1)
+		return;  /* blocking is gp if only one CPU! */
 
 	init_completion(&rcu.completion);
 	/* Will wake me after RCU finished. */

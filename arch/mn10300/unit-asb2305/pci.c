@@ -173,7 +173,7 @@ static int pci_ampci_write_config_byte(struct pci_bus *bus, unsigned int devfn,
 		BRIDGEREGB(where) = value;
 	} else {
 		if (bus->number == 0 &&
-		    (devfn == PCI_DEVFN(2, 0) && devfn == PCI_DEVFN(3, 0))
+		    (devfn == PCI_DEVFN(2, 0) || devfn == PCI_DEVFN(3, 0))
 		    )
 			__pcidebug("<= %02x", bus, devfn, where, value);
 		CONFIG_ADDRESS = CONFIG_CMD(bus, devfn, where);
