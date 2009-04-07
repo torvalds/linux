@@ -4413,6 +4413,24 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 		if (spec->num_pwrs > 0)
 			stac92xx_pin_sense(codec, event->nid);
 		stac92xx_report_jack(codec, event->nid);
+
+		switch (codec->subsystem_id) {
+		case 0x103c308f:
+			if (event->nid == 0xb) {
+				int pin = AC_PINCTL_IN_EN;
+
+				if (get_pin_presence(codec, 0xa)
+						&& get_pin_presence(codec, 0xb))
+					pin |= AC_PINCTL_VREF_80;
+				if (!get_pin_presence(codec, 0xb))
+					pin |= AC_PINCTL_VREF_80;
+
+				/* toggle VREF state based on mic + hp pin
+				 * status
+				 */
+				stac92xx_auto_set_pinctl(codec, 0x0a, pin);
+			}
+		}
 		break;
 	case STAC_VREF_EVENT:
 		data = snd_hda_codec_read(codec, codec->afg, 0,
