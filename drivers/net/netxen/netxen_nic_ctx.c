@@ -624,9 +624,6 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 
 
 	if (adapter->fw_major >= 4) {
-		adapter->intr_scheme = INTR_SCHEME_PERPORT;
-		adapter->msi_mode = MSI_MODE_MULTIFUNC;
-
 		err = nx_fw_cmd_create_rx_ctx(adapter);
 		if (err)
 			goto err_out_free;
@@ -638,10 +635,6 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		sds_ring->crb_sts_consumer =
 			recv_crb_registers[adapter->portnum].crb_sts_consumer;
 
-		adapter->intr_scheme = adapter->pci_read_normalize(adapter,
-				CRB_NIC_CAPABILITIES_FW);
-		adapter->msi_mode = adapter->pci_read_normalize(adapter,
-				CRB_NIC_MSI_MODE_FW);
 		recv_ctx->sds_rings[0].crb_intr_mask =
 				sw_int_mask[adapter->portnum];
 

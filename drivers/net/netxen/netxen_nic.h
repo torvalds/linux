@@ -700,14 +700,13 @@ struct netxen_hardware_context {
 
 	u8 cut_through;
 	u8 revision_id;
+	u8 pci_func;
+	u8 linkup;
 	u16 port_type;
-	int board_type;
-	u32 linkup;
+	u16 board_type;
 	/* Address of cmd ring in Phantom */
 	struct cmd_desc_type0 *cmd_desc_head;
 	dma_addr_t cmd_desc_phys_addr;
-	struct netxen_adapter *adapter;
-	int pci_func;
 };
 
 #define MINIMUM_ETHERNET_FRAME_SIZE	64	/* With FCS */
@@ -1146,60 +1145,51 @@ struct netxen_adapter {
 
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	int pci_using_dac;
-	struct net_device_stats net_stats;
-	int mtu;
-	int portnum;
-	u8 physical_port;
-	u16 tx_context_id;
-
-	uint8_t		mc_enabled;
-	uint8_t		max_mc_count;
 	nx_mac_list_t	*mac_list;
-
-	struct netxen_legacy_intr_set legacy_intr;
-
-	struct work_struct watchdog_task;
-	struct timer_list watchdog_timer;
-	struct work_struct  tx_timeout_task;
 
 	u32 curr_window;
 	u32 crb_win;
 	rwlock_t adapter_lock;
 
+	spinlock_t tx_clean_lock;
 	u32 cmd_producer;
-	__le32 *cmd_consumer;
 	u32 last_cmd_consumer;
 	u32 crb_addr_cmd_producer;
 	u32 crb_addr_cmd_consumer;
-	spinlock_t tx_clean_lock;
+	__le32 *cmd_consumer;
 
 	u32 num_txd;
 	u32 num_rxd;
 	u32 num_jumbo_rxd;
 	u32 num_lro_rxd;
 
-	int max_rds_rings;
-	int max_sds_rings;
+	u8 max_rds_rings;
+	u8 max_sds_rings;
+	u8 driver_mismatch;
+	u8 msix_supported;
+	u8 rx_csum;
+	u8 pci_using_dac;
+	u8 portnum;
+	u8 physical_port;
 
+	u8 mc_enabled;
+	u8 max_mc_count;
+	u16 tx_context_id;
+	u16 mtu;
+	u16 is_up;
+	u16 link_speed;
+	u16 link_duplex;
+	u16 link_autoneg;
+	u16 resv1;
+
+	u32 resv2;
 	u32 flags;
 	u32 irq;
-	int driver_mismatch;
 	u32 temp;
-
 	u32 fw_major;
 	u32 fw_version;
 
-	int msix_supported;
-	struct msix_entry msix_entries[MSIX_ENTRIES_PER_ADAPTER];
-
 	struct netxen_adapter_stats stats;
-
-	u16 link_speed;
-	u16 link_duplex;
-	u16 state;
-	u16 link_autoneg;
-	int rx_csum;
 
 	struct netxen_cmd_buffer *cmd_buf_arr;	/* Command buffers for xmit */
 
@@ -1209,15 +1199,9 @@ struct netxen_adapter {
 	 */
 	struct netxen_recv_context recv_ctx;
 
-	int is_up;
-	struct netxen_dummy_dma dummy_dma;
-	nx_nic_intr_coalesce_t coal;
-
 	/* Context interface shared between card and host */
 	struct netxen_ring_ctx *ctx_desc;
 	dma_addr_t ctx_desc_phys_addr;
-	int intr_scheme;
-	int msi_mode;
 	int (*enable_phy_interrupts) (struct netxen_adapter *);
 	int (*disable_phy_interrupts) (struct netxen_adapter *);
 	int (*macaddr_set) (struct netxen_adapter *, netxen_ethernet_macaddr_t);
@@ -1238,7 +1222,21 @@ struct netxen_adapter {
 	u32 (*pci_read_normalize)(struct netxen_adapter *, u64);
 	unsigned long (*pci_set_window)(struct netxen_adapter *,
 			unsigned long long);
-};				/* netxen_adapter structure */
+
+	struct netxen_legacy_intr_set legacy_intr;
+
+	struct msix_entry msix_entries[MSIX_ENTRIES_PER_ADAPTER];
+
+	struct netxen_dummy_dma dummy_dma;
+
+	struct work_struct watchdog_task;
+	struct timer_list watchdog_timer;
+	struct work_struct  tx_timeout_task;
+
+	struct net_device_stats net_stats;
+
+	nx_nic_intr_coalesce_t coal;
+};
 
 /*
  * NetXen dma watchdog control structure

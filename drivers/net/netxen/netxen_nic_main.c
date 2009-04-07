@@ -462,8 +462,6 @@ netxen_setup_intr(struct netxen_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 
 	adapter->flags &= ~(NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED);
-	adapter->intr_scheme = -1;
-	adapter->msi_mode = -1;
 
 	if (adapter->ahw.revision_id >= NX_P3_B0)
 		legacy_intrp = &legacy_intr[adapter->ahw.pci_func];
@@ -725,15 +723,6 @@ netxen_nic_request_irq(struct netxen_adapter *adapter)
 	unsigned long flags = IRQF_SAMPLE_RANDOM;
 	struct net_device *netdev = adapter->netdev;
 	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
-
-	if ((adapter->msi_mode != MSI_MODE_MULTIFUNC) ||
-		(adapter->intr_scheme != INTR_SCHEME_PERPORT)) {
-		printk(KERN_ERR "%s: Firmware interrupt scheme is "
-				"incompatible with driver\n",
-				netdev->name);
-		adapter->driver_mismatch = 1;
-		return -EINVAL;
-	}
 
 	if (adapter->flags & NETXEN_NIC_MSIX_ENABLED)
 		handler = netxen_msix_intr;
