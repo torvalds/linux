@@ -99,7 +99,6 @@ struct bfin_serial_port {
 	struct work_struct	tx_dma_workqueue;
 #endif
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
-	struct timer_list 	cts_timer;
 	int		cts_pin;
 	int 		rts_pin;
 #endif
@@ -167,29 +166,3 @@ struct bfin_serial_res bfin_serial_resource[] = {
 };
 
 #define DRIVER_NAME "bfin-uart"
-
-static void bfin_serial_hw_init(struct bfin_serial_port *uart)
-{
-
-#ifdef CONFIG_SERIAL_BFIN_UART0
-	peripheral_request(P_UART0_TX, DRIVER_NAME);
-	peripheral_request(P_UART0_RX, DRIVER_NAME);
-#endif
-
-#ifdef CONFIG_SERIAL_BFIN_UART1
-	peripheral_request(P_UART1_TX, DRIVER_NAME);
-	peripheral_request(P_UART1_RX, DRIVER_NAME);
-#endif
-
-#ifdef CONFIG_SERIAL_BFIN_CTSRTS
-	if (uart->cts_pin >= 0) {
-		gpio_request(uart->cts_pin, DRIVER_NAME);
-		gpio_direction_input(uart->cts_pin);
-	}
-
-	if (uart->rts_pin >= 0) {
-		gpio_request(uart->rts_pin, DRIVER_NAME);
-		gpio_direction_output(uart->rts_pin, 0);
-	}
-#endif
-}
