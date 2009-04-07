@@ -6307,7 +6307,7 @@ static __u16 i2c_read(struct gspca_dev *gspca_dev,
 	retbyte = reg_r_i(gspca_dev, 0x0091);		/* read status */
 	retval = reg_r_i(gspca_dev, 0x0095);		/* read Lowbyte */
 	retval |= reg_r_i(gspca_dev, 0x0096) << 8;	/* read Hightbyte */
-	PDEBUG(D_USBO, "i2c r [%02x] -> %04x (%02x)",
+	PDEBUG(D_USBI, "i2c r [%02x] -> %04x (%02x)",
 			reg, retval, retbyte);
 	return retval;
 }
