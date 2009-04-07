@@ -4975,7 +4975,7 @@ static inline int tg3_40bit_overflow_test(struct tg3 *tp, dma_addr_t mapping,
 {
 #if defined(CONFIG_HIGHMEM) && (BITS_PER_LONG == 64)
 	if (tp->tg3_flags & TG3_FLAG_40BIT_DMA_BUG)
-		return (((u64) mapping + len) > DMA_40BIT_MASK);
+		return (((u64) mapping + len) > DMA_BIT_MASK(40));
 	return 0;
 #else
 	return 0;
@@ -13230,7 +13230,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	if (tp->tg3_flags2 & TG3_FLG2_IS_5788)
 		persist_dma_mask = dma_mask = DMA_32BIT_MASK;
 	else if (tp->tg3_flags & TG3_FLAG_40BIT_DMA_BUG) {
-		persist_dma_mask = dma_mask = DMA_40BIT_MASK;
+		persist_dma_mask = dma_mask = DMA_BIT_MASK(40);
 #ifdef CONFIG_HIGHMEM
 		dma_mask = DMA_BIT_MASK(64);
 #endif
@@ -13394,7 +13394,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	printk(KERN_INFO "%s: dma_rwctrl[%08x] dma_mask[%d-bit]\n",
 	       dev->name, tp->dma_rwctrl,
 	       (pdev->dma_mask == DMA_32BIT_MASK) ? 32 :
-	        (((u64) pdev->dma_mask == DMA_40BIT_MASK) ? 40 : 64));
+	        (((u64) pdev->dma_mask == DMA_BIT_MASK(40)) ? 40 : 64));
 
 	return 0;
 
