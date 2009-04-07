@@ -1698,7 +1698,7 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path,
 	       follow_down(&path->mnt, &path->dentry))
 		;
 	err = -EINVAL;
-	if (!check_mnt(path->mnt))
+	if (!(mnt_flags & MNT_SHRINKABLE) && !check_mnt(path->mnt))
 		goto unlock;
 
 	/* Refuse the same filesystem on the same mount point */
