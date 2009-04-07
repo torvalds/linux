@@ -43,7 +43,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
-#include <linux/version.h>
 #include <linux/bug.h>
 #include <linux/bitops.h>
 #include <linux/irq.h>

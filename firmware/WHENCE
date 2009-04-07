@@ -632,3 +632,33 @@ Licence: Unknown
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: MYRI_SBUS - MyriCOM Gigabit Ethernet
+
+File: myricom/lanai.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: BNX2 - Broadcom NetXtremeII
+
+File: bnx2/bnx2-mips-06-4.6.16.fw
+File: bnx2/bnx2-rv2p-06-4.6.16.fw
+File: bnx2/bnx2-mips-09-4.6.17.fw
+File: bnx2/bnx2-rv2p-09-4.6.15.fw
+
+Licence:
+
+ This file contains firmware data derived from proprietary unpublished
+ source code, Copyright (c) 2004 - 2009 Broadcom Corporation.
+
+ Permission is hereby granted for the distribution of this firmware data
+ in hexadecimal or equivalent format, provided this copyright notice is
+ accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------

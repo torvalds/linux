@@ -2234,7 +2234,7 @@ config BNX2
 	tristate "Broadcom NetXtremeII support"
 	depends on PCI
 	select CRC32
-	select ZLIB_INFLATE
+	select FW_LOADER
 	help
 	  This driver supports Broadcom NetXtremeII gigabit Ethernet cards.
 
