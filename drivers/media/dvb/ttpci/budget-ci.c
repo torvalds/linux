@@ -1383,6 +1383,7 @@ static struct stv6110x_config tt1600_stv6110x_config = {
 static struct isl6423_config tt1600_isl6423_config = {
 	.current_max		= SEC_CURRENT_515m,
 	.curlim			= SEC_CURRENT_LIM_ON,
+	.mod_extern		= 1,
 	.addr			= 0x08,
 };
 
