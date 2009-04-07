@@ -199,6 +199,28 @@
 					};
 				};
 
+				ndfc@3,0 {
+					compatible = "ibm,ndfc";
+					reg = <0x00000003 0x00000000 0x00002000>;
+					ccr = <0x00001000>;
+					bank-settings = <0x80002222>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					nand {
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						partition@0 {
+							label = "u-boot";
+							reg = <0x00000000 0x00084000>;
+						};
+						partition@84000 {
+							label = "user";
+							reg = <0x00000000 0x01f7c000>;
+						};
+					};
+				};
 			};
 
 			UART0: serial@ef600300 {
