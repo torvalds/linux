@@ -384,7 +384,7 @@ static void threads_stop(void)
 	dlm_astd_stop();
 }
 
-static int new_lockspace(char *name, int namelen, void **lockspace,
+static int new_lockspace(const char *name, int namelen, void **lockspace,
 			 uint32_t flags, int lvblen)
 {
 	struct dlm_ls *ls;
@@ -614,7 +614,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	return error;
 }
 
-int dlm_new_lockspace(char *name, int namelen, void **lockspace,
+int dlm_new_lockspace(const char *name, int namelen, void **lockspace,
 		      uint32_t flags, int lvblen)
 {
 	int error = 0;

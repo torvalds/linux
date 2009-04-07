@@ -81,8 +81,8 @@ struct dlm_lksb {
  * the cluster, the calling node joins it.
  */
 
-int dlm_new_lockspace(char *name, int namelen, dlm_lockspace_t **lockspace,
-		      uint32_t flags, int lvblen);
+int dlm_new_lockspace(const char *name, int namelen,
+		      dlm_lockspace_t **lockspace, uint32_t flags, int lvblen);
 
 /*
  * dlm_release_lockspace
