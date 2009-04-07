@@ -69,6 +69,11 @@
 #define MII_M1111_COPPER		0
 #define MII_M1111_FIBER			1
 
+#define MII_88E1121_PHY_LED_CTRL	16
+#define MII_88E1121_PHY_LED_PAGE	3
+#define MII_88E1121_PHY_LED_DEF		0x0030
+#define MII_88E1121_PHY_PAGE		22
+
 #define MII_M1011_PHY_STATUS		0x11
 #define MII_M1011_PHY_STATUS_1000	0x8000
 #define MII_M1011_PHY_STATUS_100	0x4000
@@ -148,6 +153,30 @@ static int marvell_config_aneg(struct phy_device *phydev)
 			MII_M1111_PHY_LED_DIRECT);
 	if (err < 0)
 		return err;
+
+	err = genphy_config_aneg(phydev);
+
+	return err;
+}
+
+static int m88e1121_config_aneg(struct phy_device *phydev)
+{
+	int err, temp;
+
+	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, MII_M1011_PHY_SCR,
+			MII_M1011_PHY_SCR_AUTO_CROSS);
+	if (err < 0)
+		return err;
+
+	temp = phy_read(phydev, MII_88E1121_PHY_PAGE);
+
+	phy_write(phydev, MII_88E1121_PHY_PAGE, MII_88E1121_PHY_LED_PAGE);
+	phy_write(phydev, MII_88E1121_PHY_LED_CTRL, MII_88E1121_PHY_LED_DEF);
+	phy_write(phydev, MII_88E1121_PHY_PAGE, temp);
 
 	err = genphy_config_aneg(phydev);
 
@@ -480,6 +509,18 @@ static struct phy_driver marvell_drivers[] = {
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
 		.driver = {.owner = THIS_MODULE,},
+	},
+	{
+		.phy_id = 0x01410cb0,
+		.phy_id_mask = 0xfffffff0,
+		.name = "Marvell 88E1121R",
+		.features = PHY_GBIT_FEATURES,
+		.flags = PHY_HAS_INTERRUPT,
+		.config_aneg = &m88e1121_config_aneg,
+		.read_status = &marvell_read_status,
+		.ack_interrupt = &marvell_ack_interrupt,
+		.config_intr = &marvell_config_intr,
+		.driver = { .owner = THIS_MODULE },
 	},
 	{
 		.phy_id = 0x01410cd0,
