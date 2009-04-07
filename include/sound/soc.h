@@ -417,6 +417,12 @@ struct snd_soc_dai_link  {
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_codec *codec);
 
+	/* Symmetry requirements */
+	unsigned int symmetric_rates:1;
+
+	/* Symmetry data - only valid if symmetry is being enforced */
+	unsigned int rate;
+
 	/* DAI pcm */
 	struct snd_pcm *pcm;
 };

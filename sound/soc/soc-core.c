@@ -113,6 +113,35 @@ static int soc_ac97_dev_register(struct snd_soc_codec *codec)
 }
 #endif
 
+static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_dai_link *machine = rtd->dai;
+	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
+	struct snd_soc_dai *codec_dai = machine->codec_dai;
+	int ret;
+
+	if (codec_dai->symmetric_rates || cpu_dai->symmetric_rates ||
+	    machine->symmetric_rates) {
+		dev_dbg(card->dev, "Symmetry forces %dHz rate\n", 
+			machine->rate);
+
+		ret = snd_pcm_hw_constraint_minmax(substream->runtime,
+						   SNDRV_PCM_HW_PARAM_RATE,
+						   machine->rate,
+						   machine->rate);
+		if (ret < 0) {
+			dev_err(card->dev,
+				"Unable to apply rate symmetry constraint: %d\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * Called by ALSA when a PCM substream is opened, the runtime->hw record is
  * then initialized and any private data can be allocated. This also calls
@@ -219,6 +248,13 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		printk(KERN_ERR "asoc: %s <-> %s No matching channels\n",
 			codec_dai->name, cpu_dai->name);
 		goto machine_err;
+	}
+
+	/* Symmetry only applies if we've already got an active stream. */
+	if (cpu_dai->active || codec_dai->active) {
+		ret = soc_pcm_apply_symmetry(substream);
+		if (ret != 0)
+			goto machine_err;
 	}
 
 	pr_debug("asoc: %s <-> %s info:\n", codec_dai->name, cpu_dai->name);
@@ -520,6 +556,8 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 			goto platform_err;
 		}
 	}
+
+	machine->rate = params_rate(params);
 
 out:
 	mutex_unlock(&pcm_mutex);

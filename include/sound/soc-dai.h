@@ -208,6 +208,7 @@ struct snd_soc_dai {
 	/* DAI capabilities */
 	struct snd_soc_pcm_stream capture;
 	struct snd_soc_pcm_stream playback;
+	unsigned int symmetric_rates:1;
 
 	/* DAI runtime info */
 	struct snd_pcm_runtime *runtime;
