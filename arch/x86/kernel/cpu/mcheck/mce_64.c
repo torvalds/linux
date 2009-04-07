@@ -239,9 +239,10 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		 * Don't get the IP here because it's unlikely to
 		 * have anything to do with the actual error location.
 		 */
-
-		mce_log(&m);
-		add_taint(TAINT_MACHINE_CHECK);
+		if (!(flags & MCP_DONTLOG)) {
+			mce_log(&m);
+			add_taint(TAINT_MACHINE_CHECK);
+		}
 
 		/*
 		 * Clear state for this bank.
@@ -585,7 +586,7 @@ static void mce_init(void *dummy)
 	 * Log the machine checks left over from the previous reset.
 	 */
 	bitmap_fill(all_banks, MAX_NR_BANKS);
-	machine_check_poll(MCP_UC, &all_banks);
+	machine_check_poll(MCP_UC|(!mce_bootlog ? MCP_DONTLOG : 0), &all_banks);
 
 	set_in_cr4(X86_CR4_MCE);
 
