@@ -41,8 +41,7 @@ netxen_api_lock(struct netxen_adapter *adapter)
 
 	for (;;) {
 		/* Acquire PCIE HW semaphore5 */
-		done = netxen_nic_read_w0(adapter,
-			NETXEN_PCIE_REG(PCIE_SEM5_LOCK));
+		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM5_LOCK));
 
 		if (done == 1)
 			break;
@@ -56,7 +55,7 @@ netxen_api_lock(struct netxen_adapter *adapter)
 	}
 
 #if 0
-	netxen_nic_write_w1(adapter,
+	NXWR32(adapter,
 		NETXEN_API_LOCK_ID, NX_OS_API_LOCK_DRIVER);
 #endif
 	return 0;
@@ -66,8 +65,7 @@ static int
 netxen_api_unlock(struct netxen_adapter *adapter)
 {
 	/* Release PCIE HW semaphore5 */
-	netxen_nic_read_w0(adapter,
-		NETXEN_PCIE_REG(PCIE_SEM5_UNLOCK));
+	NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM5_UNLOCK));
 	return 0;
 }
 
@@ -84,7 +82,7 @@ netxen_poll_rsp(struct netxen_adapter *adapter)
 		if (++timeout > NX_OS_CRB_RETRY_COUNT)
 			return NX_CDRP_RSP_TIMEOUT;
 
-		rsp = netxen_nic_read_w1(adapter, NX_CDRP_CRB_OFFSET);
+		rsp = NXRD32(adapter, NX_CDRP_CRB_OFFSET);
 	} while (!NX_CDRP_IS_RSP(rsp));
 
 	return rsp;
@@ -104,16 +102,15 @@ netxen_issue_cmd(struct netxen_adapter *adapter,
 	if (netxen_api_lock(adapter))
 		return NX_RCODE_TIMEOUT;
 
-	netxen_nic_write_w1(adapter, NX_SIGN_CRB_OFFSET, signature);
+	NXWR32(adapter, NX_SIGN_CRB_OFFSET, signature);
 
-	netxen_nic_write_w1(adapter, NX_ARG1_CRB_OFFSET, arg1);
+	NXWR32(adapter, NX_ARG1_CRB_OFFSET, arg1);
 
-	netxen_nic_write_w1(adapter, NX_ARG2_CRB_OFFSET, arg2);
+	NXWR32(adapter, NX_ARG2_CRB_OFFSET, arg2);
 
-	netxen_nic_write_w1(adapter, NX_ARG3_CRB_OFFSET, arg3);
+	NXWR32(adapter, NX_ARG3_CRB_OFFSET, arg3);
 
-	netxen_nic_write_w1(adapter, NX_CDRP_CRB_OFFSET,
-			NX_CDRP_FORM_CMD(cmd));
+	NXWR32(adapter, NX_CDRP_CRB_OFFSET, NX_CDRP_FORM_CMD(cmd));
 
 	rsp = netxen_poll_rsp(adapter);
 
@@ -123,7 +120,7 @@ netxen_issue_cmd(struct netxen_adapter *adapter,
 
 		rcode = NX_RCODE_TIMEOUT;
 	} else if (rsp == NX_CDRP_RSP_FAIL) {
-		rcode = netxen_nic_read_w1(adapter, NX_ARG1_CRB_OFFSET);
+		rcode = NXRD32(adapter, NX_ARG1_CRB_OFFSET);
 
 		printk(KERN_ERR "%s: failed card response code:0x%x\n",
 				netxen_nic_driver_name, rcode);
@@ -515,11 +512,11 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 	adapter->ctx_desc->sts_ring_addr = cpu_to_le64(sds_ring->phys_addr);
 	adapter->ctx_desc->sts_ring_size = cpu_to_le32(sds_ring->num_desc);
 
-	adapter->hw_write_wx(adapter, CRB_CTX_ADDR_REG_LO(func_id),
+	NXWR32(adapter, CRB_CTX_ADDR_REG_LO(func_id),
 			lower32(adapter->ctx_desc_phys_addr));
-	adapter->hw_write_wx(adapter, CRB_CTX_ADDR_REG_HI(func_id),
+	NXWR32(adapter, CRB_CTX_ADDR_REG_HI(func_id),
 			upper32(adapter->ctx_desc_phys_addr));
-	adapter->hw_write_wx(adapter, CRB_CTX_SIGNATURE_REG(func_id),
+	NXWR32(adapter, CRB_CTX_SIGNATURE_REG(func_id),
 			NETXEN_CTX_SIGNATURE | func_id);
 	return 0;
 }

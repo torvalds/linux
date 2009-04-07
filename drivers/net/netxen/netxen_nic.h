@@ -1312,12 +1312,11 @@ int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
 /* Functions available from netxen_nic_hw.c */
 int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu);
 int netxen_nic_set_mtu_gb(struct netxen_adapter *adapter, int new_mtu);
-void netxen_nic_reg_write(struct netxen_adapter *adapter, u64 off, u32 val);
-int netxen_nic_reg_read(struct netxen_adapter *adapter, u64 off);
-void netxen_nic_write_w0(struct netxen_adapter *adapter, u32 index, u32 value);
-u32 netxen_nic_read_w0(struct netxen_adapter *adapter, u32 index);
-void netxen_nic_write_w1(struct netxen_adapter *adapter, u32 index, u32 value);
-u32 netxen_nic_read_w1(struct netxen_adapter *adapter, u32 index);
+
+#define NXRD32(adapter, off) \
+	(adapter->hw_read_wx(adapter, off))
+#define NXWR32(adapter, off, val) \
+	(adapter->hw_write_wx(adapter, off, val))
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter);
 void netxen_nic_get_firmware_info(struct netxen_adapter *adapter);
@@ -1348,8 +1347,6 @@ int netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
 		u64 off, void *data, int size);
 int netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
 		u64 off, void *data, int size);
-void netxen_crb_writelit_adapter(struct netxen_adapter *adapter,
-				 unsigned long off, int data);
 int netxen_nic_pci_write_immediate_2M(struct netxen_adapter *adapter,
 		u64 off, u32 data);
 u32 netxen_nic_pci_read_immediate_2M(struct netxen_adapter *adapter, u64 off);
@@ -1478,8 +1475,7 @@ dma_watchdog_shutdown_request(struct netxen_adapter *adapter)
 
 	/* Send the disable request */
 	netxen_set_dma_watchdog_disable_req(ctrl);
-	netxen_crb_writelit_adapter(adapter,
-		NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), ctrl);
+	NXWR32(adapter, NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), ctrl);
 
 	return 0;
 }
@@ -1509,8 +1505,7 @@ dma_watchdog_wakeup(struct netxen_adapter *adapter)
 	/* send the wakeup request */
 	netxen_set_dma_watchdog_enable_req(ctrl);
 
-	netxen_crb_writelit_adapter(adapter,
-		NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), ctrl);
+	NXWR32(adapter, NETXEN_CAM_RAM(NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL), ctrl);
 
 	return 0;
 }

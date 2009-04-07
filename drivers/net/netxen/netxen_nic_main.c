@@ -109,8 +109,7 @@ void
 netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring, u32 producer)
 {
-	adapter->hw_write_wx(adapter,
-			tx_ring->crb_cmd_producer, producer);
+	NXWR32(adapter, tx_ring->crb_cmd_producer, producer);
 }
 
 static uint32_t crb_cmd_consumer[4] = {
@@ -122,8 +121,7 @@ static inline void
 netxen_nic_update_cmd_consumer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring, u32 consumer)
 {
-	adapter->hw_write_wx(adapter,
-			tx_ring->crb_cmd_consumer, consumer);
+	NXWR32(adapter, tx_ring->crb_cmd_consumer, consumer);
 }
 
 static uint32_t msi_tgt_status[8] = {
@@ -139,14 +137,14 @@ static inline void netxen_nic_disable_int(struct nx_host_sds_ring *sds_ring)
 {
 	struct netxen_adapter *adapter = sds_ring->adapter;
 
-	adapter->hw_write_wx(adapter, sds_ring->crb_intr_mask, 0);
+	NXWR32(adapter, sds_ring->crb_intr_mask, 0);
 }
 
 static inline void netxen_nic_enable_int(struct nx_host_sds_ring *sds_ring)
 {
 	struct netxen_adapter *adapter = sds_ring->adapter;
 
-	adapter->hw_write_wx(adapter, sds_ring->crb_intr_mask, 0x1);
+	NXWR32(adapter, sds_ring->crb_intr_mask, 0x1);
 
 	if (!NETXEN_IS_MSI_FAMILY(adapter))
 		adapter->pci_write_immediate(adapter,
@@ -262,7 +260,7 @@ nx_update_dma_mask(struct netxen_adapter *adapter)
 
 	change = 0;
 
-	shift = netxen_nic_reg_read(adapter, CRB_DMA_SHIFT);
+	shift = NXRD32(adapter, CRB_DMA_SHIFT);
 	if (shift >= 32)
 		return 0;
 
@@ -309,42 +307,34 @@ netxen_check_hw_init(struct netxen_adapter *adapter, int first_boot)
 
 	if (first_boot == 0x55555555) {
 		/* This is the first boot after power up */
-		adapter->hw_write_wx(adapter,
-			NETXEN_CAM_RAM(0x1fc), NETXEN_BDINFO_MAGIC);
+		NXWR32(adapter, NETXEN_CAM_RAM(0x1fc), NETXEN_BDINFO_MAGIC);
 
 		if (!NX_IS_REVISION_P2(adapter->ahw.revision_id))
 			return 0;
 
 		/* PCI bus master workaround */
-		first_boot = adapter->hw_read_wx(adapter, NETXEN_PCIE_REG(0x4));
+		first_boot = NXRD32(adapter, NETXEN_PCIE_REG(0x4));
 		if (!(first_boot & 0x4)) {
 			first_boot |= 0x4;
-			adapter->hw_write_wx(adapter,
-				NETXEN_PCIE_REG(0x4), first_boot);
-			first_boot = adapter->hw_read_wx(adapter,
-				NETXEN_PCIE_REG(0x4));
+			NXWR32(adapter, NETXEN_PCIE_REG(0x4), first_boot);
+			first_boot = NXRD32(adapter, NETXEN_PCIE_REG(0x4));
 		}
 
 		/* This is the first boot after power up */
-		first_boot = adapter->hw_read_wx(adapter,
-			NETXEN_ROMUSB_GLB_SW_RESET);
+		first_boot = NXRD32(adapter, NETXEN_ROMUSB_GLB_SW_RESET);
 		if (first_boot != 0x80000f) {
 			/* clear the register for future unloads/loads */
-			adapter->hw_write_wx(adapter,
-					NETXEN_CAM_RAM(0x1fc), 0);
+			NXWR32(adapter, NETXEN_CAM_RAM(0x1fc), 0);
 			return -EIO;
 		}
 
 		/* Start P2 boot loader */
-		val = adapter->hw_read_wx(adapter,
-				NETXEN_ROMUSB_GLB_PEGTUNE_DONE);
-		adapter->hw_write_wx(adapter,
-				NETXEN_ROMUSB_GLB_PEGTUNE_DONE, val | 0x1);
+		val = NXRD32(adapter, NETXEN_ROMUSB_GLB_PEGTUNE_DONE);
+		NXWR32(adapter, NETXEN_ROMUSB_GLB_PEGTUNE_DONE, val | 0x1);
 		timeout = 0;
 		do {
 			msleep(1);
-			val = adapter->hw_read_wx(adapter,
-					NETXEN_CAM_RAM(0x1fc));
+			val = NXRD32(adapter, NETXEN_CAM_RAM(0x1fc));
 
 			if (++timeout > 5000)
 				return -EIO;
@@ -363,24 +353,19 @@ static void netxen_set_port_mode(struct netxen_adapter *adapter)
 		(val == NETXEN_BRDTYPE_P3_XG_LOM)) {
 		if (port_mode == NETXEN_PORT_MODE_802_3_AP) {
 			data = NETXEN_PORT_MODE_802_3_AP;
-			adapter->hw_write_wx(adapter,
-				NETXEN_PORT_MODE_ADDR, data);
+			NXWR32(adapter, NETXEN_PORT_MODE_ADDR, data);
 		} else if (port_mode == NETXEN_PORT_MODE_XG) {
 			data = NETXEN_PORT_MODE_XG;
-			adapter->hw_write_wx(adapter,
-				NETXEN_PORT_MODE_ADDR, data);
+			NXWR32(adapter, NETXEN_PORT_MODE_ADDR, data);
 		} else if (port_mode == NETXEN_PORT_MODE_AUTO_NEG_1G) {
 			data = NETXEN_PORT_MODE_AUTO_NEG_1G;
-			adapter->hw_write_wx(adapter,
-				NETXEN_PORT_MODE_ADDR, data);
+			NXWR32(adapter, NETXEN_PORT_MODE_ADDR, data);
 		} else if (port_mode == NETXEN_PORT_MODE_AUTO_NEG_XG) {
 			data = NETXEN_PORT_MODE_AUTO_NEG_XG;
-			adapter->hw_write_wx(adapter,
-				NETXEN_PORT_MODE_ADDR, data);
+			NXWR32(adapter, NETXEN_PORT_MODE_ADDR, data);
 		} else {
 			data = NETXEN_PORT_MODE_AUTO_NEG;
-			adapter->hw_write_wx(adapter,
-				NETXEN_PORT_MODE_ADDR, data);
+			NXWR32(adapter, NETXEN_PORT_MODE_ADDR, data);
 		}
 
 		if ((wol_port_mode != NETXEN_PORT_MODE_802_3_AP) &&
@@ -389,8 +374,7 @@ static void netxen_set_port_mode(struct netxen_adapter *adapter)
 			(wol_port_mode != NETXEN_PORT_MODE_AUTO_NEG_XG)) {
 			wol_port_mode = NETXEN_PORT_MODE_AUTO_NEG;
 		}
-		adapter->hw_write_wx(adapter, NETXEN_WOL_PORT_MODE,
-			wol_port_mode);
+		NXWR32(adapter, NETXEN_WOL_PORT_MODE, wol_port_mode);
 	}
 }
 
@@ -674,8 +658,7 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 	if (!first_driver)
 		return 0;
 
-	first_boot = adapter->hw_read_wx(adapter,
-			NETXEN_CAM_RAM(0x1fc));
+	first_boot = NXRD32(adapter, NETXEN_CAM_RAM(0x1fc));
 
 	err = netxen_check_hw_init(adapter, first_boot);
 	if (err) {
@@ -684,13 +667,12 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 	}
 
 	if (first_boot != 0x55555555) {
-		adapter->hw_write_wx(adapter,
-					CRB_CMDPEG_STATE, 0);
+		NXWR32(adapter, CRB_CMDPEG_STATE, 0);
 		netxen_pinit_from_rom(adapter, 0);
 		msleep(1);
 	}
 
-	netxen_nic_reg_write(adapter, CRB_DMA_SHIFT, 0x55555555);
+	NXWR32(adapter, CRB_DMA_SHIFT, 0x55555555);
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		netxen_set_port_mode(adapter);
 
@@ -702,8 +684,7 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 		val = 0x7654;
 		if (adapter->ahw.port_type == NETXEN_NIC_XGBE)
 			val |= 0x0f000000;
-		netxen_crb_writelit_adapter(adapter,
-				NETXEN_MAC_ADDR_CNTL_REG, val);
+		NXWR32(adapter, NETXEN_MAC_ADDR_CNTL_REG, val);
 
 	}
 
@@ -717,7 +698,7 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 	val = (_NETXEN_NIC_LINUX_MAJOR << 16)
 		| ((_NETXEN_NIC_LINUX_MINOR << 8))
 		| (_NETXEN_NIC_LINUX_SUBVERSION);
-	adapter->hw_write_wx(adapter, CRB_DRIVER_VERSION, val);
+	NXWR32(adapter, CRB_DRIVER_VERSION, val);
 
 	/* Handshake with the card before we register the devices. */
 	err = netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
@@ -1032,8 +1013,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	adapter->physical_port = adapter->portnum;
 	if (adapter->fw_major < 4) {
-		i = adapter->hw_read_wx(adapter,
-				CRB_V2P(adapter->portnum));
+		i = NXRD32(adapter, CRB_V2P(adapter->portnum));
 		if (i != 0x55555555)
 			adapter->physical_port = i;
 	}
@@ -1480,7 +1460,7 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 	uint32_t temp, temp_state, temp_val;
 	int rv = 0;
 
-	temp = adapter->hw_read_wx(adapter, CRB_TEMP_STATE);
+	temp = NXRD32(adapter, CRB_TEMP_STATE);
 
 	temp_state = nx_get_temp_state(temp);
 	temp_val = nx_get_temp_val(temp);
@@ -1551,11 +1531,11 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 	port = adapter->physical_port;
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		val = adapter->hw_read_wx(adapter, CRB_XG_STATE_P3);
+		val = NXRD32(adapter, CRB_XG_STATE_P3);
 		val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
 		linkup = (val == XG_LINK_UP_P3);
 	} else {
-		val = adapter->hw_read_wx(adapter, CRB_XG_STATE);
+		val = NXRD32(adapter, CRB_XG_STATE);
 		if (adapter->ahw.port_type == NETXEN_NIC_GBE)
 			linkup = (val >> port) & 1;
 		else {
@@ -1650,15 +1630,14 @@ static irqreturn_t netxen_intr(int irq, void *data)
 	} else {
 		unsigned long our_int = 0;
 
-		our_int = adapter->hw_read_wx(adapter, CRB_INT_VECTOR);
+		our_int = NXRD32(adapter, CRB_INT_VECTOR);
 
 		/* not our interrupt */
 		if (!test_and_clear_bit((7 + adapter->portnum), &our_int))
 			return IRQ_NONE;
 
 		/* claim interrupt */
-		adapter->hw_write_wx(adapter,
-				CRB_INT_VECTOR, (our_int & 0xffffffff));
+		NXWR32(adapter, CRB_INT_VECTOR, (our_int & 0xffffffff));
 	}
 
 	/* clear interrupt */

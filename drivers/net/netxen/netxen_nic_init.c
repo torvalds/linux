@@ -368,8 +368,7 @@ static int rom_lock(struct netxen_adapter *adapter)
 
 	while (!done) {
 		/* acquire semaphore2 from PCI HW block */
-		done = netxen_nic_read_w0(adapter,
-				NETXEN_PCIE_REG(PCIE_SEM2_LOCK));
+		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM2_LOCK));
 		if (done == 1)
 			break;
 		if (timeout >= rom_lock_timeout)
@@ -386,7 +385,7 @@ static int rom_lock(struct netxen_adapter *adapter)
 				cpu_relax();	/*This a nop instr on i386 */
 		}
 	}
-	netxen_nic_reg_write(adapter, NETXEN_ROM_LOCK_ID, ROM_LOCK_DRIVER);
+	NXWR32(adapter, NETXEN_ROM_LOCK_ID, ROM_LOCK_DRIVER);
 	return 0;
 }
 
@@ -398,7 +397,7 @@ static int netxen_wait_rom_done(struct netxen_adapter *adapter)
 	cond_resched();
 
 	while (done == 0) {
-		done = netxen_nic_reg_read(adapter, NETXEN_ROMUSB_GLB_STATUS);
+		done = NXRD32(adapter, NETXEN_ROMUSB_GLB_STATUS);
 		done &= 2;
 		timeout++;
 		if (timeout >= rom_max_timeout) {
@@ -412,27 +411,27 @@ static int netxen_wait_rom_done(struct netxen_adapter *adapter)
 static void netxen_rom_unlock(struct netxen_adapter *adapter)
 {
 	/* release semaphore2 */
-	netxen_nic_read_w0(adapter, NETXEN_PCIE_REG(PCIE_SEM2_UNLOCK));
+	NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM2_UNLOCK));
 
 }
 
 static int do_rom_fast_read(struct netxen_adapter *adapter,
 			    int addr, int *valp)
 {
-	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ADDRESS, addr);
-	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
-	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 3);
-	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_INSTR_OPCODE, 0xb);
+	NXWR32(adapter, NETXEN_ROMUSB_ROM_ADDRESS, addr);
+	NXWR32(adapter, NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
+	NXWR32(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 3);
+	NXWR32(adapter, NETXEN_ROMUSB_ROM_INSTR_OPCODE, 0xb);
 	if (netxen_wait_rom_done(adapter)) {
 		printk("Error waiting for rom done\n");
 		return -EIO;
 	}
 	/* reset abyte_cnt and dummy_byte_cnt */
-	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 0);
+	NXWR32(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 0);
 	udelay(10);
-	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
+	NXWR32(adapter, NETXEN_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
 
-	*valp = netxen_nic_reg_read(adapter, NETXEN_ROMUSB_ROM_RDATA);
+	*valp = NXRD32(adapter, NETXEN_ROMUSB_ROM_RDATA);
 	return 0;
 }
 
@@ -496,8 +495,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 
 	/* resetall */
 	rom_lock(adapter);
-	netxen_crb_writelit_adapter(adapter, NETXEN_ROMUSB_GLB_SW_RESET,
-				    0xffffffff);
+	NXWR32(adapter, NETXEN_ROMUSB_GLB_SW_RESET, 0xffffffff);
 	netxen_rom_unlock(adapter);
 
 	if (verbose) {
@@ -621,7 +619,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 			}
 		}
 
-		adapter->hw_write_wx(adapter, off, buf[i].data);
+		NXWR32(adapter, off, buf[i].data);
 
 		msleep(init_delay);
 	}
@@ -631,33 +629,31 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 
 	/* unreset_net_cache */
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-		val = adapter->hw_read_wx(adapter,
-				NETXEN_ROMUSB_GLB_SW_RESET);
-		netxen_crb_writelit_adapter(adapter,
-				NETXEN_ROMUSB_GLB_SW_RESET, (val & 0xffffff0f));
+		val = NXRD32(adapter, NETXEN_ROMUSB_GLB_SW_RESET);
+		NXWR32(adapter, NETXEN_ROMUSB_GLB_SW_RESET, (val & 0xffffff0f));
 	}
 
 	/* p2dn replyCount */
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_D + 0xec, 0x1e);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_D + 0xec, 0x1e);
 	/* disable_peg_cache 0 */
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_D + 0x4c, 8);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_D + 0x4c, 8);
 	/* disable_peg_cache 1 */
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_I + 0x4c, 8);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_I + 0x4c, 8);
 
 	/* peg_clr_all */
 
 	/* peg_clr 0 */
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_0 + 0x8, 0);
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_0 + 0xc, 0);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_0 + 0x8, 0);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_0 + 0xc, 0);
 	/* peg_clr 1 */
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_1 + 0x8, 0);
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_1 + 0xc, 0);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_1 + 0x8, 0);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_1 + 0xc, 0);
 	/* peg_clr 2 */
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_2 + 0x8, 0);
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_2 + 0xc, 0);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_2 + 0x8, 0);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_2 + 0xc, 0);
 	/* peg_clr 3 */
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_3 + 0x8, 0);
-	netxen_crb_writelit_adapter(adapter, NETXEN_CRB_PEG_NET_3 + 0xc, 0);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_3 + 0x8, 0);
+	NXWR32(adapter, NETXEN_CRB_PEG_NET_3 + 0xc, 0);
 	return 0;
 }
 
@@ -681,12 +677,12 @@ int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
 	hi = (addr >> 32) & 0xffffffff;
 	lo = addr & 0xffffffff;
 
-	adapter->hw_write_wx(adapter, CRB_HOST_DUMMY_BUF_ADDR_HI, hi);
-	adapter->hw_write_wx(adapter, CRB_HOST_DUMMY_BUF_ADDR_LO, lo);
+	NXWR32(adapter, CRB_HOST_DUMMY_BUF_ADDR_HI, hi);
+	NXWR32(adapter, CRB_HOST_DUMMY_BUF_ADDR_LO, lo);
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		uint32_t temp = 0;
-		adapter->hw_write_wx(adapter, CRB_HOST_DUMMY_BUF, temp);
+		NXWR32(adapter, CRB_HOST_DUMMY_BUF, temp);
 	}
 
 	return 0;
@@ -728,8 +724,7 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 
 	if (!pegtune_val) {
 		do {
-			val = adapter->hw_read_wx(adapter,
-					CRB_CMDPEG_STATE);
+			val = NXRD32(adapter, CRB_CMDPEG_STATE);
 
 			if (val == PHAN_INITIALIZE_COMPLETE ||
 				val == PHAN_INITIALIZE_ACK)
@@ -740,7 +735,7 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 		} while (--retries);
 
 		if (!retries) {
-			pegtune_val = adapter->hw_read_wx(adapter,
+			pegtune_val = NXRD32(adapter,
 					NETXEN_ROMUSB_GLB_PEGTUNE_DONE);
 			printk(KERN_WARNING "netxen_phantom_init: init failed, "
 					"pegtune_val=%x\n", pegtune_val);
@@ -758,7 +753,7 @@ netxen_receive_peg_ready(struct netxen_adapter *adapter)
 	int retries = 2000;
 
 	do {
-		val = adapter->hw_read_wx(adapter, CRB_RCVPEG_STATE);
+		val = NXRD32(adapter, CRB_RCVPEG_STATE);
 
 		if (val == PHAN_PEG_RCV_INITIALIZED)
 			return 0;
@@ -784,18 +779,13 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 	if (err)
 		return err;
 
-	adapter->hw_write_wx(adapter,
-			CRB_NIC_CAPABILITIES_HOST, INTR_SCHEME_PERPORT);
-	adapter->hw_write_wx(adapter,
-			CRB_NIC_MSI_MODE_HOST, MSI_MODE_MULTIFUNC);
-	adapter->hw_write_wx(adapter,
-			CRB_MPORT_MODE, MPORT_MULTI_FUNCTION_MODE);
-	adapter->hw_write_wx(adapter,
-			CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
+	NXWR32(adapter, CRB_NIC_CAPABILITIES_HOST, INTR_SCHEME_PERPORT);
+	NXWR32(adapter, CRB_NIC_MSI_MODE_HOST, MSI_MODE_MULTIFUNC);
+	NXWR32(adapter, CRB_MPORT_MODE, MPORT_MULTI_FUNCTION_MODE);
+	NXWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
 
 	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222)) {
-		adapter->capabilities = netxen_nic_reg_read(adapter,
-				CRB_FW_CAPABILITIES_1);
+		adapter->capabilities = NXRD32(adapter, CRB_FW_CAPABILITIES_1);
 	}
 
 	return err;
@@ -1057,8 +1047,7 @@ skip:
 
 	if (count) {
 		sds_ring->consumer = consumer;
-		adapter->hw_write_wx(adapter,
-				sds_ring->crb_sts_consumer, consumer);
+		NXWR32(adapter, sds_ring->crb_sts_consumer, consumer);
 	}
 
 	return count;
@@ -1176,8 +1165,7 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 
 	if (count) {
 		rds_ring->producer = producer;
-		adapter->hw_write_wx(adapter,
-				rds_ring->crb_rcv_producer,
+		NXWR32(adapter, rds_ring->crb_rcv_producer,
 				(producer-1) & (rds_ring->num_desc-1));
 
 		if (adapter->fw_major < 4) {
@@ -1237,8 +1225,7 @@ netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 
 	if (count) {
 		rds_ring->producer = producer;
-		adapter->hw_write_wx(adapter,
-			rds_ring->crb_rcv_producer,
+		NXWR32(adapter, rds_ring->crb_rcv_producer,
 				(producer - 1) & (rds_ring->num_desc - 1));
 			wmb();
 	}
