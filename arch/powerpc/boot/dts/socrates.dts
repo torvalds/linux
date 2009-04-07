@@ -79,11 +79,11 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			cell-index = <0>;
-			compatible = "fsl-i2c";
+			compatible = "fsl,mpc8544-i2c", "fsl-i2c";
 			reg = <0x3000 0x100>;
 			interrupts = <43 2>;
 			interrupt-parent = <&mpic>;
-			dfsrr;
+			fsl,preserve-clocking;
 
 			dtt@28 {
 				compatible = "winbond,w83782d";
@@ -111,11 +111,11 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			cell-index = <1>;
-			compatible = "fsl-i2c";
+			compatible = "fsl,mpc8544-i2c", "fsl-i2c";
 			reg = <0x3100 0x100>;
 			interrupts = <43 2>;
 			interrupt-parent = <&mpic>;
-			dfsrr;
+			fsl,preserve-clocking;
 		};
 
 		enet0: ethernet@24000 {

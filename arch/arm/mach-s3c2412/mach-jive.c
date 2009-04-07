@@ -453,8 +453,7 @@ static struct spi_board_info __initdata jive_spi_devs[] = {
 /* I2C bus and device configuration. */
 
 static struct s3c2410_platform_i2c jive_i2c_cfg __initdata = {
-	.max_freq	= 80 * 1000,
-	.bus_freq	= 50 * 1000,
+	.frequency	= 80 * 1000,
 	.flags		= S3C_IICFLG_FILTER,
 	.sda_delay	= 2,
 };
