@@ -488,7 +488,7 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	}
 
 	path = param->path;
-	devid = sbi->sb->s_dev;
+	devid = new_encode_dev(sbi->sb->s_dev);
 
 	param->requester.uid = param->requester.gid = -1;
 
