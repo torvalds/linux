@@ -97,7 +97,7 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj,
 		return 0;
 
 	if (IS_NOCACHE_VPD_TYPE(ha))
-		ha->isp_ops->read_optrom(vha, ha->vpd, ha->flt_region_nvram << 2,
+		ha->isp_ops->read_optrom(vha, ha->nvram, ha->flt_region_nvram << 2,
 		    ha->nvram_size);
 	return memory_read_from_buffer(buf, count, &off, ha->nvram,
 					ha->nvram_size);
