@@ -89,7 +89,8 @@ static void __iomem *pci_base_offset(struct netxen_adapter *adapter,
 }
 
 #define CRB_WIN_LOCK_TIMEOUT 100000000
-static crb_128M_2M_block_map_t crb_128M_2M_map[64] = {
+static crb_128M_2M_block_map_t
+crb_128M_2M_map[64] __cacheline_aligned_in_smp = {
     {{{0, 0,         0,         0} } },		/* 0: PCI */
     {{{1, 0x0100000, 0x0102000, 0x120000},	/* 1: PCIE */
 	  {1, 0x0110000, 0x0120000, 0x130000},
