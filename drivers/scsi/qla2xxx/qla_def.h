@@ -188,7 +188,6 @@ struct req_que;
  * SCSI Request Block
  */
 typedef struct srb {
-	struct req_que *que;
 	struct fc_port *fcport;
 
 	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
@@ -2010,7 +2009,6 @@ typedef struct vport_params {
 #define VP_RET_CODE_NOT_FOUND		6
 
 struct qla_hw_data;
-struct req_que;
 struct rsp_que;
 /*
  * ISP operations

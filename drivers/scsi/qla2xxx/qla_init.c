@@ -3177,8 +3177,14 @@ qla2x00_loop_resync(scsi_qla_host_t *vha)
 {
 	int rval = QLA_SUCCESS;
 	uint32_t wait_time;
-	struct req_que *req = vha->req;
-	struct rsp_que *rsp = req->rsp;
+	struct req_que *req;
+	struct rsp_que *rsp;
+
+	if (ql2xmultique_tag)
+		req = vha->hw->req_q_map[0];
+	else
+		req = vha->req;
+	rsp = req->rsp;
 
 	atomic_set(&vha->loop_state, LOOP_UPDATE);
 	clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
@@ -4163,13 +4169,19 @@ qla24xx_configure_vhba(scsi_qla_host_t *vha)
 	uint16_t mb[MAILBOX_REGISTER_COUNT];
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
-	struct req_que *req = vha->req;
-	struct rsp_que *rsp = req->rsp;
+	struct req_que *req;
+	struct rsp_que *rsp;
 
 	if (!vha->vp_idx)
 		return -EINVAL;
 
 	rval = qla2x00_fw_ready(base_vha);
+	if (ql2xmultique_tag)
+		req = ha->req_q_map[0];
+	else
+		req = vha->req;
+	rsp = req->rsp;
+
 	if (rval == QLA_SUCCESS) {
 		clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags);
 		qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL);

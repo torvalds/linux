@@ -441,7 +441,6 @@ qla2x00_get_new_sp(scsi_qla_host_t *vha, fc_port_t *fcport,
 
 	sp->fcport = fcport;
 	sp->cmd = cmd;
-	sp->que = ha->req_q_map[0];
 	sp->flags = 0;
 	CMD_SP(cmd) = (void *)sp;
 	cmd->scsi_done = done;
@@ -742,7 +741,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	int wait = 0;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req;
+	struct req_que *req = vha->req;
 	srb_t *spt;
 
 	qla2x00_block_error_handler(cmd);
@@ -758,7 +757,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	spt = (srb_t *) CMD_SP(cmd);
 	if (!spt)
 		return SUCCESS;
-	req = spt->que;
 
 	/* Check active list for command command. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -826,7 +824,7 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *vha, unsigned int t,
 		return status;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	req = sp->que;
+	req = vha->req;
 	for (cnt = 1; status == QLA_SUCCESS &&
 		cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
 		sp = req->outstanding_cmds[cnt];

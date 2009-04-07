@@ -2232,7 +2232,7 @@ qla24xx_abort_command(srb_t *sp)
 	fc_port_t	*fcport = sp->fcport;
 	struct scsi_qla_host *vha = fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = sp->que;
+	struct req_que *req = vha->req;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
 
