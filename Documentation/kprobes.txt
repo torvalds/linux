@@ -365,21 +365,25 @@ probes) in the specified array, they clear the addr field of those
 incorrect probes. However, other probes in the array are
 unregistered correctly.
 
-4.7 disable_kprobe
+4.7 disable_*probe
 
 #include <linux/kprobes.h>
 int disable_kprobe(struct kprobe *kp);
+int disable_kretprobe(struct kretprobe *rp);
+int disable_jprobe(struct jprobe *jp);
 
-Temporarily disables the specified kprobe. You can enable it again by using
-enable_kprobe(). You must specify the kprobe which has been registered.
+Temporarily disables the specified *probe. You can enable it again by using
+enable_*probe(). You must specify the probe which has been registered.
 
-4.8 enable_kprobe
+4.8 enable_*probe
 
 #include <linux/kprobes.h>
 int enable_kprobe(struct kprobe *kp);
+int enable_kretprobe(struct kretprobe *rp);
+int enable_jprobe(struct jprobe *jp);
 
-Enables kprobe which has been disabled by disable_kprobe(). You must specify
-the kprobe which has been registered.
+Enables *probe which has been disabled by disable_*probe(). You must specify
+the probe which has been registered.
 
 5. Kprobes Features and Limitations
 

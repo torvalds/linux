@@ -371,4 +371,21 @@ static inline int enable_kprobe(struct kprobe *kp)
 	return -ENOSYS;
 }
 #endif /* CONFIG_KPROBES */
+static inline int disable_kretprobe(struct kretprobe *rp)
+{
+	return disable_kprobe(&rp->kp);
+}
+static inline int enable_kretprobe(struct kretprobe *rp)
+{
+	return enable_kprobe(&rp->kp);
+}
+static inline int disable_jprobe(struct jprobe *jp)
+{
+	return disable_kprobe(&jp->kp);
+}
+static inline int enable_jprobe(struct jprobe *jp)
+{
+	return enable_kprobe(&jp->kp);
+}
+
 #endif /* _LINUX_KPROBES_H */
