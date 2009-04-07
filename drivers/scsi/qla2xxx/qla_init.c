@@ -4153,7 +4153,7 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *vha)
 
 	ret = qla2x00_stop_firmware(vha);
 	for (retries = 5; ret != QLA_SUCCESS && ret != QLA_FUNCTION_TIMEOUT &&
-	    retries ; retries--) {
+	    ret != QLA_INVALID_COMMAND && retries ; retries--) {
 		ha->isp_ops->reset_chip(vha);
 		if (ha->isp_ops->chip_diag(vha) != QLA_SUCCESS)
 			continue;

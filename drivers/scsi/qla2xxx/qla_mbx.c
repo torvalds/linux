@@ -2477,6 +2477,8 @@ qla2x00_stop_firmware(scsi_qla_host_t *vha)
 	if (rval != QLA_SUCCESS) {
 		DEBUG2_3_11(printk("%s(%ld): failed=%x.\n", __func__,
 		    vha->host_no, rval));
+		if (mcp->mb[0] == MBS_INVALID_COMMAND)
+			rval = QLA_INVALID_COMMAND;
 	} else {
 		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
 	}
