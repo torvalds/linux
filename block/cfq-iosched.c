@@ -177,6 +177,7 @@ struct cfq_queue {
 enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_on_rr = 0,	/* on round-robin busy list */
 	CFQ_CFQQ_FLAG_wait_request,	/* waiting for a request */
+	CFQ_CFQQ_FLAG_must_dispatch,	/* must be allowed a dispatch */
 	CFQ_CFQQ_FLAG_must_alloc,	/* must be allowed rq alloc */
 	CFQ_CFQQ_FLAG_must_alloc_slice,	/* per-slice must_alloc flag */
 	CFQ_CFQQ_FLAG_fifo_expire,	/* FIFO checked in this slice */
@@ -202,6 +203,7 @@ static inline int cfq_cfqq_##name(const struct cfq_queue *cfqq)		\
 
 CFQ_CFQQ_FNS(on_rr);
 CFQ_CFQQ_FNS(wait_request);
+CFQ_CFQQ_FNS(must_dispatch);
 CFQ_CFQQ_FNS(must_alloc);
 CFQ_CFQQ_FNS(must_alloc_slice);
 CFQ_CFQQ_FNS(fifo_expire);
@@ -774,6 +776,7 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
 		cfqq->slice_dispatch = 0;
 
 		cfq_clear_cfqq_wait_request(cfqq);
+		cfq_clear_cfqq_must_dispatch(cfqq);
 		cfq_clear_cfqq_must_alloc_slice(cfqq);
 		cfq_clear_cfqq_fifo_expire(cfqq);
 		cfq_mark_cfqq_slice_new(cfqq);
@@ -1009,7 +1012,7 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	/*
 	 * The active queue has run out of time, expire it and select new.
 	 */
-	if (cfq_slice_used(cfqq))
+	if (cfq_slice_used(cfqq) && !cfq_cfqq_must_dispatch(cfqq))
 		goto expire;
 
 	/*
@@ -1173,6 +1176,7 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 	 */
 	cfq_dispatch_request(cfqd, cfqq);
 	cfqq->slice_dispatch++;
+	cfq_clear_cfqq_must_dispatch(cfqq);
 
 	/*
 	 * expire an async queue immediately if it has used up its slice. idle
@@ -1898,14 +1902,13 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 
 	if (cfqq == cfqd->active_queue) {
 		/*
-		 * if we are waiting for a request for this queue, let it rip
-		 * immediately and flag that we must not expire this queue
-		 * just now
+		 * Remember that we saw a request from this process, but
+		 * don't start queuing just yet. Otherwise we risk seeing lots
+		 * of tiny requests, because we disrupt the normal plugging
+		 * and merging.
 		 */
-		if (cfq_cfqq_wait_request(cfqq)) {
-			del_timer(&cfqd->idle_slice_timer);
-			blk_start_queueing(cfqd->queue);
-		}
+		if (cfq_cfqq_wait_request(cfqq))
+			cfq_mark_cfqq_must_dispatch(cfqq);
 	} else if (cfq_should_preempt(cfqd, cfqq, rq)) {
 		/*
 		 * not the active queue - expire current slice if it is
@@ -2173,6 +2176,12 @@ static void cfq_idle_slice_timer(unsigned long data)
 	cfqq = cfqd->active_queue;
 	if (cfqq) {
 		timed_out = 0;
+
+		/*
+		 * We saw a request before the queue expired, let it through
+		 */
+		if (cfq_cfqq_must_dispatch(cfqq))
+			goto out_kick;
 
 		/*
 		 * expired
