@@ -25,9 +25,6 @@
 #include <asm/dma.h>
 #include <asm/portmux.h>
 #include <asm/bfin5xx_spi.h>
-
-/* reserved_mem_dcache_on and cache friends */
-#include <asm/cplbinit.h>
 #include <asm/cacheflush.h>
 
 #define DRV_NAME	"bfin-spi"
