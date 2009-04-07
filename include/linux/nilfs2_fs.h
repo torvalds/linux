@@ -470,6 +470,7 @@ enum {
 	NILFS_CHECKPOINT_SNAPSHOT,
 	NILFS_CHECKPOINT_INVALID,
 	NILFS_CHECKPOINT_SKETCH,
+	NILFS_CHECKPOINT_MINOR,
 };
 
 #define NILFS_CHECKPOINT_FNS(flag, name)				\
@@ -494,6 +495,7 @@ nilfs_checkpoint_##name(const struct nilfs_checkpoint *cp)		\
 
 NILFS_CHECKPOINT_FNS(SNAPSHOT, snapshot)
 NILFS_CHECKPOINT_FNS(INVALID, invalid)
+NILFS_CHECKPOINT_FNS(MINOR, minor)
 
 /**
  * struct nilfs_cpinfo - checkpoint information
@@ -526,6 +528,7 @@ nilfs_cpinfo_##name(const struct nilfs_cpinfo *cpinfo)			\
 
 NILFS_CPINFO_FNS(SNAPSHOT, snapshot)
 NILFS_CPINFO_FNS(INVALID, invalid)
+NILFS_CPINFO_FNS(MINOR, minor)
 
 
 /**

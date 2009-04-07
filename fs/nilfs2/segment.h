@@ -185,6 +185,9 @@ enum {
 	NILFS_SC_SUPER_ROOT,	/* The latest segment has a super root */
 	NILFS_SC_PRIOR_FLUSH,	/* Requesting immediate flush without making a
 				   checkpoint */
+	NILFS_SC_HAVE_DELTA,	/* Next checkpoint will have update of files
+				   other than DAT, cpfile, sufile, or files
+				   moved by GC */
 };
 
 /* sc_state */
