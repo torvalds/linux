@@ -287,9 +287,9 @@ int nilfs_commit_super(struct nilfs_sb_info *sbi)
 	sbp->s_free_blocks_count = cpu_to_le64(nfreeblocks);
 	sbp->s_wtime = cpu_to_le64(get_seconds());
 	sbp->s_sum = 0;
-	sbp->s_sum = crc32_le(nilfs->ns_crc_seed, (unsigned char *)sbp,
-			      le16_to_cpu(sbp->s_bytes));
-
+	sbp->s_sum = cpu_to_le32(crc32_le(nilfs->ns_crc_seed,
+					  (unsigned char *)sbp,
+					  le16_to_cpu(sbp->s_bytes)));
 	sbi->s_super->s_dirt = 0;
 	return nilfs_sync_super(sbi);
 }
