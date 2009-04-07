@@ -68,7 +68,6 @@ struct nilfs_segsum_info {
  * struct nilfs_segment_buffer - Segment buffer
  * @sb_super: back pointer to a superblock struct
  * @sb_list: List head to chain this structure
- * @sb_segent: Pointer for attaching a segment entry
  * @sb_sum: On-memory segment summary
  * @sb_segnum: Index number of the full segment
  * @sb_nextnum: Index number of the next full segment
@@ -83,7 +82,6 @@ struct nilfs_segsum_info {
 struct nilfs_segment_buffer {
 	struct super_block     *sb_super;
 	struct list_head	sb_list;
-	struct nilfs_segment_entry *sb_segent;
 
 	/* Segment information */
 	struct nilfs_segsum_info sb_sum;
@@ -125,8 +123,8 @@ int __init nilfs_init_segbuf_cache(void);
 void nilfs_destroy_segbuf_cache(void);
 struct nilfs_segment_buffer *nilfs_segbuf_new(struct super_block *);
 void nilfs_segbuf_free(struct nilfs_segment_buffer *);
-int nilfs_segbuf_map(struct nilfs_segment_buffer *, __u64, unsigned long,
-		     struct the_nilfs *);
+void nilfs_segbuf_map(struct nilfs_segment_buffer *, __u64, unsigned long,
+		      struct the_nilfs *);
 void nilfs_segbuf_set_next_segnum(struct nilfs_segment_buffer *, __u64,
 				  struct the_nilfs *);
 int nilfs_segbuf_reset(struct nilfs_segment_buffer *, unsigned, time_t);

@@ -280,4 +280,9 @@ static inline __u64 nilfs_last_cno(struct the_nilfs *nilfs)
 	return cno;
 }
 
+static inline int nilfs_segment_is_active(struct the_nilfs *nilfs, __u64 n)
+{
+	return n == nilfs->ns_segnum || n == nilfs->ns_nextnum;
+}
+
 #endif /* _THE_NILFS_H */

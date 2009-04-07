@@ -1304,25 +1304,6 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
 	return err;
 }
 
-static int nilfs_segctor_terminate_segment(struct nilfs_sc_info *sci,
-					   struct nilfs_segment_buffer *segbuf,
-					   struct inode *sufile)
-{
-	struct nilfs_segment_entry *ent = segbuf->sb_segent;
-	int err;
-
-	err = nilfs_open_segment_entry(ent, sufile);
-	if (unlikely(err))
-		return err;
-	nilfs_mdt_mark_buffer_dirty(ent->bh_su);
-	nilfs_mdt_mark_dirty(sufile);
-	nilfs_close_segment_entry(ent, sufile);
-
-	list_add_tail(&ent->list, &sci->sc_active_segments);
-	segbuf->sb_segent = NULL;
-	return 0;
-}
-
 static int nilfs_touch_segusage(struct inode *sufile, __u64 segnum)
 {
 	struct buffer_head *bh_su;
@@ -1342,7 +1323,6 @@ static int nilfs_segctor_begin_construction(struct nilfs_sc_info *sci,
 					    struct the_nilfs *nilfs)
 {
 	struct nilfs_segment_buffer *segbuf, *n;
-	struct inode *sufile = nilfs->ns_sufile;
 	__u64 nextnum;
 	int err;
 
@@ -1354,28 +1334,22 @@ static int nilfs_segctor_begin_construction(struct nilfs_sc_info *sci,
 	} else
 		segbuf = NILFS_FIRST_SEGBUF(&sci->sc_segbufs);
 
-	err = nilfs_segbuf_map(segbuf, nilfs->ns_segnum,
-			       nilfs->ns_pseg_offset, nilfs);
-	if (unlikely(err))
-		return err;
+	nilfs_segbuf_map(segbuf, nilfs->ns_segnum, nilfs->ns_pseg_offset,
+			 nilfs);
 
 	if (segbuf->sb_rest_blocks < NILFS_PSEG_MIN_BLOCKS) {
-		err = nilfs_segctor_terminate_segment(sci, segbuf, sufile);
-		if (unlikely(err))
-			return err;
-
 		nilfs_shift_to_next_segment(nilfs);
-		err = nilfs_segbuf_map(segbuf, nilfs->ns_segnum, 0, nilfs);
+		nilfs_segbuf_map(segbuf, nilfs->ns_segnum, 0, nilfs);
 	}
 	sci->sc_segbuf_nblocks = segbuf->sb_rest_blocks;
 
-	err = nilfs_touch_segusage(sufile, segbuf->sb_segnum);
+	err = nilfs_touch_segusage(nilfs->ns_sufile, segbuf->sb_segnum);
 	if (unlikely(err))
 		return err;
 
 	if (nilfs->ns_segnum == nilfs->ns_nextnum) {
 		/* Start from the head of a new full segment */
-		err = nilfs_sufile_alloc(sufile, &nextnum);
+		err = nilfs_sufile_alloc(nilfs->ns_sufile, &nextnum);
 		if (unlikely(err))
 			return err;
 	} else
@@ -1390,7 +1364,7 @@ static int nilfs_segctor_begin_construction(struct nilfs_sc_info *sci,
 		list_del_init(&segbuf->sb_list);
 		nilfs_segbuf_free(segbuf);
 	}
-	return err;
+	return 0;
 }
 
 static int nilfs_segctor_extend_segments(struct nilfs_sc_info *sci,
@@ -1421,10 +1395,7 @@ static int nilfs_segctor_extend_segments(struct nilfs_sc_info *sci,
 			goto failed;
 
 		/* map this buffer to region of segment on-disk */
-		err = nilfs_segbuf_map(segbuf, prev->sb_nextnum, 0, nilfs);
-		if (unlikely(err))
-			goto failed_segbuf;
-
+		nilfs_segbuf_map(segbuf, prev->sb_nextnum, 0, nilfs);
 		sci->sc_segbuf_nblocks += segbuf->sb_rest_blocks;
 
 		/* allocate the next next full segment */
@@ -2178,102 +2149,6 @@ static void nilfs_segctor_check_out_files(struct nilfs_sc_info *sci,
 }
 
 /*
- * Nasty routines to manipulate active flags on sufile.
- * These would be removed in a future release.
- */
-static void nilfs_segctor_reactivate_segments(struct nilfs_sc_info *sci,
-					      struct the_nilfs *nilfs)
-{
-	struct nilfs_segment_buffer *segbuf, *last;
-	struct nilfs_segment_entry *ent, *n;
-	struct inode *sufile = nilfs->ns_sufile;
-	struct list_head *head;
-
-	last = NILFS_LAST_SEGBUF(&sci->sc_segbufs);
-	nilfs_for_each_segbuf_before(segbuf, last, &sci->sc_segbufs) {
-		ent = segbuf->sb_segent;
-		if (!ent)
-			break; /* ignore unmapped segments (should check it?)*/
-		nilfs_segment_usage_set_active(ent->raw_su);
-		nilfs_close_segment_entry(ent, sufile);
-	}
-
-	head = &sci->sc_active_segments;
-	list_for_each_entry_safe(ent, n, head, list) {
-		nilfs_segment_usage_set_active(ent->raw_su);
-		nilfs_close_segment_entry(ent, sufile);
-	}
-}
-
-static int nilfs_segctor_deactivate_segments(struct nilfs_sc_info *sci,
-					     struct the_nilfs *nilfs)
-{
-	struct nilfs_segment_buffer *segbuf, *last;
-	struct nilfs_segment_entry *ent;
-	struct inode *sufile = nilfs->ns_sufile;
-	int err;
-
-	last = NILFS_LAST_SEGBUF(&sci->sc_segbufs);
-	nilfs_for_each_segbuf_before(segbuf, last, &sci->sc_segbufs) {
-		/*
-		 * Deactivate ongoing full segments.  The last segment is kept
-		 * active because it is a start point of recovery, and is not
-		 * relocatable until the super block points to a newer
-		 * checkpoint.
-		 */
-		ent = segbuf->sb_segent;
-		if (!ent)
-			break; /* ignore unmapped segments (should check it?)*/
-		err = nilfs_open_segment_entry(ent, sufile);
-		if (unlikely(err))
-			goto failed;
-		nilfs_segment_usage_clear_active(ent->raw_su);
-		BUG_ON(!buffer_dirty(ent->bh_su));
-	}
-
-	list_for_each_entry(ent, &sci->sc_active_segments, list) {
-		err = nilfs_open_segment_entry(ent, sufile);
-		if (unlikely(err))
-			goto failed;
-		nilfs_segment_usage_clear_active(ent->raw_su);
-		WARN_ON(!buffer_dirty(ent->bh_su));
-	}
-	return 0;
-
- failed:
-	nilfs_segctor_reactivate_segments(sci, nilfs);
-	return err;
-}
-
-static void nilfs_segctor_bead_completed_segments(struct nilfs_sc_info *sci)
-{
-	struct nilfs_segment_buffer *segbuf, *last;
-	struct nilfs_segment_entry *ent;
-
-	/* move each segbuf->sb_segent to the list of used active segments */
-	last = NILFS_LAST_SEGBUF(&sci->sc_segbufs);
-	nilfs_for_each_segbuf_before(segbuf, last, &sci->sc_segbufs) {
-		ent = segbuf->sb_segent;
-		if (!ent)
-			break; /* ignore unmapped segments (should check it?)*/
-		list_add_tail(&ent->list, &sci->sc_active_segments);
-		segbuf->sb_segent = NULL;
-	}
-}
-
-static void nilfs_segctor_commit_deactivate_segments(struct nilfs_sc_info *sci,
-						     struct the_nilfs *nilfs)
-{
-	struct nilfs_segment_entry *ent, *n;
-
-	list_for_each_entry_safe(ent, n, &sci->sc_active_segments, list) {
-		list_del(&ent->list);
-		nilfs_close_segment_entry(ent, nilfs->ns_sufile);
-		nilfs_free_segment_entry(ent);
-	}
-}
-
-/*
  * Main procedure of segment constructor
  */
 static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
@@ -2322,11 +2197,6 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 		if (unlikely(err))
 			goto failed;
 
-		if (has_sr) {
-			err = nilfs_segctor_deactivate_segments(sci, nilfs);
-			if (unlikely(err))
-				goto failed;
-		}
 		if (sci->sc_stage.flags & NILFS_CF_IFILE_STARTED)
 			nilfs_segctor_fill_in_file_bmap(sci, sbi->s_ifile);
 
@@ -2353,12 +2223,10 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 		nilfs_segctor_complete_write(sci);
 
 		/* Commit segments */
-		nilfs_segctor_bead_completed_segments(sci);
 		if (has_sr) {
 			down_write(&nilfs->ns_sem);
 			nilfs_update_last_segment(sbi, 1);
 			up_write(&nilfs->ns_sem);
-			nilfs_segctor_commit_deactivate_segments(sci, nilfs);
 			nilfs_segctor_commit_free_segments(sci);
 			nilfs_segctor_clear_metadata_dirty(sci);
 		}
@@ -2379,8 +2247,6 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
  failed_to_make_up:
 	if (sci->sc_stage.flags & NILFS_CF_IFILE_STARTED)
 		nilfs_redirty_inodes(&sci->sc_dirty_files);
-	if (has_sr)
-		nilfs_segctor_reactivate_segments(sci, nilfs);
 
  failed:
 	if (nilfs_doing_gc())
@@ -2942,23 +2808,11 @@ static void nilfs_segctor_kill_thread(struct nilfs_sc_info *sci)
 	}
 }
 
-static int nilfs_segctor_init(struct nilfs_sc_info *sci,
-			      struct nilfs_recovery_info *ri)
+static int nilfs_segctor_init(struct nilfs_sc_info *sci)
 {
-	int err;
-
 	sci->sc_seq_done = sci->sc_seq_request;
-	if (ri)
-		list_splice_init(&ri->ri_used_segments,
-				 sci->sc_active_segments.prev);
 
-	err = nilfs_segctor_start_thread(sci);
-	if (err) {
-		if (ri)
-			list_splice_init(&sci->sc_active_segments,
-					 ri->ri_used_segments.prev);
-	}
-	return err;
+	return nilfs_segctor_start_thread(sci);
 }
 
 /*
@@ -2982,7 +2836,6 @@ static struct nilfs_sc_info *nilfs_segctor_new(struct nilfs_sb_info *sbi)
 	INIT_LIST_HEAD(&sci->sc_dirty_files);
 	INIT_LIST_HEAD(&sci->sc_segbufs);
 	INIT_LIST_HEAD(&sci->sc_gc_inodes);
-	INIT_LIST_HEAD(&sci->sc_active_segments);
 	INIT_LIST_HEAD(&sci->sc_cleaning_segments);
 	INIT_LIST_HEAD(&sci->sc_copied_buffers);
 
@@ -3048,8 +2901,6 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 			      "dirty file(s) after the final construction\n");
 		nilfs_dispose_list(sbi, &sci->sc_dirty_files, 1);
 	}
-	if (!list_empty(&sci->sc_active_segments))
-		nilfs_dispose_segment_list(&sci->sc_active_segments);
 
 	if (!list_empty(&sci->sc_cleaning_segments))
 		nilfs_dispose_segment_list(&sci->sc_cleaning_segments);
@@ -3064,7 +2915,6 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 /**
  * nilfs_attach_segment_constructor - attach a segment constructor
  * @sbi: nilfs_sb_info
- * @ri: nilfs_recovery_info
  *
  * nilfs_attach_segment_constructor() allocates a struct nilfs_sc_info,
  * initilizes it, and starts the segment constructor.
@@ -3074,8 +2924,7 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
  *
  * %-ENOMEM - Insufficient memory available.
  */
-int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi,
-				     struct nilfs_recovery_info *ri)
+int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	int err;
@@ -3087,7 +2936,7 @@ int nilfs_attach_segment_constructor(struct nilfs_sb_info *sbi,
 		return -ENOMEM;
 
 	nilfs_attach_writer(nilfs, sbi);
-	err = nilfs_segctor_init(NILFS_SC(sbi), ri);
+	err = nilfs_segctor_init(NILFS_SC(sbi));
 	if (err) {
 		nilfs_detach_writer(nilfs, sbi);
 		kfree(sbi->s_sc_info);

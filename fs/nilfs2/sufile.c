@@ -158,7 +158,6 @@ int nilfs_sufile_alloc(struct inode *sufile, __u64 *segnump)
 			if (!nilfs_segment_usage_clean(su))
 				continue;
 			/* found a clean segment */
-			nilfs_segment_usage_set_active(su);
 			nilfs_segment_usage_set_dirty(su);
 			kunmap_atomic(kaddr, KM_USER0);
 
@@ -591,6 +590,7 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum,
 	struct buffer_head *su_bh;
 	struct nilfs_segment_usage *su;
 	size_t susz = NILFS_MDT(sufile)->mi_entry_size;
+	struct the_nilfs *nilfs = NILFS_MDT(sufile)->mi_nilfs;
 	void *kaddr;
 	unsigned long nsegs, segusages_per_block;
 	ssize_t n;
@@ -623,7 +623,11 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum,
 		for (j = 0; j < n; j++, su = (void *)su + susz) {
 			si[i + j].sui_lastmod = le64_to_cpu(su->su_lastmod);
 			si[i + j].sui_nblocks = le32_to_cpu(su->su_nblocks);
-			si[i + j].sui_flags = le32_to_cpu(su->su_flags);
+			si[i + j].sui_flags = le32_to_cpu(su->su_flags) &
+				~(1UL << NILFS_SEGMENT_USAGE_ACTIVE);
+			if (nilfs_segment_is_active(nilfs, segnum + i + j))
+				si[i + j].sui_flags |=
+					(1UL << NILFS_SEGMENT_USAGE_ACTIVE);
 		}
 		kunmap_atomic(kaddr, KM_USER0);
 		brelse(su_bh);

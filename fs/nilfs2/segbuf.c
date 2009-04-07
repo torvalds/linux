@@ -64,27 +64,17 @@ struct nilfs_segment_buffer *nilfs_segbuf_new(struct super_block *sb)
 	INIT_LIST_HEAD(&segbuf->sb_list);
 	INIT_LIST_HEAD(&segbuf->sb_segsum_buffers);
 	INIT_LIST_HEAD(&segbuf->sb_payload_buffers);
-	segbuf->sb_segent = NULL;
 	return segbuf;
 }
 
 void nilfs_segbuf_free(struct nilfs_segment_buffer *segbuf)
 {
-	struct nilfs_segment_entry *ent = segbuf->sb_segent;
-
-	if (ent != NULL && list_empty(&ent->list)) {
-		/* free isolated segment list head */
-		nilfs_free_segment_entry(segbuf->sb_segent);
-		segbuf->sb_segent = NULL;
-	}
 	kmem_cache_free(nilfs_segbuf_cachep, segbuf);
 }
 
-int nilfs_segbuf_map(struct nilfs_segment_buffer *segbuf, __u64 segnum,
+void nilfs_segbuf_map(struct nilfs_segment_buffer *segbuf, __u64 segnum,
 		     unsigned long offset, struct the_nilfs *nilfs)
 {
-	struct nilfs_segment_entry *ent;
-
 	segbuf->sb_segnum = segnum;
 	nilfs_get_segment_range(nilfs, segnum, &segbuf->sb_fseg_start,
 				&segbuf->sb_fseg_end);
@@ -92,18 +82,6 @@ int nilfs_segbuf_map(struct nilfs_segment_buffer *segbuf, __u64 segnum,
 	segbuf->sb_pseg_start = segbuf->sb_fseg_start + offset;
 	segbuf->sb_rest_blocks =
 		segbuf->sb_fseg_end - segbuf->sb_pseg_start + 1;
-
-	/* Attach a segment list head */
-	ent = segbuf->sb_segent;
-	if (ent == NULL) {
-		segbuf->sb_segent = nilfs_alloc_segment_entry(segnum);
-		if (unlikely(!segbuf->sb_segent))
-			return -ENOMEM;
-	} else {
-		BUG_ON(ent->bh_su || !list_empty(&ent->list));
-		ent->segnum = segnum;
-	}
-	return 0;
 }
 
 void nilfs_segbuf_set_next_segnum(struct nilfs_segment_buffer *segbuf,

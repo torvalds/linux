@@ -463,16 +463,6 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 		nilfs_free_segment_entry(ent);
 	}
 
-	/*
-	 * The segment having the latest super root is active, and
-	 * should be deactivated on the next construction for recovery.
-	 */
-	err = -ENOMEM;
-	ent = nilfs_alloc_segment_entry(segnum[0]);
-	if (unlikely(!ent))
-		goto failed;
-	list_add_tail(&ent->list, &ri->ri_used_segments);
-
 	/* Allocate new segments for recovery */
 	err = nilfs_sufile_alloc(sufile, &segnum[0]);
 	if (unlikely(err))
@@ -757,7 +747,7 @@ int nilfs_recover_logical_segments(struct the_nilfs *nilfs,
 			goto failed;
 		}
 
-		err = nilfs_attach_segment_constructor(sbi, ri);
+		err = nilfs_attach_segment_constructor(sbi);
 		if (unlikely(err))
 			goto failed;
 
