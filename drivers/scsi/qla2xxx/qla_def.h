@@ -2618,6 +2618,11 @@ typedef struct scsi_qla_host {
 	uint8_t		node_name[WWN_SIZE];
 	uint8_t		port_name[WWN_SIZE];
 	uint8_t		fabric_node_name[WWN_SIZE];
+
+	uint16_t	fcoe_vlan_id;
+	uint16_t	fcoe_fcf_idx;
+	uint8_t		fcoe_vn_port_mac[6];
+
 	uint32_t   	vp_abort_cnt;
 
 	struct fc_vport	*fc_vport;	/* holds fc_vport * for each vport */

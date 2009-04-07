@@ -931,6 +931,8 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 	mcp->mb[9] = vha->vp_idx;
 	mcp->out_mb = MBX_9|MBX_0;
 	mcp->in_mb = MBX_9|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	if (IS_QLA81XX(vha->hw))
+		mcp->in_mb |= MBX_13|MBX_12|MBX_11|MBX_10;
 	mcp->tov = MBX_TOV_SECONDS;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -952,9 +954,19 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 		DEBUG2_3_11(printk("qla2x00_get_adapter_id(%ld): failed=%x.\n",
 		    vha->host_no, rval));
 	} else {
-		/*EMPTY*/
 		DEBUG11(printk("qla2x00_get_adapter_id(%ld): done.\n",
 		    vha->host_no));
+
+		if (IS_QLA81XX(vha->hw)) {
+			vha->fcoe_vlan_id = mcp->mb[9] & 0xfff;
+			vha->fcoe_fcf_idx = mcp->mb[10];
+			vha->fcoe_vn_port_mac[5] = mcp->mb[11] >> 8;
+			vha->fcoe_vn_port_mac[4] = mcp->mb[11] & 0xff;
+			vha->fcoe_vn_port_mac[3] = mcp->mb[12] >> 8;
+			vha->fcoe_vn_port_mac[2] = mcp->mb[12] & 0xff;
+			vha->fcoe_vn_port_mac[1] = mcp->mb[13] >> 8;
+			vha->fcoe_vn_port_mac[0] = mcp->mb[13] & 0xff;
+		}
 	}
 
 	return rval;

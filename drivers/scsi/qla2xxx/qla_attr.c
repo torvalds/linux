@@ -1088,6 +1088,33 @@ qla2x00_flash_block_size_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%x\n", ha->fdt_block_size);
 }
 
+static ssize_t
+qla2x00_vlan_id_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+
+	if (!IS_QLA81XX(vha->hw))
+		return snprintf(buf, PAGE_SIZE, "\n");
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", vha->fcoe_vlan_id);
+}
+
+static ssize_t
+qla2x00_vn_port_mac_address_show(struct device *dev,
+    struct device_attribute *attr, char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+
+	if (!IS_QLA81XX(vha->hw))
+		return snprintf(buf, PAGE_SIZE, "\n");
+
+	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
+	    vha->fcoe_vn_port_mac[5], vha->fcoe_vn_port_mac[4],
+	    vha->fcoe_vn_port_mac[3], vha->fcoe_vn_port_mac[2],
+	    vha->fcoe_vn_port_mac[1], vha->fcoe_vn_port_mac[0]);
+}
+
 static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
 static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
@@ -1116,6 +1143,9 @@ static DEVICE_ATTR(mpi_version, S_IRUGO, qla2x00_mpi_version_show, NULL);
 static DEVICE_ATTR(phy_version, S_IRUGO, qla2x00_phy_version_show, NULL);
 static DEVICE_ATTR(flash_block_size, S_IRUGO, qla2x00_flash_block_size_show,
 		   NULL);
+static DEVICE_ATTR(vlan_id, S_IRUGO, qla2x00_vlan_id_show, NULL);
+static DEVICE_ATTR(vn_port_mac_address, S_IRUGO,
+		   qla2x00_vn_port_mac_address_show, NULL);
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -1138,6 +1168,8 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_mpi_version,
 	&dev_attr_phy_version,
 	&dev_attr_flash_block_size,
+	&dev_attr_vlan_id,
+	&dev_attr_vn_port_mac_address,
 	NULL,
 };
 
