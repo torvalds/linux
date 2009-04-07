@@ -422,20 +422,20 @@ static ssize_t nilfs_cpfile_do_get_cpinfo(struct inode *cpfile, __u64 cno,
 	return ret;
 }
 
-static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 cno,
+static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
 					  struct nilfs_cpinfo *ci, size_t nci)
 {
 	struct buffer_head *bh;
 	struct nilfs_cpfile_header *header;
 	struct nilfs_checkpoint *cp;
-	__u64 curr, next;
+	__u64 curr = *cnop, next;
 	unsigned long curr_blkoff, next_blkoff;
 	void *kaddr;
 	int n, ret;
 
 	down_read(&NILFS_MDT(cpfile)->mi_sem);
 
-	if (cno == 0) {
+	if (curr == 0) {
 		ret = nilfs_cpfile_get_header_block(cpfile, &bh);
 		if (ret < 0)
 			goto out;
@@ -448,8 +448,11 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 cno,
 			ret = 0;
 			goto out;
 		}
-	} else
-		curr = cno;
+	} else if (unlikely(curr == ~(__u64)0)) {
+		ret = 0;
+		goto out;
+	}
+
 	curr_blkoff = nilfs_cpfile_get_blkoff(cpfile, curr);
 	ret = nilfs_cpfile_get_checkpoint_block(cpfile, curr, 0, &bh);
 	if (ret < 0)
@@ -461,7 +464,7 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 cno,
 		nilfs_cpfile_checkpoint_to_cpinfo(cpfile, cp, &ci[n]);
 		next = le64_to_cpu(cp->cp_snapshot_list.ssl_next);
 		if (next == 0) {
-			curr = next;
+			curr = ~(__u64)0; /* Terminator */
 			n++;
 			break;
 		}
@@ -480,6 +483,7 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 cno,
 	}
 	kunmap_atomic(kaddr, KM_USER0);
 	brelse(bh);
+	*cnop = curr;
 	ret = n;
 
  out:
@@ -494,15 +498,15 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 cno,
  * @ci:
  * @nci:
  */
-ssize_t nilfs_cpfile_get_cpinfo(struct inode *cpfile,
-				__u64 cno, int mode,
+
+ssize_t nilfs_cpfile_get_cpinfo(struct inode *cpfile, __u64 *cnop, int mode,
 				struct nilfs_cpinfo *ci, size_t nci)
 {
 	switch (mode) {
 	case NILFS_CHECKPOINT:
-		return nilfs_cpfile_do_get_cpinfo(cpfile, cno, ci, nci);
+		return nilfs_cpfile_do_get_cpinfo(cpfile, *cnop, ci, nci);
 	case NILFS_SNAPSHOT:
-		return nilfs_cpfile_do_get_ssinfo(cpfile, cno, ci, nci);
+		return nilfs_cpfile_do_get_ssinfo(cpfile, cnop, ci, nci);
 	default:
 		return -EINVAL;
 	}

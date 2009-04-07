@@ -37,13 +37,14 @@
 static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 				 struct nilfs_argv *argv, int dir,
 				 ssize_t (*dofunc)(struct the_nilfs *,
-						   int, int,
+						   __u64 *, int,
 						   void *, size_t, size_t))
 {
 	void *buf;
 	size_t maxmembs, total, n;
 	ssize_t nr;
 	int ret, i;
+	__u64 pos, ppos;
 
 	if (argv->v_nmembs == 0)
 		return 0;
@@ -58,6 +59,7 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 
 	ret = 0;
 	total = 0;
+	pos = argv->v_index;
 	for (i = 0; i < argv->v_nmembs; i += n) {
 		n = (argv->v_nmembs - i < maxmembs) ?
 			argv->v_nmembs - i : maxmembs;
@@ -68,8 +70,9 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 			ret = -EFAULT;
 			break;
 		}
-		nr = (*dofunc)(nilfs, argv->v_index + i, argv->v_flags, buf,
-			       argv->v_size, n);
+		ppos = pos;
+		nr = (*dofunc)(nilfs, &pos, argv->v_flags, buf, argv->v_size,
+			       n);
 		if (nr < 0) {
 			ret = nr;
 			break;
@@ -82,6 +85,10 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 			break;
 		}
 		total += nr;
+		if ((size_t)nr < n)
+			break;
+		if (pos == ppos)
+			pos += n;
 	}
 	argv->v_nmembs = total;
 
@@ -138,10 +145,10 @@ nilfs_ioctl_delete_checkpoint(struct inode *inode, struct file *filp,
 }
 
 static ssize_t
-nilfs_ioctl_do_get_cpinfo(struct the_nilfs *nilfs, int index, int flags,
+nilfs_ioctl_do_get_cpinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			  void *buf, size_t size, size_t nmembs)
 {
-	return nilfs_cpfile_get_cpinfo(nilfs->ns_cpfile, index, flags, buf,
+	return nilfs_cpfile_get_cpinfo(nilfs->ns_cpfile, posp, flags, buf,
 				       nmembs);
 }
 
@@ -186,10 +193,10 @@ static int nilfs_ioctl_get_cpstat(struct inode *inode, struct file *filp,
 }
 
 static ssize_t
-nilfs_ioctl_do_get_suinfo(struct the_nilfs *nilfs, int index, int flags,
+nilfs_ioctl_do_get_suinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			  void *buf, size_t size, size_t nmembs)
 {
-	return nilfs_sufile_get_suinfo(nilfs->ns_sufile, index, buf, nmembs);
+	return nilfs_sufile_get_suinfo(nilfs->ns_sufile, *posp, buf, nmembs);
 }
 
 static int nilfs_ioctl_get_suinfo(struct inode *inode, struct file *filp,
@@ -233,7 +240,7 @@ static int nilfs_ioctl_get_sustat(struct inode *inode, struct file *filp,
 }
 
 static ssize_t
-nilfs_ioctl_do_get_vinfo(struct the_nilfs *nilfs, int index, int flags,
+nilfs_ioctl_do_get_vinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			 void *buf, size_t size, size_t nmembs)
 {
 	return nilfs_dat_get_vinfo(nilfs_dat_inode(nilfs), buf, nmembs);
@@ -262,7 +269,7 @@ static int nilfs_ioctl_get_vinfo(struct inode *inode, struct file *filp,
 }
 
 static ssize_t
-nilfs_ioctl_do_get_bdescs(struct the_nilfs *nilfs, int index, int flags,
+nilfs_ioctl_do_get_bdescs(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			  void *buf, size_t size, size_t nmembs)
 {
 	struct inode *dat = nilfs_dat_inode(nilfs);
@@ -341,7 +348,7 @@ static int nilfs_ioctl_move_inode_block(struct inode *inode,
 }
 
 static ssize_t
-nilfs_ioctl_do_move_blocks(struct the_nilfs *nilfs, int index, int flags,
+nilfs_ioctl_do_move_blocks(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			   void *buf, size_t size, size_t nmembs)
 {
 	struct inode *inode;
@@ -413,7 +420,7 @@ static inline int nilfs_ioctl_move_blocks(struct the_nilfs *nilfs,
 }
 
 static ssize_t
-nilfs_ioctl_do_delete_checkpoints(struct the_nilfs *nilfs, int index,
+nilfs_ioctl_do_delete_checkpoints(struct the_nilfs *nilfs, __u64 *posp,
 				  int flags, void *buf, size_t size,
 				  size_t nmembs)
 {
@@ -439,7 +446,7 @@ static inline int nilfs_ioctl_delete_checkpoints(struct the_nilfs *nilfs,
 }
 
 static ssize_t
-nilfs_ioctl_do_free_vblocknrs(struct the_nilfs *nilfs, int index, int flags,
+nilfs_ioctl_do_free_vblocknrs(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			      void *buf, size_t size, size_t nmembs)
 {
 	int ret = nilfs_dat_freev(nilfs_dat_inode(nilfs), buf, nmembs);
@@ -456,8 +463,9 @@ static inline int nilfs_ioctl_free_vblocknrs(struct the_nilfs *nilfs,
 }
 
 static ssize_t
-nilfs_ioctl_do_mark_blocks_dirty(struct the_nilfs *nilfs, int index, int flags,
-				 void *buf, size_t size, size_t nmembs)
+nilfs_ioctl_do_mark_blocks_dirty(struct the_nilfs *nilfs, __u64 *posp,
+				 int flags, void *buf, size_t size,
+				 size_t nmembs)
 {
 	struct inode *dat = nilfs_dat_inode(nilfs);
 	struct nilfs_bmap *bmap = NILFS_I(dat)->i_bmap;
@@ -506,7 +514,7 @@ static inline int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
 }
 
 static ssize_t
-nilfs_ioctl_do_free_segments(struct the_nilfs *nilfs, int index, int flags,
+nilfs_ioctl_do_free_segments(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			     void *buf, size_t size, size_t nmembs)
 {
 	struct nilfs_sb_info *sbi = nilfs_get_writer(nilfs);
