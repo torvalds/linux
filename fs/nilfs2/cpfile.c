@@ -431,7 +431,7 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
 	__u64 curr = *cnop, next;
 	unsigned long curr_blkoff, next_blkoff;
 	void *kaddr;
-	int n, ret;
+	int n = 0, ret;
 
 	down_read(&NILFS_MDT(cpfile)->mi_sem);
 
@@ -455,27 +455,33 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
 
 	curr_blkoff = nilfs_cpfile_get_blkoff(cpfile, curr);
 	ret = nilfs_cpfile_get_checkpoint_block(cpfile, curr, 0, &bh);
-	if (ret < 0)
+	if (unlikely(ret < 0)) {
+		if (ret == -ENOENT)
+			ret = 0; /* No snapshots (started from a hole block) */
 		goto out;
+	}
 	kaddr = kmap_atomic(bh->b_page, KM_USER0);
-	for (n = 0; n < nci; n++) {
-		cp = nilfs_cpfile_block_get_checkpoint(
-			cpfile, curr, bh, kaddr);
-		nilfs_cpfile_checkpoint_to_cpinfo(cpfile, cp, &ci[n]);
-		next = le64_to_cpu(cp->cp_snapshot_list.ssl_next);
-		if (next == 0) {
-			curr = ~(__u64)0; /* Terminator */
-			n++;
+	while (n < nci) {
+		cp = nilfs_cpfile_block_get_checkpoint(cpfile, curr, bh, kaddr);
+		curr = ~(__u64)0; /* Terminator */
+		if (unlikely(nilfs_checkpoint_invalid(cp) ||
+			     !nilfs_checkpoint_snapshot(cp)))
 			break;
-		}
+		nilfs_cpfile_checkpoint_to_cpinfo(cpfile, cp, &ci[n++]);
+		next = le64_to_cpu(cp->cp_snapshot_list.ssl_next);
+		if (next == 0)
+			break; /* reach end of the snapshot list */
+
 		next_blkoff = nilfs_cpfile_get_blkoff(cpfile, next);
 		if (curr_blkoff != next_blkoff) {
 			kunmap_atomic(kaddr, KM_USER0);
 			brelse(bh);
 			ret = nilfs_cpfile_get_checkpoint_block(cpfile, next,
 								0, &bh);
-			if (ret < 0)
+			if (unlikely(ret < 0)) {
+				WARN_ON(ret == -ENOENT);
 				goto out;
+			}
 			kaddr = kmap_atomic(bh->b_page, KM_USER0);
 		}
 		curr = next;
