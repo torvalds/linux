@@ -67,9 +67,10 @@
  * struct nilfs_inode - structure of an inode on disk
  * @i_blocks: blocks count
  * @i_size: size in bytes
- * @i_ctime: creation time
- * @i_mtime: modification time
- * @i_dtime: deletion time
+ * @i_ctime: creation time (seconds)
+ * @i_mtime: modification time (seconds)
+ * @i_ctime_nsec: creation time (nano seconds)
+ * @i_mtime_nsec: modification time (nano seconds)
  * @i_uid: user id
  * @i_gid: group id
  * @i_mode: file mode
@@ -85,7 +86,8 @@ struct nilfs_inode {
 	__le64	i_size;
 	__le64	i_ctime;
 	__le64	i_mtime;
-	__le64	i_dtime;
+	__le32	i_ctime_nsec;
+	__le32	i_mtime_nsec;
 	__le32	i_uid;
 	__le32	i_gid;
 	__le16	i_mode;

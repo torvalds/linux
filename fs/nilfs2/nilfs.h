@@ -48,7 +48,6 @@ struct nilfs_inode_info {
 	struct nilfs_bmap *i_bmap;
 	union nilfs_bmap_union i_bmap_union;
 	__u64 i_xattr;	/* sector_t ??? */
-	__u32 i_dtime;
 	__u32 i_dir_start_lookup;
 	__u64 i_cno;		/* check point number for GC inode */
 	struct address_space i_btnode_cache;

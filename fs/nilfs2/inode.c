@@ -306,7 +306,6 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 
 	/* ii->i_file_acl = 0; */
 	/* ii->i_dir_acl = 0; */
-	ii->i_dtime = 0;
 	ii->i_dir_start_lookup = 0;
 #ifdef CONFIG_NILFS_FS_POSIX_ACL
 	ii->i_acl = NULL;
@@ -390,11 +389,10 @@ int nilfs_read_inode_common(struct inode *inode,
 	inode->i_atime.tv_sec = le64_to_cpu(raw_inode->i_mtime);
 	inode->i_ctime.tv_sec = le64_to_cpu(raw_inode->i_ctime);
 	inode->i_mtime.tv_sec = le64_to_cpu(raw_inode->i_mtime);
-	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
-	inode->i_mtime.tv_nsec = 0;
-	ii->i_dtime = le64_to_cpu(raw_inode->i_dtime);
-	if (inode->i_nlink == 0 && (inode->i_mode == 0 || ii->i_dtime))
+	inode->i_atime.tv_nsec = le32_to_cpu(raw_inode->i_mtime_nsec);
+	inode->i_ctime.tv_nsec = le32_to_cpu(raw_inode->i_ctime_nsec);
+	inode->i_mtime.tv_nsec = le32_to_cpu(raw_inode->i_mtime_nsec);
+	if (inode->i_nlink == 0 && inode->i_mode == 0)
 		return -EINVAL; /* this inode is deleted */
 
 	inode->i_blocks = le64_to_cpu(raw_inode->i_blocks);
@@ -505,9 +503,10 @@ void nilfs_write_inode_common(struct inode *inode,
 	raw_inode->i_size = cpu_to_le64(inode->i_size);
 	raw_inode->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
 	raw_inode->i_mtime = cpu_to_le64(inode->i_mtime.tv_sec);
+	raw_inode->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
+	raw_inode->i_mtime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
 	raw_inode->i_blocks = cpu_to_le64(inode->i_blocks);
 
-	raw_inode->i_dtime = cpu_to_le64(ii->i_dtime);
 	raw_inode->i_flags = cpu_to_le32(ii->i_flags);
 	raw_inode->i_generation = cpu_to_le32(inode->i_generation);
 

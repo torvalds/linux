@@ -226,7 +226,6 @@ static struct inode *alloc_gcinode(struct the_nilfs *nilfs, ino_t ino,
 	ii->i_flags = 0;
 	ii->i_state = 1 << NILFS_I_GCINODE;
 	ii->i_bh = NULL;
-	ii->i_dtime = 0;
 	nilfs_bmap_init_gc(ii->i_bmap);
 
 	return inode;
