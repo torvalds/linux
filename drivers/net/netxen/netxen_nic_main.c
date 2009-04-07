@@ -981,6 +981,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SET_ETHTOOL_OPS(netdev, &netxen_nic_ethtool_ops);
 
 	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO);
+	netdev->features |= (NETIF_F_GRO);
 	netdev->vlan_features |= (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO);
 
 	if (NX_IS_REVISION_P3(revision_id)) {

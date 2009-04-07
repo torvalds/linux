@@ -923,7 +923,8 @@ no_skb:
 
 static struct netxen_rx_buffer *
 netxen_process_rcv(struct netxen_adapter *adapter,
-		int ring, int index, int length, int cksum, int pkt_offset)
+		int ring, int index, int length, int cksum, int pkt_offset,
+		struct nx_host_sds_ring *sds_ring)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
@@ -951,7 +952,7 @@ netxen_process_rcv(struct netxen_adapter *adapter,
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	netif_receive_skb(skb);
+	napi_gro_receive(&sds_ring->napi, skb);
 
 	adapter->stats.no_rcv++;
 	adapter->stats.rxbytes += length;
@@ -1011,7 +1012,7 @@ netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max)
 		pkt_offset = netxen_get_sts_pkt_offset(sts_data);
 
 		rxbuf = netxen_process_rcv(adapter, ring, index,
-				length, cksum, pkt_offset);
+				length, cksum, pkt_offset, sds_ring);
 
 		if (rxbuf)
 			list_add_tail(&rxbuf->list, &sds_ring->free_list[ring]);
