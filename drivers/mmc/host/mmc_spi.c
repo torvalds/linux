@@ -24,7 +24,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/hrtimer.h>
+#include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/bio.h>
 #include <linux/dma-mapping.h>
@@ -95,7 +95,7 @@
  * reads which takes nowhere near that long.  Older cards may be able to use
  * shorter timeouts ... but why bother?
  */
-#define r1b_timeout		ktime_set(3, 0)
+#define r1b_timeout		(HZ * 3)
 
 
 /****************************************************************************/
@@ -183,12 +183,11 @@ mmc_spi_readbytes(struct mmc_spi_host *host, unsigned len)
 	return status;
 }
 
-static int
-mmc_spi_skip(struct mmc_spi_host *host, ktime_t timeout, unsigned n, u8 byte)
+static int mmc_spi_skip(struct mmc_spi_host *host, unsigned long timeout,
+			unsigned n, u8 byte)
 {
 	u8		*cp = host->data->status;
-
-	timeout = ktime_add(timeout, ktime_get());
+	unsigned long start = jiffies;
 
 	while (1) {
 		int		status;
@@ -203,22 +202,26 @@ mmc_spi_skip(struct mmc_spi_host *host, ktime_t timeout, unsigned n, u8 byte)
 				return cp[i];
 		}
 
-		/* REVISIT investigate msleep() to avoid busy-wait I/O
-		 * in at least some cases.
-		 */
-		if (ktime_to_ns(ktime_sub(ktime_get(), timeout)) > 0)
+		if (time_is_before_jiffies(start + timeout))
 			break;
+
+		/* If we need long timeouts, we may release the CPU.
+		 * We use jiffies here because we want to have a relation
+		 * between elapsed time and the blocking of the scheduler.
+		 */
+		if (time_is_before_jiffies(start+1))
+			schedule();
 	}
 	return -ETIMEDOUT;
 }
 
 static inline int
-mmc_spi_wait_unbusy(struct mmc_spi_host *host, ktime_t timeout)
+mmc_spi_wait_unbusy(struct mmc_spi_host *host, unsigned long timeout)
 {
 	return mmc_spi_skip(host, timeout, sizeof(host->data->status), 0);
 }
 
-static int mmc_spi_readtoken(struct mmc_spi_host *host, ktime_t timeout)
+static int mmc_spi_readtoken(struct mmc_spi_host *host, unsigned long timeout)
 {
 	return mmc_spi_skip(host, timeout, 1, 0xff);
 }
@@ -607,7 +610,7 @@ mmc_spi_setup_data_message(
  */
 static int
 mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
-	ktime_t timeout)
+	unsigned long timeout)
 {
 	struct spi_device	*spi = host->spi;
 	int			status, i;
@@ -717,7 +720,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
  */
 static int
 mmc_spi_readblock(struct mmc_spi_host *host, struct spi_transfer *t,
-	ktime_t timeout)
+	unsigned long timeout)
 {
 	struct spi_device	*spi = host->spi;
 	int			status;
@@ -803,7 +806,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 	unsigned		n_sg;
 	int			multiple = (data->blocks > 1);
 	u32			clock_rate;
-	ktime_t			timeout;
+	unsigned long		timeout;
 
 	if (data->flags & MMC_DATA_READ)
 		direction = DMA_FROM_DEVICE;
@@ -817,8 +820,9 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 	else
 		clock_rate = spi->max_speed_hz;
 
-	timeout = ktime_add_ns(ktime_set(0, 0), data->timeout_ns +
-			data->timeout_clks * 1000000 / clock_rate);
+	timeout = data->timeout_ns +
+		  data->timeout_clks * 1000000 / clock_rate;
+	timeout = usecs_to_jiffies((unsigned int)(timeout / 1000)) + 1;
 
 	/* Handle scatterlist segments one at a time, with synch for
 	 * each 512-byte block
