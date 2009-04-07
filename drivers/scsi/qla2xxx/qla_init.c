@@ -634,7 +634,7 @@ qla2x00_chip_diag(scsi_qla_host_t *vha)
 		goto chip_diag_failed;
 
 	DEBUG3(printk("scsi(%ld): Reset register cleared by chip reset\n",
-	    ha->host_no));
+	    vha->host_no));
 
 	/* Reset RISC processor. */
 	WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
@@ -655,7 +655,7 @@ qla2x00_chip_diag(scsi_qla_host_t *vha)
 		goto chip_diag_failed;
 
 	/* Check product ID of chip */
-	DEBUG3(printk("scsi(%ld): Checking product ID of chip\n", ha->host_no));
+	DEBUG3(printk("scsi(%ld): Checking product ID of chip\n", vha->host_no));
 
 	mb[1] = RD_MAILBOX_REG(ha, reg, 1);
 	mb[2] = RD_MAILBOX_REG(ha, reg, 2);
@@ -2110,7 +2110,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 		goto cleanup_allocation;
 
 	DEBUG3(printk("scsi(%ld): Entries in ID list (%d)\n",
-	    ha->host_no, entries));
+	    vha->host_no, entries));
 	DEBUG3(qla2x00_dump_buffer((uint8_t *)ha->gid_list,
 	    entries * sizeof(struct gid_list_info)));
 
@@ -3587,7 +3587,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++)
 		chksum += le32_to_cpu(*dptr++);
 
-	DEBUG5(printk("scsi(%ld): Contents of NVRAM\n", ha->host_no));
+	DEBUG5(printk("scsi(%ld): Contents of NVRAM\n", vha->host_no));
 	DEBUG5(qla2x00_dump_buffer((uint8_t *)nv, ha->nvram_size));
 
 	/* Bad NVRAM data, set defaults parameters. */
@@ -4305,7 +4305,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++)
 		chksum += le32_to_cpu(*dptr++);
 
-	DEBUG5(printk("scsi(%ld): Contents of NVRAM\n", ha->host_no));
+	DEBUG5(printk("scsi(%ld): Contents of NVRAM\n", vha->host_no));
 	DEBUG5(qla2x00_dump_buffer((uint8_t *)nv, ha->nvram_size));
 
 	/* Bad NVRAM data, set defaults parameters. */

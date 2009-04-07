@@ -219,8 +219,8 @@ qla2x00_write_nvram_word(struct qla_hw_data *ha, uint32_t addr, uint16_t data)
 	wait_cnt = NVR_WAIT_CNT;
 	do {
 		if (!--wait_cnt) {
-			DEBUG9_10(printk("%s(%ld): NVRAM didn't go ready...\n",
-			    __func__, vha->host_no));
+			DEBUG9_10(qla_printk(KERN_WARNING, ha,
+			    "NVRAM didn't go ready...\n"));
 			break;
 		}
 		NVRAM_DELAY();
@@ -349,7 +349,7 @@ qla2x00_clear_nvram_protection(struct qla_hw_data *ha)
 		wait_cnt = NVR_WAIT_CNT;
 		do {
 			if (!--wait_cnt) {
-				DEBUG9_10(qla_printk(
+				DEBUG9_10(qla_printk(KERN_WARNING, ha,
 				    "NVRAM didn't go ready...\n"));
 				break;
 			}
@@ -408,7 +408,8 @@ qla2x00_set_nvram_protection(struct qla_hw_data *ha, int stat)
 	wait_cnt = NVR_WAIT_CNT;
 	do {
 		if (!--wait_cnt) {
-			DEBUG9_10(qla_printk("NVRAM didn't go ready...\n"));
+			DEBUG9_10(qla_printk(KERN_WARNING, ha,
+			    "NVRAM didn't go ready...\n"));
 			break;
 		}
 		NVRAM_DELAY();
@@ -1079,8 +1080,9 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 				    0xff0000) | ((fdata >> 16) & 0xff));
 			ret = qla24xx_erase_sector(vha, fdata);
 			if (ret != QLA_SUCCESS) {
-				DEBUG9(qla_printk("Unable to erase sector: "
-				    "address=%x.\n", faddr));
+				DEBUG9(qla_printk(KERN_WARNING, ha,
+				    "Unable to erase sector: address=%x.\n",
+				    faddr));
 				break;
 			}
 		}
@@ -1240,8 +1242,9 @@ qla24xx_write_nvram_data(scsi_qla_host_t *vha, uint8_t *buf, uint32_t naddr,
 		ret = qla24xx_write_flash_dword(ha,
 		    nvram_data_addr(ha, naddr), cpu_to_le32(*dwptr));
 		if (ret != QLA_SUCCESS) {
-			DEBUG9(qla_printk("Unable to program nvram address=%x "
-			    "data=%x.\n", naddr, *dwptr));
+			DEBUG9(qla_printk(KERN_WARNING, ha,
+			    "Unable to program nvram address=%x data=%x.\n",
+			    naddr, *dwptr));
 			break;
 		}
 	}

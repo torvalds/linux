@@ -3393,7 +3393,7 @@ qla2x00_read_edc(scsi_qla_host_t *vha, uint16_t dev, uint16_t adr,
 		DEBUG2_3_11(printk("%s(%ld): failed=%x (%x).\n", __func__,
 		    vha->host_no, rval, mcp->mb[0]));
 	} else {
-		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
 	}
 
 	return rval;
