@@ -52,6 +52,7 @@
 	soc8544@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
+		device_type = "soc";
 
 		ranges = <0x00000000 0xe0000000 0x00100000>;
 		reg = <0xe0000000 0x00001000>;	// CCSRBAR 1M
