@@ -1,5 +1,5 @@
 /*
- * gcinode.c - NILFS memory inode for GC
+ * gcinode.c - dummy inodes to buffer blocks for garbage collection
  *
  * Copyright (C) 2005-2008 Nippon Telegraph and Telephone Corporation.
  *
@@ -21,6 +21,25 @@
  *            and Ryusuke Konishi <ryusuke@osrg.net>.
  * Revised by Ryusuke Konishi <ryusuke@osrg.net>.
  *
+ */
+/*
+ * This file adds the cache of on-disk blocks to be moved in garbage
+ * collection.  The disk blocks are held with dummy inodes (called
+ * gcinodes), and this file provides lookup function of the dummy
+ * inodes and their buffer read function.
+ *
+ * Since NILFS2 keeps up multiple checkpoints/snapshots accross GC, it
+ * has to treat blocks that belong to a same file but have different
+ * checkpoint numbers.  To avoid interference among generations, dummy
+ * inodes are managed separatly from actual inodes, and their lookup
+ * function (nilfs_gc_iget) is designed to be specified with a
+ * checkpoint number argument as well as an inode number.
+ *
+ * Buffers and pages held by the dummy inodes will be released each
+ * time after they are copied to a new log.  Dirty blocks made on the
+ * current generation and the blocks to be moved by GC never overlap
+ * because the dirty blocks make a new generation; they rather must be
+ * written individually.
  */
 
 #include <linux/buffer_head.h>
