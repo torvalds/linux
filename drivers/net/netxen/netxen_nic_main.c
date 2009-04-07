@@ -153,7 +153,24 @@ static inline void netxen_nic_enable_int(struct nx_host_sds_ring *sds_ring)
 				adapter->legacy_intr.tgt_mask_reg, 0xfbff);
 }
 
+static int
+netxen_alloc_sds_rings(struct netxen_recv_context *recv_ctx, int count)
+{
+	int size = sizeof(struct nx_host_sds_ring) * count;
+
+	recv_ctx->sds_rings = kzalloc(size, GFP_KERNEL);
+
+	return (recv_ctx->sds_rings == NULL);
+}
+
 static void
+netxen_free_sds_rings(struct netxen_recv_context *recv_ctx)
+{
+	if (recv_ctx->sds_rings != NULL)
+		kfree(recv_ctx->sds_rings);
+}
+
+static int
 netxen_napi_add(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	int ring;
@@ -165,11 +182,16 @@ netxen_napi_add(struct netxen_adapter *adapter, struct net_device *netdev)
 	else
 		adapter->max_sds_rings = 1;
 
+	if (netxen_alloc_sds_rings(recv_ctx, adapter->max_sds_rings))
+		return 1;
+
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		netif_napi_add(netdev, &sds_ring->napi,
 				netxen_nic_poll, NETXEN_NETDEV_WEIGHT);
 	}
+
+	return 0;
 }
 
 static void
@@ -1028,7 +1050,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->irq = adapter->msix_entries[0].vector;
 
-	netxen_napi_add(adapter, netdev);
+	if (netxen_napi_add(adapter, netdev))
+		goto err_out_disable_msi;
 
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = &netxen_watchdog;
@@ -1110,6 +1133,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		netxen_free_adapter_offload(adapter);
 
 	netxen_teardown_intr(adapter);
+	netxen_free_sds_rings(&adapter->recv_ctx);
 
 	netxen_cleanup_pci_map(adapter);
 

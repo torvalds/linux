@@ -762,7 +762,7 @@ struct netxen_recv_context {
 	u16 virt_port;
 
 	struct nx_host_rds_ring rds_rings[NUM_RCV_DESC_RINGS];
-	struct nx_host_sds_ring sds_rings[NUM_STS_DESC_RINGS];
+	struct nx_host_sds_ring *sds_rings;
 };
 
 /* New HW context creation */
@@ -1203,10 +1203,10 @@ struct netxen_adapter {
 
 	spinlock_t tx_clean_lock;
 
-	u32 num_txd;
-	u32 num_rxd;
-	u32 num_jumbo_rxd;
-	u32 num_lro_rxd;
+	u16 num_txd;
+	u16 num_rxd;
+	u16 num_jumbo_rxd;
+	u16 num_lro_rxd;
 
 	u8 max_rds_rings;
 	u8 max_sds_rings;
