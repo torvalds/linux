@@ -49,8 +49,10 @@ enum {
  * @ns_sem: semaphore for shared states
  * @ns_writer_mutex: mutex protecting ns_writer attach/detach
  * @ns_writer_refcount: number of referrers on ns_writer
- * @ns_sbh: buffer head of the on-disk super block
- * @ns_sbp: pointer to the super block data
+ * @ns_sbh: buffer heads of on-disk super blocks
+ * @ns_sbp: pointers to super block data
+ * @ns_sbwtime: previous write time of super blocks
+ * @ns_sbsize: size of valid data in super block
  * @ns_supers: list of nilfs super block structs
  * @ns_seg_seq: segment sequence counter
  * @ns_segnum: index number of the latest full segment.
@@ -101,8 +103,10 @@ struct the_nilfs {
 	 * - protecting s_dirt in the super_block struct
 	 *   (see nilfs_write_super) and the following fields.
 	 */
-	struct buffer_head     *ns_sbh;
-	struct nilfs_super_block *ns_sbp;
+	struct buffer_head     *ns_sbh[2];
+	struct nilfs_super_block *ns_sbp[2];
+	time_t			ns_sbwtime[2];
+	unsigned		ns_sbsize;
 	unsigned		ns_mount_state;
 	struct list_head	ns_supers;
 
@@ -182,6 +186,10 @@ THE_NILFS_FNS(INIT, init)
 THE_NILFS_FNS(LOADED, loaded)
 THE_NILFS_FNS(DISCONTINUED, discontinued)
 
+/* Minimum interval of periodical update of superblocks (in seconds) */
+#define NILFS_SB_FREQ		10
+#define NILFS_ALTSB_FREQ	60  /* spare superblock */
+
 void nilfs_set_last_segment(struct the_nilfs *, sector_t, u64, __u64);
 struct the_nilfs *alloc_nilfs(struct block_device *);
 void put_nilfs(struct the_nilfs *);
@@ -190,6 +198,8 @@ int load_nilfs(struct the_nilfs *, struct nilfs_sb_info *);
 int nilfs_count_free_blocks(struct the_nilfs *, sector_t *);
 int nilfs_checkpoint_is_mounted(struct the_nilfs *, __u64, int);
 int nilfs_near_disk_full(struct the_nilfs *);
+void nilfs_fall_back_super_block(struct the_nilfs *);
+void nilfs_swap_super_block(struct the_nilfs *);
 
 
 static inline void get_nilfs(struct the_nilfs *nilfs)

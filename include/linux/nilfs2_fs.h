@@ -252,6 +252,10 @@ struct nilfs_super_block {
 #define NILFS_MIN_NRSVSEGS	8	/* Minimum number of reserved
 					   segments */
 
+/*
+ * bytes offset of secondary super block
+ */
+#define NILFS_SB2_OFFSET_BYTES(devsize)	((((devsize) >> 12) - 1) << 12)
 
 /*
  * Maximal count of links to a file

@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
+#include <linux/crc32.h>
 #include "nilfs.h"
 #include "segment.h"
 #include "alloc.h"
@@ -105,7 +106,8 @@ void put_nilfs(struct the_nilfs *nilfs)
 	}
 	if (nilfs_init(nilfs)) {
 		nilfs_destroy_gccache(nilfs);
-		brelse(nilfs->ns_sbh);
+		brelse(nilfs->ns_sbh[0]);
+		brelse(nilfs->ns_sbh[1]);
 	}
 	kfree(nilfs);
 }
@@ -115,6 +117,7 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 {
 	struct buffer_head *bh_sr;
 	struct nilfs_super_root *raw_sr;
+	struct nilfs_super_block **sbp = nilfs->ns_sbp;
 	unsigned dat_entry_size, segment_usage_size, checkpoint_size;
 	unsigned inode_size;
 	int err;
@@ -124,9 +127,9 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 		return err;
 
 	down_read(&nilfs->ns_sem);
-	dat_entry_size = le16_to_cpu(nilfs->ns_sbp->s_dat_entry_size);
-	checkpoint_size = le16_to_cpu(nilfs->ns_sbp->s_checkpoint_size);
-	segment_usage_size = le16_to_cpu(nilfs->ns_sbp->s_segment_usage_size);
+	dat_entry_size = le16_to_cpu(sbp[0]->s_dat_entry_size);
+	checkpoint_size = le16_to_cpu(sbp[0]->s_checkpoint_size);
+	segment_usage_size = le16_to_cpu(sbp[0]->s_segment_usage_size);
 	up_read(&nilfs->ns_sem);
 
 	inode_size = nilfs->ns_inode_size;
@@ -270,11 +273,8 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 			nilfs_mdt_destroy(nilfs->ns_dat);
 			goto failed;
 		}
-		if (ri.ri_need_recovery == NILFS_RECOVERY_SR_UPDATED) {
-			down_write(&nilfs->ns_sem);
-			nilfs_update_last_segment(sbi, 0);
-			up_write(&nilfs->ns_sem);
-		}
+		if (ri.ri_need_recovery == NILFS_RECOVERY_SR_UPDATED)
+			sbi->s_super->s_dirt = 1;
 	}
 
 	set_nilfs_loaded(nilfs);
@@ -296,9 +296,8 @@ static unsigned long long nilfs_max_size(unsigned int blkbits)
 	return res;
 }
 
-static int
-nilfs_store_disk_layout(struct the_nilfs *nilfs, struct super_block *sb,
-			struct nilfs_super_block *sbp)
+static int nilfs_store_disk_layout(struct the_nilfs *nilfs,
+				   struct nilfs_super_block *sbp)
 {
 	if (le32_to_cpu(sbp->s_rev_level) != NILFS_CURRENT_REV) {
 		printk(KERN_ERR "NILFS: revision mismatch "
@@ -309,6 +308,10 @@ nilfs_store_disk_layout(struct the_nilfs *nilfs, struct super_block *sb,
 		       NILFS_CURRENT_REV, NILFS_MINOR_REV);
 		return -EINVAL;
 	}
+	nilfs->ns_sbsize = le16_to_cpu(sbp->s_bytes);
+	if (nilfs->ns_sbsize > BLOCK_SIZE)
+		return -EINVAL;
+
 	nilfs->ns_inode_size = le16_to_cpu(sbp->s_inode_size);
 	nilfs->ns_first_ino = le32_to_cpu(sbp->s_first_ino);
 
@@ -327,6 +330,122 @@ nilfs_store_disk_layout(struct the_nilfs *nilfs, struct super_block *sb,
 		      DIV_ROUND_UP(nilfs->ns_nsegments *
 				   nilfs->ns_r_segments_percentage, 100));
 	nilfs->ns_crc_seed = le32_to_cpu(sbp->s_crc_seed);
+	return 0;
+}
+
+static int nilfs_valid_sb(struct nilfs_super_block *sbp)
+{
+	static unsigned char sum[4];
+	const int sumoff = offsetof(struct nilfs_super_block, s_sum);
+	size_t bytes;
+	u32 crc;
+
+	if (!sbp || le16_to_cpu(sbp->s_magic) != NILFS_SUPER_MAGIC)
+		return 0;
+	bytes = le16_to_cpu(sbp->s_bytes);
+	if (bytes > BLOCK_SIZE)
+		return 0;
+	crc = crc32_le(le32_to_cpu(sbp->s_crc_seed), (unsigned char *)sbp,
+		       sumoff);
+	crc = crc32_le(crc, sum, 4);
+	crc = crc32_le(crc, (unsigned char *)sbp + sumoff + 4,
+		       bytes - sumoff - 4);
+	return crc == le32_to_cpu(sbp->s_sum);
+}
+
+static int nilfs_sb2_bad_offset(struct nilfs_super_block *sbp, u64 offset)
+{
+	return offset < ((le64_to_cpu(sbp->s_nsegments) *
+			  le32_to_cpu(sbp->s_blocks_per_segment)) <<
+			 (le32_to_cpu(sbp->s_log_block_size) + 10));
+}
+
+static void nilfs_release_super_block(struct the_nilfs *nilfs)
+{
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		if (nilfs->ns_sbp[i]) {
+			brelse(nilfs->ns_sbh[i]);
+			nilfs->ns_sbh[i] = NULL;
+			nilfs->ns_sbp[i] = NULL;
+		}
+	}
+}
+
+void nilfs_fall_back_super_block(struct the_nilfs *nilfs)
+{
+	brelse(nilfs->ns_sbh[0]);
+	nilfs->ns_sbh[0] = nilfs->ns_sbh[1];
+	nilfs->ns_sbp[0] = nilfs->ns_sbp[1];
+	nilfs->ns_sbh[1] = NULL;
+	nilfs->ns_sbp[1] = NULL;
+}
+
+void nilfs_swap_super_block(struct the_nilfs *nilfs)
+{
+	struct buffer_head *tsbh = nilfs->ns_sbh[0];
+	struct nilfs_super_block *tsbp = nilfs->ns_sbp[0];
+
+	nilfs->ns_sbh[0] = nilfs->ns_sbh[1];
+	nilfs->ns_sbp[0] = nilfs->ns_sbp[1];
+	nilfs->ns_sbh[1] = tsbh;
+	nilfs->ns_sbp[1] = tsbp;
+}
+
+static int nilfs_load_super_block(struct the_nilfs *nilfs,
+				  struct super_block *sb, int blocksize,
+				  struct nilfs_super_block **sbpp)
+{
+	struct nilfs_super_block **sbp = nilfs->ns_sbp;
+	struct buffer_head **sbh = nilfs->ns_sbh;
+	u64 sb2off = NILFS_SB2_OFFSET_BYTES(nilfs->ns_bdev->bd_inode->i_size);
+	int valid[2], swp = 0;
+
+	sbp[0] = nilfs_read_super_block(sb, NILFS_SB_OFFSET_BYTES, blocksize,
+					&sbh[0]);
+	sbp[1] = nilfs_read_super_block(sb, sb2off, blocksize, &sbh[1]);
+
+	if (!sbp[0]) {
+		if (!sbp[1]) {
+			printk(KERN_ERR "NILFS: unable to read superblock\n");
+			return -EIO;
+		}
+		printk(KERN_WARNING
+		       "NILFS warning: unable to read primary superblock\n");
+	} else if (!sbp[1])
+		printk(KERN_WARNING
+		       "NILFS warning: unable to read secondary superblock\n");
+
+	valid[0] = nilfs_valid_sb(sbp[0]);
+	valid[1] = nilfs_valid_sb(sbp[1]);
+	swp = valid[1] &&
+		(!valid[0] ||
+		 le64_to_cpu(sbp[1]->s_wtime) > le64_to_cpu(sbp[0]->s_wtime));
+
+	if (valid[swp] && nilfs_sb2_bad_offset(sbp[swp], sb2off)) {
+		brelse(sbh[1]);
+		sbh[1] = NULL;
+		sbp[1] = NULL;
+		swp = 0;
+	}
+	if (!valid[swp]) {
+		nilfs_release_super_block(nilfs);
+		printk(KERN_ERR "NILFS: Can't find nilfs on dev %s.\n",
+		       sb->s_id);
+		return -EINVAL;
+	}
+
+	if (swp) {
+		printk(KERN_WARNING "NILFS warning: broken superblock. "
+		       "using spare superblock.\n");
+		nilfs_swap_super_block(nilfs);
+	}
+
+	nilfs->ns_sbwtime[0] = le64_to_cpu(sbp[0]->s_wtime);
+	nilfs->ns_sbwtime[1] = valid[!swp] ? le64_to_cpu(sbp[1]->s_wtime) : 0;
+	nilfs->ns_prot_seq = le64_to_cpu(sbp[valid[1] & !swp]->s_last_seq);
+	*sbpp = sbp[0];
 	return 0;
 }
 
@@ -352,16 +471,15 @@ nilfs_store_disk_layout(struct the_nilfs *nilfs, struct super_block *sb,
 int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 {
 	struct super_block *sb = sbi->s_super;
-	struct buffer_head *sbh;
 	struct nilfs_super_block *sbp;
 	struct backing_dev_info *bdi;
 	int blocksize;
-	int err = 0;
+	int err;
 
 	down_write(&nilfs->ns_sem);
 	if (nilfs_init(nilfs)) {
 		/* Load values from existing the_nilfs */
-		sbp = nilfs->ns_sbp;
+		sbp = nilfs->ns_sbp[0];
 		err = nilfs_store_magic_and_option(sb, sbp, data);
 		if (err)
 			goto out;
@@ -377,36 +495,50 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 		goto out;
 	}
 
-	sbp = nilfs_load_super_block(sb, &sbh);
-	if (!sbp) {
+	blocksize = sb_min_blocksize(sb, BLOCK_SIZE);
+	if (!blocksize) {
+		printk(KERN_ERR "NILFS: unable to set blocksize\n");
 		err = -EINVAL;
 		goto out;
 	}
+	err = nilfs_load_super_block(nilfs, sb, blocksize, &sbp);
+	if (err)
+		goto out;
+
 	err = nilfs_store_magic_and_option(sb, sbp, data);
 	if (err)
 		goto failed_sbh;
 
 	blocksize = BLOCK_SIZE << le32_to_cpu(sbp->s_log_block_size);
 	if (sb->s_blocksize != blocksize) {
-		sbp = nilfs_reload_super_block(sb, &sbh, blocksize);
-		if (!sbp) {
+		int hw_blocksize = bdev_hardsect_size(sb->s_bdev);
+
+		if (blocksize < hw_blocksize) {
+			printk(KERN_ERR
+			       "NILFS: blocksize %d too small for device "
+			       "(sector-size = %d).\n",
+			       blocksize, hw_blocksize);
 			err = -EINVAL;
+			goto failed_sbh;
+		}
+		nilfs_release_super_block(nilfs);
+		sb_set_blocksize(sb, blocksize);
+
+		err = nilfs_load_super_block(nilfs, sb, blocksize, &sbp);
+		if (err)
 			goto out;
 			/* not failed_sbh; sbh is released automatically
 			   when reloading fails. */
-		}
 	}
 	nilfs->ns_blocksize_bits = sb->s_blocksize_bits;
 
-	err = nilfs_store_disk_layout(nilfs, sb, sbp);
+	err = nilfs_store_disk_layout(nilfs, sbp);
 	if (err)
 		goto failed_sbh;
 
 	sb->s_maxbytes = nilfs_max_size(sb->s_blocksize_bits);
 
 	nilfs->ns_mount_state = le16_to_cpu(sbp->s_state);
-	nilfs->ns_sbh = sbh;
-	nilfs->ns_sbp = sbp;
 
 	bdi = nilfs->ns_bdev->bd_inode_backing_dev_info;
 	if (!bdi)
@@ -443,7 +575,7 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 	return err;
 
  failed_sbh:
-	brelse(sbh);
+	nilfs_release_super_block(nilfs);
 	goto out;
 }
 

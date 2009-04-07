@@ -2068,7 +2068,8 @@ static void nilfs_segctor_complete_write(struct nilfs_sc_info *sci)
 
 	if (update_sr) {
 		nilfs_set_last_segment(nilfs, segbuf->sb_pseg_start,
-				       segbuf->sb_sum.seg_seq, nilfs->ns_cno);
+				       segbuf->sb_sum.seg_seq, nilfs->ns_cno++);
+		sbi->s_super->s_dirt = 1;
 
 		clear_bit(NILFS_SC_HAVE_DELTA, &sci->sc_flags);
 		clear_bit(NILFS_SC_DIRTY, &sci->sc_flags);
@@ -2224,9 +2225,6 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 
 		/* Commit segments */
 		if (has_sr) {
-			down_write(&nilfs->ns_sem);
-			nilfs_update_last_segment(sbi, 1);
-			up_write(&nilfs->ns_sem);
 			nilfs_segctor_commit_free_segments(sci);
 			nilfs_segctor_clear_metadata_dirty(sci);
 		}
@@ -2564,7 +2562,7 @@ static int nilfs_segctor_construct(struct nilfs_sc_info *sci,
 		if (test_bit(NILFS_SC_SUPER_ROOT, &sci->sc_flags) &&
 		    nilfs_discontinued(nilfs)) {
 			down_write(&nilfs->ns_sem);
-			req->sb_err = nilfs_commit_super(sbi);
+			req->sb_err = nilfs_commit_super(sbi, 0);
 			up_write(&nilfs->ns_sem);
 		}
 	}

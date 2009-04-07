@@ -206,8 +206,6 @@ enum {
 					   logical segment with a super root */
 #define NILFS_SC_DEFAULT_SR_FREQ    30  /* Maximum frequency of super root
 					   creation */
-#define NILFS_SC_DEFAULT_SB_FREQ    30  /* Minimum interval of periodical
-					   update of superblock (reserved) */
 
 /*
  * The default threshold amount of data, in block counts.

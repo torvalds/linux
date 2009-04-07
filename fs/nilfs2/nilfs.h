@@ -275,13 +275,10 @@ extern void nilfs_error(struct super_block *, const char *, const char *, ...)
 extern void nilfs_warning(struct super_block *, const char *, const char *, ...)
        __attribute__ ((format (printf, 3, 4)));
 extern struct nilfs_super_block *
-nilfs_load_super_block(struct super_block *, struct buffer_head **);
-extern struct nilfs_super_block *
-nilfs_reload_super_block(struct super_block *, struct buffer_head **, int);
+nilfs_read_super_block(struct super_block *, u64, int, struct buffer_head **);
 extern int nilfs_store_magic_and_option(struct super_block *,
 					struct nilfs_super_block *, char *);
-extern void nilfs_update_last_segment(struct nilfs_sb_info *, int);
-extern int nilfs_commit_super(struct nilfs_sb_info *);
+extern int nilfs_commit_super(struct nilfs_sb_info *, int);
 extern int nilfs_attach_checkpoint(struct nilfs_sb_info *, __u64);
 extern void nilfs_detach_checkpoint(struct nilfs_sb_info *);
 
