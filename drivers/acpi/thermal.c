@@ -98,6 +98,7 @@ MODULE_PARM_DESC(psv, "Disable or override all passive trip points.");
 static int acpi_thermal_add(struct acpi_device *device);
 static int acpi_thermal_remove(struct acpi_device *device, int type);
 static int acpi_thermal_resume(struct acpi_device *device);
+static void acpi_thermal_notify(struct acpi_device *device, u32 event);
 static int acpi_thermal_state_open_fs(struct inode *inode, struct file *file);
 static int acpi_thermal_temp_open_fs(struct inode *inode, struct file *file);
 static int acpi_thermal_trip_open_fs(struct inode *inode, struct file *file);
@@ -123,6 +124,7 @@ static struct acpi_driver acpi_thermal_driver = {
 		.add = acpi_thermal_add,
 		.remove = acpi_thermal_remove,
 		.resume = acpi_thermal_resume,
+		.notify = acpi_thermal_notify,
 		},
 };
 
@@ -1264,16 +1266,13 @@ static int acpi_thermal_remove_fs(struct acpi_device *device)
                                  Driver Interface
    -------------------------------------------------------------------------- */
 
-static void acpi_thermal_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_thermal_notify(struct acpi_device *device, u32 event)
 {
-	struct acpi_thermal *tz = data;
-	struct acpi_device *device = NULL;
+	struct acpi_thermal *tz = acpi_driver_data(device);
 
 
 	if (!tz)
 		return;
-
-	device = tz->device;
 
 	switch (event) {
 	case ACPI_THERMAL_NOTIFY_TEMPERATURE:
@@ -1298,8 +1297,6 @@ static void acpi_thermal_notify(acpi_handle handle, u32 event, void *data)
 				  "Unsupported event [0x%x]\n", event));
 		break;
 	}
-
-	return;
 }
 
 static int acpi_thermal_get_info(struct acpi_thermal *tz)
@@ -1337,7 +1334,6 @@ static int acpi_thermal_get_info(struct acpi_thermal *tz)
 static int acpi_thermal_add(struct acpi_device *device)
 {
 	int result = 0;
-	acpi_status status = AE_OK;
 	struct acpi_thermal *tz = NULL;
 
 
@@ -1368,21 +1364,11 @@ static int acpi_thermal_add(struct acpi_device *device)
 	if (result)
 		goto unregister_thermal_zone;
 
-	status = acpi_install_notify_handler(device->handle,
-					     ACPI_DEVICE_NOTIFY,
-					     acpi_thermal_notify, tz);
-	if (ACPI_FAILURE(status)) {
-		result = -ENODEV;
-		goto remove_fs;
-	}
-
 	printk(KERN_INFO PREFIX "%s [%s] (%ld C)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
 	       KELVIN_TO_CELSIUS(tz->temperature));
 	goto end;
 
-remove_fs:
-	acpi_thermal_remove_fs(device);
 unregister_thermal_zone:
 	thermal_zone_device_unregister(tz->thermal_zone);
 free_memory:
@@ -1393,17 +1379,12 @@ end:
 
 static int acpi_thermal_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = AE_OK;
 	struct acpi_thermal *tz = NULL;
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
 	tz = acpi_driver_data(device);
-
-	status = acpi_remove_notify_handler(device->handle,
-					    ACPI_DEVICE_NOTIFY,
-					    acpi_thermal_notify);
 
 	acpi_thermal_remove_fs(device);
 	acpi_thermal_unregister_thermal_zone(tz);
