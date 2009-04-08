@@ -174,16 +174,6 @@ static void at91_ide_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 	leave_16bit(chipselect, mode);
 }
 
-static u8 ide_mm_inb(unsigned long port)
-{
-	return readb((void __iomem *) port);
-}
-
-static void ide_mm_outb(u8 value, unsigned long port)
-{
-	writeb(value, (void __iomem *) port);
-}
-
 static void at91_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	struct ide_timing *timing;
