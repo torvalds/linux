@@ -476,7 +476,7 @@ static void hal_led_control(unsigned long data)
 	add_timer(&pHwData->LEDTimer);
 }
 
-static u8 hal_init_hardware(struct ieee80211_hw *hw)
+static int hal_init_hardware(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
 	struct hw_data * pHwData = &priv->sHwData;
@@ -514,13 +514,13 @@ static u8 hal_init_hardware(struct ieee80211_hw *hw)
 				Wb35Rx_start(hw);
 				Wb35Tx_EP2VM_start(priv);
 
-				return true;
+				return 0;
 			}
 		}
 	}
 
 	pHwData->SurpriseRemove = 1;
-	return false;
+	return -EINVAL;
 }
 
 static int wb35_hw_init(struct ieee80211_hw *hw)
@@ -555,10 +555,9 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 
 	// Initial USB hal
 	pHwData = &priv->sHwData;
-	if (!hal_init_hardware(hw)) {
-		err = -EINVAL;
+	err = hal_init_hardware(hw);
+	if (err)
 		goto error;
-	}
 
 	EEPROM_region = hal_get_region_from_EEPROM( pHwData );
 	if (EEPROM_region != REGION_AUTO)
