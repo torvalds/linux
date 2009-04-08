@@ -373,10 +373,10 @@ Filesystem Resizing	http://ext2resize.sourceforge.net/
 Compression (*)		http://e2compr.sourceforge.net/
 
 Implementations for:
-Windows 95/98/NT/2000	http://uranus.it.swin.edu.au/~jn/linux/Explore2fs.htm
-Windows 95 (*)		http://www.yipton.demon.co.uk/content.html#FSDEXT2
+Windows 95/98/NT/2000	http://www.chrysocome.net/explore2fs
+Windows 95 (*)		http://www.yipton.net/content.html#FSDEXT2
 DOS client (*)		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
-OS/2			http://perso.wanadoo.fr/matthieu.willm/ext2-os2/
-RISC OS client		ftp://ftp.barnet.ac.uk/pub/acorn/armlinux/iscafs/
+OS/2 (*)		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
+RISC OS client		http://www.esw-heim.tu-clausthal.de/~marco/smorbrod/IscaFS/
 
-(*) no longer actively developed/supported (as of Apr 2001)
+(*) no longer actively developed/supported (as of Mar 2009)

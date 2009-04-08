@@ -269,12 +269,7 @@ static inline mddev_t *mddev_get(mddev_t *mddev)
 	return mddev;
 }
 
-static void mddev_delayed_delete(struct work_struct *ws)
-{
-	mddev_t *mddev = container_of(ws, mddev_t, del_work);
-	kobject_del(&mddev->kobj);
-	kobject_put(&mddev->kobj);
-}
+static void mddev_delayed_delete(struct work_struct *ws);
 
 static void mddev_put(mddev_t *mddev)
 {
@@ -3811,6 +3806,21 @@ static struct kobj_type md_ktype = {
 
 int mdp_major = 0;
 
+static void mddev_delayed_delete(struct work_struct *ws)
+{
+	mddev_t *mddev = container_of(ws, mddev_t, del_work);
+
+	if (mddev->private == &md_redundancy_group) {
+		sysfs_remove_group(&mddev->kobj, &md_redundancy_group);
+		if (mddev->sysfs_action)
+			sysfs_put(mddev->sysfs_action);
+		mddev->sysfs_action = NULL;
+		mddev->private = NULL;
+	}
+	kobject_del(&mddev->kobj);
+	kobject_put(&mddev->kobj);
+}
+
 static int md_alloc(dev_t dev, char *name)
 {
 	static DEFINE_MUTEX(disks_mutex);
@@ -4313,13 +4323,9 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			mddev->queue->merge_bvec_fn = NULL;
 			mddev->queue->unplug_fn = NULL;
 			mddev->queue->backing_dev_info.congested_fn = NULL;
-			if (mddev->pers->sync_request) {
-				sysfs_remove_group(&mddev->kobj, &md_redundancy_group);
-				if (mddev->sysfs_action)
-					sysfs_put(mddev->sysfs_action);
-				mddev->sysfs_action = NULL;
-			}
 			module_put(mddev->pers->owner);
+			if (mddev->pers->sync_request)
+				mddev->private = &md_redundancy_group;
 			mddev->pers = NULL;
 			/* tell userspace to handle 'inactive' */
 			sysfs_notify_dirent(mddev->sysfs_state);

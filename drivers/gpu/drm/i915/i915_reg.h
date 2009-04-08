@@ -184,6 +184,7 @@
  * Fence registers
  */
 #define FENCE_REG_830_0			0x2000
+#define FENCE_REG_945_8			0x3000
 #define   I830_FENCE_START_MASK		0x07f80000
 #define   I830_FENCE_TILING_Y_SHIFT	12
 #define   I830_FENCE_SIZE_BITS(size)	((ffs((size) >> 19) - 1) << 8)

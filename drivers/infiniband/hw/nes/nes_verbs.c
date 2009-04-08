@@ -1360,8 +1360,10 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 					NES_QPCONTEXT_MISC_RQ_SIZE_SHIFT);
 			nesqp->nesqp_context->misc |= cpu_to_le32((u32)nesqp->hwqp.sq_encoded_size <<
 					NES_QPCONTEXT_MISC_SQ_SIZE_SHIFT);
+			if (!udata) {
 				nesqp->nesqp_context->misc |= cpu_to_le32(NES_QPCONTEXT_MISC_PRIV_EN);
 				nesqp->nesqp_context->misc |= cpu_to_le32(NES_QPCONTEXT_MISC_FAST_REGISTER_EN);
+			}
 			nesqp->nesqp_context->cqs = cpu_to_le32(nesqp->nesscq->hw_cq.cq_number +
 					((u32)nesqp->nesrcq->hw_cq.cq_number << 16));
 			u64temp = (u64)nesqp->hwqp.sq_pbase;

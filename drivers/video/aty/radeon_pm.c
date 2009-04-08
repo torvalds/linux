@@ -2762,12 +2762,13 @@ int radeonfb_pci_resume(struct pci_dev *pdev)
 	return rc;
 }
 
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_PPC_OF__disabled
 static void radeonfb_early_resume(void *data)
 {
         struct radeonfb_info *rinfo = data;
 
 	rinfo->no_schedule = 1;
+	pci_restore_state(rinfo->pdev);
 	radeonfb_pci_resume(rinfo->pdev);
 	rinfo->no_schedule = 0;
 }
@@ -2834,7 +2835,14 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 		 */
 		if (rinfo->pm_mode != radeon_pm_none) {
 			pmac_call_feature(PMAC_FTR_DEVICE_CAN_WAKE, rinfo->of_node, 0, 1);
+#if 0 /* Disable the early video resume hack for now as it's causing problems, among
+       * others we now rely on the PCI core restoring the config space for us, which
+       * isn't the case with that hack, and that code path causes various things to
+       * be called with interrupts off while they shouldn't. I'm leaving the code in
+       * as it can be useful for debugging purposes
+       */
 			pmac_set_early_video_resume(radeonfb_early_resume, rinfo);
+#endif
 		}
 
 #if 0

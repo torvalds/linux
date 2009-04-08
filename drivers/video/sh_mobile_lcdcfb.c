@@ -446,7 +446,6 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 {
 	struct sh_mobile_lcdc_chan *ch;
 	struct sh_mobile_lcdc_board_cfg	*board_cfg;
-	unsigned long tmp;
 	int k;
 
 	/* tell the board code to disable the panel */
@@ -456,9 +455,8 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		if (board_cfg->display_off)
 			board_cfg->display_off(board_cfg->board_data);
 
-		/* cleanup deferred io if SYS bus */
-		tmp = ch->cfg.sys_bus_cfg.deferred_io_msec;
-		if (ch->ldmt1r_value & (1 << 12) && tmp) {
+		/* cleanup deferred io if enabled */
+		if (ch->info.fbdefio) {
 			fb_deferred_io_cleanup(&ch->info);
 			ch->info.fbdefio = NULL;
 		}

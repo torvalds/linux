@@ -1419,6 +1419,9 @@ struct task_struct {
 #endif
 };
 
+/* Future-safe accessor for struct task_struct's cpus_allowed. */
+#define tsk_cpumask(tsk) (&(tsk)->cpus_allowed)
+
 /*
  * Priority of a process goes from 0..MAX_PRIO-1, valid RT
  * priority is 0..MAX_RT_PRIO-1, and SCHED_NORMAL/SCHED_BATCH

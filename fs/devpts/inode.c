@@ -198,9 +198,6 @@ static int mknod_ptmx(struct super_block *sb)
 
 	fsi->ptmx_dentry = dentry;
 	rc = 0;
-
-	printk(KERN_DEBUG "Created ptmx node in devpts ino %lu\n",
-			inode->i_ino);
 out:
 	mutex_unlock(&root->d_inode->i_mutex);
 	return rc;
@@ -368,8 +365,6 @@ static int new_pts_mount(struct file_system_type *fs_type, int flags,
 	int err;
 	struct pts_fs_info *fsi;
 	struct pts_mount_opts *opts;
-
-	printk(KERN_NOTICE "devpts: newinstance mount\n");
 
 	err = get_sb_nodev(fs_type, flags, data, devpts_fill_super, mnt);
 	if (err)

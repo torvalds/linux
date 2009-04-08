@@ -23,6 +23,7 @@
 #include <linux/acpi.h>
 #include <linux/kallsyms.h>
 #include <linux/dmi.h>
+#include <linux/pci-aspm.h>
 #include "pci.h"
 
 int isa_dma_bridge_buggy;
@@ -1749,6 +1750,30 @@ static void __devinit quirk_e100_interrupt(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, quirk_e100_interrupt);
 
+/*
+ * The 82575 and 82598 may experience data corruption issues when transitioning
+ * out of L0S.  To prevent this we need to disable L0S on the pci-e link
+ */
+static void __devinit quirk_disable_aspm_l0s(struct pci_dev *dev)
+{
+	dev_info(&dev->dev, "Disabling L0s\n");
+	pci_disable_link_state(dev, PCIE_LINK_STATE_L0S);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10a7, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10a9, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10b6, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10c6, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10c7, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10c8, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10d6, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10db, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10dd, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10e1, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10ec, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10f1, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x10f4, quirk_disable_aspm_l0s);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x1508, quirk_disable_aspm_l0s);
+
 static void __devinit fixup_rev1_53c810(struct pci_dev* dev)
 {
 	/* rev 1 ncr53c810 chips don't set the class at all which means
@@ -2097,7 +2122,7 @@ static void __devinit ht_disable_msi_mapping(struct pci_dev *dev)
 
 		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS,
 					 &flags) == 0) {
-			dev_info(&dev->dev, "Enabling HT MSI Mapping\n");
+			dev_info(&dev->dev, "Disabling HT MSI Mapping\n");
 
 			pci_write_config_byte(dev, pos + HT_MSI_FLAGS,
 					      flags & ~HT_MSI_FLAGS_ENABLE);
@@ -2140,6 +2165,10 @@ static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
 	struct pci_dev *host_bridge;
 	int pos;
 	int found;
+
+	/* Enabling HT MSI mapping on this device breaks MCP51 */
+	if (dev->device == 0x270)
+		return;
 
 	/* check if there is HT MSI cap or enabled on this device */
 	found = ht_check_msi_mapping(dev);

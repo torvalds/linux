@@ -30,6 +30,7 @@
 #include <linux/stringify.h>
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
+#include <linux/hardirq.h>
 
 #include <asm/ptrace.h>
 #include <asm/timex.h>
