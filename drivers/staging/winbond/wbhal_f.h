@@ -21,7 +21,6 @@ void hal_clear_all_key(  struct hw_data * pHwData );
 void hal_get_ethernet_address(  struct hw_data * pHwData,  u8 *current_address );
 void hal_set_ethernet_address(  struct hw_data * pHwData,  u8 *current_address );
 void hal_get_permanent_address(  struct hw_data * pHwData,  u8 *pethernet_address );
-u8 hal_init_hardware(struct ieee80211_hw *hw);
 void hal_set_power_save_mode(  struct hw_data * pHwData,  unsigned char power_save,  unsigned char wakeup,  unsigned char dtim );
 void hal_get_power_save_mode(  struct hw_data * pHwData,   u8 *pin_pwr_save );
 void hal_set_slot_time(  struct hw_data * pHwData,  u8 type );
@@ -42,7 +41,6 @@ void hal_set_accept_broadcast(  struct hw_data * pHwData,  u8 enable );
 void hal_set_accept_multicast(  struct hw_data * pHwData,  u8 enable );
 void hal_set_accept_beacon(  struct hw_data * pHwData,  u8 enable );
 void hal_stop(  struct hw_data * pHwData );
-void hal_halt(  struct hw_data * pHwData, void *ppa_data );
 void hal_start_tx0(  struct hw_data * pHwData );
 void hal_set_phy_type(  struct hw_data * pHwData,  u8 PhyType );
 #define hal_get_cwmin( _A ) ( (_A)->cwmin )
