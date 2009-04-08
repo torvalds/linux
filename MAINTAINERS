@@ -2167,8 +2167,8 @@ F:	include/linux/firmware.h
 
 FPU EMULATOR
 P:	Bill Metzenthen
-M:	billm@suburbia.net
-W:	http://suburbia.net/~billm/floating-point/emulator/
+M:	billm@melbpc.org.au
+W:	http://floatingpoint.sourceforge.net/emulator/index.html
 S:	Maintained
 F:	arch/x86/math-emu/
 
