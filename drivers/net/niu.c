@@ -4834,6 +4834,7 @@ static int niu_compute_rbr_cfig_b(struct rx_ring_info *rp, u64 *ret)
 {
 	u64 val = 0;
 
+	*ret = 0;
 	switch (rp->rbr_block_size) {
 	case 4 * 1024:
 		val |= (RBR_BLKSIZE_4K << RBR_CFIG_B_BLKSIZE_SHIFT);
