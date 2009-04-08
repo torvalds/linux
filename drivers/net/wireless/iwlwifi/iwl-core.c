@@ -2679,6 +2679,42 @@ int iwl_mac_config_interface(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(iwl_mac_config_interface);
 
+int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
+			 struct ieee80211_tx_queue_stats *stats)
+{
+	struct iwl_priv *priv = hw->priv;
+	int i, avail;
+	struct iwl_tx_queue *txq;
+	struct iwl_queue *q;
+	unsigned long flags;
+
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	if (!iwl_is_ready_rf(priv)) {
+		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
+		return -EIO;
+	}
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	for (i = 0; i < AC_NUM; i++) {
+		txq = &priv->txq[i];
+		q = &txq->q;
+		avail = iwl_queue_space(q);
+
+		stats[i].len = q->n_window - avail;
+		stats[i].limit = q->n_window - q->high_mark;
+		stats[i].count = q->n_window;
+
+	}
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_mac_get_tx_stats);
+
 #ifdef CONFIG_PM
 
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)

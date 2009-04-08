@@ -3494,41 +3494,6 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
-static int iwl3945_mac_get_tx_stats(struct ieee80211_hw *hw,
-				struct ieee80211_tx_queue_stats *stats)
-{
-	struct iwl_priv *priv = hw->priv;
-	int i, avail;
-	struct iwl_tx_queue *txq;
-	struct iwl_queue *q;
-	unsigned long flags;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	if (!iwl_is_ready_rf(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
-		return -EIO;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	for (i = 0; i < AC_NUM; i++) {
-		txq = &priv->txq[i];
-		q = &txq->q;
-		avail = iwl_queue_space(q);
-
-		stats[i].len = q->n_window - avail;
-		stats[i].limit = q->n_window - q->high_mark;
-		stats[i].count = q->n_window;
-
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	return 0;
-}
-
 static void iwl3945_mac_reset_tsf(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -4116,7 +4081,7 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.config_interface = iwl_mac_config_interface,
 	.configure_filter = iwl_configure_filter,
 	.set_key = iwl3945_mac_set_key,
-	.get_tx_stats = iwl3945_mac_get_tx_stats,
+	.get_tx_stats = iwl_mac_get_tx_stats,
 	.conf_tx = iwl_mac_conf_tx,
 	.reset_tsf = iwl3945_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,

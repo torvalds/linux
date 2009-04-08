@@ -284,6 +284,8 @@ void iwl_config_ap(struct iwl_priv *priv);
 int iwl_mac_config_interface(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_if_conf *conf);
+int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
+			 struct ieee80211_tx_queue_stats *stats);
 
 /*****************************************************
  * RX handlers.
