@@ -317,7 +317,7 @@ static int smsc911x_mii_read(struct mii_bus *bus, int phyaddr, int regidx)
 			goto out;
 		}
 
-	SMSC_WARNING(HW, "Timed out waiting for MII write to finish");
+	SMSC_WARNING(HW, "Timed out waiting for MII read to finish");
 	reg = -EIO;
 
 out:
