@@ -1430,7 +1430,7 @@ void netif_device_detach(struct net_device *dev)
 {
 	if (test_and_clear_bit(__LINK_STATE_PRESENT, &dev->state) &&
 	    netif_running(dev)) {
-		netif_stop_queue(dev);
+		netif_tx_stop_all_queues(dev);
 	}
 }
 EXPORT_SYMBOL(netif_device_detach);
@@ -1445,7 +1445,7 @@ void netif_device_attach(struct net_device *dev)
 {
 	if (!test_and_set_bit(__LINK_STATE_PRESENT, &dev->state) &&
 	    netif_running(dev)) {
-		netif_wake_queue(dev);
+		netif_tx_wake_all_queues(dev);
 		__netdev_watchdog_up(dev);
 	}
 }
