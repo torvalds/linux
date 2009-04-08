@@ -1139,13 +1139,6 @@ int __init init_arch_irq(void)
 	bfin_write_SIC_IWR(IWR_DISABLE_ALL);
 #endif
 
-#ifdef CONFIG_IPIPE
-	for (irq = 0; irq < NR_IRQS; irq++) {
-		struct irq_desc *desc = irq_to_desc(irq);
-		desc->ic_prio = __ipipe_get_irq_priority(irq);
-	}
-#endif /* CONFIG_IPIPE */
-
 	return 0;
 }
 
