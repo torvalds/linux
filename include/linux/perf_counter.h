@@ -142,8 +142,9 @@ struct perf_counter_hw_event {
 				exclude_idle   :  1, /* don't count when idle */
 				mmap           :  1, /* include mmap data     */
 				munmap         :  1, /* include munmap data   */
+				comm	       :  1, /* include comm data     */
 
-				__reserved_1   : 53;
+				__reserved_1   : 52;
 
 	__u32			extra_config_len;
 	__u32			wakeup_events;	/* wakeup every n events */
@@ -229,6 +230,16 @@ enum perf_event_type {
 	 */
 	PERF_EVENT_MMAP			= 1,
 	PERF_EVENT_MUNMAP		= 2,
+
+	/*
+	 * struct {
+	 * 	struct perf_event_header	header;
+	 *
+	 * 	u32				pid, tid;
+	 * 	char				comm[];
+	 * };
+	 */
+	PERF_EVENT_COMM			= 3,
 
 	/*
 	 * When header.misc & PERF_EVENT_MISC_OVERFLOW the event_type field
@@ -545,6 +556,8 @@ extern void perf_counter_mmap(unsigned long addr, unsigned long len,
 extern void perf_counter_munmap(unsigned long addr, unsigned long len,
 				unsigned long pgoff, struct file *file);
 
+extern void perf_counter_comm(struct task_struct *tsk);
+
 #define MAX_STACK_DEPTH		255
 
 struct perf_callchain_entry {
@@ -583,6 +596,7 @@ static inline void
 perf_counter_munmap(unsigned long addr, unsigned long len,
 		    unsigned long pgoff, struct file *file) 		{ }
 
+static inline void perf_counter_comm(struct task_struct *tsk)		{ }
 #endif
 
 #endif /* __KERNEL__ */

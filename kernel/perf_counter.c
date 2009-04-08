@@ -1917,6 +1917,99 @@ static void perf_counter_output(struct perf_counter *counter,
 }
 
 /*
+ * comm tracking
+ */
+
+struct perf_comm_event {
+	struct task_struct 	*task;
+	char 			*comm;
+	int			comm_size;
+
+	struct {
+		struct perf_event_header	header;
+
+		u32				pid;
+		u32				tid;
+	} event;
+};
+
+static void perf_counter_comm_output(struct perf_counter *counter,
+				     struct perf_comm_event *comm_event)
+{
+	struct perf_output_handle handle;
+	int size = comm_event->event.header.size;
+	int ret = perf_output_begin(&handle, counter, size, 0, 0);
+
+	if (ret)
+		return;
+
+	perf_output_put(&handle, comm_event->event);
+	perf_output_copy(&handle, comm_event->comm,
+				   comm_event->comm_size);
+	perf_output_end(&handle);
+}
+
+static int perf_counter_comm_match(struct perf_counter *counter,
+				   struct perf_comm_event *comm_event)
+{
+	if (counter->hw_event.comm &&
+	    comm_event->event.header.type == PERF_EVENT_COMM)
+		return 1;
+
+	return 0;
+}
+
+static void perf_counter_comm_ctx(struct perf_counter_context *ctx,
+				  struct perf_comm_event *comm_event)
+{
+	struct perf_counter *counter;
+
+	if (system_state != SYSTEM_RUNNING || list_empty(&ctx->event_list))
+		return;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
+		if (perf_counter_comm_match(counter, comm_event))
+			perf_counter_comm_output(counter, comm_event);
+	}
+	rcu_read_unlock();
+}
+
+static void perf_counter_comm_event(struct perf_comm_event *comm_event)
+{
+	struct perf_cpu_context *cpuctx;
+	unsigned int size;
+	char *comm = comm_event->task->comm;
+
+	size = ALIGN(strlen(comm), sizeof(u64));
+
+	comm_event->comm = comm;
+	comm_event->comm_size = size;
+
+	comm_event->event.header.size = sizeof(comm_event->event) + size;
+
+	cpuctx = &get_cpu_var(perf_cpu_context);
+	perf_counter_comm_ctx(&cpuctx->ctx, comm_event);
+	put_cpu_var(perf_cpu_context);
+
+	perf_counter_comm_ctx(&current->perf_counter_ctx, comm_event);
+}
+
+void perf_counter_comm(struct task_struct *task)
+{
+	struct perf_comm_event comm_event = {
+		.task	= task,
+		.event  = {
+			.header = { .type = PERF_EVENT_COMM, },
+			.pid	= task->group_leader->pid,
+			.tid	= task->pid,
+		},
+	};
+
+	perf_counter_comm_event(&comm_event);
+}
+
+/*
  * mmap tracking
  */
 
