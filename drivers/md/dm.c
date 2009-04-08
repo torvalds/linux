@@ -436,21 +436,18 @@ static void end_io_acct(struct dm_io *io)
 /*
  * Add the bio to the list of deferred io.
  */
-static int queue_io(struct mapped_device *md, struct bio *bio)
+static void queue_io(struct mapped_device *md, struct bio *bio)
 {
 	down_write(&md->io_lock);
-
-	if (!test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags)) {
-		up_write(&md->io_lock);
-		return 1;
-	}
 
 	spin_lock_irq(&md->deferred_lock);
 	bio_list_add(&md->deferred, bio);
 	spin_unlock_irq(&md->deferred_lock);
 
+	if (!test_and_set_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags))
+		queue_work(md->wq, &md->work);
+
 	up_write(&md->io_lock);
-	return 0;		/* deferred successfully */
 }
 
 /*
@@ -953,7 +950,7 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	 * If we're suspended or the thread is processing barriers
 	 * we have to queue this io for later.
 	 */
-	while (test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags)) {
+	if (unlikely(test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags))) {
 		up_read(&md->io_lock);
 
 		if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) &&
@@ -962,14 +959,9 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 			return 0;
 		}
 
-		if (!queue_io(md, bio))
-			return 0;
+		queue_io(md, bio);
 
-		/*
-		 * We're in a while loop, because someone could suspend
-		 * before we get to the following read lock.
-		 */
-		down_read(&md->io_lock);
+		return 0;
 	}
 
 	__split_and_process_bio(md, bio);
