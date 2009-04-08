@@ -171,14 +171,21 @@ static const struct ieee80211_ops wbsoft_ops = {
 	.get_tsf		= wbsoft_get_tsf,
 };
 
+static u8 LED_GRAY[20] = {
+	0, 3, 4, 6, 8, 10, 11, 12, 13, 14, 15, 14, 13, 12, 11, 10, 8, 6, 4, 2
+};
+
+static u8 LED_GRAY2[30] = {
+	7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 15, 14, 13, 12, 11, 10, 9, 8
+};
+
 static void hal_led_control(unsigned long data)
 {
 	struct wbsoft_priv *adapter = (struct wbsoft_priv *)data;
 	struct hw_data *pHwData = &adapter->sHwData;
 	struct wb35_reg *reg = &pHwData->reg;
 	u32 LEDSet = (pHwData->SoftwareSet & HAL_LED_SET_MASK) >> HAL_LED_SET_SHIFT;
-	u8 LEDgray[20] = { 0, 3, 4, 6, 8, 10, 11, 12, 13, 14, 15, 14, 13, 12, 11, 10, 8, 6, 4, 2 };
-	u8 LEDgray2[30] = { 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 14, 13, 12, 11, 10, 9, 8 };
 	u32 TimeInterval = 500, ltmp, ltmp2;
 	ltmp = 0;
 
@@ -287,10 +294,10 @@ static void hal_led_control(unsigned long data)
 					// 20060901 Gray blinking if in disconnect state and not scanning
 					ltmp = reg->U1BC_LEDConfigure;
 					reg->U1BC_LEDConfigure &= ~0x1f;
-					if (LEDgray2[(pHwData->LED_Blinking % 30)]) {
+					if (LED_GRAY2[(pHwData->LED_Blinking % 30)]) {
 						reg->U1BC_LEDConfigure |= 0x10;
 						reg->U1BC_LEDConfigure |=
-						    LEDgray2[(pHwData->LED_Blinking % 30)];
+						    LED_GRAY2[(pHwData->LED_Blinking % 30)];
 					}
 					pHwData->LED_Blinking++;
 					if (reg->U1BC_LEDConfigure != ltmp)
@@ -376,7 +383,7 @@ static void hal_led_control(unsigned long data)
 				reg->U1BC_LEDConfigure &= ~0x0f;
 				reg->U1BC_LEDConfigure |= 0x10;
 				reg->U1BC_LEDConfigure |=
-				    LEDgray[(pHwData->LED_Blinking - 1) % 20];
+				    LED_GRAY[(pHwData->LED_Blinking - 1) % 20];
 				Wb35Reg_Write(pHwData, 0x03bc,
 					      reg->U1BC_LEDConfigure);
 
