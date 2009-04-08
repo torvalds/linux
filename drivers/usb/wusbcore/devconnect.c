@@ -396,7 +396,8 @@ static void __wusbhc_dev_disconnect(struct wusbhc *wusbhc,
 
 	/* After a device disconnects, change the GTK (see [WUSB]
 	 * section 6.2.11.2). */
-	wusbhc_gtk_rekey(wusbhc);
+	if (wusbhc->active)
+		wusbhc_gtk_rekey(wusbhc);
 
 	/* The Wireless USB part has forgotten about the device already; now
 	 * khubd's timer will pick up the disconnection and remove the USB
@@ -1084,15 +1085,21 @@ error_mmcie_set:
  * wusbhc_devconnect_stop - stop managing connected devices
  * @wusbhc: the WUSB HC
  *
- * Removes the Host Info IE and stops the keep alives.
- *
- * FIXME: should this disconnect all devices?
+ * Disconnects any devices still connected, stops the keep alives and
+ * removes the Host Info IE.
  */
 void wusbhc_devconnect_stop(struct wusbhc *wusbhc)
 {
-	cancel_delayed_work_sync(&wusbhc->keep_alive_timer);
-	WARN_ON(!list_empty(&wusbhc->cack_list));
+	int i;
 
+	mutex_lock(&wusbhc->mutex);
+	for (i = 0; i < wusbhc->ports_max; i++) {
+		if (wusbhc->port[i].wusb_dev)
+			__wusbhc_dev_disconnect(wusbhc, &wusbhc->port[i]);
+	}
+	mutex_unlock(&wusbhc->mutex);
+
+	cancel_delayed_work_sync(&wusbhc->keep_alive_timer);
 	wusbhc_mmcie_rm(wusbhc, &wusbhc->wuie_host_info->hdr);
 	kfree(wusbhc->wuie_host_info);
 	wusbhc->wuie_host_info = NULL;
