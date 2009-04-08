@@ -2758,6 +2758,9 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 			iwl_mac_beacon_update(priv->hw, beacon);
 	}
 
+	if (test_and_clear_bit(STATUS_MODE_PENDING, &priv->status))
+		iwl3945_set_mode(priv, priv->iw_mode);
+
 	return;
 
  restart:
@@ -3497,8 +3500,8 @@ static int iwl3945_mac_add_interface(struct ieee80211_hw *hw,
 		memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
 	}
 
-	if (iwl_is_ready(priv))
-		iwl3945_set_mode(priv, conf->type);
+	if (iwl3945_set_mode(priv, conf->type) == -EAGAIN)
+		set_bit(STATUS_MODE_PENDING, &priv->status);
 
 	mutex_unlock(&priv->mutex);
 
