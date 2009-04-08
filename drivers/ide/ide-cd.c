@@ -312,6 +312,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = hwif->rq;
 	int err, sense_key;
+	u8 quiet = rq->cmd_flags & REQ_QUIET;
 
 	/* get the IDE error register */
 	err = ide_read_error(drive);
@@ -354,7 +355,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 			 * drive doesn't have that capability.
 			 * cdrom_log_sense() knows this!
 			 */
-		} else if (!(rq->cmd_flags & REQ_QUIET)) {
+		} else if (!quiet) {
 			/* otherwise, print an error */
 			ide_dump_status(drive, "packet command error", stat);
 		}
@@ -382,7 +383,8 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 				cdrom_saw_media_change(drive);
 
 				/* fail the request */
-				printk(KERN_ERR PFX "%s: tray open\n",
+				if (!quiet)
+					printk(KERN_ERR PFX "%s: tray open\n",
 						drive->name);
 			} else {
 				if (ide_cd_breathe(drive, rq))
@@ -405,19 +407,23 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 			 * No point in retrying after an illegal request or data
 			 * protect error.
 			 */
-			ide_dump_status(drive, "command error", stat);
+			if (!quiet)
+				ide_dump_status(drive, "command error", stat);
 			do_end_request = 1;
 		} else if (sense_key == MEDIUM_ERROR) {
 			/*
 			 * No point in re-trying a zillion times on a bad
 			 * sector. If we got here the error is not correctable.
 			 */
-			ide_dump_status(drive, "media error (bad sector)",
-					stat);
+			if (!quiet)
+				ide_dump_status(drive, "media error "
+						"(bad sector)",	stat);
 			do_end_request = 1;
 		} else if (sense_key == BLANK_CHECK) {
 			/* disk appears blank ?? */
-			ide_dump_status(drive, "media error (blank)", stat);
+			if (!quiet)
+				ide_dump_status(drive, "media error (blank)",
+						stat);
 			do_end_request = 1;
 		} else if ((err & ~ATA_ABORTED) != 0) {
 			/* go to the default handler for other errors */
