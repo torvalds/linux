@@ -3494,6 +3494,11 @@ static int stv090x_sleep(struct dvb_frontend *fe)
 	if (stv090x_write_reg(state, STV090x_SYNTCTRL, reg) < 0)
 		goto err;
 
+	reg = stv090x_read_reg(state, STV090x_TSTTNR1);
+	STV090x_SETFIELD(reg, ADC1_PON_FIELD, 0);
+	if (stv090x_write_reg(state, STV090x_TSTTNR1, reg) < 0)
+		goto err;
+
 	return 0;
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
@@ -3511,6 +3516,11 @@ static int stv090x_wakeup(struct dvb_frontend *fe)
 	reg = stv090x_read_reg(state, STV090x_SYNTCTRL);
 	STV090x_SETFIELD(reg, STANDBY_FIELD, 0x00);
 	if (stv090x_write_reg(state, STV090x_SYNTCTRL, reg) < 0)
+		goto err;
+
+	reg = stv090x_read_reg(state, STV090x_TSTTNR1);
+	STV090x_SETFIELD(reg, ADC1_PON_FIELD, 1);
+	if (stv090x_write_reg(state, STV090x_TSTTNR1, reg) < 0)
 		goto err;
 
 	return 0;
