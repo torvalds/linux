@@ -341,15 +341,15 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 
 	switch (sense_key) {
 	case NOT_READY:
-		if (blk_fs_request(rq) == 0 || rq_data_dir(rq) == READ) {
+		if (blk_fs_request(rq) && rq_data_dir(rq) == WRITE) {
+			if (ide_cd_breathe(drive, rq))
+				return 1;
+		} else {
 			cdrom_saw_media_change(drive);
 
 			if (blk_fs_request(rq) && !quiet)
 				printk(KERN_ERR PFX "%s: tray open\n",
 					drive->name);
-		} else {
-			if (ide_cd_breathe(drive, rq))
-				return 1;
 		}
 		do_end_request = 1;
 		break;
