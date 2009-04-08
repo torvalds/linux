@@ -100,9 +100,9 @@ enum sw_event_ids {
 enum perf_counter_record_format {
 	PERF_RECORD_IP		= 1U << 0,
 	PERF_RECORD_TID		= 1U << 1,
-	PERF_RECORD_GROUP	= 1U << 2,
-	PERF_RECORD_CALLCHAIN	= 1U << 3,
-	PERF_RECORD_TIME	= 1U << 4,
+	PERF_RECORD_TIME	= 1U << 2,
+	PERF_RECORD_GROUP	= 1U << 3,
+	PERF_RECORD_CALLCHAIN	= 1U << 4,
 };
 
 /*
@@ -250,6 +250,7 @@ enum perf_event_type {
 	 *
 	 * 	{ u64			ip;	  } && PERF_RECORD_IP
 	 * 	{ u32			pid, tid; } && PERF_RECORD_TID
+	 * 	{ u64			time;     } && PERF_RECORD_TIME
 	 *
 	 * 	{ u64			nr;
 	 * 	  { u64 event, val; } 	cnt[nr];  } && PERF_RECORD_GROUP
@@ -259,8 +260,6 @@ enum perf_event_type {
 	 * 				kernel,
 	 * 				user;
 	 * 	  u64			ips[nr];  } && PERF_RECORD_CALLCHAIN
-	 *
-	 * 	{ u64			time;     } && PERF_RECORD_TIME
 	 * };
 	 */
 };

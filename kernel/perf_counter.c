@@ -1850,6 +1850,16 @@ static void perf_counter_output(struct perf_counter *counter,
 		header.size += sizeof(tid_entry);
 	}
 
+	if (record_type & PERF_RECORD_TIME) {
+		/*
+		 * Maybe do better on x86 and provide cpu_clock_nmi()
+		 */
+		time = sched_clock();
+
+		header.type |= PERF_RECORD_TIME;
+		header.size += sizeof(u64);
+	}
+
 	if (record_type & PERF_RECORD_GROUP) {
 		header.type |= PERF_RECORD_GROUP;
 		header.size += sizeof(u64) +
@@ -1867,16 +1877,6 @@ static void perf_counter_output(struct perf_counter *counter,
 		}
 	}
 
-	if (record_type & PERF_RECORD_TIME) {
-		/*
-		 * Maybe do better on x86 and provide cpu_clock_nmi()
-		 */
-		time = sched_clock();
-
-		header.type |= PERF_RECORD_TIME;
-		header.size += sizeof(u64);
-	}
-
 	ret = perf_output_begin(&handle, counter, header.size, nmi, 1);
 	if (ret)
 		return;
@@ -1888,6 +1888,9 @@ static void perf_counter_output(struct perf_counter *counter,
 
 	if (record_type & PERF_RECORD_TID)
 		perf_output_put(&handle, tid_entry);
+
+	if (record_type & PERF_RECORD_TIME)
+		perf_output_put(&handle, time);
 
 	if (record_type & PERF_RECORD_GROUP) {
 		struct perf_counter *leader, *sub;
@@ -1909,9 +1912,6 @@ static void perf_counter_output(struct perf_counter *counter,
 
 	if (callchain)
 		perf_output_copy(&handle, callchain, callchain_size);
-
-	if (record_type & PERF_RECORD_TIME)
-		perf_output_put(&handle, time);
 
 	perf_output_end(&handle);
 }
