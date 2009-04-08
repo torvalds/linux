@@ -56,9 +56,6 @@ static DEFINE_SPINLOCK(ioc_gone_lock);
 #define cfq_class_idle(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_IDLE)
 #define cfq_class_rt(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_RT)
 
-#define ASYNC			(0)
-#define SYNC			(1)
-
 #define sample_valid(samples)	((samples) > 80)
 
 /*
@@ -1333,14 +1330,14 @@ static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 	if (ioc->ioc_data == cic)
 		rcu_assign_pointer(ioc->ioc_data, NULL);
 
-	if (cic->cfqq[ASYNC]) {
-		cfq_exit_cfqq(cfqd, cic->cfqq[ASYNC]);
-		cic->cfqq[ASYNC] = NULL;
+	if (cic->cfqq[BLK_RW_ASYNC]) {
+		cfq_exit_cfqq(cfqd, cic->cfqq[BLK_RW_ASYNC]);
+		cic->cfqq[BLK_RW_ASYNC] = NULL;
 	}
 
-	if (cic->cfqq[SYNC]) {
-		cfq_exit_cfqq(cfqd, cic->cfqq[SYNC]);
-		cic->cfqq[SYNC] = NULL;
+	if (cic->cfqq[BLK_RW_SYNC]) {
+		cfq_exit_cfqq(cfqd, cic->cfqq[BLK_RW_SYNC]);
+		cic->cfqq[BLK_RW_SYNC] = NULL;
 	}
 }
 
@@ -1449,17 +1446,18 @@ static void changed_ioprio(struct io_context *ioc, struct cfq_io_context *cic)
 
 	spin_lock_irqsave(cfqd->queue->queue_lock, flags);
 
-	cfqq = cic->cfqq[ASYNC];
+	cfqq = cic->cfqq[BLK_RW_ASYNC];
 	if (cfqq) {
 		struct cfq_queue *new_cfqq;
-		new_cfqq = cfq_get_queue(cfqd, ASYNC, cic->ioc, GFP_ATOMIC);
+		new_cfqq = cfq_get_queue(cfqd, BLK_RW_ASYNC, cic->ioc,
+						GFP_ATOMIC);
 		if (new_cfqq) {
-			cic->cfqq[ASYNC] = new_cfqq;
+			cic->cfqq[BLK_RW_ASYNC] = new_cfqq;
 			cfq_put_queue(cfqq);
 		}
 	}
 
-	cfqq = cic->cfqq[SYNC];
+	cfqq = cic->cfqq[BLK_RW_SYNC];
 	if (cfqq)
 		cfq_mark_cfqq_prio_changed(cfqq);
 
