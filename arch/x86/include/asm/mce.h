@@ -90,7 +90,7 @@ extern int mce_disabled;
 
 void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
-DECLARE_PER_CPU(struct sys_device, device_mce);
+DECLARE_PER_CPU(struct sys_device, mce_dev);
 extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
 /*

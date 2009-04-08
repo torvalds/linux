@@ -957,7 +957,7 @@ static struct sysdev_class mce_sysclass = {
 	.name		= "machinecheck",
 };
 
-DEFINE_PER_CPU(struct sys_device, device_mce);
+DEFINE_PER_CPU(struct sys_device, mce_dev);
 
 __cpuinitdata
 void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
@@ -1039,12 +1039,12 @@ static SYSDEV_INT_ATTR(tolerant, 0644, tolerant);
 
 ACCESSOR(check_interval, check_interval, mce_restart())
 
-static struct sysdev_attribute *mce_attributes[] = {
+static struct sysdev_attribute *mce_attrs[] = {
 	&attr_tolerant.attr, &attr_check_interval, &attr_trigger,
 	NULL
 };
 
-static cpumask_var_t mce_device_initialized;
+static cpumask_var_t mce_dev_initialized;
 
 /* Per cpu sysdev init. All of the cpus still share the same ctrl bank: */
 static __cpuinit int mce_create_device(unsigned int cpu)
@@ -1055,40 +1055,36 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
 
-	memset(&per_cpu(device_mce, cpu).kobj, 0, sizeof(struct kobject));
-	per_cpu(device_mce, cpu).id	= cpu;
-	per_cpu(device_mce, cpu).cls	= &mce_sysclass;
+	memset(&per_cpu(mce_dev, cpu).kobj, 0, sizeof(struct kobject));
+	per_cpu(mce_dev, cpu).id	= cpu;
+	per_cpu(mce_dev, cpu).cls	= &mce_sysclass;
 
-	err = sysdev_register(&per_cpu(device_mce, cpu));
+	err = sysdev_register(&per_cpu(mce_dev, cpu));
 	if (err)
 		return err;
 
-	for (i = 0; mce_attributes[i]; i++) {
-		err = sysdev_create_file(&per_cpu(device_mce, cpu),
-					 mce_attributes[i]);
+	for (i = 0; mce_attrs[i]; i++) {
+		err = sysdev_create_file(&per_cpu(mce_dev, cpu), mce_attrs[i]);
 		if (err)
 			goto error;
 	}
 	for (i = 0; i < banks; i++) {
-		err = sysdev_create_file(&per_cpu(device_mce, cpu),
+		err = sysdev_create_file(&per_cpu(mce_dev, cpu),
 					&bank_attrs[i]);
 		if (err)
 			goto error2;
 	}
-	cpumask_set_cpu(cpu, mce_device_initialized);
+	cpumask_set_cpu(cpu, mce_dev_initialized);
 
 	return 0;
 error2:
-	while (--i >= 0) {
-		sysdev_remove_file(&per_cpu(device_mce, cpu),
-					&bank_attrs[i]);
-	}
+	while (--i >= 0)
+		sysdev_remove_file(&per_cpu(mce_dev, cpu), &bank_attrs[i]);
 error:
-	while (--i >= 0) {
-		sysdev_remove_file(&per_cpu(device_mce, cpu),
-				   mce_attributes[i]);
-	}
-	sysdev_unregister(&per_cpu(device_mce, cpu));
+	while (--i >= 0)
+		sysdev_remove_file(&per_cpu(mce_dev, cpu), mce_attrs[i]);
+
+	sysdev_unregister(&per_cpu(mce_dev, cpu));
 
 	return err;
 }
@@ -1097,24 +1093,24 @@ static __cpuinit void mce_remove_device(unsigned int cpu)
 {
 	int i;
 
-	if (!cpumask_test_cpu(cpu, mce_device_initialized))
+	if (!cpumask_test_cpu(cpu, mce_dev_initialized))
 		return;
 
-	for (i = 0; mce_attributes[i]; i++)
-		sysdev_remove_file(&per_cpu(device_mce, cpu),
-			mce_attributes[i]);
+	for (i = 0; mce_attrs[i]; i++)
+		sysdev_remove_file(&per_cpu(mce_dev, cpu), mce_attrs[i]);
+
 	for (i = 0; i < banks; i++)
-		sysdev_remove_file(&per_cpu(device_mce, cpu),
-			&bank_attrs[i]);
-	sysdev_unregister(&per_cpu(device_mce, cpu));
-	cpumask_clear_cpu(cpu, mce_device_initialized);
+		sysdev_remove_file(&per_cpu(mce_dev, cpu), &bank_attrs[i]);
+
+	sysdev_unregister(&per_cpu(mce_dev, cpu));
+	cpumask_clear_cpu(cpu, mce_dev_initialized);
 }
 
 /* Make sure there are no machine checks on offlined CPUs. */
 static void mce_disable_cpu(void *h)
 {
-	int i;
 	unsigned long action = *(unsigned long *)h;
+	int i;
 
 	if (!mce_available(&current_cpu_data))
 		return;
@@ -1221,7 +1217,7 @@ static __init int mce_init_device(void)
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
 
-	alloc_cpumask_var(&mce_device_initialized, GFP_KERNEL);
+	alloc_cpumask_var(&mce_dev_initialized, GFP_KERNEL);
 
 	err = mce_init_banks();
 	if (err)
