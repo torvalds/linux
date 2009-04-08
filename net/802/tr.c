@@ -561,6 +561,9 @@ static int rif_seq_show(struct seq_file *seq, void *v)
 				}
 				seq_putc(seq, '\n');
 			}
+
+		if (dev)
+			dev_put(dev);
 		}
 	return 0;
 }
