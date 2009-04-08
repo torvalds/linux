@@ -929,7 +929,6 @@ out:
  */
 static int dm_request(struct request_queue *q, struct bio *bio)
 {
-	int r = -EIO;
 	int rw = bio_data_dir(bio);
 	struct mapped_device *md = q->queuedata;
 	int cpu;
@@ -957,11 +956,14 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	while (test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags)) {
 		up_read(&md->io_lock);
 
-		if (bio_rw(bio) != READA)
-			r = queue_io(md, bio);
+		if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) &&
+		    bio_rw(bio) == READA) {
+			bio_io_error(bio);
+			return 0;
+		}
 
-		if (r <= 0)
-			goto out_req;
+		if (!queue_io(md, bio))
+			return 0;
 
 		/*
 		 * We're in a while loop, because someone could suspend
@@ -972,12 +974,6 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 
 	__split_and_process_bio(md, bio);
 	up_read(&md->io_lock);
-	return 0;
-
-out_req:
-	if (r < 0)
-		bio_io_error(bio);
-
 	return 0;
 }
 
