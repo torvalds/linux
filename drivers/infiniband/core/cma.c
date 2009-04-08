@@ -297,21 +297,25 @@ static void cma_detach_from_dev(struct rdma_id_private *id_priv)
 	id_priv->cma_dev = NULL;
 }
 
-static int cma_set_qkey(struct ib_device *device, u8 port_num,
-			enum rdma_port_space ps,
-			struct rdma_dev_addr *dev_addr, u32 *qkey)
+static int cma_set_qkey(struct rdma_id_private *id_priv)
 {
 	struct ib_sa_mcmember_rec rec;
 	int ret = 0;
 
-	switch (ps) {
+	if (id_priv->qkey)
+		return 0;
+
+	switch (id_priv->id.ps) {
 	case RDMA_PS_UDP:
-		*qkey = RDMA_UDP_QKEY;
+		id_priv->qkey = RDMA_UDP_QKEY;
 		break;
 	case RDMA_PS_IPOIB:
-		ib_addr_get_mgid(dev_addr, &rec.mgid);
-		ret = ib_sa_get_mcmember_rec(device, port_num, &rec.mgid, &rec);
-		*qkey = be32_to_cpu(rec.qkey);
+		ib_addr_get_mgid(&id_priv->id.route.addr.dev_addr, &rec.mgid);
+		ret = ib_sa_get_mcmember_rec(id_priv->id.device,
+					     id_priv->id.port_num, &rec.mgid,
+					     &rec);
+		if (!ret)
+			id_priv->qkey = be32_to_cpu(rec.qkey);
 		break;
 	default:
 		break;
@@ -341,12 +345,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 		ret = ib_find_cached_gid(cma_dev->device, &gid,
 					 &id_priv->id.port_num, NULL);
 		if (!ret) {
-			ret = cma_set_qkey(cma_dev->device,
-					   id_priv->id.port_num,
-					   id_priv->id.ps, dev_addr,
-					   &id_priv->qkey);
-			if (!ret)
-				cma_attach_to_dev(id_priv, cma_dev);
+			cma_attach_to_dev(id_priv, cma_dev);
 			break;
 		}
 	}
@@ -578,6 +577,10 @@ static int cma_ib_init_qp_attr(struct rdma_id_private *id_priv,
 	*qp_attr_mask = IB_QP_STATE | IB_QP_PKEY_INDEX | IB_QP_PORT;
 
 	if (cma_is_ud_ps(id_priv->id.ps)) {
+		ret = cma_set_qkey(id_priv);
+		if (ret)
+			return ret;
+
 		qp_attr->qkey = id_priv->qkey;
 		*qp_attr_mask |= IB_QP_QKEY;
 	} else {
@@ -2201,6 +2204,12 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 			event.status = ib_event->param.sidr_rep_rcvd.status;
 			break;
 		}
+		ret = cma_set_qkey(id_priv);
+		if (ret) {
+			event.event = RDMA_CM_EVENT_ADDR_ERROR;
+			event.status = -EINVAL;
+			break;
+		}
 		if (id_priv->qkey != rep->qkey) {
 			event.event = RDMA_CM_EVENT_UNREACHABLE;
 			event.status = -EINVAL;
@@ -2480,10 +2489,14 @@ static int cma_send_sidr_rep(struct rdma_id_private *id_priv,
 			     const void *private_data, int private_data_len)
 {
 	struct ib_cm_sidr_rep_param rep;
+	int ret;
 
 	memset(&rep, 0, sizeof rep);
 	rep.status = status;
 	if (status == IB_SIDR_SUCCESS) {
+		ret = cma_set_qkey(id_priv);
+		if (ret)
+			return ret;
 		rep.qp_num = id_priv->qp_num;
 		rep.qkey = id_priv->qkey;
 	}
