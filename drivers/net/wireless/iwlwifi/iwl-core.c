@@ -2579,6 +2579,106 @@ out:
 }
 EXPORT_SYMBOL(iwl_mac_config);
 
+int iwl_mac_config_interface(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+				    struct ieee80211_if_conf *conf)
+{
+	struct iwl_priv *priv = hw->priv;
+	int rc;
+
+	if (conf == NULL)
+		return -EIO;
+
+	if (priv->vif != vif) {
+		IWL_DEBUG_MAC80211(priv, "leave - priv->vif != vif\n");
+		return 0;
+	}
+
+	if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
+	    conf->changed & IEEE80211_IFCC_BEACON) {
+		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+		if (!beacon)
+			return -ENOMEM;
+		mutex_lock(&priv->mutex);
+		rc = iwl_mac_beacon_update(hw, beacon);
+		mutex_unlock(&priv->mutex);
+		if (rc)
+			return rc;
+	}
+
+	if (!iwl_is_alive(priv))
+		return -EAGAIN;
+
+	mutex_lock(&priv->mutex);
+
+	if (conf->bssid)
+		IWL_DEBUG_MAC80211(priv, "bssid: %pM\n", conf->bssid);
+
+/*
+ * very dubious code was here; the probe filtering flag is never set:
+ *
+	if (unlikely(test_bit(STATUS_SCANNING, &priv->status)) &&
+	    !(priv->hw->flags & IEEE80211_HW_NO_PROBE_FILTERING)) {
+ */
+
+	if (priv->iw_mode == NL80211_IFTYPE_AP) {
+		if (!conf->bssid) {
+			conf->bssid = priv->mac_addr;
+			memcpy(priv->bssid, priv->mac_addr, ETH_ALEN);
+			IWL_DEBUG_MAC80211(priv, "bssid was set to: %pM\n",
+					   conf->bssid);
+		}
+		if (priv->ibss_beacon)
+			dev_kfree_skb(priv->ibss_beacon);
+
+		priv->ibss_beacon = ieee80211_beacon_get(hw, vif);
+	}
+
+	if (iwl_is_rfkill(priv))
+		goto done;
+
+	if (conf->bssid && !is_zero_ether_addr(conf->bssid) &&
+	    !is_multicast_ether_addr(conf->bssid)) {
+		/* If there is currently a HW scan going on in the background
+		 * then we need to cancel it else the RXON below will fail. */
+		if (iwl_scan_cancel_timeout(priv, 100)) {
+			IWL_WARN(priv, "Aborted scan still in progress "
+				    "after 100ms\n");
+			IWL_DEBUG_MAC80211(priv, "leaving - scan abort failed.\n");
+			mutex_unlock(&priv->mutex);
+			return -EAGAIN;
+		}
+		memcpy(priv->staging_rxon.bssid_addr, conf->bssid, ETH_ALEN);
+
+		/* TODO: Audit driver for usage of these members and see
+		 * if mac80211 deprecates them (priv->bssid looks like it
+		 * shouldn't be there, but I haven't scanned the IBSS code
+		 * to verify) - jpk */
+		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
+
+		if (priv->iw_mode == NL80211_IFTYPE_AP)
+			iwlcore_config_ap(priv);
+		else {
+			rc = iwlcore_commit_rxon(priv);
+			if ((priv->iw_mode == NL80211_IFTYPE_STATION) && rc)
+				iwl_rxon_add_station(
+					priv, priv->active_rxon.bssid_addr, 1);
+		}
+
+	} else {
+		iwl_scan_cancel_timeout(priv, 100);
+		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		iwlcore_commit_rxon(priv);
+	}
+
+ done:
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+	mutex_unlock(&priv->mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_mac_config_interface);
+
 #ifdef CONFIG_PM
 
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)
