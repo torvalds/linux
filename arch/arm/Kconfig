@@ -585,6 +585,7 @@ config ARCH_DAVINCI
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	select ZONE_DMA
+	select HAVE_IDE
 	help
 	  Support for TI's DaVinci platform.
 
