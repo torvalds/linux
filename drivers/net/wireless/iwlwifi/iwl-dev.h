@@ -819,6 +819,21 @@ enum {
 	MEASUREMENT_ACTIVE = (1 << 1),
 };
 
+/* interrupt statistics */
+struct isr_statistics {
+	u32 hw;
+	u32 sw;
+	u32 sw_err;
+	u32 sch;
+	u32 alive;
+	u32 rfkill;
+	u32 ctkill;
+	u32 wakeup;
+	u32 rx;
+	u32 rx_handlers[REPLY_MAX];
+	u32 tx;
+	u32 unhandled;
+};
 
 #define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
 
@@ -974,6 +989,9 @@ struct iwl_priv {
 		u32 cnt;
 		u64 bytes;
 	} tx_stats[3], rx_stats[3];
+
+	/* counts interrupts */
+	struct isr_statistics isr_stats;
 
 	struct iwl_power_mgr power_data;
 

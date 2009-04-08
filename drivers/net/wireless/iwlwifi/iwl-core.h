@@ -480,6 +480,7 @@ int iwl_pci_resume(struct pci_dev *pdev);
 ******************************************************/
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
 void iwl_dump_nic_event_log(struct iwl_priv *priv);
+void iwl_clear_isr_stats(struct iwl_priv *priv);
 
 /*****************************************************
 *  GEOS
