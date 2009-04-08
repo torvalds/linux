@@ -178,19 +178,6 @@ static const struct ieee80211_ops wbsoft_ops = {
 // conf_tx: hal_set_cwmin()/hal_set_cwmax;
 };
 
-static void hal_halt(struct hw_data *pHwData, void *ppa_data)
-{
-	switch( pHwData->InitialResource )
-	{
-		case 4:
-		case 3: del_timer_sync(&pHwData->LEDTimer);
-			msleep(100); // Wait for Timer DPC exit 940623.2
-			Wb35Rx_destroy( pHwData ); // Release the Rx
-		case 2: Wb35Tx_destroy( pHwData ); // Release the Tx
-		case 1: Wb35Reg_destroy( pHwData ); // Release the Wb35 Regisster resources
-	}
-}
-
 static void hal_led_control(unsigned long data)
 {
 	struct wbsoft_priv *adapter = (struct wbsoft_priv *) data;
@@ -486,19 +473,15 @@ static int hal_init_hardware(struct ieee80211_hw *hw)
 	pHwData->MaxReceiveLifeTime = DEFAULT_MSDU_LIFE_TIME; // Setting Rx maximum MSDU life time
 	pHwData->FragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD; // Setting default fragment threshold
 
-	pHwData->InitialResource = 1;
 	if (!Wb35Reg_initial(pHwData))
 		goto error_reg_destroy;
 
-	pHwData->InitialResource = 2;
 	if (!Wb35Tx_initial(pHwData))
 		goto error_tx_destroy;
 
-	pHwData->InitialResource = 3;
 	if (!Wb35Rx_initial(pHwData))
 		goto error_rx_destroy;
 
-	pHwData->InitialResource = 4;
 	init_timer(&pHwData->LEDTimer);
 	pHwData->LEDTimer.function = hal_led_control;
 	pHwData->LEDTimer.data = (unsigned long) priv;
@@ -714,6 +697,16 @@ error:
 	return err;
 }
 
+static void hal_halt(struct hw_data *pHwData)
+{
+	del_timer_sync(&pHwData->LEDTimer);
+	/* XXX: Wait for Timer DPC exit. */
+	msleep(100);
+	Wb35Rx_destroy(pHwData);
+	Wb35Tx_destroy(pHwData);
+	Wb35Reg_destroy(pHwData);
+}
+
 static void wb35_hw_halt(struct wbsoft_priv *adapter)
 {
 	Mds_Destroy( adapter );
@@ -726,7 +719,7 @@ static void wb35_hw_halt(struct wbsoft_priv *adapter)
 	msleep(100);// Waiting Irp completed
 
 	// Halt the HAL
-	hal_halt(&adapter->sHwData, NULL);
+	hal_halt(&adapter->sHwData);
 }
 
 
