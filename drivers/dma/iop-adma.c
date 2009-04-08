@@ -660,9 +660,9 @@ iop_adma_prep_dma_xor(struct dma_chan *chan, dma_addr_t dma_dest,
 }
 
 static struct dma_async_tx_descriptor *
-iop_adma_prep_dma_zero_sum(struct dma_chan *chan, dma_addr_t *dma_src,
-			   unsigned int src_cnt, size_t len, u32 *result,
-			   unsigned long flags)
+iop_adma_prep_dma_xor_val(struct dma_chan *chan, dma_addr_t *dma_src,
+			  unsigned int src_cnt, size_t len, u32 *result,
+			  unsigned long flags)
 {
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
 	struct iop_adma_desc_slot *sw_desc, *grp_start;
@@ -906,7 +906,7 @@ out:
 
 #define IOP_ADMA_NUM_SRC_TEST 4 /* must be <= 15 */
 static int __devinit
-iop_adma_xor_zero_sum_self_test(struct iop_adma_device *device)
+iop_adma_xor_val_self_test(struct iop_adma_device *device)
 {
 	int i, src_idx;
 	struct page *dest;
@@ -1002,7 +1002,7 @@ iop_adma_xor_zero_sum_self_test(struct iop_adma_device *device)
 		PAGE_SIZE, DMA_TO_DEVICE);
 
 	/* skip zero sum if the capability is not present */
-	if (!dma_has_cap(DMA_ZERO_SUM, dma_chan->device->cap_mask))
+	if (!dma_has_cap(DMA_XOR_VAL, dma_chan->device->cap_mask))
 		goto free_resources;
 
 	/* zero sum the sources with the destintation page */
@@ -1016,10 +1016,10 @@ iop_adma_xor_zero_sum_self_test(struct iop_adma_device *device)
 		dma_srcs[i] = dma_map_page(dma_chan->device->dev,
 					   zero_sum_srcs[i], 0, PAGE_SIZE,
 					   DMA_TO_DEVICE);
-	tx = iop_adma_prep_dma_zero_sum(dma_chan, dma_srcs,
-					IOP_ADMA_NUM_SRC_TEST + 1, PAGE_SIZE,
-					&zero_sum_result,
-					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	tx = iop_adma_prep_dma_xor_val(dma_chan, dma_srcs,
+				       IOP_ADMA_NUM_SRC_TEST + 1, PAGE_SIZE,
+				       &zero_sum_result,
+				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
 	cookie = iop_adma_tx_submit(tx);
 	iop_adma_issue_pending(dma_chan);
@@ -1072,10 +1072,10 @@ iop_adma_xor_zero_sum_self_test(struct iop_adma_device *device)
 		dma_srcs[i] = dma_map_page(dma_chan->device->dev,
 					   zero_sum_srcs[i], 0, PAGE_SIZE,
 					   DMA_TO_DEVICE);
-	tx = iop_adma_prep_dma_zero_sum(dma_chan, dma_srcs,
-					IOP_ADMA_NUM_SRC_TEST + 1, PAGE_SIZE,
-					&zero_sum_result,
-					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	tx = iop_adma_prep_dma_xor_val(dma_chan, dma_srcs,
+				       IOP_ADMA_NUM_SRC_TEST + 1, PAGE_SIZE,
+				       &zero_sum_result,
+				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
 	cookie = iop_adma_tx_submit(tx);
 	iop_adma_issue_pending(dma_chan);
@@ -1192,9 +1192,9 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 		dma_dev->max_xor = iop_adma_get_max_xor();
 		dma_dev->device_prep_dma_xor = iop_adma_prep_dma_xor;
 	}
-	if (dma_has_cap(DMA_ZERO_SUM, dma_dev->cap_mask))
-		dma_dev->device_prep_dma_zero_sum =
-			iop_adma_prep_dma_zero_sum;
+	if (dma_has_cap(DMA_XOR_VAL, dma_dev->cap_mask))
+		dma_dev->device_prep_dma_xor_val =
+			iop_adma_prep_dma_xor_val;
 	if (dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask))
 		dma_dev->device_prep_dma_interrupt =
 			iop_adma_prep_dma_interrupt;
@@ -1249,7 +1249,7 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask) ||
 		dma_has_cap(DMA_MEMSET, dma_dev->cap_mask)) {
-		ret = iop_adma_xor_zero_sum_self_test(adev);
+		ret = iop_adma_xor_val_self_test(adev);
 		dev_dbg(&pdev->dev, "xor self test returned %d\n", ret);
 		if (ret)
 			goto err_free_iop_chan;
@@ -1259,10 +1259,10 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 	  "( %s%s%s%s%s%s%s%s%s%s)\n",
 	  dma_has_cap(DMA_PQ_XOR, dma_dev->cap_mask) ? "pq_xor " : "",
 	  dma_has_cap(DMA_PQ_UPDATE, dma_dev->cap_mask) ? "pq_update " : "",
-	  dma_has_cap(DMA_PQ_ZERO_SUM, dma_dev->cap_mask) ? "pq_zero_sum " : "",
+	  dma_has_cap(DMA_PQ_VAL, dma_dev->cap_mask) ? "pq_val " : "",
 	  dma_has_cap(DMA_XOR, dma_dev->cap_mask) ? "xor " : "",
 	  dma_has_cap(DMA_DUAL_XOR, dma_dev->cap_mask) ? "dual_xor " : "",
-	  dma_has_cap(DMA_ZERO_SUM, dma_dev->cap_mask) ? "xor_zero_sum " : "",
+	  dma_has_cap(DMA_XOR_VAL, dma_dev->cap_mask) ? "xor_val " : "",
 	  dma_has_cap(DMA_MEMSET, dma_dev->cap_mask)  ? "fill " : "",
 	  dma_has_cap(DMA_MEMCPY_CRC32C, dma_dev->cap_mask) ? "cpy+crc " : "",
 	  dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask) ? "cpy " : "",

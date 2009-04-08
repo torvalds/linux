@@ -222,7 +222,7 @@ static int page_is_zero(struct page *p, unsigned int offset, size_t len)
 }
 
 /**
- * async_xor_zero_sum - attempt a xor parity check with a dma engine.
+ * async_xor_val - attempt a xor parity check with a dma engine.
  * @dest: destination page used if the xor is performed synchronously
  * @src_list: array of source pages.  The dest page must be listed as a source
  * 	at index zero.  The contents of this array may be overwritten.
@@ -236,13 +236,13 @@ static int page_is_zero(struct page *p, unsigned int offset, size_t len)
  * @cb_param: parameter to pass to the callback routine
  */
 struct dma_async_tx_descriptor *
-async_xor_zero_sum(struct page *dest, struct page **src_list,
+async_xor_val(struct page *dest, struct page **src_list,
 	unsigned int offset, int src_cnt, size_t len,
 	u32 *result, enum async_tx_flags flags,
 	struct dma_async_tx_descriptor *depend_tx,
 	dma_async_tx_callback cb_fn, void *cb_param)
 {
-	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_ZERO_SUM,
+	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_XOR_VAL,
 						      &dest, 1, src_list,
 						      src_cnt, len);
 	struct dma_device *device = chan ? chan->device : NULL;
@@ -261,15 +261,15 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 			dma_src[i] = dma_map_page(device->dev, src_list[i],
 						  offset, len, DMA_TO_DEVICE);
 
-		tx = device->device_prep_dma_zero_sum(chan, dma_src, src_cnt,
-						      len, result,
-						      dma_prep_flags);
+		tx = device->device_prep_dma_xor_val(chan, dma_src, src_cnt,
+						     len, result,
+						     dma_prep_flags);
 		if (unlikely(!tx)) {
 			async_tx_quiesce(&depend_tx);
 
 			while (!tx) {
 				dma_async_issue_pending(chan);
-				tx = device->device_prep_dma_zero_sum(chan,
+				tx = device->device_prep_dma_xor_val(chan,
 					dma_src, src_cnt, len, result,
 					dma_prep_flags);
 			}
@@ -296,7 +296,7 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 
 	return tx;
 }
-EXPORT_SYMBOL_GPL(async_xor_zero_sum);
+EXPORT_SYMBOL_GPL(async_xor_val);
 
 static int __init async_xor_init(void)
 {

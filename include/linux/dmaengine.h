@@ -55,8 +55,8 @@ enum dma_transaction_type {
 	DMA_PQ_XOR,
 	DMA_DUAL_XOR,
 	DMA_PQ_UPDATE,
-	DMA_ZERO_SUM,
-	DMA_PQ_ZERO_SUM,
+	DMA_XOR_VAL,
+	DMA_PQ_VAL,
 	DMA_MEMSET,
 	DMA_MEMCPY_CRC32C,
 	DMA_INTERRUPT,
@@ -214,7 +214,7 @@ struct dma_async_tx_descriptor {
  * @device_free_chan_resources: release DMA channel's resources
  * @device_prep_dma_memcpy: prepares a memcpy operation
  * @device_prep_dma_xor: prepares a xor operation
- * @device_prep_dma_zero_sum: prepares a zero_sum operation
+ * @device_prep_dma_xor_val: prepares a xor validation operation
  * @device_prep_dma_memset: prepares a memset operation
  * @device_prep_dma_interrupt: prepares an end of chain interrupt operation
  * @device_prep_slave_sg: prepares a slave dma operation
@@ -243,7 +243,7 @@ struct dma_device {
 	struct dma_async_tx_descriptor *(*device_prep_dma_xor)(
 		struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 		unsigned int src_cnt, size_t len, unsigned long flags);
-	struct dma_async_tx_descriptor *(*device_prep_dma_zero_sum)(
+	struct dma_async_tx_descriptor *(*device_prep_dma_xor_val)(
 		struct dma_chan *chan, dma_addr_t *src,	unsigned int src_cnt,
 		size_t len, u32 *result, unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_memset)(

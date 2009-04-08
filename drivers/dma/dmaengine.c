@@ -644,8 +644,8 @@ int dma_async_device_register(struct dma_device *device)
 		!device->device_prep_dma_memcpy);
 	BUG_ON(dma_has_cap(DMA_XOR, device->cap_mask) &&
 		!device->device_prep_dma_xor);
-	BUG_ON(dma_has_cap(DMA_ZERO_SUM, device->cap_mask) &&
-		!device->device_prep_dma_zero_sum);
+	BUG_ON(dma_has_cap(DMA_XOR_VAL, device->cap_mask) &&
+		!device->device_prep_dma_xor_val);
 	BUG_ON(dma_has_cap(DMA_MEMSET, device->cap_mask) &&
 		!device->device_prep_dma_memset);
 	BUG_ON(dma_has_cap(DMA_INTERRUPT, device->cap_mask) &&

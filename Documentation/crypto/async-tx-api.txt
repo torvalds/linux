@@ -61,13 +61,13 @@ async_<operation>(<op specific parameters>,
 		  void *callback_parameter);
 
 3.2 Supported operations:
-memcpy       - memory copy between a source and a destination buffer
-memset       - fill a destination buffer with a byte value
-xor          - xor a series of source buffers and write the result to a
-	       destination buffer
-xor_zero_sum - xor a series of source buffers and set a flag if the
-	       result is zero.  The implementation attempts to prevent
-	       writes to memory
+memcpy  - memory copy between a source and a destination buffer
+memset  - fill a destination buffer with a byte value
+xor     - xor a series of source buffers and write the result to a
+	  destination buffer
+xor_val - xor a series of source buffers and set a flag if the
+	  result is zero.  The implementation attempts to prevent
+	  writes to memory
 
 3.3 Descriptor management:
 The return value is non-NULL and points to a 'descriptor' when the operation
