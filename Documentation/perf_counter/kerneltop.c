@@ -1277,22 +1277,22 @@ static void mmap_read(struct mmap_data *md)
 
 		old += size;
 
-		switch (event->header.type) {
-		case PERF_EVENT_COUNTER_OVERFLOW | __PERF_EVENT_IP:
-		case PERF_EVENT_COUNTER_OVERFLOW | __PERF_EVENT_IP | __PERF_EVENT_TID:
-			process_event(event->ip.ip, md->counter);
-			break;
-
-		case PERF_EVENT_MMAP:
-		case PERF_EVENT_MUNMAP:
-			printf("%s: %Lu %Lu %Lu %s\n",
-					event->header.type == PERF_EVENT_MMAP
-					  ? "mmap" : "munmap",
-					event->mmap.start,
-					event->mmap.len,
-					event->mmap.pgoff,
-					event->mmap.filename);
-			break;
+		if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
+			if (event->header.type & PERF_RECORD_IP)
+				process_event(event->ip.ip, md->counter);
+		} else {
+			switch (event->header.type) {
+				case PERF_EVENT_MMAP:
+				case PERF_EVENT_MUNMAP:
+					printf("%s: %Lu %Lu %Lu %s\n",
+							event->header.type == PERF_EVENT_MMAP
+							? "mmap" : "munmap",
+							event->mmap.start,
+							event->mmap.len,
+							event->mmap.pgoff,
+							event->mmap.filename);
+					break;
+			}
 		}
 	}
 
