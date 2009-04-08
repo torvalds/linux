@@ -851,11 +851,7 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 		bio_io_error(bio);
 		return;
 	}
-	if (unlikely(bio_barrier(bio) && !dm_table_barrier_ok(ci.map))) {
-		dm_table_put(ci.map);
-		bio_endio(bio, -EOPNOTSUPP);
-		return;
-	}
+
 	ci.md = md;
 	ci.bio = bio;
 	ci.io = alloc_io(md);
@@ -936,6 +932,15 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	int rw = bio_data_dir(bio);
 	struct mapped_device *md = q->queuedata;
 	int cpu;
+
+	/*
+	 * There is no use in forwarding any barrier request since we can't
+	 * guarantee it is (or can be) handled by the targets correctly.
+	 */
+	if (unlikely(bio_barrier(bio))) {
+		bio_endio(bio, -EOPNOTSUPP);
+		return 0;
+	}
 
 	down_read(&md->io_lock);
 
