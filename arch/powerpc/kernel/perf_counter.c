@@ -457,8 +457,7 @@ static void counter_sched_in(struct perf_counter *counter, int cpu)
 {
 	counter->state = PERF_COUNTER_STATE_ACTIVE;
 	counter->oncpu = cpu;
-	counter->tstamp_running += counter->ctx->time_now -
-		counter->tstamp_stopped;
+	counter->tstamp_running += counter->ctx->time - counter->tstamp_stopped;
 	if (is_software_counter(counter))
 		counter->hw_ops->enable(counter);
 }
