@@ -2222,23 +2222,22 @@ static enum stv090x_delsys stv090x_get_std(struct stv090x_state *state)
 static s32 stv090x_get_car_freq(struct stv090x_state *state, u32 mclk)
 {
 	s32 derot, int_1, int_2, tmp_1, tmp_2;
-	u32 pow2;
 
 	derot  = STV090x_READ_DEMOD(state, CFR2) << 16;
 	derot |= STV090x_READ_DEMOD(state, CFR1) <<  8;
 	derot |= STV090x_READ_DEMOD(state, CFR0);
 
 	derot = comp2(derot, 24);
-	pow2 = 1 << 12;
-	int_1 = state->mclk / pow2;
-	int_2 = derot / pow2;
+	int_1 = state->mclk >> 12;
+	int_2 = derot >> 12;
 
-	tmp_1 = state->mclk % pow2;
-	tmp_2 = derot % pow2;
+	/* carrier_frequency = MasterClock * Reg / 2^24 */
+	tmp_1 = state->mclk % 0x1000;
+	tmp_2 = derot % 0x1000;
 
 	derot = (int_1 * int_2) +
-		((int_1 * tmp_2) / pow2) +
-		((int_1 * tmp_1) / pow2);
+		((int_1 * tmp_2) >> 12) +
+		((int_1 * tmp_1) >> 12);
 
 	return derot;
 }
