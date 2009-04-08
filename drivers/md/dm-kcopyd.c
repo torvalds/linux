@@ -511,13 +511,16 @@ static void segment_complete(int read_err, unsigned long write_err,
 	} else if (atomic_dec_and_test(&job->sub_jobs)) {
 
 		/*
-		 * To avoid a race we must keep the job around
-		 * until after the notify function has completed.
-		 * Otherwise the client may try and stop the job
-		 * after we've completed.
+		 * Queue the completion callback to the kcopyd thread.
+		 *
+		 * Some callers assume that all the completions are called
+		 * from a single thread and don't race with each other.
+		 *
+		 * We must not call the callback directly here because this
+		 * code may not be executing in the thread.
 		 */
-		job->fn(read_err, write_err, job->context);
-		mempool_free(job, job->kc->job_pool);
+		push(&kc->complete_jobs, job);
+		wake(kc);
 	}
 }
 
@@ -529,6 +532,8 @@ static void segment_complete(int read_err, unsigned long write_err,
 static void split_job(struct kcopyd_job *job)
 {
 	int i;
+
+	atomic_inc(&job->kc->nr_jobs);
 
 	atomic_set(&job->sub_jobs, SPLIT_COUNT);
 	for (i = 0; i < SPLIT_COUNT; i++)
