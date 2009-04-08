@@ -41,17 +41,13 @@
 
 #define ACPI_BUTTON_SUBCLASS_POWER	"power"
 #define ACPI_BUTTON_HID_POWER		"PNP0C0C"
-#define ACPI_BUTTON_DEVICE_NAME_POWER	"Power Button (CM)"
-#define ACPI_BUTTON_DEVICE_NAME_POWERF	"Power Button (FF)"
+#define ACPI_BUTTON_DEVICE_NAME_POWER	"Power Button"
 #define ACPI_BUTTON_TYPE_POWER		0x01
-#define ACPI_BUTTON_TYPE_POWERF		0x02
 
 #define ACPI_BUTTON_SUBCLASS_SLEEP	"sleep"
 #define ACPI_BUTTON_HID_SLEEP		"PNP0C0E"
-#define ACPI_BUTTON_DEVICE_NAME_SLEEP	"Sleep Button (CM)"
-#define ACPI_BUTTON_DEVICE_NAME_SLEEPF	"Sleep Button (FF)"
+#define ACPI_BUTTON_DEVICE_NAME_SLEEP	"Sleep Button"
 #define ACPI_BUTTON_TYPE_SLEEP		0x03
-#define ACPI_BUTTON_TYPE_SLEEPF		0x04
 
 #define ACPI_BUTTON_SUBCLASS_LID	"lid"
 #define ACPI_BUTTON_HID_LID		"PNP0C0D"
@@ -166,14 +162,12 @@ static int acpi_button_add_fs(struct acpi_device *device)
 
 	switch (button->type) {
 	case ACPI_BUTTON_TYPE_POWER:
-	case ACPI_BUTTON_TYPE_POWERF:
 		if (!acpi_power_dir)
 			acpi_power_dir = proc_mkdir(ACPI_BUTTON_SUBCLASS_POWER,
 						    acpi_button_dir);
 		entry = acpi_power_dir;
 		break;
 	case ACPI_BUTTON_TYPE_SLEEP:
-	case ACPI_BUTTON_TYPE_SLEEPF:
 		if (!acpi_sleep_dir)
 			acpi_sleep_dir = proc_mkdir(ACPI_BUTTON_SUBCLASS_SLEEP,
 						    acpi_button_dir);
@@ -315,28 +309,16 @@ static int acpi_button_add(struct acpi_device *device)
 	name = acpi_device_name(device);
 	class = acpi_device_class(device);
 
-	/*
-	 * Determine the button type (via hid), as fixed-feature buttons
-	 * need to be handled a bit differently than generic-space.
-	 */
-	if (!strcmp(hid, ACPI_BUTTON_HID_POWER)) {
+	if (!strcmp(hid, ACPI_BUTTON_HID_POWER) ||
+	    !strcmp(hid, ACPI_BUTTON_HID_POWERF)) {
 		button->type = ACPI_BUTTON_TYPE_POWER;
 		strcpy(name, ACPI_BUTTON_DEVICE_NAME_POWER);
 		sprintf(class, "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_POWER);
-	} else if (!strcmp(hid, ACPI_BUTTON_HID_POWERF)) {
-		button->type = ACPI_BUTTON_TYPE_POWERF;
-		strcpy(name, ACPI_BUTTON_DEVICE_NAME_POWERF);
-		sprintf(class, "%s/%s",
-			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_POWER);
-	} else if (!strcmp(hid, ACPI_BUTTON_HID_SLEEP)) {
+	} else if (!strcmp(hid, ACPI_BUTTON_HID_SLEEP) ||
+		   !strcmp(hid, ACPI_BUTTON_HID_SLEEPF)) {
 		button->type = ACPI_BUTTON_TYPE_SLEEP;
 		strcpy(name, ACPI_BUTTON_DEVICE_NAME_SLEEP);
-		sprintf(class, "%s/%s",
-			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_SLEEP);
-	} else if (!strcmp(hid, ACPI_BUTTON_HID_SLEEPF)) {
-		button->type = ACPI_BUTTON_TYPE_SLEEPF;
-		strcpy(name, ACPI_BUTTON_DEVICE_NAME_SLEEPF);
 		sprintf(class, "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_SLEEP);
 	} else if (!strcmp(hid, ACPI_BUTTON_HID_LID)) {
@@ -364,13 +346,11 @@ static int acpi_button_add(struct acpi_device *device)
 
 	switch (button->type) {
 	case ACPI_BUTTON_TYPE_POWER:
-	case ACPI_BUTTON_TYPE_POWERF:
 		input->evbit[0] = BIT_MASK(EV_KEY);
 		set_bit(KEY_POWER, input->keybit);
 		break;
 
 	case ACPI_BUTTON_TYPE_SLEEP:
-	case ACPI_BUTTON_TYPE_SLEEPF:
 		input->evbit[0] = BIT_MASK(EV_KEY);
 		set_bit(KEY_SLEEP, input->keybit);
 		break;
