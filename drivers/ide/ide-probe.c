@@ -335,14 +335,11 @@ int ide_busy_sleep(ide_hwif_t *hwif, unsigned long timeout, int altstatus)
 
 static u8 ide_read_device(ide_drive_t *drive)
 {
-	struct ide_cmd cmd;
+	struct ide_taskfile tf;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.valid.in.tf = IDE_VALID_DEVICE;
+	drive->hwif->tp_ops->tf_read(drive, &tf, IDE_VALID_DEVICE);
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
-
-	return cmd.tf.device;
+	return tf.device;
 }
 
 /**

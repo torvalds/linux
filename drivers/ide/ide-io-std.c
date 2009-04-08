@@ -112,22 +112,17 @@ void ide_tf_load(ide_drive_t *drive, struct ide_taskfile *tf, u8 valid)
 }
 EXPORT_SYMBOL_GPL(ide_tf_load);
 
-void ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
+void ide_tf_read(ide_drive_t *drive, struct ide_taskfile *tf, u8 valid)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
-	struct ide_taskfile *tf = &cmd->tf;
 	u8 (*tf_inb)(unsigned long port);
-	u8 valid = cmd->valid.in.tf;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 
 	if (mmio)
 		tf_inb  = ide_mm_inb;
 	else
 		tf_inb  = ide_inb;
-
-	/* be sure we're looking at the low order bits */
-	hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	if (valid & IDE_VALID_ERROR)
 		tf->error  = tf_inb(io_ports->feature_addr);
@@ -141,24 +136,6 @@ void ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 		tf->lbah   = tf_inb(io_ports->lbah_addr);
 	if (valid & IDE_VALID_DEVICE)
 		tf->device = tf_inb(io_ports->device_addr);
-
-	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
-		hwif->tp_ops->write_devctl(hwif, ATA_HOB | ATA_DEVCTL_OBS);
-
-		tf = &cmd->hob;
-		valid = cmd->valid.in.hob;
-
-		if (valid & IDE_VALID_ERROR)
-			tf->error = tf_inb(io_ports->feature_addr);
-		if (valid & IDE_VALID_NSECT)
-			tf->nsect = tf_inb(io_ports->nsect_addr);
-		if (valid & IDE_VALID_LBAL)
-			tf->lbal  = tf_inb(io_ports->lbal_addr);
-		if (valid & IDE_VALID_LBAM)
-			tf->lbam  = tf_inb(io_ports->lbam_addr);
-		if (valid & IDE_VALID_LBAH)
-			tf->lbah  = tf_inb(io_ports->lbah_addr);
-	}
 }
 EXPORT_SYMBOL_GPL(ide_tf_read);
 

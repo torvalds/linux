@@ -254,15 +254,13 @@ EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
 
 void ide_read_bcount_and_ireason(ide_drive_t *drive, u16 *bcount, u8 *ireason)
 {
-	struct ide_cmd cmd;
+	struct ide_taskfile tf;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.valid.in.tf = IDE_VALID_LBAH | IDE_VALID_LBAM | IDE_VALID_NSECT;
+	drive->hwif->tp_ops->tf_read(drive, &tf, IDE_VALID_NSECT |
+				     IDE_VALID_LBAM | IDE_VALID_LBAH);
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
-
-	*bcount = (cmd.tf.lbah << 8) | cmd.tf.lbam;
-	*ireason = cmd.tf.nsect & 3;
+	*bcount = (tf.lbah << 8) | tf.lbam;
+	*ireason = tf.nsect & 3;
 }
 EXPORT_SYMBOL_GPL(ide_read_bcount_and_ireason);
 
@@ -452,14 +450,11 @@ static void ide_init_packet_cmd(struct ide_cmd *cmd, u8 valid_tf,
 
 static u8 ide_read_ireason(ide_drive_t *drive)
 {
-	struct ide_cmd cmd;
+	struct ide_taskfile tf;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.valid.in.tf = IDE_VALID_NSECT;
+	drive->hwif->tp_ops->tf_read(drive, &tf, IDE_VALID_NSECT);
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
-
-	return cmd.tf.nsect & 3;
+	return tf.nsect & 3;
 }
 
 static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)

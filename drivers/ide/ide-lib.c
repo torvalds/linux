@@ -79,7 +79,7 @@ static void ide_dump_sector(ide_drive_t *drive)
 	} else
 		cmd.valid.in.tf  = IDE_VALID_LBA | IDE_VALID_DEVICE;
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
+	ide_tf_readback(drive, &cmd);
 
 	if (lba48 || (tf->device & ATA_LBA))
 		printk(KERN_CONT ", LBAsect=%llu",

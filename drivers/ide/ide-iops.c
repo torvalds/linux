@@ -37,14 +37,11 @@ void SELECT_MASK(ide_drive_t *drive, int mask)
 
 u8 ide_read_error(ide_drive_t *drive)
 {
-	struct ide_cmd cmd;
+	struct ide_taskfile tf;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.valid.in.tf = IDE_VALID_ERROR;
+	drive->hwif->tp_ops->tf_read(drive, &tf, IDE_VALID_ERROR);
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
-
-	return cmd.tf.error;
+	return tf.error;
 }
 EXPORT_SYMBOL_GPL(ide_read_error);
 

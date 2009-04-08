@@ -90,7 +90,7 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 		cmd->hob.data = data[1];
 	}
 
-	tp_ops->tf_read(drive, cmd);
+	ide_tf_readback(drive, cmd);
 
 	if ((cmd->tf_flags & IDE_TFLAG_CUSTOM_HANDLER) &&
 	    tf_cmd == ATA_CMD_IDLEIMMEDIATE) {

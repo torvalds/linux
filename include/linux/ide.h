@@ -625,7 +625,7 @@ struct ide_tp_ops {
 
 	void	(*dev_select)(ide_drive_t *);
 	void	(*tf_load)(ide_drive_t *, struct ide_taskfile *, u8);
-	void	(*tf_read)(ide_drive_t *, struct ide_cmd *);
+	void	(*tf_read)(ide_drive_t *, struct ide_taskfile *, u8);
 
 	void	(*input_data)(ide_drive_t *, struct ide_cmd *,
 			      void *, unsigned int);
@@ -1124,6 +1124,7 @@ extern int ide_devset_execute(ide_drive_t *drive,
 void ide_complete_cmd(ide_drive_t *, struct ide_cmd *, u8, u8);
 int ide_complete_rq(ide_drive_t *, int, unsigned int);
 
+void ide_tf_readback(ide_drive_t *drive, struct ide_cmd *cmd);
 void ide_tf_dump(const char *, struct ide_cmd *);
 
 void ide_exec_command(ide_hwif_t *, u8);
@@ -1133,7 +1134,7 @@ void ide_write_devctl(ide_hwif_t *, u8);
 
 void ide_dev_select(ide_drive_t *);
 void ide_tf_load(ide_drive_t *, struct ide_taskfile *, u8);
-void ide_tf_read(ide_drive_t *, struct ide_cmd *);
+void ide_tf_read(ide_drive_t *, struct ide_taskfile *, u8);
 
 void ide_input_data(ide_drive_t *, struct ide_cmd *, void *, unsigned int);
 void ide_output_data(ide_drive_t *, struct ide_cmd *, void *, unsigned int);

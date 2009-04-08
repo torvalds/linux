@@ -663,14 +663,9 @@ static void scc_tf_load(ide_drive_t *drive, struct ide_taskfile *tf, u8 valid)
 		scc_ide_outb(tf->device, io_ports->device_addr);
 }
 
-static void scc_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
+static void scc_tf_read(ide_drive_t *drive, struct ide_taskfile *tf, u8 valid)
 {
 	struct ide_io_ports *io_ports = &drive->hwif->io_ports;
-	struct ide_taskfile *tf = &cmd->tf;
-	u8 valid = cmd->valid.in.tf;
-
-	/* be sure we're looking at the low order bits */
-	scc_write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	if (valid & IDE_VALID_ERROR)
 		tf->error  = scc_ide_inb(io_ports->feature_addr);
@@ -684,24 +679,6 @@ static void scc_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 		tf->lbah   = scc_ide_inb(io_ports->lbah_addr);
 	if (valid & IDE_VALID_DEVICE)
 		tf->device = scc_ide_inb(io_ports->device_addr);
-
-	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
-		scc_write_devctl(hwif, ATA_HOB | ATA_DEVCTL_OBS);
-
-		tf = &cmd->hob;
-		valid = cmd->valid.in.hob;
-
-		if (valid & IDE_VALID_ERROR)
-			tf->error = scc_ide_inb(io_ports->feature_addr);
-		if (valid & IDE_VALID_NSECT)
-			tf->nsect = scc_ide_inb(io_ports->nsect_addr);
-		if (valid & IDE_VALID_LBAL)
-			tf->lbal  = scc_ide_inb(io_ports->lbal_addr);
-		if (valid & IDE_VALID_LBAM)
-			tf->lbam  = scc_ide_inb(io_ports->lbam_addr);
-		if (valid & IDE_VALID_LBAH)
-			tf->lbah  = scc_ide_inb(io_ports->lbah_addr);
-	}
 }
 
 static void scc_input_data(ide_drive_t *drive, struct ide_cmd *cmd,

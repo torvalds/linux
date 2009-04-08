@@ -23,6 +23,23 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+void ide_tf_readback(ide_drive_t *drive, struct ide_cmd *cmd)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
+
+	/* Be sure we're looking at the low order bytes */
+	tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
+
+	tp_ops->tf_read(drive, &cmd->tf, cmd->valid.in.tf);
+
+	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
+		tp_ops->write_devctl(hwif, ATA_HOB | ATA_DEVCTL_OBS);
+
+		tp_ops->tf_read(drive, &cmd->hob, cmd->valid.in.hob);
+	}
+}
+
 void ide_tf_dump(const char *s, struct ide_cmd *cmd)
 {
 #ifdef DEBUG
