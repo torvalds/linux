@@ -671,9 +671,3 @@ void refund_locked_buffer_memory(struct mm_struct *mm, size_t size)
 
 	up_write(&mm->mmap_sem);
 }
-
-void free_locked_buffer(void *buffer, size_t size)
-{
-	refund_locked_buffer_memory(current->mm, size);
-	kfree(buffer);
-}
