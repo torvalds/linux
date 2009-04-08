@@ -74,9 +74,8 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	entry->line = f->line;
 	entry->correct = val == expect;
 
-	filter_check_discard(call, entry, event);
-
-	ring_buffer_unlock_commit(tr->buffer, event);
+	if (!filter_check_discard(call, entry, tr->buffer, event))
+		ring_buffer_unlock_commit(tr->buffer, event);
 
  out:
 	atomic_dec(&tr->data[cpu]->disabled);

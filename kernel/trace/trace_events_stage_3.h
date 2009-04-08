@@ -222,11 +222,8 @@ static void ftrace_raw_event_##call(proto)				\
 									\
 	assign;								\
 									\
-	if (call->preds && !filter_match_preds(call, entry))		\
-		trace_current_buffer_discard_commit(event);		\
-	else								\
+	if (!filter_current_check_discard(call, entry, event))		\
 		trace_nowake_buffer_unlock_commit(event, irq_flags, pc); \
-									\
 }									\
 									\
 static int ftrace_raw_reg_event_##call(void)				\

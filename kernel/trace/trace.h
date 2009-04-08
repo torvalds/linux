@@ -866,13 +866,21 @@ extern int filter_match_preds(struct ftrace_event_call *call, void *rec);
 extern void filter_free_subsystem_preds(struct event_subsystem *system);
 extern int filter_add_subsystem_pred(struct event_subsystem *system,
 				     struct filter_pred *pred);
+extern int filter_current_check_discard(struct ftrace_event_call *call,
+					void *rec,
+					struct ring_buffer_event *event);
 
-static inline void
+static inline int
 filter_check_discard(struct ftrace_event_call *call, void *rec,
+		     struct ring_buffer *buffer,
 		     struct ring_buffer_event *event)
 {
-	if (unlikely(call->preds) && !filter_match_preds(call, rec))
-		ring_buffer_event_discard(event);
+	if (unlikely(call->preds) && !filter_match_preds(call, rec)) {
+		ring_buffer_discard_commit(buffer, event);
+		return 1;
+	}
+
+	return 0;
 }
 
 #define __common_field(type, item)					\

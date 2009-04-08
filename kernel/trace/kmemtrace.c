@@ -63,9 +63,8 @@ static inline void kmemtrace_alloc(enum kmemtrace_type_id type_id,
 	entry->gfp_flags	= gfp_flags;
 	entry->node		= node;
 
-	filter_check_discard(call, entry, event);
-
-	ring_buffer_unlock_commit(tr->buffer, event);
+	if (!filter_check_discard(call, entry, tr->buffer, event))
+		ring_buffer_unlock_commit(tr->buffer, event);
 
 	trace_wake_up();
 }
@@ -90,9 +89,8 @@ static inline void kmemtrace_free(enum kmemtrace_type_id type_id,
 	entry->call_site	= call_site;
 	entry->ptr		= ptr;
 
-	filter_check_discard(call, entry, event);
-
-	ring_buffer_unlock_commit(tr->buffer, event);
+	if (!filter_check_discard(call, entry, tr->buffer, event))
+		ring_buffer_unlock_commit(tr->buffer, event);
 
 	trace_wake_up();
 }
