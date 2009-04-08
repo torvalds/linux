@@ -128,7 +128,8 @@ static enum whc_update pzl_process_qset(struct whc *whc, struct whc_qset *qset)
 		process_inactive_qtd(whc, qset, td);
 	}
 
-	update |= qset_add_qtds(whc, qset);
+	if (!qset->remove)
+		update |= qset_add_qtds(whc, qset);
 
 done:
 	/*
@@ -352,7 +353,6 @@ void pzl_qset_delete(struct whc *whc, struct whc_qset *qset)
 	queue_work(whc->workqueue, &whc->periodic_work);
 	qset_delete(whc, qset);
 }
-
 
 /**
  * pzl_init - initialize the periodic zone list

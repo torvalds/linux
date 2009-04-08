@@ -122,7 +122,8 @@ static uint32_t process_qset(struct whc *whc, struct whc_qset *qset)
 		process_inactive_qtd(whc, qset, td);
 	}
 
-	update |= qset_add_qtds(whc, qset);
+	if (!qset->remove)
+		update |= qset_add_qtds(whc, qset);
 
 done:
 	/*
