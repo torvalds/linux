@@ -66,19 +66,21 @@ void smp_thermal_interrupt(struct pt_regs *regs)
 	irq_exit();
 }
 
+static void intel_set_thermal_handler(void)
+{
+	vendor_thermal_interrupt = intel_thermal_interrupt;
+}
+
 /* P4/Xeon Thermal regulation detect and init: */
 static void intel_init_thermal(struct cpuinfo_x86 *c)
 {
 	unsigned int cpu = smp_processor_id();
+	int tm2 = 0;
 	u32 l, h;
 
-	/* Thermal monitoring: */
-	if (!cpu_has(c, X86_FEATURE_ACPI))
-		return;	/* -ENODEV */
-
-	/* Clock modulation: */
-	if (!cpu_has(c, X86_FEATURE_ACC))
-		return;	/* -ENODEV */
+	/* Thermal monitoring depends on ACPI and clock modulation*/
+	if (!cpu_has(c, X86_FEATURE_ACPI) || !cpu_has(c, X86_FEATURE_ACC))
+		return;
 
 	/*
 	 * First check if its enabled already, in which case there might
@@ -90,35 +92,28 @@ static void intel_init_thermal(struct cpuinfo_x86 *c)
 	if ((l & MSR_IA32_MISC_ENABLE_TM1) && (h & APIC_DM_SMI)) {
 		printk(KERN_DEBUG
 		       "CPU%d: Thermal monitoring handled by SMI\n", cpu);
-
-		return; /* -EBUSY */
+		return;
 	}
 
-	/* Check whether a vector already exists, temporarily masked? */
+	if (cpu_has(c, X86_FEATURE_TM2) && (l & MSR_IA32_MISC_ENABLE_TM2))
+		tm2 = 1;
+
+	/* Check whether a vector already exists */
 	if (h & APIC_VECTOR_MASK) {
 		printk(KERN_DEBUG
 		       "CPU%d: Thermal LVT vector (%#x) already installed\n",
 		       cpu, (h & APIC_VECTOR_MASK));
-
-		return; /* -EBUSY */
+		return;
 	}
 
-	/*
-	 * The temperature transition interrupt handler setup:
-	 */
-
-	/* Our delivery vector: */
-	h = THERMAL_APIC_VECTOR;
-
 	/* We'll mask the thermal vector in the lapic till we're ready: */
-	h |= APIC_DM_FIXED | APIC_LVT_MASKED;
+	h = THERMAL_APIC_VECTOR | APIC_DM_FIXED | APIC_LVT_MASKED;
 	apic_write(APIC_LVTTHMR, h);
 
 	rdmsr(MSR_IA32_THERM_INTERRUPT, l, h);
-	wrmsr(MSR_IA32_THERM_INTERRUPT, l | 0x03 , h);
+	wrmsr(MSR_IA32_THERM_INTERRUPT, l | 0x03, h);
 
-	/* Ok, we're good to go... */
-	vendor_thermal_interrupt = intel_thermal_interrupt;
+	intel_set_thermal_handler();
 
 	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
 	wrmsr(MSR_IA32_MISC_ENABLE, l | MSR_IA32_MISC_ENABLE_TM1, h);
@@ -127,7 +122,8 @@ static void intel_init_thermal(struct cpuinfo_x86 *c)
 	l = apic_read(APIC_LVTTHMR);
 	apic_write(APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
 
-	printk(KERN_INFO "CPU%d: Thermal monitoring enabled\n", cpu);
+	printk(KERN_INFO "CPU%d: Thermal monitoring enabled (%s)\n",
+	       cpu, tm2 ? "TM2" : "TM1");
 
 	/* enable thermal throttle processing */
 	atomic_set(&therm_throt_en, 1);
