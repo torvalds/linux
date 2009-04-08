@@ -1152,11 +1152,11 @@ static struct fb_ops mx3fb_ops = {
  */
 static int mx3fb_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct mx3fb_data *drv_data = platform_get_drvdata(pdev);
-	struct mx3fb_info *mx3_fbi = drv_data->fbi->par;
+	struct mx3fb_data *mx3fb = platform_get_drvdata(pdev);
+	struct mx3fb_info *mx3_fbi = mx3fb->fbi->par;
 
 	acquire_console_sem();
-	fb_set_suspend(drv_data->fbi, 1);
+	fb_set_suspend(mx3fb->fbi, 1);
 	release_console_sem();
 
 	if (mx3_fbi->blank == FB_BLANK_UNBLANK) {
@@ -1172,16 +1172,16 @@ static int mx3fb_suspend(struct platform_device *pdev, pm_message_t state)
  */
 static int mx3fb_resume(struct platform_device *pdev)
 {
-	struct mx3fb_data *drv_data = platform_get_drvdata(pdev);
-	struct mx3fb_info *mx3_fbi = drv_data->fbi->par;
+	struct mx3fb_data *mx3fb = platform_get_drvdata(pdev);
+	struct mx3fb_info *mx3_fbi = mx3fb->fbi->par;
 
 	if (mx3_fbi->blank == FB_BLANK_UNBLANK) {
 		sdc_enable_channel(mx3_fbi);
-		sdc_set_brightness(mx3fb, drv_data->backlight_level);
+		sdc_set_brightness(mx3fb, mx3fb->backlight_level);
 	}
 
 	acquire_console_sem();
-	fb_set_suspend(drv_data->fbi, 0);
+	fb_set_suspend(mx3fb->fbi, 0);
 	release_console_sem();
 
 	return 0;
