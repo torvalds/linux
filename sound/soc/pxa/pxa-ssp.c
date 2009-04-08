@@ -568,7 +568,10 @@ static int pxa_ssp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		case SND_SOC_DAIFMT_NB_IF:
 			break;
 		case SND_SOC_DAIFMT_IB_IF:
-			sspsp |= SSPSP_SCMODE(3);
+			sspsp |= SSPSP_SCMODE(2);
+			break;
+		case SND_SOC_DAIFMT_IB_NF:
+			sspsp |= SSPSP_SCMODE(2) | SSPSP_SFRMP;
 			break;
 		default:
 			return -EINVAL;
@@ -585,7 +588,13 @@ static int pxa_ssp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		case SND_SOC_DAIFMT_NB_NF:
 			sspsp |= SSPSP_SFRMP;
 			break;
+		case SND_SOC_DAIFMT_NB_IF:
+			break;
 		case SND_SOC_DAIFMT_IB_IF:
+			sspsp |= SSPSP_SCMODE(2);
+			break;
+		case SND_SOC_DAIFMT_IB_NF:
+			sspsp |= SSPSP_SCMODE(2) | SSPSP_SFRMP;
 			break;
 		default:
 			return -EINVAL;
