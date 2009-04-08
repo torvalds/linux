@@ -42,7 +42,10 @@
  */
 
 #include "drmP.h"
+#include "drm_mm.h"
 #include <linux/slab.h>
+
+#define MM_UNUSED_TARGET 4
 
 unsigned long drm_mm_tail_space(struct drm_mm *mm)
 {
@@ -74,16 +77,62 @@ int drm_mm_remove_space_from_tail(struct drm_mm *mm, unsigned long size)
 	return 0;
 }
 
-
-static int drm_mm_create_tail_node(struct drm_mm *mm,
-			    unsigned long start,
-			    unsigned long size)
+static struct drm_mm_node *drm_mm_kmalloc(struct drm_mm *mm, int atomic)
 {
 	struct drm_mm_node *child;
 
-	child = (struct drm_mm_node *)
-		drm_alloc(sizeof(*child), DRM_MEM_MM);
-	if (!child)
+	if (atomic)
+		child = kmalloc(sizeof(*child), GFP_ATOMIC);
+	else
+		child = kmalloc(sizeof(*child), GFP_KERNEL);
+
+	if (unlikely(child == NULL)) {
+		spin_lock(&mm->unused_lock);
+		if (list_empty(&mm->unused_nodes))
+			child = NULL;
+		else {
+			child =
+			    list_entry(mm->unused_nodes.next,
+				       struct drm_mm_node, fl_entry);
+			list_del(&child->fl_entry);
+			--mm->num_unused;
+		}
+		spin_unlock(&mm->unused_lock);
+	}
+	return child;
+}
+
+int drm_mm_pre_get(struct drm_mm *mm)
+{
+	struct drm_mm_node *node;
+
+	spin_lock(&mm->unused_lock);
+	while (mm->num_unused < MM_UNUSED_TARGET) {
+		spin_unlock(&mm->unused_lock);
+		node = kmalloc(sizeof(*node), GFP_KERNEL);
+		spin_lock(&mm->unused_lock);
+
+		if (unlikely(node == NULL)) {
+			int ret = (mm->num_unused < 2) ? -ENOMEM : 0;
+			spin_unlock(&mm->unused_lock);
+			return ret;
+		}
+		++mm->num_unused;
+		list_add_tail(&node->fl_entry, &mm->unused_nodes);
+	}
+	spin_unlock(&mm->unused_lock);
+	return 0;
+}
+EXPORT_SYMBOL(drm_mm_pre_get);
+
+static int drm_mm_create_tail_node(struct drm_mm *mm,
+				   unsigned long start,
+				   unsigned long size, int atomic)
+{
+	struct drm_mm_node *child;
+
+	child = drm_mm_kmalloc(mm, atomic);
+	if (unlikely(child == NULL))
 		return -ENOMEM;
 
 	child->free = 1;
@@ -97,8 +146,7 @@ static int drm_mm_create_tail_node(struct drm_mm *mm,
 	return 0;
 }
 
-
-int drm_mm_add_space_to_tail(struct drm_mm *mm, unsigned long size)
+int drm_mm_add_space_to_tail(struct drm_mm *mm, unsigned long size, int atomic)
 {
 	struct list_head *tail_node;
 	struct drm_mm_node *entry;
@@ -106,20 +154,21 @@ int drm_mm_add_space_to_tail(struct drm_mm *mm, unsigned long size)
 	tail_node = mm->ml_entry.prev;
 	entry = list_entry(tail_node, struct drm_mm_node, ml_entry);
 	if (!entry->free) {
-		return drm_mm_create_tail_node(mm, entry->start + entry->size, size);
+		return drm_mm_create_tail_node(mm, entry->start + entry->size,
+					       size, atomic);
 	}
 	entry->size += size;
 	return 0;
 }
 
 static struct drm_mm_node *drm_mm_split_at_start(struct drm_mm_node *parent,
-					    unsigned long size)
+						 unsigned long size,
+						 int atomic)
 {
 	struct drm_mm_node *child;
 
-	child = (struct drm_mm_node *)
-		drm_alloc(sizeof(*child), DRM_MEM_MM);
-	if (!child)
+	child = drm_mm_kmalloc(parent->mm, atomic);
+	if (unlikely(child == NULL))
 		return NULL;
 
 	INIT_LIST_HEAD(&child->fl_entry);
@@ -151,8 +200,9 @@ struct drm_mm_node *drm_mm_get_block(struct drm_mm_node * parent,
 		tmp = parent->start % alignment;
 
 	if (tmp) {
-		align_splitoff = drm_mm_split_at_start(parent, alignment - tmp);
-		if (!align_splitoff)
+		align_splitoff =
+		    drm_mm_split_at_start(parent, alignment - tmp, 0);
+		if (unlikely(align_splitoff == NULL))
 			return NULL;
 	}
 
@@ -161,7 +211,7 @@ struct drm_mm_node *drm_mm_get_block(struct drm_mm_node * parent,
 		parent->free = 0;
 		return parent;
 	} else {
-		child = drm_mm_split_at_start(parent, size);
+		child = drm_mm_split_at_start(parent, size, 0);
 	}
 
 	if (align_splitoff)
@@ -169,14 +219,49 @@ struct drm_mm_node *drm_mm_get_block(struct drm_mm_node * parent,
 
 	return child;
 }
+
 EXPORT_SYMBOL(drm_mm_get_block);
+
+struct drm_mm_node *drm_mm_get_block_atomic(struct drm_mm_node *parent,
+					    unsigned long size,
+					    unsigned alignment)
+{
+
+	struct drm_mm_node *align_splitoff = NULL;
+	struct drm_mm_node *child;
+	unsigned tmp = 0;
+
+	if (alignment)
+		tmp = parent->start % alignment;
+
+	if (tmp) {
+		align_splitoff =
+		    drm_mm_split_at_start(parent, alignment - tmp, 1);
+		if (unlikely(align_splitoff == NULL))
+			return NULL;
+	}
+
+	if (parent->size == size) {
+		list_del_init(&parent->fl_entry);
+		parent->free = 0;
+		return parent;
+	} else {
+		child = drm_mm_split_at_start(parent, size, 1);
+	}
+
+	if (align_splitoff)
+		drm_mm_put_block(align_splitoff);
+
+	return child;
+}
+EXPORT_SYMBOL(drm_mm_get_block_atomic);
 
 /*
  * Put a block. Merge with the previous and / or next block if they are free.
  * Otherwise add to the free stack.
  */
 
-void drm_mm_put_block(struct drm_mm_node * cur)
+void drm_mm_put_block(struct drm_mm_node *cur)
 {
 
 	struct drm_mm *mm = cur->mm;
@@ -188,21 +273,27 @@ void drm_mm_put_block(struct drm_mm_node * cur)
 	int merged = 0;
 
 	if (cur_head->prev != root_head) {
-		prev_node = list_entry(cur_head->prev, struct drm_mm_node, ml_entry);
+		prev_node =
+		    list_entry(cur_head->prev, struct drm_mm_node, ml_entry);
 		if (prev_node->free) {
 			prev_node->size += cur->size;
 			merged = 1;
 		}
 	}
 	if (cur_head->next != root_head) {
-		next_node = list_entry(cur_head->next, struct drm_mm_node, ml_entry);
+		next_node =
+		    list_entry(cur_head->next, struct drm_mm_node, ml_entry);
 		if (next_node->free) {
 			if (merged) {
 				prev_node->size += next_node->size;
 				list_del(&next_node->ml_entry);
 				list_del(&next_node->fl_entry);
-				drm_free(next_node, sizeof(*next_node),
-					 DRM_MEM_MM);
+				if (mm->num_unused < MM_UNUSED_TARGET) {
+					list_add(&next_node->fl_entry,
+						 &mm->unused_nodes);
+					++mm->num_unused;
+				} else
+					kfree(next_node);
 			} else {
 				next_node->size += cur->size;
 				next_node->start = cur->start;
@@ -215,14 +306,19 @@ void drm_mm_put_block(struct drm_mm_node * cur)
 		list_add(&cur->fl_entry, &mm->fl_entry);
 	} else {
 		list_del(&cur->ml_entry);
-		drm_free(cur, sizeof(*cur), DRM_MEM_MM);
+		if (mm->num_unused < MM_UNUSED_TARGET) {
+			list_add(&cur->fl_entry, &mm->unused_nodes);
+			++mm->num_unused;
+		} else
+			kfree(cur);
 	}
 }
+
 EXPORT_SYMBOL(drm_mm_put_block);
 
-struct drm_mm_node *drm_mm_search_free(const struct drm_mm * mm,
-				  unsigned long size,
-				  unsigned alignment, int best_match)
+struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
+				       unsigned long size,
+				       unsigned alignment, int best_match)
 {
 	struct list_head *list;
 	const struct list_head *free_stack = &mm->fl_entry;
@@ -247,7 +343,6 @@ struct drm_mm_node *drm_mm_search_free(const struct drm_mm * mm,
 				wasted += alignment - tmp;
 		}
 
-
 		if (entry->size >= size + wasted) {
 			if (!best_match)
 				return entry;
@@ -260,6 +355,7 @@ struct drm_mm_node *drm_mm_search_free(const struct drm_mm * mm,
 
 	return best;
 }
+EXPORT_SYMBOL(drm_mm_search_free);
 
 int drm_mm_clean(struct drm_mm * mm)
 {
@@ -267,14 +363,17 @@ int drm_mm_clean(struct drm_mm * mm)
 
 	return (head->next->next == head);
 }
-EXPORT_SYMBOL(drm_mm_search_free);
+EXPORT_SYMBOL(drm_mm_clean);
 
 int drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 {
 	INIT_LIST_HEAD(&mm->ml_entry);
 	INIT_LIST_HEAD(&mm->fl_entry);
+	INIT_LIST_HEAD(&mm->unused_nodes);
+	mm->num_unused = 0;
+	spin_lock_init(&mm->unused_lock);
 
-	return drm_mm_create_tail_node(mm, start, size);
+	return drm_mm_create_tail_node(mm, start, size, 0);
 }
 EXPORT_SYMBOL(drm_mm_init);
 
@@ -282,6 +381,7 @@ void drm_mm_takedown(struct drm_mm * mm)
 {
 	struct list_head *bnode = mm->fl_entry.next;
 	struct drm_mm_node *entry;
+	struct drm_mm_node *next;
 
 	entry = list_entry(bnode, struct drm_mm_node, fl_entry);
 
@@ -293,7 +393,16 @@ void drm_mm_takedown(struct drm_mm * mm)
 
 	list_del(&entry->fl_entry);
 	list_del(&entry->ml_entry);
+	kfree(entry);
 
-	drm_free(entry, sizeof(*entry), DRM_MEM_MM);
+	spin_lock(&mm->unused_lock);
+	list_for_each_entry_safe(entry, next, &mm->unused_nodes, fl_entry) {
+		list_del(&entry->fl_entry);
+		kfree(entry);
+		--mm->num_unused;
+	}
+	spin_unlock(&mm->unused_lock);
+
+	BUG_ON(mm->num_unused != 0);
 }
 EXPORT_SYMBOL(drm_mm_takedown);
