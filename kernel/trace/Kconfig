@@ -48,6 +48,9 @@ config FTRACE_NMI_ENTER
        depends on HAVE_FTRACE_NMI_ENTER
        default y
 
+config EVENT_TRACING
+	bool
+
 config TRACING
 	bool
 	select DEBUG_FS
@@ -56,6 +59,7 @@ config TRACING
 	select TRACEPOINTS
 	select NOP_TRACER
 	select BINARY_PRINTF
+	select EVENT_TRACING
 
 #
 # Minimum requirements an architecture has to meet for us to
