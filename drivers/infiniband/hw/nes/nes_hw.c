@@ -757,6 +757,10 @@ static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
 			((port_count > 2) &&
 			(nesadapter->phy_type[0] == NES_PHY_TYPE_PUMA_1G))) {
 			/* init serdes 1 */
+			if (nesadapter->phy_type[0] == NES_PHY_TYPE_ARGUS) {
+				nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_EMP0, 0x00000000);
+				nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_EMP1, 0x00000000);
+			}
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_CDR_CONTROL1, 0x000000FF);
 			if (nesadapter->phy_type[0] == NES_PHY_TYPE_PUMA_1G) {
 				serdes_common_control = nes_read_indexed(nesdev,
@@ -1259,203 +1263,155 @@ int nes_init_phy(struct nes_device *nesdev)
 {
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	u32 counter = 0;
-	u32 sds_common_control0;
+	u32 sds;
 	u32 mac_index = nesdev->mac_index;
 	u32 tx_config = 0;
 	u16 phy_data;
 	u32 temp_phy_data = 0;
 	u32 temp_phy_data2 = 0;
-	u32 i = 0;
+	u8  phy_type = nesadapter->phy_type[mac_index];
+	u8  phy_index = nesadapter->phy_index[mac_index];
 
 	if ((nesadapter->OneG_Mode) &&
-	    (nesadapter->phy_type[mac_index] != NES_PHY_TYPE_PUMA_1G)) {
+	    (phy_type != NES_PHY_TYPE_PUMA_1G)) {
 		nes_debug(NES_DBG_PHY, "1G PHY, mac_index = %d.\n", mac_index);
-		if (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_1G) {
-			printk(PFX "%s: Programming mdc config for 1G\n", __func__);
+		if (phy_type == NES_PHY_TYPE_1G) {
 			tx_config = nes_read_indexed(nesdev, NES_IDX_MAC_TX_CONFIG);
 			tx_config &= 0xFFFFFFE3;
 			tx_config |= 0x04;
 			nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONFIG, tx_config);
 		}
 
-		nes_read_1G_phy_reg(nesdev, 1, nesadapter->phy_index[mac_index], &phy_data);
-		nes_debug(NES_DBG_PHY, "Phy data from register 1 phy address %u = 0x%X.\n",
-				nesadapter->phy_index[mac_index], phy_data);
-		nes_write_1G_phy_reg(nesdev, 23, nesadapter->phy_index[mac_index], 0xb000);
+		nes_read_1G_phy_reg(nesdev, 1, phy_index, &phy_data);
+		nes_write_1G_phy_reg(nesdev, 23, phy_index, 0xb000);
 
 		/* Reset the PHY */
-		nes_write_1G_phy_reg(nesdev, 0, nesadapter->phy_index[mac_index], 0x8000);
+		nes_write_1G_phy_reg(nesdev, 0, phy_index, 0x8000);
 		udelay(100);
 		counter = 0;
 		do {
-			nes_read_1G_phy_reg(nesdev, 0, nesadapter->phy_index[mac_index], &phy_data);
-			nes_debug(NES_DBG_PHY, "Phy data from register 0 = 0x%X.\n", phy_data);
-			if (counter++ > 100) break;
+			nes_read_1G_phy_reg(nesdev, 0, phy_index, &phy_data);
+			if (counter++ > 100)
+				break;
 		} while (phy_data & 0x8000);
 
 		/* Setting no phy loopback */
 		phy_data &= 0xbfff;
 		phy_data |= 0x1140;
-		nes_write_1G_phy_reg(nesdev, 0, nesadapter->phy_index[mac_index],  phy_data);
-		nes_read_1G_phy_reg(nesdev, 0, nesadapter->phy_index[mac_index], &phy_data);
-		nes_debug(NES_DBG_PHY, "Phy data from register 0 = 0x%X.\n", phy_data);
-
-		nes_read_1G_phy_reg(nesdev, 0x17, nesadapter->phy_index[mac_index], &phy_data);
-		nes_debug(NES_DBG_PHY, "Phy data from register 0x17 = 0x%X.\n", phy_data);
-
-		nes_read_1G_phy_reg(nesdev, 0x1e, nesadapter->phy_index[mac_index], &phy_data);
-		nes_debug(NES_DBG_PHY, "Phy data from register 0x1e = 0x%X.\n", phy_data);
+		nes_write_1G_phy_reg(nesdev, 0, phy_index,  phy_data);
+		nes_read_1G_phy_reg(nesdev, 0, phy_index, &phy_data);
+		nes_read_1G_phy_reg(nesdev, 0x17, phy_index, &phy_data);
+		nes_read_1G_phy_reg(nesdev, 0x1e, phy_index, &phy_data);
 
 		/* Setting the interrupt mask */
-		nes_read_1G_phy_reg(nesdev, 0x19, nesadapter->phy_index[mac_index], &phy_data);
-		nes_debug(NES_DBG_PHY, "Phy data from register 0x19 = 0x%X.\n", phy_data);
-		nes_write_1G_phy_reg(nesdev, 0x19, nesadapter->phy_index[mac_index], 0xffee);
-
-		nes_read_1G_phy_reg(nesdev, 0x19, nesadapter->phy_index[mac_index], &phy_data);
-		nes_debug(NES_DBG_PHY, "Phy data from register 0x19 = 0x%X.\n", phy_data);
+		nes_read_1G_phy_reg(nesdev, 0x19, phy_index, &phy_data);
+		nes_write_1G_phy_reg(nesdev, 0x19, phy_index, 0xffee);
+		nes_read_1G_phy_reg(nesdev, 0x19, phy_index, &phy_data);
 
 		/* turning on flow control */
-		nes_read_1G_phy_reg(nesdev, 4, nesadapter->phy_index[mac_index], &phy_data);
-		nes_debug(NES_DBG_PHY, "Phy data from register 0x4 = 0x%X.\n", phy_data);
-		nes_write_1G_phy_reg(nesdev, 4, nesadapter->phy_index[mac_index],
-				(phy_data & ~(0x03E0)) | 0xc00);
-		/* nes_write_1G_phy_reg(nesdev, 4, nesadapter->phy_index[mac_index],
-				phy_data | 0xc00); */
-		nes_read_1G_phy_reg(nesdev, 4, nesadapter->phy_index[mac_index], &phy_data);
-		nes_debug(NES_DBG_PHY, "Phy data from register 0x4 = 0x%X.\n", phy_data);
+		nes_read_1G_phy_reg(nesdev, 4, phy_index, &phy_data);
+		nes_write_1G_phy_reg(nesdev, 4, phy_index, (phy_data & ~(0x03E0)) | 0xc00);
+		nes_read_1G_phy_reg(nesdev, 4, phy_index, &phy_data);
 
-		nes_read_1G_phy_reg(nesdev, 9, nesadapter->phy_index[mac_index], &phy_data);
-		nes_debug(NES_DBG_PHY, "Phy data from register 0x9 = 0x%X.\n", phy_data);
 		/* Clear Half duplex */
-		nes_write_1G_phy_reg(nesdev, 9, nesadapter->phy_index[mac_index],
-				phy_data & ~(0x0100));
-		nes_read_1G_phy_reg(nesdev, 9, nesadapter->phy_index[mac_index], &phy_data);
-		nes_debug(NES_DBG_PHY, "Phy data from register 0x9 = 0x%X.\n", phy_data);
+		nes_read_1G_phy_reg(nesdev, 9, phy_index, &phy_data);
+		nes_write_1G_phy_reg(nesdev, 9, phy_index, phy_data & ~(0x0100));
+		nes_read_1G_phy_reg(nesdev, 9, phy_index, &phy_data);
 
-		nes_read_1G_phy_reg(nesdev, 0, nesadapter->phy_index[mac_index], &phy_data);
-		nes_write_1G_phy_reg(nesdev, 0, nesadapter->phy_index[mac_index], phy_data | 0x0300);
-	} else {
-		if ((nesadapter->phy_type[mac_index] == NES_PHY_TYPE_IRIS) ||
-		    (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_ARGUS)) {
-			/* setup 10G MDIO operation */
-			tx_config = nes_read_indexed(nesdev, NES_IDX_MAC_TX_CONFIG);
-			tx_config &= 0xFFFFFFE3;
-			tx_config |= 0x15;
-			nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONFIG, tx_config);
-		}
-		if ((nesadapter->phy_type[mac_index] == NES_PHY_TYPE_ARGUS)) {
-			nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0xd7ee);
+		nes_read_1G_phy_reg(nesdev, 0, phy_index, &phy_data);
+		nes_write_1G_phy_reg(nesdev, 0, phy_index, phy_data | 0x0300);
 
-			temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
-			mdelay(10);
-			nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0xd7ee);
-			temp_phy_data2 = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+		return 0;
+	}
 
-			/*
-			 * if firmware is already running (like from a
-			 * driver un-load/load, don't do anything.
-			 */
-			if (temp_phy_data == temp_phy_data2) {
-				/* configure QT2505 AMCC PHY */
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0x0000, 0x8000);
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc300, 0x0000);
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc302, 0x0044);
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc318, 0x0052);
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc319, 0x0008);
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc31a, 0x0098);
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0x0026, 0x0E00);
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0x0027, 0x0001);
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0x0028, 0xA528);
+	if ((phy_type == NES_PHY_TYPE_IRIS) ||
+	    (phy_type == NES_PHY_TYPE_ARGUS)) {
+		/* setup 10G MDIO operation */
+		tx_config = nes_read_indexed(nesdev, NES_IDX_MAC_TX_CONFIG);
+		tx_config &= 0xFFFFFFE3;
+		tx_config |= 0x15;
+		nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONFIG, tx_config);
+	}
+	if ((phy_type == NES_PHY_TYPE_ARGUS)) {
+		/* Check firmware heartbeat */
+		nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7ee);
+		temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+		udelay(1500);
+		nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7ee);
+		temp_phy_data2 = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
 
-				/*
-				 * remove micro from reset; chip boots from ROM,
-				 * uploads EEPROM f/w image, uC executes f/w
-				 */
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc300, 0x0002);
+		if (temp_phy_data != temp_phy_data2)
+			return 0;
 
-				/*
-				 * wait for heart beat to start to
-				 * know loading is done
-				 */
-				counter = 0;
-				do {
-					nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0xd7ee);
-					temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
-					if (counter++ > 1000) {
-						nes_debug(NES_DBG_PHY, "AMCC PHY- breaking from heartbeat check <this is bad!!!> \n");
-						break;
-					}
-					mdelay(100);
-					nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0xd7ee);
-					temp_phy_data2 = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
-				} while ((temp_phy_data2 == temp_phy_data));
+		/* no heartbeat, configure the PHY */
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0x0000, 0x8000);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc300, 0x0000);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc302, 0x000C);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc316, 0x000A);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc318, 0x0052);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc319, 0x0008);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc31a, 0x0098);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0026, 0x0E00);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0027, 0x0001);
 
-				/*
-				 * wait for tracking to start to know
-				 * f/w is good to go
-				 */
-				counter = 0;
-				do {
-					nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0xd7fd);
-					temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
-					if (counter++ > 1000) {
-						nes_debug(NES_DBG_PHY, "AMCC PHY- breaking from status check <this is bad!!!> \n");
-						break;
-					}
-					mdelay(1000);
-					/*
-					 * nes_debug(NES_DBG_PHY, "AMCC PHY- phy_status not ready yet = 0x%02X\n",
-					 *			temp_phy_data);
-					 */
-				} while (((temp_phy_data & 0xff) != 0x50) && ((temp_phy_data & 0xff) != 0x70));
+		/* setup LEDs */
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xd006, 0x0007);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xd007, 0x000A);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xd008, 0x0009);
 
-				/* set LOS Control invert RXLOSB_I_PADINV */
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xd003, 0x0000);
-				/* set LOS Control to mask of RXLOSB_I */
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc314, 0x0042);
-				/* set LED1 to input mode (LED1 and LED2 share same LED) */
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xd006, 0x0007);
-				/* set LED2 to RX link_status and activity */
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xd007, 0x000A);
-				/* set LED3 to RX link_status */
-				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xd008, 0x0009);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0028, 0xA528);
 
-				/*
-				 * reset the res-calibration on t2
-				 * serdes; ensures it is stable after
-				 * the amcc phy is stable
-				 */
+		/* Bring PHY out of reset */
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc300, 0x0002);
 
-				sds_common_control0  = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0);
-				sds_common_control0 |= 0x1;
-				nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0, sds_common_control0);
-
-				/* release the res-calibration reset */
-				sds_common_control0 &= 0xfffffffe;
-				nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0, sds_common_control0);
-
-				i = 0;
-				while (((nes_read32(nesdev->regs + NES_SOFTWARE_RESET) & 0x00000040) != 0x00000040)
-						&& (i++ < 5000)) {
-					/* mdelay(1); */
-				}
-
-				/*
-				 * wait for link train done before moving on,
-				 * or will get an interupt storm
-				 */
-				counter = 0;
-				do {
-					temp_phy_data = nes_read_indexed(nesdev, NES_IDX_PHY_PCS_CONTROL_STATUS0 +
-								(0x200 * (nesdev->mac_index & 1)));
-					if (counter++ > 1000) {
-						nes_debug(NES_DBG_PHY, "AMCC PHY- breaking from link train wait <this is bad, link didnt train!!!>\n");
-						break;
-					}
-					mdelay(1);
-				} while (((temp_phy_data & 0x0f1f0000) != 0x0f0f0000));
+		/* Check for heartbeat */
+		counter = 0;
+		mdelay(690);
+		nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7ee);
+		temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+		do {
+			if (counter++ > 150) {
+				nes_debug(NES_DBG_PHY, "No PHY heartbeat\n");
+				break;
 			}
-		}
+			mdelay(1);
+			nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7ee);
+			temp_phy_data2 = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+		} while ((temp_phy_data2 == temp_phy_data));
+
+		/* wait for tracking */
+		counter = 0;
+		do {
+			nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7fd);
+			temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+			if (counter++ > 300) {
+				nes_debug(NES_DBG_PHY, "PHY did not track\n");
+				break;
+			}
+			mdelay(10);
+		} while (((temp_phy_data & 0xff) != 0x50) && ((temp_phy_data & 0xff) != 0x70));
+
+		/* setup signal integrity */
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xd003, 0x0000);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xF00D, 0x00FE);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xF00E, 0x0032);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xF00F, 0x0002);
+		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc314, 0x0063);
+
+		/* reset serdes */
+		sds = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0 +
+				       mac_index * 0x200);
+		sds |= 0x1;
+		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0 +
+				  mac_index * 0x200, sds);
+		sds &= 0xfffffffe;
+		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0 +
+				  mac_index * 0x200, sds);
+
+		counter = 0;
+		while (((nes_read32(nesdev->regs + NES_SOFTWARE_RESET) & 0x00000040) != 0x00000040)
+				&& (counter++ < 5000))
+			;
 	}
 	return 0;
 }
@@ -2483,19 +2439,18 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 0x9004);
 				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 0x9005);
 				/* check link status */
-				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 1);
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 0x9003);
 				temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
-				u32temp = 100;
-				do {
-					nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 1);
 
-					phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
-					if ((phy_data == temp_phy_data) || (!(--u32temp)))
-						break;
-					temp_phy_data = phy_data;
-				} while (1);
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 3, 0x0021);
+				nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 3, 0x0021);
+				phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+
+				phy_data = (!temp_phy_data && (phy_data == 0x8000)) ? 0x4 : 0x0;
+
 				nes_debug(NES_DBG_PHY, "%s: Phy data = 0x%04X, link was %s.\n",
-					__func__, phy_data, nesadapter->mac_link_down ? "DOWN" : "UP");
+					__func__, phy_data, nesadapter->mac_link_down[mac_index] ? "DOWN" : "UP");
 				break;
 
 			case NES_PHY_TYPE_PUMA_1G:
