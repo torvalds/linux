@@ -278,6 +278,7 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_if_init_conf *conf);
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_if_init_conf *conf);
+int iwl_mac_config(struct ieee80211_hw *hw, u32 changed);
 
 /*****************************************************
  * RX handlers.

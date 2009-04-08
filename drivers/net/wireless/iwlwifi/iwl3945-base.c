@@ -3166,8 +3166,6 @@ static void iwl3945_bg_rx_replenish(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
-static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed);
-
 #define IWL_DELAY_NEXT_SCAN (HZ*2)
 
 void iwl3945_post_associate(struct iwl_priv *priv)
@@ -3378,108 +3376,6 @@ static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	return NETDEV_TX_OK;
-}
-
-/**
- * iwl3945_mac_config - mac80211 config callback
- *
- * We ignore conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME since it seems to
- * be set inappropriately and the driver currently sets the hardware up to
- * use it whenever needed.
- */
-static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed)
-{
-	struct iwl_priv *priv = hw->priv;
-	const struct iwl_channel_info *ch_info;
-	struct ieee80211_conf *conf = &hw->conf;
-	unsigned long flags;
-	int ret = 0;
-
-	mutex_lock(&priv->mutex);
-	IWL_DEBUG_MAC80211(priv, "enter to channel %d\n",
-				conf->channel->hw_value);
-
-	if (!iwl_is_ready(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
-		ret = -EIO;
-		goto out;
-	}
-
-	if (unlikely(!iwl3945_mod_params.disable_hw_scan &&
-		     test_bit(STATUS_SCANNING, &priv->status))) {
-		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
-		set_bit(STATUS_CONF_PENDING, &priv->status);
-		mutex_unlock(&priv->mutex);
-		return 0;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	ch_info = iwl_get_channel_info(priv, conf->channel->band,
-				       conf->channel->hw_value);
-	if (!is_channel_valid(ch_info)) {
-		IWL_DEBUG_SCAN(priv,
-				"Channel %d [%d] is INVALID for this band.\n",
-				conf->channel->hw_value, conf->channel->band);
-		IWL_DEBUG_MAC80211(priv, "leave - invalid channel\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	iwl_set_rxon_channel(priv, conf->channel);
-
-	iwl_set_flags_for_band(priv, conf->channel->band);
-
-	/* The list of supported rates and rate mask can be different
-	 * for each phymode; since the phymode may have changed, reset
-	 * the rate mask to what mac80211 lists */
-	iwl_set_rate(priv);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-#ifdef IEEE80211_CONF_CHANNEL_SWITCH
-	if (conf->flags & IEEE80211_CONF_CHANNEL_SWITCH) {
-		iwl3945_hw_channel_switch(priv, conf->channel);
-		goto out;
-	}
-#endif
-
-	if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED) {
-		if (conf->radio_enabled &&
-		    iwl_radio_kill_sw_enable_radio(priv)) {
-			IWL_DEBUG_MAC80211(priv, "leave - RF-KILL - "
-						 "waiting for uCode\n");
-			goto out;
-		}
-
-		if (!conf->radio_enabled) {
-			iwl_radio_kill_sw_disable_radio(priv);
-			IWL_DEBUG_MAC80211(priv, "leave - radio disabled\n");
-			goto out;
-		}
-	}
-
-	if (iwl_is_rfkill(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - RF kill\n");
-		ret = -EIO;
-		goto out;
-	}
-
-	iwl_set_rate(priv);
-
-	if (memcmp(&priv->active_rxon,
-		   &priv->staging_rxon, sizeof(priv->staging_rxon)))
-		iwlcore_commit_rxon(priv);
-	else
-		IWL_DEBUG_INFO(priv, "Not re-sending same RXON configuration\n");
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-out:
-	clear_bit(STATUS_CONF_PENDING, &priv->status);
-	mutex_unlock(&priv->mutex);
-	return ret;
 }
 
 static void iwl3945_config_ap(struct iwl_priv *priv)
@@ -4316,7 +4212,7 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.stop = iwl3945_mac_stop,
 	.add_interface = iwl_mac_add_interface,
 	.remove_interface = iwl_mac_remove_interface,
-	.config = iwl3945_mac_config,
+	.config = iwl_mac_config,
 	.config_interface = iwl3945_mac_config_interface,
 	.configure_filter = iwl_configure_filter,
 	.set_key = iwl3945_mac_set_key,
