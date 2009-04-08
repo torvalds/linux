@@ -977,6 +977,8 @@ config ETHOC
 	depends on NET_ETHERNET && HAS_IOMEM
 	select MII
 	select PHYLIB
+	select CRC32
+	select BITREVERSE
 	help
 	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
 
