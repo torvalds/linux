@@ -18,8 +18,3 @@ unsigned char hal_set_dxx_reg(struct hw_data *pHwData, u16 number, u32 value)
 	ret = Wb35Reg_WriteSync(pHwData, number, value);
 	return ret;
 }
-
-void hal_set_rf_power(struct hw_data *pHwData, u8 PowerIndex)
-{
-	RFSynthesizer_SetPowerIndex(pHwData, PowerIndex);
-}

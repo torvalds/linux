@@ -39,7 +39,6 @@ void hal_set_cwmax(  struct hw_data * pHwData,  u16 cwin_max );
 void hal_set_rsn_wpa(  struct hw_data * pHwData,  u32 * RSN_IE_Bitmap , u32 * RSN_OUI_type , unsigned char bDesiredAuthMode);
 void hal_set_connect_info(  struct hw_data * pHwData,  unsigned char boConnect );
 u8 hal_get_est_sq3(  struct hw_data * pHwData,  u8 Count );
-void hal_set_rf_power(  struct hw_data * pHwData,  u8 PowerIndex ); // 20060621 Modify
 void hal_descriptor_indicate(  struct hw_data * pHwData,  PDESCRIPTOR pDes );
 u8 hal_get_antenna_number(  struct hw_data * pHwData );
 u32 hal_get_bss_pk_cnt(  struct hw_data * pHwData );
