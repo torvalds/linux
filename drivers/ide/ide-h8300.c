@@ -22,28 +22,6 @@
 	(r);				\
 })
 
-static void mm_outw(u16 d, unsigned long a)
-{
-	__asm__("mov.b %w0,r2h\n\t"
-		"mov.b %x0,r2l\n\t"
-		"mov.w r2,@%1"
-		:
-		:"r"(d),"r"(a)
-		:"er2");
-}
-
-static u16 mm_inw(unsigned long a)
-{
-	register u16 r __asm__("er0");
-	__asm__("mov.w @%1,r2\n\t"
-		"mov.b r2l,%x0\n\t"
-		"mov.b r2h,%w0"
-		:"=r"(r)
-		:"r"(a)
-		:"er2");
-	return r;
-}
-
 static void h8300_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
