@@ -2690,6 +2690,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct ib_mr *ibmr = NULL;
 	struct ib_phys_buf ibphysbuf;
 	struct nes_pd *nespd;
+	u64 tagged_offset;
 
 
 
@@ -2755,10 +2756,11 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		ibphysbuf.addr = nesqp->ietf_frame_pbase;
 		ibphysbuf.size = conn_param->private_data_len +
 					sizeof(struct ietf_mpa_frame);
+		tagged_offset = (u64)(unsigned long)nesqp->ietf_frame;
 		ibmr = nesibdev->ibdev.reg_phys_mr((struct ib_pd *)nespd,
 						&ibphysbuf, 1,
 						IB_ACCESS_LOCAL_WRITE,
-						(u64 *)&nesqp->ietf_frame);
+						&tagged_offset);
 		if (!ibmr) {
 			nes_debug(NES_DBG_CM, "Unable to register memory region"
 					"for lSMM for cm_node = %p \n",
@@ -2782,7 +2784,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			sizeof(struct ietf_mpa_frame));
 		set_wqe_64bit_value(wqe->wqe_words,
 					NES_IWARP_SQ_WQE_FRAG0_LOW_IDX,
-					(u64)nesqp->ietf_frame);
+					(u64)(unsigned long)nesqp->ietf_frame);
 		wqe->wqe_words[NES_IWARP_SQ_WQE_LENGTH0_IDX] =
 			cpu_to_le32(conn_param->private_data_len +
 			sizeof(struct ietf_mpa_frame));
