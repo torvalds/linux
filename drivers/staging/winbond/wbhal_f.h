@@ -52,8 +52,6 @@ u32 hal_get_bss_pk_cnt(  struct hw_data * pHwData );
 
 #define PHY_DEBUG( msg, args... )
 
-unsigned char hal_get_dxx_reg(  struct hw_data * pHwData,  u16 number,  u32 * pValue );
-unsigned char hal_set_dxx_reg(  struct hw_data * pHwData,  u16 number,  u32 value );
 #define hal_get_time_count( _P )	(_P->time_count/10)	// return 100ms count
 #define hal_detect_error( _P )		(_P->WbUsb.DetectCount)
 
@@ -68,7 +66,5 @@ unsigned char hal_set_dxx_reg(  struct hw_data * pHwData,  u16 number,  u32 valu
 #define hal_join_request_stop(_A)
 #define hw_get_cxx_reg( _A, _B, _C )
 #define hw_set_cxx_reg( _A, _B, _C )
-#define hw_get_dxx_reg( _A, _B, _C )	hal_get_dxx_reg( _A, _B, (u32 *)_C )
-#define hw_set_dxx_reg( _A, _B, _C )	hal_set_dxx_reg( _A, _B, (u32)_C )
 
 
