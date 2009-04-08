@@ -9542,7 +9542,7 @@ static struct niu_parent * __devinit niu_new_parent(struct niu *np,
 
 	plat_dev = platform_device_register_simple("niu", niu_parent_index,
 						   NULL, 0);
-	if (!plat_dev)
+	if (IS_ERR(plat_dev))
 		return NULL;
 
 	for (i = 0; attr_name(niu_parent_attributes[i]); i++) {
