@@ -2299,8 +2299,6 @@ extern int vfs_readdir(struct file *, filldir_t, void *);
 
 extern int vfs_stat(char __user *, struct kstat *);
 extern int vfs_lstat(char __user *, struct kstat *);
-extern int vfs_stat_fd(int dfd, char __user *, struct kstat *);
-extern int vfs_lstat_fd(int dfd, char __user *, struct kstat *);
 extern int vfs_fstat(unsigned int, struct kstat *);
 extern int vfs_fstatat(int , char __user *, struct kstat *, int);
 
