@@ -185,12 +185,10 @@ static inline void tolerant_fwait(void)
 	asm volatile("fnclex ; fwait");
 }
 
-static inline void restore_fpu(struct task_struct *tsk)
+static inline int restore_fpu_checking(struct task_struct *tsk)
 {
-	if (task_thread_info(tsk)->status & TS_XSAVE) {
-		xrstor_checking(&tsk->thread.xstate->xsave);
-		return;
-	}
+	if (task_thread_info(tsk)->status & TS_XSAVE)
+		return xrstor_checking(&tsk->thread.xstate->xsave);
 	/*
 	 * The "nop" is needed to make the instructions the same
 	 * length.
@@ -200,6 +198,7 @@ static inline void restore_fpu(struct task_struct *tsk)
 		"fxrstor %1",
 		X86_FEATURE_FXSR,
 		"m" (tsk->thread.xstate->fxsave));
+	return 0;
 }
 
 /* We need a safe address that is cheap to find and that is already
