@@ -2309,8 +2309,7 @@ static void at76_delete_device(struct at76_priv *priv)
 
 	del_timer_sync(&ledtrig_tx_timer);
 
-	if (priv->rx_skb)
-		kfree_skb(priv->rx_skb);
+	kfree_skb(priv->rx_skb);
 
 	usb_put_dev(priv->udev);
 
