@@ -298,7 +298,6 @@ mmc_omap_xfer_done(struct mmc_omap_host *host, struct mmc_data *data)
 		struct mmc_request *mrq = host->mrq;
 
 		host->mrq = NULL;
-		mmc_omap_fclk_lazy_disable(host);
 		mmc_request_done(host->mmc, mrq);
 		return;
 	}
