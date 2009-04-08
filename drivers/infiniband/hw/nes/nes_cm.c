@@ -446,8 +446,8 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		if (ret != NETDEV_TX_OK) {
 			nes_debug(NES_DBG_CM, "Error sending packet %p "
 				"(jiffies = %lu)\n", new_send, jiffies);
-			atomic_dec(&new_send->skb->users);
 			new_send->timetosend = jiffies;
+			ret = NETDEV_TX_OK;
 		} else {
 			cm_packets_sent++;
 			if (!send_retrans) {
@@ -631,7 +631,6 @@ static void nes_cm_timer_tick(unsigned long pass)
 				nes_debug(NES_DBG_CM, "rexmit failed for "
 					"node=%p\n", cm_node);
 				cm_packets_bounced++;
-				atomic_dec(&send_entry->skb->users);
 				send_entry->retrycount--;
 				nexttimeout = jiffies + NES_SHORT_TIME;
 				settimer = 1;
@@ -667,11 +666,6 @@ static void nes_cm_timer_tick(unsigned long pass)
 
 		spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
 		rem_ref_cm_node(cm_node->cm_core, cm_node);
-		if (ret != NETDEV_TX_OK) {
-			nes_debug(NES_DBG_CM, "rexmit failed for cm_node=%p\n",
-				cm_node);
-			break;
-		}
 	}
 
 	if (settimer) {
