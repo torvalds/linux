@@ -725,18 +725,22 @@ static int stv090x_set_srate(struct stv090x_state *state, u32 srate)
 {
 	u32 sym;
 
-	if (srate > 6000000) {
-		sym  = (srate / 1000) * 65536;
-		sym /= (state->mclk / 1000);
+	if (srate > 60000000) {
+		sym  = (srate << 4); /* SR * 2^16 / master_clk */
+		sym /= (state->mclk >> 12);
+	} else if (srate > 6000000) {
+		sym  = (srate << 6);
+		sym /= (state->mclk >> 10);
 	} else {
-		sym  = (srate / 100) * 65536;
-		sym /= (state->mclk / 100);
+		sym  = (srate << 9);
+		sym /= (state->mclk >> 7);
 	}
 
-	if (STV090x_WRITE_DEMOD(state, SFRINIT1, (sym >> 8) & 0xff) < 0) /* MSB */
+	if (STV090x_WRITE_DEMOD(state, SFRINIT1, (sym >> 8) & 0x7f) < 0) /* MSB */
 		goto err;
 	if (STV090x_WRITE_DEMOD(state, SFRINIT0, (sym & 0xff)) < 0) /* LSB */
 		goto err;
+
 	return 0;
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
@@ -748,17 +752,29 @@ static int stv090x_set_max_srate(struct stv090x_state *state, u32 clk, u32 srate
 	u32 sym;
 
 	srate = 105 * (srate / 100);
-	if (srate > 6000000) {
-		sym  = (srate / 1000) * 65536;
-		sym /= (clk / 1000);
+	if (srate > 60000000) {
+		sym  = (srate << 4); /* SR * 2^16 / master_clk */
+		sym /= (state->mclk >> 12);
+	} else if (srate > 6000000) {
+		sym  = (srate << 6);
+		sym /= (state->mclk >> 10);
 	} else {
-		sym  = (srate / 100) * 65536;
-		sym /= (clk / 100);
+		sym  = (srate << 9);
+		sym /= (state->mclk >> 7);
 	}
-	if (STV090x_WRITE_DEMOD(state, SFRUP1, (sym >> 8) & 0x7f) < 0) /* MSB */
-		goto err;
-	if (STV090x_WRITE_DEMOD(state, SFRUP0, sym & 0xff) < 0) /* LSB */
-		goto err;
+
+	if (sym < 0x7fff) {
+		if (STV090x_WRITE_DEMOD(state, SFRUP1, (sym >> 8) & 0x7f) < 0) /* MSB */
+			goto err;
+		if (STV090x_WRITE_DEMOD(state, SFRUP0, sym & 0xff) < 0) /* LSB */
+			goto err;
+	} else {
+		if (STV090x_WRITE_DEMOD(state, SFRUP1, 0x7f) < 0) /* MSB */
+			goto err;
+		if (STV090x_WRITE_DEMOD(state, SFRUP0, 0xff) < 0) /* LSB */
+			goto err;
+	}
+
 	return 0;
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
@@ -770,13 +786,17 @@ static int stv090x_set_min_srate(struct stv090x_state *state, u32 clk, u32 srate
 	u32 sym;
 
 	srate = 95 * (srate / 100);
-	if (srate > 6000000) {
-		sym  = (srate / 1000) * 65536;
-		sym /= (clk / 1000);
+	if (srate > 60000000) {
+		sym  = (srate << 4); /* SR * 2^16 / master_clk */
+		sym /= (state->mclk >> 12);
+	} else if (srate > 6000000) {
+		sym  = (srate << 6);
+		sym /= (state->mclk >> 10);
 	} else {
-		sym  = (srate / 100) * 65536;
-		sym /= (clk / 100);
+		sym  = (srate << 9);
+		sym /= (state->mclk >> 7);
 	}
+
 	if (STV090x_WRITE_DEMOD(state, SFRLOW1, ((sym >> 8) & 0xff)) < 0) /* MSB */
 		goto err;
 	if (STV090x_WRITE_DEMOD(state, SFRLOW0, (sym & 0xff)) < 0) /* LSB */
