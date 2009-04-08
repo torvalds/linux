@@ -2339,6 +2339,48 @@ int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(iwl_mac_beacon_update);
 
+int iwl_set_mode(struct iwl_priv *priv, int mode)
+{
+	if (mode == NL80211_IFTYPE_ADHOC) {
+		const struct iwl_channel_info *ch_info;
+
+		ch_info = iwl_get_channel_info(priv,
+			priv->band,
+			le16_to_cpu(priv->staging_rxon.channel));
+
+		if (!ch_info || !is_channel_ibss(ch_info)) {
+			IWL_ERR(priv, "channel %d not IBSS channel\n",
+				  le16_to_cpu(priv->staging_rxon.channel));
+			return -EINVAL;
+		}
+	}
+
+	iwl_connection_init_rx_config(priv, mode);
+
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		priv->cfg->ops->hcmd->set_rxon_chain(priv);
+
+	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
+
+	priv->cfg->ops->smgmt->clear_station_table(priv);
+
+	/* dont commit rxon if rf-kill is on*/
+	if (!iwl_is_ready_rf(priv))
+		return -EAGAIN;
+
+	cancel_delayed_work(&priv->scan_check);
+	if (iwl_scan_cancel_timeout(priv, 100)) {
+		IWL_WARN(priv, "Aborted scan still in progress after 100ms\n");
+		IWL_DEBUG_MAC80211(priv, "leaving - scan abort failed.\n");
+		return -EAGAIN;
+	}
+
+	iwlcore_commit_rxon(priv);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_set_mode);
+
 #ifdef CONFIG_PM
 
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)

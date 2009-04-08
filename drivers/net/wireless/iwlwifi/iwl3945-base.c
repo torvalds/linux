@@ -570,42 +570,6 @@ static void iwl3945_setup_rxon_timing(struct iwl_priv *priv)
 		le16_to_cpu(priv->rxon_timing.atim_window));
 }
 
-static int iwl3945_set_mode(struct iwl_priv *priv, int mode)
-{
-	if (mode == NL80211_IFTYPE_ADHOC) {
-		const struct iwl_channel_info *ch_info;
-
-		ch_info = iwl_get_channel_info(priv,
-			priv->band,
-			le16_to_cpu(priv->staging_rxon.channel));
-
-		if (!ch_info || !is_channel_ibss(ch_info)) {
-			IWL_ERR(priv, "channel %d not IBSS channel\n",
-				  le16_to_cpu(priv->staging_rxon.channel));
-			return -EINVAL;
-		}
-	}
-
-	iwl_connection_init_rx_config(priv, mode);
-
-	priv->cfg->ops->smgmt->clear_station_table(priv);
-
-	/* don't commit rxon if rf-kill is on*/
-	if (!iwl_is_ready_rf(priv))
-		return -EAGAIN;
-
-	cancel_delayed_work(&priv->scan_check);
-	if (iwl_scan_cancel_timeout(priv, 100)) {
-		IWL_WARN(priv, "Aborted scan still in progress after 100ms\n");
-		IWL_DEBUG_MAC80211(priv, "leaving - scan abort failed.\n");
-		return -EAGAIN;
-	}
-
-	iwlcore_commit_rxon(priv);
-
-	return 0;
-}
-
 static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 				      struct ieee80211_tx_info *info,
 				      struct iwl_cmd *cmd,
@@ -2701,7 +2665,7 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	}
 
 	if (test_and_clear_bit(STATUS_MODE_PENDING, &priv->status))
-		iwl3945_set_mode(priv, priv->iw_mode);
+		iwl_set_mode(priv, priv->iw_mode);
 
 	return;
 
@@ -3442,7 +3406,7 @@ static int iwl3945_mac_add_interface(struct ieee80211_hw *hw,
 		memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
 	}
 
-	if (iwl3945_set_mode(priv, conf->type) == -EAGAIN)
+	if (iwl_set_mode(priv, conf->type) == -EAGAIN)
 		set_bit(STATUS_MODE_PENDING, &priv->status);
 
 	mutex_unlock(&priv->mutex);

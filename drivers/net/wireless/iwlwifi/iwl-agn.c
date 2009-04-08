@@ -588,33 +588,6 @@ static void iwl_setup_rxon_timing(struct iwl_priv *priv)
 			le16_to_cpu(priv->rxon_timing.atim_window));
 }
 
-static int iwl_set_mode(struct iwl_priv *priv, int mode)
-{
-	iwl_connection_init_rx_config(priv, mode);
-
-	if (priv->cfg->ops->hcmd->set_rxon_chain)
-		priv->cfg->ops->hcmd->set_rxon_chain(priv);
-
-	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
-
-	priv->cfg->ops->smgmt->clear_station_table(priv);
-
-	/* dont commit rxon if rf-kill is on*/
-	if (!iwl_is_ready_rf(priv))
-		return -EAGAIN;
-
-	cancel_delayed_work(&priv->scan_check);
-	if (iwl_scan_cancel_timeout(priv, 100)) {
-		IWL_WARN(priv, "Aborted scan still in progress after 100ms\n");
-		IWL_DEBUG_MAC80211(priv, "leaving - scan abort failed.\n");
-		return -EAGAIN;
-	}
-
-	iwlcore_commit_rxon(priv);
-
-	return 0;
-}
-
 /******************************************************************************
  *
  * Generic RX handler implementations
