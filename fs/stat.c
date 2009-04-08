@@ -109,6 +109,24 @@ int vfs_fstat(unsigned int fd, struct kstat *stat)
 
 EXPORT_SYMBOL(vfs_fstat);
 
+int vfs_fstatat(int dfd, char __user *filename, struct kstat *stat, int flag)
+{
+	int error = -EINVAL;
+
+	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
+		goto out;
+
+	if (flag & AT_SYMLINK_NOFOLLOW)
+		error = vfs_lstat_fd(dfd, filename, stat);
+	else
+		error = vfs_stat_fd(dfd, filename, stat);
+out:
+	return error;
+}
+
+EXPORT_SYMBOL(vfs_fstatat);
+
+
 #ifdef __ARCH_WANT_OLD_STAT
 
 /*
@@ -264,21 +282,12 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, char __user *, filename,
 		struct stat __user *, statbuf, int, flag)
 {
 	struct kstat stat;
-	int error = -EINVAL;
+	int error;
 
-	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
-		goto out;
-
-	if (flag & AT_SYMLINK_NOFOLLOW)
-		error = vfs_lstat_fd(dfd, filename, &stat);
-	else
-		error = vfs_stat_fd(dfd, filename, &stat);
-
-	if (!error)
-		error = cp_new_stat(&stat, statbuf);
-
-out:
-	return error;
+	error = vfs_fstatat(dfd, filename, &stat, flag);
+	if (error)
+		return error;
+	return cp_new_stat(&stat, statbuf);
 }
 #endif
 
@@ -404,21 +413,12 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, char __user *, filename,
 		struct stat64 __user *, statbuf, int, flag)
 {
 	struct kstat stat;
-	int error = -EINVAL;
+	int error;
 
-	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
-		goto out;
-
-	if (flag & AT_SYMLINK_NOFOLLOW)
-		error = vfs_lstat_fd(dfd, filename, &stat);
-	else
-		error = vfs_stat_fd(dfd, filename, &stat);
-
-	if (!error)
-		error = cp_new_stat64(&stat, statbuf);
-
-out:
-	return error;
+	error = vfs_fstatat(dfd, filename, &stat, flag);
+	if (error)
+		return error;
+	return cp_new_stat64(&stat, statbuf);
 }
 #endif /* __ARCH_WANT_STAT64 */
 
