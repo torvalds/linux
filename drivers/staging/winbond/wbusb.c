@@ -19,13 +19,13 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
 
 static struct usb_device_id wb35_table[] __devinitdata = {
-	{USB_DEVICE(0x0416, 0x0035)},
-	{USB_DEVICE(0x18E8, 0x6201)},
-	{USB_DEVICE(0x18E8, 0x6206)},
-	{USB_DEVICE(0x18E8, 0x6217)},
-	{USB_DEVICE(0x18E8, 0x6230)},
-	{USB_DEVICE(0x18E8, 0x6233)},
-	{USB_DEVICE(0x1131, 0x2035)},
+	{ USB_DEVICE(0x0416, 0x0035) },
+	{ USB_DEVICE(0x18E8, 0x6201) },
+	{ USB_DEVICE(0x18E8, 0x6206) },
+	{ USB_DEVICE(0x18E8, 0x6217) },
+	{ USB_DEVICE(0x18E8, 0x6230) },
+	{ USB_DEVICE(0x18E8, 0x6233) },
+	{ USB_DEVICE(0x1131, 0x2035) },
 	{ 0, }
 };
 
@@ -36,7 +36,7 @@ static struct ieee80211_rate wbsoft_rates[] = {
 };
 
 static struct ieee80211_channel wbsoft_channels[] = {
-	{ .center_freq = 2412},
+	{ .center_freq = 2412 },
 };
 
 static struct ieee80211_supported_band wbsoft_band_2GHz = {
@@ -47,14 +47,14 @@ static struct ieee80211_supported_band wbsoft_band_2GHz = {
 };
 
 static int wbsoft_add_interface(struct ieee80211_hw *dev,
-				 struct ieee80211_if_init_conf *conf)
+				struct ieee80211_if_init_conf *conf)
 {
 	printk("wbsoft_add interface called\n");
 	return 0;
 }
 
 static void wbsoft_remove_interface(struct ieee80211_hw *dev,
-				     struct ieee80211_if_init_conf *conf)
+				    struct ieee80211_if_init_conf *conf)
 {
 	printk("wbsoft_remove interface called\n");
 }
@@ -79,9 +79,9 @@ static int wbsoft_get_tx_stats(struct ieee80211_hw *hw,
 }
 
 static void wbsoft_configure_filter(struct ieee80211_hw *dev,
-				     unsigned int changed_flags,
-				     unsigned int *total_flags,
-				     int mc_count, struct dev_mc_list *mclist)
+				    unsigned int changed_flags,
+				    unsigned int *total_flags,
+				    int mc_count, struct dev_mc_list *mclist)
 {
 	unsigned int new_flags;
 
@@ -105,7 +105,6 @@ static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	return NETDEV_TX_OK;
 }
-
 
 static int wbsoft_start(struct ieee80211_hw *dev)
 {
@@ -131,17 +130,17 @@ static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 	hal_set_current_channel(&priv->sHwData, ch);
 	hal_set_beacon_period(&priv->sHwData, conf->beacon_int);
 	hal_set_accept_broadcast(&priv->sHwData, 1);
-	hal_set_accept_promiscuous(&priv->sHwData,  1);
-	hal_set_accept_multicast(&priv->sHwData,  1);
-	hal_set_accept_beacon(&priv->sHwData,  1);
-	hal_set_radio_mode(&priv->sHwData,  0);
+	hal_set_accept_promiscuous(&priv->sHwData, 1);
+	hal_set_accept_multicast(&priv->sHwData, 1);
+	hal_set_accept_beacon(&priv->sHwData, 1);
+	hal_set_radio_mode(&priv->sHwData, 0);
 
 	return 0;
 }
 
 static int wbsoft_config_interface(struct ieee80211_hw *dev,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_if_conf *conf)
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_if_conf *conf)
 {
 	printk("wbsoft_config_interface called\n");
 	return 0;
@@ -169,285 +168,256 @@ static const struct ieee80211_ops wbsoft_ops = {
 
 static void hal_led_control(unsigned long data)
 {
-	struct wbsoft_priv *adapter = (struct wbsoft_priv *) data;
-	struct hw_data * pHwData = &adapter->sHwData;
+	struct wbsoft_priv *adapter = (struct wbsoft_priv *)data;
+	struct hw_data *pHwData = &adapter->sHwData;
 	struct wb35_reg *reg = &pHwData->reg;
-	u32	LEDSet = (pHwData->SoftwareSet & HAL_LED_SET_MASK) >> HAL_LED_SET_SHIFT;
-	u8	LEDgray[20] = { 0,3,4,6,8,10,11,12,13,14,15,14,13,12,11,10,8,6,4,2 };
-	u8	LEDgray2[30] = { 7,8,9,10,11,12,13,14,15,0,0,0,0,0,0,0,0,0,0,0,0,0,15,14,13,12,11,10,9,8 };
-	u32	TimeInterval = 500, ltmp, ltmp2;
-        ltmp=0;
+	u32 LEDSet = (pHwData->SoftwareSet & HAL_LED_SET_MASK) >> HAL_LED_SET_SHIFT;
+	u8 LEDgray[20] = { 0, 3, 4, 6, 8, 10, 11, 12, 13, 14, 15, 14, 13, 12, 11, 10, 8, 6, 4, 2 };
+	u8 LEDgray2[30] = { 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 14, 13, 12, 11, 10, 9, 8 };
+	u32 TimeInterval = 500, ltmp, ltmp2;
+	ltmp = 0;
 
-	if( pHwData->SurpriseRemove ) return;
+	if (pHwData->SurpriseRemove)
+		return;
 
-	if( pHwData->LED_control ) {
+	if (pHwData->LED_control) {
 		ltmp2 = pHwData->LED_control & 0xff;
-		if( ltmp2 == 5 ) // 5 is WPS mode
+		if (ltmp2 == 5)	// 5 is WPS mode
 		{
 			TimeInterval = 100;
-			ltmp2 = (pHwData->LED_control>>8) & 0xff;
-			switch( ltmp2 )
-			{
-				case 1: // [0.2 On][0.1 Off]...
-					pHwData->LED_Blinking %= 3;
-					ltmp = 0x1010; // Led 1 & 0 Green and Red
-					if( pHwData->LED_Blinking == 2 ) // Turn off
-						ltmp = 0;
-					break;
-				case 2: // [0.1 On][0.1 Off]...
-					pHwData->LED_Blinking %= 2;
-					ltmp = 0x0010; // Led 0 red color
-					if( pHwData->LED_Blinking ) // Turn off
-						ltmp = 0;
-					break;
-				case 3: // [0.1 On][0.1 Off][0.1 On][0.1 Off][0.1 On][0.1 Off][0.1 On][0.1 Off][0.1 On][0.1 Off][0.5 Off]...
-					pHwData->LED_Blinking %= 15;
-					ltmp = 0x0010; // Led 0 red color
-					if( (pHwData->LED_Blinking >= 9) || (pHwData->LED_Blinking%2) ) // Turn off 0.6 sec
-						ltmp = 0;
-					break;
-				case 4: // [300 On][ off ]
-					ltmp = 0x1000; // Led 1 Green color
-					if( pHwData->LED_Blinking >= 3000 )
-						ltmp = 0; // led maybe on after 300sec * 32bit counter overlap.
-					break;
+			ltmp2 = (pHwData->LED_control >> 8) & 0xff;
+			switch (ltmp2) {
+			case 1:	// [0.2 On][0.1 Off]...
+				pHwData->LED_Blinking %= 3;
+				ltmp = 0x1010;	// Led 1 & 0 Green and Red
+				if (pHwData->LED_Blinking == 2)	// Turn off
+					ltmp = 0;
+				break;
+			case 2:	// [0.1 On][0.1 Off]...
+				pHwData->LED_Blinking %= 2;
+				ltmp = 0x0010;	// Led 0 red color
+				if (pHwData->LED_Blinking)	// Turn off
+					ltmp = 0;
+				break;
+			case 3:	// [0.1 On][0.1 Off][0.1 On][0.1 Off][0.1 On][0.1 Off][0.1 On][0.1 Off][0.1 On][0.1 Off][0.5 Off]...
+				pHwData->LED_Blinking %= 15;
+				ltmp = 0x0010;	// Led 0 red color
+				if ((pHwData->LED_Blinking >= 9) || (pHwData->LED_Blinking % 2))	// Turn off 0.6 sec
+					ltmp = 0;
+				break;
+			case 4:	// [300 On][ off ]
+				ltmp = 0x1000;	// Led 1 Green color
+				if (pHwData->LED_Blinking >= 3000)
+					ltmp = 0;	// led maybe on after 300sec * 32bit counter overlap.
+				break;
 			}
 			pHwData->LED_Blinking++;
 
 			reg->U1BC_LEDConfigure = ltmp;
-			if( LEDSet != 7 ) // Only 111 mode has 2 LEDs on PCB.
+			if (LEDSet != 7)	// Only 111 mode has 2 LEDs on PCB.
 			{
-				reg->U1BC_LEDConfigure |= (ltmp &0xff)<<8; // Copy LED result to each LED control register
-				reg->U1BC_LEDConfigure |= (ltmp &0xff00)>>8;
+				reg->U1BC_LEDConfigure |= (ltmp & 0xff) << 8;	// Copy LED result to each LED control register
+				reg->U1BC_LEDConfigure |= (ltmp & 0xff00) >> 8;
 			}
-			Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
+			Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);
 		}
-	}
-	else if( pHwData->CurrentRadioSw || pHwData->CurrentRadioHw ) // If radio off
+	} else if (pHwData->CurrentRadioSw || pHwData->CurrentRadioHw)	// If radio off
 	{
-		if( reg->U1BC_LEDConfigure & 0x1010 )
-		{
+		if (reg->U1BC_LEDConfigure & 0x1010) {
 			reg->U1BC_LEDConfigure &= ~0x1010;
-			Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
+			Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);
 		}
-	}
-	else
-	{
-		switch( LEDSet )
-		{
-			case 4: // [100] Only 1 Led be placed on PCB and use pin 21 of IC. Use LED_0 for showing
-				if( !pHwData->LED_LinkOn ) // Blink only if not Link On
-				{
-					// Blinking if scanning is on progress
-					if( pHwData->LED_Scanning )
-					{
-						if( pHwData->LED_Blinking == 0 )
-						{
-							reg->U1BC_LEDConfigure |= 0x10;
-							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 On
-							pHwData->LED_Blinking = 1;
-							TimeInterval = 300;
-						}
-						else
-						{
-							reg->U1BC_LEDConfigure &= ~0x10;
-							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
-							pHwData->LED_Blinking = 0;
-							TimeInterval = 300;
-						}
-					}
-					else
-					{
-						//Turn Off LED_0
-						if( reg->U1BC_LEDConfigure & 0x10 )
-						{
-							reg->U1BC_LEDConfigure &= ~0x10;
-							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
-						}
-					}
-				}
-				else
-				{
-					// Turn On LED_0
-					if( (reg->U1BC_LEDConfigure & 0x10) == 0 )
-					{
+	} else {
+		switch (LEDSet) {
+		case 4:	// [100] Only 1 Led be placed on PCB and use pin 21 of IC. Use LED_0 for showing
+			if (!pHwData->LED_LinkOn)	// Blink only if not Link On
+			{
+				// Blinking if scanning is on progress
+				if (pHwData->LED_Scanning) {
+					if (pHwData->LED_Blinking == 0) {
 						reg->U1BC_LEDConfigure |= 0x10;
-						Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
-					}
-				}
-				break;
-
-			case 6: // [110] Only 1 Led be placed on PCB and use pin 21 of IC. Use LED_0 for showing
-				if( !pHwData->LED_LinkOn ) // Blink only if not Link On
-				{
-					// Blinking if scanning is on progress
-					if( pHwData->LED_Scanning )
-					{
-						if( pHwData->LED_Blinking == 0 )
-						{
-							reg->U1BC_LEDConfigure &= ~0xf;
-							reg->U1BC_LEDConfigure |= 0x10;
-							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 On
-							pHwData->LED_Blinking = 1;
-							TimeInterval = 300;
-						}
-						else
-						{
-							reg->U1BC_LEDConfigure &= ~0x1f;
-							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
-							pHwData->LED_Blinking = 0;
-							TimeInterval = 300;
-						}
-					}
-					else
-					{
-						// 20060901 Gray blinking if in disconnect state and not scanning
-						ltmp = reg->U1BC_LEDConfigure;
-						reg->U1BC_LEDConfigure &= ~0x1f;
-						if( LEDgray2[(pHwData->LED_Blinking%30)] )
-						{
-							reg->U1BC_LEDConfigure |= 0x10;
-							reg->U1BC_LEDConfigure |= LEDgray2[ (pHwData->LED_Blinking%30) ];
-						}
-						pHwData->LED_Blinking++;
-						if( reg->U1BC_LEDConfigure != ltmp )
-							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
-						TimeInterval = 100;
-					}
-				}
-				else
-				{
-					// Turn On LED_0
-					if( (reg->U1BC_LEDConfigure & 0x10) == 0 )
-					{
-						reg->U1BC_LEDConfigure |= 0x10;
-						Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
-					}
-				}
-				break;
-
-			case 5: // [101] Only 1 Led be placed on PCB and use LED_1 for showing
-				if( !pHwData->LED_LinkOn ) // Blink only if not Link On
-				{
-					// Blinking if scanning is on progress
-					if( pHwData->LED_Scanning )
-					{
-						if( pHwData->LED_Blinking == 0 )
-						{
-							reg->U1BC_LEDConfigure |= 0x1000;
-							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_1 On
-							pHwData->LED_Blinking = 1;
-							TimeInterval = 300;
-						}
-						else
-						{
-							reg->U1BC_LEDConfigure &= ~0x1000;
-							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_1 Off
-							pHwData->LED_Blinking = 0;
-							TimeInterval = 300;
-						}
-					}
-					else
-					{
-						//Turn Off LED_1
-						if( reg->U1BC_LEDConfigure & 0x1000 )
-						{
-							reg->U1BC_LEDConfigure &= ~0x1000;
-							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_1 Off
-						}
-					}
-				}
-				else
-				{
-					// Is transmitting/receiving ??
-					if( (adapter->RxByteCount != pHwData->RxByteCountLast ) ||
-						(adapter->TxByteCount != pHwData->TxByteCountLast ) )
-					{
-						if( (reg->U1BC_LEDConfigure & 0x3000) != 0x3000 )
-						{
-							reg->U1BC_LEDConfigure |= 0x3000;
-							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_1 On
-						}
-
-						// Update variable
-						pHwData->RxByteCountLast = adapter->RxByteCount;
-						pHwData->TxByteCountLast = adapter->TxByteCount;
-						TimeInterval = 200;
-					}
-					else
-					{
-						// Turn On LED_1 and blinking if transmitting/receiving
-						 if( (reg->U1BC_LEDConfigure & 0x3000) != 0x1000 )
-						 {
-							 reg->U1BC_LEDConfigure &= ~0x3000;
-							 reg->U1BC_LEDConfigure |= 0x1000;
-							 Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_1 On
-						 }
-					}
-				}
-				break;
-
-			default: // Default setting. 2 LED be placed on PCB. LED_0: Link On LED_1 Active
-				if( (reg->U1BC_LEDConfigure & 0x3000) != 0x3000 )
-				{
-					reg->U1BC_LEDConfigure |= 0x3000;// LED_1 is always on and event enable
-					Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
-				}
-
-				if( pHwData->LED_Blinking )
-				{
-					// Gray blinking
-					reg->U1BC_LEDConfigure &= ~0x0f;
-					reg->U1BC_LEDConfigure |= 0x10;
-					reg->U1BC_LEDConfigure |= LEDgray[ (pHwData->LED_Blinking-1)%20 ];
-					Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
-
-					pHwData->LED_Blinking += 2;
-					if( pHwData->LED_Blinking < 40 )
-						TimeInterval = 100;
-					else
-					{
-						pHwData->LED_Blinking = 0; // Stop blinking
-						reg->U1BC_LEDConfigure &= ~0x0f;
-						Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
-					}
-					break;
-				}
-
-				if( pHwData->LED_LinkOn )
-				{
-					if( !(reg->U1BC_LEDConfigure & 0x10) ) // Check the LED_0
-					{
-						//Try to turn ON LED_0 after gray blinking
-						reg->U1BC_LEDConfigure |= 0x10;
-						pHwData->LED_Blinking = 1; //Start blinking
-						TimeInterval = 50;
-					}
-				}
-				else
-				{
-					if( reg->U1BC_LEDConfigure & 0x10 ) // Check the LED_0
-					{
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_0 On
+						pHwData->LED_Blinking = 1;
+						TimeInterval = 300;
+					} else {
 						reg->U1BC_LEDConfigure &= ~0x10;
-						Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_0 Off
+						pHwData->LED_Blinking = 0;
+						TimeInterval = 300;
+					}
+				} else {
+					//Turn Off LED_0
+					if (reg->U1BC_LEDConfigure & 0x10) {
+						reg->U1BC_LEDConfigure &= ~0x10;
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_0 Off
 					}
 				}
+			} else {
+				// Turn On LED_0
+				if ((reg->U1BC_LEDConfigure & 0x10) == 0) {
+					reg->U1BC_LEDConfigure |= 0x10;
+					Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_0 Off
+				}
+			}
+			break;
+
+		case 6:	// [110] Only 1 Led be placed on PCB and use pin 21 of IC. Use LED_0 for showing
+			if (!pHwData->LED_LinkOn)	// Blink only if not Link On
+			{
+				// Blinking if scanning is on progress
+				if (pHwData->LED_Scanning) {
+					if (pHwData->LED_Blinking == 0) {
+						reg->U1BC_LEDConfigure &= ~0xf;
+						reg->U1BC_LEDConfigure |= 0x10;
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_0 On
+						pHwData->LED_Blinking = 1;
+						TimeInterval = 300;
+					} else {
+						reg->U1BC_LEDConfigure &= ~0x1f;
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_0 Off
+						pHwData->LED_Blinking = 0;
+						TimeInterval = 300;
+					}
+				} else {
+					// 20060901 Gray blinking if in disconnect state and not scanning
+					ltmp = reg->U1BC_LEDConfigure;
+					reg->U1BC_LEDConfigure &= ~0x1f;
+					if (LEDgray2[(pHwData->LED_Blinking % 30)]) {
+						reg->U1BC_LEDConfigure |= 0x10;
+						reg->U1BC_LEDConfigure |=
+						    LEDgray2[(pHwData->LED_Blinking % 30)];
+					}
+					pHwData->LED_Blinking++;
+					if (reg->U1BC_LEDConfigure != ltmp)
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_0 Off
+					TimeInterval = 100;
+				}
+			} else {
+				// Turn On LED_0
+				if ((reg->U1BC_LEDConfigure & 0x10) == 0) {
+					reg->U1BC_LEDConfigure |= 0x10;
+					Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_0 Off
+				}
+			}
+			break;
+
+		case 5:	// [101] Only 1 Led be placed on PCB and use LED_1 for showing
+			if (!pHwData->LED_LinkOn)	// Blink only if not Link On
+			{
+				// Blinking if scanning is on progress
+				if (pHwData->LED_Scanning) {
+					if (pHwData->LED_Blinking == 0) {
+						reg->U1BC_LEDConfigure |=
+						    0x1000;
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_1 On
+						pHwData->LED_Blinking = 1;
+						TimeInterval = 300;
+					} else {
+						reg->U1BC_LEDConfigure &=
+						    ~0x1000;
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_1 Off
+						pHwData->LED_Blinking = 0;
+						TimeInterval = 300;
+					}
+				} else {
+					//Turn Off LED_1
+					if (reg->U1BC_LEDConfigure & 0x1000) {
+						reg->U1BC_LEDConfigure &=
+						    ~0x1000;
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_1 Off
+					}
+				}
+			} else {
+				// Is transmitting/receiving ??
+				if ((adapter->RxByteCount !=
+				     pHwData->RxByteCountLast)
+				    || (adapter->TxByteCount !=
+					pHwData->TxByteCountLast)) {
+					if ((reg->U1BC_LEDConfigure & 0x3000) !=
+					    0x3000) {
+						reg->U1BC_LEDConfigure |=
+						    0x3000;
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_1 On
+					}
+					// Update variable
+					pHwData->RxByteCountLast =
+					    adapter->RxByteCount;
+					pHwData->TxByteCountLast =
+					    adapter->TxByteCount;
+					TimeInterval = 200;
+				} else {
+					// Turn On LED_1 and blinking if transmitting/receiving
+					if ((reg->U1BC_LEDConfigure & 0x3000) !=
+					    0x1000) {
+						reg->U1BC_LEDConfigure &=
+						    ~0x3000;
+						reg->U1BC_LEDConfigure |=
+						    0x1000;
+						Wb35Reg_Write(pHwData, 0x03bc, reg->U1BC_LEDConfigure);	// LED_1 On
+					}
+				}
+			}
+			break;
+
+		default:	// Default setting. 2 LED be placed on PCB. LED_0: Link On LED_1 Active
+			if ((reg->U1BC_LEDConfigure & 0x3000) != 0x3000) {
+				reg->U1BC_LEDConfigure |= 0x3000;	// LED_1 is always on and event enable
+				Wb35Reg_Write(pHwData, 0x03bc,
+					      reg->U1BC_LEDConfigure);
+			}
+
+			if (pHwData->LED_Blinking) {
+				// Gray blinking
+				reg->U1BC_LEDConfigure &= ~0x0f;
+				reg->U1BC_LEDConfigure |= 0x10;
+				reg->U1BC_LEDConfigure |=
+				    LEDgray[(pHwData->LED_Blinking - 1) % 20];
+				Wb35Reg_Write(pHwData, 0x03bc,
+					      reg->U1BC_LEDConfigure);
+
+				pHwData->LED_Blinking += 2;
+				if (pHwData->LED_Blinking < 40)
+					TimeInterval = 100;
+				else {
+					pHwData->LED_Blinking = 0;	// Stop blinking
+					reg->U1BC_LEDConfigure &= ~0x0f;
+					Wb35Reg_Write(pHwData, 0x03bc,
+						      reg->U1BC_LEDConfigure);
+				}
 				break;
+			}
+
+			if (pHwData->LED_LinkOn) {
+				if (!(reg->U1BC_LEDConfigure & 0x10))	// Check the LED_0
+				{
+					//Try to turn ON LED_0 after gray blinking
+					reg->U1BC_LEDConfigure |= 0x10;
+					pHwData->LED_Blinking = 1;	//Start blinking
+					TimeInterval = 50;
+				}
+			} else {
+				if (reg->U1BC_LEDConfigure & 0x10)	// Check the LED_0
+				{
+					reg->U1BC_LEDConfigure &= ~0x10;
+					Wb35Reg_Write(pHwData, 0x03bc,
+						      reg->U1BC_LEDConfigure);
+				}
+			}
+			break;
 		}
 
 		//20060828.1 Active send null packet to avoid AP disconnect
-		if( pHwData->LED_LinkOn )
-		{
+		if (pHwData->LED_LinkOn) {
 			pHwData->NullPacketCount += TimeInterval;
-			if( pHwData->NullPacketCount >= DEFAULT_NULL_PACKET_COUNT )
-			{
+			if (pHwData->NullPacketCount >=
+			    DEFAULT_NULL_PACKET_COUNT) {
 				pHwData->NullPacketCount = 0;
 			}
 		}
 	}
 
 	pHwData->time_count += TimeInterval;
-	Wb35Tx_CurrentTime(adapter, pHwData->time_count); // 20060928 add
+	Wb35Tx_CurrentTime(adapter, pHwData->time_count);	// 20060928 add
 	pHwData->LEDTimer.expires = jiffies + msecs_to_jiffies(TimeInterval);
 	add_timer(&pHwData->LEDTimer);
 }
@@ -455,7 +425,7 @@ static void hal_led_control(unsigned long data)
 static int hal_init_hardware(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	struct hw_data * pHwData = &priv->sHwData;
+	struct hw_data *pHwData = &priv->sHwData;
 	u16 SoftwareSet;
 
 	pHwData->MaxReceiveLifeTime = DEFAULT_MSDU_LIFE_TIME;
@@ -472,18 +442,18 @@ static int hal_init_hardware(struct ieee80211_hw *hw)
 
 	init_timer(&pHwData->LEDTimer);
 	pHwData->LEDTimer.function = hal_led_control;
-	pHwData->LEDTimer.data = (unsigned long) priv;
+	pHwData->LEDTimer.data = (unsigned long)priv;
 	pHwData->LEDTimer.expires = jiffies + msecs_to_jiffies(1000);
 	add_timer(&pHwData->LEDTimer);
 
-	SoftwareSet = hal_software_set( pHwData );
+	SoftwareSet = hal_software_set(pHwData);
 
-	#ifdef Vendor2
+#ifdef Vendor2
 	// Try to make sure the EEPROM contain
 	SoftwareSet >>= 8;
-	if( SoftwareSet != 0x82 )
+	if (SoftwareSet != 0x82)
 		return false;
-	#endif
+#endif
 
 	Wb35Rx_start(hw);
 	Wb35Tx_EP2VM_start(priv);
@@ -504,40 +474,41 @@ error_reg_destroy:
 static int wb35_hw_init(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	struct hw_data *	pHwData = &priv->sHwData;
-	u8		*pMacAddr;
-	u8		*pMacAddr2;
-	u8		EEPROM_region;
-	u8		HwRadioOff;
+	struct hw_data *pHwData = &priv->sHwData;
+	u8 EEPROM_region;
+	u8 HwRadioOff;
+	u8 *pMacAddr2;
+	u8 *pMacAddr;
 	int err;
-
-	priv->sLocalPara.region_INF = REGION_AUTO;
-	priv->sLocalPara.TxRateMode = RATE_AUTO;
-	priv->sLocalPara.bMacOperationMode = MODE_802_11_BG;
-	priv->Mds.TxRTSThreshold = DEFAULT_RTSThreshold;
-	priv->Mds.TxFragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;
-	priv->sLocalPara.MTUsize = MAX_ETHERNET_PACKET_SIZE;
-	priv->sLocalPara.bPreambleMode = AUTO_MODE;
-	priv->sLocalPara.RadioOffStatus.boSwRadioOff = false;
 
 	pHwData->phy_type = RF_DECIDE_BY_INF;
 
-	priv->sLocalPara.bWepKeyError= false;
-	priv->sLocalPara.bToSelfPacketReceived = false;
-	priv->sLocalPara.WepKeyDetectTimerCount= 2 * 100; /* 2 seconds */
+	priv->Mds.TxRTSThreshold		= DEFAULT_RTSThreshold;
+	priv->Mds.TxFragmentThreshold		= DEFAULT_FRAGMENT_THRESHOLD;
+
+	priv->sLocalPara.region_INF		= REGION_AUTO;
+	priv->sLocalPara.TxRateMode		= RATE_AUTO;
+	priv->sLocalPara.bMacOperationMode	= MODE_802_11_BG;
+	priv->sLocalPara.MTUsize		= MAX_ETHERNET_PACKET_SIZE;
+	priv->sLocalPara.bPreambleMode		= AUTO_MODE;
+	priv->sLocalPara.bWepKeyError		= false;
+	priv->sLocalPara.bToSelfPacketReceived	= false;
+	priv->sLocalPara.WepKeyDetectTimerCount	= 2 * 100; /* 2 seconds */
+
+	priv->sLocalPara.RadioOffStatus.boSwRadioOff = false;
 
 	err = hal_init_hardware(hw);
 	if (err)
 		goto error;
 
-	EEPROM_region = hal_get_region_from_EEPROM( pHwData );
+	EEPROM_region = hal_get_region_from_EEPROM(pHwData);
 	if (EEPROM_region != REGION_AUTO)
 		priv->sLocalPara.region = EEPROM_region;
 	else {
 		if (priv->sLocalPara.region_INF != REGION_AUTO)
 			priv->sLocalPara.region = priv->sLocalPara.region_INF;
 		else
-			priv->sLocalPara.region = REGION_USA; /* default setting */
+			priv->sLocalPara.region = REGION_USA;	/* default setting */
 	}
 
 	// Get Software setting flag from hal
@@ -555,19 +526,20 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 	pMacAddr2 = priv->sLocalPara.PermanentAddress;
 
 	/* Reading ethernet address from EEPROM */
-	hal_get_permanent_address( pHwData, priv->sLocalPara.PermanentAddress );
+	hal_get_permanent_address(pHwData, priv->sLocalPara.PermanentAddress);
 	if (memcmp(pMacAddr, "\x00\x00\x00\x00\x00\x00", MAC_ADDR_LENGTH) == 0)
 		memcpy(pMacAddr, pMacAddr2, MAC_ADDR_LENGTH);
 	else {
 		/* Set the user define MAC address */
-		hal_set_ethernet_address(pHwData, priv->sLocalPara.ThisMacAddress);
+		hal_set_ethernet_address(pHwData,
+					 priv->sLocalPara.ThisMacAddress);
 	}
 
 	priv->sLocalPara.bAntennaNo = hal_get_antenna_number(pHwData);
 #ifdef _PE_STATE_DUMP_
 	printk("Driver init, antenna no = %d\n", psLOCAL->bAntennaNo);
 #endif
-	hal_get_hw_radio_off( pHwData );
+	hal_get_hw_radio_off(pHwData);
 
 	/* Waiting for HAL setting OK */
 	while (!hal_idle(pHwData))
@@ -575,10 +547,14 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 
 	MTO_Init(priv);
 
-	HwRadioOff = hal_get_hw_radio_off( pHwData );
+	HwRadioOff = hal_get_hw_radio_off(pHwData);
 	priv->sLocalPara.RadioOffStatus.boHwRadioOff = !!HwRadioOff;
 
-	hal_set_radio_mode( pHwData, (unsigned char)(priv->sLocalPara.RadioOffStatus.boSwRadioOff || priv->sLocalPara.RadioOffStatus.boHwRadioOff) );
+	hal_set_radio_mode(pHwData,
+			   (unsigned char)(priv->sLocalPara.RadioOffStatus.
+					   boSwRadioOff
+					   || priv->sLocalPara.RadioOffStatus.
+					   boHwRadioOff));
 
 	/* Notify hal that the driver is ready now. */
 	hal_driver_init_OK(pHwData) = 1;
@@ -587,23 +563,25 @@ error:
 	return err;
 }
 
-static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
+static int wb35_probe(struct usb_interface *intf,
+		      const struct usb_device_id *id_table)
 {
-	struct wb_usb *pWbUsb;
-        struct usb_host_interface *interface;
-	struct usb_endpoint_descriptor *endpoint;
-	u32	ltmp;
 	struct usb_device *udev = interface_to_usbdev(intf);
-	struct wbsoft_priv *priv;
+	struct usb_endpoint_descriptor *endpoint;
+	struct usb_host_interface *interface;
 	struct ieee80211_hw *dev;
+	struct wbsoft_priv *priv;
+	struct wb_usb *pWbUsb;
 	int nr, err;
+	u32 ltmp;
 
 	usb_get_dev(udev);
 
 	/* Check the device if it already be opened */
-	nr = usb_control_msg(udev, usb_rcvctrlpipe( udev, 0 ),
-			     0x01, USB_TYPE_VENDOR|USB_RECIP_DEVICE|USB_DIR_IN,
-			     0x0, 0x400, &ltmp, 4, HZ*100 );
+	nr = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+			     0x01,
+			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+			     0x0, 0x400, &ltmp, 4, HZ * 100);
 	if (nr < 0) {
 		err = nr;
 		goto error;
@@ -629,8 +607,8 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	pWbUsb = &priv->sHwData.WbUsb;
 	pWbUsb->udev = udev;
 
-        interface = intf->cur_altsetting;
-        endpoint = &interface->endpoint[0].desc;
+	interface = intf->cur_altsetting;
+	endpoint = &interface->endpoint[0].desc;
 
 	if (endpoint[2].wMaxPacketSize == 512) {
 		printk("[w35und] Working on USB 2.0\n");
@@ -643,8 +621,8 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	SET_IEEE80211_DEV(dev, &udev->dev);
 	{
-		struct hw_data * pHwData = &priv->sHwData;
-		unsigned char		dev_addr[MAX_ADDR_LEN];
+		struct hw_data *pHwData = &priv->sHwData;
+		unsigned char dev_addr[MAX_ADDR_LEN];
 		hal_get_permanent_address(pHwData, dev_addr);
 		SET_IEEE80211_PERM_ADDR(dev, dev_addr);
 	}
@@ -686,10 +664,10 @@ static void hal_halt(struct hw_data *pHwData)
 
 static void wb35_hw_halt(struct wbsoft_priv *adapter)
 {
-	Mds_Destroy( adapter );
+	Mds_Destroy(adapter);
 
 	/* Turn off Rx and Tx hardware ability */
-	hal_stop( &adapter->sHwData );
+	hal_stop(&adapter->sHwData);
 #ifdef _PE_USB_INI_DUMP_
 	printk("[w35und] Hal_stop O.K.\n");
 #endif
@@ -698,7 +676,6 @@ static void wb35_hw_halt(struct wbsoft_priv *adapter)
 
 	hal_halt(&adapter->sHwData);
 }
-
 
 static void wb35_disconnect(struct usb_interface *intf)
 {
