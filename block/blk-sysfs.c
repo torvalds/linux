@@ -209,10 +209,14 @@ static ssize_t queue_iostats_store(struct request_queue *q, const char *page,
 	ssize_t ret = queue_var_store(&stats, page, count);
 
 	spin_lock_irq(q->queue_lock);
+	elv_quisce_start(q);
+
 	if (stats)
 		queue_flag_set(QUEUE_FLAG_IO_STAT, q);
 	else
 		queue_flag_clear(QUEUE_FLAG_IO_STAT, q);
+
+	elv_quisce_end(q);
 	spin_unlock_irq(q->queue_lock);
 
 	return ret;

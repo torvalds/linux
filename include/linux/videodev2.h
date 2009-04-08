@@ -737,6 +737,11 @@ struct v4l2_input {
 #define V4L2_IN_ST_NO_SIGNAL   0x00000002
 #define V4L2_IN_ST_NO_COLOR    0x00000004
 
+/* field 'status' - sensor orientation */
+/* If sensor is mounted upside down set both bits */
+#define V4L2_IN_ST_HFLIP       0x00000010 /* Frames are flipped horizontally */
+#define V4L2_IN_ST_VFLIP       0x00000020 /* Frames are flipped vertically */
+
 /* field 'status' - analog */
 #define V4L2_IN_ST_NO_H_LOCK   0x00000100  /* No horizontal sync lock */
 #define V4L2_IN_ST_COLOR_KILL  0x00000200  /* Color killer is active */

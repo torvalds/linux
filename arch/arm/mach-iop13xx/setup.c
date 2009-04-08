@@ -307,7 +307,7 @@ static struct resource iop13xx_adma_2_resources[] = {
 	}
 };
 
-static u64 iop13xx_adma_dmamask = DMA_64BIT_MASK;
+static u64 iop13xx_adma_dmamask = DMA_BIT_MASK(64);
 static struct iop_adma_platform_data iop13xx_adma_0_data = {
 	.hw_id = 0,
 	.pool_size = PAGE_SIZE,
@@ -331,7 +331,7 @@ static struct platform_device iop13xx_adma_0_channel = {
 	.resource = iop13xx_adma_0_resources,
 	.dev = {
 		.dma_mask = &iop13xx_adma_dmamask,
-		.coherent_dma_mask = DMA_64BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(64),
 		.platform_data = (void *) &iop13xx_adma_0_data,
 	},
 };
@@ -343,7 +343,7 @@ static struct platform_device iop13xx_adma_1_channel = {
 	.resource = iop13xx_adma_1_resources,
 	.dev = {
 		.dma_mask = &iop13xx_adma_dmamask,
-		.coherent_dma_mask = DMA_64BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(64),
 		.platform_data = (void *) &iop13xx_adma_1_data,
 	},
 };
@@ -355,7 +355,7 @@ static struct platform_device iop13xx_adma_2_channel = {
 	.resource = iop13xx_adma_2_resources,
 	.dev = {
 		.dma_mask = &iop13xx_adma_dmamask,
-		.coherent_dma_mask = DMA_64BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(64),
 		.platform_data = (void *) &iop13xx_adma_2_data,
 	},
 };

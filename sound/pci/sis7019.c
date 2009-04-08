@@ -1300,7 +1300,7 @@ static int __devinit sis_chip_create(struct snd_card *card,
 	if (rc)
 		goto error_out;
 
-	if (pci_set_dma_mask(pci, DMA_30BIT_MASK) < 0) {
+	if (pci_set_dma_mask(pci, DMA_BIT_MASK(30)) < 0) {
 		printk(KERN_ERR "sis7019: architecture does not support "
 					"30-bit PCI busmaster DMA");
 		goto error_out_enabled;

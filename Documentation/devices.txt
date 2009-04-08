@@ -2797,6 +2797,10 @@ Your cooperation is appreciated.
 		 206 = /dev/ttySC1		SC26xx serial port 1
 		 207 = /dev/ttySC2		SC26xx serial port 2
 		 208 = /dev/ttySC3		SC26xx serial port 3
+		 209 = /dev/ttyMAX0		MAX3100 serial port 0
+		 210 = /dev/ttyMAX1		MAX3100 serial port 1
+		 211 = /dev/ttyMAX2		MAX3100 serial port 2
+		 212 = /dev/ttyMAX3		MAX3100 serial port 3
 
 205 char	Low-density serial ports (alternate device)
 		  0 = /dev/culu0		Callout device for ttyLU0

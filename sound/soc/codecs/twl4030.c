@@ -122,6 +122,9 @@ struct twl4030_priv {
 	unsigned int bypass_state;
 	unsigned int codec_powered;
 	unsigned int codec_muted;
+
+	struct snd_pcm_substream *master_substream;
+	struct snd_pcm_substream *slave_substream;
 };
 
 /*
@@ -1217,6 +1220,52 @@ static int twl4030_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+static int twl4030_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	struct twl4030_priv *twl4030 = codec->private_data;
+
+	/* If we already have a playback or capture going then constrain
+	 * this substream to match it.
+	 */
+	if (twl4030->master_substream) {
+		struct snd_pcm_runtime *master_runtime;
+		master_runtime = twl4030->master_substream->runtime;
+
+		snd_pcm_hw_constraint_minmax(substream->runtime,
+					     SNDRV_PCM_HW_PARAM_RATE,
+					     master_runtime->rate,
+					     master_runtime->rate);
+
+		snd_pcm_hw_constraint_minmax(substream->runtime,
+					     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+					     master_runtime->sample_bits,
+					     master_runtime->sample_bits);
+
+		twl4030->slave_substream = substream;
+	} else
+		twl4030->master_substream = substream;
+
+	return 0;
+}
+
+static void twl4030_shutdown(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	struct twl4030_priv *twl4030 = codec->private_data;
+
+	if (twl4030->master_substream == substream)
+		twl4030->master_substream = twl4030->slave_substream;
+
+	twl4030->slave_substream = NULL;
+}
+
 static int twl4030_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params,
 			   struct snd_soc_dai *dai)
@@ -1224,7 +1273,12 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
+	struct twl4030_priv *twl4030 = codec->private_data;
 	u8 mode, old_mode, format, old_format;
+
+	if (substream == twl4030->slave_substream)
+		/* Ignoring hw_params for slave substream */
+		return 0;
 
 	/* bit rate */
 	old_mode = twl4030_read_reg_cache(codec,
@@ -1258,6 +1312,9 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case 48000:
 		mode |= TWL4030_APLL_RATE_48000;
+		break;
+	case 96000:
+		mode |= TWL4030_APLL_RATE_96000;
 		break;
 	default:
 		printk(KERN_ERR "TWL4030 hw params: unknown rate %d\n",
@@ -1384,6 +1441,8 @@ static int twl4030_set_dai_fmt(struct snd_soc_dai *codec_dai,
 #define TWL4030_FORMATS	 (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FORMAT_S24_LE)
 
 static struct snd_soc_dai_ops twl4030_dai_ops = {
+	.startup	= twl4030_startup,
+	.shutdown	= twl4030_shutdown,
 	.hw_params	= twl4030_hw_params,
 	.set_sysclk	= twl4030_set_dai_sysclk,
 	.set_fmt	= twl4030_set_dai_fmt,
@@ -1395,7 +1454,7 @@ struct snd_soc_dai twl4030_dai = {
 		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 2,
-		.rates = TWL4030_RATES,
+		.rates = TWL4030_RATES | SNDRV_PCM_RATE_96000,
 		.formats = TWL4030_FORMATS,},
 	.capture = {
 		.stream_name = "Capture",
