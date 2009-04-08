@@ -1434,18 +1434,21 @@ static void dm_wq_work(struct work_struct *work)
 
 	down_write(&md->io_lock);
 
-	while (1) {
+	while (!test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) {
 		spin_lock_irq(&md->deferred_lock);
 		c = bio_list_pop(&md->deferred);
 		spin_unlock_irq(&md->deferred_lock);
 
 		if (!c) {
-			clear_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags);
 			clear_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags);
 			break;
 		}
 
+		up_write(&md->io_lock);
+
 		__split_and_process_bio(md, c);
+
+		down_write(&md->io_lock);
 	}
 
 	up_write(&md->io_lock);
@@ -1453,8 +1456,9 @@ static void dm_wq_work(struct work_struct *work)
 
 static void dm_queue_flush(struct mapped_device *md)
 {
+	clear_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags);
+	smp_mb__after_clear_bit();
 	queue_work(md->wq, &md->work);
-	flush_workqueue(md->wq);
 }
 
 /*
@@ -1572,22 +1576,36 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	}
 
 	/*
-	 * First we set the DMF_QUEUE_IO_TO_THREAD flag so no more ios
-	 * will be mapped.
+	 * Here we must make sure that no processes are submitting requests
+	 * to target drivers i.e. no one may be executing
+	 * __split_and_process_bio. This is called from dm_request and
+	 * dm_wq_work.
+	 *
+	 * To get all processes out of __split_and_process_bio in dm_request,
+	 * we take the write lock. To prevent any process from reentering
+	 * __split_and_process_bio from dm_request, we set
+	 * DMF_QUEUE_IO_TO_THREAD.
+	 *
+	 * To quiesce the thread (dm_wq_work), we set DMF_BLOCK_IO_FOR_SUSPEND
+	 * and call flush_workqueue(md->wq). flush_workqueue will wait until
+	 * dm_wq_work exits and DMF_BLOCK_IO_FOR_SUSPEND will prevent any
+	 * further calls to __split_and_process_bio from dm_wq_work.
 	 */
 	down_write(&md->io_lock);
 	set_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags);
 	set_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags);
-
 	up_write(&md->io_lock);
 
+	flush_workqueue(md->wq);
+
 	/*
-	 * Wait for the already-mapped ios to complete.
+	 * At this point no more requests are entering target request routines.
+	 * We call dm_wait_for_completion to wait for all existing requests
+	 * to finish.
 	 */
 	r = dm_wait_for_completion(md, TASK_INTERRUPTIBLE);
 
 	down_write(&md->io_lock);
-
 	if (noflush)
 		clear_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
 	up_write(&md->io_lock);
@@ -1599,6 +1617,12 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 		unlock_fs(md);
 		goto out; /* pushback list is already flushed, so skip flush */
 	}
+
+	/*
+	 * If dm_wait_for_completion returned 0, the device is completely
+	 * quiescent now. There is no request-processing activity. All new
+	 * requests are being added to md->deferred list.
+	 */
 
 	dm_table_postsuspend_targets(map);
 
