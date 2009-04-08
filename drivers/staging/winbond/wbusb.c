@@ -2,6 +2,12 @@
  * Copyright 2008 Pavel Machek <pavel@suse.cz>
  *
  * Distribute under GPLv2.
+ *
+ * The original driver was written by:
+ *     Jeff Lee <YY_Lee@issc.com.tw>
+ *
+ * and was adapted to the 2.6 kernel by:
+ *     Costantino Leandro (Rxart Desktop) <le_costantino@pixartargentina.com.ar>
  */
 #include <net/mac80211.h>
 #include <linux/usb.h>
@@ -13,7 +19,6 @@
 #include "wbhal_f.h"
 #include "wblinux_f.h"
 
-MODULE_AUTHOR("Original by: Jeff Lee<YY_Lee@issc.com.tw> Adapted to 2.6.x by Costantino Leandro (Rxart Desktop) <le_costantino@pixartargentina.com.ar>");
 MODULE_DESCRIPTION("IS89C35 802.11bg WLAN USB Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
