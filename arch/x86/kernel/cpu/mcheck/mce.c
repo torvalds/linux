@@ -570,6 +570,8 @@ static int mce_cap_init(void)
 
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 	b = cap & 0xff;
+	printk(KERN_INFO "mce: CPU supports %d MCE banks\n", b);
+
 	if (b > MAX_NR_BANKS) {
 		printk(KERN_WARNING
 		       "MCE: Using only %u machine check banks out of %u\n",
@@ -1287,6 +1289,7 @@ void mcheck_init(struct cpuinfo_x86 *c)
 	default:
 		break;
 	}
+	printk(KERN_INFO "mce: CPU supports %d MCE banks\n", nr_mce_banks);
 }
 
 static int __init mcheck_disable(char *str)
