@@ -104,13 +104,18 @@ static s64 __kpit_elapsed(struct kvm *kvm)
 	ktime_t remaining;
 	struct kvm_kpit_state *ps = &kvm->arch.vpit->pit_state;
 
+	/*
+	 * The Counter does not stop when it reaches zero. In
+	 * Modes 0, 1, 4, and 5 the Counter ``wraps around'' to
+	 * the highest count, either FFFF hex for binary counting
+	 * or 9999 for BCD counting, and continues counting.
+	 * Modes 2 and 3 are periodic; the Counter reloads
+	 * itself with the initial count and continues counting
+	 * from there.
+	 */
 	remaining = hrtimer_expires_remaining(&ps->pit_timer.timer);
-	if (ktime_to_ns(remaining) < 0)
-		remaining = ktime_set(0, 0);
-
-	elapsed = ps->pit_timer.period;
-	if (ktime_to_ns(remaining) <= ps->pit_timer.period)
-		elapsed = ps->pit_timer.period - ktime_to_ns(remaining);
+	elapsed = ps->pit_timer.period - ktime_to_ns(remaining);
+	elapsed = mod_64(elapsed, ps->pit_timer.period);
 
 	return elapsed;
 }
@@ -280,7 +285,7 @@ static void create_pit_timer(struct kvm_kpit_state *ps, u32 val, int is_period)
 
 	/* TODO The new value only affected after the retriggered */
 	hrtimer_cancel(&pt->timer);
-	pt->period = (is_period == 0) ? 0 : interval;
+	pt->period = interval;
 	ps->is_periodic = is_period;
 
 	pt->timer.function = kvm_timer_fn;
@@ -304,10 +309,8 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 	pr_debug("pit: load_count val is %d, channel is %d\n", val, channel);
 
 	/*
-	 * Though spec said the state of 8254 is undefined after power-up,
-	 * seems some tricky OS like Windows XP depends on IRQ0 interrupt
-	 * when booting up.
-	 * So here setting initialize rate for it, and not a specific number
+	 * The largest possible initial count is 0; this is equivalent
+	 * to 216 for binary counting and 104 for BCD counting.
 	 */
 	if (val == 0)
 		val = 0x10000;
@@ -322,6 +325,7 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 	/* Two types of timer
 	 * mode 1 is one shot, mode 2 is period, otherwise del timer */
 	switch (ps->channels[0].mode) {
+	case 0:
 	case 1:
         /* FIXME: enhance mode 4 precision */
 	case 4:
