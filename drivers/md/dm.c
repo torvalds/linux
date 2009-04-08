@@ -89,12 +89,13 @@ union map_info *dm_get_mapinfo(struct bio *bio)
 /*
  * Bits for the md->flags field.
  */
-#define DMF_BLOCK_IO 0
+#define DMF_BLOCK_IO_FOR_SUSPEND 0
 #define DMF_SUSPENDED 1
 #define DMF_FROZEN 2
 #define DMF_FREEING 3
 #define DMF_DELETING 4
 #define DMF_NOFLUSH_SUSPENDING 5
+#define DMF_QUEUE_IO_TO_THREAD 6
 
 /*
  * Work processed by per-device workqueue.
@@ -439,7 +440,7 @@ static int queue_io(struct mapped_device *md, struct bio *bio)
 {
 	down_write(&md->io_lock);
 
-	if (!test_bit(DMF_BLOCK_IO, &md->flags)) {
+	if (!test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags)) {
 		up_write(&md->io_lock);
 		return 1;
 	}
@@ -950,10 +951,10 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	part_stat_unlock();
 
 	/*
-	 * If we're suspended we have to queue
-	 * this io for later.
+	 * If we're suspended or the thread is processing barriers
+	 * we have to queue this io for later.
 	 */
-	while (test_bit(DMF_BLOCK_IO, &md->flags)) {
+	while (test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags)) {
 		up_read(&md->io_lock);
 
 		if (bio_rw(bio) != READA)
@@ -997,7 +998,7 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 	struct mapped_device *md = congested_data;
 	struct dm_table *map;
 
-	if (!test_bit(DMF_BLOCK_IO, &md->flags)) {
+	if (!test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) {
 		map = dm_get_table(md);
 		if (map) {
 			r = dm_table_any_congested(map, bdi_bits);
@@ -1443,7 +1444,8 @@ static void dm_wq_work(struct work_struct *work)
 		spin_unlock_irq(&md->deferred_lock);
 
 		if (!c) {
-			clear_bit(DMF_BLOCK_IO, &md->flags);
+			clear_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags);
+			clear_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags);
 			break;
 		}
 
@@ -1574,10 +1576,12 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	}
 
 	/*
-	 * First we set the BLOCK_IO flag so no more ios will be mapped.
+	 * First we set the DMF_QUEUE_IO_TO_THREAD flag so no more ios
+	 * will be mapped.
 	 */
 	down_write(&md->io_lock);
-	set_bit(DMF_BLOCK_IO, &md->flags);
+	set_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags);
+	set_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags);
 
 	up_write(&md->io_lock);
 
