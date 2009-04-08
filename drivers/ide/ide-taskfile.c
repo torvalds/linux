@@ -47,7 +47,8 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 		cmd.tf.command = ATA_CMD_ID_ATA;
 	else
 		cmd.tf.command = ATA_CMD_ID_ATAPI;
-	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
+	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 	cmd.protocol = ATA_PROT_PIO;
 
 	return ide_raw_taskfile(drive, &cmd, buf, 1);
@@ -494,11 +495,14 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 	memcpy(&cmd.tf_array[6], req_task->io_ports,
 	       HDIO_DRIVE_TASK_HDR_SIZE);
 
-	cmd.tf_flags   = IDE_TFLAG_IO_16BIT | IDE_TFLAG_DEVICE |
-			 IDE_TFLAG_IN_TF;
+	cmd.valid.out.tf = IDE_VALID_DEVICE;
+	cmd.valid.in.tf  = IDE_VALID_DEVICE | IDE_VALID_IN_TF;
+	cmd.tf_flags = IDE_TFLAG_IO_16BIT;
 
-	if (drive->dev_flags & IDE_DFLAG_LBA48)
-		cmd.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_IN_HOB);
+	if (drive->dev_flags & IDE_DFLAG_LBA48) {
+		cmd.tf_flags |= IDE_TFLAG_LBA48;
+		cmd.valid.in.hob = IDE_VALID_IN_HOB;
+	}
 
 	if (req_task->out_flags.all) {
 		cmd.ftf_flags |= IDE_FTFLAG_FLAGGED;
@@ -507,28 +511,28 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 			cmd.ftf_flags |= IDE_FTFLAG_OUT_DATA;
 
 		if (req_task->out_flags.b.nsector_hob)
-			cmd.tf_flags |= IDE_TFLAG_OUT_HOB_NSECT;
+			cmd.valid.out.hob |= IDE_VALID_NSECT;
 		if (req_task->out_flags.b.sector_hob)
-			cmd.tf_flags |= IDE_TFLAG_OUT_HOB_LBAL;
+			cmd.valid.out.hob |= IDE_VALID_LBAL;
 		if (req_task->out_flags.b.lcyl_hob)
-			cmd.tf_flags |= IDE_TFLAG_OUT_HOB_LBAM;
+			cmd.valid.out.hob |= IDE_VALID_LBAM;
 		if (req_task->out_flags.b.hcyl_hob)
-			cmd.tf_flags |= IDE_TFLAG_OUT_HOB_LBAH;
+			cmd.valid.out.hob |= IDE_VALID_LBAH;
 
 		if (req_task->out_flags.b.error_feature)
-			cmd.tf_flags |= IDE_TFLAG_OUT_FEATURE;
+			cmd.valid.out.tf  |= IDE_VALID_FEATURE;
 		if (req_task->out_flags.b.nsector)
-			cmd.tf_flags |= IDE_TFLAG_OUT_NSECT;
+			cmd.valid.out.tf  |= IDE_VALID_NSECT;
 		if (req_task->out_flags.b.sector)
-			cmd.tf_flags |= IDE_TFLAG_OUT_LBAL;
+			cmd.valid.out.tf  |= IDE_VALID_LBAL;
 		if (req_task->out_flags.b.lcyl)
-			cmd.tf_flags |= IDE_TFLAG_OUT_LBAM;
+			cmd.valid.out.tf  |= IDE_VALID_LBAM;
 		if (req_task->out_flags.b.hcyl)
-			cmd.tf_flags |= IDE_TFLAG_OUT_LBAH;
+			cmd.valid.out.tf  |= IDE_VALID_LBAH;
 	} else {
-		cmd.tf_flags |= IDE_TFLAG_OUT_TF;
+		cmd.valid.out.tf |= IDE_VALID_OUT_TF;
 		if (cmd.tf_flags & IDE_TFLAG_LBA48)
-			cmd.tf_flags |= IDE_TFLAG_OUT_HOB;
+			cmd.valid.out.hob |= IDE_VALID_OUT_HOB;
 	}
 
 	if (req_task->in_flags.b.data)

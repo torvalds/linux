@@ -141,11 +141,12 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 		tf->lbal  = args[1];
 		tf->lbam  = 0x4f;
 		tf->lbah  = 0xc2;
-		cmd.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_IN_NSECT;
+		cmd.valid.out.tf = IDE_VALID_OUT_TF;
+		cmd.valid.in.tf  = IDE_VALID_NSECT;
 	} else {
 		tf->nsect = args[1];
-		cmd.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT |
-			       IDE_TFLAG_IN_NSECT;
+		cmd.valid.out.tf = IDE_VALID_FEATURE | IDE_VALID_NSECT;
+		cmd.valid.in.tf  = IDE_VALID_NSECT;
 	}
 	tf->command = args[0];
 	cmd.protocol = args[3] ? ATA_PROT_PIO : ATA_PROT_NODATA;
@@ -207,7 +208,8 @@ static int ide_task_ioctl(ide_drive_t *drive, unsigned long arg)
 	memset(&cmd, 0, sizeof(cmd));
 	memcpy(&cmd.tf_array[7], &args[1], 6);
 	cmd.tf.command = args[0];
-	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
+	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 
 	err = ide_no_data_taskfile(drive, &cmd);
 

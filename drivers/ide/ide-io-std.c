@@ -91,6 +91,7 @@ void ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	struct ide_taskfile *tf = &cmd->tf;
 	void (*tf_outb)(u8 addr, unsigned long port);
+	u8 valid = cmd->valid.out.hob;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 HIHI = (cmd->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
 
@@ -102,29 +103,31 @@ void ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
+	if (valid & IDE_VALID_FEATURE)
 		tf_outb(tf->hob_feature, io_ports->feature_addr);
-	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
+	if (valid & IDE_VALID_NSECT)
 		tf_outb(tf->hob_nsect, io_ports->nsect_addr);
-	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_LBAL)
+	if (valid & IDE_VALID_LBAL)
 		tf_outb(tf->hob_lbal, io_ports->lbal_addr);
-	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_LBAM)
+	if (valid & IDE_VALID_LBAM)
 		tf_outb(tf->hob_lbam, io_ports->lbam_addr);
-	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_LBAH)
+	if (valid & IDE_VALID_LBAH)
 		tf_outb(tf->hob_lbah, io_ports->lbah_addr);
 
-	if (cmd->tf_flags & IDE_TFLAG_OUT_FEATURE)
+	valid = cmd->valid.out.tf;
+
+	if (valid & IDE_VALID_FEATURE)
 		tf_outb(tf->feature, io_ports->feature_addr);
-	if (cmd->tf_flags & IDE_TFLAG_OUT_NSECT)
+	if (valid & IDE_VALID_NSECT)
 		tf_outb(tf->nsect, io_ports->nsect_addr);
-	if (cmd->tf_flags & IDE_TFLAG_OUT_LBAL)
+	if (valid & IDE_VALID_LBAL)
 		tf_outb(tf->lbal, io_ports->lbal_addr);
-	if (cmd->tf_flags & IDE_TFLAG_OUT_LBAM)
+	if (valid & IDE_VALID_LBAM)
 		tf_outb(tf->lbam, io_ports->lbam_addr);
-	if (cmd->tf_flags & IDE_TFLAG_OUT_LBAH)
+	if (valid & IDE_VALID_LBAH)
 		tf_outb(tf->lbah, io_ports->lbah_addr);
 
-	if (cmd->tf_flags & IDE_TFLAG_OUT_DEVICE)
+	if (valid & IDE_VALID_DEVICE)
 		tf_outb((tf->device & HIHI) | drive->select,
 			 io_ports->device_addr);
 }
@@ -137,6 +140,7 @@ void ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_taskfile *tf = &cmd->tf;
 	void (*tf_outb)(u8 addr, unsigned long port);
 	u8 (*tf_inb)(unsigned long port);
+	u8 valid = cmd->valid.in.tf;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 
 	if (mmio) {
@@ -150,31 +154,33 @@ void ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	/* be sure we're looking at the low order bits */
 	tf_outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
-	if (cmd->tf_flags & IDE_TFLAG_IN_ERROR)
+	if (valid & IDE_VALID_ERROR)
 		tf->error  = tf_inb(io_ports->feature_addr);
-	if (cmd->tf_flags & IDE_TFLAG_IN_NSECT)
+	if (valid & IDE_VALID_NSECT)
 		tf->nsect  = tf_inb(io_ports->nsect_addr);
-	if (cmd->tf_flags & IDE_TFLAG_IN_LBAL)
+	if (valid & IDE_VALID_LBAL)
 		tf->lbal   = tf_inb(io_ports->lbal_addr);
-	if (cmd->tf_flags & IDE_TFLAG_IN_LBAM)
+	if (valid & IDE_VALID_LBAM)
 		tf->lbam   = tf_inb(io_ports->lbam_addr);
-	if (cmd->tf_flags & IDE_TFLAG_IN_LBAH)
+	if (valid & IDE_VALID_LBAH)
 		tf->lbah   = tf_inb(io_ports->lbah_addr);
-	if (cmd->tf_flags & IDE_TFLAG_IN_DEVICE)
+	if (valid & IDE_VALID_DEVICE)
 		tf->device = tf_inb(io_ports->device_addr);
 
 	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
 		tf_outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_ERROR)
+		valid = cmd->valid.in.hob;
+
+		if (valid & IDE_VALID_ERROR)
 			tf->hob_error = tf_inb(io_ports->feature_addr);
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
+		if (valid & IDE_VALID_NSECT)
 			tf->hob_nsect = tf_inb(io_ports->nsect_addr);
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
+		if (valid & IDE_VALID_LBAL)
 			tf->hob_lbal  = tf_inb(io_ports->lbal_addr);
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
+		if (valid & IDE_VALID_LBAM)
 			tf->hob_lbam  = tf_inb(io_ports->lbam_addr);
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
+		if (valid & IDE_VALID_LBAH)
 			tf->hob_lbah  = tf_inb(io_ports->lbah_addr);
 	}
 }

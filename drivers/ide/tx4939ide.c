@@ -438,7 +438,7 @@ static void tx4939ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_tf_load(drive, cmd);
 
-	if (cmd->tf_flags & IDE_TFLAG_OUT_DEVICE)
+	if (cmd->valid.out.tf & IDE_VALID_DEVICE)
 		tx4939ide_tf_load_fixup(drive);
 }
 

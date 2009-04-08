@@ -205,8 +205,9 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 		return ide_stopped;
 	}
 
-	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE |
-		       IDE_TFLAG_CUSTOM_HANDLER;
+	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
+	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
+	cmd.tf_flags = IDE_TFLAG_CUSTOM_HANDLER;
 
 	do_rw_taskfile(drive, &cmd);
 

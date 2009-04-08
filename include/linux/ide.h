@@ -240,65 +240,38 @@ typedef enum {
 } ide_startstop_t;
 
 enum {
+	IDE_VALID_ERROR 		= (1 << 1),
+	IDE_VALID_FEATURE		= IDE_VALID_ERROR,
+	IDE_VALID_NSECT 		= (1 << 2),
+	IDE_VALID_LBAL			= (1 << 3),
+	IDE_VALID_LBAM			= (1 << 4),
+	IDE_VALID_LBAH			= (1 << 5),
+	IDE_VALID_DEVICE		= (1 << 6),
+	IDE_VALID_LBA			= IDE_VALID_LBAL |
+					  IDE_VALID_LBAM |
+					  IDE_VALID_LBAH,
+	IDE_VALID_OUT_TF		= IDE_VALID_FEATURE |
+					  IDE_VALID_NSECT |
+					  IDE_VALID_LBA,
+	IDE_VALID_IN_TF 		= IDE_VALID_NSECT |
+					  IDE_VALID_LBA,
+	IDE_VALID_OUT_HOB		= IDE_VALID_OUT_TF,
+	IDE_VALID_IN_HOB		= IDE_VALID_ERROR |
+					  IDE_VALID_NSECT |
+					  IDE_VALID_LBA,
+};
+
+enum {
 	IDE_TFLAG_LBA48			= (1 << 0),
-	IDE_TFLAG_OUT_HOB_FEATURE	= (1 << 1),
-	IDE_TFLAG_OUT_HOB_NSECT		= (1 << 2),
-	IDE_TFLAG_OUT_HOB_LBAL		= (1 << 3),
-	IDE_TFLAG_OUT_HOB_LBAM		= (1 << 4),
-	IDE_TFLAG_OUT_HOB_LBAH		= (1 << 5),
-	IDE_TFLAG_OUT_HOB		= IDE_TFLAG_OUT_HOB_FEATURE |
-					  IDE_TFLAG_OUT_HOB_NSECT |
-					  IDE_TFLAG_OUT_HOB_LBAL |
-					  IDE_TFLAG_OUT_HOB_LBAM |
-					  IDE_TFLAG_OUT_HOB_LBAH,
-	IDE_TFLAG_OUT_FEATURE		= (1 << 6),
-	IDE_TFLAG_OUT_NSECT		= (1 << 7),
-	IDE_TFLAG_OUT_LBAL		= (1 << 8),
-	IDE_TFLAG_OUT_LBAM		= (1 << 9),
-	IDE_TFLAG_OUT_LBAH		= (1 << 10),
-	IDE_TFLAG_OUT_TF		= IDE_TFLAG_OUT_FEATURE |
-					  IDE_TFLAG_OUT_NSECT |
-					  IDE_TFLAG_OUT_LBAL |
-					  IDE_TFLAG_OUT_LBAM |
-					  IDE_TFLAG_OUT_LBAH,
-	IDE_TFLAG_OUT_DEVICE		= (1 << 11),
-	IDE_TFLAG_WRITE			= (1 << 12),
-	IDE_TFLAG_CUSTOM_HANDLER	= (1 << 13),
-	IDE_TFLAG_DMA_PIO_FALLBACK	= (1 << 14),
-	IDE_TFLAG_IN_HOB_ERROR		= (1 << 15),
-	IDE_TFLAG_IN_HOB_NSECT		= (1 << 16),
-	IDE_TFLAG_IN_HOB_LBAL		= (1 << 17),
-	IDE_TFLAG_IN_HOB_LBAM		= (1 << 18),
-	IDE_TFLAG_IN_HOB_LBAH		= (1 << 19),
-	IDE_TFLAG_IN_HOB_LBA		= IDE_TFLAG_IN_HOB_LBAL |
-					  IDE_TFLAG_IN_HOB_LBAM |
-					  IDE_TFLAG_IN_HOB_LBAH,
-	IDE_TFLAG_IN_HOB		= IDE_TFLAG_IN_HOB_ERROR |
-					  IDE_TFLAG_IN_HOB_NSECT |
-					  IDE_TFLAG_IN_HOB_LBA,
-	IDE_TFLAG_IN_ERROR		= (1 << 20),
-	IDE_TFLAG_IN_NSECT		= (1 << 21),
-	IDE_TFLAG_IN_LBAL		= (1 << 22),
-	IDE_TFLAG_IN_LBAM		= (1 << 23),
-	IDE_TFLAG_IN_LBAH		= (1 << 24),
-	IDE_TFLAG_IN_LBA		= IDE_TFLAG_IN_LBAL |
-					  IDE_TFLAG_IN_LBAM |
-					  IDE_TFLAG_IN_LBAH,
-	IDE_TFLAG_IN_TF			= IDE_TFLAG_IN_NSECT |
-					  IDE_TFLAG_IN_LBA,
-	IDE_TFLAG_IN_DEVICE		= (1 << 25),
-	IDE_TFLAG_HOB			= IDE_TFLAG_OUT_HOB |
-					  IDE_TFLAG_IN_HOB,
-	IDE_TFLAG_TF			= IDE_TFLAG_OUT_TF |
-					  IDE_TFLAG_IN_TF,
-	IDE_TFLAG_DEVICE		= IDE_TFLAG_OUT_DEVICE |
-					  IDE_TFLAG_IN_DEVICE,
+	IDE_TFLAG_WRITE			= (1 << 1),
+	IDE_TFLAG_CUSTOM_HANDLER	= (1 << 2),
+	IDE_TFLAG_DMA_PIO_FALLBACK	= (1 << 3),
 	/* force 16-bit I/O operations */
-	IDE_TFLAG_IO_16BIT		= (1 << 26),
+	IDE_TFLAG_IO_16BIT		= (1 << 4),
 	/* struct ide_cmd was allocated using kmalloc() */
-	IDE_TFLAG_DYN			= (1 << 27),
-	IDE_TFLAG_FS			= (1 << 28),
-	IDE_TFLAG_MULTI_PIO		= (1 << 29),
+	IDE_TFLAG_DYN			= (1 << 5),
+	IDE_TFLAG_FS			= (1 << 6),
+	IDE_TFLAG_MULTI_PIO		= (1 << 7),
 };
 
 enum {
@@ -346,8 +319,16 @@ struct ide_cmd {
 		struct ide_taskfile	tf;
 		u8			tf_array[14];
 	};
+
+	struct {
+		struct {
+			u8		tf;
+			u8		hob;
+		} out, in;
+	} valid;
+
+	u8			tf_flags;
 	u8			ftf_flags;	/* for TASKFILE ioctl */
-	u32			tf_flags;
 	int			protocol;
 
 	int			sg_nents;	  /* number of sg entries */

@@ -40,7 +40,7 @@ u8 ide_read_error(ide_drive_t *drive)
 	struct ide_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_ERROR;
+	cmd.valid.in.tf = IDE_VALID_ERROR;
 
 	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
@@ -348,7 +348,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	tp_ops->write_devctl(hwif, ATA_NIEN | ATA_DEVCTL_OBS);
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT;
+	cmd.valid.out.tf = IDE_VALID_FEATURE | IDE_VALID_NSECT;
 	cmd.tf.feature = SETFEATURES_XFER;
 	cmd.tf.nsect   = speed;
 

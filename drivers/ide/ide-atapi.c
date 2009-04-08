@@ -257,8 +257,7 @@ void ide_read_bcount_and_ireason(ide_drive_t *drive, u16 *bcount, u8 *ireason)
 	struct ide_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_LBAH | IDE_TFLAG_IN_LBAM |
-		       IDE_TFLAG_IN_NSECT;
+	cmd.valid.in.tf = IDE_VALID_LBAH | IDE_VALID_LBAM | IDE_VALID_NSECT;
 
 	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
@@ -439,12 +438,12 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	return ide_started;
 }
 
-static void ide_init_packet_cmd(struct ide_cmd *cmd, u32 tf_flags,
+static void ide_init_packet_cmd(struct ide_cmd *cmd, u8 valid_tf,
 				u16 bcount, u8 dma)
 {
-	cmd->protocol  = dma ? ATAPI_PROT_DMA : ATAPI_PROT_PIO;
-	cmd->tf_flags |= IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
-			 IDE_TFLAG_OUT_FEATURE | tf_flags;
+	cmd->protocol = dma ? ATAPI_PROT_DMA : ATAPI_PROT_PIO;
+	cmd->valid.out.tf = IDE_VALID_LBAH | IDE_VALID_LBAM |
+			    IDE_VALID_FEATURE | valid_tf;
 	cmd->tf.command = ATA_CMD_PACKET;
 	cmd->tf.feature = dma;		/* Use PIO/DMA */
 	cmd->tf.lbam    = bcount & 0xff;
@@ -456,7 +455,7 @@ static u8 ide_read_ireason(ide_drive_t *drive)
 	struct ide_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_NSECT;
+	cmd.valid.in.tf = IDE_VALID_NSECT;
 
 	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
@@ -588,12 +587,12 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 	ide_expiry_t *expiry = NULL;
 	struct request *rq = hwif->rq;
 	unsigned int timeout;
-	u32 tf_flags;
 	u16 bcount;
+	u8 valid_tf;
 	u8 drq_int = !!(drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT);
 
 	if (dev_is_idecd(drive)) {
-		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
+		valid_tf = IDE_VALID_NSECT | IDE_VALID_LBAL;
 		bcount = ide_cd_get_xferlen(rq);
 		expiry = ide_cd_expiry;
 		timeout = ATAPI_WAIT_PC;
@@ -607,7 +606,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 		pc->xferred = 0;
 		pc->cur_pos = pc->buf;
 
-		tf_flags = IDE_TFLAG_OUT_DEVICE;
+		valid_tf = IDE_VALID_DEVICE;
 		bcount = ((drive->media == ide_tape) ?
 				pc->req_xfer :
 				min(pc->req_xfer, 63 * 1024));
@@ -627,7 +626,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 						       : WAIT_TAPE_CMD;
 	}
 
-	ide_init_packet_cmd(cmd, tf_flags, bcount, drive->dma);
+	ide_init_packet_cmd(cmd, valid_tf, bcount, drive->dma);
 
 	(void)do_rw_taskfile(drive, cmd);
 

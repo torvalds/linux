@@ -71,11 +71,12 @@ static void ide_dump_sector(ide_drive_t *drive)
 	u8 lba48 = !!(drive->dev_flags & IDE_DFLAG_LBA48);
 
 	memset(&cmd, 0, sizeof(cmd));
-	if (lba48)
-		cmd.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_HOB_LBA |
-				IDE_TFLAG_LBA48;
-	else
-		cmd.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
+	if (lba48) {
+		cmd.valid.in.tf  = IDE_VALID_LBA;
+		cmd.valid.in.hob = IDE_VALID_LBA;
+		cmd.tf_flags = IDE_TFLAG_LBA48;
+	} else
+		cmd.valid.in.tf  = IDE_VALID_LBA | IDE_VALID_DEVICE;
 
 	drive->hwif->tp_ops->tf_read(drive, &cmd);
 

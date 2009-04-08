@@ -287,7 +287,7 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 
 		memset(&cmd, 0, sizeof(cmd));
 		/* disable DMA & overlap */
-		cmd.tf_flags = IDE_TFLAG_OUT_FEATURE;
+		cmd.valid.out.tf = IDE_VALID_FEATURE;
 
 		tp_ops->tf_load(drive, &cmd);
 	}
@@ -340,7 +340,7 @@ static u8 ide_read_device(ide_drive_t *drive)
 	struct ide_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_DEVICE;
+	cmd.valid.in.tf = IDE_VALID_DEVICE;
 
 	drive->hwif->tp_ops->tf_read(drive, &cmd);
 
