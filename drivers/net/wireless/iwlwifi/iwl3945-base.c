@@ -712,65 +712,6 @@ static void iwl3945_build_tx_cmd_basic(struct iwl_priv *priv,
 	tx->next_frame_len = 0;
 }
 
-/**
- * iwl3945_get_sta_id - Find station's index within station table
- */
-static int iwl3945_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
-{
-	int sta_id;
-	u16 fc = le16_to_cpu(hdr->frame_control);
-
-	/* If this frame is broadcast or management, use broadcast station id */
-	if (((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA) ||
-	    is_multicast_ether_addr(hdr->addr1))
-		return priv->hw_params.bcast_sta_id;
-
-	switch (priv->iw_mode) {
-
-	/* If we are a client station in a BSS network, use the special
-	 * AP station entry (that's the only station we communicate with) */
-	case NL80211_IFTYPE_STATION:
-		return IWL_AP_ID;
-
-	/* If we are an AP, then find the station, or use BCAST */
-	case NL80211_IFTYPE_AP:
-		sta_id = priv->cfg->ops->smgmt->find_station(priv, hdr->addr1);
-		if (sta_id != IWL_INVALID_STATION)
-			return sta_id;
-		return priv->hw_params.bcast_sta_id;
-
-	/* If this frame is going out to an IBSS network, find the station,
-	 * or create a new station table entry */
-	case NL80211_IFTYPE_ADHOC: {
-		/* Create new station table entry */
-		sta_id = priv->cfg->ops->smgmt->find_station(priv, hdr->addr1);
-		if (sta_id != IWL_INVALID_STATION)
-			return sta_id;
-
-		sta_id = priv->cfg->ops->smgmt->add_station(priv,
-				hdr->addr1, 0, CMD_ASYNC, NULL);
-
-		if (sta_id != IWL_INVALID_STATION)
-			return sta_id;
-
-		IWL_DEBUG_DROP(priv, "Station %pM not in station map. "
-			       "Defaulting to broadcast...\n",
-			       hdr->addr1);
-		iwl_print_hex_dump(priv, IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
-		return priv->hw_params.bcast_sta_id;
-	}
-	/* If we are in monitor mode, use BCAST. This is required for
-	 * packet injection. */
-	case NL80211_IFTYPE_MONITOR:
-		return priv->hw_params.bcast_sta_id;
-
-	default:
-		IWL_WARN(priv, "Unknown mode of operation: %d\n",
-			priv->iw_mode);
-		return priv->hw_params.bcast_sta_id;
-	}
-}
-
 /*
  * start REPLY_TX command process
  */
@@ -836,7 +777,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find (or create) index into station table for destination station */
-	sta_id = iwl3945_get_sta_id(priv, hdr);
+	sta_id = iwl_get_sta_id(priv, hdr);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 			       hdr->addr1);
