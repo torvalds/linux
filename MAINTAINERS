@@ -2653,7 +2653,7 @@ I2C-TINY-USB DRIVER
 P:	Till Harbaum
 M:	till@harbaum.org
 L:	linux-i2c@vger.kernel.org
-T:	http://www.harbaum.org/till/i2c_tiny_usb
+W:	http://www.harbaum.org/till/i2c_tiny_usb
 S:	Maintained
 F:	drivers/i2c/busses/i2c-tiny-usb.c
 
