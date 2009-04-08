@@ -206,7 +206,7 @@ static int ide_task_ioctl(ide_drive_t *drive, unsigned long arg)
 		return -EFAULT;
 
 	memset(&cmd, 0, sizeof(cmd));
-	memcpy(&cmd.tf_array[7], &args[1], 6);
+	memcpy(&cmd.tf.feature, &args[1], 6);
 	cmd.tf.command = args[0];
 	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
 	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
@@ -214,7 +214,7 @@ static int ide_task_ioctl(ide_drive_t *drive, unsigned long arg)
 	err = ide_no_data_taskfile(drive, &cmd);
 
 	args[0] = cmd.tf.command;
-	memcpy(&args[1], &cmd.tf_array[7], 6);
+	memcpy(&args[1], &cmd.tf.feature, 6);
 
 	if (copy_to_user(p, args, 7))
 		err = -EFAULT;

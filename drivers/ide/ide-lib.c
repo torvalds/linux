@@ -49,16 +49,17 @@ static void ide_dump_opcode(ide_drive_t *drive)
 		printk(KERN_CONT "0x%02x\n", cmd->tf.command);
 }
 
-u64 ide_get_lba_addr(struct ide_taskfile *tf, int lba48)
+u64 ide_get_lba_addr(struct ide_cmd *cmd, int lba48)
 {
+	struct ide_taskfile *tf = &cmd->tf;
 	u32 high, low;
 
-	if (lba48)
-		high = (tf->hob_lbah << 16) | (tf->hob_lbam << 8) |
-			tf->hob_lbal;
-	else
-		high = tf->device & 0xf;
 	low  = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
+	if (lba48) {
+		tf = &cmd->hob;
+		high = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
+	} else
+		high = tf->device & 0xf;
 
 	return ((u64)high << 24) | low;
 }
@@ -82,7 +83,7 @@ static void ide_dump_sector(ide_drive_t *drive)
 
 	if (lba48 || (tf->device & ATA_LBA))
 		printk(KERN_CONT ", LBAsect=%llu",
-			(unsigned long long)ide_get_lba_addr(tf, lba48));
+			(unsigned long long)ide_get_lba_addr(&cmd, lba48));
 	else
 		printk(KERN_CONT ", CHS=%d/%d/%d", (tf->lbah << 8) + tf->lbam,
 			tf->device & 0xf, tf->lbal);

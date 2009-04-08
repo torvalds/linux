@@ -105,17 +105,19 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 			pr_debug("%s: LBA=0x%012llx\n", drive->name,
 					(unsigned long long)block);
 
-			tf->hob_nsect = (nsectors >> 8) & 0xff;
-			tf->hob_lbal  = (u8)(block >> 24);
-			if (sizeof(block) != 4) {
-				tf->hob_lbam = (u8)((u64)block >> 32);
-				tf->hob_lbah = (u8)((u64)block >> 40);
-			}
-
 			tf->nsect  = nsectors & 0xff;
 			tf->lbal   = (u8) block;
 			tf->lbam   = (u8)(block >>  8);
 			tf->lbah   = (u8)(block >> 16);
+			tf->device = ATA_LBA;
+
+			tf = &cmd.hob;
+			tf->nsect = (nsectors >> 8) & 0xff;
+			tf->lbal  = (u8)(block >> 24);
+			if (sizeof(block) != 4) {
+				tf->lbam = (u8)((u64)block >> 32);
+				tf->lbah = (u8)((u64)block >> 40);
+			}
 
 			cmd.valid.out.hob = IDE_VALID_OUT_HOB;
 			cmd.valid.in.hob  = IDE_VALID_IN_HOB;
@@ -125,10 +127,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 			tf->lbal   = block;
 			tf->lbam   = block >>= 8;
 			tf->lbah   = block >>= 8;
-			tf->device = (block >> 8) & 0xf;
+			tf->device = ((block >> 8) & 0xf) | ATA_LBA;
 		}
-
-		tf->device |= ATA_LBA;
 	} else {
 		unsigned int sect, head, cyl, track;
 
@@ -235,7 +235,7 @@ static u64 idedisk_read_native_max_address(ide_drive_t *drive, int lba48)
 
 	/* if OK, compute maximum address value */
 	if (!(tf->status & ATA_ERR))
-		addr = ide_get_lba_addr(tf, lba48) + 1;
+		addr = ide_get_lba_addr(&cmd, lba48) + 1;
 
 	return addr;
 }
@@ -257,9 +257,9 @@ static u64 idedisk_set_max_address(ide_drive_t *drive, u64 addr_req, int lba48)
 	tf->lbam     = (addr_req >>= 8) & 0xff;
 	tf->lbah     = (addr_req >>= 8) & 0xff;
 	if (lba48) {
-		tf->hob_lbal = (addr_req >>= 8) & 0xff;
-		tf->hob_lbam = (addr_req >>= 8) & 0xff;
-		tf->hob_lbah = (addr_req >>= 8) & 0xff;
+		cmd.hob.lbal = (addr_req >>= 8) & 0xff;
+		cmd.hob.lbam = (addr_req >>= 8) & 0xff;
+		cmd.hob.lbah = (addr_req >>= 8) & 0xff;
 		tf->command  = ATA_CMD_SET_MAX_EXT;
 	} else {
 		tf->device   = (addr_req >>= 8) & 0x0f;
@@ -279,7 +279,7 @@ static u64 idedisk_set_max_address(ide_drive_t *drive, u64 addr_req, int lba48)
 
 	/* if OK, compute maximum address value */
 	if (!(tf->status & ATA_ERR))
-		addr_set = ide_get_lba_addr(tf, lba48) + 1;
+		addr_set = ide_get_lba_addr(&cmd, lba48) + 1;
 
 	return addr_set;
 }

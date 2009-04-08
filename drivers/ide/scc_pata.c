@@ -648,7 +648,7 @@ static int __devinit init_setup_scc(struct pci_dev *dev,
 static void scc_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	struct ide_io_ports *io_ports = &drive->hwif->io_ports;
-	struct ide_taskfile *tf = &cmd->tf;
+	struct ide_taskfile *tf = &cmd->hob;
 	u8 valid = cmd->valid.out.hob;
 	u8 HIHI = (cmd->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
 
@@ -656,16 +656,17 @@ static void scc_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 		HIHI = 0xFF;
 
 	if (valid & IDE_VALID_FEATURE)
-		scc_ide_outb(tf->hob_feature, io_ports->feature_addr);
+		scc_ide_outb(tf->feature, io_ports->feature_addr);
 	if (valid & IDE_VALID_NSECT)
-		scc_ide_outb(tf->hob_nsect, io_ports->nsect_addr);
+		scc_ide_outb(tf->nsect, io_ports->nsect_addr);
 	if (valid & IDE_VALID_LBAL)
-		scc_ide_outb(tf->hob_lbal, io_ports->lbal_addr);
+		scc_ide_outb(tf->lbal, io_ports->lbal_addr);
 	if (valid & IDE_VALID_LBAM)
-		scc_ide_outb(tf->hob_lbam, io_ports->lbam_addr);
+		scc_ide_outb(tf->lbam, io_ports->lbam_addr);
 	if (valid & IDE_VALID_LBAH)
-		scc_ide_outb(tf->hob_lbah, io_ports->lbah_addr);
+		scc_ide_outb(tf->lbah, io_ports->lbah_addr);
 
+	tf = &cmd->tf;
 	valid = cmd->valid.out.tf;
 
 	if (valid & IDE_VALID_FEATURE)
@@ -709,18 +710,19 @@ static void scc_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
 		scc_ide_outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
+		tf = &cmd->hob;
 		valid = cmd->valid.in.hob;
 
 		if (valid & IDE_VALID_ERROR)
-			tf->hob_error = scc_ide_inb(io_ports->feature_addr);
+			tf->error = scc_ide_inb(io_ports->feature_addr);
 		if (valid & IDE_VALID_NSECT)
-			tf->hob_nsect = scc_ide_inb(io_ports->nsect_addr);
+			tf->nsect = scc_ide_inb(io_ports->nsect_addr);
 		if (valid & IDE_VALID_LBAL)
-			tf->hob_lbal  = scc_ide_inb(io_ports->lbal_addr);
+			tf->lbal  = scc_ide_inb(io_ports->lbal_addr);
 		if (valid & IDE_VALID_LBAM)
-			tf->hob_lbam  = scc_ide_inb(io_ports->lbam_addr);
+			tf->lbam  = scc_ide_inb(io_ports->lbam_addr);
 		if (valid & IDE_VALID_LBAH)
-			tf->hob_lbah  = scc_ide_inb(io_ports->lbah_addr);
+			tf->lbah  = scc_ide_inb(io_ports->lbah_addr);
 	}
 }
 

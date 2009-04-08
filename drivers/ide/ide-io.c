@@ -86,8 +86,8 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 
 		tp_ops->input_data(drive, cmd, data, 2);
 
-		tf->data = data[0];
-		tf->hob_data = data[1];
+		cmd->tf.data  = data[0];
+		cmd->hob.data = data[1];
 	}
 
 	tp_ops->tf_read(drive, cmd);
@@ -97,7 +97,7 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 		if (tf->lbal != 0xc4) {
 			printk(KERN_ERR "%s: head unload failed!\n",
 			       drive->name);
-			ide_tf_dump(drive->name, tf);
+			ide_tf_dump(drive->name, cmd);
 		} else
 			drive->dev_flags |= IDE_DFLAG_PARKED;
 	}

@@ -86,18 +86,19 @@ static void superio_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
 		outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
+		tf = &cmd->hob;
 		valid = cmd->valid.in.hob;
 
 		if (valid & IDE_VALID_ERROR)
-			tf->hob_error = inb(io_ports->feature_addr);
+			tf->error = inb(io_ports->feature_addr);
 		if (valid & IDE_VALID_NSECT)
-			tf->hob_nsect = inb(io_ports->nsect_addr);
+			tf->nsect = inb(io_ports->nsect_addr);
 		if (valid & IDE_VALID_LBAL)
-			tf->hob_lbal  = inb(io_ports->lbal_addr);
+			tf->lbal  = inb(io_ports->lbal_addr);
 		if (valid & IDE_VALID_LBAM)
-			tf->hob_lbam  = inb(io_ports->lbam_addr);
+			tf->lbam  = inb(io_ports->lbam_addr);
 		if (valid & IDE_VALID_LBAH)
-			tf->hob_lbah  = inb(io_ports->lbah_addr);
+			tf->lbah  = inb(io_ports->lbah_addr);
 	}
 }
 
