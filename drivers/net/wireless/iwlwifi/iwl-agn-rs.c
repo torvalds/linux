@@ -2666,9 +2666,6 @@ static void rs_fill_link_cmd(const struct iwl_priv *priv,
 	} else if (num_of_ant(tbl_type.ant_type) == 2) {
 		lq_cmd->general_params.dual_stream_ant_msk =
 						tbl_type.ant_type;
-	} else if (num_of_ant(tbl_type.ant_type) == 3) {
-		lq_cmd->general_params.dual_stream_ant_msk =
-						tbl_type.ant_type;
 	} /* otherwise we don't modify the existing value */
 
 	index++;
