@@ -1582,12 +1582,6 @@ W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	drivers/video/cyber2000fb.*
 
-CYBLAFB FRAMEBUFFER DRIVER
-P:	Knut Petersen
-M:	Knut_Petersen@t-online.de
-L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
-S:	Maintained
-
 CYCLADES 2X SYNC CARD DRIVER
 P:	Arnaldo Carvalho de Melo
 M:	acme@ghostprotocols.net
