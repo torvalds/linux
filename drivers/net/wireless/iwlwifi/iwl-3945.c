@@ -1964,6 +1964,50 @@ int iwl3945_hw_reg_set_txpower(struct iwl_priv *priv, s8 power)
 	return 0;
 }
 
+static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
+{
+	int rc = 0;
+	struct iwl_rx_packet *res = NULL;
+	struct iwl3945_rxon_assoc_cmd rxon_assoc;
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_RXON_ASSOC,
+		.len = sizeof(rxon_assoc),
+		.meta.flags = CMD_WANT_SKB,
+		.data = &rxon_assoc,
+	};
+	const struct iwl_rxon_cmd *rxon1 = &priv->staging_rxon;
+	const struct iwl_rxon_cmd *rxon2 = &priv->active_rxon;
+
+	if ((rxon1->flags == rxon2->flags) &&
+	    (rxon1->filter_flags == rxon2->filter_flags) &&
+	    (rxon1->cck_basic_rates == rxon2->cck_basic_rates) &&
+	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
+		IWL_DEBUG_INFO(priv, "Using current RXON_ASSOC.  Not resending.\n");
+		return 0;
+	}
+
+	rxon_assoc.flags = priv->staging_rxon.flags;
+	rxon_assoc.filter_flags = priv->staging_rxon.filter_flags;
+	rxon_assoc.ofdm_basic_rates = priv->staging_rxon.ofdm_basic_rates;
+	rxon_assoc.cck_basic_rates = priv->staging_rxon.cck_basic_rates;
+	rxon_assoc.reserved = 0;
+
+	rc = iwl_send_cmd_sync(priv, &cmd);
+	if (rc)
+		return rc;
+
+	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
+	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERR(priv, "Bad return from REPLY_RXON_ASSOC command\n");
+		rc = -EIO;
+	}
+
+	priv->alloc_rxb_skb--;
+	dev_kfree_skb_any(cmd.meta.u.skb);
+
+	return rc;
+}
+
 /* will add 3945 channel switch cmd handling later */
 int iwl3945_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 {
@@ -2729,6 +2773,10 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 	return 0;
 }
 
+static struct iwl_hcmd_ops iwl3945_hcmd = {
+	.rxon_assoc = iwl3945_send_rxon_assoc,
+};
+
 static struct iwl_lib_ops iwl3945_lib = {
 	.txq_attach_buf_to_tfd = iwl3945_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = iwl3945_hw_txq_free_tfd,
@@ -2758,6 +2806,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 	},
 	.send_tx_power	= iwl3945_send_tx_power,
 	.is_valid_rtc_data_addr = iwl3945_hw_valid_rtc_data_addr,
+	.post_associate = iwl3945_post_associate,
 };
 
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
@@ -2767,6 +2816,7 @@ static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 
 static struct iwl_ops iwl3945_ops = {
 	.lib = &iwl3945_lib,
+	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,
 };
 

@@ -233,50 +233,6 @@ u8 iwl3945_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flag
 
 }
 
-static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
-{
-	int rc = 0;
-	struct iwl_rx_packet *res = NULL;
-	struct iwl3945_rxon_assoc_cmd rxon_assoc;
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_RXON_ASSOC,
-		.len = sizeof(rxon_assoc),
-		.meta.flags = CMD_WANT_SKB,
-		.data = &rxon_assoc,
-	};
-	const struct iwl_rxon_cmd *rxon1 = &priv->staging_rxon;
-	const struct iwl_rxon_cmd *rxon2 = &priv->active_rxon;
-
-	if ((rxon1->flags == rxon2->flags) &&
-	    (rxon1->filter_flags == rxon2->filter_flags) &&
-	    (rxon1->cck_basic_rates == rxon2->cck_basic_rates) &&
-	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
-		IWL_DEBUG_INFO(priv, "Using current RXON_ASSOC.  Not resending.\n");
-		return 0;
-	}
-
-	rxon_assoc.flags = priv->staging_rxon.flags;
-	rxon_assoc.filter_flags = priv->staging_rxon.filter_flags;
-	rxon_assoc.ofdm_basic_rates = priv->staging_rxon.ofdm_basic_rates;
-	rxon_assoc.cck_basic_rates = priv->staging_rxon.cck_basic_rates;
-	rxon_assoc.reserved = 0;
-
-	rc = iwl_send_cmd_sync(priv, &cmd);
-	if (rc)
-		return rc;
-
-	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
-	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(priv, "Bad return from REPLY_RXON_ASSOC command\n");
-		rc = -EIO;
-	}
-
-	priv->alloc_rxb_skb--;
-	dev_kfree_skb_any(cmd.meta.u.skb);
-
-	return rc;
-}
-
 /**
  * iwl3945_get_antenna_flags - Get antenna flags for RXON command
  * @priv: eeprom and antenna fields are used to determine antenna flags
@@ -352,7 +308,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	 * iwl3945_rxon_assoc_cmd which is used to reconfigure filter
 	 * and other flags for the current radio configuration. */
 	if (!iwl_full_rxon_required(priv)) {
-		rc = iwl3945_send_rxon_assoc(priv);
+		rc = iwl_send_rxon_assoc(priv);
 		if (rc) {
 			IWL_ERR(priv, "Error setting RXON_ASSOC "
 				  "configuration (%d).\n", rc);
@@ -3450,9 +3406,11 @@ static void iwl3945_bg_rx_replenish(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
+static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed);
+
 #define IWL_DELAY_NEXT_SCAN (HZ*2)
 
-static void iwl3945_post_associate(struct iwl_priv *priv)
+void iwl3945_post_associate(struct iwl_priv *priv)
 {
 	int rc = 0;
 	struct ieee80211_conf *conf = NULL;
@@ -3541,8 +3499,6 @@ static void iwl3945_post_associate(struct iwl_priv *priv)
 	/* we have just associated, don't start scan too early */
 	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 }
-
-static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed);
 
 /*****************************************************************************
  *
@@ -3982,66 +3938,6 @@ static void iwl3945_mac_remove_interface(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-#define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
-
-static void iwl3945_bss_info_changed(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif,
-				     struct ieee80211_bss_conf *bss_conf,
-				     u32 changes)
-{
-	struct iwl_priv *priv = hw->priv;
-
-	IWL_DEBUG_MAC80211(priv, "changes = 0x%X\n", changes);
-
-	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
-		IWL_DEBUG_MAC80211(priv, "ERP_PREAMBLE %d\n",
-				   bss_conf->use_short_preamble);
-		if (bss_conf->use_short_preamble)
-			priv->staging_rxon.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
-		else
-			priv->staging_rxon.flags &=
-				~RXON_FLG_SHORT_PREAMBLE_MSK;
-	}
-
-	if (changes & BSS_CHANGED_ERP_CTS_PROT) {
-		IWL_DEBUG_MAC80211(priv, "ERP_CTS %d\n",
-				   bss_conf->use_cts_prot);
-		if (bss_conf->use_cts_prot && (priv->band != IEEE80211_BAND_5GHZ))
-			priv->staging_rxon.flags |= RXON_FLG_TGG_PROTECT_MSK;
-		else
-			priv->staging_rxon.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
-	}
-
-	if (changes & BSS_CHANGED_ASSOC) {
-		IWL_DEBUG_MAC80211(priv, "ASSOC %d\n", bss_conf->assoc);
-		/* This should never happen as this function should
-		 * never be called from interrupt context. */
-		if (WARN_ON_ONCE(in_interrupt()))
-			return;
-		if (bss_conf->assoc) {
-			priv->assoc_id = bss_conf->aid;
-			priv->beacon_int = bss_conf->beacon_int;
-			priv->timestamp = bss_conf->timestamp;
-			priv->assoc_capability = bss_conf->assoc_capability;
-			priv->power_data.dtim_period = bss_conf->dtim_period;
-			priv->next_scan_jiffies = jiffies +
-					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
-			mutex_lock(&priv->mutex);
-			iwl3945_post_associate(priv);
-			mutex_unlock(&priv->mutex);
-		} else {
-			priv->assoc_id = 0;
-			IWL_DEBUG_MAC80211(priv,
-					"DISASSOC %d\n", bss_conf->assoc);
-		}
-	} else if (changes && iwl_is_associated(priv) && priv->assoc_id) {
-			IWL_DEBUG_MAC80211(priv,
-					"Associated Changes %d\n", changes);
-			iwl3945_send_rxon_assoc(priv);
-	}
-
-}
-
 static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta,
@@ -4227,7 +4123,7 @@ static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *sk
 
 	iwl_reset_qos(priv);
 
-	iwl3945_post_associate(priv);
+	priv->cfg->ops->lib->post_associate(priv);
 
 
 	return 0;
@@ -4765,7 +4661,7 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.get_tx_stats = iwl3945_mac_get_tx_stats,
 	.conf_tx = iwl_mac_conf_tx,
 	.reset_tsf = iwl3945_mac_reset_tsf,
-	.bss_info_changed = iwl3945_bss_info_changed,
+	.bss_info_changed = iwl_bss_info_changed,
 	.hw_scan = iwl_mac_hw_scan
 };
 
