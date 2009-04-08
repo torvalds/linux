@@ -70,7 +70,7 @@ extern int ddebug_remove_module(char *mod_name);
 		DEBUG_HASH2, __LINE__, _DPRINTK_FLAGS_DEFAULT };	\
 	if (__dynamic_dbg_enabled(descriptor))				\
 			dev_printk(KERN_DEBUG, dev,			\
-					KBUILD_MODNAME ": " pr_fmt(fmt),\
+					KBUILD_MODNAME ": " fmt,	\
 					##__VA_ARGS__);			\
 	} while (0)
 
