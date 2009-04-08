@@ -2,13 +2,12 @@
  * mce.c - x86 Machine Check Exception Reporting
  * (c) 2002 Alan Cox <alan@lxorguk.ukuu.org.uk>, Dave Jones <davej@redhat.com>
  */
-
-#include <linux/init.h>
-#include <linux/types.h>
+#include <linux/thread_info.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/types.h>
+#include <linux/init.h>
 #include <linux/smp.h>
-#include <linux/thread_info.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -17,18 +16,20 @@
 #include "mce.h"
 
 int mce_disabled;
-int nr_mce_banks;
 
+int nr_mce_banks;
 EXPORT_SYMBOL_GPL(nr_mce_banks);	/* non-fatal.o */
 
 /* Handle unconfigured int18 (should never happen) */
 static void unexpected_machine_check(struct pt_regs *regs, long error_code)
 {
-	printk(KERN_ERR "CPU#%d: Unexpected int18 (Machine Check).\n", smp_processor_id());
+	printk(KERN_ERR "CPU#%d: Unexpected int18 (Machine Check).\n",
+	       smp_processor_id());
 }
 
 /* Call the installed machine check handler for this CPU setup. */
-void (*machine_check_vector)(struct pt_regs *, long error_code) = unexpected_machine_check;
+void (*machine_check_vector)(struct pt_regs *, long error_code) =
+						unexpected_machine_check;
 
 /* This has to be run for each processor */
 void mcheck_init(struct cpuinfo_x86 *c)
