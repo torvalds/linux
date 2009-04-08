@@ -319,8 +319,6 @@ static void __perf_counter_disable(void *info)
 
 	spin_lock_irqsave(&ctx->lock, flags);
 
-	update_context_time(ctx);
-
 	/*
 	 * If the counter is on, turn it off.
 	 * If it is in error state, leave it in error state.
@@ -2335,12 +2333,10 @@ static const struct hw_perf_counter_ops perf_ops_cpu_clock = {
  * Software counter: task time clock
  */
 
-static void task_clock_perf_counter_update(struct perf_counter *counter)
+static void task_clock_perf_counter_update(struct perf_counter *counter, u64 now)
 {
-	u64 prev, now;
+	u64 prev;
 	s64 delta;
-
-	now = counter->ctx->time;
 
 	prev = atomic64_xchg(&counter->hw.prev_count, now);
 	delta = now - prev;
@@ -2369,13 +2365,24 @@ static int task_clock_perf_counter_enable(struct perf_counter *counter)
 static void task_clock_perf_counter_disable(struct perf_counter *counter)
 {
 	hrtimer_cancel(&counter->hw.hrtimer);
-	task_clock_perf_counter_update(counter);
+	task_clock_perf_counter_update(counter, counter->ctx->time);
+
 }
 
 static void task_clock_perf_counter_read(struct perf_counter *counter)
 {
-	update_context_time(counter->ctx);
-	task_clock_perf_counter_update(counter);
+	u64 time;
+
+	if (!in_nmi()) {
+		update_context_time(counter->ctx);
+		time = counter->ctx->time;
+	} else {
+		u64 now = perf_clock();
+		u64 delta = now - counter->ctx->timestamp;
+		time = counter->ctx->time + delta;
+	}
+
+	task_clock_perf_counter_update(counter, time);
 }
 
 static const struct hw_perf_counter_ops perf_ops_task_clock = {
