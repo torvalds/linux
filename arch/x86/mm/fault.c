@@ -1045,7 +1045,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	if (unlikely(error_code & PF_RSVD))
 		pgtable_bad(regs, error_code, address);
 
-	perf_swcounter_event(PERF_COUNT_PAGE_FAULTS, 1, 0, regs);
+	perf_swcounter_event(PERF_COUNT_PAGE_FAULTS, 1, 0, regs, address);
 
 	/*
 	 * If we're in an interrupt, have no user context or are running
@@ -1142,10 +1142,12 @@ good_area:
 
 	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
-		perf_swcounter_event(PERF_COUNT_PAGE_FAULTS_MAJ, 1, 0, regs);
+		perf_swcounter_event(PERF_COUNT_PAGE_FAULTS_MAJ, 1, 0,
+				     regs, address);
 	} else {
 		tsk->min_flt++;
-		perf_swcounter_event(PERF_COUNT_PAGE_FAULTS_MIN, 1, 0, regs);
+		perf_swcounter_event(PERF_COUNT_PAGE_FAULTS_MIN, 1, 0,
+				     regs, address);
 	}
 
 	check_v8086_mode(regs, address, tsk);

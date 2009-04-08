@@ -800,7 +800,7 @@ void perf_counter_task_sched_out(struct task_struct *task, int cpu)
 	update_context_time(ctx);
 
 	regs = task_pt_regs(task);
-	perf_swcounter_event(PERF_COUNT_CONTEXT_SWITCHES, 1, 1, regs);
+	perf_swcounter_event(PERF_COUNT_CONTEXT_SWITCHES, 1, 1, regs, 0);
 	__perf_counter_sched_out(ctx, cpuctx);
 
 	cpuctx->task_ctx = NULL;
@@ -1810,7 +1810,7 @@ static void perf_output_end(struct perf_output_handle *handle)
 }
 
 static void perf_counter_output(struct perf_counter *counter,
-				int nmi, struct pt_regs *regs)
+				int nmi, struct pt_regs *regs, u64 addr)
 {
 	int ret;
 	u64 record_type = counter->hw_event.record_type;
@@ -1860,6 +1860,11 @@ static void perf_counter_output(struct perf_counter *counter,
 		header.size += sizeof(u64);
 	}
 
+	if (record_type & PERF_RECORD_ADDR) {
+		header.type |= PERF_RECORD_ADDR;
+		header.size += sizeof(u64);
+	}
+
 	if (record_type & PERF_RECORD_GROUP) {
 		header.type |= PERF_RECORD_GROUP;
 		header.size += sizeof(u64) +
@@ -1891,6 +1896,9 @@ static void perf_counter_output(struct perf_counter *counter,
 
 	if (record_type & PERF_RECORD_TIME)
 		perf_output_put(&handle, time);
+
+	if (record_type & PERF_RECORD_ADDR)
+		perf_output_put(&handle, addr);
 
 	if (record_type & PERF_RECORD_GROUP) {
 		struct perf_counter *leader, *sub;
@@ -2158,7 +2166,7 @@ void perf_counter_munmap(unsigned long addr, unsigned long len,
  */
 
 int perf_counter_overflow(struct perf_counter *counter,
-			  int nmi, struct pt_regs *regs)
+			  int nmi, struct pt_regs *regs, u64 addr)
 {
 	int events = atomic_read(&counter->event_limit);
 	int ret = 0;
@@ -2175,7 +2183,7 @@ int perf_counter_overflow(struct perf_counter *counter,
 			perf_counter_disable(counter);
 	}
 
-	perf_counter_output(counter, nmi, regs);
+	perf_counter_output(counter, nmi, regs, addr);
 	return ret;
 }
 
@@ -2240,7 +2248,7 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 		regs = task_pt_regs(current);
 
 	if (regs) {
-		if (perf_counter_overflow(counter, 0, regs))
+		if (perf_counter_overflow(counter, 0, regs, 0))
 			ret = HRTIMER_NORESTART;
 	}
 
@@ -2250,11 +2258,11 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 }
 
 static void perf_swcounter_overflow(struct perf_counter *counter,
-				    int nmi, struct pt_regs *regs)
+				    int nmi, struct pt_regs *regs, u64 addr)
 {
 	perf_swcounter_update(counter);
 	perf_swcounter_set_period(counter);
-	if (perf_counter_overflow(counter, nmi, regs))
+	if (perf_counter_overflow(counter, nmi, regs, addr))
 		/* soft-disable the counter */
 		;
 
@@ -2286,16 +2294,17 @@ static int perf_swcounter_match(struct perf_counter *counter,
 }
 
 static void perf_swcounter_add(struct perf_counter *counter, u64 nr,
-			       int nmi, struct pt_regs *regs)
+			       int nmi, struct pt_regs *regs, u64 addr)
 {
 	int neg = atomic64_add_negative(nr, &counter->hw.count);
 	if (counter->hw.irq_period && !neg)
-		perf_swcounter_overflow(counter, nmi, regs);
+		perf_swcounter_overflow(counter, nmi, regs, addr);
 }
 
 static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
 				     enum perf_event_types type, u32 event,
-				     u64 nr, int nmi, struct pt_regs *regs)
+				     u64 nr, int nmi, struct pt_regs *regs,
+				     u64 addr)
 {
 	struct perf_counter *counter;
 
@@ -2305,7 +2314,7 @@ static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
 	rcu_read_lock();
 	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
 		if (perf_swcounter_match(counter, type, event, regs))
-			perf_swcounter_add(counter, nr, nmi, regs);
+			perf_swcounter_add(counter, nr, nmi, regs, addr);
 	}
 	rcu_read_unlock();
 }
@@ -2325,7 +2334,8 @@ static int *perf_swcounter_recursion_context(struct perf_cpu_context *cpuctx)
 }
 
 static void __perf_swcounter_event(enum perf_event_types type, u32 event,
-				   u64 nr, int nmi, struct pt_regs *regs)
+				   u64 nr, int nmi, struct pt_regs *regs,
+				   u64 addr)
 {
 	struct perf_cpu_context *cpuctx = &get_cpu_var(perf_cpu_context);
 	int *recursion = perf_swcounter_recursion_context(cpuctx);
@@ -2336,10 +2346,11 @@ static void __perf_swcounter_event(enum perf_event_types type, u32 event,
 	(*recursion)++;
 	barrier();
 
-	perf_swcounter_ctx_event(&cpuctx->ctx, type, event, nr, nmi, regs);
+	perf_swcounter_ctx_event(&cpuctx->ctx, type, event,
+				 nr, nmi, regs, addr);
 	if (cpuctx->task_ctx) {
 		perf_swcounter_ctx_event(cpuctx->task_ctx, type, event,
-				nr, nmi, regs);
+					 nr, nmi, regs, addr);
 	}
 
 	barrier();
@@ -2349,9 +2360,10 @@ out:
 	put_cpu_var(perf_cpu_context);
 }
 
-void perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs)
+void
+perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
 {
-	__perf_swcounter_event(PERF_TYPE_SOFTWARE, event, nr, nmi, regs);
+	__perf_swcounter_event(PERF_TYPE_SOFTWARE, event, nr, nmi, regs, addr);
 }
 
 static void perf_swcounter_read(struct perf_counter *counter)
@@ -2548,7 +2560,7 @@ void perf_tpcounter_event(int event_id)
 	if (!regs)
 		regs = task_pt_regs(current);
 
-	__perf_swcounter_event(PERF_TYPE_TRACEPOINT, event_id, 1, 1, regs);
+	__perf_swcounter_event(PERF_TYPE_TRACEPOINT, event_id, 1, 1, regs, 0);
 }
 
 extern int ftrace_profile_enable(int);

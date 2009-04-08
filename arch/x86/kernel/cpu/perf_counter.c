@@ -800,7 +800,7 @@ again:
 			continue;
 
 		perf_save_and_restart(counter);
-		if (perf_counter_overflow(counter, nmi, regs))
+		if (perf_counter_overflow(counter, nmi, regs, 0))
 			__pmc_generic_disable(counter, &counter->hw, bit);
 	}
 

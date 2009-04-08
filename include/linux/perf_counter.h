@@ -101,8 +101,9 @@ enum perf_counter_record_format {
 	PERF_RECORD_IP		= 1U << 0,
 	PERF_RECORD_TID		= 1U << 1,
 	PERF_RECORD_TIME	= 1U << 2,
-	PERF_RECORD_GROUP	= 1U << 3,
-	PERF_RECORD_CALLCHAIN	= 1U << 4,
+	PERF_RECORD_ADDR	= 1U << 3,
+	PERF_RECORD_GROUP	= 1U << 4,
+	PERF_RECORD_CALLCHAIN	= 1U << 5,
 };
 
 /*
@@ -251,6 +252,7 @@ enum perf_event_type {
 	 * 	{ u64			ip;	  } && PERF_RECORD_IP
 	 * 	{ u32			pid, tid; } && PERF_RECORD_TID
 	 * 	{ u64			time;     } && PERF_RECORD_TIME
+	 * 	{ u64			addr;     } && PERF_RECORD_ADDR
 	 *
 	 * 	{ u64			nr;
 	 * 	  { u64 event, val; } 	cnt[nr];  } && PERF_RECORD_GROUP
@@ -537,7 +539,7 @@ extern int hw_perf_group_sched_in(struct perf_counter *group_leader,
 extern void perf_counter_update_userpage(struct perf_counter *counter);
 
 extern int perf_counter_overflow(struct perf_counter *counter,
-				 int nmi, struct pt_regs *regs);
+				 int nmi, struct pt_regs *regs, u64 addr);
 /*
  * Return 1 for a software counter, 0 for a hardware counter
  */
@@ -547,7 +549,7 @@ static inline int is_software_counter(struct perf_counter *counter)
 		perf_event_type(&counter->hw_event) != PERF_TYPE_HARDWARE;
 }
 
-extern void perf_swcounter_event(u32, u64, int, struct pt_regs *);
+extern void perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);
 
 extern void perf_counter_mmap(unsigned long addr, unsigned long len,
 			      unsigned long pgoff, struct file *file);
@@ -584,8 +586,8 @@ static inline int perf_counter_task_disable(void)	{ return -EINVAL; }
 static inline int perf_counter_task_enable(void)	{ return -EINVAL; }
 
 static inline void
-perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs)	{ }
-
+perf_swcounter_event(u32 event, u64 nr, int nmi,
+		     struct pt_regs *regs, u64 addr)			{ }
 
 static inline void
 perf_counter_mmap(unsigned long addr, unsigned long len,
