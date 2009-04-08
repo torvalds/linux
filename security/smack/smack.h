@@ -20,6 +20,7 @@
 #include <net/netlabel.h>
 #include <linux/list.h>
 #include <linux/rculist.h>
+#include <linux/lsm_audit.h>
 
 /*
  * Why 23? CIPSO is constrained to 30, so a 32 byte buffer is
@@ -179,6 +180,20 @@ struct smack_known {
 #define MAY_NOT		0
 
 /*
+ * Number of access types used by Smack (rwxa)
+ */
+#define SMK_NUM_ACCESS_TYPE 4
+
+/*
+ * Smack audit data; is empty if CONFIG_AUDIT not set
+ * to save some stack
+ */
+struct smk_audit_info {
+#ifdef CONFIG_AUDIT
+	struct common_audit_data a;
+#endif
+};
+/*
  * These functions are in smack_lsm.c
  */
 struct inode_smack *new_inode_smack(char *);
@@ -186,8 +201,8 @@ struct inode_smack *new_inode_smack(char *);
 /*
  * These functions are in smack_access.c
  */
-int smk_access(char *, char *, int);
-int smk_curacc(char *, u32);
+int smk_access(char *, char *, int, struct smk_audit_info *);
+int smk_curacc(char *, u32, struct smk_audit_info *);
 int smack_to_cipso(const char *, struct smack_cipso *);
 void smack_from_cipso(u32, char *, char *);
 char *smack_from_secid(const u32);
@@ -236,5 +251,94 @@ static inline char *smk_of_inode(const struct inode *isp)
 	struct inode_smack *sip = isp->i_security;
 	return sip->smk_inode;
 }
+
+/*
+ * logging functions
+ */
+#define SMACK_AUDIT_DENIED 0x1
+#define SMACK_AUDIT_ACCEPT 0x2
+extern int log_policy;
+
+void smack_log(char *subject_label, char *object_label,
+		int request,
+		int result, struct smk_audit_info *auditdata);
+
+#ifdef CONFIG_AUDIT
+
+/*
+ * some inline functions to set up audit data
+ * they do nothing if CONFIG_AUDIT is not set
+ *
+ */
+static inline void smk_ad_init(struct smk_audit_info *a, const char *func,
+			       char type)
+{
+	memset(a, 0, sizeof(*a));
+	a->a.type = type;
+	a->a.function = func;
+}
+
+static inline void smk_ad_setfield_u_tsk(struct smk_audit_info *a,
+					 struct task_struct *t)
+{
+	a->a.u.tsk = t;
+}
+static inline void smk_ad_setfield_u_fs_path_dentry(struct smk_audit_info *a,
+						    struct dentry *d)
+{
+	a->a.u.fs.path.dentry = d;
+}
+static inline void smk_ad_setfield_u_fs_path_mnt(struct smk_audit_info *a,
+						 struct vfsmount *m)
+{
+	a->a.u.fs.path.mnt = m;
+}
+static inline void smk_ad_setfield_u_fs_inode(struct smk_audit_info *a,
+					      struct inode *i)
+{
+	a->a.u.fs.inode = i;
+}
+static inline void smk_ad_setfield_u_fs_path(struct smk_audit_info *a,
+					     struct path p)
+{
+	a->a.u.fs.path = p;
+}
+static inline void smk_ad_setfield_u_net_sk(struct smk_audit_info *a,
+					    struct sock *sk)
+{
+	a->a.u.net.sk = sk;
+}
+
+#else /* no AUDIT */
+
+static inline void smk_ad_init(struct smk_audit_info *a, const char *func,
+			       char type)
+{
+}
+static inline void smk_ad_setfield_u_tsk(struct smk_audit_info *a,
+					 struct task_struct *t)
+{
+}
+static inline void smk_ad_setfield_u_fs_path_dentry(struct smk_audit_info *a,
+						    struct dentry *d)
+{
+}
+static inline void smk_ad_setfield_u_fs_path_mnt(struct smk_audit_info *a,
+						 struct vfsmount *m)
+{
+}
+static inline void smk_ad_setfield_u_fs_inode(struct smk_audit_info *a,
+					      struct inode *i)
+{
+}
+static inline void smk_ad_setfield_u_fs_path(struct smk_audit_info *a,
+					     struct path p)
+{
+}
+static inline void smk_ad_setfield_u_net_sk(struct smk_audit_info *a,
+					    struct sock *sk)
+{
+}
+#endif
 
 #endif  /* _SECURITY_SMACK_H */

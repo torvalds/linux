@@ -41,6 +41,7 @@ enum smk_inos {
 	SMK_AMBIENT	= 7,	/* internet ambient label */
 	SMK_NETLBLADDR	= 8,	/* single label hosts */
 	SMK_ONLYCAP	= 9,	/* the only "capable" label */
+	SMK_LOGGING	= 10,	/* logging */
 };
 
 /*
@@ -1192,6 +1193,69 @@ static const struct file_operations smk_onlycap_ops = {
 };
 
 /**
+ * smk_read_logging - read() for /smack/logging
+ * @filp: file pointer, not actually used
+ * @buf: where to put the result
+ * @cn: maximum to send along
+ * @ppos: where to start
+ *
+ * Returns number of bytes read or error code, as appropriate
+ */
+static ssize_t smk_read_logging(struct file *filp, char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	char temp[32];
+	ssize_t rc;
+
+	if (*ppos != 0)
+		return 0;
+
+	sprintf(temp, "%d\n", log_policy);
+	rc = simple_read_from_buffer(buf, count, ppos, temp, strlen(temp));
+	return rc;
+}
+
+/**
+ * smk_write_logging - write() for /smack/logging
+ * @file: file pointer, not actually used
+ * @buf: where to get the data from
+ * @count: bytes sent
+ * @ppos: where to start
+ *
+ * Returns number of bytes written or error code, as appropriate
+ */
+static ssize_t smk_write_logging(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	char temp[32];
+	int i;
+
+	if (!capable(CAP_MAC_ADMIN))
+		return -EPERM;
+
+	if (count >= sizeof(temp) || count == 0)
+		return -EINVAL;
+
+	if (copy_from_user(temp, buf, count) != 0)
+		return -EFAULT;
+
+	temp[count] = '\0';
+
+	if (sscanf(temp, "%d", &i) != 1)
+		return -EINVAL;
+	if (i < 0 || i > 3)
+		return -EINVAL;
+	log_policy = i;
+	return count;
+}
+
+
+
+static const struct file_operations smk_logging_ops = {
+	.read		= smk_read_logging,
+	.write		= smk_write_logging,
+};
+/**
  * smk_fill_super - fill the /smackfs superblock
  * @sb: the empty superblock
  * @data: unused
@@ -1221,6 +1285,8 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 			{"netlabel", &smk_netlbladdr_ops, S_IRUGO|S_IWUSR},
 		[SMK_ONLYCAP]	=
 			{"onlycap", &smk_onlycap_ops, S_IRUGO|S_IWUSR},
+		[SMK_LOGGING]	=
+			{"logging", &smk_logging_ops, S_IRUGO|S_IWUSR},
 		/* last one */ {""}
 	};
 
