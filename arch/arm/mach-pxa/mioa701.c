@@ -50,6 +50,7 @@
 #include <mach/pxa27x-udc.h>
 #include <mach/i2c.h>
 #include <mach/camera.h>
+#include <mach/audio.h>
 #include <media/soc_camera.h>
 
 #include <mach/mioa701.h>
@@ -763,8 +764,6 @@ MIO_PARENT_DEV(mioa701_backlight, "pwm-backlight",  &pxa27x_device_pwm0.dev,
 		&mioa701_backlight_data);
 MIO_SIMPLE_DEV(mioa701_led,	  "leds-gpio",	    &gpio_led_info)
 MIO_SIMPLE_DEV(pxa2xx_pcm,	  "pxa2xx-pcm",	    NULL)
-MIO_SIMPLE_DEV(pxa2xx_ac97,	  "pxa2xx-ac97",    NULL)
-MIO_PARENT_DEV(mio_wm9713_codec,  "wm9713-codec",   &pxa2xx_ac97.dev, NULL)
 MIO_SIMPLE_DEV(mioa701_sound,	  "mioa701-wm9713", NULL)
 MIO_SIMPLE_DEV(mioa701_board,	  "mioa701-board",  NULL)
 MIO_SIMPLE_DEV(gpio_vbus,	  "gpio-vbus",      &gpio_vbus_data);
@@ -774,8 +773,6 @@ static struct platform_device *devices[] __initdata = {
 	&mioa701_backlight,
 	&mioa701_led,
 	&pxa2xx_pcm,
-	&pxa2xx_ac97,
-	&mio_wm9713_codec,
 	&mioa701_sound,
 	&power_dev,
 	&strataflash,
@@ -818,6 +815,7 @@ static void __init mioa701_machine_init(void)
 	pxa_set_keypad_info(&mioa701_keypad_info);
 	wm97xx_bat_set_pdata(&mioa701_battery_data);
 	pxa_set_udc_info(&mioa701_udc_info);
+	pxa_set_ac97_info(NULL);
 	pm_power_off = mioa701_poweroff;
 	arm_pm_restart = mioa701_restart;
 	platform_add_devices(devices, ARRAY_SIZE(devices));
