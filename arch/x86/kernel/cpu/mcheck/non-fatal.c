@@ -6,15 +6,14 @@
  * This file contains routines to check for non-fatal MCEs every 15s
  *
  */
-
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/jiffies.h>
-#include <linux/workqueue.h>
 #include <linux/interrupt.h>
-#include <linux/smp.h>
+#include <linux/workqueue.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/types.h>
+#include <linux/init.h>
+#include <linux/smp.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -22,9 +21,9 @@
 
 #include "mce.h"
 
-static int firstbank;
+static int		firstbank;
 
-#define MCE_RATE	15*HZ	/* timer rate is 15s */
+#define MCE_RATE	(15*HZ)	/* timer rate is 15s */
 
 static void mce_checkregs(void *info)
 {
@@ -34,23 +33,24 @@ static void mce_checkregs(void *info)
 	for (i = firstbank; i < nr_mce_banks; i++) {
 		rdmsr(MSR_IA32_MC0_STATUS+i*4, low, high);
 
-		if (high & (1<<31)) {
-			printk(KERN_INFO "MCE: The hardware reports a non "
-				"fatal, correctable incident occurred on "
-				"CPU %d.\n",
+		if (!(high & (1<<31)))
+			continue;
+
+		printk(KERN_INFO "MCE: The hardware reports a non fatal, "
+			"correctable incident occurred on CPU %d.\n",
 				smp_processor_id());
-			printk(KERN_INFO "Bank %d: %08x%08x\n", i, high, low);
 
-			/*
-			 * Scrub the error so we don't pick it up in MCE_RATE
-			 * seconds time.
-			 */
-			wrmsr(MSR_IA32_MC0_STATUS+i*4, 0UL, 0UL);
+		printk(KERN_INFO "Bank %d: %08x%08x\n", i, high, low);
 
-			/* Serialize */
-			wmb();
-			add_taint(TAINT_MACHINE_CHECK);
-		}
+		/*
+		 * Scrub the error so we don't pick it up in MCE_RATE
+		 * seconds time:
+		 */
+		wrmsr(MSR_IA32_MC0_STATUS+i*4, 0UL, 0UL);
+
+		/* Serialize: */
+		wmb();
+		add_taint(TAINT_MACHINE_CHECK);
 	}
 }
 
@@ -77,16 +77,17 @@ static int __init init_nonfatal_mce_checker(void)
 
 	/* Some Athlons misbehave when we frob bank 0 */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
-		boot_cpu_data.x86 == 6)
-			firstbank = 1;
+						boot_cpu_data.x86 == 6)
+		firstbank = 1;
 	else
-			firstbank = 0;
+		firstbank = 0;
 
 	/*
 	 * Check for non-fatal errors every MCE_RATE s
 	 */
 	schedule_delayed_work(&mce_work, round_jiffies_relative(MCE_RATE));
 	printk(KERN_INFO "Machine check exception polling timer started.\n");
+
 	return 0;
 }
 module_init(init_nonfatal_mce_checker);
