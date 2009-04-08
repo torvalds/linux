@@ -57,7 +57,7 @@
  * with operation of the form "set_bit(bitnr, flags)".
  */
 
-/* bitmap tables from arch/S390/kernel/bitmap.S */
+/* bitmap tables from arch/s390/kernel/bitmap.c */
 extern const char _oi_bitmap[];
 extern const char _ni_bitmap[];
 extern const char _zb_findmap[];
@@ -525,16 +525,16 @@ static inline unsigned long __ffs_word_loop(const unsigned long *addr,
 static inline unsigned long __ffz_word(unsigned long nr, unsigned long word)
 {
 #ifdef __s390x__
-	if (likely((word & 0xffffffff) == 0xffffffff)) {
+	if ((word & 0xffffffff) == 0xffffffff) {
 		word >>= 32;
 		nr += 32;
 	}
 #endif
-	if (likely((word & 0xffff) == 0xffff)) {
+	if ((word & 0xffff) == 0xffff) {
 		word >>= 16;
 		nr += 16;
 	}
-	if (likely((word & 0xff) == 0xff)) {
+	if ((word & 0xff) == 0xff) {
 		word >>= 8;
 		nr += 8;
 	}
@@ -549,16 +549,16 @@ static inline unsigned long __ffz_word(unsigned long nr, unsigned long word)
 static inline unsigned long __ffs_word(unsigned long nr, unsigned long word)
 {
 #ifdef __s390x__
-	if (likely((word & 0xffffffff) == 0)) {
+	if ((word & 0xffffffff) == 0) {
 		word >>= 32;
 		nr += 32;
 	}
 #endif
-	if (likely((word & 0xffff) == 0)) {
+	if ((word & 0xffff) == 0) {
 		word >>= 16;
 		nr += 16;
 	}
-	if (likely((word & 0xff) == 0)) {
+	if ((word & 0xff) == 0) {
 		word >>= 8;
 		nr += 8;
 	}

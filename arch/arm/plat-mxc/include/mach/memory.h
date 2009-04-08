@@ -14,9 +14,22 @@
 #if defined CONFIG_ARCH_MX1
 #define PHYS_OFFSET		UL(0x08000000)
 #elif defined CONFIG_ARCH_MX2
+#ifdef CONFIG_MACH_MX21
+#define PHYS_OFFSET		UL(0xC0000000)
+#endif
+#ifdef CONFIG_MACH_MX27
 #define PHYS_OFFSET		UL(0xA0000000)
+#endif
 #elif defined CONFIG_ARCH_MX3
 #define PHYS_OFFSET		UL(0x80000000)
 #endif
+
+#if defined(CONFIG_MX1_VIDEO)
+/*
+ * Increase size of DMA-consistent memory region.
+ * This is required for i.MX camera driver to capture at least four VGA frames.
+ */
+#define CONSISTENT_DMA_SIZE SZ_4M
+#endif /* CONFIG_MX1_VIDEO */
 
 #endif /* __ASM_ARCH_MXC_MEMORY_H__ */

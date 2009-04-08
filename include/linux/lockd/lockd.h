@@ -346,6 +346,7 @@ static inline int __nlm_cmp_addr4(const struct sockaddr *sap1,
 	return sin1->sin_addr.s_addr == sin2->sin_addr.s_addr;
 }
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static inline int __nlm_cmp_addr6(const struct sockaddr *sap1,
 				  const struct sockaddr *sap2)
 {
@@ -353,6 +354,13 @@ static inline int __nlm_cmp_addr6(const struct sockaddr *sap1,
 	const struct sockaddr_in6 *sin2 = (const struct sockaddr_in6 *)sap2;
 	return ipv6_addr_equal(&sin1->sin6_addr, &sin2->sin6_addr);
 }
+#else	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
+static inline int __nlm_cmp_addr6(const struct sockaddr *sap1,
+				  const struct sockaddr *sap2)
+{
+	return 0;
+}
+#endif	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
 
 /*
  * Compare two host addresses

@@ -621,9 +621,9 @@ static int __init aircable_init(void)
 		goto failed_usb_register;
 	return 0;
 
-failed_serial_register:
-	usb_serial_deregister(&aircable_device);
 failed_usb_register:
+	usb_serial_deregister(&aircable_device);
+failed_serial_register:
 	return retval;
 }
 

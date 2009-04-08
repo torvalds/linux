@@ -1139,15 +1139,6 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp)
 	hvcsd->tty = tty;
 	tty->driver_data = hvcsd;
 
-	/*
-	 * Set this driver to low latency so that we actually have a chance at
-	 * catching a throttled TTY after we flip_buffer_push.  Otherwise the
-	 * flush_to_async may not execute until after the kernel_thread has
-	 * yielded and resumed the next flip_buffer_push resulting in data
-	 * loss.
-	 */
-	tty->low_latency = 1;
-
 	memset(&hvcsd->buffer[0], 0x00, HVCS_BUFF_LEN);
 
 	/*

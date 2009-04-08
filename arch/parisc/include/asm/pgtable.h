@@ -50,11 +50,7 @@
 	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, (unsigned long)pgd_val(e))
 
 /* This is the size of the initially mapped kernel memory */
-#ifdef CONFIG_64BIT
 #define KERNEL_INITIAL_ORDER	24	/* 0 to 1<<24 = 16MB */
-#else
-#define KERNEL_INITIAL_ORDER	23	/* 0 to 1<<23 = 8MB */
-#endif
 #define KERNEL_INITIAL_SIZE	(1 << KERNEL_INITIAL_ORDER)
 
 #if defined(CONFIG_64BIT) && defined(CONFIG_PARISC_PAGE_SIZE_4KB)
@@ -91,16 +87,25 @@
 
 /* Definitions for 1st level */
 #define PGDIR_SHIFT	(PMD_SHIFT + BITS_PER_PMD)
+#if (PGDIR_SHIFT + PAGE_SHIFT + PGD_ORDER - BITS_PER_PGD_ENTRY) > BITS_PER_LONG
+#define BITS_PER_PGD	(BITS_PER_LONG - PGDIR_SHIFT)
+#else
 #define BITS_PER_PGD	(PAGE_SHIFT + PGD_ORDER - BITS_PER_PGD_ENTRY)
+#endif
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 #define PTRS_PER_PGD    (1UL << BITS_PER_PGD)
 #define USER_PTRS_PER_PGD       PTRS_PER_PGD
 
+#ifdef CONFIG_64BIT
 #define MAX_ADDRBITS	(PGDIR_SHIFT + BITS_PER_PGD)
 #define MAX_ADDRESS	(1UL << MAX_ADDRBITS)
-
 #define SPACEID_SHIFT	(MAX_ADDRBITS - 32)
+#else
+#define MAX_ADDRBITS	(BITS_PER_LONG)
+#define MAX_ADDRESS	(1UL << MAX_ADDRBITS)
+#define SPACEID_SHIFT	0
+#endif
 
 /* This calculates the number of initial pages we need for the initial
  * page tables */

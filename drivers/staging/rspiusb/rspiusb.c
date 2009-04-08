@@ -781,9 +781,8 @@ static int piusb_probe(struct usb_interface *interface,
 			dbg("Endpoint[%d]->MaxPacketSize = %d\n", i,
 			    endpoint->wMaxPacketSize);
 		}
-		if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		    USB_ENDPOINT_XFER_BULK) {
-			if (endpoint->bEndpointAddress & USB_DIR_IN)
+		if (usb_endpoint_xfer_bulk(endpoint)) {
+			if (usb_endpoint_dir_in(endpoint))
 				pdx->hEP[i] =
 				    usb_rcvbulkpipe(pdx->udev,
 						    endpoint->bEndpointAddress);

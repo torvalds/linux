@@ -118,9 +118,8 @@ acpi_status acpi_ns_root_initialize(void)
 		}
 
 		/*
-		 * Name entered successfully.
-		 * If entry in pre_defined_names[] specifies an
-		 * initial value, create the initial value.
+		 * Name entered successfully. If entry in pre_defined_names[] specifies
+		 * an initial value, create the initial value.
 		 */
 		if (init_val->val) {
 			status = acpi_os_predefined_override(init_val, &val);
@@ -178,9 +177,8 @@ acpi_status acpi_ns_root_initialize(void)
 
 			case ACPI_TYPE_STRING:
 
-				/*
-				 * Build an object around the static string
-				 */
+				/* Build an object around the static string */
+
 				obj_desc->string.length =
 				    (u32) ACPI_STRLEN(val);
 				obj_desc->string.pointer = val;
@@ -234,8 +232,7 @@ acpi_status acpi_ns_root_initialize(void)
 			/* Store pointer to value descriptor in the Node */
 
 			status = acpi_ns_attach_object(new_node, obj_desc,
-						       ACPI_GET_OBJECT_TYPE
-						       (obj_desc));
+						       obj_desc->common.type);
 
 			/* Remove local reference to the object */
 
@@ -315,10 +312,8 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		return_ACPI_STATUS(AE_NO_NAMESPACE);
 	}
 
-	/*
-	 * Get the prefix scope.
-	 * A null scope means use the root scope
-	 */
+	/* Get the prefix scope. A null scope means use the root scope */
+
 	if ((!scope_info) || (!scope_info->scope.node)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 				  "Null scope prefix, using root node (%p)\n",
@@ -338,8 +333,8 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		if (!(flags & ACPI_NS_PREFIX_IS_SCOPE)) {
 			/*
 			 * This node might not be a actual "scope" node (such as a
-			 * Device/Method, etc.)  It could be a Package or other object node.
-			 * Backup up the tree to find the containing scope node.
+			 * Device/Method, etc.)  It could be a Package or other object
+			 * node. Backup up the tree to find the containing scope node.
 			 */
 			while (!acpi_ns_opens_scope(prefix_node->type) &&
 			       prefix_node->type != ACPI_TYPE_ANY) {
@@ -349,7 +344,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		}
 	}
 
-	/* Save type   TBD: may be no longer necessary */
+	/* Save type. TBD: may be no longer necessary */
 
 	type_to_check_for = type;
 
@@ -414,6 +409,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				/* Name is fully qualified, no search rules apply */
 
 				search_parent_flag = ACPI_NS_NO_UPSEARCH;
+
 				/*
 				 * Point past this prefix to the name segment
 				 * part or the next Parent Prefix
@@ -429,7 +425,8 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 					/* Current scope has no parent scope */
 
 					ACPI_ERROR((AE_INFO,
-						    "ACPI path has too many parent prefixes (^) - reached beyond root node"));
+						    "ACPI path has too many parent prefixes (^) "
+						    "- reached beyond root node"));
 					return_ACPI_STATUS(AE_NOT_FOUND);
 				}
 			}
@@ -531,9 +528,9 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	while (num_segments && current_node) {
 		num_segments--;
 		if (!num_segments) {
-			/*
-			 * This is the last segment, enable typechecking
-			 */
+
+			/* This is the last segment, enable typechecking */
+
 			this_search_type = type;
 
 			/*
@@ -584,9 +581,9 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		if (num_segments > 0) {
 			/*
 			 * If we have an alias to an object that opens a scope (such as a
-			 * device or processor), we need to dereference the alias here so that
-			 * we can access any children of the original node (via the remaining
-			 * segments).
+			 * device or processor), we need to dereference the alias here so
+			 * that we can access any children of the original node (via the
+			 * remaining segments).
 			 */
 			if (this_node->type == ACPI_TYPE_LOCAL_ALIAS) {
 				if (!this_node->object) {
@@ -594,8 +591,8 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				}
 
 				if (acpi_ns_opens_scope
-				    (((struct acpi_namespace_node *)this_node->
-				      object)->type)) {
+				    (((struct acpi_namespace_node *)
+				      this_node->object)->type)) {
 					this_node =
 					    (struct acpi_namespace_node *)
 					    this_node->object;
@@ -639,8 +636,8 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 
 			/*
 			 * If this is the last name segment and we are not looking for a
-			 * specific type, but the type of found object is known, use that type
-			 * to (later) see if it opens a scope.
+			 * specific type, but the type of found object is known, use that
+			 * type to (later) see if it opens a scope.
 			 */
 			if (type == ACPI_TYPE_ANY) {
 				type = this_node->type;
@@ -653,9 +650,8 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		current_node = this_node;
 	}
 
-	/*
-	 * Always check if we need to open a new scope
-	 */
+	/* Always check if we need to open a new scope */
+
 	if (!(flags & ACPI_NS_DONT_OPEN_SCOPE) && (walk_state)) {
 		/*
 		 * If entry is a type which opens a scope, push the new scope on the

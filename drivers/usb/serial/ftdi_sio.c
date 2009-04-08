@@ -662,6 +662,12 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_DOMINTELL_DUSB_PID) },
 	{ USB_DEVICE(ALTI2_VID, ALTI2_N3_PID) },
 	{ USB_DEVICE(FTDI_VID, DIEBOLD_BCS_SE923_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_NDI_HUC_PID) },
+	{ USB_DEVICE(ATMEL_VID, STK541_PID) },
+	{ USB_DEVICE(DE_VID, STB_PID) },
+	{ USB_DEVICE(DE_VID, WHT_PID) },
+	{ USB_DEVICE(ADI_VID, ADI_GNICE_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
@@ -1064,8 +1070,10 @@ static int set_serial_info(struct tty_struct *tty,
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		if (((new_serial.flags & ~ASYNC_USR_MASK) !=
-		     (priv->flags & ~ASYNC_USR_MASK)))
+		     (priv->flags & ~ASYNC_USR_MASK))) {
+			unlock_kernel();
 			return -EPERM;
+		}
 		priv->flags = ((priv->flags & ~ASYNC_USR_MASK) |
 			       (new_serial.flags & ASYNC_USR_MASK));
 		priv->custom_divisor = new_serial.custom_divisor;
@@ -1930,18 +1938,16 @@ static void ftdi_process_read(struct work_struct *work)
 		/* Compare new line status to the old one, signal if different/
 		   N.B. packet may be processed more than once, but differences
 		   are only processed once.  */
-		if (priv != NULL) {
-			char new_status = data[packet_offset + 0] &
-							FTDI_STATUS_B0_MASK;
-			if (new_status != priv->prev_status) {
-				priv->diff_status |=
-					new_status ^ priv->prev_status;
-				wake_up_interruptible(&priv->delta_msr_wait);
-				priv->prev_status = new_status;
-			}
+		char new_status = data[packet_offset + 0] &
+						FTDI_STATUS_B0_MASK;
+		if (new_status != priv->prev_status) {
+			priv->diff_status |=
+				new_status ^ priv->prev_status;
+			wake_up_interruptible(&priv->delta_msr_wait);
+			priv->prev_status = new_status;
 		}
 
-		length = min(PKTSZ, urb->actual_length-packet_offset)-2;
+		length = min_t(u32, PKTSZ, urb->actual_length-packet_offset)-2;
 		if (length < 0) {
 			dev_err(&port->dev, "%s - bad packet length: %d\n",
 				__func__, length+2);
@@ -2286,11 +2292,8 @@ static int ftdi_tiocmget(struct tty_struct *tty, struct file *file)
 			   FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
 			   0, 0,
 			   buf, 1, WDR_TIMEOUT);
-		if (ret < 0) {
-			dbg("%s Could not get modem status of device - err: %d", __func__,
-			    ret);
+		if (ret < 0)
 			return ret;
-		}
 		break;
 	case FT8U232AM:
 	case FT232BM:
@@ -2305,15 +2308,11 @@ static int ftdi_tiocmget(struct tty_struct *tty, struct file *file)
 				   FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
 				   0, priv->interface,
 				   buf, 2, WDR_TIMEOUT);
-		if (ret < 0) {
-			dbg("%s Could not get modem status of device - err: %d", __func__,
-			    ret);
+		if (ret < 0)
 			return ret;
-		}
 		break;
 	default:
 		return -EFAULT;
-		break;
 	}
 
 	return  (buf[0] & FTDI_SIO_DSR_MASK ? TIOCM_DSR : 0) |

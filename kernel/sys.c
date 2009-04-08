@@ -34,6 +34,7 @@
 #include <linux/seccomp.h>
 #include <linux/cpu.h>
 #include <linux/ptrace.h>
+#include <linux/fs_struct.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -559,7 +560,7 @@ error:
 	abort_creds(new);
 	return retval;
 }
-  
+
 /*
  * change the user struct in a credentials set to match the new UID
  */
@@ -570,6 +571,11 @@ static int set_user(struct cred *new)
 	new_user = alloc_uid(current_user_ns(), new->uid);
 	if (!new_user)
 		return -EAGAIN;
+
+	if (!task_can_switch_user(new_user, current)) {
+		free_uid(new_user);
+		return -EINVAL;
+	}
 
 	if (atomic_read(&new_user->processes) >=
 				current->signal->rlim[RLIMIT_NPROC].rlim_cur &&
@@ -631,10 +637,11 @@ SYSCALL_DEFINE2(setreuid, uid_t, ruid, uid_t, euid)
 			goto error;
 	}
 
-	retval = -EAGAIN;
-	if (new->uid != old->uid && set_user(new) < 0)
-		goto error;
-
+	if (new->uid != old->uid) {
+		retval = set_user(new);
+		if (retval < 0)
+			goto error;
+	}
 	if (ruid != (uid_t) -1 ||
 	    (euid != (uid_t) -1 && euid != old->uid))
 		new->suid = new->euid;
@@ -680,9 +687,10 @@ SYSCALL_DEFINE1(setuid, uid_t, uid)
 	retval = -EPERM;
 	if (capable(CAP_SETUID)) {
 		new->suid = new->uid = uid;
-		if (uid != old->uid && set_user(new) < 0) {
-			retval = -EAGAIN;
-			goto error;
+		if (uid != old->uid) {
+			retval = set_user(new);
+			if (retval < 0)
+				goto error;
 		}
 	} else if (uid != old->uid && uid != new->suid) {
 		goto error;
@@ -734,11 +742,13 @@ SYSCALL_DEFINE3(setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)
 			goto error;
 	}
 
-	retval = -EAGAIN;
 	if (ruid != (uid_t) -1) {
 		new->uid = ruid;
-		if (ruid != old->uid && set_user(new) < 0)
-			goto error;
+		if (ruid != old->uid) {
+			retval = set_user(new);
+			if (retval < 0)
+				goto error;
+		}
 	}
 	if (euid != (uid_t) -1)
 		new->euid = euid;
@@ -1004,10 +1014,8 @@ SYSCALL_DEFINE2(setpgid, pid_t, pid, pid_t, pgid)
 	if (err)
 		goto out;
 
-	if (task_pgrp(p) != pgrp) {
+	if (task_pgrp(p) != pgrp)
 		change_pid(p, PIDTYPE_PGID, pgrp);
-		set_task_pgrp(p, pid_nr(pgrp));
-	}
 
 	err = 0;
 out:

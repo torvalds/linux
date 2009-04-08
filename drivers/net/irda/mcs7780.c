@@ -585,7 +585,7 @@ static int mcs_speed_change(struct mcs_cb *mcs)
 		mcs_get_reg(mcs, MCS_RESV_REG, &rval);
 	} while(cnt++ < 100 && (rval & MCS_IRINTX));
 
-	if(cnt >= 100) {
+	if (cnt > 100) {
 		IRDA_ERROR("unable to change speed\n");
 		ret = -EIO;
 		goto error;
@@ -873,6 +873,13 @@ static int mcs_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return ret;
 }
 
+static const struct net_device_ops mcs_netdev_ops = {
+	.ndo_open = mcs_net_open,
+	.ndo_stop = mcs_net_close,
+	.ndo_start_xmit = mcs_hard_xmit,
+	.ndo_do_ioctl = mcs_net_ioctl,
+};
+
 /*
  * This function is called by the USB subsystem for each new device in the
  * system.  Need to verify the device and if it is, then start handling it.
@@ -919,11 +926,7 @@ static int mcs_probe(struct usb_interface *intf,
 	/* Speed change work initialisation*/
 	INIT_WORK(&mcs->work, mcs_speed_work);
 
-	/* Override the network functions we need to use */
-	ndev->hard_start_xmit = mcs_hard_xmit;
-	ndev->open = mcs_net_open;
-	ndev->stop = mcs_net_close;
-	ndev->do_ioctl = mcs_net_ioctl;
+	ndev->netdev_ops = &mcs_netdev_ops;
 
 	if (!intf->cur_altsetting)
 		goto error2;

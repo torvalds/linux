@@ -485,7 +485,7 @@ static void __exit pxa_rtc_exit(void)
 module_init(pxa_rtc_init);
 module_exit(pxa_rtc_exit);
 
-MODULE_AUTHOR("Robert Jarzmik");
+MODULE_AUTHOR("Robert Jarzmik <robert.jarzmik@free.fr>");
 MODULE_DESCRIPTION("PXA27x/PXA3xx Realtime Clock Driver (RTC)");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:pxa-rtc");

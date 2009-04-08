@@ -304,12 +304,24 @@ static intercept_handler_t priv_handlers[256] = {
 	[0xb1] = handle_stfl,
 };
 
-int kvm_s390_handle_priv(struct kvm_vcpu *vcpu)
+int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
 {
 	intercept_handler_t handler;
 
+	/*
+	 * a lot of B2 instructions are priviledged. We first check for
+	 * the priviledges ones, that we can handle in the kernel. If the
+	 * kernel can handle this instruction, we check for the problem
+	 * state bit and (a) handle the instruction or (b) send a code 2
+	 * program check.
+	 * Anything else goes to userspace.*/
 	handler = priv_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
-	if (handler)
-		return handler(vcpu);
+	if (handler) {
+		if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+			return kvm_s390_inject_program_int(vcpu,
+						   PGM_PRIVILEGED_OPERATION);
+		else
+			return handler(vcpu);
+	}
 	return -ENOTSUPP;
 }

@@ -844,7 +844,7 @@ static char *lprint_Scsi_Cmnd(Scsi_Cmnd *cmd, char *pos, char *buffer, int lengt
  *
  */
 
-static int NCR5380_init(struct Scsi_Host *instance, int flags)
+static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 {
 	int i;
 	SETUP_HOSTDATA(instance);

@@ -148,17 +148,8 @@ static u8 scc_dma_sff_read_status(ide_hwif_t *hwif)
 	return (u8)in_be32((void *)(hwif->dma_base + 4));
 }
 
-static void scc_set_irq(ide_hwif_t *hwif, int on)
+static void scc_write_devctl(ide_hwif_t *hwif, u8 ctl)
 {
-	u8 ctl = ATA_DEVCTL_OBS;
-
-	if (on == 4) { /* hack for SRST */
-		ctl |= 4;
-		on &= ~4;
-	}
-
-	ctl |= on ? 0 : 2;
-
 	out_be32((void *)hwif->io_ports.ctl_addr, ctl);
 	eieio();
 	in_be32((void *)(hwif->dma_base + 0x01c));
@@ -303,8 +294,9 @@ static void scc_dma_host_set(ide_drive_t *drive, int on)
 }
 
 /**
- *	scc_ide_dma_setup	-	begin a DMA phase
+ *	scc_dma_setup	-	begin a DMA phase
  *	@drive: target device
+ *	@cmd: command
  *
  *	Build an IDE DMA PRD (IDE speak for scatter gather table)
  *	and then set up the DMA transfer registers.
@@ -313,36 +305,28 @@ static void scc_dma_host_set(ide_drive_t *drive, int on)
  *	is returned.
  */
 
-static int scc_dma_setup(ide_drive_t *drive)
+static int scc_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->rq;
-	unsigned int reading;
+	u32 rw = (cmd->tf_flags & IDE_TFLAG_WRITE) ? 0 : ATA_DMA_WR;
 	u8 dma_stat;
 
-	if (rq_data_dir(rq))
-		reading = 0;
-	else
-		reading = 1 << 3;
-
 	/* fall back to pio! */
-	if (!ide_build_dmatable(drive, rq)) {
-		ide_map_sg(drive, rq);
+	if (ide_build_dmatable(drive, cmd) == 0)
 		return 1;
-	}
 
 	/* PRD table */
 	out_be32((void __iomem *)(hwif->dma_base + 8), hwif->dmatable_dma);
 
 	/* specify r/w */
-	out_be32((void __iomem *)hwif->dma_base, reading);
+	out_be32((void __iomem *)hwif->dma_base, rw);
 
 	/* read DMA status for INTR & ERROR flags */
 	dma_stat = scc_dma_sff_read_status(hwif);
 
 	/* clear INTR & ERROR flags */
 	out_be32((void __iomem *)(hwif->dma_base + 4), dma_stat | 6);
-	drive->waiting_for_dma = 1;
+
 	return 0;
 }
 
@@ -361,7 +345,6 @@ static int __scc_dma_end(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	u8 dma_stat, dma_cmd;
 
-	drive->waiting_for_dma = 0;
 	/* get DMA command mode */
 	dma_cmd = scc_ide_inb(hwif->dma_base);
 	/* stop DMA */
@@ -370,8 +353,6 @@ static int __scc_dma_end(ide_drive_t *drive)
 	dma_stat = scc_dma_sff_read_status(hwif);
 	/* clear the INTR & ERROR bits */
 	scc_ide_outb(dma_stat | 6, hwif->dma_base + 4);
-	/* purge DMA mappings */
-	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
 	wmb();
 	return (dma_stat & 7) != 4 ? (0x10 | dma_stat) : 0;
@@ -666,91 +647,80 @@ static int __devinit init_setup_scc(struct pci_dev *dev,
 	return rc;
 }
 
-static void scc_tf_load(ide_drive_t *drive, ide_task_t *task)
+static void scc_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	struct ide_io_ports *io_ports = &drive->hwif->io_ports;
-	struct ide_taskfile *tf = &task->tf;
-	u8 HIHI = (task->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
+	struct ide_taskfile *tf = &cmd->tf;
+	u8 HIHI = (cmd->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
 
-	if (task->tf_flags & IDE_TFLAG_FLAGGED)
+	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
 		HIHI = 0xFF;
 
-	if (task->tf_flags & IDE_TFLAG_OUT_DATA)
-		out_be32((void *)io_ports->data_addr,
-			 (tf->hob_data << 8) | tf->data);
-
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
 		scc_ide_outb(tf->hob_feature, io_ports->feature_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
 		scc_ide_outb(tf->hob_nsect, io_ports->nsect_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAL)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_LBAL)
 		scc_ide_outb(tf->hob_lbal, io_ports->lbal_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAM)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_LBAM)
 		scc_ide_outb(tf->hob_lbam, io_ports->lbam_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAH)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_HOB_LBAH)
 		scc_ide_outb(tf->hob_lbah, io_ports->lbah_addr);
 
-	if (task->tf_flags & IDE_TFLAG_OUT_FEATURE)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_FEATURE)
 		scc_ide_outb(tf->feature, io_ports->feature_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_NSECT)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_NSECT)
 		scc_ide_outb(tf->nsect, io_ports->nsect_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_LBAL)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_LBAL)
 		scc_ide_outb(tf->lbal, io_ports->lbal_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_LBAM)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_LBAM)
 		scc_ide_outb(tf->lbam, io_ports->lbam_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_LBAH)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_LBAH)
 		scc_ide_outb(tf->lbah, io_ports->lbah_addr);
 
-	if (task->tf_flags & IDE_TFLAG_OUT_DEVICE)
+	if (cmd->tf_flags & IDE_TFLAG_OUT_DEVICE)
 		scc_ide_outb((tf->device & HIHI) | drive->select,
 			     io_ports->device_addr);
 }
 
-static void scc_tf_read(ide_drive_t *drive, ide_task_t *task)
+static void scc_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	struct ide_io_ports *io_ports = &drive->hwif->io_ports;
-	struct ide_taskfile *tf = &task->tf;
-
-	if (task->tf_flags & IDE_TFLAG_IN_DATA) {
-		u16 data = (u16)in_be32((void *)io_ports->data_addr);
-
-		tf->data = data & 0xff;
-		tf->hob_data = (data >> 8) & 0xff;
-	}
+	struct ide_taskfile *tf = &cmd->tf;
 
 	/* be sure we're looking at the low order bits */
-	scc_ide_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
+	scc_ide_outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
-	if (task->tf_flags & IDE_TFLAG_IN_FEATURE)
-		tf->feature = scc_ide_inb(io_ports->feature_addr);
-	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
+	if (cmd->tf_flags & IDE_TFLAG_IN_ERROR)
+		tf->error  = scc_ide_inb(io_ports->feature_addr);
+	if (cmd->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = scc_ide_inb(io_ports->nsect_addr);
-	if (task->tf_flags & IDE_TFLAG_IN_LBAL)
+	if (cmd->tf_flags & IDE_TFLAG_IN_LBAL)
 		tf->lbal   = scc_ide_inb(io_ports->lbal_addr);
-	if (task->tf_flags & IDE_TFLAG_IN_LBAM)
+	if (cmd->tf_flags & IDE_TFLAG_IN_LBAM)
 		tf->lbam   = scc_ide_inb(io_ports->lbam_addr);
-	if (task->tf_flags & IDE_TFLAG_IN_LBAH)
+	if (cmd->tf_flags & IDE_TFLAG_IN_LBAH)
 		tf->lbah   = scc_ide_inb(io_ports->lbah_addr);
-	if (task->tf_flags & IDE_TFLAG_IN_DEVICE)
+	if (cmd->tf_flags & IDE_TFLAG_IN_DEVICE)
 		tf->device = scc_ide_inb(io_ports->device_addr);
 
-	if (task->tf_flags & IDE_TFLAG_LBA48) {
-		scc_ide_outb(ATA_DEVCTL_OBS | 0x80, io_ports->ctl_addr);
+	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
+		scc_ide_outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
 
-		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
-			tf->hob_feature = scc_ide_inb(io_ports->feature_addr);
-		if (task->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
-			tf->hob_nsect   = scc_ide_inb(io_ports->nsect_addr);
-		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
-			tf->hob_lbal    = scc_ide_inb(io_ports->lbal_addr);
-		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
-			tf->hob_lbam    = scc_ide_inb(io_ports->lbam_addr);
-		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
-			tf->hob_lbah    = scc_ide_inb(io_ports->lbah_addr);
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_ERROR)
+			tf->hob_error = scc_ide_inb(io_ports->feature_addr);
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
+			tf->hob_nsect = scc_ide_inb(io_ports->nsect_addr);
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
+			tf->hob_lbal  = scc_ide_inb(io_ports->lbal_addr);
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
+			tf->hob_lbam  = scc_ide_inb(io_ports->lbam_addr);
+		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
+			tf->hob_lbah  = scc_ide_inb(io_ports->lbah_addr);
 	}
 }
 
-static void scc_input_data(ide_drive_t *drive, struct request *rq,
+static void scc_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
 			   void *buf, unsigned int len)
 {
 	unsigned long data_addr = drive->hwif->io_ports.data_addr;
@@ -766,7 +736,7 @@ static void scc_input_data(ide_drive_t *drive, struct request *rq,
 		scc_ide_insw(data_addr, buf, len / 2);
 }
 
-static void scc_output_data(ide_drive_t *drive,  struct request *rq,
+static void scc_output_data(ide_drive_t *drive,  struct ide_cmd *cmd,
 			    void *buf, unsigned int len)
 {
 	unsigned long data_addr = drive->hwif->io_ports.data_addr;
@@ -853,9 +823,9 @@ static const struct ide_tp_ops scc_tp_ops = {
 	.exec_command		= scc_exec_command,
 	.read_status		= scc_read_status,
 	.read_altstatus		= scc_read_altstatus,
+	.write_devctl		= scc_write_devctl,
 
-	.set_irq		= scc_set_irq,
-
+	.dev_select		= ide_dev_select,
 	.tf_load		= scc_tf_load,
 	.tf_read		= scc_tf_read,
 
@@ -873,30 +843,25 @@ static const struct ide_port_ops scc_port_ops = {
 static const struct ide_dma_ops scc_dma_ops = {
 	.dma_host_set		= scc_dma_host_set,
 	.dma_setup		= scc_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= scc_dma_start,
 	.dma_end		= scc_dma_end,
 	.dma_test_irq		= scc_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
-	.dma_timeout		= ide_dma_timeout,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_sff_read_status	= scc_dma_sff_read_status,
 };
 
-#define DECLARE_SCC_DEV(name_str)			\
-  {							\
-      .name		= name_str,			\
-      .init_iops	= init_iops_scc,		\
-      .init_dma		= scc_init_dma,			\
-      .init_hwif	= init_hwif_scc,		\
-      .tp_ops		= &scc_tp_ops,		\
-      .port_ops		= &scc_port_ops,		\
-      .dma_ops		= &scc_dma_ops,			\
-      .host_flags	= IDE_HFLAG_SINGLE,		\
-      .pio_mask		= ATA_PIO4,			\
-  }
-
-static const struct ide_port_info scc_chipsets[] __devinitdata = {
-	/* 0 */ DECLARE_SCC_DEV("sccIDE"),
+static const struct ide_port_info scc_chipset __devinitdata = {
+	.name		= "sccIDE",
+	.init_iops	= init_iops_scc,
+	.init_dma	= scc_init_dma,
+	.init_hwif	= init_hwif_scc,
+	.tp_ops		= &scc_tp_ops,
+	.port_ops	= &scc_port_ops,
+	.dma_ops	= &scc_dma_ops,
+	.host_flags	= IDE_HFLAG_SINGLE,
+	.irq_flags	= IRQF_SHARED,
+	.pio_mask	= ATA_PIO4,
 };
 
 /**
@@ -910,7 +875,7 @@ static const struct ide_port_info scc_chipsets[] __devinitdata = {
 
 static int __devinit scc_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return init_setup_scc(dev, &scc_chipsets[id->driver_data]);
+	return init_setup_scc(dev, &scc_chipset);
 }
 
 /**

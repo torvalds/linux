@@ -204,6 +204,23 @@ static int __init ppc4xx_setup_one_pci_PMM(struct pci_controller	*hose,
 {
 	u32 ma, pcila, pciha;
 
+	/* Hack warning ! The "old" PCI 2.x cell only let us configure the low
+	 * 32-bit of incoming PLB addresses. The top 4 bits of the 36-bit
+	 * address are actually hard wired to a value that appears to depend
+	 * on the specific SoC. For example, it's 0 on 440EP and 1 on 440EPx.
+	 *
+	 * The trick here is we just crop those top bits and ignore them when
+	 * programming the chip. That means the device-tree has to be right
+	 * for the specific part used (we don't print a warning if it's wrong
+	 * but on the other hand, you'll crash quickly enough), but at least
+	 * this code should work whatever the hard coded value is
+	 */
+	plb_addr &= 0xffffffffull;
+
+	/* Note: Due to the above hack, the test below doesn't actually test
+	 * if you address is above 4G, but it tests that address and
+	 * (address + size) are both contained in the same 4G
+	 */
 	if ((plb_addr + size) > 0xffffffffull || !is_power_of_2(size) ||
 	    size < 0x1000 || (plb_addr & (size - 1)) != 0) {
 		printk(KERN_WARNING "%s: Resource out of range\n",
@@ -1821,6 +1838,8 @@ static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
 static int __init ppc4xx_pci_find_bridges(void)
 {
 	struct device_node *np;
+
+	ppc_pci_flags |= PPC_PCI_ENABLE_PROC_DOMAINS | PPC_PCI_COMPAT_DOMAIN_0;
 
 #ifdef CONFIG_PPC4xx_PCI_EXPRESS
 	for_each_compatible_node(np, NULL, "ibm,plb-pciex")

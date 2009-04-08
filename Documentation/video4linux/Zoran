@@ -401,8 +401,7 @@ Additional notes for software developers:
    first set the correct norm. Well, it seems logically correct: TV
    standard is "more constant" for current country than geometry
    settings of a variety of TV capture cards which may work in ITU or
-   square pixel format. Remember that users now can lock the norm to
-   avoid any ambiguity.
+   square pixel format.
 --
 Please note that lavplay/lavrec are also included in the MJPEG-tools
 (http://mjpeg.sf.net/).

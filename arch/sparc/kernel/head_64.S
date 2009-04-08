@@ -686,7 +686,7 @@ tlb_fixup_done:
 	 * point.
 	 *
 	 * There used to be enormous complexity wrt. transferring
-	 * over from the firwmare's trap table to the Linux kernel's.
+	 * over from the firmware's trap table to the Linux kernel's.
 	 * For example, there was a chicken & egg problem wrt. building
 	 * the OBP page tables, yet needing to be on the Linux kernel
 	 * trap table (to translate PAGE_OFFSET addresses) in order to
@@ -891,10 +891,35 @@ prom_tba:	.xword	0
 tlb_type:	.word	0	/* Must NOT end up in BSS */
 	.section	".fixup",#alloc,#execinstr
 
-	.globl	__ret_efault, __retl_efault
-__ret_efault:
+	.globl	__ret_efault, __retl_efault, __ret_one, __retl_one
+ENTRY(__ret_efault)
 	ret
 	 restore %g0, -EFAULT, %o0
-__retl_efault:
+ENDPROC(__ret_efault)
+
+ENTRY(__retl_efault)
 	retl
 	 mov	-EFAULT, %o0
+ENDPROC(__retl_efault)
+
+ENTRY(__retl_one)
+	retl
+	 mov	1, %o0
+ENDPROC(__retl_one)
+
+ENTRY(__ret_one_asi)
+	wr	%g0, ASI_AIUS, %asi
+	ret
+	 restore %g0, 1, %o0
+ENDPROC(__ret_one_asi)
+
+ENTRY(__retl_one_asi)
+	wr	%g0, ASI_AIUS, %asi
+	retl
+	 mov	1, %o0
+ENDPROC(__retl_one_asi)
+
+ENTRY(__retl_o1)
+	retl
+	 mov	%o1, %o0
+ENDPROC(__retl_o1)

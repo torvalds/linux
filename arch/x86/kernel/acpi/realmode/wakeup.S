@@ -3,8 +3,8 @@
  */
 #include <asm/segment.h>
 #include <asm/msr-index.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
+#include <asm/page_types.h>
+#include <asm/pgtable_types.h>
 #include <asm/processor-flags.h>
 
 	.code16

@@ -13,6 +13,8 @@
  *
  */
 
+#define KMSG_COMPONENT "dasd"
+
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -67,6 +69,8 @@ int dasd_probeonly =  0;	/* is true, when probeonly mode is active */
 int dasd_autodetect = 0;	/* is true, when autodetection is active */
 int dasd_nopav = 0;		/* is true, when PAV is disabled */
 EXPORT_SYMBOL_GPL(dasd_nopav);
+int dasd_nofcx;			/* disable High Performance Ficon */
+EXPORT_SYMBOL_GPL(dasd_nofcx);
 
 /*
  * char *dasd[] is intended to hold the ranges supplied by the dasd= statement
@@ -125,6 +129,7 @@ __setup ("dasd=", dasd_call_setup);
  * Read a device busid/devno from a string.
  */
 static int
+
 dasd_busid(char **str, int *id0, int *id1, int *devno)
 {
 	int val, old_style;
@@ -132,8 +137,7 @@ dasd_busid(char **str, int *id0, int *id1, int *devno)
 	/* Interpret ipldev busid */
 	if (strncmp(DASD_IPLDEV, *str, strlen(DASD_IPLDEV)) == 0) {
 		if (ipl_info.type != IPL_TYPE_CCW) {
-			MESSAGE(KERN_ERR, "%s", "ipl device is not a ccw "
-				"device");
+			pr_err("The IPL device is not a CCW device\n");
 			return -EINVAL;
 		}
 		*id0 = 0;
@@ -209,9 +213,8 @@ dasd_feature_list(char *str, char **endp)
 		else if (len == 8 && !strncmp(str, "failfast", 8))
 			features |= DASD_FEATURE_FAILFAST;
 		else {
-			MESSAGE(KERN_WARNING,
-				"unsupported feature: %*s, "
-				"ignoring setting", len, str);
+			pr_warning("%*s is not a supported device option\n",
+				   len, str);
 			rc = -EINVAL;
 		}
 		str += len;
@@ -220,8 +223,8 @@ dasd_feature_list(char *str, char **endp)
 		str++;
 	}
 	if (*str != ')') {
-		MESSAGE(KERN_WARNING, "%s",
-			"missing ')' in dasd parameter string\n");
+		pr_warning("A closing parenthesis ')' is missing in the "
+			   "dasd= parameter\n");
 		rc = -EINVAL;
 	} else
 		str++;
@@ -253,23 +256,27 @@ dasd_parse_keyword( char *parsestring ) {
         }
 	if (strncmp("autodetect", parsestring, length) == 0) {
 		dasd_autodetect = 1;
-		MESSAGE (KERN_INFO, "%s",
-			 "turning to autodetection mode");
+		pr_info("The autodetection mode has been activated\n");
                 return residual_str;
         }
 	if (strncmp("probeonly", parsestring, length) == 0) {
 		dasd_probeonly = 1;
-		MESSAGE(KERN_INFO, "%s",
-			"turning to probeonly mode");
+		pr_info("The probeonly mode has been activated\n");
                 return residual_str;
         }
 	if (strncmp("nopav", parsestring, length) == 0) {
 		if (MACHINE_IS_VM)
-			MESSAGE(KERN_INFO, "%s", "'nopav' not supported on VM");
+			pr_info("'nopav' is not supported on z/VM\n");
 		else {
 			dasd_nopav = 1;
-			MESSAGE(KERN_INFO, "%s", "disable PAV mode");
+			pr_info("PAV support has be deactivated\n");
 		}
+		return residual_str;
+	}
+	if (strncmp("nofcx", parsestring, length) == 0) {
+		dasd_nofcx = 1;
+		pr_info("High Performance FICON support has been "
+			"deactivated\n");
 		return residual_str;
 	}
 	if (strncmp("fixedbuffers", parsestring, length) == 0) {
@@ -280,10 +287,10 @@ dasd_parse_keyword( char *parsestring ) {
 					  PAGE_SIZE, SLAB_CACHE_DMA,
 					  NULL);
 		if (!dasd_page_cache)
-			MESSAGE(KERN_WARNING, "%s", "Failed to create slab, "
+			DBF_EVENT(DBF_WARNING, "%s", "Failed to create slab, "
 				"fixed buffer mode disabled.");
 		else
-			MESSAGE (KERN_INFO, "%s",
+			DBF_EVENT(DBF_INFO, "%s",
 				 "turning on fixed buffer mode");
                 return residual_str;
         }
@@ -321,7 +328,7 @@ dasd_parse_range( char *parsestring ) {
 	    (from_id0 != to_id0 || from_id1 != to_id1 || from > to))
 		rc = -EINVAL;
 	if (rc) {
-		MESSAGE(KERN_ERR, "Invalid device range %s", parsestring);
+		pr_err("%s is not a valid device range\n", parsestring);
 		return ERR_PTR(rc);
 	}
 	features = dasd_feature_list(str, &str);
@@ -340,8 +347,8 @@ dasd_parse_range( char *parsestring ) {
 		return str + 1;
 	if (*str == '\0')
 		return str;
-	MESSAGE(KERN_WARNING,
-		"junk at end of dasd parameter string: %s\n", str);
+	pr_warning("The dasd= parameter value %s has an invalid ending\n",
+		   str);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -677,7 +684,7 @@ static ssize_t dasd_ff_show(struct device *dev, struct device_attribute *attr,
 	struct dasd_devmap *devmap;
 	int ff_flag;
 
-	devmap = dasd_find_busid(dev->bus_id);
+	devmap = dasd_find_busid(dev_name(dev));
 	if (!IS_ERR(devmap))
 		ff_flag = (devmap->features & DASD_FEATURE_FAILFAST) != 0;
 	else

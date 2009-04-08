@@ -43,6 +43,8 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+#include "rcutree.h"
+
 static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 {
 	if (!rdp->beenonline)

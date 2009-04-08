@@ -43,6 +43,8 @@ struct mem_chunk {
 
 extern struct mem_chunk memory_chunk[];
 extern unsigned long real_memory_size;
+extern int memory_end_set;
+extern unsigned long memory_end;
 
 void detect_memory_layout(struct mem_chunk chunk[]);
 

@@ -133,11 +133,16 @@ int __init pcr_arch_init(void)
 
 	case cheetah:
 	case cheetah_plus:
-	case spitfire:
 		pcr_ops = &direct_pcr_ops;
 		pcr_enable = PCR_SUN4U_ENABLE;
 		break;
 
+	case spitfire:
+		/* UltraSPARC-I/II and derivatives lack a profile
+		 * counter overflow interrupt so we can't make use of
+		 * their hardware currently.
+		 */
+		/* fallthrough */
 	default:
 		err = -ENODEV;
 		goto out_unregister;

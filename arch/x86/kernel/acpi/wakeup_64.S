@@ -1,8 +1,8 @@
 .text
 #include <linux/linkage.h>
 #include <asm/segment.h>
-#include <asm/pgtable.h>
-#include <asm/page.h>
+#include <asm/pgtable_types.h>
+#include <asm/page_types.h>
 #include <asm/msr.h>
 #include <asm/asm-offsets.h>
 
@@ -13,7 +13,6 @@
 	 * Hooray, we are in Long 64-bit mode (but still running in low memory)
 	 */
 ENTRY(wakeup_long64)
-wakeup_long64:
 	movq	saved_magic, %rax
 	movq	$0x123456789abcdef0, %rdx
 	cmpq	%rdx, %rax
@@ -34,16 +33,12 @@ wakeup_long64:
 
 	movq	saved_rip, %rax
 	jmp	*%rax
+ENDPROC(wakeup_long64)
 
 bogus_64_magic:
 	jmp	bogus_64_magic
 
-	.align 2
-	.p2align 4,,15
-.globl do_suspend_lowlevel
-	.type	do_suspend_lowlevel,@function
-do_suspend_lowlevel:
-.LFB5:
+ENTRY(do_suspend_lowlevel)
 	subq	$8, %rsp
 	xorl	%eax, %eax
 	call	save_processor_state
@@ -67,7 +62,7 @@ do_suspend_lowlevel:
 	pushfq
 	popq	pt_regs_flags(%rax)
 
-	movq	$.L97, saved_rip(%rip)
+	movq	$resume_point, saved_rip(%rip)
 
 	movq	%rsp, saved_rsp
 	movq	%rbp, saved_rbp
@@ -78,14 +73,12 @@ do_suspend_lowlevel:
 	addq	$8, %rsp
 	movl	$3, %edi
 	xorl	%eax, %eax
-	jmp	acpi_enter_sleep_state
-.L97:
-	.p2align 4,,7
-.L99:
-	.align 4
-	movl	$24, %eax
-	movw	%ax, %ds
+	call	acpi_enter_sleep_state
+	/* in case something went wrong, restore the machine status and go on */
+	jmp	resume_point
 
+	.align 4
+resume_point:
 	/* We don't restore %rax, it must be 0 anyway */
 	movq	$saved_context, %rax
 	movq	saved_context_cr4(%rax), %rbx
@@ -117,12 +110,9 @@ do_suspend_lowlevel:
 	xorl	%eax, %eax
 	addq	$8, %rsp
 	jmp	restore_processor_state
-.LFE5:
-.Lfe5:
-	.size	do_suspend_lowlevel, .Lfe5-do_suspend_lowlevel
-	
+ENDPROC(do_suspend_lowlevel)
+
 .data
-ALIGN
 ENTRY(saved_rbp)	.quad	0
 ENTRY(saved_rsi)	.quad	0
 ENTRY(saved_rdi)	.quad	0

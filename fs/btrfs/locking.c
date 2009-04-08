@@ -25,21 +25,10 @@
 #include "extent_io.h"
 #include "locking.h"
 
-/*
- * btrfs_header_level() isn't free, so don't call it when lockdep isn't
- * on
- */
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-static inline void spin_nested(struct extent_buffer *eb)
-{
-	spin_lock_nested(&eb->lock, BTRFS_MAX_LEVEL - btrfs_header_level(eb));
-}
-#else
 static inline void spin_nested(struct extent_buffer *eb)
 {
 	spin_lock(&eb->lock);
 }
-#endif
 
 /*
  * Setting a lock to blocking will drop the spinlock and set the
@@ -71,8 +60,8 @@ void btrfs_clear_lock_blocking(struct extent_buffer *eb)
 
 /*
  * unfortunately, many of the places that currently set a lock to blocking
- * don't end up blocking for every long, and often they don't block
- * at all.  For a dbench 50 run, if we don't spin one the blocking bit
+ * don't end up blocking for very long, and often they don't block
+ * at all.  For a dbench 50 run, if we don't spin on the blocking bit
  * at all, the context switch rate can jump up to 400,000/sec or more.
  *
  * So, we're still stuck with this crummy spin on the blocking bit,
@@ -82,12 +71,13 @@ void btrfs_clear_lock_blocking(struct extent_buffer *eb)
 static int btrfs_spin_on_block(struct extent_buffer *eb)
 {
 	int i;
+
 	for (i = 0; i < 512; i++) {
-		cpu_relax();
 		if (!test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags))
 			return 1;
 		if (need_resched())
 			break;
+		cpu_relax();
 	}
 	return 0;
 }
@@ -106,13 +96,15 @@ int btrfs_try_spin_lock(struct extent_buffer *eb)
 {
 	int i;
 
-	spin_nested(eb);
-	if (!test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags))
-		return 1;
-	spin_unlock(&eb->lock);
-
+	if (btrfs_spin_on_block(eb)) {
+		spin_nested(eb);
+		if (!test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags))
+			return 1;
+		spin_unlock(&eb->lock);
+	}
 	/* spin for a bit on the BLOCKING flag */
 	for (i = 0; i < 2; i++) {
+		cpu_relax();
 		if (!btrfs_spin_on_block(eb))
 			break;
 
@@ -159,6 +151,9 @@ int btrfs_tree_lock(struct extent_buffer *eb)
 	DEFINE_WAIT(wait);
 	wait.func = btrfs_wake_function;
 
+	if (!btrfs_spin_on_block(eb))
+		goto sleep;
+
 	while(1) {
 		spin_nested(eb);
 
@@ -176,9 +171,10 @@ int btrfs_tree_lock(struct extent_buffer *eb)
 		 * spin for a bit, and if the blocking flag goes away,
 		 * loop around
 		 */
+		cpu_relax();
 		if (btrfs_spin_on_block(eb))
 			continue;
-
+sleep:
 		prepare_to_wait_exclusive(&eb->lock_wq, &wait,
 					  TASK_UNINTERRUPTIBLE);
 
@@ -231,30 +227,8 @@ int btrfs_tree_unlock(struct extent_buffer *eb)
 	return 0;
 }
 
-int btrfs_tree_locked(struct extent_buffer *eb)
+void btrfs_assert_tree_locked(struct extent_buffer *eb)
 {
-	return test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags) ||
-			spin_is_locked(&eb->lock);
+	if (!test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags))
+		assert_spin_locked(&eb->lock);
 }
-
-/*
- * btrfs_search_slot uses this to decide if it should drop its locks
- * before doing something expensive like allocating free blocks for cow.
- */
-int btrfs_path_lock_waiting(struct btrfs_path *path, int level)
-{
-	int i;
-	struct extent_buffer *eb;
-
-	for (i = level; i <= level + 1 && i < BTRFS_MAX_LEVEL; i++) {
-		eb = path->nodes[i];
-		if (!eb)
-			break;
-		smp_mb();
-		if (spin_is_contended(&eb->lock) ||
-		    waitqueue_active(&eb->lock_wq))
-			return 1;
-	}
-	return 0;
-}
-

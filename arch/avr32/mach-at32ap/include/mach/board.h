@@ -13,7 +13,7 @@
  * in this array is chip-dependent.
  */
 extern unsigned long at32_board_osc_rates[];
-  
+
 /*
  * This used to add essential system devices, but this is now done
  * automatically. Please don't use it in new board code.
@@ -26,12 +26,17 @@ static inline void __deprecated at32_add_system_devices(void)
 #define ATMEL_MAX_UART	4
 extern struct platform_device *atmel_default_console_device;
 
+/* Flags for selecting USART extra pins */
+#define	ATMEL_USART_RTS		0x01
+#define	ATMEL_USART_CTS		0x02
+#define	ATMEL_USART_CLK		0x03
+
 struct atmel_uart_data {
 	short		use_dma_tx;	/* use transmit DMA? */
 	short		use_dma_rx;	/* use receive DMA? */
 	void __iomem	*regs;		/* virtual base address, if any */
 };
-void at32_map_usart(unsigned int hw_id, unsigned int line);
+void at32_map_usart(unsigned int hw_id, unsigned int line, int flags);
 struct platform_device *at32_add_device_usart(unsigned int id);
 
 struct eth_platform_data {
@@ -88,16 +93,15 @@ struct mci_platform_data;
 struct platform_device *
 at32_add_device_mci(unsigned int id, struct mci_platform_data *data);
 
-struct ac97c_platform_data {
-	unsigned short dma_rx_periph_id;
-	unsigned short dma_tx_periph_id;
-	unsigned short dma_controller_id;
-	int reset_pin;
-};
+struct ac97c_platform_data;
 struct platform_device *
-at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data);
+at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data,
+		      unsigned int flags);
 
-struct platform_device *at32_add_device_abdac(unsigned int id);
+struct atmel_abdac_pdata;
+struct platform_device *
+at32_add_device_abdac(unsigned int id, struct atmel_abdac_pdata *data);
+
 struct platform_device *at32_add_device_psif(unsigned int id);
 
 struct cf_platform_data {
@@ -116,6 +120,7 @@ struct atmel_nand_data {
 	int	enable_pin;	/* chip enable */
 	int	det_pin;	/* card detect */
 	int	rdy_pin;	/* ready/busy */
+	u8	rdy_pin_active_low;	/* rdy_pin value is inverted */
 	u8	ale;		/* address line number connected to ALE */
 	u8	cle;		/* address line number connected to CLE */
 	u8	bus_width_16;	/* buswidth is 16 bit */

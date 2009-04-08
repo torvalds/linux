@@ -11,6 +11,7 @@
 
 #define DMA_PTE_READ (1)
 #define DMA_PTE_WRITE (2)
+#define DMA_PTE_SNP (1 << 11)
 
 struct intel_iommu;
 struct dmar_domain;

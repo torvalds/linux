@@ -871,8 +871,7 @@ static void neigh_timer_handler(unsigned long arg)
 		write_unlock(&neigh->lock);
 		neigh->ops->solicit(neigh, skb);
 		atomic_inc(&neigh->probes);
-		if (skb)
-			kfree_skb(skb);
+		kfree_skb(skb);
 	} else {
 out:
 		write_unlock(&neigh->lock);
@@ -908,8 +907,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 			neigh->updated = jiffies;
 			write_unlock_bh(&neigh->lock);
 
-			if (skb)
-				kfree_skb(skb);
+			kfree_skb(skb);
 			return 1;
 		}
 	} else if (neigh->nud_state & NUD_STALE) {
@@ -1656,7 +1654,11 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 				flags &= ~NEIGH_UPDATE_F_OVERRIDE;
 		}
 
-		err = neigh_update(neigh, lladdr, ndm->ndm_state, flags);
+		if (ndm->ndm_flags & NTF_USE) {
+			neigh_event_send(neigh, NULL);
+			err = 0;
+		} else
+			err = neigh_update(neigh, lladdr, ndm->ndm_state, flags);
 		neigh_release(neigh);
 		goto out_dev_put;
 	}
@@ -1994,8 +1996,8 @@ static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 			if (!net_eq(neigh_parms_net(p), net))
 				continue;
 
-			if (nidx++ < neigh_skip)
-				continue;
+			if (nidx < neigh_skip)
+				goto next;
 
 			if (neightbl_fill_param_info(skb, tbl, p,
 						     NETLINK_CB(cb->skb).pid,
@@ -2003,6 +2005,8 @@ static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 						     RTM_NEWNEIGHTBL,
 						     NLM_F_MULTI) <= 0)
 				goto out;
+		next:
+			nidx++;
 		}
 
 		neigh_skip = 0;
@@ -2082,12 +2086,10 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		if (h > s_h)
 			s_idx = 0;
 		for (n = tbl->hash_buckets[h], idx = 0; n; n = n->next) {
-			int lidx;
 			if (dev_net(n->dev) != net)
 				continue;
-			lidx = idx++;
-			if (lidx < s_idx)
-				continue;
+			if (idx < s_idx)
+				goto next;
 			if (neigh_fill_info(skb, n, NETLINK_CB(cb->skb).pid,
 					    cb->nlh->nlmsg_seq,
 					    RTM_NEWNEIGH,
@@ -2096,6 +2098,8 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 				rc = -1;
 				goto out;
 			}
+		next:
+			idx++;
 		}
 	}
 	read_unlock_bh(&tbl->lock);
@@ -2532,7 +2536,8 @@ static void __neigh_notify(struct neighbour *n, int type, int flags)
 		kfree_skb(skb);
 		goto errout;
 	}
-	err = rtnl_notify(skb, net, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
+	rtnl_notify(skb, net, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
+	return;
 errout:
 	if (err < 0)
 		rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);

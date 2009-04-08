@@ -39,7 +39,7 @@ struct vtoc_labeldate
 	__u16 day;
 } __attribute__ ((packed));
 
-struct vtoc_volume_label
+struct vtoc_volume_label_cdl
 {
 	char volkey[4];		/* volume key = volume label */
 	char vollbl[4];		/* volume label */
@@ -54,6 +54,14 @@ struct vtoc_volume_label
 	char res2[4];		/* reserved */
 	char lvtoc[14];		/* owner code for LVTOC */
 	char res3[29];		/* reserved */
+} __attribute__ ((packed));
+
+struct vtoc_volume_label_ldl {
+	char vollbl[4];		/* volume label */
+	char volid[6];		/* volume identifier */
+	char res3[69];		/* reserved */
+	char ldl_version;	/* version number, valid for ldl format */
+	__u64 formatted_blocks; /* valid when ldl_version >= f2  */
 } __attribute__ ((packed));
 
 struct vtoc_extent
@@ -140,7 +148,11 @@ struct vtoc_format4_label
 	char res2[10];		/* reserved */
 	__u8 DS4EFLVL;		/* extended free-space management level */
 	struct vtoc_cchhb DS4EFPTR; /* pointer to extended free-space info */
-	char res3[9];		/* reserved */
+	char res3;		/* reserved */
+	__u32 DS4DCYL;		/* number of logical cyls */
+	char res4[2];		/* reserved */
+	__u8 DS4DEVF2;		/* device flags */
+	char res5;		/* reserved */
 } __attribute__ ((packed));
 
 struct vtoc_ds5ext

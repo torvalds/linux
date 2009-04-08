@@ -16,10 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 
-/* This sets the pointer FPU_info to point to the argument part
-   of the stack frame of math_emulate() */
-#define SETUP_DATA_AREA(arg)	FPU_info = (struct info *) &arg
-
 /* s is always from a cpu register, and the cpu does bounds checking
  * during register load --> no further bounds checks needed */
 #define LDT_DESCRIPTOR(s)	(((struct desc_struct *)current->mm->context.ldt)[(s) >> 3])
@@ -38,12 +34,12 @@
 #define I387			(current->thread.xstate)
 #define FPU_info		(I387->soft.info)
 
-#define FPU_CS			(*(unsigned short *) &(FPU_info->___cs))
-#define FPU_SS			(*(unsigned short *) &(FPU_info->___ss))
-#define FPU_DS			(*(unsigned short *) &(FPU_info->___ds))
-#define FPU_EAX			(FPU_info->___eax)
-#define FPU_EFLAGS		(FPU_info->___eflags)
-#define FPU_EIP			(FPU_info->___eip)
+#define FPU_CS			(*(unsigned short *) &(FPU_info->regs->cs))
+#define FPU_SS			(*(unsigned short *) &(FPU_info->regs->ss))
+#define FPU_DS			(*(unsigned short *) &(FPU_info->regs->ds))
+#define FPU_EAX			(FPU_info->regs->ax)
+#define FPU_EFLAGS		(FPU_info->regs->flags)
+#define FPU_EIP			(FPU_info->regs->ip)
 #define FPU_ORIG_EIP		(FPU_info->___orig_eip)
 
 #define FPU_lookahead           (I387->soft.lookahead)

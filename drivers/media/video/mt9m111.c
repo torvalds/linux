@@ -152,7 +152,7 @@ struct mt9m111 {
 	struct soc_camera_device icd;
 	int model;	/* V4L2_IDENT_MT9M11x* codes from v4l2-chip-ident.h */
 	enum mt9m111_context context;
-	unsigned int left, top, width, height;
+	struct v4l2_rect rect;
 	u32 pixfmt;
 	unsigned char autoexposure;
 	unsigned char datawidth;
@@ -249,12 +249,13 @@ static int mt9m111_set_context(struct soc_camera_device *icd,
 		return reg_write(CONTEXT_CONTROL, valA);
 }
 
-static int mt9m111_setup_rect(struct soc_camera_device *icd)
+static int mt9m111_setup_rect(struct soc_camera_device *icd,
+			      struct v4l2_rect *rect)
 {
 	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
 	int ret, is_raw_format;
-	int width = mt9m111->width;
-	int height = mt9m111->height;
+	int width = rect->width;
+	int height = rect->height;
 
 	if ((mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR8)
 	    || (mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR16))
@@ -262,9 +263,9 @@ static int mt9m111_setup_rect(struct soc_camera_device *icd)
 	else
 		is_raw_format = 0;
 
-	ret = reg_write(COLUMN_START, mt9m111->left);
+	ret = reg_write(COLUMN_START, rect->left);
 	if (!ret)
-		ret = reg_write(ROW_START, mt9m111->top);
+		ret = reg_write(ROW_START, rect->top);
 
 	if (is_raw_format) {
 		if (!ret)
@@ -393,6 +394,8 @@ static int mt9m111_disable(struct soc_camera_device *icd)
 
 static int mt9m111_reset(struct soc_camera_device *icd)
 {
+	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct soc_camera_link *icl = mt9m111->client->dev.platform_data;
 	int ret;
 
 	ret = reg_set(RESET, MT9M111_RESET_RESET_MODE);
@@ -401,6 +404,10 @@ static int mt9m111_reset(struct soc_camera_device *icd)
 	if (!ret)
 		ret = reg_clear(RESET, MT9M111_RESET_RESET_MODE
 				| MT9M111_RESET_RESET_SOC);
+
+	if (icl->reset)
+		icl->reset(&mt9m111->client->dev);
+
 	return ret;
 }
 
@@ -420,7 +427,7 @@ static unsigned long mt9m111_query_bus_param(struct soc_camera_device *icd)
 	struct soc_camera_link *icl = mt9m111->client->dev.platform_data;
 	unsigned long flags = SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |
 		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
-		SOCAM_DATAWIDTH_8;
+		SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8;
 
 	return soc_camera_apply_sensor_flags(icl, flags);
 }
@@ -428,6 +435,22 @@ static unsigned long mt9m111_query_bus_param(struct soc_camera_device *icd)
 static int mt9m111_set_bus_param(struct soc_camera_device *icd, unsigned long f)
 {
 	return 0;
+}
+
+static int mt9m111_set_crop(struct soc_camera_device *icd,
+			    struct v4l2_rect *rect)
+{
+	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	int ret;
+
+	dev_dbg(&icd->dev, "%s left=%d, top=%d, width=%d, height=%d\n",
+		__func__, rect->left, rect->top, rect->width,
+		rect->height);
+
+	ret = mt9m111_setup_rect(icd, rect);
+	if (!ret)
+		mt9m111->rect = *rect;
+	return ret;
 }
 
 static int mt9m111_set_pixfmt(struct soc_camera_device *icd, u32 pixfmt)
@@ -480,23 +503,27 @@ static int mt9m111_set_pixfmt(struct soc_camera_device *icd, u32 pixfmt)
 }
 
 static int mt9m111_set_fmt(struct soc_camera_device *icd,
-			   __u32 pixfmt, struct v4l2_rect *rect)
+			   struct v4l2_format *f)
 {
 	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_rect rect = {
+		.left	= mt9m111->rect.left,
+		.top	= mt9m111->rect.top,
+		.width	= pix->width,
+		.height	= pix->height,
+	};
 	int ret;
 
-	mt9m111->left = rect->left;
-	mt9m111->top = rect->top;
-	mt9m111->width = rect->width;
-	mt9m111->height = rect->height;
-
 	dev_dbg(&icd->dev, "%s fmt=%x left=%d, top=%d, width=%d, height=%d\n",
-		__func__, pixfmt, mt9m111->left, mt9m111->top, mt9m111->width,
-		mt9m111->height);
+		__func__, pix->pixelformat, rect.left, rect.top, rect.width,
+		rect.height);
 
-	ret = mt9m111_setup_rect(icd);
+	ret = mt9m111_setup_rect(icd, &rect);
 	if (!ret)
-		ret = mt9m111_set_pixfmt(icd, pixfmt);
+		ret = mt9m111_set_pixfmt(icd, pix->pixelformat);
+	if (!ret)
+		mt9m111->rect = rect;
 	return ret;
 }
 
@@ -627,6 +654,7 @@ static struct soc_camera_ops mt9m111_ops = {
 	.release		= mt9m111_release,
 	.start_capture		= mt9m111_start_capture,
 	.stop_capture		= mt9m111_stop_capture,
+	.set_crop		= mt9m111_set_crop,
 	.set_fmt		= mt9m111_set_fmt,
 	.try_fmt		= mt9m111_try_fmt,
 	.query_bus_param	= mt9m111_query_bus_param,
@@ -811,7 +839,7 @@ static int mt9m111_restore_state(struct soc_camera_device *icd)
 
 	mt9m111_set_context(icd, mt9m111->context);
 	mt9m111_set_pixfmt(icd, mt9m111->pixfmt);
-	mt9m111_setup_rect(icd);
+	mt9m111_setup_rect(icd, &mt9m111->rect);
 	mt9m111_set_flip(icd, mt9m111->hflip, MT9M111_RMB_MIRROR_COLS);
 	mt9m111_set_flip(icd, mt9m111->vflip, MT9M111_RMB_MIRROR_ROWS);
 	mt9m111_set_global_gain(icd, icd->gain);

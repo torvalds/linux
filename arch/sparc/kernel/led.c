@@ -126,7 +126,6 @@ static int __init led_init(void)
 	led = proc_create("led", 0, NULL, &led_proc_fops);
 	if (!led)
 		return -ENOMEM;
-	led->owner = THIS_MODULE;
 
 	printk(KERN_INFO
 	       "led: version %s, Lars Kotthoff <metalhead@metalhead.ws>\n",

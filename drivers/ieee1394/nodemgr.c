@@ -484,7 +484,7 @@ static struct device_attribute *const fw_host_attrs[] = {
 static ssize_t fw_show_drv_device_ids(struct device_driver *drv, char *buf)
 {
 	struct hpsb_protocol_driver *driver;
-	struct ieee1394_device_id *id;
+	const struct ieee1394_device_id *id;
 	int length = 0;
 	char *scratch = buf;
 
@@ -658,7 +658,7 @@ static int nodemgr_bus_match(struct device * dev, struct device_driver * drv)
 {
 	struct hpsb_protocol_driver *driver;
 	struct unit_directory *ud;
-	struct ieee1394_device_id *id;
+	const struct ieee1394_device_id *id;
 
 	/* We only match unit directories */
 	if (dev->platform_data != &nodemgr_ud_platform_data)
@@ -971,6 +971,9 @@ static struct unit_directory *nodemgr_process_unit_directory
 	ud->ud_kv = ud_kv;
 	ud->id = (*id)++;
 
+	/* inherit vendor_id from root directory if none exists in unit dir */
+	ud->vendor_id = ne->vendor_id;
+
 	csr1212_for_each_dir_entry(ne->csr, kv, ud_kv, dentry) {
 		switch (kv->key.id) {
 		case CSR1212_KV_ID_VENDOR:
@@ -1265,7 +1268,8 @@ static void nodemgr_update_node(struct node_entry *ne, struct csr1212_csr *csr,
 		csr1212_destroy_csr(csr);
 	}
 
-	/* Mark the node current */
+	/* Finally, mark the node current */
+	smp_wmb();
 	ne->generation = generation;
 
 	if (ne->in_limbo) {
@@ -1798,7 +1802,7 @@ void hpsb_node_fill_packet(struct node_entry *ne, struct hpsb_packet *packet)
 {
 	packet->host = ne->host;
 	packet->generation = ne->generation;
-	barrier();
+	smp_rmb();
 	packet->node_id = ne->nodeid;
 }
 
@@ -1807,7 +1811,7 @@ int hpsb_node_write(struct node_entry *ne, u64 addr,
 {
 	unsigned int generation = ne->generation;
 
-	barrier();
+	smp_rmb();
 	return hpsb_write(ne->host, ne->nodeid, generation,
 			  addr, buffer, length);
 }

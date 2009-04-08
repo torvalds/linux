@@ -346,6 +346,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     sbirq	- IRQ # for CMI8330 chip (SB16)
     sbdma8	- 8bit DMA # for CMI8330 chip (SB16)
     sbdma16	- 16bit DMA # for CMI8330 chip (SB16)
+    fmport	- (optional) OPL3 I/O port
+    mpuport	- (optional) MPU401 I/O port
+    mpuirq	- (optional) MPU401 irq #
 
     This module supports multiple cards and autoprobe.
 
@@ -388,34 +391,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
     
-  Module snd-cs4232
-  -----------------
-
-    Module for sound cards based on CS4232/CS4232A ISA chips.
-
-    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
-
-    with isapnp=0, the following options are available:
-
-    port	- port # for CS4232 chip (PnP setup - 0x534)
-    cport	- control port # for CS4232 chip (PnP setup - 0x120,0x210,0xf00)
-    mpu_port	- port # for MPU-401 UART (PnP setup - 0x300), -1 = disable
-    fm_port	- FM port # for CS4232 chip (PnP setup - 0x388), -1 = disable
-    irq		- IRQ # for CS4232 chip (5,7,9,11,12,15)
-    mpu_irq	- IRQ # for MPU-401 UART (9,11,12,15)
-    dma1	- first DMA # for CS4232 chip (0,1,3)
-    dma2	- second DMA # for Yamaha CS4232 chip (0,1,3), -1 = disable
-    
-    This module supports multiple cards. This module does not support autoprobe
-    (if ISA PnP is not used) thus main port must be specified!!! Other ports are
-    optional.
-
-    The power-management is supported.
-    
   Module snd-cs4236
   -----------------
 
-    Module for sound cards based on CS4235/CS4236/CS4236B/CS4237B/
+    Module for sound cards based on CS4232/CS4232A,
+    	       	     	   	   CS4235/CS4236/CS4236B/CS4237B/
                                    CS4238B/CS4239 ISA chips.
 
     isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
@@ -436,6 +416,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     specified!!! Other ports are optional.
 
     The power-management is supported.
+
+    This module is aliased as snd-cs4232 since it provides the old
+    snd-cs4232 functionality, too.
 
   Module snd-cs4281
   -----------------
@@ -606,6 +589,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for ESS AudioDrive ES-1688 and ES-688 sound cards.
 
     port	- port # for ES-1688 chip (0x220,0x240,0x260)
+    fm_port	- port # for OPL3 (option; share the same port as default)
     mpu_port	- port # for MPU-401 port (0x300,0x310,0x320,0x330), -1 = disable (default)
     irq		- IRQ # for ES-1688 chip (5,7,9,10)
     mpu_irq	- IRQ # for MPU-401 port (5,7,9,10)
@@ -757,6 +741,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     model	- force the model name
     position_fix - Fix DMA pointer (0 = auto, 1 = use LPIB, 2 = POSBUF)
     probe_mask  - Bitmask to probe codecs (default = -1, meaning all slots)
+    		  When the bit 8 (0x100) is set, the lower 8 bits are used
+		  as the "fixed" codec slots; i.e. the driver probes the
+		  slots regardless what hardware reports back
     probe_only	- Only probing and no codec initialization (default=off);
 		  Useful to check the initial codec status for debugging
     bdl_pos_adj	- Specifies the DMA IRQ timing delay in samples.
@@ -1185,6 +1172,54 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports multiple devices and PnP.
     
+  Module snd-msnd-classic
+  -----------------------
+
+    Module for Turtle Beach MultiSound Classic, Tahiti or Monterey
+    soundcards.
+
+    io		- Port # for msnd-classic card
+    irq		- IRQ # for msnd-classic card
+    mem		- Memory address (0xb0000, 0xc8000, 0xd0000, 0xd8000,
+		  0xe0000 or 0xe8000)
+    write_ndelay - enable write ndelay (default = 1)
+    calibrate_signal - calibrate signal (default = 0)
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
+    digital	- Digital daughterboard present (default = 0)
+    cfg		- Config port (0x250, 0x260 or 0x270) default = PnP
+    reset	- Reset all devices
+    mpu_io	- MPU401 I/O port
+    mpu_irq	- MPU401 irq#
+    ide_io0	- IDE port #0
+    ide_io1	- IDE port #1
+    ide_irq	- IDE irq#
+    joystick_io	- Joystick I/O port
+
+    The driver requires firmware files "turtlebeach/msndinit.bin" and
+    "turtlebeach/msndperm.bin" in the proper firmware directory.
+
+    See Documentation/sound/oss/MultiSound for important information
+    about this driver.  Note that it has been discontinued, but the 
+    Voyetra Turtle Beach knowledge base entry for it is still available
+    at
+	http://www.turtlebeach.com/site/kb_ftp/790.asp
+
+  Module snd-msnd-pinnacle
+  ------------------------
+
+    Module for Turtle Beach MultiSound Pinnacle/Fiji soundcards.
+
+    io		- Port # for pinnacle/fiji card
+    irq		- IRQ # for pinnalce/fiji card
+    mem		- Memory address (0xb0000, 0xc8000, 0xd0000, 0xd8000,
+		  0xe0000 or 0xe8000)
+    write_ndelay - enable write ndelay (default = 1)
+    calibrate_signal - calibrate signal (default = 0)
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    The driver requires firmware files "turtlebeach/pndspini.bin" and
+    "turtlebeach/pndsperm.bin" in the proper firmware directory.
+
   Module snd-mtpav
   ----------------
 
@@ -1824,7 +1859,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   -------------------
 
     Module for sound cards based on the Asus AV100/AV200 chips,
-    i.e., Xonar D1, DX, D2, D2X and HDAV1.3 (Deluxe).
+    i.e., Xonar D1, DX, D2, D2X, HDAV1.3 (Deluxe), and Essence STX.
 
     This module supports autoprobe and multiple cards.
 

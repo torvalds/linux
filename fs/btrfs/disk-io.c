@@ -38,6 +38,7 @@
 #include "locking.h"
 #include "ref-cache.h"
 #include "tree-log.h"
+#include "free-space-cache.h"
 
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
@@ -74,6 +75,40 @@ struct async_submit_bio {
 	unsigned long bio_flags;
 	struct btrfs_work work;
 };
+
+/* These are used to set the lockdep class on the extent buffer locks.
+ * The class is set by the readpage_end_io_hook after the buffer has
+ * passed csum validation but before the pages are unlocked.
+ *
+ * The lockdep class is also set by btrfs_init_new_buffer on freshly
+ * allocated blocks.
+ *
+ * The class is based on the level in the tree block, which allows lockdep
+ * to know that lower nodes nest inside the locks of higher nodes.
+ *
+ * We also add a check to make sure the highest level of the tree is
+ * the same as our lockdep setup here.  If BTRFS_MAX_LEVEL changes, this
+ * code needs update as well.
+ */
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+# if BTRFS_MAX_LEVEL != 8
+#  error
+# endif
+static struct lock_class_key btrfs_eb_class[BTRFS_MAX_LEVEL + 1];
+static const char *btrfs_eb_name[BTRFS_MAX_LEVEL + 1] = {
+	/* leaf */
+	"btrfs-extent-00",
+	"btrfs-extent-01",
+	"btrfs-extent-02",
+	"btrfs-extent-03",
+	"btrfs-extent-04",
+	"btrfs-extent-05",
+	"btrfs-extent-06",
+	"btrfs-extent-07",
+	/* highest possible level */
+	"btrfs-extent-08",
+};
+#endif
 
 /*
  * extents on the btree inode are pretty simple, there's one extent
@@ -347,6 +382,15 @@ static int check_tree_block_fsid(struct btrfs_root *root,
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+void btrfs_set_buffer_lockdep_class(struct extent_buffer *eb, int level)
+{
+	lockdep_set_class_and_name(&eb->lock,
+			   &btrfs_eb_class[level],
+			   btrfs_eb_name[level]);
+}
+#endif
+
 static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state)
 {
@@ -391,6 +435,8 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		goto err;
 	}
 	found_level = btrfs_header_level(eb);
+
+	btrfs_set_buffer_lockdep_class(eb, found_level);
 
 	ret = csum_tree_block(root, eb, 1);
 	if (ret)
@@ -623,14 +669,31 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct extent_io_tree *tree;
-	tree = &BTRFS_I(page->mapping->host)->io_tree;
+	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
+	struct extent_buffer *eb;
+	int was_dirty;
 
-	if (current->flags & PF_MEMALLOC) {
-		redirty_page_for_writepage(wbc, page);
-		unlock_page(page);
-		return 0;
+	tree = &BTRFS_I(page->mapping->host)->io_tree;
+	if (!(current->flags & PF_MEMALLOC)) {
+		return extent_write_full_page(tree, page,
+					      btree_get_extent, wbc);
 	}
-	return extent_write_full_page(tree, page, btree_get_extent, wbc);
+
+	redirty_page_for_writepage(wbc, page);
+	eb = btrfs_find_tree_block(root, page_offset(page),
+				      PAGE_CACHE_SIZE);
+	WARN_ON(!eb);
+
+	was_dirty = test_and_set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
+	if (!was_dirty) {
+		spin_lock(&root->fs_info->delalloc_lock);
+		root->fs_info->dirty_metadata_bytes += PAGE_CACHE_SIZE;
+		spin_unlock(&root->fs_info->delalloc_lock);
+	}
+	free_extent_buffer(eb);
+
+	unlock_page(page);
+	return 0;
 }
 
 static int btree_writepages(struct address_space *mapping,
@@ -639,15 +702,15 @@ static int btree_writepages(struct address_space *mapping,
 	struct extent_io_tree *tree;
 	tree = &BTRFS_I(mapping->host)->io_tree;
 	if (wbc->sync_mode == WB_SYNC_NONE) {
+		struct btrfs_root *root = BTRFS_I(mapping->host)->root;
 		u64 num_dirty;
-		u64 start = 0;
 		unsigned long thresh = 32 * 1024 * 1024;
 
 		if (wbc->for_kupdate)
 			return 0;
 
-		num_dirty = count_range_bits(tree, &start, (u64)-1,
-					     thresh, EXTENT_DIRTY);
+		/* this is a bit racy, but that's ok */
+		num_dirty = root->fs_info->dirty_metadata_bytes;
 		if (num_dirty < thresh)
 			return 0;
 	}
@@ -812,11 +875,19 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	if (btrfs_header_generation(buf) ==
 	    root->fs_info->running_transaction->transid) {
-		WARN_ON(!btrfs_tree_locked(buf));
+		btrfs_assert_tree_locked(buf);
 
-		/* ugh, clear_extent_buffer_dirty can be expensive */
+		if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &buf->bflags)) {
+			spin_lock(&root->fs_info->delalloc_lock);
+			if (root->fs_info->dirty_metadata_bytes >= buf->len)
+				root->fs_info->dirty_metadata_bytes -= buf->len;
+			else
+				WARN_ON(1);
+			spin_unlock(&root->fs_info->delalloc_lock);
+		}
+
+		/* ugh, clear_extent_buffer_dirty needs to lock the page */
 		btrfs_set_lock_blocking(buf);
-
 		clear_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree,
 					  buf);
 	}
@@ -1342,8 +1413,6 @@ static int bio_ready_for_csum(struct bio *bio)
 
 	ret = extent_range_uptodate(io_tree, start + length,
 				    start + buf_len - 1);
-	if (ret == 1)
-		return ret;
 	return ret;
 }
 
@@ -1426,12 +1495,6 @@ static int transaction_kthread(void *arg)
 		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
 		mutex_lock(&root->fs_info->transaction_kthread_mutex);
 
-		if (root->fs_info->total_ref_cache_size > 20 * 1024 * 1024) {
-			printk(KERN_INFO "btrfs: total reference cache "
-			       "size %llu\n",
-			       root->fs_info->total_ref_cache_size);
-		}
-
 		mutex_lock(&root->fs_info->trans_mutex);
 		cur = root->fs_info->running_transaction;
 		if (!cur) {
@@ -1448,6 +1511,7 @@ static int transaction_kthread(void *arg)
 		mutex_unlock(&root->fs_info->trans_mutex);
 		trans = btrfs_start_transaction(root, 1);
 		ret = btrfs_commit_transaction(trans, root);
+
 sleep:
 		wake_up_process(root->fs_info->cleaner_kthread);
 		mutex_unlock(&root->fs_info->transaction_kthread_mutex);
@@ -1507,6 +1571,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->hashers);
 	INIT_LIST_HEAD(&fs_info->delalloc_inodes);
+	INIT_LIST_HEAD(&fs_info->ordered_operations);
 	spin_lock_init(&fs_info->delalloc_lock);
 	spin_lock_init(&fs_info->new_trans_lock);
 	spin_lock_init(&fs_info->ref_cache_lock);
@@ -1566,10 +1631,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	extent_io_tree_init(&fs_info->pinned_extents,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
-	extent_io_tree_init(&fs_info->pending_del,
-			     fs_info->btree_inode->i_mapping, GFP_NOFS);
-	extent_io_tree_init(&fs_info->extent_ins,
-			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 
 	INIT_LIST_HEAD(&fs_info->dead_reloc_roots);
@@ -1582,15 +1643,18 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	insert_inode_hash(fs_info->btree_inode);
 
 	mutex_init(&fs_info->trans_mutex);
+	mutex_init(&fs_info->ordered_operations_mutex);
 	mutex_init(&fs_info->tree_log_mutex);
 	mutex_init(&fs_info->drop_mutex);
-	mutex_init(&fs_info->extent_ins_mutex);
-	mutex_init(&fs_info->pinned_mutex);
 	mutex_init(&fs_info->chunk_mutex);
 	mutex_init(&fs_info->transaction_kthread_mutex);
 	mutex_init(&fs_info->cleaner_mutex);
 	mutex_init(&fs_info->volume_mutex);
 	mutex_init(&fs_info->tree_reloc_mutex);
+
+	btrfs_init_free_cluster(&fs_info->meta_alloc_cluster);
+	btrfs_init_free_cluster(&fs_info->data_alloc_cluster);
+
 	init_waitqueue_head(&fs_info->transaction_throttle);
 	init_waitqueue_head(&fs_info->transaction_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);
@@ -1777,7 +1841,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	ret = find_and_setup_root(tree_root, fs_info,
 				  BTRFS_DEV_TREE_OBJECTID, dev_root);
 	dev_root->track_dirty = 1;
-
 	if (ret)
 		goto fail_extent_root;
 
@@ -2314,10 +2377,9 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
 	u64 transid = btrfs_header_generation(buf);
 	struct inode *btree_inode = root->fs_info->btree_inode;
+	int was_dirty;
 
-	btrfs_set_lock_blocking(buf);
-
-	WARN_ON(!btrfs_tree_locked(buf));
+	btrfs_assert_tree_locked(buf);
 	if (transid != root->fs_info->generation) {
 		printk(KERN_CRIT "btrfs transid mismatch buffer %llu, "
 		       "found %llu running %llu\n",
@@ -2326,7 +2388,13 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 			(unsigned long long)root->fs_info->generation);
 		WARN_ON(1);
 	}
-	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree, buf);
+	was_dirty = set_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree,
+					    buf);
+	if (!was_dirty) {
+		spin_lock(&root->fs_info->delalloc_lock);
+		root->fs_info->dirty_metadata_bytes += buf->len;
+		spin_unlock(&root->fs_info->delalloc_lock);
+	}
 }
 
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
@@ -2341,7 +2409,7 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 	unsigned long thresh = 32 * 1024 * 1024;
 	tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 
-	if (current_is_pdflush() || current->flags & PF_MEMALLOC)
+	if (current->flags & PF_MEMALLOC)
 		return;
 
 	num_dirty = count_range_bits(tree, &start, (u64)-1,
@@ -2366,6 +2434,7 @@ int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 int btree_lock_page_hook(struct page *page)
 {
 	struct inode *inode = page->mapping->host;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_buffer *eb;
 	unsigned long len;
@@ -2381,6 +2450,16 @@ int btree_lock_page_hook(struct page *page)
 
 	btrfs_tree_lock(eb);
 	btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
+
+	if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
+		spin_lock(&root->fs_info->delalloc_lock);
+		if (root->fs_info->dirty_metadata_bytes >= eb->len)
+			root->fs_info->dirty_metadata_bytes -= eb->len;
+		else
+			WARN_ON(1);
+		spin_unlock(&root->fs_info->delalloc_lock);
+	}
+
 	btrfs_tree_unlock(eb);
 	free_extent_buffer(eb);
 out:

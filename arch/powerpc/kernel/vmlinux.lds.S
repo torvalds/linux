@@ -58,6 +58,7 @@ SECTIONS
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
+		IRQENTRY_TEXT
 
 #ifdef CONFIG_PPC32
 		*(.got1)
@@ -181,13 +182,7 @@ SECTIONS
 		__initramfs_end = .;
 	}
 #endif
-	. = ALIGN(PAGE_SIZE);
-	.data.percpu  : AT(ADDR(.data.percpu) - LOAD_OFFSET) {
-		__per_cpu_start = .;
-		*(.data.percpu)
-		*(.data.percpu.shared_aligned)
-		__per_cpu_end = .;
-	}
+	PERCPU(PAGE_SIZE)
 
 	. = ALIGN(8);
 	.machine.desc : AT(ADDR(.machine.desc) - LOAD_OFFSET) {

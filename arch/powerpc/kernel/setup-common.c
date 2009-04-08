@@ -35,6 +35,7 @@
 #include <linux/debugfs.h>
 #include <linux/percpu.h>
 #include <linux/lmb.h>
+#include <linux/of_platform.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
@@ -669,3 +670,37 @@ static int powerpc_debugfs_init(void)
 }
 arch_initcall(powerpc_debugfs_init);
 #endif
+
+static int ppc_dflt_bus_notify(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct device *dev = data;
+
+	/* We are only intereted in device addition */
+	if (action != BUS_NOTIFY_ADD_DEVICE)
+		return 0;
+
+	set_dma_ops(dev, &dma_direct_ops);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ppc_dflt_plat_bus_notifier = {
+	.notifier_call = ppc_dflt_bus_notify,
+	.priority = INT_MAX,
+};
+
+static struct notifier_block ppc_dflt_of_bus_notifier = {
+	.notifier_call = ppc_dflt_bus_notify,
+	.priority = INT_MAX,
+};
+
+static int __init setup_bus_notifier(void)
+{
+	bus_register_notifier(&platform_bus_type, &ppc_dflt_plat_bus_notifier);
+	bus_register_notifier(&of_platform_bus_type, &ppc_dflt_of_bus_notifier);
+
+	return 0;
+}
+
+arch_initcall(setup_bus_notifier);

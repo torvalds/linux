@@ -240,4 +240,9 @@ struct compat_shmid64_ds {
 	unsigned int	__unused2;
 };
 
+static inline int is_compat_task(void)
+{
+	return test_thread_flag(TIF_32BIT);
+}
+
 #endif /* _ASM_SPARC64_COMPAT_H */

@@ -152,6 +152,18 @@ cpuinfo_min_freq :		this file shows the minimum operating
 				frequency the processor can run at(in kHz) 
 cpuinfo_max_freq :		this file shows the maximum operating
 				frequency the processor can run at(in kHz) 
+cpuinfo_transition_latency	The time it takes on this CPU to
+				switch between two frequencies in nano
+				seconds. If unknown or known to be
+				that high that the driver does not
+				work with the ondemand governor, -1
+				(CPUFREQ_ETERNAL) will be returned.
+				Using this information can be useful
+				to choose an appropriate polling
+				frequency for a kernel governor or
+				userspace daemon. Make sure to not
+				switch the frequency too often
+				resulting in performance loss.
 scaling_driver :		this file shows what cpufreq driver is
 				used to set the frequency on this CPU
 
@@ -195,19 +207,3 @@ scaling_setspeed.		By "echoing" a new frequency into this
 				you can change the speed of the CPU,
 				but only within the limits of
 				scaling_min_freq and scaling_max_freq.
-				
-
-3.2 Deprecated Interfaces
--------------------------
-
-Depending on your kernel configuration, you might find the following 
-cpufreq-related files:
-/proc/cpufreq
-/proc/sys/cpu/*/speed
-/proc/sys/cpu/*/speed-min
-/proc/sys/cpu/*/speed-max
-
-These are files for deprecated interfaces to cpufreq, which offer far
-less functionality. Because of this, these interfaces aren't described
-here.
-

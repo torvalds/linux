@@ -39,7 +39,7 @@ static u8 w1_gpio_read_bit(void *data)
 {
 	struct w1_gpio_platform_data *pdata = data;
 
-	return gpio_get_value(pdata->pin);
+	return gpio_get_value(pdata->pin) ? 1 : 0;
 }
 
 static int __init w1_gpio_probe(struct platform_device *pdev)

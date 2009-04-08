@@ -29,6 +29,7 @@
 #include <linux/errno.h>
 #include <linux/uaccess.h>
 #include <linux/sched.h>
+#include <linux/types.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include "protocol.h"
@@ -160,29 +161,32 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 			break;
 		case 'w':{
 				int16_t *val = va_arg(ap, int16_t *);
-				if (pdu_read(pdu, val, sizeof(*val))) {
+				__le16 le_val;
+				if (pdu_read(pdu, &le_val, sizeof(le_val))) {
 					errcode = -EFAULT;
 					break;
 				}
-				*val = cpu_to_le16(*val);
+				*val = le16_to_cpu(le_val);
 			}
 			break;
 		case 'd':{
 				int32_t *val = va_arg(ap, int32_t *);
-				if (pdu_read(pdu, val, sizeof(*val))) {
+				__le32 le_val;
+				if (pdu_read(pdu, &le_val, sizeof(le_val))) {
 					errcode = -EFAULT;
 					break;
 				}
-				*val = cpu_to_le32(*val);
+				*val = le32_to_cpu(le_val);
 			}
 			break;
 		case 'q':{
 				int64_t *val = va_arg(ap, int64_t *);
-				if (pdu_read(pdu, val, sizeof(*val))) {
+				__le64 le_val;
+				if (pdu_read(pdu, &le_val, sizeof(le_val))) {
 					errcode = -EFAULT;
 					break;
 				}
-				*val = cpu_to_le64(*val);
+				*val = le64_to_cpu(le_val);
 			}
 			break;
 		case 's':{
@@ -362,19 +366,19 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 			}
 			break;
 		case 'w':{
-				int16_t val = va_arg(ap, int);
+				__le16 val = cpu_to_le16(va_arg(ap, int));
 				if (pdu_write(pdu, &val, sizeof(val)))
 					errcode = -EFAULT;
 			}
 			break;
 		case 'd':{
-				int32_t val = va_arg(ap, int32_t);
+				__le32 val = cpu_to_le32(va_arg(ap, int32_t));
 				if (pdu_write(pdu, &val, sizeof(val)))
 					errcode = -EFAULT;
 			}
 			break;
 		case 'q':{
-				int64_t val = va_arg(ap, int64_t);
+				__le64 val = cpu_to_le64(va_arg(ap, int64_t));
 				if (pdu_write(pdu, &val, sizeof(val)))
 					errcode = -EFAULT;
 			}

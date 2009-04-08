@@ -1017,6 +1017,10 @@ static int s3c2410fb_resume(struct platform_device *dev)
 
 	s3c2410fb_init_registers(fbinfo);
 
+	/* re-activate our display after resume */
+	s3c2410fb_activate_var(fbinfo);
+	s3c2410fb_blank(FB_BLANK_UNBLANK, fbinfo);
+
 	return 0;
 }
 

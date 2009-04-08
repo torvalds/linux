@@ -108,7 +108,8 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (hugetlb_reserve_pages(inode,
 				vma->vm_pgoff >> huge_page_order(h),
-				len >> huge_page_shift(h), vma))
+				len >> huge_page_shift(h), vma,
+				vma->vm_flags))
 		goto out;
 
 	ret = 0;
@@ -942,14 +943,13 @@ static struct vfsmount *hugetlbfs_vfsmount;
 
 static int can_do_hugetlb_shm(void)
 {
-	return likely(capable(CAP_IPC_LOCK) ||
-			in_group_p(sysctl_hugetlb_shm_group) ||
-			can_do_mlock());
+	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
 }
 
-struct file *hugetlb_file_setup(const char *name, size_t size)
+struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag)
 {
 	int error = -ENOMEM;
+	int unlock_shm = 0;
 	struct file *file;
 	struct inode *inode;
 	struct dentry *dentry, *root;
@@ -959,11 +959,14 @@ struct file *hugetlb_file_setup(const char *name, size_t size)
 	if (!hugetlbfs_vfsmount)
 		return ERR_PTR(-ENOENT);
 
-	if (!can_do_hugetlb_shm())
-		return ERR_PTR(-EPERM);
-
-	if (!user_shm_lock(size, user))
-		return ERR_PTR(-ENOMEM);
+	if (!can_do_hugetlb_shm()) {
+		if (user_shm_lock(size, user)) {
+			unlock_shm = 1;
+			WARN_ONCE(1,
+			  "Using mlock ulimits for SHM_HUGETLB deprecated\n");
+		} else
+			return ERR_PTR(-EPERM);
+	}
 
 	root = hugetlbfs_vfsmount->mnt_root;
 	quick_string.name = name;
@@ -981,7 +984,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size)
 
 	error = -ENOMEM;
 	if (hugetlb_reserve_pages(inode, 0,
-			size >> huge_page_shift(hstate_inode(inode)), NULL))
+			size >> huge_page_shift(hstate_inode(inode)), NULL,
+			acctflag))
 		goto out_inode;
 
 	d_instantiate(dentry, inode);
@@ -1002,7 +1006,8 @@ out_inode:
 out_dentry:
 	dput(dentry);
 out_shm_unlock:
-	user_shm_unlock(size, user);
+	if (unlock_shm)
+		user_shm_unlock(size, user);
 	return ERR_PTR(error);
 }
 

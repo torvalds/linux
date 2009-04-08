@@ -9,20 +9,17 @@
  * published by the Free Software Foundation.
  */
 
-typedef int (*set_wake_t)(unsigned int, unsigned int);
-
 struct sys_timer;
 
 extern struct sys_timer pxa_timer;
-extern void __init pxa_init_irq(int irq_nr, set_wake_t fn);
-extern void __init pxa_init_gpio(int gpio_nr, set_wake_t fn);
+extern void __init pxa_init_irq(int irq_nr,
+				int (*set_wake)(unsigned int, unsigned int));
 extern void __init pxa25x_init_irq(void);
 extern void __init pxa27x_init_irq(void);
 extern void __init pxa3xx_init_irq(void);
 extern void __init pxa_map_io(void);
 
 extern unsigned int get_clk_frequency_khz(int info);
-extern int pxa_last_gpio;
 
 #define SET_BANK(__nr,__start,__size) \
 	mi->bank[__nr].start = (__start), \

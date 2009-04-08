@@ -32,6 +32,8 @@
 #include "lapic.h"
 
 #define PIC_NUM_PINS 16
+#define SELECT_PIC(irq) \
+	((irq) < 8 ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE)
 
 struct kvm;
 struct kvm_vcpu;
@@ -89,7 +91,6 @@ static inline int irqchip_in_kernel(struct kvm *kvm)
 
 void kvm_pic_reset(struct kvm_kpic_state *s);
 
-void kvm_timer_intr_post(struct kvm_vcpu *vcpu, int vec);
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu);
 void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu);
 void kvm_apic_nmi_wd_deliver(struct kvm_vcpu *vcpu);

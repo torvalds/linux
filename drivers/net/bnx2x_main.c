@@ -50,15 +50,13 @@
 #include <linux/zlib.h>
 #include <linux/io.h>
 
-#include "bnx2x_reg.h"
-#include "bnx2x_fw_defs.h"
-#include "bnx2x_hsi.h"
-#include "bnx2x_link.h"
+
 #include "bnx2x.h"
 #include "bnx2x_init.h"
+#include "bnx2x_dump.h"
 
-#define DRV_MODULE_VERSION	"1.45.26"
-#define DRV_MODULE_RELDATE	"2009/01/26"
+#define DRV_MODULE_VERSION	"1.48.105"
+#define DRV_MODULE_RELDATE	"2009/03/02"
 #define BNX2X_BC_VER		0x040200
 
 /* Time in jiffies before concluding the transmitter is hung */
@@ -73,26 +71,32 @@ MODULE_DESCRIPTION("Broadcom NetXtreme II BCM57710/57711/57711E Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
+static int multi_mode = 1;
+module_param(multi_mode, int, 0);
+MODULE_PARM_DESC(multi_mode, " Use per-CPU queues");
+
 static int disable_tpa;
-static int use_inta;
-static int poll;
-static int debug;
-static int load_count[3]; /* 0-common, 1-port0, 2-port1 */
-static int use_multi;
-
 module_param(disable_tpa, int, 0);
-module_param(use_inta, int, 0);
-module_param(poll, int, 0);
-module_param(debug, int, 0);
-MODULE_PARM_DESC(disable_tpa, "disable the TPA (LRO) feature");
-MODULE_PARM_DESC(use_inta, "use INT#A instead of MSI-X");
-MODULE_PARM_DESC(poll, "use polling (for debug)");
-MODULE_PARM_DESC(debug, "default debug msglevel");
+MODULE_PARM_DESC(disable_tpa, " Disable the TPA (LRO) feature");
 
-#ifdef BNX2X_MULTI
-module_param(use_multi, int, 0);
-MODULE_PARM_DESC(use_multi, "use per-CPU queues");
-#endif
+static int int_mode;
+module_param(int_mode, int, 0);
+MODULE_PARM_DESC(int_mode, " Force interrupt mode (1 INT#x; 2 MSI)");
+
+static int poll;
+module_param(poll, int, 0);
+MODULE_PARM_DESC(poll, " Use polling (for debug)");
+
+static int mrrs = -1;
+module_param(mrrs, int, 0);
+MODULE_PARM_DESC(mrrs, " Force Max Read Req Size (0..3) (for debug)");
+
+static int debug;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, " Default debug msglevel");
+
+static int load_count[3]; /* 0-common, 1-port0, 2-port1 */
+
 static struct workqueue_struct *bnx2x_wq;
 
 enum bnx2x_board_type {
@@ -213,7 +217,7 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_comp));
 	dmae->comp_val = DMAE_COMP_VAL;
 
-	DP(BNX2X_MSG_OFF, "dmae: opcode 0x%08x\n"
+	DP(BNX2X_MSG_OFF, "DMAE: opcode 0x%08x\n"
 	   DP_LEVEL "src_addr  [%x:%08x]  len [%d *4]  "
 		    "dst_addr [%x:%08x (%08x)]\n"
 	   DP_LEVEL "comp_addr [%x:%08x]  comp_val 0x%08x\n",
@@ -234,7 +238,7 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 		DP(BNX2X_MSG_OFF, "wb_comp 0x%08x\n", *wb_comp);
 
 		if (!cnt) {
-			BNX2X_ERR("dmae timeout!\n");
+			BNX2X_ERR("DMAE timeout!\n");
 			break;
 		}
 		cnt--;
@@ -289,7 +293,7 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_comp));
 	dmae->comp_val = DMAE_COMP_VAL;
 
-	DP(BNX2X_MSG_OFF, "dmae: opcode 0x%08x\n"
+	DP(BNX2X_MSG_OFF, "DMAE: opcode 0x%08x\n"
 	   DP_LEVEL "src_addr  [%x:%08x]  len [%d *4]  "
 		    "dst_addr [%x:%08x (%08x)]\n"
 	   DP_LEVEL "comp_addr [%x:%08x]  comp_val 0x%08x\n",
@@ -306,7 +310,7 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 	while (*wb_comp != DMAE_COMP_VAL) {
 
 		if (!cnt) {
-			BNX2X_ERR("dmae timeout!\n");
+			BNX2X_ERR("DMAE timeout!\n");
 			break;
 		}
 		cnt--;
@@ -468,7 +472,7 @@ static int bnx2x_mc_assert(struct bnx2x *bp)
 static void bnx2x_fw_dump(struct bnx2x *bp)
 {
 	u32 mark, offset;
-	u32 data[9];
+	__be32 data[9];
 	int word;
 
 	mark = REG_RD(bp, MCP_REG_MCPR_SCRATCH + 0xf104);
@@ -502,82 +506,103 @@ static void bnx2x_panic_dump(struct bnx2x *bp)
 
 	BNX2X_ERR("begin crash dump -----------------\n");
 
-	for_each_queue(bp, i) {
-		struct bnx2x_fastpath *fp = &bp->fp[i];
-		struct eth_tx_db_data *hw_prods = fp->hw_tx_prods;
-
-		BNX2X_ERR("queue[%d]: tx_pkt_prod(%x)  tx_pkt_cons(%x)"
-			  "  tx_bd_prod(%x)  tx_bd_cons(%x)  *tx_cons_sb(%x)\n",
-			  i, fp->tx_pkt_prod, fp->tx_pkt_cons, fp->tx_bd_prod,
-			  fp->tx_bd_cons, le16_to_cpu(*fp->tx_cons_sb));
-		BNX2X_ERR("          rx_bd_prod(%x)  rx_bd_cons(%x)"
-			  "  *rx_bd_cons_sb(%x)  rx_comp_prod(%x)"
-			  "  rx_comp_cons(%x)  *rx_cons_sb(%x)\n",
-			  fp->rx_bd_prod, fp->rx_bd_cons,
-			  le16_to_cpu(*fp->rx_bd_cons_sb), fp->rx_comp_prod,
-			  fp->rx_comp_cons, le16_to_cpu(*fp->rx_cons_sb));
-		BNX2X_ERR("          rx_sge_prod(%x)  last_max_sge(%x)"
-			  "  fp_c_idx(%x)  *sb_c_idx(%x)  fp_u_idx(%x)"
-			  "  *sb_u_idx(%x)  bd data(%x,%x)\n",
-			  fp->rx_sge_prod, fp->last_max_sge, fp->fp_c_idx,
-			  fp->status_blk->c_status_block.status_block_index,
-			  fp->fp_u_idx,
-			  fp->status_blk->u_status_block.status_block_index,
-			  hw_prods->packets_prod, hw_prods->bds_prod);
-
-		start = TX_BD(le16_to_cpu(*fp->tx_cons_sb) - 10);
-		end = TX_BD(le16_to_cpu(*fp->tx_cons_sb) + 245);
-		for (j = start; j < end; j++) {
-			struct sw_tx_bd *sw_bd = &fp->tx_buf_ring[j];
-
-			BNX2X_ERR("packet[%x]=[%p,%x]\n", j,
-				  sw_bd->skb, sw_bd->first_bd);
-		}
-
-		start = TX_BD(fp->tx_bd_cons - 10);
-		end = TX_BD(fp->tx_bd_cons + 254);
-		for (j = start; j < end; j++) {
-			u32 *tx_bd = (u32 *)&fp->tx_desc_ring[j];
-
-			BNX2X_ERR("tx_bd[%x]=[%x:%x:%x:%x]\n",
-				  j, tx_bd[0], tx_bd[1], tx_bd[2], tx_bd[3]);
-		}
-
-		start = RX_BD(le16_to_cpu(*fp->rx_cons_sb) - 10);
-		end = RX_BD(le16_to_cpu(*fp->rx_cons_sb) + 503);
-		for (j = start; j < end; j++) {
-			u32 *rx_bd = (u32 *)&fp->rx_desc_ring[j];
-			struct sw_rx_bd *sw_bd = &fp->rx_buf_ring[j];
-
-			BNX2X_ERR("rx_bd[%x]=[%x:%x]  sw_bd=[%p]\n",
-				  j, rx_bd[1], rx_bd[0], sw_bd->skb);
-		}
-
-		start = RX_SGE(fp->rx_sge_prod);
-		end = RX_SGE(fp->last_max_sge);
-		for (j = start; j < end; j++) {
-			u32 *rx_sge = (u32 *)&fp->rx_sge_ring[j];
-			struct sw_rx_page *sw_page = &fp->rx_page_ring[j];
-
-			BNX2X_ERR("rx_sge[%x]=[%x:%x]  sw_page=[%p]\n",
-				  j, rx_sge[1], rx_sge[0], sw_page->page);
-		}
-
-		start = RCQ_BD(fp->rx_comp_cons - 10);
-		end = RCQ_BD(fp->rx_comp_cons + 503);
-		for (j = start; j < end; j++) {
-			u32 *cqe = (u32 *)&fp->rx_comp_ring[j];
-
-			BNX2X_ERR("cqe[%x]=[%x:%x:%x:%x]\n",
-				  j, cqe[0], cqe[1], cqe[2], cqe[3]);
-		}
-	}
-
+	/* Indices */
+	/* Common */
 	BNX2X_ERR("def_c_idx(%u)  def_u_idx(%u)  def_x_idx(%u)"
 		  "  def_t_idx(%u)  def_att_idx(%u)  attn_state(%u)"
 		  "  spq_prod_idx(%u)\n",
 		  bp->def_c_idx, bp->def_u_idx, bp->def_x_idx, bp->def_t_idx,
 		  bp->def_att_idx, bp->attn_state, bp->spq_prod_idx);
+
+	/* Rx */
+	for_each_rx_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+
+		BNX2X_ERR("fp%d: rx_bd_prod(%x)  rx_bd_cons(%x)"
+			  "  *rx_bd_cons_sb(%x)  rx_comp_prod(%x)"
+			  "  rx_comp_cons(%x)  *rx_cons_sb(%x)\n",
+			  i, fp->rx_bd_prod, fp->rx_bd_cons,
+			  le16_to_cpu(*fp->rx_bd_cons_sb), fp->rx_comp_prod,
+			  fp->rx_comp_cons, le16_to_cpu(*fp->rx_cons_sb));
+		BNX2X_ERR("      rx_sge_prod(%x)  last_max_sge(%x)"
+			  "  fp_u_idx(%x) *sb_u_idx(%x)\n",
+			  fp->rx_sge_prod, fp->last_max_sge,
+			  le16_to_cpu(fp->fp_u_idx),
+			  fp->status_blk->u_status_block.status_block_index);
+	}
+
+	/* Tx */
+	for_each_tx_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+		struct eth_tx_db_data *hw_prods = fp->hw_tx_prods;
+
+		BNX2X_ERR("fp%d: tx_pkt_prod(%x)  tx_pkt_cons(%x)"
+			  "  tx_bd_prod(%x)  tx_bd_cons(%x)  *tx_cons_sb(%x)\n",
+			  i, fp->tx_pkt_prod, fp->tx_pkt_cons, fp->tx_bd_prod,
+			  fp->tx_bd_cons, le16_to_cpu(*fp->tx_cons_sb));
+		BNX2X_ERR("      fp_c_idx(%x)  *sb_c_idx(%x)"
+			  "  bd data(%x,%x)\n", le16_to_cpu(fp->fp_c_idx),
+			  fp->status_blk->c_status_block.status_block_index,
+			  hw_prods->packets_prod, hw_prods->bds_prod);
+	}
+
+	/* Rings */
+	/* Rx */
+	for_each_rx_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+
+		start = RX_BD(le16_to_cpu(*fp->rx_cons_sb) - 10);
+		end = RX_BD(le16_to_cpu(*fp->rx_cons_sb) + 503);
+		for (j = start; j != end; j = RX_BD(j + 1)) {
+			u32 *rx_bd = (u32 *)&fp->rx_desc_ring[j];
+			struct sw_rx_bd *sw_bd = &fp->rx_buf_ring[j];
+
+			BNX2X_ERR("fp%d: rx_bd[%x]=[%x:%x]  sw_bd=[%p]\n",
+				  i, j, rx_bd[1], rx_bd[0], sw_bd->skb);
+		}
+
+		start = RX_SGE(fp->rx_sge_prod);
+		end = RX_SGE(fp->last_max_sge);
+		for (j = start; j != end; j = RX_SGE(j + 1)) {
+			u32 *rx_sge = (u32 *)&fp->rx_sge_ring[j];
+			struct sw_rx_page *sw_page = &fp->rx_page_ring[j];
+
+			BNX2X_ERR("fp%d: rx_sge[%x]=[%x:%x]  sw_page=[%p]\n",
+				  i, j, rx_sge[1], rx_sge[0], sw_page->page);
+		}
+
+		start = RCQ_BD(fp->rx_comp_cons - 10);
+		end = RCQ_BD(fp->rx_comp_cons + 503);
+		for (j = start; j != end; j = RCQ_BD(j + 1)) {
+			u32 *cqe = (u32 *)&fp->rx_comp_ring[j];
+
+			BNX2X_ERR("fp%d: cqe[%x]=[%x:%x:%x:%x]\n",
+				  i, j, cqe[0], cqe[1], cqe[2], cqe[3]);
+		}
+	}
+
+	/* Tx */
+	for_each_tx_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+
+		start = TX_BD(le16_to_cpu(*fp->tx_cons_sb) - 10);
+		end = TX_BD(le16_to_cpu(*fp->tx_cons_sb) + 245);
+		for (j = start; j != end; j = TX_BD(j + 1)) {
+			struct sw_tx_bd *sw_bd = &fp->tx_buf_ring[j];
+
+			BNX2X_ERR("fp%d: packet[%x]=[%p,%x]\n",
+				  i, j, sw_bd->skb, sw_bd->first_bd);
+		}
+
+		start = TX_BD(fp->tx_bd_cons - 10);
+		end = TX_BD(fp->tx_bd_cons + 254);
+		for (j = start; j != end; j = TX_BD(j + 1)) {
+			u32 *tx_bd = (u32 *)&fp->tx_desc_ring[j];
+
+			BNX2X_ERR("fp%d: tx_bd[%x]=[%x:%x:%x:%x]\n",
+				  i, j, tx_bd[0], tx_bd[1], tx_bd[2], tx_bd[3]);
+		}
+	}
 
 	bnx2x_fw_dump(bp);
 	bnx2x_mc_assert(bp);
@@ -590,10 +615,17 @@ static void bnx2x_int_enable(struct bnx2x *bp)
 	u32 addr = port ? HC_REG_CONFIG_1 : HC_REG_CONFIG_0;
 	u32 val = REG_RD(bp, addr);
 	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
+	int msi = (bp->flags & USING_MSI_FLAG) ? 1 : 0;
 
 	if (msix) {
-		val &= ~HC_CONFIG_0_REG_SINGLE_ISR_EN_0;
+		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
+			 HC_CONFIG_0_REG_INT_LINE_EN_0);
 		val |= (HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0 |
+			HC_CONFIG_0_REG_ATTN_BIT_EN_0);
+	} else if (msi) {
+		val &= ~HC_CONFIG_0_REG_INT_LINE_EN_0;
+		val |= (HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
+			HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0 |
 			HC_CONFIG_0_REG_ATTN_BIT_EN_0);
 	} else {
 		val |= (HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
@@ -601,26 +633,26 @@ static void bnx2x_int_enable(struct bnx2x *bp)
 			HC_CONFIG_0_REG_INT_LINE_EN_0 |
 			HC_CONFIG_0_REG_ATTN_BIT_EN_0);
 
-		DP(NETIF_MSG_INTR, "write %x to HC %d (addr 0x%x)  MSI-X %d\n",
-		   val, port, addr, msix);
+		DP(NETIF_MSG_INTR, "write %x to HC %d (addr 0x%x)\n",
+		   val, port, addr);
 
 		REG_WR(bp, addr, val);
 
 		val &= ~HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0;
 	}
 
-	DP(NETIF_MSG_INTR, "write %x to HC %d (addr 0x%x)  MSI-X %d\n",
-	   val, port, addr, msix);
+	DP(NETIF_MSG_INTR, "write %x to HC %d (addr 0x%x)  mode %s\n",
+	   val, port, addr, (msix ? "MSI-X" : (msi ? "MSI" : "INTx")));
 
 	REG_WR(bp, addr, val);
 
 	if (CHIP_IS_E1H(bp)) {
 		/* init leading/trailing edge */
 		if (IS_E1HMF(bp)) {
-			val = (0xfe0f | (1 << (BP_E1HVN(bp) + 4)));
+			val = (0xee0f | (1 << (BP_E1HVN(bp) + 4)));
 			if (bp->port.pmf)
-				/* enable nig attention */
-				val |= 0x0100;
+				/* enable nig and gpio3 attention */
+				val |= 0x1100;
 		} else
 			val = 0xffff;
 
@@ -643,15 +675,19 @@ static void bnx2x_int_disable(struct bnx2x *bp)
 	DP(NETIF_MSG_INTR, "write %x to HC %d (addr 0x%x)\n",
 	   val, port, addr);
 
+	/* flush all outstanding writes */
+	mmiowb();
+
 	REG_WR(bp, addr, val);
 	if (REG_RD(bp, addr) != val)
 		BNX2X_ERR("BUG! proper val not read from IGU!\n");
+
 }
 
 static void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
 {
 	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
-	int i;
+	int i, offset;
 
 	/* disable interrupt handling */
 	atomic_inc(&bp->intr_sem);
@@ -661,11 +697,10 @@ static void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
 
 	/* make sure all ISRs are done */
 	if (msix) {
+		synchronize_irq(bp->msix_table[0].vector);
+		offset = 1;
 		for_each_queue(bp, i)
-			synchronize_irq(bp->msix_table[i].vector);
-
-		/* one more for the Slow Path IRQ */
-		synchronize_irq(bp->msix_table[i].vector);
+			synchronize_irq(bp->msix_table[i + offset].vector);
 	} else
 		synchronize_irq(bp->pdev->irq);
 
@@ -748,7 +783,6 @@ static inline int bnx2x_has_tx_work_unload(struct bnx2x_fastpath *fp)
 	/* Tell compiler that consumer and producer can change */
 	barrier();
 	return (fp->tx_pkt_prod != fp->tx_pkt_cons);
-
 }
 
 /* free skb in the packet ring at pos idx
@@ -842,9 +876,10 @@ static inline u16 bnx2x_tx_avail(struct bnx2x_fastpath *fp)
 	return (s16)(fp->bp->tx_ring_size) - used;
 }
 
-static void bnx2x_tx_int(struct bnx2x_fastpath *fp, int work)
+static void bnx2x_tx_int(struct bnx2x_fastpath *fp)
 {
 	struct bnx2x *bp = fp->bp;
+	struct netdev_queue *txq;
 	u16 hw_cons, sw_cons, bd_cons = fp->tx_bd_cons;
 	int done = 0;
 
@@ -853,6 +888,7 @@ static void bnx2x_tx_int(struct bnx2x_fastpath *fp, int work)
 		return;
 #endif
 
+	txq = netdev_get_tx_queue(bp->dev, fp->index);
 	hw_cons = le16_to_cpu(*fp->tx_cons_sb);
 	sw_cons = fp->tx_pkt_cons;
 
@@ -874,32 +910,30 @@ static void bnx2x_tx_int(struct bnx2x_fastpath *fp, int work)
 		bd_cons = bnx2x_free_tx_pkt(bp, fp, pkt_cons);
 		sw_cons++;
 		done++;
-
-		if (done == work)
-			break;
 	}
 
 	fp->tx_pkt_cons = sw_cons;
 	fp->tx_bd_cons = bd_cons;
 
-	/* Need to make the tx_cons update visible to start_xmit()
-	 * before checking for netif_queue_stopped().  Without the
-	 * memory barrier, there is a small possibility that start_xmit()
-	 * will miss it and cause the queue to be stopped forever.
-	 */
-	smp_mb();
-
 	/* TBD need a thresh? */
-	if (unlikely(netif_queue_stopped(bp->dev))) {
+	if (unlikely(netif_tx_queue_stopped(txq))) {
 
-		netif_tx_lock(bp->dev);
+		__netif_tx_lock(txq, smp_processor_id());
 
-		if (netif_queue_stopped(bp->dev) &&
+		/* Need to make the tx_bd_cons update visible to start_xmit()
+		 * before checking for netif_tx_queue_stopped().  Without the
+		 * memory barrier, there is a small possibility that
+		 * start_xmit() will miss it and cause the queue to be stopped
+		 * forever.
+		 */
+		smp_mb();
+
+		if ((netif_tx_queue_stopped(txq)) &&
 		    (bp->state == BNX2X_STATE_OPEN) &&
 		    (bnx2x_tx_avail(fp) >= MAX_SKB_FRAGS + 3))
-			netif_wake_queue(bp->dev);
+			netif_tx_wake_queue(txq);
 
-		netif_tx_unlock(bp->dev);
+		__netif_tx_unlock(txq);
 	}
 }
 
@@ -913,12 +947,12 @@ static void bnx2x_sp_event(struct bnx2x_fastpath *fp,
 
 	DP(BNX2X_MSG_SP,
 	   "fp %d  cid %d  got ramrod #%d  state is %x  type is %d\n",
-	   FP_IDX(fp), cid, command, bp->state,
+	   fp->index, cid, command, bp->state,
 	   rr_cqe->ramrod_cqe.ramrod_type);
 
 	bp->spq_left++;
 
-	if (FP_IDX(fp)) {
+	if (fp->index) {
 		switch (command | fp->state) {
 		case (RAMROD_CMD_ID_ETH_CLIENT_SETUP |
 						BNX2X_FP_STATE_OPENING):
@@ -1078,8 +1112,7 @@ static void bnx2x_reuse_rx_skb(struct bnx2x_fastpath *fp,
 
 	pci_dma_sync_single_for_device(bp->pdev,
 				       pci_unmap_addr(cons_rx_buf, mapping),
-				       bp->rx_offset + RX_COPY_THRESH,
-				       PCI_DMA_FROMDEVICE);
+				       RX_COPY_THRESH, PCI_DMA_FROMDEVICE);
 
 	prod_rx_buf->skb = cons_rx_buf->skb;
 	pci_unmap_addr_set(prod_rx_buf, mapping,
@@ -1260,7 +1293,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		   where we are and drop the whole packet */
 		err = bnx2x_alloc_rx_sge(bp, fp, sge_idx);
 		if (unlikely(err)) {
-			bp->eth_stats.rx_skb_alloc_failed++;
+			fp->eth_q_stats.rx_skb_alloc_failed++;
 			return err;
 		}
 
@@ -1365,7 +1398,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		/* else drop the packet and keep the buffer in the bin */
 		DP(NETIF_MSG_RX_STATUS,
 		   "Failed to allocate new skb - dropping packet!\n");
-		bp->eth_stats.rx_skb_alloc_failed++;
+		fp->eth_q_stats.rx_skb_alloc_failed++;
 	}
 
 	fp->tpa_state[queue] = BNX2X_TPA_STOP;
@@ -1376,7 +1409,7 @@ static inline void bnx2x_update_rx_prod(struct bnx2x *bp,
 					u16 bd_prod, u16 rx_comp_prod,
 					u16 rx_sge_prod)
 {
-	struct tstorm_eth_rx_producers rx_prods = {0};
+	struct ustorm_eth_rx_producers rx_prods = {0};
 	int i;
 
 	/* Update producers */
@@ -1394,16 +1427,16 @@ static inline void bnx2x_update_rx_prod(struct bnx2x *bp,
 	 */
 	wmb();
 
-	for (i = 0; i < sizeof(struct tstorm_eth_rx_producers)/4; i++)
-		REG_WR(bp, BAR_TSTRORM_INTMEM +
-		       TSTORM_RX_PRODS_OFFSET(BP_PORT(bp), FP_CL_ID(fp)) + i*4,
+	for (i = 0; i < sizeof(struct ustorm_eth_rx_producers)/4; i++)
+		REG_WR(bp, BAR_USTRORM_INTMEM +
+		       USTORM_RX_PRODS_OFFSET(BP_PORT(bp), fp->cl_id) + i*4,
 		       ((u32 *)&rx_prods)[i]);
 
 	mmiowb(); /* keep prod updates ordered */
 
 	DP(NETIF_MSG_RX_STATUS,
-	   "Wrote: bd_prod %u  cqe_prod %u  sge_prod %u\n",
-	   bd_prod, rx_comp_prod, rx_sge_prod);
+	   "queue[%d]:  wrote  bd_prod %u  cqe_prod %u  sge_prod %u\n",
+	   fp->index, bd_prod, rx_comp_prod, rx_sge_prod);
 }
 
 static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
@@ -1437,7 +1470,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 
 	DP(NETIF_MSG_RX_STATUS,
 	   "queue[%d]:  hw_comp_cons %u  sw_comp_cons %u\n",
-	   FP_IDX(fp), hw_comp_cons, sw_comp_cons);
+	   fp->index, hw_comp_cons, sw_comp_cons);
 
 	while (sw_comp_cons != hw_comp_cons) {
 		struct sw_rx_bd *rx_buf = NULL;
@@ -1527,7 +1560,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 				DP(NETIF_MSG_RX_ERR,
 				   "ERROR  flags %x  rx packet %u\n",
 				   cqe_fp_flags, sw_comp_cons);
-				bp->eth_stats.rx_err_discard_pkt++;
+				fp->eth_q_stats.rx_err_discard_pkt++;
 				goto reuse_rx;
 			}
 
@@ -1544,7 +1577,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 					DP(NETIF_MSG_RX_ERR,
 					   "ERROR  packet dropped "
 					   "because of alloc failure\n");
-					bp->eth_stats.rx_skb_alloc_failed++;
+					fp->eth_q_stats.rx_skb_alloc_failed++;
 					goto reuse_rx;
 				}
 
@@ -1570,7 +1603,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 				DP(NETIF_MSG_RX_ERR,
 				   "ERROR  packet dropped because "
 				   "of alloc failure\n");
-				bp->eth_stats.rx_skb_alloc_failed++;
+				fp->eth_q_stats.rx_skb_alloc_failed++;
 reuse_rx:
 				bnx2x_reuse_rx_skb(fp, skb, bd_cons, bd_prod);
 				goto next_rx;
@@ -1583,10 +1616,11 @@ reuse_rx:
 				if (likely(BNX2X_RX_CSUM_OK(cqe)))
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 				else
-					bp->eth_stats.hw_csum_err++;
+					fp->eth_q_stats.hw_csum_err++;
 			}
 		}
 
+		skb_record_rx_queue(skb, fp->index);
 #ifdef BCM_VLAN
 		if ((bp->vlgrp != NULL) && (bp->flags & HW_VLAN_RX_FLAG) &&
 		    (le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
@@ -1632,7 +1666,7 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 {
 	struct bnx2x_fastpath *fp = fp_cookie;
 	struct bnx2x *bp = fp->bp;
-	int index = FP_IDX(fp);
+	int index = fp->index;
 
 	/* Return here if interrupt is disabled */
 	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
@@ -1641,8 +1675,8 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 	}
 
 	DP(BNX2X_MSG_FP, "got an MSI-X interrupt on IDX:SB [%d:%d]\n",
-	   index, FP_SB_ID(fp));
-	bnx2x_ack_sb(bp, FP_SB_ID(fp), USTORM_ID, 0, IGU_INT_DISABLE, 0);
+	   index, fp->sb_id);
+	bnx2x_ack_sb(bp, fp->sb_id, USTORM_ID, 0, IGU_INT_DISABLE, 0);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (unlikely(bp->panic))
@@ -1654,15 +1688,14 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 	prefetch(&fp->status_blk->c_status_block.status_block_index);
 	prefetch(&fp->status_blk->u_status_block.status_block_index);
 
-	netif_rx_schedule(&bnx2x_fp(bp, index, napi));
+	napi_schedule(&bnx2x_fp(bp, index, napi));
 
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 {
-	struct net_device *dev = dev_instance;
-	struct bnx2x *bp = netdev_priv(dev);
+	struct bnx2x *bp = netdev_priv(dev_instance);
 	u16 status = bnx2x_ack_int(bp);
 	u16 mask;
 
@@ -1671,7 +1704,7 @@ static irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 		DP(NETIF_MSG_INTR, "not our interrupt!\n");
 		return IRQ_NONE;
 	}
-	DP(NETIF_MSG_INTR, "got an interrupt  status %u\n", status);
+	DP(NETIF_MSG_INTR, "got an interrupt  status 0x%x\n", status);
 
 	/* Return here if interrupt is disabled */
 	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
@@ -1693,7 +1726,7 @@ static irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 		prefetch(&fp->status_blk->c_status_block.status_block_index);
 		prefetch(&fp->status_blk->u_status_block.status_block_index);
 
-		netif_rx_schedule(&bnx2x_fp(bp, 0, napi));
+		napi_schedule(&bnx2x_fp(bp, 0, napi));
 
 		status &= ~mask;
 	}
@@ -1806,24 +1839,48 @@ static int bnx2x_release_hw_lock(struct bnx2x *bp, u32 resource)
 /* HW Lock for shared dual port PHYs */
 static void bnx2x_acquire_phy_lock(struct bnx2x *bp)
 {
-	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
-
 	mutex_lock(&bp->port.phy_mutex);
 
-	if ((ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072) ||
-	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073))
-		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_8072_MDIO);
+	if (bp->port.need_hw_lock)
+		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_MDIO);
 }
 
 static void bnx2x_release_phy_lock(struct bnx2x *bp)
 {
-	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
-
-	if ((ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072) ||
-	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073))
-		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_8072_MDIO);
+	if (bp->port.need_hw_lock)
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_MDIO);
 
 	mutex_unlock(&bp->port.phy_mutex);
+}
+
+int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port)
+{
+	/* The GPIO should be swapped if swap register is set and active */
+	int gpio_port = (REG_RD(bp, NIG_REG_PORT_SWAP) &&
+			 REG_RD(bp, NIG_REG_STRAP_OVERRIDE)) ^ port;
+	int gpio_shift = gpio_num +
+			(gpio_port ? MISC_REGISTERS_GPIO_PORT_SHIFT : 0);
+	u32 gpio_mask = (1 << gpio_shift);
+	u32 gpio_reg;
+	int value;
+
+	if (gpio_num > MISC_REGISTERS_GPIO_3) {
+		BNX2X_ERR("Invalid GPIO %d\n", gpio_num);
+		return -EINVAL;
+	}
+
+	/* read GPIO value */
+	gpio_reg = REG_RD(bp, MISC_REG_GPIO);
+
+	/* get the requested pin value */
+	if ((gpio_reg & gpio_mask) == gpio_mask)
+		value = 1;
+	else
+		value = 0;
+
+	DP(NETIF_MSG_LINK, "pin %d  value 0x%x\n", gpio_num, value);
+
+	return value;
 }
 
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port)
@@ -1874,6 +1931,52 @@ int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port)
 	}
 
 	REG_WR(bp, MISC_REG_GPIO, gpio_reg);
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_GPIO);
+
+	return 0;
+}
+
+int bnx2x_set_gpio_int(struct bnx2x *bp, int gpio_num, u32 mode, u8 port)
+{
+	/* The GPIO should be swapped if swap register is set and active */
+	int gpio_port = (REG_RD(bp, NIG_REG_PORT_SWAP) &&
+			 REG_RD(bp, NIG_REG_STRAP_OVERRIDE)) ^ port;
+	int gpio_shift = gpio_num +
+			(gpio_port ? MISC_REGISTERS_GPIO_PORT_SHIFT : 0);
+	u32 gpio_mask = (1 << gpio_shift);
+	u32 gpio_reg;
+
+	if (gpio_num > MISC_REGISTERS_GPIO_3) {
+		BNX2X_ERR("Invalid GPIO %d\n", gpio_num);
+		return -EINVAL;
+	}
+
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_GPIO);
+	/* read GPIO int */
+	gpio_reg = REG_RD(bp, MISC_REG_GPIO_INT);
+
+	switch (mode) {
+	case MISC_REGISTERS_GPIO_INT_OUTPUT_CLR:
+		DP(NETIF_MSG_LINK, "Clear GPIO INT %d (shift %d) -> "
+				   "output low\n", gpio_num, gpio_shift);
+		/* clear SET and set CLR */
+		gpio_reg &= ~(gpio_mask << MISC_REGISTERS_GPIO_INT_SET_POS);
+		gpio_reg |=  (gpio_mask << MISC_REGISTERS_GPIO_INT_CLR_POS);
+		break;
+
+	case MISC_REGISTERS_GPIO_INT_OUTPUT_SET:
+		DP(NETIF_MSG_LINK, "Set GPIO INT %d (shift %d) -> "
+				   "output high\n", gpio_num, gpio_shift);
+		/* clear CLR and set SET */
+		gpio_reg &= ~(gpio_mask << MISC_REGISTERS_GPIO_INT_CLR_POS);
+		gpio_reg |=  (gpio_mask << MISC_REGISTERS_GPIO_INT_SET_POS);
+		break;
+
+	default:
+		break;
+	}
+
+	REG_WR(bp, MISC_REG_GPIO_INT, gpio_reg);
 	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_GPIO);
 
 	return 0;
@@ -1933,13 +2036,16 @@ static void bnx2x_calc_fc_adv(struct bnx2x *bp)
 		bp->port.advertising &= ~(ADVERTISED_Asym_Pause |
 					  ADVERTISED_Pause);
 		break;
+
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH:
 		bp->port.advertising |= (ADVERTISED_Asym_Pause |
 					 ADVERTISED_Pause);
 		break;
+
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC:
 		bp->port.advertising |= ADVERTISED_Asym_Pause;
 		break;
+
 	default:
 		bp->port.advertising &= ~(ADVERTISED_Asym_Pause |
 					  ADVERTISED_Pause);
@@ -1964,7 +2070,8 @@ static void bnx2x_link_report(struct bnx2x *bp)
 		if (bp->link_vars.flow_ctrl != BNX2X_FLOW_CTRL_NONE) {
 			if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX) {
 				printk(", receive ");
-				if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX)
+				if (bp->link_vars.flow_ctrl &
+				    BNX2X_FLOW_CTRL_TX)
 					printk("& transmit ");
 			} else {
 				printk(", transmit ");
@@ -1979,7 +2086,7 @@ static void bnx2x_link_report(struct bnx2x *bp)
 	}
 }
 
-static u8 bnx2x_initial_phy_init(struct bnx2x *bp)
+static u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 {
 	if (!BP_NOMCP(bp)) {
 		u8 rc;
@@ -1995,18 +2102,24 @@ static u8 bnx2x_initial_phy_init(struct bnx2x *bp)
 			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_BOTH;
 
 		bnx2x_acquire_phy_lock(bp);
+
+		if (load_mode == LOAD_DIAG)
+			bp->link_params.loopback_mode = LOOPBACK_XGXS_10;
+
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
+
 		bnx2x_release_phy_lock(bp);
 
 		bnx2x_calc_fc_adv(bp);
 
-		if (bp->link_vars.link_up)
+		if (CHIP_REV_IS_SLOW(bp) && bp->link_vars.link_up) {
+			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 			bnx2x_link_report(bp);
-
+		}
 
 		return rc;
 	}
-	BNX2X_ERR("Bootcode is missing -not initializing link\n");
+	BNX2X_ERR("Bootcode is missing - can not initialize link\n");
 	return -EINVAL;
 }
 
@@ -2019,17 +2132,17 @@ static void bnx2x_link_set(struct bnx2x *bp)
 
 		bnx2x_calc_fc_adv(bp);
 	} else
-		BNX2X_ERR("Bootcode is missing -not setting link\n");
+		BNX2X_ERR("Bootcode is missing - can not set link\n");
 }
 
 static void bnx2x__link_reset(struct bnx2x *bp)
 {
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
-		bnx2x_link_reset(&bp->link_params, &bp->link_vars);
+		bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
 		bnx2x_release_phy_lock(bp);
 	} else
-		BNX2X_ERR("Bootcode is missing -not resetting link\n");
+		BNX2X_ERR("Bootcode is missing - can not reset link\n");
 }
 
 static u8 bnx2x_link_test(struct bnx2x *bp)
@@ -2043,119 +2156,42 @@ static u8 bnx2x_link_test(struct bnx2x *bp)
 	return rc;
 }
 
-/* Calculates the sum of vn_min_rates.
-   It's needed for further normalizing of the min_rates.
-
-   Returns:
-     sum of vn_min_rates
-       or
-     0 - if all the min_rates are 0.
-     In the later case fairness algorithm should be deactivated.
-     If not all min_rates are zero then those that are zeroes will
-     be set to 1.
- */
-static u32 bnx2x_calc_vn_wsum(struct bnx2x *bp)
+static void bnx2x_init_port_minmax(struct bnx2x *bp)
 {
-	int i, port = BP_PORT(bp);
-	u32 wsum = 0;
-	int all_zero = 1;
+	u32 r_param = bp->link_vars.line_speed / 8;
+	u32 fair_periodic_timeout_usec;
+	u32 t_fair;
 
-	for (i = 0; i < E1HVN_MAX; i++) {
-		u32 vn_cfg =
-			SHMEM_RD(bp, mf_cfg.func_mf_config[2*i + port].config);
-		u32 vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
-				     FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
-		if (!(vn_cfg & FUNC_MF_CFG_FUNC_HIDE)) {
-			/* If min rate is zero - set it to 1 */
-			if (!vn_min_rate)
-				vn_min_rate = DEF_MIN_RATE;
-			else
-				all_zero = 0;
+	memset(&(bp->cmng.rs_vars), 0,
+	       sizeof(struct rate_shaping_vars_per_port));
+	memset(&(bp->cmng.fair_vars), 0, sizeof(struct fairness_vars_per_port));
 
-			wsum += vn_min_rate;
-		}
-	}
+	/* 100 usec in SDM ticks = 25 since each tick is 4 usec */
+	bp->cmng.rs_vars.rs_periodic_timeout = RS_PERIODIC_TIMEOUT_USEC / 4;
 
-	/* ... only if all min rates are zeros - disable FAIRNESS */
-	if (all_zero)
-		return 0;
-
-	return wsum;
-}
-
-static void bnx2x_init_port_minmax(struct bnx2x *bp,
-				   int en_fness,
-				   u16 port_rate,
-				   struct cmng_struct_per_port *m_cmng_port)
-{
-	u32 r_param = port_rate / 8;
-	int port = BP_PORT(bp);
-	int i;
-
-	memset(m_cmng_port, 0, sizeof(struct cmng_struct_per_port));
-
-	/* Enable minmax only if we are in e1hmf mode */
-	if (IS_E1HMF(bp)) {
-		u32 fair_periodic_timeout_usec;
-		u32 t_fair;
-
-		/* Enable rate shaping and fairness */
-		m_cmng_port->flags.cmng_vn_enable = 1;
-		m_cmng_port->flags.fairness_enable = en_fness ? 1 : 0;
-		m_cmng_port->flags.rate_shaping_enable = 1;
-
-		if (!en_fness)
-			DP(NETIF_MSG_IFUP, "All MIN values are zeroes"
-			   "  fairness will be disabled\n");
-
-		/* 100 usec in SDM ticks = 25 since each tick is 4 usec */
-		m_cmng_port->rs_vars.rs_periodic_timeout =
-						RS_PERIODIC_TIMEOUT_USEC / 4;
-
-		/* this is the threshold below which no timer arming will occur
-		   1.25 coefficient is for the threshold to be a little bigger
-		   than the real time, to compensate for timer in-accuracy */
-		m_cmng_port->rs_vars.rs_threshold =
+	/* this is the threshold below which no timer arming will occur
+	   1.25 coefficient is for the threshold to be a little bigger
+	   than the real time, to compensate for timer in-accuracy */
+	bp->cmng.rs_vars.rs_threshold =
 				(RS_PERIODIC_TIMEOUT_USEC * r_param * 5) / 4;
 
-		/* resolution of fairness timer */
-		fair_periodic_timeout_usec = QM_ARB_BYTES / r_param;
-		/* for 10G it is 1000usec. for 1G it is 10000usec. */
-		t_fair = T_FAIR_COEF / port_rate;
+	/* resolution of fairness timer */
+	fair_periodic_timeout_usec = QM_ARB_BYTES / r_param;
+	/* for 10G it is 1000usec. for 1G it is 10000usec. */
+	t_fair = T_FAIR_COEF / bp->link_vars.line_speed;
 
-		/* this is the threshold below which we won't arm
-		   the timer anymore */
-		m_cmng_port->fair_vars.fair_threshold = QM_ARB_BYTES;
+	/* this is the threshold below which we won't arm the timer anymore */
+	bp->cmng.fair_vars.fair_threshold = QM_ARB_BYTES;
 
-		/* we multiply by 1e3/8 to get bytes/msec.
-		   We don't want the credits to pass a credit
-		   of the T_FAIR*FAIR_MEM (algorithm resolution) */
-		m_cmng_port->fair_vars.upper_bound =
-						r_param * t_fair * FAIR_MEM;
-		/* since each tick is 4 usec */
-		m_cmng_port->fair_vars.fairness_timeout =
-						fair_periodic_timeout_usec / 4;
-
-	} else {
-		/* Disable rate shaping and fairness */
-		m_cmng_port->flags.cmng_vn_enable = 0;
-		m_cmng_port->flags.fairness_enable = 0;
-		m_cmng_port->flags.rate_shaping_enable = 0;
-
-		DP(NETIF_MSG_IFUP,
-		   "Single function mode  minmax will be disabled\n");
-	}
-
-	/* Store it to internal memory */
-	for (i = 0; i < sizeof(struct cmng_struct_per_port) / 4; i++)
-		REG_WR(bp, BAR_XSTRORM_INTMEM +
-		       XSTORM_CMNG_PER_PORT_VARS_OFFSET(port) + i * 4,
-		       ((u32 *)(m_cmng_port))[i]);
+	/* we multiply by 1e3/8 to get bytes/msec.
+	   We don't want the credits to pass a credit
+	   of the t_fair*FAIR_MEM (algorithm resolution) */
+	bp->cmng.fair_vars.upper_bound = r_param * t_fair * FAIR_MEM;
+	/* since each tick is 4 usec */
+	bp->cmng.fair_vars.fairness_timeout = fair_periodic_timeout_usec / 4;
 }
 
-static void bnx2x_init_vn_minmax(struct bnx2x *bp, int func,
-				   u32 wsum, u16 port_rate,
-				 struct cmng_struct_per_port *m_cmng_port)
+static void bnx2x_init_vn_minmax(struct bnx2x *bp, int func)
 {
 	struct rate_shaping_vars_per_vn m_rs_vn;
 	struct fairness_vars_per_vn m_fair_vn;
@@ -2171,17 +2207,18 @@ static void bnx2x_init_vn_minmax(struct bnx2x *bp, int func,
 	} else {
 		vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
 				FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
-		/* If FAIRNESS is enabled (not all min rates are zeroes) and
+		/* If fairness is enabled (not all min rates are zeroes) and
 		   if current min rate is zero - set it to 1.
 		   This is a requirement of the algorithm. */
-		if ((vn_min_rate == 0) && wsum)
+		if (bp->vn_weight_sum && (vn_min_rate == 0))
 			vn_min_rate = DEF_MIN_RATE;
 		vn_max_rate = ((vn_cfg & FUNC_MF_CFG_MAX_BW_MASK) >>
 				FUNC_MF_CFG_MAX_BW_SHIFT) * 100;
 	}
 
-	DP(NETIF_MSG_IFUP, "func %d: vn_min_rate=%d  vn_max_rate=%d  "
-	   "wsum=%d\n", func, vn_min_rate, vn_max_rate, wsum);
+	DP(NETIF_MSG_IFUP,
+	   "func %d: vn_min_rate=%d  vn_max_rate=%d  vn_weight_sum=%d\n",
+	   func, vn_min_rate, vn_max_rate, bp->vn_weight_sum);
 
 	memset(&m_rs_vn, 0, sizeof(struct rate_shaping_vars_per_vn));
 	memset(&m_fair_vn, 0, sizeof(struct fairness_vars_per_vn));
@@ -2193,54 +2230,19 @@ static void bnx2x_init_vn_minmax(struct bnx2x *bp, int func,
 	m_rs_vn.vn_counter.quota =
 				(vn_max_rate * RS_PERIODIC_TIMEOUT_USEC) / 8;
 
-#ifdef BNX2X_PER_PROT_QOS
-	/* per protocol counter */
-	for (protocol = 0; protocol < NUM_OF_PROTOCOLS; protocol++) {
-		/* maximal Mbps for this protocol */
-		m_rs_vn.protocol_counters[protocol].rate =
-						protocol_max_rate[protocol];
-		/* the quota in each timer period -
-		   number of bytes transmitted in this period */
-		m_rs_vn.protocol_counters[protocol].quota =
-			(u32)(rs_periodic_timeout_usec *
-			  ((double)m_rs_vn.
-				   protocol_counters[protocol].rate/8));
-	}
-#endif
-
-	if (wsum) {
+	if (bp->vn_weight_sum) {
 		/* credit for each period of the fairness algorithm:
 		   number of bytes in T_FAIR (the vn share the port rate).
-		   wsum should not be larger than 10000, thus
-		   T_FAIR_COEF / (8 * wsum) will always be grater than zero */
+		   vn_weight_sum should not be larger than 10000, thus
+		   T_FAIR_COEF / (8 * vn_weight_sum) will always be greater
+		   than zero */
 		m_fair_vn.vn_credit_delta =
-			max((u64)(vn_min_rate * (T_FAIR_COEF / (8 * wsum))),
-			    (u64)(m_cmng_port->fair_vars.fair_threshold * 2));
+			max((u32)(vn_min_rate * (T_FAIR_COEF /
+						 (8 * bp->vn_weight_sum))),
+			    (u32)(bp->cmng.fair_vars.fair_threshold * 2));
 		DP(NETIF_MSG_IFUP, "m_fair_vn.vn_credit_delta=%d\n",
 		   m_fair_vn.vn_credit_delta);
 	}
-
-#ifdef BNX2X_PER_PROT_QOS
-	do {
-		u32 protocolWeightSum = 0;
-
-		for (protocol = 0; protocol < NUM_OF_PROTOCOLS; protocol++)
-			protocolWeightSum +=
-					drvInit.protocol_min_rate[protocol];
-		/* per protocol counter -
-		   NOT NEEDED IF NO PER-PROTOCOL CONGESTION MANAGEMENT */
-		if (protocolWeightSum > 0) {
-			for (protocol = 0;
-			     protocol < NUM_OF_PROTOCOLS; protocol++)
-				/* credit for each period of the
-				   fairness algorithm - number of bytes in
-				   T_FAIR (the protocol share the vn rate) */
-				m_fair_vn.protocol_credit_delta[protocol] =
-					(u32)((vn_min_rate / 8) * t_fair *
-					protocol_min_rate / protocolWeightSum);
-		}
-	} while (0);
-#endif
 
 	/* Store it to internal memory */
 	for (i = 0; i < sizeof(struct rate_shaping_vars_per_vn)/4; i++)
@@ -2254,17 +2256,29 @@ static void bnx2x_init_vn_minmax(struct bnx2x *bp, int func,
 		       ((u32 *)(&m_fair_vn))[i]);
 }
 
+
 /* This function is called upon link interrupt */
 static void bnx2x_link_attn(struct bnx2x *bp)
 {
-	int vn;
-
 	/* Make sure that we are synced with the current statistics */
 	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
 	bnx2x_link_update(&bp->link_params, &bp->link_vars);
 
 	if (bp->link_vars.link_up) {
+
+		/* dropless flow control */
+		if (CHIP_IS_E1H(bp)) {
+			int port = BP_PORT(bp);
+			u32 pause_enabled = 0;
+
+			if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX)
+				pause_enabled = 1;
+
+			REG_WR(bp, BAR_USTRORM_INTMEM +
+			       USTORM_PAUSE_ENABLED_OFFSET(port),
+			       pause_enabled);
+		}
 
 		if (bp->link_vars.mac_type == MAC_TYPE_BMAC) {
 			struct host_port_stats *pstats;
@@ -2283,36 +2297,38 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 	bnx2x_link_report(bp);
 
 	if (IS_E1HMF(bp)) {
+		int port = BP_PORT(bp);
 		int func;
+		int vn;
 
 		for (vn = VN_0; vn < E1HVN_MAX; vn++) {
 			if (vn == BP_E1HVN(bp))
 				continue;
 
-			func = ((vn << 1) | BP_PORT(bp));
+			func = ((vn << 1) | port);
 
 			/* Set the attention towards other drivers
 			   on the same port */
 			REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_0 +
 			       (LINK_SYNC_ATTENTION_BIT_FUNC_0 + func)*4, 1);
 		}
-	}
 
-	if (CHIP_IS_E1H(bp) && (bp->link_vars.line_speed > 0)) {
-		struct cmng_struct_per_port m_cmng_port;
-		u32 wsum;
-		int port = BP_PORT(bp);
+		if (bp->link_vars.link_up) {
+			int i;
 
-		/* Init RATE SHAPING and FAIRNESS contexts */
-		wsum = bnx2x_calc_vn_wsum(bp);
-		bnx2x_init_port_minmax(bp, (int)wsum,
-					bp->link_vars.line_speed,
-					&m_cmng_port);
-		if (IS_E1HMF(bp))
+			/* Init rate shaping and fairness contexts */
+			bnx2x_init_port_minmax(bp);
+
 			for (vn = VN_0; vn < E1HVN_MAX; vn++)
-				bnx2x_init_vn_minmax(bp, 2*vn + port,
-					wsum, bp->link_vars.line_speed,
-						     &m_cmng_port);
+				bnx2x_init_vn_minmax(bp, 2*vn + port);
+
+			/* Store it to internal memory */
+			for (i = 0;
+			     i < sizeof(struct cmng_struct_per_port) / 4; i++)
+				REG_WR(bp, BAR_XSTRORM_INTMEM +
+				  XSTORM_CMNG_PER_PORT_VARS_OFFSET(port) + i*4,
+				       ((u32 *)(&bp->cmng))[i]);
+		}
 	}
 }
 
@@ -2489,6 +2505,7 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 	u32 nig_int_mask_addr = port ? NIG_REG_MASK_INTERRUPT_PORT1 :
 				       NIG_REG_MASK_INTERRUPT_PORT0;
 	u32 aeu_mask;
+	u32 nig_mask = 0;
 
 	if (bp->attn_state & asserted)
 		BNX2X_ERR("IGU ERROR\n");
@@ -2514,7 +2531,7 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 			bnx2x_acquire_phy_lock(bp);
 
 			/* save nig interrupt mask */
-			bp->nig_mask = REG_RD(bp, nig_int_mask_addr);
+			nig_mask = REG_RD(bp, nig_int_mask_addr);
 			REG_WR(bp, nig_int_mask_addr, 0);
 
 			bnx2x_link_attn(bp);
@@ -2569,7 +2586,7 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 
 	/* now set back the mask */
 	if (asserted & ATTN_NIG_FOR_FUNC) {
-		REG_WR(bp, nig_int_mask_addr, bp->nig_mask);
+		REG_WR(bp, nig_int_mask_addr, nig_mask);
 		bnx2x_release_phy_lock(bp);
 	}
 }
@@ -2591,9 +2608,8 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 
 		BNX2X_ERR("SPIO5 hw attention\n");
 
-		switch (bp->common.board & SHARED_HW_CFG_BOARD_TYPE_MASK) {
-		case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1021G:
-		case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1022G:
+		switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 			/* Fan failure attention */
 
 			/* The PHY reset is controlled by GPIO 1 */
@@ -2624,6 +2640,13 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 		}
 	}
 
+	if (attn & (AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0 |
+		    AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1)) {
+		bnx2x_acquire_phy_lock(bp);
+		bnx2x_handle_module_detect_int(&bp->link_params);
+		bnx2x_release_phy_lock(bp);
+	}
+
 	if (attn & HW_INTERRUT_ASSERT_SET_0) {
 
 		val = REG_RD(bp, reg_offset);
@@ -2640,7 +2663,7 @@ static inline void bnx2x_attn_int_deasserted1(struct bnx2x *bp, u32 attn)
 {
 	u32 val;
 
-	if (attn & BNX2X_DOORQ_ASSERT) {
+	if (attn & AEU_INPUTS_ATTN_BITS_DOORBELLQ_HW_INTERRUPT) {
 
 		val = REG_RD(bp, DORQ_REG_DORQ_INT_STS_CLR);
 		BNX2X_ERR("DB hw attention 0x%x\n", val);
@@ -2886,10 +2909,6 @@ static void bnx2x_sp_task(struct work_struct *work)
 	if (status & 0x1)
 		bnx2x_attn_int(bp);
 
-	/* CStorm events: query_stats, port delete ramrod */
-	if (status & 0x2)
-		bp->stats_pending = 0;
-
 	bnx2x_ack_sb(bp, DEF_SB_ID, ATTENTION_ID, le16_to_cpu(bp->def_att_idx),
 		     IGU_INT_NOP, 1);
 	bnx2x_ack_sb(bp, DEF_SB_ID, USTORM_ID, le16_to_cpu(bp->def_u_idx),
@@ -2914,7 +2933,7 @@ static irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 		return IRQ_HANDLED;
 	}
 
-	bnx2x_ack_sb(bp, DEF_SB_ID, XSTORM_ID, 0, IGU_INT_DISABLE, 0);
+	bnx2x_ack_sb(bp, DEF_SB_ID, TSTORM_ID, 0, IGU_INT_DISABLE, 0);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (unlikely(bp->panic))
@@ -3003,16 +3022,41 @@ static irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 
 #define UPDATE_EXTEND_TSTAT(s, t) \
 	do { \
-		diff = le32_to_cpu(tclient->s) - old_tclient->s; \
-		old_tclient->s = le32_to_cpu(tclient->s); \
-		ADD_EXTEND_64(fstats->t##_hi, fstats->t##_lo, diff); \
+		diff = le32_to_cpu(tclient->s) - le32_to_cpu(old_tclient->s); \
+		old_tclient->s = tclient->s; \
+		ADD_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
+	} while (0)
+
+#define UPDATE_EXTEND_USTAT(s, t) \
+	do { \
+		diff = le32_to_cpu(uclient->s) - le32_to_cpu(old_uclient->s); \
+		old_uclient->s = uclient->s; \
+		ADD_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
 	} while (0)
 
 #define UPDATE_EXTEND_XSTAT(s, t) \
 	do { \
-		diff = le32_to_cpu(xclient->s) - old_xclient->s; \
-		old_xclient->s = le32_to_cpu(xclient->s); \
-		ADD_EXTEND_64(fstats->t##_hi, fstats->t##_lo, diff); \
+		diff = le32_to_cpu(xclient->s) - le32_to_cpu(old_xclient->s); \
+		old_xclient->s = xclient->s; \
+		ADD_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
+	} while (0)
+
+/* minuend -= subtrahend */
+#define SUB_64(m_hi, s_hi, m_lo, s_lo) \
+	do { \
+		DIFF_64(m_hi, m_hi, s_hi, m_lo, m_lo, s_lo); \
+	} while (0)
+
+/* minuend[hi:lo] -= subtrahend */
+#define SUB_EXTEND_64(m_hi, m_lo, s) \
+	do { \
+		SUB_64(m_hi, 0, m_lo, s); \
+	} while (0)
+
+#define SUB_EXTEND_USTAT(s, t) \
+	do { \
+		diff = le32_to_cpu(uclient->s) - le32_to_cpu(old_uclient->s); \
+		SUB_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
 	} while (0)
 
 /*
@@ -3039,11 +3083,12 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 {
 	if (!bp->stats_pending) {
 		struct eth_query_ramrod_data ramrod_data = {0};
-		int rc;
+		int i, rc;
 
 		ramrod_data.drv_counter = bp->stats_counter++;
-		ramrod_data.collect_port_1b = bp->port.pmf ? 1 : 0;
-		ramrod_data.ctr_id_vector = (1 << BP_CL_ID(bp));
+		ramrod_data.collect_port = bp->port.pmf ? 1 : 0;
+		for_each_queue(bp, i)
+			ramrod_data.ctr_id_vector |= (1 << bp->fp[i].cl_id);
 
 		rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_STAT_QUERY, 0,
 				   ((u32 *)&ramrod_data)[1],
@@ -3059,7 +3104,9 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 static void bnx2x_stats_init(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
+	int i;
 
+	bp->stats_pending = 0;
 	bp->executer_idx = 0;
 	bp->stats_counter = 0;
 
@@ -3081,9 +3128,19 @@ static void bnx2x_stats_init(struct bnx2x *bp)
 		    &(bp->port.old_nig_stats.egress_mac_pkt1_lo), 2);
 
 	/* function stats */
+	for_each_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+
+		memset(&fp->old_tclient, 0,
+		       sizeof(struct tstorm_per_client_stats));
+		memset(&fp->old_uclient, 0,
+		       sizeof(struct ustorm_per_client_stats));
+		memset(&fp->old_xclient, 0,
+		       sizeof(struct xstorm_per_client_stats));
+		memset(&fp->eth_q_stats, 0, sizeof(struct bnx2x_eth_q_stats));
+	}
+
 	memset(&bp->dev->stats, 0, sizeof(struct net_device_stats));
-	memset(&bp->old_tclient, 0, sizeof(struct tstorm_per_client_stats));
-	memset(&bp->old_xclient, 0, sizeof(struct xstorm_per_client_stats));
 	memset(&bp->eth_stats, 0, sizeof(struct bnx2x_eth_stats));
 
 	bp->stats_state = STATS_STATE_DISABLED;
@@ -3097,6 +3154,8 @@ static void bnx2x_hw_stats_post(struct bnx2x *bp)
 	u32 *stats_comp = bnx2x_sp(bp, stats_comp);
 
 	*stats_comp = DMAE_COMP_VAL;
+	if (CHIP_REV_IS_SLOW(bp))
+		return;
 
 	/* loader */
 	if (bp->executer_idx) {
@@ -3486,7 +3545,11 @@ static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 {
 	struct bmac_stats *new = bnx2x_sp(bp, mac_stats.bmac_stats);
 	struct host_port_stats *pstats = bnx2x_sp(bp, port_stats);
-	struct regpair diff;
+	struct bnx2x_eth_stats *estats = &bp->eth_stats;
+	struct {
+		u32 lo;
+		u32 hi;
+	} diff;
 
 	UPDATE_STAT64(rx_stat_grerb, rx_stat_ifhcinbadoctets);
 	UPDATE_STAT64(rx_stat_grfcs, rx_stat_dot3statsfcserrors);
@@ -3496,7 +3559,7 @@ static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 	UPDATE_STAT64(rx_stat_grjbr, rx_stat_etherstatsjabbers);
 	UPDATE_STAT64(rx_stat_grxcf, rx_stat_maccontrolframesreceived);
 	UPDATE_STAT64(rx_stat_grxpf, rx_stat_xoffstateentered);
-	UPDATE_STAT64(rx_stat_grxpf, rx_stat_xoffpauseframesreceived);
+	UPDATE_STAT64(rx_stat_grxpf, rx_stat_bmac_xpf);
 	UPDATE_STAT64(tx_stat_gtxpf, tx_stat_outxoffsent);
 	UPDATE_STAT64(tx_stat_gtxpf, tx_stat_flowcontroldone);
 	UPDATE_STAT64(tx_stat_gt64, tx_stat_etherstatspkts64octets);
@@ -3517,12 +3580,23 @@ static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 	UPDATE_STAT64(tx_stat_gterr,
 				tx_stat_dot3statsinternalmactransmiterrors);
 	UPDATE_STAT64(tx_stat_gtufl, tx_stat_bmac_ufl);
+
+	estats->pause_frames_received_hi =
+				pstats->mac_stx[1].rx_stat_bmac_xpf_hi;
+	estats->pause_frames_received_lo =
+				pstats->mac_stx[1].rx_stat_bmac_xpf_lo;
+
+	estats->pause_frames_sent_hi =
+				pstats->mac_stx[1].tx_stat_outxoffsent_hi;
+	estats->pause_frames_sent_lo =
+				pstats->mac_stx[1].tx_stat_outxoffsent_lo;
 }
 
 static void bnx2x_emac_stats_update(struct bnx2x *bp)
 {
 	struct emac_stats *new = bnx2x_sp(bp, mac_stats.emac_stats);
 	struct host_port_stats *pstats = bnx2x_sp(bp, port_stats);
+	struct bnx2x_eth_stats *estats = &bp->eth_stats;
 
 	UPDATE_EXTEND_STAT(rx_stat_ifhcinbadoctets);
 	UPDATE_EXTEND_STAT(tx_stat_ifhcoutbadoctets);
@@ -3555,6 +3629,24 @@ static void bnx2x_emac_stats_update(struct bnx2x *bp)
 	UPDATE_EXTEND_STAT(tx_stat_etherstatspkts1024octetsto1522octets);
 	UPDATE_EXTEND_STAT(tx_stat_etherstatspktsover1522octets);
 	UPDATE_EXTEND_STAT(tx_stat_dot3statsinternalmactransmiterrors);
+
+	estats->pause_frames_received_hi =
+			pstats->mac_stx[1].rx_stat_xonpauseframesreceived_hi;
+	estats->pause_frames_received_lo =
+			pstats->mac_stx[1].rx_stat_xonpauseframesreceived_lo;
+	ADD_64(estats->pause_frames_received_hi,
+	       pstats->mac_stx[1].rx_stat_xoffpauseframesreceived_hi,
+	       estats->pause_frames_received_lo,
+	       pstats->mac_stx[1].rx_stat_xoffpauseframesreceived_lo);
+
+	estats->pause_frames_sent_hi =
+			pstats->mac_stx[1].tx_stat_outxonsent_hi;
+	estats->pause_frames_sent_lo =
+			pstats->mac_stx[1].tx_stat_outxonsent_lo;
+	ADD_64(estats->pause_frames_sent_hi,
+	       pstats->mac_stx[1].tx_stat_outxoffsent_hi,
+	       estats->pause_frames_sent_lo,
+	       pstats->mac_stx[1].tx_stat_outxoffsent_lo);
 }
 
 static int bnx2x_hw_stats_update(struct bnx2x *bp)
@@ -3563,7 +3655,11 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 	struct nig_stats *old = &(bp->port.old_nig_stats);
 	struct host_port_stats *pstats = bnx2x_sp(bp, port_stats);
 	struct bnx2x_eth_stats *estats = &bp->eth_stats;
-	struct regpair diff;
+	struct {
+		u32 lo;
+		u32 hi;
+	} diff;
+	u32 nig_timer_max;
 
 	if (bp->link_vars.mac_type == MAC_TYPE_BMAC)
 		bnx2x_bmac_stats_update(bp);
@@ -3572,7 +3668,7 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 		bnx2x_emac_stats_update(bp);
 
 	else { /* unreached */
-		BNX2X_ERR("stats updated by dmae but no MAC active\n");
+		BNX2X_ERR("stats updated by DMAE but no MAC active\n");
 		return -1;
 	}
 
@@ -3594,134 +3690,211 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 
 	pstats->host_port_stats_start = ++pstats->host_port_stats_end;
 
+	nig_timer_max = SHMEM_RD(bp, port_mb[BP_PORT(bp)].stat_nig_timer);
+	if (nig_timer_max != estats->nig_timer_max) {
+		estats->nig_timer_max = nig_timer_max;
+		BNX2X_ERR("NIG timer max (%u)\n", estats->nig_timer_max);
+	}
+
 	return 0;
 }
 
 static int bnx2x_storm_stats_update(struct bnx2x *bp)
 {
 	struct eth_stats_query *stats = bnx2x_sp(bp, fw_stats);
-	int cl_id = BP_CL_ID(bp);
 	struct tstorm_per_port_stats *tport =
-				&stats->tstorm_common.port_statistics;
-	struct tstorm_per_client_stats *tclient =
-			&stats->tstorm_common.client_statistics[cl_id];
-	struct tstorm_per_client_stats *old_tclient = &bp->old_tclient;
-	struct xstorm_per_client_stats *xclient =
-			&stats->xstorm_common.client_statistics[cl_id];
-	struct xstorm_per_client_stats *old_xclient = &bp->old_xclient;
+					&stats->tstorm_common.port_statistics;
 	struct host_func_stats *fstats = bnx2x_sp(bp, func_stats);
 	struct bnx2x_eth_stats *estats = &bp->eth_stats;
-	u32 diff;
+	int i;
 
-	/* are storm stats valid? */
-	if ((u16)(le16_to_cpu(tclient->stats_counter) + 1) !=
-							bp->stats_counter) {
-		DP(BNX2X_MSG_STATS, "stats not updated by tstorm"
-		   "  tstorm counter (%d) != stats_counter (%d)\n",
-		   tclient->stats_counter, bp->stats_counter);
-		return -1;
-	}
-	if ((u16)(le16_to_cpu(xclient->stats_counter) + 1) !=
-							bp->stats_counter) {
-		DP(BNX2X_MSG_STATS, "stats not updated by xstorm"
-		   "  xstorm counter (%d) != stats_counter (%d)\n",
-		   xclient->stats_counter, bp->stats_counter);
-		return -2;
-	}
+	memset(&(fstats->total_bytes_received_hi), 0,
+	       sizeof(struct host_func_stats) - 2*sizeof(u32));
+	estats->error_bytes_received_hi = 0;
+	estats->error_bytes_received_lo = 0;
+	estats->etherstatsoverrsizepkts_hi = 0;
+	estats->etherstatsoverrsizepkts_lo = 0;
+	estats->no_buff_discard_hi = 0;
+	estats->no_buff_discard_lo = 0;
 
-	fstats->total_bytes_received_hi =
-	fstats->valid_bytes_received_hi =
+	for_each_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+		int cl_id = fp->cl_id;
+		struct tstorm_per_client_stats *tclient =
+				&stats->tstorm_common.client_statistics[cl_id];
+		struct tstorm_per_client_stats *old_tclient = &fp->old_tclient;
+		struct ustorm_per_client_stats *uclient =
+				&stats->ustorm_common.client_statistics[cl_id];
+		struct ustorm_per_client_stats *old_uclient = &fp->old_uclient;
+		struct xstorm_per_client_stats *xclient =
+				&stats->xstorm_common.client_statistics[cl_id];
+		struct xstorm_per_client_stats *old_xclient = &fp->old_xclient;
+		struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
+		u32 diff;
+
+		/* are storm stats valid? */
+		if ((u16)(le16_to_cpu(xclient->stats_counter) + 1) !=
+							bp->stats_counter) {
+			DP(BNX2X_MSG_STATS, "[%d] stats not updated by xstorm"
+			   "  xstorm counter (%d) != stats_counter (%d)\n",
+			   i, xclient->stats_counter, bp->stats_counter);
+			return -1;
+		}
+		if ((u16)(le16_to_cpu(tclient->stats_counter) + 1) !=
+							bp->stats_counter) {
+			DP(BNX2X_MSG_STATS, "[%d] stats not updated by tstorm"
+			   "  tstorm counter (%d) != stats_counter (%d)\n",
+			   i, tclient->stats_counter, bp->stats_counter);
+			return -2;
+		}
+		if ((u16)(le16_to_cpu(uclient->stats_counter) + 1) !=
+							bp->stats_counter) {
+			DP(BNX2X_MSG_STATS, "[%d] stats not updated by ustorm"
+			   "  ustorm counter (%d) != stats_counter (%d)\n",
+			   i, uclient->stats_counter, bp->stats_counter);
+			return -4;
+		}
+
+		qstats->total_bytes_received_hi =
+		qstats->valid_bytes_received_hi =
 				le32_to_cpu(tclient->total_rcv_bytes.hi);
-	fstats->total_bytes_received_lo =
-	fstats->valid_bytes_received_lo =
+		qstats->total_bytes_received_lo =
+		qstats->valid_bytes_received_lo =
 				le32_to_cpu(tclient->total_rcv_bytes.lo);
 
-	estats->error_bytes_received_hi =
+		qstats->error_bytes_received_hi =
 				le32_to_cpu(tclient->rcv_error_bytes.hi);
-	estats->error_bytes_received_lo =
+		qstats->error_bytes_received_lo =
 				le32_to_cpu(tclient->rcv_error_bytes.lo);
+
+		ADD_64(qstats->total_bytes_received_hi,
+		       qstats->error_bytes_received_hi,
+		       qstats->total_bytes_received_lo,
+		       qstats->error_bytes_received_lo);
+
+		UPDATE_EXTEND_TSTAT(rcv_unicast_pkts,
+					total_unicast_packets_received);
+		UPDATE_EXTEND_TSTAT(rcv_multicast_pkts,
+					total_multicast_packets_received);
+		UPDATE_EXTEND_TSTAT(rcv_broadcast_pkts,
+					total_broadcast_packets_received);
+		UPDATE_EXTEND_TSTAT(packets_too_big_discard,
+					etherstatsoverrsizepkts);
+		UPDATE_EXTEND_TSTAT(no_buff_discard, no_buff_discard);
+
+		SUB_EXTEND_USTAT(ucast_no_buff_pkts,
+					total_unicast_packets_received);
+		SUB_EXTEND_USTAT(mcast_no_buff_pkts,
+					total_multicast_packets_received);
+		SUB_EXTEND_USTAT(bcast_no_buff_pkts,
+					total_broadcast_packets_received);
+		UPDATE_EXTEND_USTAT(ucast_no_buff_pkts, no_buff_discard);
+		UPDATE_EXTEND_USTAT(mcast_no_buff_pkts, no_buff_discard);
+		UPDATE_EXTEND_USTAT(bcast_no_buff_pkts, no_buff_discard);
+
+		qstats->total_bytes_transmitted_hi =
+				le32_to_cpu(xclient->total_sent_bytes.hi);
+		qstats->total_bytes_transmitted_lo =
+				le32_to_cpu(xclient->total_sent_bytes.lo);
+
+		UPDATE_EXTEND_XSTAT(unicast_pkts_sent,
+					total_unicast_packets_transmitted);
+		UPDATE_EXTEND_XSTAT(multicast_pkts_sent,
+					total_multicast_packets_transmitted);
+		UPDATE_EXTEND_XSTAT(broadcast_pkts_sent,
+					total_broadcast_packets_transmitted);
+
+		old_tclient->checksum_discard = tclient->checksum_discard;
+		old_tclient->ttl0_discard = tclient->ttl0_discard;
+
+		ADD_64(fstats->total_bytes_received_hi,
+		       qstats->total_bytes_received_hi,
+		       fstats->total_bytes_received_lo,
+		       qstats->total_bytes_received_lo);
+		ADD_64(fstats->total_bytes_transmitted_hi,
+		       qstats->total_bytes_transmitted_hi,
+		       fstats->total_bytes_transmitted_lo,
+		       qstats->total_bytes_transmitted_lo);
+		ADD_64(fstats->total_unicast_packets_received_hi,
+		       qstats->total_unicast_packets_received_hi,
+		       fstats->total_unicast_packets_received_lo,
+		       qstats->total_unicast_packets_received_lo);
+		ADD_64(fstats->total_multicast_packets_received_hi,
+		       qstats->total_multicast_packets_received_hi,
+		       fstats->total_multicast_packets_received_lo,
+		       qstats->total_multicast_packets_received_lo);
+		ADD_64(fstats->total_broadcast_packets_received_hi,
+		       qstats->total_broadcast_packets_received_hi,
+		       fstats->total_broadcast_packets_received_lo,
+		       qstats->total_broadcast_packets_received_lo);
+		ADD_64(fstats->total_unicast_packets_transmitted_hi,
+		       qstats->total_unicast_packets_transmitted_hi,
+		       fstats->total_unicast_packets_transmitted_lo,
+		       qstats->total_unicast_packets_transmitted_lo);
+		ADD_64(fstats->total_multicast_packets_transmitted_hi,
+		       qstats->total_multicast_packets_transmitted_hi,
+		       fstats->total_multicast_packets_transmitted_lo,
+		       qstats->total_multicast_packets_transmitted_lo);
+		ADD_64(fstats->total_broadcast_packets_transmitted_hi,
+		       qstats->total_broadcast_packets_transmitted_hi,
+		       fstats->total_broadcast_packets_transmitted_lo,
+		       qstats->total_broadcast_packets_transmitted_lo);
+		ADD_64(fstats->valid_bytes_received_hi,
+		       qstats->valid_bytes_received_hi,
+		       fstats->valid_bytes_received_lo,
+		       qstats->valid_bytes_received_lo);
+
+		ADD_64(estats->error_bytes_received_hi,
+		       qstats->error_bytes_received_hi,
+		       estats->error_bytes_received_lo,
+		       qstats->error_bytes_received_lo);
+		ADD_64(estats->etherstatsoverrsizepkts_hi,
+		       qstats->etherstatsoverrsizepkts_hi,
+		       estats->etherstatsoverrsizepkts_lo,
+		       qstats->etherstatsoverrsizepkts_lo);
+		ADD_64(estats->no_buff_discard_hi, qstats->no_buff_discard_hi,
+		       estats->no_buff_discard_lo, qstats->no_buff_discard_lo);
+	}
+
+	ADD_64(fstats->total_bytes_received_hi,
+	       estats->rx_stat_ifhcinbadoctets_hi,
+	       fstats->total_bytes_received_lo,
+	       estats->rx_stat_ifhcinbadoctets_lo);
+
+	memcpy(estats, &(fstats->total_bytes_received_hi),
+	       sizeof(struct host_func_stats) - 2*sizeof(u32));
+
+	ADD_64(estats->etherstatsoverrsizepkts_hi,
+	       estats->rx_stat_dot3statsframestoolong_hi,
+	       estats->etherstatsoverrsizepkts_lo,
+	       estats->rx_stat_dot3statsframestoolong_lo);
 	ADD_64(estats->error_bytes_received_hi,
 	       estats->rx_stat_ifhcinbadoctets_hi,
 	       estats->error_bytes_received_lo,
 	       estats->rx_stat_ifhcinbadoctets_lo);
 
-	ADD_64(fstats->total_bytes_received_hi,
-	       estats->error_bytes_received_hi,
-	       fstats->total_bytes_received_lo,
-	       estats->error_bytes_received_lo);
-
-	UPDATE_EXTEND_TSTAT(rcv_unicast_pkts, total_unicast_packets_received);
-	UPDATE_EXTEND_TSTAT(rcv_multicast_pkts,
-				total_multicast_packets_received);
-	UPDATE_EXTEND_TSTAT(rcv_broadcast_pkts,
-				total_broadcast_packets_received);
-
-	fstats->total_bytes_transmitted_hi =
-				le32_to_cpu(xclient->total_sent_bytes.hi);
-	fstats->total_bytes_transmitted_lo =
-				le32_to_cpu(xclient->total_sent_bytes.lo);
-
-	UPDATE_EXTEND_XSTAT(unicast_pkts_sent,
-				total_unicast_packets_transmitted);
-	UPDATE_EXTEND_XSTAT(multicast_pkts_sent,
-				total_multicast_packets_transmitted);
-	UPDATE_EXTEND_XSTAT(broadcast_pkts_sent,
-				total_broadcast_packets_transmitted);
-
-	memcpy(estats, &(fstats->total_bytes_received_hi),
-	       sizeof(struct host_func_stats) - 2*sizeof(u32));
-
-	estats->mac_filter_discard = le32_to_cpu(tport->mac_filter_discard);
-	estats->xxoverflow_discard = le32_to_cpu(tport->xxoverflow_discard);
-	estats->brb_truncate_discard =
+	if (bp->port.pmf) {
+		estats->mac_filter_discard =
+				le32_to_cpu(tport->mac_filter_discard);
+		estats->xxoverflow_discard =
+				le32_to_cpu(tport->xxoverflow_discard);
+		estats->brb_truncate_discard =
 				le32_to_cpu(tport->brb_truncate_discard);
-	estats->mac_discard = le32_to_cpu(tport->mac_discard);
-
-	old_tclient->rcv_unicast_bytes.hi =
-				le32_to_cpu(tclient->rcv_unicast_bytes.hi);
-	old_tclient->rcv_unicast_bytes.lo =
-				le32_to_cpu(tclient->rcv_unicast_bytes.lo);
-	old_tclient->rcv_broadcast_bytes.hi =
-				le32_to_cpu(tclient->rcv_broadcast_bytes.hi);
-	old_tclient->rcv_broadcast_bytes.lo =
-				le32_to_cpu(tclient->rcv_broadcast_bytes.lo);
-	old_tclient->rcv_multicast_bytes.hi =
-				le32_to_cpu(tclient->rcv_multicast_bytes.hi);
-	old_tclient->rcv_multicast_bytes.lo =
-				le32_to_cpu(tclient->rcv_multicast_bytes.lo);
-	old_tclient->total_rcv_pkts = le32_to_cpu(tclient->total_rcv_pkts);
-
-	old_tclient->checksum_discard = le32_to_cpu(tclient->checksum_discard);
-	old_tclient->packets_too_big_discard =
-				le32_to_cpu(tclient->packets_too_big_discard);
-	estats->no_buff_discard =
-	old_tclient->no_buff_discard = le32_to_cpu(tclient->no_buff_discard);
-	old_tclient->ttl0_discard = le32_to_cpu(tclient->ttl0_discard);
-
-	old_xclient->total_sent_pkts = le32_to_cpu(xclient->total_sent_pkts);
-	old_xclient->unicast_bytes_sent.hi =
-				le32_to_cpu(xclient->unicast_bytes_sent.hi);
-	old_xclient->unicast_bytes_sent.lo =
-				le32_to_cpu(xclient->unicast_bytes_sent.lo);
-	old_xclient->multicast_bytes_sent.hi =
-				le32_to_cpu(xclient->multicast_bytes_sent.hi);
-	old_xclient->multicast_bytes_sent.lo =
-				le32_to_cpu(xclient->multicast_bytes_sent.lo);
-	old_xclient->broadcast_bytes_sent.hi =
-				le32_to_cpu(xclient->broadcast_bytes_sent.hi);
-	old_xclient->broadcast_bytes_sent.lo =
-				le32_to_cpu(xclient->broadcast_bytes_sent.lo);
+		estats->mac_discard = le32_to_cpu(tport->mac_discard);
+	}
 
 	fstats->host_func_stats_start = ++fstats->host_func_stats_end;
+
+	bp->stats_pending = 0;
 
 	return 0;
 }
 
 static void bnx2x_net_stats_update(struct bnx2x *bp)
 {
-	struct tstorm_per_client_stats *old_tclient = &bp->old_tclient;
 	struct bnx2x_eth_stats *estats = &bp->eth_stats;
 	struct net_device_stats *nstats = &bp->dev->stats;
+	int i;
 
 	nstats->rx_packets =
 		bnx2x_hilo(&estats->total_unicast_packets_received_hi) +
@@ -3733,34 +3906,33 @@ static void bnx2x_net_stats_update(struct bnx2x *bp)
 		bnx2x_hilo(&estats->total_multicast_packets_transmitted_hi) +
 		bnx2x_hilo(&estats->total_broadcast_packets_transmitted_hi);
 
-	nstats->rx_bytes = bnx2x_hilo(&estats->valid_bytes_received_hi);
+	nstats->rx_bytes = bnx2x_hilo(&estats->total_bytes_received_hi);
 
 	nstats->tx_bytes = bnx2x_hilo(&estats->total_bytes_transmitted_hi);
 
-	nstats->rx_dropped = old_tclient->checksum_discard +
-			     estats->mac_discard;
+	nstats->rx_dropped = estats->mac_discard;
+	for_each_queue(bp, i)
+		nstats->rx_dropped +=
+			le32_to_cpu(bp->fp[i].old_tclient.checksum_discard);
+
 	nstats->tx_dropped = 0;
 
 	nstats->multicast =
-		bnx2x_hilo(&estats->total_multicast_packets_transmitted_hi);
+		bnx2x_hilo(&estats->total_multicast_packets_received_hi);
 
 	nstats->collisions =
-			estats->tx_stat_dot3statssinglecollisionframes_lo +
-			estats->tx_stat_dot3statsmultiplecollisionframes_lo +
-			estats->tx_stat_dot3statslatecollisions_lo +
-			estats->tx_stat_dot3statsexcessivecollisions_lo;
-
-	estats->jabber_packets_received =
-				old_tclient->packets_too_big_discard +
-				estats->rx_stat_dot3statsframestoolong_lo;
+		bnx2x_hilo(&estats->tx_stat_etherstatscollisions_hi);
 
 	nstats->rx_length_errors =
-				estats->rx_stat_etherstatsundersizepkts_lo +
-				estats->jabber_packets_received;
-	nstats->rx_over_errors = estats->brb_drop_lo + estats->brb_truncate_lo;
-	nstats->rx_crc_errors = estats->rx_stat_dot3statsfcserrors_lo;
-	nstats->rx_frame_errors = estats->rx_stat_dot3statsalignmenterrors_lo;
-	nstats->rx_fifo_errors = old_tclient->no_buff_discard;
+		bnx2x_hilo(&estats->rx_stat_etherstatsundersizepkts_hi) +
+		bnx2x_hilo(&estats->etherstatsoverrsizepkts_hi);
+	nstats->rx_over_errors = bnx2x_hilo(&estats->brb_drop_hi) +
+				 bnx2x_hilo(&estats->brb_truncate_hi);
+	nstats->rx_crc_errors =
+		bnx2x_hilo(&estats->rx_stat_dot3statsfcserrors_hi);
+	nstats->rx_frame_errors =
+		bnx2x_hilo(&estats->rx_stat_dot3statsalignmenterrors_hi);
+	nstats->rx_fifo_errors = bnx2x_hilo(&estats->no_buff_discard_hi);
 	nstats->rx_missed_errors = estats->xxoverflow_discard;
 
 	nstats->rx_errors = nstats->rx_length_errors +
@@ -3771,46 +3943,61 @@ static void bnx2x_net_stats_update(struct bnx2x *bp)
 			    nstats->rx_missed_errors;
 
 	nstats->tx_aborted_errors =
-			estats->tx_stat_dot3statslatecollisions_lo +
-			estats->tx_stat_dot3statsexcessivecollisions_lo;
-	nstats->tx_carrier_errors = estats->rx_stat_falsecarriererrors_lo;
+		bnx2x_hilo(&estats->tx_stat_dot3statslatecollisions_hi) +
+		bnx2x_hilo(&estats->tx_stat_dot3statsexcessivecollisions_hi);
+	nstats->tx_carrier_errors =
+		bnx2x_hilo(&estats->rx_stat_dot3statscarriersenseerrors_hi);
 	nstats->tx_fifo_errors = 0;
 	nstats->tx_heartbeat_errors = 0;
 	nstats->tx_window_errors = 0;
 
 	nstats->tx_errors = nstats->tx_aborted_errors +
-			    nstats->tx_carrier_errors;
+			    nstats->tx_carrier_errors +
+	    bnx2x_hilo(&estats->tx_stat_dot3statsinternalmactransmiterrors_hi);
+}
+
+static void bnx2x_drv_stats_update(struct bnx2x *bp)
+{
+	struct bnx2x_eth_stats *estats = &bp->eth_stats;
+	int i;
+
+	estats->driver_xoff = 0;
+	estats->rx_err_discard_pkt = 0;
+	estats->rx_skb_alloc_failed = 0;
+	estats->hw_csum_err = 0;
+	for_each_queue(bp, i) {
+		struct bnx2x_eth_q_stats *qstats = &bp->fp[i].eth_q_stats;
+
+		estats->driver_xoff += qstats->driver_xoff;
+		estats->rx_err_discard_pkt += qstats->rx_err_discard_pkt;
+		estats->rx_skb_alloc_failed += qstats->rx_skb_alloc_failed;
+		estats->hw_csum_err += qstats->hw_csum_err;
+	}
 }
 
 static void bnx2x_stats_update(struct bnx2x *bp)
 {
 	u32 *stats_comp = bnx2x_sp(bp, stats_comp);
-	int update = 0;
 
 	if (*stats_comp != DMAE_COMP_VAL)
 		return;
 
 	if (bp->port.pmf)
-		update = (bnx2x_hw_stats_update(bp) == 0);
+		bnx2x_hw_stats_update(bp);
 
-	update |= (bnx2x_storm_stats_update(bp) == 0);
-
-	if (update)
-		bnx2x_net_stats_update(bp);
-
-	else {
-		if (bp->stats_pending) {
-			bp->stats_pending++;
-			if (bp->stats_pending == 3) {
-				BNX2X_ERR("stats not updated for 3 times\n");
-				bnx2x_panic();
-				return;
-			}
-		}
+	if (bnx2x_storm_stats_update(bp) && (bp->stats_pending++ == 3)) {
+		BNX2X_ERR("storm stats were not updated for 3 times\n");
+		bnx2x_panic();
+		return;
 	}
 
+	bnx2x_net_stats_update(bp);
+	bnx2x_drv_stats_update(bp);
+
 	if (bp->msglevel & NETIF_MSG_TIMER) {
-		struct tstorm_per_client_stats *old_tclient = &bp->old_tclient;
+		struct tstorm_per_client_stats *old_tclient =
+							&bp->fp->old_tclient;
+		struct bnx2x_eth_q_stats *qstats = &bp->fp->eth_q_stats;
 		struct bnx2x_eth_stats *estats = &bp->eth_stats;
 		struct net_device_stats *nstats = &bp->dev->stats;
 		int i;
@@ -3825,20 +4012,22 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 		       (u16)(le16_to_cpu(*bp->fp->rx_cons_sb) -
 			     bp->fp->rx_comp_cons),
 		       le16_to_cpu(*bp->fp->rx_cons_sb), nstats->rx_packets);
-		printk(KERN_DEBUG "  %s (Xoff events %u)  brb drops %u\n",
-		       netif_queue_stopped(bp->dev) ? "Xoff" : "Xon",
-		       estats->driver_xoff, estats->brb_drop_lo);
+		printk(KERN_DEBUG "  %s (Xoff events %u)  brb drops %u  "
+				  "brb truncate %u\n",
+		       (netif_queue_stopped(bp->dev) ? "Xoff" : "Xon"),
+		       qstats->driver_xoff,
+		       estats->brb_drop_lo, estats->brb_truncate_lo);
 		printk(KERN_DEBUG "tstats: checksum_discard %u  "
-			"packets_too_big_discard %u  no_buff_discard %u  "
+			"packets_too_big_discard %lu  no_buff_discard %lu  "
 			"mac_discard %u  mac_filter_discard %u  "
 			"xxovrflow_discard %u  brb_truncate_discard %u  "
 			"ttl0_discard %u\n",
-		       old_tclient->checksum_discard,
-		       old_tclient->packets_too_big_discard,
-		       old_tclient->no_buff_discard, estats->mac_discard,
-		       estats->mac_filter_discard, estats->xxoverflow_discard,
-		       estats->brb_truncate_discard,
-		       old_tclient->ttl0_discard);
+		       le32_to_cpu(old_tclient->checksum_discard),
+		       bnx2x_hilo(&qstats->etherstatsoverrsizepkts_hi),
+		       bnx2x_hilo(&qstats->no_buff_discard_hi),
+		       estats->mac_discard, estats->mac_filter_discard,
+		       estats->xxoverflow_discard, estats->brb_truncate_discard,
+		       le32_to_cpu(old_tclient->ttl0_discard));
 
 		for_each_queue(bp, i) {
 			printk(KERN_DEBUG "[%d]: %lu\t%lu\t%lu\n", i,
@@ -3987,7 +4176,7 @@ static void bnx2x_timer(unsigned long data)
 		struct bnx2x_fastpath *fp = &bp->fp[0];
 		int rc;
 
-		bnx2x_tx_int(fp, 1000);
+		bnx2x_tx_int(fp);
 		rc = bnx2x_rx_int(fp, 1000);
 	}
 
@@ -4035,10 +4224,10 @@ static void bnx2x_zero_sb(struct bnx2x *bp, int sb_id)
 {
 	int port = BP_PORT(bp);
 
-	bnx2x_init_fill(bp, BAR_USTRORM_INTMEM +
+	bnx2x_init_fill(bp, USTORM_INTMEM_ADDR +
 			USTORM_SB_HOST_STATUS_BLOCK_OFFSET(port, sb_id), 0,
 			sizeof(struct ustorm_status_block)/4);
-	bnx2x_init_fill(bp, BAR_CSTRORM_INTMEM +
+	bnx2x_init_fill(bp, CSTORM_INTMEM_ADDR +
 			CSTORM_SB_HOST_STATUS_BLOCK_OFFSET(port, sb_id), 0,
 			sizeof(struct cstorm_status_block)/4);
 }
@@ -4092,18 +4281,18 @@ static void bnx2x_zero_def_sb(struct bnx2x *bp)
 {
 	int func = BP_FUNC(bp);
 
-	bnx2x_init_fill(bp, BAR_USTRORM_INTMEM +
-			USTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
-			sizeof(struct ustorm_def_status_block)/4);
-	bnx2x_init_fill(bp, BAR_CSTRORM_INTMEM +
-			CSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
-			sizeof(struct cstorm_def_status_block)/4);
-	bnx2x_init_fill(bp, BAR_XSTRORM_INTMEM +
-			XSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
-			sizeof(struct xstorm_def_status_block)/4);
-	bnx2x_init_fill(bp, BAR_TSTRORM_INTMEM +
+	bnx2x_init_fill(bp, TSTORM_INTMEM_ADDR +
 			TSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
 			sizeof(struct tstorm_def_status_block)/4);
+	bnx2x_init_fill(bp, USTORM_INTMEM_ADDR +
+			USTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
+			sizeof(struct ustorm_def_status_block)/4);
+	bnx2x_init_fill(bp, CSTORM_INTMEM_ADDR +
+			CSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
+			sizeof(struct cstorm_def_status_block)/4);
+	bnx2x_init_fill(bp, XSTORM_INTMEM_ADDR +
+			XSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), 0,
+			sizeof(struct xstorm_def_status_block)/4);
 }
 
 static void bnx2x_init_def_sb(struct bnx2x *bp,
@@ -4239,10 +4428,6 @@ static void bnx2x_update_coalesce(struct bnx2x *bp)
 			 USTORM_SB_HC_DISABLE_OFFSET(port, sb_id,
 						     U_SB_ETH_RX_CQ_INDEX),
 			 bp->rx_ticks ? 0 : 1);
-		REG_WR16(bp, BAR_USTRORM_INTMEM +
-			 USTORM_SB_HC_DISABLE_OFFSET(port, sb_id,
-						     U_SB_ETH_RX_BD_INDEX),
-			 bp->rx_ticks ? 0 : 1);
 
 		/* HC_INDEX_C_ETH_TX_CQ_CONS */
 		REG_WR8(bp, BAR_CSTRORM_INTMEM +
@@ -4273,8 +4458,7 @@ static inline void bnx2x_free_tpa_pool(struct bnx2x *bp,
 		if (fp->tpa_state[i] == BNX2X_TPA_START)
 			pci_unmap_single(bp->pdev,
 					 pci_unmap_addr(rx_buf, mapping),
-					 bp->rx_buf_size,
-					 PCI_DMA_FROMDEVICE);
+					 bp->rx_buf_size, PCI_DMA_FROMDEVICE);
 
 		dev_kfree_skb(skb);
 		rx_buf->skb = NULL;
@@ -4289,16 +4473,13 @@ static void bnx2x_init_rx_rings(struct bnx2x *bp)
 	u16 ring_prod, cqe_ring_prod;
 	int i, j;
 
-	bp->rx_buf_size = bp->dev->mtu;
-	bp->rx_buf_size += bp->rx_offset + ETH_OVREHEAD +
-		BCM_RX_ETH_PAYLOAD_ALIGN;
+	bp->rx_buf_size = bp->dev->mtu + ETH_OVREHEAD + BNX2X_RX_ALIGN;
+	DP(NETIF_MSG_IFUP,
+	   "mtu %d  rx_buf_size %d\n", bp->dev->mtu, bp->rx_buf_size);
 
 	if (bp->flags & TPA_ENABLE_FLAG) {
-		DP(NETIF_MSG_IFUP,
-		   "rx_buf_size %d  effective_mtu %d\n",
-		   bp->rx_buf_size, bp->dev->mtu + ETH_OVREHEAD);
 
-		for_each_queue(bp, j) {
+		for_each_rx_queue(bp, j) {
 			struct bnx2x_fastpath *fp = &bp->fp[j];
 
 			for (i = 0; i < max_agg_queues; i++) {
@@ -4321,7 +4502,7 @@ static void bnx2x_init_rx_rings(struct bnx2x *bp)
 		}
 	}
 
-	for_each_queue(bp, j) {
+	for_each_rx_queue(bp, j) {
 		struct bnx2x_fastpath *fp = &bp->fp[j];
 
 		fp->rx_bd_cons = 0;
@@ -4396,8 +4577,8 @@ static void bnx2x_init_rx_rings(struct bnx2x *bp)
 		for (i = 0; i < bp->rx_ring_size; i++) {
 			if (bnx2x_alloc_rx_skb(bp, fp, ring_prod) < 0) {
 				BNX2X_ERR("was only able to allocate "
-					  "%d rx skbs\n", i);
-				bp->eth_stats.rx_skb_alloc_failed++;
+					  "%d rx skbs on queue[%d]\n", i, j);
+				fp->eth_q_stats.rx_skb_alloc_failed++;
 				break;
 			}
 			ring_prod = NEXT_RX_IDX(ring_prod);
@@ -4433,7 +4614,7 @@ static void bnx2x_init_tx_ring(struct bnx2x *bp)
 {
 	int i, j;
 
-	for_each_queue(bp, j) {
+	for_each_tx_queue(bp, j) {
 		struct bnx2x_fastpath *fp = &bp->fp[j];
 
 		for (i = 1; i <= NUM_TX_RINGS; i++) {
@@ -4486,27 +4667,20 @@ static void bnx2x_init_context(struct bnx2x *bp)
 	for_each_queue(bp, i) {
 		struct eth_context *context = bnx2x_sp(bp, context[i].eth);
 		struct bnx2x_fastpath *fp = &bp->fp[i];
-		u8 sb_id = FP_SB_ID(fp);
-
-		context->xstorm_st_context.tx_bd_page_base_hi =
-						U64_HI(fp->tx_desc_mapping);
-		context->xstorm_st_context.tx_bd_page_base_lo =
-						U64_LO(fp->tx_desc_mapping);
-		context->xstorm_st_context.db_data_addr_hi =
-						U64_HI(fp->tx_prods_mapping);
-		context->xstorm_st_context.db_data_addr_lo =
-						U64_LO(fp->tx_prods_mapping);
-		context->xstorm_st_context.statistics_data = (BP_CL_ID(bp) |
-				XSTORM_ETH_ST_CONTEXT_STATISTICS_ENABLE);
+		u8 cl_id = fp->cl_id;
+		u8 sb_id = fp->sb_id;
 
 		context->ustorm_st_context.common.sb_index_numbers =
 						BNX2X_RX_SB_INDEX_NUM;
-		context->ustorm_st_context.common.clientId = FP_CL_ID(fp);
+		context->ustorm_st_context.common.clientId = cl_id;
 		context->ustorm_st_context.common.status_block_id = sb_id;
 		context->ustorm_st_context.common.flags =
-			USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_MC_ALIGNMENT;
-		context->ustorm_st_context.common.mc_alignment_size =
-			BCM_RX_ETH_PAYLOAD_ALIGN;
+			(USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_MC_ALIGNMENT |
+			 USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_STATISTICS);
+		context->ustorm_st_context.common.statistics_counter_id =
+						cl_id;
+		context->ustorm_st_context.common.mc_alignment_log_size =
+						BNX2X_RX_ALIGN_SHIFT;
 		context->ustorm_st_context.common.bd_buff_size =
 						bp->rx_buf_size;
 		context->ustorm_st_context.common.bd_page_base_hi =
@@ -4518,13 +4692,29 @@ static void bnx2x_init_context(struct bnx2x *bp)
 				(USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_TPA |
 				 USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_SGE_RING);
 			context->ustorm_st_context.common.sge_buff_size =
-					(u16)(BCM_PAGE_SIZE*PAGES_PER_SGE);
+				(u16)min((u32)SGE_PAGE_SIZE*PAGES_PER_SGE,
+					 (u32)0xffff);
 			context->ustorm_st_context.common.sge_page_base_hi =
 						U64_HI(fp->rx_sge_mapping);
 			context->ustorm_st_context.common.sge_page_base_lo =
 						U64_LO(fp->rx_sge_mapping);
 		}
 
+		context->ustorm_ag_context.cdu_usage =
+			CDU_RSRVD_VALUE_TYPE_A(HW_CID(bp, i),
+					       CDU_REGION_NUMBER_UCM_AG,
+					       ETH_CONNECTION_TYPE);
+
+		context->xstorm_st_context.tx_bd_page_base_hi =
+						U64_HI(fp->tx_desc_mapping);
+		context->xstorm_st_context.tx_bd_page_base_lo =
+						U64_LO(fp->tx_desc_mapping);
+		context->xstorm_st_context.db_data_addr_hi =
+						U64_HI(fp->tx_prods_mapping);
+		context->xstorm_st_context.db_data_addr_lo =
+						U64_LO(fp->tx_prods_mapping);
+		context->xstorm_st_context.statistics_data = (cl_id |
+				XSTORM_ETH_ST_CONTEXT_STATISTICS_ENABLE);
 		context->cstorm_st_context.sb_index_number =
 						C_SB_ETH_TX_CQ_INDEX;
 		context->cstorm_st_context.status_block_id = sb_id;
@@ -4532,10 +4722,6 @@ static void bnx2x_init_context(struct bnx2x *bp)
 		context->xstorm_ag_context.cdu_reserved =
 			CDU_RSRVD_VALUE_TYPE_A(HW_CID(bp, i),
 					       CDU_REGION_NUMBER_XCM_AG,
-					       ETH_CONNECTION_TYPE);
-		context->ustorm_ag_context.cdu_usage =
-			CDU_RSRVD_VALUE_TYPE_A(HW_CID(bp, i),
-					       CDU_REGION_NUMBER_UCM_AG,
 					       ETH_CONNECTION_TYPE);
 	}
 }
@@ -4545,14 +4731,15 @@ static void bnx2x_init_ind_table(struct bnx2x *bp)
 	int func = BP_FUNC(bp);
 	int i;
 
-	if (!is_multi(bp))
+	if (bp->multi_mode == ETH_RSS_MODE_DISABLED)
 		return;
 
-	DP(NETIF_MSG_IFUP, "Initializing indirection table\n");
+	DP(NETIF_MSG_IFUP,
+	   "Initializing indirection table  multi_mode %d\n", bp->multi_mode);
 	for (i = 0; i < TSTORM_INDIRECTION_TABLE_SIZE; i++)
 		REG_WR8(bp, BAR_TSTRORM_INTMEM +
 			TSTORM_INDIRECTION_TABLE_OFFSET(func) + i,
-			BP_CL_ID(bp) + (i % bp->num_queues));
+			bp->fp->cl_id + (i % bp->num_rx_queues));
 }
 
 static void bnx2x_set_client_config(struct bnx2x *bp)
@@ -4562,13 +4749,13 @@ static void bnx2x_set_client_config(struct bnx2x *bp)
 	int i;
 
 	tstorm_client.mtu = bp->dev->mtu;
-	tstorm_client.statistics_counter_id = BP_CL_ID(bp);
 	tstorm_client.config_flags =
-				TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE;
+				(TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE |
+				 TSTORM_ETH_CLIENT_CONFIG_E1HOV_REM_ENABLE);
 #ifdef BCM_VLAN
 	if (bp->rx_mode && bp->vlgrp && (bp->flags & HW_VLAN_RX_FLAG)) {
 		tstorm_client.config_flags |=
-				TSTORM_ETH_CLIENT_CONFIG_VLAN_REMOVAL_ENABLE;
+				TSTORM_ETH_CLIENT_CONFIG_VLAN_REM_ENABLE;
 		DP(NETIF_MSG_IFUP, "vlan removal enabled\n");
 	}
 #endif
@@ -4586,6 +4773,8 @@ static void bnx2x_set_client_config(struct bnx2x *bp)
 	}
 
 	for_each_queue(bp, i) {
+		tstorm_client.statistics_counter_id = bp->fp[i].cl_id;
+
 		REG_WR(bp, BAR_TSTRORM_INTMEM +
 		       TSTORM_CLIENT_CONFIG_OFFSET(port, bp->fp[i].cl_id),
 		       ((u32 *)&tstorm_client)[0]);
@@ -4614,18 +4803,22 @@ static void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		tstorm_mac_filter.mcast_drop_all = mask;
 		tstorm_mac_filter.bcast_drop_all = mask;
 		break;
+
 	case BNX2X_RX_MODE_NORMAL:
 		tstorm_mac_filter.bcast_accept_all = mask;
 		break;
+
 	case BNX2X_RX_MODE_ALLMULTI:
 		tstorm_mac_filter.mcast_accept_all = mask;
 		tstorm_mac_filter.bcast_accept_all = mask;
 		break;
+
 	case BNX2X_RX_MODE_PROMISC:
 		tstorm_mac_filter.ucast_accept_all = mask;
 		tstorm_mac_filter.mcast_accept_all = mask;
 		tstorm_mac_filter.bcast_accept_all = mask;
 		break;
+
 	default:
 		BNX2X_ERR("BAD rx mode (%d)\n", mode);
 		break;
@@ -4676,19 +4869,64 @@ static void bnx2x_init_internal_port(struct bnx2x *bp)
 	REG_WR(bp, BAR_XSTRORM_INTMEM + XSTORM_HC_BTR_OFFSET(port), BNX2X_BTR);
 }
 
+/* Calculates the sum of vn_min_rates.
+   It's needed for further normalizing of the min_rates.
+   Returns:
+     sum of vn_min_rates.
+       or
+     0 - if all the min_rates are 0.
+     In the later case fainess algorithm should be deactivated.
+     If not all min_rates are zero then those that are zeroes will be set to 1.
+ */
+static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
+{
+	int all_zero = 1;
+	int port = BP_PORT(bp);
+	int vn;
+
+	bp->vn_weight_sum = 0;
+	for (vn = VN_0; vn < E1HVN_MAX; vn++) {
+		int func = 2*vn + port;
+		u32 vn_cfg =
+			SHMEM_RD(bp, mf_cfg.func_mf_config[func].config);
+		u32 vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
+				   FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
+
+		/* Skip hidden vns */
+		if (vn_cfg & FUNC_MF_CFG_FUNC_HIDE)
+			continue;
+
+		/* If min rate is zero - set it to 1 */
+		if (!vn_min_rate)
+			vn_min_rate = DEF_MIN_RATE;
+		else
+			all_zero = 0;
+
+		bp->vn_weight_sum += vn_min_rate;
+	}
+
+	/* ... only if all min rates are zeros - disable fairness */
+	if (all_zero)
+		bp->vn_weight_sum = 0;
+}
+
 static void bnx2x_init_internal_func(struct bnx2x *bp)
 {
 	struct tstorm_eth_function_common_config tstorm_config = {0};
 	struct stats_indication_flags stats_flags = {0};
 	int port = BP_PORT(bp);
 	int func = BP_FUNC(bp);
-	int i;
+	int i, j;
+	u32 offset;
 	u16 max_agg_size;
 
 	if (is_multi(bp)) {
-		tstorm_config.config_flags = MULTI_FLAGS;
+		tstorm_config.config_flags = MULTI_FLAGS(bp);
 		tstorm_config.rss_result_mask = MULTI_MASK;
 	}
+	if (IS_E1HMF(bp))
+		tstorm_config.config_flags |=
+				TSTORM_ETH_FUNCTION_COMMON_CONFIG_E1HOV_IN_CAM;
 
 	tstorm_config.leading_client_id = BP_L_ID(bp);
 
@@ -4699,17 +4937,29 @@ static void bnx2x_init_internal_func(struct bnx2x *bp)
 	bp->rx_mode = BNX2X_RX_MODE_NONE; /* no rx until link is up */
 	bnx2x_set_storm_rx_mode(bp);
 
-	/* reset xstorm per client statistics */
-	for (i = 0; i < sizeof(struct xstorm_per_client_stats) / 4; i++) {
-		REG_WR(bp, BAR_XSTRORM_INTMEM +
-		       XSTORM_PER_COUNTER_ID_STATS_OFFSET(port, BP_CL_ID(bp)) +
-		       i*4, 0);
-	}
-	/* reset tstorm per client statistics */
-	for (i = 0; i < sizeof(struct tstorm_per_client_stats) / 4; i++) {
-		REG_WR(bp, BAR_TSTRORM_INTMEM +
-		       TSTORM_PER_COUNTER_ID_STATS_OFFSET(port, BP_CL_ID(bp)) +
-		       i*4, 0);
+	for_each_queue(bp, i) {
+		u8 cl_id = bp->fp[i].cl_id;
+
+		/* reset xstorm per client statistics */
+		offset = BAR_XSTRORM_INTMEM +
+			 XSTORM_PER_COUNTER_ID_STATS_OFFSET(port, cl_id);
+		for (j = 0;
+		     j < sizeof(struct xstorm_per_client_stats) / 4; j++)
+			REG_WR(bp, offset + j*4, 0);
+
+		/* reset tstorm per client statistics */
+		offset = BAR_TSTRORM_INTMEM +
+			 TSTORM_PER_COUNTER_ID_STATS_OFFSET(port, cl_id);
+		for (j = 0;
+		     j < sizeof(struct tstorm_per_client_stats) / 4; j++)
+			REG_WR(bp, offset + j*4, 0);
+
+		/* reset ustorm per client statistics */
+		offset = BAR_USTRORM_INTMEM +
+			 USTORM_PER_COUNTER_ID_STATS_OFFSET(port, cl_id);
+		for (j = 0;
+		     j < sizeof(struct ustorm_per_client_stats) / 4; j++)
+			REG_WR(bp, offset + j*4, 0);
 	}
 
 	/* Init statistics related context */
@@ -4723,6 +4973,11 @@ static void bnx2x_init_internal_func(struct bnx2x *bp)
 	REG_WR(bp, BAR_TSTRORM_INTMEM + TSTORM_STATS_FLAGS_OFFSET(func),
 	       ((u32 *)&stats_flags)[0]);
 	REG_WR(bp, BAR_TSTRORM_INTMEM + TSTORM_STATS_FLAGS_OFFSET(func) + 4,
+	       ((u32 *)&stats_flags)[1]);
+
+	REG_WR(bp, BAR_USTRORM_INTMEM + USTORM_STATS_FLAGS_OFFSET(func),
+	       ((u32 *)&stats_flags)[0]);
+	REG_WR(bp, BAR_USTRORM_INTMEM + USTORM_STATS_FLAGS_OFFSET(func) + 4,
 	       ((u32 *)&stats_flags)[1]);
 
 	REG_WR(bp, BAR_CSTRORM_INTMEM + CSTORM_STATS_FLAGS_OFFSET(func),
@@ -4744,6 +4999,13 @@ static void bnx2x_init_internal_func(struct bnx2x *bp)
 	       TSTORM_ETH_STATS_QUERY_ADDR_OFFSET(func) + 4,
 	       U64_HI(bnx2x_sp_mapping(bp, fw_stats)));
 
+	REG_WR(bp, BAR_USTRORM_INTMEM +
+	       USTORM_ETH_STATS_QUERY_ADDR_OFFSET(func),
+	       U64_LO(bnx2x_sp_mapping(bp, fw_stats)));
+	REG_WR(bp, BAR_USTRORM_INTMEM +
+	       USTORM_ETH_STATS_QUERY_ADDR_OFFSET(func) + 4,
+	       U64_HI(bnx2x_sp_mapping(bp, fw_stats)));
+
 	if (CHIP_IS_E1H(bp)) {
 		REG_WR8(bp, BAR_XSTRORM_INTMEM + XSTORM_FUNCTION_MODE_OFFSET,
 			IS_E1HMF(bp));
@@ -4763,20 +5025,91 @@ static void bnx2x_init_internal_func(struct bnx2x *bp)
 		min((u32)(min((u32)8, (u32)MAX_SKB_FRAGS) *
 			  SGE_PAGE_SIZE * PAGES_PER_SGE),
 		    (u32)0xffff);
-	for_each_queue(bp, i) {
+	for_each_rx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		REG_WR(bp, BAR_USTRORM_INTMEM +
-		       USTORM_CQE_PAGE_BASE_OFFSET(port, FP_CL_ID(fp)),
+		       USTORM_CQE_PAGE_BASE_OFFSET(port, fp->cl_id),
 		       U64_LO(fp->rx_comp_mapping));
 		REG_WR(bp, BAR_USTRORM_INTMEM +
-		       USTORM_CQE_PAGE_BASE_OFFSET(port, FP_CL_ID(fp)) + 4,
+		       USTORM_CQE_PAGE_BASE_OFFSET(port, fp->cl_id) + 4,
 		       U64_HI(fp->rx_comp_mapping));
 
 		REG_WR16(bp, BAR_USTRORM_INTMEM +
-			 USTORM_MAX_AGG_SIZE_OFFSET(port, FP_CL_ID(fp)),
+			 USTORM_MAX_AGG_SIZE_OFFSET(port, fp->cl_id),
 			 max_agg_size);
 	}
+
+	/* dropless flow control */
+	if (CHIP_IS_E1H(bp)) {
+		struct ustorm_eth_rx_pause_data_e1h rx_pause = {0};
+
+		rx_pause.bd_thr_low = 250;
+		rx_pause.cqe_thr_low = 250;
+		rx_pause.cos = 1;
+		rx_pause.sge_thr_low = 0;
+		rx_pause.bd_thr_high = 350;
+		rx_pause.cqe_thr_high = 350;
+		rx_pause.sge_thr_high = 0;
+
+		for_each_rx_queue(bp, i) {
+			struct bnx2x_fastpath *fp = &bp->fp[i];
+
+			if (!fp->disable_tpa) {
+				rx_pause.sge_thr_low = 150;
+				rx_pause.sge_thr_high = 250;
+			}
+
+
+			offset = BAR_USTRORM_INTMEM +
+				 USTORM_ETH_RING_PAUSE_DATA_OFFSET(port,
+								   fp->cl_id);
+			for (j = 0;
+			     j < sizeof(struct ustorm_eth_rx_pause_data_e1h)/4;
+			     j++)
+				REG_WR(bp, offset + j*4,
+				       ((u32 *)&rx_pause)[j]);
+		}
+	}
+
+	memset(&(bp->cmng), 0, sizeof(struct cmng_struct_per_port));
+
+	/* Init rate shaping and fairness contexts */
+	if (IS_E1HMF(bp)) {
+		int vn;
+
+		/* During init there is no active link
+		   Until link is up, set link rate to 10Gbps */
+		bp->link_vars.line_speed = SPEED_10000;
+		bnx2x_init_port_minmax(bp);
+
+		bnx2x_calc_vn_weight_sum(bp);
+
+		for (vn = VN_0; vn < E1HVN_MAX; vn++)
+			bnx2x_init_vn_minmax(bp, 2*vn + port);
+
+		/* Enable rate shaping and fairness */
+		bp->cmng.flags.cmng_enables =
+					CMNG_FLAGS_PER_PORT_RATE_SHAPING_VN;
+		if (bp->vn_weight_sum)
+			bp->cmng.flags.cmng_enables |=
+					CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
+		else
+			DP(NETIF_MSG_IFUP, "All MIN values are zeroes"
+			   "  fairness will be disabled\n");
+	} else {
+		/* rate shaping and fairness are disabled */
+		DP(NETIF_MSG_IFUP,
+		   "single function mode  minmax will be disabled\n");
+	}
+
+
+	/* Store it to internal memory */
+	if (bp->port.pmf)
+		for (i = 0; i < sizeof(struct cmng_struct_per_port) / 4; i++)
+			REG_WR(bp, BAR_XSTRORM_INTMEM +
+			       XSTORM_CMNG_PER_PORT_VARS_OFFSET(port) + i * 4,
+			       ((u32 *)(&bp->cmng))[i]);
 }
 
 static void bnx2x_init_internal(struct bnx2x *bp, u32 load_code)
@@ -4813,12 +5146,16 @@ static void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 		fp->cl_id = BP_L_ID(bp) + i;
 		fp->sb_id = fp->cl_id;
 		DP(NETIF_MSG_IFUP,
-		   "bnx2x_init_sb(%p,%p) index %d  cl_id %d  sb %d\n",
-		   bp, fp->status_blk, i, FP_CL_ID(fp), FP_SB_ID(fp));
+		   "queue[%d]:  bnx2x_init_sb(%p,%p)  cl_id %d  sb %d\n",
+		   i, bp, fp->status_blk, fp->cl_id, fp->sb_id);
 		bnx2x_init_sb(bp, fp->status_blk, fp->status_blk_mapping,
-			      FP_SB_ID(fp));
+			      fp->sb_id);
 		bnx2x_update_fpsb_idx(fp);
 	}
+
+	/* ensure status block indices were read */
+	rmb();
+
 
 	bnx2x_init_def_sb(bp, bp->def_status_blk, bp->def_status_blk_mapping,
 			  DEF_SB_ID);
@@ -5197,6 +5534,8 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	REG_WR(bp, PXP2_REG_RQ_SRC_ENDIAN_M, 1);
 	REG_WR(bp, PXP2_REG_RQ_CDU_ENDIAN_M, 1);
 	REG_WR(bp, PXP2_REG_RQ_DBG_ENDIAN_M, 1);
+	/* make sure this value is 0 */
+	REG_WR(bp, PXP2_REG_RQ_HC_ENDIAN_M, 0);
 
 /*	REG_WR(bp, PXP2_REG_RD_PBF_SWAP_MODE, 1); */
 	REG_WR(bp, PXP2_REG_RD_QM_SWAP_MODE, 1);
@@ -5265,14 +5604,6 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	}
 
 	bnx2x_init_block(bp, BRB1_COMMON_START, BRB1_COMMON_END);
-	if (CHIP_REV_IS_SLOW(bp)) {
-		/* fix for emulation and FPGA for no pause */
-		REG_WR(bp, BRB1_REG_PAUSE_HIGH_THRESHOLD_0, 513);
-		REG_WR(bp, BRB1_REG_PAUSE_HIGH_THRESHOLD_1, 513);
-		REG_WR(bp, BRB1_REG_PAUSE_LOW_THRESHOLD_0, 0);
-		REG_WR(bp, BRB1_REG_PAUSE_LOW_THRESHOLD_1, 0);
-	}
-
 	bnx2x_init_block(bp, PRS_COMMON_START, PRS_COMMON_END);
 	REG_WR(bp, PRS_REG_A_PRSU_20, 0xf);
 	/* set NIC mode */
@@ -5285,37 +5616,10 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	bnx2x_init_block(bp, USDM_COMMON_START, USDM_COMMON_END);
 	bnx2x_init_block(bp, XSDM_COMMON_START, XSDM_COMMON_END);
 
-	if (CHIP_IS_E1H(bp)) {
-		bnx2x_init_fill(bp, TSTORM_INTMEM_ADDR, 0,
-				STORM_INTMEM_SIZE_E1H/2);
-		bnx2x_init_fill(bp,
-				TSTORM_INTMEM_ADDR + STORM_INTMEM_SIZE_E1H/2,
-				0, STORM_INTMEM_SIZE_E1H/2);
-		bnx2x_init_fill(bp, CSTORM_INTMEM_ADDR, 0,
-				STORM_INTMEM_SIZE_E1H/2);
-		bnx2x_init_fill(bp,
-				CSTORM_INTMEM_ADDR + STORM_INTMEM_SIZE_E1H/2,
-				0, STORM_INTMEM_SIZE_E1H/2);
-		bnx2x_init_fill(bp, XSTORM_INTMEM_ADDR, 0,
-				STORM_INTMEM_SIZE_E1H/2);
-		bnx2x_init_fill(bp,
-				XSTORM_INTMEM_ADDR + STORM_INTMEM_SIZE_E1H/2,
-				0, STORM_INTMEM_SIZE_E1H/2);
-		bnx2x_init_fill(bp, USTORM_INTMEM_ADDR, 0,
-				STORM_INTMEM_SIZE_E1H/2);
-		bnx2x_init_fill(bp,
-				USTORM_INTMEM_ADDR + STORM_INTMEM_SIZE_E1H/2,
-				0, STORM_INTMEM_SIZE_E1H/2);
-	} else { /* E1 */
-		bnx2x_init_fill(bp, TSTORM_INTMEM_ADDR, 0,
-				STORM_INTMEM_SIZE_E1);
-		bnx2x_init_fill(bp, CSTORM_INTMEM_ADDR, 0,
-				STORM_INTMEM_SIZE_E1);
-		bnx2x_init_fill(bp, XSTORM_INTMEM_ADDR, 0,
-				STORM_INTMEM_SIZE_E1);
-		bnx2x_init_fill(bp, USTORM_INTMEM_ADDR, 0,
-				STORM_INTMEM_SIZE_E1);
-	}
+	bnx2x_init_fill(bp, TSTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE(bp));
+	bnx2x_init_fill(bp, USTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE(bp));
+	bnx2x_init_fill(bp, CSTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE(bp));
+	bnx2x_init_fill(bp, XSTORM_INTMEM_ADDR, 0, STORM_INTMEM_SIZE(bp));
 
 	bnx2x_init_block(bp, TSEM_COMMON_START, TSEM_COMMON_END);
 	bnx2x_init_block(bp, USEM_COMMON_START, USEM_COMMON_END);
@@ -5337,8 +5641,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 		REG_WR(bp, i, 0xc0cac01a);
 		/* TODO: replace with something meaningful */
 	}
-	if (CHIP_IS_E1H(bp))
-		bnx2x_init_block(bp, SRCH_COMMON_START, SRCH_COMMON_END);
+	bnx2x_init_block(bp, SRCH_COMMON_START, SRCH_COMMON_END);
 	REG_WR(bp, SRC_REG_SOFT_RST, 0);
 
 	if (sizeof(union cdu_context) != 1024)
@@ -5357,6 +5660,11 @@ static int bnx2x_init_common(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, CFC_COMMON_START, CFC_COMMON_END);
 	REG_WR(bp, CFC_REG_INIT_REG, 0x7FF);
+	/* enable context validation interrupt from CFC */
+	REG_WR(bp, CFC_REG_CFC_INT_MASK, 0);
+
+	/* set the thresholds to prevent CFC/CDU race */
+	REG_WR(bp, CFC_REG_DEBUG0, 0x20020000);
 
 	bnx2x_init_block(bp, HC_COMMON_START, HC_COMMON_END);
 	bnx2x_init_block(bp, MISC_AEU_COMMON_START, MISC_AEU_COMMON_END);
@@ -5409,9 +5717,14 @@ static int bnx2x_init_common(struct bnx2x *bp)
 		return -EBUSY;
 	}
 
-	switch (bp->common.board & SHARED_HW_CFG_BOARD_TYPE_MASK) {
-	case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1021G:
-	case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1022G:
+	switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+		bp->port.need_hw_lock = 1;
+		break;
+
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 		/* Fan failure is indicated by SPIO 5 */
 		bnx2x_set_spio(bp, MISC_REGISTERS_SPIO_5,
 			       MISC_REGISTERS_SPIO_INPUT_HI_Z);
@@ -5450,6 +5763,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 static int bnx2x_init_port(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
+	u32 low, high;
 	u32 val;
 
 	DP(BNX2X_MSG_MCP, "starting port init  port %x\n", port);
@@ -5484,6 +5798,8 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	REG_WR(bp, PXP2_REG_PSWRQ_SRC0_L2P + func*4, PXP_ONE_ILT(i));
 #endif
 	/* Port CMs come here */
+	bnx2x_init_block(bp, (port ? XCM_PORT1_START : XCM_PORT0_START),
+			     (port ? XCM_PORT1_END : XCM_PORT0_END));
 
 	/* Port QM comes here */
 #ifdef BCM_ISCSI
@@ -5494,12 +5810,38 @@ static int bnx2x_init_port(struct bnx2x *bp)
 			     func ? TIMERS_PORT1_END : TIMERS_PORT0_END);
 #endif
 	/* Port DQ comes here */
-	/* Port BRB1 comes here */
+
+	bnx2x_init_block(bp, (port ? BRB1_PORT1_START : BRB1_PORT0_START),
+			     (port ? BRB1_PORT1_END : BRB1_PORT0_END));
+	if (CHIP_REV_IS_SLOW(bp) && !CHIP_IS_E1H(bp)) {
+		/* no pause for emulation and FPGA */
+		low = 0;
+		high = 513;
+	} else {
+		if (IS_E1HMF(bp))
+			low = ((bp->flags & ONE_PORT_FLAG) ? 160 : 246);
+		else if (bp->dev->mtu > 4096) {
+			if (bp->flags & ONE_PORT_FLAG)
+				low = 160;
+			else {
+				val = bp->dev->mtu;
+				/* (24*1024 + val*4)/256 */
+				low = 96 + (val/64) + ((val % 64) ? 1 : 0);
+			}
+		} else
+			low = ((bp->flags & ONE_PORT_FLAG) ? 80 : 160);
+		high = low + 56;	/* 14*1024/256 */
+	}
+	REG_WR(bp, BRB1_REG_PAUSE_LOW_THRESHOLD_0 + port*4, low);
+	REG_WR(bp, BRB1_REG_PAUSE_HIGH_THRESHOLD_0 + port*4, high);
+
+
 	/* Port PRS comes here */
 	/* Port TSDM comes here */
 	/* Port CSDM comes here */
 	/* Port USDM comes here */
 	/* Port XSDM comes here */
+
 	bnx2x_init_block(bp, port ? TSEM_PORT1_START : TSEM_PORT0_START,
 			     port ? TSEM_PORT1_END : TSEM_PORT0_END);
 	bnx2x_init_block(bp, port ? USEM_PORT1_START : USEM_PORT0_START,
@@ -5508,6 +5850,7 @@ static int bnx2x_init_port(struct bnx2x *bp)
 			     port ? CSEM_PORT1_END : CSEM_PORT0_END);
 	bnx2x_init_block(bp, port ? XSEM_PORT1_START : XSEM_PORT0_START,
 			     port ? XSEM_PORT1_END : XSEM_PORT0_END);
+
 	/* Port UPB comes here */
 	/* Port XPB comes here */
 
@@ -5566,36 +5909,63 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	/* Port EMAC1 comes here */
 	/* Port DBU comes here */
 	/* Port DBG comes here */
+
 	bnx2x_init_block(bp, port ? NIG_PORT1_START : NIG_PORT0_START,
 			     port ? NIG_PORT1_END : NIG_PORT0_END);
 
 	REG_WR(bp, NIG_REG_XGXS_SERDES0_MODE_SEL + port*4, 1);
 
 	if (CHIP_IS_E1H(bp)) {
-		u32 wsum;
-		struct cmng_struct_per_port m_cmng_port;
-		int vn;
-
 		/* 0x2 disable e1hov, 0x1 enable */
 		REG_WR(bp, NIG_REG_LLH0_BRB1_DRV_MASK_MF + port*4,
 		       (IS_E1HMF(bp) ? 0x1 : 0x2));
 
-		/* Init RATE SHAPING and FAIRNESS contexts.
-		   Initialize as if there is 10G link. */
-		wsum = bnx2x_calc_vn_wsum(bp);
-		bnx2x_init_port_minmax(bp, (int)wsum, 10000, &m_cmng_port);
-		if (IS_E1HMF(bp))
-			for (vn = VN_0; vn < E1HVN_MAX; vn++)
-				bnx2x_init_vn_minmax(bp, 2*vn + port,
-					wsum, 10000, &m_cmng_port);
+		/* support pause requests from USDM, TSDM and BRB */
+		REG_WR(bp, NIG_REG_LLFC_EGRESS_SRC_ENABLE_0 + port*4, 0x7);
+
+		{
+			REG_WR(bp, NIG_REG_LLFC_ENABLE_0 + port*4, 0);
+			REG_WR(bp, NIG_REG_LLFC_OUT_EN_0 + port*4, 0);
+			REG_WR(bp, NIG_REG_PAUSE_ENABLE_0 + port*4, 1);
+		}
 	}
 
 	/* Port MCP comes here */
 	/* Port DMAE comes here */
 
-	switch (bp->common.board & SHARED_HW_CFG_BOARD_TYPE_MASK) {
-	case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1021G:
-	case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1022G:
+	switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+		{
+		u32 swap_val, swap_override, aeu_gpio_mask, offset;
+
+		bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
+			       MISC_REGISTERS_GPIO_INPUT_HI_Z, port);
+
+		/* The GPIO should be swapped if the swap register is
+		   set and active */
+		swap_val = REG_RD(bp, NIG_REG_PORT_SWAP);
+		swap_override = REG_RD(bp, NIG_REG_STRAP_OVERRIDE);
+
+		/* Select function upon port-swap configuration */
+		if (port == 0) {
+			offset = MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0;
+			aeu_gpio_mask = (swap_val && swap_override) ?
+				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1 :
+				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0;
+		} else {
+			offset = MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0;
+			aeu_gpio_mask = (swap_val && swap_override) ?
+				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0 :
+				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1;
+		}
+		val = REG_RD(bp, offset);
+		/* add GPIO3 to group */
+		val |= aeu_gpio_mask;
+		REG_WR(bp, offset, val);
+		}
+		break;
+
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 		/* add SPIO 5 to group 0 */
 		val = REG_RD(bp, MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0);
 		val |= AEU_INPUTS_ATTN_BITS_SPIO5;
@@ -5641,9 +6011,16 @@ static int bnx2x_init_func(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 	int func = BP_FUNC(bp);
+	u32 addr, val;
 	int i;
 
 	DP(BNX2X_MSG_MCP, "starting func init  func %x\n", func);
+
+	/* set MSI reconfigure capability */
+	addr = (port ? HC_REG_CONFIG_1 : HC_REG_CONFIG_0);
+	val = REG_RD(bp, addr);
+	val |= HC_CONFIG_0_REG_MSI_ATTN_EN_0;
+	REG_WR(bp, addr, val);
 
 	i = FUNC_ILT_BASE(func);
 
@@ -5673,9 +6050,6 @@ static int bnx2x_init_func(struct bnx2x *bp)
 		REG_WR(bp, HC_REG_TRAILING_EDGE_0 + port*8, 0);
 	}
 	bnx2x_init_block(bp, hc_limits[func][0], hc_limits[func][1]);
-
-	if (CHIP_IS_E1H(bp))
-		REG_WR(bp, HC_REG_FUNC_NUM_P0 + port*4, func);
 
 	/* Reset PCIE errors for debug */
 	REG_WR(bp, 0x2114, 0xffffffff);
@@ -5805,20 +6179,19 @@ static void bnx2x_free_mem(struct bnx2x *bp)
 	int i;
 
 	/* fastpath */
+	/* Common */
 	for_each_queue(bp, i) {
 
-		/* Status blocks */
+		/* status blocks */
 		BNX2X_PCI_FREE(bnx2x_fp(bp, i, status_blk),
 			       bnx2x_fp(bp, i, status_blk_mapping),
 			       sizeof(struct host_status_block) +
 			       sizeof(struct eth_tx_db_data));
+	}
+	/* Rx */
+	for_each_rx_queue(bp, i) {
 
-		/* fast path rings: tx_buf tx_desc rx_buf rx_desc rx_comp */
-		BNX2X_FREE(bnx2x_fp(bp, i, tx_buf_ring));
-		BNX2X_PCI_FREE(bnx2x_fp(bp, i, tx_desc_ring),
-			       bnx2x_fp(bp, i, tx_desc_mapping),
-			       sizeof(struct eth_tx_bd) * NUM_TX_BD);
-
+		/* fastpath rx rings: rx_buf rx_desc rx_comp */
 		BNX2X_FREE(bnx2x_fp(bp, i, rx_buf_ring));
 		BNX2X_PCI_FREE(bnx2x_fp(bp, i, rx_desc_ring),
 			       bnx2x_fp(bp, i, rx_desc_mapping),
@@ -5834,6 +6207,15 @@ static void bnx2x_free_mem(struct bnx2x *bp)
 		BNX2X_PCI_FREE(bnx2x_fp(bp, i, rx_sge_ring),
 			       bnx2x_fp(bp, i, rx_sge_mapping),
 			       BCM_PAGE_SIZE * NUM_RX_SGE_PAGES);
+	}
+	/* Tx */
+	for_each_tx_queue(bp, i) {
+
+		/* fastpath tx rings: tx_buf tx_desc */
+		BNX2X_FREE(bnx2x_fp(bp, i, tx_buf_ring));
+		BNX2X_PCI_FREE(bnx2x_fp(bp, i, tx_desc_ring),
+			       bnx2x_fp(bp, i, tx_desc_mapping),
+			       sizeof(struct eth_tx_bd) * NUM_TX_BD);
 	}
 	/* end of fastpath */
 
@@ -5877,29 +6259,20 @@ static int bnx2x_alloc_mem(struct bnx2x *bp)
 	int i;
 
 	/* fastpath */
+	/* Common */
 	for_each_queue(bp, i) {
 		bnx2x_fp(bp, i, bp) = bp;
 
-		/* Status blocks */
+		/* status blocks */
 		BNX2X_PCI_ALLOC(bnx2x_fp(bp, i, status_blk),
 				&bnx2x_fp(bp, i, status_blk_mapping),
 				sizeof(struct host_status_block) +
 				sizeof(struct eth_tx_db_data));
+	}
+	/* Rx */
+	for_each_rx_queue(bp, i) {
 
-		bnx2x_fp(bp, i, hw_tx_prods) =
-				(void *)(bnx2x_fp(bp, i, status_blk) + 1);
-
-		bnx2x_fp(bp, i, tx_prods_mapping) =
-				bnx2x_fp(bp, i, status_blk_mapping) +
-				sizeof(struct host_status_block);
-
-		/* fast path rings: tx_buf tx_desc rx_buf rx_desc rx_comp */
-		BNX2X_ALLOC(bnx2x_fp(bp, i, tx_buf_ring),
-				sizeof(struct sw_tx_bd) * NUM_TX_BD);
-		BNX2X_PCI_ALLOC(bnx2x_fp(bp, i, tx_desc_ring),
-				&bnx2x_fp(bp, i, tx_desc_mapping),
-				sizeof(struct eth_tx_bd) * NUM_TX_BD);
-
+		/* fastpath rx rings: rx_buf rx_desc rx_comp */
 		BNX2X_ALLOC(bnx2x_fp(bp, i, rx_buf_ring),
 				sizeof(struct sw_rx_bd) * NUM_RX_BD);
 		BNX2X_PCI_ALLOC(bnx2x_fp(bp, i, rx_desc_ring),
@@ -5917,6 +6290,23 @@ static int bnx2x_alloc_mem(struct bnx2x *bp)
 		BNX2X_PCI_ALLOC(bnx2x_fp(bp, i, rx_sge_ring),
 				&bnx2x_fp(bp, i, rx_sge_mapping),
 				BCM_PAGE_SIZE * NUM_RX_SGE_PAGES);
+	}
+	/* Tx */
+	for_each_tx_queue(bp, i) {
+
+		bnx2x_fp(bp, i, hw_tx_prods) =
+				(void *)(bnx2x_fp(bp, i, status_blk) + 1);
+
+		bnx2x_fp(bp, i, tx_prods_mapping) =
+				bnx2x_fp(bp, i, status_blk_mapping) +
+				sizeof(struct host_status_block);
+
+		/* fastpath tx rings: tx_buf tx_desc */
+		BNX2X_ALLOC(bnx2x_fp(bp, i, tx_buf_ring),
+				sizeof(struct sw_tx_bd) * NUM_TX_BD);
+		BNX2X_PCI_ALLOC(bnx2x_fp(bp, i, tx_desc_ring),
+				&bnx2x_fp(bp, i, tx_desc_mapping),
+				sizeof(struct eth_tx_bd) * NUM_TX_BD);
 	}
 	/* end of fastpath */
 
@@ -5971,7 +6361,7 @@ static void bnx2x_free_tx_skbs(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_queue(bp, i) {
+	for_each_tx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		u16 bd_cons = fp->tx_bd_cons;
@@ -5989,7 +6379,7 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 {
 	int i, j;
 
-	for_each_queue(bp, j) {
+	for_each_rx_queue(bp, j) {
 		struct bnx2x_fastpath *fp = &bp->fp[j];
 
 		for (i = 0; i < NUM_RX_BD; i++) {
@@ -6001,8 +6391,7 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 
 			pci_unmap_single(bp->pdev,
 					 pci_unmap_addr(rx_buf, mapping),
-					 bp->rx_buf_size,
-					 PCI_DMA_FROMDEVICE);
+					 bp->rx_buf_size, PCI_DMA_FROMDEVICE);
 
 			rx_buf->skb = NULL;
 			dev_kfree_skb(skb);
@@ -6033,10 +6422,6 @@ static void bnx2x_free_msix_irqs(struct bnx2x *bp)
 		   "state %x\n", i, bp->msix_table[i + offset].vector,
 		   bnx2x_fp(bp, i, state));
 
-		if (bnx2x_fp(bp, i, state) != BNX2X_FP_STATE_CLOSED)
-			BNX2X_ERR("IRQ of fp #%d being freed while "
-				  "state != closed\n", i);
-
 		free_irq(bp->msix_table[i + offset].vector, &bp->fp[i]);
 	}
 }
@@ -6048,32 +6433,37 @@ static void bnx2x_free_irq(struct bnx2x *bp)
 		pci_disable_msix(bp->pdev);
 		bp->flags &= ~USING_MSIX_FLAG;
 
+	} else if (bp->flags & USING_MSI_FLAG) {
+		free_irq(bp->pdev->irq, bp->dev);
+		pci_disable_msi(bp->pdev);
+		bp->flags &= ~USING_MSI_FLAG;
+
 	} else
 		free_irq(bp->pdev->irq, bp->dev);
 }
 
 static int bnx2x_enable_msix(struct bnx2x *bp)
 {
-	int i, rc, offset;
+	int i, rc, offset = 1;
+	int igu_vec = 0;
 
-	bp->msix_table[0].entry = 0;
-	offset = 1;
-	DP(NETIF_MSG_IFUP, "msix_table[0].entry = 0 (slowpath)\n");
+	bp->msix_table[0].entry = igu_vec;
+	DP(NETIF_MSG_IFUP, "msix_table[0].entry = %d (slowpath)\n", igu_vec);
 
 	for_each_queue(bp, i) {
-		int igu_vec = offset + i + BP_L_ID(bp);
-
+		igu_vec = BP_L_ID(bp) + offset + i;
 		bp->msix_table[i + offset].entry = igu_vec;
 		DP(NETIF_MSG_IFUP, "msix_table[%d].entry = %d "
 		   "(fastpath #%u)\n", i + offset, igu_vec, i);
 	}
 
 	rc = pci_enable_msix(bp->pdev, &bp->msix_table[0],
-			     bp->num_queues + offset);
+			     BNX2X_NUM_QUEUES(bp) + offset);
 	if (rc) {
-		DP(NETIF_MSG_IFUP, "MSI-X is not attainable\n");
-		return -1;
+		DP(NETIF_MSG_IFUP, "MSI-X is not attainable  rc %d\n", rc);
+		return rc;
 	}
+
 	bp->flags |= USING_MSIX_FLAG;
 
 	return 0;
@@ -6091,27 +6481,60 @@ static int bnx2x_req_msix_irqs(struct bnx2x *bp)
 	}
 
 	for_each_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+
+		sprintf(fp->name, "%s.fp%d", bp->dev->name, i);
 		rc = request_irq(bp->msix_table[i + offset].vector,
-				 bnx2x_msix_fp_int, 0,
-				 bp->dev->name, &bp->fp[i]);
+				 bnx2x_msix_fp_int, 0, fp->name, fp);
 		if (rc) {
-			BNX2X_ERR("request fp #%d irq failed  rc -%d\n",
-				  i + offset, -rc);
+			BNX2X_ERR("request fp #%d irq failed  rc %d\n", i, rc);
 			bnx2x_free_msix_irqs(bp);
 			return -EBUSY;
 		}
 
-		bnx2x_fp(bp, i, state) = BNX2X_FP_STATE_IRQ;
+		fp->state = BNX2X_FP_STATE_IRQ;
 	}
+
+	i = BNX2X_NUM_QUEUES(bp);
+	if (is_multi(bp))
+		printk(KERN_INFO PFX
+		       "%s: using MSI-X  IRQs: sp %d  fp %d - %d\n",
+		       bp->dev->name, bp->msix_table[0].vector,
+		       bp->msix_table[offset].vector,
+		       bp->msix_table[offset + i - 1].vector);
+	else
+		printk(KERN_INFO PFX "%s: using MSI-X  IRQs: sp %d  fp %d\n",
+		       bp->dev->name, bp->msix_table[0].vector,
+		       bp->msix_table[offset + i - 1].vector);
+
+	return 0;
+}
+
+static int bnx2x_enable_msi(struct bnx2x *bp)
+{
+	int rc;
+
+	rc = pci_enable_msi(bp->pdev);
+	if (rc) {
+		DP(NETIF_MSG_IFUP, "MSI is not attainable\n");
+		return -1;
+	}
+	bp->flags |= USING_MSI_FLAG;
 
 	return 0;
 }
 
 static int bnx2x_req_irq(struct bnx2x *bp)
 {
+	unsigned long flags;
 	int rc;
 
-	rc = request_irq(bp->pdev->irq, bnx2x_interrupt, IRQF_SHARED,
+	if (bp->flags & USING_MSI_FLAG)
+		flags = 0;
+	else
+		flags = IRQF_SHARED;
+
+	rc = request_irq(bp->pdev->irq, bnx2x_interrupt, flags,
 			 bp->dev->name, bp->dev);
 	if (!rc)
 		bnx2x_fp(bp, 0, state) = BNX2X_FP_STATE_IRQ;
@@ -6123,7 +6546,7 @@ static void bnx2x_napi_enable(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		napi_enable(&bnx2x_fp(bp, i, napi));
 }
 
@@ -6131,7 +6554,7 @@ static void bnx2x_napi_disable(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		napi_disable(&bnx2x_fp(bp, i, napi));
 }
 
@@ -6139,10 +6562,10 @@ static void bnx2x_netif_start(struct bnx2x *bp)
 {
 	if (atomic_dec_and_test(&bp->intr_sem)) {
 		if (netif_running(bp->dev)) {
-			if (bp->state == BNX2X_STATE_OPEN)
-				netif_wake_queue(bp->dev);
 			bnx2x_napi_enable(bp);
 			bnx2x_int_enable(bp);
+			if (bp->state == BNX2X_STATE_OPEN)
+				netif_tx_wake_all_queues(bp->dev);
 		}
 	}
 }
@@ -6151,10 +6574,8 @@ static void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 {
 	bnx2x_int_disable_sync(bp, disable_hw);
 	bnx2x_napi_disable(bp);
-	if (netif_running(bp->dev)) {
-		netif_tx_disable(bp->dev);
-		bp->dev->trans_start = jiffies;	/* prevent tx timeout */
-	}
+	netif_tx_disable(bp->dev);
+	bp->dev->trans_start = jiffies;	/* prevent tx timeout */
 }
 
 /*
@@ -6170,9 +6591,9 @@ static void bnx2x_set_mac_addr_e1(struct bnx2x *bp, int set)
 	 * unicasts 0-31:port0 32-63:port1
 	 * multicast 64-127:port0 128-191:port1
 	 */
-	config->hdr.length_6b = 2;
+	config->hdr.length = 2;
 	config->hdr.offset = port ? 32 : 0;
-	config->hdr.client_id = BP_CL_ID(bp);
+	config->hdr.client_id = bp->fp->cl_id;
 	config->hdr.reserved1 = 0;
 
 	/* primary MAC */
@@ -6197,9 +6618,9 @@ static void bnx2x_set_mac_addr_e1(struct bnx2x *bp, int set)
 	   config->config_table[0].cam_entry.lsb_mac_addr);
 
 	/* broadcast */
-	config->config_table[1].cam_entry.msb_mac_addr = 0xffff;
-	config->config_table[1].cam_entry.middle_mac_addr = 0xffff;
-	config->config_table[1].cam_entry.lsb_mac_addr = 0xffff;
+	config->config_table[1].cam_entry.msb_mac_addr = cpu_to_le16(0xffff);
+	config->config_table[1].cam_entry.middle_mac_addr = cpu_to_le16(0xffff);
+	config->config_table[1].cam_entry.lsb_mac_addr = cpu_to_le16(0xffff);
 	config->config_table[1].cam_entry.flags = cpu_to_le16(port);
 	if (set)
 		config->config_table[1].target_table_entry.flags =
@@ -6228,9 +6649,9 @@ static void bnx2x_set_mac_addr_e1h(struct bnx2x *bp, int set)
 	 * unicasts: by func number
 	 * multicast: 20+FUNC*20, 20 each
 	 */
-	config->hdr.length_6b = 1;
+	config->hdr.length = 1;
 	config->hdr.offset = BP_FUNC(bp);
-	config->hdr.client_id = BP_CL_ID(bp);
+	config->hdr.client_id = bp->fp->cl_id;
 	config->hdr.reserved1 = 0;
 
 	/* primary MAC */
@@ -6264,7 +6685,7 @@ static int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
 			     int *state_p, int poll)
 {
 	/* can take a while if any port is running */
-	int cnt = 500;
+	int cnt = 5000;
 
 	DP(NETIF_MSG_IFUP, "%s for state to become %x on IDX [%d]\n",
 	   poll ? "polling" : "waiting", state, idx);
@@ -6282,8 +6703,12 @@ static int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
 		}
 
 		mb(); /* state is changed by bnx2x_sp_event() */
-		if (*state_p == state)
+		if (*state_p == state) {
+#ifdef BNX2X_STOP_ON_ERROR
+			DP(NETIF_MSG_IFUP, "exit  (cnt %d)\n", 5000 - cnt);
+#endif
 			return 0;
+		}
 
 		msleep(1);
 	}
@@ -6316,19 +6741,68 @@ static int bnx2x_setup_leading(struct bnx2x *bp)
 
 static int bnx2x_setup_multi(struct bnx2x *bp, int index)
 {
+	struct bnx2x_fastpath *fp = &bp->fp[index];
+
 	/* reset IGU state */
-	bnx2x_ack_sb(bp, bp->fp[index].sb_id, CSTORM_ID, 0, IGU_INT_ENABLE, 0);
+	bnx2x_ack_sb(bp, fp->sb_id, CSTORM_ID, 0, IGU_INT_ENABLE, 0);
 
 	/* SETUP ramrod */
-	bp->fp[index].state = BNX2X_FP_STATE_OPENING;
-	bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_CLIENT_SETUP, index, 0, index, 0);
+	fp->state = BNX2X_FP_STATE_OPENING;
+	bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_CLIENT_SETUP, index, 0,
+		      fp->cl_id, 0);
 
 	/* Wait for completion */
 	return bnx2x_wait_ramrod(bp, BNX2X_FP_STATE_OPEN, index,
-				 &(bp->fp[index].state), 0);
+				 &(fp->state), 0);
 }
 
 static int bnx2x_poll(struct napi_struct *napi, int budget);
+
+static void bnx2x_set_int_mode(struct bnx2x *bp)
+{
+	int num_queues;
+
+	switch (int_mode) {
+	case INT_MODE_INTx:
+	case INT_MODE_MSI:
+		num_queues = 1;
+		bp->num_rx_queues = num_queues;
+		bp->num_tx_queues = num_queues;
+		DP(NETIF_MSG_IFUP,
+		   "set number of queues to %d\n", num_queues);
+		break;
+
+	case INT_MODE_MSIX:
+	default:
+		if (bp->multi_mode == ETH_RSS_MODE_REGULAR)
+			num_queues = min_t(u32, num_online_cpus(),
+					   BNX2X_MAX_QUEUES(bp));
+		else
+			num_queues = 1;
+		bp->num_rx_queues = num_queues;
+		bp->num_tx_queues = num_queues;
+		DP(NETIF_MSG_IFUP, "set number of rx queues to %d"
+		   "  number of tx queues to %d\n",
+		   bp->num_rx_queues, bp->num_tx_queues);
+		/* if we can't use MSI-X we only need one fp,
+		 * so try to enable MSI-X with the requested number of fp's
+		 * and fallback to MSI or legacy INTx with one fp
+		 */
+		if (bnx2x_enable_msix(bp)) {
+			/* failed to enable MSI-X */
+			num_queues = 1;
+			bp->num_rx_queues = num_queues;
+			bp->num_tx_queues = num_queues;
+			if (bp->multi_mode)
+				BNX2X_ERR("Multi requested but failed to "
+					  "enable MSI-X  set number of "
+					  "queues to %d\n", num_queues);
+		}
+		break;
+	}
+	bp->dev->real_num_tx_queues = bp->num_tx_queues;
+}
+
 static void bnx2x_set_rx_mode(struct net_device *dev);
 
 /* must be called with rtnl_lock */
@@ -6337,56 +6811,28 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	u32 load_code;
 	int i, rc = 0;
 #ifdef BNX2X_STOP_ON_ERROR
+	DP(NETIF_MSG_IFUP, "enter  load_mode %d\n", load_mode);
 	if (unlikely(bp->panic))
 		return -EPERM;
 #endif
 
 	bp->state = BNX2X_STATE_OPENING_WAIT4_LOAD;
 
-	if (use_inta) {
-		bp->num_queues = 1;
-
-	} else {
-		if ((use_multi > 1) && (use_multi <= BP_MAX_QUEUES(bp)))
-			/* user requested number */
-			bp->num_queues = use_multi;
-
-		else if (use_multi)
-			bp->num_queues = min_t(u32, num_online_cpus(),
-					       BP_MAX_QUEUES(bp));
-		else
-			bp->num_queues = 1;
-
-		DP(NETIF_MSG_IFUP,
-		   "set number of queues to %d\n", bp->num_queues);
-
-		/* if we can't use MSI-X we only need one fp,
-		 * so try to enable MSI-X with the requested number of fp's
-		 * and fallback to MSI or legacy INTx with one fp
-		 */
-		rc = bnx2x_enable_msix(bp);
-		if (rc) {
-			/* failed to enable MSI-X */
-			bp->num_queues = 1;
-			if (use_multi)
-				BNX2X_ERR("Multi requested but failed"
-					  " to enable MSI-X\n");
-		}
-	}
+	bnx2x_set_int_mode(bp);
 
 	if (bnx2x_alloc_mem(bp))
 		return -ENOMEM;
 
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		bnx2x_fp(bp, i, disable_tpa) =
 					((bp->flags & TPA_ENABLE_FLAG) == 0);
 
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, 128);
 
 #ifdef BNX2X_STOP_ON_ERROR
-	for_each_queue(bp, i) {
+	for_each_rx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		fp->poll_no_work = 0;
@@ -6404,13 +6850,21 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 			pci_disable_msix(bp->pdev);
 			goto load_error1;
 		}
-		printk(KERN_INFO PFX "%s: using MSI-X\n", bp->dev->name);
 	} else {
+		if ((rc != -ENOMEM) && (int_mode != INT_MODE_INTx))
+			bnx2x_enable_msi(bp);
 		bnx2x_ack_int(bp);
 		rc = bnx2x_req_irq(bp);
 		if (rc) {
 			BNX2X_ERR("IRQ request failed  rc %d, aborting\n", rc);
+			if (bp->flags & USING_MSI_FLAG)
+				pci_disable_msi(bp->pdev);
 			goto load_error1;
+		}
+		if (bp->flags & USING_MSI_FLAG) {
+			bp->dev->irq = bp->pdev->irq;
+			printk(KERN_INFO PFX "%s: using MSI  IRQ %d\n",
+			       bp->dev->name, bp->pdev->irq);
 		}
 	}
 
@@ -6434,11 +6888,11 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	} else {
 		int port = BP_PORT(bp);
 
-		DP(NETIF_MSG_IFUP, "NO MCP load counts before us %d, %d, %d\n",
+		DP(NETIF_MSG_IFUP, "NO MCP - load counts      %d, %d, %d\n",
 		   load_count[0], load_count[1], load_count[2]);
 		load_count[0]++;
 		load_count[1 + port]++;
-		DP(NETIF_MSG_IFUP, "NO MCP new load counts       %d, %d, %d\n",
+		DP(NETIF_MSG_IFUP, "NO MCP - new load counts  %d, %d, %d\n",
 		   load_count[0], load_count[1], load_count[2]);
 		if (load_count[0] == 1)
 			load_code = FW_MSG_CODE_DRV_LOAD_COMMON;
@@ -6485,7 +6939,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	if (CHIP_IS_E1H(bp))
 		if (bp->mf_config & FUNC_MF_CFG_FUNC_DISABLED) {
-			BNX2X_ERR("!!!  mf_cfg function disabled\n");
+			DP(NETIF_MSG_IFUP, "mf_cfg function disabled\n");
 			bp->state = BNX2X_STATE_DISABLED;
 		}
 
@@ -6502,19 +6956,19 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		bnx2x_set_mac_addr_e1h(bp, 1);
 
 	if (bp->port.pmf)
-		bnx2x_initial_phy_init(bp);
+		bnx2x_initial_phy_init(bp, load_mode);
 
 	/* Start fast path */
 	switch (load_mode) {
 	case LOAD_NORMAL:
 		/* Tx queue should be only reenabled */
-		netif_wake_queue(bp->dev);
+		netif_tx_wake_all_queues(bp->dev);
 		/* Initialize the receive filter. */
 		bnx2x_set_rx_mode(bp->dev);
 		break;
 
 	case LOAD_OPEN:
-		netif_start_queue(bp->dev);
+		netif_tx_start_all_queues(bp->dev);
 		/* Initialize the receive filter. */
 		bnx2x_set_rx_mode(bp->dev);
 		break;
@@ -6547,33 +7001,32 @@ load_error3:
 	bp->port.pmf = 0;
 	/* Free SKBs, SGEs, TPA pool and driver internals */
 	bnx2x_free_skbs(bp);
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
 load_error2:
 	/* Release IRQs */
 	bnx2x_free_irq(bp);
 load_error1:
 	bnx2x_napi_disable(bp);
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
 	bnx2x_free_mem(bp);
 
-	/* TBD we really need to reset the chip
-	   if we want to recover from this */
 	return rc;
 }
 
 static int bnx2x_stop_multi(struct bnx2x *bp, int index)
 {
+	struct bnx2x_fastpath *fp = &bp->fp[index];
 	int rc;
 
 	/* halt the connection */
-	bp->fp[index].state = BNX2X_FP_STATE_HALTING;
-	bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_HALT, index, 0, index, 0);
+	fp->state = BNX2X_FP_STATE_HALTING;
+	bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_HALT, index, 0, fp->cl_id, 0);
 
 	/* Wait for completion */
 	rc = bnx2x_wait_ramrod(bp, BNX2X_FP_STATE_HALTED, index,
-			       &(bp->fp[index].state), 1);
+			       &(fp->state), 1);
 	if (rc) /* timeout */
 		return rc;
 
@@ -6582,13 +7035,13 @@ static int bnx2x_stop_multi(struct bnx2x *bp, int index)
 
 	/* Wait for completion */
 	rc = bnx2x_wait_ramrod(bp, BNX2X_FP_STATE_CLOSED, index,
-			       &(bp->fp[index].state), 1);
+			       &(fp->state), 1);
 	return rc;
 }
 
 static int bnx2x_stop_leading(struct bnx2x *bp)
 {
-	u16 dsb_sp_prod_idx;
+	__le16 dsb_sp_prod_idx;
 	/* if the other port is handling traffic,
 	   this can take a lot of time */
 	int cnt = 500;
@@ -6598,7 +7051,7 @@ static int bnx2x_stop_leading(struct bnx2x *bp)
 
 	/* Send HALT ramrod */
 	bp->fp[0].state = BNX2X_FP_STATE_HALTING;
-	bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_HALT, 0, 0, BP_CL_ID(bp), 0);
+	bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_HALT, 0, 0, bp->fp->cl_id, 0);
 
 	/* Wait for completion */
 	rc = bnx2x_wait_ramrod(bp, BNX2X_FP_STATE_HALTED, 0,
@@ -6622,9 +7075,8 @@ static int bnx2x_stop_leading(struct bnx2x *bp)
 			   *bp->dsb_sp_prod, dsb_sp_prod_idx);
 #ifdef BNX2X_STOP_ON_ERROR
 			bnx2x_panic();
-#else
-			rc = -EBUSY;
 #endif
+			rc = -EBUSY;
 			break;
 		}
 		cnt--;
@@ -6646,8 +7098,6 @@ static void bnx2x_reset_func(struct bnx2x *bp)
 	/* Configure IGU */
 	REG_WR(bp, HC_REG_LEADING_EDGE_0 + port*8, 0);
 	REG_WR(bp, HC_REG_TRAILING_EDGE_0 + port*8, 0);
-
-	REG_WR(bp, HC_REG_CONFIG_0 + port*4, 0x1000);
 
 	/* Clear ILT */
 	base = FUNC_ILT_BASE(func);
@@ -6730,15 +7180,14 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	/* Release IRQs */
 	bnx2x_free_irq(bp);
 
-	/* Wait until tx fast path tasks complete */
-	for_each_queue(bp, i) {
+	/* Wait until tx fastpath tasks complete */
+	for_each_tx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		cnt = 1000;
-		smp_rmb();
 		while (bnx2x_has_tx_work_unload(fp)) {
 
-			bnx2x_tx_int(fp, 1000);
+			bnx2x_tx_int(fp);
 			if (!cnt) {
 				BNX2X_ERR("timeout waiting for queue[%d]\n",
 					  i);
@@ -6751,7 +7200,6 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 			}
 			cnt--;
 			msleep(1);
-			smp_rmb();
 		}
 	}
 	/* Give HW time to discard old tx messages */
@@ -6763,15 +7211,15 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 		bnx2x_set_mac_addr_e1(bp, 0);
 
-		for (i = 0; i < config->hdr.length_6b; i++)
+		for (i = 0; i < config->hdr.length; i++)
 			CAM_INVALIDATE(config->config_table[i]);
 
-		config->hdr.length_6b = i;
+		config->hdr.length = i;
 		if (CHIP_REV_IS_SLOW(bp))
 			config->hdr.offset = BNX2X_MAX_EMUL_MULTI*(1 + port);
 		else
 			config->hdr.offset = BNX2X_MAX_MULTICAST*(1 + port);
-		config->hdr.client_id = BP_CL_ID(bp);
+		config->hdr.client_id = bp->fp->cl_id;
 		config->hdr.reserved1 = 0;
 
 		bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_SET_MAC, 0,
@@ -6835,11 +7283,11 @@ unload_error:
 	if (!BP_NOMCP(bp))
 		reset_code = bnx2x_fw_command(bp, reset_code);
 	else {
-		DP(NETIF_MSG_IFDOWN, "NO MCP load counts      %d, %d, %d\n",
+		DP(NETIF_MSG_IFDOWN, "NO MCP - load counts      %d, %d, %d\n",
 		   load_count[0], load_count[1], load_count[2]);
 		load_count[0]--;
 		load_count[1 + port]--;
-		DP(NETIF_MSG_IFDOWN, "NO MCP new load counts  %d, %d, %d\n",
+		DP(NETIF_MSG_IFDOWN, "NO MCP - new load counts  %d, %d, %d\n",
 		   load_count[0], load_count[1], load_count[2]);
 		if (load_count[0] == 0)
 			reset_code = FW_MSG_CODE_DRV_UNLOAD_COMMON;
@@ -6859,13 +7307,14 @@ unload_error:
 	/* Report UNLOAD_DONE to MCP */
 	if (!BP_NOMCP(bp))
 		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE);
+
 	bp->port.pmf = 0;
 
 	/* Free SKBs, SGEs, TPA pool and driver internals */
 	bnx2x_free_skbs(bp);
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
 	bnx2x_free_mem(bp);
 
@@ -6906,6 +7355,64 @@ reset_task_exit:
 /*
  * Init service functions
  */
+
+static inline u32 bnx2x_get_pretend_reg(struct bnx2x *bp, int func)
+{
+	switch (func) {
+	case 0: return PXP2_REG_PGL_PRETEND_FUNC_F0;
+	case 1:	return PXP2_REG_PGL_PRETEND_FUNC_F1;
+	case 2:	return PXP2_REG_PGL_PRETEND_FUNC_F2;
+	case 3:	return PXP2_REG_PGL_PRETEND_FUNC_F3;
+	case 4:	return PXP2_REG_PGL_PRETEND_FUNC_F4;
+	case 5:	return PXP2_REG_PGL_PRETEND_FUNC_F5;
+	case 6:	return PXP2_REG_PGL_PRETEND_FUNC_F6;
+	case 7:	return PXP2_REG_PGL_PRETEND_FUNC_F7;
+	default:
+		BNX2X_ERR("Unsupported function index: %d\n", func);
+		return (u32)(-1);
+	}
+}
+
+static void bnx2x_undi_int_disable_e1h(struct bnx2x *bp, int orig_func)
+{
+	u32 reg = bnx2x_get_pretend_reg(bp, orig_func), new_val;
+
+	/* Flush all outstanding writes */
+	mmiowb();
+
+	/* Pretend to be function 0 */
+	REG_WR(bp, reg, 0);
+	/* Flush the GRC transaction (in the chip) */
+	new_val = REG_RD(bp, reg);
+	if (new_val != 0) {
+		BNX2X_ERR("Hmmm... Pretend register wasn't updated: (0,%d)!\n",
+			  new_val);
+		BUG();
+	}
+
+	/* From now we are in the "like-E1" mode */
+	bnx2x_int_disable(bp);
+
+	/* Flush all outstanding writes */
+	mmiowb();
+
+	/* Restore the original funtion settings */
+	REG_WR(bp, reg, orig_func);
+	new_val = REG_RD(bp, reg);
+	if (new_val != orig_func) {
+		BNX2X_ERR("Hmmm... Pretend register wasn't updated: (%d,%d)!\n",
+			  orig_func, new_val);
+		BUG();
+	}
+}
+
+static inline void bnx2x_undi_int_disable(struct bnx2x *bp, int func)
+{
+	if (CHIP_IS_E1H(bp))
+		bnx2x_undi_int_disable_e1h(bp, func);
+	else
+		bnx2x_int_disable(bp);
+}
 
 static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 {
@@ -6957,8 +7464,7 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 			/* now it's safe to release the lock */
 			bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 
-			REG_WR(bp, (BP_PORT(bp) ? HC_REG_CONFIG_1 :
-				    HC_REG_CONFIG_0), 0x1000);
+			bnx2x_undi_int_disable(bp, func);
 
 			/* close input traffic and wait for it */
 			/* Do not rcv packets to BRB */
@@ -7026,6 +7532,13 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	bp->link_params.chip_id = bp->common.chip_id;
 	BNX2X_DEV_INFO("chip ID is 0x%x\n", id);
 
+	val = (REG_RD(bp, 0x2874) & 0x55);
+	if ((bp->common.chip_id & 0x1) ||
+	    (CHIP_IS_E1(bp) && val) || (CHIP_IS_E1H(bp) && (val == 0x55))) {
+		bp->flags |= ONE_PORT_FLAG;
+		BNX2X_DEV_INFO("single port device\n");
+	}
+
 	val = REG_RD(bp, MCP_REG_MCPR_NVM_CFG4);
 	bp->common.flash_size = (NVRAM_1MB_SIZE <<
 				 (val & MCPR_NVM_CFG4_FLASH_SIZE));
@@ -7050,14 +7563,20 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		BNX2X_ERR("BAD MCP validity signature\n");
 
 	bp->common.hw_config = SHMEM_RD(bp, dev_info.shared_hw_config.config);
-	bp->common.board = SHMEM_RD(bp, dev_info.shared_hw_config.board);
-
-	BNX2X_DEV_INFO("hw_config 0x%08x  board 0x%08x\n",
-		       bp->common.hw_config, bp->common.board);
+	BNX2X_DEV_INFO("hw_config 0x%08x\n", bp->common.hw_config);
 
 	bp->link_params.hw_led_mode = ((bp->common.hw_config &
 					SHARED_HW_CFG_LED_MODE_MASK) >>
 				       SHARED_HW_CFG_LED_MODE_SHIFT);
+
+	bp->link_params.feature_config_flags = 0;
+	val = SHMEM_RD(bp, dev_info.shared_feature_config.config);
+	if (val & SHARED_FEAT_CFG_OVERRIDE_PREEMPHASIS_CFG_ENABLED)
+		bp->link_params.feature_config_flags |=
+				FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED;
+	else
+		bp->link_params.feature_config_flags &=
+				~FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED;
 
 	val = SHMEM_RD(bp, dev_info.bc_rev) >> 8;
 	bp->common.bc_ver = val;
@@ -7077,7 +7596,7 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		bp->flags |= NO_WOL_FLAG;
 	}
 	BNX2X_DEV_INFO("%sWoL capable\n",
-		       (bp->flags & NO_WOL_FLAG) ? "Not " : "");
+		       (bp->flags & NO_WOL_FLAG) ? "not " : "");
 
 	val = SHMEM_RD(bp, dev_info.shared_hw_config.part_num);
 	val2 = SHMEM_RD(bp, dev_info.shared_hw_config.part_num[4]);
@@ -7170,27 +7689,6 @@ static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 					       SUPPORTED_Asym_Pause);
 			break;
 
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (8705)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (8706)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 			BNX2X_DEV_INFO("ext_phy_type 0x%x (8072)\n",
 				       ext_phy_type);
@@ -7216,11 +7714,60 @@ static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 					       SUPPORTED_Asym_Pause);
 			break;
 
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
+			BNX2X_DEV_INFO("ext_phy_type 0x%x (8705)\n",
+				       ext_phy_type);
+
+			bp->port.supported |= (SUPPORTED_10000baseT_Full |
+					       SUPPORTED_FIBRE |
+					       SUPPORTED_Pause |
+					       SUPPORTED_Asym_Pause);
+			break;
+
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
+			BNX2X_DEV_INFO("ext_phy_type 0x%x (8706)\n",
+				       ext_phy_type);
+
+			bp->port.supported |= (SUPPORTED_10000baseT_Full |
+					       SUPPORTED_1000baseT_Full |
+					       SUPPORTED_FIBRE |
+					       SUPPORTED_Pause |
+					       SUPPORTED_Asym_Pause);
+			break;
+
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+			BNX2X_DEV_INFO("ext_phy_type 0x%x (8726)\n",
+				       ext_phy_type);
+
+			bp->port.supported |= (SUPPORTED_10000baseT_Full |
+					       SUPPORTED_1000baseT_Full |
+					       SUPPORTED_Autoneg |
+					       SUPPORTED_FIBRE |
+					       SUPPORTED_Pause |
+					       SUPPORTED_Asym_Pause);
+			break;
+
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 			BNX2X_DEV_INFO("ext_phy_type 0x%x (SFX7101)\n",
 				       ext_phy_type);
 
 			bp->port.supported |= (SUPPORTED_10000baseT_Full |
+					       SUPPORTED_TP |
+					       SUPPORTED_Autoneg |
+					       SUPPORTED_Pause |
+					       SUPPORTED_Asym_Pause);
+			break;
+
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+			BNX2X_DEV_INFO("ext_phy_type 0x%x (BCM8481)\n",
+				       ext_phy_type);
+
+			bp->port.supported |= (SUPPORTED_10baseT_Half |
+					       SUPPORTED_10baseT_Full |
+					       SUPPORTED_100baseT_Half |
+					       SUPPORTED_100baseT_Full |
+					       SUPPORTED_1000baseT_Full |
+					       SUPPORTED_10000baseT_Full |
 					       SUPPORTED_TP |
 					       SUPPORTED_Autoneg |
 					       SUPPORTED_Pause |
@@ -7452,12 +7999,12 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 	u32 val, val2;
+	u32 config;
+	u16 i;
 
 	bp->link_params.bp = bp;
 	bp->link_params.port = port;
 
-	bp->link_params.serdes_config =
-		SHMEM_RD(bp, dev_info.port_hw_config[port].serdes_config);
 	bp->link_params.lane_config =
 		SHMEM_RD(bp, dev_info.port_hw_config[port].lane_config);
 	bp->link_params.ext_phy_config =
@@ -7470,10 +8017,35 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	bp->port.link_config =
 		SHMEM_RD(bp, dev_info.port_feature_config[port].link_config);
 
-	BNX2X_DEV_INFO("serdes_config 0x%08x  lane_config 0x%08x\n"
-	     KERN_INFO "  ext_phy_config 0x%08x  speed_cap_mask 0x%08x"
-		       "  link_config 0x%08x\n",
-		       bp->link_params.serdes_config,
+	/* Get the 4 lanes xgxs config rx and tx */
+	for (i = 0; i < 2; i++) {
+		val = SHMEM_RD(bp,
+			   dev_info.port_hw_config[port].xgxs_config_rx[i<<1]);
+		bp->link_params.xgxs_config_rx[i << 1] = ((val>>16) & 0xffff);
+		bp->link_params.xgxs_config_rx[(i << 1) + 1] = (val & 0xffff);
+
+		val = SHMEM_RD(bp,
+			   dev_info.port_hw_config[port].xgxs_config_tx[i<<1]);
+		bp->link_params.xgxs_config_tx[i << 1] = ((val>>16) & 0xffff);
+		bp->link_params.xgxs_config_tx[(i << 1) + 1] = (val & 0xffff);
+	}
+
+	config = SHMEM_RD(bp, dev_info.port_feature_config[port].config);
+	if (config & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_ENABLED)
+		bp->link_params.feature_config_flags |=
+				FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED;
+	else
+		bp->link_params.feature_config_flags &=
+				~FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED;
+
+	/* If the device is capable of WoL, set the default state according
+	 * to the HW
+	 */
+	bp->wol = (!(bp->flags & NO_WOL_FLAG) &&
+		   (config & PORT_FEATURE_WOL_ENABLED));
+
+	BNX2X_DEV_INFO("lane_config 0x%08x  ext_phy_config 0x%08x"
+		       "  speed_cap_mask 0x%08x  link_config 0x%08x\n",
 		       bp->link_params.lane_config,
 		       bp->link_params.ext_phy_config,
 		       bp->link_params.speed_cap_mask, bp->port.link_config);
@@ -7520,7 +8092,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 				       "(0x%04x)\n",
 				       func, bp->e1hov, bp->e1hov);
 		} else {
-			BNX2X_DEV_INFO("Single function mode\n");
+			BNX2X_DEV_INFO("single function mode\n");
 			if (BP_E1HVN(bp)) {
 				BNX2X_ERR("!!!  No valid E1HOV for func %d,"
 					  "  aborting\n", func);
@@ -7570,6 +8142,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 {
 	int func = BP_FUNC(bp);
+	int timer_interval;
 	int rc;
 
 	/* Disable interrupt handling until HW is initialized */
@@ -7593,6 +8166,16 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 		printk(KERN_ERR PFX
 		       "MCP disabled, must load devices in order!\n");
 
+	/* Set multi queue mode */
+	if ((multi_mode != ETH_RSS_MODE_DISABLED) &&
+	    ((int_mode == INT_MODE_INTx) || (int_mode == INT_MODE_MSI))) {
+		printk(KERN_ERR PFX
+		      "Multi disabled since int_mode requested is not MSI-X\n");
+		multi_mode = ETH_RSS_MODE_DISABLED;
+	}
+	bp->multi_mode = multi_mode;
+
+
 	/* Set TPA flags */
 	if (disable_tpa) {
 		bp->flags &= ~TPA_ENABLE_FLAG;
@@ -7602,18 +8185,18 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 		bp->dev->features |= NETIF_F_LRO;
 	}
 
+	bp->mrrs = mrrs;
 
 	bp->tx_ring_size = MAX_TX_AVAIL;
 	bp->rx_ring_size = MAX_RX_AVAIL;
 
 	bp->rx_csum = 1;
-	bp->rx_offset = 0;
 
 	bp->tx_ticks = 50;
 	bp->rx_ticks = 25;
 
-	bp->timer_interval = (CHIP_REV_IS_SLOW(bp) ? 5*HZ : HZ);
-	bp->current_interval = (poll ? poll : bp->timer_interval);
+	timer_interval = (CHIP_REV_IS_SLOW(bp) ? 5*HZ : HZ);
+	bp->current_interval = (poll ? poll : timer_interval);
 
 	init_timer(&bp->timer);
 	bp->timer.expires = jiffies + bp->current_interval;
@@ -7658,14 +8241,16 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 		switch (ext_phy_type) {
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
 			cmd->port = PORT_FIBRE;
 			break;
 
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
 			cmd->port = PORT_TP;
 			break;
 
@@ -7887,6 +8472,84 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 	info->regdump_len = 0;
 }
 
+#define IS_E1_ONLINE(info)	(((info) & RI_E1_ONLINE) == RI_E1_ONLINE)
+#define IS_E1H_ONLINE(info)	(((info) & RI_E1H_ONLINE) == RI_E1H_ONLINE)
+
+static int bnx2x_get_regs_len(struct net_device *dev)
+{
+	static u32 regdump_len;
+	struct bnx2x *bp = netdev_priv(dev);
+	int i;
+
+	if (regdump_len)
+		return regdump_len;
+
+	if (CHIP_IS_E1(bp)) {
+		for (i = 0; i < REGS_COUNT; i++)
+			if (IS_E1_ONLINE(reg_addrs[i].info))
+				regdump_len += reg_addrs[i].size;
+
+		for (i = 0; i < WREGS_COUNT_E1; i++)
+			if (IS_E1_ONLINE(wreg_addrs_e1[i].info))
+				regdump_len += wreg_addrs_e1[i].size *
+					(1 + wreg_addrs_e1[i].read_regs_count);
+
+	} else { /* E1H */
+		for (i = 0; i < REGS_COUNT; i++)
+			if (IS_E1H_ONLINE(reg_addrs[i].info))
+				regdump_len += reg_addrs[i].size;
+
+		for (i = 0; i < WREGS_COUNT_E1H; i++)
+			if (IS_E1H_ONLINE(wreg_addrs_e1h[i].info))
+				regdump_len += wreg_addrs_e1h[i].size *
+					(1 + wreg_addrs_e1h[i].read_regs_count);
+	}
+	regdump_len *= 4;
+	regdump_len += sizeof(struct dump_hdr);
+
+	return regdump_len;
+}
+
+static void bnx2x_get_regs(struct net_device *dev,
+			   struct ethtool_regs *regs, void *_p)
+{
+	u32 *p = _p, i, j;
+	struct bnx2x *bp = netdev_priv(dev);
+	struct dump_hdr dump_hdr = {0};
+
+	regs->version = 0;
+	memset(p, 0, regs->len);
+
+	if (!netif_running(bp->dev))
+		return;
+
+	dump_hdr.hdr_size = (sizeof(struct dump_hdr) / 4) - 1;
+	dump_hdr.dump_sign = dump_sign_all;
+	dump_hdr.xstorm_waitp = REG_RD(bp, XSTORM_WAITP_ADDR);
+	dump_hdr.tstorm_waitp = REG_RD(bp, TSTORM_WAITP_ADDR);
+	dump_hdr.ustorm_waitp = REG_RD(bp, USTORM_WAITP_ADDR);
+	dump_hdr.cstorm_waitp = REG_RD(bp, CSTORM_WAITP_ADDR);
+	dump_hdr.info = CHIP_IS_E1(bp) ? RI_E1_ONLINE : RI_E1H_ONLINE;
+
+	memcpy(p, &dump_hdr, sizeof(struct dump_hdr));
+	p += dump_hdr.hdr_size + 1;
+
+	if (CHIP_IS_E1(bp)) {
+		for (i = 0; i < REGS_COUNT; i++)
+			if (IS_E1_ONLINE(reg_addrs[i].info))
+				for (j = 0; j < reg_addrs[i].size; j++)
+					*p++ = REG_RD(bp,
+						      reg_addrs[i].addr + j*4);
+
+	} else { /* E1H */
+		for (i = 0; i < REGS_COUNT; i++)
+			if (IS_E1H_ONLINE(reg_addrs[i].info))
+				for (j = 0; j < reg_addrs[i].size; j++)
+					*p++ = REG_RD(bp,
+						      reg_addrs[i].addr + j*4);
+	}
+}
+
 static void bnx2x_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -8045,7 +8708,7 @@ static void bnx2x_disable_nvram_access(struct bnx2x *bp)
 			MCPR_NVM_ACCESS_ENABLE_WR_EN)));
 }
 
-static int bnx2x_nvram_read_dword(struct bnx2x *bp, u32 offset, u32 *ret_val,
+static int bnx2x_nvram_read_dword(struct bnx2x *bp, u32 offset, __be32 *ret_val,
 				  u32 cmd_flags)
 {
 	int count, i, rc;
@@ -8081,8 +8744,7 @@ static int bnx2x_nvram_read_dword(struct bnx2x *bp, u32 offset, u32 *ret_val,
 			/* we read nvram data in cpu order
 			 * but ethtool sees it as an array of bytes
 			 * converting to big-endian will do the work */
-			val = cpu_to_be32(val);
-			*ret_val = val;
+			*ret_val = cpu_to_be32(val);
 			rc = 0;
 			break;
 		}
@@ -8096,7 +8758,7 @@ static int bnx2x_nvram_read(struct bnx2x *bp, u32 offset, u8 *ret_buf,
 {
 	int rc;
 	u32 cmd_flags;
-	u32 val;
+	__be32 val;
 
 	if ((offset & 0x03) || (buf_size & 0x03) || (buf_size == 0)) {
 		DP(BNX2X_MSG_NVM,
@@ -8215,7 +8877,7 @@ static int bnx2x_nvram_write1(struct bnx2x *bp, u32 offset, u8 *data_buf,
 	int rc;
 	u32 cmd_flags;
 	u32 align_offset;
-	u32 val;
+	__be32 val;
 
 	if (offset + buf_size > bp->common.flash_size) {
 		DP(BNX2X_MSG_NVM, "Invalid parameter: offset (0x%x) +"
@@ -8344,7 +9006,7 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 			if ((bp->state == BNX2X_STATE_OPEN) ||
 			    (bp->state == BNX2X_STATE_DISABLED)) {
 				rc |= bnx2x_link_reset(&bp->link_params,
-						       &bp->link_vars);
+						       &bp->link_vars, 1);
 				rc |= bnx2x_phy_init(&bp->link_params,
 						     &bp->link_vars);
 			}
@@ -8434,7 +9096,8 @@ static void bnx2x_get_pauseparam(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	epause->autoneg = (bp->link_params.req_flow_ctrl == BNX2X_FLOW_CTRL_AUTO) &&
+	epause->autoneg = (bp->link_params.req_flow_ctrl ==
+			   BNX2X_FLOW_CTRL_AUTO) &&
 			  (bp->link_params.req_line_speed == SPEED_AUTO_NEG);
 
 	epause->rx_pause = ((bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX) ==
@@ -8566,8 +9229,7 @@ static const struct {
 	{ "nvram_test (online)" },
 	{ "interrupt_test (online)" },
 	{ "link_test (online)" },
-	{ "idle check (online)" },
-	{ "MC errors (online)" }
+	{ "idle check (online)" }
 };
 
 static int bnx2x_self_test_count(struct net_device *dev)
@@ -8755,23 +9417,23 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	u16 len;
 	int rc = -ENODEV;
 
-	if (loopback_mode == BNX2X_MAC_LOOPBACK) {
+	/* check the loopback mode */
+	switch (loopback_mode) {
+	case BNX2X_PHY_LOOPBACK:
+		if (bp->link_params.loopback_mode != LOOPBACK_XGXS_10)
+			return -EINVAL;
+		break;
+	case BNX2X_MAC_LOOPBACK:
 		bp->link_params.loopback_mode = LOOPBACK_BMAC;
 		bnx2x_phy_init(&bp->link_params, &bp->link_vars);
-
-	} else if (loopback_mode == BNX2X_PHY_LOOPBACK) {
-		u16 cnt = 1000;
-		bp->link_params.loopback_mode = LOOPBACK_XGXS_10;
-		bnx2x_phy_init(&bp->link_params, &bp->link_vars);
-		/* wait until link state is restored */
-		if (link_up)
-			while (cnt-- && bnx2x_test_link(&bp->link_params,
-							&bp->link_vars))
-				msleep(10);
-	} else
+		break;
+	default:
 		return -EINVAL;
+	}
 
-	pkt_size = 1514;
+	/* prepare the loopback packet */
+	pkt_size = (((bp->dev->mtu < ETH_MAX_PACKET_SIZE) ?
+		     bp->dev->mtu : ETH_MAX_PACKET_SIZE) + ETH_HLEN);
 	skb = netdev_alloc_skb(bp->dev, bp->rx_buf_size);
 	if (!skb) {
 		rc = -ENOMEM;
@@ -8783,6 +9445,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	for (i = ETH_HLEN; i < pkt_size; i++)
 		packet[i] = (unsigned char) (i & 0xff);
 
+	/* send the loopback packet */
 	num_pkts = 0;
 	tx_start_idx = le16_to_cpu(*fp->tx_cons_sb);
 	rx_start_idx = le16_to_cpu(*fp->rx_cons_sb);
@@ -8807,12 +9470,10 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 
 	wmb();
 
-	fp->hw_tx_prods->bds_prod =
-		cpu_to_le16(le16_to_cpu(fp->hw_tx_prods->bds_prod) + 1);
+	le16_add_cpu(&fp->hw_tx_prods->bds_prod, 1);
 	mb(); /* FW restriction: must not reorder writing nbd and packets */
-	fp->hw_tx_prods->packets_prod =
-		cpu_to_le32(le32_to_cpu(fp->hw_tx_prods->packets_prod) + 1);
-	DOORBELL(bp, FP_IDX(fp), 0);
+	le32_add_cpu(&fp->hw_tx_prods->packets_prod, 1);
+	DOORBELL(bp, fp->index, 0);
 
 	mmiowb();
 
@@ -8867,7 +9528,7 @@ test_loopback_exit:
 
 static int bnx2x_test_loopback(struct bnx2x *bp, u8 link_up)
 {
-	int rc = 0;
+	int rc = 0, res;
 
 	if (!netif_running(bp->dev))
 		return BNX2X_LOOPBACK_FAILED;
@@ -8875,14 +9536,16 @@ static int bnx2x_test_loopback(struct bnx2x *bp, u8 link_up)
 	bnx2x_netif_stop(bp, 1);
 	bnx2x_acquire_phy_lock(bp);
 
-	if (bnx2x_run_loopback(bp, BNX2X_MAC_LOOPBACK, link_up)) {
-		DP(NETIF_MSG_PROBE, "MAC loopback failed\n");
-		rc |= BNX2X_MAC_LOOPBACK_FAILED;
+	res = bnx2x_run_loopback(bp, BNX2X_PHY_LOOPBACK, link_up);
+	if (res) {
+		DP(NETIF_MSG_PROBE, "  PHY loopback failed  (res %d)\n", res);
+		rc |= BNX2X_PHY_LOOPBACK_FAILED;
 	}
 
-	if (bnx2x_run_loopback(bp, BNX2X_PHY_LOOPBACK, link_up)) {
-		DP(NETIF_MSG_PROBE, "PHY loopback failed\n");
-		rc |= BNX2X_PHY_LOOPBACK_FAILED;
+	res = bnx2x_run_loopback(bp, BNX2X_MAC_LOOPBACK, link_up);
+	if (res) {
+		DP(NETIF_MSG_PROBE, "  MAC loopback failed  (res %d)\n", res);
+		rc |= BNX2X_MAC_LOOPBACK_FAILED;
 	}
 
 	bnx2x_release_phy_lock(bp);
@@ -8909,14 +9572,14 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 		{ 0x778,  0x70 },
 		{     0,     0 }
 	};
-	u32 buf[0x350 / 4];
+	__be32 buf[0x350 / 4];
 	u8 *data = (u8 *)buf;
 	int i, rc;
 	u32 magic, csum;
 
 	rc = bnx2x_nvram_read(bp, 0, data, 4);
 	if (rc) {
-		DP(NETIF_MSG_PROBE, "magic value read (rc -%d)\n", -rc);
+		DP(NETIF_MSG_PROBE, "magic value read (rc %d)\n", rc);
 		goto test_nvram_exit;
 	}
 
@@ -8933,7 +9596,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 				      nvram_tbl[i].size);
 		if (rc) {
 			DP(NETIF_MSG_PROBE,
-			   "nvram_tbl[%d] read data (rc -%d)\n", i, -rc);
+			   "nvram_tbl[%d] read data (rc %d)\n", i, rc);
 			goto test_nvram_exit;
 		}
 
@@ -8958,12 +9621,12 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 	if (!netif_running(bp->dev))
 		return -ENODEV;
 
-	config->hdr.length_6b = 0;
+	config->hdr.length = 0;
 	if (CHIP_IS_E1(bp))
 		config->hdr.offset = (BP_PORT(bp) ? 32 : 0);
 	else
 		config->hdr.offset = BP_FUNC(bp);
-	config->hdr.client_id = BP_CL_ID(bp);
+	config->hdr.client_id = bp->fp->cl_id;
 	config->hdr.reserved1 = 0;
 
 	rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_SET_MAC, 0,
@@ -9036,9 +9699,6 @@ static void bnx2x_self_test(struct net_device *dev,
 			buf[5] = 1;
 			etest->flags |= ETH_TEST_FL_FAILED;
 		}
-	buf[7] = bnx2x_mc_assert(bp);
-	if (buf[7] != 0)
-		etest->flags |= ETH_TEST_FL_FAILED;
 
 #ifdef BNX2X_EXTRA_DEBUG
 	bnx2x_panic_dump(bp);
@@ -9048,40 +9708,98 @@ static void bnx2x_self_test(struct net_device *dev,
 static const struct {
 	long offset;
 	int size;
+	u8 string[ETH_GSTRING_LEN];
+} bnx2x_q_stats_arr[BNX2X_NUM_Q_STATS] = {
+/* 1 */	{ Q_STATS_OFFSET32(total_bytes_received_hi), 8, "[%d]: rx_bytes" },
+	{ Q_STATS_OFFSET32(error_bytes_received_hi),
+						8, "[%d]: rx_error_bytes" },
+	{ Q_STATS_OFFSET32(total_unicast_packets_received_hi),
+						8, "[%d]: rx_ucast_packets" },
+	{ Q_STATS_OFFSET32(total_multicast_packets_received_hi),
+						8, "[%d]: rx_mcast_packets" },
+	{ Q_STATS_OFFSET32(total_broadcast_packets_received_hi),
+						8, "[%d]: rx_bcast_packets" },
+	{ Q_STATS_OFFSET32(no_buff_discard_hi),	8, "[%d]: rx_discards" },
+	{ Q_STATS_OFFSET32(rx_err_discard_pkt),
+					 4, "[%d]: rx_phy_ip_err_discards"},
+	{ Q_STATS_OFFSET32(rx_skb_alloc_failed),
+					 4, "[%d]: rx_skb_alloc_discard" },
+	{ Q_STATS_OFFSET32(hw_csum_err), 4, "[%d]: rx_csum_offload_errors" },
+
+/* 10 */{ Q_STATS_OFFSET32(total_bytes_transmitted_hi),	8, "[%d]: tx_bytes" },
+	{ Q_STATS_OFFSET32(total_unicast_packets_transmitted_hi),
+							8, "[%d]: tx_packets" }
+};
+
+static const struct {
+	long offset;
+	int size;
 	u32 flags;
 #define STATS_FLAGS_PORT		1
 #define STATS_FLAGS_FUNC		2
+#define STATS_FLAGS_BOTH		(STATS_FLAGS_FUNC | STATS_FLAGS_PORT)
 	u8 string[ETH_GSTRING_LEN];
 } bnx2x_stats_arr[BNX2X_NUM_STATS] = {
-/* 1 */	{ STATS_OFFSET32(valid_bytes_received_hi),
-				8, STATS_FLAGS_FUNC, "rx_bytes" },
+/* 1 */	{ STATS_OFFSET32(total_bytes_received_hi),
+				8, STATS_FLAGS_BOTH, "rx_bytes" },
 	{ STATS_OFFSET32(error_bytes_received_hi),
-				8, STATS_FLAGS_FUNC, "rx_error_bytes" },
-	{ STATS_OFFSET32(total_bytes_transmitted_hi),
-				8, STATS_FLAGS_FUNC, "tx_bytes" },
-	{ STATS_OFFSET32(tx_stat_ifhcoutbadoctets_hi),
-				8, STATS_FLAGS_PORT, "tx_error_bytes" },
+				8, STATS_FLAGS_BOTH, "rx_error_bytes" },
 	{ STATS_OFFSET32(total_unicast_packets_received_hi),
-				8, STATS_FLAGS_FUNC, "rx_ucast_packets" },
+				8, STATS_FLAGS_BOTH, "rx_ucast_packets" },
 	{ STATS_OFFSET32(total_multicast_packets_received_hi),
-				8, STATS_FLAGS_FUNC, "rx_mcast_packets" },
+				8, STATS_FLAGS_BOTH, "rx_mcast_packets" },
 	{ STATS_OFFSET32(total_broadcast_packets_received_hi),
-				8, STATS_FLAGS_FUNC, "rx_bcast_packets" },
-	{ STATS_OFFSET32(total_unicast_packets_transmitted_hi),
-				8, STATS_FLAGS_FUNC, "tx_packets" },
-	{ STATS_OFFSET32(tx_stat_dot3statsinternalmactransmiterrors_hi),
-				8, STATS_FLAGS_PORT, "tx_mac_errors" },
-/* 10 */{ STATS_OFFSET32(rx_stat_dot3statscarriersenseerrors_hi),
-				8, STATS_FLAGS_PORT, "tx_carrier_errors" },
+				8, STATS_FLAGS_BOTH, "rx_bcast_packets" },
 	{ STATS_OFFSET32(rx_stat_dot3statsfcserrors_hi),
 				8, STATS_FLAGS_PORT, "rx_crc_errors" },
 	{ STATS_OFFSET32(rx_stat_dot3statsalignmenterrors_hi),
 				8, STATS_FLAGS_PORT, "rx_align_errors" },
+	{ STATS_OFFSET32(rx_stat_etherstatsundersizepkts_hi),
+				8, STATS_FLAGS_PORT, "rx_undersize_packets" },
+	{ STATS_OFFSET32(etherstatsoverrsizepkts_hi),
+				8, STATS_FLAGS_PORT, "rx_oversize_packets" },
+/* 10 */{ STATS_OFFSET32(rx_stat_etherstatsfragments_hi),
+				8, STATS_FLAGS_PORT, "rx_fragments" },
+	{ STATS_OFFSET32(rx_stat_etherstatsjabbers_hi),
+				8, STATS_FLAGS_PORT, "rx_jabbers" },
+	{ STATS_OFFSET32(no_buff_discard_hi),
+				8, STATS_FLAGS_BOTH, "rx_discards" },
+	{ STATS_OFFSET32(mac_filter_discard),
+				4, STATS_FLAGS_PORT, "rx_filtered_packets" },
+	{ STATS_OFFSET32(xxoverflow_discard),
+				4, STATS_FLAGS_PORT, "rx_fw_discards" },
+	{ STATS_OFFSET32(brb_drop_hi),
+				8, STATS_FLAGS_PORT, "rx_brb_discard" },
+	{ STATS_OFFSET32(brb_truncate_hi),
+				8, STATS_FLAGS_PORT, "rx_brb_truncate" },
+	{ STATS_OFFSET32(pause_frames_received_hi),
+				8, STATS_FLAGS_PORT, "rx_pause_frames" },
+	{ STATS_OFFSET32(rx_stat_maccontrolframesreceived_hi),
+				8, STATS_FLAGS_PORT, "rx_mac_ctrl_frames" },
+	{ STATS_OFFSET32(nig_timer_max),
+			4, STATS_FLAGS_PORT, "rx_constant_pause_events" },
+/* 20 */{ STATS_OFFSET32(rx_err_discard_pkt),
+				4, STATS_FLAGS_BOTH, "rx_phy_ip_err_discards"},
+	{ STATS_OFFSET32(rx_skb_alloc_failed),
+				4, STATS_FLAGS_BOTH, "rx_skb_alloc_discard" },
+	{ STATS_OFFSET32(hw_csum_err),
+				4, STATS_FLAGS_BOTH, "rx_csum_offload_errors" },
+
+	{ STATS_OFFSET32(total_bytes_transmitted_hi),
+				8, STATS_FLAGS_BOTH, "tx_bytes" },
+	{ STATS_OFFSET32(tx_stat_ifhcoutbadoctets_hi),
+				8, STATS_FLAGS_PORT, "tx_error_bytes" },
+	{ STATS_OFFSET32(total_unicast_packets_transmitted_hi),
+				8, STATS_FLAGS_BOTH, "tx_packets" },
+	{ STATS_OFFSET32(tx_stat_dot3statsinternalmactransmiterrors_hi),
+				8, STATS_FLAGS_PORT, "tx_mac_errors" },
+	{ STATS_OFFSET32(rx_stat_dot3statscarriersenseerrors_hi),
+				8, STATS_FLAGS_PORT, "tx_carrier_errors" },
 	{ STATS_OFFSET32(tx_stat_dot3statssinglecollisionframes_hi),
 				8, STATS_FLAGS_PORT, "tx_single_collisions" },
 	{ STATS_OFFSET32(tx_stat_dot3statsmultiplecollisionframes_hi),
 				8, STATS_FLAGS_PORT, "tx_multi_collisions" },
-	{ STATS_OFFSET32(tx_stat_dot3statsdeferredtransmissions_hi),
+/* 30 */{ STATS_OFFSET32(tx_stat_dot3statsdeferredtransmissions_hi),
 				8, STATS_FLAGS_PORT, "tx_deferred" },
 	{ STATS_OFFSET32(tx_stat_dot3statsexcessivecollisions_hi),
 				8, STATS_FLAGS_PORT, "tx_excess_collisions" },
@@ -9089,14 +9807,6 @@ static const struct {
 				8, STATS_FLAGS_PORT, "tx_late_collisions" },
 	{ STATS_OFFSET32(tx_stat_etherstatscollisions_hi),
 				8, STATS_FLAGS_PORT, "tx_total_collisions" },
-	{ STATS_OFFSET32(rx_stat_etherstatsfragments_hi),
-				8, STATS_FLAGS_PORT, "rx_fragments" },
-/* 20 */{ STATS_OFFSET32(rx_stat_etherstatsjabbers_hi),
-				8, STATS_FLAGS_PORT, "rx_jabbers" },
-	{ STATS_OFFSET32(rx_stat_etherstatsundersizepkts_hi),
-				8, STATS_FLAGS_PORT, "rx_undersize_packets" },
-	{ STATS_OFFSET32(jabber_packets_received),
-				4, STATS_FLAGS_FUNC, "rx_oversize_packets" },
 	{ STATS_OFFSET32(tx_stat_etherstatspkts64octets_hi),
 				8, STATS_FLAGS_PORT, "tx_64_byte_packets" },
 	{ STATS_OFFSET32(tx_stat_etherstatspkts65octetsto127octets_hi),
@@ -9109,52 +9819,46 @@ static const struct {
 			8, STATS_FLAGS_PORT, "tx_512_to_1023_byte_packets" },
 	{ STATS_OFFSET32(etherstatspkts1024octetsto1522octets_hi),
 			8, STATS_FLAGS_PORT, "tx_1024_to_1522_byte_packets" },
-	{ STATS_OFFSET32(etherstatspktsover1522octets_hi),
+/* 40 */{ STATS_OFFSET32(etherstatspktsover1522octets_hi),
 			8, STATS_FLAGS_PORT, "tx_1523_to_9022_byte_packets" },
-/* 30 */{ STATS_OFFSET32(rx_stat_xonpauseframesreceived_hi),
-				8, STATS_FLAGS_PORT, "rx_xon_frames" },
-	{ STATS_OFFSET32(rx_stat_xoffpauseframesreceived_hi),
-				8, STATS_FLAGS_PORT, "rx_xoff_frames" },
-	{ STATS_OFFSET32(tx_stat_outxonsent_hi),
-				8, STATS_FLAGS_PORT, "tx_xon_frames" },
-	{ STATS_OFFSET32(tx_stat_outxoffsent_hi),
-				8, STATS_FLAGS_PORT, "tx_xoff_frames" },
-	{ STATS_OFFSET32(rx_stat_maccontrolframesreceived_hi),
-				8, STATS_FLAGS_PORT, "rx_mac_ctrl_frames" },
-	{ STATS_OFFSET32(mac_filter_discard),
-				4, STATS_FLAGS_PORT, "rx_filtered_packets" },
-	{ STATS_OFFSET32(no_buff_discard),
-				4, STATS_FLAGS_FUNC, "rx_discards" },
-	{ STATS_OFFSET32(xxoverflow_discard),
-				4, STATS_FLAGS_PORT, "rx_fw_discards" },
-	{ STATS_OFFSET32(brb_drop_hi),
-				8, STATS_FLAGS_PORT, "brb_discard" },
-	{ STATS_OFFSET32(brb_truncate_hi),
-				8, STATS_FLAGS_PORT, "brb_truncate" },
-/* 40 */{ STATS_OFFSET32(rx_err_discard_pkt),
-				4, STATS_FLAGS_FUNC, "rx_phy_ip_err_discards"},
-	{ STATS_OFFSET32(rx_skb_alloc_failed),
-				4, STATS_FLAGS_FUNC, "rx_skb_alloc_discard" },
-/* 42 */{ STATS_OFFSET32(hw_csum_err),
-				4, STATS_FLAGS_FUNC, "rx_csum_offload_errors" }
+	{ STATS_OFFSET32(pause_frames_sent_hi),
+				8, STATS_FLAGS_PORT, "tx_pause_frames" }
 };
 
-#define IS_NOT_E1HMF_STAT(bp, i) \
-		(IS_E1HMF(bp) && (bnx2x_stats_arr[i].flags & STATS_FLAGS_PORT))
+#define IS_PORT_STAT(i) \
+	((bnx2x_stats_arr[i].flags & STATS_FLAGS_BOTH) == STATS_FLAGS_PORT)
+#define IS_FUNC_STAT(i)		(bnx2x_stats_arr[i].flags & STATS_FLAGS_FUNC)
+#define IS_E1HMF_MODE_STAT(bp) \
+			(IS_E1HMF(bp) && !(bp->msglevel & BNX2X_MSG_STATS))
 
 static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int i, j;
+	int i, j, k;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
-			if (IS_NOT_E1HMF_STAT(bp, i))
-				continue;
-			strcpy(buf + j*ETH_GSTRING_LEN,
-			       bnx2x_stats_arr[i].string);
-			j++;
+		if (is_multi(bp)) {
+			k = 0;
+			for_each_queue(bp, i) {
+				for (j = 0; j < BNX2X_NUM_Q_STATS; j++)
+					sprintf(buf + (k + j)*ETH_GSTRING_LEN,
+						bnx2x_q_stats_arr[j].string, i);
+				k += BNX2X_NUM_Q_STATS;
+			}
+			if (IS_E1HMF_MODE_STAT(bp))
+				break;
+			for (j = 0; j < BNX2X_NUM_STATS; j++)
+				strcpy(buf + (k + j)*ETH_GSTRING_LEN,
+				       bnx2x_stats_arr[j].string);
+		} else {
+			for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
+				if (IS_E1HMF_MODE_STAT(bp) && IS_PORT_STAT(i))
+					continue;
+				strcpy(buf + j*ETH_GSTRING_LEN,
+				       bnx2x_stats_arr[i].string);
+				j++;
+			}
 		}
 		break;
 
@@ -9167,13 +9871,22 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 static int bnx2x_get_stats_count(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int i, num_stats = 0;
+	int i, num_stats;
 
-	for (i = 0; i < BNX2X_NUM_STATS; i++) {
-		if (IS_NOT_E1HMF_STAT(bp, i))
-			continue;
-		num_stats++;
+	if (is_multi(bp)) {
+		num_stats = BNX2X_NUM_Q_STATS * BNX2X_NUM_QUEUES(bp);
+		if (!IS_E1HMF_MODE_STAT(bp))
+			num_stats += BNX2X_NUM_STATS;
+	} else {
+		if (IS_E1HMF_MODE_STAT(bp)) {
+			num_stats = 0;
+			for (i = 0; i < BNX2X_NUM_STATS; i++)
+				if (IS_FUNC_STAT(i))
+					num_stats++;
+		} else
+			num_stats = BNX2X_NUM_STATS;
 	}
+
 	return num_stats;
 }
 
@@ -9181,29 +9894,71 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 				    struct ethtool_stats *stats, u64 *buf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	u32 *hw_stats = (u32 *)&bp->eth_stats;
-	int i, j;
+	u32 *hw_stats, *offset;
+	int i, j, k;
 
-	for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
-		if (IS_NOT_E1HMF_STAT(bp, i))
-			continue;
-
-		if (bnx2x_stats_arr[i].size == 0) {
-			/* skip this counter */
-			buf[j] = 0;
-			j++;
-			continue;
+	if (is_multi(bp)) {
+		k = 0;
+		for_each_queue(bp, i) {
+			hw_stats = (u32 *)&bp->fp[i].eth_q_stats;
+			for (j = 0; j < BNX2X_NUM_Q_STATS; j++) {
+				if (bnx2x_q_stats_arr[j].size == 0) {
+					/* skip this counter */
+					buf[k + j] = 0;
+					continue;
+				}
+				offset = (hw_stats +
+					  bnx2x_q_stats_arr[j].offset);
+				if (bnx2x_q_stats_arr[j].size == 4) {
+					/* 4-byte counter */
+					buf[k + j] = (u64) *offset;
+					continue;
+				}
+				/* 8-byte counter */
+				buf[k + j] = HILO_U64(*offset, *(offset + 1));
+			}
+			k += BNX2X_NUM_Q_STATS;
 		}
-		if (bnx2x_stats_arr[i].size == 4) {
-			/* 4-byte counter */
-			buf[j] = (u64) *(hw_stats + bnx2x_stats_arr[i].offset);
-			j++;
-			continue;
+		if (IS_E1HMF_MODE_STAT(bp))
+			return;
+		hw_stats = (u32 *)&bp->eth_stats;
+		for (j = 0; j < BNX2X_NUM_STATS; j++) {
+			if (bnx2x_stats_arr[j].size == 0) {
+				/* skip this counter */
+				buf[k + j] = 0;
+				continue;
+			}
+			offset = (hw_stats + bnx2x_stats_arr[j].offset);
+			if (bnx2x_stats_arr[j].size == 4) {
+				/* 4-byte counter */
+				buf[k + j] = (u64) *offset;
+				continue;
+			}
+			/* 8-byte counter */
+			buf[k + j] = HILO_U64(*offset, *(offset + 1));
 		}
-		/* 8-byte counter */
-		buf[j] = HILO_U64(*(hw_stats + bnx2x_stats_arr[i].offset),
-				  *(hw_stats + bnx2x_stats_arr[i].offset + 1));
-		j++;
+	} else {
+		hw_stats = (u32 *)&bp->eth_stats;
+		for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
+			if (IS_E1HMF_MODE_STAT(bp) && IS_PORT_STAT(i))
+				continue;
+			if (bnx2x_stats_arr[i].size == 0) {
+				/* skip this counter */
+				buf[j] = 0;
+				j++;
+				continue;
+			}
+			offset = (hw_stats + bnx2x_stats_arr[i].offset);
+			if (bnx2x_stats_arr[i].size == 4) {
+				/* 4-byte counter */
+				buf[j] = (u64) *offset;
+				j++;
+				continue;
+			}
+			/* 8-byte counter */
+			buf[j] = HILO_U64(*offset, *(offset + 1));
+			j++;
+		}
 	}
 }
 
@@ -9250,6 +10005,8 @@ static struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_settings		= bnx2x_get_settings,
 	.set_settings		= bnx2x_set_settings,
 	.get_drvinfo		= bnx2x_get_drvinfo,
+	.get_regs_len		= bnx2x_get_regs_len,
+	.get_regs		= bnx2x_get_regs,
 	.get_wol		= bnx2x_get_wol,
 	.set_wol		= bnx2x_set_wol,
 	.get_msglevel		= bnx2x_get_msglevel,
@@ -9362,25 +10119,41 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 	bnx2x_update_fpsb_idx(fp);
 
 	if (bnx2x_has_tx_work(fp))
-		bnx2x_tx_int(fp, budget);
+		bnx2x_tx_int(fp);
 
-	if (bnx2x_has_rx_work(fp))
+	if (bnx2x_has_rx_work(fp)) {
 		work_done = bnx2x_rx_int(fp, budget);
-	rmb(); /* BNX2X_HAS_WORK() reads the status block */
 
-	/* must not complete if we consumed full budget */
-	if ((work_done < budget) && !BNX2X_HAS_WORK(fp)) {
+		/* must not complete if we consumed full budget */
+		if (work_done >= budget)
+			goto poll_again;
+	}
 
+	/* BNX2X_HAS_WORK() reads the status block, thus we need to
+	 * ensure that status block indices have been actually read
+	 * (bnx2x_update_fpsb_idx) prior to this check (BNX2X_HAS_WORK)
+	 * so that we won't write the "newer" value of the status block to IGU
+	 * (if there was a DMA right after BNX2X_HAS_WORK and
+	 * if there is no rmb, the memory reading (bnx2x_update_fpsb_idx)
+	 * may be postponed to right before bnx2x_ack_sb). In this case
+	 * there will never be another interrupt until there is another update
+	 * of the status block, while there is still unhandled work.
+	 */
+	rmb();
+
+	if (!BNX2X_HAS_WORK(fp)) {
 #ifdef BNX2X_STOP_ON_ERROR
 poll_panic:
 #endif
-		netif_rx_complete(napi);
+		napi_complete(napi);
 
-		bnx2x_ack_sb(bp, FP_SB_ID(fp), USTORM_ID,
+		bnx2x_ack_sb(bp, fp->sb_id, USTORM_ID,
 			     le16_to_cpu(fp->fp_u_idx), IGU_INT_NOP, 1);
-		bnx2x_ack_sb(bp, FP_SB_ID(fp), CSTORM_ID,
+		bnx2x_ack_sb(bp, fp->sb_id, CSTORM_ID,
 			     le16_to_cpu(fp->fp_c_idx), IGU_INT_ENABLE, 1);
 	}
+
+poll_again:
 	return work_done;
 }
 
@@ -9456,7 +10229,7 @@ static inline u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)
 		rc = XMIT_PLAIN;
 
 	else {
-		if (skb->protocol == ntohs(ETH_P_IPV6)) {
+		if (skb->protocol == htons(ETH_P_IPV6)) {
 			rc = XMIT_CSUM_V6;
 			if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
 				rc |= XMIT_CSUM_TCP;
@@ -9478,7 +10251,9 @@ static inline u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)
 }
 
 #if (MAX_SKB_FRAGS >= MAX_FETCH_BD - 3)
-/* check if packet requires linearization (packet is too fragmented) */
+/* check if packet requires linearization (packet is too fragmented)
+   no need to check fragmentation if page size > 8K (there will be no
+   violation to FW restrictions) */
 static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			     u32 xmit_type)
 {
@@ -9537,7 +10312,6 @@ static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 				wnd_sum -=
 					skb_shinfo(skb)->frags[wnd_idx].size;
 			}
-
 		} else {
 			/* in non-LSO too fragmented packet should always
 			   be linearized */
@@ -9565,6 +10339,7 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	struct bnx2x_fastpath *fp;
+	struct netdev_queue *txq;
 	struct sw_tx_bd *tx_buf;
 	struct eth_tx_bd *tx_bd;
 	struct eth_tx_parse_bd *pbd = NULL;
@@ -9581,12 +10356,14 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 #endif
 
-	fp_index = (smp_processor_id() % bp->num_queues);
+	fp_index = skb_get_queue_mapping(skb);
+	txq = netdev_get_tx_queue(dev, fp_index);
+
 	fp = &bp->fp[fp_index];
 
 	if (unlikely(bnx2x_tx_avail(fp) < (skb_shinfo(skb)->nr_frags + 3))) {
-		bp->eth_stats.driver_xoff++,
-		netif_stop_queue(dev);
+		fp->eth_q_stats.driver_xoff++,
+		netif_tx_stop_queue(txq);
 		BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
 		return NETDEV_TX_BUSY;
 	}
@@ -9597,8 +10374,9 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   ip_hdr(skb)->protocol, skb_shinfo(skb)->gso_type, xmit_type);
 
 #if (MAX_SKB_FRAGS >= MAX_FETCH_BD - 3)
-	/* First, check if we need to linearize the skb
-	   (due to FW restrictions) */
+	/* First, check if we need to linearize the skb (due to FW
+	   restrictions). No need to check fragmentation if page size > 8K
+	   (there will be no violation to FW restrictions) */
 	if (bnx2x_pkt_req_lin(bp, skb, xmit_type)) {
 		/* Statistics of linearization */
 		bp->lin_cnt++;
@@ -9663,9 +10441,9 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hlen = (skb_network_header(skb) - skb->data + vlan_off) / 2;
 
 		/* for now NS flag is not used in Linux */
-		pbd->global_data = (hlen |
-				    ((skb->protocol == ntohs(ETH_P_8021Q)) <<
-				     ETH_TX_PARSE_BD_LLC_SNAP_EN_SHIFT));
+		pbd->global_data =
+			(hlen | ((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<
+				 ETH_TX_PARSE_BD_LLC_SNAP_EN_SHIFT));
 
 		pbd->ip_hlen = (skb_transport_header(skb) -
 				skb_network_header(skb)) / 2;
@@ -9809,12 +10587,10 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	wmb();
 
-	fp->hw_tx_prods->bds_prod =
-		cpu_to_le16(le16_to_cpu(fp->hw_tx_prods->bds_prod) + nbd);
+	le16_add_cpu(&fp->hw_tx_prods->bds_prod, nbd);
 	mb(); /* FW restriction: must not reorder writing nbd and packets */
-	fp->hw_tx_prods->packets_prod =
-		cpu_to_le32(le32_to_cpu(fp->hw_tx_prods->packets_prod) + 1);
-	DOORBELL(bp, FP_IDX(fp), 0);
+	le32_add_cpu(&fp->hw_tx_prods->packets_prod, 1);
+	DOORBELL(bp, fp->index, 0);
 
 	mmiowb();
 
@@ -9825,10 +10601,10 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* We want bnx2x_tx_int to "see" the updated tx_bd_prod
 		   if we put Tx into XOFF state. */
 		smp_mb();
-		netif_stop_queue(dev);
-		bp->eth_stats.driver_xoff++;
+		netif_tx_stop_queue(txq);
+		fp->eth_q_stats.driver_xoff++;
 		if (bnx2x_tx_avail(fp) >= MAX_SKB_FRAGS + 3)
-			netif_wake_queue(dev);
+			netif_tx_wake_queue(txq);
 	}
 	fp->tx_pkt++;
 
@@ -9861,7 +10637,7 @@ static int bnx2x_close(struct net_device *dev)
 	return 0;
 }
 
-/* called with netif_tx_lock from set_multicast */
+/* called with netif_tx_lock from dev_mcast.c */
 static void bnx2x_set_rx_mode(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -9920,7 +10696,7 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 				   config->config_table[i].
 						cam_entry.lsb_mac_addr);
 			}
-			old = config->hdr.length_6b;
+			old = config->hdr.length;
 			if (old > i) {
 				for (; i < old; i++) {
 					if (CAM_IS_INVALID(config->
@@ -9939,9 +10715,9 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 			else
 				offset = BNX2X_MAX_MULTICAST*(1 + port);
 
-			config->hdr.length_6b = i;
+			config->hdr.length = i;
 			config->hdr.offset = offset;
-			config->hdr.client_id = BP_CL_ID(bp);
+			config->hdr.client_id = bp->fp->cl_id;
 			config->hdr.reserved1 = 0;
 
 			bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_SET_MAC, 0,
@@ -10127,7 +10903,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_open		= bnx2x_open,
 	.ndo_stop		= bnx2x_close,
 	.ndo_start_xmit		= bnx2x_start_xmit,
-	.ndo_set_multicast_list = bnx2x_set_rx_mode,
+	.ndo_set_multicast_list	= bnx2x_set_rx_mode,
 	.ndo_set_mac_address	= bnx2x_change_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= bnx2x_ioctl,
@@ -10140,7 +10916,6 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
 };
-
 
 static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 				    struct net_device *dev)
@@ -10204,16 +10979,16 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		goto err_out_release;
 	}
 
-	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) == 0) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) == 0) {
 		bp->flags |= USING_DAC_FLAG;
-		if (pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK) != 0) {
+		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) {
 			printk(KERN_ERR PFX "pci_set_consistent_dma_mask"
 			       " failed, aborting\n");
 			rc = -EIO;
 			goto err_out_release;
 		}
 
-	} else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0) {
+	} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
 		printk(KERN_ERR PFX "System does not support DMA,"
 		       " aborting\n");
 		rc = -EIO;
@@ -10320,7 +11095,7 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		printk(KERN_INFO "%s", version);
 
 	/* dev zeroed in init_etherdev */
-	dev = alloc_etherdev(sizeof(*bp));
+	dev = alloc_etherdev_mq(sizeof(*bp), MAX_CONTEXT);
 	if (!dev) {
 		printk(KERN_ERR PFX "Cannot allocate net device\n");
 		return -ENOMEM;
@@ -10347,14 +11122,14 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		goto init_one_exit;
 	}
 
-	bp->common.name = board_info[ent->driver_data].name;
 	printk(KERN_INFO "%s: %s (%c%d) PCI-E x%d %s found at mem %lx,"
-	       " IRQ %d, ", dev->name, bp->common.name,
+	       " IRQ %d, ", dev->name, board_info[ent->driver_data].name,
 	       (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
 	       bnx2x_get_pcie_width(bp),
 	       (bnx2x_get_pcie_speed(bp) == 2) ? "5GHz (Gen2)" : "2.5GHz",
 	       dev->base_addr, bp->pdev->irq);
 	printk(KERN_CONT "node addr %pM\n", dev->dev_addr);
+
 	return 0;
 
 init_one_exit:
@@ -10486,15 +11261,15 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 		struct mac_configuration_cmd *config =
 						bnx2x_sp(bp, mcast_config);
 
-		for (i = 0; i < config->hdr.length_6b; i++)
+		for (i = 0; i < config->hdr.length; i++)
 			CAM_INVALIDATE(config->config_table[i]);
 	}
 
 	/* Free SKBs, SGEs, TPA pool and driver internals */
 	bnx2x_free_skbs(bp);
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
 	bnx2x_free_mem(bp);
 
@@ -10621,8 +11396,8 @@ static void bnx2x_io_resume(struct pci_dev *pdev)
 
 static struct pci_error_handlers bnx2x_err_handler = {
 	.error_detected = bnx2x_io_error_detected,
-	.slot_reset = bnx2x_io_slot_reset,
-	.resume = bnx2x_io_resume,
+	.slot_reset     = bnx2x_io_slot_reset,
+	.resume         = bnx2x_io_resume,
 };
 
 static struct pci_driver bnx2x_pci_driver = {

@@ -28,7 +28,6 @@
 #include <linux/mutex.h>
 #include <linux/leds.h>
 #include <linux/ide.h>
-#include <linux/hdreg.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
@@ -53,33 +52,26 @@ static const u8 ide_rw_cmds[] = {
 	ATA_CMD_WRITE_EXT,
 };
 
-static const u8 ide_data_phases[] = {
-	TASKFILE_MULTI_IN,
-	TASKFILE_MULTI_OUT,
-	TASKFILE_IN,
-	TASKFILE_OUT,
-	TASKFILE_IN_DMA,
-	TASKFILE_OUT_DMA,
-};
-
-static void ide_tf_set_cmd(ide_drive_t *drive, ide_task_t *task, u8 dma)
+static void ide_tf_set_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 dma)
 {
 	u8 index, lba48, write;
 
-	lba48 = (task->tf_flags & IDE_TFLAG_LBA48) ? 2 : 0;
-	write = (task->tf_flags & IDE_TFLAG_WRITE) ? 1 : 0;
+	lba48 = (cmd->tf_flags & IDE_TFLAG_LBA48) ? 2 : 0;
+	write = (cmd->tf_flags & IDE_TFLAG_WRITE) ? 1 : 0;
 
-	if (dma)
+	if (dma) {
+		cmd->protocol = ATA_PROT_DMA;
 		index = 8;
-	else
-		index = drive->mult_count ? 0 : 4;
+	} else {
+		cmd->protocol = ATA_PROT_PIO;
+		if (drive->mult_count) {
+			cmd->tf_flags |= IDE_TFLAG_MULTI_PIO;
+			index = 0;
+		} else
+			index = 4;
+	}
 
-	task->tf.command = ide_rw_cmds[index + lba48 + write];
-
-	if (dma)
-		index = 8; /* fixup index */
-
-	task->data_phase = ide_data_phases[index / 2 + write];
+	cmd->tf.command = ide_rw_cmds[index + lba48 + write];
 }
 
 /*
@@ -93,8 +85,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	u16 nsectors		= (u16)rq->nr_sectors;
 	u8 lba48		= !!(drive->dev_flags & IDE_DFLAG_LBA48);
 	u8 dma			= !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
-	ide_task_t		task;
-	struct ide_taskfile	*tf = &task.tf;
+	struct ide_cmd		cmd;
+	struct ide_taskfile	*tf = &cmd.tf;
 	ide_startstop_t		rc;
 
 	if ((hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) && lba48 && dma) {
@@ -104,13 +96,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 			lba48 = 0;
 	}
 
-	if (!dma) {
-		ide_init_sg_cmd(drive, rq);
-		ide_map_sg(drive, rq);
-	}
-
-	memset(&task, 0, sizeof(task));
-	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
 	if (drive->dev_flags & IDE_DFLAG_LBA) {
 		if (lba48) {
@@ -129,7 +116,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 			tf->lbam   = (u8)(block >>  8);
 			tf->lbah   = (u8)(block >> 16);
 
-			task.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_HOB);
+			cmd.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_HOB);
 		} else {
 			tf->nsect  = nsectors & 0xff;
 			tf->lbal   = block;
@@ -156,23 +143,27 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 		tf->device = head;
 	}
 
+	cmd.tf_flags |= IDE_TFLAG_FS;
+
 	if (rq_data_dir(rq))
-		task.tf_flags |= IDE_TFLAG_WRITE;
+		cmd.tf_flags |= IDE_TFLAG_WRITE;
 
-	ide_tf_set_cmd(drive, &task, dma);
-	if (!dma)
-		hwif->data_phase = task.data_phase;
-	task.rq = rq;
+	ide_tf_set_cmd(drive, &cmd, dma);
+	cmd.rq = rq;
 
-	rc = do_rw_taskfile(drive, &task);
+	if (dma == 0) {
+		ide_init_sg_cmd(&cmd, nsectors << 9);
+		ide_map_sg(drive, &cmd);
+	}
+
+	rc = do_rw_taskfile(drive, &cmd);
 
 	if (rc == ide_stopped && dma) {
 		/* fallback to PIO */
-		task.tf_flags |= IDE_TFLAG_DMA_PIO_FALLBACK;
-		ide_tf_set_cmd(drive, &task, 0);
-		hwif->data_phase = task.data_phase;
-		ide_init_sg_cmd(drive, rq);
-		rc = do_rw_taskfile(drive, &task);
+		cmd.tf_flags |= IDE_TFLAG_DMA_PIO_FALLBACK;
+		ide_tf_set_cmd(drive, &cmd, 0);
+		ide_init_sg_cmd(&cmd, nsectors << 9);
+		rc = do_rw_taskfile(drive, &cmd);
 	}
 
 	return rc;
@@ -193,7 +184,9 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 
 	if (!blk_fs_request(rq)) {
 		blk_dump_rq_flags(rq, "ide_do_rw_disk - bad command");
-		ide_end_request(drive, 0, 0);
+		if (rq->errors == 0)
+			rq->errors = -EIO;
+		ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
 		return ide_stopped;
 	}
 
@@ -216,25 +209,25 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
  */
 static u64 idedisk_read_native_max_address(ide_drive_t *drive, int lba48)
 {
-	ide_task_t args;
-	struct ide_taskfile *tf = &args.tf;
+	struct ide_cmd cmd;
+	struct ide_taskfile *tf = &cmd.tf;
 	u64 addr = 0;
 
-	/* Create IDE/ATA command request structure */
-	memset(&args, 0, sizeof(ide_task_t));
+	memset(&cmd, 0, sizeof(cmd));
 	if (lba48)
 		tf->command = ATA_CMD_READ_NATIVE_MAX_EXT;
 	else
 		tf->command = ATA_CMD_READ_NATIVE_MAX;
 	tf->device  = ATA_LBA;
-	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	if (lba48)
-		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_HOB);
-	/* submit command request */
-	ide_no_data_taskfile(drive, &args);
+		cmd.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_HOB);
+
+	ide_no_data_taskfile(drive, &cmd);
 
 	/* if OK, compute maximum address value */
-	if ((tf->status & 0x01) == 0)
+	if (!(tf->status & ATA_ERR))
 		addr = ide_get_lba_addr(tf, lba48) + 1;
 
 	return addr;
@@ -246,13 +239,13 @@ static u64 idedisk_read_native_max_address(ide_drive_t *drive, int lba48)
  */
 static u64 idedisk_set_max_address(ide_drive_t *drive, u64 addr_req, int lba48)
 {
-	ide_task_t args;
-	struct ide_taskfile *tf = &args.tf;
+	struct ide_cmd cmd;
+	struct ide_taskfile *tf = &cmd.tf;
 	u64 addr_set = 0;
 
 	addr_req--;
-	/* Create IDE/ATA command request structure */
-	memset(&args, 0, sizeof(ide_task_t));
+
+	memset(&cmd, 0, sizeof(cmd));
 	tf->lbal     = (addr_req >>  0) & 0xff;
 	tf->lbam     = (addr_req >>= 8) & 0xff;
 	tf->lbah     = (addr_req >>= 8) & 0xff;
@@ -266,13 +259,15 @@ static u64 idedisk_set_max_address(ide_drive_t *drive, u64 addr_req, int lba48)
 		tf->command  = ATA_CMD_SET_MAX;
 	}
 	tf->device |= ATA_LBA;
-	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	if (lba48)
-		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_HOB);
-	/* submit command request */
-	ide_no_data_taskfile(drive, &args);
+		cmd.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_HOB);
+
+	ide_no_data_taskfile(drive, &cmd);
+
 	/* if OK, compute maximum address value */
-	if ((tf->status & 0x01) == 0)
+	if (!(tf->status & ATA_ERR))
 		addr_set = ide_get_lba_addr(tf, lba48) + 1;
 
 	return addr_set;
@@ -389,24 +384,24 @@ static int ide_disk_get_capacity(ide_drive_t *drive)
 static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 {
 	ide_drive_t *drive = q->queuedata;
-	ide_task_t *task = kmalloc(sizeof(*task), GFP_ATOMIC);
+	struct ide_cmd *cmd = kmalloc(sizeof(*cmd), GFP_ATOMIC);
 
 	/* FIXME: map struct ide_taskfile on rq->cmd[] */
-	BUG_ON(task == NULL);
+	BUG_ON(cmd == NULL);
 
-	memset(task, 0, sizeof(*task));
+	memset(cmd, 0, sizeof(*cmd));
 	if (ata_id_flush_ext_enabled(drive->id) &&
 	    (drive->capacity64 >= (1UL << 28)))
-		task->tf.command = ATA_CMD_FLUSH_EXT;
+		cmd->tf.command = ATA_CMD_FLUSH_EXT;
 	else
-		task->tf.command = ATA_CMD_FLUSH;
-	task->tf_flags	 = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE |
-			   IDE_TFLAG_DYN;
-	task->data_phase = TASKFILE_NO_DATA;
+		cmd->tf.command = ATA_CMD_FLUSH;
+	cmd->tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE |
+			IDE_TFLAG_DYN;
+	cmd->protocol = ATA_PROT_NODATA;
 
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq->cmd_flags |= REQ_SOFTBARRIER;
-	rq->special = task;
+	rq->special = cmd;
 }
 
 ide_devset_get(multcount, mult_count);
@@ -456,15 +451,15 @@ static int set_nowerr(ide_drive_t *drive, int arg)
 
 static int ide_do_setfeature(ide_drive_t *drive, u8 feature, u8 nsect)
 {
-	ide_task_t task;
+	struct ide_cmd cmd;
 
-	memset(&task, 0, sizeof(task));
-	task.tf.feature = feature;
-	task.tf.nsect   = nsect;
-	task.tf.command = ATA_CMD_SET_FEATURES;
-	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf.feature = feature;
+	cmd.tf.nsect   = nsect;
+	cmd.tf.command = ATA_CMD_SET_FEATURES;
+	cmd.tf_flags   = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
-	return ide_no_data_taskfile(drive, &task);
+	return ide_no_data_taskfile(drive, &cmd);
 }
 
 static void update_ordered(ide_drive_t *drive)
@@ -531,15 +526,16 @@ static int set_wcache(ide_drive_t *drive, int arg)
 
 static int do_idedisk_flushcache(ide_drive_t *drive)
 {
-	ide_task_t args;
+	struct ide_cmd cmd;
 
-	memset(&args, 0, sizeof(ide_task_t));
+	memset(&cmd, 0, sizeof(cmd));
 	if (ata_id_flush_ext_enabled(drive->id))
-		args.tf.command = ATA_CMD_FLUSH_EXT;
+		cmd.tf.command = ATA_CMD_FLUSH_EXT;
 	else
-		args.tf.command = ATA_CMD_FLUSH;
-	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
-	return ide_no_data_taskfile(drive, &args);
+		cmd.tf.command = ATA_CMD_FLUSH;
+	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+
+	return ide_no_data_taskfile(drive, &cmd);
 }
 
 ide_devset_get(acoustic, acoustic);
@@ -711,17 +707,17 @@ static int ide_disk_init_media(ide_drive_t *drive, struct gendisk *disk)
 static int ide_disk_set_doorlock(ide_drive_t *drive, struct gendisk *disk,
 				 int on)
 {
-	ide_task_t task;
+	struct ide_cmd cmd;
 	int ret;
 
 	if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) == 0)
 		return 0;
 
-	memset(&task, 0, sizeof(task));
-	task.tf.command = on ? ATA_CMD_MEDIA_LOCK : ATA_CMD_MEDIA_UNLOCK;
-	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.tf.command = on ? ATA_CMD_MEDIA_LOCK : ATA_CMD_MEDIA_UNLOCK;
+	cmd.tf_flags   = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
-	ret = ide_no_data_taskfile(drive, &task);
+	ret = ide_no_data_taskfile(drive, &cmd);
 
 	if (ret)
 		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
@@ -737,6 +733,5 @@ const struct ide_disk_ops ide_ata_disk_ops = {
 	.init_media	= ide_disk_init_media,
 	.set_doorlock	= ide_disk_set_doorlock,
 	.do_request	= ide_do_rw_disk,
-	.end_request	= ide_end_request,
 	.ioctl		= ide_disk_ioctl,
 };

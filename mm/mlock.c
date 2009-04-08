@@ -311,7 +311,10 @@ long mlock_vma_pages_range(struct vm_area_struct *vma,
 			is_vm_hugetlb_page(vma) ||
 			vma == get_gate_vma(current))) {
 
-		return __mlock_vma_pages_range(vma, start, end, 1);
+		__mlock_vma_pages_range(vma, start, end, 1);
+
+		/* Hide errors from mmap() and other callers */
+		return 0;
 	}
 
 	/*
@@ -657,7 +660,7 @@ void *alloc_locked_buffer(size_t size)
 	return buffer;
 }
 
-void free_locked_buffer(void *buffer, size_t size)
+void release_locked_buffer(void *buffer, size_t size)
 {
 	unsigned long pgsz = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
@@ -667,6 +670,11 @@ void free_locked_buffer(void *buffer, size_t size)
 	current->mm->locked_vm -= pgsz;
 
 	up_write(&current->mm->mmap_sem);
+}
+
+void free_locked_buffer(void *buffer, size_t size)
+{
+	release_locked_buffer(buffer, size);
 
 	kfree(buffer);
 }

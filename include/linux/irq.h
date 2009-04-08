@@ -17,9 +17,12 @@
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
+#include <linux/gfp.h>
 #include <linux/irqreturn.h>
 #include <linux/irqnr.h>
 #include <linux/errno.h>
+#include <linux/topology.h>
+#include <linux/wait.h>
 
 #include <asm/irq.h>
 #include <asm/ptrace.h>
@@ -65,6 +68,7 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_SPURIOUS_DISABLED	0x00800000	/* IRQ was disabled by the spurious trap */
 #define IRQ_MOVE_PCNTXT		0x01000000	/* IRQ migration from process context */
 #define IRQ_AFFINITY_SET	0x02000000	/* IRQ affinity was set from userspace*/
+#define IRQ_SUSPENDED		0x04000000	/* IRQ has gone through suspend sequence */
 
 #ifdef CONFIG_IRQ_PER_CPU
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
@@ -155,17 +159,17 @@ struct irq_2_iommu;
  * @affinity:		IRQ affinity on SMP
  * @cpu:		cpu index useful for balancing
  * @pending_mask:	pending rebalanced interrupts
+ * @threads_active:	number of irqaction threads currently running
+ * @wait_for_threads:	wait queue for sync_irq to wait for threaded handlers
  * @dir:		/proc/irq/ procfs entry
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
 	unsigned int		irq;
-#ifdef CONFIG_SPARSE_IRQ
 	struct timer_rand_state *timer_rand_state;
 	unsigned int            *kstat_irqs;
-# ifdef CONFIG_INTR_REMAP
+#ifdef CONFIG_INTR_REMAP
 	struct irq_2_iommu      *irq_2_iommu;
-# endif
 #endif
 	irq_flow_handler_t	handle_irq;
 	struct irq_chip		*chip;
@@ -182,12 +186,14 @@ struct irq_desc {
 	unsigned int		irqs_unhandled;
 	spinlock_t		lock;
 #ifdef CONFIG_SMP
-	cpumask_t		affinity;
+	cpumask_var_t		affinity;
 	unsigned int		cpu;
-#endif
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	cpumask_t		pending_mask;
+	cpumask_var_t		pending_mask;
 #endif
+#endif
+	atomic_t		threads_active;
+	wait_queue_head_t       wait_for_threads;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry	*dir;
 #endif
@@ -202,12 +208,6 @@ extern void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc
 extern struct irq_desc irq_desc[NR_IRQS];
 #else /* CONFIG_SPARSE_IRQ */
 extern struct irq_desc *move_irq_desc(struct irq_desc *old_desc, int cpu);
-
-#define kstat_irqs_this_cpu(DESC) \
-	((DESC)->kstat_irqs[smp_processor_id()])
-#define kstat_incr_irqs_this_cpu(irqno, DESC) \
-	((DESC)->kstat_irqs[smp_processor_id()]++)
-
 #endif /* CONFIG_SPARSE_IRQ */
 
 extern struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu);
@@ -226,7 +226,6 @@ irq_remap_to_desc(unsigned int irq, struct irq_desc *desc)
  * Migration helpers for obsolete names, they will go away:
  */
 #define hw_interrupt_type	irq_chip
-typedef struct irq_chip		hw_irq_controller;
 #define no_irq_type		no_irq_chip
 typedef struct irq_desc		irq_desc_t;
 
@@ -236,6 +235,7 @@ typedef struct irq_desc		irq_desc_t;
 #include <asm/hw_irq.h>
 
 extern int setup_irq(unsigned int irq, struct irqaction *new);
+extern void remove_irq(unsigned int irq, struct irqaction *act);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 
@@ -280,7 +280,7 @@ static inline int irq_balancing_disabled(unsigned int irq)
 }
 
 /* Handle irq action chains: */
-extern int handle_IRQ_event(unsigned int irq, struct irqaction *action);
+extern irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action);
 
 /*
  * Built-in IRQ handlers for various IRQ types,
@@ -325,7 +325,7 @@ static inline void generic_handle_irq(unsigned int irq)
 
 /* Handling of unhandled and spurious interrupts: */
 extern void note_interrupt(unsigned int irq, struct irq_desc *desc,
-			   int action_ret);
+			   irqreturn_t action_ret);
 
 /* Resending of interrupts :*/
 void check_irq_resend(struct irq_desc *desc, unsigned int irq);
@@ -421,5 +421,85 @@ extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
 #endif /* !CONFIG_S390 */
+
+#ifdef CONFIG_SMP
+/**
+ * init_alloc_desc_masks - allocate cpumasks for irq_desc
+ * @desc:	pointer to irq_desc struct
+ * @cpu:	cpu which will be handling the cpumasks
+ * @boot:	true if need bootmem
+ *
+ * Allocates affinity and pending_mask cpumask if required.
+ * Returns true if successful (or not required).
+ * Side effect: affinity has all bits set, pending_mask has all bits clear.
+ */
+static inline bool init_alloc_desc_masks(struct irq_desc *desc, int cpu,
+								bool boot)
+{
+	int node;
+
+	if (boot) {
+		alloc_bootmem_cpumask_var(&desc->affinity);
+		cpumask_setall(desc->affinity);
+
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+		alloc_bootmem_cpumask_var(&desc->pending_mask);
+		cpumask_clear(desc->pending_mask);
+#endif
+		return true;
+	}
+
+	node = cpu_to_node(cpu);
+
+	if (!alloc_cpumask_var_node(&desc->affinity, GFP_ATOMIC, node))
+		return false;
+	cpumask_setall(desc->affinity);
+
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+	if (!alloc_cpumask_var_node(&desc->pending_mask, GFP_ATOMIC, node)) {
+		free_cpumask_var(desc->affinity);
+		return false;
+	}
+	cpumask_clear(desc->pending_mask);
+#endif
+	return true;
+}
+
+/**
+ * init_copy_desc_masks - copy cpumasks for irq_desc
+ * @old_desc:	pointer to old irq_desc struct
+ * @new_desc:	pointer to new irq_desc struct
+ *
+ * Insures affinity and pending_masks are copied to new irq_desc.
+ * If !CONFIG_CPUMASKS_OFFSTACK the cpumasks are embedded in the
+ * irq_desc struct so the copy is redundant.
+ */
+
+static inline void init_copy_desc_masks(struct irq_desc *old_desc,
+					struct irq_desc *new_desc)
+{
+#ifdef CONFIG_CPUMASKS_OFFSTACK
+	cpumask_copy(new_desc->affinity, old_desc->affinity);
+
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+	cpumask_copy(new_desc->pending_mask, old_desc->pending_mask);
+#endif
+#endif
+}
+
+#else /* !CONFIG_SMP */
+
+static inline bool init_alloc_desc_masks(struct irq_desc *desc, int cpu,
+								bool boot)
+{
+	return true;
+}
+
+static inline void init_copy_desc_masks(struct irq_desc *old_desc,
+					struct irq_desc *new_desc)
+{
+}
+
+#endif	/* CONFIG_SMP */
 
 #endif /* _LINUX_IRQ_H */

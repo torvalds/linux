@@ -13,8 +13,8 @@
 #include <asm/cacheflush.h>
 #include <asm/mach-types.h>
 
-const extern unsigned char relocate_new_kernel[];
-const extern unsigned int relocate_new_kernel_size;
+extern const unsigned char relocate_new_kernel[];
+extern const unsigned int relocate_new_kernel_size;
 
 extern void setup_mm_for_reboot(char mode);
 

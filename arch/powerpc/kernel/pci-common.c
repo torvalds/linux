@@ -38,6 +38,7 @@
 #include <asm/eeh.h>
 
 static DEFINE_SPINLOCK(hose_spinlock);
+LIST_HEAD(hose_list);
 
 /* XXX kill that some day ... */
 static int global_phb_number;		/* Global phb counter */
@@ -49,7 +50,7 @@ resource_size_t isa_mem_base;
 unsigned int ppc_pci_flags = 0;
 
 
-static struct dma_mapping_ops *pci_dma_ops;
+static struct dma_mapping_ops *pci_dma_ops = &dma_direct_ops;
 
 void set_pci_dma_ops(struct dma_mapping_ops *dma_ops)
 {
@@ -113,19 +114,24 @@ void pcibios_free_controller(struct pci_controller *phb)
 		kfree(phb);
 }
 
+static resource_size_t pcibios_io_size(const struct pci_controller *hose)
+{
+#ifdef CONFIG_PPC64
+	return hose->pci_io_size;
+#else
+	return hose->io_resource.end - hose->io_resource.start + 1;
+#endif
+}
+
 int pcibios_vaddr_is_ioport(void __iomem *address)
 {
 	int ret = 0;
 	struct pci_controller *hose;
-	unsigned long size;
+	resource_size_t size;
 
 	spin_lock(&hose_spinlock);
 	list_for_each_entry(hose, &hose_list, list_node) {
-#ifdef CONFIG_PPC64
-		size = hose->pci_io_size;
-#else
-		size = hose->io_resource.end - hose->io_resource.start + 1;
-#endif
+		size = pcibios_io_size(hose);
 		if (address >= hose->io_base_virt &&
 		    address < (hose->io_base_virt + size)) {
 			ret = 1;
@@ -135,6 +141,29 @@ int pcibios_vaddr_is_ioport(void __iomem *address)
 	spin_unlock(&hose_spinlock);
 	return ret;
 }
+
+unsigned long pci_address_to_pio(phys_addr_t address)
+{
+	struct pci_controller *hose;
+	resource_size_t size;
+	unsigned long ret = ~0;
+
+	spin_lock(&hose_spinlock);
+	list_for_each_entry(hose, &hose_list, list_node) {
+		size = pcibios_io_size(hose);
+		if (address >= hose->io_base_phys &&
+		    address < (hose->io_base_phys + size)) {
+			unsigned long base =
+				(unsigned long)hose->io_base_virt - _IO_BASE;
+			ret = base + (address - hose->io_base_phys);
+			break;
+		}
+	}
+	spin_unlock(&hose_spinlock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pci_address_to_pio);
 
 /*
  * Return the domain number for this bus.
@@ -561,8 +590,21 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 		 (unsigned long long)(offset + size - 1));
 
 	if (mmap_state == pci_mmap_mem) {
-		if ((offset + size) > hose->isa_mem_size)
-			return -ENXIO;
+		/* Hack alert !
+		 *
+		 * Because X is lame and can fail starting if it gets an error trying
+		 * to mmap legacy_mem (instead of just moving on without legacy memory
+		 * access) we fake it here by giving it anonymous memory, effectively
+		 * behaving just like /dev/zero
+		 */
+		if ((offset + size) > hose->isa_mem_size) {
+			printk(KERN_DEBUG
+			       "Process %s (pid:%d) mapped non-existing PCI legacy memory for 0%04x:%02x\n",
+			       current->comm, current->pid, pci_domain_nr(bus), bus->number);
+			if (vma->vm_flags & VM_SHARED)
+				return shmem_zero_setup(vma);
+			return 0;
+		}
 		offset += hose->isa_mem_phys;
 	} else {
 		unsigned long io_offset = (unsigned long)hose->io_base_virt - _IO_BASE;
@@ -1440,7 +1482,7 @@ void __init pcibios_resource_survey(void)
 	 * we proceed to assigning things that were left unassigned
 	 */
 	if (!(ppc_pci_flags & PPC_PCI_PROBE_ONLY)) {
-		pr_debug("PCI: Assigning unassigned resouces...\n");
+		pr_debug("PCI: Assigning unassigned resources...\n");
 		pci_assign_unassigned_resources();
 	}
 

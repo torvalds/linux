@@ -143,6 +143,7 @@ struct asus_hotk {
 							 S1300N, S5200N*/
 		A4S,            /* Z81sp */
 		F3Sa,		/* (Centrino) */
+		R1F,
 		END_MODEL
 	} model;		/* Models currently supported */
 	u16 event_count[128];	/* Count for each event TODO make this better */
@@ -420,7 +421,18 @@ static struct model_data model_conf[END_MODEL] = {
 		.display_get	= "\\ADVG",
 		.display_set	= "SDSP",
 	},
-
+	{
+		.name = "R1F",
+		.mt_bt_switch = "BLED",
+		.mt_mled = "MLED",
+		.mt_wled = "WLED",
+		.mt_lcd_switch = "\\Q10",
+		.lcd_status = "\\GP06",
+		.brightness_set = "SPLV",
+		.brightness_get = "GPLV",
+		.display_set = "SDSP",
+		.display_get = "\\INFB"
+	}
 };
 
 /* procdir we use */
@@ -975,7 +987,6 @@ asus_proc_add(char *name, proc_writefunc *writefunc,
 	proc->write_proc = writefunc;
 	proc->read_proc = readfunc;
 	proc->data = acpi_driver_data(device);
-	proc->owner = THIS_MODULE;
 	proc->uid = asus_uid;
 	proc->gid = asus_gid;
 	return 0;
@@ -1008,7 +1019,6 @@ static int asus_hotk_add_fs(struct acpi_device *device)
 	if (proc) {
 		proc->read_proc = proc_read_info;
 		proc->data = acpi_driver_data(device);
-		proc->owner = THIS_MODULE;
 		proc->uid = asus_uid;
 		proc->gid = asus_gid;
 	} else {
@@ -1165,6 +1175,8 @@ static int asus_model_match(char *model)
 		return W3V;
 	else if (strncmp(model, "W5A", 3) == 0)
 		return W5A;
+	else if (strncmp(model, "R1F", 3) == 0)
+		return R1F;
 	else if (strncmp(model, "A4S", 3) == 0)
 		return A4S;
 	else if (strncmp(model, "F3Sa", 4) == 0)
@@ -1422,7 +1434,6 @@ static int __init asus_acpi_init(void)
 		printk(KERN_ERR "Asus ACPI: Unable to create /proc entry\n");
 		return -ENODEV;
 	}
-	asus_proc_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&asus_hotk_driver);
 	if (result < 0) {

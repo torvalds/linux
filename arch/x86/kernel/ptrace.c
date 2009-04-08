@@ -21,6 +21,7 @@
 #include <linux/audit.h>
 #include <linux/seccomp.h>
 #include <linux/signal.h>
+#include <linux/ftrace.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -75,10 +76,7 @@ static inline bool invalid_selector(u16 value)
 static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
 	BUILD_BUG_ON(offsetof(struct pt_regs, bx) != 0);
-	regno >>= 2;
-	if (regno > FS)
-		--regno;
-	return &regs->bx + regno;
+	return &regs->bx + (regno >> 2);
 }
 
 static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
@@ -90,9 +88,10 @@ static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 	if (offset != offsetof(struct user_regs_struct, gs))
 		retval = *pt_regs_access(task_pt_regs(task), offset);
 	else {
-		retval = task->thread.gs;
 		if (task == current)
-			savesegment(gs, retval);
+			retval = get_user_gs(task_pt_regs(task));
+		else
+			retval = task_user_gs(task);
 	}
 	return retval;
 }
@@ -126,13 +125,10 @@ static int set_segment_reg(struct task_struct *task,
 		break;
 
 	case offsetof(struct user_regs_struct, gs):
-		task->thread.gs = value;
 		if (task == current)
-			/*
-			 * The user-mode %gs is not affected by
-			 * kernel entry, so we must update the CPU.
-			 */
-			loadsegment(gs, value);
+			set_user_gs(task_pt_regs(task), value);
+		else
+			task_user_gs(task) = value;
 	}
 
 	return 0;
@@ -273,7 +269,7 @@ static unsigned long debugreg_addr_limit(struct task_struct *task)
 	if (test_tsk_thread_flag(task, TIF_IA32))
 		return IA32_PAGE_OFFSET - 3;
 #endif
-	return TASK_SIZE64 - 7;
+	return TASK_SIZE_MAX - 7;
 }
 
 #endif	/* CONFIG_X86_32 */
@@ -690,9 +686,8 @@ static int ptrace_bts_config(struct task_struct *child,
 		if (!cfg.signal)
 			return -EINVAL;
 
-		return -EOPNOTSUPP;
-
 		child->thread.bts_ovfl_signal = cfg.signal;
+		return -EOPNOTSUPP;
 	}
 
 	if ((cfg.flags & PTRACE_BTS_O_ALLOC) &&
@@ -810,12 +805,16 @@ static void ptrace_bts_untrace(struct task_struct *child)
 
 static void ptrace_bts_detach(struct task_struct *child)
 {
-	if (unlikely(child->bts)) {
-		ds_release_bts(child->bts);
-		child->bts = NULL;
-
-		ptrace_bts_free_buffer(child);
-	}
+	/*
+	 * Ptrace_detach() races with ptrace_untrace() in case
+	 * the child dies and is reaped by another thread.
+	 *
+	 * We only do the memory accounting at this point and
+	 * leave the buffer deallocation and the bts tracer
+	 * release to ptrace_bts_untrace() which will be called
+	 * later on with tasklist_lock held.
+	 */
+	release_locked_buffer(child->bts_buffer, child->bts_size);
 }
 #else
 static inline void ptrace_bts_fork(struct task_struct *tsk) {}
@@ -1384,7 +1383,7 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 #ifdef CONFIG_X86_32
 # define IS_IA32	1
 #elif defined CONFIG_IA32_EMULATION
-# define IS_IA32	test_thread_flag(TIF_IA32)
+# define IS_IA32	is_compat_task()
 #else
 # define IS_IA32	0
 #endif
@@ -1417,6 +1416,9 @@ asmregparm long syscall_trace_enter(struct pt_regs *regs)
 	    tracehook_report_syscall_entry(regs))
 		ret = -1L;
 
+	if (unlikely(test_thread_flag(TIF_SYSCALL_FTRACE)))
+		ftrace_syscall_enter(regs);
+
 	if (unlikely(current->audit_context)) {
 		if (IS_IA32)
 			audit_syscall_entry(AUDIT_ARCH_I386,
@@ -1440,6 +1442,9 @@ asmregparm void syscall_trace_leave(struct pt_regs *regs)
 	if (unlikely(current->audit_context))
 		audit_syscall_exit(AUDITSC_RESULT(regs->ax), regs->ax);
 
+	if (unlikely(test_thread_flag(TIF_SYSCALL_FTRACE)))
+		ftrace_syscall_exit(regs);
+
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall_exit(regs, 0);
 
@@ -1457,6 +1462,6 @@ asmregparm void syscall_trace_leave(struct pt_regs *regs)
 	 * system call instruction.
 	 */
 	if (test_thread_flag(TIF_SINGLESTEP) &&
-	    tracehook_consider_fatal_signal(current, SIGTRAP, SIG_DFL))
+	    tracehook_consider_fatal_signal(current, SIGTRAP))
 		send_sigtrap(current, regs, 0, TRAP_BRKPT);
 }

@@ -145,10 +145,19 @@ struct kvm_rmap_desc {
 	struct kvm_rmap_desc *more;
 };
 
-struct kvm_shadow_walk {
-	int (*entry)(struct kvm_shadow_walk *walk, struct kvm_vcpu *vcpu,
-		     u64 addr, u64 *spte, int level);
+struct kvm_shadow_walk_iterator {
+	u64 addr;
+	hpa_t shadow_addr;
+	int level;
+	u64 *sptep;
+	unsigned index;
 };
+
+#define for_each_shadow_entry(_vcpu, _addr, _walker)    \
+	for (shadow_walk_init(&(_walker), _vcpu, _addr);	\
+	     shadow_walk_okay(&(_walker));			\
+	     shadow_walk_next(&(_walker)))
+
 
 struct kvm_unsync_walk {
 	int (*entry) (struct kvm_mmu_page *sp, struct kvm_unsync_walk *walk);
@@ -343,7 +352,6 @@ static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc,
 
 	BUG_ON(!mc->nobjs);
 	p = mc->objects[--mc->nobjs];
-	memset(p, 0, size);
 	return p;
 }
 
@@ -794,10 +802,8 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 	set_page_private(virt_to_page(sp->spt), (unsigned long)sp);
 	list_add(&sp->link, &vcpu->kvm->arch.active_mmu_pages);
 	INIT_LIST_HEAD(&sp->oos_link);
-	ASSERT(is_empty_shadow_page(sp->spt));
 	bitmap_zero(sp->slot_bitmap, KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS);
 	sp->multimapped = 0;
-	sp->global = 1;
 	sp->parent_pte = parent_pte;
 	--vcpu->kvm->arch.n_free_mmu_pages;
 	return sp;
@@ -983,8 +989,8 @@ struct kvm_mmu_pages {
 	     idx < 512;					\
 	     idx = find_next_bit(bitmap, 512, idx+1))
 
-int mmu_pages_add(struct kvm_mmu_pages *pvec, struct kvm_mmu_page *sp,
-		   int idx)
+static int mmu_pages_add(struct kvm_mmu_pages *pvec, struct kvm_mmu_page *sp,
+			 int idx)
 {
 	int i;
 
@@ -1059,7 +1065,7 @@ static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm *kvm, gfn_t gfn)
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry(sp, node, bucket, hash_link)
-		if (sp->gfn == gfn && !sp->role.metaphysical
+		if (sp->gfn == gfn && !sp->role.direct
 		    && !sp->role.invalid) {
 			pgprintk("%s: found role %x\n",
 				 __func__, sp->role.word);
@@ -1115,8 +1121,9 @@ struct mmu_page_path {
 			i < pvec.nr && ({ sp = pvec.page[i].sp; 1;});	\
 			i = mmu_pages_next(&pvec, &parents, i))
 
-int mmu_pages_next(struct kvm_mmu_pages *pvec, struct mmu_page_path *parents,
-		   int i)
+static int mmu_pages_next(struct kvm_mmu_pages *pvec,
+			  struct mmu_page_path *parents,
+			  int i)
 {
 	int n;
 
@@ -1135,7 +1142,7 @@ int mmu_pages_next(struct kvm_mmu_pages *pvec, struct mmu_page_path *parents,
 	return n;
 }
 
-void mmu_pages_clear_parents(struct mmu_page_path *parents)
+static void mmu_pages_clear_parents(struct mmu_page_path *parents)
 {
 	struct kvm_mmu_page *sp;
 	unsigned int level = 0;
@@ -1193,7 +1200,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     gfn_t gfn,
 					     gva_t gaddr,
 					     unsigned level,
-					     int metaphysical,
+					     int direct,
 					     unsigned access,
 					     u64 *parent_pte)
 {
@@ -1204,10 +1211,9 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	struct kvm_mmu_page *sp;
 	struct hlist_node *node, *tmp;
 
-	role.word = 0;
-	role.glevels = vcpu->arch.mmu.root_level;
+	role = vcpu->arch.mmu.base_role;
 	role.level = level;
-	role.metaphysical = metaphysical;
+	role.direct = direct;
 	role.access = access;
 	if (vcpu->arch.mmu.root_level <= PT32_ROOT_LEVEL) {
 		quadrant = gaddr >> (PAGE_SHIFT + (PT64_PT_BITS * level));
@@ -1242,8 +1248,9 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	pgprintk("%s: adding gfn %lx role %x\n", __func__, gfn, role.word);
 	sp->gfn = gfn;
 	sp->role = role;
+	sp->global = role.cr4_pge;
 	hlist_add_head(&sp->hash_link, bucket);
-	if (!metaphysical) {
+	if (!direct) {
 		if (rmap_write_protect(vcpu->kvm, gfn))
 			kvm_flush_remote_tlbs(vcpu->kvm);
 		account_shadowed(vcpu->kvm, gfn);
@@ -1255,35 +1262,35 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	return sp;
 }
 
-static int walk_shadow(struct kvm_shadow_walk *walker,
-		       struct kvm_vcpu *vcpu, u64 addr)
+static void shadow_walk_init(struct kvm_shadow_walk_iterator *iterator,
+			     struct kvm_vcpu *vcpu, u64 addr)
 {
-	hpa_t shadow_addr;
-	int level;
-	int r;
-	u64 *sptep;
-	unsigned index;
-
-	shadow_addr = vcpu->arch.mmu.root_hpa;
-	level = vcpu->arch.mmu.shadow_root_level;
-	if (level == PT32E_ROOT_LEVEL) {
-		shadow_addr = vcpu->arch.mmu.pae_root[(addr >> 30) & 3];
-		shadow_addr &= PT64_BASE_ADDR_MASK;
-		if (!shadow_addr)
-			return 1;
-		--level;
+	iterator->addr = addr;
+	iterator->shadow_addr = vcpu->arch.mmu.root_hpa;
+	iterator->level = vcpu->arch.mmu.shadow_root_level;
+	if (iterator->level == PT32E_ROOT_LEVEL) {
+		iterator->shadow_addr
+			= vcpu->arch.mmu.pae_root[(addr >> 30) & 3];
+		iterator->shadow_addr &= PT64_BASE_ADDR_MASK;
+		--iterator->level;
+		if (!iterator->shadow_addr)
+			iterator->level = 0;
 	}
+}
 
-	while (level >= PT_PAGE_TABLE_LEVEL) {
-		index = SHADOW_PT_INDEX(addr, level);
-		sptep = ((u64 *)__va(shadow_addr)) + index;
-		r = walker->entry(walker, vcpu, addr, sptep, level);
-		if (r)
-			return r;
-		shadow_addr = *sptep & PT64_BASE_ADDR_MASK;
-		--level;
-	}
-	return 0;
+static bool shadow_walk_okay(struct kvm_shadow_walk_iterator *iterator)
+{
+	if (iterator->level < PT_PAGE_TABLE_LEVEL)
+		return false;
+	iterator->index = SHADOW_PT_INDEX(iterator->addr, iterator->level);
+	iterator->sptep	= ((u64 *)__va(iterator->shadow_addr)) + iterator->index;
+	return true;
+}
+
+static void shadow_walk_next(struct kvm_shadow_walk_iterator *iterator)
+{
+	iterator->shadow_addr = *iterator->sptep & PT64_BASE_ADDR_MASK;
+	--iterator->level;
 }
 
 static void kvm_mmu_page_unlink_children(struct kvm *kvm,
@@ -1388,7 +1395,7 @@ static int kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	kvm_mmu_page_unlink_children(kvm, sp);
 	kvm_mmu_unlink_parents(kvm, sp);
 	kvm_flush_remote_tlbs(kvm);
-	if (!sp->role.invalid && !sp->role.metaphysical)
+	if (!sp->role.invalid && !sp->role.direct)
 		unaccount_shadowed(kvm, sp->gfn);
 	if (sp->unsync)
 		kvm_unlink_unsync_page(kvm, sp);
@@ -1451,7 +1458,7 @@ static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link)
-		if (sp->gfn == gfn && !sp->role.metaphysical) {
+		if (sp->gfn == gfn && !sp->role.direct) {
 			pgprintk("%s: gfn %lx role %x\n", __func__, gfn,
 				 sp->role.word);
 			r = 1;
@@ -1463,11 +1470,20 @@ static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 
 static void mmu_unshadow(struct kvm *kvm, gfn_t gfn)
 {
+	unsigned index;
+	struct hlist_head *bucket;
 	struct kvm_mmu_page *sp;
+	struct hlist_node *node, *nn;
 
-	while ((sp = kvm_mmu_lookup_page(kvm, gfn)) != NULL) {
-		pgprintk("%s: zap %lx %x\n", __func__, gfn, sp->role.word);
-		kvm_mmu_zap_page(kvm, sp);
+	index = kvm_page_table_hashfn(gfn);
+	bucket = &kvm->arch.mmu_page_hash[index];
+	hlist_for_each_entry_safe(sp, node, nn, bucket, hash_link) {
+		if (sp->gfn == gfn && !sp->role.direct
+		    && !sp->role.invalid) {
+			pgprintk("%s: zap %lx %x\n",
+				 __func__, gfn, sp->role.word);
+			kvm_mmu_zap_page(kvm, sp);
+		}
 	}
 }
 
@@ -1622,7 +1638,7 @@ static int kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	/* don't unsync if pagetable is shadowed with multiple roles */
 	hlist_for_each_entry_safe(s, node, n, bucket, hash_link) {
-		if (s->gfn != sp->gfn || s->role.metaphysical)
+		if (s->gfn != sp->gfn || s->role.direct)
 			continue;
 		if (s->role.word != sp->role.word)
 			return 1;
@@ -1669,8 +1685,6 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	u64 mt_mask = shadow_mt_mask;
 	struct kvm_mmu_page *sp = page_header(__pa(shadow_pte));
 
-	if (!(vcpu->arch.cr4 & X86_CR4_PGE))
-		global = 0;
 	if (!global && sp->global) {
 		sp->global = 0;
 		if (sp->unsync) {
@@ -1698,8 +1712,13 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	if (largepage)
 		spte |= PT_PAGE_SIZE_MASK;
 	if (mt_mask) {
-		mt_mask = get_memory_type(vcpu, gfn) <<
-			  kvm_x86_ops->get_mt_mask_shift();
+		if (!kvm_is_mmio_pfn(pfn)) {
+			mt_mask = get_memory_type(vcpu, gfn) <<
+				kvm_x86_ops->get_mt_mask_shift();
+			mt_mask |= VMX_EPT_IGMT_BIT;
+		} else
+			mt_mask = MTRR_TYPE_UNCACHABLE <<
+				kvm_x86_ops->get_mt_mask_shift();
 		spte |= mt_mask;
 	}
 
@@ -1772,12 +1791,8 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 			pgprintk("hfn old %lx new %lx\n",
 				 spte_to_pfn(*shadow_pte), pfn);
 			rmap_remove(vcpu->kvm, shadow_pte);
-		} else {
-			if (largepage)
-				was_rmapped = is_large_pte(*shadow_pte);
-			else
-				was_rmapped = 1;
-		}
+		} else
+			was_rmapped = 1;
 	}
 	if (set_spte(vcpu, shadow_pte, pte_access, user_fault, write_fault,
 		      dirty, largepage, global, gfn, pfn, speculative, true)) {
@@ -1815,67 +1830,42 @@ static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 {
 }
 
-struct direct_shadow_walk {
-	struct kvm_shadow_walk walker;
-	pfn_t pfn;
-	int write;
-	int largepage;
-	int pt_write;
-};
-
-static int direct_map_entry(struct kvm_shadow_walk *_walk,
-			    struct kvm_vcpu *vcpu,
-			    u64 addr, u64 *sptep, int level)
-{
-	struct direct_shadow_walk *walk =
-		container_of(_walk, struct direct_shadow_walk, walker);
-	struct kvm_mmu_page *sp;
-	gfn_t pseudo_gfn;
-	gfn_t gfn = addr >> PAGE_SHIFT;
-
-	if (level == PT_PAGE_TABLE_LEVEL
-	    || (walk->largepage && level == PT_DIRECTORY_LEVEL)) {
-		mmu_set_spte(vcpu, sptep, ACC_ALL, ACC_ALL,
-			     0, walk->write, 1, &walk->pt_write,
-			     walk->largepage, 0, gfn, walk->pfn, false);
-		++vcpu->stat.pf_fixed;
-		return 1;
-	}
-
-	if (*sptep == shadow_trap_nonpresent_pte) {
-		pseudo_gfn = (addr & PT64_DIR_BASE_ADDR_MASK) >> PAGE_SHIFT;
-		sp = kvm_mmu_get_page(vcpu, pseudo_gfn, (gva_t)addr, level - 1,
-				      1, ACC_ALL, sptep);
-		if (!sp) {
-			pgprintk("nonpaging_map: ENOMEM\n");
-			kvm_release_pfn_clean(walk->pfn);
-			return -ENOMEM;
-		}
-
-		set_shadow_pte(sptep,
-			       __pa(sp->spt)
-			       | PT_PRESENT_MASK | PT_WRITABLE_MASK
-			       | shadow_user_mask | shadow_x_mask);
-	}
-	return 0;
-}
-
 static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 			int largepage, gfn_t gfn, pfn_t pfn)
 {
-	int r;
-	struct direct_shadow_walk walker = {
-		.walker = { .entry = direct_map_entry, },
-		.pfn = pfn,
-		.largepage = largepage,
-		.write = write,
-		.pt_write = 0,
-	};
+	struct kvm_shadow_walk_iterator iterator;
+	struct kvm_mmu_page *sp;
+	int pt_write = 0;
+	gfn_t pseudo_gfn;
 
-	r = walk_shadow(&walker.walker, vcpu, gfn << PAGE_SHIFT);
-	if (r < 0)
-		return r;
-	return walker.pt_write;
+	for_each_shadow_entry(vcpu, (u64)gfn << PAGE_SHIFT, iterator) {
+		if (iterator.level == PT_PAGE_TABLE_LEVEL
+		    || (largepage && iterator.level == PT_DIRECTORY_LEVEL)) {
+			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL, ACC_ALL,
+				     0, write, 1, &pt_write,
+				     largepage, 0, gfn, pfn, false);
+			++vcpu->stat.pf_fixed;
+			break;
+		}
+
+		if (*iterator.sptep == shadow_trap_nonpresent_pte) {
+			pseudo_gfn = (iterator.addr & PT64_DIR_BASE_ADDR_MASK) >> PAGE_SHIFT;
+			sp = kvm_mmu_get_page(vcpu, pseudo_gfn, iterator.addr,
+					      iterator.level - 1,
+					      1, ACC_ALL, iterator.sptep);
+			if (!sp) {
+				pgprintk("nonpaging_map: ENOMEM\n");
+				kvm_release_pfn_clean(pfn);
+				return -ENOMEM;
+			}
+
+			set_shadow_pte(iterator.sptep,
+				       __pa(sp->spt)
+				       | PT_PRESENT_MASK | PT_WRITABLE_MASK
+				       | shadow_user_mask | shadow_x_mask);
+		}
+	}
+	return pt_write;
 }
 
 static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
@@ -1957,7 +1947,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 	int i;
 	gfn_t root_gfn;
 	struct kvm_mmu_page *sp;
-	int metaphysical = 0;
+	int direct = 0;
 
 	root_gfn = vcpu->arch.cr3 >> PAGE_SHIFT;
 
@@ -1966,18 +1956,18 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 
 		ASSERT(!VALID_PAGE(root));
 		if (tdp_enabled)
-			metaphysical = 1;
+			direct = 1;
 		sp = kvm_mmu_get_page(vcpu, root_gfn, 0,
-				      PT64_ROOT_LEVEL, metaphysical,
+				      PT64_ROOT_LEVEL, direct,
 				      ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
 		vcpu->arch.mmu.root_hpa = root;
 		return;
 	}
-	metaphysical = !is_paging(vcpu);
+	direct = !is_paging(vcpu);
 	if (tdp_enabled)
-		metaphysical = 1;
+		direct = 1;
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->arch.mmu.pae_root[i];
 
@@ -1991,7 +1981,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		} else if (vcpu->arch.mmu.root_level == 0)
 			root_gfn = 0;
 		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
-				      PT32_ROOT_LEVEL, metaphysical,
+				      PT32_ROOT_LEVEL, direct,
 				      ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
@@ -2246,17 +2236,23 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 
 static int init_kvm_softmmu(struct kvm_vcpu *vcpu)
 {
+	int r;
+
 	ASSERT(vcpu);
 	ASSERT(!VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
 	if (!is_paging(vcpu))
-		return nonpaging_init_context(vcpu);
+		r = nonpaging_init_context(vcpu);
 	else if (is_long_mode(vcpu))
-		return paging64_init_context(vcpu);
+		r = paging64_init_context(vcpu);
 	else if (is_pae(vcpu))
-		return paging32E_init_context(vcpu);
+		r = paging32E_init_context(vcpu);
 	else
-		return paging32_init_context(vcpu);
+		r = paging32_init_context(vcpu);
+
+	vcpu->arch.mmu.base_role.glevels = vcpu->arch.mmu.root_level;
+
+	return r;
 }
 
 static int init_kvm_mmu(struct kvm_vcpu *vcpu)
@@ -2487,7 +2483,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link) {
-		if (sp->gfn != gfn || sp->role.metaphysical || sp->role.invalid)
+		if (sp->gfn != gfn || sp->role.direct || sp->role.invalid)
 			continue;
 		pte_size = sp->role.glevels == PT32_ROOT_LEVEL ? 4 : 8;
 		misaligned = (offset ^ (offset + bytes - 1)) & ~(pte_size - 1);
@@ -3125,7 +3121,7 @@ static void audit_write_protection(struct kvm_vcpu *vcpu)
 	gfn_t gfn;
 
 	list_for_each_entry(sp, &vcpu->kvm->arch.active_mmu_pages, link) {
-		if (sp->role.metaphysical)
+		if (sp->role.direct)
 			continue;
 
 		gfn = unalias_gfn(vcpu->kvm, sp->gfn);

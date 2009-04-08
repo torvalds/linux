@@ -72,6 +72,7 @@ int btrfs_insert_dev_radix(struct btrfs_root *root,
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr);
 int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root);
 void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
+void btrfs_mark_buffer_dirty_nonblocking(struct extent_buffer *buf);
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid);
 int btrfs_set_buffer_uptodate(struct extent_buffer *buf);
 int wait_on_tree_block_writeback(struct btrfs_root *root,
@@ -101,4 +102,14 @@ int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 int btree_lock_page_hook(struct page *page);
+
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+void btrfs_set_buffer_lockdep_class(struct extent_buffer *eb, int level);
+#else
+static inline void btrfs_set_buffer_lockdep_class(struct extent_buffer *eb,
+						 int level)
+{
+}
+#endif
 #endif

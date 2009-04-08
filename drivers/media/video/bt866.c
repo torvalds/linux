@@ -34,10 +34,10 @@
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
-#include <linux/videodev.h>
-#include <linux/video_encoder.h>
-#include <media/v4l2-common.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("Brooktree-866 video encoder driver");
 MODULE_AUTHOR("Mike Bernson & Dave Perks");
@@ -47,22 +47,22 @@ static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
+
 /* ----------------------------------------------------------------------- */
 
 struct bt866 {
+	struct v4l2_subdev sd;
 	u8 reg[256];
-
-	int norm;
-	int enable;
-	int bright;
-	int contrast;
-	int hue;
-	int sat;
 };
 
-static int bt866_write(struct i2c_client *client, u8 subaddr, u8 data)
+static inline struct bt866 *to_bt866(struct v4l2_subdev *sd)
 {
-	struct bt866 *encoder = i2c_get_clientdata(client);
+	return container_of(sd, struct bt866, sd);
+}
+
+static int bt866_write(struct bt866 *encoder, u8 subaddr, u8 data)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&encoder->sd);
 	u8 buffer[2];
 	int err;
 
@@ -89,163 +89,121 @@ static int bt866_write(struct i2c_client *client, u8 subaddr, u8 data)
 	return 0;
 }
 
-static int bt866_command(struct i2c_client *client, unsigned cmd, void *arg)
+static int bt866_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
-	struct bt866 *encoder = i2c_get_clientdata(client);
+	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
 
-	switch (cmd) {
-	case ENCODER_GET_CAPABILITIES:
-	{
-		struct video_encoder_capability *cap = arg;
-
-		v4l_dbg(1, debug, client, "get capabilities\n");
-
-		cap->flags
-			= VIDEO_ENCODER_PAL
-			| VIDEO_ENCODER_NTSC
-			| VIDEO_ENCODER_CCIR;
-		cap->inputs = 2;
-		cap->outputs = 1;
-		break;
-	}
-
-	case ENCODER_SET_NORM:
-	{
-		int *iarg = arg;
-
-		v4l_dbg(1, debug, client, "set norm %d\n", *iarg);
-
-		switch (*iarg) {
-		case VIDEO_MODE_NTSC:
-			break;
-
-		case VIDEO_MODE_PAL:
-			break;
-
-		default:
-			return -EINVAL;
-		}
-		encoder->norm = *iarg;
-		break;
-	}
-
-	case ENCODER_SET_INPUT:
-	{
-		int *iarg = arg;
-		static const __u8 init[] = {
-			0xc8, 0xcc, /* CRSCALE */
-			0xca, 0x91, /* CBSCALE */
-			0xcc, 0x24, /* YC16 | OSDNUM */
-			0xda, 0x00, /*  */
-			0xdc, 0x24, /* SETMODE | PAL */
-			0xde, 0x02, /* EACTIVE */
-
-			/* overlay colors */
-			0x70, 0xEB, 0x90, 0x80, 0xB0, 0x80, /* white */
-			0x72, 0xA2, 0x92, 0x8E, 0xB2, 0x2C, /* yellow */
-			0x74, 0x83, 0x94, 0x2C, 0xB4, 0x9C, /* cyan */
-			0x76, 0x70, 0x96, 0x3A, 0xB6, 0x48, /* green */
-			0x78, 0x54, 0x98, 0xC6, 0xB8, 0xB8, /* magenta */
-			0x7A, 0x41, 0x9A, 0xD4, 0xBA, 0x64, /* red */
-			0x7C, 0x23, 0x9C, 0x72, 0xBC, 0xD4, /* blue */
-			0x7E, 0x10, 0x9E, 0x80, 0xBE, 0x80, /* black */
-
-			0x60, 0xEB, 0x80, 0x80, 0xc0, 0x80, /* white */
-			0x62, 0xA2, 0x82, 0x8E, 0xc2, 0x2C, /* yellow */
-			0x64, 0x83, 0x84, 0x2C, 0xc4, 0x9C, /* cyan */
-			0x66, 0x70, 0x86, 0x3A, 0xc6, 0x48, /* green */
-			0x68, 0x54, 0x88, 0xC6, 0xc8, 0xB8, /* magenta */
-			0x6A, 0x41, 0x8A, 0xD4, 0xcA, 0x64, /* red */
-			0x6C, 0x23, 0x8C, 0x72, 0xcC, 0xD4, /* blue */
-			0x6E, 0x10, 0x8E, 0x80, 0xcE, 0x80, /* black */
-		};
-		int i;
-		u8 val;
-
-		for (i = 0; i < ARRAY_SIZE(init) / 2; i += 2)
-			bt866_write(client, init[i], init[i+1]);
-
-		val = encoder->reg[0xdc];
-
-		if (*iarg == 0)
-			val |= 0x40; /* CBSWAP */
-		else
-			val &= ~0x40; /* !CBSWAP */
-
-		bt866_write(client, 0xdc, val);
-
-		val = encoder->reg[0xcc];
-		if (*iarg == 2)
-			val |= 0x01; /* OSDBAR */
-		else
-			val &= ~0x01; /* !OSDBAR */
-		bt866_write(client, 0xcc, val);
-
-		v4l_dbg(1, debug, client, "set input %d\n", *iarg);
-
-		switch (*iarg) {
-		case 0:
-			break;
-		case 1:
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	}
-
-	case ENCODER_SET_OUTPUT:
-	{
-		int *iarg = arg;
-
-		v4l_dbg(1, debug, client, "set output %d\n", *iarg);
-
-		/* not much choice of outputs */
-		if (*iarg != 0)
-			return -EINVAL;
-		break;
-	}
-
-	case ENCODER_ENABLE_OUTPUT:
-	{
-		int *iarg = arg;
-		encoder->enable = !!*iarg;
-
-		v4l_dbg(1, debug, client, "enable output %d\n", encoder->enable);
-		break;
-	}
-
-	case 4711:
-	{
-		int *iarg = arg;
-		__u8 val;
-
-		v4l_dbg(1, debug, client, "square %d\n", *iarg);
-
-		val = encoder->reg[0xdc];
-		if (*iarg)
-			val |= 1; /* SQUARE */
-		else
-			val &= ~1; /* !SQUARE */
-		bt866_write(client, 0xdc, val);
-		break;
-	}
-
-	default:
+	/* Only PAL supported by this driver at the moment! */
+	if (!(std & V4L2_STD_NTSC))
 		return -EINVAL;
-	}
-
 	return 0;
 }
 
-static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
+static int bt866_s_routing(struct v4l2_subdev *sd,
+			   u32 input, u32 output, u32 config)
+{
+	static const __u8 init[] = {
+		0xc8, 0xcc, /* CRSCALE */
+		0xca, 0x91, /* CBSCALE */
+		0xcc, 0x24, /* YC16 | OSDNUM */
+		0xda, 0x00, /*  */
+		0xdc, 0x24, /* SETMODE | PAL */
+		0xde, 0x02, /* EACTIVE */
 
-I2C_CLIENT_INSMOD;
+		/* overlay colors */
+		0x70, 0xEB, 0x90, 0x80, 0xB0, 0x80, /* white */
+		0x72, 0xA2, 0x92, 0x8E, 0xB2, 0x2C, /* yellow */
+		0x74, 0x83, 0x94, 0x2C, 0xB4, 0x9C, /* cyan */
+		0x76, 0x70, 0x96, 0x3A, 0xB6, 0x48, /* green */
+		0x78, 0x54, 0x98, 0xC6, 0xB8, 0xB8, /* magenta */
+		0x7A, 0x41, 0x9A, 0xD4, 0xBA, 0x64, /* red */
+		0x7C, 0x23, 0x9C, 0x72, 0xBC, 0xD4, /* blue */
+		0x7E, 0x10, 0x9E, 0x80, 0xBE, 0x80, /* black */
+
+		0x60, 0xEB, 0x80, 0x80, 0xc0, 0x80, /* white */
+		0x62, 0xA2, 0x82, 0x8E, 0xc2, 0x2C, /* yellow */
+		0x64, 0x83, 0x84, 0x2C, 0xc4, 0x9C, /* cyan */
+		0x66, 0x70, 0x86, 0x3A, 0xc6, 0x48, /* green */
+		0x68, 0x54, 0x88, 0xC6, 0xc8, 0xB8, /* magenta */
+		0x6A, 0x41, 0x8A, 0xD4, 0xcA, 0x64, /* red */
+		0x6C, 0x23, 0x8C, 0x72, 0xcC, 0xD4, /* blue */
+		0x6E, 0x10, 0x8E, 0x80, 0xcE, 0x80, /* black */
+	};
+	struct bt866 *encoder = to_bt866(sd);
+	u8 val;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(init) / 2; i += 2)
+		bt866_write(encoder, init[i], init[i+1]);
+
+	val = encoder->reg[0xdc];
+
+	if (input == 0)
+		val |= 0x40; /* CBSWAP */
+	else
+		val &= ~0x40; /* !CBSWAP */
+
+	bt866_write(encoder, 0xdc, val);
+
+	val = encoder->reg[0xcc];
+	if (input == 2)
+		val |= 0x01; /* OSDBAR */
+	else
+		val &= ~0x01; /* !OSDBAR */
+	bt866_write(encoder, 0xcc, val);
+
+	v4l2_dbg(1, debug, sd, "set input %d\n", input);
+
+	switch (input) {
+	case 0:
+	case 1:
+	case 2:
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+#if 0
+/* Code to setup square pixels, might be of some use in the future,
+   but is currently unused. */
+	val = encoder->reg[0xdc];
+	if (*iarg)
+		val |= 1; /* SQUARE */
+	else
+		val &= ~1; /* !SQUARE */
+	bt866_write(client, 0xdc, val);
+#endif
+
+static int bt866_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_BT866, 0);
+}
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops bt866_core_ops = {
+	.g_chip_ident = bt866_g_chip_ident,
+};
+
+static const struct v4l2_subdev_video_ops bt866_video_ops = {
+	.s_std_output = bt866_s_std_output,
+	.s_routing = bt866_s_routing,
+};
+
+static const struct v4l2_subdev_ops bt866_ops = {
+	.core = &bt866_core_ops,
+	.video = &bt866_video_ops,
+};
 
 static int bt866_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct bt866 *encoder;
+	struct v4l2_subdev *sd;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
@@ -253,20 +211,18 @@ static int bt866_probe(struct i2c_client *client,
 	encoder = kzalloc(sizeof(*encoder), GFP_KERNEL);
 	if (encoder == NULL)
 		return -ENOMEM;
-
-	i2c_set_clientdata(client, encoder);
+	sd = &encoder->sd;
+	v4l2_i2c_subdev_init(sd, client, &bt866_ops);
 	return 0;
 }
 
 static int bt866_remove(struct i2c_client *client)
 {
-	kfree(i2c_get_clientdata(client));
-	return 0;
-}
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
-static int bt866_legacy_probe(struct i2c_adapter *adapter)
-{
-	return adapter->id == I2C_HW_B_ZR36067;
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_bt866(sd));
+	return 0;
 }
 
 static const struct i2c_device_id bt866_id[] = {
@@ -277,10 +233,7 @@ MODULE_DEVICE_TABLE(i2c, bt866_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "bt866",
-	.driverid = I2C_DRIVERID_BT866,
-	.command = bt866_command,
 	.probe = bt866_probe,
 	.remove = bt866_remove,
-	.legacy_probe = bt866_legacy_probe,
 	.id_table = bt866_id,
 };

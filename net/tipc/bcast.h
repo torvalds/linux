@@ -70,7 +70,7 @@ struct port_list {
 
 struct tipc_node;
 
-extern char tipc_bclink_name[];
+extern const char tipc_bclink_name[];
 
 
 /**

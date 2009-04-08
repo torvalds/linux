@@ -42,6 +42,11 @@ Supported chips:
     Addresses scanned: I2C 0x4e
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
+  * Maxim MAX6648
+    Prefix: 'max6646'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
   * Maxim MAX6649
     Prefix: 'max6646'
     Addresses scanned: I2C 0x4c
@@ -74,6 +79,11 @@ Supported chips:
                            0x4c, 0x4d and 0x4e
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3370
+  * Maxim MAX6692
+    Prefix: 'max6646'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
 
 
 Author: Jean Delvare <khali@linux-fr.org>

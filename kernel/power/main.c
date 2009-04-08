@@ -57,16 +57,6 @@ int pm_notifier_call_chain(unsigned long val)
 #ifdef CONFIG_PM_DEBUG
 int pm_test_level = TEST_NONE;
 
-static int suspend_test(int level)
-{
-	if (pm_test_level == level) {
-		printk(KERN_INFO "suspend debug: Waiting for 5 seconds.\n");
-		mdelay(5000);
-		return 1;
-	}
-	return 0;
-}
-
 static const char * const pm_tests[__TEST_AFTER_LAST] = {
 	[TEST_NONE] = "none",
 	[TEST_CORE] = "core",
@@ -125,13 +115,23 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 power_attr(pm_test);
-#else /* !CONFIG_PM_DEBUG */
-static inline int suspend_test(int level) { return 0; }
-#endif /* !CONFIG_PM_DEBUG */
+#endif /* CONFIG_PM_DEBUG */
 
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_SUSPEND
+
+static int suspend_test(int level)
+{
+#ifdef CONFIG_PM_DEBUG
+	if (pm_test_level == level) {
+		printk(KERN_INFO "suspend debug: Waiting for 5 seconds.\n");
+		mdelay(5000);
+		return 1;
+	}
+#endif /* !CONFIG_PM_DEBUG */
+	return 0;
+}
 
 #ifdef CONFIG_PM_TEST_SUSPEND
 
@@ -287,25 +287,55 @@ void __attribute__ ((weak)) arch_suspend_enable_irqs(void)
  */
 static int suspend_enter(suspend_state_t state)
 {
-	int error = 0;
+	int error;
 
 	device_pm_lock();
-	arch_suspend_disable_irqs();
-	BUG_ON(!irqs_disabled());
 
-	if ((error = device_power_down(PMSG_SUSPEND))) {
+	error = device_power_down(PMSG_SUSPEND);
+	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down\n");
 		goto Done;
 	}
 
-	if (!suspend_test(TEST_CORE))
-		error = suspend_ops->enter(state);
+	if (suspend_ops->prepare) {
+		error = suspend_ops->prepare();
+		if (error)
+			goto Power_up_devices;
+	}
 
-	device_power_up(PMSG_RESUME);
- Done:
+	if (suspend_test(TEST_PLATFORM))
+		goto Platfrom_finish;
+
+	error = disable_nonboot_cpus();
+	if (error || suspend_test(TEST_CPUS))
+		goto Enable_cpus;
+
+	arch_suspend_disable_irqs();
+	BUG_ON(!irqs_disabled());
+
+	error = sysdev_suspend(PMSG_SUSPEND);
+	if (!error) {
+		if (!suspend_test(TEST_CORE))
+			error = suspend_ops->enter(state);
+		sysdev_resume();
+	}
+
 	arch_suspend_enable_irqs();
 	BUG_ON(irqs_disabled());
+
+ Enable_cpus:
+	enable_nonboot_cpus();
+
+ Platfrom_finish:
+	if (suspend_ops->finish)
+		suspend_ops->finish();
+
+ Power_up_devices:
+	device_power_up(PMSG_RESUME);
+
+ Done:
 	device_pm_unlock();
+
 	return error;
 }
 
@@ -337,23 +367,8 @@ int suspend_devices_and_enter(suspend_state_t state)
 	if (suspend_test(TEST_DEVICES))
 		goto Recover_platform;
 
-	if (suspend_ops->prepare) {
-		error = suspend_ops->prepare();
-		if (error)
-			goto Resume_devices;
-	}
+	suspend_enter(state);
 
-	if (suspend_test(TEST_PLATFORM))
-		goto Finish;
-
-	error = disable_nonboot_cpus();
-	if (!error && !suspend_test(TEST_CPUS))
-		suspend_enter(state);
-
-	enable_nonboot_cpus();
- Finish:
-	if (suspend_ops->finish)
-		suspend_ops->finish();
  Resume_devices:
 	suspend_test_start();
 	device_resume(PMSG_RESUME);

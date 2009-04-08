@@ -528,14 +528,15 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		server->maxReq = le16_to_cpu(rsp->MaxMpxCount);
 		server->maxBuf = min((__u32)le16_to_cpu(rsp->MaxBufSize),
 				(__u32)CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
+		server->max_vcs = le16_to_cpu(rsp->MaxNumberVcs);
 		GETU32(server->sessid) = le32_to_cpu(rsp->SessionKey);
 		/* even though we do not use raw we might as well set this
 		accurately, in case we ever find a need for it */
 		if ((le16_to_cpu(rsp->RawMode) & RAW_ENABLE) == RAW_ENABLE) {
-			server->maxRw = 0xFF00;
+			server->max_rw = 0xFF00;
 			server->capabilities = CAP_MPX_MODE | CAP_RAW_MODE;
 		} else {
-			server->maxRw = 0;/* we do not need to use raw anyway */
+			server->max_rw = 0;/* do not need to use raw anyway */
 			server->capabilities = CAP_MPX_MODE;
 		}
 		tmp = (__s16)le16_to_cpu(rsp->ServerTimeZone);
@@ -638,7 +639,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	/* probably no need to store and check maxvcs */
 	server->maxBuf = min(le32_to_cpu(pSMBr->MaxBufferSize),
 			(__u32) CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
-	server->maxRw = le32_to_cpu(pSMBr->MaxRawSize);
+	server->max_rw = le32_to_cpu(pSMBr->MaxRawSize);
 	cFYI(DBG2, ("Max buf = %d", ses->server->maxBuf));
 	GETU32(ses->server->sessid) = le32_to_cpu(pSMBr->SessionKey);
 	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
@@ -1933,6 +1934,27 @@ CIFSSMBClose(const int xid, struct cifsTconInfo *tcon, int smb_file_id)
 }
 
 int
+CIFSSMBFlush(const int xid, struct cifsTconInfo *tcon, int smb_file_id)
+{
+	int rc = 0;
+	FLUSH_REQ *pSMB = NULL;
+	cFYI(1, ("In CIFSSMBFlush"));
+
+	rc = small_smb_init(SMB_COM_FLUSH, 1, tcon, (void **) &pSMB);
+	if (rc)
+		return rc;
+
+	pSMB->FileID = (__u16) smb_file_id;
+	pSMB->ByteCount = 0;
+	rc = SendReceiveNoRsp(xid, tcon->ses, (struct smb_hdr *) pSMB, 0);
+	cifs_stats_inc(&tcon->num_flushes);
+	if (rc)
+		cERROR(1, ("Send error in Flush = %d", rc));
+
+	return rc;
+}
+
+int
 CIFSSMBRename(const int xid, struct cifsTconInfo *tcon,
 	      const char *fromName, const char *toName,
 	      const struct nls_table *nls_codepage, int remap)
@@ -2355,8 +2377,10 @@ winCreateHardLinkRetry:
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
-		pSMB->OldFileName[name_len] = 0;	/* pad */
-		pSMB->OldFileName[name_len + 1] = 0x04;
+
+		/* protocol specifies ASCII buffer format (0x04) for unicode */
+		pSMB->OldFileName[name_len] = 0x04;
+		pSMB->OldFileName[name_len + 1] = 0x00; /* pad */
 		name_len2 =
 		    cifsConvertToUCS((__le16 *)&pSMB->OldFileName[name_len + 2],
 				     toName, PATH_MAX, nls_codepage, remap);

@@ -321,6 +321,16 @@ static void vmi_release_pmd(unsigned long pfn)
 }
 
 /*
+ * We use the pgd_free hook for releasing the pgd page:
+ */
+static void vmi_pgd_free(struct mm_struct *mm, pgd_t *pgd)
+{
+	unsigned long pfn = __pa(pgd) >> PAGE_SHIFT;
+
+	vmi_ops.release_page(pfn, VMI_PAGE_L2);
+}
+
+/*
  * Helper macros for MMU update flags.  We can defer updates until a flush
  * or page invalidation only if the update is to the current address space
  * (otherwise, there is no flush).  We must check against init_mm, since
@@ -383,11 +393,6 @@ static void vmi_set_pte_atomic(pte_t *ptep, pte_t pteval)
 	 */
 	set_64bit((unsigned long long *)ptep,pte_val(pteval));
 	vmi_ops.update_pte(ptep, VMI_PAGE_PT);
-}
-
-static void vmi_set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
-{
-	vmi_ops.set_pte(pte, ptep, vmi_flags_addr_defer(mm, addr, VMI_PAGE_PT, 1));
 }
 
 static void vmi_set_pud(pud_t *pudp, pud_t pudval)
@@ -670,10 +675,11 @@ static inline int __init activate_vmi(void)
 	para_fill(pv_mmu_ops.write_cr2, SetCR2);
 	para_fill(pv_mmu_ops.write_cr3, SetCR3);
 	para_fill(pv_cpu_ops.write_cr4, SetCR4);
-	para_fill(pv_irq_ops.save_fl, GetInterruptMask);
-	para_fill(pv_irq_ops.restore_fl, SetInterruptMask);
-	para_fill(pv_irq_ops.irq_disable, DisableInterrupts);
-	para_fill(pv_irq_ops.irq_enable, EnableInterrupts);
+
+	para_fill(pv_irq_ops.save_fl.func, GetInterruptMask);
+	para_fill(pv_irq_ops.restore_fl.func, SetInterruptMask);
+	para_fill(pv_irq_ops.irq_disable.func, DisableInterrupts);
+	para_fill(pv_irq_ops.irq_enable.func, EnableInterrupts);
 
 	para_fill(pv_cpu_ops.wbinvd, WBINVD);
 	para_fill(pv_cpu_ops.read_tsc, RDTSC);
@@ -739,7 +745,6 @@ static inline int __init activate_vmi(void)
 		pv_mmu_ops.set_pmd = vmi_set_pmd;
 #ifdef CONFIG_X86_PAE
 		pv_mmu_ops.set_pte_atomic = vmi_set_pte_atomic;
-		pv_mmu_ops.set_pte_present = vmi_set_pte_present;
 		pv_mmu_ops.set_pud = vmi_set_pud;
 		pv_mmu_ops.pte_clear = vmi_pte_clear;
 		pv_mmu_ops.pmd_clear = vmi_pmd_clear;
@@ -762,6 +767,7 @@ static inline int __init activate_vmi(void)
 	if (vmi_ops.release_page) {
 		pv_mmu_ops.release_pte = vmi_release_pte;
 		pv_mmu_ops.release_pmd = vmi_release_pmd;
+		pv_mmu_ops.pgd_free = vmi_pgd_free;
 	}
 
 	/* Set linear is needed in all cases */
@@ -786,8 +792,8 @@ static inline int __init activate_vmi(void)
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
-       para_fill(apic_ops->read, APICRead);
-       para_fill(apic_ops->write, APICWrite);
+       para_fill(apic->read, APICRead);
+       para_fill(apic->write, APICWrite);
 #endif
 
 	/*

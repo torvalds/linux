@@ -732,6 +732,8 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
+		/* Some variants use a tda9874 and so need the tvaudio module. */
+		.audio_chip     = V4L2_IDENT_TVAUDIO,
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
@@ -1934,6 +1936,39 @@ static const struct cx88_board cx88_boards[] = {
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII] = {
+		.name           = "Terratec Cinergy HT PCI MKII",
+		.tuner_type     = TUNER_XC2028,
+		.tuner_addr     = 0x61,
+		.radio_type     = TUNER_XC2028,
+		.radio_addr     = 0x61,
+		.input          = { {
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x004ff,
+			.gpio1  = 0x010ff,
+			.gpio2  = 0x00001,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x004fb,
+			.gpio1  = 0x010ef,
+			.audioroute = 1,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x004fb,
+			.gpio1  = 0x010ef,
+			.audioroute = 1,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0  = 0x004ff,
+			.gpio1  = 0x010ff,
+			.gpio2  = 0x0ff,
+		},
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -2343,6 +2378,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0xb200,
 		.subdevice = 0x4200,
 		.card      = CX88_BOARD_SATTRADE_ST4200,
+	}, {
+		.subvendor = 0x153b,
+		.subdevice = 0x1177,
+		.card      = CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII,
 	},
 };
 
@@ -2819,6 +2858,7 @@ void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
 		 */
 		break;
 	case CX88_BOARD_PINNACLE_HYBRID_PCTV:
+	case CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII:
 		ctl->demod = XC3028_FE_ZARLINK456;
 		ctl->mts = 1;
 		break;
@@ -2947,7 +2987,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		tea5767_cfg.tuner = TUNER_TEA5767;
 		tea5767_cfg.priv  = &ctl;
 
-		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &tea5767_cfg);
+		call_all(core, tuner, s_config, &tea5767_cfg);
 		break;
 	}
 	case  CX88_BOARD_TEVII_S420:
@@ -2972,7 +3012,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		tun_setup.type           = core->board.radio_type;
 		tun_setup.addr           = core->board.radio_addr;
 		tun_setup.tuner_callback = cx88_tuner_callback;
-		cx88_call_i2c_clients(core, TUNER_SET_TYPE_ADDR, &tun_setup);
+		call_all(core, tuner, s_type_addr, &tun_setup);
 		mode_mask &= ~T_RADIO;
 	}
 
@@ -2982,7 +3022,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		tun_setup.addr           = core->board.tuner_addr;
 		tun_setup.tuner_callback = cx88_tuner_callback;
 
-		cx88_call_i2c_clients(core, TUNER_SET_TYPE_ADDR, &tun_setup);
+		call_all(core, tuner, s_type_addr, &tun_setup);
 	}
 
 	if (core->board.tda9887_conf) {
@@ -2991,7 +3031,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		tda9887_cfg.tuner = TUNER_TDA9887;
 		tda9887_cfg.priv  = &core->board.tda9887_conf;
 
-		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &tda9887_cfg);
+		call_all(core, tuner, s_config, &tda9887_cfg);
 	}
 
 	if (core->board.tuner_type == TUNER_XC2028) {
@@ -3007,9 +3047,9 @@ static void cx88_card_setup(struct cx88_core *core)
 		xc2028_cfg.priv  = &ctl;
 		info_printk(core, "Asking xc2028/3028 to load firmware %s\n",
 			    ctl.fname);
-		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &xc2028_cfg);
+		call_all(core, tuner, s_config, &xc2028_cfg);
 	}
-	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
+	call_all(core, tuner, s_standby);
 }
 
 /* ------------------------------------------------------------------ */
@@ -3089,6 +3129,8 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	int i;
 
 	core = kzalloc(sizeof(*core), GFP_KERNEL);
+	if (core == NULL)
+		return NULL;
 
 	atomic_inc(&core->refcount);
 	core->pci_bus  = pci->bus->number;
@@ -3100,7 +3142,15 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 
 	core->nr = nr;
 	sprintf(core->name, "cx88[%d]", core->nr);
+
+	strcpy(core->v4l2_dev.name, core->name);
+	if (v4l2_device_register(NULL, &core->v4l2_dev)) {
+		kfree(core);
+		return NULL;
+	}
+
 	if (0 != cx88_get_resources(core, pci)) {
+		v4l2_device_unregister(&core->v4l2_dev);
 		kfree(core);
 		return NULL;
 	}
@@ -3110,6 +3160,11 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	core->lmmio = ioremap(pci_resource_start(pci, 0),
 			      pci_resource_len(pci, 0));
 	core->bmmio = (u8 __iomem *)core->lmmio;
+
+	if (core->lmmio == NULL) {
+		kfree(core);
+		return NULL;
+	}
 
 	/* board config */
 	core->boardnr = UNSET;
@@ -3149,8 +3204,39 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	cx88_i2c_init(core, pci);
 
 	/* load tuner module, if needed */
-	if (TUNER_ABSENT != core->board.tuner_type)
-		request_module("tuner");
+	if (TUNER_ABSENT != core->board.tuner_type) {
+		/* Ignore 0x6b and 0x6f on cx88 boards.
+		 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
+		 * and an RTC at 0x6f which can get corrupted if probed. */
+		static const unsigned short tv_addrs[] = {
+			0x42, 0x43, 0x4a, 0x4b,		/* tda8290 */
+			0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
+			0x68, 0x69, 0x6a, 0x6c, 0x6d, 0x6e,
+			I2C_CLIENT_END
+		};
+		int has_demod = (core->board.tda9887_conf & TDA9887_PRESENT);
+
+		/* I don't trust the radio_type as is stored in the card
+		   definitions, so we just probe for it.
+		   The radio_type is sometimes missing, or set to UNSET but
+		   later code configures a tea5767.
+		 */
+		v4l2_i2c_new_probed_subdev(&core->v4l2_dev, &core->i2c_adap,
+				"tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_RADIO));
+		if (has_demod)
+			v4l2_i2c_new_probed_subdev(&core->v4l2_dev,
+				&core->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+		if (core->board.tuner_addr == ADDR_UNSET) {
+			v4l2_i2c_new_probed_subdev(&core->v4l2_dev,
+				&core->i2c_adap, "tuner", "tuner",
+				has_demod ? tv_addrs + 4 : tv_addrs);
+		} else {
+			v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
+				"tuner", "tuner", core->board.tuner_addr);
+		}
+	}
 
 	cx88_card_setup(core);
 	cx88_ir_init(core, pci);

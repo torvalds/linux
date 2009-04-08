@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2008 Intel Corporation.
+  Copyright(c) 1999 - 2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -32,6 +32,18 @@
 #include "ixgbe_common.h"
 #include "ixgbe_phy.h"
 
+static void ixgbe_i2c_start(struct ixgbe_hw *hw);
+static void ixgbe_i2c_stop(struct ixgbe_hw *hw);
+static s32 ixgbe_clock_in_i2c_byte(struct ixgbe_hw *hw, u8 *data);
+static s32 ixgbe_clock_out_i2c_byte(struct ixgbe_hw *hw, u8 data);
+static s32 ixgbe_get_i2c_ack(struct ixgbe_hw *hw);
+static s32 ixgbe_clock_in_i2c_bit(struct ixgbe_hw *hw, bool *data);
+static s32 ixgbe_clock_out_i2c_bit(struct ixgbe_hw *hw, bool data);
+static s32 ixgbe_raise_i2c_clk(struct ixgbe_hw *hw, u32 *i2cctl);
+static void ixgbe_lower_i2c_clk(struct ixgbe_hw *hw, u32 *i2cctl);
+static s32 ixgbe_set_i2c_data(struct ixgbe_hw *hw, u32 *i2cctl, bool data);
+static bool ixgbe_get_i2c_data(u32 *i2cctl);
+static void ixgbe_i2c_bus_clear(struct ixgbe_hw *hw);
 static bool ixgbe_validate_phy_addr(struct ixgbe_hw *hw, u32 phy_addr);
 static enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id);
 static s32 ixgbe_get_phy_id(struct ixgbe_hw *hw);
@@ -543,8 +555,9 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 	u8 identifier = 0;
 	u8 comp_codes_1g = 0;
 	u8 comp_codes_10g = 0;
-	u8 oui_bytes[4] = {0, 0, 0, 0};
+	u8 oui_bytes[3] = {0, 0, 0};
 	u8 transmission_media = 0;
+	u16 enforce_sfp = 0;
 
 	status = hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_IDENTIFIER,
 	                                     &identifier);
@@ -564,18 +577,48 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 
 		/* ID Module
 		 * =========
-		 * 0	SFP_DA_CU
-		 * 1	SFP_SR
-		 * 2	SFP_LR
+		 * 0    SFP_DA_CU
+		 * 1    SFP_SR
+		 * 2    SFP_LR
+		 * 3    SFP_DA_CORE0 - 82599-specific
+		 * 4    SFP_DA_CORE1 - 82599-specific
+		 * 5    SFP_SR/LR_CORE0 - 82599-specific
+		 * 6    SFP_SR/LR_CORE1 - 82599-specific
 		 */
-		if (transmission_media & IXGBE_SFF_TWIN_AX_CAPABLE)
-			hw->phy.sfp_type = ixgbe_sfp_type_da_cu;
-		else if (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)
-			hw->phy.sfp_type = ixgbe_sfp_type_sr;
-		else if (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)
-			hw->phy.sfp_type = ixgbe_sfp_type_lr;
-		else
-			hw->phy.sfp_type = ixgbe_sfp_type_unknown;
+		if (hw->mac.type == ixgbe_mac_82598EB) {
+			if (transmission_media & IXGBE_SFF_TWIN_AX_CAPABLE)
+				hw->phy.sfp_type = ixgbe_sfp_type_da_cu;
+			else if (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)
+				hw->phy.sfp_type = ixgbe_sfp_type_sr;
+			else if (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)
+				hw->phy.sfp_type = ixgbe_sfp_type_lr;
+			else
+				hw->phy.sfp_type = ixgbe_sfp_type_unknown;
+		} else if (hw->mac.type == ixgbe_mac_82599EB) {
+			if (transmission_media & IXGBE_SFF_TWIN_AX_CAPABLE)
+				if (hw->bus.lan_id == 0)
+					hw->phy.sfp_type =
+					             ixgbe_sfp_type_da_cu_core0;
+				else
+					hw->phy.sfp_type =
+					             ixgbe_sfp_type_da_cu_core1;
+			else if (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)
+				if (hw->bus.lan_id == 0)
+					hw->phy.sfp_type =
+					              ixgbe_sfp_type_srlr_core0;
+				else
+					hw->phy.sfp_type =
+					              ixgbe_sfp_type_srlr_core1;
+			else if (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)
+				if (hw->bus.lan_id == 0)
+					hw->phy.sfp_type =
+					              ixgbe_sfp_type_srlr_core0;
+				else
+					hw->phy.sfp_type =
+					              ixgbe_sfp_type_srlr_core1;
+			else
+				hw->phy.sfp_type = ixgbe_sfp_type_unknown;
+		}
 
 		/* Determine PHY vendor */
 		if (hw->phy.type == ixgbe_phy_unknown) {
@@ -607,6 +650,9 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			case IXGBE_SFF_VENDOR_OUI_AVAGO:
 				hw->phy.type = ixgbe_phy_sfp_avago;
 				break;
+			case IXGBE_SFF_VENDOR_OUI_INTEL:
+				hw->phy.type = ixgbe_phy_sfp_intel;
+				break;
 			default:
 				if (transmission_media &
 				    IXGBE_SFF_TWIN_AX_CAPABLE)
@@ -616,7 +662,28 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				break;
 			}
 		}
-		status = 0;
+		if (hw->mac.type == ixgbe_mac_82598EB ||
+		    (hw->phy.sfp_type != ixgbe_sfp_type_sr &&
+		     hw->phy.sfp_type != ixgbe_sfp_type_lr &&
+		     hw->phy.sfp_type != ixgbe_sfp_type_srlr_core0 &&
+		     hw->phy.sfp_type != ixgbe_sfp_type_srlr_core1)) {
+			status = 0;
+			goto out;
+		}
+
+		hw->eeprom.ops.read(hw, IXGBE_PHY_ENFORCE_INTEL_SFP_OFFSET,
+		                    &enforce_sfp);
+		if (!(enforce_sfp & IXGBE_PHY_ALLOW_ANY_SFP)) {
+			/* Make sure we're a supported PHY type */
+			if (hw->phy.type == ixgbe_phy_sfp_intel) {
+				status = 0;
+			} else {
+				hw_dbg(hw, "SFP+ module not supported\n");
+				status = IXGBE_ERR_SFP_NOT_SUPPORTED;
+			}
+		} else {
+			status = 0;
+		}
 	}
 
 out:
@@ -651,7 +718,7 @@ s32 ixgbe_get_sfp_init_sequence_offsets(struct ixgbe_hw *hw,
 	hw->eeprom.ops.read(hw, IXGBE_PHY_INIT_OFFSET_NL, list_offset);
 
 	if ((!*list_offset) || (*list_offset == 0xFFFF))
-		return IXGBE_ERR_PHY;
+		return IXGBE_ERR_SFP_NO_INIT_SEQ_PRESENT;
 
 	/* Shift offset to first ID word */
 	(*list_offset)++;
@@ -685,6 +752,501 @@ s32 ixgbe_get_sfp_init_sequence_offsets(struct ixgbe_hw *hw,
 	}
 
 	return 0;
+}
+
+/**
+ *  ixgbe_read_i2c_eeprom_generic - Reads 8 bit EEPROM word over I2C interface
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: EEPROM byte offset to read
+ *  @eeprom_data: value read
+ *
+ *  Performs byte read operation to SFP module's EEPROM over I2C interface.
+ **/
+s32 ixgbe_read_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
+                                  u8 *eeprom_data)
+{
+	return hw->phy.ops.read_i2c_byte(hw, byte_offset,
+	                                 IXGBE_I2C_EEPROM_DEV_ADDR,
+	                                 eeprom_data);
+}
+
+/**
+ *  ixgbe_write_i2c_eeprom_generic - Writes 8 bit EEPROM word over I2C interface
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: EEPROM byte offset to write
+ *  @eeprom_data: value to write
+ *
+ *  Performs byte write operation to SFP module's EEPROM over I2C interface.
+ **/
+s32 ixgbe_write_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
+                                   u8 eeprom_data)
+{
+	return hw->phy.ops.write_i2c_byte(hw, byte_offset,
+	                                  IXGBE_I2C_EEPROM_DEV_ADDR,
+	                                  eeprom_data);
+}
+
+/**
+ *  ixgbe_read_i2c_byte_generic - Reads 8 bit word over I2C
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: byte offset to read
+ *  @data: value read
+ *
+ *  Performs byte read operation to SFP module's EEPROM over I2C interface at
+ *  a specified deivce address.
+ **/
+s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
+                                u8 dev_addr, u8 *data)
+{
+	s32 status = 0;
+	u32 max_retry = 1;
+	u32 retry = 0;
+	bool nack = 1;
+
+	do {
+		ixgbe_i2c_start(hw);
+
+		/* Device Address and write indication */
+		status = ixgbe_clock_out_i2c_byte(hw, dev_addr);
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_get_i2c_ack(hw);
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_clock_out_i2c_byte(hw, byte_offset);
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_get_i2c_ack(hw);
+		if (status != 0)
+			goto fail;
+
+		ixgbe_i2c_start(hw);
+
+		/* Device Address and read indication */
+		status = ixgbe_clock_out_i2c_byte(hw, (dev_addr | 0x1));
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_get_i2c_ack(hw);
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_clock_in_i2c_byte(hw, data);
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_clock_out_i2c_bit(hw, nack);
+		if (status != 0)
+			goto fail;
+
+		ixgbe_i2c_stop(hw);
+		break;
+
+fail:
+		ixgbe_i2c_bus_clear(hw);
+		retry++;
+		if (retry < max_retry)
+			hw_dbg(hw, "I2C byte read error - Retrying.\n");
+		else
+			hw_dbg(hw, "I2C byte read error.\n");
+
+	} while (retry < max_retry);
+
+	return status;
+}
+
+/**
+ *  ixgbe_write_i2c_byte_generic - Writes 8 bit word over I2C
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: byte offset to write
+ *  @data: value to write
+ *
+ *  Performs byte write operation to SFP module's EEPROM over I2C interface at
+ *  a specified device address.
+ **/
+s32 ixgbe_write_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
+                                 u8 dev_addr, u8 data)
+{
+	s32 status = 0;
+	u32 max_retry = 1;
+	u32 retry = 0;
+
+	do {
+		ixgbe_i2c_start(hw);
+
+		status = ixgbe_clock_out_i2c_byte(hw, dev_addr);
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_get_i2c_ack(hw);
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_clock_out_i2c_byte(hw, byte_offset);
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_get_i2c_ack(hw);
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_clock_out_i2c_byte(hw, data);
+		if (status != 0)
+			goto fail;
+
+		status = ixgbe_get_i2c_ack(hw);
+		if (status != 0)
+			goto fail;
+
+		ixgbe_i2c_stop(hw);
+		break;
+
+fail:
+		ixgbe_i2c_bus_clear(hw);
+		retry++;
+		if (retry < max_retry)
+			hw_dbg(hw, "I2C byte write error - Retrying.\n");
+		else
+			hw_dbg(hw, "I2C byte write error.\n");
+	} while (retry < max_retry);
+
+	return status;
+}
+
+/**
+ *  ixgbe_i2c_start - Sets I2C start condition
+ *  @hw: pointer to hardware structure
+ *
+ *  Sets I2C start condition (High -> Low on SDA while SCL is High)
+ **/
+static void ixgbe_i2c_start(struct ixgbe_hw *hw)
+{
+	u32 i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
+
+	/* Start condition must begin with data and clock high */
+	ixgbe_set_i2c_data(hw, &i2cctl, 1);
+	ixgbe_raise_i2c_clk(hw, &i2cctl);
+
+	/* Setup time for start condition (4.7us) */
+	udelay(IXGBE_I2C_T_SU_STA);
+
+	ixgbe_set_i2c_data(hw, &i2cctl, 0);
+
+	/* Hold time for start condition (4us) */
+	udelay(IXGBE_I2C_T_HD_STA);
+
+	ixgbe_lower_i2c_clk(hw, &i2cctl);
+
+	/* Minimum low period of clock is 4.7 us */
+	udelay(IXGBE_I2C_T_LOW);
+
+}
+
+/**
+ *  ixgbe_i2c_stop - Sets I2C stop condition
+ *  @hw: pointer to hardware structure
+ *
+ *  Sets I2C stop condition (Low -> High on SDA while SCL is High)
+ **/
+static void ixgbe_i2c_stop(struct ixgbe_hw *hw)
+{
+	u32 i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
+
+	/* Stop condition must begin with data low and clock high */
+	ixgbe_set_i2c_data(hw, &i2cctl, 0);
+	ixgbe_raise_i2c_clk(hw, &i2cctl);
+
+	/* Setup time for stop condition (4us) */
+	udelay(IXGBE_I2C_T_SU_STO);
+
+	ixgbe_set_i2c_data(hw, &i2cctl, 1);
+
+	/* bus free time between stop and start (4.7us)*/
+	udelay(IXGBE_I2C_T_BUF);
+}
+
+/**
+ *  ixgbe_clock_in_i2c_byte - Clocks in one byte via I2C
+ *  @hw: pointer to hardware structure
+ *  @data: data byte to clock in
+ *
+ *  Clocks in one byte data via I2C data/clock
+ **/
+static s32 ixgbe_clock_in_i2c_byte(struct ixgbe_hw *hw, u8 *data)
+{
+	s32 status = 0;
+	s32 i;
+	bool bit = 0;
+
+	for (i = 7; i >= 0; i--) {
+		status = ixgbe_clock_in_i2c_bit(hw, &bit);
+		*data |= bit << i;
+
+		if (status != 0)
+			break;
+	}
+
+	return status;
+}
+
+/**
+ *  ixgbe_clock_out_i2c_byte - Clocks out one byte via I2C
+ *  @hw: pointer to hardware structure
+ *  @data: data byte clocked out
+ *
+ *  Clocks out one byte data via I2C data/clock
+ **/
+static s32 ixgbe_clock_out_i2c_byte(struct ixgbe_hw *hw, u8 data)
+{
+	s32 status = 0;
+	s32 i;
+	u32 i2cctl;
+	bool bit = 0;
+
+	for (i = 7; i >= 0; i--) {
+		bit = (data >> i) & 0x1;
+		status = ixgbe_clock_out_i2c_bit(hw, bit);
+
+		if (status != 0)
+			break;
+	}
+
+	/* Release SDA line (set high) */
+	i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
+	i2cctl |= IXGBE_I2C_DATA_OUT;
+	IXGBE_WRITE_REG(hw, IXGBE_I2CCTL, i2cctl);
+
+	return status;
+}
+
+/**
+ *  ixgbe_get_i2c_ack - Polls for I2C ACK
+ *  @hw: pointer to hardware structure
+ *
+ *  Clocks in/out one bit via I2C data/clock
+ **/
+static s32 ixgbe_get_i2c_ack(struct ixgbe_hw *hw)
+{
+	s32 status;
+	u32 i = 0;
+	u32 i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
+	u32 timeout = 10;
+	bool ack = 1;
+
+	status = ixgbe_raise_i2c_clk(hw, &i2cctl);
+
+	if (status != 0)
+		goto out;
+
+	/* Minimum high period of clock is 4us */
+	udelay(IXGBE_I2C_T_HIGH);
+
+	/* Poll for ACK.  Note that ACK in I2C spec is
+	 * transition from 1 to 0 */
+	for (i = 0; i < timeout; i++) {
+		i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
+		ack = ixgbe_get_i2c_data(&i2cctl);
+
+		udelay(1);
+		if (ack == 0)
+			break;
+	}
+
+	if (ack == 1) {
+		hw_dbg(hw, "I2C ack was not received.\n");
+		status = IXGBE_ERR_I2C;
+	}
+
+	ixgbe_lower_i2c_clk(hw, &i2cctl);
+
+	/* Minimum low period of clock is 4.7 us */
+	udelay(IXGBE_I2C_T_LOW);
+
+out:
+	return status;
+}
+
+/**
+ *  ixgbe_clock_in_i2c_bit - Clocks in one bit via I2C data/clock
+ *  @hw: pointer to hardware structure
+ *  @data: read data value
+ *
+ *  Clocks in one bit via I2C data/clock
+ **/
+static s32 ixgbe_clock_in_i2c_bit(struct ixgbe_hw *hw, bool *data)
+{
+	s32 status;
+	u32 i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
+
+	status = ixgbe_raise_i2c_clk(hw, &i2cctl);
+
+	/* Minimum high period of clock is 4us */
+	udelay(IXGBE_I2C_T_HIGH);
+
+	i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
+	*data = ixgbe_get_i2c_data(&i2cctl);
+
+	ixgbe_lower_i2c_clk(hw, &i2cctl);
+
+	/* Minimum low period of clock is 4.7 us */
+	udelay(IXGBE_I2C_T_LOW);
+
+	return status;
+}
+
+/**
+ *  ixgbe_clock_out_i2c_bit - Clocks in/out one bit via I2C data/clock
+ *  @hw: pointer to hardware structure
+ *  @data: data value to write
+ *
+ *  Clocks out one bit via I2C data/clock
+ **/
+static s32 ixgbe_clock_out_i2c_bit(struct ixgbe_hw *hw, bool data)
+{
+	s32 status;
+	u32 i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
+
+	status = ixgbe_set_i2c_data(hw, &i2cctl, data);
+	if (status == 0) {
+		status = ixgbe_raise_i2c_clk(hw, &i2cctl);
+
+		/* Minimum high period of clock is 4us */
+		udelay(IXGBE_I2C_T_HIGH);
+
+		ixgbe_lower_i2c_clk(hw, &i2cctl);
+
+		/* Minimum low period of clock is 4.7 us.
+		 * This also takes care of the data hold time.
+		 */
+		udelay(IXGBE_I2C_T_LOW);
+	} else {
+		status = IXGBE_ERR_I2C;
+		hw_dbg(hw, "I2C data was not set to %X\n", data);
+	}
+
+	return status;
+}
+/**
+ *  ixgbe_raise_i2c_clk - Raises the I2C SCL clock
+ *  @hw: pointer to hardware structure
+ *  @i2cctl: Current value of I2CCTL register
+ *
+ *  Raises the I2C clock line '0'->'1'
+ **/
+static s32 ixgbe_raise_i2c_clk(struct ixgbe_hw *hw, u32 *i2cctl)
+{
+	s32 status = 0;
+
+	*i2cctl |= IXGBE_I2C_CLK_OUT;
+
+	IXGBE_WRITE_REG(hw, IXGBE_I2CCTL, *i2cctl);
+
+	/* SCL rise time (1000ns) */
+	udelay(IXGBE_I2C_T_RISE);
+
+	return status;
+}
+
+/**
+ *  ixgbe_lower_i2c_clk - Lowers the I2C SCL clock
+ *  @hw: pointer to hardware structure
+ *  @i2cctl: Current value of I2CCTL register
+ *
+ *  Lowers the I2C clock line '1'->'0'
+ **/
+static void ixgbe_lower_i2c_clk(struct ixgbe_hw *hw, u32 *i2cctl)
+{
+
+	*i2cctl &= ~IXGBE_I2C_CLK_OUT;
+
+	IXGBE_WRITE_REG(hw, IXGBE_I2CCTL, *i2cctl);
+
+	/* SCL fall time (300ns) */
+	udelay(IXGBE_I2C_T_FALL);
+}
+
+/**
+ *  ixgbe_set_i2c_data - Sets the I2C data bit
+ *  @hw: pointer to hardware structure
+ *  @i2cctl: Current value of I2CCTL register
+ *  @data: I2C data value (0 or 1) to set
+ *
+ *  Sets the I2C data bit
+ **/
+static s32 ixgbe_set_i2c_data(struct ixgbe_hw *hw, u32 *i2cctl, bool data)
+{
+	s32 status = 0;
+
+	if (data)
+		*i2cctl |= IXGBE_I2C_DATA_OUT;
+	else
+		*i2cctl &= ~IXGBE_I2C_DATA_OUT;
+
+	IXGBE_WRITE_REG(hw, IXGBE_I2CCTL, *i2cctl);
+
+	/* Data rise/fall (1000ns/300ns) and set-up time (250ns) */
+	udelay(IXGBE_I2C_T_RISE + IXGBE_I2C_T_FALL + IXGBE_I2C_T_SU_DATA);
+
+	/* Verify data was set correctly */
+	*i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
+	if (data != ixgbe_get_i2c_data(i2cctl)) {
+		status = IXGBE_ERR_I2C;
+		hw_dbg(hw, "Error - I2C data was not set to %X.\n", data);
+	}
+
+	return status;
+}
+
+/**
+ *  ixgbe_get_i2c_data - Reads the I2C SDA data bit
+ *  @hw: pointer to hardware structure
+ *  @i2cctl: Current value of I2CCTL register
+ *
+ *  Returns the I2C data bit value
+ **/
+static bool ixgbe_get_i2c_data(u32 *i2cctl)
+{
+	bool data;
+
+	if (*i2cctl & IXGBE_I2C_DATA_IN)
+		data = 1;
+	else
+		data = 0;
+
+	return data;
+}
+
+/**
+ *  ixgbe_i2c_bus_clear - Clears the I2C bus
+ *  @hw: pointer to hardware structure
+ *
+ *  Clears the I2C bus by sending nine clock pulses.
+ *  Used when data line is stuck low.
+ **/
+static void ixgbe_i2c_bus_clear(struct ixgbe_hw *hw)
+{
+	u32 i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
+	u32 i;
+
+	ixgbe_set_i2c_data(hw, &i2cctl, 1);
+
+	for (i = 0; i < 9; i++) {
+		ixgbe_raise_i2c_clk(hw, &i2cctl);
+
+		/* Min high period of clock is 4us */
+		udelay(IXGBE_I2C_T_HIGH);
+
+		ixgbe_lower_i2c_clk(hw, &i2cctl);
+
+		/* Min low period of clock is 4.7us*/
+		udelay(IXGBE_I2C_T_LOW);
+	}
+
+	/* Put the i2c bus back to default state */
+	ixgbe_i2c_stop(hw);
 }
 
 /**

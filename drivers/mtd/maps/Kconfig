@@ -491,7 +491,7 @@ config MTD_PCMCIA_ANONYMOUS
 
 config MTD_BFIN_ASYNC
 	tristate "Blackfin BF533-STAMP Flash Chip Support"
-	depends on BFIN533_STAMP && MTD_CFI
+	depends on BFIN533_STAMP && MTD_CFI && MTD_COMPLEX_MAPPINGS
 	select MTD_PARTITIONS
 	default y
 	help
@@ -529,18 +529,18 @@ config MTD_DMV182
         help
           Map driver for Dy-4 SVME/DMV-182 board.
 
-config MTD_SHARP_SL
-	tristate "ROM mapped on Sharp SL Series"
-	depends on ARCH_PXA
-	help
-	  This enables access to the flash chip on the Sharp SL Series of PDAs.
-
 config MTD_INTEL_VR_NOR
 	tristate "NOR flash on Intel Vermilion Range Expansion Bus CS0"
 	depends on PCI
 	help
 	  Map driver for a NOR flash bank located on the Expansion Bus of the
 	  Intel Vermilion Range chipset.
+
+config MTD_RBTX4939
+	tristate "Map driver for RBTX4939 board"
+	depends on TOSHIBA_RBTX4939 && MTD_CFI && MTD_COMPLEX_MAPPINGS
+	help
+	  Map driver for NOR flash chips on RBTX4939 board.
 
 config MTD_PLATRAM
 	tristate "Map driver for platform device RAM (mtd-ram)"
@@ -551,5 +551,15 @@ config MTD_PLATRAM
 
 	  This selection automatically selects the map_ram driver.
 
-endmenu
+config MTD_VMU
+	tristate "Map driver for Dreamcast VMU"
+	depends on MAPLE
+	help
+	  This driver enables access to the Dreamcast Visual Memory Unit (VMU).
 
+	  Most Dreamcast users will want to say Y here.
+
+	  To build this as a module select M here, the module will be called
+	  vmu-flash.
+
+endmenu

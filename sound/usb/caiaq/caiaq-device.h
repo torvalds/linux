@@ -10,8 +10,10 @@
 #define USB_PID_KORECONTROLLER	0x4711
 #define USB_PID_KORECONTROLLER2	0x4712
 #define USB_PID_AK1		0x0815
+#define USB_PID_AUDIO4DJ	0x0839
 #define USB_PID_AUDIO8DJ	0x1978
 #define USB_PID_SESSIONIO	0x1915
+#define USB_PID_GUITARRIGMOBILE	0x0d8d
 
 #define EP1_BUFSIZE 64
 #define CAIAQ_USB_STR_LEN 0xff
@@ -87,9 +89,9 @@ struct snd_usb_caiaqdev {
 	int audio_out_buf_pos[MAX_STREAMS];
 	int period_in_count[MAX_STREAMS];
 	int period_out_count[MAX_STREAMS];
-	int input_panic, output_panic;
+	int input_panic, output_panic, warned;
 	char *audio_in_buf, *audio_out_buf;
-	unsigned int samplerates;
+	unsigned int samplerates, bpp;
 
 	struct snd_pcm_substream *sub_playback[MAX_STREAMS];
 	struct snd_pcm_substream *sub_capture[MAX_STREAMS];

@@ -146,6 +146,17 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
 	int err = 0;
 
+	if (cpu_is_omap343x() && mcbsp_data->bus_id == 1) {
+		/*
+		 * McBSP2 in OMAP3 has 1024 * 32-bit internal audio buffer.
+		 * Set constraint for minimum buffer size to the same than FIFO
+		 * size in order to avoid underruns in playback startup because
+		 * HW is keeping the DMA request active until FIFO is filled.
+		 */
+		snd_pcm_hw_constraint_minmax(substream->runtime,
+			SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 4096, UINT_MAX);
+	}
+
 	if (!cpu_dai->active)
 		err = omap_mcbsp_request(mcbsp_data->bus_id);
 
@@ -461,6 +472,16 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	return err;
 }
 
+static struct snd_soc_dai_ops omap_mcbsp_dai_ops = {
+	.startup	= omap_mcbsp_dai_startup,
+	.shutdown	= omap_mcbsp_dai_shutdown,
+	.trigger	= omap_mcbsp_dai_trigger,
+	.hw_params	= omap_mcbsp_dai_hw_params,
+	.set_fmt	= omap_mcbsp_dai_set_dai_fmt,
+	.set_clkdiv	= omap_mcbsp_dai_set_clkdiv,
+	.set_sysclk	= omap_mcbsp_dai_set_dai_sysclk,
+};
+
 #define OMAP_MCBSP_DAI_BUILDER(link_id)				\
 {								\
 	.name = "omap-mcbsp-dai-"#link_id,			\
@@ -477,15 +498,7 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		.rates = OMAP_MCBSP_RATES,			\
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,		\
 	},							\
-	.ops = {						\
-		.startup = omap_mcbsp_dai_startup,		\
-		.shutdown = omap_mcbsp_dai_shutdown,		\
-		.trigger = omap_mcbsp_dai_trigger,		\
-		.hw_params = omap_mcbsp_dai_hw_params,		\
-		.set_fmt = omap_mcbsp_dai_set_dai_fmt,		\
-		.set_clkdiv = omap_mcbsp_dai_set_clkdiv,	\
-		.set_sysclk = omap_mcbsp_dai_set_dai_sysclk,	\
-	},							\
+	.ops = &omap_mcbsp_dai_ops,				\
 	.private_data = &mcbsp_data[(link_id)].bus_id,		\
 }
 

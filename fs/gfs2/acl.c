@@ -15,7 +15,6 @@
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -216,7 +215,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
 	if (error)
 		return error;
 	if (!acl) {
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 		if (mode != ip->i_inode.i_mode)
 			error = munge_mode(ip, mode);
 		return error;

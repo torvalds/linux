@@ -25,6 +25,7 @@
 /* these are bit numbers for test/set bit */
 #define EXTENT_BUFFER_UPTODATE 0
 #define EXTENT_BUFFER_BLOCKING 1
+#define EXTENT_BUFFER_DIRTY 2
 
 /*
  * page->private values.  Every page that is controlled by the extent
@@ -253,6 +254,8 @@ int wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits);
 int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			      struct extent_buffer *eb);
 int set_extent_buffer_dirty(struct extent_io_tree *tree,
+			     struct extent_buffer *eb);
+int test_extent_buffer_dirty(struct extent_io_tree *tree,
 			     struct extent_buffer *eb);
 int set_extent_buffer_uptodate(struct extent_io_tree *tree,
 			       struct extent_buffer *eb);

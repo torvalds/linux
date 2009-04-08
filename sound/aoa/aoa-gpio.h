@@ -34,10 +34,12 @@ struct gpio_methods {
 	void (*set_headphone)(struct gpio_runtime *rt, int on);
 	void (*set_speakers)(struct gpio_runtime *rt, int on);
 	void (*set_lineout)(struct gpio_runtime *rt, int on);
+	void (*set_master)(struct gpio_runtime *rt, int on);
 
 	int (*get_headphone)(struct gpio_runtime *rt);
 	int (*get_speakers)(struct gpio_runtime *rt);
 	int (*get_lineout)(struct gpio_runtime *rt);
+	int (*get_master)(struct gpio_runtime *rt);
 
 	void (*set_hw_reset)(struct gpio_runtime *rt, int on);
 

@@ -82,7 +82,22 @@ static struct super_block *alloc_super(struct file_system_type *type)
 		 * lock ordering than usbfs:
 		 */
 		lockdep_set_class(&s->s_lock, &type->s_lock_key);
-		down_write(&s->s_umount);
+		/*
+		 * sget() can have s_umount recursion.
+		 *
+		 * When it cannot find a suitable sb, it allocates a new
+		 * one (this one), and tries again to find a suitable old
+		 * one.
+		 *
+		 * In case that succeeds, it will acquire the s_umount
+		 * lock of the old one. Since these are clearly distrinct
+		 * locks, and this object isn't exposed yet, there's no
+		 * risk of deadlocks.
+		 *
+		 * Annotate this by putting this lock in a different
+		 * subclass.
+		 */
+		down_write_nested(&s->s_umount, SINGLE_DEPTH_NESTING);
 		s->s_count = S_BIAS;
 		atomic_set(&s->s_active, 1);
 		mutex_init(&s->s_vfs_rename_mutex);
@@ -182,7 +197,7 @@ void deactivate_super(struct super_block *s)
 	if (atomic_dec_and_lock(&s->s_active, &sb_lock)) {
 		s->s_count -= S_BIAS-1;
 		spin_unlock(&sb_lock);
-		DQUOT_OFF(s, 0);
+		vfs_dq_off(s, 0);
 		down_write(&s->s_umount);
 		fs->kill_sb(s);
 		put_filesystem(fs);
@@ -251,7 +266,7 @@ EXPORT_SYMBOL(unlock_super);
 void __fsync_super(struct super_block *sb)
 {
 	sync_inodes_sb(sb, 0);
-	DQUOT_SYNC(sb);
+	vfs_dq_sync(sb);
 	lock_super(sb);
 	if (sb->s_dirt && sb->s_op->write_super)
 		sb->s_op->write_super(sb);
@@ -272,6 +287,7 @@ int fsync_super(struct super_block *sb)
 	__fsync_super(sb);
 	return sync_blockdev(sb->s_bdev);
 }
+EXPORT_SYMBOL_GPL(fsync_super);
 
 /**
  *	generic_shutdown_super	-	common helper for ->kill_sb()
@@ -301,7 +317,7 @@ void generic_shutdown_super(struct super_block *sb)
 		/*
 		 * wait for asynchronous fs operations to finish before going further
 		 */
-		async_synchronize_full_special(&sb->s_async_list);
+		async_synchronize_full_domain(&sb->s_async_list);
 
 		/* bad name - it should be evict_inodes() */
 		invalidate_inodes(sb);
@@ -356,8 +372,10 @@ retry:
 				continue;
 			if (!grab_super(old))
 				goto retry;
-			if (s)
+			if (s) {
+				up_write(&s->s_umount);
 				destroy_super(s);
+			}
 			return old;
 		}
 	}
@@ -372,6 +390,7 @@ retry:
 	err = set(s, data);
 	if (err) {
 		spin_unlock(&sb_lock);
+		up_write(&s->s_umount);
 		destroy_super(s);
 		return ERR_PTR(err);
 	}
@@ -470,7 +489,7 @@ restart:
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 		down_read(&sb->s_umount);
-		async_synchronize_full_special(&sb->s_async_list);
+		async_synchronize_full_domain(&sb->s_async_list);
 		if (sb->s_root && (wait || sb->s_dirt))
 			sb->s_op->sync_fs(sb, wait);
 		up_read(&sb->s_umount);
@@ -637,7 +656,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			mark_files_ro(sb);
 		else if (!fs_may_remount_ro(sb))
 			return -EBUSY;
-		retval = DQUOT_OFF(sb, 1);
+		retval = vfs_dq_off(sb, 1);
 		if (retval < 0 && retval != -ENOSYS)
 			return -EBUSY;
 	}
@@ -652,11 +671,11 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	}
 	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (flags & MS_RMT_MASK);
 	if (remount_rw)
-		DQUOT_ON_REMOUNT(sb);
+		vfs_dq_quota_on_remount(sb);
 	return 0;
 }
 
-static void do_emergency_remount(unsigned long foo)
+static void do_emergency_remount(struct work_struct *work)
 {
 	struct super_block *sb;
 
@@ -679,12 +698,19 @@ static void do_emergency_remount(unsigned long foo)
 		spin_lock(&sb_lock);
 	}
 	spin_unlock(&sb_lock);
+	kfree(work);
 	printk("Emergency Remount complete\n");
 }
 
 void emergency_remount(void)
 {
-	pdflush_operation(do_emergency_remount, 0);
+	struct work_struct *work;
+
+	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	if (work) {
+		INIT_WORK(work, do_emergency_remount);
+		schedule_work(work);
+	}
 }
 
 /*
@@ -744,6 +770,46 @@ void kill_litter_super(struct super_block *sb)
 }
 
 EXPORT_SYMBOL(kill_litter_super);
+
+static int ns_test_super(struct super_block *sb, void *data)
+{
+	return sb->s_fs_info == data;
+}
+
+static int ns_set_super(struct super_block *sb, void *data)
+{
+	sb->s_fs_info = data;
+	return set_anon_super(sb, NULL);
+}
+
+int get_sb_ns(struct file_system_type *fs_type, int flags, void *data,
+	int (*fill_super)(struct super_block *, void *, int),
+	struct vfsmount *mnt)
+{
+	struct super_block *sb;
+
+	sb = sget(fs_type, ns_test_super, ns_set_super, data);
+	if (IS_ERR(sb))
+		return PTR_ERR(sb);
+
+	if (!sb->s_root) {
+		int err;
+		sb->s_flags = flags;
+		err = fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
+		if (err) {
+			up_write(&sb->s_umount);
+			deactivate_super(sb);
+			return err;
+		}
+
+		sb->s_flags |= MS_ACTIVE;
+	}
+
+	simple_set_mnt(mnt, sb);
+	return 0;
+}
+
+EXPORT_SYMBOL(get_sb_ns);
 
 #ifdef CONFIG_BLOCK
 static int set_bdev_super(struct super_block *s, void *data)
@@ -813,7 +879,8 @@ int get_sb_bdev(struct file_system_type *fs_type,
 		bdev->bd_super = s;
 	}
 
-	return simple_set_mnt(mnt, s);
+	simple_set_mnt(mnt, s);
+	return 0;
 
 error_s:
 	error = PTR_ERR(s);
@@ -859,7 +926,8 @@ int get_sb_nodev(struct file_system_type *fs_type,
 		return error;
 	}
 	s->s_flags |= MS_ACTIVE;
-	return simple_set_mnt(mnt, s);
+	simple_set_mnt(mnt, s);
+	return 0;
 }
 
 EXPORT_SYMBOL(get_sb_nodev);
@@ -891,7 +959,8 @@ int get_sb_single(struct file_system_type *fs_type,
 		s->s_flags |= MS_ACTIVE;
 	}
 	do_remount_sb(s, flags, data, 0);
-	return simple_set_mnt(mnt, s);
+	simple_set_mnt(mnt, s);
+	return 0;
 }
 
 EXPORT_SYMBOL(get_sb_single);

@@ -149,7 +149,7 @@ static int __devexit orion_nand_remove(struct platform_device *pdev)
 
 static struct platform_driver orion_nand_driver = {
 	.probe		= orion_nand_probe,
-	.remove		= orion_nand_remove,
+	.remove		= __devexit_p(orion_nand_remove),
 	.driver		= {
 		.name	= "orion_nand",
 		.owner	= THIS_MODULE,

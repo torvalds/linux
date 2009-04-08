@@ -69,7 +69,7 @@ static u8 w1_touch_bit(struct w1_master *dev, int bit)
 		return w1_read_bit(dev);
 	else {
 		w1_write_bit(dev, 0);
-		return(0);
+		return 0;
 	}
 }
 
@@ -184,17 +184,17 @@ static u8 w1_read_bit(struct w1_master *dev)
  */
 u8 w1_triplet(struct w1_master *dev, int bdir)
 {
-	if ( dev->bus_master->triplet )
-		return(dev->bus_master->triplet(dev->bus_master->data, bdir));
+	if (dev->bus_master->triplet)
+		return dev->bus_master->triplet(dev->bus_master->data, bdir);
 	else {
 		u8 id_bit   = w1_touch_bit(dev, 1);
 		u8 comp_bit = w1_touch_bit(dev, 1);
 		u8 retval;
 
-		if ( id_bit && comp_bit )
-			return(0x03);  /* error */
+		if (id_bit && comp_bit)
+			return 0x03;  /* error */
 
-		if ( !id_bit && !comp_bit ) {
+		if (!id_bit && !comp_bit) {
 			/* Both bits are valid, take the direction given */
 			retval = bdir ? 0x04 : 0;
 		} else {
@@ -203,11 +203,11 @@ u8 w1_triplet(struct w1_master *dev, int bdir)
 			retval = id_bit ? 0x05 : 0x02;
 		}
 
-		if ( dev->bus_master->touch_bit )
+		if (dev->bus_master->touch_bit)
 			w1_touch_bit(dev, bdir);
 		else
 			w1_write_bit(dev, bdir);
-		return(retval);
+		return retval;
 	}
 }
 

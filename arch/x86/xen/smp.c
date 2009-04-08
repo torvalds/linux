@@ -50,11 +50,7 @@ static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id);
  */
 static irqreturn_t xen_reschedule_interrupt(int irq, void *dev_id)
 {
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_resched_count++;
-#else
-	add_pda(irq_resched_count, 1);
-#endif
+	inc_irq_stat(irq_resched_count);
 
 	return IRQ_HANDLED;
 }
@@ -78,7 +74,7 @@ static __cpuinit void cpu_bringup(void)
 	xen_setup_cpu_clockevents();
 
 	cpu_set(cpu, cpu_online_map);
-	x86_write_percpu(cpu_state, CPU_ONLINE);
+	percpu_write(cpu_state, CPU_ONLINE);
 	wmb();
 
 	/* We can take interrupts now: we're officially "up". */
@@ -162,7 +158,7 @@ static void __init xen_fill_possible_map(void)
 		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
 		if (rc >= 0) {
 			num_processors++;
-			cpu_set(i, cpu_possible_map);
+			set_cpu_possible(i, true);
 		}
 	}
 }
@@ -174,7 +170,7 @@ static void __init xen_smp_prepare_boot_cpu(void)
 
 	/* We've switched to the "real" per-cpu gdt, so make sure the
 	   old memory can be recycled */
-	make_lowmem_page_readwrite(&per_cpu_var(gdt_page));
+	make_lowmem_page_readwrite(xen_initial_gdt);
 
 	xen_setup_vcpu_info_placement();
 }
@@ -201,7 +197,7 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 	while ((num_possible_cpus() > 1) && (num_possible_cpus() > max_cpus)) {
 		for (cpu = nr_cpu_ids - 1; !cpu_possible(cpu); cpu--)
 			continue;
-		cpu_clear(cpu, cpu_possible_map);
+		set_cpu_possible(cpu, false);
 	}
 
 	for_each_possible_cpu (cpu) {
@@ -214,7 +210,7 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 		if (IS_ERR(idle))
 			panic("failed fork for CPU %d", cpu);
 
-		cpu_set(cpu, cpu_present_map);
+		set_cpu_present(cpu, true);
 	}
 }
 
@@ -223,6 +219,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 {
 	struct vcpu_guest_context *ctxt;
 	struct desc_struct *gdt;
+	unsigned long gdt_mfn;
 
 	if (cpumask_test_and_set_cpu(cpu, xen_cpu_initialized_map))
 		return 0;
@@ -239,6 +236,8 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->user_regs.ss = __KERNEL_DS;
 #ifdef CONFIG_X86_32
 	ctxt->user_regs.fs = __KERNEL_PERCPU;
+#else
+	ctxt->gs_base_kernel = per_cpu_offset(cpu);
 #endif
 	ctxt->user_regs.eip = (unsigned long)cpu_bringup_and_idle;
 	ctxt->user_regs.eflags = 0x1000; /* IOPL_RING1 */
@@ -250,9 +249,12 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->ldt_ents = 0;
 
 	BUG_ON((unsigned long)gdt & ~PAGE_MASK);
-	make_lowmem_page_readonly(gdt);
 
-	ctxt->gdt_frames[0] = virt_to_mfn(gdt);
+	gdt_mfn = arbitrary_virt_to_mfn(gdt);
+	make_lowmem_page_readonly(gdt);
+	make_lowmem_page_readonly(mfn_to_virt(gdt_mfn));
+
+	ctxt->gdt_frames[0] = gdt_mfn;
 	ctxt->gdt_ents      = GDT_ENTRIES;
 
 	ctxt->user_regs.cs = __KERNEL_CS;
@@ -283,23 +285,14 @@ static int __cpuinit xen_cpu_up(unsigned int cpu)
 	struct task_struct *idle = idle_task(cpu);
 	int rc;
 
-#ifdef CONFIG_X86_64
-	/* Allocate node local memory for AP pdas */
-	WARN_ON(cpu == 0);
-	if (cpu > 0) {
-		rc = get_local_pda(cpu);
-		if (rc)
-			return rc;
-	}
-#endif
-
-#ifdef CONFIG_X86_32
-	init_gdt(cpu);
 	per_cpu(current_task, cpu) = idle;
+#ifdef CONFIG_X86_32
 	irq_ctx_init(cpu);
 #else
-	cpu_pda(cpu)->pcurrent = idle;
 	clear_tsk_thread_flag(idle, TIF_FORK);
+	per_cpu(kernel_stack, cpu) =
+		(unsigned long)task_stack_page(idle) -
+		KERNEL_STACK_OFFSET + THREAD_SIZE;
 #endif
 	xen_setup_timer(cpu);
 	xen_init_lock_cpu(cpu);
@@ -445,11 +438,7 @@ static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
 {
 	irq_enter();
 	generic_smp_call_function_interrupt();
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_call_count++;
-#else
-	add_pda(irq_call_count, 1);
-#endif
+	inc_irq_stat(irq_call_count);
 	irq_exit();
 
 	return IRQ_HANDLED;
@@ -459,11 +448,7 @@ static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id)
 {
 	irq_enter();
 	generic_smp_call_function_single_interrupt();
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_call_count++;
-#else
-	add_pda(irq_call_count, 1);
-#endif
+	inc_irq_stat(irq_call_count);
 	irq_exit();
 
 	return IRQ_HANDLED;

@@ -22,8 +22,10 @@
  *  02110-1301, USA.
  */
 
+#include <media/v4l2-chip-ident.h>
 #include "cx18-driver.h"
 #include "cx18-io.h"
+#include "cx18-cards.h"
 
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value)
 {
@@ -97,15 +99,6 @@ int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 and_mask,
 			     or_value);
 }
 
-/* ----------------------------------------------------------------------- */
-
-static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
-					enum cx18_av_audio_input aud_input);
-static void log_audio_status(struct cx18 *cx);
-static void log_video_status(struct cx18 *cx);
-
-/* ----------------------------------------------------------------------- */
-
 static void cx18_av_initialize(struct cx18 *cx)
 {
 	struct cx18_av_state *state = &cx->av_state;
@@ -169,9 +162,14 @@ static void cx18_av_initialize(struct cx18 *cx)
 	/* Set VGA_TRACK_RANGE to 0x20 */
 	cx18_av_and_or4(cx, CXADEC_DFE_CTRL2, 0xFFFF00FF, 0x00002000);
 
-	/* Enable VBI capture */
-	cx18_av_write4(cx, CXADEC_OUT_CTRL1, 0x4010253F);
-	/* cx18_av_write4(cx, CXADEC_OUT_CTRL1, 0x4010253E); */
+	/*
+	 * Initial VBI setup
+	 * VIP-1.1, 10 bit mode, enable Raw, disable sliced,
+	 * don't clamp raw samples when codes are in use, 1 byte user D-words,
+	 * IDID0 has line #, RP code V bit transition on VBLANK, data during
+	 * blanking intervals
+	 */
+	cx18_av_write4(cx, CXADEC_OUT_CTRL1, 0x4013252e);
 
 	/* Set the video input.
 	   The setting in MODE_CTRL gets lost when we do the above setup */
@@ -195,11 +193,60 @@ static void cx18_av_initialize(struct cx18 *cx)
 	state->default_volume = ((state->default_volume / 2) + 23) << 9;
 }
 
-/* ----------------------------------------------------------------------- */
+static int cx18_av_reset(struct v4l2_subdev *sd, u32 val)
+{
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
+	cx18_av_initialize(cx);
+	return 0;
+}
+
+static int cx18_av_init(struct v4l2_subdev *sd, u32 val)
+{
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
+	/*
+	 * The crystal freq used in calculations in this driver will be
+	 * 28.636360 MHz.
+	 * Aim to run the PLLs' VCOs near 400 MHz to minimze errors.
+	 */
+
+	/*
+	 * VDCLK  Integer = 0x0f, Post Divider = 0x04
+	 * AIMCLK Integer = 0x0e, Post Divider = 0x16
+	 */
+	cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
+
+	/* VDCLK Fraction = 0x2be2fe */
+	/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
+	cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
+
+	/* AIMCLK Fraction = 0x05227ad */
+	/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz pre post-div*/
+	cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
+
+	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
+	cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
+	return 0;
+}
+
+static int cx18_av_load_fw(struct v4l2_subdev *sd)
+{
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
+	if (!state->is_initialized) {
+		/* initialize on first use */
+		state->is_initialized = 1;
+		cx18_av_initialize(cx);
+	}
+	return 0;
+}
 
 void cx18_av_std_setup(struct cx18 *cx)
 {
 	struct cx18_av_state *state = &cx->av_state;
+	struct v4l2_subdev *sd = &state->sd;
 	v4l2_std_id std = state->std;
 	int hblank, hactive, burst, vblank, vactive, sc;
 	int vblank656, src_decimation;
@@ -213,6 +260,7 @@ void cx18_av_std_setup(struct cx18 *cx)
 		cx18_av_write(cx, 0x49f, 0x14);
 
 	if (std & V4L2_STD_625_50) {
+		/* FIXME - revisit these for Sliced VBI */
 		hblank = 132;
 		hactive = 720;
 		burst = 93;
@@ -236,13 +284,40 @@ void cx18_av_std_setup(struct cx18 *cx)
 			sc = 672351;
 		}
 	} else {
+		/*
+		 * The following relationships of half line counts should hold:
+		 * 525 = vsync + vactive + vblank656
+		 * 12 = vblank656 - vblank
+		 *
+		 * vsync:     always 6 half-lines of vsync pulses
+		 * vactive:   half lines of active video
+		 * vblank656: half lines, after line 3/mid-266, of blanked video
+		 * vblank:    half lines, after line 9/272, of blanked video
+		 *
+		 * As far as I can tell:
+		 * vblank656 starts counting from the falling edge of the first
+		 * 	vsync pulse (start of line 4 or mid-266)
+		 * vblank starts counting from the after the 6 vsync pulses and
+		 * 	6 or 5 equalization pulses (start of line 10 or 272)
+		 *
+		 * For 525 line systems the driver will extract VBI information
+		 * from lines 10-21 and lines 273-284.
+		 */
+		vblank656 = 38; /* lines  4 -  22  &  266 - 284 */
+		vblank = 26;	/* lines 10 -  22  &  272 - 284 */
+		vactive = 481;  /* lines 23 - 263  &  285 - 525 */
+
+		/*
+		 * For a 13.5 Mpps clock and 15,734.26 Hz line rate, a line is
+		 * is 858 pixels = 720 active + 138 blanking.  The Hsync leading
+		 * edge should happen 1.2 us * 13.5 Mpps ~= 16 pixels after the
+		 * end of active video, leaving 122 pixels of hblank to ignore
+		 * before active video starts.
+		 */
 		hactive = 720;
 		hblank = 122;
-		vactive = 487;
 		luma_lpf = 1;
 		uv_lpf = 1;
-		vblank = 26;
-		vblank656 = 26;
 
 		src_decimation = 0x21f;
 		if (std == V4L2_STD_PAL_60) {
@@ -265,33 +340,35 @@ void cx18_av_std_setup(struct cx18 *cx)
 	pll_int = cx18_av_read(cx, 0x108);
 	pll_frac = cx18_av_read4(cx, 0x10c) & 0x1ffffff;
 	pll_post = cx18_av_read(cx, 0x109);
-	CX18_DEBUG_INFO("PLL regs = int: %u, frac: %u, post: %u\n",
-			pll_int, pll_frac, pll_post);
+	CX18_DEBUG_INFO_DEV(sd, "PLL regs = int: %u, frac: %u, post: %u\n",
+			    pll_int, pll_frac, pll_post);
 
 	if (pll_post) {
 		int fin, fsc, pll;
 
 		pll = (28636360L * ((((u64)pll_int) << 25) + pll_frac)) >> 25;
 		pll /= pll_post;
-		CX18_DEBUG_INFO("PLL = %d.%06d MHz\n",
-					pll / 1000000, pll % 1000000);
-		CX18_DEBUG_INFO("PLL/8 = %d.%06d MHz\n",
-					pll / 8000000, (pll / 8) % 1000000);
+		CX18_DEBUG_INFO_DEV(sd, "PLL = %d.%06d MHz\n",
+				    pll / 1000000, pll % 1000000);
+		CX18_DEBUG_INFO_DEV(sd, "PLL/8 = %d.%06d MHz\n",
+				    pll / 8000000, (pll / 8) % 1000000);
 
 		fin = ((u64)src_decimation * pll) >> 12;
-		CX18_DEBUG_INFO("ADC Sampling freq = %d.%06d MHz\n",
-					fin / 1000000, fin % 1000000);
+		CX18_DEBUG_INFO_DEV(sd, "ADC Sampling freq = %d.%06d MHz\n",
+				    fin / 1000000, fin % 1000000);
 
 		fsc = (((u64)sc) * pll) >> 24L;
-		CX18_DEBUG_INFO("Chroma sub-carrier freq = %d.%06d MHz\n",
-					fsc / 1000000, fsc % 1000000);
+		CX18_DEBUG_INFO_DEV(sd,
+				    "Chroma sub-carrier freq = %d.%06d MHz\n",
+				    fsc / 1000000, fsc % 1000000);
 
-		CX18_DEBUG_INFO("hblank %i, hactive %i, "
-			"vblank %i , vactive %i, vblank656 %i, src_dec %i,"
-			"burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x,"
-			" sc 0x%06x\n",
-			hblank, hactive, vblank, vactive, vblank656,
-			src_decimation, burst, luma_lpf, uv_lpf, comb, sc);
+		CX18_DEBUG_INFO_DEV(sd, "hblank %i, hactive %i, vblank %i, "
+				    "vactive %i, vblank656 %i, src_dec %i, "
+				    "burst 0x%02x, luma_lpf %i, uv_lpf %i, "
+				    "comb 0x%02x, sc 0x%06x\n",
+				    hblank, hactive, vblank, vactive, vblank656,
+				    src_decimation, burst, luma_lpf, uv_lpf,
+				    comb, sc);
 	}
 
 	/* Sets horizontal blanking delay and active lines */
@@ -325,17 +402,15 @@ void cx18_av_std_setup(struct cx18 *cx)
 	cx18_av_write(cx, 0x47d, 0xff & sc >> 8);
 	cx18_av_write(cx, 0x47e, 0xff & sc >> 16);
 
-	/* Sets VBI parameters */
 	if (std & V4L2_STD_625_50) {
-		cx18_av_write(cx, 0x47f, 0x01);
-		state->vbi_line_offset = 5;
+		state->slicer_line_delay = 1;
+		state->slicer_line_offset = (6 + state->slicer_line_delay - 2);
 	} else {
-		cx18_av_write(cx, 0x47f, 0x00);
-		state->vbi_line_offset = 8;
+		state->slicer_line_delay = 0;
+		state->slicer_line_offset = (10 + state->slicer_line_delay - 2);
 	}
+	cx18_av_write(cx, 0x47f, state->slicer_line_delay);
 }
-
-/* ----------------------------------------------------------------------- */
 
 static void input_change(struct cx18 *cx)
 {
@@ -382,17 +457,26 @@ static void input_change(struct cx18 *cx)
 	}
 }
 
+static int cx18_av_s_frequency(struct v4l2_subdev *sd,
+			       struct v4l2_frequency *freq)
+{
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+	input_change(cx);
+	return 0;
+}
+
 static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 					enum cx18_av_audio_input aud_input)
 {
 	struct cx18_av_state *state = &cx->av_state;
+	struct v4l2_subdev *sd = &state->sd;
 	u8 is_composite = (vid_input >= CX18_AV_COMPOSITE1 &&
 			   vid_input <= CX18_AV_COMPOSITE8);
 	u8 reg;
 	u8 v;
 
-	CX18_DEBUG_INFO("decoder set video input %d, audio input %d\n",
-			vid_input, aud_input);
+	CX18_DEBUG_INFO_DEV(sd, "decoder set video input %d, audio input %d\n",
+			    vid_input, aud_input);
 
 	if (is_composite) {
 		reg = 0xf0 + (vid_input - CX18_AV_COMPOSITE1);
@@ -405,8 +489,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 		    luma > CX18_AV_SVIDEO_LUMA8 ||
 		    chroma < CX18_AV_SVIDEO_CHROMA4 ||
 		    chroma > CX18_AV_SVIDEO_CHROMA8) {
-			CX18_ERR("0x%04x is not a valid video input!\n",
-					vid_input);
+			CX18_ERR_DEV(sd, "0x%04x is not a valid video input!\n",
+				     vid_input);
 			return -EINVAL;
 		}
 		reg = 0xf0 + ((luma - CX18_AV_SVIDEO_LUMA1) >> 4);
@@ -431,7 +515,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	case CX18_AV_AUDIO8: reg &= ~0xc0; reg |= 0x40; break;
 
 	default:
-		CX18_ERR("0x%04x is not a valid audio input!\n", aud_input);
+		CX18_ERR_DEV(sd, "0x%04x is not a valid audio input!\n",
+			     aud_input);
 		return -EINVAL;
 	}
 
@@ -461,13 +546,117 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	return 0;
 }
 
-/* ----------------------------------------------------------------------- */
-
-static int set_v4lstd(struct cx18 *cx)
+static int cx18_av_s_video_routing(struct v4l2_subdev *sd,
+				   u32 input, u32 output, u32 config)
 {
-	struct cx18_av_state *state = &cx->av_state;
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+	return set_input(cx, input, state->aud_input);
+}
+
+static int cx18_av_s_audio_routing(struct v4l2_subdev *sd,
+				   u32 input, u32 output, u32 config)
+{
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+	return set_input(cx, state->vid_input, input);
+}
+
+static int cx18_av_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+{
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+	u8 vpres;
+	u8 mode;
+	int val = 0;
+
+	if (state->radio)
+		return 0;
+
+	vpres = cx18_av_read(cx, 0x40e) & 0x20;
+	vt->signal = vpres ? 0xffff : 0x0;
+
+	vt->capability |=
+		    V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LANG1 |
+		    V4L2_TUNER_CAP_LANG2 | V4L2_TUNER_CAP_SAP;
+
+	mode = cx18_av_read(cx, 0x804);
+
+	/* get rxsubchans and audmode */
+	if ((mode & 0xf) == 1)
+		val |= V4L2_TUNER_SUB_STEREO;
+	else
+		val |= V4L2_TUNER_SUB_MONO;
+
+	if (mode == 2 || mode == 4)
+		val = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
+
+	if (mode & 0x10)
+		val |= V4L2_TUNER_SUB_SAP;
+
+	vt->rxsubchans = val;
+	vt->audmode = state->audmode;
+	return 0;
+}
+
+static int cx18_av_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+{
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+	u8 v;
+
+	if (state->radio)
+		return 0;
+
+	v = cx18_av_read(cx, 0x809);
+	v &= ~0xf;
+
+	switch (vt->audmode) {
+	case V4L2_TUNER_MODE_MONO:
+		/* mono      -> mono
+		   stereo    -> mono
+		   bilingual -> lang1 */
+		break;
+	case V4L2_TUNER_MODE_STEREO:
+	case V4L2_TUNER_MODE_LANG1:
+		/* mono      -> mono
+		   stereo    -> stereo
+		   bilingual -> lang1 */
+		v |= 0x4;
+		break;
+	case V4L2_TUNER_MODE_LANG1_LANG2:
+		/* mono      -> mono
+		   stereo    -> stereo
+		   bilingual -> lang1/lang2 */
+		v |= 0x7;
+		break;
+	case V4L2_TUNER_MODE_LANG2:
+		/* mono      -> mono
+		   stereo    -> stereo
+		   bilingual -> lang2 */
+		v |= 0x1;
+		break;
+	default:
+		return -EINVAL;
+	}
+	cx18_av_write_expect(cx, 0x809, v, v, 0xff);
+	state->audmode = vt->audmode;
+	return 0;
+}
+
+static int cx18_av_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+{
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
 	u8 fmt = 0; 	/* zero is autodetect */
 	u8 pal_m = 0;
+
+	if (state->radio == 0 && state->std == norm)
+		return 0;
+
+	state->radio = 0;
+	state->std = norm;
 
 	/* First tests should be against specific std */
 	if (state->std == V4L2_STD_NTSC_M_JP) {
@@ -493,7 +682,7 @@ static int set_v4lstd(struct cx18 *cx)
 			fmt = 0xc;
 	}
 
-	CX18_DEBUG_INFO("changing video std to fmt %i\n", fmt);
+	CX18_DEBUG_INFO_DEV(sd, "changing video std to fmt %i\n", fmt);
 
 	/* Follow step 9 of section 3.16 in the cx18_av datasheet.
 	   Without this PAL may display a vertical ghosting effect.
@@ -511,15 +700,22 @@ static int set_v4lstd(struct cx18 *cx)
 	return 0;
 }
 
-/* ----------------------------------------------------------------------- */
-
-static int set_v4lctrl(struct cx18 *cx, struct v4l2_control *ctrl)
+static int cx18_av_s_radio(struct v4l2_subdev *sd)
 {
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+	state->radio = 1;
+	return 0;
+}
+
+static int cx18_av_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
 		if (ctrl->value < 0 || ctrl->value > 255) {
-			CX18_ERR("invalid brightness setting %d\n",
-				    ctrl->value);
+			CX18_ERR_DEV(sd, "invalid brightness setting %d\n",
+				     ctrl->value);
 			return -ERANGE;
 		}
 
@@ -528,8 +724,8 @@ static int set_v4lctrl(struct cx18 *cx, struct v4l2_control *ctrl)
 
 	case V4L2_CID_CONTRAST:
 		if (ctrl->value < 0 || ctrl->value > 127) {
-			CX18_ERR("invalid contrast setting %d\n",
-				    ctrl->value);
+			CX18_ERR_DEV(sd, "invalid contrast setting %d\n",
+				     ctrl->value);
 			return -ERANGE;
 		}
 
@@ -538,8 +734,8 @@ static int set_v4lctrl(struct cx18 *cx, struct v4l2_control *ctrl)
 
 	case V4L2_CID_SATURATION:
 		if (ctrl->value < 0 || ctrl->value > 127) {
-			CX18_ERR("invalid saturation setting %d\n",
-				    ctrl->value);
+			CX18_ERR_DEV(sd, "invalid saturation setting %d\n",
+				     ctrl->value);
 			return -ERANGE;
 		}
 
@@ -548,8 +744,9 @@ static int set_v4lctrl(struct cx18 *cx, struct v4l2_control *ctrl)
 		break;
 
 	case V4L2_CID_HUE:
-		if (ctrl->value < -127 || ctrl->value > 127) {
-			CX18_ERR("invalid hue setting %d\n", ctrl->value);
+		if (ctrl->value < -128 || ctrl->value > 127) {
+			CX18_ERR_DEV(sd, "invalid hue setting %d\n",
+				     ctrl->value);
 			return -ERANGE;
 		}
 
@@ -561,17 +758,18 @@ static int set_v4lctrl(struct cx18 *cx, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_MUTE:
-		return cx18_av_audio(cx, VIDIOC_S_CTRL, ctrl);
+		return cx18_av_audio_s_ctrl(cx, ctrl);
 
 	default:
 		return -EINVAL;
 	}
-
 	return 0;
 }
 
-static int get_v4lctrl(struct cx18 *cx, struct v4l2_control *ctrl)
+static int cx18_av_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
 		ctrl->value = (s8)cx18_av_read(cx, 0x414) + 128;
@@ -590,31 +788,57 @@ static int get_v4lctrl(struct cx18 *cx, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_MUTE:
-		return cx18_av_audio(cx, VIDIOC_G_CTRL, ctrl);
+		return cx18_av_audio_g_ctrl(cx, ctrl);
 	default:
 		return -EINVAL;
 	}
-
 	return 0;
 }
 
-/* ----------------------------------------------------------------------- */
-
-static int get_v4lfmt(struct cx18 *cx, struct v4l2_format *fmt)
+static int cx18_av_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 {
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx18_av_vbi(cx, VIDIOC_G_FMT, fmt);
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+
+	switch (qc->id) {
+	case V4L2_CID_BRIGHTNESS:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
+	case V4L2_CID_CONTRAST:
+	case V4L2_CID_SATURATION:
+		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
+	case V4L2_CID_HUE:
+		return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
+	default:
+		break;
+	}
+
+	switch (qc->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+		return v4l2_ctrl_query_fill(qc, 0, 65535,
+			65535 / 100, state->default_volume);
+	case V4L2_CID_AUDIO_MUTE:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
+	case V4L2_CID_AUDIO_BALANCE:
+	case V4L2_CID_AUDIO_BASS:
+	case V4L2_CID_AUDIO_TREBLE:
+		return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
 	default:
 		return -EINVAL;
 	}
-
-	return 0;
+	return -EINVAL;
 }
 
-static int set_v4lfmt(struct cx18 *cx, struct v4l2_format *fmt)
+static int cx18_av_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
-	struct cx18_av_state *state = &cx->av_state;
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
+	return cx18_av_vbi_g_fmt(cx, fmt);
+}
+
+static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+{
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
 	struct v4l2_pix_format *pix;
 	int HSC, VSC, Vsrc, Hsrc, filter, Vlines;
 	int is_50Hz = !(state->std & V4L2_STD_525_60);
@@ -629,12 +853,26 @@ static int set_v4lfmt(struct cx18 *cx, struct v4l2_format *fmt)
 		Hsrc = (cx18_av_read(cx, 0x472) & 0x3f) << 4;
 		Hsrc |= (cx18_av_read(cx, 0x471) & 0xf0) >> 4;
 
-		Vlines = pix->height + (is_50Hz ? 4 : 7);
+		/*
+		 * This adjustment reflects the excess of vactive, set in
+		 * cx18_av_std_setup(), above standard values:
+		 *
+		 * 480 + 1 for 60 Hz systems
+		 * 576 + 4 for 50 Hz systems
+		 */
+		Vlines = pix->height + (is_50Hz ? 4 : 1);
 
+		/*
+		 * Invalid height and width scaling requests are:
+		 * 1. width less than 1/16 of the source width
+		 * 2. width greater than the source width
+		 * 3. height less than 1/8 of the source height
+		 * 4. height greater than the source height
+		 */
 		if ((pix->width * 16 < Hsrc) || (Hsrc < pix->width) ||
 		    (Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
-			CX18_ERR("%dx%d is not a valid size!\n",
-				    pix->width, pix->height);
+			CX18_ERR_DEV(sd, "%dx%d is not a valid size!\n",
+				     pix->width, pix->height);
 			return -ERANGE;
 		}
 
@@ -651,8 +889,9 @@ static int set_v4lfmt(struct cx18 *cx, struct v4l2_format *fmt)
 		else
 			filter = 3;
 
-		CX18_DEBUG_INFO("decoder set size %dx%d -> scale  %ux%u\n",
-			    pix->width, pix->height, HSC, VSC);
+		CX18_DEBUG_INFO_DEV(sd,
+				    "decoder set size %dx%d -> scale  %ux%u\n",
+				    pix->width, pix->height, HSC, VSC);
 
 		/* HSCALE=HSC */
 		cx18_av_write(cx, 0x418, HSC & 0xff);
@@ -666,230 +905,31 @@ static int set_v4lfmt(struct cx18 *cx, struct v4l2_format *fmt)
 		break;
 
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx18_av_vbi(cx, VIDIOC_S_FMT, fmt);
+		return cx18_av_vbi_s_fmt(cx, fmt);
 
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx18_av_vbi(cx, VIDIOC_S_FMT, fmt);
+		return cx18_av_vbi_s_fmt(cx, fmt);
 
 	default:
 		return -EINVAL;
 	}
-
 	return 0;
 }
 
-/* ----------------------------------------------------------------------- */
-
-int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg)
+static int cx18_av_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct cx18_av_state *state = &cx->av_state;
-	struct v4l2_tuner *vt = arg;
-	struct v4l2_routing *route = arg;
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
-	/* ignore these commands */
-	switch (cmd) {
-	case TUNER_SET_TYPE_ADDR:
-		return 0;
-	}
-
-	if (!state->is_initialized) {
-		CX18_DEBUG_INFO("cmd %08x triggered fw load\n", cmd);
-		/* initialize on first use */
-		state->is_initialized = 1;
-		cx18_av_initialize(cx);
-	}
-
-	switch (cmd) {
-	case VIDIOC_INT_DECODE_VBI_LINE:
-		return cx18_av_vbi(cx, cmd, arg);
-
-	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		return cx18_av_audio(cx, cmd, arg);
-
-	case VIDIOC_STREAMON:
-		CX18_DEBUG_INFO("enable output\n");
+	CX18_DEBUG_INFO_DEV(sd, "%s output\n", enable ? "enable" : "disable");
+	if (enable) {
 		cx18_av_write(cx, 0x115, 0x8c);
 		cx18_av_write(cx, 0x116, 0x07);
-		break;
-
-	case VIDIOC_STREAMOFF:
-		CX18_DEBUG_INFO("disable output\n");
+	} else {
 		cx18_av_write(cx, 0x115, 0x00);
 		cx18_av_write(cx, 0x116, 0x00);
-		break;
-
-	case VIDIOC_LOG_STATUS:
-		log_video_status(cx);
-		log_audio_status(cx);
-		break;
-
-	case VIDIOC_G_CTRL:
-		return get_v4lctrl(cx, (struct v4l2_control *)arg);
-
-	case VIDIOC_S_CTRL:
-		return set_v4lctrl(cx, (struct v4l2_control *)arg);
-
-	case VIDIOC_QUERYCTRL:
-	{
-		struct v4l2_queryctrl *qc = arg;
-
-		switch (qc->id) {
-		case V4L2_CID_BRIGHTNESS:
-		case V4L2_CID_CONTRAST:
-		case V4L2_CID_SATURATION:
-		case V4L2_CID_HUE:
-			return v4l2_ctrl_query_fill_std(qc);
-		default:
-			break;
-		}
-
-		switch (qc->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-			return v4l2_ctrl_query_fill(qc, 0, 65535,
-				65535 / 100, state->default_volume);
-		case V4L2_CID_AUDIO_MUTE:
-		case V4L2_CID_AUDIO_BALANCE:
-		case V4L2_CID_AUDIO_BASS:
-		case V4L2_CID_AUDIO_TREBLE:
-			return v4l2_ctrl_query_fill_std(qc);
-		default:
-			return -EINVAL;
-		}
-		return -EINVAL;
 	}
-
-	case VIDIOC_G_STD:
-		*(v4l2_std_id *)arg = state->std;
-		break;
-
-	case VIDIOC_S_STD:
-		if (state->radio == 0 && state->std == *(v4l2_std_id *)arg)
-			return 0;
-		state->radio = 0;
-		state->std = *(v4l2_std_id *)arg;
-		return set_v4lstd(cx);
-
-	case AUDC_SET_RADIO:
-		state->radio = 1;
-		break;
-
-	case VIDIOC_INT_G_VIDEO_ROUTING:
-		route->input = state->vid_input;
-		route->output = 0;
-		break;
-
-	case VIDIOC_INT_S_VIDEO_ROUTING:
-		return set_input(cx, route->input, state->aud_input);
-
-	case VIDIOC_INT_G_AUDIO_ROUTING:
-		route->input = state->aud_input;
-		route->output = 0;
-		break;
-
-	case VIDIOC_INT_S_AUDIO_ROUTING:
-		return set_input(cx, state->vid_input, route->input);
-
-	case VIDIOC_S_FREQUENCY:
-		input_change(cx);
-		break;
-
-	case VIDIOC_G_TUNER:
-	{
-		u8 vpres = cx18_av_read(cx, 0x40e) & 0x20;
-		u8 mode;
-		int val = 0;
-
-		if (state->radio)
-			break;
-
-		vt->signal = vpres ? 0xffff : 0x0;
-
-		vt->capability |=
-		    V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LANG1 |
-		    V4L2_TUNER_CAP_LANG2 | V4L2_TUNER_CAP_SAP;
-
-		mode = cx18_av_read(cx, 0x804);
-
-		/* get rxsubchans and audmode */
-		if ((mode & 0xf) == 1)
-			val |= V4L2_TUNER_SUB_STEREO;
-		else
-			val |= V4L2_TUNER_SUB_MONO;
-
-		if (mode == 2 || mode == 4)
-			val = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
-
-		if (mode & 0x10)
-			val |= V4L2_TUNER_SUB_SAP;
-
-		vt->rxsubchans = val;
-		vt->audmode = state->audmode;
-		break;
-	}
-
-	case VIDIOC_S_TUNER:
-	{
-		u8 v;
-
-		if (state->radio)
-			break;
-
-		v = cx18_av_read(cx, 0x809);
-		v &= ~0xf;
-
-		switch (vt->audmode) {
-		case V4L2_TUNER_MODE_MONO:
-			/* mono      -> mono
-			   stereo    -> mono
-			   bilingual -> lang1 */
-			break;
-		case V4L2_TUNER_MODE_STEREO:
-		case V4L2_TUNER_MODE_LANG1:
-			/* mono      -> mono
-			   stereo    -> stereo
-			   bilingual -> lang1 */
-			v |= 0x4;
-			break;
-		case V4L2_TUNER_MODE_LANG1_LANG2:
-			/* mono      -> mono
-			   stereo    -> stereo
-			   bilingual -> lang1/lang2 */
-			v |= 0x7;
-			break;
-		case V4L2_TUNER_MODE_LANG2:
-			/* mono      -> mono
-			   stereo    -> stereo
-			   bilingual -> lang2 */
-			v |= 0x1;
-			break;
-		default:
-			return -EINVAL;
-		}
-		cx18_av_write_expect(cx, 0x809, v, v, 0xff);
-		state->audmode = vt->audmode;
-		break;
-	}
-
-	case VIDIOC_G_FMT:
-		return get_v4lfmt(cx, (struct v4l2_format *)arg);
-
-	case VIDIOC_S_FMT:
-		return set_v4lfmt(cx, (struct v4l2_format *)arg);
-
-	case VIDIOC_INT_RESET:
-		cx18_av_initialize(cx);
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
 	return 0;
 }
-
-/* ----------------------------------------------------------------------- */
-
-/* ----------------------------------------------------------------------- */
 
 static void log_video_status(struct cx18 *cx)
 {
@@ -903,36 +943,40 @@ static void log_video_status(struct cx18 *cx)
 	};
 
 	struct cx18_av_state *state = &cx->av_state;
+	struct v4l2_subdev *sd = &state->sd;
 	u8 vidfmt_sel = cx18_av_read(cx, 0x400) & 0xf;
 	u8 gen_stat1 = cx18_av_read(cx, 0x40d);
 	u8 gen_stat2 = cx18_av_read(cx, 0x40e);
 	int vid_input = state->vid_input;
 
-	CX18_INFO("Video signal:              %spresent\n",
-		    (gen_stat2 & 0x20) ? "" : "not ");
-	CX18_INFO("Detected format:           %s\n",
-		    fmt_strs[gen_stat1 & 0xf]);
+	CX18_INFO_DEV(sd, "Video signal:              %spresent\n",
+		      (gen_stat2 & 0x20) ? "" : "not ");
+	CX18_INFO_DEV(sd, "Detected format:           %s\n",
+		      fmt_strs[gen_stat1 & 0xf]);
 
-	CX18_INFO("Specified standard:        %s\n",
-		    vidfmt_sel ? fmt_strs[vidfmt_sel] : "automatic detection");
+	CX18_INFO_DEV(sd, "Specified standard:        %s\n",
+		      vidfmt_sel ? fmt_strs[vidfmt_sel]
+				 : "automatic detection");
 
 	if (vid_input >= CX18_AV_COMPOSITE1 &&
 	    vid_input <= CX18_AV_COMPOSITE8) {
-		CX18_INFO("Specified video input:     Composite %d\n",
-			vid_input - CX18_AV_COMPOSITE1 + 1);
+		CX18_INFO_DEV(sd, "Specified video input:     Composite %d\n",
+			      vid_input - CX18_AV_COMPOSITE1 + 1);
 	} else {
-		CX18_INFO("Specified video input:     S-Video (Luma In%d, Chroma In%d)\n",
-			(vid_input & 0xf0) >> 4, (vid_input & 0xf00) >> 8);
+		CX18_INFO_DEV(sd, "Specified video input:     "
+			      "S-Video (Luma In%d, Chroma In%d)\n",
+			      (vid_input & 0xf0) >> 4,
+			      (vid_input & 0xf00) >> 8);
 	}
 
-	CX18_INFO("Specified audioclock freq: %d Hz\n", state->audclk_freq);
+	CX18_INFO_DEV(sd, "Specified audioclock freq: %d Hz\n",
+		      state->audclk_freq);
 }
-
-/* ----------------------------------------------------------------------- */
 
 static void log_audio_status(struct cx18 *cx)
 {
 	struct cx18_av_state *state = &cx->av_state;
+	struct v4l2_subdev *sd = &state->sd;
 	u8 download_ctl = cx18_av_read(cx, 0x803);
 	u8 mod_det_stat0 = cx18_av_read(cx, 0x804);
 	u8 mod_det_stat1 = cx18_av_read(cx, 0x805);
@@ -955,7 +999,7 @@ static void log_audio_status(struct cx18 *cx)
 	case 0xfe: p = "forced mode"; break;
 	default: p = "not defined"; break;
 	}
-	CX18_INFO("Detected audio mode:       %s\n", p);
+	CX18_INFO_DEV(sd, "Detected audio mode:       %s\n", p);
 
 	switch (mod_det_stat1) {
 	case 0x00: p = "not defined"; break;
@@ -980,11 +1024,11 @@ static void log_audio_status(struct cx18 *cx)
 	case 0xff: p = "no detected audio standard"; break;
 	default: p = "not defined"; break;
 	}
-	CX18_INFO("Detected audio standard:   %s\n", p);
-	CX18_INFO("Audio muted:               %s\n",
-		    (mute_ctl & 0x2) ? "yes" : "no");
-	CX18_INFO("Audio microcontroller:     %s\n",
-		    (download_ctl & 0x10) ? "running" : "stopped");
+	CX18_INFO_DEV(sd, "Detected audio standard:   %s\n", p);
+	CX18_INFO_DEV(sd, "Audio muted:               %s\n",
+		      (mute_ctl & 0x2) ? "yes" : "no");
+	CX18_INFO_DEV(sd, "Audio microcontroller:     %s\n",
+		      (download_ctl & 0x10) ? "running" : "stopped");
 
 	switch (audio_config >> 4) {
 	case 0x00: p = "undefined"; break;
@@ -1005,7 +1049,7 @@ static void log_audio_status(struct cx18 *cx)
 	case 0x0f: p = "automatic detection"; break;
 	default: p = "undefined"; break;
 	}
-	CX18_INFO("Configured audio standard: %s\n", p);
+	CX18_INFO_DEV(sd, "Configured audio standard: %s\n", p);
 
 	if ((audio_config >> 4) < 0xF) {
 		switch (audio_config & 0xF) {
@@ -1019,7 +1063,7 @@ static void log_audio_status(struct cx18 *cx)
 		case 0x07: p = "DUAL3 (AB)"; break;
 		default: p = "undefined";
 		}
-		CX18_INFO("Configured audio mode:     %s\n", p);
+		CX18_INFO_DEV(sd, "Configured audio mode:     %s\n", p);
 	} else {
 		switch (audio_config & 0xF) {
 		case 0x00: p = "BG"; break;
@@ -1037,14 +1081,14 @@ static void log_audio_status(struct cx18 *cx)
 		case 0x0f: p = "automatic standard and mode detection"; break;
 		default: p = "undefined"; break;
 		}
-		CX18_INFO("Configured audio system:   %s\n", p);
+		CX18_INFO_DEV(sd, "Configured audio system:   %s\n", p);
 	}
 
 	if (aud_input)
-		CX18_INFO("Specified audio input:     Tuner (In%d)\n",
-				aud_input);
+		CX18_INFO_DEV(sd, "Specified audio input:     Tuner (In%d)\n",
+			      aud_input);
 	else
-		CX18_INFO("Specified audio input:     External\n");
+		CX18_INFO_DEV(sd, "Specified audio input:     External\n");
 
 	switch (pref_mode & 0xf) {
 	case 0: p = "mono/language A"; break;
@@ -1057,14 +1101,14 @@ static void log_audio_status(struct cx18 *cx)
 	case 7: p = "language AB"; break;
 	default: p = "undefined"; break;
 	}
-	CX18_INFO("Preferred audio mode:      %s\n", p);
+	CX18_INFO_DEV(sd, "Preferred audio mode:      %s\n", p);
 
 	if ((audio_config & 0xf) == 0xf) {
 		switch ((afc0 >> 3) & 0x1) {
 		case 0: p = "system DK"; break;
 		case 1: p = "system L"; break;
 		}
-		CX18_INFO("Selected 65 MHz format:    %s\n", p);
+		CX18_INFO_DEV(sd, "Selected 65 MHz format:    %s\n", p);
 
 		switch (afc0 & 0x7) {
 		case 0: p = "Chroma"; break;
@@ -1074,6 +1118,132 @@ static void log_audio_status(struct cx18 *cx)
 		case 4: p = "autodetect"; break;
 		default: p = "undefined"; break;
 		}
-		CX18_INFO("Selected 45 MHz format:    %s\n", p);
+		CX18_INFO_DEV(sd, "Selected 45 MHz format:    %s\n", p);
 	}
+}
+
+static int cx18_av_log_status(struct v4l2_subdev *sd)
+{
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+	log_video_status(cx);
+	log_audio_status(cx);
+	return 0;
+}
+
+static inline int cx18_av_dbg_match(const struct v4l2_dbg_match *match)
+{
+	return match->type == V4L2_CHIP_MATCH_HOST && match->addr == 1;
+}
+
+static int cx18_av_g_chip_ident(struct v4l2_subdev *sd,
+				struct v4l2_dbg_chip_ident *chip)
+{
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+
+	if (cx18_av_dbg_match(&chip->match)) {
+		chip->ident = state->id;
+		chip->revision = state->rev;
+	}
+	return 0;
+}
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int cx18_av_g_register(struct v4l2_subdev *sd,
+			      struct v4l2_dbg_register *reg)
+{
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
+	if (!cx18_av_dbg_match(&reg->match))
+		return -EINVAL;
+	if ((reg->reg & 0x3) != 0)
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	reg->size = 4;
+	reg->val = cx18_av_read4(cx, reg->reg & 0x00000ffc);
+	return 0;
+}
+
+static int cx18_av_s_register(struct v4l2_subdev *sd,
+			      struct v4l2_dbg_register *reg)
+{
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
+	if (!cx18_av_dbg_match(&reg->match))
+		return -EINVAL;
+	if ((reg->reg & 0x3) != 0)
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	cx18_av_write4(cx, reg->reg & 0x00000ffc, reg->val);
+	return 0;
+}
+#endif
+
+static const struct v4l2_subdev_core_ops cx18_av_general_ops = {
+	.g_chip_ident = cx18_av_g_chip_ident,
+	.log_status = cx18_av_log_status,
+	.init = cx18_av_init,
+	.load_fw = cx18_av_load_fw,
+	.reset = cx18_av_reset,
+	.queryctrl = cx18_av_queryctrl,
+	.g_ctrl = cx18_av_g_ctrl,
+	.s_ctrl = cx18_av_s_ctrl,
+	.s_std = cx18_av_s_std,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.g_register = cx18_av_g_register,
+	.s_register = cx18_av_s_register,
+#endif
+};
+
+static const struct v4l2_subdev_tuner_ops cx18_av_tuner_ops = {
+	.s_radio = cx18_av_s_radio,
+	.s_frequency = cx18_av_s_frequency,
+	.g_tuner = cx18_av_g_tuner,
+	.s_tuner = cx18_av_s_tuner,
+};
+
+static const struct v4l2_subdev_audio_ops cx18_av_audio_ops = {
+	.s_clock_freq = cx18_av_s_clock_freq,
+	.s_routing = cx18_av_s_audio_routing,
+};
+
+static const struct v4l2_subdev_video_ops cx18_av_video_ops = {
+	.s_routing = cx18_av_s_video_routing,
+	.decode_vbi_line = cx18_av_decode_vbi_line,
+	.s_stream = cx18_av_s_stream,
+	.g_fmt = cx18_av_g_fmt,
+	.s_fmt = cx18_av_s_fmt,
+};
+
+static const struct v4l2_subdev_ops cx18_av_ops = {
+	.core = &cx18_av_general_ops,
+	.tuner = &cx18_av_tuner_ops,
+	.audio = &cx18_av_audio_ops,
+	.video = &cx18_av_video_ops,
+};
+
+int cx18_av_probe(struct cx18 *cx)
+{
+	struct cx18_av_state *state = &cx->av_state;
+	struct v4l2_subdev *sd;
+
+	state->rev = cx18_av_read4(cx, CXADEC_CHIP_CTRL) & 0xffff;
+	state->id = ((state->rev >> 4) == CXADEC_CHIP_TYPE_MAKO)
+		    ? V4L2_IDENT_CX23418_843 : V4L2_IDENT_UNKNOWN;
+
+	state->vid_input = CX18_AV_COMPOSITE7;
+	state->aud_input = CX18_AV_AUDIO8;
+	state->audclk_freq = 48000;
+	state->audmode = V4L2_TUNER_MODE_LANG1;
+	state->slicer_line_delay = 0;
+	state->slicer_line_offset = (10 + state->slicer_line_delay - 2);
+
+	sd = &state->sd;
+	v4l2_subdev_init(sd, &cx18_av_ops);
+	v4l2_set_subdevdata(sd, cx);
+	snprintf(sd->name, sizeof(sd->name),
+		 "%s %03x", cx->v4l2_dev.name, (state->rev >> 4));
+	sd->grp_id = CX18_HW_418_AV;
+	return v4l2_device_register_subdev(&cx->v4l2_dev, sd);
 }

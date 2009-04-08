@@ -287,6 +287,13 @@ static int bf5xx_i2s_resume(struct platform_device *pdev,
 #define BF5XX_I2S_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |\
 	SNDRV_PCM_FMTBIT_S32_LE)
 
+static struct snd_soc_dai_ops bf5xx_i2s_dai_ops = {
+	.startup	= bf5xx_i2s_startup,
+	.shutdown	= bf5xx_i2s_shutdown,
+	.hw_params	= bf5xx_i2s_hw_params,
+	.set_fmt	= bf5xx_i2s_set_dai_fmt,
+};
+
 struct snd_soc_dai bf5xx_i2s_dai = {
 	.name = "bf5xx-i2s",
 	.id = 0,
@@ -304,12 +311,7 @@ struct snd_soc_dai bf5xx_i2s_dai = {
 		.channels_max = 2,
 		.rates = BF5XX_I2S_RATES,
 		.formats = BF5XX_I2S_FORMATS,},
-	.ops = {
-		.startup   = bf5xx_i2s_startup,
-		.shutdown  = bf5xx_i2s_shutdown,
-		.hw_params = bf5xx_i2s_hw_params,
-		.set_fmt = bf5xx_i2s_set_dai_fmt,
-	},
+	.ops = &bf5xx_i2s_dai_ops,
 };
 EXPORT_SYMBOL_GPL(bf5xx_i2s_dai);
 

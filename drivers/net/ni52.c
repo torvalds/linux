@@ -441,6 +441,18 @@ out:
 	return ERR_PTR(err);
 }
 
+static const struct net_device_ops ni52_netdev_ops = {
+	.ndo_open		= ni52_open,
+	.ndo_stop		= ni52_close,
+	.ndo_get_stats		= ni52_get_stats,
+	.ndo_tx_timeout 	= ni52_timeout,
+	.ndo_start_xmit 	= ni52_send_packet,
+	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 {
 	int i, size, retval;
@@ -561,15 +573,8 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 		printk("IRQ %d (assigned and not checked!).\n", dev->irq);
 	}
 
-	dev->open		= ni52_open;
-	dev->stop		= ni52_close;
-	dev->get_stats		= ni52_get_stats;
-	dev->tx_timeout 	= ni52_timeout;
+	dev->netdev_ops		= &ni52_netdev_ops;
 	dev->watchdog_timeo	= HZ/20;
-	dev->hard_start_xmit 	= ni52_send_packet;
-	dev->set_multicast_list = set_multicast_list;
-
-	dev->if_port 		= 0;
 
 	return 0;
 out:

@@ -37,7 +37,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/mach-rdc321x/rdc321x_defs.h>
+#include <asm/rdc321x_defs.h>
 
 #define RDC_WDT_MASK	0x80000000 /* Mask */
 #define RDC_WDT_EN	0x00800000 /* Enable bit */

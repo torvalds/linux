@@ -56,7 +56,7 @@ hierarchy, and a set of subsystems; each subsystem has system-specific
 state attached to each cgroup in the hierarchy.  Each hierarchy has
 an instance of the cgroup virtual filesystem associated with it.
 
-At any one time there may be multiple active hierachies of task
+At any one time there may be multiple active hierarchies of task
 cgroups. Each hierarchy is a partition of all tasks in the system.
 
 User level code may create and destroy cgroups by name in an
@@ -124,10 +124,10 @@ following lines:
                                / \
                        Prof (15%) students (5%)
 
-Browsers like firefox/lynx go into the WWW network class, while (k)nfsd go
+Browsers like Firefox/Lynx go into the WWW network class, while (k)nfsd go
 into NFS network class.
 
-At the same time firefox/lynx will share an appropriate CPU/Memory class
+At the same time Firefox/Lynx will share an appropriate CPU/Memory class
 depending on who launched it (prof/student).
 
 With the ability to classify tasks differently for different resources
@@ -252,10 +252,8 @@ cgroup file system directories.
 When a task is moved from one cgroup to another, it gets a new
 css_set pointer - if there's an already existing css_set with the
 desired collection of cgroups then that group is reused, else a new
-css_set is allocated. Note that the current implementation uses a
-linear search to locate an appropriate existing css_set, so isn't
-very efficient. A future version will use a hash table for better
-performance.
+css_set is allocated. The appropriate existing css_set is located by
+looking into a hash table.
 
 To allow access from a cgroup to the css_sets (and hence tasks)
 that comprise it, a set of cg_cgroup_link objects form a lattice;
@@ -327,7 +325,7 @@ and then start a subshell 'sh' in that cgroup:
 Creating, modifying, using the cgroups can be done through the cgroup
 virtual filesystem.
 
-To mount a cgroup hierarchy will all available subsystems, type:
+To mount a cgroup hierarchy with all available subsystems, type:
 # mount -t cgroup xxx /dev/cgroup
 
 The "xxx" is not interpreted by the cgroup code, but will appear in
@@ -335,12 +333,23 @@ The "xxx" is not interpreted by the cgroup code, but will appear in
 
 To mount a cgroup hierarchy with just the cpuset and numtasks
 subsystems, type:
-# mount -t cgroup -o cpuset,numtasks hier1 /dev/cgroup
+# mount -t cgroup -o cpuset,memory hier1 /dev/cgroup
 
 To change the set of subsystems bound to a mounted hierarchy, just
 remount with different options:
+# mount -o remount,cpuset,ns hier1 /dev/cgroup
 
-# mount -o remount,cpuset,ns  /dev/cgroup
+Now memory is removed from the hierarchy and ns is added.
+
+Note this will add ns to the hierarchy but won't remove memory or
+cpuset, because the new options are appended to the old ones:
+# mount -o remount,ns /dev/cgroup
+
+To Specify a hierarchy's release_agent:
+# mount -t cgroup -o cpuset,release_agent="/sbin/cpuset_release_agent" \
+  xxx /dev/cgroup
+
+Note that specifying 'release_agent' more than once will return failure.
 
 Note that changing the set of subsystems is currently only supported
 when the hierarchy consists of a single (root) cgroup. Supporting
@@ -350,6 +359,11 @@ cgroup hierarchy is intended to be implemented in the future.
 Then under /dev/cgroup you can find a tree that corresponds to the
 tree of the cgroups in the system. For instance, /dev/cgroup
 is the cgroup that holds the whole system.
+
+If you want to change the value of release_agent:
+# echo "/sbin/new_release_agent" > /dev/cgroup/release_agent
+
+It can also be changed via remount.
 
 If you want to create a new cgroup under /dev/cgroup:
 # cd /dev/cgroup
@@ -478,11 +492,13 @@ cgroup->parent is still valid. (Note - can also be called for a
 newly-created cgroup if an error occurs after this subsystem's
 create() method has been called for the new cgroup).
 
-void pre_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
+int pre_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
 
 Called before checking the reference count on each subsystem. This may
 be useful for subsystems which have some extra references even if
-there are not tasks in the cgroup.
+there are not tasks in the cgroup. If pre_destroy() returns error code,
+rmdir() will fail with it. From this behavior, pre_destroy() can be
+called multiple times against a cgroup.
 
 int can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 	       struct task_struct *task)
@@ -523,7 +539,7 @@ always handled well.
 void post_clone(struct cgroup_subsys *ss, struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
-Called at the end of cgroup_clone() to do any paramater
+Called at the end of cgroup_clone() to do any parameter
 initialization which might be required before a task could attach.  For
 example in cpusets, no task may attach before 'cpus' and 'mems' are set
 up.

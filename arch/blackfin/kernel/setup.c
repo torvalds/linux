@@ -889,6 +889,10 @@ void __init setup_arch(char **cmdline_p)
 			       CPU, bfin_revid());
 	}
 
+	/* We can't run on BF548-0.1 due to ANOMALY 05000448 */
+	if (bfin_cpuid() == 0x27de && bfin_revid() == 1)
+		panic("You can't run on this processor due to 05000448\n");
+
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu MHz System Clock\n",
@@ -1141,12 +1145,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		icache_size = 0;
 
 	seq_printf(m, "cache size\t: %d KB(L1 icache) "
-		"%d KB(L1 dcache-%s) %d KB(L2 cache)\n",
+		"%d KB(L1 dcache%s) %d KB(L2 cache)\n",
 		icache_size, dcache_size,
 #if defined CONFIG_BFIN_WB
-		"wb"
+		"-wb"
 #elif defined CONFIG_BFIN_WT
-		"wt"
+		"-wt"
 #endif
 		"", 0);
 

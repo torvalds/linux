@@ -12,8 +12,10 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/kbuild.h>
+#include <linux/suspend.h>
 
 #include <asm/thread_info.h>
+#include <asm/suspend.h>
 
 int main(void)
 {
@@ -25,5 +27,11 @@ int main(void)
 	DEFINE(TI_PRE_COUNT,	offsetof(struct thread_info, preempt_count));
 	DEFINE(TI_RESTART_BLOCK,offsetof(struct thread_info, restart_block));
 
+#ifdef CONFIG_HIBERNATION
+	DEFINE(PBE_ADDRESS, offsetof(struct pbe, address));
+	DEFINE(PBE_ORIG_ADDRESS, offsetof(struct pbe, orig_address));
+	DEFINE(PBE_NEXT, offsetof(struct pbe, next));
+	DEFINE(SWSUSP_ARCH_REGS_SIZE, sizeof(struct swsusp_arch_regs));
+#endif
 	return 0;
 }

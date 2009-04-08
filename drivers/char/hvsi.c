@@ -810,7 +810,6 @@ static int hvsi_open(struct tty_struct *tty, struct file *filp)
 	hp = &hvsi_ports[line];
 
 	tty->driver_data = hp;
-	tty->low_latency = 1; /* avoid throttle/tty_flip_buffer_push race */
 
 	mb();
 	if (hp->state == HVSI_FSP_DIED)

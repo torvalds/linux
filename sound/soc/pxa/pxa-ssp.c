@@ -1,4 +1,3 @@
-#define DEBUG
 /*
  * pxa-ssp.c  --  ALSA Soc Audio Layer
  *
@@ -21,6 +20,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
+#include <asm/irq.h>
+
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -29,7 +30,7 @@
 #include <sound/pxa2xx-lib.h>
 
 #include <mach/hardware.h>
-#include <mach/pxa-regs.h>
+#include <mach/dma.h>
 #include <mach/regs-ssp.h>
 #include <mach/audio.h>
 #include <mach/ssp.h>
@@ -221,9 +222,9 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	if (!cpu_dai->active) {
-		ret = ssp_init(&priv->dev, cpu_dai->id + 1, SSP_NO_IRQ);
-		if (ret < 0)
-			return ret;
+		priv->dev.port = cpu_dai->id + 1;
+		priv->dev.irq = NO_IRQ;
+		clk_enable(priv->dev.ssp->clk);
 		ssp_disable(&priv->dev);
 	}
 	return ret;
@@ -238,7 +239,7 @@ static void pxa_ssp_shutdown(struct snd_pcm_substream *substream,
 
 	if (!cpu_dai->active) {
 		ssp_disable(&priv->dev);
-		ssp_exit(&priv->dev);
+		clk_disable(priv->dev.ssp->clk);
 	}
 }
 
@@ -298,7 +299,7 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	int val;
 
 	u32 sscr0 = ssp_read_reg(ssp, SSCR0) &
-		~(SSCR0_ECS |  SSCR0_NCS | SSCR0_MOD | SSCR0_ADC);
+		~(SSCR0_ECS |  SSCR0_NCS | SSCR0_MOD | SSCR0_ACS);
 
 	dev_dbg(&ssp->pdev->dev,
 		"pxa_ssp_set_dai_sysclk id: %d, clk_id %d, freq %d\n",
@@ -326,7 +327,7 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	case PXA_SSP_CLK_AUDIO:
 		priv->sysclk = 0;
 		ssp_set_scr(&priv->dev, 1);
-		sscr0 |= SSCR0_ADC;
+		sscr0 |= SSCR0_ACS;
 		break;
 	default:
 		return -ENODEV;
@@ -520,9 +521,20 @@ static int pxa_ssp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	u32 sscr1;
 	u32 sspsp;
 
+	/* check if we need to change anything at all */
+	if (priv->dai_fmt == fmt)
+		return 0;
+
+	/* we can only change the settings if the port is not in use */
+	if (ssp_read_reg(ssp, SSCR0) & SSCR0_SSE) {
+		dev_err(&ssp->pdev->dev,
+			"can't change hardware dai format: stream is in use");
+		return -EINVAL;
+	}
+
 	/* reset port settings */
 	sscr0 = ssp_read_reg(ssp, SSCR0) &
-		(SSCR0_ECS |  SSCR0_NCS | SSCR0_MOD | SSCR0_ADC);
+		(SSCR0_ECS |  SSCR0_NCS | SSCR0_MOD | SSCR0_ACS);
 	sscr1 = SSCR1_RxTresh(8) | SSCR1_TxTresh(7);
 	sspsp = 0;
 
@@ -545,18 +557,18 @@ static int pxa_ssp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		sscr0 |= SSCR0_MOD | SSCR0_PSP;
+		sscr0 |= SSCR0_PSP;
 		sscr1 |= SSCR1_RWOT | SSCR1_TRAIL;
 
+		/* See hw_params() */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
-			sspsp |= SSPSP_FSRT;
+			sspsp |= SSPSP_SFRMP;
 			break;
 		case SND_SOC_DAIFMT_NB_IF:
-			sspsp |= SSPSP_SFRMP | SSPSP_FSRT;
 			break;
 		case SND_SOC_DAIFMT_IB_IF:
-			sspsp |= SSPSP_SFRMP;
+			sspsp |= SSPSP_SCMODE(3);
 			break;
 		default:
 			return -EINVAL;
@@ -615,12 +627,18 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	u32 sscr0;
 	u32 sspsp;
 	int width = snd_pcm_format_physical_width(params_format(params));
+	int ttsa = ssp_read_reg(ssp, SSTSA) & 0xf;
 
 	/* select correct DMA params */
 	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
 		dma = 1; /* capture DMA offset is 1,3 */
-	if (chn == 2)
-		dma += 2; /* stereo DMA offset is 2, mono is 0 */
+	/* Network mode with one active slot (ttsa == 1) can be used
+	 * to force 16-bit frame width on the wire (for S16_LE), even
+	 * with two channels. Use 16-bit DMA transfers for this case.
+	 */
+	if (((chn == 2) && (ttsa != 1)) || (width == 32))
+		dma += 2; /* 32-bit DMA offset is 2, 16-bit is 0 */
+
 	cpu_dai->dma_data = ssp_dma_params[cpu_dai->id][dma];
 
 	dev_dbg(&ssp->pdev->dev, "pxa_ssp_hw_params: dma %d\n", dma);
@@ -642,34 +660,65 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 			sscr0 |= SSCR0_FPCKE;
 #endif
 		sscr0 |= SSCR0_DataSize(16);
-		if (params_channels(params) > 1)
-			sscr0 |= SSCR0_EDSS;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		sscr0 |= (SSCR0_EDSS | SSCR0_DataSize(8));
-		/* we must be in network mode (2 slots) for 24 bit stereo */
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		sscr0 |= (SSCR0_EDSS | SSCR0_DataSize(16));
-		/* we must be in network mode (2 slots) for 32 bit stereo */
 		break;
 	}
 	ssp_write_reg(ssp, SSCR0, sscr0);
 
 	switch (priv->dai_fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		/* Cleared when the DAI format is set */
-		sspsp = ssp_read_reg(ssp, SSPSP) | SSPSP_SFRMWDTH(width);
+	       sspsp = ssp_read_reg(ssp, SSPSP);
+
+		if (((sscr0 & SSCR0_SCR) == SSCR0_SerClkDiv(4)) &&
+		     (width == 16)) {
+			/* This is a special case where the bitclk is 64fs
+			* and we're not dealing with 2*32 bits of audio
+			* samples.
+			*
+			* The SSP values used for that are all found out by
+			* trying and failing a lot; some of the registers
+			* needed for that mode are only available on PXA3xx.
+			*/
+
+#ifdef CONFIG_PXA3xx
+			if (!cpu_is_pxa3xx())
+				return -EINVAL;
+
+			sspsp |= SSPSP_SFRMWDTH(width * 2);
+			sspsp |= SSPSP_SFRMDLY(width * 4);
+			sspsp |= SSPSP_EDMYSTOP(3);
+			sspsp |= SSPSP_DMYSTOP(3);
+			sspsp |= SSPSP_DMYSTRT(1);
+#else
+			return -EINVAL;
+#endif
+		} else {
+			/* The frame width is the width the LRCLK is
+			 * asserted for; the delay is expressed in
+			 * half cycle units.  We need the extra cycle
+			 * because the data starts clocking out one BCLK
+			 * after LRCLK changes polarity.
+			 */
+			sspsp |= SSPSP_SFRMWDTH(width + 1);
+			sspsp |= SSPSP_SFRMDLY((width + 1) * 2);
+			sspsp |= SSPSP_DMYSTRT(1);
+		}
+
 		ssp_write_reg(ssp, SSPSP, sspsp);
 		break;
 	default:
 		break;
 	}
 
-	/* We always use a network mode so we always require TDM slots
+	/* When we use a network mode, we always require TDM slots
 	 * - complain loudly and fail if they've not been set up yet.
 	 */
-	if (!(ssp_read_reg(ssp, SSTSA) & 0xf)) {
+	if ((sscr0 & SSCR0_MOD) && !ttsa) {
 		dev_err(&ssp->pdev->dev, "No TDM timeslot configured\n");
 		return -EINVAL;
 	}
@@ -751,7 +800,7 @@ static int pxa_ssp_probe(struct platform_device *pdev,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->dev.ssp = ssp_request(dai->id, "SoC audio");
+	priv->dev.ssp = ssp_request(dai->id + 1, "SoC audio");
 	if (priv->dev.ssp == NULL) {
 		ret = -ENODEV;
 		goto err_priv;
@@ -782,6 +831,19 @@ static void pxa_ssp_remove(struct platform_device *pdev,
 			    SNDRV_PCM_FMTBIT_S24_LE |	\
 			    SNDRV_PCM_FMTBIT_S32_LE)
 
+static struct snd_soc_dai_ops pxa_ssp_dai_ops = {
+	.startup	= pxa_ssp_startup,
+	.shutdown	= pxa_ssp_shutdown,
+	.trigger	= pxa_ssp_trigger,
+	.hw_params	= pxa_ssp_hw_params,
+	.set_sysclk	= pxa_ssp_set_dai_sysclk,
+	.set_clkdiv	= pxa_ssp_set_dai_clkdiv,
+	.set_pll	= pxa_ssp_set_dai_pll,
+	.set_fmt	= pxa_ssp_set_dai_fmt,
+	.set_tdm_slot	= pxa_ssp_set_dai_tdm_slot,
+	.set_tristate	= pxa_ssp_set_dai_tristate,
+};
+
 struct snd_soc_dai pxa_ssp_dai[] = {
 	{
 		.name = "pxa2xx-ssp1",
@@ -802,18 +864,7 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
-		.ops = {
-			.startup = pxa_ssp_startup,
-			.shutdown = pxa_ssp_shutdown,
-			.trigger = pxa_ssp_trigger,
-			.hw_params = pxa_ssp_hw_params,
-			.set_sysclk = pxa_ssp_set_dai_sysclk,
-			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
-			.set_pll = pxa_ssp_set_dai_pll,
-			.set_fmt = pxa_ssp_set_dai_fmt,
-			.set_tdm_slot = pxa_ssp_set_dai_tdm_slot,
-			.set_tristate = pxa_ssp_set_dai_tristate,
-		},
+		.ops = &pxa_ssp_dai_ops,
 	},
 	{	.name = "pxa2xx-ssp2",
 		.id = 1,
@@ -833,18 +884,7 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
-		.ops = {
-			.startup = pxa_ssp_startup,
-			.shutdown = pxa_ssp_shutdown,
-			.trigger = pxa_ssp_trigger,
-			.hw_params = pxa_ssp_hw_params,
-			.set_sysclk = pxa_ssp_set_dai_sysclk,
-			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
-			.set_pll = pxa_ssp_set_dai_pll,
-			.set_fmt = pxa_ssp_set_dai_fmt,
-			.set_tdm_slot = pxa_ssp_set_dai_tdm_slot,
-			.set_tristate = pxa_ssp_set_dai_tristate,
-		},
+		.ops = &pxa_ssp_dai_ops,
 	},
 	{
 		.name = "pxa2xx-ssp3",
@@ -865,18 +905,7 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
-		.ops = {
-			.startup = pxa_ssp_startup,
-			.shutdown = pxa_ssp_shutdown,
-			.trigger = pxa_ssp_trigger,
-			.hw_params = pxa_ssp_hw_params,
-			.set_sysclk = pxa_ssp_set_dai_sysclk,
-			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
-			.set_pll = pxa_ssp_set_dai_pll,
-			.set_fmt = pxa_ssp_set_dai_fmt,
-			.set_tdm_slot = pxa_ssp_set_dai_tdm_slot,
-			.set_tristate = pxa_ssp_set_dai_tristate,
-		},
+		.ops = &pxa_ssp_dai_ops,
 	},
 	{
 		.name = "pxa2xx-ssp4",
@@ -897,18 +926,7 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
-		.ops = {
-			.startup = pxa_ssp_startup,
-			.shutdown = pxa_ssp_shutdown,
-			.trigger = pxa_ssp_trigger,
-			.hw_params = pxa_ssp_hw_params,
-			.set_sysclk = pxa_ssp_set_dai_sysclk,
-			.set_clkdiv = pxa_ssp_set_dai_clkdiv,
-			.set_pll = pxa_ssp_set_dai_pll,
-			.set_fmt = pxa_ssp_set_dai_fmt,
-			.set_tdm_slot = pxa_ssp_set_dai_tdm_slot,
-			.set_tristate = pxa_ssp_set_dai_tristate,
-		},
+		.ops = &pxa_ssp_dai_ops,
 	},
 };
 EXPORT_SYMBOL_GPL(pxa_ssp_dai);

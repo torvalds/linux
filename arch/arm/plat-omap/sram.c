@@ -148,7 +148,7 @@ void __init omap_detect_sram(void)
 		omap_sram_base = OMAP1_SRAM_VA;
 		omap_sram_start = OMAP1_SRAM_PA;
 
-		if (cpu_is_omap730())
+		if (cpu_is_omap7xx())
 			omap_sram_size = 0x32000;	/* 200K */
 		else if (cpu_is_omap15xx())
 			omap_sram_size = 0x30000;	/* 192K */

@@ -27,9 +27,9 @@ void __init
 atari_sched_init(irq_handler_t timer_routine)
 {
     /* set Timer C data Register */
-    mfp.tim_dt_c = INT_TICKS;
+    st_mfp.tim_dt_c = INT_TICKS;
     /* start timer C, div = 1:100 */
-    mfp.tim_ct_cd = (mfp.tim_ct_cd & 15) | 0x60;
+    st_mfp.tim_ct_cd = (st_mfp.tim_ct_cd & 15) | 0x60;
     /* install interrupt service routine for MFP Timer C */
     if (request_irq(IRQ_MFP_TIMC, timer_routine, IRQ_TYPE_SLOW,
 		    "timer", timer_routine))
@@ -46,11 +46,11 @@ unsigned long atari_gettimeoffset (void)
   unsigned long ticks, offset = 0;
 
   /* read MFP timer C current value */
-  ticks = mfp.tim_dt_c;
+  ticks = st_mfp.tim_dt_c;
   /* The probability of underflow is less than 2% */
   if (ticks > INT_TICKS - INT_TICKS / 50)
     /* Check for pending timer interrupt */
-    if (mfp.int_pn_b & (1 << 5))
+    if (st_mfp.int_pn_b & (1 << 5))
       offset = TICK_SIZE;
 
   ticks = INT_TICKS - ticks;

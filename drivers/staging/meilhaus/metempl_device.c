@@ -109,6 +109,7 @@ me_device_t *metempl_pci_constructor(struct pci_dev *pci_device)
 
 	return (me_device_t *) metempl_device;
 }
+EXPORT_SYMBOL(metempl_pci_constructor);
 
 // Init and exit of module.
 
@@ -132,6 +133,3 @@ MODULE_AUTHOR("Guenter Gebhardt <g.gebhardt@meilhaus.de>");
 MODULE_DESCRIPTION("Device Driver Module for Template Device");
 MODULE_SUPPORTED_DEVICE("Meilhaus Template Devices");
 MODULE_LICENSE("GPL");
-
-// Export the constructor.
-EXPORT_SYMBOL(metempl_pci_constructor);

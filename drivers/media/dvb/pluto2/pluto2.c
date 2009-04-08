@@ -116,6 +116,7 @@ struct pluto {
 
 	/* irq */
 	unsigned int overflow;
+	unsigned int dead;
 
 	/* dma */
 	dma_addr_t dma_addr;
@@ -336,8 +337,10 @@ static irqreturn_t pluto_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (tscr == 0xffffffff) {
-		// FIXME: maybe recover somehow
-		dev_err(&pluto->pdev->dev, "card hung up :(\n");
+		if (pluto->dead == 0)
+			dev_err(&pluto->pdev->dev, "card has hung or been ejected.\n");
+		/* It's dead Jim */
+		pluto->dead = 1;
 		return IRQ_HANDLED;
 	}
 
@@ -613,7 +616,7 @@ static int __devinit pluto2_probe(struct pci_dev *pdev,
 	/* enable interrupts */
 	pci_write_config_dword(pdev, 0x6c, 0x8000);
 
-	ret = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret < 0)
 		goto err_pci_disable_device;
 

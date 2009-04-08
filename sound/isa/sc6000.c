@@ -489,9 +489,9 @@ static int __devinit snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	char __iomem *vmss_port;
 
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-	if (!card)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	if (xirq == SNDRV_AUTO_IRQ) {
 		xirq = snd_legacy_find_free_irq(possible_irqs);
@@ -576,10 +576,6 @@ static int __devinit snd_sc6000_probe(struct device *devptr, unsigned int dev)
 		snd_printk(KERN_ERR PFX "no OPL device at 0x%x-0x%x ?\n",
 			   0x388, 0x388 + 2);
 	} else {
-		err = snd_opl3_timer_new(opl3, 0, 1);
-		if (err < 0)
-			goto err_unmap2;
-
 		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 		if (err < 0)
 			goto err_unmap2;

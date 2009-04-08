@@ -36,7 +36,6 @@
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
-#include <linux/percpu.h>
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
 
@@ -108,25 +107,14 @@ struct rcu_data {
 	struct rcu_head barrier;
 };
 
-DECLARE_PER_CPU(struct rcu_data, rcu_data);
-DECLARE_PER_CPU(struct rcu_data, rcu_bh_data);
-
 /*
  * Increment the quiescent state counter.
  * The counter is a bit degenerated: We do not need to know
  * how many quiescent states passed, just if there was at least
  * one since the start of the grace period. Thus just a flag.
  */
-static inline void rcu_qsctr_inc(int cpu)
-{
-	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
-	rdp->passed_quiesc = 1;
-}
-static inline void rcu_bh_qsctr_inc(int cpu)
-{
-	struct rcu_data *rdp = &per_cpu(rcu_bh_data, cpu);
-	rdp->passed_quiesc = 1;
-}
+extern void rcu_qsctr_inc(int cpu);
+extern void rcu_bh_qsctr_inc(int cpu);
 
 extern int rcu_pending(int cpu);
 extern int rcu_needs_cpu(int cpu);
@@ -180,5 +168,11 @@ extern long rcu_batches_completed_bh(void);
 
 #define rcu_enter_nohz()	do { } while (0)
 #define rcu_exit_nohz()		do { } while (0)
+
+/* A context switch is a grace period for rcuclassic. */
+static inline int rcu_blocking_is_gp(void)
+{
+	return num_online_cpus() == 1;
+}
 
 #endif /* __LINUX_RCUCLASSIC_H */

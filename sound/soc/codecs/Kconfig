@@ -10,9 +10,11 @@ config SND_SOC_I2C_AND_SPI
 
 config SND_SOC_ALL_CODECS
 	tristate "Build all ASoC CODEC drivers"
+	select SND_SOC_L3
 	select SND_SOC_AC97_CODEC if SND_SOC_AC97_BUS
 	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
 	select SND_SOC_AD73311 if I2C
+	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_PCM3008
@@ -24,6 +26,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
+	select SND_SOC_WM8400 if MFD_WM8400
 	select SND_SOC_WM8510 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8580 if I2C
 	select SND_SOC_WM8728 if SND_SOC_I2C_AND_SPI
@@ -34,6 +37,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8903 if I2C
 	select SND_SOC_WM8971 if I2C
 	select SND_SOC_WM8990 if I2C
+	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9713 if SND_SOC_AC97_BUS
         help
@@ -58,18 +62,15 @@ config SND_SOC_AD1980
 config SND_SOC_AD73311
 	tristate
 
+config SND_SOC_AK4104
+	tristate
+
 config SND_SOC_AK4535
 	tristate
 
 # Cirrus Logic CS4270 Codec
 config SND_SOC_CS4270
 	tristate
-
-# Cirrus Logic CS4270 Codec Hardware Mute Support
-# Select if you have external muting circuitry attached to your CS4270.
-config SND_SOC_CS4270_HWMUTE
-	bool
-	depends on SND_SOC_CS4270
 
 # Cirrus Logic CS4270 Codec VD = 3.3V Errata
 # Select if you are affected by the errata where the part will not function
@@ -90,7 +91,6 @@ config SND_SOC_SSM2602
 
 config SND_SOC_TLV320AIC23
 	tristate
-	depends on I2C
 
 config SND_SOC_TLV320AIC26
 	tristate "TI TLV320AIC26 Codec support" if SND_SOC_OF_SIMPLE
@@ -98,20 +98,20 @@ config SND_SOC_TLV320AIC26
 
 config SND_SOC_TLV320AIC3X
 	tristate
-	depends on I2C
 
 config SND_SOC_TWL4030
 	tristate
-	depends on TWL4030_CORE
 
 config SND_SOC_UDA134X
        tristate
-       select SND_SOC_L3
 
 config SND_SOC_UDA1380
         tristate
 
 config SND_SOC_WM8350
+	tristate
+
+config SND_SOC_WM8400
 	tristate
 
 config SND_SOC_WM8510
@@ -142,6 +142,9 @@ config SND_SOC_WM8971
 	tristate
 
 config SND_SOC_WM8990
+	tristate
+
+config SND_SOC_WM9705
 	tristate
 
 config SND_SOC_WM9712

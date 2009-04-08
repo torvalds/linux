@@ -125,10 +125,8 @@ static bool edid_is_valid(struct edid *edid)
 		DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
 		goto bad;
 	}
-	if (edid->revision <= 0 || edid->revision > 3) {
-		DRM_ERROR("EDID has minor version %d, which is not between 0-3\n", edid->revision);
-		goto bad;
-	}
+	if (edid->revision > 4)
+		DRM_DEBUG("EDID minor > 4, assuming backward compatibility\n");
 
 	for (i = 0; i < EDID_LENGTH; i++)
 		csum += raw_edid[i];
@@ -162,7 +160,7 @@ static bool edid_vendor(struct edid *edid, char *vendor)
 	edid_vendor[0] = ((edid->mfg_id[0] & 0x7c) >> 2) + '@';
 	edid_vendor[1] = (((edid->mfg_id[0] & 0x3) << 3) |
 			  ((edid->mfg_id[1] & 0xe0) >> 5)) + '@';
-	edid_vendor[2] = (edid->mfg_id[2] & 0x1f) + '@';
+	edid_vendor[2] = (edid->mfg_id[1] & 0x1f) + '@';
 
 	return !strncmp(edid_vendor, vendor, 3);
 }
@@ -320,10 +318,10 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	mode->htotal = mode->hdisplay + ((pt->hblank_hi << 8) | pt->hblank_lo);
 
 	mode->vdisplay = (pt->vactive_hi << 8) | pt->vactive_lo;
-	mode->vsync_start = mode->vdisplay + ((pt->vsync_offset_hi << 8) |
+	mode->vsync_start = mode->vdisplay + ((pt->vsync_offset_hi << 4) |
 					      pt->vsync_offset_lo);
 	mode->vsync_end = mode->vsync_start +
-		((pt->vsync_pulse_width_hi << 8) |
+		((pt->vsync_pulse_width_hi << 4) |
 		 pt->vsync_pulse_width_lo);
 	mode->vtotal = mode->vdisplay + ((pt->vblank_hi << 8) | pt->vblank_lo);
 
@@ -550,11 +548,20 @@ static int add_detailed_info(struct drm_connector *connector,
 }
 
 #define DDC_ADDR 0x50
-
-unsigned char *drm_do_probe_ddc_edid(struct i2c_adapter *adapter)
+/**
+ * Get EDID information via I2C.
+ *
+ * \param adapter : i2c device adaptor
+ * \param buf     : EDID data buffer to be filled
+ * \param len     : EDID data buffer length
+ * \return 0 on success or -1 on failure.
+ *
+ * Try to fetch EDID information by calling i2c driver function.
+ */
+int drm_do_probe_ddc_edid(struct i2c_adapter *adapter,
+			  unsigned char *buf, int len)
 {
 	unsigned char start = 0x0;
-	unsigned char *buf = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	struct i2c_msg msgs[] = {
 		{
 			.addr	= DDC_ADDR,
@@ -564,31 +571,36 @@ unsigned char *drm_do_probe_ddc_edid(struct i2c_adapter *adapter)
 		}, {
 			.addr	= DDC_ADDR,
 			.flags	= I2C_M_RD,
-			.len	= EDID_LENGTH,
+			.len	= len,
 			.buf	= buf,
 		}
 	};
 
-	if (!buf) {
-		dev_warn(&adapter->dev, "unable to allocate memory for EDID "
-			 "block.\n");
-		return NULL;
-	}
-
 	if (i2c_transfer(adapter, msgs, 2) == 2)
-		return buf;
+		return 0;
 
 	dev_info(&adapter->dev, "unable to read EDID block.\n");
-	kfree(buf);
-	return NULL;
+	return -1;
 }
 EXPORT_SYMBOL(drm_do_probe_ddc_edid);
 
-static unsigned char *drm_ddc_read(struct i2c_adapter *adapter)
+/**
+ * Get EDID information.
+ *
+ * \param adapter : i2c device adaptor.
+ * \param buf     : EDID data buffer to be filled
+ * \param len     : EDID data buffer length
+ * \return 0 on success or -1 on failure.
+ *
+ * Initialize DDC, then fetch EDID information
+ * by calling drm_do_probe_ddc_edid function.
+ */
+static int drm_ddc_read(struct i2c_adapter *adapter,
+			unsigned char *buf, int len)
 {
 	struct i2c_algo_bit_data *algo_data = adapter->algo_data;
-	unsigned char *edid = NULL;
 	int i, j;
+	int ret = -1;
 
 	algo_data->setscl(algo_data->data, 1);
 
@@ -616,7 +628,7 @@ static unsigned char *drm_ddc_read(struct i2c_adapter *adapter)
 		msleep(15);
 
 		/* Do the real work */
-		edid = drm_do_probe_ddc_edid(adapter);
+		ret = drm_do_probe_ddc_edid(adapter, buf, len);
 		algo_data->setsda(algo_data->data, 0);
 		algo_data->setscl(algo_data->data, 0);
 		msleep(15);
@@ -632,7 +644,7 @@ static unsigned char *drm_ddc_read(struct i2c_adapter *adapter)
 		msleep(15);
 		algo_data->setscl(algo_data->data, 0);
 		algo_data->setsda(algo_data->data, 0);
-		if (edid)
+		if (ret == 0)
 			break;
 	}
 	/* Release the DDC lines when done or the Apple Cinema HD display
@@ -641,9 +653,31 @@ static unsigned char *drm_ddc_read(struct i2c_adapter *adapter)
 	algo_data->setsda(algo_data->data, 1);
 	algo_data->setscl(algo_data->data, 1);
 
-	return edid;
+	return ret;
 }
 
+static int drm_ddc_read_edid(struct drm_connector *connector,
+			     struct i2c_adapter *adapter,
+			     char *buf, int len)
+{
+	int ret;
+
+	ret = drm_ddc_read(adapter, buf, len);
+	if (ret != 0) {
+		dev_info(&connector->dev->pdev->dev, "%s: no EDID data\n",
+			 drm_get_connector_name(connector));
+		goto end;
+	}
+	if (!edid_is_valid((struct edid *)buf)) {
+		dev_warn(&connector->dev->pdev->dev, "%s: EDID invalid.\n",
+			 drm_get_connector_name(connector));
+		ret = -1;
+	}
+end:
+	return ret;
+}
+
+#define MAX_EDID_EXT_NUM 4
 /**
  * drm_get_edid - get EDID data, if available
  * @connector: connector we're probing
@@ -656,26 +690,117 @@ static unsigned char *drm_ddc_read(struct i2c_adapter *adapter)
 struct edid *drm_get_edid(struct drm_connector *connector,
 			  struct i2c_adapter *adapter)
 {
+	int ret;
 	struct edid *edid;
 
-	edid = (struct edid *)drm_ddc_read(adapter);
-	if (!edid) {
-		dev_info(&connector->dev->pdev->dev, "%s: no EDID data\n",
-			 drm_get_connector_name(connector));
-		return NULL;
+	edid = kmalloc(EDID_LENGTH * (MAX_EDID_EXT_NUM + 1),
+		       GFP_KERNEL);
+	if (edid == NULL) {
+		dev_warn(&connector->dev->pdev->dev,
+			 "Failed to allocate EDID\n");
+		goto end;
 	}
-	if (!edid_is_valid(edid)) {
-		dev_warn(&connector->dev->pdev->dev, "%s: EDID invalid.\n",
-			 drm_get_connector_name(connector));
-		kfree(edid);
-		return NULL;
+
+	/* Read first EDID block */
+	ret = drm_ddc_read_edid(connector, adapter,
+				(unsigned char *)edid, EDID_LENGTH);
+	if (ret != 0)
+		goto clean_up;
+
+	/* There are EDID extensions to be read */
+	if (edid->extensions != 0) {
+		int edid_ext_num = edid->extensions;
+
+		if (edid_ext_num > MAX_EDID_EXT_NUM) {
+			dev_warn(&connector->dev->pdev->dev,
+				 "The number of extension(%d) is "
+				 "over max (%d), actually read number (%d)\n",
+				 edid_ext_num, MAX_EDID_EXT_NUM,
+				 MAX_EDID_EXT_NUM);
+			/* Reset EDID extension number to be read */
+			edid_ext_num = MAX_EDID_EXT_NUM;
+		}
+		/* Read EDID including extensions too */
+		ret = drm_ddc_read_edid(connector, adapter, (char *)edid,
+					EDID_LENGTH * (edid_ext_num + 1));
+		if (ret != 0)
+			goto clean_up;
+
 	}
 
 	connector->display_info.raw_edid = (char *)edid;
+	goto end;
 
+clean_up:
+	kfree(edid);
+	edid = NULL;
+end:
 	return edid;
+
 }
 EXPORT_SYMBOL(drm_get_edid);
+
+#define HDMI_IDENTIFIER 0x000C03
+#define VENDOR_BLOCK    0x03
+/**
+ * drm_detect_hdmi_monitor - detect whether monitor is hdmi.
+ * @edid: monitor EDID information
+ *
+ * Parse the CEA extension according to CEA-861-B.
+ * Return true if HDMI, false if not or unknown.
+ */
+bool drm_detect_hdmi_monitor(struct edid *edid)
+{
+	char *edid_ext = NULL;
+	int i, hdmi_id, edid_ext_num;
+	int start_offset, end_offset;
+	bool is_hdmi = false;
+
+	/* No EDID or EDID extensions */
+	if (edid == NULL || edid->extensions == 0)
+		goto end;
+
+	/* Chose real EDID extension number */
+	edid_ext_num = edid->extensions > MAX_EDID_EXT_NUM ?
+		       MAX_EDID_EXT_NUM : edid->extensions;
+
+	/* Find CEA extension */
+	for (i = 0; i < edid_ext_num; i++) {
+		edid_ext = (char *)edid + EDID_LENGTH * (i + 1);
+		/* This block is CEA extension */
+		if (edid_ext[0] == 0x02)
+			break;
+	}
+
+	if (i == edid_ext_num)
+		goto end;
+
+	/* Data block offset in CEA extension block */
+	start_offset = 4;
+	end_offset = edid_ext[2];
+
+	/*
+	 * Because HDMI identifier is in Vendor Specific Block,
+	 * search it from all data blocks of CEA extension.
+	 */
+	for (i = start_offset; i < end_offset;
+		/* Increased by data block len */
+		i += ((edid_ext[i] & 0x1f) + 1)) {
+		/* Find vendor specific block */
+		if ((edid_ext[i] >> 5) == VENDOR_BLOCK) {
+			hdmi_id = edid_ext[i + 1] | (edid_ext[i + 2] << 8) |
+				  edid_ext[i + 3] << 16;
+			/* Find HDMI identifier */
+			if (hdmi_id == HDMI_IDENTIFIER)
+				is_hdmi = true;
+			break;
+		}
+	}
+
+end:
+	return is_hdmi;
+}
+EXPORT_SYMBOL(drm_detect_hdmi_monitor);
 
 /**
  * drm_add_edid_modes - add modes from EDID data, if available

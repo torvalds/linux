@@ -729,30 +729,13 @@ static inline void omap_1510_usb_init(struct omap_usb_config *config) {}
 
 /*-------------------------------------------------------------------------*/
 
-static struct omap_usb_config platform_data;
-
-static int __init
-omap_usb_init(void)
+void __init omap_usb_init(struct omap_usb_config *pdata)
 {
-	const struct omap_usb_config *config;
-
-	config = omap_get_config(OMAP_TAG_USB, struct omap_usb_config);
-	if (config == NULL) {
-		printk(KERN_ERR "USB: No board-specific "
-				"platform config found\n");
-		return -ENODEV;
-	}
-	platform_data = *config;
-
 	if (cpu_is_omap730() || cpu_is_omap16xx() || cpu_is_omap24xx())
-		omap_otg_init(&platform_data);
+		omap_otg_init(pdata);
 	else if (cpu_is_omap15xx())
-		omap_1510_usb_init(&platform_data);
-	else {
+		omap_1510_usb_init(pdata);
+	else
 		printk(KERN_ERR "USB: No init for your chip yet\n");
-		return -ENODEV;
-	}
-	return 0;
 }
 
-subsys_initcall(omap_usb_init);

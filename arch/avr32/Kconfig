@@ -127,13 +127,13 @@ config BOARD_HAMMERHEAD
 	select CPU_AT32AP7000
 	select USB_ARCH_HAS_HCD
 	help
-	  The Hammerhead platform is built around a AVR32 32-bit microcontroller from Atmel.
+	  The Hammerhead platform is built around an AVR32 32-bit microcontroller from Atmel.
 	  It offers versatile peripherals, such as ethernet, usb device, usb host etc.
 
-	  The board also incooperates a power supply and is a Power over Ethernet (PoE) Powered
+	  The board also incorporates a power supply and is a Power over Ethernet (PoE) Powered
 	  Device (PD).
 
-	  Additonally, a Cyclone III FPGA from Altera is integrated on the board. The FPGA is
+	  Additionally, a Cyclone III FPGA from Altera is integrated on the board. The FPGA is
 	  mapped into the 32-bit AVR memory bus. The FPGA offers two DDR2 SDRAM interfaces, which
 	  will cover even the most exceptional need of memory bandwidth. Together with the onboard
 	  video decoder the board is ready for video processing.
@@ -144,6 +144,19 @@ config BOARD_FAVR_32
 	bool "Favr-32 LCD-board"
 	select CPU_AT32AP7000
 
+config BOARD_MERISC
+	bool "Merisc board"
+	select CPU_AT32AP7000
+	help
+	  Merisc is the family name for a range of AVR32-based boards.
+
+	  The boards are designed to be used in a man-machine
+	  interfacing environment, utilizing a touch-based graphical
+	  user interface. They host a vast range of I/O peripherals as
+	  well as a large SDRAM & Flash memory bank.
+
+	  For more information see: http://www.martinsson.se/merisc
+
 config BOARD_MIMC200
 	bool "MIMC200 CPU board"
 	select CPU_AT32AP7000
@@ -153,6 +166,7 @@ source "arch/avr32/boards/atstk1000/Kconfig"
 source "arch/avr32/boards/atngw100/Kconfig"
 source "arch/avr32/boards/hammerhead/Kconfig"
 source "arch/avr32/boards/favr-32/Kconfig"
+source "arch/avr32/boards/merisc/Kconfig"
 
 choice
 	prompt "Boot loader type"
@@ -181,7 +195,7 @@ source "kernel/Kconfig.preempt"
 config QUICKLIST
 	def_bool y
 
-config HAVE_ARCH_BOOTMEM_NODE
+config HAVE_ARCH_BOOTMEM
 	def_bool n
 
 config ARCH_HAVE_MEMORY_PRESENT

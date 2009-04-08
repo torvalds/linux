@@ -22,6 +22,93 @@
 #ifndef _AT76_USB_H
 #define _AT76_USB_H
 
+/*
+ * ieee80211 definitions copied from net/ieee80211.h
+ */
+
+#define WEP_KEY_LEN		13
+#define WEP_KEYS		4
+
+#define IEEE80211_DATA_LEN		2304
+/* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
+   6.2.1.1.2.
+
+   The figure in section 7.1.2 suggests a body size of up to 2312
+   bytes is allowed, which is a bit confusing, I suspect this
+   represents the 2304 bytes of real data, plus a possible 8 bytes of
+   WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
+
+#define IEEE80211_1ADDR_LEN 10
+#define IEEE80211_2ADDR_LEN 16
+#define IEEE80211_3ADDR_LEN 24
+#define IEEE80211_4ADDR_LEN 30
+#define IEEE80211_FCS_LEN    4
+#define IEEE80211_HLEN			(IEEE80211_4ADDR_LEN)
+#define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
+
+#define MIN_FRAG_THRESHOLD     256U
+#define	MAX_FRAG_THRESHOLD     2346U
+
+struct ieee80211_info_element {
+	u8 id;
+	u8 len;
+	u8 data[0];
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_3addr {
+	__le16 frame_ctl;
+	__le16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctl;
+	u8 payload[0];
+} __attribute__ ((packed));
+
+struct ieee80211_auth {
+	struct ieee80211_hdr_3addr header;
+	__le16 algorithm;
+	__le16 transaction;
+	__le16 status;
+	/* challenge */
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+struct ieee80211_assoc_request {
+	struct ieee80211_hdr_3addr header;
+	__le16 capability;
+	__le16 listen_interval;
+	/* SSID, supported rates, RSN */
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+struct ieee80211_probe_response {
+	struct ieee80211_hdr_3addr header;
+	__le32 time_stamp[2];
+	__le16 beacon_interval;
+	__le16 capability;
+	/* SSID, supported rates, FH params, DS params,
+	 * CF params, IBSS params, TIM (if beacon), RSN */
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+/* Alias beacon for probe_response */
+#define ieee80211_beacon ieee80211_probe_response
+
+struct ieee80211_assoc_response {
+	struct ieee80211_hdr_3addr header;
+	__le16 capability;
+	__le16 status;
+	__le16 aid;
+	/* supported rates */
+	struct ieee80211_info_element info_element[0];
+} __attribute__ ((packed));
+
+struct ieee80211_disassoc {
+	struct ieee80211_hdr_3addr header;
+	__le16 reason;
+} __attribute__ ((packed));
+
 /* Board types */
 enum board_type {
 	BOARD_503_ISL3861 = 1,
@@ -33,6 +120,23 @@ enum board_type {
 	BOARD_505A = 7,
 	BOARD_505AMX = 8
 };
+
+/* our private ioctl's */
+/* preamble length (0 - long, 1 - short, 2 - auto) */
+#define AT76_SET_SHORT_PREAMBLE		(SIOCIWFIRSTPRIV + 0)
+#define AT76_GET_SHORT_PREAMBLE		(SIOCIWFIRSTPRIV + 1)
+/* which debug channels are enabled */
+#define AT76_SET_DEBUG			(SIOCIWFIRSTPRIV + 2)
+#define AT76_GET_DEBUG			(SIOCIWFIRSTPRIV + 3)
+/* power save mode (incl. the Atmel proprietary smart save mode) */
+#define AT76_SET_POWERSAVE_MODE		(SIOCIWFIRSTPRIV + 4)
+#define AT76_GET_POWERSAVE_MODE		(SIOCIWFIRSTPRIV + 5)
+/* min and max channel times for scan */
+#define AT76_SET_SCAN_TIMES		(SIOCIWFIRSTPRIV + 6)
+#define AT76_GET_SCAN_TIMES		(SIOCIWFIRSTPRIV + 7)
+/* scan mode (0 - active, 1 - passive) */
+#define AT76_SET_SCAN_MODE		(SIOCIWFIRSTPRIV + 8)
+#define AT76_GET_SCAN_MODE		(SIOCIWFIRSTPRIV + 9)
 
 #define CMD_STATUS_IDLE				0x00
 #define CMD_STATUS_COMPLETE			0x01
@@ -65,7 +169,6 @@ enum board_type {
 #define MIB_MAC			0x03
 #define MIB_MAC_MGMT		0x05
 #define MIB_MAC_WEP		0x06
-#define MIB_MAC_ENCRYPTION	0x06
 #define MIB_PHY			0x07
 #define MIB_FW_VERSION		0x08
 #define MIB_MDOMAIN		0x09
@@ -89,26 +192,6 @@ enum board_type {
 #define AT76_PM_OFF		1
 #define AT76_PM_ON		2
 #define AT76_PM_SMART		3
-
-/* cipher values for encryption keys */
-#define CIPHER_NONE		0	/* this value is only guessed */
-#define CIPHER_WEP64		1
-#define CIPHER_TKIP		2
-#define CIPHER_CCMP		3
-#define CIPHER_CCX		4	/* for consistency sake only */
-#define CIPHER_WEP128		5
-
-/* bit flags key types for encryption keys */
-#define KEY_PAIRWISE		2
-#define KEY_TX			4
-
-#define CIPHER_KEYS		(4)
-#define CIPHER_KEY_LEN		(40)
-
-struct key_config {
-	u8 cipher;
-	u8 keylen;
-};
 
 struct hwcfg_r505 {
 	u8 cr39_values[14];
@@ -151,9 +234,6 @@ union at76_hwcfg {
 
 #define WEP_SMALL_KEY_LEN	(40 / 8)
 #define WEP_LARGE_KEY_LEN	(104 / 8)
-#define WEP_KEYS		(4)
-
-
 
 struct at76_card_config {
 	u8 exclude_unencrypted;
@@ -168,7 +248,7 @@ struct at76_card_config {
 	u8 privacy_invoked;
 	u8 wep_default_key_id;	/* 0..3 */
 	u8 current_ssid[32];
-	u8 wep_default_key_value[4][WEP_LARGE_KEY_LEN];
+	u8 wep_default_key_value[4][WEP_KEY_LEN];
 	u8 ssid_len;
 	u8 short_preamble;
 	__le16 beacon_period;
@@ -193,7 +273,7 @@ struct at76_rx_buffer {
 	u8 link_quality;
 	u8 noise_level;
 	__le32 rx_time;
-	u8 packet[IEEE80211_MAX_FRAG_THRESHOLD];
+	u8 packet[IEEE80211_FRAME_LEN + IEEE80211_FCS_LEN];
 } __attribute__((packed));
 
 /* Length of Atmel-specific Tx header before 802.11 frame */
@@ -203,11 +283,8 @@ struct at76_tx_buffer {
 	__le16 wlength;
 	u8 tx_rate;
 	u8 padding;
-	u8 key_id;
-	u8 cipher_type;
-	u8 cipher_length;
-	u8 reserved;
-	u8 packet[IEEE80211_MAX_FRAG_THRESHOLD];
+	u8 reserved[4];
+	u8 packet[IEEE80211_FRAME_LEN + IEEE80211_FCS_LEN];
 } __attribute__((packed));
 
 /* defines for scan_type below */
@@ -254,7 +331,6 @@ struct set_mib_buffer {
 		u8 byte;
 		__le16 word;
 		u8 addr[ETH_ALEN];
-		u8 data[256];	/* we need more space for mib_mac_encryption */
 	} data;
 } __attribute__((packed));
 
@@ -328,22 +404,8 @@ struct mib_mac_wep {
 	u8 exclude_unencrypted;
 	__le32 wep_icv_error_count;
 	__le32 wep_excluded_count;
-	u8 wep_default_keyvalue[WEP_KEYS][WEP_LARGE_KEY_LEN];
+	u8 wep_default_keyvalue[WEP_KEYS][WEP_KEY_LEN];
 	u8 encryption_level;	/* 1 for 40bit, 2 for 104bit encryption */
-} __attribute__((packed));
-
-struct mib_mac_encryption {
-	u8 cipher_default_keyvalue[CIPHER_KEYS][CIPHER_KEY_LEN];
-	u8 tkip_bssid[6];
-	u8 privacy_invoked;
-	u8 cipher_default_key_id;
-	u8 cipher_default_group_key_id;
-	u8 exclude_unencrypted;
-	u8 wep_encryption_type;
-	u8 ckip_key_permutation;	/* bool */
-	__le32 wep_icv_error_count;
-	__le32 wep_excluded_count;
-	u8 key_rsc[CIPHER_KEYS][8];
 } __attribute__((packed));
 
 struct mib_phy {
@@ -389,12 +451,63 @@ struct at76_fw_header {
 	__le32 ext_fw_len;	/* external firmware image length */
 } __attribute__((packed));
 
+enum mac_state {
+	MAC_INIT,
+	MAC_SCANNING,
+	MAC_AUTH,
+	MAC_ASSOC,
+	MAC_JOINING,
+	MAC_CONNECTED,
+	MAC_OWN_IBSS
+};
+
 /* a description of a regulatory domain and the allowed channels */
 struct reg_domain {
 	u16 code;
 	char const *name;
 	u32 channel_map;	/* if bit N is set, channel (N+1) is allowed */
 };
+
+/* how long do we keep a (I)BSS in the bss_list in jiffies
+   this should be long enough for the user to retrieve the table
+   (by iwlist ?) after the device started, because all entries from
+   other channels than the one the device locks on get removed, too */
+#define BSS_LIST_TIMEOUT	(120 * HZ)
+/* struct to store BSS info found during scan */
+#define BSS_LIST_MAX_RATE_LEN	32	/* 32 rates should be enough ... */
+
+struct bss_info {
+	struct list_head list;
+
+	u8 bssid[ETH_ALEN];	/* bssid */
+	u8 ssid[IW_ESSID_MAX_SIZE];	/* essid */
+	u8 ssid_len;		/* length of ssid above */
+	u8 channel;
+	u16 capa;		/* BSS capabilities */
+	u16 beacon_interval;	/* beacon interval, Kus (1024 microseconds) */
+	u8 rates[BSS_LIST_MAX_RATE_LEN];	/* supported rates in units of
+						   500 kbps, ORed with 0x80 for
+						   basic rates */
+	u8 rates_len;
+
+	/* quality of received beacon */
+	u8 rssi;
+	u8 link_qual;
+	u8 noise_level;
+
+	unsigned long last_rx;	/* time (jiffies) of last beacon received */
+};
+
+/* a rx data buffer to collect rx fragments */
+struct rx_data_buf {
+	u8 sender[ETH_ALEN];	/* sender address */
+	u16 seqnr;		/* sequence number */
+	u16 fragnr;		/* last fragment received */
+	unsigned long last_rx;	/* jiffies of last rx */
+	struct sk_buff *skb;	/* == NULL if entry is free */
+};
+
+#define NR_RX_DATA_BUF		8
 
 /* Data for one loaded firmware file */
 struct fwentry {
@@ -412,9 +525,11 @@ struct fwentry {
 
 struct at76_priv {
 	struct usb_device *udev;	/* USB device pointer */
+	struct net_device *netdev;	/* net device pointer */
+	struct net_device_stats stats;	/* net device stats */
+	struct iw_statistics wstats;	/* wireless stats */
 
 	struct sk_buff *rx_skb;	/* skbuff for receiving data */
-	struct sk_buff *tx_skb;	/* skbuff for transmitting data */
 	void *bulk_out_buffer;	/* buffer for sending data */
 
 	struct urb *tx_urb;	/* URB for sending data */
@@ -426,17 +541,26 @@ struct at76_priv {
 	struct mutex mtx;	/* locks this structure */
 
 	/* work queues */
+	struct work_struct work_assoc_done;
+	struct work_struct work_join;
+	struct work_struct work_new_bss;
+	struct work_struct work_start_scan;
 	struct work_struct work_set_promisc;
 	struct work_struct work_submit_rx;
-	struct delayed_work dwork_hw_scan;
+	struct delayed_work dwork_restart;
+	struct delayed_work dwork_get_scan;
+	struct delayed_work dwork_beacon;
+	struct delayed_work dwork_auth;
+	struct delayed_work dwork_assoc;
 
 	struct tasklet_struct rx_tasklet;
 
 	/* the WEP stuff */
 	int wep_enabled;	/* 1 if WEP is enabled */
 	int wep_key_id;		/* key id to be used */
-	u8 wep_keys[WEP_KEYS][WEP_LARGE_KEY_LEN];	/* WEP keys */
-	u8 wep_keys_len[WEP_KEYS];	/* length of WEP keys */
+	u8 wep_keys[WEP_KEYS][WEP_KEY_LEN];	/* the four WEP keys,
+						   5 or 13 bytes are used */
+	u8 wep_keys_len[WEP_KEYS];	/* the length of the above keys */
 
 	int channel;
 	int iw_mode;
@@ -458,12 +582,43 @@ struct at76_priv {
 	int scan_mode;		/* SCAN_TYPE_ACTIVE, SCAN_TYPE_PASSIVE */
 	int scan_need_any;	/* if set, need to scan for any ESSID */
 
+	/* the list we got from scanning */
+	spinlock_t bss_list_spinlock;	/* protects bss_list operations */
+	struct list_head bss_list;	/* list of BSS we got beacons from */
+	struct timer_list bss_list_timer;	/* timer to purge old entries
+						   from bss_list */
+	struct bss_info *curr_bss;	/* current BSS */
 	u16 assoc_id;		/* current association ID, if associated */
 
+	u8 wanted_bssid[ETH_ALEN];
+	int wanted_bssid_valid;	/* != 0 if wanted_bssid is to be used */
+
+	/* some data for infrastructure mode only */
+	spinlock_t mgmt_spinlock;	/* this spinlock protects access to
+					   next_mgmt_bulk */
+
+	struct at76_tx_buffer *next_mgmt_bulk;	/* pending management msg to
+						   send via bulk out */
+	enum mac_state mac_state;
+	enum {
+		SCAN_IDLE,
+		SCAN_IN_PROGRESS,
+		SCAN_COMPLETED
+	} scan_state;
+	time_t last_scan;
+
+	int retries;		/* remaining retries in case of timeout when
+				 * sending AuthReq or AssocReq */
 	u8 pm_mode;		/* power management mode */
 	u32 pm_period;		/* power management period in microseconds */
 
 	struct reg_domain const *domain;	/* reg domain description */
+
+	/* iwspy support */
+	spinlock_t spy_spinlock;
+	struct iw_spy_data spy_data;
+
+	struct iw_public_data wireless_data;
 
 	/* These fields contain HW config provided by the device (not all of
 	 * these fields are used by all board types) */
@@ -472,6 +627,9 @@ struct at76_priv {
 
 	struct at76_card_config card_config;
 
+	/* store rx fragments until complete */
+	struct rx_data_buf rx_data[NR_RX_DATA_BUF];
+
 	enum board_type board_type;
 	struct mib_fw_version fw_version;
 
@@ -479,20 +637,58 @@ struct at76_priv {
 	unsigned int netdev_registered:1;
 	struct set_mib_buffer mib_buf;	/* global buffer for set_mib calls */
 
+	/* beacon counting */
 	int beacon_period;	/* period of mgmt beacons, Kus */
-
-	struct ieee80211_hw *hw;
-	int mac80211_registered;
-
-	struct key_config keys[4];	/* installed key types */
-	u8 default_pairwise_key;
-	u8 default_group_key;
+	int beacons_received;
+	unsigned long beacons_last_qual;	/* time we restarted counting
+						   beacons */
 };
 
-#define AT76_SUPPORTED_FILTERS FIF_PROMISC_IN_BSS
+struct at76_rx_radiotap {
+	struct ieee80211_radiotap_header rt_hdr;
+	__le64 rt_tsft;
+	u8 rt_flags;
+	u8 rt_rate;
+	s8 rt_signal;
+	s8 rt_noise;
+};
 
+#define AT76_RX_RADIOTAP_PRESENT		  \
+	((1 << IEEE80211_RADIOTAP_TSFT)		| \
+	(1 << IEEE80211_RADIOTAP_FLAGS)		| \
+	(1 << IEEE80211_RADIOTAP_RATE)		| \
+	(1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL)	| \
+	(1 << IEEE80211_RADIOTAP_DB_ANTNOISE))
+
+#define BEACON_MAX_DATA_LENGTH	1500
+
+/* the maximum size of an AssocReq packet */
+#define ASSOCREQ_MAX_SIZE \
+  (AT76_TX_HDRLEN + sizeof(struct ieee80211_assoc_request) + \
+   1 + 1 + IW_ESSID_MAX_SIZE + 1 + 1 + 4)
+
+/* for shared secret auth, add the challenge text size */
+#define AUTH_FRAME_SIZE (AT76_TX_HDRLEN + sizeof(struct ieee80211_auth))
+
+/* Maximal number of AuthReq retries */
+#define AUTH_RETRIES		3
+
+/* Maximal number of AssocReq retries */
+#define ASSOC_RETRIES		3
+
+/* Beacon timeout in managed mode when we are connected */
+#define BEACON_TIMEOUT		(10 * HZ)
+
+/* Timeout for authentication response */
+#define AUTH_TIMEOUT		(1 * HZ)
+
+/* Timeout for association response */
+#define ASSOC_TIMEOUT		(1 * HZ)
+
+/* Polling interval when scan is running */
 #define SCAN_POLL_INTERVAL	(HZ / 4)
 
+/* Command completion timeout */
 #define CMD_COMPLETION_TIMEOUT	(5 * HZ)
 
 #define DEF_RTS_THRESHOLD	1536
@@ -501,6 +697,8 @@ struct at76_priv {
 #define DEF_CHANNEL		10
 #define DEF_SCAN_MIN_TIME	10
 #define DEF_SCAN_MAX_TIME	120
+
+#define MAX_RTS_THRESHOLD	(MAX_FRAG_THRESHOLD + 1)
 
 /* the max padding size for tx in bytes (see calc_padding) */
 #define MAX_PADDING_SIZE	53

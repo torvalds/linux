@@ -1,15 +1,43 @@
-LED connected to GPIO
+LEDs connected to GPIO lines
 
 Required properties:
-- compatible : should be "gpio-led".
-- label : (optional) the label for this LED. If omitted, the label is
+- compatible : should be "gpio-leds".
+
+Each LED is represented as a sub-node of the gpio-leds device.  Each
+node's name represents the name of the corresponding LED.
+
+LED sub-node properties:
+- gpios :  Should specify the LED's GPIO, see "Specifying GPIO information
+  for devices" in Documentation/powerpc/booting-without-of.txt.  Active
+  low LEDs should be indicated using flags in the GPIO specifier.
+- label :  (optional) The label for this LED.  If omitted, the label is
   taken from the node name (excluding the unit address).
-- gpios : should specify LED GPIO.
+- linux,default-trigger :  (optional) This parameter, if present, is a
+  string defining the trigger assigned to the LED.  Current triggers are:
+    "backlight" - LED will act as a back-light, controlled by the framebuffer
+		  system
+    "default-on" - LED will turn on
+    "heartbeat" - LED "double" flashes at a load average based rate
+    "ide-disk" - LED indicates disk activity
+    "timer" - LED flashes at a fixed, configurable rate
 
-Example:
+Examples:
 
-led@0 {
-	compatible = "gpio-led";
-	label = "hdd";
-	gpios = <&mcu_pio 0 1>;
+leds {
+	compatible = "gpio-leds";
+	hdd {
+		label = "IDE Activity";
+		gpios = <&mcu_pio 0 1>; /* Active low */
+		linux,default-trigger = "ide-disk";
+	};
 };
+
+run-control {
+	compatible = "gpio-leds";
+	red {
+		gpios = <&mpc8572 6 0>;
+	};
+	green {
+		gpios = <&mpc8572 7 0>;
+	};
+}

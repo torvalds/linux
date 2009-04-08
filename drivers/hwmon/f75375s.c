@@ -1,7 +1,7 @@
 /*
  * f75375s.c - driver for the Fintek F75375/SP and F75373
  *             hardware monitoring features
- * Copyright (C) 2006-2007  Riku Voipio <riku.voipio@movial.fi>
+ * Copyright (C) 2006-2007  Riku Voipio
  *
  * Datasheets available at:
  *
@@ -617,7 +617,7 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 static int f75375_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
-	struct f75375_data *data = i2c_get_clientdata(client);
+	struct f75375_data *data;
 	struct f75375s_platform_data *f75375s_pdata = client->dev.platform_data;
 	int err;
 
@@ -721,7 +721,7 @@ static void __exit sensors_f75375_exit(void)
 	i2c_del_driver(&f75375_driver);
 }
 
-MODULE_AUTHOR("Riku Voipio <riku.voipio@movial.fi>");
+MODULE_AUTHOR("Riku Voipio");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("F75373/F75375 hardware monitoring driver");
 

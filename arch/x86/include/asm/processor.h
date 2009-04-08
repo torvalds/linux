@@ -16,6 +16,7 @@ struct mm_struct;
 #include <asm/cpufeature.h>
 #include <asm/system.h>
 #include <asm/page.h>
+#include <asm/pgtable_types.h>
 #include <asm/percpu.h>
 #include <asm/msr.h>
 #include <asm/desc_defs.h>
@@ -73,10 +74,10 @@ struct cpuinfo_x86 {
 	char			pad0;
 #else
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
-	int			 x86_tlbsize;
+	int			x86_tlbsize;
+#endif
 	__u8			x86_virt_bits;
 	__u8			x86_phys_bits;
-#endif
 	/* CPUID returned core id bits: */
 	__u8			x86_coreid_bits;
 	/* Max extended CPUID function supported: */
@@ -93,7 +94,7 @@ struct cpuinfo_x86 {
 	unsigned long		loops_per_jiffy;
 #ifdef CONFIG_SMP
 	/* cpus sharing the last level cache: */
-	cpumask_t		llc_shared_map;
+	cpumask_var_t		llc_shared_map;
 #endif
 	/* cpuid returned max cores value: */
 	u16			 x86_max_cores;
@@ -247,7 +248,6 @@ struct x86_hw_tss {
 #define IO_BITMAP_LONGS			(IO_BITMAP_BYTES/sizeof(long))
 #define IO_BITMAP_OFFSET		offsetof(struct tss_struct, io_bitmap)
 #define INVALID_IO_BITMAP_OFFSET	0x8000
-#define INVALID_IO_BITMAP_OFFSET_LAZY	0x9000
 
 struct tss_struct {
 	/*
@@ -262,11 +262,6 @@ struct tss_struct {
 	 * be within the limit.
 	 */
 	unsigned long		io_bitmap[IO_BITMAP_LONGS + 1];
-	/*
-	 * Cache the current maximum and the last task that used the bitmap:
-	 */
-	unsigned long		io_bitmap_max;
-	struct thread_struct	*io_bitmap_owner;
 
 	/*
 	 * .. and then another 0x100 bytes for the emergency kernel stack:
@@ -353,7 +348,7 @@ struct i387_soft_struct {
 	u8			no_update;
 	u8			rm;
 	u8			alimit;
-	struct info		*info;
+	struct math_emu_info	*info;
 	u32			entry_eip;
 };
 
@@ -378,9 +373,33 @@ union thread_xstate {
 
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(struct orig_ist, orig_ist);
-#endif
 
-extern void print_cpu_info(struct cpuinfo_x86 *);
+union irq_stack_union {
+	char irq_stack[IRQ_STACK_SIZE];
+	/*
+	 * GCC hardcodes the stack canary as %gs:40.  Since the
+	 * irq_stack is the object at %gs:0, we reserve the bottom
+	 * 48 bytes of the irq stack for the canary.
+	 */
+	struct {
+		char gs_base[40];
+		unsigned long stack_canary;
+	};
+};
+
+DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
+DECLARE_INIT_PER_CPU(irq_stack_union);
+
+DECLARE_PER_CPU(char *, irq_stack_ptr);
+DECLARE_PER_CPU(unsigned int, irq_count);
+extern unsigned long kernel_eflags;
+extern asmlinkage void ignore_sysret(void);
+#else	/* X86_64 */
+#ifdef CONFIG_CC_STACKPROTECTOR
+DECLARE_PER_CPU(unsigned long, stack_canary);
+#endif
+#endif	/* X86_64 */
+
 extern unsigned int xstate_size;
 extern void free_thread_xstate(struct task_struct *);
 extern struct kmem_cache *task_xstate_cachep;
@@ -717,6 +736,7 @@ static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
 extern void mwait_idle_with_hints(unsigned long eax, unsigned long ecx);
 
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
+extern void init_c1e_mask(void);
 
 extern unsigned long		boot_option_idle_override;
 extern unsigned long		idle_halt;
@@ -752,9 +772,9 @@ extern int sysenter_setup(void);
 extern struct desc_ptr		early_gdt_descr;
 
 extern void cpu_set_gdt(int);
-extern void switch_to_new_gdt(void);
+extern void switch_to_new_gdt(int);
+extern void load_percpu_segment(int);
 extern void cpu_init(void);
-extern void init_gdt(int cpu);
 
 static inline unsigned long get_debugctlmsr(void)
 {
@@ -839,6 +859,7 @@ static inline void spin_lock_prefetch(const void *x)
  * User space process size: 3GB (default).
  */
 #define TASK_SIZE		PAGE_OFFSET
+#define TASK_SIZE_MAX		TASK_SIZE
 #define STACK_TOP		TASK_SIZE
 #define STACK_TOP_MAX		STACK_TOP
 
@@ -898,7 +919,7 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 /*
  * User space process size. 47bits minus one guard page.
  */
-#define TASK_SIZE64	((1UL << 47) - PAGE_SIZE)
+#define TASK_SIZE_MAX	((1UL << 47) - PAGE_SIZE)
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
@@ -907,12 +928,12 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 					0xc0000000 : 0xFFFFe000)
 
 #define TASK_SIZE		(test_thread_flag(TIF_IA32) ? \
-					IA32_PAGE_OFFSET : TASK_SIZE64)
+					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
 #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_IA32)) ? \
-					IA32_PAGE_OFFSET : TASK_SIZE64)
+					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
 
 #define STACK_TOP		TASK_SIZE
-#define STACK_TOP_MAX		TASK_SIZE64
+#define STACK_TOP_MAX		TASK_SIZE_MAX
 
 #define INIT_THREAD  { \
 	.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \

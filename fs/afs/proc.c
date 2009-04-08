@@ -146,7 +146,6 @@ int afs_proc_init(void)
 	proc_afs = proc_mkdir("fs/afs", NULL);
 	if (!proc_afs)
 		goto error_dir;
-	proc_afs->owner = THIS_MODULE;
 
 	p = proc_create("cells", 0, proc_afs, &afs_proc_cells_fops);
 	if (!p)

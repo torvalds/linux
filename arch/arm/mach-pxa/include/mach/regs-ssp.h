@@ -37,17 +37,19 @@
 #if defined(CONFIG_PXA25x)
 #define SSCR0_SCR	(0x0000ff00)	/* Serial Clock Rate (mask) */
 #define SSCR0_SerClkDiv(x) ((((x) - 2)/2) << 8) /* Divisor [2..512] */
-
 #elif defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define SSCR0_SCR	(0x000fff00)	/* Serial Clock Rate (mask) */
 #define SSCR0_SerClkDiv(x) (((x) - 1) << 8) /* Divisor [1..4096] */
+#endif
+
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define SSCR0_EDSS	(1 << 20)	/* Extended data size select */
 #define SSCR0_NCS	(1 << 21)	/* Network clock select */
 #define SSCR0_RIM	(1 << 22)	/* Receive FIFO overrrun interrupt mask */
 #define SSCR0_TUM	(1 << 23)	/* Transmit FIFO underrun interrupt mask */
 #define SSCR0_FRDC	(0x07000000)	/* Frame rate divider control (mask) */
 #define SSCR0_SlotsPerFrm(x) (((x) - 1) << 24)	/* Time slots per frame [1..8] */
-#define SSCR0_ADC	(1 << 30)	/* Audio clock select */
+#define SSCR0_ACS	(1 << 30)	/* Audio clock select */
 #define SSCR0_MOD	(1 << 31)	/* Mode (normal or network) */
 #endif
 
@@ -105,6 +107,11 @@
 #define SSSR_EOC		(1 << 20)	/* End Of Chain */
 #define SSSR_TINT		(1 << 19)	/* Receiver Time-out Interrupt */
 #define SSSR_PINT		(1 << 18)	/* Peripheral Trailing Byte Interrupt */
+
+#if defined(CONFIG_PXA3xx)
+#define SSPSP_EDMYSTOP(x)	((x) << 28)     /* Extended Dummy Stop */
+#define SSPSP_EDMYSTRT(x)	((x) << 26)     /* Extended Dummy Start */
+#endif
 
 #define SSPSP_FSRT		(1 << 25)	/* Frame Sync Relative Timing */
 #define SSPSP_DMYSTOP(x)	((x) << 23)	/* Dummy Stop */

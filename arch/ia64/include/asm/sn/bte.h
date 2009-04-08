@@ -39,7 +39,7 @@
 /* BTE status register only supports 16 bits for length field */
 #define BTE_LEN_BITS (16)
 #define BTE_LEN_MASK ((1 << BTE_LEN_BITS) - 1)
-#define BTE_MAX_XFER ((1 << BTE_LEN_BITS) * L1_CACHE_BYTES)
+#define BTE_MAX_XFER (BTE_LEN_MASK << L1_CACHE_SHIFT)
 
 
 /* Define hardware */

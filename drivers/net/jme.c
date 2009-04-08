@@ -429,10 +429,9 @@ jme_check_link(struct net_device *netdev, int testonly)
 
 		jme->phylink = phylink;
 
-		ghc = jme->reg_ghc & ~(GHC_SPEED_10M |
-					GHC_SPEED_100M |
-					GHC_SPEED_1000M |
-					GHC_DPX);
+		ghc = jme->reg_ghc & ~(GHC_SPEED | GHC_DPX |
+				GHC_TO_CLK_PCIE | GHC_TXMAC_CLK_PCIE |
+				GHC_TO_CLK_GPHY | GHC_TXMAC_CLK_GPHY);
 		switch (phylink & PHY_LINK_SPEED_MASK) {
 		case PHY_LINK_SPEED_10M:
 			ghc |= GHC_SPEED_10M |
@@ -957,13 +956,14 @@ jme_process_receive(struct jme_adapter *jme, int limit)
 		goto out_inc;
 
 	i = atomic_read(&rxring->next_to_clean);
-	while (limit-- > 0) {
+	while (limit > 0) {
 		rxdesc = rxring->desc;
 		rxdesc += i;
 
 		if ((rxdesc->descwb.flags & cpu_to_le16(RXWBFLAG_OWN)) ||
 		!(rxdesc->descwb.desccnt & RXWBDCNT_WBCPL))
 			goto out;
+		--limit;
 
 		desccnt = rxdesc->descwb.desccnt & RXWBDCNT_DCNT;
 
@@ -1833,7 +1833,7 @@ jme_tx_vlan(struct sk_buff *skb, __le16 *vlan, u8 *flags)
 }
 
 static int
-jme_fill_first_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
+jme_fill_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 {
 	struct jme_ring *txring = jme->txring;
 	struct txdesc *txdesc;
@@ -1863,6 +1863,7 @@ jme_fill_first_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	if (jme_tx_tso(skb, &txdesc->desc1.mss, &flags))
 		jme_tx_csum(jme, skb, &flags);
 	jme_tx_vlan(skb, &txdesc->desc1.vlan, &flags);
+	jme_map_tx_skb(jme, skb, idx);
 	txdesc->desc1.flags = flags;
 	/*
 	 * Set tx buffer info after telling NIC to send
@@ -1932,8 +1933,7 @@ jme_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
-	jme_map_tx_skb(jme, skb, idx);
-	jme_fill_first_tx_desc(jme, skb, idx);
+	jme_fill_tx_desc(jme, skb, idx);
 
 	jwrite32(jme, JME_TXCS, jme->reg_txcs |
 				TXCS_SELECT_QUEUE0 |
@@ -2590,8 +2590,18 @@ static const struct ethtool_ops jme_ethtool_ops = {
 static int
 jme_pci_dma64(struct pci_dev *pdev)
 {
-	if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))
+	if (pdev->device == PCI_DEVICE_ID_JMICRON_JMC250 &&
+	    !pci_set_dma_mask(pdev, DMA_64BIT_MASK))
+		if (!pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))
+			return 1;
+
+	if (pdev->device == PCI_DEVICE_ID_JMICRON_JMC250 &&
+	    !pci_set_dma_mask(pdev, DMA_40BIT_MASK))
+		if (!pci_set_consistent_dma_mask(pdev, DMA_40BIT_MASK))
+			return 1;
+
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
+		if (!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))
 			return 0;
 
 	return -1;
@@ -2856,7 +2866,11 @@ jme_init_one(struct pci_dev *pdev,
 		goto err_out_free_shadow;
 	}
 
-	msg_probe(jme, "JMC250 gigabit%s ver:%x rev:%x macaddr:%pM\n",
+	msg_probe(jme, "%s%s ver:%x rev:%x macaddr:%pM\n",
+		(jme->pdev->device == PCI_DEVICE_ID_JMICRON_JMC250) ?
+			"JMC250 Gigabit Ethernet" :
+			(jme->pdev->device == PCI_DEVICE_ID_JMICRON_JMC260) ?
+				"JMC260 Fast Ethernet" : "Unknown",
 		(jme->fpgaver != 0) ? " (FPGA)" : "",
 		(jme->fpgaver != 0) ? jme->fpgaver : jme->chiprev,
 		jme->rev, netdev->dev_addr);
@@ -3002,7 +3016,7 @@ static struct pci_driver jme_driver = {
 static int __init
 jme_init_module(void)
 {
-	printk(KERN_INFO PFX "JMicron JMC250 gigabit ethernet "
+	printk(KERN_INFO PFX "JMicron JMC2XX ethernet "
 	       "driver version %s\n", DRV_VERSION);
 	return pci_register_driver(&jme_driver);
 }

@@ -62,7 +62,6 @@ aic7*reg_print.c*
 aic7*seq.h*
 aicasm
 aicdb.h*
-asm
 asm-offsets.h
 asm_offsets.h
 autoconf.h*

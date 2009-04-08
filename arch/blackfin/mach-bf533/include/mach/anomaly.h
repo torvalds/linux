@@ -2,7 +2,7 @@
  * File: include/asm-blackfin/mach-bf533/anomaly.h
  * Bugs: Enter bugs at http://blackfin.uclinux.org/
  *
- * Copyright (C) 2004-2008 Analog Devices Inc.
+ * Copyright (C) 2004-2009 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */
 
@@ -160,7 +160,7 @@
 #define ANOMALY_05000301 (__SILICON_REVISION__ < 6)
 /* SSYNCs After Writes To DMA MMR Registers May Not Be Handled Correctly */
 #define ANOMALY_05000302 (__SILICON_REVISION__ < 5)
-/* New Feature: Additional Hysteresis on SPORT Input Pins (Not Available On Older Silicon) */
+/* SPORT_HYS Bit in PLL_CTL Register Is Not Functional */
 #define ANOMALY_05000305 (__SILICON_REVISION__ < 5)
 /* New Feature: Additional PPI Frame Sync Sampling Options (Not Available On Older Silicon) */
 #define ANOMALY_05000306 (__SILICON_REVISION__ < 5)
@@ -278,9 +278,12 @@
 #define ANOMALY_05000266 (0)
 #define ANOMALY_05000323 (0)
 #define ANOMALY_05000353 (1)
+#define ANOMALY_05000380 (0)
 #define ANOMALY_05000386 (1)
 #define ANOMALY_05000412 (0)
 #define ANOMALY_05000432 (0)
 #define ANOMALY_05000435 (0)
+#define ANOMALY_05000447 (0)
+#define ANOMALY_05000448 (0)
 
 #endif

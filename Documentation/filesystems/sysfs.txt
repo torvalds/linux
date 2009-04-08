@@ -2,8 +2,10 @@
 sysfs - _The_ filesystem for exporting kernel objects. 
 
 Patrick Mochel	<mochel@osdl.org>
+Mike Murphy <mamurph@cs.clemson.edu>
 
-10 January 2003
+Revised:    22 February 2009
+Original:   10 January 2003
 
 
 What it is:
@@ -64,12 +66,13 @@ An attribute definition is simply:
 
 struct attribute {
         char                    * name;
+        struct module		*owner;
         mode_t                  mode;
 };
 
 
-int sysfs_create_file(struct kobject * kobj, struct attribute * attr);
-void sysfs_remove_file(struct kobject * kobj, struct attribute * attr);
+int sysfs_create_file(struct kobject * kobj, const struct attribute * attr);
+void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr);
 
 
 A bare attribute contains no means to read or write the value of the
@@ -80,9 +83,11 @@ a specific object type.
 For example, the driver model defines struct device_attribute like:
 
 struct device_attribute {
-        struct attribute        attr;
-        ssize_t (*show)(struct device * dev, char * buf);
-        ssize_t (*store)(struct device * dev, const char * buf);
+	struct attribute	attr;
+	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count);
 };
 
 int device_create_file(struct device *, struct device_attribute *);
@@ -90,12 +95,8 @@ void device_remove_file(struct device *, struct device_attribute *);
 
 It also defines this helper for defining device attributes: 
 
-#define DEVICE_ATTR(_name, _mode, _show, _store)      \
-struct device_attribute dev_attr_##_name = {            \
-        .attr = {.name  = __stringify(_name) , .mode   = _mode },      \
-        .show   = _show,                                \
-        .store  = _store,                               \
-};
+#define DEVICE_ATTR(_name, _mode, _show, _store) \
+struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
 
 For example, declaring
 
@@ -107,9 +108,9 @@ static struct device_attribute dev_attr_foo = {
        .attr	= {
 		.name = "foo",
 		.mode = S_IWUSR | S_IRUGO,
+		.show = show_foo,
+		.store = store_foo,
 	},
-	.show = show_foo,
-	.store = store_foo,
 };
 
 
@@ -161,10 +162,12 @@ To read or write attributes, show() or store() methods must be
 specified when declaring the attribute. The method types should be as
 simple as those defined for device attributes:
 
-        ssize_t (*show)(struct device * dev, char * buf);
-        ssize_t (*store)(struct device * dev, const char * buf);
+ssize_t (*show)(struct device * dev, struct device_attribute * attr,
+                char * buf);
+ssize_t (*store)(struct device * dev, struct device_attribute * attr,
+                 const char * buf);
 
-IOW, they should take only an object and a buffer as parameters. 
+IOW, they should take only an object, an attribute, and a buffer as parameters.
 
 
 sysfs allocates a buffer of size (PAGE_SIZE) and passes it to the
@@ -299,14 +302,16 @@ The following interface layers currently exist in sysfs:
 Structure:
 
 struct device_attribute {
-        struct attribute        attr;
-        ssize_t (*show)(struct device * dev, char * buf);
-        ssize_t (*store)(struct device * dev, const char * buf);
+	struct attribute	attr;
+	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count);
 };
 
 Declaring:
 
-DEVICE_ATTR(_name, _str, _mode, _show, _store);
+DEVICE_ATTR(_name, _mode, _show, _store);
 
 Creation/Removal:
 
@@ -342,7 +347,8 @@ Structure:
 struct driver_attribute {
         struct attribute        attr;
         ssize_t (*show)(struct device_driver *, char * buf);
-        ssize_t (*store)(struct device_driver *, const char * buf);
+        ssize_t (*store)(struct device_driver *, const char * buf,
+                         size_t count);
 };
 
 Declaring:

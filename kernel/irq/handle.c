@@ -17,6 +17,8 @@
 #include <linux/kernel_stat.h>
 #include <linux/rculist.h>
 #include <linux/hash.h>
+#include <trace/irq.h>
+#include <linux/bootmem.h>
 
 #include "internals.h"
 
@@ -69,6 +71,7 @@ int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
 
 #ifdef CONFIG_SPARSE_IRQ
+
 static struct irq_desc irq_desc_init = {
 	.irq	    = -1,
 	.status	    = IRQ_DISABLED,
@@ -76,26 +79,25 @@ static struct irq_desc irq_desc_init = {
 	.handle_irq = handle_bad_irq,
 	.depth      = 1,
 	.lock       = __SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
-#ifdef CONFIG_SMP
-	.affinity   = CPU_MASK_ALL
-#endif
 };
 
 void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr)
 {
-	unsigned long bytes;
-	char *ptr;
 	int node;
-
-	/* Compute how many bytes we need per irq and allocate them */
-	bytes = nr * sizeof(unsigned int);
+	void *ptr;
 
 	node = cpu_to_node(cpu);
-	ptr = kzalloc_node(bytes, GFP_ATOMIC, node);
-	printk(KERN_DEBUG "  alloc kstat_irqs on cpu %d node %d\n", cpu, node);
+	ptr = kzalloc_node(nr * sizeof(*desc->kstat_irqs), GFP_ATOMIC, node);
 
-	if (ptr)
-		desc->kstat_irqs = (unsigned int *)ptr;
+	/*
+	 * don't overwite if can not get new one
+	 * init_copy_kstat_irqs() could still use old one
+	 */
+	if (ptr) {
+		printk(KERN_DEBUG "  alloc kstat_irqs on cpu %d node %d\n",
+			 cpu, node);
+		desc->kstat_irqs = ptr;
+	}
 }
 
 static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
@@ -113,6 +115,10 @@ static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
 		printk(KERN_ERR "can not alloc kstat_irqs\n");
 		BUG_ON(1);
 	}
+	if (!init_alloc_desc_masks(desc, cpu, false)) {
+		printk(KERN_ERR "can not alloc irq_desc cpumasks\n");
+		BUG_ON(1);
+	}
 	arch_init_chip_data(desc, cpu);
 }
 
@@ -121,7 +127,7 @@ static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
  */
 DEFINE_SPINLOCK(sparse_irq_lock);
 
-struct irq_desc *irq_desc_ptrs[NR_IRQS] __read_mostly;
+struct irq_desc **irq_desc_ptrs __read_mostly;
 
 static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS_LEGACY-1] = {
@@ -131,14 +137,10 @@ static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_sm
 		.handle_irq = handle_bad_irq,
 		.depth	    = 1,
 		.lock	    = __SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
-#ifdef CONFIG_SMP
-		.affinity   = CPU_MASK_ALL
-#endif
 	}
 };
 
-/* FIXME: use bootmem alloc ...*/
-static unsigned int kstat_irqs_legacy[NR_IRQS_LEGACY][NR_CPUS];
+static unsigned int *kstat_irqs_legacy;
 
 int __init early_irq_init(void)
 {
@@ -148,18 +150,30 @@ int __init early_irq_init(void)
 
 	init_irq_default_affinity();
 
+	 /* initialize nr_irqs based on nr_cpu_ids */
+	arch_probe_nr_irqs();
+	printk(KERN_INFO "NR_IRQS:%d nr_irqs:%d\n", NR_IRQS, nr_irqs);
+
 	desc = irq_desc_legacy;
 	legacy_count = ARRAY_SIZE(irq_desc_legacy);
 
+	/* allocate irq_desc_ptrs array based on nr_irqs */
+	irq_desc_ptrs = alloc_bootmem(nr_irqs * sizeof(void *));
+
+	/* allocate based on nr_cpu_ids */
+	/* FIXME: invert kstat_irgs, and it'd be a per_cpu_alloc'd thing */
+	kstat_irqs_legacy = alloc_bootmem(NR_IRQS_LEGACY * nr_cpu_ids *
+					  sizeof(int));
+
 	for (i = 0; i < legacy_count; i++) {
 		desc[i].irq = i;
-		desc[i].kstat_irqs = kstat_irqs_legacy[i];
+		desc[i].kstat_irqs = kstat_irqs_legacy + i * nr_cpu_ids;
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
-
+		init_alloc_desc_masks(&desc[i], 0, true);
 		irq_desc_ptrs[i] = desc + i;
 	}
 
-	for (i = legacy_count; i < NR_IRQS; i++)
+	for (i = legacy_count; i < nr_irqs; i++)
 		irq_desc_ptrs[i] = NULL;
 
 	return arch_early_irq_init();
@@ -167,7 +181,10 @@ int __init early_irq_init(void)
 
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
-	return (irq < NR_IRQS) ? irq_desc_ptrs[irq] : NULL;
+	if (irq_desc_ptrs && irq < nr_irqs)
+		return irq_desc_ptrs[irq];
+
+	return NULL;
 }
 
 struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
@@ -176,10 +193,9 @@ struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
 	unsigned long flags;
 	int node;
 
-	if (irq >= NR_IRQS) {
-		printk(KERN_WARNING "irq >= NR_IRQS in irq_to_desc_alloc: %d %d\n",
-				irq, NR_IRQS);
-		WARN_ON(1);
+	if (irq >= nr_irqs) {
+		WARN(1, "irq (%d) >= nr_irqs (%d) in irq_to_desc_alloc\n",
+			irq, nr_irqs);
 		return NULL;
 	}
 
@@ -221,12 +237,10 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 		.handle_irq = handle_bad_irq,
 		.depth = 1,
 		.lock = __SPIN_LOCK_UNLOCKED(irq_desc->lock),
-#ifdef CONFIG_SMP
-		.affinity = CPU_MASK_ALL
-#endif
 	}
 };
 
+static unsigned int kstat_irqs_all[NR_IRQS][NR_CPUS];
 int __init early_irq_init(void)
 {
 	struct irq_desc *desc;
@@ -235,12 +249,16 @@ int __init early_irq_init(void)
 
 	init_irq_default_affinity();
 
+	printk(KERN_INFO "NR_IRQS:%d\n", NR_IRQS);
+
 	desc = irq_desc;
 	count = ARRAY_SIZE(irq_desc);
 
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
 		desc[i].irq = i;
-
+		init_alloc_desc_masks(&desc[i], 0, true);
+		desc[i].kstat_irqs = kstat_irqs_all[i];
+	}
 	return arch_early_irq_init();
 }
 
@@ -254,6 +272,11 @@ struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
 	return irq_to_desc(irq);
 }
 #endif /* !CONFIG_SPARSE_IRQ */
+
+void clear_kstat_irqs(struct irq_desc *desc)
+{
+	memset(desc->kstat_irqs, 0, nr_cpu_ids * sizeof(*(desc->kstat_irqs)));
+}
 
 /*
  * What should we do if we get a hw irq event on an illegal vector?
@@ -316,6 +339,18 @@ irqreturn_t no_action(int cpl, void *dev_id)
 	return IRQ_NONE;
 }
 
+static void warn_no_thread(unsigned int irq, struct irqaction *action)
+{
+	if (test_and_set_bit(IRQTF_WARNED, &action->thread_flags))
+		return;
+
+	printk(KERN_WARNING "IRQ %d device %s returned IRQ_WAKE_THREAD "
+	       "but no thread function available.", irq, action->name);
+}
+
+DEFINE_TRACE(irq_handler_entry);
+DEFINE_TRACE(irq_handler_exit);
+
 /**
  * handle_IRQ_event - irq action chain handler
  * @irq:	the interrupt number
@@ -328,13 +363,56 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 	irqreturn_t ret, retval = IRQ_NONE;
 	unsigned int status = 0;
 
+	WARN_ONCE(!in_irq(), "BUG: IRQ handler called from non-hardirq context!");
+
 	if (!(action->flags & IRQF_DISABLED))
 		local_irq_enable_in_hardirq();
 
 	do {
+		trace_irq_handler_entry(irq, action);
 		ret = action->handler(irq, action->dev_id);
-		if (ret == IRQ_HANDLED)
+		trace_irq_handler_exit(irq, action, ret);
+
+		switch (ret) {
+		case IRQ_WAKE_THREAD:
+			/*
+			 * Set result to handled so the spurious check
+			 * does not trigger.
+			 */
+			ret = IRQ_HANDLED;
+
+			/*
+			 * Catch drivers which return WAKE_THREAD but
+			 * did not set up a thread function
+			 */
+			if (unlikely(!action->thread_fn)) {
+				warn_no_thread(irq, action);
+				break;
+			}
+
+			/*
+			 * Wake up the handler thread for this
+			 * action. In case the thread crashed and was
+			 * killed we just pretend that we handled the
+			 * interrupt. The hardirq handler above has
+			 * disabled the device interrupt, so no irq
+			 * storm is lurking.
+			 */
+			if (likely(!test_bit(IRQTF_DIED,
+					     &action->thread_flags))) {
+				set_bit(IRQTF_RUNTHREAD, &action->thread_flags);
+				wake_up_process(action->thread);
+			}
+
+			/* Fall through to add to randomness */
+		case IRQ_HANDLED:
 			status |= action->flags;
+			break;
+
+		default:
+			break;
+		}
+
 		retval |= ret;
 		action = action->next;
 	} while (action);
@@ -347,6 +425,11 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 }
 
 #ifndef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
+
+#ifdef CONFIG_ENABLE_WARN_DEPRECATED
+# warning __do_IRQ is deprecated. Please convert to proper flow handlers
+#endif
+
 /**
  * __do_IRQ - original all in one highlevel IRQ handler
  * @irq:	the interrupt number
@@ -467,12 +550,10 @@ void early_init_irq_lock_class(void)
 	}
 }
 
-#ifdef CONFIG_SPARSE_IRQ
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	return desc ? desc->kstat_irqs[cpu] : 0;
 }
-#endif
 EXPORT_SYMBOL(kstat_irqs_cpu);
 

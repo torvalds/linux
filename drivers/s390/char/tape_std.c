@@ -26,8 +26,6 @@
 #include "tape.h"
 #include "tape_std.h"
 
-#define PRINTK_HEADER "TAPE_STD: "
-
 /*
  * tape_std_assign
  */
@@ -39,16 +37,15 @@ tape_std_assign_timeout(unsigned long data)
 	int rc;
 
 	request = (struct tape_request *) data;
-	if ((device = request->device) == NULL)
-		BUG();
+	device = request->device;
+	BUG_ON(!device);
 
 	DBF_EVENT(3, "%08x: Assignment timeout. Device busy.\n",
 			device->cdev_id);
 	rc = tape_cancel_io(device, request);
 	if(rc)
-		PRINT_ERR("(%s): Assign timeout: Cancel failed with rc = %i\n",
+		DBF_EVENT(3, "(%s): Assign timeout: Cancel failed with rc = %i\n",
 			dev_name(&device->cdev->dev), rc);
-
 }
 
 int
@@ -82,8 +79,6 @@ tape_std_assign(struct tape_device *device)
 	del_timer(&timeout);
 
 	if (rc != 0) {
-		PRINT_WARN("%s: assign failed - device might be busy\n",
-			dev_name(&device->cdev->dev));
 		DBF_EVENT(3, "%08x: assign failed - device might be busy\n",
 			device->cdev_id);
 	} else {
@@ -105,8 +100,6 @@ tape_std_unassign (struct tape_device *device)
 	if (device->tape_state == TS_NOT_OPER) {
 		DBF_EVENT(3, "(%08x): Can't unassign device\n",
 			device->cdev_id);
-		PRINT_WARN("(%s): Can't unassign device - device gone\n",
-			dev_name(&device->cdev->dev));
 		return -EIO;
 	}
 
@@ -120,8 +113,6 @@ tape_std_unassign (struct tape_device *device)
 
 	if ((rc = tape_do_io(device, request)) != 0) {
 		DBF_EVENT(3, "%08x: Unassign failed\n", device->cdev_id);
-		PRINT_WARN("%s: Unassign failed\n",
-			   dev_name(&device->cdev->dev));
 	} else {
 		DBF_EVENT(3, "%08x: Tape unassigned\n", device->cdev_id);
 	}
@@ -241,8 +232,6 @@ tape_std_mtsetblk(struct tape_device *device, int count)
 
 	if (count > MAX_BLOCKSIZE) {
 		DBF_EVENT(3, "Invalid block size (%d > %d) given.\n",
-			count, MAX_BLOCKSIZE);
-		PRINT_ERR("Invalid block size (%d > %d) given.\n",
 			count, MAX_BLOCKSIZE);
 		return -EINVAL;
 	}
@@ -633,14 +622,6 @@ tape_std_mtcompression(struct tape_device *device, int mt_count)
 
 	if (mt_count < 0 || mt_count > 1) {
 		DBF_EXCEPTION(6, "xcom parm\n");
-		if (*device->modeset_byte & 0x08)
-			PRINT_INFO("(%s) Compression is currently on\n",
-				   dev_name(&device->cdev->dev));
-		else
-			PRINT_INFO("(%s) Compression is currently off\n",
-				   dev_name(&device->cdev->dev));
-		PRINT_INFO("Use 1 to switch compression on, 0 to "
-			   "switch it off\n");
 		return -EINVAL;
 	}
 	request = tape_alloc_request(2, 0);

@@ -100,8 +100,8 @@ static int __cpuinit processor_probe(struct parisc_device *dev)
 	struct cpuinfo_parisc *p;
 
 #ifdef CONFIG_SMP
-	if (num_online_cpus() >= NR_CPUS) {
-		printk(KERN_INFO "num_online_cpus() >= NR_CPUS\n");
+	if (num_online_cpus() >= nr_cpu_ids) {
+		printk(KERN_INFO "num_online_cpus() >= nr_cpu_ids\n");
 		return 1;
 	}
 #else
@@ -214,7 +214,7 @@ static int __cpuinit processor_probe(struct parisc_device *dev)
 	 */
 #ifdef CONFIG_SMP
 	if (cpuid) {
-		cpu_set(cpuid, cpu_present_map);
+		set_cpu_present(cpuid, true);
 		cpu_up(cpuid);
 	}
 #endif
@@ -363,6 +363,13 @@ show_cpuinfo (struct seq_file *m, void *v)
 		seq_printf(m, "cpu MHz\t\t: %d.%06d\n",
 				 boot_cpu_data.cpu_hz / 1000000,
 				 boot_cpu_data.cpu_hz % 1000000  );
+
+		seq_printf(m, "capabilities\t:");
+		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS32)
+			seq_printf(m, " os32");
+		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS64)
+			seq_printf(m, " os64");
+		seq_printf(m, "\n");
 
 		seq_printf(m, "model\t\t: %s\n"
 				"model name\t: %s\n",

@@ -50,6 +50,7 @@ struct cx25840_state {
 	u32 rev;
 	int is_cx25836;
 	int is_cx23885;
+	int is_cx231xx;
 	int is_initialized;
 	wait_queue_head_t fw_wait;    /* wake up when the fw load is finished */
 	struct work_struct fw_work;   /* work entry for fw load */
@@ -75,11 +76,15 @@ int cx25840_loadfw(struct i2c_client *client);
 
 /* ----------------------------------------------------------------------- */
 /* cx25850-audio.c                                                         */
-int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg);
 void cx25840_audio_set_path(struct i2c_client *client);
+int cx25840_s_clock_freq(struct v4l2_subdev *sd, u32 freq);
+int cx25840_audio_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
+int cx25840_audio_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
 
 /* ----------------------------------------------------------------------- */
 /* cx25850-vbi.c                                                           */
-int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg);
+int cx25840_vbi_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+int cx25840_vbi_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+int cx25840_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi);
 
 #endif

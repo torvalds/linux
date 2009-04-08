@@ -55,10 +55,9 @@ void	ahc_sync_sglist(struct ahc_softc *ahc,
 			struct scb *scb, int op);
 
 /******************************** Debugging ***********************************/
-static __inline char *ahc_name(struct ahc_softc *ahc);
+static inline char *ahc_name(struct ahc_softc *ahc);
 
-static __inline char *
-ahc_name(struct ahc_softc *ahc)
+static inline char *ahc_name(struct ahc_softc *ahc)
 {
 	return (ahc->name);
 }

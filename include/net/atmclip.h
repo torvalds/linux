@@ -50,7 +50,6 @@ struct atmarp_entry {
 struct clip_priv {
 	int number;			/* for convenience ... */
 	spinlock_t xoff_lock;		/* ensures that pop is atomic (SMP) */
-	struct net_device_stats stats;
 	struct net_device *next;	/* next CLIP interface */
 };
 

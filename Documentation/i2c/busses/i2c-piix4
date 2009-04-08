@@ -4,7 +4,7 @@ Supported adapters:
   * Intel 82371AB PIIX4 and PIIX4E
   * Intel 82443MX (440MX)
     Datasheet: Publicly available at the Intel website
-  * ServerWorks OSB4, CSB5, CSB6 and HT-1000 southbridges
+  * ServerWorks OSB4, CSB5, CSB6, HT-1000 and HT-1100 southbridges
     Datasheet: Only available via NDA from ServerWorks
   * ATI IXP200, IXP300, IXP400, SB600, SB700 and SB800 southbridges
     Datasheet: Not publicly available

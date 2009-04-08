@@ -59,7 +59,7 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 		retval = (ctx.status == -ENOENT ? -ETIMEDOUT : ctx.status);
 
 		dev_dbg(&urb->dev->dev,
-			"%s timed out on ep%d%s len=%d/%d\n",
+			"%s timed out on ep%d%s len=%u/%u\n",
 			current->comm,
 			usb_endpoint_num(&urb->ep->desc),
 			usb_urb_dir_in(urb) ? "in" : "out",
@@ -653,7 +653,7 @@ int usb_get_descriptor(struct usb_device *dev, unsigned char type,
 		if (result <= 0 && result != -ETIMEDOUT)
 			continue;
 		if (result > 1 && ((u8 *)buf)[1] != type) {
-			result = -EPROTO;
+			result = -ENODATA;
 			continue;
 		}
 		break;
@@ -696,8 +696,13 @@ static int usb_get_string(struct usb_device *dev, unsigned short langid,
 			USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
 			(USB_DT_STRING << 8) + index, langid, buf, size,
 			USB_CTRL_GET_TIMEOUT);
-		if (!(result == 0 || result == -EPIPE))
-			break;
+		if (result == 0 || result == -EPIPE)
+			continue;
+		if (result > 1 && ((u8 *) buf)[1] != USB_DT_STRING) {
+			result = -ENODATA;
+			continue;
+		}
+		break;
 	}
 	return result;
 }
@@ -799,18 +804,16 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 			dev_err(&dev->dev,
 				"string descriptor 0 read error: %d\n",
 				err);
-			goto errout;
 		} else if (err < 4) {
 			dev_err(&dev->dev, "string descriptor 0 too short\n");
-			err = -EINVAL;
-			goto errout;
 		} else {
-			dev->have_langid = 1;
 			dev->string_langid = tbuf[2] | (tbuf[3] << 8);
 			/* always use the first langid listed */
 			dev_dbg(&dev->dev, "default language 0x%04x\n",
 				dev->string_langid);
 		}
+
+		dev->have_langid = 1;
 	}
 
 	err = usb_string_sub(dev, dev->string_langid, index, tbuf);
@@ -1714,7 +1717,8 @@ free_interfaces:
 	}
 	kfree(new_interfaces);
 
-	if (cp->string == NULL)
+	if (cp->string == NULL &&
+			!(dev->quirks & USB_QUIRK_CONFIG_INTF_STRINGS))
 		cp->string = usb_cache_string(dev, cp->desc.iConfiguration);
 
 	/* Now that all the interfaces are set up, register them

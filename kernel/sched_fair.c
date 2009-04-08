@@ -1191,14 +1191,19 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	    int idx, unsigned long load, unsigned long this_load,
 	    unsigned int imbalance)
 {
+	struct task_struct *curr = this_rq->curr;
+	struct task_group *tg;
 	unsigned long tl = this_load;
 	unsigned long tl_per_task;
-	struct task_group *tg;
 	unsigned long weight;
 	int balanced;
 
 	if (!(this_sd->flags & SD_WAKE_AFFINE) || !sched_feat(AFFINE_WAKEUPS))
 		return 0;
+
+	if (sync && (curr->se.avg_overlap > sysctl_sched_migration_cost ||
+			p->se.avg_overlap > sysctl_sched_migration_cost))
+		sync = 0;
 
 	/*
 	 * If sync wakeup then subtract the (maximum possible)
@@ -1309,16 +1314,63 @@ out:
 }
 #endif /* CONFIG_SMP */
 
-static unsigned long wakeup_gran(struct sched_entity *se)
+/*
+ * Adaptive granularity
+ *
+ * se->avg_wakeup gives the average time a task runs until it does a wakeup,
+ * with the limit of wakeup_gran -- when it never does a wakeup.
+ *
+ * So the smaller avg_wakeup is the faster we want this task to preempt,
+ * but we don't want to treat the preemptee unfairly and therefore allow it
+ * to run for at least the amount of time we'd like to run.
+ *
+ * NOTE: we use 2*avg_wakeup to increase the probability of actually doing one
+ *
+ * NOTE: we use *nr_running to scale with load, this nicely matches the
+ *       degrading latency on load.
+ */
+static unsigned long
+adaptive_gran(struct sched_entity *curr, struct sched_entity *se)
+{
+	u64 this_run = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
+	u64 expected_wakeup = 2*se->avg_wakeup * cfs_rq_of(se)->nr_running;
+	u64 gran = 0;
+
+	if (this_run < expected_wakeup)
+		gran = expected_wakeup - this_run;
+
+	return min_t(s64, gran, sysctl_sched_wakeup_granularity);
+}
+
+static unsigned long
+wakeup_gran(struct sched_entity *curr, struct sched_entity *se)
 {
 	unsigned long gran = sysctl_sched_wakeup_granularity;
 
+	if (cfs_rq_of(curr)->curr && sched_feat(ADAPTIVE_GRAN))
+		gran = adaptive_gran(curr, se);
+
 	/*
-	 * More easily preempt - nice tasks, while not making it harder for
-	 * + nice tasks.
+	 * Since its curr running now, convert the gran from real-time
+	 * to virtual-time in his units.
 	 */
-	if (!sched_feat(ASYM_GRAN) || se->load.weight > NICE_0_LOAD)
-		gran = calc_delta_fair(sysctl_sched_wakeup_granularity, se);
+	if (sched_feat(ASYM_GRAN)) {
+		/*
+		 * By using 'se' instead of 'curr' we penalize light tasks, so
+		 * they get preempted easier. That is, if 'se' < 'curr' then
+		 * the resulting gran will be larger, therefore penalizing the
+		 * lighter, if otoh 'se' > 'curr' then the resulting gran will
+		 * be smaller, again penalizing the lighter task.
+		 *
+		 * This is especially important for buddies when the leftmost
+		 * task is higher priority than the buddy.
+		 */
+		if (unlikely(se->load.weight != NICE_0_LOAD))
+			gran = calc_delta_fair(gran, se);
+	} else {
+		if (unlikely(curr->load.weight != NICE_0_LOAD))
+			gran = calc_delta_fair(gran, curr);
+	}
 
 	return gran;
 }
@@ -1345,7 +1397,7 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 	if (vdiff <= 0)
 		return -1;
 
-	gran = wakeup_gran(curr);
+	gran = wakeup_gran(curr, se);
 	if (vdiff > gran)
 		return 1;
 
@@ -1426,7 +1478,9 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 	if (!sched_feat(WAKEUP_PREEMPT))
 		return;
 
-	if (sched_feat(WAKEUP_OVERLAP) && sync) {
+	if (sched_feat(WAKEUP_OVERLAP) && (sync ||
+			(se->avg_overlap < sysctl_sched_migration_cost &&
+			 pse->avg_overlap < sysctl_sched_migration_cost))) {
 		resched_task(curr);
 		return;
 	}

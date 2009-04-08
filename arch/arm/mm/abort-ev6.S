@@ -23,15 +23,16 @@ ENTRY(v6_early_abort)
 #ifdef CONFIG_CPU_32v6K
 	clrex
 #else
-	strex	r0, r1, [sp]			@ Clear the exclusive monitor
+	sub	r1, sp, #4			@ Get unused stack location
+	strex	r0, r1, [r1]			@ Clear the exclusive monitor
 #endif
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
 /*
- * Faulty SWP instruction on 1136 doesn't set bit 11 in DFSR.
+ * Faulty SWP instruction on 1136 doesn't set bit 11 in DFSR (erratum 326103).
  * The test below covers all the write situations, including Java bytecodes
  */
-	bic	r1, r1, #1 << 11 | 1 << 10	@ clear bits 11 and 10 of FSR
+	bic	r1, r1, #1 << 11		@ clear bit 11 of FSR
 	tst	r3, #PSR_J_BIT			@ Java?
 	movne	pc, lr
 	do_thumb_abort

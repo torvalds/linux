@@ -44,11 +44,13 @@ parameter is applicable:
 	FB	The frame buffer device is enabled.
 	HW	Appropriate hardware is enabled.
 	IA-64	IA-64 architecture is enabled.
+	IMA     Integrity measurement architecture is enabled.
 	IOSCHED	More than one I/O scheduler is enabled.
 	IP_PNP	IP DHCP, BOOTP, or RARP is enabled.
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
+	KMEMTRACE kmemtrace is enabled.
 	LIBATA  Libata driver is enabled
 	LP	Printer support is enabled.
 	LOOP	Loopback device support is enabled.
@@ -114,7 +116,7 @@ In addition, the following text indicates that the option:
 Parameters denoted with BOOT are actually interpreted by the boot
 loader, and have no meaning to the kernel directly.
 Do not modify the syntax of boot loader parameters without extreme
-need or coordination with <Documentation/x86/i386/boot.txt>.
+need or coordination with <Documentation/x86/boot.txt>.
 
 There are also arch-specific kernel-parameters not documented here.
 See for example <Documentation/x86/x86_64/boot-options.txt>.
@@ -134,7 +136,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	acpi=		[HW,ACPI,X86-64,i386]
 			Advanced Configuration and Power Interface
-			Format: { force | off | ht | strict | noirq }
+			Format: { force | off | ht | strict | noirq | rsdt }
 			force -- enable ACPI if default was off
 			off -- disable ACPI if default was on
 			noirq -- do not use ACPI for IRQ routing
@@ -151,71 +153,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			1,0: use 1st APIC table
 			default: 0
 
-	acpi_sleep=	[HW,ACPI] Sleep options
-			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig,
-				  old_ordering, s4_nonvs }
-			See Documentation/power/video.txt for information on
-			s3_bios and s3_mode.
-			s3_beep is for debugging; it makes the PC's speaker beep
-			as soon as the kernel's real-mode entry point is called.
-			s4_nohwsig prevents ACPI hardware signature from being
-			used during resume from hibernation.
-			old_ordering causes the ACPI 1.0 ordering of the _PTS
-			control method, with respect to putting devices into
-			low power states, to be enforced (the ACPI 2.0 ordering
-			of _PTS is used by default).
-			s4_nonvs prevents the kernel from saving/restoring the
-			ACPI NVS memory during hibernation.
-
-	acpi_sci=	[HW,ACPI] ACPI System Control Interrupt trigger mode
-			Format: { level | edge | high | low }
-
-	acpi_irq_balance [HW,ACPI]
-			ACPI will balance active IRQs
-			default in APIC mode
-
-	acpi_irq_nobalance [HW,ACPI]
-			ACPI will not move active IRQs (default)
-			default in PIC mode
-
-	acpi_irq_pci=	[HW,ACPI] If irq_balance, clear listed IRQs for
-			use by PCI
-			Format: <irq>,<irq>...
-
-	acpi_irq_isa=	[HW,ACPI] If irq_balance, mark listed IRQs used by ISA
-			Format: <irq>,<irq>...
-
-	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
-
-	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
-			Format: To spoof as Windows 98: ="Microsoft Windows"
-
-	acpi_osi=	[HW,ACPI] Modify list of supported OS interface strings
-			acpi_osi="string1"	# add string1 -- only one string
-			acpi_osi="!string2"	# remove built-in string2
-			acpi_osi=		# disable all strings
-
-	acpi_serialize	[HW,ACPI] force serialization of AML methods
-
-	acpi_skip_timer_override [HW,ACPI]
-			Recognize and ignore IRQ0/pin2 Interrupt Override.
-			For broken nForce2 BIOS resulting in XT-PIC timer.
-	acpi_use_timer_override [HW,ACPI]
-			Use timer override. For some broken Nvidia NF5 boards
-			that require a timer override, but don't have
-			HPET
-
 	acpi_backlight=	[HW,ACPI]
 			acpi_backlight=vendor
 			acpi_backlight=video
 			If set to vendor, prefer vendor specific driver
 			(e.g. thinkpad_acpi, sony_acpi, etc.) instead
 			of the ACPI video.ko driver.
-
-	acpi_display_output=	[HW,ACPI]
-			acpi_display_output=vendor
-			acpi_display_output=video
-			See above.
 
 	acpi.debug_layer=	[HW,ACPI,ACPI_DEBUG]
 	acpi.debug_level=	[HW,ACPI,ACPI_DEBUG]
@@ -245,6 +188,41 @@ and is between 256 and 4096 characters. It is defined in the file
 			unusable.  The "log_buf_len" parameter may be useful
 			if you need to capture more output.
 
+	acpi_display_output=	[HW,ACPI]
+			acpi_display_output=vendor
+			acpi_display_output=video
+			See above.
+
+	acpi_irq_balance [HW,ACPI]
+			ACPI will balance active IRQs
+			default in APIC mode
+
+	acpi_irq_nobalance [HW,ACPI]
+			ACPI will not move active IRQs (default)
+			default in PIC mode
+
+	acpi_irq_isa=	[HW,ACPI] If irq_balance, mark listed IRQs used by ISA
+			Format: <irq>,<irq>...
+
+	acpi_irq_pci=	[HW,ACPI] If irq_balance, clear listed IRQs for
+			use by PCI
+			Format: <irq>,<irq>...
+
+	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
+
+	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
+			Format: To spoof as Windows 98: ="Microsoft Windows"
+
+	acpi_osi=	[HW,ACPI] Modify list of supported OS interface strings
+			acpi_osi="string1"	# add string1 -- only one string
+			acpi_osi="!string2"	# remove built-in string2
+			acpi_osi=		# disable all strings
+
+	acpi_pm_good	[X86-32,X86-64]
+			Override the pmtimer bug detection: force the kernel
+			to assume that this machine's pmtimer latches its value
+			and always returns good values.
+
  	acpi.power_nocheck=	[HW,ACPI]
  			Format: 1/0 enable/disable the check of power state.
  			On some bogus BIOS the _PSC object/_STA object of
@@ -253,26 +231,21 @@ and is between 256 and 4096 characters. It is defined in the file
  			power state again in power transition.
  			1 : disable the power state check
 
-	acpi_pm_good	[X86-32,X86-64]
-			Override the pmtimer bug detection: force the kernel
-			to assume that this machine's pmtimer latches its value
-			and always returns good values.
-
-	agp=		[AGP]
-			{ off | try_unsupported }
-			off: disable AGP support
-			try_unsupported: try to drive unsupported chipsets
-				(may crash computer or cause data corruption)
-
-	enable_timer_pin_1 [i386,x86-64]
-			Enable PIN 1 of APIC timer
-			Can be useful to work around chipset bugs
-			(in particular on some ATI chipsets).
-			The kernel tries to set a reasonable default.
-
-	disable_timer_pin_1 [i386,x86-64]
-			Disable PIN 1 of APIC timer
-			Can be useful to work around chipset bugs.
+	acpi_enforce_resources=	[ACPI]
+			{ strict | lax | no }
+			Check for resource conflicts between native drivers
+			and ACPI OperationRegions (SystemIO and SystemMemory
+			only). IO ports and memory declared in ACPI might be
+			used by the ACPI subsystem in arbitrary AML code and
+			can interfere with legacy drivers.
+			strict (default): access to resources claimed by ACPI
+			is denied; legacy drivers trying to access reserved
+			resources will fail to bind to device using them.
+			lax: access to resources claimed by ACPI is allowed;
+			legacy drivers trying to access reserved resources
+			will bind successfully but a warning message is logged.
+			no: ACPI OperationRegions are not marked as reserved,
+			no further checks are performed.
 
 	ad1848=		[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>,<type>
@@ -286,6 +259,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	aedsp16=	[HW,OSS] Audio Excel DSP 16
 			Format: <io>,<irq>,<dma>,<mss_io>,<mpu_io>,<mpu_irq>
 			See also header of sound/oss/aedsp16.c.
+
+	agp=		[AGP]
+			{ off | try_unsupported }
+			off: disable AGP support
+			try_unsupported: try to drive unsupported chipsets
+				(may crash computer or cause data corruption)
 
 	aha152x=	[HW,SCSI]
 			See Documentation/scsi/aha152x.txt.
@@ -414,12 +393,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			possible to determine what the correct size should be.
 			This option provides an override for these situations.
 
-	security=	[SECURITY] Choose a security module to enable at boot.
-			If this boot parameter is not specified, only the first
-			security module asking for security registration will be
-			loaded. An invalid security module name will be treated
-			as if no module has been chosen.
-
 	capability.disable=
 			[SECURITY] Disable capabilities.  This would normally
 			be used only if an alternative security model is to be
@@ -491,12 +464,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Range: 0 - 8192
 			Default: 64
 
-	hpet=		[X86-32,HPET] option to control HPET usage
-			Format: { enable (default) | disable | force }
-			disable: disable HPET and use PIT instead
-			force: allow force enabled of undocumented chips (ICH4,
-			VIA, nVidia)
-
 	com20020=	[HW,NET] ARCnet - COM20020 chipset
 			Format:
 			<io>[,<irq>[,<nodeID>[,<backplane>[,<ckp>[,<timeout>]]]]]
@@ -539,23 +506,6 @@ and is between 256 and 4096 characters. It is defined in the file
                 device, prepend "brl," before the device type, for instance
 			console=brl,ttyS0
 		For now, only VisioBraille is supported.
-
-	earlycon=	[KNL] Output early console device and options.
-		uart[8250],io,<addr>[,options]
-		uart[8250],mmio,<addr>[,options]
-			Start an early, polled-mode console on the 8250/16550
-			UART at the specified I/O port or MMIO address.
-			The options are the same as for ttyS, above.
-
-	no_console_suspend
-			[HW] Never suspend the console
-			Disable suspending of consoles during suspend and
-			hibernate operations.  Once disabled, debugging
-			messages can reach various consoles while the rest
-			of the system is being put to sleep (ie, while
-			debugging driver suspend/resume hooks).  This may
-			not work reliably with all consoles, but is known
-			to work with serial and VGA consoles.
 
 	coredump_filter=
 			[KNL] Change the default value for
@@ -604,36 +554,22 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	debug_objects	[KNL] Enable object debugging
 
+	no_debug_objects
+			[KNL] Disable object debugging
+
 	debugpat	[X86] Enable PAT debugging
 
 	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.
 
-	vt.default_blu=	[VT]
-			Format: <blue0>,<blue1>,<blue2>,...,<blue15>
-			Change the default blue palette of the console.
-			This is a 16-member array composed of values
-			ranging from 0-255.
-
-	vt.default_grn=	[VT]
-			Format: <green0>,<green1>,<green2>,...,<green15>
-			Change the default green palette of the console.
-			This is a 16-member array composed of values
-			ranging from 0-255.
-
-	vt.default_red=	[VT]
-			Format: <red0>,<red1>,<red2>,...,<red15>
-			Change the default red palette of the console.
-			This is a 16-member array composed of values
-			ranging from 0-255.
-
-	vt.default_utf8=
-			[VT]
-			Format=<0|1>
-			Set system-wide default UTF-8 mode for all tty's.
-			Default is 1, i.e. UTF-8 mode is enabled for all
-			newly opened terminals.
+	default_hugepagesz=
+			[same as hugepagesz=] The size of the default
+			HugeTLB page size. This is the size represented by
+			the legacy /proc/ hugepages APIs, used for SHM, and
+			default size when mounting hugetlbfs filesystems.
+			Defaults to the default architecture's huge page size
+			if not specified.
 
 	dhash_entries=	[KNL]
 			Set number of hash buckets for dentry cache.
@@ -646,27 +582,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			Documentation/serial/digiepca.txt.
 
 	disable_mtrr_cleanup [X86]
-	enable_mtrr_cleanup [X86]
 			The kernel tries to adjust MTRR layout from continuous
 			to discrete, to make X server driver able to add WB
-			entry later. This parameter enables/disables that.
-
-	mtrr_chunk_size=nn[KMG] [X86]
-			used for mtrr cleanup. It is largest continous chunk
-			that could hold holes aka. UC entries.
-
-	mtrr_gran_size=nn[KMG] [X86]
-			Used for mtrr cleanup. It is granularity of mtrr block.
-			Default is 1.
-			Large value could prevent small alignment from
-			using up MTRRs.
-
-	mtrr_spare_reg_nr=n [X86]
-			Format: <integer>
-			Range: 0,7 : spare reg number
-			Default : 1
-			Used for mtrr cleanup. It is spare mtrr entries number.
-			Set to 2 or more if your graphical card needs more.
+			entry later. This parameter disables that.
 
 	disable_mtrr_trim [X86, Intel and AMD only]
 			By default the kernel will trim any uncacheable
@@ -674,11 +592,37 @@ and is between 256 and 4096 characters. It is defined in the file
 			MTRR settings.  This parameter disables that behavior,
 			possibly causing your machine to run very slowly.
 
+	disable_timer_pin_1 [i386,x86-64]
+			Disable PIN 1 of APIC timer
+			Can be useful to work around chipset bugs.
+
 	dmasound=	[HW,OSS] Sound subsystem buffers
+
+	dma_debug=off	If the kernel is compiled with DMA_API_DEBUG support,
+			this option disables the debugging code at boot.
+
+	dma_debug_entries=<number>
+			This option allows to tune the number of preallocated
+			entries for DMA-API debugging code. One entry is
+			required per DMA-API allocation. Use this if the
+			DMA-API debugging code disables itself because the
+			architectural default is too low.
 
 	dscc4.setup=	[NET]
 
 	dtc3181e=	[HW,SCSI]
+
+	dynamic_printk	Enables pr_debug()/dev_dbg() calls if
+			CONFIG_DYNAMIC_PRINTK_DEBUG has been enabled.
+			These can also be switched on/off via
+			<debugfs>/dynamic_printk/modules
+
+	earlycon=	[KNL] Output early console device and options.
+		uart[8250],io,<addr>[,options]
+		uart[8250],mmio,<addr>[,options]
+			Start an early, polled-mode console on the 8250/16550
+			UART at the specified I/O port or MMIO address.
+			The options are the same as for ttyS, above.
 
 	earlyprintk=	[X86-32,X86-64,SH,BLACKFIN]
 			earlyprintk=vga
@@ -720,6 +664,17 @@ and is between 256 and 4096 characters. It is defined in the file
 			image elf header. Generally kexec loader will
 			pass this option to capture kernel.
 			See Documentation/kdump/kdump.txt for details.
+
+	enable_mtrr_cleanup [X86]
+			The kernel tries to adjust MTRR layout from continuous
+			to discrete, to make X server driver able to add WB
+			entry later. This parameter enables that.
+
+	enable_timer_pin_1 [i386,x86-64]
+			Enable PIN 1 of APIC timer
+			Can be useful to work around chipset bugs
+			(in particular on some ATI chipsets).
+			The kernel tries to set a reasonable default.
 
 	enforcing	[SELINUX] Set initial enforcing status.
 			Format: {"0" | "1"}
@@ -808,6 +763,16 @@ and is between 256 and 4096 characters. It is defined in the file
 	hisax=		[HW,ISDN]
 			See Documentation/isdn/README.HiSax.
 
+	hlt		[BUGS=ARM,SH]
+
+	hpet=		[X86-32,HPET] option to control HPET usage
+			Format: { enable (default) | disable | force |
+				verbose }
+			disable: disable HPET and use PIT instead
+			force: allow force enabled of undocumented chips (ICH4,
+				VIA, nVidia)
+			verbose: show contents of HPET registers during setup
+
 	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
 	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
 			On x86-64 and powerpc, this option can be specified
@@ -817,18 +782,18 @@ and is between 256 and 4096 characters. It is defined in the file
 			(when the CPU supports the "pdpe1gb" cpuinfo flag)
 			Note that 1GB pages can only be allocated at boot time
 			using hugepages= and not freed afterwards.
-	default_hugepagesz=
-			[same as hugepagesz=] The size of the default
-			HugeTLB page size. This is the size represented by
-			the legacy /proc/ hugepages APIs, used for SHM, and
-			default size when mounting hugetlbfs filesystems.
-			Defaults to the default architecture's huge page size
-			if not specified.
-
-	hlt		[BUGS=ARM,SH]
 
 	hvc_iucv=	[S390] Number of z/VM IUCV hypervisor console (HVC)
 			       terminal devices. Valid values: 0..8
+	hvc_iucv_allow=	[S390] Comma-separated list of z/VM user IDs.
+			       If specified, z/VM IUCV HVC accepts connections
+			       from listed z/VM user IDs only.
+
+	i2c_bus=	[HW] Override the default board specific I2C bus speed
+			     or register an additional I2C bus that is not
+			     registered from board initialization code.
+			     Format:
+			     <bus_id>,<clkrate>
 
 	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode
@@ -868,12 +833,17 @@ and is between 256 and 4096 characters. It is defined in the file
 	icn=		[HW,ISDN]
 			Format: <io>[,<membase>[,<icn_id>[,<icn_id2>]]]
 
-	ide=		[HW] (E)IDE subsystem
-			Format: ide=nodma or ide=doubler
+	ide-core.nodma=	[HW] (E)IDE subsystem
+			Format: =0.0 to prevent dma on hda, =0.1 hdb =1.0 hdc
+			.vlb_clock .pci_clock .noflush .noprobe .nowerr .cdrom
+			.chs .ignore_cable are additional options
 			See Documentation/ide/ide.txt.
 
 	idebus=		[HW] (E)IDE subsystem - VLB/PCI bus speed
 			See Documentation/ide/ide.txt.
+
+	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
+			Claim all unknown PCI IDE storage controllers.
 
 	idle=		[X86]
 			Format: idle=poll, idle=mwait, idle=halt, idle=nomwait
@@ -890,15 +860,21 @@ and is between 256 and 4096 characters. It is defined in the file
 			In such case C2/C3 won't be used again.
 			idle=nomwait: Disable mwait for CPU C-states
 
-	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
-			Claim all unknown PCI IDE storage controllers.
-
 	ignore_loglevel	[KNL]
 			Ignore loglevel setting - this will print /all/
 			kernel messages to the console. Useful for debugging.
 
 	ihash_entries=	[KNL]
 			Set number of hash buckets for inode cache.
+
+	ima_audit=	[IMA]
+			Format: { "0" | "1" }
+			0 -- integrity auditing messages. (Default)
+			1 -- enable informational integrity auditing messages.
+
+	ima_hash=	[IMA]
+			Formt: { "sha1" | "md5" }
+			default: "sha1"
 
 	in2000=		[HW,SCSI]
 			See header of drivers/scsi/in2000.c.
@@ -917,26 +893,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	inport.irq=	[HW] Inport (ATI XL and Microsoft) busmouse driver
 			Format: <irq>
 
-	inttest=	[IA64]
-
-	iomem=		Disable strict checking of access to MMIO memory
-		strict	regions from userspace.
-		relaxed
-
-	iommu=		[x86]
-		off
-		force
-		noforce
-		biomerge
-		panic
-		nopanic
-		merge
-		nomerge
-		forcesac
-		soft
-
-
 	intel_iommu=	[DMAR] Intel IOMMU driver (DMAR) option
+		on
+			Enable intel iommu driver.
 		off
 			Disable intel iommu driver.
 		igfx_off [Default Off]
@@ -957,6 +916,28 @@ and is between 256 and 4096 characters. It is defined in the file
 			result in a hardware IOTLB flush operation as opposed
 			to batching them for performance.
 
+	inttest=	[IA64]
+
+	iomem=		Disable strict checking of access to MMIO memory
+		strict	regions from userspace.
+		relaxed
+
+	iommu=		[x86]
+		off
+		force
+		noforce
+		biomerge
+		panic
+		nopanic
+		merge
+		nomerge
+		forcesac
+		soft
+
+	io7=		[HW] IO7 for Marvel based alpha systems
+			See comment before marvel_specify_io7 in
+			arch/alpha/kernel/core_marvel.c.
+
 	io_delay=	[X86-32,X86-64] I/O delay method
 		0x80
 			Standard port 0x80 based delay
@@ -967,10 +948,6 @@ and is between 256 and 4096 characters. It is defined in the file
 		none
 			No delay
 
-	io7=		[HW] IO7 for Marvel based alpha systems
-			See comment before marvel_specify_io7 in
-			arch/alpha/kernel/core_marvel.c.
-
 	ip=		[IP_PNP]
 			See Documentation/filesystems/nfsroot.txt.
 
@@ -980,12 +957,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	ips=		[HW,SCSI] Adaptec / IBM ServeRAID controller
 			See header of drivers/scsi/ips.c.
-
-	ports=		[IP_VS_FTP] IPVS ftp helper module
-			Default is 21.
-			Up to 8 (IP_VS_APP_MAX_PORTS) ports
-			may be specified.
-			Format: <port>,<port>....
 
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
@@ -1027,6 +998,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	js=		[HW,JOY] Analog joystick
 			See Documentation/input/joystick.txt.
 
+	keepinitrd	[HW,ARM]
+
 	kernelcore=nn[KMG]	[KNL,X86-32,IA-64,PPC,X86-64] This parameter
 			specifies the amount of memory usable by the kernel
 			for non-movable allocations.  The requested amount is
@@ -1043,20 +1016,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			use the HighMem zone if it exists, and the Normal
 			zone if it does not.
 
-	movablecore=nn[KMG]	[KNL,X86-32,IA-64,PPC,X86-64] This parameter
-			is similar to kernelcore except it specifies the
-			amount of memory used for migratable allocations.
-			If both kernelcore and movablecore is specified,
-			then kernelcore will be at *least* the specified
-			value but may be more. If movablecore on its own
-			is specified, the administrator must be careful
-			that the amount of memory usable for all allocations
-			is not too small.
+	kmemtrace.enable=	[KNL,KMEMTRACE] Format: { yes | no }
+				Controls whether kmemtrace is enabled
+				at boot-time.
 
-	keepinitrd	[HW,ARM]
-
-	kstack=N	[X86-32,X86-64] Print N words from the kernel stack
-			in oops dumps.
+	kmemtrace.subbufs=n	[KNL,KMEMTRACE] Overrides the number of
+			subbufs kmemtrace's relay channel has. Set this
+			higher than default (KMEMTRACE_N_SUBBUFS in code) if
+			you experience buffer overruns.
 
 	kgdboc=		[HW] kgdb over consoles.
 			Requires a tty driver that supports console polling.
@@ -1066,6 +1033,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	kmac=		[MIPS] korina ethernet MAC address.
 			Configure the RouterBoard 532 series on-chip
 			Ethernet adapter MAC address.
+
+	kstack=N	[X86-32,X86-64] Print N words from the kernel stack
+			in oops dumps.
 
 	l2cr=		[PPC]
 
@@ -1212,9 +1182,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			(machvec) in a generic kernel.
 			Example: machvec=hpzx1_swiotlb
 
-	max_loop=	[LOOP] Maximum number of loopback devices that can
-			be mounted
-			Format: <1-256>
+	max_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory greater
+			than or equal to this physical address is ignored.
 
 	maxcpus=	[SMP] Maximum number of processors that	an SMP kernel
 			should make use of.  maxcpus=n : n >= 0 limits the
@@ -1222,8 +1191,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			it is equivalent to "nosmp", which also disables
 			the IO APIC.
 
-	max_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory greater than
-			or equal to this physical address is ignored.
+	max_loop=	[LOOP] Maximum number of loopback devices that can
+			be mounted
+			Format: <1-256>
 
 	max_luns=	[SCSI] Maximum number of LUNs to probe.
 			Should be between 1 and 2^32-1.
@@ -1306,8 +1276,13 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	memtest=	[KNL,X86] Enable memtest
 			Format: <integer>
-			range: 0,4 : pattern number
 			default : 0 <disable>
+			Specifies the number of memtest passes to be
+			performed. Each pass selects another test
+			pattern from a given set of patterns. Memtest
+			fills the memory with this pattern, validates
+			memory contents and reserves bad memory
+			regions that are detected.
 
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/video4linux/meye.txt.
@@ -1345,6 +1320,16 @@ and is between 256 and 4096 characters. It is defined in the file
 	mousedev.yres=	[MOUSE] Vertical screen resolution, used for devices
 			reporting absolute coordinates, such as tablets
 
+	movablecore=nn[KMG]	[KNL,X86-32,IA-64,PPC,X86-64] This parameter
+			is similar to kernelcore except it specifies the
+			amount of memory used for migratable allocations.
+			If both kernelcore and movablecore is specified,
+			then kernelcore will be at *least* the specified
+			value but may be more. If movablecore on its own
+			is specified, the administrator must be careful
+			that the amount of memory usable for all allocations
+			is not too small.
+
 	mpu401=		[HW,OSS]
 			Format: <io>,<irq>
 
@@ -1365,6 +1350,23 @@ and is between 256 and 4096 characters. It is defined in the file
 	mtouchusb.raw_coordinates=
 			[HW] Make the MicroTouch USB driver use raw coordinates
 			('y', default) or cooked coordinates ('n')
+
+	mtrr_chunk_size=nn[KMG] [X86]
+			used for mtrr cleanup. It is largest continous chunk
+			that could hold holes aka. UC entries.
+
+	mtrr_gran_size=nn[KMG] [X86]
+			Used for mtrr cleanup. It is granularity of mtrr block.
+			Default is 1.
+			Large value could prevent small alignment from
+			using up MTRRs.
+
+	mtrr_spare_reg_nr=n [X86]
+			Format: <integer>
+			Range: 0,7 : spare reg number
+			Default : 1
+			Used for mtrr cleanup. It is spare mtrr entries number.
+			Set to 2 or more if your graphical card needs more.
 
 	n2=		[NET] SDL Inc. RISCom/N2 synchronous serial card
 
@@ -1426,11 +1428,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			0 - turn nmi_watchdog off
 			1 - use the IO-APIC timer for the NMI watchdog
 			2 - use the local APIC for the NMI watchdog using
-			a performance counter. Note: This will use one performance
-			counter and the local APIC's performance vector.
-			When panic is specified panic when an NMI watchdog timeout occurs.
-			This is useful when you use a panic=... timeout and need the box
-			quickly up again.
+			a performance counter. Note: This will use one
+			performance counter and the local APIC's performance
+			vector.
+			When panic is specified, panic when an NMI watchdog
+			timeout occurs.
+			This is useful when you use a panic=... timeout and
+			need the box quickly up again.
 			Instead of 1 and 2 it is possible to use the following
 			symbolic names: lapic and ioapic
 			Example: nmi_watchdog=2 or nmi_watchdog=panic,lapic
@@ -1438,6 +1442,16 @@ and is between 256 and 4096 characters. It is defined in the file
 	no387		[BUGS=X86-32] Tells the kernel to use the 387 maths
 			emulation library even if a 387 maths coprocessor
 			is present.
+
+	no_console_suspend
+			[HW] Never suspend the console
+			Disable suspending of consoles during suspend and
+			hibernate operations.  Once disabled, debugging
+			messages can reach various consoles while the rest
+			of the system is being put to sleep (ie, while
+			debugging driver suspend/resume hooks).  This may
+			not work reliably with all consoles, but is known
+			to work with serial and VGA consoles.
 
 	noaliencache	[MM, NUMA, SLAB] Disables the allocation of alien
 			caches in the slab allocator.  Saves per-node memory,
@@ -1452,6 +1466,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			on "Classic" PPC cores.
 
 	nocache		[ARM]
+
+	noclflush	[BUGS=X86] Don't use the CLFLUSH instruction
 
 	nodelayacct	[KNL] Disable per-task delay accounting
 
@@ -1481,9 +1497,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
-	noclflush	[BUGS=X86] Don't use the CLFLUSH instruction
-
-	nohlt		[BUGS=ARM,SH]
+	nohlt		[BUGS=ARM,SH] Tells the kernel that the sleep(SH) or
+			wfi(ARM) instruction doesn't work correctly and not to
+			use it. This is also useful when using JTAG debugger.
 
 	no-hlt		[BUGS=X86-32] Tells the kernel that the hlt
 			instruction doesn't work correctly and not to
@@ -1504,6 +1520,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			Valid arguments: on, off
 			Default: on
 
+	noiotrap	[SH] Disables trapped I/O port accesses.
+
 	noirqdebug	[X86-32] Disables the code which attempts to detect and
 			disable unhandled interrupt sources.
 
@@ -1523,12 +1541,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
 
-	nox2apic	[X86-64,APIC] Do not enable x2APIC mode.
-
-	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
-			default x2apic cluster mode on platforms
-			supporting x2apic.
-
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.
 
@@ -1538,6 +1550,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nomfgpt		[X86-32] Disable Multi-Function General Purpose
 			Timer usage (for AMD Geode machines).
+
+	norandmaps	Don't use address space randomization.  Equivalent to
+			echo 0 > /proc/sys/kernel/randomize_va_space
 
 	noreplace-paravirt	[X86-32,PV_OPS] Don't patch paravirt_ops
 
@@ -1563,7 +1578,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	nosoftlockup	[KNL] Disable the soft-lockup detector.
 
 	noswapaccount	[KNL] Disable accounting of swap in memory resource
-			controller. (See Documentation/controllers/memory.txt)
+			controller. (See Documentation/cgroups/memory.txt)
 
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
@@ -1577,12 +1592,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			purges which is reported from either PAL_VM_SUMMARY or
 			SAL PALO.
 
+	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
+
 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
 			one of ['zone', 'node', 'default'] can be specified
 			This can be set from sysctl after boot.
 			See Documentation/sysctl/vm.txt for details.
-
-	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
 	ohci1394_dma=early	[HW] enable debugging via the ohci1394 driver.
 			See Documentation/debugging-via-ohci1394.txt for more
@@ -1655,6 +1670,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			See also Documentation/blockdev/paride.txt.
 
 	pci=option[,option...]	[PCI] various PCI subsystem options:
+		earlydump	[X86] dump PCI config space before the kernel
+			        changes anything
 		off		[X86] don't probe for the PCI bus
 		bios		[X86-32] force use of PCI BIOS, don't access
 				the hardware directly. Use this if your machine
@@ -1754,6 +1771,15 @@ and is between 256 and 4096 characters. It is defined in the file
 		cbmemsize=nn[KMG]	The fixed amount of bus space which is
 				reserved for the CardBus bridge's memory
 				window. The default value is 64 megabytes.
+		resource_alignment=
+				Format:
+				[<order of align>@][<domain>:]<bus>:<slot>.<func>[; ...]
+				Specifies alignment and device to reassign
+				aligned memory resources.
+				If <order of align> is not specified,
+				PAGE_SIZE is used as alignment.
+				PCI-PCI bridge can be specified, if resource
+				windows need to be expanded.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
@@ -1812,11 +1838,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			autoconfiguration.
 			Ranges are in pairs (memory base and size).
 
-	dynamic_printk	Enables pr_debug()/dev_dbg() calls if
-			CONFIG_DYNAMIC_PRINTK_DEBUG has been enabled.
-			These can also be switched on/off via
-			<debugfs>/dynamic_printk/modules
-
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
 			print-fatal-signals=1: print segfault info to
@@ -1826,6 +1847,14 @@ and is between 256 and 4096 characters. It is defined in the file
 	printk.time=	Show timing data prefixed to each printk message line
 			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
 
+	processor.max_cstate=	[HW,ACPI]
+			Limit processor to maximum C-state
+			max_cstate=9 overrides any DMI blacklist limit.
+
+	processor.nocst	[HW,ACPI]
+			Ignore the _CST method to determine C-states,
+			instead using the legacy FADT method
+
 	profile=	[KNL] Enable kernel profiling via /proc/profile
 			Format: [schedule,]<number>
 			Param: "schedule" - profile schedule points.
@@ -1834,14 +1863,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Param: "sleep" - profile D-state sleeping (millisecs).
 				Requires CONFIG_SCHEDSTATS
 			Param: "kvm" - profile VM exits.
-
-	processor.max_cstate=	[HW,ACPI]
-			Limit processor to maximum C-state
-			max_cstate=9 overrides any DMI blacklist limit.
-
-	processor.nocst	[HW,ACPI]
-			Ignore the _CST method to determine C-states,
-			instead using the legacy FADT method
 
 	prompt_ramdisk=	[RAM] List of RAM disks to prompt for floppy disk
 			before loading.
@@ -1907,7 +1928,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
-			See Documentation/cpusets.txt.
+			See Documentation/cgroups/cpusets.txt.
 
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 
@@ -1996,7 +2017,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			allowing boot to proceed.  none ignores them, expecting
 			user space to do the scan.
 
-	selinux		[SELINUX] Disable or enable SELinux at boot time.
+	security=	[SECURITY] Choose a security module to enable at boot.
+			If this boot parameter is not specified, only the first
+			security module asking for security registration will be
+			loaded. An invalid security module name will be treated
+			as if no module has been chosen.
+
+	selinux=	[SELINUX] Disable or enable SELinux at boot time.
 			Format: { "0" | "1" }
 			See security/selinux/Kconfig help text.
 			0 -- disable.
@@ -2004,15 +2031,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default value is set via kernel config option.
 			If enabled at boot time, /selinux/disable can be used
 			later to disable prior to initial policy load.
-
-	selinux_compat_net =
-			[SELINUX] Set initial selinux_compat_net flag value.
-                        Format: { "0" | "1" }
-                        0 -- use new secmark-based packet controls
-                        1 -- use legacy packet controls
-                        Default value is 0 (preferred).
-                        Value can be changed at runtime via
-                        /selinux/compat_net.
 
 	serialnumber	[BUGS=X86-32]
 
@@ -2325,6 +2343,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	tp720=		[HW,PS2]
 
+	trace_buf_size=nn[KMG] [ftrace] will set tracing buffer size.
+
 	trix=		[HW,OSS] MediaTrix AudioTrix Pro
 			Format:
 			<io>,<irq>,<dma>,<dma2>,<sb_io>,<sb_irq>,<sb_dma>,<mpu_io>,<mpu_irq>
@@ -2427,9 +2447,6 @@ and is between 256 and 4096 characters. It is defined in the file
 					medium is write-protected).
 			Example: quirks=0419:aaf5:rl,0421:0433:rc
 
-	add_efi_memmap	[EFI; x86-32,X86-64] Include EFI memory map in
-			kernel's map of available physical RAM.
-
 	vdso=		[X86-32,SH,x86-64]
 			vdso=2: enable compat VDSO (default with COMPAT_VDSO)
 			vdso=1: enable VDSO (default)
@@ -2447,7 +2464,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/fb/modedb.txt.
 
 	vga=		[BOOT,X86-32] Select a particular video mode
-			See Documentation/x86/i386/boot.txt and
+			See Documentation/x86/boot.txt and
 			Documentation/svga.txt.
 			Use vga=ask for menu.
 			This is actually a boot loader parameter; the value is
@@ -2468,6 +2485,31 @@ and is between 256 and 4096 characters. It is defined in the file
 	vmpoff=		[KNL,S390] Perform z/VM CP command after power off.
 			Format: <command>
 
+	vt.default_blu=	[VT]
+			Format: <blue0>,<blue1>,<blue2>,...,<blue15>
+			Change the default blue palette of the console.
+			This is a 16-member array composed of values
+			ranging from 0-255.
+
+	vt.default_grn=	[VT]
+			Format: <green0>,<green1>,<green2>,...,<green15>
+			Change the default green palette of the console.
+			This is a 16-member array composed of values
+			ranging from 0-255.
+
+	vt.default_red=	[VT]
+			Format: <red0>,<red1>,<red2>,...,<red15>
+			Change the default red palette of the console.
+			This is a 16-member array composed of values
+			ranging from 0-255.
+
+	vt.default_utf8=
+			[VT]
+			Format=<0|1>
+			Set system-wide default UTF-8 mode for all tty's.
+			Default is 1, i.e. UTF-8 mode is enabled for all
+			newly opened terminals.
+
 	waveartist=	[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>
 
@@ -2480,15 +2522,16 @@ and is between 256 and 4096 characters. It is defined in the file
 	wdt=		[WDT] Watchdog
 			See Documentation/watchdog/wdt.txt.
 
+	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
+			default x2apic cluster mode on platforms
+			supporting x2apic.
+
 	xd=		[HW,XT] Original XT pre-IDE (RLL encoded) disks.
 	xd_geo=		See header of drivers/block/xd.c.
 
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:
 			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]
-
-	norandmaps	Don't use address space randomization.  Equivalent to
-			echo 0 > /proc/sys/kernel/randomize_va_space
 
 ______________________________________________________________________
 

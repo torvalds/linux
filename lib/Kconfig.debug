@@ -186,6 +186,44 @@ config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
 	default 0 if !BOOTPARAM_SOFTLOCKUP_PANIC
 	default 1 if BOOTPARAM_SOFTLOCKUP_PANIC
 
+config DETECT_HUNG_TASK
+	bool "Detect Hung Tasks"
+	depends on DEBUG_KERNEL
+	default DETECT_SOFTLOCKUP
+	help
+	  Say Y here to enable the kernel to detect "hung tasks",
+	  which are bugs that cause the task to be stuck in
+	  uninterruptible "D" state indefinitiley.
+
+	  When a hung task is detected, the kernel will print the
+	  current stack trace (which you should report), but the
+	  task will stay in uninterruptible state. If lockdep is
+	  enabled then all held locks will also be reported. This
+	  feature has negligible overhead.
+
+config BOOTPARAM_HUNG_TASK_PANIC
+	bool "Panic (Reboot) On Hung Tasks"
+	depends on DETECT_HUNG_TASK
+	help
+	  Say Y here to enable the kernel to panic on "hung tasks",
+	  which are bugs that cause the kernel to leave a task stuck
+	  in uninterruptible "D" state.
+
+	  The panic can be used in combination with panic_timeout,
+	  to cause the system to reboot automatically after a
+	  hung task has been detected. This feature is useful for
+	  high-availability systems that have uptime guarantees and
+	  where a hung tasks must be resolved ASAP.
+
+	  Say N if unsure.
+
+config BOOTPARAM_HUNG_TASK_PANIC_VALUE
+	int
+	depends on DETECT_HUNG_TASK
+	range 0 1
+	default 0 if !BOOTPARAM_HUNG_TASK_PANIC
+	default 1 if BOOTPARAM_HUNG_TASK_PANIC
+
 config SCHED_DEBUG
 	bool "Collect scheduler debugging info"
 	depends on DEBUG_KERNEL && PROC_FS
@@ -402,7 +440,7 @@ config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select STACKTRACE
-	select FRAME_POINTER if !X86 && !MIPS && !PPC
+	select FRAME_POINTER if !X86 && !MIPS && !PPC && !ARM_UNWIND
 	select KALLSYMS
 	select KALLSYMS_ALL
 
@@ -796,6 +834,7 @@ config SYSCTL_SYSCALL_CHECK
 	  to properly maintain and use. This enables checks that help
 	  you to keep things correct.
 
+source mm/Kconfig.debug
 source kernel/trace/Kconfig
 
 config PROVIDE_OHCI1394_DMA_INIT
@@ -838,7 +877,7 @@ config FIREWIRE_OHCI_REMOTE_DMA
 
 	  If unsure, say N.
 
-menuconfig BUILD_DOCSRC
+config BUILD_DOCSRC
 	bool "Build targets in Documentation/ tree"
 	depends on HEADERS_CHECK
 	help
@@ -847,60 +886,81 @@ menuconfig BUILD_DOCSRC
 
 	  Say N if you are unsure.
 
-config DYNAMIC_PRINTK_DEBUG
-	bool "Enable dynamic printk() call support"
+config DYNAMIC_DEBUG
+	bool "Enable dynamic printk() support"
 	default n
 	depends on PRINTK
+	depends on DEBUG_FS
 	select PRINTK_DEBUG
 	help
 
 	  Compiles debug level messages into the kernel, which would not
 	  otherwise be available at runtime. These messages can then be
-	  enabled/disabled on a per module basis. This mechanism implicitly
-	  enables all pr_debug() and dev_dbg() calls. The impact of this
-	  compile option is a larger kernel text size of about 2%.
+	  enabled/disabled based on various levels of scope - per source file,
+	  function, module, format string, and line number. This mechanism
+	  implicitly enables all pr_debug() and dev_dbg() calls. The impact of
+	  this compile option is a larger kernel text size of about 2%.
 
 	  Usage:
 
-	  Dynamic debugging is controlled by the debugfs file,
-	  dynamic_printk/modules. This file contains a list of the modules that
-	  can be enabled. The format of the file is the module name, followed
-	  by a set of flags that can be enabled. The first flag is always the
-	  'enabled' flag. For example:
+	  Dynamic debugging is controlled via the 'dynamic_debug/ddebug' file,
+	  which is contained in the 'debugfs' filesystem. Thus, the debugfs
+	  filesystem must first be mounted before making use of this feature.
+	  We refer the control file as: <debugfs>/dynamic_debug/ddebug. This
+	  file contains a list of the debug statements that can be enabled. The
+	  format for each line of the file is:
 
-		<module_name> <enabled=0/1>
-				.
-				.
-				.
+		filename:lineno [module]function flags format
 
-	  <module_name> : Name of the module in which the debug call resides
-	  <enabled=0/1> : whether the messages are enabled or not
+	  filename : source file of the debug statement
+	  lineno : line number of the debug statement
+	  module : module that contains the debug statement
+	  function : function that contains the debug statement
+          flags : 'p' means the line is turned 'on' for printing
+          format : the format used for the debug statement
 
 	  From a live system:
 
-		snd_hda_intel enabled=0
-		fixup enabled=0
-		driver enabled=0
+		nullarbor:~ # cat <debugfs>/dynamic_debug/ddebug
+		# filename:lineno [module]function flags format
+		fs/aio.c:222 [aio]__put_ioctx - "__put_ioctx:\040freeing\040%p\012"
+		fs/aio.c:248 [aio]ioctx_alloc - "ENOMEM:\040nr_events\040too\040high\012"
+		fs/aio.c:1770 [aio]sys_io_cancel - "calling\040cancel\012"
 
-	  Enable a module:
+	  Example usage:
 
-	  	$echo "set enabled=1 <module_name>" > dynamic_printk/modules
+		// enable the message at line 1603 of file svcsock.c
+		nullarbor:~ # echo -n 'file svcsock.c line 1603 +p' >
+						<debugfs>/dynamic_debug/ddebug
 
-	  Disable a module:
+		// enable all the messages in file svcsock.c
+		nullarbor:~ # echo -n 'file svcsock.c +p' >
+						<debugfs>/dynamic_debug/ddebug
 
-	  	$echo "set enabled=0 <module_name>" > dynamic_printk/modules
+		// enable all the messages in the NFS server module
+		nullarbor:~ # echo -n 'module nfsd +p' >
+						<debugfs>/dynamic_debug/ddebug
 
-	  Enable all modules:
+		// enable all 12 messages in the function svc_process()
+		nullarbor:~ # echo -n 'func svc_process +p' >
+						<debugfs>/dynamic_debug/ddebug
 
-		$echo "set enabled=1 all" > dynamic_printk/modules
+		// disable all 12 messages in the function svc_process()
+		nullarbor:~ # echo -n 'func svc_process -p' >
+						<debugfs>/dynamic_debug/ddebug
 
-	  Disable all modules:
+	  See Documentation/dynamic-debug-howto.txt for additional information.
 
-		$echo "set enabled=0 all" > dynamic_printk/modules
-
-	  Finally, passing "dynamic_printk" at the command line enables
-	  debugging for all modules. This mode can be turned off via the above
-	  disable command.
+config DMA_API_DEBUG
+	bool "Enable debugging of DMA-API usage"
+	depends on HAVE_DMA_API_DEBUG
+	help
+	  Enable this option to debug the use of the DMA API by device drivers.
+	  With this option you will be able to detect common bugs in device
+	  drivers like double-freeing of DMA mappings or freeing mappings that
+	  were never allocated.
+	  This option causes a performance degredation.  Use only if you want
+	  to debug device drivers. If unsure, say N.
 
 source "samples/Kconfig"
 

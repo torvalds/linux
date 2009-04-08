@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/sysfs.h>
-#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -678,6 +677,7 @@ static int __devexit pcf50633_remove(struct i2c_client *client)
 
 static struct i2c_device_id pcf50633_id_table[] = {
 	{"pcf50633", 0x73},
+	{/* end of list */}
 };
 
 static struct i2c_driver pcf50633_driver = {

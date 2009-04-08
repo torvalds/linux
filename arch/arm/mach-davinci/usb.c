@@ -47,6 +47,7 @@ static struct musb_hdrc_platform_data usb_data = {
 #elif defined(CONFIG_USB_MUSB_HOST)
 	.mode           = MUSB_HOST,
 #endif
+	.clock		= "usb",
 	.config		= &musb_config,
 };
 
@@ -63,7 +64,7 @@ static struct resource usb_resources[] = {
 	},
 };
 
-static u64 usb_dmamask = DMA_32BIT_MASK;
+static u64 usb_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device usb_dev = {
 	.name           = "musb_hdrc",
@@ -71,7 +72,7 @@ static struct platform_device usb_dev = {
 	.dev = {
 		.platform_data		= &usb_data,
 		.dma_mask		= &usb_dmamask,
-		.coherent_dma_mask      = DMA_32BIT_MASK,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
 	},
 	.resource       = usb_resources,
 	.num_resources  = ARRAY_SIZE(usb_resources),

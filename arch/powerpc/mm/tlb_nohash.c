@@ -132,11 +132,11 @@ void flush_tlb_mm(struct mm_struct *mm)
 	pid = mm->context.id;
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
-	cpu_mask = mm->cpu_vm_mask;
-	cpu_clear(smp_processor_id(), cpu_mask);
-	if (!cpus_empty(cpu_mask)) {
+	if (!cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
 		struct tlb_flush_param p = { .pid = pid };
-		smp_call_function_mask(cpu_mask, do_flush_tlb_mm_ipi, &p, 1);
+		/* Ignores smp_processor_id() even if set. */
+		smp_call_function_many(mm_cpumask(mm),
+				       do_flush_tlb_mm_ipi, &p, 1);
 	}
 	_tlbil_pid(pid);
  no_context:
@@ -146,16 +146,15 @@ EXPORT_SYMBOL(flush_tlb_mm);
 
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 {
-	cpumask_t cpu_mask;
+	struct cpumask *cpu_mask;
 	unsigned int pid;
 
 	preempt_disable();
 	pid = vma ? vma->vm_mm->context.id : 0;
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto bail;
-	cpu_mask = vma->vm_mm->cpu_vm_mask;
-	cpu_clear(smp_processor_id(), cpu_mask);
-	if (!cpus_empty(cpu_mask)) {
+	cpu_mask = mm_cpumask(vma->vm_mm);
+	if (!cpumask_equal(cpu_mask, cpumask_of(smp_processor_id()))) {
 		/* If broadcast tlbivax is supported, use it */
 		if (mmu_has_feature(MMU_FTR_USE_TLBIVAX_BCAST)) {
 			int lock = mmu_has_feature(MMU_FTR_LOCK_BCAST_INVAL);
@@ -167,7 +166,8 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 			goto bail;
 		} else {
 			struct tlb_flush_param p = { .pid = pid, .addr = vmaddr };
-			smp_call_function_mask(cpu_mask,
+			/* Ignores smp_processor_id() even if set in cpu_mask */
+			smp_call_function_many(cpu_mask,
 					       do_flush_tlb_page_ipi, &p, 1);
 		}
 	}

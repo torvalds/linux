@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2008 Intel Corporation.
+  Copyright(c) 1999 - 2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -37,12 +37,14 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw);
 s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num);
 s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr);
 s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw);
+void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw);
 s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw);
 
 s32 ixgbe_led_on_generic(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_led_off_generic(struct ixgbe_hw *hw, u32 index);
 
 s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw);
+s32 ixgbe_write_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 data);
 s32 ixgbe_read_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 *data);
 s32 ixgbe_read_eeprom_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
                                        u16 *data);
@@ -61,6 +63,10 @@ s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw, u8 *addr_list,
                                       u32 addr_count, ixgbe_mc_addr_itr func);
 s32 ixgbe_enable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw);
+s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval);
+s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num);
+s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packtetbuf_num);
+s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw);
 
 s32 ixgbe_validate_mac_addr(u8 *mac_addr);
 s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask);
@@ -71,6 +77,13 @@ s32 ixgbe_read_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 *val);
 s32 ixgbe_write_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 val);
 
 #define IXGBE_WRITE_REG(a, reg, value) writel((value), ((a)->hw_addr + (reg)))
+
+#ifndef writeq
+#define writeq(val, addr) writel((u32) (val), addr); \
+    writel((u32) (val >> 32), (addr + 4));
+#endif
+
+#define IXGBE_WRITE_REG64(a, reg, value) writeq((value), ((a)->hw_addr + (reg)))
 
 #define IXGBE_READ_REG(a, reg) readl((a)->hw_addr + (reg))
 
@@ -83,14 +96,11 @@ s32 ixgbe_write_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 val);
 #define IXGBE_WRITE_FLUSH(a) IXGBE_READ_REG(a, IXGBE_STATUS)
 
 #ifdef DEBUG
+extern char *ixgbe_get_hw_dev_name(struct ixgbe_hw *hw);
 #define hw_dbg(hw, format, arg...) \
-printk(KERN_DEBUG, "%s: " format, ixgbe_get_hw_dev_name(hw), ##arg);
+	printk(KERN_DEBUG "%s: " format, ixgbe_get_hw_dev_name(hw), ##arg)
 #else
-static inline int __attribute__ ((format (printf, 2, 3)))
-hw_dbg(struct ixgbe_hw *hw, const char *format, ...)
-{
-	return 0;
-}
+#define hw_dbg(hw, format, arg...) do {} while (0)
 #endif
 
 #endif /* IXGBE_COMMON */

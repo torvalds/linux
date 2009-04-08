@@ -74,6 +74,22 @@ struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 }
 #endif /* CONFIG_DVB_AU8522 */
 
+/* Other modes may need to be added later */
+enum au8522_video_input {
+	AU8522_COMPOSITE_CH1 = 1,
+	AU8522_COMPOSITE_CH2,
+	AU8522_COMPOSITE_CH3,
+	AU8522_COMPOSITE_CH4,
+	AU8522_COMPOSITE_CH4_SIF,
+	AU8522_SVIDEO_CH13,
+	AU8522_SVIDEO_CH24,
+};
+
+enum au8522_audio_input {
+	AU8522_AUDIO_NONE,
+	AU8522_AUDIO_SIF,
+};
+
 #endif /* __AU8522_H__ */
 
 /*

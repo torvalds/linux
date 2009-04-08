@@ -1181,6 +1181,7 @@
 #define WM8400_FLL_OUTDIV_SHIFT                      0  /* FLL_OUTDIV - [2:0] */
 #define WM8400_FLL_OUTDIV_WIDTH                      3  /* FLL_OUTDIV - [2:0] */
 
+struct wm8400;
 void wm8400_reset_codec_reg_cache(struct wm8400 *wm8400);
 
 #endif

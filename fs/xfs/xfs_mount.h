@@ -136,7 +136,6 @@ typedef int	(*xfs_dqvopchownresv_t)(struct xfs_trans *, struct xfs_inode *,
 			struct xfs_dquot *, struct xfs_dquot *, uint);
 typedef void	(*xfs_dqstatvfs_t)(struct xfs_inode *, struct kstatfs *);
 typedef int	(*xfs_dqsync_t)(struct xfs_mount *, int flags);
-typedef int	(*xfs_quotactl_t)(struct xfs_mount *, int, int, xfs_caddr_t);
 
 typedef struct xfs_qmops {
 	xfs_qminit_t		xfs_qminit;
@@ -154,7 +153,6 @@ typedef struct xfs_qmops {
 	xfs_dqvopchownresv_t	xfs_dqvopchownresv;
 	xfs_dqstatvfs_t		xfs_dqstatvfs;
 	xfs_dqsync_t		xfs_dqsync;
-	xfs_quotactl_t		xfs_quotactl;
 	struct xfs_dqtrxops	*xfs_dqtrxops;
 } xfs_qmops_t;
 
@@ -188,8 +186,6 @@ typedef struct xfs_qmops {
 	(*(ip)->i_mount->m_qm_ops->xfs_dqstatvfs)(ip, statp)
 #define XFS_QM_DQSYNC(mp, flags) \
 	(*(mp)->m_qm_ops->xfs_dqsync)(mp, flags)
-#define XFS_QM_QUOTACTL(mp, cmd, id, addr) \
-	(*(mp)->m_qm_ops->xfs_quotactl)(mp, cmd, id, addr)
 
 #ifdef HAVE_PERCPU_SB
 
@@ -273,19 +269,17 @@ typedef struct xfs_mount {
 	uint			m_inobt_mnr[2];	/* min inobt btree records */
 	uint			m_ag_maxlevels;	/* XFS_AG_MAXLEVELS */
 	uint			m_bm_maxlevels[2]; /* XFS_BM_MAXLEVELS */
-	uint			m_in_maxlevels;	/* XFS_IN_MAXLEVELS */
+	uint			m_in_maxlevels;	/* max inobt btree levels. */
 	struct xfs_perag	*m_perag;	/* per-ag accounting info */
 	struct rw_semaphore	m_peraglock;	/* lock for m_perag (pointer) */
 	struct mutex		m_growlock;	/* growfs mutex */
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_dmevmask;	/* DMI events for this FS */
 	__uint64_t		m_flags;	/* global mount flags */
-	uint			m_attroffset;	/* inode attribute offset */
 	uint			m_dir_node_ents; /* #entries in a dir danode */
 	uint			m_attr_node_ents; /* #entries in attr danode */
 	int			m_ialloc_inos;	/* inodes in inode allocation */
 	int			m_ialloc_blks;	/* blocks in inode allocation */
-	int			m_litino;	/* size of inode union area */
 	int			m_inoalign_mask;/* mask sb_inoalignmt if used */
 	uint			m_qflags;	/* quota status flags */
 	xfs_trans_reservations_t m_reservations;/* precomputed res values */
@@ -293,9 +287,6 @@ typedef struct xfs_mount {
 	__uint64_t		m_maxioffset;	/* maximum inode offset */
 	__uint64_t		m_resblks;	/* total reserved blocks */
 	__uint64_t		m_resblks_avail;/* available reserved blocks */
-#if XFS_BIG_INUMS
-	xfs_ino_t		m_inoadd;	/* add value for ino64_offset */
-#endif
 	int			m_dalign;	/* stripe unit */
 	int			m_swidth;	/* stripe width */
 	int			m_sinoalign;	/* stripe unit inode alignment */
@@ -337,7 +328,6 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_WSYNC		(1ULL << 0)	/* for nfs - all metadata ops
 						   must be synchronous except
 						   for space allocations */
-#define XFS_MOUNT_INO64		(1ULL << 1)
 #define XFS_MOUNT_DMAPI		(1ULL << 2)	/* dmapi is enabled */
 #define XFS_MOUNT_WAS_CLEAN	(1ULL << 3)
 #define XFS_MOUNT_FS_SHUTDOWN	(1ULL << 4)	/* atomic stop of all filesystem
@@ -389,8 +379,8 @@ typedef struct xfs_mount {
  * Synchronous read and write sizes.  This should be
  * better for NFSv2 wsync filesystems.
  */
-#define	XFS_WSYNC_READIO_LOG	15	/* 32K */
-#define	XFS_WSYNC_WRITEIO_LOG	14	/* 16K */
+#define	XFS_WSYNC_READIO_LOG	15	/* 32k */
+#define	XFS_WSYNC_WRITEIO_LOG	14	/* 16k */
 
 /*
  * Allow large block sizes to be reported to userspace programs if the
@@ -499,9 +489,6 @@ typedef struct xfs_mod_sb {
 	xfs_sb_field_t	msb_field;	/* Field to modify, see below */
 	int64_t		msb_delta;	/* Change to make to specified field */
 } xfs_mod_sb_t;
-
-#define	XFS_MOUNT_ILOCK(mp)	mutex_lock(&((mp)->m_ilock))
-#define	XFS_MOUNT_IUNLOCK(mp)	mutex_unlock(&((mp)->m_ilock))
 
 extern int	xfs_log_sbcount(xfs_mount_t *, uint);
 extern int	xfs_mountfs(xfs_mount_t *mp);

@@ -156,6 +156,9 @@ out_up:
  */
 static int w1_f23_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 {
+#ifdef CONFIG_W1_SLAVE_DS2433_CRC
+	struct w1_f23_data *f23 = sl->family_data;
+#endif
 	u8 wrbuf[4];
 	u8 rdbuf[W1_PAGE_SIZE + 3];
 	u8 es = (addr + len - 1) & 0x1f;
@@ -196,7 +199,9 @@ static int w1_f23_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 
 	/* Reset the bus to wake up the EEPROM (this may not be needed) */
 	w1_reset_bus(sl->master);
-
+#ifdef CONFIG_W1_SLAVE_DS2433_CRC
+	f23->validcrc &= ~(1 << (addr >> W1_PAGE_BITS));
+#endif
 	return 0;
 }
 

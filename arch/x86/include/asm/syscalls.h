@@ -29,21 +29,21 @@ asmlinkage int sys_get_thread_area(struct user_desc __user *);
 /* X86_32 only */
 #ifdef CONFIG_X86_32
 /* kernel/process_32.c */
-asmlinkage int sys_fork(struct pt_regs);
-asmlinkage int sys_clone(struct pt_regs);
-asmlinkage int sys_vfork(struct pt_regs);
-asmlinkage int sys_execve(struct pt_regs);
+int sys_fork(struct pt_regs *);
+int sys_clone(struct pt_regs *);
+int sys_vfork(struct pt_regs *);
+int sys_execve(struct pt_regs *);
 
 /* kernel/signal_32.c */
 asmlinkage int sys_sigsuspend(int, int, old_sigset_t);
 asmlinkage int sys_sigaction(int, const struct old_sigaction __user *,
 			     struct old_sigaction __user *);
-asmlinkage int sys_sigaltstack(unsigned long);
-asmlinkage unsigned long sys_sigreturn(unsigned long);
-asmlinkage int sys_rt_sigreturn(unsigned long);
+int sys_sigaltstack(struct pt_regs *);
+unsigned long sys_sigreturn(struct pt_regs *);
+long sys_rt_sigreturn(struct pt_regs *);
 
 /* kernel/ioport.c */
-asmlinkage long sys_iopl(unsigned long);
+long sys_iopl(struct pt_regs *);
 
 /* kernel/sys_i386_32.c */
 asmlinkage long sys_mmap2(unsigned long, unsigned long, unsigned long,
@@ -59,8 +59,8 @@ struct oldold_utsname;
 asmlinkage int sys_olduname(struct oldold_utsname __user *);
 
 /* kernel/vm86_32.c */
-asmlinkage int sys_vm86old(struct pt_regs);
-asmlinkage int sys_vm86(struct pt_regs);
+int sys_vm86old(struct pt_regs *);
+int sys_vm86(struct pt_regs *);
 
 #else /* CONFIG_X86_32 */
 
@@ -74,6 +74,7 @@ asmlinkage long sys_vfork(struct pt_regs *);
 asmlinkage long sys_execve(char __user *, char __user * __user *,
 			   char __user * __user *,
 			   struct pt_regs *);
+long sys_arch_prctl(int, unsigned long);
 
 /* kernel/ioport.c */
 asmlinkage long sys_iopl(unsigned int, struct pt_regs *);
@@ -81,7 +82,7 @@ asmlinkage long sys_iopl(unsigned int, struct pt_regs *);
 /* kernel/signal_64.c */
 asmlinkage long sys_sigaltstack(const stack_t __user *, stack_t __user *,
 				struct pt_regs *);
-asmlinkage long sys_rt_sigreturn(struct pt_regs *);
+long sys_rt_sigreturn(struct pt_regs *);
 
 /* kernel/sys_x86_64.c */
 asmlinkage long sys_mmap(unsigned long, unsigned long, unsigned long,

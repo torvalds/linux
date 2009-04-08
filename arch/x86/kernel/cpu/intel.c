@@ -4,6 +4,7 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/smp.h>
+#include <linux/sched.h>
 #include <linux/thread_info.h>
 #include <linux/module.h>
 
@@ -13,6 +14,7 @@
 #include <asm/uaccess.h>
 #include <asm/ds.h>
 #include <asm/bugs.h>
+#include <asm/cpu.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/topology.h>
@@ -24,7 +26,6 @@
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
-#include <mach_apic.h>
 #endif
 
 static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
@@ -54,15 +55,37 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 		c->x86_cache_alignment = 128;
 #endif
 
+	/* CPUID workaround for 0F33/0F34 CPU */
+	if (c->x86 == 0xF && c->x86_model == 0x3
+	    && (c->x86_mask == 0x3 || c->x86_mask == 0x4))
+		c->x86_phys_bits = 36;
+
 	/*
 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states
+	 * with P/T states and does not stop in deep C-states.
+	 *
+	 * It is also reliable across cores and sockets. (but not across
+	 * cabinets - we turn it off in that case explicitly.)
 	 */
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
+		set_cpu_cap(c, X86_FEATURE_TSC_RELIABLE);
+		sched_clock_stable = 1;
 	}
 
+	/*
+	 * There is a known erratum on Pentium III and Core Solo
+	 * and Core Duo CPUs.
+	 * " Page with PAT set to WC while associated MTRR is UC
+	 *   may consolidate to UC "
+	 * Because of this erratum, it is better to stick with
+	 * setting WC in MTRR rather than using PAT on these CPUs.
+	 *
+	 * Enable PAT WC only on P4, Core 2 or later CPUs.
+	 */
+	if (c->x86 == 6 && c->x86_model < 15)
+		clear_cpu_cap(c, X86_FEATURE_PAT);
 }
 
 #ifdef CONFIG_X86_32
@@ -98,6 +121,28 @@ static void __cpuinit trap_init_f00f_bug(void)
 	load_idt(&idt_descr);
 }
 #endif
+
+static void __cpuinit intel_smp_check(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_SMP
+	/* calling is from identify_secondary_cpu() ? */
+	if (c->cpu_index == boot_cpu_id)
+		return;
+
+	/*
+	 * Mask B, Pentium, but not Pentium MMX
+	 */
+	if (c->x86 == 5 &&
+	    c->x86_mask >= 1 && c->x86_mask <= 4 &&
+	    c->x86_model <= 3) {
+		/*
+		 * Remember we have B step Pentia with bugs
+		 */
+		WARN_ONCE(1, "WARNING: SMP operation may be unreliable"
+				    "with B stepping processors.\n");
+	}
+#endif
+}
 
 static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
 {
@@ -135,10 +180,10 @@ static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
 	 */
 	if ((c->x86 == 15) && (c->x86_model == 1) && (c->x86_mask == 1)) {
 		rdmsr(MSR_IA32_MISC_ENABLE, lo, hi);
-		if ((lo & (1<<9)) == 0) {
+		if ((lo & MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE) == 0) {
 			printk (KERN_INFO "CPU: C0 stepping P4 Xeon detected.\n");
 			printk (KERN_INFO "CPU: Disabling hardware prefetching (Errata 037)\n");
-			lo |= (1<<9);	/* Disable hw prefetching */
+			lo |= MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE;
 			wrmsr (MSR_IA32_MISC_ENABLE, lo, hi);
 		}
 	}
@@ -175,6 +220,8 @@ static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_NUMAQ
 	numaq_tsc_disable();
 #endif
+
+	intel_smp_check(c);
 }
 #else
 static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
@@ -291,6 +338,9 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		ds_init_intel(c);
 	}
 
+	if (c->x86 == 6 && c->x86_model == 29 && cpu_has_clflush)
+		set_cpu_cap(c, X86_FEATURE_CLFLUSH_MONITOR);
+
 #ifdef CONFIG_X86_64
 	if (c->x86 == 15)
 		c->x86_cache_alignment = c->x86_clflush_size * 2;
@@ -371,7 +421,7 @@ static unsigned int __cpuinit intel_size_cache(struct cpuinfo_x86 *c, unsigned i
 }
 #endif
 
-static struct cpu_dev intel_cpu_dev __cpuinitdata = {
+static const struct cpu_dev __cpuinitconst intel_cpu_dev = {
 	.c_vendor	= "Intel",
 	.c_ident	= { "GenuineIntel" },
 #ifdef CONFIG_X86_32

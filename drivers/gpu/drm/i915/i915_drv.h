@@ -159,6 +159,9 @@ typedef struct drm_i915_private {
 	u32 irq_mask_reg;
 	u32 pipestat[2];
 
+	u32 hotplug_supported_mask;
+	struct work_struct hotplug_work;
+
 	int tex_lru_log_granularity;
 	int allow_batchbuffer;
 	struct mem_block *agp_heap;
@@ -184,6 +187,8 @@ typedef struct drm_i915_private {
 	unsigned int lvds_dither:1;
 	unsigned int lvds_vbt:1;
 	unsigned int int_crt_support:1;
+	unsigned int lvds_use_ssc:1;
+	int lvds_ssc_freq;
 
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
@@ -277,13 +282,13 @@ typedef struct drm_i915_private {
 	u8 saveAR_INDEX;
 	u8 saveAR[21];
 	u8 saveDACMASK;
-	u8 saveDACDATA[256*3]; /* 256 3-byte colors */
 	u8 saveCR[37];
 
 	struct {
 		struct drm_mm gtt_space;
 
 		struct io_mapping *gtt_mapping;
+		int gtt_mtrr;
 
 		/**
 		 * List of objects currently involved in rendering from the
@@ -295,6 +300,7 @@ typedef struct drm_i915_private {
 		 *
 		 * A reference is held on the buffer while on this list.
 		 */
+		spinlock_t active_list_lock;
 		struct list_head active_list;
 
 		/**
@@ -402,7 +408,8 @@ struct drm_i915_gem_object {
 	/** AGP memory structure for our GTT binding. */
 	DRM_AGP_MEM *agp_mem;
 
-	struct page **page_list;
+	struct page **pages;
+	int pages_refcount;
 
 	/**
 	 * Current offset of the object in GTT space.
@@ -454,6 +461,12 @@ struct drm_i915_gem_object {
 
 	/** for phy allocated objects */
 	struct drm_i915_gem_phys_object *phys_obj;
+
+	/**
+	 * Used for checking the object doesn't appear more than once
+	 * in an execbuffer object list.
+	 */
+	int in_execbuffer;
 };
 
 /**
@@ -511,7 +524,7 @@ extern int i915_driver_device_is_agp(struct drm_device * dev);
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
 extern int i915_emit_box(struct drm_device *dev,
-			 struct drm_clip_rect __user *boxes,
+			 struct drm_clip_rect *boxes,
 			 int i, int DR1, int DR4);
 
 /* i915_irq.c */
@@ -534,6 +547,7 @@ extern int i915_vblank_pipe_get(struct drm_device *dev, void *data,
 extern int i915_enable_vblank(struct drm_device *dev, int crtc);
 extern void i915_disable_vblank(struct drm_device *dev, int crtc);
 extern u32 i915_get_vblank_counter(struct drm_device *dev, int crtc);
+extern u32 gm45_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 extern void i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask);
@@ -595,12 +609,11 @@ int i915_gem_get_tiling(struct drm_device *dev, void *data,
 int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
-int i915_gem_proc_init(struct drm_minor *minor);
-void i915_gem_proc_cleanup(struct drm_minor *minor);
 int i915_gem_init_object(struct drm_gem_object *obj);
 void i915_gem_free_object(struct drm_gem_object *obj);
 int i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment);
 void i915_gem_object_unpin(struct drm_gem_object *obj);
+int i915_gem_object_unbind(struct drm_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 uint32_t i915_get_gem_seqno(struct drm_device *dev);
 void i915_gem_retire_requests(struct drm_device *dev);
@@ -613,6 +626,7 @@ int i915_gem_init_ringbuffer(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end);
+int i915_gem_idle(struct drm_device *dev);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
@@ -638,6 +652,10 @@ void i915_gem_dump_object(struct drm_gem_object *obj, int len,
 			  const char *where, uint32_t mark);
 void i915_dump_lru(struct drm_device *dev, const char *where);
 
+/* i915_debugfs.c */
+int i915_gem_debugfs_init(struct drm_minor *minor);
+void i915_gem_debugfs_cleanup(struct drm_minor *minor);
+
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
@@ -648,12 +666,12 @@ extern int i915_restore_state(struct drm_device *dev);
 
 #ifdef CONFIG_ACPI
 /* i915_opregion.c */
-extern int intel_opregion_init(struct drm_device *dev);
+extern int intel_opregion_init(struct drm_device *dev, int resume);
 extern void intel_opregion_free(struct drm_device *dev);
 extern void opregion_asle_intr(struct drm_device *dev);
 extern void opregion_enable_asle(struct drm_device *dev);
 #else
-static inline int intel_opregion_init(struct drm_device *dev) { return 0; }
+static inline int intel_opregion_init(struct drm_device *dev, int resume) { return 0; }
 static inline void intel_opregion_free(struct drm_device *dev) { return; }
 static inline void opregion_asle_intr(struct drm_device *dev) { return; }
 static inline void opregion_enable_asle(struct drm_device *dev) { return; }
@@ -773,18 +791,30 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		     (dev)->pci_device == 0x2E22 || \
 		     IS_GM45(dev))
 
+#define IS_IGDG(dev) ((dev)->pci_device == 0xa001)
+#define IS_IGDGM(dev) ((dev)->pci_device == 0xa011)
+#define IS_IGD(dev) (IS_IGDG(dev) || IS_IGDGM(dev))
+
 #define IS_G33(dev)    ((dev)->pci_device == 0x29C2 ||	\
 			(dev)->pci_device == 0x29B2 ||	\
-			(dev)->pci_device == 0x29D2)
+			(dev)->pci_device == 0x29D2 ||  \
+			(IS_IGD(dev)))
 
 #define IS_I9XX(dev) (IS_I915G(dev) || IS_I915GM(dev) || IS_I945G(dev) || \
 		      IS_I945GM(dev) || IS_I965G(dev) || IS_G33(dev))
 
 #define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
-			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev))
+			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev) || \
+			IS_IGD(dev))
 
 #define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev))
+/* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
+ * rows, which changed the alignment requirements and fence programming.
+ */
+#define HAS_128_BYTE_Y_TILING(dev) (IS_I9XX(dev) && !(IS_I915G(dev) || \
+						      IS_I915GM(dev)))
 #define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev))
+#define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

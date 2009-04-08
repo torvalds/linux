@@ -1126,7 +1126,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	int acquire_i_mutex = 0;
 
 	if (rw & WRITE)
-		rw = WRITE_SYNC;
+		rw = WRITE_ODIRECT;
 
 	if (bdev)
 		bdev_blkbits = blksize_bits(bdev_hardsect_size(bdev));

@@ -51,6 +51,8 @@ MODULE_DESCRIPTION("Mellanox ConnectX HCA low-level driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
+struct workqueue_struct *mlx4_wq;
+
 #ifdef CONFIG_MLX4_DEBUG
 
 int mlx4_debug_level = 0;
@@ -98,23 +100,22 @@ module_param_named(use_prio, use_prio, bool, 0444);
 MODULE_PARM_DESC(use_prio, "Enable steering by VLAN priority on ETH ports "
 		  "(0/1, default 0)");
 
-static int mlx4_check_port_params(struct mlx4_dev *dev,
-				  enum mlx4_port_type *port_type)
+int mlx4_check_port_params(struct mlx4_dev *dev,
+			   enum mlx4_port_type *port_type)
 {
 	int i;
 
 	for (i = 0; i < dev->caps.num_ports - 1; i++) {
-		if (port_type[i] != port_type[i+1] &&
-		    !(dev->caps.flags & MLX4_DEV_CAP_FLAG_DPDP)) {
-			mlx4_err(dev, "Only same port types supported "
-				 "on this HCA, aborting.\n");
-			return -EINVAL;
+		if (port_type[i] != port_type[i + 1]) {
+			if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_DPDP)) {
+				mlx4_err(dev, "Only same port types supported "
+					 "on this HCA, aborting.\n");
+				return -EINVAL;
+			}
+			if (port_type[i] == MLX4_PORT_TYPE_ETH &&
+			    port_type[i + 1] == MLX4_PORT_TYPE_IB)
+				return -EINVAL;
 		}
-	}
-	if ((port_type[0] == MLX4_PORT_TYPE_ETH) &&
-	    (port_type[1] == MLX4_PORT_TYPE_IB)) {
-		mlx4_err(dev, "eth-ib configuration is not supported.\n");
-		return -EINVAL;
 	}
 
 	for (i = 0; i < dev->caps.num_ports; i++) {
@@ -225,6 +226,9 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			dev->caps.port_type[i] = MLX4_PORT_TYPE_IB;
 		else
 			dev->caps.port_type[i] = MLX4_PORT_TYPE_ETH;
+		dev->caps.possible_type[i] = dev->caps.port_type[i];
+		mlx4_priv(dev)->sense.sense_allowed[i] =
+			dev->caps.supported_type[i] == MLX4_PORT_TYPE_AUTO;
 
 		if (dev->caps.log_num_macs > dev_cap->log_max_macs[i]) {
 			dev->caps.log_num_macs = dev_cap->log_max_macs[i];
@@ -263,14 +267,16 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
  * Change the port configuration of the device.
  * Every user of this function must hold the port mutex.
  */
-static int mlx4_change_port_types(struct mlx4_dev *dev,
-				  enum mlx4_port_type *port_types)
+int mlx4_change_port_types(struct mlx4_dev *dev,
+			   enum mlx4_port_type *port_types)
 {
 	int err = 0;
 	int change = 0;
 	int port;
 
 	for (port = 0; port <  dev->caps.num_ports; port++) {
+		/* Change the port type only if the new type is different
+		 * from the current, and not set to Auto */
 		if (port_types[port] != dev->caps.port_type[port + 1]) {
 			change = 1;
 			dev->caps.port_type[port + 1] = port_types[port];
@@ -302,10 +308,17 @@ static ssize_t show_port_type(struct device *dev,
 	struct mlx4_port_info *info = container_of(attr, struct mlx4_port_info,
 						   port_attr);
 	struct mlx4_dev *mdev = info->dev;
+	char type[8];
 
-	return sprintf(buf, "%s\n",
-		       mdev->caps.port_type[info->port] == MLX4_PORT_TYPE_IB ?
-		       "ib" : "eth");
+	sprintf(type, "%s",
+		(mdev->caps.port_type[info->port] == MLX4_PORT_TYPE_IB) ?
+		"ib" : "eth");
+	if (mdev->caps.possible_type[info->port] == MLX4_PORT_TYPE_AUTO)
+		sprintf(buf, "auto (%s)\n", type);
+	else
+		sprintf(buf, "%s\n", type);
+
+	return strlen(buf);
 }
 
 static ssize_t set_port_type(struct device *dev,
@@ -317,6 +330,7 @@ static ssize_t set_port_type(struct device *dev,
 	struct mlx4_dev *mdev = info->dev;
 	struct mlx4_priv *priv = mlx4_priv(mdev);
 	enum mlx4_port_type types[MLX4_MAX_PORTS];
+	enum mlx4_port_type new_types[MLX4_MAX_PORTS];
 	int i;
 	int err = 0;
 
@@ -324,26 +338,56 @@ static ssize_t set_port_type(struct device *dev,
 		info->tmp_type = MLX4_PORT_TYPE_IB;
 	else if (!strcmp(buf, "eth\n"))
 		info->tmp_type = MLX4_PORT_TYPE_ETH;
+	else if (!strcmp(buf, "auto\n"))
+		info->tmp_type = MLX4_PORT_TYPE_AUTO;
 	else {
 		mlx4_err(mdev, "%s is not supported port type\n", buf);
 		return -EINVAL;
 	}
 
+	mlx4_stop_sense(mdev);
 	mutex_lock(&priv->port_mutex);
-	for (i = 0; i < mdev->caps.num_ports; i++)
-		types[i] = priv->port[i+1].tmp_type ? priv->port[i+1].tmp_type :
-					mdev->caps.port_type[i+1];
+	/* Possible type is always the one that was delivered */
+	mdev->caps.possible_type[info->port] = info->tmp_type;
 
-	err = mlx4_check_port_params(mdev, types);
+	for (i = 0; i < mdev->caps.num_ports; i++) {
+		types[i] = priv->port[i+1].tmp_type ? priv->port[i+1].tmp_type :
+					mdev->caps.possible_type[i+1];
+		if (types[i] == MLX4_PORT_TYPE_AUTO)
+			types[i] = mdev->caps.port_type[i+1];
+	}
+
+	if (!(mdev->caps.flags & MLX4_DEV_CAP_FLAG_DPDP)) {
+		for (i = 1; i <= mdev->caps.num_ports; i++) {
+			if (mdev->caps.possible_type[i] == MLX4_PORT_TYPE_AUTO) {
+				mdev->caps.possible_type[i] = mdev->caps.port_type[i];
+				err = -EINVAL;
+			}
+		}
+	}
+	if (err) {
+		mlx4_err(mdev, "Auto sensing is not supported on this HCA. "
+			       "Set only 'eth' or 'ib' for both ports "
+			       "(should be the same)\n");
+		goto out;
+	}
+
+	mlx4_do_sense_ports(mdev, new_types, types);
+
+	err = mlx4_check_port_params(mdev, new_types);
 	if (err)
 		goto out;
 
-	for (i = 1; i <= mdev->caps.num_ports; i++)
-		priv->port[i].tmp_type = 0;
+	/* We are about to apply the changes after the configuration
+	 * was verified, no need to remember the temporary types
+	 * any more */
+	for (i = 0; i < mdev->caps.num_ports; i++)
+		priv->port[i + 1].tmp_type = 0;
 
-	err = mlx4_change_port_types(mdev, types);
+	err = mlx4_change_port_types(mdev, new_types);
 
 out:
+	mlx4_start_sense(mdev);
 	mutex_unlock(&priv->port_mutex);
 	return err ? err : count;
 }
@@ -1032,20 +1076,20 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit PCI DMA mask.\n");
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "Can't set PCI DMA mask, aborting.\n");
 			goto err_release_bar2;
 		}
 	}
-	err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit "
 			 "consistent PCI DMA mask.\n");
-		err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "Can't set consistent PCI DMA mask, "
 				"aborting.\n");
@@ -1117,6 +1161,9 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_port;
 
+	mlx4_sense_init(dev);
+	mlx4_start_sense(dev);
+
 	pci_set_drvdata(pdev, dev);
 
 	return 0;
@@ -1182,6 +1229,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 	int p;
 
 	if (dev) {
+		mlx4_stop_sense(dev);
 		mlx4_unregister_device(dev);
 
 		for (p = 1; p <= dev->caps.num_ports; p++) {
@@ -1230,6 +1278,8 @@ static struct pci_device_id mlx4_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x673c) }, /* MT25408 "Hermon" QDR PCIe gen2 */
 	{ PCI_VDEVICE(MELLANOX, 0x6368) }, /* MT25408 "Hermon" EN 10GigE */
 	{ PCI_VDEVICE(MELLANOX, 0x6750) }, /* MT25408 "Hermon" EN 10GigE PCIe gen2 */
+	{ PCI_VDEVICE(MELLANOX, 0x6372) }, /* MT25458 ConnectX EN 10GBASE-T 10GigE */
+	{ PCI_VDEVICE(MELLANOX, 0x675a) }, /* MT25458 ConnectX EN 10GBASE-T+Gen2 10GigE */
 	{ 0, }
 };
 
@@ -1264,9 +1314,11 @@ static int __init mlx4_init(void)
 	if (mlx4_verify_params())
 		return -EINVAL;
 
-	ret = mlx4_catas_init();
-	if (ret)
-		return ret;
+	mlx4_catas_init();
+
+	mlx4_wq = create_singlethread_workqueue("mlx4");
+	if (!mlx4_wq)
+		return -ENOMEM;
 
 	ret = pci_register_driver(&mlx4_driver);
 	return ret < 0 ? ret : 0;
@@ -1275,7 +1327,7 @@ static int __init mlx4_init(void)
 static void __exit mlx4_cleanup(void)
 {
 	pci_unregister_driver(&mlx4_driver);
-	mlx4_catas_cleanup();
+	destroy_workqueue(mlx4_wq);
 }
 
 module_init(mlx4_init);

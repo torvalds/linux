@@ -4,7 +4,7 @@
    Written By: Adam Radford <linuxraid@amcc.com>
    Modifications By: Tom Couch <linuxraid@amcc.com>
 
-   Copyright (C) 2004-2008 Applied Micro Circuits Corporation.
+   Copyright (C) 2004-2009 Applied Micro Circuits Corporation.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@
                  Add MSI support and "use_msi" module parameter.
                  Fix bug in twa_get_param() on 4GB+.
                  Use pci_resource_len() for ioremap().
+   2.26.02.012 - Add power management support.
 */
 
 #include <linux/module.h>
@@ -99,7 +100,7 @@
 #include "3w-9xxx.h"
 
 /* Globals */
-#define TW_DRIVER_VERSION "2.26.02.011"
+#define TW_DRIVER_VERSION "2.26.02.012"
 static TW_Device_Extension *twa_device_extension_list[TW_MAX_SLOT];
 static unsigned int twa_device_extension_count;
 static int twa_major = -1;
@@ -2015,10 +2016,10 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK)
-	    || pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))
-		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)
-		    || pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
+	    || pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
+		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
+		    || pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			TW_PRINTK(host, TW_DRIVER, 0x23, "Failed to set dma mask");
 			retval = -ENODEV;
 			goto out_disable_device;
@@ -2182,6 +2183,98 @@ static void twa_remove(struct pci_dev *pdev)
 	twa_device_extension_count--;
 } /* End twa_remove() */
 
+#ifdef CONFIG_PM
+/* This function is called on PCI suspend */
+static int twa_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct Scsi_Host *host = pci_get_drvdata(pdev);
+	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
+
+	printk(KERN_WARNING "3w-9xxx: Suspending host %d.\n", tw_dev->host->host_no);
+
+	TW_DISABLE_INTERRUPTS(tw_dev);
+	free_irq(tw_dev->tw_pci_dev->irq, tw_dev);
+
+	if (test_bit(TW_USING_MSI, &tw_dev->flags))
+		pci_disable_msi(pdev);
+
+	/* Tell the card we are shutting down */
+	if (twa_initconnection(tw_dev, 1, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL)) {
+		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x38, "Connection shutdown failed during suspend");
+	} else {
+		printk(KERN_WARNING "3w-9xxx: Suspend complete.\n");
+	}
+	TW_CLEAR_ALL_INTERRUPTS(tw_dev);
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+} /* End twa_suspend() */
+
+/* This function is called on PCI resume */
+static int twa_resume(struct pci_dev *pdev)
+{
+	int retval = 0;
+	struct Scsi_Host *host = pci_get_drvdata(pdev);
+	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
+
+	printk(KERN_WARNING "3w-9xxx: Resuming host %d.\n", tw_dev->host->host_no);
+	pci_set_power_state(pdev, PCI_D0);
+	pci_enable_wake(pdev, PCI_D0, 0);
+	pci_restore_state(pdev);
+
+	retval = pci_enable_device(pdev);
+	if (retval) {
+		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x39, "Enable device failed during resume");
+		return retval;
+	}
+
+	pci_set_master(pdev);
+	pci_try_set_mwi(pdev);
+
+	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK)
+	    || pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))
+		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)
+		    || pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
+			TW_PRINTK(host, TW_DRIVER, 0x40, "Failed to set dma mask during resume");
+			retval = -ENODEV;
+			goto out_disable_device;
+		}
+
+	/* Initialize the card */
+	if (twa_reset_sequence(tw_dev, 0)) {
+		retval = -ENODEV;
+		goto out_disable_device;
+	}
+
+	/* Now setup the interrupt handler */
+	retval = request_irq(pdev->irq, twa_interrupt, IRQF_SHARED, "3w-9xxx", tw_dev);
+	if (retval) {
+		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x42, "Error requesting IRQ during resume");
+		retval = -ENODEV;
+		goto out_disable_device;
+	}
+
+	/* Now enable MSI if enabled */
+	if (test_bit(TW_USING_MSI, &tw_dev->flags))
+		pci_enable_msi(pdev);
+
+	/* Re-enable interrupts on the card */
+	TW_ENABLE_AND_CLEAR_INTERRUPTS(tw_dev);
+
+	printk(KERN_WARNING "3w-9xxx: Resume complete.\n");
+	return 0;
+
+out_disable_device:
+	scsi_remove_host(host);
+	pci_disable_device(pdev);
+
+	return retval;
+} /* End twa_resume() */
+#endif
+
 /* PCI Devices supported by this driver */
 static struct pci_device_id twa_pci_tbl[] __devinitdata = {
 	{ PCI_VENDOR_ID_3WARE, PCI_DEVICE_ID_3WARE_9000,
@@ -2202,6 +2295,10 @@ static struct pci_driver twa_driver = {
 	.id_table	= twa_pci_tbl,
 	.probe		= twa_probe,
 	.remove		= twa_remove,
+#ifdef CONFIG_PM
+	.suspend	= twa_suspend,
+	.resume		= twa_resume,
+#endif
 	.shutdown	= twa_shutdown
 };
 

@@ -51,16 +51,16 @@ static struct platform_device *device;
 /*
  */
 
-static int __init snd_pmac_probe(struct platform_device *devptr)
+static int __devinit snd_pmac_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	struct snd_pmac *chip;
 	char *name_ext;
 	int err;
 
-	card = snd_card_new(index, id, THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	if ((err = snd_pmac_new(card, &chip)) < 0)
 		goto __error;
@@ -110,7 +110,7 @@ static int __init snd_pmac_probe(struct platform_device *devptr)
 			goto __error;
 		break;
 	default:
-		snd_printk("unsupported hardware %d\n", chip->model);
+		snd_printk(KERN_ERR "unsupported hardware %d\n", chip->model);
 		err = -EINVAL;
 		goto __error;
 	}

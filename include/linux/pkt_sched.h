@@ -515,7 +515,7 @@ enum
 
 struct tc_drr_stats
 {
-	u32	deficit;
+	__u32	deficit;
 };
 
 #endif

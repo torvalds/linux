@@ -41,7 +41,6 @@
 int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 	drm_i915_ring_buffer_t *ring = &(dev_priv->ring);
 	u32 acthd_reg = IS_I965G(dev) ? ACTHD_I965 : ACTHD;
 	u32 last_acthd = I915_READ(acthd_reg);
@@ -58,8 +57,12 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 		if (ring->space >= n)
 			return 0;
 
-		if (master_priv->sarea_priv)
-			master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
+		if (dev->primary->master) {
+			struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
+			if (master_priv->sarea_priv)
+				master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
+		}
+
 
 		if (ring->head != last_head)
 			i = 0;
@@ -202,7 +205,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 		dev_priv->ring.map.flags = 0;
 		dev_priv->ring.map.mtrr = 0;
 
-		drm_core_ioremap(&dev_priv->ring.map, dev);
+		drm_core_ioremap_wc(&dev_priv->ring.map, dev);
 
 		if (dev_priv->ring.map.handle == NULL) {
 			i915_dma_cleanup(dev);
@@ -356,7 +359,7 @@ static int validate_cmd(int cmd)
 	return ret;
 }
 
-static int i915_emit_cmds(struct drm_device * dev, int __user * buffer, int dwords)
+static int i915_emit_cmds(struct drm_device * dev, int *buffer, int dwords)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i;
@@ -370,8 +373,7 @@ static int i915_emit_cmds(struct drm_device * dev, int __user * buffer, int dwor
 	for (i = 0; i < dwords;) {
 		int cmd, sz;
 
-		if (DRM_COPY_FROM_USER_UNCHECKED(&cmd, &buffer[i], sizeof(cmd)))
-			return -EINVAL;
+		cmd = buffer[i];
 
 		if ((sz = validate_cmd(cmd)) == 0 || i + sz > dwords)
 			return -EINVAL;
@@ -379,11 +381,7 @@ static int i915_emit_cmds(struct drm_device * dev, int __user * buffer, int dwor
 		OUT_RING(cmd);
 
 		while (++i, --sz) {
-			if (DRM_COPY_FROM_USER_UNCHECKED(&cmd, &buffer[i],
-							 sizeof(cmd))) {
-				return -EINVAL;
-			}
-			OUT_RING(cmd);
+			OUT_RING(buffer[i]);
 		}
 	}
 
@@ -397,16 +395,12 @@ static int i915_emit_cmds(struct drm_device * dev, int __user * buffer, int dwor
 
 int
 i915_emit_box(struct drm_device *dev,
-	      struct drm_clip_rect __user *boxes,
+	      struct drm_clip_rect *boxes,
 	      int i, int DR1, int DR4)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_clip_rect box;
+	struct drm_clip_rect box = boxes[i];
 	RING_LOCALS;
-
-	if (DRM_COPY_FROM_USER_UNCHECKED(&box, &boxes[i], sizeof(box))) {
-		return -EFAULT;
-	}
 
 	if (box.y2 <= box.y1 || box.x2 <= box.x1 || box.y2 <= 0 || box.x2 <= 0) {
 		DRM_ERROR("Bad box %d,%d..%d,%d\n",
@@ -460,7 +454,9 @@ static void i915_emit_breadcrumb(struct drm_device *dev)
 }
 
 static int i915_dispatch_cmdbuffer(struct drm_device * dev,
-				   drm_i915_cmdbuffer_t * cmd)
+				   drm_i915_cmdbuffer_t *cmd,
+				   struct drm_clip_rect *cliprects,
+				   void *cmdbuf)
 {
 	int nbox = cmd->num_cliprects;
 	int i = 0, count, ret;
@@ -476,13 +472,13 @@ static int i915_dispatch_cmdbuffer(struct drm_device * dev,
 
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			ret = i915_emit_box(dev, cmd->cliprects, i,
+			ret = i915_emit_box(dev, cliprects, i,
 					    cmd->DR1, cmd->DR4);
 			if (ret)
 				return ret;
 		}
 
-		ret = i915_emit_cmds(dev, (int __user *)cmd->buf, cmd->sz / 4);
+		ret = i915_emit_cmds(dev, cmdbuf, cmd->sz / 4);
 		if (ret)
 			return ret;
 	}
@@ -492,10 +488,10 @@ static int i915_dispatch_cmdbuffer(struct drm_device * dev,
 }
 
 static int i915_dispatch_batchbuffer(struct drm_device * dev,
-				     drm_i915_batchbuffer_t * batch)
+				     drm_i915_batchbuffer_t * batch,
+				     struct drm_clip_rect *cliprects)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_clip_rect __user *boxes = batch->cliprects;
 	int nbox = batch->num_cliprects;
 	int i = 0, count;
 	RING_LOCALS;
@@ -511,7 +507,7 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			int ret = i915_emit_box(dev, boxes, i,
+			int ret = i915_emit_box(dev, cliprects, i,
 						batch->DR1, batch->DR4);
 			if (ret)
 				return ret;
@@ -626,6 +622,7 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 	    master_priv->sarea_priv;
 	drm_i915_batchbuffer_t *batch = data;
 	int ret;
+	struct drm_clip_rect *cliprects = NULL;
 
 	if (!dev_priv->allow_batchbuffer) {
 		DRM_ERROR("Batchbuffer ioctl disabled\n");
@@ -637,17 +634,35 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	if (batch->num_cliprects && DRM_VERIFYAREA_READ(batch->cliprects,
-						       batch->num_cliprects *
-						       sizeof(struct drm_clip_rect)))
-		return -EFAULT;
+	if (batch->num_cliprects < 0)
+		return -EINVAL;
+
+	if (batch->num_cliprects) {
+		cliprects = drm_calloc(batch->num_cliprects,
+				       sizeof(struct drm_clip_rect),
+				       DRM_MEM_DRIVER);
+		if (cliprects == NULL)
+			return -ENOMEM;
+
+		ret = copy_from_user(cliprects, batch->cliprects,
+				     batch->num_cliprects *
+				     sizeof(struct drm_clip_rect));
+		if (ret != 0)
+			goto fail_free;
+	}
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_dispatch_batchbuffer(dev, batch);
+	ret = i915_dispatch_batchbuffer(dev, batch, cliprects);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (sarea_priv)
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
+
+fail_free:
+	drm_free(cliprects,
+		 batch->num_cliprects * sizeof(struct drm_clip_rect),
+		 DRM_MEM_DRIVER);
+
 	return ret;
 }
 
@@ -659,6 +674,8 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	drm_i915_sarea_t *sarea_priv = (drm_i915_sarea_t *)
 	    master_priv->sarea_priv;
 	drm_i915_cmdbuffer_t *cmdbuf = data;
+	struct drm_clip_rect *cliprects = NULL;
+	void *batch_data;
 	int ret;
 
 	DRM_DEBUG("i915 cmdbuffer, buf %p sz %d cliprects %d\n",
@@ -666,25 +683,50 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	if (cmdbuf->num_cliprects &&
-	    DRM_VERIFYAREA_READ(cmdbuf->cliprects,
-				cmdbuf->num_cliprects *
-				sizeof(struct drm_clip_rect))) {
-		DRM_ERROR("Fault accessing cliprects\n");
-		return -EFAULT;
+	if (cmdbuf->num_cliprects < 0)
+		return -EINVAL;
+
+	batch_data = drm_alloc(cmdbuf->sz, DRM_MEM_DRIVER);
+	if (batch_data == NULL)
+		return -ENOMEM;
+
+	ret = copy_from_user(batch_data, cmdbuf->buf, cmdbuf->sz);
+	if (ret != 0)
+		goto fail_batch_free;
+
+	if (cmdbuf->num_cliprects) {
+		cliprects = drm_calloc(cmdbuf->num_cliprects,
+				       sizeof(struct drm_clip_rect),
+				       DRM_MEM_DRIVER);
+		if (cliprects == NULL)
+			goto fail_batch_free;
+
+		ret = copy_from_user(cliprects, cmdbuf->cliprects,
+				     cmdbuf->num_cliprects *
+				     sizeof(struct drm_clip_rect));
+		if (ret != 0)
+			goto fail_clip_free;
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_dispatch_cmdbuffer(dev, cmdbuf);
+	ret = i915_dispatch_cmdbuffer(dev, cmdbuf, cliprects, batch_data);
 	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
 		DRM_ERROR("i915_dispatch_cmdbuffer failed\n");
-		return ret;
+		goto fail_batch_free;
 	}
 
 	if (sarea_priv)
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
-	return 0;
+
+fail_batch_free:
+	drm_free(batch_data, cmdbuf->sz, DRM_MEM_DRIVER);
+fail_clip_free:
+	drm_free(cliprects,
+		 cmdbuf->num_cliprects * sizeof(struct drm_clip_rect),
+		 DRM_MEM_DRIVER);
+
+	return ret;
 }
 
 static int i915_flip_bufs(struct drm_device *dev, void *data,
@@ -731,8 +773,11 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_GEM:
 		value = dev_priv->has_gem;
 		break;
+	case I915_PARAM_NUM_FENCES_AVAIL:
+		value = dev_priv->num_fence_regs - dev_priv->fence_reg_start;
+		break;
 	default:
-		DRM_ERROR("Unknown parameter %d\n", param->param);
+		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 
@@ -764,8 +809,15 @@ static int i915_setparam(struct drm_device *dev, void *data,
 	case I915_SETPARAM_ALLOW_BATCHBUFFER:
 		dev_priv->allow_batchbuffer = param->value;
 		break;
+	case I915_SETPARAM_NUM_USED_FENCES:
+		if (param->value > dev_priv->num_fence_regs ||
+		    param->value < 0)
+			return -EINVAL;
+		/* Userspace can use first N regs */
+		dev_priv->fence_reg_start = param->value;
+		break;
 	default:
-		DRM_ERROR("unknown parameter %d\n", param->param);
+		DRM_DEBUG("unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 
@@ -801,7 +853,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	dev_priv->hws_map.flags = 0;
 	dev_priv->hws_map.mtrr = 0;
 
-	drm_core_ioremap(&dev_priv->hws_map, dev);
+	drm_core_ioremap_wc(&dev_priv->hws_map, dev);
 	if (dev_priv->hws_map.handle == NULL) {
 		i915_dma_cleanup(dev);
 		dev_priv->status_gfx_addr = 0;
@@ -870,7 +922,7 @@ static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
 	 * Some of the preallocated space is taken by the GTT
 	 * and popup.  GTT is 1K per MB of aperture size, and popup is 4K.
 	 */
-	if (IS_G4X(dev))
+	if (IS_G4X(dev) || IS_IGD(dev))
 		overhead = 4096;
 	else
 		overhead = (*aperture_size / 1024) + 4096;
@@ -966,10 +1018,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto kfree_devname;
 
-        dev_priv->mm.gtt_mapping =
-		io_mapping_create_wc(dev->agp->base,
-				     dev->agp->agp_info.aper_size * 1024*1024);
-
 	/* Allow hardware batchbuffers unless told otherwise.
 	 */
 	dev_priv->allow_batchbuffer = 1;
@@ -981,13 +1029,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	ret = drm_irq_install(dev);
 	if (ret)
 		goto destroy_ringbuffer;
-
-	/* FIXME: re-add hotplug support */
-#if 0
-	ret = drm_hotplug_init(dev);
-	if (ret)
-		goto destroy_ringbuffer;
-#endif
 
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
@@ -1001,7 +1042,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_modeset_init(dev);
 
-	drm_helper_initial_config(dev, false);
+	drm_helper_initial_config(dev);
 
 	return 0;
 
@@ -1051,7 +1092,7 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long base, size;
+	resource_size_t base, size;
 	int ret = 0, mmio_bar = IS_I9XX(dev) ? 0 : 1;
 
 	/* i915 has 4 more counters */
@@ -1081,6 +1122,28 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto free_priv;
 	}
 
+        dev_priv->mm.gtt_mapping =
+		io_mapping_create_wc(dev->agp->base,
+				     dev->agp->agp_info.aper_size * 1024*1024);
+	if (dev_priv->mm.gtt_mapping == NULL) {
+		ret = -EIO;
+		goto out_rmmap;
+	}
+
+	/* Set up a WC MTRR for non-PAT systems.  This is more common than
+	 * one would think, because the kernel disables PAT on first
+	 * generation Core chips because WC PAT gets overridden by a UC
+	 * MTRR if present.  Even if a UC MTRR isn't present.
+	 */
+	dev_priv->mm.gtt_mtrr = mtrr_add(dev->agp->base,
+					 dev->agp->agp_info.aper_size *
+					 1024 * 1024,
+					 MTRR_TYPE_WRCOMB, 1);
+	if (dev_priv->mm.gtt_mtrr < 0) {
+		DRM_INFO("MTRR allocation failed.  Graphics "
+			 "performance may suffer.\n");
+	}
+
 #ifdef CONFIG_HIGHMEM64G
 	/* don't enable GEM on PAE - needs agp + set_memory_* interface fixes */
 	dev_priv->has_gem = 0;
@@ -1089,13 +1152,17 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->has_gem = 1;
 #endif
 
+	dev->driver->get_vblank_counter = i915_get_vblank_counter;
+	if (IS_GM45(dev))
+		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
+
 	i915_gem_load(dev);
 
 	/* Init HWS */
 	if (!I915_NEED_GFX_HWS(dev)) {
 		ret = i915_init_phys_hws(dev);
 		if (ret != 0)
-			goto out_rmmap;
+			goto out_iomapfree;
 	}
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
@@ -1111,8 +1178,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 */
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
-
-	intel_opregion_init(dev);
 
 	spin_lock_init(&dev_priv->user_irq_lock);
 	dev_priv->user_irq_refcount = 0;
@@ -1132,8 +1197,13 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		}
 	}
 
+	/* Must be done after probing outputs */
+	intel_opregion_init(dev, 0);
+
 	return 0;
 
+out_iomapfree:
+	io_mapping_free(dev_priv->mm.gtt_mapping);
 out_rmmap:
 	iounmap(dev_priv->regs);
 free_priv:
@@ -1145,8 +1215,14 @@ int i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	io_mapping_free(dev_priv->mm.gtt_mapping);
+	if (dev_priv->mm.gtt_mtrr >= 0) {
+		mtrr_del(dev_priv->mm.gtt_mtrr, dev->agp->base,
+			 dev->agp->agp_info.aper_size * 1024 * 1024);
+		dev_priv->mm.gtt_mtrr = -1;
+	}
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		io_mapping_free(dev_priv->mm.gtt_mapping);
 		drm_irq_uninstall(dev);
 	}
 

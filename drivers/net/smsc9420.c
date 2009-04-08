@@ -341,7 +341,7 @@ static int smsc9420_eeprom_send_cmd(struct smsc9420_pdata *pd, u32 op)
 	do {
 		msleep(1);
 		e2cmd = smsc9420_reg_read(pd, E2P_CMD);
-	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (timeout--));
+	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (--timeout));
 
 	if (!timeout) {
 		smsc_info(HW, "TIMED OUT");
@@ -413,6 +413,7 @@ static int smsc9420_ethtool_get_eeprom(struct net_device *dev,
 	}
 
 	memcpy(data, &eeprom_data[eeprom->offset], len);
+	eeprom->magic = SMSC9420_EEPROM_MAGIC;
 	eeprom->len = len;
 	return 0;
 }
@@ -422,6 +423,9 @@ static int smsc9420_ethtool_set_eeprom(struct net_device *dev,
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
 	int ret;
+
+	if (eeprom->magic != SMSC9420_EEPROM_MAGIC)
+		return -EINVAL;
 
 	smsc9420_eeprom_enable_access(pd);
 	smsc9420_eeprom_send_cmd(pd, E2P_CMD_EPC_CMD_EWEN_);
@@ -666,7 +670,7 @@ static irqreturn_t smsc9420_isr(int irq, void *dev_id)
 			smsc9420_pci_flush_write(pd);
 
 			ints_to_clear |= (DMAC_STS_RX_ | DMAC_STS_NIS_);
-			netif_rx_schedule(&pd->napi);
+			napi_schedule(&pd->napi);
 		}
 
 		if (ints_to_clear)
@@ -803,7 +807,7 @@ static void smsc9420_rx_handoff(struct smsc9420_pdata *pd, const int index,
 	if (pd->rx_csum) {
 		u16 hw_csum = get_unaligned_le16(skb_tail_pointer(skb) +
 			NET_IP_ALIGN + packet_length + 4);
-		put_unaligned_le16(cpu_to_le16(hw_csum), &skb->csum);
+		put_unaligned_le16(hw_csum, &skb->csum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 
@@ -889,7 +893,7 @@ static int smsc9420_rx_poll(struct napi_struct *napi, int budget)
 	smsc9420_pci_flush_write(pd);
 
 	if (work_done < budget) {
-		netif_rx_complete(&pd->napi);
+		napi_complete(&pd->napi);
 
 		/* re-enable RX DMA interrupts */
 		dma_intr_ena = smsc9420_reg_read(pd, DMAC_INTR_ENA);
@@ -1156,7 +1160,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 	smsc_info(PROBE, "PHY addr %d, phy_id 0x%08X", phydev->addr,
 		phydev->phy_id);
 
-	phydev = phy_connect(dev, phydev->dev.bus_id,
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
 		&smsc9420_phy_adjust_link, 0, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
@@ -1165,7 +1169,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 	}
 
 	pr_info("%s: attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		dev->name, phydev->drv->name, phydev->dev.bus_id, phydev->irq);
+		dev->name, phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
 
 	/* mask with MAC supported features */
 	phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
@@ -1594,7 +1598,7 @@ smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_free_netdev_2;
 	}
 
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "No usable DMA configuration, aborting.\n");
 		goto out_free_regions_3;
 	}

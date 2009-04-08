@@ -4,7 +4,7 @@
  * (c) 2006 Wolfson Microelectronics PLC.
  * Graeme Gregory graeme.gregory@wolfsonmicro.com or linux@wolfsonmicro.com
  *
- * (c) 2004-2005 Simtec Electronics
+ * Copyright 2004-2005 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -29,16 +29,9 @@
 #include <asm/dma.h>
 #include <mach/hardware.h>
 #include <mach/dma.h>
-#include <mach/audio.h>
+#include <plat/audio.h>
 
 #include "s3c24xx-pcm.h"
-
-#define S3C24XX_PCM_DEBUG 0
-#if S3C24XX_PCM_DEBUG
-#define DBG(x...) printk(KERN_DEBUG "s3c24xx-pcm: " x)
-#else
-#define DBG(x...)
-#endif
 
 static const struct snd_pcm_hardware s3c24xx_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
@@ -84,16 +77,16 @@ static void s3c24xx_pcm_enqueue(struct snd_pcm_substream *substream)
 	dma_addr_t pos = prtd->dma_pos;
 	int ret;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	while (prtd->dma_loaded < prtd->dma_limit) {
 		unsigned long len = prtd->dma_period;
 
-		DBG("dma_loaded: %d\n", prtd->dma_loaded);
+		pr_debug("dma_loaded: %d\n", prtd->dma_loaded);
 
 		if ((pos + len) > prtd->dma_end) {
 			len  = prtd->dma_end - pos;
-			DBG(KERN_DEBUG "%s: corrected dma len %ld\n",
+			pr_debug(KERN_DEBUG "%s: corrected dma len %ld\n",
 			       __func__, len);
 		}
 
@@ -119,7 +112,7 @@ static void s3c24xx_audio_buffdone(struct s3c2410_dma_chan *channel,
 	struct snd_pcm_substream *substream = dev_id;
 	struct s3c24xx_runtime_data *prtd;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (result == S3C2410_RES_ABORT || result == S3C2410_RES_ERR)
 		return;
@@ -148,7 +141,7 @@ static int s3c24xx_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned long totbytes = params_buffer_bytes(params);
 	int ret = 0;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	/* return if this is a bufferless transfer e.g.
 	 * codec <--> BT codec or GSM modem -- lg FIXME */
@@ -161,14 +154,14 @@ static int s3c24xx_pcm_hw_params(struct snd_pcm_substream *substream,
 		/* prepare DMA */
 		prtd->params = dma;
 
-		DBG("params %p, client %p, channel %d\n", prtd->params,
+		pr_debug("params %p, client %p, channel %d\n", prtd->params,
 			prtd->params->client, prtd->params->channel);
 
 		ret = s3c2410_dma_request(prtd->params->channel,
 					  prtd->params->client, NULL);
 
 		if (ret < 0) {
-			DBG(KERN_ERR "failed to get dma channel\n");
+			printk(KERN_ERR "failed to get dma channel\n");
 			return ret;
 		}
 	}
@@ -196,7 +189,7 @@ static int s3c24xx_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct s3c24xx_runtime_data *prtd = substream->runtime->private_data;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	/* TODO - do we need to ensure DMA flushed */
 	snd_pcm_set_runtime_buffer(substream, NULL);
@@ -214,7 +207,7 @@ static int s3c24xx_pcm_prepare(struct snd_pcm_substream *substream)
 	struct s3c24xx_runtime_data *prtd = substream->runtime->private_data;
 	int ret = 0;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	/* return if this is a bufferless transfer e.g.
 	 * codec <--> BT codec or GSM modem -- lg FIXME */
@@ -259,7 +252,7 @@ static int s3c24xx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct s3c24xx_runtime_data *prtd = substream->runtime->private_data;
 	int ret = 0;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	spin_lock(&prtd->lock);
 
@@ -297,7 +290,7 @@ s3c24xx_pcm_pointer(struct snd_pcm_substream *substream)
 	unsigned long res;
 	dma_addr_t src, dst;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	spin_lock(&prtd->lock);
 	s3c2410_dma_getposition(prtd->params->channel, &src, &dst);
@@ -309,7 +302,7 @@ s3c24xx_pcm_pointer(struct snd_pcm_substream *substream)
 
 	spin_unlock(&prtd->lock);
 
-	DBG("Pointer %x %x\n", src, dst);
+	pr_debug("Pointer %x %x\n", src, dst);
 
 	/* we seem to be getting the odd error from the pcm library due
 	 * to out-of-bounds pointers. this is maybe due to the dma engine
@@ -330,7 +323,7 @@ static int s3c24xx_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct s3c24xx_runtime_data *prtd;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	snd_soc_set_runtime_hwparams(substream, &s3c24xx_pcm_hardware);
 
@@ -349,10 +342,10 @@ static int s3c24xx_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct s3c24xx_runtime_data *prtd = runtime->private_data;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (!prtd)
-		DBG("s3c24xx_pcm_close called with prtd == NULL\n");
+		pr_debug("s3c24xx_pcm_close called with prtd == NULL\n");
 
 	kfree(prtd);
 
@@ -364,7 +357,7 @@ static int s3c24xx_pcm_mmap(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	return dma_mmap_writecombine(substream->pcm->card->dev, vma,
 				     runtime->dma_area,
@@ -390,7 +383,7 @@ static int s3c24xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	size_t size = s3c24xx_pcm_hardware.buffer_bytes_max;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
 	buf->dev.dev = pcm->card->dev;
@@ -409,7 +402,7 @@ static void s3c24xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 	struct snd_dma_buffer *buf;
 	int stream;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	for (stream = 0; stream < 2; stream++) {
 		substream = pcm->streams[stream].substream;
@@ -426,14 +419,14 @@ static void s3c24xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 	}
 }
 
-static u64 s3c24xx_pcm_dmamask = DMA_32BIT_MASK;
+static u64 s3c24xx_pcm_dmamask = DMA_BIT_MASK(32);
 
 static int s3c24xx_pcm_new(struct snd_card *card,
 	struct snd_soc_dai *dai, struct snd_pcm *pcm)
 {
 	int ret = 0;
 
-	DBG("Entered %s\n", __func__);
+	pr_debug("Entered %s\n", __func__);
 
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &s3c24xx_pcm_dmamask;

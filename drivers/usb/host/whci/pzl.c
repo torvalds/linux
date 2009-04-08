@@ -255,13 +255,13 @@ void scan_periodic_work(struct work_struct *work)
 	 * Now that the PZL is updated, complete the removal of any
 	 * removed qsets.
 	 */
-	spin_lock(&whc->lock);
+	spin_lock_irq(&whc->lock);
 
 	list_for_each_entry_safe(qset, t, &whc->periodic_removed_list, list_node) {
 		qset_remove_complete(whc, qset);
 	}
 
-	spin_unlock(&whc->lock);
+	spin_unlock_irq(&whc->lock);
 }
 
 /**

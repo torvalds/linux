@@ -140,7 +140,7 @@ static void amd7411_cable_detect(struct pci_dev *dev)
  * The initialization callback.  Initialize drive independent registers.
  */
 
-static unsigned int init_chipset_amd74xx(struct pci_dev *dev)
+static int init_chipset_amd74xx(struct pci_dev *dev)
 {
 	u8 t = 0, offset = amd_offset(dev);
 
@@ -166,13 +166,13 @@ static unsigned int init_chipset_amd74xx(struct pci_dev *dev)
 	 * Check for broken FIFO support.
 	 */
 	if (dev->vendor == PCI_VENDOR_ID_AMD &&
-	    dev->vendor == PCI_DEVICE_ID_AMD_VIPER_7411)
+	    dev->device == PCI_DEVICE_ID_AMD_VIPER_7411)
 		t &= 0x0f;
 	else
 		t |= 0xf0;
 	pci_write_config_byte(dev, AMD_IDE_CONFIG + offset, t);
 
-	return dev->irq;
+	return 0;
 }
 
 static u8 amd_cable_detect(ide_hwif_t *hwif)
@@ -181,14 +181,6 @@ static u8 amd_cable_detect(ide_hwif_t *hwif)
 		return ATA_CBL_PATA80;
 	else
 		return ATA_CBL_PATA40;
-}
-
-static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
-{
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
-
-	if (hwif->irq == 0) /* 0 is bogus but will do for now */
-		hwif->irq = pci_get_legacy_ide_irq(dev, hwif->channel);
 }
 
 static const struct ide_port_ops amd_port_ops = {
@@ -207,7 +199,6 @@ static const struct ide_port_ops amd_port_ops = {
 	{								\
 		.name		= DRV_NAME,				\
 		.init_chipset	= init_chipset_amd74xx,			\
-		.init_hwif	= init_hwif_amd74xx,			\
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
 		.port_ops	= &amd_port_ops,			\
 		.host_flags	= IDE_HFLAGS_AMD,			\
@@ -221,7 +212,6 @@ static const struct ide_port_ops amd_port_ops = {
 	{								\
 		.name		= DRV_NAME,				\
 		.init_chipset	= init_chipset_amd74xx,			\
-		.init_hwif	= init_hwif_amd74xx,			\
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x01,0x01}},	\
 		.port_ops	= &amd_port_ops,			\
 		.host_flags	= IDE_HFLAGS_AMD,			\

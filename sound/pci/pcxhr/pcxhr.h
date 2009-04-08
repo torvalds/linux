@@ -27,8 +27,8 @@
 #include <linux/mutex.h>
 #include <sound/pcm.h>
 
-#define PCXHR_DRIVER_VERSION		0x000905	/* 0.9.5 */
-#define PCXHR_DRIVER_VERSION_STRING	"0.9.5"		/* 0.9.5 */
+#define PCXHR_DRIVER_VERSION		0x000906	/* 0.9.6 */
+#define PCXHR_DRIVER_VERSION_STRING	"0.9.6"		/* 0.9.6 */
 
 
 #define PCXHR_MAX_CARDS		6
@@ -97,12 +97,12 @@ struct pcxhr_mgr {
 	int capture_chips;
 	int fw_file_set;
 	int firmware_num;
-	int is_hr_stereo:1;
-	int board_has_aes1:1;	/* if 1 board has AES1 plug and SRC */
-	int board_has_analog:1;	/* if 0 the board is digital only */
-	int board_has_mic:1;	/* if 1 the board has microphone input */
-	int board_aes_in_192k:1;/* if 1 the aes input plugs do support 192kHz */
-	int mono_capture:1;	/* if 1 the board does mono capture */
+	unsigned int is_hr_stereo:1;
+	unsigned int board_has_aes1:1;	/* if 1 board has AES1 plug and SRC */
+	unsigned int board_has_analog:1; /* if 0 the board is digital only */
+	unsigned int board_has_mic:1; /* if 1 the board has microphone input */
+	unsigned int board_aes_in_192k:1;/* if 1 the aes input plugs do support 192kHz */
+	unsigned int mono_capture:1; /* if 1 the board does mono capture */
 
 	struct snd_dma_buffer hostport;
 
@@ -124,6 +124,7 @@ struct pcxhr_mgr {
 
 	unsigned char xlx_cfg;		/* copy of PCXHR_XLX_CFG register */
 	unsigned char xlx_selmic;	/* copy of PCXHR_XLX_SELMIC register */
+	unsigned char dsp_reset;	/* copy of PCXHR_DSP_RESET register */
 };
 
 

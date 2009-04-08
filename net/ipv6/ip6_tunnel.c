@@ -249,8 +249,8 @@ static struct ip6_tnl *ip6_tnl_create(struct net *net, struct ip6_tnl_parm *p)
 	}
 
 	t = netdev_priv(dev);
-	ip6_tnl_dev_init(dev);
 	t->parms = *p;
+	ip6_tnl_dev_init(dev);
 
 	if ((err = register_netdevice(dev)) < 0)
 		goto failed_free;

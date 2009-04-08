@@ -34,15 +34,17 @@
  */
 
 #include <linux/vmalloc.h>
+#include <linux/log2.h>
+#include <asm/shmparam.h>
 #include "drmP.h"
 
-unsigned long drm_get_resource_start(struct drm_device *dev, unsigned int resource)
+resource_size_t drm_get_resource_start(struct drm_device *dev, unsigned int resource)
 {
 	return pci_resource_start(dev->pdev, resource);
 }
 EXPORT_SYMBOL(drm_get_resource_start);
 
-unsigned long drm_get_resource_len(struct drm_device *dev, unsigned int resource)
+resource_size_t drm_get_resource_len(struct drm_device *dev, unsigned int resource)
 {
 	return pci_resource_len(dev->pdev, resource);
 }
@@ -50,24 +52,44 @@ unsigned long drm_get_resource_len(struct drm_device *dev, unsigned int resource
 EXPORT_SYMBOL(drm_get_resource_len);
 
 static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
-					     drm_local_map_t *map)
+						  struct drm_local_map *map)
 {
 	struct drm_map_list *entry;
 	list_for_each_entry(entry, &dev->maplist, head) {
-		if (entry->map && (entry->master == dev->primary->master) && (map->type == entry->map->type) &&
-		    ((entry->map->offset == map->offset) ||
-		     ((map->type == _DRM_SHM) && (map->flags&_DRM_CONTAINS_LOCK)))) {
+		/*
+		 * Because the kernel-userspace ABI is fixed at a 32-bit offset
+		 * while PCI resources may live above that, we ignore the map
+		 * offset for maps of type _DRM_FRAMEBUFFER or _DRM_REGISTERS.
+		 * It is assumed that each driver will have only one resource of
+		 * each type.
+		 */
+		if (!entry->map ||
+		    map->type != entry->map->type ||
+		    entry->master != dev->primary->master)
+			continue;
+		switch (map->type) {
+		case _DRM_SHM:
+			if (map->flags != _DRM_CONTAINS_LOCK)
+				break;
+		case _DRM_REGISTERS:
+		case _DRM_FRAME_BUFFER:
 			return entry;
+		default: /* Make gcc happy */
+			;
 		}
+		if (entry->map->offset == map->offset)
+			return entry;
 	}
 
 	return NULL;
 }
 
 static int drm_map_handle(struct drm_device *dev, struct drm_hash_item *hash,
-			  unsigned long user_token, int hashed_handle)
+			  unsigned long user_token, int hashed_handle, int shm)
 {
-	int use_hashed_handle;
+	int use_hashed_handle, shift;
+	unsigned long add;
+
 #if (BITS_PER_LONG == 64)
 	use_hashed_handle = ((user_token & 0xFFFFFFFF00000000UL) || hashed_handle);
 #elif (BITS_PER_LONG == 32)
@@ -83,30 +105,47 @@ static int drm_map_handle(struct drm_device *dev, struct drm_hash_item *hash,
 		if (ret != -EINVAL)
 			return ret;
 	}
+
+	shift = 0;
+	add = DRM_MAP_HASH_OFFSET >> PAGE_SHIFT;
+	if (shm && (SHMLBA > PAGE_SIZE)) {
+		int bits = ilog2(SHMLBA >> PAGE_SHIFT) + 1;
+
+		/* For shared memory, we have to preserve the SHMLBA
+		 * bits of the eventual vma->vm_pgoff value during
+		 * mmap().  Otherwise we run into cache aliasing problems
+		 * on some platforms.  On these platforms, the pgoff of
+		 * a mmap() request is used to pick a suitable virtual
+		 * address for the mmap() region such that it will not
+		 * cause cache aliasing problems.
+		 *
+		 * Therefore, make sure the SHMLBA relevant bits of the
+		 * hash value we use are equal to those in the original
+		 * kernel virtual address.
+		 */
+		shift = bits;
+		add |= ((user_token >> PAGE_SHIFT) & ((1UL << bits) - 1UL));
+	}
+
 	return drm_ht_just_insert_please(&dev->map_hash, hash,
 					 user_token, 32 - PAGE_SHIFT - 3,
-					 0, DRM_MAP_HASH_OFFSET >> PAGE_SHIFT);
+					 shift, add);
 }
 
 /**
- * Ioctl to specify a range of memory that is available for mapping by a non-root process.
- *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg pointer to a drm_map structure.
- * \return zero on success or a negative value on error.
+ * Core function to create a range of memory available for mapping by a
+ * non-root process.
  *
  * Adjusts the memory offset to its absolute value according to the mapping
  * type.  Adds the map to the map list drm_device::maplist. Adds MTRR's where
  * applicable and if supported by the kernel.
  */
-static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
+static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 			   unsigned int size, enum drm_map_type type,
 			   enum drm_map_flags flags,
 			   struct drm_map_list ** maplist)
 {
-	struct drm_map *map;
+	struct drm_local_map *map;
 	struct drm_map_list *list;
 	drm_dma_handle_t *dmah;
 	unsigned long user_token;
@@ -129,9 +168,9 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 		drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		return -EINVAL;
 	}
-	DRM_DEBUG("offset = 0x%08lx, size = 0x%08lx, type = %d\n",
-		  map->offset, map->size, map->type);
-	if ((map->offset & (~PAGE_MASK)) || (map->size & (~PAGE_MASK))) {
+	DRM_DEBUG("offset = 0x%08llx, size = 0x%08lx, type = %d\n",
+		  (unsigned long long)map->offset, map->size, map->type);
+	if ((map->offset & (~(resource_size_t)PAGE_MASK)) || (map->size & (~PAGE_MASK))) {
 		drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		return -EINVAL;
 	}
@@ -259,7 +298,8 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 			return -EPERM;
 		}
-		DRM_DEBUG("AGP offset = 0x%08lx, size = 0x%08lx\n", map->offset, map->size);
+		DRM_DEBUG("AGP offset = 0x%08llx, size = 0x%08lx\n",
+			  (unsigned long long)map->offset, map->size);
 
 		break;
 	case _DRM_GEM:
@@ -309,7 +349,8 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 	/* We do it here so that dev->struct_mutex protects the increment */
 	user_token = (map->type == _DRM_SHM) ? (unsigned long)map->handle :
 		map->offset;
-	ret = drm_map_handle(dev, &list->hash, user_token, 0);
+	ret = drm_map_handle(dev, &list->hash, user_token, 0,
+			     (map->type == _DRM_SHM));
 	if (ret) {
 		if (map->type == _DRM_REGISTERS)
 			iounmap(map->handle);
@@ -327,9 +368,9 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 	return 0;
 	}
 
-int drm_addmap(struct drm_device * dev, unsigned int offset,
+int drm_addmap(struct drm_device * dev, resource_size_t offset,
 	       unsigned int size, enum drm_map_type type,
-	       enum drm_map_flags flags, drm_local_map_t ** map_ptr)
+	       enum drm_map_flags flags, struct drm_local_map ** map_ptr)
 {
 	struct drm_map_list *list;
 	int rc;
@@ -342,6 +383,17 @@ int drm_addmap(struct drm_device * dev, unsigned int offset,
 
 EXPORT_SYMBOL(drm_addmap);
 
+/**
+ * Ioctl to specify a range of memory that is available for mapping by a
+ * non-root process.
+ *
+ * \param inode device inode.
+ * \param file_priv DRM file private.
+ * \param cmd command.
+ * \param arg pointer to a drm_map structure.
+ * \return zero on success or a negative value on error.
+ *
+ */
 int drm_addmap_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv)
 {
@@ -367,19 +419,13 @@ int drm_addmap_ioctl(struct drm_device *dev, void *data,
  * Remove a map private from list and deallocate resources if the mapping
  * isn't in use.
  *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg pointer to a struct drm_map structure.
- * \return zero on success or a negative value on error.
- *
  * Searches the map on drm_device::maplist, removes it from the list, see if
  * its being used, and free any associate resource (such as MTRR's) if it's not
  * being on use.
  *
  * \sa drm_addmap
  */
-int drm_rmmap_locked(struct drm_device *dev, drm_local_map_t *map)
+int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 {
 	struct drm_map_list *r_list = NULL, *list_t;
 	drm_dma_handle_t dmah;
@@ -420,7 +466,7 @@ int drm_rmmap_locked(struct drm_device *dev, drm_local_map_t *map)
 				dev->sigdata.lock = NULL;
 			master->lock.hw_lock = NULL;   /* SHM removed */
 			master->lock.file_priv = NULL;
-			wake_up_interruptible(&master->lock.lock_queue);
+			wake_up_interruptible_all(&master->lock.lock_queue);
 		}
 		break;
 	case _DRM_AGP:
@@ -442,7 +488,7 @@ int drm_rmmap_locked(struct drm_device *dev, drm_local_map_t *map)
 }
 EXPORT_SYMBOL(drm_rmmap_locked);
 
-int drm_rmmap(struct drm_device *dev, drm_local_map_t *map)
+int drm_rmmap(struct drm_device *dev, struct drm_local_map *map)
 {
 	int ret;
 
@@ -462,12 +508,18 @@ EXPORT_SYMBOL(drm_rmmap);
  * One use case might be after addmap is allowed for normal users for SHM and
  * gets used by drivers that the server doesn't need to care about.  This seems
  * unlikely.
+ *
+ * \param inode device inode.
+ * \param file_priv DRM file private.
+ * \param cmd command.
+ * \param arg pointer to a struct drm_map structure.
+ * \return zero on success or a negative value on error.
  */
 int drm_rmmap_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
 	struct drm_map *request = data;
-	drm_local_map_t *map = NULL;
+	struct drm_local_map *map = NULL;
 	struct drm_map_list *r_list;
 	int ret;
 
@@ -1534,7 +1586,7 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 			&& (dma->flags & _DRM_DMA_USE_SG))
 		    || (drm_core_check_feature(dev, DRIVER_FB_DMA)
 			&& (dma->flags & _DRM_DMA_USE_FB))) {
-			struct drm_map *map = dev->agp_buffer_map;
+			struct drm_local_map *map = dev->agp_buffer_map;
 			unsigned long token = dev->agp_buffer_token;
 
 			if (!map) {

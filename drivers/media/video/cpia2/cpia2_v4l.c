@@ -37,6 +37,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/videodev.h>
 #include <media/v4l2-ioctl.h>
 
 #include "cpia2.h"

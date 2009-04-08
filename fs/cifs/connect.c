@@ -23,7 +23,6 @@
 #include <linux/string.h>
 #include <linux/list.h>
 #include <linux/wait.h>
-#include <linux/ipv6.h>
 #include <linux/pagemap.h>
 #include <linux/ctype.h>
 #include <linux/utsname.h>
@@ -35,6 +34,7 @@
 #include <linux/freezer.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
+#include <net/ipv6.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
@@ -95,6 +95,7 @@ struct smb_vol {
 	bool local_lease:1; /* check leases only on local system, not remote */
 	bool noblocksnd:1;
 	bool noautotune:1;
+	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -1274,6 +1275,10 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->intr = 0;
 		} else if (strnicmp(data, "intr", 4) == 0) {
 			vol->intr = 1;
+		} else if (strnicmp(data, "nostrictsync", 12) == 0) {
+			vol->nostrictsync = 1;
+		} else if (strnicmp(data, "strictsync", 10) == 0) {
+			vol->nostrictsync = 0;
 		} else if (strnicmp(data, "serverino", 7) == 0) {
 			vol->server_ino = 1;
 		} else if (strnicmp(data, "noserverino", 9) == 0) {
@@ -1379,8 +1384,8 @@ cifs_find_tcp_session(struct sockaddr_storage *addr)
 		     server->addr.sockAddr.sin_addr.s_addr))
 			continue;
 		else if (addr->ss_family == AF_INET6 &&
-			 memcmp(&server->addr.sockAddr6.sin6_addr,
-				&addr6->sin6_addr, sizeof(addr6->sin6_addr)))
+			 !ipv6_addr_equal(&server->addr.sockAddr6.sin6_addr,
+					  &addr6->sin6_addr))
 			continue;
 
 		++server->srv_count;
@@ -2160,6 +2165,8 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
 	if (pvolume_info->nobrl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
+	if (pvolume_info->nostrictsync)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOSSYNC;
 	if (pvolume_info->mand_lock)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOPOSIXBRL;
 	if (pvolume_info->cifs_acl)
@@ -2180,6 +2187,33 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 			   "mount option supported"));
 }
 
+static int
+is_path_accessible(int xid, struct cifsTconInfo *tcon,
+		   struct cifs_sb_info *cifs_sb, const char *full_path)
+{
+	int rc;
+	__u64 inode_num;
+	FILE_ALL_INFO *pfile_info;
+
+	rc = CIFSGetSrvInodeNumber(xid, tcon, full_path, &inode_num,
+				   cifs_sb->local_nls,
+				   cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc != -EOPNOTSUPP)
+		return rc;
+
+	pfile_info = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
+	if (pfile_info == NULL)
+		return -ENOMEM;
+
+	rc = CIFSSMBQPathInfo(xid, tcon, full_path, pfile_info,
+			      0 /* not legacy */, cifs_sb->local_nls,
+			      cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	kfree(pfile_info);
+	return rc;
+}
+
 int
 cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	   char *mount_data, const char *devname)
@@ -2190,6 +2224,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	struct cifsSesInfo *pSesInfo = NULL;
 	struct cifsTconInfo *tcon = NULL;
 	struct TCP_Server_Info *srvTcp = NULL;
+	char   *full_path;
 
 	xid = GetXid();
 
@@ -2425,6 +2460,23 @@ mount_fail_check:
 	if (!(tcon->ses->capabilities & CAP_LARGE_READ_X))
 		cifs_sb->rsize = min(cifs_sb->rsize,
 			       (tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE));
+
+	if (!rc && cifs_sb->prepathlen) {
+		/* build_path_to_root works only when we have a valid tcon */
+		full_path = cifs_build_path_to_root(cifs_sb);
+		if (full_path == NULL) {
+			rc = -ENOMEM;
+			goto mount_fail_check;
+		}
+		rc = is_path_accessible(xid, tcon, cifs_sb, full_path);
+		if (rc) {
+			cERROR(1, ("Path %s in not accessible: %d",
+						full_path, rc));
+			kfree(full_path);
+			goto mount_fail_check;
+		}
+		kfree(full_path);
+	}
 
 	/* volume_info->password is freed above when existing session found
 	(in which case it is not needed anymore) but when new sesion is created
@@ -3622,7 +3674,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 			    BCC(smb_buffer_response)) {
 				kfree(tcon->nativeFileSystem);
 				tcon->nativeFileSystem =
-				    kzalloc(length + 2, GFP_KERNEL);
+				    kzalloc(2*(length + 1), GFP_KERNEL);
 				if (tcon->nativeFileSystem)
 					cifs_strfromUCS_le(
 						tcon->nativeFileSystem,

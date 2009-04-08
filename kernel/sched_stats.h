@@ -4,7 +4,7 @@
  * bump this up when changing the output format or the meaning of an existing
  * format, so that tools can adapt (or abort)
  */
-#define SCHEDSTAT_VERSION 14
+#define SCHEDSTAT_VERSION 15
 
 static int show_schedstat(struct seq_file *seq, void *v)
 {
@@ -26,9 +26,8 @@ static int show_schedstat(struct seq_file *seq, void *v)
 
 		/* runqueue-specific stats */
 		seq_printf(seq,
-		    "cpu%d %u %u %u %u %u %u %u %u %u %llu %llu %lu",
-		    cpu, rq->yld_both_empty,
-		    rq->yld_act_empty, rq->yld_exp_empty, rq->yld_count,
+		    "cpu%d %u %u %u %u %u %u %llu %llu %lu",
+		    cpu, rq->yld_count,
 		    rq->sched_switch, rq->sched_count, rq->sched_goidle,
 		    rq->ttwu_count, rq->ttwu_local,
 		    rq->rq_cpu_time,
@@ -296,19 +295,21 @@ sched_info_switch(struct task_struct *prev, struct task_struct *next)
 static inline void account_group_user_time(struct task_struct *tsk,
 					   cputime_t cputime)
 {
-	struct task_cputime *times;
-	struct signal_struct *sig;
+	struct thread_group_cputimer *cputimer;
 
 	/* tsk == current, ensure it is safe to use ->signal */
 	if (unlikely(tsk->exit_state))
 		return;
 
-	sig = tsk->signal;
-	times = &sig->cputime.totals;
+	cputimer = &tsk->signal->cputimer;
 
-	spin_lock(&times->lock);
-	times->utime = cputime_add(times->utime, cputime);
-	spin_unlock(&times->lock);
+	if (!cputimer->running)
+		return;
+
+	spin_lock(&cputimer->lock);
+	cputimer->cputime.utime =
+		cputime_add(cputimer->cputime.utime, cputime);
+	spin_unlock(&cputimer->lock);
 }
 
 /**
@@ -324,19 +325,21 @@ static inline void account_group_user_time(struct task_struct *tsk,
 static inline void account_group_system_time(struct task_struct *tsk,
 					     cputime_t cputime)
 {
-	struct task_cputime *times;
-	struct signal_struct *sig;
+	struct thread_group_cputimer *cputimer;
 
 	/* tsk == current, ensure it is safe to use ->signal */
 	if (unlikely(tsk->exit_state))
 		return;
 
-	sig = tsk->signal;
-	times = &sig->cputime.totals;
+	cputimer = &tsk->signal->cputimer;
 
-	spin_lock(&times->lock);
-	times->stime = cputime_add(times->stime, cputime);
-	spin_unlock(&times->lock);
+	if (!cputimer->running)
+		return;
+
+	spin_lock(&cputimer->lock);
+	cputimer->cputime.stime =
+		cputime_add(cputimer->cputime.stime, cputime);
+	spin_unlock(&cputimer->lock);
 }
 
 /**
@@ -352,7 +355,7 @@ static inline void account_group_system_time(struct task_struct *tsk,
 static inline void account_group_exec_runtime(struct task_struct *tsk,
 					      unsigned long long ns)
 {
-	struct task_cputime *times;
+	struct thread_group_cputimer *cputimer;
 	struct signal_struct *sig;
 
 	sig = tsk->signal;
@@ -361,9 +364,12 @@ static inline void account_group_exec_runtime(struct task_struct *tsk,
 	if (unlikely(!sig))
 		return;
 
-	times = &sig->cputime.totals;
+	cputimer = &sig->cputimer;
 
-	spin_lock(&times->lock);
-	times->sum_exec_runtime += ns;
-	spin_unlock(&times->lock);
+	if (!cputimer->running)
+		return;
+
+	spin_lock(&cputimer->lock);
+	cputimer->cputime.sum_exec_runtime += ns;
+	spin_unlock(&cputimer->lock);
 }

@@ -231,12 +231,11 @@ static const struct ide_port_ops cs5536_port_ops = {
 static const struct ide_dma_ops cs5536_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= cs5536_dma_start,
 	.dma_end		= cs5536_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
-	.dma_timeout		= ide_dma_timeout,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 };
 
 static const struct ide_port_info cs5536_info = {

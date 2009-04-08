@@ -90,6 +90,7 @@ static const struct pci_device_id cxgb3_pci_tbl[] = {
 	CH_DEVICE(0x30, 2),	/* T3B10 */
 	CH_DEVICE(0x31, 3),	/* T3B20 */
 	CH_DEVICE(0x32, 1),	/* T3B02 */
+	CH_DEVICE(0x35, 6),	/* T3C20-derived T3C10 */
 	{0,}
 };
 
@@ -169,6 +170,40 @@ static void link_report(struct net_device *dev)
 	}
 }
 
+void t3_os_link_fault(struct adapter *adap, int port_id, int state)
+{
+	struct net_device *dev = adap->port[port_id];
+	struct port_info *pi = netdev_priv(dev);
+
+	if (state == netif_carrier_ok(dev))
+		return;
+
+	if (state) {
+		struct cmac *mac = &pi->mac;
+
+		netif_carrier_on(dev);
+
+		/* Clear local faults */
+		t3_xgm_intr_disable(adap, pi->port_id);
+		t3_read_reg(adap, A_XGM_INT_STATUS +
+				    pi->mac.offset);
+		t3_write_reg(adap,
+			     A_XGM_INT_CAUSE + pi->mac.offset,
+			     F_XGM_INT);
+
+		t3_set_reg_field(adap,
+				 A_XGM_INT_ENABLE +
+				 pi->mac.offset,
+				 F_XGM_INT, F_XGM_INT);
+		t3_xgm_intr_enable(adap, pi->port_id);
+
+		t3_mac_enable(mac, MAC_DIRECTION_TX);
+	} else
+		netif_carrier_off(dev);
+
+	link_report(dev);
+}
+
 /**
  *	t3_os_link_changed - handle link status changes
  *	@adapter: the adapter associated with the link change
@@ -196,10 +231,34 @@ void t3_os_link_changed(struct adapter *adapter, int port_id, int link_stat,
 	if (link_stat != netif_carrier_ok(dev)) {
 		if (link_stat) {
 			t3_mac_enable(mac, MAC_DIRECTION_RX);
+
+			/* Clear local faults */
+			t3_xgm_intr_disable(adapter, pi->port_id);
+			t3_read_reg(adapter, A_XGM_INT_STATUS +
+				    pi->mac.offset);
+			t3_write_reg(adapter,
+				     A_XGM_INT_CAUSE + pi->mac.offset,
+				     F_XGM_INT);
+
+			t3_set_reg_field(adapter,
+					 A_XGM_INT_ENABLE + pi->mac.offset,
+					 F_XGM_INT, F_XGM_INT);
+			t3_xgm_intr_enable(adapter, pi->port_id);
+
 			netif_carrier_on(dev);
 		} else {
 			netif_carrier_off(dev);
-			pi->phy.ops->power_down(&pi->phy, 1);
+
+			t3_xgm_intr_disable(adapter, pi->port_id);
+			t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
+			t3_set_reg_field(adapter,
+					 A_XGM_INT_ENABLE + pi->mac.offset,
+					 F_XGM_INT, 0);
+
+			if (is_10G(adapter))
+				pi->phy.ops->power_down(&pi->phy, 1);
+
+			t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
 			t3_mac_disable(mac, MAC_DIRECTION_RX);
 			t3_link_start(&pi->phy, mac, &pi->link_config);
 		}
@@ -338,7 +397,7 @@ static void free_irq_resources(struct adapter *adapter)
 
 		free_irq(adapter->msix_info[0].vec, adapter);
 		for_each_port(adapter, i)
-		    n += adap2pinfo(adapter, i)->nqsets;
+			n += adap2pinfo(adapter, i)->nqsets;
 
 		for (i = 0; i < n; ++i)
 			free_irq(adapter->msix_info[i + 1].vec,
@@ -508,19 +567,9 @@ static void set_qset_lro(struct net_device *dev, int qset_idx, int val)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	int i, lro_on = 1;
 
 	adapter->params.sge.qset[qset_idx].lro = !!val;
 	adapter->sge.qs[qset_idx].lro_enabled = !!val;
-
-	/* let ethtool report LRO on only if all queues are LRO enabled */
-	for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; ++i)
-		lro_on &= adapter->params.sge.qset[i].lro;
-
-	if (lro_on)
-		dev->features |= NETIF_F_LRO;
-	else
-		dev->features &= ~NETIF_F_LRO;
 }
 
 /**
@@ -553,7 +602,6 @@ static int setup_sge_qsets(struct adapter *adap)
 				&adap->params.sge.qset[qset_idx], ntxq, dev,
 				netdev_get_tx_queue(dev, j));
 			if (err) {
-				t3_stop_sge_timers(adap);
 				t3_free_sge_resources(adap);
 				return err;
 			}
@@ -997,6 +1045,8 @@ static int cxgb_up(struct adapter *adap)
 		setup_rss(adap);
 		if (!(adap->flags & NAPI_INIT))
 			init_napi(adap);
+
+		t3_start_sge_timers(adap);
 		adap->flags |= FULL_INIT_DONE;
 	}
 
@@ -1182,6 +1232,10 @@ static int cxgb_close(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
+	/* Stop link fault interrupts */
+	t3_xgm_intr_disable(adapter, pi->port_id);
+	t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
+
 	t3_port_intr_disable(adapter, pi->port_id);
 	netif_tx_stop_all_queues(dev);
 	pi->phy.ops->power_down(&pi->phy, 1);
@@ -1308,6 +1362,7 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"CheckTXEnToggled   ",
 	"CheckResets        ",
 
+	"LinkFaults         ",
 };
 
 static int get_sset_count(struct net_device *dev, int sset)
@@ -1433,13 +1488,15 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_VLANINS);
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_TX_CSUM);
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_RX_CSUM_GOOD);
-	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_LRO_AGGR);
-	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_LRO_FLUSHED);
-	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_LRO_NO_DESC);
+	*data++ = 0;
+	*data++ = 0;
+	*data++ = 0;
 	*data++ = s->rx_cong_drops;
 
 	*data++ = s->num_toggled;
 	*data++ = s->num_resets;
+
+	*data++ = s->link_faults;
 }
 
 static inline void reg_block_dump(struct adapter *ap, void *buf,
@@ -1575,7 +1632,6 @@ static int speed_duplex_to_caps(int speed, int duplex)
 
 static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	int cap;
 	struct port_info *p = netdev_priv(dev);
 	struct link_config *lc = &p->link_config;
 
@@ -1585,7 +1641,7 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 * being requested.
 		 */
 		if (cmd->autoneg == AUTONEG_DISABLE) {
-			cap = speed_duplex_to_caps(cmd->speed, cmd->duplex);
+			int cap = speed_duplex_to_caps(cmd->speed, cmd->duplex);
 			if (lc->supported & cap)
 				return 0;
 		}
@@ -1826,28 +1882,6 @@ static void get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
 }
 
-static int cxgb3_set_flags(struct net_device *dev, u32 data)
-{
-	struct port_info *pi = netdev_priv(dev);
-	int i;
-
-	if (data & ETH_FLAG_LRO) {
-		if (!(pi->rx_offload & T3_RX_CSUM))
-			return -EINVAL;
-
-		pi->rx_offload |= T3_LRO;
-		for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++)
-			set_qset_lro(dev, i, 1);
-
-	} else {
-		pi->rx_offload &= ~T3_LRO;
-		for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++)
-			set_qset_lro(dev, i, 0);
-	}
-
-	return 0;
-}
-
 static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_settings = get_settings,
 	.set_settings = set_settings,
@@ -1877,8 +1911,6 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_regs = get_regs,
 	.get_wol = get_wol,
 	.set_tso = ethtool_op_set_tso,
-	.get_flags = ethtool_op_get_flags,
-	.set_flags = cxgb3_set_flags,
 };
 
 static int in_range(int val, int lo, int hi)
@@ -2459,8 +2491,20 @@ static void check_link_status(struct adapter *adapter)
 		struct net_device *dev = adapter->port[i];
 		struct port_info *p = netdev_priv(dev);
 
-		if (!(p->phy.caps & SUPPORTED_IRQ) && netif_running(dev))
+		spin_lock_irq(&adapter->work_lock);
+		if (p->link_fault) {
+			spin_unlock_irq(&adapter->work_lock);
+			continue;
+		}
+		spin_unlock_irq(&adapter->work_lock);
+
+		if (!(p->phy.caps & SUPPORTED_IRQ) && netif_running(dev)) {
+			t3_xgm_intr_disable(adapter, i);
+			t3_read_reg(adapter, A_XGM_INT_STATUS + p->mac.offset);
+
 			t3_link_changed(adapter, i);
+			t3_xgm_intr_enable(adapter, i);
+		}
 	}
 }
 
@@ -2505,6 +2549,8 @@ static void t3_adap_check_task(struct work_struct *work)
 	struct adapter *adapter = container_of(work, struct adapter,
 					       adap_check_task.work);
 	const struct adapter_params *p = &adapter->params;
+	int port;
+	unsigned int v, status, reset;
 
 	adapter->check_task_cnt++;
 
@@ -2523,6 +2569,54 @@ static void t3_adap_check_task(struct work_struct *work)
 	if (p->rev == T3_REV_B2)
 		check_t3b2_mac(adapter);
 
+	/*
+	 * Scan the XGMAC's to check for various conditions which we want to
+	 * monitor in a periodic polling manner rather than via an interrupt
+	 * condition.  This is used for conditions which would otherwise flood
+	 * the system with interrupts and we only really need to know that the
+	 * conditions are "happening" ...  For each condition we count the
+	 * detection of the condition and reset it for the next polling loop.
+	 */
+	for_each_port(adapter, port) {
+		struct cmac *mac =  &adap2pinfo(adapter, port)->mac;
+		u32 cause;
+
+		cause = t3_read_reg(adapter, A_XGM_INT_CAUSE + mac->offset);
+		reset = 0;
+		if (cause & F_RXFIFO_OVERFLOW) {
+			mac->stats.rx_fifo_ovfl++;
+			reset |= F_RXFIFO_OVERFLOW;
+		}
+
+		t3_write_reg(adapter, A_XGM_INT_CAUSE + mac->offset, reset);
+	}
+
+	/*
+	 * We do the same as above for FL_EMPTY interrupts.
+	 */
+	status = t3_read_reg(adapter, A_SG_INT_CAUSE);
+	reset = 0;
+
+	if (status & F_FLEMPTY) {
+		struct sge_qset *qs = &adapter->sge.qs[0];
+		int i = 0;
+
+		reset |= F_FLEMPTY;
+
+		v = (t3_read_reg(adapter, A_SG_RSPQ_FL_STATUS) >> S_FL0EMPTY) &
+		    0xffff;
+
+		while (v) {
+			qs->fl[i].empty += (v & 1);
+			if (i)
+				qs++;
+			i ^= 1;
+			v >>= 1;
+		}
+	}
+
+	t3_write_reg(adapter, A_SG_INT_CAUSE, reset);
+
 	/* Schedule the next check update if any port is active. */
 	spin_lock_irq(&adapter->work_lock);
 	if (adapter->open_device_map & PORT_MASK)
@@ -2537,8 +2631,22 @@ static void ext_intr_task(struct work_struct *work)
 {
 	struct adapter *adapter = container_of(work, struct adapter,
 					       ext_intr_handler_task);
+	int i;
 
+	/* Disable link fault interrupts */
+	for_each_port(adapter, i) {
+		struct net_device *dev = adapter->port[i];
+		struct port_info *p = netdev_priv(dev);
+
+		t3_xgm_intr_disable(adapter, i);
+		t3_read_reg(adapter, A_XGM_INT_STATUS + p->mac.offset);
+	}
+
+	/* Re-enable link fault interrupts */
 	t3_phy_intr_handler(adapter);
+
+	for_each_port(adapter, i)
+		t3_xgm_intr_enable(adapter, i);
 
 	/* Now reenable external interrupts */
 	spin_lock_irq(&adapter->work_lock);
@@ -2572,9 +2680,41 @@ void t3_os_ext_intr_handler(struct adapter *adapter)
 	spin_unlock(&adapter->work_lock);
 }
 
+static void link_fault_task(struct work_struct *work)
+{
+	struct adapter *adapter = container_of(work, struct adapter,
+					       link_fault_handler_task);
+	int i;
+
+	for_each_port(adapter, i) {
+		struct net_device *netdev = adapter->port[i];
+		struct port_info *pi = netdev_priv(netdev);
+
+		if (pi->link_fault)
+			t3_link_fault(adapter, i);
+	}
+}
+
+void t3_os_link_fault_handler(struct adapter *adapter, int port_id)
+{
+	struct net_device *netdev = adapter->port[port_id];
+	struct port_info *pi = netdev_priv(netdev);
+
+	spin_lock(&adapter->work_lock);
+	pi->link_fault = 1;
+	queue_work(cxgb3_wq, &adapter->link_fault_handler_task);
+	spin_unlock(&adapter->work_lock);
+}
+
 static int t3_adapter_error(struct adapter *adapter, int reset)
 {
 	int i, ret = 0;
+
+	if (is_offload(adapter) &&
+	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map)) {
+		cxgb3_err_notify(&adapter->tdev, OFFLOAD_STATUS_DOWN, 0);
+		offload_close(&adapter->tdev);
+	}
 
 	/* Stop all ports */
 	for_each_port(adapter, i) {
@@ -2583,10 +2723,6 @@ static int t3_adapter_error(struct adapter *adapter, int reset)
 		if (netif_running(netdev))
 			cxgb_close(netdev);
 	}
-
-	if (is_offload(adapter) &&
-	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
-		offload_close(&adapter->tdev);
 
 	/* Stop SGE timers */
 	t3_stop_sge_timers(adapter);
@@ -2639,6 +2775,9 @@ static void t3_resume_ports(struct adapter *adapter)
 			}
 		}
 	}
+
+	if (is_offload(adapter) && !ofld_disable)
+		cxgb3_err_notify(&adapter->tdev, OFFLOAD_STATUS_UP, 0);
 }
 
 /*
@@ -2683,7 +2822,6 @@ void t3_fatal_err(struct adapter *adapter)
 		CH_ALERT(adapter, "FW status: 0x%x, 0x%x, 0x%x, 0x%x\n",
 			 fw_status[0], fw_status[1],
 			 fw_status[2], fw_status[3]);
-
 }
 
 /**
@@ -2733,6 +2871,9 @@ static void t3_io_resume(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 
+	CH_ALERT(adapter, "adapter recovering, PEX ERR 0x%x\n",
+		 t3_read_reg(adapter, A_PCIE_PEX_ERR));
+
 	t3_resume_ports(adapter);
 }
 
@@ -2752,7 +2893,7 @@ static void set_nqsets(struct adapter *adap)
 	int i, j = 0;
 	int num_cpus = num_online_cpus();
 	int hwports = adap->params.nports;
-	int nqsets = SGE_QSETS;
+	int nqsets = adap->msix_nvectors - 1;
 
 	if (adap->params.rev > 0 && adap->flags & USING_MSIX) {
 		if (hwports == 2 &&
@@ -2781,18 +2922,25 @@ static void set_nqsets(struct adapter *adap)
 static int __devinit cxgb_enable_msix(struct adapter *adap)
 {
 	struct msix_entry entries[SGE_QSETS + 1];
+	int vectors;
 	int i, err;
 
-	for (i = 0; i < ARRAY_SIZE(entries); ++i)
+	vectors = ARRAY_SIZE(entries);
+	for (i = 0; i < vectors; ++i)
 		entries[i].entry = i;
 
-	err = pci_enable_msix(adap->pdev, entries, ARRAY_SIZE(entries));
+	while ((err = pci_enable_msix(adap->pdev, entries, vectors)) > 0)
+		vectors = err;
+
+	if (!err && vectors < (adap->params.nports + 1))
+		err = -1;
+
 	if (!err) {
-		for (i = 0; i < ARRAY_SIZE(entries); ++i)
+		for (i = 0; i < vectors; ++i)
 			adap->msix_info[i].vec = entries[i].vector;
-	} else if (err > 0)
-		dev_info(&adap->pdev->dev,
-		       "only %d MSI-X vectors left, not using MSI-X\n", err);
+		adap->msix_nvectors = vectors;
+	}
+
 	return err;
 }
 
@@ -2858,7 +3006,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	static int version_printed;
 
 	int i, err, pci_using_dac = 0;
-	unsigned long mmio_start, mmio_len;
+	resource_size_t mmio_start, mmio_len;
 	const struct adapter_info *ai;
 	struct adapter *adapter = NULL;
 	struct port_info *pi;
@@ -2890,15 +3038,15 @@ static int __devinit init_one(struct pci_dev *pdev,
 		goto out_release_regions;
 	}
 
-	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		pci_using_dac = 1;
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (err) {
 			dev_err(&pdev->dev, "unable to obtain 64-bit DMA for "
 			       "coherent allocations\n");
 			goto out_disable_device;
 		}
-	} else if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) != 0) {
+	} else if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) != 0) {
 		dev_err(&pdev->dev, "no usable DMA configuration\n");
 		goto out_disable_device;
 	}
@@ -2934,10 +3082,11 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	INIT_LIST_HEAD(&adapter->adapter_list);
 	INIT_WORK(&adapter->ext_intr_handler_task, ext_intr_task);
+	INIT_WORK(&adapter->link_fault_handler_task, link_fault_task);
 	INIT_WORK(&adapter->fatal_error_handler_task, fatal_error_task);
 	INIT_DELAYED_WORK(&adapter->adap_check_task, t3_adap_check_task);
 
-	for (i = 0; i < ai->nports; ++i) {
+	for (i = 0; i < ai->nports0 + ai->nports1; ++i) {
 		struct net_device *netdev;
 
 		netdev = alloc_etherdev_mq(sizeof(struct port_info), SGE_QSETS);
@@ -2960,7 +3109,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		netdev->mem_end = mmio_start + mmio_len - 1;
 		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
 		netdev->features |= NETIF_F_LLTX;
-		netdev->features |= NETIF_F_LRO;
+		netdev->features |= NETIF_F_GRO;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 
@@ -3027,7 +3176,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 out_free_dev:
 	iounmap(adapter->regs);
-	for (i = ai->nports - 1; i >= 0; --i)
+	for (i = ai->nports0 + ai->nports1 - 1; i >= 0; --i)
 		if (adapter->port[i])
 			free_netdev(adapter->port[i]);
 

@@ -45,6 +45,13 @@ config MAC_FLOPPY
 	  If you have a SWIM-3 (Super Woz Integrated Machine 3; from Apple)
 	  floppy controller, say Y here. Most commonly found in PowerMacs.
 
+config BLK_DEV_SWIM
+	tristate "Support for SWIM Macintosh floppy"
+	depends on M68K && MAC
+	help
+	  You should select this option if you want floppy support
+	  and you don't have a II, IIfx, Q900, Q950 or AV series.
+
 config AMIGA_Z2RAM
 	tristate "Amiga Zorro II ramdisk support"
 	depends on ZORRO
@@ -402,6 +409,23 @@ config ATA_OVER_ETH
 	help
 	This driver provides Support for ATA over Ethernet block
 	devices like the Coraid EtherDrive (R) Storage Blade.
+
+config MG_DISK
+	tristate "mGine mflash, gflash support"
+	depends on ARM && ATA && GPIOLIB
+	help
+	  mGine mFlash(gFlash) block device driver
+
+config MG_DISK_RES
+	int "Size of reserved area before MBR"
+	depends on MG_DISK
+	default 0
+	help
+	  Define size of reserved area that usually used for boot. Unit is KB.
+	  All of the block device operation will be taken this value as start
+	  offset
+	  Examples:
+			1024 => 1 MB
 
 config SUNVDC
 	tristate "Sun Virtual Disk Client support"

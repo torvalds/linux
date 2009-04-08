@@ -26,10 +26,10 @@
 
 #include <mach/hardware.h>
 
-#include "crm_regs.h"
-
 static int cpu_silicon_rev = -1;
 static int cpu_partnumber;
+
+#define SYS_CHIP_ID             0x00    /* The offset of CHIP ID register */
 
 static void query_silicon_parameter(void)
 {

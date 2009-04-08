@@ -64,11 +64,8 @@
  *
  * - DMA (Mentor/OMAP) ...has at least toggle update problems
  *
- * - Still no traffic scheduling code to make NAKing for bulk or control
- *   transfers unable to starve other requests; or to make efficient use
- *   of hardware with periodic transfers.  (Note that network drivers
- *   commonly post bulk reads that stay pending for a long time; these
- *   would make very visible trouble.)
+ * - [23-feb-2009] minimal traffic scheduling to avoid bulk RX packet
+ *   starvation ... nothing yet for TX, interrupt, or bulk.
  *
  * - Not tested with HNP, but some SRP paths seem to behave.
  *
@@ -88,11 +85,8 @@
  *
  * CONTROL transfers all go through ep0.  BULK ones go through dedicated IN
  * and OUT endpoints ... hardware is dedicated for those "async" queue(s).
- *
  * (Yes, bulk _could_ use more of the endpoints than that, and would even
- * benefit from it ... one remote device may easily be NAKing while others
- * need to perform transfers in that same direction.  The same thing could
- * be done in software though, assuming dma cooperates.)
+ * benefit from it.)
  *
  * INTERUPPT and ISOCHRONOUS transfers are scheduled to the other endpoints.
  * So far that scheduling is both dumb and optimistic:  the endpoint will be
@@ -201,8 +195,9 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 		len = urb->iso_frame_desc[0].length;
 		break;
 	default:		/* bulk, interrupt */
-		buf = urb->transfer_buffer;
-		len = urb->transfer_buffer_length;
+		/* actual_length may be nonzero on retry paths */
+		buf = urb->transfer_buffer + urb->actual_length;
+		len = urb->transfer_buffer_length - urb->actual_length;
 	}
 
 	DBG(4, "qh %p urb %p dev%d ep%d%s%s, hw_ep %d, %p/%d\n",
@@ -335,15 +330,10 @@ musb_save_toggle(struct musb_hw_ep *ep, int is_in, struct urb *urb)
 static struct musb_qh *
 musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 {
-	int			is_in;
 	struct musb_hw_ep	*ep = qh->hw_ep;
 	struct musb		*musb = ep->musb;
+	int			is_in = usb_pipein(urb->pipe);
 	int			ready = qh->is_ready;
-
-	if (ep->is_shared_fifo)
-		is_in = 1;
-	else
-		is_in = usb_pipein(urb->pipe);
 
 	/* save toggle eagerly, for paranoia */
 	switch (qh->type) {
@@ -400,7 +390,6 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 			 * de-allocated if it's tracked and allocated;
 			 * and where we'd update the schedule tree...
 			 */
-			musb->periodic[ep->epnum] = NULL;
 			kfree(qh);
 			qh = NULL;
 			break;
@@ -432,7 +421,7 @@ musb_advance_schedule(struct musb *musb, struct urb *urb,
 	else
 		qh = musb_giveback(qh, urb, urb->status);
 
-	if (qh && qh->is_ready && !list_empty(&qh->hep->urb_list)) {
+	if (qh != NULL && qh->is_ready) {
 		DBG(4, "... next ep%d %cX urb %p\n",
 				hw_ep->epnum, is_in ? 'R' : 'T',
 				next_urb(qh));
@@ -942,8 +931,8 @@ static bool musb_h_ep0_continue(struct musb *musb, u16 len, struct urb *urb)
 	switch (musb->ep0_stage) {
 	case MUSB_EP0_IN:
 		fifo_dest = urb->transfer_buffer + urb->actual_length;
-		fifo_count = min(len, ((u16) (urb->transfer_buffer_length
-					- urb->actual_length)));
+		fifo_count = min_t(size_t, len, urb->transfer_buffer_length -
+				   urb->actual_length);
 		if (fifo_count < len)
 			urb->status = -EOVERFLOW;
 
@@ -976,10 +965,9 @@ static bool musb_h_ep0_continue(struct musb *musb, u16 len, struct urb *urb)
 		}
 		/* FALLTHROUGH */
 	case MUSB_EP0_OUT:
-		fifo_count = min(qh->maxpacket, ((u16)
-				(urb->transfer_buffer_length
-				- urb->actual_length)));
-
+		fifo_count = min_t(size_t, qh->maxpacket,
+				   urb->transfer_buffer_length -
+				   urb->actual_length);
 		if (fifo_count) {
 			fifo_dest = (u8 *) (urb->transfer_buffer
 					+ urb->actual_length);
@@ -1051,7 +1039,8 @@ irqreturn_t musb_h_ep0_irq(struct musb *musb)
 
 		/* NOTE:  this code path would be a good place to PAUSE a
 		 * control transfer, if another one is queued, so that
-		 * ep0 is more likely to stay busy.
+		 * ep0 is more likely to stay busy.  That's already done
+		 * for bulk RX transfers.
 		 *
 		 * if (qh->ring.next != &musb->control), then
 		 * we have a candidate... NAKing is *NOT* an error
@@ -1161,7 +1150,8 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	struct urb		*urb;
 	struct musb_hw_ep	*hw_ep = musb->endpoints + epnum;
 	void __iomem		*epio = hw_ep->regs;
-	struct musb_qh		*qh = hw_ep->out_qh;
+	struct musb_qh		*qh = hw_ep->is_shared_fifo ? hw_ep->in_qh
+							    : hw_ep->out_qh;
 	u32			status = 0;
 	void __iomem		*mbase = musb->mregs;
 	struct dma_channel	*dma;
@@ -1202,6 +1192,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		/* NOTE:  this code path would be a good place to PAUSE a
 		 * transfer, if there's some other (nonperiodic) tx urb
 		 * that could use this fifo.  (dma complicates it...)
+		 * That's already done for bulk RX transfers.
 		 *
 		 * if (bulk && qh->ring.next != &musb->out_bulk), then
 		 * we have a candidate... NAKing is *NOT* an error
@@ -1308,7 +1299,8 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		 * packets before updating TXCSR ... other docs disagree ...
 		 */
 		/* PIO:  start next packet in this URB */
-		wLength = min(qh->maxpacket, (u16) wLength);
+		if (wLength > qh->maxpacket)
+			wLength = qh->maxpacket;
 		musb_write_fifo(hw_ep, wLength, buf);
 		qh->segsize = wLength;
 
@@ -1361,6 +1353,50 @@ finish:
  */
 
 #endif
+
+/* Schedule next QH from musb->in_bulk and move the current qh to
+ * the end; avoids starvation for other endpoints.
+ */
+static void musb_bulk_rx_nak_timeout(struct musb *musb, struct musb_hw_ep *ep)
+{
+	struct dma_channel	*dma;
+	struct urb		*urb;
+	void __iomem		*mbase = musb->mregs;
+	void __iomem		*epio = ep->regs;
+	struct musb_qh		*cur_qh, *next_qh;
+	u16			rx_csr;
+
+	musb_ep_select(mbase, ep->epnum);
+	dma = is_dma_capable() ? ep->rx_channel : NULL;
+
+	/* clear nak timeout bit */
+	rx_csr = musb_readw(epio, MUSB_RXCSR);
+	rx_csr |= MUSB_RXCSR_H_WZC_BITS;
+	rx_csr &= ~MUSB_RXCSR_DATAERROR;
+	musb_writew(epio, MUSB_RXCSR, rx_csr);
+
+	cur_qh = first_qh(&musb->in_bulk);
+	if (cur_qh) {
+		urb = next_urb(cur_qh);
+		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
+			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
+			musb->dma_controller->channel_abort(dma);
+			urb->actual_length += dma->actual_len;
+			dma->actual_len = 0L;
+		}
+		musb_save_toggle(ep, 1, urb);
+
+		/* move cur_qh to end of queue */
+		list_move_tail(&cur_qh->ring, &musb->in_bulk);
+
+		/* get the next qh from musb->in_bulk */
+		next_qh = first_qh(&musb->in_bulk);
+
+		/* set rx_reinit and schedule the next qh */
+		ep->rx_reinit = 1;
+		musb_start_urb(musb, 1, next_qh);
+	}
+}
 
 /*
  * Service an RX interrupt for the given IN endpoint; docs cover bulk, iso,
@@ -1425,18 +1461,26 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 	} else if (rx_csr & MUSB_RXCSR_DATAERROR) {
 
 		if (USB_ENDPOINT_XFER_ISOC != qh->type) {
-			/* NOTE this code path would be a good place to PAUSE a
-			 * transfer, if there's some other (nonperiodic) rx urb
-			 * that could use this fifo.  (dma complicates it...)
-			 *
-			 * if (bulk && qh->ring.next != &musb->in_bulk), then
-			 * we have a candidate... NAKing is *NOT* an error
-			 */
 			DBG(6, "RX end %d NAK timeout\n", epnum);
+
+			/* NOTE: NAKing is *NOT* an error, so we want to
+			 * continue.  Except ... if there's a request for
+			 * another QH, use that instead of starving it.
+			 *
+			 * Devices like Ethernet and serial adapters keep
+			 * reads posted at all times, which will starve
+			 * other devices without this logic.
+			 */
+			if (usb_pipebulk(urb->pipe)
+					&& qh->mux == 1
+					&& !list_is_singular(&musb->in_bulk)) {
+				musb_bulk_rx_nak_timeout(musb, hw_ep);
+				return;
+			}
 			musb_ep_select(mbase, epnum);
-			musb_writew(epio, MUSB_RXCSR,
-					MUSB_RXCSR_H_WZC_BITS
-					| MUSB_RXCSR_H_REQPKT);
+			rx_csr |= MUSB_RXCSR_H_WZC_BITS;
+			rx_csr &= ~MUSB_RXCSR_DATAERROR;
+			musb_writew(epio, MUSB_RXCSR, rx_csr);
 
 			goto finish;
 		} else {
@@ -1715,31 +1759,27 @@ static int musb_schedule(
 
 	/* else, periodic transfers get muxed to other endpoints */
 
-	/* FIXME this doesn't consider direction, so it can only
-	 * work for one half of the endpoint hardware, and assumes
-	 * the previous cases handled all non-shared endpoints...
-	 */
-
-	/* we know this qh hasn't been scheduled, so all we need to do
+	/*
+	 * We know this qh hasn't been scheduled, so all we need to do
 	 * is choose which hardware endpoint to put it on ...
 	 *
 	 * REVISIT what we really want here is a regular schedule tree
-	 * like e.g. OHCI uses, but for now musb->periodic is just an
-	 * array of the _single_ logical endpoint associated with a
-	 * given physical one (identity mapping logical->physical).
-	 *
-	 * that simplistic approach makes TT scheduling a lot simpler;
-	 * there is none, and thus none of its complexity...
+	 * like e.g. OHCI uses.
 	 */
 	best_diff = 4096;
 	best_end = -1;
 
-	for (epnum = 1; epnum < musb->nr_endpoints; epnum++) {
+	for (epnum = 1, hw_ep = musb->endpoints + 1;
+			epnum < musb->nr_endpoints;
+			epnum++, hw_ep++) {
 		int	diff;
 
-		if (musb->periodic[epnum])
+		if (is_in || hw_ep->is_shared_fifo) {
+			if (hw_ep->in_qh  != NULL)
+				continue;
+		} else	if (hw_ep->out_qh != NULL)
 			continue;
-		hw_ep = &musb->endpoints[epnum];
+
 		if (hw_ep == musb->bulk_ep)
 			continue;
 
@@ -1760,6 +1800,17 @@ static int musb_schedule(
 			head = &musb->in_bulk;
 		else
 			head = &musb->out_bulk;
+
+		/* Enable bulk RX NAK timeout scheme when bulk requests are
+		 * multiplexed.  This scheme doen't work in high speed to full
+		 * speed scenario as NAK interrupts are not coming from a
+		 * full speed device connected to a high speed device.
+		 * NAK timeout interval is 8 (128 uframe or 16ms) for HS and
+		 * 4 (8 frame or 8ms) for FS device.
+		 */
+		if (is_in && qh->dev)
+			qh->intv_reg =
+				(USB_SPEED_HIGH == qh->dev->speed) ? 8 : 4;
 		goto success;
 	} else if (best_end < 0) {
 		return -ENOSPC;
@@ -1768,7 +1819,6 @@ static int musb_schedule(
 	idle = 1;
 	qh->mux = 0;
 	hw_ep = musb->endpoints + best_end;
-	musb->periodic[best_end] = qh;
 	DBG(4, "qh %p periodic slot %d\n", qh, best_end);
 success:
 	if (head) {
@@ -1867,19 +1917,21 @@ static int musb_urb_enqueue(
 	}
 	qh->type_reg = type_reg;
 
-	/* precompute rxinterval/txinterval register */
-	interval = min((u8)16, epd->bInterval);	/* log encoding */
+	/* Precompute RXINTERVAL/TXINTERVAL register */
 	switch (qh->type) {
 	case USB_ENDPOINT_XFER_INT:
-		/* fullspeed uses linear encoding */
-		if (USB_SPEED_FULL == urb->dev->speed) {
-			interval = epd->bInterval;
-			if (!interval)
-				interval = 1;
+		/*
+		 * Full/low speeds use the  linear encoding,
+		 * high speed uses the logarithmic encoding.
+		 */
+		if (urb->dev->speed <= USB_SPEED_FULL) {
+			interval = max_t(u8, epd->bInterval, 1);
+			break;
 		}
 		/* FALLTHROUGH */
 	case USB_ENDPOINT_XFER_ISOC:
-		/* iso always uses log encoding */
+		/* ISO always uses logarithmic encoding */
+		interval = min_t(u8, epd->bInterval, 16);
 		break;
 	default:
 		/* REVISIT we actually want to use NAK limits, hinting to the
@@ -1890,13 +1942,11 @@ static int musb_urb_enqueue(
 		 *
 		 * The downside of disabling this is that transfer scheduling
 		 * gets VERY unfair for nonperiodic transfers; a misbehaving
-		 * peripheral could make that hurt.  Or for reads, one that's
-		 * perfectly normal:  network and other drivers keep reads
-		 * posted at all times, having one pending for a week should
-		 * be perfectly safe.
+		 * peripheral could make that hurt.  That's perfectly normal
+		 * for reads from network or serial adapters ... so we have
+		 * partial NAKlimit support for bulk RX.
 		 *
-		 * The upside of disabling it is avoidng transfer scheduling
-		 * code to put this aside for while.
+		 * The upside of disabling it is simpler transfer scheduling.
 		 */
 		interval = 0;
 	}
@@ -2037,9 +2087,9 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		goto done;
 
 	/* Any URB not actively programmed into endpoint hardware can be
-	 * immediately given back.  Such an URB must be at the head of its
+	 * immediately given back; that's any URB not at the head of an
 	 * endpoint queue, unless someday we get real DMA queues.  And even
-	 * then, it might not be known to the hardware...
+	 * if it's at the head, it might not be known to the hardware...
 	 *
 	 * Otherwise abort current transfer, pending dma, etc.; urb->status
 	 * has already been updated.  This is a synchronous abort; it'd be
@@ -2078,6 +2128,15 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		qh->is_ready = 0;
 		__musb_giveback(musb, urb, 0);
 		qh->is_ready = ready;
+
+		/* If nothing else (usually musb_giveback) is using it
+		 * and its URB list has emptied, recycle this qh.
+		 */
+		if (ready && list_empty(&qh->hep->urb_list)) {
+			qh->hep->hcpriv = NULL;
+			list_del(&qh->ring);
+			kfree(qh);
+		}
 	} else
 		ret = musb_cleanup_urb(urb, qh, urb->pipe & USB_DIR_IN);
 done:
@@ -2093,14 +2152,15 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 	unsigned long		flags;
 	struct musb		*musb = hcd_to_musb(hcd);
 	u8			is_in = epnum & USB_DIR_IN;
-	struct musb_qh		*qh = hep->hcpriv;
-	struct urb		*urb, *tmp;
+	struct musb_qh		*qh;
+	struct urb		*urb;
 	struct list_head	*sched;
 
-	if (!qh)
-		return;
-
 	spin_lock_irqsave(&musb->lock, flags);
+
+	qh = hep->hcpriv;
+	if (qh == NULL)
+		goto exit;
 
 	switch (qh->type) {
 	case USB_ENDPOINT_XFER_CONTROL:
@@ -2135,13 +2195,28 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 
 		/* cleanup */
 		musb_cleanup_urb(urb, qh, urb->pipe & USB_DIR_IN);
-	} else
-		urb = NULL;
 
-	/* then just nuke all the others */
-	list_for_each_entry_safe_from(urb, tmp, &hep->urb_list, urb_list)
-		musb_giveback(qh, urb, -ESHUTDOWN);
+		/* Then nuke all the others ... and advance the
+		 * queue on hw_ep (e.g. bulk ring) when we're done.
+		 */
+		while (!list_empty(&hep->urb_list)) {
+			urb = next_urb(qh);
+			urb->status = -ESHUTDOWN;
+			musb_advance_schedule(musb, urb, qh->hw_ep, is_in);
+		}
+	} else {
+		/* Just empty the queue; the hardware is busy with
+		 * other transfers, and since !qh->is_ready nothing
+		 * will activate any of these as it advances.
+		 */
+		while (!list_empty(&hep->urb_list))
+			__musb_giveback(musb, next_urb(qh), -ESHUTDOWN);
 
+		hep->hcpriv = NULL;
+		list_del(&qh->ring);
+		kfree(qh);
+	}
+exit:
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 

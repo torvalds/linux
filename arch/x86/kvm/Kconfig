@@ -4,6 +4,10 @@
 config HAVE_KVM
        bool
 
+config HAVE_KVM_IRQCHIP
+       bool
+       default y
+
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
 	depends on HAVE_KVM || X86
@@ -55,7 +59,8 @@ config KVM_AMD
 
 config KVM_TRACE
 	bool "KVM trace support"
-	depends on KVM && MARKERS && SYSFS
+	depends on KVM && SYSFS
+	select MARKERS
 	select RELAY
 	select DEBUG_FS
 	default n

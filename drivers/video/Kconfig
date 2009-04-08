@@ -397,7 +397,7 @@ config FB_SA1100
 
 config FB_IMX
 	tristate "Motorola i.MX LCD support"
-	depends on FB && ARM && ARCH_IMX
+	depends on FB && (ARCH_IMX || ARCH_MX2)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1054,9 +1054,7 @@ config FB_RIVA_BACKLIGHT
 
 config FB_I810
 	tristate "Intel 810/815 support (EXPERIMENTAL)"
-	depends on FB && EXPERIMENTAL && PCI && X86_32
-	select AGP
-	select AGP_INTEL
+	depends on EXPERIMENTAL && FB && PCI && X86_32 && AGP_INTEL
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1119,9 +1117,7 @@ config FB_CARILLO_RANCH
 
 config FB_INTEL
 	tristate "Intel 830M/845G/852GM/855GM/865G/915G/945G/945GM/965G/965GM support (EXPERIMENTAL)"
-	depends on FB && EXPERIMENTAL && PCI && X86
-	select AGP
-	select AGP_INTEL
+	depends on EXPERIMENTAL && FB && PCI && X86 && AGP_INTEL
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1554,6 +1550,7 @@ config FB_3DFX
 	select FB_CFB_IMAGEBLIT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
+	select FB_MODE_HELPERS
 	help
 	  This driver supports graphics boards with the 3Dfx Banshee,
 	  Voodoo3 or VSA-100 (aka Voodoo4/5) chips. Say Y if you have
@@ -1568,6 +1565,14 @@ config FB_3DFX_ACCEL
 	---help---
 	This will compile the 3Dfx Banshee/Voodoo3/VSA-100 frame buffer
 	device driver with acceleration functions.
+
+config FB_3DFX_I2C
+	bool "Enable DDC/I2C support"
+	depends on FB_3DFX && EXPERIMENTAL
+	select FB_DDC
+	default y
+	help
+	  Say Y here if you want DDC/I2C support for your 3dfx Voodoo3.
 
 config FB_VOODOO1
 	tristate "3Dfx Voodoo Graphics (sst1) support"
@@ -1601,32 +1606,8 @@ config FB_VT8623
 	  Driver for CastleRock integrated graphics core in the
 	  VIA VT8623 [Apollo CLE266] chipset.
 
-config FB_CYBLA
-	tristate "Cyberblade/i1 support"
-	depends on FB && PCI && X86_32 && !64BIT
-	select FB_CFB_IMAGEBLIT
-	---help---
-	  This driver is supposed to support the Trident Cyberblade/i1
-	  graphics core integrated in the VIA VT8601A North Bridge,
-	  also known as VIA Apollo PLE133.
-
-	  Status:
-	   - Developed, tested and working on EPIA 5000 and EPIA 800.
-	   - Does work reliable on all systems with CRT/LCD connected to
-	     normal VGA ports.
-	   - Should work on systems that do use the internal LCD port, but
-	     this is absolutely not tested.
-
-	  Character imageblit, copyarea and rectangle fill are hw accelerated,
-	  ypan scrolling is used by default.
-
-	  Please do read <file:Documentation/fb/cyblafb/*>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cyblafb.
-
 config FB_TRIDENT
-	tristate "Trident support"
+	tristate "Trident/CyberXXX/CyberBlade support"
 	depends on FB && PCI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1637,20 +1618,13 @@ config FB_TRIDENT
 	  and Blade XP.
 	  There are also integrated versions of these chips called CyberXXXX,
 	  CyberImage or CyberBlade. These chips are mostly found in laptops
-	  but also on some motherboards. For more information, read
-	  <file:Documentation/fb/tridentfb.txt>
+	  but also on some motherboards including early VIA EPIA motherboards.
+	  For more information, read <file:Documentation/fb/tridentfb.txt>
 
 	  Say Y if you have such a graphics board.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tridentfb.
-
-config FB_TRIDENT_ACCEL
-	bool "Trident Acceleration functions (EXPERIMENTAL)"
-	depends on FB_TRIDENT && EXPERIMENTAL
-	---help---
-	This will compile the Trident frame buffer device with
-	acceleration functions.
 
 config FB_ARK
 	tristate "ARK 2000PV support"
@@ -1924,6 +1898,30 @@ config FB_TMIO_ACCELL
 	depends on FB_TMIO
 	default y
 
+config FB_S3C
+	tristate "Samsung S3C framebuffer support"
+	depends on FB && ARCH_S3C64XX
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Frame buffer driver for the built-in FB controller in the Samsung
+	  SoC line from the S3C2443 onwards, including the S3C2416, S3C2450,
+	  and the S3C64XX series such as the S3C6400 and S3C6410.
+
+	  These chips all have the same basic framebuffer design with the
+	  actual capabilities depending on the chip. For instance the S3C6400
+	  and S3C6410 support 4 hardware windows whereas the S3C24XX series
+	  currently only have two.
+
+	  Currently the support is only for the S3C6400 and S3C6410 SoCs.
+
+config FB_S3C_DEBUG_REGWRITE
+       bool "Debug register writes"
+       depends on FB_S3C
+       ---help---
+         Show all register writes via printk(KERN_DEBUG)
+
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"
 	depends on FB && ARCH_S3C2410
@@ -2124,16 +2122,30 @@ config FB_PRE_INIT_FB
 	  the bootloader.
 
 config FB_MX3
-       tristate "MX3 Framebuffer support"
-       depends on FB && MX3_IPU
-       select FB_CFB_FILLRECT
-       select FB_CFB_COPYAREA
-       select FB_CFB_IMAGEBLIT
-       default y
-       help
-         This is a framebuffer device for the i.MX31 LCD Controller. So
-         far only synchronous displays are supported. If you plan to use
-         an LCD display with your i.MX31 system, say Y here.
+	tristate "MX3 Framebuffer support"
+	depends on FB && MX3_IPU
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	default y
+	help
+	  This is a framebuffer device for the i.MX31 LCD Controller. So
+	  far only synchronous displays are supported. If you plan to use
+	  an LCD display with your i.MX31 system, say Y here.
+
+config FB_BROADSHEET
+	tristate "E-Ink Broadsheet/Epson S1D13521 controller support"
+	depends on FB
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	select FB_DEFERRED_IO
+	help
+	  This driver implements support for the E-Ink Broadsheet
+	  controller. The release name for this device was Epson S1D13521
+	  and could also have been called by other names when coupled with
+	  a bridge adapter.
 
 source "drivers/video/omap/Kconfig"
 
