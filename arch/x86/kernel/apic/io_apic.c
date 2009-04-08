@@ -518,120 +518,6 @@ static void ioapic_mask_entry(int apic, int pin)
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
-#ifdef CONFIG_SMP
-static void send_cleanup_vector(struct irq_cfg *cfg)
-{
-	cpumask_var_t cleanup_mask;
-
-	if (unlikely(!alloc_cpumask_var(&cleanup_mask, GFP_ATOMIC))) {
-		unsigned int i;
-		cfg->move_cleanup_count = 0;
-		for_each_cpu_and(i, cfg->old_domain, cpu_online_mask)
-			cfg->move_cleanup_count++;
-		for_each_cpu_and(i, cfg->old_domain, cpu_online_mask)
-			apic->send_IPI_mask(cpumask_of(i), IRQ_MOVE_CLEANUP_VECTOR);
-	} else {
-		cpumask_and(cleanup_mask, cfg->old_domain, cpu_online_mask);
-		cfg->move_cleanup_count = cpumask_weight(cleanup_mask);
-		apic->send_IPI_mask(cleanup_mask, IRQ_MOVE_CLEANUP_VECTOR);
-		free_cpumask_var(cleanup_mask);
-	}
-	cfg->move_in_progress = 0;
-}
-
-static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq_cfg *cfg)
-{
-	int apic, pin;
-	struct irq_pin_list *entry;
-	u8 vector = cfg->vector;
-
-	entry = cfg->irq_2_pin;
-	for (;;) {
-		unsigned int reg;
-
-		if (!entry)
-			break;
-
-		apic = entry->apic;
-		pin = entry->pin;
-		/*
-		 * With interrupt-remapping, destination information comes
-		 * from interrupt-remapping table entry.
-		 */
-		if (!irq_remapped(irq))
-			io_apic_write(apic, 0x11 + pin*2, dest);
-		reg = io_apic_read(apic, 0x10 + pin*2);
-		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
-		reg |= vector;
-		io_apic_modify(apic, 0x10 + pin*2, reg);
-		if (!entry->next)
-			break;
-		entry = entry->next;
-	}
-}
-
-static int
-assign_irq_vector(int irq, struct irq_cfg *cfg, const struct cpumask *mask);
-
-/*
- * Either sets desc->affinity to a valid value, and returns
- * ->cpu_mask_to_apicid of that, or returns BAD_APICID and
- * leaves desc->affinity untouched.
- */
-static unsigned int
-set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask)
-{
-	struct irq_cfg *cfg;
-	unsigned int irq;
-
-	if (!cpumask_intersects(mask, cpu_online_mask))
-		return BAD_APICID;
-
-	irq = desc->irq;
-	cfg = desc->chip_data;
-	if (assign_irq_vector(irq, cfg, mask))
-		return BAD_APICID;
-
-	/* check that before desc->addinity get updated */
-	set_extra_move_desc(desc, mask);
-
-	cpumask_copy(desc->affinity, mask);
-
-	return apic->cpu_mask_to_apicid_and(desc->affinity, cfg->domain);
-}
-
-static void
-set_ioapic_affinity_irq_desc(struct irq_desc *desc, const struct cpumask *mask)
-{
-	struct irq_cfg *cfg;
-	unsigned long flags;
-	unsigned int dest;
-	unsigned int irq;
-
-	irq = desc->irq;
-	cfg = desc->chip_data;
-
-	spin_lock_irqsave(&ioapic_lock, flags);
-	dest = set_desc_affinity(desc, mask);
-	if (dest != BAD_APICID) {
-		/* Only the high 8 bits are valid. */
-		dest = SET_APIC_LOGICAL_ID(dest);
-		__target_IO_APIC_irq(irq, dest, cfg);
-	}
-	spin_unlock_irqrestore(&ioapic_lock, flags);
-}
-
-static void
-set_ioapic_affinity_irq(unsigned int irq, const struct cpumask *mask)
-{
-	struct irq_desc *desc;
-
-	desc = irq_to_desc(irq);
-
-	set_ioapic_affinity_irq_desc(desc, mask);
-}
-#endif /* CONFIG_SMP */
-
 /*
  * The common case is 1:1 IRQ<->pin mappings. Sometimes there are
  * shared ISA-space IRQs, so we have to support them. We are super
@@ -2360,6 +2246,115 @@ static int ioapic_retrigger_irq(unsigned int irq)
  */
 
 #ifdef CONFIG_SMP
+static void send_cleanup_vector(struct irq_cfg *cfg)
+{
+	cpumask_var_t cleanup_mask;
+
+	if (unlikely(!alloc_cpumask_var(&cleanup_mask, GFP_ATOMIC))) {
+		unsigned int i;
+		cfg->move_cleanup_count = 0;
+		for_each_cpu_and(i, cfg->old_domain, cpu_online_mask)
+			cfg->move_cleanup_count++;
+		for_each_cpu_and(i, cfg->old_domain, cpu_online_mask)
+			apic->send_IPI_mask(cpumask_of(i), IRQ_MOVE_CLEANUP_VECTOR);
+	} else {
+		cpumask_and(cleanup_mask, cfg->old_domain, cpu_online_mask);
+		cfg->move_cleanup_count = cpumask_weight(cleanup_mask);
+		apic->send_IPI_mask(cleanup_mask, IRQ_MOVE_CLEANUP_VECTOR);
+		free_cpumask_var(cleanup_mask);
+	}
+	cfg->move_in_progress = 0;
+}
+
+static void
+__target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq_cfg *cfg)
+{
+	int apic, pin;
+	struct irq_pin_list *entry;
+	u8 vector = cfg->vector;
+
+	entry = cfg->irq_2_pin;
+	for (;;) {
+		unsigned int reg;
+
+		if (!entry)
+			break;
+
+		apic = entry->apic;
+		pin = entry->pin;
+		/*
+		 * With interrupt-remapping, destination information comes
+		 * from interrupt-remapping table entry.
+		 */
+		if (!irq_remapped(irq))
+			io_apic_write(apic, 0x11 + pin*2, dest);
+		reg = io_apic_read(apic, 0x10 + pin*2);
+		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
+		reg |= vector;
+		io_apic_modify(apic, 0x10 + pin*2, reg);
+		if (!entry->next)
+			break;
+		entry = entry->next;
+	}
+}
+
+/*
+ * Either sets desc->affinity to a valid value, and returns
+ * ->cpu_mask_to_apicid of that, or returns BAD_APICID and
+ * leaves desc->affinity untouched.
+ */
+static unsigned int
+set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask)
+{
+	struct irq_cfg *cfg;
+	unsigned int irq;
+
+	if (!cpumask_intersects(mask, cpu_online_mask))
+		return BAD_APICID;
+
+	irq = desc->irq;
+	cfg = desc->chip_data;
+	if (assign_irq_vector(irq, cfg, mask))
+		return BAD_APICID;
+
+	/* check that before desc->addinity get updated */
+	set_extra_move_desc(desc, mask);
+
+	cpumask_copy(desc->affinity, mask);
+
+	return apic->cpu_mask_to_apicid_and(desc->affinity, cfg->domain);
+}
+
+static void
+set_ioapic_affinity_irq_desc(struct irq_desc *desc, const struct cpumask *mask)
+{
+	struct irq_cfg *cfg;
+	unsigned long flags;
+	unsigned int dest;
+	unsigned int irq;
+
+	irq = desc->irq;
+	cfg = desc->chip_data;
+
+	spin_lock_irqsave(&ioapic_lock, flags);
+	dest = set_desc_affinity(desc, mask);
+	if (dest != BAD_APICID) {
+		/* Only the high 8 bits are valid. */
+		dest = SET_APIC_LOGICAL_ID(dest);
+		__target_IO_APIC_irq(irq, dest, cfg);
+	}
+	spin_unlock_irqrestore(&ioapic_lock, flags);
+}
+
+static void
+set_ioapic_affinity_irq(unsigned int irq, const struct cpumask *mask)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+
+	set_ioapic_affinity_irq_desc(desc, mask);
+}
 
 #ifdef CONFIG_INTR_REMAP
 
