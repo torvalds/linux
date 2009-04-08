@@ -2332,30 +2332,6 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static void iwl_mac_remove_interface(struct ieee80211_hw *hw,
-				     struct ieee80211_if_init_conf *conf)
-{
-	struct iwl_priv *priv = hw->priv;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	mutex_lock(&priv->mutex);
-
-	if (iwl_is_ready_rf(priv)) {
-		iwl_scan_cancel_timeout(priv, 100);
-		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		iwlcore_commit_rxon(priv);
-	}
-	if (priv->vif == conf->vif) {
-		priv->vif = NULL;
-		memset(priv->bssid, 0, ETH_ALEN);
-	}
-	mutex_unlock(&priv->mutex);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-}
-
 static void iwl_mac_update_tkip_key(struct ieee80211_hw *hw,
 			struct ieee80211_key_conf *keyconf, const u8 *addr,
 			u32 iv32, u16 *phase1key)

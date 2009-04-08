@@ -2418,6 +2418,31 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(iwl_mac_add_interface);
 
+void iwl_mac_remove_interface(struct ieee80211_hw *hw,
+				     struct ieee80211_if_init_conf *conf)
+{
+	struct iwl_priv *priv = hw->priv;
+
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	mutex_lock(&priv->mutex);
+
+	if (iwl_is_ready_rf(priv)) {
+		iwl_scan_cancel_timeout(priv, 100);
+		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		iwlcore_commit_rxon(priv);
+	}
+	if (priv->vif == conf->vif) {
+		priv->vif = NULL;
+		memset(priv->bssid, 0, ETH_ALEN);
+	}
+	mutex_unlock(&priv->mutex);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+
+}
+EXPORT_SYMBOL(iwl_mac_remove_interface);
+
 #ifdef CONFIG_PM
 
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)

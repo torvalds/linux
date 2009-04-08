@@ -276,6 +276,8 @@ int iwl_commit_rxon(struct iwl_priv *priv);
 int iwl_set_mode(struct iwl_priv *priv, int mode);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_if_init_conf *conf);
+void iwl_mac_remove_interface(struct ieee80211_hw *hw,
+				 struct ieee80211_if_init_conf *conf);
 
 /*****************************************************
  * RX handlers.

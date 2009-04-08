@@ -3640,29 +3640,6 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static void iwl3945_mac_remove_interface(struct ieee80211_hw *hw,
-				     struct ieee80211_if_init_conf *conf)
-{
-	struct iwl_priv *priv = hw->priv;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	mutex_lock(&priv->mutex);
-
-	if (iwl_is_ready_rf(priv)) {
-		iwl_scan_cancel_timeout(priv, 100);
-		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		iwlcore_commit_rxon(priv);
-	}
-	if (priv->vif == conf->vif) {
-		priv->vif = NULL;
-		memset(priv->bssid, 0, ETH_ALEN);
-	}
-	mutex_unlock(&priv->mutex);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-}
-
 static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta,
@@ -4338,7 +4315,7 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.start = iwl3945_mac_start,
 	.stop = iwl3945_mac_stop,
 	.add_interface = iwl_mac_add_interface,
-	.remove_interface = iwl3945_mac_remove_interface,
+	.remove_interface = iwl_mac_remove_interface,
 	.config = iwl3945_mac_config,
 	.config_interface = iwl3945_mac_config_interface,
 	.configure_filter = iwl_configure_filter,
