@@ -228,20 +228,6 @@ static void pmc_stop_ctrs(void)
 	mtpmr(PMRN_PMGC0, pmgc0);
 }
 
-static void dump_pmcs(void)
-{
-	printk("pmgc0: %x\n", mfpmr(PMRN_PMGC0));
-	printk("pmc\t\tpmlca\t\tpmlcb\n");
-	printk("%8x\t%8x\t%8x\n", mfpmr(PMRN_PMC0),
-			mfpmr(PMRN_PMLCA0), mfpmr(PMRN_PMLCB0));
-	printk("%8x\t%8x\t%8x\n", mfpmr(PMRN_PMC1),
-			mfpmr(PMRN_PMLCA1), mfpmr(PMRN_PMLCB1));
-	printk("%8x\t%8x\t%8x\n", mfpmr(PMRN_PMC2),
-			mfpmr(PMRN_PMLCA2), mfpmr(PMRN_PMLCB2));
-	printk("%8x\t%8x\t%8x\n", mfpmr(PMRN_PMC3),
-			mfpmr(PMRN_PMLCA3), mfpmr(PMRN_PMLCB3));
-}
-
 static int fsl_emb_cpu_setup(struct op_counter_config *ctr)
 {
 	int i;
