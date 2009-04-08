@@ -2238,6 +2238,7 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				     u32 changes)
 {
 	struct iwl_priv *priv = hw->priv;
+	int ret;
 
 	IWL_DEBUG_MAC80211(priv, "changes = 0x%X\n", changes);
 
@@ -2292,7 +2293,12 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	} else if (changes && iwl_is_associated(priv) && priv->assoc_id) {
 			IWL_DEBUG_MAC80211(priv, "Associated Changes %d\n", changes);
-			iwl_send_rxon_assoc(priv);
+			ret = iwl_send_rxon_assoc(priv);
+			if (!ret)
+				/* Sync active_rxon with latest change. */
+				memcpy((void *)&priv->active_rxon,
+					&priv->staging_rxon,
+					sizeof(struct iwl_rxon_cmd));
 	}
 
 }
