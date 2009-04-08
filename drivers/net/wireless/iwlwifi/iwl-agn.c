@@ -188,7 +188,7 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 		memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
 	}
 
-	iwl_clear_stations_table(priv);
+	priv->cfg->ops->smgmt->clear_station_table(priv);
 
 	if (!priv->error_recovering)
 		priv->start_calib = 0;
@@ -593,7 +593,7 @@ static int iwl_set_mode(struct iwl_priv *priv, int mode)
 	iwl_set_rxon_chain(priv);
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 
-	iwl_clear_stations_table(priv);
+	priv->cfg->ops->smgmt->clear_station_table(priv);
 
 	/* dont commit rxon if rf-kill is on*/
 	if (!iwl_is_ready_rf(priv))
@@ -1471,7 +1471,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	iwl_clear_stations_table(priv);
+	priv->cfg->ops->smgmt->clear_station_table(priv);
 	ret = priv->cfg->ops->lib->alive_notify(priv);
 	if (ret) {
 		IWL_WARN(priv,
@@ -1557,7 +1557,7 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	iwl_leds_unregister(priv);
 
-	iwl_clear_stations_table(priv);
+	priv->cfg->ops->smgmt->clear_station_table(priv);
 
 	/* Unblock any waiting calls */
 	wake_up_interruptible_all(&priv->wait_command_queue);
@@ -1708,7 +1708,7 @@ static int __iwl_up(struct iwl_priv *priv)
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
 
-		iwl_clear_stations_table(priv);
+		priv->cfg->ops->smgmt->clear_station_table(priv);
 
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
@@ -2439,7 +2439,7 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		return -EOPNOTSUPP;
 	}
 	addr = sta ? sta->addr : iwl_bcast_addr;
-	sta_id = iwl_find_station(priv, addr);
+	sta_id = priv->cfg->ops->smgmt->find_station(priv, addr);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_MAC80211(priv, "leave - %pM not in station map.\n",
 				   addr);
@@ -3311,7 +3311,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 		iwl_rx_queue_free(priv, &priv->rxq);
 	iwl_hw_txq_ctx_free(priv);
 
-	iwl_clear_stations_table(priv);
+	priv->cfg->ops->smgmt->clear_station_table(priv);
 	iwl_eeprom_free(priv);
 
 

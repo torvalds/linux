@@ -2453,13 +2453,15 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 
 	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !lq_sta->ibss_sta_added) {
-		u8 sta_id = iwl_find_station(priv, hdr->addr1);
+		u8 sta_id = priv->cfg->ops->smgmt->find_station(priv,
+						   hdr->addr1);
 
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n",
 				       hdr->addr1);
-			sta_id = iwl_add_station_flags(priv, hdr->addr1,
-							0, CMD_ASYNC, NULL);
+			sta_id = priv->cfg->ops->smgmt->add_station_ht(priv,
+						hdr->addr1, 0,
+						CMD_ASYNC, NULL);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
 			lq_sta->lq.sta_id = sta_id;
@@ -2526,15 +2528,17 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 
 	lq_sta->ibss_sta_added = 0;
 	if (priv->iw_mode == NL80211_IFTYPE_AP) {
-		u8 sta_id = iwl_find_station(priv, sta->addr);
+		u8 sta_id = priv->cfg->ops->smgmt->find_station(priv,
+								sta->addr);
 
 		/* for IBSS the call are from tasklet */
 		IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n", sta->addr);
 
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n", sta->addr);
-			sta_id = iwl_add_station_flags(priv, sta->addr,
-							0, CMD_ASYNC, NULL);
+			sta_id = priv->cfg->ops->smgmt->add_station_ht(priv,
+							sta->addr, 0,
+							CMD_ASYNC, NULL);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
 			lq_sta->lq.sta_id = sta_id;
