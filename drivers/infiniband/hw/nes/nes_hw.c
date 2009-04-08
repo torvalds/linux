@@ -765,7 +765,8 @@ static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
 
 		/* init serdes 1 */
 		switch (nesadapter->phy_type[1]) {
-		case  NES_PHY_TYPE_ARGUS:
+		case NES_PHY_TYPE_ARGUS:
+		case NES_PHY_TYPE_SFP_D:
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_EMP0, 0x00000000);
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_EMP1, 0x00000000);
 			break;
@@ -1337,14 +1338,16 @@ int nes_init_phy(struct nes_device *nesdev)
 	}
 
 	if ((phy_type == NES_PHY_TYPE_IRIS) ||
-	    (phy_type == NES_PHY_TYPE_ARGUS)) {
+	    (phy_type == NES_PHY_TYPE_ARGUS) ||
+	    (phy_type == NES_PHY_TYPE_SFP_D)) {
 		/* setup 10G MDIO operation */
 		tx_config = nes_read_indexed(nesdev, NES_IDX_MAC_TX_CONFIG);
 		tx_config &= 0xFFFFFFE3;
 		tx_config |= 0x15;
 		nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONFIG, tx_config);
 	}
-	if ((phy_type == NES_PHY_TYPE_ARGUS)) {
+	if ((phy_type == NES_PHY_TYPE_ARGUS) ||
+	    (phy_type == NES_PHY_TYPE_SFP_D)) {
 		/* Check firmware heartbeat */
 		nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7ee);
 		temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
@@ -1358,10 +1361,15 @@ int nes_init_phy(struct nes_device *nesdev)
 		/* no heartbeat, configure the PHY */
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0x0000, 0x8000);
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc300, 0x0000);
-		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc302, 0x000C);
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc316, 0x000A);
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc318, 0x0052);
-		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc319, 0x0008);
+		if (phy_type == NES_PHY_TYPE_ARGUS) {
+			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc302, 0x000C);
+			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc319, 0x0008);
+		} else {
+			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc302, 0x0004);
+			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc319, 0x0038);
+		}
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc31a, 0x0098);
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0026, 0x0E00);
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0027, 0x0001);
@@ -2442,6 +2450,7 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 				break;
 
 			case NES_PHY_TYPE_ARGUS:
+			case NES_PHY_TYPE_SFP_D:
 				/* clear the alarms */
 				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 4, 0x0008);
 				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 4, 0xc001);

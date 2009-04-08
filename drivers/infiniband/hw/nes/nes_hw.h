@@ -42,6 +42,7 @@
 #define NES_PHY_TYPE_PUMA_1G   5
 #define NES_PHY_TYPE_PUMA_10G  6
 #define NES_PHY_TYPE_GLADIUS   7
+#define NES_PHY_TYPE_SFP_D     8
 
 #define NES_MULTICAST_PF_MAX 8
 
