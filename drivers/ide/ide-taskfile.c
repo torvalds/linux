@@ -98,7 +98,8 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 			cmd->tf.device |= drive->select;
 		}
 
-		tp_ops->tf_load(drive, cmd);
+		tp_ops->tf_load(drive, &cmd->hob, cmd->valid.out.hob);
+		tp_ops->tf_load(drive, &cmd->tf,  cmd->valid.out.tf);
 	}
 
 	switch (cmd->protocol) {

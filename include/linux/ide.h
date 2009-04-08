@@ -624,7 +624,7 @@ struct ide_tp_ops {
 	void	(*write_devctl)(struct hwif_s *, u8);
 
 	void	(*dev_select)(ide_drive_t *);
-	void	(*tf_load)(ide_drive_t *, struct ide_cmd *);
+	void	(*tf_load)(ide_drive_t *, struct ide_taskfile *, u8);
 	void	(*tf_read)(ide_drive_t *, struct ide_cmd *);
 
 	void	(*input_data)(ide_drive_t *, struct ide_cmd *,
@@ -1132,7 +1132,7 @@ u8 ide_read_altstatus(ide_hwif_t *);
 void ide_write_devctl(ide_hwif_t *, u8);
 
 void ide_dev_select(ide_drive_t *);
-void ide_tf_load(ide_drive_t *, struct ide_cmd *);
+void ide_tf_load(ide_drive_t *, struct ide_taskfile *, u8);
 void ide_tf_read(ide_drive_t *, struct ide_cmd *);
 
 void ide_input_data(ide_drive_t *, struct ide_cmd *, void *, unsigned int);

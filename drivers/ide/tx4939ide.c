@@ -434,11 +434,12 @@ static void tx4939ide_tf_load_fixup(ide_drive_t *drive)
 	tx4939ide_writew(sysctl, base, TX4939IDE_Sys_Ctl);
 }
 
-static void tx4939ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
+static void tx4939ide_tf_load(ide_drive_t *drive, struct ide_taskfile *tf,
+			      u8 valid)
 {
-	ide_tf_load(drive, cmd);
+	ide_tf_load(drive, tf, valid);
 
-	if (cmd->valid.out.tf & IDE_VALID_DEVICE)
+	if (valid & IDE_VALID_DEVICE)
 		tx4939ide_tf_load_fixup(drive);
 }
 

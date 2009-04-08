@@ -283,13 +283,11 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 	 * identify command to be sure of reply
 	 */
 	if (cmd == ATA_CMD_ID_ATAPI) {
-		struct ide_cmd cmd;
+		struct ide_taskfile tf;
 
-		memset(&cmd, 0, sizeof(cmd));
+		memset(&tf, 0, sizeof(tf));
 		/* disable DMA & overlap */
-		cmd.valid.out.tf = IDE_VALID_FEATURE;
-
-		tp_ops->tf_load(drive, &cmd);
+		tp_ops->tf_load(drive, &tf, IDE_VALID_FEATURE);
 	}
 
 	/* ask drive for ID */

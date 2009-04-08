@@ -85,33 +85,17 @@ void ide_dev_select(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_dev_select);
 
-void ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
+void ide_tf_load(ide_drive_t *drive, struct ide_taskfile *tf, u8 valid)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
-	struct ide_taskfile *tf = &cmd->hob;
 	void (*tf_outb)(u8 addr, unsigned long port);
-	u8 valid = cmd->valid.out.hob;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 
 	if (mmio)
 		tf_outb = ide_mm_outb;
 	else
 		tf_outb = ide_outb;
-
-	if (valid & IDE_VALID_FEATURE)
-		tf_outb(tf->feature, io_ports->feature_addr);
-	if (valid & IDE_VALID_NSECT)
-		tf_outb(tf->nsect, io_ports->nsect_addr);
-	if (valid & IDE_VALID_LBAL)
-		tf_outb(tf->lbal, io_ports->lbal_addr);
-	if (valid & IDE_VALID_LBAM)
-		tf_outb(tf->lbam, io_ports->lbam_addr);
-	if (valid & IDE_VALID_LBAH)
-		tf_outb(tf->lbah, io_ports->lbah_addr);
-
-	tf = &cmd->tf;
-	valid = cmd->valid.out.tf;
 
 	if (valid & IDE_VALID_FEATURE)
 		tf_outb(tf->feature, io_ports->feature_addr);
