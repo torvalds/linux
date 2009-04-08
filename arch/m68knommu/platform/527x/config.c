@@ -189,10 +189,15 @@ static void __init m527x_fec_init(void)
 	m527x_fec_irq_init(0);
 
 	/* Set multi-function pins to ethernet mode for fec0 */
+#if defined(CONFIG_M5271)
+	v = readb(MCF_IPSBAR + 0x100047);
+	writeb(v | 0xf0, MCF_IPSBAR + 0x100047);
+#else
 	par = readw(MCF_IPSBAR + 0x100082);
 	writew(par | 0xf00, MCF_IPSBAR + 0x100082);
 	v = readb(MCF_IPSBAR + 0x100078);
 	writeb(v | 0xc0, MCF_IPSBAR + 0x100078);
+#endif
 
 #ifdef CONFIG_FEC2
 	m527x_fec_irq_init(1);
