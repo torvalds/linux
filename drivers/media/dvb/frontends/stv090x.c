@@ -2351,19 +2351,16 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 static u32 stv090x_get_tmgoffst(struct stv090x_state *state, u32 srate)
 {
 	s32 offst_tmg;
-	s32 pow2;
 
 	offst_tmg  = STV090x_READ_DEMOD(state, TMGREG2) << 16;
 	offst_tmg |= STV090x_READ_DEMOD(state, TMGREG1) <<  8;
 	offst_tmg |= STV090x_READ_DEMOD(state, TMGREG0);
 
-	pow2 = 1 << 24;
-
 	offst_tmg = comp2(offst_tmg, 24); /* 2's complement */
 	if (!offst_tmg)
 		offst_tmg = 1;
 
-	offst_tmg  = ((s32) srate * 10) / (pow2 / offst_tmg);
+	offst_tmg  = ((s32) srate * 10) / ((s32) 0x1000000 / offst_tmg);
 	offst_tmg /= 320;
 
 	return offst_tmg;
