@@ -2125,7 +2125,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	}
 
 	/* Add the broadcast address so we can send broadcast frames */
-	if (priv->cfg->ops->smgmt->add_station(priv, iwl_bcast_addr, 0, 0) ==
+	if (priv->cfg->ops->smgmt->add_station(priv, iwl_bcast_addr, 0, 0, NULL) ==
 	    IWL_INVALID_STATION) {
 		IWL_ERR(priv, "Error adding BROADCAST address for transmit.\n");
 		return -EIO;
@@ -2136,7 +2136,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	if (iwl_is_associated(priv) &&
 	    (priv->iw_mode == NL80211_IFTYPE_STATION))
 		if (priv->cfg->ops->smgmt->add_station(priv,
-					priv->active_rxon.bssid_addr, 1, 0)
+					priv->active_rxon.bssid_addr, 1, 0, NULL)
 		    == IWL_INVALID_STATION) {
 			IWL_ERR(priv, "Error adding AP address for transmit\n");
 			return -EIO;

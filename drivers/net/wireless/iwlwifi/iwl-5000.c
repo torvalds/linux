@@ -1473,7 +1473,7 @@ int iwl5000_calc_rssi(struct iwl_priv *priv,
 }
 
 struct iwl_station_mgmt_ops iwl5000_station_mgmt = {
-	.add_station_ht = iwl_add_station_flags,
+	.add_station = iwl_add_station_flags,
 	.remove_station = iwl_remove_station,
 	.find_station = iwl_find_station,
 	.clear_station_table = iwl_clear_stations_table,

@@ -1019,7 +1019,7 @@ int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 		rcu_read_unlock();
 	}
 
-	sta_id = priv->cfg->ops->smgmt->add_station_ht(priv, addr, is_ap,
+	sta_id = priv->cfg->ops->smgmt->add_station(priv, addr, is_ap,
 				       0, cur_ht_config);
 
 	/* Set up default rate scaling table in device's station table */
@@ -1066,7 +1066,7 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 			return sta_id;
 
 		/* Create new station table entry */
-		sta_id = priv->cfg->ops->smgmt->add_station_ht(priv, hdr->addr1,
+		sta_id = priv->cfg->ops->smgmt->add_station(priv, hdr->addr1,
 						   0, CMD_ASYNC, NULL);
 
 		if (sta_id != IWL_INVALID_STATION)

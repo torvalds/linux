@@ -2459,7 +2459,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n",
 				       hdr->addr1);
-			sta_id = priv->cfg->ops->smgmt->add_station_ht(priv,
+			sta_id = priv->cfg->ops->smgmt->add_station(priv,
 						hdr->addr1, 0,
 						CMD_ASYNC, NULL);
 		}
@@ -2536,7 +2536,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n", sta->addr);
-			sta_id = priv->cfg->ops->smgmt->add_station_ht(priv,
+			sta_id = priv->cfg->ops->smgmt->add_station(priv,
 							sta->addr, 0,
 							CMD_ASYNC, NULL);
 		}

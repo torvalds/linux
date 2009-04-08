@@ -84,10 +84,8 @@ struct iwl_cmd;
 #define IWL_SKU_N       0x8
 
 struct iwl_station_mgmt_ops {
-	u8 (*add_station_ht)(struct iwl_priv *priv, const u8 *addr,
-			int is_ap, u8 flags, struct ieee80211_sta_ht_cap *ht_info);
 	u8 (*add_station)(struct iwl_priv *priv, const u8 *addr,
-			int is_ap, u8 flags);
+			int is_ap, u8 flags, struct ieee80211_sta_ht_cap *ht_info);
 	int (*remove_station)(struct iwl_priv *priv, const u8 *addr,
 			int is_ap);
 	u8 (*find_station)(struct iwl_priv *priv, const u8 *addr);

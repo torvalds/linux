@@ -2269,7 +2269,7 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 }
 
 static struct iwl_station_mgmt_ops iwl4965_station_mgmt = {
-	.add_station_ht = iwl_add_station_flags,
+	.add_station = iwl_add_station_flags,
 	.remove_station = iwl_remove_station,
 	.find_station = iwl_find_station,
 	.clear_station_table = iwl_clear_stations_table,

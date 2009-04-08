@@ -164,7 +164,7 @@ void iwl3945_clear_stations_table(struct iwl_priv *priv)
 /**
  * iwl3945_add_station - Add station to station tables in driver and device
  */
-u8 iwl3945_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flags)
+u8 iwl3945_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flags, struct ieee80211_sta_ht_cap *ht_info)
 {
 	int i;
 	int index = IWL_INVALID_STATION;
@@ -748,7 +748,7 @@ static int iwl3945_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 			return sta_id;
 
 		sta_id = priv->cfg->ops->smgmt->add_station(priv,
-				hdr->addr1, 0, CMD_ASYNC);
+				hdr->addr1, 0, CMD_ASYNC, NULL);
 
 		if (sta_id != IWL_INVALID_STATION)
 			return sta_id;
@@ -1884,7 +1884,7 @@ static void iwl3945_error_recovery(struct iwl_priv *priv)
 	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	iwlcore_commit_rxon(priv);
 
-	priv->cfg->ops->smgmt->add_station(priv, priv->bssid, 1, 0);
+	priv->cfg->ops->smgmt->add_station(priv, priv->bssid, 1, 0, NULL);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->assoc_id = le16_to_cpu(priv->staging_rxon.assoc_id);
@@ -3333,7 +3333,7 @@ void iwl3945_post_associate(struct iwl_priv *priv)
 	case NL80211_IFTYPE_ADHOC:
 
 		priv->assoc_id = 1;
-		priv->cfg->ops->smgmt->add_station(priv, priv->bssid, 0, 0);
+		priv->cfg->ops->smgmt->add_station(priv, priv->bssid, 0, 0, NULL);
 		iwl3945_sync_sta(priv, IWL_STA_ID,
 				 (priv->band == IEEE80211_BAND_5GHZ) ?
 				 IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP,
@@ -3661,7 +3661,7 @@ static void iwl3945_config_ap(struct iwl_priv *priv)
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwlcore_commit_rxon(priv);
-		priv->cfg->ops->smgmt->add_station(priv, iwl_bcast_addr, 0, 0);
+		priv->cfg->ops->smgmt->add_station(priv, iwl_bcast_addr, 0, 0, NULL);
 	}
 	iwl3945_send_beacon_cmd(priv);
 
@@ -3754,7 +3754,7 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 			rc = iwlcore_commit_rxon(priv);
 			if ((priv->iw_mode == NL80211_IFTYPE_STATION) && rc)
 				priv->cfg->ops->smgmt->add_station(priv,
-					priv->active_rxon.bssid_addr, 1, 0);
+					priv->active_rxon.bssid_addr, 1, 0, NULL);
 		}
 
 	} else {
