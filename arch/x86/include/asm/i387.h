@@ -67,7 +67,7 @@ static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
 		     ".previous\n"
 		     _ASM_EXTABLE(1b, 3b)
 		     : [err] "=r" (err)
-#if 0 /* See comment in __save_init_fpu() below. */
+#if 0 /* See comment in fxsave() below. */
 		     : [fx] "r" (fx), "m" (*fx), "0" (0));
 #else
 		     : [fx] "cdaSDb" (fx), "m" (*fx), "0" (0));
@@ -112,7 +112,7 @@ static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 		     ".previous\n"
 		     _ASM_EXTABLE(1b, 3b)
 		     : [err] "=r" (err), "=m" (*fx)
-#if 0 /* See comment in __fxsave_clear() below. */
+#if 0 /* See comment in fxsave() below. */
 		     : [fx] "r" (fx), "0" (0));
 #else
 		     : [fx] "cdaSDb" (fx), "0" (0));
