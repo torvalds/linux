@@ -201,8 +201,9 @@ struct perf_counter_mmap_page {
 	__u32   data_head;		/* head in the data section */
 };
 
-#define PERF_EVENT_MISC_KERNEL	(1 << 0)
-#define PERF_EVENT_MISC_USER	(1 << 1)
+#define PERF_EVENT_MISC_KERNEL		(1 << 0)
+#define PERF_EVENT_MISC_USER		(1 << 1)
+#define PERF_EVENT_MISC_OVERFLOW	(1 << 2)
 
 struct perf_event_header {
 	__u32	type;
@@ -230,36 +231,27 @@ enum perf_event_type {
 	PERF_EVENT_MUNMAP		= 2,
 
 	/*
-	 * Half the event type space is reserved for the counter overflow
-	 * bitfields, as found in hw_event.record_type.
-	 *
-	 * These events will have types of the form:
-	 *   PERF_EVENT_COUNTER_OVERFLOW { | __PERF_EVENT_* } *
+	 * When header.misc & PERF_EVENT_MISC_OVERFLOW the event_type field
+	 * will be PERF_RECORD_*
 	 *
 	 * struct {
 	 * 	struct perf_event_header	header;
 	 *
-	 * 	{ u64			ip;	  } && __PERF_EVENT_IP
-	 * 	{ u32			pid, tid; } && __PERF_EVENT_TID
+	 * 	{ u64			ip;	  } && PERF_RECORD_IP
+	 * 	{ u32			pid, tid; } && PERF_RECORD_TID
 	 *
 	 * 	{ u64			nr;
-	 * 	  { u64 event, val; } 	cnt[nr];  } && __PERF_EVENT_GROUP
+	 * 	  { u64 event, val; } 	cnt[nr];  } && PERF_RECORD_GROUP
 	 *
 	 * 	{ u16			nr,
 	 * 				hv,
 	 * 				kernel,
 	 * 				user;
-	 * 	  u64			ips[nr];  } && __PERF_EVENT_CALLCHAIN
+	 * 	  u64			ips[nr];  } && PERF_RECORD_CALLCHAIN
 	 *
-	 * 	{ u64			time;     } && __PERF_EVENT_TIME
+	 * 	{ u64			time;     } && PERF_RECORD_TIME
 	 * };
 	 */
-	PERF_EVENT_COUNTER_OVERFLOW	= 1UL << 31,
-	__PERF_EVENT_IP			= PERF_RECORD_IP,
-	__PERF_EVENT_TID		= PERF_RECORD_TID,
-	__PERF_EVENT_GROUP		= PERF_RECORD_GROUP,
-	__PERF_EVENT_CALLCHAIN		= PERF_RECORD_CALLCHAIN,
-	__PERF_EVENT_TIME		= PERF_RECORD_TIME,
 };
 
 #ifdef __KERNEL__

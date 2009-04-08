@@ -1828,15 +1828,16 @@ static void perf_counter_output(struct perf_counter *counter,
 	int callchain_size = 0;
 	u64 time;
 
-	header.type = PERF_EVENT_COUNTER_OVERFLOW;
+	header.type = 0;
 	header.size = sizeof(header);
 
-	header.misc = user_mode(regs) ?
+	header.misc = PERF_EVENT_MISC_OVERFLOW;
+	header.misc |= user_mode(regs) ?
 		PERF_EVENT_MISC_USER : PERF_EVENT_MISC_KERNEL;
 
 	if (record_type & PERF_RECORD_IP) {
 		ip = instruction_pointer(regs);
-		header.type |= __PERF_EVENT_IP;
+		header.type |= PERF_RECORD_IP;
 		header.size += sizeof(ip);
 	}
 
@@ -1845,12 +1846,12 @@ static void perf_counter_output(struct perf_counter *counter,
 		tid_entry.pid = current->group_leader->pid;
 		tid_entry.tid = current->pid;
 
-		header.type |= __PERF_EVENT_TID;
+		header.type |= PERF_RECORD_TID;
 		header.size += sizeof(tid_entry);
 	}
 
 	if (record_type & PERF_RECORD_GROUP) {
-		header.type |= __PERF_EVENT_GROUP;
+		header.type |= PERF_RECORD_GROUP;
 		header.size += sizeof(u64) +
 			counter->nr_siblings * sizeof(group_entry);
 	}
@@ -1861,7 +1862,7 @@ static void perf_counter_output(struct perf_counter *counter,
 		if (callchain) {
 			callchain_size = (1 + callchain->nr) * sizeof(u64);
 
-			header.type |= __PERF_EVENT_CALLCHAIN;
+			header.type |= PERF_RECORD_CALLCHAIN;
 			header.size += callchain_size;
 		}
 	}
@@ -1872,7 +1873,7 @@ static void perf_counter_output(struct perf_counter *counter,
 		 */
 		time = sched_clock();
 
-		header.type |= __PERF_EVENT_TIME;
+		header.type |= PERF_RECORD_TIME;
 		header.size += sizeof(u64);
 	}
 
