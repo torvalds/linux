@@ -3517,6 +3517,7 @@ W:	http://www.linux-m68k.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/geert/linux-m68k.git
 S:	Maintained
 F:	arch/m68k/
+F:	drivers/zorro/
 
 M68K ON APPLE MACINTOSH
 P:	Joshua Thompson
@@ -3524,6 +3525,7 @@ M:	funaho@jurai.org
 W:	http://www.mac.linux-m68k.org/
 L:	linux-m68k@lists.linux-m68k.org
 S:	Maintained
+F:	arch/m68k/mac/
 
 M68K ON HP9000/300
 P:	Philip Blundell
