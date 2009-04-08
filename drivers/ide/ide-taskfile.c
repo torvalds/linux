@@ -88,6 +88,16 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 
 			tp_ops->output_data(drive, cmd, data, 2);
 		}
+
+		if (cmd->valid.out.tf & IDE_VALID_DEVICE) {
+			u8 HIHI = (cmd->tf_flags & IDE_TFLAG_LBA48) ?
+				  0xE0 : 0xEF;
+
+			if (!(cmd->ftf_flags & IDE_FTFLAG_FLAGGED))
+				cmd->tf.device &= HIHI;
+			cmd->tf.device |= drive->select;
+		}
+
 		tp_ops->tf_load(drive, cmd);
 	}
 

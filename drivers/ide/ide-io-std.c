@@ -93,15 +93,11 @@ void ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 	void (*tf_outb)(u8 addr, unsigned long port);
 	u8 valid = cmd->valid.out.hob;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
-	u8 HIHI = (cmd->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
 
 	if (mmio)
 		tf_outb = ide_mm_outb;
 	else
 		tf_outb = ide_outb;
-
-	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
-		HIHI = 0xFF;
 
 	if (valid & IDE_VALID_FEATURE)
 		tf_outb(tf->feature, io_ports->feature_addr);
@@ -127,10 +123,8 @@ void ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 		tf_outb(tf->lbam, io_ports->lbam_addr);
 	if (valid & IDE_VALID_LBAH)
 		tf_outb(tf->lbah, io_ports->lbah_addr);
-
 	if (valid & IDE_VALID_DEVICE)
-		tf_outb((tf->device & HIHI) | drive->select,
-			 io_ports->device_addr);
+		tf_outb(tf->device, io_ports->device_addr);
 }
 EXPORT_SYMBOL_GPL(ide_tf_load);
 

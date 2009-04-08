@@ -650,10 +650,6 @@ static void scc_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct ide_io_ports *io_ports = &drive->hwif->io_ports;
 	struct ide_taskfile *tf = &cmd->hob;
 	u8 valid = cmd->valid.out.hob;
-	u8 HIHI = (cmd->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
-
-	if (cmd->ftf_flags & IDE_FTFLAG_FLAGGED)
-		HIHI = 0xFF;
 
 	if (valid & IDE_VALID_FEATURE)
 		scc_ide_outb(tf->feature, io_ports->feature_addr);
@@ -679,10 +675,8 @@ static void scc_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 		scc_ide_outb(tf->lbam, io_ports->lbam_addr);
 	if (valid & IDE_VALID_LBAH)
 		scc_ide_outb(tf->lbah, io_ports->lbah_addr);
-
 	if (valid & IDE_VALID_DEVICE)
-		scc_ide_outb((tf->device & HIHI) | drive->select,
-			     io_ports->device_addr);
+		scc_ide_outb(tf->device, io_ports->device_addr);
 }
 
 static void scc_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
