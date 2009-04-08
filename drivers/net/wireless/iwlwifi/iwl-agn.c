@@ -2036,42 +2036,6 @@ static int iwl_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 }
 
-static int iwl_mac_add_interface(struct ieee80211_hw *hw,
-				 struct ieee80211_if_init_conf *conf)
-{
-	struct iwl_priv *priv = hw->priv;
-	unsigned long flags;
-
-	IWL_DEBUG_MAC80211(priv, "enter: type %d\n", conf->type);
-
-	if (priv->vif) {
-		IWL_DEBUG_MAC80211(priv, "leave - vif != NULL\n");
-		return -EOPNOTSUPP;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->vif = conf->vif;
-	priv->iw_mode = conf->type;
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	mutex_lock(&priv->mutex);
-
-	if (conf->mac_addr) {
-		IWL_DEBUG_MAC80211(priv, "Set %pM\n", conf->mac_addr);
-		memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
-	}
-
-	if (iwl_set_mode(priv, conf->type) == -EAGAIN)
-		/* we are not ready, will run again when ready */
-		set_bit(STATUS_MODE_PENDING, &priv->status);
-
-	mutex_unlock(&priv->mutex);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-	return 0;
-}
-
 /**
  * iwl_mac_config - mac80211 config callback
  *
