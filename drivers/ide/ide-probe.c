@@ -1314,6 +1314,7 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 		host->get_lock     = d->get_lock;
 		host->release_lock = d->release_lock;
 		host->host_flags = d->host_flags;
+		host->irq_flags = d->irq_flags;
 	}
 
 	return host;
