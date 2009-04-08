@@ -68,7 +68,7 @@ static void superio_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	u8 valid = cmd->valid.in.tf;
 
 	/* be sure we're looking at the low order bits */
-	outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
+	ide_write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	if (valid & IDE_VALID_ERROR)
 		tf->error  = inb(io_ports->feature_addr);
@@ -84,7 +84,7 @@ static void superio_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 		tf->device = superio_ide_inb(io_ports->device_addr);
 
 	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
-		outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
+		ide_write_devctl(hwif, ATA_HOB | ATA_DEVCTL_OBS);
 
 		tf = &cmd->hob;
 		valid = cmd->valid.in.hob;

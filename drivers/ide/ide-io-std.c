@@ -133,21 +133,17 @@ void ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	struct ide_taskfile *tf = &cmd->tf;
-	void (*tf_outb)(u8 addr, unsigned long port);
 	u8 (*tf_inb)(unsigned long port);
 	u8 valid = cmd->valid.in.tf;
 	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 
-	if (mmio) {
-		tf_outb = ide_mm_outb;
+	if (mmio)
 		tf_inb  = ide_mm_inb;
-	} else {
-		tf_outb = ide_outb;
+	else
 		tf_inb  = ide_inb;
-	}
 
 	/* be sure we're looking at the low order bits */
-	tf_outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
+	hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	if (valid & IDE_VALID_ERROR)
 		tf->error  = tf_inb(io_ports->feature_addr);
@@ -163,7 +159,7 @@ void ide_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
 		tf->device = tf_inb(io_ports->device_addr);
 
 	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
-		tf_outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
+		hwif->tp_ops->write_devctl(hwif, ATA_HOB | ATA_DEVCTL_OBS);
 
 		tf = &cmd->hob;
 		valid = cmd->valid.in.hob;
