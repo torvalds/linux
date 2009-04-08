@@ -1437,17 +1437,18 @@ static void dm_wq_work(struct work_struct *work)
 
 	down_write(&md->io_lock);
 
-next_bio:
-	spin_lock_irq(&md->deferred_lock);
-	c = bio_list_pop(&md->deferred);
-	spin_unlock_irq(&md->deferred_lock);
+	while (1) {
+		spin_lock_irq(&md->deferred_lock);
+		c = bio_list_pop(&md->deferred);
+		spin_unlock_irq(&md->deferred_lock);
 
-	if (c) {
+		if (!c) {
+			clear_bit(DMF_BLOCK_IO, &md->flags);
+			break;
+		}
+
 		__split_and_process_bio(md, c);
-		goto next_bio;
 	}
-
-	clear_bit(DMF_BLOCK_IO, &md->flags);
 
 	up_write(&md->io_lock);
 }
