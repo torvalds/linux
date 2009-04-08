@@ -325,6 +325,13 @@ enum iwl_table_type {
 #define ANT_BC		(ANT_B | ANT_C)
 #define ANT_ABC		(ANT_AB | ANT_C)
 
+#define IWL_MAX_MCS_DISPLAY_SIZE	12
+
+struct iwl_rate_mcs_info {
+	char	mbps[IWL_MAX_MCS_DISPLAY_SIZE];
+	char	mcs[IWL_MAX_MCS_DISPLAY_SIZE];
+};
+
 static inline u8 num_of_ant(u8 mask)
 {
 	return  !!((mask) & ANT_A) +
