@@ -201,9 +201,13 @@ struct perf_counter_mmap_page {
 	__u32   data_head;		/* head in the data section */
 };
 
+#define PERF_EVENT_MISC_KERNEL	(1 << 0)
+#define PERF_EVENT_MISC_USER	(1 << 1)
+
 struct perf_event_header {
 	__u32	type;
-	__u32	size;
+	__u16	misc;
+	__u16	size;
 };
 
 enum perf_event_type {
