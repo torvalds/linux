@@ -162,6 +162,7 @@ struct iwl_lib_ops {
 	void (*update_chain_flags)(struct iwl_priv *priv);
 	void (*temperature) (struct iwl_priv *priv);
 	void (*post_associate) (struct iwl_priv *priv);
+	void (*config_ap) (struct iwl_priv *priv);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
@@ -279,6 +280,7 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_if_init_conf *conf);
 int iwl_mac_config(struct ieee80211_hw *hw, u32 changed);
+void iwl_config_ap(struct iwl_priv *priv);
 
 /*****************************************************
  * RX handlers.
@@ -565,7 +567,10 @@ static inline int iwlcore_commit_rxon(struct iwl_priv *priv)
 {
 	return priv->cfg->ops->hcmd->commit_rxon(priv);
 }
-
+static inline void iwlcore_config_ap(struct iwl_priv *priv)
+{
+	priv->cfg->ops->lib->config_ap(priv);
+}
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 			struct iwl_priv *priv, enum ieee80211_band band)
 {

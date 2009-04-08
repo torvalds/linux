@@ -2333,6 +2333,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.update_chain_flags = iwl_update_chain_flags,
 	.temperature = iwl4965_temperature_calib,
 	.post_associate = iwl_post_associate,
+	.config_ap = iwl_config_ap,
 };
 
 static struct iwl_ops iwl4965_ops = {

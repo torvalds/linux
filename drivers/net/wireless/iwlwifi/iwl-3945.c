@@ -2952,6 +2952,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.send_tx_power	= iwl3945_send_tx_power,
 	.is_valid_rtc_data_addr = iwl3945_hw_valid_rtc_data_addr,
 	.post_associate = iwl3945_post_associate,
+	.config_ap = iwl3945_config_ap,
 };
 
 static struct iwl_station_mgmt_ops iwl3945_station_mgmt = {

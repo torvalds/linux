@@ -3378,7 +3378,7 @@ static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 }
 
-static void iwl3945_config_ap(struct iwl_priv *priv)
+void iwl3945_config_ap(struct iwl_priv *priv)
 {
 	int rc = 0;
 
@@ -3515,7 +3515,7 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 
 		if (priv->iw_mode == NL80211_IFTYPE_AP)
-			iwl3945_config_ap(priv);
+			iwlcore_config_ap(priv);
 		else {
 			rc = iwlcore_commit_rxon(priv);
 			if ((priv->iw_mode == NL80211_IFTYPE_STATION) && rc)
