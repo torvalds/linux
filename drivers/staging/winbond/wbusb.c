@@ -487,38 +487,42 @@ static int hal_init_hardware(struct ieee80211_hw *hw)
 	pHwData->FragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD; // Setting default fragment threshold
 
 	pHwData->InitialResource = 1;
-	if( Wb35Reg_initial(pHwData)) {
-		pHwData->InitialResource = 2;
-		if (Wb35Tx_initial(pHwData)) {
-			pHwData->InitialResource = 3;
-			if (Wb35Rx_initial(pHwData)) {
-				pHwData->InitialResource = 4;
-				init_timer(&pHwData->LEDTimer);
-				pHwData->LEDTimer.function = hal_led_control;
-				pHwData->LEDTimer.data = (unsigned long) priv;
-				pHwData->LEDTimer.expires = jiffies + msecs_to_jiffies(1000);
-				add_timer(&pHwData->LEDTimer);
+	if (!Wb35Reg_initial(pHwData))
+		goto error;
 
-				//
-				// For restrict to vendor's hardware
-				//
-				SoftwareSet = hal_software_set( pHwData );
+	pHwData->InitialResource = 2;
+	if (!Wb35Tx_initial(pHwData))
+		goto error;
 
-				#ifdef Vendor2
-				// Try to make sure the EEPROM contain
-				SoftwareSet >>= 8;
-				if( SoftwareSet != 0x82 )
-					return false;
-				#endif
+	pHwData->InitialResource = 3;
+	if (!Wb35Rx_initial(pHwData))
+		goto error;
 
-				Wb35Rx_start(hw);
-				Wb35Tx_EP2VM_start(priv);
+	pHwData->InitialResource = 4;
+	init_timer(&pHwData->LEDTimer);
+	pHwData->LEDTimer.function = hal_led_control;
+	pHwData->LEDTimer.data = (unsigned long) priv;
+	pHwData->LEDTimer.expires = jiffies + msecs_to_jiffies(1000);
+	add_timer(&pHwData->LEDTimer);
 
-				return 0;
-			}
-		}
-	}
+	//
+	// For restrict to vendor's hardware
+	//
+	SoftwareSet = hal_software_set( pHwData );
 
+	#ifdef Vendor2
+	// Try to make sure the EEPROM contain
+	SoftwareSet >>= 8;
+	if( SoftwareSet != 0x82 )
+		return false;
+	#endif
+
+	Wb35Rx_start(hw);
+	Wb35Tx_EP2VM_start(priv);
+
+	return 0;
+
+error:
 	pHwData->SurpriseRemove = 1;
 	return -EINVAL;
 }
