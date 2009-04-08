@@ -2715,6 +2715,81 @@ int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(iwl_mac_get_tx_stats);
 
+void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
+{
+	struct iwl_priv *priv = hw->priv;
+	unsigned long flags;
+
+	mutex_lock(&priv->mutex);
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	spin_lock_irqsave(&priv->lock, flags);
+	memset(&priv->current_ht_config, 0, sizeof(struct iwl_ht_info));
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	iwl_reset_qos(priv);
+
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->assoc_id = 0;
+	priv->assoc_capability = 0;
+	priv->assoc_station_added = 0;
+
+	/* new association get rid of ibss beacon skb */
+	if (priv->ibss_beacon)
+		dev_kfree_skb(priv->ibss_beacon);
+
+	priv->ibss_beacon = NULL;
+
+	priv->beacon_int = priv->hw->conf.beacon_int;
+	priv->timestamp = 0;
+	if ((priv->iw_mode == NL80211_IFTYPE_STATION))
+		priv->beacon_int = 0;
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (!iwl_is_ready_rf(priv)) {
+		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
+		mutex_unlock(&priv->mutex);
+		return;
+	}
+
+	/* we are restarting association process
+	 * clear RXON_FILTER_ASSOC_MSK bit
+	 */
+	if (priv->iw_mode != NL80211_IFTYPE_AP) {
+		iwl_scan_cancel_timeout(priv, 100);
+		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		iwlcore_commit_rxon(priv);
+	}
+
+	iwl_power_update_mode(priv, 0);
+
+	/* Per mac80211.h: This is only used in IBSS mode... */
+	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
+
+		/* switch to CAM during association period.
+		 * the ucode will block any association/authentication
+		 * frome during assiciation period if it can not hear
+		 * the AP because of PM. the timer enable PM back is
+		 * association do not complete
+		 */
+		if (priv->hw->conf.channel->flags &
+		    (IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_RADAR))
+				iwl_power_disable_management(priv, 3000);
+
+		IWL_DEBUG_MAC80211(priv, "leave - not in IBSS\n");
+		mutex_unlock(&priv->mutex);
+		return;
+	}
+
+	iwl_set_rate(priv);
+
+	mutex_unlock(&priv->mutex);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+}
+EXPORT_SYMBOL(iwl_mac_reset_tsf);
+
 #ifdef CONFIG_PM
 
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)

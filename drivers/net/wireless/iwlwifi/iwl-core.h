@@ -286,6 +286,7 @@ int iwl_mac_config_interface(struct ieee80211_hw *hw,
 				struct ieee80211_if_conf *conf);
 int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
 			 struct ieee80211_tx_queue_stats *stats);
+void iwl_mac_reset_tsf(struct ieee80211_hw *hw);
 
 /*****************************************************
  * RX handlers.
