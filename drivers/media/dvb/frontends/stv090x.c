@@ -1922,7 +1922,7 @@ static int stv090x_get_loop_params(struct stv090x_state *state, s32 *freq_inc, s
 	inc *= 256;
 	inc /= 1000;
 
-	switch (state->algo) {
+	switch (state->search_mode) {
 	case STV090x_SEARCH_DVBS1:
 	case STV090x_SEARCH_DSS:
 		inc *= 3; /* freq step = 3% of srate */
@@ -2073,7 +2073,7 @@ static int stv090x_sw_algo(struct stv090x_state *state)
 
 	stv090x_get_loop_params(state, &inc, &timeout_step, &steps_max); /* get params */
 
-	switch (state->algo) {
+	switch (state->search_mode) {
 	case STV090x_SEARCH_DVBS1:
 	case STV090x_SEARCH_DSS:
 		/* accelerate the frequency detector */
