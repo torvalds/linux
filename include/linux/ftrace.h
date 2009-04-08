@@ -357,7 +357,7 @@ struct ftrace_graph_ret {
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
 /* for init task */
-#define INIT_FTRACE_GRAPH		.ret_stack = NULL
+#define INIT_FTRACE_GRAPH		.ret_stack = NULL,
 
 /*
  * Stack of return addresses for functions
