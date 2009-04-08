@@ -3362,12 +3362,6 @@ M:	paulus@au.ibm.com
 W:	http://www.ibm.com/linux/ltc/projects/ppc
 S:	Supported
 
-LINUX FOR NCR VOYAGER
-P:	James Bottomley
-M:	James.Bottomley@HansenPartnership.com
-W:	http://www.hansenpartnership.com/voyager
-S:	Maintained
-
 LINUX FOR POWERPC (32-BIT AND 64-BIT)
 P:	Benjamin Herrenschmidt
 M:	benh@kernel.crashing.org
