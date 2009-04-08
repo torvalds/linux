@@ -1822,7 +1822,7 @@ L:	linux-kernel@vger.kernel.org
 T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
 S:	Supported
 F:	Documentation/kobject.txt
-F:	drivers/base/core.c
+F:	drivers/base/
 F:	fs/sysfs/
 F:	include/linux/kobj*
 F:	lib/kobj*
