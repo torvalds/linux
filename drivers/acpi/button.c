@@ -162,10 +162,8 @@ static struct proc_dir_entry *acpi_lid_dir;
 
 static int acpi_button_add_fs(struct acpi_device *device)
 {
+	struct acpi_button *button = acpi_driver_data(device);
 	struct proc_dir_entry *entry = NULL;
-	struct acpi_button *button;
-
-	button = acpi_driver_data(device);
 
 	switch (button->type) {
 	case ACPI_BUTTON_TYPE_POWER:
@@ -291,9 +289,8 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 
 static int acpi_button_resume(struct acpi_device *device)
 {
-	struct acpi_button *button;
+	struct acpi_button *button = acpi_driver_data(device);
 
-	button = acpi_driver_data(device);
 	if (button->type == ACPI_BUTTON_TYPE_LID)
 		return acpi_lid_send_state(button);
 	return 0;
@@ -301,9 +298,9 @@ static int acpi_button_resume(struct acpi_device *device)
 
 static int acpi_button_add(struct acpi_device *device)
 {
-	int error;
 	struct acpi_button *button;
 	struct input_dev *input;
+	int error;
 
 	button = kzalloc(sizeof(struct acpi_button), GFP_KERNEL);
 	if (!button)
@@ -419,9 +416,7 @@ static int acpi_button_add(struct acpi_device *device)
 
 static int acpi_button_remove(struct acpi_device *device, int type)
 {
-	struct acpi_button *button;
-
-	button = acpi_driver_data(device);
+	struct acpi_button *button = acpi_driver_data(device);
 
 	acpi_button_remove_fs(device);
 	input_unregister_device(button->input);
