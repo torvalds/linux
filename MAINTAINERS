@@ -1842,17 +1842,6 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wan/dscc4.c
 
-DVB SUBSYSTEM AND DRIVERS
-P:	LinuxTV.org Project
-M:	linux-media@vger.kernel.org
-W:	http://linuxtv.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
-S:	Maintained
-F:	Documentation/dvb/
-F:	drivers/media/dvb/
-F:	drivers/media/common/saa7146*.c
-F:	include/linux/dvb/
-
 DZ DECSTATION DZ11 SERIAL DRIVER
 P:	Maciej W. Rozycki
 M:	macro@linux-mips.org
@@ -3624,6 +3613,21 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/max6650
 F:	drivers/hwmon/max6650.c
+
+MEDIA INPUT INFRASTRUCTURE (V4L/DVB)
+P:	Mauro Carvalho Chehab
+M:	mchehab@infradead.org
+P:	LinuxTV.org Project
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
+S:	Maintained
+F:	Documentation/dvb/
+F:	Documentation/video4linux/
+F:	drivers/media/
+F:	include/media/
+F:	include/linux/dvb/
+F:	include/linux/videodev*.h
 
 MEGARAID SCSI DRIVERS
 P:	Neela Syam Kolli
@@ -6006,20 +6010,6 @@ M:	romieu@fr.zoreil.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/via-velocity.*
-
-VIDEO FOR LINUX (V4L)
-P:	Mauro Carvalho Chehab
-M:	mchehab@infradead.org
-L:	linux-media@vger.kernel.org
-W:	http://linuxtv.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
-S:	Maintained
-F:	Documentation/video4linux/
-F:	drivers/media/video/
-F:	drivers/media/radio/
-F:	include/linux/videodev.h
-F:	include/linux/videodev2.h
-F:	include/media/
 
 VLAN (802.1Q)
 P:	Patrick McHardy
