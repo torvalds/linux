@@ -445,7 +445,7 @@ static void tx4939ide_tf_load(ide_drive_t *drive, struct ide_cmd *cmd)
 #ifdef __BIG_ENDIAN
 
 /* custom iops (independent from SWAP_IO_SPACE) */
-static void tx4939ide_input_data_swap(ide_drive_t *drive, struct request *rq,
+static void tx4939ide_input_data_swap(ide_drive_t *drive, struct ide_cmd *cmd,
 				void *buf, unsigned int len)
 {
 	unsigned long port = drive->hwif->io_ports.data_addr;
@@ -457,7 +457,7 @@ static void tx4939ide_input_data_swap(ide_drive_t *drive, struct request *rq,
 	__ide_flush_dcache_range((unsigned long)buf, roundup(len, 2));
 }
 
-static void tx4939ide_output_data_swap(ide_drive_t *drive, struct request *rq,
+static void tx4939ide_output_data_swap(ide_drive_t *drive, struct ide_cmd *cmd,
 				void *buf, unsigned int len)
 {
 	unsigned long port = drive->hwif->io_ports.data_addr;
