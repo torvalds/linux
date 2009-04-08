@@ -808,7 +808,7 @@ config APP_STACK_L1
 config EXCEPTION_L1_SCRATCH
 	bool "Locate exception stack in L1 Scratch Memory"
 	default n
-	depends on !APP_STACK_L1 && !SYSCALL_TAB_L1
+	depends on !APP_STACK_L1
 	help
 	  Whenever an exception occurs, use the L1 Scratch memory for
 	  stack storage.  You cannot place the stacks of FLAT binaries

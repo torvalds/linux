@@ -52,9 +52,14 @@ static unsigned long empty_bad_page_table;
 
 static unsigned long empty_bad_page;
 
-unsigned long empty_zero_page;
+static unsigned long empty_zero_page;
 
-extern unsigned long exception_stack[NR_CPUS][1024];
+#ifndef CONFIG_EXCEPTION_L1_SCRATCH
+#if defined CONFIG_SYSCALL_TAB_L1
+__attribute__((l1_data))
+#endif
+static unsigned long exception_stack[NR_CPUS][1024];
+#endif
 
 struct blackfin_pda cpu_pda[NR_CPUS];
 EXPORT_SYMBOL(cpu_pda);
@@ -117,7 +122,12 @@ asmlinkage void __init init_pda(void)
 	cpu_pda[0].next = &cpu_pda[1];
 	cpu_pda[1].next = &cpu_pda[0];
 
+#ifdef CONFIG_EXCEPTION_L1_SCRATCH
+	cpu_pda[cpu].ex_stack = (unsigned long *)(L1_SCRATCH_START + \
+					L1_SCRATCH_LENGTH);
+#else
 	cpu_pda[cpu].ex_stack = exception_stack[cpu + 1];
+#endif
 
 #ifdef CONFIG_SMP
 	cpu_pda[cpu].imask = 0x1f;

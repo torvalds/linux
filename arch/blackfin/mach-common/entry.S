@@ -36,7 +36,6 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/unistd.h>
-#include <linux/threads.h>
 #include <asm/blackfin.h>
 #include <asm/errno.h>
 #include <asm/fixed_code.h>
@@ -1588,19 +1587,3 @@ ENTRY(_sys_call_table)
 	.long _sys_ni_syscall
 	.endr
 END(_sys_call_table)
-
-#ifdef CONFIG_EXCEPTION_L1_SCRATCH
-/* .section .l1.bss.scratch */
-.set _exception_stack_top, L1_SCRATCH_START + L1_SCRATCH_LENGTH
-#else
-#ifdef CONFIG_SYSCALL_TAB_L1
-.section .l1.bss
-#else
-.bss
-#endif
-ENTRY(_exception_stack)
-	.rept 1024 * NR_CPUS
-	.long 0
-	.endr
-_exception_stack_top:
-#endif
