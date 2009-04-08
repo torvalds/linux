@@ -340,15 +340,14 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		if (blk_pc_request(rq) && !rq->errors)
 			rq->errors = SAM_STAT_CHECK_CONDITION;
 
-		/* check for tray open */
-		if (sense_key == NOT_READY) {
+		switch (sense_key) {
+		case NOT_READY:
 			cdrom_saw_media_change(drive);
-		} else if (sense_key == UNIT_ATTENTION) {
-			/* check for media change */
+			break;
+		case UNIT_ATTENTION:
 			cdrom_saw_media_change(drive);
 			return 0;
-		} else if (sense_key == ILLEGAL_REQUEST &&
-			   rq->cmd[0] == GPCMD_START_STOP_UNIT) {
+		case ILLEGAL_REQUEST:
 			/*
 			 * Don't print error message for this condition--
 			 * SFF8090i indicates that 5/24/00 is the correct
@@ -356,9 +355,13 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 			 * drive doesn't have that capability.
 			 * cdrom_log_sense() knows this!
 			 */
-		} else if (!quiet) {
-			/* otherwise, print an error */
-			ide_dump_status(drive, "packet command error", stat);
+			if (rq->cmd[0] == GPCMD_START_STOP_UNIT)
+				break;
+			/* fall-through */
+		default:
+			if (!quiet)
+				ide_dump_status(drive, "packet command error",
+						stat);
 		}
 
 		rq->cmd_flags |= REQ_FAILED;
@@ -378,12 +381,11 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		if (blk_noretry_request(rq))
 			do_end_request = 1;
 
-		if (sense_key == NOT_READY) {
-			/* tray open */
+		switch (sense_key) {
+		case NOT_READY:
 			if (rq_data_dir(rq) == READ) {
 				cdrom_saw_media_change(drive);
 
-				/* fail the request */
 				if (!quiet)
 					printk(KERN_ERR PFX "%s: tray open\n",
 						drive->name);
@@ -392,8 +394,8 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 					return 1;
 			}
 			do_end_request = 1;
-		} else if (sense_key == UNIT_ATTENTION) {
-			/* media change */
+			break;
+		case UNIT_ATTENTION:
 			cdrom_saw_media_change(drive);
 
 			/*
@@ -402,8 +404,9 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 			 */
 			if (++rq->errors > ERROR_MAX)
 				do_end_request = 1;
-		} else if (sense_key == ILLEGAL_REQUEST ||
-			   sense_key == DATA_PROTECT) {
+			break;
+		case ILLEGAL_REQUEST:
+		case DATA_PROTECT:
 			/*
 			 * No point in retrying after an illegal request or data
 			 * protect error.
@@ -411,7 +414,8 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 			if (!quiet)
 				ide_dump_status(drive, "command error", stat);
 			do_end_request = 1;
-		} else if (sense_key == MEDIUM_ERROR) {
+			break;
+		case MEDIUM_ERROR:
 			/*
 			 * No point in re-trying a zillion times on a bad
 			 * sector. If we got here the error is not correctable.
@@ -420,19 +424,22 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 				ide_dump_status(drive, "media error "
 						"(bad sector)",	stat);
 			do_end_request = 1;
-		} else if (sense_key == BLANK_CHECK) {
+			break;
+		case BLANK_CHECK:
 			/* disk appears blank ?? */
 			if (!quiet)
 				ide_dump_status(drive, "media error (blank)",
 						stat);
 			do_end_request = 1;
-		} else if ((err & ~ATA_ABORTED) != 0) {
-			/* go to the default handler for other errors */
-			ide_error(drive, "cdrom_decode_status", stat);
-			return 1;
-		} else if ((++rq->errors > ERROR_MAX)) {
-			/* we've racked up too many retries, abort */
-			do_end_request = 1;
+			break;
+		default:
+			if (err & ~ATA_ABORTED) {
+				/* go to the default handler for other errors */
+				ide_error(drive, "cdrom_decode_status", stat);
+				return 1;
+			} else if (++rq->errors > ERROR_MAX)
+				/* we've racked up too many retries, abort */
+				do_end_request = 1;
 		}
 
 		/*
