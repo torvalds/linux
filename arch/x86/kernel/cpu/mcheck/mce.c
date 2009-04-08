@@ -569,7 +569,8 @@ static int mce_cap_init(void)
 	u64 cap;
 
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
-	b = cap & 0xff;
+
+	b = cap & MCG_BANKCNT_MASK;
 	printk(KERN_INFO "mce: CPU supports %d MCE banks\n", b);
 
 	if (b > MAX_NR_BANKS) {
@@ -590,7 +591,7 @@ static int mce_cap_init(void)
 	}
 
 	/* Use accurate RIP reporting if available. */
-	if ((cap & (1<<9)) && ((cap >> 16) & 0xff) >= 9)
+	if ((cap & MCG_EXT_P) && MCG_EXT_CNT(cap) >= 9)
 		rip_msr = MSR_IA32_MCG_EIP;
 
 	return 0;
