@@ -1,46 +1,47 @@
 /*
  * Machine check handler.
+ *
  * K8 parts Copyright 2002,2003 Andi Kleen, SuSE Labs.
  * Rest from unknown author(s).
  * 2004 Andi Kleen. Rewrote most of it.
  * Copyright 2008 Intel Corporation
  * Author: Andi Kleen
  */
-
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/smp_lock.h>
-#include <linux/string.h>
-#include <linux/rcupdate.h>
-#include <linux/kallsyms.h>
-#include <linux/sysdev.h>
-#include <linux/miscdevice.h>
-#include <linux/fs.h>
-#include <linux/capability.h>
-#include <linux/cpu.h>
-#include <linux/percpu.h>
-#include <linux/poll.h>
 #include <linux/thread_info.h>
-#include <linux/ctype.h>
-#include <linux/kmod.h>
-#include <linux/kdebug.h>
-#include <linux/kobject.h>
-#include <linux/sysfs.h>
+#include <linux/capability.h>
+#include <linux/miscdevice.h>
 #include <linux/ratelimit.h>
-#include <asm/processor.h>
-#include <asm/msr.h>
-#include <asm/mce.h>
-#include <asm/uaccess.h>
-#include <asm/smp.h>
-#include <asm/idle.h>
+#include <linux/kallsyms.h>
+#include <linux/rcupdate.h>
+#include <linux/smp_lock.h>
+#include <linux/kobject.h>
+#include <linux/kdebug.h>
+#include <linux/kernel.h>
+#include <linux/percpu.h>
+#include <linux/string.h>
+#include <linux/sysdev.h>
+#include <linux/ctype.h>
+#include <linux/sched.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
+#include <linux/init.h>
+#include <linux/kmod.h>
+#include <linux/poll.h>
+#include <linux/cpu.h>
+#include <linux/fs.h>
 
-#define MISC_MCELOG_MINOR 227
+#include <asm/processor.h>
+#include <asm/uaccess.h>
+#include <asm/idle.h>
+#include <asm/mce.h>
+#include <asm/msr.h>
+#include <asm/smp.h>
+
+#define MISC_MCELOG_MINOR	227
 
 atomic_t mce_entry;
 
-static int mce_dont_init;
+static int			mce_dont_init;
 
 /*
  * Tolerant levels:
@@ -49,16 +50,16 @@ static int mce_dont_init;
  *   2: SIGBUS or log uncorrected errors (if possible), log corrected errors
  *   3: never panic or SIGBUS, log all errors (for testing only)
  */
-static int tolerant = 1;
-static int banks;
-static u64 *bank;
-static unsigned long notify_user;
-static int rip_msr;
-static int mce_bootlog = -1;
-static atomic_t mce_events;
+static int			tolerant = 1;
+static int			banks;
+static u64			*bank;
+static unsigned long		notify_user;
+static int			rip_msr;
+static int			mce_bootlog = -1;
+static atomic_t			mce_events;
 
-static char trigger[128];
-static char *trigger_argv[2] = { trigger, NULL };
+static char			trigger[128];
+static char			*trigger_argv[2] = { trigger, NULL };
 
 static DECLARE_WAIT_QUEUE_HEAD(mce_wait);
 
@@ -89,19 +90,23 @@ static struct mce_log mcelog = {
 void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
+
 	atomic_inc(&mce_events);
 	mce->finished = 0;
 	wmb();
 	for (;;) {
 		entry = rcu_dereference(mcelog.next);
 		for (;;) {
-			/* When the buffer fills up discard new entries. Assume
-			   that the earlier errors are the more interesting. */
+			/*
+			 * When the buffer fills up discard new entries.
+			 * Assume that the earlier errors are the more
+			 * interesting ones:
+			 */
 			if (entry >= MCE_LOG_LEN) {
 				set_bit(MCE_OVERFLOW, (unsigned long *)&mcelog.flags);
 				return;
 			}
-			/* Old left over entry. Skip. */
+			/* Old left over entry. Skip: */
 			if (mcelog.entry[entry].finished) {
 				entry++;
 				continue;
@@ -264,12 +269,12 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
  * implies that most kernel services cannot be safely used. Don't even
  * think about putting a printk in there!
  */
-void do_machine_check(struct pt_regs * regs, long error_code)
+void do_machine_check(struct pt_regs *regs, long error_code)
 {
 	struct mce m, panicm;
+	int panicm_found = 0;
 	u64 mcestart = 0;
 	int i;
-	int panicm_found = 0;
 	/*
 	 * If no_way_out gets set, there is no safe way to recover from this
 	 * MCE.  If tolerant is cranked up, we'll try anyway.
@@ -293,6 +298,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	mce_setup(&m);
 
 	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
+
 	/* if the restart IP is not valid, we're done for */
 	if (!(m.mcgstatus & MCG_STATUS_RIPV))
 		no_way_out = 1;
@@ -356,23 +362,29 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		mce_get_rip(&m, regs);
 		mce_log(&m);
 
-		/* Did this bank cause the exception? */
-		/* Assume that the bank with uncorrectable errors did it,
-		   and that there is only a single one. */
-		if ((m.status & MCI_STATUS_UC) && (m.status & MCI_STATUS_EN)) {
+		/*
+		 * Did this bank cause the exception?
+		 *
+		 * Assume that the bank with uncorrectable errors did it,
+		 * and that there is only a single one:
+		 */
+		if ((m.status & MCI_STATUS_UC) &&
+					(m.status & MCI_STATUS_EN)) {
 			panicm = m;
 			panicm_found = 1;
 		}
 	}
 
-	/* If we didn't find an uncorrectable error, pick
-	   the last one (shouldn't happen, just being safe). */
+	/*
+	 * If we didn't find an uncorrectable error, pick
+	 * the last one (shouldn't happen, just being safe).
+	 */
 	if (!panicm_found)
 		panicm = m;
 
 	/*
 	 * If we have decided that we just CAN'T continue, and the user
-	 *  has not set tolerant to an insane level, give up and die.
+	 * has not set tolerant to an insane level, give up and die.
 	 */
 	if (no_way_out && tolerant < 3)
 		mce_panic("Machine check", &panicm, mcestart);
@@ -451,10 +463,9 @@ void mce_log_therm_throt_event(__u64 status)
  * poller finds an MCE, poll 2x faster.  When the poller finds no more
  * errors, poll 2x slower (up to check_interval seconds).
  */
-
 static int check_interval = 5 * 60; /* 5 minutes */
+
 static DEFINE_PER_CPU(int, next_interval); /* in jiffies */
-static void mcheck_timer(unsigned long);
 static DEFINE_PER_CPU(struct timer_list, mce_timer);
 
 static void mcheck_timer(unsigned long data)
@@ -464,9 +475,10 @@ static void mcheck_timer(unsigned long data)
 
 	WARN_ON(smp_processor_id() != data);
 
-	if (mce_available(&current_cpu_data))
+	if (mce_available(&current_cpu_data)) {
 		machine_check_poll(MCP_TIMESTAMP,
 				&__get_cpu_var(mce_poll_banks));
+	}
 
 	/*
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
@@ -501,6 +513,7 @@ int mce_notify_user(void)
 	static DEFINE_RATELIMIT_STATE(ratelimit, 60*HZ, 2);
 
 	clear_thread_flag(TIF_MCE_NOTIFY);
+
 	if (test_and_clear_bit(0, &notify_user)) {
 		wake_up_interruptible(&mce_wait);
 
@@ -520,9 +533,10 @@ int mce_notify_user(void)
 	return 0;
 }
 
-/* see if the idle task needs to notify userspace */
+/* see if the idle task needs to notify userspace: */
 static int
-mce_idle_callback(struct notifier_block *nfb, unsigned long action, void *junk)
+mce_idle_callback(struct notifier_block *nfb, unsigned long action,
+		  void *unused)
 {
 	/* IDLE_END should be safe - interrupts are back on */
 	if (action == IDLE_END && test_thread_flag(TIF_MCE_NOTIFY))
@@ -532,7 +546,7 @@ mce_idle_callback(struct notifier_block *nfb, unsigned long action, void *junk)
 }
 
 static struct notifier_block mce_idle_notifier = {
-	.notifier_call = mce_idle_callback,
+	.notifier_call		= mce_idle_callback,
 };
 
 static __init int periodic_mcheck_init(void)
@@ -547,8 +561,8 @@ __initcall(periodic_mcheck_init);
  */
 static int mce_cap_init(void)
 {
-	u64 cap;
 	unsigned b;
+	u64 cap;
 
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 	b = cap & 0xff;
@@ -578,9 +592,9 @@ static int mce_cap_init(void)
 
 static void mce_init(void *dummy)
 {
+	mce_banks_t all_banks;
 	u64 cap;
 	int i;
-	mce_banks_t all_banks;
 
 	/*
 	 * Log the machine checks left over from the previous reset.
@@ -605,14 +619,21 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 {
 	/* This should be disabled by the BIOS, but isn't always */
 	if (c->x86_vendor == X86_VENDOR_AMD) {
-		if (c->x86 == 15 && banks > 4)
-			/* disable GART TBL walk error reporting, which trips off
-			   incorrectly with the IOMMU & 3ware & Cerberus. */
+		if (c->x86 == 15 && banks > 4) {
+			/*
+			 * disable GART TBL walk error reporting, which
+			 * trips off incorrectly with the IOMMU & 3ware
+			 * & Cerberus:
+			 */
 			clear_bit(10, (unsigned long *)&bank[4]);
-		if(c->x86 <= 17 && mce_bootlog < 0)
-			/* Lots of broken BIOS around that don't clear them
-			   by default and leave crap in there. Don't log. */
+		}
+		if (c->x86 <= 17 && mce_bootlog < 0) {
+			/*
+			 * Lots of broken BIOS around that don't clear them
+			 * by default and leave crap in there. Don't log:
+			 */
 			mce_bootlog = 0;
+		}
 	}
 
 }
@@ -646,7 +667,7 @@ static void mce_init_timer(void)
 
 /*
  * Called for each booted CPU to set up machine checks.
- * Must be called with preempt off.
+ * Must be called with preempt off:
  */
 void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 {
@@ -669,8 +690,8 @@ void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
  */
 
 static DEFINE_SPINLOCK(mce_state_lock);
-static int open_count;	/* #times opened */
-static int open_exclu;	/* already open exclusive? */
+static int		open_count;		/* #times opened */
+static int		open_exclu;		/* already open exclusive? */
 
 static int mce_open(struct inode *inode, struct file *file)
 {
@@ -680,6 +701,7 @@ static int mce_open(struct inode *inode, struct file *file)
 	if (open_exclu || (open_count && (file->f_flags & O_EXCL))) {
 		spin_unlock(&mce_state_lock);
 		unlock_kernel();
+
 		return -EBUSY;
 	}
 
@@ -712,13 +734,14 @@ static void collect_tscs(void *data)
 	rdtscll(cpu_tsc[smp_processor_id()]);
 }
 
+static DEFINE_MUTEX(mce_read_mutex);
+
 static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 			loff_t *off)
 {
-	unsigned long *cpu_tsc;
-	static DEFINE_MUTEX(mce_read_mutex);
-	unsigned prev, next;
 	char __user *buf = ubuf;
+	unsigned long *cpu_tsc;
+	unsigned prev, next;
 	int i, err;
 
 	cpu_tsc = kmalloc(nr_cpu_ids * sizeof(long), GFP_KERNEL);
@@ -732,6 +755,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	if (*off != 0 || usize < MCE_LOG_LEN*sizeof(struct mce)) {
 		mutex_unlock(&mce_read_mutex);
 		kfree(cpu_tsc);
+
 		return -EINVAL;
 	}
 
@@ -770,6 +794,7 @@ timeout:
 	 * synchronize.
 	 */
 	on_each_cpu(collect_tscs, cpu_tsc, 1);
+
 	for (i = next; i < MCE_LOG_LEN; i++) {
 		if (mcelog.entry[i].finished &&
 		    mcelog.entry[i].tsc < cpu_tsc[mcelog.entry[i].cpu]) {
@@ -782,6 +807,7 @@ timeout:
 	}
 	mutex_unlock(&mce_read_mutex);
 	kfree(cpu_tsc);
+
 	return err ? -EFAULT : buf - ubuf;
 }
 
@@ -799,6 +825,7 @@ static long mce_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
 	switch (cmd) {
 	case MCE_GET_RECORD_LEN:
 		return put_user(sizeof(struct mce), p);
@@ -810,6 +837,7 @@ static long mce_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		do {
 			flags = mcelog.flags;
 		} while (cmpxchg(&mcelog.flags, flags, 0) != flags);
+
 		return put_user(flags, p);
 	}
 	default:
@@ -818,11 +846,11 @@ static long mce_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations mce_chrdev_ops = {
-	.open = mce_open,
-	.release = mce_release,
-	.read = mce_read,
-	.poll = mce_poll,
-	.unlocked_ioctl = mce_ioctl,
+	.open			= mce_open,
+	.release		= mce_release,
+	.read			= mce_read,
+	.poll			= mce_poll,
+	.unlocked_ioctl		= mce_ioctl,
 };
 
 static struct miscdevice mce_log_device = {
@@ -891,13 +919,16 @@ static int mce_shutdown(struct sys_device *dev)
 	return mce_disable();
 }
 
-/* On resume clear all MCE state. Don't want to see leftovers from the BIOS.
-   Only one CPU is active at this time, the others get readded later using
-   CPU hotplug. */
+/*
+ * On resume clear all MCE state. Don't want to see leftovers from the BIOS.
+ * Only one CPU is active at this time, the others get re-added later using
+ * CPU hotplug:
+ */
 static int mce_resume(struct sys_device *dev)
 {
 	mce_init(NULL);
 	mce_cpu_features(&current_cpu_data);
+
 	return 0;
 }
 
@@ -916,14 +947,16 @@ static void mce_restart(void)
 }
 
 static struct sysdev_class mce_sysclass = {
-	.suspend = mce_suspend,
-	.shutdown = mce_shutdown,
-	.resume = mce_resume,
-	.name = "machinecheck",
+	.suspend	= mce_suspend,
+	.shutdown	= mce_shutdown,
+	.resume		= mce_resume,
+	.name		= "machinecheck",
 };
 
 DEFINE_PER_CPU(struct sys_device, device_mce);
-void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu) __cpuinitdata;
+
+__cpuinitdata
+void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
 /* Why are there no generic functions for this? */
 #define ACCESSOR(name, var, start) \
@@ -937,9 +970,12 @@ void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu) __cpuinit
 				    const char *buf, size_t siz) {	\
 		char *end;						\
 		unsigned long new = simple_strtoul(buf, &end, 0);	\
-		if (end == buf) return -EINVAL;				\
+									\
+		if (end == buf)						\
+			return -EINVAL;					\
 		var = new;						\
 		start;							\
+									\
 		return end-buf;						\
 	}								\
 	static SYSDEV_ATTR(name, 0644, show_ ## name, set_ ## name);
@@ -950,6 +986,7 @@ static ssize_t show_bank(struct sys_device *s, struct sysdev_attribute *attr,
 			 char *buf)
 {
 	u64 b = bank[attr - bank_attrs];
+
 	return sprintf(buf, "%llx\n", b);
 }
 
@@ -958,15 +995,18 @@ static ssize_t set_bank(struct sys_device *s, struct sysdev_attribute *attr,
 {
 	char *end;
 	u64 new = simple_strtoull(buf, &end, 0);
+
 	if (end == buf)
 		return -EINVAL;
+
 	bank[attr - bank_attrs] = new;
 	mce_restart();
+
 	return end-buf;
 }
 
-static ssize_t show_trigger(struct sys_device *s, struct sysdev_attribute *attr,
-				char *buf)
+static ssize_t
+show_trigger(struct sys_device *s, struct sysdev_attribute *attr, char *buf)
 {
 	strcpy(buf, trigger);
 	strcat(buf, "\n");
@@ -974,21 +1014,27 @@ static ssize_t show_trigger(struct sys_device *s, struct sysdev_attribute *attr,
 }
 
 static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
-				const char *buf,size_t siz)
+				const char *buf, size_t siz)
 {
 	char *p;
 	int len;
+
 	strncpy(trigger, buf, sizeof(trigger));
 	trigger[sizeof(trigger)-1] = 0;
 	len = strlen(trigger);
 	p = strchr(trigger, '\n');
-	if (*p) *p = 0;
+
+	if (*p)
+		*p = 0;
+
 	return len;
 }
 
 static SYSDEV_ATTR(trigger, 0644, show_trigger, set_trigger);
 static SYSDEV_INT_ATTR(tolerant, 0644, tolerant);
-ACCESSOR(check_interval,check_interval,mce_restart())
+
+ACCESSOR(check_interval, check_interval, mce_restart())
+
 static struct sysdev_attribute *mce_attributes[] = {
 	&attr_tolerant.attr, &attr_check_interval, &attr_trigger,
 	NULL
@@ -996,7 +1042,7 @@ static struct sysdev_attribute *mce_attributes[] = {
 
 static cpumask_var_t mce_device_initialized;
 
-/* Per cpu sysdev init.  All of the cpus still share the same ctl bank */
+/* Per cpu sysdev init. All of the cpus still share the same ctrl bank: */
 static __cpuinit int mce_create_device(unsigned int cpu)
 {
 	int err;
@@ -1006,15 +1052,15 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 		return -EIO;
 
 	memset(&per_cpu(device_mce, cpu).kobj, 0, sizeof(struct kobject));
-	per_cpu(device_mce,cpu).id = cpu;
-	per_cpu(device_mce,cpu).cls = &mce_sysclass;
+	per_cpu(device_mce, cpu).id	= cpu;
+	per_cpu(device_mce, cpu).cls	= &mce_sysclass;
 
-	err = sysdev_register(&per_cpu(device_mce,cpu));
+	err = sysdev_register(&per_cpu(device_mce, cpu));
 	if (err)
 		return err;
 
 	for (i = 0; mce_attributes[i]; i++) {
-		err = sysdev_create_file(&per_cpu(device_mce,cpu),
+		err = sysdev_create_file(&per_cpu(device_mce, cpu),
 					 mce_attributes[i]);
 		if (err)
 			goto error;
@@ -1035,10 +1081,10 @@ error2:
 	}
 error:
 	while (--i >= 0) {
-		sysdev_remove_file(&per_cpu(device_mce,cpu),
+		sysdev_remove_file(&per_cpu(device_mce, cpu),
 				   mce_attributes[i]);
 	}
-	sysdev_unregister(&per_cpu(device_mce,cpu));
+	sysdev_unregister(&per_cpu(device_mce, cpu));
 
 	return err;
 }
@@ -1051,12 +1097,12 @@ static __cpuinit void mce_remove_device(unsigned int cpu)
 		return;
 
 	for (i = 0; mce_attributes[i]; i++)
-		sysdev_remove_file(&per_cpu(device_mce,cpu),
+		sysdev_remove_file(&per_cpu(device_mce, cpu),
 			mce_attributes[i]);
 	for (i = 0; i < banks; i++)
 		sysdev_remove_file(&per_cpu(device_mce, cpu),
 			&bank_attrs[i]);
-	sysdev_unregister(&per_cpu(device_mce,cpu));
+	sysdev_unregister(&per_cpu(device_mce, cpu));
 	cpumask_clear_cpu(cpu, mce_device_initialized);
 }
 
@@ -1076,11 +1122,12 @@ static void mce_disable_cpu(void *h)
 
 static void mce_reenable_cpu(void *h)
 {
-	int i;
 	unsigned long action = *(unsigned long *)h;
+	int i;
 
 	if (!mce_available(&current_cpu_data))
 		return;
+
 	if (!(action & CPU_TASKS_FROZEN))
 		cmci_reenable();
 	for (i = 0; i < banks; i++)
@@ -1088,8 +1135,8 @@ static void mce_reenable_cpu(void *h)
 }
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
-static int __cpuinit mce_cpu_callback(struct notifier_block *nfb,
-				      unsigned long action, void *hcpu)
+static int __cpuinit
+mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 	struct timer_list *t = &per_cpu(mce_timer, cpu);
@@ -1142,12 +1189,14 @@ static __init int mce_init_banks(void)
 
 	for (i = 0; i < banks; i++) {
 		struct sysdev_attribute *a = &bank_attrs[i];
-		a->attr.name = kasprintf(GFP_KERNEL, "bank%d", i);
+
+		a->attr.name	= kasprintf(GFP_KERNEL, "bank%d", i);
 		if (!a->attr.name)
 			goto nomem;
-		a->attr.mode = 0644;
-		a->show = show_bank;
-		a->store = set_bank;
+
+		a->attr.mode	= 0644;
+		a->show		= show_bank;
+		a->store	= set_bank;
 	}
 	return 0;
 
@@ -1156,6 +1205,7 @@ nomem:
 		kfree(bank_attrs[i].attr.name);
 	kfree(bank_attrs);
 	bank_attrs = NULL;
+
 	return -ENOMEM;
 }
 
@@ -1185,6 +1235,7 @@ static __init int mce_init_device(void)
 
 	register_hotcpu_notifier(&mce_cpu_notifier);
 	misc_register(&mce_log_device);
+
 	return err;
 }
 
