@@ -13,7 +13,6 @@
 #include <linux/prio_tree.h>
 #include <linux/debug_locks.h>
 #include <linux/mm_types.h>
-#include <linux/sched.h>
 
 struct mempolicy;
 struct anon_vma;
