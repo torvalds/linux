@@ -127,11 +127,6 @@ int __ieee80211_resume(struct ieee80211_hw *hw)
 
 	rcu_read_unlock();
 
-	/* add back keys */
-	list_for_each_entry(sdata, &local->interfaces, list)
-		if (netif_running(sdata->dev))
-			ieee80211_enable_keys(sdata);
-
 	/* setup RTS threshold */
 	if (local->ops->set_rts_threshold)
 		local->ops->set_rts_threshold(hw, local->rts_threshold);
@@ -171,6 +166,11 @@ int __ieee80211_resume(struct ieee80211_hw *hw)
 			break;
 		}
 	}
+
+	/* add back keys */
+	list_for_each_entry(sdata, &local->interfaces, list)
+		if (netif_running(sdata->dev))
+			ieee80211_enable_keys(sdata);
 
 	ieee80211_wake_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
