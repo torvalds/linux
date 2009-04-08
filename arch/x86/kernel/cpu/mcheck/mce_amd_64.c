@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/kobject.h>
+#include <linux/percpu.h>
 #include <linux/sysdev.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -24,7 +25,6 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 
-#include <asm/percpu.h>
 #include <asm/apic.h>
 #include <asm/idle.h>
 #include <asm/mce.h>
@@ -344,16 +344,12 @@ static ssize_t store_error_count(struct threshold_block *b,
 	return 1;
 }
 
-#define THRESHOLD_ATTR(_name, _mode, _show, _store)			\
-{									\
-	.attr	= {.name = __stringify(_name), .mode = _mode },		\
-	.show	= _show,						\
-	.store	= _store,						\
+#define RW_ATTR(val)							\
+static struct threshold_attr val = {					\
+	.attr	= {.name = __stringify(val), .mode = 0644 },		\
+	.show	= show_## val,						\
+	.store	= store_## val,						\
 };
-
-#define RW_ATTR(name)							\
-static struct threshold_attr name =					\
-	THRESHOLD_ATTR(name, 0644, show_## name, store_## name)
 
 RW_ATTR(interrupt_enable);
 RW_ATTR(threshold_limit);
@@ -675,9 +671,6 @@ static void threshold_remove_device(unsigned int cpu)
 static void __cpuinit
 amd_64_threshold_cpu_callback(unsigned long action, unsigned int cpu)
 {
-	if (cpu >= NR_CPUS)
-		return;
-
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
