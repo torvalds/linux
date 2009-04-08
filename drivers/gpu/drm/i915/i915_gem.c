@@ -1596,8 +1596,19 @@ i915_gem_retire_request(struct drm_device *dev,
 
 		if (obj->write_domain != 0)
 			i915_gem_object_move_to_flushing(obj);
-		else
+		else {
+			/* Take a reference on the object so it won't be
+			 * freed while the spinlock is held.  The list
+			 * protection for this spinlock is safe when breaking
+			 * the lock like this since the next thing we do
+			 * is just get the head of the list again.
+			 */
+			drm_gem_object_reference(obj);
 			i915_gem_object_move_to_inactive(obj);
+			spin_unlock(&dev_priv->mm.active_list_lock);
+			drm_gem_object_unreference(obj);
+			spin_lock(&dev_priv->mm.active_list_lock);
+		}
 	}
 out:
 	spin_unlock(&dev_priv->mm.active_list_lock);
