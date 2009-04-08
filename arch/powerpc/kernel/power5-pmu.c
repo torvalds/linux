@@ -290,10 +290,102 @@ static int power5_get_alternatives(unsigned int event, unsigned int alt[])
 	return nalt;
 }
 
+/*
+ * Map of which direct events on which PMCs are marked instruction events.
+ * Indexed by PMCSEL value, bit i (LE) set if PMC i is a marked event.
+ * Bit 0 is set if it is marked for all PMCs.
+ * The 0x80 bit indicates a byte decode PMCSEL value.
+ */
+static unsigned char direct_event_is_marked[0x28] = {
+	0,	/* 00 */
+	0x1f,	/* 01 PM_IOPS_CMPL */
+	0x2,	/* 02 PM_MRK_GRP_DISP */
+	0xe,	/* 03 PM_MRK_ST_CMPL, PM_MRK_ST_GPS, PM_MRK_ST_CMPL_INT */
+	0,	/* 04 */
+	0x1c,	/* 05 PM_MRK_BRU_FIN, PM_MRK_INST_FIN, PM_MRK_CRU_FIN */
+	0x80,	/* 06 */
+	0x80,	/* 07 */
+	0, 0, 0,/* 08 - 0a */
+	0x18,	/* 0b PM_THRESH_TIMEO, PM_MRK_GRP_TIMEO */
+	0,	/* 0c */
+	0x80,	/* 0d */
+	0x80,	/* 0e */
+	0,	/* 0f */
+	0,	/* 10 */
+	0x14,	/* 11 PM_MRK_GRP_BR_REDIR, PM_MRK_GRP_IC_MISS */
+	0,	/* 12 */
+	0x10,	/* 13 PM_MRK_GRP_CMPL */
+	0x1f,	/* 14 PM_GRP_MRK, PM_MRK_{FXU,FPU,LSU}_FIN */
+	0x2,	/* 15 PM_MRK_GRP_ISSUED */
+	0x80,	/* 16 */
+	0x80,	/* 17 */
+	0, 0, 0, 0, 0,
+	0x80,	/* 1d */
+	0x80,	/* 1e */
+	0,	/* 1f */
+	0x80,	/* 20 */
+	0x80,	/* 21 */
+	0x80,	/* 22 */
+	0x80,	/* 23 */
+	0x80,	/* 24 */
+	0x80,	/* 25 */
+	0x80,	/* 26 */
+	0x80,	/* 27 */
+};
+
+/*
+ * Returns 1 if event counts things relating to marked instructions
+ * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
+ */
+static int power5_marked_instr_event(unsigned int event)
+{
+	int pmc, psel;
+	int bit, byte, unit;
+	u32 mask;
+
+	pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
+	psel = event & PM_PMCSEL_MSK;
+	if (pmc >= 5)
+		return 0;
+
+	bit = -1;
+	if (psel < sizeof(direct_event_is_marked)) {
+		if (direct_event_is_marked[psel] & (1 << pmc))
+			return 1;
+		if (direct_event_is_marked[psel] & 0x80)
+			bit = 4;
+		else if (psel == 0x08)
+			bit = pmc - 1;
+		else if (psel == 0x10)
+			bit = 4 - pmc;
+		else if (psel == 0x1b && (pmc == 1 || pmc == 3))
+			bit = 4;
+	} else if ((psel & 0x58) == 0x40)
+		bit = psel & 7;
+
+	if (!(event & PM_BUSEVENT_MSK))
+		return 0;
+
+	byte = (event >> PM_BYTE_SH) & PM_BYTE_MSK;
+	unit = (event >> PM_UNIT_SH) & PM_UNIT_MSK;
+	if (unit == PM_LSU0) {
+		/* byte 1 bits 0-7, byte 2 bits 0,2-4,6 */
+		mask = 0x5dff00;
+	} else if (unit == PM_LSU1 && byte >= 4) {
+		byte -= 4;
+		/* byte 4 bits 1,3,5,7, byte 5 bits 6-7, byte 7 bits 0-4,6 */
+		mask = 0x5f00c0aa;
+	} else
+		return 0;
+
+	return (mask >> (byte * 8 + bit)) & 1;
+}
+
 static int power5_compute_mmcr(unsigned int event[], int n_ev,
 			       unsigned int hwc[], u64 mmcr[])
 {
 	u64 mmcr1 = 0;
+	u64 mmcra = 0;
 	unsigned int pmc, unit, byte, psel;
 	unsigned int ttm, grp;
 	int i, isbus, bit, grsel;
@@ -430,6 +522,8 @@ static int power5_compute_mmcr(unsigned int event[], int n_ev,
 			grsel = (event[i] >> PM_GRS_SH) & PM_GRS_MSK;
 			mmcr1 |= (u64)grsel << grsel_shift[bit];
 		}
+		if (power5_marked_instr_event(event[i]))
+			mmcra |= MMCRA_SAMPLE_ENABLE;
 		if (pmc <= 3)
 			mmcr1 |= psel << MMCR1_PMCSEL_SH(pmc);
 		hwc[i] = pmc;
@@ -442,7 +536,7 @@ static int power5_compute_mmcr(unsigned int event[], int n_ev,
 	if (pmc_inuse & 0x3e)
 		mmcr[0] |= MMCR0_PMCjCE;
 	mmcr[1] = mmcr1;
-	mmcr[2] = 0;
+	mmcr[2] = mmcra;
 	return 0;
 }
 

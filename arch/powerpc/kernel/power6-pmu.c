@@ -49,12 +49,134 @@
 #define MMCR1_PMCSEL_MSK	0xff
 
 /*
+ * Map of which direct events on which PMCs are marked instruction events.
+ * Indexed by PMCSEL value >> 1.
+ * Bottom 4 bits are a map of which PMCs are interesting,
+ * top 4 bits say what sort of event:
+ *   0 = direct marked event,
+ *   1 = byte decode event,
+ *   4 = add/and event (PMC1 -> bits 0 & 4),
+ *   5 = add/and event (PMC1 -> bits 1 & 5),
+ *   6 = add/and event (PMC1 -> bits 2 & 6),
+ *   7 = add/and event (PMC1 -> bits 3 & 7).
+ */
+static unsigned char direct_event_is_marked[0x60 >> 1] = {
+	0,	/* 00 */
+	0,	/* 02 */
+	0,	/* 04 */
+	0x07,	/* 06 PM_MRK_ST_CMPL, PM_MRK_ST_GPS, PM_MRK_ST_CMPL_INT */
+	0x04,	/* 08 PM_MRK_DFU_FIN */
+	0x06,	/* 0a PM_MRK_IFU_FIN, PM_MRK_INST_FIN */
+	0,	/* 0c */
+	0,	/* 0e */
+	0x02,	/* 10 PM_MRK_INST_DISP */
+	0x08,	/* 12 PM_MRK_LSU_DERAT_MISS */
+	0,	/* 14 */
+	0,	/* 16 */
+	0x0c,	/* 18 PM_THRESH_TIMEO, PM_MRK_INST_FIN */
+	0x0f,	/* 1a PM_MRK_INST_DISP, PM_MRK_{FXU,FPU,LSU}_FIN */
+	0x01,	/* 1c PM_MRK_INST_ISSUED */
+	0,	/* 1e */
+	0,	/* 20 */
+	0,	/* 22 */
+	0,	/* 24 */
+	0,	/* 26 */
+	0x15,	/* 28 PM_MRK_DATA_FROM_L2MISS, PM_MRK_DATA_FROM_L3MISS */
+	0,	/* 2a */
+	0,	/* 2c */
+	0,	/* 2e */
+	0x4f,	/* 30 */
+	0x7f,	/* 32 */
+	0x4f,	/* 34 */
+	0x5f,	/* 36 */
+	0x6f,	/* 38 */
+	0x4f,	/* 3a */
+	0,	/* 3c */
+	0x08,	/* 3e PM_MRK_INST_TIMEO */
+	0x1f,	/* 40 */
+	0x1f,	/* 42 */
+	0x1f,	/* 44 */
+	0x1f,	/* 46 */
+	0x1f,	/* 48 */
+	0x1f,	/* 4a */
+	0x1f,	/* 4c */
+	0x1f,	/* 4e */
+	0,	/* 50 */
+	0x05,	/* 52 PM_MRK_BR_TAKEN, PM_MRK_BR_MPRED */
+	0x1c,	/* 54 PM_MRK_PTEG_FROM_L3MISS, PM_MRK_PTEG_FROM_L2MISS */
+	0x02,	/* 56 PM_MRK_LD_MISS_L1 */
+	0,	/* 58 */
+	0,	/* 5a */
+	0,	/* 5c */
+	0,	/* 5e */
+};
+
+/*
+ * Masks showing for each unit which bits are marked events.
+ * These masks are in LE order, i.e. 0x00000001 is byte 0, bit 0.
+ */
+static u32 marked_bus_events[16] = {
+	0x01000000,	/* direct events set 1: byte 3 bit 0 */
+	0x00010000,	/* direct events set 2: byte 2 bit 0 */
+	0, 0, 0, 0,	/* IDU, IFU, nest: nothing */
+	0x00000088,	/* VMX set 1: byte 0 bits 3, 7 */
+	0x000000c0,	/* VMX set 2: byte 0 bits 4-7 */
+	0x04010000,	/* LSU set 1: byte 2 bit 0, byte 3 bit 2 */
+	0xff010000u,	/* LSU set 2: byte 2 bit 0, all of byte 3 */
+	0,		/* LSU set 3 */
+	0x00000010,	/* VMX set 3: byte 0 bit 4 */
+	0,		/* BFP set 1 */
+	0x00000022,	/* BFP set 2: byte 0 bits 1, 5 */
+	0, 0
+};
+	
+/*
+ * Returns 1 if event counts things relating to marked instructions
+ * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
+ */
+static int power6_marked_instr_event(unsigned int event)
+{
+	int pmc, psel, ptype;
+	int bit, byte, unit;
+	u32 mask;
+
+	pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
+	psel = (event & PM_PMCSEL_MSK) >> 1;	/* drop edge/level bit */
+	if (pmc >= 5)
+		return 0;
+
+	bit = -1;
+	if (psel < sizeof(direct_event_is_marked)) {
+		ptype = direct_event_is_marked[psel];
+		if (pmc == 0 || !(ptype & (1 << (pmc - 1))))
+			return 0;
+		ptype >>= 4;
+		if (ptype == 0)
+			return 1;
+		if (ptype == 1)
+			bit = 0;
+		else
+			bit = ptype ^ (pmc - 1);
+	} else if ((psel & 0x48) == 0x40)
+		bit = psel & 7;
+
+	if (!(event & PM_BUSEVENT_MSK) || bit == -1)
+		return 0;
+
+	byte = (event >> PM_BYTE_SH) & PM_BYTE_MSK;
+	unit = (event >> PM_UNIT_SH) & PM_UNIT_MSK;
+	mask = marked_bus_events[unit];
+	return (mask >> (byte * 8 + bit)) & 1;
+}
+
+/*
  * Assign PMC numbers and compute MMCR1 value for a set of events
  */
 static int p6_compute_mmcr(unsigned int event[], int n_ev,
 			   unsigned int hwc[], u64 mmcr[])
 {
 	u64 mmcr1 = 0;
+	u64 mmcra = 0;
 	int i;
 	unsigned int pmc, ev, b, u, s, psel;
 	unsigned int ttmset = 0;
@@ -116,6 +238,8 @@ static int p6_compute_mmcr(unsigned int event[], int n_ev,
 			if (ev & PM_LLAV)
 				mmcr1 |= MMCR1_PMC1_LLA_VALUE >> pmc;
 		}
+		if (power6_marked_instr_event(event[i]))
+			mmcra |= MMCRA_SAMPLE_ENABLE;
 		mmcr1 |= (u64)psel << MMCR1_PMCSEL_SH(pmc);
 	}
 	mmcr[0] = 0;
@@ -124,7 +248,7 @@ static int p6_compute_mmcr(unsigned int event[], int n_ev,
 	if (pmc_inuse & 0xe)
 		mmcr[0] |= MMCR0_PMCjCE;
 	mmcr[1] = mmcr1;
-	mmcr[2] = 0;
+	mmcr[2] = mmcra;
 	return 0;
 }
 

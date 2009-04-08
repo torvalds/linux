@@ -307,6 +307,15 @@ u64 hw_perf_save_disable(void)
 		}
 
 		/*
+		 * Disable instruction sampling if it was enabled
+		 */
+		if (cpuhw->mmcr[2] & MMCRA_SAMPLE_ENABLE) {
+			mtspr(SPRN_MMCRA,
+			      cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
+			mb();
+		}
+
+		/*
 		 * Set the 'freeze counters' bit.
 		 * The barrier is to make sure the mtspr has been
 		 * executed and the PMU has frozen the counters
@@ -347,12 +356,11 @@ void hw_perf_restore(u64 disable)
 	 * (possibly updated for removal of counters).
 	 */
 	if (!cpuhw->n_added) {
-		mtspr(SPRN_MMCRA, cpuhw->mmcr[2]);
+		mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 		mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
-		mtspr(SPRN_MMCR0, cpuhw->mmcr[0]);
 		if (cpuhw->n_counters == 0)
 			get_lppaca()->pmcregs_in_use = 0;
-		goto out;
+		goto out_enable;
 	}
 
 	/*
@@ -385,7 +393,7 @@ void hw_perf_restore(u64 disable)
 	 * Then unfreeze the counters.
 	 */
 	get_lppaca()->pmcregs_in_use = 1;
-	mtspr(SPRN_MMCRA, cpuhw->mmcr[2]);
+	mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 	mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
 	mtspr(SPRN_MMCR0, (cpuhw->mmcr[0] & ~(MMCR0_PMC1CE | MMCR0_PMCjCE))
 				| MMCR0_FC);
@@ -421,9 +429,19 @@ void hw_perf_restore(u64 disable)
 		write_pmc(counter->hw.idx, val);
 		perf_counter_update_userpage(counter);
 	}
-	mb();
 	cpuhw->mmcr[0] |= MMCR0_PMXE | MMCR0_FCECE;
+
+ out_enable:
+	mb();
 	mtspr(SPRN_MMCR0, cpuhw->mmcr[0]);
+
+	/*
+	 * Enable instruction sampling if necessary
+	 */
+	if (cpuhw->mmcr[2] & MMCRA_SAMPLE_ENABLE) {
+		mb();
+		mtspr(SPRN_MMCRA, cpuhw->mmcr[2]);
+	}
 
  out:
 	local_irq_restore(flags);
