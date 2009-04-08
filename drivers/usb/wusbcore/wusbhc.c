@@ -339,13 +339,15 @@ void wusbhc_giveback_urb(struct wusbhc *wusbhc, struct urb *urb, int status)
 {
 	struct wusb_dev *wusb_dev = __wusb_dev_get_by_usb_dev(wusbhc, urb->dev);
 
-	if (status == 0) {
+	if (status == 0 && wusb_dev) {
 		wusb_dev->entry_ts = jiffies;
 
-		/* wusbhc_devconnect_acked() can't be called from from
+		/* wusbhc_devconnect_acked() can't be called from
 		   atomic context so defer it to a work queue. */
 		if (!list_empty(&wusb_dev->cack_node))
 			queue_work(wusbd, &wusb_dev->devconnect_acked_work);
+		else
+			wusb_dev_put(wusb_dev);
 	}
 
 	usb_hcd_giveback_urb(&wusbhc->usb_hcd, urb, status);

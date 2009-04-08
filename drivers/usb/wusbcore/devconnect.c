@@ -267,6 +267,8 @@ static void wusbhc_devconnect_acked_work(struct work_struct *work)
 	mutex_lock(&wusbhc->mutex);
 	wusbhc_devconnect_acked(wusbhc, wusb_dev);
 	mutex_unlock(&wusbhc->mutex);
+
+	wusb_dev_put(wusb_dev);
 }
 
 /*
