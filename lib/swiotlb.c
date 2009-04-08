@@ -60,8 +60,8 @@ enum dma_sync_target {
 int swiotlb_force;
 
 /*
- * Used to do a quick range check in swiotlb_unmap_single and
- * swiotlb_sync_single_*, to see if the memory was in fact allocated by this
+ * Used to do a quick range check in unmap_single and
+ * sync_single_*, to see if the memory was in fact allocated by this
  * API.
  */
 static char *io_tlb_start, *io_tlb_end;
@@ -560,7 +560,6 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 				   size)) {
 		/*
 		 * The allocated memory isn't reachable by the device.
-		 * Fall back on swiotlb_map_single().
 		 */
 		free_pages((unsigned long) ret, order);
 		ret = NULL;
@@ -568,9 +567,8 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	if (!ret) {
 		/*
 		 * We are either out of memory or the device can't DMA
-		 * to GFP_DMA memory; fall back on
-		 * swiotlb_map_single(), which will grab memory from
-		 * the lowest available address range.
+		 * to GFP_DMA memory; fall back on map_single(), which
+		 * will grab memory from the lowest available address range.
 		 */
 		ret = map_single(hwdev, 0, size, DMA_FROM_DEVICE);
 		if (!ret)
@@ -634,7 +632,7 @@ swiotlb_full(struct device *dev, size_t size, int dir, int do_panic)
  * physical address to use is returned.
  *
  * Once the device is given the dma address, the device owns this memory until
- * either swiotlb_unmap_single or swiotlb_dma_sync_single is performed.
+ * either swiotlb_unmap_page or swiotlb_dma_sync_single is performed.
  */
 dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 			    unsigned long offset, size_t size,
@@ -648,7 +646,7 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 
 	BUG_ON(dir == DMA_NONE);
 	/*
-	 * If the pointer passed in happens to be in the device's DMA window,
+	 * If the address happens to be in the device's DMA window,
 	 * we can safely return the device addr and not worry about bounce
 	 * buffering it.
 	 */
@@ -679,7 +677,7 @@ EXPORT_SYMBOL_GPL(swiotlb_map_page);
 
 /*
  * Unmap a single streaming mode DMA translation.  The dma_addr and size must
- * match what was provided for in a previous swiotlb_map_single call.  All
+ * match what was provided for in a previous swiotlb_map_page call.  All
  * other usages are undefined.
  *
  * After this call, reads by the cpu to the buffer are guaranteed to see
@@ -703,7 +701,7 @@ EXPORT_SYMBOL_GPL(swiotlb_unmap_page);
  * Make physical memory consistent for a single streaming mode DMA translation
  * after a transfer.
  *
- * If you perform a swiotlb_map_single() but wish to interrogate the buffer
+ * If you perform a swiotlb_map_page() but wish to interrogate the buffer
  * using the cpu, yet do not wish to teardown the dma mapping, you must
  * call this function before doing so.  At the next point you give the dma
  * address back to the card, you must first perform a
@@ -777,7 +775,7 @@ EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_device);
 
 /*
  * Map a set of buffers described by scatterlist in streaming mode for DMA.
- * This is the scatter-gather version of the above swiotlb_map_single
+ * This is the scatter-gather version of the above swiotlb_map_page
  * interface.  Here the scatter gather list elements are each tagged with the
  * appropriate dma address and length.  They are obtained via
  * sg_dma_{address,length}(SG).
@@ -788,7 +786,7 @@ EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_device);
  *       The routine returns the number of addr/length pairs actually
  *       used, at most nents.
  *
- * Device ownership issues as mentioned above for swiotlb_map_single are the
+ * Device ownership issues as mentioned above for swiotlb_map_page are the
  * same here.
  */
 int
@@ -836,7 +834,7 @@ EXPORT_SYMBOL(swiotlb_map_sg);
 
 /*
  * Unmap a set of streaming mode DMA translations.  Again, cpu read rules
- * concerning calls here are the same as for swiotlb_unmap_single() above.
+ * concerning calls here are the same as for swiotlb_unmap_page() above.
  */
 void
 swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
