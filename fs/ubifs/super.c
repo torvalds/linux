@@ -360,6 +360,11 @@ static void ubifs_delete_inode(struct inode *inode)
 out:
 	if (ui->dirty)
 		ubifs_release_dirty_inode_budget(c, ui);
+	else {
+		/* We've deleted something - clean the "no space" flags */
+		c->nospace = c->nospace_rp = 0;
+		smp_wmb();
+	}
 	clear_inode(inode);
 }
 
