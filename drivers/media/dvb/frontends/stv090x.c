@@ -3360,6 +3360,15 @@ static int stv090x_send_diseqc_msg(struct dvb_frontend *fe, struct dvb_diseqc_ma
 	int i;
 
 	reg = STV090x_READ_DEMOD(state, DISTXCTL);
+
+	STV090x_SETFIELD_Px(reg, DISTX_MODE_FIELD, 2);
+	STV090x_SETFIELD_Px(reg, DISEQC_RESET_FIELD, 1);
+	if (STV090x_WRITE_DEMOD(state, DISTXCTL, reg) < 0)
+		goto err;
+	STV090x_SETFIELD_Px(reg, DISEQC_RESET_FIELD, 0);
+	if (STV090x_WRITE_DEMOD(state, DISTXCTL, reg) < 0)
+		goto err;
+
 	STV090x_SETFIELD_Px(reg, DIS_PRECHARGE_FIELD, 1);
 	if (STV090x_WRITE_DEMOD(state, DISTXCTL, reg) < 0)
 		goto err;
@@ -3373,8 +3382,64 @@ static int stv090x_send_diseqc_msg(struct dvb_frontend *fe, struct dvb_diseqc_ma
 
 		if (STV090x_WRITE_DEMOD(state, DISTXDATA, cmd->msg[i]) < 0)
 			goto err;
+	}
+	reg = STV090x_READ_DEMOD(state, DISTXCTL);
+	STV090x_SETFIELD_Px(reg, DIS_PRECHARGE_FIELD, 0);
+	if (STV090x_WRITE_DEMOD(state, DISTXCTL, reg) < 0)
+		goto err;
+
+	i = 0;
+
+	while ((!idle) && (i < 10)) {
+		reg = STV090x_READ_DEMOD(state, DISTXSTATUS);
+		idle = STV090x_GETFIELD_Px(reg, TX_IDLE_FIELD);
+		msleep(10);
 		i++;
 	}
+
+	return 0;
+err:
+	dprintk(FE_ERROR, 1, "I/O error");
+	return -1;
+}
+
+static int stv090x_send_diseqc_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t burst)
+{
+	struct stv090x_state *state = fe->demodulator_priv;
+	u32 reg, idle = 0, fifo_full = 1;
+	u8 mode, value;
+	int i;
+
+	reg = STV090x_READ_DEMOD(state, DISTXCTL);
+
+	if (burst == SEC_MINI_A) {
+		mode = 3;
+		value = 0x00;
+	} else {
+		mode = 2;
+		value = 0xFF;
+	}
+
+	STV090x_SETFIELD_Px(reg, DISTX_MODE_FIELD, mode);
+	STV090x_SETFIELD_Px(reg, DISEQC_RESET_FIELD, 1);
+	if (STV090x_WRITE_DEMOD(state, DISTXCTL, reg) < 0)
+		goto err;
+	STV090x_SETFIELD_Px(reg, DISEQC_RESET_FIELD, 0);
+	if (STV090x_WRITE_DEMOD(state, DISTXCTL, reg) < 0)
+		goto err;
+
+	STV090x_SETFIELD_Px(reg, DIS_PRECHARGE_FIELD, 1);
+	if (STV090x_WRITE_DEMOD(state, DISTXCTL, reg) < 0)
+		goto err;
+
+	while (fifo_full) {
+		reg = STV090x_READ_DEMOD(state, DISTXSTATUS);
+		fifo_full = STV090x_GETFIELD_Px(reg, FIFO_FULL_FIELD);
+	}
+
+	if (STV090x_WRITE_DEMOD(state, DISTXDATA, value) < 0)
+		goto err;
+
 	reg = STV090x_READ_DEMOD(state, DISTXCTL);
 	STV090x_SETFIELD_Px(reg, DIS_PRECHARGE_FIELD, 0);
 	if (STV090x_WRITE_DEMOD(state, DISTXCTL, reg) < 0)
@@ -3882,6 +3947,7 @@ static struct dvb_frontend_ops stv090x_ops = {
 	.i2c_gate_ctrl			= stv090x_i2c_gate_ctrl,
 
 	.diseqc_send_master_cmd		= stv090x_send_diseqc_msg,
+	.diseqc_send_burst		= stv090x_send_diseqc_burst,
 	.diseqc_recv_slave_reply	= stv090x_recv_slave_reply,
 	.set_tone			= stv090x_set_tone,
 
