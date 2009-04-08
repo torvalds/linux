@@ -389,7 +389,7 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 				channels[i].max_power,
 				channels[i].flags & IEEE80211_CHAN_RADAR ?
 				" (IEEE 802.11h required)" : "",
-				(!(channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+				((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
 				|| (channels[i].flags &
 				IEEE80211_CHAN_RADAR)) ? "" :
 				", IBSS",
