@@ -426,6 +426,7 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	if (type == NES_TIMER_TYPE_CLOSE) {
 		new_send->timetosend += (HZ/10);
 		if (cm_node->recv_entry) {
+			kfree(new_send);
 			WARN_ON(1);
 			return -EINVAL;
 		}
@@ -1262,7 +1263,6 @@ static int rem_ref_cm_node(struct nes_cm_core *cm_core,
 		cm_node->nesqp = NULL;
 	}
 
-	cm_node->freed = 1;
 	kfree(cm_node);
 	return 0;
 }
@@ -1999,13 +1999,17 @@ static struct nes_cm_node *mini_cm_connect(struct nes_cm_core *cm_core,
 		if (loopbackremotelistener == NULL) {
 			create_event(cm_node, NES_CM_EVENT_ABORTED);
 		} else {
-			atomic_inc(&cm_loopbacks);
 			loopback_cm_info = *cm_info;
 			loopback_cm_info.loc_port = cm_info->rem_port;
 			loopback_cm_info.rem_port = cm_info->loc_port;
 			loopback_cm_info.cm_id = loopbackremotelistener->cm_id;
 			loopbackremotenode = make_cm_node(cm_core, nesvnic,
 				&loopback_cm_info, loopbackremotelistener);
+			if (!loopbackremotenode) {
+				rem_ref_cm_node(cm_node->cm_core, cm_node);
+				return NULL;
+			}
+			atomic_inc(&cm_loopbacks);
 			loopbackremotenode->loopbackpartner = cm_node;
 			loopbackremotenode->tcp_cntxt.rcv_wscale =
 				NES_CM_DEFAULT_RCV_WND_SCALE;
