@@ -879,6 +879,45 @@ struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector)
 	return &t->targets[(KEYS_PER_NODE * n) + k];
 }
 
+/*
+ * Set the integrity profile for this device if all devices used have
+ * matching profiles.
+ */
+static void dm_table_set_integrity(struct dm_table *t)
+{
+	struct list_head *devices = dm_table_get_devices(t);
+	struct dm_dev_internal *prev = NULL, *dd = NULL;
+
+	if (!blk_get_integrity(dm_disk(t->md)))
+		return;
+
+	list_for_each_entry(dd, devices, list) {
+		if (prev &&
+		    blk_integrity_compare(prev->dm_dev.bdev->bd_disk,
+					  dd->dm_dev.bdev->bd_disk) < 0) {
+			DMWARN("%s: integrity not set: %s and %s mismatch",
+			       dm_device_name(t->md),
+			       prev->dm_dev.bdev->bd_disk->disk_name,
+			       dd->dm_dev.bdev->bd_disk->disk_name);
+			goto no_integrity;
+		}
+		prev = dd;
+	}
+
+	if (!prev || !bdev_get_integrity(prev->dm_dev.bdev))
+		goto no_integrity;
+
+	blk_integrity_register(dm_disk(t->md),
+			       bdev_get_integrity(prev->dm_dev.bdev));
+
+	return;
+
+no_integrity:
+	blk_integrity_register(dm_disk(t->md), NULL);
+
+	return;
+}
+
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q)
 {
 	/*
@@ -899,6 +938,7 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q)
 	else
 		queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, q);
 
+	dm_table_set_integrity(t);
 }
 
 unsigned int dm_table_get_num_targets(struct dm_table *t)
