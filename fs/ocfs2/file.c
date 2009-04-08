@@ -1926,7 +1926,7 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 		   out->f_path.dentry->d_name.len,
 		   out->f_path.dentry->d_name.name);
 
-	inode_double_lock(inode, pipe->inode);
+	mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
 
 	ret = ocfs2_rw_lock(inode, 1);
 	if (ret < 0) {
@@ -1941,12 +1941,16 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 		goto out_unlock;
 	}
 
+	if (pipe->inode)
+		mutex_lock_nested(&pipe->inode->i_mutex, I_MUTEX_CHILD);
 	ret = generic_file_splice_write_nolock(pipe, out, ppos, len, flags);
+	if (pipe->inode)
+		mutex_unlock(&pipe->inode->i_mutex);
 
 out_unlock:
 	ocfs2_rw_unlock(inode, 1);
 out:
-	inode_double_unlock(inode, pipe->inode);
+	mutex_unlock(&inode->i_mutex);
 
 	mlog_exit(ret);
 	return ret;

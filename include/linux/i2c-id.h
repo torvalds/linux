@@ -51,6 +51,7 @@
 #define I2C_HW_B_CX2341X	0x010020 /* Conexant CX2341X MPEG encoder cards */
 #define I2C_HW_B_CX23885	0x010022 /* conexant 23885 based tv cards (bus1) */
 #define I2C_HW_B_AU0828		0x010023 /* auvitek au0828 usb bridge */
+#define I2C_HW_B_CX231XX	0x010024 /* Conexant CX231XX USB based cards */
 #define I2C_HW_B_HDPVR		0x010025 /* Hauppauge HD PVR */
 
 /* --- SGI adapters							*/

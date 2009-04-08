@@ -60,6 +60,13 @@
 	 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_LE)
 #endif
 
+/* SIER bitflag of interrupts to enable */
+#define SIER_FLAGS (CCSR_SSI_SIER_TFRC_EN | CCSR_SSI_SIER_TDMAE | \
+		    CCSR_SSI_SIER_TIE | CCSR_SSI_SIER_TUE0_EN | \
+		    CCSR_SSI_SIER_TUE1_EN | CCSR_SSI_SIER_RFRC_EN | \
+		    CCSR_SSI_SIER_RDMAE | CCSR_SSI_SIER_RIE | \
+		    CCSR_SSI_SIER_ROE0_EN | CCSR_SSI_SIER_ROE1_EN)
+
 /**
  * fsl_ssi_private: per-SSI private data
  *
@@ -140,7 +147,7 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 	   were interrupted for.  We mask it with the Interrupt Enable register
 	   so that we only check for events that we're interested in.
 	 */
-	sisr = in_be32(&ssi->sisr) & in_be32(&ssi->sier);
+	sisr = in_be32(&ssi->sisr) & SIER_FLAGS;
 
 	if (sisr & CCSR_SSI_SISR_RFRC) {
 		ssi_private->stats.rfrc++;
@@ -324,12 +331,7 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 		 */
 
 		/* 4. Enable the interrupts and DMA requests */
-		out_be32(&ssi->sier,
-			 CCSR_SSI_SIER_TFRC_EN | CCSR_SSI_SIER_TDMAE |
-			 CCSR_SSI_SIER_TIE | CCSR_SSI_SIER_TUE0_EN |
-			 CCSR_SSI_SIER_TUE1_EN | CCSR_SSI_SIER_RFRC_EN |
-			 CCSR_SSI_SIER_RDMAE | CCSR_SSI_SIER_RIE |
-			 CCSR_SSI_SIER_ROE0_EN | CCSR_SSI_SIER_ROE1_EN);
+		out_be32(&ssi->sier, SIER_FLAGS);
 
 		/*
 		 * Set the watermark for transmit FIFI 0 and receive FIFO 0. We
@@ -466,28 +468,12 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 		clrbits32(&ssi->scr, CCSR_SSI_SCR_SSIEN);
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			setbits32(&ssi->scr,
 				CCSR_SSI_SCR_SSIEN | CCSR_SSI_SCR_TE);
-		} else {
-			long timeout = jiffies + 10;
-
+		else
 			setbits32(&ssi->scr,
 				CCSR_SSI_SCR_SSIEN | CCSR_SSI_SCR_RE);
-
-			/* Wait until the SSI has filled its FIFO. Without this
-			 * delay, ALSA complains about overruns.  When the FIFO
-			 * is full, the DMA controller initiates its first
-			 * transfer.  Until then, however, the DMA's DAR
-			 * register is zero, which translates to an
-			 * out-of-bounds pointer.  This makes ALSA think an
-			 * overrun has occurred.
-			 */
-			while (!(in_be32(&ssi->sisr) & CCSR_SSI_SISR_RFF0) &&
-			       (jiffies < timeout));
-			if (!(in_be32(&ssi->sisr) & CCSR_SSI_SISR_RFF0))
-				return -EIO;
-		}
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -606,39 +592,52 @@ static struct snd_soc_dai fsl_ssi_dai_template = {
 	.ops = &fsl_ssi_dai_ops,
 };
 
+/* Show the statistics of a flag only if its interrupt is enabled.  The
+ * compiler will optimze this code to a no-op if the interrupt is not
+ * enabled.
+ */
+#define SIER_SHOW(flag, name) \
+	do { \
+		if (SIER_FLAGS & CCSR_SSI_SIER_##flag) \
+			length += sprintf(buf + length, #name "=%u\n", \
+				ssi_private->stats.name); \
+	} while (0)
+
+
 /**
  * fsl_sysfs_ssi_show: display SSI statistics
  *
- * Display the statistics for the current SSI device.
+ * Display the statistics for the current SSI device.  To avoid confusion,
+ * we only show those counts that are enabled.
  */
 static ssize_t fsl_sysfs_ssi_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct fsl_ssi_private *ssi_private =
-	container_of(attr, struct fsl_ssi_private, dev_attr);
-	ssize_t length;
+		container_of(attr, struct fsl_ssi_private, dev_attr);
+	ssize_t length = 0;
 
-	length = sprintf(buf, "rfrc=%u", ssi_private->stats.rfrc);
-	length += sprintf(buf + length, "\ttfrc=%u", ssi_private->stats.tfrc);
-	length += sprintf(buf + length, "\tcmdau=%u", ssi_private->stats.cmdau);
-	length += sprintf(buf + length, "\tcmddu=%u", ssi_private->stats.cmddu);
-	length += sprintf(buf + length, "\trxt=%u", ssi_private->stats.rxt);
-	length += sprintf(buf + length, "\trdr1=%u", ssi_private->stats.rdr1);
-	length += sprintf(buf + length, "\trdr0=%u", ssi_private->stats.rdr0);
-	length += sprintf(buf + length, "\ttde1=%u", ssi_private->stats.tde1);
-	length += sprintf(buf + length, "\ttde0=%u", ssi_private->stats.tde0);
-	length += sprintf(buf + length, "\troe1=%u", ssi_private->stats.roe1);
-	length += sprintf(buf + length, "\troe0=%u", ssi_private->stats.roe0);
-	length += sprintf(buf + length, "\ttue1=%u", ssi_private->stats.tue1);
-	length += sprintf(buf + length, "\ttue0=%u", ssi_private->stats.tue0);
-	length += sprintf(buf + length, "\ttfs=%u", ssi_private->stats.tfs);
-	length += sprintf(buf + length, "\trfs=%u", ssi_private->stats.rfs);
-	length += sprintf(buf + length, "\ttls=%u", ssi_private->stats.tls);
-	length += sprintf(buf + length, "\trls=%u", ssi_private->stats.rls);
-	length += sprintf(buf + length, "\trff1=%u", ssi_private->stats.rff1);
-	length += sprintf(buf + length, "\trff0=%u", ssi_private->stats.rff0);
-	length += sprintf(buf + length, "\ttfe1=%u", ssi_private->stats.tfe1);
-	length += sprintf(buf + length, "\ttfe0=%u\n", ssi_private->stats.tfe0);
+	SIER_SHOW(RFRC_EN, rfrc);
+	SIER_SHOW(TFRC_EN, tfrc);
+	SIER_SHOW(CMDAU_EN, cmdau);
+	SIER_SHOW(CMDDU_EN, cmddu);
+	SIER_SHOW(RXT_EN, rxt);
+	SIER_SHOW(RDR1_EN, rdr1);
+	SIER_SHOW(RDR0_EN, rdr0);
+	SIER_SHOW(TDE1_EN, tde1);
+	SIER_SHOW(TDE0_EN, tde0);
+	SIER_SHOW(ROE1_EN, roe1);
+	SIER_SHOW(ROE0_EN, roe0);
+	SIER_SHOW(TUE1_EN, tue1);
+	SIER_SHOW(TUE0_EN, tue0);
+	SIER_SHOW(TFS_EN, tfs);
+	SIER_SHOW(RFS_EN, rfs);
+	SIER_SHOW(TLS_EN, tls);
+	SIER_SHOW(RLS_EN, rls);
+	SIER_SHOW(RFF1_EN, rff1);
+	SIER_SHOW(RFF0_EN, rff0);
+	SIER_SHOW(TFE1_EN, tfe1);
+	SIER_SHOW(TFE0_EN, tfe0);
 
 	return length;
 }

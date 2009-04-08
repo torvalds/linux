@@ -1550,6 +1550,7 @@ config FB_3DFX
 	select FB_CFB_IMAGEBLIT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
+	select FB_MODE_HELPERS
 	help
 	  This driver supports graphics boards with the 3Dfx Banshee,
 	  Voodoo3 or VSA-100 (aka Voodoo4/5) chips. Say Y if you have
@@ -1564,6 +1565,14 @@ config FB_3DFX_ACCEL
 	---help---
 	This will compile the 3Dfx Banshee/Voodoo3/VSA-100 frame buffer
 	device driver with acceleration functions.
+
+config FB_3DFX_I2C
+	bool "Enable DDC/I2C support"
+	depends on FB_3DFX && EXPERIMENTAL
+	select FB_DDC
+	default y
+	help
+	  Say Y here if you want DDC/I2C support for your 3dfx Voodoo3.
 
 config FB_VOODOO1
 	tristate "3Dfx Voodoo Graphics (sst1) support"

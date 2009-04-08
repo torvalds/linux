@@ -18,7 +18,6 @@
 #define _FSL_DEVICE_H_
 
 #include <linux/types.h>
-#include <linux/phy.h>
 
 /*
  * Some conventions on how we handle peripherals on Freescale chips
@@ -43,27 +42,6 @@
  * - platform data board flags: FSL_<driver>_BRD_<FLAG>
  *
  */
-
-struct gianfar_platform_data {
-	/* device specific information */
-	u32	device_flags;
-	char	bus_id[BUS_ID_SIZE];
-	phy_interface_t interface;
-};
-
-struct gianfar_mdio_data {
-	/* board specific information */
-	int	irq[32];
-};
-
-/* Flags in gianfar_platform_data */
-#define FSL_GIANFAR_BRD_HAS_PHY_INTR	0x00000001 /* set or use a timer */
-#define FSL_GIANFAR_BRD_IS_REDUCED	0x00000002 /* Set if RGMII, RMII */
-
-struct fsl_i2c_platform_data {
-	/* device specific information */
-	u32	device_flags;
-};
 
 /* Flags related to I2C device features */
 #define FSL_I2C_DEV_SEPARATE_DFSRR	0x00000001

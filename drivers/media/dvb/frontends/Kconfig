@@ -513,6 +513,13 @@ config DVB_LGS8GL5
 	help
 	  A DMB-TH tuner module. Say Y when you want to support this frontend.
 
+config DVB_LGS8GXX
+	tristate "Legend Silicon LGS8913/LGS8GL5/LGS8GXX DMB-TH demodulator"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DMB-TH tuner module. Say Y when you want to support this frontend.
+
 comment "Tools to develop new frontends"
 
 config DVB_DUMMY_FE

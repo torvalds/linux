@@ -5,6 +5,7 @@
 #include <linux/irqflags.h>
 #include <linux/utsname.h>
 #include <linux/lockdep.h>
+#include <linux/ftrace.h>
 #include <linux/ipc.h>
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
@@ -195,9 +196,10 @@ extern struct cred init_cred;
 	},								\
 	.dirties = INIT_PROP_LOCAL_SINGLE(dirties),			\
 	INIT_IDS							\
+	INIT_PERF_COUNTERS(tsk)						\
 	INIT_TRACE_IRQFLAGS						\
 	INIT_LOCKDEP							\
-	INIT_PERF_COUNTERS(tsk)						\
+	INIT_FTRACE_GRAPH						\
 }
 
 

@@ -30,15 +30,36 @@
 #define AU0828_SENSORCTRL_100 0x100
 #define AU0828_SENSORCTRL_VBI_103 0x103
 
-#define REG_200 0x200
-#define REG_201 0x201
-#define REG_202 0x202
-#define REG_203 0x203
-#define REG_205 0x205
-#define REG_209 0x209
-#define REG_2FF 0x2ff
+/* I2C registers */
+#define AU0828_I2C_TRIGGER_200		0x200
+#define AU0828_I2C_STATUS_201		0x201
+#define AU0828_I2C_CLK_DIVIDER_202	0x202
+#define AU0828_I2C_DEST_ADDR_203	0x203
+#define AU0828_I2C_WRITE_FIFO_205	0x205
+#define AU0828_I2C_READ_FIFO_209	0x209
+#define AU0828_I2C_MULTIBYTE_MODE_2FF	0x2ff
 
 /* Audio registers */
 #define AU0828_AUDIOCTRL_50C 0x50C
 
 #define REG_600 0x600
+
+/*********************************************************************/
+/* Here are constants for values associated with the above registers */
+
+/* I2C Trigger (Reg 0x200) */
+#define AU0828_I2C_TRIGGER_WRITE	0x01
+#define AU0828_I2C_TRIGGER_READ		0x20
+#define AU0828_I2C_TRIGGER_HOLD		0x40
+
+/* I2C Status (Reg 0x201) */
+#define AU0828_I2C_STATUS_READ_DONE	0x01
+#define AU0828_I2C_STATUS_NO_READ_ACK	0x02
+#define AU0828_I2C_STATUS_WRITE_DONE	0x04
+#define AU0828_I2C_STATUS_NO_WRITE_ACK	0x08
+#define AU0828_I2C_STATUS_BUSY		0x10
+
+/* I2C Clock Divider (Reg 0x202) */
+#define AU0828_I2C_CLK_250KHZ 0x07
+#define AU0828_I2C_CLK_100KHZ 0x14
+#define AU0828_I2C_CLK_30KHZ  0x40

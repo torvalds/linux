@@ -342,10 +342,12 @@
 #define __NR_pipe2		317
 #define __NR_inotify_init1	318
 #define __NR_perf_counter_open	319
+#define __NR_preadv		320
+#define __NR_pwritev		321
 
 #ifdef __KERNEL__
 
-#define __NR_syscalls		320
+#define __NR_syscalls		322
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls

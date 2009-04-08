@@ -207,19 +207,19 @@ static int nx_set_dma_mask(struct netxen_adapter *adapter, uint8_t revision_id)
 
 	adapter->pci_using_dac = 0;
 
-	mask = DMA_32BIT_MASK;
+	mask = DMA_BIT_MASK(32);
 	/*
 	 * Consistent DMA mask is set to 32 bit because it cannot be set to
 	 * 35 bits. For P3 also leave it at 32 bits for now. Only the rings
 	 * come off this pool.
 	 */
-	cmask = DMA_32BIT_MASK;
+	cmask = DMA_BIT_MASK(32);
 
 #ifndef CONFIG_IA64
 	if (revision_id >= NX_P3_B0)
-		mask = DMA_39BIT_MASK;
+		mask = DMA_BIT_MASK(39);
 	else if (revision_id == NX_P2_C1)
-		mask = DMA_35BIT_MASK;
+		mask = DMA_BIT_MASK(35);
 #endif
 	if (pci_set_dma_mask(pdev, mask) == 0 &&
 		pci_set_consistent_dma_mask(pdev, cmask) == 0) {
