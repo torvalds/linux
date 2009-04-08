@@ -328,11 +328,6 @@ static inline struct cx18_av_state *to_cx18_av_state(struct v4l2_subdev *sd)
 	return container_of(sd, struct cx18_av_state, sd);
 }
 
-enum cx18_av_subdev_init_arg {
-	CX18_AV_INIT_NORMAL = 0,
-	CX18_AV_INIT_PLLS = 1,
-};
-
 /* ----------------------------------------------------------------------- */
 /* cx18_av-core.c 							   */
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value);

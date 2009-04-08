@@ -644,7 +644,7 @@ static void dma_fixed_unmap_sg(struct device *dev, struct scatterlist *sg,
 
 static int dma_fixed_dma_supported(struct device *dev, u64 mask)
 {
-	return mask == DMA_64BIT_MASK;
+	return mask == DMA_BIT_MASK(64);
 }
 
 static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask);

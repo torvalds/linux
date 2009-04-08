@@ -253,7 +253,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	indev = in ? in->name : nulldevname;
 	outdev = out ? out->name : nulldevname;
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	private = rcu_dereference(table->private);
 	table_base = rcu_dereference(private->entries[smp_processor_id()]);
 
@@ -329,7 +329,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 		}
 	} while (!hotdrop);
 
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 
 	if (hotdrop)
 		return NF_DROP;

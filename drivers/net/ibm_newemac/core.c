@@ -1229,7 +1229,7 @@ static int emac_link_differs(struct emac_instance *dev)
 static void emac_link_timer(struct work_struct *work)
 {
 	struct emac_instance *dev =
-		container_of((struct delayed_work *)work,
+		container_of(to_delayed_work(work),
 			     struct emac_instance, link_work);
 	int link_poll_interval;
 

@@ -2481,7 +2481,4 @@ void mm_drop_all_locks(struct mm_struct *mm)
  */
 void __init mmap_init(void)
 {
-	vm_area_cachep = kmem_cache_create("vm_area_struct",
-			sizeof(struct vm_area_struct), 0,
-			SLAB_PANIC, NULL);
 }

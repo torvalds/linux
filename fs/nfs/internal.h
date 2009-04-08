@@ -5,6 +5,8 @@
 #include <linux/mount.h>
 #include <linux/security.h>
 
+#define NFS_MS_MASK (MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC|MS_SYNCHRONOUS)
+
 struct nfs_string;
 
 /* Maximum number of readahead requests
@@ -37,10 +39,12 @@ struct nfs_parsed_mount_data {
 	int			acregmin, acregmax,
 				acdirmin, acdirmax;
 	int			namlen;
+	unsigned int		options;
 	unsigned int		bsize;
 	unsigned int		auth_flavor_len;
 	rpc_authflavor_t	auth_flavors[1];
 	char			*client_address;
+	char			*fscache_uniq;
 
 	struct {
 		struct sockaddr_storage	address;

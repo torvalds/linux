@@ -117,7 +117,7 @@ static int ptable_alloc(void)
 	memset(meye.mchip_ptable, 0, sizeof(meye.mchip_ptable));
 
 	/* give only 32 bit DMA addresses */
-	if (dma_set_mask(&meye.mchip_dev->dev, DMA_32BIT_MASK))
+	if (dma_set_mask(&meye.mchip_dev->dev, DMA_BIT_MASK(32)))
 		return -1;
 
 	meye.mchip_ptable_toc = dma_alloc_coherent(&meye.mchip_dev->dev,

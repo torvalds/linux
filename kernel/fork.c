@@ -60,6 +60,7 @@
 #include <linux/tty.h>
 #include <linux/proc_fs.h>
 #include <linux/blkdev.h>
+#include <linux/fs_struct.h>
 #include <trace/sched.h>
 #include <linux/magic.h>
 
@@ -644,6 +645,9 @@ static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
 
 	tsk->min_flt = tsk->maj_flt = 0;
 	tsk->nvcsw = tsk->nivcsw = 0;
+#ifdef CONFIG_DETECT_HUNG_TASK
+	tsk->last_switch_count = tsk->nvcsw + tsk->nivcsw;
+#endif
 
 	tsk->mm = NULL;
 	tsk->active_mm = NULL;
@@ -681,38 +685,21 @@ fail_nomem:
 	return retval;
 }
 
-static struct fs_struct *__copy_fs_struct(struct fs_struct *old)
-{
-	struct fs_struct *fs = kmem_cache_alloc(fs_cachep, GFP_KERNEL);
-	/* We don't need to lock fs - think why ;-) */
-	if (fs) {
-		atomic_set(&fs->count, 1);
-		rwlock_init(&fs->lock);
-		fs->umask = old->umask;
-		read_lock(&old->lock);
-		fs->root = old->root;
-		path_get(&old->root);
-		fs->pwd = old->pwd;
-		path_get(&old->pwd);
-		read_unlock(&old->lock);
-	}
-	return fs;
-}
-
-struct fs_struct *copy_fs_struct(struct fs_struct *old)
-{
-	return __copy_fs_struct(old);
-}
-
-EXPORT_SYMBOL_GPL(copy_fs_struct);
-
 static int copy_fs(unsigned long clone_flags, struct task_struct *tsk)
 {
+	struct fs_struct *fs = current->fs;
 	if (clone_flags & CLONE_FS) {
-		atomic_inc(&current->fs->count);
+		/* tsk->fs is already what we want */
+		write_lock(&fs->lock);
+		if (fs->in_exec) {
+			write_unlock(&fs->lock);
+			return -EAGAIN;
+		}
+		fs->users++;
+		write_unlock(&fs->lock);
 		return 0;
 	}
-	tsk->fs = __copy_fs_struct(current->fs);
+	tsk->fs = copy_fs_struct(fs);
 	if (!tsk->fs)
 		return -ENOMEM;
 	return 0;
@@ -841,6 +828,8 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	atomic_set(&sig->live, 1);
 	init_waitqueue_head(&sig->wait_chldexit);
 	sig->flags = 0;
+	if (clone_flags & CLONE_NEWPID)
+		sig->flags |= SIGNAL_UNKILLABLE;
 	sig->group_exit_code = 0;
 	sig->group_exit_task = NULL;
 	sig->group_stop_count = 0;
@@ -1046,11 +1035,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	p->default_timer_slack_ns = current->timer_slack_ns;
 
-#ifdef CONFIG_DETECT_SOFTLOCKUP
-	p->last_switch_count = 0;
-	p->last_switch_timestamp = 0;
-#endif
-
 	task_io_accounting_init(&p->ioac);
 	acct_clear_integrals(p);
 
@@ -1125,7 +1109,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		goto bad_fork_cleanup_mm;
 	if ((retval = copy_io(clone_flags, p)))
 		goto bad_fork_cleanup_namespaces;
-	retval = copy_thread(0, clone_flags, stack_start, stack_size, p, regs);
+	retval = copy_thread(clone_flags, stack_start, stack_size, p, regs);
 	if (retval)
 		goto bad_fork_cleanup_io;
 
@@ -1263,8 +1247,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 			p->signal->leader_pid = pid;
 			tty_kref_put(p->signal->tty);
 			p->signal->tty = tty_kref_get(current->signal->tty);
-			set_task_pgrp(p, task_pgrp_nr(current));
-			set_task_session(p, task_session_nr(current));
 			attach_pid(p, PIDTYPE_PGID, task_pgrp(current));
 			attach_pid(p, PIDTYPE_SID, task_session(current));
 			list_add_tail_rcu(&p->tasks, &init_task.tasks);
@@ -1488,6 +1470,7 @@ void __init proc_caches_init(void)
 	mm_cachep = kmem_cache_create("mm_struct",
 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+	vm_area_cachep = KMEM_CACHE(vm_area_struct, SLAB_PANIC);
 	mmap_init();
 }
 
@@ -1543,12 +1526,16 @@ static int unshare_fs(unsigned long unshare_flags, struct fs_struct **new_fsp)
 {
 	struct fs_struct *fs = current->fs;
 
-	if ((unshare_flags & CLONE_FS) &&
-	    (fs && atomic_read(&fs->count) > 1)) {
-		*new_fsp = __copy_fs_struct(current->fs);
-		if (!*new_fsp)
-			return -ENOMEM;
-	}
+	if (!(unshare_flags & CLONE_FS) || !fs)
+		return 0;
+
+	/* don't need lock here; in the worst case we'll do useless copy */
+	if (fs->users == 1)
+		return 0;
+
+	*new_fsp = copy_fs_struct(fs);
+	if (!*new_fsp)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -1664,8 +1651,13 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
 
 		if (new_fs) {
 			fs = current->fs;
+			write_lock(&fs->lock);
 			current->fs = new_fs;
-			new_fs = fs;
+			if (--fs->users)
+				new_fs = NULL;
+			else
+				new_fs = fs;
+			write_unlock(&fs->lock);
 		}
 
 		if (new_mm) {
@@ -1704,7 +1696,7 @@ bad_unshare_cleanup_sigh:
 
 bad_unshare_cleanup_fs:
 	if (new_fs)
-		put_fs_struct(new_fs);
+		free_fs_struct(new_fs);
 
 bad_unshare_cleanup_thread:
 bad_unshare_out:

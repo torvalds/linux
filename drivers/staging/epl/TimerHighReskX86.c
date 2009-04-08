@@ -97,14 +97,10 @@
 
 #define PROVE_OVERRUN
 
-#ifndef CONFIG_HIGH_RES_TIMERS
-#error "Kernel symbol CONFIG_HIGH_RES_TIMERS is required."
-#endif
-
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
@@ -172,7 +168,7 @@ enum hrtimer_restart EplTimerHighReskCallback(struct hrtimer *pTimer_p);
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimerHighReskInit(void)
+tEplKernel EplTimerHighReskInit(void)
 {
 	tEplKernel Ret;
 
@@ -196,7 +192,7 @@ tEplKernel PUBLIC EplTimerHighReskInit(void)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimerHighReskAddInstance(void)
+tEplKernel EplTimerHighReskAddInstance(void)
 {
 	tEplKernel Ret;
 	unsigned int uiIndex;
@@ -205,13 +201,6 @@ tEplKernel PUBLIC EplTimerHighReskAddInstance(void)
 
 	EPL_MEMSET(&EplTimerHighReskInstance_l, 0,
 		   sizeof(EplTimerHighReskInstance_l));
-
-#ifndef CONFIG_HIGH_RES_TIMERS
-	printk
-	    ("EplTimerHighResk: Kernel symbol CONFIG_HIGH_RES_TIMERS is required.\n");
-	Ret = kEplNoResource;
-	return Ret;
-#endif
 
 	/*
 	 * Initialize hrtimer structures for all usable timers.
@@ -244,7 +233,7 @@ tEplKernel PUBLIC EplTimerHighReskAddInstance(void)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimerHighReskDelInstance(void)
+tEplKernel EplTimerHighReskDelInstance(void)
 {
 	tEplTimerHighReskTimerInfo *pTimerInfo;
 	tEplKernel Ret;
@@ -298,12 +287,11 @@ tEplKernel PUBLIC EplTimerHighReskDelInstance(void)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimerHighReskModifyTimerNs(tEplTimerHdl * pTimerHdl_p,
-						unsigned long long ullTimeNs_p,
-						tEplTimerkCallback
-						pfnCallback_p,
-						unsigned long ulArgument_p,
-						BOOL fContinuously_p)
+tEplKernel EplTimerHighReskModifyTimerNs(tEplTimerHdl *pTimerHdl_p,
+					 unsigned long long ullTimeNs_p,
+					 tEplTimerkCallback pfnCallback_p,
+					 unsigned long ulArgument_p,
+					 BOOL fContinuously_p)
 {
 	tEplKernel Ret;
 	unsigned int uiIndex;
@@ -396,7 +384,7 @@ tEplKernel PUBLIC EplTimerHighReskModifyTimerNs(tEplTimerHdl * pTimerHdl_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimerHighReskDeleteTimer(tEplTimerHdl * pTimerHdl_p)
+tEplKernel EplTimerHighReskDeleteTimer(tEplTimerHdl *pTimerHdl_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiIndex;

@@ -1422,6 +1422,11 @@ P:	Doug Warzecha
 M:	Douglas_Warzecha@dell.com
 S:	Maintained
 
+DELL WMI EXTRAS DRIVER
+P:	Matthew Garrett
+M:	mjg59@srcf.ucam.org
+S:	Maintained
+
 DEVICE NUMBER REGISTRY
 P:	Torben Mathiasen
 M:	device@lanana.org
@@ -1539,7 +1544,6 @@ S:	Maintained
 DVB SUBSYSTEM AND DRIVERS
 P:	LinuxTV.org Project
 M:	linux-media@vger.kernel.org
-L:	linux-dvb@linuxtv.org (subscription required)
 W:	http://linuxtv.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
@@ -1763,6 +1767,12 @@ M:	viro@zeniv.linux.org.uk
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 
+FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
+P:	Riku Voipio
+M:	riku.vipio@iki.fi
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 FIREWIRE SUBSYSTEM (drivers/firewire, <linux/firewire*.h>)
 P:	Kristian Hoegsberg, Stefan Richter
 M:	krh@redhat.com, stefanr@s5r6.in-berlin.de
@@ -1944,6 +1954,12 @@ M:	frank@f-seidel.de
 L:	lm-sensors@lm-sensors.org
 W:	http://www.kernel.org/pub/linux/kernel/people/fseidel/hdaps/
 S:	Maintained
+
+HYPERVISOR VIRTUAL CONSOLE DRIVER
+L:	linuxppc-dev@ozlabs.org
+L:	linux-kernel@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/char/hvc_*
 
 GSPCA FINEPIX SUBDRIVER
 P:	Frank Zago
@@ -2642,6 +2658,12 @@ M:	jason.wessel@windriver.com
 L:	kgdb-bugreport@lists.sourceforge.net
 S:	Maintained
 
+KMEMTRACE
+P:	Eduard - Gabriel Munteanu
+M:	eduard.munteanu@linux360.ro
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 KPROBES
 P:	Ananth N Mavinakayanahalli
 M:	ananth@in.ibm.com
@@ -2912,6 +2934,12 @@ M:	buytenh@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
 
+MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
+P:	Nicolas Pitre
+M:	nico@cam.org
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 MARVELL YUKON / SYSKONNECT DRIVER
 P:	Mirko Lindner
 M:	mlindner@syskonnect.de
@@ -3022,8 +3050,9 @@ S:	Maintained
 
 MULTIFUNCTION DEVICES (MFD)
 P:	Samuel Ortiz
-M:	sameo@openedhand.com
+M:	sameo@linux.intel.com
 L:	linux-kernel@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/sameo/mfd-2.6.git
 S:	Supported
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
@@ -3098,7 +3127,7 @@ M:	shemminger@linux-foundation.org
 L:	netem@lists.linux-foundation.org
 S:	Maintained
 
-NETERION (S2IO) Xframe 10GbE DRIVER
+NETERION (S2IO) 10GbE DRIVER (xframe/vxge)
 P:	Ramkrishna Vepa
 M:	ram.vepa@neterion.com
 P:	Rastapur Santosh
@@ -3107,8 +3136,11 @@ P:	Sivakumar Subramani
 M:	sivakumar.subramani@neterion.com
 P:	Sreenivasa Honnur
 M:	sreenivasa.honnur@neterion.com
+P:	Anil Murthy
+M:	anil.murthy@neterion.com
 L:	netdev@vger.kernel.org
-W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/TitleIndex?anonymous
+W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/Linux?Anonymous
+W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/X3100Linux?Anonymous
 S:	Supported
 
 NETFILTER/IPTABLES/IPCHAINS
@@ -3211,6 +3243,13 @@ P:	Andreas Mohr
 M:	andi@lisas.de
 L:	netdev@vger.kernel.org
 S:	Maintained
+
+NILFS2 FILESYSTEM
+P:	KONISHI Ryusuke
+M:	konishi.ryusuke@lab.ntt.co.jp
+L:	users@nilfs.org
+W:	http://www.nilfs.org/en/
+S:	Supported
 
 NINJA SCSI-3 / NINJA SCSI-32Bi (16bit/CardBus) PCMCIA SCSI HOST ADAPTER DRIVER
 P:	YOKOTA Hiroshi
@@ -3397,6 +3436,11 @@ S:	Maintained
 PC8736x GPIO DRIVER
 P:	Jim Cromie
 M:	jim.cromie@gmail.com
+S:	Maintained
+
+PCA9532 LED DRIVER
+P:	Riku Voipio
+M:	riku.voipio@iki.fi
 S:	Maintained
 
 PCI ERROR RECOVERY
@@ -3896,7 +3940,14 @@ S:	Maintained
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
 P:	Pierre Ossman
 M:	drzeus-sdhci@drzeus.cx
-L:	sdhci-devel@list.drzeus.cx
+L:	sdhci-devel@lists.ossman.eu
+S:	Maintained
+
+SECURE DIGITAL HOST CONTROLLER INTERFACE, OPEN FIRMWARE BINDINGS (SDHCI-OF)
+P:	Anton Vorontsov
+M:	avorontsov@ru.mvista.com
+L:	linuxppc-dev@ozlabs.org
+L:	sdhci-devel@lists.ossman.eu
 S:	Maintained
 
 SECURITY SUBSYSTEM
@@ -4362,16 +4413,18 @@ T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.2.x/tomoyo-lsm/patches
 S:	Maintained
 
 TOSHIBA ACPI EXTRAS DRIVER
-P:	John Belmonte
-M:	toshiba_acpi@memebeam.org
-W:	http://memebeam.org/toys/ToshibaAcpiDriver
-S:	Maintained
+S:	Orphan
 
 TOSHIBA SMM DRIVER
 P:	Jonathan Buzzard
 M:	jonathan@buzzard.org.uk
 L:	tlinux-users@tce.toshiba-dme.co.jp
 W:	http://www.buzzard.org.uk/toshiba/
+S:	Maintained
+
+TMIO MMC DRIVER
+P:	Ian Molton
+M:	ian@mnementh.co.uk
 S:	Maintained
 
 TPM DEVICE DRIVER
@@ -4838,7 +4891,7 @@ M:	lrg@slimlogic.co.uk
 P:	Mark Brown
 M:	broonie@opensource.wolfsonmicro.com
 W:	http://opensource.wolfsonmicro.com/node/15
-W:	http://www.slimlogic.co.uk/?page_id=5
+W:	http://www.slimlogic.co.uk/?p=48
 T:	git kernel.org/pub/scm/linux/kernel/git/lrg/voltage-2.6.git
 S:	Supported
 
@@ -4960,7 +5013,8 @@ S:	Supported
 
 XFS FILESYSTEM
 P:	Silicon Graphics Inc
-P:	Bill O'Donnell
+P:	Felix Blyakher
+M:	felixb@sgi.com
 M:	xfs-masters@oss.sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs

@@ -335,7 +335,11 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 				}
 				offset += part->parts[i].size;
 			}
-			*pparts = part->parts;
+			*pparts = kmemdup(part->parts,
+					sizeof(*part->parts) * part->num_parts,
+					GFP_KERNEL);
+			if (!*pparts)
+				return -ENOMEM;
 			return part->num_parts;
 		}
 	}

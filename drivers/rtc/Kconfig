@@ -225,11 +225,11 @@ config RTC_DRV_PCF8583
 	  will be called rtc-pcf8583.
 
 config RTC_DRV_M41T80
-	tristate "ST M41T65/M41T80/81/82/83/84/85/87"
+	tristate "ST M41T62/65/M41T80/81/82/83/84/85/87"
 	help
 	  If you say Y here you will get support for the ST M41T60
 	  and M41T80 RTC chips series. Currently, the following chips are
-	  supported: M41T65, M41T80, M41T81, M41T82, M41T83, M41ST84,
+	  supported: M41T62, M41T65, M41T80, M41T81, M41T82, M41T83, M41ST84,
 	  M41ST85, and M41ST87.
 
 	  This driver can also be built as a module. If so, the module
@@ -688,21 +688,15 @@ config RTC_DRV_RS5C313
 	help
 	  If you say yes here you get support for the Ricoh RS5C313 RTC chips.
 
-config RTC_DRV_PARISC
-	tristate "PA-RISC firmware RTC support"
-	depends on PARISC
+config RTC_DRV_GENERIC
+	tristate "Generic RTC support"
+	# Please consider writing a new RTC driver instead of using the generic
+	# RTC abstraction
+	depends on PARISC || M68K || PPC
 	help
-	  Say Y or M here to enable RTC support on PA-RISC systems using
-	  firmware calls. If you do not know what you are doing, you should
+	  Say Y or M here to enable RTC support on systems using the generic
+	  RTC abstraction. If you do not know what you are doing, you should
 	  just say Y.
-
-config RTC_DRV_PPC
-       tristate "PowerPC machine dependent RTC support"
-       depends on PPC
-       help
-	 The PowerPC kernel has machine-specific functions for accessing
-	 the RTC. This exposes that functionality through the generic RTC
-	 class.
 
 config RTC_DRV_PXA
        tristate "PXA27x/PXA3xx"
@@ -746,5 +740,14 @@ config RTC_DRV_MV
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-mv.
+
+config RTC_DRV_PS3
+	tristate "PS3 RTC"
+	depends on PPC_PS3
+	help
+	  If you say yes here you will get support for the RTC on PS3.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ps3.
 
 endif # RTC_CLASS

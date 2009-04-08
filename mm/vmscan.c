@@ -283,7 +283,7 @@ static inline int page_mapping_inuse(struct page *page)
 
 static inline int is_page_cache_freeable(struct page *page)
 {
-	return page_count(page) - !!PagePrivate(page) == 2;
+	return page_count(page) - !!page_has_private(page) == 2;
 }
 
 static int may_write_to_queue(struct backing_dev_info *bdi)
@@ -367,7 +367,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
 		 * Some data journaling orphaned pages can have
 		 * page->mapping == NULL while being dirty with clean buffers.
 		 */
-		if (PagePrivate(page)) {
+		if (page_has_private(page)) {
 			if (try_to_free_buffers(page)) {
 				ClearPageDirty(page);
 				printk("%s: orphaned page\n", __func__);
@@ -727,7 +727,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 * process address space (page_count == 1) it can be freed.
 		 * Otherwise, leave the page on the LRU so it is swappable.
 		 */
-		if (PagePrivate(page)) {
+		if (page_has_private(page)) {
 			if (!try_to_release_page(page, sc->gfp_mask))
 				goto activate_locked;
 			if (!mapping && page_count(page) == 1) {
@@ -1967,7 +1967,7 @@ static int kswapd(void *p)
 	struct reclaim_state reclaim_state = {
 		.reclaimed_slab = 0,
 	};
-	node_to_cpumask_ptr(cpumask, pgdat->node_id);
+	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
 
 	lockdep_set_current_reclaim_state(GFP_KERNEL);
 
@@ -2204,7 +2204,9 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN) {
 		for_each_node_state(nid, N_HIGH_MEMORY) {
 			pg_data_t *pgdat = NODE_DATA(nid);
-			node_to_cpumask_ptr(mask, pgdat->node_id);
+			const struct cpumask *mask;
+
+			mask = cpumask_of_node(pgdat->node_id);
 
 			if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
 				/* One of our CPUs online: restore mask */

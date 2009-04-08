@@ -61,6 +61,30 @@
 #define BRANCH_PROFILE()
 #endif
 
+#ifdef CONFIG_EVENT_TRACER
+#define FTRACE_EVENTS()	VMLINUX_SYMBOL(__start_ftrace_events) = .;	\
+			*(_ftrace_events)				\
+			VMLINUX_SYMBOL(__stop_ftrace_events) = .;
+#else
+#define FTRACE_EVENTS()
+#endif
+
+#ifdef CONFIG_TRACING
+#define TRACE_PRINTKS() VMLINUX_SYMBOL(__start___trace_bprintk_fmt) = .;      \
+			 *(__trace_printk_fmt) /* Trace_printk fmt' pointer */ \
+			 VMLINUX_SYMBOL(__stop___trace_bprintk_fmt) = .;
+#else
+#define TRACE_PRINTKS()
+#endif
+
+#ifdef CONFIG_FTRACE_SYSCALLS
+#define TRACE_SYSCALLS() VMLINUX_SYMBOL(__start_syscalls_metadata) = .;	\
+			 *(__syscalls_metadata)				\
+			 VMLINUX_SYMBOL(__stop_syscalls_metadata) = .;
+#else
+#define TRACE_SYSCALLS()
+#endif
+
 /* .data section */
 #define DATA_DATA							\
 	*(.data)							\
@@ -86,7 +110,10 @@
 	*(__verbose)                                                    \
 	VMLINUX_SYMBOL(__stop___verbose) = .;				\
 	LIKELY_PROFILE()		       				\
-	BRANCH_PROFILE()
+	BRANCH_PROFILE()						\
+	TRACE_PRINTKS()							\
+	FTRACE_EVENTS()							\
+	TRACE_SYSCALLS()
 
 #define RO_DATA(align)							\
 	. = ALIGN((align));						\

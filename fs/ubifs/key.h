@@ -381,8 +381,8 @@ static inline ino_t key_inum_flash(const struct ubifs_info *c, const void *k)
  * @c: UBIFS file-system description object
  * @key: the key to get hash from
  */
-static inline int key_hash(const struct ubifs_info *c,
-			   const union ubifs_key *key)
+static inline uint32_t key_hash(const struct ubifs_info *c,
+				const union ubifs_key *key)
 {
 	return key->u32[1] & UBIFS_S_KEY_HASH_MASK;
 }
@@ -392,7 +392,7 @@ static inline int key_hash(const struct ubifs_info *c,
  * @c: UBIFS file-system description object
  * @k: the key to get hash from
  */
-static inline int key_hash_flash(const struct ubifs_info *c, const void *k)
+static inline uint32_t key_hash_flash(const struct ubifs_info *c, const void *k)
 {
 	const union ubifs_key *key = k;
 

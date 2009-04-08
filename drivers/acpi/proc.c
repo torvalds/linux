@@ -496,11 +496,8 @@ static u32 rtc_handler(void *context)
 }
 #endif				/* HAVE_ACPI_LEGACY_ALARM */
 
-static int __init acpi_sleep_proc_init(void)
+int __init acpi_sleep_proc_init(void)
 {
-	if (acpi_disabled)
-		return 0;
-
 #ifdef	CONFIG_ACPI_PROCFS
 	/* 'sleep' [R/W] */
 	proc_create("sleep", S_IFREG | S_IRUGO | S_IWUSR,
@@ -527,5 +524,3 @@ static int __init acpi_sleep_proc_init(void)
 
 	return 0;
 }
-
-late_initcall(acpi_sleep_proc_init);

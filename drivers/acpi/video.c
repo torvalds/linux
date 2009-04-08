@@ -37,6 +37,8 @@
 #include <linux/thermal.h>
 #include <linux/video_output.h>
 #include <linux/sort.h>
+#include <linux/pci.h>
+#include <linux/pci_ids.h>
 #include <asm/uaccess.h>
 
 #include <acpi/acpi_bus.h>
@@ -162,16 +164,26 @@ struct acpi_video_device_cap {
 	u8 _BCL:1;		/*Query list of brightness control levels supported */
 	u8 _BCM:1;		/*Set the brightness level */
 	u8 _BQC:1;		/* Get current brightness level */
+	u8 _BCQ:1;		/* Some buggy BIOS uses _BCQ instead of _BQC */
 	u8 _DDC:1;		/*Return the EDID for this device */
 	u8 _DCS:1;		/*Return status of output device */
 	u8 _DGS:1;		/*Query graphics state */
 	u8 _DSS:1;		/*Device state set */
 };
 
+struct acpi_video_brightness_flags {
+	u8 _BCL_no_ac_battery_levels:1;	/* no AC/Battery levels in _BCL */
+	u8 _BCL_reversed:1;		/* _BCL package is in a reversed order*/
+	u8 _BCL_use_index:1;		/* levels in _BCL are index values */
+	u8 _BCM_use_index:1;		/* input of _BCM is an index value */
+	u8 _BQC_use_index:1;		/* _BQC returns an index value */
+};
+
 struct acpi_video_device_brightness {
 	int curr;
 	int count;
 	int *levels;
+	struct acpi_video_brightness_flags flags;
 };
 
 struct acpi_video_device {
@@ -189,7 +201,7 @@ struct acpi_video_device {
 
 /* bus */
 static int acpi_video_bus_info_open_fs(struct inode *inode, struct file *file);
-static struct file_operations acpi_video_bus_info_fops = {
+static const struct file_operations acpi_video_bus_info_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_bus_info_open_fs,
 	.read = seq_read,
@@ -198,7 +210,7 @@ static struct file_operations acpi_video_bus_info_fops = {
 };
 
 static int acpi_video_bus_ROM_open_fs(struct inode *inode, struct file *file);
-static struct file_operations acpi_video_bus_ROM_fops = {
+static const struct file_operations acpi_video_bus_ROM_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_bus_ROM_open_fs,
 	.read = seq_read,
@@ -208,7 +220,7 @@ static struct file_operations acpi_video_bus_ROM_fops = {
 
 static int acpi_video_bus_POST_info_open_fs(struct inode *inode,
 					    struct file *file);
-static struct file_operations acpi_video_bus_POST_info_fops = {
+static const struct file_operations acpi_video_bus_POST_info_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_bus_POST_info_open_fs,
 	.read = seq_read,
@@ -217,19 +229,25 @@ static struct file_operations acpi_video_bus_POST_info_fops = {
 };
 
 static int acpi_video_bus_POST_open_fs(struct inode *inode, struct file *file);
-static struct file_operations acpi_video_bus_POST_fops = {
+static ssize_t acpi_video_bus_write_POST(struct file *file,
+	const char __user *buffer, size_t count, loff_t *data);
+static const struct file_operations acpi_video_bus_POST_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_bus_POST_open_fs,
 	.read = seq_read,
+	.write = acpi_video_bus_write_POST,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 static int acpi_video_bus_DOS_open_fs(struct inode *inode, struct file *file);
-static struct file_operations acpi_video_bus_DOS_fops = {
+static ssize_t acpi_video_bus_write_DOS(struct file *file,
+	const char __user *buffer, size_t count, loff_t *data);
+static const struct file_operations acpi_video_bus_DOS_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_bus_DOS_open_fs,
 	.read = seq_read,
+	.write = acpi_video_bus_write_DOS,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
@@ -237,7 +255,7 @@ static struct file_operations acpi_video_bus_DOS_fops = {
 /* device */
 static int acpi_video_device_info_open_fs(struct inode *inode,
 					  struct file *file);
-static struct file_operations acpi_video_device_info_fops = {
+static const struct file_operations acpi_video_device_info_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_device_info_open_fs,
 	.read = seq_read,
@@ -247,27 +265,33 @@ static struct file_operations acpi_video_device_info_fops = {
 
 static int acpi_video_device_state_open_fs(struct inode *inode,
 					   struct file *file);
-static struct file_operations acpi_video_device_state_fops = {
+static ssize_t acpi_video_device_write_state(struct file *file,
+	const char __user *buffer, size_t count, loff_t *data);
+static const struct file_operations acpi_video_device_state_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_device_state_open_fs,
 	.read = seq_read,
+	.write = acpi_video_device_write_state,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 static int acpi_video_device_brightness_open_fs(struct inode *inode,
 						struct file *file);
+static ssize_t acpi_video_device_write_brightness(struct file *file,
+	const char __user *buffer, size_t count, loff_t *data);
 static struct file_operations acpi_video_device_brightness_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_device_brightness_open_fs,
 	.read = seq_read,
+	.write = acpi_video_device_write_brightness,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 static int acpi_video_device_EDID_open_fs(struct inode *inode,
 					  struct file *file);
-static struct file_operations acpi_video_device_EDID_fops = {
+static const struct file_operations acpi_video_device_EDID_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_video_device_EDID_open_fs,
 	.read = seq_read,
@@ -275,7 +299,7 @@ static struct file_operations acpi_video_device_EDID_fops = {
 	.release = single_release,
 };
 
-static char device_decode[][30] = {
+static const char device_decode[][30] = {
 	"motherboard VGA device",
 	"PCI VGA device",
 	"AGP VGA device",
@@ -294,7 +318,7 @@ static int acpi_video_device_lcd_get_level_current(
 			unsigned long long *level);
 static int acpi_video_get_next_level(struct acpi_video_device *device,
 				     u32 level_current, u32 event);
-static void acpi_video_switch_brightness(struct acpi_video_device *device,
+static int acpi_video_switch_brightness(struct acpi_video_device *device,
 					 int event);
 static int acpi_video_device_get_state(struct acpi_video_device *device,
 			    unsigned long long *state);
@@ -308,7 +332,9 @@ static int acpi_video_get_brightness(struct backlight_device *bd)
 	int i;
 	struct acpi_video_device *vd =
 		(struct acpi_video_device *)bl_get_data(bd);
-	acpi_video_device_lcd_get_level_current(vd, &cur_level);
+
+	if (acpi_video_device_lcd_get_level_current(vd, &cur_level))
+		return -EINVAL;
 	for (i = 2; i < vd->brightness->count; i++) {
 		if (vd->brightness->levels[i] == cur_level)
 			/* The first two entries are special - see page 575
@@ -320,12 +346,12 @@ static int acpi_video_get_brightness(struct backlight_device *bd)
 
 static int acpi_video_set_brightness(struct backlight_device *bd)
 {
-	int request_level = bd->props.brightness+2;
+	int request_level = bd->props.brightness + 2;
 	struct acpi_video_device *vd =
 		(struct acpi_video_device *)bl_get_data(bd);
-	acpi_video_device_lcd_set_level(vd,
-					vd->brightness->levels[request_level]);
-	return 0;
+
+	return acpi_video_device_lcd_set_level(vd,
+				vd->brightness->levels[request_level]);
 }
 
 static struct backlight_ops acpi_backlight_ops = {
@@ -358,32 +384,37 @@ static struct output_properties acpi_output_properties = {
 
 
 /* thermal cooling device callbacks */
-static int video_get_max_state(struct thermal_cooling_device *cdev, char *buf)
+static int video_get_max_state(struct thermal_cooling_device *cdev, unsigned
+			       long *state)
 {
 	struct acpi_device *device = cdev->devdata;
 	struct acpi_video_device *video = acpi_driver_data(device);
 
-	return sprintf(buf, "%d\n", video->brightness->count - 3);
+	*state = video->brightness->count - 3;
+	return 0;
 }
 
-static int video_get_cur_state(struct thermal_cooling_device *cdev, char *buf)
+static int video_get_cur_state(struct thermal_cooling_device *cdev, unsigned
+			       long *state)
 {
 	struct acpi_device *device = cdev->devdata;
 	struct acpi_video_device *video = acpi_driver_data(device);
 	unsigned long long level;
-	int state;
+	int offset;
 
-	acpi_video_device_lcd_get_level_current(video, &level);
-	for (state = 2; state < video->brightness->count; state++)
-		if (level == video->brightness->levels[state])
-			return sprintf(buf, "%d\n",
-				       video->brightness->count - state - 1);
+	if (acpi_video_device_lcd_get_level_current(video, &level))
+		return -EINVAL;
+	for (offset = 2; offset < video->brightness->count; offset++)
+		if (level == video->brightness->levels[offset]) {
+			*state = video->brightness->count - offset - 1;
+			return 0;
+		}
 
 	return -EINVAL;
 }
 
 static int
-video_set_cur_state(struct thermal_cooling_device *cdev, unsigned int state)
+video_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 {
 	struct acpi_device *device = cdev->devdata;
 	struct acpi_video_device *video = acpi_driver_data(device);
@@ -479,34 +510,68 @@ acpi_video_device_lcd_query_levels(struct acpi_video_device *device,
 static int
 acpi_video_device_lcd_set_level(struct acpi_video_device *device, int level)
 {
-	int status = AE_OK;
+	int status;
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
 	struct acpi_object_list args = { 1, &arg0 };
 	int state;
 
-
 	arg0.integer.value = level;
 
-	if (device->cap._BCM)
-		status = acpi_evaluate_object(device->dev->handle, "_BCM",
-					      &args, NULL);
+	status = acpi_evaluate_object(device->dev->handle, "_BCM",
+				      &args, NULL);
+	if (ACPI_FAILURE(status)) {
+		ACPI_ERROR((AE_INFO, "Evaluating _BCM failed"));
+		return -EIO;
+	}
+
 	device->brightness->curr = level;
 	for (state = 2; state < device->brightness->count; state++)
-		if (level == device->brightness->levels[state])
-			device->backlight->props.brightness = state - 2;
+		if (level == device->brightness->levels[state]) {
+			if (device->backlight)
+				device->backlight->props.brightness = state - 2;
+			return 0;
+		}
 
-	return status;
+	ACPI_ERROR((AE_INFO, "Current brightness invalid"));
+	return -EINVAL;
 }
 
 static int
 acpi_video_device_lcd_get_level_current(struct acpi_video_device *device,
 					unsigned long long *level)
 {
-	if (device->cap._BQC)
-		return acpi_evaluate_integer(device->dev->handle, "_BQC", NULL,
-					     level);
+	acpi_status status = AE_OK;
+
+	if (device->cap._BQC || device->cap._BCQ) {
+		char *buf = device->cap._BQC ? "_BQC" : "_BCQ";
+
+		status = acpi_evaluate_integer(device->dev->handle, buf,
+						NULL, level);
+		if (ACPI_SUCCESS(status)) {
+			if (device->brightness->flags._BQC_use_index) {
+				if (device->brightness->flags._BCL_reversed)
+					*level = device->brightness->count
+								 - 3 - (*level);
+				*level = device->brightness->levels[*level + 2];
+
+			}
+			device->brightness->curr = *level;
+			return 0;
+		} else {
+			/* Fixme:
+			 * should we return an error or ignore this failure?
+			 * dev->brightness->curr is a cached value which stores
+			 * the correct current backlight level in most cases.
+			 * ACPI video backlight still works w/ buggy _BQC.
+			 * http://bugzilla.kernel.org/show_bug.cgi?id=12233
+			 */
+			ACPI_WARNING((AE_INFO, "Evaluating %s failed", buf));
+			device->cap._BQC = device->cap._BCQ = 0;
+		}
+	}
+
 	*level = device->brightness->curr;
-	return AE_OK;
+	return 0;
 }
 
 static int
@@ -655,9 +720,11 @@ static int
 acpi_video_init_brightness(struct acpi_video_device *device)
 {
 	union acpi_object *obj = NULL;
-	int i, max_level = 0, count = 0;
+	int i, max_level = 0, count = 0, level_ac_battery = 0;
+	unsigned long long level, level_old;
 	union acpi_object *o;
 	struct acpi_video_device_brightness *br = NULL;
+	int result = -EINVAL;
 
 	if (!ACPI_SUCCESS(acpi_video_device_lcd_query_levels(device, &obj))) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Could not query available "
@@ -671,13 +738,16 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	br = kzalloc(sizeof(*br), GFP_KERNEL);
 	if (!br) {
 		printk(KERN_ERR "can't allocate memory\n");
+		result = -ENOMEM;
 		goto out;
 	}
 
-	br->levels = kmalloc(obj->package.count * sizeof *(br->levels),
+	br->levels = kmalloc((obj->package.count + 2) * sizeof *(br->levels),
 				GFP_KERNEL);
-	if (!br->levels)
+	if (!br->levels) {
+		result = -ENOMEM;
 		goto out_free;
+	}
 
 	for (i = 0; i < obj->package.count; i++) {
 		o = (union acpi_object *)&obj->package.elements[i];
@@ -692,18 +762,86 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 		count++;
 	}
 
-	/* don't sort the first two brightness levels */
-	sort(&br->levels[2], count - 2, sizeof(br->levels[2]),
-		acpi_video_cmp_level, NULL);
+	/*
+	 * some buggy BIOS don't export the levels
+	 * when machine is on AC/Battery in _BCL package.
+	 * In this case, the first two elements in _BCL packages
+	 * are also supported brightness levels that OS should take care of.
+	 */
+	for (i = 2; i < count; i++)
+		if (br->levels[i] == br->levels[0] ||
+		    br->levels[i] == br->levels[1])
+			level_ac_battery++;
 
-	if (count < 2)
-		goto out_free_levels;
+	if (level_ac_battery < 2) {
+		level_ac_battery = 2 - level_ac_battery;
+		br->flags._BCL_no_ac_battery_levels = 1;
+		for (i = (count - 1 + level_ac_battery); i >= 2; i--)
+			br->levels[i] = br->levels[i - level_ac_battery];
+		count += level_ac_battery;
+	} else if (level_ac_battery > 2)
+		ACPI_ERROR((AE_INFO, "Too many duplicates in _BCL package\n"));
+
+	/* Check if the _BCL package is in a reversed order */
+	if (max_level == br->levels[2]) {
+		br->flags._BCL_reversed = 1;
+		sort(&br->levels[2], count - 2, sizeof(br->levels[2]),
+			acpi_video_cmp_level, NULL);
+	} else if (max_level != br->levels[count - 1])
+		ACPI_ERROR((AE_INFO,
+			    "Found unordered _BCL package\n"));
 
 	br->count = count;
 	device->brightness = br;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "found %d brightness levels\n", count));
+
+	/* Check the input/output of _BQC/_BCL/_BCM */
+	if ((max_level < 100) && (max_level <= (count - 2)))
+		br->flags._BCL_use_index = 1;
+
+	/*
+	 * _BCM is always consistent with _BCL,
+	 * at least for all the laptops we have ever seen.
+	 */
+	br->flags._BCM_use_index = br->flags._BCL_use_index;
+
+	/* _BQC uses INDEX while _BCL uses VALUE in some laptops */
+	br->curr = max_level;
+	result = acpi_video_device_lcd_get_level_current(device, &level_old);
+	if (result)
+		goto out_free_levels;
+
+	result = acpi_video_device_lcd_set_level(device, br->curr);
+	if (result)
+		goto out_free_levels;
+
+	result = acpi_video_device_lcd_get_level_current(device, &level);
+	if (result)
+		goto out_free_levels;
+
+	if ((level != level_old) && !br->flags._BCM_use_index) {
+		/* Note:
+		 * This piece of code does not work correctly if the current
+		 * brightness levels is 0.
+		 * But I guess boxes that boot with such a dark screen are rare
+		 * and no more code is needed to cover this specifial case.
+		 */
+
+		if (level_ac_battery != 2) {
+			/*
+			 * For now, we don't support the _BCL like this:
+			 * 16, 15, 0, 1, 2, 3, ..., 14, 15, 16
+			 * because we may mess up the index returned by _BQC.
+			 * Plus: we have not got a box like this.
+			 */
+			ACPI_ERROR((AE_INFO, "_BCL not supported\n"));
+		}
+		br->flags._BQC_use_index = 1;
+	}
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			  "found %d brightness levels\n", count - 2));
 	kfree(obj);
-	return max_level;
+	return result;
 
 out_free_levels:
 	kfree(br->levels);
@@ -712,7 +850,7 @@ out_free:
 out:
 	device->brightness = NULL;
 	kfree(obj);
-	return 0;
+	return result;
 }
 
 /*
@@ -729,7 +867,6 @@ out:
 static void acpi_video_device_find_cap(struct acpi_video_device *device)
 {
 	acpi_handle h_dummy1;
-	u32 max_level = 0;
 
 
 	memset(&device->cap, 0, sizeof(device->cap));
@@ -745,6 +882,12 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 	}
 	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle,"_BQC",&h_dummy1)))
 		device->cap._BQC = 1;
+	else if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_BCQ",
+				&h_dummy1))) {
+		printk(KERN_WARNING FW_BUG "_BCQ is used instead of _BQC\n");
+		device->cap._BCQ = 1;
+	}
+
 	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DDC", &h_dummy1))) {
 		device->cap._DDC = 1;
 	}
@@ -758,13 +901,14 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->cap._DSS = 1;
 	}
 
-	if (acpi_video_backlight_support())
-		max_level = acpi_video_init_brightness(device);
-
-	if (device->cap._BCL && device->cap._BCM && max_level > 0) {
+	if (acpi_video_backlight_support()) {
 		int result;
 		static int count = 0;
 		char *name;
+
+		result = acpi_video_init_brightness(device);
+		if (result)
+			return;
 		name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
 		if (!name)
 			return;
@@ -773,18 +917,6 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->backlight = backlight_device_register(name,
 			NULL, device, &acpi_backlight_ops);
 		device->backlight->props.max_brightness = device->brightness->count-3;
-		/*
-		 * If there exists the _BQC object, the _BQC object will be
-		 * called to get the current backlight brightness. Otherwise
-		 * the brightness will be set to the maximum.
-		 */
-		if (device->cap._BQC)
-			device->backlight->props.brightness =
-				acpi_video_get_brightness(device->backlight);
-		else
-			device->backlight->props.brightness =
-				device->backlight->props.max_brightness;
-		backlight_update_status(device->backlight);
 		kfree(name);
 
 		device->cdev = thermal_cooling_device_register("LCD",
@@ -1061,13 +1193,12 @@ acpi_video_device_write_brightness(struct file *file,
 	/* validate through the list of available levels */
 	for (i = 2; i < dev->brightness->count; i++)
 		if (level == dev->brightness->levels[i]) {
-			if (ACPI_SUCCESS
-			    (acpi_video_device_lcd_set_level(dev, level)))
-				dev->brightness->curr = level;
+			if (!acpi_video_device_lcd_set_level(dev, level))
+				return count;
 			break;
 		}
 
-	return count;
+	return -EINVAL;
 }
 
 static int acpi_video_device_EDID_seq_show(struct seq_file *seq, void *offset)
@@ -1132,7 +1263,6 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 		goto err_remove_dir;
 
 	/* 'state' [R/W] */
-	acpi_video_device_state_fops.write = acpi_video_device_write_state;
 	entry = proc_create_data("state", S_IFREG | S_IRUGO | S_IWUSR,
 				 device_dir,
 				 &acpi_video_device_state_fops,
@@ -1141,8 +1271,6 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 		goto err_remove_info;
 
 	/* 'brightness' [R/W] */
-	acpi_video_device_brightness_fops.write =
-		acpi_video_device_write_brightness;
 	entry = proc_create_data("brightness", S_IFREG | S_IRUGO | S_IWUSR,
 				 device_dir,
 				 &acpi_video_device_brightness_fops,
@@ -1423,7 +1551,6 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 		goto err_remove_rom;
 
 	/* 'POST' [R/W] */
-	acpi_video_bus_POST_fops.write = acpi_video_bus_write_POST;
 	entry = proc_create_data("POST", S_IFREG | S_IRUGO | S_IWUSR,
 				 device_dir,
 				 &acpi_video_bus_POST_fops,
@@ -1432,7 +1559,6 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 		goto err_remove_post_info;
 
 	/* 'DOS' [R/W] */
-	acpi_video_bus_DOS_fops.write = acpi_video_bus_write_DOS;
 	entry = proc_create_data("DOS", S_IFREG | S_IRUGO | S_IWUSR,
 				 device_dir,
 				 &acpi_video_bus_DOS_fops,
@@ -1745,15 +1871,29 @@ acpi_video_get_next_level(struct acpi_video_device *device,
 	}
 }
 
-static void
+static int
 acpi_video_switch_brightness(struct acpi_video_device *device, int event)
 {
 	unsigned long long level_current, level_next;
+	int result = -EINVAL;
+
 	if (!device->brightness)
-		return;
-	acpi_video_device_lcd_get_level_current(device, &level_current);
+		goto out;
+
+	result = acpi_video_device_lcd_get_level_current(device,
+							 &level_current);
+	if (result)
+		goto out;
+
 	level_next = acpi_video_get_next_level(device, level_current, event);
-	acpi_video_device_lcd_set_level(device, level_next);
+
+	result = acpi_video_device_lcd_set_level(device, level_next);
+
+out:
+	if (result)
+		printk(KERN_ERR PREFIX "Failed to switch the brightness\n");
+
+	return result;
 }
 
 static int
@@ -2120,7 +2260,27 @@ static int acpi_video_bus_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int __init acpi_video_init(void)
+static int __init intel_opregion_present(void)
+{
+#if defined(CONFIG_DRM_I915) || defined(CONFIG_DRM_I915_MODULE)
+	struct pci_dev *dev = NULL;
+	u32 address;
+
+	for_each_pci_dev(dev) {
+		if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
+			continue;
+		if (dev->vendor != PCI_VENDOR_ID_INTEL)
+			continue;
+		pci_read_config_dword(dev, 0xfc, &address);
+		if (!address)
+			continue;
+		return 1;
+	}
+#endif
+	return 0;
+}
+
+int acpi_video_register(void)
 {
 	int result = 0;
 
@@ -2135,6 +2295,22 @@ static int __init acpi_video_init(void)
 	}
 
 	return 0;
+}
+EXPORT_SYMBOL(acpi_video_register);
+
+/*
+ * This is kind of nasty. Hardware using Intel chipsets may require
+ * the video opregion code to be run first in order to initialise
+ * state before any ACPI video calls are made. To handle this we defer
+ * registration of the video class until the opregion code has run.
+ */
+
+static int __init acpi_video_init(void)
+{
+	if (intel_opregion_present())
+		return 0;
+
+	return acpi_video_register();
 }
 
 static void __exit acpi_video_exit(void)

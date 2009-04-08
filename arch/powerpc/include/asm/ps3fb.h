@@ -21,7 +21,6 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
-#include <linux/types.h>
 
 /* ioctl */
 #define PS3FB_IOCTL_SETMODE       _IOW('r',  1, int) /* set video mode */

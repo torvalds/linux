@@ -255,6 +255,16 @@ Who:	Jan Engelhardt <jengelh@computergmbh.de>
 
 ---------------------------
 
+What:	GPIO autorequest on gpio_direction_{input,output}() in gpiolib
+When:	February 2010
+Why:	All callers should use explicit gpio_request()/gpio_free().
+	The autorequest mechanism in gpiolib was provided mostly as a
+	migration aid for legacy GPIO interfaces (for SOC based GPIOs).
+	Those users have now largely migrated.  Platforms implementing
+	the GPIO interfaces without using gpiolib will see no changes.
+Who:	David Brownell <dbrownell@users.sourceforge.net>
+---------------------------
+
 What:	b43 support for firmware revision < 410
 When:	The schedule was July 2008, but it was decided that we are going to keep the
         code as long as there are no major maintanance headaches.
@@ -270,13 +280,6 @@ What:	usedac i386 kernel parameter
 When:	2.6.27
 Why:	replaced by allowdac and no dac combination
 Who:	Glauber Costa <gcosta@redhat.com>
-
----------------------------
-
-What:	remove HID compat support
-When:	2.6.29
-Why:	needed only as a temporary solution until distros fix themselves up
-Who:	Jiri Slaby <jirislaby@gmail.com>
 
 ---------------------------
 
@@ -351,7 +354,8 @@ Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
 
 ---------------------------
 
-What:	i2c_attach_client(), i2c_detach_client(), i2c_driver->detach_client()
+What:	i2c_attach_client(), i2c_detach_client(), i2c_driver->detach_client(),
+	i2c_adapter->client_register(), i2c_adapter->client_unregister
 When:	2.6.30
 Check:	i2c_attach_client i2c_detach_client
 Why:	Deprecated by the new (standard) device driver binding model. Use

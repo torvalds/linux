@@ -1871,7 +1871,7 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 	}
 
 	/* Initialize DMA */
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) < 0) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) < 0) {
 		printk(KERN_ERR "amd8111e: DMA not supported,"
 			"exiting.\n");
 		goto err_free_reg;

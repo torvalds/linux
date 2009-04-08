@@ -23,6 +23,8 @@
 #define DMA(ptr) ((a2091_scsiregs *)((ptr)->base))
 #define HDATA(ptr) ((struct WD33C93_hostdata *)((ptr)->hostdata))
 
+static int a2091_release(struct Scsi_Host *instance);
+
 static irqreturn_t a2091_intr (int irq, void *_instance)
 {
     unsigned long flags;
@@ -144,7 +146,7 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
     }
 }
 
-int __init a2091_detect(struct scsi_host_template *tpnt)
+static int __init a2091_detect(struct scsi_host_template *tpnt)
 {
     static unsigned char called = 0;
     struct Scsi_Host *instance;
@@ -233,7 +235,7 @@ static struct scsi_host_template driver_template = {
 
 #include "scsi_module.c"
 
-int a2091_release(struct Scsi_Host *instance)
+static int a2091_release(struct Scsi_Host *instance)
 {
 #ifdef MODULE
 	DMA(instance)->CNTR = 0;

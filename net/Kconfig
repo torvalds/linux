@@ -140,7 +140,7 @@ config NETFILTER_ADVANCED
 	default y
 	help
 	  If you say Y here you can select between all the netfilter modules.
-	  If you say N the more ununsual ones will not be shown and the
+	  If you say N the more unusual ones will not be shown and the
 	  basic ones needed by most people will default to 'M'.
 
 	  If unsure, say Y.

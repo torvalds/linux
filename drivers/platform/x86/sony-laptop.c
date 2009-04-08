@@ -2,7 +2,7 @@
  * ACPI Sony Notebook Control Driver (SNC and SPIC)
  *
  * Copyright (C) 2004-2005 Stelian Pop <stelian@popies.net>
- * Copyright (C) 2007 Mattia Dongili <malattia@linux.it>
+ * Copyright (C) 2007-2009 Mattia Dongili <malattia@linux.it>
  *
  * Parts of this driver inspired from asus_acpi.c and ibm_acpi.c
  * which are copyrighted by their respective authors.
@@ -46,7 +46,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
@@ -64,6 +63,7 @@
 #include <asm/uaccess.h>
 #include <linux/sonypi.h>
 #include <linux/sony-laptop.h>
+#include <linux/rfkill.h>
 #ifdef CONFIG_SONYPI_COMPAT
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
@@ -123,6 +123,18 @@ MODULE_PARM_DESC(minor,
 		 "default is -1 (automatic)");
 #endif
 
+enum sony_nc_rfkill {
+	SONY_WIFI,
+	SONY_BLUETOOTH,
+	SONY_WWAN,
+	SONY_WIMAX,
+	SONY_RFKILL_MAX,
+};
+
+static struct rfkill *sony_rfkill_devices[SONY_RFKILL_MAX];
+static int sony_rfkill_address[SONY_RFKILL_MAX] = {0x300, 0x500, 0x700, 0x900};
+static void sony_nc_rfkill_update(void);
+
 /*********** Input Devices ***********/
 
 #define SONY_LAPTOP_BUF_SIZE	128
@@ -134,6 +146,7 @@ struct sony_laptop_input_s {
 	spinlock_t		fifo_lock;
 	struct workqueue_struct	*wq;
 };
+
 static struct sony_laptop_input_s sony_laptop_input = {
 	.users = ATOMIC_INIT(0),
 };
@@ -211,6 +224,14 @@ static int sony_laptop_input_index[] = {
 	48,	/* 61 SONYPI_EVENT_WIRELESS_OFF */
 	49,	/* 62 SONYPI_EVENT_ZOOM_IN_PRESSED */
 	50,	/* 63 SONYPI_EVENT_ZOOM_OUT_PRESSED */
+	51,	/* 64 SONYPI_EVENT_CD_EJECT_PRESSED */
+	52,	/* 65 SONYPI_EVENT_MODEKEY_PRESSED */
+	53,	/* 66 SONYPI_EVENT_PKEY_P4 */
+	54,	/* 67 SONYPI_EVENT_PKEY_P5 */
+	55,	/* 68 SONYPI_EVENT_SETTINGKEY_PRESSED */
+	56,	/* 69 SONYPI_EVENT_VOLUME_INC_PRESSED */
+	57,	/* 70 SONYPI_EVENT_VOLUME_DEC_PRESSED */
+	-1,	/* 71 SONYPI_EVENT_BRIGHTNESS_PRESSED */
 };
 
 static int sony_laptop_input_keycode_map[] = {
@@ -264,7 +285,14 @@ static int sony_laptop_input_keycode_map[] = {
 	KEY_WLAN,	/* 47 SONYPI_EVENT_WIRELESS_ON */
 	KEY_WLAN,	/* 48 SONYPI_EVENT_WIRELESS_OFF */
 	KEY_ZOOMIN,	/* 49 SONYPI_EVENT_ZOOM_IN_PRESSED */
-	KEY_ZOOMOUT	/* 50 SONYPI_EVENT_ZOOM_OUT_PRESSED */
+	KEY_ZOOMOUT,	/* 50 SONYPI_EVENT_ZOOM_OUT_PRESSED */
+	KEY_EJECTCD,	/* 51 SONYPI_EVENT_CD_EJECT_PRESSED */
+	KEY_F13,	/* 52 SONYPI_EVENT_MODEKEY_PRESSED */
+	KEY_PROG4,	/* 53 SONYPI_EVENT_PKEY_P4 */
+	KEY_F14,	/* 54 SONYPI_EVENT_PKEY_P5 */
+	KEY_F15,	/* 55 SONYPI_EVENT_SETTINGKEY_PRESSED */
+	KEY_VOLUMEUP,	/* 56 SONYPI_EVENT_VOLUME_INC_PRESSED */
+	KEY_VOLUMEDOWN,	/* 57 SONYPI_EVENT_VOLUME_DEC_PRESSED */
 };
 
 /* release buttons after a short delay if pressed */
@@ -369,7 +397,7 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 	sony_laptop_input.wq = create_singlethread_workqueue("sony-laptop");
 	if (!sony_laptop_input.wq) {
 		printk(KERN_ERR DRV_PFX
-				"Unabe to create workqueue.\n");
+				"Unable to create workqueue.\n");
 		error = -ENXIO;
 		goto err_free_kfifo;
 	}
@@ -689,6 +717,31 @@ static int acpi_callsetfunc(acpi_handle handle, char *name, int value,
 	return -1;
 }
 
+static int sony_find_snc_handle(int handle)
+{
+	int i;
+	int result;
+
+	for (i = 0x20; i < 0x30; i++) {
+		acpi_callsetfunc(sony_nc_acpi_handle, "SN00", i, &result);
+		if (result == handle)
+			return i-0x20;
+	}
+
+	return -1;
+}
+
+static int sony_call_snc_handle(int handle, int argument, int *result)
+{
+	int offset = sony_find_snc_handle(handle);
+
+	if (offset < 0)
+		return -1;
+
+	return acpi_callsetfunc(sony_nc_acpi_handle, "SN07", offset | argument,
+				result);
+}
+
 /*
  * sony_nc_values input/output validate functions
  */
@@ -809,87 +862,53 @@ struct sony_nc_event {
 	u8	event;
 };
 
-static struct sony_nc_event *sony_nc_events;
-
-/* Vaio C* --maybe also FE*, N* and AR* ?-- special init sequence
- * for Fn keys
- */
-static int sony_nc_C_enable(const struct dmi_system_id *id)
-{
-	int result = 0;
-
-	printk(KERN_NOTICE DRV_PFX "detected %s\n", id->ident);
-
-	sony_nc_events = id->driver_data;
-
-	if (acpi_callsetfunc(sony_nc_acpi_handle, "SN02", 0x4, &result) < 0
-			|| acpi_callsetfunc(sony_nc_acpi_handle, "SN07", 0x2, &result) < 0
-			|| acpi_callsetfunc(sony_nc_acpi_handle, "SN02", 0x10, &result) < 0
-			|| acpi_callsetfunc(sony_nc_acpi_handle, "SN07", 0x0, &result) < 0
-			|| acpi_callsetfunc(sony_nc_acpi_handle, "SN03", 0x2, &result) < 0
-			|| acpi_callsetfunc(sony_nc_acpi_handle, "SN07", 0x101, &result) < 0) {
-		printk(KERN_WARNING DRV_PFX "failed to initialize SNC, some "
-				"functionalities may be missing\n");
-		return 1;
-	}
-	return 0;
-}
-
-static struct sony_nc_event sony_C_events[] = {
+static struct sony_nc_event sony_100_events[] = {
+	{ 0x90, SONYPI_EVENT_PKEY_P1 },
+	{ 0x10, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0x91, SONYPI_EVENT_PKEY_P2 },
+	{ 0x11, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0x81, SONYPI_EVENT_FNKEY_F1 },
 	{ 0x01, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x82, SONYPI_EVENT_FNKEY_F2 },
+	{ 0x02, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x83, SONYPI_EVENT_FNKEY_F3 },
+	{ 0x03, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x84, SONYPI_EVENT_FNKEY_F4 },
+	{ 0x04, SONYPI_EVENT_FNKEY_RELEASED },
 	{ 0x85, SONYPI_EVENT_FNKEY_F5 },
 	{ 0x05, SONYPI_EVENT_FNKEY_RELEASED },
 	{ 0x86, SONYPI_EVENT_FNKEY_F6 },
 	{ 0x06, SONYPI_EVENT_FNKEY_RELEASED },
 	{ 0x87, SONYPI_EVENT_FNKEY_F7 },
 	{ 0x07, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x89, SONYPI_EVENT_FNKEY_F9 },
+	{ 0x09, SONYPI_EVENT_FNKEY_RELEASED },
 	{ 0x8A, SONYPI_EVENT_FNKEY_F10 },
 	{ 0x0A, SONYPI_EVENT_FNKEY_RELEASED },
 	{ 0x8C, SONYPI_EVENT_FNKEY_F12 },
 	{ 0x0C, SONYPI_EVENT_FNKEY_RELEASED },
+	{ 0x9f, SONYPI_EVENT_CD_EJECT_PRESSED },
+	{ 0x1f, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0, 0 },
 };
 
-/* SNC-only model map */
-static const struct dmi_system_id sony_nc_ids[] = {
-		{
-			.ident = "Sony Vaio FE Series",
-			.callback = sony_nc_C_enable,
-			.driver_data = sony_C_events,
-			.matches = {
-				DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
-				DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FE"),
-			},
-		},
-		{
-			.ident = "Sony Vaio FZ Series",
-			.callback = sony_nc_C_enable,
-			.driver_data = sony_C_events,
-			.matches = {
-				DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
-				DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FZ"),
-			},
-		},
-		{
-			.ident = "Sony Vaio C Series",
-			.callback = sony_nc_C_enable,
-			.driver_data = sony_C_events,
-			.matches = {
-				DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
-				DMI_MATCH(DMI_PRODUCT_NAME, "VGN-C"),
-			},
-		},
-		{
-			.ident = "Sony Vaio N Series",
-			.callback = sony_nc_C_enable,
-			.driver_data = sony_C_events,
-			.matches = {
-				DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
-				DMI_MATCH(DMI_PRODUCT_NAME, "VGN-N"),
-			},
-		},
-		{ }
+static struct sony_nc_event sony_127_events[] = {
+	{ 0x81, SONYPI_EVENT_MODEKEY_PRESSED },
+	{ 0x01, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0x82, SONYPI_EVENT_PKEY_P1 },
+	{ 0x02, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0x83, SONYPI_EVENT_PKEY_P2 },
+	{ 0x03, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0x84, SONYPI_EVENT_PKEY_P3 },
+	{ 0x04, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0x85, SONYPI_EVENT_PKEY_P4 },
+	{ 0x05, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0x86, SONYPI_EVENT_PKEY_P5 },
+	{ 0x06, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0x06, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0x87, SONYPI_EVENT_SETTINGKEY_PRESSED },
+	{ 0x07, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0, 0 },
 };
 
 /*
@@ -897,38 +916,59 @@ static const struct dmi_system_id sony_nc_ids[] = {
  */
 static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct sony_nc_event *evmap;
 	u32 ev = event;
-	int result;
 
-	if (ev == 0x92) {
-		/* read the key pressed from EC.GECR
-		 * A call to SN07 with 0x0202 will do it as well respecting
-		 * the current protocol on different OSes
-		 *
-		 * Note: the path for GECR may be
-		 *   \_SB.PCI0.LPCB.EC (C, FE, AR, N and friends)
-		 *   \_SB.PCI0.PIB.EC0 (VGN-FR notifications are sent directly, no GECR)
-		 *
-		 * TODO: we may want to do the same for the older GHKE -need
-		 *       dmi list- so this snippet may become one more callback.
-		 */
-		if (acpi_callsetfunc(handle, "SN07", 0x0202, &result) < 0)
-			dprintk("sony_acpi_notify, unable to decode event 0x%.2x\n", ev);
-		else
-			ev = result & 0xFF;
-	}
+	if (ev >= 0x90) {
+		/* New-style event */
+		int result;
+		int key_handle = 0;
+		ev -= 0x90;
 
-	if (sony_nc_events)
-		for (evmap = sony_nc_events; evmap->event; evmap++) {
-			if (evmap->data == ev) {
-				ev = evmap->event;
-				break;
+		if (sony_find_snc_handle(0x100) == ev)
+			key_handle = 0x100;
+		if (sony_find_snc_handle(0x127) == ev)
+			key_handle = 0x127;
+
+		if (key_handle) {
+			struct sony_nc_event *key_event;
+
+			if (sony_call_snc_handle(key_handle, 0x200, &result)) {
+				dprintk("sony_acpi_notify, unable to decode"
+					" event 0x%.2x 0x%.2x\n", key_handle,
+					ev);
+				/* restore the original event */
+				ev = event;
+			} else {
+				ev = result & 0xFF;
+
+				if (key_handle == 0x100)
+					key_event = sony_100_events;
+				else
+					key_event = sony_127_events;
+
+				for (; key_event->data; key_event++) {
+					if (key_event->data == ev) {
+						ev = key_event->event;
+						break;
+					}
+				}
+
+				if (!key_event->data)
+					printk(KERN_INFO DRV_PFX
+							"Unknown event: 0x%x 0x%x\n",
+							key_handle,
+							ev);
+				else
+					sony_laptop_report_input_event(ev);
 			}
+		} else if (sony_find_snc_handle(0x124) == ev) {
+			sony_nc_rfkill_update();
+			return;
 		}
+	} else
+		sony_laptop_report_input_event(ev);
 
 	dprintk("sony_acpi_notify, event: 0x%.2x\n", ev);
-	sony_laptop_report_input_event(ev);
 	acpi_bus_generate_proc_event(sony_nc_acpi_device, 1, ev);
 }
 
@@ -953,9 +993,25 @@ static acpi_status sony_walk_callback(acpi_handle handle, u32 level,
 /*
  * ACPI device
  */
+static int sony_nc_function_setup(struct acpi_device *device)
+{
+	int result;
+
+	/* Enable all events */
+	acpi_callsetfunc(sony_nc_acpi_handle, "SN02", 0xffff, &result);
+
+	/* Setup hotkeys */
+	sony_call_snc_handle(0x0100, 0, &result);
+	sony_call_snc_handle(0x0101, 0, &result);
+	sony_call_snc_handle(0x0102, 0x100, &result);
+
+	return 0;
+}
+
 static int sony_nc_resume(struct acpi_device *device)
 {
 	struct sony_nc_value *item;
+	acpi_handle handle;
 
 	for (item = sony_nc_values; item->name; item++) {
 		int ret;
@@ -970,13 +1026,188 @@ static int sony_nc_resume(struct acpi_device *device)
 		}
 	}
 
+	if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "ECON",
+					 &handle))) {
+		if (acpi_callsetfunc(sony_nc_acpi_handle, "ECON", 1, NULL))
+			dprintk("ECON Method failed\n");
+	}
+
+	if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "SN00",
+					 &handle))) {
+		dprintk("Doing SNC setup\n");
+		sony_nc_function_setup(device);
+	}
+
 	/* set the last requested brightness level */
 	if (sony_backlight_device &&
 			!sony_backlight_update_status(sony_backlight_device))
 		printk(KERN_WARNING DRV_PFX "unable to restore brightness level\n");
 
-	/* re-initialize models with specific requirements */
-	dmi_check_system(sony_nc_ids);
+	return 0;
+}
+
+static void sony_nc_rfkill_cleanup(void)
+{
+	int i;
+
+	for (i = 0; i < SONY_RFKILL_MAX; i++) {
+		if (sony_rfkill_devices[i])
+			rfkill_unregister(sony_rfkill_devices[i]);
+	}
+}
+
+static int sony_nc_rfkill_get(void *data, enum rfkill_state *state)
+{
+	int result;
+	int argument = sony_rfkill_address[(long) data];
+
+	sony_call_snc_handle(0x124, 0x200, &result);
+	if (result & 0x1) {
+		sony_call_snc_handle(0x124, argument, &result);
+		if (result & 0xf)
+			*state = RFKILL_STATE_UNBLOCKED;
+		else
+			*state = RFKILL_STATE_SOFT_BLOCKED;
+	} else {
+		*state = RFKILL_STATE_HARD_BLOCKED;
+	}
+
+	return 0;
+}
+
+static int sony_nc_rfkill_set(void *data, enum rfkill_state state)
+{
+	int result;
+	int argument = sony_rfkill_address[(long) data] + 0x100;
+
+	if (state == RFKILL_STATE_UNBLOCKED)
+		argument |= 0xff0000;
+
+	return sony_call_snc_handle(0x124, argument, &result);
+}
+
+static int sony_nc_setup_wifi_rfkill(struct acpi_device *device)
+{
+	int err = 0;
+	struct rfkill *sony_wifi_rfkill;
+
+	sony_wifi_rfkill = rfkill_allocate(&device->dev, RFKILL_TYPE_WLAN);
+	if (!sony_wifi_rfkill)
+		return -1;
+	sony_wifi_rfkill->name = "sony-wifi";
+	sony_wifi_rfkill->toggle_radio = sony_nc_rfkill_set;
+	sony_wifi_rfkill->get_state = sony_nc_rfkill_get;
+	sony_wifi_rfkill->user_claim_unsupported = 1;
+	sony_wifi_rfkill->data = (void *)SONY_WIFI;
+	err = rfkill_register(sony_wifi_rfkill);
+	if (err)
+		rfkill_free(sony_wifi_rfkill);
+	else
+		sony_rfkill_devices[SONY_WIFI] = sony_wifi_rfkill;
+	return err;
+}
+
+static int sony_nc_setup_bluetooth_rfkill(struct acpi_device *device)
+{
+	int err = 0;
+	struct rfkill *sony_bluetooth_rfkill;
+
+	sony_bluetooth_rfkill = rfkill_allocate(&device->dev,
+						RFKILL_TYPE_BLUETOOTH);
+	if (!sony_bluetooth_rfkill)
+		return -1;
+	sony_bluetooth_rfkill->name = "sony-bluetooth";
+	sony_bluetooth_rfkill->toggle_radio = sony_nc_rfkill_set;
+	sony_bluetooth_rfkill->get_state = sony_nc_rfkill_get;
+	sony_bluetooth_rfkill->user_claim_unsupported = 1;
+	sony_bluetooth_rfkill->data = (void *)SONY_BLUETOOTH;
+	err = rfkill_register(sony_bluetooth_rfkill);
+	if (err)
+		rfkill_free(sony_bluetooth_rfkill);
+	else
+		sony_rfkill_devices[SONY_BLUETOOTH] = sony_bluetooth_rfkill;
+	return err;
+}
+
+static int sony_nc_setup_wwan_rfkill(struct acpi_device *device)
+{
+	int err = 0;
+	struct rfkill *sony_wwan_rfkill;
+
+	sony_wwan_rfkill = rfkill_allocate(&device->dev, RFKILL_TYPE_WWAN);
+	if (!sony_wwan_rfkill)
+		return -1;
+	sony_wwan_rfkill->name = "sony-wwan";
+	sony_wwan_rfkill->toggle_radio = sony_nc_rfkill_set;
+	sony_wwan_rfkill->get_state = sony_nc_rfkill_get;
+	sony_wwan_rfkill->user_claim_unsupported = 1;
+	sony_wwan_rfkill->data = (void *)SONY_WWAN;
+	err = rfkill_register(sony_wwan_rfkill);
+	if (err)
+		rfkill_free(sony_wwan_rfkill);
+	else
+		sony_rfkill_devices[SONY_WWAN] = sony_wwan_rfkill;
+	return err;
+}
+
+static int sony_nc_setup_wimax_rfkill(struct acpi_device *device)
+{
+	int err = 0;
+	struct rfkill *sony_wimax_rfkill;
+
+	sony_wimax_rfkill = rfkill_allocate(&device->dev, RFKILL_TYPE_WIMAX);
+	if (!sony_wimax_rfkill)
+		return -1;
+	sony_wimax_rfkill->name = "sony-wimax";
+	sony_wimax_rfkill->toggle_radio = sony_nc_rfkill_set;
+	sony_wimax_rfkill->get_state = sony_nc_rfkill_get;
+	sony_wimax_rfkill->user_claim_unsupported = 1;
+	sony_wimax_rfkill->data = (void *)SONY_WIMAX;
+	err = rfkill_register(sony_wimax_rfkill);
+	if (err)
+		rfkill_free(sony_wimax_rfkill);
+	else
+		sony_rfkill_devices[SONY_WIMAX] = sony_wimax_rfkill;
+	return err;
+}
+
+static void sony_nc_rfkill_update()
+{
+	int i;
+	enum rfkill_state state;
+
+	for (i = 0; i < SONY_RFKILL_MAX; i++) {
+		if (sony_rfkill_devices[i]) {
+			sony_rfkill_devices[i]->
+				get_state(sony_rfkill_devices[i]->data,
+					  &state);
+			rfkill_force_state(sony_rfkill_devices[i], state);
+		}
+	}
+}
+
+static int sony_nc_rfkill_setup(struct acpi_device *device)
+{
+	int result, ret;
+
+	if (sony_find_snc_handle(0x124) == -1)
+		return -1;
+
+	ret = sony_call_snc_handle(0x124, 0xb00, &result);
+	if (ret) {
+		printk(KERN_INFO DRV_PFX
+		       "Unable to enumerate rfkill devices: %x\n", ret);
+		return ret;
+	}
+
+	if (result & 0x1)
+		sony_nc_setup_wifi_rfkill(device);
+	if (result & 0x2)
+		sony_nc_setup_bluetooth_rfkill(device);
+	if (result & 0x1c)
+		sony_nc_setup_wwan_rfkill(device);
+	if (result & 0x20)
+		sony_nc_setup_wimax_rfkill(device);
 
 	return 0;
 }
@@ -1024,11 +1255,24 @@ static int sony_nc_add(struct acpi_device *device)
 			dprintk("_INI Method failed\n");
 	}
 
+	if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "ECON",
+					 &handle))) {
+		if (acpi_callsetfunc(sony_nc_acpi_handle, "ECON", 1, NULL))
+			dprintk("ECON Method failed\n");
+	}
+
+	if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "SN00",
+					 &handle))) {
+		dprintk("Doing SNC setup\n");
+		sony_nc_function_setup(device);
+		sony_nc_rfkill_setup(device);
+	}
+
 	/* setup input devices and helper fifo */
 	result = sony_laptop_setup_input(device);
 	if (result) {
 		printk(KERN_ERR DRV_PFX
-				"Unabe to create input devices.\n");
+				"Unable to create input devices.\n");
 		goto outwalk;
 	}
 
@@ -1062,9 +1306,6 @@ static int sony_nc_add(struct acpi_device *device)
 		}
 
 	}
-
-	/* initialize models with specific requirements */
-	dmi_check_system(sony_nc_ids);
 
 	result = sony_pf_add();
 	if (result)
@@ -1131,6 +1372,7 @@ static int sony_nc_add(struct acpi_device *device)
 	sony_laptop_remove_input();
 
       outwalk:
+	sony_nc_rfkill_cleanup();
 	return result;
 }
 
@@ -1156,6 +1398,7 @@ static int sony_nc_remove(struct acpi_device *device, int type)
 
 	sony_pf_remove();
 	sony_laptop_remove_input();
+	sony_nc_rfkill_cleanup();
 	dprintk(SONY_NC_DRIVER_NAME " removed.\n");
 
 	return 0;
@@ -1195,7 +1438,6 @@ static struct acpi_driver sony_nc_driver = {
 #define SONYPI_TYPE1_OFFSET	0x04
 #define SONYPI_TYPE2_OFFSET	0x12
 #define SONYPI_TYPE3_OFFSET	0x12
-#define SONYPI_TYPE4_OFFSET	0x12
 
 struct sony_pic_ioport {
 	struct acpi_resource_io	io1;
@@ -1328,6 +1570,7 @@ static struct sonypi_event sonypi_pkeyev[] = {
 	{ 0x01, SONYPI_EVENT_PKEY_P1 },
 	{ 0x02, SONYPI_EVENT_PKEY_P2 },
 	{ 0x04, SONYPI_EVENT_PKEY_P3 },
+	{ 0x20, SONYPI_EVENT_PKEY_P1 },
 	{ 0, 0 }
 };
 
@@ -1371,6 +1614,7 @@ static struct sonypi_event sonypi_zoomev[] = {
 	{ 0x39, SONYPI_EVENT_ZOOM_PRESSED },
 	{ 0x10, SONYPI_EVENT_ZOOM_IN_PRESSED },
 	{ 0x20, SONYPI_EVENT_ZOOM_OUT_PRESSED },
+	{ 0x04, SONYPI_EVENT_ZOOM_PRESSED },
 	{ 0, 0 }
 };
 
@@ -1398,6 +1642,19 @@ static struct sonypi_event sonypi_memorystickev[] = {
 static struct sonypi_event sonypi_batteryev[] = {
 	{ 0x20, SONYPI_EVENT_BATTERY_INSERT },
 	{ 0x30, SONYPI_EVENT_BATTERY_REMOVE },
+	{ 0, 0 }
+};
+
+/* The set of possible volume events */
+static struct sonypi_event sonypi_volumeev[] = {
+	{ 0x01, SONYPI_EVENT_VOLUME_INC_PRESSED },
+	{ 0x02, SONYPI_EVENT_VOLUME_DEC_PRESSED },
+	{ 0, 0 }
+};
+
+/* The set of possible brightness events */
+static struct sonypi_event sonypi_brightnessev[] = {
+	{ 0x80, SONYPI_EVENT_BRIGHTNESS_PRESSED },
 	{ 0, 0 }
 };
 
@@ -1438,17 +1695,11 @@ static struct sonypi_eventtypes type3_events[] = {
 	{ 0x31, SONYPI_MEMORYSTICK_MASK, sonypi_memorystickev },
 	{ 0x41, SONYPI_BATTERY_MASK, sonypi_batteryev },
 	{ 0x31, SONYPI_PKEY_MASK, sonypi_pkeyev },
-	{ 0 },
-};
-static struct sonypi_eventtypes type4_events[] = {
-	{ 0, 0xffffffff, sonypi_releaseev },
-	{ 0x21, SONYPI_FNKEY_MASK, sonypi_fnkeyev },
-	{ 0x31, SONYPI_WIRELESS_MASK, sonypi_wlessev },
-	{ 0x31, SONYPI_MEMORYSTICK_MASK, sonypi_memorystickev },
-	{ 0x41, SONYPI_BATTERY_MASK, sonypi_batteryev },
 	{ 0x05, SONYPI_PKEY_MASK, sonypi_pkeyev },
 	{ 0x05, SONYPI_ZOOM_MASK, sonypi_zoomev },
 	{ 0x05, SONYPI_CAPTURE_MASK, sonypi_captureev },
+	{ 0x05, SONYPI_PKEY_MASK, sonypi_volumeev },
+	{ 0x05, SONYPI_PKEY_MASK, sonypi_brightnessev },
 	{ 0 },
 };
 
@@ -1511,11 +1762,11 @@ static u8 sony_pic_call3(u8 dev, u8 fn, u8 v)
 /*
  * minidrivers for SPIC models
  */
-static int type4_handle_irq(const u8 data_mask, const u8 ev)
+static int type3_handle_irq(const u8 data_mask, const u8 ev)
 {
 	/*
 	 * 0x31 could mean we have to take some extra action and wait for
-	 * the next irq for some Type4 models, it will generate a new
+	 * the next irq for some Type3 models, it will generate a new
 	 * irq and we can read new data from the device:
 	 *  - 0x5c and 0x5f requires 0xA0
 	 *  - 0x61 requires 0xB3
@@ -1545,15 +1796,9 @@ static struct device_ctrl spic_types[] = {
 	},
 	{
 		.model = SONYPI_DEVICE_TYPE3,
-		.handle_irq = NULL,
+		.handle_irq = type3_handle_irq,
 		.evport_offset = SONYPI_TYPE3_OFFSET,
 		.event_types = type3_events,
-	},
-	{
-		.model = SONYPI_DEVICE_TYPE4,
-		.handle_irq = type4_handle_irq,
-		.evport_offset = SONYPI_TYPE4_OFFSET,
-		.event_types = type4_events,
 	},
 };
 
@@ -1578,14 +1823,21 @@ static void sony_pic_detect_device_type(struct sony_pic_dev *dev)
 	pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
 			PCI_DEVICE_ID_INTEL_ICH7_1, NULL);
 	if (pcidev) {
-		dev->control = &spic_types[3];
+		dev->control = &spic_types[2];
 		goto out;
 	}
 
 	pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
 			PCI_DEVICE_ID_INTEL_ICH8_4, NULL);
 	if (pcidev) {
-		dev->control = &spic_types[3];
+		dev->control = &spic_types[2];
+		goto out;
+	}
+
+	pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
+			PCI_DEVICE_ID_INTEL_ICH9_1, NULL);
+	if (pcidev) {
+		dev->control = &spic_types[2];
 		goto out;
 	}
 
@@ -1598,8 +1850,7 @@ out:
 
 	printk(KERN_INFO DRV_PFX "detected Type%d model\n",
 			dev->control->model == SONYPI_DEVICE_TYPE1 ? 1 :
-			dev->control->model == SONYPI_DEVICE_TYPE2 ? 2 :
-			dev->control->model == SONYPI_DEVICE_TYPE3 ? 3 : 4);
+			dev->control->model == SONYPI_DEVICE_TYPE2 ? 2 : 3);
 }
 
 /* camera tests and poweron/poweroff */
@@ -1754,17 +2005,14 @@ int sony_pic_camera_command(int command, u8 value)
 EXPORT_SYMBOL(sony_pic_camera_command);
 
 /* gprs/edge modem (SZ460N and SZ210P), thanks to Joshua Wise */
-static void sony_pic_set_wwanpower(u8 state)
+static void __sony_pic_set_wwanpower(u8 state)
 {
 	state = !!state;
-	mutex_lock(&spic_dev.lock);
-	if (spic_dev.wwan_power == state) {
-		mutex_unlock(&spic_dev.lock);
+	if (spic_dev.wwan_power == state)
 		return;
-	}
 	sony_pic_call2(0xB0, state);
+	sony_pic_call1(0x82);
 	spic_dev.wwan_power = state;
-	mutex_unlock(&spic_dev.lock);
 }
 
 static ssize_t sony_pic_wwanpower_store(struct device *dev,
@@ -1776,7 +2024,9 @@ static ssize_t sony_pic_wwanpower_store(struct device *dev,
 		return -EINVAL;
 
 	value = simple_strtoul(buffer, NULL, 10);
-	sony_pic_set_wwanpower(value);
+	mutex_lock(&spic_dev.lock);
+	__sony_pic_set_wwanpower(value);
+	mutex_unlock(&spic_dev.lock);
 
 	return count;
 }
@@ -1929,10 +2179,15 @@ static int sonypi_misc_release(struct inode *inode, struct file *file)
 static int sonypi_misc_open(struct inode *inode, struct file *file)
 {
 	/* Flush input queue on first open */
-	lock_kernel();
+	unsigned long flags;
+
+	spin_lock_irqsave(sonypi_compat.fifo->lock, flags);
+
 	if (atomic_inc_return(&sonypi_compat.open_count) == 1)
-		kfifo_reset(sonypi_compat.fifo);
-	unlock_kernel();
+		__kfifo_reset(sonypi_compat.fifo);
+
+	spin_unlock_irqrestore(sonypi_compat.fifo->lock, flags);
+
 	return 0;
 }
 
@@ -1985,8 +2240,8 @@ static int ec_read16(u8 addr, u16 *value)
 	return 0;
 }
 
-static int sonypi_misc_ioctl(struct inode *ip, struct file *fp,
-			     unsigned int cmd, unsigned long arg)
+static long sonypi_misc_ioctl(struct file *fp, unsigned int cmd,
+							unsigned long arg)
 {
 	int ret = 0;
 	void __user *argp = (void __user *)arg;
@@ -2120,7 +2375,7 @@ static const struct file_operations sonypi_misc_fops = {
 	.open		= sonypi_misc_open,
 	.release	= sonypi_misc_release,
 	.fasync		= sonypi_misc_fasync,
-	.ioctl		= sonypi_misc_ioctl,
+	.unlocked_ioctl	= sonypi_misc_ioctl,
 };
 
 static struct miscdevice sonypi_misc_device = {
@@ -2561,7 +2816,7 @@ static int sony_pic_add(struct acpi_device *device)
 	result = sony_pic_possible_resources(device);
 	if (result) {
 		printk(KERN_ERR DRV_PFX
-				"Unabe to read possible resources.\n");
+				"Unable to read possible resources.\n");
 		goto err_free_resources;
 	}
 
@@ -2569,7 +2824,7 @@ static int sony_pic_add(struct acpi_device *device)
 	result = sony_laptop_setup_input(device);
 	if (result) {
 		printk(KERN_ERR DRV_PFX
-				"Unabe to create input devices.\n");
+				"Unable to create input devices.\n");
 		goto err_free_resources;
 	}
 

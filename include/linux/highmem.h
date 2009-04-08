@@ -19,8 +19,21 @@ static inline void flush_kernel_dcache_page(struct page *page)
 }
 #endif
 
-#ifdef CONFIG_HIGHMEM
+#include <asm/kmap_types.h>
 
+#if defined(CONFIG_DEBUG_HIGHMEM) && defined(CONFIG_TRACE_IRQFLAGS_SUPPORT)
+
+void debug_kmap_atomic(enum km_type type);
+
+#else
+
+static inline void debug_kmap_atomic(enum km_type type)
+{
+}
+
+#endif
+
+#ifdef CONFIG_HIGHMEM
 #include <asm/highmem.h>
 
 /* declarations for linux/mm/highmem.c */
@@ -43,8 +56,6 @@ static inline void *kmap(struct page *page)
 }
 
 #define kunmap(page) do { (void) (page); } while (0)
-
-#include <asm/kmap_types.h>
 
 static inline void *kmap_atomic(struct page *page, enum km_type idx)
 {
@@ -186,17 +197,5 @@ static inline void copy_highpage(struct page *to, struct page *from)
 	kunmap_atomic(vfrom, KM_USER0);
 	kunmap_atomic(vto, KM_USER1);
 }
-
-#if defined(CONFIG_DEBUG_HIGHMEM) && defined(CONFIG_TRACE_IRQFLAGS_SUPPORT)
-
-void debug_kmap_atomic(enum km_type type);
-
-#else
-
-static inline void debug_kmap_atomic(enum km_type type)
-{
-}
-
-#endif
 
 #endif /* _LINUX_HIGHMEM_H */

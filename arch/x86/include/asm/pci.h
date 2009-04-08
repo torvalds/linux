@@ -89,12 +89,40 @@ extern void pci_iommu_alloc(void);
 /* MSI arch hook */
 #define arch_setup_msi_irqs arch_setup_msi_irqs
 
+#define PCI_DMA_BUS_IS_PHYS (dma_ops->is_phys)
+
+#if defined(CONFIG_X86_64) || defined(CONFIG_DMA_API_DEBUG)
+
+#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)       \
+	        dma_addr_t ADDR_NAME;
+#define DECLARE_PCI_UNMAP_LEN(LEN_NAME)         \
+	        __u32 LEN_NAME;
+#define pci_unmap_addr(PTR, ADDR_NAME)                  \
+	        ((PTR)->ADDR_NAME)
+#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL)         \
+	        (((PTR)->ADDR_NAME) = (VAL))
+#define pci_unmap_len(PTR, LEN_NAME)                    \
+	        ((PTR)->LEN_NAME)
+#define pci_unmap_len_set(PTR, LEN_NAME, VAL)           \
+	        (((PTR)->LEN_NAME) = (VAL))
+
+#else
+
+#define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)       dma_addr_t ADDR_NAME[0];
+#define DECLARE_PCI_UNMAP_LEN(LEN_NAME) unsigned LEN_NAME[0];
+#define pci_unmap_addr(PTR, ADDR_NAME)  sizeof((PTR)->ADDR_NAME)
+#define pci_unmap_addr_set(PTR, ADDR_NAME, VAL) \
+	        do { break; } while (pci_unmap_addr(PTR, ADDR_NAME))
+#define pci_unmap_len(PTR, LEN_NAME)            sizeof((PTR)->LEN_NAME)
+#define pci_unmap_len_set(PTR, LEN_NAME, VAL) \
+	        do { break; } while (pci_unmap_len(PTR, LEN_NAME))
+
+#endif
+
 #endif  /* __KERNEL__ */
 
-#ifdef CONFIG_X86_32
-# include "pci_32.h"
-#else
-# include "pci_64.h"
+#ifdef CONFIG_X86_64
+#include "pci_64.h"
 #endif
 
 /* implement the pci_ DMA API in terms of the generic device dma_ one */
@@ -110,11 +138,6 @@ static inline int __pcibus_to_node(const struct pci_bus *bus)
 	const struct pci_sysdata *sd = bus->sysdata;
 
 	return sd->node;
-}
-
-static inline cpumask_t __pcibus_to_cpumask(struct pci_bus *bus)
-{
-	return node_to_cpumask(__pcibus_to_node(bus));
 }
 
 static inline const struct cpumask *

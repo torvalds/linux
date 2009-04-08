@@ -78,6 +78,7 @@ static ssize_t ahci_led_store(struct ata_port *ap, const char *buf,
 static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 					ssize_t size);
 #define MAX_SLOTS 8
+#define MAX_RETRY 15
 
 enum {
 	AHCI_PCI_BAR		= 5,
@@ -1115,6 +1116,8 @@ static void ahci_start_port(struct ata_port *ap)
 	struct ahci_port_priv *pp = ap->private_data;
 	struct ata_link *link;
 	struct ahci_em_priv *emp;
+	ssize_t rc;
+	int i;
 
 	/* enable FIS reception */
 	ahci_start_fis_rx(ap);
@@ -1126,7 +1129,17 @@ static void ahci_start_port(struct ata_port *ap)
 	if (ap->flags & ATA_FLAG_EM) {
 		ata_for_each_link(link, ap, EDGE) {
 			emp = &pp->em_priv[link->pmp];
-			ahci_transmit_led_message(ap, emp->led_state, 4);
+
+			/* EM Transmit bit maybe busy during init */
+			for (i = 0; i < MAX_RETRY; i++) {
+				rc = ahci_transmit_led_message(ap,
+							       emp->led_state,
+							       4);
+				if (rc == -EBUSY)
+					udelay(100);
+				else
+					break;
+			}
 		}
 	}
 
@@ -1331,7 +1344,7 @@ static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 	em_ctl = readl(mmio + HOST_EM_CTL);
 	if (em_ctl & EM_CTL_TM) {
 		spin_unlock_irqrestore(ap->lock, flags);
-		return -EINVAL;
+		return -EBUSY;
 	}
 
 	/*
@@ -2405,10 +2418,10 @@ static int ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 	int rc;
 
 	if (using_dac &&
-	    !pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
-		rc = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (rc) {
-			rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 			if (rc) {
 				dev_printk(KERN_ERR, &pdev->dev,
 					   "64-bit DMA enable failed\n");
@@ -2416,13 +2429,13 @@ static int ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 			}
 		}
 	} else {
-		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_printk(KERN_ERR, &pdev->dev,
 				   "32-bit DMA enable failed\n");
 			return rc;
 		}
-		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_printk(KERN_ERR, &pdev->dev,
 				   "32-bit consistent DMA enable failed\n");

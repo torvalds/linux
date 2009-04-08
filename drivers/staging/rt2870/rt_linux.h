@@ -44,6 +44,7 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 
 #include <linux/spinlock.h>
 #include <linux/init.h>
@@ -65,7 +66,6 @@
 #include <linux/vmalloc.h>
 
 
-#include <linux/wireless.h>
 #include <net/iw_handler.h>
 
 // load firmware
@@ -166,14 +166,12 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 typedef	struct pid *	THREAD_PID;
-#define	THREAD_PID_INIT_VALUE	NULL
 #define	GET_PID(_v)	find_get_pid(_v)
 #define	GET_PID_NUMBER(_v)	pid_nr(_v)
 #define CHECK_PID_LEGALITY(_pid)	if (pid_nr(_pid) >= 0)
 #define KILL_THREAD_PID(_A, _B, _C)	kill_pid(_A, _B, _C)
 #else
 typedef	pid_t	THREAD_PID;
-#define	THREAD_PID_INIT_VALUE	-1
 #define	GET_PID(_v)	_v
 #define	GET_PID_NUMBER(_v)	_v
 #define CHECK_PID_LEGALITY(_pid)	if (_pid >= 0)
@@ -189,11 +187,11 @@ struct os_lock  {
 struct os_cookie {
 
 #ifdef RT2870
-	struct usb_device		*pUsb_Dev;
+	struct usb_device	*pUsb_Dev;
 
-	THREAD_PID				MLMEThr_pid;
-	THREAD_PID				RTUSBCmdThr_pid;
-	THREAD_PID				TimerQThr_pid;
+	struct task_struct	*MLMEThr_task;
+	struct task_struct	*RTUSBCmdThr_task;
+	struct task_struct	*TimerQThr_task;
 #endif // RT2870 //
 
 	struct tasklet_struct 	rx_done_task;

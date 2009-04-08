@@ -323,7 +323,7 @@ ext3_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)
 				return PTR_ERR(acl);
 		}
 		if (!acl)
-			inode->i_mode &= ~current->fs->umask;
+			inode->i_mode &= ~current_umask();
 	}
 	if (test_opt(inode->i_sb, POSIX_ACL) && acl) {
 		struct posix_acl *clone;

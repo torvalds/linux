@@ -451,6 +451,7 @@ void drm_sysfs_hotplug_event(struct drm_device *dev)
 
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, envp);
 }
+EXPORT_SYMBOL(drm_sysfs_hotplug_event);
 
 /**
  * drm_sysfs_device_add - adds a class device to sysfs for a character driver

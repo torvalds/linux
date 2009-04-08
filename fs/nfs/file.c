@@ -35,6 +35,7 @@
 #include "delegation.h"
 #include "internal.h"
 #include "iostat.h"
+#include "fscache.h"
 
 #define NFSDBG_FACILITY		NFSDBG_FILE
 
@@ -409,6 +410,13 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 	return copied;
 }
 
+/*
+ * Partially or wholly invalidate a page
+ * - Release the private state associated with a page if undergoing complete
+ *   page invalidation
+ * - Called if either PG_private or PG_fscache is set on the page
+ * - Caller holds page lock
+ */
 static void nfs_invalidate_page(struct page *page, unsigned long offset)
 {
 	dfprintk(PAGECACHE, "NFS: invalidate_page(%p, %lu)\n", page, offset);
@@ -417,23 +425,43 @@ static void nfs_invalidate_page(struct page *page, unsigned long offset)
 		return;
 	/* Cancel any unstarted writes on this page */
 	nfs_wb_page_cancel(page->mapping->host, page);
+
+	nfs_fscache_invalidate_page(page, page->mapping->host);
 }
 
+/*
+ * Attempt to release the private state associated with a page
+ * - Called if either PG_private or PG_fscache is set on the page
+ * - Caller holds page lock
+ * - Return true (may release page) or false (may not)
+ */
 static int nfs_release_page(struct page *page, gfp_t gfp)
 {
 	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
 
 	/* If PagePrivate() is set, then the page is not freeable */
-	return 0;
+	if (PagePrivate(page))
+		return 0;
+	return nfs_fscache_release_page(page, gfp);
 }
 
+/*
+ * Attempt to clear the private state associated with a page when an error
+ * occurs that requires the cached contents of an inode to be written back or
+ * destroyed
+ * - Called if either PG_private or fscache is set on the page
+ * - Caller holds page lock
+ * - Return 0 if successful, -error otherwise
+ */
 static int nfs_launder_page(struct page *page)
 {
 	struct inode *inode = page->mapping->host;
+	struct nfs_inode *nfsi = NFS_I(inode);
 
 	dfprintk(PAGECACHE, "NFS: launder_page(%ld, %llu)\n",
 		inode->i_ino, (long long)page_offset(page));
 
+	nfs_fscache_wait_on_page_write(nfsi, page);
 	return nfs_wb_page(inode, page);
 }
 
@@ -451,6 +479,11 @@ const struct address_space_operations nfs_file_aops = {
 	.launder_page = nfs_launder_page,
 };
 
+/*
+ * Notification that a PTE pointing to an NFS page is about to be made
+ * writable, implying that someone is about to modify the page through a
+ * shared-writable mapping
+ */
 static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
@@ -464,6 +497,9 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		dentry->d_parent->d_name.name, dentry->d_name.name,
 		filp->f_mapping->host->i_ino,
 		(long long)page_offset(page));
+
+	/* make sure the cache has finished storing the page */
+	nfs_fscache_wait_on_page_write(NFS_I(dentry->d_inode), page);
 
 	lock_page(page);
 	mapping = page->mapping;
@@ -480,8 +516,6 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		goto out_unlock;
 
 	ret = nfs_updatepage(filp, page, 0, pagelen);
-	if (ret == 0)
-		ret = pagelen;
 out_unlock:
 	unlock_page(page);
 	if (ret)

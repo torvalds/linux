@@ -2362,7 +2362,7 @@ static void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 		       i * sizeof(struct ipw2100_status));
 
 #ifdef IPW2100_DEBUG_C3
-	/* Halt the fimrware so we can get a good image */
+	/* Halt the firmware so we can get a good image */
 	write_register(priv->net_dev, IPW_REG_RESET_REG,
 		       IPW_AUX_HOST_RESET_REG_STOP_MASTER);
 	j = 5;
@@ -6207,7 +6207,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	pci_set_drvdata(pci_dev, priv);
 
-	err = pci_set_dma_mask(pci_dev, DMA_32BIT_MASK);
+	err = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 	if (err) {
 		printk(KERN_WARNING DRV_NAME
 		       "Error calling pci_set_dma_mask.\n");

@@ -83,7 +83,7 @@ static int bq27x00_read(u8 reg, int *rt_value, int b_single,
 }
 
 /*
- * Return the battery temperature in Celcius degrees
+ * Return the battery temperature in Celsius degrees
  * Or < 0 if something fails.
  */
 static int bq27x00_battery_temperature(struct bq27x00_device_info *di)

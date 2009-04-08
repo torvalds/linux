@@ -37,7 +37,7 @@
 #include <linux/pci.h>
 //#include <linux/usb.h>
 #include <linux/errno.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/cdev.h>
 #include <linux/rwsem.h>
 
@@ -56,6 +56,7 @@
 
 #ifdef BOSCH
 static unsigned int me_bosch_fw = 0;
+EXPORT_SYMBOL(me_bosch_fw);
 
 # ifdef module_param
 module_param(me_bosch_fw, int, S_IRUGO);
@@ -79,7 +80,7 @@ MODULE_PARM(major, "i");
 
 static struct file *me_filep = NULL;
 static int me_count = 0;
-static spinlock_t me_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(me_lock);
 static DECLARE_RWSEM(me_rwsem);
 
 /* Board instances are kept in a global list */
@@ -90,7 +91,7 @@ LIST_HEAD(me_device_list);
 
 static int me_probe_pci(struct pci_dev *dev, const struct pci_device_id *id);
 static void me_remove_pci(struct pci_dev *dev);
-static int insert_to_device_list(me_device_t * n_device);
+static int insert_to_device_list(me_device_t *n_device);
 static int replace_with_dummy(int vendor_id, int device_id, int serial_no);
 static void clear_device_list(void);
 static int me_open(struct inode *inode_ptr, struct file *filep);
@@ -472,7 +473,7 @@ static int me_probe_pci(struct pci_dev *dev, const struct pci_device_id *id)
 	return ME_ERRNO_SUCCESS;
 }
 
-static void release_instance(me_device_t * device)
+static void release_instance(me_device_t *device)
 {
 	int vendor_id;
 	int device_id;
@@ -517,7 +518,7 @@ static void release_instance(me_device_t * device)
 	}
 }
 
-static int insert_to_device_list(me_device_t * n_device)
+static int insert_to_device_list(me_device_t *n_device)
 {
 	me_device_t *o_device = NULL;
 
@@ -762,7 +763,7 @@ static int lock_driver(struct file *filep, int lock, int flags)
 	return err;
 }
 
-static int me_lock_driver(struct file *filep, me_lock_driver_t * arg)
+static int me_lock_driver(struct file *filep, me_lock_driver_t *arg)
 {
 	int err = 0;
 
@@ -807,7 +808,7 @@ static int me_release(struct inode *inode_ptr, struct file *filep)
 }
 
 static int me_query_version_main_driver(struct file *filep,
-					me_query_version_main_driver_t * arg)
+					me_query_version_main_driver_t *arg)
 {
 	int err;
 	me_query_version_main_driver_t karg;
@@ -828,7 +829,7 @@ static int me_query_version_main_driver(struct file *filep,
 }
 
 static int me_config_load_device(struct file *filep,
-				 me_cfg_device_entry_t * karg, int device_no)
+				 me_cfg_device_entry_t *karg, int device_no)
 {
 
 	int err = ME_ERRNO_SUCCESS;
@@ -874,7 +875,7 @@ static int me_config_load_device(struct file *filep,
 	return err;
 }
 
-static int me_config_load(struct file *filep, me_config_load_t * arg)
+static int me_config_load(struct file *filep, me_config_load_t *arg)
 {
 	int err;
 	int i;
@@ -1170,7 +1171,7 @@ static int me_config_load(struct file *filep, me_config_load_t * arg)
 	return 0;
 }
 
-static int me_io_stream_start(struct file *filep, me_io_stream_start_t * arg)
+static int me_io_stream_start(struct file *filep, me_io_stream_start_t *arg)
 {
 	int err;
 	int i, k;
@@ -1292,7 +1293,7 @@ static int me_io_stream_start(struct file *filep, me_io_stream_start_t * arg)
 	return err;
 }
 
-static int me_io_single(struct file *filep, me_io_single_t * arg)
+static int me_io_single(struct file *filep, me_io_single_t *arg)
 {
 	int err;
 	int i, k;
@@ -1448,7 +1449,7 @@ static int me_io_single(struct file *filep, me_io_single_t * arg)
 	return err;
 }
 
-static int me_io_stream_config(struct file *filep, me_io_stream_config_t * arg)
+static int me_io_stream_config(struct file *filep, me_io_stream_config_t *arg)
 {
 	int err;
 	int k = 0;
@@ -1540,7 +1541,7 @@ static int me_io_stream_config(struct file *filep, me_io_stream_config_t * arg)
 }
 
 static int me_query_number_devices(struct file *filep,
-				   me_query_number_devices_t * arg)
+				   me_query_number_devices_t *arg)
 {
 	int err;
 	me_query_number_devices_t karg;
@@ -1569,7 +1570,7 @@ static int me_query_number_devices(struct file *filep,
 	return 0;
 }
 
-static int me_io_stream_stop(struct file *filep, me_io_stream_stop_t * arg)
+static int me_io_stream_stop(struct file *filep, me_io_stream_stop_t *arg)
 {
 	int err;
 	int i, k;
@@ -2015,8 +2016,3 @@ MODULE_AUTHOR
 MODULE_DESCRIPTION("Central module for Meilhaus Driver System.");
 MODULE_SUPPORTED_DEVICE("Meilhaus PCI/cPCI boards.");
 MODULE_LICENSE("GPL");
-
-#ifdef BOSCH
-// Export the flag for the BOSCH firmware.
-EXPORT_SYMBOL(me_bosch_fw);
-#endif // BOSCH

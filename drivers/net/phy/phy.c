@@ -757,8 +757,7 @@ EXPORT_SYMBOL(phy_start);
  */
 static void phy_state_machine(struct work_struct *work)
 {
-	struct delayed_work *dwork =
-			container_of(work, struct delayed_work, work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct phy_device *phydev =
 			container_of(dwork, struct phy_device, state_queue);
 	int needs_aneg = 0;

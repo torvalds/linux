@@ -936,30 +936,26 @@ int zfLnxAllocAllUrbs(struct usbdrv_private *macp)
     for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i)
     {
         endpoint = &iface_desc->endpoint[i].desc;
-        if ((endpoint->bEndpointAddress & 0x80) &&
-            ((endpoint->bmAttributes & 3) == 0x02))
+	 if (usb_endpoint_is_bulk_in(endpoint))
         {
             /* we found a bulk in endpoint */
             printk(KERN_ERR "bulk in: wMaxPacketSize = %x\n", le16_to_cpu(endpoint->wMaxPacketSize));
         }
 
-        if (((endpoint->bEndpointAddress & 0x80) == 0x00) &&
-            ((endpoint->bmAttributes & 3) == 0x02))
+	 if (usb_endpoint_is_bulk_out(endpoint))
         {
             /* we found a bulk out endpoint */
             printk(KERN_ERR "bulk out: wMaxPacketSize = %x\n", le16_to_cpu(endpoint->wMaxPacketSize));
         }
 
-        if ((endpoint->bEndpointAddress & 0x80) &&
-            ((endpoint->bmAttributes & 3) == 0x03))
+	 if (usb_endpoint_is_int_in(endpoint))
         {
             /* we found a interrupt in endpoint */
             printk(KERN_ERR "interrupt in: wMaxPacketSize = %x\n", le16_to_cpu(endpoint->wMaxPacketSize));
             printk(KERN_ERR "interrupt in: int_interval = %d\n", endpoint->bInterval);
         }
 
-        if (((endpoint->bEndpointAddress & 0x80) == 0x00) &&
-            ((endpoint->bmAttributes & 3) == 0x03))
+	 if (usb_endpoint_is_int_out(endpoint))
         {
             /* we found a interrupt out endpoint */
             printk(KERN_ERR "interrupt out: wMaxPacketSize = %x\n", le16_to_cpu(endpoint->wMaxPacketSize));

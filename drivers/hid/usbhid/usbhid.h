@@ -38,7 +38,10 @@ int usbhid_wait_io(struct hid_device* hid);
 void usbhid_close(struct hid_device *hid);
 int usbhid_open(struct hid_device *hid);
 void usbhid_init_reports(struct hid_device *hid);
-void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, unsigned char dir);
+void usbhid_submit_report
+(struct hid_device *hid, struct hid_report *report, unsigned char dir);
+int usbhid_get_power(struct hid_device *hid);
+void usbhid_put_power(struct hid_device *hid);
 
 /* iofl flags */
 #define HID_CTRL_RUNNING	1
@@ -49,6 +52,9 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 #define HID_CLEAR_HALT		6
 #define HID_DISCONNECTED	7
 #define HID_STARTED		8
+#define HID_REPORTED_IDLE	9
+#define HID_KEYS_PRESSED	10
+#define HID_LED_ON		11
 
 /*
  * USB-specific HID struct, to be pointed to
@@ -66,7 +72,6 @@ struct usbhid_device {
 	struct urb *urbin;                                              /* Input URB */
 	char *inbuf;                                                    /* Input buffer */
 	dma_addr_t inbuf_dma;                                           /* Input buffer dma */
-	spinlock_t inlock;                                              /* Input fifo spinlock */
 
 	struct urb *urbctrl;                                            /* Control URB */
 	struct usb_ctrlrequest *cr;                                     /* Control request struct */
@@ -75,21 +80,22 @@ struct usbhid_device {
 	unsigned char ctrlhead, ctrltail;                               /* Control fifo head & tail */
 	char *ctrlbuf;                                                  /* Control buffer */
 	dma_addr_t ctrlbuf_dma;                                         /* Control buffer dma */
-	spinlock_t ctrllock;                                            /* Control fifo spinlock */
 
 	struct urb *urbout;                                             /* Output URB */
 	struct hid_output_fifo out[HID_CONTROL_FIFO_SIZE];              /* Output pipe fifo */
 	unsigned char outhead, outtail;                                 /* Output pipe fifo head & tail */
 	char *outbuf;                                                   /* Output buffer */
 	dma_addr_t outbuf_dma;                                          /* Output buffer dma */
-	spinlock_t outlock;                                             /* Output fifo spinlock */
 
+	spinlock_t lock;						/* fifo spinlock */
 	unsigned long iofl;                                             /* I/O flags (CTRL_RUNNING, OUT_RUNNING) */
 	struct timer_list io_retry;                                     /* Retry timer */
 	unsigned long stop_retry;                                       /* Time to give up, in jiffies */
 	unsigned int retry_delay;                                       /* Delay length in ms */
 	struct work_struct reset_work;                                  /* Task context for resets */
+	struct work_struct restart_work;				/* waking up for output to be done in a task */
 	wait_queue_head_t wait;						/* For sleeping */
+	int ledcount;							/* counting the number of active leds */
 };
 
 #define	hid_to_usb_dev(hid_dev) \

@@ -211,7 +211,7 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	unsigned int i;
 
 #ifdef CONFIG_SMP
-	cpumask_copy(policy->cpus, &per_cpu(cpu_sibling_map, policy->cpu));
+	cpumask_copy(policy->cpus, cpu_sibling_mask(policy->cpu));
 #endif
 
 	/* Errata workaround */

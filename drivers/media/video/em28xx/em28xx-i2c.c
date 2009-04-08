@@ -459,69 +459,14 @@ static u32 functionality(struct i2c_adapter *adap)
 static int attach_inform(struct i2c_client *client)
 {
 	struct em28xx *dev = client->adapter->algo_data;
+	struct IR_i2c *ir = i2c_get_clientdata(client);
 
 	switch (client->addr << 1) {
-	case 0x86:
-	case 0x84:
-	case 0x96:
-	case 0x94:
-	{
-		struct v4l2_priv_tun_config tda9887_cfg;
-
-		struct tuner_setup tun_setup;
-
-		tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
-		tun_setup.type = TUNER_TDA9887;
-		tun_setup.addr = client->addr;
-
-		em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR,
-			&tun_setup);
-
-		tda9887_cfg.tuner = TUNER_TDA9887;
-		tda9887_cfg.priv = &dev->tda9887_conf;
-		em28xx_i2c_call_clients(dev, TUNER_SET_CONFIG,
-					&tda9887_cfg);
-		break;
-	}
-	case 0x42:
-		dprintk1(1, "attach_inform: saa7114 detected.\n");
-		break;
-	case 0x4a:
-		dprintk1(1, "attach_inform: saa7113 detected.\n");
-		break;
-	case 0xa0:
-		dprintk1(1, "attach_inform: eeprom detected.\n");
-		break;
 	case 0x60:
 	case 0x8e:
-	{
-		struct IR_i2c *ir = i2c_get_clientdata(client);
-		dprintk1(1, "attach_inform: IR detected (%s).\n",
-			ir->phys);
+		dprintk1(1, "attach_inform: IR detected (%s).\n", ir->phys);
 		em28xx_set_ir(dev, ir);
 		break;
-	}
-	case 0x80:
-	case 0x88:
-		dprintk1(1, "attach_inform: msp34xx detected.\n");
-		break;
-	case 0xb8:
-	case 0xba:
-		dprintk1(1, "attach_inform: tvp5150 detected.\n");
-		break;
-
-	case 0xb0:
-		dprintk1(1, "attach_inform: tda9874 detected\n");
-		break;
-
-	default:
-		if (!dev->tuner_addr)
-			dev->tuner_addr = client->addr;
-
-		dprintk1(1, "attach inform: detected I2C address %x\n",
-				client->addr << 1);
-		dprintk1(1, "driver id %d\n", client->driver->id);
-
 	}
 
 	return 0;
@@ -534,7 +479,6 @@ static struct i2c_algorithm em28xx_algo = {
 
 static struct i2c_adapter em28xx_adap_template = {
 	.owner = THIS_MODULE,
-	.class = I2C_CLASS_TV_ANALOG,
 	.name = "em28xx",
 	.id = I2C_HW_B_EM28XX,
 	.algo = &em28xx_algo,
@@ -595,16 +539,6 @@ void em28xx_do_i2c_scan(struct em28xx *dev)
 }
 
 /*
- * em28xx_i2c_call_clients()
- * send commands to all attached i2c devices
- */
-void em28xx_i2c_call_clients(struct em28xx *dev, unsigned int cmd, void *arg)
-{
-	BUG_ON(NULL == dev->i2c_adap.algo_data);
-	i2c_clients_command(&dev->i2c_adap, cmd, arg);
-}
-
-/*
  * em28xx_i2c_register()
  * register i2c bus
  */
@@ -618,6 +552,7 @@ int em28xx_i2c_register(struct em28xx *dev)
 	dev->i2c_adap.dev.parent = &dev->udev->dev;
 	strcpy(dev->i2c_adap.name, dev->name);
 	dev->i2c_adap.algo_data = dev;
+	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
 
 	retval = i2c_add_adapter(&dev->i2c_adap);
 	if (retval < 0) {

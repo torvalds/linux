@@ -672,10 +672,12 @@ unsigned int irq_create_mapping(struct irq_host *host,
 			return NO_IRQ;
 		}
 	}
-	pr_debug("irq: -> obtained virq %d\n", virq);
 
 	if (irq_setup_virq(host, virq, hwirq))
 		return NO_IRQ;
+
+	printk(KERN_DEBUG "irq: irq %lu on host %s mapped to virtual irq %u\n",
+		hwirq, host->of_node ? host->of_node->full_name : "null", virq);
 
 	return virq;
 }

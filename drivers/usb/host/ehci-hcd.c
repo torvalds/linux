@@ -622,7 +622,7 @@ static int ehci_run (struct usb_hcd *hcd)
 		ehci_writel(ehci, 0, &ehci->regs->segment);
 #if 0
 // this is deeply broken on almost all architectures
-		if (!dma_set_mask(hcd->self.controller, DMA_64BIT_MASK))
+		if (!dma_set_mask(hcd->self.controller, DMA_BIT_MASK(64)))
 			ehci_info(ehci, "enabled 64bit DMA\n");
 #endif
 	}

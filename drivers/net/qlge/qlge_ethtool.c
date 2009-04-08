@@ -33,7 +33,6 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 
-#include <linux/version.h>
 
 #include "qlge.h"
 

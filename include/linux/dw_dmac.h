@@ -74,4 +74,23 @@ struct dw_dma_slave {
 #define DWC_CFGL_HS_DST_POL	(1 << 18)	/* dst handshake active low */
 #define DWC_CFGL_HS_SRC_POL	(1 << 19)	/* src handshake active low */
 
+/* DMA API extensions */
+struct dw_cyclic_desc {
+	struct dw_desc	**desc;
+	unsigned long	periods;
+	void		(*period_callback)(void *param);
+	void		*period_callback_param;
+};
+
+struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
+		dma_addr_t buf_addr, size_t buf_len, size_t period_len,
+		enum dma_data_direction direction);
+void dw_dma_cyclic_free(struct dma_chan *chan);
+int dw_dma_cyclic_start(struct dma_chan *chan);
+void dw_dma_cyclic_stop(struct dma_chan *chan);
+
+dma_addr_t dw_dma_get_src_addr(struct dma_chan *chan);
+
+dma_addr_t dw_dma_get_dst_addr(struct dma_chan *chan);
+
 #endif /* DW_DMAC_H */

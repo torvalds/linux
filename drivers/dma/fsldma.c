@@ -354,7 +354,6 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(
 		dma_async_tx_descriptor_init(&desc_sw->async_tx,
 						&fsl_chan->common);
 		desc_sw->async_tx.tx_submit = fsl_dma_tx_submit;
-		INIT_LIST_HEAD(&desc_sw->async_tx.tx_list);
 		desc_sw->async_tx.phys = pdesc;
 	}
 

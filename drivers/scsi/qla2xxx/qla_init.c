@@ -20,7 +20,6 @@
 *  QLogic ISP2x00 Hardware Support Function Prototypes.
 */
 static int qla2x00_isp_firmware(scsi_qla_host_t *);
-static void qla2x00_resize_request_q(scsi_qla_host_t *);
 static int qla2x00_setup_chip(scsi_qla_host_t *);
 static int qla2x00_init_rings(scsi_qla_host_t *);
 static int qla2x00_fw_ready(scsi_qla_host_t *);
@@ -61,8 +60,10 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	int	rval;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
+
 	/* Clear adapter flags. */
 	vha->flags.online = 0;
+	ha->flags.chip_reset_done = 0;
 	vha->flags.reset_active = 0;
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	atomic_set(&vha->loop_state, LOOP_DOWN);
@@ -70,7 +71,6 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->dpc_flags = 0;
 	vha->flags.management_server_logged_in = 0;
 	vha->marker_needed = 0;
-	ha->mbx_flags = 0;
 	ha->isp_abort_cnt = 0;
 	ha->beacon_blink_led = 0;
 	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
@@ -131,6 +131,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 		}
 	}
 	rval = qla2x00_init_rings(vha);
+	ha->flags.chip_reset_done = 1;
 
 	return (rval);
 }
@@ -512,7 +513,6 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 static inline void
 qla24xx_reset_risc(scsi_qla_host_t *vha)
 {
-	int hw_evt = 0;
 	unsigned long flags = 0;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
@@ -542,8 +542,6 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 		d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
 		barrier();
 	}
-	if (cnt == 0)
-		hw_evt = 1;
 
 	/* Wait for soft-reset to complete. */
 	d2 = RD_REG_DWORD(&reg->ctrl_status);
@@ -816,7 +814,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for FCE...\n",
 		    FCE_SIZE / 1024);
 
-		fce_size = sizeof(struct qla2xxx_fce_chain) + EFT_SIZE;
+		fce_size = sizeof(struct qla2xxx_fce_chain) + FCE_SIZE;
 		ha->flags.fce_enabled = 1;
 		ha->fce_dma = tc_dma;
 		ha->fce = tc;
@@ -894,62 +892,6 @@ cont_alloc:
 }
 
 /**
- * qla2x00_resize_request_q() - Resize request queue given available ISP memory.
- * @ha: HA context
- *
- * Returns 0 on success.
- */
-static void
-qla2x00_resize_request_q(scsi_qla_host_t *vha)
-{
-	int rval;
-	uint16_t fw_iocb_cnt = 0;
-	uint16_t request_q_length = REQUEST_ENTRY_CNT_2XXX_EXT_MEM;
-	dma_addr_t request_dma;
-	request_t *request_ring;
-	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = ha->req_q_map[0];
-
-	/* Valid only on recent ISPs. */
-	if (IS_QLA2100(ha) || IS_QLA2200(ha))
-		return;
-
-	/* Retrieve IOCB counts available to the firmware. */
-	rval = qla2x00_get_resource_cnts(vha, NULL, NULL, NULL, &fw_iocb_cnt,
-					&ha->max_npiv_vports);
-	if (rval)
-		return;
-	/* No point in continuing if current settings are sufficient. */
-	if (fw_iocb_cnt < 1024)
-		return;
-	if (req->length >= request_q_length)
-		return;
-
-	/* Attempt to claim larger area for request queue. */
-	request_ring = dma_alloc_coherent(&ha->pdev->dev,
-	    (request_q_length + 1) * sizeof(request_t), &request_dma,
-	    GFP_KERNEL);
-	if (request_ring == NULL)
-		return;
-
-	/* Resize successful, report extensions. */
-	qla_printk(KERN_INFO, ha, "Extended memory detected (%d KB)...\n",
-	    (ha->fw_memory_size + 1) / 1024);
-	qla_printk(KERN_INFO, ha, "Resizing request queue depth "
-	    "(%d -> %d)...\n", req->length, request_q_length);
-
-	/* Clear old allocations. */
-	dma_free_coherent(&ha->pdev->dev,
-	    (req->length + 1) * sizeof(request_t), req->ring,
-	    req->dma);
-
-	/* Begin using larger queue. */
-	req->length = request_q_length;
-	req->ring = request_ring;
-	req->dma = request_dma;
-}
-
-/**
  * qla2x00_setup_chip() - Load and start RISC firmware.
  * @ha: HA context
  *
@@ -963,6 +905,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	unsigned long flags;
+	uint16_t fw_major_version;
 
 	if (!IS_FWI2_CAPABLE(ha) && !IS_QLA2100(ha) && !IS_QLA2200(ha)) {
 		/* Disable SRAM, Instruction RAM and GP RAM parity.  */
@@ -986,13 +929,15 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 
 			rval = qla2x00_execute_fw(vha, srisc_address);
 			/* Retrieve firmware information. */
-			if (rval == QLA_SUCCESS && ha->fw_major_version == 0) {
+			if (rval == QLA_SUCCESS) {
+				fw_major_version = ha->fw_major_version;
 				qla2x00_get_fw_version(vha,
 				    &ha->fw_major_version,
 				    &ha->fw_minor_version,
 				    &ha->fw_subminor_version,
 				    &ha->fw_attributes, &ha->fw_memory_size,
-				    ha->mpi_version, &ha->mpi_capabilities);
+				    ha->mpi_version, &ha->mpi_capabilities,
+				    ha->phy_version);
 				ha->flags.npiv_supported = 0;
 				if (IS_QLA2XXX_MIDTYPE(ha) &&
 					 (ha->fw_attributes & BIT_2)) {
@@ -1003,9 +948,11 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 						ha->max_npiv_vports =
 						    MIN_MULTI_ID_FABRIC - 1;
 				}
-				qla2x00_resize_request_q(vha);
+				qla2x00_get_resource_cnts(vha, NULL,
+				    &ha->fw_xcb_count, NULL, NULL,
+				    &ha->max_npiv_vports);
 
-				if (ql2xallocfwdump)
+				if (!fw_major_version && ql2xallocfwdump)
 					qla2x00_alloc_fw_dump(vha);
 			}
 		} else {
@@ -1026,6 +973,21 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			WRT_REG_WORD(&reg->hccr, HCCR_ENABLE_PARITY + 0x7);
 		RD_REG_WORD(&reg->hccr);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	}
+
+	if (rval == QLA_SUCCESS && IS_FAC_REQUIRED(ha)) {
+		uint32_t size;
+
+		rval = qla81xx_fac_get_sector_size(vha, &size);
+		if (rval == QLA_SUCCESS) {
+			ha->flags.fac_supported = 1;
+			ha->fdt_block_size = size << 2;
+		} else {
+			qla_printk(KERN_ERR, ha,
+			    "Unsupported FAC firmware (%d.%02d.%02d).\n",
+			    ha->fw_major_version, ha->fw_minor_version,
+			    ha->fw_subminor_version);
+		}
 	}
 
 	if (rval) {
@@ -1314,8 +1276,11 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		mid_init_cb->count = cpu_to_le16(ha->max_npiv_vports);
 	}
 
-
-	mid_init_cb->options = __constant_cpu_to_le16(BIT_1);
+	if (IS_FWI2_CAPABLE(ha)) {
+		mid_init_cb->options = __constant_cpu_to_le16(BIT_1);
+		mid_init_cb->init_cb.execution_throttle =
+		    cpu_to_le16(ha->fw_xcb_count);
+	}
 
 	rval = qla2x00_init_firmware(vha, ha->init_cb_size);
 	if (rval) {
@@ -1989,7 +1954,6 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	fcport->port_type = FCT_UNKNOWN;
 	fcport->loop_id = FC_NO_LOOP_ID;
 	atomic_set(&fcport->state, FCS_UNCONFIGURED);
-	fcport->flags = FCF_RLC_SUPPORT;
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
 
 	return fcport;
@@ -2171,7 +2135,6 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 			    vha->host_no, fcport->loop_id));
 
 			atomic_set(&fcport->state, FCS_DEVICE_LOST);
-			fcport->flags &= ~FCF_FARP_DONE;
 		}
 	}
 
@@ -2228,8 +2191,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 			    WWN_SIZE))
 				continue;
 
-			fcport->flags &= ~(FCF_FABRIC_DEVICE |
-			    FCF_PERSISTENT_BOUND);
+			fcport->flags &= ~FCF_FABRIC_DEVICE;
 			fcport->loop_id = new_fcport->loop_id;
 			fcport->port_type = new_fcport->port_type;
 			fcport->d_id.b24 = new_fcport->d_id.b24;
@@ -2242,7 +2204,6 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 
 		if (!found) {
 			/* New device, add to fcports list. */
-			new_fcport->flags &= ~FCF_PERSISTENT_BOUND;
 			if (vha->vp_idx) {
 				new_fcport->vha = vha;
 				new_fcport->vp_idx = vha->vp_idx;
@@ -2273,11 +2234,6 @@ cleanup_allocation:
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(printk("scsi(%ld): Configure local loop error exit: "
 		    "rval=%x\n", vha->host_no, rval));
-	}
-
-	if (found_devs) {
-		vha->device_flags |= DFLG_LOCAL_DEVICES;
-		vha->device_flags &= ~DFLG_RETRY_LOCAL_DEVICES;
 	}
 
 	return (rval);
@@ -2765,7 +2721,6 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 				fcport->loop_id = FC_NO_LOOP_ID;
 				fcport->flags |= (FCF_FABRIC_DEVICE |
 				    FCF_LOGIN_NEEDED);
-				fcport->flags &= ~FCF_PERSISTENT_BOUND;
 				break;
 			}
 
@@ -2807,9 +2762,6 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 
 	kfree(swl);
 	kfree(new_fcport);
-
-	if (!list_empty(new_fcports))
-		vha->device_flags |= DFLG_FABRIC_DEVICES;
 
 	return (rval);
 }
@@ -2993,7 +2945,6 @@ qla2x00_device_resync(scsi_qla_host_t *vha)
 					    0, 0);
 				}
 			}
-			fcport->flags &= ~FCF_FARP_DONE;
 		}
 	}
 	return (rval);
@@ -3302,6 +3253,7 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 
 	if (vha->flags.online) {
 		vha->flags.online = 0;
+		ha->flags.chip_reset_done = 0;
 		clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		ha->qla_stats.total_isp_aborts++;
 
@@ -3451,6 +3403,7 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 
 	if (!status && !(status = qla2x00_init_rings(vha))) {
 		clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags);
+		ha->flags.chip_reset_done = 1;
 		/* Initialize the queues in use */
 		qla25xx_init_queues(ha);
 
@@ -4338,23 +4291,17 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 
 	/* Determine NVRAM starting address. */
 	ha->nvram_size = sizeof(struct nvram_81xx);
-	ha->nvram_base = FA_NVRAM_FUNC0_ADDR;
 	ha->vpd_size = FA_NVRAM_VPD_SIZE;
-	ha->vpd_base = FA_NVRAM_VPD0_ADDR;
-	if (PCI_FUNC(ha->pdev->devfn) & 1) {
-		ha->nvram_base = FA_NVRAM_FUNC1_ADDR;
-		ha->vpd_base = FA_NVRAM_VPD1_ADDR;
-	}
 
 	/* Get VPD data into cache */
 	ha->vpd = ha->nvram + VPD_OFFSET;
-	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->vpd,
-	    ha->nvram_base - FA_NVRAM_FUNC0_ADDR, FA_NVRAM_VPD_SIZE * 4);
+	ha->isp_ops->read_optrom(vha, ha->vpd, ha->flt_region_vpd << 2,
+	    ha->vpd_size);
 
 	/* Get NVRAM data into cache and calculate checksum. */
-	dptr = (uint32_t *)nv;
-	ha->isp_ops->read_nvram(vha, (uint8_t *)dptr, ha->nvram_base,
+	ha->isp_ops->read_optrom(vha, ha->nvram, ha->flt_region_nvram << 2,
 	    ha->nvram_size);
+	dptr = (uint32_t *)nv;
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++)
 		chksum += le32_to_cpu(*dptr++);
 
@@ -4451,6 +4398,9 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		icb->enode_mac[4] = 0x05;
 		icb->enode_mac[5] = 0x06 + PCI_FUNC(ha->pdev->devfn);
 	}
+
+	/* Use extended-initialization control block. */
+	memcpy(ha->ex_init_cb, &nv->ex_version, sizeof(*ha->ex_init_cb));
 
 	/*
 	 * Setup driver NVRAM options.

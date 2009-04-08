@@ -166,7 +166,7 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 
 	timer_data->brightness_on = led_get_brightness(led_cdev);
 	if (timer_data->brightness_on == LED_OFF)
-		timer_data->brightness_on = LED_FULL;
+		timer_data->brightness_on = led_cdev->max_brightness;
 	led_cdev->trigger_data = timer_data;
 
 	init_timer(&timer_data->timer);

@@ -104,7 +104,7 @@ static struct led_classdev h1940_blueled = {
 	.default_trigger	= "h1940-bluetooth",
 };
 
-static int __init h1940leds_probe(struct platform_device *pdev)
+static int __devinit h1940leds_probe(struct platform_device *pdev)
 {
 	int ret;
 

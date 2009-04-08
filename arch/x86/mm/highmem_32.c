@@ -40,7 +40,6 @@ void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot)
 
 	debug_kmap_atomic(type);
 
-	debug_kmap_atomic(type);
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 	BUG_ON(!pte_none(*(kmap_pte-idx)));

@@ -137,6 +137,12 @@ check_for_exception:
 	VFPFMXR	FPEXC, r1		@ restore FPEXC last
 	sub	r2, r2, #4
 	str	r2, [sp, #S_PC]		@ retry the instruction
+#ifdef CONFIG_PREEMPT
+	get_thread_info	r10
+	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
+	sub	r11, r4, #1		@ decrement it
+	str	r11, [r10, #TI_PREEMPT]
+#endif
 	mov	pc, r9			@ we think we have handled things
 
 
@@ -155,6 +161,12 @@ look_for_VFP_exceptions:
 	@ not recognised by VFP
 
 	DBGSTR	"not VFP"
+#ifdef CONFIG_PREEMPT
+	get_thread_info	r10
+	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
+	sub	r11, r4, #1		@ decrement it
+	str	r11, [r10, #TI_PREEMPT]
+#endif
 	mov	pc, lr
 
 process_exception:

@@ -724,6 +724,9 @@ void zfStaUpdateWmeParameter(zdev_t* dev, zbuf_t* buf)
 /* process 802.11h Dynamic Frequency Selection */
 void zfStaUpdateDot11HDFS(zdev_t* dev, zbuf_t* buf)
 {
+    //u8_t    length, channel, is5G;
+    u16_t   offset;
+
     zmw_get_wlan_dev(dev);
 
     /*
@@ -736,8 +739,6 @@ void zfStaUpdateDot11HDFS(zdev_t* dev, zbuf_t* buf)
     |Value |   37     |  3   |       0 or 1      |unsigned integer  |unsigned integer    |
     +------+----------+------+-------------------+------------------+--------------------+
     */
-    //u8_t    length, channel, is5G;
-    u16_t   offset;
 
     /* get EID(Channel Switch Announcement) */
     if ( (offset = zfFindElement(dev, buf, ZM_WLAN_EID_CHANNEL_SWITCH_ANNOUNCE)) == 0xffff )

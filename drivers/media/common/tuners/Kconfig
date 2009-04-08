@@ -148,7 +148,7 @@ config MEDIA_TUNER_XC5000
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  A driver for the silicon tuner XC5000 from Xceive.
-	  This device is only used inside a SiP called togther with a
+	  This device is only used inside a SiP called together with a
 	  demodulator for now.
 
 config MEDIA_TUNER_MXL5005S

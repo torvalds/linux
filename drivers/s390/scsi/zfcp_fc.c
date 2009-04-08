@@ -94,7 +94,7 @@ static int zfcp_wka_port_get(struct zfcp_wka_port *wka_port)
 
 static void zfcp_wka_port_offline(struct work_struct *work)
 {
-	struct delayed_work *dw = container_of(work, struct delayed_work, work);
+	struct delayed_work *dw = to_delayed_work(work);
 	struct zfcp_wka_port *wka_port =
 			container_of(dw, struct zfcp_wka_port, work);
 

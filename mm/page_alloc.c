@@ -331,7 +331,7 @@ static int destroy_compound_page(struct page *page, unsigned long order)
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
 
-		if (unlikely(!PageTail(p) | (p->first_page != page))) {
+		if (unlikely(!PageTail(p) || (p->first_page != page))) {
 			bad_page(page);
 			bad++;
 		}
@@ -2128,7 +2128,7 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
 	int n, val;
 	int min_val = INT_MAX;
 	int best_node = -1;
-	node_to_cpumask_ptr(tmp, 0);
+	const struct cpumask *tmp = cpumask_of_node(0);
 
 	/* Use the local node if we haven't already */
 	if (!node_isset(node, *used_node_mask)) {
@@ -2149,8 +2149,8 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
 		val += (n < node);
 
 		/* Give preference to headless and unused nodes */
-		node_to_cpumask_ptr_next(tmp, n);
-		if (!cpus_empty(*tmp))
+		tmp = cpumask_of_node(n);
+		if (!cpumask_empty(tmp))
 			val += PENALTY_FOR_NODE_WITH_CPUS;
 
 		/* Slight preference for less loaded node */

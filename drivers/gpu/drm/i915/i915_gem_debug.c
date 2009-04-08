@@ -105,12 +105,14 @@ i915_dump_lru(struct drm_device *dev, const char *where)
 	struct drm_i915_gem_object	*obj_priv;
 
 	DRM_INFO("active list %s {\n", where);
+	spin_lock(&dev_priv->mm.active_list_lock);
 	list_for_each_entry(obj_priv, &dev_priv->mm.active_list,
 			    list)
 	{
 		DRM_INFO("    %p: %08x\n", obj_priv,
 			 obj_priv->last_rendering_seqno);
 	}
+	spin_unlock(&dev_priv->mm.active_list_lock);
 	DRM_INFO("}\n");
 	DRM_INFO("flushing list %s {\n", where);
 	list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list,

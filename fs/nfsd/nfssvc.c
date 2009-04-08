@@ -22,6 +22,7 @@
 #include <linux/freezer.h>
 #include <linux/fs_struct.h>
 #include <linux/kthread.h>
+#include <linux/swap.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/stats.h>
@@ -40,9 +41,6 @@
 extern struct svc_program	nfsd_program;
 static int			nfsd(void *vrqstp);
 struct timeval			nfssvc_boot;
-static atomic_t			nfsd_busy;
-static unsigned long		nfsd_last_call;
-static DEFINE_SPINLOCK(nfsd_call_lock);
 
 /*
  * nfsd_mutex protects nfsd_serv -- both the pointer itself and the members
@@ -123,6 +121,8 @@ struct svc_program		nfsd_program = {
 
 };
 
+u32 nfsd_supported_minorversion;
+
 int nfsd_vers(int vers, enum vers_op change)
 {
 	if (vers < NFSD_MINVERS || vers >= NFSD_NRVERS)
@@ -149,6 +149,28 @@ int nfsd_vers(int vers, enum vers_op change)
 	}
 	return 0;
 }
+
+int nfsd_minorversion(u32 minorversion, enum vers_op change)
+{
+	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION)
+		return -1;
+	switch(change) {
+	case NFSD_SET:
+		nfsd_supported_minorversion = minorversion;
+		break;
+	case NFSD_CLEAR:
+		if (minorversion == 0)
+			return -1;
+		nfsd_supported_minorversion = minorversion - 1;
+		break;
+	case NFSD_TEST:
+		return minorversion <= nfsd_supported_minorversion;
+	case NFSD_AVAIL:
+		return minorversion <= NFSD_SUPPORTED_MINOR_VERSION;
+	}
+	return 0;
+}
+
 /*
  * Maximum number of nfsd processes
  */
@@ -200,6 +222,28 @@ void nfsd_reset_versions(void)
 	}
 }
 
+/*
+ * Each session guarantees a negotiated per slot memory cache for replies
+ * which in turn consumes memory beyond the v2/v3/v4.0 server. A dedicated
+ * NFSv4.1 server might want to use more memory for a DRC than a machine
+ * with mutiple services.
+ *
+ * Impose a hard limit on the number of pages for the DRC which varies
+ * according to the machines free pages. This is of course only a default.
+ *
+ * For now this is a #defined shift which could be under admin control
+ * in the future.
+ */
+static void set_max_drc(void)
+{
+	/* The percent of nr_free_buffer_pages used by the V4.1 server DRC */
+	#define NFSD_DRC_SIZE_SHIFT	7
+	nfsd_serv->sv_drc_max_pages = nr_free_buffer_pages()
+						>> NFSD_DRC_SIZE_SHIFT;
+	nfsd_serv->sv_drc_pages_used = 0;
+	dprintk("%s svc_drc_max_pages %u\n", __func__,
+		nfsd_serv->sv_drc_max_pages);
+}
 
 int nfsd_create_serv(void)
 {
@@ -227,11 +271,12 @@ int nfsd_create_serv(void)
 			nfsd_max_blksize /= 2;
 	}
 
-	atomic_set(&nfsd_busy, 0);
 	nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
 				      nfsd_last_thread, nfsd, THIS_MODULE);
 	if (nfsd_serv == NULL)
 		err = -ENOMEM;
+	else
+		set_max_drc();
 
 	do_gettimeofday(&nfssvc_boot);		/* record boot time */
 	return err;
@@ -375,26 +420,6 @@ nfsd_svc(unsigned short port, int nrservs)
 	return error;
 }
 
-static inline void
-update_thread_usage(int busy_threads)
-{
-	unsigned long prev_call;
-	unsigned long diff;
-	int decile;
-
-	spin_lock(&nfsd_call_lock);
-	prev_call = nfsd_last_call;
-	nfsd_last_call = jiffies;
-	decile = busy_threads*10/nfsdstats.th_cnt;
-	if (decile>0 && decile <= 10) {
-		diff = nfsd_last_call - prev_call;
-		if ( (nfsdstats.th_usage[decile-1] += diff) >= NFSD_USAGE_WRAP)
-			nfsdstats.th_usage[decile-1] -= NFSD_USAGE_WRAP;
-		if (decile == 10)
-			nfsdstats.th_fullcnt++;
-	}
-	spin_unlock(&nfsd_call_lock);
-}
 
 /*
  * This is the NFS server kernel thread
@@ -403,7 +428,6 @@ static int
 nfsd(void *vrqstp)
 {
 	struct svc_rqst *rqstp = (struct svc_rqst *) vrqstp;
-	struct fs_struct *fsp;
 	int err, preverr = 0;
 
 	/* Lock module and set up kernel thread */
@@ -412,13 +436,11 @@ nfsd(void *vrqstp)
 	/* At this point, the thread shares current->fs
 	 * with the init process. We need to create files with a
 	 * umask of 0 instead of init's umask. */
-	fsp = copy_fs_struct(current->fs);
-	if (!fsp) {
+	if (unshare_fs_struct() < 0) {
 		printk("Unable to start nfsd thread: out of memory\n");
 		goto out;
 	}
-	exit_fs(current);
-	current->fs = fsp;
+
 	current->fs->umask = 0;
 
 	/*
@@ -463,8 +485,6 @@ nfsd(void *vrqstp)
 			continue;
 		}
 
-		update_thread_usage(atomic_read(&nfsd_busy));
-		atomic_inc(&nfsd_busy);
 
 		/* Lock the export hash tables for reading. */
 		exp_readlock();
@@ -473,8 +493,6 @@ nfsd(void *vrqstp)
 
 		/* Unlock export hash tables */
 		exp_readunlock();
-		update_thread_usage(atomic_read(&nfsd_busy));
-		atomic_dec(&nfsd_busy);
 	}
 
 	/* Clear signals before calling svc_exit_thread() */
@@ -542,6 +560,10 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 		+ rqstp->rq_res.head[0].iov_len;
 	rqstp->rq_res.head[0].iov_len += sizeof(__be32);
 
+	/* NFSv4.1 DRC requires statp */
+	if (rqstp->rq_vers == 4)
+		nfsd4_set_statp(rqstp, statp);
+
 	/* Now call the procedure handler, and encode NFS status. */
 	nfserr = proc->pc_func(rqstp, rqstp->rq_argp, rqstp->rq_resp);
 	nfserr = map_new_errors(rqstp->rq_vers, nfserr);
@@ -572,4 +594,11 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	/* Store reply in cache. */
 	nfsd_cache_update(rqstp, proc->pc_cachetype, statp + 1);
 	return 1;
+}
+
+int nfsd_pool_stats_open(struct inode *inode, struct file *file)
+{
+	if (nfsd_serv == NULL)
+		return -ENODEV;
+	return svc_pool_stats_open(nfsd_serv, file);
 }

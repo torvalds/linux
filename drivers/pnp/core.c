@@ -137,7 +137,7 @@ struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id, char *pnpid
 	INIT_LIST_HEAD(&dev->options);
 	dev->protocol = protocol;
 	dev->number = id;
-	dev->dma_mask = DMA_24BIT_MASK;
+	dev->dma_mask = DMA_BIT_MASK(24);
 
 	dev->dev.parent = &dev->protocol->dev;
 	dev->dev.bus = &pnp_bus_type;

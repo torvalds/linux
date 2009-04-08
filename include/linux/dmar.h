@@ -34,6 +34,7 @@ struct dmar_drhd_unit {
 	u64	reg_base_addr;		/* register base address*/
 	struct	pci_dev **devices; 	/* target device array	*/
 	int	devices_cnt;		/* target device count	*/
+	u16	segment;		/* PCI domain		*/
 	u8	ignored:1; 		/* ignore drhd		*/
 	u8	include_all:1;
 	struct intel_iommu *iommu;
@@ -43,6 +44,14 @@ extern struct list_head dmar_drhd_units;
 
 #define for_each_drhd_unit(drhd) \
 	list_for_each_entry(drhd, &dmar_drhd_units, list)
+
+#define for_each_active_iommu(i, drhd)					\
+	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
+		if (i=drhd->iommu, drhd->ignored) {} else
+
+#define for_each_iommu(i, drhd)						\
+	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
+		if (i=drhd->iommu, 0) {} else 
 
 extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
@@ -100,6 +109,8 @@ struct irte {
 #ifdef CONFIG_INTR_REMAP
 extern int intr_remapping_enabled;
 extern int enable_intr_remapping(int);
+extern void disable_intr_remapping(void);
+extern int reenable_intr_remapping(int);
 
 extern int get_irte(int irq, struct irte *entry);
 extern int modify_irte(int irq, struct irte *irte_modified);

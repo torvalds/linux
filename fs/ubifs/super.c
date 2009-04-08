@@ -421,8 +421,8 @@ static int ubifs_show_options(struct seq_file *s, struct vfsmount *mnt)
 		seq_printf(s, ",no_chk_data_crc");
 
 	if (c->mount_opts.override_compr) {
-		seq_printf(s, ",compr=");
-		seq_printf(s, ubifs_compr_name(c->mount_opts.compr_type));
+		seq_printf(s, ",compr=%s",
+			   ubifs_compr_name(c->mount_opts.compr_type));
 	}
 
 	return 0;
@@ -700,6 +700,8 @@ static int init_constants_sb(struct ubifs_info *c)
 	if (err)
 		return err;
 
+	/* Initialize effective LEB size used in budgeting calculations */
+	c->idx_leb_size = c->leb_size - c->max_idx_node_sz;
 	return 0;
 }
 
@@ -716,6 +718,7 @@ static void init_constants_master(struct ubifs_info *c)
 	long long tmp64;
 
 	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
+	c->report_rp_size = ubifs_reported_space(c, c->rp_size);
 
 	/*
 	 * Calculate total amount of FS blocks. This number is not used
@@ -1201,7 +1204,7 @@ static int mount_ubifs(struct ubifs_info *c)
 			goto out_cbuf;
 
 		/* Create background thread */
-		c->bgt = kthread_create(ubifs_bg_thread, c, c->bgt_name);
+		c->bgt = kthread_create(ubifs_bg_thread, c, "%s", c->bgt_name);
 		if (IS_ERR(c->bgt)) {
 			err = PTR_ERR(c->bgt);
 			c->bgt = NULL;
@@ -1318,11 +1321,15 @@ static int mount_ubifs(struct ubifs_info *c)
 		else {
 			c->need_recovery = 0;
 			ubifs_msg("recovery completed");
-			/* GC LEB has to be empty and taken at this point */
-			ubifs_assert(c->lst.taken_empty_lebs == 1);
+			/*
+			 * GC LEB has to be empty and taken at this point. But
+			 * the journal head LEBs may also be accounted as
+			 * "empty taken" if they are empty.
+			 */
+			ubifs_assert(c->lst.taken_empty_lebs > 0);
 		}
 	} else
-		ubifs_assert(c->lst.taken_empty_lebs == 1);
+		ubifs_assert(c->lst.taken_empty_lebs > 0);
 
 	err = dbg_check_filesystem(c);
 	if (err)
@@ -1344,8 +1351,9 @@ static int mount_ubifs(struct ubifs_info *c)
 	x = (long long)c->log_lebs * c->leb_size + c->max_bud_bytes;
 	ubifs_msg("journal size:       %lld bytes (%lld KiB, %lld MiB, %d "
 		  "LEBs)", x, x >> 10, x >> 20, c->log_lebs + c->max_bud_cnt);
-	ubifs_msg("media format:       %d (latest is %d)",
-		  c->fmt_version, UBIFS_FORMAT_VERSION);
+	ubifs_msg("media format:       w%d/r%d (latest is w%d/r%d)",
+		  c->fmt_version, c->ro_compat_version,
+		  UBIFS_FORMAT_VERSION, UBIFS_RO_COMPAT_VERSION);
 	ubifs_msg("default compressor: %s", ubifs_compr_name(c->default_compr));
 	ubifs_msg("reserved for root:  %llu bytes (%llu KiB)",
 		c->report_rp_size, c->report_rp_size >> 10);
@@ -1485,6 +1493,15 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 {
 	int err, lnum;
 
+	if (c->rw_incompat) {
+		ubifs_err("the file-system is not R/W-compatible");
+		ubifs_msg("on-flash format version is w%d/r%d, but software "
+			  "only supports up to version w%d/r%d", c->fmt_version,
+			  c->ro_compat_version, UBIFS_FORMAT_VERSION,
+			  UBIFS_RO_COMPAT_VERSION);
+		return -EROFS;
+	}
+
 	mutex_lock(&c->umount_mutex);
 	dbg_save_space_info(c);
 	c->remounting_rw = 1;
@@ -1554,7 +1571,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	ubifs_create_buds_lists(c);
 
 	/* Create background thread */
-	c->bgt = kthread_create(ubifs_bg_thread, c, c->bgt_name);
+	c->bgt = kthread_create(ubifs_bg_thread, c, "%s", c->bgt_name);
 	if (IS_ERR(c->bgt)) {
 		err = PTR_ERR(c->bgt);
 		c->bgt = NULL;
@@ -1775,7 +1792,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		c->bu.buf = NULL;
 	}
 
-	ubifs_assert(c->lst.taken_empty_lebs == 1);
+	ubifs_assert(c->lst.taken_empty_lebs > 0);
 	return 0;
 }
 

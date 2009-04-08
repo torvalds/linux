@@ -533,6 +533,13 @@ config SERIAL_S3C6400
 	  Serial port support for the Samsung S3C6400 and S3C6410
 	  SoCs
 
+config SERIAL_MAX3100
+	tristate "MAX3100 support"
+	depends on SPI
+	select SERIAL_CORE
+	help
+	  MAX3100 chip support
+
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
 	depends on MACH_DECSTATION && 32BIT
@@ -700,7 +707,7 @@ choice
 
 config SERIAL_BFIN_DMA
 	bool "DMA mode"
-	depends on !DMA_UNCACHED_NONE && !KGDB_UART
+	depends on !DMA_UNCACHED_NONE && KGDB_SERIAL_CONSOLE=n
 	help
 	  This driver works under DMA mode. If this option is selected, the
 	  blackfin simple dma driver is also enabled.
@@ -727,19 +734,19 @@ config BFIN_UART0_CTSRTS
 
 config UART0_CTS_PIN
 	int "UART0 CTS pin"
-	depends on BFIN_UART0_CTSRTS
+	depends on BFIN_UART0_CTSRTS && !BF548
 	default 23
 	help
 	  The default pin is GPIO_GP7.
-	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
 
 config UART0_RTS_PIN
 	int "UART0 RTS pin"
-	depends on BFIN_UART0_CTSRTS
+	depends on BFIN_UART0_CTSRTS && !BF548
 	default 22
 	help
 	  The default pin is GPIO_GP6.
-	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
 
 config SERIAL_BFIN_UART1
 	bool "Enable UART1"
@@ -756,21 +763,21 @@ config BFIN_UART1_CTSRTS
 
 config UART1_CTS_PIN
 	int "UART1 CTS pin"
-	depends on BFIN_UART1_CTSRTS && !BF54x
+	depends on BFIN_UART1_CTSRTS && !BF548
 	default -1
 	help
-	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
 
 config UART1_RTS_PIN
 	int "UART1 RTS pin"
-	depends on BFIN_UART1_CTSRTS && !BF54x
+	depends on BFIN_UART1_CTSRTS && !BF548
 	default -1
 	help
-	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
 
 config SERIAL_BFIN_UART2
 	bool "Enable UART2"
-	depends on SERIAL_BFIN && (BF54x)
+	depends on SERIAL_BFIN && (BF54x || BF538 || BF539)
 	help
 	  Enable UART2
 
@@ -783,17 +790,17 @@ config BFIN_UART2_CTSRTS
 
 config UART2_CTS_PIN
 	int "UART2 CTS pin"
-	depends on BFIN_UART2_CTSRTS
+	depends on BFIN_UART2_CTSRTS && !BF548
 	default -1
 	help
-	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
 
 config UART2_RTS_PIN
 	int "UART2 RTS pin"
-	depends on BFIN_UART2_CTSRTS
+	depends on BFIN_UART2_CTSRTS && !BF548
 	default -1
 	help
-	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
+	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
 
 config SERIAL_BFIN_UART3
 	bool "Enable UART3"
@@ -807,6 +814,20 @@ config BFIN_UART3_CTSRTS
 	help
 	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
 	  signal.
+
+config UART3_CTS_PIN
+	int "UART3 CTS pin"
+	depends on BFIN_UART3_CTSRTS && !BF548
+	default -1
+	help
+	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
+
+config UART3_RTS_PIN
+	int "UART3 RTS pin"
+	depends on BFIN_UART3_CTSRTS && !BF548
+	default -1
+	help
+	  Refer to arch/blackfin/mach-*/include/mach/gpio.h to see the GPIO map.
 
 config SERIAL_IMX
 	bool "IMX serial port support"
@@ -1374,7 +1395,7 @@ config SERIAL_BFIN_SPORT
 	depends on BLACKFIN && EXPERIMENTAL
 	select SERIAL_CORE
 	help
-	  Enble support SPORT emulate UART on Blackfin series.
+	  Enable SPORT emulate UART on Blackfin series.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bfin_sport_uart.

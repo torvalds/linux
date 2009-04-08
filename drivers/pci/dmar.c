@@ -180,6 +180,7 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 	dmaru->hdr = header;
 	drhd = (struct acpi_dmar_hardware_unit *)header;
 	dmaru->reg_base_addr = drhd->address;
+	dmaru->segment = drhd->segment;
 	dmaru->include_all = drhd->flags & 0x1; /* BIT0: INCLUDE_ALL */
 
 	ret = alloc_iommu(dmaru);
@@ -790,14 +791,41 @@ end:
 }
 
 /*
+ * Enable queued invalidation.
+ */
+static void __dmar_enable_qi(struct intel_iommu *iommu)
+{
+	u32 cmd, sts;
+	unsigned long flags;
+	struct q_inval *qi = iommu->qi;
+
+	qi->free_head = qi->free_tail = 0;
+	qi->free_cnt = QI_LENGTH;
+
+	spin_lock_irqsave(&iommu->register_lock, flags);
+
+	/* write zero to the tail reg */
+	writel(0, iommu->reg + DMAR_IQT_REG);
+
+	dmar_writeq(iommu->reg + DMAR_IQA_REG, virt_to_phys(qi->desc));
+
+	cmd = iommu->gcmd | DMA_GCMD_QIE;
+	iommu->gcmd |= DMA_GCMD_QIE;
+	writel(cmd, iommu->reg + DMAR_GCMD_REG);
+
+	/* Make sure hardware complete it */
+	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG, readl, (sts & DMA_GSTS_QIES), sts);
+
+	spin_unlock_irqrestore(&iommu->register_lock, flags);
+}
+
+/*
  * Enable Queued Invalidation interface. This is a must to support
  * interrupt-remapping. Also used by DMA-remapping, which replaces
  * register based IOTLB invalidation.
  */
 int dmar_enable_qi(struct intel_iommu *iommu)
 {
-	u32 cmd, sts;
-	unsigned long flags;
 	struct q_inval *qi;
 
 	if (!ecap_qis(iommu->ecap))
@@ -835,19 +863,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 
 	spin_lock_init(&qi->q_lock);
 
-	spin_lock_irqsave(&iommu->register_lock, flags);
-	/* write zero to the tail reg */
-	writel(0, iommu->reg + DMAR_IQT_REG);
-
-	dmar_writeq(iommu->reg + DMAR_IQA_REG, virt_to_phys(qi->desc));
-
-	cmd = iommu->gcmd | DMA_GCMD_QIE;
-	iommu->gcmd |= DMA_GCMD_QIE;
-	writel(cmd, iommu->reg + DMAR_GCMD_REG);
-
-	/* Make sure hardware complete it */
-	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG, readl, (sts & DMA_GSTS_QIES), sts);
-	spin_unlock_irqrestore(&iommu->register_lock, flags);
+	__dmar_enable_qi(iommu);
 
 	return 0;
 }
@@ -1099,6 +1115,31 @@ int __init enable_drhd_fault_handling(void)
 			return -1;
 		}
 	}
+
+	return 0;
+}
+
+/*
+ * Re-enable Queued Invalidation interface.
+ */
+int dmar_reenable_qi(struct intel_iommu *iommu)
+{
+	if (!ecap_qis(iommu->ecap))
+		return -ENOENT;
+
+	if (!iommu->qi)
+		return -ENOENT;
+
+	/*
+	 * First disable queued invalidation.
+	 */
+	dmar_disable_qi(iommu);
+	/*
+	 * Then enable queued invalidation again. Since there is no pending
+	 * invalidation requests now, it's safe to re-enable queued
+	 * invalidation.
+	 */
+	__dmar_enable_qi(iommu);
 
 	return 0;
 }

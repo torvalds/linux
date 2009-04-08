@@ -143,12 +143,15 @@ static int btrfs_csum_sizes[] = { 4, 0 };
 #define BTRFS_FT_MAX		9
 
 /*
- * the key defines the order in the tree, and so it also defines (optimal)
- * block layout.  objectid corresonds to the inode number.  The flags
- * tells us things about the object, and is a kind of stream selector.
- * so for a given inode, keys with flags of 1 might refer to the inode
- * data, flags of 2 may point to file data in the btree and flags == 3
- * may point to extents.
+ * The key defines the order in the tree, and so it also defines (optimal)
+ * block layout.
+ *
+ * objectid corresponds to the inode number.
+ *
+ * type tells us things about the object, and is a kind of stream selector.
+ * so for a given inode, keys with type of 1 might refer to the inode data,
+ * type of 2 may point to file data in the btree and type == 3 may point to
+ * extents.
  *
  * offset is the starting byte offset for this key in the stream.
  *
@@ -200,7 +203,7 @@ struct btrfs_dev_item {
 
 	/*
 	 * starting byte of this partition on the device,
-	 * to allowr for stripe alignment in the future
+	 * to allow for stripe alignment in the future
 	 */
 	__le64 start_offset;
 
@@ -633,18 +636,35 @@ struct btrfs_space_info {
 	struct rw_semaphore groups_sem;
 };
 
-struct btrfs_free_space {
-	struct rb_node bytes_index;
-	struct rb_node offset_index;
-	u64 offset;
-	u64 bytes;
+/*
+ * free clusters are used to claim free space in relatively large chunks,
+ * allowing us to do less seeky writes.  They are used for all metadata
+ * allocations and data allocations in ssd mode.
+ */
+struct btrfs_free_cluster {
+	spinlock_t lock;
+	spinlock_t refill_lock;
+	struct rb_root root;
+
+	/* largest extent in this cluster */
+	u64 max_size;
+
+	/* first extent starting offset */
+	u64 window_start;
+
+	struct btrfs_block_group_cache *block_group;
+	/*
+	 * when a cluster is allocated from a block group, we put the
+	 * cluster onto a list in the block group so that it can
+	 * be freed before the block group is freed.
+	 */
+	struct list_head block_group_list;
 };
 
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
 	spinlock_t lock;
-	struct mutex alloc_mutex;
 	struct mutex cache_mutex;
 	u64 pinned;
 	u64 reserved;
@@ -656,6 +676,7 @@ struct btrfs_block_group_cache {
 	struct btrfs_space_info *space_info;
 
 	/* free space cache stuff */
+	spinlock_t tree_lock;
 	struct rb_root free_space_bytes;
 	struct rb_root free_space_offset;
 
@@ -667,6 +688,11 @@ struct btrfs_block_group_cache {
 
 	/* usage count */
 	atomic_t count;
+
+	/* List of struct btrfs_free_clusters for this block group.
+	 * Today it will only have one thing on it, but that may change
+	 */
+	struct list_head cluster_list;
 };
 
 struct btrfs_leaf_ref_tree {
@@ -728,7 +754,6 @@ struct btrfs_fs_info {
 	struct mutex tree_log_mutex;
 	struct mutex transaction_kthread_mutex;
 	struct mutex cleaner_mutex;
-	struct mutex pinned_mutex;
 	struct mutex chunk_mutex;
 	struct mutex drop_mutex;
 	struct mutex volume_mutex;
@@ -839,8 +864,12 @@ struct btrfs_fs_info {
 	spinlock_t delalloc_lock;
 	spinlock_t new_trans_lock;
 	u64 delalloc_bytes;
-	u64 last_alloc;
-	u64 last_data_alloc;
+
+	/* data_alloc_cluster is only used in ssd mode */
+	struct btrfs_free_cluster data_alloc_cluster;
+
+	/* all metadata allocations go through this cluster */
+	struct btrfs_free_cluster meta_alloc_cluster;
 
 	spinlock_t ref_cache_lock;
 	u64 total_ref_cache_size;
@@ -932,7 +961,6 @@ struct btrfs_root {
 };
 
 /*
-
  * inode items have the data typically returned from stat and store other
  * info about object characteristics.  There is one for every file and dir in
  * the FS
@@ -963,7 +991,7 @@ struct btrfs_root {
 #define BTRFS_EXTENT_CSUM_KEY	128
 
 /*
- * root items point to tree roots.  There are typically in the root
+ * root items point to tree roots.  They are typically in the root
  * tree used by the super block to find all the other trees
  */
 #define BTRFS_ROOT_ITEM_KEY	132
@@ -1010,6 +1038,8 @@ struct btrfs_root {
 #define BTRFS_MOUNT_SSD			(1 << 3)
 #define BTRFS_MOUNT_DEGRADED		(1 << 4)
 #define BTRFS_MOUNT_COMPRESS		(1 << 5)
+#define BTRFS_MOUNT_NOTREELOG           (1 << 6)
+#define BTRFS_MOUNT_FLUSHONCOMMIT       (1 << 7)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
@@ -1748,6 +1778,7 @@ static inline struct dentry *fdentry(struct file *file)
 }
 
 /* extent-tree.c */
+void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, unsigned long count);
 int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len);
@@ -2174,21 +2205,4 @@ int btrfs_check_acl(struct inode *inode, int mask);
 int btrfs_init_acl(struct inode *inode, struct inode *dir);
 int btrfs_acl_chmod(struct inode *inode);
 
-/* free-space-cache.c */
-int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
-			 u64 bytenr, u64 size);
-int btrfs_add_free_space_lock(struct btrfs_block_group_cache *block_group,
-			      u64 offset, u64 bytes);
-int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
-			    u64 bytenr, u64 size);
-int btrfs_remove_free_space_lock(struct btrfs_block_group_cache *block_group,
-				 u64 offset, u64 bytes);
-void btrfs_remove_free_space_cache(struct btrfs_block_group_cache
-				   *block_group);
-struct btrfs_free_space *btrfs_find_free_space(struct btrfs_block_group_cache
-					       *block_group, u64 offset,
-					       u64 bytes);
-void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
-			   u64 bytes);
-u64 btrfs_block_group_free_space(struct btrfs_block_group_cache *block_group);
 #endif

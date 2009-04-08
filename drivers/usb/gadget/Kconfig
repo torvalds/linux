@@ -392,7 +392,7 @@ config USB_GADGET_FSL_QE
 	   controllers having QE or CPM2, given minor tweaks.
 
 	   Set CONFIG_USB_GADGET to "m" to build this driver as a
-	   dynmically linked module called "fsl_qe_udc".
+	   dynamically linked module called "fsl_qe_udc".
 
 config USB_FSL_QE
 	tristate

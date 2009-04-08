@@ -18,6 +18,99 @@
 
 #include "m5602_po1030.h"
 
+static struct v4l2_pix_format po1030_modes[] = {
+	{
+		640,
+		480,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage = 640 * 480,
+		.bytesperline = 640,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}
+};
+
+const static struct ctrl po1030_ctrls[] = {
+	{
+		{
+			.id 		= V4L2_CID_GAIN,
+			.type 		= V4L2_CTRL_TYPE_INTEGER,
+			.name 		= "gain",
+			.minimum 	= 0x00,
+			.maximum 	= 0x4f,
+			.step 		= 0x1,
+			.default_value 	= PO1030_GLOBAL_GAIN_DEFAULT,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = po1030_set_gain,
+		.get = po1030_get_gain
+	}, {
+		{
+			.id 		= V4L2_CID_EXPOSURE,
+			.type 		= V4L2_CTRL_TYPE_INTEGER,
+			.name 		= "exposure",
+			.minimum 	= 0x00,
+			.maximum 	= 0x02ff,
+			.step 		= 0x1,
+			.default_value 	= PO1030_EXPOSURE_DEFAULT,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = po1030_set_exposure,
+		.get = po1030_get_exposure
+	}, {
+		{
+			.id 		= V4L2_CID_RED_BALANCE,
+			.type 		= V4L2_CTRL_TYPE_INTEGER,
+			.name 		= "red balance",
+			.minimum 	= 0x00,
+			.maximum 	= 0xff,
+			.step 		= 0x1,
+			.default_value 	= PO1030_RED_GAIN_DEFAULT,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = po1030_set_red_balance,
+		.get = po1030_get_red_balance
+	}, {
+		{
+			.id 		= V4L2_CID_BLUE_BALANCE,
+			.type 		= V4L2_CTRL_TYPE_INTEGER,
+			.name 		= "blue balance",
+			.minimum 	= 0x00,
+			.maximum 	= 0xff,
+			.step 		= 0x1,
+			.default_value 	= PO1030_BLUE_GAIN_DEFAULT,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = po1030_set_blue_balance,
+		.get = po1030_get_blue_balance
+	}, {
+		{
+			.id 		= V4L2_CID_HFLIP,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "horizontal flip",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0,
+		},
+		.set = po1030_set_hflip,
+		.get = po1030_get_hflip
+	}, {
+		{
+			.id 		= V4L2_CID_VFLIP,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "vertical flip",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0,
+		},
+		.set = po1030_set_vflip,
+		.get = po1030_get_vflip
+	}
+};
+
 static void po1030_dump_registers(struct sd *sd);
 
 int po1030_probe(struct sd *sd)
@@ -59,10 +152,10 @@ int po1030_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
-	sd->gspca_dev.cam.cam_mode = po1030.modes;
-	sd->gspca_dev.cam.nmodes = po1030.nmodes;
-	sd->desc->ctrls = po1030.ctrls;
-	sd->desc->nctrls = po1030.nctrls;
+	sd->gspca_dev.cam.cam_mode = po1030_modes;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(po1030_modes);
+	sd->desc->ctrls = po1030_ctrls;
+	sd->desc->nctrls = ARRAY_SIZE(po1030_ctrls);
 	return 0;
 }
 
@@ -108,7 +201,7 @@ int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	err = m5602_read_sensor(sd, PO1030_REG_INTEGLINES_H,
 				 &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 	*val = (i2c_data << 8);
 
 	err = m5602_read_sensor(sd, PO1030_REG_INTEGLINES_M,
@@ -116,7 +209,7 @@ int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	*val |= i2c_data;
 
 	PDEBUG(D_V4L2, "Exposure read as %d", *val);
-out:
+
 	return err;
 }
 
@@ -135,7 +228,7 @@ int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, PO1030_REG_INTEGLINES_H,
 				  &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	i2c_data = (val & 0xff);
 	PDEBUG(D_V4L2, "Set exposure to low byte to 0x%x",
@@ -143,7 +236,6 @@ int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, PO1030_REG_INTEGLINES_M,
 				  &i2c_data, 1);
 
-out:
 	return err;
 }
 
@@ -186,14 +278,13 @@ int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set hflip %d", val);
 	err = m5602_read_sensor(sd, PO1030_REG_CONTROL2, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	i2c_data = (0x7f & i2c_data) | ((val & 0x01) << 7);
 
 	err = m5602_write_sensor(sd, PO1030_REG_CONTROL2,
 				 &i2c_data, 1);
 
-out:
 	return err;
 }
 
@@ -222,14 +313,13 @@ int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set vflip %d", val);
 	err = m5602_read_sensor(sd, PO1030_REG_CONTROL2, &i2c_data, 1);
 	if (err < 0)
-		goto out;
+		return err;
 
 	i2c_data = (i2c_data & 0xbf) | ((val & 0x01) << 6);
 
 	err = m5602_write_sensor(sd, PO1030_REG_CONTROL2,
 				 &i2c_data, 1);
 
-out:
 	return err;
 }
 

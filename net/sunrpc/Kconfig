@@ -47,7 +47,7 @@ config RPCSEC_GSS_SPKM3
 	select CRYPTO_CBC
 	help
 	  Choose Y here to enable Secure RPC using the SPKM3 public key
-	  GSS-API mechansim (RFC 2025).
+	  GSS-API mechanism (RFC 2025).
 
 	  Secure RPC calls with SPKM3 require an auxiliary userspace
 	  daemon which may be found in the Linux nfs-utils package

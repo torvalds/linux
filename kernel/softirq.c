@@ -21,8 +21,10 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/rcupdate.h>
+#include <linux/ftrace.h>
 #include <linux/smp.h>
 #include <linux/tick.h>
+#include <trace/irq.h>
 
 #include <asm/irq.h>
 /*
@@ -52,13 +54,18 @@ static struct softirq_action softirq_vec[NR_SOFTIRQS] __cacheline_aligned_in_smp
 
 static DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
 
+char *softirq_to_name[NR_SOFTIRQS] = {
+	"HI", "TIMER", "NET_TX", "NET_RX", "BLOCK",
+	"TASKLET", "SCHED", "HRTIMER",	"RCU"
+};
+
 /*
  * we cannot loop indefinitely here to avoid userspace starvation,
  * but we also don't want to introduce a worst case 1/HZ latency
  * to the pending events, so lets the scheduler to balance
  * the softirq load for us.
  */
-static inline void wakeup_softirqd(void)
+void wakeup_softirqd(void)
 {
 	/* Interrupts are disabled: no need to stop preemption */
 	struct task_struct *tsk = __get_cpu_var(ksoftirqd);
@@ -79,13 +86,23 @@ static void __local_bh_disable(unsigned long ip)
 	WARN_ON_ONCE(in_irq());
 
 	raw_local_irq_save(flags);
-	add_preempt_count(SOFTIRQ_OFFSET);
+	/*
+	 * The preempt tracer hooks into add_preempt_count and will break
+	 * lockdep because it calls back into lockdep after SOFTIRQ_OFFSET
+	 * is set and before current->softirq_enabled is cleared.
+	 * We must manually increment preempt_count here and manually
+	 * call the trace_preempt_off later.
+	 */
+	preempt_count() += SOFTIRQ_OFFSET;
 	/*
 	 * Were softirqs turned off above:
 	 */
 	if (softirq_count() == SOFTIRQ_OFFSET)
 		trace_softirqs_off(ip);
 	raw_local_irq_restore(flags);
+
+	if (preempt_count() == SOFTIRQ_OFFSET)
+		trace_preempt_off(CALLER_ADDR0, get_parent_ip(CALLER_ADDR1));
 }
 #else /* !CONFIG_TRACE_IRQFLAGS */
 static inline void __local_bh_disable(unsigned long ip)
@@ -169,6 +186,9 @@ EXPORT_SYMBOL(local_bh_enable_ip);
  */
 #define MAX_SOFTIRQ_RESTART 10
 
+DEFINE_TRACE(softirq_entry);
+DEFINE_TRACE(softirq_exit);
+
 asmlinkage void __do_softirq(void)
 {
 	struct softirq_action *h;
@@ -180,7 +200,7 @@ asmlinkage void __do_softirq(void)
 	account_system_vtime(current);
 
 	__local_bh_disable((unsigned long)__builtin_return_address(0));
-	trace_softirq_enter();
+	lockdep_softirq_enter();
 
 	cpu = smp_processor_id();
 restart:
@@ -195,12 +215,14 @@ restart:
 		if (pending & 1) {
 			int prev_count = preempt_count();
 
+			trace_softirq_entry(h, softirq_vec);
 			h->action(h);
-
+			trace_softirq_exit(h, softirq_vec);
 			if (unlikely(prev_count != preempt_count())) {
-				printk(KERN_ERR "huh, entered softirq %td %p"
+				printk(KERN_ERR "huh, entered softirq %td %s %p"
 				       "with preempt_count %08x,"
 				       " exited with %08x?\n", h - softirq_vec,
+				       softirq_to_name[h - softirq_vec],
 				       h->action, prev_count, preempt_count());
 				preempt_count() = prev_count;
 			}
@@ -220,7 +242,7 @@ restart:
 	if (pending)
 		wakeup_softirqd();
 
-	trace_softirq_exit();
+	lockdep_softirq_exit();
 
 	account_system_vtime(current);
 	_local_bh_enable();
@@ -496,7 +518,7 @@ static int __try_remote_softirq(struct call_single_data *cp, int cpu, int softir
 		cp->flags = 0;
 		cp->priv = softirq;
 
-		__smp_call_function_single(cpu, cp);
+		__smp_call_function_single(cpu, cp, 0);
 		return 0;
 	}
 	return 1;

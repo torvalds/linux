@@ -359,7 +359,7 @@ typedef struct xlog_in_core {
 	int			ic_size;
 	int			ic_offset;
 	int			ic_bwritecnt;
-	ushort_t		ic_state;
+	unsigned short		ic_state;
 	char			*ic_datap;	/* pointer to iclog data */
 #ifdef XFS_LOG_TRACE
 	struct ktrace		*ic_trace;
@@ -455,7 +455,6 @@ extern void	 xlog_recover_process_iunlinks(xlog_t *log);
 
 extern struct xfs_buf *xlog_get_bp(xlog_t *, int);
 extern void	 xlog_put_bp(struct xfs_buf *);
-extern int	 xlog_bread(xlog_t *, xfs_daddr_t, int, struct xfs_buf *);
 
 extern kmem_zone_t	*xfs_log_ticket_zone;
 

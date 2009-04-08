@@ -66,10 +66,12 @@ struct cxgb3i_hba {
  * @pdev:	pointer to pci dev
  * @hba_cnt:	# of hbas (the same as # of ports)
  * @hba:	all the hbas on this adapter
+ * @flags:	bit flag for adapter event/status
  * @tx_max_size: max. tx packet size supported
  * @rx_max_size: max. rx packet size supported
  * @tag_format: ddp tag format settings
  */
+#define CXGB3I_ADAPTER_FLAG_RESET	0x1
 struct cxgb3i_adapter {
 	struct list_head list_head;
 	spinlock_t lock;
@@ -78,6 +80,7 @@ struct cxgb3i_adapter {
 	unsigned char hba_cnt;
 	struct cxgb3i_hba *hba[MAX_NPORTS];
 
+	unsigned int flags;
 	unsigned int tx_max_size;
 	unsigned int rx_max_size;
 
@@ -137,10 +140,9 @@ struct cxgb3i_task_data {
 int cxgb3i_iscsi_init(void);
 void cxgb3i_iscsi_cleanup(void);
 
-struct cxgb3i_adapter *cxgb3i_adapter_add(struct t3cdev *);
-void cxgb3i_adapter_remove(struct t3cdev *);
-int cxgb3i_adapter_ulp_init(struct cxgb3i_adapter *);
-void cxgb3i_adapter_ulp_cleanup(struct cxgb3i_adapter *);
+struct cxgb3i_adapter *cxgb3i_adapter_find_by_tdev(struct t3cdev *);
+void cxgb3i_adapter_open(struct t3cdev *);
+void cxgb3i_adapter_close(struct t3cdev *);
 
 struct cxgb3i_hba *cxgb3i_hba_find_by_netdev(struct net_device *);
 struct cxgb3i_hba *cxgb3i_hba_host_add(struct cxgb3i_adapter *,

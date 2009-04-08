@@ -58,17 +58,18 @@ static int cs53l32a_read(struct v4l2_subdev *sd, u8 reg)
 	return i2c_smbus_read_byte_data(client, reg);
 }
 
-static int cs53l32a_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int cs53l32a_s_routing(struct v4l2_subdev *sd,
+			      u32 input, u32 output, u32 config)
 {
 	/* There are 2 physical inputs, but the second input can be
 	   placed in two modes, the first mode bypasses the PGA (gain),
 	   the second goes through the PGA. Hence there are three
 	   possible inputs to choose from. */
-	if (route->input > 2) {
-		v4l2_err(sd, "Invalid input %d.\n", route->input);
+	if (input > 2) {
+		v4l2_err(sd, "Invalid input %d.\n", input);
 		return -EINVAL;
 	}
-	cs53l32a_write(sd, 0x01, 0x01 + (route->input << 4));
+	cs53l32a_write(sd, 0x01, 0x01 + (input << 4));
 	return 0;
 }
 

@@ -766,6 +766,9 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 				audit_log_format(ab, " msg=");
 				size = nlmsg_len(nlh);
+				if (size > 0 &&
+				    ((unsigned char *)data)[size - 1] == '\0')
+					size--;
 				audit_log_n_untrustedstring(ab, data, size);
 			}
 			audit_set_pid(ab, pid);
@@ -1382,7 +1385,7 @@ void audit_log_n_string(struct audit_buffer *ab, const char *string,
 int audit_string_contains_control(const char *string, size_t len)
 {
 	const unsigned char *p;
-	for (p = string; p < (const unsigned char *)string + len && *p; p++) {
+	for (p = string; p < (const unsigned char *)string + len; p++) {
 		if (*p == '"' || *p < 0x21 || *p > 0x7e)
 			return 1;
 	}
@@ -1437,13 +1440,13 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 	/* We will allow 11 spaces for ' (deleted)' to be appended */
 	pathname = kmalloc(PATH_MAX+11, ab->gfp_mask);
 	if (!pathname) {
-		audit_log_format(ab, "<no memory>");
+		audit_log_string(ab, "<no_memory>");
 		return;
 	}
 	p = d_path(path, pathname, PATH_MAX+11);
 	if (IS_ERR(p)) { /* Should never happen since we send PATH_MAX */
 		/* FIXME: can we save some information here? */
-		audit_log_format(ab, "<too long>");
+		audit_log_string(ab, "<too_long>");
 	} else
 		audit_log_untrustedstring(ab, p);
 	kfree(pathname);

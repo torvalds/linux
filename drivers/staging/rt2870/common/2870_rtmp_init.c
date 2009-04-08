@@ -727,8 +727,8 @@ NDIS_STATUS AdapterBlockAllocateMemory(
 
 	usb_dev = pObj->pUsb_Dev;
 
-	pObj->MLMEThr_pid		= THREAD_PID_INIT_VALUE;
-	pObj->RTUSBCmdThr_pid	= THREAD_PID_INIT_VALUE;
+	pObj->MLMEThr_task		= NULL;
+	pObj->RTUSBCmdThr_task	= NULL;
 
 	*ppAd = (PVOID)vmalloc(sizeof(RTMP_ADAPTER));
 
@@ -765,7 +765,7 @@ NDIS_STATUS	 CreateThreads(
 {
 	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
-	pid_t pid_number = -1;
+	struct task_struct *tsk;
 
 	//init_MUTEX(&(pAd->usbdev_semaphore));
 
@@ -779,36 +779,39 @@ NDIS_STATUS	 CreateThreads(
 	init_completion (&pAd->TimerQComplete);
 
 	// Creat MLME Thread
-	pObj->MLMEThr_pid= THREAD_PID_INIT_VALUE;
-	pid_number = kernel_thread(MlmeThread, pAd, CLONE_VM);
-	if (pid_number < 0)
-	{
+	pObj->MLMEThr_task = NULL;
+	tsk = kthread_run(MlmeThread, pAd, pAd->net_dev->name);
+
+	if (IS_ERR(tsk)) {
 		printk (KERN_WARNING "%s: unable to start Mlme thread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
-	pObj->MLMEThr_pid = GET_PID(pid_number);
+
+	pObj->MLMEThr_task = tsk;
 	// Wait for the thread to start
 	wait_for_completion(&(pAd->mlmeComplete));
 
 	// Creat Command Thread
-	pObj->RTUSBCmdThr_pid= THREAD_PID_INIT_VALUE;
-	pid_number = kernel_thread(RTUSBCmdThread, pAd, CLONE_VM);
-	if (pid_number < 0)
+	pObj->RTUSBCmdThr_task = NULL;
+	tsk = kthread_run(RTUSBCmdThread, pAd, pAd->net_dev->name);
+
+	if (IS_ERR(tsk) < 0)
 	{
 		printk (KERN_WARNING "%s: unable to start RTUSBCmd thread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
-	pObj->RTUSBCmdThr_pid = GET_PID(pid_number);
+
+	pObj->RTUSBCmdThr_task = tsk;
 	wait_for_completion(&(pAd->CmdQComplete));
 
-	pObj->TimerQThr_pid= THREAD_PID_INIT_VALUE;
-	pid_number = kernel_thread(TimerQThread, pAd, CLONE_VM);
-	if (pid_number < 0)
+	pObj->TimerQThr_task = NULL;
+	tsk = kthread_run(TimerQThread, pAd, pAd->net_dev->name);
+	if (IS_ERR(tsk) < 0)
 	{
 		printk (KERN_WARNING "%s: unable to start TimerQThread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
-	pObj->TimerQThr_pid = GET_PID(pid_number);
+	pObj->TimerQThr_task = tsk;
 	// Wait for the thread to start
 	wait_for_completion(&(pAd->TimerQComplete));
 

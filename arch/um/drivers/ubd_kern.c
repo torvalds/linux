@@ -22,6 +22,7 @@
 #include "linux/kernel.h"
 #include "linux/module.h"
 #include "linux/blkdev.h"
+#include "linux/ata.h"
 #include "linux/hdreg.h"
 #include "linux/init.h"
 #include "linux/cdrom.h"
@@ -1308,16 +1309,15 @@ static int ubd_ioctl(struct block_device *bdev, fmode_t mode,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct ubd *ubd_dev = bdev->bd_disk->private_data;
-	struct hd_driveid ubd_id = {
-		.cyls		= 0,
-		.heads		= 128,
-		.sectors	= 32,
-	};
+	u16 ubd_id[ATA_ID_WORDS];
 
 	switch (cmd) {
 		struct cdrom_volctrl volume;
 	case HDIO_GET_IDENTITY:
-		ubd_id.cyls = ubd_dev->size / (128 * 32 * 512);
+		memset(&ubd_id, 0, ATA_ID_WORDS * 2);
+		ubd_id[ATA_ID_CYLS]	= ubd_dev->size / (128 * 32 * 512);
+		ubd_id[ATA_ID_HEADS]	= 128;
+		ubd_id[ATA_ID_SECTORS]	= 32;
 		if(copy_to_user((char __user *) arg, (char *) &ubd_id,
 				 sizeof(ubd_id)))
 			return -EFAULT;

@@ -576,7 +576,7 @@ out:
 	if (fdblks_delta) {
 		/*
 		 * If we are putting blocks back here, m_resblks_avail is
-		 * already at it's max so this will put it in the free pool.
+		 * already at its max so this will put it in the free pool.
 		 *
 		 * If we need space, we'll either succeed in getting it
 		 * from the free block count or we'll get an enospc. If

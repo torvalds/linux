@@ -627,12 +627,18 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	u32 sscr0;
 	u32 sspsp;
 	int width = snd_pcm_format_physical_width(params_format(params));
+	int ttsa = ssp_read_reg(ssp, SSTSA) & 0xf;
 
 	/* select correct DMA params */
 	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
 		dma = 1; /* capture DMA offset is 1,3 */
-	if (chn == 2)
-		dma += 2; /* stereo DMA offset is 2, mono is 0 */
+	/* Network mode with one active slot (ttsa == 1) can be used
+	 * to force 16-bit frame width on the wire (for S16_LE), even
+	 * with two channels. Use 16-bit DMA transfers for this case.
+	 */
+	if (((chn == 2) && (ttsa != 1)) || (width == 32))
+		dma += 2; /* 32-bit DMA offset is 2, 16-bit is 0 */
+
 	cpu_dai->dma_data = ssp_dma_params[cpu_dai->id][dma];
 
 	dev_dbg(&ssp->pdev->dev, "pxa_ssp_hw_params: dma %d\n", dma);
@@ -712,7 +718,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	/* When we use a network mode, we always require TDM slots
 	 * - complain loudly and fail if they've not been set up yet.
 	 */
-	if ((sscr0 & SSCR0_MOD) && !(ssp_read_reg(ssp, SSTSA) & 0xf)) {
+	if ((sscr0 & SSCR0_MOD) && !ttsa) {
 		dev_err(&ssp->pdev->dev, "No TDM timeslot configured\n");
 		return -EINVAL;
 	}

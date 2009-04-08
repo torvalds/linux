@@ -90,7 +90,7 @@ up before calling v4l2_device_register then it will be untouched. If dev is
 NULL, then you *must* setup v4l2_dev->name before calling v4l2_device_register.
 
 The first 'dev' argument is normally the struct device pointer of a pci_dev,
-usb_device or platform_device. It is rare for dev to be NULL, but it happens
+usb_interface or platform_device. It is rare for dev to be NULL, but it happens
 with ISA devices or when one device creates multiple PCI devices, thus making
 it impossible to associate v4l2_dev with a particular parent.
 
@@ -351,17 +351,6 @@ And this to go from an i2c_client to a v4l2_subdev struct:
 
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
-Finally you need to make a command function to make driver->command()
-call the right subdev_ops functions:
-
-static int subdev_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
-If driver->command is never used then you can leave this out. Eventually the
-driver->command usage should be removed from v4l.
-
 Make sure to call v4l2_device_unregister_subdev(sd) when the remove() callback
 is called. This will unregister the sub-device from the bridge driver. It is
 safe to call this even if the sub-device was never registered.
@@ -375,14 +364,12 @@ from the remove() callback ensures that this is always done correctly.
 
 The bridge driver also has some helper functions it can use:
 
-struct v4l2_subdev *sd = v4l2_i2c_new_subdev(adapter, "module_foo", "chipid", 0x36);
+struct v4l2_subdev *sd = v4l2_i2c_new_subdev(v4l2_dev, adapter,
+	       "module_foo", "chipid", 0x36);
 
 This loads the given module (can be NULL if no module needs to be loaded) and
 calls i2c_new_device() with the given i2c_adapter and chip/address arguments.
-If all goes well, then it registers the subdev with the v4l2_device. It gets
-the v4l2_device by calling i2c_get_adapdata(adapter), so you should make sure
-to call i2c_set_adapdata(adapter, v4l2_device) when you setup the i2c_adapter
-in your driver.
+If all goes well, then it registers the subdev with the v4l2_device.
 
 You can also use v4l2_i2c_new_probed_subdev() which is very similar to
 v4l2_i2c_new_subdev(), except that it has an array of possible I2C addresses

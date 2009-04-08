@@ -66,6 +66,12 @@ xpc_setup_partitions_sn_sn2(void)
 	return 0;
 }
 
+static void
+xpc_teardown_partitions_sn_sn2(void)
+{
+	/* nothing needs to be done */
+}
+
 /* SH_IPI_ACCESS shub register value on startup */
 static u64 xpc_sh1_IPI_access_sn2;
 static u64 xpc_sh2_IPI_access0_sn2;
@@ -436,11 +442,12 @@ xpc_send_chctl_local_msgrequest_sn2(struct xpc_channel *ch)
 	XPC_SEND_LOCAL_NOTIFY_IRQ_SN2(ch, XPC_CHCTL_MSGREQUEST);
 }
 
-static void
+static enum xp_retval
 xpc_save_remote_msgqueue_pa_sn2(struct xpc_channel *ch,
 				unsigned long msgqueue_pa)
 {
 	ch->sn.sn2.remote_msgqueue_pa = msgqueue_pa;
+	return xpSuccess;
 }
 
 /*
@@ -1737,20 +1744,20 @@ xpc_clear_remote_msgqueue_flags_sn2(struct xpc_channel *ch)
 {
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
 	struct xpc_msg_sn2 *msg;
-	s64 put;
+	s64 put, remote_nentries = ch->remote_nentries;
 
 	/* flags are zeroed when the buffer is allocated */
-	if (ch_sn2->remote_GP.put < ch->remote_nentries)
+	if (ch_sn2->remote_GP.put < remote_nentries)
 		return;
 
-	put = max(ch_sn2->w_remote_GP.put, ch->remote_nentries);
+	put = max(ch_sn2->w_remote_GP.put, remote_nentries);
 	do {
 		msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->remote_msgqueue +
-					     (put % ch->remote_nentries) *
+					     (put % remote_nentries) *
 					     ch->entry_size);
 		DBUG_ON(!(msg->flags & XPC_M_SN2_READY));
 		DBUG_ON(!(msg->flags & XPC_M_SN2_DONE));
-		DBUG_ON(msg->number != put - ch->remote_nentries);
+		DBUG_ON(msg->number != put - remote_nentries);
 		msg->flags = 0;
 	} while (++put < ch_sn2->remote_GP.put);
 }
@@ -2315,6 +2322,7 @@ xpc_init_sn2(void)
 	size_t buf_size;
 
 	xpc_setup_partitions_sn = xpc_setup_partitions_sn_sn2;
+	xpc_teardown_partitions_sn = xpc_teardown_partitions_sn_sn2;
 	xpc_get_partition_rsvd_page_pa = xpc_get_partition_rsvd_page_pa_sn2;
 	xpc_setup_rsvd_page_sn = xpc_setup_rsvd_page_sn_sn2;
 	xpc_increment_heartbeat = xpc_increment_heartbeat_sn2;
