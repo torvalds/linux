@@ -488,15 +488,15 @@ static int hal_init_hardware(struct ieee80211_hw *hw)
 
 	pHwData->InitialResource = 1;
 	if (!Wb35Reg_initial(pHwData))
-		goto error;
+		goto error_reg_destroy;
 
 	pHwData->InitialResource = 2;
 	if (!Wb35Tx_initial(pHwData))
-		goto error;
+		goto error_tx_destroy;
 
 	pHwData->InitialResource = 3;
 	if (!Wb35Rx_initial(pHwData))
-		goto error;
+		goto error_rx_destroy;
 
 	pHwData->InitialResource = 4;
 	init_timer(&pHwData->LEDTimer);
@@ -522,7 +522,13 @@ static int hal_init_hardware(struct ieee80211_hw *hw)
 
 	return 0;
 
-error:
+error_rx_destroy:
+	Wb35Rx_destroy(pHwData);
+error_tx_destroy:
+	Wb35Tx_destroy(pHwData);
+error_reg_destroy:
+	Wb35Reg_destroy(pHwData);
+
 	pHwData->SurpriseRemove = 1;
 	return -EINVAL;
 }
@@ -617,11 +623,8 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 	hal_driver_init_OK(pHwData) = 1; // Notify hal that the driver is ready now.
 	//set a tx power for reference.....
 //	sme_set_tx_power_level(priv, 12);	FIXME?
-	return 0;
 
 error:
-	hal_halt(pHwData, NULL);
-
 	return err;
 }
 
