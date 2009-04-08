@@ -1,13 +1,13 @@
 #include <linux/init.h>
 #include <asm/mce.h>
 
-#ifdef CONFIG_X86_32
-
 void amd_mcheck_init(struct cpuinfo_x86 *c);
 void intel_p4_mcheck_init(struct cpuinfo_x86 *c);
 void intel_p5_mcheck_init(struct cpuinfo_x86 *c);
 void intel_p6_mcheck_init(struct cpuinfo_x86 *c);
 void winchip_mcheck_init(struct cpuinfo_x86 *c);
+
+#ifdef CONFIG_X86_32
 
 /* Call the installed machine check handler for this CPU setup. */
 extern void (*machine_check_vector)(struct pt_regs *, long error_code);

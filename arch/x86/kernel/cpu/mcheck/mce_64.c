@@ -37,6 +37,10 @@
 #include <asm/msr.h>
 #include <asm/smp.h>
 
+#include "mce.h"
+
+#ifdef CONFIG_X86_64
+
 #define MISC_MCELOG_MINOR	227
 
 atomic_t mce_entry;
@@ -1241,7 +1245,7 @@ static __init int mce_init_device(void)
 
 device_initcall(mce_init_device);
 
-#ifdef CONFIG_X86_32
+#else /* CONFIG_X86_32: */
 
 int mce_disabled;
 
