@@ -2792,11 +2792,6 @@ static void iwl3945_init_alive_start(struct iwl_priv *priv)
 	queue_work(priv->workqueue, &priv->restart);
 }
 
-
-/* temporary */
-static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw,
-				     struct sk_buff *skb);
-
 /**
  * iwl3945_alive_start - called after REPLY_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
@@ -2904,7 +2899,7 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 		struct sk_buff *beacon = ieee80211_beacon_get(priv->hw,
 								priv->vif);
 		if (beacon)
-			iwl3945_mac_beacon_update(priv->hw, beacon);
+			iwl_mac_beacon_update(priv->hw, beacon);
 	}
 
 	return;
@@ -3837,7 +3832,7 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 		if (!beacon)
 			return -ENOMEM;
 		mutex_lock(&priv->mutex);
-		rc = iwl3945_mac_beacon_update(hw, beacon);
+		rc = iwl_mac_beacon_update(hw, beacon);
 		mutex_unlock(&priv->mutex);
 		if (rc)
 			return rc;
@@ -4087,46 +4082,6 @@ static void iwl3945_mac_reset_tsf(struct ieee80211_hw *hw)
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
-}
-
-static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	struct iwl_priv *priv = hw->priv;
-	unsigned long flags;
-	__le64 timestamp;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	if (!iwl_is_ready_rf(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
-		return -EIO;
-	}
-
-	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
-		IWL_DEBUG_MAC80211(priv, "leave - not IBSS\n");
-		return -EIO;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	if (priv->ibss_beacon)
-		dev_kfree_skb(priv->ibss_beacon);
-
-	priv->ibss_beacon = skb;
-
-	priv->assoc_id = 0;
-	timestamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;
-	priv->timestamp = le64_to_cpu(timestamp);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	iwl_reset_qos(priv);
-
-	priv->cfg->ops->lib->post_associate(priv);
-
-
-	return 0;
 }
 
 /*****************************************************************************
