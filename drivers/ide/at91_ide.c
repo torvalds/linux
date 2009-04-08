@@ -215,7 +215,7 @@ static const struct ide_port_info at91_ide_port_info __initdata = {
 	.tp_ops		= &at91_ide_tp_ops,
 	.host_flags 	= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA | IDE_HFLAG_SINGLE |
 			  IDE_HFLAG_NO_IO_32BIT | IDE_HFLAG_UNMASK_IRQS,
-	.pio_mask 	= ATA_PIO5,
+	.pio_mask 	= ATA_PIO6,
 };
 
 /*
