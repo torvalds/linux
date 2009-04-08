@@ -51,7 +51,7 @@ static void intel_thermal_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 
 	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
-	therm_throt_process(msr_val & 0x1);
+	therm_throt_process(msr_val & THERM_STATUS_PROCHOT);
 }
 
 /* Thermal interrupt handler for this CPU setup: */

@@ -32,13 +32,13 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 	 */
 	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
 	h = apic_read(APIC_LVTTHMR);
-	if ((l & (1 << 3)) && (h & APIC_DM_SMI)) {
+	if ((l & MSR_IA32_MISC_ENABLE_TM1) && (h & APIC_DM_SMI)) {
 		printk(KERN_DEBUG
 		       "CPU%d: Thermal monitoring handled by SMI\n", cpu);
 		return;
 	}
 
-	if (cpu_has(c, X86_FEATURE_TM2) && (l & (1 << 13)))
+	if (cpu_has(c, X86_FEATURE_TM2) && (l & MSR_IA32_MISC_ENABLE_TM2))
 		tm2 = 1;
 
 	/* Check whether a vector already exists */
@@ -54,12 +54,13 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 	apic_write(APIC_LVTTHMR, h);
 
 	rdmsr(MSR_IA32_THERM_INTERRUPT, l, h);
-	wrmsr(MSR_IA32_THERM_INTERRUPT, l | 0x03, h);
+	wrmsr(MSR_IA32_THERM_INTERRUPT,
+		l | (THERM_INT_LOW_ENABLE | THERM_INT_HIGH_ENABLE), h);
 
 	intel_set_thermal_handler();
 
 	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
-	wrmsr(MSR_IA32_MISC_ENABLE, l | (1 << 3), h);
+	wrmsr(MSR_IA32_MISC_ENABLE, l | MSR_IA32_MISC_ENABLE_TM1, h);
 
 	/* Unmask the thermal vector: */
 	l = apic_read(APIC_LVTTHMR);
