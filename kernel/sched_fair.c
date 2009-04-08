@@ -1487,17 +1487,10 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 
 	find_matching_se(&se, &pse);
 
-	while (se) {
-		BUG_ON(!pse);
+	BUG_ON(!pse);
 
-		if (wakeup_preempt_entity(se, pse) == 1) {
-			resched_task(curr);
-			break;
-		}
-
-		se = parent_entity(se);
-		pse = parent_entity(pse);
-	}
+	if (wakeup_preempt_entity(se, pse) == 1)
+		resched_task(curr);
 }
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
