@@ -540,8 +540,8 @@ static void drms_uA_update(struct regulator_dev *rdev)
 
 	err = regulator_check_drms(rdev);
 	if (err < 0 || !rdev->desc->ops->get_optimum_mode ||
-	    !rdev->desc->ops->get_voltage || !rdev->desc->ops->set_mode);
-	return;
+	    !rdev->desc->ops->get_voltage || !rdev->desc->ops->set_mode)
+		return;
 
 	/* get output voltage */
 	output_uV = rdev->desc->ops->get_voltage(rdev);
