@@ -207,6 +207,7 @@ extern int iwl3945_send_add_station(struct iwl_priv *priv,
 				struct iwl3945_addsta_cmd *sta, u8 flags);
 extern u8 iwl3945_add_station(struct iwl_priv *priv, const u8 *bssid,
 			  int is_ap, u8 flags);
+extern void iwl3945_clear_stations_table(struct iwl_priv *priv);
 extern int iwl3945_power_init_handle(struct iwl_priv *priv);
 extern int iwl3945_eeprom_init(struct iwl_priv *priv);
 extern int iwl3945_calc_db_from_ratio(int sig_ratio);

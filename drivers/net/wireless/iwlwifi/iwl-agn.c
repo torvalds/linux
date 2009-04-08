@@ -102,7 +102,7 @@ MODULE_ALIAS("iwl4965");
  * function correctly transitions out of the RXON_ASSOC_MSK state if
  * a HW tune is required based on the RXON structure changes.
  */
-static int iwl_commit_rxon(struct iwl_priv *priv)
+int iwl_commit_rxon(struct iwl_priv *priv)
 {
 	/* cast away the const for active_rxon in this function */
 	struct iwl_rxon_cmd *active_rxon = (void *)&priv->active_rxon;
@@ -247,7 +247,7 @@ void iwl_update_chain_flags(struct iwl_priv *priv)
 {
 
 	iwl_set_rxon_chain(priv);
-	iwl_commit_rxon(priv);
+	iwlcore_commit_rxon(priv);
 }
 
 static void iwl_clear_free_frames(struct iwl_priv *priv)
@@ -606,7 +606,7 @@ static int iwl_set_mode(struct iwl_priv *priv, int mode)
 		return -EAGAIN;
 	}
 
-	iwl_commit_rxon(priv);
+	iwlcore_commit_rxon(priv);
 
 	return 0;
 }
@@ -1000,7 +1000,7 @@ static void iwl_error_recovery(struct iwl_priv *priv)
 	memcpy(&priv->staging_rxon, &priv->recovery_rxon,
 	       sizeof(priv->staging_rxon));
 	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	iwl_commit_rxon(priv);
+	iwlcore_commit_rxon(priv);
 
 	iwl_rxon_add_station(priv, priv->bssid, 1);
 
@@ -1509,7 +1509,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	iwl_reset_run_time_calib(priv);
 
 	/* Configure the adapter for unassociated operation */
-	iwl_commit_rxon(priv);
+	iwlcore_commit_rxon(priv);
 
 	/* At this point, the NIC is initialized and operational */
 	iwl_rf_kill_ct_config(priv);
@@ -1865,7 +1865,7 @@ void iwl_post_associate(struct iwl_priv *priv)
 	conf = ieee80211_get_hw_conf(priv->hw);
 
 	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	iwl_commit_rxon(priv);
+	iwlcore_commit_rxon(priv);
 
 	iwl_setup_rxon_timing(priv);
 	ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
@@ -1900,7 +1900,7 @@ void iwl_post_associate(struct iwl_priv *priv)
 
 	}
 
-	iwl_commit_rxon(priv);
+	iwlcore_commit_rxon(priv);
 
 	switch (priv->iw_mode) {
 	case NL80211_IFTYPE_STATION:
@@ -2211,7 +2211,7 @@ static int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (memcmp(&priv->active_rxon,
 		   &priv->staging_rxon, sizeof(priv->staging_rxon)))
-		iwl_commit_rxon(priv);
+		iwlcore_commit_rxon(priv);
 	else
 		IWL_DEBUG_INFO(priv, "No re-sending same RXON configuration.\n");
 
@@ -2235,7 +2235,7 @@ static void iwl_config_ap(struct iwl_priv *priv)
 
 		/* RXON - unassoc (to set timing command) */
 		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		iwl_commit_rxon(priv);
+		iwlcore_commit_rxon(priv);
 
 		/* RXON Timing */
 		iwl_setup_rxon_timing(priv);
@@ -2271,7 +2271,7 @@ static void iwl_config_ap(struct iwl_priv *priv)
 		}
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
-		iwl_commit_rxon(priv);
+		iwlcore_commit_rxon(priv);
 		spin_lock_irqsave(&priv->lock, flags);
 		iwl_activate_qos(priv, 1);
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -2365,7 +2365,7 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw,
 		if (priv->iw_mode == NL80211_IFTYPE_AP)
 			iwl_config_ap(priv);
 		else {
-			rc = iwl_commit_rxon(priv);
+			rc = iwlcore_commit_rxon(priv);
 			if ((priv->iw_mode == NL80211_IFTYPE_STATION) && rc)
 				iwl_rxon_add_station(
 					priv, priv->active_rxon.bssid_addr, 1);
@@ -2374,7 +2374,7 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw,
 	} else {
 		iwl_scan_cancel_timeout(priv, 100);
 		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		iwl_commit_rxon(priv);
+		iwlcore_commit_rxon(priv);
 	}
 
  done:
@@ -2396,7 +2396,7 @@ static void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	if (iwl_is_ready_rf(priv)) {
 		iwl_scan_cancel_timeout(priv, 100);
 		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		iwl_commit_rxon(priv);
+		iwlcore_commit_rxon(priv);
 	}
 	if (priv->vif == conf->vif) {
 		priv->vif = NULL;
@@ -2623,7 +2623,7 @@ static void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 	if (priv->iw_mode != NL80211_IFTYPE_AP) {
 		iwl_scan_cancel_timeout(priv, 100);
 		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		iwl_commit_rxon(priv);
+		iwlcore_commit_rxon(priv);
 	}
 
 	iwl_power_update_mode(priv, 0);
@@ -2803,7 +2803,7 @@ static ssize_t store_flags(struct device *d,
 		else {
 			IWL_DEBUG_INFO(priv, "Commit rxon.flags = 0x%04X\n", flags);
 			priv->staging_rxon.flags = cpu_to_le32(flags);
-			iwl_commit_rxon(priv);
+			iwlcore_commit_rxon(priv);
 		}
 	}
 	mutex_unlock(&priv->mutex);
@@ -2844,7 +2844,7 @@ static ssize_t store_filter_flags(struct device *d,
 				       "0x%04X\n", filter_flags);
 			priv->staging_rxon.filter_flags =
 				cpu_to_le32(filter_flags);
-			iwl_commit_rxon(priv);
+			iwlcore_commit_rxon(priv);
 		}
 	}
 	mutex_unlock(&priv->mutex);

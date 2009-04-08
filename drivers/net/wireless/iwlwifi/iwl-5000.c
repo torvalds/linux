@@ -1474,6 +1474,7 @@ int iwl5000_calc_rssi(struct iwl_priv *priv,
 
 struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
+	.commit_rxon = iwl_commit_rxon,
 };
 
 struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {

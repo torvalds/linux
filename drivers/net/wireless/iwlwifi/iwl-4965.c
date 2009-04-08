@@ -2271,6 +2271,7 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 
 static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.rxon_assoc = iwl4965_send_rxon_assoc,
+	.commit_rxon = iwl_commit_rxon,
 };
 
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {

@@ -85,6 +85,7 @@ struct iwl_cmd;
 
 struct iwl_hcmd_ops {
 	int (*rxon_assoc)(struct iwl_priv *priv);
+	int (*commit_rxon)(struct iwl_priv *priv);
 };
 struct iwl_hcmd_utils_ops {
 	u16 (*get_hcmd_size)(u8 cmd_id, u16 len);
@@ -259,6 +260,7 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_bss_conf *bss_conf,
 				     u32 changes);
 int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb);
+int iwl_commit_rxon(struct iwl_priv *priv);
 
 /*****************************************************
  * RX handlers.
@@ -540,6 +542,10 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)
 {
 	return priv->cfg->ops->hcmd->rxon_assoc(priv);
+}
+static inline int iwlcore_commit_rxon(struct iwl_priv *priv)
+{
+	return priv->cfg->ops->hcmd->commit_rxon(priv);
 }
 
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
