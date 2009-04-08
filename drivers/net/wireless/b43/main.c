@@ -673,32 +673,6 @@ static void b43_short_slot_timing_disable(struct b43_wldev *dev)
 	b43_set_slot_time(dev, 20);
 }
 
-/* Enable a Generic IRQ. "mask" is the mask of which IRQs to enable.
- * Returns the _previously_ enabled IRQ mask.
- */
-static inline u32 b43_interrupt_enable(struct b43_wldev *dev, u32 mask)
-{
-	u32 old_mask;
-
-	old_mask = b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);
-	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, old_mask | mask);
-
-	return old_mask;
-}
-
-/* Disable a Generic IRQ. "mask" is the mask of which IRQs to disable.
- * Returns the _previously_ enabled IRQ mask.
- */
-static inline u32 b43_interrupt_disable(struct b43_wldev *dev, u32 mask)
-{
-	u32 old_mask;
-
-	old_mask = b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);
-	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, old_mask & ~mask);
-
-	return old_mask;
-}
-
 /* Synchronize IRQ top- and bottom-half.
  * IRQs must be masked before calling this.
  * This must not be called with the irq_lock held.
@@ -1593,7 +1567,7 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 	/* This is the bottom half of the asynchronous beacon update. */
 
 	/* Ignore interrupt in the future. */
-	dev->irq_savedstate &= ~B43_IRQ_BEACON;
+	dev->irq_mask &= ~B43_IRQ_BEACON;
 
 	cmd = b43_read32(dev, B43_MMIO_MACCMD);
 	beacon0_valid = (cmd & B43_MACCMD_BEACON0_VALID);
@@ -1602,7 +1576,7 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 	/* Schedule interrupt manually, if busy. */
 	if (beacon0_valid && beacon1_valid) {
 		b43_write32(dev, B43_MMIO_GEN_IRQ_REASON, B43_IRQ_BEACON);
-		dev->irq_savedstate |= B43_IRQ_BEACON;
+		dev->irq_mask |= B43_IRQ_BEACON;
 		return;
 	}
 
@@ -1641,11 +1615,9 @@ static void b43_beacon_update_trigger_work(struct work_struct *work)
 	if (likely(dev && (b43_status(dev) >= B43_STAT_INITIALIZED))) {
 		spin_lock_irq(&wl->irq_lock);
 		/* update beacon right away or defer to irq */
-		dev->irq_savedstate = b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);
 		handle_irq_beacon(dev);
 		/* The handler might have updated the IRQ mask. */
-		b43_write32(dev, B43_MMIO_GEN_IRQ_MASK,
-			    dev->irq_savedstate);
+		b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, dev->irq_mask);
 		mmiowb();
 		spin_unlock_irq(&wl->irq_lock);
 	}
@@ -1879,7 +1851,7 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 	if (reason & B43_IRQ_TX_OK)
 		handle_irq_transmit_status(dev);
 
-	b43_interrupt_enable(dev, dev->irq_savedstate);
+	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, dev->irq_mask);
 	mmiowb();
 	spin_unlock_irqrestore(&dev->wl->irq_lock, flags);
 }
@@ -1893,7 +1865,9 @@ static void b43_interrupt_ack(struct b43_wldev *dev, u32 reason)
 	b43_write32(dev, B43_MMIO_DMA2_REASON, dev->dma_reason[2]);
 	b43_write32(dev, B43_MMIO_DMA3_REASON, dev->dma_reason[3]);
 	b43_write32(dev, B43_MMIO_DMA4_REASON, dev->dma_reason[4]);
+/* Unused ring
 	b43_write32(dev, B43_MMIO_DMA5_REASON, dev->dma_reason[5]);
+*/
 }
 
 /* Interrupt handler top-half */
@@ -1903,18 +1877,19 @@ static irqreturn_t b43_interrupt_handler(int irq, void *dev_id)
 	struct b43_wldev *dev = dev_id;
 	u32 reason;
 
-	if (!dev)
-		return IRQ_NONE;
+	B43_WARN_ON(!dev);
 
 	spin_lock(&dev->wl->irq_lock);
 
-	if (b43_status(dev) < B43_STAT_STARTED)
+	if (unlikely(b43_status(dev) < B43_STAT_STARTED)) {
+		/* This can only happen on shared IRQ lines. */
 		goto out;
+	}
 	reason = b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);
 	if (reason == 0xffffffff)	/* shared IRQ */
 		goto out;
 	ret = IRQ_HANDLED;
-	reason &= b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);
+	reason &= dev->irq_mask;
 	if (!reason)
 		goto out;
 
@@ -1928,16 +1903,18 @@ static irqreturn_t b43_interrupt_handler(int irq, void *dev_id)
 	    & 0x0001DC00;
 	dev->dma_reason[4] = b43_read32(dev, B43_MMIO_DMA4_REASON)
 	    & 0x0000DC00;
+/* Unused ring
 	dev->dma_reason[5] = b43_read32(dev, B43_MMIO_DMA5_REASON)
 	    & 0x0000DC00;
+*/
 
 	b43_interrupt_ack(dev, reason);
 	/* disable all IRQs. They are enabled again in the bottom half. */
-	dev->irq_savedstate = b43_interrupt_disable(dev, B43_IRQ_ALL);
+	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, 0);
 	/* save the reason code and call our bottom half. */
 	dev->irq_reason = reason;
 	tasklet_schedule(&dev->isr_tasklet);
-      out:
+out:
 	mmiowb();
 	spin_unlock(&dev->wl->irq_lock);
 
@@ -3799,7 +3776,7 @@ static void b43_wireless_core_stop(struct b43_wldev *dev)
 	 * setting the status to INITIALIZED, as the interrupt handler
 	 * won't care about IRQs then. */
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	dev->irq_savedstate = b43_interrupt_disable(dev, B43_IRQ_ALL);
+	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, 0);
 	b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);	/* flush */
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 	b43_synchronize_irq(dev);
@@ -3840,7 +3817,7 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 
 	/* Start data flow (TX/RX). */
 	b43_mac_enable(dev);
-	b43_interrupt_enable(dev, dev->irq_savedstate);
+	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, dev->irq_mask);
 
 	/* Start maintainance work */
 	b43_periodic_tasks_setup(dev);
@@ -4003,9 +3980,9 @@ static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 	/* IRQ related flags */
 	dev->irq_reason = 0;
 	memset(dev->dma_reason, 0, sizeof(dev->dma_reason));
-	dev->irq_savedstate = B43_IRQ_MASKTEMPLATE;
+	dev->irq_mask = B43_IRQ_MASKTEMPLATE;
 	if (b43_modparam_verbose < B43_VERBOSITY_DEBUG)
-		dev->irq_savedstate &= ~B43_IRQ_PHY_TXERR;
+		dev->irq_mask &= ~B43_IRQ_PHY_TXERR;
 
 	dev->mac_suspended = 1;
 
