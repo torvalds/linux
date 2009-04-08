@@ -172,7 +172,6 @@ static const u8 sfe4002_lm87_regs[] = {
 static struct i2c_board_info sfe4002_hwmon_info = {
 	I2C_BOARD_INFO("lm87", 0x2e),
 	.platform_data	= &sfe4002_lm87_channel,
-	.irq		= -1,
 };
 
 /****************************************************************************/
@@ -247,7 +246,6 @@ static const u8 sfn4112f_lm87_regs[] = {
 static struct i2c_board_info sfn4112f_hwmon_info = {
 	I2C_BOARD_INFO("lm87", 0x2e),
 	.platform_data	= &sfn4112f_lm87_channel,
-	.irq		= -1,
 };
 
 #define SFN4112F_ACT_LED	0
