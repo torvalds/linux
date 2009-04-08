@@ -3623,6 +3623,13 @@ static int stv090x_set_mclk(struct stv090x_state *state, u32 mclk, u32 clk)
 
 	state->mclk = stv090x_get_mclk(state);
 
+	/*Set the DiseqC frequency to 22KHz */
+	div = state->mclk / 704000;
+	if (STV090x_WRITE_DEMOD(state, F22TX, div) < 0)
+		goto err;
+	if (STV090x_WRITE_DEMOD(state, F22RX, div) < 0)
+		goto err;
+
 	return 0;
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
