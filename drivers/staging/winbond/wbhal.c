@@ -145,11 +145,6 @@ unsigned char hal_idle(struct hw_data * pHwData)
 
 	return true;
 }
-//---------------------------------------------------------------------------------------------------
-void hal_set_phy_type(  struct hw_data * pHwData,  u8 PhyType )
-{
-	pHwData->phy_type = PhyType;
-}
 
 void hal_set_radio_mode( struct hw_data * pHwData,  unsigned char radio_off)
 {

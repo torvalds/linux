@@ -42,7 +42,6 @@ void hal_set_accept_multicast(  struct hw_data * pHwData,  u8 enable );
 void hal_set_accept_beacon(  struct hw_data * pHwData,  u8 enable );
 void hal_stop(  struct hw_data * pHwData );
 void hal_start_tx0(  struct hw_data * pHwData );
-void hal_set_phy_type(  struct hw_data * pHwData,  u8 PhyType );
 #define hal_get_cwmin( _A ) ( (_A)->cwmin )
 void hal_set_cwmax(  struct hw_data * pHwData,  u16 cwin_max );
 #define hal_get_cwmax( _A ) ( (_A)->cwmax )

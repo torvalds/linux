@@ -504,7 +504,7 @@ error_reg_destroy:
 static int wb35_hw_init(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	struct hw_data *	pHwData;
+	struct hw_data *	pHwData = &priv->sHwData;
 	u8		*pMacAddr;
 	u8		*pMacAddr2;
 	u8		EEPROM_region;
@@ -516,18 +516,16 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 	priv->sLocalPara.bMacOperationMode = MODE_802_11_BG;
 	priv->Mds.TxRTSThreshold = DEFAULT_RTSThreshold;
 	priv->Mds.TxFragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;
-	hal_set_phy_type( &priv->sHwData, RF_WB_242_1 );
 	priv->sLocalPara.MTUsize = MAX_ETHERNET_PACKET_SIZE;
 	priv->sLocalPara.bPreambleMode = AUTO_MODE;
 	priv->sLocalPara.RadioOffStatus.boSwRadioOff = false;
-	pHwData = &priv->sHwData;
-	hal_set_phy_type( pHwData, RF_DECIDE_BY_INF );
+
+	pHwData->phy_type = RF_DECIDE_BY_INF;
 
 	priv->sLocalPara.bWepKeyError= false;
 	priv->sLocalPara.bToSelfPacketReceived = false;
 	priv->sLocalPara.WepKeyDetectTimerCount= 2 * 100; /* 2 seconds */
 
-	pHwData = &priv->sHwData;
 	err = hal_init_hardware(hw);
 	if (err)
 		goto error;
