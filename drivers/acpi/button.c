@@ -128,9 +128,6 @@ static int acpi_button_info_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_button *button = seq->private;
 
-	if (!button || !button->device)
-		return 0;
-
 	seq_printf(seq, "type:                    %s\n",
 		   acpi_device_name(button->device));
 	return 0;
@@ -146,9 +143,6 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 	struct acpi_button *button = seq->private;
 	acpi_status status;
 	unsigned long long state;
-
-	if (!button || !button->device)
-		return 0;
 
 	status = acpi_evaluate_integer(button->device->handle, "_LID", NULL, &state);
 	seq_printf(seq, "state:      %s\n",
@@ -170,9 +164,6 @@ static int acpi_button_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry *entry = NULL;
 	struct acpi_button *button;
-
-	if (!device || !acpi_driver_data(device))
-		return -EINVAL;
 
 	button = acpi_driver_data(device);
 
@@ -270,9 +261,6 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 	struct acpi_button *button = acpi_driver_data(device);
 	struct input_dev *input;
 
-	if (!button || !button->device)
-		return;
-
 	switch (event) {
 	case ACPI_FIXED_HARDWARE_EVENT:
 		event = ACPI_BUTTON_NOTIFY_STATUS;
@@ -305,10 +293,8 @@ static int acpi_button_resume(struct acpi_device *device)
 {
 	struct acpi_button *button;
 
-	if (!device)
-		return -EINVAL;
 	button = acpi_driver_data(device);
-	if (button && button->type == ACPI_BUTTON_TYPE_LID)
+	if (button->type == ACPI_BUTTON_TYPE_LID)
 		return acpi_lid_send_state(button);
 	return 0;
 }
@@ -318,9 +304,6 @@ static int acpi_button_add(struct acpi_device *device)
 	int error;
 	struct acpi_button *button;
 	struct input_dev *input;
-
-	if (!device)
-		return -EINVAL;
 
 	button = kzalloc(sizeof(struct acpi_button), GFP_KERNEL);
 	if (!button)
@@ -437,9 +420,6 @@ static int acpi_button_add(struct acpi_device *device)
 static int acpi_button_remove(struct acpi_device *device, int type)
 {
 	struct acpi_button *button;
-
-	if (!device || !acpi_driver_data(device))
-		return -EINVAL;
 
 	button = acpi_driver_data(device);
 
