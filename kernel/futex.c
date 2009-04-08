@@ -565,12 +565,14 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb,
 
 /**
  * futex_lock_pi_atomic() - atomic work required to acquire a pi aware futex
- * @uaddr:	the pi futex user address
- * @hb:		the pi futex hash bucket
- * @key:	the futex key associated with uaddr and hb
- * @ps:		the pi_state pointer where we store the result of the lookup
- * @task:	the task to perform the atomic lock work for.  This will be
- * 		"current" except in the case of requeue pi.
+ * @uaddr:		the pi futex user address
+ * @hb:			the pi futex hash bucket
+ * @key:		the futex key associated with uaddr and hb
+ * @ps:			the pi_state pointer where we store the result of the
+ *			lookup
+ * @task:		the task to perform the atomic lock work for.  This will
+ *			be "current" except in the case of requeue pi.
+ * @set_waiters:	force setting the FUTEX_WAITERS bit (1) or not (0)
  *
  * Returns:
  *  0 - ready to wait
@@ -582,7 +584,7 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb,
 static int futex_lock_pi_atomic(u32 __user *uaddr, struct futex_hash_bucket *hb,
 				union futex_key *key,
 				struct futex_pi_state **ps,
-				struct task_struct *task)
+				struct task_struct *task, int set_waiters)
 {
 	int lock_taken, ret, ownerdied = 0;
 	u32 uval, newval, curval;
@@ -596,6 +598,8 @@ retry:
 	 * the locks. It will most likely not succeed.
 	 */
 	newval = task_pid_vnr(task);
+	if (set_waiters)
+		newval |= FUTEX_WAITERS;
 
 	curval = cmpxchg_futex_value_locked(uaddr, 0, newval);
 
@@ -1004,14 +1008,18 @@ void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key)
 
 /**
  * futex_proxy_trylock_atomic() - Attempt an atomic lock for the top waiter
- * @pifutex:	the user address of the to futex
- * @hb1:	the from futex hash bucket, must be locked by the caller
- * @hb2:	the to futex hash bucket, must be locked by the caller
- * @key1:	the from futex key
- * @key2:	the to futex key
+ * @pifutex:		the user address of the to futex
+ * @hb1:		the from futex hash bucket, must be locked by the caller
+ * @hb2:		the to futex hash bucket, must be locked by the caller
+ * @key1:		the from futex key
+ * @key2:		the to futex key
+ * @ps:			address to store the pi_state pointer
+ * @set_waiters:	force setting the FUTEX_WAITERS bit (1) or not (0)
  *
  * Try and get the lock on behalf of the top waiter if we can do it atomically.
- * Wake the top waiter if we succeed.  hb1 and hb2 must be held by the caller.
+ * Wake the top waiter if we succeed.  If the caller specified set_waiters,
+ * then direct futex_lock_pi_atomic() to force setting the FUTEX_WAITERS bit.
+ * hb1 and hb2 must be held by the caller.
  *
  * Returns:
  *  0 - failed to acquire the lock atomicly
@@ -1022,15 +1030,23 @@ static int futex_proxy_trylock_atomic(u32 __user *pifutex,
 				 struct futex_hash_bucket *hb1,
 				 struct futex_hash_bucket *hb2,
 				 union futex_key *key1, union futex_key *key2,
-				 struct futex_pi_state **ps)
+				 struct futex_pi_state **ps, int set_waiters)
 {
-	struct futex_q *top_waiter;
+	struct futex_q *top_waiter = NULL;
 	u32 curval;
 	int ret;
 
 	if (get_futex_value_locked(&curval, pifutex))
 		return -EFAULT;
 
+	/*
+	 * Find the top_waiter and determine if there are additional waiters.
+	 * If the caller intends to requeue more than 1 waiter to pifutex,
+	 * force futex_lock_pi_atomic() to set the FUTEX_WAITERS bit now,
+	 * as we have means to handle the possible fault.  If not, don't set
+	 * the bit unecessarily as it will force the subsequent unlock to enter
+	 * the kernel.
+	 */
 	top_waiter = futex_top_waiter(hb1, key1);
 
 	/* There are no waiters, nothing for us to do. */
@@ -1038,10 +1054,12 @@ static int futex_proxy_trylock_atomic(u32 __user *pifutex,
 		return 0;
 
 	/*
-	 * Either take the lock for top_waiter or set the FUTEX_WAITERS bit.
-	 * The pi_state is returned in ps in contended cases.
+	 * Try to take the lock for top_waiter.  Set the FUTEX_WAITERS bit in
+	 * the contended case or if set_waiters is 1.  The pi_state is returned
+	 * in ps in contended cases.
 	 */
-	ret = futex_lock_pi_atomic(pifutex, hb2, key2, ps, top_waiter->task);
+	ret = futex_lock_pi_atomic(pifutex, hb2, key2, ps, top_waiter->task,
+				   set_waiters);
 	if (ret == 1)
 		requeue_pi_wake_futex(top_waiter, key2);
 
@@ -1146,9 +1164,14 @@ retry_private:
 	}
 
 	if (requeue_pi && (task_count - nr_wake < nr_requeue)) {
-		/* Attempt to acquire uaddr2 and wake the top_waiter. */
+		/*
+		 * Attempt to acquire uaddr2 and wake the top waiter. If we
+		 * intend to requeue waiters, force setting the FUTEX_WAITERS
+		 * bit.  We force this here where we are able to easily handle
+		 * faults rather in the requeue loop below.
+		 */
 		ret = futex_proxy_trylock_atomic(uaddr2, hb1, hb2, &key1,
-						 &key2, &pi_state);
+						 &key2, &pi_state, nr_requeue);
 
 		/*
 		 * At this point the top_waiter has either taken uaddr2 or is
@@ -1810,7 +1833,7 @@ retry:
 retry_private:
 	hb = queue_lock(&q);
 
-	ret = futex_lock_pi_atomic(uaddr, hb, &q.key, &q.pi_state, current);
+	ret = futex_lock_pi_atomic(uaddr, hb, &q.key, &q.pi_state, current, 0);
 	if (unlikely(ret)) {
 		switch (ret) {
 		case 1:
