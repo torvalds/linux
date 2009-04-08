@@ -2954,6 +2954,15 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.post_associate = iwl3945_post_associate,
 };
 
+static struct iwl_station_mgmt_ops iwl3945_station_mgmt = {
+	.add_station = iwl3945_add_station,
+#if 0
+	.remove_station = iwl3945_remove_station,
+#endif
+	.find_station = iwl3945_hw_find_station,
+	.clear_station_table = iwl3945_clear_stations_table,
+};
+
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 	.get_hcmd_size = iwl3945_get_hcmd_size,
 	.build_addsta_hcmd = iwl3945_build_addsta_hcmd,
@@ -2963,6 +2972,7 @@ static struct iwl_ops iwl3945_ops = {
 	.lib = &iwl3945_lib,
 	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,
+	.smgmt = &iwl3945_station_mgmt,
 };
 
 static struct iwl_cfg iwl3945_bg_cfg = {

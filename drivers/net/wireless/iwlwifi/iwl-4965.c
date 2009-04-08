@@ -2268,6 +2268,12 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_work_sync(&priv->txpower_work);
 }
 
+static struct iwl_station_mgmt_ops iwl4965_station_mgmt = {
+	.add_station_ht = iwl_add_station_flags,
+	.remove_station = iwl_remove_station,
+	.find_station = iwl_find_station,
+	.clear_station_table = iwl_clear_stations_table,
+};
 
 static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.rxon_assoc = iwl4965_send_rxon_assoc,
@@ -2332,6 +2338,7 @@ static struct iwl_ops iwl4965_ops = {
 	.lib = &iwl4965_lib,
 	.hcmd = &iwl4965_hcmd,
 	.utils = &iwl4965_hcmd_utils,
+	.smgmt = &iwl4965_station_mgmt,
 };
 
 struct iwl_cfg iwl4965_agn_cfg = {
