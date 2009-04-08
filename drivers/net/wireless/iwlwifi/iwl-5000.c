@@ -1482,6 +1482,7 @@ struct iwl_station_mgmt_ops iwl5000_station_mgmt = {
 struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
+	.set_rxon_chain = iwl_set_rxon_chain,
 };
 
 struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {

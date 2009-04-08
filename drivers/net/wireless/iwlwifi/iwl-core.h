@@ -95,6 +95,7 @@ struct iwl_station_mgmt_ops {
 struct iwl_hcmd_ops {
 	int (*rxon_assoc)(struct iwl_priv *priv);
 	int (*commit_rxon)(struct iwl_priv *priv);
+	void (*set_rxon_chain)(struct iwl_priv *priv);
 };
 
 struct iwl_hcmd_utils_ops {

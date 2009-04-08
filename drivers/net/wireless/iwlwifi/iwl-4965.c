@@ -2278,6 +2278,7 @@ static struct iwl_station_mgmt_ops iwl4965_station_mgmt = {
 static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.rxon_assoc = iwl4965_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
+	.set_rxon_chain = iwl_set_rxon_chain,
 };
 
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {

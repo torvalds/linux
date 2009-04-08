@@ -821,7 +821,8 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 
 	rxon->flags |= cpu_to_le32(val << RXON_FLG_HT_OPERATING_MODE_POS);
 
-	iwl_set_rxon_chain(priv);
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		priv->cfg->ops->hcmd->set_rxon_chain(priv);
 
 	IWL_DEBUG_ASSOC(priv, "supported HT rate 0x%X 0x%X 0x%X "
 			"rxon flags 0x%X operation mode :0x%X "
@@ -1380,7 +1381,9 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->current_ht_config.sm_ps = WLAN_HT_CAP_SM_PS_DISABLED;
 
 	/* Choose which receivers/antennas to use */
-	iwl_set_rxon_chain(priv);
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		priv->cfg->ops->hcmd->set_rxon_chain(priv);
+
 	iwl_init_scan_params(priv);
 
 	iwl_reset_qos(priv);
@@ -2257,7 +2260,9 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changes & BSS_CHANGED_HT) {
 		iwl_ht_conf(priv, bss_conf);
-		iwl_set_rxon_chain(priv);
+
+		if (priv->cfg->ops->hcmd->set_rxon_chain)
+			priv->cfg->ops->hcmd->set_rxon_chain(priv);
 	}
 
 	if (changes & BSS_CHANGED_ASSOC) {
