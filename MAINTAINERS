@@ -3057,7 +3057,7 @@ S:	Supported
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
 P:	Pierre Ossman
-M:	drzeus-mmc@drzeus.cx
+M:	pierre@ossman.eu
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -3939,7 +3939,7 @@ S:	Maintained
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
 P:	Pierre Ossman
-M:	drzeus-sdhci@drzeus.cx
+M:	pierre@ossman.eu
 L:	sdhci-devel@lists.ossman.eu
 S:	Maintained
 
@@ -4926,7 +4926,7 @@ S:	Maintained
 
 W83L51xD SD/MMC CARD INTERFACE DRIVER
 P:	Pierre Ossman
-M:	drzeus-wbsd@drzeus.cx
+M:	pierre@ossman.eu
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
