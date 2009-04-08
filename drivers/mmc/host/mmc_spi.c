@@ -97,6 +97,14 @@
  */
 #define r1b_timeout		(HZ * 3)
 
+/* One of the critical speed parameters is the amount of data which may
+ * be transfered in one command. If this value is too low, the SD card
+ * controller has to do multiple partial block writes (argggh!). With
+ * today (2008) SD cards there is little speed gain if we transfer more
+ * than 64 KBytes at a time. So use this value until there is any indication
+ * that we should do more here.
+ */
+#define MMC_SPI_BLOCKSATONCE	128
 
 /****************************************************************************/
 
@@ -1366,6 +1374,10 @@ static int mmc_spi_probe(struct spi_device *spi)
 
 	mmc->ops = &mmc_spi_ops;
 	mmc->max_blk_size = MMC_SPI_BLOCKSIZE;
+	mmc->max_hw_segs = MMC_SPI_BLOCKSATONCE;
+	mmc->max_phys_segs = MMC_SPI_BLOCKSATONCE;
+	mmc->max_req_size = MMC_SPI_BLOCKSATONCE * MMC_SPI_BLOCKSIZE;
+	mmc->max_blk_count = MMC_SPI_BLOCKSATONCE;
 
 	mmc->caps = MMC_CAP_SPI;
 
