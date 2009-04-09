@@ -854,11 +854,6 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 
 	rm->m_daddr = daddr;
 
-	/* Parse any control messages the user may have included. */
-	ret = rds_cmsg_send(rs, rm, msg, &allocated_mr);
-	if (ret)
-		goto out;
-
 	/* rds_conn_create has a spinlock that runs with IRQ off.
 	 * Caching the conn in the socket helps a lot. */
 	if (rs->rs_conn && rs->rs_conn->c_faddr == daddr)
@@ -873,6 +868,11 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		}
 		rs->rs_conn = conn;
 	}
+
+	/* Parse any control messages the user may have included. */
+	ret = rds_cmsg_send(rs, rm, msg, &allocated_mr);
+	if (ret)
+		goto out;
 
 	if ((rm->m_rdma_cookie || rm->m_rdma_op)
 	 && conn->c_trans->xmit_rdma == NULL) {
