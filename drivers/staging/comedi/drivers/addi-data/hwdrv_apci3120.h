@@ -161,7 +161,7 @@ static const struct comedi_lrange range_apci3120_ao = { 2, {
 
 #define APCI3120_TIMER2_SELECT_EOS                0xC0	/*  ADDED on 20-6 */
 #define APCI3120_COUNTER                          3	/*  on 20-6 */
-#define APCI3120_DISABLE_ALL_TIMER                ( APCI3120_DISABLE_TIMER0 & APCI3120_DISABLE_TIMER1 & APCI3120_DISABLE_TIMER2 )	/*  on 20-6 */
+#define APCI3120_DISABLE_ALL_TIMER                (APCI3120_DISABLE_TIMER0 & APCI3120_DISABLE_TIMER1 & APCI3120_DISABLE_TIMER2)	/*  on 20-6 */
 
 #define MAX_ANALOGINPUT_CHANNELS    32
 

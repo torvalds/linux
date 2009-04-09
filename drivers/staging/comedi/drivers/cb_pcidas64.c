@@ -98,7 +98,7 @@ TODO:
 /* #define PCIDAS64_DEBUG         enable debugging code */
 
 #ifdef PCIDAS64_DEBUG
-#define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
+#define DEBUG_PRINT(format, args...)  rt_printk(format , ## args)
 #else
 #define DEBUG_PRINT(format, args...)
 #endif

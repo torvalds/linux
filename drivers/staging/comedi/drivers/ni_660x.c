@@ -1161,7 +1161,7 @@ static void init_tio_chip(struct comedi_device *dev, int chipset)
 	ni_660x_write_register(dev, chipset,
 		private(dev)->dma_configuration_soft_copies[chipset],
 		DMAConfigRegister);
-	for(i = 0; i < NUM_PFI_CHANNELS; ++i)
+	for (i = 0; i < NUM_PFI_CHANNELS; ++i)
 	{
 		ni_660x_write_register(dev, chipset, 0, IOConfigReg(i));
 	}
@@ -1237,8 +1237,8 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev, unsigned pfi_ch
 	unsigned active_bits;
 	unsigned idle_bits;
 
-	if(board(dev)->n_chips > 1) {
-		if(output_select == pfi_output_select_counter &&
+	if (board (dev)->n_chips > 1) {
+		if (output_select == pfi_output_select_counter &&
 			pfi_channel >= counter_4_7_first_pfi &&
 			pfi_channel <= counter_4_7_last_pfi) {
 			active_chipset = 1;
@@ -1249,7 +1249,7 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev, unsigned pfi_ch
 		}
 	}
 
-	if(idle_chipset != active_chipset) {
+	if (idle_chipset != active_chipset) {
 		idle_bits = ni_660x_read_register(dev, idle_chipset, IOConfigReg(pfi_channel));
 		idle_bits &= ~pfi_output_select_mask(pfi_channel);
 		idle_bits |= pfi_output_select_bits(pfi_channel, pfi_output_select_high_Z);

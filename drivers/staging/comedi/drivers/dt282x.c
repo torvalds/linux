@@ -387,12 +387,12 @@ struct dt282x_private {
 #define wait_for(a, b)	 				\
 	do{						\
 		int _i;					\
-		for(_i=0;_i<DT2821_TIMEOUT;_i++){	\
-			if(a){_i=0;break;}		\
+		for (_i=0;_i<DT2821_TIMEOUT;_i++){	\
+			if (a){_i=0;break;}		\
 			comedi_udelay(5);			\
 		}					\
-		if(_i){b}				\
-	}while(0)
+		if (_i){b}				\
+	}while (0)
 
 static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int dt282x_detach(struct comedi_device *dev);
@@ -1029,7 +1029,7 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 		cmd->start_arg = 0;
 		err++;
 	}
-	if (cmd->scan_begin_arg < 5000 /* XXX unknown */ ) {
+	if (cmd->scan_begin_arg < 5000 /* XXX unknown */) {
 		cmd->scan_begin_arg = 5000;
 		err++;
 	}
@@ -1302,7 +1302,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		irq = probe_irq_off(irqs);
 		restore_flags(flags);
-		if (0 /* error */ ) {
+		if (0 /* error */) {
 			printk(" error probing irq (bad)");
 		}
 	}

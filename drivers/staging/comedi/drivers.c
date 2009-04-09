@@ -198,7 +198,7 @@ int comedi_driver_unregister(struct comedi_driver *driver)
 		struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(i);
 		struct comedi_device *dev;
 
-		if(dev_file_info == NULL) continue;
+		if (dev_file_info == NULL) continue;
 		dev = dev_file_info->device;
 
 		mutex_lock(&dev->mutex);
@@ -801,7 +801,7 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 	}
 
 	minor = comedi_alloc_board_minor(hardware_device);
-	if(minor < 0) return minor;
+	if (minor < 0) return minor;
 
 	private_data = kmalloc(sizeof(unsigned), GFP_KERNEL);
 	if (private_data == NULL) {
@@ -824,7 +824,7 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 	mutex_unlock(&dev_file_info->device->mutex);
 
 cleanup:
-	if(retval < 0)
+	if (retval < 0)
 	{
 		kfree(private_data);
 		comedi_free_board_minor(minor);
@@ -835,7 +835,7 @@ cleanup:
 void comedi_auto_unconfig(struct device *hardware_device)
 {
 	unsigned *minor = (unsigned *)dev_get_drvdata(hardware_device);
-	if(minor == NULL) return;
+	if (minor == NULL) return;
 
 	BUG_ON(*minor >= COMEDI_NUM_BOARD_MINORS);
 

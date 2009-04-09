@@ -101,17 +101,17 @@ If you do not specify any options, they will default to
 
 // available ranges through the PGA gains
 static const struct comedi_lrange range_adq12b_ai_bipolar = { 4, {
-        BIP_RANGE( 5 ),
-        BIP_RANGE( 2 ),
-        BIP_RANGE( 1 ),
-        BIP_RANGE( 0.5 )
+        BIP_RANGE(5),
+        BIP_RANGE(2),
+        BIP_RANGE(1),
+        BIP_RANGE(0.5)
 }};
 
 static const struct comedi_lrange range_adq12b_ai_unipolar = { 4, {
-        UNI_RANGE( 5 ),
-        UNI_RANGE( 2 ),
-        UNI_RANGE( 1 ),
-        UNI_RANGE( 0.5 )
+        UNI_RANGE(5),
+        UNI_RANGE(2),
+        UNI_RANGE(1),
+        UNI_RANGE(0.5)
 }};
 
 
@@ -219,7 +219,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-        if(alloc_private(dev, sizeof(struct adq12b_private)) < 0)
+        if (alloc_private (dev, sizeof (struct adq12b_private)) < 0)
           return -ENOMEM;
 
 /* fill in devpriv structure */
@@ -236,7 +236,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
-        if(alloc_subdevices(dev, 3)<0)
+        if (alloc_subdevices (dev, 3)<0)
            return -ENOMEM;
 
         s = dev->subdevices+0;
@@ -332,7 +332,7 @@ static int adq12b_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
         status = inb(dev->iobase + ADQ12B_ADLOW);
 
         /* convert n samples */
-        for(n=0; n < insn->n; n++){
+        for (n=0; n < insn->n; n++){
 
           /* wait for end of convertion */
 	  i = 0;

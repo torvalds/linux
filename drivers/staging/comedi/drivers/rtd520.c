@@ -757,15 +757,15 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				continue;
 			}
 		}
-		for(i = 0; i < sizeof(rtd520Boards) / sizeof(rtd520Boards[0]); ++i)
+		for (i = 0; i < sizeof (rtd520Boards) / sizeof (rtd520Boards[0]); ++i)
 		{
-			if(pcidev->device == rtd520Boards[i].device_id)
+			if (pcidev->device == rtd520Boards[i].device_id)
 			{
 				dev->board_ptr = &rtd520Boards[i];
 				break;
 			}
 		}
-		if(dev->board_ptr) break;	/* found one */
+		if (dev->board_ptr) break;	/* found one */
 	}
 	if (!pcidev) {
 		if (it->options[0] && it->options[1]) {
@@ -931,7 +931,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk("( irq=%u )", dev->irq);
 
 	ret = rtd520_probe_fifo_depth(dev);
-	if(ret < 0) {
+	if (ret < 0) {
 		return ret;
 	}
 	devpriv->fifoLen = ret;
@@ -1226,18 +1226,18 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 		RtdAdcStart(dev);
 		comedi_udelay(1);
 		fifo_status = RtdFifoStatus(dev);
-		if((fifo_status & FS_ADC_HEMPTY) == 0) {
+		if ((fifo_status & FS_ADC_HEMPTY) == 0) {
 			fifo_size = 2 * i;
 			break;
 		}
 	}
-	if(i == limit)
+	if (i == limit)
 	{
 		rt_printk("\ncomedi: %s: failed to probe fifo size.\n", DRV_NAME);
 		return -EIO;
 	}
 	RtdAdcClearFifo(dev);
-	if(fifo_size != 0x400 && fifo_size != 0x2000)
+	if (fifo_size != 0x400 && fifo_size != 0x2000)
 	{
 		rt_printk("\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
 			DRV_NAME, fifo_size);

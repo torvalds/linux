@@ -1347,20 +1347,20 @@ static int pci1710_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	board_index = this_board - boardtypes;
 	while (NULL != (pcidev = pci_get_device(PCI_VENDOR_ID_ADVANTECH,
 		PCI_ANY_ID, pcidev))) {
-		if(strcmp(this_board->name, DRV_NAME) == 0)
+		if (strcmp (this_board->name, DRV_NAME) == 0)
 		{
-			for(i = 0; i < n_boardtypes; ++i)
+			for (i = 0; i < n_boardtypes; ++i)
 			{
-				if(pcidev->device == boardtypes[i].device_id)
+				if (pcidev->device == boardtypes[i].device_id)
 				{
 					board_index = i;
 					break;
 				}
 			}
-			if(i == n_boardtypes) continue;
+			if (i == n_boardtypes) continue;
 		}else
 		{
-			if(pcidev->device != boardtypes[board_index].device_id) continue;
+			if (pcidev->device != boardtypes[board_index].device_id) continue;
 		}
 
 		/* Found matching vendor/device. */

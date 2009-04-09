@@ -45,9 +45,9 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
   +----------+-----------+------------------------------------------------+
 */
 
-#define NVCMD_BEGIN_READ 	(0x7 << 5 )	/*  nvRam begin read command */
-#define NVCMD_LOAD_LOW   	(0x4 << 5 )	/*  nvRam load low command */
-#define NVCMD_LOAD_HIGH  	(0x5 << 5 )	/*  nvRam load high command */
+#define NVCMD_BEGIN_READ 	(0x7 << 5)	/*  nvRam begin read command */
+#define NVCMD_LOAD_LOW   	(0x4 << 5)	/*  nvRam load low command */
+#define NVCMD_LOAD_HIGH  	(0x5 << 5)	/*  nvRam load high command */
 #define EE76_CMD_LEN    	13	/*  bits in instructions */
 #define EE_READ         	0x0180	/*  01 1000 0000 read instruction */
 

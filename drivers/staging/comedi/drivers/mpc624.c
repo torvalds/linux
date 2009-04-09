@@ -110,13 +110,13 @@ Configuration Options:
  */
 
 #define MPC624_SPEED_3_52_kHz   (MPC624_OSR4                                           | MPC624_OSR0)
-#define MPC624_SPEED_1_76_kHz   (MPC624_OSR4                             | MPC624_OSR1              )
+#define MPC624_SPEED_1_76_kHz   (MPC624_OSR4                             | MPC624_OSR1)
 #define MPC624_SPEED_880_Hz     (MPC624_OSR4                             | MPC624_OSR1 | MPC624_OSR0)
-#define MPC624_SPEED_440_Hz     (MPC624_OSR4               | MPC624_OSR2                            )
+#define MPC624_SPEED_440_Hz     (MPC624_OSR4               | MPC624_OSR2)
 #define MPC624_SPEED_220_Hz     (MPC624_OSR4               | MPC624_OSR2               | MPC624_OSR0)
-#define MPC624_SPEED_110_Hz     (MPC624_OSR4               | MPC624_OSR2 | MPC624_OSR1              )
+#define MPC624_SPEED_110_Hz     (MPC624_OSR4               | MPC624_OSR2 | MPC624_OSR1)
 #define MPC624_SPEED_55_Hz      (MPC624_OSR4               | MPC624_OSR2 | MPC624_OSR1 | MPC624_OSR0)
-#define MPC624_SPEED_27_5_Hz    (MPC624_OSR4 | MPC624_OSR3                                          )
+#define MPC624_SPEED_27_5_Hz    (MPC624_OSR4 | MPC624_OSR3)
 #define MPC624_SPEED_13_75_Hz   (MPC624_OSR4 | MPC624_OSR3                             | MPC624_OSR0)
 #define MPC624_SPEED_6_875_Hz   (MPC624_OSR4 | MPC624_OSR3 | MPC624_OSR2 | MPC624_OSR1 | MPC624_OSR0)
 /* ---------------------------------------------------------------------------- */

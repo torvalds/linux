@@ -1554,7 +1554,7 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	if(devpriv->ai_mite_chan == NULL)
+	if (devpriv->ai_mite_chan == NULL)
 	{
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		return -EIO;
@@ -2810,7 +2810,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 	int i;
 	int invert = 0;
 
-	if(timed) {
+	if (timed) {
 		for (i = 0; i < boardtype.n_aochan; ++i) {
 			devpriv->ao_conf[i] &= ~MSeries_AO_Update_Timed_Bit;
 			ni_writeb(devpriv->ao_conf[i], M_Offset_AO_Config_Bank(i));
@@ -2970,11 +2970,11 @@ static int ni_ao_insn_config(struct comedi_device *dev, struct comedi_subdevice 
 {
 	switch (data[0]) {
 	case INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE:
-		switch(data[1])
+		switch (data[1])
 		{
 		case COMEDI_OUTPUT:
 			data[2] = 1 + boardtype.ao_fifo_depth * sizeof(short);
-			if(devpriv->mite) data[2] += devpriv->mite->fifo_size;
+			if (devpriv->mite) data[2] += devpriv->mite->fifo_size;
 			break;
 		case COMEDI_INPUT:
 			data[2] = 0;
@@ -3139,7 +3139,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->stc_writew(dev, devpriv->ao_mode2, AO_Mode_2_Register);
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
-		if(boardtype.reg_type & ni_reg_m_series_mask)
+		if (boardtype.reg_type & ni_reg_m_series_mask)
 		{
 			/*  this is how the NI example code does it for m-series boards, verified correct with 6259 */
 			devpriv->stc_writel(dev, cmd->stop_arg - 1, AO_UC_Load_A_Register);
@@ -3422,7 +3422,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (boardtype.reg_type & ni_reg_6xxx_mask) {
 		unsigned immediate_bits = 0;
 		unsigned i;
-		for(i = 0; i < s->n_chan; ++i)
+		for (i = 0; i < s->n_chan; ++i)
 		{
 			immediate_bits |= 1 << i;
 		}

@@ -2638,7 +2638,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->i_IobaseReserved = (int) io_addr[3];
 		printk("\nioremap begin");
 		devpriv->dw_AiBase =
-			(unsigned long ) ioremap(io_addr[3],
+			(unsigned long) ioremap(io_addr[3],
 			this_board->i_IorangeBase3);
 		printk("\nioremap end");
 	}

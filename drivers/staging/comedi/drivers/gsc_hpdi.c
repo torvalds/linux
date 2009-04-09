@@ -66,7 +66,7 @@ static int dio_config_block_size(struct comedi_device * dev, unsigned int * data
 /* #define HPDI_DEBUG      enable debugging code */
 
 #ifdef HPDI_DEBUG
-#define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
+#define DEBUG_PRINT(format, args...)  rt_printk(format , ## args)
 #else
 #define DEBUG_PRINT(format, args...)
 #endif

@@ -262,7 +262,7 @@ enum Joint_Status_2_Bits {
 #define AO_Trigger_Once				_bit0
 
 #define AO_Mode_2_Register		39
-#define AO_FIFO_Mode_Mask ( 0x3 << 14 )
+#define AO_FIFO_Mode_Mask (0x3 << 14)
 enum AO_FIFO_Mode_Bits {
 	AO_FIFO_Mode_HF_to_F = (3 << 14),
 	AO_FIFO_Mode_F = (2 << 14),
