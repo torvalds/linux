@@ -33,7 +33,6 @@ struct x86_quirks {
 	int (*setup_ioapic_ids)(void);
 };
 
-extern void x86_quirk_pre_intr_init(void);
 extern void x86_quirk_intr_init(void);
 
 extern void x86_quirk_trap_init(void);

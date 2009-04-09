@@ -53,7 +53,7 @@ static struct irqaction fpu_irq = {
 	.name = "fpu",
 };
 
-void __init init_ISA_irqs(void)
+static void __init init_ISA_irqs(void)
 {
 	int i;
 
@@ -120,6 +120,24 @@ int vector_used_by_percpu_irq(unsigned int vector)
 
 /* Overridden in paravirt.c */
 void init_IRQ(void) __attribute__((weak, alias("native_init_IRQ")));
+
+/**
+ * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
+ *
+ * Description:
+ *	Perform any necessary interrupt initialisation prior to setting up
+ *	the "ordinary" interrupt call gates.  For legacy reasons, the ISA
+ *	interrupts should be initialised here if the machine emulates a PC
+ *	in any way.
+ **/
+static void __init x86_quirk_pre_intr_init(void)
+{
+	if (x86_quirks->arch_pre_intr_init) {
+		if (x86_quirks->arch_pre_intr_init())
+			return;
+	}
+	init_ISA_irqs();
+}
 
 void __init native_init_IRQ(void)
 {
