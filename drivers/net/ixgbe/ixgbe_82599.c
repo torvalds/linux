@@ -221,8 +221,19 @@ s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
                                       bool *negotiation)
 {
 	s32 status = 0;
+	u32 autoc = 0;
 
-	switch (hw->mac.orig_autoc & IXGBE_AUTOC_LMS_MASK) {
+	/*
+	 * Determine link capabilities based on the stored value of AUTOC,
+	 * which represents EEPROM defaults.  If AUTOC value has not been
+	 * stored, use the current register value.
+	 */
+	if (hw->mac.orig_link_settings_stored)
+		autoc = hw->mac.orig_autoc;
+	else
+		autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+
+	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
 	case IXGBE_AUTOC_LMS_1G_LINK_NO_AN:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
 		*negotiation = false;
@@ -246,22 +257,22 @@ s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	case IXGBE_AUTOC_LMS_KX4_KX_KR:
 	case IXGBE_AUTOC_LMS_KX4_KX_KR_1G_AN:
 		*speed = IXGBE_LINK_SPEED_UNKNOWN;
-		if (hw->mac.orig_autoc & IXGBE_AUTOC_KR_SUPP)
+		if (autoc & IXGBE_AUTOC_KR_SUPP)
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
-		if (hw->mac.orig_autoc & IXGBE_AUTOC_KX4_SUPP)
+		if (autoc & IXGBE_AUTOC_KX4_SUPP)
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
-		if (hw->mac.orig_autoc & IXGBE_AUTOC_KX_SUPP)
+		if (autoc & IXGBE_AUTOC_KX_SUPP)
 			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
 		*negotiation = true;
 		break;
 
 	case IXGBE_AUTOC_LMS_KX4_KX_KR_SGMII:
 		*speed = IXGBE_LINK_SPEED_100_FULL;
-		if (hw->mac.orig_autoc & IXGBE_AUTOC_KR_SUPP)
+		if (autoc & IXGBE_AUTOC_KR_SUPP)
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
-		if (hw->mac.orig_autoc & IXGBE_AUTOC_KX4_SUPP)
+		if (autoc & IXGBE_AUTOC_KX4_SUPP)
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
-		if (hw->mac.orig_autoc & IXGBE_AUTOC_KX_SUPP)
+		if (autoc & IXGBE_AUTOC_KX_SUPP)
 			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
 		*negotiation = true;
 		break;
@@ -572,6 +583,7 @@ s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
 	s32 status = 0;
 	u32 autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32 autoc2 = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
+	u32 orig_autoc = 0;
 	u32 link_mode = autoc & IXGBE_AUTOC_LMS_MASK;
 	u32 pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
 	u32 pma_pmd_10g_serial = autoc2 & IXGBE_AUTOC2_10G_SERIAL_PMA_PMD_MASK;
@@ -583,6 +595,13 @@ s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
 	hw->mac.ops.get_link_capabilities(hw, &link_capabilities, &autoneg);
 	speed &= link_capabilities;
 
+	/* Use stored value (EEPROM defaults) of AUTOC to find KR/KX4 support*/
+	if (hw->mac.orig_link_settings_stored)
+		orig_autoc = hw->mac.orig_autoc;
+	else
+		orig_autoc = autoc;
+
+
 	if (speed == IXGBE_LINK_SPEED_UNKNOWN) {
 		status = IXGBE_ERR_LINK_SETUP;
 	} else if (link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR ||
@@ -591,9 +610,9 @@ s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
 		/* Set KX4/KX/KR support according to speed requested */
 		autoc &= ~(IXGBE_AUTOC_KX4_KX_SUPP_MASK | IXGBE_AUTOC_KR_SUPP);
 		if (speed & IXGBE_LINK_SPEED_10GB_FULL)
-			if (hw->mac.orig_autoc & IXGBE_AUTOC_KX4_SUPP)
+			if (orig_autoc & IXGBE_AUTOC_KX4_SUPP)
 				autoc |= IXGBE_AUTOC_KX4_SUPP;
-			if (hw->mac.orig_autoc & IXGBE_AUTOC_KR_SUPP)
+			if (orig_autoc & IXGBE_AUTOC_KR_SUPP)
 				autoc |= IXGBE_AUTOC_KR_SUPP;
 		if (speed & IXGBE_LINK_SPEED_1GB_FULL)
 			autoc |= IXGBE_AUTOC_KX_SUPP;

@@ -165,12 +165,19 @@ static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
                                              bool *autoneg)
 {
 	s32 status = 0;
+	u32 autoc = 0;
 
 	/*
 	 * Determine link capabilities based on the stored value of AUTOC,
-	 * which represents EEPROM defaults.
+	 * which represents EEPROM defaults.  If AUTOC value has not been
+	 * stored, use the current register value.
 	 */
-	switch (hw->mac.orig_autoc & IXGBE_AUTOC_LMS_MASK) {
+	if (hw->mac.orig_link_settings_stored)
+		autoc = hw->mac.orig_autoc;
+	else
+		autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+
+	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
 	case IXGBE_AUTOC_LMS_1G_LINK_NO_AN:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
 		*autoneg = false;
@@ -189,9 +196,9 @@ static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
 	case IXGBE_AUTOC_LMS_KX4_AN:
 	case IXGBE_AUTOC_LMS_KX4_AN_1G_AN:
 		*speed = IXGBE_LINK_SPEED_UNKNOWN;
-		if (hw->mac.orig_autoc & IXGBE_AUTOC_KX4_SUPP)
+		if (autoc & IXGBE_AUTOC_KX4_SUPP)
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
-		if (hw->mac.orig_autoc & IXGBE_AUTOC_KX_SUPP)
+		if (autoc & IXGBE_AUTOC_KX_SUPP)
 			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
 		*autoneg = true;
 		break;
