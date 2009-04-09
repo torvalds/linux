@@ -28,7 +28,6 @@
 #include <linux/spi/libertas_spi.h>
 #include <linux/power_supply.h>
 #include <linux/apm-emulation.h>
-#include <linux/delay.h>
 
 #include <media/soc_camera.h>
 
