@@ -958,6 +958,8 @@
 #define IXGBE_VT_CTL_DIS_DEFPL  0x20000000 /* disable default pool */
 #define IXGBE_VT_CTL_REPLEN     0x40000000 /* replication enabled */
 #define IXGBE_VT_CTL_VT_ENABLE  0x00000001  /* Enable VT Mode */
+#define IXGBE_VT_CTL_POOL_SHIFT 7
+#define IXGBE_VT_CTL_POOL_MASK  (0x3F << IXGBE_VT_CTL_POOL_SHIFT)
 
 /* VMOLR bitmasks */
 #define IXGBE_VMOLR_AUPE        0x01000000 /* accept untagged packets */
