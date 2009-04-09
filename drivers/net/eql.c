@@ -542,6 +542,8 @@ static int eql_s_slave_cfg(struct net_device *dev, slave_config_t __user *scp)
 	}
 	spin_unlock_bh(&eql->queue.lock);
 
+	dev_put(slave_dev);
+
 	return ret;
 }
 

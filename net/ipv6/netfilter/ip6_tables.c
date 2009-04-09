@@ -1033,6 +1033,8 @@ static struct xt_counters *alloc_counters(struct xt_table *table)
 
 	xt_free_table_info(info);
 
+	return counters;
+
  free_counters:
 	vfree(counters);
  nomem:
