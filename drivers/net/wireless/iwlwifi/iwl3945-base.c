@@ -4913,6 +4913,8 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 
 	hw->wiphy->custom_regulatory = true;
 
+	hw->wiphy->max_scan_ssids = 1; /* WILL FIX */
+
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
 
