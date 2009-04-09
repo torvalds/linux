@@ -3177,18 +3177,12 @@ P:	Paul Clements
 M:	Paul.Clements@steeleye.com
 S:	Maintained
 
-NETWORK DEVICE DRIVERS
-P:	Jeff Garzik
-M:	jgarzik@pobox.com
-L:	netdev@vger.kernel.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/jgarzik/netdev-2.6.git
-S:	Maintained
-
 NETWORKING [GENERAL]
-P:	Networking Team
-M:	netdev@vger.kernel.org
+P:	David S. Miller
+M:	davem@davemloft.net
 L:	netdev@vger.kernel.org
 W:	http://linux-net.osdl.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 
 NETWORKING [IPv4/IPv6]
