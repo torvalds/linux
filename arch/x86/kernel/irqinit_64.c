@@ -39,14 +39,46 @@
  * (these are usually mapped into the 0x30-0xff vector range)
  */
 
+#ifdef CONFIG_X86_32
+/*
+ * Note that on a 486, we don't want to do a SIGFPE on an irq13
+ * as the irq is unreliable, and exception 16 works correctly
+ * (ie as explained in the intel literature). On a 386, you
+ * can't use exception 16 due to bad IBM design, so we have to
+ * rely on the less exact irq13.
+ *
+ * Careful.. Not only is IRQ13 unreliable, but it is also
+ * leads to races. IBM designers who came up with it should
+ * be shot.
+ */
+
+static irqreturn_t math_error_irq(int cpl, void *dev_id)
+{
+	outb(0, 0xF0);
+	if (ignore_fpu_irq || !boot_cpu_data.hard_math)
+		return IRQ_NONE;
+	math_error((void __user *)get_irq_regs()->ip);
+	return IRQ_HANDLED;
+}
+
+/*
+ * New motherboards sometimes make IRQ 13 be a PCI interrupt,
+ * so allow interrupt sharing.
+ */
+static struct irqaction fpu_irq = {
+	.handler = math_error_irq,
+	.name = "fpu",
+};
+#endif
+
 /*
  * IRQ2 is cascade interrupt to second interrupt controller
  */
-
 static struct irqaction irq2 = {
 	.handler = no_action,
 	.name = "cascade",
 };
+
 DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
 	[0 ... IRQ0_VECTOR - 1] = -1,
 	[IRQ0_VECTOR] = 0,
@@ -158,11 +190,36 @@ static void __init apic_intr_init(void)
 	alloc_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
 }
 
+#ifdef CONFIG_X86_32
+/**
+ * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
+ *
+ * Description:
+ *	Perform any necessary interrupt initialisation prior to setting up
+ *	the "ordinary" interrupt call gates.  For legacy reasons, the ISA
+ *	interrupts should be initialised here if the machine emulates a PC
+ *	in any way.
+ **/
+static void __init x86_quirk_pre_intr_init(void)
+{
+	if (x86_quirks->arch_pre_intr_init) {
+		if (x86_quirks->arch_pre_intr_init())
+			return;
+	}
+	init_ISA_irqs();
+}
+#endif
+
 void __init native_init_IRQ(void)
 {
 	int i;
 
+#ifdef CONFIG_X86_32
+	/* Execute any quirks before the call gates are initialised: */
+	x86_quirk_pre_intr_init();
+#else
 	init_ISA_irqs();
+#endif
 
 	/*
 	 * Cover the whole vector space, no vector can escape
@@ -170,13 +227,36 @@ void __init native_init_IRQ(void)
 	 * 'special' SMP interrupts)
 	 */
 	for (i = FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
+#ifdef CONFIG_X86_32
+		/* SYSCALL_VECTOR was reserved in trap_init. */
+		if (i != SYSCALL_VECTOR)
+			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
+#else
 		/* IA32_SYSCALL_VECTOR was reserved in trap_init. */
 		if (i != IA32_SYSCALL_VECTOR)
 			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
+#endif
 	}
 
 	apic_intr_init();
 
 	if (!acpi_ioapic)
 		setup_irq(2, &irq2);
+
+#ifdef CONFIG_X86_32
+	/*
+	 * Call quirks after call gates are initialised (usually add in
+	 * the architecture specific gates):
+	 */
+	x86_quirk_intr_init();
+
+	/*
+	 * External FPU? Set up irq13 if so, for
+	 * original braindamaged IBM FERR coupling.
+	 */
+	if (boot_cpu_data.hard_math && !cpu_has_fpu)
+		setup_irq(FPU_IRQ, &fpu_irq);
+
+	irq_ctx_init(smp_processor_id());
+#endif
 }

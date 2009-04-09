@@ -22,7 +22,7 @@
 #include <asm/i8259.h>
 #include <asm/traps.h>
 
-
+#ifdef CONFIG_X86_32
 /*
  * Note that on a 486, we don't want to do a SIGFPE on an irq13
  * as the irq is unreliable, and exception 16 works correctly
@@ -52,6 +52,7 @@ static struct irqaction fpu_irq = {
 	.handler = math_error_irq,
 	.name = "fpu",
 };
+#endif
 
 /*
  * IRQ2 is cascade interrupt to second interrupt controller
@@ -155,24 +156,6 @@ static void __init smp_intr_init(void)
 #endif /* CONFIG_SMP */
 }
 
-/**
- * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
- *
- * Description:
- *	Perform any necessary interrupt initialisation prior to setting up
- *	the "ordinary" interrupt call gates.  For legacy reasons, the ISA
- *	interrupts should be initialised here if the machine emulates a PC
- *	in any way.
- **/
-static void __init x86_quirk_pre_intr_init(void)
-{
-	if (x86_quirks->arch_pre_intr_init) {
-		if (x86_quirks->arch_pre_intr_init())
-			return;
-	}
-	init_ISA_irqs();
-}
-
 static void __init apic_intr_init(void)
 {
 	smp_intr_init();
@@ -195,12 +178,36 @@ static void __init apic_intr_init(void)
 #endif
 }
 
+#ifdef CONFIG_X86_32
+/**
+ * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
+ *
+ * Description:
+ *	Perform any necessary interrupt initialisation prior to setting up
+ *	the "ordinary" interrupt call gates.  For legacy reasons, the ISA
+ *	interrupts should be initialised here if the machine emulates a PC
+ *	in any way.
+ **/
+static void __init x86_quirk_pre_intr_init(void)
+{
+	if (x86_quirks->arch_pre_intr_init) {
+		if (x86_quirks->arch_pre_intr_init())
+			return;
+	}
+	init_ISA_irqs();
+}
+#endif
+
 void __init native_init_IRQ(void)
 {
 	int i;
 
+#ifdef CONFIG_X86_32
 	/* Execute any quirks before the call gates are initialised: */
 	x86_quirk_pre_intr_init();
+#else
+	init_ISA_irqs();
+#endif
 
 	/*
 	 * Cover the whole vector space, no vector can escape
@@ -208,9 +215,15 @@ void __init native_init_IRQ(void)
 	 * 'special' SMP interrupts)
 	 */
 	for (i = FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
+#ifdef CONFIG_X86_32
 		/* SYSCALL_VECTOR was reserved in trap_init. */
 		if (i != SYSCALL_VECTOR)
 			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
+#else
+		/* IA32_SYSCALL_VECTOR was reserved in trap_init. */
+		if (i != IA32_SYSCALL_VECTOR)
+			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
+#endif
 	}
 
 	apic_intr_init();
@@ -218,6 +231,7 @@ void __init native_init_IRQ(void)
 	if (!acpi_ioapic)
 		setup_irq(2, &irq2);
 
+#ifdef CONFIG_X86_32
 	/*
 	 * Call quirks after call gates are initialised (usually add in
 	 * the architecture specific gates):
@@ -232,4 +246,5 @@ void __init native_init_IRQ(void)
 		setup_irq(FPU_IRQ, &fpu_irq);
 
 	irq_ctx_init(smp_processor_id());
+#endif
 }
