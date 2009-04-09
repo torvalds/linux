@@ -84,9 +84,14 @@ static void __init init_ISA_irqs(void)
 {
 	int i;
 
+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
 	init_bsp_APIC();
+#endif
 	init_8259A(0);
 
+	/*
+	 * 16 old-style INTA-cycle interrupts:
+	 */
 	for (i = 0; i < NR_IRQS_LEGACY; i++) {
 		struct irq_desc *desc = irq_to_desc(i);
 
@@ -94,11 +99,8 @@ static void __init init_ISA_irqs(void)
 		desc->action = NULL;
 		desc->depth = 1;
 
-		/*
-		 * 16 old-style INTA-cycle interrupts:
-		 */
 		set_irq_chip_and_handler_name(i, &i8259A_chip,
-						      handle_level_irq, "XT");
+					      handle_level_irq, "XT");
 	}
 }
 

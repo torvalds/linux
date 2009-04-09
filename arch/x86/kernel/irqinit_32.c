@@ -98,7 +98,7 @@ static void __init init_ISA_irqs(void)
 {
 	int i;
 
-#ifdef CONFIG_X86_LOCAL_APIC
+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
 	init_bsp_APIC();
 #endif
 	init_8259A(0);
