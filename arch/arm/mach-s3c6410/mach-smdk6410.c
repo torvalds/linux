@@ -252,6 +252,7 @@ static struct regulator_init_data wm8350_ldo2_data = {
 		.name = "PVDD_OTG",
 		.min_uV = 3300000,
 		.max_uV = 3300000,
+		.always_on = 1,
 	},
 };
 
@@ -261,6 +262,7 @@ static struct regulator_init_data wm8350_ldo3_data = {
 		.name = "PVDD_LCD",
 		.min_uV = 3000000,
 		.max_uV = 3000000,
+		.always_on = 1,
 	},
 };
 
@@ -271,6 +273,7 @@ static struct regulator_init_data wm8350_ldo4_data = {
 		.min_uV = 1200000,
 		.max_uV = 1200000,
 		.apply_uV = 1,
+		.always_on = 1,
 	},
 };
 
