@@ -284,11 +284,11 @@ struct ni_private {
 
 /* How we access registers */
 
-#define ni_writel(a,b)		(outl((a),(b)+dev->iobase))
+#define ni_writel(a, b)		(outl((a), (b)+dev->iobase))
 #define ni_readl(a)		(inl((a)+dev->iobase))
-#define ni_writew(a,b)		(outw((a),(b)+dev->iobase))
+#define ni_writew(a, b)		(outw((a), (b)+dev->iobase))
 #define ni_readw(a)		(inw((a)+dev->iobase))
-#define ni_writeb(a,b)		(outb((a),(b)+dev->iobase))
+#define ni_writeb(a, b)		(outb((a), (b)+dev->iobase))
 #define ni_readb(a)		(inb((a)+dev->iobase))
 
 /* How we access windowed registers */
@@ -329,11 +329,11 @@ static uint16_t ni_atmio_win_in(struct comedi_device *dev, int addr)
 }
 
 static struct pnp_device_id device_ids[] = {
-	{.id = "NIC1900",.driver_data = 0},
-	{.id = "NIC2400",.driver_data = 0},
-	{.id = "NIC2500",.driver_data = 0},
-	{.id = "NIC2600",.driver_data = 0},
-	{.id = "NIC2700",.driver_data = 0},
+	{.id = "NIC1900", .driver_data = 0},
+	{.id = "NIC2400", .driver_data = 0},
+	{.id = "NIC2500", .driver_data = 0},
+	{.id = "NIC2600", .driver_data = 0},
+	{.id = "NIC2700", .driver_data = 0},
 	{.id = ""}
 };
 

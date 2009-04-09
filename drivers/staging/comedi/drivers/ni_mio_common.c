@@ -66,7 +66,7 @@
 #include "comedi_fc.h"
 
 #ifndef MDPRINTK
-#define MDPRINTK(format,args...)
+#define MDPRINTK(format, args...)
 #endif
 
 /* A timeout count */
@@ -707,7 +707,7 @@ static uint32_t win_in2(struct comedi_device *dev, int reg)
 	return bits;
 }
 
-#define ao_win_out(data,addr) ni_ao_win_outw(dev,data,addr)
+#define ao_win_out(data, addr) ni_ao_win_outw(dev, data, addr)
 static inline void ni_ao_win_outw(struct comedi_device *dev, uint16_t data, int addr)
 {
 	unsigned long flags;

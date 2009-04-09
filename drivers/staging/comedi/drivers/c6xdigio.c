@@ -415,9 +415,9 @@ static void board_init(struct comedi_device *dev)
 
 static const struct pnp_device_id c6xdigio_pnp_tbl[] = {
 	/* Standard LPT Printer Port */
-	{.id = "PNP0400",.driver_data = 0},
+	{.id = "PNP0400", .driver_data = 0},
 	/* ECP Printer Port */
-	{.id = "PNP0401",.driver_data = 0},
+	{.id = "PNP0401", .driver_data = 0},
 	{}
 };
 

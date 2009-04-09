@@ -79,7 +79,7 @@ Configuration Options:
 
 #include <linux/pci.h>		/* for PCI devices */
 
-#define MIN(a,b) ( ((a) < (b)) ? (a) : (b) )
+#define MIN(a, b) ( ((a) < (b)) ? (a) : (b) )
 #define CHANS_PER_PORT   8
 #define PORTS_PER_ASIC   6
 #define INTR_PORTS_PER_ASIC   3

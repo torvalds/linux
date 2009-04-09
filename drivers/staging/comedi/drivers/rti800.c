@@ -89,8 +89,8 @@ Configuration options:
 
 #define Am9513_8BITBUS
 
-#define Am9513_output_control(a)	outb(a,dev->iobase+RTI800_9513A_CNTRL)
-#define Am9513_output_data(a)		outb(a,dev->iobase+RTI800_9513A_DATA)
+#define Am9513_output_control(a)	outb(a, dev->iobase+RTI800_9513A_CNTRL)
+#define Am9513_output_data(a)		outb(a, dev->iobase+RTI800_9513A_DATA)
 #define Am9513_input_data()		inb(dev->iobase+RTI800_9513A_DATA)
 #define Am9513_input_status()		inb(dev->iobase+RTI800_9513A_STATUS)
 

@@ -76,7 +76,7 @@ Configuration Options:
 #include "../comedidev.h"
 #include <linux/pci.h>		/* for PCI devices */
 
-#define MIN(a,b) ( ((a) < (b)) ? (a) : (b) )
+#define MIN(a, b) ( ((a) < (b)) ? (a) : (b) )
 
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
 #define CHANS_PER_PORT   8

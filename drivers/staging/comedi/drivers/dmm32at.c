@@ -114,8 +114,8 @@ Configuration Options:
 #define DMM32AT_DIOC 0x0e
 #define DMM32AT_DIOCONF 0x0f
 
-#define dmm_inb(cdev,reg) inb((cdev->iobase)+reg)
-#define dmm_outb(cdev,reg,valu) outb(valu,(cdev->iobase)+reg)
+#define dmm_inb(cdev, reg) inb((cdev->iobase)+reg)
+#define dmm_outb(cdev, reg, valu) outb(valu, (cdev->iobase)+reg)
 
 /* Board register values. */
 

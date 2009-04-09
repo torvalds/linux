@@ -28,8 +28,8 @@ int rt_pend_tq_irq = 0;
 DEFINE_SPINLOCK(rt_pend_tq_lock);
 
 /* WARNING: following code not checked against race conditions yet. */
-#define INC_CIRCULAR_PTR(ptr,begin,size) do {if(++(ptr)>=(begin)+(size)) (ptr)=(begin); } while(0)
-#define DEC_CIRCULAR_PTR(ptr,begin,size) do {if(--(ptr)<(begin)) (ptr)=(begin)+(size)-1; } while(0)
+#define INC_CIRCULAR_PTR(ptr, begin, size) do {if(++(ptr)>=(begin)+(size)) (ptr)=(begin); } while(0)
+#define DEC_CIRCULAR_PTR(ptr, begin, size) do {if(--(ptr)<(begin)) (ptr)=(begin)+(size)-1; } while(0)
 
 int rt_pend_call(void (*func) (int arg1, void *arg2), int arg1, void *arg2)
 {

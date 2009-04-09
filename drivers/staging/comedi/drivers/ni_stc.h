@@ -1418,7 +1418,7 @@ struct ni_board_struct {
 	\
 	unsigned short dio_output;				\
 	unsigned short dio_control;				\
-	int ao0p,ao1p;						\
+	int ao0p, ao1p;						\
 	int lastchan;						\
 	int last_do;						\
 	int rt_irq;						\

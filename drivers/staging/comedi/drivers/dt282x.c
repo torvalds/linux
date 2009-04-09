@@ -374,17 +374,17 @@ struct dt282x_private {
  *    Some useless abstractions
  */
 #define chan_to_DAC(a)	((a)&1)
-#define update_dacsr(a)	outw(devpriv->dacsr|(a),dev->iobase+DT2821_DACSR)
-#define update_adcsr(a)	outw(devpriv->adcsr|(a),dev->iobase+DT2821_ADCSR)
+#define update_dacsr(a)	outw(devpriv->dacsr|(a), dev->iobase+DT2821_DACSR)
+#define update_adcsr(a)	outw(devpriv->adcsr|(a), dev->iobase+DT2821_ADCSR)
 #define mux_busy() (inw(dev->iobase+DT2821_ADCSR)&DT2821_MUXBUSY)
 #define ad_done() (inw(dev->iobase+DT2821_ADCSR)&DT2821_ADDONE)
-#define update_supcsr(a)	outw(devpriv->supcsr|(a),dev->iobase+DT2821_SUPCSR)
+#define update_supcsr(a)	outw(devpriv->supcsr|(a), dev->iobase+DT2821_SUPCSR)
 
 /*
  *    danger! macro abuse... a is the expression to wait on, and b is
  *      the statement(s) to execute if it doesn't happen.
  */
-#define wait_for(a,b)	 				\
+#define wait_for(a, b)	 				\
 	do{						\
 		int _i;					\
 		for(_i=0;_i<DT2821_TIMEOUT;_i++){	\

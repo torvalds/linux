@@ -70,11 +70,11 @@ TODO:
 #define RTLINUX_VERSION_CODE 0
 #endif
 #ifndef RTLINUX_VERSION
-#define RTLINUX_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
+#define RTLINUX_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
 #endif
 
 /* begin hack to workaround broken HRT_TO_8254() function on rtlinux */
-#if RTLINUX_VERSION_CODE <= RTLINUX_VERSION(3,0,100)
+#if RTLINUX_VERSION_CODE <= RTLINUX_VERSION(3, 0, 100)
 /* this function sole purpose is to divide a long long by 838 */
 static inline RTIME nano2count(long long ns)
 {
@@ -97,8 +97,8 @@ static inline RTIME nano2count(long long ns)
 #define rt_task_wait_period() rt_task_wait()
 #define rt_pend_linux_srq(irq) rtl_global_pend_irq(irq)
 #define rt_free_srq(irq) rtl_free_soft_irq(irq)
-#define rt_request_srq(x,y,z) rtl_get_soft_irq(y,"timer")
-#define rt_task_init(a,b,c,d,e,f,g) rt_task_init(a,b,c,d,(e)+1)
+#define rt_request_srq(x, y, z) rtl_get_soft_irq(y, "timer")
+#define rt_task_init(a, b, c, d, e, f, g) rt_task_init(a, b, c, d, (e)+1)
 #define rt_task_resume(x) rt_task_wakeup(x)
 #define rt_set_oneshot_mode()
 #define start_rt_timer(x)
@@ -126,7 +126,7 @@ static inline RTIME nano2count(long long ns)
 #define test3	0
 #endif
 
-#if RTAI_VERSION_CODE < RTAI_MANGLE_VERSION(3,3,0)
+#if RTAI_VERSION_CODE < RTAI_MANGLE_VERSION(3, 3, 0)
 #define comedi_rt_task_context_t	int
 #else
 #define comedi_rt_task_context_t	long

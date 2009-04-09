@@ -1225,11 +1225,11 @@ struct ni_private {
 
 /* How we access registers */
 
-#define ni_writel(a,b)	(writel((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_writel(a, b)	(writel((a), devpriv->mite->daq_io_addr + (b)))
 #define ni_readl(a)	(readl(devpriv->mite->daq_io_addr + (a)))
-#define ni_writew(a,b)	(writew((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_writew(a, b)	(writew((a), devpriv->mite->daq_io_addr + (b)))
 #define ni_readw(a)	(readw(devpriv->mite->daq_io_addr + (a)))
-#define ni_writeb(a,b)	(writeb((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_writeb(a, b)	(writeb((a), devpriv->mite->daq_io_addr + (b)))
 #define ni_readb(a)	(readb(devpriv->mite->daq_io_addr + (a)))
 
 /* How we access STC registers */
