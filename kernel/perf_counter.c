@@ -38,6 +38,10 @@ int perf_max_counters __read_mostly = 1;
 static int perf_reserved_percpu __read_mostly;
 static int perf_overcommit __read_mostly = 1;
 
+static atomic_t nr_mmap_tracking __read_mostly;
+static atomic_t nr_munmap_tracking __read_mostly;
+static atomic_t nr_comm_tracking __read_mostly;
+
 /*
  * Mutex for (sysadmin-configurable) counter reservations:
  */
@@ -1186,6 +1190,13 @@ static void free_counter(struct perf_counter *counter)
 {
 	perf_pending_sync(counter);
 
+	if (counter->hw_event.mmap)
+		atomic_dec(&nr_mmap_tracking);
+	if (counter->hw_event.munmap)
+		atomic_dec(&nr_munmap_tracking);
+	if (counter->hw_event.comm)
+		atomic_dec(&nr_comm_tracking);
+
 	if (counter->destroy)
 		counter->destroy(counter);
 
@@ -2005,7 +2016,12 @@ static void perf_counter_comm_event(struct perf_comm_event *comm_event)
 
 void perf_counter_comm(struct task_struct *task)
 {
-	struct perf_comm_event comm_event = {
+	struct perf_comm_event comm_event;
+
+	if (!atomic_read(&nr_comm_tracking))
+		return;
+       
+	comm_event = (struct perf_comm_event){
 		.task	= task,
 		.event  = {
 			.header = { .type = PERF_EVENT_COMM, },
@@ -2128,7 +2144,12 @@ got_name:
 void perf_counter_mmap(unsigned long addr, unsigned long len,
 		       unsigned long pgoff, struct file *file)
 {
-	struct perf_mmap_event mmap_event = {
+	struct perf_mmap_event mmap_event;
+
+	if (!atomic_read(&nr_mmap_tracking))
+		return;
+
+	mmap_event = (struct perf_mmap_event){
 		.file   = file,
 		.event  = {
 			.header = { .type = PERF_EVENT_MMAP, },
@@ -2146,7 +2167,12 @@ void perf_counter_mmap(unsigned long addr, unsigned long len,
 void perf_counter_munmap(unsigned long addr, unsigned long len,
 			 unsigned long pgoff, struct file *file)
 {
-	struct perf_mmap_event mmap_event = {
+	struct perf_mmap_event mmap_event;
+
+	if (!atomic_read(&nr_munmap_tracking))
+		return;
+
+	mmap_event = (struct perf_mmap_event){
 		.file   = file,
 		.event  = {
 			.header = { .type = PERF_EVENT_MUNMAP, },
@@ -2724,6 +2750,13 @@ done:
 	}
 
 	counter->hw_ops = hw_ops;
+
+	if (counter->hw_event.mmap)
+		atomic_inc(&nr_mmap_tracking);
+	if (counter->hw_event.munmap)
+		atomic_inc(&nr_munmap_tracking);
+	if (counter->hw_event.comm)
+		atomic_inc(&nr_comm_tracking);
 
 	return counter;
 }
