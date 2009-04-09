@@ -1095,6 +1095,31 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = default_analog,
 		} },
 	},
+	[EM2880_BOARD_EMPIRE_DUAL_TV] = {
+		.name = "Empire dual TV",
+		.tuner_type = TUNER_XC2028,
+		.tuner_gpio = default_tuner_gpio,
+		.has_dvb = 1,
+		.dvb_gpio = default_digital,
+		.mts_firmware = 1,
+		.decoder = EM28XX_TVP5150,
+		.input = { {
+			.type = EM28XX_VMUX_TELEVISION,
+			.vmux = TVP5150_COMPOSITE0,
+			.amux = EM28XX_AMUX_VIDEO,
+			.gpio = default_analog,
+		}, {
+			.type = EM28XX_VMUX_COMPOSITE1,
+			.vmux = TVP5150_COMPOSITE1,
+			.amux = EM28XX_AMUX_LINE_IN,
+			.gpio = default_analog,
+		}, {
+			.type = EM28XX_VMUX_SVIDEO,
+			.vmux = TVP5150_SVIDEO,
+			.amux = EM28XX_AMUX_LINE_IN,
+			.gpio = default_analog,
+		} },
+	},
 	[EM2881_BOARD_DNT_DA2_HYBRID] = {
 		.name         = "DNT DA2 Hybrid",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
@@ -1437,6 +1462,7 @@ static struct em28xx_hash_table em28xx_eeprom_hash[] = {
 	{0x6ce05a8f, EM2820_BOARD_PROLINK_PLAYTV_USB2, TUNER_YMEC_TVF_5533MF},
 	{0x72cc5a8b, EM2820_BOARD_PROLINK_PLAYTV_BOX4_USB2, TUNER_YMEC_TVF_5533MF},
 	{0x966a0441, EM2880_BOARD_KWORLD_DVB_310U, TUNER_XC2028},
+	{0x9567eb1a, EM2880_BOARD_EMPIRE_DUAL_TV, TUNER_XC2028},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
@@ -1664,6 +1690,7 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	ctl->mts = em28xx_boards[dev->model].mts_firmware;
 
 	switch (dev->model) {
+	case EM2880_BOARD_EMPIRE_DUAL_TV:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;

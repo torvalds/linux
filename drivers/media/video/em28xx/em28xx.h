@@ -102,6 +102,7 @@
 #define EM2860_BOARD_KAIOMY_TVNPC_U2              63
 #define EM2860_BOARD_EASYCAP                      64
 #define EM2820_BOARD_IODATA_GVMVP_SZ		  65
+#define EM2880_BOARD_EMPIRE_DUAL_TV		  66
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
