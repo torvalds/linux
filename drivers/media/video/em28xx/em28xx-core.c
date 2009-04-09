@@ -938,7 +938,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 	dev->isoc_ctl.transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
 					      GFP_KERNEL);
 	if (!dev->isoc_ctl.transfer_buffer) {
-		em28xx_errdev("cannot allocate memory for usbtransfer\n");
+		em28xx_errdev("cannot allocate memory for usb transfer\n");
 		kfree(dev->isoc_ctl.urb);
 		return -ENOMEM;
 	}
