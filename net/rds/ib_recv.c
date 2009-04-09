@@ -524,7 +524,7 @@ void rds_ib_attempt_ack(struct rds_ib_connection *ic)
 	}
 
 	/* Can we get a send credit? */
-	if (!rds_ib_send_grab_credits(ic, 1, &adv_credits, 0)) {
+	if (!rds_ib_send_grab_credits(ic, 1, &adv_credits, 0, RDS_MAX_ADV_CREDIT)) {
 		rds_ib_stats_inc(s_ib_tx_throttle);
 		clear_bit(IB_ACK_IN_FLIGHT, &ic->i_ack_flags);
 		return;

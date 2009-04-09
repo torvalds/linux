@@ -311,7 +311,7 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
  * and using atomic_cmpxchg when updating the two counters.
  */
 int rds_ib_send_grab_credits(struct rds_ib_connection *ic,
-			     u32 wanted, u32 *adv_credits, int need_posted)
+			     u32 wanted, u32 *adv_credits, int need_posted, int max_posted)
 {
 	unsigned int avail, posted, got = 0, advertise;
 	long oldval, newval;
@@ -351,7 +351,7 @@ try_again:
 	 * available.
 	 */
 	if (posted && (got || need_posted)) {
-		advertise = min_t(unsigned int, posted, RDS_MAX_ADV_CREDIT);
+		advertise = min_t(unsigned int, posted, max_posted);
 		newval -= IB_SET_POST_CREDITS(advertise);
 	}
 
@@ -498,7 +498,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 	credit_alloc = work_alloc;
 	if (ic->i_flowctl) {
-		credit_alloc = rds_ib_send_grab_credits(ic, work_alloc, &posted, 0);
+		credit_alloc = rds_ib_send_grab_credits(ic, work_alloc, &posted, 0, RDS_MAX_ADV_CREDIT);
 		adv_credits += posted;
 		if (credit_alloc < work_alloc) {
 			rds_ib_ring_unalloc(&ic->i_send_ring, work_alloc - credit_alloc);
@@ -571,7 +571,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		/*
 		 * Update adv_credits since we reset the ACK_REQUIRED bit.
 		 */
-		rds_ib_send_grab_credits(ic, 0, &posted, 1);
+		rds_ib_send_grab_credits(ic, 0, &posted, 1, RDS_MAX_ADV_CREDIT - adv_credits);
 		adv_credits += posted;
 		BUG_ON(adv_credits > 255);
 	} else if (ic->i_rm != rm)
