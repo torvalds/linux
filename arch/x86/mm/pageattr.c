@@ -1021,15 +1021,19 @@ int _set_memory_wb(unsigned long addr, int numpages)
 
 int set_memory_wb(unsigned long addr, int numpages)
 {
+	int ret = _set_memory_wb(addr, numpages);
 	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
-
-	return _set_memory_wb(addr, numpages);
+	return ret;
 }
 EXPORT_SYMBOL(set_memory_wb);
 
 int set_memory_array_wb(unsigned long *addr, int addrinarray)
 {
 	int i;
+	int ret;
+
+	ret = change_page_attr_clear(addr, addrinarray,
+				      __pgprot(_PAGE_CACHE_MASK), 1);
 
 	for (i = 0; i < addrinarray; i++) {
 		unsigned long start = __pa(addr[i]);
@@ -1042,8 +1046,7 @@ int set_memory_array_wb(unsigned long *addr, int addrinarray)
 		}
 		free_memtype(start, end);
 	}
-	return change_page_attr_clear(addr, addrinarray,
-				      __pgprot(_PAGE_CACHE_MASK), 1);
+	return ret;
 }
 EXPORT_SYMBOL(set_memory_array_wb);
 
