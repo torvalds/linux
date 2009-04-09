@@ -3729,7 +3729,7 @@ S:	Maintained
 RDS - RELIABLE DATAGRAM SOCKETS
 P:	Andy Grover
 M:	andy.grover@oracle.com
-L:	rds-devel@oss.oracle.com
+L:	rds-devel@oss.oracle.com (moderated for non-subscribers)
 S:	Supported
 
 READ-COPY UPDATE (RCU)
