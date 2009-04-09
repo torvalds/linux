@@ -1261,7 +1261,8 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_2)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_3)},
 	{USB_DEVICE(USB_VID_AFATECH,   USB_PID_TREKSTOR_DVBT)},
-	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850)},
+/* 20 */{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850)},
+	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A805)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1532,8 +1533,13 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 0, /* max 9 */
+		.num_device_descs = 1, /* max 9 */
 		.devices = {
+			{
+				.name = "AverMedia AVerTV Volar GPS 805 (A805)",
+				.cold_ids = {&af9015_usb_table[21], NULL},
+				.warm_ids = {NULL},
+			},
 		}
 	},
 };
