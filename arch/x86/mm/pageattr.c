@@ -1000,8 +1000,15 @@ EXPORT_SYMBOL(set_memory_array_uc);
 
 int _set_memory_wc(unsigned long addr, int numpages)
 {
-	return change_page_attr_set(&addr, numpages,
+	int ret;
+	ret = change_page_attr_set(&addr, numpages,
+				    __pgprot(_PAGE_CACHE_UC_MINUS), 0);
+
+	if (!ret) {
+		ret = change_page_attr_set(&addr, numpages,
 				    __pgprot(_PAGE_CACHE_WC), 0);
+	}
+	return ret;
 }
 
 int set_memory_wc(unsigned long addr, int numpages)
