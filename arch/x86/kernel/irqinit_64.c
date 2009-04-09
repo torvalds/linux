@@ -159,15 +159,16 @@ void __init native_init_IRQ(void)
 	int i;
 
 	init_ISA_irqs();
+
 	/*
 	 * Cover the whole vector space, no vector can escape
 	 * us. (some of these will be overridden and become
 	 * 'special' SMP interrupts)
 	 */
-	for (i = 0; i < (NR_VECTORS - FIRST_EXTERNAL_VECTOR); i++) {
-		int vector = FIRST_EXTERNAL_VECTOR + i;
-		if (vector != IA32_SYSCALL_VECTOR)
-			set_intr_gate(vector, interrupt[i]);
+	for (i = FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
+		/* IA32_SYSCALL_VECTOR was reserved in trap_init. */
+		if (i != IA32_SYSCALL_VECTOR)
+			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
 	}
 
 	apic_intr_init();
