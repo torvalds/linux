@@ -59,6 +59,7 @@
 /* Various addresses  */
 #define PALMT5_PHYS_RAM_START	0xa0000000
 #define PALMT5_PHYS_IO_START	0x40000000
+#define PALMT5_STR_BASE		0xa0200000
 
 /* TOUCHSCREEN */
 #define AC97_LINK_FRAME		21
