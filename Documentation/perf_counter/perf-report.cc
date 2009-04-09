@@ -277,10 +277,17 @@ static std::multimap<int, std::string> rev_hist;
 
 static std::string resolve_comm(int pid)
 {
-	std::string comm = "<unknown>";
+	std::string comm;
+
 	std::map<int, std::string>::const_iterator ci = comms.find(pid);
-	if (ci != comms.end())
+	if (ci != comms.end()) {
 		comm = ci->second;
+	} else {
+		char pid_str[30];
+
+		sprintf(pid_str, ":%d", pid);
+		comm = pid_str;
+	}
 
 	return comm;
 }
@@ -422,13 +429,13 @@ more:
 		char output[1024];
 
 		if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
-			level = "[kernel]";
+			level = " [k] ";
 			sym = resolve_kernel_symbol(event->ip.ip);
 		} else if (event->header.misc & PERF_EVENT_MISC_USER) {
-			level = "[ user ]";
+			level = " [.] ";
 			sym = resolve_user_symbol(event->ip.pid, event->ip.ip);
 		} else {
-			level = "[  hv  ]";
+			level = " [H] ";
 		}
 		comm = resolve_comm(event->ip.pid);
 
