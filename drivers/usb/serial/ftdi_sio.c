@@ -47,7 +47,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v1.4.3"
+#define DRIVER_VERSION "v1.5.0"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Bill Ryder <bryder@sgi.com>, Kuba Ober <kuba@mareimbrium.org>"
 #define DRIVER_DESC "USB FTDI Serial Converters Driver"
 
@@ -82,7 +82,8 @@ struct ftdi_private {
 	int rx_processed;
 	unsigned long rx_bytes;
 
-	__u16 interface;	/* FT2232C port interface (0 for FT232/245) */
+	__u16 interface;	/* FT2232C, FT2232H or FT4232H port interface
+				   (0 for FT232/245) */
 
 	speed_t force_baud;	/* if non-zero, force the baud rate to
 				   this value */
@@ -164,6 +165,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_8U232AM_ALT_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_232RL_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_8U2232C_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_4232H_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MICRO_CHAMELEON_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_RELAIS_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_OPENDCC_PID) },
@@ -694,6 +696,8 @@ static const char *ftdi_chip_name[] = {
 	[FT232BM] = "FT232BM",
 	[FT2232C] = "FT2232C",
 	[FT232RL] = "FT232RL",
+	[FT2232H] = "FT2232H",
+	[FT4232H] = "FT4232H"
 };
 
 
@@ -745,6 +749,8 @@ static unsigned short int ftdi_232am_baud_base_to_divisor(int baud, int base);
 static unsigned short int ftdi_232am_baud_to_divisor(int baud);
 static __u32 ftdi_232bm_baud_base_to_divisor(int baud, int base);
 static __u32 ftdi_232bm_baud_to_divisor(int baud);
+static __u32 ftdi_2232h_baud_base_to_divisor(int baud, int base);
+static __u32 ftdi_2232h_baud_to_divisor(int baud);
 
 static struct usb_serial_driver ftdi_sio_device = {
 	.driver = {
@@ -837,6 +843,36 @@ static __u32 ftdi_232bm_baud_base_to_divisor(int baud, int base)
 static __u32 ftdi_232bm_baud_to_divisor(int baud)
 {
 	 return ftdi_232bm_baud_base_to_divisor(baud, 48000000);
+}
+
+static __u32 ftdi_2232h_baud_base_to_divisor(int baud, int base)
+{
+	static const unsigned char divfrac[8] = { 0, 3, 2, 4, 1, 5, 6, 7 };
+	__u32 divisor;
+	int divisor3;
+
+	/* hi-speed baud rate is 10-bit sampling instead of 16-bit */
+	divisor3 = (base / 10 / baud) * 8;
+
+	divisor = divisor3 >> 3;
+	divisor |= (__u32)divfrac[divisor3 & 0x7] << 14;
+	/* Deal with special cases for highest baud rates. */
+	if (divisor == 1)
+		divisor = 0;
+	else if (divisor == 0x4001)
+		divisor = 1;
+	/*
+	 * Set this bit to turn off a divide by 2.5 on baud rate generator
+	 * This enables baud rates up to 12Mbaud but cannot reach below 1200
+	 * baud with this bit set
+	 */
+	divisor |= 0x00020000;
+	return divisor;
+}
+
+static __u32 ftdi_2232h_baud_to_divisor(int baud)
+{
+	 return ftdi_2232h_baud_base_to_divisor(baud, 120000000);
 }
 
 #define set_mctrl(port, set)		update_mctrl((port), (set), 0)
@@ -989,6 +1025,19 @@ static __u32 get_ftdi_divisor(struct tty_struct *tty,
 	case FT2232C: /* FT2232C chip */
 	case FT232RL:
 		if (baud <= 3000000) {
+			div_value = ftdi_232bm_baud_to_divisor(baud);
+		} else {
+			dbg("%s - Baud rate too high!", __func__);
+			div_value = ftdi_232bm_baud_to_divisor(9600);
+			div_okay = 0;
+			baud = 9600;
+		}
+		break;
+	case FT2232H: /* FT2232H chip */
+	case FT4232H: /* FT4232H chip */
+		if ((baud <= 12000000) & (baud >= 1200)) {
+			div_value = ftdi_2232h_baud_to_divisor(baud);
+		} else if (baud < 1200) {
 			div_value = ftdi_232bm_baud_to_divisor(baud);
 		} else {
 			dbg("%s - Baud rate too high!", __func__);
@@ -1197,14 +1246,29 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 	if (interfaces > 1) {
 		int inter;
 
-		/* Multiple interfaces.  Assume FT2232C. */
-		priv->chip_type = FT2232C;
+		/* Multiple interfaces.*/
+		if (version == 0x0800) {
+			priv->chip_type = FT4232H;
+			/* Hi-speed - baud clock runs at 120MHz */
+			priv->baud_base = 120000000 / 2;
+		} else if (version == 0x0700) {
+			priv->chip_type = FT2232H;
+			/* Hi-speed - baud clock runs at 120MHz */
+			priv->baud_base = 120000000 / 2;
+		} else
+			priv->chip_type = FT2232C;
+
 		/* Determine interface code. */
 		inter = serial->interface->altsetting->desc.bInterfaceNumber;
-		if (inter == 0)
-			priv->interface = PIT_SIOA;
-		else
-			priv->interface = PIT_SIOB;
+		if (inter == 0) {
+			priv->interface = INTERFACE_A;
+		} else  if (inter == 1) {
+			priv->interface = INTERFACE_B;
+		} else  if (inter == 2) {
+			priv->interface = INTERFACE_C;
+		} else  if (inter == 3) {
+			priv->interface = INTERFACE_D;
+		}
 		/* BM-type devices have a bug where bcdDevice gets set
 		 * to 0x200 when iSerialNumber is 0.  */
 		if (version < 0x500) {
@@ -1315,7 +1379,9 @@ static int create_sysfs_attrs(struct usb_serial_port *port)
 		if ((!retval) &&
 		    (priv->chip_type == FT232BM ||
 		     priv->chip_type == FT2232C ||
-		     priv->chip_type == FT232RL)) {
+		     priv->chip_type == FT232RL ||
+		     priv->chip_type == FT2232H ||
+		     priv->chip_type == FT4232H)) {
 			retval = device_create_file(&port->dev,
 						    &dev_attr_latency_timer);
 		}
@@ -1334,7 +1400,9 @@ static void remove_sysfs_attrs(struct usb_serial_port *port)
 		device_remove_file(&port->dev, &dev_attr_event_char);
 		if (priv->chip_type == FT232BM ||
 		    priv->chip_type == FT2232C ||
-		    priv->chip_type == FT232RL) {
+		    priv->chip_type == FT232RL ||
+		    priv->chip_type == FT2232H ||
+		    priv->chip_type == FT4232H) {
 			device_remove_file(&port->dev, &dev_attr_latency_timer);
 		}
 	}
@@ -2333,6 +2401,8 @@ static int ftdi_tiocmget(struct tty_struct *tty, struct file *file)
 	case FT232BM:
 	case FT2232C:
 	case FT232RL:
+	case FT2232H:
+	case FT4232H:
 		/* the 8U232AM returns a two byte value (the sio is a 1 byte
 		   value) - in the same format as the data returned from the in
 		   point */
