@@ -105,7 +105,6 @@ do_async_xor(struct dma_chan *chan, struct page *dest, struct page **src_list,
 				_cb_param);
 
 		depend_tx = tx;
-		flags |= ASYNC_TX_DEP_ACK;
 
 		if (src_cnt > xor_src_cnt) {
 			/* drop completed sources */
@@ -168,8 +167,7 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
  * @offset: offset in pages to start transaction
  * @src_cnt: number of source pages
  * @len: length in bytes
- * @flags: ASYNC_TX_XOR_ZERO_DST, ASYNC_TX_XOR_DROP_DEST,
- *	ASYNC_TX_ACK, ASYNC_TX_DEP_ACK
+ * @flags: ASYNC_TX_XOR_ZERO_DST, ASYNC_TX_XOR_DROP_DEST, ASYNC_TX_ACK
  * @depend_tx: xor depends on the result of this transaction.
  * @cb_fn: function to call when the xor completes
  * @cb_param: parameter to pass to the callback routine
@@ -230,7 +228,7 @@ static int page_is_zero(struct page *p, unsigned int offset, size_t len)
  * @src_cnt: number of source pages
  * @len: length in bytes
  * @result: 0 if sum == 0 else non-zero
- * @flags: ASYNC_TX_ACK, ASYNC_TX_DEP_ACK
+ * @flags: ASYNC_TX_ACK
  * @depend_tx: xor depends on the result of this transaction.
  * @cb_fn: function to call when the xor completes
  * @cb_param: parameter to pass to the callback routine

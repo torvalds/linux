@@ -223,7 +223,7 @@ async_tx_submit(struct dma_chan *chan, struct dma_async_tx_descriptor *tx,
 	if (flags & ASYNC_TX_ACK)
 		async_tx_ack(tx);
 
-	if (depend_tx && (flags & ASYNC_TX_DEP_ACK))
+	if (depend_tx)
 		async_tx_ack(depend_tx);
 }
 EXPORT_SYMBOL_GPL(async_tx_submit);
@@ -231,7 +231,7 @@ EXPORT_SYMBOL_GPL(async_tx_submit);
 /**
  * async_trigger_callback - schedules the callback function to be run after
  * any dependent operations have been completed.
- * @flags: ASYNC_TX_ACK, ASYNC_TX_DEP_ACK
+ * @flags: ASYNC_TX_ACK
  * @depend_tx: 'callback' requires the completion of this transaction
  * @cb_fn: function to call after depend_tx completes
  * @cb_param: parameter to pass to the callback routine

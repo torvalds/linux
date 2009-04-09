@@ -525,14 +525,12 @@ async_copy_data(int frombio, struct bio *bio, struct page *page,
 			bio_page = bio_iovec_idx(bio, i)->bv_page;
 			if (frombio)
 				tx = async_memcpy(page, bio_page, page_offset,
-					b_offset, clen,
-					ASYNC_TX_DEP_ACK,
-					tx, NULL, NULL);
+						  b_offset, clen, 0,
+						  tx, NULL, NULL);
 			else
 				tx = async_memcpy(bio_page, page, b_offset,
-					page_offset, clen,
-					ASYNC_TX_DEP_ACK,
-					tx, NULL, NULL);
+						  page_offset, clen, 0,
+						  tx, NULL, NULL);
 		}
 		if (clen < len) /* hit end of page */
 			break;
@@ -615,8 +613,7 @@ static void ops_run_biofill(struct stripe_head *sh)
 	}
 
 	atomic_inc(&sh->count);
-	async_trigger_callback(ASYNC_TX_DEP_ACK | ASYNC_TX_ACK, tx,
-		ops_complete_biofill, sh);
+	async_trigger_callback(ASYNC_TX_ACK, tx, ops_complete_biofill, sh);
 }
 
 static void ops_complete_compute5(void *stripe_head_ref)
@@ -701,8 +698,8 @@ ops_run_prexor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 	}
 
 	tx = async_xor(xor_dest, xor_srcs, 0, count, STRIPE_SIZE,
-		ASYNC_TX_DEP_ACK | ASYNC_TX_XOR_DROP_DST, tx,
-		ops_complete_prexor, sh);
+		       ASYNC_TX_XOR_DROP_DST, tx,
+		       ops_complete_prexor, sh);
 
 	return tx;
 }
@@ -809,7 +806,7 @@ ops_run_postxor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 	 * set ASYNC_TX_XOR_DROP_DST and ASYNC_TX_XOR_ZERO_DST
 	 * for the synchronous xor case
 	 */
-	flags = ASYNC_TX_DEP_ACK | ASYNC_TX_ACK |
+	flags = ASYNC_TX_ACK |
 		(prexor ? ASYNC_TX_XOR_DROP_DST : ASYNC_TX_XOR_ZERO_DST);
 
 	atomic_inc(&sh->count);
@@ -858,7 +855,7 @@ static void ops_run_check(struct stripe_head *sh)
 		&sh->ops.zero_sum_result, 0, NULL, NULL, NULL);
 
 	atomic_inc(&sh->count);
-	tx = async_trigger_callback(ASYNC_TX_DEP_ACK | ASYNC_TX_ACK, tx,
+	tx = async_trigger_callback(ASYNC_TX_ACK, tx,
 		ops_complete_check, sh);
 }
 
@@ -2687,8 +2684,8 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
 
 			/* place all the copies on one channel */
 			tx = async_memcpy(sh2->dev[dd_idx].page,
-				sh->dev[i].page, 0, 0, STRIPE_SIZE,
-				ASYNC_TX_DEP_ACK, tx, NULL, NULL);
+					  sh->dev[i].page, 0, 0, STRIPE_SIZE,
+					  0, tx, NULL, NULL);
 
 			set_bit(R5_Expanded, &sh2->dev[dd_idx].flags);
 			set_bit(R5_UPTODATE, &sh2->dev[dd_idx].flags);

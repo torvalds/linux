@@ -58,13 +58,11 @@ struct dma_chan_ref {
  * array.
  * @ASYNC_TX_ACK: immediately ack the descriptor, precludes setting up a
  * dependency chain
- * @ASYNC_TX_DEP_ACK: ack the dependency descriptor.  Useful for chaining.
  */
 enum async_tx_flags {
 	ASYNC_TX_XOR_ZERO_DST	 = (1 << 0),
 	ASYNC_TX_XOR_DROP_DST	 = (1 << 1),
-	ASYNC_TX_ACK		 = (1 << 3),
-	ASYNC_TX_DEP_ACK	 = (1 << 4),
+	ASYNC_TX_ACK		 = (1 << 2),
 };
 
 #ifdef CONFIG_DMA_ENGINE

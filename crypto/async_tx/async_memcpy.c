@@ -35,7 +35,7 @@
  * @src: src page
  * @offset: offset in pages to start transaction
  * @len: length in bytes
- * @flags: ASYNC_TX_ACK, ASYNC_TX_DEP_ACK,
+ * @flags: ASYNC_TX_ACK
  * @depend_tx: memcpy depends on the result of this transaction
  * @cb_fn: function to call when the memcpy completes
  * @cb_param: parameter to pass to the callback routine
