@@ -121,12 +121,12 @@ struct serial_data {
 static long tty_ioctl(struct file *f, unsigned op, unsigned long param)
 {
 #ifdef HAVE_UNLOCKED_IOCTL
-  	if (f->f_op->unlocked_ioctl) {
+	if (f->f_op->unlocked_ioctl) {
 		return f->f_op->unlocked_ioctl(f, op, param);
 	}
 #endif
 	if (f->f_op->ioctl) {
-	  	return f->f_op->ioctl(f->f_dentry->d_inode, f, op, param);
+		return f->f_op->ioctl(f->f_dentry->d_inode, f, op, param);
 	}
 	return -ENOSYS;
 }
@@ -211,7 +211,7 @@ static int tty_read(struct file *f, int timeout)
 			/* Device does not support poll, busy wait */
 			int retries = 0;
 			while (1) {
-			  	unsigned char ch;
+				unsigned char ch;
 
 				retries++;
 				if (retries >= timeout) {
@@ -220,7 +220,7 @@ static int tty_read(struct file *f, int timeout)
 
 				f->f_pos = 0;
 				if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
-				  	result = ch;
+					result = ch;
 					break;
 				}
 				comedi_udelay(100);

@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -804,9 +804,9 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device *dev,
 
 	us_TmpValue = (unsigned short) inw(dev->iobase + APCI3120_RD_STATUS);
 /*** EL241003 : add this section in comment because floats must not be used
-	 if((us_TmpValue & 0x00B0)==0x00B0)
+	if((us_TmpValue & 0x00B0)==0x00B0)
 	 {
-           f_ConvertValue=(((float)ui_ConvertTiming * 0.002) - 2);
+		f_ConvertValue=(((float)ui_ConvertTiming * 0.002) - 2);
 		ui_TimerValue0=(unsigned int)f_ConvertValue;
 		if (mode==2)
 		{
@@ -814,7 +814,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, struct comedi_device *dev,
 			ui_TimerValue1  =   (unsigned int) f_DelayValue;
 		}
 	 }
-   	 else
+	else
 	 {
 		f_ConvertValue=(((float)ui_ConvertTiming * 0.0012926) - 1);
 		ui_TimerValue0=(unsigned int)f_ConvertValue;
@@ -2463,9 +2463,9 @@ int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device *dev,
 |                     struct comedi_subdevice *s									 |
 |                     struct comedi_insn *insn                                      |
 |                     unsigned int *data 										 |
-                      data[0]     Value to be written
-                      data[1]    :1 Set digital o/p ON
-                      data[1]     2 Set digital o/p OFF with memory ON
+|                      data[0]     Value to be written
+|                      data[1]    :1 Set digital o/p ON
+|                      data[1]     2 Set digital o/p OFF with memory ON
 +----------------------------------------------------------------------------+
 | Return Value      :              					                         |
 |                    													     |

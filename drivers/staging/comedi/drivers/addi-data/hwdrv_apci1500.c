@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -77,7 +77,7 @@ int i_TimerCounter1Enabled = 0, i_TimerCounter2Enabled =
 |			  data[0]            :Number of the input port on        |
 |                                         which the event will take place    |
 |                                         (1 or 2)
-                      data[1]            : The event logic for port 1 has    |
+|                      data[1]            : The event logic for port 1 has    |
 |                                            three possibilities             |
 |                                        :0  APCI1500_AND       :This logic  |
 |                                                                links       |
@@ -508,9 +508,9 @@ int i_APCI1500_ConfigDigitalInputEvent(struct comedi_device *dev,
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |		              unsigned int ui_Channel : Channel number to read       |
 |                     unsigned int *data          : Data Pointer to read status  |
-                      data[0]                 :0 Start input event
-                                               1 Stop input event
-                      data[1]                 :No of port (1 or 2)
+|                      data[0]                 :0 Start input event
+|                                               1 Stop input event
+|                      data[1]                 :No of port (1 or 2)
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -945,9 +945,9 @@ int i_APCI1500_Initialisation(struct comedi_device *dev, struct comedi_subdevice
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     unsigned int ui_NoOfChannels    : No Of Channels To be Read    |
 |                      unsigned int *data             : Data Pointer
-                      data[0]                 : 0 Read a single channel
-                                                1 read a port value
-                      data[1]                 : port value
+|                      data[0]                 : 0 Read a single channel
+|                                                1 read a port value
+|                      data[1]                 : port value
 +----------------------------------------------------------------------------+
 | Output Parameters :	--	data[0]    :The read status value
 +----------------------------------------------------------------------------+
@@ -1015,21 +1015,21 @@ int i_APCI1500_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ConfigDigitalOutputErrorInterrupt
-                      (struct comedi_device *dev,struct comedi_subdevice *s struct comedi_insn
-                      *insn,unsigned int *data)                                  |
+|                      (struct comedi_device *dev,struct comedi_subdevice *s struct comedi_insn
+|                      *insn,unsigned int *data)                                  |
 |				                                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures the digital output memory and the digital
-                      output error interrupt                                 |
+|                      output error interrupt                                 |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
 |                     unsigned int *data         : Data Pointer contains         |
 |                                          configuration parameters as below |
 |                      struct comedi_subdevice *s,   :pointer to subdevice structure
-                       struct comedi_insn *insn      :pointer to insn structure                                                                                                                |
+|                       struct comedi_insn *insn      :pointer to insn structure                                                                                                                |
 |					  data[0]  :1:Memory on                          |
 |					            0:Memory off                         |
-                              data[1]  :1 Enable the voltage error interrupt
+|                              data[1]  :1 Enable the voltage error interrupt
 |							   :0 Disable the voltage error interrupt 		                                                                                                    |
 |																	 |
 +----------------------------------------------------------------------------+
@@ -1215,23 +1215,23 @@ int i_APCI1500_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device
-                   *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)|
+|                   *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)|
 |				                                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Watchdog                                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data         : Data Pointer to read status                                                       data[0]                : 2     APCI1500_1_8_KHZ
 |                                              1     APCI1500_3_6_KHZ        |
 |                                              0     APCI1500_115_KHZ
-                      data[1]                : 0     Counter1/Timer1
-                                               1     Counter2/Timer2
-                                               2     Counter3/Watchdog
-                      data[2]                : 0     Counter
-                                               1     Timer/Watchdog
-                      data[3]                :         This parameter has    |
+|                      data[1]                : 0     Counter1/Timer1
+|                                               1     Counter2/Timer2
+|                                               2     Counter3/Watchdog
+|                      data[2]                : 0     Counter
+|                                               1     Timer/Watchdog
+|                      data[3]                :         This parameter has    |
 |                                                      two meanings.         |
 |                                                    - If the counter/timer  |
 |                                                      is used as a counter  |
@@ -1243,15 +1243,15 @@ int i_APCI1500_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 |                                                      the divider factor    |
 |                                                      for the output is     |
 |                                                      given.
-                       data[4]                 : 0    APCI1500_CONTINUOUS
-                                                 1    APCI1500_SINGLE
-                       data[5]                 : 0    Software Trigger
-                                                 1    Hardware Trigger
-
-                       data[6]                  :0    Software gate
-                                                 1    Hardware gate
-                       data[7]                  :0    Interrupt Disable
-                                                 1    Interrupt Enable
+|                       data[4]                 : 0    APCI1500_CONTINUOUS
+|                                                 1    APCI1500_SINGLE
+|                       data[5]                 : 0    Software Trigger
+|                                                 1    Hardware Trigger
+|
+|                       data[6]                  :0    Software gate
+|                                                 1    Hardware gate
+|                       data[7]                  :0    Interrupt Disable
+|                                                 1    Interrupt Enable
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -1836,22 +1836,22 @@ int i_APCI1500_ConfigCounterTimerWatchdog(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_StartStopTriggerTimerCounterWatchdog      |
 |				(struct comedi_device *dev,struct comedi_subdevice *s,
-                         struct comedi_insn *insn,unsigned int *data);                  |
+|                         struct comedi_insn *insn,unsigned int *data);                  |
 +----------------------------------------------------------------------------+
 | Task              : Start / Stop or trigger the timer counter or Watchdog  |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev     : Driver handle                 |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data         : Data Pointer to read status   |
-                      data[0]                : 0     Counter1/Timer1
-                                               1     Counter2/Timer2
-                                               2     Counter3/Watchdog
-                      data[1]                : 0     start
-                                               1     stop
-                                               2     Trigger
-                      data[2]                : 0     Counter
-                                               1     Timer/Watchdog
+|                      data[0]                : 0     Counter1/Timer1
+|                                               1     Counter2/Timer2
+|                                               2     Counter3/Watchdog
+|                      data[1]                : 0     start
+|                                               1     stop
+|                                               2     Trigger
+|                      data[2]                : 0     Counter
+|                                               1     Timer/Watchdog
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -2161,18 +2161,18 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1500_ReadCounterTimerWatchdog                |
 |			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-                    unsigned int *data); 	                                     |
+|                    unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read The Watchdog                                      |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer to read status  |
-                      data[0]                : 0     Counter1/Timer1
-                                               1     Counter2/Timer2
-                                               2     Counter3/Watchdog
-
+|                      data[0]                : 0     Counter1/Timer1
+|                                               1     Counter2/Timer2
+|                                               2     Counter3/Watchdog
+|
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -2352,13 +2352,13 @@ int i_APCI1500_ReadCounterTimerWatchdog(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 | Function   Name   : int  i_APCI1500_ReadInterruptMask                      |
 |			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-                    unsigned int *data); 	                                     |
+|                    unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read the interrupt mask                                |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer to read status  |
 
 
@@ -2383,15 +2383,15 @@ int i_APCI1500_ReadInterruptMask(struct comedi_device *dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 | Function   Name   : int  i_APCI1500_ConfigureInterrupt                     |
 |			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-                    unsigned int *data); 	                                     |
+|                    unsigned int *data); 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures the interrupt registers                     |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer                 |
-
+|
 
 +----------------------------------------------------------------------------+
 | Output Parameters :	--

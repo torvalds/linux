@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -695,15 +695,15 @@ int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device *dev,
 |   unsigned char_ b_ModulNbr  CR_AREF(aref)    : Selected module number (0 to 3)|
 |   unsigned char_ b_PortValue CR_CHAN(chanspec) : Output Value ( 0 To 7 )
 |                       data[0]           read or write port
-                        data[1]            if write then indicate ON or OFF
+|                       data[1]            if write then indicate ON or OFF
 
-                        if read : data[1] will return port status.
+|                       if read : data[1] will return port status.
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
 | Return Value      :
 
-                INPUT :
+|                INPUT :
 
 					  0: No error                                            |
 |                    -1: The handle parameter of the board is wrong          |

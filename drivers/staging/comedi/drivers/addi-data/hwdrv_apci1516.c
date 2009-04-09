@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -63,7 +63,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |		       struct comedi_subdevice *s,   :pointer to subdevice structure
-                       struct comedi_insn *insn      :pointer to insn structure     |
+|                       struct comedi_insn *insn      :pointer to insn structure     |
 |                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
@@ -103,7 +103,7 @@ int i_APCI1516_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                      struct comedi_subdevice *s,   :pointer to subdevice structure
-                       struct comedi_insn *insn      :pointer to insn structure     |
+|                       struct comedi_insn *insn      :pointer to insn structure     |
 |                      unsigned int *data         : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
@@ -149,7 +149,7 @@ int i_APCI1516_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1516_ConfigDigitalOutput (struct comedi_device *dev,
-                    struct comedi_subdevice *s struct comedi_insn *insn,unsigned int *data)    |
+|                    struct comedi_subdevice *s struct comedi_insn *insn,unsigned int *data)    |
 |				                                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Digital Output Subdevice.               |
@@ -158,7 +158,7 @@ int i_APCI1516_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 |                     unsigned int *data         : Data Pointer contains         |
 |                                          configuration parameters as below |
 |                      struct comedi_subdevice *s,   :pointer to subdevice structure
-                       struct comedi_insn *insn      :pointer to insn structure                                                           |
+|                      struct comedi_insn *insn      :pointer to insn structure                                                           |
 |					  data[0]  :1:Memory on                          |
 |					            0:Memory off                         |
 |										                             |
@@ -182,13 +182,13 @@ int i_APCI1516_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1516_WriteDigitalOutput                      |
 |			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-                     unsigned int *data)                                         |
+|                     unsigned int *data)                                         |
 +----------------------------------------------------------------------------+
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                     struct comedi_insn *insn      :pointer to insn structure      |
 |                    unsigned int *data           : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
@@ -342,13 +342,13 @@ int i_APCI1516_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1516_ReadDigitalOutput                       |
 |			(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,
-                    unsigned int *data) 	                                     |
+|                    unsigned int *data) 	                                     |
 +----------------------------------------------------------------------------+
 | Task              : Read  value  of the selected channel or port           |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                     struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
@@ -401,14 +401,14 @@ int i_APCI1516_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1516_ConfigWatchdog(struct comedi_device *dev,
-                      struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)  |
+|                      struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)  |
 |				                                                     |
 +----------------------------------------------------------------------------+
 | Task              : Configures The Watchdog                                |
 +----------------------------------------------------------------------------+
 | Input Parameters  :   struct comedi_device *dev      : Driver handle              |
 |                     struct comedi_subdevice *s,   :pointer to subdevice structure
-                      struct comedi_insn *insn      :pointer to insn structure      |
+|                      struct comedi_insn *insn      :pointer to insn structure      |
 |                     unsigned int *data          : Data Pointer to read status                                                     |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |

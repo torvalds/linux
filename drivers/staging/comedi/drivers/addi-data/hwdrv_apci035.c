@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -69,37 +69,37 @@ int i_Flag = 1;
 |                                                                            |
 |					  data[0]            : 0 Configure As Timer      |
 |										   1 Configure As Watchdog   |
-                              data[1]            : Watchdog number
+|                                         data[1]            : Watchdog number
 |					  data[2]            : Time base Unit            |
 |					  data[3]			 : Reload Value			     |
-                              data[4]            : External Trigger          |
-                                                   1:Enable
-                                                   0:Disable
-                              data[5]            :External Trigger Level
-                                                  00 Trigger Disabled
-                                                  01 Trigger Enabled (Low level)
-                                                  10 Trigger Enabled (High Level)
-                                                  11 Trigger Enabled (High/Low level)
-                              data[6]            : External Gate            |
-                                                   1:Enable
-                                                   0:Disable
-                              data[7]            : External Gate level
-                                                  00 Gate Disabled
-                                                  01 Gate Enabled (Low level)
-                                                  10 Gate Enabled (High Level)
-                              data[8]            :Warning Relay
-                                                  1: ENABLE
-                                                  0: DISABLE
-                              data[9]            :Warning Delay available
-                              data[10]           :Warning Relay Time unit
-                              data[11]           :Warning Relay Time Reload value
-                              data[12]           :Reset Relay
-                                                  1 : ENABLE
-                                                  0 : DISABLE
-                              data[13]           :Interrupt
-                                                  1 : ENABLE
-                                                  0 : DISABLE
-
+|                                         data[4]            : External Trigger          |
+|                                                              1:Enable
+|                                                           0:Disable
+|                              data[5]            :External Trigger Level
+|                                                  00 Trigger Disabled
+|                                                  01 Trigger Enabled (Low level)
+|                                                  10 Trigger Enabled (High Level)
+|                                                  11 Trigger Enabled (High/Low level)
+|                              data[6]            : External Gate            |
+|                                                   1:Enable
+|                                                   0:Disable
+|                              data[7]            : External Gate level
+|                                                  00 Gate Disabled
+|                                                  01 Gate Enabled (Low level)
+|                                                  10 Gate Enabled (High Level)
+|                              data[8]            :Warning Relay
+|                                                  1: ENABLE
+|                                                  0: DISABLE
+|                              data[9]            :Warning Delay available
+|                              data[10]           :Warning Relay Time unit
+|                              data[11]           :Warning Relay Time Reload value
+|                              data[12]           :Reset Relay
+|                                                  1 : ENABLE
+|                                                  0 : DISABLE
+|                              data[13]           :Interrupt
+|                                                  1 : ENABLE
+|                                                  0 : DISABLE
+|
 |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
@@ -381,11 +381,11 @@ int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
 |     																	 |
 +----------------------------------------------------------------------------+
 | Output Parameters :	data[0]            : software trigger status
-              data[1]            : hardware trigger status
-|     				data[2]            : Software clear status
-                        data[3]            : Overflow status
-                     data[4]            : Timer actual value
-
+|                       data[1]            : hardware trigger status
+|     	  	        data[2]            : Software clear status
+|                       data[3]            : Overflow status
+|                       data[4]            : Timer actual value
+|
 
 +----------------------------------------------------------------------------+
 | Return Value      : TRUE  : No error occur                                 |
@@ -398,25 +398,29 @@ int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev, struct comedi_subdevi
 {
 	unsigned int ui_Status = 0;	/*  Status register */
 	i_WatchdogNbr = insn->unused[0];
-	      /******************/
+
+	/******************/
 	/* Get the status */
-	      /******************/
+	/******************/
+
 	ui_Status = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 16);
-      /***********************************/
+
+	/***********************************/
 	/* Get the software trigger status */
-      /***********************************/
+	/***********************************/
+
 	data[0] = ((ui_Status >> 1) & 1);
-      /***********************************/
+	/***********************************/
 	/* Get the hardware trigger status */
-      /***********************************/
+	/***********************************/
 	data[1] = ((ui_Status >> 2) & 1);
-      /*********************************/
+	/*********************************/
 	/* Get the software clear status */
-      /*********************************/
+	/*********************************/
 	data[2] = ((ui_Status >> 3) & 1);
-      /***************************/
+	/***************************/
 	/* Get the overflow status */
-      /***************************/
+	/***************************/
 	data[3] = ((ui_Status >> 0) & 1);
 	if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
 		data[4] = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);
