@@ -536,9 +536,7 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t *vma_prot)
 {
-	u64 offset = ((u64) pfn) << PAGE_SHIFT;
-	unsigned long flags = -1;
-	int retval;
+	unsigned long flags = _PAGE_CACHE_WB;
 
 	if (!range_is_allowed(pfn, size))
 		return 0;
@@ -566,63 +564,9 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	}
 #endif
 
-	/*
-	 * With O_SYNC, we can only take UC_MINUS mapping. Fail if we cannot.
-	 *
-	 * Without O_SYNC, we want to get
-	 * - WB for WB-able memory and no other conflicting mappings
-	 * - UC_MINUS for non-WB-able memory with no other conflicting mappings
-	 * - Inherit from confliting mappings otherwise
-	 */
-	if (flags != -1) {
-		retval = reserve_memtype(offset, offset + size, flags, NULL);
-	} else {
-		retval = reserve_memtype(offset, offset + size,
-					_PAGE_CACHE_WB, &flags);
-	}
-
-	if (retval < 0)
-		return 0;
-
-	if (((pfn < max_low_pfn_mapped) ||
-	     (pfn >= (1UL<<(32 - PAGE_SHIFT)) && pfn < max_pfn_mapped)) &&
-	    ioremap_change_attr((unsigned long)__va(offset), size, flags) < 0) {
-		free_memtype(offset, offset + size);
-		printk(KERN_INFO
-		"%s:%d /dev/mem ioremap_change_attr failed %s for %Lx-%Lx\n",
-			current->comm, current->pid,
-			cattr_name(flags),
-			offset, (unsigned long long)(offset + size));
-		return 0;
-	}
-
 	*vma_prot = __pgprot((pgprot_val(*vma_prot) & ~_PAGE_CACHE_MASK) |
 			     flags);
 	return 1;
-}
-
-void map_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
-{
-	unsigned long want_flags = (pgprot_val(vma_prot) & _PAGE_CACHE_MASK);
-	u64 addr = (u64)pfn << PAGE_SHIFT;
-	unsigned long flags;
-
-	reserve_memtype(addr, addr + size, want_flags, &flags);
-	if (flags != want_flags) {
-		printk(KERN_INFO
-		"%s:%d /dev/mem expected mapping type %s for %Lx-%Lx, got %s\n",
-			current->comm, current->pid,
-			cattr_name(want_flags),
-			addr, (unsigned long long)(addr + size),
-			cattr_name(flags));
-	}
-}
-
-void unmap_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
-{
-	u64 addr = (u64)pfn << PAGE_SHIFT;
-
-	free_memtype(addr, addr + size);
 }
 
 /*
@@ -662,8 +606,8 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 {
 	int is_ram = 0;
 	int ret;
-	unsigned long flags;
 	unsigned long want_flags = (pgprot_val(*vma_prot) & _PAGE_CACHE_MASK);
+	unsigned long flags = want_flags;
 
 	is_ram = pat_pagerange_is_ram(paddr, paddr + size);
 
