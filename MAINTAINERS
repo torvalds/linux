@@ -3873,8 +3873,8 @@ S:	Maintained
 SCHEDULER
 P:	Ingo Molnar
 M:	mingo@elte.hu
-P:	Robert Love    [the preemptible kernel bits]
-M:	rml@tech9.net
+P:	Peter Zijlstra
+M:	peterz@infradead.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
