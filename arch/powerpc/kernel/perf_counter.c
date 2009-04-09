@@ -714,7 +714,7 @@ hw_perf_counter_init(struct perf_counter *counter)
  * here so there is no possibility of being interrupted.
  */
 static void record_and_restart(struct perf_counter *counter, long val,
-			       struct pt_regs *regs)
+			       struct pt_regs *regs, int nmi)
 {
 	s64 prev, delta, left;
 	int record = 0;
@@ -749,7 +749,7 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	 * Finally record data if requested.
 	 */
 	if (record)
-		perf_counter_overflow(counter, 1, regs, 0);
+		perf_counter_overflow(counter, nmi, regs, 0);
 }
 
 /*
@@ -762,6 +762,17 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	struct perf_counter *counter;
 	long val;
 	int found = 0;
+	int nmi;
+
+	/*
+	 * If interrupts were soft-disabled when this PMU interrupt
+	 * occurred, treat it as an NMI.
+	 */
+	nmi = !regs->softe;
+	if (nmi)
+		nmi_enter();
+	else
+		irq_enter();
 
 	for (i = 0; i < cpuhw->n_counters; ++i) {
 		counter = cpuhw->counter[i];
@@ -769,7 +780,7 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 		if ((int)val < 0) {
 			/* counter has overflowed */
 			found = 1;
-			record_and_restart(counter, val, regs);
+			record_and_restart(counter, val, regs, nmi);
 		}
 	}
 
@@ -796,18 +807,10 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	 */
 	mtspr(SPRN_MMCR0, cpuhw->mmcr[0]);
 
-	/*
-	 * If we need a wakeup, check whether interrupts were soft-enabled
-	 * when we took the interrupt.  If they were, we can wake stuff up
-	 * immediately; otherwise we'll have do the wakeup when interrupts
-	 * get soft-enabled.
-	 */
-	if (test_perf_counter_pending() && regs->softe) {
-		irq_enter();
-		clear_perf_counter_pending();
-		perf_counter_do_pending();
+	if (nmi)
+		nmi_exit();
+	else
 		irq_exit();
-	}
 }
 
 void hw_perf_counter_setup(int cpu)
