@@ -4630,7 +4630,11 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	/* reset_hw fills in the perm_addr as well */
 	err = hw->mac.ops.reset_hw(hw);
-	if (err) {
+	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
+		dev_err(&adapter->pdev->dev, "failed to load because an "
+		        "unsupported SFP+ module type was detected.\n");
+		goto err_sw_init;
+	} else if (err) {
 		dev_err(&adapter->pdev->dev, "HW Init failed: %d\n", err);
 		goto err_sw_init;
 	}
@@ -4702,6 +4706,9 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	}
 	device_init_wakeup(&adapter->pdev->dev, true);
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
+
+	/* pick up the PCI bus settings for reporting later */
+	hw->mac.ops.get_bus_info(hw);
 
 	/* print bus type/speed/width info */
 	dev_info(&pdev->dev, "(PCI Express:%s:%s) %pM\n",

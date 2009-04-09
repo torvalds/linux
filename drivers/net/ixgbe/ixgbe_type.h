@@ -2150,6 +2150,7 @@ struct ixgbe_mac_operations {
 struct ixgbe_phy_operations {
 	s32 (*identify)(struct ixgbe_hw *);
 	s32 (*identify_sfp)(struct ixgbe_hw *);
+	s32 (*init)(struct ixgbe_hw *);
 	s32 (*reset)(struct ixgbe_hw *);
 	s32 (*read_reg)(struct ixgbe_hw *, u32, u32, u16 *);
 	s32 (*write_reg)(struct ixgbe_hw *, u32, u32, u16);

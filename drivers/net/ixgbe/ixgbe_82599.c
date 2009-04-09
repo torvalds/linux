@@ -148,42 +148,8 @@ u32 ixgbe_get_pcie_msix_count_82599(struct ixgbe_hw *hw)
 static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
-	struct ixgbe_phy_info *phy = &hw->phy;
-	s32 ret_val;
-
-	/* Set the bus information prior to PHY identification */
-	mac->ops.get_bus_info(hw);
-
-	/* Call PHY identify routine to get the Cu or SFI phy type */
-	ret_val = phy->ops.identify(hw);
-
-	if (ret_val == IXGBE_ERR_SFP_NOT_SUPPORTED)
-		goto get_invariants_out;
 
 	ixgbe_init_mac_link_ops_82599(hw);
-
-	/* Setup SFP module if there is one present. */
-	ret_val = mac->ops.setup_sfp(hw);
-
-	/* If copper media, overwrite with copper function pointers */
-	if (mac->ops.get_media_type(hw) == ixgbe_media_type_copper) {
-		mac->ops.setup_link = &ixgbe_setup_copper_link_82599;
-		mac->ops.setup_link_speed =
-		                  &ixgbe_setup_copper_link_speed_82599;
-		mac->ops.get_link_capabilities =
-		                  &ixgbe_get_copper_link_capabilities_82599;
-	}
-
-	/* PHY Init */
-	switch (hw->phy.type) {
-	case ixgbe_phy_tn:
-		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
-		phy->ops.get_firmware_version =
-		                  &ixgbe_get_phy_firmware_version_tnx;
-		break;
-	default:
-		break;
-	}
 
 	mac->mcft_size = IXGBE_82599_MC_TBL_SIZE;
 	mac->vft_size = IXGBE_82599_VFT_TBL_SIZE;
@@ -192,7 +158,50 @@ static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
 	mac->max_tx_queues = IXGBE_82599_MAX_TX_QUEUES;
 	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_82599(hw);
 
-get_invariants_out:
+	return 0;
+}
+
+/**
+ *  ixgbe_init_phy_ops_82599 - PHY/SFP specific init
+ *  @hw: pointer to hardware structure
+ *
+ *  Initialize any function pointers that were not able to be
+ *  set during get_invariants because the PHY/SFP type was
+ *  not known.  Perform the SFP init if necessary.
+ *
+ **/
+s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
+{
+	struct ixgbe_mac_info *mac = &hw->mac;
+	struct ixgbe_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+
+	/* Identify the PHY or SFP module */
+	ret_val = phy->ops.identify(hw);
+
+	/* Setup function pointers based on detected SFP module and speeds */
+	ixgbe_init_mac_link_ops_82599(hw);
+
+	/* If copper media, overwrite with copper function pointers */
+	if (mac->ops.get_media_type(hw) == ixgbe_media_type_copper) {
+		mac->ops.setup_link = &ixgbe_setup_copper_link_82599;
+		mac->ops.setup_link_speed =
+		                     &ixgbe_setup_copper_link_speed_82599;
+		mac->ops.get_link_capabilities =
+		                  &ixgbe_get_copper_link_capabilities_82599;
+	}
+
+	/* Set necessary function pointers based on phy type */
+	switch (hw->phy.type) {
+	case ixgbe_phy_tn:
+		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
+		phy->ops.get_firmware_version =
+		             &ixgbe_get_phy_firmware_version_tnx;
+		break;
+	default:
+		break;
+	}
+
 	return ret_val;
 }
 
@@ -708,13 +717,24 @@ s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	hw->mac.ops.stop_adapter(hw);
 
 	/* Reset PHY */
-	hw->phy.ops.reset(hw);
+	if (hw->phy.reset_disable == false) {
+		/* PHY ops must be identified and initialized prior to reset */
+
+		/* Init PHY and function pointers, perform SFP setup */
+		status = hw->phy.ops.init(hw);
+
+		if (status == IXGBE_ERR_SFP_NOT_SUPPORTED)
+			goto reset_hw_out;
+
+		hw->phy.ops.reset(hw);
+	}
 
 	/*
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests before reset
 	 */
-	if (ixgbe_disable_pcie_master(hw) != 0) {
+	status = ixgbe_disable_pcie_master(hw);
+	if (status != 0) {
 		status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
 		hw_dbg(hw, "PCI-E Master disable polling has failed.\n");
 	}
@@ -775,6 +795,7 @@ s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	/* Store the permanent mac address */
 	hw->mac.ops.get_mac_addr(hw, hw->mac.perm_addr);
 
+reset_hw_out:
 	return status;
 }
 
@@ -1272,6 +1293,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_82599 = {
 static struct ixgbe_phy_operations phy_ops_82599 = {
 	.identify               = &ixgbe_identify_phy_82599,
 	.identify_sfp           = &ixgbe_identify_sfp_module_generic,
+	.init			= &ixgbe_init_phy_ops_82599,
 	.reset                  = &ixgbe_reset_phy_generic,
 	.read_reg               = &ixgbe_read_phy_reg_generic,
 	.write_reg              = &ixgbe_write_phy_reg_generic,
