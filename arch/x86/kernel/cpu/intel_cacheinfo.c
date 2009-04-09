@@ -200,10 +200,17 @@ union l3_cache {
 };
 
 static const unsigned short __cpuinitconst assocs[] = {
-	[1] = 1, [2] = 2, [4] = 4, [6] = 8,
-	[8] = 16, [0xa] = 32, [0xb] = 48,
+	[1] = 1,
+	[2] = 2,
+	[4] = 4,
+	[6] = 8,
+	[8] = 16,
+	[0xa] = 32,
+	[0xb] = 48,
 	[0xc] = 64,
-	[0xf] = 0xffff // ??
+	[0xd] = 96,
+	[0xe] = 128,
+	[0xf] = 0xffff /* fully associative - no way to show this currently */
 };
 
 static const unsigned char __cpuinitconst levels[] = { 1, 1, 2, 3 };
@@ -264,7 +271,8 @@ amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 	eax->split.type = types[leaf];
 	eax->split.level = levels[leaf];
 	if (leaf == 3)
-		eax->split.num_threads_sharing = current_cpu_data.x86_max_cores - 1;
+		eax->split.num_threads_sharing =
+			current_cpu_data.x86_max_cores - 1;
 	else
 		eax->split.num_threads_sharing = 0;
 	eax->split.num_cores_on_die = current_cpu_data.x86_max_cores - 1;
