@@ -53,30 +53,6 @@ static struct irqaction fpu_irq = {
 	.name = "fpu",
 };
 
-static void __init init_ISA_irqs(void)
-{
-	int i;
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	init_bsp_APIC();
-#endif
-	init_8259A(0);
-
-	/*
-	 * 16 old-style INTA-cycle interrupts:
-	 */
-	for (i = 0; i < NR_IRQS_LEGACY; i++) {
-		struct irq_desc *desc = irq_to_desc(i);
-
-		desc->status = IRQ_DISABLED;
-		desc->action = NULL;
-		desc->depth = 1;
-
-		set_irq_chip_and_handler_name(i, &i8259A_chip,
-					      handle_level_irq, "XT");
-	}
-}
-
 /*
  * IRQ2 is cascade interrupt to second interrupt controller
  */
@@ -116,6 +92,30 @@ int vector_used_by_percpu_irq(unsigned int vector)
 	}
 
 	return 0;
+}
+
+static void __init init_ISA_irqs(void)
+{
+	int i;
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	init_bsp_APIC();
+#endif
+	init_8259A(0);
+
+	/*
+	 * 16 old-style INTA-cycle interrupts:
+	 */
+	for (i = 0; i < NR_IRQS_LEGACY; i++) {
+		struct irq_desc *desc = irq_to_desc(i);
+
+		desc->status = IRQ_DISABLED;
+		desc->action = NULL;
+		desc->depth = 1;
+
+		set_irq_chip_and_handler_name(i, &i8259A_chip,
+					      handle_level_irq, "XT");
+	}
 }
 
 /* Overridden in paravirt.c */
