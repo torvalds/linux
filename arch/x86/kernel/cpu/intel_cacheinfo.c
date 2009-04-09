@@ -731,6 +731,7 @@ static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf,
 	int node = cpu_to_node(cpu);
 	struct pci_dev *dev = node_to_k8_nb_misc(node);
 	unsigned long val = 0;
+	unsigned int scrubber = 0;
 
 	if (!this_leaf->can_disable)
 		return -EINVAL;
@@ -745,6 +746,11 @@ static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf,
 		return -EINVAL;
 
 	val |= 0xc0000000;
+
+	pci_read_config_dword(dev, 0x58, &scrubber);
+	scrubber &= ~0x1f000000;
+	pci_write_config_dword(dev, 0x58, scrubber);
+
 	pci_write_config_dword(dev, 0x1BC + index * 4, val & ~0x40000000);
 	wbinvd();
 	pci_write_config_dword(dev, 0x1BC + index * 4, val);
