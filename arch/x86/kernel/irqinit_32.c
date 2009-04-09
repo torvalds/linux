@@ -1,26 +1,46 @@
+#include <linux/linkage.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/timex.h>
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
 #include <linux/bitops.h>
+#include <linux/acpi.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/timer.h>
+#include <asm/hw_irq.h>
 #include <asm/pgtable.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
 #include <asm/setup.h>
 #include <asm/i8259.h>
 #include <asm/traps.h>
+
+/*
+ * ISA PIC or low IO-APIC triggered (INTA-cycle or APIC) interrupts:
+ * (these are usually mapped to vectors 0x30-0x3f)
+ */
+
+/*
+ * The IO-APIC gives us many more interrupt sources. Most of these
+ * are unused but an SMP system is supposed to have enough memory ...
+ * sometimes (mostly wrt. hw bugs) we get corrupted vectors all
+ * across the spectrum, so we really want to be prepared to get all
+ * of these. Plus, more powerful systems might have more than 64
+ * IO-APIC registers.
+ *
+ * (these are usually mapped into the 0x30-0xff vector range)
+ */
 
 #ifdef CONFIG_X86_32
 /*

@@ -17,11 +17,14 @@
 
 #include <asm/atomic.h>
 #include <asm/system.h>
+#include <asm/timer.h>
 #include <asm/hw_irq.h>
 #include <asm/pgtable.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
+#include <asm/setup.h>
 #include <asm/i8259.h>
+#include <asm/traps.h>
 
 /*
  * ISA PIC or low IO-APIC triggered (INTA-cycle or APIC) interrupts:
@@ -136,6 +139,7 @@ static void __init init_ISA_irqs(void)
 	}
 }
 
+/* Overridden in paravirt.c */
 void init_IRQ(void) __attribute__((weak, alias("native_init_IRQ")));
 
 static void __init smp_intr_init(void)
