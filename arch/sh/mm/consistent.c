@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-debug.h>
 #include <asm/cacheflush.h>
 #include <asm/addrspace.h>
 #include <asm/io.h>
@@ -45,6 +46,9 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	split_page(pfn_to_page(virt_to_phys(ret) >> PAGE_SHIFT), order);
 
 	*dma_handle = virt_to_phys(ret);
+
+	debug_dma_alloc_coherent(dev, size, *dma_handle, ret_nocache);
+
 	return ret_nocache;
 }
 EXPORT_SYMBOL(dma_alloc_coherent);
@@ -56,12 +60,15 @@ void dma_free_coherent(struct device *dev, size_t size,
 	unsigned long pfn = dma_handle >> PAGE_SHIFT;
 	int k;
 
-	if (!dma_release_from_coherent(dev, order, vaddr)) {
-		WARN_ON(irqs_disabled());	/* for portability */
-		for (k = 0; k < (1 << order); k++)
-			__free_pages(pfn_to_page(pfn + k), 0);
-		iounmap(vaddr);
-	}
+	WARN_ON(irqs_disabled());	/* for portability */
+
+	if (dma_release_from_coherent(dev, order, vaddr))
+		return;
+
+	debug_dma_free_coherent(dev, size, vaddr, dma_handle);
+	for (k = 0; k < (1 << order); k++)
+		__free_pages(pfn_to_page(pfn + k), 0);
+	iounmap(vaddr);
 }
 EXPORT_SYMBOL(dma_free_coherent);
 
