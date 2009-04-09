@@ -2231,6 +2231,7 @@ cleanup_volume_info(struct smb_vol **pvolume_info)
 	return;
 }
 
+#ifdef CONFIG_CIFS_DFS_UPCALL
 /* build_path_to_root returns full path to root when
  * we do not have an exiting connection (tcon) */
 static char *
@@ -2260,6 +2261,7 @@ build_unc_path_to_root(const struct smb_vol *volume_info,
 	full_path[unc_len + cifs_sb->prepathlen] = 0; /* add trailing null */
 	return full_path;
 }
+#endif
 
 int
 cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
@@ -2272,12 +2274,12 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	struct cifsTconInfo *tcon = NULL;
 	struct TCP_Server_Info *srvTcp = NULL;
 	char   *full_path;
+	char *mount_data = mount_data_global;
+#ifdef CONFIG_CIFS_DFS_UPCALL
 	struct dfs_info3_param *referrals = NULL;
 	unsigned int num_referrals = 0;
-
-	char *mount_data = mount_data_global;
-
 try_mount_again:
+#endif
 	full_path = NULL;
 
 	xid = GetXid();
