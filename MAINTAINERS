@@ -2128,6 +2128,8 @@ P:	Riku Voipio
 M:	riku.vipio@iki.fi
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
+F:	drivers/hwmon/f75375s.c
+F:	include/linux/f75375s.h
 
 FIREWIRE SUBSYSTEM
 P:	Kristian Hoegsberg
@@ -4241,6 +4243,8 @@ PCA9532 LED DRIVER
 P:	Riku Voipio
 M:	riku.voipio@iki.fi
 S:	Maintained
+F:	drivers/leds/leds-pca9532.c
+F:	include/linux/leds-pca9532.h
 
 PCI ERROR RECOVERY
 P:	Linas Vepstas
@@ -4725,6 +4729,7 @@ M:	ralph.wuerthner@de.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-s390@vger.kernel.org
 S:	Supported
+F:	drivers/s390/crypto/
 
 S390 ZFCP DRIVER
 P:	Christof Schmitt
@@ -4921,6 +4926,9 @@ M:	jgarzik@pobox.com
 L:	linux-ide@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jgarzik/libata-dev.git
 S:	Supported
+F:	drivers/ata/
+F:	include/linux/ata.h
+F:	include/linux/libata.h
 
 SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
 P:	Sathya Perla
@@ -5471,6 +5479,7 @@ TMIO MMC DRIVER
 P:	Ian Molton
 M:	ian@mnementh.co.uk
 S:	Maintained
+F:	drivers/mmc/host/tmio_mmc.*
 
 TPM DEVICE DRIVER
 P:	Debora Velarde
