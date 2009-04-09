@@ -1362,7 +1362,6 @@ M:	timur@freescale.com
 L:	alsa-devel@alsa-project.org
 S:	Supported
 F:	sound/soc/codecs/cs4270*
-F:	sound/soc/fsl/mpc8610_hpcd.c
 
 CIRRUS LOGIC CS4280/CS461x SOUNDDRIVER
 P:	Cirrus Logic Corporation (kernel 2.2 driver)
@@ -2250,7 +2249,8 @@ M:	timur@freescale.com
 L:	alsa-devel@alsa-project.org
 L:	linuxppc-dev@ozlabs.org
 S:	Supported
-F:	sound/soc/fsl/
+F:	sound/soc/fsl/fsl*
+F:	sound/soc/fsl/mpc8610_hpcd.c
 
 FREEVXFS FILESYSTEM
 P:	Christoph Hellwig
