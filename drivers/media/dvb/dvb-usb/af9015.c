@@ -1263,6 +1263,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_AFATECH,   USB_PID_TREKSTOR_DVBT)},
 /* 20 */{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850)},
 	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A805)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_CONCEPTRONIC_CTVDIGRCU)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1533,11 +1534,17 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 1, /* max 9 */
+		.num_device_descs = 2, /* max 9 */
 		.devices = {
 			{
 				.name = "AverMedia AVerTV Volar GPS 805 (A805)",
 				.cold_ids = {&af9015_usb_table[21], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "Conceptronic USB2.0 DVB-T CTVDIGRCU " \
+					"V3.0",
+				.cold_ids = {&af9015_usb_table[22], NULL},
 				.warm_ids = {NULL},
 			},
 		}
