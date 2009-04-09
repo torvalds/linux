@@ -2116,7 +2116,7 @@ static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
 			name = strncpy(tmp, "//enomem", sizeof(tmp));
 			goto got_name;
 		}
-		name = dentry_path(file->f_dentry, buf, PATH_MAX);
+		name = d_path(&file->f_path, buf, PATH_MAX);
 		if (IS_ERR(name)) {
 			name = strncpy(tmp, "//toolong", sizeof(tmp));
 			goto got_name;
