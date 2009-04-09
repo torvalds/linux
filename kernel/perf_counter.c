@@ -1989,7 +1989,7 @@ static void perf_counter_comm_event(struct perf_comm_event *comm_event)
 	unsigned int size;
 	char *comm = comm_event->task->comm;
 
-	size = ALIGN(strlen(comm), sizeof(u64));
+	size = ALIGN(strlen(comm)+1, sizeof(u64));
 
 	comm_event->comm = comm;
 	comm_event->comm_size = size;
@@ -2109,7 +2109,7 @@ static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
 	}
 
 got_name:
-	size = ALIGN(strlen(name), sizeof(u64));
+	size = ALIGN(strlen(name)+1, sizeof(u64));
 
 	mmap_event->file_name = name;
 	mmap_event->file_size = size;
