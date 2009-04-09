@@ -52,6 +52,9 @@ static const char igbvf_driver_string[] =
 static const char igbvf_copyright[] = "Copyright (c) 2009 Intel Corporation.";
 
 static int igbvf_poll(struct napi_struct *napi, int budget);
+static void igbvf_reset(struct igbvf_adapter *);
+static void igbvf_set_interrupt_capability(struct igbvf_adapter *);
+static void igbvf_reset_interrupt_capability(struct igbvf_adapter *);
 
 static struct igbvf_info igbvf_vf_info = {
 	.mac                    = e1000_vfadapt,
@@ -990,7 +993,7 @@ static void igbvf_configure_msix(struct igbvf_adapter *adapter)
 	e1e_flush();
 }
 
-void igbvf_reset_interrupt_capability(struct igbvf_adapter *adapter)
+static void igbvf_reset_interrupt_capability(struct igbvf_adapter *adapter)
 {
 	if (adapter->msix_entries) {
 		pci_disable_msix(adapter->pdev);
@@ -1005,7 +1008,7 @@ void igbvf_reset_interrupt_capability(struct igbvf_adapter *adapter)
  * Attempt to configure interrupts using the best available
  * capabilities of the hardware and kernel.
  **/
-void igbvf_set_interrupt_capability(struct igbvf_adapter *adapter)
+static void igbvf_set_interrupt_capability(struct igbvf_adapter *adapter)
 {
 	int err = -ENOMEM;
 	int i;
@@ -1447,7 +1450,7 @@ static void igbvf_configure(struct igbvf_adapter *adapter)
  * set/changed during runtime. After reset the device needs to be
  * properly configured for Rx, Tx etc.
  */
-void igbvf_reset(struct igbvf_adapter *adapter)
+static void igbvf_reset(struct igbvf_adapter *adapter)
 {
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 	struct net_device *netdev = adapter->netdev;
