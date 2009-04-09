@@ -632,7 +632,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			hw->phy.multispeed_fiber = true;
 
 		/* Determine PHY vendor */
-		if (hw->phy.type == ixgbe_phy_unknown) {
+		if (hw->phy.type != ixgbe_phy_nl) {
 			hw->phy.id = identifier;
 			hw->phy.ops.read_i2c_eeprom(hw,
 			                            IXGBE_SFF_VENDOR_OUI_BYTE0,
@@ -682,9 +682,9 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			goto out;
 		}
 
-		hw->eeprom.ops.read(hw, IXGBE_PHY_ENFORCE_INTEL_SFP_OFFSET,
-		                    &enforce_sfp);
-		if (!(enforce_sfp & IXGBE_PHY_ALLOW_ANY_SFP)) {
+		/* This is guaranteed to be 82599, no need to check for NULL */
+		hw->mac.ops.get_device_caps(hw, &enforce_sfp);
+		if (!(enforce_sfp & IXGBE_DEVICE_CAPS_ALLOW_ANY_SFP)) {
 			/* Make sure we're a supported PHY type */
 			if (hw->phy.type == ixgbe_phy_sfp_intel) {
 				status = 0;

@@ -1177,53 +1177,98 @@ s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
 u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 {
 	u32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
+	u32 autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	u32 autoc2 = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
+	u32 pma_pmd_10g_serial = autoc2 & IXGBE_AUTOC2_10G_SERIAL_PMA_PMD_MASK;
+	u32 pma_pmd_10g_parallel = autoc & IXGBE_AUTOC_10G_PMA_PMD_MASK;
+	u32 pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
+	u16 ext_ability = 0;
 	u8 comp_codes_10g = 0;
 
-	switch (hw->device_id) {
-	case IXGBE_DEV_ID_82599:
-	case IXGBE_DEV_ID_82599_KX4:
-		/* Default device ID is mezzanine card KX/KX4 */
-		physical_layer = (IXGBE_PHYSICAL_LAYER_10GBASE_KX4 |
-		                  IXGBE_PHYSICAL_LAYER_1000BASE_KX);
-		break;
-	case IXGBE_DEV_ID_82599_SFP:
-		hw->phy.ops.identify_sfp(hw);
+	hw->phy.ops.identify(hw);
 
-		switch (hw->phy.sfp_type) {
-		case ixgbe_sfp_type_da_cu:
-		case ixgbe_sfp_type_da_cu_core0:
-		case ixgbe_sfp_type_da_cu_core1:
-			physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
-			break;
-		case ixgbe_sfp_type_sr:
-			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_SR;
-			break;
-		case ixgbe_sfp_type_lr:
-			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
-			break;
-		case ixgbe_sfp_type_srlr_core0:
-		case ixgbe_sfp_type_srlr_core1:
-			hw->phy.ops.read_i2c_eeprom(hw,
-			                            IXGBE_SFF_10GBE_COMP_CODES,
-			                            &comp_codes_10g);
-			if (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)
-				physical_layer =
-				                IXGBE_PHYSICAL_LAYER_10GBASE_SR;
-			else if (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)
-				physical_layer =
-				                IXGBE_PHYSICAL_LAYER_10GBASE_LR;
-			else
-				physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
-		default:
-			physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
-			break;
-		}
+	if (hw->phy.type == ixgbe_phy_tn ||
+	    hw->phy.type == ixgbe_phy_cu_unknown) {
+		hw->phy.ops.read_reg(hw, IXGBE_MDIO_PHY_EXT_ABILITY,
+		IXGBE_MDIO_PMA_PMD_DEV_TYPE, &ext_ability);
+		if (ext_ability & IXGBE_MDIO_PHY_10GBASET_ABILITY)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_T;
+		if (ext_ability & IXGBE_MDIO_PHY_1000BASET_ABILITY)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_T;
+		if (ext_ability & IXGBE_MDIO_PHY_100BASETX_ABILITY)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_100BASE_TX;
+		goto out;
+	}
+
+	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
+	case IXGBE_AUTOC_LMS_1G_AN:
+	case IXGBE_AUTOC_LMS_1G_LINK_NO_AN:
+		if (pma_pmd_1g == IXGBE_AUTOC_1G_KX_BX) {
+			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_KX |
+			    IXGBE_PHYSICAL_LAYER_1000BASE_BX;
+			goto out;
+		} else
+			/* SFI mode so read SFP module */
+			goto sfp_check;
+		break;
+	case IXGBE_AUTOC_LMS_10G_LINK_NO_AN:
+		if (pma_pmd_10g_parallel == IXGBE_AUTOC_10G_CX4)
+			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_CX4;
+		else if (pma_pmd_10g_parallel == IXGBE_AUTOC_10G_KX4)
+			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KX4;
+		goto out;
+		break;
+	case IXGBE_AUTOC_LMS_10G_SERIAL:
+		if (pma_pmd_10g_serial == IXGBE_AUTOC2_10G_KR) {
+			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KR;
+			goto out;
+		} else if (pma_pmd_10g_serial == IXGBE_AUTOC2_10G_SFI)
+			goto sfp_check;
+		break;
+	case IXGBE_AUTOC_LMS_KX4_KX_KR:
+	case IXGBE_AUTOC_LMS_KX4_KX_KR_1G_AN:
+		if (autoc & IXGBE_AUTOC_KX_SUPP)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_KX;
+		if (autoc & IXGBE_AUTOC_KX4_SUPP)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_KX4;
+		if (autoc & IXGBE_AUTOC_KR_SUPP)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_KR;
+		goto out;
 		break;
 	default:
-		physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
+		goto out;
 		break;
 	}
 
+sfp_check:
+	/* SFP check must be done last since DA modules are sometimes used to
+	 * test KR mode -  we need to id KR mode correctly before SFP module.
+	 * Call identify_sfp because the pluggable module may have changed */
+	hw->phy.ops.identify_sfp(hw);
+	if (hw->phy.sfp_type == ixgbe_sfp_type_not_present)
+		goto out;
+
+	switch (hw->phy.type) {
+	case ixgbe_phy_tw_tyco:
+	case ixgbe_phy_tw_unknown:
+		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
+		break;
+	case ixgbe_phy_sfp_avago:
+	case ixgbe_phy_sfp_ftl:
+	case ixgbe_phy_sfp_intel:
+	case ixgbe_phy_sfp_unknown:
+		hw->phy.ops.read_i2c_eeprom(hw,
+		      IXGBE_SFF_10GBE_COMP_CODES, &comp_codes_10g);
+		if (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)
+			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_SR;
+		else if (comp_codes_10g & IXGBE_SFF_10GBASELR_CAPABLE)
+			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
+		break;
+	default:
+		break;
+	}
+
+out:
 	return physical_layer;
 }
 
@@ -1271,6 +1316,22 @@ s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
 	return 0;
 }
 
+/**
+ *  ixgbe_get_device_caps_82599 - Get additional device capabilities
+ *  @hw: pointer to hardware structure
+ *  @device_caps: the EEPROM word with the extra device capabilities
+ *
+ *  This function will read the EEPROM location for the device capabilities,
+ *  and return the word through device_caps.
+ **/
+s32 ixgbe_get_device_caps_82599(struct ixgbe_hw *hw, u16 *device_caps)
+{
+	hw->eeprom.ops.read(hw, IXGBE_DEVICE_CAPS, device_caps);
+
+	return 0;
+}
+
+
 static struct ixgbe_mac_operations mac_ops_82599 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_82599,
@@ -1280,6 +1341,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.get_supported_physical_layer = &ixgbe_get_supported_physical_layer_82599,
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_82599,
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
+	.get_device_caps        = &ixgbe_get_device_caps_82599,
 	.stop_adapter           = &ixgbe_stop_adapter_generic,
 	.get_bus_info           = &ixgbe_get_bus_info_generic,
 	.set_lan_id             = &ixgbe_set_lan_id_multi_port_pcie,

@@ -1089,35 +1089,56 @@ out:
 static u32 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw)
 {
 	u32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
+	u32 autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	u32 pma_pmd_10g = autoc & IXGBE_AUTOC_10G_PMA_PMD_MASK;
+	u32 pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
+	u16 ext_ability = 0;
 
-	switch (hw->device_id) {
-	case IXGBE_DEV_ID_82598:
-		/* Default device ID is mezzanine card KX/KX4 */
-		physical_layer = (IXGBE_PHYSICAL_LAYER_10GBASE_KX4 |
-				  IXGBE_PHYSICAL_LAYER_1000BASE_KX);
+	hw->phy.ops.identify(hw);
+
+	/* Copper PHY must be checked before AUTOC LMS to determine correct
+	 * physical layer because 10GBase-T PHYs use LMS = KX4/KX */
+	if (hw->phy.type == ixgbe_phy_tn ||
+	    hw->phy.type == ixgbe_phy_cu_unknown) {
+		hw->phy.ops.read_reg(hw, IXGBE_MDIO_PHY_EXT_ABILITY,
+		IXGBE_MDIO_PMA_PMD_DEV_TYPE, &ext_ability);
+		if (ext_ability & IXGBE_MDIO_PHY_10GBASET_ABILITY)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_T;
+		if (ext_ability & IXGBE_MDIO_PHY_1000BASET_ABILITY)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_T;
+		if (ext_ability & IXGBE_MDIO_PHY_100BASETX_ABILITY)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_100BASE_TX;
+		goto out;
+	}
+
+	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
+	case IXGBE_AUTOC_LMS_1G_AN:
+	case IXGBE_AUTOC_LMS_1G_LINK_NO_AN:
+		if (pma_pmd_1g == IXGBE_AUTOC_1G_KX)
+			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_KX;
+		else
+			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_BX;
 		break;
-	case IXGBE_DEV_ID_82598_BX:
-		physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_BX;
-	case IXGBE_DEV_ID_82598EB_CX4:
-	case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
-		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_CX4;
+	case IXGBE_AUTOC_LMS_10G_LINK_NO_AN:
+		if (pma_pmd_10g == IXGBE_AUTOC_10G_CX4)
+			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_CX4;
+		else if (pma_pmd_10g == IXGBE_AUTOC_10G_KX4)
+			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KX4;
+		else /* XAUI */
+			physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
 		break;
-	case IXGBE_DEV_ID_82598_DA_DUAL_PORT:
-		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
+	case IXGBE_AUTOC_LMS_KX4_AN:
+	case IXGBE_AUTOC_LMS_KX4_AN_1G_AN:
+		if (autoc & IXGBE_AUTOC_KX_SUPP)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_KX;
+		if (autoc & IXGBE_AUTOC_KX4_SUPP)
+			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_KX4;
 		break;
-	case IXGBE_DEV_ID_82598AF_DUAL_PORT:
-	case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
-	case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
-		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_SR;
+	default:
 		break;
-	case IXGBE_DEV_ID_82598EB_XF_LR:
-		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
-		break;
-	case IXGBE_DEV_ID_82598AT:
-		physical_layer = (IXGBE_PHYSICAL_LAYER_10GBASE_T |
-		                  IXGBE_PHYSICAL_LAYER_1000BASE_T);
-		break;
-	case IXGBE_DEV_ID_82598EB_SFP_LOM:
+	}
+
+	if (hw->phy.type == ixgbe_phy_nl) {
 		hw->phy.ops.identify_sfp(hw);
 
 		switch (hw->phy.sfp_type) {
@@ -1134,13 +1155,25 @@ static u32 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw)
 			physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
 			break;
 		}
-		break;
+	}
 
+	switch (hw->device_id) {
+	case IXGBE_DEV_ID_82598_DA_DUAL_PORT:
+		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
+		break;
+	case IXGBE_DEV_ID_82598AF_DUAL_PORT:
+	case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
+	case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
+		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_SR;
+		break;
+	case IXGBE_DEV_ID_82598EB_XF_LR:
+		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
+		break;
 	default:
-		physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
 		break;
 	}
 
+out:
 	return physical_layer;
 }
 

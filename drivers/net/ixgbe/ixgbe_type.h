@@ -862,6 +862,7 @@
 #define IXGBE_MDIO_PHY_EXT_ABILITY        0xB /* Ext Ability Reg */
 #define IXGBE_MDIO_PHY_10GBASET_ABILITY   0x0004 /* 10GBaseT capable */
 #define IXGBE_MDIO_PHY_1000BASET_ABILITY  0x0020 /* 1000BaseT capable */
+#define IXGBE_MDIO_PHY_100BASETX_ABILITY  0x0080 /* 100BaseTX capable */
 
 #define IXGBE_MDIO_PMA_PMD_SDA_SCL_ADDR     0xC30A /* PHY_XS SDA/SCL Addr Reg */
 #define IXGBE_MDIO_PMA_PMD_SDA_SCL_DATA     0xC30B /* PHY_XS SDA/SCL Data Reg */
@@ -898,8 +899,6 @@
 #define IXGBE_CONTROL_NL         0x000F
 #define IXGBE_CONTROL_EOL_NL     0x0FFF
 #define IXGBE_CONTROL_SOL_NL     0x0000
-#define IXGBE_PHY_ENFORCE_INTEL_SFP_OFFSET 0x002C
-#define IXGBE_PHY_ALLOW_ANY_SFP            0x1
 
 /* General purpose Interrupt Enable */
 #define IXGBE_SDP0_GPIEN         0x00000001 /* SDP0 */
@@ -1385,6 +1384,7 @@
 #define IXGBE_FW_PTR            0x0F
 #define IXGBE_PBANUM0_PTR       0x15
 #define IXGBE_PBANUM1_PTR       0x16
+#define IXGBE_DEVICE_CAPS       0x2C
 #define IXGBE_PCIE_MSIX_82599_CAPS  0x72
 #define IXGBE_PCIE_MSIX_82598_CAPS  0x62
 
@@ -1427,6 +1427,8 @@
 /* Number of 5 microseconds we wait for EERD read to complete */
 #define IXGBE_EERD_ATTEMPTS 100000
 #endif
+
+#define IXGBE_DEVICE_CAPS_ALLOW_ANY_SFP  0x1
 
 /* PCI Bus Info */
 #define IXGBE_PCI_LINK_STATUS     0xB2
@@ -1865,7 +1867,7 @@ typedef u32 ixgbe_physical_layer;
 #define IXGBE_PHYSICAL_LAYER_UNKNOWN      0
 #define IXGBE_PHYSICAL_LAYER_10GBASE_T    0x0001
 #define IXGBE_PHYSICAL_LAYER_1000BASE_T   0x0002
-#define IXGBE_PHYSICAL_LAYER_100BASE_T    0x0004
+#define IXGBE_PHYSICAL_LAYER_100BASE_TX   0x0004
 #define IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU  0x0008
 #define IXGBE_PHYSICAL_LAYER_10GBASE_LR   0x0010
 #define IXGBE_PHYSICAL_LAYER_10GBASE_LRM  0x0020
@@ -1874,6 +1876,7 @@ typedef u32 ixgbe_physical_layer;
 #define IXGBE_PHYSICAL_LAYER_10GBASE_CX4  0x0100
 #define IXGBE_PHYSICAL_LAYER_1000BASE_KX  0x0200
 #define IXGBE_PHYSICAL_LAYER_1000BASE_BX  0x0400
+#define IXGBE_PHYSICAL_LAYER_10GBASE_KR   0x0800
 
 enum ixgbe_eeprom_type {
 	ixgbe_eeprom_uninitialized = 0,
@@ -2105,6 +2108,7 @@ struct ixgbe_mac_operations {
 	enum ixgbe_media_type (*get_media_type)(struct ixgbe_hw *);
 	u32 (*get_supported_physical_layer)(struct ixgbe_hw *);
 	s32 (*get_mac_addr)(struct ixgbe_hw *, u8 *);
+	s32 (*get_device_caps)(struct ixgbe_hw *, u16 *);
 	s32 (*stop_adapter)(struct ixgbe_hw *);
 	s32 (*get_bus_info)(struct ixgbe_hw *);
 	void (*set_lan_id)(struct ixgbe_hw *);
