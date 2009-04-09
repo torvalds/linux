@@ -3138,7 +3138,7 @@ L:	kexec@lists.infradead.org
 L:	linux-kernel@vger.kernel.org
 W:	http://lse.sourceforge.net/kdump/
 S:	Maintained
-F:	Documentation/kdump
+F:	Documentation/kdump/
 
 KERNEL AUTOMOUNTER (AUTOFS)
 P:	H. Peter Anvin
@@ -3239,7 +3239,7 @@ W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 F:	Documentation/s390/kvm.txt
 F:	arch/s390/include/asm/kvm*
-F:	arch/s390/kvm
+F:	arch/s390/kvm/
 
 KEXEC
 P:	Eric Biederman
@@ -3885,7 +3885,7 @@ M:	paul.moore@hp.com
 W:	http://netlabel.sf.net
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/netlabel
+F:	Documentation/netlabel/
 F:	include/net/netlabel.h
 F:	net/netlabel/
 
@@ -4518,7 +4518,7 @@ M:	al@alarsen.net
 L:	linux-kernel@vger.kernel.org
 W:	http://www.alarsen.net/linux/qnx4fs/
 S:	Maintained
-F:	fs/qnx4
+F:	fs/qnx4/
 F:	include/linux/qnx4_fs.h
 F:	include/linux/qnxtypes.h
 
@@ -4641,7 +4641,8 @@ P:	Ivo van Doorn
 M:	IvDoorn@gmail.com
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	net/rfkill
+F	Documentation/rfkill.txt
+F:	net/rfkill/
 
 RISCOM8 DRIVER
 S:	Orphan
@@ -5597,7 +5598,7 @@ W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
 T:	git git://git.infradead.org/ubi-2.6.git
 S:	Maintained
-F:	drivers/mtd/ubi
+F:	drivers/mtd/ubi/
 F:	include/linux/mtd/ubi.h
 F:	include/mtd/ubi-user.h
 
