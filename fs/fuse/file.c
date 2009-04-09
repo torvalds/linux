@@ -938,9 +938,9 @@ static void fuse_release_user_pages(struct fuse_req *req, int write)
 }
 
 static int fuse_get_user_pages(struct fuse_req *req, const char __user *buf,
-			       unsigned *nbytesp, int write)
+			       size_t *nbytesp, int write)
 {
-	unsigned nbytes = *nbytesp;
+	size_t nbytes = *nbytesp;
 	unsigned long user_addr = (unsigned long) buf;
 	unsigned offset = user_addr & ~PAGE_MASK;
 	int npages;
@@ -955,7 +955,7 @@ static int fuse_get_user_pages(struct fuse_req *req, const char __user *buf,
 		return 0;
 	}
 
-	nbytes = min(nbytes, (unsigned) FUSE_MAX_PAGES_PER_REQ << PAGE_SHIFT);
+	nbytes = min_t(size_t, nbytes, FUSE_MAX_PAGES_PER_REQ << PAGE_SHIFT);
 	npages = (nbytes + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	npages = clamp(npages, 1, FUSE_MAX_PAGES_PER_REQ);
 	down_read(&current->mm->mmap_sem);
