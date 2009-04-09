@@ -205,7 +205,6 @@ static void __init apic_intr_init(void)
 #endif
 }
 
-#ifdef CONFIG_X86_32
 /**
  * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
  *
@@ -217,24 +216,21 @@ static void __init apic_intr_init(void)
  **/
 static void __init x86_quirk_pre_intr_init(void)
 {
+#ifdef CONFIG_X86_32
 	if (x86_quirks->arch_pre_intr_init) {
 		if (x86_quirks->arch_pre_intr_init())
 			return;
 	}
+#endif
 	init_ISA_irqs();
 }
-#endif
 
 void __init native_init_IRQ(void)
 {
 	int i;
 
-#ifdef CONFIG_X86_32
 	/* Execute any quirks before the call gates are initialised: */
 	x86_quirk_pre_intr_init();
-#else
-	init_ISA_irqs();
-#endif
 
 	/*
 	 * Cover the whole vector space, no vector can escape
