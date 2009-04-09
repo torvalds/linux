@@ -568,6 +568,8 @@ struct perf_callchain_entry {
 
 extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
 
+extern int sysctl_perf_counter_priv;
+
 #else
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }

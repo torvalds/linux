@@ -42,6 +42,8 @@ static atomic_t nr_mmap_tracking __read_mostly;
 static atomic_t nr_munmap_tracking __read_mostly;
 static atomic_t nr_comm_tracking __read_mostly;
 
+int sysctl_perf_counter_priv __read_mostly; /* do we need to be privileged */
+
 /*
  * Mutex for (sysadmin-configurable) counter reservations:
  */
@@ -1132,7 +1134,7 @@ static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
 	 */
 	if (cpu != -1) {
 		/* Must be root to operate on a CPU counter: */
-		if (!capable(CAP_SYS_ADMIN))
+		if (sysctl_perf_counter_priv && !capable(CAP_SYS_ADMIN))
 			return ERR_PTR(-EACCES);
 
 		if (cpu < 0 || cpu > num_possible_cpus())

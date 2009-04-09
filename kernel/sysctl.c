@@ -49,6 +49,7 @@
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
 #include <linux/slow-work.h>
+#include <linux/perf_counter.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
@@ -918,6 +919,16 @@ static struct ctl_table kern_table[] = {
 		.procname	= "slow-work",
 		.mode		= 0555,
 		.child		= slow_work_sysctls,
+	},
+#endif
+#ifdef CONFIG_PERF_COUNTERS
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "perf_counter_privileged",
+		.data		= &sysctl_perf_counter_priv,
+		.maxlen		= sizeof(sysctl_perf_counter_priv),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 #endif
 /*
