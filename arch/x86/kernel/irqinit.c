@@ -242,15 +242,9 @@ void __init native_init_IRQ(void)
 	 * 'special' SMP interrupts)
 	 */
 	for (i = FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
-#ifdef CONFIG_X86_32
-		/* SYSCALL_VECTOR was reserved in trap_init. */
-		if (i != SYSCALL_VECTOR)
-			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
-#else
 		/* IA32_SYSCALL_VECTOR was reserved in trap_init. */
 		if (i != IA32_SYSCALL_VECTOR)
 			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
-#endif
 	}
 
 	apic_intr_init();
