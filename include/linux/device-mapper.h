@@ -116,7 +116,6 @@ void dm_put_device(struct dm_target *ti, struct dm_dev *d);
 /*
  * Target features
  */
-#define DM_TARGET_SUPPORTS_BARRIERS 0x00000001
 
 struct target_type {
 	uint64_t features;
