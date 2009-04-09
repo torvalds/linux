@@ -17,6 +17,7 @@
 
 #include <asm/processor.h>
 #include <asm/smp.h>
+#include <asm/k8.h>
 
 #define LVL_1_INST	1
 #define LVL_1_DATA	2
@@ -158,14 +159,6 @@ struct _cpuid4_info_regs {
 	unsigned long size;
 	unsigned long can_disable;
 };
-
-#if defined(CONFIG_PCI) && defined(CONFIG_SYSFS)
-static struct pci_device_id k8_nb_id[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1103) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1203) },
-	{}
-};
-#endif
 
 unsigned short			num_cache_leaves;
 
@@ -704,30 +697,6 @@ static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf)
 #define to_object(k)	container_of(k, struct _index_kobject, kobj)
 #define to_attr(a)	container_of(a, struct _cache_attr, attr)
 
-#ifdef CONFIG_PCI
-static struct pci_dev *get_k8_northbridge(int node)
-{
-	struct pci_dev *dev = NULL;
-	int i;
-
-	for (i = 0; i <= node; i++) {
-		do {
-			dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
-			if (!dev)
-				break;
-		} while (!pci_match_id(&k8_nb_id[0], dev));
-		if (!dev)
-			break;
-	}
-	return dev;
-}
-#else
-static struct pci_dev *get_k8_northbridge(int node)
-{
-	return NULL;
-}
-#endif
-
 static ssize_t show_cache_disable(struct _cpuid4_info *this_leaf, char *buf)
 {
 	const struct cpumask *mask = to_cpumask(this_leaf->shared_cpu_map);
@@ -739,7 +708,7 @@ static ssize_t show_cache_disable(struct _cpuid4_info *this_leaf, char *buf)
 	if (!this_leaf->can_disable)
 		return sprintf(buf, "Feature not enabled\n");
 
-	dev = get_k8_northbridge(node);
+	dev = node_to_k8_nb_misc(node);
 	if (!dev) {
 		printk(KERN_ERR "Attempting AMD northbridge operation on a system with no northbridge\n");
 		return -EINVAL;
@@ -783,7 +752,7 @@ store_cache_disable(struct _cpuid4_info *this_leaf, const char *buf,
 		return -EINVAL;
 
 	val |= 0xc0000000;
-	dev = get_k8_northbridge(node);
+	dev = node_to_k8_nb_misc(node);
 	if (!dev) {
 		printk(KERN_ERR "Attempting AMD northbridge operation on a system with no northbridge\n");
 		return -EINVAL;
