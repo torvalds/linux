@@ -567,7 +567,7 @@ KBUILD_CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
 # disable pointer signed / unsigned warnings in gcc 4.0
 KBUILD_CFLAGS += $(call cc-option,-Wno-pointer-sign,)
 
-# disable invalid "can't wrap" optimzations for signed / pointers
+# disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= $(call cc-option,-fwrapv)
 
 # revert to pre-gcc-4.4 behaviour of .eh_frame
@@ -1587,5 +1587,5 @@ PHONY += FORCE
 FORCE:
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
-# information in a variable se we can use it in if_changed and friends.
+# information in a variable so we can use it in if_changed and friends.
 .PHONY: $(PHONY)
