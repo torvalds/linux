@@ -771,7 +771,7 @@ store_cache_disable(struct _cpuid4_info *this_leaf, const char *buf,
 	unsigned int ret, index, val;
 
 	if (!this_leaf->can_disable)
-		return 0;
+		return -EINVAL;
 
 	if (strlen(buf) > 15)
 		return -EINVAL;
