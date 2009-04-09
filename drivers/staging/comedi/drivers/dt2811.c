@@ -214,8 +214,8 @@ static const struct dt2811_board boardtypes[] = {
 
 #define this_board ((const struct dt2811_board *)dev->board_ptr)
 
-static int dt2811_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int dt2811_detach(struct comedi_device * dev);
+static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int dt2811_detach(struct comedi_device *dev);
 static struct comedi_driver driver_dt2811 = {
       driver_name:"dt2811",
       module:THIS_MODULE,
@@ -228,16 +228,16 @@ static struct comedi_driver driver_dt2811 = {
 
 COMEDI_INITCLEANUP(driver_dt2811);
 
-static int dt2811_ai_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dt2811_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dt2811_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dt2811_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dt2811_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dt2811_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dt2811_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dt2811_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dt2811_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
 enum { card_2811_pgh, card_2811_pgl };
 
@@ -311,7 +311,7 @@ static irqreturn_t dt2811_interrupt(int irq, void *d)
                  2 == unipolar 5V  (0V -- +5V)
 */
 
-static int dt2811_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	/* int i, irq; */
 	/* unsigned long irqs; */
@@ -480,7 +480,7 @@ static int dt2811_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return 0;
 }
 
-static int dt2811_detach(struct comedi_device * dev)
+static int dt2811_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: dt2811: remove\n", dev->minor);
 
@@ -494,8 +494,8 @@ static int dt2811_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int dt2811_ai_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int timeout = DT2811_TIMEOUT;
@@ -521,7 +521,7 @@ static int dt2811_ai_insn(struct comedi_device * dev, struct comedi_subdevice * 
 #if 0
 /* Wow.  This is code from the Comedi stone age.  But it hasn't been
  * replaced, so I'll let it stay. */
-int dt2811_adtrig(kdev_t minor, comedi_adtrig * adtrig)
+int dt2811_adtrig(kdev_t minor, comedi_adtrig *adtrig)
 {
 	struct comedi_device *dev = comedi_devices + minor;
 
@@ -545,8 +545,8 @@ int dt2811_adtrig(kdev_t minor, comedi_adtrig * adtrig)
 }
 #endif
 
-static int dt2811_ao_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dt2811_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan;
@@ -563,8 +563,8 @@ static int dt2811_ao_insn(struct comedi_device * dev, struct comedi_subdevice * 
 	return i;
 }
 
-static int dt2811_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dt2811_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan;
@@ -578,8 +578,8 @@ static int dt2811_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 	return i;
 }
 
-static int dt2811_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dt2811_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -589,8 +589,8 @@ static int dt2811_di_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 	return 2;
 }
 
-static int dt2811_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dt2811_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

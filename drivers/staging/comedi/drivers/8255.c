@@ -144,7 +144,7 @@ static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 }
 
 static int subdev_8255_insn(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -169,7 +169,7 @@ static int subdev_8255_insn(struct comedi_device *dev, struct comedi_subdevice *
 }
 
 static int subdev_8255_insn_config(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask;
 	unsigned int bits;
@@ -223,7 +223,7 @@ static void do_config(struct comedi_device *dev, struct comedi_subdevice * s)
 }
 
 static int subdev_8255_cmdtest(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	unsigned int tmp;

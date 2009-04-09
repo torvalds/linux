@@ -74,9 +74,9 @@ struct labpc_private {
 	void (*write_byte) (unsigned int byte, unsigned long address);
 };
 
-int labpc_common_attach(struct comedi_device * dev, unsigned long iobase,
+int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	unsigned int irq, unsigned int dma);
-int labpc_common_detach(struct comedi_device * dev);
+int labpc_common_detach(struct comedi_device *dev);
 
 extern const int labpc_1200_is_unipolar[];
 extern const int labpc_1200_ai_gain_bits[];

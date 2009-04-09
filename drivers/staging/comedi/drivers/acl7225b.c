@@ -51,7 +51,7 @@ static struct comedi_driver driver_acl7225b = {
 COMEDI_INITCLEANUP(driver_acl7225b);
 
 static int acl7225b_do_insn(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -72,7 +72,7 @@ static int acl7225b_do_insn(struct comedi_device *dev, struct comedi_subdevice *
 }
 
 static int acl7225b_di_insn(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

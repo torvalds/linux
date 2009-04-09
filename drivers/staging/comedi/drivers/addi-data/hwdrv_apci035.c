@@ -109,8 +109,8 @@ int i_Flag = 1;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_Status = 0;
 	unsigned int ui_Command = 0;
@@ -278,8 +278,8 @@ int i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subd
 |					                                                 |
 +----------------------------------------------------------------------------+
 */
-int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_Command = 0;
 	int i_Count = 0;
@@ -393,8 +393,8 @@ int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_Status = 0;	/*  Status register */
 	i_WatchdogNbr = insn->unused[0];
@@ -449,8 +449,8 @@ int i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI035_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	devpriv->tsk_Current = current;
 	outl(0x200 | 0, devpriv->iobase + 128 + 0x4);
@@ -486,8 +486,8 @@ int i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI035_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI035_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_CommandRegister = 0;
 /******************/
@@ -521,7 +521,7 @@ int i_APCI035_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevic
 |			                                                                 |
 +----------------------------------------------------------------------------+
 */
-int i_APCI035_Reset(struct comedi_device * dev)
+int i_APCI035_Reset(struct comedi_device *dev)
 {
 	int i_Count = 0;
 	for (i_Count = 1; i_Count <= 4; i_Count++) {

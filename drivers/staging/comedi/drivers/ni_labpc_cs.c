@@ -79,7 +79,7 @@ NI manuals:
 
 static struct pcmcia_device *pcmcia_cur_dev = NULL;
 
-static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it);
+static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 
 static const struct labpc_board_struct labpc_cs_boards[] = {
 	{
@@ -126,7 +126,7 @@ static struct comedi_driver driver_labpc_cs = {
 	.offset = sizeof(struct labpc_board_struct),
 };
 
-static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	unsigned long iobase = 0;
 	unsigned int irq = 0;

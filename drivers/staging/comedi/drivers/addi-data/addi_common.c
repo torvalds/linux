@@ -2559,7 +2559,7 @@ COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
@@ -2926,7 +2926,7 @@ static int i_ADDI_Attach(struct comedi_device * dev, struct comedi_devconfig * i
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDI_Detach(struct comedi_device * dev)
+static int i_ADDI_Detach(struct comedi_device *dev)
 {
 
 	if (dev->private) {
@@ -2992,7 +2992,7 @@ static int i_ADDI_Detach(struct comedi_device * dev)
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDI_Reset(struct comedi_device * dev)
+static int i_ADDI_Reset(struct comedi_device *dev)
 {
 
 	this_board->i_hwdrv_Reset(dev);
@@ -3046,8 +3046,8 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-static int i_ADDIDATA_InsnReadEeprom(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned short w_Data;
 	unsigned short w_Address;

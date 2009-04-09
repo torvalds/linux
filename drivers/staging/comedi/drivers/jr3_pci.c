@@ -54,8 +54,8 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #define PCI_DEVICE_ID_JR3_3_CHANNEL 0x3113
 #define PCI_DEVICE_ID_JR3_4_CHANNEL 0x3114
 
-static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int jr3_pci_detach(struct comedi_device * dev);
+static int jr3_pci_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int jr3_pci_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_jr3_pci = {
       driver_name:"jr3_pci",
@@ -259,8 +259,8 @@ static struct six_axis_t get_max_full_scales(volatile struct jr3_channel *channe
 	return result;
 }
 
-static int jr3_pci_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int jr3_pci_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int result;
 	struct jr3_pci_subdev_private *p;
@@ -375,7 +375,7 @@ static int jr3_pci_ai_insn_read(struct comedi_device * dev, struct comedi_subdev
 	return result;
 }
 
-static void jr3_pci_open(struct comedi_device * dev)
+static void jr3_pci_open(struct comedi_device *dev)
 {
 	int i;
 	struct jr3_pci_dev_private *devpriv = dev->private;
@@ -392,7 +392,7 @@ static void jr3_pci_open(struct comedi_device * dev)
 	}
 }
 
-int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
+int read_idm_word(const u8 *data, size_t size, int *pos, unsigned int *val)
 {
 	int result = 0;
 	if (pos != 0 && val != 0) {
@@ -414,7 +414,7 @@ int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
 	return result;
 }
 
-static int jr3_download_firmware(struct comedi_device * dev, const u8 * data,
+static int jr3_download_firmware(struct comedi_device *dev, const u8 *data,
 	size_t size)
 {
 	/*
@@ -513,7 +513,7 @@ static int jr3_download_firmware(struct comedi_device * dev, const u8 * data,
 	return result;
 }
 
-static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice * s)
+static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 {
 	struct poll_delay_t result = poll_delay_min_max(1000, 2000);
 	struct jr3_pci_subdev_private *p = s->private;
@@ -763,7 +763,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 	add_timer(&devpriv->timer);
 }
 
-static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int jr3_pci_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int result = 0;
 	struct pci_dev *card = NULL;
@@ -938,7 +938,7 @@ static int jr3_pci_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	return result;
 }
 
-static int jr3_pci_detach(struct comedi_device * dev)
+static int jr3_pci_detach(struct comedi_device *dev)
 {
 	int i;
 	struct jr3_pci_dev_private *devpriv = dev->private;

@@ -56,8 +56,8 @@ See the source for configuration details.
 
 /* #define PCL724_IRQ   1  no IRQ support now */
 
-static int pcl724_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pcl724_detach(struct comedi_device * dev);
+static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcl724_detach(struct comedi_device *dev);
 
 struct pcl724_board {
 
@@ -124,7 +124,7 @@ static int subdev_8255mapped_cb(int dir, int port, int data,
 	}
 }
 
-static int pcl724_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	unsigned long iobase;
 	unsigned int iorange;
@@ -200,7 +200,7 @@ static int pcl724_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return 0;
 }
 
-static int pcl724_detach(struct comedi_device * dev)
+static int pcl724_detach(struct comedi_device *dev)
 {
 	int i;
 

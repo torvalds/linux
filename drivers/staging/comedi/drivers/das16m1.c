@@ -166,8 +166,8 @@ static const struct das16m1_board das16m1_boards[] = {
 
 #define das16m1_num_boards ((sizeof(das16m1_boards)) / (sizeof(das16m1_boards[0])))
 
-static int das16m1_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int das16m1_detach(struct comedi_device * dev);
+static int das16m1_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int das16m1_detach(struct comedi_device *dev);
 static struct comedi_driver driver_das16m1 = {
       driver_name:"das16m1",
       module:THIS_MODULE,
@@ -200,8 +200,8 @@ static inline short munge_sample(short data)
 	return (data >> 4) & 0xfff;
 }
 
-static int das16m1_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int das16m1_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	unsigned int err = 0, tmp, i;
 
@@ -322,7 +322,7 @@ static int das16m1_cmd_test(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int das16m1_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s)
+static int das16m1_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -385,7 +385,7 @@ static int das16m1_cmd_exec(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int das16m1_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int das16m1_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	devpriv->control_state &= ~INTE & ~PACER_MASK;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
@@ -393,8 +393,8 @@ static int das16m1_cancel(struct comedi_device * dev, struct comedi_subdevice * 
 	return 0;
 }
 
-static int das16m1_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16m1_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i, n;
 	int byte;
@@ -430,8 +430,8 @@ static int das16m1_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 	return n;
 }
 
-static int das16m1_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16m1_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int bits;
 
@@ -442,8 +442,8 @@ static int das16m1_di_rbits(struct comedi_device * dev, struct comedi_subdevice 
 	return 2;
 }
 
-static int das16m1_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16m1_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int wbits;
 
@@ -462,7 +462,7 @@ static int das16m1_do_wbits(struct comedi_device * dev, struct comedi_subdevice 
 	return 2;
 }
 
-static int das16m1_poll(struct comedi_device * dev, struct comedi_subdevice * s)
+static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned long flags;
 	unsigned int status;
@@ -505,7 +505,7 @@ static irqreturn_t das16m1_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void munge_sample_array(short * array, unsigned int num_elements)
+static void munge_sample_array(short *array, unsigned int num_elements)
 {
 	unsigned int i;
 
@@ -514,7 +514,7 @@ static void munge_sample_array(short * array, unsigned int num_elements)
 	}
 }
 
-static void das16m1_handler(struct comedi_device * dev, unsigned int status)
+static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 {
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
@@ -578,7 +578,7 @@ static void das16m1_handler(struct comedi_device * dev, unsigned int status)
 /* This function takes a time in nanoseconds and sets the     *
  * 2 pacer clocks to the closest frequency possible. It also  *
  * returns the actual sampling period.                        */
-static unsigned int das16m1_set_pacer(struct comedi_device * dev, unsigned int ns,
+static unsigned int das16m1_set_pacer(struct comedi_device *dev, unsigned int ns,
 	int rounding_flags)
 {
 	i8253_cascade_ns_to_timer_2div(DAS16M1_XTAL, &(devpriv->divisor1),
@@ -635,7 +635,7 @@ static int das16m1_irq_bits(unsigned int irq)
  *   1  IRQ
  */
 
-static int das16m1_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int das16m1_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret;
@@ -744,7 +744,7 @@ static int das16m1_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	return 0;
 }
 
-static int das16m1_detach(struct comedi_device * dev)
+static int das16m1_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: das16m1: remove\n", dev->minor);
 

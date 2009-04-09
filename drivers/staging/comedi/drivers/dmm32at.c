@@ -258,8 +258,8 @@ struct dmm32at_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int dmm32at_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int dmm32at_detach(struct comedi_device * dev);
+static int dmm32at_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int dmm32at_detach(struct comedi_device *dev);
 static struct comedi_driver driver_dmm32at = {
       driver_name:"dmm32at",
       module:THIS_MODULE,
@@ -313,7 +313,7 @@ void dmm32at_setaitimer(struct comedi_device * dev, unsigned int nansec);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int dmm32at_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int dmm32at_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	struct comedi_subdevice *s;
@@ -481,7 +481,7 @@ static int dmm32at_attach(struct comedi_device * dev, struct comedi_devconfig * 
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int dmm32at_detach(struct comedi_device * dev)
+static int dmm32at_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: dmm32at: remove\n", dev->minor);
 	if (dev->irq)
@@ -497,8 +497,8 @@ static int dmm32at_detach(struct comedi_device * dev)
  * mode.
  */
 
-static int dmm32at_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dmm32at_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n, i;
 	unsigned int d;
@@ -568,8 +568,8 @@ static int dmm32at_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 	return n;
 }
 
-static int dmm32at_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int dmm32at_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -752,7 +752,7 @@ static int dmm32at_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevic
 	return 0;
 }
 
-static int dmm32at_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int i, range;
@@ -822,7 +822,7 @@ static int dmm32at_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * 
 
 }
 
-static int dmm32at_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int dmm32at_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	devpriv->ai_scans_left = 1;
 	return 0;
@@ -893,8 +893,8 @@ static int dmm32at_ns_to_timer(unsigned int *ns, int round)
 	return *ns;
 }
 
-static int dmm32at_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dmm32at_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -936,8 +936,8 @@ static int dmm32at_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int dmm32at_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dmm32at_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -953,8 +953,8 @@ static int dmm32at_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice 
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int dmm32at_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dmm32at_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned char diobits;
 
@@ -1006,8 +1006,8 @@ static int dmm32at_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 	return 2;
 }
 
-static int dmm32at_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dmm32at_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned char chanbit;
 	int chan = CR_CHAN(insn->chanspec);
@@ -1043,7 +1043,7 @@ static int dmm32at_dio_insn_config(struct comedi_device * dev, struct comedi_sub
 	return 1;
 }
 
-void dmm32at_setaitimer(struct comedi_device * dev, unsigned int nansec)
+void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
 {
 	unsigned char lo1, lo2, hi2;
 	unsigned short both2;

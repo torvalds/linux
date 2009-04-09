@@ -196,7 +196,7 @@ struct ni_private {
  * read/written directly in the I/O space of the board.  The
  * DAQCard devices map the low 8 STC registers to iobase+addr*2. */
 
-static void mio_cs_win_out(struct comedi_device * dev, uint16_t data, int addr)
+static void mio_cs_win_out(struct comedi_device *dev, uint16_t data, int addr)
 {
 	unsigned long flags;
 
@@ -210,7 +210,7 @@ static void mio_cs_win_out(struct comedi_device * dev, uint16_t data, int addr)
 	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
-static uint16_t mio_cs_win_in(struct comedi_device * dev, int addr)
+static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 {
 	unsigned long flags;
 	uint16_t ret;
@@ -227,8 +227,8 @@ static uint16_t mio_cs_win_in(struct comedi_device * dev, int addr)
 	return ret;
 }
 
-static int mio_cs_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int mio_cs_detach(struct comedi_device * dev);
+static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int mio_cs_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni_mio_cs = {
       driver_name:"ni_mio_cs",
       module:THIS_MODULE,
@@ -238,11 +238,11 @@ static struct comedi_driver driver_ni_mio_cs = {
 
 #include "ni_mio_common.c"
 
-static int ni_getboardtype(struct comedi_device * dev, struct pcmcia_device *link);
+static int ni_getboardtype(struct comedi_device *dev, struct pcmcia_device *link);
 
 /* clean up allocated resources */
 /* called when driver is removed */
-static int mio_cs_detach(struct comedi_device * dev)
+static int mio_cs_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
 
@@ -403,7 +403,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	link->dev_node = &dev_node;
 }
 
-static int mio_cs_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pcmcia_device *link;
 	unsigned int irq;
@@ -468,7 +468,7 @@ static int mio_cs_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return 0;
 }
 
-static int get_prodid(struct comedi_device * dev, struct pcmcia_device *link)
+static int get_prodid(struct comedi_device *dev, struct pcmcia_device *link)
 {
 	tuple_t tuple;
 	u_short buf[128];
@@ -487,7 +487,7 @@ static int get_prodid(struct comedi_device * dev, struct pcmcia_device *link)
 	return prodid;
 }
 
-static int ni_getboardtype(struct comedi_device * dev, struct pcmcia_device *link)
+static int ni_getboardtype(struct comedi_device *dev, struct pcmcia_device *link)
 {
 	int id;
 	int i;

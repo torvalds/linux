@@ -154,20 +154,20 @@ driver.
 
 /* gainlist same as _pgx_ below */
 
-static int das08_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das08_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das08_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das08jr_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das08jr_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das08jr_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das08ao_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das08_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das08_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das08jr_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das08jr_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das08jr_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das08ao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 static void i8254_set_mode_low(unsigned int base, int channel,
 	unsigned int mode);
 
@@ -512,8 +512,8 @@ MODULE_DEVICE_TABLE(pci, das08_pci_table);
 
 #define TIMEOUT 100000
 
-static int das08_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i, n;
 	int chan;
@@ -579,8 +579,8 @@ static int das08_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * 
 	return n;
 }
 
-static int das08_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das08_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = 0;
 	data[1] = DAS08_IP(inb(dev->iobase + DAS08_STATUS));
@@ -588,8 +588,8 @@ static int das08_di_rbits(struct comedi_device * dev, struct comedi_subdevice * 
 	return 2;
 }
 
-static int das08_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das08_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int wbits;
 
@@ -611,8 +611,8 @@ static int das08_do_wbits(struct comedi_device * dev, struct comedi_subdevice * 
 	return 2;
 }
 
-static int das08jr_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das08jr_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = 0;
 	data[1] = inb(dev->iobase + DAS08JR_DIO);
@@ -620,8 +620,8 @@ static int das08jr_di_rbits(struct comedi_device * dev, struct comedi_subdevice 
 	return 2;
 }
 
-static int das08jr_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das08jr_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	/*  null bits we are going to set */
 	devpriv->do_bits &= ~data[0];
@@ -634,8 +634,8 @@ static int das08jr_do_wbits(struct comedi_device * dev, struct comedi_subdevice 
 	return 2;
 }
 
-static int das08jr_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das08jr_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int lsb, msb;
@@ -668,8 +668,8 @@ static int das08jr_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
  * a different method to force an update.
  *
  */
-static int das08ao_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das08ao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int lsb, msb;
@@ -782,8 +782,8 @@ static unsigned int i8254_read_status(struct i8254_struct *st, int channel)
 	return i8254_read_status_low(st->iobase, chan);
 }
 
-static int das08_counter_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das08_counter_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = insn->chanspec;
 
@@ -794,8 +794,8 @@ static int das08_counter_read(struct comedi_device * dev, struct comedi_subdevic
 	return 1;
 }
 
-static int das08_counter_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das08_counter_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = insn->chanspec;
 
@@ -805,8 +805,8 @@ static int das08_counter_write(struct comedi_device * dev, struct comedi_subdevi
 	return 1;
 }
 
-static int das08_counter_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das08_counter_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = insn->chanspec;
 
@@ -827,7 +827,7 @@ static int das08_counter_config(struct comedi_device * dev, struct comedi_subdev
 	return 2;
 }
 
-static int das08_attach(struct comedi_device * dev, struct comedi_devconfig * it);
+static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 
 static struct comedi_driver driver_das08 = {
       driver_name: DRV_NAME,
@@ -840,7 +840,7 @@ static struct comedi_driver driver_das08 = {
       offset:sizeof(struct das08_board_struct),
 };
 
-int das08_common_attach(struct comedi_device * dev, unsigned long iobase)
+int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 {
 	struct comedi_subdevice *s;
 	int ret;
@@ -952,7 +952,7 @@ int das08_common_attach(struct comedi_device * dev, unsigned long iobase)
 	return 0;
 }
 
-static int das08_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	unsigned long iobase;
@@ -1028,7 +1028,7 @@ static int das08_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	return das08_common_attach(dev, iobase);
 }
 
-int das08_common_detach(struct comedi_device * dev)
+int das08_common_detach(struct comedi_device *dev)
 {
 	printk(KERN_INFO "comedi%d: das08: remove\n", dev->minor);
 

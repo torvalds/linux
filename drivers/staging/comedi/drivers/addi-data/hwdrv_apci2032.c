@@ -79,8 +79,8 @@ unsigned int ui_InterruptData, ui_Type;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2032_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2032_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ul_Command = 0;
 	devpriv->tsk_Current = current;
@@ -134,8 +134,8 @@ int i_APCI2032_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2032_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_Temp, ui_Temp1;
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
@@ -313,8 +313,8 @@ int i_APCI2032_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2032_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_Temp;
 	unsigned int ui_NoOfChannel;
@@ -380,8 +380,8 @@ int i_APCI2032_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI2032_ConfigWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2032_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0] == 0) {
 		/* Disable the watchdog */
@@ -421,8 +421,8 @@ int i_APCI2032_ConfigWatchdog(struct comedi_device * dev, struct comedi_subdevic
     +----------------------------------------------------------------------------+
   */
 
-int i_APCI2032_StartStopWriteWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2032_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	switch (data[0]) {
 	case 0:		/* stop the watchdog */
@@ -466,8 +466,8 @@ int i_APCI2032_StartStopWriteWatchdog(struct comedi_device * dev, struct comedi_
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_ReadWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2032_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	data[0] =
@@ -544,8 +544,8 @@ void v_APCI2032_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_ReadInterruptStatus(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI2032_ReadInterruptStatus(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	*data = ui_Type;
 	return insn->n;
@@ -567,7 +567,7 @@ int i_APCI2032_ReadInterruptStatus(struct comedi_device * dev, struct comedi_sub
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI2032_Reset(struct comedi_device * dev)
+int i_APCI2032_Reset(struct comedi_device *dev)
 {
 	devpriv->b_DigitalOutputRegister = 0;
 	ui_Type = 0;

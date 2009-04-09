@@ -82,8 +82,8 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 
 #define MULTIQ3_TIMEOUT 30
 
-static int multiq3_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int multiq3_detach(struct comedi_device * dev);
+static int multiq3_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int multiq3_detach(struct comedi_device *dev);
 static struct comedi_driver driver_multiq3 = {
       driver_name:"multiq3",
       module:THIS_MODULE,
@@ -98,8 +98,8 @@ struct multiq3_private {
 };
 #define devpriv ((struct multiq3_private *)dev->private)
 
-static int multiq3_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int multiq3_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i, n;
 	int chan;
@@ -134,8 +134,8 @@ static int multiq3_ai_insn_read(struct comedi_device * dev, struct comedi_subdev
 	return n;
 }
 
-static int multiq3_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int multiq3_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -147,8 +147,8 @@ static int multiq3_ao_insn_read(struct comedi_device * dev, struct comedi_subdev
 	return i;
 }
 
-static int multiq3_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int multiq3_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -165,8 +165,8 @@ static int multiq3_ao_insn_write(struct comedi_device * dev, struct comedi_subde
 	return i;
 }
 
-static int multiq3_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int multiq3_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -176,8 +176,8 @@ static int multiq3_di_insn_bits(struct comedi_device * dev, struct comedi_subdev
 	return 2;
 }
 
-static int multiq3_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int multiq3_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -191,8 +191,8 @@ static int multiq3_do_insn_bits(struct comedi_device * dev, struct comedi_subdev
 	return 2;
 }
 
-static int multiq3_encoder_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int multiq3_encoder_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -212,7 +212,7 @@ static int multiq3_encoder_insn_read(struct comedi_device * dev, struct comedi_s
 	return n;
 }
 
-static void encoder_reset(struct comedi_device * dev)
+static void encoder_reset(struct comedi_device *dev)
 {
 	int chan;
 	for (chan = 0; chan < dev->subdevices[4].n_chan; chan++) {
@@ -235,7 +235,7 @@ static void encoder_reset(struct comedi_device * dev)
    options[2] - number of encoder chips installed
  */
 
-static int multiq3_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int multiq3_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int result = 0;
 	unsigned long iobase;
@@ -318,7 +318,7 @@ static int multiq3_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	return 0;
 }
 
-static int multiq3_detach(struct comedi_device * dev)
+static int multiq3_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: multiq3: remove\n", dev->minor);
 

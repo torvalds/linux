@@ -143,8 +143,8 @@ MODULE_DEVICE_TABLE(pci, pci1723_pci_table);
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pci1723_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pci1723_detach(struct comedi_device * dev);
+static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pci1723_detach(struct comedi_device *dev);
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct pci1723_board))
 
@@ -175,7 +175,7 @@ struct pci1723_private {
 /*
  *   the pci1723 card reset;
  */
-static int pci1723_reset(struct comedi_device * dev)
+static int pci1723_reset(struct comedi_device *dev)
 {
 	int i;
 	DPRINTK("adv_pci1723 EDBG: BGN: pci1723_reset(...)\n");
@@ -202,8 +202,8 @@ static int pci1723_reset(struct comedi_device * dev)
 	return 0;
 }
 
-static int pci1723_insn_read_ao(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci1723_insn_read_ao(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n, chan;
 
@@ -218,8 +218,8 @@ static int pci1723_insn_read_ao(struct comedi_device * dev, struct comedi_subdev
 /*
   analog data output;
 */
-static int pci1723_ao_write_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci1723_ao_write_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n, chan;
 	chan = CR_CHAN(insn->chanspec);
@@ -238,8 +238,8 @@ static int pci1723_ao_write_winsn(struct comedi_device * dev, struct comedi_subd
 /*
   digital i/o config/query
 */
-static int pci1723_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci1723_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask;
 	unsigned int bits;
@@ -278,8 +278,8 @@ static int pci1723_dio_insn_config(struct comedi_device * dev, struct comedi_sub
 /*
   digital i/o bits read/write
 */
-static int pci1723_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci1723_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -294,7 +294,7 @@ static int pci1723_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
  * Attach is called by the Comedi core to configure the driver
  * for a pci1723 board.
  */
-static int pci1723_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
@@ -439,7 +439,7 @@ static int pci1723_attach(struct comedi_device * dev, struct comedi_devconfig * 
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pci1723_detach(struct comedi_device * dev)
+static int pci1723_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: pci1723: remove\n", dev->minor);
 

@@ -100,8 +100,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnConfigInitTTLIO(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnConfigInitTTLIO(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr;
@@ -406,8 +406,8 @@ APCI1710_TTL_READCHANNEL
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_StatusReg;
@@ -415,8 +415,8 @@ int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subde
 	unsigned char b_SelectedPort;
 	unsigned char b_InputChannel;
 	unsigned char b_ReadType;
-	unsigned char * pb_ChannelStatus;
-	unsigned char * pb_PortValue;
+	unsigned char *pb_ChannelStatus;
+	unsigned char *pb_PortValue;
 
 	i_ReturnValue = insn->n;
 	b_ReadType = (unsigned char) data[0];
@@ -655,13 +655,13 @@ int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device * dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_StatusReg;
 	unsigned char b_ModulNbr;
-	unsigned int * pul_PortValue;
+	unsigned int *pul_PortValue;
 
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	i_ReturnValue = insn->n;
@@ -825,8 +825,8 @@ int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,struct comedi
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_StatusReg = 0;

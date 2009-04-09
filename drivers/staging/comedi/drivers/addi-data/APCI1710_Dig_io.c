@@ -99,8 +99,8 @@ Activates and deactivates the digital output memory.
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnConfigDigitalIO(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned char b_ModulNbr, b_ChannelAMode, b_ChannelBMode;
 	unsigned char b_MemoryOnOff, b_ConfigType;
@@ -293,13 +293,13 @@ int i_APCI1710_InsnConfigDigitalIO(struct comedi_device * dev, struct comedi_sub
 * unsigned char_ b_ModulNbr, unsigned char_ b_InputChannel,
 * unsigned char *_ pb_ChannelStatus)
 */
-int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_StatusReg;
 	unsigned char b_ModulNbr, b_InputChannel;
-	unsigned char * pb_ChannelStatus;
+	unsigned char *pb_ChannelStatus;
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_InputChannel = (unsigned char) CR_CHAN(insn->chanspec);
 	data[0] = 0;
@@ -481,8 +481,8 @@ int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device * dev,
 * _INT_ i_APCI1710_SetDigitalIOChlOn (unsigned char_ b_BoardHandle,
 * unsigned char_ b_ModulNbr, unsigned char_ b_OutputChannel)
 */
-int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_WriteValue = 0;
@@ -731,8 +731,8 @@ int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device * dev,
  * b_BoardHandle, unsigned char_ b_ModulNbr, unsigned char_
  * b_PortValue)
 */
-int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_WriteValue = 0;
@@ -740,7 +740,7 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device * dev,
 	unsigned char b_ModulNbr, b_PortValue;
 	unsigned char b_PortOperation, b_PortOnOFF;
 
-	unsigned char * pb_PortValue;
+	unsigned char *pb_PortValue;
 
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_PortOperation = (unsigned char) data[0];	/*  Input or output */

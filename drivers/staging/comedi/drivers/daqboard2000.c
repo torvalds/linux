@@ -296,8 +296,8 @@ struct daqboard2000_hw {
 #define DAQBOARD2000_PosRefDacSelect             0x0100
 #define DAQBOARD2000_NegRefDacSelect             0x0000
 
-static int daqboard2000_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int daqboard2000_detach(struct comedi_device * dev);
+static int daqboard2000_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int daqboard2000_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_daqboard2000 = {
       driver_name:"daqboard2000",
@@ -338,7 +338,7 @@ struct daqboard2000_private {
 
 #define devpriv ((struct daqboard2000_private *)dev->private)
 
-static void writeAcqScanListEntry(struct comedi_device * dev, u16 entry)
+static void writeAcqScanListEntry(struct comedi_device *dev, u16 entry)
 {
 	struct daqboard2000_hw *fpga = devpriv->daq;
 
@@ -348,7 +348,7 @@ static void writeAcqScanListEntry(struct comedi_device * dev, u16 entry)
 	fpga->acqScanListFIFO = (entry >> 8) & 0x00ff;
 }
 
-static void setup_sampling(struct comedi_device * dev, int chan, int gain)
+static void setup_sampling(struct comedi_device *dev, int chan, int gain)
 {
 	u16 word0, word1, word2, word3;
 
@@ -393,8 +393,8 @@ static void setup_sampling(struct comedi_device * dev, int chan, int gain)
 	writeAcqScanListEntry(dev, word3);
 }
 
-static int daqboard2000_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int daqboard2000_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	struct daqboard2000_hw *fpga = devpriv->daq;
@@ -450,8 +450,8 @@ static int daqboard2000_ai_insn_read(struct comedi_device * dev, struct comedi_s
 	return i;
 }
 
-static int daqboard2000_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int daqboard2000_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -463,8 +463,8 @@ static int daqboard2000_ao_insn_read(struct comedi_device * dev, struct comedi_s
 	return i;
 }
 
-static int daqboard2000_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int daqboard2000_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -494,7 +494,7 @@ static int daqboard2000_ao_insn_write(struct comedi_device * dev, struct comedi_
 	return i;
 }
 
-static void daqboard2000_resetLocalBus(struct comedi_device * dev)
+static void daqboard2000_resetLocalBus(struct comedi_device *dev)
 {
 	printk("daqboard2000_resetLocalBus\n");
 	writel(DAQBOARD2000_SECRLocalBusHi, devpriv->plx + 0x6c);
@@ -503,7 +503,7 @@ static void daqboard2000_resetLocalBus(struct comedi_device * dev)
 	comedi_udelay(10000);
 }
 
-static void daqboard2000_reloadPLX(struct comedi_device * dev)
+static void daqboard2000_reloadPLX(struct comedi_device *dev)
 {
 	printk("daqboard2000_reloadPLX\n");
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
@@ -514,7 +514,7 @@ static void daqboard2000_reloadPLX(struct comedi_device * dev)
 	comedi_udelay(10000);
 }
 
-static void daqboard2000_pulseProgPin(struct comedi_device * dev)
+static void daqboard2000_pulseProgPin(struct comedi_device *dev)
 {
 	printk("daqboard2000_pulseProgPin 1\n");
 	writel(DAQBOARD2000_SECRProgPinHi, devpriv->plx + 0x6c);
@@ -523,7 +523,7 @@ static void daqboard2000_pulseProgPin(struct comedi_device * dev)
 	comedi_udelay(10000);	/* Not in the original code, but I like symmetry... */
 }
 
-static int daqboard2000_pollCPLD(struct comedi_device * dev, int mask)
+static int daqboard2000_pollCPLD(struct comedi_device *dev, int mask)
 {
 	int result = 0;
 	int i;
@@ -542,7 +542,7 @@ static int daqboard2000_pollCPLD(struct comedi_device * dev, int mask)
 	return result;
 }
 
-static int daqboard2000_writeCPLD(struct comedi_device * dev, int data)
+static int daqboard2000_writeCPLD(struct comedi_device *dev, int data)
 {
 	int result = 0;
 
@@ -555,7 +555,7 @@ static int daqboard2000_writeCPLD(struct comedi_device * dev, int data)
 	return result;
 }
 
-static int initialize_daqboard2000(struct comedi_device * dev,
+static int initialize_daqboard2000(struct comedi_device *dev,
 	unsigned char *cpld_array, int len)
 {
 	int result = -EIO;
@@ -613,12 +613,12 @@ static int initialize_daqboard2000(struct comedi_device * dev,
 	return result;
 }
 
-static void daqboard2000_adcStopDmaTransfer(struct comedi_device * dev)
+static void daqboard2000_adcStopDmaTransfer(struct comedi_device *dev)
 {
 /*  printk("Implement: daqboard2000_adcStopDmaTransfer\n");*/
 }
 
-static void daqboard2000_adcDisarm(struct comedi_device * dev)
+static void daqboard2000_adcDisarm(struct comedi_device *dev)
 {
 	struct daqboard2000_hw *fpga = devpriv->daq;
 
@@ -640,7 +640,7 @@ static void daqboard2000_adcDisarm(struct comedi_device * dev)
 	daqboard2000_adcStopDmaTransfer(dev);
 }
 
-static void daqboard2000_activateReferenceDacs(struct comedi_device * dev)
+static void daqboard2000_activateReferenceDacs(struct comedi_device *dev)
 {
 	struct daqboard2000_hw *fpga = devpriv->daq;
 	int timeout;
@@ -666,22 +666,22 @@ static void daqboard2000_activateReferenceDacs(struct comedi_device * dev)
 /*  printk("DAQBOARD2000_NegRefDacSelect %d\n", timeout);*/
 }
 
-static void daqboard2000_initializeCtrs(struct comedi_device * dev)
+static void daqboard2000_initializeCtrs(struct comedi_device *dev)
 {
 /*  printk("Implement: daqboard2000_initializeCtrs\n");*/
 }
 
-static void daqboard2000_initializeTmrs(struct comedi_device * dev)
+static void daqboard2000_initializeTmrs(struct comedi_device *dev)
 {
 /*  printk("Implement: daqboard2000_initializeTmrs\n");*/
 }
 
-static void daqboard2000_dacDisarm(struct comedi_device * dev)
+static void daqboard2000_dacDisarm(struct comedi_device *dev)
 {
 /*  printk("Implement: daqboard2000_dacDisarm\n");*/
 }
 
-static void daqboard2000_initializeAdc(struct comedi_device * dev)
+static void daqboard2000_initializeAdc(struct comedi_device *dev)
 {
 	daqboard2000_adcDisarm(dev);
 	daqboard2000_activateReferenceDacs(dev);
@@ -689,7 +689,7 @@ static void daqboard2000_initializeAdc(struct comedi_device * dev)
 	daqboard2000_initializeTmrs(dev);
 }
 
-static void daqboard2000_initializeDac(struct comedi_device * dev)
+static void daqboard2000_initializeDac(struct comedi_device *dev)
 {
 	daqboard2000_dacDisarm(dev);
 }
@@ -717,7 +717,7 @@ static int daqboard2000_8255_cb(int dir, int port, int data,
 	return result;
 }
 
-static int daqboard2000_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int daqboard2000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int result = 0;
 	struct comedi_subdevice *s;
@@ -849,7 +849,7 @@ static int daqboard2000_attach(struct comedi_device * dev, struct comedi_devconf
 	return result;
 }
 
-static int daqboard2000_detach(struct comedi_device * dev)
+static int daqboard2000_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: daqboard2000: remove\n", dev->minor);
 

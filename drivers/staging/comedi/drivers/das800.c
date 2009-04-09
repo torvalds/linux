@@ -242,9 +242,9 @@ struct das800_private {
 
 #define devpriv ((struct das800_private *)dev->private)
 
-static int das800_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int das800_detach(struct comedi_device * dev);
-static int das800_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int das800_detach(struct comedi_device *dev);
+static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static struct comedi_driver driver_das800 = {
       driver_name:"das800",
@@ -441,7 +441,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int das800_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];
@@ -539,7 +539,7 @@ static int das800_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return 0;
 };
 
-static int das800_detach(struct comedi_device * dev)
+static int das800_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: das800: remove\n", dev->minor);
 
@@ -551,7 +551,7 @@ static int das800_detach(struct comedi_device * dev)
 	return 0;
 };
 
-static int das800_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	devpriv->forever = 0;
 	devpriv->count = 0;
@@ -560,7 +560,7 @@ static int das800_cancel(struct comedi_device * dev, struct comedi_subdevice * s
 }
 
 /* enable_das800 makes the card start taking hardware triggered conversions */
-static void enable_das800(struct comedi_device * dev)
+static void enable_das800(struct comedi_device *dev)
 {
 	unsigned long irq_flags;
 	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
@@ -575,7 +575,7 @@ static void enable_das800(struct comedi_device * dev)
 }
 
 /* disable_das800 stops hardware triggered conversions */
-static void disable_das800(struct comedi_device * dev)
+static void disable_das800(struct comedi_device *dev)
 {
 	unsigned long irq_flags;
 	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
@@ -584,8 +584,8 @@ static void disable_das800(struct comedi_device * dev)
 	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 }
 
-static int das800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int das800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -709,7 +709,7 @@ static int das800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subdev
 	return 0;
 }
 
-static int das800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int das800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int startChan, endChan, scan, gain;
 	int conv_bits;
@@ -788,8 +788,8 @@ static int das800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int das800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das800_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i, n;
 	int chan;
@@ -842,8 +842,8 @@ static int das800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice *
 	return n;
 }
 
-static int das800_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das800_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int bits;
 
@@ -855,8 +855,8 @@ static int das800_di_rbits(struct comedi_device * dev, struct comedi_subdevice *
 	return 2;
 }
 
-static int das800_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das800_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int wbits;
 	unsigned long irq_flags;
@@ -879,7 +879,7 @@ static int das800_do_wbits(struct comedi_device * dev, struct comedi_subdevice *
 }
 
 /* loads counters with divisor1, divisor2 from private structure */
-static int das800_set_frequency(struct comedi_device * dev)
+static int das800_set_frequency(struct comedi_device *dev)
 {
 	int err = 0;
 

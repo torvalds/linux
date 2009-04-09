@@ -441,8 +441,8 @@ struct cb_pcidas_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int cb_pcidas_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int cb_pcidas_detach(struct comedi_device * dev);
+static int cb_pcidas_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int cb_pcidas_detach(struct comedi_device *dev);
 static struct comedi_driver driver_cb_pcidas = {
       driver_name:"cb_pcidas",
       module:THIS_MODULE,
@@ -509,7 +509,7 @@ static inline unsigned int cal_enable_bits(struct comedi_device * dev)
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
  */
-static int cb_pcidas_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int cb_pcidas_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;
@@ -720,7 +720,7 @@ static int cb_pcidas_attach(struct comedi_device * dev, struct comedi_devconfig 
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int cb_pcidas_detach(struct comedi_device * dev)
+static int cb_pcidas_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: cb_pcidas: remove\n", dev->minor);
 
@@ -754,8 +754,8 @@ static int cb_pcidas_detach(struct comedi_device * dev)
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
-static int cb_pcidas_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int cb_pcidas_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n, i;
 	unsigned int bits;
@@ -806,7 +806,7 @@ static int cb_pcidas_ai_rinsn(struct comedi_device * dev, struct comedi_subdevic
 	return n;
 }
 
-static int ai_config_calibration_source(struct comedi_device * dev, unsigned int * data)
+static int ai_config_calibration_source(struct comedi_device *dev, unsigned int *data)
 {
 	static const int num_calibration_sources = 8;
 	unsigned int source = data[1];
@@ -821,8 +821,8 @@ static int ai_config_calibration_source(struct comedi_device * dev, unsigned int
 	return 2;
 }
 
-static int ai_config_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int id = data[0];
 
@@ -838,8 +838,8 @@ static int ai_config_insn(struct comedi_device * dev, struct comedi_subdevice * 
 }
 
 /* analog output insn for pcidas-1000 and 1200 series */
-static int cb_pcidas_ao_nofifo_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int cb_pcidas_ao_nofifo_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int channel;
 	unsigned long flags;
@@ -863,8 +863,8 @@ static int cb_pcidas_ao_nofifo_winsn(struct comedi_device * dev, struct comedi_s
 }
 
 /* analog output insn for pcidas-1602 series */
-static int cb_pcidas_ao_fifo_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int channel;
 	unsigned long flags;
@@ -894,16 +894,16 @@ static int cb_pcidas_ao_fifo_winsn(struct comedi_device * dev, struct comedi_sub
 
 /* analog output readback insn */
 /* XXX loses track of analog output value back after an analog ouput command is executed */
-static int cb_pcidas_ao_readback_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int cb_pcidas_ao_readback_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
 }
 
-static int eeprom_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int eeprom_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	uint8_t nvram_data;
 	int retval;
@@ -917,16 +917,16 @@ static int eeprom_read_insn(struct comedi_device * dev, struct comedi_subdevice 
 	return 1;
 }
 
-static int caldac_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int caldac_write_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	const unsigned int channel = CR_CHAN(insn->chanspec);
 
 	return caldac_8800_write(dev, channel, data[0]);
 }
 
-static int caldac_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int caldac_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = devpriv->caldac_value[CR_CHAN(insn->chanspec)];
 
@@ -934,7 +934,7 @@ static int caldac_read_insn(struct comedi_device * dev, struct comedi_subdevice 
 }
 
 /* 1602/16 pregain offset */
-static int dac08_write(struct comedi_device * dev, unsigned int value)
+static int dac08_write(struct comedi_device *dev, unsigned int value)
 {
 	if (devpriv->dac08_value == value)
 		return 1;
@@ -954,21 +954,21 @@ static int dac08_write(struct comedi_device * dev, unsigned int value)
 	return 1;
 }
 
-static int dac08_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dac08_write_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	return dac08_write(dev, data[0]);
 }
 
-static int dac08_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dac08_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = devpriv->dac08_value;
 
 	return 1;
 }
 
-static int cb_pcidas_trimpot_write(struct comedi_device * dev,
+static int cb_pcidas_trimpot_write(struct comedi_device *dev,
 	unsigned int channel, unsigned int value)
 {
 	if (devpriv->trimpot_value[channel] == value)
@@ -991,16 +991,16 @@ static int cb_pcidas_trimpot_write(struct comedi_device * dev,
 	return 1;
 }
 
-static int trimpot_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int trimpot_write_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
 	return cb_pcidas_trimpot_write(dev, channel, data[0]);
 }
 
-static int trimpot_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int trimpot_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
@@ -1009,8 +1009,8 @@ static int trimpot_read_insn(struct comedi_device * dev, struct comedi_subdevice
 	return 1;
 }
 
-static int cb_pcidas_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int cb_pcidas_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1164,7 +1164,7 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device * dev, struct comedi_subdev
 	return 0;
 }
 
-static int cb_pcidas_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int cb_pcidas_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -1251,8 +1251,8 @@ static int cb_pcidas_ai_cmd(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int cb_pcidas_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int cb_pcidas_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1364,7 +1364,7 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device * dev, struct comedi_subdev
 	return 0;
 }
 
-static int cb_pcidas_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int cb_pcidas_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -1589,7 +1589,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void handle_ao_interrupt(struct comedi_device * dev, unsigned int status)
+static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 {
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_async *async = s->async;
@@ -1646,7 +1646,7 @@ static void handle_ao_interrupt(struct comedi_device * dev, unsigned int status)
 }
 
 /* cancel analog input command */
-static int cb_pcidas_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int cb_pcidas_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned long flags;
 
@@ -1683,7 +1683,7 @@ static int cb_pcidas_ao_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static void cb_pcidas_load_counters(struct comedi_device * dev, unsigned int *ns,
+static void cb_pcidas_load_counters(struct comedi_device *dev, unsigned int *ns,
 	int rounding_flags)
 {
 	i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
@@ -1696,7 +1696,7 @@ static void cb_pcidas_load_counters(struct comedi_device * dev, unsigned int *ns
 		devpriv->divisor2, 2);
 }
 
-static void write_calibration_bitstream(struct comedi_device * dev,
+static void write_calibration_bitstream(struct comedi_device *dev,
 	unsigned int register_bits, unsigned int bitstream,
 	unsigned int bitstream_length)
 {
@@ -1713,7 +1713,7 @@ static void write_calibration_bitstream(struct comedi_device * dev,
 	}
 }
 
-static int caldac_8800_write(struct comedi_device * dev, unsigned int address,
+static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 	uint8_t value)
 {
 	static const int num_caldac_channels = 8;
@@ -1743,7 +1743,7 @@ static int caldac_8800_write(struct comedi_device * dev, unsigned int address,
 	return 1;
 }
 
-static int trimpot_7376_write(struct comedi_device * dev, uint8_t value)
+static int trimpot_7376_write(struct comedi_device *dev, uint8_t value)
 {
 	static const int bitstream_length = 7;
 	unsigned int bitstream = value & 0x7f;
@@ -1766,7 +1766,7 @@ static int trimpot_7376_write(struct comedi_device * dev, uint8_t value)
 /* For 1602/16 only
  * ch 0 : adc gain
  * ch 1 : adc postgain offset */
-static int trimpot_8402_write(struct comedi_device * dev, unsigned int channel,
+static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
 	uint8_t value)
 {
 	static const int bitstream_length = 10;
@@ -1802,7 +1802,7 @@ static int wait_for_nvram_ready(unsigned long s5933_base_addr)
 	return -1;
 }
 
-static int nvram_read(struct comedi_device * dev, unsigned int address, uint8_t * data)
+static int nvram_read(struct comedi_device *dev, unsigned int address, uint8_t *data)
 {
 	unsigned long iobase = devpriv->s5933_config;
 

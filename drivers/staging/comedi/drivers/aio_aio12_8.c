@@ -88,8 +88,8 @@ struct aio12_8_private {
 
 #define devpriv	((struct aio12_8_private *) dev->private)
 
-static int aio_aio12_8_ai_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int aio_aio12_8_ai_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	unsigned char control =
@@ -122,8 +122,8 @@ static int aio_aio12_8_ai_read(struct comedi_device * dev, struct comedi_subdevi
 	return n;
 }
 
-static int aio_aio12_8_ao_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int aio_aio12_8_ao_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int val = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
@@ -133,8 +133,8 @@ static int aio_aio12_8_ao_read(struct comedi_device * dev, struct comedi_subdevi
 	return insn->n;
 }
 
-static int aio_aio12_8_ao_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int aio_aio12_8_ao_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -161,7 +161,7 @@ static const struct comedi_lrange range_aio_aio12_8 = {
 		}
 };
 
-static int aio_aio12_8_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int aio_aio12_8_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int iobase;
 	struct comedi_subdevice *s;
@@ -205,7 +205,7 @@ static int aio_aio12_8_attach(struct comedi_device * dev, struct comedi_devconfi
 	return 0;
 }
 
-static int aio_aio12_8_detach(struct comedi_device * dev)
+static int aio_aio12_8_detach(struct comedi_device *dev)
 {
 	subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->iobase)

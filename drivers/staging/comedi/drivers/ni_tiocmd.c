@@ -96,7 +96,7 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 	}
 }
 
-static int ni_tio_input_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
+static int ni_tio_input_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum)
 {
 	unsigned long flags;

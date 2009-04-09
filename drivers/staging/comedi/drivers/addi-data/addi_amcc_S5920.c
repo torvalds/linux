@@ -68,7 +68,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 	unsigned int dw_PCIBoardEepromAddress,
-	unsigned short w_EepromStartAddress, unsigned short * pw_DataRead)
+	unsigned short w_EepromStartAddress, unsigned short *pw_DataRead)
 {
 	unsigned int dw_eeprom_busy = 0;
 	int i_Counter = 0;

@@ -585,7 +585,7 @@ static const struct hw_fifo_info ai_fifo_60xx = {
 #define MAX_AI_DMA_RING_COUNT (0x80000 / DMA_BUFFER_SIZE)
 #define MIN_AI_DMA_RING_COUNT (0x10000 / DMA_BUFFER_SIZE)
 #define AO_DMA_RING_COUNT (0x10000 / DMA_BUFFER_SIZE)
-static inline unsigned int ai_dma_ring_count(struct pcidas64_board * board)
+static inline unsigned int ai_dma_ring_count(struct pcidas64_board *board)
 {
 	if (board->layout == LAYOUT_4020)
 		return MAX_AI_DMA_RING_COUNT;
@@ -1050,7 +1050,7 @@ static inline struct pcidas64_board *board(const struct comedi_device * dev)
 	return (struct pcidas64_board *) dev->board_ptr;
 }
 
-static inline unsigned short se_diff_bit_6xxx(struct comedi_device * dev,
+static inline unsigned short se_diff_bit_6xxx(struct comedi_device *dev,
 	int use_differential)
 {
 	if ((board(dev)->layout == LAYOUT_64XX && !use_differential) ||
@@ -1128,8 +1128,8 @@ static inline struct pcidas64_private *priv(struct comedi_device * dev)
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int detach(struct comedi_device * dev);
+static int attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int detach(struct comedi_device *dev);
 static struct comedi_driver driver_cb_pcidas = {
       driver_name:"cb_pcidas64",
       module:THIS_MODULE,
@@ -1247,7 +1247,7 @@ static unsigned int ai_range_bits_6xxx(const struct comedi_device * dev,
 	return bits;
 }
 
-static unsigned int hw_revision(const struct comedi_device * dev,
+static unsigned int hw_revision(const struct comedi_device *dev,
 	uint16_t hw_status_bits)
 {
 	if (board(dev)->layout == LAYOUT_4020)
@@ -1256,7 +1256,7 @@ static unsigned int hw_revision(const struct comedi_device * dev,
 	return (hw_status_bits >> 12) & 0xf;
 }
 
-static void set_dac_range_bits(struct comedi_device * dev, volatile uint16_t * bits,
+static void set_dac_range_bits(struct comedi_device *dev, volatile uint16_t *bits,
 	unsigned int channel, unsigned int range)
 {
 	unsigned int code = board(dev)->ao_range_code[range];
@@ -1270,13 +1270,13 @@ static void set_dac_range_bits(struct comedi_device * dev, volatile uint16_t * b
 	*bits |= code << (2 * channel);
 };
 
-static inline int ao_cmd_is_supported(const struct pcidas64_board * board)
+static inline int ao_cmd_is_supported(const struct pcidas64_board *board)
 {
 	return board->ao_nchan && board->layout != LAYOUT_4020;
 }
 
 /* initialize plx9080 chip */
-static void init_plx9080(struct comedi_device * dev)
+static void init_plx9080(struct comedi_device *dev)
 {
 	uint32_t bits;
 	void *plx_iobase = priv(dev)->plx9080_iobase;
@@ -1366,7 +1366,7 @@ static void init_plx9080(struct comedi_device * dev)
 
 /* Allocate and initialize the subdevice structures.
  */
-static int setup_subdevices(struct comedi_device * dev)
+static int setup_subdevices(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
 	void *dio_8255_iobase;
@@ -1529,14 +1529,14 @@ static int setup_subdevices(struct comedi_device * dev)
 	return 0;
 }
 
-static void disable_plx_interrupts(struct comedi_device * dev)
+static void disable_plx_interrupts(struct comedi_device *dev)
 {
 	priv(dev)->plx_intcsr_bits = 0;
 	writel(priv(dev)->plx_intcsr_bits,
 		priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
 }
 
-static void init_stc_registers(struct comedi_device * dev)
+static void init_stc_registers(struct comedi_device *dev)
 {
 	uint16_t bits;
 	unsigned long flags;
@@ -1578,7 +1578,7 @@ static void init_stc_registers(struct comedi_device * dev)
 	disable_ai_pacing(dev);
 };
 
-int alloc_and_init_dma_members(struct comedi_device * dev)
+int alloc_and_init_dma_members(struct comedi_device *dev)
 {
 	int i;
 
@@ -1664,7 +1664,7 @@ int alloc_and_init_dma_members(struct comedi_device * dev)
 	return 0;
 }
 
-static inline void warn_external_queue(struct comedi_device * dev)
+static inline void warn_external_queue(struct comedi_device *dev)
 {
 	comedi_error(dev,
 		"AO command and AI external channel queue cannot be used simultaneously.");
@@ -1824,7 +1824,7 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int detach(struct comedi_device * dev)
+static int detach(struct comedi_device *dev)
 {
 	unsigned int i;
 
@@ -1884,8 +1884,8 @@ static int detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int bits = 0, n, i;
 	unsigned int channel, range, aref;
@@ -2021,7 +2021,7 @@ static int ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	return n;
 }
 
-static int ai_config_calibration_source(struct comedi_device * dev, unsigned int * data)
+static int ai_config_calibration_source(struct comedi_device *dev, unsigned int *data)
 {
 	unsigned int source = data[1];
 	int num_calibration_sources;
@@ -2041,7 +2041,7 @@ static int ai_config_calibration_source(struct comedi_device * dev, unsigned int
 	return 2;
 }
 
-static int ai_config_block_size(struct comedi_device * dev, unsigned int * data)
+static int ai_config_block_size(struct comedi_device *dev, unsigned int *data)
 {
 	int fifo_size;
 	const struct hw_fifo_info *const fifo = board(dev)->ai_fifo;
@@ -2068,7 +2068,7 @@ static int ai_config_block_size(struct comedi_device * dev, unsigned int * data)
 	return 2;
 }
 
-static int ai_config_master_clock_4020(struct comedi_device * dev, unsigned int * data)
+static int ai_config_master_clock_4020(struct comedi_device *dev, unsigned int *data)
 {
 	unsigned int divisor = data[4];
 	int retval = 0;
@@ -2094,7 +2094,7 @@ static int ai_config_master_clock_4020(struct comedi_device * dev, unsigned int 
 }
 
 /* XXX could add support for 60xx series */
-static int ai_config_master_clock(struct comedi_device * dev, unsigned int * data)
+static int ai_config_master_clock(struct comedi_device *dev, unsigned int *data)
 {
 
 	switch (board(dev)->layout) {
@@ -2109,8 +2109,8 @@ static int ai_config_master_clock(struct comedi_device * dev, unsigned int * dat
 	return -EINVAL;
 }
 
-static int ai_config_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int id = data[0];
 
@@ -2131,8 +2131,8 @@ static int ai_config_insn(struct comedi_device * dev, struct comedi_subdevice * 
 	return -EINVAL;
 }
 
-static int ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -2316,7 +2316,7 @@ static int ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	return 0;
 }
 
-static int use_hw_sample_counter(struct comedi_cmd * cmd)
+static int use_hw_sample_counter(struct comedi_cmd *cmd)
 {
 /* disable for now until I work out a race */
 	return 0;
@@ -2327,7 +2327,7 @@ static int use_hw_sample_counter(struct comedi_cmd * cmd)
 		return 0;
 }
 
-static void setup_sample_counters(struct comedi_device * dev, struct comedi_cmd * cmd)
+static void setup_sample_counters(struct comedi_device *dev, struct comedi_cmd *cmd)
 {
 	if (cmd->stop_src == TRIG_COUNT) {
 		/*  set software count */
@@ -2344,7 +2344,7 @@ static void setup_sample_counters(struct comedi_device * dev, struct comedi_cmd 
 	}
 }
 
-static inline unsigned int dma_transfer_size(struct comedi_device * dev)
+static inline unsigned int dma_transfer_size(struct comedi_device *dev)
 {
 	unsigned int num_samples;
 
@@ -2357,7 +2357,7 @@ static inline unsigned int dma_transfer_size(struct comedi_device * dev)
 	return num_samples;
 }
 
-static void disable_ai_pacing(struct comedi_device * dev)
+static void disable_ai_pacing(struct comedi_device *dev)
 {
 	unsigned long flags;
 
@@ -2374,7 +2374,7 @@ static void disable_ai_pacing(struct comedi_device * dev)
 		priv(dev)->main_iobase + ADC_CONTROL0_REG);
 }
 
-static void disable_ai_interrupts(struct comedi_device * dev)
+static void disable_ai_interrupts(struct comedi_device *dev)
 {
 	unsigned long flags;
 
@@ -2390,7 +2390,7 @@ static void disable_ai_interrupts(struct comedi_device * dev)
 	DEBUG_PRINT("intr enable bits 0x%x\n", priv(dev)->intr_enable_bits);
 }
 
-static void enable_ai_interrupts(struct comedi_device * dev, const struct comedi_cmd * cmd)
+static void enable_ai_interrupts(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	uint32_t bits;
 	unsigned long flags;
@@ -2411,14 +2411,14 @@ static void enable_ai_interrupts(struct comedi_device * dev, const struct comedi
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
-static uint32_t ai_convert_counter_6xxx(const struct comedi_device * dev,
-	const struct comedi_cmd * cmd)
+static uint32_t ai_convert_counter_6xxx(const struct comedi_device *dev,
+	const struct comedi_cmd *cmd)
 {
 	/*  supposed to load counter with desired divisor minus 3 */
 	return cmd->convert_arg / TIMER_BASE - 3;
 }
 
-static uint32_t ai_scan_counter_6xxx(struct comedi_device * dev, struct comedi_cmd * cmd)
+static uint32_t ai_scan_counter_6xxx(struct comedi_device *dev, struct comedi_cmd *cmd)
 {
 	uint32_t count;
 	/*  figure out how long we need to delay at end of scan */
@@ -2438,7 +2438,7 @@ static uint32_t ai_scan_counter_6xxx(struct comedi_device * dev, struct comedi_c
 	return count - 3;
 }
 
-static uint32_t ai_convert_counter_4020(struct comedi_device * dev, struct comedi_cmd * cmd)
+static uint32_t ai_convert_counter_4020(struct comedi_device *dev, struct comedi_cmd *cmd)
 {
 	unsigned int divisor;
 
@@ -2459,8 +2459,8 @@ static uint32_t ai_convert_counter_4020(struct comedi_device * dev, struct comed
 	return divisor - 2;
 }
 
-static void select_master_clock_4020(struct comedi_device * dev,
-	const struct comedi_cmd * cmd)
+static void select_master_clock_4020(struct comedi_device *dev,
+	const struct comedi_cmd *cmd)
 {
 	/*  select internal/external master clock */
 	priv(dev)->hw_config_bits &= ~MASTER_CLOCK_4020_MASK;
@@ -2478,7 +2478,7 @@ static void select_master_clock_4020(struct comedi_device * dev,
 		priv(dev)->main_iobase + HW_CONFIG_REG);
 }
 
-static void select_master_clock(struct comedi_device * dev, const struct comedi_cmd * cmd)
+static void select_master_clock(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	switch (board(dev)->layout) {
 	case LAYOUT_4020:
@@ -2489,7 +2489,7 @@ static void select_master_clock(struct comedi_device * dev, const struct comedi_
 	}
 }
 
-static inline void dma_start_sync(struct comedi_device * dev, unsigned int channel)
+static inline void dma_start_sync(struct comedi_device *dev, unsigned int channel)
 {
 	unsigned long flags;
 
@@ -2506,7 +2506,7 @@ static inline void dma_start_sync(struct comedi_device * dev, unsigned int chann
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
-static void set_ai_pacing(struct comedi_device * dev, struct comedi_cmd * cmd)
+static void set_ai_pacing(struct comedi_device *dev, struct comedi_cmd *cmd)
 {
 	uint32_t convert_counter = 0, scan_counter = 0;
 
@@ -2537,7 +2537,7 @@ static void set_ai_pacing(struct comedi_device * dev, struct comedi_cmd * cmd)
 	DEBUG_PRINT("scan counter 0x%x\n", scan_counter);
 }
 
-static int use_internal_queue_6xxx(const struct comedi_cmd * cmd)
+static int use_internal_queue_6xxx(const struct comedi_cmd *cmd)
 {
 	int i;
 	for (i = 0; i + 1 < cmd->chanlist_len; i++) {
@@ -2553,7 +2553,7 @@ static int use_internal_queue_6xxx(const struct comedi_cmd * cmd)
 	return 1;
 }
 
-static int setup_channel_queue(struct comedi_device * dev, const struct comedi_cmd * cmd)
+static int setup_channel_queue(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	unsigned short bits;
 	int i;
@@ -2655,7 +2655,7 @@ static int setup_channel_queue(struct comedi_device * dev, const struct comedi_c
 	return 0;
 }
 
-static inline void load_first_dma_descriptor(struct comedi_device * dev,
+static inline void load_first_dma_descriptor(struct comedi_device *dev,
 	unsigned int dma_channel, unsigned int descriptor_bits)
 {
 	/* The transfer size, pci address, and local address registers
@@ -2682,7 +2682,7 @@ static inline void load_first_dma_descriptor(struct comedi_device * dev,
 	}
 }
 
-static int ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -2800,7 +2800,7 @@ static int ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 }
 
 /* read num_samples from 16 bit wide ai fifo */
-static void pio_drain_ai_fifo_16(struct comedi_device * dev)
+static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
@@ -2867,7 +2867,7 @@ static void pio_drain_ai_fifo_16(struct comedi_device * dev)
  * dma transfers (it only supports the use of pio for draining the last remaining
  * points from the fifo when a data aquisition operation has completed).
  */
-static void pio_drain_ai_fifo_32(struct comedi_device * dev)
+static void pio_drain_ai_fifo_32(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
@@ -2901,7 +2901,7 @@ static void pio_drain_ai_fifo_32(struct comedi_device * dev)
 }
 
 /* empty fifo */
-static void pio_drain_ai_fifo(struct comedi_device * dev)
+static void pio_drain_ai_fifo(struct comedi_device *dev)
 {
 	if (board(dev)->layout == LAYOUT_4020) {
 		pio_drain_ai_fifo_32(dev);
@@ -2909,7 +2909,7 @@ static void pio_drain_ai_fifo(struct comedi_device * dev)
 		pio_drain_ai_fifo_16(dev);
 }
 
-static void drain_dma_buffers(struct comedi_device * dev, unsigned int channel)
+static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 {
 	struct comedi_async *async = dev->read_subdev->async;
 	uint32_t next_transfer_addr;
@@ -2955,7 +2955,7 @@ static void drain_dma_buffers(struct comedi_device * dev, unsigned int channel)
 	 * unused buffer) */
 }
 
-void handle_ai_interrupt(struct comedi_device * dev, unsigned short status,
+void handle_ai_interrupt(struct comedi_device *dev, unsigned short status,
 	unsigned int plx_status)
 {
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -3009,7 +3009,7 @@ void handle_ai_interrupt(struct comedi_device * dev, unsigned short status,
 	cfc_handle_events(dev, s);
 }
 
-static inline unsigned int prev_ao_dma_index(struct comedi_device * dev)
+static inline unsigned int prev_ao_dma_index(struct comedi_device *dev)
 {
 	unsigned int buffer_index;
 
@@ -3020,7 +3020,7 @@ static inline unsigned int prev_ao_dma_index(struct comedi_device * dev)
 	return buffer_index;
 }
 
-static int last_ao_dma_load_completed(struct comedi_device * dev)
+static int last_ao_dma_load_completed(struct comedi_device *dev)
 {
 	unsigned int buffer_index;
 	unsigned int transfer_address;
@@ -3039,7 +3039,7 @@ static int last_ao_dma_load_completed(struct comedi_device * dev)
 	return 1;
 }
 
-static int ao_stopped_by_error(struct comedi_device * dev, const struct comedi_cmd * cmd)
+static int ao_stopped_by_error(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	if (cmd->stop_src == TRIG_NONE)
 		return 1;
@@ -3052,7 +3052,7 @@ static int ao_stopped_by_error(struct comedi_device * dev, const struct comedi_c
 	return 0;
 }
 
-static inline int ao_dma_needs_restart(struct comedi_device * dev,
+static inline int ao_dma_needs_restart(struct comedi_device *dev,
 	unsigned short dma_status)
 {
 	if ((dma_status & PLX_DMA_DONE_BIT) == 0 ||
@@ -3064,7 +3064,7 @@ static inline int ao_dma_needs_restart(struct comedi_device * dev,
 	return 1;
 }
 
-static void restart_ao_dma(struct comedi_device * dev)
+static void restart_ao_dma(struct comedi_device *dev)
 {
 	unsigned int dma_desc_bits;
 
@@ -3077,7 +3077,7 @@ static void restart_ao_dma(struct comedi_device * dev)
 	dma_start_sync(dev, 0);
 }
 
-static void handle_ao_interrupt(struct comedi_device * dev, unsigned short status,
+static void handle_ao_interrupt(struct comedi_device *dev, unsigned short status,
 	unsigned int plx_status)
 {
 	struct comedi_subdevice *s = dev->write_subdev;
@@ -3165,7 +3165,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-void abort_dma(struct comedi_device * dev, unsigned int channel)
+void abort_dma(struct comedi_device *dev, unsigned int channel)
 {
 	unsigned long flags;
 
@@ -3177,7 +3177,7 @@ void abort_dma(struct comedi_device * dev, unsigned int channel)
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
-static int ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned long flags;
 
@@ -3197,8 +3197,8 @@ static int ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 	return 0;
 }
 
-static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int range = CR_RANGE(insn->chanspec);
@@ -3227,15 +3227,15 @@ static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	return 1;
 }
 
-static int ao_readback_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ao_readback_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = priv(dev)->ao_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
 }
 
-static void set_dac_control0_reg(struct comedi_device * dev, const struct comedi_cmd * cmd)
+static void set_dac_control0_reg(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	unsigned int bits = DAC_ENABLE_BIT | WAVEFORM_GATE_LEVEL_BIT |
 		WAVEFORM_GATE_ENABLE_BIT | WAVEFORM_GATE_SELECT_BIT;
@@ -3255,7 +3255,7 @@ static void set_dac_control0_reg(struct comedi_device * dev, const struct comedi
 	writew(bits, priv(dev)->main_iobase + DAC_CONTROL0_REG);
 }
 
-static void set_dac_control1_reg(struct comedi_device * dev, const struct comedi_cmd * cmd)
+static void set_dac_control1_reg(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	int i;
 
@@ -3272,7 +3272,7 @@ static void set_dac_control1_reg(struct comedi_device * dev, const struct comedi
 		priv(dev)->main_iobase + DAC_CONTROL1_REG);
 }
 
-static void set_dac_select_reg(struct comedi_device * dev, const struct comedi_cmd * cmd)
+static void set_dac_select_reg(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	uint16_t bits;
 	unsigned int first_channel, last_channel;
@@ -3287,7 +3287,7 @@ static void set_dac_select_reg(struct comedi_device * dev, const struct comedi_c
 	writew(bits, priv(dev)->main_iobase + DAC_SELECT_REG);
 }
 
-static void set_dac_interval_regs(struct comedi_device * dev, const struct comedi_cmd * cmd)
+static void set_dac_interval_regs(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	unsigned int divisor;
 
@@ -3305,8 +3305,8 @@ static void set_dac_interval_regs(struct comedi_device * dev, const struct comed
 		priv(dev)->main_iobase + DAC_SAMPLE_INTERVAL_UPPER_REG);
 }
 
-static unsigned int load_ao_dma_buffer(struct comedi_device * dev,
-	const struct comedi_cmd * cmd)
+static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
+	const struct comedi_cmd *cmd)
 {
 	unsigned int num_bytes, buffer_index, prev_buffer_index;
 	unsigned int next_bits;
@@ -3349,7 +3349,7 @@ static unsigned int load_ao_dma_buffer(struct comedi_device * dev,
 	return num_bytes;
 }
 
-static void load_ao_dma(struct comedi_device * dev, const struct comedi_cmd * cmd)
+static void load_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	unsigned int num_bytes;
 	unsigned int next_transfer_addr;
@@ -3371,7 +3371,7 @@ static void load_ao_dma(struct comedi_device * dev, const struct comedi_cmd * cm
 	} while (num_bytes >= DMA_BUFFER_SIZE);
 }
 
-static int prep_ao_dma(struct comedi_device * dev, const struct comedi_cmd * cmd)
+static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	unsigned int num_bytes;
 	int i;
@@ -3405,7 +3405,7 @@ static int prep_ao_dma(struct comedi_device * dev, const struct comedi_cmd * cmd
 	return 0;
 }
 
-static inline int external_ai_queue_in_use(struct comedi_device * dev)
+static inline int external_ai_queue_in_use(struct comedi_device *dev)
 {
 	if (dev->read_subdev->busy)
 		return 0;
@@ -3416,7 +3416,7 @@ static inline int external_ai_queue_in_use(struct comedi_device * dev)
 	return 1;
 }
 
-static int ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 
@@ -3441,7 +3441,7 @@ static int ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 	return 0;
 }
 
-static int ao_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
+static int ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trig_num)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -3464,8 +3464,8 @@ static int ao_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
 	return 0;
 }
 
-static int ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -3580,7 +3580,7 @@ static int ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
 	return 0;
 }
 
-static int ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	writew(0x0, priv(dev)->main_iobase + DAC_CONTROL0_REG);
 	abort_dma(dev, 0);
@@ -3608,8 +3608,8 @@ static int dio_callback_4020(int dir, int port, int data, unsigned long iobase)
 	}
 }
 
-static int di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int bits;
 
@@ -3621,8 +3621,8 @@ static int di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
 	return 2;
 }
 
-static int do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] &= 0xf;
 	/*  zero bits we are going to change */
@@ -3637,8 +3637,8 @@ static int do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
 	return 2;
 }
 
-static int dio_60xx_config_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dio_60xx_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask;
 
@@ -3664,8 +3664,8 @@ static int dio_60xx_config_insn(struct comedi_device * dev, struct comedi_subdev
 	return 1;
 }
 
-static int dio_60xx_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int dio_60xx_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -3679,7 +3679,7 @@ static int dio_60xx_wbits(struct comedi_device * dev, struct comedi_subdevice * 
 	return 2;
 }
 
-static void caldac_write(struct comedi_device * dev, unsigned int channel,
+static void caldac_write(struct comedi_device *dev, unsigned int channel,
 	unsigned int value)
 {
 	priv(dev)->caldac_state[channel] = value;
@@ -3697,8 +3697,8 @@ static void caldac_write(struct comedi_device * dev, unsigned int channel,
 	}
 }
 
-static int calib_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int calib_write_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int channel = CR_CHAN(insn->chanspec);
 
@@ -3712,8 +3712,8 @@ static int calib_write_insn(struct comedi_device * dev, struct comedi_subdevice 
 	return 1;
 }
 
-static int calib_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int calib_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
@@ -3722,7 +3722,7 @@ static int calib_read_insn(struct comedi_device * dev, struct comedi_subdevice *
 	return 1;
 }
 
-static void ad8402_write(struct comedi_device * dev, unsigned int channel,
+static void ad8402_write(struct comedi_device *dev, unsigned int channel,
 	unsigned int value)
 {
 	static const int bitstream_length = 10;
@@ -3753,8 +3753,8 @@ static void ad8402_write(struct comedi_device * dev, unsigned int channel,
 }
 
 /* for pci-das6402/16, channel 0 is analog input gain and channel 1 is offset */
-static int ad8402_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ad8402_write_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int channel = CR_CHAN(insn->chanspec);
 
@@ -3770,8 +3770,8 @@ static int ad8402_write_insn(struct comedi_device * dev, struct comedi_subdevice
 	return 1;
 }
 
-static int ad8402_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ad8402_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
@@ -3780,7 +3780,7 @@ static int ad8402_read_insn(struct comedi_device * dev, struct comedi_subdevice 
 	return 1;
 }
 
-static uint16_t read_eeprom(struct comedi_device * dev, uint8_t address)
+static uint16_t read_eeprom(struct comedi_device *dev, uint8_t address)
 {
 	static const int bitstream_length = 11;
 	static const int read_command = 0x6;
@@ -3842,8 +3842,8 @@ static uint16_t read_eeprom(struct comedi_device * dev, uint8_t address)
 	return value;
 }
 
-static int eeprom_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int eeprom_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = read_eeprom(dev, CR_CHAN(insn->chanspec));
 
@@ -3928,7 +3928,7 @@ static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags)
 }
 
 /* adjusts the size of hardware fifo (which determines block size for dma xfers) */
-static int set_ai_fifo_size(struct comedi_device * dev, unsigned int num_samples)
+static int set_ai_fifo_size(struct comedi_device *dev, unsigned int num_samples)
 {
 	unsigned int num_fifo_entries;
 	int retval;
@@ -3949,14 +3949,14 @@ static int set_ai_fifo_size(struct comedi_device * dev, unsigned int num_samples
 }
 
 /* query length of fifo */
-static unsigned int ai_fifo_size(struct comedi_device * dev)
+static unsigned int ai_fifo_size(struct comedi_device *dev)
 {
 	return priv(dev)->ai_fifo_segment_length *
 		board(dev)->ai_fifo->num_segments *
 		board(dev)->ai_fifo->sample_packing_ratio;
 }
 
-static int set_ai_fifo_segment_length(struct comedi_device * dev,
+static int set_ai_fifo_segment_length(struct comedi_device *dev,
 	unsigned int num_entries)
 {
 	static const int increment_size = 0x100;
@@ -4007,7 +4007,7 @@ static int set_ai_fifo_segment_length(struct comedi_device * dev,
  * address 7 == dac channel 1 fine offset
 */
 
-static int caldac_8800_write(struct comedi_device * dev, unsigned int address,
+static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 	uint8_t value)
 {
 	static const int num_caldac_channels = 8;
@@ -4039,7 +4039,7 @@ static int caldac_8800_write(struct comedi_device * dev, unsigned int address,
 }
 
 /* 4020 caldacs */
-static int caldac_i2c_write(struct comedi_device * dev, unsigned int caldac_channel,
+static int caldac_i2c_write(struct comedi_device *dev, unsigned int caldac_channel,
 	unsigned int value)
 {
 	uint8_t serial_bytes[3];
@@ -4104,7 +4104,7 @@ static const int i2c_high_comedi_udelay = 1000;
 static const int i2c_low_comedi_udelay = 10;
 
 /* set i2c data line high or low */
-static void i2c_set_sda(struct comedi_device * dev, int state)
+static void i2c_set_sda(struct comedi_device *dev, int state)
 {
 	static const int data_bit = CTL_EE_W;
 	void *plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
@@ -4123,7 +4123,7 @@ static void i2c_set_sda(struct comedi_device * dev, int state)
 }
 
 /* set i2c clock line high or low */
-static void i2c_set_scl(struct comedi_device * dev, int state)
+static void i2c_set_scl(struct comedi_device *dev, int state)
 {
 	static const int clock_bit = CTL_USERO;
 	void *plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
@@ -4141,7 +4141,7 @@ static void i2c_set_scl(struct comedi_device * dev, int state)
 	}
 }
 
-static void i2c_write_byte(struct comedi_device * dev, uint8_t byte)
+static void i2c_write_byte(struct comedi_device *dev, uint8_t byte)
 {
 	uint8_t bit;
 	unsigned int num_bits = 8;
@@ -4159,7 +4159,7 @@ static void i2c_write_byte(struct comedi_device * dev, uint8_t byte)
 }
 
 /* we can't really read the lines, so fake it */
-static int i2c_read_ack(struct comedi_device * dev)
+static int i2c_read_ack(struct comedi_device *dev)
 {
 	i2c_set_scl(dev, 0);
 	i2c_set_sda(dev, 1);
@@ -4169,7 +4169,7 @@ static int i2c_read_ack(struct comedi_device * dev)
 }
 
 /* send start bit */
-static void i2c_start(struct comedi_device * dev)
+static void i2c_start(struct comedi_device *dev)
 {
 	i2c_set_scl(dev, 1);
 	i2c_set_sda(dev, 1);
@@ -4177,7 +4177,7 @@ static void i2c_start(struct comedi_device * dev)
 }
 
 /* send stop bit */
-static void i2c_stop(struct comedi_device * dev)
+static void i2c_stop(struct comedi_device *dev)
 {
 	i2c_set_scl(dev, 0);
 	i2c_set_sda(dev, 0);
@@ -4185,8 +4185,8 @@ static void i2c_stop(struct comedi_device * dev)
 	i2c_set_sda(dev, 1);
 }
 
-static void i2c_write(struct comedi_device * dev, unsigned int address,
-	const uint8_t * data, unsigned int length)
+static void i2c_write(struct comedi_device *dev, unsigned int address,
+	const uint8_t *data, unsigned int length)
 {
 	unsigned int i;
 	uint8_t bitstream;

@@ -47,8 +47,8 @@ Configuration Options:
 #define RTI802_DATALOW 1
 #define RTI802_DATAHIGH 2
 
-static int rti802_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int rti802_detach(struct comedi_device * dev);
+static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int rti802_detach(struct comedi_device *dev);
 static struct comedi_driver driver_rti802 = {
       driver_name:"rti802",
       module:THIS_MODULE,
@@ -68,8 +68,8 @@ struct rti802_private {
 
 #define devpriv ((struct rti802_private *)dev->private)
 
-static int rti802_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int rti802_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 
@@ -79,8 +79,8 @@ static int rti802_ao_insn_read(struct comedi_device * dev, struct comedi_subdevi
 	return i;
 }
 
-static int rti802_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int rti802_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i, d;
 	int chan = CR_CHAN(insn->chanspec);
@@ -96,7 +96,7 @@ static int rti802_ao_insn_write(struct comedi_device * dev, struct comedi_subdev
 	return i;
 }
 
-static int rti802_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int i;
@@ -140,7 +140,7 @@ static int rti802_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return 0;
 }
 
-static int rti802_detach(struct comedi_device * dev)
+static int rti802_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: rti802: remove\n", dev->minor);
 

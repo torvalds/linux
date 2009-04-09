@@ -132,8 +132,8 @@ struct pc263_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pc263_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pc263_detach(struct comedi_device * dev);
+static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pc263_detach(struct comedi_device *dev);
 static struct comedi_driver driver_amplc_pc263 = {
       driver_name:PC263_DRIVER_NAME,
       module:THIS_MODULE,
@@ -146,10 +146,10 @@ static struct comedi_driver driver_amplc_pc263 = {
 
 static int pc263_request_region(unsigned minor, unsigned long from,
 	unsigned long extent);
-static int pc263_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int pc263_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int pc263_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int pc263_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
 /*
  * This function looks for a PCI device matching the requested board name,
@@ -157,7 +157,7 @@ static int pc263_dio_insn_config(struct comedi_device * dev, struct comedi_subde
  */
 #ifdef CONFIG_COMEDI_PCI
 static int
-pc263_find_pci(struct comedi_device * dev, int bus, int slot,
+pc263_find_pci(struct comedi_device *dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
 {
 	struct pci_dev *pci_dev = NULL;
@@ -219,7 +219,7 @@ pc263_find_pci(struct comedi_device * dev, int bus, int slot,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pc263_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = 0;
@@ -337,7 +337,7 @@ static int pc263_attach(struct comedi_device * dev, struct comedi_devconfig * it
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pc263_detach(struct comedi_device * dev)
+static int pc263_detach(struct comedi_device *dev)
 {
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,
 		PC263_DRIVER_NAME);
@@ -387,8 +387,8 @@ static int pc263_request_region(unsigned minor, unsigned long from,
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int pc263_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pc263_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -412,8 +412,8 @@ static int pc263_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 	return 2;
 }
 
-static int pc263_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pc263_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 1)
 		return -EINVAL;

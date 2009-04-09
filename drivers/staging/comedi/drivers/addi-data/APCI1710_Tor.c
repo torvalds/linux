@@ -130,8 +130,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int ul_TimerValue = 0;
@@ -987,8 +987,8 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
@@ -1460,20 +1460,20 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
 	unsigned char b_ModulNbr;
 	unsigned char b_TorCounter;
-	unsigned char * pb_TimingUnit;
-	unsigned int * pul_TimingInterval;
-	unsigned char * pb_InputMode;
-	unsigned char * pb_ExternGate;
-	unsigned char * pb_CycleMode;
-	unsigned char * pb_Enable;
-	unsigned char * pb_InterruptEnable;
+	unsigned char *pb_TimingUnit;
+	unsigned int *pul_TimingInterval;
+	unsigned char *pb_InputMode;
+	unsigned char *pb_ExternGate;
+	unsigned char *pb_CycleMode;
+	unsigned char *pb_Enable;
+	unsigned char *pb_InterruptEnable;
 
 	i_ReturnValue = insn->n;
 	b_ModulNbr = CR_AREF(insn->chanspec);
@@ -1700,8 +1700,8 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
@@ -1711,8 +1711,8 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 	unsigned char b_TorCounter;
 	unsigned char b_ReadType;
 	unsigned int ui_TimeOut;
-	unsigned char * pb_TorCounterStatus;
-	unsigned int * pul_TorCounterValue;
+	unsigned char *pb_TorCounterStatus;
+	unsigned int *pul_TorCounterValue;
 
 	i_ReturnValue = insn->n;
 	b_ModulNbr = CR_AREF(insn->chanspec);

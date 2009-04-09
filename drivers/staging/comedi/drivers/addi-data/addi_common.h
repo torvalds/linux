@@ -362,7 +362,7 @@ struct addi_private {
 	unsigned int ui_AiNbrofChannels;	/*  how many channels is measured */
 	unsigned int ui_AiScanLength;	/*  Length of actual scanlist */
 	unsigned int ui_AiActualScanPosition;	/*  position in actual scan */
-	unsigned int * pui_AiChannelList;	/*  actual chanlist */
+	unsigned int *pui_AiChannelList;	/*  actual chanlist */
 	unsigned int ui_AiChannelList[32];	/*  actual chanlist */
 	unsigned char b_AiChannelConfiguration[32];	/*  actual chanlist */
 	unsigned int ui_AiReadData[32];

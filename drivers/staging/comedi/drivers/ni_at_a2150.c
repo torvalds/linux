@@ -169,9 +169,9 @@ struct a2150_private {
 
 #define devpriv ((struct a2150_private *)dev->private)
 
-static int a2150_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int a2150_detach(struct comedi_device * dev);
-static int a2150_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int a2150_detach(struct comedi_device *dev);
+static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static struct comedi_driver driver_a2150 = {
       driver_name:"ni_at_a2150",
@@ -199,7 +199,7 @@ COMEDI_INITCLEANUP(driver_a2150);
 
 #ifdef A2150_DEBUG
 
-static void ni_dump_regs(struct comedi_device * dev)
+static void ni_dump_regs(struct comedi_device *dev)
 {
 	rt_printk("config bits 0x%x\n", devpriv->config_bits);
 	rt_printk("irq dma bits 0x%x\n", devpriv->irq_dma_bits);
@@ -318,13 +318,13 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 }
 
 /* probes board type, returns offset */
-static int a2150_probe(struct comedi_device * dev)
+static int a2150_probe(struct comedi_device *dev)
 {
 	int status = inw(dev->iobase + STATUS_REG);
 	return ID_BITS(status);
 }
 
-static int a2150_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];
@@ -449,7 +449,7 @@ static int a2150_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	return 0;
 };
 
-static int a2150_detach(struct comedi_device * dev)
+static int a2150_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: %s: remove\n", dev->minor, driver_a2150.driver_name);
 
@@ -472,7 +472,7 @@ static int a2150_detach(struct comedi_device * dev)
 	return 0;
 };
 
-static int a2150_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	/*  disable dma on card */
 	devpriv->irq_dma_bits &= ~DMA_INTR_EN_BIT & ~DMA_EN_BIT;
@@ -487,8 +487,8 @@ static int a2150_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 	return 0;
 }
 
-static int a2150_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int a2150_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -617,7 +617,7 @@ static int a2150_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int a2150_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -728,8 +728,8 @@ static int a2150_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
 	return 0;
 }
 
-static int a2150_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int i, n;
 	static const int timeout = 100000;
@@ -802,7 +802,7 @@ static int a2150_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * 
 
 /* sets bits in devpriv->clock_bits to nearest approximation of requested period,
  * adjusts requested period to actual timing. */
-static int a2150_get_timing(struct comedi_device * dev, unsigned int *period,
+static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	int flags)
 {
 	int lub, glb, temp;
@@ -876,7 +876,7 @@ static int a2150_get_timing(struct comedi_device * dev, unsigned int *period,
 	return 0;
 }
 
-static int a2150_set_chanlist(struct comedi_device * dev, unsigned int start_channel,
+static int a2150_set_chanlist(struct comedi_device *dev, unsigned int start_channel,
 	unsigned int num_channels)
 {
 	if (start_channel + num_channels > 4)

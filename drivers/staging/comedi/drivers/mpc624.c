@@ -146,8 +146,8 @@ static const struct comedi_lrange range_mpc624_bipolar10 = {
 };
 
 /* ---------------------------------------------------------------------------- */
-static int mpc624_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int mpc624_detach(struct comedi_device * dev);
+static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int mpc624_detach(struct comedi_device *dev);
 /* ---------------------------------------------------------------------------- */
 static struct comedi_driver driver_mpc624 = {
       driver_name:"mpc624",
@@ -157,10 +157,10 @@ static struct comedi_driver driver_mpc624 = {
 };
 
 /* ---------------------------------------------------------------------------- */
-static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int mpc624_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 /* ---------------------------------------------------------------------------- */
-static int mpc624_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;
@@ -257,7 +257,7 @@ static int mpc624_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return 1;
 }
 
-static int mpc624_detach(struct comedi_device * dev)
+static int mpc624_detach(struct comedi_device *dev)
 {
 	rt_printk("comedi%d: mpc624: remove\n", dev->minor);
 
@@ -270,8 +270,8 @@ static int mpc624_detach(struct comedi_device * dev)
 /* Timeout 200ms */
 #define TIMEOUT 200
 
-static int mpc624_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int mpc624_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n, i;
 	unsigned long int data_in, data_out;

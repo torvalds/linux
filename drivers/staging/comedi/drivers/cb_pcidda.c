@@ -239,22 +239,22 @@ struct cb_pcidda_private {
  */
 #define devpriv ((struct cb_pcidda_private *)dev->private)
 
-static int cb_pcidda_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int cb_pcidda_detach(struct comedi_device * dev);
+static int cb_pcidda_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int cb_pcidda_detach(struct comedi_device *dev);
 /* static int cb_pcidda_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data); */
-static int cb_pcidda_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int cb_pcidda_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
 /* static int cb_pcidda_ai_cmd(struct comedi_device *dev, struct *comedi_subdevice *s);*/
 /* static int cb_pcidda_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s, struct comedi_cmd *cmd); */
 /* static int cb_pcidda_ns_to_timer(unsigned int *ns,int *round); */
 
-static unsigned int cb_pcidda_serial_in(struct comedi_device * dev);
-static void cb_pcidda_serial_out(struct comedi_device * dev, unsigned int value,
+static unsigned int cb_pcidda_serial_in(struct comedi_device *dev);
+static void cb_pcidda_serial_out(struct comedi_device *dev, unsigned int value,
 	unsigned int num_bits);
-static unsigned int cb_pcidda_read_eeprom(struct comedi_device * dev,
+static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 	unsigned int address);
-static void cb_pcidda_calibrate(struct comedi_device * dev, unsigned int channel,
+static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 	unsigned int range);
 
 /*
@@ -274,7 +274,7 @@ static struct comedi_driver driver_cb_pcidda = {
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
  */
-static int cb_pcidda_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int cb_pcidda_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;
@@ -395,7 +395,7 @@ static int cb_pcidda_attach(struct comedi_device * dev, struct comedi_devconfig 
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int cb_pcidda_detach(struct comedi_device * dev)
+static int cb_pcidda_detach(struct comedi_device *dev)
 {
 /*
  * Deallocate the I/O ports.
@@ -423,7 +423,7 @@ static int cb_pcidda_detach(struct comedi_device * dev)
  * I will program this later... ;-)
  */
 #if 0
-static int cb_pcidda_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int cb_pcidda_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	printk("cb_pcidda_ai_cmd\n");
 	printk("subdev: %d\n", cmd->subdev);
@@ -442,8 +442,8 @@ static int cb_pcidda_ai_cmd(struct comedi_device * dev, struct comedi_subdevice 
 #endif
 
 #if 0
-static int cb_pcidda_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int cb_pcidda_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -608,8 +608,8 @@ static int cb_pcidda_ns_to_timer(unsigned int *ns, int round)
 }
 #endif
 
-static int cb_pcidda_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int cb_pcidda_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int command;
 	unsigned int channel, range;
@@ -658,7 +658,7 @@ static int cb_pcidda_ao_winsn(struct comedi_device * dev, struct comedi_subdevic
 }
 
 /* lowlevel read from eeprom */
-static unsigned int cb_pcidda_serial_in(struct comedi_device * dev)
+static unsigned int cb_pcidda_serial_in(struct comedi_device *dev)
 {
 	unsigned int value = 0;
 	int i;
@@ -675,7 +675,7 @@ static unsigned int cb_pcidda_serial_in(struct comedi_device * dev)
 }
 
 /* lowlevel write to eeprom/dac */
-static void cb_pcidda_serial_out(struct comedi_device * dev, unsigned int value,
+static void cb_pcidda_serial_out(struct comedi_device *dev, unsigned int value,
 	unsigned int num_bits)
 {
 	int i;
@@ -691,7 +691,7 @@ static void cb_pcidda_serial_out(struct comedi_device * dev, unsigned int value,
 }
 
 /* reads a 16 bit value from board's eeprom */
-static unsigned int cb_pcidda_read_eeprom(struct comedi_device * dev,
+static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 	unsigned int address)
 {
 	unsigned int i;
@@ -725,7 +725,7 @@ static unsigned int cb_pcidda_read_eeprom(struct comedi_device * dev,
 }
 
 /* writes to 8 bit calibration dacs */
-static void cb_pcidda_write_caldac(struct comedi_device * dev, unsigned int caldac,
+static void cb_pcidda_write_caldac(struct comedi_device *dev, unsigned int caldac,
 	unsigned int channel, unsigned int value)
 {
 	unsigned int cal2_bits;
@@ -812,7 +812,7 @@ static unsigned int eeprom_fine_byte(unsigned int word)
 }
 
 /* set caldacs to eeprom values for given channel and range */
-static void cb_pcidda_calibrate(struct comedi_device * dev, unsigned int channel,
+static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 	unsigned int range)
 {
 	unsigned int coarse_offset, fine_offset, coarse_gain, fine_gain;

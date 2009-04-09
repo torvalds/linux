@@ -428,8 +428,8 @@ struct pci224_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pci224_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pci224_detach(struct comedi_device * dev);
+static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pci224_detach(struct comedi_device *dev);
 static struct comedi_driver driver_amplc_pci224 = {
       driver_name:DRIVER_NAME,
       module:THIS_MODULE,
@@ -446,7 +446,7 @@ COMEDI_PCI_INITCLEANUP(driver_amplc_pci224, pci224_pci_table);
  * Called from the 'insn_write' function to perform a single write.
  */
 static void
-pci224_ao_set_data(struct comedi_device * dev, int chan, int range, unsigned int data)
+pci224_ao_set_data(struct comedi_device *dev, int chan, int range, unsigned int data)
 {
 	unsigned short mangled;
 
@@ -479,8 +479,8 @@ pci224_ao_set_data(struct comedi_device * dev, int chan, int range, unsigned int
  * 'insn_write' function for AO subdevice.
  */
 static int
-pci224_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+pci224_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan, range;
@@ -506,8 +506,8 @@ pci224_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
  * command.
  */
 static int
-pci224_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+pci224_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan;
@@ -534,7 +534,7 @@ pci224_cascade_ns_to_timer(int osc_base, unsigned int *d1, unsigned int *d2,
 /*
  * Kills a command running on the AO subdevice.
  */
-static void pci224_ao_stop(struct comedi_device * dev, struct comedi_subdevice * s)
+static void pci224_ao_stop(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned long flags;
 
@@ -574,7 +574,7 @@ static void pci224_ao_stop(struct comedi_device * dev, struct comedi_subdevice *
 /*
  * Handles start of acquisition for the AO subdevice.
  */
-static void pci224_ao_start(struct comedi_device * dev, struct comedi_subdevice * s)
+static void pci224_ao_start(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
@@ -601,7 +601,7 @@ static void pci224_ao_start(struct comedi_device * dev, struct comedi_subdevice 
 /*
  * Handles interrupts from the DAC FIFO.
  */
-static void pci224_ao_handle_fifo(struct comedi_device * dev, struct comedi_subdevice * s)
+static void pci224_ao_handle_fifo(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int num_scans;
@@ -730,7 +730,7 @@ static void pci224_ao_handle_fifo(struct comedi_device * dev, struct comedi_subd
  * Internal trigger function to start acquisition on AO subdevice.
  */
 static int
-pci224_ao_inttrig_start(struct comedi_device * dev, struct comedi_subdevice * s,
+pci224_ao_inttrig_start(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum)
 {
 	if (trignum != 0)
@@ -750,7 +750,7 @@ pci224_ao_inttrig_start(struct comedi_device * dev, struct comedi_subdevice * s,
  * 'do_cmdtest' function for AO subdevice.
  */
 static int
-pci224_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, struct comedi_cmd * cmd)
+pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	unsigned int tmp;
@@ -1017,7 +1017,7 @@ pci224_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, struc
 /*
  * 'do_cmd' function for AO subdevice.
  */
-static int pci224_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int range;
@@ -1174,7 +1174,7 @@ static int pci224_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s
 /*
  * 'cancel' function for AO subdevice.
  */
-static int pci224_ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int pci224_ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	pci224_ao_stop(dev, s);
 	return 0;
@@ -1184,7 +1184,7 @@ static int pci224_ao_cancel(struct comedi_device * dev, struct comedi_subdevice 
  * 'munge' data for AO command.
  */
 static void
-pci224_ao_munge(struct comedi_device * dev, struct comedi_subdevice * s, void *data,
+pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s, void *data,
 	unsigned int num_bytes, unsigned int chan_index)
 {
 	struct comedi_async *async = s->async;
@@ -1266,7 +1266,7 @@ static irqreturn_t pci224_interrupt(int irq, void *d)
  * bus and slot.
  */
 static int
-pci224_find_pci(struct comedi_device * dev, int bus, int slot,
+pci224_find_pci(struct comedi_device *dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
 {
 	struct pci_dev *pci_dev = NULL;
@@ -1325,7 +1325,7 @@ pci224_find_pci(struct comedi_device * dev, int bus, int slot,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pci224_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	struct pci_dev *pci_dev;
@@ -1505,7 +1505,7 @@ static int pci224_attach(struct comedi_device * dev, struct comedi_devconfig * i
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pci224_detach(struct comedi_device * dev)
+static int pci224_detach(struct comedi_device *dev)
 {
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor, DRIVER_NAME);
 

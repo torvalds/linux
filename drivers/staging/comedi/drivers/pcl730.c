@@ -26,8 +26,8 @@ The ACL-7130 card have an 8254 timer/counter not supported by this driver.
 #define PCL730_DIO_LO	2	/* TTL Digital I/O low byte (D0-D7) */
 #define PCL730_DIO_HI	3	/* TTL Digital I/O high byte (D8-D15) */
 
-static int pcl730_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pcl730_detach(struct comedi_device * dev);
+static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcl730_detach(struct comedi_device *dev);
 
 struct pcl730_board {
 
@@ -57,8 +57,8 @@ static struct comedi_driver driver_pcl730 = {
 
 COMEDI_INITCLEANUP(driver_pcl730);
 
-static int pcl730_do_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcl730_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -79,8 +79,8 @@ static int pcl730_do_insn(struct comedi_device * dev, struct comedi_subdevice * 
 	return 2;
 }
 
-static int pcl730_di_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcl730_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -91,7 +91,7 @@ static int pcl730_di_insn(struct comedi_device * dev, struct comedi_subdevice * 
 	return 2;
 }
 
-static int pcl730_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;
@@ -157,7 +157,7 @@ static int pcl730_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return 0;
 }
 
-static int pcl730_detach(struct comedi_device * dev)
+static int pcl730_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: pcl730: remove\n", dev->minor);
 

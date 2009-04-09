@@ -75,8 +75,8 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define Rising_Edge_Detection_Enable(x)		(0x018+(x))
 #define Falling_Edge_Detection_Enable(x)	(0x020+(x))
 
-static int ni6527_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int ni6527_detach(struct comedi_device * dev);
+static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int ni6527_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni6527 = {
       driver_name:"ni6527",
       module:THIS_MODULE,
@@ -120,10 +120,10 @@ struct ni6527_private {
 
 #define devpriv ((struct ni6527_private *)dev->private)
 
-static int ni6527_find_device(struct comedi_device * dev, int bus, int slot);
+static int ni6527_find_device(struct comedi_device *dev, int bus, int slot);
 
-static int ni6527_di_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni6527_di_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned int interval;
@@ -170,8 +170,8 @@ static int ni6527_di_insn_config(struct comedi_device * dev, struct comedi_subde
 	return 2;
 }
 
-static int ni6527_di_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni6527_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -183,8 +183,8 @@ static int ni6527_di_insn_bits(struct comedi_device * dev, struct comedi_subdevi
 	return 2;
 }
 
-static int ni6527_do_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni6527_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -233,8 +233,8 @@ static irqreturn_t ni6527_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int ni6527_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int ni6527_intr_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -309,7 +309,7 @@ static int ni6527_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevi
 	return 0;
 }
 
-static int ni6527_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int ni6527_intr_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	/* struct comedi_cmd *cmd = &s->async->cmd; */
 
@@ -322,15 +322,15 @@ static int ni6527_intr_cmd(struct comedi_device * dev, struct comedi_subdevice *
 	return 0;
 }
 
-static int ni6527_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int ni6527_intr_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 
 	return 0;
 }
 
-static int ni6527_intr_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni6527_intr_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n < 1)
 		return -EINVAL;
@@ -339,8 +339,8 @@ static int ni6527_intr_insn_bits(struct comedi_device * dev, struct comedi_subde
 	return 2;
 }
 
-static int ni6527_intr_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni6527_intr_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n < 1)
 		return -EINVAL;
@@ -364,7 +364,7 @@ static int ni6527_intr_insn_config(struct comedi_device * dev, struct comedi_sub
 	return 2;
 }
 
-static int ni6527_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret;
@@ -442,7 +442,7 @@ static int ni6527_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return 0;
 }
 
-static int ni6527_detach(struct comedi_device * dev)
+static int ni6527_detach(struct comedi_device *dev)
 {
 	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr) {
 		writeb(0x00,
@@ -460,7 +460,7 @@ static int ni6527_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int ni6527_find_device(struct comedi_device * dev, int bus, int slot)
+static int ni6527_find_device(struct comedi_device *dev, int bus, int slot)
 {
 	struct mite_struct *mite;
 	int i;

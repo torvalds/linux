@@ -73,8 +73,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1516_Read1DigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1516_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_TmpValue = 0;
 	unsigned int ui_Channel;
@@ -114,8 +114,8 @@ int i_APCI1516_Read1DigitalInput(struct comedi_device * dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1516_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1516_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	unsigned int ui_PortValue = data[0];
@@ -171,8 +171,8 @@ int i_APCI1516_ReadMoreDigitalInput(struct comedi_device * dev, struct comedi_su
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1516_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1516_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	devpriv->b_OutputMemoryStatus = data[0];
 	return insn->n;
@@ -199,8 +199,8 @@ int i_APCI1516_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1516_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1516_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_Temp, ui_Temp1;
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
@@ -359,8 +359,8 @@ int i_APCI1516_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1516_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1516_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	unsigned int ui_Temp;
@@ -419,8 +419,8 @@ int i_APCI1516_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1516_ConfigWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1516_ConfigWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0] == 0) {
 		/* Disable the watchdog */
@@ -465,8 +465,8 @@ int i_APCI1516_ConfigWatchdog(struct comedi_device * dev, struct comedi_subdevic
     +----------------------------------------------------------------------------+
   */
 
-int i_APCI1516_StartStopWriteWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1516_StartStopWriteWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	switch (data[0]) {
 	case 0:		/* stop the watchdog */
@@ -510,8 +510,8 @@ int i_APCI1516_StartStopWriteWatchdog(struct comedi_device * dev, struct comedi_
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1516_ReadWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1516_ReadWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = inw(devpriv->i_IobaseAddon + APCI1516_WATCHDOG_STATUS) & 0x1;
 	return insn->n;
@@ -532,7 +532,7 @@ int i_APCI1516_ReadWatchdog(struct comedi_device * dev, struct comedi_subdevice 
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1516_Reset(struct comedi_device * dev)
+int i_APCI1516_Reset(struct comedi_device *dev)
 {
 	outw(0x0, devpriv->iobase + APCI1516_DIGITAL_OP);	/* RESETS THE DIGITAL OUTPUTS */
 	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WATCHDOG_ENABLEDISABLE);

@@ -133,8 +133,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnConfigInitSSI(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnConfigInitSSI(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int ui_TimerValue;
@@ -400,8 +400,8 @@ pul_Position	=	(unsigned int *) &data[0];
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnReadSSIValue(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned char b_Cpt;
@@ -416,10 +416,10 @@ int i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 	unsigned char b_ModulNbr;
 	unsigned char b_SelectedSSI;
 	unsigned char b_ReadType;
-	unsigned int * pul_Position;
-	unsigned int * pul_TurnCpt;
-	unsigned int * pul_Position1;
-	unsigned int * pul_TurnCpt1;
+	unsigned int *pul_Position;
+	unsigned int *pul_TurnCpt;
+	unsigned int *pul_Position1;
+	unsigned int *pul_TurnCpt1;
 
 	i_ReturnValue = insn->n;
 	pul_Position1 = (unsigned int *) & data[0];
@@ -735,15 +735,15 @@ int i_APCI1710_InsnReadSSIValue(struct comedi_device * dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_StatusReg;
 	unsigned char b_ModulNbr;
 	unsigned char b_InputChannel;
-	unsigned char * pb_ChannelStatus;
-	unsigned char * pb_InputStatus;
+	unsigned char *pb_ChannelStatus;
+	unsigned char *pb_InputStatus;
 	unsigned char b_IOType;
 	i_ReturnValue = insn->n;
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);

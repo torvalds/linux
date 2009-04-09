@@ -56,7 +56,7 @@ static struct pcmcia_device *cur_dev = NULL;
 
 #define thisboard ((const struct das08_board_struct *)dev->board_ptr)
 
-static int das08_cs_attach(struct comedi_device * dev, struct comedi_devconfig * it);
+static int das08_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 
 static struct comedi_driver driver_das08_cs = {
       driver_name:"das08_cs",
@@ -69,7 +69,7 @@ static struct comedi_driver driver_das08_cs = {
       offset:sizeof(struct das08_board_struct),
 };
 
-static int das08_cs_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int das08_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	unsigned long iobase;

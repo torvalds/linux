@@ -131,8 +131,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnConfigInitChrono(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnConfigInitChrono(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned int ul_TimerValue = 0;
@@ -840,8 +840,8 @@ struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)						 |
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr, b_CycleMode, b_InterruptEnable, b_Action;
@@ -1090,8 +1090,8 @@ struct comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnReadChrono(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnReadChrono(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned char b_ReadType;
 	int i_ReturnValue = insn->n;
@@ -1194,8 +1194,8 @@ int i_APCI1710_InsnReadChrono(struct comedi_device * dev, struct comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
-	unsigned char b_ModulNbr, unsigned char * pb_ChronoStatus)
+int i_APCI1710_GetChronoProgressStatus(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char *pb_ChronoStatus)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
@@ -1355,9 +1355,9 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
+int i_APCI1710_ReadChronoValue(struct comedi_device *dev,
 	unsigned char b_ModulNbr,
-	unsigned int ui_TimeOut, unsigned char * pb_ChronoStatus, unsigned int * pul_ChronoValue)
+	unsigned int ui_TimeOut, unsigned char *pb_ChronoStatus, unsigned int *pul_ChronoValue)
 {
 	int i_ReturnValue = 0;
 	unsigned int dw_Status;
@@ -1619,13 +1619,13 @@ int i_APCI1710_ReadChronoValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
+int i_APCI1710_ConvertChronoValue(struct comedi_device *dev,
 	unsigned char b_ModulNbr,
 	unsigned int ul_ChronoValue,
-	unsigned int * pul_Hour,
-	unsigned char * pb_Minute,
-	unsigned char * pb_Second,
-	unsigned int * pui_MilliSecond, unsigned int * pui_MicroSecond, unsigned int * pui_NanoSecond)
+	unsigned int *pul_Hour,
+	unsigned char *pb_Minute,
+	unsigned char *pb_Second,
+	unsigned int *pui_MilliSecond, unsigned int *pui_MicroSecond, unsigned int *pui_NanoSecond)
 {
 	int i_ReturnValue = 0;
 	double d_Hour;
@@ -1876,14 +1876,14 @@ int i_APCI1710_ConvertChronoValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr, b_OutputChannel, b_InputChannel, b_IOType;
 	unsigned int dw_Status;
-	unsigned char * pb_ChannelStatus;
-	unsigned char * pb_PortValue;
+	unsigned char *pb_ChannelStatus;
+	unsigned char *pb_PortValue;
 
 	b_ModulNbr = CR_AREF(insn->chanspec);
 	i_ReturnValue = insn->n;

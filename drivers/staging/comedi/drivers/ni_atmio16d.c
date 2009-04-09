@@ -187,7 +187,7 @@ struct atmio16d_private {
 	unsigned int com_reg_2_state;	/* current state of command register 2 */
 };
 
-static void reset_counters(struct comedi_device * dev)
+static void reset_counters(struct comedi_device *dev)
 {
 	/* Counter 2 */
 	outw(0xFFC2, dev->iobase + AM9513A_COM_REG);
@@ -225,7 +225,7 @@ static void reset_counters(struct comedi_device * dev)
 	outw(0, dev->iobase + AD_CLEAR_REG);
 }
 
-static void reset_atmio16d(struct comedi_device * dev)
+static void reset_atmio16d(struct comedi_device *dev)
 {
 	int i;
 
@@ -270,8 +270,8 @@ static irqreturn_t atmio16d_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int atmio16d_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int atmio16d_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0, tmp;
 #ifdef DEBUG1
@@ -371,7 +371,7 @@ static int atmio16d_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevi
 	return 0;
 }
 
-static int atmio16d_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int atmio16d_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int timer, base_clock;
@@ -519,7 +519,7 @@ static int atmio16d_ai_cmd(struct comedi_device * dev, struct comedi_subdevice *
 }
 
 /* This will cancel a running acquisition operation */
-static int atmio16d_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int atmio16d_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	reset_atmio16d(dev);
 
@@ -527,8 +527,8 @@ static int atmio16d_ai_cancel(struct comedi_device * dev, struct comedi_subdevic
 }
 
 /* Mode 0 is used to get a single conversion on demand */
-static int atmio16d_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int atmio16d_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i, t;
 	int chan;
@@ -586,8 +586,8 @@ static int atmio16d_ai_insn_read(struct comedi_device * dev, struct comedi_subde
 	return i;
 }
 
-static int atmio16d_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int atmio16d_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 #ifdef DEBUG1
@@ -601,8 +601,8 @@ static int atmio16d_ao_insn_read(struct comedi_device * dev, struct comedi_subde
 	return i;
 }
 
-static int atmio16d_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int atmio16d_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan;
@@ -636,8 +636,8 @@ static int atmio16d_ao_insn_write(struct comedi_device * dev, struct comedi_subd
 	return i;
 }
 
-static int atmio16d_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int atmio16d_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -652,8 +652,8 @@ static int atmio16d_dio_insn_bits(struct comedi_device * dev, struct comedi_subd
 	return 2;
 }
 
-static int atmio16d_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int atmio16d_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int mask;
@@ -706,7 +706,7 @@ static int atmio16d_dio_insn_config(struct comedi_device * dev, struct comedi_su
    options[12] - dac1 coding
  */
 
-static int atmio16d_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int atmio16d_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	unsigned int irq;
 	unsigned long iobase;
@@ -841,7 +841,7 @@ static int atmio16d_attach(struct comedi_device * dev, struct comedi_devconfig *
 	return 0;
 }
 
-static int atmio16d_detach(struct comedi_device * dev)
+static int atmio16d_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: atmio16d: remove\n", dev->minor);
 

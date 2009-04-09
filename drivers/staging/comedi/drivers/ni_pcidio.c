@@ -287,9 +287,9 @@ enum FPGA_Control_Bits {
 #define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
 #endif
 
-static int nidio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int nidio_detach(struct comedi_device * dev);
-static int ni_pcidio_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int nidio_detach(struct comedi_device *dev);
+static int ni_pcidio_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static struct comedi_driver driver_pcidio = {
       driver_name:"ni_pcidio",
@@ -401,14 +401,14 @@ struct nidio96_private {
 };
 #define devpriv ((struct nidio96_private *)dev->private)
 
-static int ni_pcidio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int ni_pcidio_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int ni_pcidio_inttrig(struct comedi_device * dev, struct comedi_subdevice * s,
+static int ni_pcidio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int ni_pcidio_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum);
-static int nidio_find_device(struct comedi_device * dev, int bus, int slot);
+static int nidio_find_device(struct comedi_device *dev, int bus, int slot);
 static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode);
-static int setup_mite_dma(struct comedi_device * dev, struct comedi_subdevice * s);
+static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s);
 
 #ifdef DEBUG_FLAGS
 static void ni_pcidio_print_flags(unsigned int flags);
@@ -418,7 +418,7 @@ static void ni_pcidio_print_status(unsigned int status);
 #define ni_pcidio_print_status(x)
 #endif
 
-static int ni_pcidio_request_di_mite_channel(struct comedi_device * dev)
+static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 {
 	unsigned long flags;
 
@@ -441,7 +441,7 @@ static int ni_pcidio_request_di_mite_channel(struct comedi_device * dev)
 	return 0;
 }
 
-static void ni_pcidio_release_di_mite_channel(struct comedi_device * dev)
+static void ni_pcidio_release_di_mite_channel(struct comedi_device *dev)
 {
 	unsigned long flags;
 
@@ -469,7 +469,7 @@ static int nidio96_8255_cb(int dir, int port, int data, unsigned long iobase)
 	}
 }
 
-void ni_pcidio_event(struct comedi_device * dev, struct comedi_subdevice * s)
+void ni_pcidio_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	if (s->async->
 		events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))

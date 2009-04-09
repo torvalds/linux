@@ -152,7 +152,7 @@ void v_EepromClock76(unsigned int dw_Address, unsigned int dw_RegisterValue);
 void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress);
 void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromCommand,
 	unsigned char b_DataLengthInBits);
-void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short * pw_Value);
+void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short *pw_Value);
 
 /*
 +----------------------------------------------------------------------------+
@@ -652,7 +652,7 @@ void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromComman
 
 */
 
-void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short * pw_Value)
+void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short *pw_Value)
 {
 
         char c_BitPos = 0;
@@ -985,7 +985,7 @@ int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 */
 int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	struct str_DigitalOutputHeader * s_Header)
+	struct str_DigitalOutputHeader *s_Header)
 {
 /* Read Nbr channels */
 	s_Header->w_Nchannel =
@@ -1016,7 +1016,7 @@ int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 */
 int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	struct str_TimerMainHeader * s_Header)
+	struct str_TimerMainHeader *s_Header)
 {
 
 	unsigned short i, w_Size = 0, w_Temp;
@@ -1120,7 +1120,7 @@ int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 /* Reads only for ONE  hardware component */
 int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	struct str_AnalogInputHeader * s_Header)
+	struct str_AnalogInputHeader *s_Header)
 {
 	unsigned short w_Temp, w_Offset;
 	w_Temp = w_EepromReadWord(w_PCIBoardEepromAddress,

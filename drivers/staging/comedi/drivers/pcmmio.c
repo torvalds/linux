@@ -264,8 +264,8 @@ struct pcmmio_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pcmmio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pcmmio_detach(struct comedi_device * dev);
+static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcmmio_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver = {
       driver_name:"pcmmio",
@@ -321,7 +321,7 @@ static void unlock_port(struct comedi_device * dev, int asic, int port);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pcmmio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_dio_subdevs, n_subdevs, port, asic,
@@ -526,7 +526,7 @@ static int pcmmio_attach(struct comedi_device * dev, struct comedi_devconfig * i
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pcmmio_detach(struct comedi_device * dev)
+static int pcmmio_detach(struct comedi_device *dev)
 {
 	int i;
 
@@ -550,8 +550,8 @@ static int pcmmio_detach(struct comedi_device * dev)
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int pcmmio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcmmio_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int byte_no;
 	if (insn->n != 2)
@@ -624,8 +624,8 @@ static int pcmmio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdev
  * configured by a special insn_config instruction.  chanspec
  * contains the channel to be changed, and data[0] contains the
  * value COMEDI_INPUT or COMEDI_OUTPUT. */
-static int pcmmio_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcmmio_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec), byte_no = chan / 8, bit_no =
 		chan % 8;
@@ -685,7 +685,7 @@ static int pcmmio_dio_insn_config(struct comedi_device * dev, struct comedi_subd
 	return insn->n;
 }
 
-static void init_asics(struct comedi_device * dev)
+static void init_asics(struct comedi_device *dev)
 {				/* sets up an
 				   ASIC chip to defaults */
 	int asic;
@@ -722,7 +722,7 @@ static void init_asics(struct comedi_device * dev)
 	}
 }
 
-static void switch_page(struct comedi_device * dev, int asic, int page)
+static void switch_page(struct comedi_device *dev, int asic, int page)
 {
 	if (asic < 0 || asic >= thisboard->dio_num_asics)
 		return;		/* paranoia */
@@ -738,7 +738,7 @@ static void switch_page(struct comedi_device * dev, int asic, int page)
 }
 
 #ifdef notused
-static void lock_port(struct comedi_device * dev, int asic, int port)
+static void lock_port(struct comedi_device *dev, int asic, int port)
 {
 	if (asic < 0 || asic >= thisboard->dio_num_asics)
 		return;		/* paranoia */
@@ -752,7 +752,7 @@ static void lock_port(struct comedi_device * dev, int asic, int port)
 	return;
 }
 
-static void unlock_port(struct comedi_device * dev, int asic, int port)
+static void unlock_port(struct comedi_device *dev, int asic, int port)
 {
 	if (asic < 0 || asic >= thisboard->dio_num_asics)
 		return;		/* paranoia */
@@ -917,7 +917,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void pcmmio_stop_intr(struct comedi_device * dev, struct comedi_subdevice * s)
+static void pcmmio_stop_intr(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int nports, firstport, asic, port;
 
@@ -936,7 +936,7 @@ static void pcmmio_stop_intr(struct comedi_device * dev, struct comedi_subdevice
 	}
 }
 
-static int pcmmio_start_intr(struct comedi_device * dev, struct comedi_subdevice * s)
+static int pcmmio_start_intr(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	if (!subpriv->dio.intr.continuous && subpriv->dio.intr.stop_count == 0) {
 		/* An empty acquisition! */
@@ -995,7 +995,7 @@ static int pcmmio_start_intr(struct comedi_device * dev, struct comedi_subdevice
 	return 0;
 }
 
-static int pcmmio_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int pcmmio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned long flags;
 
@@ -1011,7 +1011,7 @@ static int pcmmio_cancel(struct comedi_device * dev, struct comedi_subdevice * s
  * Internal trigger function to start acquisition for an 'INTERRUPT' subdevice.
  */
 static int
-pcmmio_inttrig_start_intr(struct comedi_device * dev, struct comedi_subdevice * s,
+pcmmio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum)
 {
 	unsigned long flags;
@@ -1037,7 +1037,7 @@ pcmmio_inttrig_start_intr(struct comedi_device * dev, struct comedi_subdevice * 
 /*
  * 'do_cmd' function for an 'INTERRUPT' subdevice.
  */
-static int pcmmio_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
@@ -1082,7 +1082,7 @@ static int pcmmio_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
  * 'do_cmdtest' function for an 'INTERRUPT' subdevice.
  */
 static int
-pcmmio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, struct comedi_cmd * cmd)
+pcmmio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	unsigned int tmp;
@@ -1194,8 +1194,8 @@ static int adc_wait_ready(unsigned long iobase)
 }
 
 /* All this is for AI and AO */
-static int ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	unsigned long iobase = subpriv->iobase;
@@ -1258,8 +1258,8 @@ static int ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
 	return n;
 }
 
-static int ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	for (n = 0; n < insn->n; n++) {
@@ -1288,8 +1288,8 @@ static int wait_dac_ready(unsigned long iobase)
 	return 1;
 }
 
-static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	unsigned iobase = subpriv->iobase, iooffset = 0;

@@ -111,8 +111,8 @@ struct ni_670x_private {
 #define devpriv ((struct ni_670x_private *)dev->private)
 #define n_ni_670x_boards (sizeof(ni_670x_boards)/sizeof(ni_670x_boards[0]))
 
-static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int ni_670x_detach(struct comedi_device * dev);
+static int ni_670x_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int ni_670x_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_ni_670x = {
       driver_name:"ni_670x",
@@ -125,18 +125,18 @@ COMEDI_PCI_INITCLEANUP(driver_ni_670x, ni_670x_pci_table);
 
 static struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
 
-static int ni_670x_find_device(struct comedi_device * dev, int bus, int slot);
+static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot);
 
-static int ni_670x_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ni_670x_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ni_670x_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ni_670x_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int ni_670x_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ni_670x_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ni_670x_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ni_670x_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
-static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int ni_670x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret;
@@ -205,7 +205,7 @@ static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	return 1;
 }
 
-static int ni_670x_detach(struct comedi_device * dev)
+static int ni_670x_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: ni_670x: remove\n", dev->minor);
 
@@ -221,8 +221,8 @@ static int ni_670x_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int ni_670x_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_670x_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -247,8 +247,8 @@ static int ni_670x_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 	return i;
 }
 
-static int ni_670x_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_670x_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -259,8 +259,8 @@ static int ni_670x_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 	return i;
 }
 
-static int ni_670x_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_670x_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -281,8 +281,8 @@ static int ni_670x_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 	return 2;
 }
 
-static int ni_670x_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_670x_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -308,7 +308,7 @@ static int ni_670x_dio_insn_config(struct comedi_device * dev, struct comedi_sub
 	return insn->n;
 }
 
-static int ni_670x_find_device(struct comedi_device * dev, int bus, int slot)
+static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot)
 {
 	struct mite_struct *mite;
 	int i;

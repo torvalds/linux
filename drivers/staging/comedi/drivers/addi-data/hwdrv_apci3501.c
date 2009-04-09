@@ -73,8 +73,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI3501_ReadDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_Temp;
 	unsigned int ui_NoOfChannel;
@@ -121,8 +121,8 @@ int i_APCI3501_ReadDigitalInput(struct comedi_device * dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI3501_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 
 	if ((data[0] != 0) && (data[0] != 1)) {
@@ -161,8 +161,8 @@ int i_APCI3501_ConfigDigitalOutput(struct comedi_device * dev, struct comedi_sub
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI3501_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_Temp, ui_Temp1;
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
@@ -248,8 +248,8 @@ int i_APCI3501_WriteDigitalOutput(struct comedi_device * dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI3501_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ui_Temp;
 	unsigned int ui_NoOfChannel;
@@ -298,8 +298,8 @@ int i_APCI3501_ReadDigitalOutput(struct comedi_device * dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ConfigAnalogOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI3501_ConfigAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	outl(data[0],
 		devpriv->iobase + APCI3501_ANALOG_OUTPUT +
@@ -336,8 +336,8 @@ int i_APCI3501_ConfigAnalogOutput(struct comedi_device * dev, struct comedi_subd
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI3501_WriteAnalogOutput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ul_Command1 = 0, ul_Channel_no, ul_Polarity, ul_DAC_Ready = 0;;
 
@@ -410,8 +410,8 @@ int i_APCI3501_WriteAnalogOutput(struct comedi_device * dev, struct comedi_subde
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ul_Command1 = 0;
 	devpriv->tsk_Current = current;
@@ -511,8 +511,8 @@ int i_APCI3501_ConfigTimerCounterWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int ul_Command1 = 0;
 	int i_Temp;
@@ -613,8 +613,8 @@ int i_APCI3501_StartStopWriteTimerCounterWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
@@ -654,7 +654,7 @@ int i_APCI3501_ReadTimerCounterWatchdog(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI3501_Reset(struct comedi_device * dev)
+int i_APCI3501_Reset(struct comedi_device *dev)
 {
 	int i_Count = 0, i_temp = 0;
 	unsigned int ul_Command1 = 0, ul_Polarity, ul_DAC_Ready = 0;

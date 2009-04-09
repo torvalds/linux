@@ -97,8 +97,8 @@ union encvaluetype {
 
 #define C6XDIGIO_TIME_OUT 20
 
-static int c6xdigio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int c6xdigio_detach(struct comedi_device * dev);
+static int c6xdigio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int c6xdigio_detach(struct comedi_device *dev);
 struct comedi_driver driver_c6xdigio = {
       driver_name:"c6xdigio",
       module:THIS_MODULE,
@@ -338,15 +338,15 @@ static void C6X_encResetAll(unsigned long baseAddr)
 	}
 }
 
-static int c6xdigio_pwmo_insn_read(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+static int c6xdigio_pwmo_insn_read(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	printk("c6xdigio_pwmo_insn_read %x\n", insn->n);
 	return insn->n;
 }
 
-static int c6xdigio_pwmo_insn_write(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -379,8 +379,8 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device * dev,
 /*  *//* return insn->n; */
 /* } */
 
-static int c6xdigio_ei_insn_read(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+static int c6xdigio_ei_insn_read(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	/*   printk("c6xdigio_ei__insn_read %x\n", insn->n); */
 	int n;
@@ -393,7 +393,7 @@ static int c6xdigio_ei_insn_read(struct comedi_device * dev,
 	return n;
 }
 
-static void board_init(struct comedi_device * dev)
+static void board_init(struct comedi_device *dev)
 {
 
 	/* printk("Inside board_init\n"); */
@@ -426,7 +426,7 @@ static struct pnp_driver c6xdigio_pnp_driver = {
 	.id_table = c6xdigio_pnp_tbl,
 };
 
-static int c6xdigio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int c6xdigio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int result = 0;
 	unsigned long iobase;
@@ -495,7 +495,7 @@ static int c6xdigio_attach(struct comedi_device * dev, struct comedi_devconfig *
 	return 0;
 }
 
-static int c6xdigio_detach(struct comedi_device * dev)
+static int c6xdigio_detach(struct comedi_device *dev)
 {
 /* board_halt(dev);  may not need this */
 

@@ -175,8 +175,8 @@ struct cb_pcimdas_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int cb_pcimdas_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int cb_pcimdas_detach(struct comedi_device * dev);
+static int cb_pcimdas_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int cb_pcimdas_detach(struct comedi_device *dev);
 static struct comedi_driver driver_cb_pcimdas = {
       driver_name:"cb_pcimdas",
       module:THIS_MODULE,
@@ -184,12 +184,12 @@ static struct comedi_driver driver_cb_pcimdas = {
       detach:cb_pcimdas_detach,
 };
 
-static int cb_pcimdas_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int cb_pcimdas_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int cb_pcimdas_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int cb_pcimdas_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int cb_pcimdas_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int cb_pcimdas_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -197,7 +197,7 @@ static int cb_pcimdas_ao_rinsn(struct comedi_device * dev, struct comedi_subdevi
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int cb_pcimdas_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int cb_pcimdas_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;
@@ -342,7 +342,7 @@ static int cb_pcimdas_attach(struct comedi_device * dev, struct comedi_devconfig
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int cb_pcimdas_detach(struct comedi_device * dev)
+static int cb_pcimdas_detach(struct comedi_device *dev)
 {
 #ifdef CBPCIMDAS_DEBUG
 	if (devpriv) {
@@ -372,8 +372,8 @@ static int cb_pcimdas_detach(struct comedi_device * dev)
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
-static int cb_pcimdas_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int cb_pcimdas_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n, i;
 	unsigned int d;
@@ -437,8 +437,8 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device * dev, struct comedi_subdevi
 	return n;
 }
 
-static int cb_pcimdas_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int cb_pcimdas_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -465,8 +465,8 @@ static int cb_pcimdas_ao_winsn(struct comedi_device * dev, struct comedi_subdevi
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int cb_pcimdas_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int cb_pcimdas_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

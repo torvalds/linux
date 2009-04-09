@@ -1207,8 +1207,8 @@ static const struct ni_board_struct ni_boards[] = {
 
 #define n_pcimio_boards ((sizeof(ni_boards)/sizeof(ni_boards[0])))
 
-static int pcimio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pcimio_detach(struct comedi_device * dev);
+static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcimio_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcimio = {
 	driver_name: DRV_NAME,
 	module:THIS_MODULE,
@@ -1242,7 +1242,7 @@ struct ni_private {
 /* However, the 611x boards still aren't working, so I'm disabling
  * non-windowed STC access temporarily */
 
-static void e_series_win_out(struct comedi_device * dev, uint16_t data, int reg)
+static void e_series_win_out(struct comedi_device *dev, uint16_t data, int reg)
 {
 	unsigned long flags;
 
@@ -1252,7 +1252,7 @@ static void e_series_win_out(struct comedi_device * dev, uint16_t data, int reg)
 	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
-static uint16_t e_series_win_in(struct comedi_device * dev, int reg)
+static uint16_t e_series_win_in(struct comedi_device *dev, int reg)
 {
 	unsigned long flags;
 	uint16_t ret;
@@ -1265,7 +1265,7 @@ static uint16_t e_series_win_in(struct comedi_device * dev, int reg)
 	return ret;
 }
 
-static void m_series_stc_writew(struct comedi_device * dev, uint16_t data, int reg)
+static void m_series_stc_writew(struct comedi_device *dev, uint16_t data, int reg)
 {
 	unsigned offset;
 	switch (reg) {
@@ -1420,7 +1420,7 @@ static void m_series_stc_writew(struct comedi_device * dev, uint16_t data, int r
 	ni_writew(data, offset);
 }
 
-static uint16_t m_series_stc_readw(struct comedi_device * dev, int reg)
+static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
 {
 	unsigned offset;
 	switch (reg) {
@@ -1455,7 +1455,7 @@ static uint16_t m_series_stc_readw(struct comedi_device * dev, int reg)
 	return ni_readw(offset);
 }
 
-static void m_series_stc_writel(struct comedi_device * dev, uint32_t data, int reg)
+static void m_series_stc_writel(struct comedi_device *dev, uint32_t data, int reg)
 {
 	unsigned offset;
 	switch (reg) {
@@ -1496,7 +1496,7 @@ static void m_series_stc_writel(struct comedi_device * dev, uint32_t data, int r
 	ni_writel(data, offset);
 }
 
-static uint32_t m_series_stc_readl(struct comedi_device * dev, int reg)
+static uint32_t m_series_stc_readl(struct comedi_device *dev, int reg)
 {
 	unsigned offset;
 	switch (reg) {
@@ -1529,19 +1529,19 @@ static uint32_t m_series_stc_readl(struct comedi_device * dev, int reg)
 
 #include "ni_mio_common.c"
 
-static int pcimio_find_device(struct comedi_device * dev, int bus, int slot);
-static int pcimio_ai_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_find_device(struct comedi_device *dev, int bus, int slot);
+static int pcimio_ai_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
-static int pcimio_ao_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_ao_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
-static int pcimio_gpct0_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_gpct0_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
-static int pcimio_gpct1_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_gpct1_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
-static int pcimio_dio_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_dio_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size);
 
-static void m_series_init_eeprom_buffer(struct comedi_device * dev)
+static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 {
 	static const int Start_Cal_EEPROM = 0x400;
 	static const unsigned window_size = 10;
@@ -1578,7 +1578,7 @@ static void m_series_init_eeprom_buffer(struct comedi_device * dev)
 	writel(0x0, devpriv->mite->mite_io_addr + 0x30);
 }
 
-static void init_6143(struct comedi_device * dev)
+static void init_6143(struct comedi_device *dev)
 {
 	/*  Disable interrupts */
 	devpriv->stc_writew(dev, 0, Interrupt_Control_Register);
@@ -1598,7 +1598,7 @@ static void init_6143(struct comedi_device * dev)
 }
 
 /* cleans up allocated resources */
-static int pcimio_detach(struct comedi_device * dev)
+static int pcimio_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
 	if (dev->irq) {
@@ -1617,7 +1617,7 @@ static int pcimio_detach(struct comedi_device * dev)
 	return 0;
 }
 
-static int pcimio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 
@@ -1700,7 +1700,7 @@ static int pcimio_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return ret;
 }
 
-static int pcimio_find_device(struct comedi_device * dev, int bus, int slot)
+static int pcimio_find_device(struct comedi_device *dev, int bus, int slot)
 {
 	struct mite_struct *mite;
 	int i;
@@ -1728,7 +1728,7 @@ static int pcimio_find_device(struct comedi_device * dev, int bus, int slot)
 	return -EIO;
 }
 
-static int pcimio_ai_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_ai_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
@@ -1740,7 +1740,7 @@ static int pcimio_ai_change(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int pcimio_ao_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_ao_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
@@ -1752,7 +1752,7 @@ static int pcimio_ao_change(struct comedi_device * dev, struct comedi_subdevice 
 	return 0;
 }
 
-static int pcimio_gpct0_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_gpct0_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
@@ -1764,7 +1764,7 @@ static int pcimio_gpct0_change(struct comedi_device * dev, struct comedi_subdevi
 	return 0;
 }
 
-static int pcimio_gpct1_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_gpct1_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
@@ -1776,7 +1776,7 @@ static int pcimio_gpct1_change(struct comedi_device * dev, struct comedi_subdevi
 	return 0;
 }
 
-static int pcimio_dio_change(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pcimio_dio_change(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
