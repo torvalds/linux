@@ -44,6 +44,7 @@
 /* Bitmasks */
 #define IXGBE_SFF_TWIN_AX_CAPABLE            0x80
 #define IXGBE_SFF_1GBASESX_CAPABLE           0x1
+#define IXGBE_SFF_1GBASELX_CAPABLE           0x2
 #define IXGBE_SFF_10GBASESR_CAPABLE          0x10
 #define IXGBE_SFF_10GBASELR_CAPABLE          0x20
 #define IXGBE_I2C_EEPROM_READ_MASK           0x100

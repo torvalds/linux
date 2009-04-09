@@ -102,6 +102,9 @@ s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 
 	if (hw->phy.sfp_type != ixgbe_sfp_type_unknown) {
 		ixgbe_init_mac_link_ops_82599(hw);
+
+		hw->phy.ops.reset = NULL;
+
 		ret_val = ixgbe_get_sfp_init_sequence_offsets(hw, &list_offset,
 		                                              &data_offset);
 
@@ -716,18 +719,23 @@ s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	hw->mac.ops.stop_adapter(hw);
 
-	/* Reset PHY */
-	if (hw->phy.reset_disable == false) {
-		/* PHY ops must be identified and initialized prior to reset */
+	/* PHY ops must be identified and initialized prior to reset */
 
-		/* Init PHY and function pointers, perform SFP setup */
-		status = hw->phy.ops.init(hw);
+	/* Init PHY and function pointers, perform SFP setup */
+	status = hw->phy.ops.init(hw);
 
-		if (status == IXGBE_ERR_SFP_NOT_SUPPORTED)
-			goto reset_hw_out;
+	if (status == IXGBE_ERR_SFP_NOT_SUPPORTED)
+		goto reset_hw_out;
 
-		hw->phy.ops.reset(hw);
+	/* Setup SFP module if there is one present. */
+	if (hw->phy.sfp_setup_needed) {
+		status = hw->mac.ops.setup_sfp(hw);
+		hw->phy.sfp_setup_needed = false;
 	}
+
+	/* Reset PHY */
+	if (hw->phy.reset_disable == false && hw->phy.ops.reset != NULL)
+		hw->phy.ops.reset(hw);
 
 	/*
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
