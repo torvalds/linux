@@ -93,6 +93,9 @@ config AUDIT_ARCH
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y if SPARC64
 
+config HAVE_DYNAMIC_PER_CPU_AREA
+	def_bool y if SPARC64
+
 config GENERIC_HARDIRQS_NO__DO_IRQ
 	bool
 	def_bool y if SPARC64
