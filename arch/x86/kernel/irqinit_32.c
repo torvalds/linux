@@ -171,25 +171,8 @@ static void __init x86_quirk_pre_intr_init(void)
 	init_ISA_irqs();
 }
 
-void __init native_init_IRQ(void)
+static void __init apic_intr_init(void)
 {
-	int i;
-
-	/* Execute any quirks before the call gates are initialised: */
-	x86_quirk_pre_intr_init();
-
-	/*
-	 * Cover the whole vector space, no vector can escape
-	 * us. (some of these will be overridden and become
-	 * 'special' SMP interrupts)
-	 */
-	for (i =  FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
-		/* SYSCALL_VECTOR was reserved in trap_init. */
-		if (i != SYSCALL_VECTOR)
-			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
-	}
-
-
 	smp_intr_init();
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -208,6 +191,27 @@ void __init native_init_IRQ(void)
 	/* thermal monitor LVT interrupt */
 	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
 #endif
+}
+
+void __init native_init_IRQ(void)
+{
+	int i;
+
+	/* Execute any quirks before the call gates are initialised: */
+	x86_quirk_pre_intr_init();
+
+	/*
+	 * Cover the whole vector space, no vector can escape
+	 * us. (some of these will be overridden and become
+	 * 'special' SMP interrupts)
+	 */
+	for (i =  FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
+		/* SYSCALL_VECTOR was reserved in trap_init. */
+		if (i != SYSCALL_VECTOR)
+			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
+	}
+
+	apic_intr_init();
 
 	if (!acpi_ioapic)
 		setup_irq(2, &irq2);
