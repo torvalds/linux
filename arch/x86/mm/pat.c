@@ -182,10 +182,10 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 		u8 mtrr_type;
 
 		mtrr_type = mtrr_type_lookup(start, end);
-		if (mtrr_type == MTRR_TYPE_UNCACHABLE)
-			return _PAGE_CACHE_UC;
-		if (mtrr_type == MTRR_TYPE_WRCOMB)
-			return _PAGE_CACHE_WC;
+		if (mtrr_type != MTRR_TYPE_WRBACK)
+			return _PAGE_CACHE_UC_MINUS;
+
+		return _PAGE_CACHE_WB;
 	}
 
 	return req_type;
@@ -352,23 +352,13 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		return 0;
 	}
 
-	if (req_type == -1) {
-		/*
-		 * Call mtrr_lookup to get the type hint. This is an
-		 * optimization for /dev/mem mmap'ers into WB memory (BIOS
-		 * tools and ACPI tools). Use WB request for WB memory and use
-		 * UC_MINUS otherwise.
-		 */
-		u8 mtrr_type = mtrr_type_lookup(start, end);
-
-		if (mtrr_type == MTRR_TYPE_WRBACK)
-			actual_type = _PAGE_CACHE_WB;
-		else
-			actual_type = _PAGE_CACHE_UC_MINUS;
-	} else {
-		actual_type = pat_x_mtrr_type(start, end,
-					      req_type & _PAGE_CACHE_MASK);
-	}
+	/*
+	 * Call mtrr_lookup to get the type hint. This is an
+	 * optimization for /dev/mem mmap'ers into WB memory (BIOS
+	 * tools and ACPI tools). Use WB request for WB memory and use
+	 * UC_MINUS otherwise.
+	 */
+	actual_type = pat_x_mtrr_type(start, end, req_type & _PAGE_CACHE_MASK);
 
 	if (new_type)
 		*new_type = actual_type;
@@ -587,7 +577,8 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	if (flags != -1) {
 		retval = reserve_memtype(offset, offset + size, flags, NULL);
 	} else {
-		retval = reserve_memtype(offset, offset + size, -1, &flags);
+		retval = reserve_memtype(offset, offset + size,
+					_PAGE_CACHE_WB, &flags);
 	}
 
 	if (retval < 0)

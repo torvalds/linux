@@ -375,7 +375,8 @@ static void __iomem *ioremap_default(resource_size_t phys_addr,
 	 * - UC_MINUS for non-WB-able memory with no other conflicting mappings
 	 * - Inherit from confliting mappings otherwise
 	 */
-	err = reserve_memtype(phys_addr, phys_addr + size, -1, &flags);
+	err = reserve_memtype(phys_addr, phys_addr + size,
+				_PAGE_CACHE_WB, &flags);
 	if (err < 0)
 		return NULL;
 
