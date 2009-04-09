@@ -350,7 +350,7 @@ struct cifsFileInfo {
 	bool invalidHandle:1;	/* file closed via session abend */
 	bool messageMode:1;	/* for pipes: message vs byte mode */
 	atomic_t wrtPending;   /* handle in use - defer close */
-	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
+	struct mutex fh_mutex; /* prevents reopen race after dead ses*/
 	struct cifs_search_info srch_inf;
 };
 

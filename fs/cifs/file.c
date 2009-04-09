@@ -46,7 +46,7 @@ static inline struct cifsFileInfo *cifs_init_private(
 	memset(private_data, 0, sizeof(struct cifsFileInfo));
 	private_data->netfid = netfid;
 	private_data->pid = current->tgid;
-	init_MUTEX(&private_data->fh_sem);
+	mutex_init(&private_data->fh_mutex);
 	mutex_init(&private_data->lock_mutex);
 	INIT_LIST_HEAD(&private_data->llist);
 	private_data->pfile = file; /* needed for writepage */
@@ -284,34 +284,33 @@ int cifs_open(struct inode *inode, struct file *file)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	tcon = cifs_sb->tcon;
 
-	if (file->f_flags & O_CREAT) {
-		/* search inode for this file and fill in file->private_data */
-		pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
-		read_lock(&GlobalSMBSeslock);
-		list_for_each(tmp, &pCifsInode->openFileList) {
-			pCifsFile = list_entry(tmp, struct cifsFileInfo,
-					       flist);
-			if ((pCifsFile->pfile == NULL) &&
-			    (pCifsFile->pid == current->tgid)) {
-				/* mode set in cifs_create */
+	/* search inode for this file and fill in file->private_data */
+	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
+	read_lock(&GlobalSMBSeslock);
+	list_for_each(tmp, &pCifsInode->openFileList) {
+		pCifsFile = list_entry(tmp, struct cifsFileInfo,
+				       flist);
+		if ((pCifsFile->pfile == NULL) &&
+		    (pCifsFile->pid == current->tgid)) {
+			/* mode set in cifs_create */
 
-				/* needed for writepage */
-				pCifsFile->pfile = file;
+			/* needed for writepage */
+			pCifsFile->pfile = file;
 
-				file->private_data = pCifsFile;
-				break;
-			}
+			file->private_data = pCifsFile;
+			break;
 		}
-		read_unlock(&GlobalSMBSeslock);
-		if (file->private_data != NULL) {
-			rc = 0;
-			FreeXid(xid);
-			return rc;
-		} else {
-			if (file->f_flags & O_EXCL)
-				cERROR(1, ("could not find file instance for "
-					   "new file %p", file));
-		}
+	}
+	read_unlock(&GlobalSMBSeslock);
+
+	if (file->private_data != NULL) {
+		rc = 0;
+		FreeXid(xid);
+		return rc;
+	} else {
+		if ((file->f_flags & O_CREAT) && (file->f_flags & O_EXCL))
+			cERROR(1, ("could not find file instance for "
+				   "new file %p", file));
 	}
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
@@ -500,9 +499,9 @@ static int cifs_reopen_file(struct file *file, bool can_flush)
 		return -EBADF;
 
 	xid = GetXid();
-	down(&pCifsFile->fh_sem);
+	mutex_unlock(&pCifsFile->fh_mutex);
 	if (!pCifsFile->invalidHandle) {
-		up(&pCifsFile->fh_sem);
+		mutex_lock(&pCifsFile->fh_mutex);
 		FreeXid(xid);
 		return 0;
 	}
@@ -533,7 +532,7 @@ static int cifs_reopen_file(struct file *file, bool can_flush)
 	if (full_path == NULL) {
 		rc = -ENOMEM;
 reopen_error_exit:
-		up(&pCifsFile->fh_sem);
+		mutex_lock(&pCifsFile->fh_mutex);
 		FreeXid(xid);
 		return rc;
 	}
@@ -575,14 +574,14 @@ reopen_error_exit:
 			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
-		up(&pCifsFile->fh_sem);
+		mutex_lock(&pCifsFile->fh_mutex);
 		cFYI(1, ("cifs_open returned 0x%x", rc));
 		cFYI(1, ("oplock: %d", oplock));
 	} else {
 reopen_success:
 		pCifsFile->netfid = netfid;
 		pCifsFile->invalidHandle = false;
-		up(&pCifsFile->fh_sem);
+		mutex_lock(&pCifsFile->fh_mutex);
 		pCifsInode = CIFS_I(inode);
 		if (pCifsInode) {
 			if (can_flush) {
