@@ -96,6 +96,7 @@ static void update_rfkill_state(struct rfkill *rfkill)
 		}
 		mutex_unlock(&rfkill->mutex);
 	}
+	rfkill_led_trigger(rfkill, rfkill->state);
 }
 
 /**
@@ -136,8 +137,9 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 	oldstate = rfkill->state;
 
 	if (rfkill->get_state && !force &&
-	    !rfkill->get_state(rfkill->data, &newstate))
+	    !rfkill->get_state(rfkill->data, &newstate)) {
 		rfkill->state = newstate;
+	}
 
 	switch (state) {
 	case RFKILL_STATE_HARD_BLOCKED:
@@ -172,6 +174,7 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 	if (force || rfkill->state != oldstate)
 		rfkill_uevent(rfkill);
 
+	rfkill_led_trigger(rfkill, rfkill->state);
 	return retval;
 }
 
@@ -204,6 +207,7 @@ static void __rfkill_switch_all(const enum rfkill_type type,
 			mutex_lock(&rfkill->mutex);
 			rfkill_toggle_radio(rfkill, state, 0);
 			mutex_unlock(&rfkill->mutex);
+			rfkill_led_trigger(rfkill, rfkill->state);
 		}
 	}
 }
@@ -256,6 +260,7 @@ void rfkill_epo(void)
 				RFKILL_STATE_SOFT_BLOCKED;
 	}
 	mutex_unlock(&rfkill_global_mutex);
+	rfkill_led_trigger(rfkill, rfkill->state);
 }
 EXPORT_SYMBOL_GPL(rfkill_epo);
 
@@ -358,6 +363,7 @@ int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state)
 		rfkill_uevent(rfkill);
 
 	mutex_unlock(&rfkill->mutex);
+	rfkill_led_trigger(rfkill, rfkill->state);
 
 	return 0;
 }
@@ -520,6 +526,7 @@ static int rfkill_resume(struct device *dev)
 				1);
 
 		mutex_unlock(&rfkill->mutex);
+		rfkill_led_trigger(rfkill, rfkill->state);
 	}
 
 	return 0;
