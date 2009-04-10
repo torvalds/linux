@@ -31,6 +31,8 @@ struct tracepoint {
 					 * Keep in sync with vmlinux.lds.h.
 					 */
 
+#ifndef DECLARE_TRACE
+
 #define TP_PROTO(args...)	args
 #define TP_ARGS(args...)		args
 
@@ -114,6 +116,7 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 	struct tracepoint *end)
 { }
 #endif /* CONFIG_TRACEPOINTS */
+#endif /* DECLARE_TRACE */
 
 /*
  * Connect a probe to a tracepoint.
@@ -154,10 +157,13 @@ static inline void tracepoint_synchronize_unregister(void)
 }
 
 #define PARAMS(args...) args
+
+#ifndef TRACE_FORMAT
 #define TRACE_FORMAT(name, proto, args, fmt)		\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+#endif
 
-
+#ifndef TRACE_EVENT
 /*
  * For use with the TRACE_EVENT macro:
  *
@@ -262,5 +268,6 @@ static inline void tracepoint_synchronize_unregister(void)
 
 #define TRACE_EVENT(name, proto, args, struct, assign, print)	\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+#endif
 
 #endif

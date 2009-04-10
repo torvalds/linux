@@ -1,7 +1,7 @@
 /*
  * Stage 3 of the trace events.
  *
- * Override the macros in <trace/trace_event_types.h> to include the following:
+ * Override the macros in <trace/trace_events.h> to include the following:
  *
  * static void ftrace_event_<call>(proto)
  * {
@@ -272,7 +272,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	_TRACE_PROFILE_INIT(call)					\
 }
 
-#include <trace/trace_event_types.h>
+#include <trace/trace_events.h>
 
 #undef _TRACE_PROFILE
 #undef _TRACE_PROFILE_INIT

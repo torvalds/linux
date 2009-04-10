@@ -8,6 +8,7 @@
 
 #include "trace_output.h"
 
+#define TRACE_HEADER_MULTI_READ
 #include "trace_events_stage_1.h"
 #include "trace_events_stage_2.h"
 #include "trace_events_stage_3.h"

@@ -1,7 +1,7 @@
 /*
  * Stage 2 of the trace events.
  *
- * Override the macros in <trace/trace_event_types.h> to include the following:
+ * Override the macros in <trace/trace_events.h> to include the following:
  *
  * enum print_line_t
  * ftrace_raw_output_<call>(struct trace_iterator *iter, int flags)
@@ -64,7 +64,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 	return TRACE_TYPE_HANDLED;					\
 }
 	
-#include <trace/trace_event_types.h>
+#include <trace/trace_events.h>
 
 /*
  * Setup the showing format of trace point.
@@ -128,7 +128,7 @@ ftrace_format_##call(struct trace_seq *s)				\
 	return ret;							\
 }
 
-#include <trace/trace_event_types.h>
+#include <trace/trace_events.h>
 
 #undef __field
 #define __field(type, item)						\
@@ -167,4 +167,4 @@ ftrace_define_fields_##call(void)					\
 	return ret;							\
 }
 
-#include <trace/trace_event_types.h>
+#include <trace/trace_events.h>

@@ -1,7 +1,7 @@
 /*
  * Stage 1 of the trace events.
  *
- * Override the macros in <trace/trace_event_types.h> to include the following:
+ * Override the macros in <trace/trace_events.h> to include the following:
  *
  * struct ftrace_raw_<call> {
  *	struct trace_entry		ent;
@@ -36,4 +36,4 @@
 	};							\
 	static struct ftrace_event_call event_##name
 
-#include <trace/trace_event_types.h>
+#include <trace/trace_events.h>
