@@ -210,15 +210,11 @@ snd_wavefront_fx_ioctl (struct snd_hwdep *sdev, struct file *file,
 					    "> 512 bytes to FX\n");
 				return -EIO;
 			}
-			page_data = kmalloc(r.data[2] * sizeof(short), GFP_KERNEL);
-			if (!page_data)
-				return -ENOMEM;
-			if (copy_from_user (page_data,
-					    (unsigned char __user *) r.data[3],
-					    r.data[2] * sizeof(short))) {
-				kfree(page_data);
-				return -EFAULT;
-			}
+			page_data = memdup_user((unsigned char __user *)
+						r.data[3],
+						r.data[2] * sizeof(short));
+			if (IS_ERR(page_data))
+				return PTR_ERR(page_data);
 			pd = page_data;
 		}
 
