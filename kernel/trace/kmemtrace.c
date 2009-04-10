@@ -12,7 +12,7 @@
 #include <linux/dcache.h>
 #include <linux/fs.h>
 
-#include <trace/kmemtrace.h>
+#include <linux/kmemtrace.h>
 
 #include "trace_output.h"
 #include "trace.h"

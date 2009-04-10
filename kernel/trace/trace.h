@@ -9,7 +9,7 @@
 #include <linux/mmiotrace.h>
 #include <linux/ftrace.h>
 #include <trace/boot.h>
-#include <trace/kmemtrace.h>
+#include <linux/kmemtrace.h>
 #include <trace/power.h>
 
 enum trace_type {

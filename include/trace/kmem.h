@@ -1,24 +1,8 @@
-/*
- * Copyright (C) 2008 Eduard - Gabriel Munteanu
- *
- * This file is released under GPL version 2.
- */
-
-#ifndef _LINUX_KMEMTRACE_H
-#define _LINUX_KMEMTRACE_H
-
-#ifdef __KERNEL__
+#ifndef _TRACE_KMEM_H
+#define _TRACE_KMEM_H
 
 #include <linux/tracepoint.h>
 #include <linux/types.h>
-
-#ifdef CONFIG_KMEMTRACE
-extern void kmemtrace_init(void);
-#else
-static inline void kmemtrace_init(void)
-{
-}
-#endif
 
 DECLARE_TRACE(kmalloc,
 	      TP_PROTO(unsigned long call_site,
@@ -57,7 +41,4 @@ DECLARE_TRACE(kmem_cache_free,
 	      TP_PROTO(unsigned long call_site, const void *ptr),
 	      TP_ARGS(call_site, ptr));
 
-#endif /* __KERNEL__ */
-
-#endif /* _LINUX_KMEMTRACE_H */
-
+#endif /* _TRACE_KMEM_H */
