@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.14';
+my $V = '0.15';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -34,7 +34,7 @@ my $scm = 0;
 my $web = 0;
 my $subsystem = 0;
 my $status = 0;
-my $onefile = 0;
+my $from_filename = 0;
 my $version = 0;
 my $help = 0;
 
@@ -72,7 +72,7 @@ if (!GetOptions(
 		'status!' => \$status,
 		'scm!' => \$scm,
 		'web!' => \$web,
-		'f|file' => \$onefile,
+		'f|file' => \$from_filename,
 		'v|version' => \$version,
 		'h|help' => \$help,
 		)) {
@@ -89,8 +89,6 @@ if ($version != 0) {
     print("${P} ${V}\n");
     exit 0;
 }
-
-my $infile = $ARGV[0];
 
 if ($#ARGV < 0) {
     usage();
@@ -139,32 +137,35 @@ while (<MAINT>) {
 }
 close(MAINT);
 
-## use the filename on the command line or find the filenames in the patchfile
+## use the filenames on the command line or find the filenames in the patchfiles
 
 my @files = ();
 
-if ($onefile) {
-    if (!(-f $infile)) {
-	die "$P: file '${infile}' not found\n";
+foreach my $file (@ARGV) {
+    next if ((-d $file));
+    if (!(-f $file)) {
+	die "$P: file '${file}' not found\n";
     }
-    push(@files, $infile);
-} else {
-    open(PATCH, "<$infile") or die "$P: Can't open ${infile}\n";
-    while (<PATCH>) {
-	if (m/^\+\+\+\s+(\S+)/) {
-	    my $file = $1;
-	    $file =~ s@^[^/]*/@@;
-	    $file =~ s@\n@@;
-	    push(@files, $file);
+    if ($from_filename) {
+	push(@files, $file);
+    } else {
+	my $file_cnt = @files;
+	open(PATCH, "<$file") or die "$P: Can't open ${file}\n";
+	while (<PATCH>) {
+	    if (m/^\+\+\+\s+(\S+)/) {
+		my $filename = $1;
+		$filename =~ s@^[^/]*/@@;
+		$filename =~ s@\n@@;
+		push(@files, $filename);
+	    }
 	}
+	close(PATCH);
+	if ($file_cnt == @files) {
+	    die "$P: file '${file}' doesn't appear to be a patch.  "
+		. "Add -f to options?\n";
+	}
+	@files = sort_and_uniq(@files);
     }
-    close(PATCH);
-    my $file_cnt = @files;
-    if ($file_cnt == 0) {
-	print STDERR "$P: file '${infile}' doesn't appear to be a patch.  "
-	    . "Add -f to options?\n";
-    }
-    @files = sort_and_uniq(@files);
 }
 
 my @email_to = ();
@@ -208,7 +209,7 @@ foreach my $file (@files) {
 	}
     }
 
-    if ($email_git) {
+    if ($email && $email_git) {
 	recent_git_signoffs($file);
     }
 
@@ -240,30 +241,22 @@ if ($email) {
 }
 
 if ($scm) {
-    if (!$onefile) {
-	@scm = sort_and_uniq(@scm);
-    }
+    @scm = sort_and_uniq(@scm);
     output(@scm);
 }
 
 if ($status) {
-    if (!$onefile) {
-	@status = sort_and_uniq(@status);
-    }
+    @status = sort_and_uniq(@status);
     output(@status);
 }
 
 if ($subsystem) {
-    if (!$onefile) {
-	@subsystem = sort_and_uniq(@subsystem);
-    }
+    @subsystem = sort_and_uniq(@subsystem);
     output(@subsystem);
 }
 
 if ($web) {
-    if (!$onefile) {
-	@web = sort_and_uniq(@web);
-    }
+    @web = sort_and_uniq(@web);
     output(@web);
 }
 
@@ -445,10 +438,12 @@ sub recent_git_signoffs {
     }
 
     $cmd = "git log --since=${email_git_since} -- ${file}";
-    $cmd .= " | grep -P '^    [-A-Za-z]+by:.*\\\@'";
+    $cmd .= " | grep -Pi \"^[-_ 	a-z]+by:.*\\\@\"";
     if (!$email_git_penguin_chiefs) {
-	$cmd .= " | grep -E -v \"${penguin_chiefs}\"";
+	$cmd .= " | grep -Pv \"${penguin_chiefs}\"";
     }
+    $cmd .= " | cut -f2- -d\":\"";
+    $cmd .= " | sed -e \"s/^\\s+//g\"";
     $cmd .= " | sort | uniq -c | sort -rn";
 
     $output = `${cmd}`;
@@ -456,9 +451,9 @@ sub recent_git_signoffs {
 
     @lines = split("\n", $output);
     foreach my $line (@lines) {
-	if ($line =~ m/([0-9]+)\s+([-A-Za-z]+by:)\s+(.*)/) {
+	if ($line =~ m/([0-9]+)\s+(.*)/) {
 	    my $sign_offs = $1;
-	    $line = $3;
+	    $line = $2;
 	    $count++;
 	    if ($sign_offs < $email_git_min_signatures ||
 	        $count > $email_git_max_maintainers) {
@@ -467,17 +462,19 @@ sub recent_git_signoffs {
 	} else {
 	    die("$P: Unexpected git output: ${line}\n");
 	}
-	if ($line =~ m/(.*) <(.*)>/) {
+	if ($line =~ m/(.+)<(.+)>/) {
 	    my $git_name = $1;
 	    my $git_addr = $2;
 	    $git_name =~ tr/^\"//;
+	    $git_name =~ tr/^\\s*//;
 	    $git_name =~ tr/\"$//;
+	    $git_name =~ tr/\\s*$//;
 	    if ($email_usename) {
 		push(@email_to, format_email($git_name, $git_addr));
 	    } else {
 		push(@email_to, $git_addr);
 	    }
-	} elsif ($line =~ m/<(.*)>/) {
+	} elsif ($line =~ m/<(.+)>/) {
 	    my $git_addr = $1;
 	    push(@email_to, $git_addr);
 	} else {
