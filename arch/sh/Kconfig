@@ -22,7 +22,7 @@ config SUPERH
 	  <http://www.linux-sh.org/>.
 
 config SUPERH32
-	def_bool !SUPERH64
+	def_bool ARCH = "sh"
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_FUNCTION_TRACER
@@ -32,7 +32,7 @@ config SUPERH32
 	select ARCH_HIBERNATION_POSSIBLE if MMU
 
 config SUPERH64
-	def_bool y if CPU_SH5
+	def_bool ARCH = "sh64"
 
 config ARCH_DEFCONFIG
 	string
@@ -187,6 +187,8 @@ config CPU_SHX3
 config ARCH_SHMOBILE
 	bool
 	select ARCH_SUSPEND_POSSIBLE
+
+if SUPERH32
 
 choice
 	prompt "Processor sub-type selection"
@@ -409,6 +411,15 @@ config CPU_SUBTYPE_SH7366
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_CMT
 
+endchoice
+
+endif
+
+if SUPERH64
+
+choice
+	prompt "Processor sub-type selection"
+
 # SH-5 Processor Support
 
 config CPU_SUBTYPE_SH5_101
@@ -420,6 +431,8 @@ config CPU_SUBTYPE_SH5_103
 	select CPU_SH5
 
 endchoice
+
+endif
 
 source "arch/sh/mm/Kconfig"
  
