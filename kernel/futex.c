@@ -1668,7 +1668,7 @@ retry:
 	q->key = FUTEX_KEY_INIT;
 	ret = get_futex_key(uaddr, fshared, &q->key);
 	if (unlikely(ret != 0))
-		goto out;
+		return ret;
 
 retry_private:
 	*hb = queue_lock(q);
