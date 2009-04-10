@@ -13,7 +13,7 @@
 #define _ASM_CACHE_H
 
 #include <asm/cpu-regs.h>
-#include <asm/proc/cache.h>
+#include <proc/cache.h>
 
 #ifndef __ASSEMBLY__
 #define L1_CACHE_DISPARITY	(L1_CACHE_NENTRIES * L1_CACHE_BYTES)

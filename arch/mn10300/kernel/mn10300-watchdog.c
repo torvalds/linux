@@ -25,7 +25,7 @@
 #include <asm/div64.h>
 #include <asm/smp.h>
 #include <asm/gdb-stub.h>
-#include <asm/proc/clock.h>
+#include <proc/clock.h>
 
 static DEFINE_SPINLOCK(watchdog_print_lock);
 static unsigned int watchdog;

@@ -16,7 +16,7 @@
 
 #include <asm/intctl-regs.h>
 #include <asm/reset-regs.h>
-#include <asm/proc/irq.h>
+#include <proc/irq.h>
 
 /* this number is used when no interrupt has been assigned */
 #define NO_IRQ		INT_MAX

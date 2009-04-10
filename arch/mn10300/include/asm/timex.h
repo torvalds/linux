@@ -12,7 +12,7 @@
 #define _ASM_TIMEX_H
 
 #include <asm/hardirq.h>
-#include <asm/unit/timex.h>
+#include <unit/timex.h>
 
 #define TICK_SIZE (tick_nsec / 1000)
 
