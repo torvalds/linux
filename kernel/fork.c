@@ -83,8 +83,6 @@ DEFINE_PER_CPU(unsigned long, process_counts) = 0;
 
 __cacheline_aligned DEFINE_RWLOCK(tasklist_lock);  /* outer */
 
-DEFINE_TRACE(sched_process_fork);
-
 int nr_processes(void)
 {
 	int cpu;

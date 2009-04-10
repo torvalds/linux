@@ -56,10 +56,6 @@
 #include <asm/mmu_context.h>
 #include "cred-internals.h"
 
-DEFINE_TRACE(sched_process_free);
-DEFINE_TRACE(sched_process_exit);
-DEFINE_TRACE(sched_process_wait);
-
 static void exit_mm(struct task_struct * tsk);
 
 static void __unhash_process(struct task_struct *p)

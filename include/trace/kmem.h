@@ -188,5 +188,7 @@ TRACE_EVENT(kmem_cache_free,
 
 	TP_printk("call_site=%lx ptr=%p", __entry->call_site, __entry->ptr)
 );
+#endif /* _TRACE_KMEM_H */
 
-#endif
+/* This part must be outside protection */
+#include <trace/define_trace.h>

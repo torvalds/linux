@@ -35,3 +35,6 @@ TRACE_EVENT(kfree_skb,
 );
 
 #endif /* _TRACE_SKB_H */
+
+/* This part must be outside protection */
+#include <trace/define_trace.h>

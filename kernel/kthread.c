@@ -21,9 +21,6 @@ static DEFINE_SPINLOCK(kthread_create_lock);
 static LIST_HEAD(kthread_create_list);
 struct task_struct *kthreadd_task;
 
-DEFINE_TRACE(sched_kthread_stop);
-DEFINE_TRACE(sched_kthread_stop_ret);
-
 struct kthread_create_info
 {
 	/* Information passed to kthread() from kthreadd. */

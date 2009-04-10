@@ -51,4 +51,7 @@ TRACE_FORMAT(softirq_exit,
 	TP_FMT("softirq=%d action=%s", (int)(h - vec), softirq_to_name[h-vec])
 	);
 
-#endif
+#endif /*  _TRACE_IRQ_H */
+
+/* This part must be outside protection */
+#include <trace/define_trace.h>

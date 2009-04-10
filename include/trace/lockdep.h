@@ -55,3 +55,6 @@ TRACE_EVENT(lock_acquired,
 #endif
 
 #endif /* _TRACE_LOCKDEP_H */
+
+/* This part must be outside protection */
+#include <trace/define_trace.h>

@@ -334,3 +334,6 @@ TRACE_EVENT(sched_signal_send,
 );
 
 #endif /* _TRACE_SCHED_H */
+
+/* This part must be outside protection */
+#include <trace/define_trace.h>
