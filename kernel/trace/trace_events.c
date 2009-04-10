@@ -53,6 +53,7 @@ err:
 
 	return -ENOMEM;
 }
+EXPORT_SYMBOL_GPL(trace_define_field);
 
 static void ftrace_clear_events(void)
 {

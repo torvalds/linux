@@ -176,6 +176,7 @@ int filter_current_check_discard(struct ftrace_event_call *call, void *rec,
 {
 	return filter_check_discard(call, rec, global_trace.buffer, event);
 }
+EXPORT_SYMBOL_GPL(filter_current_check_discard);
 
 cycle_t ftrace_now(int cpu)
 {
@@ -886,6 +887,7 @@ trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
 	return trace_buffer_lock_reserve(&global_trace,
 					 type, len, flags, pc);
 }
+EXPORT_SYMBOL(trace_current_buffer_lock_reserve);
 
 void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
 					unsigned long flags, int pc)
@@ -903,6 +905,7 @@ void trace_current_buffer_discard_commit(struct ring_buffer_event *event)
 {
 	ring_buffer_discard_commit(global_trace.buffer, event);
 }
+EXPORT_SYMBOL_GPL(trace_nowake_buffer_unlock_commit);
 
 void
 trace_function(struct trace_array *tr,

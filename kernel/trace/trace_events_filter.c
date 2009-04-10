@@ -110,6 +110,7 @@ int filter_match_preds(struct ftrace_event_call *call, void *rec)
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(filter_match_preds);
 
 void filter_print_preds(struct filter_pred **preds, int n_preds,
 			struct trace_seq *s)
@@ -220,6 +221,7 @@ oom:
 
 	return -ENOMEM;
 }
+EXPORT_SYMBOL_GPL(init_preds);
 
 void filter_free_subsystem_preds(struct event_subsystem *system)
 {
