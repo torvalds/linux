@@ -928,9 +928,6 @@ static const struct v4l2_subdev_core_ops saa6752hs_core_ops = {
 	.g_ext_ctrls = saa6752hs_g_ext_ctrls,
 	.s_ext_ctrls = saa6752hs_s_ext_ctrls,
 	.try_ext_ctrls = saa6752hs_try_ext_ctrls,
-};
-
-static const struct v4l2_subdev_tuner_ops saa6752hs_tuner_ops = {
 	.s_std = saa6752hs_s_std,
 };
 
@@ -941,7 +938,6 @@ static const struct v4l2_subdev_video_ops saa6752hs_video_ops = {
 
 static const struct v4l2_subdev_ops saa6752hs_ops = {
 	.core = &saa6752hs_core_ops,
-	.tuner = &saa6752hs_tuner_ops,
 	.video = &saa6752hs_video_ops,
 };
 

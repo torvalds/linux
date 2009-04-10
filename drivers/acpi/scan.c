@@ -24,7 +24,7 @@ extern struct acpi_device *acpi_root;
 
 static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
-DEFINE_SPINLOCK(acpi_device_lock);
+DEFINE_MUTEX(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
 
 struct acpi_device_bus_id{
@@ -491,7 +491,6 @@ static int acpi_device_register(struct acpi_device *device,
 	 */
 	INIT_LIST_HEAD(&device->children);
 	INIT_LIST_HEAD(&device->node);
-	INIT_LIST_HEAD(&device->g_list);
 	INIT_LIST_HEAD(&device->wakeup_list);
 
 	new_bus_id = kzalloc(sizeof(struct acpi_device_bus_id), GFP_KERNEL);
@@ -500,7 +499,7 @@ static int acpi_device_register(struct acpi_device *device,
 		return -ENOMEM;
 	}
 
-	spin_lock(&acpi_device_lock);
+	mutex_lock(&acpi_device_lock);
 	/*
 	 * Find suitable bus_id and instance number in acpi_bus_id_list
 	 * If failed, create one and link it into acpi_bus_id_list
@@ -521,14 +520,12 @@ static int acpi_device_register(struct acpi_device *device,
 	}
 	dev_set_name(&device->dev, "%s:%02x", acpi_device_bus_id->bus_id, acpi_device_bus_id->instance_no);
 
-	if (device->parent) {
+	if (device->parent)
 		list_add_tail(&device->node, &device->parent->children);
-		list_add_tail(&device->g_list, &device->parent->g_list);
-	} else
-		list_add_tail(&device->g_list, &acpi_device_list);
+
 	if (device->wakeup.flags.valid)
 		list_add_tail(&device->wakeup_list, &acpi_wakeup_device_list);
-	spin_unlock(&acpi_device_lock);
+	mutex_unlock(&acpi_device_lock);
 
 	if (device->parent)
 		device->dev.parent = &parent->dev;
@@ -549,28 +546,22 @@ static int acpi_device_register(struct acpi_device *device,
 	device->removal_type = ACPI_BUS_REMOVAL_NORMAL;
 	return 0;
   end:
-	spin_lock(&acpi_device_lock);
-	if (device->parent) {
+	mutex_lock(&acpi_device_lock);
+	if (device->parent)
 		list_del(&device->node);
-		list_del(&device->g_list);
-	} else
-		list_del(&device->g_list);
 	list_del(&device->wakeup_list);
-	spin_unlock(&acpi_device_lock);
+	mutex_unlock(&acpi_device_lock);
 	return result;
 }
 
 static void acpi_device_unregister(struct acpi_device *device, int type)
 {
-	spin_lock(&acpi_device_lock);
-	if (device->parent) {
+	mutex_lock(&acpi_device_lock);
+	if (device->parent)
 		list_del(&device->node);
-		list_del(&device->g_list);
-	} else
-		list_del(&device->g_list);
 
 	list_del(&device->wakeup_list);
-	spin_unlock(&acpi_device_lock);
+	mutex_unlock(&acpi_device_lock);
 
 	acpi_detach_data(device->handle, acpi_bus_data_handler);
 

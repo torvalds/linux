@@ -739,33 +739,8 @@ EXPORT_SYMBOL(v4l2_chip_ident_i2c_client);
 
 /* ----------------------------------------------------------------- */
 
-/* Helper function for I2C legacy drivers */
+/* I2C Helper functions */
 
-int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver *driver,
-		const char *name,
-		int (*probe)(struct i2c_client *, const struct i2c_device_id *))
-{
-	struct i2c_client *client;
-	int err;
-
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (!client)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = driver;
-	strlcpy(client->name, name, sizeof(client->name));
-
-	err = probe(client, NULL);
-	if (err == 0) {
-		i2c_attach_client(client);
-	} else {
-		kfree(client);
-	}
-	return err != -ENOMEM ? 0 : err;
-}
-EXPORT_SYMBOL(v4l2_i2c_attach);
 
 void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops)
@@ -785,18 +760,16 @@ EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_init);
 
 
 
-/* Load an i2c sub-device. It assumes that i2c_get_adapdata(adapter)
-   returns the v4l2_device and that i2c_get_clientdata(client)
-   returns the v4l2_subdev. */
-struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
+/* Load an i2c sub-device. */
+struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
+		struct i2c_adapter *adapter,
 		const char *module_name, const char *client_type, u8 addr)
 {
-	struct v4l2_device *dev = i2c_get_adapdata(adapter);
 	struct v4l2_subdev *sd = NULL;
 	struct i2c_client *client;
 	struct i2c_board_info info;
 
-	BUG_ON(!dev);
+	BUG_ON(!v4l2_dev);
 
 	if (module_name)
 		request_module(module_name);
@@ -823,7 +796,7 @@ struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
 
 	/* Register with the v4l2_device which increases the module's
 	   use count as well. */
-	if (v4l2_device_register_subdev(dev, sd))
+	if (v4l2_device_register_subdev(v4l2_dev, sd))
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
@@ -837,19 +810,17 @@ error:
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev);
 
-/* Probe and load an i2c sub-device. It assumes that i2c_get_adapdata(adapter)
-   returns the v4l2_device and that i2c_get_clientdata(client)
-   returns the v4l2_subdev. */
-struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
+/* Probe and load an i2c sub-device. */
+struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct v4l2_device *v4l2_dev,
+	struct i2c_adapter *adapter,
 	const char *module_name, const char *client_type,
 	const unsigned short *addrs)
 {
-	struct v4l2_device *dev = i2c_get_adapdata(adapter);
 	struct v4l2_subdev *sd = NULL;
 	struct i2c_client *client = NULL;
 	struct i2c_board_info info;
 
-	BUG_ON(!dev);
+	BUG_ON(!v4l2_dev);
 
 	if (module_name)
 		request_module(module_name);
@@ -875,7 +846,7 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
 
 	/* Register with the v4l2_device which increases the module's
 	   use count as well. */
-	if (v4l2_device_register_subdev(dev, sd))
+	if (v4l2_device_register_subdev(v4l2_dev, sd))
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
@@ -888,6 +859,17 @@ error:
 	return sd;
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev);
+
+struct v4l2_subdev *v4l2_i2c_new_probed_subdev_addr(struct v4l2_device *v4l2_dev,
+		struct i2c_adapter *adapter,
+		const char *module_name, const char *client_type, u8 addr)
+{
+	unsigned short addrs[2] = { addr, I2C_CLIENT_END };
+
+	return v4l2_i2c_new_probed_subdev(v4l2_dev, adapter,
+			module_name, client_type, addrs);
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev_addr);
 
 /* Return i2c client address of v4l2_subdev. */
 unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd)

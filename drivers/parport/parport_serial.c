@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
 #include <linux/parport.h>
 #include <linux/parport_pc.h>
 #include <linux/8250_pci.h>
@@ -311,6 +312,7 @@ static int __devinit parport_register (struct pci_dev *dev,
 		int lo = card->addr[n].lo;
 		int hi = card->addr[n].hi;
 		unsigned long io_lo, io_hi;
+		int irq;
 
 		if (priv->num_par == ARRAY_SIZE (priv->port)) {
 			printk (KERN_WARNING
@@ -329,10 +331,20 @@ static int __devinit parport_register (struct pci_dev *dev,
                                         "hi" as an offset (see SYBA
                                         def.) */
 		/* TODO: test if sharing interrupts works */
-		dev_dbg(&dev->dev, "PCI parallel port detected: I/O at "
-			"%#lx(%#lx)\n", io_lo, io_hi);
-		port = parport_pc_probe_port (io_lo, io_hi, PARPORT_IRQ_NONE,
-					      PARPORT_DMA_NONE, &dev->dev);
+		irq = dev->irq;
+		if (irq == IRQ_NONE) {
+			dev_dbg(&dev->dev,
+			"PCI parallel port detected: I/O at %#lx(%#lx)\n",
+				io_lo, io_hi);
+			irq = PARPORT_IRQ_NONE;
+		} else {
+			dev_dbg(&dev->dev,
+		"PCI parallel port detected: I/O at %#lx(%#lx), IRQ %d\n",
+				io_lo, io_hi, irq);
+			irq = PARPORT_IRQ_NONE;
+		}
+		port = parport_pc_probe_port (io_lo, io_hi, irq,
+			      PARPORT_DMA_NONE, &dev->dev, IRQF_SHARED);
 		if (port) {
 			priv->port[priv->num_par++] = port;
 			success = 1;

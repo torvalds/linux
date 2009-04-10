@@ -60,8 +60,8 @@
 // #define VINO_DEBUG
 // #define VINO_DEBUG_INT
 
-#define VINO_MODULE_VERSION "0.0.5"
-#define VINO_VERSION_CODE KERNEL_VERSION(0, 0, 5)
+#define VINO_MODULE_VERSION "0.0.6"
+#define VINO_VERSION_CODE KERNEL_VERSION(0, 0, 6)
 
 MODULE_DESCRIPTION("SGI VINO Video4Linux2 driver");
 MODULE_VERSION(VINO_MODULE_VERSION);
@@ -2565,12 +2565,11 @@ static int vino_acquire_input(struct vino_channel_settings *vcs)
 		int input;
 		int data_norm;
 		v4l2_std_id norm;
-		struct v4l2_routing route = { 0, 0 };
 
 		input = VINO_INPUT_COMPOSITE;
 
-		route.input = vino_get_saa7191_input(input);
-		ret = decoder_call(video, s_routing, &route);
+		ret = decoder_call(video, s_routing,
+				vino_get_saa7191_input(input), 0, 0);
 		if (ret) {
 			ret = -EINVAL;
 			goto out;
@@ -2589,7 +2588,7 @@ static int vino_acquire_input(struct vino_channel_settings *vcs)
 			}
 			if (data_norm == 3)
 				data_norm = VINO_DATA_NORM_PAL;
-			ret = decoder_call(tuner, s_std, norm);
+			ret = decoder_call(core, s_std, norm);
 		}
 
 		spin_lock_irqsave(&vino_drvdata->input_lock, flags);
@@ -2656,10 +2655,9 @@ static int vino_set_input(struct vino_channel_settings *vcs, int input)
 		if (vino_drvdata->decoder_owner == vcs->channel) {
 			int data_norm;
 			v4l2_std_id norm;
-			struct v4l2_routing route = { 0, 0 };
 
-			route.input = vino_get_saa7191_input(input);
-			ret = decoder_call(video, s_routing, &route);
+			ret = decoder_call(video, s_routing,
+					vino_get_saa7191_input(input), 0, 0);
 			if (ret) {
 				vino_drvdata->decoder_owner = VINO_NO_CHANNEL;
 				ret = -EINVAL;
@@ -2679,7 +2677,7 @@ static int vino_set_input(struct vino_channel_settings *vcs, int input)
 				}
 				if (data_norm == 3)
 					data_norm = VINO_DATA_NORM_PAL;
-				ret = decoder_call(tuner, s_std, norm);
+				ret = decoder_call(core, s_std, norm);
 			}
 
 			spin_lock_irqsave(&vino_drvdata->input_lock, flags);
@@ -2813,7 +2811,7 @@ static int vino_set_data_norm(struct vino_channel_settings *vcs,
 		 * as it may take a while... */
 
 		norm = vino_data_norms[data_norm].std;
-		err = decoder_call(tuner, s_std, norm);
+		err = decoder_call(core, s_std, norm);
 
 		spin_lock_irqsave(&vino_drvdata->input_lock, *flags);
 
@@ -4266,7 +4264,6 @@ static int vino_init_channel_settings(struct vino_channel_settings *vcs,
 
 static int __init vino_module_init(void)
 {
-	unsigned short addr[] = { 0, I2C_CLIENT_END };
 	int ret;
 
 	printk(KERN_INFO "SGI VINO driver version %s\n",
@@ -4336,12 +4333,12 @@ static int __init vino_module_init(void)
 	}
 	vino_init_stage++;
 
-	addr[0] = 0x45;
-	vino_drvdata->decoder = v4l2_i2c_new_probed_subdev(&vino_i2c_adapter,
-			"saa7191", "saa7191", addr);
-	addr[0] = 0x2b;
-	vino_drvdata->camera = v4l2_i2c_new_probed_subdev(&vino_i2c_adapter,
-			"indycam", "indycam", addr);
+	vino_drvdata->decoder =
+		v4l2_i2c_new_probed_subdev_addr(&vino_drvdata->v4l2_dev,
+			&vino_i2c_adapter, "saa7191", "saa7191", 0x45);
+	vino_drvdata->camera =
+		v4l2_i2c_new_probed_subdev_addr(&vino_drvdata->v4l2_dev,
+			&vino_i2c_adapter, "indycam", "indycam", 0x2b);
 
 	dprintk("init complete!\n");
 

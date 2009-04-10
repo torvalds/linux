@@ -160,6 +160,7 @@ MODULE_AUTHOR("Sten Wang <sten.wang@rdc.com.tw>,"
 	"Florian Fainelli <florian@openwrt.org>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RDC R6040 NAPI PCI FastEthernet driver");
+MODULE_VERSION(DRV_VERSION " " DRV_RELDATE);
 
 /* RX and TX interrupts that we handle */
 #define RX_INTS			(RX_FIFO_FULL | RX_NO_DESC | RX_FINISH)
@@ -1085,13 +1086,13 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 		goto err_out;
 
 	/* this should always be supported */
-	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
 		printk(KERN_ERR DRV_NAME ": 32-bit PCI DMA addresses"
 				"not supported by the card\n");
 		goto err_out;
 	}
-	err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
 		printk(KERN_ERR DRV_NAME ": 32-bit PCI DMA addresses"
 				"not supported by the card\n");

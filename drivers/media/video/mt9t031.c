@@ -141,7 +141,18 @@ static int get_shutter(struct soc_camera_device *icd, u32 *data)
 
 static int mt9t031_init(struct soc_camera_device *icd)
 {
+	struct mt9t031 *mt9t031 = container_of(icd, struct mt9t031, icd);
+	struct soc_camera_link *icl = mt9t031->client->dev.platform_data;
 	int ret;
+
+	if (icl->power) {
+		ret = icl->power(&mt9t031->client->dev, 1);
+		if (ret < 0) {
+			dev_err(icd->vdev->parent,
+				"Platform failed to power-on the camera.\n");
+			return ret;
+		}
+	}
 
 	/* Disable chip output, synchronous option update */
 	ret = reg_write(icd, MT9T031_RESET, 1);
@@ -150,13 +161,23 @@ static int mt9t031_init(struct soc_camera_device *icd)
 	if (ret >= 0)
 		ret = reg_clear(icd, MT9T031_OUTPUT_CONTROL, 2);
 
+	if (ret < 0 && icl->power)
+		icl->power(&mt9t031->client->dev, 0);
+
 	return ret >= 0 ? 0 : -EIO;
 }
 
 static int mt9t031_release(struct soc_camera_device *icd)
 {
+	struct mt9t031 *mt9t031 = container_of(icd, struct mt9t031, icd);
+	struct soc_camera_link *icl = mt9t031->client->dev.platform_data;
+
 	/* Disable the chip */
 	reg_clear(icd, MT9T031_OUTPUT_CONTROL, 2);
+
+	if (icl->power)
+		icl->power(&mt9t031->client->dev, 0);
+
 	return 0;
 }
 

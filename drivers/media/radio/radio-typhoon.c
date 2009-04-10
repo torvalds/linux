@@ -314,20 +314,8 @@ static int vidioc_log_status(struct file *file, void *priv)
 	return 0;
 }
 
-static int typhoon_open(struct file *file)
-{
-	return 0;
-}
-
-static int typhoon_release(struct file *file)
-{
-	return 0;
-}
-
 static const struct v4l2_file_operations typhoon_fops = {
 	.owner		= THIS_MODULE,
-	.open           = typhoon_open,
-	.release        = typhoon_release,
 	.ioctl		= video_ioctl2,
 };
 

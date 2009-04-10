@@ -1252,15 +1252,12 @@ static int tomoyo_write_domain_policy(struct tomoyo_io_buffer *head)
 	struct tomoyo_domain_info *domain = head->write_var1;
 	bool is_delete = false;
 	bool is_select = false;
-	bool is_undelete = false;
 	unsigned int profile;
 
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_DELETE))
 		is_delete = true;
 	else if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_SELECT))
 		is_select = true;
-	else if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_UNDELETE))
-		is_undelete = true;
 	if (is_select && tomoyo_is_select_one(head, data))
 		return 0;
 	/* Don't allow updating policies by non manager programs. */
@@ -1274,9 +1271,7 @@ static int tomoyo_write_domain_policy(struct tomoyo_io_buffer *head)
 			down_read(&tomoyo_domain_list_lock);
 			domain = tomoyo_find_domain(data);
 			up_read(&tomoyo_domain_list_lock);
-		} else if (is_undelete)
-			domain = tomoyo_undelete_domain(data);
-		else
+		} else
 			domain = tomoyo_find_or_assign_new_domain(data, 0);
 		head->write_var1 = domain;
 		return 0;

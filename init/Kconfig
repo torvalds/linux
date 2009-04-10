@@ -208,6 +208,12 @@ config POSIX_MQUEUE
 
 	  If unsure, say Y.
 
+config POSIX_MQUEUE_SYSCTL
+	bool
+	depends on POSIX_MQUEUE
+	depends on SYSCTL
+	default y
+
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
 	help
@@ -670,10 +676,10 @@ config UTS_NS
 
 config IPC_NS
 	bool "IPC namespace"
-	depends on NAMESPACES && SYSVIPC
+	depends on NAMESPACES && (SYSVIPC || POSIX_MQUEUE)
 	help
 	  In this namespace tasks work with IPC ids which correspond to
-	  different IPC objects in different namespaces
+	  different IPC objects in different namespaces.
 
 config USER_NS
 	bool "User namespace (EXPERIMENTAL)"

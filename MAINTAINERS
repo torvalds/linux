@@ -636,7 +636,7 @@ P:	Dirk Opfer
 M:	dirk@opfer-online.de
 S:	Maintained
 
-ARM/PALMTX,PALMT5,PALMLD SUPPORT
+ARM/PALMTX,PALMT5,PALMLD,PALMTE2 SUPPORT
 P:	Marek Vasut
 M:	marek.vasut@gmail.com
 W:	http://hackndev.com
@@ -1544,7 +1544,6 @@ S:	Maintained
 DVB SUBSYSTEM AND DRIVERS
 P:	LinuxTV.org Project
 M:	linux-media@vger.kernel.org
-L:	linux-dvb@linuxtv.org (subscription required)
 W:	http://linuxtv.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
@@ -3058,7 +3057,7 @@ S:	Supported
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
 P:	Pierre Ossman
-M:	drzeus-mmc@drzeus.cx
+M:	pierre@ossman.eu
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -3244,6 +3243,13 @@ P:	Andreas Mohr
 M:	andi@lisas.de
 L:	netdev@vger.kernel.org
 S:	Maintained
+
+NILFS2 FILESYSTEM
+P:	KONISHI Ryusuke
+M:	konishi.ryusuke@lab.ntt.co.jp
+L:	users@nilfs.org
+W:	http://www.nilfs.org/en/
+S:	Supported
 
 NINJA SCSI-3 / NINJA SCSI-32Bi (16bit/CardBus) PCMCIA SCSI HOST ADAPTER DRIVER
 P:	YOKOTA Hiroshi
@@ -3867,8 +3873,8 @@ S:	Maintained
 SCHEDULER
 P:	Ingo Molnar
 M:	mingo@elte.hu
-P:	Robert Love    [the preemptible kernel bits]
-M:	rml@tech9.net
+P:	Peter Zijlstra
+M:	peterz@infradead.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -3933,7 +3939,7 @@ S:	Maintained
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
 P:	Pierre Ossman
-M:	drzeus-sdhci@drzeus.cx
+M:	pierre@ossman.eu
 L:	sdhci-devel@lists.ossman.eu
 S:	Maintained
 
@@ -4920,7 +4926,7 @@ S:	Maintained
 
 W83L51xD SD/MMC CARD INTERFACE DRIVER
 P:	Pierre Ossman
-M:	drzeus-wbsd@drzeus.cx
+M:	pierre@ossman.eu
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 

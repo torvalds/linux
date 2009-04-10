@@ -356,7 +356,8 @@ int pci_vpd_truncate(struct pci_dev *dev, size_t size)
 		return -EINVAL;
 
 	dev->vpd->len = size;
-	dev->vpd->attr->size = size;
+	if (dev->vpd->attr)
+		dev->vpd->attr->size = size;
 
 	return 0;
 }

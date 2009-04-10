@@ -27,6 +27,7 @@
 
 #include <linux/videodev2.h>
 #include <media/videobuf-vmalloc.h>
+#include <media/v4l2-device.h>
 
 #include <linux/i2c.h>
 #include <linux/mutex.h>
@@ -385,6 +386,8 @@ struct em28xx_board {
 	unsigned int valid:1;
 
 	unsigned char xclk, i2c_speed;
+	unsigned char radio_addr;
+	unsigned short tvaudio_addr;
 
 	enum em28xx_decoder decoder;
 	enum em28xx_adecoder adecoder;
@@ -460,6 +463,7 @@ struct em28xx {
 	int devno;		/* marks the number of this device */
 	enum em28xx_chip_id chip_id;
 
+	struct v4l2_device v4l2_dev;
 	struct em28xx_board board;
 
 	unsigned int stream_on:1;	/* Locks streams */
@@ -577,11 +581,9 @@ struct em28xx_ops {
 };
 
 /* Provided by em28xx-i2c.c */
-
-void em28xx_i2c_call_clients(struct em28xx *dev, unsigned int cmd, void *arg);
 void em28xx_do_i2c_scan(struct em28xx *dev);
-int em28xx_i2c_register(struct em28xx *dev);
-int em28xx_i2c_unregister(struct em28xx *dev);
+int  em28xx_i2c_register(struct em28xx *dev);
+int  em28xx_i2c_unregister(struct em28xx *dev);
 
 /* Provided by em28xx-core.c */
 
