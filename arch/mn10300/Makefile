@@ -105,31 +105,31 @@ endif
 ###################################################################################################
 
 # processor specific definitions
-include/asm-mn10300/.proc: $(wildcard include/config/proc/*.h) include/config/auto.conf
-	@echo '  SYMLINK include/asm-mn10300/proc -> include/asm-mn10300/proc-$(PROCESSOR)'
+arch/mn10300/include/asm/.proc: $(wildcard include/config/proc/*.h) include/config/auto.conf
+	@echo '  SYMLINK arch/mn10300/include/asm/proc -> arch/mn10300/include/asm/proc-$(PROCESSOR)'
 ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p include/asm-mn10300
-	$(Q)ln -fsn $(srctree)/include/asm-mn10300/proc-$(PROCESSOR) include/asm-mn10300/proc
+	$(Q)mkdir -p arch/mn10300/include/asm
+	$(Q)ln -fsn $(srctree)/arch/mn10300/include/asm/proc-$(PROCESSOR) arch/mn10300/include/asm/proc
 else
-	$(Q)ln -fsn proc-$(PROCESSOR) include/asm-mn10300/proc
+	$(Q)ln -fsn proc-$(PROCESSOR) arch/mn10300/include/asm/proc
 endif
 	@touch $@
 
-CLEAN_FILES += include/asm-mn10300/proc include/asm-mn10300/.proc
+CLEAN_FILES += arch/mn10300/include/asm/proc arch/mn10300/include/asm/.proc
 
-prepare: include/asm-mn10300/.proc
+prepare: arch/mn10300/include/asm/.proc
 
 # unit specific definitions
-include/asm-mn10300/.unit: $(wildcard include/config/unit/*.h) include/config/auto.conf
-	@echo '  SYMLINK include/asm-mn10300/unit -> include/asm-mn10300/unit-$(UNIT)'
+arch/mn10300/include/asm/.unit: $(wildcard include/config/unit/*.h) include/config/auto.conf
+	@echo '  SYMLINK arch/mn10300/include/asm/unit -> arch/mn10300/include/asm/unit-$(UNIT)'
 ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p include/asm-mn10300
-	$(Q)ln -fsn $(srctree)/include/asm-mn10300/unit-$(UNIT) include/asm-mn10300/unit
+	$(Q)mkdir -p arch/mn10300/include/asm
+	$(Q)ln -fsn $(srctree)/arch/mn10300/include/asm/unit-$(UNIT) arch/mn10300/include/asm/unit
 else
-	$(Q)ln -fsn unit-$(UNIT) include/asm-mn10300/unit
+	$(Q)ln -fsn unit-$(UNIT) arch/mn10300/include/asm/unit
 endif
 	@touch $@
 
-CLEAN_FILES += include/asm-mn10300/unit include/asm-mn10300/.unit
+CLEAN_FILES += arch/mn10300/include/asm/unit arch/mn10300/include/asm/.unit
 
-prepare: include/asm-mn10300/.unit
+prepare: arch/mn10300/include/asm/.unit
