@@ -1310,8 +1310,9 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			cond_resched();
 			while (!(page = follow_page(vma, start, foll_flags))) {
 				int ret;
-				ret = handle_mm_fault(mm, vma, start,
-						foll_flags & FOLL_WRITE);
+
+				/* FOLL_WRITE matches FAULT_FLAG_WRITE! */
+				ret = handle_mm_fault(mm, vma, start, foll_flags & FOLL_WRITE);
 				if (ret & VM_FAULT_ERROR) {
 					if (ret & VM_FAULT_OOM)
 						return i ? i : -ENOMEM;
@@ -2958,13 +2959,12 @@ unlock:
  * By the time we get here, we already hold the mm semaphore
  */
 int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-		unsigned long address, int write_access)
+		unsigned long address, unsigned int flags)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
-	unsigned int flags = write_access ? FAULT_FLAG_WRITE : 0;
 
 	__set_current_state(TASK_RUNNING);
 
