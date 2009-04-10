@@ -7,6 +7,7 @@
 
 struct trace_array;
 struct tracer;
+struct dentry;
 
 /*
  * The trace entry - the most basic unit of tracing. This is what
@@ -87,6 +88,7 @@ struct ftrace_event_call {
 	char			*name;
 	char			*system;
 	struct dentry		*dir;
+	struct trace_event	*event;
 	int			enabled;
 	int			(*regfunc)(void);
 	void			(*unregfunc)(void);
@@ -97,6 +99,7 @@ struct ftrace_event_call {
 	struct list_head	fields;
 	int			n_preds;
 	struct filter_pred	**preds;
+	void			*mod;
 
 #ifdef CONFIG_EVENT_PROFILE
 	atomic_t	profile_count;

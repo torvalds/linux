@@ -713,7 +713,13 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 		return d_events;
 	}
 
-	system->name = name;
+	system->name = kstrdup(name, GFP_KERNEL);
+	if (!system->name) {
+		debugfs_remove(system->entry);
+		kfree(system);
+		return d_events;
+	}
+
 	list_add(&system->list, &event_subsystems);
 
 	system->preds = NULL;
@@ -738,7 +744,7 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 	 * If the trace point header did not define TRACE_SYSTEM
 	 * then the system would be called "TRACE_SYSTEM".
 	 */
-	if (strcmp(call->system, "TRACE_SYSTEM") != 0)
+	if (strcmp(call->system, TRACE_SYSTEM) != 0)
 		d_events = event_subsystem_dir(call->system, d_events);
 
 	if (call->raw_init) {
@@ -757,21 +763,13 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 		return -1;
 	}
 
-	if (call->regfunc) {
-		entry = debugfs_create_file("enable", 0644, call->dir, call,
-					    &ftrace_enable_fops);
-		if (!entry)
-			pr_warning("Could not create debugfs "
-				   "'%s/enable' entry\n", call->name);
-	}
+	if (call->regfunc)
+		entry = trace_create_file("enable", 0644, call->dir, call,
+					  &ftrace_enable_fops);
 
-	if (call->id) {
-		entry = debugfs_create_file("id", 0444, call->dir, call,
-				&ftrace_event_id_fops);
-		if (!entry)
-			pr_warning("Could not create debugfs '%s/id' entry\n",
-					call->name);
-	}
+	if (call->id)
+		entry = trace_create_file("id", 0444, call->dir, call,
+					  &ftrace_event_id_fops);
 
 	if (call->define_fields) {
 		ret = call->define_fields();
@@ -780,33 +778,94 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 				   " events/%s\n", call->name);
 			return ret;
 		}
-		entry = debugfs_create_file("filter", 0644, call->dir, call,
-					    &ftrace_event_filter_fops);
-		if (!entry)
-			pr_warning("Could not create debugfs "
-				   "'%s/filter' entry\n", call->name);
+		entry = trace_create_file("filter", 0644, call->dir, call,
+					  &ftrace_event_filter_fops);
 	}
 
 	/* A trace may not want to export its format */
 	if (!call->show_format)
 		return 0;
 
-	entry = debugfs_create_file("format", 0444, call->dir, call,
-				    &ftrace_event_format_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'%s/format' entry\n", call->name);
+	entry = trace_create_file("format", 0444, call->dir, call,
+				  &ftrace_event_format_fops);
 
 	return 0;
 }
 
+#define for_each_event(event, start, end)			\
+	for (event = start;					\
+	     (unsigned long)event < (unsigned long)end;		\
+	     event++)
+
+static void trace_module_add_events(struct module *mod)
+{
+	struct ftrace_event_call *call, *start, *end;
+	struct dentry *d_events;
+
+	start = mod->trace_events;
+	end = mod->trace_events + mod->num_trace_events;
+
+	if (start == end)
+		return;
+
+	d_events = event_trace_events_dir();
+	if (!d_events)
+		return;
+
+	for_each_event(call, start, end) {
+		/* The linker may leave blanks */
+		if (!call->name)
+			continue;
+		call->mod = mod;
+		list_add(&call->list, &ftrace_events);
+		event_create_dir(call, d_events);
+	}
+}
+
+static void trace_module_remove_events(struct module *mod)
+{
+	struct ftrace_event_call *call, *p;
+
+	list_for_each_entry_safe(call, p, &ftrace_events, list) {
+		if (call->mod == mod) {
+			if (call->enabled) {
+				call->enabled = 0;
+				call->unregfunc();
+			}
+			if (call->event)
+				unregister_ftrace_event(call->event);
+			debugfs_remove_recursive(call->dir);
+			list_del(&call->list);
+		}
+	}
+}
+
+int trace_module_notify(struct notifier_block *self,
+			unsigned long val, void *data)
+{
+	struct module *mod = data;
+
+	mutex_lock(&event_mutex);
+	switch (val) {
+	case MODULE_STATE_COMING:
+		trace_module_add_events(mod);
+		break;
+	case MODULE_STATE_GOING:
+		trace_module_remove_events(mod);
+		break;
+	}
+	mutex_unlock(&event_mutex);
+
+	return 0;
+}
+
+struct notifier_block trace_module_nb = {
+	.notifier_call = trace_module_notify,
+	.priority = 0,
+};
+
 extern struct ftrace_event_call __start_ftrace_events[];
 extern struct ftrace_event_call __stop_ftrace_events[];
-
-#define for_each_event(event)						\
-	for (event = __start_ftrace_events;				\
-	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
-	     event++)
 
 static __init int event_trace_init(void)
 {
@@ -814,6 +873,7 @@ static __init int event_trace_init(void)
 	struct dentry *d_tracer;
 	struct dentry *entry;
 	struct dentry *d_events;
+	int ret;
 
 	d_tracer = tracing_init_dentry();
 	if (!d_tracer)
@@ -837,13 +897,17 @@ static __init int event_trace_init(void)
 	if (!d_events)
 		return 0;
 
-	for_each_event(call) {
+	for_each_event(call, __start_ftrace_events, __stop_ftrace_events) {
 		/* The linker may leave blanks */
 		if (!call->name)
 			continue;
 		list_add(&call->list, &ftrace_events);
 		event_create_dir(call, d_events);
 	}
+
+	ret = register_module_notifier(&trace_module_nb);
+	if (!ret)
+		pr_warning("Failed to register trace events module notifier\n");
 
 	return 0;
 }
