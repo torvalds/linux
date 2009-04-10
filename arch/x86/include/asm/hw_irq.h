@@ -78,7 +78,11 @@ extern void eisa_set_level_irq(unsigned int irq);
 /* SMP */
 extern void smp_apic_timer_interrupt(struct pt_regs *);
 extern void smp_spurious_interrupt(struct pt_regs *);
+extern void smp_generic_interrupt(struct pt_regs *);
 extern void smp_error_interrupt(struct pt_regs *);
+#ifdef CONFIG_X86_IO_APIC
+extern asmlinkage void smp_irq_move_cleanup_interrupt(void);
+#endif
 #ifdef CONFIG_SMP
 extern void smp_reschedule_interrupt(struct pt_regs *);
 extern void smp_call_function_interrupt(struct pt_regs *);

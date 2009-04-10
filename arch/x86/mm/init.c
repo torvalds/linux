@@ -1,3 +1,4 @@
+#include <linux/initrd.h>
 #include <linux/ioport.h>
 #include <linux/swap.h>
 
