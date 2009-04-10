@@ -23,26 +23,29 @@
 #include <asm/heartbeat.h>
 #include <asm/sizes.h>
 
-/* SWx  8765 4321
+/*
+ * bit  1234 5678
  *----------------------------
- * SW1  1101 0010  -> Pck 66MHz version
- *     (0101 0010)    Pck 33MHz version (check CS1BCR)
- * SW2  xxxx x1x0  -> little endian
+ * SW1  0101 0010  -> Pck 33MHz version
+ *     (1101 0010)    Pck 66MHz version
+ * SW2  0x1x xxxx  -> little endian
  *                    29bit mode
- * SW47 0001 1000  -> CS0 : nor flash
+ * SW47 0001 1000  -> CS0 : on-board flash
  *                    CS1 : SRAM, registers, LAN, PCMCIA
- *                    38400 bps
+ *                    38400 bps for SCIF1
  *
  * Address
- * 0x00000000     Nor Flash
- * 0x04000000     SRAM
- * 0x05000000     FPGA register
- * 0x05800000     LAN91C111
- * 0x06000000     PCMCIA
- * 0x10000000     PCIe
- * 0x14000000     LRAM/URAM
- * 0x18000000     ATA/NAND-Flash
- * 0x1C000000     SH7786 Control register
+ * 0x00000000 - 0x04000000  (CS0)     Nor Flash
+ * 0x04000000 - 0x04200000  (CS1)     SRAM
+ * 0x05000000 - 0x05800000  (CS1)     on board register
+ * 0x05800000 - 0x06000000  (CS1)     LAN91C111
+ * 0x06000000 - 0x06400000  (CS1)     PCMCIA
+ * 0x08000000 - 0x10000000  (CS2-CS3) DDR3
+ * 0x10000000 - 0x14000000  (CS4)     PCIe
+ * 0x14000000 - 0x14800000  (CS5)     Core0 LRAM/URAM
+ * 0x14800000 - 0x15000000  (CS5)     Core1 LRAM/URAM
+ * 0x18000000 - 0x1C000000  (CS6)     ATA/NAND-Flash
+ * 0x1C000000 -             (CS7)     SH7786 Control register
  */
 
 /* HeartBeat */
