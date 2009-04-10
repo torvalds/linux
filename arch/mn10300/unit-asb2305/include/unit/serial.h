@@ -12,7 +12,7 @@
 #define _ASM_UNIT_SERIAL_H
 
 #include <asm/cpu/cpu-regs.h>
-#include <asm/proc/irq.h>
+#include <proc/irq.h>
 #include <linux/serial_reg.h>
 
 #define SERIAL_PORT0_BASE_ADDRESS	0xA6FB0000

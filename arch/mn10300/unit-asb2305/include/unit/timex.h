@@ -16,7 +16,7 @@
 #endif /* __ASSEMBLY__ */
 
 #include <asm/cpu/timer-regs.h>
-#include <asm/unit/clock.h>
+#include <unit/clock.h>
 
 /*
  * jiffies counter specifications

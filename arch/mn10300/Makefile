@@ -94,42 +94,8 @@ ifdef CONFIG_DEBUG_INFO
 KBUILD_AFLAGS	+= -Wa,--gdwarf2
 endif
 
-###################################################################################################
 #
-# juggle some symlinks in the MN10300 asm include dir
+# include the appropriate processor- and unit-specific headers
 #
-#	Update machine proc and unit symlinks if something which affects
-#	them changed.  We use .proc / .unit to indicate when they were
-#	updated last, otherwise make uses the target directory mtime.
-#
-###################################################################################################
-
-# processor specific definitions
-arch/mn10300/include/asm/.proc: $(wildcard include/config/proc/*.h) include/config/auto.conf
-	@echo '  SYMLINK arch/mn10300/include/asm/proc -> arch/mn10300/include/asm/proc-$(PROCESSOR)'
-ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p arch/mn10300/include/asm
-	$(Q)ln -fsn $(srctree)/arch/mn10300/include/asm/proc-$(PROCESSOR) arch/mn10300/include/asm/proc
-else
-	$(Q)ln -fsn proc-$(PROCESSOR) arch/mn10300/include/asm/proc
-endif
-	@touch $@
-
-CLEAN_FILES += arch/mn10300/include/asm/proc arch/mn10300/include/asm/.proc
-
-prepare: arch/mn10300/include/asm/.proc
-
-# unit specific definitions
-arch/mn10300/include/asm/.unit: $(wildcard include/config/unit/*.h) include/config/auto.conf
-	@echo '  SYMLINK arch/mn10300/include/asm/unit -> arch/mn10300/include/asm/unit-$(UNIT)'
-ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p arch/mn10300/include/asm
-	$(Q)ln -fsn $(srctree)/arch/mn10300/include/asm/unit-$(UNIT) arch/mn10300/include/asm/unit
-else
-	$(Q)ln -fsn unit-$(UNIT) arch/mn10300/include/asm/unit
-endif
-	@touch $@
-
-CLEAN_FILES += arch/mn10300/include/asm/unit arch/mn10300/include/asm/.unit
-
-prepare: arch/mn10300/include/asm/.unit
+KBUILD_CPPFLAGS += -I$(srctree)/arch/mn10300/proc-$(PROCESSOR)/include
+KBUILD_CPPFLAGS += -I$(srctree)/arch/mn10300/unit-$(UNIT)/include

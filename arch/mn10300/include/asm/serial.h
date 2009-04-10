@@ -33,4 +33,4 @@
 #define RS_TABLE_SIZE
 #endif
 
-#include <asm/unit/serial.h>
+#include <unit/serial.h>
