@@ -2422,6 +2422,56 @@ static const struct file_operations tracing_readme_fops = {
 };
 
 static ssize_t
+tracing_saved_cmdlines_read(struct file *file, char __user *ubuf,
+				size_t cnt, loff_t *ppos)
+{
+	char *buf_comm;
+	char *file_buf;
+	char *buf;
+	int len = 0;
+	int pid;
+	int i;
+
+	file_buf = kmalloc(SAVED_CMDLINES*(16+TASK_COMM_LEN), GFP_KERNEL);
+	if (!file_buf)
+		return -ENOMEM;
+
+	buf_comm = kmalloc(TASK_COMM_LEN, GFP_KERNEL);
+	if (!buf_comm) {
+		kfree(file_buf);
+		return -ENOMEM;
+	}
+
+	buf = file_buf;
+
+	for (i = 0; i < SAVED_CMDLINES; i++) {
+		int r;
+
+		pid = map_cmdline_to_pid[i];
+		if (pid == -1 || pid == NO_CMDLINE_MAP)
+			continue;
+
+		trace_find_cmdline(pid, buf_comm);
+		r = sprintf(buf, "%d %s\n", pid, buf_comm);
+		buf += r;
+		len += r;
+	}
+
+	len = simple_read_from_buffer(ubuf, cnt, ppos,
+				      file_buf, len);
+
+	kfree(file_buf);
+	kfree(buf_comm);
+
+	return len;
+}
+
+static const struct file_operations tracing_saved_cmdlines_fops = {
+    .open       = tracing_open_generic,
+    .read       = tracing_saved_cmdlines_read,
+};
+
+static ssize_t
 tracing_ctrl_read(struct file *filp, char __user *ubuf,
 		  size_t cnt, loff_t *ppos)
 {
@@ -3972,6 +4022,9 @@ static __init int tracer_init_debugfs(void)
 
 	trace_create_file("trace_marker", 0220, d_tracer,
 			NULL, &tracing_mark_fops);
+
+	trace_create_file("saved_cmdlines", 0444, d_tracer,
+			NULL, &tracing_saved_cmdlines_fops);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	trace_create_file("dyn_ftrace_total_info", 0444, d_tracer,
