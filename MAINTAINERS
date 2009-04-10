@@ -4177,7 +4177,6 @@ W:	ftp://ftp.redhat.com/pub/redhat/gnupro/AM33/
 S:	Maintained
 F:	Documentation/mn10300/
 F:	arch/mn10300/
-F:	include/asm-mn10300/
 
 PARALLEL PORT SUPPORT
 L:	linux-parport@lists.infradead.org (subscribers-only)
