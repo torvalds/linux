@@ -4,3 +4,4 @@
 #include <trace/irq_event_types.h>
 #include <trace/lockdep_event_types.h>
 #include <trace/skb_event_types.h>
+#include <trace/kmem_event_types.h>

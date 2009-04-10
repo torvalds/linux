@@ -4,3 +4,4 @@
 #include <trace/irq.h>
 #include <trace/lockdep.h>
 #include <trace/skb.h>
+#include <trace/kmem.h>
