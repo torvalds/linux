@@ -2285,7 +2285,6 @@ P:	David Howells
 M:	dhowells@redhat.com
 S:	Maintained
 F:	arch/frv/
-F:	include/asm-frv/
 
 FUJITSU LAPTOP EXTRAS
 P:	Jonathan Woithe
