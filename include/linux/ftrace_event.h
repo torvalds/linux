@@ -83,6 +83,7 @@ void trace_current_buffer_discard_commit(struct ring_buffer_event *event);
 void tracing_record_cmdline(struct task_struct *tsk);
 
 struct ftrace_event_call {
+	struct list_head	list;
 	char			*name;
 	char			*system;
 	struct dentry		*dir;

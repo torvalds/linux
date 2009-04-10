@@ -19,6 +19,8 @@
 
 static DEFINE_MUTEX(event_mutex);
 
+LIST_HEAD(ftrace_events);
+
 int trace_define_field(struct ftrace_event_call *call, char *type,
 		       char *name, int offset, int size)
 {
@@ -54,16 +56,14 @@ err:
 
 static void ftrace_clear_events(void)
 {
-	struct ftrace_event_call *call = (void *)__start_ftrace_events;
+	struct ftrace_event_call *call;
 
-
-	while ((unsigned long)call < (unsigned long)__stop_ftrace_events) {
+	list_for_each_entry(call, &ftrace_events, list) {
 
 		if (call->enabled) {
 			call->enabled = 0;
 			call->unregfunc();
 		}
-		call++;
 	}
 }
 
@@ -89,7 +89,7 @@ static void ftrace_event_enable_disable(struct ftrace_event_call *call,
 
 static int ftrace_set_clr_event(char *buf, int set)
 {
-	struct ftrace_event_call *call = __start_ftrace_events;
+	struct ftrace_event_call *call;
 	char *event = NULL, *sub = NULL, *match;
 	int ret = -EINVAL;
 
@@ -118,7 +118,7 @@ static int ftrace_set_clr_event(char *buf, int set)
 	}
 
 	mutex_lock(&event_mutex);
-	for_each_event(call) {
+	list_for_each_entry(call, &ftrace_events, list) {
 
 		if (!call->name || !call->regfunc)
 			continue;
@@ -224,14 +224,16 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct ftrace_event_call *call = m->private;
-	struct ftrace_event_call *next = call;
+	struct list_head *list = m->private;
+	struct ftrace_event_call *call;
 
 	(*pos)++;
 
 	for (;;) {
-		if ((unsigned long)call >= (unsigned long)__stop_ftrace_events)
+		if (list == &ftrace_events)
 			return NULL;
+
+		call = list_entry(list, struct ftrace_event_call, list);
 
 		/*
 		 * The ftrace subsystem is for showing formats only.
@@ -240,11 +242,10 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		if (call->regfunc)
 			break;
 
-		call++;
-		next = call;
+		list = list->next;
 	}
 
-	m->private = ++next;
+	m->private = list->next;
 
 	return call;
 }
@@ -257,22 +258,23 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 static void *
 s_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct ftrace_event_call *call = m->private;
-	struct ftrace_event_call *next;
+	struct list_head *list = m->private;
+	struct ftrace_event_call *call;
 
 	(*pos)++;
 
  retry:
-	if ((unsigned long)call >= (unsigned long)__stop_ftrace_events)
+	if (list == &ftrace_events)
 		return NULL;
 
+	call = list_entry(list, struct ftrace_event_call, list);
+
 	if (!call->enabled) {
-		call++;
+		list = list->next;
 		goto retry;
 	}
 
-	next = call;
-	m->private = ++next;
+	m->private = list->next;
 
 	return call;
 }
@@ -312,7 +314,7 @@ ftrace_event_seq_open(struct inode *inode, struct file *file)
 	if (!ret) {
 		struct seq_file *m = file->private_data;
 
-		m->private = __start_ftrace_events;
+		m->private = ftrace_events.next;
 	}
 	return ret;
 }
@@ -797,9 +799,17 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 	return 0;
 }
 
+extern struct ftrace_event_call __start_ftrace_events[];
+extern struct ftrace_event_call __stop_ftrace_events[];
+
+#define for_each_event(event)						\
+	for (event = __start_ftrace_events;				\
+	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
+	     event++)
+
 static __init int event_trace_init(void)
 {
-	struct ftrace_event_call *call = __start_ftrace_events;
+	struct ftrace_event_call *call;
 	struct dentry *d_tracer;
 	struct dentry *entry;
 	struct dentry *d_events;
@@ -830,6 +840,7 @@ static __init int event_trace_init(void)
 		/* The linker may leave blanks */
 		if (!call->name)
 			continue;
+		list_add(&call->list, &ftrace_events);
 		event_create_dir(call, d_events);
 	}
 

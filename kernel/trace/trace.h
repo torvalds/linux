@@ -739,11 +739,6 @@ struct event_subsystem {
 	struct filter_pred	**preds;
 };
 
-#define events_for_each(event)						\
-	for (event = __start_ftrace_events;				\
-	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
-	     event++)
-
 struct filter_pred;
 
 typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
@@ -785,13 +780,7 @@ filter_check_discard(struct ftrace_event_call *call, void *rec,
 	return 0;
 }
 
-extern struct ftrace_event_call __start_ftrace_events[];
-extern struct ftrace_event_call __stop_ftrace_events[];
-
-#define for_each_event(event)						\
-	for (event = __start_ftrace_events;				\
-	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
-	     event++)
+extern struct list_head ftrace_events;
 
 extern const char *__start___trace_bprintk_fmt[];
 extern const char *__stop___trace_bprintk_fmt[];

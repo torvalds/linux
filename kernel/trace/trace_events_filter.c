@@ -223,7 +223,7 @@ oom:
 
 void filter_free_subsystem_preds(struct event_subsystem *system)
 {
-	struct ftrace_event_call *call = __start_ftrace_events;
+	struct ftrace_event_call *call;
 	int i;
 
 	if (system->n_preds) {
@@ -234,7 +234,7 @@ void filter_free_subsystem_preds(struct event_subsystem *system)
 		system->n_preds = 0;
 	}
 
-	events_for_each(call) {
+	list_for_each_entry(call, &ftrace_events, list) {
 		if (!call->define_fields)
 			continue;
 
@@ -320,7 +320,7 @@ int filter_add_pred(struct ftrace_event_call *call, struct filter_pred *pred)
 int filter_add_subsystem_pred(struct event_subsystem *system,
 			      struct filter_pred *pred)
 {
-	struct ftrace_event_call *call = __start_ftrace_events;
+	struct ftrace_event_call *call;
 
 	if (system->n_preds && !pred->compound)
 		filter_free_subsystem_preds(system);
@@ -337,7 +337,7 @@ int filter_add_subsystem_pred(struct event_subsystem *system,
 
 	system->preds[system->n_preds] = pred;
 
-	events_for_each(call) {
+	list_for_each_entry(call, &ftrace_events, list) {
 		int err;
 
 		if (!call->define_fields)

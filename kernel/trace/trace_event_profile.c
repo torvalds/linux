@@ -11,7 +11,7 @@ int ftrace_profile_enable(int event_id)
 {
 	struct ftrace_event_call *event;
 
-	for_each_event(event) {
+	list_for_each_entry(event, &ftrace_events, list) {
 		if (event->id == event_id)
 			return event->profile_enable(event);
 	}
@@ -23,7 +23,7 @@ void ftrace_profile_disable(int event_id)
 {
 	struct ftrace_event_call *event;
 
-	for_each_event(event) {
+	list_for_each_entry(event, &ftrace_events, list) {
 		if (event->id == event_id)
 			return event->profile_disable(event);
 	}
