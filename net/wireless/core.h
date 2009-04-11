@@ -73,10 +73,7 @@ bool wiphy_idx_valid(int wiphy_idx)
 extern struct mutex cfg80211_mutex;
 extern struct list_head cfg80211_drv_list;
 
-static inline void assert_cfg80211_lock(void)
-{
-	WARN_ON(!mutex_is_locked(&cfg80211_mutex));
-}
+#define assert_cfg80211_lock() WARN_ON(!mutex_is_locked(&cfg80211_mutex))
 
 /*
  * You can use this to mark a wiphy_idx as not having an associated wiphy.
