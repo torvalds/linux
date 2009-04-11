@@ -215,7 +215,7 @@ static int __filter_add_pred(struct ftrace_event_call *call,
 		}
 	}
 
-	return -ENOMEM;
+	return -ENOSPC;
 }
 
 static int is_string_field(const char *type)
@@ -319,7 +319,7 @@ int filter_add_subsystem_pred(struct event_subsystem *system,
 	}
 
 	if (i == MAX_FILTER_PRED)
-		return -EINVAL;
+		return -ENOSPC;
 
 	events_for_each(call) {
 		int err;
