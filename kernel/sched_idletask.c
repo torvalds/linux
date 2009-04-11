@@ -22,7 +22,8 @@ static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int sy
 static struct task_struct *pick_next_task_idle(struct rq *rq)
 {
 	schedstat_inc(rq, sched_goidle);
-
+	/* adjust the active tasks as we might go into a long sleep */
+	calc_load_account_active(rq);
 	return rq->idle;
 }
 
