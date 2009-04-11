@@ -419,12 +419,13 @@ int filter_parse(char **pbuf, struct filter_pred *pred)
 	if (!pred->field_name)
 		return -ENOMEM;
 
-	pred->val = simple_strtoull(val_str, &tmp, 10);
+	pred->val = simple_strtoull(val_str, &tmp, 0);
 	if (tmp == val_str) {
 		pred->str_val = kstrdup(val_str, GFP_KERNEL);
 		if (!pred->str_val)
 			return -ENOMEM;
-	}
+	} else if (*tmp != '\0')
+		return -EINVAL;
 
 	return 0;
 }
