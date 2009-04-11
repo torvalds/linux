@@ -59,7 +59,8 @@
 #define B43legacy_MMIO_XMITSTAT_1		0x174
 #define B43legacy_MMIO_REV3PLUS_TSF_LOW	0x180 /* core rev >= 3 only */
 #define B43legacy_MMIO_REV3PLUS_TSF_HIGH	0x184 /* core rev >= 3 only */
-
+#define B43legacy_MMIO_TSF_CFP_REP	0x188
+#define B43legacy_MMIO_TSF_CFP_START	0x18C
 /* 32-bit DMA */
 #define B43legacy_MMIO_DMA32_BASE0	0x200
 #define B43legacy_MMIO_DMA32_BASE1	0x220
@@ -616,6 +617,7 @@ struct b43legacy_wl {
 	struct sk_buff *current_beacon;
 	bool beacon0_uploaded;
 	bool beacon1_uploaded;
+	struct work_struct beacon_update_trigger;
 };
 
 /* Pointers to the firmware data and meta information about it. */

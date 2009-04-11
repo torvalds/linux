@@ -1013,7 +1013,8 @@ static void b43legacy_write_beacon_template(struct b43legacy_wldev *dev,
 		b43legacywarn(dev->wl, "Did not find a valid TIM IE in the "
 			      "beacon template packet. AP or IBSS operation "
 			      "may be broken.\n");
-	}
+	} else
+		b43legacydbg(dev->wl, "Updated beacon template\n");
 }
 
 static void b43legacy_write_probe_resp_plcp(struct b43legacy_wldev *dev,
@@ -1133,6 +1134,27 @@ static void b43legacy_write_probe_resp_template(struct b43legacy_wldev *dev,
 	kfree(probe_resp_data);
 }
 
+static void b43legacy_beacon_update_trigger_work(struct work_struct *work)
+{
+	struct b43legacy_wl *wl = container_of(work, struct b43legacy_wl,
+					 beacon_update_trigger);
+	struct b43legacy_wldev *dev;
+
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (likely(dev && (b43legacy_status(dev) >= B43legacy_STAT_INITIALIZED))) {
+		/* Force the microcode to trigger the
+		 * beacon update bottom-half IRQ. */
+		spin_lock_irq(&wl->irq_lock);
+		b43legacy_write32(dev, B43legacy_MMIO_MACCMD,
+			    b43legacy_read32(dev, B43legacy_MMIO_MACCMD)
+			    | B43legacy_MACCMD_BEACON0_VALID
+			    | B43legacy_MACCMD_BEACON1_VALID);
+		spin_unlock_irq(&wl->irq_lock);
+	}
+	mutex_unlock(&wl->mutex);
+}
+
 /* Asynchronously update the packet templates in template RAM.
  * Locking: Requires wl->irq_lock to be locked. */
 static void b43legacy_update_templates(struct b43legacy_wl *wl)
@@ -1156,25 +1178,31 @@ static void b43legacy_update_templates(struct b43legacy_wl *wl)
 	wl->current_beacon = beacon;
 	wl->beacon0_uploaded = 0;
 	wl->beacon1_uploaded = 0;
+	queue_work(wl->hw->workqueue, &wl->beacon_update_trigger);
 }
 
 static void b43legacy_set_beacon_int(struct b43legacy_wldev *dev,
 				     u16 beacon_int)
 {
 	b43legacy_time_lock(dev);
-	if (dev->dev->id.revision >= 3)
-		b43legacy_write32(dev, 0x188, (beacon_int << 16));
-	else {
+	if (dev->dev->id.revision >= 3) {
+		b43legacy_write32(dev, B43legacy_MMIO_TSF_CFP_REP,
+				 (beacon_int << 16));
+		b43legacy_write32(dev, B43legacy_MMIO_TSF_CFP_START,
+				 (beacon_int << 10));
+	} else {
 		b43legacy_write16(dev, 0x606, (beacon_int >> 6));
 		b43legacy_write16(dev, 0x610, beacon_int);
 	}
 	b43legacy_time_unlock(dev);
+	b43legacydbg(dev->wl, "Set beacon interval to %u\n", beacon_int);
 }
 
 static void handle_irq_beacon(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_wl *wl = dev->wl;
 	u32 cmd;
+	u32 beacon0_valid, beacon1_valid;
 
 	if (!b43legacy_is_mode(wl, NL80211_IFTYPE_AP))
 		return;
@@ -1182,7 +1210,11 @@ static void handle_irq_beacon(struct b43legacy_wldev *dev)
 	/* This is the bottom half of the asynchronous beacon update. */
 
 	cmd = b43legacy_read32(dev, B43legacy_MMIO_MACCMD);
-	if (!(cmd & B43legacy_MACCMD_BEACON0_VALID)) {
+	beacon0_valid = (cmd & B43legacy_MACCMD_BEACON0_VALID);
+	beacon1_valid = (cmd & B43legacy_MACCMD_BEACON1_VALID);
+	cmd &= ~(B43legacy_MACCMD_BEACON0_VALID | B43legacy_MACCMD_BEACON1_VALID);
+
+	if (!beacon0_valid) {
 		if (!wl->beacon0_uploaded) {
 			b43legacy_write_beacon_template(dev, 0x68,
 							B43legacy_SHM_SH_BTL0,
@@ -1193,8 +1225,7 @@ static void handle_irq_beacon(struct b43legacy_wldev *dev)
 			wl->beacon0_uploaded = 1;
 		}
 		cmd |= B43legacy_MACCMD_BEACON0_VALID;
-	}
-	if (!(cmd & B43legacy_MACCMD_BEACON1_VALID)) {
+	} else if (!beacon1_valid) {
 		if (!wl->beacon1_uploaded) {
 			b43legacy_write_beacon_template(dev, 0x468,
 							B43legacy_SHM_SH_BTL1,
@@ -3435,6 +3466,7 @@ static void b43legacy_op_stop(struct ieee80211_hw *hw)
 	struct b43legacy_wldev *dev = wl->current_dev;
 
 	b43legacy_rfkill_exit(dev);
+	cancel_work_sync(&(wl->beacon_update_trigger));
 
 	mutex_lock(&wl->mutex);
 	if (b43legacy_status(dev) >= B43legacy_STAT_STARTED)
@@ -3766,6 +3798,7 @@ static int b43legacy_wireless_init(struct ssb_device *dev)
 	spin_lock_init(&wl->leds_lock);
 	mutex_init(&wl->mutex);
 	INIT_LIST_HEAD(&wl->devlist);
+	INIT_WORK(&wl->beacon_update_trigger, b43legacy_beacon_update_trigger_work);
 
 	ssb_set_devtypedata(dev, wl);
 	b43legacyinfo(wl, "Broadcom %04X WLAN found\n", dev->bus->chip_id);
