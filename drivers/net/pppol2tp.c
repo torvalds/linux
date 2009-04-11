@@ -1238,8 +1238,7 @@ static void pppol2tp_tunnel_closeall(struct pppol2tp_tunnel *tunnel)
 	struct pppol2tp_session *session;
 	struct sock *sk;
 
-	if (tunnel == NULL)
-		BUG();
+	BUG_ON(tunnel == NULL);
 
 	PRINTK(tunnel->debug, PPPOL2TP_MSG_CONTROL, KERN_INFO,
 	       "%s: closing all sessions...\n", tunnel->name);

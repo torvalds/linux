@@ -621,12 +621,9 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 	virtio_net_ctrl_ack status = ~0;
 	unsigned int tmp;
 
-	if (!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ)) {
-		BUG();  /* Caller should know better */
-		return false;
-	}
-
-	BUG_ON(out + in > VIRTNET_SEND_COMMAND_SG_MAX);
+	/* Caller should know better */
+	BUG_ON(!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ) ||
+		(out + in > VIRTNET_SEND_COMMAND_SG_MAX));
 
 	out++; /* Add header */
 	in++; /* Add return status */
@@ -640,8 +637,7 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 	memcpy(&sg[1], data, sizeof(struct scatterlist) * (out + in - 2));
 	sg_set_buf(&sg[out + in - 1], &status, sizeof(status));
 
-	if (vi->cvq->vq_ops->add_buf(vi->cvq, sg, out, in, vi) != 0)
-		BUG();
+	BUG_ON(vi->cvq->vq_ops->add_buf(vi->cvq, sg, out, in, vi));
 
 	vi->cvq->vq_ops->kick(vi->cvq);
 

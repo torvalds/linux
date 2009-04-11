@@ -54,9 +54,8 @@ static inline int ath5k_hw_write_ofdm_timings(struct ath5k_hw *ah,
 	u32 coef_scaled, coef_exp, coef_man,
 		ds_coef_exp, ds_coef_man, clock;
 
-	if (!(ah->ah_version == AR5K_AR5212) ||
-		!(channel->hw_value & CHANNEL_OFDM))
-		BUG();
+	BUG_ON(!(ah->ah_version == AR5K_AR5212) ||
+		!(channel->hw_value & CHANNEL_OFDM));
 
 	/* Get coefficient
 	 * ALGO: coef = (5 * clock * carrier_freq) / 2)

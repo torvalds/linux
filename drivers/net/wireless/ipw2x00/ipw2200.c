@@ -3176,11 +3176,8 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
 	/* Start the Dma */
 	rc = ipw_fw_dma_enable(priv);
 
-	if (priv->sram_desc.last_cb_index > 0) {
-		/* the DMA is already ready this would be a bug. */
-		BUG();
-		goto out;
-	}
+	/* the DMA is already ready this would be a bug. */
+	BUG_ON(priv->sram_desc.last_cb_index > 0);
 
 	do {
 		chunk = (struct fw_chunk *)(data + offset);

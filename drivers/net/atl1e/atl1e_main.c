@@ -1794,8 +1794,7 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 			memcpy(use_tpd, tpd, sizeof(struct atl1e_tpd_desc));
 
 			tx_buffer = atl1e_get_tx_buffer(adapter, use_tpd);
-			if (tx_buffer->skb)
-				BUG();
+			BUG_ON(tx_buffer->skb);
 
 			tx_buffer->skb = NULL;
 			tx_buffer->length =
