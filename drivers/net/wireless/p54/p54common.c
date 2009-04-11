@@ -769,8 +769,6 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	rx_status.signal = p54_rssi_to_dbm(dev, hdr->rssi);
 	rx_status.noise = priv->noise;
-	/* XX correct? */
-	rx_status.qual = (100 * hdr->rssi) / 127;
 	if (hdr->rate & 0x10)
 		rx_status.flag |= RX_FLAG_SHORTPRE;
 	if (dev->conf.channel->band == IEEE80211_BAND_5GHZ)
