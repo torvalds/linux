@@ -150,8 +150,7 @@ static int agnx_get_mac_address(struct agnx_priv *priv)
 	*((u32 *)(priv->mac_addr + 2)) = cpu_to_le32(reg);
 
 	if (!is_valid_ether_addr(priv->mac_addr)) {
-		DECLARE_MAC_BUF(mbuf);
-		printk(KERN_WARNING PFX "read mac %s\n", print_mac(mbuf, priv->mac_addr));
+		printk(KERN_WARNING PFX "read mac %pM\n", priv->mac_addr);
 		printk(KERN_WARNING PFX "Invalid hwaddr! Using random hwaddr\n");
 		random_ether_addr(priv->mac_addr);
 	}
@@ -456,7 +455,6 @@ static int __devinit agnx_pci_probe(struct pci_dev *pdev,
 	struct ieee80211_hw *dev;
 	struct agnx_priv *priv;
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -550,9 +548,9 @@ static int __devinit agnx_pci_probe(struct pci_dev *pdev,
 
 	agnx_hw_reset(priv);
 
-	dev_info(&pdev->dev, "%s: hwaddr %s, Rev 0x%02x\n",
+	dev_info(&pdev->dev, "%s: hwaddr %pM, Rev 0x%02x\n",
 		wiphy_name(dev->wiphy),
-		print_mac(mac, dev->wiphy->perm_addr), priv->revid);
+		dev->wiphy->perm_addr, priv->revid);
 	return 0;
 
  err_iounmap:
