@@ -1787,7 +1787,6 @@ static int stlc45xx_tx_pspoll(struct stlc45xx *stlc, bool powersave)
 	int payload_len, padding, i;
 	struct s_lm_data_out *data;
 	struct txbuffer *entry;
-	DECLARE_MAC_BUF(mac);
 	struct sk_buff *skb;
 	char *payload;
 	u16 fc;
@@ -1813,8 +1812,8 @@ static int stlc45xx_tx_pspoll(struct stlc45xx *stlc, bool powersave)
 	memcpy(pspoll->addr1, stlc->bssid, ETH_ALEN);
 	memcpy(pspoll->addr2, stlc->mac_addr, ETH_ALEN);
 
-	stlc45xx_debug(DEBUG_PSM, "sending PS-Poll frame to %s (powersave %d, "
-		       "fc 0x%x, aid %d)", print_mac(mac, pspoll->addr1),
+	stlc45xx_debug(DEBUG_PSM, "sending PS-Poll frame to %pM (powersave %d, "
+		       "fc 0x%x, aid %d)", pspoll->addr1,
 		       powersave, fc, stlc->aid);
 
 	spin_lock_bh(&stlc->tx_lock);
@@ -1903,7 +1902,6 @@ static int stlc45xx_tx_nullfunc(struct stlc45xx *stlc, bool powersave)
 	int payload_len, padding, i;
 	struct s_lm_data_out *data;
 	struct txbuffer *entry;
-	DECLARE_MAC_BUF(mac);
 	struct sk_buff *skb;
 	char *payload;
 	u16 fc;
@@ -1928,9 +1926,8 @@ static int stlc45xx_tx_nullfunc(struct stlc45xx *stlc, bool powersave)
 	memcpy(nullfunc->addr2, stlc->mac_addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, stlc->bssid, ETH_ALEN);
 
-	stlc45xx_debug(DEBUG_PSM, "sending Null frame to %s (powersave %d, "
-		       "fc 0x%x)",
-		       print_mac(mac, nullfunc->addr1), powersave, fc);
+	stlc45xx_debug(DEBUG_PSM, "sending Null frame to %pM (powersave %d, "
+		       "fc 0x%x)", nullfunc->addr1, powersave, fc);
 
 	spin_lock_bh(&stlc->tx_lock);
 
