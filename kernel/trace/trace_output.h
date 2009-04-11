@@ -1,6 +1,7 @@
 #ifndef __TRACE_EVENTS_H
 #define __TRACE_EVENTS_H
 
+#include <linux/trace_seq.h>
 #include "trace.h"
 
 typedef enum print_line_t (*trace_print_func)(struct trace_iterator *iter,
@@ -20,24 +21,9 @@ trace_print_bprintk_msg_only(struct trace_iterator *iter);
 extern enum print_line_t
 trace_print_printk_msg_only(struct trace_iterator *iter);
 
-extern void trace_print_seq(struct seq_file *m, struct trace_seq *s);
-
-extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int
-trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary);
 extern int
 seq_print_ip_sym(struct trace_seq *s, unsigned long ip,
 		unsigned long sym_flags);
-extern ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf,
-				 size_t cnt);
-extern int trace_seq_puts(struct trace_seq *s, const char *str);
-extern int trace_seq_putc(struct trace_seq *s, unsigned char c);
-extern int trace_seq_putmem(struct trace_seq *s, const void *mem, size_t len);
-extern int trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
-				size_t len);
-extern void *trace_seq_reserve(struct trace_seq *s, size_t len);
-extern int trace_seq_path(struct trace_seq *s, struct path *path);
 extern int seq_print_userip_objs(const struct userstack_entry *entry,
 				 struct trace_seq *s, unsigned long sym_flags);
 extern int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,

@@ -12,6 +12,8 @@
 #include <linux/kmemtrace.h>
 #include <trace/power.h>
 
+#include <linux/trace_seq.h>
+
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,
 
@@ -422,19 +424,6 @@ struct tracer {
 	struct tracer_flags	*flags;
 	struct tracer_stat	*stats;
 };
-
-struct trace_seq {
-	unsigned char		buffer[PAGE_SIZE];
-	unsigned int		len;
-	unsigned int		readpos;
-};
-
-static inline void
-trace_seq_init(struct trace_seq *s)
-{
-	s->len = 0;
-	s->readpos = 0;
-}
 
 
 #define TRACE_PIPE_ALL_CPU	-1
