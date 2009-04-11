@@ -186,6 +186,7 @@ struct p54_common {
 	/* cryptographic engine information */
 	u8 privacy_caps;
 	u8 rx_keycache_size;
+	unsigned long *used_rxkeys;
 
 	/* LED management */
 #ifdef CONFIG_MAC80211_LEDS
