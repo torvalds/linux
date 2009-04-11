@@ -503,6 +503,7 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
+	buf[cnt] = '\0';
 
 	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
 	if (!pred)
@@ -569,6 +570,7 @@ subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
+	buf[cnt] = '\0';
 
 	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
 	if (!pred)
