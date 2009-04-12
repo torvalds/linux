@@ -562,6 +562,7 @@ enum emulation_result {
 
 #define EMULTYPE_NO_DECODE	    (1 << 0)
 #define EMULTYPE_TRAP_UD	    (1 << 1)
+#define EMULTYPE_SKIP		    (1 << 2)
 int emulate_instruction(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			unsigned long cr2, u16 error_code, int emulation_type);
 void kvm_report_emulation_failure(struct kvm_vcpu *cvpu, const char *context);

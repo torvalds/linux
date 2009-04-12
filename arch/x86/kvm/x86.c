@@ -2413,6 +2413,11 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 		}
 	}
 
+	if (emulation_type & EMULTYPE_SKIP) {
+		kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.decode.eip);
+		return EMULATE_DONE;
+	}
+
 	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
 
 	if (vcpu->arch.pio.string)
