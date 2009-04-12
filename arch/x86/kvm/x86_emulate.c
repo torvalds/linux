@@ -59,13 +59,14 @@
 #define SrcImm      (5<<4)	/* Immediate operand. */
 #define SrcImmByte  (6<<4)	/* 8-bit sign-extended immediate operand. */
 #define SrcOne      (7<<4)	/* Implied '1' */
-#define SrcMask     (7<<4)
+#define SrcImmUByte (8<<4)      /* 8-bit unsigned immediate operand. */
+#define SrcMask     (0xf<<4)
 /* Generic ModRM decode. */
-#define ModRM       (1<<7)
+#define ModRM       (1<<8)
 /* Destination is only written; never read. */
-#define Mov         (1<<8)
-#define BitOp       (1<<9)
-#define MemAbs      (1<<10)      /* Memory operand is absolute displacement */
+#define Mov         (1<<9)
+#define BitOp       (1<<10)
+#define MemAbs      (1<<11)      /* Memory operand is absolute displacement */
 #define String      (1<<12)     /* String instruction (rep capable) */
 #define Stack       (1<<13)     /* Stack instruction (push/pop) */
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
@@ -1044,10 +1045,14 @@ done_prefixes:
 		}
 		break;
 	case SrcImmByte:
+	case SrcImmUByte:
 		c->src.type = OP_IMM;
 		c->src.ptr = (unsigned long *)c->eip;
 		c->src.bytes = 1;
-		c->src.val = insn_fetch(s8, 1, c->eip);
+		if ((c->d & SrcMask) == SrcImmByte)
+			c->src.val = insn_fetch(s8, 1, c->eip);
+		else
+			c->src.val = insn_fetch(u8, 1, c->eip);
 		break;
 	case SrcOne:
 		c->src.bytes = 1;
