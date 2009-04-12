@@ -317,7 +317,8 @@ static void sony_laptop_report_input_event(u8 event)
 	struct input_dev *key_dev = sony_laptop_input.key_dev;
 	struct sony_laptop_keypress kp = { NULL };
 
-	if (event == SONYPI_EVENT_FNKEY_RELEASED) {
+	if (event == SONYPI_EVENT_FNKEY_RELEASED ||
+			event == SONYPI_EVENT_ANYBUTTON_RELEASED) {
 		/* Nothing, not all VAIOs generate this event */
 		return;
 	}
