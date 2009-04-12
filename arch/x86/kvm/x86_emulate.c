@@ -136,11 +136,11 @@ static u32 opcode_table[256] = {
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* insb, insw/insd */
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* outsb, outsw/outsd */
 	/* 0x70 - 0x77 */
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
+	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
 	/* 0x78 - 0x7F */
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
+	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
 	/* 0x80 - 0x87 */
 	Group | Group1_80, Group | Group1_81,
 	Group | Group1_82, Group | Group1_83,
@@ -232,10 +232,8 @@ static u32 twobyte_table[256] = {
 	/* 0x70 - 0x7F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x80 - 0x8F */
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm,
+	SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm,
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xA0 - 0xA7 */
@@ -1539,13 +1537,10 @@ special_insn:
 			return -1;
 		}
 		return 0;
-	case 0x70 ... 0x7f: /* jcc (short) */ {
-		int rel = insn_fetch(s8, 1, c->eip);
-
+	case 0x70 ... 0x7f: /* jcc (short) */
 		if (test_cc(c->b, ctxt->eflags))
-			jmp_rel(c, rel);
+			jmp_rel(c, c->src.val);
 		break;
-	}
 	case 0x80 ... 0x83:	/* Grp1 */
 		switch (c->modrm_reg) {
 		case 0:
@@ -2031,28 +2026,11 @@ twobyte_insn:
 		if (!test_cc(c->b, ctxt->eflags))
 			c->dst.type = OP_NONE; /* no writeback */
 		break;
-	case 0x80 ... 0x8f: /* jnz rel, etc*/ {
-		long int rel;
-
-		switch (c->op_bytes) {
-		case 2:
-			rel = insn_fetch(s16, 2, c->eip);
-			break;
-		case 4:
-			rel = insn_fetch(s32, 4, c->eip);
-			break;
-		case 8:
-			rel = insn_fetch(s64, 8, c->eip);
-			break;
-		default:
-			DPRINTF("jnz: Invalid op_bytes\n");
-			goto cannot_emulate;
-		}
+	case 0x80 ... 0x8f: /* jnz rel, etc*/
 		if (test_cc(c->b, ctxt->eflags))
-			jmp_rel(c, rel);
+			jmp_rel(c, c->src.val);
 		c->dst.type = OP_NONE;
 		break;
-	}
 	case 0xa3:
 	      bt:		/* bt */
 		c->dst.type = OP_NONE;
