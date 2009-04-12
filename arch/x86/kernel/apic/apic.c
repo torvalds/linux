@@ -98,6 +98,29 @@ early_param("lapic", parse_lapic);
 /* Local APIC was disabled by the BIOS and enabled by the kernel */
 static int enabled_via_apicbase;
 
+/*
+ * Handle interrupt mode configuration register (IMCR).
+ * This register controls whether the interrupt signals
+ * that reach the BSP come from the master PIC or from the
+ * local APIC. Before entering Symmetric I/O Mode, either
+ * the BIOS or the operating system must switch out of
+ * PIC Mode by changing the IMCR.
+ */
+static inline imcr_pic_to_apic(void)
+{
+	/* select IMCR register */
+	outb(0x70, 0x22);
+	/* NMI and 8259 INTR go through APIC */
+	outb(0x01, 0x23);
+}
+
+static inline imcr_apic_to_pic(void)
+{
+	/* select IMCR register */
+	outb(0x70, 0x22);
+	/* NMI and 8259 INTR go directly to BSP */
+	outb(0x00, 0x23);
+}
 #endif
 
 #ifdef CONFIG_X86_64
@@ -1727,8 +1750,7 @@ void __init connect_bsp_APIC(void)
 		 */
 		apic_printk(APIC_VERBOSE, "leaving PIC mode, "
 				"enabling APIC mode.\n");
-		outb(0x70, 0x22);
-		outb(0x01, 0x23);
+		imcr_pic_to_apic();
 	}
 #endif
 	if (apic->enable_apic_mode)
@@ -1756,8 +1778,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 		 */
 		apic_printk(APIC_VERBOSE, "disabling APIC mode, "
 				"entering PIC mode.\n");
-		outb(0x70, 0x22);
-		outb(0x00, 0x23);
+		imcr_apic_to_pic();
 		return;
 	}
 #endif
