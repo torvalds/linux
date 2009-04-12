@@ -1103,8 +1103,11 @@ static int sony_nc_setup_wifi_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_wifi_rfkill);
 	if (err)
 		rfkill_free(sony_wifi_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_WIFI] = sony_wifi_rfkill;
+		sony_nc_rfkill_set(sony_wifi_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
@@ -1125,8 +1128,11 @@ static int sony_nc_setup_bluetooth_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_bluetooth_rfkill);
 	if (err)
 		rfkill_free(sony_bluetooth_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_BLUETOOTH] = sony_bluetooth_rfkill;
+		sony_nc_rfkill_set(sony_bluetooth_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
@@ -1146,8 +1152,11 @@ static int sony_nc_setup_wwan_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_wwan_rfkill);
 	if (err)
 		rfkill_free(sony_wwan_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_WWAN] = sony_wwan_rfkill;
+		sony_nc_rfkill_set(sony_wwan_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
@@ -1167,8 +1176,11 @@ static int sony_nc_setup_wimax_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_wimax_rfkill);
 	if (err)
 		rfkill_free(sony_wimax_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_WIMAX] = sony_wimax_rfkill;
+		sony_nc_rfkill_set(sony_wimax_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
