@@ -190,8 +190,8 @@ static u32 opcode_table[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xE0 - 0xE7 */
 	0, 0, 0, 0,
-	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
-	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
+	ByteOp | SrcImmUByte, SrcImmUByte,
+	ByteOp | SrcImmUByte, SrcImmUByte,
 	/* 0xE8 - 0xEF */
 	SrcImm | Stack, SrcImm | ImplicitOps,
 	SrcImm | Src2Imm16, SrcImmByte | ImplicitOps,
@@ -1777,12 +1777,12 @@ special_insn:
 		break;
 	case 0xe4: 	/* inb */
 	case 0xe5: 	/* in */
-		port = insn_fetch(u8, 1, c->eip);
+		port = c->src.val;
 		io_dir_in = 1;
 		goto do_io;
 	case 0xe6: /* outb */
 	case 0xe7: /* out */
-		port = insn_fetch(u8, 1, c->eip);
+		port = c->src.val;
 		io_dir_in = 0;
 		goto do_io;
 	case 0xe8: /* call (near) */ {
