@@ -193,7 +193,7 @@ static u32 opcode_table[256] = {
 	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
 	/* 0xE8 - 0xEF */
 	ImplicitOps | Stack, SrcImm | ImplicitOps,
-	ImplicitOps, SrcImmByte | ImplicitOps,
+	SrcImm | Src2Imm16, SrcImmByte | ImplicitOps,
 	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
 	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
 	/* 0xF0 - 0xF7 */
@@ -1805,30 +1805,15 @@ special_insn:
 	}
 	case 0xe9: /* jmp rel */
 		goto jmp;
-	case 0xea: /* jmp far */ {
-		uint32_t eip;
-		uint16_t sel;
-
-		switch (c->op_bytes) {
-		case 2:
-			eip = insn_fetch(u16, 2, c->eip);
-			break;
-		case 4:
-			eip = insn_fetch(u32, 4, c->eip);
-			break;
-		default:
-			DPRINTF("jmp far: Invalid op_bytes\n");
-			goto cannot_emulate;
-		}
-		sel = insn_fetch(u16, 2, c->eip);
-		if (kvm_load_segment_descriptor(ctxt->vcpu, sel, 9, VCPU_SREG_CS) < 0) {
+	case 0xea: /* jmp far */
+		if (kvm_load_segment_descriptor(ctxt->vcpu, c->src2.val, 9,
+					VCPU_SREG_CS) < 0) {
 			DPRINTF("jmp far: Failed to load CS descriptor\n");
 			goto cannot_emulate;
 		}
 
-		c->eip = eip;
+		c->eip = c->src.val;
 		break;
-	}
 	case 0xeb:
 	      jmp:		/* jmp rel short */
 		jmp_rel(c, c->src.val);
