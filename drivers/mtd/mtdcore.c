@@ -48,11 +48,11 @@ static LIST_HEAD(mtd_notifiers);
  */
 static void mtd_release(struct device *dev)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	dev_t index = MTD_DEVT(dev_to_mtd(dev)->index);
 
 	/* remove /dev/mtdXro node if needed */
-	if (MTD_DEVT(mtd->index))
-		device_destroy(mtd_class, MTD_DEVT(mtd->index) + 1);
+	if (index)
+		device_destroy(mtd_class, index + 1);
 }
 
 static ssize_t mtd_type_show(struct device *dev,
