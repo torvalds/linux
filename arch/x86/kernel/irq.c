@@ -24,7 +24,8 @@ void (*generic_interrupt_extension)(void) = NULL;
  */
 void ack_bad_irq(unsigned int irq)
 {
-	printk(KERN_ERR "unexpected IRQ trap at vector %02x\n", irq);
+	if (printk_ratelimit())
+		pr_err("unexpected IRQ trap at vector %02x\n", irq);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/*
@@ -178,7 +179,7 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	sum += irq_stats(cpu)->irq_thermal_count;
 # ifdef CONFIG_X86_64
 	sum += irq_stats(cpu)->irq_threshold_count;
-#endif
+# endif
 #endif
 	return sum;
 }
@@ -219,8 +220,8 @@ unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 #endif
 
 		if (printk_ratelimit())
-			printk(KERN_EMERG "%s: %d.%d No irq handler for vector (irq %d)\n",
-			       __func__, smp_processor_id(), vector, irq);
+			pr_emerg("%s: %d.%d No irq handler for vector (irq %d)\n",
+				__func__, smp_processor_id(), vector, irq);
 	}
 
 	irq_exit();
