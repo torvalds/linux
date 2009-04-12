@@ -193,19 +193,19 @@ void smp_call_function_single_interrupt(struct pt_regs *regs)
 }
 
 struct smp_ops smp_ops = {
-	.smp_prepare_boot_cpu = native_smp_prepare_boot_cpu,
-	.smp_prepare_cpus = native_smp_prepare_cpus,
-	.smp_cpus_done = native_smp_cpus_done,
+	.smp_prepare_boot_cpu	= native_smp_prepare_boot_cpu,
+	.smp_prepare_cpus	= native_smp_prepare_cpus,
+	.smp_cpus_done		= native_smp_cpus_done,
 
-	.smp_send_stop = native_smp_send_stop,
-	.smp_send_reschedule = native_smp_send_reschedule,
+	.smp_send_stop		= native_smp_send_stop,
+	.smp_send_reschedule	= native_smp_send_reschedule,
 
-	.cpu_up = native_cpu_up,
-	.cpu_die = native_cpu_die,
-	.cpu_disable = native_cpu_disable,
-	.play_dead = native_play_dead,
+	.cpu_up			= native_cpu_up,
+	.cpu_die		= native_cpu_die,
+	.cpu_disable		= native_cpu_disable,
+	.play_dead		= native_play_dead,
 
-	.send_call_func_ipi = native_send_call_func_ipi,
+	.send_call_func_ipi	= native_send_call_func_ipi,
 	.send_call_func_single_ipi = native_send_call_func_single_ipi,
 };
 EXPORT_SYMBOL_GPL(smp_ops);
