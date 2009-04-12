@@ -10,7 +10,7 @@
 
 /*
  * "Glove box" for BIOS calls.  Avoids the constant problems with BIOSes
- * touching memory they shouldn't be.
+ * touching registers they shouldn't be.
  */
 
 	.code16
