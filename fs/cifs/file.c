@@ -307,11 +307,9 @@ int cifs_open(struct inode *inode, struct file *file)
 		rc = 0;
 		FreeXid(xid);
 		return rc;
-	} else {
-		if ((file->f_flags & O_CREAT) && (file->f_flags & O_EXCL))
+	} else if ((file->f_flags & O_CREAT) && (file->f_flags & O_EXCL))
 			cERROR(1, ("could not find file instance for "
 				   "new file %p", file));
-	}
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 	if (full_path == NULL) {

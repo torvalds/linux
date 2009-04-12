@@ -149,7 +149,7 @@ cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
 	pCifsFile->pid = current->tgid;
 	pCifsFile->pInode = newinode;
 	pCifsFile->invalidHandle = false;
-	pCifsFile->closePend     = false;
+	pCifsFile->closePend = false;
 	mutex_init(&pCifsFile->fh_mutex);
 	mutex_init(&pCifsFile->lock_mutex);
 	INIT_LIST_HEAD(&pCifsFile->llist);
@@ -162,20 +162,18 @@ cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
 	pCifsInode = CIFS_I(newinode);
 	if (pCifsInode) {
 		/* if readable file instance put first in list*/
-		if (write_only) {
+		if (write_only)
 			list_add_tail(&pCifsFile->flist,
 				      &pCifsInode->openFileList);
-		} else {
-			list_add(&pCifsFile->flist,
-				 &pCifsInode->openFileList);
-		}
+		else
+			list_add(&pCifsFile->flist, &pCifsInode->openFileList);
+
 		if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
 			pCifsInode->clientCanCacheAll = true;
 			pCifsInode->clientCanCacheRead = true;
-			cFYI(1, ("Exclusive Oplock inode %p",
-				newinode));
+			cFYI(1, ("Exclusive Oplock inode %p", newinode));
 		} else if ((oplock & 0xF) == OPLOCK_READ)
-			pCifsInode->clientCanCacheRead = true;
+				pCifsInode->clientCanCacheRead = true;
 	}
 	write_unlock(&GlobalSMBSeslock);
 }
@@ -668,6 +666,16 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 					parent_dir_inode->i_sb, mode,
 					nd->intent.open.flags, &oplock,
 					&fileHandle, xid);
+				/*
+				 * This code works around a bug in
+				 * samba posix open in samba versions 3.3.1
+				 * and earlier where create works
+				 * but open fails with invalid parameter.
+				 * If either of these error codes are
+				 * returned, follow the normal lookup.
+				 * Otherwise, the error during posix open
+				 * is handled.
+				 */
 				if ((rc != -EINVAL) && (rc != -EOPNOTSUPP))
 					posix_open = true;
 			}
