@@ -1828,6 +1828,7 @@ static int task_switch_interception(struct vcpu_svm *svm,
 	int reason;
 	int int_type = svm->vmcb->control.exit_int_info &
 		SVM_EXITINTINFO_TYPE_MASK;
+	int int_vec = svm->vmcb->control.exit_int_info & SVM_EVTINJ_VEC_MASK;
 
 	tss_selector = (u16)svm->vmcb->control.exit_info_1;
 
@@ -1843,8 +1844,14 @@ static int task_switch_interception(struct vcpu_svm *svm,
 		reason = TASK_SWITCH_CALL;
 
 
-	if (reason != TASK_SWITCH_GATE || int_type == SVM_EXITINTINFO_TYPE_SOFT)
-		skip_emulated_instruction(&svm->vcpu);
+	if (reason != TASK_SWITCH_GATE ||
+	    int_type == SVM_EXITINTINFO_TYPE_SOFT ||
+	    (int_type == SVM_EXITINTINFO_TYPE_EXEPT &&
+	     (int_vec == OF_VECTOR || int_vec == BP_VECTOR))) {
+		if (emulate_instruction(&svm->vcpu, kvm_run, 0, 0,
+					EMULTYPE_SKIP) != EMULATE_DONE)
+			return 0;
+	}
 
 	return kvm_task_switch(&svm->vcpu, tss_selector, reason);
 }
