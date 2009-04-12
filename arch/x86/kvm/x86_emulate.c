@@ -76,6 +76,7 @@
 #define Src2CL      (1<<29)
 #define Src2ImmByte (2<<29)
 #define Src2One     (3<<29)
+#define Src2Imm16   (4<<29)
 #define Src2Mask    (7<<29)
 
 enum {
@@ -1071,6 +1072,12 @@ done_prefixes:
 		c->src2.ptr = (unsigned long *)c->eip;
 		c->src2.bytes = 1;
 		c->src2.val = insn_fetch(u8, 1, c->eip);
+		break;
+	case Src2Imm16:
+		c->src2.type = OP_IMM;
+		c->src2.ptr = (unsigned long *)c->eip;
+		c->src2.bytes = 2;
+		c->src2.val = insn_fetch(u16, 2, c->eip);
 		break;
 	case Src2One:
 		c->src2.bytes = 1;
