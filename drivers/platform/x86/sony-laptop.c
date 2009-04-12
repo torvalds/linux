@@ -1003,6 +1003,7 @@ static int sony_nc_function_setup(struct acpi_device *device)
 	sony_call_snc_handle(0x0100, 0, &result);
 	sony_call_snc_handle(0x0101, 0, &result);
 	sony_call_snc_handle(0x0102, 0x100, &result);
+	sony_call_snc_handle(0x0127, 0, &result);
 
 	return 0;
 }
