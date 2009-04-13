@@ -284,8 +284,8 @@ static bool ath9k_hw_iscal_supported(struct ath_hw *ah,
 		return true;
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
-		if (conf->channel->band == IEEE80211_BAND_5GHZ &&
-		  conf_is_ht20(conf))
+		if (!(conf->channel->band == IEEE80211_BAND_2GHZ &&
+		      conf_is_ht20(conf)))
 			return true;
 		break;
 	}
