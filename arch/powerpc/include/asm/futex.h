@@ -27,7 +27,7 @@
 	PPC_LONG "1b,4b,2b,4b\n" \
 	".previous" \
 	: "=&r" (oldval), "=&r" (ret) \
-	: "b" (uaddr), "i" (-EFAULT), "1" (oparg) \
+	: "b" (uaddr), "i" (-EFAULT), "r" (oparg) \
 	: "cr0", "memory")
 
 static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
@@ -47,19 +47,19 @@ static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 
 	switch (op) {
 	case FUTEX_OP_SET:
-		__futex_atomic_op("", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("mr %1,%4\n", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ADD:
-		__futex_atomic_op("add %1,%0,%1\n", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("add %1,%0,%4\n", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_OR:
-		__futex_atomic_op("or %1,%0,%1\n", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("or %1,%0,%4\n", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ANDN:
-		__futex_atomic_op("andc %1,%0,%1\n", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("andc %1,%0,%4\n", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_XOR:
-		__futex_atomic_op("xor %1,%0,%1\n", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("xor %1,%0,%4\n", ret, oldval, uaddr, oparg);
 		break;
 	default:
 		ret = -ENOSYS;
