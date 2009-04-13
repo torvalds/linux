@@ -116,8 +116,7 @@ int16_t ath9k_hw_getnf(struct ath_hw *ah,
 void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah);
 s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan);
 bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
-			u8 rxchainmask, bool longcal,
-			bool *isCalDone);
+			u8 rxchainmask, bool longcal);
 bool ath9k_hw_init_cal(struct ath_hw *ah,
 		       struct ath9k_channel *chan);
 

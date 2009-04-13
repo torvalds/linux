@@ -367,28 +367,16 @@ static void ath_ani_calibrate(unsigned long data)
 
 		/* Perform calibration if necessary */
 		if (longcal || shortcal) {
-			bool iscaldone = false;
+			sc->ani.caldone = ath9k_hw_calibrate(ah, ah->curchan,
+						     sc->rx_chainmask, longcal);
 
-			if (ath9k_hw_calibrate(ah, ah->curchan,
-					       sc->rx_chainmask, longcal,
-					       &iscaldone)) {
-				if (longcal)
-					sc->ani.noise_floor =
-						ath9k_hw_getchan_noise(ah,
-							       ah->curchan);
+			if (longcal)
+				sc->ani.noise_floor = ath9k_hw_getchan_noise(ah,
+								     ah->curchan);
 
-				DPRINTF(sc, ATH_DBG_ANI,
-					"calibrate chan %u/%x nf: %d\n",
-					ah->curchan->channel,
-					ah->curchan->channelFlags,
-					sc->ani.noise_floor);
-			} else {
-				DPRINTF(sc, ATH_DBG_ANY,
-					"calibrate chan %u/%x failed\n",
-					ah->curchan->channel,
-					ah->curchan->channelFlags);
-			}
-			sc->ani.caldone = iscaldone;
+			DPRINTF(sc, ATH_DBG_ANI," calibrate chan %u/%x nf: %d\n",
+				ah->curchan->channel, ah->curchan->channelFlags,
+				sc->ani.noise_floor);
 		}
 	}
 
