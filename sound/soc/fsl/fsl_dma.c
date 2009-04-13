@@ -300,7 +300,7 @@ static int fsl_dma_new(struct snd_card *card, struct snd_soc_dai *dai,
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = fsl_dma_dmamask;
 
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, pcm->dev,
+	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, card->dev,
 		fsl_dma_hardware.buffer_bytes_max,
 		&pcm->streams[0].substream->dma_buffer);
 	if (ret) {
@@ -310,7 +310,7 @@ static int fsl_dma_new(struct snd_card *card, struct snd_soc_dai *dai,
 		return -ENOMEM;
 	}
 
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, pcm->dev,
+	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, card->dev,
 		fsl_dma_hardware.buffer_bytes_max,
 		&pcm->streams[1].substream->dma_buffer);
 	if (ret) {
@@ -418,7 +418,7 @@ static int fsl_dma_open(struct snd_pcm_substream *substream)
 		return -EBUSY;
 	}
 
-	dma_private = dma_alloc_coherent(substream->pcm->dev,
+	dma_private = dma_alloc_coherent(substream->pcm->card->dev,
 		sizeof(struct fsl_dma_private), &ld_buf_phys, GFP_KERNEL);
 	if (!dma_private) {
 		dev_err(substream->pcm->card->dev,
@@ -445,7 +445,7 @@ static int fsl_dma_open(struct snd_pcm_substream *substream)
 		dev_err(substream->pcm->card->dev,
 			"can't register ISR for IRQ %u (ret=%i)\n",
 			dma_private->irq, ret);
-		dma_free_coherent(substream->pcm->dev,
+		dma_free_coherent(substream->pcm->card->dev,
 			sizeof(struct fsl_dma_private),
 			dma_private, dma_private->ld_buf_phys);
 		return ret;
@@ -778,13 +778,13 @@ static int fsl_dma_close(struct snd_pcm_substream *substream)
 			free_irq(dma_private->irq, dma_private);
 
 		if (dma_private->ld_buf_phys) {
-			dma_unmap_single(substream->pcm->dev,
+			dma_unmap_single(substream->pcm->card->dev,
 				dma_private->ld_buf_phys,
 				sizeof(dma_private->link), DMA_TO_DEVICE);
 		}
 
 		/* Deallocate the fsl_dma_private structure */
-		dma_free_coherent(substream->pcm->dev,
+		dma_free_coherent(substream->pcm->card->dev,
 			sizeof(struct fsl_dma_private),
 			dma_private, dma_private->ld_buf_phys);
 		substream->runtime->private_data = NULL;

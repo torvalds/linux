@@ -1220,11 +1220,12 @@ static int twl4030_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int twl4030_startup(struct snd_pcm_substream *substream)
+static int twl4030_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct twl4030_priv *twl4030 = codec->private_data;
 
 	/* If we already have a playback or capture going then constrain
@@ -1251,11 +1252,12 @@ static int twl4030_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static void twl4030_shutdown(struct snd_pcm_substream *substream)
+static void twl4030_shutdown(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct twl4030_priv *twl4030 = codec->private_data;
 
 	if (twl4030->master_substream == substream)
