@@ -871,9 +871,6 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 		ath9k_hw_getnf(ah, chan);
 		ath9k_hw_loadnf(ah, ah->curchan);
 		ath9k_hw_start_nfcal(ah);
-
-		if (chan->channelFlags & CHANNEL_CW_INT)
-			chan->channelFlags &= ~CHANNEL_CW_INT;
 	}
 
 	return iscaldone;
