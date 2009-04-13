@@ -184,7 +184,7 @@ static inline unsigned p2m_index(unsigned long pfn)
 }
 
 /* Build the parallel p2m_top_mfn structures */
-void xen_setup_mfn_list_list(void)
+static void __init xen_build_mfn_list_list(void)
 {
 	unsigned pfn, idx;
 
@@ -198,7 +198,10 @@ void xen_setup_mfn_list_list(void)
 		unsigned topidx = idx * P2M_ENTRIES_PER_PAGE;
 		p2m_top_mfn_list[idx] = virt_to_mfn(&p2m_top_mfn[topidx]);
 	}
+}
 
+void xen_setup_mfn_list_list(void)
+{
 	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
@@ -218,6 +221,8 @@ void __init xen_build_dynamic_phys_to_machine(void)
 
 		p2m_top[topidx] = &mfn_list[pfn];
 	}
+
+	xen_build_mfn_list_list();
 }
 
 unsigned long get_phys_to_machine(unsigned long pfn)
@@ -233,47 +238,74 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(get_phys_to_machine);
 
-static void alloc_p2m(unsigned long **pp, unsigned long *mfnp)
+/* install a  new p2m_top page */
+bool install_p2mtop_page(unsigned long pfn, unsigned long *p)
 {
-	unsigned long *p;
+	unsigned topidx = p2m_top_index(pfn);
+	unsigned long **pfnp, *mfnp;
 	unsigned i;
 
-	p = (void *)__get_free_page(GFP_KERNEL | __GFP_NOFAIL);
-	BUG_ON(p == NULL);
+	pfnp = &p2m_top[topidx];
+	mfnp = &p2m_top_mfn[topidx];
 
 	for (i = 0; i < P2M_ENTRIES_PER_PAGE; i++)
 		p[i] = INVALID_P2M_ENTRY;
 
-	if (cmpxchg(pp, p2m_missing, p) != p2m_missing)
-		free_page((unsigned long)p);
-	else
+	if (cmpxchg(pfnp, p2m_missing, p) == p2m_missing) {
 		*mfnp = virt_to_mfn(p);
+		return true;
+	}
+
+	return false;
+}
+
+static void alloc_p2m(unsigned long pfn)
+{
+	unsigned long *p;
+
+	p = (void *)__get_free_page(GFP_KERNEL | __GFP_NOFAIL);
+	BUG_ON(p == NULL);
+
+	if (!install_p2mtop_page(pfn, p))
+		free_page((unsigned long)p);
+}
+
+/* Try to install p2m mapping; fail if intermediate bits missing */
+bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+{
+	unsigned topidx, idx;
+
+	if (unlikely(pfn >= MAX_DOMAIN_PAGES)) {
+		BUG_ON(mfn != INVALID_P2M_ENTRY);
+		return true;
+	}
+
+	topidx = p2m_top_index(pfn);
+	if (p2m_top[topidx] == p2m_missing) {
+		if (mfn == INVALID_P2M_ENTRY)
+			return true;
+		return false;
+	}
+
+	idx = p2m_index(pfn);
+	p2m_top[topidx][idx] = mfn;
+
+	return true;
 }
 
 void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
-	unsigned topidx, idx;
-
 	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap))) {
 		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
 		return;
 	}
 
-	if (unlikely(pfn >= MAX_DOMAIN_PAGES)) {
-		BUG_ON(mfn != INVALID_P2M_ENTRY);
-		return;
-	}
+	if (unlikely(!__set_phys_to_machine(pfn, mfn)))  {
+		alloc_p2m(pfn);
 
-	topidx = p2m_top_index(pfn);
-	if (p2m_top[topidx] == p2m_missing) {
-		/* no need to allocate a page to store an invalid entry */
-		if (mfn == INVALID_P2M_ENTRY)
-			return;
-		alloc_p2m(&p2m_top[topidx], &p2m_top_mfn[topidx]);
+		if (!__set_phys_to_machine(pfn, mfn))
+			BUG();
 	}
-
-	idx = p2m_index(pfn);
-	p2m_top[topidx][idx] = mfn;
 }
 
 unsigned long arbitrary_virt_to_mfn(void *vaddr)
@@ -987,7 +1019,7 @@ static __init int xen_mark_pinned(struct mm_struct *mm, struct page *page,
 	return 0;
 }
 
-void __init xen_mark_init_mm_pinned(void)
+static void __init xen_mark_init_mm_pinned(void)
 {
 	xen_pgd_walk(&init_mm, xen_mark_pinned, FIXADDR_TOP);
 }
@@ -1270,8 +1302,8 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 	} *args;
 	struct multicall_space mcs;
 
-	BUG_ON(cpumask_empty(cpus));
-	BUG_ON(!mm);
+	if (cpumask_empty(cpus))
+		return;		/* nothing to do */
 
 	mcs = xen_mc_entry(sizeof(*args));
 	args = mcs.args;
@@ -1438,9 +1470,28 @@ static __init void xen_set_pte_init(pte_t *ptep, pte_t pte)
 }
 #endif
 
+static void pin_pagetable_pfn(unsigned cmd, unsigned long pfn)
+{
+	struct mmuext_op op;
+	op.cmd = cmd;
+	op.arg1.mfn = pfn_to_mfn(pfn);
+	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
+		BUG();
+}
+
 /* Early in boot, while setting up the initial pagetable, assume
    everything is pinned. */
 static __init void xen_alloc_pte_init(struct mm_struct *mm, unsigned long pfn)
+{
+#ifdef CONFIG_FLATMEM
+	BUG_ON(mem_map);	/* should only be used early */
+#endif
+	make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
+	pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
+}
+
+/* Used for pmd and pud */
+static __init void xen_alloc_pmd_init(struct mm_struct *mm, unsigned long pfn)
 {
 #ifdef CONFIG_FLATMEM
 	BUG_ON(mem_map);	/* should only be used early */
@@ -1450,18 +1501,15 @@ static __init void xen_alloc_pte_init(struct mm_struct *mm, unsigned long pfn)
 
 /* Early release_pte assumes that all pts are pinned, since there's
    only init_mm and anything attached to that is pinned. */
-static void xen_release_pte_init(unsigned long pfn)
+static __init void xen_release_pte_init(unsigned long pfn)
 {
+	pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
 	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 }
 
-static void pin_pagetable_pfn(unsigned cmd, unsigned long pfn)
+static __init void xen_release_pmd_init(unsigned long pfn)
 {
-	struct mmuext_op op;
-	op.cmd = cmd;
-	op.arg1.mfn = pfn_to_mfn(pfn);
-	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
-		BUG();
+	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 }
 
 /* This needs to make sure the new pte page is pinned iff its being
@@ -1773,6 +1821,9 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 #ifdef CONFIG_X86_LOCAL_APIC
 	case FIX_APIC_BASE:	/* maps dummy local APIC */
 #endif
+	case FIX_TEXT_POKE0:
+	case FIX_TEXT_POKE1:
+		/* All local page mappings */
 		pte = pfn_pte(phys, prot);
 		break;
 
@@ -1819,7 +1870,6 @@ __init void xen_post_allocator_init(void)
 	xen_mark_init_mm_pinned();
 }
 
-
 const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.pagetable_setup_start = xen_pagetable_setup_start,
 	.pagetable_setup_done = xen_pagetable_setup_done,
@@ -1843,9 +1893,9 @@ const struct pv_mmu_ops xen_mmu_ops __initdata = {
 
 	.alloc_pte = xen_alloc_pte_init,
 	.release_pte = xen_release_pte_init,
-	.alloc_pmd = xen_alloc_pte_init,
+	.alloc_pmd = xen_alloc_pmd_init,
 	.alloc_pmd_clone = paravirt_nop,
-	.release_pmd = xen_release_pte_init,
+	.release_pmd = xen_release_pmd_init,
 
 #ifdef CONFIG_HIGHPTE
 	.kmap_atomic_pte = xen_kmap_atomic_pte,
@@ -1883,8 +1933,8 @@ const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.make_pud = PV_CALLEE_SAVE(xen_make_pud),
 	.set_pgd = xen_set_pgd_hyper,
 
-	.alloc_pud = xen_alloc_pte_init,
-	.release_pud = xen_release_pte_init,
+	.alloc_pud = xen_alloc_pmd_init,
+	.release_pud = xen_release_pmd_init,
 #endif	/* PAGETABLE_LEVELS == 4 */
 
 	.activate_mm = xen_activate_mm,
