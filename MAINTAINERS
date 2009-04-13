@@ -5313,7 +5313,9 @@ L:	linux-sh@vger.kernel.org
 W:	http://www.linux-sh.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git
 S:	Supported
+F:	Documentation/sh/
 F:	arch/sh/
+F:	drivers/sh/
 
 SUSPEND TO RAM
 P:	Len Brown
