@@ -4978,8 +4978,8 @@ S:	Maintained for 2.6.
 F:	Documentation/sgi-visws.txt
 
 SGI XP/XPC/XPNET DRIVER
-P:	Dean Nelson
-M:	dcn@sgi.com
+P:	Robin Holt
+M:	holt@sgi.com
 S:	Maintained
 F:	drivers/misc/sgi-xp/
 
