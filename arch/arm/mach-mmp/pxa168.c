@@ -65,11 +65,15 @@ void __init pxa168_init_irq(void)
 /* APB peripheral clocks */
 static APBC_CLK(uart1, PXA168_UART1, 1, 14745600);
 static APBC_CLK(uart2, PXA168_UART2, 1, 14745600);
+static APBC_CLK(twsi0, PXA168_TWSI0, 1, 33000000);
+static APBC_CLK(twsi1, PXA168_TWSI1, 1, 33000000);
 
 /* device and clock bindings */
 static struct clk_lookup pxa168_clkregs[] = {
 	INIT_CLKREG(&clk_uart1, "pxa2xx-uart.0", NULL),
 	INIT_CLKREG(&clk_uart2, "pxa2xx-uart.1", NULL),
+	INIT_CLKREG(&clk_twsi0, "pxa2xx-i2c.0", NULL),
+	INIT_CLKREG(&clk_twsi1, "pxa2xx-i2c.1", NULL),
 };
 
 static int __init pxa168_init(void)
@@ -109,3 +113,5 @@ struct sys_timer pxa168_timer = {
 /* on-chip devices */
 PXA168_DEVICE(uart1, "pxa2xx-uart", 0, UART1, 0xd4017000, 0x30, 21, 22);
 PXA168_DEVICE(uart2, "pxa2xx-uart", 1, UART2, 0xd4018000, 0x30, 23, 24);
+PXA168_DEVICE(twsi0, "pxa2xx-i2c", 0, TWSI0, 0xd4011000, 0x28);
+PXA168_DEVICE(twsi1, "pxa2xx-i2c", 1, TWSI1, 0xd4025000, 0x28);
