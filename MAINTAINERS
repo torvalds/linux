@@ -2592,8 +2592,8 @@ S:	Maintained
 F:	fs/hpfs/
 
 HSO 3G MODEM DRIVER
-P:	Denis Joseph Barrow
-M:	d.barow@option.com
+P:	Jan Dumon
+M:	j.dumon@option.com
 W:	http://www.pharscape.org
 S:	Maintained
 F:	drivers/net/usb/hso.c
