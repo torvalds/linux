@@ -1470,9 +1470,6 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		(*channel++).hw_value = txpwr >> 8;
 	}
 
-	if (priv->is_rtl8187b)
-		printk(KERN_WARNING "rtl8187: 8187B chip detected.\n");
-
 	/*
 	 * XXX: Once this driver supports anything that requires
 	 *	beacons it must implement IEEE80211_TX_CTL_ASSIGN_SEQ.
