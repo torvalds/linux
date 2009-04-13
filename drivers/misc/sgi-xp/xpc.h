@@ -780,6 +780,62 @@ struct xpc_partition {
 
 } ____cacheline_aligned;
 
+struct xpc_arch_operations {
+	int (*setup_partitions) (void);
+	void (*teardown_partitions) (void);
+	void (*process_activate_IRQ_rcvd) (void);
+	enum xp_retval (*get_partition_rsvd_page_pa)
+		(void *, u64 *, unsigned long *, size_t *);
+	int (*setup_rsvd_page) (struct xpc_rsvd_page *);
+
+	void (*allow_hb) (short);
+	void (*disallow_hb) (short);
+	void (*disallow_all_hbs) (void);
+	void (*increment_heartbeat) (void);
+	void (*offline_heartbeat) (void);
+	void (*online_heartbeat) (void);
+	void (*heartbeat_init) (void);
+	void (*heartbeat_exit) (void);
+	enum xp_retval (*get_remote_heartbeat) (struct xpc_partition *);
+
+	void (*request_partition_activation) (struct xpc_rsvd_page *,
+						 unsigned long, int);
+	void (*request_partition_reactivation) (struct xpc_partition *);
+	void (*request_partition_deactivation) (struct xpc_partition *);
+	void (*cancel_partition_deactivation_request) (struct xpc_partition *);
+	enum xp_retval (*setup_ch_structures) (struct xpc_partition *);
+	void (*teardown_ch_structures) (struct xpc_partition *);
+
+	enum xp_retval (*make_first_contact) (struct xpc_partition *);
+
+	u64 (*get_chctl_all_flags) (struct xpc_partition *);
+	void (*send_chctl_closerequest) (struct xpc_channel *, unsigned long *);
+	void (*send_chctl_closereply) (struct xpc_channel *, unsigned long *);
+	void (*send_chctl_openrequest) (struct xpc_channel *, unsigned long *);
+	void (*send_chctl_openreply) (struct xpc_channel *, unsigned long *);
+	void (*send_chctl_opencomplete) (struct xpc_channel *, unsigned long *);
+	void (*process_msg_chctl_flags) (struct xpc_partition *, int);
+
+	enum xp_retval (*save_remote_msgqueue_pa) (struct xpc_channel *,
+						      unsigned long);
+
+	enum xp_retval (*setup_msg_structures) (struct xpc_channel *);
+	void (*teardown_msg_structures) (struct xpc_channel *);
+
+	void (*indicate_partition_engaged) (struct xpc_partition *);
+	void (*indicate_partition_disengaged) (struct xpc_partition *);
+	void (*assume_partition_disengaged) (short);
+	int (*partition_engaged) (short);
+	int (*any_partition_engaged) (void);
+
+	int (*n_of_deliverable_payloads) (struct xpc_channel *);
+	enum xp_retval (*send_payload) (struct xpc_channel *, u32, void *,
+					   u16, u8, xpc_notify_func, void *);
+	void *(*get_deliverable_payload) (struct xpc_channel *);
+	void (*received_payload) (struct xpc_channel *, void *);
+	void (*notify_senders_of_disconnect) (struct xpc_channel *);
+};
+
 /* struct xpc_partition act_state values (for XPC HB) */
 
 #define	XPC_P_AS_INACTIVE	0x00	/* partition is not active */
@@ -820,6 +876,7 @@ extern struct xpc_registration xpc_registrations[];
 /* found in xpc_main.c */
 extern struct device *xpc_part;
 extern struct device *xpc_chan;
+extern struct xpc_arch_operations xpc_arch_ops;
 extern int xpc_disengage_timelimit;
 extern int xpc_disengage_timedout;
 extern int xpc_activate_IRQ_rcvd;
@@ -830,61 +887,6 @@ extern void xpc_activate_partition(struct xpc_partition *);
 extern void xpc_activate_kthreads(struct xpc_channel *, int);
 extern void xpc_create_kthreads(struct xpc_channel *, int, int);
 extern void xpc_disconnect_wait(int);
-extern int (*xpc_setup_partitions_sn) (void);
-extern void (*xpc_teardown_partitions_sn) (void);
-extern enum xp_retval (*xpc_get_partition_rsvd_page_pa) (void *, u64 *,
-							 unsigned long *,
-							 size_t *);
-extern int (*xpc_setup_rsvd_page_sn) (struct xpc_rsvd_page *);
-extern void (*xpc_heartbeat_init) (void);
-extern void (*xpc_heartbeat_exit) (void);
-extern void (*xpc_increment_heartbeat) (void);
-extern void (*xpc_offline_heartbeat) (void);
-extern void (*xpc_online_heartbeat) (void);
-extern enum xp_retval (*xpc_get_remote_heartbeat) (struct xpc_partition *);
-extern void (*xpc_allow_hb) (short);
-extern void (*xpc_disallow_hb) (short);
-extern void (*xpc_disallow_all_hbs) (void);
-extern enum xp_retval (*xpc_make_first_contact) (struct xpc_partition *);
-extern u64 (*xpc_get_chctl_all_flags) (struct xpc_partition *);
-extern enum xp_retval (*xpc_setup_msg_structures) (struct xpc_channel *);
-extern void (*xpc_teardown_msg_structures) (struct xpc_channel *);
-extern void (*xpc_notify_senders_of_disconnect) (struct xpc_channel *);
-extern void (*xpc_process_msg_chctl_flags) (struct xpc_partition *, int);
-extern int (*xpc_n_of_deliverable_payloads) (struct xpc_channel *);
-extern void *(*xpc_get_deliverable_payload) (struct xpc_channel *);
-extern void (*xpc_request_partition_activation) (struct xpc_rsvd_page *,
-						 unsigned long, int);
-extern void (*xpc_request_partition_reactivation) (struct xpc_partition *);
-extern void (*xpc_request_partition_deactivation) (struct xpc_partition *);
-extern void (*xpc_cancel_partition_deactivation_request) (
-							struct xpc_partition *);
-extern void (*xpc_process_activate_IRQ_rcvd) (void);
-extern enum xp_retval (*xpc_setup_ch_structures_sn) (struct xpc_partition *);
-extern void (*xpc_teardown_ch_structures_sn) (struct xpc_partition *);
-
-extern void (*xpc_indicate_partition_engaged) (struct xpc_partition *);
-extern int (*xpc_partition_engaged) (short);
-extern int (*xpc_any_partition_engaged) (void);
-extern void (*xpc_indicate_partition_disengaged) (struct xpc_partition *);
-extern void (*xpc_assume_partition_disengaged) (short);
-
-extern void (*xpc_send_chctl_closerequest) (struct xpc_channel *,
-					    unsigned long *);
-extern void (*xpc_send_chctl_closereply) (struct xpc_channel *,
-					  unsigned long *);
-extern void (*xpc_send_chctl_openrequest) (struct xpc_channel *,
-					   unsigned long *);
-extern void (*xpc_send_chctl_openreply) (struct xpc_channel *, unsigned long *);
-extern void (*xpc_send_chctl_opencomplete) (struct xpc_channel *,
-					    unsigned long *);
-
-extern enum xp_retval (*xpc_save_remote_msgqueue_pa) (struct xpc_channel *,
-						      unsigned long);
-
-extern enum xp_retval (*xpc_send_payload) (struct xpc_channel *, u32, void *,
-					   u16, u8, xpc_notify_func, void *);
-extern void (*xpc_received_payload) (struct xpc_channel *, void *);
 
 /* found in xpc_sn2.c */
 extern int xpc_init_sn2(void);
