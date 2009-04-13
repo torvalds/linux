@@ -2388,6 +2388,9 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_LIVE, mod);
 
+	/* We need to finish all async code before the module init sequence is done */
+	async_synchronize_full();
+
 	mutex_lock(&module_mutex);
 	/* Drop initial reference. */
 	module_put(mod);

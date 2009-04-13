@@ -132,6 +132,11 @@ static void input_start_autorepeat(struct input_dev *dev, int code)
 	}
 }
 
+static void input_stop_autorepeat(struct input_dev *dev)
+{
+	del_timer(&dev->timer);
+}
+
 #define INPUT_IGNORE_EVENT	0
 #define INPUT_PASS_TO_HANDLERS	1
 #define INPUT_PASS_TO_DEVICE	2
@@ -167,6 +172,8 @@ static void input_handle_event(struct input_dev *dev,
 				__change_bit(code, dev->key);
 				if (value)
 					input_start_autorepeat(dev, code);
+				else
+					input_stop_autorepeat(dev);
 			}
 
 			disposition = INPUT_PASS_TO_HANDLERS;
@@ -737,11 +744,11 @@ static inline void input_wakeup_procfs_readers(void)
 
 static unsigned int input_proc_devices_poll(struct file *file, poll_table *wait)
 {
-	int state = input_devices_state;
-
 	poll_wait(file, &input_devices_poll_wait, wait);
-	if (state != input_devices_state)
+	if (file->f_version != input_devices_state) {
+		file->f_version = input_devices_state;
 		return POLLIN | POLLRDNORM;
+	}
 
 	return 0;
 }

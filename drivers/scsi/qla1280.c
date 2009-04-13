@@ -1663,7 +1663,7 @@ qla1280_load_firmware_pio(struct scsi_qla_host *ha)
 
 	/* Load RISC code. */
 	risc_address = ha->fwstart;
-	fw_data = (const __le16 *)&fw->data[4];
+	fw_data = (const __le16 *)&fw->data[6];
 	risc_code_size = (fw->size - 6) / 2;
 
 	for (i = 0; i < risc_code_size; i++) {
@@ -1722,7 +1722,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 
 	/* Load RISC code. */
 	risc_address = ha->fwstart;
-	fw_data = (const __le16 *)&fw->data[4];
+	fw_data = (const __le16 *)&fw->data[6];
 	risc_code_size = (fw->size - 6) / 2;
 
 	dprintk(1, "%s: DMA RISC code (%i) words\n",

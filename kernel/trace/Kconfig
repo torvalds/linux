@@ -317,7 +317,7 @@ config KMEMTRACE
 	  and profile kernel code.
 
 	  This requires an userspace application to use. See
-	  Documentation/vm/kmemtrace.txt for more information.
+	  Documentation/trace/kmemtrace.txt for more information.
 
 	  Saying Y will make the kernel somewhat larger and slower. However,
 	  if you disable kmemtrace at run-time or boot-time, the performance
@@ -422,7 +422,7 @@ config MMIOTRACE
 	  implementation and works via page faults. Tracing is disabled by
 	  default and can be enabled at run-time.
 
-	  See Documentation/tracers/mmiotrace.txt.
+	  See Documentation/trace/mmiotrace.txt.
 	  If you are not helping to develop drivers, say N.
 
 config MMIOTRACE_TEST

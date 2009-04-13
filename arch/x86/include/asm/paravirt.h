@@ -347,7 +347,7 @@ struct pv_mmu_ops {
 	/* Sometimes the physical address is a pfn, and sometimes its
 	   an mfn.  We can tell which is which from the index. */
 	void (*set_fixmap)(unsigned /* enum fixed_addresses */ idx,
-			   unsigned long phys, pgprot_t flags);
+			   phys_addr_t phys, pgprot_t flags);
 };
 
 struct raw_spinlock;
@@ -1432,7 +1432,7 @@ static inline void arch_leave_lazy_mmu_mode(void)
 void arch_flush_lazy_mmu_mode(void);
 
 static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
-				unsigned long phys, pgprot_t flags)
+				phys_addr_t phys, pgprot_t flags)
 {
 	pv_mmu_ops.set_fixmap(idx, phys, flags);
 }
