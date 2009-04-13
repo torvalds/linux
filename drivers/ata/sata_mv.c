@@ -1898,17 +1898,17 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct mv_port_priv *pp = ap->private_data;
 	__le16 *cw;
-	struct ata_taskfile *tf;
+	struct ata_taskfile *tf = &qc->tf;
 	u16 flags = 0;
 	unsigned in_index;
 
-	if ((qc->tf.protocol != ATA_PROT_DMA) &&
-	    (qc->tf.protocol != ATA_PROT_NCQ))
+	if ((tf->protocol != ATA_PROT_DMA) &&
+	    (tf->protocol != ATA_PROT_NCQ))
 		return;
 
 	/* Fill in command request block
 	 */
-	if (!(qc->tf.flags & ATA_TFLAG_WRITE))
+	if (!(tf->flags & ATA_TFLAG_WRITE))
 		flags |= CRQB_FLAG_READ;
 	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
@@ -1924,7 +1924,6 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	pp->crqb[in_index].ctrl_flags = cpu_to_le16(flags);
 
 	cw = &pp->crqb[in_index].ata_cmd[0];
-	tf = &qc->tf;
 
 	/* Sadly, the CRQB cannot accomodate all registers--there are
 	 * only 11 bytes...so we must pick and choose required
@@ -1990,16 +1989,16 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct mv_port_priv *pp = ap->private_data;
 	struct mv_crqb_iie *crqb;
-	struct ata_taskfile *tf;
+	struct ata_taskfile *tf = &qc->tf;
 	unsigned in_index;
 	u32 flags = 0;
 
-	if ((qc->tf.protocol != ATA_PROT_DMA) &&
-	    (qc->tf.protocol != ATA_PROT_NCQ))
+	if ((tf->protocol != ATA_PROT_DMA) &&
+	    (tf->protocol != ATA_PROT_NCQ))
 		return;
 
 	/* Fill in Gen IIE command request block */
-	if (!(qc->tf.flags & ATA_TFLAG_WRITE))
+	if (!(tf->flags & ATA_TFLAG_WRITE))
 		flags |= CRQB_FLAG_READ;
 
 	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
@@ -2015,7 +2014,6 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 	crqb->addr_hi = cpu_to_le32((pp->sg_tbl_dma[qc->tag] >> 16) >> 16);
 	crqb->flags = cpu_to_le32(flags);
 
-	tf = &qc->tf;
 	crqb->ata_cmd[0] = cpu_to_le32(
 			(tf->command << 16) |
 			(tf->feature << 24)
