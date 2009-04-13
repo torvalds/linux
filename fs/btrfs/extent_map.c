@@ -6,19 +6,14 @@
 #include <linux/hardirq.h>
 #include "extent_map.h"
 
-/* temporary define until extent_map moves out of btrfs */
-struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
-				       unsigned long extra_flags,
-				       void (*ctor)(void *, struct kmem_cache *,
-						    unsigned long));
 
 static struct kmem_cache *extent_map_cache;
 
 int __init extent_map_init(void)
 {
-	extent_map_cache = btrfs_cache_create("extent_map",
-					    sizeof(struct extent_map), 0,
-					    NULL);
+	extent_map_cache = kmem_cache_create("extent_map",
+			sizeof(struct extent_map), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!extent_map_cache)
 		return -ENOMEM;
 	return 0;

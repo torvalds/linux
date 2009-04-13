@@ -17,12 +17,6 @@
 #include "ctree.h"
 #include "btrfs_inode.h"
 
-/* temporary define until extent_map moves out of btrfs */
-struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
-				       unsigned long extra_flags,
-				       void (*ctor)(void *, struct kmem_cache *,
-						    unsigned long));
-
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
 
@@ -58,15 +52,15 @@ struct extent_page_data {
 
 int __init extent_io_init(void)
 {
-	extent_state_cache = btrfs_cache_create("extent_state",
-					    sizeof(struct extent_state), 0,
-					    NULL);
+	extent_state_cache = kmem_cache_create("extent_state",
+			sizeof(struct extent_state), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!extent_state_cache)
 		return -ENOMEM;
 
-	extent_buffer_cache = btrfs_cache_create("extent_buffers",
-					    sizeof(struct extent_buffer), 0,
-					    NULL);
+	extent_buffer_cache = kmem_cache_create("extent_buffers",
+			sizeof(struct extent_buffer), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!extent_buffer_cache)
 		goto free_state_cache;
 	return 0;

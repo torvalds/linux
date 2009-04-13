@@ -4640,39 +4640,35 @@ void btrfs_destroy_cachep(void)
 		kmem_cache_destroy(btrfs_path_cachep);
 }
 
-struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
-				       unsigned long extra_flags,
-				       void (*ctor)(void *))
-{
-	return kmem_cache_create(name, size, 0, (SLAB_RECLAIM_ACCOUNT |
-				 SLAB_MEM_SPREAD | extra_flags), ctor);
-}
-
 int btrfs_init_cachep(void)
 {
-	btrfs_inode_cachep = btrfs_cache_create("btrfs_inode_cache",
-					  sizeof(struct btrfs_inode),
-					  0, init_once);
+	btrfs_inode_cachep = kmem_cache_create("btrfs_inode_cache",
+			sizeof(struct btrfs_inode), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, init_once);
 	if (!btrfs_inode_cachep)
 		goto fail;
-	btrfs_trans_handle_cachep =
-			btrfs_cache_create("btrfs_trans_handle_cache",
-					   sizeof(struct btrfs_trans_handle),
-					   0, NULL);
+
+	btrfs_trans_handle_cachep = kmem_cache_create("btrfs_trans_handle_cache",
+			sizeof(struct btrfs_trans_handle), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_trans_handle_cachep)
 		goto fail;
-	btrfs_transaction_cachep = btrfs_cache_create("btrfs_transaction_cache",
-					     sizeof(struct btrfs_transaction),
-					     0, NULL);
+
+	btrfs_transaction_cachep = kmem_cache_create("btrfs_transaction_cache",
+			sizeof(struct btrfs_transaction), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_transaction_cachep)
 		goto fail;
-	btrfs_path_cachep = btrfs_cache_create("btrfs_path_cache",
-					 sizeof(struct btrfs_path),
-					 0, NULL);
+
+	btrfs_path_cachep = kmem_cache_create("btrfs_path_cache",
+			sizeof(struct btrfs_path), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_path_cachep)
 		goto fail;
-	btrfs_bit_radix_cachep = btrfs_cache_create("btrfs_radix", 256,
-					      SLAB_DESTROY_BY_RCU, NULL);
+
+	btrfs_bit_radix_cachep = kmem_cache_create("btrfs_radix", 256, 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
+			SLAB_DESTROY_BY_RCU, NULL);
 	if (!btrfs_bit_radix_cachep)
 		goto fail;
 	return 0;
