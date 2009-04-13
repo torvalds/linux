@@ -3505,7 +3505,7 @@ static __devinit int cciss_message(struct pci_dev *pdev, unsigned char opcode, u
 	/* The Inbound Post Queue only accepts 32-bit physical addresses for the
 	   CCISS commands, so they must be allocated from the lower 4GiB of
 	   memory. */
-	err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
 		iounmap(vaddr);
 		return -ENOMEM;
