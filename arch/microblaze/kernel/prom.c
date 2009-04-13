@@ -39,7 +39,6 @@
 #include <asm/system.h>
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
-#include <linux/pci.h>
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
 

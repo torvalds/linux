@@ -29,9 +29,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/fs.h>
-#include <linux/ipc.h>
 #include <linux/semaphore.h>
-#include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/unistd.h>
 
