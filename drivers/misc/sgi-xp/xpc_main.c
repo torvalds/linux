@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2009 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 /*
@@ -150,7 +150,6 @@ DECLARE_WAIT_QUEUE_HEAD(xpc_activate_IRQ_wq);
 
 static unsigned long xpc_hb_check_timeout;
 static struct timer_list xpc_hb_timer;
-void *xpc_heartbeating_to_mask;
 
 /* notification that the xpc_hb_checker thread has exited */
 static DECLARE_COMPLETION(xpc_hb_checker_exited);
@@ -176,6 +175,10 @@ enum xp_retval (*xpc_get_partition_rsvd_page_pa) (void *buf, u64 *cookie,
 						  unsigned long *rp_pa,
 						  size_t *len);
 int (*xpc_setup_rsvd_page_sn) (struct xpc_rsvd_page *rp);
+
+void (*xpc_allow_hb) (short partid);
+void (*xpc_disallow_hb) (short partid);
+void (*xpc_disallow_all_hbs) (void);
 void (*xpc_heartbeat_init) (void);
 void (*xpc_heartbeat_exit) (void);
 void (*xpc_increment_heartbeat) (void);
@@ -1087,7 +1090,6 @@ xpc_do_exit(enum xp_retval reason)
 	} while (1);
 
 	DBUG_ON(xpc_any_partition_engaged());
-	DBUG_ON(xpc_any_hbs_allowed() != 0);
 
 	xpc_teardown_rsvd_page();
 

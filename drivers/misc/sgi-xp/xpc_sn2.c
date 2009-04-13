@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2008 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2008-2009 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 /*
@@ -629,7 +629,7 @@ xpc_setup_rsvd_page_sn_sn2(struct xpc_rsvd_page *rp)
 
 	xpc_vars_sn2 = XPC_RP_VARS(rp);
 
-	rp->sn.vars_pa = xp_pa(xpc_vars_sn2);
+	rp->sn.sn2.vars_pa = xp_pa(xpc_vars_sn2);
 
 	/* vars_part array follows immediately after vars */
 	xpc_vars_part_sn2 = (struct xpc_vars_part_sn2 *)((u8 *)XPC_RP_VARS(rp) +
@@ -693,6 +693,33 @@ xpc_setup_rsvd_page_sn_sn2(struct xpc_rsvd_page *rp)
 	return 0;
 }
 
+static int
+xpc_hb_allowed_sn2(short partid, void *heartbeating_to_mask)
+{
+	return test_bit(partid, heartbeating_to_mask);
+}
+
+static void
+xpc_allow_hb_sn2(short partid)
+{
+	DBUG_ON(xpc_vars_sn2 == NULL);
+	set_bit(partid, xpc_vars_sn2->heartbeating_to_mask);
+}
+
+static void
+xpc_disallow_hb_sn2(short partid)
+{
+	DBUG_ON(xpc_vars_sn2 == NULL);
+	clear_bit(partid, xpc_vars_sn2->heartbeating_to_mask);
+}
+
+static void
+xpc_disallow_all_hbs_sn2(void)
+{
+	DBUG_ON(xpc_vars_sn2 == NULL);
+	bitmap_zero(xpc_vars_sn2->heartbeating_to_mask, xp_max_npartitions);
+}
+
 static void
 xpc_increment_heartbeat_sn2(void)
 {
@@ -719,7 +746,6 @@ xpc_heartbeat_init_sn2(void)
 	DBUG_ON(xpc_vars_sn2 == NULL);
 
 	bitmap_zero(xpc_vars_sn2->heartbeating_to_mask, XP_MAX_NPARTITIONS_SN2);
-	xpc_heartbeating_to_mask = &xpc_vars_sn2->heartbeating_to_mask[0];
 	xpc_online_heartbeat_sn2();
 }
 
@@ -751,9 +777,9 @@ xpc_get_remote_heartbeat_sn2(struct xpc_partition *part)
 		remote_vars->heartbeating_to_mask[0]);
 
 	if ((remote_vars->heartbeat == part->last_heartbeat &&
-	    remote_vars->heartbeat_offline == 0) ||
-	    !xpc_hb_allowed(sn_partition_id,
-			    &remote_vars->heartbeating_to_mask)) {
+	    !remote_vars->heartbeat_offline) ||
+	    !xpc_hb_allowed_sn2(sn_partition_id,
+				remote_vars->heartbeating_to_mask)) {
 		ret = xpNoHeartbeat;
 	} else {
 		part->last_heartbeat = remote_vars->heartbeat;
@@ -972,7 +998,7 @@ xpc_identify_activate_IRQ_req_sn2(int nasid)
 		return;
 	}
 
-	remote_vars_pa = remote_rp->sn.vars_pa;
+	remote_vars_pa = remote_rp->sn.sn2.vars_pa;
 	remote_rp_version = remote_rp->version;
 	remote_rp_ts_jiffies = remote_rp->ts_jiffies;
 
@@ -2325,6 +2351,10 @@ xpc_init_sn2(void)
 	xpc_teardown_partitions_sn = xpc_teardown_partitions_sn_sn2;
 	xpc_get_partition_rsvd_page_pa = xpc_get_partition_rsvd_page_pa_sn2;
 	xpc_setup_rsvd_page_sn = xpc_setup_rsvd_page_sn_sn2;
+
+	xpc_allow_hb = xpc_allow_hb_sn2;
+	xpc_disallow_hb = xpc_disallow_hb_sn2;
+	xpc_disallow_all_hbs = xpc_disallow_all_hbs_sn2;
 	xpc_increment_heartbeat = xpc_increment_heartbeat_sn2;
 	xpc_offline_heartbeat = xpc_offline_heartbeat_sn2;
 	xpc_online_heartbeat = xpc_online_heartbeat_sn2;
