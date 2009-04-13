@@ -2992,6 +2992,14 @@ L:	linux-mtd@lists.infradead.org
 T:	git git://git.infradead.org/mtd-2.6.git
 S:	Maintained
 
+MICROBLAZE ARCHITECTURE
+P:	Michal Simek
+M:	monstr@monstr.eu
+L:	microblaze-uclinux@itee.uq.edu.au
+W:	http://www.monstr.eu/fdt/
+T:	git git://git.monstr.eu/linux-2.6-microblaze.git
+S:	Supported
+
 MICROTEK X6 SCANNER
 P:	Oliver Neukum
 M:	oliver@neukum.name
