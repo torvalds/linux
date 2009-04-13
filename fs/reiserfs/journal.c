@@ -1826,7 +1826,7 @@ static int kupdate_transactions(struct super_block *s,
 	struct reiserfs_journal *journal = SB_JOURNAL(s);
 	chunk.nr = 0;
 
-	mutex_lock(&journal->j_flush_mutex);
+	reiserfs_mutex_lock_safe(&journal->j_flush_mutex, s);
 	if (!journal_list_still_alive(s, orig_trans_id)) {
 		goto done;
 	}
