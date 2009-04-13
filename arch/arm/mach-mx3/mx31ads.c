@@ -452,6 +452,8 @@ static int mx31_wm8350_init(struct wm8350 *wm8350)
 
 	wm8350->codec.platform_data = &imx32ads_wm8350_setup;
 
+	regulator_has_full_constraints();
+
 	return 0;
 }
 
