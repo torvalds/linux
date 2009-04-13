@@ -721,6 +721,8 @@ struct sk_buff *i2400m_msg_to_dev(struct i2400m *i2400m,
 		ack_timeout = HZ;
 	};
 
+	if (unlikely(i2400m->trace_msg_from_user))
+		wimax_msg(&i2400m->wimax_dev, "echo", buf, buf_len, GFP_KERNEL);
 	/* The RX path in rx.c will put any response for this message
 	 * in i2400m->ack_skb and wake us up. If we cancel the wait,
 	 * we need to change the value of i2400m->ack_skb to something
@@ -755,6 +757,9 @@ struct sk_buff *i2400m_msg_to_dev(struct i2400m *i2400m,
 	ack_l3l4_hdr = wimax_msg_data_len(ack_skb, &ack_len);
 
 	/* Check the ack and deliver it if it is ok */
+	if (unlikely(i2400m->trace_msg_from_user))
+		wimax_msg(&i2400m->wimax_dev, "echo",
+			  ack_l3l4_hdr, ack_len, GFP_KERNEL);
 	result = i2400m_msg_size_check(i2400m, ack_l3l4_hdr, ack_len);
 	if (result < 0) {
 		dev_err(dev, "HW BUG? reply to message 0x%04x: %d\n",
