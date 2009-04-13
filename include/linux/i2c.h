@@ -274,7 +274,7 @@ struct i2c_board_info {
  * are provided using conventional syntax.
  */
 #define I2C_BOARD_INFO(dev_type, dev_addr) \
-	.type = (dev_type), .addr = (dev_addr)
+	.type = dev_type, .addr = (dev_addr)
 
 
 /* Add-on boards should register/unregister their devices; e.g. a board

@@ -2508,6 +2508,15 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (EXT4_BLOCKS_PER_GROUP(sb) == 0)
 		goto cantfind_ext4;
 
+	/* check blocks count against device size */
+	blocks_count = sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits;
+	if (blocks_count && ext4_blocks_count(es) > blocks_count) {
+		printk(KERN_WARNING "EXT4-fs: bad geometry: block count %llu "
+		       "exceeds size of device (%llu blocks)\n",
+		       ext4_blocks_count(es), blocks_count);
+		goto failed_mount;
+	}
+
         /*
          * It makes no sense for the first data block to be beyond the end
          * of the filesystem.

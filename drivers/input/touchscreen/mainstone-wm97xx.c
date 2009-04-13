@@ -162,6 +162,7 @@ static int wm97xx_acc_pen_down(struct wm97xx *wm)
 		input_report_abs(wm->input_dev, ABS_X, x & 0xfff);
 		input_report_abs(wm->input_dev, ABS_Y, y & 0xfff);
 		input_report_abs(wm->input_dev, ABS_PRESSURE, p & 0xfff);
+		input_report_key(wm->input_dev, BTN_TOUCH, (p != 0));
 		input_sync(wm->input_dev);
 		reads++;
 	} while (reads < cinfo[sp_idx].reads);
@@ -245,7 +246,7 @@ static void wm97xx_irq_enable(struct wm97xx *wm, int enable)
 	if (enable)
 		enable_irq(wm->pen_irq);
 	else
-		disable_irq(wm->pen_irq);
+		disable_irq_nosync(wm->pen_irq);
 }
 
 static struct wm97xx_mach_ops mainstone_mach_ops = {

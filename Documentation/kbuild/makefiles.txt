@@ -40,10 +40,16 @@ This document describes the Linux kernel Makefiles.
 	   --- 6.7 Custom kbuild commands
 	   --- 6.8 Preprocessing linker scripts
 
-	=== 7 Kbuild Variables
-	=== 8 Makefile language
-	=== 9 Credits
-	=== 10 TODO
+	=== 7 Kbuild syntax for exported headers
+		--- 7.1 header-y
+		--- 7.2 objhdr-y
+		--- 7.3 destination-y
+		--- 7.4 unifdef-y (deprecated)
+
+	=== 8 Kbuild Variables
+	=== 9 Makefile language
+	=== 10 Credits
+	=== 11 TODO
 
 === 1 Overview
 
@@ -1143,8 +1149,69 @@ When kbuild executes, the following steps are followed (roughly):
 	The kbuild infrastructure for *lds file are used in several
 	architecture-specific files.
 
+=== 7 Kbuild syntax for exported headers
 
-=== 7 Kbuild Variables
+The kernel include a set of headers that is exported to userspace.
+Many headers can be exported as-is but other headers requires  a
+minimal pre-processing before they are ready for user-space.
+The pre-processing does:
+- drop kernel specific annotations
+- drop include of compiler.h
+- drop all sections that is kernel internat (guarded by ifdef __KERNEL__)
+
+Each relevant directory contain a file name "Kbuild" which specify the
+headers to be exported.
+See subsequent chapter for the syntax of the Kbuild file.
+
+	--- 7.1 header-y
+
+	header-y specify header files to be exported.
+
+		Example:
+			#include/linux/Kbuild
+			header-y += usb/
+			header-y += aio_abi.h
+
+	The convention is to list one file per line and
+	preferably in alphabetic order.
+
+	header-y also specify which subdirectories to visit.
+	A subdirectory is identified by a trailing '/' which
+	can be seen in the example above for the usb subdirectory.
+
+	Subdirectories are visited before their parent directories.
+
+	--- 7.2 objhdr-y
+
+	objhdr-y specifies generated files to be exported.
+	Generated files are special as they need to be looked
+	up in another directory when doing 'make O=...' builds.
+
+		Example:
+			#include/linux/Kbuild
+			objhdr-y += version.h
+
+	--- 7.3 destination-y
+
+	When an architecture have a set of exported headers that needs to be
+	exported to a different directory destination-y is used.
+	destination-y specify the destination directory for all exported
+	headers in the file where it is present.
+
+		Example:
+			#arch/xtensa/platforms/s6105/include/platform/Kbuild
+			destination-y := include/linux
+
+	In the example above all exported headers in the Kbuild file
+	will be located in the directory "include/linux" when exported.
+
+
+	--- 7.4 unifdef-y (deprecated)
+
+	unifdef-y is deprecated. A direct replacement is header-y.
+
+
+=== 8 Kbuild Variables
 
 The top Makefile exports the following variables:
 
@@ -1206,7 +1273,7 @@ The top Makefile exports the following variables:
 	INSTALL_MOD_STRIP will used as the option(s) to the strip command.
 
 
-=== 8 Makefile language
+=== 9 Makefile language
 
 The kernel Makefiles are designed to be run with GNU Make.  The Makefiles
 use only the documented features of GNU Make, but they do use many
@@ -1225,14 +1292,14 @@ time the left-hand side is used.
 There are some cases where "=" is appropriate.  Usually, though, ":="
 is the right choice.
 
-=== 9 Credits
+=== 10 Credits
 
 Original version made by Michael Elizabeth Chastain, <mailto:mec@shout.net>
 Updates by Kai Germaschewski <kai@tp1.ruhr-uni-bochum.de>
 Updates by Sam Ravnborg <sam@ravnborg.org>
 Language QA by Jan Engelhardt <jengelh@gmx.de>
 
-=== 10 TODO
+=== 11 TODO
 
 - Describe how kbuild supports shipped files with _shipped.
 - Generating offset header files.

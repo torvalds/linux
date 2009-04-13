@@ -142,7 +142,6 @@ static struct target_type linear_target = {
 	.status = linear_status,
 	.ioctl  = linear_ioctl,
 	.merge  = linear_merge,
-	.features = DM_TARGET_SUPPORTS_BARRIERS,
 };
 
 int __init dm_linear_init(void)

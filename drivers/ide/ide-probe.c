@@ -283,13 +283,11 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 	 * identify command to be sure of reply
 	 */
 	if (cmd == ATA_CMD_ID_ATAPI) {
-		struct ide_cmd cmd;
+		struct ide_taskfile tf;
 
-		memset(&cmd, 0, sizeof(cmd));
+		memset(&tf, 0, sizeof(tf));
 		/* disable DMA & overlap */
-		cmd.tf_flags = IDE_TFLAG_OUT_FEATURE;
-
-		tp_ops->tf_load(drive, &cmd);
+		tp_ops->tf_load(drive, &tf, IDE_VALID_FEATURE);
 	}
 
 	/* ask drive for ID */
@@ -337,14 +335,11 @@ int ide_busy_sleep(ide_hwif_t *hwif, unsigned long timeout, int altstatus)
 
 static u8 ide_read_device(ide_drive_t *drive)
 {
-	struct ide_cmd cmd;
+	struct ide_taskfile tf;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_DEVICE;
+	drive->hwif->tp_ops->tf_read(drive, &tf, IDE_VALID_DEVICE);
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
-
-	return cmd.tf.device;
+	return tf.device;
 }
 
 /**
@@ -1314,6 +1309,7 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 		host->get_lock     = d->get_lock;
 		host->release_lock = d->release_lock;
 		host->host_flags = d->host_flags;
+		host->irq_flags = d->irq_flags;
 	}
 
 	return host;

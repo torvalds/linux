@@ -227,4 +227,27 @@ config INPUT_PCF50633_PMU
 	 Say Y to include support for delivering  PMU events via  input
 	 layer on NXP PCF50633.
 
+config INPUT_GPIO_ROTARY_ENCODER
+	tristate "Rotary encoders connected to GPIO pins"
+	depends on GPIOLIB && GENERIC_GPIO
+	help
+	  Say Y here to add support for rotary encoders connected to GPIO lines.
+	  Check file:Documentation/incput/rotary_encoder.txt for more
+	  information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rotary_encoder.
+
+config INPUT_RB532_BUTTON
+	tristate "Mikrotik Routerboard 532 button interface"
+	depends on MIKROTIK_RB532
+	depends on GPIOLIB && GENERIC_GPIO
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you want support for the S1 button built into
+	  Mikrotik's Routerboard 532.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rb532_button.
+
 endif

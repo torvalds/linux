@@ -2524,7 +2524,6 @@ static void irq_complete_move(struct irq_desc **descp)
 static inline void irq_complete_move(struct irq_desc **descp) {}
 #endif
 
-#ifdef CONFIG_X86_X2APIC
 static void __eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg)
 {
 	int apic, pin;
@@ -2558,6 +2557,7 @@ eoi_ioapic_irq(struct irq_desc *desc)
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
+#ifdef CONFIG_X86_X2APIC
 static void ack_x2apic_level(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
@@ -2633,6 +2633,9 @@ static void ack_apic_level(unsigned int irq)
 	 * not propagate properly.
 	 */
 	ack_APIC_irq();
+
+	if (irq_remapped(irq))
+		eoi_ioapic_irq(desc);
 
 	/* Now we can move and renable the irq */
 	if (unlikely(do_unmask_irq)) {
