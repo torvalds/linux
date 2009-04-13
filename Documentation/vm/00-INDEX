@@ -1,5 +1,7 @@
 00-INDEX
 	- this file.
+active_mm.txt
+	- An explanation from Linus about tsk->active_mm vs tsk->mm.
 balance
 	- various information on memory balancing.
 hugetlbpage.txt
