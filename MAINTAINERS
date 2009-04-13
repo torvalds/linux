@@ -461,7 +461,7 @@ F:	arch/x86/include/asm/amd_iommu*.h
 
 AMD MICROCODE UPDATE SUPPORT
 P:	Andreas Herrmann
-M:	andeas.herrmann3@amd.com
+M:	andreas.herrmann3@amd.com
 L:	amd64-microcode@amd64.org
 S:	Supported
 F:	arch/x86/kernel/microcode_amd.c
