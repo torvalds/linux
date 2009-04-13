@@ -449,6 +449,7 @@ int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode)
 	struct ecryptfs_crypt_stat *crypt_stat;
 
 	crypt_stat = &ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
+	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
 		return ecryptfs_write_inode_size_to_xattr(ecryptfs_inode);
 	else
@@ -490,6 +491,16 @@ static int ecryptfs_write_end(struct file *file,
 		ecryptfs_printk(KERN_DEBUG, "Not a new file\n");
 	ecryptfs_printk(KERN_DEBUG, "Calling fill_zeros_to_end_of_page"
 			"(page w/ index = [0x%.16x], to = [%d])\n", index, to);
+	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
+		rc = ecryptfs_write_lower_page_segment(ecryptfs_inode, page, 0,
+						       to);
+		if (!rc) {
+			rc = copied;
+			fsstack_copy_inode_size(ecryptfs_inode,
+				ecryptfs_inode_to_lower(ecryptfs_inode));
+		}
+		goto out;
+	}
 	/* Fills in zeros if 'to' goes beyond inode size */
 	rc = fill_zeros_to_end_of_page(page, to);
 	if (rc) {

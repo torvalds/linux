@@ -814,6 +814,13 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 		size_t num_zeros = (PAGE_CACHE_SIZE
 				    - (new_length & ~PAGE_CACHE_MASK));
 
+		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
+			rc = vmtruncate(inode, new_length);
+			if (rc)
+				goto out_free;
+			rc = vmtruncate(lower_dentry->d_inode, new_length);
+			goto out_free;
+		}
 		if (num_zeros) {
 			char *zeros_virt;
 
@@ -915,8 +922,6 @@ static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
 			}
 			rc = 0;
 			crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
-			mutex_unlock(&crypt_stat->cs_mutex);
-			goto out;
 		}
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
