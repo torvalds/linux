@@ -355,6 +355,9 @@ struct ichdev {
         unsigned int fragsize1;
         unsigned int position;
 	unsigned int pos_shift;
+	unsigned int last_pos;
+	unsigned long last_pos_jiffies;
+	unsigned int jiffy_to_bytes;
         int frags;
         int lvi;
         int lvi_frag;
@@ -838,7 +841,10 @@ static int snd_intel8x0_pcm_trigger(struct snd_pcm_substream *substream, int cmd
 		ichdev->suspended = 0;
 		/* fallthru */
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		val = ICH_IOCE | ICH_STARTBM;
+		ichdev->last_pos = ichdev->position;
+		ichdev->last_pos_jiffies = jiffies;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		ichdev->suspended = 1;
@@ -848,9 +854,6 @@ static int snd_intel8x0_pcm_trigger(struct snd_pcm_substream *substream, int cmd
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		val = ICH_IOCE;
-		break;
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		val = ICH_IOCE | ICH_STARTBM;
 		break;
 	default:
 		return -EINVAL;
@@ -1045,6 +1048,7 @@ static int snd_intel8x0_pcm_prepare(struct snd_pcm_substream *substream)
 			ichdev->pos_shift = (runtime->sample_bits > 16) ? 2 : 1;
 	}
 	snd_intel8x0_setup_periods(chip, ichdev);
+	ichdev->jiffy_to_bytes = (runtime->rate * 4 * ichdev->pos_shift) / HZ;
 	return 0;
 }
 
@@ -1053,7 +1057,7 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 	struct intel8x0 *chip = snd_pcm_substream_chip(substream);
 	struct ichdev *ichdev = get_ichdev(substream);
 	size_t ptr1, ptr;
-	int civ, timeout = 100;
+	int civ, timeout = 10;
 	unsigned int position;
 
 	spin_lock(&chip->reg_lock);
@@ -1069,9 +1073,19 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 		    ptr1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
 			break;
 	} while (timeout--);
-	ptr1 <<= ichdev->pos_shift;
-	ptr = ichdev->fragsize1 - ptr1;
-	ptr += position;
+	if (ptr1 != 0) {
+		ptr1 <<= ichdev->pos_shift;
+		ptr = ichdev->fragsize1 - ptr1;
+		ptr += position;
+		ichdev->last_pos = ptr;
+		ichdev->last_pos_jiffies = jiffies;
+	} else {
+		ptr1 = jiffies - ichdev->last_pos_jiffies;
+		if (ptr1)
+			ptr1 -= 1;
+		ptr = ichdev->last_pos + ptr1 * ichdev->jiffy_to_bytes;
+		ptr %= ichdev->size;
+	}
 	spin_unlock(&chip->reg_lock);
 	if (ptr >= ichdev->size)
 		return 0;
@@ -2710,9 +2724,13 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 		    pos1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
 			break;
 	} while (timeout--);
-	pos = ichdev->fragsize1;
-	pos -= pos1 << ichdev->pos_shift;
-	pos += ichdev->position;
+	if (pos1 == 0) {	/* oops, this value is not reliable */
+		pos = 0;
+	} else {
+		pos = ichdev->fragsize1;
+		pos -= pos1 << ichdev->pos_shift;
+		pos += ichdev->position;
+	}
 	chip->in_measurement = 0;
 	do_posix_clock_monotonic_gettime(&stop_time);
 	/* stop */
@@ -2728,6 +2746,11 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	}
 	iputbyte(chip, port + ICH_REG_OFF_CR, ICH_RESETREGS);
 	spin_unlock_irq(&chip->reg_lock);
+
+	if (pos == 0) {
+		snd_printk(KERN_ERR "intel8x0: measure - unreliable DMA position..\n");
+		return;
+	}
 
 	pos /= 4;
 	t = stop_time.tv_sec - start_time.tv_sec;
