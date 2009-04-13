@@ -604,10 +604,11 @@ repeat:
 		ret = security_ptrace_traceme(current->parent);
 
 		/*
-		 * Set the ptrace bit in the process ptrace flags.
-		 * Then link us on our parent's ptraced list.
+		 * Check PF_EXITING to ensure ->real_parent has not passed
+		 * exit_ptrace(). Otherwise we don't report the error but
+		 * pretend ->real_parent untraces us right after return.
 		 */
-		if (!ret) {
+		if (!ret && !(current->real_parent->flags & PF_EXITING)) {
 			current->ptrace |= PT_PTRACED;
 			__ptrace_link(current, current->real_parent);
 		}
