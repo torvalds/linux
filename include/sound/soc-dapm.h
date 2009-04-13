@@ -140,9 +140,19 @@
 #define SND_SOC_DAPM_DAC(wname, stname, wreg, wshift, winvert) \
 {	.id = snd_soc_dapm_dac, .name = wname, .sname = stname, .reg = wreg, \
 	.shift = wshift, .invert = winvert}
+#define SND_SOC_DAPM_DAC_E(wname, stname, wreg, wshift, winvert, \
+			   wevent, wflags)				\
+{	.id = snd_soc_dapm_dac, .name = wname, .sname = stname, .reg = wreg, \
+	.shift = wshift, .invert = winvert, \
+	.event = wevent, .event_flags = wflags}
 #define SND_SOC_DAPM_ADC(wname, stname, wreg, wshift, winvert) \
 {	.id = snd_soc_dapm_adc, .name = wname, .sname = stname, .reg = wreg, \
 	.shift = wshift, .invert = winvert}
+#define SND_SOC_DAPM_ADC_E(wname, stname, wreg, wshift, winvert, \
+			   wevent, wflags)				\
+{	.id = snd_soc_dapm_adc, .name = wname, .sname = stname, .reg = wreg, \
+	.shift = wshift, .invert = winvert, \
+	.event = wevent, .event_flags = wflags}
 
 /* generic register modifier widget */
 #define SND_SOC_DAPM_REG(wid, wname, wreg, wshift, wmask, won_val, woff_val) \
