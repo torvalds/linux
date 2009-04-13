@@ -431,6 +431,13 @@ xpc_send_chctl_openreply_sn2(struct xpc_channel *ch, unsigned long *irq_flags)
 }
 
 static void
+xpc_send_chctl_opencomplete_sn2(struct xpc_channel *ch,
+				unsigned long *irq_flags)
+{
+	XPC_SEND_NOTIFY_IRQ_SN2(ch, XPC_CHCTL_OPENCOMPLETE, irq_flags);
+}
+
+static void
 xpc_send_chctl_msgrequest_sn2(struct xpc_channel *ch)
 {
 	XPC_SEND_NOTIFY_IRQ_SN2(ch, XPC_CHCTL_MSGREQUEST, NULL);
@@ -2380,6 +2387,7 @@ xpc_init_sn2(void)
 	xpc_send_chctl_closereply = xpc_send_chctl_closereply_sn2;
 	xpc_send_chctl_openrequest = xpc_send_chctl_openrequest_sn2;
 	xpc_send_chctl_openreply = xpc_send_chctl_openreply_sn2;
+	xpc_send_chctl_opencomplete = xpc_send_chctl_opencomplete_sn2;
 
 	xpc_save_remote_msgqueue_pa = xpc_save_remote_msgqueue_pa_sn2;
 

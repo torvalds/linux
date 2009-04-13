@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2009 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 /*
@@ -44,10 +44,10 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 		if (ret != xpSuccess)
 			XPC_DISCONNECT_CHANNEL(ch, ret, irq_flags);
+		else
+			ch->flags |= XPC_C_SETUP;
 
-		ch->flags |= XPC_C_SETUP;
-
-		if (ch->flags & (XPC_C_CONNECTED | XPC_C_DISCONNECTING))
+		if (ch->flags & XPC_C_DISCONNECTING)
 			return;
 	}
 
@@ -59,14 +59,18 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 	if (!(ch->flags & XPC_C_ROPENREPLY))
 		return;
 
-	ch->flags = (XPC_C_CONNECTED | XPC_C_SETUP);	/* clear all else */
+	if (!(ch->flags & XPC_C_OPENCOMPLETE)) {
+		ch->flags |= (XPC_C_OPENCOMPLETE | XPC_C_CONNECTED);
+		xpc_send_chctl_opencomplete(ch, irq_flags);
+	}
+
+	if (!(ch->flags & XPC_C_ROPENCOMPLETE))
+		return;
 
 	dev_info(xpc_chan, "channel %d to partition %d connected\n",
 		 ch->number, ch->partid);
 
-	spin_unlock_irqrestore(&ch->lock, *irq_flags);
-	xpc_create_kthreads(ch, 1, 0);
-	spin_lock_irqsave(&ch->lock, *irq_flags);
+	ch->flags = (XPC_C_CONNECTED | XPC_C_SETUP);	/* clear all else */
 }
 
 /*
@@ -184,6 +188,7 @@ xpc_process_openclose_chctl_flags(struct xpc_partition *part, int ch_number,
 	struct xpc_channel *ch = &part->channels[ch_number];
 	enum xp_retval reason;
 	enum xp_retval ret;
+	int create_kthread = 0;
 
 	spin_lock_irqsave(&ch->lock, irq_flags);
 
@@ -196,8 +201,7 @@ again:
 		 * has had a chance to see that the channel is disconnected.
 		 */
 		ch->delayed_chctl_flags |= chctl_flags;
-		spin_unlock_irqrestore(&ch->lock, irq_flags);
-		return;
+		goto out;
 	}
 
 	if (chctl_flags & XPC_CHCTL_CLOSEREQUEST) {
@@ -239,8 +243,7 @@ again:
 					    XPC_CHCTL_CLOSEREQUEST;
 					spin_unlock(&part->chctl_lock);
 				}
-				spin_unlock_irqrestore(&ch->lock, irq_flags);
-				return;
+				goto out;
 			}
 
 			XPC_SET_REASON(ch, 0, 0);
@@ -250,7 +253,8 @@ again:
 			ch->flags |= (XPC_C_CONNECTING | XPC_C_ROPENREQUEST);
 		}
 
-		chctl_flags &= ~(XPC_CHCTL_OPENREQUEST | XPC_CHCTL_OPENREPLY);
+		chctl_flags &= ~(XPC_CHCTL_OPENREQUEST | XPC_CHCTL_OPENREPLY |
+		    XPC_CHCTL_OPENCOMPLETE);
 
 		/*
 		 * The meaningful CLOSEREQUEST connection state fields are:
@@ -269,8 +273,7 @@ again:
 			XPC_DISCONNECT_CHANNEL(ch, reason, &irq_flags);
 
 			DBUG_ON(chctl_flags & XPC_CHCTL_CLOSEREPLY);
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
-			return;
+			goto out;
 		}
 
 		xpc_process_disconnect(ch, &irq_flags);
@@ -283,8 +286,7 @@ again:
 
 		if (ch->flags & XPC_C_DISCONNECTED) {
 			DBUG_ON(part->act_state != XPC_P_AS_DEACTIVATING);
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
-			return;
+			goto out;
 		}
 
 		DBUG_ON(!(ch->flags & XPC_C_CLOSEREQUEST));
@@ -299,8 +301,7 @@ again:
 				    XPC_CHCTL_CLOSEREPLY;
 				spin_unlock(&part->chctl_lock);
 			}
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
-			return;
+			goto out;
 		}
 
 		ch->flags |= XPC_C_RCLOSEREPLY;
@@ -320,14 +321,12 @@ again:
 
 		if (part->act_state == XPC_P_AS_DEACTIVATING ||
 		    (ch->flags & XPC_C_ROPENREQUEST)) {
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
-			return;
+			goto out;
 		}
 
 		if (ch->flags & (XPC_C_DISCONNECTING | XPC_C_WDISCONNECT)) {
 			ch->delayed_chctl_flags |= XPC_CHCTL_OPENREQUEST;
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
-			return;
+			goto out;
 		}
 		DBUG_ON(!(ch->flags & (XPC_C_DISCONNECTED |
 				       XPC_C_OPENREQUEST)));
@@ -341,8 +340,7 @@ again:
 		 */
 		if (args->entry_size == 0 || args->local_nentries == 0) {
 			/* assume OPENREQUEST was delayed by mistake */
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
-			return;
+			goto out;
 		}
 
 		ch->flags |= (XPC_C_ROPENREQUEST | XPC_C_CONNECTING);
@@ -352,8 +350,7 @@ again:
 			if (args->entry_size != ch->entry_size) {
 				XPC_DISCONNECT_CHANNEL(ch, xpUnequalMsgSizes,
 						       &irq_flags);
-				spin_unlock_irqrestore(&ch->lock, irq_flags);
-				return;
+				goto out;
 			}
 		} else {
 			ch->entry_size = args->entry_size;
@@ -375,15 +372,13 @@ again:
 			args->local_msgqueue_pa, args->local_nentries,
 			args->remote_nentries, ch->partid, ch->number);
 
-		if (ch->flags & (XPC_C_DISCONNECTING | XPC_C_DISCONNECTED)) {
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
-			return;
-		}
+		if (ch->flags & (XPC_C_DISCONNECTING | XPC_C_DISCONNECTED))
+			goto out;
+
 		if (!(ch->flags & XPC_C_OPENREQUEST)) {
 			XPC_DISCONNECT_CHANNEL(ch, xpOpenCloseError,
 					       &irq_flags);
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
-			return;
+			goto out;
 		}
 
 		DBUG_ON(!(ch->flags & XPC_C_ROPENREQUEST));
@@ -403,8 +398,7 @@ again:
 		ret = xpc_save_remote_msgqueue_pa(ch, args->local_msgqueue_pa);
 		if (ret != xpSuccess) {
 			XPC_DISCONNECT_CHANNEL(ch, ret, &irq_flags);
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
-			return;
+			goto out;
 		}
 		ch->flags |= XPC_C_ROPENREPLY;
 
@@ -430,7 +424,36 @@ again:
 		xpc_process_connect(ch, &irq_flags);
 	}
 
+	if (chctl_flags & XPC_CHCTL_OPENCOMPLETE) {
+
+		dev_dbg(xpc_chan, "XPC_CHCTL_OPENCOMPLETE received from "
+			"partid=%d, channel=%d\n", ch->partid, ch->number);
+
+		if (ch->flags & (XPC_C_DISCONNECTING | XPC_C_DISCONNECTED))
+			goto out;
+
+		if (!(ch->flags & XPC_C_OPENREQUEST) ||
+		    !(ch->flags & XPC_C_OPENREPLY)) {
+			XPC_DISCONNECT_CHANNEL(ch, xpOpenCloseError,
+					       &irq_flags);
+			goto out;
+		}
+
+		DBUG_ON(!(ch->flags & XPC_C_ROPENREQUEST));
+		DBUG_ON(!(ch->flags & XPC_C_ROPENREPLY));
+		DBUG_ON(!(ch->flags & XPC_C_CONNECTED));
+
+		ch->flags |= XPC_C_ROPENCOMPLETE;
+
+		xpc_process_connect(ch, &irq_flags);
+		create_kthread = 1;
+	}
+
+out:
 	spin_unlock_irqrestore(&ch->lock, irq_flags);
+
+	if (create_kthread)
+		xpc_create_kthreads(ch, 1, 0);
 }
 
 /*
@@ -564,10 +587,6 @@ xpc_process_sent_chctl_flags(struct xpc_partition *part)
 			if (!(ch_flags & XPC_C_OPENREQUEST)) {
 				DBUG_ON(ch_flags & XPC_C_SETUP);
 				(void)xpc_connect_channel(ch);
-			} else {
-				spin_lock_irqsave(&ch->lock, irq_flags);
-				xpc_process_connect(ch, &irq_flags);
-				spin_unlock_irqrestore(&ch->lock, irq_flags);
 			}
 			continue;
 		}

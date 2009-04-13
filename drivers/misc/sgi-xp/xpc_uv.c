@@ -534,6 +534,17 @@ xpc_handle_activate_mq_msg_uv(struct xpc_partition *part,
 		xpc_wakeup_channel_mgr(part);
 		break;
 	}
+	case XPC_ACTIVATE_MQ_MSG_CHCTL_OPENCOMPLETE_UV: {
+		struct xpc_activate_mq_msg_chctl_opencomplete_uv *msg;
+
+		msg = container_of(msg_hdr, struct
+				xpc_activate_mq_msg_chctl_opencomplete_uv, hdr);
+		spin_lock_irqsave(&part->chctl_lock, irq_flags);
+		part->chctl.flags[msg->ch_number] |= XPC_CHCTL_OPENCOMPLETE;
+		spin_unlock_irqrestore(&part->chctl_lock, irq_flags);
+
+		xpc_wakeup_channel_mgr(part);
+	}
 	case XPC_ACTIVATE_MQ_MSG_MARK_ENGAGED_UV:
 		spin_lock_irqsave(&part_uv->flags_lock, irq_flags);
 		part_uv->flags |= XPC_P_ENGAGED_UV;
@@ -1202,6 +1213,16 @@ xpc_send_chctl_openreply_uv(struct xpc_channel *ch, unsigned long *irq_flags)
 }
 
 static void
+xpc_send_chctl_opencomplete_uv(struct xpc_channel *ch, unsigned long *irq_flags)
+{
+	struct xpc_activate_mq_msg_chctl_opencomplete_uv msg;
+
+	msg.ch_number = ch->number;
+	xpc_send_activate_IRQ_ch_uv(ch, irq_flags, &msg, sizeof(msg),
+				    XPC_ACTIVATE_MQ_MSG_CHCTL_OPENCOMPLETE_UV);
+}
+
+static void
 xpc_send_chctl_local_msgrequest_uv(struct xpc_partition *part, int ch_number)
 {
 	unsigned long irq_flags;
@@ -1665,6 +1686,7 @@ xpc_init_uv(void)
 	xpc_send_chctl_closereply = xpc_send_chctl_closereply_uv;
 	xpc_send_chctl_openrequest = xpc_send_chctl_openrequest_uv;
 	xpc_send_chctl_openreply = xpc_send_chctl_openreply_uv;
+	xpc_send_chctl_opencomplete = xpc_send_chctl_opencomplete_uv;
 
 	xpc_save_remote_msgqueue_pa = xpc_save_remote_msgqueue_pa_uv;
 

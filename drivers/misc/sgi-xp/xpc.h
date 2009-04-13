@@ -232,9 +232,10 @@ struct xpc_activate_mq_msghdr_uv {
 #define XPC_ACTIVATE_MQ_MSG_CHCTL_CLOSEREPLY_UV		4
 #define XPC_ACTIVATE_MQ_MSG_CHCTL_OPENREQUEST_UV	5
 #define XPC_ACTIVATE_MQ_MSG_CHCTL_OPENREPLY_UV		6
+#define XPC_ACTIVATE_MQ_MSG_CHCTL_OPENCOMPLETE_UV	7
 
-#define XPC_ACTIVATE_MQ_MSG_MARK_ENGAGED_UV		7
-#define XPC_ACTIVATE_MQ_MSG_MARK_DISENGAGED_UV		8
+#define XPC_ACTIVATE_MQ_MSG_MARK_ENGAGED_UV		8
+#define XPC_ACTIVATE_MQ_MSG_MARK_DISENGAGED_UV		9
 
 struct xpc_activate_mq_msg_uv {
 	struct xpc_activate_mq_msghdr_uv hdr;
@@ -276,6 +277,11 @@ struct xpc_activate_mq_msg_chctl_openreply_uv {
 	short remote_nentries;	/* ??? Is this needed? What is? */
 	short local_nentries;	/* ??? Is this needed? What is? */
 	unsigned long notify_gru_mq_desc_gpa;
+};
+
+struct xpc_activate_mq_msg_chctl_opencomplete_uv {
+	struct xpc_activate_mq_msghdr_uv hdr;
+	short ch_number;
 };
 
 /*
@@ -583,30 +589,32 @@ struct xpc_channel {
 
 #define	XPC_C_WASCONNECTED	0x00000001	/* channel was connected */
 
-#define	XPC_C_ROPENREPLY	0x00000002	/* remote open channel reply */
-#define	XPC_C_OPENREPLY		0x00000004	/* local open channel reply */
-#define	XPC_C_ROPENREQUEST	0x00000008     /* remote open channel request */
-#define	XPC_C_OPENREQUEST	0x00000010	/* local open channel request */
+#define XPC_C_ROPENCOMPLETE	0x00000002    /* remote open channel complete */
+#define XPC_C_OPENCOMPLETE	0x00000004     /* local open channel complete */
+#define	XPC_C_ROPENREPLY	0x00000008	/* remote open channel reply */
+#define	XPC_C_OPENREPLY		0x00000010	/* local open channel reply */
+#define	XPC_C_ROPENREQUEST	0x00000020     /* remote open channel request */
+#define	XPC_C_OPENREQUEST	0x00000040	/* local open channel request */
 
-#define	XPC_C_SETUP		0x00000020 /* channel's msgqueues are alloc'd */
-#define	XPC_C_CONNECTEDCALLOUT	0x00000040     /* connected callout initiated */
+#define	XPC_C_SETUP		0x00000080 /* channel's msgqueues are alloc'd */
+#define	XPC_C_CONNECTEDCALLOUT	0x00000100     /* connected callout initiated */
 #define	XPC_C_CONNECTEDCALLOUT_MADE \
-				0x00000080     /* connected callout completed */
-#define	XPC_C_CONNECTED		0x00000100	/* local channel is connected */
-#define	XPC_C_CONNECTING	0x00000200	/* channel is being connected */
+				0x00000200     /* connected callout completed */
+#define	XPC_C_CONNECTED		0x00000400	/* local channel is connected */
+#define	XPC_C_CONNECTING	0x00000800	/* channel is being connected */
 
-#define	XPC_C_RCLOSEREPLY	0x00000400	/* remote close channel reply */
-#define	XPC_C_CLOSEREPLY	0x00000800	/* local close channel reply */
-#define	XPC_C_RCLOSEREQUEST	0x00001000    /* remote close channel request */
-#define	XPC_C_CLOSEREQUEST	0x00002000     /* local close channel request */
+#define	XPC_C_RCLOSEREPLY	0x00001000	/* remote close channel reply */
+#define	XPC_C_CLOSEREPLY	0x00002000	/* local close channel reply */
+#define	XPC_C_RCLOSEREQUEST	0x00004000    /* remote close channel request */
+#define	XPC_C_CLOSEREQUEST	0x00008000     /* local close channel request */
 
-#define	XPC_C_DISCONNECTED	0x00004000	/* channel is disconnected */
-#define	XPC_C_DISCONNECTING	0x00008000   /* channel is being disconnected */
+#define	XPC_C_DISCONNECTED	0x00010000	/* channel is disconnected */
+#define	XPC_C_DISCONNECTING	0x00020000   /* channel is being disconnected */
 #define	XPC_C_DISCONNECTINGCALLOUT \
-				0x00010000 /* disconnecting callout initiated */
+				0x00040000 /* disconnecting callout initiated */
 #define	XPC_C_DISCONNECTINGCALLOUT_MADE \
-				0x00020000 /* disconnecting callout completed */
-#define	XPC_C_WDISCONNECT	0x00040000  /* waiting for channel disconnect */
+				0x00080000 /* disconnecting callout completed */
+#define	XPC_C_WDISCONNECT	0x00100000  /* waiting for channel disconnect */
 
 /*
  * The channel control flags (chctl) union consists of a 64-bit variable which
@@ -625,11 +633,13 @@ union xpc_channel_ctl_flags {
 #define	XPC_CHCTL_CLOSEREPLY	0x02
 #define	XPC_CHCTL_OPENREQUEST	0x04
 #define	XPC_CHCTL_OPENREPLY	0x08
-#define	XPC_CHCTL_MSGREQUEST	0x10
+#define XPC_CHCTL_OPENCOMPLETE	0x10
+#define	XPC_CHCTL_MSGREQUEST	0x20
 
 #define XPC_OPENCLOSE_CHCTL_FLAGS \
 			(XPC_CHCTL_CLOSEREQUEST | XPC_CHCTL_CLOSEREPLY | \
-			 XPC_CHCTL_OPENREQUEST | XPC_CHCTL_OPENREPLY)
+			 XPC_CHCTL_OPENREQUEST | XPC_CHCTL_OPENREPLY | \
+			 XPC_CHCTL_OPENCOMPLETE)
 #define XPC_MSG_CHCTL_FLAGS	XPC_CHCTL_MSGREQUEST
 
 static inline int
@@ -866,6 +876,8 @@ extern void (*xpc_send_chctl_closereply) (struct xpc_channel *,
 extern void (*xpc_send_chctl_openrequest) (struct xpc_channel *,
 					   unsigned long *);
 extern void (*xpc_send_chctl_openreply) (struct xpc_channel *, unsigned long *);
+extern void (*xpc_send_chctl_opencomplete) (struct xpc_channel *,
+					    unsigned long *);
 
 extern enum xp_retval (*xpc_save_remote_msgqueue_pa) (struct xpc_channel *,
 						      unsigned long);

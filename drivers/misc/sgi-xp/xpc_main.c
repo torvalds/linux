@@ -220,6 +220,8 @@ void (*xpc_send_chctl_openrequest) (struct xpc_channel *ch,
 				    unsigned long *irq_flags);
 void (*xpc_send_chctl_openreply) (struct xpc_channel *ch,
 				  unsigned long *irq_flags);
+void (*xpc_send_chctl_opencomplete) (struct xpc_channel *ch,
+				  unsigned long *irq_flags);
 
 enum xp_retval (*xpc_save_remote_msgqueue_pa) (struct xpc_channel *ch,
 					       unsigned long msgqueue_pa);
