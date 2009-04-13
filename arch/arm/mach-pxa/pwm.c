@@ -22,11 +22,12 @@
 #include <asm/div64.h>
 
 #define HAS_SECONDARY_PWM	0x10
+#define PWM_ID_BASE(d)		((d) & 0xf)
 
 static const struct platform_device_id pwm_id_table[] = {
 	/*   PWM    has_secondary_pwm? */
 	{ "pxa25x-pwm", 0 },
-	{ "pxa27x-pwm", HAS_SECONDARY_PWM },
+	{ "pxa27x-pwm", 0 | HAS_SECONDARY_PWM },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, pwm_id_table);
@@ -191,7 +192,7 @@ static int __devinit pwm_probe(struct platform_device *pdev)
 	pwm->clk_enabled = 0;
 
 	pwm->use_count = 0;
-	pwm->pwm_id = pdev->id;
+	pwm->pwm_id = PWM_ID_BASE(id->driver_data) + pdev->id;
 	pwm->pdev = pdev;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
