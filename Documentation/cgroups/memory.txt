@@ -6,14 +6,13 @@ used here with the memory controller that is used in hardware.
 
 Salient features
 
-a. Enable control of both RSS (mapped) and Page Cache (unmapped) pages
+a. Enable control of Anonymous, Page Cache (mapped and unmapped) and
+   Swap Cache memory pages.
 b. The infrastructure allows easy addition of other types of memory to control
 c. Provides *zero overhead* for non memory controller users
 d. Provides a double LRU: global memory pressure causes reclaim from the
    global LRU; a cgroup on hitting a limit, reclaims from the per
    cgroup LRU
-
-NOTE: Swap Cache (unmapped) is not accounted now.
 
 Benefits and Purpose of the memory controller
 
@@ -290,34 +289,44 @@ will be charged as a new owner of it.
   moved to the parent. If you want to avoid that, force_empty will be useful.
 
 5.2 stat file
-  memory.stat file includes following statistics (now)
-	cache			- # of pages from page-cache and shmem.
-	rss			- # of pages from anonymous memory.
-	pgpgin			- # of event of charging
-	pgpgout			- # of event of uncharging
-	active_anon		- # of pages on active lru of anon, shmem.
-	inactive_anon 		- # of pages on active lru of anon, shmem
-	active_file		- # of pages on active lru of file-cache
-	inactive_file		- # of pages on inactive lru of file cache
-	unevictable		- # of pages cannot be reclaimed.(mlocked etc)
 
-	Below is depend on CONFIG_DEBUG_VM.
-	inactive_ratio		- VM internal parameter. (see mm/page_alloc.c)
-	recent_rotated_anon	- VM internal parameter. (see mm/vmscan.c)
-	recent_rotated_file	- VM internal parameter. (see mm/vmscan.c)
-	recent_scanned_anon 	- VM internal parameter. (see mm/vmscan.c)
-	recent_scanned_file 	- VM internal parameter. (see mm/vmscan.c)
+memory.stat file includes following statistics
 
-  Memo:
+cache		- # of bytes of page cache memory.
+rss		- # of bytes of anonymous and swap cache memory.
+pgpgin		- # of pages paged in (equivalent to # of charging events).
+pgpgout		- # of pages paged out (equivalent to # of uncharging events).
+active_anon	- # of bytes of anonymous and  swap cache memory on active
+		  lru list.
+inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+		  inactive lru list.
+active_file	- # of bytes of file-backed memory on active lru list.
+inactive_file	- # of bytes of file-backed memory on inactive lru list.
+unevictable	- # of bytes of memory that cannot be reclaimed (mlocked etc).
+
+The following additional stats are dependent on CONFIG_DEBUG_VM.
+
+inactive_ratio		- VM internal parameter. (see mm/page_alloc.c)
+recent_rotated_anon	- VM internal parameter. (see mm/vmscan.c)
+recent_rotated_file	- VM internal parameter. (see mm/vmscan.c)
+recent_scanned_anon	- VM internal parameter. (see mm/vmscan.c)
+recent_scanned_file	- VM internal parameter. (see mm/vmscan.c)
+
+Memo:
 	recent_rotated means recent frequency of lru rotation.
 	recent_scanned means recent # of scans to lru.
 	showing for better debug please see the code for meanings.
 
+Note:
+	Only anonymous and swap cache memory is listed as part of 'rss' stat.
+	This should not be confused with the true 'resident set size' or the
+	amount of physical memory used by the cgroup. Per-cgroup rss
+	accounting is not done yet.
 
 5.3 swappiness
   Similar to /proc/sys/vm/swappiness, but affecting a hierarchy of groups only.
 
-  Following cgroup's swapiness can't be changed.
+  Following cgroups' swapiness can't be changed.
   - root cgroup (uses /proc/sys/vm/swappiness).
   - a cgroup which uses hierarchy and it has child cgroup.
   - a cgroup which uses hierarchy and not the root of hierarchy.
