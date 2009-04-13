@@ -1572,8 +1572,9 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 					   skb->len, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(sc->dev, bf->bf_dmacontext))) {
 		bf->bf_mpdu = NULL;
-		DPRINTF(sc, ATH_DBG_CONFIG,
-			"dma_mapping_error() on TX\n");
+		kfree(tx_info_priv);
+		tx_info->rate_driver_data[0] = NULL;
+		DPRINTF(sc, ATH_DBG_FATAL, "dma_mapping_error() on TX\n");
 		return -ENOMEM;
 	}
 
