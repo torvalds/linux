@@ -1894,7 +1894,7 @@ F:	fs/ecryptfs/
 EDAC-CORE
 P:	Doug Thompson
 M:	dougthompson@xmission.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Supported
 F:	Documentation/edac.txt
@@ -1906,7 +1906,7 @@ P:	Mark Gross
 P:	Doug Thompson
 M:	mark.gross@intel.com
 M:	dougthompson@xmission.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/e752x_edac.c
@@ -1914,7 +1914,7 @@ F:	drivers/edac/e752x_edac.c
 EDAC-E7XXX
 P:	Doug Thompson
 M:	dougthompson@xmission.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/e7xxx_edac.c
@@ -1922,7 +1922,7 @@ F:	drivers/edac/e7xxx_edac.c
 EDAC-I82443BXGX
 P:	Tim Small
 M:	tim@buttersideup.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i82443bxgx_edac.c
@@ -1930,7 +1930,7 @@ F:	drivers/edac/i82443bxgx_edac.c
 EDAC-I3000
 P:	Jason Uhlenkott
 M:	juhlenko@akamai.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i3000_edac.c
@@ -1938,7 +1938,7 @@ F:	drivers/edac/i3000_edac.c
 EDAC-I5000
 P:	Doug Thompson
 M:	dougthompson@xmission.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i5000_edac.c
@@ -1946,7 +1946,7 @@ F:	drivers/edac/i5000_edac.c
 EDAC-I5400
 P:	Mauro Carvalho Chehab
 M:	mchehab@redhat.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i5400_edac.c
@@ -1956,7 +1956,7 @@ P:	Ranganathan Desikan
 P:	Arvind R.
 M:	rdesikan@jetzbroadband.com
 M:	arvind@acarlab.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i82975x_edac.c
@@ -1964,7 +1964,7 @@ F:	drivers/edac/i82975x_edac.c
 EDAC-PASEMI
 P:	Egor Martovetsky
 M:	egor@pasemi.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/pasemi_edac.c
@@ -1972,7 +1972,7 @@ F:	drivers/edac/pasemi_edac.c
 EDAC-R82600
 P:	Tim Small
 M:	tim@buttersideup.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/r82600_edac.c
