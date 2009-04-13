@@ -41,7 +41,7 @@
 #include <mach/ohci.h>
 #include <mach/mmc.h>
 #include <mach/pxa27x_keypad.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/camera.h>
 #include <mach/pxa2xx_spi.h>
 

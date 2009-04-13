@@ -43,7 +43,7 @@
 #include <mach/pxafb.h>
 #include <mach/ssp.h>
 #include <mach/pxa2xx_spi.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/pxa27x_keypad.h>
 #include <mach/pxa3xx_nand.h>
 #include <mach/littleton.h>

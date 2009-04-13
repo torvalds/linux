@@ -29,7 +29,7 @@
 #include <asm/mach/flash.h>
 
 #include <mach/pxa27x.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/udc.h>
 #include <mach/mmc.h>
 #include <mach/pxa2xx_spi.h>

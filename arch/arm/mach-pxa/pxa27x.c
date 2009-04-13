@@ -27,7 +27,7 @@
 #include <mach/ohci.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"

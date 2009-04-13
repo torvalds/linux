@@ -32,7 +32,7 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/pxa3xx_nand.h>
 
 #include <asm/mach/map.h>

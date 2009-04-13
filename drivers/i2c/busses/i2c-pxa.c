@@ -36,7 +36,7 @@
 
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 
 /*
  * I2C register offsets will be shifted 0 or 1 bit left, depending on
