@@ -575,6 +575,8 @@ static noinline long v4l1_compat_get_input_info(
 			chan->norm = VIDEO_MODE_NTSC;
 		if (sid & V4L2_STD_SECAM)
 			chan->norm = VIDEO_MODE_SECAM;
+		if (sid == V4L2_STD_ALL)
+			chan->norm = VIDEO_MODE_AUTO;
 	}
 done:
 	return err;
@@ -600,6 +602,9 @@ static noinline long v4l1_compat_set_input(
 		break;
 	case VIDEO_MODE_SECAM:
 		sid = V4L2_STD_SECAM;
+		break;
+	case VIDEO_MODE_AUTO:
+		sid = V4L2_STD_ALL;
 		break;
 	}
 	if (0 != sid) {
@@ -804,9 +809,9 @@ static noinline long v4l1_compat_select_tuner(
 
 	t.index = tun->tuner;
 
-	err = drv(file, VIDIOC_S_INPUT, &t);
+	err = drv(file, VIDIOC_S_TUNER, &t);
 	if (err < 0)
-		dprintk("VIDIOCSTUNER / VIDIOC_S_INPUT: %ld\n", err);
+		dprintk("VIDIOCSTUNER / VIDIOC_S_TUNER: %ld\n", err);
 	return err;
 }
 

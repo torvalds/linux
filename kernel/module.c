@@ -1952,9 +1952,6 @@ static noinline struct module *load_module(void __user *umod,
 		if (strstarts(secstrings+sechdrs[i].sh_name, ".exit"))
 			sechdrs[i].sh_flags &= ~(unsigned long)SHF_ALLOC;
 #endif
-		/* Don't keep __versions around; it's just for loading. */
-		if (strcmp(secstrings + sechdrs[i].sh_name, "__versions") == 0)
-			sechdrs[i].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	}
 
 	modindex = find_sec(hdr, sechdrs, secstrings,
@@ -2390,6 +2387,9 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	wake_up(&module_wq);
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_LIVE, mod);
+
+	/* We need to finish all async code before the module init sequence is done */
+	async_synchronize_full();
 
 	mutex_lock(&module_mutex);
 	/* Drop initial reference. */

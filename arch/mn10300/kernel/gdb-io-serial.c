@@ -22,7 +22,7 @@
 #include <asm/gdb-stub.h>
 #include <asm/exceptions.h>
 #include <asm/serial-regs.h>
-#include <asm/unit/serial.h>
+#include <unit/serial.h>
 
 /*
  * initialise the GDB stub

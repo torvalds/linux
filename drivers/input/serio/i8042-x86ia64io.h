@@ -151,6 +151,14 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "01"),
 		},
 	},
+	{
+		.ident = "HP DV9700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv9700"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Rev 1"),
+		},
+	},
 	{ }
 };
 

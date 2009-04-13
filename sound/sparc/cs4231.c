@@ -703,7 +703,7 @@ static int snd_cs4231_timer_stop(struct snd_timer *timer)
 	return 0;
 }
 
-static void __init snd_cs4231_init(struct snd_cs4231 *chip)
+static void __devinit snd_cs4231_init(struct snd_cs4231 *chip)
 {
 	unsigned long flags;
 
@@ -1020,7 +1020,7 @@ static snd_pcm_uframes_t snd_cs4231_capture_pointer(
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static int __init snd_cs4231_probe(struct snd_cs4231 *chip)
+static int __devinit snd_cs4231_probe(struct snd_cs4231 *chip)
 {
 	unsigned long flags;
 	int i;
@@ -1219,7 +1219,7 @@ static struct snd_pcm_ops snd_cs4231_capture_ops = {
 	.pointer	=	snd_cs4231_capture_pointer,
 };
 
-static int __init snd_cs4231_pcm(struct snd_card *card)
+static int __devinit snd_cs4231_pcm(struct snd_card *card)
 {
 	struct snd_cs4231 *chip = card->private_data;
 	struct snd_pcm *pcm;
@@ -1248,7 +1248,7 @@ static int __init snd_cs4231_pcm(struct snd_card *card)
 	return 0;
 }
 
-static int __init snd_cs4231_timer(struct snd_card *card)
+static int __devinit snd_cs4231_timer(struct snd_card *card)
 {
 	struct snd_cs4231 *chip = card->private_data;
 	struct snd_timer *timer;
@@ -1499,7 +1499,7 @@ static int snd_cs4231_put_double(struct snd_kcontrol *kcontrol,
   .private_value = (left_reg) | ((right_reg) << 8) | ((shift_left) << 16) | \
 		   ((shift_right) << 19) | ((mask) << 24) | ((invert) << 22) }
 
-static struct snd_kcontrol_new snd_cs4231_controls[] __initdata = {
+static struct snd_kcontrol_new snd_cs4231_controls[] __devinitdata = {
 CS4231_DOUBLE("PCM Playback Switch", 0, CS4231_LEFT_OUTPUT,
 		CS4231_RIGHT_OUTPUT, 7, 7, 1, 1),
 CS4231_DOUBLE("PCM Playback Volume", 0, CS4231_LEFT_OUTPUT,
@@ -1538,7 +1538,7 @@ CS4231_SINGLE("Line Out Switch", 0, CS4231_PIN_CTRL, 6, 1, 1),
 CS4231_SINGLE("Headphone Out Switch", 0, CS4231_PIN_CTRL, 7, 1, 1)
 };
 
-static int __init snd_cs4231_mixer(struct snd_card *card)
+static int __devinit snd_cs4231_mixer(struct snd_card *card)
 {
 	struct snd_cs4231 *chip = card->private_data;
 	int err, idx;
@@ -1559,7 +1559,7 @@ static int __init snd_cs4231_mixer(struct snd_card *card)
 
 static int dev;
 
-static int __init cs4231_attach_begin(struct snd_card **rcard)
+static int __devinit cs4231_attach_begin(struct snd_card **rcard)
 {
 	struct snd_card *card;
 	struct snd_cs4231 *chip;
@@ -1590,7 +1590,7 @@ static int __init cs4231_attach_begin(struct snd_card **rcard)
 	return 0;
 }
 
-static int __init cs4231_attach_finish(struct snd_card *card)
+static int __devinit cs4231_attach_finish(struct snd_card *card)
 {
 	struct snd_cs4231 *chip = card->private_data;
 	int err;
@@ -1794,9 +1794,9 @@ static struct snd_device_ops snd_cs4231_sbus_dev_ops = {
 	.dev_free	=	snd_cs4231_sbus_dev_free,
 };
 
-static int __init snd_cs4231_sbus_create(struct snd_card *card,
-					 struct of_device *op,
-					 int dev)
+static int __devinit snd_cs4231_sbus_create(struct snd_card *card,
+					    struct of_device *op,
+					    int dev)
 {
 	struct snd_cs4231 *chip = card->private_data;
 	int err;
@@ -1960,9 +1960,9 @@ static struct snd_device_ops snd_cs4231_ebus_dev_ops = {
 	.dev_free	=	snd_cs4231_ebus_dev_free,
 };
 
-static int __init snd_cs4231_ebus_create(struct snd_card *card,
-					 struct of_device *op,
-					 int dev)
+static int __devinit snd_cs4231_ebus_create(struct snd_card *card,
+					    struct of_device *op,
+					    int dev)
 {
 	struct snd_cs4231 *chip = card->private_data;
 	int err;

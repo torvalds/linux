@@ -42,6 +42,14 @@ sure that bitwise types don't get mixed up (little-endian vs big-endian
 vs cpu-endian vs whatever), and there the constant "0" really _is_
 special.
 
+__bitwise__ - to be used for relatively compact stuff (gfp_t, etc.) that
+is mostly warning-free and is supposed to stay that way.  Warnings will
+be generated without __CHECK_ENDIAN__.
+
+__bitwise - noisy stuff; in particular, __le*/__be* are that.  We really
+don't want to drown in noise unless we'd explicitly asked for it.
+
+
 Getting sparse
 ~~~~~~~~~~~~~~
 

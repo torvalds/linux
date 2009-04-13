@@ -229,7 +229,8 @@ struct atkbd {
 /*
  * System-specific ketymap fixup routine
  */
-static void (*atkbd_platform_fixup)(struct atkbd *);
+static void (*atkbd_platform_fixup)(struct atkbd *, const void *data);
+static void *atkbd_platform_fixup_data;
 
 static ssize_t atkbd_attr_show_helper(struct device *dev, char *buf,
 				ssize_t (*handler)(struct atkbd *, char *));
@@ -834,87 +835,64 @@ static void atkbd_disconnect(struct serio *serio)
 }
 
 /*
+ * generate release events for the keycodes given in data
+ */
+static void atkbd_apply_forced_release_keylist(struct atkbd* atkbd,
+						const void *data)
+{
+	const unsigned int *keys = data;
+	unsigned int i;
+
+	if (atkbd->set == 2)
+		for (i = 0; keys[i] != -1U; i++)
+			__set_bit(keys[i], atkbd->force_release_mask);
+}
+
+/*
  * Most special keys (Fn+F?) on Dell laptops do not generate release
  * events so we have to do it ourselves.
  */
-static void atkbd_dell_laptop_keymap_fixup(struct atkbd *atkbd)
-{
-	static const unsigned int forced_release_keys[] = {
-		0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8f, 0x93,
-	};
-	int i;
-
-	if (atkbd->set == 2)
-		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
-			__set_bit(forced_release_keys[i],
-				  atkbd->force_release_mask);
-}
+static unsigned int atkbd_dell_laptop_forced_release_keys[] = {
+	0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8f, 0x93, -1U
+};
 
 /*
  * Perform fixup for HP system that doesn't generate release
  * for its video switch
  */
-static void atkbd_hp_keymap_fixup(struct atkbd *atkbd)
-{
-	static const unsigned int forced_release_keys[] = {
-		0x94,
-	};
-	int i;
-
-	if (atkbd->set == 2)
-		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
-			__set_bit(forced_release_keys[i],
-					atkbd->force_release_mask);
-}
+static unsigned int atkbd_hp_forced_release_keys[] = {
+	0x94, -1U
+};
 
 /*
  * Inventec system with broken key release on volume keys
  */
-static void atkbd_inventec_keymap_fixup(struct atkbd *atkbd)
-{
-	const unsigned int forced_release_keys[] = {
-		0xae, 0xb0,
-	};
-	int i;
-
-	if (atkbd->set == 2)
-		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
-			__set_bit(forced_release_keys[i],
-				  atkbd->force_release_mask);
-}
+static unsigned int atkbd_inventec_forced_release_keys[] = {
+	0xae, 0xb0, -1U
+};
 
 /*
  * Perform fixup for HP Pavilion ZV6100 laptop that doesn't generate release
  * for its volume buttons
  */
-static void atkbd_hp_zv6100_keymap_fixup(struct atkbd *atkbd)
-{
-	const unsigned int forced_release_keys[] = {
-		0xae, 0xb0,
-	};
-	int i;
-
-	if (atkbd->set == 2)
-		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
-			__set_bit(forced_release_keys[i],
-					atkbd->force_release_mask);
-}
+static unsigned int atkbd_hp_zv6100_forced_release_keys[] = {
+	0xae, 0xb0, -1U
+};
 
 /*
  * Samsung NC10 with Fn+F? key release not working
  */
-static void atkbd_samsung_keymap_fixup(struct atkbd *atkbd)
-{
-	const unsigned int forced_release_keys[] = {
-		0x82, 0x83, 0x84, 0x86, 0x88, 0x89, 0xb3, 0xf7, 0xf9,
-	};
-	int i;
+static unsigned int atkbd_samsung_forced_release_keys[] = {
+	0x82, 0x83, 0x84, 0x86, 0x88, 0x89, 0xb3, 0xf7, 0xf9, -1U
+};
 
-	if (atkbd->set == 2)
-		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
-			__set_bit(forced_release_keys[i],
-				  atkbd->force_release_mask);
-}
+/*
+ * The volume up and volume down special keys on a Fujitsu Amilo PA 1510 laptop
+ * do not generate release events so we have to do it ourselves.
+ */
+static unsigned int atkbd_amilo_pa1510_forced_release_keys[] = {
+	0xb0, 0xae, -1U
+};
 
 /*
  * atkbd_set_keycode_table() initializes keyboard's keycode table
@@ -967,7 +945,7 @@ static void atkbd_set_keycode_table(struct atkbd *atkbd)
  * Perform additional fixups
  */
 	if (atkbd_platform_fixup)
-		atkbd_platform_fixup(atkbd);
+		atkbd_platform_fixup(atkbd, atkbd_platform_fixup_data);
 }
 
 /*
@@ -1492,9 +1470,11 @@ static ssize_t atkbd_show_err_count(struct atkbd *atkbd, char *buf)
 	return sprintf(buf, "%lu\n", atkbd->err_count);
 }
 
-static int __init atkbd_setup_fixup(const struct dmi_system_id *id)
+static int __init atkbd_setup_forced_release(const struct dmi_system_id *id)
 {
-	atkbd_platform_fixup = id->driver_data;
+	atkbd_platform_fixup = atkbd_apply_forced_release_keylist;
+	atkbd_platform_fixup_data = id->driver_data;
+
 	return 0;
 }
 
@@ -1505,8 +1485,8 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_CHASSIS_TYPE, "8"), /* Portable */
 		},
-		.callback = atkbd_setup_fixup,
-		.driver_data = atkbd_dell_laptop_keymap_fixup,
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_dell_laptop_forced_release_keys,
 	},
 	{
 		.ident = "Dell Laptop",
@@ -1514,8 +1494,8 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
 			DMI_MATCH(DMI_CHASSIS_TYPE, "8"), /* Portable */
 		},
-		.callback = atkbd_setup_fixup,
-		.driver_data = atkbd_dell_laptop_keymap_fixup,
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_dell_laptop_forced_release_keys,
 	},
 	{
 		.ident = "HP 2133",
@@ -1523,8 +1503,8 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP 2133"),
 		},
-		.callback = atkbd_setup_fixup,
-		.driver_data = atkbd_hp_keymap_fixup,
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_hp_forced_release_keys,
 	},
 	{
 		.ident = "HP Pavilion ZV6100",
@@ -1532,8 +1512,8 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Pavilion ZV6100"),
 		},
-		.callback = atkbd_setup_fixup,
-		.driver_data = atkbd_hp_zv6100_keymap_fixup,
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_hp_zv6100_forced_release_keys,
 	},
 	{
 		.ident = "Inventec Symphony",
@@ -1541,8 +1521,8 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_SYS_VENDOR, "INVENTEC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "SYMPHONY 6.0/7.0"),
 		},
-		.callback = atkbd_setup_fixup,
-		.driver_data = atkbd_inventec_keymap_fixup,
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_inventec_forced_release_keys,
 	},
 	{
 		.ident = "Samsung NC10",
@@ -1550,8 +1530,17 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "NC10"),
 		},
-		.callback = atkbd_setup_fixup,
-		.driver_data = atkbd_samsung_keymap_fixup,
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_samsung_forced_release_keys,
+	},
+	{
+		.ident = "Fujitsu Amilo PA 1510",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pa 1510"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_amilo_pa1510_forced_release_keys,
 	},
 	{ }
 };

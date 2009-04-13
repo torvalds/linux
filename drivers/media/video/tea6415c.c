@@ -47,12 +47,11 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 
 /* makes a connection between the input-pin 'i' and the output-pin 'o' */
-static int tea6415c_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int tea6415c_s_routing(struct v4l2_subdev *sd,
+			      u32 i, u32 o, u32 config)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u8 byte = 0;
-	u32 i = route->input;
-	u32 o = route->output;
 	int ret;
 
 	v4l2_dbg(1, debug, sd, "i=%d, o=%d\n", i, o);
@@ -169,7 +168,6 @@ static int tea6415c_remove(struct i2c_client *client)
 	kfree(sd);
 	return 0;
 }
-
 
 static const struct i2c_device_id tea6415c_id[] = {
 	{ "tea6415c", 0 },

@@ -3256,7 +3256,7 @@ static const char *ad1884_slave_vols[] = {
 	"Mic Playback Volume",
 	"CD Playback Volume",
 	"Internal Mic Playback Volume",
-	"Docking Mic Playback Volume"
+	"Docking Mic Playback Volume",
 	/* "Beep Playback Volume", */
 	"IEC958 Playback Volume",
 	NULL

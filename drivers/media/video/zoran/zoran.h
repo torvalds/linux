@@ -143,8 +143,8 @@ Private IOCTL to set up for displaying MJPEG
 #ifdef __KERNEL__
 
 #define MAJOR_VERSION 0		/* driver major version */
-#define MINOR_VERSION 9		/* driver minor version */
-#define RELEASE_VERSION 5	/* release version */
+#define MINOR_VERSION 10	/* driver minor version */
+#define RELEASE_VERSION 0	/* release version */
 
 #define ZORAN_NAME    "ZORAN"	/* name of the device */
 

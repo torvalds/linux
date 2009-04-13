@@ -327,10 +327,10 @@ static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
 	char *msg;
 	struct blk_trace *bt;
 
-	if (count > BLK_TN_MAX_MSG)
+	if (count >= BLK_TN_MAX_MSG)
 		return -EINVAL;
 
-	msg = kmalloc(count, GFP_KERNEL);
+	msg = kmalloc(count + 1, GFP_KERNEL);
 	if (msg == NULL)
 		return -ENOMEM;
 
@@ -339,6 +339,7 @@ static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
 		return -EFAULT;
 	}
 
+	msg[count] = '\0';
 	bt = filp->private_data;
 	__trace_note_message(bt, "%s", msg);
 	kfree(msg);
@@ -642,7 +643,7 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 	if (blk_pc_request(rq)) {
 		what |= BLK_TC_ACT(BLK_TC_PC);
 		__blk_add_trace(bt, 0, rq->data_len, rw, what, rq->errors,
-				sizeof(rq->cmd), rq->cmd);
+				rq->cmd_len, rq->cmd);
 	} else  {
 		what |= BLK_TC_ACT(BLK_TC_FS);
 		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
@@ -1376,12 +1377,12 @@ static int blk_trace_str2mask(const char *str)
 {
 	int i;
 	int mask = 0;
-	char *s, *token;
+	char *buf, *s, *token;
 
-	s = kstrdup(str, GFP_KERNEL);
-	if (s == NULL)
+	buf = kstrdup(str, GFP_KERNEL);
+	if (buf == NULL)
 		return -ENOMEM;
-	s = strstrip(s);
+	s = strstrip(buf);
 
 	while (1) {
 		token = strsep(&s, ",");
@@ -1402,7 +1403,7 @@ static int blk_trace_str2mask(const char *str)
 			break;
 		}
 	}
-	kfree(s);
+	kfree(buf);
 
 	return mask;
 }

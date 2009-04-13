@@ -336,6 +336,11 @@ extern int hrtimer_start(struct hrtimer *timer, ktime_t tim,
 			 const enum hrtimer_mode mode);
 extern int hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 			unsigned long range_ns, const enum hrtimer_mode mode);
+extern int
+__hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
+			 unsigned long delta_ns,
+			 const enum hrtimer_mode mode, int wakeup);
+
 extern int hrtimer_cancel(struct hrtimer *timer);
 extern int hrtimer_try_to_cancel(struct hrtimer *timer);
 

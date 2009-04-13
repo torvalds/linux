@@ -1358,8 +1358,8 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 	 * until the kernel has the proper infrastructure to support 64-bit DMA
 	 * on these devices.
 	 */
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) &&
-		pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) &&
+		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "atl2: No usable DMA configuration, aborting\n");
 		goto err_dma;
 	}

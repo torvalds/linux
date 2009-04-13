@@ -32,6 +32,7 @@
 #define OV9650_BAVE			0x05
 #define OV9650_GEAVE			0x06
 #define OV9650_RSVD7			0x07
+#define OV9650_COM2			0x09
 #define OV9650_PID			0x0a
 #define OV9650_VER			0x0b
 #define OV9650_COM3			0x0c
@@ -96,6 +97,7 @@
 #define OV9650_VGA_SELECT		(1 << 6)
 #define OV9650_CIF_SELECT		(1 << 5)
 #define OV9650_QVGA_SELECT		(1 << 4)
+#define OV9650_QCIF_SELECT		(1 << 3)
 #define OV9650_RGB_SELECT		(1 << 2)
 #define OV9650_RAW_RGB_SELECT		(1 << 0)
 
@@ -115,10 +117,15 @@
 #define OV9650_VFLIP			(1 << 4)
 #define OV9650_HFLIP			(1 << 5)
 
+#define OV9650_SOFT_SLEEP		(1 << 4)
+#define OV9650_OUTPUT_DRIVE_2X		(1 << 0)
+
+#define OV9650_LEFT_OFFSET		0x62
+
 #define GAIN_DEFAULT			0x14
 #define RED_GAIN_DEFAULT		0x70
 #define BLUE_GAIN_DEFAULT		0x20
-#define EXPOSURE_DEFAULT		0x5003
+#define EXPOSURE_DEFAULT		0x1ff
 
 /*****************************************************************************/
 
@@ -129,7 +136,9 @@ extern int dump_sensor;
 int ov9650_probe(struct sd *sd);
 int ov9650_init(struct sd *sd);
 int ov9650_start(struct sd *sd);
+int ov9650_stop(struct sd *sd);
 int ov9650_power_down(struct sd *sd);
+void ov9650_disconnect(struct sd *sd);
 
 int ov9650_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
 int ov9650_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
@@ -150,152 +159,16 @@ int ov9650_set_auto_white_balance(struct gspca_dev *gspca_dev, __s32 val);
 int ov9650_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val);
 int ov9650_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor ov9650 = {
+const static struct m5602_sensor ov9650 = {
 	.name = "OV9650",
 	.i2c_slave_id = 0x60,
 	.i2c_regW = 1,
 	.probe = ov9650_probe,
 	.init = ov9650_init,
 	.start = ov9650_start,
+	.stop = ov9650_stop,
 	.power_down = ov9650_power_down,
-
-	.nctrls = 8,
-	.ctrls = {
-	{
-		{
-			.id		= V4L2_CID_EXPOSURE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "exposure",
-			.minimum	= 0x00,
-			.maximum	= 0xffff,
-			.step		= 0x1,
-			.default_value 	= EXPOSURE_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = ov9650_set_exposure,
-		.get = ov9650_get_exposure
-	}, {
-		{
-			.id		= V4L2_CID_GAIN,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "gain",
-			.minimum	= 0x00,
-			.maximum	= 0x3ff,
-			.step		= 0x1,
-			.default_value	= GAIN_DEFAULT,
-			.flags		= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = ov9650_set_gain,
-		.get = ov9650_get_gain
-	}, {
-		{
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "red balance",
-			.minimum 	= 0x00,
-			.maximum 	= 0xff,
-			.step 		= 0x1,
-			.default_value 	= RED_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = ov9650_set_red_balance,
-		.get = ov9650_get_red_balance
-	}, {
-		{
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "blue balance",
-			.minimum 	= 0x00,
-			.maximum 	= 0xff,
-			.step 		= 0x1,
-			.default_value 	= BLUE_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = ov9650_set_blue_balance,
-		.get = ov9650_get_blue_balance
-	}, {
-		{
-			.id 		= V4L2_CID_HFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "horizontal flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
-		},
-		.set = ov9650_set_hflip,
-		.get = ov9650_get_hflip
-	}, {
-		{
-			.id 		= V4L2_CID_VFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "vertical flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
-		},
-		.set = ov9650_set_vflip,
-		.get = ov9650_get_vflip
-	}, {
-		{
-			.id 		= V4L2_CID_AUTO_WHITE_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "auto white balance",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
-		},
-		.set = ov9650_set_auto_white_balance,
-		.get = ov9650_get_auto_white_balance
-	}, {
-		{
-			.id 		= V4L2_CID_AUTOGAIN,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "auto gain control",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
-		},
-		.set = ov9650_set_auto_gain,
-		.get = ov9650_get_auto_gain
-	}
-	},
-
-	.nmodes = 3,
-	.modes = {
-	{
-		320,
-		240,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			320 * 240,
-		.bytesperline = 320,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0
-	}, {
-		352,
-		288,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			352 * 288,
-		.bytesperline = 352,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0
-	}, {
-		640,
-		480,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			640 * 480,
-		.bytesperline = 640,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0
-	}
-	}
+	.disconnect = ov9650_disconnect,
 };
 
 static const unsigned char preinit_ov9650[][3] =
@@ -345,6 +218,10 @@ static const unsigned char init_ov9650[][3] =
 
 	/* Reset chip */
 	{SENSOR, OV9650_COM7, OV9650_REGISTER_RESET},
+	/* One extra reset is needed in order to make the sensor behave
+	   properly when resuming from ram */
+	{SENSOR, OV9650_COM7, OV9650_REGISTER_RESET},
+
 	/* Enable double clock */
 	{SENSOR, OV9650_CLKRC, 0x80},
 	/* Do something out of spec with the power */
@@ -427,18 +304,12 @@ static const unsigned char init_ov9650[][3] =
 	/* Enable denoise, and white-pixel erase */
 	{SENSOR, OV9650_COM22, 0x23},
 
-	/* Set the high bits of the exposure value */
-	{SENSOR, OV9650_AECH, ((EXPOSURE_DEFAULT & 0xff00) >> 8)},
-
 	/* Enable VARIOPIXEL */
 	{SENSOR, OV9650_COM3, OV9650_VARIOPIXEL},
 	{SENSOR, OV9650_COM4, OV9650_QVGA_VARIOPIXEL},
 
-	/* Set the low bits of the exposure value */
-	{SENSOR, OV9650_COM1, (EXPOSURE_DEFAULT & 0xff)},
-	{SENSOR, OV9650_GAIN, GAIN_DEFAULT},
-	{SENSOR, OV9650_BLUE, BLUE_GAIN_DEFAULT},
-	{SENSOR, OV9650_RED, RED_GAIN_DEFAULT},
+	/* Put the sensor in soft sleep mode */
+	{SENSOR, OV9650_COM2, OV9650_SOFT_SLEEP | OV9650_OUTPUT_DRIVE_2X},
 };
 
 static const unsigned char power_down_ov9650[][3] =
@@ -461,73 +332,15 @@ static const unsigned char power_down_ov9650[][3] =
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0},
 };
 
-static const unsigned char res_init_ov9650[][2] =
+static const unsigned char res_init_ov9650[][3] =
 {
-	{M5602_XB_LINE_OF_FRAME_H, 0x82},
-	{M5602_XB_LINE_OF_FRAME_L, 0x00},
-	{M5602_XB_PIX_OF_LINE_H, 0x82},
-	{M5602_XB_PIX_OF_LINE_L, 0x00},
-	{M5602_XB_SIG_INI, 0x01}
-};
+	{SENSOR, OV9650_COM2, OV9650_OUTPUT_DRIVE_2X},
 
-static const unsigned char VGA_ov9650[][3] =
-{
-	/* Moves the view window in a vertical orientation */
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x09},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x01},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0xe0}, /* 480 */
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x62}, /* 98 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x02}, /* 640 + 98 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0xe2},
-
-	{SENSOR, OV9650_COM7, OV9650_VGA_SELECT |
-			      OV9650_RGB_SELECT |
-			      OV9650_RAW_RGB_SELECT},
-};
-
-static const unsigned char CIF_ov9650[][3] =
-{
-	/* Moves the view window in a vertical orientation */
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x09},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x01},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x20}, /* 288 */
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x62}, /* 98 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x01}, /* 352 + 98 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0xc2},
-
-	{SENSOR, OV9650_COM7, OV9650_CIF_SELECT |
-			      OV9650_RGB_SELECT |
-			      OV9650_RAW_RGB_SELECT},
-};
-
-static const unsigned char QVGA_ov9650[][3] =
-{
-	/* Moves the view window in a vertical orientation */
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x08},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0xf0}, /* 240 */
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_VSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x00},
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x31}, /* 50 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x01}, /* 320 + 50 */
-	{BRIDGE, M5602_XB_HSYNC_PARA, 0x71},
-
-	{SENSOR, OV9650_COM7, OV9650_QVGA_SELECT |
-			      OV9650_RGB_SELECT |
-			      OV9650_RAW_RGB_SELECT},
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_H, 0x82},
+	{BRIDGE, M5602_XB_LINE_OF_FRAME_L, 0x00},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_H, 0x82},
+	{BRIDGE, M5602_XB_PIX_OF_LINE_L, 0x00},
+	{BRIDGE, M5602_XB_SIG_INI, 0x01}
 };
 
 #endif

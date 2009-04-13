@@ -352,6 +352,11 @@ struct i387_soft_struct {
 	u32			entry_eip;
 };
 
+struct ymmh_struct {
+	/* 16 * 16 bytes for each YMMH-reg = 256 bytes */
+	u32 ymmh_space[64];
+};
+
 struct xsave_hdr_struct {
 	u64 xstate_bv;
 	u64 reserved1[2];
@@ -361,6 +366,7 @@ struct xsave_hdr_struct {
 struct xsave_struct {
 	struct i387_fxsave_struct i387;
 	struct xsave_hdr_struct xsave_hdr;
+	struct ymmh_struct ymmh;
 	/* new processor state extensions will go here */
 } __attribute__ ((packed, aligned (64)));
 

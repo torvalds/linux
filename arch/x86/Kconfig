@@ -252,15 +252,12 @@ config SMP
 
 config X86_X2APIC
 	bool "Support x2apic"
-	depends on X86_LOCAL_APIC && X86_64
+	depends on X86_LOCAL_APIC && X86_64 && INTR_REMAP
 	---help---
 	  This enables x2apic support on CPUs that have this feature.
 
 	  This allows 32-bit apic IDs (so it can support very large systems),
 	  and accesses the local apic via MSRs not via mmio.
-
-	  ( On certain CPU models you may need to enable INTR_REMAP too,
-	    to get functional x2apic mode. )
 
 	  If you don't know what to do here, say N.
 
@@ -1881,7 +1878,6 @@ config DMAR_FLOPPY_WA
 config INTR_REMAP
 	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
 	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
-	select X86_X2APIC
 	---help---
 	  Supports Interrupt remapping for IO-APIC and MSI devices.
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or

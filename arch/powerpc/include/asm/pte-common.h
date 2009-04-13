@@ -151,9 +151,11 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 				 _PAGE_NO_CACHE)
 #define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | \
 				 _PAGE_NO_CACHE | _PAGE_GUARDED)
-#define PAGE_KERNEL_X	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW | _PAGE_EXEC)
+#define PAGE_KERNEL_X	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW | _PAGE_EXEC | \
+				 _PAGE_HWEXEC)
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
-#define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO | _PAGE_EXEC)
+#define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO | _PAGE_EXEC | \
+				 _PAGE_HWEXEC)
 
 /* Protection used for kernel text. We want the debuggers to be able to
  * set breakpoints anywhere, so don't write protect the kernel text

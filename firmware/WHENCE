@@ -8,6 +8,24 @@ kernel.
 
 --------------------------------------------------------------------------
 
+Driver: ambassador -- Madge Ambassador (Collage PCI 155 Server) ATM NIC.
+
+File: firmware/atmsar11.fw
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+
+  Madge Ambassador ATM Adapter microcode.
+  Copyright (C) 1995-1999  Madge Networks Ltd.
+
+  This microcode data is placed under the terms of the GNU General
+  Public License. The GPL is contained in /usr/doc/copyright/GPL on a
+  Debian system and in the file COPYING in the Linux kernel source.
+
+  We would prefer you not to distribute modified versions without
+  consultation and not to ask for assembly/other microcode source.
+
+--------------------------------------------------------------------------
+
 Driver: korg1212 -- Korg 1212 IO audio device
 
 File: korg/k1212.dsp
@@ -45,6 +63,32 @@ Found alsa-firmware package in hex form, with the following comment:
 
 --------------------------------------------------------------------------
 
+Driver: SCSI_ADVANSYS - AdvanSys SCSI
+
+File: advansys/mcode.bin
+File: advansys/3550.bin
+File: advansys/38C0800.bin
+File: advansys/38C1600.bin
+
+Licence: BSD, no source available.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: SCSI_QLOGIC_1280 - Qlogic QLA 1240/1x80/1x160 SCSI support
+
+File: qlogic/1040.bin
+File: qlogic/1280.bin
+File: qlogic/12160.bin
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+
+                   QLOGIC LINUX SOFTWARE
+  QLogic ISP1280/ device driver for Linux 2.2.x and 2.4.x
+  Copyright (C) 2001 Qlogic Corporation (www.qlogic.com)
+
+--------------------------------------------------------------------------
 Driver: smctr -- SMC ISA/MCA Token Ring adapter
 
 File: tr_smctr.bin
@@ -364,59 +408,6 @@ Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
 
-Driver: SLICOSS - Alacritech IS-NIC products
-
-File: slicoss/gbdownload.sys.ihex
-File: slicoss/gbrcvucode.sys.ihex
-File: slicoss/oasisdbgdownload.sys.ihex
-File: slicoss/oasisdownload.sys.ihex
-File: slicoss/oasisrcvucode.sys.ihex
-
-Licence:
-		Copyright (C) 1999-2009 Alacritech, Inc.
-
-	as an unpublished work. This notice does not imply unrestricted or
-	public access to the source code from which this firmware image is
-	derived.  Except as noted below this firmware image may not be
-	reproduced, used, sold or transferred to any third party without
-	Alacritech's prior written consent.  All Rights Reserved.
-
-	Permission is hereby granted for the distribution of this firmware
-	image as part of a Linux or other Open Source operating system kernel
-	in text or binary form as required.
-
-	This firmware may not be modified and may only be used with
-	Alacritech hardware.
-
-Found in hex form in kernel source.
-
---------------------------------------------------------------------------
-
-Driver: SXG - Alacritech IS-NIC products
-
-File: sxg/saharadownloadB.sys.ihex
-File: sxg/saharadbgdownloadB.sys.ihex
-
-Licence:
-		Copyright (C) 1999-2009 Alacritech, Inc.
-
-	as an unpublished work. This notice does not imply unrestricted or
-	public access to the source code from which this firmware image is
-	derived.  Except as noted below this firmware image may not be
-	reproduced, used, sold or transferred to any third party without
-	Alacritech's prior written consent.  All Rights Reserved.
-
-	Permission is hereby granted for the distribution of this firmware
-	image as part of a Linux or other Open Source operating system kernel
-	in text or binary form as required.
-
-	This firmware may not be modified and may only be used with
-	Alacritech hardware.
-
-Found in hex form in kernel source.
-
---------------------------------------------------------------------------
-
 Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
 
 File: cxgb3/t3b_psram-1.1.0.bin.ihex
@@ -594,5 +585,66 @@ Licence: Allegedly GPL, but no source visible. Marked:
     (Special thanks to Kevin MacPherson of OSITECH)
 
 Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: SCSI_QLOGICPTI - PTI Qlogic, ISP Driver
+
+File: qlogic/isp1000.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: MYRI_SBUS - MyriCOM Gigabit Ethernet
+
+File: myricom/lanai.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: BNX2 - Broadcom NetXtremeII
+
+File: bnx2/bnx2-mips-06-4.6.16.fw
+File: bnx2/bnx2-rv2p-06-4.6.16.fw
+File: bnx2/bnx2-mips-09-4.6.17.fw
+File: bnx2/bnx2-rv2p-09-4.6.15.fw
+
+Licence:
+
+ This file contains firmware data derived from proprietary unpublished
+ source code, Copyright (c) 2004 - 2009 Broadcom Corporation.
+
+ Permission is hereby granted for the distribution of this firmware data
+ in hexadecimal or equivalent format, provided this copyright notice is
+ accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: DVB AV7110 -- AV7110 cards
+
+File: av7110/bootcode.bin
+
+Licence: GPLv2 or later
+
+ARM assembly source code available at http://www.linuxtv.org/downloads/firmware/Boot.S
+
+--------------------------------------------------------------------------
+
+Driver: wavefront - ISA WaveFront sound card
+
+File: yamaha/yss225_registers.bin
+
+Licence: Allegedly GPLv2+, but no source visible.
+
+Found in hex form in kernel source, with the following comment:
+   Copyright (c) 1998-2002 by Paul Davis <pbd@op.net>
 
 --------------------------------------------------------------------------

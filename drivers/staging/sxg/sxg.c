@@ -934,16 +934,16 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 
 	pci_read_config_byte(pcidev, PCI_REVISION_ID, &revision_id);
 
-	if (!(err = pci_set_dma_mask(pcidev, DMA_64BIT_MASK))) {
-		DBG_ERROR("pci_set_dma_mask(DMA_64BIT_MASK) successful\n");
+	if (!(err = pci_set_dma_mask(pcidev, DMA_BIT_MASK(64)))) {
+		DBG_ERROR("pci_set_dma_mask(DMA_BIT_MASK(64)) successful\n");
 	} else {
-		if ((err = pci_set_dma_mask(pcidev, DMA_32BIT_MASK))) {
+		if ((err = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32)))) {
 			DBG_ERROR
 			    ("No usable DMA configuration, aborting  err[%x]\n",
 			     err);
 			return err;
 		}
-		DBG_ERROR("pci_set_dma_mask(DMA_32BIT_MASK) successful\n");
+		DBG_ERROR("pci_set_dma_mask(DMA_BIT_MASK(32)) successful\n");
 	}
 
 	DBG_ERROR("Call pci_request_regions\n");

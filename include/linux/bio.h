@@ -145,20 +145,21 @@ struct bio {
  * bit 2 -- barrier
  *	Insert a serialization point in the IO queue, forcing previously
  *	submitted IO to be completed before this one is issued.
- * bit 3 -- synchronous I/O hint: the block layer will unplug immediately
- *	Note that this does NOT indicate that the IO itself is sync, just
- *	that the block layer will not postpone issue of this IO by plugging.
- * bit 4 -- metadata request
+ * bit 3 -- synchronous I/O hint.
+ * bit 4 -- Unplug the device immediately after submitting this bio.
+ * bit 5 -- metadata request
  *	Used for tracing to differentiate metadata and data IO. May also
  *	get some preferential treatment in the IO scheduler
- * bit 5 -- discard sectors
+ * bit 6 -- discard sectors
  *	Informs the lower level device that this range of sectors is no longer
  *	used by the file system and may thus be freed by the device. Used
  *	for flash based storage.
- * bit 6 -- fail fast device errors
- * bit 7 -- fail fast transport errors
- * bit 8 -- fail fast driver errors
+ * bit 7 -- fail fast device errors
+ * bit 8 -- fail fast transport errors
+ * bit 9 -- fail fast driver errors
  *	Don't want driver retries for any fast fail whatever the reason.
+ * bit 10 -- Tell the IO scheduler not to wait for more requests after this
+	one has been submitted, even if it is a SYNC request.
  */
 #define BIO_RW		0	/* Must match RW in req flags (blkdev.h) */
 #define BIO_RW_AHEAD	1	/* Must match FAILFAST in req flags */
@@ -170,6 +171,7 @@ struct bio {
 #define BIO_RW_FAILFAST_DEV		7
 #define BIO_RW_FAILFAST_TRANSPORT	8
 #define BIO_RW_FAILFAST_DRIVER		9
+#define BIO_RW_NOIDLE	10
 
 #define bio_rw_flagged(bio, flag)	((bio)->bi_rw & (1 << (flag)))
 
@@ -188,6 +190,7 @@ struct bio {
 #define bio_rw_ahead(bio)	bio_rw_flagged(bio, BIO_RW_AHEAD)
 #define bio_rw_meta(bio)	bio_rw_flagged(bio, BIO_RW_META)
 #define bio_discard(bio)	bio_rw_flagged(bio, BIO_RW_DISCARD)
+#define bio_noidle(bio)		bio_rw_flagged(bio, BIO_RW_NOIDLE)
 
 /*
  * upper 16 bits of bi_rw define the io priority of this bio

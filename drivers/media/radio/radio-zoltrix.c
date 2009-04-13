@@ -370,21 +370,9 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return a->index ? -EINVAL : 0;
 }
 
-static int zoltrix_open(struct file *file)
-{
-	return 0;
-}
-
-static int zoltrix_release(struct file *file)
-{
-	return 0;
-}
-
 static const struct v4l2_file_operations zoltrix_fops =
 {
 	.owner		= THIS_MODULE,
-	.open           = zoltrix_open,
-	.release        = zoltrix_release,
 	.ioctl		= video_ioctl2,
 };
 

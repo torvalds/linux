@@ -616,7 +616,7 @@ static int __devinit pluto2_probe(struct pci_dev *pdev,
 	/* enable interrupts */
 	pci_write_config_dword(pdev, 0x6c, 0x8000);
 
-	ret = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret < 0)
 		goto err_pci_disable_device;
 

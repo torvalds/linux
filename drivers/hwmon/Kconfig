@@ -248,6 +248,18 @@ config SENSORS_ASB100
 	  This driver can also be built as a module.  If so, the module
 	  will be called asb100.
 
+config SENSORS_ATK0110
+	tristate "ASUS ATK0110 ACPI hwmon"
+	depends on X86 && ACPI && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the ACPI hardware
+	  monitoring interface found in many ASUS motherboards. This
+	  driver will provide readings of fans, voltages and temperatures
+	  through the system firmware.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asus_atk0110.
+
 config SENSORS_ATXP1
 	tristate "Attansic ATXP1 VID controller"
 	depends on I2C && EXPERIMENTAL
@@ -357,6 +369,16 @@ config SENSORS_FSCHMD
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called fschmd.
+
+config SENSORS_G760A
+	tristate "GMT G760A"
+	depends on I2C
+	help
+	  If you say yes here you get support for Global Mixed-mode
+	  Technology Inc G760A fan speed PWM controller chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called g760a.
 
 config SENSORS_GL518SM
 	tristate "Genesys Logic GL518SM"
