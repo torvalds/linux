@@ -56,6 +56,10 @@
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
+#ifdef CONFIG_EVENT_TRACER
+#include <trace/ftrace.h>
+#endif
+
 #undef TRACE_HEADER_MULTI_READ
 
 /* Only undef what we defined in this file */
