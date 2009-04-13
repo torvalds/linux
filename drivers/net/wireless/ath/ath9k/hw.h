@@ -266,13 +266,6 @@ enum ath9k_int {
 #define CHANNEL_HT40PLUS  0x20000
 #define CHANNEL_HT40MINUS 0x40000
 
-#define CHANNEL_INTERFERENCE    0x01
-#define CHANNEL_DFS             0x02
-#define CHANNEL_4MS_LIMIT       0x04
-#define CHANNEL_DFS_CLEAR       0x08
-#define CHANNEL_DISALLOW_ADHOC  0x10
-#define CHANNEL_PER_11D_ADHOC   0x20
-
 #define CHANNEL_A           (CHANNEL_5GHZ|CHANNEL_OFDM)
 #define CHANNEL_B           (CHANNEL_2GHZ|CHANNEL_CCK)
 #define CHANNEL_G           (CHANNEL_2GHZ|CHANNEL_OFDM)
@@ -303,10 +296,6 @@ struct ath9k_channel {
 	int16_t rawNoiseFloor;
 };
 
-#define IS_CHAN_A(_c) ((((_c)->channelFlags & CHANNEL_A) == CHANNEL_A) || \
-       (((_c)->channelFlags & CHANNEL_A_HT20) == CHANNEL_A_HT20) || \
-       (((_c)->channelFlags & CHANNEL_A_HT40PLUS) == CHANNEL_A_HT40PLUS) || \
-       (((_c)->channelFlags & CHANNEL_A_HT40MINUS) == CHANNEL_A_HT40MINUS))
 #define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
        (((_c)->channelFlags & CHANNEL_G_HT20) == CHANNEL_G_HT20) || \
        (((_c)->channelFlags & CHANNEL_G_HT40PLUS) == CHANNEL_G_HT40PLUS) || \
@@ -314,7 +303,6 @@ struct ath9k_channel {
 #define IS_CHAN_OFDM(_c) (((_c)->channelFlags & CHANNEL_OFDM) != 0)
 #define IS_CHAN_5GHZ(_c) (((_c)->channelFlags & CHANNEL_5GHZ) != 0)
 #define IS_CHAN_2GHZ(_c) (((_c)->channelFlags & CHANNEL_2GHZ) != 0)
-#define IS_CHAN_PASSIVE(_c) (((_c)->channelFlags & CHANNEL_PASSIVE) != 0)
 #define IS_CHAN_HALF_RATE(_c) (((_c)->channelFlags & CHANNEL_HALF) != 0)
 #define IS_CHAN_QUARTER_RATE(_c) (((_c)->channelFlags & CHANNEL_QUARTER) != 0)
 #define IS_CHAN_A_5MHZ_SPACED(_c)			\
