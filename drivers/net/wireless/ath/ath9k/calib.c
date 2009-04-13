@@ -186,7 +186,7 @@ static bool getNoiseFloorThresh(struct ath_hw *ah,
 }
 
 static void ath9k_hw_setup_calibration(struct ath_hw *ah,
-				       struct hal_cal_list *currCal)
+				       struct ath9k_cal_list *currCal)
 {
 	REG_RMW_FIELD(ah, AR_PHY_TIMING_CTRL4(0),
 		      AR_PHY_TIMING_CTRL4_IQCAL_LOG_COUNT_MAX,
@@ -220,7 +220,7 @@ static void ath9k_hw_setup_calibration(struct ath_hw *ah,
 }
 
 static void ath9k_hw_reset_calibration(struct ath_hw *ah,
-				       struct hal_cal_list *currCal)
+				       struct ath9k_cal_list *currCal)
 {
 	int i;
 
@@ -241,7 +241,7 @@ static void ath9k_hw_reset_calibration(struct ath_hw *ah,
 static bool ath9k_hw_per_calibration(struct ath_hw *ah,
 				     struct ath9k_channel *ichan,
 				     u8 rxchainmask,
-				     struct hal_cal_list *currCal)
+				     struct ath9k_cal_list *currCal)
 {
 	bool iscaldone = false;
 
@@ -276,7 +276,7 @@ static bool ath9k_hw_per_calibration(struct ath_hw *ah,
 
 /* Assumes you are talking about the currently configured channel */
 static bool ath9k_hw_iscal_supported(struct ath_hw *ah,
-				     enum hal_cal_types calType)
+				     enum ath9k_cal_types calType)
 {
 	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
 
@@ -499,7 +499,7 @@ static void ath9k_hw_adc_dccal_calibrate(struct ath_hw *ah, u8 numChains)
 {
 	u32 iOddMeasOffset, iEvenMeasOffset, val, i;
 	int32_t qOddMeasOffset, qEvenMeasOffset, qDcMismatch, iDcMismatch;
-	const struct hal_percal_data *calData =
+	const struct ath9k_percal_data *calData =
 		ah->cal_list_curr->calData;
 	u32 numSamples =
 		(1 << (calData->calCountMax + 5)) * calData->calNumSamples;
@@ -556,7 +556,7 @@ static void ath9k_hw_adc_dccal_calibrate(struct ath_hw *ah, u8 numChains)
 bool ath9k_hw_reset_calvalid(struct ath_hw *ah)
 {
 	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
-	struct hal_cal_list *currCal = ah->cal_list_curr;
+	struct ath9k_cal_list *currCal = ah->cal_list_curr;
 
 	if (!ah->curchan)
 		return true;
@@ -845,7 +845,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 			u8 rxchainmask, bool longcal)
 {
 	bool iscaldone = true;
-	struct hal_cal_list *currCal = ah->cal_list_curr;
+	struct ath9k_cal_list *currCal = ah->cal_list_curr;
 
 	if (currCal &&
 	    (currCal->calState == CAL_RUNNING ||
@@ -1008,49 +1008,49 @@ bool ath9k_hw_init_cal(struct ath_hw *ah,
 	return true;
 }
 
-const struct hal_percal_data iq_cal_multi_sample = {
+const struct ath9k_percal_data iq_cal_multi_sample = {
 	IQ_MISMATCH_CAL,
 	MAX_CAL_SAMPLES,
 	PER_MIN_LOG_COUNT,
 	ath9k_hw_iqcal_collect,
 	ath9k_hw_iqcalibrate
 };
-const struct hal_percal_data iq_cal_single_sample = {
+const struct ath9k_percal_data iq_cal_single_sample = {
 	IQ_MISMATCH_CAL,
 	MIN_CAL_SAMPLES,
 	PER_MAX_LOG_COUNT,
 	ath9k_hw_iqcal_collect,
 	ath9k_hw_iqcalibrate
 };
-const struct hal_percal_data adc_gain_cal_multi_sample = {
+const struct ath9k_percal_data adc_gain_cal_multi_sample = {
 	ADC_GAIN_CAL,
 	MAX_CAL_SAMPLES,
 	PER_MIN_LOG_COUNT,
 	ath9k_hw_adc_gaincal_collect,
 	ath9k_hw_adc_gaincal_calibrate
 };
-const struct hal_percal_data adc_gain_cal_single_sample = {
+const struct ath9k_percal_data adc_gain_cal_single_sample = {
 	ADC_GAIN_CAL,
 	MIN_CAL_SAMPLES,
 	PER_MAX_LOG_COUNT,
 	ath9k_hw_adc_gaincal_collect,
 	ath9k_hw_adc_gaincal_calibrate
 };
-const struct hal_percal_data adc_dc_cal_multi_sample = {
+const struct ath9k_percal_data adc_dc_cal_multi_sample = {
 	ADC_DC_CAL,
 	MAX_CAL_SAMPLES,
 	PER_MIN_LOG_COUNT,
 	ath9k_hw_adc_dccal_collect,
 	ath9k_hw_adc_dccal_calibrate
 };
-const struct hal_percal_data adc_dc_cal_single_sample = {
+const struct ath9k_percal_data adc_dc_cal_single_sample = {
 	ADC_DC_CAL,
 	MIN_CAL_SAMPLES,
 	PER_MAX_LOG_COUNT,
 	ath9k_hw_adc_dccal_collect,
 	ath9k_hw_adc_dccal_calibrate
 };
-const struct hal_percal_data adc_init_dc_cal = {
+const struct ath9k_percal_data adc_init_dc_cal = {
 	ADC_DC_INIT_CAL,
 	MIN_CAL_SAMPLES,
 	INIT_LOG_COUNT,

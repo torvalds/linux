@@ -17,13 +17,13 @@
 #ifndef CALIB_H
 #define CALIB_H
 
-extern const struct hal_percal_data iq_cal_multi_sample;
-extern const struct hal_percal_data iq_cal_single_sample;
-extern const struct hal_percal_data adc_gain_cal_multi_sample;
-extern const struct hal_percal_data adc_gain_cal_single_sample;
-extern const struct hal_percal_data adc_dc_cal_multi_sample;
-extern const struct hal_percal_data adc_dc_cal_single_sample;
-extern const struct hal_percal_data adc_init_dc_cal;
+extern const struct ath9k_percal_data iq_cal_multi_sample;
+extern const struct ath9k_percal_data iq_cal_single_sample;
+extern const struct ath9k_percal_data adc_gain_cal_multi_sample;
+extern const struct ath9k_percal_data adc_gain_cal_single_sample;
+extern const struct ath9k_percal_data adc_dc_cal_multi_sample;
+extern const struct ath9k_percal_data adc_dc_cal_single_sample;
+extern const struct ath9k_percal_data adc_init_dc_cal;
 
 #define AR_PHY_CCA_MAX_GOOD_VALUE      		-85
 #define AR_PHY_CCA_MAX_HIGH_VALUE      		-62
@@ -67,14 +67,14 @@ struct ar5416IniArray {
 		}							\
 	} while (0)
 
-enum hal_cal_types {
+enum ath9k_cal_types {
 	ADC_DC_INIT_CAL = 0x1,
 	ADC_GAIN_CAL = 0x2,
 	ADC_DC_CAL = 0x4,
 	IQ_MISMATCH_CAL = 0x8
 };
 
-enum hal_cal_state {
+enum ath9k_cal_state {
 	CAL_INACTIVE,
 	CAL_WAITING,
 	CAL_RUNNING,
@@ -87,18 +87,18 @@ enum hal_cal_state {
 #define PER_MIN_LOG_COUNT   2
 #define PER_MAX_LOG_COUNT  10
 
-struct hal_percal_data {
-	enum hal_cal_types calType;
+struct ath9k_percal_data {
+	enum ath9k_cal_types calType;
 	u32 calNumSamples;
 	u32 calCountMax;
 	void (*calCollect) (struct ath_hw *);
 	void (*calPostProc) (struct ath_hw *, u8);
 };
 
-struct hal_cal_list {
-	const struct hal_percal_data *calData;
-	enum hal_cal_state calState;
-	struct hal_cal_list *calNext;
+struct ath9k_cal_list {
+	const struct ath9k_percal_data *calData;
+	enum ath9k_cal_state calState;
+	struct ath9k_cal_list *calNext;
 };
 
 struct ath9k_nfcal_hist {

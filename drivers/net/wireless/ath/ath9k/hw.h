@@ -436,14 +436,14 @@ struct ath_hw {
 	enum ath9k_ant_setting diversity_control;
 
 	/* Calibration */
-	enum hal_cal_types supp_cals;
-	struct hal_cal_list iq_caldata;
-	struct hal_cal_list adcgain_caldata;
-	struct hal_cal_list adcdc_calinitdata;
-	struct hal_cal_list adcdc_caldata;
-	struct hal_cal_list *cal_list;
-	struct hal_cal_list *cal_list_last;
-	struct hal_cal_list *cal_list_curr;
+	enum ath9k_cal_types supp_cals;
+	struct ath9k_cal_list iq_caldata;
+	struct ath9k_cal_list adcgain_caldata;
+	struct ath9k_cal_list adcdc_calinitdata;
+	struct ath9k_cal_list adcdc_caldata;
+	struct ath9k_cal_list *cal_list;
+	struct ath9k_cal_list *cal_list_last;
+	struct ath9k_cal_list *cal_list_curr;
 #define totalPowerMeasI meas0.unsign
 #define totalPowerMeasQ meas1.unsign
 #define totalIqCorrMeas meas2.sign
