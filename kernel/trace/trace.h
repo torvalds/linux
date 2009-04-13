@@ -813,6 +813,7 @@ struct ftrace_event_call {
 	int			(*show_format)(struct trace_seq *s);
 	int			(*define_fields)(void);
 	struct list_head	fields;
+	int			n_preds;
 	struct filter_pred	**preds;
 
 #ifdef CONFIG_EVENT_PROFILE
@@ -826,6 +827,7 @@ struct event_subsystem {
 	struct list_head	list;
 	const char		*name;
 	struct dentry		*entry;
+	int			n_preds;
 	struct filter_pred	**preds;
 };
 
@@ -834,7 +836,8 @@ struct event_subsystem {
 	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
 	     event++)
 
-#define MAX_FILTER_PRED 8
+#define MAX_FILTER_PRED		8
+#define MAX_FILTER_STR_VAL	128
 
 struct filter_pred;
 
@@ -843,7 +846,7 @@ typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
 struct filter_pred {
 	filter_pred_fn_t fn;
 	u64 val;
-	char *str_val;
+	char str_val[MAX_FILTER_STR_VAL];
 	int str_len;
 	char *field_name;
 	int offset;
@@ -855,13 +858,14 @@ struct filter_pred {
 
 int trace_define_field(struct ftrace_event_call *call, char *type,
 		       char *name, int offset, int size);
+extern int init_preds(struct ftrace_event_call *call);
 extern void filter_free_pred(struct filter_pred *pred);
-extern void filter_print_preds(struct filter_pred **preds,
+extern void filter_print_preds(struct filter_pred **preds, int n_preds,
 			       struct trace_seq *s);
 extern int filter_parse(char **pbuf, struct filter_pred *pred);
 extern int filter_add_pred(struct ftrace_event_call *call,
 			   struct filter_pred *pred);
-extern void filter_free_preds(struct ftrace_event_call *call);
+extern void filter_disable_preds(struct ftrace_event_call *call);
 extern int filter_match_preds(struct ftrace_event_call *call, void *rec);
 extern void filter_free_subsystem_preds(struct event_subsystem *system);
 extern int filter_add_subsystem_pred(struct event_subsystem *system,
@@ -875,7 +879,7 @@ filter_check_discard(struct ftrace_event_call *call, void *rec,
 		     struct ring_buffer *buffer,
 		     struct ring_buffer_event *event)
 {
-	if (unlikely(call->preds) && !filter_match_preds(call, rec)) {
+	if (unlikely(call->n_preds) && !filter_match_preds(call, rec)) {
 		ring_buffer_discard_commit(buffer, event);
 		return 1;
 	}

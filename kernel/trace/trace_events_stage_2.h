@@ -140,6 +140,7 @@ ftrace_format_##call(struct trace_seq *s)				\
 
 #undef __array
 #define __array(type, item, len)					\
+	BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);				\
 	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
 				 offsetof(typeof(field), item),		\
 				 sizeof(field.item));			\

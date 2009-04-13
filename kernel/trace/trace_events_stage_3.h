@@ -255,6 +255,7 @@ static int ftrace_raw_init_event_##call(void)				\
 		return -ENODEV;						\
 	event_##call.id = id;						\
 	INIT_LIST_HEAD(&event_##call.fields);				\
+	init_preds(&event_##call);					\
 	return 0;							\
 }									\
 									\

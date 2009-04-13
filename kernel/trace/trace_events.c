@@ -481,7 +481,7 @@ event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 
 	trace_seq_init(s);
 
-	filter_print_preds(call->preds, s);
+	filter_print_preds(call->preds, call->n_preds, s);
 	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, s->len);
 
 	kfree(s);
@@ -516,7 +516,7 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	}
 
 	if (pred->clear) {
-		filter_free_preds(call);
+		filter_disable_preds(call);
 		filter_free_pred(pred);
 		return cnt;
 	}
@@ -526,6 +526,8 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		filter_free_pred(pred);
 		return err;
 	}
+
+	filter_free_pred(pred);
 
 	*ppos += cnt;
 
@@ -549,7 +551,7 @@ subsystem_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 
 	trace_seq_init(s);
 
-	filter_print_preds(system->preds, s);
+	filter_print_preds(system->preds, system->n_preds, s);
 	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, s->len);
 
 	kfree(s);
@@ -712,6 +714,7 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 	list_add(&system->list, &event_subsystems);
 
 	system->preds = NULL;
+	system->n_preds = 0;
 
 	entry = debugfs_create_file("filter", 0644, system->entry, system,
 				    &ftrace_subsystem_filter_fops);

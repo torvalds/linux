@@ -122,6 +122,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 static int ftrace_raw_init_event_##call(void)				\
 {									\
 	INIT_LIST_HEAD(&event_##call.fields);				\
+	init_preds(&event_##call);					\
 	return 0;							\
 }									\
 
