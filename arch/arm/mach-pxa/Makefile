@@ -15,7 +15,7 @@ endif
 
 # Generic drivers that other drivers may depend upon
 obj-$(CONFIG_PXA_SSP)		+= ssp.o
-obj-$(CONFIG_PXA_PWM)		+= pwm.o
+obj-$(CONFIG_HAVE_PWM)		+= pwm.o
 
 # SoC-specific code
 obj-$(CONFIG_PXA25x)		+= mfp-pxa2xx.o pxa2xx.o pxa25x.o
