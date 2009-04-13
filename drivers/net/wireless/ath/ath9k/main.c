@@ -1089,10 +1089,10 @@ void ath_radio_enable(struct ath_softc *sc)
 	int r;
 
 	ath9k_ps_wakeup(sc);
+	ath9k_hw_configpcipowersave(ah, 0);
+
 	spin_lock_bh(&sc->sc_resetlock);
-
 	r = ath9k_hw_reset(ah, ah->curchan, false);
-
 	if (r) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to reset channel %u (%uMhz) ",
@@ -1154,6 +1154,7 @@ void ath_radio_disable(struct ath_softc *sc)
 	spin_unlock_bh(&sc->sc_resetlock);
 
 	ath9k_hw_phy_disable(ah);
+	ath9k_hw_configpcipowersave(ah, 1);
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 	ath9k_ps_restore(sc);
 }
