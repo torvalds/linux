@@ -106,7 +106,7 @@ static int enabled_via_apicbase;
  * the BIOS or the operating system must switch out of
  * PIC Mode by changing the IMCR.
  */
-static inline imcr_pic_to_apic(void)
+static inline void imcr_pic_to_apic(void)
 {
 	/* select IMCR register */
 	outb(0x70, 0x22);
@@ -114,7 +114,7 @@ static inline imcr_pic_to_apic(void)
 	outb(0x01, 0x23);
 }
 
-static inline imcr_apic_to_pic(void)
+static inline void imcr_apic_to_pic(void)
 {
 	/* select IMCR register */
 	outb(0x70, 0x22);
