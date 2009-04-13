@@ -263,8 +263,8 @@ config BF_REV_MAX
 
 choice
 	prompt "Silicon Rev"
-	default BF_REV_0_1 if (BF51x || BF52x || (BF54x && !BF54xM))
-	default BF_REV_0_2 if (BF534 || BF536 || BF537)
+	default BF_REV_0_0 if (BF51x || BF52x)
+	default BF_REV_0_2 if (BF534 || BF536 || BF537 || (BF54x && !BF54xM))
 	default BF_REV_0_3 if (BF531 || BF532 || BF533 || BF54xM || BF561)
 
 config BF_REV_0_0
