@@ -52,6 +52,7 @@
 /*
  * Interrupt numbers for PXA910
  */
+#define IRQ_PXA910_NONE			(-1)
 #define IRQ_PXA910_AIRQ			0
 #define IRQ_PXA910_SSP3			1
 #define IRQ_PXA910_SSP2			2
