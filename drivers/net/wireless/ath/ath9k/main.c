@@ -2749,6 +2749,7 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	mutex_lock(&sc->mutex);
 	aphy->state = ATH_WIPHY_ACTIVE;
 	sc->sc_flags &= ~SC_OP_SCANNING;
+	sc->sc_flags |= SC_OP_FULL_RESET;
 	mutex_unlock(&sc->mutex);
 }
 
