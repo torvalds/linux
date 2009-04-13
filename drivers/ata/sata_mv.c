@@ -1881,6 +1881,39 @@ static u8 mv_bmdma_status(struct ata_port *ap)
 	return status;
 }
 
+static void mv_rw_multi_errata_sata24(struct ata_queued_cmd *qc)
+{
+	struct ata_taskfile *tf = &qc->tf;
+	/*
+	 * Workaround for 88SX60x1 FEr SATA#24.
+	 *
+	 * Chip may corrupt WRITEs if multi_count >= 4kB.
+	 * Note that READs are unaffected.
+	 *
+	 * It's not clear if this errata really means "4K bytes",
+	 * or if it always happens for multi_count > 7
+	 * regardless of device sector_size.
+	 *
+	 * So, for safety, any write with multi_count > 7
+	 * gets converted here into a regular PIO write instead:
+	 */
+	if ((tf->flags & ATA_TFLAG_WRITE) && is_multi_taskfile(tf)) {
+		if (qc->dev->multi_count > 7) {
+			switch (tf->command) {
+			case ATA_CMD_WRITE_MULTI:
+				tf->command = ATA_CMD_PIO_WRITE;
+				break;
+			case ATA_CMD_WRITE_MULTI_FUA_EXT:
+				tf->flags &= ~ATA_TFLAG_FUA; /* ugh */
+				/* fall through */
+			case ATA_CMD_WRITE_MULTI_EXT:
+				tf->command = ATA_CMD_PIO_WRITE_EXT;
+				break;
+			}
+		}
+	}
+}
+
 /**
  *      mv_qc_prep - Host specific command preparation.
  *      @qc: queued command to prepare
@@ -1902,9 +1935,16 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	u16 flags = 0;
 	unsigned in_index;
 
-	if ((tf->protocol != ATA_PROT_DMA) &&
-	    (tf->protocol != ATA_PROT_NCQ))
+	switch (tf->protocol) {
+	case ATA_PROT_DMA:
+	case ATA_PROT_NCQ:
+		break;	/* continue below */
+	case ATA_PROT_PIO:
+		mv_rw_multi_errata_sata24(qc);
 		return;
+	default:
+		return;
+	}
 
 	/* Fill in command request block
 	 */
