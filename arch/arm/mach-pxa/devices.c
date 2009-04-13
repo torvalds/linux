@@ -287,7 +287,7 @@ static struct resource pxa3xx_resources_i2c_power[] = {
 };
 
 struct platform_device pxa3xx_device_i2c_power = {
-	.name		= "pxa2xx-i2c",
+	.name		= "pxa3xx-pwri2c",
 	.id		= 1,
 	.resource	= pxa3xx_resources_i2c_power,
 	.num_resources	= ARRAY_SIZE(pxa3xx_resources_i2c_power),
