@@ -2661,8 +2661,9 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	struct snd_pcm_substream *subs;
 	struct ichdev *ichdev;
 	unsigned long port;
-	unsigned long pos, t;
-	struct timeval start_time, stop_time;
+	unsigned long pos, pos1, t;
+	int civ, timeout = 1000;
+	struct timespec start_time, stop_time;
 
 	if (chip->ac97_bus->clock != 48000)
 		return; /* specified in module option */
@@ -2693,16 +2694,27 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 		iputbyte(chip, port + ICH_REG_OFF_CR, ICH_IOCE);
 		iputdword(chip, ICHREG(ALI_DMACR), 1 << ichdev->ali_slot);
 	}
-	do_gettimeofday(&start_time);
+	do_posix_clock_monotonic_gettime(&start_time);
 	spin_unlock_irq(&chip->reg_lock);
 	msleep(50);
 	spin_lock_irq(&chip->reg_lock);
 	/* check the position */
+	do {
+		civ = igetbyte(chip, ichdev->reg_offset + ICH_REG_OFF_CIV);
+		pos1 = igetword(chip, ichdev->reg_offset + ichdev->roff_picb);
+		if (pos1 == 0) {
+			udelay(10);
+			continue;
+		}
+		if (civ == igetbyte(chip, ichdev->reg_offset + ICH_REG_OFF_CIV) &&
+		    pos1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
+			break;
+	} while (timeout--);
 	pos = ichdev->fragsize1;
-	pos -= igetword(chip, ichdev->reg_offset + ichdev->roff_picb) << ichdev->pos_shift;
+	pos -= pos1 << ichdev->pos_shift;
 	pos += ichdev->position;
 	chip->in_measurement = 0;
-	do_gettimeofday(&stop_time);
+	do_posix_clock_monotonic_gettime(&stop_time);
 	/* stop */
 	if (chip->device_type == DEVICE_ALI) {
 		iputdword(chip, ICHREG(ALI_DMACR), 1 << (ichdev->ali_slot + 16));
@@ -2717,19 +2729,26 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	iputbyte(chip, port + ICH_REG_OFF_CR, ICH_RESETREGS);
 	spin_unlock_irq(&chip->reg_lock);
 
+	pos /= 4;
 	t = stop_time.tv_sec - start_time.tv_sec;
 	t *= 1000000;
-	t += stop_time.tv_usec - start_time.tv_usec;
-	printk(KERN_INFO "%s: measured %lu usecs\n", __func__, t);
+	t += (stop_time.tv_nsec - start_time.tv_nsec) / 1000;
+	printk(KERN_INFO "%s: measured %lu usecs (%lu samples)\n", __func__, t, pos);
 	if (t == 0) {
-		snd_printk(KERN_ERR "?? calculation error..\n");
+		snd_printk(KERN_ERR "intel8x0: ?? calculation error..\n");
 		return;
 	}
-	pos = (pos / 4) * 1000;
+	pos *= 1000;
 	pos = (pos / t) * 1000 + ((pos % t) * 1000) / t;
 	if (pos < 40000 || pos >= 60000) 
 		/* abnormal value. hw problem? */
 		printk(KERN_INFO "intel8x0: measured clock %ld rejected\n", pos);
+	else if (pos > 40500 || pos < 41500)
+		/* first exception - 41000Hz reference clock */
+		chip->ac97_bus->clock = 41000;
+	else if (pos > 43600 || pos < 44600)
+		/* second exception - 44100HZ reference clock */
+		chip->ac97_bus->clock = 44100;
 	else if (pos < 47500 || pos > 48500)
 		/* not 48000Hz, tuning the clock.. */
 		chip->ac97_bus->clock = (chip->ac97_bus->clock * 48000) / pos;
