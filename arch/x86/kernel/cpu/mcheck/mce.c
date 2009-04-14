@@ -1059,18 +1059,17 @@ static ssize_t show_bank(struct sys_device *s, struct sysdev_attribute *attr,
 }
 
 static ssize_t set_bank(struct sys_device *s, struct sysdev_attribute *attr,
-			const char *buf, size_t siz)
+			const char *buf, size_t size)
 {
-	char *end;
-	u64 new = simple_strtoull(buf, &end, 0);
+	u64 new;
 
-	if (end == buf)
+	if (strict_strtoull(buf, 0, &new) < 0)
 		return -EINVAL;
 
 	bank[attr - bank_attrs] = new;
 	mce_restart();
 
-	return end-buf;
+	return size;
 }
 
 static ssize_t

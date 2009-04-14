@@ -269,14 +269,12 @@ SHOW_FIELDS(interrupt_enable)
 SHOW_FIELDS(threshold_limit)
 
 static ssize_t
-store_interrupt_enable(struct threshold_block *b, const char *buf, size_t count)
+store_interrupt_enable(struct threshold_block *b, const char *buf, size_t size)
 {
 	struct thresh_restart tr;
 	unsigned long new;
-	char *end;
 
-	new = simple_strtoul(buf, &end, 0);
-	if (end == buf)
+	if (strict_strtoul(buf, 0, &new) < 0)
 		return -EINVAL;
 
 	b->interrupt_enable = !!new;
@@ -287,18 +285,16 @@ store_interrupt_enable(struct threshold_block *b, const char *buf, size_t count)
 
 	smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1);
 
-	return end - buf;
+	return size;
 }
 
 static ssize_t
-store_threshold_limit(struct threshold_block *b, const char *buf, size_t count)
+store_threshold_limit(struct threshold_block *b, const char *buf, size_t size)
 {
 	struct thresh_restart tr;
 	unsigned long new;
-	char *end;
 
-	new = simple_strtoul(buf, &end, 0);
-	if (end == buf)
+	if (strict_strtoul(buf, 0, &new) < 0)
 		return -EINVAL;
 
 	if (new > THRESHOLD_MAX)
@@ -313,7 +309,7 @@ store_threshold_limit(struct threshold_block *b, const char *buf, size_t count)
 
 	smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1);
 
-	return end - buf;
+	return size;
 }
 
 struct threshold_block_cross_cpu {
