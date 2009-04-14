@@ -7883,7 +7883,8 @@ IBM_BIOS_MODULE_ALIAS("I[BDHIMNOTWVYZ]");
 IBM_BIOS_MODULE_ALIAS("1[0368A-GIKM-PST]");
 IBM_BIOS_MODULE_ALIAS("K[UX-Z]");
 
-MODULE_AUTHOR("Borislav Deianov, Henrique de Moraes Holschuh");
+MODULE_AUTHOR("Borislav Deianov <borislav@users.sf.net>");
+MODULE_AUTHOR("Henrique de Moraes Holschuh <hmh@hmh.eng.br>");
 MODULE_DESCRIPTION(TPACPI_DESC);
 MODULE_VERSION(TPACPI_VERSION);
 MODULE_LICENSE("GPL");
