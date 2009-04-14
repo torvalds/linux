@@ -108,12 +108,33 @@ static inline RTIME nano2count(long long ns)
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
 #include <rtai_sched.h>
+#include <rtai_version.h>
+
+/* RTAI_VERSION_CODE doesn't work for rtai-3.6-cv and other strange versions.
+ * These are characterized by CONFIG_RTAI_REVISION_LEVEL being defined as an
+ * empty macro and CONFIG_RTAI_VERSION_MINOR being defined as something like
+ * '6-cv' or '7-test1'.  The problem has been noted by the RTAI folks and they
+ * promise not to do it again. :-) Try and work around it here. */
+#if !(CONFIG_RTAI_REVISION_LEVEL + 0)
+#undef CONFIG_RTAI_REVISION_LEVEL
+#define CONFIG_RTAI_REVISION_LEVEL	0
+#define cv	0
+#define test1	0
+#define test2	0
+#define test3	0
+#endif
 
 #if RTAI_VERSION_CODE < RTAI_MANGLE_VERSION(3,3,0)
 #define comedi_rt_task_context_t	int
 #else
 #define comedi_rt_task_context_t	long
 #endif
+
+/* Finished checking RTAI_VERSION_CODE. */
+#undef cv
+#undef test1
+#undef test2
+#undef test3
 
 #endif
 
