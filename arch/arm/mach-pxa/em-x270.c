@@ -644,8 +644,9 @@ static struct pxa2xx_spi_master em_x270_spi_info = {
 };
 
 static struct pxa2xx_spi_chip em_x270_tdo24m_chip = {
-	.rx_threshold = 1,
-	.tx_threshold = 1,
+	.rx_threshold	= 1,
+	.tx_threshold	= 1,
+	.gpio_cs	= -1,
 };
 
 static struct tdo24m_platform_data em_x270_tdo24m_pdata = {
