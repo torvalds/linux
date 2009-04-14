@@ -286,6 +286,7 @@ struct cx18_queue {
 	struct list_head list;
 	atomic_t buffers;
 	u32 bytesused;
+	spinlock_t lock;
 };
 
 struct cx18_dvb {
@@ -365,7 +366,6 @@ struct cx18_stream {
 	unsigned mdl_offset;
 
 	u32 id;
-	struct mutex qlock; 	/* locks access to the queues */
 	unsigned long s_flags;	/* status flags, see above */
 	int dma;		/* can be PCI_DMA_TODEVICE,
 				   PCI_DMA_FROMDEVICE or

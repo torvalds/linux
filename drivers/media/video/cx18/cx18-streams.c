@@ -116,11 +116,13 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->buffers = cx->stream_buffers[type];
 	s->buf_size = cx->stream_buf_size[type];
 
-	mutex_init(&s->qlock);
 	init_waitqueue_head(&s->waitq);
 	s->id = -1;
+	spin_lock_init(&s->q_free.lock);
 	cx18_queue_init(&s->q_free);
+	spin_lock_init(&s->q_busy.lock);
 	cx18_queue_init(&s->q_busy);
+	spin_lock_init(&s->q_full.lock);
 	cx18_queue_init(&s->q_full);
 }
 
@@ -685,13 +687,13 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 
 	/* Init all the cpu_mdls for this stream */
 	cx18_flush_queues(s);
-	mutex_lock(&s->qlock);
+	spin_lock(&s->q_free.lock);
 	list_for_each_entry(buf, &s->q_free.list, list) {
 		cx18_writel(cx, buf->dma_handle,
 					&cx->scb->cpu_mdl[buf->id].paddr);
 		cx18_writel(cx, s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
 	}
-	mutex_unlock(&s->qlock);
+	spin_unlock(&s->q_free.lock);
 	_cx18_stream_load_fw_queue(s);
 
 	/* begin_capture */
