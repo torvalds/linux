@@ -52,9 +52,6 @@
 #define USECS_PER_JIFFY     ((unsigned long) 1000000/HZ)
 #define CLK_TICKS_PER_JIFFY ((unsigned long) USECS_PER_JIFFY << 12)
 
-/* The value of the TOD clock for 1.1.1970. */
-#define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
-
 /*
  * Create a small time difference between the timer interrupts
  * on the different cpus to avoid lock contention.
@@ -63,9 +60,10 @@
 
 #define TICK_SIZE tick
 
+u64 sched_clock_base_cc = -1;	/* Force to data section. */
+
 static ext_int_info_t ext_int_info_cc;
 static ext_int_info_t ext_int_etr_cc;
-static u64 sched_clock_base_cc;
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
@@ -195,22 +193,12 @@ static void timing_alert_interrupt(__u16 code)
 static void etr_reset(void);
 static void stp_reset(void);
 
-/*
- * Get the TOD clock running.
- */
-static u64 __init reset_tod_clock(void)
+unsigned long read_persistent_clock(void)
 {
-	u64 time;
+	struct timespec ts;
 
-	etr_reset();
-	stp_reset();
-	if (store_clock(&time) == 0)
-		return time;
-	/* TOD clock not running. Set the clock to Unix Epoch. */
-	if (set_clock(TOD_UNIX_EPOCH) != 0 || store_clock(&time) != 0)
-		panic("TOD clock not operational.");
-
-	return TOD_UNIX_EPOCH;
+	tod_to_timeval(get_clock() - TOD_UNIX_EPOCH, &ts);
+	return ts.tv_sec;
 }
 
 static cycle_t read_tod_clock(void)
@@ -265,7 +253,9 @@ void update_vsyscall_tz(void)
  */
 void __init time_init(void)
 {
-	sched_clock_base_cc = reset_tod_clock();
+	/* Reset time synchronization interfaces. */
+	etr_reset();
+	stp_reset();
 
 	/* set xtime */
 	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, &xtime);

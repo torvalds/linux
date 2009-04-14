@@ -471,6 +471,8 @@ startup:basr	%r13,0			# get base
 .LPG0:
 	xc	0x200(256),0x200	# partially clear lowcore
 	xc	0x300(256),0x300
+	l	%r1,5f-.LPG0(%r13)
+	stck	0(%r1)
 
 #ifndef CONFIG_MARCH_G5
 	# check processor version against MARCH_{G5,Z900,Z990,Z9_109,Z10}
@@ -496,9 +498,10 @@ startup:basr	%r13,0			# get base
 	brct	%r0,0b
 #endif
 
-	l	%r13,0f-.LPG0(%r13)
+	l	%r13,4f-.LPG0(%r13)
 	b	0(%r13)
-0:	.long	startup_continue
+4:	.long	startup_continue
+5:	.long	sched_clock_base_cc
 
 #
 # params at 10400 (setup.h)
