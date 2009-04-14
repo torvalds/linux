@@ -24,6 +24,6 @@
 #include <asm/bitops.h>
 
 #define CREATE_TRACE_POINTS
-#include <trace/skb.h>
+#include <trace/events/skb.h>
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(kfree_skb);

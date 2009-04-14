@@ -20,7 +20,7 @@
 #include <linux/bootmem.h>
 
 #define CREATE_TRACE_POINTS
-#include <trace/irq.h>
+#include <trace/events/irq.h>
 
 #include "internals.h"
 

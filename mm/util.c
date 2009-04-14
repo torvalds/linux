@@ -7,7 +7,7 @@
 #include <asm/uaccess.h>
 
 #define CREATE_TRACE_POINTS
-#include <trace/kmem.h>
+#include <trace/events/kmem.h>
 
 /**
  * kstrdup - allocate space for and copy an existing string

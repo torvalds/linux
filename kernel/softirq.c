@@ -24,7 +24,7 @@
 #include <linux/ftrace.h>
 #include <linux/smp.h>
 #include <linux/tick.h>
-#include <trace/irq.h>
+#include <trace/events/irq.h>
 
 #include <asm/irq.h>
 /*

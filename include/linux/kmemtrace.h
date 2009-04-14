@@ -9,7 +9,7 @@
 
 #ifdef __KERNEL__
 
-#include <trace/kmem.h>
+#include <trace/events/kmem.h>
 
 #ifdef CONFIG_KMEMTRACE
 extern void kmemtrace_init(void);

@@ -29,7 +29,7 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 
-#include <trace/sched.h>
+#include <trace/events/sched.h>
 
 #include <asm/ftrace.h>
 

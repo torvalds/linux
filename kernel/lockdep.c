@@ -48,7 +48,7 @@
 #include "lockdep_internals.h"
 
 #define CREATE_TRACE_POINTS
-#include <trace/lockdep.h>
+#include <trace/events/lockdep.h>
 
 #ifdef CONFIG_PROVE_LOCKING
 int prove_locking = 1;

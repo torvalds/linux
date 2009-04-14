@@ -61,7 +61,6 @@
 #include <linux/proc_fs.h>
 #include <linux/blkdev.h>
 #include <linux/fs_struct.h>
-#include <trace/sched.h>
 #include <linux/magic.h>
 
 #include <asm/pgtable.h>
@@ -70,6 +69,8 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+
+#include <trace/events/sched.h>
 
 /*
  * Protected counters by write_lock_irq(&tasklist_lock)

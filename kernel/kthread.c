@@ -13,7 +13,7 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <trace/sched.h>
+#include <trace/events/sched.h>
 
 #define KTHREAD_NICE_LEVEL (-5)
 

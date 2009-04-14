@@ -43,7 +43,7 @@
 #endif
 
 #ifndef TRACE_INCLUDE_PATH
-# define __TRACE_INCLUDE(system) <trace/system.h>
+# define __TRACE_INCLUDE(system) <trace/events/system.h>
 # define UNDEF_TRACE_INCLUDE_FILE
 #else
 # define __TRACE_INCLUDE(system) __stringify(TRACE_INCLUDE_PATH/system.h)
