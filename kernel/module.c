@@ -71,6 +71,9 @@
 static DEFINE_MUTEX(module_mutex);
 static LIST_HEAD(modules);
 
+/* Block module loading/unloading? */
+int modules_disabled = 0;
+
 /* Waiting for a module to finish initializing? */
 static DECLARE_WAIT_QUEUE_HEAD(module_wq);
 
@@ -777,9 +780,6 @@ static void wait_for_zero_refcount(struct module *mod)
 	current->state = TASK_RUNNING;
 	mutex_lock(&module_mutex);
 }
-
-/* Block module loading/unloading? */
-int modules_disabled = 0;
 
 SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 		unsigned int, flags)
