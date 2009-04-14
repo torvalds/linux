@@ -305,7 +305,7 @@ struct cx18_scb; /* forward reference */
 
 
 #define CX18_MAX_MDL_ACKS 2
-#define CX18_MAX_EPU_WORK_ORDERS (CX18_MAX_FW_MDLS_PER_STREAM + 7)
+#define CX18_MAX_IN_WORK_ORDERS (CX18_MAX_FW_MDLS_PER_STREAM + 7)
 /* CPU_DE_RELEASE_MDL can burst CX18_MAX_FW_MDLS_PER_STREAM orders in a group */
 
 #define CX18_F_EWO_MB_STALE_UPON_RECEIPT 0x1
@@ -313,7 +313,7 @@ struct cx18_scb; /* forward reference */
 #define CX18_F_EWO_MB_STALE \
 	     (CX18_F_EWO_MB_STALE_UPON_RECEIPT | CX18_F_EWO_MB_STALE_WHILE_PROC)
 
-struct cx18_epu_work_order {
+struct cx18_in_work_order {
 	struct work_struct work;
 	atomic_t pending;
 	struct cx18 *cx;
@@ -568,8 +568,9 @@ struct cx18 {
 	u32 sw2_irq_mask;
 	u32 hw2_irq_mask;
 
-	struct workqueue_struct *work_queue;
-	struct cx18_epu_work_order epu_work_order[CX18_MAX_EPU_WORK_ORDERS];
+	struct workqueue_struct *in_work_queue;
+	char in_workq_name[11]; /* "cx18-NN-in" */
+	struct cx18_in_work_order in_work_order[CX18_MAX_IN_WORK_ORDERS];
 	char epu_debug_str[256]; /* CX18_EPU_DEBUG is rare: use shared space */
 
 	/* i2c */

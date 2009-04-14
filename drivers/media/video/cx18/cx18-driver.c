@@ -562,16 +562,18 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	mutex_init(&cx->epu2apu_mb_lock);
 	mutex_init(&cx->epu2cpu_mb_lock);
 
-	cx->work_queue = create_singlethread_workqueue(cx->v4l2_dev.name);
-	if (cx->work_queue == NULL) {
-		CX18_ERR("Unable to create work hander thread\n");
+	snprintf(cx->in_workq_name, sizeof(cx->in_workq_name), "%s-in",
+		 cx->v4l2_dev.name);
+	cx->in_work_queue = create_singlethread_workqueue(cx->in_workq_name);
+	if (cx->in_work_queue == NULL) {
+		CX18_ERR("Unable to create incoming mailbox handler thread\n");
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < CX18_MAX_EPU_WORK_ORDERS; i++) {
-		cx->epu_work_order[i].cx = cx;
-		cx->epu_work_order[i].str = cx->epu_debug_str;
-		INIT_WORK(&cx->epu_work_order[i].work, cx18_epu_work_handler);
+	for (i = 0; i < CX18_MAX_IN_WORK_ORDERS; i++) {
+		cx->in_work_order[i].cx = cx;
+		cx->in_work_order[i].str = cx->epu_debug_str;
+		INIT_WORK(&cx->in_work_order[i].work, cx18_in_work_handler);
 	}
 
 	/* start counting open_id at 1 */
@@ -944,7 +946,7 @@ free_map:
 free_mem:
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 free_workqueue:
-	destroy_workqueue(cx->work_queue);
+	destroy_workqueue(cx->in_work_queue);
 err:
 	if (retval == 0)
 		retval = -ENODEV;
@@ -1053,11 +1055,11 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	return 0;
 }
 
-static void cx18_cancel_epu_work_orders(struct cx18 *cx)
+static void cx18_cancel_in_work_orders(struct cx18 *cx)
 {
 	int i;
-	for (i = 0; i < CX18_MAX_EPU_WORK_ORDERS; i++)
-		cancel_work_sync(&cx->epu_work_order[i].work);
+	for (i = 0; i < CX18_MAX_IN_WORK_ORDERS; i++)
+		cancel_work_sync(&cx->in_work_order[i].work);
 }
 
 static void cx18_remove(struct pci_dev *pci_dev)
@@ -1079,9 +1081,9 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	cx18_halt_firmware(cx);
 
-	cx18_cancel_epu_work_orders(cx);
+	cx18_cancel_in_work_orders(cx);
 
-	destroy_workqueue(cx->work_queue);
+	destroy_workqueue(cx->in_work_queue);
 
 	cx18_streams_cleanup(cx, 1);
 
