@@ -2158,7 +2158,7 @@ static bool icmp_checkentry(const struct xt_mtchk_param *par)
 static struct xt_target ipt_standard_target __read_mostly = {
 	.name		= IPT_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 #ifdef CONFIG_COMPAT
 	.compatsize	= sizeof(compat_int_t),
 	.compat_from_user = compat_standard_from_user,
@@ -2170,7 +2170,7 @@ static struct xt_target ipt_error_target __read_mostly = {
 	.name		= IPT_ERROR_TARGET,
 	.target		= ipt_error,
 	.targetsize	= IPT_FUNCTION_MAXNAMELEN,
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 };
 
 static struct nf_sockopt_ops ipt_sockopts = {
@@ -2196,7 +2196,7 @@ static struct xt_match icmp_matchstruct __read_mostly = {
 	.matchsize	= sizeof(struct ipt_icmp),
 	.checkentry	= icmp_checkentry,
 	.proto		= IPPROTO_ICMP,
-	.family		= AF_INET,
+	.family		= NFPROTO_IPV4,
 };
 
 static int __net_init ip_tables_net_init(struct net *net)

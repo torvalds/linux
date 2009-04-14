@@ -2191,7 +2191,7 @@ static bool icmp6_checkentry(const struct xt_mtchk_param *par)
 static struct xt_target ip6t_standard_target __read_mostly = {
 	.name		= IP6T_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 #ifdef CONFIG_COMPAT
 	.compatsize	= sizeof(compat_int_t),
 	.compat_from_user = compat_standard_from_user,
@@ -2203,7 +2203,7 @@ static struct xt_target ip6t_error_target __read_mostly = {
 	.name		= IP6T_ERROR_TARGET,
 	.target		= ip6t_error,
 	.targetsize	= IP6T_FUNCTION_MAXNAMELEN,
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 };
 
 static struct nf_sockopt_ops ip6t_sockopts = {
@@ -2229,7 +2229,7 @@ static struct xt_match icmp6_matchstruct __read_mostly = {
 	.matchsize	= sizeof(struct ip6t_icmp),
 	.checkentry	= icmp6_checkentry,
 	.proto		= IPPROTO_ICMPV6,
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 };
 
 static int __net_init ip6_tables_net_init(struct net *net)
