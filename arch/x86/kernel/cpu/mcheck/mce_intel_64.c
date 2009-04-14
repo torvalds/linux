@@ -196,7 +196,7 @@ void cmci_rediscover(int dying)
 		return;
 	cpumask_copy(old, &current->cpus_allowed);
 
-	for_each_online_cpu (cpu) {
+	for_each_online_cpu(cpu) {
 		if (cpu == dying)
 			continue;
 		if (set_cpus_allowed_ptr(current, cpumask_of(cpu)))
