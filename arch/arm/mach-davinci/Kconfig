@@ -4,19 +4,18 @@ menu "TI DaVinci Implementations"
 
 comment "DaVinci Core Type"
 
-config ARCH_DAVINCI644x
-	default y
+config ARCH_DAVINCI_DM644x
 	bool "DaVinci 644x based system"
 
 comment "DaVinci Board Type"
 
 config MACH_DAVINCI_EVM
-	bool "TI DaVinci EVM"
+	bool "TI DM644x EVM"
 	default y
-	depends on ARCH_DAVINCI644x
+	depends on ARCH_DAVINCI_DM644x
 	help
 	  Configure this option to specify the whether the board used
-	  for development is a DaVinci EVM
+	  for development is a DM644x EVM
 
 
 config DAVINCI_MUX
