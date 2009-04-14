@@ -657,6 +657,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	int dspbase = (pipe == 0 ? DSPAADDR : DSPBADDR);
 	int dspsurf = (pipe == 0 ? DSPASURF : DSPBSURF);
 	int dspstride = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
+	int dsptileoff = (pipe == 0 ? DSPATILEOFF : DSPBTILEOFF);
 	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
 	u32 dspcntr, alignment;
 	int ret;
@@ -733,6 +734,13 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
+	if (IS_I965G(dev)) {
+		if (obj_priv->tiling_mode != I915_TILING_NONE)
+			dspcntr |= DISPPLANE_TILED;
+		else
+			dspcntr &= ~DISPPLANE_TILED;
+	}
+
 	I915_WRITE(dspcntr_reg, dspcntr);
 
 	Start = obj_priv->gtt_offset;
@@ -745,6 +753,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		I915_READ(dspbase);
 		I915_WRITE(dspsurf, Start);
 		I915_READ(dspsurf);
+		I915_WRITE(dsptileoff, (y << 16) | x);
 	} else {
 		I915_WRITE(dspbase, Start + Offset);
 		I915_READ(dspbase);
