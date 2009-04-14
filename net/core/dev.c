@@ -2328,8 +2328,10 @@ static int napi_gro_complete(struct sk_buff *skb)
 	struct list_head *head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
 	int err = -ENOENT;
 
-	if (NAPI_GRO_CB(skb)->count == 1)
+	if (NAPI_GRO_CB(skb)->count == 1) {
+		skb_shinfo(skb)->gso_size = 0;
 		goto out;
+	}
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, head, list) {
@@ -2348,7 +2350,6 @@ static int napi_gro_complete(struct sk_buff *skb)
 	}
 
 out:
-	skb_shinfo(skb)->gso_size = 0;
 	return netif_receive_skb(skb);
 }
 
