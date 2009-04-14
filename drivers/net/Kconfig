@@ -974,9 +974,11 @@ config ENC28J60_WRITEVERIFY
 
 config ETHOC
 	tristate "OpenCores 10/100 Mbps Ethernet MAC support"
-	depends on NET_ETHERNET
+	depends on NET_ETHERNET && HAS_IOMEM
 	select MII
 	select PHYLIB
+	select CRC32
+	select BITREVERSE
 	help
 	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
 
@@ -2056,6 +2058,27 @@ config IGB_DCA
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.
 
+config IGBVF
+       tristate "Intel(R) 82576 Virtual Function Ethernet support"
+       depends on PCI
+       ---help---
+         This driver supports Intel(R) 82576 virtual functions.  For more
+         information on how to identify your adapter, go to the Adapter &
+         Driver ID Guide at:
+
+         <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+         For general information and support, go to the Intel support
+         website at:
+
+         <http://support.intel.com>
+
+         More specific information on configuring the driver is in
+         <file:Documentation/networking/e1000.txt>.
+
+         To compile this driver as a module, choose M here. The module
+         will be called igbvf.
+
 source "drivers/net/ixp2000/Kconfig"
 
 config MYRI_SBUS
@@ -2234,7 +2257,7 @@ config BNX2
 	tristate "Broadcom NetXtremeII support"
 	depends on PCI
 	select CRC32
-	select ZLIB_INFLATE
+	select FW_LOADER
 	help
 	  This driver supports Broadcom NetXtremeII gigabit Ethernet cards.
 
@@ -2546,6 +2569,23 @@ config S2IO
 	  This driver supports the 10Gbe XFrame NIC of S2IO. 
 	  More specific information on configuring the driver is in 
 	  <file:Documentation/networking/s2io.txt>.
+
+config VXGE
+	tristate "Neterion X3100 Series 10GbE PCIe Server Adapter"
+	depends on PCI && INET
+	---help---
+	  This driver supports Neterion Inc's X3100 Series 10 GbE PCIe
+	  I/O Virtualized Server Adapter.
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/vxge.txt>.
+
+config VXGE_DEBUG_TRACE_ALL
+	bool "Enabling All Debug trace statments in driver"
+	default n
+	depends on VXGE
+	---help---
+	  Say Y here if you want to enabling all the debug trace statements in
+	  driver. By  default only few debug trace statements are enabled.
 
 config MYRI10GE
 	tristate "Myricom Myri-10G Ethernet support"

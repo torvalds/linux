@@ -225,7 +225,7 @@ static int __init ram_console_init(struct ram_console_buffer *buffer,
 		buffer_size - sizeof(struct ram_console_buffer);
 
 	if (ram_console_buffer_size > buffer_size) {
-		pr_err("ram_console: buffer %p, invalid size %d, datasize %d\n",
+		pr_err("ram_console: buffer %p, invalid size %zu, datasize %zu\n",
 		       buffer, buffer_size, ram_console_buffer_size);
 		return 0;
 	}
@@ -235,8 +235,8 @@ static int __init ram_console_init(struct ram_console_buffer *buffer,
 						ECC_BLOCK_SIZE) + 1) * ECC_SIZE;
 
 	if (ram_console_buffer_size > buffer_size) {
-		pr_err("ram_console: buffer %p, invalid size %d, "
-		       "non-ecc datasize %d\n",
+		pr_err("ram_console: buffer %p, invalid size %zu, "
+		       "non-ecc datasize %zu\n",
 		       buffer, buffer_size, ram_console_buffer_size);
 		return 0;
 	}
@@ -322,7 +322,7 @@ static int ram_console_driver_probe(struct platform_device *pdev)
 	}
 	buffer_size = res->end - res->start + 1;
 	start = res->start;
-	printk(KERN_INFO "ram_console: got buffer at %x, size %x\n",
+	printk(KERN_INFO "ram_console: got buffer at %zx, size %zx\n",
 	       start, buffer_size);
 	buffer = ioremap(res->start, buffer_size);
 	if (buffer == NULL) {

@@ -20,6 +20,7 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/random.h>
+#include <linux/iocontext.h>
 #include <asm/div64.h>
 #include "compat.h"
 #include "ctree.h"
@@ -145,8 +146,9 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 	int again = 0;
 	unsigned long num_run = 0;
 	unsigned long limit;
+	unsigned long last_waited = 0;
 
-	bdi = device->bdev->bd_inode->i_mapping->backing_dev_info;
+	bdi = blk_get_backing_dev_info(device->bdev);
 	fs_info = device->dev_root->fs_info;
 	limit = btrfs_async_submit_limit(fs_info);
 	limit = limit * 2 / 3;
@@ -207,7 +209,32 @@ loop_lock:
 		if (pending && bdi_write_congested(bdi) && num_run > 16 &&
 		    fs_info->fs_devices->open_devices > 1) {
 			struct bio *old_head;
+			struct io_context *ioc;
 
+			ioc = current->io_context;
+
+			/*
+			 * the main goal here is that we don't want to
+			 * block if we're going to be able to submit
+			 * more requests without blocking.
+			 *
+			 * This code does two great things, it pokes into
+			 * the elevator code from a filesystem _and_
+			 * it makes assumptions about how batching works.
+			 */
+			if (ioc && ioc->nr_batch_requests > 0 &&
+			    time_before(jiffies, ioc->last_waited + HZ/50UL) &&
+			    (last_waited == 0 ||
+			     ioc->last_waited == last_waited)) {
+				/*
+				 * we want to go through our batch of
+				 * requests and stop.  So, we copy out
+				 * the ioc->last_waited time and test
+				 * against it before looping
+				 */
+				last_waited = ioc->last_waited;
+				continue;
+			}
 			spin_lock(&device->io_lock);
 
 			old_head = device->pending_bios;
@@ -231,6 +258,18 @@ loop_lock:
 	if (device->pending_bios)
 		goto loop_lock;
 	spin_unlock(&device->io_lock);
+
+	/*
+	 * IO has already been through a long path to get here.  Checksumming,
+	 * async helper threads, perhaps compression.  We've done a pretty
+	 * good job of collecting a batch of IO and should just unplug
+	 * the device right away.
+	 *
+	 * This will help anyone who is waiting on the IO, they might have
+	 * already unplugged, but managed to do so before the bio they
+	 * cared about found its way down here.
+	 */
+	blk_run_backing_dev(bdi, NULL);
 done:
 	return 0;
 }

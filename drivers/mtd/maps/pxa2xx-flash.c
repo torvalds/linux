@@ -117,7 +117,7 @@ static int __init pxa2xx_flash_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit pxa2xx_flash_remove(struct platform_device *dev)
+static int __devexit pxa2xx_flash_remove(struct platform_device *dev)
 {
 	struct pxa2xx_flash_info *info = platform_get_drvdata(dev);
 

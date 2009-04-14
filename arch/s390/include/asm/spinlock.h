@@ -172,6 +172,9 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 	return _raw_write_trylock_retry(rw);
 }
 
+#define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
+#define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
+
 #define _raw_read_relax(lock)	cpu_relax()
 #define _raw_write_relax(lock)	cpu_relax()
 

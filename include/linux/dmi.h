@@ -47,7 +47,8 @@ extern int dmi_get_year(int field);
 extern int dmi_name_in_vendors(const char *str);
 extern int dmi_name_in_serial(const char *str);
 extern int dmi_available;
-extern int dmi_walk(void (*decode)(const struct dmi_header *));
+extern int dmi_walk(void (*decode)(const struct dmi_header *, void *),
+	void *private_data);
 extern bool dmi_match(enum dmi_field f, const char *str);
 
 #else
@@ -61,8 +62,8 @@ static inline int dmi_get_year(int year) { return 0; }
 static inline int dmi_name_in_vendors(const char *s) { return 0; }
 static inline int dmi_name_in_serial(const char *s) { return 0; }
 #define dmi_available 0
-static inline int dmi_walk(void (*decode)(const struct dmi_header *))
-	{ return -1; }
+static inline int dmi_walk(void (*decode)(const struct dmi_header *, void *),
+	void *private_data) { return -1; }
 static inline bool dmi_match(enum dmi_field f, const char *str)
 	{ return false; }
 static inline const struct dmi_system_id *

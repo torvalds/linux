@@ -854,7 +854,6 @@ static int __init sram_proc_init(void)
 		printk(KERN_WARNING "unable to create /proc/sram\n");
 		return -1;
 	}
-	ptr->owner = THIS_MODULE;
 	ptr->read_proc = sram_proc_read;
 	return 0;
 }

@@ -36,7 +36,7 @@
 #include <net/ieee80211_radiotap.h>
 #include <linux/firmware.h>
 #include <linux/leds.h>
-#include <net/ieee80211.h>
+#include <linux/ieee80211.h>
 
 #include "at76_usb.h"
 
@@ -1727,12 +1727,12 @@ static int at76_assoc_req(struct at76_priv *priv, struct bss_info *bss)
 
 	/* write TLV data elements */
 
-	ie->id = MFIE_TYPE_SSID;
+	ie->id = WLAN_EID_SSID;
 	ie->len = bss->ssid_len;
 	memcpy(ie->data, bss->ssid, bss->ssid_len);
 	next_ie(&ie);
 
-	ie->id = MFIE_TYPE_RATES;
+	ie->id = WLAN_EID_SUPP_RATES;
 	ie->len = sizeof(hw_rates);
 	memcpy(ie->data, hw_rates, sizeof(hw_rates));
 	next_ie(&ie);		/* ie points behind the supp_rates field */
@@ -4397,7 +4397,7 @@ static void at76_rx_mgmt_beacon(struct at76_priv *priv,
 
 		switch (ie->id) {
 
-		case MFIE_TYPE_SSID:
+		case WLAN_EID_SSID:
 			if (have_ssid)
 				break;
 
@@ -4420,7 +4420,7 @@ static void at76_rx_mgmt_beacon(struct at76_priv *priv,
 			have_ssid = 1;
 			break;
 
-		case MFIE_TYPE_RATES:
+		case WLAN_EID_SUPP_RATES:
 			if (have_rates)
 				break;
 
@@ -4433,7 +4433,7 @@ static void at76_rx_mgmt_beacon(struct at76_priv *priv,
 				 hex2str(ie->data, ie->len));
 			break;
 
-		case MFIE_TYPE_DS_SET:
+		case WLAN_EID_DS_PARAMS:
 			if (have_channel)
 				break;
 
@@ -4443,9 +4443,9 @@ static void at76_rx_mgmt_beacon(struct at76_priv *priv,
 				 priv->netdev->name, match->channel);
 			break;
 
-		case MFIE_TYPE_CF_SET:
-		case MFIE_TYPE_TIM:
-		case MFIE_TYPE_IBSS_SET:
+		case WLAN_EID_CF_PARAMS:
+		case WLAN_EID_TIM:
+		case WLAN_EID_IBSS_PARAMS:
 		default:
 			at76_dbg(DBG_RX_BEACON, "%s: beacon IE id %d len %d %s",
 				 priv->netdev->name, ie->id, ie->len,
@@ -5370,8 +5370,7 @@ static void at76_delete_device(struct at76_priv *priv)
 
 	at76_dbg(DBG_PROC_ENTRY, "%s: unlinked urbs", __func__);
 
-	if (priv->rx_skb)
-		kfree_skb(priv->rx_skb);
+	kfree_skb(priv->rx_skb);
 
 	at76_free_bss_list(priv);
 	del_timer_sync(&priv->bss_list_timer);

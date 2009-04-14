@@ -2562,7 +2562,7 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 
 	/* api_ver should match the api version forming part of the
 	 * firmware filename ... but we don't check for that and only rely
-	 * on the API version read from firware header from here on forward */
+	 * on the API version read from firmware header from here on forward */
 
 	if (api_ver < api_min || api_ver > api_max) {
 		IWL_ERR(priv, "Driver unable to support your firmware API. "
@@ -4998,9 +4998,9 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (!err)
-		err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
 		IWL_WARN(priv, "No suitable DMA available.\n");
 		goto out_pci_disable_device;

@@ -57,12 +57,14 @@
 /* Helpers for inode ops. We do this so that we don't have all the VFS
  * overhead and also for proper i_mutex annotation.
  * dir->i_mutex must be held for all of them. */
+#ifdef CONFIG_REISERFS_FS_XATTR
 static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 {
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
 	vfs_dq_init(dir);
 	return dir->i_op->create(dir, dentry, mode, NULL);
 }
+#endif
 
 static int xattr_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {

@@ -176,6 +176,7 @@ enum SINF_BITS { SINF_NUM_BATTERIES = 0,
 static int acpi_pcc_hotkey_add(struct acpi_device *device);
 static int acpi_pcc_hotkey_remove(struct acpi_device *device, int type);
 static int acpi_pcc_hotkey_resume(struct acpi_device *device);
+static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id pcc_device_ids[] = {
 	{ "MAT0012", 0},
@@ -184,6 +185,7 @@ static const struct acpi_device_id pcc_device_ids[] = {
 	{ "MAT0019", 0},
 	{ "", 0},
 };
+MODULE_DEVICE_TABLE(acpi, pcc_device_ids);
 
 static struct acpi_driver acpi_pcc_driver = {
 	.name =		ACPI_PCC_DRIVER_NAME,
@@ -193,6 +195,7 @@ static struct acpi_driver acpi_pcc_driver = {
 				.add =		acpi_pcc_hotkey_add,
 				.remove =	acpi_pcc_hotkey_remove,
 				.resume =       acpi_pcc_hotkey_resume,
+				.notify =	acpi_pcc_hotkey_notify,
 			},
 };
 
@@ -270,7 +273,7 @@ static int acpi_pcc_retrieve_biosdata(struct pcc_acpi *pcc, u32 *sinf)
 	union acpi_object *hkey = NULL;
 	int i;
 
-	status = acpi_evaluate_object(pcc->handle, METHOD_HKEY_SINF, 0,
+	status = acpi_evaluate_object(pcc->handle, METHOD_HKEY_SINF, NULL,
 				      &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
@@ -366,7 +369,7 @@ static ssize_t show_numbatt(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_NUM_BATTERIES]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_NUM_BATTERIES]);
 }
 
 static ssize_t show_lcdtype(struct device *dev, struct device_attribute *attr,
@@ -378,7 +381,7 @@ static ssize_t show_lcdtype(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_LCD_TYPE]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_LCD_TYPE]);
 }
 
 static ssize_t show_mute(struct device *dev, struct device_attribute *attr,
@@ -390,7 +393,7 @@ static ssize_t show_mute(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_MUTE]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_MUTE]);
 }
 
 static ssize_t show_sticky(struct device *dev, struct device_attribute *attr,
@@ -402,7 +405,7 @@ static ssize_t show_sticky(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_STICKY_KEY]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_STICKY_KEY]);
 }
 
 static ssize_t set_sticky(struct device *dev, struct device_attribute *attr,
@@ -526,9 +529,9 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 	return;
 }
 
-static void acpi_pcc_hotkey_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event)
 {
-	struct pcc_acpi *pcc = (struct pcc_acpi *) data;
+	struct pcc_acpi *pcc = acpi_driver_data(device);
 
 	switch (event) {
 	case HKEY_NOTIFY:
@@ -598,7 +601,6 @@ static int acpi_pcc_hotkey_resume(struct acpi_device *device)
 
 static int acpi_pcc_hotkey_add(struct acpi_device *device)
 {
-	acpi_status status;
 	struct pcc_acpi *pcc;
 	int num_sifr, result;
 
@@ -639,22 +641,11 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 		goto out_sinf;
 	}
 
-	/* initialize hotkey input device */
-	status = acpi_install_notify_handler(pcc->handle, ACPI_DEVICE_NOTIFY,
-					     acpi_pcc_hotkey_notify, pcc);
-
-	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error installing notify handler\n"));
-		result = -ENODEV;
-		goto out_input;
-	}
-
 	/* initialize backlight */
 	pcc->backlight = backlight_device_register("panasonic", NULL, pcc,
 						   &pcc_backlight_ops);
 	if (IS_ERR(pcc->backlight))
-		goto out_notify;
+		goto out_input;
 
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
@@ -679,9 +670,6 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 
 out_backlight:
 	backlight_device_unregister(pcc->backlight);
-out_notify:
-	acpi_remove_notify_handler(pcc->handle, ACPI_DEVICE_NOTIFY,
-				   acpi_pcc_hotkey_notify);
 out_input:
 	input_unregister_device(pcc->input_dev);
 	/* no need to input_free_device() since core input API refcount and
@@ -721,9 +709,6 @@ static int acpi_pcc_hotkey_remove(struct acpi_device *device, int type)
 	sysfs_remove_group(&device->dev.kobj, &pcc_attr_group);
 
 	backlight_device_unregister(pcc->backlight);
-
-	acpi_remove_notify_handler(pcc->handle, ACPI_DEVICE_NOTIFY,
-				   acpi_pcc_hotkey_notify);
 
 	input_unregister_device(pcc->input_dev);
 	/* no need to input_free_device() since core input API refcount and

@@ -293,7 +293,7 @@ config CPM
 config OF_RTC
 	bool
 	help
-	  Uses information from the OF or flattened device tree to instatiate
+	  Uses information from the OF or flattened device tree to instantiate
 	  platform devices for direct mapped RTC chips like the DS1742 or DS1743.
 
 source "arch/powerpc/sysdev/bestcomm/Kconfig"

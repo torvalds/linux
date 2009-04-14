@@ -6,6 +6,7 @@ config OPROFILE
 	tristate "OProfile system profiling (EXPERIMENTAL)"
 	depends on PROFILING
 	depends on HAVE_OPROFILE
+	depends on TRACING_SUPPORT
 	select TRACING
 	select RING_BUFFER
 	help
@@ -107,4 +108,7 @@ config HAVE_CLK
 	  thus are a key power management tool on many systems.
 
 config HAVE_DMA_API_DEBUG
+	bool
+
+config HAVE_DEFAULT_NO_SPIN_MUTEXES
 	bool

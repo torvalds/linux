@@ -126,7 +126,6 @@ static struct xfs_qmops xfs_qmcore_stub = {
 	.xfs_dqvopchownresv	= (xfs_dqvopchownresv_t) fs_noerr,
 	.xfs_dqstatvfs		= (xfs_dqstatvfs_t) fs_noval,
 	.xfs_dqsync		= (xfs_dqsync_t) fs_noerr,
-	.xfs_quotactl		= (xfs_quotactl_t) fs_nosys,
 };
 
 int

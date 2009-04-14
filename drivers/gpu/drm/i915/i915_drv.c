@@ -101,7 +101,7 @@ static int i915_resume(struct drm_device *dev)
 
 	i915_restore_state(dev);
 
-	intel_opregion_init(dev);
+	intel_opregion_init(dev, 1);
 
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {

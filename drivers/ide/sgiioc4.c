@@ -258,9 +258,6 @@ static int sgiioc4_dma_end(ide_drive_t *drive)
 		}
 	}
 
-	drive->waiting_for_dma = 0;
-	ide_destroy_dmatable(drive);
-
 	return dma_stat;
 }
 
@@ -280,10 +277,12 @@ static void sgiioc4_dma_host_set(ide_drive_t *drive, int on)
 		sgiioc4_clearirq(drive);
 }
 
-static void
-sgiioc4_resetproc(ide_drive_t * drive)
+static void sgiioc4_resetproc(ide_drive_t *drive)
 {
+	struct ide_cmd *cmd = &drive->hwif->cmd;
+
 	sgiioc4_dma_end(drive);
+	ide_dma_unmap_sg(drive, cmd);
 	sgiioc4_clearirq(drive);
 }
 
@@ -412,7 +411,6 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 	writel(ending_dma_addr, (void __iomem *)(dma_base + IOC4_DMA_END_ADDR * 4));
 
 	writel(dma_direction, (void __iomem *)ioc4_dma_addr);
-	drive->waiting_for_dma = 1;
 }
 
 /* IOC4 Scatter Gather list Format 					 */
@@ -442,7 +440,7 @@ static int sgiioc4_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 				printk(KERN_WARNING
 				       "%s: DMA table too small\n",
 				       drive->name);
-				goto use_pio_instead;
+				return 0;
 			} else {
 				u32 bcount =
 				    0x10000 - (cur_addr & 0xffff);
@@ -477,9 +475,6 @@ static int sgiioc4_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 		return count;
 	}
 
-use_pio_instead:
-	ide_destroy_dmatable(drive);
-
 	return 0;		/* revert to PIO for this request */
 }
 
@@ -488,11 +483,9 @@ static int sgiioc4_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	int ddir;
 	u8 write = !!(cmd->tf_flags & IDE_TFLAG_WRITE);
 
-	if (sgiioc4_build_dmatable(drive, cmd) == 0) {
+	if (sgiioc4_build_dmatable(drive, cmd) == 0)
 		/* try PIO instead of DMA */
-		ide_map_sg(drive, cmd);
 		return 1;
-	}
 
 	if (write)
 		/* Writes TO the IOC4 FROM Main Memory */
@@ -510,9 +503,9 @@ static const struct ide_tp_ops sgiioc4_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= sgiioc4_read_status,
 	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
 
-	.set_irq		= ide_set_irq,
-
+	.dev_select		= ide_dev_select,
 	.tf_load		= ide_tf_load,
 	.tf_read		= ide_tf_read,
 
@@ -533,7 +526,6 @@ static const struct ide_dma_ops sgiioc4_dma_ops = {
 	.dma_end		= sgiioc4_dma_end,
 	.dma_test_irq		= sgiioc4_dma_test_irq,
 	.dma_lost_irq		= sgiioc4_dma_lost_irq,
-	.dma_timeout		= ide_dma_timeout,
 };
 
 static const struct ide_port_info sgiioc4_port_info __devinitconst = {

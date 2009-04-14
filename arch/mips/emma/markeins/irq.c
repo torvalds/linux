@@ -186,7 +186,6 @@ void emma2rh_gpio_irq_init(void)
 static struct irqaction irq_cascade = {
 	   .handler = no_action,
 	   .flags = 0,
-	   .mask = CPU_MASK_NONE,
 	   .name = "cascade",
 	   .dev_id = NULL,
 	   .next = NULL,

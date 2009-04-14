@@ -135,8 +135,8 @@ static inline int igb_set_vf_rlpml(struct igb_adapter *, int, int);
 static int igb_set_vf_mac(struct igb_adapter *adapter, int, unsigned char *);
 static void igb_restore_vf_multicasts(struct igb_adapter *adapter);
 
-static int igb_suspend(struct pci_dev *, pm_message_t);
 #ifdef CONFIG_PM
+static int igb_suspend(struct pci_dev *, pm_message_t);
 static int igb_resume(struct pci_dev *);
 #endif
 static void igb_shutdown(struct pci_dev *);
@@ -152,14 +152,13 @@ static struct notifier_block dca_notifier = {
 /* for netdump / net console */
 static void igb_netpoll(struct net_device *);
 #endif
-
 #ifdef CONFIG_PCI_IOV
-static ssize_t igb_set_num_vfs(struct device *, struct device_attribute *,
-                               const char *, size_t);
-static ssize_t igb_show_num_vfs(struct device *, struct device_attribute *,
-                               char *);
-DEVICE_ATTR(num_vfs, S_IRUGO | S_IWUSR, igb_show_num_vfs, igb_set_num_vfs);
-#endif
+static unsigned int max_vfs = 0;
+module_param(max_vfs, uint, 0);
+MODULE_PARM_DESC(max_vfs, "Maximum number of virtual functions to allocate "
+                 "per physical function");
+#endif /* CONFIG_PCI_IOV */
+
 static pci_ers_result_t igb_io_error_detected(struct pci_dev *,
 		     pci_channel_state_t);
 static pci_ers_result_t igb_io_slot_reset(struct pci_dev *);
@@ -420,6 +419,9 @@ static void igb_free_queues(struct igb_adapter *adapter)
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		netif_napi_del(&adapter->rx_ring[i].napi);
 
+	adapter->num_rx_queues = 0;
+	adapter->num_tx_queues = 0;
+
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
 }
@@ -668,6 +670,21 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter)
 
 	/* If we can't do MSI-X, try MSI */
 msi_only:
+#ifdef CONFIG_PCI_IOV
+	/* disable SR-IOV for non MSI-X configurations */
+	if (adapter->vf_data) {
+		struct e1000_hw *hw = &adapter->hw;
+		/* disable iov and allow time for transactions to clear */
+		pci_disable_sriov(adapter->pdev);
+		msleep(500);
+
+		kfree(adapter->vf_data);
+		adapter->vf_data = NULL;
+		wr32(E1000_IOVCTL, E1000_IOVCTL_REUSE_VFQ);
+		msleep(100);
+		dev_info(&adapter->pdev->dev, "IOV Disabled\n");
+	}
+#endif
 	adapter->num_rx_queues = 1;
 	adapter->num_tx_queues = 1;
 	if (!pci_enable_msi(adapter->pdev))
@@ -1151,15 +1168,15 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		return err;
 
 	pci_using_dac = 0;
-	err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (!err)
 			pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 			if (err) {
 				dev_err(&pdev->dev, "No usable DMA "
 					"configuration, aborting\n");
@@ -1235,6 +1252,39 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_sw_init;
 
+#ifdef CONFIG_PCI_IOV
+	/* since iov functionality isn't critical to base device function we
+	 * can accept failure.  If it fails we don't allow iov to be enabled */
+	if (hw->mac.type == e1000_82576) {
+		/* 82576 supports a maximum of 7 VFs in addition to the PF */
+		unsigned int num_vfs = (max_vfs > 7) ? 7 : max_vfs;
+		int i;
+		unsigned char mac_addr[ETH_ALEN];
+
+		if (num_vfs)
+			adapter->vf_data = kcalloc(num_vfs,
+						sizeof(struct vf_data_storage),
+						GFP_KERNEL);
+		if (!adapter->vf_data) {
+			dev_err(&pdev->dev, "Could not allocate VF private "
+				"data - IOV enable failed\n");
+		} else {
+			err = pci_enable_sriov(pdev, num_vfs);
+			if (!err) {
+				adapter->vfs_allocated_count = num_vfs;
+				dev_info(&pdev->dev, "%d vfs allocated\n", num_vfs);
+				for (i = 0; i < adapter->vfs_allocated_count; i++) {
+					random_ether_addr(mac_addr);
+					igb_set_vf_mac(adapter, i, mac_addr);
+				}
+			} else {
+				kfree(adapter->vf_data);
+				adapter->vf_data = NULL;
+			}
+		}
+	}
+
+#endif
 	/* setup the private structure */
 	err = igb_sw_init(adapter);
 	if (err)
@@ -1394,19 +1444,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_register;
 
-#ifdef CONFIG_PCI_IOV
-	/* since iov functionality isn't critical to base device function we
-	 * can accept failure.  If it fails we don't allow iov to be enabled */
-	if (hw->mac.type == e1000_82576) {
-		err = pci_enable_sriov(pdev, 0);
-		if (!err)
-			err = device_create_file(&netdev->dev,
-			                         &dev_attr_num_vfs);
-		if (err)
-			dev_err(&pdev->dev, "Failed to initialize IOV\n");
-	}
-
-#endif
 #ifdef CONFIG_IGB_DCA
 	if (dca_add_requester(&pdev->dev) == 0) {
 		adapter->flags |= IGB_FLAG_DCA_ENABLED;
@@ -1476,9 +1513,10 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		 netdev->name,
 		 ((hw->bus.speed == e1000_bus_speed_2500)
 		  ? "2.5Gb/s" : "unknown"),
-		 ((hw->bus.width == e1000_bus_width_pcie_x4)
-		  ? "Width x4" : (hw->bus.width == e1000_bus_width_pcie_x1)
-		  ? "Width x1" : "unknown"),
+		 ((hw->bus.width == e1000_bus_width_pcie_x4) ? "Width x4" :
+		  (hw->bus.width == e1000_bus_width_pcie_x2) ? "Width x2" :
+		  (hw->bus.width == e1000_bus_width_pcie_x1) ? "Width x1" :
+		   "unknown"),
 		 netdev->dev_addr);
 
 	igb_read_part_num(hw, &part_num);
@@ -5056,7 +5094,7 @@ int igb_set_spd_dplx(struct igb_adapter *adapter, u16 spddplx)
 	return 0;
 }
 
-static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -5115,15 +5153,9 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 		wr32(E1000_WUFC, 0);
 	}
 
-	/* make sure adapter isn't asleep if manageability/wol is enabled */
-	if (wufc || adapter->en_mng_pt) {
-		pci_enable_wake(pdev, PCI_D3hot, 1);
-		pci_enable_wake(pdev, PCI_D3cold, 1);
-	} else {
+	*enable_wake = wufc || adapter->en_mng_pt;
+	if (!*enable_wake)
 		igb_shutdown_fiber_serdes_link_82575(hw);
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
-	}
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant. */
@@ -5131,12 +5163,29 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	pci_disable_device(pdev);
 
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
 	return 0;
 }
 
 #ifdef CONFIG_PM
+static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	int retval;
+	bool wake;
+
+	retval = __igb_shutdown(pdev, &wake);
+	if (retval)
+		return retval;
+
+	if (wake) {
+		pci_prepare_to_sleep(pdev);
+	} else {
+		pci_wake_from_d3(pdev, false);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+
+	return 0;
+}
+
 static int igb_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -5189,7 +5238,14 @@ static int igb_resume(struct pci_dev *pdev)
 
 static void igb_shutdown(struct pci_dev *pdev)
 {
-	igb_suspend(pdev, PMSG_SUSPEND);
+	bool wake;
+
+	__igb_shutdown(pdev, &wake);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, wake);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -5400,89 +5456,4 @@ static void igb_vmm_control(struct igb_adapter *adapter)
 	igb_vmdq_set_replication_pf(hw, true);
 }
 
-#ifdef CONFIG_PCI_IOV
-static ssize_t igb_show_num_vfs(struct device *dev,
-                                struct device_attribute *attr, char *buf)
-{
-	struct igb_adapter *adapter = netdev_priv(to_net_dev(dev));
-
-	return sprintf(buf, "%d\n", adapter->vfs_allocated_count);
-}
-
-static ssize_t igb_set_num_vfs(struct device *dev,
-                               struct device_attribute *attr,
-                               const char *buf, size_t count)
-{
-	struct net_device *netdev = to_net_dev(dev);
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
-	struct pci_dev *pdev = adapter->pdev;
-	unsigned int num_vfs, i;
-	unsigned char mac_addr[ETH_ALEN];
-	int err;
-
-	sscanf(buf, "%u", &num_vfs);
-
-	if (num_vfs > 7)
-		num_vfs = 7;
-
-	/* value unchanged do nothing */
-	if (num_vfs == adapter->vfs_allocated_count)
-		return count;
-
-	if (netdev->flags & IFF_UP)
-		igb_close(netdev);
-
-	igb_reset_interrupt_capability(adapter);
-	igb_free_queues(adapter);
-	adapter->tx_ring = NULL;
-	adapter->rx_ring = NULL;
-	adapter->vfs_allocated_count = 0;
-
-	/* reclaim resources allocated to VFs since we are changing count */
-	if (adapter->vf_data) {
-		/* disable iov and allow time for transactions to clear */
-		pci_disable_sriov(pdev);
-		msleep(500);
-
-		kfree(adapter->vf_data);
-		adapter->vf_data = NULL;
-		wr32(E1000_IOVCTL, E1000_IOVCTL_REUSE_VFQ);
-		msleep(100);
-		dev_info(&pdev->dev, "IOV Disabled\n");
-	}
-
-	if (num_vfs) {
-		adapter->vf_data = kcalloc(num_vfs,
-		                           sizeof(struct vf_data_storage),
-		                           GFP_KERNEL);
-		if (!adapter->vf_data) {
-			dev_err(&pdev->dev, "Could not allocate VF private "
-				"data - IOV enable failed\n");
-		} else {
-			err = pci_enable_sriov(pdev, num_vfs);
-			if (!err) {
-				adapter->vfs_allocated_count = num_vfs;
-				dev_info(&pdev->dev, "%d vfs allocated\n", num_vfs);
-				for (i = 0; i < adapter->vfs_allocated_count; i++) {
-					random_ether_addr(mac_addr);
-					igb_set_vf_mac(adapter, i, mac_addr);
-				}
-			} else {
-				kfree(adapter->vf_data);
-				adapter->vf_data = NULL;
-			}
-		}
-	}
-
-	igb_set_interrupt_capability(adapter);
-	igb_alloc_queues(adapter);
-	igb_reset(adapter);
-
-	if (netdev->flags & IFF_UP)
-		igb_open(netdev);
-
-	return count;
-}
-#endif /* CONFIG_PCI_IOV */
 /* igb_main.c */

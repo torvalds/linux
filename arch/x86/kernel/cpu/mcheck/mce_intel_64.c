@@ -249,7 +249,7 @@ void cmci_rediscover(int dying)
 	for_each_online_cpu (cpu) {
 		if (cpu == dying)
 			continue;
-		if (set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu)))
+		if (set_cpus_allowed_ptr(current, cpumask_of(cpu)))
 			continue;
 		/* Recheck banks in case CPUs don't all have the same */
 		if (cmci_supported(&banks))

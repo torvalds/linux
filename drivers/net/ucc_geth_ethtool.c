@@ -28,7 +28,6 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/fsl_devices.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/phy.h>

@@ -216,6 +216,22 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	else
 		tile_width = 512;
 
+	/* check maximum stride & object size */
+	if (IS_I965G(dev)) {
+		/* i965 stores the end address of the gtt mapping in the fence
+		 * reg, so dont bother to check the size */
+		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
+			return false;
+	} else if (IS_I9XX(dev)) {
+		if (stride / tile_width > I830_FENCE_MAX_PITCH_VAL ||
+		    size > (I830_FENCE_MAX_SIZE_VAL << 20))
+			return false;
+	} else {
+		if (stride / 128 > I830_FENCE_MAX_PITCH_VAL ||
+		    size > (I830_FENCE_MAX_SIZE_VAL << 19))
+			return false;
+	}
+
 	/* 965+ just needs multiples of tile width */
 	if (IS_I965G(dev)) {
 		if (stride & (tile_width - 1))

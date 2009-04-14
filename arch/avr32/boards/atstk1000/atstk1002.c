@@ -252,12 +252,12 @@ static void __init atstk1002_setup_extdac(void)
 void __init setup_board(void)
 {
 #ifdef	CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
-	at32_map_usart(0, 1);	/* USART 0/B: /dev/ttyS1, IRDA */
+	at32_map_usart(0, 1, 0);	/* USART 0/B: /dev/ttyS1, IRDA */
 #else
-	at32_map_usart(1, 0);	/* USART 1/A: /dev/ttyS0, DB9 */
+	at32_map_usart(1, 0, 0);	/* USART 1/A: /dev/ttyS0, DB9 */
 #endif
 	/* USART 2/unused: expansion connector */
-	at32_map_usart(3, 2);	/* USART 3/C: /dev/ttyS2, DB9 */
+	at32_map_usart(3, 2, 0);	/* USART 3/C: /dev/ttyS2, DB9 */
 
 	at32_setup_serial_console(0);
 }

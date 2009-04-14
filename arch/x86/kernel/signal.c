@@ -221,7 +221,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	if (!onsigstack) {
 		/* This is the X/Open sanctioned signal stack switching.  */
 		if (ka->sa.sa_flags & SA_ONSTACK) {
-			if (sas_ss_flags(sp) == 0)
+			if (current->sas_ss_size)
 				sp = current->sas_ss_sp + current->sas_ss_size;
 		} else {
 #ifdef CONFIG_X86_32

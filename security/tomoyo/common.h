@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2005-2009  NTT DATA CORPORATION
  *
- * Version: 2.2.0-pre   2009/02/01
+ * Version: 2.2.0   2009/04/01
  *
  */
 
@@ -88,10 +88,7 @@ struct tomoyo_domain_info {
 	/* Name of this domain. Never NULL.          */
 	const struct tomoyo_path_info *domainname;
 	u8 profile;        /* Profile number to use. */
-	u8 is_deleted;     /* Delete flag.
-			      0 = active.
-			      1 = deleted but undeletable.
-			      255 = deleted and no longer undeletable. */
+	bool is_deleted;   /* Delete flag.           */
 	bool quota_warned; /* Quota warnning flag.   */
 	/* DOMAIN_FLAGS_*. Use tomoyo_set_domain_flag() to modify. */
 	u8 flags;
@@ -144,7 +141,6 @@ struct tomoyo_double_path_acl_record {
 #define TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN      "no_initialize_domain "
 #define TOMOYO_KEYWORD_NO_KEEP_DOMAIN            "no_keep_domain "
 #define TOMOYO_KEYWORD_SELECT                    "select "
-#define TOMOYO_KEYWORD_UNDELETE                  "undelete "
 #define TOMOYO_KEYWORD_USE_PROFILE               "use_profile "
 #define TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ  "ignore_global_allow_read"
 /* A domain definition starts with <kernel>. */
@@ -267,8 +263,6 @@ struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
 struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    domainname,
 							    const u8 profile);
-/* Undelete a domain. */
-struct tomoyo_domain_info *tomoyo_undelete_domain(const char *domainname);
 /* Check mode for specified functionality. */
 unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
 				const u8 index);

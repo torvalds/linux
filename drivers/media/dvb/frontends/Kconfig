@@ -479,7 +479,7 @@ config DVB_TUNER_DIB0070
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A driver for the silicon baseband tuner DiB0070 from DiBcom.
-	  This device is only used inside a SiP called togther with a
+	  This device is only used inside a SiP called together with a
 	  demodulator for now.
 
 comment "SEC control devices for DVB-S"
@@ -508,6 +508,13 @@ config DVB_ISL6421
 
 config DVB_LGS8GL5
 	tristate "Silicon Legend LGS-8GL5 demodulator (OFDM)"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DMB-TH tuner module. Say Y when you want to support this frontend.
+
+config DVB_LGS8GXX
+	tristate "Legend Silicon LGS8913/LGS8GL5/LGS8GXX DMB-TH demodulator"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help

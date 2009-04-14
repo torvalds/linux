@@ -356,6 +356,16 @@ config I2C_IBM_IIC
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-ibm_iic.
 
+config I2C_IMX
+	tristate "IMX I2C interface"
+	depends on ARCH_MXC
+	help
+	  Say Y here if you want to use the IIC bus controller on
+	  the Freescale i.MX/MXC processors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-imx.
+
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
 	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX || ARCH_IOP13XX
@@ -461,6 +471,16 @@ config I2C_S3C2410
 	help
 	  Say Y here to include support for I2C controller in the
 	  Samsung S3C2410 based System-on-Chip devices.
+
+config I2C_S6000
+	tristate "S6000 I2C support"
+	depends on XTENSA_VARIANT_S6000
+	help
+	  This driver supports the on chip I2C device on the
+	  S6000 xtensa processor family.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called i2c-s6000.
 
 config I2C_SH7760
 	tristate "Renesas SH7760 I2C Controller"
@@ -584,12 +604,14 @@ comment "Graphics adapter I2C/DDC channel drivers"
 	depends on PCI
 
 config I2C_VOODOO3
-	tristate "Voodoo 3"
+	tristate "Voodoo 3 (DEPRECATED)"
 	depends on PCI
 	select I2C_ALGOBIT
 	help
 	  If you say yes to this option, support will be included for the
-	  Voodoo 3 I2C interface.
+	  Voodoo 3 I2C interface. This driver is deprecated and you should
+	  use the tdfxfb driver instead, which additionally provides
+	  framebuffer support.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-voodoo3.

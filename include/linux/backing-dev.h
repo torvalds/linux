@@ -24,8 +24,8 @@ struct dentry;
  */
 enum bdi_state {
 	BDI_pdflush,		/* A pdflush thread is working this device */
-	BDI_write_congested,	/* The write queue is getting full */
-	BDI_read_congested,	/* The read queue is getting full */
+	BDI_async_congested,	/* The async (write) queue is getting full */
+	BDI_sync_congested,	/* The sync queue is getting full */
 	BDI_unused,		/* Available bits start here */
 };
 
@@ -215,18 +215,18 @@ static inline int bdi_congested(struct backing_dev_info *bdi, int bdi_bits)
 
 static inline int bdi_read_congested(struct backing_dev_info *bdi)
 {
-	return bdi_congested(bdi, 1 << BDI_read_congested);
+	return bdi_congested(bdi, 1 << BDI_sync_congested);
 }
 
 static inline int bdi_write_congested(struct backing_dev_info *bdi)
 {
-	return bdi_congested(bdi, 1 << BDI_write_congested);
+	return bdi_congested(bdi, 1 << BDI_async_congested);
 }
 
 static inline int bdi_rw_congested(struct backing_dev_info *bdi)
 {
-	return bdi_congested(bdi, (1 << BDI_read_congested)|
-				  (1 << BDI_write_congested));
+	return bdi_congested(bdi, (1 << BDI_sync_congested) |
+				  (1 << BDI_async_congested));
 }
 
 void clear_bdi_congested(struct backing_dev_info *bdi, int rw);

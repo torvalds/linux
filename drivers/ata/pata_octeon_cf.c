@@ -503,7 +503,7 @@ static void octeon_cf_dma_setup(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct octeon_cf_port *cf_port;
 
-	cf_port = (struct octeon_cf_port *)ap->private_data;
+	cf_port = ap->private_data;
 	DPRINTK("ENTER\n");
 	/* issue r/w command */
 	qc->cursg = qc->sg;
@@ -596,7 +596,7 @@ static unsigned int octeon_cf_dma_finished(struct ata_port *ap,
 	if (ap->hsm_task_state != HSM_ST_LAST)
 		return 0;
 
-	cf_port = (struct octeon_cf_port *)ap->private_data;
+	cf_port = ap->private_data;
 
 	dma_cfg.u64 = cvmx_read_csr(CVMX_MIO_BOOT_DMA_CFGX(ocd->dma_engine));
 	if (dma_cfg.s.size != 0xfffff) {
@@ -657,7 +657,7 @@ static irqreturn_t octeon_cf_interrupt(int irq, void *dev_instance)
 			continue;
 
 		ocd = ap->dev->platform_data;
-		cf_port = (struct octeon_cf_port *)ap->private_data;
+		cf_port = ap->private_data;
 		dma_int.u64 =
 			cvmx_read_csr(CVMX_MIO_BOOT_DMA_INTX(ocd->dma_engine));
 		dma_cfg.u64 =

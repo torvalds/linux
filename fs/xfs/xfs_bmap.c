@@ -2479,7 +2479,7 @@ xfs_bmap_adjacent(
 	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp, ap->firstblock);
 	/*
 	 * If allocating at eof, and there's a previous real block,
-	 * try to use it's last block as our starting point.
+	 * try to use its last block as our starting point.
 	 */
 	if (ap->eof && ap->prevp->br_startoff != NULLFILEOFF &&
 	    !isnullstartblock(ap->prevp->br_startblock) &&
@@ -2712,9 +2712,6 @@ xfs_bmap_btalloc(
 	xfs_agnumber_t	startag;
 	xfs_alloc_arg_t	args;
 	xfs_extlen_t	blen;
-	xfs_extlen_t	delta;
-	xfs_extlen_t	longest;
-	xfs_extlen_t	need;
 	xfs_extlen_t	nextminlen = 0;
 	xfs_perag_t	*pag;
 	int		nullfb;		/* true if ap->firstblock isn't set */
@@ -2796,13 +2793,8 @@ xfs_bmap_btalloc(
 			 * See xfs_alloc_fix_freelist...
 			 */
 			if (pag->pagf_init) {
-				need = XFS_MIN_FREELIST_PAG(pag, mp);
-				delta = need > pag->pagf_flcount ?
-					need - pag->pagf_flcount : 0;
-				longest = (pag->pagf_longest > delta) ?
-					(pag->pagf_longest - delta) :
-					(pag->pagf_flcount > 0 ||
-					 pag->pagf_longest > 0);
+				xfs_extlen_t	longest;
+				longest = xfs_alloc_longest_free_extent(mp, pag);
 				if (blen < longest)
 					blen = longest;
 			} else
@@ -3577,6 +3569,27 @@ xfs_bmap_extents_to_btree(
 }
 
 /*
+ * Calculate the default attribute fork offset for newly created inodes.
+ */
+uint
+xfs_default_attroffset(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	uint			offset;
+
+	if (mp->m_sb.sb_inodesize == 256) {
+		offset = XFS_LITINO(mp) -
+				XFS_BMDR_SPACE_CALC(MINABTPTRS);
+	} else {
+		offset = XFS_BMDR_SPACE_CALC(6 * MINABTPTRS);
+	}
+
+	ASSERT(offset < XFS_LITINO(mp));
+	return offset;
+}
+
+/*
  * Helper routine to reset inode di_forkoff field when switching
  * attribute fork from local to extent format - we reset it where
  * possible to make space available for inline data fork extents.
@@ -3588,15 +3601,18 @@ xfs_bmap_forkoff_reset(
 	int		whichfork)
 {
 	if (whichfork == XFS_ATTR_FORK &&
-	    (ip->i_d.di_format != XFS_DINODE_FMT_DEV) &&
-	    (ip->i_d.di_format != XFS_DINODE_FMT_UUID) &&
-	    (ip->i_d.di_format != XFS_DINODE_FMT_BTREE) &&
-	    ((mp->m_attroffset >> 3) > ip->i_d.di_forkoff)) {
-		ip->i_d.di_forkoff = mp->m_attroffset >> 3;
-		ip->i_df.if_ext_max = XFS_IFORK_DSIZE(ip) /
-					(uint)sizeof(xfs_bmbt_rec_t);
-		ip->i_afp->if_ext_max = XFS_IFORK_ASIZE(ip) /
-					(uint)sizeof(xfs_bmbt_rec_t);
+	    ip->i_d.di_format != XFS_DINODE_FMT_DEV &&
+	    ip->i_d.di_format != XFS_DINODE_FMT_UUID &&
+	    ip->i_d.di_format != XFS_DINODE_FMT_BTREE) {
+		uint	dfl_forkoff = xfs_default_attroffset(ip) >> 3;
+
+		if (dfl_forkoff > ip->i_d.di_forkoff) {
+			ip->i_d.di_forkoff = dfl_forkoff;
+			ip->i_df.if_ext_max =
+				XFS_IFORK_DSIZE(ip) / sizeof(xfs_bmbt_rec_t);
+			ip->i_afp->if_ext_max =
+				XFS_IFORK_ASIZE(ip) / sizeof(xfs_bmbt_rec_t);
+		}
 	}
 }
 
@@ -4065,7 +4081,7 @@ xfs_bmap_add_attrfork(
 	case XFS_DINODE_FMT_BTREE:
 		ip->i_d.di_forkoff = xfs_attr_shortform_bytesfit(ip, size);
 		if (!ip->i_d.di_forkoff)
-			ip->i_d.di_forkoff = mp->m_attroffset >> 3;
+			ip->i_d.di_forkoff = xfs_default_attroffset(ip) >> 3;
 		else if (mp->m_flags & XFS_MOUNT_ATTR2)
 			version = 2;
 		break;
@@ -4212,12 +4228,12 @@ xfs_bmap_compute_maxlevels(
 	 * (a signed 16-bit number, xfs_aextnum_t).
 	 *
 	 * Note that we can no longer assume that if we are in ATTR1 that
-	 * the fork offset of all the inodes will be (m_attroffset >> 3)
-	 * because we could have mounted with ATTR2 and then mounted back
-	 * with ATTR1, keeping the di_forkoff's fixed but probably at
-	 * various positions. Therefore, for both ATTR1 and ATTR2
-	 * we have to assume the worst case scenario of a minimum size
-	 * available.
+	 * the fork offset of all the inodes will be
+	 * (xfs_default_attroffset(ip) >> 3) because we could have mounted
+	 * with ATTR2 and then mounted back with ATTR1, keeping the
+	 * di_forkoff's fixed but probably at various positions. Therefore,
+	 * for both ATTR1 and ATTR2 we have to assume the worst case scenario
+	 * of a minimum size available.
 	 */
 	if (whichfork == XFS_DATA_FORK) {
 		maxleafents = MAXEXTNUM;
@@ -4804,7 +4820,7 @@ xfs_bmapi(
 	xfs_extlen_t	minlen;		/* min allocation size */
 	xfs_mount_t	*mp;		/* xfs mount structure */
 	int		n;		/* current extent index */
-	int		nallocs;	/* number of extents alloc\'d */
+	int		nallocs;	/* number of extents alloc'd */
 	xfs_extnum_t	nextents;	/* number of extents in file */
 	xfs_fileoff_t	obno;		/* old block number (offset) */
 	xfs_bmbt_irec_t	prev;		/* previous file extent record */
@@ -6204,7 +6220,7 @@ xfs_bmap_get_bp(
 	return(bp);
 }
 
-void
+STATIC void
 xfs_check_block(
 	struct xfs_btree_block	*block,
 	xfs_mount_t		*mp,
@@ -6494,7 +6510,7 @@ xfs_bmap_count_tree(
 	block = XFS_BUF_TO_BLOCK(bp);
 
 	if (--level) {
-		/* Not at node above leafs, count this level of nodes */
+		/* Not at node above leaves, count this level of nodes */
 		nextbno = be64_to_cpu(block->bb_u.l.bb_rightsib);
 		while (nextbno != NULLFSBLOCK) {
 			if ((error = xfs_btree_read_bufl(mp, tp, nextbno,

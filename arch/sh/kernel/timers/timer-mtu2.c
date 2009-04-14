@@ -115,7 +115,6 @@ static struct irqaction mtu2_irq = {
 	.name		= "timer",
 	.handler	= mtu2_timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.mask		= CPU_MASK_NONE,
 };
 
 static unsigned int divisors[] = { 1, 4, 16, 64, 1, 1, 256 };

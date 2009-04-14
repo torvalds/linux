@@ -12,11 +12,14 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/power_supply.h>
 #include <linux/pda_power.h>
+#include <linux/regulator/consumer.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
+#include <linux/usb/otg.h>
 
 static inline unsigned int get_irq_flags(struct resource *res)
 {
@@ -34,6 +37,11 @@ static struct timer_list charger_timer;
 static struct timer_list supply_timer;
 static struct timer_list polling_timer;
 static int polling;
+
+#ifdef CONFIG_USB_OTG_UTILS
+static struct otg_transceiver *transceiver;
+#endif
+static struct regulator *ac_draw;
 
 enum {
 	PDA_PSY_OFFLINE = 0,
@@ -104,18 +112,35 @@ static void update_status(void)
 
 static void update_charger(void)
 {
-	if (!pdata->set_charge)
-		return;
+	static int regulator_enabled;
+	int max_uA = pdata->ac_max_uA;
 
-	if (new_ac_status > 0) {
-		dev_dbg(dev, "charger on (AC)\n");
-		pdata->set_charge(PDA_POWER_CHARGE_AC);
-	} else if (new_usb_status > 0) {
-		dev_dbg(dev, "charger on (USB)\n");
-		pdata->set_charge(PDA_POWER_CHARGE_USB);
-	} else {
-		dev_dbg(dev, "charger off\n");
-		pdata->set_charge(0);
+	if (pdata->set_charge) {
+		if (new_ac_status > 0) {
+			dev_dbg(dev, "charger on (AC)\n");
+			pdata->set_charge(PDA_POWER_CHARGE_AC);
+		} else if (new_usb_status > 0) {
+			dev_dbg(dev, "charger on (USB)\n");
+			pdata->set_charge(PDA_POWER_CHARGE_USB);
+		} else {
+			dev_dbg(dev, "charger off\n");
+			pdata->set_charge(0);
+		}
+	} else if (ac_draw) {
+		if (new_ac_status > 0) {
+			regulator_set_current_limit(ac_draw, max_uA, max_uA);
+			if (!regulator_enabled) {
+				dev_dbg(dev, "charger on (AC)\n");
+				regulator_enable(ac_draw);
+				regulator_enabled = 1;
+			}
+		} else {
+			if (regulator_enabled) {
+				dev_dbg(dev, "charger off\n");
+				regulator_disable(ac_draw);
+				regulator_enabled = 0;
+			}
+		}
 	}
 }
 
@@ -194,6 +219,13 @@ static void polling_timer_func(unsigned long unused)
 		  jiffies + msecs_to_jiffies(pdata->polling_interval));
 }
 
+#ifdef CONFIG_USB_OTG_UTILS
+static int otg_is_usb_online(void)
+{
+	return (transceiver->state == OTG_STATE_B_PERIPHERAL);
+}
+#endif
+
 static int pda_power_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -227,6 +259,9 @@ static int pda_power_probe(struct platform_device *pdev)
 	if (!pdata->polling_interval)
 		pdata->polling_interval = 2000;
 
+	if (!pdata->ac_max_uA)
+		pdata->ac_max_uA = 500000;
+
 	setup_timer(&charger_timer, charger_timer_func, 0);
 	setup_timer(&supply_timer, supply_timer_func, 0);
 
@@ -238,6 +273,13 @@ static int pda_power_probe(struct platform_device *pdev)
 		pda_psy_ac.num_supplicants = pdata->num_supplicants;
 		pda_psy_usb.supplied_to = pdata->supplied_to;
 		pda_psy_usb.num_supplicants = pdata->num_supplicants;
+	}
+
+	ac_draw = regulator_get(dev, "ac_draw");
+	if (IS_ERR(ac_draw)) {
+		dev_dbg(dev, "couldn't get ac_draw regulator\n");
+		ac_draw = NULL;
+		ret = PTR_ERR(ac_draw);
 	}
 
 	if (pdata->is_ac_online) {
@@ -260,6 +302,13 @@ static int pda_power_probe(struct platform_device *pdev)
 			polling = 1;
 		}
 	}
+
+#ifdef CONFIG_USB_OTG_UTILS
+	transceiver = otg_get_transceiver();
+	if (transceiver && !pdata->is_usb_online) {
+		pdata->is_usb_online = otg_is_usb_online;
+	}
+#endif
 
 	if (pdata->is_usb_online) {
 		ret = power_supply_register(&pdev->dev, &pda_psy_usb);
@@ -300,10 +349,18 @@ usb_irq_failed:
 usb_supply_failed:
 	if (pdata->is_ac_online && ac_irq)
 		free_irq(ac_irq->start, &pda_psy_ac);
+#ifdef CONFIG_USB_OTG_UTILS
+	if (transceiver)
+		otg_put_transceiver(transceiver);
+#endif
 ac_irq_failed:
 	if (pdata->is_ac_online)
 		power_supply_unregister(&pda_psy_ac);
 ac_supply_failed:
+	if (ac_draw) {
+		regulator_put(ac_draw);
+		ac_draw = NULL;
+	}
 	if (pdata->exit)
 		pdata->exit(dev);
 init_failed:
@@ -327,6 +384,14 @@ static int pda_power_remove(struct platform_device *pdev)
 		power_supply_unregister(&pda_psy_usb);
 	if (pdata->is_ac_online)
 		power_supply_unregister(&pda_psy_ac);
+#ifdef CONFIG_USB_OTG_UTILS
+	if (transceiver)
+		otg_put_transceiver(transceiver);
+#endif
+	if (ac_draw) {
+		regulator_put(ac_draw);
+		ac_draw = NULL;
+	}
 	if (pdata->exit)
 		pdata->exit(dev);
 

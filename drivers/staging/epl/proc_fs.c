@@ -83,7 +83,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/major.h>
-#include <linux/version.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
@@ -94,6 +93,8 @@
 #include <asm/coldfire.h>
 #include "fec.h"
 #endif
+
+#include "proc_fs.h"
 
 /***************************************************************************/
 /*                                                                         */
@@ -129,8 +130,8 @@
 
 #ifdef _DBG_TRACE_POINTS_
 atomic_t aatmDbgTracePoint_l[DBG_TRACE_POINTS];
-DWORD adwDbgTraceValue_l[DBG_TRACE_VALUES];
-DWORD dwDbgTraceValueOld_l;
+u32 adwDbgTraceValue_l[DBG_TRACE_VALUES];
+u32 dwDbgTraceValueOld_l;
 unsigned int uiDbgTraceValuePos_l;
 spinlock_t spinlockDbgTraceValue_l;
 unsigned long ulDbTraceValueFlags_l;
@@ -145,10 +146,10 @@ static int EplLinProcRead(char *pcBuffer_p, char **ppcStart_p, off_t Offset_p,
 static int EplLinProcWrite(struct file *file, const char __user * buffer,
 			   unsigned long count, void *data);
 
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 
-EPLDLLEXPORT DWORD PUBLIC EplIdentuGetRunningRequests(void);
+extern u32 EplIdentuGetRunningRequests(void);
 
 //=========================================================================//
 //                                                                         //
@@ -191,7 +192,7 @@ tEplKernel EplLinProcFree(void)
 //---------------------------------------------------------------------------
 
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p)
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p)
 {
 
 	if (bTracePointNumber_p >=
@@ -207,7 +208,7 @@ void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p)
 
 }
 
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p)
+void TgtDbgPostTraceValue(u32 dwTraceValue_p)
 {
 
 	spin_lock_irqsave(&spinlockDbgTraceValue_l, ulDbTraceValueFlags_l);
@@ -263,7 +264,7 @@ static int EplLinProcRead(char *pcBuffer_p,
 	// ---- EPL state ----
 	nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
 			  "NMT state:                  0x%04X\n",
-			  (WORD) EplNmtkGetNmtState());
+			  (u16) EplNmtkGetNmtState());
 
 	EplDllkCalGetStatistics(&pDllkCalStats);
 
@@ -279,14 +280,14 @@ static int EplLinProcRead(char *pcBuffer_p,
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 	// fetch running IdentRequests
 	nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
-			  "running IdentRequests:      0x%08lX\n",
+			  "running IdentRequests:      0x%08X\n",
 			  EplIdentuGetRunningRequests());
 
 	// fetch state of NmtMnu module
 	{
 		unsigned int uiMandatorySlaveCount;
 		unsigned int uiSignalSlaveCount;
-		WORD wFlags;
+		u16 wFlags;
 
 		EplNmtMnuGetDiagnosticInfo(&uiMandatorySlaveCount,
 					   &uiSignalSlaveCount, &wFlags);

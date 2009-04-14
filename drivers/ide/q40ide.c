@@ -16,6 +16,8 @@
 #include <linux/blkdev.h>
 #include <linux/ide.h>
 
+#include <asm/ide.h>
+
     /*
      *  Bases of the IDE interfaces
      */
@@ -77,8 +79,10 @@ static void q40ide_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
 {
 	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
-	if (drive->media == ide_disk && cmd && (cmd->tf_flags & IDE_TFLAG_FS))
-		return insw(data_addr, buf, (len + 1) / 2);
+	if (drive->media == ide_disk && cmd && (cmd->tf_flags & IDE_TFLAG_FS)) {
+		__ide_mm_insw(data_addr, buf, (len + 1) / 2);
+		return;
+	}
 
 	raw_insw_swapw((u16 *)data_addr, buf, (len + 1) / 2);
 }
@@ -88,8 +92,10 @@ static void q40ide_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 {
 	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
-	if (drive->media == ide_disk && cmd && (cmd->tf_flags & IDE_TFLAG_FS))
-		return outsw(data_addr, buf, (len + 1) / 2);
+	if (drive->media == ide_disk && cmd && (cmd->tf_flags & IDE_TFLAG_FS)) {
+		__ide_mm_outsw(data_addr, buf, (len + 1) / 2);
+		return;
+	}
 
 	raw_outsw_swapw((u16 *)data_addr, buf, (len + 1) / 2);
 }
@@ -99,9 +105,9 @@ static const struct ide_tp_ops q40ide_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
 
-	.set_irq		= ide_set_irq,
-
+	.dev_select		= ide_dev_select,
 	.tf_load		= ide_tf_load,
 	.tf_read		= ide_tf_read,
 

@@ -289,9 +289,9 @@ static int gfar_of_init(struct net_device *dev)
 		id = of_get_property(phy, "reg", NULL);
 
 		of_node_put(phy);
-		of_node_put(mdio);
 
 		fsl_pq_mdio_bus_name(bus_name, mdio);
+		of_node_put(mdio);
 		snprintf(priv->phy_bus_id, sizeof(priv->phy_bus_id), "%s:%02x",
 				bus_name, *id);
 	}

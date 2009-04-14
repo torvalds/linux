@@ -1203,8 +1203,7 @@ void et131x_reset_recv(struct et131x_adapter *pAdapter)
 
 		pMpRfd = (PMP_RFD) list_entry(element, MP_RFD, list_node);
 
-		list_del(&pMpRfd->list_node);
-		list_add_tail(&pMpRfd->list_node, &pAdapter->RxRing.RecvList);
+		list_move_tail(&pMpRfd->list_node, &pAdapter->RxRing.RecvList);
 	}
 
 	DBG_LEAVE(et131x_dbginfo);

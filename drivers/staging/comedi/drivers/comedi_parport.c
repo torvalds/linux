@@ -90,9 +90,9 @@ pin, which can be used to wake up tasks.
 #define PARPORT_B 1
 #define PARPORT_C 2
 
-static int parport_attach(comedi_device *dev, comedi_devconfig *it);
-static int parport_detach(comedi_device *dev);
-static comedi_driver driver_parport = {
+static int parport_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int parport_detach(struct comedi_device *dev);
+static struct comedi_driver driver_parport = {
       .driver_name =	"comedi_parport",
       .module =		THIS_MODULE,
       .attach =		parport_attach,
@@ -108,8 +108,8 @@ struct parport_private {
 };
 #define devpriv ((struct parport_private *)(dev->private))
 
-static int parport_insn_a(comedi_device *dev, comedi_subdevice *s,
-			  comedi_insn *insn, lsampl_t *data)
+static int parport_insn_a(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		devpriv->a_data &= ~data[0];
@@ -123,8 +123,8 @@ static int parport_insn_a(comedi_device *dev, comedi_subdevice *s,
 	return 2;
 }
 
-static int parport_insn_config_a(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data)
+static int parport_insn_config_a(struct comedi_device *dev, struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		s->io_bits = 0xff;
@@ -138,8 +138,8 @@ static int parport_insn_config_a(comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
-static int parport_insn_b(comedi_device *dev, comedi_subdevice *s,
-			  comedi_insn *insn, lsampl_t *data)
+static int parport_insn_b(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		/* should writes be ignored? */
@@ -151,8 +151,8 @@ static int parport_insn_b(comedi_device *dev, comedi_subdevice *s,
 	return 2;
 }
 
-static int parport_insn_c(comedi_device *dev, comedi_subdevice *s,
-			  comedi_insn *insn, lsampl_t *data)
+static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] &= 0x0f;
 	if (data[0]) {
@@ -167,8 +167,8 @@ static int parport_insn_c(comedi_device *dev, comedi_subdevice *s,
 	return 2;
 }
 
-static int parport_intr_insn(comedi_device *dev, comedi_subdevice *s,
-			     comedi_insn *insn, lsampl_t *data)
+static int parport_intr_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n < 1)
 		return -EINVAL;
@@ -177,8 +177,8 @@ static int parport_intr_insn(comedi_device *dev, comedi_subdevice *s,
 	return 2;
 }
 
-static int parport_intr_cmdtest(comedi_device *dev, comedi_subdevice *s,
-				comedi_cmd *cmd)
+static int parport_intr_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+				struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -252,7 +252,7 @@ static int parport_intr_cmdtest(comedi_device *dev, comedi_subdevice *s,
 	return 0;
 }
 
-static int parport_intr_cmd(comedi_device *dev, comedi_subdevice *s)
+static int parport_intr_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	devpriv->c_data |= 0x10;
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
@@ -262,7 +262,7 @@ static int parport_intr_cmd(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-static int parport_intr_cancel(comedi_device *dev, comedi_subdevice *s)
+static int parport_intr_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	printk(KERN_DEBUG "parport_intr_cancel()\n");
 
@@ -276,8 +276,8 @@ static int parport_intr_cancel(comedi_device *dev, comedi_subdevice *s)
 
 static irqreturn_t parport_interrupt(int irq, void *d PT_REGS_ARG)
 {
-	comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 3;
+	struct comedi_device *dev = d;
+	struct comedi_subdevice *s = dev->subdevices + 3;
 
 	if (!devpriv->enable_irq) {
 		printk(KERN_ERR "comedi_parport: bogus irq, ignored\n");
@@ -291,12 +291,12 @@ static irqreturn_t parport_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static int parport_attach(comedi_device *dev, comedi_devconfig *it)
+static int parport_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	unsigned int irq;
 	unsigned long iobase;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: parport: 0x%04lx ", dev->minor, iobase);
@@ -376,7 +376,7 @@ static int parport_attach(comedi_device *dev, comedi_devconfig *it)
 	return 1;
 }
 
-static int parport_detach(comedi_device *dev)
+static int parport_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: parport: remove\n", dev->minor);
 

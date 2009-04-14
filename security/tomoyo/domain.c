@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2005-2009  NTT DATA CORPORATION
  *
- * Version: 2.2.0-pre   2009/02/01
+ * Version: 2.2.0   2009/04/01
  *
  */
 
@@ -551,9 +551,7 @@ int tomoyo_write_alias_policy(char *data, const bool is_delete)
 	return tomoyo_update_alias_entry(data, cp, is_delete);
 }
 
-/* Domain create/delete/undelete handler. */
-
-/* #define TOMOYO_DEBUG_DOMAIN_UNDELETE */
+/* Domain create/delete handler. */
 
 /**
  * tomoyo_delete_domain - Delete a domain.
@@ -571,98 +569,20 @@ int tomoyo_delete_domain(char *domainname)
 	tomoyo_fill_path_info(&name);
 	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_list_lock);
-#ifdef TOMOYO_DEBUG_DOMAIN_UNDELETE
-	printk(KERN_DEBUG "tomoyo_delete_domain %s\n", domainname);
-	list_for_each_entry(domain, &tomoyo_domain_list, list) {
-		if (tomoyo_pathcmp(domain->domainname, &name))
-			continue;
-		printk(KERN_DEBUG "List: %p %u\n", domain, domain->is_deleted);
-	}
-#endif
 	/* Is there an active domain? */
 	list_for_each_entry(domain, &tomoyo_domain_list, list) {
-		struct tomoyo_domain_info *domain2;
 		/* Never delete tomoyo_kernel_domain */
 		if (domain == &tomoyo_kernel_domain)
 			continue;
 		if (domain->is_deleted ||
 		    tomoyo_pathcmp(domain->domainname, &name))
 			continue;
-		/* Mark already deleted domains as non undeletable. */
-		list_for_each_entry(domain2, &tomoyo_domain_list, list) {
-			if (!domain2->is_deleted ||
-			    tomoyo_pathcmp(domain2->domainname, &name))
-				continue;
-#ifdef TOMOYO_DEBUG_DOMAIN_UNDELETE
-			if (domain2->is_deleted != 255)
-				printk(KERN_DEBUG
-				       "Marked %p as non undeletable\n",
-				       domain2);
-#endif
-			domain2->is_deleted = 255;
-		}
-		/* Delete and mark active domain as undeletable. */
-		domain->is_deleted = 1;
-#ifdef TOMOYO_DEBUG_DOMAIN_UNDELETE
-		printk(KERN_DEBUG "Marked %p as undeletable\n", domain);
-#endif
+		domain->is_deleted = true;
 		break;
 	}
 	up_write(&tomoyo_domain_list_lock);
 	/***** EXCLUSIVE SECTION END *****/
 	return 0;
-}
-
-/**
- * tomoyo_undelete_domain - Undelete a domain.
- *
- * @domainname: The name of domain.
- *
- * Returns pointer to "struct tomoyo_domain_info" on success, NULL otherwise.
- */
-struct tomoyo_domain_info *tomoyo_undelete_domain(const char *domainname)
-{
-	struct tomoyo_domain_info *domain;
-	struct tomoyo_domain_info *candidate_domain = NULL;
-	struct tomoyo_path_info name;
-
-	name.name = domainname;
-	tomoyo_fill_path_info(&name);
-	/***** EXCLUSIVE SECTION START *****/
-	down_write(&tomoyo_domain_list_lock);
-#ifdef TOMOYO_DEBUG_DOMAIN_UNDELETE
-	printk(KERN_DEBUG "tomoyo_undelete_domain %s\n", domainname);
-	list_for_each_entry(domain, &tomoyo_domain_list, list) {
-		if (tomoyo_pathcmp(domain->domainname, &name))
-			continue;
-		printk(KERN_DEBUG "List: %p %u\n", domain, domain->is_deleted);
-	}
-#endif
-	list_for_each_entry(domain, &tomoyo_domain_list, list) {
-		if (tomoyo_pathcmp(&name, domain->domainname))
-			continue;
-		if (!domain->is_deleted) {
-			/* This domain is active. I can't undelete. */
-			candidate_domain = NULL;
-#ifdef TOMOYO_DEBUG_DOMAIN_UNDELETE
-			printk(KERN_DEBUG "%p is active. I can't undelete.\n",
-			       domain);
-#endif
-			break;
-		}
-		/* Is this domain undeletable? */
-		if (domain->is_deleted == 1)
-			candidate_domain = domain;
-	}
-	if (candidate_domain) {
-		candidate_domain->is_deleted = 0;
-#ifdef TOMOYO_DEBUG_DOMAIN_UNDELETE
-		printk(KERN_DEBUG "%p was undeleted.\n", candidate_domain);
-#endif
-	}
-	up_write(&tomoyo_domain_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
-	return candidate_domain;
 }
 
 /**
@@ -711,10 +631,6 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 		/***** CRITICAL SECTION END *****/
 		if (flag)
 			continue;
-#ifdef TOMOYO_DEBUG_DOMAIN_UNDELETE
-		printk(KERN_DEBUG "Reusing %p %s\n", domain,
-		       domain->domainname->name);
-#endif
 		list_for_each_entry(ptr, &domain->acl_info_list, list) {
 			ptr->type |= TOMOYO_ACL_DELETED;
 		}
@@ -722,7 +638,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 		domain->profile = profile;
 		domain->quota_warned = false;
 		mb(); /* Avoid out-of-order execution. */
-		domain->is_deleted = 0;
+		domain->is_deleted = false;
 		goto out;
 	}
 	/* No memory reusable. Create using new memory. */

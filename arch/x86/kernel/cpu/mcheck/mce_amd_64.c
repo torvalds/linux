@@ -485,7 +485,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 #ifdef CONFIG_SMP
 	if (cpu_data(cpu).cpu_core_id && shared_bank[bank]) {	/* symlink */
-		i = cpumask_first(&per_cpu(cpu_core_map, cpu));
+		i = cpumask_first(cpu_core_mask(cpu));
 
 		/* first core not up yet */
 		if (cpu_data(i).cpu_core_id)
@@ -505,7 +505,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		if (err)
 			goto out;
 
-		cpumask_copy(b->cpus, &per_cpu(cpu_core_map, cpu));
+		cpumask_copy(b->cpus, cpu_core_mask(cpu));
 		per_cpu(threshold_banks, cpu)[bank] = b;
 		goto out;
 	}
@@ -529,7 +529,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 #ifndef CONFIG_SMP
 	cpumask_setall(b->cpus);
 #else
-	cpumask_copy(b->cpus, &per_cpu(cpu_core_map, cpu));
+	cpumask_copy(b->cpus, cpu_core_mask(cpu));
 #endif
 
 	per_cpu(threshold_banks, cpu)[bank] = b;

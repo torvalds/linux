@@ -34,6 +34,8 @@ config X86
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FTRACE_NMI_ENTER if DYNAMIC_FTRACE
+	select HAVE_FTRACE_SYSCALLS
 	select HAVE_KVM
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
@@ -165,6 +167,9 @@ config AUDIT_ARCH
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
 	def_bool y
 
+config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	def_bool y
+
 # Use the generic interrupt handling code in kernel/irq/:
 config GENERIC_HARDIRQS
 	bool
@@ -247,15 +252,12 @@ config SMP
 
 config X86_X2APIC
 	bool "Support x2apic"
-	depends on X86_LOCAL_APIC && X86_64
+	depends on X86_LOCAL_APIC && X86_64 && INTR_REMAP
 	---help---
 	  This enables x2apic support on CPUs that have this feature.
 
 	  This allows 32-bit apic IDs (so it can support very large systems),
 	  and accesses the local apic via MSRs not via mmio.
-
-	  ( On certain CPU models you may need to enable INTR_REMAP too,
-	    to get functional x2apic mode. )
 
 	  If you don't know what to do here, say N.
 
@@ -1141,7 +1143,7 @@ config NODES_SHIFT
 	depends on NEED_MULTIPLE_NODES
 	---help---
 	  Specify the maximum number of NUMA Nodes available on the target
-	  system.  Increases memory reserved to accomodate various tables.
+	  system.  Increases memory reserved to accommodate various tables.
 
 config HAVE_ARCH_BOOTMEM
 	def_bool y
@@ -1319,7 +1321,7 @@ config MTRR_SANITIZER
 	  add writeback entries.
 
 	  Can be disabled with disable_mtrr_cleanup on the kernel command line.
-	  The largest mtrr entry size for a continous block can be set with
+	  The largest mtrr entry size for a continuous block can be set with
 	  mtrr_chunk_size.
 
 	  If unsure, say Y.
@@ -1834,8 +1836,8 @@ config PCI_MMCONFIG
 
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
-	depends on X86_64 && PCI_MSI && ACPI && EXPERIMENTAL
-	---help---
+	depends on PCI_MSI && ACPI && EXPERIMENTAL
+	help
 	  DMA remapping (DMAR) devices support enables independent address
 	  translations for Direct Memory Access (DMA) from devices.
 	  These DMA remapping devices are reported via ACPI tables
@@ -1876,7 +1878,6 @@ config DMAR_FLOPPY_WA
 config INTR_REMAP
 	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
 	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
-	select X86_X2APIC
 	---help---
 	  Supports Interrupt remapping for IO-APIC and MSI devices.
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or

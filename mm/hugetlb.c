@@ -918,7 +918,7 @@ static void return_unused_surplus_pages(struct hstate *h,
  * an instantiated the change should be committed via vma_commit_reservation.
  * No action is required on failure.
  */
-static int vma_needs_reservation(struct hstate *h,
+static long vma_needs_reservation(struct hstate *h,
 			struct vm_area_struct *vma, unsigned long addr)
 {
 	struct address_space *mapping = vma->vm_file->f_mapping;
@@ -933,7 +933,7 @@ static int vma_needs_reservation(struct hstate *h,
 		return 1;
 
 	} else  {
-		int err;
+		long err;
 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
 		struct resv_map *reservations = vma_resv_map(vma);
 
@@ -969,7 +969,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 	struct page *page;
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	struct inode *inode = mapping->host;
-	unsigned int chg;
+	long chg;
 
 	/*
 	 * Processes that did not create the mapping will have no reserves and

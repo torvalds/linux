@@ -18,7 +18,10 @@
 
 unsigned int __machine_arch_type;
 
-#include <linux/string.h>
+#include <linux/compiler.h>	/* for inline */
+#include <linux/types.h>	/* for size_t */
+#include <linux/stddef.h>	/* for NULL */
+#include <asm/string.h>
 
 #ifdef STANDALONE_DEBUG
 #define putstr printf

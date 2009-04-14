@@ -698,8 +698,8 @@ static void __devinit radeon_get_pllinfo(struct radeonfb_info *rinfo)
 found:
 	/*
 	 * Some methods fail to retrieve SCLK and MCLK values, we apply default
-	 * settings in this case (200Mhz). If that really happne often, we could
-	 * fetch from registers instead...
+	 * settings in this case (200Mhz). If that really happens often, we
+	 * could fetch from registers instead...
 	 */
 	if (rinfo->pll.mclk == 0)
 		rinfo->pll.mclk = 20000;

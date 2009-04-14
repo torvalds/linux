@@ -1252,7 +1252,7 @@ int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 	 * splitting in the middle of the colliding sequence. Also, when
 	 * removing the leftmost key, we would have to correct the key of the
 	 * parent node, which would introduce additional complications. Namely,
-	 * if we changed the the leftmost key of the parent znode, the garbage
+	 * if we changed the leftmost key of the parent znode, the garbage
 	 * collector would be unable to find it (GC is doing this when GC'ing
 	 * indexing LEBs). Although we already have an additional RB-tree where
 	 * we save such changed znodes (see 'ins_clr_old_idx_znode()') until

@@ -146,10 +146,10 @@ extern void *alloc_large_system_hash(const char *tablename,
 
 #define HASH_EARLY	0x00000001	/* Allocating during early boot? */
 
-/* Only NUMA needs hash distribution.
- * IA64 and x86_64 have sufficient vmalloc space.
+/* Only NUMA needs hash distribution. 64bit NUMA architectures have
+ * sufficient vmalloc space.
  */
-#if defined(CONFIG_NUMA) && (defined(CONFIG_IA64) || defined(CONFIG_X86_64))
+#if defined(CONFIG_NUMA) && defined(CONFIG_64BIT)
 #define HASHDIST_DEFAULT 1
 #else
 #define HASHDIST_DEFAULT 0

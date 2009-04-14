@@ -47,13 +47,18 @@ to work with it.
 
 2. Basic accounting routines
 
- a. void res_counter_init(struct res_counter *rc)
+ a. void res_counter_init(struct res_counter *rc,
+				struct res_counter *rc_parent)
 
  	Initializes the resource counter. As usual, should be the first
 	routine called for a new counter.
 
- b. int res_counter_charge[_locked]
-			(struct res_counter *rc, unsigned long val)
+	The struct res_counter *parent can be used to define a hierarchical
+	child -> parent relationship directly in the res_counter structure,
+	NULL can be used to define no relationship.
+
+ c. int res_counter_charge(struct res_counter *rc, unsigned long val,
+				struct res_counter **limit_fail_at)
 
 	When a resource is about to be allocated it has to be accounted
 	with the appropriate resource counter (controller should determine
@@ -67,15 +72,25 @@ to work with it.
 	  * if the charging is performed first, then it should be uncharged
 	    on error path (if the one is called).
 
- c. void res_counter_uncharge[_locked]
+	If the charging fails and a hierarchical dependency exists, the
+	limit_fail_at parameter is set to the particular res_counter element
+	where the charging failed.
+
+ d. int res_counter_charge_locked
+			(struct res_counter *rc, unsigned long val)
+
+	The same as res_counter_charge(), but it must not acquire/release the
+	res_counter->lock internally (it must be called with res_counter->lock
+	held).
+
+ e. void res_counter_uncharge[_locked]
 			(struct res_counter *rc, unsigned long val)
 
 	When a resource is released (freed) it should be de-accounted
 	from the resource counter it was accounted to.  This is called
 	"uncharging".
 
-    The _locked routines imply that the res_counter->lock is taken.
-
+	The _locked routines imply that the res_counter->lock is taken.
 
  2.1 Other accounting routines
 

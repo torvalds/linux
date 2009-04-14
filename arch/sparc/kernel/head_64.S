@@ -686,7 +686,7 @@ tlb_fixup_done:
 	 * point.
 	 *
 	 * There used to be enormous complexity wrt. transferring
-	 * over from the firwmare's trap table to the Linux kernel's.
+	 * over from the firmware's trap table to the Linux kernel's.
 	 * For example, there was a chicken & egg problem wrt. building
 	 * the OBP page tables, yet needing to be on the Linux kernel
 	 * trap table (to translate PAGE_OFFSET addresses) in order to

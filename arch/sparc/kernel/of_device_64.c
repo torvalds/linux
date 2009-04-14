@@ -99,8 +99,7 @@ static inline u64 of_read_addr(const u32 *cell, int size)
 	return r;
 }
 
-static void __init get_cells(struct device_node *dp,
-			     int *addrc, int *sizec)
+static void get_cells(struct device_node *dp, int *addrc, int *sizec)
 {
 	if (addrc)
 		*addrc = of_n_addr_cells(dp);

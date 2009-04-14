@@ -318,13 +318,16 @@ static int vfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	 *   {hardwarespecific} contains width of RAMDAC
 	 *   cmap[X] is programmed to (X << red.offset) | (X << green.offset) | (X << blue.offset)
 	 *   RAMDAC[X] is programmed to (red, green, blue)
-	 * 
+	 *
 	 * Pseudocolor:
-	 *    uses offset = 0 && length = RAMDAC register width.
-	 *    var->{color}.offset is 0
-	 *    var->{color}.length contains widht of DAC
+	 *    var->{color}.offset is 0 unless the palette index takes less than
+	 *                        bits_per_pixel bits and is stored in the upper
+	 *                        bits of the pixel value
+	 *    var->{color}.length is set so that 1 << length is the number of available
+	 *                        palette entries
 	 *    cmap is not used
 	 *    RAMDAC[X] is programmed to (red, green, blue)
+	 *
 	 * Truecolor:
 	 *    does not use DAC. Usually 3 are present.
 	 *    var->{color}.offset contains start of bitfield
@@ -543,6 +546,7 @@ static int vfb_remove(struct platform_device *dev)
 	if (info) {
 		unregister_framebuffer(info);
 		rvfree(videomemory, videomemorysize);
+		fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
 	}
 	return 0;

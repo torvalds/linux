@@ -52,7 +52,7 @@ config NF_CT_ACCT
 
 	  Please note that currently this option only sets a default state.
 	  You may change it at boot time with nf_conntrack.acct=0/1 kernel
-	  paramater or by loading the nf_conntrack module with acct=0/1.
+	  parameter or by loading the nf_conntrack module with acct=0/1.
 
 	  You may also disable/enable it on a running system with:
 	   sysctl net.netfilter.nf_conntrack_acct=0/1
@@ -374,7 +374,7 @@ config NETFILTER_XT_TARGET_HL
 
 config NETFILTER_XT_TARGET_LED
 	tristate '"LED" target support'
-	depends on LEDS_CLASS && LED_TRIGGERS
+	depends on LEDS_CLASS && LEDS_TRIGGERS
 	depends on NETFILTER_ADVANCED
 	help
 	  This option adds a `LED' target, which allows you to blink LEDs in

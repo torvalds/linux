@@ -260,7 +260,7 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 	 * during the identify phase that the IRQ handler isn't expecting.
 	 */
 	if (io_ports->ctl_addr)
-		tp_ops->set_irq(hwif, 0);
+		tp_ops->write_devctl(hwif, ATA_NIEN | ATA_DEVCTL_OBS);
 
 	/* take a deep breath */
 	msleep(50);
@@ -283,13 +283,11 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 	 * identify command to be sure of reply
 	 */
 	if (cmd == ATA_CMD_ID_ATAPI) {
-		struct ide_cmd cmd;
+		struct ide_taskfile tf;
 
-		memset(&cmd, 0, sizeof(cmd));
+		memset(&tf, 0, sizeof(tf));
 		/* disable DMA & overlap */
-		cmd.tf_flags = IDE_TFLAG_OUT_FEATURE;
-
-		tp_ops->tf_load(drive, &cmd);
+		tp_ops->tf_load(drive, &tf, IDE_VALID_FEATURE);
 	}
 
 	/* ask drive for ID */
@@ -337,14 +335,11 @@ int ide_busy_sleep(ide_hwif_t *hwif, unsigned long timeout, int altstatus)
 
 static u8 ide_read_device(ide_drive_t *drive)
 {
-	struct ide_cmd cmd;
+	struct ide_taskfile tf;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_DEVICE;
+	drive->hwif->tp_ops->tf_read(drive, &tf, IDE_VALID_DEVICE);
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
-
-	return cmd.tf.device;
+	return tf.device;
 }
 
 /**
@@ -390,13 +385,13 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	 * (e.g. crw9624 as drive0 with disk as slave)
 	 */
 	msleep(50);
-	SELECT_DRIVE(drive);
+	tp_ops->dev_select(drive);
 	msleep(50);
 
 	if (ide_read_device(drive) != drive->select && present == 0) {
 		if (drive->dn & 1) {
 			/* exit with drive0 selected */
-			SELECT_DRIVE(hwif->devices[0]);
+			tp_ops->dev_select(hwif->devices[0]);
 			/* allow ATA_BUSY to assert & clear */
 			msleep(50);
 		}
@@ -422,7 +417,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			printk(KERN_ERR "%s: no response (status = 0x%02x), "
 					"resetting drive\n", drive->name, stat);
 			msleep(50);
-			SELECT_DRIVE(drive);
+			tp_ops->dev_select(drive);
 			msleep(50);
 			tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
 			(void)ide_busy_sleep(hwif, WAIT_WORSTCASE, 0);
@@ -441,7 +436,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	}
 	if (drive->dn & 1) {
 		/* exit with drive0 selected */
-		SELECT_DRIVE(hwif->devices[0]);
+		tp_ops->dev_select(hwif->devices[0]);
 		msleep(50);
 		/* ensure drive irq is clear */
 		(void)tp_ops->read_status(hwif);
@@ -605,6 +600,7 @@ out:
 
 static int ide_port_wait_ready(ide_hwif_t *hwif)
 {
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	ide_drive_t *drive;
 	int i, rc;
 
@@ -627,8 +623,8 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 		/* Ignore disks that we will not probe for later. */
 		if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0 ||
 		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
-			SELECT_DRIVE(drive);
-			hwif->tp_ops->set_irq(hwif, 1);
+			tp_ops->dev_select(drive);
+			tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 			mdelay(2);
 			rc = ide_wait_not_busy(hwif, 35000);
 			if (rc)
@@ -640,7 +636,7 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 out:
 	/* Exit function with master reselected (let's be sane) */
 	if (i)
-		SELECT_DRIVE(hwif->devices[0]);
+		tp_ops->dev_select(hwif->devices[0]);
 
 	return rc;
 }
@@ -845,7 +841,7 @@ static int init_irq (ide_hwif_t *hwif)
 		irq_handler = ide_intr;
 
 	if (io_ports->ctl_addr)
-		hwif->tp_ops->set_irq(hwif, 1);
+		hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	if (request_irq(hwif->irq, irq_handler, sa, hwif->name, hwif))
 		goto out_up;
@@ -942,20 +938,16 @@ EXPORT_SYMBOL_GPL(ide_init_disk);
 static void drive_release_dev (struct device *dev)
 {
 	ide_drive_t *drive = container_of(dev, ide_drive_t, gendev);
-	ide_hwif_t *hwif = drive->hwif;
 
 	ide_proc_unregister_device(drive);
 
-	spin_lock_irq(&hwif->lock);
+	blk_cleanup_queue(drive->queue);
+	drive->queue = NULL;
+
 	kfree(drive->id);
 	drive->id = NULL;
+
 	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
-	/* Messed up locking ... */
-	spin_unlock_irq(&hwif->lock);
-	blk_cleanup_queue(drive->queue);
-	spin_lock_irq(&hwif->lock);
-	drive->queue = NULL;
-	spin_unlock_irq(&hwif->lock);
 
 	complete(&drive->gendev_rel_comp);
 }
@@ -1317,6 +1309,7 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 		host->get_lock     = d->get_lock;
 		host->release_lock = d->release_lock;
 		host->host_flags = d->host_flags;
+		host->irq_flags = d->irq_flags;
 	}
 
 	return host;

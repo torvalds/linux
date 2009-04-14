@@ -20,7 +20,7 @@
 #include <asm/intctl-regs.h>
 #include <asm/busctl-regs.h>
 #include <asm/timer-regs.h>
-#include <asm/unit/leds.h>
+#include <unit/leds.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/errno.h>

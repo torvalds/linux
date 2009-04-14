@@ -51,6 +51,7 @@
 #include <linux/poll.h>
 #include <linux/mm.h>
 #include <linux/eventpoll.h>
+#include <linux/fs_struct.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -1195,15 +1196,11 @@ out:
 	return ret;
 }
 
-asmlinkage ssize_t
-compat_sys_readv(unsigned long fd, const struct compat_iovec __user *vec, unsigned long vlen)
+static size_t compat_readv(struct file *file,
+			   const struct compat_iovec __user *vec,
+			   unsigned long vlen, loff_t *pos)
 {
-	struct file *file;
 	ssize_t ret = -EBADF;
-
-	file = fget(fd);
-	if (!file)
-		return -EBADF;
 
 	if (!(file->f_mode & FMODE_READ))
 		goto out;
@@ -1212,25 +1209,56 @@ compat_sys_readv(unsigned long fd, const struct compat_iovec __user *vec, unsign
 	if (!file->f_op || (!file->f_op->aio_read && !file->f_op->read))
 		goto out;
 
-	ret = compat_do_readv_writev(READ, file, vec, vlen, &file->f_pos);
+	ret = compat_do_readv_writev(READ, file, vec, vlen, pos);
 
 out:
 	if (ret > 0)
 		add_rchar(current, ret);
 	inc_syscr(current);
-	fput(file);
 	return ret;
 }
 
 asmlinkage ssize_t
-compat_sys_writev(unsigned long fd, const struct compat_iovec __user *vec, unsigned long vlen)
+compat_sys_readv(unsigned long fd, const struct compat_iovec __user *vec,
+		 unsigned long vlen)
 {
 	struct file *file;
-	ssize_t ret = -EBADF;
+	int fput_needed;
+	ssize_t ret;
 
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
 	if (!file)
 		return -EBADF;
+	ret = compat_readv(file, vec, vlen, &file->f_pos);
+	fput_light(file, fput_needed);
+	return ret;
+}
+
+asmlinkage ssize_t
+compat_sys_preadv(unsigned long fd, const struct compat_iovec __user *vec,
+		  unsigned long vlen, u32 pos_low, u32 pos_high)
+{
+	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
+	struct file *file;
+	int fput_needed;
+	ssize_t ret;
+
+	if (pos < 0)
+		return -EINVAL;
+	file = fget_light(fd, &fput_needed);
+	if (!file)
+		return -EBADF;
+	ret = compat_readv(file, vec, vlen, &pos);
+	fput_light(file, fput_needed);
+	return ret;
+}
+
+static size_t compat_writev(struct file *file,
+			    const struct compat_iovec __user *vec,
+			    unsigned long vlen, loff_t *pos)
+{
+	ssize_t ret = -EBADF;
+
 	if (!(file->f_mode & FMODE_WRITE))
 		goto out;
 
@@ -1238,13 +1266,47 @@ compat_sys_writev(unsigned long fd, const struct compat_iovec __user *vec, unsig
 	if (!file->f_op || (!file->f_op->aio_write && !file->f_op->write))
 		goto out;
 
-	ret = compat_do_readv_writev(WRITE, file, vec, vlen, &file->f_pos);
+	ret = compat_do_readv_writev(WRITE, file, vec, vlen, pos);
 
 out:
 	if (ret > 0)
 		add_wchar(current, ret);
 	inc_syscw(current);
-	fput(file);
+	return ret;
+}
+
+asmlinkage ssize_t
+compat_sys_writev(unsigned long fd, const struct compat_iovec __user *vec,
+		  unsigned long vlen)
+{
+	struct file *file;
+	int fput_needed;
+	ssize_t ret;
+
+	file = fget_light(fd, &fput_needed);
+	if (!file)
+		return -EBADF;
+	ret = compat_writev(file, vec, vlen, &file->f_pos);
+	fput_light(file, fput_needed);
+	return ret;
+}
+
+asmlinkage ssize_t
+compat_sys_pwritev(unsigned long fd, const struct compat_iovec __user *vec,
+		   unsigned long vlen, u32 pos_low, u32 pos_high)
+{
+	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
+	struct file *file;
+	int fput_needed;
+	ssize_t ret;
+
+	if (pos < 0)
+		return -EINVAL;
+	file = fget_light(fd, &fput_needed);
+	if (!file)
+		return -EBADF;
+	ret = compat_writev(file, vec, vlen, &pos);
+	fput_light(file, fput_needed);
 	return ret;
 }
 
@@ -1441,12 +1503,15 @@ int compat_do_execve(char * filename,
 	bprm->cred = prepare_exec_creds();
 	if (!bprm->cred)
 		goto out_unlock;
-	check_unsafe_exec(bprm);
+
+	retval = check_unsafe_exec(bprm);
+	if (retval)
+		goto out_unlock;
 
 	file = open_exec(filename);
 	retval = PTR_ERR(file);
 	if (IS_ERR(file))
-		goto out_unlock;
+		goto out_unmark;
 
 	sched_exec();
 
@@ -1488,6 +1553,9 @@ int compat_do_execve(char * filename,
 		goto out;
 
 	/* execve succeeded */
+	write_lock(&current->fs->lock);
+	current->fs->in_exec = 0;
+	write_unlock(&current->fs->lock);
 	current->in_execve = 0;
 	mutex_unlock(&current->cred_exec_mutex);
 	acct_update_integrals(current);
@@ -1505,6 +1573,11 @@ out_file:
 		allow_write_access(bprm->file);
 		fput(bprm->file);
 	}
+
+out_unmark:
+	write_lock(&current->fs->lock);
+	current->fs->in_exec = 0;
+	write_unlock(&current->fs->lock);
 
 out_unlock:
 	current->in_execve = 0;

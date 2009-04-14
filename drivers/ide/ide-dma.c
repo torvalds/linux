@@ -89,15 +89,16 @@ static const struct drive_list_entry drive_blacklist[] = {
 ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_cmd *cmd = &hwif->cmd;
 	u8 stat = 0, dma_stat = 0;
 
+	drive->waiting_for_dma = 0;
 	dma_stat = hwif->dma_ops->dma_end(drive);
+	ide_dma_unmap_sg(drive, cmd);
 	stat = hwif->tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat, DRIVE_READY, drive->bad_wstat | ATA_DRQ)) {
 		if (!dma_stat) {
-			struct ide_cmd *cmd = &hwif->cmd;
-
 			if ((cmd->tf_flags & IDE_TFLAG_FS) == 0)
 				ide_finish_cmd(drive, cmd, stat);
 			else
@@ -117,8 +118,8 @@ int ide_dma_good_drive(ide_drive_t *drive)
 }
 
 /**
- *	ide_build_sglist	-	map IDE scatter gather for DMA I/O
- *	@drive: the drive to build the DMA table for
+ *	ide_dma_map_sg	-	map IDE scatter gather for DMA I/O
+ *	@drive: the drive to map the DMA table for
  *	@cmd: command
  *
  *	Perform the DMA mapping magic necessary to access the source or
@@ -127,13 +128,11 @@ int ide_dma_good_drive(ide_drive_t *drive)
  *	operate in a portable fashion.
  */
 
-int ide_build_sglist(ide_drive_t *drive, struct ide_cmd *cmd)
+static int ide_dma_map_sg(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
 	int i;
-
-	ide_map_sg(drive, cmd);
 
 	if (cmd->tf_flags & IDE_TFLAG_WRITE)
 		cmd->sg_dma_direction = DMA_TO_DEVICE;
@@ -141,9 +140,7 @@ int ide_build_sglist(ide_drive_t *drive, struct ide_cmd *cmd)
 		cmd->sg_dma_direction = DMA_FROM_DEVICE;
 
 	i = dma_map_sg(hwif->dev, sg, cmd->sg_nents, cmd->sg_dma_direction);
-	if (i == 0)
-		ide_map_sg(drive, cmd);
-	else {
+	if (i) {
 		cmd->orig_sg_nents = cmd->sg_nents;
 		cmd->sg_nents = i;
 	}
@@ -152,7 +149,7 @@ int ide_build_sglist(ide_drive_t *drive, struct ide_cmd *cmd)
 }
 
 /**
- *	ide_destroy_dmatable	-	clean up DMA mapping
+ *	ide_dma_unmap_sg	-	clean up DMA mapping
  *	@drive: The drive to unmap
  *
  *	Teardown mappings after DMA has completed. This must be called
@@ -162,15 +159,14 @@ int ide_build_sglist(ide_drive_t *drive, struct ide_cmd *cmd)
  *	time.
  */
 
-void ide_destroy_dmatable(ide_drive_t *drive)
+void ide_dma_unmap_sg(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct ide_cmd *cmd = &hwif->cmd;
 
 	dma_unmap_sg(hwif->dev, hwif->sg_table, cmd->orig_sg_nents,
 		     cmd->sg_dma_direction);
 }
-EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
+EXPORT_SYMBOL_GPL(ide_dma_unmap_sg);
 
 /**
  *	ide_dma_off_quietly	-	Generic DMA kill
@@ -249,12 +245,11 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 	case XFER_UDMA_0:
 		if ((id[ATA_ID_FIELD_VALID] & 4) == 0)
 			break;
-
+		mask = id[ATA_ID_UDMA_MODES];
 		if (port_ops && port_ops->udma_filter)
-			mask = port_ops->udma_filter(drive);
+			mask &= port_ops->udma_filter(drive);
 		else
-			mask = hwif->ultra_mask;
-		mask &= id[ATA_ID_UDMA_MODES];
+			mask &= hwif->ultra_mask;
 
 		/*
 		 * avoid false cable warning from eighty_ninty_three()
@@ -265,18 +260,23 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 		}
 		break;
 	case XFER_MW_DMA_0:
-		if ((id[ATA_ID_FIELD_VALID] & 2) == 0)
-			break;
+		mask = id[ATA_ID_MWDMA_MODES];
+
+		/* Also look for the CF specific MWDMA modes... */
+		if (ata_id_is_cfa(id) && (id[ATA_ID_CFA_MODES] & 0x38)) {
+			u8 mode = ((id[ATA_ID_CFA_MODES] & 0x38) >> 3) - 1;
+
+			mask |= ((2 << mode) - 1) << 3;
+		}
+
 		if (port_ops && port_ops->mdma_filter)
-			mask = port_ops->mdma_filter(drive);
+			mask &= port_ops->mdma_filter(drive);
 		else
-			mask = hwif->mwdma_mask;
-		mask &= id[ATA_ID_MWDMA_MODES];
+			mask &= hwif->mwdma_mask;
 		break;
 	case XFER_SW_DMA_0:
-		if (id[ATA_ID_FIELD_VALID] & 2) {
-			mask = id[ATA_ID_SWDMA_MODES] & hwif->swdma_mask;
-		} else if (id[ATA_ID_OLD_DMA_MODES] >> 8) {
+		mask = id[ATA_ID_SWDMA_MODES];
+		if (!(mask & ATA_SWDMA2) && (id[ATA_ID_OLD_DMA_MODES] >> 8)) {
 			u8 mode = id[ATA_ID_OLD_DMA_MODES] >> 8;
 
 			/*
@@ -284,8 +284,9 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 			 * (the maximum allowed mode is XFER_SW_DMA_2)
 			 */
 			if (mode <= 2)
-				mask = ((2 << mode) - 1) & hwif->swdma_mask;
+				mask = (2 << mode) - 1;
 		}
+		mask &= hwif->swdma_mask;
 		break;
 	default:
 		BUG();
@@ -402,11 +403,10 @@ int ide_id_dma_bug(ide_drive_t *drive)
 		if ((id[ATA_ID_UDMA_MODES] >> 8) &&
 		    (id[ATA_ID_MWDMA_MODES] >> 8))
 			goto err_out;
-	} else if (id[ATA_ID_FIELD_VALID] & 2) {
-		if ((id[ATA_ID_MWDMA_MODES] >> 8) &&
-		    (id[ATA_ID_SWDMA_MODES] >> 8))
-			goto err_out;
-	}
+	} else if ((id[ATA_ID_MWDMA_MODES] >> 8) &&
+		   (id[ATA_ID_SWDMA_MODES] >> 8))
+		goto err_out;
+
 	return 0;
 err_out:
 	printk(KERN_ERR "%s: bad DMA info in identify block\n", drive->name);
@@ -460,21 +460,6 @@ void ide_dma_lost_irq(ide_drive_t *drive)
 }
 EXPORT_SYMBOL_GPL(ide_dma_lost_irq);
 
-void ide_dma_timeout(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	printk(KERN_ERR "%s: timeout waiting for DMA\n", drive->name);
-
-	if (hwif->dma_ops->dma_test_irq(drive))
-		return;
-
-	ide_dump_status(drive, "DMA timeout", hwif->tp_ops->read_status(hwif));
-
-	hwif->dma_ops->dma_end(drive);
-}
-EXPORT_SYMBOL_GPL(ide_dma_timeout);
-
 /*
  * un-busy the port etc, and clear any pending DMA status. we want to
  * retry the current request in pio mode instead of risking tossing it
@@ -483,6 +468,8 @@ EXPORT_SYMBOL_GPL(ide_dma_timeout);
 ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
+	struct ide_cmd *cmd = &hwif->cmd;
 	struct request *rq;
 	ide_startstop_t ret = ide_stopped;
 
@@ -492,12 +479,23 @@ ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 
 	if (error < 0) {
 		printk(KERN_WARNING "%s: DMA timeout error\n", drive->name);
-		(void)hwif->dma_ops->dma_end(drive);
+		drive->waiting_for_dma = 0;
+		(void)dma_ops->dma_end(drive);
+		ide_dma_unmap_sg(drive, cmd);
 		ret = ide_error(drive, "dma timeout error",
 				hwif->tp_ops->read_status(hwif));
 	} else {
 		printk(KERN_WARNING "%s: DMA timeout retry\n", drive->name);
-		hwif->dma_ops->dma_timeout(drive);
+		if (dma_ops->dma_clear)
+			dma_ops->dma_clear(drive);
+		printk(KERN_ERR "%s: timeout waiting for DMA\n", drive->name);
+		if (dma_ops->dma_test_irq(drive) == 0) {
+			ide_dump_status(drive, "DMA timeout",
+					hwif->tp_ops->read_status(hwif));
+			drive->waiting_for_dma = 0;
+			(void)dma_ops->dma_end(drive);
+			ide_dma_unmap_sg(drive, cmd);
+		}
 	}
 
 	/*
@@ -567,3 +565,25 @@ int ide_allocate_dma_engine(ide_hwif_t *hwif)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_allocate_dma_engine);
+
+int ide_dma_prepare(ide_drive_t *drive, struct ide_cmd *cmd)
+{
+	const struct ide_dma_ops *dma_ops = drive->hwif->dma_ops;
+
+	if ((drive->dev_flags & IDE_DFLAG_USING_DMA) == 0 ||
+	    (dma_ops->dma_check && dma_ops->dma_check(drive, cmd)))
+		goto out;
+	ide_map_sg(drive, cmd);
+	if (ide_dma_map_sg(drive, cmd) == 0)
+		goto out_map;
+	if (dma_ops->dma_setup(drive, cmd))
+		goto out_dma_unmap;
+	drive->waiting_for_dma = 1;
+	return 0;
+out_dma_unmap:
+	ide_dma_unmap_sg(drive, cmd);
+out_map:
+	ide_map_sg(drive, cmd);
+out:
+	return 1;
+}

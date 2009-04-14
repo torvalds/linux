@@ -462,9 +462,6 @@ static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 	*base = base_hi << (32 - PAGE_SHIFT) | base_lo >> PAGE_SHIFT;
 	*type = base_lo & 0xff;
 
-	printk(KERN_DEBUG "  get_mtrr: cpu%d reg%02d base=%010lx size=%010lx %s\n",
-			cpu, reg, *base, *size,
-			mtrr_attrib_to_str(*type & 0xff));
 out_put_cpu:
 	put_cpu();
 }

@@ -22,6 +22,7 @@
 #include <linux/pm.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/interrupt.h>
 
 #include "base.h"
 
@@ -299,7 +300,7 @@ void sysdev_unregister(struct sys_device *sysdev)
  *	and the class driver.
  *
  *	Note: The list is iterated in reverse order, so that we shut down
- *	child devices before we shut down thier parents. The list ordering
+ *	child devices before we shut down their parents. The list ordering
  *	is guaranteed by virtue of the fact that child devices are registered
  *	after their parents.
  */
@@ -368,6 +369,13 @@ int sysdev_suspend(pm_message_t state)
 	struct sys_device *sysdev, *err_dev;
 	struct sysdev_driver *drv, *err_drv;
 	int ret;
+
+	pr_debug("Checking wake-up interrupts\n");
+
+	/* Return error code if there are any wake-up interrupts pending */
+	ret = check_wakeup_irqs();
+	if (ret)
+		return ret;
 
 	pr_debug("Suspending System Devices\n");
 

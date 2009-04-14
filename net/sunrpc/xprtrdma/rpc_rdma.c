@@ -310,6 +310,19 @@ rpcrdma_inline_pullup(struct rpc_rqst *rqst, int pad)
 		__func__, pad, destp, rqst->rq_slen, curlen);
 
 	copy_len = rqst->rq_snd_buf.page_len;
+
+	if (rqst->rq_snd_buf.tail[0].iov_len) {
+		curlen = rqst->rq_snd_buf.tail[0].iov_len;
+		if (destp + copy_len != rqst->rq_snd_buf.tail[0].iov_base) {
+			memmove(destp + copy_len,
+				rqst->rq_snd_buf.tail[0].iov_base, curlen);
+			r_xprt->rx_stats.pullup_copy_count += curlen;
+		}
+		dprintk("RPC:       %s: tail destp 0x%p len %d\n",
+			__func__, destp + copy_len, curlen);
+		rqst->rq_svec[0].iov_len += curlen;
+	}
+
 	r_xprt->rx_stats.pullup_copy_count += copy_len;
 	npages = PAGE_ALIGN(rqst->rq_snd_buf.page_base+copy_len) >> PAGE_SHIFT;
 	for (i = 0; copy_len && i < npages; i++) {
@@ -331,17 +344,6 @@ rpcrdma_inline_pullup(struct rpc_rqst *rqst, int pad)
 		rqst->rq_svec[0].iov_len += curlen;
 		destp += curlen;
 		copy_len -= curlen;
-	}
-	if (rqst->rq_snd_buf.tail[0].iov_len) {
-		curlen = rqst->rq_snd_buf.tail[0].iov_len;
-		if (destp != rqst->rq_snd_buf.tail[0].iov_base) {
-			memcpy(destp,
-				rqst->rq_snd_buf.tail[0].iov_base, curlen);
-			r_xprt->rx_stats.pullup_copy_count += curlen;
-		}
-		dprintk("RPC:       %s: tail destp 0x%p len %d curlen %d\n",
-			__func__, destp, copy_len, curlen);
-		rqst->rq_svec[0].iov_len += curlen;
 	}
 	/* header now contains entire send message */
 	return pad;
@@ -656,7 +658,7 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 		if (curlen > rqst->rq_rcv_buf.tail[0].iov_len)
 			curlen = rqst->rq_rcv_buf.tail[0].iov_len;
 		if (rqst->rq_rcv_buf.tail[0].iov_base != srcp)
-			memcpy(rqst->rq_rcv_buf.tail[0].iov_base, srcp, curlen);
+			memmove(rqst->rq_rcv_buf.tail[0].iov_base, srcp, curlen);
 		dprintk("RPC:       %s: tail srcp 0x%p len %d curlen %d\n",
 			__func__, srcp, copy_len, curlen);
 		rqst->rq_rcv_buf.tail[0].iov_len = curlen;

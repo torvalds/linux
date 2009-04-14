@@ -80,7 +80,8 @@ static inline int reiserfs_acl_chmod(struct inode *inode)
 }
 
 static inline int
-reiserfs_inherit_default_acl(const struct inode *dir, struct dentry *dentry,
+reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
+			     const struct inode *dir, struct dentry *dentry,
 			     struct inode *inode)
 {
 	return 0;

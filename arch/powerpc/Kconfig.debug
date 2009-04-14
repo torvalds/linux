@@ -27,15 +27,6 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
-config DEBUG_PAGEALLOC
-        bool "Debug page memory allocations"
-        depends on DEBUG_KERNEL && !HIBERNATION
-        help
-          Unmap pages from the kernel linear mapping after free_pages().
-          This results in a large slowdown, but helps to find certain types
-          of memory corruptions.
-
-
 config HCALL_STATS
 	bool "Hypervisor call instrumentation"
 	depends on PPC_PSERIES && DEBUG_FS

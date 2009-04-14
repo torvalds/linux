@@ -163,7 +163,8 @@ ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *rq)
 	return ide_stopped;
 
 out_do_tf:
-	cmd->tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd->valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
+	cmd->valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 	cmd->protocol = ATA_PROT_NODATA;
 
 	return do_rw_taskfile(drive, cmd);
@@ -223,6 +224,7 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		 * point.
 		 */
 		ide_hwif_t *hwif = drive->hwif;
+		const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 		struct request_queue *q = drive->queue;
 		unsigned long flags;
 		int rc;
@@ -232,8 +234,8 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		rc = ide_wait_not_busy(hwif, 35000);
 		if (rc)
 			printk(KERN_WARNING "%s: bus not ready on wakeup\n", drive->name);
-		SELECT_DRIVE(drive);
-		hwif->tp_ops->set_irq(hwif, 1);
+		tp_ops->dev_select(drive);
+		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 		rc = ide_wait_not_busy(hwif, 100000);
 		if (rc)
 			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);

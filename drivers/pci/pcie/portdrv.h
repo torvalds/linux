@@ -25,19 +25,21 @@
 #define PCIE_CAPABILITIES_REG		0x2
 #define PCIE_SLOT_CAPABILITIES_REG	0x14
 #define PCIE_PORT_DEVICE_MAXSERVICES	4
+#define PCIE_PORT_MSI_VECTOR_MASK	0x1f
+/*
+ * According to the PCI Express Base Specification 2.0, the indices of the MSI-X
+ * table entires used by port services must not exceed 31
+ */
+#define PCIE_PORT_MAX_MSIX_ENTRIES	32
 
 #define get_descriptor_id(type, service) (((type - 4) << 4) | service)
-
-struct pcie_port_device_ext {
-	int interrupt_mode;	/* [0:INTx | 1:MSI | 2:MSI-X] */
-};
 
 extern struct bus_type pcie_port_bus_type;
 extern int pcie_port_device_probe(struct pci_dev *dev);
 extern int pcie_port_device_register(struct pci_dev *dev);
 #ifdef CONFIG_PM
-extern int pcie_port_device_suspend(struct pci_dev *dev, pm_message_t state);
-extern int pcie_port_device_resume(struct pci_dev *dev);
+extern int pcie_port_device_suspend(struct device *dev);
+extern int pcie_port_device_resume(struct device *dev);
 #endif
 extern void pcie_port_device_remove(struct pci_dev *dev);
 extern int __must_check pcie_port_bus_register(void);

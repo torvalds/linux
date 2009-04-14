@@ -23,19 +23,6 @@
 
 #include "cxgb3i_ddp.h"
 
-#define DRV_MODULE_NAME         "cxgb3i_ddp"
-#define DRV_MODULE_VERSION      "1.0.0"
-#define DRV_MODULE_RELDATE      "Dec. 1, 2008"
-
-static char version[] =
-	"Chelsio S3xx iSCSI DDP " DRV_MODULE_NAME
-	" v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
-
-MODULE_AUTHOR("Karen Xie <kxie@chelsio.com>");
-MODULE_DESCRIPTION("cxgb3i ddp pagepod manager");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_MODULE_VERSION);
-
 #define ddp_log_error(fmt...) printk(KERN_ERR "cxgb3i_ddp: ERR! " fmt)
 #define ddp_log_warn(fmt...)  printk(KERN_WARNING "cxgb3i_ddp: WARN! " fmt)
 #define ddp_log_info(fmt...)  printk(KERN_INFO "cxgb3i_ddp: " fmt)
@@ -65,9 +52,6 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 static unsigned char ddp_page_order[DDP_PGIDX_MAX] = {0, 1, 2, 4};
 static unsigned char ddp_page_shift[DDP_PGIDX_MAX] = {12, 13, 14, 16};
 static unsigned char page_idx = DDP_PGIDX_MAX;
-
-static LIST_HEAD(cxgb3i_ddp_list);
-static DEFINE_RWLOCK(cxgb3i_ddp_rwlock);
 
 /*
  * functions to program the pagepod in h/w
@@ -113,8 +97,8 @@ static int set_ddp_map(struct cxgb3i_ddp_info *ddp, struct pagepod_hdr *hdr,
 	return 0;
 }
 
-static int clear_ddp_map(struct cxgb3i_ddp_info *ddp, unsigned int idx,
-			 unsigned int npods)
+static void clear_ddp_map(struct cxgb3i_ddp_info *ddp, unsigned int tag,
+			 unsigned int idx, unsigned int npods)
 {
 	unsigned int pm_addr = (idx << PPOD_SIZE_SHIFT) + ddp->llimit;
 	int i;
@@ -122,13 +106,17 @@ static int clear_ddp_map(struct cxgb3i_ddp_info *ddp, unsigned int idx,
 	for (i = 0; i < npods; i++, idx++, pm_addr += PPOD_SIZE) {
 		struct sk_buff *skb = ddp->gl_skb[idx];
 
+		if (!skb) {
+			ddp_log_error("ddp tag 0x%x, 0x%x, %d/%u, skb NULL.\n",
+					tag, idx, i, npods);
+			continue;
+		}
 		ddp->gl_skb[idx] = NULL;
 		memset((skb->head + sizeof(struct ulp_mem_io)), 0, PPOD_SIZE);
 		ulp_mem_io_set_hdr(skb, pm_addr);
 		skb->priority = CPL_PRIORITY_CONTROL;
 		cxgb3_ofld_send(ddp->tdev, skb);
 	}
-	return 0;
 }
 
 static inline int ddp_find_unused_entries(struct cxgb3i_ddp_info *ddp,
@@ -211,7 +199,6 @@ int cxgb3i_ddp_find_page_index(unsigned long pgsz)
 	ddp_log_debug("ddp page size 0x%lx not supported.\n", pgsz);
 	return DDP_PGIDX_MAX;
 }
-EXPORT_SYMBOL_GPL(cxgb3i_ddp_find_page_index);
 
 static inline void ddp_gl_unmap(struct pci_dev *pdev,
 				struct cxgb3i_gather_list *gl)
@@ -334,7 +321,6 @@ error_out:
 	kfree(gl);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(cxgb3i_ddp_make_gl);
 
 /**
  * cxgb3i_ddp_release_gl - release a page buffer list
@@ -348,7 +334,6 @@ void cxgb3i_ddp_release_gl(struct cxgb3i_gather_list *gl,
 	ddp_gl_unmap(pdev, gl);
 	kfree(gl);
 }
-EXPORT_SYMBOL_GPL(cxgb3i_ddp_release_gl);
 
 /**
  * cxgb3i_ddp_tag_reserve - set up ddp for a data transfer
@@ -430,7 +415,6 @@ unmark_entries:
 	ddp_unmark_entries(ddp, idx, npods);
 	return err;
 }
-EXPORT_SYMBOL_GPL(cxgb3i_ddp_tag_reserve);
 
 /**
  * cxgb3i_ddp_tag_release - release a ddp tag
@@ -453,22 +437,21 @@ void cxgb3i_ddp_tag_release(struct t3cdev *tdev, u32 tag)
 		struct cxgb3i_gather_list *gl = ddp->gl_map[idx];
 		unsigned int npods;
 
-		if (!gl) {
-			ddp_log_error("release ddp 0x%x, idx 0x%x, gl NULL.\n",
-				      tag, idx);
+		if (!gl || !gl->nelem) {
+			ddp_log_error("release 0x%x, idx 0x%x, gl 0x%p, %u.\n",
+				      tag, idx, gl, gl ? gl->nelem : 0);
 			return;
 		}
 		npods = (gl->nelem + PPOD_PAGES_MAX - 1) >> PPOD_PAGES_SHIFT;
 		ddp_log_debug("ddp tag 0x%x, release idx 0x%x, npods %u.\n",
 			      tag, idx, npods);
-		clear_ddp_map(ddp, idx, npods);
+		clear_ddp_map(ddp, tag, idx, npods);
 		ddp_unmark_entries(ddp, idx, npods);
 		cxgb3i_ddp_release_gl(gl, ddp->pdev);
 	} else
 		ddp_log_error("ddp tag 0x%x, idx 0x%x > max 0x%x.\n",
 			      tag, idx, ddp->nppods);
 }
-EXPORT_SYMBOL_GPL(cxgb3i_ddp_tag_release);
 
 static int setup_conn_pgidx(struct t3cdev *tdev, unsigned int tid, int pg_idx,
 			    int reply)
@@ -509,7 +492,6 @@ int cxgb3i_setup_conn_host_pagesize(struct t3cdev *tdev, unsigned int tid,
 {
 	return setup_conn_pgidx(tdev, tid, page_idx, reply);
 }
-EXPORT_SYMBOL_GPL(cxgb3i_setup_conn_host_pagesize);
 
 /**
  * cxgb3i_setup_conn_pagesize - setup the conn.'s ddp page size
@@ -526,7 +508,6 @@ int cxgb3i_setup_conn_pagesize(struct t3cdev *tdev, unsigned int tid,
 
 	return setup_conn_pgidx(tdev, tid, pgidx, reply);
 }
-EXPORT_SYMBOL_GPL(cxgb3i_setup_conn_pagesize);
 
 /**
  * cxgb3i_setup_conn_digest - setup conn. digest setting
@@ -562,26 +543,104 @@ int cxgb3i_setup_conn_digest(struct t3cdev *tdev, unsigned int tid,
 	cxgb3_ofld_send(tdev, skb);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cxgb3i_setup_conn_digest);
 
-static int ddp_init(struct t3cdev *tdev)
+
+/**
+ * cxgb3i_adapter_ddp_info - read the adapter's ddp information
+ * @tdev: t3cdev adapter
+ * @tformat: tag format
+ * @txsz: max tx pdu payload size, filled in by this func.
+ * @rxsz: max rx pdu payload size, filled in by this func.
+ * setup the tag format for a given iscsi entity
+ */
+int cxgb3i_adapter_ddp_info(struct t3cdev *tdev,
+			    struct cxgb3i_tag_format *tformat,
+			    unsigned int *txsz, unsigned int *rxsz)
+{
+	struct cxgb3i_ddp_info *ddp;
+	unsigned char idx_bits;
+
+	if (!tformat)
+		return -EINVAL;
+
+	if (!tdev->ulp_iscsi)
+		return -EINVAL;
+
+	ddp = (struct cxgb3i_ddp_info *)tdev->ulp_iscsi;
+
+	idx_bits = 32 - tformat->sw_bits;
+	tformat->rsvd_bits = ddp->idx_bits;
+	tformat->rsvd_shift = PPOD_IDX_SHIFT;
+	tformat->rsvd_mask = (1 << tformat->rsvd_bits) - 1;
+
+	ddp_log_info("tag format: sw %u, rsvd %u,%u, mask 0x%x.\n",
+		      tformat->sw_bits, tformat->rsvd_bits,
+		      tformat->rsvd_shift, tformat->rsvd_mask);
+
+	*txsz = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
+			ddp->max_txsz - ISCSI_PDU_NONPAYLOAD_LEN);
+	*rxsz = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
+			ddp->max_rxsz - ISCSI_PDU_NONPAYLOAD_LEN);
+	ddp_log_info("max payload size: %u/%u, %u/%u.\n",
+		     *txsz, ddp->max_txsz, *rxsz, ddp->max_rxsz);
+	return 0;
+}
+
+/**
+ * cxgb3i_ddp_cleanup - release the cxgb3 adapter's ddp resource
+ * @tdev: t3cdev adapter
+ * release all the resource held by the ddp pagepod manager for a given
+ * adapter if needed
+ */
+void cxgb3i_ddp_cleanup(struct t3cdev *tdev)
+{
+	int i = 0;
+	struct cxgb3i_ddp_info *ddp = (struct cxgb3i_ddp_info *)tdev->ulp_iscsi;
+
+	ddp_log_info("t3dev 0x%p, release ddp 0x%p.\n", tdev, ddp);
+
+	if (ddp) {
+		tdev->ulp_iscsi = NULL;
+		while (i < ddp->nppods) {
+			struct cxgb3i_gather_list *gl = ddp->gl_map[i];
+			if (gl) {
+				int npods = (gl->nelem + PPOD_PAGES_MAX - 1)
+						>> PPOD_PAGES_SHIFT;
+				ddp_log_info("t3dev 0x%p, ddp %d + %d.\n",
+						tdev, i, npods);
+				kfree(gl);
+				ddp_free_gl_skb(ddp, i, npods);
+				i += npods;
+			} else
+				i++;
+		}
+		cxgb3i_free_big_mem(ddp);
+	}
+}
+
+/**
+ * ddp_init - initialize the cxgb3 adapter's ddp resource
+ * @tdev: t3cdev adapter
+ * initialize the ddp pagepod manager for a given adapter
+ */
+static void ddp_init(struct t3cdev *tdev)
 {
 	struct cxgb3i_ddp_info *ddp;
 	struct ulp_iscsi_info uinfo;
 	unsigned int ppmax, bits;
 	int i, err;
-	static int vers_printed;
 
-	if (!vers_printed) {
-		printk(KERN_INFO "%s", version);
-		vers_printed = 1;
+	if (tdev->ulp_iscsi) {
+		ddp_log_warn("t3dev 0x%p, ddp 0x%p already set up.\n",
+				tdev, tdev->ulp_iscsi);
+		return;
 	}
 
 	err = tdev->ctl(tdev, ULP_ISCSI_GET_PARAMS, &uinfo);
 	if (err < 0) {
 		ddp_log_error("%s, failed to get iscsi param err=%d.\n",
 				 tdev->name, err);
-		return err;
+		return;
 	}
 
 	ppmax = (uinfo.ulimit - uinfo.llimit + 1) >> PPOD_SIZE_SHIFT;
@@ -598,7 +657,7 @@ static int ddp_init(struct t3cdev *tdev)
 	if (!ddp) {
 		ddp_log_warn("%s unable to alloc ddp 0x%d, ddp disabled.\n",
 			     tdev->name, ppmax);
-		return 0;
+		return;
 	}
 	ddp->gl_map = (struct cxgb3i_gather_list **)(ddp + 1);
 	ddp->gl_skb = (struct sk_buff **)(((char *)ddp->gl_map) +
@@ -632,142 +691,26 @@ static int ddp_init(struct t3cdev *tdev)
 
 	tdev->ulp_iscsi = ddp;
 
-	/* add to the list */
-	write_lock(&cxgb3i_ddp_rwlock);
-	list_add_tail(&ddp->list, &cxgb3i_ddp_list);
-	write_unlock(&cxgb3i_ddp_rwlock);
-
-	ddp_log_info("nppods %u (0x%x ~ 0x%x), bits %u, mask 0x%x,0x%x "
-			"pkt %u/%u, %u/%u.\n",
-			ppmax, ddp->llimit, ddp->ulimit, ddp->idx_bits,
-			ddp->idx_mask, ddp->rsvd_tag_mask,
-			ddp->max_txsz, uinfo.max_txsz,
+	ddp_log_info("tdev 0x%p, nppods %u, bits %u, mask 0x%x,0x%x pkt %u/%u,"
+			" %u/%u.\n",
+			tdev, ppmax, ddp->idx_bits, ddp->idx_mask,
+			ddp->rsvd_tag_mask, ddp->max_txsz, uinfo.max_txsz,
 			ddp->max_rxsz, uinfo.max_rxsz);
-	return 0;
+	return;
 
 free_ddp_map:
 	cxgb3i_free_big_mem(ddp);
-	return err;
 }
 
 /**
- * cxgb3i_adapter_ddp_init - initialize the adapter's ddp resource
- * @tdev: t3cdev adapter
- * @tformat: tag format
- * @txsz: max tx pdu payload size, filled in by this func.
- * @rxsz: max rx pdu payload size, filled in by this func.
- * initialize the ddp pagepod manager for a given adapter if needed and
- * setup the tag format for a given iscsi entity
+ * cxgb3i_ddp_init - initialize ddp functions
  */
-int cxgb3i_adapter_ddp_init(struct t3cdev *tdev,
-			    struct cxgb3i_tag_format *tformat,
-			    unsigned int *txsz, unsigned int *rxsz)
+void cxgb3i_ddp_init(struct t3cdev *tdev)
 {
-	struct cxgb3i_ddp_info *ddp;
-	unsigned char idx_bits;
-
-	if (!tformat)
-		return -EINVAL;
-
-	if (!tdev->ulp_iscsi) {
-		int err = ddp_init(tdev);
-		if (err < 0)
-			return err;
+	if (page_idx == DDP_PGIDX_MAX) {
+		page_idx = cxgb3i_ddp_find_page_index(PAGE_SIZE);
+		ddp_log_info("system PAGE_SIZE %lu, ddp idx %u.\n",
+				PAGE_SIZE, page_idx);
 	}
-	ddp = (struct cxgb3i_ddp_info *)tdev->ulp_iscsi;
-
-	idx_bits = 32 - tformat->sw_bits;
-	tformat->rsvd_bits = ddp->idx_bits;
-	tformat->rsvd_shift = PPOD_IDX_SHIFT;
-	tformat->rsvd_mask = (1 << tformat->rsvd_bits) - 1;
-
-	ddp_log_info("tag format: sw %u, rsvd %u,%u, mask 0x%x.\n",
-		      tformat->sw_bits, tformat->rsvd_bits,
-		      tformat->rsvd_shift, tformat->rsvd_mask);
-
-	*txsz = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-			ddp->max_txsz - ISCSI_PDU_NONPAYLOAD_LEN);
-	*rxsz = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-			ddp->max_rxsz - ISCSI_PDU_NONPAYLOAD_LEN);
-	ddp_log_info("max payload size: %u/%u, %u/%u.\n",
-		     *txsz, ddp->max_txsz, *rxsz, ddp->max_rxsz);
-	return 0;
+	ddp_init(tdev);
 }
-EXPORT_SYMBOL_GPL(cxgb3i_adapter_ddp_init);
-
-static void ddp_release(struct cxgb3i_ddp_info *ddp)
-{
-	int i = 0;
-	struct t3cdev *tdev = ddp->tdev;
-
-	tdev->ulp_iscsi = NULL;
-	while (i < ddp->nppods) {
-		struct cxgb3i_gather_list *gl = ddp->gl_map[i];
-		if (gl) {
-			int npods = (gl->nelem + PPOD_PAGES_MAX - 1)
-				     >> PPOD_PAGES_SHIFT;
-
-			kfree(gl);
-			ddp_free_gl_skb(ddp, i, npods);
-		} else
-			i++;
-	}
-	cxgb3i_free_big_mem(ddp);
-}
-
-/**
- * cxgb3i_adapter_ddp_cleanup - release the adapter's ddp resource
- * @tdev: t3cdev adapter
- * release all the resource held by the ddp pagepod manager for a given
- * adapter if needed
- */
-void cxgb3i_adapter_ddp_cleanup(struct t3cdev *tdev)
-{
-	struct cxgb3i_ddp_info *ddp;
-
-	/* remove from the list */
-	write_lock(&cxgb3i_ddp_rwlock);
-	list_for_each_entry(ddp, &cxgb3i_ddp_list, list) {
-		if (ddp->tdev == tdev) {
-			list_del(&ddp->list);
-			break;
-		}
-	}
-	write_unlock(&cxgb3i_ddp_rwlock);
-
-	if (ddp)
-		ddp_release(ddp);
-}
-EXPORT_SYMBOL_GPL(cxgb3i_adapter_ddp_cleanup);
-
-/**
- * cxgb3i_ddp_init_module - module init entry point
- * initialize any driver wide global data structures
- */
-static int __init cxgb3i_ddp_init_module(void)
-{
-	page_idx = cxgb3i_ddp_find_page_index(PAGE_SIZE);
-	ddp_log_info("system PAGE_SIZE %lu, ddp idx %u.\n",
-		     PAGE_SIZE, page_idx);
-	return 0;
-}
-
-/**
- * cxgb3i_ddp_exit_module - module cleanup/exit entry point
- * go through the ddp list and release any resource held.
- */
-static void __exit cxgb3i_ddp_exit_module(void)
-{
-	struct cxgb3i_ddp_info *ddp;
-
-	/* release all ddp manager if there is any */
-	write_lock(&cxgb3i_ddp_rwlock);
-	list_for_each_entry(ddp, &cxgb3i_ddp_list, list) {
-		list_del(&ddp->list);
-		ddp_release(ddp);
-	}
-	write_unlock(&cxgb3i_ddp_rwlock);
-}
-
-module_init(cxgb3i_ddp_init_module);
-module_exit(cxgb3i_ddp_exit_module);

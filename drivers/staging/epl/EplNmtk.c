@@ -88,8 +88,8 @@
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
@@ -107,12 +107,12 @@ void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
 // struct for instance table
 INSTANCE_TYPE_BEGIN EPL_MCO_DECL_INSTANCE_MEMBER()
 
-STATIC volatile tEplNmtState INST_FAR m_NmtState;
-STATIC volatile BOOL INST_FAR m_fEnableReadyToOperate;
-STATIC volatile BOOL INST_FAR m_fAppReadyToOperate;
-STATIC volatile BOOL INST_FAR m_fTimerMsPreOp2;
-STATIC volatile BOOL INST_FAR m_fAllMandatoryCNIdent;
-STATIC volatile BOOL INST_FAR m_fFrozen;
+STATIC volatile tEplNmtState m_NmtState;
+STATIC volatile BOOL m_fEnableReadyToOperate;
+STATIC volatile BOOL m_fAppReadyToOperate;
+STATIC volatile BOOL m_fTimerMsPreOp2;
+STATIC volatile BOOL m_fAllMandatoryCNIdent;
+STATIC volatile BOOL m_fFrozen;
 
 INSTANCE_TYPE_END
 //---------------------------------------------------------------------------
@@ -121,7 +121,7 @@ INSTANCE_TYPE_END
 // This macro replace the unspecific pointer to an instance through
 // the modul specific type for the local instance table. This macro
 // must defined in each modul.
-//#define tEplPtrInstance             tEplInstanceInfo MEM*
+//#define tEplPtrInstance             tEplInstanceInfo*
 EPL_MCO_DECL_INSTANCE_VAR()
 //---------------------------------------------------------------------------
 // local function prototypes
@@ -163,7 +163,7 @@ EPL_MCO_DEFINE_INSTANCE_FCT()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtkInit(EPL_MCO_DECL_PTR_INSTANCE_PTR)
+tEplKernel EplNmtkInit(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 {
 	tEplKernel Ret;
 
@@ -189,7 +189,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtkInit(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtkAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
+tEplKernel EplNmtkAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 {
 	EPL_MCO_DECL_INSTANCE_PTR_LOCAL tEplKernel Ret;
 //tEplEvent               Event;
@@ -258,7 +258,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtkAddInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 //
 //---------------------------------------------------------------------------
 #if (EPL_USE_DELETEINST_FUNC != FALSE)
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtkDelInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
+tEplKernel EplNmtkDelInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 {
 	tEplKernel Ret = kEplSuccessful;
 	// check for all API function if instance is valid
@@ -296,8 +296,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtkDelInstance(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtkProcess(EPL_MCO_DECL_PTR_INSTANCE_PTR_
-					      tEplEvent * pEvent_p)
+tEplKernel EplNmtkProcess(EPL_MCO_DECL_PTR_INSTANCE_PTR_ tEplEvent *pEvent_p)
 {
 	tEplKernel Ret;
 	tEplNmtState OldNmtState;
@@ -1804,8 +1803,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtkProcess(EPL_MCO_DECL_PTR_INSTANCE_PTR_
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplNmtState PUBLIC
-EplNmtkGetNmtState(EPL_MCO_DECL_PTR_INSTANCE_PTR)
+tEplNmtState EplNmtkGetNmtState(EPL_MCO_DECL_PTR_INSTANCE_PTR)
 {
 	tEplNmtState NmtState;
 
