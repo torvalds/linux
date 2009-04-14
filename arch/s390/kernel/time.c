@@ -1423,6 +1423,7 @@ static void *stp_page;
 static void stp_work_fn(struct work_struct *work);
 static DEFINE_MUTEX(stp_work_mutex);
 static DECLARE_WORK(stp_work, stp_work_fn);
+static struct timer_list stp_timer;
 
 static int __init early_parse_stp(char *p)
 {
@@ -1454,10 +1455,16 @@ static void __init stp_reset(void)
 	}
 }
 
+static void stp_timeout(unsigned long dummy)
+{
+	queue_work(time_sync_wq, &stp_work);
+}
+
 static int __init stp_init(void)
 {
 	if (!test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
 		return 0;
+	setup_timer(&stp_timer, stp_timeout, 0UL);
 	time_init_wq();
 	if (!stp_online)
 		return 0;
@@ -1565,6 +1572,7 @@ static void stp_work_fn(struct work_struct *work)
 
 	if (!stp_online) {
 		chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000);
+		del_timer_sync(&stp_timer);
 		goto out_unlock;
 	}
 
@@ -1585,6 +1593,13 @@ static void stp_work_fn(struct work_struct *work)
 	atomic_set(&stp_sync.cpus, num_online_cpus() - 1);
 	stop_machine(stp_sync_clock, &stp_sync, &cpu_online_map);
 	put_online_cpus();
+
+	if (!check_sync_clock())
+		/*
+		 * There is a usable clock but the synchonization failed.
+		 * Retry after a second.
+		 */
+		mod_timer(&stp_timer, jiffies + HZ);
 
 out_unlock:
 	mutex_unlock(&stp_work_mutex);
