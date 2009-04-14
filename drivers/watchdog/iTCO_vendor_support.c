@@ -35,9 +35,9 @@
 #include "iTCO_vendor.h"
 
 /* iTCO defines */
-#define	SMI_EN		acpibase + 0x30	/* SMI Control and Enable Register */
-#define	TCOBASE		acpibase + 0x60	/* TCO base address */
-#define	TCO1_STS	TCOBASE + 0x04	/* TCO1 Status Register */
+#define	SMI_EN		(acpibase + 0x30) /* SMI Control and Enable Register */
+#define	TCOBASE		(acpibase + 0x60) /* TCO base address */
+#define	TCO1_STS	(TCOBASE + 0x04)  /* TCO1 Status Register */
 
 /* List of vendor support modes */
 /* SuperMicro Pentium 3 Era 370SSE+-OEM1/P3TSSE */

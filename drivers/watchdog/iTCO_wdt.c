@@ -236,19 +236,19 @@ MODULE_DEVICE_TABLE(pci, iTCO_wdt_pci_tbl);
 
 /* Address definitions for the TCO */
 /* TCO base address */
-#define TCOBASE		iTCO_wdt_private.ACPIBASE + 0x60
+#define TCOBASE		(iTCO_wdt_private.ACPIBASE + 0x60)
 /* SMI Control and Enable Register */
-#define SMI_EN		iTCO_wdt_private.ACPIBASE + 0x30
+#define SMI_EN		(iTCO_wdt_private.ACPIBASE + 0x30)
 
-#define TCO_RLD		TCOBASE + 0x00	/* TCO Timer Reload and Curr. Value */
-#define TCOv1_TMR	TCOBASE + 0x01	/* TCOv1 Timer Initial Value	*/
-#define TCO_DAT_IN	TCOBASE + 0x02	/* TCO Data In Register		*/
-#define TCO_DAT_OUT	TCOBASE + 0x03	/* TCO Data Out Register	*/
-#define TCO1_STS	TCOBASE + 0x04	/* TCO1 Status Register		*/
-#define TCO2_STS	TCOBASE + 0x06	/* TCO2 Status Register		*/
-#define TCO1_CNT	TCOBASE + 0x08	/* TCO1 Control Register	*/
-#define TCO2_CNT	TCOBASE + 0x0a	/* TCO2 Control Register	*/
-#define TCOv2_TMR	TCOBASE + 0x12	/* TCOv2 Timer Initial Value	*/
+#define TCO_RLD		(TCOBASE + 0x00) /* TCO Timer Reload and Curr. Value */
+#define TCOv1_TMR	(TCOBASE + 0x01) /* TCOv1 Timer Initial Value	*/
+#define TCO_DAT_IN	(TCOBASE + 0x02) /* TCO Data In Register	*/
+#define TCO_DAT_OUT	(TCOBASE + 0x03) /* TCO Data Out Register	*/
+#define TCO1_STS	(TCOBASE + 0x04) /* TCO1 Status Register	*/
+#define TCO2_STS	(TCOBASE + 0x06) /* TCO2 Status Register	*/
+#define TCO1_CNT	(TCOBASE + 0x08) /* TCO1 Control Register	*/
+#define TCO2_CNT	(TCOBASE + 0x0a) /* TCO2 Control Register	*/
+#define TCOv2_TMR	(TCOBASE + 0x12) /* TCOv2 Timer Initial Value	*/
 
 /* internal variables */
 static unsigned long is_active;
