@@ -591,7 +591,8 @@ static int __init setup_possible_cpus(char *s)
 	int pcpus, cpu;
 
 	pcpus = simple_strtoul(s, NULL, 0);
-	for (cpu = 0; cpu < pcpus && cpu < nr_cpu_ids; cpu++)
+	init_cpu_possible(cpumask_of(0));
+	for (cpu = 1; cpu < pcpus && cpu < nr_cpu_ids; cpu++)
 		set_cpu_possible(cpu, true);
 	return 0;
 }
