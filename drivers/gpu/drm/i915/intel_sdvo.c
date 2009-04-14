@@ -1357,6 +1357,23 @@ void intel_sdvo_set_hotplug(struct drm_connector *connector, int on)
 	intel_sdvo_read_response(intel_output, &response, 2);
 }
 
+static void
+intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
+	struct edid *edid = NULL;
+
+	intel_sdvo_set_control_bus_switch(intel_output, sdvo_priv->ddc_bus);
+	edid = drm_get_edid(&intel_output->base,
+			    &intel_output->ddc_bus->adapter);
+	if (edid != NULL) {
+		sdvo_priv->is_hdmi = drm_detect_hdmi_monitor(edid);
+		kfree(edid);
+		intel_output->base.display_info.raw_edid = NULL;
+	}
+}
+
 static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connector)
 {
 	u8 response[2];
@@ -1371,9 +1388,10 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 	if (status != SDVO_CMD_STATUS_SUCCESS)
 		return connector_status_unknown;
 
-	if ((response[0] != 0) || (response[1] != 0))
+	if ((response[0] != 0) || (response[1] != 0)) {
+		intel_sdvo_hdmi_sink_detect(connector);
 		return connector_status_connected;
-	else
+	} else
 		return connector_status_disconnected;
 }
 
