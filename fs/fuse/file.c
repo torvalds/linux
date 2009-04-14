@@ -49,22 +49,26 @@ static int fuse_send_open(struct inode *inode, struct file *file, int isdir,
 struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 {
 	struct fuse_file *ff;
+
 	ff = kmalloc(sizeof(struct fuse_file), GFP_KERNEL);
-	if (ff) {
-		ff->reserved_req = fuse_request_alloc();
-		if (!ff->reserved_req) {
-			kfree(ff);
-			return NULL;
-		} else {
-			INIT_LIST_HEAD(&ff->write_entry);
-			atomic_set(&ff->count, 0);
-			spin_lock(&fc->lock);
-			ff->kh = ++fc->khctr;
-			spin_unlock(&fc->lock);
-		}
-		RB_CLEAR_NODE(&ff->polled_node);
-		init_waitqueue_head(&ff->poll_wait);
+	if (unlikely(!ff))
+		return NULL;
+
+	ff->reserved_req = fuse_request_alloc();
+	if (unlikely(!ff->reserved_req)) {
+		kfree(ff);
+		return NULL;
 	}
+
+	INIT_LIST_HEAD(&ff->write_entry);
+	atomic_set(&ff->count, 0);
+	RB_CLEAR_NODE(&ff->polled_node);
+	init_waitqueue_head(&ff->poll_wait);
+
+	spin_lock(&fc->lock);
+	ff->kh = ++fc->khctr;
+	spin_unlock(&fc->lock);
+
 	return ff;
 }
 
@@ -158,34 +162,37 @@ void fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags, int opcode)
 
 int fuse_release_common(struct inode *inode, struct file *file, int isdir)
 {
-	struct fuse_file *ff = file->private_data;
-	if (ff) {
-		struct fuse_conn *fc = get_fuse_conn(inode);
-		struct fuse_req *req = ff->reserved_req;
+	struct fuse_conn *fc;
+	struct fuse_file *ff;
+	struct fuse_req *req;
 
-		fuse_release_fill(ff, get_node_id(inode), file->f_flags,
-				  isdir ? FUSE_RELEASEDIR : FUSE_RELEASE);
+	ff = file->private_data;
+	if (unlikely(!ff))
+		return 0;	/* return value is ignored by VFS */
 
-		/* Hold vfsmount and dentry until release is finished */
-		req->misc.release.vfsmount = mntget(file->f_path.mnt);
-		req->misc.release.dentry = dget(file->f_path.dentry);
+	fc = get_fuse_conn(inode);
+	req = ff->reserved_req;
 
-		spin_lock(&fc->lock);
-		list_del(&ff->write_entry);
-		if (!RB_EMPTY_NODE(&ff->polled_node))
-			rb_erase(&ff->polled_node, &fc->polled_files);
-		spin_unlock(&fc->lock);
+	fuse_release_fill(ff, get_node_id(inode), file->f_flags,
+			  isdir ? FUSE_RELEASEDIR : FUSE_RELEASE);
 
-		wake_up_interruptible_sync(&ff->poll_wait);
-		/*
-		 * Normally this will send the RELEASE request,
-		 * however if some asynchronous READ or WRITE requests
-		 * are outstanding, the sending will be delayed
-		 */
-		fuse_file_put(ff);
-	}
+	/* Hold vfsmount and dentry until release is finished */
+	req->misc.release.vfsmount = mntget(file->f_path.mnt);
+	req->misc.release.dentry = dget(file->f_path.dentry);
 
-	/* Return value is ignored by VFS */
+	spin_lock(&fc->lock);
+	list_del(&ff->write_entry);
+	if (!RB_EMPTY_NODE(&ff->polled_node))
+		rb_erase(&ff->polled_node, &fc->polled_files);
+	spin_unlock(&fc->lock);
+
+	wake_up_interruptible_sync(&ff->poll_wait);
+	/*
+	 * Normally this will send the RELEASE request, however if
+	 * some asynchronous READ or WRITE requests are outstanding,
+	 * the sending will be delayed.
+	 */
+	fuse_file_put(ff);
 	return 0;
 }
 
