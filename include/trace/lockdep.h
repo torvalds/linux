@@ -5,7 +5,7 @@
 #include <linux/tracepoint.h>
 
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM lock
+#define TRACE_SYSTEM lockdep
 
 #ifdef CONFIG_LOCKDEP
 
