@@ -2713,15 +2713,3 @@ void p54_free_common(struct ieee80211_hw *dev)
 #endif /* CONFIG_P54_LEDS */
 }
 EXPORT_SYMBOL_GPL(p54_free_common);
-
-static int __init p54_init(void)
-{
-	return 0;
-}
-
-static void __exit p54_exit(void)
-{
-}
-
-module_init(p54_init);
-module_exit(p54_exit);
