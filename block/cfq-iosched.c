@@ -1903,10 +1903,17 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 * Remember that we saw a request from this process, but
 		 * don't start queuing just yet. Otherwise we risk seeing lots
 		 * of tiny requests, because we disrupt the normal plugging
-		 * and merging.
+		 * and merging. If the request is already larger than a single
+		 * page, let it rip immediately. For that case we assume that
+		 * merging is already done.
 		 */
-		if (cfq_cfqq_wait_request(cfqq))
+		if (cfq_cfqq_wait_request(cfqq)) {
+			if (blk_rq_bytes(rq) > PAGE_CACHE_SIZE) {
+				del_timer(&cfqd->idle_slice_timer);
+				blk_start_queueing(cfqd->queue);
+			}
 			cfq_mark_cfqq_must_dispatch(cfqq);
+		}
 	} else if (cfq_should_preempt(cfqd, cfqq, rq)) {
 		/*
 		 * not the active queue - expire current slice if it is
