@@ -1669,6 +1669,39 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE1,
 		},
 	},
+	[SAA7134_BOARD_AVERMEDIA_CARDBUS_501] = {
+		/* Oldrich Jedlicka <oldium.pro@seznam.cz> */
+		.name           = "AVerMedia Cardbus TV/Radio (E501R)",
+		.audio_clock    = 0x187de7,
+		.tuner_type     = TUNER_ALPS_TSBE5_PAL,
+		.radio_type     = TUNER_TEA5767,
+		.tuner_addr	= 0x61,
+		.radio_addr	= 0x60,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x08000000,
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x08000000,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+			.gpio = 0x08000000,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+			.gpio = 0x08000000,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+			.gpio = 0x00000000,
+		},
+	},
 	[SAA7134_BOARD_CINERGY400_CARDBUS] = {
 		.name           = "Terratec Cinergy 400 mobile",
 		.audio_clock    = 0x187de7,
@@ -5065,6 +5098,13 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0xd6ee,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_CARDBUS,
 	},{
+		/* AVerMedia CardBus */
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xb7e9,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_CARDBUS_501,
+	}, {
 		/* TransGear 3000TV */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
@@ -6240,6 +6280,16 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0xffffffff, 0xffffffff);
 		msleep(10);
 		break;
+	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:
+		/* power-down tuner chip */
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x08400000, 0x08400000);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x08400000, 0);
+		msleep(10);
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x08400000, 0x08400000);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x08400000, 0x08400000);
+		msleep(10);
+		dev->has_remote = SAA7134_REMOTE_I2C;
+		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
 		saa7134_set_gpio(dev, 23, 0);
 		msleep(10);
@@ -6679,6 +6729,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 
 	switch (dev->board) {
 	case SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM:
+	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:
 	{
 		struct v4l2_priv_tun_config tea5767_cfg;
 		struct tea5767_ctrl ctl;
