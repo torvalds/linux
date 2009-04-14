@@ -1093,6 +1093,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     This module supports multiple cards.
     The driver requires the firmware loader support on kernel.
 
+  Module snd-lx6464es
+  -------------------
+
+    Module for Digigram LX6464ES boards
+
+    This module supports multiple cards.
+
   Module snd-maestro3
   -------------------
 
