@@ -7861,6 +7861,15 @@ static int __init thinkpad_acpi_module_init(void)
 MODULE_ALIAS(TPACPI_DRVR_SHORTNAME);
 
 /*
+ * This will autoload the driver in almost every ThinkPad
+ * in widespread use.
+ *
+ * Only _VERY_ old models, like the 240, 240x and 570 lack
+ * the HKEY event interface.
+ */
+MODULE_DEVICE_TABLE(acpi, ibm_htk_device_ids);
+
+/*
  * DMI matching for module autoloading
  *
  * See http://thinkwiki.org/wiki/List_of_DMI_IDs
@@ -7872,16 +7881,10 @@ MODULE_ALIAS(TPACPI_DRVR_SHORTNAME);
 #define IBM_BIOS_MODULE_ALIAS(__type) \
 	MODULE_ALIAS("dmi:bvnIBM:bvr" __type "ET??WW*")
 
-/* Non-ancient thinkpads */
-MODULE_ALIAS("dmi:bvnIBM:*:svnIBM:*:pvrThinkPad*:rvnIBM:*");
-MODULE_ALIAS("dmi:bvnLENOVO:*:svnLENOVO:*:pvrThinkPad*:rvnLENOVO:*");
-
 /* Ancient thinkpad BIOSes have to be identified by
  * BIOS type or model number, and there are far less
  * BIOS types than model numbers... */
-IBM_BIOS_MODULE_ALIAS("I[BDHIMNOTWVYZ]");
-IBM_BIOS_MODULE_ALIAS("1[0368A-GIKM-PST]");
-IBM_BIOS_MODULE_ALIAS("K[UX-Z]");
+IBM_BIOS_MODULE_ALIAS("I[MU]");		/* 570, 570e */
 
 MODULE_AUTHOR("Borislav Deianov <borislav@users.sf.net>");
 MODULE_AUTHOR("Henrique de Moraes Holschuh <hmh@hmh.eng.br>");
