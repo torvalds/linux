@@ -3080,7 +3080,8 @@ static const struct net_device_ops ehea_netdev_ops = {
 	.ndo_change_mtu		= ehea_change_mtu,
 	.ndo_vlan_rx_register	= ehea_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= ehea_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid	= ehea_vlan_rx_kill_vid
+	.ndo_vlan_rx_kill_vid	= ehea_vlan_rx_kill_vid,
+	.ndo_tx_timeout		= ehea_tx_watchdog,
 };
 
 struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
@@ -3142,7 +3143,6 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 		      | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX
 		      | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER
 		      | NETIF_F_LLTX;
-	dev->tx_timeout = &ehea_tx_watchdog;
 	dev->watchdog_timeo = EHEA_WATCH_DOG_TIMEOUT;
 
 	INIT_WORK(&port->reset_task, ehea_reset_port);
