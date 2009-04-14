@@ -204,10 +204,10 @@ int nf_queue(struct sk_buff *skb,
 				  queuenum);
 
 	switch (pf) {
-	case AF_INET:
+	case NFPROTO_IPV4:
 		skb->protocol = htons(ETH_P_IP);
 		break;
-	case AF_INET6:
+	case NFPROTO_IPV6:
 		skb->protocol = htons(ETH_P_IPV6);
 		break;
 	}
