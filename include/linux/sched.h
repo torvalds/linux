@@ -77,6 +77,7 @@ struct sched_param {
 #include <linux/proportions.h>
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
+#include <linux/rculist.h>
 #include <linux/rtmutex.h>
 
 #include <linux/time.h>
@@ -2010,7 +2011,8 @@ static inline unsigned long wait_task_inactive(struct task_struct *p,
 }
 #endif
 
-#define next_task(p)	list_entry(rcu_dereference((p)->tasks.next), struct task_struct, tasks)
+#define next_task(p) \
+	list_entry_rcu((p)->tasks.next, struct task_struct, tasks)
 
 #define for_each_process(p) \
 	for (p = &init_task ; (p = next_task(p)) != &init_task ; )
@@ -2049,8 +2051,8 @@ int same_thread_group(struct task_struct *p1, struct task_struct *p2)
 
 static inline struct task_struct *next_thread(const struct task_struct *p)
 {
-	return list_entry(rcu_dereference(p->thread_group.next),
-			  struct task_struct, thread_group);
+	return list_entry_rcu(p->thread_group.next,
+			      struct task_struct, thread_group);
 }
 
 static inline int thread_group_empty(struct task_struct *p)
