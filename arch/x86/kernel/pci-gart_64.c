@@ -144,48 +144,21 @@ static void flush_gart(void)
 }
 
 #ifdef CONFIG_IOMMU_LEAK
-
-#define SET_LEAK(x)							\
-	do {								\
-		if (iommu_leak_tab)					\
-			iommu_leak_tab[x] = __builtin_return_address(0);\
-	} while (0)
-
-#define CLEAR_LEAK(x)							\
-	do {								\
-		if (iommu_leak_tab)					\
-			iommu_leak_tab[x] = NULL;			\
-	} while (0)
-
 /* Debugging aid for drivers that don't free their IOMMU tables */
-static void **iommu_leak_tab;
 static int leak_trace;
 static int iommu_leak_pages = 20;
 
 static void dump_leak(void)
 {
-	int i;
 	static int dump;
 
-	if (dump || !iommu_leak_tab)
+	if (dump)
 		return;
 	dump = 1;
-	show_stack(NULL, NULL);
 
-	/* Very crude. dump some from the end of the table too */
-	printk(KERN_DEBUG "Dumping %d pages from end of IOMMU:\n",
-	       iommu_leak_pages);
-	for (i = 0; i < iommu_leak_pages; i += 2) {
-		printk(KERN_DEBUG "%lu: ", iommu_pages-i);
-		printk_address((unsigned long) iommu_leak_tab[iommu_pages-i],
-				0);
-		printk(KERN_CONT "%c", (i+1)%2 == 0 ? '\n' : ' ');
-	}
-	printk(KERN_DEBUG "\n");
+	show_stack(NULL, NULL);
+	debug_dma_dump_mappings(NULL);
 }
-#else
-# define SET_LEAK(x)
-# define CLEAR_LEAK(x)
 #endif
 
 static void iommu_full(struct device *dev, size_t size, int dir)
@@ -248,7 +221,6 @@ static dma_addr_t dma_map_area(struct device *dev, dma_addr_t phys_mem,
 
 	for (i = 0; i < npages; i++) {
 		iommu_gatt_base[iommu_page + i] = GPTE_ENCODE(phys_mem);
-		SET_LEAK(iommu_page + i);
 		phys_mem += PAGE_SIZE;
 	}
 	return iommu_bus_base + iommu_page*PAGE_SIZE + (phys_mem & ~PAGE_MASK);
@@ -294,7 +266,6 @@ static void gart_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	npages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
 	for (i = 0; i < npages; i++) {
 		iommu_gatt_base[iommu_page + i] = gart_unmapped_entry;
-		CLEAR_LEAK(iommu_page + i);
 	}
 	free_iommu(iommu_page, npages);
 }
@@ -377,7 +348,6 @@ static int __dma_map_cont(struct device *dev, struct scatterlist *start,
 		pages = iommu_num_pages(s->offset, s->length, PAGE_SIZE);
 		while (pages--) {
 			iommu_gatt_base[iommu_page] = GPTE_ENCODE(addr);
-			SET_LEAK(iommu_page);
 			addr += PAGE_SIZE;
 			iommu_page++;
 		}
@@ -801,11 +771,12 @@ void __init gart_iommu_init(void)
 
 #ifdef CONFIG_IOMMU_LEAK
 	if (leak_trace) {
-		iommu_leak_tab = (void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
-				  get_order(iommu_pages*sizeof(void *)));
-		if (!iommu_leak_tab)
+		int ret;
+
+		ret = dma_debug_resize_entries(iommu_pages);
+		if (ret)
 			printk(KERN_DEBUG
-			       "PCI-DMA: Cannot allocate leak trace area\n");
+			       "PCI-DMA: Cannot trace all the entries\n");
 	}
 #endif
 
