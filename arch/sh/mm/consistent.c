@@ -10,12 +10,22 @@
  * for more details.
  */
 #include <linux/mm.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
+#include <linux/io.h>
 #include <asm/cacheflush.h>
 #include <asm/addrspace.h>
-#include <asm/io.h>
+
+#define PREALLOC_DMA_DEBUG_ENTRIES	4096
+
+static int __init dma_init(void)
+{
+	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+	return 0;
+}
+fs_initcall(dma_init);
 
 void *dma_alloc_coherent(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t gfp)
