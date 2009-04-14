@@ -978,7 +978,8 @@ extern void	   journal_destroy_revoke(journal_t *);
 extern int	   journal_revoke (handle_t *,
 				unsigned long, struct buffer_head *);
 extern int	   journal_cancel_revoke(handle_t *, struct journal_head *);
-extern void	   journal_write_revoke_records(journal_t *, transaction_t *);
+extern void	   journal_write_revoke_records(journal_t *,
+						transaction_t *, int);
 
 /* Recovery revoke support */
 extern int	journal_set_revoke(journal_t *, unsigned long, tid_t);
