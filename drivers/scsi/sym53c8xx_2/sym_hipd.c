@@ -1896,6 +1896,15 @@ void sym_start_up(struct Scsi_Host *shost, int reason)
 		tp->head.sval = 0;
 		tp->head.wval = np->rv_scntl3;
 		tp->head.uval = 0;
+		if (tp->lun0p)
+			tp->lun0p->to_clear = 0;
+		if (tp->lunmp) {
+			int ln;
+
+			for (ln = 1; ln < SYM_CONF_MAX_LUN; ln++)
+				if (tp->lunmp[ln])
+					tp->lunmp[ln]->to_clear = 0;
+		}
 	}
 
 	/*
