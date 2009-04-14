@@ -478,9 +478,10 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	u32 __iomem *xpu_state;
 	wait_queue_head_t *waitq;
 	struct mutex *mb_lock;
-	long int timeout, ret;
+	unsigned long int t0, timeout, ret;
 	int i;
 	char argstr[MAX_MB_ARGUMENTS*11+1];
+	DEFINE_WAIT(w);
 
 	if (info == NULL) {
 		CX18_WARN("unknown cmd %x\n", cmd);
@@ -562,25 +563,49 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 
 	CX18_DEBUG_HI_IRQ("sending interrupt SW1: %x to send %s\n",
 			  irq, info->name);
+
+	/* So we don't miss the wakeup, prepare to wait before notifying fw */
+	prepare_to_wait(waitq, &w, TASK_UNINTERRUPTIBLE);
 	cx18_write_reg_expect(cx, irq, SW1_INT_SET, irq, irq);
 
-	ret = wait_event_timeout(
-		       *waitq,
-		       cx18_readl(cx, &mb->ack) == cx18_readl(cx, &mb->request),
-		       timeout);
+	t0 = jiffies;
+	ack = cx18_readl(cx, &mb->ack);
+	if (ack != req) {
+		schedule_timeout(timeout);
+		ret = jiffies - t0;
+		ack = cx18_readl(cx, &mb->ack);
+	} else {
+		ret = jiffies - t0;
+	}
 
-	if (ret == 0) {
-		/* Timed out */
+	finish_wait(waitq, &w);
+
+	if (req != ack) {
 		mutex_unlock(mb_lock);
-		CX18_DEBUG_WARN("sending %s timed out waiting %d msecs for RPU "
-				"acknowledgement\n",
-				info->name, jiffies_to_msecs(timeout));
+		if (ret >= timeout) {
+			/* Timed out */
+			CX18_DEBUG_WARN("sending %s timed out waiting %d msecs "
+					"for RPU acknowledgement\n",
+					info->name, jiffies_to_msecs(ret));
+		} else {
+			CX18_DEBUG_WARN("woken up before mailbox ack was ready "
+					"after submitting %s to RPU.  only "
+					"waited %d msecs on req %u but awakened"
+					" with unmatched ack %u\n",
+					info->name,
+					jiffies_to_msecs(ret),
+					req, ack);
+		}
 		return -EINVAL;
 	}
 
-	if (ret != timeout)
+	if (ret >= timeout)
+		CX18_DEBUG_WARN("failed to be awakened upon RPU acknowledgment "
+				"sending %s; timed out waiting %d msecs\n",
+				info->name, jiffies_to_msecs(ret));
+	else
 		CX18_DEBUG_HI_API("waited %u msecs for %s to be acked\n",
-				  jiffies_to_msecs(timeout-ret), info->name);
+				  jiffies_to_msecs(ret), info->name);
 
 	/* Collect data returned by the XPU */
 	for (i = 0; i < MAX_MB_ARGUMENTS; i++)
