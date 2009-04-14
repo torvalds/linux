@@ -253,14 +253,13 @@ void update_vsyscall_tz(void)
  */
 void __init time_init(void)
 {
+	struct timespec ts;
+	unsigned long flags;
+	cycle_t now;
+
 	/* Reset time synchronization interfaces. */
 	etr_reset();
 	stp_reset();
-
-	/* set xtime */
-	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, &xtime);
-        set_normalized_timespec(&wall_to_monotonic,
-                                -xtime.tv_sec, -xtime.tv_nsec);
 
 	/* request the clock comparator external interrupt */
 	if (register_early_external_interrupt(0x1004,
@@ -268,17 +267,38 @@ void __init time_init(void)
 					      &ext_int_info_cc) != 0)
                 panic("Couldn't request external interrupt 0x1004");
 
-	if (clocksource_register(&clocksource_tod) != 0)
-		panic("Could not register TOD clock source");
-
 	/* request the timing alert external interrupt */
 	if (register_early_external_interrupt(0x1406,
 					      timing_alert_interrupt,
 					      &ext_int_etr_cc) != 0)
 		panic("Couldn't request external interrupt 0x1406");
 
+	if (clocksource_register(&clocksource_tod) != 0)
+		panic("Could not register TOD clock source");
+
+	/*
+	 * The TOD clock is an accurate clock. The xtime should be
+	 * initialized in a way that the difference between TOD and
+	 * xtime is reasonably small. Too bad that timekeeping_init
+	 * sets xtime.tv_nsec to zero. In addition the clock source
+	 * change from the jiffies clock source to the TOD clock
+	 * source add another error of up to 1/HZ second. The same
+	 * function sets wall_to_monotonic to a value that is too
+	 * small for /proc/uptime to be accurate.
+	 * Reset xtime and wall_to_monotonic to sane values.
+	 */
+	write_seqlock_irqsave(&xtime_lock, flags);
+	now = get_clock();
+	tod_to_timeval(now - TOD_UNIX_EPOCH, &xtime);
+	clocksource_tod.cycle_last = now;
+	clocksource_tod.raw_time = xtime;
+	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, &ts);
+	set_normalized_timespec(&wall_to_monotonic, -ts.tv_sec, -ts.tv_nsec);
+	write_sequnlock_irqrestore(&xtime_lock, flags);
+
 	/* Enable TOD clock interrupts on the boot cpu. */
 	init_cpu_timer();
+
 	/* Enable cpu timer interrupts on the boot cpu. */
 	vtime_init();
 }
