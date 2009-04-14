@@ -797,9 +797,6 @@ enum inode_i_mutex_lock_class
 	I_MUTEX_QUOTA
 };
 
-extern void inode_double_lock(struct inode *inode1, struct inode *inode2);
-extern void inode_double_unlock(struct inode *inode1, struct inode *inode2);
-
 /*
  * NOTE: in a 32bit arch with a preemptable kernel and
  * an UP compile the i_size_read/write must be atomic

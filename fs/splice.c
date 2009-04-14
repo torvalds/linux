@@ -182,8 +182,7 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 	do_wakeup = 0;
 	page_nr = 0;
 
-	if (pipe->inode)
-		mutex_lock(&pipe->inode->i_mutex);
+	pipe_lock(pipe);
 
 	for (;;) {
 		if (!pipe->readers) {
@@ -245,15 +244,13 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 		pipe->waiting_writers--;
 	}
 
-	if (pipe->inode) {
-		mutex_unlock(&pipe->inode->i_mutex);
+	pipe_unlock(pipe);
 
-		if (do_wakeup) {
-			smp_mb();
-			if (waitqueue_active(&pipe->wait))
-				wake_up_interruptible(&pipe->wait);
-			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
-		}
+	if (do_wakeup) {
+		smp_mb();
+		if (waitqueue_active(&pipe->wait))
+			wake_up_interruptible(&pipe->wait);
+		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
 
 	while (page_nr < spd_pages)
@@ -801,11 +798,9 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 		.u.file = out,
 	};
 
-	if (pipe->inode)
-		mutex_lock(&pipe->inode->i_mutex);
+	pipe_lock(pipe);
 	ret = __splice_from_pipe(pipe, &sd, actor);
-	if (pipe->inode)
-		mutex_unlock(&pipe->inode->i_mutex);
+	pipe_unlock(pipe);
 
 	return ret;
 }
@@ -837,8 +832,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	};
 	ssize_t ret;
 
-	if (pipe->inode)
-		mutex_lock_nested(&pipe->inode->i_mutex, I_MUTEX_PARENT);
+	pipe_lock(pipe);
 
 	splice_from_pipe_begin(&sd);
 	do {
@@ -854,8 +848,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	} while (ret > 0);
 	splice_from_pipe_end(pipe, &sd);
 
-	if (pipe->inode)
-		mutex_unlock(&pipe->inode->i_mutex);
+	pipe_unlock(pipe);
 
 	if (sd.num_spliced)
 		ret = sd.num_spliced;
@@ -1348,8 +1341,7 @@ static long vmsplice_to_user(struct file *file, const struct iovec __user *iov,
 	if (!pipe)
 		return -EBADF;
 
-	if (pipe->inode)
-		mutex_lock(&pipe->inode->i_mutex);
+	pipe_lock(pipe);
 
 	error = ret = 0;
 	while (nr_segs) {
@@ -1404,8 +1396,7 @@ static long vmsplice_to_user(struct file *file, const struct iovec __user *iov,
 		iov++;
 	}
 
-	if (pipe->inode)
-		mutex_unlock(&pipe->inode->i_mutex);
+	pipe_unlock(pipe);
 
 	if (!ret)
 		ret = error;
@@ -1533,7 +1524,7 @@ static int link_ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 		return 0;
 
 	ret = 0;
-	mutex_lock(&pipe->inode->i_mutex);
+	pipe_lock(pipe);
 
 	while (!pipe->nrbufs) {
 		if (signal_pending(current)) {
@@ -1551,7 +1542,7 @@ static int link_ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 		pipe_wait(pipe);
 	}
 
-	mutex_unlock(&pipe->inode->i_mutex);
+	pipe_unlock(pipe);
 	return ret;
 }
 
@@ -1571,7 +1562,7 @@ static int link_opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 		return 0;
 
 	ret = 0;
-	mutex_lock(&pipe->inode->i_mutex);
+	pipe_lock(pipe);
 
 	while (pipe->nrbufs >= PIPE_BUFFERS) {
 		if (!pipe->readers) {
@@ -1592,7 +1583,7 @@ static int link_opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 		pipe->waiting_writers--;
 	}
 
-	mutex_unlock(&pipe->inode->i_mutex);
+	pipe_unlock(pipe);
 	return ret;
 }
 
@@ -1608,10 +1599,10 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 
 	/*
 	 * Potential ABBA deadlock, work around it by ordering lock
-	 * grabbing by inode address. Otherwise two different processes
+	 * grabbing by pipe info address. Otherwise two different processes
 	 * could deadlock (one doing tee from A -> B, the other from B -> A).
 	 */
-	inode_double_lock(ipipe->inode, opipe->inode);
+	pipe_double_lock(ipipe, opipe);
 
 	do {
 		if (!opipe->readers) {
@@ -1662,7 +1653,8 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 	if (!ret && ipipe->waiting_writers && (flags & SPLICE_F_NONBLOCK))
 		ret = -EAGAIN;
 
-	inode_double_unlock(ipipe->inode, opipe->inode);
+	pipe_unlock(ipipe);
+	pipe_unlock(opipe);
 
 	/*
 	 * If we put data in the output pipe, wakeup any potential readers.
