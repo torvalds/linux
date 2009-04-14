@@ -2689,7 +2689,7 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	}
 	ichdev = &chip->ichd[ICHD_PCMOUT];
 	ichdev->physbuf = subs->dma_buffer.addr;
-	ichdev->size = chip->ichd[ICHD_PCMOUT].fragsize = INTEL8X0_TESTBUF_SIZE;
+	ichdev->size = ichdev->fragsize = INTEL8X0_TESTBUF_SIZE;
 	ichdev->substream = NULL; /* don't process interrupts */
 
 	/* set rate */
@@ -2766,10 +2766,10 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	if (pos < 40000 || pos >= 60000) 
 		/* abnormal value. hw problem? */
 		printk(KERN_INFO "intel8x0: measured clock %ld rejected\n", pos);
-	else if (pos > 40500 || pos < 41500)
+	else if (pos > 40500 && pos < 41500)
 		/* first exception - 41000Hz reference clock */
 		chip->ac97_bus->clock = 41000;
-	else if (pos > 43600 || pos < 44600)
+	else if (pos > 43600 && pos < 44600)
 		/* second exception - 44100HZ reference clock */
 		chip->ac97_bus->clock = 44100;
 	else if (pos < 47500 || pos > 48500)
