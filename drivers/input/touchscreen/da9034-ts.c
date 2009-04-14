@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2006-2008 Marvell International Ltd.
  *	Fengwei Yin <fengwei.yin@marvell.com>
+ *	Bin Yang  <bin.yang@marvell.com>
  *	Eric Miao <eric.miao@marvell.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -385,6 +386,6 @@ static void __exit da9034_touch_exit(void)
 module_exit(da9034_touch_exit);
 
 MODULE_DESCRIPTION("Touchscreen driver for Dialog Semiconductor DA9034");
-MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>");
+MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>, Bin Yang <bin.yang@marvell.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:da9034-touch");
