@@ -28,6 +28,8 @@
 #include <mach/psc.h>
 #include <mach/mux.h>
 
+#define DAVINCI_PWR_SLEEP_CNTRL_BASE 0x01C41000
+
 /* PSC register offsets */
 #define EPCPR		0x070
 #define PTCMD		0x120

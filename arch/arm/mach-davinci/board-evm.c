@@ -36,6 +36,9 @@
 #include <mach/common.h>
 #include <mach/i2c.h>
 
+#define DAVINCI_CFC_ATA_BASE		  0x01C66000
+#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE  0x02000000
+
 /* other misc. init functions */
 void __init davinci_psc_init(void);
 void __init davinci_irq_init(void);
@@ -422,7 +425,6 @@ static __init void davinci_evm_init(void)
 
 static __init void davinci_evm_irq_init(void)
 {
-	davinci_init_common_hw();
 	davinci_irq_init();
 }
 

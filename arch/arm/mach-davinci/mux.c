@@ -23,6 +23,7 @@ static DEFINE_SPINLOCK(mux_lock);
 
 void davinci_mux_peripheral(unsigned int mux, unsigned int enable)
 {
+	void __iomem *base = IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE);
 	u32 pinmux, muxreg = PINMUX0;
 
 	if (mux >= DAVINCI_MUX_LEVEL2) {
@@ -31,11 +32,11 @@ void davinci_mux_peripheral(unsigned int mux, unsigned int enable)
 	}
 
 	spin_lock(&mux_lock);
-	pinmux = davinci_readl(DAVINCI_SYSTEM_MODULE_BASE + muxreg);
+	pinmux = __raw_readl(base + muxreg);
 	if (enable)
 		pinmux |= (1 << mux);
 	else
 		pinmux &= ~(1 << mux);
-	davinci_writel(pinmux, DAVINCI_SYSTEM_MODULE_BASE + muxreg);
+	__raw_writel(pinmux, base + muxreg);
 	spin_unlock(&mux_lock);
 }

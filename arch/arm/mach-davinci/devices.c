@@ -22,6 +22,8 @@
 #include <mach/i2c.h>
 #include <mach/irqs.h>
 
+#define DAVINCI_I2C_BASE	     0x01C21000
+
 static struct resource i2c_resources[] = {
 	{
 		.start		= DAVINCI_I2C_BASE,

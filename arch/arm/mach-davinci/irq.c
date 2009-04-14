@@ -40,14 +40,16 @@
 #define IRQ_INTPRI0_REG_OFFSET	0x0030
 #define IRQ_INTPRI7_REG_OFFSET	0x004C
 
+#define INTC_BASE IO_ADDRESS(DAVINCI_ARM_INTC_BASE)
+
 static inline unsigned int davinci_irq_readl(int offset)
 {
-	return davinci_readl(DAVINCI_ARM_INTC_BASE + offset);
+	return __raw_readl(INTC_BASE + offset);
 }
 
 static inline void davinci_irq_writel(unsigned long value, int offset)
 {
-	davinci_writel(value, DAVINCI_ARM_INTC_BASE + offset);
+	__raw_writel(value, INTC_BASE + offset);
 }
 
 /* Disable interrupt */

@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
-#define JTAG_ID_BASE		0x01c40028
+#define JTAG_ID_BASE		IO_ADDRESS(0x01c40028)
 
 static unsigned int davinci_revision;
 
@@ -58,7 +58,7 @@ static u16 __init davinci_get_part_no(void)
 {
 	u32 dev_id, part_no;
 
-	dev_id = davinci_readl(JTAG_ID_BASE);
+	dev_id = __raw_readl(JTAG_ID_BASE);
 
 	part_no = ((dev_id >> 12) & 0xffff);
 
@@ -72,7 +72,7 @@ static u8 __init davinci_get_variant(void)
 {
 	u32 variant;
 
-	variant = davinci_readl(JTAG_ID_BASE);
+	variant = __raw_readl(JTAG_ID_BASE);
 
 	variant = (variant >> 28) & 0xf;
 
