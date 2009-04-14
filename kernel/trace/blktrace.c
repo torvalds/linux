@@ -147,7 +147,7 @@ static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
 {
 	if (((bt->act_mask << BLK_TC_SHIFT) & what) == 0)
 		return 1;
-	if (sector < bt->start_lba || sector > bt->end_lba)
+	if (sector && (sector < bt->start_lba || sector > bt->end_lba))
 		return 1;
 	if (bt->pid && pid != bt->pid)
 		return 1;
@@ -192,7 +192,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	what |= MASK_TC_BIT(rw, DISCARD);
 
 	pid = tsk->pid;
-	if (unlikely(act_log_check(bt, what, sector, pid)))
+	if (act_log_check(bt, what, sector, pid))
 		return;
 	cpu = raw_smp_processor_id();
 
@@ -407,11 +407,13 @@ static struct rchan_callbacks blk_relay_callbacks = {
  * Setup everything required to start tracing
  */
 int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
-			struct blk_user_trace_setup *buts)
+		       struct block_device *bdev,
+		       struct blk_user_trace_setup *buts)
 {
 	struct blk_trace *old_bt, *bt = NULL;
 	struct dentry *dir = NULL;
 	int ret, i;
+	struct hd_struct *part = NULL;
 
 	if (!buts->buf_size || !buts->buf_nr)
 		return -EINVAL;
@@ -480,10 +482,20 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!bt->act_mask)
 		bt->act_mask = (u16) -1;
 
-	bt->start_lba = buts->start_lba;
-	bt->end_lba = buts->end_lba;
-	if (!bt->end_lba)
+	if (bdev)
+		part = bdev->bd_part;
+
+	if (part) {
+		bt->start_lba = part->start_sect;
+		bt->end_lba = part->start_sect + part->nr_sects;
+	} else
 		bt->end_lba = -1ULL;
+
+	/* overwrite with user settings */
+	if (buts->start_lba)
+		bt->start_lba = buts->start_lba;
+	if (buts->end_lba)
+		bt->end_lba = buts->end_lba;
 
 	bt->pid = buts->pid;
 	bt->trace_state = Blktrace_setup;
@@ -505,6 +517,7 @@ err:
 }
 
 int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
+		    struct block_device *bdev,
 		    char __user *arg)
 {
 	struct blk_user_trace_setup buts;
@@ -514,7 +527,7 @@ int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (ret)
 		return -EFAULT;
 
-	ret = do_blk_trace_setup(q, name, dev, &buts);
+	ret = do_blk_trace_setup(q, name, dev, bdev, &buts);
 	if (ret)
 		return ret;
 
@@ -582,7 +595,7 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 	switch (cmd) {
 	case BLKTRACESETUP:
 		bdevname(bdev, b);
-		ret = blk_trace_setup(q, b, bdev->bd_dev, arg);
+		ret = blk_trace_setup(q, b, bdev->bd_dev, bdev, arg);
 		break;
 	case BLKTRACESTART:
 		start = 1;

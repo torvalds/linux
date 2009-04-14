@@ -568,7 +568,7 @@ static int compat_blk_trace_setup(struct block_device *bdev, char __user *arg)
 	memcpy(&buts.name, &cbuts.name, 32);
 
 	mutex_lock(&bdev->bd_mutex);
-	ret = do_blk_trace_setup(q, b, bdev->bd_dev, &buts);
+	ret = do_blk_trace_setup(q, b, bdev->bd_dev, bdev, &buts);
 	mutex_unlock(&bdev->bd_mutex);
 	if (ret)
 		return ret;
