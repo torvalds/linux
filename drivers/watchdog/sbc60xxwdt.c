@@ -372,8 +372,9 @@ static int __init sbc60xxwdt_init(void)
 						wdt_miscdev.minor, rc);
 		goto err_out_reboot;
 	}
-	printk(KERN_INFO PFX "WDT driver for 60XX single board computer initialised. timeout=%d sec (nowayout=%d)\n",
-		timeout, nowayout);
+	printk(KERN_INFO PFX
+		"WDT driver for 60XX single board computer initialised. "
+		"timeout=%d sec (nowayout=%d)\n", timeout, nowayout);
 
 	return 0;
 

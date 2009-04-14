@@ -118,7 +118,8 @@ static struct watchdog_info zf_info = {
  */
 static int action;
 module_param(action, int, 0);
-MODULE_PARM_DESC(action, "after watchdog resets, generate: 0 = RESET(*)  1 = SMI  2 = NMI  3 = SCI");
+MODULE_PARM_DESC(action, "after watchdog resets, generate: "
+				"0 = RESET(*)  1 = SMI  2 = NMI  3 = SCI");
 
 static void zf_ping(unsigned long data);
 
@@ -142,7 +143,8 @@ static unsigned long next_heartbeat;
 #ifndef ZF_DEBUG
 #	define dprintk(format, args...)
 #else
-#	define dprintk(format, args...) printk(KERN_DEBUG PFX ":%s:%d: " format, __func__, __LINE__ , ## args)
+#	define dprintk(format, args...) printk(KERN_DEBUG PFX
+				":%s:%d: " format, __func__, __LINE__ , ## args)
 #endif
 
 
@@ -340,7 +342,8 @@ static int zf_close(struct inode *inode, struct file *file)
 		zf_timer_off();
 	else {
 		del_timer(&zf_timer);
-		printk(KERN_ERR PFX ": device file closed unexpectedly. Will not stop the WDT!\n");
+		printk(KERN_ERR PFX ": device file closed unexpectedly. "
+						"Will not stop the WDT!\n");
 	}
 	clear_bit(0, &zf_is_open);
 	zf_expect_close = 0;

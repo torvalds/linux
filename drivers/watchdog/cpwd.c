@@ -154,9 +154,9 @@ static struct cpwd *cpwd_device;
 
 static struct timer_list cpwd_timer;
 
-static int wd0_timeout = 0;
-static int wd1_timeout = 0;
-static int wd2_timeout = 0;
+static int wd0_timeout;
+static int wd1_timeout;
+static int wd2_timeout;
 
 module_param(wd0_timeout, int, 0);
 MODULE_PARM_DESC(wd0_timeout, "Default watchdog0 timeout in 1/10secs");
