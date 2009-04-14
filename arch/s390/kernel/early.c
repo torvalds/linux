@@ -34,6 +34,8 @@
 
 char kernel_nss_name[NSS_NAME_SIZE + 1];
 
+static unsigned long machine_flags;
+
 static void __init setup_boot_command_line(void);
 
 
@@ -391,5 +393,6 @@ void __init startup_init(void)
 	setup_hpage();
 	sclp_facilities_detect();
 	detect_memory_layout(memory_chunk);
+	S390_lowcore.machine_flags = machine_flags;
 	lockdep_on();
 }

@@ -571,6 +571,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	cpu_lowcore->current_task = (unsigned long) idle;
 	cpu_lowcore->cpu_nr = cpu;
 	cpu_lowcore->kernel_asce = S390_lowcore.kernel_asce;
+	cpu_lowcore->machine_flags = S390_lowcore.machine_flags;
 	eieio();
 
 	while (signal_processor(cpu, sigp_restart) == sigp_busy)
