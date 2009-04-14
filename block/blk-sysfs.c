@@ -387,16 +387,21 @@ struct kobj_type blk_queue_ktype = {
 int blk_register_queue(struct gendisk *disk)
 {
 	int ret;
+	struct device *dev = disk_to_dev(disk);
 
 	struct request_queue *q = disk->queue;
 
 	if (WARN_ON(!q))
 		return -ENXIO;
 
+	ret = blk_trace_init_sysfs(dev);
+	if (ret)
+		return ret;
+
 	if (!q->request_fn)
 		return 0;
 
-	ret = kobject_add(&q->kobj, kobject_get(&disk_to_dev(disk)->kobj),
+	ret = kobject_add(&q->kobj, kobject_get(&dev->kobj),
 			  "%s", "queue");
 	if (ret < 0)
 		return ret;

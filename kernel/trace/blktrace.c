@@ -1644,3 +1644,8 @@ out:
 	return ret ? ret : count;
 }
 
+int blk_trace_init_sysfs(struct device *dev)
+{
+	return sysfs_create_group(&dev->kobj, &blk_trace_attr_group);
+}
+
