@@ -4997,7 +4997,7 @@ struct sym_lcb *sym_alloc_lcb (struct sym_hcb *np, u_char tn, u_char ln)
 	 */
 	if (ln && !tp->lunmp) {
 		tp->lunmp = kcalloc(SYM_CONF_MAX_LUN, sizeof(struct sym_lcb *),
-				GFP_KERNEL);
+				GFP_ATOMIC);
 		if (!tp->lunmp)
 			goto fail;
 	}
@@ -5017,6 +5017,7 @@ struct sym_lcb *sym_alloc_lcb (struct sym_hcb *np, u_char tn, u_char ln)
 		tp->lun0p = lp;
 		tp->head.lun0_sa = cpu_to_scr(vtobus(lp));
 	}
+	tp->nlcb++;
 
 	/*
 	 *  Let the itl task point to error handling.
@@ -5091,6 +5092,43 @@ static void sym_alloc_lcb_tags (struct sym_hcb *np, u_char tn, u_char ln)
 	return;
 fail:
 	return;
+}
+
+/*
+ *  Lun control block deallocation. Returns the number of valid remaing LCBs
+ *  for the target.
+ */
+int sym_free_lcb(struct sym_hcb *np, u_char tn, u_char ln)
+{
+	struct sym_tcb *tp = &np->target[tn];
+	struct sym_lcb *lp = sym_lp(tp, ln);
+
+	tp->nlcb--;
+
+	if (ln) {
+		if (!tp->nlcb) {
+			kfree(tp->lunmp);
+			sym_mfree_dma(tp->luntbl, 256, "LUNTBL");
+			tp->lunmp = NULL;
+			tp->luntbl = NULL;
+			tp->head.luntbl_sa = cpu_to_scr(vtobus(np->badluntbl));
+		} else {
+			tp->luntbl[ln] = cpu_to_scr(vtobus(&np->badlun_sa));
+			tp->lunmp[ln] = NULL;
+		}
+	} else {
+		tp->lun0p = NULL;
+		tp->head.lun0_sa = cpu_to_scr(vtobus(&np->badlun_sa));
+	}
+
+	if (lp->itlq_tbl) {
+		sym_mfree_dma(lp->itlq_tbl, SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
+		kfree(lp->cb_tags);
+	}
+
+	sym_mfree_dma(lp, sizeof(*lp), "LCB");
+
+	return tp->nlcb;
 }
 
 /*

@@ -401,6 +401,7 @@ struct sym_tcb {
 	 *  An array of bus addresses is used on reselection.
 	 */
 	u32	*luntbl;	/* LCBs bus address table	*/
+	int	nlcb;		/* Number of valid LCBs (including LUN #0) */
 
 	/*
 	 *  LUN table used by the C code.
@@ -1065,6 +1066,7 @@ int sym_clear_tasks(struct sym_hcb *np, int cam_status, int target, int lun, int
 struct sym_ccb *sym_get_ccb(struct sym_hcb *np, struct scsi_cmnd *cmd, u_char tag_order);
 void sym_free_ccb(struct sym_hcb *np, struct sym_ccb *cp);
 struct sym_lcb *sym_alloc_lcb(struct sym_hcb *np, u_char tn, u_char ln);
+int sym_free_lcb(struct sym_hcb *np, u_char tn, u_char ln);
 int sym_queue_scsiio(struct sym_hcb *np, struct scsi_cmnd *csio, struct sym_ccb *cp);
 int sym_abort_scsiio(struct sym_hcb *np, struct scsi_cmnd *ccb, int timed_out);
 int sym_reset_scsi_target(struct sym_hcb *np, int target);
