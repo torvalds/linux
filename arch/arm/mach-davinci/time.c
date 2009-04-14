@@ -31,6 +31,7 @@
 #include "clock.h"
 
 static struct clock_event_device clockevent_davinci;
+static unsigned int davinci_clock_tick_rate;
 
 #define DAVINCI_TIMER0_BASE (IO_PHYS + 0x21400)
 #define DAVINCI_TIMER1_BASE (IO_PHYS + 0x21800)
@@ -282,7 +283,7 @@ static void davinci_set_mode(enum clock_event_mode mode,
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		t->period = CLOCK_TICK_RATE / (HZ);
+		t->period = davinci_clock_tick_rate / (HZ);
 		t->opts = TIMER_OPTS_PERIODIC;
 		timer32_config(t);
 		break;
@@ -309,21 +310,29 @@ static struct clock_event_device clockevent_davinci = {
 
 static void __init davinci_timer_init(void)
 {
+	struct clk *timer_clk;
+
 	static char err[] __initdata = KERN_ERR
 		"%s: can't register clocksource!\n";
 
 	/* init timer hw */
 	timer_init();
 
+	timer_clk = clk_get(NULL, "timer0");
+	BUG_ON(IS_ERR(timer_clk));
+	clk_enable(timer_clk);
+
+	davinci_clock_tick_rate = clk_get_rate(timer_clk);
+
 	/* setup clocksource */
 	clocksource_davinci.mult =
-		clocksource_khz2mult(CLOCK_TICK_RATE/1000,
+		clocksource_khz2mult(davinci_clock_tick_rate/1000,
 				     clocksource_davinci.shift);
 	if (clocksource_register(&clocksource_davinci))
 		printk(err, clocksource_davinci.name);
 
 	/* setup clockevent */
-	clockevent_davinci.mult = div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC,
+	clockevent_davinci.mult = div_sc(davinci_clock_tick_rate, NSEC_PER_SEC,
 					 clockevent_davinci.shift);
 	clockevent_davinci.max_delta_ns =
 		clockevent_delta2ns(0xfffffffe, &clockevent_davinci);
@@ -343,6 +352,15 @@ struct sys_timer davinci_timer = {
 void davinci_watchdog_reset(void) {
 	u32 tgcr, wdtcr;
 	void __iomem *base = IO_ADDRESS(DAVINCI_WDOG_BASE);
+	struct device dev;
+	struct clk *wd_clk;
+	char *name = "watchdog";
+
+	dev_set_name(&dev, name);
+	wd_clk = clk_get(&dev, NULL);
+	if (WARN_ON(IS_ERR(wd_clk)))
+		return;
+	clk_enable(wd_clk);
 
 	/* disable, internal clock source */
 	__raw_writel(0, base + TCR);
