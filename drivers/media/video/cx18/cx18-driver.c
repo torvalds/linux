@@ -546,6 +546,47 @@ done:
 	cx->card_i2c = cx->card->i2c;
 }
 
+static int __devinit cx18_create_in_workq(struct cx18 *cx)
+{
+	snprintf(cx->in_workq_name, sizeof(cx->in_workq_name), "%s-in",
+		 cx->v4l2_dev.name);
+	cx->in_work_queue = create_singlethread_workqueue(cx->in_workq_name);
+	if (cx->in_work_queue == NULL) {
+		CX18_ERR("Unable to create incoming mailbox handler thread\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static int __devinit cx18_create_out_workq(struct cx18 *cx)
+{
+	snprintf(cx->out_workq_name, sizeof(cx->out_workq_name), "%s-out",
+		 cx->v4l2_dev.name);
+	cx->out_work_queue = create_workqueue(cx->out_workq_name);
+	if (cx->out_work_queue == NULL) {
+		CX18_ERR("Unable to create outgoing mailbox handler threads\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static void __devinit cx18_init_in_work_orders(struct cx18 *cx)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_IN_WORK_ORDERS; i++) {
+		cx->in_work_order[i].cx = cx;
+		cx->in_work_order[i].str = cx->epu_debug_str;
+		INIT_WORK(&cx->in_work_order[i].work, cx18_in_work_handler);
+	}
+}
+
+static void __devinit cx18_init_out_work_orders(struct cx18 *cx)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_OUT_WORK_ORDERS; i++)
+		INIT_WORK(&cx->out_work_order[i].work, cx18_out_work_handler);
+}
+
 /* Precondition: the cx18 structure has been memset to 0. Only
    the dev and instance fields have been filled in.
    No assumptions on the card type may be made here (see cx18_init_struct2
@@ -553,7 +594,7 @@ done:
  */
 static int __devinit cx18_init_struct1(struct cx18 *cx)
 {
-	int i;
+	int ret;
 
 	cx->base_addr = pci_resource_start(cx->pci_dev, 0);
 
@@ -562,19 +603,18 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	mutex_init(&cx->epu2apu_mb_lock);
 	mutex_init(&cx->epu2cpu_mb_lock);
 
-	snprintf(cx->in_workq_name, sizeof(cx->in_workq_name), "%s-in",
-		 cx->v4l2_dev.name);
-	cx->in_work_queue = create_singlethread_workqueue(cx->in_workq_name);
-	if (cx->in_work_queue == NULL) {
-		CX18_ERR("Unable to create incoming mailbox handler thread\n");
-		return -ENOMEM;
+	ret = cx18_create_out_workq(cx);
+	if (ret)
+		return ret;
+
+	ret = cx18_create_in_workq(cx);
+	if (ret) {
+		destroy_workqueue(cx->out_work_queue);
+		return ret;
 	}
 
-	for (i = 0; i < CX18_MAX_IN_WORK_ORDERS; i++) {
-		cx->in_work_order[i].cx = cx;
-		cx->in_work_order[i].str = cx->epu_debug_str;
-		INIT_WORK(&cx->in_work_order[i].work, cx18_in_work_handler);
-	}
+	cx18_init_out_work_orders(cx);
+	cx18_init_in_work_orders(cx);
 
 	/* start counting open_id at 1 */
 	cx->open_id = 1;
@@ -761,17 +801,17 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		retval = -ENODEV;
 		goto err;
 	}
-	if (cx18_init_struct1(cx)) {
-		retval = -ENOMEM;
+
+	retval = cx18_init_struct1(cx);
+	if (retval)
 		goto err;
-	}
 
 	CX18_DEBUG_INFO("base addr: 0x%08x\n", cx->base_addr);
 
 	/* PCI Device Setup */
 	retval = cx18_setup_pci(cx, pci_dev, pci_id);
 	if (retval != 0)
-		goto free_workqueue;
+		goto free_workqueues;
 
 	/* map io memory */
 	CX18_DEBUG_INFO("attempting ioremap at 0x%08x len 0x%08x\n",
@@ -945,8 +985,9 @@ free_map:
 	cx18_iounmap(cx);
 free_mem:
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
-free_workqueue:
+free_workqueues:
 	destroy_workqueue(cx->in_work_queue);
+	destroy_workqueue(cx->out_work_queue);
 err:
 	if (retval == 0)
 		retval = -ENODEV;
@@ -1075,15 +1116,26 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	if (atomic_read(&cx->tot_capturing) > 0)
 		cx18_stop_all_captures(cx);
 
-	/* Interrupts */
+	/* Stop interrupts that cause incoming work to be queued */
 	cx18_sw1_irq_disable(cx, IRQ_CPU_TO_EPU | IRQ_APU_TO_EPU);
+
+	/* Incoming work can cause outgoing work, so clean up incoming first */
+	cx18_cancel_in_work_orders(cx);
+
+	/*
+	 * An outgoing work order can have the only pointer to a dynamically
+	 * allocated buffer, so we need to flush outgoing work and not just
+	 * cancel it, so we don't lose the pointer and leak memory.
+	 */
+	flush_workqueue(cx->out_work_queue);
+
+	/* Stop ack interrupts that may have been needed for work to finish */
 	cx18_sw2_irq_disable(cx, IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);
 
 	cx18_halt_firmware(cx);
 
-	cx18_cancel_in_work_orders(cx);
-
 	destroy_workqueue(cx->in_work_queue);
+	destroy_workqueue(cx->out_work_queue);
 
 	cx18_streams_cleanup(cx, 1);
 

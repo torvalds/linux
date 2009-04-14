@@ -431,14 +431,16 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	cx18_api(cx, CX18_CPU_SET_RAW_VBI_PARAM, 6, data);
 }
 
-struct cx18_queue *cx18_stream_put_buf_fw(struct cx18_stream *s,
-					  struct cx18_buffer *buf)
+static
+struct cx18_queue *_cx18_stream_put_buf_fw(struct cx18_stream *s,
+					   struct cx18_buffer *buf)
 {
 	struct cx18 *cx = s->cx;
 	struct cx18_queue *q;
 
 	/* Don't give it to the firmware, if we're not running a capture */
 	if (s->handle == CX18_INVALID_TASK_HANDLE ||
+	    test_bit(CX18_F_S_STOPPING, &s->s_flags) ||
 	    !test_bit(CX18_F_S_STREAMING, &s->s_flags))
 		return cx18_enqueue(s, buf, &s->q_free);
 
@@ -453,7 +455,8 @@ struct cx18_queue *cx18_stream_put_buf_fw(struct cx18_stream *s,
 	return q;
 }
 
-void cx18_stream_load_fw_queue(struct cx18_stream *s)
+static
+void _cx18_stream_load_fw_queue(struct cx18_stream *s)
 {
 	struct cx18_queue *q;
 	struct cx18_buffer *buf;
@@ -467,9 +470,91 @@ void cx18_stream_load_fw_queue(struct cx18_stream *s)
 		buf = cx18_dequeue(s, &s->q_free);
 		if (buf == NULL)
 			break;
-		q = cx18_stream_put_buf_fw(s, buf);
+		q = _cx18_stream_put_buf_fw(s, buf);
 	} while (atomic_read(&s->q_busy.buffers) < CX18_MAX_FW_MDLS_PER_STREAM
 		 && q == &s->q_busy);
+}
+
+static inline
+void free_out_work_order(struct cx18_out_work_order *order)
+{
+	atomic_set(&order->pending, 0);
+}
+
+void cx18_out_work_handler(struct work_struct *work)
+{
+	struct cx18_out_work_order *order =
+			container_of(work, struct cx18_out_work_order, work);
+	struct cx18_stream *s = order->s;
+	struct cx18_buffer *buf = order->buf;
+
+	free_out_work_order(order);
+
+	if (buf == NULL)
+		_cx18_stream_load_fw_queue(s);
+	else
+		_cx18_stream_put_buf_fw(s, buf);
+}
+
+static
+struct cx18_out_work_order *alloc_out_work_order(struct cx18 *cx)
+{
+	int i;
+	struct cx18_out_work_order *order = NULL;
+
+	for (i = 0; i < CX18_MAX_OUT_WORK_ORDERS; i++) {
+		/*
+		 * We need "pending" to be atomic to inspect & set its contents
+		 * 1. "pending" is only set to 1 here, but needs multiple access
+		 * protection
+		 * 2. work handler threads only clear "pending" and only
+		 * on one, particular work order at a time, per handler thread.
+		 */
+		if (atomic_add_unless(&cx->out_work_order[i].pending, 1, 1)) {
+			order = &cx->out_work_order[i];
+			break;
+		}
+	}
+	return order;
+}
+
+struct cx18_queue *cx18_stream_put_buf_fw(struct cx18_stream *s,
+					  struct cx18_buffer *buf)
+{
+	struct cx18 *cx = s->cx;
+	struct cx18_out_work_order *order;
+
+	order = alloc_out_work_order(cx);
+	if (order == NULL) {
+		CX18_DEBUG_WARN("No blank, outgoing-mailbox, deferred-work, "
+				"order forms available; sending buffer %u back "
+				"to the firmware immediately for stream %s\n",
+				buf->id, s->name);
+		return _cx18_stream_put_buf_fw(s, buf);
+	}
+	order->s = s;
+	order->buf = buf;
+	queue_work(cx->out_work_queue, &order->work);
+	return NULL;
+}
+
+void cx18_stream_load_fw_queue(struct cx18_stream *s)
+{
+	struct cx18 *cx = s->cx;
+	struct cx18_out_work_order *order;
+
+	order = alloc_out_work_order(cx);
+	if (order == NULL) {
+		CX18_DEBUG_WARN("No blank, outgoing-mailbox, deferred-work, "
+				"order forms available; filling the firmware "
+				"buffer queue immediately for stream %s\n",
+				s->name);
+		_cx18_stream_load_fw_queue(s);
+		return;
+	}
+	order->s = s;
+	order->buf = NULL; /* Indicates to load the fw queue */
+	queue_work(cx->out_work_queue, &order->work);
 }
 
 int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
@@ -607,12 +692,13 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		cx18_writel(cx, s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
 	}
 	mutex_unlock(&s->qlock);
-	cx18_stream_load_fw_queue(s);
+	_cx18_stream_load_fw_queue(s);
 
 	/* begin_capture */
 	if (cx18_vapi(cx, CX18_CPU_CAPTURE_START, 1, s->handle)) {
 		CX18_DEBUG_WARN("Error starting capture!\n");
 		/* Ensure we're really not capturing before releasing MDLs */
+		set_bit(CX18_F_S_STOPPING, &s->s_flags);
 		if (s->type == CX18_ENC_STREAM_TYPE_MPG)
 			cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 2, s->handle, 1);
 		else
@@ -622,6 +708,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		cx18_vapi(cx, CX18_CPU_DE_RELEASE_MDL, 1, s->handle);
 		cx18_vapi(cx, CX18_DESTROY_TASK, 1, s->handle);
 		s->handle = CX18_INVALID_TASK_HANDLE;
+		clear_bit(CX18_F_S_STOPPING, &s->s_flags);
 		if (atomic_read(&cx->tot_capturing) == 0) {
 			set_bit(CX18_F_I_EOS, &cx->i_flags);
 			cx18_write_reg(cx, 5, CX18_DSP0_INTERRUPT_MASK);
@@ -666,6 +753,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	if (atomic_read(&cx->tot_capturing) == 0)
 		return 0;
 
+	set_bit(CX18_F_S_STOPPING, &s->s_flags);
 	if (s->type == CX18_ENC_STREAM_TYPE_MPG)
 		cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 2, s->handle, !gop_end);
 	else
@@ -689,6 +777,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 
 	cx18_vapi(cx, CX18_DESTROY_TASK, 1, s->handle);
 	s->handle = CX18_INVALID_TASK_HANDLE;
+	clear_bit(CX18_F_S_STOPPING, &s->s_flags);
 
 	if (atomic_read(&cx->tot_capturing) > 0)
 		return 0;
