@@ -225,6 +225,7 @@ smp_send_reschedule (int cpu)
 {
 	platform_send_ipi(cpu, IA64_IPI_RESCHEDULE, IA64_IPI_DM_INT, 0);
 }
+EXPORT_SYMBOL_GPL(smp_send_reschedule);
 
 /*
  * Called with preemption disabled.
