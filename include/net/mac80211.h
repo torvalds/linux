@@ -1575,6 +1575,20 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw);
  */
 void ieee80211_free_hw(struct ieee80211_hw *hw);
 
+/**
+ * ieee80211_restart_hw - restart hardware completely
+ *
+ * Call this function when the hardware was restarted for some reason
+ * (hardware error, ...) and the driver is unable to restore its state
+ * by itself. mac80211 assumes that at this point the driver/hardware
+ * is completely uninitialised and stopped, it starts the process by
+ * calling the ->start() operation. The driver will need to reset all
+ * internal state that it has prior to calling this function.
+ *
+ * @hw: the hardware to restart
+ */
+void ieee80211_restart_hw(struct ieee80211_hw *hw);
+
 /* trick to avoid symbol clashes with the ieee80211 subsystem */
 void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		    struct ieee80211_rx_status *status);

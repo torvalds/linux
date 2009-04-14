@@ -696,6 +696,28 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ieee80211_tx_status);
 
+static void ieee80211_restart_work(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local, restart_work);
+
+	rtnl_lock();
+	ieee80211_reconfig(local);
+	rtnl_unlock();
+}
+
+void ieee80211_restart_hw(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	/* use this reason, __ieee80211_resume will unblock it */
+	ieee80211_stop_queues_by_reason(hw,
+		IEEE80211_QUEUE_STOP_REASON_SUSPEND);
+
+	schedule_work(&local->restart_work);
+}
+EXPORT_SYMBOL(ieee80211_restart_hw);
+
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops)
 {
@@ -767,6 +789,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	spin_lock_init(&local->queue_stop_reason_lock);
 
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
+
+	INIT_WORK(&local->restart_work, ieee80211_restart_work);
 
 	INIT_WORK(&local->dynamic_ps_enable_work,
 		  ieee80211_dynamic_ps_enable_work);
