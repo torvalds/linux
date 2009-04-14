@@ -554,25 +554,28 @@ static void reiserfs_dirty_inode(struct inode *inode)
 	struct reiserfs_transaction_handle th;
 
 	int err = 0;
+	int lock_depth;
+
 	if (inode->i_sb->s_flags & MS_RDONLY) {
 		reiserfs_warning(inode->i_sb, "clm-6006",
 				 "writing inode %lu on readonly FS",
 				 inode->i_ino);
 		return;
 	}
-	reiserfs_write_lock(inode->i_sb);
+	lock_depth = reiserfs_write_lock_once(inode->i_sb);
 
 	/* this is really only used for atime updates, so they don't have
 	 ** to be included in O_SYNC or fsync
 	 */
 	err = journal_begin(&th, inode->i_sb, 1);
-	if (err) {
-		reiserfs_write_unlock(inode->i_sb);
-		return;
-	}
+	if (err)
+		goto out;
+
 	reiserfs_update_sd(&th, inode);
 	journal_end(&th, inode->i_sb, 1);
-	reiserfs_write_unlock(inode->i_sb);
+
+out:
+	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 }
 
 #ifdef CONFIG_QUOTA
