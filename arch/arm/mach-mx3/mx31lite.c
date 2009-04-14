@@ -22,6 +22,9 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/memory.h>
+#include <linux/platform_device.h>
+#include <linux/gpio.h>
+#include <linux/smsc911x.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -34,6 +37,7 @@
 #include <mach/board-mx31lite.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+#include <mach/irqs.h>
 #include "devices.h"
 
 /*
@@ -46,10 +50,41 @@ static unsigned int mx31lite_pins[] = {
 	MX31_PIN_RTS1__RTS1,
 	MX31_PIN_TXD1__TXD1,
 	MX31_PIN_RXD1__RXD1,
+	/* LAN9117 IRQ pin */
+	IOMUX_MODE(MX31_PIN_SFS6, IOMUX_CONFIG_GPIO),
 };
 
 static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
+};
+
+static struct smsc911x_platform_config smsc911x_config = {
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
+	.flags		= SMSC911X_USE_16BIT,
+};
+
+static struct resource smsc911x_resources[] = {
+	[0] = {
+		.start		= CS4_BASE_ADDR,
+		.end		= CS4_BASE_ADDR + 0x100,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= IOMUX_TO_IRQ(MX31_PIN_SFS6),
+		.end		= IOMUX_TO_IRQ(MX31_PIN_SFS6),
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device smsc911x_device = {
+	.name		= "smsc911x",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(smsc911x_resources),
+	.resource	= smsc911x_resources,
+	.dev		= {
+		.platform_data = &smsc911x_config,
+	},
 };
 
 /*
@@ -87,6 +122,10 @@ static void __init mxc_board_init(void)
 				      "mx31lite");
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+
+	/* SMSC9117 IRQ pin */
+	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_SFS6));
+	platform_device_register(&smsc911x_device);
 }
 
 static void __init mx31lite_timer_init(void)
