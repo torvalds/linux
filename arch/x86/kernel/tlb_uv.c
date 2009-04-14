@@ -25,6 +25,8 @@ static int			uv_bau_retry_limit __read_mostly;
 
 /* position of pnode (which is nasid>>1): */
 static int			uv_nshift __read_mostly;
+/* base pnode in this partition */
+static int			uv_partition_base_pnode __read_mostly;
 
 static unsigned long		uv_mmask __read_mostly;
 
@@ -43,7 +45,7 @@ static int __init blade_to_first_node(int blade)
 		if (blade == b)
 			return node;
 	}
-	BUG();
+	return -1; /* shouldn't happen */
 }
 
 /*
@@ -359,7 +361,8 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 			locals++;
 			continue;
 		}
-		bau_node_set(pnode, &bau_desc->distribution);
+		bau_node_set(pnode - uv_partition_base_pnode,
+				&bau_desc->distribution);
 		i++;
 	}
 	if (i == 0) {
@@ -728,7 +731,12 @@ uv_activation_descriptor_init(int node, int pnode)
 	for (i = 0, ad2 = adp; i < UV_ACTIVATION_DESCRIPTOR_SIZE; i++, ad2++) {
 		memset(ad2, 0, sizeof(struct bau_desc));
 		ad2->header.sw_ack_flag = 1;
-		ad2->header.base_dest_nodeid = uv_cpu_to_pnode(0);
+		/*
+		 * base_dest_nodeid is the first node in the partition, so
+		 * the bit map will indicate partition-relative node numbers.
+		 * note that base_dest_nodeid is actually a nasid.
+		 */
+		ad2->header.base_dest_nodeid = uv_partition_base_pnode << 1;
 		ad2->header.command = UV_NET_ENDPOINT_INTD;
 		ad2->header.int_both = 1;
 		/*
@@ -825,6 +833,11 @@ static int __init uv_bau_init(void)
 	    kmalloc(nblades * sizeof(struct bau_control *), GFP_KERNEL);
 	BUG_ON(!uv_bau_table_bases);
 
+	uv_partition_base_pnode = 0x7fffffff;
+	for (blade = 0; blade < nblades; blade++)
+		if (uv_blade_nr_possible_cpus(blade) &&
+			(uv_blade_to_pnode(blade) < uv_partition_base_pnode))
+			uv_partition_base_pnode = uv_blade_to_pnode(blade);
 	for (blade = 0; blade < nblades; blade++)
 		if (uv_blade_nr_possible_cpus(blade))
 			uv_init_blade(blade);
