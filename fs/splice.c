@@ -555,8 +555,8 @@ static int pipe_to_sendpage(struct pipe_inode_info *pipe,
  * SPLICE_F_MOVE isn't set, or we cannot move the page, we simply create
  * a new page in the output file page cache and fill/dirty that.
  */
-static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
-			struct splice_desc *sd)
+int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
+		 struct splice_desc *sd)
 {
 	struct file *file = sd->u.file;
 	struct address_space *mapping = file->f_mapping;
@@ -600,6 +600,7 @@ static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 out:
 	return ret;
 }
+EXPORT_SYMBOL(pipe_to_file);
 
 static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
 {
