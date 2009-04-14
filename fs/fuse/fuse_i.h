@@ -261,6 +261,8 @@ struct fuse_req {
 		} release;
 		struct fuse_init_in init_in;
 		struct fuse_init_out init_out;
+		struct cuse_init_in cuse_init_in;
+		struct cuse_init_out cuse_init_out;
 		struct {
 			struct fuse_read_in in;
 			u64 attr_ver;
@@ -662,6 +664,8 @@ void fuse_invalidate_entry_cache(struct dentry *entry);
  */
 struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
 
+void fuse_conn_kill(struct fuse_conn *fc);
+
 /**
  * Initialize fuse_conn
  */
@@ -703,5 +707,14 @@ void fuse_set_nowrite(struct inode *inode);
 void fuse_release_nowrite(struct inode *inode);
 
 u64 fuse_get_attr_version(struct fuse_conn *fc);
+
+int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
+		 bool isdir);
+ssize_t fuse_direct_io(struct file *file, const char __user *buf,
+		       size_t count, loff_t *ppos, int write);
+long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
+		   unsigned int flags);
+unsigned fuse_file_poll(struct file *file, poll_table *wait);
+int fuse_dev_release(struct inode *inode, struct file *file);
 
 #endif /* _FS_FUSE_I_H */
