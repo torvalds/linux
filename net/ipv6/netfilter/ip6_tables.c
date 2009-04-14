@@ -2234,12 +2234,12 @@ static struct xt_match icmp6_matchstruct __read_mostly = {
 
 static int __net_init ip6_tables_net_init(struct net *net)
 {
-	return xt_proto_init(net, AF_INET6);
+	return xt_proto_init(net, NFPROTO_IPV6);
 }
 
 static void __net_exit ip6_tables_net_exit(struct net *net)
 {
-	xt_proto_fini(net, AF_INET6);
+	xt_proto_fini(net, NFPROTO_IPV6);
 }
 
 static struct pernet_operations ip6_tables_net_ops = {

@@ -2201,12 +2201,12 @@ static struct xt_match icmp_matchstruct __read_mostly = {
 
 static int __net_init ip_tables_net_init(struct net *net)
 {
-	return xt_proto_init(net, AF_INET);
+	return xt_proto_init(net, NFPROTO_IPV4);
 }
 
 static void __net_exit ip_tables_net_exit(struct net *net)
 {
-	xt_proto_fini(net, AF_INET);
+	xt_proto_fini(net, NFPROTO_IPV4);
 }
 
 static struct pernet_operations ip_tables_net_ops = {
