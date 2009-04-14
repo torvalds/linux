@@ -32,10 +32,25 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <mach/board-mx31lite.h>
+#include <mach/imx-uart.h>
+#include <mach/iomux-mx3.h>
+#include "devices.h"
 
 /*
  * This file contains the board-specific initialization routines.
  */
+
+static unsigned int mx31lite_pins[] = {
+	/* UART1 */
+	MX31_PIN_CTS1__CTS1,
+	MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1,
+	MX31_PIN_RXD1__RXD1,
+};
+
+static struct imxuart_platform_data uart_pdata = {
+	.flags = IMXUART_HAVE_RTSCTS,
+};
 
 /*
  * This structure defines the MX31 memory map.
@@ -68,6 +83,10 @@ void __init mx31lite_map_io(void)
  */
 static void __init mxc_board_init(void)
 {
+	mxc_iomux_setup_multiple_pins(mx31lite_pins, ARRAY_SIZE(mx31lite_pins),
+				      "mx31lite");
+
+	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 }
 
 static void __init mx31lite_timer_init(void)
