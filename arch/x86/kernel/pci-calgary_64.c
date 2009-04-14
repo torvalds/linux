@@ -186,37 +186,6 @@ static struct cal_chipset_ops calioc2_chip_ops = {
 
 static struct calgary_bus_info bus_info[MAX_PHB_BUS_NUM] = { { NULL, 0, 0 }, };
 
-/* enable this to stress test the chip's TCE cache */
-#ifdef CONFIG_IOMMU_DEBUG
-static int debugging = 1;
-
-static inline unsigned long verify_bit_range(unsigned long* bitmap,
-	int expected, unsigned long start, unsigned long end)
-{
-	unsigned long idx = start;
-
-	BUG_ON(start >= end);
-
-	while (idx < end) {
-		if (!!test_bit(idx, bitmap) != expected)
-			return idx;
-		++idx;
-	}
-
-	/* all bits have the expected value */
-	return ~0UL;
-}
-#else /* debugging is disabled */
-static int debugging;
-
-static inline unsigned long verify_bit_range(unsigned long* bitmap,
-	int expected, unsigned long start, unsigned long end)
-{
-	return ~0UL;
-}
-
-#endif /* CONFIG_IOMMU_DEBUG */
-
 static inline int translation_enabled(struct iommu_table *tbl)
 {
 	/* only PHBs with translation enabled have an IOMMU table */
@@ -228,7 +197,6 @@ static void iommu_range_reserve(struct iommu_table *tbl,
 {
 	unsigned long index;
 	unsigned long end;
-	unsigned long badbit;
 	unsigned long flags;
 
 	index = start_addr >> PAGE_SHIFT;
@@ -242,14 +210,6 @@ static void iommu_range_reserve(struct iommu_table *tbl,
 		end = tbl->it_size;
 
 	spin_lock_irqsave(&tbl->it_lock, flags);
-
-	badbit = verify_bit_range(tbl->it_map, 0, index, end);
-	if (badbit != ~0UL) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "Calgary: entry already allocated at "
-			       "0x%lx tbl %p dma 0x%lx npages %u\n",
-			       badbit, tbl, start_addr, npages);
-	}
 
 	iommu_area_reserve(tbl->it_map, index, npages);
 
@@ -326,7 +286,6 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	unsigned int npages)
 {
 	unsigned long entry;
-	unsigned long badbit;
 	unsigned long badend;
 	unsigned long flags;
 
@@ -345,14 +304,6 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	tce_free(tbl, entry, npages);
 
 	spin_lock_irqsave(&tbl->it_lock, flags);
-
-	badbit = verify_bit_range(tbl->it_map, 1, entry, entry + npages);
-	if (badbit != ~0UL) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "Calgary: bit is off at 0x%lx "
-			       "tbl %p dma 0x%Lx entry 0x%lx npages %u\n",
-			       badbit, tbl, dma_addr, entry, npages);
-	}
 
 	iommu_area_free(tbl->it_map, entry, npages);
 
@@ -1488,9 +1439,8 @@ void __init detect_calgary(void)
 		iommu_detected = 1;
 		calgary_detected = 1;
 		printk(KERN_INFO "PCI-DMA: Calgary IOMMU detected.\n");
-		printk(KERN_INFO "PCI-DMA: Calgary TCE table spec is %d, "
-		       "CONFIG_IOMMU_DEBUG is %s.\n", specified_table_size,
-		       debugging ? "enabled" : "disabled");
+		printk(KERN_INFO "PCI-DMA: Calgary TCE table spec is %d\n",
+		       specified_table_size);
 
 		/* swiotlb for devices that aren't behind the Calgary. */
 		if (max_pfn > MAX_DMA32_PFN)
