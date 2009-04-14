@@ -2946,12 +2946,18 @@ static int hotkey_read(char *p)
 	return len;
 }
 
-static void hotkey_enabledisable_warn(void)
+static void hotkey_enabledisable_warn(bool enable)
 {
 	tpacpi_log_usertask("procfs hotkey enable/disable");
-	WARN(1, TPACPI_WARN
-	     "hotkey enable/disable functionality has been "
-	     "removed from the driver. Hotkeys are always enabled.\n");
+	if (!WARN((tpacpi_lifecycle == TPACPI_LIFE_RUNNING || !enable),
+			TPACPI_WARN
+			"hotkey enable/disable functionality has been "
+			"removed from the driver.  Hotkeys are always "
+			"enabled\n"))
+		printk(TPACPI_ERR
+			"Please remove the hotkey=enable module "
+			"parameter, it is deprecated.  Hotkeys are always "
+			"enabled\n");
 }
 
 static int hotkey_write(char *buf)
@@ -2971,9 +2977,9 @@ static int hotkey_write(char *buf)
 	res = 0;
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "enable") == 0) {
-			hotkey_enabledisable_warn();
+			hotkey_enabledisable_warn(1);
 		} else if (strlencmp(cmd, "disable") == 0) {
-			hotkey_enabledisable_warn();
+			hotkey_enabledisable_warn(0);
 			res = -EPERM;
 		} else if (strlencmp(cmd, "reset") == 0) {
 			mask = hotkey_orig_mask;
