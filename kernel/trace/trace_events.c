@@ -797,6 +797,7 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events)
 	     (unsigned long)event < (unsigned long)end;		\
 	     event++)
 
+#ifdef CONFIG_MODULES
 static void trace_module_add_events(struct module *mod)
 {
 	struct ftrace_event_call *call, *start, *end;
@@ -840,8 +841,8 @@ static void trace_module_remove_events(struct module *mod)
 	}
 }
 
-int trace_module_notify(struct notifier_block *self,
-			unsigned long val, void *data)
+static int trace_module_notify(struct notifier_block *self,
+			       unsigned long val, void *data)
 {
 	struct module *mod = data;
 
@@ -858,6 +859,13 @@ int trace_module_notify(struct notifier_block *self,
 
 	return 0;
 }
+#else
+static int trace_module_notify(struct notifier_block *self,
+			       unsigned long val, void *data)
+{
+	return 0;
+}
+#endif /* CONFIG_MODULES */
 
 struct notifier_block trace_module_nb = {
 	.notifier_call = trace_module_notify,
