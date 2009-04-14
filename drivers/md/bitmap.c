@@ -1479,6 +1479,7 @@ void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector)
 		s += blocks;
 	}
 	bitmap->last_end_sync = jiffies;
+	sysfs_notify(&bitmap->mddev->kobj, NULL, "sync_completed");
 }
 
 static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset, int needed)

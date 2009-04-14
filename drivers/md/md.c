@@ -2017,6 +2017,8 @@ repeat:
 	clear_bit(MD_CHANGE_PENDING, &mddev->flags);
 	spin_unlock_irq(&mddev->write_lock);
 	wake_up(&mddev->sb_wait);
+	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 
 }
 
@@ -3486,12 +3488,15 @@ sync_completed_show(mddev_t *mddev, char *page)
 {
 	unsigned long max_sectors, resync;
 
+	if (!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+		return sprintf(page, "none\n");
+
 	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
 		max_sectors = mddev->resync_max_sectors;
 	else
 		max_sectors = mddev->dev_sectors;
 
-	resync = (mddev->curr_resync - atomic_read(&mddev->recovery_active));
+	resync = mddev->curr_resync_completed;
 	return sprintf(page, "%lu / %lu\n", resync, max_sectors);
 }
 
@@ -6338,18 +6343,12 @@ void md_do_sync(mddev_t *mddev)
 		sector_t sectors;
 
 		skipped = 0;
-		if (j >= mddev->resync_max) {
-			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
-			wait_event(mddev->recovery_wait,
-				   mddev->resync_max > j
-				   || kthread_should_stop());
-		}
-		if (kthread_should_stop())
-			goto interrupted;
 
-		if (mddev->curr_resync > mddev->curr_resync_completed &&
-		    (mddev->curr_resync - mddev->curr_resync_completed)
-		    > (max_sectors >> 4)) {
+		if ((mddev->curr_resync > mddev->curr_resync_completed &&
+		     (mddev->curr_resync - mddev->curr_resync_completed)
+		    > (max_sectors >> 4)) ||
+		    j >= mddev->resync_max
+			) {
 			/* time to update curr_resync_completed */
 			blk_unplug(mddev->queue);
 			wait_event(mddev->recovery_wait,
@@ -6357,7 +6356,17 @@ void md_do_sync(mddev_t *mddev)
 			mddev->curr_resync_completed =
 				mddev->curr_resync;
 			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 		}
+
+		if (j >= mddev->resync_max)
+			wait_event(mddev->recovery_wait,
+				   mddev->resync_max > j
+				   || kthread_should_stop());
+
+		if (kthread_should_stop())
+			goto interrupted;
+
 		sectors = mddev->pers->sync_request(mddev, j, &skipped,
 						  currspeed < speed_min(mddev));
 		if (sectors == 0) {
@@ -6465,6 +6474,7 @@ void md_do_sync(mddev_t *mddev)
 
  skip:
 	mddev->curr_resync = 0;
+	mddev->curr_resync_completed = 0;
 	mddev->resync_min = 0;
 	mddev->resync_max = MaxSector;
 	sysfs_notify(&mddev->kobj, NULL, "sync_completed");
