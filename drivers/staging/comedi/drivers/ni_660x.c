@@ -428,6 +428,8 @@ struct ni_660x_private {
 	struct mite_dma_descriptor_ring
 	*mite_rings[NI_660X_MAX_NUM_CHIPS][counters_per_chip];
 	spinlock_t mite_channel_lock;
+	/* interrupt_lock prevents races between interrupt and comedi_poll */
+	spinlock_t interrupt_lock;
 	unsigned dma_configuration_soft_copies[NI_660X_MAX_NUM_CHIPS];
 	spinlock_t soft_reg_copy_lock;
 	unsigned short pfi_output_selects[NUM_PFI_CHANNELS];
@@ -914,15 +916,30 @@ static irqreturn_t ni_660x_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s;
 	unsigned i;
+	unsigned long flags;
 
 	if (dev->attached == 0)
 		return IRQ_NONE;
+	/* lock to avoid race with comedi_poll */
+	comedi_spin_lock_irqsave(&private(dev)->interrupt_lock, flags);
 	smp_mb();
 	for (i = 0; i < ni_660x_num_counters(dev); ++i) {
 		s = dev->subdevices + NI_660X_GPCT_SUBDEV(i);
 		ni_660x_handle_gpct_interrupt(dev, s);
 	}
+	comedi_spin_unlock_irqrestore(&private(dev)->interrupt_lock, flags);
 	return IRQ_HANDLED;
+}
+
+static int ni_660x_input_poll(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
+{
+	unsigned long flags;
+	/* lock to avoid race with comedi_poll */
+	comedi_spin_lock_irqsave(&private(dev)->interrupt_lock, flags);
+	mite_sync_input_dma(subdev_to_counter(s)->mite_chan, s->async);
+	comedi_spin_unlock_irqrestore(&private(dev)->interrupt_lock, flags);
+	return comedi_buf_read_n_available(s->async);
 }
 
 static int ni_660x_buf_change(struct comedi_device * dev, struct comedi_subdevice * s,
@@ -946,6 +963,7 @@ static int ni_660x_allocate_private(struct comedi_device * dev)
 	if ((retval = alloc_private(dev, sizeof(struct ni_660x_private))) < 0)
 		return retval;
 	spin_lock_init(&private(dev)->mite_channel_lock);
+	spin_lock_init(&private(dev)->interrupt_lock);
 	spin_lock_init(&private(dev)->soft_reg_copy_lock);
 	for (i = 0; i < NUM_PFI_CHANNELS; ++i) {
 		private(dev)->pfi_output_selects[i] = pfi_output_select_counter;
@@ -1055,6 +1073,7 @@ static int ni_660x_attach(struct comedi_device * dev, struct comedi_devconfig * 
 			s->len_chanlist = 1;
 			s->do_cmdtest = &ni_660x_cmdtest;
 			s->cancel = &ni_660x_cancel;
+			s->poll = &ni_660x_input_poll;
 			s->async_dma_dir = DMA_BIDIRECTIONAL;
 			s->buf_change = &ni_660x_buf_change;
 			s->private = &private(dev)->counter_dev->counters[i];
