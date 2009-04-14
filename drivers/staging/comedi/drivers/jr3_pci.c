@@ -48,55 +48,6 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #include "comedi_pci.h"
 #include "jr3_pci.h"
 
-/* Hotplug firmware loading stuff */
-
-static void comedi_fw_release(struct device *dev)
-{
-	printk(KERN_DEBUG "firmware_sample_driver: ghost_release\n");
-}
-
-static struct device comedi_fw_device = {
-	.init_name = "comedi",
-	.release = comedi_fw_release
-};
-
-typedef int comedi_firmware_callback(struct comedi_device * dev,
-	const u8 * data, size_t size);
-
-static int comedi_load_firmware(struct comedi_device * dev,
-	char *name, comedi_firmware_callback cb)
-{
-	int result = 0;
-	const struct firmware *fw;
-	char *firmware_path;
-	static const char *prefix = "comedi/";
-
-	firmware_path = kmalloc(strlen(prefix) + strlen(name) + 1, GFP_KERNEL);
-	if (!firmware_path) {
-		result = -ENOMEM;
-	} else {
-		firmware_path[0] = '\0';
-		strcat(firmware_path, prefix);
-		strcat(firmware_path, name);
-		result = device_register(&comedi_fw_device);
-		if (result == 0) {
-			result = request_firmware(&fw, firmware_path,
-				&comedi_fw_device);
-			if (result == 0) {
-				if (!cb) {
-					result = -EINVAL;
-				} else {
-					result = cb(dev, fw->data, fw->size);
-				}
-				release_firmware(fw);
-			}
-			device_unregister(&comedi_fw_device);
-		}
-		kfree(firmware_path);
-	}
-	return result;
-}
-
 #define PCI_VENDOR_ID_JR3 0x1762
 #define PCI_DEVICE_ID_JR3_1_CHANNEL 0x3111
 #define PCI_DEVICE_ID_JR3_2_CHANNEL 0x3112
@@ -167,6 +118,41 @@ struct jr3_pci_subdev_private {
 	u16 errors;
 	int retries;
 };
+
+/* Hotplug firmware loading stuff */
+
+typedef int comedi_firmware_callback(struct comedi_device *dev,
+				     const u8 *data, size_t size);
+
+static int comedi_load_firmware(struct comedi_device *dev, char *name,
+				comedi_firmware_callback cb)
+{
+	int result = 0;
+	const struct firmware *fw;
+	char *firmware_path;
+	static const char *prefix = "comedi/";
+	struct jr3_pci_dev_private *devpriv = dev->private;
+
+	firmware_path = kmalloc(strlen(prefix) + strlen(name) + 1, GFP_KERNEL);
+	if (!firmware_path) {
+		result = -ENOMEM;
+	} else {
+		firmware_path[0] = '\0';
+		strcat(firmware_path, prefix);
+		strcat(firmware_path, name);
+		result = request_firmware(&fw, firmware_path,
+			&devpriv->pci_dev->dev);
+		if (result == 0) {
+			if (!cb)
+				result = -EINVAL;
+			else
+				result = cb(dev, fw->data, fw->size);
+			release_firmware(fw);
+		}
+		kfree(firmware_path);
+	}
+	return result;
+}
 
 static struct poll_delay_t poll_delay_min_max(int min, int max)
 {
