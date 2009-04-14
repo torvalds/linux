@@ -285,27 +285,26 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 	int words_left, len;
 	char *data = *pbcc_area;
 
-
-
 	cFYI(1, ("bleft %d", bleft));
 
-
-	/* SMB header is unaligned, so cifs servers word align start of
-	   Unicode strings */
-	data++;
-	bleft--; /* Windows servers do not always double null terminate
-		    their final Unicode string - in which case we
-		    now will not attempt to decode the byte of junk
-		    which follows it */
+	/*
+	 * Windows servers do not always double null terminate their final
+	 * Unicode string. Check to see if there are an uneven number of bytes
+	 * left. If so, then add an extra NULL pad byte to the end of the
+	 * response.
+	 *
+	 * See section 2.7.2 in "Implementing CIFS" for details
+	 */
+	if (bleft % 2) {
+		data[bleft] = 0;
+		++bleft;
+	}
 
 	words_left = bleft / 2;
 
 	/* save off server operating system */
 	len = UniStrnlen((wchar_t *) data, words_left);
 
-/* We look for obvious messed up bcc or strings in response so we do not go off
-   the end since (at least) WIN2K and Windows XP have a major bug in not null
-   terminating last Unicode string in response  */
 	if (len >= words_left)
 		return rc;
 
@@ -343,13 +342,10 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 		return rc;
 
 	kfree(ses->serverDomain);
-	ses->serverDomain = kzalloc(2 * (len + 1), GFP_KERNEL); /* BB FIXME wrong length */
-	if (ses->serverDomain != NULL) {
+	ses->serverDomain = kzalloc((4 * len) + 2, GFP_KERNEL);
+	if (ses->serverDomain != NULL)
 		cifs_strfromUCS_le(ses->serverDomain, (__le16 *)data, len,
 				   nls_cp);
-		ses->serverDomain[2*len] = 0;
-		ses->serverDomain[(2*len) + 1] = 0;
-	}
 	data += 2 * (len + 1);
 	words_left -= len + 1;
 
@@ -702,12 +698,18 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 	}
 
 	/* BB check if Unicode and decode strings */
-	if (smb_buf->Flags2 & SMBFLG2_UNICODE)
+	if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
+		/* unicode string area must be word-aligned */
+		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+			++bcc_ptr;
+			--bytes_remaining;
+		}
 		rc = decode_unicode_ssetup(&bcc_ptr, bytes_remaining,
-						   ses, nls_cp);
-	else
+					   ses, nls_cp);
+	} else {
 		rc = decode_ascii_ssetup(&bcc_ptr, bytes_remaining,
 					 ses, nls_cp);
+	}
 
 ssetup_exit:
 	if (spnego_key) {
