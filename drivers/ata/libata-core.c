@@ -1231,6 +1231,9 @@ unsigned int ata_dev_classify(const struct ata_taskfile *tf)
 	 *
 	 * We follow the current spec and consider that 0x69/0x96
 	 * identifies a port multiplier and 0x3c/0xc3 a SEMB device.
+	 * Unfortunately, WDC WD1600JS-62MHB5 (a hard drive) reports
+	 * SEMB signature.  This is worked around in
+	 * ata_dev_read_id().
 	 */
 	if ((tf->lbam == 0) && (tf->lbah == 0)) {
 		DPRINTK("found ATA device by sig\n");
@@ -1248,8 +1251,8 @@ unsigned int ata_dev_classify(const struct ata_taskfile *tf)
 	}
 
 	if ((tf->lbam == 0x3c) && (tf->lbah == 0xc3)) {
-		printk(KERN_INFO "ata: SEMB device ignored\n");
-		return ATA_DEV_SEMB_UNSUP; /* not yet */
+		DPRINTK("found SEMB device by sig (could be ATA device)\n");
+		return ATA_DEV_SEMB;
 	}
 
 	DPRINTK("unknown device\n");
@@ -2080,6 +2083,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	struct ata_taskfile tf;
 	unsigned int err_mask = 0;
 	const char *reason;
+	bool is_semb = class == ATA_DEV_SEMB;
 	int may_fallback = 1, tried_spinup = 0;
 	int rc;
 
@@ -2090,6 +2094,8 @@ retry:
 	ata_tf_init(dev, &tf);
 
 	switch (class) {
+	case ATA_DEV_SEMB:
+		class = ATA_DEV_ATA;	/* some hard drives report SEMB sig */
 	case ATA_DEV_ATA:
 		tf.command = ATA_CMD_ID_ATA;
 		break;
@@ -2124,6 +2130,14 @@ retry:
 			ata_dev_printk(dev, KERN_DEBUG,
 				       "NODEV after polling detection\n");
 			return -ENOENT;
+		}
+
+		if (is_semb) {
+			ata_dev_printk(dev, KERN_INFO, "IDENTIFY failed on "
+				       "device w/ SEMB sig, disabled\n");
+			/* SEMB is not supported yet */
+			*p_class = ATA_DEV_SEMB_UNSUP;
+			return 0;
 		}
 
 		if ((err_mask == AC_ERR_DEV) && (tf.feature & ATA_ABORTED)) {
