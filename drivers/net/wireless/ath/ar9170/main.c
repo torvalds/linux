@@ -1649,6 +1649,8 @@ int ar9170_register(struct ar9170 *ar, struct device *pdev)
 
 	err = ath_regd_init(&ar->regulatory, ar->hw->wiphy,
 			    ar9170_reg_notifier);
+	if (err)
+		goto err_out;
 
 	err = ieee80211_register_hw(ar->hw);
 	if (err)

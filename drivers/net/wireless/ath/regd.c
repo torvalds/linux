@@ -477,7 +477,7 @@ ath_regd_init(struct ath_regulatory *reg,
 	u16 regdmn;
 
 	if (!ath_regd_is_eeprom_valid(reg)) {
-		printk(KERN_DEBUG "ath: Invalid EEPROM contents\n");
+		printk(KERN_ERR "ath: Invalid EEPROM contents\n");
 		return -EINVAL;
 	}
 
