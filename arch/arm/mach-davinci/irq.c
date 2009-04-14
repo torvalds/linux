@@ -25,6 +25,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/cputype.h>
 #include <asm/mach/irq.h>
 
 #define IRQ_BIT(irq)		((irq) & 0x1f)
@@ -39,6 +40,8 @@
 #define IRQ_EABASE_REG_OFFSET	0x0024
 #define IRQ_INTPRI0_REG_OFFSET	0x0030
 #define IRQ_INTPRI7_REG_OFFSET	0x004C
+
+const u8 *davinci_def_priorities;
 
 #define INTC_BASE IO_ADDRESS(DAVINCI_ARM_INTC_BASE)
 
@@ -110,9 +113,8 @@ static struct irq_chip davinci_irq_chip_0 = {
 	.unmask = davinci_unmask_irq,
 };
 
-
 /* FIQ are pri 0-1; otherwise 2-7, with 7 lowest priority */
-static const u8 default_priorities[DAVINCI_N_AINTC_IRQ] __initdata = {
+static const u8 dm644x_default_priorities[DAVINCI_N_AINTC_IRQ] __initdata = {
 	[IRQ_VDINT0]		= 2,
 	[IRQ_VDINT1]		= 6,
 	[IRQ_VDINT2]		= 6,
@@ -179,11 +181,82 @@ static const u8 default_priorities[DAVINCI_N_AINTC_IRQ] __initdata = {
 	[IRQ_EMUINT]		= 7,
 };
 
+static const u8 dm646x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
+	[IRQ_DM646X_VP_VERTINT0]        = 7,
+	[IRQ_DM646X_VP_VERTINT1]        = 7,
+	[IRQ_DM646X_VP_VERTINT2]        = 7,
+	[IRQ_DM646X_VP_VERTINT3]        = 7,
+	[IRQ_DM646X_VP_ERRINT]          = 7,
+	[IRQ_DM646X_RESERVED_1]         = 7,
+	[IRQ_DM646X_RESERVED_2]         = 7,
+	[IRQ_DM646X_WDINT]              = 7,
+	[IRQ_DM646X_CRGENINT0]          = 7,
+	[IRQ_DM646X_CRGENINT1]          = 7,
+	[IRQ_DM646X_TSIFINT0]           = 7,
+	[IRQ_DM646X_TSIFINT1]           = 7,
+	[IRQ_DM646X_VDCEINT]            = 7,
+	[IRQ_DM646X_USBINT]             = 7,
+	[IRQ_DM646X_USBDMAINT]          = 7,
+	[IRQ_DM646X_PCIINT]             = 7,
+	[IRQ_CCINT0]                    = 7,    /* dma */
+	[IRQ_CCERRINT]                  = 7,    /* dma */
+	[IRQ_TCERRINT0]                 = 7,    /* dma */
+	[IRQ_TCERRINT]                  = 7,    /* dma */
+	[IRQ_DM646X_TCERRINT2]          = 7,
+	[IRQ_DM646X_TCERRINT3]          = 7,
+	[IRQ_DM646X_IDE]                = 7,
+	[IRQ_DM646X_HPIINT]             = 7,
+	[IRQ_DM646X_EMACRXTHINT]        = 7,
+	[IRQ_DM646X_EMACRXINT]          = 7,
+	[IRQ_DM646X_EMACTXINT]          = 7,
+	[IRQ_DM646X_EMACMISCINT]        = 7,
+	[IRQ_DM646X_MCASP0TXINT]        = 7,
+	[IRQ_DM646X_MCASP0RXINT]        = 7,
+	[IRQ_AEMIFINT]                  = 7,
+	[IRQ_DM646X_RESERVED_3]         = 7,
+	[IRQ_DM646X_MCASP1TXINT]        = 7,    /* clockevent */
+	[IRQ_TINT0_TINT34]              = 7,    /* clocksource */
+	[IRQ_TINT1_TINT12]              = 7,    /* DSP timer */
+	[IRQ_TINT1_TINT34]              = 7,    /* system tick */
+	[IRQ_PWMINT0]                   = 7,
+	[IRQ_PWMINT1]                   = 7,
+	[IRQ_DM646X_VLQINT]             = 7,
+	[IRQ_I2C]                       = 7,
+	[IRQ_UARTINT0]                  = 7,
+	[IRQ_UARTINT1]                  = 7,
+	[IRQ_DM646X_UARTINT2]           = 7,
+	[IRQ_DM646X_SPINT0]             = 7,
+	[IRQ_DM646X_SPINT1]             = 7,
+	[IRQ_DM646X_DSP2ARMINT]         = 7,
+	[IRQ_DM646X_RESERVED_4]         = 7,
+	[IRQ_DM646X_PSCINT]             = 7,
+	[IRQ_DM646X_GPIO0]              = 7,
+	[IRQ_DM646X_GPIO1]              = 7,
+	[IRQ_DM646X_GPIO2]              = 7,
+	[IRQ_DM646X_GPIO3]              = 7,
+	[IRQ_DM646X_GPIO4]              = 7,
+	[IRQ_DM646X_GPIO5]              = 7,
+	[IRQ_DM646X_GPIO6]              = 7,
+	[IRQ_DM646X_GPIO7]              = 7,
+	[IRQ_DM646X_GPIOBNK0]           = 7,
+	[IRQ_DM646X_GPIOBNK1]           = 7,
+	[IRQ_DM646X_GPIOBNK2]           = 7,
+	[IRQ_DM646X_DDRINT]             = 7,
+	[IRQ_DM646X_AEMIFINT]           = 7,
+	[IRQ_COMMTX]                    = 7,
+	[IRQ_COMMRX]                    = 7,
+	[IRQ_EMUINT]                    = 7,
+};
+
 /* ARM Interrupt Controller Initialization */
 void __init davinci_irq_init(void)
 {
 	unsigned i;
-	const u8 *priority = default_priorities;
+
+	if (cpu_is_davinci_dm644x())
+		davinci_def_priorities = dm644x_default_priorities;
+	else if (cpu_is_davinci_dm646x())
+		davinci_def_priorities = dm646x_default_priorities;
 
 	/* Clear all interrupt requests */
 	davinci_irq_writel(~0x0, FIQ_REG0_OFFSET);
@@ -211,8 +284,8 @@ void __init davinci_irq_init(void)
 		unsigned	j;
 		u32		pri;
 
-		for (j = 0, pri = 0; j < 32; j += 4, priority++)
-			pri |= (*priority & 0x07) << j;
+		for (j = 0, pri = 0; j < 32; j += 4, davinci_def_priorities++)
+			pri |= (*davinci_def_priorities & 0x07) << j;
 		davinci_irq_writel(pri, i);
 	}
 
