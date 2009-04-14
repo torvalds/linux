@@ -3680,6 +3680,7 @@ L:	microblaze-uclinux@itee.uq.edu.au
 W:	http://www.monstr.eu/fdt/
 T:	git git://git.monstr.eu/linux-2.6-microblaze.git
 S:	Supported
+F:	arch/microblaze/
 
 MICROTEK X6 SCANNER
 P:	Oliver Neukum

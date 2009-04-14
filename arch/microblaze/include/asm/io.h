@@ -12,7 +12,6 @@
 #include <asm/byteorder.h>
 #include <asm/page.h>
 #include <linux/types.h>
-#include <asm/page.h>
 
 #define IO_SPACE_LIMIT (0xFFFFFFFF)
 

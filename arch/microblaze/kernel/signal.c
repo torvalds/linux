@@ -37,7 +37,6 @@
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
-#include <linux/signal.h>
 #include <linux/syscalls.h>
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>

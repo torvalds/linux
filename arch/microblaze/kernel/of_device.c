@@ -13,7 +13,6 @@ void of_device_make_bus_id(struct of_device *dev)
 {
 	static atomic_t bus_no_reg_magic;
 	struct device_node *node = dev->node;
-	char *name = dev->dev.bus_id;
 	const u32 *reg;
 	u64 addr;
 	int magic;
@@ -25,9 +24,8 @@ void of_device_make_bus_id(struct of_device *dev)
 	if (reg) {
 		addr = of_translate_address(node, reg);
 		if (addr != OF_BAD_ADDR) {
-			snprintf(name, BUS_ID_SIZE,
-				 "%llx.%s", (unsigned long long)addr,
-				 node->name);
+			dev_set_name(&dev->dev, "%llx.%s",
+				     (unsigned long long)addr, node->name);
 			return;
 		}
 	}
@@ -37,7 +35,7 @@ void of_device_make_bus_id(struct of_device *dev)
 	 * counter (and pray...)
 	 */
 	magic = atomic_add_return(1, &bus_no_reg_magic);
-	snprintf(name, BUS_ID_SIZE, "%s.%d", node->name, magic - 1);
+	dev_set_name(&dev->dev, "%s.%d", node->name, magic - 1);
 }
 EXPORT_SYMBOL(of_device_make_bus_id);
 
@@ -58,7 +56,7 @@ struct of_device *of_device_alloc(struct device_node *np,
 	dev->dev.archdata.of_node = np;
 
 	if (bus_id)
-		strlcpy(dev->dev.bus_id, bus_id, BUS_ID_SIZE);
+		dev_set_name(&dev->dev, bus_id);
 	else
 		of_device_make_bus_id(dev);
 
