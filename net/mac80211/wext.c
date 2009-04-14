@@ -555,7 +555,7 @@ static int ieee80211_ioctl_giwfrag(struct net_device *dev,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
 	frag->value = local->fragmentation_threshold;
-	frag->disabled = (frag->value >= IEEE80211_MAX_RTS_THRESHOLD);
+	frag->disabled = (frag->value >= IEEE80211_MAX_FRAG_THRESHOLD);
 	frag->fixed = 1;
 
 	return 0;
