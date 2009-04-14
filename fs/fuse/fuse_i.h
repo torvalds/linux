@@ -394,6 +394,9 @@ struct fuse_conn {
 	/** Filesystem supports NFS exporting.  Only set in INIT */
 	unsigned export_support:1;
 
+	/** Set if bdi is valid */
+	unsigned bdi_initialized:1;
+
 	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
@@ -662,7 +665,7 @@ struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
 /**
  * Initialize fuse_conn
  */
-int fuse_conn_init(struct fuse_conn *fc, struct super_block *sb);
+void fuse_conn_init(struct fuse_conn *fc);
 
 /**
  * Release reference to fuse_conn

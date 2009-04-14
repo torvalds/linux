@@ -282,7 +282,7 @@ __releases(&fc->lock)
 			wake_up_all(&fc->blocked_waitq);
 		}
 		if (fc->num_background == FUSE_CONGESTION_THRESHOLD &&
-		    fc->connected) {
+		    fc->connected && fc->bdi_initialized) {
 			clear_bdi_congested(&fc->bdi, READ);
 			clear_bdi_congested(&fc->bdi, WRITE);
 		}
@@ -408,7 +408,8 @@ static void fuse_request_send_nowait_locked(struct fuse_conn *fc,
 	fc->num_background++;
 	if (fc->num_background == FUSE_MAX_BACKGROUND)
 		fc->blocked = 1;
-	if (fc->num_background == FUSE_CONGESTION_THRESHOLD) {
+	if (fc->num_background == FUSE_CONGESTION_THRESHOLD &&
+	    fc->bdi_initialized) {
 		set_bdi_congested(&fc->bdi, READ);
 		set_bdi_congested(&fc->bdi, WRITE);
 	}
