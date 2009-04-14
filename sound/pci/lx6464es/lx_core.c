@@ -314,6 +314,7 @@ static inline void lx_message_dump(struct lx_rmh *rmh)
 #define XILINX_POLL_NO_SLEEP    100
 #define XILINX_POLL_ITERATIONS  150
 
+#if 0 /* not used now */
 static int lx_message_send(struct lx6464es *chip, struct lx_rmh *rmh)
 {
 	u32 reg = ED_DSP_TIMED_OUT;
@@ -404,6 +405,7 @@ polling_successful:
 	lx_message_dump(rmh);
 	return 0;
 }
+#endif /* not used now */
 
 static int lx_message_send_atomic(struct lx6464es *chip, struct lx_rmh *rmh)
 {
