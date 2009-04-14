@@ -2086,6 +2086,7 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	 *  -writemostly - clears write_mostly
 	 *  blocked - sets the Blocked flag
 	 *  -blocked - clears the Blocked flag
+	 *  insync - sets Insync providing device isn't active
 	 */
 	int err = -EINVAL;
 	if (cmd_match(buf, "faulty") && rdev->mddev->pers) {
@@ -2117,6 +2118,9 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
 		md_wakeup_thread(rdev->mddev->thread);
 
+		err = 0;
+	} else if (cmd_match(buf, "insync") && rdev->raid_disk == -1) {
+		set_bit(In_sync, &rdev->flags);
 		err = 0;
 	}
 	if (!err && rdev->sysfs_state)
@@ -2190,7 +2194,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	} else if (rdev->mddev->pers) {
 		mdk_rdev_t *rdev2;
 		/* Activating a spare .. or possibly reactivating
-		 * if we every get bitmaps working here.
+		 * if we ever get bitmaps working here.
 		 */
 
 		if (rdev->raid_disk != -1)
