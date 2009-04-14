@@ -10,6 +10,7 @@
 #define __ASM_POWERPC_REG_BOOKE_H__
 
 /* Machine State Register (MSR) Fields */
+#define MSR_GS		(1<<28) /* Guest state */
 #define MSR_UCLE	(1<<26)	/* User-mode cache lock enable */
 #define MSR_SPE		(1<<25)	/* Enable SPE */
 #define MSR_DWE		(1<<10)	/* Debug Wait Enable */
@@ -110,6 +111,7 @@
 #define SPRN_L1CSR0	0x3F2	/* L1 Cache Control and Status Register 0 */
 #define SPRN_L1CSR1	0x3F3	/* L1 Cache Control and Status Register 1 */
 #define SPRN_MMUCSR0	0x3F4	/* MMU Control and Status Register 0 */
+#define SPRN_MMUCFG	0x3F7	/* MMU Configuration Register */
 #define SPRN_PIT	0x3DB	/* Programmable Interval Timer */
 #define SPRN_BUCSR	0x3F5	/* Branch Unit Control and Status */
 #define SPRN_L2CSR0	0x3F9	/* L2 Data Cache Control and Status Register 0 */
@@ -420,36 +422,6 @@
 /* Bit definitions for SGR. */
 #define SGR_NORMAL	0		/* Speculative fetching allowed. */
 #define SGR_GUARDED	1		/* Speculative fetching disallowed. */
-
-/* Bit definitions for SPEFSCR. */
-#define SPEFSCR_SOVH	0x80000000	/* Summary integer overflow high */
-#define SPEFSCR_OVH	0x40000000	/* Integer overflow high */
-#define SPEFSCR_FGH	0x20000000	/* Embedded FP guard bit high */
-#define SPEFSCR_FXH	0x10000000	/* Embedded FP sticky bit high */
-#define SPEFSCR_FINVH	0x08000000	/* Embedded FP invalid operation high */
-#define SPEFSCR_FDBZH	0x04000000	/* Embedded FP div by zero high */
-#define SPEFSCR_FUNFH	0x02000000	/* Embedded FP underflow high */
-#define SPEFSCR_FOVFH	0x01000000	/* Embedded FP overflow high */
-#define SPEFSCR_FINXS	0x00200000	/* Embedded FP inexact sticky */
-#define SPEFSCR_FINVS	0x00100000	/* Embedded FP invalid op. sticky */
-#define SPEFSCR_FDBZS	0x00080000	/* Embedded FP div by zero sticky */
-#define SPEFSCR_FUNFS	0x00040000	/* Embedded FP underflow sticky */
-#define SPEFSCR_FOVFS	0x00020000	/* Embedded FP overflow sticky */
-#define SPEFSCR_MODE	0x00010000	/* Embedded FP mode */
-#define SPEFSCR_SOV	0x00008000	/* Integer summary overflow */
-#define SPEFSCR_OV	0x00004000	/* Integer overflow */
-#define SPEFSCR_FG	0x00002000	/* Embedded FP guard bit */
-#define SPEFSCR_FX	0x00001000	/* Embedded FP sticky bit */
-#define SPEFSCR_FINV	0x00000800	/* Embedded FP invalid operation */
-#define SPEFSCR_FDBZ	0x00000400	/* Embedded FP div by zero */
-#define SPEFSCR_FUNF	0x00000200	/* Embedded FP underflow */
-#define SPEFSCR_FOVF	0x00000100	/* Embedded FP overflow */
-#define SPEFSCR_FINXE	0x00000040	/* Embedded FP inexact enable */
-#define SPEFSCR_FINVE	0x00000020	/* Embedded FP invalid op. enable */
-#define SPEFSCR_FDBZE	0x00000010	/* Embedded FP div by zero enable */
-#define SPEFSCR_FUNFE	0x00000008	/* Embedded FP underflow enable */
-#define SPEFSCR_FOVFE	0x00000004	/* Embedded FP overflow enable */
-#define SPEFSCR_FRMC 	0x00000003	/* Embedded FP rounding mode control */
 
 /*
  * The IBM-403 is an even more odd special case, as it is much

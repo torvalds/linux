@@ -8,6 +8,8 @@ cpqarray.txt
 	- info on using Compaq's SMART2 Intelligent Disk Array Controllers.
 floppy.txt
 	- notes and driver options for the floppy disk driver.
+mflash.txt
+	- info on mGine m(g)flash driver for linux.
 nbd.txt
 	- info on a TCP implementation of a network block device.
 paride.txt

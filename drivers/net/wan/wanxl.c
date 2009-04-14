@@ -547,6 +547,15 @@ static void wanxl_pci_remove_one(struct pci_dev *pdev)
 
 #include "wanxlfw.inc"
 
+static const struct net_device_ops wanxl_ops = {
+	.ndo_open       = wanxl_open,
+	.ndo_stop       = wanxl_close,
+	.ndo_change_mtu = hdlc_change_mtu,
+	.ndo_start_xmit = hdlc_start_xmit,
+	.ndo_do_ioctl   = wanxl_ioctl,
+	.ndo_get_stats  = wanxl_get_stats,
+};
+
 static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 					const struct pci_device_id *ent)
 {
@@ -577,8 +586,8 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 	   We set both dma_mask and consistent_dma_mask to 28 bits
 	   and pray pci_alloc_consistent() will use this info. It should
 	   work on most platforms */
-	if (pci_set_consistent_dma_mask(pdev, DMA_28BIT_MASK) ||
-	    pci_set_dma_mask(pdev, DMA_28BIT_MASK)) {
+	if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(28)) ||
+	    pci_set_dma_mask(pdev, DMA_BIT_MASK(28))) {
 		printk(KERN_ERR "wanXL: No usable DMA configuration\n");
 		return -EIO;
 	}
@@ -624,8 +633,8 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 	/* FIXME when PCI/DMA subsystems are fixed.
 	   We set both dma_mask and consistent_dma_mask back to 32 bits
 	   to indicate the card can do 32-bit DMA addressing */
-	if (pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK) ||
-	    pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+	if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) ||
+	    pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "wanXL: No usable DMA configuration\n");
 		wanxl_pci_remove_one(pdev);
 		return -EIO;
@@ -777,12 +786,9 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 		hdlc = dev_to_hdlc(dev);
 		spin_lock_init(&port->lock);
 		dev->tx_queue_len = 50;
-		dev->do_ioctl = wanxl_ioctl;
-		dev->open = wanxl_open;
-		dev->stop = wanxl_close;
+		dev->netdev_ops = &wanxl_ops;
 		hdlc->attach = wanxl_attach;
 		hdlc->xmit = wanxl_xmit;
-		dev->get_stats = wanxl_get_stats;
 		port->card = card;
 		port->node = i;
 		get_status(port)->clocking = CLOCK_EXT;

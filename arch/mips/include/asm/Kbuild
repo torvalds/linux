@@ -1,4 +1,3 @@
 include include/asm-generic/Kbuild.asm
 
 header-y += cachectl.h sgidefs.h sysmips.h
-header-y += swab.h

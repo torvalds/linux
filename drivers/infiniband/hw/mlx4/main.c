@@ -543,13 +543,20 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
 	static int mlx4_ib_version_printed;
 	struct mlx4_ib_dev *ibdev;
+	int num_ports = 0;
 	int i;
-
 
 	if (!mlx4_ib_version_printed) {
 		printk(KERN_INFO "%s", mlx4_ib_version);
 		++mlx4_ib_version_printed;
 	}
+
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
+		num_ports++;
+
+	/* No point in registering a device with no ports... */
+	if (num_ports == 0)
+		return NULL;
 
 	ibdev = (struct mlx4_ib_dev *) ib_alloc_device(sizeof *ibdev);
 	if (!ibdev) {
@@ -574,9 +581,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.owner		= THIS_MODULE;
 	ibdev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	ibdev->ib_dev.local_dma_lkey	= dev->caps.reserved_lkey;
-	ibdev->num_ports = 0;
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
-		ibdev->num_ports++;
+	ibdev->num_ports		= num_ports;
 	ibdev->ib_dev.phys_port_cnt     = ibdev->num_ports;
 	ibdev->ib_dev.num_comp_vectors	= dev->caps.num_comp_vectors;
 	ibdev->ib_dev.dma_device	= &dev->pdev->dev;
@@ -694,11 +699,12 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	struct mlx4_ib_dev *ibdev = ibdev_ptr;
 	int p;
 
+	mlx4_ib_mad_cleanup(ibdev);
+	ib_unregister_device(&ibdev->ib_dev);
+
 	for (p = 1; p <= ibdev->num_ports; ++p)
 		mlx4_CLOSE_PORT(dev, p);
 
-	mlx4_ib_mad_cleanup(ibdev);
-	ib_unregister_device(&ibdev->ib_dev);
 	iounmap(ibdev->uar_map);
 	mlx4_uar_free(dev, &ibdev->priv_uar);
 	mlx4_pd_free(dev, ibdev->priv_pdn);

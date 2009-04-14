@@ -45,6 +45,7 @@
 #include <linux/proc_fs.h>
 #include <linux/mount.h>
 #include <linux/security.h>
+#include <linux/ima.h>
 #include <linux/syscalls.h>
 #include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
@@ -52,6 +53,7 @@
 #include <linux/tracehook.h>
 #include <linux/kmod.h>
 #include <linux/fsnotify.h>
+#include <linux/fs_struct.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -99,7 +101,7 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
  *
  * Also note that we take the address to load from from the file itself.
  */
-asmlinkage long sys_uselib(const char __user * library)
+SYSCALL_DEFINE1(uselib, const char __user *, library)
 {
 	struct file *file;
 	struct nameidata nd;
@@ -125,6 +127,9 @@ asmlinkage long sys_uselib(const char __user * library)
 
 	error = inode_permission(nd.path.dentry->d_inode,
 				 MAY_READ | MAY_EXEC | MAY_OPEN);
+	if (error)
+		goto exit;
+	error = ima_path_check(&nd.path, MAY_READ | MAY_EXEC | MAY_OPEN);
 	if (error)
 		goto exit;
 
@@ -674,6 +679,9 @@ struct file *open_exec(const char *name)
 	err = inode_permission(nd.path.dentry->d_inode, MAY_EXEC | MAY_OPEN);
 	if (err)
 		goto out_path_put;
+	err = ima_path_check(&nd.path, MAY_EXEC | MAY_OPEN);
+	if (err)
+		goto out_path_put;
 
 	file = nameidata_to_filp(&nd, O_RDONLY|O_LARGEFILE);
 	if (IS_ERR(file))
@@ -1049,16 +1057,35 @@ EXPORT_SYMBOL(install_exec_creds);
  * - the caller must hold current->cred_exec_mutex to protect against
  *   PTRACE_ATTACH
  */
-void check_unsafe_exec(struct linux_binprm *bprm)
+int check_unsafe_exec(struct linux_binprm *bprm)
 {
-	struct task_struct *p = current;
+	struct task_struct *p = current, *t;
+	unsigned long flags;
+	unsigned n_fs;
+	int res = 0;
 
 	bprm->unsafe = tracehook_unsafe_exec(p);
 
-	if (atomic_read(&p->fs->count) > 1 ||
-	    atomic_read(&p->files->count) > 1 ||
-	    atomic_read(&p->sighand->count) > 1)
+	n_fs = 1;
+	write_lock(&p->fs->lock);
+	lock_task_sighand(p, &flags);
+	for (t = next_thread(p); t != p; t = next_thread(t)) {
+		if (t->fs == p->fs)
+			n_fs++;
+	}
+
+	if (p->fs->users > n_fs) {
 		bprm->unsafe |= LSM_UNSAFE_SHARE;
+	} else {
+		if (p->fs->in_exec)
+			res = -EAGAIN;
+		p->fs->in_exec = 1;
+	}
+
+	unlock_task_sighand(p, &flags);
+	write_unlock(&p->fs->lock);
+
+	return res;
 }
 
 /* 
@@ -1168,6 +1195,9 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 	retval = security_bprm_check(bprm);
 	if (retval)
 		return retval;
+	retval = ima_bprm_check(bprm);
+	if (retval)
+		return retval;
 
 	/* kernel module loader fixup */
 	/* so we don't try to load run modprobe in kernel space. */
@@ -1268,17 +1298,21 @@ int do_execve(char * filename,
 	retval = mutex_lock_interruptible(&current->cred_exec_mutex);
 	if (retval < 0)
 		goto out_free;
+	current->in_execve = 1;
 
 	retval = -ENOMEM;
 	bprm->cred = prepare_exec_creds();
 	if (!bprm->cred)
 		goto out_unlock;
-	check_unsafe_exec(bprm);
+
+	retval = check_unsafe_exec(bprm);
+	if (retval)
+		goto out_unlock;
 
 	file = open_exec(filename);
 	retval = PTR_ERR(file);
 	if (IS_ERR(file))
-		goto out_unlock;
+		goto out_unmark;
 
 	sched_exec();
 
@@ -1321,6 +1355,10 @@ int do_execve(char * filename,
 		goto out;
 
 	/* execve succeeded */
+	write_lock(&current->fs->lock);
+	current->fs->in_exec = 0;
+	write_unlock(&current->fs->lock);
+	current->in_execve = 0;
 	mutex_unlock(&current->cred_exec_mutex);
 	acct_update_integrals(current);
 	free_bprm(bprm);
@@ -1338,7 +1376,13 @@ out_file:
 		fput(bprm->file);
 	}
 
+out_unmark:
+	write_lock(&current->fs->lock);
+	current->fs->in_exec = 0;
+	write_unlock(&current->fs->lock);
+
 out_unlock:
+	current->in_execve = 0;
 	mutex_unlock(&current->cred_exec_mutex);
 
 out_free:

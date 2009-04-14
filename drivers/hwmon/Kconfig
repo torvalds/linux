@@ -189,6 +189,16 @@ config SENSORS_ADT7473
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7473.
 
+config SENSORS_ADT7475
+	tristate "Analog Devices ADT7475"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Analog Devices
+	  ADT7475 hardware monitoring chips.
+
+	  This driver can also be build as a module.  If so, the module
+	  will be called adt7475.
+
 config SENSORS_K8TEMP
 	tristate "AMD Athlon64/FX or Opteron temperature sensor"
 	depends on X86 && PCI && EXPERIMENTAL
@@ -237,6 +247,18 @@ config SENSORS_ASB100
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called asb100.
+
+config SENSORS_ATK0110
+	tristate "ASUS ATK0110 ACPI hwmon"
+	depends on X86 && ACPI && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the ACPI hardware
+	  monitoring interface found in many ASUS motherboards. This
+	  driver will provide readings of fans, voltages and temperatures
+	  through the system firmware.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asus_atk0110.
 
 config SENSORS_ATXP1
 	tristate "Attansic ATXP1 VID controller"
@@ -333,12 +355,13 @@ config SENSORS_FSCPOS
 	  will be called fscpos.
 
 config SENSORS_FSCHMD
-	tristate "FSC Poseidon, Scylla, Hermes, Heimdall and Heracles"
+	tristate "Fujitsu Siemens Computers sensor chips"
 	depends on X86 && I2C
 	help
-	  If you say yes here you get support for various Fujitsu Siemens
-	  Computers sensor chips, including support for the integrated
-	  watchdog.
+	  If you say yes here you get support for the following Fujitsu
+	  Siemens Computers (FSC) sensor chips: Poseidon, Scylla, Hermes,
+	  Heimdall, Heracles, Hades and Syleus including support for the
+	  integrated watchdog.
 
 	  This is a merged driver for FSC sensor chips replacing the fscpos,
 	  fscscy and fscher drivers and adding support for several other FSC
@@ -346,6 +369,16 @@ config SENSORS_FSCHMD
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called fschmd.
+
+config SENSORS_G760A
+	tristate "GMT G760A"
+	depends on I2C
+	help
+	  If you say yes here you get support for Global Mixed-mode
+	  Technology Inc G760A fan speed PWM controller chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called g760a.
 
 config SENSORS_GL518SM
 	tristate "Genesys Logic GL518SM"
@@ -533,8 +566,8 @@ config SENSORS_LM90
 	help
 	  If you say yes here you get support for National Semiconductor LM90,
 	  LM86, LM89 and LM99, Analog Devices ADM1032 and ADT7461, and Maxim
-	  MAX6646, MAX6647, MAX6649, MAX6657, MAX6658, MAX6659, MAX6680 and
-	  MAX6681 sensor chips.
+	  MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
+	  MAX6680, MAX6681 and MAX6692 sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm90.
@@ -560,6 +593,17 @@ config SENSORS_LM93
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm93.
 
+config SENSORS_LTC4215
+	tristate "Linear Technology LTC4215"
+	depends on I2C && EXPERIMENTAL
+	default n
+	help
+	  If you say yes here you get support for Linear Technology LTC4215
+	  Hot Swap Controller I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4215.
+
 config SENSORS_LTC4245
 	tristate "Linear Technology LTC4245"
 	depends on I2C && EXPERIMENTAL
@@ -570,6 +614,15 @@ config SENSORS_LTC4245
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc4245.
+
+config SENSORS_LM95241
+	tristate "National Semiconductor LM95241 sensor chip"
+	depends on I2C
+	help
+	  If you say yes here you get support for LM95241 sensor chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lm95241.
 
 config SENSORS_MAX1111
 	tristate "Maxim MAX1111 Multichannel, Serial 8-bit ADC chip"
@@ -624,6 +677,20 @@ config SENSORS_PC87427
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called pc87427.
+
+config SENSORS_PCF8591
+	tristate "Philips PCF8591 ADC/DAC"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you get support for Philips PCF8591 4-channel
+	  ADC, 1-channel DAC chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called pcf8591.
+
+	  These devices are hard to detect and rarely found on mainstream
+	  hardware.  If unsure, say N.
 
 config SENSORS_SIS5595
 	tristate "Silicon Integrated Systems Corp. SiS5595"
@@ -817,7 +884,7 @@ config SENSORS_W83627HF
 	  will be called w83627hf.
 
 config SENSORS_W83627EHF
-	tristate "Winbond W83627EHF/DHG"
+	tristate "Winbond W83627EHF/EHG/DHG, W83667HG"
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the hardware
@@ -827,6 +894,8 @@ config SENSORS_W83627EHF
 	  version of the W83627EHF, and the W83627DHG, which is a similar
 	  chip suited for specific Intel processors that use PECI such as
 	  the Core 2 Duo.
+
+	  This driver also supports the W83667HG chip.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627ehf.
@@ -861,6 +930,8 @@ config SENSORS_HDAPS
 config SENSORS_LIS3LV02D
 	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer"
 	depends on ACPI && INPUT
+	select NEW_LEDS
+	select LEDS_CLASS
 	default n
 	help
 	  This driver provides support for the LIS3LV02Dx accelerometer. In
@@ -872,10 +943,32 @@ config SENSORS_LIS3LV02D
 	  /sys/devices/platform/lis3lv02d.
 
 	  This driver also provides an absolute input class device, allowing
+	  the laptop to act as a pinball machine-esque joystick. On HP laptops,
+	  if the led infrastructure is activated, support for a led indicating
+	  disk protection will be provided as hp:red:hddprotection.
+
+	  This driver can also be built as modules.  If so, the core module
+	  will be called lis3lv02d and a specific module for HP laptops will be
+	  called hp_accel.
+
+	  Say Y here if you have an applicable laptop and want to experience
+	  the awesome power of lis3lv02d.
+
+config SENSORS_LIS3_SPI
+	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (SPI)"
+	depends on !ACPI && SPI_MASTER && INPUT
+	default n
+	help
+	  This driver provides support for the LIS3LV02Dx accelerometer connected
+	  via SPI. The accelerometer data is readable via
+	  /sys/devices/platform/lis3lv02d.
+
+	  This driver also provides an absolute input class device, allowing
 	  the laptop to act as a pinball machine-esque joystick.
 
-	  This driver can also be built as a module.  If so, the module
-	  will be called lis3lv02d.
+	  This driver can also be built as modules.  If so, the core module
+	  will be called lis3lv02d and a specific module for the SPI transport
+	  is called lis3lv02d_spi.
 
 config SENSORS_APPLESMC
 	tristate "Apple SMC (Motion sensor, light sensor, keyboard backlight)"

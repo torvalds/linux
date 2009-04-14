@@ -129,8 +129,8 @@ consider_steal_time(unsigned long new_itm)
 		blocked = stolentick;
 
 	if (stolen > 0 || blocked > 0) {
-		account_steal_time(NULL, jiffies_to_cputime(stolen));
-		account_steal_time(idle_task(cpu), jiffies_to_cputime(blocked));
+		account_steal_ticks(stolen);
+		account_idle_ticks(blocked);
 		run_local_timers();
 
 		if (rcu_pending(cpu))
@@ -175,10 +175,58 @@ static void xen_itc_jitter_data_reset(void)
 	} while (unlikely(ret != lcycle));
 }
 
+/* based on xen_sched_clock() in arch/x86/xen/time.c. */
+/*
+ * This relies on HAVE_UNSTABLE_SCHED_CLOCK. If it can't be defined,
+ * something similar logic should be implemented here.
+ */
+/*
+ * Xen sched_clock implementation.  Returns the number of unstolen
+ * nanoseconds, which is nanoseconds the VCPU spent in RUNNING+BLOCKED
+ * states.
+ */
+static unsigned long long xen_sched_clock(void)
+{
+	struct vcpu_runstate_info runstate;
+
+	unsigned long long now;
+	unsigned long long offset;
+	unsigned long long ret;
+
+	/*
+	 * Ideally sched_clock should be called on a per-cpu basis
+	 * anyway, so preempt should already be disabled, but that's
+	 * not current practice at the moment.
+	 */
+	preempt_disable();
+
+	/*
+	 * both ia64_native_sched_clock() and xen's runstate are
+	 * based on mAR.ITC. So difference of them makes sense.
+	 */
+	now = ia64_native_sched_clock();
+
+	get_runstate_snapshot(&runstate);
+
+	WARN_ON(runstate.state != RUNSTATE_running);
+
+	offset = 0;
+	if (now > runstate.state_entry_time)
+		offset = now - runstate.state_entry_time;
+	ret = runstate.time[RUNSTATE_blocked] +
+		runstate.time[RUNSTATE_running] +
+		offset;
+
+	preempt_enable();
+
+	return ret;
+}
+
 struct pv_time_ops xen_time_ops __initdata = {
 	.init_missing_ticks_accounting	= xen_init_missing_ticks_accounting,
 	.do_steal_accounting		= xen_do_steal_accounting,
 	.clocksource_resume		= xen_itc_jitter_data_reset,
+	.sched_clock			= xen_sched_clock,
 };
 
 /* Called after suspend, to resume time.  */

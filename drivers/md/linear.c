@@ -16,7 +16,11 @@
    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
 */
 
-#include <linux/raid/linear.h>
+#include <linux/blkdev.h>
+#include <linux/raid/md_u.h>
+#include <linux/seq_file.h>
+#include "md.h"
+#include "linear.h"
 
 /*
  * find which device holds a particular offset 
@@ -25,13 +29,13 @@ static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 {
 	dev_info_t *hash;
 	linear_conf_t *conf = mddev_to_conf(mddev);
+	sector_t idx = sector >> conf->sector_shift;
 
 	/*
 	 * sector_div(a,b) returns the remainer and sets a to a/b
 	 */
-	sector >>= conf->sector_shift;
-	(void)sector_div(sector, conf->spacing);
-	hash = conf->hash_table[sector];
+	(void)sector_div(idx, conf->spacing);
+	hash = conf->hash_table[idx];
 
 	while (sector >= hash->num_sectors + hash->start_sector)
 		hash++;
@@ -97,6 +101,16 @@ static int linear_congested(void *data, int bits)
 	return ret;
 }
 
+static sector_t linear_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+{
+	linear_conf_t *conf = mddev_to_conf(mddev);
+
+	WARN_ONCE(sectors || raid_disks,
+		  "%s does not support generic reshape\n", __func__);
+
+	return conf->array_sectors;
+}
+
 static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 {
 	linear_conf_t *conf;
@@ -135,8 +149,8 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		    mddev->queue->max_sectors > (PAGE_SIZE>>9))
 			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
-		disk->num_sectors = rdev->size * 2;
-		conf->array_sectors += rdev->size * 2;
+		disk->num_sectors = rdev->sectors;
+		conf->array_sectors += rdev->sectors;
 
 		cnt++;
 	}
@@ -249,7 +263,7 @@ static int linear_run (mddev_t *mddev)
 	if (!conf)
 		return 1;
 	mddev->private = conf;
-	mddev->array_sectors = conf->array_sectors;
+	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
 
 	blk_queue_merge_bvec(mddev->queue, linear_mergeable_bvec);
 	mddev->queue->unplug_fn = linear_unplug;
@@ -283,7 +297,7 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	newconf->prev = mddev_to_conf(mddev);
 	mddev->private = newconf;
 	mddev->raid_disks++;
-	mddev->array_sectors = newconf->array_sectors;
+	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	return 0;
 }
@@ -381,6 +395,7 @@ static struct mdk_personality linear_personality =
 	.stop		= linear_stop,
 	.status		= linear_status,
 	.hot_add_disk	= linear_add,
+	.size		= linear_size,
 };
 
 static int __init linear_init (void)

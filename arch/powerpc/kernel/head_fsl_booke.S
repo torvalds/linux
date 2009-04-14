@@ -103,10 +103,15 @@ invstr:	mflr	r6				/* Make it accessible */
 	or	r7,r7,r4
 	mtspr	SPRN_MAS6,r7
 	tlbsx	0,r6				/* search MSR[IS], SPID=PID0 */
-#ifndef CONFIG_E200
 	mfspr	r7,SPRN_MAS1
 	andis.	r7,r7,MAS1_VALID@h
 	bne	match_TLB
+
+	mfspr	r7,SPRN_MMUCFG
+	rlwinm	r7,r7,21,28,31			/* extract MMUCFG[NPIDS] */
+	cmpwi	r7,3
+	bne	match_TLB			/* skip if NPIDS != 3 */
+
 	mfspr	r7,SPRN_PID1
 	slwi	r7,r7,16
 	or	r7,r7,r4
@@ -120,7 +125,7 @@ invstr:	mflr	r6				/* Make it accessible */
 	or	r7,r7,r4
 	mtspr	SPRN_MAS6,r7
 	tlbsx	0,r6				/* Fall through, we had to match */
-#endif
+
 match_TLB:
 	mfspr	r7,SPRN_MAS0
 	rlwinm	r3,r7,16,20,31			/* Extract MAS0(Entry) */
@@ -168,7 +173,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 
 	/* grab and fixup the RPN */
 	mfspr	r6,SPRN_MAS1	/* extract MAS1[SIZE] */
-	rlwinm	r6,r6,25,27,30
+	rlwinm	r6,r6,25,27,31
 	li	r8,-1
 	addi	r6,r6,10
 	slw	r6,r8,r6	/* convert to mask */
@@ -194,7 +199,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	xori	r6,r4,1		/* Setup TMP mapping in the other Address space */
 	slwi	r6,r6,12
 	oris	r6,r6,(MAS1_VALID|MAS1_IPROT)@h
-	ori	r6,r6,(MAS1_TSIZE(BOOKE_PAGESZ_4K))@l
+	ori	r6,r6,(MAS1_TSIZE(BOOK3E_PAGESZ_4K))@l
 	mtspr	SPRN_MAS1,r6
 	mfspr	r6,SPRN_MAS2
 	li	r7,0		/* temp EPN = 0 */
@@ -215,14 +220,19 @@ skpinv:	addi	r6,r6,1				/* Increment */
 
 /* 4. Clear out PIDs & Search info */
 	li	r6,0
+	mtspr   SPRN_MAS6,r6
 	mtspr	SPRN_PID0,r6
-#ifndef CONFIG_E200
+
+	mfspr	r7,SPRN_MMUCFG
+	rlwinm	r7,r7,21,28,31			/* extract MMUCFG[NPIDS] */
+	cmpwi	r7,3
+	bne	2f				/* skip if NPIDS != 3 */
+
 	mtspr	SPRN_PID1,r6
 	mtspr	SPRN_PID2,r6
-#endif
-	mtspr	SPRN_MAS6,r6
 
 /* 5. Invalidate mapping we started in */
+2:
 	lis	r7,0x1000	/* Set MAS0(TLBSEL) = 1 */
 	rlwimi	r7,r3,16,4,15	/* Setup MAS0 = TLBSEL | ESEL(r3) */
 	mtspr	SPRN_MAS0,r7
@@ -247,10 +257,10 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	lis	r6,0x1000		/* Set MAS0(TLBSEL) = TLB1(1), ESEL = 0 */
 	mtspr	SPRN_MAS0,r6
 	lis	r6,(MAS1_VALID|MAS1_IPROT)@h
-	ori	r6,r6,(MAS1_TSIZE(BOOKE_PAGESZ_64M))@l
+	ori	r6,r6,(MAS1_TSIZE(BOOK3E_PAGESZ_64M))@l
 	mtspr	SPRN_MAS1,r6
-	lis	r6,MAS2_VAL(PAGE_OFFSET, BOOKE_PAGESZ_64M, M_IF_SMP)@h
-	ori	r6,r6,MAS2_VAL(PAGE_OFFSET, BOOKE_PAGESZ_64M, M_IF_SMP)@l
+	lis	r6,MAS2_VAL(PAGE_OFFSET, BOOK3E_PAGESZ_64M, M_IF_SMP)@h
+	ori	r6,r6,MAS2_VAL(PAGE_OFFSET, BOOK3E_PAGESZ_64M, M_IF_SMP)@l
 	mtspr	SPRN_MAS2,r6
 	mtspr	SPRN_MAS3,r8
 	tlbwe
@@ -298,26 +308,14 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	SET_IVOR(12, WatchdogTimer);
 	SET_IVOR(13, DataTLBError);
 	SET_IVOR(14, InstructionTLBError);
-	SET_IVOR(15, DebugDebug);
-#if defined(CONFIG_E500) && !defined(CONFIG_PPC_E500MC)
 	SET_IVOR(15, DebugCrit);
-#endif
-	SET_IVOR(32, SPEUnavailable);
-	SET_IVOR(33, SPEFloatingPointData);
-	SET_IVOR(34, SPEFloatingPointRound);
-#ifndef CONFIG_E200
-	SET_IVOR(35, PerformanceMonitor);
-#endif
-#ifdef CONFIG_PPC_E500MC
-	SET_IVOR(36, Doorbell);
-#endif
 
 	/* Establish the interrupt vector base */
 	lis	r4,interrupt_base@h	/* IVPR only uses the high 16-bits */
 	mtspr	SPRN_IVPR,r4
 
 	/* Setup the defaults for TLB entries */
-	li	r2,(MAS4_TSIZED(BOOKE_PAGESZ_4K))@l
+	li	r2,(MAS4_TSIZED(BOOK3E_PAGESZ_4K))@l
 #ifdef CONFIG_E200
 	oris	r2,r2,MAS4_TLBSELD(1)@h
 #endif
@@ -328,12 +326,6 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	mfspr	r2,SPRN_HID0
 	oris	r2,r2,HID0_DOZE@h
 	mtspr	SPRN_HID0, r2
-#endif
-#ifdef CONFIG_E200
-	/* enable dedicated debug exception handling resources (Debug APU) */
-	mfspr	r2,SPRN_HID0
-	ori	r2,r2,HID0_DAPUEN@l
-	mtspr	SPRN_HID0,r2
 #endif
 
 #if !defined(CONFIG_BDI_SWITCH)
@@ -389,10 +381,6 @@ skpinv:	addi	r6,r6,1				/* Increment */
 #endif
 #endif
 
-	mfspr	r3,SPRN_TLB1CFG
-	andi.	r3,r3,0xfff
-	lis	r4,num_tlbcam_entries@ha
-	stw	r3,num_tlbcam_entries@l(r4)
 /*
  * Decide what sort of machine this is and initialize the MMU.
  */
@@ -710,15 +698,13 @@ interrupt_base:
 	/* Performance Monitor */
 	EXCEPTION(0x2060, PerformanceMonitor, performance_monitor_exception, EXC_XFER_STD)
 
-#ifdef CONFIG_PPC_E500MC
-	EXCEPTION(0x2070, Doorbell, unknown_exception, EXC_XFER_EE)
-#endif
+	EXCEPTION(0x2070, Doorbell, doorbell_exception, EXC_XFER_STD)
+
+	CRITICAL_EXCEPTION(0x2080, CriticalDoorbell, unknown_exception)
 
 	/* Debug Interrupt */
 	DEBUG_DEBUG_EXCEPTION
-#if defined(CONFIG_E500) && !defined(CONFIG_PPC_E500MC)
 	DEBUG_CRIT_EXCEPTION
-#endif
 
 /*
  * Local functions
@@ -901,6 +887,47 @@ KernelSPE:
  * Global functions
  */
 
+/* Adjust or setup IVORs for e200 */
+_GLOBAL(__setup_e200_ivors)
+	li	r3,DebugDebug@l
+	mtspr	SPRN_IVOR15,r3
+	li	r3,SPEUnavailable@l
+	mtspr	SPRN_IVOR32,r3
+	li	r3,SPEFloatingPointData@l
+	mtspr	SPRN_IVOR33,r3
+	li	r3,SPEFloatingPointRound@l
+	mtspr	SPRN_IVOR34,r3
+	sync
+	blr
+
+/* Adjust or setup IVORs for e500v1/v2 */
+_GLOBAL(__setup_e500_ivors)
+	li	r3,DebugCrit@l
+	mtspr	SPRN_IVOR15,r3
+	li	r3,SPEUnavailable@l
+	mtspr	SPRN_IVOR32,r3
+	li	r3,SPEFloatingPointData@l
+	mtspr	SPRN_IVOR33,r3
+	li	r3,SPEFloatingPointRound@l
+	mtspr	SPRN_IVOR34,r3
+	li	r3,PerformanceMonitor@l
+	mtspr	SPRN_IVOR35,r3
+	sync
+	blr
+
+/* Adjust or setup IVORs for e500mc */
+_GLOBAL(__setup_e500mc_ivors)
+	li	r3,DebugDebug@l
+	mtspr	SPRN_IVOR15,r3
+	li	r3,PerformanceMonitor@l
+	mtspr	SPRN_IVOR35,r3
+	li	r3,Doorbell@l
+	mtspr	SPRN_IVOR36,r3
+	li	r3,CriticalDoorbell@l
+	mtspr	SPRN_IVOR37,r3
+	sync
+	blr
+
 /*
  * extern void loadcam_entry(unsigned int index)
  *
@@ -909,7 +936,7 @@ KernelSPE:
 _GLOBAL(loadcam_entry)
 	lis	r4,TLBCAM@ha
 	addi	r4,r4,TLBCAM@l
-	mulli	r5,r3,20
+	mulli	r5,r3,TLBCAM_SIZE
 	add	r3,r5,r4
 	lwz	r4,0(r3)
 	mtspr	SPRN_MAS0,r4
@@ -1093,7 +1120,7 @@ __secondary_start:
 	mtspr	SPRN_SPRG3,r4
 
 	/* Setup the defaults for TLB entries */
-	li	r4,(MAS4_TSIZED(BOOKE_PAGESZ_4K))@l
+	li	r4,(MAS4_TSIZED(BOOK3E_PAGESZ_4K))@l
 	mtspr	SPRN_MAS4,r4
 
 	/* Jump to start_secondary */

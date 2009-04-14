@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -296,6 +296,41 @@ void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kick_tx_queue);
 
+void rt2x00usb_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
+			     const enum data_queue_qid qid)
+{
+	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, qid);
+	struct queue_entry_priv_usb *entry_priv;
+	struct queue_entry_priv_usb_bcn *bcn_priv;
+	unsigned int i;
+	bool kill_guard;
+
+	/*
+	 * When killing the beacon queue, we must also kill
+	 * the beacon guard byte.
+	 */
+	kill_guard =
+	    (qid == QID_BEACON) &&
+	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags));
+
+	/*
+	 * Cancel all entries.
+	 */
+	for (i = 0; i < queue->limit; i++) {
+		entry_priv = queue->entries[i].priv_data;
+		usb_kill_urb(entry_priv->urb);
+
+		/*
+		 * Kill guardian urb (if required by driver).
+		 */
+		if (kill_guard) {
+			bcn_priv = queue->entries[i].priv_data;
+			usb_kill_urb(bcn_priv->guardian_urb);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_kill_tx_queue);
+
 /*
  * RX data handlers.
  */
@@ -338,35 +373,14 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
  */
 void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	struct queue_entry_priv_usb *entry_priv;
-	struct queue_entry_priv_usb_bcn *bcn_priv;
-	struct data_queue *queue;
-	unsigned int i;
-
 	rt2x00usb_vendor_request_sw(rt2x00dev, USB_RX_CONTROL, 0, 0,
 				    REGISTER_TIMEOUT);
 
 	/*
-	 * Cancel all queues.
+	 * The USB version of kill_tx_queue also works
+	 * on the RX queue.
 	 */
-	queue_for_each(rt2x00dev, queue) {
-		for (i = 0; i < queue->limit; i++) {
-			entry_priv = queue->entries[i].priv_data;
-			usb_kill_urb(entry_priv->urb);
-		}
-	}
-
-	/*
-	 * Kill guardian urb (if required by driver).
-	 */
-	if (!test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags))
-		return;
-
-	for (i = 0; i < rt2x00dev->bcn->limit; i++) {
-		bcn_priv = rt2x00dev->bcn->entries[i].priv_data;
-		if (bcn_priv->guardian_urb)
-			usb_kill_urb(bcn_priv->guardian_urb);
-	}
+	rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev, QID_RX);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
 
@@ -434,11 +448,11 @@ static int rt2x00usb_find_endpoints(struct rt2x00_dev *rt2x00dev)
 
 		if (usb_endpoint_is_bulk_in(ep_desc)) {
 			rt2x00usb_assign_endpoint(rt2x00dev->rx, ep_desc);
-		} else if (usb_endpoint_is_bulk_out(ep_desc)) {
+		} else if (usb_endpoint_is_bulk_out(ep_desc) &&
+			   (queue != queue_end(rt2x00dev))) {
 			rt2x00usb_assign_endpoint(queue, ep_desc);
+			queue = queue_next(queue);
 
-			if (queue != queue_end(rt2x00dev))
-				queue = queue_next(queue);
 			tx_ep_desc = ep_desc;
 		}
 	}

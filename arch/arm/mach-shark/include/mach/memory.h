@@ -23,6 +23,7 @@ static inline void __arch_adjust_zones(int node, unsigned long *zone_size, unsig
 {
   if (node != 0) return;
   /* Only the first 4 MB (=1024 Pages) are usable for DMA */
+  /* See dev / -> .properties in OpenFirmware. */
   zone_size[1] = zone_size[0] - 1024;
   zone_size[0] = 1024;
   zhole_size[1] = zhole_size[0];

@@ -28,7 +28,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
 #include <asm/mach-types.h>
 
@@ -38,6 +37,44 @@
 
 #include "soc_common.h"
 #include "pxa2xx_base.h"
+
+/*
+ * Personal Computer Memory Card International Association (PCMCIA) sockets
+ */
+
+#define PCMCIAPrtSp	0x04000000	/* PCMCIA Partition Space [byte]   */
+#define PCMCIASp	(4*PCMCIAPrtSp)	/* PCMCIA Space [byte]             */
+#define PCMCIAIOSp	PCMCIAPrtSp	/* PCMCIA I/O Space [byte]         */
+#define PCMCIAAttrSp	PCMCIAPrtSp	/* PCMCIA Attribute Space [byte]   */
+#define PCMCIAMemSp	PCMCIAPrtSp	/* PCMCIA Memory Space [byte]      */
+
+#define PCMCIA0Sp	PCMCIASp	/* PCMCIA 0 Space [byte]           */
+#define PCMCIA0IOSp	PCMCIAIOSp	/* PCMCIA 0 I/O Space [byte]       */
+#define PCMCIA0AttrSp	PCMCIAAttrSp	/* PCMCIA 0 Attribute Space [byte] */
+#define PCMCIA0MemSp	PCMCIAMemSp	/* PCMCIA 0 Memory Space [byte]    */
+
+#define PCMCIA1Sp	PCMCIASp	/* PCMCIA 1 Space [byte]           */
+#define PCMCIA1IOSp	PCMCIAIOSp	/* PCMCIA 1 I/O Space [byte]       */
+#define PCMCIA1AttrSp	PCMCIAAttrSp	/* PCMCIA 1 Attribute Space [byte] */
+#define PCMCIA1MemSp	PCMCIAMemSp	/* PCMCIA 1 Memory Space [byte]    */
+
+#define _PCMCIA(Nb)			/* PCMCIA [0..1]                   */ \
+			(0x20000000 + (Nb) * PCMCIASp)
+#define _PCMCIAIO(Nb)	_PCMCIA(Nb)	/* PCMCIA I/O [0..1]               */
+#define _PCMCIAAttr(Nb)			/* PCMCIA Attribute [0..1]         */ \
+			(_PCMCIA(Nb) + 2 * PCMCIAPrtSp)
+#define _PCMCIAMem(Nb)			/* PCMCIA Memory [0..1]            */ \
+			(_PCMCIA(Nb) + 3 * PCMCIAPrtSp)
+
+#define _PCMCIA0	_PCMCIA(0)	/* PCMCIA 0                        */
+#define _PCMCIA0IO	_PCMCIAIO(0)	/* PCMCIA 0 I/O                    */
+#define _PCMCIA0Attr	_PCMCIAAttr(0)	/* PCMCIA 0 Attribute              */
+#define _PCMCIA0Mem	_PCMCIAMem(0)	/* PCMCIA 0 Memory                 */
+
+#define _PCMCIA1	_PCMCIA(1)	/* PCMCIA 1                        */
+#define _PCMCIA1IO	_PCMCIAIO(1)	/* PCMCIA 1 I/O                    */
+#define _PCMCIA1Attr	_PCMCIAAttr(1)	/* PCMCIA 1 Attribute              */
+#define _PCMCIA1Mem	_PCMCIAMem(1)	/* PCMCIA 1 Memory                 */
 
 
 #define MCXX_SETUP_MASK     (0x7f)
@@ -177,21 +214,65 @@ static void pxa2xx_configure_sockets(struct device *dev)
 	MECR |= MECR_CIT;
 
 	/* Set MECR:NOS (Number Of Sockets) */
-	if (ops->nr > 1 || machine_is_viper())
+	if ((ops->first + ops->nr) > 1 || machine_is_viper())
 		MECR |= MECR_NOS;
 	else
 		MECR &= ~MECR_NOS;
 }
 
+static const char *skt_names[] = {
+	"PCMCIA socket 0",
+	"PCMCIA socket 1",
+};
+
+#define SKT_DEV_INFO_SIZE(n) \
+	(sizeof(struct skt_dev_info) + (n)*sizeof(struct soc_pcmcia_socket))
+
 int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 {
-	int ret;
+	int i, ret;
 	struct pcmcia_low_level *ops;
+	struct skt_dev_info *sinfo;
+	struct soc_pcmcia_socket *skt;
 
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
 	ops = (struct pcmcia_low_level *)dev->platform_data;
+
+	sinfo = kzalloc(SKT_DEV_INFO_SIZE(ops->nr), GFP_KERNEL);
+	if (!sinfo)
+		return -ENOMEM;
+
+	sinfo->nskt = ops->nr;
+
+	/* Initialize processor specific parameters */
+	for (i = 0; i < ops->nr; i++) {
+		skt = &sinfo->skt[i];
+
+		skt->nr		= ops->first + i;
+		skt->irq	= NO_IRQ;
+
+		skt->res_skt.start	= _PCMCIA(skt->nr);
+		skt->res_skt.end	= _PCMCIA(skt->nr) + PCMCIASp - 1;
+		skt->res_skt.name	= skt_names[skt->nr];
+		skt->res_skt.flags	= IORESOURCE_MEM;
+
+		skt->res_io.start	= _PCMCIAIO(skt->nr);
+		skt->res_io.end		= _PCMCIAIO(skt->nr) + PCMCIAIOSp - 1;
+		skt->res_io.name	= "io";
+		skt->res_io.flags	= IORESOURCE_MEM | IORESOURCE_BUSY;
+
+		skt->res_mem.start	= _PCMCIAMem(skt->nr);
+		skt->res_mem.end	= _PCMCIAMem(skt->nr) + PCMCIAMemSp - 1;
+		skt->res_mem.name	= "memory";
+		skt->res_mem.flags	= IORESOURCE_MEM;
+
+		skt->res_attr.start	= _PCMCIAAttr(skt->nr);
+		skt->res_attr.end	= _PCMCIAAttr(skt->nr) + PCMCIAAttrSp - 1;
+		skt->res_attr.name	= "attribute";
+		skt->res_attr.flags	= IORESOURCE_MEM;
+	}
 
 	/* Provide our PXA2xx specific timing routines. */
 	ops->set_timing  = pxa2xx_pcmcia_set_timing;
@@ -199,7 +280,7 @@ int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 	ops->frequency_change = pxa2xx_pcmcia_frequency_change;
 #endif
 
-	ret = soc_common_drv_pcmcia_probe(dev, ops, ops->first, ops->nr);
+	ret = soc_common_drv_pcmcia_probe(dev, ops, sinfo);
 
 	if (!ret)
 		pxa2xx_configure_sockets(dev);

@@ -12,9 +12,9 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/irq.h>
 #include <asm/hd64461.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <mach/hp6xx.h>
 #include <cpu/dac.h>
 
@@ -115,7 +115,6 @@ static struct sh_machine_vector mv_hp6xx __initmv = {
 	.mv_setup = hp6xx_setup,
 	/* IRQ's : CPU(64) + CCHIP(16) + FREE_TO_USE(6) */
 	.mv_nr_irqs = HD64461_IRQBASE + HD64461_IRQ_NUM + 6,
-	.mv_irq_demux = hd64461_irq_demux,
 	/* Enable IRQ0 -> IRQ3 in IRQ_MODE */
 	.mv_init_irq = hp6xx_init_irq,
 };

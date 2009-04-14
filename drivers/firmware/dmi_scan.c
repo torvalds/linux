@@ -68,7 +68,8 @@ static char * __init dmi_string(const struct dmi_header *dm, u8 s)
  *	pointing to completely the wrong place for example
  */
 static void dmi_table(u8 *buf, int len, int num,
-		      void (*decode)(const struct dmi_header *))
+		      void (*decode)(const struct dmi_header *, void *),
+		      void *private_data)
 {
 	u8 *data = buf;
 	int i = 0;
@@ -89,7 +90,7 @@ static void dmi_table(u8 *buf, int len, int num,
 		while ((data - buf < len - 1) && (data[0] || data[1]))
 			data++;
 		if (data - buf < len - 1)
-			decode(dm);
+			decode(dm, private_data);
 		data += 2;
 		i++;
 	}
@@ -99,7 +100,8 @@ static u32 dmi_base;
 static u16 dmi_len;
 static u16 dmi_num;
 
-static int __init dmi_walk_early(void (*decode)(const struct dmi_header *))
+static int __init dmi_walk_early(void (*decode)(const struct dmi_header *,
+		void *))
 {
 	u8 *buf;
 
@@ -107,7 +109,7 @@ static int __init dmi_walk_early(void (*decode)(const struct dmi_header *))
 	if (buf == NULL)
 		return -1;
 
-	dmi_table(buf, dmi_len, dmi_num, decode);
+	dmi_table(buf, dmi_len, dmi_num, decode, NULL);
 
 	dmi_iounmap(buf, dmi_len);
 	return 0;
@@ -295,7 +297,7 @@ static void __init dmi_save_extended_devices(const struct dmi_header *dm)
  *	and machine entries. For 2.5 we should pull the smbus controller info
  *	out of here.
  */
-static void __init dmi_decode(const struct dmi_header *dm)
+static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 {
 	switch(dm->type) {
 	case 0:		/* BIOS Information */
@@ -415,6 +417,29 @@ void __init dmi_scan_machine(void)
 }
 
 /**
+ *	dmi_matches - check if dmi_system_id structure matches system DMI data
+ *	@dmi: pointer to the dmi_system_id structure to check
+ */
+static bool dmi_matches(const struct dmi_system_id *dmi)
+{
+	int i;
+
+	WARN(!dmi_initialized, KERN_ERR "dmi check: not initialized yet.\n");
+
+	for (i = 0; i < ARRAY_SIZE(dmi->matches); i++) {
+		int s = dmi->matches[i].slot;
+		if (s == DMI_NONE)
+			continue;
+		if (dmi_ident[s]
+		    && strstr(dmi_ident[s], dmi->matches[i].substr))
+			continue;
+		/* No match */
+		return false;
+	}
+	return true;
+}
+
+/**
  *	dmi_check_system - check system DMI data
  *	@list: array of dmi_system_id structures to match against
  *		All non-null elements of the list must match
@@ -429,30 +454,43 @@ void __init dmi_scan_machine(void)
  */
 int dmi_check_system(const struct dmi_system_id *list)
 {
-	int i, count = 0;
-	const struct dmi_system_id *d = list;
+	int count = 0;
+	const struct dmi_system_id *d;
 
-	WARN(!dmi_initialized, KERN_ERR "dmi check: not initialized yet.\n");
-
-	while (d->ident) {
-		for (i = 0; i < ARRAY_SIZE(d->matches); i++) {
-			int s = d->matches[i].slot;
-			if (s == DMI_NONE)
-				continue;
-			if (dmi_ident[s] && strstr(dmi_ident[s], d->matches[i].substr))
-				continue;
-			/* No match */
-			goto fail;
+	for (d = list; d->ident; d++)
+		if (dmi_matches(d)) {
+			count++;
+			if (d->callback && d->callback(d))
+				break;
 		}
-		count++;
-		if (d->callback && d->callback(d))
-			break;
-fail:		d++;
-	}
 
 	return count;
 }
 EXPORT_SYMBOL(dmi_check_system);
+
+/**
+ *	dmi_first_match - find dmi_system_id structure matching system DMI data
+ *	@list: array of dmi_system_id structures to match against
+ *		All non-null elements of the list must match
+ *		their slot's (field index's) data (i.e., each
+ *		list string must be a substring of the specified
+ *		DMI slot's string data) to be considered a
+ *		successful match.
+ *
+ *	Walk the blacklist table until the first match is found.  Return the
+ *	pointer to the matching entry or NULL if there's no match.
+ */
+const struct dmi_system_id *dmi_first_match(const struct dmi_system_id *list)
+{
+	const struct dmi_system_id *d;
+
+	for (d = list; d->ident; d++)
+		if (dmi_matches(d))
+			return d;
+
+	return NULL;
+}
+EXPORT_SYMBOL(dmi_first_match);
 
 /**
  *	dmi_get_system_info - return DMI data value
@@ -562,10 +600,12 @@ int dmi_get_year(int field)
 /**
  *	dmi_walk - Walk the DMI table and get called back for every record
  *	@decode: Callback function
+ *	@private_data: Private data to be passed to the callback function
  *
  *	Returns -1 when the DMI table can't be reached, 0 on success.
  */
-int dmi_walk(void (*decode)(const struct dmi_header *))
+int dmi_walk(void (*decode)(const struct dmi_header *, void *),
+	     void *private_data)
 {
 	u8 *buf;
 
@@ -576,7 +616,7 @@ int dmi_walk(void (*decode)(const struct dmi_header *))
 	if (buf == NULL)
 		return -1;
 
-	dmi_table(buf, dmi_len, dmi_num, decode);
+	dmi_table(buf, dmi_len, dmi_num, decode, private_data);
 
 	iounmap(buf);
 	return 0;

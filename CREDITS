@@ -495,6 +495,11 @@ S: Kopmansg 2
 S: 411 13  Goteborg
 S: Sweden
 
+N: Paul Bristow
+E: paul@paulbristow.net
+W: http://paulbristow.net/linux/idefloppy.html
+D: Maintainer of IDE/ATAPI floppy driver
+
 N: Dominik Brodowski
 E: linux@brodo.de
 W: http://www.brodo.de/
@@ -1407,8 +1412,8 @@ P: 1024D/77D4FC9B F5C5 1C20 1DFC DEC3 3107  54A4 2332 ADFC 77D4 FC9B
 D: National Language Support
 D: Linux Internationalization Project
 D: German Localization for Linux and GNU software
-S: Kriemhildring 12a
-S: 65795 Hattersheim am Main
+S: Auf der Fittel 18
+S: 53347 Alfter
 S: Germany
 
 N: Christoph Hellwig
@@ -2166,7 +2171,6 @@ D: Initial implementation of VC's, pty's and select()
 
 N: Pavel Machek
 E: pavel@ucw.cz
-E: pavel@suse.cz
 D: Softcursor for vga, hypertech cdrom support, vcsa bugfix, nbd
 D: sun4/330 port, capabilities for elf, speedup for rm on ext2, USB,
 D: work on suspend-to-ram/disk, killing duplicates from ioctl32
@@ -2642,6 +2646,10 @@ D: Maintainer of the auxiliary display drivers tree (drivers/auxdisplay/*)
 S: C/ Mieses 20, 9-B
 S: Valladolid 47009
 S: Spain
+
+N: Gadi Oxman
+E: gadio@netvision.net.il
+D: Original author and maintainer of IDE/ATAPI floppy/tape drivers
 
 N: Greg Page
 E: gpage@sovereign.org
@@ -3572,6 +3580,12 @@ N: Dirk Verworner
 D: Co-author of German book ``Linux-Kernel-Programmierung''
 D: Co-founder of Berlin Linux User Group
 
+N: Riku Voipio
+E: riku.voipio@iki.fi
+D: Author of PCA9532 LED and Fintek f75375s hwmon driver
+D: Some random ARM board patches
+S: Finland
+
 N: Patrick Volkerding
 E: volkerdi@ftp.cdrom.com
 D: Produced the Slackware distribution, updated the SVGAlib
@@ -3739,7 +3753,7 @@ S: 93149 Nittenau
 S: Germany
 
 N: Gertjan van Wingerde
-E: gwingerde@home.nl
+E: gwingerde@gmail.com
 D: Ralink rt2x00 WLAN driver
 D: Minix V2 file-system
 D: Misc fixes
@@ -3786,14 +3800,11 @@ S: The Netherlands
 
 N: David Woodhouse
 E: dwmw2@infradead.org
-D: ARCnet stuff, Applicom board driver, SO_BINDTODEVICE,
-D: some Alpha platform porting from 2.0, Memory Technology Devices,
-D: Acquire watchdog timer, PC speaker driver maintenance,
+D: JFFS2 file system, Memory Technology Device subsystem,
 D: various other stuff that annoyed me by not working.
-S: c/o Red Hat Engineering
-S: Rustat House
-S: 60 Clifton Road
-S: Cambridge. CB1 7EG
+S: c/o Intel Corporation
+S: Pipers Way
+S: Swindon. SN3 1RJ
 S: England
 
 N: Chris Wright

@@ -118,7 +118,7 @@ static struct resource ide_resources[] = {
 	},
 };
 
-static u64 ide_dma_mask = DMA_32BIT_MASK;
+static u64 ide_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device ide_dev = {
 	.name           = "palm_bk3710",
@@ -127,7 +127,7 @@ static struct platform_device ide_dev = {
 	.num_resources  = ARRAY_SIZE(ide_resources),
 	.dev = {
 		.dma_mask		= &ide_dma_mask,
-		.coherent_dma_mask      = DMA_32BIT_MASK,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
 	},
 };
 
@@ -311,6 +311,9 @@ evm_u35_setup(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 	gpio_request(gpio + 7, "nCF_SEL");
 	gpio_direction_output(gpio + 7, 1);
 
+	/* irlml6401 sustains over 3A, switches 5V in under 8 msec */
+	setup_usb(500, 8);
+
 	return 0;
 }
 
@@ -417,9 +420,6 @@ static __init void davinci_evm_init(void)
 	platform_add_devices(davinci_evm_devices,
 			     ARRAY_SIZE(davinci_evm_devices));
 	evm_init_i2c();
-
-	/* irlml6401 sustains over 3A, switches 5V in under 8 msec */
-	setup_usb(500, 8);
 }
 
 static __init void davinci_evm_irq_init(void)

@@ -39,7 +39,6 @@ static struct
 static struct xt_table packet_raw = {
 	.name = "raw",
 	.valid_hooks =  RAW_VALID_HOOKS,
-	.lock = __RW_LOCK_UNLOCKED(packet_raw.lock),
 	.me = THIS_MODULE,
 	.af = AF_INET,
 };
@@ -65,12 +64,8 @@ ipt_local_hook(unsigned int hook,
 {
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct iphdr) ||
-	    ip_hdrlen(skb) < sizeof(struct iphdr)) {
-		if (net_ratelimit())
-			printk("iptable_raw: ignoring short SOCK_RAW "
-			       "packet.\n");
+	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
-	}
 	return ipt_do_table(skb, hook, in, out,
 			    dev_net(out)->ipv4.iptable_raw);
 }

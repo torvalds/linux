@@ -13,9 +13,28 @@
 #include <linux/security.h>
 #include <linux/slab.h>
 #include <linux/ipc.h>
+#include <linux/ipc_namespace.h>
 #include <asm/uaccess.h>
 
 #include "util.h"
+
+DEFINE_SPINLOCK(mq_lock);
+
+/*
+ * The next 2 defines are here bc this is the only file
+ * compiled when either CONFIG_SYSVIPC and CONFIG_POSIX_MQUEUE
+ * and not CONFIG_IPC_NS.
+ */
+struct ipc_namespace init_ipc_ns = {
+	.count		= ATOMIC_INIT(1),
+#ifdef CONFIG_POSIX_MQUEUE
+	.mq_queues_max   = DFLT_QUEUESMAX,
+	.mq_msg_max      = DFLT_MSGMAX,
+	.mq_msgsize_max  = DFLT_MSGSIZEMAX,
+#endif
+};
+
+atomic_t nr_ipc_ns = ATOMIC_INIT(1);
 
 struct msg_msgseg {
 	struct msg_msgseg* next;

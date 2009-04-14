@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/input.h>
 #include <linux/rfkill.h>
+#include <linux/pci.h>
 
 #define EEEPC_LAPTOP_VERSION	"0.1"
 
@@ -90,7 +91,7 @@ enum {
 };
 
 static const char *cm_getv[] = {
-	"WLDG", NULL, NULL, NULL,
+	"WLDG", "BTHG", NULL, NULL,
 	"CAMG", NULL, NULL, NULL,
 	NULL, "PBLG", NULL, NULL,
 	"CFVG", NULL, NULL, NULL,
@@ -99,7 +100,7 @@ static const char *cm_getv[] = {
 };
 
 static const char *cm_setv[] = {
-	"WLDS", NULL, NULL, NULL,
+	"WLDS", "BTHS", NULL, NULL,
 	"CAMS", NULL, NULL, NULL,
 	"SDSP", "PBLS", "HDPS", NULL,
 	"CFVS", NULL, NULL, NULL,
@@ -161,6 +162,10 @@ static struct key_entry eeepc_keymap[] = {
 	{KE_KEY, 0x13, KEY_MUTE },
 	{KE_KEY, 0x14, KEY_VOLUMEDOWN },
 	{KE_KEY, 0x15, KEY_VOLUMEUP },
+	{KE_KEY, 0x1a, KEY_COFFEE },
+	{KE_KEY, 0x1b, KEY_ZOOM },
+	{KE_KEY, 0x1c, KEY_PROG2 },
+	{KE_KEY, 0x1d, KEY_PROG3 },
 	{KE_KEY, 0x30, KEY_SWITCHVIDEOMODE },
 	{KE_KEY, 0x31, KEY_SWITCHVIDEOMODE },
 	{KE_KEY, 0x32, KEY_SWITCHVIDEOMODE },
@@ -510,18 +515,59 @@ static int eeepc_hotk_check(void)
 static void notify_brn(void)
 {
 	struct backlight_device *bd = eeepc_backlight_device;
-	bd->props.brightness = read_brightness(bd);
+	if (bd)
+		bd->props.brightness = read_brightness(bd);
+}
+
+static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
+{
+	struct pci_dev *dev;
+	struct pci_bus *bus = pci_find_bus(0, 1);
+
+	if (event != ACPI_NOTIFY_BUS_CHECK)
+		return;
+
+	if (!bus) {
+		printk(EEEPC_WARNING "Unable to find PCI bus 1?\n");
+		return;
+	}
+
+	if (get_acpi(CM_ASL_WLAN) == 1) {
+		dev = pci_get_slot(bus, 0);
+		if (dev) {
+			/* Device already present */
+			pci_dev_put(dev);
+			return;
+		}
+		dev = pci_scan_single_device(bus, 0);
+		if (dev) {
+			pci_bus_assign_resources(bus);
+			if (pci_bus_add_device(dev))
+				printk(EEEPC_ERR "Unable to hotplug wifi\n");
+		}
+	} else {
+		dev = pci_get_slot(bus, 0);
+		if (dev) {
+			pci_remove_bus_device(dev);
+			pci_dev_put(dev);
+		}
+	}
 }
 
 static void eeepc_hotk_notify(acpi_handle handle, u32 event, void *data)
 {
 	static struct key_entry *key;
+	u16 count;
+
 	if (!ehotk)
 		return;
 	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX)
 		notify_brn();
-	acpi_bus_generate_proc_event(ehotk->device, event,
-				     ehotk->event_count[event % 128]++);
+	count = ehotk->event_count[event % 128]++;
+	acpi_bus_generate_proc_event(ehotk->device, event, count);
+	acpi_bus_generate_netlink_event(ehotk->device->pnp.device_class,
+					dev_name(&ehotk->device->dev), event,
+					count);
 	if (ehotk->inputdev) {
 		key = eepc_get_entry_by_scancode(event);
 		if (key) {
@@ -536,6 +582,45 @@ static void eeepc_hotk_notify(acpi_handle handle, u32 event, void *data)
 				break;
 			}
 		}
+	}
+}
+
+static int eeepc_register_rfkill_notifier(char *node)
+{
+	acpi_status status = AE_OK;
+	acpi_handle handle;
+
+	status = acpi_get_handle(NULL, node, &handle);
+
+	if (ACPI_SUCCESS(status)) {
+		status = acpi_install_notify_handler(handle,
+						     ACPI_SYSTEM_NOTIFY,
+						     eeepc_rfkill_notify,
+						     NULL);
+		if (ACPI_FAILURE(status))
+			printk(EEEPC_WARNING
+			       "Failed to register notify on %s\n", node);
+	} else
+		return -ENODEV;
+
+	return 0;
+}
+
+static void eeepc_unregister_rfkill_notifier(char *node)
+{
+	acpi_status status = AE_OK;
+	acpi_handle handle;
+
+	status = acpi_get_handle(NULL, node, &handle);
+
+	if (ACPI_SUCCESS(status)) {
+		status = acpi_remove_notify_handler(handle,
+						     ACPI_SYSTEM_NOTIFY,
+						     eeepc_rfkill_notify);
+		if (ACPI_FAILURE(status))
+			printk(EEEPC_ERR
+			       "Error removing rfkill notify handler %s\n",
+				node);
 	}
 }
 
@@ -558,7 +643,7 @@ static int eeepc_hotk_add(struct acpi_device *device)
 	ehotk->device = device;
 	result = eeepc_hotk_check();
 	if (result)
-		goto end;
+		goto ehotk_fail;
 	status = acpi_install_notify_handler(ehotk->handle, ACPI_SYSTEM_NOTIFY,
 					     eeepc_hotk_notify, ehotk);
 	if (ACPI_FAILURE(status))
@@ -569,18 +654,25 @@ static int eeepc_hotk_add(struct acpi_device *device)
 							   RFKILL_TYPE_WLAN);
 
 		if (!ehotk->eeepc_wlan_rfkill)
-			goto end;
+			goto wlan_fail;
 
 		ehotk->eeepc_wlan_rfkill->name = "eeepc-wlan";
 		ehotk->eeepc_wlan_rfkill->toggle_radio = eeepc_wlan_rfkill_set;
 		ehotk->eeepc_wlan_rfkill->get_state = eeepc_wlan_rfkill_state;
-		if (get_acpi(CM_ASL_WLAN) == 1)
+		if (get_acpi(CM_ASL_WLAN) == 1) {
 			ehotk->eeepc_wlan_rfkill->state =
 				RFKILL_STATE_UNBLOCKED;
-		else
+			rfkill_set_default(RFKILL_TYPE_WLAN,
+					   RFKILL_STATE_UNBLOCKED);
+		} else {
 			ehotk->eeepc_wlan_rfkill->state =
 				RFKILL_STATE_SOFT_BLOCKED;
-		rfkill_register(ehotk->eeepc_wlan_rfkill);
+			rfkill_set_default(RFKILL_TYPE_WLAN,
+					   RFKILL_STATE_SOFT_BLOCKED);
+		}
+		result = rfkill_register(ehotk->eeepc_wlan_rfkill);
+		if (result)
+			goto wlan_fail;
 	}
 
 	if (get_acpi(CM_ASL_BLUETOOTH) != -1) {
@@ -588,27 +680,47 @@ static int eeepc_hotk_add(struct acpi_device *device)
 			rfkill_allocate(&device->dev, RFKILL_TYPE_BLUETOOTH);
 
 		if (!ehotk->eeepc_bluetooth_rfkill)
-			goto end;
+			goto bluetooth_fail;
 
 		ehotk->eeepc_bluetooth_rfkill->name = "eeepc-bluetooth";
 		ehotk->eeepc_bluetooth_rfkill->toggle_radio =
 			eeepc_bluetooth_rfkill_set;
 		ehotk->eeepc_bluetooth_rfkill->get_state =
 			eeepc_bluetooth_rfkill_state;
-		if (get_acpi(CM_ASL_BLUETOOTH) == 1)
+		if (get_acpi(CM_ASL_BLUETOOTH) == 1) {
 			ehotk->eeepc_bluetooth_rfkill->state =
 				RFKILL_STATE_UNBLOCKED;
-		else
+			rfkill_set_default(RFKILL_TYPE_BLUETOOTH,
+					   RFKILL_STATE_UNBLOCKED);
+		} else {
 			ehotk->eeepc_bluetooth_rfkill->state =
 				RFKILL_STATE_SOFT_BLOCKED;
-		rfkill_register(ehotk->eeepc_bluetooth_rfkill);
+			rfkill_set_default(RFKILL_TYPE_BLUETOOTH,
+					   RFKILL_STATE_SOFT_BLOCKED);
+		}
+
+		result = rfkill_register(ehotk->eeepc_bluetooth_rfkill);
+		if (result)
+			goto bluetooth_fail;
 	}
 
- end:
-	if (result) {
-		kfree(ehotk);
-		ehotk = NULL;
-	}
+	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P6");
+	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P7");
+
+	return 0;
+
+ bluetooth_fail:
+	if (ehotk->eeepc_bluetooth_rfkill)
+		rfkill_free(ehotk->eeepc_bluetooth_rfkill);
+	rfkill_unregister(ehotk->eeepc_wlan_rfkill);
+	ehotk->eeepc_wlan_rfkill = NULL;
+ wlan_fail:
+	if (ehotk->eeepc_wlan_rfkill)
+		rfkill_free(ehotk->eeepc_wlan_rfkill);
+ ehotk_fail:
+	kfree(ehotk);
+	ehotk = NULL;
+
 	return result;
 }
 
@@ -622,6 +734,10 @@ static int eeepc_hotk_remove(struct acpi_device *device, int type)
 					    eeepc_hotk_notify);
 	if (ACPI_FAILURE(status))
 		printk(EEEPC_ERR "Error removing notify handler\n");
+
+	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P6");
+	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P7");
+
 	kfree(ehotk);
 	return 0;
 }
@@ -737,13 +853,21 @@ static void eeepc_backlight_exit(void)
 {
 	if (eeepc_backlight_device)
 		backlight_device_unregister(eeepc_backlight_device);
-	if (ehotk->inputdev)
-		input_unregister_device(ehotk->inputdev);
+	eeepc_backlight_device = NULL;
+}
+
+static void eeepc_rfkill_exit(void)
+{
 	if (ehotk->eeepc_wlan_rfkill)
 		rfkill_unregister(ehotk->eeepc_wlan_rfkill);
 	if (ehotk->eeepc_bluetooth_rfkill)
 		rfkill_unregister(ehotk->eeepc_bluetooth_rfkill);
-	eeepc_backlight_device = NULL;
+}
+
+static void eeepc_input_exit(void)
+{
+	if (ehotk->inputdev)
+		input_unregister_device(ehotk->inputdev);
 }
 
 static void eeepc_hwmon_exit(void)
@@ -762,6 +886,8 @@ static void eeepc_hwmon_exit(void)
 static void __exit eeepc_laptop_exit(void)
 {
 	eeepc_backlight_exit();
+	eeepc_rfkill_exit();
+	eeepc_input_exit();
 	eeepc_hwmon_exit();
 	acpi_bus_unregister_driver(&eeepc_hotk_driver);
 	sysfs_remove_group(&platform_device->dev.kobj,
@@ -865,6 +991,8 @@ fail_platform_driver:
 fail_hwmon:
 	eeepc_backlight_exit();
 fail_backlight:
+	eeepc_input_exit();
+	eeepc_rfkill_exit();
 	return result;
 }
 

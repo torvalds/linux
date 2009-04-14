@@ -1068,13 +1068,16 @@ static void sky2_rx_submit(struct sky2_port *sky2,
 }
 
 
-static void sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
+static int sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 			    unsigned size)
 {
 	struct sk_buff *skb = re->skb;
 	int i;
 
 	re->data_addr = pci_map_single(pdev, skb->data, size, PCI_DMA_FROMDEVICE);
+	if (unlikely(pci_dma_mapping_error(pdev, re->data_addr)))
+		return -EIO;
+
 	pci_unmap_len_set(re, data_size, size);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
@@ -1083,6 +1086,7 @@ static void sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 						skb_shinfo(skb)->frags[i].page_offset,
 						skb_shinfo(skb)->frags[i].size,
 						PCI_DMA_FROMDEVICE);
+	return 0;
 }
 
 static void sky2_rx_unmap_skb(struct pci_dev *pdev, struct rx_ring_info *re)
@@ -1354,7 +1358,12 @@ static int sky2_rx_start(struct sky2_port *sky2)
 		if (!re->skb)
 			goto nomem;
 
-		sky2_rx_map_skb(hw->pdev, re, sky2->rx_data_size);
+		if (sky2_rx_map_skb(hw->pdev, re, sky2->rx_data_size)) {
+			dev_kfree_skb(re->skb);
+			re->skb = NULL;
+			goto nomem;
+		}
+
 		sky2_rx_submit(sky2, re);
 	}
 
@@ -1402,9 +1411,6 @@ static int sky2_up(struct net_device *dev)
  		sky2_pci_write16(hw, cap + PCI_X_CMD, cmd);
 
  	}
-
-	if (netif_msg_ifup(sky2))
-		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
 
 	netif_carrier_off(dev);
 
@@ -1484,6 +1490,9 @@ static int sky2_up(struct net_device *dev)
 	sky2_write32(hw, B0_IMSK, imask);
 
 	sky2_set_multicast(dev);
+
+	if (netif_msg_ifup(sky2))
+		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
 	return 0;
 
 err_out:
@@ -1547,7 +1556,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	struct sky2_hw *hw = sky2->hw;
 	struct sky2_tx_le *le = NULL;
 	struct tx_ring_info *re;
-	unsigned i, len;
+	unsigned i, len, first_slot;
 	dma_addr_t mapping;
 	u16 mss;
 	u8 ctrl;
@@ -1555,12 +1564,16 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
  	if (unlikely(tx_avail(sky2) < tx_le_req(skb)))
   		return NETDEV_TX_BUSY;
 
-	if (unlikely(netif_msg_tx_queued(sky2)))
-		printk(KERN_DEBUG "%s: tx queued, slot %u, len %d\n",
-		       dev->name, sky2->tx_prod, skb->len);
-
 	len = skb_headlen(skb);
 	mapping = pci_map_single(hw->pdev, skb->data, len, PCI_DMA_TODEVICE);
+
+	if (pci_dma_mapping_error(hw->pdev, mapping))
+		goto mapping_error;
+
+	first_slot = sky2->tx_prod;
+	if (unlikely(netif_msg_tx_queued(sky2)))
+		printk(KERN_DEBUG "%s: tx queued, slot %u, len %d\n",
+		       dev->name, first_slot, skb->len);
 
 	/* Send high bits if needed */
 	if (sizeof(dma_addr_t) > sizeof(u32)) {
@@ -1648,6 +1661,9 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		mapping = pci_map_page(hw->pdev, frag->page, frag->page_offset,
 				       frag->size, PCI_DMA_TODEVICE);
 
+		if (pci_dma_mapping_error(hw->pdev, mapping))
+			goto mapping_unwind;
+
 		if (sizeof(dma_addr_t) > sizeof(u32)) {
 			le = get_tx_le(sky2);
 			le->addr = cpu_to_le32(upper_32_bits(mapping));
@@ -1675,6 +1691,34 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod);
 
 	dev->trans_start = jiffies;
+	return NETDEV_TX_OK;
+
+mapping_unwind:
+	for (i = first_slot; i != sky2->tx_prod; i = RING_NEXT(i, TX_RING_SIZE)) {
+		le = sky2->tx_le + i;
+		re = sky2->tx_ring + i;
+
+		switch(le->opcode & ~HW_OWNER) {
+		case OP_LARGESEND:
+		case OP_PACKET:
+			pci_unmap_single(hw->pdev,
+					 pci_unmap_addr(re, mapaddr),
+					 pci_unmap_len(re, maplen),
+					 PCI_DMA_TODEVICE);
+			break;
+		case OP_BUFFER:
+			pci_unmap_page(hw->pdev, pci_unmap_addr(re, mapaddr),
+				       pci_unmap_len(re, maplen),
+				       PCI_DMA_TODEVICE);
+			break;
+		}
+	}
+
+	sky2->tx_prod = first_slot;
+mapping_error:
+	if (net_ratelimit())
+		dev_warn(&hw->pdev->dev, "%s: tx mapping error\n", dev->name);
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -2191,7 +2235,11 @@ static struct sk_buff *receive_new(struct sky2_port *sky2,
 
 	prefetch(skb->data);
 	re->skb = nskb;
-	sky2_rx_map_skb(sky2->hw->pdev, re, hdr_space);
+	if (sky2_rx_map_skb(sky2->hw->pdev, re, hdr_space)) {
+		dev_kfree_skb(nskb);
+		re->skb = skb;
+		return NULL;
+	}
 
 	if (skb_shinfo(skb)->nr_frags)
 		skb_put_frags(skb, hdr_space, length);
@@ -2687,13 +2735,6 @@ static int sky2_poll(struct napi_struct *napi, int work_limit)
 			goto done;
 	}
 
-	/* Bug/Errata workaround?
-	 * Need to kick the TX irq moderation timer.
-	 */
-	if (sky2_read8(hw, STAT_TX_TIMER_CTRL) == TIM_START) {
-		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
-		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
-	}
 	napi_complete(napi);
 	sky2_read32(hw, B0_Y2_SP_LISR);
 done:
@@ -3864,6 +3905,86 @@ static const struct ethtool_ops sky2_ethtool_ops = {
 
 static struct dentry *sky2_debug;
 
+
+/*
+ * Read and parse the first part of Vital Product Data
+ */
+#define VPD_SIZE	128
+#define VPD_MAGIC	0x82
+
+static const struct vpd_tag {
+	char tag[2];
+	char *label;
+} vpd_tags[] = {
+	{ "PN",	"Part Number" },
+	{ "EC", "Engineering Level" },
+	{ "MN", "Manufacturer" },
+	{ "SN", "Serial Number" },
+	{ "YA", "Asset Tag" },
+	{ "VL", "First Error Log Message" },
+	{ "VF", "Second Error Log Message" },
+	{ "VB", "Boot Agent ROM Configuration" },
+	{ "VE", "EFI UNDI Configuration" },
+};
+
+static void sky2_show_vpd(struct seq_file *seq, struct sky2_hw *hw)
+{
+	size_t vpd_size;
+	loff_t offs;
+	u8 len;
+	unsigned char *buf;
+	u16 reg2;
+
+	reg2 = sky2_pci_read16(hw, PCI_DEV_REG2);
+	vpd_size = 1 << ( ((reg2 & PCI_VPD_ROM_SZ) >> 14) + 8);
+
+	seq_printf(seq, "%s Product Data\n", pci_name(hw->pdev));
+	buf = kmalloc(vpd_size, GFP_KERNEL);
+	if (!buf) {
+		seq_puts(seq, "no memory!\n");
+		return;
+	}
+
+	if (pci_read_vpd(hw->pdev, 0, vpd_size, buf) < 0) {
+		seq_puts(seq, "VPD read failed\n");
+		goto out;
+	}
+
+	if (buf[0] != VPD_MAGIC) {
+		seq_printf(seq, "VPD tag mismatch: %#x\n", buf[0]);
+		goto out;
+	}
+	len = buf[1];
+	if (len == 0 || len > vpd_size - 4) {
+		seq_printf(seq, "Invalid id length: %d\n", len);
+		goto out;
+	}
+
+	seq_printf(seq, "%.*s\n", len, buf + 3);
+	offs = len + 3;
+
+	while (offs < vpd_size - 4) {
+		int i;
+
+		if (!memcmp("RW", buf + offs, 2))	/* end marker */
+			break;
+		len = buf[offs + 2];
+		if (offs + len + 3 >= vpd_size)
+			break;
+
+		for (i = 0; i < ARRAY_SIZE(vpd_tags); i++) {
+			if (!memcmp(vpd_tags[i].tag, buf + offs, 2)) {
+				seq_printf(seq, " %s: %.*s\n",
+					   vpd_tags[i].label, len, buf + offs + 3);
+				break;
+			}
+		}
+		offs += len + 3;
+	}
+out:
+	kfree(buf);
+}
+
 static int sky2_debug_show(struct seq_file *seq, void *v)
 {
 	struct net_device *dev = seq->private;
@@ -3873,13 +3994,17 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 	unsigned idx, last;
 	int sop;
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
+	sky2_show_vpd(seq, hw);
 
-	seq_printf(seq, "IRQ src=%x mask=%x control=%x\n",
+	seq_printf(seq, "\nIRQ src=%x mask=%x control=%x\n",
 		   sky2_read32(hw, B0_ISRC),
 		   sky2_read32(hw, B0_IMSK),
 		   sky2_read32(hw, B0_Y2_SP_ICR));
+
+	if (!netif_running(dev)) {
+		seq_printf(seq, "network not running\n");
+		return 0;
+	}
 
 	napi_disable(&hw->napi);
 	last = sky2_read16(hw, STAT_PUT_IDX);
@@ -4204,69 +4329,6 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 	return err;
 }
 
-/*
- * Read and parse the first part of Vital Product Data
- */
-#define VPD_SIZE	128
-#define VPD_MAGIC	0x82
-
-static void __devinit sky2_vpd_info(struct sky2_hw *hw)
-{
-	int cap = pci_find_capability(hw->pdev, PCI_CAP_ID_VPD);
-	const u8 *p;
-	u8 *vpd_buf = NULL;
-	u16 len;
-	static struct vpd_tag {
-		char tag[2];
-		char *label;
-	} vpd_tags[] = {
-		{ "PN",	"Part Number" },
-		{ "EC", "Engineering Level" },
-		{ "MN", "Manufacturer" },
-	};
-
-	if (!cap)
-		goto out;
-
-	vpd_buf = kmalloc(VPD_SIZE, GFP_KERNEL);
-	if (!vpd_buf)
-		goto out;
-
-	if (sky2_vpd_read(hw, cap, vpd_buf, 0, VPD_SIZE))
-		goto out;
-
-	if (vpd_buf[0] != VPD_MAGIC)
-		goto out;
-	len = vpd_buf[1];
-	if (len == 0 || len > VPD_SIZE - 4)
-		goto out;
-	p = vpd_buf + 3;
-	dev_info(&hw->pdev->dev, "%.*s\n", len, p);
-	p += len;
-
-	while (p < vpd_buf + VPD_SIZE - 4) {
-		int i;
-
-		if (!memcmp("RW", p, 2))	/* end marker */
-			break;
-
-		len = p[2];
-		if (len > (p - vpd_buf) - 4)
-			break;
-
-		for (i = 0; i < ARRAY_SIZE(vpd_tags); i++) {
-			if (!memcmp(vpd_tags[i].tag, p, 2)) {
-				printk(KERN_DEBUG " %s: %.*s\n",
-				       vpd_tags[i].label, len, p + 3);
-				break;
-			}
-		}
-		p += len + 3;
-	}
-out:
-	kfree(vpd_buf);
-}
-
 /* This driver supports yukon2 chipset only */
 static const char *sky2_name(u8 chipid, char *buf, int sz)
 {
@@ -4294,6 +4356,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct sky2_hw *hw;
 	int err, using_dac = 0, wol_default;
+	u32 reg;
 	char buf1[16];
 
 	err = pci_enable_device(pdev);
@@ -4311,21 +4374,49 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	if (sizeof(dma_addr_t) > sizeof(u32) &&
-	    !(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK))) {
+	    !(err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))) {
 		using_dac = 1;
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (err < 0) {
 			dev_err(&pdev->dev, "unable to obtain 64 bit DMA "
 				"for consistent allocations\n");
 			goto err_out_free_regions;
 		}
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "no usable DMA configuration\n");
 			goto err_out_free_regions;
 		}
 	}
+
+	/* Get configuration information
+	 * Note: only regular PCI config access once to test for HW issues
+	 *       other PCI access through shared memory for speed and to
+	 *	 avoid MMCONFIG problems.
+	 */
+	err = pci_read_config_dword(pdev, PCI_DEV_REG2, &reg);
+	if (err) {
+		dev_err(&pdev->dev, "PCI read config failed\n");
+		goto err_out_free_regions;
+	}
+
+	/* size of available VPD, only impact sysfs */
+	err = pci_vpd_truncate(pdev, 1ul << (((reg & PCI_VPD_ROM_SZ) >> 14) + 8));
+	if (err)
+		dev_warn(&pdev->dev, "Can't set VPD size\n");
+
+#ifdef __BIG_ENDIAN
+	/* The sk98lin vendor driver uses hardware byte swapping but
+	 * this driver uses software swapping.
+	 */
+	reg &= ~PCI_REV_DESC;
+	err = pci_write_config_dword(pdev,PCI_DEV_REG2, reg);
+	if (err) {
+		dev_err(&pdev->dev, "PCI write config failed\n");
+		goto err_out_free_regions;
+	}
+#endif
 
 	wol_default = device_may_wakeup(&pdev->dev) ? WAKE_MAGIC : 0;
 
@@ -4344,18 +4435,6 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		goto err_out_free_hw;
 	}
 
-#ifdef __BIG_ENDIAN
-	/* The sk98lin vendor driver uses hardware byte swapping but
-	 * this driver uses software swapping.
-	 */
-	{
-		u32 reg;
-		reg = sky2_pci_read32(hw, PCI_DEV_REG2);
-		reg &= ~PCI_REV_DESC;
-		sky2_pci_write32(hw, PCI_DEV_REG2, reg);
-	}
-#endif
-
 	/* ring for status responses */
 	hw->st_le = pci_alloc_consistent(pdev, STATUS_LE_BYTES, &hw->st_dma);
 	if (!hw->st_le)
@@ -4369,8 +4448,6 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		 sky2_name(hw->chip_id, buf1, sizeof(buf1)), hw->chip_rev);
 
 	sky2_reset(hw);
-
-	sky2_vpd_info(hw);
 
 	dev = sky2_init_netdev(hw, 0, using_dac, wol_default);
 	if (!dev) {

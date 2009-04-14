@@ -1,6 +1,7 @@
 #ifndef __LINUX_NEIGHBOUR_H
 #define __LINUX_NEIGHBOUR_H
 
+#include <linux/types.h>
 #include <linux/netlink.h>
 
 struct ndmsg
@@ -30,6 +31,7 @@ enum
  *	Neighbor Cache Entry Flags
  */
 
+#define NTF_USE		0x01
 #define NTF_PROXY	0x08	/* == ATF_PUBL */
 #define NTF_ROUTER	0x80
 

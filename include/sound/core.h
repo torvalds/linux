@@ -97,9 +97,9 @@ struct snd_device {
 
 struct snd_monitor_file {
 	struct file *file;
-	struct snd_monitor_file *next;
 	const struct file_operations *disconnected_f_op;
-	struct list_head shutdown_list;
+	struct list_head shutdown_list;	/* still need to shutdown */
+	struct list_head list;	/* link of monitor files */
 };
 
 /* main structure for soundcard */
@@ -134,7 +134,7 @@ struct snd_card {
 	struct snd_info_entry *proc_id;	/* the card id */
 	struct proc_dir_entry *proc_root_link;	/* number link to real id */
 
-	struct snd_monitor_file *files; /* all files associated to this card */
+	struct list_head files_list;	/* all files associated to this card */
 	struct snd_shutdown_f_ops *s_f_ops; /* file operations in the shutdown
 								state */
 	spinlock_t files_lock;		/* lock the files for this card */
@@ -458,21 +458,33 @@ static inline int __snd_bug_on(int cond)
 struct snd_pci_quirk {
 	unsigned short subvendor;	/* PCI subvendor ID */
 	unsigned short subdevice;	/* PCI subdevice ID */
+	unsigned short subdevice_mask;	/* bitmask to match */
 	int value;			/* value */
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 	const char *name;		/* name of the device (optional) */
 #endif
 };
 
-#define _SND_PCI_QUIRK_ID(vend,dev) \
-	.subvendor = (vend), .subdevice = (dev)
+#define _SND_PCI_QUIRK_ID_MASK(vend, mask, dev)	\
+	.subvendor = (vend), .subdevice = (dev), .subdevice_mask = (mask)
+#define _SND_PCI_QUIRK_ID(vend, dev) \
+	_SND_PCI_QUIRK_ID_MASK(vend, 0xffff, dev)
 #define SND_PCI_QUIRK_ID(vend,dev) {_SND_PCI_QUIRK_ID(vend, dev)}
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 #define SND_PCI_QUIRK(vend,dev,xname,val) \
 	{_SND_PCI_QUIRK_ID(vend, dev), .value = (val), .name = (xname)}
+#define SND_PCI_QUIRK_VENDOR(vend, xname, val)			\
+	{_SND_PCI_QUIRK_ID_MASK(vend, 0, 0), .value = (val), .name = (xname)}
+#define SND_PCI_QUIRK_MASK(vend, mask, dev, xname, val)			\
+	{_SND_PCI_QUIRK_ID_MASK(vend, mask, dev),			\
+			.value = (val), .name = (xname)}
 #else
 #define SND_PCI_QUIRK(vend,dev,xname,val) \
 	{_SND_PCI_QUIRK_ID(vend, dev), .value = (val)}
+#define SND_PCI_QUIRK_MASK(vend, mask, dev, xname, val)			\
+	{_SND_PCI_QUIRK_ID_MASK(vend, mask, dev), .value = (val)}
+#define SND_PCI_QUIRK_VENDOR(vend, xname, val)			\
+	{_SND_PCI_QUIRK_ID_MASK(vend, 0, 0), .value = (val)}
 #endif
 
 const struct snd_pci_quirk *

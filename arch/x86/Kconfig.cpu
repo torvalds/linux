@@ -50,7 +50,7 @@ config M386
 config M486
 	bool "486"
 	depends on X86_32
-	help
+	---help---
 	  Select this for a 486 series processor, either Intel or one of the
 	  compatible processors from AMD, Cyrix, IBM, or Intel.  Includes DX,
 	  DX2, and DX4 variants; also SL/SLC/SLC2/SLC3/SX/SX2 and UMC U5D or
@@ -59,7 +59,7 @@ config M486
 config M586
 	bool "586/K5/5x86/6x86/6x86MX"
 	depends on X86_32
-	help
+	---help---
 	  Select this for an 586 or 686 series processor such as the AMD K5,
 	  the Cyrix 5x86, 6x86 and 6x86MX.  This choice does not
 	  assume the RDTSC (Read Time Stamp Counter) instruction.
@@ -67,21 +67,21 @@ config M586
 config M586TSC
 	bool "Pentium-Classic"
 	depends on X86_32
-	help
+	---help---
 	  Select this for a Pentium Classic processor with the RDTSC (Read
 	  Time Stamp Counter) instruction for benchmarking.
 
 config M586MMX
 	bool "Pentium-MMX"
 	depends on X86_32
-	help
+	---help---
 	  Select this for a Pentium with the MMX graphics/multimedia
 	  extended instructions.
 
 config M686
 	bool "Pentium-Pro"
 	depends on X86_32
-	help
+	---help---
 	  Select this for Intel Pentium Pro chips.  This enables the use of
 	  Pentium Pro extended instructions, and disables the init-time guard
 	  against the f00f bug found in earlier Pentiums.
@@ -89,7 +89,7 @@ config M686
 config MPENTIUMII
 	bool "Pentium-II/Celeron(pre-Coppermine)"
 	depends on X86_32
-	help
+	---help---
 	  Select this for Intel chips based on the Pentium-II and
 	  pre-Coppermine Celeron core.  This option enables an unaligned
 	  copy optimization, compiles the kernel with optimization flags
@@ -99,7 +99,7 @@ config MPENTIUMII
 config MPENTIUMIII
 	bool "Pentium-III/Celeron(Coppermine)/Pentium-III Xeon"
 	depends on X86_32
-	help
+	---help---
 	  Select this for Intel chips based on the Pentium-III and
 	  Celeron-Coppermine core.  This option enables use of some
 	  extended prefetch instructions in addition to the Pentium II
@@ -108,14 +108,14 @@ config MPENTIUMIII
 config MPENTIUMM
 	bool "Pentium M"
 	depends on X86_32
-	help
+	---help---
 	  Select this for Intel Pentium M (not Pentium-4 M)
 	  notebook chips.
 
 config MPENTIUM4
 	bool "Pentium-4/Celeron(P4-based)/Pentium-4 M/older Xeon"
 	depends on X86_32
-	help
+	---help---
 	  Select this for Intel Pentium 4 chips.  This includes the
 	  Pentium 4, Pentium D, P4-based Celeron and Xeon, and
 	  Pentium-4 M (not Pentium M) chips.  This option enables compile
@@ -151,7 +151,7 @@ config MPENTIUM4
 config MK6
 	bool "K6/K6-II/K6-III"
 	depends on X86_32
-	help
+	---help---
 	  Select this for an AMD K6-family processor.  Enables use of
 	  some extended instructions, and passes appropriate optimization
 	  flags to GCC.
@@ -159,22 +159,22 @@ config MK6
 config MK7
 	bool "Athlon/Duron/K7"
 	depends on X86_32
-	help
+	---help---
 	  Select this for an AMD Athlon K7-family processor.  Enables use of
 	  some extended instructions, and passes appropriate optimization
 	  flags to GCC.
 
 config MK8
 	bool "Opteron/Athlon64/Hammer/K8"
-	help
-	  Select this for an AMD Opteron or Athlon64 Hammer-family processor.  Enables
-	  use of some extended instructions, and passes appropriate optimization
-	  flags to GCC.
+	---help---
+	  Select this for an AMD Opteron or Athlon64 Hammer-family processor.
+	  Enables use of some extended instructions, and passes appropriate
+	  optimization flags to GCC.
 
 config MCRUSOE
 	bool "Crusoe"
 	depends on X86_32
-	help
+	---help---
 	  Select this for a Transmeta Crusoe processor.  Treats the processor
 	  like a 586 with TSC, and sets some GCC optimization flags (like a
 	  Pentium Pro with no alignment requirements).
@@ -182,13 +182,13 @@ config MCRUSOE
 config MEFFICEON
 	bool "Efficeon"
 	depends on X86_32
-	help
+	---help---
 	  Select this for a Transmeta Efficeon processor.
 
 config MWINCHIPC6
 	bool "Winchip-C6"
 	depends on X86_32
-	help
+	---help---
 	  Select this for an IDT Winchip C6 chip.  Linux and GCC
 	  treat this chip as a 586TSC with some extended instructions
 	  and alignment requirements.
@@ -196,7 +196,7 @@ config MWINCHIPC6
 config MWINCHIP3D
 	bool "Winchip-2/Winchip-2A/Winchip-3"
 	depends on X86_32
-	help
+	---help---
 	  Select this for an IDT Winchip-2, 2A or 3.  Linux and GCC
 	  treat this chip as a 586TSC with some extended instructions
 	  and alignment requirements.  Also enable out of order memory
@@ -206,19 +206,19 @@ config MWINCHIP3D
 config MGEODEGX1
 	bool "GeodeGX1"
 	depends on X86_32
-	help
+	---help---
 	  Select this for a Geode GX1 (Cyrix MediaGX) chip.
 
 config MGEODE_LX
 	bool "Geode GX/LX"
 	depends on X86_32
-	help
+	---help---
 	  Select this for AMD Geode GX and LX processors.
 
 config MCYRIXIII
 	bool "CyrixIII/VIA-C3"
 	depends on X86_32
-	help
+	---help---
 	  Select this for a Cyrix III or C3 chip.  Presently Linux and GCC
 	  treat this chip as a generic 586. Whilst the CPU is 686 class,
 	  it lacks the cmov extension which gcc assumes is present when
@@ -230,7 +230,7 @@ config MCYRIXIII
 config MVIAC3_2
 	bool "VIA C3-2 (Nehemiah)"
 	depends on X86_32
-	help
+	---help---
 	  Select this for a VIA C3 "Nehemiah". Selecting this enables usage
 	  of SSE and tells gcc to treat the CPU as a 686.
 	  Note, this kernel will not boot on older (pre model 9) C3s.
@@ -238,14 +238,14 @@ config MVIAC3_2
 config MVIAC7
 	bool "VIA C7"
 	depends on X86_32
-	help
+	---help---
 	  Select this for a VIA C7.  Selecting this uses the correct cache
 	  shift and tells gcc to treat the CPU as a 686.
 
 config MPSC
 	bool "Intel P4 / older Netburst based Xeon"
 	depends on X86_64
-	help
+	---help---
 	  Optimize for Intel Pentium 4, Pentium D and older Nocona/Dempsey
 	  Xeon CPUs with Intel 64bit which is compatible with x86-64.
 	  Note that the latest Xeons (Xeon 51xx and 53xx) are not based on the
@@ -255,15 +255,17 @@ config MPSC
 
 config MCORE2
 	bool "Core 2/newer Xeon"
-	help
-	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and 53xx)
-	  CPUs. You can distinguish newer from older Xeons by the CPU family
-	  in /proc/cpuinfo. Newer ones have 6 and older ones 15 (not a typo)
+	---help---
+
+	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and
+	  53xx) CPUs. You can distinguish newer from older Xeons by the CPU
+	  family in /proc/cpuinfo. Newer ones have 6 and older ones 15
+	  (not a typo)
 
 config GENERIC_CPU
 	bool "Generic-x86-64"
 	depends on X86_64
-	help
+	---help---
 	  Generic x86-64 CPU.
 	  Run equally well on all x86-64 CPUs.
 
@@ -272,7 +274,7 @@ endchoice
 config X86_GENERIC
 	bool "Generic x86 support"
 	depends on X86_32
-	help
+	---help---
 	  Instead of just including optimizations for the selected
 	  x86 variant (e.g. PII, Crusoe or Athlon), include some more
 	  generic optimizations as well. This will make the kernel
@@ -292,25 +294,23 @@ config X86_CPU
 # Define implied options from the CPU selection here
 config X86_L1_CACHE_BYTES
 	int
-	default "128" if GENERIC_CPU || MPSC
-	default "64" if MK8 || MCORE2
-	depends on X86_64
+	default "128" if MPSC
+	default "64" if GENERIC_CPU || MK8 || MCORE2 || X86_32
 
 config X86_INTERNODE_CACHE_BYTES
 	int
 	default "4096" if X86_VSMP
 	default X86_L1_CACHE_BYTES if !X86_VSMP
-	depends on X86_64
 
 config X86_CMPXCHG
 	def_bool X86_64 || (X86_32 && !M386)
 
 config X86_L1_CACHE_SHIFT
 	int
-	default "7" if MPENTIUM4 || X86_GENERIC || GENERIC_CPU || MPSC
+	default "7" if MPENTIUM4 || MPSC
 	default "4" if X86_ELAN || M486 || M386 || MGEODEGX1
 	default "5" if MWINCHIP3D || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODE_LX
-	default "6" if MK7 || MK8 || MPENTIUMM || MCORE2 || MVIAC7
+	default "6" if MK7 || MK8 || MPENTIUMM || MCORE2 || MVIAC7 || X86_GENERIC || GENERIC_CPU
 
 config X86_XADD
 	def_bool y
@@ -319,15 +319,15 @@ config X86_XADD
 config X86_PPRO_FENCE
 	bool "PentiumPro memory ordering errata workaround"
 	depends on M686 || M586MMX || M586TSC || M586 || M486 || M386 || MGEODEGX1
-	help
-	  Old PentiumPro multiprocessor systems had errata that could cause memory
-	  operations to violate the x86 ordering standard in rare cases. Enabling this
-	  option will attempt to work around some (but not all) occurances of
-	  this problem, at the cost of much heavier spinlock and memory barrier
-	  operations.
+	---help---
+	  Old PentiumPro multiprocessor systems had errata that could cause
+	  memory operations to violate the x86 ordering standard in rare cases.
+	  Enabling this option will attempt to work around some (but not all)
+	  occurances of this problem, at the cost of much heavier spinlock and
+	  memory barrier operations.
 
-	  If unsure, say n here. Even distro kernels should think twice before enabling
-	  this: there are few systems, and an unlikely bug.
+	  If unsure, say n here. Even distro kernels should think twice before
+	  enabling this: there are few systems, and an unlikely bug.
 
 config X86_F00F_BUG
 	def_bool y
@@ -412,14 +412,14 @@ config X86_DEBUGCTLMSR
 
 menuconfig PROCESSOR_SELECT
 	bool "Supported processor vendors" if EMBEDDED
-	help
+	---help---
 	  This lets you choose what x86 vendor support code your kernel
 	  will include.
 
 config CPU_SUP_INTEL
 	default y
 	bool "Support Intel processors" if PROCESSOR_SELECT
-	help
+	---help---
 	  This enables detection, tunings and quirks for Intel processors
 
 	  You need this enabled if you want your kernel to run on an
@@ -433,7 +433,7 @@ config CPU_SUP_CYRIX_32
 	default y
 	bool "Support Cyrix processors" if PROCESSOR_SELECT
 	depends on !64BIT
-	help
+	---help---
 	  This enables detection, tunings and quirks for Cyrix processors
 
 	  You need this enabled if you want your kernel to run on a
@@ -446,7 +446,7 @@ config CPU_SUP_CYRIX_32
 config CPU_SUP_AMD
 	default y
 	bool "Support AMD processors" if PROCESSOR_SELECT
-	help
+	---help---
 	  This enables detection, tunings and quirks for AMD processors
 
 	  You need this enabled if you want your kernel to run on an
@@ -456,25 +456,10 @@ config CPU_SUP_AMD
 
 	  If unsure, say N.
 
-config CPU_SUP_CENTAUR_32
+config CPU_SUP_CENTAUR
 	default y
 	bool "Support Centaur processors" if PROCESSOR_SELECT
-	depends on !64BIT
-	help
-	  This enables detection, tunings and quirks for Centaur processors
-
-	  You need this enabled if you want your kernel to run on a
-	  Centaur CPU. Disabling this option on other types of CPUs
-	  makes the kernel a tiny bit smaller. Disabling it on a Centaur
-	  CPU might render the kernel unbootable.
-
-	  If unsure, say N.
-
-config CPU_SUP_CENTAUR_64
-	default y
-	bool "Support Centaur processors" if PROCESSOR_SELECT
-	depends on 64BIT
-	help
+	---help---
 	  This enables detection, tunings and quirks for Centaur processors
 
 	  You need this enabled if you want your kernel to run on a
@@ -488,7 +473,7 @@ config CPU_SUP_TRANSMETA_32
 	default y
 	bool "Support Transmeta processors" if PROCESSOR_SELECT
 	depends on !64BIT
-	help
+	---help---
 	  This enables detection, tunings and quirks for Transmeta processors
 
 	  You need this enabled if you want your kernel to run on a
@@ -502,7 +487,7 @@ config CPU_SUP_UMC_32
 	default y
 	bool "Support UMC processors" if PROCESSOR_SELECT
 	depends on !64BIT
-	help
+	---help---
 	  This enables detection, tunings and quirks for UMC processors
 
 	  You need this enabled if you want your kernel to run on a
@@ -521,7 +506,7 @@ config X86_PTRACE_BTS
 	bool "Branch Trace Store"
 	default y
 	depends on X86_DEBUGCTLMSR
-	help
+	---help---
 	  This adds a ptrace interface to the hardware's branch trace store.
 
 	  Debuggers may use it to collect an execution trace of the debugged

@@ -148,7 +148,7 @@ static u16 __phy_read(struct gem *gp, int phy_addr, int reg)
 	cmd |= (MIF_FRAME_TAMSB);
 	writel(cmd, gp->regs + MIF_FRAME);
 
-	while (limit--) {
+	while (--limit) {
 		cmd = readl(gp->regs + MIF_FRAME);
 		if (cmd & MIF_FRAME_TALSB)
 			break;
@@ -921,7 +921,7 @@ static int gem_poll(struct napi_struct *napi, int budget)
 		gp->status = readl(gp->regs + GREG_STAT);
 	} while (gp->status & GREG_STAT_NAPI);
 
-	__netif_rx_complete(napi);
+	__napi_complete(napi);
 	gem_enable_ints(gp);
 
 	spin_unlock_irqrestore(&gp->lock, flags);
@@ -944,7 +944,7 @@ static irqreturn_t gem_interrupt(int irq, void *dev_id)
 
 	spin_lock_irqsave(&gp->lock, flags);
 
-	if (netif_rx_schedule_prep(&gp->napi)) {
+	if (napi_schedule_prep(&gp->napi)) {
 		u32 gem_status = readl(gp->regs + GREG_STAT);
 
 		if (gem_status == 0) {
@@ -954,7 +954,7 @@ static irqreturn_t gem_interrupt(int irq, void *dev_id)
 		}
 		gp->status = gem_status;
 		gem_disable_ints(gp);
-		__netif_rx_schedule(&gp->napi);
+		__napi_schedule(&gp->napi);
 	}
 
 	spin_unlock_irqrestore(&gp->lock, flags);
@@ -1157,7 +1157,7 @@ static void gem_pcs_reset(struct gem *gp)
 		if (limit-- <= 0)
 			break;
 	}
-	if (limit <= 0)
+	if (limit < 0)
 		printk(KERN_WARNING "%s: PCS reset bit would not clear.\n",
 		       gp->dev->name);
 }
@@ -1229,7 +1229,7 @@ static void gem_reset(struct gem *gp)
 			break;
 	} while (val & (GREG_SWRST_TXRST | GREG_SWRST_RXRST));
 
-	if (limit <= 0)
+	if (limit < 0)
 		printk(KERN_ERR "%s: SW reset is ghetto.\n", gp->dev->name);
 
 	if (gp->phy_type == phy_serialink || gp->phy_type == phy_serdes)
@@ -2221,6 +2221,8 @@ static int gem_do_start(struct net_device *dev)
 
 	gp->running = 1;
 
+	napi_enable(&gp->napi);
+
 	if (gp->lstate == link_up) {
 		netif_carrier_on(gp->dev);
 		gem_set_link_modes(gp);
@@ -2237,6 +2239,8 @@ static int gem_do_start(struct net_device *dev)
 
 		spin_lock_irqsave(&gp->lock, flags);
 		spin_lock(&gp->tx_lock);
+
+		napi_disable(&gp->napi);
 
 		gp->running =  0;
 		gem_reset(gp);
@@ -2338,8 +2342,6 @@ static int gem_open(struct net_device *dev)
 	if (!gp->asleep)
 		rc = gem_do_start(dev);
 	gp->opened = (rc == 0);
-	if (gp->opened)
-		napi_enable(&gp->napi);
 
 	mutex_unlock(&gp->pm_mutex);
 
@@ -2476,8 +2478,6 @@ static int gem_resume(struct pci_dev *pdev)
 
 		/* Re-attach net device */
 		netif_device_attach(dev);
-
-		napi_enable(&gp->napi);
 	}
 
 	spin_lock_irqsave(&gp->lock, flags);
@@ -2998,8 +2998,11 @@ static const struct net_device_ops gem_netdev_ops = {
 	.ndo_do_ioctl		= gem_ioctl,
 	.ndo_tx_timeout		= gem_tx_timeout,
 	.ndo_change_mtu		= gem_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address    = gem_set_mac_address,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller    = gem_poll_controller,
+#endif
 };
 
 static int __devinit gem_init_one(struct pci_dev *pdev,
@@ -3039,10 +3042,10 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_SUN &&
 	    pdev->device == PCI_DEVICE_ID_SUN_GEM &&
-	    !pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			printk(KERN_ERR PFX "No usable DMA configuration, "
 			       "aborting.\n");
@@ -3161,10 +3164,6 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	dev->watchdog_timeo = 5 * HZ;
 	dev->irq = pdev->irq;
 	dev->dma = 0;
-	dev->set_mac_address = gem_set_mac_address;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = gem_poll_controller;
-#endif
 
 	/* Set that now, in case PM kicks in now */
 	pci_set_drvdata(pdev, dev);

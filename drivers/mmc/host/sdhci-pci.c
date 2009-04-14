@@ -107,6 +107,7 @@ static const struct sdhci_pci_fixes sdhci_ene_714 = {
 
 static const struct sdhci_pci_fixes sdhci_cafe = {
 	.quirks		= SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER |
+			  SDHCI_QUIRK_NO_BUSY_IRQ |
 			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
 };
 
@@ -144,8 +145,7 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 			  SDHCI_QUIRK_32BIT_DMA_SIZE |
 			  SDHCI_QUIRK_32BIT_ADMA_SIZE |
 			  SDHCI_QUIRK_RESET_AFTER_REQUEST |
-			  SDHCI_QUIRK_BROKEN_SMALL_PIO |
-			  SDHCI_QUIRK_FORCE_HIGHSPEED;
+			  SDHCI_QUIRK_BROKEN_SMALL_PIO;
 	}
 
 	/*
@@ -380,7 +380,7 @@ static int sdhci_pci_enable_dma(struct sdhci_host *host)
 			"doesn't fully claim to support it.\n");
 	}
 
-	ret = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 

@@ -58,6 +58,11 @@ struct soc_pcmcia_socket {
 	struct list_head	node;
 };
 
+struct skt_dev_info {
+	int nskt;
+	struct soc_pcmcia_socket skt[0];
+};
+
 struct pcmcia_state {
   unsigned detect: 1,
             ready: 1,
@@ -132,7 +137,7 @@ extern void soc_common_pcmcia_get_timing(struct soc_pcmcia_socket *, struct soc_
 
 extern struct list_head soc_pcmcia_sockets;
 
-extern int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops, int first, int nr);
+extern int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops, struct skt_dev_info *sinfo);
 extern int soc_common_drv_pcmcia_remove(struct device *dev);
 
 

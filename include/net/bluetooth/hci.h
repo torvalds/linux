@@ -133,8 +133,13 @@ enum {
 #define ESCO_EV3	0x0008
 #define ESCO_EV4	0x0010
 #define ESCO_EV5	0x0020
+#define ESCO_2EV3	0x0040
+#define ESCO_3EV3	0x0080
+#define ESCO_2EV5	0x0100
+#define ESCO_3EV5	0x0200
 
 #define SCO_ESCO_MASK  (ESCO_HV1 | ESCO_HV2 | ESCO_HV3)
+#define EDR_ESCO_MASK  (ESCO_2EV3 | ESCO_3EV3 | ESCO_2EV5 | ESCO_3EV5)
 
 /* ACL flags */
 #define ACL_CONT		0x01
@@ -176,6 +181,9 @@ enum {
 #define LMP_EV5		0x02
 
 #define LMP_SNIFF_SUBR	0x02
+#define LMP_EDR_ESCO_2M	0x20
+#define LMP_EDR_ESCO_3M	0x40
+#define LMP_EDR_3S_ESCO	0x80
 
 #define LMP_SIMPLE_PAIR	0x08
 

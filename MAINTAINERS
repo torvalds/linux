@@ -357,6 +357,7 @@ S:	Odd Fixes for 2.4; Maintained for 2.6.
 P:	Ivan Kokshaysky
 M:	ink@jurassic.park.msu.ru
 S:	Maintained for 2.4; PCI support for 2.6.
+L:	linux-alpha@vger.kernel.org
 
 AMD GEODE CS5536 USB DEVICE CONTROLLER DRIVER
 P:	Thomas Dahlmann
@@ -502,6 +503,13 @@ P:	Richard Purdie
 M:	rpurdie@rpsys.net
 S:	Maintained
 
+ARM/CORTINA SYSTEMS GEMINI ARM ARCHITECTURE
+P:	Paulius Zaleckas
+M:	paulius.zaleckas@teltonika.lt
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+T:	git gitorious.org/linux-gemini/mainline.git
+S:	Maintained
+
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
 P:	Daniel Ribeiro
 M:	drwyrm@gmail.com
@@ -511,6 +519,12 @@ P:	Harald Welte
 M:	laforge@openezx.org
 L:	openezx-devel@lists.openezx.org (subscribers-only)
 W:	http://www.openezx.org/
+S:	Maintained
+
+ARM/FARADAY FA526 PORT
+P:	Paulius Zaleckas
+M:	paulius.zaleckas@teltonika.lt
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
@@ -622,7 +636,7 @@ P:	Dirk Opfer
 M:	dirk@opfer-online.de
 S:	Maintained
 
-ARM/PALMTX SUPPORT
+ARM/PALMTX,PALMT5,PALMLD SUPPORT
 P:	Marek Vasut
 M:	marek.vasut@gmail.com
 W:	http://hackndev.com
@@ -692,6 +706,13 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/NUVOTON W90X900 ARM ARCHITECTURE
+P:      Wan ZongShun
+M:      mcuos.com@gmail.com
+L:      linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+W:      http://www.mcuos.com
+S:      Maintained
+
 ARPD SUPPORT
 P:	Jonathan Layes
 L:	netdev@vger.kernel.org
@@ -757,6 +778,14 @@ M:	jmalinen@atheros.com
 L:	linux-wireless@vger.kernel.org
 L:	ath9k-devel@lists.ath9k.org
 S:	Supported
+
+ATHEROS AR9170 WIRELESS DRIVER
+P:	Christian Lamparter
+M:	chunkeey@web.de
+L:	linux-wireless@vger.kernel.org
+W:	http://wireless.kernel.org/en/users/Drivers/ar9170
+S:	Maintained
+F:	drivers/net/wireless/ar9170/
 
 ATI_REMOTE2 DRIVER
 P:	Ville Syrjala
@@ -911,7 +940,7 @@ S:	Maintained
 BLACKFIN ARCHITECTURE
 P:	Bryan Wu
 M:	cooloney@kernel.org
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 
@@ -1004,6 +1033,8 @@ L:	netdev@vger.kernel.org
 S:	Supported
 
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
+P:	Matt Carlson
+M:	mcarlson@broadcom.com
 P:	Michael Chan
 M:	mchan@broadcom.com
 L:	netdev@vger.kernel.org
@@ -1021,11 +1052,18 @@ M:	mb@bu3sch.de
 W:	http://bu3sch.de/btgpio.php
 S:	Maintained
 
+BTRFS FILE SYSTEM
+P:	Chris Mason
+M:	chris.mason@oracle.com
+L:	linux-btrfs@vger.kernel.org
+W:	http://btrfs.wiki.kernel.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/mason/btrfs-unstable.git
+S:	Maintained
+
 BTTV VIDEO4LINUX DRIVER
 P:	Mauro Carvalho Chehab
 M:	mchehab@infradead.org
 L:	linux-media@vger.kernel.org
-L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
@@ -1194,6 +1232,8 @@ S:	Supported
 CONTROL GROUPS (CGROUPS)
 P:	Paul Menage
 M:	menage@google.com
+P:	Li Zefan
+M:	lizf@cn.fujitsu.com
 L:	containers@lists.linux-foundation.org
 S:	Maintained
 
@@ -1250,6 +1290,12 @@ P:	David S. Miller
 M:	davem@davemloft.net
 L:	linux-crypto@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/herbert/crypto-2.6.git
+S:	Maintained
+
+CRYPTOGRAPHIC RANDOM NUMBER GENERATOR
+P:	Neil Horman
+M:	nhorman@tuxdriver.com
+L:	linux-crypto@vger.kernel.org
 S:	Maintained
 
 CS5535 Audio ALSA driver
@@ -1376,6 +1422,11 @@ P:	Doug Warzecha
 M:	Douglas_Warzecha@dell.com
 S:	Maintained
 
+DELL WMI EXTRAS DRIVER
+P:	Matthew Garrett
+M:	mjg59@srcf.ucam.org
+S:	Maintained
+
 DEVICE NUMBER REGISTRY
 P:	Torben Mathiasen
 M:	device@lanana.org
@@ -1452,8 +1503,6 @@ L:	linux-acpi@vger.kernel.org
 S:	Supported
 
 DOCUMENTATION (/Documentation directory)
-P:	Michael Kerrisk
-M:	mtk.manpages@gmail.com
 P:	Randy Dunlap
 M:	rdunlap@xenotime.net
 L:	linux-doc@vger.kernel.org
@@ -1495,7 +1544,6 @@ S:	Maintained
 DVB SUBSYSTEM AND DRIVERS
 P:	LinuxTV.org Project
 M:	linux-media@vger.kernel.org
-L:	linux-dvb@linuxtv.org (subscription required)
 W:	http://linuxtv.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
@@ -1577,6 +1625,13 @@ S:	Maintained
 EDAC-I5000
 P:	Doug Thompson
 M:	dougthompson@xmission.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+
+EDAC-I5400
+P:	Mauro Carvalho Chehab
+M:	mchehab@redhat.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
@@ -1712,6 +1767,12 @@ M:	viro@zeniv.linux.org.uk
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 
+FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
+P:	Riku Voipio
+M:	riku.vipio@iki.fi
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 FIREWIRE SUBSYSTEM (drivers/firewire, <linux/firewire*.h>)
 P:	Kristian Hoegsberg, Stefan Richter
 M:	krh@redhat.com, stefanr@s5r6.in-berlin.de
@@ -1814,6 +1875,14 @@ M:	hch@infradead.org
 W:	ftp://ftp.openlinux.org/pub/people/hch/vxfs
 S:	Maintained
 
+FREEZER
+P:	Pavel Machek
+M:	pavel@suse.cz
+P:	Rafael J. Wysocki
+M:	rjw@sisk.pl
+L:	linux-pm@lists.linux-foundation.org
+S:	Supported
+
 FTRACE
 P:	Steven Rostedt
 M:	rostedt@goodmis.org
@@ -1880,11 +1949,17 @@ W:	http://gigaset307x.sourceforge.net/
 S:	Maintained
 
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
-P:	Robert Love
-M:	rlove@rlove.org
-M:	linux-kernel@vger.kernel.org
-W:	http://www.kernel.org/pub/linux/kernel/people/rml/hdaps/
+P:	Frank Seidel
+M:	frank@f-seidel.de
+L:	lm-sensors@lm-sensors.org
+W:	http://www.kernel.org/pub/linux/kernel/people/fseidel/hdaps/
 S:	Maintained
+
+HYPERVISOR VIRTUAL CONSOLE DRIVER
+L:	linuxppc-dev@ozlabs.org
+L:	linux-kernel@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/char/hvc_*
 
 GSPCA FINEPIX SUBDRIVER
 P:	Frank Zago
@@ -1976,7 +2051,7 @@ S:	Maintained
 
 HIBERNATION (aka Software Suspend, aka swsusp)
 P:	Pavel Machek
-M:	pavel@suse.cz
+M:	pavel@ucw.cz
 P:	Rafael J. Wysocki
 M:	rjw@sisk.pl
 L:	linux-pm@lists.linux-foundation.org
@@ -2087,7 +2162,8 @@ M:	khali@linux-fr.org
 P:	Ben Dooks (embedded platforms)
 M:	ben-linux@fluff.org
 L:	linux-i2c@vger.kernel.org
-T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
+W:	http://i2c.wiki.kernel.org/
+T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-i2c/
 S:	Maintained
 
 I2C-TINY-USB DRIVER
@@ -2142,23 +2218,10 @@ L:	linux-ide@vger.kernel.org
 T:	quilt kernel.org/pub/linux/kernel/people/bart/pata-2.6/
 S:	Maintained
 
-IDE/ATAPI CDROM DRIVER
+IDE/ATAPI DRIVERS
 P:	Borislav Petkov
 M:	petkovbb@gmail.com
 L:	linux-ide@vger.kernel.org
-S:	Maintained
-
-IDE/ATAPI FLOPPY DRIVERS
-P:	Paul Bristow
-M:	Paul Bristow <paul@paulbristow.net>
-W:	http://paulbristow.net/linux/idefloppy.html
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
-IDE/ATAPI TAPE DRIVERS
-P:	Gadi Oxman
-M:	Gadi Oxman <gadio@netvision.net.il>
-L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 IDLE-I7300
@@ -2185,6 +2248,11 @@ M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
 S:	Maintained
 
+INTEGRITY MEASUREMENT ARCHITECTURE (IMA)
+P:	Mimi Zohar
+M:	zohar@us.ibm.com
+S:	Supported
+
 IMS TWINTURBO FRAMEBUFFER DRIVER
 L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Orphan
@@ -2196,7 +2264,7 @@ P:	Sean Hefty
 M:	sean.hefty@intel.com
 P:	Hal Rosenstock
 M:	hal.rosenstock@gmail.com
-L:	general@lists.openfabrics.org
+L:	general@lists.openfabrics.org (moderated for non-subscribers)
 W:	http://www.openib.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/roland/infiniband.git
 S:	Supported
@@ -2431,7 +2499,7 @@ S:	Maintained
 
 ISDN SUBSYSTEM
 P:	Karsten Keil
-M:	kkeil@suse.de
+M:	isdn@linux-pingi.de
 L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 W:	http://www.isdn4linux.de
 T:	git kernel.org:/pub/scm/linux/kernel/kkeil/isdn-2.6.git
@@ -2588,6 +2656,12 @@ KGDB
 P:	Jason Wessel
 M:	jason.wessel@windriver.com
 L:	kgdb-bugreport@lists.sourceforge.net
+S:	Maintained
+
+KMEMTRACE
+P:	Eduard - Gabriel Munteanu
+M:	eduard.munteanu@linux360.ro
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 KPROBES
@@ -2801,7 +2875,7 @@ P:	Roman Zippel
 M:	zippel@linux-m68k.org
 L:	linux-m68k@lists.linux-m68k.org
 W:	http://www.linux-m68k.org/
-W:	http://linux-m68k-cvs.ubb.ca/
+T:	git git.kernel.org/pub/scm/linux/kernel/git/geert/linux-m68k.git
 S:	Maintained
 
 M68K ON APPLE MACINTOSH
@@ -2820,8 +2894,6 @@ S:	Maintained
 MAC80211
 P:	Johannes Berg
 M:	johannes@sipsolutions.net
-P:	Michael Wu
-M:	flamingice@sourmilk.net
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
@@ -2848,7 +2920,7 @@ P:	Michael Kerrisk
 M:	mtk.manpages@gmail.com
 W:	http://www.kernel.org/doc/man-pages
 L:	linux-man@vger.kernel.org
-S:	Supported
+S:	Maintained
 
 MARVELL LIBERTAS WIRELESS DRIVER
 P:	Dan Williams
@@ -2861,6 +2933,12 @@ P:	Lennert Buytenhek
 M:	buytenh@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
+
+MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
+P:	Nicolas Pitre
+M:	nico@cam.org
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
 
 MARVELL YUKON / SYSKONNECT DRIVER
 P:	Mirko Lindner
@@ -2972,8 +3050,9 @@ S:	Maintained
 
 MULTIFUNCTION DEVICES (MFD)
 P:	Samuel Ortiz
-M:	sameo@openedhand.com
+M:	sameo@linux.intel.com
 L:	linux-kernel@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/sameo/mfd-2.6.git
 S:	Supported
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
@@ -3048,7 +3127,7 @@ M:	shemminger@linux-foundation.org
 L:	netem@lists.linux-foundation.org
 S:	Maintained
 
-NETERION (S2IO) Xframe 10GbE DRIVER
+NETERION (S2IO) 10GbE DRIVER (xframe/vxge)
 P:	Ramkrishna Vepa
 M:	ram.vepa@neterion.com
 P:	Rastapur Santosh
@@ -3057,8 +3136,11 @@ P:	Sivakumar Subramani
 M:	sivakumar.subramani@neterion.com
 P:	Sreenivasa Honnur
 M:	sreenivasa.honnur@neterion.com
+P:	Anil Murthy
+M:	anil.murthy@neterion.com
 L:	netdev@vger.kernel.org
-W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/TitleIndex?anonymous
+W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/Linux?Anonymous
+W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/X3100Linux?Anonymous
 S:	Supported
 
 NETFILTER/IPTABLES/IPCHAINS
@@ -3162,6 +3244,13 @@ M:	andi@lisas.de
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+NILFS2 FILESYSTEM
+P:	KONISHI Ryusuke
+M:	konishi.ryusuke@lab.ntt.co.jp
+L:	users@nilfs.org
+W:	http://www.nilfs.org/en/
+S:	Supported
+
 NINJA SCSI-3 / NINJA SCSI-32Bi (16bit/CardBus) PCMCIA SCSI HOST ADAPTER DRIVER
 P:	YOKOTA Hiroshi
 M:	yokota@netlab.is.tsukuba.ac.jp
@@ -3260,6 +3349,16 @@ L:	orinoco-devel@lists.sourceforge.net
 W:	http://www.nongnu.org/orinoco/
 S:	Maintained
 
+OSD LIBRARY
+P:	Boaz Harrosh
+M:	bharrosh@panasas.com
+P:	Benny Halevy
+M:	bhalevy@panasas.com
+L:	osd-dev@open-osd.org
+W:	http://open-osd.org
+T:	git://git.open-osd.org/open-osd.git
+S:	Maintained
+
 P54 WIRELESS DRIVER
 P:	Michael Wu
 M:	flamingice@sourmilk.net
@@ -3303,8 +3402,8 @@ P:	Jeremy Fitzhardinge
 M:	jeremy@xensource.com
 P:	Chris Wright
 M:	chrisw@sous-sol.org
-P:	Zachary Amsden
-M:	zach@vmware.com
+P:	Alok Kataria
+M:	akataria@vmware.com
 P:	Rusty Russell
 M:	rusty@rustcorp.com.au
 L:	virtualization@lists.osdl.org
@@ -3321,10 +3420,8 @@ S:	Maintained
 PARISC ARCHITECTURE
 P:	Kyle McMartin
 M:	kyle@mcmartin.ca
-P:	Matthew Wilcox
-M:	matthew@wil.cx
-P:	Grant Grundler
-M:	grundler@parisc-linux.org
+P:	Helge Deller
+M:	deller@gmx.de
 L:	linux-parisc@vger.kernel.org
 W:	http://www.parisc-linux.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
@@ -3339,6 +3436,11 @@ S:	Maintained
 PC8736x GPIO DRIVER
 P:	Jim Cromie
 M:	jim.cromie@gmail.com
+S:	Maintained
+
+PCA9532 LED DRIVER
+P:	Riku Voipio
+M:	riku.voipio@iki.fi
 S:	Maintained
 
 PCI ERROR RECOVERY
@@ -3512,8 +3614,30 @@ M:	linux@arm.linux.org.uk
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 S:	Maintained
 
+PXA168 SUPPORT
+P:	Eric Miao
+M:	eric.miao@marvell.com
+P:	Jason Chagas
+M:	jason.chagas@marvell.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+T:	git kernel.org:/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
+S:	Supported
+
+PXA910 SUPPORT
+P:	Eric Miao
+M:	eric.miao@marvell.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+T:	git kernel.org:/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
+S:	Supported
+
 PXA MMCI DRIVER
 S:	Orphan
+
+PXA RTC DRIVER
+P:	Robert Jarzmik
+M:	robert.jarzmik@free.fr
+L:	rtc-linux@googlegroups.com
+S:	Maintained
 
 QLOGIC QLA2XXX FC-SCSI DRIVER
 P:	Andrew Vasquez
@@ -3556,7 +3680,7 @@ S:	Maintained
 RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project
 L:	linux-wireless@vger.kernel.org
-L:	rt2400-devel@lists.sourceforge.net
+L:	users@rt2x00.serialmonkey.com
 W:	http://rt2x00.serialmonkey.com/
 S:	Maintained
 T:	git kernel.org:/pub/scm/linux/kernel/git/ivd/rt2x00.git
@@ -3601,6 +3725,12 @@ P:	Florian Fainelli
 M:	florian.fainelli@telecomint.eu
 L:	netdev@vger.kernel.org
 S:	Maintained
+
+RDS - RELIABLE DATAGRAM SOCKETS
+P:	Andy Grover
+M:	andy.grover@oracle.com
+L:	rds-devel@oss.oracle.com
+S:	Supported
 
 READ-COPY UPDATE (RCU)
 P:	Dipankar Sarma
@@ -3691,6 +3821,15 @@ M:	blaschka@linux.vnet.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
+S:	Supported
+
+S390 ZCRYPT DRIVER
+P:	Felix Beck
+M:	felix.beck@de.ibm.com
+P:	Ralph Wuerthner
+M:	ralph.wuerthner@de.ibm.com
+M:	linux390@de.ibm.com
+L:	linux-s390@vger.kernel.org
 S:	Supported
 
 S390 ZFCP DRIVER
@@ -3801,7 +3940,14 @@ S:	Maintained
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
 P:	Pierre Ossman
 M:	drzeus-sdhci@drzeus.cx
-L:	sdhci-devel@list.drzeus.cx
+L:	sdhci-devel@lists.ossman.eu
+S:	Maintained
+
+SECURE DIGITAL HOST CONTROLLER INTERFACE, OPEN FIRMWARE BINDINGS (SDHCI-OF)
+P:	Anton Vorontsov
+M:	avorontsov@ru.mvista.com
+L:	linuxppc-dev@ozlabs.org
+L:	sdhci-devel@lists.ossman.eu
 S:	Maintained
 
 SECURITY SUBSYSTEM
@@ -3811,6 +3957,7 @@ M:	jmorris@namei.org
 L:	linux-kernel@vger.kernel.org
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
 T:	git kernel.org:pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+W:	http://security.wiki.kernel.org/
 S:	Supported
 
 SECURITY CONTACT
@@ -3842,6 +3989,15 @@ M:	jgarzik@pobox.com
 L:	linux-ide@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/jgarzik/libata-dev.git
 S:	Supported
+
+SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
+P:	Sathya Perla
+M:	sathyap@serverengines.com
+P:      Subbu Seetharaman
+M:      subbus@serverengines.com
+L:      netdev@vger.kernel.org
+W:      http://www.serverengines.com
+S:      Supported
 
 SFC NETWORK DRIVER
 P:	Steve Hodgson
@@ -4142,7 +4298,7 @@ SUSPEND TO RAM
 P:	Len Brown
 M:	len.brown@intel.com
 P:	Pavel Machek
-M:	pavel@suse.cz
+M:	pavel@ucw.cz
 P:	Rafael J. Wysocki
 M:	rjw@sisk.pl
 L:	linux-pm@lists.linux-foundation.org
@@ -4243,17 +4399,32 @@ L:	tlan-devel@lists.sourceforge.net (subscribers-only)
 W:	http://sourceforge.net/projects/tlan/
 S:	Maintained
 
-TOSHIBA ACPI EXTRAS DRIVER
-P:	John Belmonte
-M:	toshiba_acpi@memebeam.org
-W:	http://memebeam.org/toys/ToshibaAcpiDriver
+TOMOYO SECURITY MODULE
+P:	Kentaro Takeda
+M:	takedakn@nttdata.co.jp
+P:	Tetsuo Handa
+M:	penguin-kernel@I-love.SAKURA.ne.jp
+L:	linux-kernel@vger.kernel.org (kernel issues)
+L:	tomoyo-users-en@lists.sourceforge.jp (subscribers-only, for developers and users in English)
+L:	tomoyo-dev@lists.sourceforge.jp (subscribers-only, for developers in Japanese)
+L:	tomoyo-users@lists.sourceforge.jp (subscribers-only, for users in Japanese)
+W:	http://tomoyo.sourceforge.jp/
+T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.2.x/tomoyo-lsm/patches/
 S:	Maintained
+
+TOSHIBA ACPI EXTRAS DRIVER
+S:	Orphan
 
 TOSHIBA SMM DRIVER
 P:	Jonathan Buzzard
 M:	jonathan@buzzard.org.uk
 L:	tlinux-users@tce.toshiba-dme.co.jp
 W:	http://www.buzzard.org.uk/toshiba/
+S:	Maintained
+
+TMIO MMC DRIVER
+P:	Ian Molton
+M:	ian@mnementh.co.uk
 S:	Maintained
 
 TPM DEVICE DRIVER
@@ -4263,8 +4434,8 @@ P:	Rajiv Andrade
 M:	srajiv@linux.vnet.ibm.com
 W:	http://tpmdd.sourceforge.net
 P:	Marcel Selhorst
-M:	tpm@selhorst.net
-W:	http://www.prosec.rub.de/tpm/
+M:	m.selhorst@sirrix.com
+W:	http://www.sirrix.com
 L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
 
@@ -4704,7 +4875,6 @@ VIDEO FOR LINUX (V4L)
 P:	Mauro Carvalho Chehab
 M:	mchehab@infradead.org
 L:	linux-media@vger.kernel.org
-L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
@@ -4721,7 +4891,7 @@ M:	lrg@slimlogic.co.uk
 P:	Mark Brown
 M:	broonie@opensource.wolfsonmicro.com
 W:	http://opensource.wolfsonmicro.com/node/15
-W:	http://www.slimlogic.co.uk/?page_id=5
+W:	http://www.slimlogic.co.uk/?p=48
 T:	git kernel.org/pub/scm/linux/kernel/git/lrg/voltage-2.6.git
 S:	Supported
 
@@ -4827,6 +4997,7 @@ P:	Ingo Molnar
 M:	mingo@redhat.com
 P:	H. Peter Anvin
 M:	hpa@zytor.com
+M:	x86@kernel.org
 L:	linux-kernel@vger.kernel.org
 T:	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 S:	Maintained
@@ -4842,11 +5013,12 @@ S:	Supported
 
 XFS FILESYSTEM
 P:	Silicon Graphics Inc
-P:	Tim Shimmin
+P:	Felix Blyakher
+M:	felixb@sgi.com
 M:	xfs-masters@oss.sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
-T:	git git://oss.sgi.com:8090/xfs/xfs-2.6.git
+T:	git://oss.sgi.com/xfs/xfs.git
 S:	Supported
 
 XILINX SYSTEMACE DRIVER
@@ -4893,11 +5065,11 @@ L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 ZR36067 VIDEO FOR LINUX DRIVER
-P:	Ronald Bultje
-M:	rbultje@ronald.bitfreak.net
 L:	mjpeg-users@lists.sourceforge.net
+L:	linux-media@vger.kernel.org
 W:	http://mjpeg.sourceforge.net/driver-zoran/
-S:	Maintained
+T:	Mercurial http://linuxtv.org/hg/v4l-dvb
+S:	Odd Fixes
 
 ZS DECSTATION Z85C30 SERIAL DRIVER
 P:	Maciej W. Rozycki

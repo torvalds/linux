@@ -29,7 +29,9 @@
 #include <linux/if_vlan.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
+#include <linux/firmware.h>
 #include <asm/byteorder.h>
+#include <linux/dma-mapping.h>
 
 /* Compile Time Switches */
 /* start */
@@ -96,14 +98,6 @@
 
 #define READ_REG(pp, reg)         readl(pp->pBdxRegs + reg)
 #define WRITE_REG(pp, reg, val)   writel(val, pp->pBdxRegs + reg)
-
-#ifndef DMA_64BIT_MASK
-#   define DMA_64BIT_MASK  0xffffffffffffffffULL
-#endif
-
-#ifndef DMA_32BIT_MASK
-#   define DMA_32BIT_MASK  0x00000000ffffffffULL
-#endif
 
 #ifndef NET_IP_ALIGN
 #   define NET_IP_ALIGN 2

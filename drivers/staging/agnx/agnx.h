@@ -1,6 +1,8 @@
 #ifndef AGNX_H_
 #define AGNX_H_
 
+#include <linux/io.h>
+
 #include "xmit.h"
 
 #define PFX				KBUILD_MODNAME ": "
@@ -39,16 +41,16 @@ static const struct ieee80211_rate agnx_rates_80211g[] = {
 /* 	{ .bitrate = 20, .hw_value = 2, .flags = IEEE80211_RATE_SHORT_PREAMBLE }, */
 /* 	{ .bitrate = 55, .hw_value = 3, .flags = IEEE80211_RATE_SHORT_PREAMBLE }, */
 /* 	{ .bitrate = 110, .hw_value = 4, .flags = IEEE80211_RATE_SHORT_PREAMBLE }, */
- 	{ .bitrate = 10, .hw_value = 1, },
- 	{ .bitrate = 20, .hw_value = 2, },
- 	{ .bitrate = 55, .hw_value = 3, },
- 	{ .bitrate = 110, .hw_value = 4,},
+	{ .bitrate = 10, .hw_value = 1, },
+	{ .bitrate = 20, .hw_value = 2, },
+	{ .bitrate = 55, .hw_value = 3, },
+	{ .bitrate = 110, .hw_value = 4,},
 
 	{ .bitrate = 60, .hw_value = 0xB, },
 	{ .bitrate = 90, .hw_value = 0xF, },
 	{ .bitrate = 120, .hw_value = 0xA },
 	{ .bitrate = 180, .hw_value = 0xE, },
-//	{ .bitrate = 240, .hw_value = 0xd, },
+/*	{ .bitrate = 240, .hw_value = 0xd, }, */
 	{ .bitrate = 360, .hw_value = 0xD, },
 	{ .bitrate = 480, .hw_value = 0x8, },
 	{ .bitrate = 540, .hw_value = 0xC, },
@@ -108,10 +110,10 @@ struct agnx_priv {
 	/* Need volatile? */
 	u32 irq_status;
 
-        struct delayed_work periodic_work; /* Periodic tasks like recalibrate*/
+	struct delayed_work periodic_work; /* Periodic tasks like recalibrate */
 	struct ieee80211_low_level_stats stats;
 
-//        unsigned int phymode;
+	/* unsigned int phymode; */
 	int mode;
 	int channel;
 	u8 bssid[ETH_ALEN];

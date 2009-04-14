@@ -57,9 +57,17 @@ config E200
 
 endchoice
 
+# Until we have a choice of exclusive CPU types on 64-bit, we always
+# use PPC_BOOK3S. On 32-bit, this is equivalent to 6xx which is
+# "classic" MMU
+
+config PPC_BOOK3S
+       def_bool y
+       depends on PPC64 || 6xx
+
 config POWER4_ONLY
 	bool "Optimize for POWER4"
-	depends on PPC64
+	depends on PPC64 && PPC_BOOK3S
 	default n
 	---help---
 	  Cause the compiler to optimize for POWER4/POWER5/PPC970 processors.
@@ -68,16 +76,16 @@ config POWER4_ONLY
 
 config POWER3
 	bool
-	depends on PPC64
+	depends on PPC64 && PPC_BOOK3S
 	default y if !POWER4_ONLY
 
 config POWER4
-	depends on PPC64
+	depends on PPC64 && PPC_BOOK3S
 	def_bool y
 
 config TUNE_CELL
 	bool "Optimize for Cell Broadband Engine"
-	depends on PPC64
+	depends on PPC64 && PPC_BOOK3S
 	help
 	  Cause the compiler to optimize for the PPE of the Cell Broadband
 	  Engine. This will make the code run considerably faster on Cell
@@ -147,7 +155,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on CLASSIC32 || POWER4
+	depends on 6xx || POWER4
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
@@ -209,6 +217,10 @@ config PPC_STD_MMU_64
 config PPC_MMU_NOHASH
 	def_bool y
 	depends on !PPC_STD_MMU
+
+config PPC_BOOK3E_MMU
+	def_bool y
+	depends on FSL_BOOKE
 
 config PPC_MM_SLICES
 	bool

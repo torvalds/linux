@@ -120,7 +120,7 @@ xfs_growfs_rt_alloc(
 		if ((error = xfs_trans_iget(mp, tp, ino, 0,
 						XFS_ILOCK_EXCL, &ip)))
 			goto error_cancel;
-		XFS_BMAP_INIT(&flist, &firstblock);
+		xfs_bmap_init(&flist, &firstblock);
 		/*
 		 * Allocate blocks to the bitmap file.
 		 */
@@ -2286,6 +2286,16 @@ xfs_rtmount_inodes(
 	}
 	ASSERT(mp->m_rsumip != NULL);
 	return 0;
+}
+
+void
+xfs_rtunmount_inodes(
+	struct xfs_mount	*mp)
+{
+	if (mp->m_rbmip)
+		IRELE(mp->m_rbmip);
+	if (mp->m_rsumip)
+		IRELE(mp->m_rsumip);
 }
 
 /*

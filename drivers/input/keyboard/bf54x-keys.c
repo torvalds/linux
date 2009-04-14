@@ -209,8 +209,8 @@ static int __devinit bfin_kpad_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (!pdata->debounce_time || !pdata->debounce_time > MAX_MULT ||
-	    !pdata->coldrive_time || !pdata->coldrive_time > MAX_MULT) {
+	if (!pdata->debounce_time || pdata->debounce_time > MAX_MULT ||
+	    !pdata->coldrive_time || pdata->coldrive_time > MAX_MULT) {
 		printk(KERN_ERR DRV_NAME
 			": Invalid Debounce/Columdrive Time from pdata\n");
 		bfin_write_KPAD_MSEL(0xFF0);	/* Default MSEL	*/

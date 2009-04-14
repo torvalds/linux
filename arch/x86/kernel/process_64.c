@@ -16,6 +16,7 @@
 
 #include <stdarg.h>
 
+#include <linux/stackprotector.h>
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -40,13 +41,13 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/ftrace.h>
+#include <linux/dmi.h>
 
 #include <asm/pgtable.h>
 #include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/mmu_context.h>
-#include <asm/pda.h>
 #include <asm/prctl.h>
 #include <asm/desc.h>
 #include <asm/proto.h>
@@ -56,6 +57,12 @@
 #include <asm/ds.h>
 
 asmlinkage extern void ret_from_fork(void);
+
+DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
+EXPORT_PER_CPU_SYMBOL(current_task);
+
+DEFINE_PER_CPU(unsigned long, old_rsp);
+static DEFINE_PER_CPU(unsigned char, is_idle);
 
 unsigned long kernel_thread_flags = CLONE_VM | CLONE_UNTRACED;
 
@@ -75,13 +82,13 @@ EXPORT_SYMBOL_GPL(idle_notifier_unregister);
 
 void enter_idle(void)
 {
-	write_pda(isidle, 1);
+	percpu_write(is_idle, 1);
 	atomic_notifier_call_chain(&idle_notifier, IDLE_START, NULL);
 }
 
 static void __exit_idle(void)
 {
-	if (test_and_clear_bit_pda(0, isidle) == 0)
+	if (x86_test_and_clear_bit_percpu(0, is_idle) == 0)
 		return;
 	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
 }
@@ -111,6 +118,16 @@ static inline void play_dead(void)
 void cpu_idle(void)
 {
 	current_thread_info()->status |= TS_POLLING;
+
+	/*
+	 * If we're the non-boot CPU, nothing set the stack canary up
+	 * for us.  CPU0 already has it initialized but no harm in
+	 * doing it again.  This is a good place for updating it, as
+	 * we wont ever return from this function (so the invalid
+	 * canaries already on the stack wont ever trigger).
+	 */
+	boot_init_stack_canary();
+
 	/* endless idle loop with no priority at all */
 	while (1) {
 		tick_nohz_stop_sched_tick(1);
@@ -151,14 +168,18 @@ void __show_regs(struct pt_regs *regs, int all)
 	unsigned long d0, d1, d2, d3, d6, d7;
 	unsigned int fsindex, gsindex;
 	unsigned int ds, cs, es;
+	const char *board;
 
 	printk("\n");
 	print_modules();
-	printk(KERN_INFO "Pid: %d, comm: %.20s %s %s %.*s\n",
+	board = dmi_get_system_info(DMI_PRODUCT_NAME);
+	if (!board)
+		board = "";
+	printk(KERN_INFO "Pid: %d, comm: %.20s %s %s %.*s %s\n",
 		current->pid, current->comm, print_tainted(),
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
-		init_utsname()->version);
+		init_utsname()->version, board);
 	printk(KERN_INFO "RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->ip);
 	printk_address(regs->ip, 1);
 	printk(KERN_INFO "RSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss,
@@ -216,61 +237,6 @@ void show_regs(struct pt_regs *regs)
 	show_trace(NULL, regs, (void *)(regs + 1), regs->bp);
 }
 
-/*
- * Free current thread data structures etc..
- */
-void exit_thread(void)
-{
-	struct task_struct *me = current;
-	struct thread_struct *t = &me->thread;
-
-	if (me->thread.io_bitmap_ptr) {
-		struct tss_struct *tss = &per_cpu(init_tss, get_cpu());
-
-		kfree(t->io_bitmap_ptr);
-		t->io_bitmap_ptr = NULL;
-		clear_thread_flag(TIF_IO_BITMAP);
-		/*
-		 * Careful, clear this in the TSS too:
-		 */
-		memset(tss->io_bitmap, 0xff, t->io_bitmap_max);
-		t->io_bitmap_max = 0;
-		put_cpu();
-	}
-
-	ds_exit_thread(current);
-}
-
-void flush_thread(void)
-{
-	struct task_struct *tsk = current;
-
-	if (test_tsk_thread_flag(tsk, TIF_ABI_PENDING)) {
-		clear_tsk_thread_flag(tsk, TIF_ABI_PENDING);
-		if (test_tsk_thread_flag(tsk, TIF_IA32)) {
-			clear_tsk_thread_flag(tsk, TIF_IA32);
-		} else {
-			set_tsk_thread_flag(tsk, TIF_IA32);
-			current_thread_info()->status |= TS_COMPAT;
-		}
-	}
-	clear_tsk_thread_flag(tsk, TIF_DEBUG);
-
-	tsk->thread.debugreg0 = 0;
-	tsk->thread.debugreg1 = 0;
-	tsk->thread.debugreg2 = 0;
-	tsk->thread.debugreg3 = 0;
-	tsk->thread.debugreg6 = 0;
-	tsk->thread.debugreg7 = 0;
-	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
-	/*
-	 * Forget coprocessor state..
-	 */
-	tsk->fpu_counter = 0;
-	clear_fpu(tsk);
-	clear_used_math();
-}
-
 void release_thread(struct task_struct *dead_task)
 {
 	if (dead_task->mm) {
@@ -312,7 +278,7 @@ void prepare_to_copy(struct task_struct *tsk)
 	unlazy_fpu(tsk);
 }
 
-int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
+int copy_thread(unsigned long clone_flags, unsigned long sp,
 		unsigned long unused,
 	struct task_struct *p, struct pt_regs *regs)
 {
@@ -392,7 +358,7 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 	load_gs_index(0);
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
-	write_pda(oldrsp, new_sp);
+	percpu_write(old_rsp, new_sp);
 	regs->cs		= __USER_CS;
 	regs->ss		= __USER_DS;
 	regs->flags		= 0x200;
@@ -403,118 +369,6 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 	free_thread_xstate(current);
 }
 EXPORT_SYMBOL_GPL(start_thread);
-
-static void hard_disable_TSC(void)
-{
-	write_cr4(read_cr4() | X86_CR4_TSD);
-}
-
-void disable_TSC(void)
-{
-	preempt_disable();
-	if (!test_and_set_thread_flag(TIF_NOTSC))
-		/*
-		 * Must flip the CPU state synchronously with
-		 * TIF_NOTSC in the current running context.
-		 */
-		hard_disable_TSC();
-	preempt_enable();
-}
-
-static void hard_enable_TSC(void)
-{
-	write_cr4(read_cr4() & ~X86_CR4_TSD);
-}
-
-static void enable_TSC(void)
-{
-	preempt_disable();
-	if (test_and_clear_thread_flag(TIF_NOTSC))
-		/*
-		 * Must flip the CPU state synchronously with
-		 * TIF_NOTSC in the current running context.
-		 */
-		hard_enable_TSC();
-	preempt_enable();
-}
-
-int get_tsc_mode(unsigned long adr)
-{
-	unsigned int val;
-
-	if (test_thread_flag(TIF_NOTSC))
-		val = PR_TSC_SIGSEGV;
-	else
-		val = PR_TSC_ENABLE;
-
-	return put_user(val, (unsigned int __user *)adr);
-}
-
-int set_tsc_mode(unsigned int val)
-{
-	if (val == PR_TSC_SIGSEGV)
-		disable_TSC();
-	else if (val == PR_TSC_ENABLE)
-		enable_TSC();
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-/*
- * This special macro can be used to load a debugging register
- */
-#define loaddebug(thread, r) set_debugreg(thread->debugreg ## r, r)
-
-static inline void __switch_to_xtra(struct task_struct *prev_p,
-				    struct task_struct *next_p,
-				    struct tss_struct *tss)
-{
-	struct thread_struct *prev, *next;
-
-	prev = &prev_p->thread,
-	next = &next_p->thread;
-
-	if (test_tsk_thread_flag(next_p, TIF_DS_AREA_MSR) ||
-	    test_tsk_thread_flag(prev_p, TIF_DS_AREA_MSR))
-		ds_switch_to(prev_p, next_p);
-	else if (next->debugctlmsr != prev->debugctlmsr)
-		update_debugctlmsr(next->debugctlmsr);
-
-	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
-		loaddebug(next, 0);
-		loaddebug(next, 1);
-		loaddebug(next, 2);
-		loaddebug(next, 3);
-		/* no 4 and 5 */
-		loaddebug(next, 6);
-		loaddebug(next, 7);
-	}
-
-	if (test_tsk_thread_flag(prev_p, TIF_NOTSC) ^
-	    test_tsk_thread_flag(next_p, TIF_NOTSC)) {
-		/* prev and next are different */
-		if (test_tsk_thread_flag(next_p, TIF_NOTSC))
-			hard_disable_TSC();
-		else
-			hard_enable_TSC();
-	}
-
-	if (test_tsk_thread_flag(next_p, TIF_IO_BITMAP)) {
-		/*
-		 * Copy the relevant range of the IO bitmap.
-		 * Normally this is 128 bytes or less:
-		 */
-		memcpy(tss->io_bitmap, next->io_bitmap_ptr,
-		       max(prev->io_bitmap_max, next->io_bitmap_max));
-	} else if (test_tsk_thread_flag(prev_p, TIF_IO_BITMAP)) {
-		/*
-		 * Clear any possible leftover bits:
-		 */
-		memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
-	}
-}
 
 /*
  *	switch_to(x,y) should switch tasks from x to y.
@@ -613,21 +467,13 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/*
 	 * Switch the PDA and FPU contexts.
 	 */
-	prev->usersp = read_pda(oldrsp);
-	write_pda(oldrsp, next->usersp);
-	write_pda(pcurrent, next_p);
+	prev->usersp = percpu_read(old_rsp);
+	percpu_write(old_rsp, next->usersp);
+	percpu_write(current_task, next_p);
 
-	write_pda(kernelstack,
+	percpu_write(kernel_stack,
 		  (unsigned long)task_stack_page(next_p) +
-		  THREAD_SIZE - PDA_STACKOFFSET);
-#ifdef CONFIG_CC_STACKPROTECTOR
-	write_pda(stack_canary, next_p->stack_canary);
-	/*
-	 * Build time only check to make sure the stack_canary is at
-	 * offset 40 in the pda; this is a gcc ABI requirement
-	 */
-	BUILD_BUG_ON(offsetof(struct x8664_pda, stack_canary) != 40);
-#endif
+		  THREAD_SIZE - KERNEL_STACK_OFFSET);
 
 	/*
 	 * Now maybe reload the debug registers and handle I/O bitmaps
@@ -681,11 +527,6 @@ void set_personality_64bit(void)
 	current->personality &= ~READ_IMPLIES_EXEC;
 }
 
-asmlinkage long sys_fork(struct pt_regs *regs)
-{
-	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
-}
-
 asmlinkage long
 sys_clone(unsigned long clone_flags, unsigned long newsp,
 	  void __user *parent_tid, void __user *child_tid, struct pt_regs *regs)
@@ -693,22 +534,6 @@ sys_clone(unsigned long clone_flags, unsigned long newsp,
 	if (!newsp)
 		newsp = regs->sp;
 	return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
-}
-
-/*
- * This is trivial, and on the face of it looks like it
- * could equally well be done in user mode.
- *
- * Not so, for quite unobvious reasons - register pressure.
- * In user mode vfork() cannot have a stack frame, and if
- * done by calling the "clone()" system call directly, you
- * do not have enough call-clobbered registers to hold all
- * the information you need.
- */
-asmlinkage long sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp, regs, 0,
-		    NULL, NULL);
 }
 
 unsigned long get_wchan(struct task_struct *p)

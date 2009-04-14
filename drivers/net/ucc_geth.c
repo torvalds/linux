@@ -24,7 +24,6 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
-#include <linux/fsl_devices.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/workqueue.h>
@@ -39,7 +38,7 @@
 #include <asm/ucc_fast.h>
 
 #include "ucc_geth.h"
-#include "ucc_geth_mii.h"
+#include "fsl_pq_mdio.h"
 
 #undef DEBUG
 
@@ -223,10 +222,10 @@ static struct sk_buff *get_new_skb(struct ucc_geth_private *ugeth,
 		    (((unsigned)skb->data) & (UCC_GETH_RX_DATA_BUF_ALIGNMENT -
 					      1)));
 
-	skb->dev = ugeth->dev;
+	skb->dev = ugeth->ndev;
 
 	out_be32(&((struct qe_bd __iomem *)bd)->buf,
-		      dma_map_single(&ugeth->dev->dev,
+		      dma_map_single(ugeth->dev,
 				     skb->data,
 				     ugeth->ug_info->uf_info.max_rx_buf_length +
 				     UCC_GETH_RX_DATA_BUF_ALIGNMENT,
@@ -1536,17 +1535,15 @@ static void adjust_link(struct net_device *dev)
 static int init_phy(struct net_device *dev)
 {
 	struct ucc_geth_private *priv = netdev_priv(dev);
+	struct ucc_geth_info *ug_info = priv->ug_info;
 	struct phy_device *phydev;
-	char phy_id[BUS_ID_SIZE];
 
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, priv->ug_info->mdio_bus,
-		 priv->ug_info->phy_address);
-
-	phydev = phy_connect(dev, phy_id, &adjust_link, 0, priv->phy_interface);
+	phydev = phy_connect(dev, ug_info->phy_bus_id, &adjust_link, 0,
+			     priv->phy_interface);
 
 	if (IS_ERR(phydev)) {
 		printk("%s: Could not attach to PHY\n", dev->name);
@@ -1874,7 +1871,7 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 			continue;
 		for (j = 0; j < ugeth->ug_info->bdRingLenTx[i]; j++) {
 			if (ugeth->tx_skbuff[i][j]) {
-				dma_unmap_single(&ugeth->dev->dev,
+				dma_unmap_single(ugeth->dev,
 						 in_be32(&((struct qe_bd __iomem *)bd)->buf),
 						 (in_be32((u32 __iomem *)bd) &
 						  BD_LENGTH_MASK),
@@ -1902,7 +1899,7 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 			bd = ugeth->p_rx_bd_ring[i];
 			for (j = 0; j < ugeth->ug_info->bdRingLenRx[i]; j++) {
 				if (ugeth->rx_skbuff[i][j]) {
-					dma_unmap_single(&ugeth->dev->dev,
+					dma_unmap_single(ugeth->dev,
 						in_be32(&((struct qe_bd __iomem *)bd)->buf),
 						ugeth->ug_info->
 						uf_info.max_rx_buf_length +
@@ -2010,6 +2007,9 @@ static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 
 	/* Disable Rx and Tx */
 	clrbits32(&ug_regs->maccfg1, MACCFG1_ENABLE_RX | MACCFG1_ENABLE_TX);
+
+	phy_disconnect(ugeth->phydev);
+	ugeth->phydev = NULL;
 
 	ucc_geth_memclean(ugeth);
 }
@@ -3070,7 +3070,7 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* set up the buffer descriptor */
 	out_be32(&((struct qe_bd __iomem *)bd)->buf,
-		      dma_map_single(&ugeth->dev->dev, skb->data,
+		      dma_map_single(ugeth->dev, skb->data,
 			      skb->len, DMA_TO_DEVICE));
 
 	/* printk(KERN_DEBUG"skb->data is 0x%x\n",skb->data); */
@@ -3126,7 +3126,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 
 	ugeth_vdbg("%s: IN", __func__);
 
-	dev = ugeth->dev;
+	dev = ugeth->ndev;
 
 	/* collect received buffers */
 	bd = ugeth->rxBd[rxQ];
@@ -3160,7 +3160,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 			skb_put(skb, length);
 
 			/* Tell the skb what kind of packet this is */
-			skb->protocol = eth_type_trans(skb, ugeth->dev);
+			skb->protocol = eth_type_trans(skb, ugeth->ndev);
 
 			dev->stats.rx_bytes += length;
 			/* Send the packet up the stack */
@@ -3251,7 +3251,7 @@ static int ucc_geth_poll(struct napi_struct *napi, int budget)
 		howmany += ucc_geth_rx(ugeth, i, budget - howmany);
 
 	if (howmany < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		setbits32(ugeth->uccf->p_uccm, UCCE_RX_EVENTS);
 	}
 
@@ -3282,10 +3282,10 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 
 	/* check for receive events that require processing */
 	if (ucce & UCCE_RX_EVENTS) {
-		if (netif_rx_schedule_prep(&ugeth->napi)) {
+		if (napi_schedule_prep(&ugeth->napi)) {
 			uccm &= ~UCCE_RX_EVENTS;
 			out_be32(uccf->p_uccm, uccm);
-			__netif_rx_schedule(&ugeth->napi);
+			__napi_schedule(&ugeth->napi);
 		}
 	}
 
@@ -3347,6 +3347,14 @@ static int ucc_geth_open(struct net_device *dev)
 		return -EINVAL;
 	}
 
+	err = init_phy(dev);
+	if (err) {
+		if (netif_msg_ifup(ugeth))
+			ugeth_err("%s: Cannot initialize PHY, aborting.",
+				  dev->name);
+		return err;
+	}
+
 	err = ucc_struct_init(ugeth);
 	if (err) {
 		if (netif_msg_ifup(ugeth))
@@ -3382,13 +3390,6 @@ static int ucc_geth_open(struct net_device *dev)
 				   dev->dev_addr[5],
 				   &ugeth->ug_regs->macstnaddr1,
 				   &ugeth->ug_regs->macstnaddr2);
-
-	err = init_phy(dev);
-	if (err) {
-		if (netif_msg_ifup(ugeth))
-			ugeth_err("%s: Cannot initialize PHY, aborting.", dev->name);
-		goto out_err;
-	}
 
 	phy_start(ugeth->phydev);
 
@@ -3430,10 +3431,7 @@ static int ucc_geth_close(struct net_device *dev)
 
 	ucc_geth_stop(ugeth);
 
-	free_irq(ugeth->ug_info->uf_info.irq, ugeth->dev);
-
-	phy_disconnect(ugeth->phydev);
-	ugeth->phydev = NULL;
+	free_irq(ugeth->ug_info->uf_info.irq, ugeth->ndev);
 
 	netif_stop_queue(dev);
 
@@ -3447,7 +3445,7 @@ static void ucc_geth_timeout_work(struct work_struct *work)
 	struct net_device *dev;
 
 	ugeth = container_of(work, struct ucc_geth_private, timeout_work);
-	dev = ugeth->dev;
+	dev = ugeth->ndev;
 
 	ugeth_vdbg("%s: IN", __func__);
 
@@ -3502,6 +3500,20 @@ static phy_interface_t to_phy_interface(const char *phy_connection_type)
 
 	return PHY_INTERFACE_MODE_MII;
 }
+
+static const struct net_device_ops ucc_geth_netdev_ops = {
+	.ndo_open		= ucc_geth_open,
+	.ndo_stop		= ucc_geth_close,
+	.ndo_start_xmit		= ucc_geth_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_multicast_list	= ucc_geth_set_multi,
+	.ndo_tx_timeout		= ucc_geth_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ucc_netpoll,
+#endif
+};
 
 static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *match)
 {
@@ -3614,10 +3626,12 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 	fixed_link = of_get_property(np, "fixed-link", NULL);
 	if (fixed_link) {
-		snprintf(ug_info->mdio_bus, MII_BUS_ID_SIZE, "0");
-		ug_info->phy_address = fixed_link[0];
+		snprintf(ug_info->phy_bus_id, sizeof(ug_info->phy_bus_id),
+			 PHY_ID_FMT, "0", fixed_link[0]);
 		phy = NULL;
 	} else {
+		char bus_name[MII_BUS_ID_SIZE];
+
 		ph = of_get_property(np, "phy-handle", NULL);
 		phy = of_find_node_by_phandle(*ph);
 
@@ -3628,21 +3642,23 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		prop = of_get_property(phy, "reg", NULL);
 		if (prop == NULL)
 			return -1;
-		ug_info->phy_address = *prop;
 
 		/* Set the bus id */
 		mdio = of_get_parent(phy);
 
 		if (mdio == NULL)
-			return -1;
+			return -ENODEV;
 
 		err = of_address_to_resource(mdio, 0, &res);
+
+		if (err) {
+			of_node_put(mdio);
+			return err;
+		}
+		fsl_pq_mdio_bus_name(bus_name, mdio);
 		of_node_put(mdio);
-
-		if (err)
-			return -1;
-
-		snprintf(ug_info->mdio_bus, MII_BUS_ID_SIZE, "%x", res.start);
+		snprintf(ug_info->phy_bus_id, sizeof(ug_info->phy_bus_id),
+			"%s:%02x", bus_name, *prop);
 	}
 
 	/* get the phy interface type, or default to MII */
@@ -3715,19 +3731,11 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	/* Fill in the dev structure */
 	uec_set_ethtool_ops(dev);
-	dev->open = ucc_geth_open;
-	dev->hard_start_xmit = ucc_geth_start_xmit;
-	dev->tx_timeout = ucc_geth_timeout;
+	dev->netdev_ops = &ucc_geth_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	INIT_WORK(&ugeth->timeout_work, ucc_geth_timeout_work);
 	netif_napi_add(dev, &ugeth->napi, ucc_geth_poll, UCC_GETH_DEV_WEIGHT);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ucc_netpoll;
-#endif
-	dev->stop = ucc_geth_close;
-//    dev->change_mtu = ucc_geth_change_mtu;
 	dev->mtu = 1500;
-	dev->set_multicast_list = ucc_geth_set_multi;
 
 	ugeth->msg_enable = netif_msg_init(debug.msg_enable, UGETH_MSG_DEFAULT);
 	ugeth->phy_interface = phy_interface;
@@ -3747,7 +3755,9 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		memcpy(dev->dev_addr, mac_addr, 6);
 
 	ugeth->ug_info = ug_info;
-	ugeth->dev = dev;
+	ugeth->dev = device;
+	ugeth->ndev = dev;
+	ugeth->node = np;
 
 	return 0;
 }
@@ -3787,11 +3797,6 @@ static int __init ucc_geth_init(void)
 {
 	int i, ret;
 
-	ret = uec_mdio_init();
-
-	if (ret)
-		return ret;
-
 	if (netif_msg_drv(&debug))
 		printk(KERN_INFO "ucc_geth: " DRV_DESC "\n");
 	for (i = 0; i < 8; i++)
@@ -3800,16 +3805,12 @@ static int __init ucc_geth_init(void)
 
 	ret = of_register_platform_driver(&ucc_geth_driver);
 
-	if (ret)
-		uec_mdio_exit();
-
 	return ret;
 }
 
 static void __exit ucc_geth_exit(void)
 {
 	of_unregister_platform_driver(&ucc_geth_driver);
-	uec_mdio_exit();
 }
 
 module_init(ucc_geth_init);

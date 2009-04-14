@@ -104,7 +104,8 @@ EXPORT_SYMBOL_GPL(unlock_policy_rwsem_write);
 
 
 /* internal prototypes */
-static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
+static int __cpufreq_governor(struct cpufreq_policy *policy,
+		unsigned int event);
 static unsigned int __cpufreq_get(unsigned int cpu);
 static void handle_update(struct work_struct *work);
 
@@ -128,7 +129,7 @@ static int __init init_cpufreq_transition_notifier_list(void)
 pure_initcall(init_cpufreq_transition_notifier_list);
 
 static LIST_HEAD(cpufreq_governor_list);
-static DEFINE_MUTEX (cpufreq_governor_mutex);
+static DEFINE_MUTEX(cpufreq_governor_mutex);
 
 struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 {
@@ -371,7 +372,7 @@ static struct cpufreq_governor *__find_governor(const char *str_governor)
 	struct cpufreq_governor *t;
 
 	list_for_each_entry(t, &cpufreq_governor_list, governor_list)
-		if (!strnicmp(str_governor,t->name,CPUFREQ_NAME_LEN))
+		if (!strnicmp(str_governor, t->name, CPUFREQ_NAME_LEN))
 			return t;
 
 	return NULL;
@@ -429,13 +430,9 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 
 		mutex_unlock(&cpufreq_governor_mutex);
 	}
-  out:
+out:
 	return err;
 }
-
-
-/* drivers/base/cpu.c */
-extern struct sysdev_class cpu_sysdev_class;
 
 
 /**
@@ -450,11 +447,12 @@ extern struct sysdev_class cpu_sysdev_class;
 static ssize_t show_##file_name				\
 (struct cpufreq_policy *policy, char *buf)		\
 {							\
-	return sprintf (buf, "%u\n", policy->object);	\
+	return sprintf(buf, "%u\n", policy->object);	\
 }
 
 show_one(cpuinfo_min_freq, cpuinfo.min_freq);
 show_one(cpuinfo_max_freq, cpuinfo.max_freq);
+show_one(cpuinfo_transition_latency, cpuinfo.transition_latency);
 show_one(scaling_min_freq, min);
 show_one(scaling_max_freq, max);
 show_one(scaling_cur_freq, cur);
@@ -476,7 +474,7 @@ static ssize_t store_##file_name					\
 	if (ret)							\
 		return -EINVAL;						\
 									\
-	ret = sscanf (buf, "%u", &new_policy.object);			\
+	ret = sscanf(buf, "%u", &new_policy.object);			\
 	if (ret != 1)							\
 		return -EINVAL;						\
 									\
@@ -486,8 +484,8 @@ static ssize_t store_##file_name					\
 	return ret ? ret : count;					\
 }
 
-store_one(scaling_min_freq,min);
-store_one(scaling_max_freq,max);
+store_one(scaling_min_freq, min);
+store_one(scaling_max_freq, max);
 
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
@@ -507,12 +505,13 @@ static ssize_t show_cpuinfo_cur_freq(struct cpufreq_policy *policy,
  */
 static ssize_t show_scaling_governor(struct cpufreq_policy *policy, char *buf)
 {
-	if(policy->policy == CPUFREQ_POLICY_POWERSAVE)
+	if (policy->policy == CPUFREQ_POLICY_POWERSAVE)
 		return sprintf(buf, "powersave\n");
 	else if (policy->policy == CPUFREQ_POLICY_PERFORMANCE)
 		return sprintf(buf, "performance\n");
 	else if (policy->governor)
-		return scnprintf(buf, CPUFREQ_NAME_LEN, "%s\n", policy->governor->name);
+		return scnprintf(buf, CPUFREQ_NAME_LEN, "%s\n",
+				policy->governor->name);
 	return -EINVAL;
 }
 
@@ -531,7 +530,7 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	if (ret)
 		return ret;
 
-	ret = sscanf (buf, "%15s", str_governor);
+	ret = sscanf(buf, "%15s", str_governor);
 	if (ret != 1)
 		return -EINVAL;
 
@@ -575,7 +574,8 @@ static ssize_t show_scaling_available_governors(struct cpufreq_policy *policy,
 	}
 
 	list_for_each_entry(t, &cpufreq_governor_list, governor_list) {
-		if (i >= (ssize_t) ((PAGE_SIZE / sizeof(char)) - (CPUFREQ_NAME_LEN + 2)))
+		if (i >= (ssize_t) ((PAGE_SIZE / sizeof(char))
+		    - (CPUFREQ_NAME_LEN + 2)))
 			goto out;
 		i += scnprintf(&buf[i], CPUFREQ_NAME_LEN, "%s ", t->name);
 	}
@@ -594,7 +594,7 @@ static ssize_t show_cpus(const struct cpumask *mask, char *buf)
 			i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), " ");
 		i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), "%u", cpu);
 		if (i >= (PAGE_SIZE - 5))
-		    break;
+			break;
 	}
 	i += sprintf(&buf[i], "\n");
 	return i;
@@ -660,6 +660,7 @@ __ATTR(_name, 0644, show_##_name, store_##_name)
 define_one_ro0400(cpuinfo_cur_freq);
 define_one_ro(cpuinfo_min_freq);
 define_one_ro(cpuinfo_max_freq);
+define_one_ro(cpuinfo_transition_latency);
 define_one_ro(scaling_available_governors);
 define_one_ro(scaling_driver);
 define_one_ro(scaling_cur_freq);
@@ -673,6 +674,7 @@ define_one_rw(scaling_setspeed);
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
 	&cpuinfo_max_freq.attr,
+	&cpuinfo_transition_latency.attr,
 	&scaling_min_freq.attr,
 	&scaling_max_freq.attr,
 	&affected_cpus.attr,
@@ -684,10 +686,10 @@ static struct attribute *default_attrs[] = {
 	NULL
 };
 
-#define to_policy(k) container_of(k,struct cpufreq_policy,kobj)
-#define to_attr(a) container_of(a,struct freq_attr,attr)
+#define to_policy(k) container_of(k, struct cpufreq_policy, kobj)
+#define to_attr(a) container_of(a, struct freq_attr, attr)
 
-static ssize_t show(struct kobject *kobj, struct attribute *attr ,char *buf)
+static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 {
 	struct cpufreq_policy *policy = to_policy(kobj);
 	struct freq_attr *fattr = to_attr(attr);
@@ -751,11 +753,6 @@ static struct sysfs_ops sysfs_ops = {
 static struct kobj_type ktype_cpufreq = {
 	.sysfs_ops	= &sysfs_ops,
 	.default_attrs	= default_attrs,
-	.release	= cpufreq_sysfs_release,
-};
-
-static struct kobj_type ktype_empty_cpufreq = {
-	.sysfs_ops	= &sysfs_ops,
 	.release	= cpufreq_sysfs_release,
 };
 
@@ -858,10 +855,10 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 		if (cpu == j)
 			continue;
 
-		/* check for existing affected CPUs.  They may not be aware
-		 * of it due to CPU Hotplug.
+		/* Check for existing affected CPUs.
+		 * They may not be aware of it due to CPU Hotplug.
 		 */
-		managed_policy = cpufreq_cpu_get(j);		// FIXME: Where is this released?  What about error paths?
+		managed_policy = cpufreq_cpu_get(j);		/* FIXME: Where is this released?  What about error paths? */
 		if (unlikely(managed_policy)) {
 
 			/* Set proper policy_cpu */
@@ -892,36 +889,26 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	memcpy(&new_policy, policy, sizeof(struct cpufreq_policy));
 
 	/* prepare interface data */
-	if (!cpufreq_driver->hide_interface) {
-		ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq,
-					   &sys_dev->kobj, "cpufreq");
+	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq, &sys_dev->kobj,
+				   "cpufreq");
+	if (ret)
+		goto err_out_driver_exit;
+
+	/* set up files for this cpu device */
+	drv_attr = cpufreq_driver->attr;
+	while ((drv_attr) && (*drv_attr)) {
+		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
 		if (ret)
 			goto err_out_driver_exit;
-
-		/* set up files for this cpu device */
-		drv_attr = cpufreq_driver->attr;
-		while ((drv_attr) && (*drv_attr)) {
-			ret = sysfs_create_file(&policy->kobj,
-						&((*drv_attr)->attr));
-			if (ret)
-				goto err_out_driver_exit;
-			drv_attr++;
-		}
-		if (cpufreq_driver->get) {
-			ret = sysfs_create_file(&policy->kobj,
-						&cpuinfo_cur_freq.attr);
-			if (ret)
-				goto err_out_driver_exit;
-		}
-		if (cpufreq_driver->target) {
-			ret = sysfs_create_file(&policy->kobj,
-						&scaling_cur_freq.attr);
-			if (ret)
-				goto err_out_driver_exit;
-		}
-	} else {
-		ret = kobject_init_and_add(&policy->kobj, &ktype_empty_cpufreq,
-					   &sys_dev->kobj, "cpufreq");
+		drv_attr++;
+	}
+	if (cpufreq_driver->get) {
+		ret = sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
+		if (ret)
+			goto err_out_driver_exit;
+	}
+	if (cpufreq_driver->target) {
+		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
 		if (ret)
 			goto err_out_driver_exit;
 	}
@@ -1142,8 +1129,8 @@ static void handle_update(struct work_struct *work)
  *	@old_freq: CPU frequency the kernel thinks the CPU runs at
  *	@new_freq: CPU frequency the CPU actually runs at
  *
- *	We adjust to current frequency first, and need to clean up later. So either call
- *	to cpufreq_update_policy() or schedule handle_update()).
+ *	We adjust to current frequency first, and need to clean up later.
+ *	So either call to cpufreq_update_policy() or schedule handle_update()).
  */
 static void cpufreq_out_of_sync(unsigned int cpu, unsigned int old_freq,
 				unsigned int new_freq)
@@ -1625,7 +1612,8 @@ EXPORT_SYMBOL_GPL(cpufreq_unregister_governor);
 
 /**
  * cpufreq_get_policy - get the current cpufreq_policy
- * @policy: struct cpufreq_policy into which the current cpufreq_policy is written
+ * @policy: struct cpufreq_policy into which the current cpufreq_policy
+ *	is written
  *
  * Reads the current cpufreq policy.
  */

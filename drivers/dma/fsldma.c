@@ -158,7 +158,8 @@ static void dma_start(struct fsl_dma_chan *fsl_chan)
 
 static void dma_halt(struct fsl_dma_chan *fsl_chan)
 {
-	int i = 0;
+	int i;
+
 	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
 		DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32) | FSL_DMA_MR_CA,
 		32);
@@ -166,8 +167,11 @@ static void dma_halt(struct fsl_dma_chan *fsl_chan)
 		DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32) & ~(FSL_DMA_MR_CS
 		| FSL_DMA_MR_EMS_EN | FSL_DMA_MR_CA), 32);
 
-	while (!dma_is_idle(fsl_chan) && (i++ < 100))
+	for (i = 0; i < 100; i++) {
+		if (dma_is_idle(fsl_chan))
+			break;
 		udelay(10);
+	}
 	if (i >= 100 && !dma_is_idle(fsl_chan))
 		dev_err(fsl_chan->dev, "DMA halt timeout!\n");
 }
@@ -350,7 +354,6 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(
 		dma_async_tx_descriptor_init(&desc_sw->async_tx,
 						&fsl_chan->common);
 		desc_sw->async_tx.tx_submit = fsl_dma_tx_submit;
-		INIT_LIST_HEAD(&desc_sw->async_tx.tx_list);
 		desc_sw->async_tx.phys = pdesc;
 	}
 
@@ -822,7 +825,7 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 	 */
 	WARN_ON(fdev->feature != new_fsl_chan->feature);
 
-	new_fsl_chan->dev = &new_fsl_chan->common.dev->device;
+	new_fsl_chan->dev = fdev->dev;
 	new_fsl_chan->reg_base = ioremap(new_fsl_chan->reg.start,
 			new_fsl_chan->reg.end - new_fsl_chan->reg.start + 1);
 
@@ -875,7 +878,8 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 	}
 
 	dev_info(fdev->dev, "#%d (%s), irq %d\n", new_fsl_chan->id,
-				compatible, new_fsl_chan->irq);
+		 compatible,
+		 new_fsl_chan->irq != NO_IRQ ? new_fsl_chan->irq : fdev->irq);
 
 	return 0;
 
@@ -890,7 +894,8 @@ err_no_reg:
 
 static void fsl_dma_chan_remove(struct fsl_dma_chan *fchan)
 {
-	free_irq(fchan->irq, fchan);
+	if (fchan->irq != NO_IRQ)
+		free_irq(fchan->irq, fchan);
 	list_del(&fchan->common.device_node);
 	iounmap(fchan->reg_base);
 	kfree(fchan);

@@ -395,7 +395,7 @@ struct b44 {
 	u32			rx_pending;
 	u32			tx_pending;
 	u8			phy_addr;
-
+	u8			force_copybreak;
 	struct mii_if_info	mii_if;
 };
 

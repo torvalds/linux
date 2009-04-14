@@ -5,6 +5,7 @@
  *  Copyright (C) 2008 Option International
  *                     Filip Aben <f.aben@option.com>
  *                     Denis Joseph Barrow <d.barow@option.com>
+ *                     Jan Dumon <j.dumon@option.com>
  *  Copyright (C) 2007 Andrew Bird (Sphere Systems Ltd)
  *  			<ajb@spheresystems.co.uk>
  *  Copyright (C) 2008 Greg Kroah-Hartman <gregkh@suse.de>
@@ -455,14 +456,23 @@ static const struct usb_device_id hso_ids[] = {
 	{icon321_port_device(0x0af0, 0xd033)},	/* Icon-322 */
 	{USB_DEVICE(0x0af0, 0x7301)},		/* GE40x */
 	{USB_DEVICE(0x0af0, 0x7361)},		/* GE40x */
+	{USB_DEVICE(0x0af0, 0x7381)},		/* GE40x */
 	{USB_DEVICE(0x0af0, 0x7401)},		/* GI 0401 */
 	{USB_DEVICE(0x0af0, 0x7501)},		/* GTM 382 */
 	{USB_DEVICE(0x0af0, 0x7601)},		/* GE40x */
 	{USB_DEVICE(0x0af0, 0x7701)},
 	{USB_DEVICE(0x0af0, 0x7801)},
 	{USB_DEVICE(0x0af0, 0x7901)},
-	{USB_DEVICE(0x0af0, 0x7361)},
-	{icon321_port_device(0x0af0, 0xd051)},
+	{USB_DEVICE(0x0af0, 0x8200)},
+	{USB_DEVICE(0x0af0, 0x8201)},
+	{USB_DEVICE(0x0af0, 0xd035)},
+	{USB_DEVICE(0x0af0, 0xd055)},
+	{USB_DEVICE(0x0af0, 0xd155)},
+	{USB_DEVICE(0x0af0, 0xd255)},
+	{USB_DEVICE(0x0af0, 0xd057)},
+	{USB_DEVICE(0x0af0, 0xd157)},
+	{USB_DEVICE(0x0af0, 0xd257)},
+	{USB_DEVICE(0x0af0, 0xd357)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, hso_ids);
@@ -934,8 +944,7 @@ static void packetizeRx(struct hso_net *odev, unsigned char *ip_pkt,
 			if (!odev->rx_buf_missing) {
 				/* Packet is complete. Inject into stack. */
 				/* We have IP packet here */
-				odev->skb_rx_buf->protocol =
-						__constant_htons(ETH_P_IP);
+				odev->skb_rx_buf->protocol = cpu_to_be16(ETH_P_IP);
 				/* don't check it */
 				odev->skb_rx_buf->ip_summed =
 					CHECKSUM_UNNECESSARY;
@@ -1245,7 +1254,7 @@ static void hso_std_serial_read_bulk_callback(struct urb *urb)
  * This needs to be a tasklet otherwise we will
  * end up recursively calling this function.
  */
-void hso_unthrottle_tasklet(struct hso_serial *serial)
+static void hso_unthrottle_tasklet(struct hso_serial *serial)
 {
 	unsigned long flags;
 
@@ -1264,7 +1273,7 @@ static	void hso_unthrottle(struct tty_struct *tty)
 	tasklet_hi_schedule(&serial->unthrottle_tasklet);
 }
 
-void hso_unthrottle_workfunc(struct work_struct *work)
+static void hso_unthrottle_workfunc(struct work_struct *work)
 {
 	struct hso_serial *serial =
 	    container_of(work, struct hso_serial,
@@ -1297,6 +1306,7 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 	/* setup */
 	spin_lock_irq(&serial->serial_lock);
 	tty->driver_data = serial;
+	tty_kref_put(serial->tty);
 	serial->tty = tty_kref_get(tty);
 	spin_unlock_irq(&serial->serial_lock);
 
@@ -1462,9 +1472,9 @@ static int hso_serial_chars_in_buffer(struct tty_struct *tty)
 
 	return chars;
 }
-int tiocmget_submit_urb(struct hso_serial *serial,
-			struct hso_tiocmget  *tiocmget,
-			struct usb_device *usb)
+static int tiocmget_submit_urb(struct hso_serial *serial,
+			       struct hso_tiocmget *tiocmget,
+			       struct usb_device *usb)
 {
 	int result;
 
@@ -1792,8 +1802,8 @@ static int mux_device_request(struct hso_serial *serial, u8 type, u16 port,
 
 	/* initialize */
 	ctrl_req->wValue = 0;
-	ctrl_req->wIndex = hso_port_to_mux(port);
-	ctrl_req->wLength = size;
+	ctrl_req->wIndex = cpu_to_le16(hso_port_to_mux(port));
+	ctrl_req->wLength = cpu_to_le16(size);
 
 	if (type == USB_CDC_GET_ENCAPSULATED_RESPONSE) {
 		/* Reading command */
@@ -2043,9 +2053,8 @@ static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 		return -2;
 	}
 
-	spin_lock(&serial->serial_lock);
+	/* All callers to put_rxbuf_data hold serial_lock */
 	tty = tty_kref_get(serial->tty);
-	spin_unlock(&serial->serial_lock);
 
 	/* Push data to tty */
 	if (tty) {
@@ -2053,8 +2062,10 @@ static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 			serial->curr_rx_urb_offset;
 		D1("data to push to tty");
 		while (write_length_remaining) {
-			if (test_bit(TTY_THROTTLED, &tty->flags))
+			if (test_bit(TTY_THROTTLED, &tty->flags)) {
+				tty_kref_put(tty);
 				return -1;
+			}
 			curr_write_len =  tty_insert_flip_string
 				(tty, urb->transfer_buffer +
 				 serial->curr_rx_urb_offset,
@@ -2360,12 +2371,6 @@ exit:
 	return -1;
 }
 
-/* Frees a general hso device */
-static void hso_free_device(struct hso_device *hso_dev)
-{
-	kfree(hso_dev);
-}
-
 /* Creates a general hso device */
 static struct hso_device *hso_create_device(struct usb_interface *intf,
 					    int port_spec)
@@ -2413,14 +2418,6 @@ static void hso_free_net_device(struct hso_device *hso_dev)
 	if (!hso_net)
 		return;
 
-	/* start freeing */
-	for (i = 0; i < MUX_BULK_RX_BUF_COUNT; i++) {
-		usb_free_urb(hso_net->mux_bulk_rx_urb_pool[i]);
-		kfree(hso_net->mux_bulk_rx_buf_pool[i]);
-	}
-	usb_free_urb(hso_net->mux_bulk_tx_urb);
-	kfree(hso_net->mux_bulk_tx_buf);
-
 	remove_net_device(hso_net->parent);
 
 	if (hso_net->net) {
@@ -2428,8 +2425,25 @@ static void hso_free_net_device(struct hso_device *hso_dev)
 		free_netdev(hso_net->net);
 	}
 
-	hso_free_device(hso_dev);
+	/* start freeing */
+	for (i = 0; i < MUX_BULK_RX_BUF_COUNT; i++) {
+		usb_free_urb(hso_net->mux_bulk_rx_urb_pool[i]);
+		kfree(hso_net->mux_bulk_rx_buf_pool[i]);
+		hso_net->mux_bulk_rx_buf_pool[i] = NULL;
+	}
+	usb_free_urb(hso_net->mux_bulk_tx_urb);
+	kfree(hso_net->mux_bulk_tx_buf);
+	hso_net->mux_bulk_tx_buf = NULL;
+
+	kfree(hso_dev);
 }
+
+static const struct net_device_ops hso_netdev_ops = {
+	.ndo_open	= hso_net_open,
+	.ndo_stop	= hso_net_close,
+	.ndo_start_xmit = hso_net_start_xmit,
+	.ndo_tx_timeout = hso_net_tx_timeout,
+};
 
 /* initialize the network interface */
 static void hso_net_init(struct net_device *net)
@@ -2439,10 +2453,7 @@ static void hso_net_init(struct net_device *net)
 	D1("sizeof hso_net is %d", (int)sizeof(*hso_net));
 
 	/* fill in the other fields */
-	net->open = hso_net_open;
-	net->stop = hso_net_close;
-	net->hard_start_xmit = hso_net_start_xmit;
-	net->tx_timeout = hso_net_tx_timeout;
+	net->netdev_ops = &hso_netdev_ops;
 	net->watchdog_timeo = HSO_NET_TX_TIMEOUT;
 	net->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 	net->type = ARPHRD_NONE;
@@ -2525,14 +2536,15 @@ static void hso_create_rfkill(struct hso_device *hso_dev,
 }
 
 /* Creates our network device */
-static struct hso_device *hso_create_net_device(struct usb_interface *interface)
+static struct hso_device *hso_create_net_device(struct usb_interface *interface,
+						int port_spec)
 {
 	int result, i;
 	struct net_device *net;
 	struct hso_net *hso_net;
 	struct hso_device *hso_dev;
 
-	hso_dev = hso_create_device(interface, HSO_INTF_MUX | HSO_PORT_NETWORK);
+	hso_dev = hso_create_device(interface, port_spec);
 	if (!hso_dev)
 		return NULL;
 
@@ -2612,12 +2624,12 @@ static void hso_free_tiomget(struct hso_serial *serial)
 {
 	struct hso_tiocmget *tiocmget = serial->tiocmget;
 	if (tiocmget) {
-		kfree(tiocmget);
 		if (tiocmget->urb) {
 			usb_free_urb(tiocmget->urb);
 			tiocmget->urb = NULL;
 		}
 		serial->tiocmget = NULL;
+		kfree(tiocmget);
 
 	}
 }
@@ -2642,7 +2654,7 @@ static void hso_free_serial_device(struct hso_device *hso_dev)
 	}
 	hso_free_tiomget(serial);
 	kfree(serial);
-	hso_free_device(hso_dev);
+	kfree(hso_dev);
 }
 
 /* Creates a bulk AT channel */
@@ -2723,7 +2735,7 @@ exit2:
 exit:
 	hso_free_tiomget(serial);
 	kfree(serial);
-	hso_free_device(hso_dev);
+	kfree(hso_dev);
 	return NULL;
 }
 
@@ -2782,7 +2794,7 @@ exit:
 		kfree(serial);
 	}
 	if (hso_dev)
-		hso_free_device(hso_dev);
+		kfree(hso_dev);
 	return NULL;
 
 }
@@ -2932,7 +2944,8 @@ static int hso_probe(struct usb_interface *interface,
 		if ((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK) {
 			/* Create the network device */
 			if (!disable_net) {
-				hso_dev = hso_create_net_device(interface);
+				hso_dev = hso_create_net_device(interface,
+								port_spec);
 				if (!hso_dev)
 					goto exit;
 				tmp_dev = hso_dev;
@@ -2964,7 +2977,7 @@ static int hso_probe(struct usb_interface *interface,
 		/* It's a regular bulk interface */
 		if (((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK)
 		    && !disable_net)
-			hso_dev = hso_create_net_device(interface);
+			hso_dev = hso_create_net_device(interface, port_spec);
 		else
 			hso_dev =
 			    hso_create_bulk_serial_device(interface, port_spec);
@@ -2974,8 +2987,6 @@ static int hso_probe(struct usb_interface *interface,
 	default:
 		goto exit;
 	}
-
-	usb_driver_claim_interface(&hso_driver, interface, hso_dev);
 
 	/* save our data pointer in this device */
 	usb_set_intfdata(interface, hso_dev);
@@ -2994,8 +3005,6 @@ static void hso_disconnect(struct usb_interface *interface)
 
 	/* remove reference of our private data */
 	usb_set_intfdata(interface, NULL);
-
-	usb_driver_release_interface(&hso_driver, interface);
 }
 
 static void async_get_intf(struct work_struct *data)

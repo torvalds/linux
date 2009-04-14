@@ -89,6 +89,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/ata.h>
 #include <linux/hdreg.h>
 #include <linux/platform_device.h>
 #if defined(CONFIG_OF)
@@ -208,7 +209,7 @@ struct ace_device {
 	struct gendisk *gd;
 
 	/* Inserted CF card parameters */
-	struct hd_driveid cf_id;
+	u16 cf_id[ATA_ID_WORDS];
 };
 
 static int ace_major;
@@ -402,21 +403,14 @@ static void ace_dump_regs(struct ace_device *ace)
 		 ace_in32(ace, ACE_CFGLBA), ace_in(ace, ACE_FATSTAT));
 }
 
-void ace_fix_driveid(struct hd_driveid *id)
+void ace_fix_driveid(u16 *id)
 {
 #if defined(__BIG_ENDIAN)
-	u16 *buf = (void *)id;
 	int i;
 
 	/* All half words have wrong byte order; swap the bytes */
-	for (i = 0; i < sizeof(struct hd_driveid); i += 2, buf++)
-		*buf = le16_to_cpu(*buf);
-
-	/* Some of the data values are 32bit; swap the half words  */
-	id->lba_capacity = ((id->lba_capacity >> 16) & 0x0000FFFF) |
-	    ((id->lba_capacity << 16) & 0xFFFF0000);
-	id->spg = ((id->spg >> 16) & 0x0000FFFF) |
-	    ((id->spg << 16) & 0xFFFF0000);
+	for (i = 0; i < ATA_ID_WORDS; i++, id++)
+		*id = le16_to_cpu(*id);
 #endif
 }
 
@@ -488,6 +482,28 @@ static void ace_fsm_dostate(struct ace_device *ace)
 	dev_dbg(ace->dev, "fsm_state=%i, id_req_count=%i\n",
 		ace->fsm_state, ace->id_req_count);
 #endif
+
+	/* Verify that there is actually a CF in the slot. If not, then
+	 * bail out back to the idle state and wake up all the waiters */
+	status = ace_in32(ace, ACE_STATUS);
+	if ((status & ACE_STATUS_CFDETECT) == 0) {
+		ace->fsm_state = ACE_FSM_STATE_IDLE;
+		ace->media_change = 1;
+		set_capacity(ace->gd, 0);
+		dev_info(ace->dev, "No CF in slot\n");
+
+		/* Drop all pending requests */
+		while ((req = elv_next_request(ace->queue)) != NULL)
+			end_request(req, 0);
+
+		/* Drop back to IDLE state and notify waiters */
+		ace->fsm_state = ACE_FSM_STATE_IDLE;
+		ace->id_result = -EIO;
+		while (ace->id_req_count) {
+			complete(&ace->id_completion);
+			ace->id_req_count--;
+		}
+	}
 
 	switch (ace->fsm_state) {
 	case ACE_FSM_STATE_IDLE:
@@ -592,7 +608,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		break;
 
 	case ACE_FSM_STATE_IDENTIFY_COMPLETE:
-		ace_fix_driveid(&ace->cf_id);
+		ace_fix_driveid(&ace->cf_id[0]);
 		ace_dump_mem(&ace->cf_id, 512);	/* Debug: Dump out disk ID */
 
 		if (ace->data_result) {
@@ -605,9 +621,10 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			ace->media_change = 0;
 
 			/* Record disk parameters */
-			set_capacity(ace->gd, ace->cf_id.lba_capacity);
+			set_capacity(ace->gd,
+				ata_id_u32(&ace->cf_id, ATA_ID_LBA_CAPACITY));
 			dev_info(ace->dev, "capacity: %i sectors\n",
-				 ace->cf_id.lba_capacity);
+				ata_id_u32(&ace->cf_id, ATA_ID_LBA_CAPACITY));
 		}
 
 		/* We're done, drop to IDLE state and notify waiters */
@@ -906,12 +923,13 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 static int ace_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	struct ace_device *ace = bdev->bd_disk->private_data;
+	u16 *cf_id = &ace->cf_id[0];
 
 	dev_dbg(ace->dev, "ace_getgeo()\n");
 
-	geo->heads = ace->cf_id.heads;
-	geo->sectors = ace->cf_id.sectors;
-	geo->cylinders = ace->cf_id.cyls;
+	geo->heads	= cf_id[ATA_ID_HEADS];
+	geo->sectors	= cf_id[ATA_ID_SECTORS];
+	geo->cylinders	= cf_id[ATA_ID_CYLS];
 
 	return 0;
 }
@@ -1206,6 +1224,7 @@ static struct of_device_id ace_of_match[] __devinitdata = {
 	{ .compatible = "xlnx,opb-sysace-1.00.b", },
 	{ .compatible = "xlnx,opb-sysace-1.00.c", },
 	{ .compatible = "xlnx,xps-sysace-1.00.a", },
+	{ .compatible = "xlnx,sysace", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ace_of_match);

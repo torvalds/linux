@@ -576,10 +576,6 @@ static int __devinit snd_sc6000_probe(struct device *devptr, unsigned int dev)
 		snd_printk(KERN_ERR PFX "no OPL device at 0x%x-0x%x ?\n",
 			   0x388, 0x388 + 2);
 	} else {
-		err = snd_opl3_timer_new(opl3, 0, 1);
-		if (err < 0)
-			goto err_unmap2;
-
 		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 		if (err < 0)
 			goto err_unmap2;

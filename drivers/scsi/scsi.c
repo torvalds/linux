@@ -169,11 +169,9 @@ scsi_pool_alloc_command(struct scsi_host_cmd_pool *pool, gfp_t gfp_mask)
 {
 	struct scsi_cmnd *cmd;
 
-	cmd = kmem_cache_alloc(pool->cmd_slab, gfp_mask | pool->gfp_mask);
+	cmd = kmem_cache_zalloc(pool->cmd_slab, gfp_mask | pool->gfp_mask);
 	if (!cmd)
 		return NULL;
-
-	memset(cmd, 0, sizeof(*cmd));
 
 	cmd->sense_buffer = kmem_cache_alloc(pool->sense_slab,
 					     gfp_mask | pool->gfp_mask);
@@ -967,6 +965,110 @@ int scsi_track_queue_full(struct scsi_device *sdev, int depth)
 EXPORT_SYMBOL(scsi_track_queue_full);
 
 /**
+ * scsi_vpd_inquiry - Request a device provide us with a VPD page
+ * @sdev: The device to ask
+ * @buffer: Where to put the result
+ * @page: Which Vital Product Data to return
+ * @len: The length of the buffer
+ *
+ * This is an internal helper function.  You probably want to use
+ * scsi_get_vpd_page instead.
+ *
+ * Returns 0 on success or a negative error number.
+ */
+static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
+							u8 page, unsigned len)
+{
+	int result;
+	unsigned char cmd[16];
+
+	cmd[0] = INQUIRY;
+	cmd[1] = 1;		/* EVPD */
+	cmd[2] = page;
+	cmd[3] = len >> 8;
+	cmd[4] = len & 0xff;
+	cmd[5] = 0;		/* Control byte */
+
+	/*
+	 * I'm not convinced we need to try quite this hard to get VPD, but
+	 * all the existing users tried this hard.
+	 */
+	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer,
+				  len + 4, NULL, 30 * HZ, 3, NULL);
+	if (result)
+		return result;
+
+	/* Sanity check that we got the page back that we asked for */
+	if (buffer[1] != page)
+		return -EIO;
+
+	return 0;
+}
+
+/**
+ * scsi_get_vpd_page - Get Vital Product Data from a SCSI device
+ * @sdev: The device to ask
+ * @page: Which Vital Product Data to return
+ *
+ * SCSI devices may optionally supply Vital Product Data.  Each 'page'
+ * of VPD is defined in the appropriate SCSI document (eg SPC, SBC).
+ * If the device supports this VPD page, this routine returns a pointer
+ * to a buffer containing the data from that page.  The caller is
+ * responsible for calling kfree() on this pointer when it is no longer
+ * needed.  If we cannot retrieve the VPD page this routine returns %NULL.
+ */
+unsigned char *scsi_get_vpd_page(struct scsi_device *sdev, u8 page)
+{
+	int i, result;
+	unsigned int len;
+	unsigned char *buf = kmalloc(259, GFP_KERNEL);
+
+	if (!buf)
+		return NULL;
+
+	/* Ask for all the pages supported by this device */
+	result = scsi_vpd_inquiry(sdev, buf, 0, 255);
+	if (result)
+		goto fail;
+
+	/* If the user actually wanted this page, we can skip the rest */
+	if (page == 0)
+		return buf;
+
+	for (i = 0; i < buf[3]; i++)
+		if (buf[i + 4] == page)
+			goto found;
+	/* The device claims it doesn't support the requested page */
+	goto fail;
+
+ found:
+	result = scsi_vpd_inquiry(sdev, buf, page, 255);
+	if (result)
+		goto fail;
+
+	/*
+	 * Some pages are longer than 255 bytes.  The actual length of
+	 * the page is returned in the header.
+	 */
+	len = (buf[2] << 8) | buf[3];
+	if (len <= 255)
+		return buf;
+
+	kfree(buf);
+	buf = kmalloc(len + 4, GFP_KERNEL);
+	result = scsi_vpd_inquiry(sdev, buf, page, len);
+	if (result)
+		goto fail;
+
+	return buf;
+
+ fail:
+	kfree(buf);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(scsi_get_vpd_page);
+
+/**
  * scsi_device_get  -  get an additional reference to a scsi_device
  * @sdev:	device to get a reference to
  *
@@ -1095,7 +1197,8 @@ EXPORT_SYMBOL(__starget_for_each_device);
  * Description: Looks up the scsi_device with the specified @lun for a given
  * @starget.  The returned scsi_device does not have an additional
  * reference.  You must hold the host's host_lock over this call and
- * any access to the returned scsi_device.
+ * any access to the returned scsi_device. A scsi_device in state
+ * SDEV_DEL is skipped.
  *
  * Note:  The only reason why drivers should use this is because
  * they need to access the device list in irq context.  Otherwise you
@@ -1107,6 +1210,8 @@ struct scsi_device *__scsi_device_lookup_by_target(struct scsi_target *starget,
 	struct scsi_device *sdev;
 
 	list_for_each_entry(sdev, &starget->devices, same_target_siblings) {
+		if (sdev->sdev_state == SDEV_DEL)
+			continue;
 		if (sdev->lun ==lun)
 			return sdev;
 	}

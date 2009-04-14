@@ -58,6 +58,14 @@ static DEFINE_SPINLOCK(pdflush_lock);
 int nr_pdflush_threads = 0;
 
 /*
+ * The max/min number of pdflush threads. R/W by sysctl at
+ * /proc/sys/vm/nr_pdflush_threads_max/min
+ */
+int nr_pdflush_threads_max __read_mostly = MAX_PDFLUSH_THREADS;
+int nr_pdflush_threads_min __read_mostly = MIN_PDFLUSH_THREADS;
+
+
+/*
  * The time at which the pdflush thread pool last went empty
  */
 static unsigned long last_empty_jifs;
@@ -68,7 +76,7 @@ static unsigned long last_empty_jifs;
  * Thread pool management algorithm:
  * 
  * - The minimum and maximum number of pdflush instances are bound
- *   by MIN_PDFLUSH_THREADS and MAX_PDFLUSH_THREADS.
+ *   by nr_pdflush_threads_min and nr_pdflush_threads_max.
  * 
  * - If there have been no idle pdflush instances for 1 second, create
  *   a new one.
@@ -98,7 +106,6 @@ static int __pdflush(struct pdflush_work *my_work)
 	INIT_LIST_HEAD(&my_work->list);
 
 	spin_lock_irq(&pdflush_lock);
-	nr_pdflush_threads++;
 	for ( ; ; ) {
 		struct pdflush_work *pdf;
 
@@ -126,20 +133,25 @@ static int __pdflush(struct pdflush_work *my_work)
 
 		(*my_work->fn)(my_work->arg0);
 
+		spin_lock_irq(&pdflush_lock);
+
 		/*
 		 * Thread creation: For how long have there been zero
 		 * available threads?
+		 *
+		 * To throttle creation, we reset last_empty_jifs.
 		 */
 		if (time_after(jiffies, last_empty_jifs + 1 * HZ)) {
-			/* unlocked list_empty() test is OK here */
-			if (list_empty(&pdflush_list)) {
-				/* unlocked test is OK here */
-				if (nr_pdflush_threads < MAX_PDFLUSH_THREADS)
-					start_one_pdflush_thread();
+			if (list_empty(&pdflush_list) &&
+			    nr_pdflush_threads < nr_pdflush_threads_max) {
+				last_empty_jifs = jiffies;
+				nr_pdflush_threads++;
+				spin_unlock_irq(&pdflush_lock);
+				start_one_pdflush_thread();
+				spin_lock_irq(&pdflush_lock);
 			}
 		}
 
-		spin_lock_irq(&pdflush_lock);
 		my_work->fn = NULL;
 
 		/*
@@ -148,7 +160,7 @@ static int __pdflush(struct pdflush_work *my_work)
 		 */
 		if (list_empty(&pdflush_list))
 			continue;
-		if (nr_pdflush_threads <= MIN_PDFLUSH_THREADS)
+		if (nr_pdflush_threads <= nr_pdflush_threads_min)
 			continue;
 		pdf = list_entry(pdflush_list.prev, struct pdflush_work, list);
 		if (time_after(jiffies, pdf->when_i_went_to_sleep + 1 * HZ)) {
@@ -191,7 +203,7 @@ static int pdflush(void *dummy)
 
 	/*
 	 * Some configs put our parent kthread in a limited cpuset,
-	 * which kthread() overrides, forcing cpus_allowed == CPU_MASK_ALL.
+	 * which kthread() overrides, forcing cpus_allowed == cpu_all_mask.
 	 * Our needs are more modest - cut back to our cpusets cpus_allowed.
 	 * This is needed as pdflush's are dynamically created and destroyed.
 	 * The boottime pdflush's are easily placed w/o these 2 lines.
@@ -236,14 +248,27 @@ int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0)
 
 static void start_one_pdflush_thread(void)
 {
-	kthread_run(pdflush, NULL, "pdflush");
+	struct task_struct *k;
+
+	k = kthread_run(pdflush, NULL, "pdflush");
+	if (unlikely(IS_ERR(k))) {
+		spin_lock_irq(&pdflush_lock);
+		nr_pdflush_threads--;
+		spin_unlock_irq(&pdflush_lock);
+	}
 }
 
 static int __init pdflush_init(void)
 {
 	int i;
 
-	for (i = 0; i < MIN_PDFLUSH_THREADS; i++)
+	/*
+	 * Pre-set nr_pdflush_threads...  If we fail to create,
+	 * the count will be decremented.
+	 */
+	nr_pdflush_threads = nr_pdflush_threads_min;
+
+	for (i = 0; i < nr_pdflush_threads_min; i++)
 		start_one_pdflush_thread();
 	return 0;
 }

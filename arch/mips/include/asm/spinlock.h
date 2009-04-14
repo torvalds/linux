@@ -51,6 +51,7 @@ static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 
 	return (((counters >> 14) - counters) & 0x1fff) > 1;
 }
+#define __raw_spin_is_contended	__raw_spin_is_contended
 
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
@@ -75,7 +76,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		"2:							\n"
 		"	.subsection 2					\n"
 		"4:	andi	%[ticket], %[ticket], 0x1fff		\n"
-		"5:	sll	%[ticket], 5				\n"
+		"	sll	%[ticket], 5				\n"
 		"							\n"
 		"6:	bnez	%[ticket], 6b				\n"
 		"	 subu	%[ticket], 1				\n"
@@ -84,7 +85,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		"	andi	%[ticket], %[ticket], 0x1fff		\n"
 		"	beq	%[ticket], %[my_ticket], 2b		\n"
 		"	 subu	%[ticket], %[my_ticket], %[ticket]	\n"
-		"	b	5b					\n"
+		"	b	4b					\n"
 		"	 subu	%[ticket], %[ticket], 1			\n"
 		"	.previous					\n"
 		"	.set pop					\n"
@@ -112,7 +113,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		"	 ll	%[ticket], %[ticket_ptr]		\n"
 		"							\n"
 		"4:	andi	%[ticket], %[ticket], 0x1fff		\n"
-		"5:	sll	%[ticket], 5				\n"
+		"	sll	%[ticket], 5				\n"
 		"							\n"
 		"6:	bnez	%[ticket], 6b				\n"
 		"	 subu	%[ticket], 1				\n"
@@ -121,7 +122,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		"	andi	%[ticket], %[ticket], 0x1fff		\n"
 		"	beq	%[ticket], %[my_ticket], 2b		\n"
 		"	 subu	%[ticket], %[my_ticket], %[ticket]	\n"
-		"	b	5b					\n"
+		"	b	4b					\n"
 		"	 subu	%[ticket], %[ticket], 1			\n"
 		"	.previous					\n"
 		"	.set pop					\n"
@@ -479,6 +480,8 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 	return ret;
 }
 
+#define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
+#define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
 
 #define _raw_spin_relax(lock)	cpu_relax()
 #define _raw_read_relax(lock)	cpu_relax()

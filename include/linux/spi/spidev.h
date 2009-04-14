@@ -22,6 +22,7 @@
 #ifndef SPIDEV_H
 #define SPIDEV_H
 
+#include <linux/types.h>
 
 /* User space versions of kernel symbols for SPI clocking modes,
  * matching <linux/spi/spi.h>

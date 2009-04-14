@@ -184,4 +184,25 @@ static inline unsigned compare_ether_addr_64bits(const u8 addr1[6+2],
 }
 #endif	/* __KERNEL__ */
 
+/**
+ * compare_ether_header - Compare two Ethernet headers
+ * @a: Pointer to Ethernet header
+ * @b: Pointer to Ethernet header
+ *
+ * Compare two ethernet headers, returns 0 if equal.
+ * This assumes that the network header (i.e., IP header) is 4-byte
+ * aligned OR the platform can handle unaligned access.  This is the
+ * case for all packets coming into netif_receive_skb or similar
+ * entry points.
+ */
+
+static inline int compare_ether_header(const void *a, const void *b)
+{
+	u32 *a32 = (u32 *)((u8 *)a + 2);
+	u32 *b32 = (u32 *)((u8 *)b + 2);
+
+	return (*(u16 *)a ^ *(u16 *)b) | (a32[0] ^ b32[0]) |
+	       (a32[1] ^ b32[1]) | (a32[2] ^ b32[2]);
+}
+
 #endif	/* _LINUX_ETHERDEVICE_H */

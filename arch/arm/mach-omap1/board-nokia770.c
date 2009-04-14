@@ -32,7 +32,6 @@
 #include <mach/keypad.h>
 #include <mach/common.h>
 #include <mach/dsp_common.h>
-#include <mach/aic23.h>
 #include <mach/omapfb.h>
 #include <mach/lcd_mipid.h>
 #include <mach/mmc.h>
@@ -234,10 +233,6 @@ static inline void nokia770_mmc_init(void)
 }
 #endif
 
-static struct omap_board_config_kernel nokia770_config[] __initdata = {
-	{ OMAP_TAG_USB,		NULL },
-};
-
 #if	defined(CONFIG_OMAP_DSP)
 /*
  * audio power control
@@ -260,6 +255,13 @@ static DEFINE_MUTEX(audio_pwr_lock);
  * +--+-------------------------+---------------------------------------+
  */
 static int audio_pwr_state = -1;
+
+static inline void aic23_power_up(void)
+{
+}
+static inline void aic23_power_down(void)
+{
+}
 
 /*
  * audio_pwr_up / down should be called under audio_pwr_lock
@@ -365,19 +367,16 @@ static __init int omap_dsp_init(void)
 
 static void __init omap_nokia770_init(void)
 {
-	nokia770_config[0].data = &nokia770_usb_config;
-
 	platform_add_devices(nokia770_devices, ARRAY_SIZE(nokia770_devices));
 	spi_register_board_info(nokia770_spi_board_info,
 				ARRAY_SIZE(nokia770_spi_board_info));
-	omap_board_config = nokia770_config;
-	omap_board_config_size = ARRAY_SIZE(nokia770_config);
 	omap_gpio_init();
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 	omap_dsp_init();
 	ads7846_dev_init();
 	mipid_dev_init();
+	omap_usb_init(&nokia770_usb_config);
 	nokia770_mmc_init();
 }
 

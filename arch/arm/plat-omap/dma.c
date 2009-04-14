@@ -123,6 +123,7 @@ static struct dma_link_info *dma_linked_lch;
 
 static int dma_lch_count;
 static int dma_chan_count;
+static int omap_dma_reserve_channels;
 
 static spinlock_t dma_chan_lock;
 static struct omap_dma_lch *dma_chan;
@@ -278,14 +279,11 @@ void omap_set_dma_transfer_params(int lch, int data_type, int elem_count,
 		u32 val;
 
 		val = dma_read(CCR(lch));
-		val &= ~(3 << 19);
-		if (dma_trigger > 63)
-			val |= 1 << 20;
-		if (dma_trigger > 31)
-			val |= 1 << 19;
 
-		val &= ~(0x1f);
-		val |= (dma_trigger & 0x1f);
+		/* DMA_SYNCHRO_CONTROL_UPPER depends on the channel number */
+		val &= ~((3 << 19) | 0x1f);
+		val |= (dma_trigger & ~0x1f) << 14;
+		val |= dma_trigger & 0x1f;
 
 		if (sync_mode & OMAP_DMA_SYNC_FRAME)
 			val |= 1 << 5;
@@ -712,6 +710,7 @@ int omap_request_dma(int dev_id, const char *dev_name,
 	chan->dev_name = dev_name;
 	chan->callback = callback;
 	chan->data = data;
+	chan->flags = 0;
 
 #ifndef CONFIG_ARCH_OMAP1
 	if (cpu_class_is_omap2()) {
@@ -739,7 +738,7 @@ int omap_request_dma(int dev_id, const char *dev_name,
 		 * id.
 		 */
 		dma_write(dev_id | (1 << 10), CCR(free_ch));
-	} else if (cpu_is_omap730() || cpu_is_omap15xx()) {
+	} else if (cpu_is_omap7xx() || cpu_is_omap15xx()) {
 		dma_write(dev_id, CCR(free_ch));
 	}
 
@@ -1891,10 +1890,10 @@ static int omap2_dma_handle_ch(int ch)
 		status = dma_read(CSR(ch));
 	}
 
+	dma_write(status, CSR(ch));
+
 	if (likely(dma_chan[ch].callback != NULL))
 		dma_chan[ch].callback(ch, status, dma_chan[ch].data);
-
-	dma_write(status, CSR(ch));
 
 	return 0;
 }
@@ -1902,7 +1901,7 @@ static int omap2_dma_handle_ch(int ch)
 /* STATUS register count is from 1-32 while our is 0-31 */
 static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id)
 {
-	u32 val;
+	u32 val, enable_reg;
 	int i;
 
 	val = dma_read(IRQSTATUS_L0);
@@ -1911,6 +1910,8 @@ static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id)
 			printk(KERN_WARNING "Spurious DMA IRQ\n");
 		return IRQ_HANDLED;
 	}
+	enable_reg = dma_read(IRQENABLE_L0);
+	val &= enable_reg; /* Dispatch only relevant interrupts */
 	for (i = 0; i < dma_lch_count && val != 0; i++) {
 		if (val & 1)
 			omap2_dma_handle_ch(i);
@@ -2323,6 +2324,10 @@ static int __init omap_init_dma(void)
 		return -ENODEV;
 	}
 
+	if (cpu_class_is_omap2() && omap_dma_reserve_channels
+			&& (omap_dma_reserve_channels <= dma_lch_count))
+		dma_lch_count = omap_dma_reserve_channels;
+
 	dma_chan = kzalloc(sizeof(struct omap_dma_lch) * dma_lch_count,
 				GFP_KERNEL);
 	if (!dma_chan)
@@ -2341,7 +2346,7 @@ static int __init omap_init_dma(void)
 		printk(KERN_INFO "DMA support for OMAP15xx initialized\n");
 		dma_chan_count = 9;
 		enable_1510_mode = 1;
-	} else if (cpu_is_omap16xx() || cpu_is_omap730()) {
+	} else if (cpu_is_omap16xx() || cpu_is_omap7xx()) {
 		printk(KERN_INFO "OMAP DMA hardware version %d\n",
 		       dma_read(HW_ID));
 		printk(KERN_INFO "DMA capabilities: %08x:%08x:%04x:%04x:%04x\n",
@@ -2373,7 +2378,7 @@ static int __init omap_init_dma(void)
 		u8 revision = dma_read(REVISION) & 0xff;
 		printk(KERN_INFO "OMAP DMA hardware revision %d.%d\n",
 		       revision >> 4, revision & 0xf);
-		dma_chan_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
+		dma_chan_count = dma_lch_count;
 	} else {
 		dma_chan_count = 0;
 		return 0;
@@ -2438,5 +2443,18 @@ static int __init omap_init_dma(void)
 }
 
 arch_initcall(omap_init_dma);
+
+/*
+ * Reserve the omap SDMA channels using cmdline bootarg
+ * "omap_dma_reserve_ch=". The valid range is 1 to 32
+ */
+static int __init omap_dma_cmdline_reserve_ch(char *str)
+{
+	if (get_option(&str, &omap_dma_reserve_channels) != 1)
+		omap_dma_reserve_channels = 0;
+	return 1;
+}
+
+__setup("omap_dma_reserve_ch=", omap_dma_cmdline_reserve_ch);
 
 

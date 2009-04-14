@@ -13,6 +13,17 @@
 #ifndef __ASM_ARCH_PXA3XX_REGS_H
 #define __ASM_ARCH_PXA3XX_REGS_H
 
+#include <mach/hardware.h>
+
+/*
+ * Static Chip Selects
+ */
+
+#define PXA300_CS0_PHYS		(0x00000000)	/* PXA300/PXA310 _only_ */
+#define PXA300_CS1_PHYS		(0x30000000)	/* PXA300/PXA310 _only_ */
+#define PXA3xx_CS2_PHYS		(0x10000000)
+#define PXA3xx_CS3_PHYS		(0x14000000)
+
 /*
  * Oscillator Configuration Register (OSCC)
  */

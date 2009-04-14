@@ -1,4 +1,4 @@
-/* Copyright 2008 Broadcom Corporation
+/* Copyright 2008-2009 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -66,8 +66,6 @@ struct link_params {
 	/* Device parameters */
 	u8 mac_addr[6];
 
-
-
 	/* shmem parameters */
 	u32 shmem_base;
 	u32 speed_cap_mask;
@@ -77,7 +75,6 @@ struct link_params {
 #define SWITCH_CFG_AUTO_DETECT	PORT_FEATURE_CON_SWITCH_AUTO_DETECT
 
 	u16 hw_led_mode; /* part of the hw_config read from the shmem */
-	u32 serdes_config;
 	u32 lane_config;
 	u32 ext_phy_config;
 #define XGXS_EXT_PHY_TYPE(ext_phy_config)	(ext_phy_config & \
@@ -89,6 +86,12 @@ struct link_params {
 
 	/* phy_addr populated by the CLC */
 	u8 phy_addr;
+	u16 xgxs_config_rx[4]; /* preemphasis values for the rx side */
+
+	u16 xgxs_config_tx[4]; /* preemphasis values for the tx side */
+	u32 feature_config_flags;
+#define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED (1<<0)
+#define FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED	(2<<0)
 	/* Device pointer passed to all callback functions */
 	struct bnx2x *bp;
 };
@@ -125,8 +128,11 @@ struct link_vars {
 /* Initialize the phy */
 u8 bnx2x_phy_init(struct link_params *input, struct link_vars *output);
 
-/* Reset the link. Should be called when driver or interface goes down */
-u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars);
+/* Reset the link. Should be called when driver or interface goes down
+   Before calling phy firmware upgrade, the reset_ext_phy should be set
+   to 0 */
+u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
+		  u8 reset_ext_phy);
 
 /* bnx2x_link_update should be called upon link interrupt */
 u8 bnx2x_link_update(struct link_params *input, struct link_vars *output);
@@ -163,11 +169,16 @@ u8 bnx2x_override_led_value(struct bnx2x *bp, u8 port, u32 led_idx, u32 value);
 
 u8 bnx2x_flash_download(struct bnx2x *bp, u8 port, u32 ext_phy_config,
 		      u8 driver_loaded, char data[], u32 size);
+/* bnx2x_handle_module_detect_int should be called upon module detection
+   interrupt */
+void bnx2x_handle_module_detect_int(struct link_params *params);
+
 /* Get the actual link status. In case it returns 0, link is up,
 	otherwise link is down*/
 u8 bnx2x_test_link(struct link_params *input, struct link_vars *vars);
 
 /* One-time initialization for external phy after power up */
 u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base);
+
 
 #endif /* BNX2X_LINK_H */

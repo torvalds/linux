@@ -1074,6 +1074,18 @@ static const struct ethtool_ops bigmac_ethtool_ops = {
 	.get_link		= bigmac_get_link,
 };
 
+static const struct net_device_ops bigmac_ops = {
+	.ndo_open		= bigmac_open,
+	.ndo_stop		= bigmac_close,
+	.ndo_start_xmit		= bigmac_start_xmit,
+	.ndo_get_stats		= bigmac_get_stats,
+	.ndo_set_multicast_list	= bigmac_set_multicast,
+	.ndo_tx_timeout		= bigmac_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __devinit bigmac_ether_init(struct of_device *op,
 				       struct of_device *qec_op)
 {
@@ -1187,16 +1199,8 @@ static int __devinit bigmac_ether_init(struct of_device *op,
 	bp->dev = dev;
 
 	/* Set links to our BigMAC open and close routines. */
-	dev->open = &bigmac_open;
-	dev->stop = &bigmac_close;
-	dev->hard_start_xmit = &bigmac_start_xmit;
 	dev->ethtool_ops = &bigmac_ethtool_ops;
-
-	/* Set links to BigMAC statistic and multi-cast loading code. */
-	dev->get_stats = &bigmac_get_stats;
-	dev->set_multicast_list = &bigmac_set_multicast;
-
-	dev->tx_timeout = &bigmac_tx_timeout;
+	dev->netdev_ops = &bigmac_ops;
 	dev->watchdog_timeo = 5*HZ;
 
 	/* Finish net device registration. */

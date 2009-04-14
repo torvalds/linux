@@ -553,11 +553,11 @@ static int __devinit snd_wavefront_isa_match(struct device *pdev,
 		return 0;
 #endif
 	if (cs4232_pcm_port[dev] == SNDRV_AUTO_PORT) {
-		snd_printk("specify CS4232 port\n");
+		snd_printk(KERN_ERR "specify CS4232 port\n");
 		return 0;
 	}
 	if (ics2115_port[dev] == SNDRV_AUTO_PORT) {
-		snd_printk("specify ICS2115 port\n");
+		snd_printk(KERN_ERR "specify ICS2115 port\n");
 		return 0;
 	}
 	return 1;

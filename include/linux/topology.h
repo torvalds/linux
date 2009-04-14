@@ -38,11 +38,7 @@
 #endif
 
 #ifndef nr_cpus_node
-#define nr_cpus_node(node)				\
-	({						\
-		node_to_cpumask_ptr(__tmp__, node);	\
-		cpus_weight(*__tmp__);			\
-	})
+#define nr_cpus_node(node) cpumask_weight(cpumask_of_node(node))
 #endif
 
 #define for_each_node_with_cpus(node)			\
@@ -192,6 +188,17 @@ int arch_update_cpu_topology(void);
 #endif
 #ifndef topology_core_siblings
 #define topology_core_siblings(cpu)		cpumask_of_cpu(cpu)
+#endif
+#ifndef topology_thread_cpumask
+#define topology_thread_cpumask(cpu)		cpumask_of(cpu)
+#endif
+#ifndef topology_core_cpumask
+#define topology_core_cpumask(cpu)		cpumask_of(cpu)
+#endif
+
+/* Returns the number of the current Node. */
+#ifndef numa_node_id
+#define numa_node_id()		(cpu_to_node(raw_smp_processor_id()))
 #endif
 
 #endif /* _LINUX_TOPOLOGY_H */

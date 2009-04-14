@@ -16,7 +16,7 @@
 
 /*
  * Rewritten from the work of Colten Edwards <pje120@cs.usask.ca> by
- * Samuel Thibault <samuel.thibault@fnac.net>
+ * Samuel Thibault <samuel.thibault@ens-lyon.org>
  */
 
 #include <linux/module.h>
@@ -90,13 +90,15 @@ static int timings[4]={-1,-1,-1,-1}; /* stores current timing for each timer */
  * This routine is invoked to prepare for access to a given drive.
  */
 
-static void qd65xx_select(ide_drive_t *drive)
+static void qd65xx_dev_select(ide_drive_t *drive)
 {
 	u8 index = ((	(QD_TIMREG(drive)) & 0x80 ) >> 7) |
 			(QD_TIMREG(drive) & 0x02);
 
 	if (timings[index] != QD_TIMING(drive))
 		outb(timings[index] = QD_TIMING(drive), QD_TIMREG(drive));
+
+	outb(drive->select | ATA_DEVICE_OBS, drive->hwif->io_ports.device_addr);
 }
 
 /*
@@ -309,20 +311,33 @@ static void __init qd6580_init_dev(ide_drive_t *drive)
 	drive->drive_data = (drive->dn & 1) ? t2 : t1;
 }
 
+static const struct ide_tp_ops qd65xx_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
+
+	.dev_select		= qd65xx_dev_select,
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
+};
+
 static const struct ide_port_ops qd6500_port_ops = {
 	.init_dev		= qd6500_init_dev,
 	.set_pio_mode		= qd6500_set_pio_mode,
-	.selectproc		= qd65xx_select,
 };
 
 static const struct ide_port_ops qd6580_port_ops = {
 	.init_dev		= qd6580_init_dev,
 	.set_pio_mode		= qd6580_set_pio_mode,
-	.selectproc		= qd65xx_select,
 };
 
 static const struct ide_port_info qd65xx_port_info __initdata = {
 	.name			= DRV_NAME,
+	.tp_ops 		= &qd65xx_tp_ops,
 	.chipset		= ide_qd65xx,
 	.host_flags		= IDE_HFLAG_IO_32BIT |
 				  IDE_HFLAG_NO_DMA,

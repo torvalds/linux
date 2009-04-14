@@ -7,7 +7,7 @@
  *
  * Please note to add "-b 1" for core1's dts compiling.
  *
- * Copyright 2007, 2008 Freescale Semiconductor Inc.
+ * Copyright 2007-2009 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -186,7 +186,7 @@
 			protected-sources = <
 			18 16 10 42 45 58	/* MEM L2 mdio serial crypto */
 			29 30 34 35 36 40	/* enet0 enet1 */
-			24 26 20 21 22 23	/* pcie0 pcie1 dma1 */
+			24 25 20 21 22 23	/* pci0 pci1 dma1 */
 			43			/* i2c */
 			0x1 0x2 0x3 0x4         /* pci slot */
 			0x9 0xa 0xb 0xc         /* usb */
@@ -208,7 +208,7 @@
 			  0x1000000 0x0 0x0 0xffc20000 0x0 0x10000>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&mpic>;
-		interrupts = <27 2>;
+		interrupts = <26 2>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 			/* IDSEL 0x0 */
@@ -228,7 +228,7 @@
 
 				  0x1000000 0x0 0x0
 				  0x1000000 0x0 0x0
-				  0x0 0x100000>;
+				  0x0 0x10000>;
 		};
 	};
 };

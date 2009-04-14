@@ -25,7 +25,7 @@
 #include <linux/videodev2.h>
 #include <linux/kdev_t.h>
 
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
@@ -41,7 +41,7 @@
 
 #include <linux/version.h>
 #include <linux/mutex.h>
-#define CX88_VERSION_CODE KERNEL_VERSION(0,0,6)
+#define CX88_VERSION_CODE KERNEL_VERSION(0,0,7)
 
 #define UNSET (-1U)
 
@@ -231,6 +231,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_SATTRADE_ST4200         76
 #define CX88_BOARD_TBS_8910                77
 #define CX88_BOARD_PROF_6200               78
+#define CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII 79
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -302,7 +303,6 @@ struct cx88_dmaqueue {
 	struct btcx_riscmem    stopper;
 	u32                    count;
 };
-struct cx88_core;
 
 struct cx88_core {
 	struct list_head           devlist;
@@ -327,6 +327,8 @@ struct cx88_core {
 	u32                        i2c_state, i2c_rc;
 
 	/* config info -- analog */
+	struct v4l2_device 	   v4l2_dev;
+	struct i2c_client 	   *i2c_rtc;
 	unsigned int               boardnr;
 	struct cx88_board	   board;
 
@@ -336,8 +338,8 @@ struct cx88_core {
 	/* config info -- dvb */
 #if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
 	int 			   (*prev_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
-	void			   (*gate_ctrl)(struct cx88_core  *core, int open);
 #endif
+	void			   (*gate_ctrl)(struct cx88_core  *core, int open);
 
 	/* state info */
 	struct task_struct         *kthread;
@@ -364,6 +366,22 @@ struct cx88_core {
 	int			   active_ref;
 	int			   active_fe_id;
 };
+
+static inline struct cx88_core *to_core(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct cx88_core, v4l2_dev);
+}
+
+#define call_all(core, o, f, args...) 				\
+	do {							\
+		if (!core->i2c_rc) {				\
+			if (core->gate_ctrl)			\
+				core->gate_ctrl(core, 1);	\
+			v4l2_device_call_all(&core->v4l2_dev, 0, o, f, ##args); \
+			if (core->gate_ctrl)			\
+				core->gate_ctrl(core, 0);	\
+		}						\
+	} while (0)
 
 struct cx8800_dev;
 struct cx8802_dev;
@@ -610,8 +628,6 @@ extern struct videobuf_queue_ops cx8800_vbi_qops;
 /* cx88-i2c.c                                                  */
 
 extern int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci);
-extern void cx88_call_i2c_clients(struct cx88_core *core,
-				  unsigned int cmd, void *arg);
 
 
 /* ----------------------------------------------------------- */

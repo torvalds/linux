@@ -44,10 +44,10 @@ static int enable_midi_input(struct echoaudio *chip, char enable)
 	if (enable) {
 		chip->mtc_state = MIDI_IN_STATE_NORMAL;
 		chip->comm_page->flags |=
-			__constant_cpu_to_le32(DSP_FLAG_MIDI_INPUT);
+			cpu_to_le32(DSP_FLAG_MIDI_INPUT);
 	} else
 		chip->comm_page->flags &=
-			~__constant_cpu_to_le32(DSP_FLAG_MIDI_INPUT);
+			~cpu_to_le32(DSP_FLAG_MIDI_INPUT);
 
 	clear_handshake(chip);
 	return send_vector(chip, DSP_VC_UPDATE_FLAGS);

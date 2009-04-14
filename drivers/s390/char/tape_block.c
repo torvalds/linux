@@ -10,6 +10,8 @@
  *		 Stefan Bader <shbader@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "tape"
+
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
@@ -22,8 +24,6 @@
 #define TAPE_DBF_AREA	tape_core_dbf
 
 #include "tape.h"
-
-#define PRINTK_HEADER "TAPE_BLOCK: "
 
 #define TAPEBLOCK_MAX_SEC	100
 #define TAPEBLOCK_MIN_REQUEUE	3
@@ -279,8 +279,6 @@ tapeblock_cleanup_device(struct tape_device *device)
 	tape_put_device(device);
 
 	if (!device->blk_data.disk) {
-		PRINT_ERR("(%s): No gendisk to clean up!\n",
-			dev_name(&device->cdev->dev));
 		goto cleanup_queue;
 	}
 
@@ -314,7 +312,8 @@ tapeblock_revalidate_disk(struct gendisk *disk)
 	if (!device->blk_data.medium_changed)
 		return 0;
 
-	PRINT_INFO("Detecting media size...\n");
+	dev_info(&device->cdev->dev, "Determining the size of the recorded "
+		"area...\n");
 	rc = tape_mtop(device, MTFSFM, 1);
 	if (rc)
 		return rc;
@@ -341,7 +340,8 @@ tapeblock_revalidate_disk(struct gendisk *disk)
 	device->bof = rc;
 	nr_of_blks -= rc;
 
-	PRINT_INFO("Found %i blocks on media\n", nr_of_blks);
+	dev_info(&device->cdev->dev, "The size of the recorded area is %i "
+		"blocks\n", nr_of_blks);
 	set_capacity(device->blk_data.disk,
 		nr_of_blks*(TAPEBLOCK_HSEC_SIZE/512));
 
@@ -376,8 +376,8 @@ tapeblock_open(struct block_device *bdev, fmode_t mode)
 
 	if (device->required_tapemarks) {
 		DBF_EVENT(2, "TBLOCK: missing tapemarks\n");
-		PRINT_ERR("TBLOCK: Refusing to open tape with missing"
-			" end of file marks.\n");
+		dev_warn(&device->cdev->dev, "Opening the tape failed because"
+			" of missing end-of-file marks\n");
 		rc = -EPERM;
 		goto put_device;
 	}
@@ -452,7 +452,6 @@ tapeblock_ioctl(
 			rc = -EINVAL;
 			break;
 		default:
-			PRINT_WARN("invalid ioctl 0x%x\n", command);
 			rc = -EINVAL;
 	}
 
@@ -474,7 +473,6 @@ tapeblock_init(void)
 
 	if (tapeblock_major == 0)
 		tapeblock_major = rc;
-	PRINT_INFO("tape gets major %d for block device\n", tapeblock_major);
 	return 0;
 }
 

@@ -129,6 +129,13 @@ int __init detect_cpu_and_cache_system(void)
 		boot_cpu_data.flags |= CPU_HAS_FPU | CPU_HAS_PERF_COUNTER |
 					  CPU_HAS_LLSC;
 		break;
+	case 0x4004:
+		boot_cpu_data.type = CPU_SH7786;
+		boot_cpu_data.icache.ways = 4;
+		boot_cpu_data.dcache.ways = 4;
+		boot_cpu_data.flags |= CPU_HAS_FPU | CPU_HAS_PERF_COUNTER |
+			CPU_HAS_LLSC | CPU_HAS_PTEAEX;
+		break;
 	case 0x3008:
 		boot_cpu_data.icache.ways = 4;
 		boot_cpu_data.dcache.ways = 4;
@@ -191,11 +198,6 @@ int __init detect_cpu_and_cache_system(void)
 		boot_cpu_data.type = CPU_SH_NONE;
 		break;
 	}
-
-#ifdef CONFIG_SH_DIRECT_MAPPED
-	boot_cpu_data.icache.ways = 1;
-	boot_cpu_data.dcache.ways = 1;
-#endif
 
 #ifdef CONFIG_CPU_HAS_PTEA
 	boot_cpu_data.flags |= CPU_HAS_PTEA;

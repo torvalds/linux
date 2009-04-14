@@ -866,6 +866,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	mtd = &host->mtd;
 	mtd->priv = this;
 	mtd->owner = THIS_MODULE;
+	mtd->dev.parent = &pdev->dev;
 
 	/* 50 us command delay time */
 	this->chip_delay = 5;
@@ -880,7 +881,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	this->read_buf = mxc_nand_read_buf;
 	this->verify_buf = mxc_nand_verify_buf;
 
-	host->clk = clk_get(&pdev->dev, "nfc_clk");
+	host->clk = clk_get(&pdev->dev, "nfc");
 	if (IS_ERR(host->clk))
 		goto eclk;
 

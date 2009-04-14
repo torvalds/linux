@@ -199,7 +199,7 @@ static void check_gpgd(struct lg_cpu *cpu, pgd_t gpgd)
  *
  * If we fixed up the fault (ie. we mapped the address), this routine returns
  * true.  Otherwise, it was a real fault and we need to tell the Guest. */
-int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
+bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 {
 	pgd_t gpgd;
 	pgd_t *spgd;
@@ -211,7 +211,7 @@ int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 	gpgd = lgread(cpu, gpgd_addr(cpu, vaddr), pgd_t);
 	/* Toplevel not present?  We can't map it in. */
 	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
-		return 0;
+		return false;
 
 	/* Now look at the matching shadow entry. */
 	spgd = spgd_addr(cpu, cpu->cpu_pgd, vaddr);
@@ -222,7 +222,7 @@ int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 		 * simple for this corner case. */
 		if (!ptepage) {
 			kill_guest(cpu, "out of memory allocating pte page");
-			return 0;
+			return false;
 		}
 		/* We check that the Guest pgd is OK. */
 		check_gpgd(cpu, gpgd);
@@ -238,16 +238,16 @@ int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 
 	/* If this page isn't in the Guest page tables, we can't page it in. */
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))
-		return 0;
+		return false;
 
 	/* Check they're not trying to write to a page the Guest wants
 	 * read-only (bit 2 of errcode == write). */
 	if ((errcode & 2) && !(pte_flags(gpte) & _PAGE_RW))
-		return 0;
+		return false;
 
 	/* User access to a kernel-only page? (bit 3 == user access) */
 	if ((errcode & 4) && !(pte_flags(gpte) & _PAGE_USER))
-		return 0;
+		return false;
 
 	/* Check that the Guest PTE flags are OK, and the page number is below
 	 * the pfn_limit (ie. not mapping the Launcher binary). */
@@ -283,7 +283,7 @@ int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 	 * manipulated, the result returned and the code complete.  A small
 	 * delay and a trace of alliteration are the only indications the Guest
 	 * has that a page fault occurred at all. */
-	return 1;
+	return true;
 }
 
 /*H:360
@@ -296,7 +296,7 @@ int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
  *
  * This is a quick version which answers the question: is this virtual address
  * mapped by the shadow page tables, and is it writable? */
-static int page_writable(struct lg_cpu *cpu, unsigned long vaddr)
+static bool page_writable(struct lg_cpu *cpu, unsigned long vaddr)
 {
 	pgd_t *spgd;
 	unsigned long flags;
@@ -304,7 +304,7 @@ static int page_writable(struct lg_cpu *cpu, unsigned long vaddr)
 	/* Look at the current top level entry: is it present? */
 	spgd = spgd_addr(cpu, cpu->cpu_pgd, vaddr);
 	if (!(pgd_flags(*spgd) & _PAGE_PRESENT))
-		return 0;
+		return false;
 
 	/* Check the flags on the pte entry itself: it must be present and
 	 * writable. */
@@ -373,8 +373,10 @@ unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
 	/* First step: get the top-level Guest page table entry. */
 	gpgd = lgread(cpu, gpgd_addr(cpu, vaddr), pgd_t);
 	/* Toplevel not present?  We can't map it in. */
-	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
+	if (!(pgd_flags(gpgd) & _PAGE_PRESENT)) {
 		kill_guest(cpu, "Bad address %#lx", vaddr);
+		return -1UL;
+	}
 
 	gpte = lgread(cpu, gpte_addr(gpgd, vaddr), pte_t);
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))

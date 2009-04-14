@@ -18,8 +18,12 @@
 #include <linux/mtd/sh_flctl.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/smc911x.h>
+#include <linux/smsc911x.h>
 #include <linux/gpio.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/spi_gpio.h>
+#include <media/ov772x.h>
+#include <media/soc_camera.h>
 #include <media/soc_camera_platform.h>
 #include <media/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
@@ -27,12 +31,14 @@
 #include <asm/clock.h>
 #include <cpu/sh7723.h>
 
-static struct smc911x_platdata smc911x_info = {
-	.flags = SMC911X_USE_32BIT,
-	.irq_flags = IRQF_TRIGGER_LOW,
+static struct smsc911x_platform_config smsc911x_config = {
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+	.flags		= SMSC911X_USE_32BIT,
 };
 
-static struct resource smc9118_resources[] = {
+static struct resource smsc9118_resources[] = {
 	[0] = {
 		.start	= 0xb6080000,
 		.end	= 0xb60fffff,
@@ -45,13 +51,13 @@ static struct resource smc9118_resources[] = {
 	}
 };
 
-static struct platform_device smc9118_device = {
-	.name		= "smc911x",
+static struct platform_device smsc9118_device = {
+	.name		= "smsc911x",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(smc9118_resources),
-	.resource	= smc9118_resources,
+	.num_resources	= ARRAY_SIZE(smsc9118_resources),
+	.resource	= smsc9118_resources,
 	.dev		= {
-		.platform_data = &smc911x_info,
+		.platform_data = &smsc911x_config,
 	},
 };
 
@@ -161,6 +167,16 @@ static void ap320_wvga_power_on(void *board_data)
 	ctrl_outw(0x100, FPGA_BKLREG);
 }
 
+static void ap320_wvga_power_off(void *board_data)
+{
+	/* backlight */
+	ctrl_outw(0, FPGA_BKLREG);
+	gpio_set_value(GPIO_PTS3, 1);
+
+	/* ASD AP-320/325 LCD OFF */
+	ctrl_outw(0, FPGA_LCDREG);
+}
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.clock_source = LCDC_CLK_EXTERNAL,
 	.ch[0] = {
@@ -186,6 +202,7 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		},
 		.board_cfg = {
 			.display_on = ap320_wvga_power_on,
+			.display_off = ap320_wvga_power_off,
 		},
 	}
 };
@@ -212,7 +229,14 @@ static struct platform_device lcdc_device = {
 	},
 };
 
+static void camera_power(int val)
+{
+	gpio_set_value(GPIO_PTZ5, val); /* RST_CAM/RSTB */
+	mdelay(10);
+}
+
 #ifdef CONFIG_I2C
+/* support for the old ncm03j camera */
 static unsigned char camera_ncm03j_magic[] =
 {
 	0x87, 0x00, 0x88, 0x08, 0x89, 0x01, 0x8A, 0xE8,
@@ -233,6 +257,23 @@ static unsigned char camera_ncm03j_magic[] =
 	0x63, 0xD4, 0x64, 0xEA, 0xD6, 0x0F,
 };
 
+static int camera_probe(void)
+{
+	struct i2c_adapter *a = i2c_get_adapter(0);
+	struct i2c_msg msg;
+	int ret;
+
+	camera_power(1);
+	msg.addr = 0x6e;
+	msg.buf = camera_ncm03j_magic;
+	msg.len = 2;
+	msg.flags = 0;
+	ret = i2c_transfer(a, &msg, 1);
+	camera_power(0);
+
+	return ret;
+}
+
 static int camera_set_capture(struct soc_camera_platform_info *info,
 			      int enable)
 {
@@ -241,9 +282,11 @@ static int camera_set_capture(struct soc_camera_platform_info *info,
 	int ret = 0;
 	int i;
 
+	camera_power(0);
 	if (!enable)
 		return 0; /* no disable for now */
 
+	camera_power(1);
 	for (i = 0; i < ARRAY_SIZE(camera_ncm03j_magic); i += 2) {
 		u_int8_t buf[8];
 
@@ -282,11 +325,37 @@ static struct platform_device camera_device = {
 		.platform_data	= &camera_info,
 	},
 };
+
+static int __init camera_setup(void)
+{
+	if (camera_probe() > 0)
+		platform_device_register(&camera_device);
+
+	return 0;
+}
+late_initcall(camera_setup);
+
 #endif /* CONFIG_I2C */
 
+static int ov7725_power(struct device *dev, int mode)
+{
+	camera_power(0);
+	if (mode)
+		camera_power(1);
+
+	return 0;
+}
+
+static struct ov772x_camera_info ov7725_info = {
+	.buswidth  = SOCAM_DATAWIDTH_8,
+	.flags = OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP,
+	.link = {
+		.power  = ov7725_power,
+	},
+};
+
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
-	.flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_HSYNC_ACTIVE_HIGH |
-	SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_MASTER | SOCAM_DATAWIDTH_8,
+	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
 };
 
 static struct resource ceu_resources[] = {
@@ -315,20 +384,45 @@ static struct platform_device ceu_device = {
 	},
 };
 
+struct spi_gpio_platform_data sdcard_cn3_platform_data = {
+	.sck = GPIO_PTD0,
+	.mosi = GPIO_PTD1,
+	.miso = GPIO_PTD2,
+	.num_chipselect = 1,
+};
+
+static struct platform_device sdcard_cn3_device = {
+	.name		= "spi_gpio",
+	.dev	= {
+		.platform_data	= &sdcard_cn3_platform_data,
+	},
+};
+
 static struct platform_device *ap325rxa_devices[] __initdata = {
-	&smc9118_device,
+	&smsc9118_device,
 	&ap325rxa_nor_flash_device,
 	&lcdc_device,
 	&ceu_device,
-#ifdef CONFIG_I2C
-	&camera_device,
-#endif
 	&nand_flash_device,
+	&sdcard_cn3_device,
 };
 
 static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8563", 0x51),
+	},
+	{
+		I2C_BOARD_INFO("ov772x", 0x21),
+		.platform_data = &ov7725_info,
+	},
+};
+
+static struct spi_board_info ap325rxa_spi_devices[] = {
+	{
+		.modalias = "mmc_spi",
+		.max_speed_hz = 5000000,
+		.chip_select = 0,
+		.controller_data = (void *) GPIO_PTD5,
 	},
 };
 
@@ -398,7 +492,7 @@ static int __init ap325rxa_devices_setup(void)
 	gpio_request(GPIO_PTZ6, NULL);
 	gpio_direction_output(GPIO_PTZ6, 0); /* STBY_CAM */
 	gpio_request(GPIO_PTZ5, NULL);
-	gpio_direction_output(GPIO_PTZ5, 1); /* RST_CAM */
+	gpio_direction_output(GPIO_PTZ5, 0); /* RST_CAM */
 	gpio_request(GPIO_PTZ4, NULL);
 	gpio_direction_output(GPIO_PTZ4, 0); /* SADDR */
 
@@ -428,6 +522,9 @@ static int __init ap325rxa_devices_setup(void)
 
 	i2c_register_board_info(0, ap325rxa_i2c_devices,
 				ARRAY_SIZE(ap325rxa_i2c_devices));
+
+	spi_register_board_info(ap325rxa_spi_devices,
+				ARRAY_SIZE(ap325rxa_spi_devices));
 
 	return platform_add_devices(ap325rxa_devices,
 				ARRAY_SIZE(ap325rxa_devices));

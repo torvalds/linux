@@ -162,44 +162,41 @@ static tEplApiInstance EplApiInstance_g;
 //---------------------------------------------------------------------------
 
 // NMT state change event callback function
-static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange
-						NmtStateChange_p);
+static tEplKernel EplApiCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p);
 
 // update DLL configuration from OD
-static tEplKernel PUBLIC EplApiUpdateDllConfig(BOOL fUpdateIdentity_p);
+static tEplKernel EplApiUpdateDllConfig(BOOL fUpdateIdentity_p);
 
 // update OD from init param
-static tEplKernel PUBLIC EplApiUpdateObd(void);
+static tEplKernel EplApiUpdateObd(void);
 
 // process events from user event queue
-static tEplKernel PUBLIC EplApiProcessEvent(tEplEvent * pEplEvent_p);
+static tEplKernel EplApiProcessEvent(tEplEvent *pEplEvent_p);
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
 // callback function of SDO module
-static tEplKernel PUBLIC EplApiCbSdoCon(tEplSdoComFinished * pSdoComFinished_p);
+static tEplKernel EplApiCbSdoCon(tEplSdoComFinished *pSdoComFinished_p);
 #endif
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 // callback functions of NmtMnu module
-static tEplKernel PUBLIC EplApiCbNodeEvent(unsigned int uiNodeId_p,
-					   tEplNmtNodeEvent NodeEvent_p,
-					   tEplNmtState NmtState_p,
-					   WORD wErrorCode_p,
-					   BOOL fMandatory_p);
+static tEplKernel EplApiCbNodeEvent(unsigned int uiNodeId_p,
+				    tEplNmtNodeEvent NodeEvent_p,
+				    tEplNmtState NmtState_p,
+				    u16 wErrorCode_p, BOOL fMandatory_p);
 
-static tEplKernel PUBLIC EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
-					   tEplNmtState NmtState_p,
-					   WORD wErrorCode_p);
+static tEplKernel EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
+				    tEplNmtState NmtState_p,
+				    u16 wErrorCode_p);
 #endif
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_LEDU)) != 0)
 // callback function of Ledu module
-static tEplKernel PUBLIC EplApiCbLedStateChange(tEplLedType LedType_p,
-						BOOL fOn_p);
+static tEplKernel EplApiCbLedStateChange(tEplLedType LedType_p, BOOL fOn_p);
 #endif
 
 // OD initialization function (implemented in Objdict.c)
-tEplKernel PUBLIC EplObdInitRam(tEplObdInitParam MEM * pInitParam_p);
+tEplKernel EplObdInitRam(tEplObdInitParam *pInitParam_p);
 
 //=========================================================================//
 //                                                                         //
@@ -226,7 +223,7 @@ tEplKernel PUBLIC EplObdInitRam(tEplObdInitParam MEM * pInitParam_p);
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiInitialize(tEplApiInitParam * pInitParam_p)
+tEplKernel EplApiInitialize(tEplApiInitParam *pInitParam_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplObdInitParam ObdInitParam;
@@ -415,7 +412,7 @@ tEplKernel PUBLIC EplApiInitialize(tEplApiInitParam * pInitParam_p)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiShutdown(void)
+tEplKernel EplApiShutdown(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -523,7 +520,7 @@ tEplKernel PUBLIC EplApiShutdown(void)
 // State:
 //----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiExecNmtCommand(tEplNmtEvent NmtEvent_p)
+tEplKernel EplApiExecNmtCommand(tEplNmtEvent NmtEvent_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -553,15 +550,15 @@ tEplKernel PUBLIC EplApiExecNmtCommand(tEplNmtEvent NmtEvent_p)
 // State:
 //----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiLinkObject(unsigned int uiObjIndex_p,
-				   void *pVar_p,
-				   unsigned int *puiVarEntries_p,
-				   tEplObdSize * pEntrySize_p,
-				   unsigned int uiFirstSubindex_p)
+tEplKernel EplApiLinkObject(unsigned int uiObjIndex_p,
+			    void *pVar_p,
+			    unsigned int *puiVarEntries_p,
+			    tEplObdSize *pEntrySize_p,
+			    unsigned int uiFirstSubindex_p)
 {
-	BYTE bVarEntries;
-	BYTE bIndexEntries;
-	BYTE MEM *pbData;
+	u8 bVarEntries;
+	u8 bIndexEntries;
+	u8 *pbData;
 	unsigned int uiSubindex;
 	tEplVarParam VarParam;
 	tEplObdSize EntrySize;
@@ -577,8 +574,8 @@ tEplKernel PUBLIC EplApiLinkObject(unsigned int uiObjIndex_p,
 		goto Exit;
 	}
 
-	pbData = (BYTE MEM *) pVar_p;
-	bVarEntries = (BYTE) * puiVarEntries_p;
+	pbData = (u8 *)pVar_p;
+	bVarEntries = (u8) * puiVarEntries_p;
 	UsedSize = 0;
 
 	// init VarParam structure with default values
@@ -591,7 +588,7 @@ tEplKernel PUBLIC EplApiLinkObject(unsigned int uiObjIndex_p,
 		EntrySize = (tEplObdSize) sizeof(bIndexEntries);
 		RetCode = EplObdReadEntry(uiObjIndex_p,
 					  0x00,
-					  (void GENERIC *)&bIndexEntries,
+					  (void *)&bIndexEntries,
 					  &EntrySize);
 
 		if ((RetCode != kEplSuccessful) || (bIndexEntries == 0x00)) {
@@ -610,7 +607,7 @@ tEplKernel PUBLIC EplApiLinkObject(unsigned int uiObjIndex_p,
 	// object actually has.
 	if ((bIndexEntries > (bVarEntries + uiFirstSubindex_p - 1)) &&
 	    (bVarEntries != 0x00)) {
-		bIndexEntries = (BYTE) (bVarEntries + uiFirstSubindex_p - 1);
+		bIndexEntries = (u8) (bVarEntries + uiFirstSubindex_p - 1);
 	}
 	// map entries
 	for (uiSubindex = uiFirstSubindex_p; uiSubindex <= bIndexEntries;
@@ -677,13 +674,13 @@ tEplKernel PUBLIC EplApiLinkObject(unsigned int uiObjIndex_p,
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiReadObject(tEplSdoComConHdl * pSdoComConHdl_p,
-				   unsigned int uiNodeId_p,
-				   unsigned int uiIndex_p,
-				   unsigned int uiSubindex_p,
-				   void *pDstData_le_p,
-				   unsigned int *puiSize_p,
-				   tEplSdoType SdoType_p, void *pUserArg_p)
+tEplKernel EplApiReadObject(tEplSdoComConHdl *pSdoComConHdl_p,
+			    unsigned int uiNodeId_p,
+			    unsigned int uiIndex_p,
+			    unsigned int uiSubindex_p,
+			    void *pDstData_le_p,
+			    unsigned int *puiSize_p,
+			    tEplSdoType SdoType_p, void *pUserArg_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -765,13 +762,13 @@ tEplKernel PUBLIC EplApiReadObject(tEplSdoComConHdl * pSdoComConHdl_p,
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiWriteObject(tEplSdoComConHdl * pSdoComConHdl_p,
-				    unsigned int uiNodeId_p,
-				    unsigned int uiIndex_p,
-				    unsigned int uiSubindex_p,
-				    void *pSrcData_le_p,
-				    unsigned int uiSize_p,
-				    tEplSdoType SdoType_p, void *pUserArg_p)
+tEplKernel EplApiWriteObject(tEplSdoComConHdl *pSdoComConHdl_p,
+			     unsigned int uiNodeId_p,
+			     unsigned int uiIndex_p,
+			     unsigned int uiSubindex_p,
+			     void *pSrcData_le_p,
+			     unsigned int uiSize_p,
+			     tEplSdoType SdoType_p, void *pUserArg_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -850,7 +847,7 @@ tEplKernel PUBLIC EplApiWriteObject(tEplSdoComConHdl * pSdoComConHdl_p,
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiFreeSdoChannel(tEplSdoComConHdl SdoComConHdl_p)
+tEplKernel EplApiFreeSdoChannel(tEplSdoComConHdl SdoComConHdl_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -881,10 +878,9 @@ tEplKernel PUBLIC EplApiFreeSdoChannel(tEplSdoComConHdl SdoComConHdl_p)
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiReadLocalObject(unsigned int uiIndex_p,
-					unsigned int uiSubindex_p,
-					void *pDstData_p,
-					unsigned int *puiSize_p)
+tEplKernel EplApiReadLocalObject(unsigned int uiIndex_p,
+				 unsigned int uiSubindex_p,
+				 void *pDstData_p, unsigned int *puiSize_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplObdSize ObdSize;
@@ -911,10 +907,10 @@ tEplKernel PUBLIC EplApiReadLocalObject(unsigned int uiIndex_p,
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiWriteLocalObject(unsigned int uiIndex_p,
-					 unsigned int uiSubindex_p,
-					 void *pSrcData_p,
-					 unsigned int uiSize_p)
+tEplKernel EplApiWriteLocalObject(unsigned int uiIndex_p,
+				  unsigned int uiSubindex_p,
+				  void *pSrcData_p,
+				  unsigned int uiSize_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -939,8 +935,8 @@ tEplKernel PUBLIC EplApiWriteLocalObject(unsigned int uiIndex_p,
 //
 // ----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiMnTriggerStateChange(unsigned int uiNodeId_p,
-					     tEplNmtNodeCommand NodeCommand_p)
+tEplKernel EplApiMnTriggerStateChange(unsigned int uiNodeId_p,
+				      tEplNmtNodeCommand NodeCommand_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -966,7 +962,7 @@ tEplKernel PUBLIC EplApiMnTriggerStateChange(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiCbObdAccess(tEplObdCbParam MEM * pParam_p)
+tEplKernel EplApiCbObdAccess(tEplObdCbParam *pParam_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -1001,8 +997,8 @@ tEplKernel PUBLIC EplApiCbObdAccess(tEplObdCbParam MEM * pParam_p)
 		{
 			if ((pParam_p->m_ObdEvent == kEplObdEvPostWrite)
 			    && (pParam_p->m_uiSubIndex == 3)
-			    && (*((DWORD *) pParam_p->m_pArg) != 0)) {
-				DWORD dwVerifyConfInvalid = 0;
+			    && (*((u32 *) pParam_p->m_pArg) != 0)) {
+				u32 dwVerifyConfInvalid = 0;
 				// set CFM_VerifyConfiguration_REC.VerifyConfInvalid_U32 to 0
 				Ret =
 				    EplObdWriteEntry(0x1020, 4,
@@ -1016,9 +1012,9 @@ tEplKernel PUBLIC EplApiCbObdAccess(tEplObdCbParam MEM * pParam_p)
 	case 0x1F9E:		// NMT_ResetCmd_U8
 		{
 			if (pParam_p->m_ObdEvent == kEplObdEvPreWrite) {
-				BYTE bNmtCommand;
+				u8 bNmtCommand;
 
-				bNmtCommand = *((BYTE *) pParam_p->m_pArg);
+				bNmtCommand = *((u8 *) pParam_p->m_pArg);
 				// check value range
 				switch ((tEplNmtCommand) bNmtCommand) {
 				case kEplNmtCmdResetNode:
@@ -1036,9 +1032,9 @@ tEplKernel PUBLIC EplApiCbObdAccess(tEplObdCbParam MEM * pParam_p)
 					break;
 				}
 			} else if (pParam_p->m_ObdEvent == kEplObdEvPostWrite) {
-				BYTE bNmtCommand;
+				u8 bNmtCommand;
 
-				bNmtCommand = *((BYTE *) pParam_p->m_pArg);
+				bNmtCommand = *((u8 *) pParam_p->m_pArg);
 				// check value range
 				switch ((tEplNmtCommand) bNmtCommand) {
 				case kEplNmtCmdResetNode:
@@ -1115,7 +1111,7 @@ tEplKernel PUBLIC EplApiCbObdAccess(tEplObdCbParam MEM * pParam_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiProcessEvent(tEplEvent * pEplEvent_p)
+static tEplKernel EplApiProcessEvent(tEplEvent *pEplEvent_p)
 {
 	tEplKernel Ret;
 	tEplEventError *pEventError;
@@ -1188,15 +1184,14 @@ static tEplKernel PUBLIC EplApiProcessEvent(tEplEvent * pEplEvent_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange
-						NmtStateChange_p)
+static tEplKernel EplApiCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p)
 {
 	tEplKernel Ret = kEplSuccessful;
-	BYTE bNmtState;
+	u8 bNmtState;
 	tEplApiEventArg EventArg;
 
 	// save NMT state in OD
-	bNmtState = (BYTE) NmtStateChange_p.m_NewNmtState;
+	bNmtState = (u8) NmtStateChange_p.m_NewNmtState;
 	Ret = EplObdWriteEntry(0x1F8C, 0, &bNmtState, 1);
 	if (Ret != kEplSuccessful) {
 		goto Exit;
@@ -1275,7 +1270,7 @@ static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange
 	case kEplNmtCsNotActive:
 		{
 			// indicate completion of reset in NMT_ResetCmd_U8
-			bNmtState = (BYTE) kEplNmtCmdInvalidService;
+			bNmtState = (u8) kEplNmtCmdInvalidService;
 			Ret = EplObdWriteEntry(0x1F9E, 0, &bNmtState, 1);
 			if (Ret != kEplSuccessful) {
 				goto Exit;
@@ -1411,14 +1406,14 @@ static tEplKernel PUBLIC EplApiCbNmtStateChange(tEplEventNmtStateChange
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiUpdateDllConfig(BOOL fUpdateIdentity_p)
+static tEplKernel EplApiUpdateDllConfig(BOOL fUpdateIdentity_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplDllConfigParam DllConfigParam;
 	tEplDllIdentParam DllIdentParam;
 	tEplObdSize ObdSize;
-	WORD wTemp;
-	BYTE bTemp;
+	u16 wTemp;
+	u8 bTemp;
 
 	// configure Dll
 	EPL_MEMSET(&DllConfigParam, 0, sizeof(DllConfigParam));
@@ -1634,11 +1629,11 @@ static tEplKernel PUBLIC EplApiUpdateDllConfig(BOOL fUpdateIdentity_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiUpdateObd(void)
+static tEplKernel EplApiUpdateObd(void)
 {
 	tEplKernel Ret = kEplSuccessful;
-	WORD wTemp;
-	BYTE bTemp;
+	u16 wTemp;
+	u8 bTemp;
 
 	// set node id in OD
 	Ret = EplObdSetNodeId(EplApiInstance_g.m_InitParam.m_uiNodeId,	// node id
@@ -1680,14 +1675,14 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
 		   } */
 	}
 
-	wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiIsochrTxMaxPayload;
+	wTemp = (u16) EplApiInstance_g.m_InitParam.m_uiIsochrTxMaxPayload;
 	Ret = EplObdWriteEntry(0x1F98, 1, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
         goto Exit;
     }*/
 
-	wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiIsochrRxMaxPayload;
+	wTemp = (u16) EplApiInstance_g.m_InitParam.m_uiIsochrRxMaxPayload;
 	Ret = EplObdWriteEntry(0x1F98, 2, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
@@ -1706,7 +1701,7 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
 	if (EplApiInstance_g.m_InitParam.m_uiPreqActPayloadLimit <=
 	    EPL_C_DLL_ISOCHR_MAX_PAYL) {
 		wTemp =
-		    (WORD) EplApiInstance_g.m_InitParam.m_uiPreqActPayloadLimit;
+		    (u16) EplApiInstance_g.m_InitParam.m_uiPreqActPayloadLimit;
 		Ret = EplObdWriteEntry(0x1F98, 4, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
@@ -1717,7 +1712,7 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
 	if (EplApiInstance_g.m_InitParam.m_uiPresActPayloadLimit <=
 	    EPL_C_DLL_ISOCHR_MAX_PAYL) {
 		wTemp =
-		    (WORD) EplApiInstance_g.m_InitParam.m_uiPresActPayloadLimit;
+		    (u16) EplApiInstance_g.m_InitParam.m_uiPresActPayloadLimit;
 		Ret = EplObdWriteEntry(0x1F98, 5, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
@@ -1735,7 +1730,7 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
     }*/
 
 	if (EplApiInstance_g.m_InitParam.m_uiMultiplCycleCnt <= 0xFF) {
-		bTemp = (BYTE) EplApiInstance_g.m_InitParam.m_uiMultiplCycleCnt;
+		bTemp = (u8) EplApiInstance_g.m_InitParam.m_uiMultiplCycleCnt;
 		Ret = EplObdWriteEntry(0x1F98, 7, &bTemp, 1);
 /*    if(Ret != kEplSuccessful)
     {
@@ -1745,7 +1740,7 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
 
 	if (EplApiInstance_g.m_InitParam.m_uiAsyncMtu <=
 	    EPL_C_DLL_MAX_ASYNC_MTU) {
-		wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiAsyncMtu;
+		wTemp = (u16) EplApiInstance_g.m_InitParam.m_uiAsyncMtu;
 		Ret = EplObdWriteEntry(0x1F98, 8, &wTemp, 2);
 /*    if(Ret != kEplSuccessful)
     {
@@ -1754,7 +1749,7 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
 	}
 
 	if (EplApiInstance_g.m_InitParam.m_uiPrescaler <= 1000) {
-		wTemp = (WORD) EplApiInstance_g.m_InitParam.m_uiPrescaler;
+		wTemp = (u16) EplApiInstance_g.m_InitParam.m_uiPrescaler;
 		Ret = EplObdWriteEntry(0x1F98, 9, &wTemp, 2);
 		// ignore return code
 		Ret = kEplSuccessful;
@@ -1844,7 +1839,7 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
 		// write Device Name (0x1008)
 		Ret =
 		    EplObdWriteEntry(0x1008, 0,
-				     (void GENERIC *)EplApiInstance_g.
+				     (void *)EplApiInstance_g.
 				     m_InitParam.m_pszDevName,
 				     (tEplObdSize) strlen(EplApiInstance_g.
 							  m_InitParam.
@@ -1859,7 +1854,7 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
 		// write Hardware version (0x1009)
 		Ret =
 		    EplObdWriteEntry(0x1009, 0,
-				     (void GENERIC *)EplApiInstance_g.
+				     (void *)EplApiInstance_g.
 				     m_InitParam.m_pszHwVersion,
 				     (tEplObdSize) strlen(EplApiInstance_g.
 							  m_InitParam.
@@ -1874,7 +1869,7 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
 		// write Software version (0x100A)
 		Ret =
 		    EplObdWriteEntry(0x100A, 0,
-				     (void GENERIC *)EplApiInstance_g.
+				     (void *)EplApiInstance_g.
 				     m_InitParam.m_pszSwVersion,
 				     (tEplObdSize) strlen(EplApiInstance_g.
 							  m_InitParam.
@@ -1905,7 +1900,7 @@ static tEplKernel PUBLIC EplApiUpdateObd(void)
 //---------------------------------------------------------------------------
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_SDOC)) != 0)
-static tEplKernel PUBLIC EplApiCbSdoCon(tEplSdoComFinished * pSdoComFinished_p)
+static tEplKernel EplApiCbSdoCon(tEplSdoComFinished *pSdoComFinished_p)
 {
 	tEplKernel Ret;
 	tEplApiEventArg EventArg;
@@ -1946,10 +1941,10 @@ static tEplKernel PUBLIC EplApiCbSdoCon(tEplSdoComFinished * pSdoComFinished_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiCbNodeEvent(unsigned int uiNodeId_p,
-					   tEplNmtNodeEvent NodeEvent_p,
-					   tEplNmtState NmtState_p,
-					   WORD wErrorCode_p, BOOL fMandatory_p)
+static tEplKernel EplApiCbNodeEvent(unsigned int uiNodeId_p,
+				    tEplNmtNodeEvent NodeEvent_p,
+				    tEplNmtState NmtState_p,
+				    u16 wErrorCode_p, BOOL fMandatory_p)
 {
 	tEplKernel Ret;
 	tEplApiEventArg EventArg;
@@ -1990,9 +1985,9 @@ static tEplKernel PUBLIC EplApiCbNodeEvent(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
-					   tEplNmtState NmtState_p,
-					   WORD wErrorCode_p)
+static tEplKernel EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
+				    tEplNmtState NmtState_p,
+				    u16 wErrorCode_p)
 {
 	tEplKernel Ret;
 	tEplApiEventArg EventArg;
@@ -2033,8 +2028,7 @@ static tEplKernel PUBLIC EplApiCbBootEvent(tEplNmtBootEvent BootEvent_p,
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplApiCbLedStateChange(tEplLedType LedType_p,
-						BOOL fOn_p)
+static tEplKernel EplApiCbLedStateChange(tEplLedType LedType_p, BOOL fOn_p)
 {
 	tEplKernel Ret;
 	tEplApiEventArg EventArg;

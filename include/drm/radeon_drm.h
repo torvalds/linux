@@ -33,6 +33,8 @@
 #ifndef __RADEON_DRM_H__
 #define __RADEON_DRM_H__
 
+#include <linux/types.h>
+
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the X server file (radeon_sarea.h)
  */
@@ -304,6 +306,8 @@ typedef union {
 
 #define RADEON_SCRATCH_REG_OFFSET	32
 
+#define R600_SCRATCH_REG_OFFSET         256
+
 #define RADEON_NR_SAREA_CLIPRECTS	12
 
 /* There are 2 heaps (local/GART).  Each region within a heap is a
@@ -526,7 +530,8 @@ typedef struct drm_radeon_init {
 		RADEON_INIT_CP = 0x01,
 		RADEON_CLEANUP_CP = 0x02,
 		RADEON_INIT_R200_CP = 0x03,
-		RADEON_INIT_R300_CP = 0x04
+		RADEON_INIT_R300_CP = 0x04,
+		RADEON_INIT_R600_CP = 0x05
 	} func;
 	unsigned long sarea_priv_offset;
 	int is_pci;
@@ -722,7 +727,7 @@ typedef struct drm_radeon_irq_wait {
 
 typedef struct drm_radeon_setparam {
 	unsigned int param;
-	int64_t value;
+	__s64 value;
 } drm_radeon_setparam_t;
 
 #define RADEON_SETPARAM_FB_LOCATION    1	/* determined framebuffer location */

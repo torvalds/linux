@@ -14,7 +14,7 @@ typedef enum {
 } reiserfs_super_block_flags;
 
 /* struct reiserfs_super_block accessors/mutators
- * since this is a disk structure, it will always be in 
+ * since this is a disk structure, it will always be in
  * little endian format. */
 #define sb_block_count(sbp)         (le32_to_cpu((sbp)->s_v1.s_block_count))
 #define set_sb_block_count(sbp,v)   ((sbp)->s_v1.s_block_count = cpu_to_le32(v))
@@ -73,6 +73,9 @@ typedef enum {
 #define sb_version(sbp)            (le16_to_cpu((sbp)->s_v1.s_version))
 #define set_sb_version(sbp,v)      ((sbp)->s_v1.s_version = cpu_to_le16(v))
 
+#define sb_mnt_count(sbp)	   (le16_to_cpu((sbp)->s_mnt_count))
+#define set_sb_mnt_count(sbp, v)   ((sbp)->s_mnt_count = cpu_to_le16(v))
+
 #define sb_reserved_for_journal(sbp) \
               (le16_to_cpu((sbp)->s_v1.s_reserved_for_journal))
 #define set_sb_reserved_for_journal(sbp,v) \
@@ -80,16 +83,16 @@ typedef enum {
 
 /* LOGGING -- */
 
-/* These all interelate for performance.  
+/* These all interelate for performance.
 **
-** If the journal block count is smaller than n transactions, you lose speed. 
+** If the journal block count is smaller than n transactions, you lose speed.
 ** I don't know what n is yet, I'm guessing 8-16.
 **
 ** typical transaction size depends on the application, how often fsync is
-** called, and how many metadata blocks you dirty in a 30 second period.  
+** called, and how many metadata blocks you dirty in a 30 second period.
 ** The more small files (<16k) you use, the larger your transactions will
 ** be.
-** 
+**
 ** If your journal fills faster than dirty buffers get flushed to disk, it must flush them before allowing the journal
 ** to wrap, which slows things down.  If you need high speed meta data updates, the journal should be big enough
 ** to prevent wrapping before dirty meta blocks get to disk.
@@ -153,7 +156,7 @@ struct reiserfs_journal_list {
 	atomic_t j_commit_left;
 	atomic_t j_older_commits_done;	/* all commits older than this on disk */
 	struct mutex j_commit_mutex;
-	unsigned long j_trans_id;
+	unsigned int j_trans_id;
 	time_t j_timestamp;
 	struct reiserfs_list_bitmap *j_list_bitmap;
 	struct buffer_head *j_commit_bh;	/* commit buffer head */
@@ -182,7 +185,7 @@ struct reiserfs_journal {
 	int j_1st_reserved_block;	/* first block on s_dev of reserved area journal */
 
 	unsigned long j_state;
-	unsigned long j_trans_id;
+	unsigned int j_trans_id;
 	unsigned long j_mount_id;
 	unsigned long j_start;	/* start of current waiting commit (index into j_ap_blocks) */
 	unsigned long j_len;	/* length of current waiting commit */
@@ -223,10 +226,10 @@ struct reiserfs_journal {
 	int j_num_work_lists;	/* number that need attention from kreiserfsd */
 
 	/* debugging to make sure things are flushed in order */
-	int j_last_flush_id;
+	unsigned int j_last_flush_id;
 
 	/* debugging to make sure things are committed in order */
-	int j_last_commit_id;
+	unsigned int j_last_commit_id;
 
 	struct list_head j_bitmap_nodes;
 	struct list_head j_dirty_buffers;
@@ -239,7 +242,7 @@ struct reiserfs_journal {
 
 	struct reiserfs_list_bitmap j_list_bitmap[JOURNAL_NUM_BITMAPS];	/* array of bitmaps to record the deleted blocks */
 	struct reiserfs_journal_cnode *j_hash_table[JOURNAL_HASH_SIZE];	/* hash table for real buffer heads in current trans */
-	struct reiserfs_journal_cnode *j_list_hash_table[JOURNAL_HASH_SIZE];	/* hash table for all the real buffer heads in all 
+	struct reiserfs_journal_cnode *j_list_hash_table[JOURNAL_HASH_SIZE];	/* hash table for all the real buffer heads in all
 										   the transactions */
 	struct list_head j_prealloc_list;	/* list of inodes which have preallocated blocks */
 	int j_persistent_trans;
@@ -399,10 +402,7 @@ struct reiserfs_sb_info {
 	int reserved_blocks;	/* amount of blocks reserved for further allocations */
 	spinlock_t bitmap_lock;	/* this lock on now only used to protect reserved_blocks variable */
 	struct dentry *priv_root;	/* root of /.reiserfs_priv */
-#ifdef CONFIG_REISERFS_FS_XATTR
 	struct dentry *xattr_root;	/* root of /.reiserfs_priv/.xa */
-	struct rw_semaphore xattr_dir_sem;
-#endif
 	int j_errno;
 #ifdef CONFIG_QUOTA
 	char *s_qf_names[MAXQUOTAS];
@@ -426,7 +426,7 @@ enum reiserfs_mount_options {
 				   partition will be dealt with in a
 				   manner of 3.5.x */
 
-/* -o hash={tea, rupasov, r5, detect} is meant for properly mounting 
+/* -o hash={tea, rupasov, r5, detect} is meant for properly mounting
 ** reiserfs disks from 3.5.19 or earlier.  99% of the time, this option
 ** is not required.  If the normal autodection code can't determine which
 ** hash to use (because both hashes had the same value for a file)
@@ -451,7 +451,6 @@ enum reiserfs_mount_options {
 	REISERFS_NO_UNHASHED_RELOCATION,
 	REISERFS_HASHED_RELOCATION,
 	REISERFS_ATTRS,
-	REISERFS_XATTRS,
 	REISERFS_XATTRS_USER,
 	REISERFS_POSIXACL,
 	REISERFS_BARRIER_NONE,
@@ -489,7 +488,7 @@ enum reiserfs_mount_options {
 #define reiserfs_data_log(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_DATA_LOG))
 #define reiserfs_data_ordered(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_DATA_ORDERED))
 #define reiserfs_data_writeback(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_DATA_WRITEBACK))
-#define reiserfs_xattrs(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_XATTRS))
+#define reiserfs_xattrs(s) ((s)->s_xattr != NULL)
 #define reiserfs_xattrs_user(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_XATTRS_USER))
 #define reiserfs_posixacl(s) (REISERFS_SB(s)->s_mount_opt & (1 << REISERFS_POSIXACL))
 #define reiserfs_xattrs_optional(s) (reiserfs_xattrs_user(s) || reiserfs_posixacl(s))

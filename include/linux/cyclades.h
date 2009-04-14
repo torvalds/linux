@@ -82,9 +82,9 @@ struct cyclades_monitor {
  * open)
  */
 struct cyclades_idle_stats {
-    time_t	   in_use;	/* Time device has been in use (secs) */
-    time_t	   recv_idle;	/* Time since last char received (secs) */
-    time_t	   xmit_idle;	/* Time since last char transmitted (secs) */
+    __kernel_time_t in_use;	/* Time device has been in use (secs) */
+    __kernel_time_t recv_idle;	/* Time since last char received (secs) */
+    __kernel_time_t xmit_idle;	/* Time since last char transmitted (secs) */
     unsigned long  recv_bytes;	/* Bytes received */
     unsigned long  xmit_bytes;	/* Bytes transmitted */
     unsigned long  overruns;	/* Input overruns */
@@ -149,8 +149,6 @@ struct CYZ_BOOT_CTRL {
  *	data structures. They accomodate differences between HW
  *	architectures and compilers.
  */
-
-#include <asm/types.h>
 
 typedef __u64  ucdouble;		/* 64 bits, unsigned */
 typedef __u32  uclong;			/* 32 bits, unsigned */

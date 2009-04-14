@@ -841,7 +841,7 @@ static int tt_detect(void)
 		tt_dmasnd.ctrl = DMASND_CTRL_OFF;
 		udelay(20);		/* wait a while for things to settle down */
 	}
-	mono_moni = (mfp.par_dt_reg & 0x80) == 0;
+	mono_moni = (st_mfp.par_dt_reg & 0x80) == 0;
 
 	tt_get_par(&par);
 	tt_encode_var(&atafb_predefined[0], &par);
@@ -2035,7 +2035,7 @@ static int stste_detect(void)
 		tt_dmasnd.ctrl = DMASND_CTRL_OFF;
 		udelay(20);		/* wait a while for things to settle down */
 	}
-	mono_moni = (mfp.par_dt_reg & 0x80) == 0;
+	mono_moni = (st_mfp.par_dt_reg & 0x80) == 0;
 
 	stste_get_par(&par);
 	stste_encode_var(&atafb_predefined[0], &par);
@@ -2086,20 +2086,20 @@ static void st_ovsc_switch(void)
 		return;
 	local_irq_save(flags);
 
-	mfp.tim_ct_b = 0x10;
-	mfp.active_edge |= 8;
-	mfp.tim_ct_b = 0;
-	mfp.tim_dt_b = 0xf0;
-	mfp.tim_ct_b = 8;
-	while (mfp.tim_dt_b > 1)	/* TOS does it this way, don't ask why */
+	st_mfp.tim_ct_b = 0x10;
+	st_mfp.active_edge |= 8;
+	st_mfp.tim_ct_b = 0;
+	st_mfp.tim_dt_b = 0xf0;
+	st_mfp.tim_ct_b = 8;
+	while (st_mfp.tim_dt_b > 1)	/* TOS does it this way, don't ask why */
 		;
-	new = mfp.tim_dt_b;
+	new = st_mfp.tim_dt_b;
 	do {
 		udelay(LINE_DELAY);
 		old = new;
-		new = mfp.tim_dt_b;
+		new = st_mfp.tim_dt_b;
 	} while (old != new);
-	mfp.tim_ct_b = 0x10;
+	st_mfp.tim_ct_b = 0x10;
 	udelay(SYNC_DELAY);
 
 	if (atari_switches & ATARI_SWITCH_OVSC_IKBD)

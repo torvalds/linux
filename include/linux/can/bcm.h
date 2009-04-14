@@ -14,6 +14,8 @@
 #ifndef CAN_BCM_H
 #define CAN_BCM_H
 
+#include <linux/types.h>
+
 /**
  * struct bcm_msg_head - head of messages to/from the broadcast manager
  * @opcode:    opcode, see enum below.

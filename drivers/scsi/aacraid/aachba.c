@@ -143,7 +143,7 @@ static char *aac_get_status_string(u32 status);
  */
 
 static int nondasd = -1;
-static int aac_cache;
+static int aac_cache = 2;	/* WCE=0 to avoid performance problems */
 static int dacmode = -1;
 int aac_msi;
 int aac_commit = -1;
@@ -157,7 +157,7 @@ module_param_named(cache, aac_cache, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(cache, "Disable Queue Flush commands:\n"
 	"\tbit 0 - Disable FUA in WRITE SCSI commands\n"
 	"\tbit 1 - Disable SYNCHRONIZE_CACHE SCSI command\n"
-	"\tbit 2 - Disable only if Battery not protecting Cache");
+	"\tbit 2 - Disable only if Battery is protecting Cache");
 module_param(dacmode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(dacmode, "Control whether dma addressing is using 64 bit DAC."
 	" 0=off, 1=on");
@@ -216,6 +216,14 @@ MODULE_PARM_DESC(expose_physicals, "Expose physical components of the arrays."
 int aac_reset_devices;
 module_param_named(reset_devices, aac_reset_devices, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(reset_devices, "Force an adapter reset at initialization.");
+
+int aac_wwn = 1;
+module_param_named(wwn, aac_wwn, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(wwn, "Select a WWN type for the arrays:\n"
+	"\t0 - Disable\n"
+	"\t1 - Array Meta Data Signature (default)\n"
+	"\t2 - Adapter Serial Number");
+
 
 static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 		struct fib *fibptr) {
@@ -1206,9 +1214,8 @@ static int aac_scsi_32(struct fib * fib, struct scsi_cmnd * cmd)
 
 static int aac_scsi_32_64(struct fib * fib, struct scsi_cmnd * cmd)
 {
-	if ((sizeof(dma_addr_t) > 4) &&
-	 (num_physpages > (0xFFFFFFFFULL >> PAGE_SHIFT)) &&
-	 (fib->dev->adapter_info.options & AAC_OPT_SGMAP_HOST64))
+	if ((sizeof(dma_addr_t) > 4) && fib->dev->needs_dac &&
+	    (fib->dev->adapter_info.options & AAC_OPT_SGMAP_HOST64))
 		return FAILED;
 	return aac_scsi_32(fib, cmd);
 }
@@ -1371,8 +1378,11 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	if (dev->nondasd_support && !dev->in_reset)
 		printk(KERN_INFO "%s%d: Non-DASD support enabled.\n",dev->name, dev->id);
 
+	if (dma_get_required_mask(&dev->pdev->dev) > DMA_32BIT_MASK)
+		dev->needs_dac = 1;
 	dev->dac_support = 0;
-	if( (sizeof(dma_addr_t) > 4) && (dev->adapter_info.options & AAC_OPT_SGMAP_HOST64)){
+	if ((sizeof(dma_addr_t) > 4) && dev->needs_dac &&
+	    (dev->adapter_info.options & AAC_OPT_SGMAP_HOST64)) {
 		if (!dev->in_reset)
 			printk(KERN_INFO "%s%d: 64bit support enabled.\n",
 				dev->name, dev->id);
@@ -1382,14 +1392,23 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	if(dacmode != -1) {
 		dev->dac_support = (dacmode!=0);
 	}
+
+	/* avoid problems with AAC_QUIRK_SCSI_32 controllers */
+	if (dev->dac_support &&	(aac_get_driver_ident(dev->cardtype)->quirks
+		& AAC_QUIRK_SCSI_32)) {
+		dev->nondasd_support = 0;
+		dev->jbod = 0;
+		expose_physicals = 0;
+	}
+
 	if(dev->dac_support != 0) {
-		if (!pci_set_dma_mask(dev->pdev, DMA_64BIT_MASK) &&
-			!pci_set_consistent_dma_mask(dev->pdev, DMA_64BIT_MASK)) {
+		if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(64)) &&
+			!pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(64))) {
 			if (!dev->in_reset)
 				printk(KERN_INFO"%s%d: 64 Bit DAC enabled\n",
 					dev->name, dev->id);
-		} else if (!pci_set_dma_mask(dev->pdev, DMA_32BIT_MASK) &&
-			!pci_set_consistent_dma_mask(dev->pdev, DMA_32BIT_MASK)) {
+		} else if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(32)) &&
+			!pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(32))) {
 			printk(KERN_INFO"%s%d: DMA mask set failed, 64 Bit DAC disabled\n",
 				dev->name, dev->id);
 			dev->dac_support = 0;
@@ -2058,7 +2077,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		dprintk((KERN_DEBUG "INQUIRY command, ID: %d.\n", cid));
 		memset(&inq_data, 0, sizeof (struct inquiry_data));
 
-		if (scsicmd->cmnd[1] & 0x1) {
+		if ((scsicmd->cmnd[1] & 0x1) && aac_wwn) {
 			char *arr = (char *)&inq_data;
 
 			/* EVPD bit set */
@@ -2081,7 +2100,12 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 				arr[1] = scsicmd->cmnd[2];
 				scsi_sg_copy_from_buffer(scsicmd, &inq_data,
 							 sizeof(inq_data));
-				return aac_get_container_serial(scsicmd);
+				if (aac_wwn != 2)
+					return aac_get_container_serial(
+						scsicmd);
+				/* SLES 10 SP1 special */
+				scsicmd->result = DID_OK << 16 |
+				  COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 			} else {
 				/* vpd page not implemented */
 				scsicmd->result = DID_OK << 16 |

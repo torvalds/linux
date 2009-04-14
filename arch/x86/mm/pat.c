@@ -11,6 +11,7 @@
 #include <linux/bootmem.h>
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -30,7 +31,7 @@
 #ifdef CONFIG_X86_PAT
 int __read_mostly pat_enabled = 1;
 
-void __cpuinit pat_disable(char *reason)
+void __cpuinit pat_disable(const char *reason)
 {
 	pat_enabled = 0;
 	printk(KERN_INFO "%s\n", reason);
@@ -42,6 +43,11 @@ static int __init nopat(char *str)
 	return 0;
 }
 early_param("nopat", nopat);
+#else
+static inline void pat_disable(const char *reason)
+{
+	(void)reason;
+}
 #endif
 
 
@@ -78,16 +84,20 @@ void pat_init(void)
 	if (!pat_enabled)
 		return;
 
-	/* Paranoia check. */
-	if (!cpu_has_pat && boot_pat_state) {
-		/*
-		 * If this happens we are on a secondary CPU, but
-		 * switched to PAT on the boot CPU. We have no way to
-		 * undo PAT.
-		 */
-		printk(KERN_ERR "PAT enabled, "
-		       "but not supported by secondary CPU\n");
-		BUG();
+	if (!cpu_has_pat) {
+		if (!boot_pat_state) {
+			pat_disable("PAT not supported by CPU.");
+			return;
+		} else {
+			/*
+			 * If this happens we are on a secondary CPU, but
+			 * switched to PAT on the boot CPU. We have no way to
+			 * undo PAT.
+			 */
+			printk(KERN_ERR "PAT enabled, "
+			       "but not supported by secondary CPU\n");
+			BUG();
+		}
 	}
 
 	/* Set PWT to Write-Combining. All other bits stay the same */
@@ -211,6 +221,33 @@ chk_conflict(struct memtype *new, struct memtype *entry, unsigned long *type)
 static struct memtype *cached_entry;
 static u64 cached_start;
 
+static int pat_pagerange_is_ram(unsigned long start, unsigned long end)
+{
+	int ram_page = 0, not_rampage = 0;
+	unsigned long page_nr;
+
+	for (page_nr = (start >> PAGE_SHIFT); page_nr < (end >> PAGE_SHIFT);
+	     ++page_nr) {
+		/*
+		 * For legacy reasons, physical address range in the legacy ISA
+		 * region is tracked as non-RAM. This will allow users of
+		 * /dev/mem to map portions of legacy ISA region, even when
+		 * some of those portions are listed(or not even listed) with
+		 * different e820 types(RAM/reserved/..)
+		 */
+		if (page_nr >= (ISA_END_ADDRESS >> PAGE_SHIFT) &&
+		    page_is_ram(page_nr))
+			ram_page = 1;
+		else
+			not_rampage = 1;
+
+		if (ram_page == not_rampage)
+			return -1;
+	}
+
+	return ram_page;
+}
+
 /*
  * For RAM pages, mark the pages as non WB memory type using
  * PageNonWB (PG_arch_1). We allow only one set_memory_uc() or
@@ -333,9 +370,13 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 					      req_type & _PAGE_CACHE_MASK);
 	}
 
-	is_range_ram = pagerange_is_ram(start, end);
+	if (new_type)
+		*new_type = actual_type;
+
+	is_range_ram = pat_pagerange_is_ram(start, end);
 	if (is_range_ram == 1)
-		return reserve_ram_pages_type(start, end, req_type, new_type);
+		return reserve_ram_pages_type(start, end, req_type,
+					      new_type);
 	else if (is_range_ram < 0)
 		return -EINVAL;
 
@@ -346,9 +387,6 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	new->start	= start;
 	new->end	= end;
 	new->type	= actual_type;
-
-	if (new_type)
-		*new_type = actual_type;
 
 	spin_lock(&memtype_lock);
 
@@ -437,7 +475,7 @@ int free_memtype(u64 start, u64 end)
 	if (is_ISA_range(start, end - 1))
 		return 0;
 
-	is_range_ram = pagerange_is_ram(start, end);
+	is_range_ram = pat_pagerange_is_ram(start, end);
 	if (is_range_ram == 1)
 		return free_ram_pages_type(start, end);
 	else if (is_range_ram < 0)
@@ -597,62 +635,81 @@ void unmap_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 }
 
 /*
+ * Change the memory type for the physial address range in kernel identity
+ * mapping space if that range is a part of identity map.
+ */
+int kernel_map_sync_memtype(u64 base, unsigned long size, unsigned long flags)
+{
+	unsigned long id_sz;
+
+	if (!pat_enabled || base >= __pa(high_memory))
+		return 0;
+
+	id_sz = (__pa(high_memory) < base + size) ?
+				__pa(high_memory) - base :
+				size;
+
+	if (ioremap_change_attr((unsigned long)__va(base), id_sz, flags) < 0) {
+		printk(KERN_INFO
+			"%s:%d ioremap_change_attr failed %s "
+			"for %Lx-%Lx\n",
+			current->comm, current->pid,
+			cattr_name(flags),
+			base, (unsigned long long)(base + size));
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/*
  * Internal interface to reserve a range of physical memory with prot.
  * Reserved non RAM regions only and after successful reserve_memtype,
  * this func also keeps identity mapping (if any) in sync with this new prot.
  */
-static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t vma_prot)
+static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
+				int strict_prot)
 {
 	int is_ram = 0;
-	int id_sz, ret;
+	int ret;
 	unsigned long flags;
-	unsigned long want_flags = (pgprot_val(vma_prot) & _PAGE_CACHE_MASK);
+	unsigned long want_flags = (pgprot_val(*vma_prot) & _PAGE_CACHE_MASK);
 
-	is_ram = pagerange_is_ram(paddr, paddr + size);
+	is_ram = pat_pagerange_is_ram(paddr, paddr + size);
 
-	if (is_ram != 0) {
-		/*
-		 * For mapping RAM pages, drivers need to call
-		 * set_memory_[uc|wc|wb] directly, for reserve and free, before
-		 * setting up the PTE.
-		 */
-		WARN_ON_ONCE(1);
+	/*
+	 * reserve_pfn_range() doesn't support RAM pages. Maintain the current
+	 * behavior with RAM pages by returning success.
+	 */
+	if (is_ram != 0)
 		return 0;
-	}
 
 	ret = reserve_memtype(paddr, paddr + size, want_flags, &flags);
 	if (ret)
 		return ret;
 
 	if (flags != want_flags) {
-		free_memtype(paddr, paddr + size);
-		printk(KERN_ERR
-		"%s:%d map pfn expected mapping type %s for %Lx-%Lx, got %s\n",
-			current->comm, current->pid,
-			cattr_name(want_flags),
-			(unsigned long long)paddr,
-			(unsigned long long)(paddr + size),
-			cattr_name(flags));
-		return -EINVAL;
+		if (strict_prot || !is_new_memtype_allowed(want_flags, flags)) {
+			free_memtype(paddr, paddr + size);
+			printk(KERN_ERR "%s:%d map pfn expected mapping type %s"
+				" for %Lx-%Lx, got %s\n",
+				current->comm, current->pid,
+				cattr_name(want_flags),
+				(unsigned long long)paddr,
+				(unsigned long long)(paddr + size),
+				cattr_name(flags));
+			return -EINVAL;
+		}
+		/*
+		 * We allow returning different type than the one requested in
+		 * non strict case.
+		 */
+		*vma_prot = __pgprot((pgprot_val(*vma_prot) &
+				      (~_PAGE_CACHE_MASK)) |
+				     flags);
 	}
 
-	/* Need to keep identity mapping in sync */
-	if (paddr >= __pa(high_memory))
-		return 0;
-
-	id_sz = (__pa(high_memory) < paddr + size) ?
-				__pa(high_memory) - paddr :
-				size;
-
-	if (ioremap_change_attr((unsigned long)__va(paddr), id_sz, flags) < 0) {
+	if (kernel_map_sync_memtype(paddr, size, flags) < 0) {
 		free_memtype(paddr, paddr + size);
-		printk(KERN_ERR
-			"%s:%d reserve_pfn_range ioremap_change_attr failed %s "
-			"for %Lx-%Lx\n",
-			current->comm, current->pid,
-			cattr_name(flags),
-			(unsigned long long)paddr,
-			(unsigned long long)(paddr + size));
 		return -EINVAL;
 	}
 	return 0;
@@ -666,7 +723,7 @@ static void free_pfn_range(u64 paddr, unsigned long size)
 {
 	int is_ram;
 
-	is_ram = pagerange_is_ram(paddr, paddr + size);
+	is_ram = pat_pagerange_is_ram(paddr, paddr + size);
 	if (is_ram == 0)
 		free_memtype(paddr, paddr + size);
 }
@@ -689,6 +746,7 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 	unsigned long vma_start = vma->vm_start;
 	unsigned long vma_end = vma->vm_end;
 	unsigned long vma_size = vma_end - vma_start;
+	pgprot_t pgprot;
 
 	if (!pat_enabled)
 		return 0;
@@ -702,7 +760,8 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 			WARN_ON_ONCE(1);
 			return -EINVAL;
 		}
-		return reserve_pfn_range(paddr, vma_size, __pgprot(prot));
+		pgprot = __pgprot(prot);
+		return reserve_pfn_range(paddr, vma_size, &pgprot, 1);
 	}
 
 	/* reserve entire vma page by page, using pfn and prot from pte */
@@ -710,7 +769,8 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 		if (follow_phys(vma, vma_start + i, 0, &prot, &paddr))
 			continue;
 
-		retval = reserve_pfn_range(paddr, PAGE_SIZE, __pgprot(prot));
+		pgprot = __pgprot(prot);
+		retval = reserve_pfn_range(paddr, PAGE_SIZE, &pgprot, 1);
 		if (retval)
 			goto cleanup_ret;
 	}
@@ -741,7 +801,7 @@ cleanup_ret:
  * Note that this function can be called with caller trying to map only a
  * subrange/page inside the vma.
  */
-int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t prot,
+int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
 			unsigned long pfn, unsigned long size)
 {
 	int retval = 0;
@@ -758,14 +818,14 @@ int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t prot,
 	if (is_linear_pfn_mapping(vma)) {
 		/* reserve the whole chunk starting from vm_pgoff */
 		paddr = (resource_size_t)vma->vm_pgoff << PAGE_SHIFT;
-		return reserve_pfn_range(paddr, vma_size, prot);
+		return reserve_pfn_range(paddr, vma_size, prot, 0);
 	}
 
 	/* reserve page by page using pfn and size */
 	base_paddr = (resource_size_t)pfn << PAGE_SHIFT;
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		paddr = base_paddr + i;
-		retval = reserve_pfn_range(paddr, PAGE_SIZE, prot);
+		retval = reserve_pfn_range(paddr, PAGE_SIZE, prot, 0);
 		if (retval)
 			goto cleanup_ret;
 	}
@@ -831,6 +891,7 @@ pgprot_t pgprot_writecombine(pgprot_t prot)
 	else
 		return pgprot_noncached(prot);
 }
+EXPORT_SYMBOL_GPL(pgprot_writecombine);
 
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_X86_PAT)
 

@@ -185,7 +185,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		/* Make sure there is a MMU context. */
 		spin_lock(&mmu_context_lock);
 		get_mmu_context(next);
-		cpu_set(cpu, next->cpu_vm_mask);
+		cpumask_set_cpu(cpu, mm_cpumask(next));
 		spin_unlock(&mmu_context_lock);
 
 		/*

@@ -67,7 +67,7 @@ enum ec_command {
 
 #define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
-#define ACPI_EC_UDELAY		100	/* Wait 100us before polling EC again */
+#define ACPI_EC_CDELAY		10	/* Wait 10us before polling EC */
 
 #define ACPI_EC_STORM_THRESHOLD 8	/* number of false interrupts
 					   per one transaction */
@@ -120,30 +120,7 @@ static struct acpi_ec {
 	spinlock_t curr_lock;
 } *boot_ec, *first_ec;
 
-/* 
- * Some Asus system have exchanged ECDT data/command IO addresses.
- */
-static int print_ecdt_error(const struct dmi_system_id *id)
-{
-	printk(KERN_NOTICE PREFIX "%s detected - "
-		"ECDT has exchanged control/data I/O address\n",
-		id->ident);
-	return 0;
-}
-
-static struct dmi_system_id __cpuinitdata ec_dmi_table[] = {
-	{
-	print_ecdt_error, "Asus L4R", {
-	DMI_MATCH(DMI_BIOS_VERSION, "1008.006"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "L4R"),
-	DMI_MATCH(DMI_BOARD_NAME, "L4R") }, NULL},
-	{
-	print_ecdt_error, "Asus M6R", {
-	DMI_MATCH(DMI_BIOS_VERSION, "0207"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "M6R"),
-	DMI_MATCH(DMI_BOARD_NAME, "M6R") }, NULL},
-	{},
-};
+static int EC_FLAGS_MSI; /* Out-of-spec MSI controller */
 
 /* --------------------------------------------------------------------------
                              Transaction Management
@@ -259,13 +236,23 @@ static int ec_check_sci(struct acpi_ec *ec, u8 state)
 	return 0;
 }
 
+static void ec_delay(void)
+{
+	/* EC in MSI notebooks don't tolerate delays other than 550 usec */
+	if (EC_FLAGS_MSI)
+		udelay(ACPI_EC_DELAY);
+	else
+		/* Use shortest sleep available */
+		msleep(1);
+}
+
 static int ec_poll(struct acpi_ec *ec)
 {
 	unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
-	udelay(ACPI_EC_UDELAY);
+	udelay(ACPI_EC_CDELAY);
 	while (time_before(jiffies, delay)) {
 		gpe_transaction(ec, acpi_ec_read_status(ec));
-		udelay(ACPI_EC_UDELAY);
+		ec_delay();
 		if (ec_transaction_done(ec))
 			return 0;
 	}
@@ -284,6 +271,8 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 		clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 		acpi_disable_gpe(NULL, ec->gpe);
 	}
+	if (EC_FLAGS_MSI)
+		udelay(ACPI_EC_DELAY);
 	/* start transaction */
 	spin_lock_irqsave(&ec->curr_lock, tmp);
 	/* following two actions should be kept atomic */
@@ -693,7 +682,7 @@ static int acpi_ec_info_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_ec_read_info, PDE(inode)->data);
 }
 
-static struct file_operations acpi_ec_info_ops = {
+static const struct file_operations acpi_ec_info_ops = {
 	.open = acpi_ec_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -776,6 +765,10 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	unsigned long long tmp = 0;
 
 	struct acpi_ec *ec = context;
+
+	/* clear addr values, ec_parse_io_ports depend on it */
+	ec->command_addr = ec->data_addr = 0;
+
 	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
 				     ec_parse_io_ports, ec);
 	if (ACPI_FAILURE(status))
@@ -825,11 +818,11 @@ static int acpi_ec_add(struct acpi_device *device)
 		ec = make_acpi_ec();
 		if (!ec)
 			return -ENOMEM;
-		if (ec_parse_device(device->handle, 0, ec, NULL) !=
-		    AE_CTRL_TERMINATE) {
+	}
+	if (ec_parse_device(device->handle, 0, ec, NULL) !=
+		AE_CTRL_TERMINATE) {
 			kfree(ec);
 			return -EINVAL;
-		}
 	}
 
 	ec->handle = device->handle;
@@ -983,8 +976,8 @@ static const struct acpi_device_id ec_device_ids[] = {
 int __init acpi_ec_ecdt_probe(void)
 {
 	acpi_status status;
+	struct acpi_ec *saved_ec = NULL;
 	struct acpi_table_ecdt *ecdt_ptr;
-	acpi_handle dummy;
 
 	boot_ec = make_acpi_ec();
 	if (!boot_ec)
@@ -992,27 +985,27 @@ int __init acpi_ec_ecdt_probe(void)
 	/*
 	 * Generate a boot ec context
 	 */
+	if (dmi_name_in_vendors("Micro-Star") ||
+	    dmi_name_in_vendors("Notebook")) {
+		pr_info(PREFIX "Enabling special treatment for EC from MSI.\n");
+		EC_FLAGS_MSI = 1;
+	}
 	status = acpi_get_table(ACPI_SIG_ECDT, 1,
 				(struct acpi_table_header **)&ecdt_ptr);
 	if (ACPI_SUCCESS(status)) {
 		pr_info(PREFIX "EC description table is found, configuring boot EC\n");
 		boot_ec->command_addr = ecdt_ptr->control.address;
 		boot_ec->data_addr = ecdt_ptr->data.address;
-		if (dmi_check_system(ec_dmi_table)) {
-			/*
-			 * If the board falls into ec_dmi_table, it means
-			 * that ECDT table gives the incorrect command/status
-			 * & data I/O address. Just fix it.
-			 */
-			boot_ec->data_addr = ecdt_ptr->control.address;
-			boot_ec->command_addr = ecdt_ptr->data.address;
-		}
 		boot_ec->gpe = ecdt_ptr->gpe;
 		boot_ec->handle = ACPI_ROOT_OBJECT;
 		acpi_get_handle(ACPI_ROOT_OBJECT, ecdt_ptr->id, &boot_ec->handle);
-		/* Add some basic check against completely broken table */
-		if (boot_ec->data_addr != boot_ec->command_addr)
+		/* Don't trust ECDT, which comes from ASUSTek */
+		if (!dmi_name_in_vendors("ASUS") && EC_FLAGS_MSI == 0)
 			goto install;
+		saved_ec = kmalloc(sizeof(struct acpi_ec), GFP_KERNEL);
+		if (!saved_ec)
+			return -ENOMEM;
+		memcpy(saved_ec, boot_ec, sizeof(struct acpi_ec));
 	/* fall through */
 	}
 	/* This workaround is needed only on some broken machines,
@@ -1023,12 +1016,29 @@ int __init acpi_ec_ecdt_probe(void)
 	/* Check that acpi_get_devices actually find something */
 	if (ACPI_FAILURE(status) || !boot_ec->handle)
 		goto error;
-	/* We really need to limit this workaround, the only ASUS,
-	 * which needs it, has fake EC._INI method, so use it as flag.
-	 * Keep boot_ec struct as it will be needed soon.
-	 */
-	if (ACPI_FAILURE(acpi_get_handle(boot_ec->handle, "_INI", &dummy)))
-		return -ENODEV;
+	if (saved_ec) {
+		/* try to find good ECDT from ASUSTek */
+		if (saved_ec->command_addr != boot_ec->command_addr ||
+		    saved_ec->data_addr != boot_ec->data_addr ||
+		    saved_ec->gpe != boot_ec->gpe ||
+		    saved_ec->handle != boot_ec->handle)
+			pr_info(PREFIX "ASUSTek keeps feeding us with broken "
+			"ECDT tables, which are very hard to workaround. "
+			"Trying to use DSDT EC info instead. Please send "
+			"output of acpidump to linux-acpi@vger.kernel.org\n");
+		kfree(saved_ec);
+		saved_ec = NULL;
+	} else {
+		/* We really need to limit this workaround, the only ASUS,
+		* which needs it, has fake EC._INI method, so use it as flag.
+		* Keep boot_ec struct as it will be needed soon.
+		*/
+		acpi_handle dummy;
+		if (!dmi_name_in_vendors("ASUS") ||
+		    ACPI_FAILURE(acpi_get_handle(boot_ec->handle, "_INI",
+							&dummy)))
+			return -ENODEV;
+	}
 install:
 	if (!ec_install_handlers(boot_ec)) {
 		first_ec = boot_ec;
@@ -1073,12 +1083,9 @@ static struct acpi_driver acpi_ec_driver = {
 		},
 };
 
-static int __init acpi_ec_init(void)
+int __init acpi_ec_init(void)
 {
 	int result = 0;
-
-	if (acpi_disabled)
-		return 0;
 
 	acpi_ec_dir = proc_mkdir(ACPI_EC_CLASS, acpi_root_dir);
 	if (!acpi_ec_dir)
@@ -1093,8 +1100,6 @@ static int __init acpi_ec_init(void)
 
 	return result;
 }
-
-subsys_initcall(acpi_ec_init);
 
 /* EC driver currently not unloadable */
 #if 0

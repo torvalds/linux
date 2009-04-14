@@ -31,7 +31,8 @@
 
 #define OMAP_MPUIO_BASE			0xfffb5000
 
-#ifdef CONFIG_ARCH_OMAP730
+#if (defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850))
+
 #define OMAP_MPUIO_INPUT_LATCH		0x00
 #define OMAP_MPUIO_OUTPUT		0x02
 #define OMAP_MPUIO_IO_CNTL		0x04
@@ -86,16 +87,6 @@ extern void omap_set_gpio_debounce_time(int gpio, int enable);
 
 #include <linux/errno.h>
 #include <asm-generic/gpio.h>
-
-static inline int omap_request_gpio(int gpio)
-{
-	return gpio_request(gpio, "FIXME");
-}
-
-static inline void omap_free_gpio(int gpio)
-{
-	gpio_free(gpio);
-}
 
 static inline int gpio_get_value(unsigned gpio)
 {

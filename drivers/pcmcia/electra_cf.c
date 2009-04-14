@@ -297,7 +297,7 @@ static int __devinit electra_cf_probe(struct of_device *ofdev,
 		goto fail3;
 	}
 
-	dev_info(device, "at mem 0x%lx io 0x%lx irq %d\n",
+	dev_info(device, "at mem 0x%lx io 0x%llx irq %d\n",
 		 cf->mem_phys, io.start, cf->irq);
 
 	cf->active = 1;

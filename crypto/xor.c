@@ -18,8 +18,8 @@
 
 #define BH_TRACE 0
 #include <linux/module.h>
-#include <linux/raid/md.h>
 #include <linux/raid/xor.h>
+#include <linux/jiffies.h>
 #include <asm/xor.h>
 
 /* The xor routines to use.  */

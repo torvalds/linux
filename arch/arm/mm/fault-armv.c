@@ -66,7 +66,10 @@ static int adjust_pte(struct vm_area_struct *vma, unsigned long address)
 	 * fault (ie, is old), we can safely ignore any issues.
 	 */
 	if (ret && (pte_val(entry) & L_PTE_MT_MASK) != shared_pte_mask) {
-		flush_cache_page(vma, address, pte_pfn(entry));
+		unsigned long pfn = pte_pfn(entry);
+		flush_cache_page(vma, address, pfn);
+		outer_flush_range((pfn << PAGE_SHIFT),
+				  (pfn << PAGE_SHIFT) + PAGE_SIZE);
 		pte_val(entry) &= ~L_PTE_MT_MASK;
 		pte_val(entry) |= shared_pte_mask;
 		set_pte_at(vma->vm_mm, address, pte, entry);

@@ -170,7 +170,7 @@ extern const struct file_operations sysv_file_operations;
 extern const struct file_operations sysv_dir_operations;
 extern const struct address_space_operations sysv_aops;
 extern const struct super_operations sysv_sops;
-extern struct dentry_operations sysv_dentry_operations;
+extern const struct dentry_operations sysv_dentry_operations;
 
 
 enum {

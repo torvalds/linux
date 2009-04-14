@@ -180,31 +180,26 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			sleep = <&pmc 0x20000000>;
-			ranges;
+			ranges = <0x0 0x24000 0x1000>;
 
 			cell-index = <0>;
 			device_type = "network";
 			model = "eTSEC";
-			compatible = "gianfar", "simple-bus";
+			compatible = "gianfar";
 			reg = <0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <37 0x8 36 0x8 35 0x8>;
 			interrupt-parent = <&ipic>;
 			tbi-handle = < &tbi0 >;
-			phy-handle = < &phy1 >;
+			/* Vitesse 7385 isn't on the MDIO bus */
+			fixed-link = <1 1 1000 0 0>;
 			fsl,magic-packet;
 
-			mdio@24520 {
+			mdio@520 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,gianfar-mdio";
-				reg = <0x24520 0x20>;
-				phy1: ethernet-phy@1 {
-					interrupt-parent = <&ipic>;
-					interrupts = <19 0x8>;
-					reg = <0x1>;
-					device_type = "ethernet-phy";
-				};
+				reg = <0x520 0x20>;
 				phy4: ethernet-phy@4 {
 					interrupt-parent = <&ipic>;
 					interrupts = <20 0x8>;
@@ -219,11 +214,14 @@
 		};
 
 		enet1: ethernet@25000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			cell-index = <1>;
 			device_type = "network";
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <0x25000 0x1000>;
+			ranges = <0x0 0x25000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <34 0x8 33 0x8 32 0x8>;
 			interrupt-parent = <&ipic>;
@@ -232,11 +230,11 @@
 			sleep = <&pmc 0x10000000>;
 			fsl,magic-packet;
 
-			mdio@25520 {
+			mdio@520 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,gianfar-tbi";
-				reg = <0x25520 0x20>;
+				reg = <0x520 0x20>;
 
 				tbi1: tbi-phy@11 {
 					reg = <0x11>;

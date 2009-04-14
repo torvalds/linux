@@ -24,7 +24,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/kdev_t.h>
 
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
@@ -37,7 +37,7 @@
 #include <linux/version.h>
 #include <linux/mutex.h>
 
-#define CX23885_VERSION_CODE KERNEL_VERSION(0, 0, 1)
+#define CX23885_VERSION_CODE KERNEL_VERSION(0, 0, 2)
 
 #define UNSET (-1U)
 
@@ -67,6 +67,10 @@
 #define CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP 11
 #define CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H 12
 #define CX23885_BOARD_COMPRO_VIDEOMATE_E650F   13
+#define CX23885_BOARD_TBS_6920                 14
+#define CX23885_BOARD_TEVII_S470               15
+#define CX23885_BOARD_DVBWORLD_2005            16
+#define CX23885_BOARD_NETUP_DUAL_DVBS2_CI      17
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
 #define CX23885_NORMS (\
@@ -184,6 +188,7 @@ struct cx23885_board {
 	 */
 	u32			clk_freq;
 	struct cx23885_input    input[MAX_CX23885_INPUT];
+	int			cimax; /* for NetUP */
 };
 
 struct cx23885_subid {
@@ -266,11 +271,13 @@ struct cx23885_tsport {
 
 	/* Allow a single tsport to have multiple frontends */
 	u32                        num_frontends;
+	void                       *port_priv;
 };
 
 struct cx23885_dev {
 	struct list_head           devlist;
 	atomic_t                   refcount;
+	struct v4l2_device 	   v4l2_dev;
 
 	/* pci stuff */
 	struct pci_dev             *pci;
@@ -316,6 +323,7 @@ struct cx23885_dev {
 	unsigned int               radio_type;
 	unsigned char              radio_addr;
 	unsigned int               has_radio;
+	struct v4l2_subdev 	   *sd_cx25840;
 
 	/* V4l */
 	u32                        freq;
@@ -335,6 +343,14 @@ struct cx23885_dev {
 	struct cx23885_tvnorm      encodernorm;
 
 };
+
+static inline struct cx23885_dev *to_cx23885(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct cx23885_dev, v4l2_dev);
+}
+
+#define call_all(dev, o, f, args...) \
+	v4l2_device_call_all(&dev->v4l2_dev, 0, o, f, ##args)
 
 extern struct list_head cx23885_devlist;
 
@@ -452,8 +468,6 @@ extern struct videobuf_queue_ops cx23885_vbi_qops;
 /* cx23885-i2c.c                                                */
 extern int cx23885_i2c_register(struct cx23885_i2c *bus);
 extern int cx23885_i2c_unregister(struct cx23885_i2c *bus);
-extern void cx23885_call_i2c_clients(struct cx23885_i2c *bus, unsigned int cmd,
-				     void *arg);
 extern void cx23885_av_clk(struct cx23885_dev *dev, int enable);
 
 /* ----------------------------------------------------------- */

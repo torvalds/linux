@@ -24,6 +24,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/rtnetlink.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "phy.h"
@@ -186,19 +187,22 @@ static int sfn4111t_reset(struct efx_nic *efx)
 {
 	efx_oword_t reg;
 
-	/* GPIO pins are also used for I2C, so block that temporarily */
+	/* GPIO 3 and the GPIO register are shared with I2C, so block that */
 	mutex_lock(&efx->i2c_adap.bus_lock);
 
+	/* Pull RST_N (GPIO 2) low then let it up again, setting the
+	 * FLASH_CFG_1 strap (GPIO 3) appropriately.  Only change the
+	 * output enables; the output levels should always be 0 (low)
+	 * and we rely on external pull-ups. */
 	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
 	EFX_SET_OWORD_FIELD(reg, GPIO2_OEN, true);
-	EFX_SET_OWORD_FIELD(reg, GPIO2_OUT, false);
 	falcon_write(efx, &reg, GPIO_CTL_REG_KER);
 	msleep(1000);
-	EFX_SET_OWORD_FIELD(reg, GPIO2_OUT, true);
-	EFX_SET_OWORD_FIELD(reg, GPIO3_OEN, true);
-	EFX_SET_OWORD_FIELD(reg, GPIO3_OUT,
-			    !(efx->phy_mode & PHY_MODE_SPECIAL));
+	EFX_SET_OWORD_FIELD(reg, GPIO2_OEN, false);
+	EFX_SET_OWORD_FIELD(reg, GPIO3_OEN,
+			    !!(efx->phy_mode & PHY_MODE_SPECIAL));
 	falcon_write(efx, &reg, GPIO_CTL_REG_KER);
+	msleep(1);
 
 	mutex_unlock(&efx->i2c_adap.bus_lock);
 
@@ -232,12 +236,18 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 	} else if (efx->state != STATE_RUNNING || netif_running(efx->net_dev)) {
 		err = -EBUSY;
 	} else {
+		/* Reset the PHY, reconfigure the MAC and enable/disable
+		 * MAC stats accordingly. */
 		efx->phy_mode = new_mode;
+		if (new_mode & PHY_MODE_SPECIAL)
+			efx_stats_disable(efx);
 		if (efx->board_info.type == EFX_BOARD_SFE4001)
 			err = sfe4001_poweron(efx);
 		else
 			err = sfn4111t_reset(efx);
 		efx_reconfigure_port(efx);
+		if (!(new_mode & PHY_MODE_SPECIAL))
+			efx_stats_enable(efx);
 	}
 	rtnl_unlock();
 
@@ -326,6 +336,11 @@ int sfe4001_init(struct efx_nic *efx)
 	efx->board_info.monitor = sfe4001_check_hw;
 	efx->board_info.fini = sfe4001_fini;
 
+	if (efx->phy_mode & PHY_MODE_SPECIAL) {
+		/* PHY won't generate a 156.25 MHz clock and MAC stats fetch
+		 * will fail. */
+		efx_stats_disable(efx);
+	}
 	rc = sfe4001_poweron(efx);
 	if (rc)
 		goto fail_ioexp;
@@ -372,17 +387,26 @@ static void sfn4111t_fini(struct efx_nic *efx)
 	i2c_unregister_device(efx->board_info.hwmon_client);
 }
 
-static struct i2c_board_info sfn4111t_hwmon_info = {
+static struct i2c_board_info sfn4111t_a0_hwmon_info = {
 	I2C_BOARD_INFO("max6647", 0x4e),
+	.irq		= -1,
+};
+
+static struct i2c_board_info sfn4111t_r5_hwmon_info = {
+	I2C_BOARD_INFO("max6646", 0x4d),
 	.irq		= -1,
 };
 
 int sfn4111t_init(struct efx_nic *efx)
 {
+	int i = 0;
 	int rc;
 
 	efx->board_info.hwmon_client =
-		i2c_new_device(&efx->i2c_adap, &sfn4111t_hwmon_info);
+		i2c_new_device(&efx->i2c_adap,
+			       (efx->board_info.minor < 5) ?
+			       &sfn4111t_a0_hwmon_info :
+			       &sfn4111t_r5_hwmon_info);
 	if (!efx->board_info.hwmon_client)
 		return -EIO;
 
@@ -394,11 +418,20 @@ int sfn4111t_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_hwmon;
 
-	if (efx->phy_mode & PHY_MODE_SPECIAL)
-		sfn4111t_reset(efx);
+	do {
+		if (efx->phy_mode & PHY_MODE_SPECIAL) {
+			/* PHY may not generate a 156.25 MHz clock and MAC
+			 * stats fetch will fail. */
+			efx_stats_disable(efx);
+			sfn4111t_reset(efx);
+		}
+		rc = sft9001_wait_boot(efx);
+		if (rc == 0)
+			return 0;
+		efx->phy_mode = PHY_MODE_SPECIAL;
+	} while (rc == -EINVAL && ++i < 2);
 
-	return 0;
-
+	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_flash_cfg);
 fail_hwmon:
 	i2c_unregister_device(efx->board_info.hwmon_client);
 	return rc;

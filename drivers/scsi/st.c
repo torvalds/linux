@@ -374,9 +374,9 @@ static int st_chk_result(struct scsi_tape *STp, struct st_request * SRpnt)
 	if (!debugging) { /* Abnormal conditions for tape */
 		if (!cmdstatp->have_sense)
 			printk(KERN_WARNING
-			       "%s: Error %x (sugg. bt 0x%x, driver bt 0x%x, host bt 0x%x).\n",
-			       name, result, suggestion(result),
-			       driver_byte(result) & DRIVER_MASK, host_byte(result));
+			       "%s: Error %x (driver bt 0x%x, host bt 0x%x).\n",
+			       name, result, driver_byte(result),
+			       host_byte(result));
 		else if (cmdstatp->have_sense &&
 			 scode != NO_SENSE &&
 			 scode != RECOVERED_ERROR &&

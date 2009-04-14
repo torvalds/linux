@@ -51,6 +51,7 @@
 #include <scsi/scsi_ioctl.h>
 #include <linux/cdrom.h>
 #include <linux/scatterlist.h>
+#include <linux/kthread.h>
 
 #define CCISS_DRIVER_VERSION(maj,min,submin) ((maj<<16)|(min<<8)|(submin))
 #define DRIVER_NAME "HP CISS Driver (v 3.6.20)"
@@ -186,6 +187,8 @@ static int sendcmd_withirq(__u8 cmd, int ctlr, void *buff, size_t size,
 			   __u8 page_code, int cmd_type);
 
 static void fail_all_cmds(unsigned long ctlr);
+static int scan_thread(void *data);
+static int check_for_unit_attention(ctlr_info_t *h, CommandList_struct *c);
 
 #ifdef CONFIG_PROC_FS
 static void cciss_procinit(int i);
@@ -735,6 +738,12 @@ static int cciss_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
+static void check_ioctl_unit_attention(ctlr_info_t *host, CommandList_struct *c)
+{
+	if (c->err_info->CommandStatus == CMD_TARGET_STATUS &&
+			c->err_info->ScsiStatus != SAM_STAT_CHECK_CONDITION)
+		(void)check_for_unit_attention(host, c);
+}
 /*
  * ioctl
  */
@@ -1029,6 +1038,8 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 					 iocommand.buf_size,
 					 PCI_DMA_BIDIRECTIONAL);
 
+			check_ioctl_unit_attention(host, c);
+
 			/* Copy the error information out */
 			iocommand.error_info = *(c->err_info);
 			if (copy_to_user
@@ -1180,6 +1191,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 					(dma_addr_t) temp64.val, buff_size[i],
 					PCI_DMA_BIDIRECTIONAL);
 			}
+			check_ioctl_unit_attention(host, c);
 			/* Copy the error information out */
 			ioc->error_info = *(c->err_info);
 			if (copy_to_user(argp, ioc, sizeof(*ioc))) {
@@ -1287,6 +1299,7 @@ static void cciss_softirq_done(struct request *rq)
 {
 	CommandList_struct *cmd = rq->completion_data;
 	ctlr_info_t *h = hba[cmd->ctlr];
+	unsigned int nr_bytes;
 	unsigned long flags;
 	u64bit temp64;
 	int i, ddir;
@@ -1308,7 +1321,14 @@ static void cciss_softirq_done(struct request *rq)
 	printk("Done with %p\n", rq);
 #endif				/* CCISS_DEBUG */
 
-	if (blk_end_request(rq, (rq->errors == 0) ? 0 : -EIO, blk_rq_bytes(rq)))
+	/*
+	 * Store the full size and set the residual count for pc requests
+	 */
+	nr_bytes = blk_rq_bytes(rq);
+	if (blk_pc_request(rq))
+		rq->data_len = cmd->err_info->ResidualCnt;
+
+	if (blk_end_request(rq, (rq->errors == 0) ? 0 : -EIO, nr_bytes))
 		BUG();
 
 	spin_lock_irqsave(&h->lock, flags);
@@ -2585,12 +2605,14 @@ static inline unsigned int make_status_bytes(unsigned int scsi_status_byte,
 		((driver_byte & 0xff) << 24);
 }
 
-static inline int evaluate_target_status(CommandList_struct *cmd)
+static inline int evaluate_target_status(ctlr_info_t *h,
+			CommandList_struct *cmd, int *retry_cmd)
 {
 	unsigned char sense_key;
 	unsigned char status_byte, msg_byte, host_byte, driver_byte;
 	int error_value;
 
+	*retry_cmd = 0;
 	/* If we get in here, it means we got "target status", that is, scsi status */
 	status_byte = cmd->err_info->ScsiStatus;
 	driver_byte = DRIVER_OK;
@@ -2617,6 +2639,11 @@ static inline int evaluate_target_status(CommandList_struct *cmd)
 	/* no status or recovered error */
 	if (((sense_key == 0x0) || (sense_key == 0x1)) && !blk_pc_request(cmd->rq))
 		error_value = 0;
+
+	if (check_for_unit_attention(h, cmd)) {
+		*retry_cmd = !blk_pc_request(cmd->rq);
+		return 0;
+	}
 
 	if (!blk_pc_request(cmd->rq)) { /* Not SG_IO or similar? */
 		if (error_value != 0)
@@ -2657,7 +2684,7 @@ static inline void complete_command(ctlr_info_t *h, CommandList_struct *cmd,
 
 	switch (cmd->err_info->CommandStatus) {
 	case CMD_TARGET_STATUS:
-		rq->errors = evaluate_target_status(cmd);
+		rq->errors = evaluate_target_status(h, cmd, &retry_cmd);
 		break;
 	case CMD_DATA_UNDERRUN:
 		if (blk_fs_request(cmd->rq)) {
@@ -3008,6 +3035,63 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int scan_thread(void *data)
+{
+	ctlr_info_t *h = data;
+	int rc;
+	DECLARE_COMPLETION_ONSTACK(wait);
+	h->rescan_wait = &wait;
+
+	for (;;) {
+		rc = wait_for_completion_interruptible(&wait);
+		if (kthread_should_stop())
+			break;
+		if (!rc)
+			rebuild_lun_table(h, 0);
+	}
+	return 0;
+}
+
+static int check_for_unit_attention(ctlr_info_t *h, CommandList_struct *c)
+{
+	if (c->err_info->SenseInfo[2] != UNIT_ATTENTION)
+		return 0;
+
+	switch (c->err_info->SenseInfo[12]) {
+	case STATE_CHANGED:
+		printk(KERN_WARNING "cciss%d: a state change "
+			"detected, command retried\n", h->ctlr);
+		return 1;
+	break;
+	case LUN_FAILED:
+		printk(KERN_WARNING "cciss%d: LUN failure "
+			"detected, action required\n", h->ctlr);
+		return 1;
+	break;
+	case REPORT_LUNS_CHANGED:
+		printk(KERN_WARNING "cciss%d: report LUN data "
+			"changed\n", h->ctlr);
+		if (h->rescan_wait)
+			complete(h->rescan_wait);
+		return 1;
+	break;
+	case POWER_OR_RESET:
+		printk(KERN_WARNING "cciss%d: a power on "
+			"or device reset detected\n", h->ctlr);
+		return 1;
+	break;
+	case UNIT_ATTENTION_CLEARED:
+		printk(KERN_WARNING "cciss%d: unit attention "
+		    "cleared by another initiator\n", h->ctlr);
+		return 1;
+	break;
+	default:
+		printk(KERN_WARNING "cciss%d: unknown "
+			"unit attention detected\n", h->ctlr);
+				return 1;
+	}
+}
+
 /*
  *  We cannot read the structure directly, for portability we must use
  *   the io functions.
@@ -3181,12 +3265,21 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
  */
 	cciss_interrupt_mode(c, pdev, board_id);
 
-	/*
-	 * Memory base addr is first addr , the second points to the config
-	 *   table
-	 */
+	/* find the memory BAR */
+	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+		if (pci_resource_flags(pdev, i) & IORESOURCE_MEM)
+			break;
+	}
+	if (i == DEVICE_COUNT_RESOURCE) {
+		printk(KERN_WARNING "cciss: No memory BAR found\n");
+		err = -ENODEV;
+		goto err_out_free_res;
+	}
 
-	c->paddr = pci_resource_start(pdev, 0);	/* addressing mode bits already removed */
+	c->paddr = pci_resource_start(pdev, i); /* addressing mode bits
+						 * already removed
+						 */
+
 #ifdef CCISS_DEBUG
 	printk("address 0 = %lx\n", c->paddr);
 #endif				/* CCISS_DEBUG */
@@ -3390,6 +3483,203 @@ static void free_hba(int i)
 	kfree(p);
 }
 
+/* Send a message CDB to the firmware. */
+static __devinit int cciss_message(struct pci_dev *pdev, unsigned char opcode, unsigned char type)
+{
+	typedef struct {
+		CommandListHeader_struct CommandHeader;
+		RequestBlock_struct Request;
+		ErrDescriptor_struct ErrorDescriptor;
+	} Command;
+	static const size_t cmd_sz = sizeof(Command) + sizeof(ErrorInfo_struct);
+	Command *cmd;
+	dma_addr_t paddr64;
+	uint32_t paddr32, tag;
+	void __iomem *vaddr;
+	int i, err;
+
+	vaddr = ioremap_nocache(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
+	if (vaddr == NULL)
+		return -ENOMEM;
+
+	/* The Inbound Post Queue only accepts 32-bit physical addresses for the
+	   CCISS commands, so they must be allocated from the lower 4GiB of
+	   memory. */
+	err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+	if (err) {
+		iounmap(vaddr);
+		return -ENOMEM;
+	}
+
+	cmd = pci_alloc_consistent(pdev, cmd_sz, &paddr64);
+	if (cmd == NULL) {
+		iounmap(vaddr);
+		return -ENOMEM;
+	}
+
+	/* This must fit, because of the 32-bit consistent DMA mask.  Also,
+	   although there's no guarantee, we assume that the address is at
+	   least 4-byte aligned (most likely, it's page-aligned). */
+	paddr32 = paddr64;
+
+	cmd->CommandHeader.ReplyQueue = 0;
+	cmd->CommandHeader.SGList = 0;
+	cmd->CommandHeader.SGTotal = 0;
+	cmd->CommandHeader.Tag.lower = paddr32;
+	cmd->CommandHeader.Tag.upper = 0;
+	memset(&cmd->CommandHeader.LUN.LunAddrBytes, 0, 8);
+
+	cmd->Request.CDBLen = 16;
+	cmd->Request.Type.Type = TYPE_MSG;
+	cmd->Request.Type.Attribute = ATTR_HEADOFQUEUE;
+	cmd->Request.Type.Direction = XFER_NONE;
+	cmd->Request.Timeout = 0; /* Don't time out */
+	cmd->Request.CDB[0] = opcode;
+	cmd->Request.CDB[1] = type;
+	memset(&cmd->Request.CDB[2], 0, 14); /* the rest of the CDB is reserved */
+
+	cmd->ErrorDescriptor.Addr.lower = paddr32 + sizeof(Command);
+	cmd->ErrorDescriptor.Addr.upper = 0;
+	cmd->ErrorDescriptor.Len = sizeof(ErrorInfo_struct);
+
+	writel(paddr32, vaddr + SA5_REQUEST_PORT_OFFSET);
+
+	for (i = 0; i < 10; i++) {
+		tag = readl(vaddr + SA5_REPLY_PORT_OFFSET);
+		if ((tag & ~3) == paddr32)
+			break;
+		schedule_timeout_uninterruptible(HZ);
+	}
+
+	iounmap(vaddr);
+
+	/* we leak the DMA buffer here ... no choice since the controller could
+	   still complete the command. */
+	if (i == 10) {
+		printk(KERN_ERR "cciss: controller message %02x:%02x timed out\n",
+			opcode, type);
+		return -ETIMEDOUT;
+	}
+
+	pci_free_consistent(pdev, cmd_sz, cmd, paddr64);
+
+	if (tag & 2) {
+		printk(KERN_ERR "cciss: controller message %02x:%02x failed\n",
+			opcode, type);
+		return -EIO;
+	}
+
+	printk(KERN_INFO "cciss: controller message %02x:%02x succeeded\n",
+		opcode, type);
+	return 0;
+}
+
+#define cciss_soft_reset_controller(p) cciss_message(p, 1, 0)
+#define cciss_noop(p) cciss_message(p, 3, 0)
+
+static __devinit int cciss_reset_msi(struct pci_dev *pdev)
+{
+/* the #defines are stolen from drivers/pci/msi.h. */
+#define msi_control_reg(base)		(base + PCI_MSI_FLAGS)
+#define PCI_MSIX_FLAGS_ENABLE		(1 << 15)
+
+	int pos;
+	u16 control = 0;
+
+	pos = pci_find_capability(pdev, PCI_CAP_ID_MSI);
+	if (pos) {
+		pci_read_config_word(pdev, msi_control_reg(pos), &control);
+		if (control & PCI_MSI_FLAGS_ENABLE) {
+			printk(KERN_INFO "cciss: resetting MSI\n");
+			pci_write_config_word(pdev, msi_control_reg(pos), control & ~PCI_MSI_FLAGS_ENABLE);
+		}
+	}
+
+	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
+	if (pos) {
+		pci_read_config_word(pdev, msi_control_reg(pos), &control);
+		if (control & PCI_MSIX_FLAGS_ENABLE) {
+			printk(KERN_INFO "cciss: resetting MSI-X\n");
+			pci_write_config_word(pdev, msi_control_reg(pos), control & ~PCI_MSIX_FLAGS_ENABLE);
+		}
+	}
+
+	return 0;
+}
+
+/* This does a hard reset of the controller using PCI power management
+ * states. */
+static __devinit int cciss_hard_reset_controller(struct pci_dev *pdev)
+{
+	u16 pmcsr, saved_config_space[32];
+	int i, pos;
+
+	printk(KERN_INFO "cciss: using PCI PM to reset controller\n");
+
+	/* This is very nearly the same thing as
+
+	   pci_save_state(pci_dev);
+	   pci_set_power_state(pci_dev, PCI_D3hot);
+	   pci_set_power_state(pci_dev, PCI_D0);
+	   pci_restore_state(pci_dev);
+
+	   but we can't use these nice canned kernel routines on
+	   kexec, because they also check the MSI/MSI-X state in PCI
+	   configuration space and do the wrong thing when it is
+	   set/cleared.  Also, the pci_save/restore_state functions
+	   violate the ordering requirements for restoring the
+	   configuration space from the CCISS document (see the
+	   comment below).  So we roll our own .... */
+
+	for (i = 0; i < 32; i++)
+		pci_read_config_word(pdev, 2*i, &saved_config_space[i]);
+
+	pos = pci_find_capability(pdev, PCI_CAP_ID_PM);
+	if (pos == 0) {
+		printk(KERN_ERR "cciss_reset_controller: PCI PM not supported\n");
+		return -ENODEV;
+	}
+
+	/* Quoting from the Open CISS Specification: "The Power
+	 * Management Control/Status Register (CSR) controls the power
+	 * state of the device.  The normal operating state is D0,
+	 * CSR=00h.  The software off state is D3, CSR=03h.  To reset
+	 * the controller, place the interface device in D3 then to
+	 * D0, this causes a secondary PCI reset which will reset the
+	 * controller." */
+
+	/* enter the D3hot power management state */
+	pci_read_config_word(pdev, pos + PCI_PM_CTRL, &pmcsr);
+	pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+	pmcsr |= PCI_D3hot;
+	pci_write_config_word(pdev, pos + PCI_PM_CTRL, pmcsr);
+
+	schedule_timeout_uninterruptible(HZ >> 1);
+
+	/* enter the D0 power management state */
+	pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+	pmcsr |= PCI_D0;
+	pci_write_config_word(pdev, pos + PCI_PM_CTRL, pmcsr);
+
+	schedule_timeout_uninterruptible(HZ >> 1);
+
+	/* Restore the PCI configuration space.  The Open CISS
+	 * Specification says, "Restore the PCI Configuration
+	 * Registers, offsets 00h through 60h. It is important to
+	 * restore the command register, 16-bits at offset 04h,
+	 * last. Do not restore the configuration status register,
+	 * 16-bits at offset 06h."  Note that the offset is 2*i. */
+	for (i = 0; i < 32; i++) {
+		if (i == 2 || i == 3)
+			continue;
+		pci_write_config_word(pdev, 2*i, saved_config_space[i]);
+	}
+	wmb();
+	pci_write_config_word(pdev, 4, saved_config_space[2]);
+
+	return 0;
+}
+
 /*
  *  This is it.  Find all the controllers and register them.  I really hate
  *  stealing all these major device numbers.
@@ -3403,6 +3693,26 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	int rc;
 	int dac, return_code;
 	InquiryData_struct *inq_buff = NULL;
+
+	if (reset_devices) {
+		/* Reset the controller with a PCI power-cycle */
+		if (cciss_hard_reset_controller(pdev) || cciss_reset_msi(pdev))
+			return -ENODEV;
+
+		/* Now try to get the controller to respond to a no-op. Some
+		   devices (notably the HP Smart Array 5i Controller) need
+		   up to 30 seconds to respond. */
+		for (i=0; i<30; i++) {
+			if (cciss_noop(pdev) == 0)
+				break;
+
+			schedule_timeout_uninterruptible(HZ);
+		}
+		if (i == 30) {
+			printk(KERN_ERR "cciss: controller seems dead\n");
+			return -EBUSY;
+		}
+	}
 
 	i = alloc_cciss_hba();
 	if (i < 0)
@@ -3420,9 +3730,9 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	hba[i]->pdev = pdev;
 
 	/* configure PCI DMA stuff */
-	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK))
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))
 		dac = 1;
-	else if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK))
+	else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
 		dac = 0;
 	else {
 		printk(KERN_ERR "cciss: no suitable DMA available\n");
@@ -3536,6 +3846,11 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	hba[i]->busy_initializing = 0;
 
 	rebuild_lun_table(hba[i], 1);
+	hba[i]->cciss_scan_thread = kthread_run(scan_thread, hba[i],
+				"cciss_scan%02d", i);
+	if (IS_ERR(hba[i]->cciss_scan_thread))
+		return PTR_ERR(hba[i]->cciss_scan_thread);
+
 	return 1;
 
 clean4:
@@ -3611,6 +3926,7 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 		printk(KERN_ERR "cciss: Unable to remove device \n");
 		return;
 	}
+
 	tmp_ptr = pci_get_drvdata(pdev);
 	i = tmp_ptr->ctlr;
 	if (hba[i] == NULL) {
@@ -3618,6 +3934,8 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 		       "already be removed \n");
 		return;
 	}
+
+	kthread_stop(hba[i]->cciss_scan_thread);
 
 	remove_proc_entry(hba[i]->devname, proc_cciss);
 	unregister_blkdev(hba[i]->major, hba[i]->devname);
@@ -3681,6 +3999,13 @@ static struct pci_driver cciss_pci_driver = {
  */
 static int __init cciss_init(void)
 {
+	/*
+	 * The hardware requires that commands are aligned on a 64-bit
+	 * boundary. Given that we use pci_alloc_consistent() to allocate an
+	 * array of them, the size must be a multiple of 8 bytes.
+	 */
+	BUILD_BUG_ON(sizeof(CommandList_struct) % 8);
+
 	printk(KERN_INFO DRIVER_NAME "\n");
 
 	/* Register for our PCI devices */

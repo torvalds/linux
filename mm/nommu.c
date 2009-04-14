@@ -10,7 +10,7 @@
  *  Copyright (c) 2000-2003 David McCullough <davidm@snapgear.com>
  *  Copyright (c) 2000-2001 D Jeff Dionne <jeff@uClinux.org>
  *  Copyright (c) 2002      Greg Ungerer <gerg@snapgear.com>
- *  Copyright (c) 2007-2008 Paul Mundt <lethal@linux-sh.org>
+ *  Copyright (c) 2007-2009 Paul Mundt <lethal@linux-sh.org>
  */
 
 #include <linux/module.h>
@@ -69,7 +69,7 @@ int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
 int sysctl_nr_trim_pages = 1; /* page trimming behaviour */
 int heap_stack_gap = 0;
 
-atomic_t mmap_pages_allocated;
+atomic_long_t mmap_pages_allocated;
 
 EXPORT_SYMBOL(mem_map);
 EXPORT_SYMBOL(num_physpages);
@@ -394,6 +394,24 @@ void vunmap(const void *addr)
 }
 EXPORT_SYMBOL(vunmap);
 
+void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t prot)
+{
+	BUG();
+	return NULL;
+}
+EXPORT_SYMBOL(vm_map_ram);
+
+void vm_unmap_ram(const void *mem, unsigned int count)
+{
+	BUG();
+}
+EXPORT_SYMBOL(vm_unmap_ram);
+
+void vm_unmap_aliases(void)
+{
+}
+EXPORT_SYMBOL_GPL(vm_unmap_aliases);
+
 /*
  * Implement a stub for vmalloc_sync_all() if the architecture chose not to
  * have one.
@@ -416,7 +434,7 @@ EXPORT_SYMBOL(vm_insert_page);
  *  to a regular file.  in this case, the unmapping will need
  *  to invoke file system routines that need the global lock.
  */
-asmlinkage unsigned long sys_brk(unsigned long brk)
+SYSCALL_DEFINE1(brk, unsigned long, brk)
 {
 	struct mm_struct *mm = current->mm;
 
@@ -445,12 +463,7 @@ asmlinkage unsigned long sys_brk(unsigned long brk)
  */
 void __init mmap_init(void)
 {
-	vm_region_jar = kmem_cache_create("vm_region_jar",
-					  sizeof(struct vm_region), 0,
-					  SLAB_PANIC, NULL);
-	vm_area_cachep = kmem_cache_create("vm_area_struct",
-					   sizeof(struct vm_area_struct), 0,
-					   SLAB_PANIC, NULL);
+	vm_region_jar = KMEM_CACHE(vm_region, SLAB_PANIC);
 }
 
 /*
@@ -468,27 +481,24 @@ static noinline void validate_nommu_regions(void)
 		return;
 
 	last = rb_entry(lastp, struct vm_region, vm_rb);
-	if (unlikely(last->vm_end <= last->vm_start))
-		BUG();
-	if (unlikely(last->vm_top < last->vm_end))
-		BUG();
+	BUG_ON(unlikely(last->vm_end <= last->vm_start));
+	BUG_ON(unlikely(last->vm_top < last->vm_end));
 
 	while ((p = rb_next(lastp))) {
 		region = rb_entry(p, struct vm_region, vm_rb);
 		last = rb_entry(lastp, struct vm_region, vm_rb);
 
-		if (unlikely(region->vm_end <= region->vm_start))
-			BUG();
-		if (unlikely(region->vm_top < region->vm_end))
-			BUG();
-		if (unlikely(region->vm_start < last->vm_top))
-			BUG();
+		BUG_ON(unlikely(region->vm_end <= region->vm_start));
+		BUG_ON(unlikely(region->vm_top < region->vm_end));
+		BUG_ON(unlikely(region->vm_start < last->vm_top));
 
 		lastp = p;
 	}
 }
 #else
-#define validate_nommu_regions() do {} while(0)
+static void validate_nommu_regions(void)
+{
+}
 #endif
 
 /*
@@ -545,16 +555,17 @@ static void free_page_series(unsigned long from, unsigned long to)
 		struct page *page = virt_to_page(from);
 
 		kdebug("- free %lx", from);
-		atomic_dec(&mmap_pages_allocated);
+		atomic_long_dec(&mmap_pages_allocated);
 		if (page_count(page) != 1)
-			kdebug("free page %p [%d]", page, page_count(page));
+			kdebug("free page %p: refcount not one: %d",
+			       page, page_count(page));
 		put_page(page);
 	}
 }
 
 /*
  * release a reference to a region
- * - the caller must hold the region semaphore, which this releases
+ * - the caller must hold the region semaphore for writing, which this releases
  * - the region may not have been added to the tree yet, in which case vm_top
  *   will equal vm_start
  */
@@ -1078,7 +1089,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
 		goto enomem;
 
 	total = 1 << order;
-	atomic_add(total, &mmap_pages_allocated);
+	atomic_long_add(total, &mmap_pages_allocated);
 
 	point = rlen >> PAGE_SHIFT;
 
@@ -1089,7 +1100,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
 			order = ilog2(total - point);
 			n = 1 << order;
 			kdebug("shave %lu/%lu @%lu", n, total - point, total);
-			atomic_sub(n, &mmap_pages_allocated);
+			atomic_long_sub(n, &mmap_pages_allocated);
 			total -= n;
 			set_page_refcounted(pages + total);
 			__free_pages(pages + total, order);
@@ -1143,8 +1154,8 @@ error_free:
 	return ret;
 
 enomem:
-	printk("Allocation of length %lu from process %d failed\n",
-	       len, current->pid);
+	printk("Allocation of length %lu from process %d (%s) failed\n",
+	       len, current->pid, current->comm);
 	show_free_areas();
 	return -ENOMEM;
 }
@@ -1518,10 +1529,15 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 	/* find the first potentially overlapping VMA */
 	vma = find_vma(mm, start);
 	if (!vma) {
-		printk(KERN_WARNING
-		       "munmap of memory not mmapped by process %d (%s):"
-		       " 0x%lx-0x%lx\n",
-		       current->pid, current->comm, start, start + len - 1);
+		static int limit = 0;
+		if (limit < 5) {
+			printk(KERN_WARNING
+			       "munmap of memory not mmapped by process %d"
+			       " (%s): 0x%lx-0x%lx\n",
+			       current->pid, current->comm,
+			       start, start + len - 1);
+			limit++;
+		}
 		return -EINVAL;
 	}
 
@@ -1573,7 +1589,7 @@ erase_whole_vma:
 }
 EXPORT_SYMBOL(do_munmap);
 
-asmlinkage long sys_munmap(unsigned long addr, size_t len)
+SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
 {
 	int ret;
 	struct mm_struct *mm = current->mm;
@@ -1657,10 +1673,9 @@ unsigned long do_mremap(unsigned long addr,
 }
 EXPORT_SYMBOL(do_mremap);
 
-asmlinkage
-unsigned long sys_mremap(unsigned long addr,
-			 unsigned long old_len, unsigned long new_len,
-			 unsigned long flags, unsigned long new_addr)
+SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+		unsigned long, new_len, unsigned long, flags,
+		unsigned long, new_addr)
 {
 	unsigned long ret;
 

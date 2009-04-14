@@ -79,7 +79,8 @@ asmlinkage long mipsmt_sys_sched_setaffinity(pid_t pid, unsigned int len,
 
 	euid = current_euid();
 	retval = -EPERM;
-	if (euid != p->euid && euid != p->uid && !capable(CAP_SYS_NICE)) {
+	if (euid != p->cred->euid && euid != p->cred->uid &&
+	    !capable(CAP_SYS_NICE)) {
 		read_unlock(&tasklist_lock);
 		goto out_unlock;
 	}

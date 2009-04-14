@@ -23,7 +23,7 @@
 #include <asm/ebcdic.h>
 #include <asm/reset.h>
 #include <asm/sclp.h>
-#include <asm/setup.h>
+#include <asm/checksum.h>
 
 #define IPL_PARM_BLOCK_VERSION 0
 
@@ -56,13 +56,14 @@ struct shutdown_trigger {
 };
 
 /*
- * Five shutdown action types are supported:
+ * The following shutdown action types are supported:
  */
 #define SHUTDOWN_ACTION_IPL_STR		"ipl"
 #define SHUTDOWN_ACTION_REIPL_STR	"reipl"
 #define SHUTDOWN_ACTION_DUMP_STR	"dump"
 #define SHUTDOWN_ACTION_VMCMD_STR	"vmcmd"
 #define SHUTDOWN_ACTION_STOP_STR	"stop"
+#define SHUTDOWN_ACTION_DUMP_REIPL_STR	"dump_reipl"
 
 struct shutdown_action {
 	char *name;
@@ -146,6 +147,7 @@ static enum ipl_method reipl_method = REIPL_METHOD_DEFAULT;
 static struct ipl_parameter_block *reipl_block_fcp;
 static struct ipl_parameter_block *reipl_block_ccw;
 static struct ipl_parameter_block *reipl_block_nss;
+static struct ipl_parameter_block *reipl_block_actual;
 
 static int dump_capabilities = DUMP_TYPE_NONE;
 static enum dump_type dump_type = DUMP_TYPE_NONE;
@@ -835,6 +837,7 @@ static int reipl_set_type(enum ipl_type type)
 			reipl_method = REIPL_METHOD_CCW_VM;
 		else
 			reipl_method = REIPL_METHOD_CCW_CIO;
+		reipl_block_actual = reipl_block_ccw;
 		break;
 	case IPL_TYPE_FCP:
 		if (diag308_set_works)
@@ -843,6 +846,7 @@ static int reipl_set_type(enum ipl_type type)
 			reipl_method = REIPL_METHOD_FCP_RO_VM;
 		else
 			reipl_method = REIPL_METHOD_FCP_RO_DIAG;
+		reipl_block_actual = reipl_block_fcp;
 		break;
 	case IPL_TYPE_FCP_DUMP:
 		reipl_method = REIPL_METHOD_FCP_DUMP;
@@ -852,6 +856,7 @@ static int reipl_set_type(enum ipl_type type)
 			reipl_method = REIPL_METHOD_NSS_DIAG;
 		else
 			reipl_method = REIPL_METHOD_NSS;
+		reipl_block_actual = reipl_block_nss;
 		break;
 	case IPL_TYPE_UNKNOWN:
 		reipl_method = REIPL_METHOD_DEFAULT;
@@ -960,7 +965,6 @@ static void reipl_run(struct shutdown_trigger *trigger)
 		diag308(DIAG308_IPL, NULL);
 		break;
 	case REIPL_METHOD_FCP_DUMP:
-	default:
 		break;
 	}
 	disabled_wait((unsigned long) __builtin_return_address(0));
@@ -1069,10 +1073,12 @@ static int __init reipl_fcp_init(void)
 {
 	int rc;
 
-	if ((!diag308_set_works) && (ipl_info.type != IPL_TYPE_FCP))
-		return 0;
-	if ((!diag308_set_works) && (ipl_info.type == IPL_TYPE_FCP))
-		make_attrs_ro(reipl_fcp_attrs);
+	if (!diag308_set_works) {
+		if (ipl_info.type == IPL_TYPE_FCP)
+			make_attrs_ro(reipl_fcp_attrs);
+		else
+			return 0;
+	}
 
 	reipl_block_fcp = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!reipl_block_fcp)
@@ -1253,7 +1259,6 @@ static void dump_run(struct shutdown_trigger *trigger)
 		diag308(DIAG308_DUMP, NULL);
 		break;
 	case DUMP_METHOD_NONE:
-	default:
 		return;
 	}
 	printk(KERN_EMERG "Dump failed!\n");
@@ -1330,6 +1335,49 @@ static struct shutdown_action __refdata dump_action = {
 	.name	= SHUTDOWN_ACTION_DUMP_STR,
 	.fn	= dump_run,
 	.init	= dump_init,
+};
+
+static void dump_reipl_run(struct shutdown_trigger *trigger)
+{
+	preempt_disable();
+	/*
+	 * Bypass dynamic address translation (DAT) when storing IPL parameter
+	 * information block address and checksum into the prefix area
+	 * (corresponding to absolute addresses 0-8191).
+	 * When enhanced DAT applies and the STE format control in one,
+	 * the absolute address is formed without prefixing. In this case a
+	 * normal store (stg/st) into the prefix area would no more match to
+	 * absolute addresses 0-8191.
+	 */
+#ifdef CONFIG_64BIT
+	asm volatile("sturg %0,%1"
+		:: "a" ((unsigned long) reipl_block_actual),
+		"a" (&lowcore_ptr[smp_processor_id()]->ipib));
+#else
+	asm volatile("stura %0,%1"
+		:: "a" ((unsigned long) reipl_block_actual),
+		"a" (&lowcore_ptr[smp_processor_id()]->ipib));
+#endif
+	asm volatile("stura %0,%1"
+		:: "a" (csum_partial(reipl_block_actual,
+				     reipl_block_actual->hdr.len, 0)),
+		"a" (&lowcore_ptr[smp_processor_id()]->ipib_checksum));
+	preempt_enable();
+	dump_run(trigger);
+}
+
+static int __init dump_reipl_init(void)
+{
+	if (!diag308_set_works)
+		return -EOPNOTSUPP;
+	else
+		return 0;
+}
+
+static struct shutdown_action __refdata dump_reipl_action = {
+	.name	= SHUTDOWN_ACTION_DUMP_REIPL_STR,
+	.fn	= dump_reipl_run,
+	.init	= dump_reipl_init,
 };
 
 /*
@@ -1421,7 +1469,8 @@ static struct shutdown_action stop_action = {SHUTDOWN_ACTION_STOP_STR,
 /* action list */
 
 static struct shutdown_action *shutdown_actions_list[] = {
-	&ipl_action, &reipl_action, &dump_action, &vmcmd_action, &stop_action};
+	&ipl_action, &reipl_action, &dump_reipl_action, &dump_action,
+	&vmcmd_action, &stop_action};
 #define SHUTDOWN_ACTIONS_COUNT (sizeof(shutdown_actions_list) / sizeof(void *))
 
 /*
@@ -1434,11 +1483,11 @@ static int set_trigger(const char *buf, struct shutdown_trigger *trigger,
 		       size_t len)
 {
 	int i;
+
 	for (i = 0; i < SHUTDOWN_ACTIONS_COUNT; i++) {
 		if (!shutdown_actions_list[i])
 			continue;
-		if (strncmp(buf, shutdown_actions_list[i]->name,
-			    strlen(shutdown_actions_list[i]->name)) == 0) {
+		if (sysfs_streq(buf, shutdown_actions_list[i]->name)) {
 			trigger->action = shutdown_actions_list[i];
 			return len;
 		}
@@ -1672,7 +1721,7 @@ static int on_panic_notify(struct notifier_block *self,
 
 static struct notifier_block on_panic_nb = {
 	.notifier_call = on_panic_notify,
-	.priority = 0,
+	.priority = INT_MIN,
 };
 
 void __init setup_ipl(void)
@@ -1696,7 +1745,6 @@ void __init setup_ipl(void)
 			sizeof(ipl_info.data.nss.name));
 		break;
 	case IPL_TYPE_UNKNOWN:
-	default:
 		/* We have no info to copy */
 		break;
 	}

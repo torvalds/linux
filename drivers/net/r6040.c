@@ -49,12 +49,12 @@
 #include <asm/processor.h>
 
 #define DRV_NAME	"r6040"
-#define DRV_VERSION	"0.21"
-#define DRV_RELDATE	"09Jan2009"
+#define DRV_VERSION	"0.22"
+#define DRV_RELDATE	"25Mar2009"
 
 /* PHY CHIP Address */
 #define PHY1_ADDR	1	/* For MAC1 */
-#define PHY2_ADDR	2	/* For MAC2 */
+#define PHY2_ADDR	3	/* For MAC2 */
 #define PHY_MODE	0x3100	/* PHY CHIP Register 0 */
 #define PHY_CAP		0x01E1	/* PHY CHIP Register 4 */
 
@@ -438,7 +438,6 @@ static void r6040_down(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
-	struct pci_dev *pdev = lp->pdev;
 	int limit = 2048;
 	u16 *adrp;
 	u16 cmd;
@@ -485,12 +484,12 @@ static int r6040_close(struct net_device *dev)
 	/* Free Descriptor memory */
 	if (lp->rx_ring) {
 		pci_free_consistent(pdev, RX_DESC_SIZE, lp->rx_ring, lp->rx_ring_dma);
-		lp->rx_ring = 0;
+		lp->rx_ring = NULL;
 	}
 
 	if (lp->tx_ring) {
 		pci_free_consistent(pdev, TX_DESC_SIZE, lp->tx_ring, lp->tx_ring_dma);
-		lp->tx_ring = 0;
+		lp->tx_ring = NULL;
 	}
 
 	return 0;
@@ -677,7 +676,7 @@ static int r6040_poll(struct napi_struct *napi, int budget)
 	work_done = r6040_rx(dev, budget);
 
 	if (work_done < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		/* Enable RX interrupt */
 		iowrite16(ioread16(ioaddr + MIER) | RX_INTS, ioaddr + MIER);
 	}
@@ -714,7 +713,7 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 
 		/* Mask off RX interrupt */
 		misr &= ~RX_INTS;
-		netif_rx_schedule(&lp->napi);
+		napi_schedule(&lp->napi);
 	}
 
 	/* TX interrupt request */
@@ -1086,13 +1085,13 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 		goto err_out;
 
 	/* this should always be supported */
-	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
 		printk(KERN_ERR DRV_NAME ": 32-bit PCI DMA addresses"
 				"not supported by the card\n");
 		goto err_out;
 	}
-	err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
 		printk(KERN_ERR DRV_NAME ": 32-bit PCI DMA addresses"
 				"not supported by the card\n");

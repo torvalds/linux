@@ -12,9 +12,27 @@
 #ifndef __LINUX_VIDEODEV_H
 #define __LINUX_VIDEODEV_H
 
+#include <linux/types.h>
 #include <linux/ioctl.h>
 #include <linux/videodev2.h>
 
+#if defined(__MIN_V4L1) && defined (__KERNEL__)
+
+/*
+ * Used by those V4L2 core functions that need a minimum V4L1 support,
+ * in order to allow V4L1 Compatibilty code compilation.
+ */
+
+struct video_mbuf
+{
+	int	size;		/* Total memory to map */
+	int	frames;		/* Frames */
+	int	offsets[VIDEO_MAX_FRAME];
+};
+
+#define VIDIOCGMBUF		_IOR('v',20, struct video_mbuf)		/* Memory map buffer info */
+
+#else
 #if defined(CONFIG_VIDEO_V4L1_COMPAT) || !defined (__KERNEL__)
 
 #define VID_TYPE_CAPTURE	1	/* Can capture */
@@ -311,6 +329,7 @@ struct video_code
 #define VID_PLAY_END_MARK		14
 
 #endif /* CONFIG_VIDEO_V4L1_COMPAT */
+#endif /* __MIN_V4L1 */
 
 #endif /* __LINUX_VIDEODEV_H */
 

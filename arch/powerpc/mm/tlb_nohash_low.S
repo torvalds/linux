@@ -118,25 +118,50 @@ _GLOBAL(_tlbil_pid)
 
 #elif defined(CONFIG_FSL_BOOKE)
 /*
- * FSL BookE implementations. Currently _pid and _all are the
- * same. This will change when tlbilx is actually supported and
- * performs invalidate-by-PID. This change will be driven by
- * mmu_features conditional
+ * FSL BookE implementations.
+ *
+ * Since feature sections are using _SECTION_ELSE we need
+ * to have the larger code path before the _SECTION_ELSE
  */
 
+#define MMUCSR0_TLBFI	(MMUCSR0_TLB0FI | MMUCSR0_TLB1FI | \
+			 MMUCSR0_TLB2FI | MMUCSR0_TLB3FI)
 /*
  * Flush MMU TLB on the local processor
  */
-_GLOBAL(_tlbil_pid)
 _GLOBAL(_tlbil_all)
-#define MMUCSR0_TLBFI	(MMUCSR0_TLB0FI | MMUCSR0_TLB1FI | \
-			 MMUCSR0_TLB2FI | MMUCSR0_TLB3FI)
+BEGIN_MMU_FTR_SECTION
 	li	r3,(MMUCSR0_TLBFI)@l
 	mtspr	SPRN_MMUCSR0, r3
 1:
 	mfspr	r3,SPRN_MMUCSR0
 	andi.	r3,r3,MMUCSR0_TLBFI@l
 	bne	1b
+MMU_FTR_SECTION_ELSE
+	PPC_TLBILX_ALL(0,0)
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_TLBILX)
+	msync
+	isync
+	blr
+
+_GLOBAL(_tlbil_pid)
+BEGIN_MMU_FTR_SECTION
+	slwi	r3,r3,16
+	mfmsr	r10
+	wrteei	0
+	mfspr	r4,SPRN_MAS6	/* save MAS6 */
+	mtspr	SPRN_MAS6,r3
+	PPC_TLBILX_PID(0,0)
+	mtspr	SPRN_MAS6,r4	/* restore MAS6 */
+	wrtee	r10
+MMU_FTR_SECTION_ELSE
+	li	r3,(MMUCSR0_TLBFI)@l
+	mtspr	SPRN_MMUCSR0, r3
+1:
+	mfspr	r3,SPRN_MMUCSR0
+	andi.	r3,r3,MMUCSR0_TLBFI@l
+	bne	1b
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBILX)
 	msync
 	isync
 	blr
@@ -149,7 +174,9 @@ _GLOBAL(_tlbil_va)
 	mfmsr	r10
 	wrteei	0
 	slwi	r4,r4,16
+	ori	r4,r4,(MAS6_ISIZE(BOOK3E_PAGESZ_4K))@l
 	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
+BEGIN_MMU_FTR_SECTION
 	tlbsx	0,r3
 	mfspr	r4,SPRN_MAS1		/* check valid */
 	andis.	r3,r4,MAS1_VALID@h
@@ -157,6 +184,9 @@ _GLOBAL(_tlbil_va)
 	rlwinm	r4,r4,0,1,31
 	mtspr	SPRN_MAS1,r4
 	tlbwe
+MMU_FTR_SECTION_ELSE
+	PPC_TLBILX_VA(0,r3)
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_TLBILX)
 	msync
 	isync
 1:	wrtee	r10

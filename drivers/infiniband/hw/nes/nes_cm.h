@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2008 NetEffect, Inc. All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -38,6 +38,9 @@
 
 #define NES_MANAGE_APBVT_DEL 0
 #define NES_MANAGE_APBVT_ADD 1
+
+#define NES_MPA_REQUEST_ACCEPT  1
+#define NES_MPA_REQUEST_REJECT  2
 
 /* IETF MPA -- defines, enums, structs */
 #define IEFT_MPA_KEY_REQ  "MPA ID Req Frame"
@@ -186,6 +189,7 @@ enum nes_cm_node_state {
 	NES_CM_STATE_ACCEPTING,
 	NES_CM_STATE_MPAREQ_SENT,
 	NES_CM_STATE_MPAREQ_RCVD,
+	NES_CM_STATE_MPAREJ_RCVD,
 	NES_CM_STATE_TSA,
 	NES_CM_STATE_FIN_WAIT1,
 	NES_CM_STATE_FIN_WAIT2,
@@ -278,13 +282,12 @@ struct nes_cm_node {
 	struct nes_timer_entry	*send_entry;
 
 	spinlock_t                retrans_list_lock;
-	struct list_head          recv_list;
-	spinlock_t                recv_list_lock;
+	struct nes_timer_entry  *recv_entry;
 
 	int                       send_write0;
 	union {
 		struct ietf_mpa_frame mpa_frame;
-		u8                    mpa_frame_buf[NES_CM_DEFAULT_MTU];
+		u8                    mpa_frame_buf[MAX_CM_BUFFER];
 	};
 	u16                       mpa_frame_size;
 	struct iw_cm_id           *cm_id;
@@ -326,6 +329,7 @@ enum  nes_cm_event_type {
 	NES_CM_EVENT_MPA_REQ,
 	NES_CM_EVENT_MPA_CONNECT,
 	NES_CM_EVENT_MPA_ACCEPT,
+	NES_CM_EVENT_MPA_REJECT,
 	NES_CM_EVENT_MPA_ESTABLISHED,
 	NES_CM_EVENT_CONNECTED,
 	NES_CM_EVENT_CLOSED,

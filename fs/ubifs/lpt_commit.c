@@ -229,7 +229,7 @@ static int layout_cnodes(struct ubifs_info *c)
 		while (offs + len > c->leb_size) {
 			alen = ALIGN(offs, c->min_io_size);
 			upd_ltab(c, lnum, c->leb_size - alen, alen - offs);
-			dbg_chk_lpt_sz(c, 2, alen - offs);
+			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = alloc_lpt_leb(c, &lnum);
 			if (err)
 				goto no_space;
@@ -272,7 +272,7 @@ static int layout_cnodes(struct ubifs_info *c)
 		if (offs + c->lsave_sz > c->leb_size) {
 			alen = ALIGN(offs, c->min_io_size);
 			upd_ltab(c, lnum, c->leb_size - alen, alen - offs);
-			dbg_chk_lpt_sz(c, 2, alen - offs);
+			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = alloc_lpt_leb(c, &lnum);
 			if (err)
 				goto no_space;
@@ -292,7 +292,7 @@ static int layout_cnodes(struct ubifs_info *c)
 		if (offs + c->ltab_sz > c->leb_size) {
 			alen = ALIGN(offs, c->min_io_size);
 			upd_ltab(c, lnum, c->leb_size - alen, alen - offs);
-			dbg_chk_lpt_sz(c, 2, alen - offs);
+			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = alloc_lpt_leb(c, &lnum);
 			if (err)
 				goto no_space;
@@ -416,14 +416,12 @@ static int write_cnodes(struct ubifs_info *c)
 						       alen, UBI_SHORTTERM);
 				if (err)
 					return err;
-				dbg_chk_lpt_sz(c, 4, alen - wlen);
 			}
-			dbg_chk_lpt_sz(c, 2, 0);
+			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
 				goto no_space;
-			offs = 0;
-			from = 0;
+			offs = from = 0;
 			ubifs_assert(lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
 			err = ubifs_leb_unmap(c, lnum);
@@ -477,11 +475,11 @@ static int write_cnodes(struct ubifs_info *c)
 					      UBI_SHORTTERM);
 			if (err)
 				return err;
-			dbg_chk_lpt_sz(c, 2, alen - wlen);
+			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
 				goto no_space;
-			offs = 0;
+			offs = from = 0;
 			ubifs_assert(lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
 			err = ubifs_leb_unmap(c, lnum);
@@ -504,11 +502,11 @@ static int write_cnodes(struct ubifs_info *c)
 					      UBI_SHORTTERM);
 			if (err)
 				return err;
-			dbg_chk_lpt_sz(c, 2, alen - wlen);
+			dbg_chk_lpt_sz(c, 2, c->leb_size - offs);
 			err = realloc_lpt_leb(c, &lnum);
 			if (err)
 				goto no_space;
-			offs = 0;
+			offs = from = 0;
 			ubifs_assert(lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
 			err = ubifs_leb_unmap(c, lnum);
@@ -556,23 +554,23 @@ no_space:
 }
 
 /**
- * next_pnode - find next pnode.
+ * next_pnode_to_dirty - find next pnode to dirty.
  * @c: UBIFS file-system description object
  * @pnode: pnode
  *
- * This function returns the next pnode or %NULL if there are no more pnodes.
+ * This function returns the next pnode to dirty or %NULL if there are no more
+ * pnodes.  Note that pnodes that have never been written (lnum == 0) are
+ * skipped.
  */
-static struct ubifs_pnode *next_pnode(struct ubifs_info *c,
-				      struct ubifs_pnode *pnode)
+static struct ubifs_pnode *next_pnode_to_dirty(struct ubifs_info *c,
+					       struct ubifs_pnode *pnode)
 {
 	struct ubifs_nnode *nnode;
 	int iip;
 
 	/* Try to go right */
 	nnode = pnode->parent;
-	iip = pnode->iip + 1;
-	if (iip < UBIFS_LPT_FANOUT) {
-		/* We assume here that LEB zero is never an LPT LEB */
+	for (iip = pnode->iip + 1; iip < UBIFS_LPT_FANOUT; iip++) {
 		if (nnode->nbranch[iip].lnum)
 			return ubifs_get_pnode(c, nnode, iip);
 	}
@@ -583,8 +581,11 @@ static struct ubifs_pnode *next_pnode(struct ubifs_info *c,
 		nnode = nnode->parent;
 		if (!nnode)
 			return NULL;
-		/* We assume here that LEB zero is never an LPT LEB */
-	} while (iip >= UBIFS_LPT_FANOUT || !nnode->nbranch[iip].lnum);
+		for (; iip < UBIFS_LPT_FANOUT; iip++) {
+			if (nnode->nbranch[iip].lnum)
+				break;
+		}
+       } while (iip >= UBIFS_LPT_FANOUT);
 
 	/* Go right */
 	nnode = ubifs_get_nnode(c, nnode, iip);
@@ -593,12 +594,29 @@ static struct ubifs_pnode *next_pnode(struct ubifs_info *c,
 
 	/* Go down to level 1 */
 	while (nnode->level > 1) {
-		nnode = ubifs_get_nnode(c, nnode, 0);
+		for (iip = 0; iip < UBIFS_LPT_FANOUT; iip++) {
+			if (nnode->nbranch[iip].lnum)
+				break;
+		}
+		if (iip >= UBIFS_LPT_FANOUT) {
+			/*
+			 * Should not happen, but we need to keep going
+			 * if it does.
+			 */
+			iip = 0;
+		}
+		nnode = ubifs_get_nnode(c, nnode, iip);
 		if (IS_ERR(nnode))
 			return (void *)nnode;
 	}
 
-	return ubifs_get_pnode(c, nnode, 0);
+	for (iip = 0; iip < UBIFS_LPT_FANOUT; iip++)
+		if (nnode->nbranch[iip].lnum)
+			break;
+	if (iip >= UBIFS_LPT_FANOUT)
+		/* Should not happen, but we need to keep going if it does */
+		iip = 0;
+	return ubifs_get_pnode(c, nnode, iip);
 }
 
 /**
@@ -688,7 +706,7 @@ static int make_tree_dirty(struct ubifs_info *c)
 	pnode = pnode_lookup(c, 0);
 	while (pnode) {
 		do_make_pnode_dirty(c, pnode);
-		pnode = next_pnode(c, pnode);
+		pnode = next_pnode_to_dirty(c, pnode);
 		if (IS_ERR(pnode))
 			return PTR_ERR(pnode);
 	}
@@ -1736,10 +1754,16 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
 /**
  * dbg_chk_lpt_sz - check LPT does not write more than LPT size.
  * @c: the UBIFS file-system description object
- * @action: action
+ * @action: what to do
  * @len: length written
  *
  * This function returns %0 on success and a negative error code on failure.
+ * The @action argument may be one of:
+ *   o %0 - LPT debugging checking starts, initialize debugging variables;
+ *   o %1 - wrote an LPT node, increase LPT size by @len bytes;
+ *   o %2 - switched to a different LEB and wasted @len bytes;
+ *   o %3 - check that we've written the right number of bytes.
+ *   o %4 - wasted @len bytes;
  */
 int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 {
@@ -1897,12 +1921,12 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 				       lnum, offs);
 			err = ubifs_unpack_nnode(c, buf, &nnode);
 			for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
-				printk("%d:%d", nnode.nbranch[i].lnum,
+				printk(KERN_CONT "%d:%d", nnode.nbranch[i].lnum,
 				       nnode.nbranch[i].offs);
 				if (i != UBIFS_LPT_FANOUT - 1)
-					printk(", ");
+					printk(KERN_CONT ", ");
 			}
-			printk("\n");
+			printk(KERN_CONT "\n");
 			break;
 		}
 		case UBIFS_LPT_LTAB:

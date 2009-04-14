@@ -1325,11 +1325,7 @@ static int dv1394_fasync(int fd, struct file *file, int on)
 
 	struct video_card *video = file_to_video_card(file);
 
-	int retval = fasync_helper(fd, file, on, &video->fasync);
-
-	if (retval < 0)
-		return retval;
-        return 0;
+	return fasync_helper(fd, file, on, &video->fasync);
 }
 
 static ssize_t dv1394_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
@@ -1823,6 +1819,10 @@ static int dv1394_open(struct inode *inode, struct file *file)
 
 #endif
 
+	printk(KERN_INFO "%s: NOTE, the dv1394 interface is unsupported "
+	       "and will not be available in the new firewire driver stack. "
+	       "Try libraw1394 based programs instead.\n", current->comm);
+
 	return 0;
 }
 
@@ -2171,7 +2171,7 @@ static const struct file_operations dv1394_fops=
  * Export information about protocols/devices supported by this driver.
  */
 #ifdef MODULE
-static struct ieee1394_device_id dv1394_id_table[] = {
+static const struct ieee1394_device_id dv1394_id_table[] = {
 	{
 		.match_flags	= IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION,
 		.specifier_id	= AVC_UNIT_SPEC_ID_ENTRY & 0xffffff,
@@ -2566,10 +2566,6 @@ static void __exit dv1394_exit_module(void)
 static int __init dv1394_init_module(void)
 {
 	int ret;
-
-	printk(KERN_WARNING
-	       "NOTE: The dv1394 driver is unsupported and may be removed in a "
-	       "future Linux release. Use raw1394 instead.\n");
 
 	cdev_init(&dv1394_cdev, &dv1394_fops);
 	dv1394_cdev.owner = THIS_MODULE;

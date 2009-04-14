@@ -55,7 +55,8 @@ static int ext4_block_in_group(struct super_block *sb, ext4_fsblk_t block,
 }
 
 static int ext4_group_used_meta_blocks(struct super_block *sb,
-				ext4_group_t block_group)
+				       ext4_group_t block_group,
+				       struct ext4_group_desc *gdp)
 {
 	ext4_fsblk_t tmp;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -63,10 +64,6 @@ static int ext4_group_used_meta_blocks(struct super_block *sb,
 	int used_blocks = sbi->s_itb_per_group + 2;
 
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG)) {
-		struct ext4_group_desc *gdp;
-		struct buffer_head *bh;
-
-		gdp = ext4_get_group_desc(sb, block_group, &bh);
 		if (!ext4_block_in_group(sb, ext4_block_bitmap(sb, gdp),
 					block_group))
 			used_blocks--;
@@ -177,7 +174,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 */
 		mark_bitmap_end(group_blocks, sb->s_blocksize * 8, bh->b_data);
 	}
-	return free_blocks - ext4_group_used_meta_blocks(sb, block_group);
+	return free_blocks - ext4_group_used_meta_blocks(sb, block_group, gdp);
 }
 
 
@@ -473,9 +470,8 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
-		spin_lock(sb_bgl_lock(sbi, flex_group));
-		sbi->s_flex_groups[flex_group].free_blocks += blocks_freed;
-		spin_unlock(sb_bgl_lock(sbi, flex_group));
+		atomic_add(blocks_freed,
+			   &sbi->s_flex_groups[flex_group].free_blocks);
 	}
 	/*
 	 * request to reload the buddy with the
@@ -536,7 +532,7 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	ext4_mb_free_blocks(handle, inode, block, count,
 			    metadata, &dquot_freed_blocks);
 	if (dquot_freed_blocks)
-		DQUOT_FREE_BLOCK(inode, dquot_freed_blocks);
+		vfs_dq_free_block(inode, dquot_freed_blocks);
 	return;
 }
 
@@ -609,7 +605,9 @@ int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
  */
 int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 {
-	if (!ext4_has_free_blocks(EXT4_SB(sb), 1) || (*retries)++ > 3)
+	if (!ext4_has_free_blocks(EXT4_SB(sb), 1) ||
+	    (*retries)++ > 3 ||
+	    !EXT4_SB(sb)->s_journal)
 		return 0;
 
 	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
@@ -684,15 +682,15 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 		gdp = ext4_get_group_desc(sb, i, NULL);
 		if (!gdp)
 			continue;
-		desc_count += le16_to_cpu(gdp->bg_free_blocks_count);
+		desc_count += ext4_free_blks_count(sb, gdp);
 		brelse(bitmap_bh);
 		bitmap_bh = ext4_read_block_bitmap(sb, i);
 		if (bitmap_bh == NULL)
 			continue;
 
 		x = ext4_count_free(bitmap_bh, sb->s_blocksize);
-		printk(KERN_DEBUG "group %lu: stored = %d, counted = %u\n",
-			i, le16_to_cpu(gdp->bg_free_blocks_count), x);
+		printk(KERN_DEBUG "group %u: stored = %d, counted = %u\n",
+			i, ext4_free_blks_count(sb, gdp), x);
 		bitmap_count += x;
 	}
 	brelse(bitmap_bh);

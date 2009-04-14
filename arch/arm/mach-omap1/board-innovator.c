@@ -37,9 +37,10 @@
 #include <mach/usb.h>
 #include <mach/keypad.h>
 #include <mach/common.h>
-#include <mach/mcbsp.h>
-#include <mach/omap-alsa.h>
 #include <mach/mmc.h>
+
+/* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
+#define INNOVATOR1610_ETHR_START	0x04000300
 
 static int innovator_keymap[] = {
 	KEY(0, 0, KEY_F1),
@@ -113,42 +114,6 @@ static struct platform_device innovator_flash_device = {
 	},
 	.num_resources	= 1,
 	.resource	= &innovator_flash_resource,
-};
-
-#define DEFAULT_BITPERSAMPLE 16
-
-static struct omap_mcbsp_reg_cfg mcbsp_regs = {
-	.spcr2 = FREE | FRST | GRST | XRST | XINTM(3),
-	.spcr1 = RINTM(3) | RRST,
-	.rcr2 = RPHASE | RFRLEN2(OMAP_MCBSP_WORD_8) |
-	    RWDLEN2(OMAP_MCBSP_WORD_16) | RDATDLY(0),
-	.rcr1 = RFRLEN1(OMAP_MCBSP_WORD_8) | RWDLEN1(OMAP_MCBSP_WORD_16),
-	.xcr2 = XPHASE | XFRLEN2(OMAP_MCBSP_WORD_8) |
-	    XWDLEN2(OMAP_MCBSP_WORD_16) | XDATDLY(0) | XFIG,
-	.xcr1 = XFRLEN1(OMAP_MCBSP_WORD_8) | XWDLEN1(OMAP_MCBSP_WORD_16),
-	.srgr1 = FWID(DEFAULT_BITPERSAMPLE - 1),
-	.srgr2 = GSYNC | CLKSP | FSGM | FPER(DEFAULT_BITPERSAMPLE * 2 - 1),
-	/*.pcr0 = FSXM | FSRM | CLKXM | CLKRM | CLKXP | CLKRP,*/ /* mcbsp: master */
-	.pcr0 = CLKXP | CLKRP,  /* mcbsp: slave */
-};
-
-static struct omap_alsa_codec_config alsa_config = {
-	.name			= "OMAP Innovator AIC23",
-	.mcbsp_regs_alsa	= &mcbsp_regs,
-	.codec_configure_dev	= NULL, /* aic23_configure, */
-	.codec_set_samplerate	= NULL, /* aic23_set_samplerate, */
-	.codec_clock_setup	= NULL, /* aic23_clock_setup, */
-	.codec_clock_on		= NULL, /* aic23_clock_on, */
-	.codec_clock_off	= NULL, /* aic23_clock_off, */
-	.get_default_samplerate	= NULL, /* aic23_get_default_samplerate, */
-};
-
-static struct platform_device innovator_mcbsp1_device = {
-	.name	= "omap_alsa_mcbsp",
- 	.id	= 1,
-	.dev = {
-		.platform_data	= &alsa_config,
-	},
 };
 
 static struct resource innovator_kp_resources[] = {
@@ -227,7 +192,6 @@ static struct platform_device innovator1510_spi_device = {
 static struct platform_device *innovator1510_devices[] __initdata = {
 	&innovator_flash_device,
 	&innovator1510_smc91x_device,
-	&innovator_mcbsp1_device,
 	&innovator_kp_device,
 	&innovator1510_lcd_device,
 	&innovator1510_spi_device,
@@ -409,7 +373,6 @@ static struct omap_uart_config innovator_uart_config __initdata = {
 };
 
 static struct omap_board_config_kernel innovator_config[] = {
-	{ OMAP_TAG_USB,         NULL },
 	{ OMAP_TAG_LCD,		NULL },
 	{ OMAP_TAG_UART,	&innovator_uart_config },
 };
@@ -431,13 +394,13 @@ static void __init innovator_init(void)
 
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
-		innovator_config[0].data = &innovator1510_usb_config;
+		omap_usb_init(&innovator1510_usb_config);
 		innovator_config[1].data = &innovator1510_lcd_config;
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP16XX
 	if (cpu_is_omap1610()) {
-		innovator_config[0].data = &h2_usb_config;
+		omap_usb_init(&h2_usb_config);
 		innovator_config[1].data = &innovator1610_lcd_config;
 	}
 #endif

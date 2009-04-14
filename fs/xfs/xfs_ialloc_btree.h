@@ -32,15 +32,14 @@ struct xfs_mount;
 #define	XFS_IBT_MAGIC	0x49414254	/* 'IABT' */
 
 typedef	__uint64_t	xfs_inofree_t;
-#define	XFS_INODES_PER_CHUNK	(NBBY * sizeof(xfs_inofree_t))
+#define	XFS_INODES_PER_CHUNK		(NBBY * sizeof(xfs_inofree_t))
 #define	XFS_INODES_PER_CHUNK_LOG	(XFS_NBBYLOG + 3)
-#define	XFS_INOBT_ALL_FREE	((xfs_inofree_t)-1)
+#define	XFS_INOBT_ALL_FREE		((xfs_inofree_t)-1)
+#define	XFS_INOBT_MASK(i)		((xfs_inofree_t)1 << (i))
 
-#define	XFS_INOBT_MASKN(i,n)		xfs_inobt_maskn(i,n)
 static inline xfs_inofree_t xfs_inobt_maskn(int i, int n)
 {
-	return (((n) >= XFS_INODES_PER_CHUNK ? \
-		(xfs_inofree_t)0 : ((xfs_inofree_t)1 << (n))) - 1) << (i);
+	return ((n >= XFS_INODES_PER_CHUNK ? 0 : XFS_INOBT_MASK(n)) - 1) << i;
 }
 
 /*
@@ -68,20 +67,6 @@ typedef struct xfs_inobt_key {
 
 /* btree pointer type */
 typedef __be32 xfs_inobt_ptr_t;
-
-/*
- * Bit manipulations for ir_free.
- */
-#define	XFS_INOBT_MASK(i)		((xfs_inofree_t)1 << (i))
-#define	XFS_INOBT_IS_FREE(rp,i)		\
-		(((rp)->ir_free & XFS_INOBT_MASK(i)) != 0)
-#define	XFS_INOBT_SET_FREE(rp,i)	((rp)->ir_free |= XFS_INOBT_MASK(i))
-#define	XFS_INOBT_CLR_FREE(rp,i)	((rp)->ir_free &= ~XFS_INOBT_MASK(i))
-
-/*
- * Maximum number of inode btree levels.
- */
-#define	XFS_IN_MAXLEVELS(mp)		((mp)->m_in_maxlevels)
 
 /*
  * block numbers in the AG.

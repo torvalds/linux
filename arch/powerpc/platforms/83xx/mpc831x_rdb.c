@@ -38,6 +38,8 @@ static void __init mpc831x_rdb_setup_arch(void)
 #ifdef CONFIG_PCI
 	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
 		mpc83xx_add_bridge(np);
+	for_each_compatible_node(np, "pci", "fsl,mpc8314-pcie")
+		mpc83xx_add_bridge(np);
 #endif
 	mpc831x_usb_cfg();
 }
@@ -71,6 +73,7 @@ static int __init mpc831x_rdb_probe(void)
 
 static struct of_device_id __initdata of_bus_ids[] = {
 	{ .compatible = "simple-bus" },
+	{ .compatible = "gianfar" },
 	{},
 };
 

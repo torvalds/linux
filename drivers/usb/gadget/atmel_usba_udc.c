@@ -319,7 +319,7 @@ static inline void usba_cleanup_debugfs(struct usba_udc *udc)
 
 static int vbus_is_present(struct usba_udc *udc)
 {
-	if (udc->vbus_pin != -1)
+	if (gpio_is_valid(udc->vbus_pin))
 		return gpio_get_value(udc->vbus_pin);
 
 	/* No Vbus detection: Assume always present */
@@ -1017,7 +1017,7 @@ static struct usb_endpoint_descriptor usba_ep0_desc = {
 	.bDescriptorType = USB_DT_ENDPOINT,
 	.bEndpointAddress = 0,
 	.bmAttributes = USB_ENDPOINT_XFER_CONTROL,
-	.wMaxPacketSize = __constant_cpu_to_le16(64),
+	.wMaxPacketSize = cpu_to_le16(64),
 	/* FIXME: I have no idea what to put here */
 	.bInterval = 1,
 };
@@ -1207,21 +1207,21 @@ static int do_test_mode(struct usba_udc *udc)
 /* Avoid overly long expressions */
 static inline bool feature_is_dev_remote_wakeup(struct usb_ctrlrequest *crq)
 {
-	if (crq->wValue == __constant_cpu_to_le16(USB_DEVICE_REMOTE_WAKEUP))
+	if (crq->wValue == cpu_to_le16(USB_DEVICE_REMOTE_WAKEUP))
 		return true;
 	return false;
 }
 
 static inline bool feature_is_dev_test_mode(struct usb_ctrlrequest *crq)
 {
-	if (crq->wValue == __constant_cpu_to_le16(USB_DEVICE_TEST_MODE))
+	if (crq->wValue == cpu_to_le16(USB_DEVICE_TEST_MODE))
 		return true;
 	return false;
 }
 
 static inline bool feature_is_ep_halt(struct usb_ctrlrequest *crq)
 {
-	if (crq->wValue == __constant_cpu_to_le16(USB_ENDPOINT_HALT))
+	if (crq->wValue == cpu_to_le16(USB_ENDPOINT_HALT))
 		return true;
 	return false;
 }
@@ -1239,7 +1239,7 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 			status = cpu_to_le16(udc->devstatus);
 		} else if (crq->bRequestType
 				== (USB_DIR_IN | USB_RECIP_INTERFACE)) {
-			status = __constant_cpu_to_le16(0);
+			status = cpu_to_le16(0);
 		} else if (crq->bRequestType
 				== (USB_DIR_IN | USB_RECIP_ENDPOINT)) {
 			struct usba_ep *target;
@@ -1250,12 +1250,12 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 
 			status = 0;
 			if (is_stalled(udc, target))
-				status |= __constant_cpu_to_le16(1);
+				status |= cpu_to_le16(1);
 		} else
 			goto delegate;
 
 		/* Write directly to the FIFO. No queueing is done. */
-		if (crq->wLength != __constant_cpu_to_le16(sizeof(status)))
+		if (crq->wLength != cpu_to_le16(sizeof(status)))
 			goto stall;
 		ep->state = DATA_STAGE_IN;
 		__raw_writew(status, ep->fifo);
@@ -1274,7 +1274,7 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 		} else if (crq->bRequestType == USB_RECIP_ENDPOINT) {
 			struct usba_ep *target;
 
-			if (crq->wLength != __constant_cpu_to_le16(0)
+			if (crq->wLength != cpu_to_le16(0)
 					|| !feature_is_ep_halt(crq))
 				goto stall;
 			target = get_ep_by_addr(udc, le16_to_cpu(crq->wIndex));
@@ -1308,7 +1308,7 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 		} else if (crq->bRequestType == USB_RECIP_ENDPOINT) {
 			struct usba_ep *target;
 
-			if (crq->wLength != __constant_cpu_to_le16(0)
+			if (crq->wLength != cpu_to_le16(0)
 					|| !feature_is_ep_halt(crq))
 				goto stall;
 
@@ -1514,7 +1514,7 @@ restart:
 			 */
 			ep->state = DATA_STAGE_IN;
 		} else {
-			if (crq.crq.wLength != __constant_cpu_to_le16(0))
+			if (crq.crq.wLength != cpu_to_le16(0))
 				ep->state = DATA_STAGE_OUT;
 			else
 				ep->state = STATUS_STAGE_IN;
@@ -1821,7 +1821,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	DBG(DBG_GADGET, "registered driver `%s'\n", driver->driver.name);
 
 	udc->vbus_prev = 0;
-	if (udc->vbus_pin != -1)
+	if (gpio_is_valid(udc->vbus_pin))
 		enable_irq(gpio_to_irq(udc->vbus_pin));
 
 	/* If Vbus is present, enable the controller and wait for reset */
@@ -1852,7 +1852,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	if (driver != udc->driver || !driver->unbind)
 		return -EINVAL;
 
-	if (udc->vbus_pin != -1)
+	if (gpio_is_valid(udc->vbus_pin))
 		disable_irq(gpio_to_irq(udc->vbus_pin));
 
 	spin_lock_irqsave(&udc->lock, flags);
@@ -1910,7 +1910,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	udc->pdev = pdev;
 	udc->pclk = pclk;
 	udc->hclk = hclk;
-	udc->vbus_pin = -1;
+	udc->vbus_pin = -ENODEV;
 
 	ret = -ENOMEM;
 	udc->regs = ioremap(regs->start, regs->end - regs->start + 1);
@@ -1996,7 +1996,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 		goto err_device_add;
 	}
 
-	if (pdata->vbus_pin >= 0) {
+	if (gpio_is_valid(pdata->vbus_pin)) {
 		if (!gpio_request(pdata->vbus_pin, "atmel_usba_udc")) {
 			udc->vbus_pin = pdata->vbus_pin;
 
@@ -2005,7 +2005,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 					"atmel_usba_udc", udc);
 			if (ret) {
 				gpio_free(udc->vbus_pin);
-				udc->vbus_pin = -1;
+				udc->vbus_pin = -ENODEV;
 				dev_warn(&udc->pdev->dev,
 					 "failed to request vbus irq; "
 					 "assuming always on\n");
@@ -2051,7 +2051,7 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 		usba_ep_cleanup_debugfs(&usba_ep[i]);
 	usba_cleanup_debugfs(udc);
 
-	if (udc->vbus_pin != -1)
+	if (gpio_is_valid(udc->vbus_pin))
 		gpio_free(udc->vbus_pin);
 
 	free_irq(udc->irq, udc);

@@ -17,6 +17,19 @@
 
 __INIT
 
+ENTRY(__init_clear_bss)
+	r2 = r2 - r1;
+	cc = r2 == 0;
+	if cc jump .L_bss_done;
+	r2 >>= 2;
+	p1 = r1;
+	p2 = r2;
+	lsetup (1f, 1f) lc0 = p2;
+1:	[p1++] = r0;
+.L_bss_done:
+	rts;
+ENDPROC(__init_clear_bss)
+
 #define INITIAL_STACK	(L1_SCRATCH_START + L1_SCRATCH_LENGTH - 12)
 
 ENTRY(__start)
@@ -144,6 +157,35 @@ ENTRY(__start)
 	call _init_early_exception_vectors;
 #endif
 
+	r0 = 0 (x);
+	/* Zero out all of the fun bss regions */
+#if L1_DATA_A_LENGTH > 0
+	r1.l = __sbss_l1;
+	r1.h = __sbss_l1;
+	r2.l = __ebss_l1;
+	r2.h = __ebss_l1;
+	call __init_clear_bss
+#endif
+#if L1_DATA_B_LENGTH > 0
+	r1.l = __sbss_b_l1;
+	r1.h = __sbss_b_l1;
+	r2.l = __ebss_b_l1;
+	r2.h = __ebss_b_l1;
+	call __init_clear_bss
+#endif
+#if L2_LENGTH > 0
+	r1.l = __sbss_l2;
+	r1.h = __sbss_l2;
+	r2.l = __ebss_l2;
+	r2.h = __ebss_l2;
+	call __init_clear_bss
+#endif
+	r1.l = ___bss_start;
+	r1.h = ___bss_start;
+	r2.l = ___bss_stop;
+	r2.h = ___bss_stop;
+	call __init_clear_bss
+
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bfin_relocate_l1_mem;
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
@@ -185,19 +227,6 @@ ENDPROC(__start)
 # define WDOG_CTL WDOGA_CTL
 #endif
 
-ENTRY(__init_clear_bss)
-	r2 = r2 - r1;
-	cc = r2 == 0;
-	if cc jump .L_bss_done;
-	r2 >>= 2;
-	p1 = r1;
-	p2 = r2;
-	lsetup (1f, 1f) lc0 = p2;
-1:	[p1++] = r0;
-.L_bss_done:
-	rts;
-ENDPROC(__init_clear_bss)
-
 ENTRY(_real_start)
 	/* Enable nested interrupts */
 	[--sp] = reti;
@@ -208,35 +237,6 @@ ENTRY(_real_start)
 	r0 = 0xAD6(z);
 	w[p0] = r0;
 	ssync;
-
-	r0 = 0 (x);
-	/* Zero out all of the fun bss regions */
-#if L1_DATA_A_LENGTH > 0
-	r1.l = __sbss_l1;
-	r1.h = __sbss_l1;
-	r2.l = __ebss_l1;
-	r2.h = __ebss_l1;
-	call __init_clear_bss
-#endif
-#if L1_DATA_B_LENGTH > 0
-	r1.l = __sbss_b_l1;
-	r1.h = __sbss_b_l1;
-	r2.l = __ebss_b_l1;
-	r2.h = __ebss_b_l1;
-	call __init_clear_bss
-#endif
-#if L2_LENGTH > 0
-	r1.l = __sbss_l2;
-	r1.h = __sbss_l2;
-	r2.l = __ebss_l2;
-	r2.h = __ebss_l2;
-	call __init_clear_bss
-#endif
-	r1.l = ___bss_start;
-	r1.h = ___bss_start;
-	r2.l = ___bss_stop;
-	r2.h = ___bss_stop;
-	call __init_clear_bss
 
 	/* Pass the u-boot arguments to the global value command line */
 	R0 = R7;

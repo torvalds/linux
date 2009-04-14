@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -27,8 +27,6 @@
 #ifndef __iwl_agn_rs_h__
 #define __iwl_agn_rs_h__
 
-#include "iwl-dev.h"
-
 struct iwl_rate_info {
 	u8 plcp;	/* uCode API:  IWL_RATE_6M_PLCP, etc. */
 	u8 plcp_siso;	/* uCode API:  IWL_RATE_SISO_6M_PLCP, etc. */
@@ -41,6 +39,19 @@ struct iwl_rate_info {
 	u8 next_rs;      /* next rate used in rs algo */
 	u8 prev_rs_tgg;  /* previous rate used in TGG rs algo */
 	u8 next_rs_tgg;  /* next rate used in TGG rs algo */
+};
+
+struct iwl3945_rate_info {
+	u8 plcp;		/* uCode API:  IWL_RATE_6M_PLCP, etc. */
+	u8 ieee;		/* MAC header:  IWL_RATE_6M_IEEE, etc. */
+	u8 prev_ieee;		/* previous rate in IEEE speeds */
+	u8 next_ieee;		/* next rate in IEEE speeds */
+	u8 prev_rs;		/* previous rate used in rs algo */
+	u8 next_rs;		/* next rate used in rs algo */
+	u8 prev_rs_tgg;		/* previous rate used in TGG rs algo */
+	u8 next_rs_tgg;		/* next rate used in TGG rs algo */
+	u8 table_rs_index;	/* index in rate scale table cmd */
+	u8 prev_table_rs;	/* prev in rate table cmd */
 };
 
 /*
@@ -62,12 +73,30 @@ enum {
 	IWL_RATE_54M_INDEX,
 	IWL_RATE_60M_INDEX,
 	IWL_RATE_COUNT, /*FIXME:RS:change to IWL_RATE_INDEX_COUNT,*/
+	IWL_RATE_COUNT_3945 = IWL_RATE_COUNT - 1,
 	IWL_RATE_INVM_INDEX = IWL_RATE_COUNT,
 	IWL_RATE_INVALID = IWL_RATE_COUNT,
 };
 
 enum {
+	IWL_RATE_6M_INDEX_TABLE = 0,
+	IWL_RATE_9M_INDEX_TABLE,
+	IWL_RATE_12M_INDEX_TABLE,
+	IWL_RATE_18M_INDEX_TABLE,
+	IWL_RATE_24M_INDEX_TABLE,
+	IWL_RATE_36M_INDEX_TABLE,
+	IWL_RATE_48M_INDEX_TABLE,
+	IWL_RATE_54M_INDEX_TABLE,
+	IWL_RATE_1M_INDEX_TABLE,
+	IWL_RATE_2M_INDEX_TABLE,
+	IWL_RATE_5M_INDEX_TABLE,
+	IWL_RATE_11M_INDEX_TABLE,
+	IWL_RATE_INVM_INDEX_TABLE = IWL_RATE_INVM_INDEX - 1,
+};
+
+enum {
 	IWL_FIRST_OFDM_RATE = IWL_RATE_6M_INDEX,
+	IWL39_LAST_OFDM_RATE = IWL_RATE_54M_INDEX,
 	IWL_LAST_OFDM_RATE = IWL_RATE_60M_INDEX,
 	IWL_FIRST_CCK_RATE = IWL_RATE_1M_INDEX,
 	IWL_LAST_CCK_RATE = IWL_RATE_11M_INDEX,
@@ -202,7 +231,7 @@ enum {
 #define IWL_RS_GOOD_RATIO		12800	/* 100% */
 #define IWL_RATE_SCALE_SWITCH		10880	/*  85% */
 #define IWL_RATE_HIGH_TH		10880	/*  85% */
-#define IWL_RATE_INCREASE_TH            8960	/*  70% */
+#define IWL_RATE_INCREASE_TH		6400	/*  50% */
 #define IWL_RATE_DECREASE_TH		1920	/*  15% */
 
 /* possible actions when in legacy mode */
@@ -248,6 +277,7 @@ enum {
 #define TIME_WRAP_AROUND(x, y) (((y) > (x)) ? (y) - (x) : (0-(x)) + (y))
 
 extern const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT];
+extern const struct iwl3945_rate_info iwl3945_rates[IWL_RATE_COUNT_3945];
 
 enum iwl_table_type {
 	LQ_NONE,
@@ -303,6 +333,23 @@ static inline u8 iwl_get_prev_ieee_rate(u8 rate_index)
 	return rate;
 }
 
+static inline u8 iwl3945_get_prev_ieee_rate(u8 rate_index)
+{
+	u8 rate = iwl3945_rates[rate_index].prev_ieee;
+
+	if (rate == IWL_RATE_INVALID)
+		rate = rate_index;
+	return rate;
+}
+
+/**
+ * iwl3945_rate_scale_init - Initialize the rate scale table based on assoc info
+ *
+ * The specific throughput table used is based on the type of network
+ * the associated with, including A, B, G, and G w/ TGG protection
+ */
+extern void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
+
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks
  *
@@ -314,6 +361,7 @@ static inline u8 iwl_get_prev_ieee_rate(u8 rate_index)
  *
  */
 extern int iwlagn_rate_control_register(void);
+extern int iwl3945_rate_control_register(void);
 
 /**
  * iwl_rate_control_unregister - Unregister the rate control callbacks
@@ -322,5 +370,6 @@ extern int iwlagn_rate_control_register(void);
  * the driver is unloaded.
  */
 extern void iwlagn_rate_control_unregister(void);
+extern void iwl3945_rate_control_unregister(void);
 
 #endif /* __iwl_agn__rs__ */

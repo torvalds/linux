@@ -1302,7 +1302,7 @@ static void velocity_free_rd_ring(struct velocity_info *vptr)
 static int velocity_init_td_ring(struct velocity_info *vptr)
 {
 	dma_addr_t curr;
-	unsigned int j;
+	int j;
 
 	/* Init the TD ring entries */
 	for (j = 0; j < vptr->tx.numq; j++) {
@@ -1838,17 +1838,19 @@ static void velocity_free_tx_buf(struct velocity_info *vptr, struct velocity_td_
 {
 	struct sk_buff *skb = tdinfo->skb;
 	int i;
+	int pktlen;
 
 	/*
 	 *	Don't unmap the pre-allocated tx_bufs
 	 */
 	if (tdinfo->skb_dma) {
 
+		pktlen = (skb->len > ETH_ZLEN ? : ETH_ZLEN);
 		for (i = 0; i < tdinfo->nskb_dma; i++) {
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
 			pci_unmap_single(vptr->pdev, tdinfo->skb_dma[i], le16_to_cpu(td->tdesc1.len), PCI_DMA_TODEVICE);
 #else
-			pci_unmap_single(vptr->pdev, tdinfo->skb_dma[i], skb->len, PCI_DMA_TODEVICE);
+			pci_unmap_single(vptr->pdev, tdinfo->skb_dma[i], pktlen, PCI_DMA_TODEVICE);
 #endif
 			tdinfo->skb_dma[i] = 0;
 		}
@@ -2080,17 +2082,14 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct tx_desc *td_ptr;
 	struct velocity_td_info *tdinfo;
 	unsigned long flags;
-	int pktlen = skb->len;
+	int pktlen;
 	__le16 len;
 	int index;
 
 
-
-	if (skb->len < ETH_ZLEN) {
-		if (skb_padto(skb, ETH_ZLEN))
-			goto out;
-		pktlen = ETH_ZLEN;
-	}
+	if (skb_padto(skb, ETH_ZLEN))
+		goto out;
+	pktlen = max_t(unsigned int, skb->len, ETH_ZLEN);
 
 	len = cpu_to_le16(pktlen);
 

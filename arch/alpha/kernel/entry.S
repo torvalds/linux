@@ -896,15 +896,16 @@ sys_getxpid:
 .end sys_getxpid
 
 	.align	4
-	.globl	sys_pipe
-	.ent	sys_pipe
-sys_pipe:
+	.globl	sys_alpha_pipe
+	.ent	sys_alpha_pipe
+sys_alpha_pipe:
 	lda	$sp, -16($sp)
 	stq	$26, 0($sp)
 	.prologue 0
 
+	mov	$31, $17
 	lda	$16, 8($sp)
-	jsr	$26, do_pipe
+	jsr	$26, do_pipe_flags
 
 	ldq	$26, 0($sp)
 	bne	$0, 1f
@@ -916,7 +917,7 @@ sys_pipe:
 	stq	$1, 80+16($sp)
 1:	lda	$sp, 16($sp)
 	ret
-.end sys_pipe
+.end sys_alpha_pipe
 
 	.align	4
 	.globl	sys_execve
@@ -933,7 +934,7 @@ sys_execve:
 osf_sigprocmask:
 	.prologue 0
 	mov	$sp, $18
-	jmp	$31, do_osf_sigprocmask
+	jmp	$31, sys_osf_sigprocmask
 .end osf_sigprocmask
 
 	.align	4

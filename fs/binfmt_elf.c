@@ -12,8 +12,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
-#include <linux/stat.h>
-#include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/errno.h>
@@ -21,20 +19,15 @@
 #include <linux/binfmts.h>
 #include <linux/string.h>
 #include <linux/file.h>
-#include <linux/fcntl.h>
-#include <linux/ptrace.h>
 #include <linux/slab.h>
-#include <linux/shm.h>
 #include <linux/personality.h>
 #include <linux/elfcore.h>
 #include <linux/init.h>
 #include <linux/highuid.h>
-#include <linux/smp.h>
 #include <linux/compiler.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/security.h>
-#include <linux/syscalls.h>
 #include <linux/random.h>
 #include <linux/elf.h>
 #include <linux/utsname.h>
@@ -576,7 +569,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	unsigned long error;
 	struct elf_phdr *elf_ppnt, *elf_phdata;
 	unsigned long elf_bss, elf_brk;
-	int elf_exec_fileno;
 	int retval, i;
 	unsigned int size;
 	unsigned long elf_entry;
@@ -631,12 +623,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 		goto out_free_ph;
 	}
 
-	retval = get_unused_fd();
-	if (retval < 0)
-		goto out_free_ph;
-	get_file(bprm->file);
-	fd_install(elf_exec_fileno = retval, bprm->file);
-
 	elf_ppnt = elf_phdata;
 	elf_bss = 0;
 	elf_brk = 0;
@@ -655,13 +641,13 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			retval = -ENOEXEC;
 			if (elf_ppnt->p_filesz > PATH_MAX || 
 			    elf_ppnt->p_filesz < 2)
-				goto out_free_file;
+				goto out_free_ph;
 
 			retval = -ENOMEM;
 			elf_interpreter = kmalloc(elf_ppnt->p_filesz,
 						  GFP_KERNEL);
 			if (!elf_interpreter)
-				goto out_free_file;
+				goto out_free_ph;
 
 			retval = kernel_read(bprm->file, elf_ppnt->p_offset,
 					     elf_interpreter,
@@ -956,8 +942,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 	kfree(elf_phdata);
 
-	sys_close(elf_exec_fileno);
-
 	set_binfmt(&elf_format);
 
 #ifdef ARCH_HAS_SETUP_ADDITIONAL_PAGES
@@ -1028,8 +1012,6 @@ out_free_dentry:
 		fput(interpreter);
 out_free_interp:
 	kfree(elf_interpreter);
-out_free_file:
-	sys_close(elf_exec_fileno);
 out_free_ph:
 	kfree(elf_phdata);
 	goto out;
@@ -1208,9 +1190,11 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
 	 * check for an ELF header.  If we find one, dump the first page to
 	 * aid in determining what was mapped here.
 	 */
-	if (FILTER(ELF_HEADERS) && vma->vm_file != NULL && vma->vm_pgoff == 0) {
+	if (FILTER(ELF_HEADERS) &&
+	    vma->vm_pgoff == 0 && (vma->vm_flags & VM_READ)) {
 		u32 __user *header = (u32 __user *) vma->vm_start;
 		u32 word;
+		mm_segment_t fs = get_fs();
 		/*
 		 * Doing it this way gets the constant folded by GCC.
 		 */
@@ -1223,7 +1207,15 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
 		magic.elfmag[EI_MAG1] = ELFMAG1;
 		magic.elfmag[EI_MAG2] = ELFMAG2;
 		magic.elfmag[EI_MAG3] = ELFMAG3;
-		if (get_user(word, header) == 0 && word == magic.cmp)
+		/*
+		 * Switch to the user "segment" for get_user(),
+		 * then put back what elf_core_dump() had in place.
+		 */
+		set_fs(USER_DS);
+		if (unlikely(get_user(word, header)))
+			word = 0;
+		set_fs(fs);
+		if (word == magic.cmp)
 			return PAGE_SIZE;
 	}
 

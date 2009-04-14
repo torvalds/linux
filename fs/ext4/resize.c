@@ -861,12 +861,13 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	gdp = (struct ext4_group_desc *)((char *)primary->b_data +
 					 gdb_off * EXT4_DESC_SIZE(sb));
 
+	memset(gdp, 0, EXT4_DESC_SIZE(sb));
 	ext4_block_bitmap_set(sb, gdp, input->block_bitmap); /* LV FIXME */
 	ext4_inode_bitmap_set(sb, gdp, input->inode_bitmap); /* LV FIXME */
 	ext4_inode_table_set(sb, gdp, input->inode_table); /* LV FIXME */
 	ext4_free_blks_set(sb, gdp, input->free_blocks_count);
 	ext4_free_inodes_set(sb, gdp, EXT4_INODES_PER_GROUP(sb));
-	gdp->bg_flags |= cpu_to_le16(EXT4_BG_INODE_ZEROED);
+	gdp->bg_flags = cpu_to_le16(EXT4_BG_INODE_ZEROED);
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, input->group, gdp);
 
 	/*
@@ -937,10 +938,10 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG)) {
 		ext4_group_t flex_group;
 		flex_group = ext4_flex_group(sbi, input->group);
-		sbi->s_flex_groups[flex_group].free_blocks +=
-			input->free_blocks_count;
-		sbi->s_flex_groups[flex_group].free_inodes +=
-			EXT4_INODES_PER_GROUP(sb);
+		atomic_add(input->free_blocks_count,
+			   &sbi->s_flex_groups[flex_group].free_blocks);
+		atomic_add(EXT4_INODES_PER_GROUP(sb),
+			   &sbi->s_flex_groups[flex_group].free_inodes);
 	}
 
 	ext4_handle_dirty_metadata(handle, NULL, sbi->s_sbh);

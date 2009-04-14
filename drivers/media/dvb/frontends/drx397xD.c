@@ -74,7 +74,7 @@ static struct {
 } fw[] = {
 #define _FW_ENTRY(a, b, c)	{					\
 			.name	= a,					\
-			.file	= 0,					\
+			.file	= NULL,					\
 			.lock	= __RW_LOCK_UNLOCKED(fw[c].lock),	\
 			.refcnt = 0,					\
 			.data	= { }		}
@@ -646,7 +646,7 @@ static int drx_tune(struct drx397xD_state *s,
 	u32 edi = 0, ebx = 0, ebp = 0, edx = 0;
 	u16 v20 = 0, v1E = 0, v16 = 0, v14 = 0, v12 = 0, v10 = 0, v0E = 0;
 
-	int rc, df_tuner;
+	int rc, df_tuner = 0;
 	int a, b, c, d;
 	pr_debug("%s %d\n", __func__, s->config.d60);
 

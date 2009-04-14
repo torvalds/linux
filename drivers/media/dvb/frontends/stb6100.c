@@ -427,11 +427,11 @@ static int stb6100_init(struct dvb_frontend *fe)
 	status->refclock	= 27000000;	/* Hz	*/
 	status->iqsense		= 1;
 	status->bandwidth	= 36000;	/* kHz	*/
-	state->bandwidth	= status->bandwidth * 1000;	/* MHz	*/
+	state->bandwidth	= status->bandwidth * 1000;	/* Hz	*/
 	state->reference	= status->refclock / 1000;	/* kHz	*/
 
 	/* Set default bandwidth.	*/
-	return stb6100_set_bandwidth(fe, status->bandwidth);
+	return stb6100_set_bandwidth(fe, state->bandwidth);
 }
 
 static int stb6100_get_state(struct dvb_frontend *fe,

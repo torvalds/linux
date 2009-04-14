@@ -617,7 +617,7 @@ static int snd_intel8x0_ali_codec_semaphore(struct intel8x0 *chip)
 	int time = 100;
 	if (chip->buggy_semaphore)
 		return 0; /* just ignore ... */
-	while (time-- && (igetdword(chip, ICHREG(ALI_CAS)) & ALI_CAS_SEM_BUSY))
+	while (--time && (igetdword(chip, ICHREG(ALI_CAS)) & ALI_CAS_SEM_BUSY))
 		udelay(1);
 	if (! time && ! chip->in_ac97_init)
 		snd_printk(KERN_WARNING "ali_codec_semaphore timeout\n");
@@ -689,7 +689,7 @@ static void snd_intel8x0_setup_periods(struct intel8x0 *chip, struct ichdev *ich
 			bdbar[idx + 1] = cpu_to_le32(0x80000000 | /* interrupt on completion */
 						     ichdev->fragsize >> ichdev->pos_shift);
 #if 0
-			printk("bdbar[%i] = 0x%x [0x%x]\n",
+			printk(KERN_DEBUG "bdbar[%i] = 0x%x [0x%x]\n",
 			       idx + 0, bdbar[idx + 0], bdbar[idx + 1]);
 #endif
 		}
@@ -701,8 +701,10 @@ static void snd_intel8x0_setup_periods(struct intel8x0 *chip, struct ichdev *ich
 	ichdev->lvi_frag = ICH_REG_LVI_MASK % ichdev->frags;
 	ichdev->position = 0;
 #if 0
-	printk("lvi_frag = %i, frags = %i, period_size = 0x%x, period_size1 = 0x%x\n",
-			ichdev->lvi_frag, ichdev->frags, ichdev->fragsize, ichdev->fragsize1);
+	printk(KERN_DEBUG "lvi_frag = %i, frags = %i, period_size = 0x%x, "
+	       "period_size1 = 0x%x\n",
+	       ichdev->lvi_frag, ichdev->frags, ichdev->fragsize,
+	       ichdev->fragsize1);
 #endif
 	/* clear interrupts */
 	iputbyte(chip, port + ichdev->roff_sr, ICH_FIFOE | ICH_BCIS | ICH_LVBCI);
@@ -768,7 +770,8 @@ static inline void snd_intel8x0_update(struct intel8x0 *chip, struct ichdev *ich
 		ichdev->lvi_frag %= ichdev->frags;
 		ichdev->bdbar[ichdev->lvi * 2] = cpu_to_le32(ichdev->physbuf + ichdev->lvi_frag * ichdev->fragsize1);
 #if 0
-	printk("new: bdbar[%i] = 0x%x [0x%x], prefetch = %i, all = 0x%x, 0x%x\n",
+	printk(KERN_DEBUG "new: bdbar[%i] = 0x%x [0x%x], prefetch = %i, "
+	       "all = 0x%x, 0x%x\n",
 	       ichdev->lvi * 2, ichdev->bdbar[ichdev->lvi * 2],
 	       ichdev->bdbar[ichdev->lvi * 2 + 1], inb(ICH_REG_OFF_PIV + port),
 	       inl(port + 4), inb(port + ICH_REG_OFF_CR));
@@ -2287,23 +2290,23 @@ static void do_ali_reset(struct intel8x0 *chip)
 	iputdword(chip, ICHREG(ALI_INTERRUPTSR), 0x00000000);
 }
 
-static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
-{
-	unsigned long end_time;
-	unsigned int cnt, status, nstatus;
-	
-	/* put logic to right state */
-	/* first clear status bits */
-	status = ICH_RCS | ICH_MCINT | ICH_POINT | ICH_PIINT;
-	if (chip->device_type == DEVICE_NFORCE)
-		status |= ICH_NVSPINT;
-	cnt = igetdword(chip, ICHREG(GLOB_STA));
-	iputdword(chip, ICHREG(GLOB_STA), cnt & status);
+#ifdef CONFIG_SND_AC97_POWER_SAVE
+static struct snd_pci_quirk ich_chip_reset_mode[] = {
+	SND_PCI_QUIRK(0x1014, 0x051f, "Thinkpad R32", 1),
+	{ } /* end */
+};
 
+static int snd_intel8x0_ich_chip_cold_reset(struct intel8x0 *chip)
+{
+	unsigned int cnt;
 	/* ACLink on, 2 channels */
+
+	if (snd_pci_quirk_lookup(chip->pci, ich_chip_reset_mode))
+		return -EIO;
+
 	cnt = igetdword(chip, ICHREG(GLOB_CNT));
 	cnt &= ~(ICH_ACLINK | ICH_PCM_246_MASK);
-#ifdef CONFIG_SND_AC97_POWER_SAVE
+
 	/* do cold reset - the full ac97 powerdown may leave the controller
 	 * in a warm state but actually it cannot communicate with the codec.
 	 */
@@ -2312,22 +2315,58 @@ static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
 	udelay(10);
 	iputdword(chip, ICHREG(GLOB_CNT), cnt | ICH_AC97COLD);
 	msleep(1);
+	return 0;
+}
+#define snd_intel8x0_ich_chip_can_cold_reset(chip) \
+	(!snd_pci_quirk_lookup(chip->pci, ich_chip_reset_mode))
 #else
+#define snd_intel8x0_ich_chip_cold_reset(chip)	0
+#define snd_intel8x0_ich_chip_can_cold_reset(chip) (0)
+#endif
+
+static int snd_intel8x0_ich_chip_reset(struct intel8x0 *chip)
+{
+	unsigned long end_time;
+	unsigned int cnt;
+	/* ACLink on, 2 channels */
+	cnt = igetdword(chip, ICHREG(GLOB_CNT));
+	cnt &= ~(ICH_ACLINK | ICH_PCM_246_MASK);
 	/* finish cold or do warm reset */
 	cnt |= (cnt & ICH_AC97COLD) == 0 ? ICH_AC97COLD : ICH_AC97WARM;
 	iputdword(chip, ICHREG(GLOB_CNT), cnt);
 	end_time = (jiffies + (HZ / 4)) + 1;
 	do {
 		if ((igetdword(chip, ICHREG(GLOB_CNT)) & ICH_AC97WARM) == 0)
-			goto __ok;
+			return 0;
 		schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(end_time, jiffies));
 	snd_printk(KERN_ERR "AC'97 warm reset still in progress? [0x%x]\n",
 		   igetdword(chip, ICHREG(GLOB_CNT)));
 	return -EIO;
+}
 
-      __ok:
-#endif
+static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
+{
+	unsigned long end_time;
+	unsigned int status, nstatus;
+	unsigned int cnt;
+	int err;
+
+	/* put logic to right state */
+	/* first clear status bits */
+	status = ICH_RCS | ICH_MCINT | ICH_POINT | ICH_PIINT;
+	if (chip->device_type == DEVICE_NFORCE)
+		status |= ICH_NVSPINT;
+	cnt = igetdword(chip, ICHREG(GLOB_STA));
+	iputdword(chip, ICHREG(GLOB_STA), cnt & status);
+
+	if (snd_intel8x0_ich_chip_can_cold_reset(chip))
+		err = snd_intel8x0_ich_chip_cold_reset(chip);
+	else
+		err = snd_intel8x0_ich_chip_reset(chip);
+	if (err < 0)
+		return err;
+
 	if (probing) {
 		/* wait for any codec ready status.
 		 * Once it becomes ready it should remain ready

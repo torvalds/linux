@@ -23,6 +23,7 @@
 #include <asm/hwrpb.h>
 #include <asm/tlbflush.h>
 #include <asm/vga.h>
+#include <asm/rtc.h>
 
 #include "proto.h"
 #include "err_impl.h"
@@ -426,6 +427,57 @@ marvel_init_rtc(void)
 	init_rtc_irq();
 }
 
+struct marvel_rtc_time {
+	struct rtc_time *time;
+	int retval;
+};
+
+#ifdef CONFIG_SMP
+static void
+smp_get_rtc_time(void *data)
+{
+	struct marvel_rtc_time *mrt = data;
+	mrt->retval = __get_rtc_time(mrt->time);
+}
+
+static void
+smp_set_rtc_time(void *data)
+{
+	struct marvel_rtc_time *mrt = data;
+	mrt->retval = __set_rtc_time(mrt->time);
+}
+#endif
+
+static unsigned int
+marvel_get_rtc_time(struct rtc_time *time)
+{
+#ifdef CONFIG_SMP
+	struct marvel_rtc_time mrt;
+
+	if (smp_processor_id() != boot_cpuid) {
+		mrt.time = time;
+		smp_call_function_single(boot_cpuid, smp_get_rtc_time, &mrt, 1);
+		return mrt.retval;
+	}
+#endif
+	return __get_rtc_time(time);
+}
+
+static int
+marvel_set_rtc_time(struct rtc_time *time)
+{
+#ifdef CONFIG_SMP
+	struct marvel_rtc_time mrt;
+
+	if (smp_processor_id() != boot_cpuid) {
+		mrt.time = time;
+		smp_call_function_single(boot_cpuid, smp_set_rtc_time, &mrt, 1);
+		return mrt.retval;
+	}
+#endif
+	return __set_rtc_time(time);
+}
+
 static void
 marvel_smp_callin(void)
 {
@@ -466,7 +518,9 @@ marvel_smp_callin(void)
 struct alpha_machine_vector marvel_ev7_mv __initmv = {
 	.vector_name		= "MARVEL/EV7",
 	DO_EV7_MMU,
-	DO_DEFAULT_RTC,
+	.rtc_port		= 0x70,
+	.rtc_get_time		= marvel_get_rtc_time,
+	.rtc_set_time		= marvel_set_rtc_time,
 	DO_MARVEL_IO,
 	.machine_check		= marvel_machine_check,
 	.max_isa_dma_address	= ALPHA_MAX_ISA_DMA_ADDRESS,

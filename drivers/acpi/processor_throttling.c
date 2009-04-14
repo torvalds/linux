@@ -783,11 +783,9 @@ static int acpi_get_throttling_state(struct acpi_processor *pr,
 		    (struct acpi_processor_tx_tss *)&(pr->throttling.
 						      states_tss[i]);
 		if (tx->control == value)
-			break;
+			return i;
 	}
-	if (i > pr->throttling.state_count)
-		i = -1;
-	return i;
+	return -1;
 }
 
 static int acpi_get_throttling_value(struct acpi_processor *pr,
@@ -1291,7 +1289,7 @@ static ssize_t acpi_processor_write_throttling(struct file *file,
 	return count;
 }
 
-struct file_operations acpi_processor_throttling_fops = {
+const struct file_operations acpi_processor_throttling_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_processor_throttling_open_fs,
 	.read = seq_read,

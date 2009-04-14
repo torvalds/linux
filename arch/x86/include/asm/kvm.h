@@ -6,8 +6,16 @@
  *
  */
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <linux/ioctl.h>
+
+/* Select x86 specific features in <linux/kvm.h> */
+#define __KVM_HAVE_PIT
+#define __KVM_HAVE_IOAPIC
+#define __KVM_HAVE_DEVICE_ASSIGNMENT
+#define __KVM_HAVE_MSI
+#define __KVM_HAVE_USER_NMI
+#define __KVM_HAVE_GUEST_DEBUG
 
 /* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
@@ -205,7 +213,30 @@ struct kvm_pit_channel_state {
 	__s64 count_load_time;
 };
 
+struct kvm_debug_exit_arch {
+	__u32 exception;
+	__u32 pad;
+	__u64 pc;
+	__u64 dr6;
+	__u64 dr7;
+};
+
+#define KVM_GUESTDBG_USE_SW_BP		0x00010000
+#define KVM_GUESTDBG_USE_HW_BP		0x00020000
+#define KVM_GUESTDBG_INJECT_DB		0x00040000
+#define KVM_GUESTDBG_INJECT_BP		0x00080000
+
+/* for KVM_SET_GUEST_DEBUG */
+struct kvm_guest_debug_arch {
+	__u64 debugreg[8];
+};
+
 struct kvm_pit_state {
 	struct kvm_pit_channel_state channels[3];
+};
+
+struct kvm_reinject_control {
+	__u8 pit_reinject;
+	__u8 reserved[31];
 };
 #endif /* _ASM_X86_KVM_H */

@@ -324,8 +324,6 @@ static inline void tape_proc_cleanup (void) {;}
 #endif
 
 /* a function for dumping device sense info */
-extern void tape_dump_sense(struct tape_device *, struct tape_request *,
-			    struct irb *);
 extern void tape_dump_sense_dbf(struct tape_device *, struct tape_request *,
 				struct irb *);
 

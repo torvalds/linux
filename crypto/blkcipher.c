@@ -124,6 +124,7 @@ int blkcipher_walk_done(struct blkcipher_desc *desc,
 	scatterwalk_done(&walk->in, 0, nbytes);
 	scatterwalk_done(&walk->out, 1, nbytes);
 
+err:
 	walk->total = nbytes;
 	walk->nbytes = nbytes;
 
@@ -132,7 +133,6 @@ int blkcipher_walk_done(struct blkcipher_desc *desc,
 		return blkcipher_walk_next(desc, walk);
 	}
 
-err:
 	if (walk->iv != desc->info)
 		memcpy(desc->info, walk->iv, crypto_blkcipher_ivsize(tfm));
 	if (walk->buffer != walk->page)
@@ -521,7 +521,7 @@ static int crypto_grab_nivcipher(struct crypto_skcipher_spawn *spawn,
 	int err;
 
 	type = crypto_skcipher_type(type);
-	mask = crypto_skcipher_mask(mask) | CRYPTO_ALG_GENIV;
+	mask = crypto_skcipher_mask(mask)| CRYPTO_ALG_GENIV;
 
 	alg = crypto_alg_mod_lookup(name, type, mask);
 	if (IS_ERR(alg))

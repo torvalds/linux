@@ -29,7 +29,6 @@
 #include <linux/writeback.h>
 #include <linux/statfs.h>
 #include <linux/compat.h>
-#include <linux/version.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -607,6 +606,7 @@ next_slot:
 			btrfs_set_key_type(&ins, BTRFS_EXTENT_DATA_KEY);
 
 			btrfs_release_path(root, path);
+			path->leave_spinning = 1;
 			ret = btrfs_insert_empty_item(trans, root, path, &ins,
 						      sizeof(*extent));
 			BUG_ON(ret);
@@ -640,17 +640,22 @@ next_slot:
 							ram_bytes);
 			btrfs_set_file_extent_type(leaf, extent, found_type);
 
+			btrfs_unlock_up_safe(path, 1);
 			btrfs_mark_buffer_dirty(path->nodes[0]);
+			btrfs_set_lock_blocking(path->nodes[0]);
 
 			if (disk_bytenr != 0) {
 				ret = btrfs_update_extent_ref(trans, root,
-						disk_bytenr, orig_parent,
+						disk_bytenr,
+						le64_to_cpu(old.disk_num_bytes),
+						orig_parent,
 						leaf->start,
 						root->root_key.objectid,
 						trans->transid, ins.objectid);
 
 				BUG_ON(ret);
 			}
+			path->leave_spinning = 0;
 			btrfs_release_path(root, path);
 			if (disk_bytenr != 0)
 				inode_add_bytes(inode, extent_end - end);
@@ -913,7 +918,7 @@ again:
 	btrfs_set_file_extent_other_encoding(leaf, fi, 0);
 
 	if (orig_parent != leaf->start) {
-		ret = btrfs_update_extent_ref(trans, root, bytenr,
+		ret = btrfs_update_extent_ref(trans, root, bytenr, num_bytes,
 					      orig_parent, leaf->start,
 					      root->root_key.objectid,
 					      trans->transid, inode->i_ino);
@@ -1092,19 +1097,24 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		WARN_ON(num_pages > nrptrs);
 		memset(pages, 0, sizeof(struct page *) * nrptrs);
 
-		ret = btrfs_check_free_space(root, write_bytes, 0);
+		ret = btrfs_check_data_free_space(root, inode, write_bytes);
 		if (ret)
 			goto out;
 
 		ret = prepare_pages(root, file, pages, num_pages,
 				    pos, first_index, last_index,
 				    write_bytes);
-		if (ret)
+		if (ret) {
+			btrfs_free_reserved_data_space(root, inode,
+						       write_bytes);
 			goto out;
+		}
 
 		ret = btrfs_copy_from_user(pos, num_pages,
 					   write_bytes, pages, buf);
 		if (ret) {
+			btrfs_free_reserved_data_space(root, inode,
+						       write_bytes);
 			btrfs_drop_pages(pages, num_pages);
 			goto out;
 		}
@@ -1112,8 +1122,11 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		ret = dirty_and_release_pages(NULL, root, file, pages,
 					      num_pages, pos, write_bytes);
 		btrfs_drop_pages(pages, num_pages);
-		if (ret)
+		if (ret) {
+			btrfs_free_reserved_data_space(root, inode,
+						       write_bytes);
 			goto out;
+		}
 
 		if (will_write) {
 			btrfs_fdatawrite_range(inode->i_mapping, pos,
@@ -1137,6 +1150,8 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	}
 out:
 	mutex_unlock(&inode->i_mutex);
+	if (ret)
+		err = ret;
 
 out_nolock:
 	kfree(pages);
@@ -1145,6 +1160,20 @@ out_nolock:
 	if (pinned[1])
 		page_cache_release(pinned[1]);
 	*ppos = pos;
+
+	/*
+	 * we want to make sure fsync finds this change
+	 * but we haven't joined a transaction running right now.
+	 *
+	 * Later on, someone is sure to update the inode and get the
+	 * real transid recorded.
+	 *
+	 * We set last_trans now to the fs_info generation + 1,
+	 * this will either be one more than the running transaction
+	 * or the generation used for the next transaction if there isn't
+	 * one running right now.
+	 */
+	BTRFS_I(inode)->last_trans = root->fs_info->generation + 1;
 
 	if (num_written > 0 && will_write) {
 		struct btrfs_trans_handle *trans;
@@ -1158,8 +1187,11 @@ out_nolock:
 			ret = btrfs_log_dentry_safe(trans, root,
 						    file->f_dentry);
 			if (ret == 0) {
-				btrfs_sync_log(trans, root);
-				btrfs_end_transaction(trans, root);
+				ret = btrfs_sync_log(trans, root);
+				if (ret == 0)
+					btrfs_end_transaction(trans, root);
+				else
+					btrfs_commit_transaction(trans, root);
 			} else {
 				btrfs_commit_transaction(trans, root);
 			}
@@ -1176,6 +1208,18 @@ out_nolock:
 
 int btrfs_release_file(struct inode *inode, struct file *filp)
 {
+	/*
+	 * ordered_data_close is set by settattr when we are about to truncate
+	 * a file from a non-zero size to a zero size.  This tries to
+	 * flush down new bytes that may have been written if the
+	 * application were using truncate to replace a file in place.
+	 */
+	if (BTRFS_I(inode)->ordered_data_close) {
+		BTRFS_I(inode)->ordered_data_close = 0;
+		btrfs_add_ordered_operation(NULL, BTRFS_I(inode)->root, inode);
+		if (inode->i_size > BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT)
+			filemap_flush(inode->i_mapping);
+	}
 	if (filp->private_data)
 		btrfs_ioctl_trans_end(filp);
 	return 0;
@@ -1215,15 +1259,15 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	}
 	mutex_unlock(&root->fs_info->trans_mutex);
 
-	root->fs_info->tree_log_batch++;
+	root->log_batch++;
 	filemap_fdatawrite(inode->i_mapping);
 	btrfs_wait_ordered_range(inode, 0, (u64)-1);
-	root->fs_info->tree_log_batch++;
+	root->log_batch++;
 
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
 	 */
-	if (file->private_data)
+	if (file && file->private_data)
 		btrfs_ioctl_trans_end(file);
 
 	trans = btrfs_start_transaction(root, 1);
@@ -1232,7 +1276,7 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 		goto out;
 	}
 
-	ret = btrfs_log_dentry_safe(trans, root, file->f_dentry);
+	ret = btrfs_log_dentry_safe(trans, root, dentry);
 	if (ret < 0)
 		goto out;
 
@@ -1246,15 +1290,18 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	 * file again, but that will end up using the synchronization
 	 * inside btrfs_sync_log to keep things safe.
 	 */
-	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 
 	if (ret > 0) {
 		ret = btrfs_commit_transaction(trans, root);
 	} else {
-		btrfs_sync_log(trans, root);
-		ret = btrfs_end_transaction(trans, root);
+		ret = btrfs_sync_log(trans, root);
+		if (ret == 0)
+			ret = btrfs_end_transaction(trans, root);
+		else
+			ret = btrfs_commit_transaction(trans, root);
 	}
-	mutex_lock(&file->f_dentry->d_inode->i_mutex);
+	mutex_lock(&dentry->d_inode->i_mutex);
 out:
 	return ret > 0 ? EIO : ret;
 }

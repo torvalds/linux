@@ -4,7 +4,7 @@
  * Communications and Intel PRO/Wireless 2011B.
  *
  * The driver implements Symbol firmware download.  The rest is handled
- * in hermes.c and orinoco.c.
+ * in hermes.c and main.c.
  *
  * Utilities for downloading the Symbol firmware are available at
  * http://sourceforge.net/projects/orinoco/
@@ -15,7 +15,7 @@
  * Portions based on Spectrum24tDnld.c from original spectrum24 driver:
  * 	Copyright (C) Symbol Technologies.
  *
- * See copyright notice in file orinoco.c.
+ * See copyright notice in file main.c.
  */
 
 #define DRIVER_NAME "spectrum_cs"
@@ -133,7 +133,7 @@ spectrum_reset(struct pcmcia_device *link, int idle)
 	udelay(1000);
 	return 0;
 
-      cs_failed:
+cs_failed:
 	cs_error(link, last_fn, last_ret);
 	return -ENODEV;
 }
@@ -171,7 +171,7 @@ spectrum_cs_stop_firmware(struct orinoco_private *priv, int idle)
  * This creates an "instance" of the driver, allocating local data
  * structures for one device.  The device is registered with Card
  * Services.
- * 
+ *
  * The dev_link structure is initialized, but we don't actually
  * configure the card at this point -- we wait until we receive a card
  * insertion event.  */
@@ -185,7 +185,7 @@ spectrum_cs_probe(struct pcmcia_device *link)
 	dev = alloc_orinocodev(sizeof(*card), &handle_to_dev(link),
 			       spectrum_cs_hard_reset,
 			       spectrum_cs_stop_firmware);
-	if (! dev)
+	if (!dev)
 		return -ENOMEM;
 	priv = netdev_priv(dev);
 	card = priv->card;
@@ -198,7 +198,7 @@ spectrum_cs_probe(struct pcmcia_device *link)
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = orinoco_interrupt;
-	link->irq.Instance = dev; 
+	link->irq.Instance = dev;
 
 	/* General socket configuration defaults can go here.  In this
 	 * client, we assume very little, and rely on the CIS for
@@ -367,9 +367,8 @@ spectrum_cs_config(struct pcmcia_device *link)
 	card->node.major = card->node.minor = 0;
 
 	/* Reset card */
-	if (spectrum_cs_hard_reset(priv) != 0) {
+	if (spectrum_cs_hard_reset(priv) != 0)
 		goto failed;
-	}
 
 	SET_NETDEV_DEV(dev, &handle_to_dev(link));
 	/* Tell the stack we exist */
@@ -382,8 +381,8 @@ spectrum_cs_config(struct pcmcia_device *link)
 	 * initialized and arranged in a linked list at link->dev_node. */
 	strcpy(card->node.dev_name, dev->name);
 	link->dev_node = &card->node; /* link->dev_node being non-NULL is also
-                                    used to indicate that the
-                                    net_device has been registered */
+				       * used to indicate that the
+				       * net_device has been registered */
 
 	/* Finally, report what we've done */
 	printk(KERN_DEBUG "%s: " DRIVER_NAME " at %s, irq %d, io "

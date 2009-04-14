@@ -74,6 +74,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		u32 nritems;
 
 		root_node = btrfs_lock_root_node(root);
+		btrfs_set_lock_blocking(root_node);
 		nritems = btrfs_header_nritems(root_node);
 		root->defrag_max.objectid = 0;
 		/* from above we know this is not a leaf */
@@ -123,8 +124,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_release_path(root, path);
-	if (is_extent)
-		btrfs_extent_post_op(trans, root);
 out:
 	if (path)
 		btrfs_free_path(path);

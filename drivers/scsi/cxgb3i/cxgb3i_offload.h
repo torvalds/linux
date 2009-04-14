@@ -16,7 +16,7 @@
 #define _CXGB3I_OFFLOAD_H
 
 #include <linux/skbuff.h>
-#include <net/tcp.h>
+#include <linux/in.h>
 
 #include "common.h"
 #include "adapter.h"
@@ -135,6 +135,7 @@ enum c3cn_flags {
 	C3CN_ABORT_RPL_PENDING,	/* expecting an abort reply */
 	C3CN_TX_DATA_SENT,	/* already sent a TX_DATA WR */
 	C3CN_ACTIVE_CLOSE_NEEDED,	/* need to be closed */
+	C3CN_OFFLOAD_DOWN	/* offload function off */
 };
 
 /**
@@ -147,16 +148,17 @@ enum c3cn_flags {
  * @cdev:	t3cdev adapter
  * @client:	CPL client pointer
  * @ports:	array of adapter ports
- * @sport_map_next: next index into the port map
- * @sport_map:	source port map
+ * @sport_next: next port
+ * @sport_conn:	source port connection
  */
 struct cxgb3i_sdev_data {
 	struct list_head list;
 	struct t3cdev *cdev;
 	struct cxgb3_client *client;
 	struct adap_ports ports;
-	unsigned int sport_map_next;
-	unsigned long sport_map[0];
+	spinlock_t lock;
+	unsigned int sport_next;
+	struct s3_conn *sport_conn[0];
 };
 #define NDEV2CDATA(ndev) (*(struct cxgb3i_sdev_data **)&(ndev)->ec_ptr)
 #define CXGB3_SDEV_DATA(cdev) NDEV2CDATA((cdev)->lldev)
@@ -178,25 +180,33 @@ void cxgb3i_c3cn_release(struct s3_conn *);
  * @flag:	see C3CB_FLAG_* below
  * @ulp_mode:	ULP mode/submode of sk_buff
  * @seq:	tcp sequence number
- * @ddigest:	pdu data digest
- * @pdulen:	recovered pdu length
- * @wr_data:	scratch area for tx wr
  */
+struct cxgb3_skb_rx_cb {
+	__u32 ddigest;			/* data digest */
+	__u32 pdulen;			/* recovered pdu length */
+};
+
+struct cxgb3_skb_tx_cb {
+	struct sk_buff *wr_next;	/* next wr */
+};
+
 struct cxgb3_skb_cb {
 	__u8 flags;
 	__u8 ulp_mode;
 	__u32 seq;
-	__u32 ddigest;
-	__u32 pdulen;
-	struct sk_buff *wr_data;
+	union {
+		struct cxgb3_skb_rx_cb rx;
+		struct cxgb3_skb_tx_cb tx;
+	};
 };
 
 #define CXGB3_SKB_CB(skb)	((struct cxgb3_skb_cb *)&((skb)->cb[0]))
-
+#define skb_flags(skb)		(CXGB3_SKB_CB(skb)->flags)
 #define skb_ulp_mode(skb)	(CXGB3_SKB_CB(skb)->ulp_mode)
-#define skb_ulp_ddigest(skb)	(CXGB3_SKB_CB(skb)->ddigest)
-#define skb_ulp_pdulen(skb)	(CXGB3_SKB_CB(skb)->pdulen)
-#define skb_wr_data(skb)	(CXGB3_SKB_CB(skb)->wr_data)
+#define skb_tcp_seq(skb)	(CXGB3_SKB_CB(skb)->seq)
+#define skb_rx_ddigest(skb)	(CXGB3_SKB_CB(skb)->rx.ddigest)
+#define skb_rx_pdulen(skb)	(CXGB3_SKB_CB(skb)->rx.pdulen)
+#define skb_tx_wr_next(skb)	(CXGB3_SKB_CB(skb)->tx.wr_next)
 
 enum c3cb_flags {
 	C3CB_FLAG_NEED_HDR = 1 << 0,	/* packet needs a TX_DATA_WR header */
@@ -217,6 +227,7 @@ struct sge_opaque_hdr {
 /* for TX: a skb must have a headroom of at least TX_HEADER_LEN bytes */
 #define TX_HEADER_LEN \
 		(sizeof(struct tx_data_wr) + sizeof(struct sge_opaque_hdr))
+#define SKB_TX_HEADROOM		SKB_MAX_HEAD(TX_HEADER_LEN)
 
 /*
  * get and set private ip for iscsi traffic

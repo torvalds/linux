@@ -604,6 +604,7 @@
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
 
 /* "fuse" bits of IXP_EXP_CFG2 */
+/* All IXP4xx CPUs */
 #define IXP4XX_FEATURE_RCOMP		(1 << 0)
 #define IXP4XX_FEATURE_USB_DEVICE	(1 << 1)
 #define IXP4XX_FEATURE_HASH		(1 << 2)
@@ -619,20 +620,41 @@
 #define IXP4XX_FEATURE_RESET_NPEB	(1 << 12)
 #define IXP4XX_FEATURE_RESET_NPEC	(1 << 13)
 #define IXP4XX_FEATURE_PCI		(1 << 14)
-#define IXP4XX_FEATURE_ECC_TIMESYNC	(1 << 15)
 #define IXP4XX_FEATURE_UTOPIA_PHY_LIMIT	(3 << 16)
+#define IXP4XX_FEATURE_XSCALE_MAX_FREQ	(3 << 22)
+#define IXP42X_FEATURE_MASK		(IXP4XX_FEATURE_RCOMP            | \
+					 IXP4XX_FEATURE_USB_DEVICE       | \
+					 IXP4XX_FEATURE_HASH             | \
+					 IXP4XX_FEATURE_AES              | \
+					 IXP4XX_FEATURE_DES              | \
+					 IXP4XX_FEATURE_HDLC             | \
+					 IXP4XX_FEATURE_AAL              | \
+					 IXP4XX_FEATURE_HSS              | \
+					 IXP4XX_FEATURE_UTOPIA           | \
+					 IXP4XX_FEATURE_NPEB_ETH0        | \
+					 IXP4XX_FEATURE_NPEC_ETH         | \
+					 IXP4XX_FEATURE_RESET_NPEA       | \
+					 IXP4XX_FEATURE_RESET_NPEB       | \
+					 IXP4XX_FEATURE_RESET_NPEC       | \
+					 IXP4XX_FEATURE_PCI              | \
+					 IXP4XX_FEATURE_UTOPIA_PHY_LIMIT | \
+					 IXP4XX_FEATURE_XSCALE_MAX_FREQ)
+
+
+/* IXP43x/46x CPUs */
+#define IXP4XX_FEATURE_ECC_TIMESYNC	(1 << 15)
 #define IXP4XX_FEATURE_USB_HOST		(1 << 18)
 #define IXP4XX_FEATURE_NPEA_ETH		(1 << 19)
+#define IXP43X_FEATURE_MASK		(IXP42X_FEATURE_MASK             | \
+					 IXP4XX_FEATURE_ECC_TIMESYNC     | \
+					 IXP4XX_FEATURE_USB_HOST         | \
+					 IXP4XX_FEATURE_NPEA_ETH)
+
+/* IXP46x CPU (including IXP455) only */
 #define IXP4XX_FEATURE_NPEB_ETH_1_TO_3	(1 << 20)
 #define IXP4XX_FEATURE_RSA		(1 << 21)
-#define IXP4XX_FEATURE_XSCALE_MAX_FREQ	(3 << 22)
-#define IXP4XX_FEATURE_RESERVED		(0xFF << 24)
-
-#define IXP4XX_FEATURE_IXP46X_ONLY (IXP4XX_FEATURE_ECC_TIMESYNC |	\
-				    IXP4XX_FEATURE_USB_HOST |		\
-				    IXP4XX_FEATURE_NPEA_ETH |		\
-				    IXP4XX_FEATURE_NPEB_ETH_1_TO_3 |	\
-				    IXP4XX_FEATURE_RSA |		\
-				    IXP4XX_FEATURE_XSCALE_MAX_FREQ)
+#define IXP46X_FEATURE_MASK		(IXP43X_FEATURE_MASK             | \
+					 IXP4XX_FEATURE_NPEB_ETH_1_TO_3  | \
+					 IXP4XX_FEATURE_RSA)
 
 #endif

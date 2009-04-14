@@ -42,6 +42,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/cdrom.h>
 
@@ -52,7 +53,100 @@
 #include "transport.h"
 #include "protocol.h"
 #include "debug.h"
-#include "shuttle_usbat.h"
+
+MODULE_DESCRIPTION("Driver for SCM Microsystems (a.k.a. Shuttle) USB-ATAPI cable");
+MODULE_AUTHOR("Daniel Drake <dsd@gentoo.org>, Robert Baruch <autophile@starband.net>");
+MODULE_LICENSE("GPL");
+
+/* Supported device types */
+#define USBAT_DEV_HP8200	0x01
+#define USBAT_DEV_FLASH		0x02
+
+#define USBAT_EPP_PORT		0x10
+#define USBAT_EPP_REGISTER	0x30
+#define USBAT_ATA		0x40
+#define USBAT_ISA		0x50
+
+/* Commands (need to be logically OR'd with an access type */
+#define USBAT_CMD_READ_REG		0x00
+#define USBAT_CMD_WRITE_REG		0x01
+#define USBAT_CMD_READ_BLOCK	0x02
+#define USBAT_CMD_WRITE_BLOCK	0x03
+#define USBAT_CMD_COND_READ_BLOCK	0x04
+#define USBAT_CMD_COND_WRITE_BLOCK	0x05
+#define USBAT_CMD_WRITE_REGS	0x07
+
+/* Commands (these don't need an access type) */
+#define USBAT_CMD_EXEC_CMD	0x80
+#define USBAT_CMD_SET_FEAT	0x81
+#define USBAT_CMD_UIO		0x82
+
+/* Methods of accessing UIO register */
+#define USBAT_UIO_READ	1
+#define USBAT_UIO_WRITE	0
+
+/* Qualifier bits */
+#define USBAT_QUAL_FCQ	0x20	/* full compare */
+#define USBAT_QUAL_ALQ	0x10	/* auto load subcount */
+
+/* USBAT Flash Media status types */
+#define USBAT_FLASH_MEDIA_NONE	0
+#define USBAT_FLASH_MEDIA_CF	1
+
+/* USBAT Flash Media change types */
+#define USBAT_FLASH_MEDIA_SAME	0
+#define USBAT_FLASH_MEDIA_CHANGED	1
+
+/* USBAT ATA registers */
+#define USBAT_ATA_DATA      0x10  /* read/write data (R/W) */
+#define USBAT_ATA_FEATURES  0x11  /* set features (W) */
+#define USBAT_ATA_ERROR     0x11  /* error (R) */
+#define USBAT_ATA_SECCNT    0x12  /* sector count (R/W) */
+#define USBAT_ATA_SECNUM    0x13  /* sector number (R/W) */
+#define USBAT_ATA_LBA_ME    0x14  /* cylinder low (R/W) */
+#define USBAT_ATA_LBA_HI    0x15  /* cylinder high (R/W) */
+#define USBAT_ATA_DEVICE    0x16  /* head/device selection (R/W) */
+#define USBAT_ATA_STATUS    0x17  /* device status (R) */
+#define USBAT_ATA_CMD       0x17  /* device command (W) */
+#define USBAT_ATA_ALTSTATUS 0x0E  /* status (no clear IRQ) (R) */
+
+/* USBAT User I/O Data registers */
+#define USBAT_UIO_EPAD		0x80 /* Enable Peripheral Control Signals */
+#define USBAT_UIO_CDT		0x40 /* Card Detect (Read Only) */
+				     /* CDT = ACKD & !UI1 & !UI0 */
+#define USBAT_UIO_1		0x20 /* I/O 1 */
+#define USBAT_UIO_0		0x10 /* I/O 0 */
+#define USBAT_UIO_EPP_ATA	0x08 /* 1=EPP mode, 0=ATA mode */
+#define USBAT_UIO_UI1		0x04 /* Input 1 */
+#define USBAT_UIO_UI0		0x02 /* Input 0 */
+#define USBAT_UIO_INTR_ACK	0x01 /* Interrupt (ATA/ISA)/Acknowledge (EPP) */
+
+/* USBAT User I/O Enable registers */
+#define USBAT_UIO_DRVRST	0x80 /* Reset Peripheral */
+#define USBAT_UIO_ACKD		0x40 /* Enable Card Detect */
+#define USBAT_UIO_OE1		0x20 /* I/O 1 set=output/clr=input */
+				     /* If ACKD=1, set OE1 to 1 also. */
+#define USBAT_UIO_OE0		0x10 /* I/O 0 set=output/clr=input */
+#define USBAT_UIO_ADPRST	0x01 /* Reset SCM chip */
+
+/* USBAT Features */
+#define USBAT_FEAT_ETEN	0x80	/* External trigger enable */
+#define USBAT_FEAT_U1	0x08
+#define USBAT_FEAT_U0	0x04
+#define USBAT_FEAT_ET1	0x02
+#define USBAT_FEAT_ET2	0x01
+
+struct usbat_info {
+	int devicetype;
+
+	/* Used for Flash readers only */
+	unsigned long sectors;     /* total sector count */
+	unsigned long ssize;       /* sector size in bytes */
+
+	unsigned char sense_key;
+	unsigned long sense_asc;   /* additional sense code */
+	unsigned long sense_ascq;  /* additional sense code qualifier */
+};
 
 #define short_pack(LSB,MSB) ( ((u16)(LSB)) | ( ((u16)(MSB))<<8 ) )
 #define LSB_of(s) ((s)&0xFF)
@@ -62,6 +156,48 @@ static int transferred = 0;
 
 static int usbat_flash_transport(struct scsi_cmnd * srb, struct us_data *us);
 static int usbat_hp8200e_transport(struct scsi_cmnd *srb, struct us_data *us);
+
+static int init_usbat_cd(struct us_data *us);
+static int init_usbat_flash(struct us_data *us);
+
+
+/*
+ * The table of devices
+ */
+#define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
+		    vendorName, productName, useProtocol, useTransport, \
+		    initFunction, flags) \
+{ USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
+  .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
+
+struct usb_device_id usbat_usb_ids[] = {
+#	include "unusual_usbat.h"
+	{ }		/* Terminating entry */
+};
+MODULE_DEVICE_TABLE(usb, usbat_usb_ids);
+
+#undef UNUSUAL_DEV
+
+/*
+ * The flags table
+ */
+#define UNUSUAL_DEV(idVendor, idProduct, bcdDeviceMin, bcdDeviceMax, \
+		    vendor_name, product_name, use_protocol, use_transport, \
+		    init_function, Flags) \
+{ \
+	.vendorName = vendor_name,	\
+	.productName = product_name,	\
+	.useProtocol = use_protocol,	\
+	.useTransport = use_transport,	\
+	.initFunction = init_function,	\
+}
+
+static struct us_unusual_dev usbat_unusual_dev_list[] = {
+#	include "unusual_usbat.h"
+	{ }		/* Terminating entry */
+};
+
+#undef UNUSUAL_DEV
 
 /*
  * Convenience function to produce an ATA read/write sectors command
@@ -1684,37 +1820,61 @@ static int usbat_flash_transport(struct scsi_cmnd * srb, struct us_data *us)
 	return USB_STOR_TRANSPORT_FAILED;
 }
 
-int init_usbat_cd(struct us_data *us)
+static int init_usbat_cd(struct us_data *us)
 {
 	return init_usbat(us, USBAT_DEV_HP8200);
 }
 
-
-int init_usbat_flash(struct us_data *us)
+static int init_usbat_flash(struct us_data *us)
 {
 	return init_usbat(us, USBAT_DEV_FLASH);
 }
 
-int init_usbat_probe(struct us_data *us)
+static int usbat_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
 {
-	return init_usbat(us, 0);
+	struct us_data *us;
+	int result;
+
+	result = usb_stor_probe1(&us, intf, id,
+			(id - usbat_usb_ids) + usbat_unusual_dev_list);
+	if (result)
+		return result;
+
+	/* The actual transport will be determined later by the
+	 * initialization routine; this is just a placeholder.
+	 */
+	us->transport_name = "Shuttle USBAT";
+	us->transport = usbat_flash_transport;
+	us->transport_reset = usb_stor_CB_reset;
+	us->max_lun = 1;
+
+	result = usb_stor_probe2(us);
+	return result;
 }
 
-/*
- * Default transport function. Attempts to detect which transport function
- * should be called, makes it the new default, and calls it.
- *
- * This function should never be called. Our usbat_init() function detects the
- * device type and changes the us->transport ptr to the transport function
- * relevant to the device.
- * However, we'll support this impossible(?) case anyway.
- */
-int usbat_transport(struct scsi_cmnd *srb, struct us_data *us)
+static struct usb_driver usbat_driver = {
+	.name =		"ums-usbat",
+	.probe =	usbat_probe,
+	.disconnect =	usb_stor_disconnect,
+	.suspend =	usb_stor_suspend,
+	.resume =	usb_stor_resume,
+	.reset_resume =	usb_stor_reset_resume,
+	.pre_reset =	usb_stor_pre_reset,
+	.post_reset =	usb_stor_post_reset,
+	.id_table =	usbat_usb_ids,
+	.soft_unbind =	1,
+};
+
+static int __init usbat_init(void)
 {
-	struct usbat_info *info = (struct usbat_info*) (us->extra);
-
-	if (usbat_set_transport(us, info, 0))
-		return USB_STOR_TRANSPORT_ERROR;
-
-	return us->transport(srb, us);	
+	return usb_register(&usbat_driver);
 }
+
+static void __exit usbat_exit(void)
+{
+	usb_deregister(&usbat_driver);
+}
+
+module_init(usbat_init);
+module_exit(usbat_exit);

@@ -37,7 +37,10 @@ static int phy_debug = 0;
 #define __ei_open       ax_ei_open
 #define __ei_close      ax_ei_close
 #define __ei_poll	ax_ei_poll
+#define __ei_start_xmit ax_ei_start_xmit
 #define __ei_tx_timeout ax_ei_tx_timeout
+#define __ei_get_stats  ax_ei_get_stats
+#define __ei_set_multicast_list ax_ei_set_multicast_list
 #define __ei_interrupt  ax_ei_interrupt
 #define ____alloc_ei_netdev ax__alloc_ei_netdev
 #define __NS8390_init   ax_NS8390_init
@@ -90,6 +93,7 @@ struct ax_device {
 
 	unsigned char		 running;
 	unsigned char		 resume_open;
+	unsigned int		 irqflags;
 
 	u32			 reg_offsets[0x20];
 };
@@ -471,7 +475,8 @@ static int ax_open(struct net_device *dev)
 
 	dev_dbg(&ax->dev->dev, "%s: open\n", dev->name);
 
-	ret = request_irq(dev->irq, ax_ei_interrupt, 0, dev->name, dev);
+	ret = request_irq(dev->irq, ax_ei_interrupt, ax->irqflags,
+			  dev->name, dev);
 	if (ret)
 		return ret;
 
@@ -623,6 +628,23 @@ static void ax_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 }
 #endif
 
+static const struct net_device_ops ax_netdev_ops = {
+	.ndo_open		= ax_open,
+	.ndo_stop		= ax_close,
+	.ndo_do_ioctl		= ax_ioctl,
+
+	.ndo_start_xmit		= ax_ei_start_xmit,
+	.ndo_tx_timeout		= ax_ei_tx_timeout,
+	.ndo_get_stats		= ax_ei_get_stats,
+	.ndo_set_multicast_list = ax_ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ax_ei_poll,
+#endif
+};
+
 /* setup code */
 
 static void ax_initial_setup(struct net_device *dev, struct ei_device *ei_local)
@@ -711,12 +733,19 @@ static int ax_init_dev(struct net_device *dev, int first_init)
 	/* load the mac-address from the device if this is the
 	 * first time we've initialised */
 
-	if (first_init && ax->plat->flags & AXFLG_MAC_FROMDEV) {
-		ei_outb(E8390_NODMA + E8390_PAGE1 + E8390_STOP,
-			ei_local->mem + E8390_CMD); /* 0x61 */
+	if (first_init) {
+		if (ax->plat->flags & AXFLG_MAC_FROMDEV) {
+			ei_outb(E8390_NODMA + E8390_PAGE1 + E8390_STOP,
+				ei_local->mem + E8390_CMD); /* 0x61 */
+			for (i = 0; i < ETHER_ADDR_LEN; i++)
+				dev->dev_addr[i] =
+					ei_inb(ioaddr + EN1_PHYS_SHIFT(i));
+		}
 
-		for (i = 0 ; i < ETHER_ADDR_LEN ; i++)
-			dev->dev_addr[i] = ei_inb(ioaddr + EN1_PHYS_SHIFT(i));
+		if ((ax->plat->flags & AXFLG_MAC_FROMPLATFORM) &&
+		     ax->plat->mac_addr)
+			memcpy(dev->dev_addr, ax->plat->mac_addr,
+				ETHER_ADDR_LEN);
 	}
 
 	ax_reset_8390(dev);
@@ -738,9 +767,7 @@ static int ax_init_dev(struct net_device *dev, int first_init)
 	ei_status.get_8390_hdr	= &ax_get_8390_hdr;
 	ei_status.priv = 0;
 
-	dev->open		= ax_open;
-	dev->stop		= ax_close;
-	dev->do_ioctl		= ax_ioctl;
+	dev->netdev_ops		= &ax_netdev_ops;
 	dev->ethtool_ops	= &ax_ethtool_ops;
 
 	ax->msg_enable		= NETIF_MSG_LINK;
@@ -753,9 +780,6 @@ static int ax_init_dev(struct net_device *dev, int first_init)
 	ax->mii.mdio_write	= ax_phy_write;
 	ax->mii.dev		= dev;
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ax_ei_poll;
-#endif
 	ax_NS8390_init(dev, 0);
 
 	if (first_init)
@@ -814,7 +838,7 @@ static int ax_probe(struct platform_device *pdev)
 	struct ax_device  *ax;
 	struct resource   *res;
 	size_t size;
-	int ret;
+	int ret = 0;
 
 	dev = ax__alloc_ei_netdev(sizeof(struct ax_device));
 	if (dev == NULL)
@@ -835,12 +859,14 @@ static int ax_probe(struct platform_device *pdev)
 
 	/* find the platform resources */
 
-	ret  = platform_get_irq(pdev, 0);
-	if (ret < 0) {
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (res == NULL) {
 		dev_err(&pdev->dev, "no IRQ specified\n");
 		goto exit_mem;
 	}
-	dev->irq = ret;
+
+	dev->irq = res->start;
+	ax->irqflags = res->flags & IRQF_TRIGGER_MASK;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {

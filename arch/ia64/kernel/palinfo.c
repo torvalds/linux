@@ -1002,8 +1002,6 @@ create_palinfo_proc_entries(unsigned int cpu)
 		*pdir = create_proc_read_entry(
 				palinfo_entries[j].name, 0, cpu_dir,
 				palinfo_read_entry, (void *)f.value);
-		if (*pdir)
-			(*pdir)->owner = THIS_MODULE;
 		pdir++;
 	}
 }

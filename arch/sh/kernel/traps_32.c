@@ -125,20 +125,18 @@ static inline void die_if_kernel(const char *str, struct pt_regs *regs,
  * - userspace errors just cause EFAULT to be returned, resulting in SEGV
  * - kernel/userspace interfaces cause a jump to an appropriate handler
  * - other kernel errors are bad
- * - return 0 if fixed-up, -EFAULT if non-fatal (to the kernel) fault
  */
-static int die_if_no_fixup(const char * str, struct pt_regs * regs, long err)
+static void die_if_no_fixup(const char * str, struct pt_regs * regs, long err)
 {
 	if (!user_mode(regs)) {
 		const struct exception_table_entry *fixup;
 		fixup = search_exception_tables(regs->pc);
 		if (fixup) {
 			regs->pc = fixup->fixup;
-			return 0;
+			return;
 		}
 		die(str, regs, err);
 	}
-	return -EFAULT;
 }
 
 static inline void sign_extend(unsigned int count, unsigned char *dst)
@@ -314,7 +312,8 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs,
 	/* Argh. Address not only misaligned but also non-existent.
 	 * Raise an EFAULT and see if it's trapped
 	 */
-	return die_if_no_fixup("Fault in unaligned fixup", regs, 0);
+	die_if_no_fixup("Fault in unaligned fixup", regs, 0);
+	return -EFAULT;
 }
 
 /*
@@ -665,6 +664,8 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 	if (is_dsp_inst(regs)) {
 		/* Enable DSP mode, and restart instruction. */
 		regs->sr |= SR_DSP;
+		/* Save DSP mode */
+		tsk->thread.dsp_status.status |= SR_DSP;
 		return;
 	}
 #endif

@@ -27,7 +27,7 @@
 #include <linux/slab.h>
 
 
-static void pbus_assign_resources_sorted(struct pci_bus *bus)
+static void pbus_assign_resources_sorted(const struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	struct resource *res;
@@ -143,6 +143,9 @@ static void pci_setup_bridge(struct pci_bus *bus)
 	struct pci_dev *bridge = bus->self;
 	struct pci_bus_region region;
 	u32 l, bu, lu, io_upper16;
+
+	if (pci_is_enabled(bridge))
+		return;
 
 	dev_info(&bridge->dev, "PCI bridge, secondary bus %04x:%02x\n",
 		 pci_domain_nr(bus), bus->number);
@@ -495,7 +498,7 @@ void __ref pci_bus_size_bridges(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_size_bridges);
 
-void __ref pci_bus_assign_resources(struct pci_bus *bus)
+void __ref pci_bus_assign_resources(const struct pci_bus *bus)
 {
 	struct pci_bus *b;
 	struct pci_dev *dev;

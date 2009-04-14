@@ -11,13 +11,23 @@
 #define MCI_PWR_OFF		0x00
 #define MCI_PWR_UP		0x02
 #define MCI_PWR_ON		0x03
+#define MCI_DATA2DIREN		(1 << 2)
+#define MCI_CMDDIREN		(1 << 3)
+#define MCI_DATA0DIREN		(1 << 4)
+#define MCI_DATA31DIREN		(1 << 5)
 #define MCI_OD			(1 << 6)
 #define MCI_ROD			(1 << 7)
+/* The ST Micro version does not have ROD */
+#define MCI_FBCLKEN		(1 << 7)
+#define MCI_DATA74DIREN		(1 << 8)
 
 #define MMCICLOCK		0x004
 #define MCI_CLK_ENABLE		(1 << 8)
 #define MCI_CLK_PWRSAVE		(1 << 9)
 #define MCI_CLK_BYPASS		(1 << 10)
+#define MCI_WIDE_BUS		(1 << 11)
+/* HW flow control on the ST Micro version */
+#define MCI_FCEN		(1 << 13)
 
 #define MMCIARGUMENT		0x008
 #define MMCICOMMAND		0x00c
@@ -26,6 +36,10 @@
 #define MCI_CPSM_INTERRUPT	(1 << 8)
 #define MCI_CPSM_PENDING	(1 << 9)
 #define MCI_CPSM_ENABLE		(1 << 10)
+#define MCI_SDIO_SUSP		(1 << 11)
+#define MCI_ENCMD_COMPL		(1 << 12)
+#define MCI_NIEN		(1 << 13)
+#define MCI_CE_ATACMD		(1 << 14)
 
 #define MMCIRESPCMD		0x010
 #define MMCIRESPONSE0		0x014
@@ -39,6 +53,11 @@
 #define MCI_DPSM_DIRECTION	(1 << 1)
 #define MCI_DPSM_MODE		(1 << 2)
 #define MCI_DPSM_DMAENABLE	(1 << 3)
+#define MCI_DPSM_BLOCKSIZE	(1 << 4)
+#define MCI_DPSM_RWSTART	(1 << 8)
+#define MCI_DPSM_RWSTOP		(1 << 9)
+#define MCI_DPSM_RWMOD		(1 << 10)
+#define MCI_DPSM_SDIOEN		(1 << 11)
 
 #define MMCIDATACNT		0x030
 #define MMCISTATUS		0x034
@@ -63,6 +82,8 @@
 #define MCI_RXFIFOEMPTY		(1 << 19)
 #define MCI_TXDATAAVLBL		(1 << 20)
 #define MCI_RXDATAAVLBL		(1 << 21)
+#define MCI_SDIOIT		(1 << 22)
+#define MCI_CEATAEND		(1 << 23)
 
 #define MMCICLEAR		0x038
 #define MCI_CMDCRCFAILCLR	(1 << 0)
@@ -75,6 +96,8 @@
 #define MCI_CMDSENTCLR		(1 << 7)
 #define MCI_DATAENDCLR		(1 << 8)
 #define MCI_DATABLOCKENDCLR	(1 << 10)
+#define MCI_SDIOITC		(1 << 22)
+#define MCI_CEATAENDC		(1 << 23)
 
 #define MMCIMASK0		0x03c
 #define MCI_CMDCRCFAILMASK	(1 << 0)
@@ -98,6 +121,8 @@
 #define MCI_RXFIFOEMPTYMASK	(1 << 19)
 #define MCI_TXDATAAVLBLMASK	(1 << 20)
 #define MCI_RXDATAAVLBLMASK	(1 << 21)
+#define MCI_SDIOITMASK		(1 << 22)
+#define MCI_CEATAENDMASK	(1 << 23)
 
 #define MMCIMASK1		0x040
 #define MMCIFIFOCNT		0x048
@@ -135,6 +160,9 @@ struct mmci_host {
 	unsigned int		cclk;
 	u32			pwr;
 	struct mmc_platform_data *plat;
+
+	u8			hw_designer;
+	u8			hw_revision:4;
 
 	struct timer_list	timer;
 	unsigned int		oldstat;

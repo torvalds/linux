@@ -1360,6 +1360,7 @@ _GLOBAL(__start_initialization_multiplatform)
 	b	.__after_prom_start
 
 _INIT_STATIC(__boot_from_prom)
+#ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
 	/* Save parameters */
 	mr	r31,r3
 	mr	r30,r4
@@ -1390,7 +1391,10 @@ _INIT_STATIC(__boot_from_prom)
 	/* Do all of the interaction with OF client interface */
 	mr	r8,r26
 	bl	.prom_init
-	/* We never return */
+#endif /* #CONFIG_PPC_OF_BOOT_TRAMPOLINE */
+
+	/* We never return. We also hit that trap if trying to boot
+	 * from OF while CONFIG_PPC_OF_BOOT_TRAMPOLINE isn't selected */
 	trap
 
 _STATIC(__after_prom_start)
@@ -1517,6 +1521,15 @@ __secondary_start_pmac_0:
 _GLOBAL(pmac_secondary_start)
 	/* turn on 64-bit mode */
 	bl	.enable_64b_mode
+
+	li	r0,0
+	mfspr	r3,SPRN_HID4
+	rldimi	r3,r0,40,23	/* clear bit 23 (rm_ci) */
+	sync
+	mtspr	SPRN_HID4,r3
+	isync
+	sync
+	slbia
 
 	/* get TOC pointer (real address) */
 	bl	.relative_toc

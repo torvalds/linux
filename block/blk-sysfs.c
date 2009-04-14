@@ -48,28 +48,28 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 	q->nr_requests = nr;
 	blk_queue_congestion_threshold(q);
 
-	if (rl->count[READ] >= queue_congestion_on_threshold(q))
-		blk_set_queue_congested(q, READ);
-	else if (rl->count[READ] < queue_congestion_off_threshold(q))
-		blk_clear_queue_congested(q, READ);
+	if (rl->count[BLK_RW_SYNC] >= queue_congestion_on_threshold(q))
+		blk_set_queue_congested(q, BLK_RW_SYNC);
+	else if (rl->count[BLK_RW_SYNC] < queue_congestion_off_threshold(q))
+		blk_clear_queue_congested(q, BLK_RW_SYNC);
 
-	if (rl->count[WRITE] >= queue_congestion_on_threshold(q))
-		blk_set_queue_congested(q, WRITE);
-	else if (rl->count[WRITE] < queue_congestion_off_threshold(q))
-		blk_clear_queue_congested(q, WRITE);
+	if (rl->count[BLK_RW_ASYNC] >= queue_congestion_on_threshold(q))
+		blk_set_queue_congested(q, BLK_RW_ASYNC);
+	else if (rl->count[BLK_RW_ASYNC] < queue_congestion_off_threshold(q))
+		blk_clear_queue_congested(q, BLK_RW_ASYNC);
 
-	if (rl->count[READ] >= q->nr_requests) {
-		blk_set_queue_full(q, READ);
-	} else if (rl->count[READ]+1 <= q->nr_requests) {
-		blk_clear_queue_full(q, READ);
-		wake_up(&rl->wait[READ]);
+	if (rl->count[BLK_RW_SYNC] >= q->nr_requests) {
+		blk_set_queue_full(q, BLK_RW_SYNC);
+	} else if (rl->count[BLK_RW_SYNC]+1 <= q->nr_requests) {
+		blk_clear_queue_full(q, BLK_RW_SYNC);
+		wake_up(&rl->wait[BLK_RW_SYNC]);
 	}
 
-	if (rl->count[WRITE] >= q->nr_requests) {
-		blk_set_queue_full(q, WRITE);
-	} else if (rl->count[WRITE]+1 <= q->nr_requests) {
-		blk_clear_queue_full(q, WRITE);
-		wake_up(&rl->wait[WRITE]);
+	if (rl->count[BLK_RW_ASYNC] >= q->nr_requests) {
+		blk_set_queue_full(q, BLK_RW_ASYNC);
+	} else if (rl->count[BLK_RW_ASYNC]+1 <= q->nr_requests) {
+		blk_clear_queue_full(q, BLK_RW_ASYNC);
+		wake_up(&rl->wait[BLK_RW_ASYNC]);
 	}
 	spin_unlock_irq(q->queue_lock);
 	return ret;
@@ -130,6 +130,27 @@ static ssize_t queue_max_hw_sectors_show(struct request_queue *q, char *page)
 	return queue_var_show(max_hw_sectors_kb, (page));
 }
 
+static ssize_t queue_nonrot_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(!blk_queue_nonrot(q), page);
+}
+
+static ssize_t queue_nonrot_store(struct request_queue *q, const char *page,
+				  size_t count)
+{
+	unsigned long nm;
+	ssize_t ret = queue_var_store(&nm, page, count);
+
+	spin_lock_irq(q->queue_lock);
+	if (nm)
+		queue_flag_clear(QUEUE_FLAG_NONROT, q);
+	else
+		queue_flag_set(QUEUE_FLAG_NONROT, q);
+	spin_unlock_irq(q->queue_lock);
+
+	return ret;
+}
+
 static ssize_t queue_nomerges_show(struct request_queue *q, char *page)
 {
 	return queue_var_show(blk_queue_nomerges(q), page);
@@ -146,8 +167,8 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
 		queue_flag_set(QUEUE_FLAG_NOMERGES, q);
 	else
 		queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
-
 	spin_unlock_irq(q->queue_lock);
+
 	return ret;
 }
 
@@ -173,6 +194,31 @@ queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 		queue_flag_clear(QUEUE_FLAG_SAME_COMP,  q);
 	spin_unlock_irq(q->queue_lock);
 #endif
+	return ret;
+}
+
+static ssize_t queue_iostats_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(blk_queue_io_stat(q), page);
+}
+
+static ssize_t queue_iostats_store(struct request_queue *q, const char *page,
+				   size_t count)
+{
+	unsigned long stats;
+	ssize_t ret = queue_var_store(&stats, page, count);
+
+	spin_lock_irq(q->queue_lock);
+	elv_quisce_start(q);
+
+	if (stats)
+		queue_flag_set(QUEUE_FLAG_IO_STAT, q);
+	else
+		queue_flag_clear(QUEUE_FLAG_IO_STAT, q);
+
+	elv_quisce_end(q);
+	spin_unlock_irq(q->queue_lock);
+
 	return ret;
 }
 
@@ -210,6 +256,12 @@ static struct queue_sysfs_entry queue_hw_sector_size_entry = {
 	.show = queue_hw_sector_size_show,
 };
 
+static struct queue_sysfs_entry queue_nonrot_entry = {
+	.attr = {.name = "rotational", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_nonrot_show,
+	.store = queue_nonrot_store,
+};
+
 static struct queue_sysfs_entry queue_nomerges_entry = {
 	.attr = {.name = "nomerges", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_nomerges_show,
@@ -222,6 +274,12 @@ static struct queue_sysfs_entry queue_rq_affinity_entry = {
 	.store = queue_rq_affinity_store,
 };
 
+static struct queue_sysfs_entry queue_iostats_entry = {
+	.attr = {.name = "iostats", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_iostats_show,
+	.store = queue_iostats_store,
+};
+
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
@@ -229,8 +287,10 @@ static struct attribute *default_attrs[] = {
 	&queue_max_sectors_entry.attr,
 	&queue_iosched_entry.attr,
 	&queue_hw_sector_size_entry.attr,
+	&queue_nonrot_entry.attr,
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,
+	&queue_iostats_entry.attr,
 	NULL,
 };
 

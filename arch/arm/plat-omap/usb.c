@@ -431,15 +431,6 @@ bad:
 
 /*-------------------------------------------------------------------------*/
 
-#if	defined(CONFIG_USB_GADGET_OMAP) || \
-	defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) || \
-	(defined(CONFIG_USB_OTG) && defined(CONFIG_ARCH_OMAP_OTG))
-static void usb_release(struct device *dev)
-{
-	/* normally not freed */
-}
-#endif
-
 #ifdef	CONFIG_USB_GADGET_OMAP
 
 static struct resource udc_resources[] = {
@@ -466,7 +457,6 @@ static struct platform_device udc_device = {
 	.name		= "omap_udc",
 	.id		= -1,
 	.dev = {
-		.release		= usb_release,
 		.dma_mask		= &udc_dmamask,
 		.coherent_dma_mask	= 0xffffffff,
 	},
@@ -497,7 +487,6 @@ static struct platform_device ohci_device = {
 	.name			= "ohci",
 	.id			= -1,
 	.dev = {
-		.release		= usb_release,
 		.dma_mask		= &ohci_dmamask,
 		.coherent_dma_mask	= 0xffffffff,
 	},
@@ -524,9 +513,6 @@ static struct resource otg_resources[] = {
 static struct platform_device otg_device = {
 	.name		= "omap_otg",
 	.id		= -1,
-	.dev = {
-		.release		= usb_release,
-	},
 	.num_resources	= ARRAY_SIZE(otg_resources),
 	.resource	= otg_resources,
 };
@@ -743,30 +729,13 @@ static inline void omap_1510_usb_init(struct omap_usb_config *config) {}
 
 /*-------------------------------------------------------------------------*/
 
-static struct omap_usb_config platform_data;
-
-static int __init
-omap_usb_init(void)
+void __init omap_usb_init(struct omap_usb_config *pdata)
 {
-	const struct omap_usb_config *config;
-
-	config = omap_get_config(OMAP_TAG_USB, struct omap_usb_config);
-	if (config == NULL) {
-		printk(KERN_ERR "USB: No board-specific "
-				"platform config found\n");
-		return -ENODEV;
-	}
-	platform_data = *config;
-
 	if (cpu_is_omap730() || cpu_is_omap16xx() || cpu_is_omap24xx())
-		omap_otg_init(&platform_data);
+		omap_otg_init(pdata);
 	else if (cpu_is_omap15xx())
-		omap_1510_usb_init(&platform_data);
-	else {
+		omap_1510_usb_init(pdata);
+	else
 		printk(KERN_ERR "USB: No init for your chip yet\n");
-		return -ENODEV;
-	}
-	return 0;
 }
 
-subsys_initcall(omap_usb_init);

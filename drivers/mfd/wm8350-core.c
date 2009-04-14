@@ -1111,7 +1111,7 @@ int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale, int vref)
 	do {
 		schedule_timeout_interruptible(1);
 		reg = wm8350_reg_read(wm8350, WM8350_DIGITISER_CONTROL_1);
-	} while (tries-- && (reg & WM8350_AUXADC_POLL));
+	} while ((reg & WM8350_AUXADC_POLL) && --tries);
 
 	if (!tries)
 		dev_err(wm8350->dev, "adc chn %d read timeout\n", channel);
@@ -1238,7 +1238,7 @@ static int wm8350_create_cache(struct wm8350 *wm8350, int type, int mode)
 	}
 
 	wm8350->reg_cache =
-	    kzalloc(sizeof(u16) * (WM8350_MAX_REGISTER + 1), GFP_KERNEL);
+		kmalloc(sizeof(u16) * (WM8350_MAX_REGISTER + 1), GFP_KERNEL);
 	if (wm8350->reg_cache == NULL)
 		return -ENOMEM;
 
@@ -1246,17 +1246,20 @@ static int wm8350_create_cache(struct wm8350 *wm8350, int type, int mode)
 	 * a PMIC so the device many not be in a virgin state and we
 	 * can't rely on the silicon values.
 	 */
+	ret = wm8350->read_dev(wm8350, 0,
+			       sizeof(u16) * (WM8350_MAX_REGISTER + 1),
+			       wm8350->reg_cache);
+	if (ret < 0) {
+		dev_err(wm8350->dev,
+			"failed to read initial cache values\n");
+		goto out;
+	}
+
+	/* Mask out uncacheable/unreadable bits and the audio. */
 	for (i = 0; i < WM8350_MAX_REGISTER; i++) {
-		/* audio register range */
 		if (wm8350_reg_io_map[i].readable &&
 		    (i < WM8350_CLOCK_CONTROL_1 || i > WM8350_AIF_TEST)) {
-			ret = wm8350->read_dev(wm8350, i, 2, (char *)&value);
-			if (ret < 0) {
-				dev_err(wm8350->dev,
-				       "failed to read initial cache value\n");
-				goto out;
-			}
-			value = be16_to_cpu(value);
+			value = be16_to_cpu(wm8350->reg_cache[i]);
 			value &= wm8350_reg_io_map[i].readable;
 			value &= ~wm8350_reg_io_map[i].vol;
 			wm8350->reg_cache[i] = value;
@@ -1297,14 +1300,29 @@ static void wm8350_client_dev_register(struct wm8350 *wm8350,
 int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		       struct wm8350_platform_data *pdata)
 {
-	int ret = -EINVAL;
+	int ret;
 	u16 id1, id2, mask_rev;
 	u16 cust_id, mode, chip_rev;
 
 	/* get WM8350 revision and config mode */
-	wm8350->read_dev(wm8350, WM8350_RESET_ID, sizeof(id1), &id1);
-	wm8350->read_dev(wm8350, WM8350_ID, sizeof(id2), &id2);
-	wm8350->read_dev(wm8350, WM8350_REVISION, sizeof(mask_rev), &mask_rev);
+	ret = wm8350->read_dev(wm8350, WM8350_RESET_ID, sizeof(id1), &id1);
+	if (ret != 0) {
+		dev_err(wm8350->dev, "Failed to read ID: %d\n", ret);
+		goto err;
+	}
+
+	ret = wm8350->read_dev(wm8350, WM8350_ID, sizeof(id2), &id2);
+	if (ret != 0) {
+		dev_err(wm8350->dev, "Failed to read ID: %d\n", ret);
+		goto err;
+	}
+
+	ret = wm8350->read_dev(wm8350, WM8350_REVISION, sizeof(mask_rev),
+			       &mask_rev);
+	if (ret != 0) {
+		dev_err(wm8350->dev, "Failed to read revision: %d\n", ret);
+		goto err;
+	}
 
 	id1 = be16_to_cpu(id1);
 	id2 = be16_to_cpu(id2);
@@ -1368,6 +1386,11 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 			wm8350->power.rev_g_coeff = 1;
 			break;
 
+		case 1:
+			dev_info(wm8350->dev, "WM8351 Rev B\n");
+			wm8350->power.rev_g_coeff = 1;
+			break;
+
 		default:
 			dev_err(wm8350->dev, "Unknown WM8351 CHIP_REV\n");
 			ret = -ENODEV;
@@ -1404,20 +1427,32 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		return ret;
 	}
 
-	if (pdata && pdata->init) {
-		ret = pdata->init(wm8350);
-		if (ret != 0) {
-			dev_err(wm8350->dev, "Platform init() failed: %d\n",
-				ret);
-			goto err;
-		}
-	}
+	wm8350_reg_write(wm8350, WM8350_SYSTEM_INTERRUPTS_MASK, 0xFFFF);
+	wm8350_reg_write(wm8350, WM8350_INT_STATUS_1_MASK, 0xFFFF);
+	wm8350_reg_write(wm8350, WM8350_INT_STATUS_2_MASK, 0xFFFF);
+	wm8350_reg_write(wm8350, WM8350_UNDER_VOLTAGE_INT_STATUS_MASK, 0xFFFF);
+	wm8350_reg_write(wm8350, WM8350_GPIO_INT_STATUS_MASK, 0xFFFF);
+	wm8350_reg_write(wm8350, WM8350_COMPARATOR_INT_STATUS_MASK, 0xFFFF);
 
 	mutex_init(&wm8350->auxadc_mutex);
 	mutex_init(&wm8350->irq_mutex);
 	INIT_WORK(&wm8350->irq_work, wm8350_irq_worker);
 	if (irq) {
-		ret = request_irq(irq, wm8350_irq, 0,
+		int flags = 0;
+
+		if (pdata && pdata->irq_high) {
+			flags |= IRQF_TRIGGER_HIGH;
+
+			wm8350_set_bits(wm8350, WM8350_SYSTEM_CONTROL_1,
+					WM8350_IRQ_POL);
+		} else {
+			flags |= IRQF_TRIGGER_LOW;
+
+			wm8350_clear_bits(wm8350, WM8350_SYSTEM_CONTROL_1,
+					  WM8350_IRQ_POL);
+		}
+
+		ret = request_irq(irq, wm8350_irq, flags,
 				  "wm8350", wm8350);
 		if (ret != 0) {
 			dev_err(wm8350->dev, "Failed to request IRQ: %d\n",
@@ -1429,6 +1464,15 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		goto err;
 	}
 	wm8350->chip_irq = irq;
+
+	if (pdata && pdata->init) {
+		ret = pdata->init(wm8350);
+		if (ret != 0) {
+			dev_err(wm8350->dev, "Platform init() failed: %d\n",
+				ret);
+			goto err;
+		}
+	}
 
 	wm8350_reg_write(wm8350, WM8350_SYSTEM_INTERRUPTS_MASK, 0x0);
 

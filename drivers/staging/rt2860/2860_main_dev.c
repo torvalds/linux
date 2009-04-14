@@ -90,12 +90,10 @@ void init_thread_task(PRTMP_ADAPTER pAd);
 static void __exit rt2860_cleanup_module(void);
 static int __init rt2860_init_module(void);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #ifdef CONFIG_PM
 static int rt2860_suspend(struct pci_dev *pci_dev, pm_message_t state);
 static int rt2860_resume(struct pci_dev *pci_dev);
 #endif // CONFIG_PM //
-#endif
 
 
 //
@@ -128,22 +126,15 @@ static struct pci_driver rt2860_driver =
     name:       "rt2860",
     id_table:   rt2860_pci_tbl,
     probe:      rt2860_init_one,
-#if LINUX_VERSION_CODE >= 0x20412
     remove:     __devexit_p(rt2860_remove_one),
-#else
-    remove:     __devexit(rt2860_remove_one),
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #ifdef CONFIG_PM
 	suspend:	rt2860_suspend,
 	resume:		rt2860_resume,
 #endif
-#endif
 };
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #ifdef CONFIG_PM
 
 VOID RT2860RejectPendingPackets(
@@ -284,16 +275,11 @@ static int rt2860_resume(
 	return 0;
 }
 #endif // CONFIG_PM //
-#endif
 
 
 static INT __init rt2860_init_module(VOID)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	return pci_register_driver(&rt2860_driver);
-#else
-    return pci_module_init(&rt2860_driver);
-#endif
 }
 
 
@@ -374,11 +360,7 @@ static VOID __devexit rt2860_remove_one(
 	}
 
 	// Free pre-allocated net_device memory
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	free_netdev(net_dev);
-#else
-	kfree(net_dev);
-#endif
 }
 
 //
@@ -758,16 +740,13 @@ static void ac0_dma_done_tasklet(unsigned long data)
 int print_int_count;
 
 IRQ_HANDLE_TYPE
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19))
 rt2860_interrupt(int irq, void *dev_instance)
-#else
-rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
-#endif
 {
 	struct net_device *net_dev = (struct net_device *) dev_instance;
 	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	INT_SOURCE_CSR_STRUC	IntSource;
 	POS_COOKIE pObj;
+	BOOLEAN	bOldValue;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
@@ -800,20 +779,19 @@ rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	// RT2661 => when ASIC is sleeping, MAC register cannot be read and written.
 	// RT2860 => when ASIC is sleeping, MAC register can be read and written.
 
+	bOldValue = pAd->bPCIclkOff;
+	pAd->bPCIclkOff = FALSE;
 	{
 		RTMP_IO_READ32(pAd, INT_SOURCE_CSR, &IntSource.word);
 		RTMP_IO_WRITE32(pAd, INT_SOURCE_CSR, IntSource.word); // write 1 to clear
 	}
+	pAd->bPCIclkOff = bOldValue;
 
 	// Do nothing if Reset in progress
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS) ||
 		RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS))
 	{
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-        return  IRQ_HANDLED;
-#else
-        return;
-#endif
+		return IRQ_HANDLED;
 	}
 
 	//
@@ -821,8 +799,6 @@ rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	// Should start from highest priority interrupt
 	// The priority can be adjust by altering processing if statement
 	//
-
-    pAd->bPCIclkOff = FALSE;
 
 	// If required spinlock, each interrupt service routine has to acquire
 	// and release itself.
@@ -832,11 +808,8 @@ rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	if (IntSource.word == 0xffffffff)
 	{
 		RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST | fRTMP_ADAPTER_HALT_IN_PROGRESS);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-        return  IRQ_HANDLED;
-#else
-        return;
-#endif
+		printk("snowpin - IntSource.word == 0xffffffff\n");
+		return IRQ_HANDLED;
 	}
 
 	if (IntSource.word & TxCoherent)
@@ -970,10 +943,7 @@ rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	}
 #endif // CONFIG_STA_SUPPORT //
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
     return  IRQ_HANDLED;
-#endif
-
 }
 
 /*
@@ -1026,11 +996,7 @@ BOOLEAN RT28XXNetDevInit(
     ULONG	csr_addr;
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-    print_name = pci_dev ? pci_name(pci_dev) : "rt2860";
-#else
-    print_name = pci_dev ? pci_dev->slot_name : "rt2860";
-#endif // LINUX_VERSION_CODE //
+	print_name = pci_dev ? pci_name(pci_dev) : "rt2860";
 
 	net_dev->base_addr = 0;
 	net_dev->irq = 0;

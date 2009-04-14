@@ -50,6 +50,9 @@ enum ps3_param_av_multi_out {
 
 enum ps3_param_av_multi_out ps3_os_area_get_av_multi_out(void);
 
+extern u64 ps3_os_area_get_rtc_diff(void);
+extern void ps3_os_area_set_rtc_diff(u64 rtc_diff);
+
 /* dma routines */
 
 enum ps3_dma_page_size {
@@ -103,10 +106,10 @@ struct ps3_dma_region_ops {
 	int (*map)(struct ps3_dma_region *,
 		   unsigned long virt_addr,
 		   unsigned long len,
-		   unsigned long *bus_addr,
+		   dma_addr_t *bus_addr,
 		   u64 iopte_pp);
 	int (*unmap)(struct ps3_dma_region *,
-		     unsigned long bus_addr,
+		     dma_addr_t bus_addr,
 		     unsigned long len);
 };
 /**
@@ -124,9 +127,9 @@ int ps3_dma_region_init(struct ps3_system_bus_device *dev,
 int ps3_dma_region_create(struct ps3_dma_region *r);
 int ps3_dma_region_free(struct ps3_dma_region *r);
 int ps3_dma_map(struct ps3_dma_region *r, unsigned long virt_addr,
-	unsigned long len, unsigned long *bus_addr,
+	unsigned long len, dma_addr_t *bus_addr,
 	u64 iopte_pp);
-int ps3_dma_unmap(struct ps3_dma_region *r, unsigned long bus_addr,
+int ps3_dma_unmap(struct ps3_dma_region *r, dma_addr_t bus_addr,
 	unsigned long len);
 
 /* mmio routines */

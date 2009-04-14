@@ -11,6 +11,7 @@
 
 #include <stdarg.h>
 
+#include <linux/stackprotector.h>
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -66,9 +67,6 @@ asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
 
-DEFINE_PER_CPU(int, cpu_number);
-EXPORT_PER_CPU_SYMBOL(cpu_number);
-
 /*
  * Return saved PC of a blocked thread.
  */
@@ -94,6 +92,15 @@ void cpu_idle(void)
 {
 	int cpu = smp_processor_id();
 
+	/*
+	 * If we're the non-boot CPU, nothing set the stack canary up
+	 * for us.  CPU0 already has it initialized but no harm in
+	 * doing it again.  This is a good place for updating it, as
+	 * we wont ever return from this function (so the invalid
+	 * canaries already on the stack wont ever trigger).
+	 */
+	boot_init_stack_canary();
+
 	current_thread_info()->status |= TS_POLLING;
 
 	/* endless idle loop with no priority at all */
@@ -104,14 +111,10 @@ void cpu_idle(void)
 			check_pgt_cache();
 			rmb();
 
-			if (rcu_pending(cpu))
-				rcu_check_callbacks(cpu, 0);
-
 			if (cpu_is_offline(cpu))
 				play_dead();
 
 			local_irq_disable();
-			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
 			/* Don't trace irqs off for idle */
 			stop_critical_timings();
 			pm_idle();
@@ -135,7 +138,7 @@ void __show_regs(struct pt_regs *regs, int all)
 	if (user_mode_vm(regs)) {
 		sp = regs->sp;
 		ss = regs->ss & 0xffff;
-		savesegment(gs, gs);
+		gs = get_user_gs(regs);
 	} else {
 		sp = (unsigned long) (&regs->sp);
 		savesegment(ss, ss);
@@ -216,6 +219,7 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.ds = __USER_DS;
 	regs.es = __USER_DS;
 	regs.fs = __KERNEL_PERCPU;
+	regs.gs = __KERNEL_STACK_CANARY;
 	regs.orig_ax = -1;
 	regs.ip = (unsigned long) kernel_thread_helper;
 	regs.cs = __KERNEL_CS | get_kernel_rpl();
@@ -225,55 +229,6 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }
 EXPORT_SYMBOL(kernel_thread);
-
-/*
- * Free current thread data structures etc..
- */
-void exit_thread(void)
-{
-	/* The process may have allocated an io port bitmap... nuke it. */
-	if (unlikely(test_thread_flag(TIF_IO_BITMAP))) {
-		struct task_struct *tsk = current;
-		struct thread_struct *t = &tsk->thread;
-		int cpu = get_cpu();
-		struct tss_struct *tss = &per_cpu(init_tss, cpu);
-
-		kfree(t->io_bitmap_ptr);
-		t->io_bitmap_ptr = NULL;
-		clear_thread_flag(TIF_IO_BITMAP);
-		/*
-		 * Careful, clear this in the TSS too:
-		 */
-		memset(tss->io_bitmap, 0xff, tss->io_bitmap_max);
-		t->io_bitmap_max = 0;
-		tss->io_bitmap_owner = NULL;
-		tss->io_bitmap_max = 0;
-		tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
-		put_cpu();
-	}
-
-	ds_exit_thread(current);
-}
-
-void flush_thread(void)
-{
-	struct task_struct *tsk = current;
-
-	tsk->thread.debugreg0 = 0;
-	tsk->thread.debugreg1 = 0;
-	tsk->thread.debugreg2 = 0;
-	tsk->thread.debugreg3 = 0;
-	tsk->thread.debugreg6 = 0;
-	tsk->thread.debugreg7 = 0;
-	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
-	clear_tsk_thread_flag(tsk, TIF_DEBUG);
-	/*
-	 * Forget coprocessor state..
-	 */
-	tsk->fpu_counter = 0;
-	clear_fpu(tsk);
-	clear_used_math();
-}
 
 void release_thread(struct task_struct *dead_task)
 {
@@ -290,7 +245,7 @@ void prepare_to_copy(struct task_struct *tsk)
 	unlazy_fpu(tsk);
 }
 
-int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
+int copy_thread(unsigned long clone_flags, unsigned long sp,
 	unsigned long unused,
 	struct task_struct *p, struct pt_regs *regs)
 {
@@ -308,7 +263,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 
 	p->thread.ip = (unsigned long) ret_from_fork;
 
-	savesegment(gs, p->thread.gs);
+	task_user_gs(p) = get_user_gs(regs);
 
 	tsk = current;
 	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
@@ -346,7 +301,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 void
 start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 {
-	__asm__("movl %0, %%gs" : : "r"(0));
+	set_user_gs(regs, 0);
 	regs->fs		= 0;
 	set_fs(USER_DS);
 	regs->ds		= __USER_DS;
@@ -362,127 +317,6 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 }
 EXPORT_SYMBOL_GPL(start_thread);
 
-static void hard_disable_TSC(void)
-{
-	write_cr4(read_cr4() | X86_CR4_TSD);
-}
-
-void disable_TSC(void)
-{
-	preempt_disable();
-	if (!test_and_set_thread_flag(TIF_NOTSC))
-		/*
-		 * Must flip the CPU state synchronously with
-		 * TIF_NOTSC in the current running context.
-		 */
-		hard_disable_TSC();
-	preempt_enable();
-}
-
-static void hard_enable_TSC(void)
-{
-	write_cr4(read_cr4() & ~X86_CR4_TSD);
-}
-
-static void enable_TSC(void)
-{
-	preempt_disable();
-	if (test_and_clear_thread_flag(TIF_NOTSC))
-		/*
-		 * Must flip the CPU state synchronously with
-		 * TIF_NOTSC in the current running context.
-		 */
-		hard_enable_TSC();
-	preempt_enable();
-}
-
-int get_tsc_mode(unsigned long adr)
-{
-	unsigned int val;
-
-	if (test_thread_flag(TIF_NOTSC))
-		val = PR_TSC_SIGSEGV;
-	else
-		val = PR_TSC_ENABLE;
-
-	return put_user(val, (unsigned int __user *)adr);
-}
-
-int set_tsc_mode(unsigned int val)
-{
-	if (val == PR_TSC_SIGSEGV)
-		disable_TSC();
-	else if (val == PR_TSC_ENABLE)
-		enable_TSC();
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static noinline void
-__switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
-		 struct tss_struct *tss)
-{
-	struct thread_struct *prev, *next;
-
-	prev = &prev_p->thread;
-	next = &next_p->thread;
-
-	if (test_tsk_thread_flag(next_p, TIF_DS_AREA_MSR) ||
-	    test_tsk_thread_flag(prev_p, TIF_DS_AREA_MSR))
-		ds_switch_to(prev_p, next_p);
-	else if (next->debugctlmsr != prev->debugctlmsr)
-		update_debugctlmsr(next->debugctlmsr);
-
-	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
-		set_debugreg(next->debugreg0, 0);
-		set_debugreg(next->debugreg1, 1);
-		set_debugreg(next->debugreg2, 2);
-		set_debugreg(next->debugreg3, 3);
-		/* no 4 and 5 */
-		set_debugreg(next->debugreg6, 6);
-		set_debugreg(next->debugreg7, 7);
-	}
-
-	if (test_tsk_thread_flag(prev_p, TIF_NOTSC) ^
-	    test_tsk_thread_flag(next_p, TIF_NOTSC)) {
-		/* prev and next are different */
-		if (test_tsk_thread_flag(next_p, TIF_NOTSC))
-			hard_disable_TSC();
-		else
-			hard_enable_TSC();
-	}
-
-	if (!test_tsk_thread_flag(next_p, TIF_IO_BITMAP)) {
-		/*
-		 * Disable the bitmap via an invalid offset. We still cache
-		 * the previous bitmap owner and the IO bitmap contents:
-		 */
-		tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET;
-		return;
-	}
-
-	if (likely(next == tss->io_bitmap_owner)) {
-		/*
-		 * Previous owner of the bitmap (hence the bitmap content)
-		 * matches the next task, we dont have to do anything but
-		 * to set a valid offset in the TSS:
-		 */
-		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
-		return;
-	}
-	/*
-	 * Lazy TSS's I/O bitmap copy. We set an invalid offset here
-	 * and we let the task to get a GPF in case an I/O instruction
-	 * is performed.  The handler of the GPF will verify that the
-	 * faulting task has a valid I/O bitmap and, it true, does the
-	 * real copy and restart the instruction.  This will save us
-	 * redundant copies when the currently switched task does not
-	 * perform any I/O during its timeslice.
-	 */
-	tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
-}
 
 /*
  *	switch_to(x,yn) should switch tasks from x to y.
@@ -543,7 +377,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * used %fs or %gs (it does not today), or if the kernel is
 	 * running inside of a hypervisor layer.
 	 */
-	savesegment(gs, prev->gs);
+	lazy_save_gs(prev->gs);
 
 	/*
 	 * Load the per-thread Thread-Local Storage descriptor.
@@ -589,64 +423,44 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * Restore %gs if needed (which is common)
 	 */
 	if (prev->gs | next->gs)
-		loadsegment(gs, next->gs);
+		lazy_load_gs(next->gs);
 
-	x86_write_percpu(current_task, next_p);
+	percpu_write(current_task, next_p);
 
 	return prev_p;
 }
 
-asmlinkage int sys_fork(struct pt_regs regs)
-{
-	return do_fork(SIGCHLD, regs.sp, &regs, 0, NULL, NULL);
-}
-
-asmlinkage int sys_clone(struct pt_regs regs)
+int sys_clone(struct pt_regs *regs)
 {
 	unsigned long clone_flags;
 	unsigned long newsp;
 	int __user *parent_tidptr, *child_tidptr;
 
-	clone_flags = regs.bx;
-	newsp = regs.cx;
-	parent_tidptr = (int __user *)regs.dx;
-	child_tidptr = (int __user *)regs.di;
+	clone_flags = regs->bx;
+	newsp = regs->cx;
+	parent_tidptr = (int __user *)regs->dx;
+	child_tidptr = (int __user *)regs->di;
 	if (!newsp)
-		newsp = regs.sp;
-	return do_fork(clone_flags, newsp, &regs, 0, parent_tidptr, child_tidptr);
-}
-
-/*
- * This is trivial, and on the face of it looks like it
- * could equally well be done in user mode.
- *
- * Not so, for quite unobvious reasons - register pressure.
- * In user mode vfork() cannot have a stack frame, and if
- * done by calling the "clone()" system call directly, you
- * do not have enough call-clobbered registers to hold all
- * the information you need.
- */
-asmlinkage int sys_vfork(struct pt_regs regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs.sp, &regs, 0, NULL, NULL);
+		newsp = regs->sp;
+	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
 }
 
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(struct pt_regs regs)
+int sys_execve(struct pt_regs *regs)
 {
 	int error;
 	char *filename;
 
-	filename = getname((char __user *) regs.bx);
+	filename = getname((char __user *) regs->bx);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
 	error = do_execve(filename,
-			(char __user * __user *) regs.cx,
-			(char __user * __user *) regs.dx,
-			&regs);
+			(char __user * __user *) regs->cx,
+			(char __user * __user *) regs->dx,
+			regs);
 	if (error == 0) {
 		/* Make sure we don't return using sysenter.. */
 		set_thread_flag(TIF_IRET);

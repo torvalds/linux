@@ -15,6 +15,24 @@
 #ifndef _MD_U_H
 #define _MD_U_H
 
+/*
+ * Different major versions are not compatible.
+ * Different minor versions are only downward compatible.
+ * Different patchlevel versions are downward and upward compatible.
+ */
+#define MD_MAJOR_VERSION                0
+#define MD_MINOR_VERSION                90
+/*
+ * MD_PATCHLEVEL_VERSION indicates kernel functionality.
+ * >=1 means different superblock formats are selectable using SET_ARRAY_INFO
+ *     and major_version/minor_version accordingly
+ * >=2 means that Internal bitmaps are supported by setting MD_SB_BITMAP_PRESENT
+ *     in the super status byte
+ * >=3 means that bitmap superblock version 4 is supported, which uses
+ *     little-ending representation rather than host-endian
+ */
+#define MD_PATCHLEVEL_VERSION           3
+
 /* ioctls */
 
 /* status */
@@ -45,6 +63,12 @@
 #define STOP_ARRAY		_IO (MD_MAJOR, 0x32)
 #define STOP_ARRAY_RO		_IO (MD_MAJOR, 0x33)
 #define RESTART_ARRAY_RW	_IO (MD_MAJOR, 0x34)
+
+/* 63 partitions with the alternate major number (mdp) */
+#define MdpMinorShift 6
+#ifdef __KERNEL__
+extern int mdp_major;
+#endif
 
 typedef struct mdu_version_s {
 	int major;
@@ -84,6 +108,17 @@ typedef struct mdu_array_info_s {
 	int chunk_size;	/*  1 chunk size in bytes		      */
 
 } mdu_array_info_t;
+
+/* non-obvious values for 'level' */
+#define	LEVEL_MULTIPATH		(-4)
+#define	LEVEL_LINEAR		(-1)
+#define	LEVEL_FAULTY		(-5)
+
+/* we need a value for 'no level specified' and 0
+ * means 'raid0', so we need something else.  This is
+ * for internal use only
+ */
+#define	LEVEL_NONE		(-1000000)
 
 typedef struct mdu_disk_info_s {
 	/*

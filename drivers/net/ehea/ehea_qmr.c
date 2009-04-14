@@ -168,7 +168,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 					     cq->fw_handle, rpage, 1);
 		if (hret < H_SUCCESS) {
 			ehea_error("register_rpage_cq failed ehea_cq=%p "
-				   "hret=%lx counter=%i act_pages=%i",
+				   "hret=%llx counter=%i act_pages=%i",
 				   cq, hret, counter, cq->attr.nr_pages);
 			goto out_kill_hwq;
 		}
@@ -178,13 +178,13 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 
 			if ((hret != H_SUCCESS) || (vpage)) {
 				ehea_error("registration of pages not "
-					   "complete hret=%lx\n", hret);
+					   "complete hret=%llx\n", hret);
 				goto out_kill_hwq;
 			}
 		} else {
 			if (hret != H_PAGE_REGISTERED) {
 				ehea_error("CQ: registration of page failed "
-					   "hret=%lx\n", hret);
+					   "hret=%llx\n", hret);
 				goto out_kill_hwq;
 			}
 		}
@@ -986,15 +986,15 @@ void print_error_data(u64 *data)
 		length = EHEA_PAGESIZE;
 
 	if (type == 0x8) /* Queue Pair */
-		ehea_error("QP (resource=%lX) state: AER=0x%lX, AERR=0x%lX, "
-			   "port=%lX", resource, data[6], data[12], data[22]);
+		ehea_error("QP (resource=%llX) state: AER=0x%llX, AERR=0x%llX, "
+			   "port=%llX", resource, data[6], data[12], data[22]);
 
 	if (type == 0x4) /* Completion Queue */
-		ehea_error("CQ (resource=%lX) state: AER=0x%lX", resource,
+		ehea_error("CQ (resource=%llX) state: AER=0x%llX", resource,
 			   data[6]);
 
 	if (type == 0x3) /* Event Queue */
-		ehea_error("EQ (resource=%lX) state: AER=0x%lX", resource,
+		ehea_error("EQ (resource=%llX) state: AER=0x%llX", resource,
 			   data[6]);
 
 	ehea_dump(data, length, "error data");
@@ -1005,7 +1005,7 @@ void ehea_error_data(struct ehea_adapter *adapter, u64 res_handle)
 	unsigned long ret;
 	u64 *rblock;
 
-	rblock = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	rblock = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!rblock) {
 		ehea_error("Cannot allocate rblock memory.");
 		return;
@@ -1016,11 +1016,11 @@ void ehea_error_data(struct ehea_adapter *adapter, u64 res_handle)
 				rblock);
 
 	if (ret == H_R_STATE)
-		ehea_error("No error data is available: %lX.", res_handle);
+		ehea_error("No error data is available: %llX.", res_handle);
 	else if (ret == H_SUCCESS)
 		print_error_data(rblock);
 	else
-		ehea_error("Error data could not be fetched: %lX", res_handle);
+		ehea_error("Error data could not be fetched: %llX", res_handle);
 
-	kfree(rblock);
+	free_page((unsigned long)rblock);
 }

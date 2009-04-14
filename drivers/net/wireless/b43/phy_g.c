@@ -204,13 +204,9 @@ void b43_gphy_set_baseband_attenuation(struct b43_wldev *dev,
 						 & 0xFFF0) |
 			    baseband_attenuation);
 	} else if (phy->analog > 1) {
-		b43_phy_write(dev, B43_PHY_DACCTL,
-			      (b43_phy_read(dev, B43_PHY_DACCTL)
-			       & 0xFFC3) | (baseband_attenuation << 2));
+		b43_phy_maskset(dev, B43_PHY_DACCTL, 0xFFC3, (baseband_attenuation << 2));
 	} else {
-		b43_phy_write(dev, B43_PHY_DACCTL,
-			      (b43_phy_read(dev, B43_PHY_DACCTL)
-			       & 0xFF87) | (baseband_attenuation << 3));
+		b43_phy_maskset(dev, B43_PHY_DACCTL, 0xFF87, (baseband_attenuation << 3));
 	}
 }
 
@@ -252,17 +248,13 @@ static void b43_set_txpower_g(struct b43_wldev *dev,
 		b43_radio_write16(dev, 0x43,
 				  (rf & 0x000F) | (tx_control & 0x0070));
 	} else {
-		b43_radio_write16(dev, 0x43, (b43_radio_read16(dev, 0x43)
-					      & 0xFFF0) | (rf & 0x000F));
-		b43_radio_write16(dev, 0x52, (b43_radio_read16(dev, 0x52)
-					      & ~0x0070) | (tx_control &
-							    0x0070));
+		b43_radio_maskset(dev, 0x43, 0xFFF0, (rf & 0x000F));
+		b43_radio_maskset(dev, 0x52, ~0x0070, (tx_control & 0x0070));
 	}
 	if (has_tx_magnification(phy)) {
 		b43_radio_write16(dev, 0x52, tx_magn | tx_bias);
 	} else {
-		b43_radio_write16(dev, 0x52, (b43_radio_read16(dev, 0x52)
-					      & 0xFFF0) | (tx_bias & 0x000F));
+		b43_radio_maskset(dev, 0x52, 0xFFF0, (tx_bias & 0x000F));
 	}
 	b43_lo_g_adjust(dev);
 }
@@ -337,12 +329,9 @@ static void b43_set_all_gains(struct b43_wldev *dev,
 
 	if (third != -1) {
 		tmp = ((u16) third << 14) | ((u16) third << 6);
-		b43_phy_write(dev, 0x04A0,
-			      (b43_phy_read(dev, 0x04A0) & 0xBFBF) | tmp);
-		b43_phy_write(dev, 0x04A1,
-			      (b43_phy_read(dev, 0x04A1) & 0xBFBF) | tmp);
-		b43_phy_write(dev, 0x04A2,
-			      (b43_phy_read(dev, 0x04A2) & 0xBFBF) | tmp);
+		b43_phy_maskset(dev, 0x04A0, 0xBFBF, tmp);
+		b43_phy_maskset(dev, 0x04A1, 0xBFBF, tmp);
+		b43_phy_maskset(dev, 0x04A2, 0xBFBF, tmp);
 	}
 	b43_dummy_transmission(dev);
 }
@@ -373,12 +362,9 @@ static void b43_set_original_gains(struct b43_wldev *dev)
 	for (i = start; i < end; i++)
 		b43_ofdmtab_write16(dev, table, i, i - start);
 
-	b43_phy_write(dev, 0x04A0,
-		      (b43_phy_read(dev, 0x04A0) & 0xBFBF) | 0x4040);
-	b43_phy_write(dev, 0x04A1,
-		      (b43_phy_read(dev, 0x04A1) & 0xBFBF) | 0x4040);
-	b43_phy_write(dev, 0x04A2,
-		      (b43_phy_read(dev, 0x04A2) & 0xBFBF) | 0x4000);
+	b43_phy_maskset(dev, 0x04A0, 0xBFBF, 0x4040);
+	b43_phy_maskset(dev, 0x04A1, 0xBFBF, 0x4040);
+	b43_phy_maskset(dev, 0x04A2, 0xBFBF, 0x4000);
 	b43_dummy_transmission(dev);
 }
 
@@ -454,13 +440,11 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 	backup[10] = b43_radio_read16(dev, 0x007A);
 	backup[11] = b43_radio_read16(dev, 0x0043);
 
-	b43_phy_write(dev, 0x0429, b43_phy_read(dev, 0x0429) & 0x7FFF);
-	b43_phy_write(dev, 0x0001,
-		      (b43_phy_read(dev, 0x0001) & 0x3FFF) | 0x4000);
-	b43_phy_write(dev, 0x0811, b43_phy_read(dev, 0x0811) | 0x000C);
-	b43_phy_write(dev, 0x0812,
-		      (b43_phy_read(dev, 0x0812) & 0xFFF3) | 0x0004);
-	b43_phy_write(dev, 0x0802, b43_phy_read(dev, 0x0802) & ~(0x1 | 0x2));
+	b43_phy_mask(dev, 0x0429, 0x7FFF);
+	b43_phy_maskset(dev, 0x0001, 0x3FFF, 0x4000);
+	b43_phy_set(dev, 0x0811, 0x000C);
+	b43_phy_maskset(dev, 0x0812, 0xFFF3, 0x0004);
+	b43_phy_mask(dev, 0x0802, ~(0x1 | 0x2));
 	if (phy->rev >= 6) {
 		backup[12] = b43_phy_read(dev, 0x002E);
 		backup[13] = b43_phy_read(dev, 0x002F);
@@ -475,13 +459,13 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 		b43_phy_write(dev, 0x002F, 0);
 		b43_phy_write(dev, 0x080F, 0);
 		b43_phy_write(dev, 0x0810, 0);
-		b43_phy_write(dev, 0x0478, b43_phy_read(dev, 0x0478) | 0x0100);
-		b43_phy_write(dev, 0x0801, b43_phy_read(dev, 0x0801) | 0x0040);
-		b43_phy_write(dev, 0x0060, b43_phy_read(dev, 0x0060) | 0x0040);
-		b43_phy_write(dev, 0x0014, b43_phy_read(dev, 0x0014) | 0x0200);
+		b43_phy_set(dev, 0x0478, 0x0100);
+		b43_phy_set(dev, 0x0801, 0x0040);
+		b43_phy_set(dev, 0x0060, 0x0040);
+		b43_phy_set(dev, 0x0014, 0x0200);
 	}
-	b43_radio_write16(dev, 0x007A, b43_radio_read16(dev, 0x007A) | 0x0070);
-	b43_radio_write16(dev, 0x007A, b43_radio_read16(dev, 0x007A) | 0x0080);
+	b43_radio_set(dev, 0x007A, 0x0070);
+	b43_radio_set(dev, 0x007A, 0x0080);
 	udelay(30);
 
 	v47F = (s16) ((b43_phy_read(dev, 0x047F) >> 8) & 0x003F);
@@ -501,40 +485,31 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 		if (saved == 0xFFFF)
 			saved = 4;
 	} else {
-		b43_radio_write16(dev, 0x007A,
-				  b43_radio_read16(dev, 0x007A) & 0x007F);
+		b43_radio_mask(dev, 0x007A, 0x007F);
 		if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
-			b43_phy_write(dev, 0x0814,
-				      b43_phy_read(dev, 0x0814) | 0x0001);
-			b43_phy_write(dev, 0x0815,
-				      b43_phy_read(dev, 0x0815) & 0xFFFE);
+			b43_phy_set(dev, 0x0814, 0x0001);
+			b43_phy_mask(dev, 0x0815, 0xFFFE);
 		}
-		b43_phy_write(dev, 0x0811, b43_phy_read(dev, 0x0811) | 0x000C);
-		b43_phy_write(dev, 0x0812, b43_phy_read(dev, 0x0812) | 0x000C);
-		b43_phy_write(dev, 0x0811, b43_phy_read(dev, 0x0811) | 0x0030);
-		b43_phy_write(dev, 0x0812, b43_phy_read(dev, 0x0812) | 0x0030);
+		b43_phy_set(dev, 0x0811, 0x000C);
+		b43_phy_set(dev, 0x0812, 0x000C);
+		b43_phy_set(dev, 0x0811, 0x0030);
+		b43_phy_set(dev, 0x0812, 0x0030);
 		b43_phy_write(dev, 0x005A, 0x0480);
 		b43_phy_write(dev, 0x0059, 0x0810);
 		b43_phy_write(dev, 0x0058, 0x000D);
 		if (phy->rev == 0) {
 			b43_phy_write(dev, 0x0003, 0x0122);
 		} else {
-			b43_phy_write(dev, 0x000A, b43_phy_read(dev, 0x000A)
-				      | 0x2000);
+			b43_phy_set(dev, 0x000A, 0x2000);
 		}
 		if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
-			b43_phy_write(dev, 0x0814,
-				      b43_phy_read(dev, 0x0814) | 0x0004);
-			b43_phy_write(dev, 0x0815,
-				      b43_phy_read(dev, 0x0815) & 0xFFFB);
+			b43_phy_set(dev, 0x0814, 0x0004);
+			b43_phy_mask(dev, 0x0815, 0xFFFB);
 		}
-		b43_phy_write(dev, 0x0003, (b43_phy_read(dev, 0x0003) & 0xFF9F)
-			      | 0x0040);
-		b43_radio_write16(dev, 0x007A,
-				  b43_radio_read16(dev, 0x007A) | 0x000F);
+		b43_phy_maskset(dev, 0x0003, 0xFF9F, 0x0040);
+		b43_radio_set(dev, 0x007A, 0x000F);
 		b43_set_all_gains(dev, 3, 0, 1);
-		b43_radio_write16(dev, 0x0043, (b43_radio_read16(dev, 0x0043)
-						& 0x00F0) | 0x000F);
+		b43_radio_maskset(dev, 0x0043, 0x00F0, 0x000F);
 		udelay(30);
 		v47F = (s16) ((b43_phy_read(dev, 0x047F) >> 8) & 0x003F);
 		if (v47F >= 0x20)
@@ -576,7 +551,7 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 	b43_radio_write16(dev, 0x0043, backup[11]);
 	b43_radio_write16(dev, 0x007A, backup[10]);
 	b43_phy_write(dev, 0x0802, b43_phy_read(dev, 0x0802) | 0x1 | 0x2);
-	b43_phy_write(dev, 0x0429, b43_phy_read(dev, 0x0429) | 0x8000);
+	b43_phy_set(dev, 0x0429, 0x8000);
 	b43_set_original_gains(dev);
 	if (phy->rev >= 6) {
 		b43_phy_write(dev, 0x0801, backup[16]);
@@ -604,9 +579,8 @@ static void b43_calc_nrssi_slope(struct b43_wldev *dev)
 	if (phy->radio_rev == 8)
 		b43_calc_nrssi_offset(dev);
 
-	b43_phy_write(dev, B43_PHY_G_CRS,
-		      b43_phy_read(dev, B43_PHY_G_CRS) & 0x7FFF);
-	b43_phy_write(dev, 0x0802, b43_phy_read(dev, 0x0802) & 0xFFFC);
+	b43_phy_mask(dev, B43_PHY_G_CRS, 0x7FFF);
+	b43_phy_mask(dev, 0x0802, 0xFFFC);
 	backup[7] = b43_read16(dev, 0x03E2);
 	b43_write16(dev, 0x03E2, b43_read16(dev, 0x03E2) | 0x8000);
 	backup[0] = b43_radio_read16(dev, 0x007A);
@@ -633,66 +607,44 @@ static void b43_calc_nrssi_slope(struct b43_wldev *dev)
 		case 4:
 		case 6:
 		case 7:
-			b43_phy_write(dev, 0x0478,
-				      b43_phy_read(dev, 0x0478)
-				      | 0x0100);
-			b43_phy_write(dev, 0x0801,
-				      b43_phy_read(dev, 0x0801)
-				      | 0x0040);
+			b43_phy_set(dev, 0x0478, 0x0100);
+			b43_phy_set(dev, 0x0801, 0x0040);
 			break;
 		case 3:
 		case 5:
-			b43_phy_write(dev, 0x0801,
-				      b43_phy_read(dev, 0x0801)
-				      & 0xFFBF);
+			b43_phy_mask(dev, 0x0801, 0xFFBF);
 			break;
 		}
-		b43_phy_write(dev, 0x0060, b43_phy_read(dev, 0x0060)
-			      | 0x0040);
-		b43_phy_write(dev, 0x0014, b43_phy_read(dev, 0x0014)
-			      | 0x0200);
+		b43_phy_set(dev, 0x0060, 0x0040);
+		b43_phy_set(dev, 0x0014, 0x0200);
 	}
-	b43_radio_write16(dev, 0x007A,
-			  b43_radio_read16(dev, 0x007A) | 0x0070);
+	b43_radio_set(dev, 0x007A, 0x0070);
 	b43_set_all_gains(dev, 0, 8, 0);
-	b43_radio_write16(dev, 0x007A,
-			  b43_radio_read16(dev, 0x007A) & 0x00F7);
+	b43_radio_mask(dev, 0x007A, 0x00F7);
 	if (phy->rev >= 2) {
-		b43_phy_write(dev, 0x0811,
-			      (b43_phy_read(dev, 0x0811) & 0xFFCF) |
-			      0x0030);
-		b43_phy_write(dev, 0x0812,
-			      (b43_phy_read(dev, 0x0812) & 0xFFCF) |
-			      0x0010);
+		b43_phy_maskset(dev, 0x0811, 0xFFCF, 0x0030);
+		b43_phy_maskset(dev, 0x0812, 0xFFCF, 0x0010);
 	}
-	b43_radio_write16(dev, 0x007A,
-			  b43_radio_read16(dev, 0x007A) | 0x0080);
+	b43_radio_set(dev, 0x007A, 0x0080);
 	udelay(20);
 
 	nrssi0 = (s16) ((b43_phy_read(dev, 0x047F) >> 8) & 0x003F);
 	if (nrssi0 >= 0x0020)
 		nrssi0 -= 0x0040;
 
-	b43_radio_write16(dev, 0x007A,
-			  b43_radio_read16(dev, 0x007A) & 0x007F);
+	b43_radio_mask(dev, 0x007A, 0x007F);
 	if (phy->rev >= 2) {
-		b43_phy_write(dev, 0x0003, (b43_phy_read(dev, 0x0003)
-					    & 0xFF9F) | 0x0040);
+		b43_phy_maskset(dev, 0x0003, 0xFF9F, 0x0040);
 	}
 
 	b43_write16(dev, B43_MMIO_CHANNEL_EXT,
 		    b43_read16(dev, B43_MMIO_CHANNEL_EXT)
 		    | 0x2000);
-	b43_radio_write16(dev, 0x007A,
-			  b43_radio_read16(dev, 0x007A) | 0x000F);
+	b43_radio_set(dev, 0x007A, 0x000F);
 	b43_phy_write(dev, 0x0015, 0xF330);
 	if (phy->rev >= 2) {
-		b43_phy_write(dev, 0x0812,
-			      (b43_phy_read(dev, 0x0812) & 0xFFCF) |
-			      0x0020);
-		b43_phy_write(dev, 0x0811,
-			      (b43_phy_read(dev, 0x0811) & 0xFFCF) |
-			      0x0020);
+		b43_phy_maskset(dev, 0x0812, 0xFFCF, 0x0020);
+		b43_phy_maskset(dev, 0x0811, 0xFFCF, 0x0020);
 	}
 
 	b43_set_all_gains(dev, 3, 0, 1);
@@ -726,10 +678,8 @@ static void b43_calc_nrssi_slope(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_G_LO_CONTROL, backup[13]);
 	}
 	if (phy->rev >= 2) {
-		b43_phy_write(dev, 0x0812,
-			      b43_phy_read(dev, 0x0812) & 0xFFCF);
-		b43_phy_write(dev, 0x0811,
-			      b43_phy_read(dev, 0x0811) & 0xFFCF);
+		b43_phy_mask(dev, 0x0812, 0xFFCF);
+		b43_phy_mask(dev, 0x0811, 0xFFCF);
 	}
 
 	b43_radio_write16(dev, 0x007A, backup[0]);
@@ -743,11 +693,9 @@ static void b43_calc_nrssi_slope(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x0059, backup[5]);
 	b43_phy_write(dev, 0x0058, backup[6]);
 	b43_synth_pu_workaround(dev, phy->channel);
-	b43_phy_write(dev, 0x0802,
-		      b43_phy_read(dev, 0x0802) | (0x0001 | 0x0002));
+	b43_phy_set(dev, 0x0802, (0x0001 | 0x0002));
 	b43_set_original_gains(dev);
-	b43_phy_write(dev, B43_PHY_G_CRS,
-		      b43_phy_read(dev, B43_PHY_G_CRS) | 0x8000);
+	b43_phy_set(dev, B43_PHY_G_CRS, 0x8000);
 	if (phy->rev >= 3) {
 		b43_phy_write(dev, 0x0801, backup[14]);
 		b43_phy_write(dev, 0x0060, backup[15]);
@@ -774,13 +722,9 @@ static void b43_calc_nrssi_threshold(struct b43_wldev *dev)
 		if (tmp16 >= 0x20)
 			tmp16 -= 0x40;
 		if (tmp16 < 3) {
-			b43_phy_write(dev, 0x048A,
-				      (b43_phy_read(dev, 0x048A)
-				       & 0xF000) | 0x09EB);
+			b43_phy_maskset(dev, 0x048A, 0xF000, 0x09EB);
 		} else {
-			b43_phy_write(dev, 0x048A,
-				      (b43_phy_read(dev, 0x048A)
-				       & 0xF000) | 0x0AED);
+			b43_phy_maskset(dev, 0x048A, 0xF000, 0x0AED);
 		}
 	} else {
 		if (gphy->interfmode == B43_INTERFMODE_NONWLAN) {
@@ -823,7 +767,7 @@ static void b43_calc_nrssi_threshold(struct b43_wldev *dev)
  * interference mitigation code.
  * It is save to restore values in random order.
  */
-static void _stack_save(u32 * _stackptr, size_t * stackidx,
+static void _stack_save(u32 *_stackptr, size_t *stackidx,
 			u8 id, u16 offset, u16 value)
 {
 	u32 *stackptr = &(_stackptr[*stackidx]);
@@ -837,7 +781,7 @@ static void _stack_save(u32 * _stackptr, size_t * stackidx,
 	B43_WARN_ON(*stackidx >= B43_INTERFSTACK_SIZE);
 }
 
-static u16 _stack_restore(u32 * stackptr, u8 id, u16 offset)
+static u16 _stack_restore(u32 *stackptr, u8 id, u16 offset)
 {
 	size_t i;
 
@@ -901,11 +845,8 @@ b43_radio_interference_mitigation_enable(struct b43_wldev *dev, int mode)
 	switch (mode) {
 	case B43_INTERFMODE_NONWLAN:
 		if (phy->rev != 1) {
-			b43_phy_write(dev, 0x042B,
-				      b43_phy_read(dev, 0x042B) | 0x0800);
-			b43_phy_write(dev, B43_PHY_G_CRS,
-				      b43_phy_read(dev,
-						   B43_PHY_G_CRS) & ~0x4000);
+			b43_phy_set(dev, 0x042B, 0x0800);
+			b43_phy_mask(dev, B43_PHY_G_CRS, ~0x4000);
 			break;
 		}
 		radio_stacksave(0x0078);
@@ -924,26 +865,19 @@ b43_radio_interference_mitigation_enable(struct b43_wldev *dev, int mode)
 		phy_stacksave(0x0406);
 		b43_phy_write(dev, 0x0406, 0x7E28);
 
-		b43_phy_write(dev, 0x042B, b43_phy_read(dev, 0x042B) | 0x0800);
-		b43_phy_write(dev, B43_PHY_RADIO_BITFIELD,
-			      b43_phy_read(dev,
-					   B43_PHY_RADIO_BITFIELD) | 0x1000);
+		b43_phy_set(dev, 0x042B, 0x0800);
+		b43_phy_set(dev, B43_PHY_RADIO_BITFIELD, 0x1000);
 
 		phy_stacksave(0x04A0);
-		b43_phy_write(dev, 0x04A0,
-			      (b43_phy_read(dev, 0x04A0) & 0xC0C0) | 0x0008);
+		b43_phy_maskset(dev, 0x04A0, 0xC0C0, 0x0008);
 		phy_stacksave(0x04A1);
-		b43_phy_write(dev, 0x04A1,
-			      (b43_phy_read(dev, 0x04A1) & 0xC0C0) | 0x0605);
+		b43_phy_maskset(dev, 0x04A1, 0xC0C0, 0x0605);
 		phy_stacksave(0x04A2);
-		b43_phy_write(dev, 0x04A2,
-			      (b43_phy_read(dev, 0x04A2) & 0xC0C0) | 0x0204);
+		b43_phy_maskset(dev, 0x04A2, 0xC0C0, 0x0204);
 		phy_stacksave(0x04A8);
-		b43_phy_write(dev, 0x04A8,
-			      (b43_phy_read(dev, 0x04A8) & 0xC0C0) | 0x0803);
+		b43_phy_maskset(dev, 0x04A8, 0xC0C0, 0x0803);
 		phy_stacksave(0x04AB);
-		b43_phy_write(dev, 0x04AB,
-			      (b43_phy_read(dev, 0x04AB) & 0xC0C0) | 0x0605);
+		b43_phy_maskset(dev, 0x04AB, 0xC0C0, 0x0605);
 
 		phy_stacksave(0x04A7);
 		b43_phy_write(dev, 0x04A7, 0x0002);
@@ -999,12 +933,8 @@ b43_radio_interference_mitigation_enable(struct b43_wldev *dev, int mode)
 		phy_stacksave(0x042B);
 		phy_stacksave(0x048C);
 
-		b43_phy_write(dev, B43_PHY_RADIO_BITFIELD,
-			      b43_phy_read(dev, B43_PHY_RADIO_BITFIELD)
-			      & ~0x1000);
-		b43_phy_write(dev, B43_PHY_G_CRS,
-			      (b43_phy_read(dev, B43_PHY_G_CRS)
-			       & 0xFFFC) | 0x0002);
+		b43_phy_mask(dev, B43_PHY_RADIO_BITFIELD, ~0x1000);
+		b43_phy_maskset(dev, B43_PHY_G_CRS, 0xFFFC, 0x0002);
 
 		b43_phy_write(dev, 0x0033, 0x0800);
 		b43_phy_write(dev, 0x04A3, 0x2027);
@@ -1013,8 +943,7 @@ b43_radio_interference_mitigation_enable(struct b43_wldev *dev, int mode)
 		b43_phy_write(dev, 0x04AA, 0x1CA8);
 		b43_phy_write(dev, 0x04AC, 0x287A);
 
-		b43_phy_write(dev, 0x04A0, (b43_phy_read(dev, 0x04A0)
-					    & 0xFFC0) | 0x001A);
+		b43_phy_maskset(dev, 0x04A0, 0xFFC0, 0x001A);
 		b43_phy_write(dev, 0x04A7, 0x000D);
 
 		if (phy->rev < 2) {
@@ -1027,65 +956,41 @@ b43_radio_interference_mitigation_enable(struct b43_wldev *dev, int mode)
 			b43_phy_write(dev, 0x04C1, 0x0059);
 		}
 
-		b43_phy_write(dev, 0x04A1, (b43_phy_read(dev, 0x04A1)
-					    & 0xC0FF) | 0x1800);
-		b43_phy_write(dev, 0x04A1, (b43_phy_read(dev, 0x04A1)
-					    & 0xFFC0) | 0x0015);
-		b43_phy_write(dev, 0x04A8, (b43_phy_read(dev, 0x04A8)
-					    & 0xCFFF) | 0x1000);
-		b43_phy_write(dev, 0x04A8, (b43_phy_read(dev, 0x04A8)
-					    & 0xF0FF) | 0x0A00);
-		b43_phy_write(dev, 0x04AB, (b43_phy_read(dev, 0x04AB)
-					    & 0xCFFF) | 0x1000);
-		b43_phy_write(dev, 0x04AB, (b43_phy_read(dev, 0x04AB)
-					    & 0xF0FF) | 0x0800);
-		b43_phy_write(dev, 0x04AB, (b43_phy_read(dev, 0x04AB)
-					    & 0xFFCF) | 0x0010);
-		b43_phy_write(dev, 0x04AB, (b43_phy_read(dev, 0x04AB)
-					    & 0xFFF0) | 0x0005);
-		b43_phy_write(dev, 0x04A8, (b43_phy_read(dev, 0x04A8)
-					    & 0xFFCF) | 0x0010);
-		b43_phy_write(dev, 0x04A8, (b43_phy_read(dev, 0x04A8)
-					    & 0xFFF0) | 0x0006);
-		b43_phy_write(dev, 0x04A2, (b43_phy_read(dev, 0x04A2)
-					    & 0xF0FF) | 0x0800);
-		b43_phy_write(dev, 0x04A0, (b43_phy_read(dev, 0x04A0)
-					    & 0xF0FF) | 0x0500);
-		b43_phy_write(dev, 0x04A2, (b43_phy_read(dev, 0x04A2)
-					    & 0xFFF0) | 0x000B);
+		b43_phy_maskset(dev, 0x04A1, 0xC0FF, 0x1800);
+		b43_phy_maskset(dev, 0x04A1, 0xFFC0, 0x0015);
+		b43_phy_maskset(dev, 0x04A8, 0xCFFF, 0x1000);
+		b43_phy_maskset(dev, 0x04A8, 0xF0FF, 0x0A00);
+		b43_phy_maskset(dev, 0x04AB, 0xCFFF, 0x1000);
+		b43_phy_maskset(dev, 0x04AB, 0xF0FF, 0x0800);
+		b43_phy_maskset(dev, 0x04AB, 0xFFCF, 0x0010);
+		b43_phy_maskset(dev, 0x04AB, 0xFFF0, 0x0005);
+		b43_phy_maskset(dev, 0x04A8, 0xFFCF, 0x0010);
+		b43_phy_maskset(dev, 0x04A8, 0xFFF0, 0x0006);
+		b43_phy_maskset(dev, 0x04A2, 0xF0FF, 0x0800);
+		b43_phy_maskset(dev, 0x04A0, 0xF0FF, 0x0500);
+		b43_phy_maskset(dev, 0x04A2, 0xFFF0, 0x000B);
 
 		if (phy->rev >= 3) {
-			b43_phy_write(dev, 0x048A, b43_phy_read(dev, 0x048A)
-				      & ~0x8000);
-			b43_phy_write(dev, 0x0415, (b43_phy_read(dev, 0x0415)
-						    & 0x8000) | 0x36D8);
-			b43_phy_write(dev, 0x0416, (b43_phy_read(dev, 0x0416)
-						    & 0x8000) | 0x36D8);
-			b43_phy_write(dev, 0x0417, (b43_phy_read(dev, 0x0417)
-						    & 0xFE00) | 0x016D);
+			b43_phy_mask(dev, 0x048A, (u16)~0x8000);
+			b43_phy_maskset(dev, 0x0415, 0x8000, 0x36D8);
+			b43_phy_maskset(dev, 0x0416, 0x8000, 0x36D8);
+			b43_phy_maskset(dev, 0x0417, 0xFE00, 0x016D);
 		} else {
-			b43_phy_write(dev, 0x048A, b43_phy_read(dev, 0x048A)
-				      | 0x1000);
-			b43_phy_write(dev, 0x048A, (b43_phy_read(dev, 0x048A)
-						    & 0x9FFF) | 0x2000);
+			b43_phy_set(dev, 0x048A, 0x1000);
+			b43_phy_maskset(dev, 0x048A, 0x9FFF, 0x2000);
 			b43_hf_write(dev, b43_hf_read(dev) | B43_HF_ACIW);
 		}
 		if (phy->rev >= 2) {
-			b43_phy_write(dev, 0x042B, b43_phy_read(dev, 0x042B)
-				      | 0x0800);
+			b43_phy_set(dev, 0x042B, 0x0800);
 		}
-		b43_phy_write(dev, 0x048C, (b43_phy_read(dev, 0x048C)
-					    & 0xF0FF) | 0x0200);
+		b43_phy_maskset(dev, 0x048C, 0xF0FF, 0x0200);
 		if (phy->rev == 2) {
-			b43_phy_write(dev, 0x04AE, (b43_phy_read(dev, 0x04AE)
-						    & 0xFF00) | 0x007F);
-			b43_phy_write(dev, 0x04AD, (b43_phy_read(dev, 0x04AD)
-						    & 0x00FF) | 0x1300);
+			b43_phy_maskset(dev, 0x04AE, 0xFF00, 0x007F);
+			b43_phy_maskset(dev, 0x04AD, 0x00FF, 0x1300);
 		} else if (phy->rev >= 6) {
 			b43_ofdmtab_write16(dev, 0x1A00, 0x3, 0x007F);
 			b43_ofdmtab_write16(dev, 0x1A00, 0x2, 0x007F);
-			b43_phy_write(dev, 0x04AD, b43_phy_read(dev, 0x04AD)
-				      & 0x00FF);
+			b43_phy_mask(dev, 0x04AD, 0x00FF);
 		}
 		b43_calc_nrssi_slope(dev);
 		break;
@@ -1104,24 +1009,18 @@ b43_radio_interference_mitigation_disable(struct b43_wldev *dev, int mode)
 	switch (mode) {
 	case B43_INTERFMODE_NONWLAN:
 		if (phy->rev != 1) {
-			b43_phy_write(dev, 0x042B,
-				      b43_phy_read(dev, 0x042B) & ~0x0800);
-			b43_phy_write(dev, B43_PHY_G_CRS,
-				      b43_phy_read(dev,
-						   B43_PHY_G_CRS) | 0x4000);
+			b43_phy_mask(dev, 0x042B, ~0x0800);
+			b43_phy_set(dev, B43_PHY_G_CRS, 0x4000);
 			break;
 		}
 		radio_stackrestore(0x0078);
 		b43_calc_nrssi_threshold(dev);
 		phy_stackrestore(0x0406);
-		b43_phy_write(dev, 0x042B, b43_phy_read(dev, 0x042B) & ~0x0800);
+		b43_phy_mask(dev, 0x042B, ~0x0800);
 		if (!dev->bad_frames_preempt) {
-			b43_phy_write(dev, B43_PHY_RADIO_BITFIELD,
-				      b43_phy_read(dev, B43_PHY_RADIO_BITFIELD)
-				      & ~(1 << 11));
+			b43_phy_mask(dev, B43_PHY_RADIO_BITFIELD, ~(1 << 11));
 		}
-		b43_phy_write(dev, B43_PHY_G_CRS,
-			      b43_phy_read(dev, B43_PHY_G_CRS) | 0x4000);
+		b43_phy_set(dev, B43_PHY_G_CRS, 0x4000);
 		phy_stackrestore(0x04A0);
 		phy_stackrestore(0x04A1);
 		phy_stackrestore(0x04A2);
@@ -1389,17 +1288,10 @@ static u16 b43_radio_init2050(struct b43_wldev *dev)
 		sav.phy_crs0 = b43_phy_read(dev, B43_PHY_CRS0);
 		sav.phy_classctl = b43_phy_read(dev, B43_PHY_CLASSCTL);
 
-		b43_phy_write(dev, B43_PHY_ANALOGOVER,
-			      b43_phy_read(dev, B43_PHY_ANALOGOVER)
-			      | 0x0003);
-		b43_phy_write(dev, B43_PHY_ANALOGOVERVAL,
-			      b43_phy_read(dev, B43_PHY_ANALOGOVERVAL)
-			      & 0xFFFC);
-		b43_phy_write(dev, B43_PHY_CRS0, b43_phy_read(dev, B43_PHY_CRS0)
-			      & 0x7FFF);
-		b43_phy_write(dev, B43_PHY_CLASSCTL,
-			      b43_phy_read(dev, B43_PHY_CLASSCTL)
-			      & 0xFFFC);
+		b43_phy_set(dev, B43_PHY_ANALOGOVER, 0x0003);
+		b43_phy_mask(dev, B43_PHY_ANALOGOVERVAL, 0xFFFC);
+		b43_phy_mask(dev, B43_PHY_CRS0, 0x7FFF);
+		b43_phy_mask(dev, B43_PHY_CLASSCTL, 0xFFFC);
 		if (has_loopback_gain(phy)) {
 			sav.phy_lo_mask = b43_phy_read(dev, B43_PHY_LO_MASK);
 			sav.phy_lo_ctl = b43_phy_read(dev, B43_PHY_LO_CTL);
@@ -1420,8 +1312,7 @@ static u16 b43_radio_init2050(struct b43_wldev *dev)
 	b43_write16(dev, 0x3E2, b43_read16(dev, 0x3E2) | 0x8000);
 
 	sav.phy_syncctl = b43_phy_read(dev, B43_PHY_SYNCCTL);
-	b43_phy_write(dev, B43_PHY_SYNCCTL, b43_phy_read(dev, B43_PHY_SYNCCTL)
-		      & 0xFF7F);
+	b43_phy_mask(dev, B43_PHY_SYNCCTL, 0xFF7F);
 	sav.reg_3E6 = b43_read16(dev, 0x3E6);
 	sav.reg_3F4 = b43_read16(dev, 0x3F4);
 
@@ -1429,9 +1320,7 @@ static u16 b43_radio_init2050(struct b43_wldev *dev)
 		b43_write16(dev, 0x03E6, 0x0122);
 	} else {
 		if (phy->analog >= 2) {
-			b43_phy_write(dev, B43_PHY_CCK(0x03),
-				      (b43_phy_read(dev, B43_PHY_CCK(0x03))
-				       & 0xFFBF) | 0x40);
+			b43_phy_maskset(dev, B43_PHY_CCK(0x03), 0xFFBF, 0x40);
 		}
 		b43_write16(dev, B43_MMIO_CHANNEL_EXT,
 			    (b43_read16(dev, B43_MMIO_CHANNEL_EXT) | 0x2000));
@@ -1454,14 +1343,12 @@ static u16 b43_radio_init2050(struct b43_wldev *dev)
 						   LPD(0, 0, 1)));
 	}
 	b43_phy_write(dev, B43_PHY_PGACTL, 0xBFA0);
-	b43_radio_write16(dev, 0x51, b43_radio_read16(dev, 0x51)
-			  | 0x0004);
+	b43_radio_set(dev, 0x51, 0x0004);
 	if (phy->radio_rev == 8) {
 		b43_radio_write16(dev, 0x43, 0x1F);
 	} else {
 		b43_radio_write16(dev, 0x52, 0);
-		b43_radio_write16(dev, 0x43, (b43_radio_read16(dev, 0x43)
-					      & 0xFFF0) | 0x0009);
+		b43_radio_maskset(dev, 0x43, 0xFFF0, 0x0009);
 	}
 	b43_phy_write(dev, B43_PHY_CCK(0x58), 0);
 
@@ -1610,8 +1497,7 @@ static void b43_phy_initb5(struct b43_wldev *dev)
 	u8 old_channel;
 
 	if (phy->analog == 1) {
-		b43_radio_write16(dev, 0x007A, b43_radio_read16(dev, 0x007A)
-				  | 0x0050);
+		b43_radio_set(dev, 0x007A, 0x0050);
 	}
 	if ((bus->boardinfo.vendor != SSB_BOARDVENDOR_BCM) &&
 	    (bus->boardinfo.type != SSB_BOARD_BU4306)) {
@@ -1621,39 +1507,29 @@ static void b43_phy_initb5(struct b43_wldev *dev)
 			value += 0x202;
 		}
 	}
-	b43_phy_write(dev, 0x0035, (b43_phy_read(dev, 0x0035) & 0xF0FF)
-		      | 0x0700);
+	b43_phy_maskset(dev, 0x0035, 0xF0FF, 0x0700);
 	if (phy->radio_ver == 0x2050)
 		b43_phy_write(dev, 0x0038, 0x0667);
 
 	if (phy->gmode || phy->rev >= 2) {
 		if (phy->radio_ver == 0x2050) {
-			b43_radio_write16(dev, 0x007A,
-					  b43_radio_read16(dev, 0x007A)
-					  | 0x0020);
-			b43_radio_write16(dev, 0x0051,
-					  b43_radio_read16(dev, 0x0051)
-					  | 0x0004);
+			b43_radio_set(dev, 0x007A, 0x0020);
+			b43_radio_set(dev, 0x0051, 0x0004);
 		}
 		b43_write16(dev, B43_MMIO_PHY_RADIO, 0x0000);
 
-		b43_phy_write(dev, 0x0802, b43_phy_read(dev, 0x0802) | 0x0100);
-		b43_phy_write(dev, 0x042B, b43_phy_read(dev, 0x042B) | 0x2000);
+		b43_phy_set(dev, 0x0802, 0x0100);
+		b43_phy_set(dev, 0x042B, 0x2000);
 
 		b43_phy_write(dev, 0x001C, 0x186A);
 
-		b43_phy_write(dev, 0x0013,
-			      (b43_phy_read(dev, 0x0013) & 0x00FF) | 0x1900);
-		b43_phy_write(dev, 0x0035,
-			      (b43_phy_read(dev, 0x0035) & 0xFFC0) | 0x0064);
-		b43_phy_write(dev, 0x005D,
-			      (b43_phy_read(dev, 0x005D) & 0xFF80) | 0x000A);
+		b43_phy_maskset(dev, 0x0013, 0x00FF, 0x1900);
+		b43_phy_maskset(dev, 0x0035, 0xFFC0, 0x0064);
+		b43_phy_maskset(dev, 0x005D, 0xFF80, 0x000A);
 	}
 
 	if (dev->bad_frames_preempt) {
-		b43_phy_write(dev, B43_PHY_RADIO_BITFIELD,
-			      b43_phy_read(dev,
-					   B43_PHY_RADIO_BITFIELD) | (1 << 11));
+		b43_phy_set(dev, B43_PHY_RADIO_BITFIELD, (1 << 11));
 	}
 
 	if (phy->analog == 1) {
@@ -1695,7 +1571,7 @@ static void b43_phy_initb5(struct b43_wldev *dev)
 	b43_radio_write16(dev, 0x005B, 0x007B);
 	b43_radio_write16(dev, 0x005C, 0x00B0);
 
-	b43_radio_write16(dev, 0x007A, b43_radio_read16(dev, 0x007A) | 0x0007);
+	b43_radio_set(dev, 0x007A, 0x0007);
 
 	b43_gphy_channel_switch(dev, old_channel, 0);
 
@@ -1771,12 +1647,10 @@ static void b43_phy_initb6(struct b43_wldev *dev)
 		val += 0x0202;
 	}
 	if (phy->type == B43_PHYTYPE_G) {
-		b43_radio_write16(dev, 0x007A,
-				  b43_radio_read16(dev, 0x007A) | 0x0020);
-		b43_radio_write16(dev, 0x0051,
-				  b43_radio_read16(dev, 0x0051) | 0x0004);
-		b43_phy_write(dev, 0x0802, b43_phy_read(dev, 0x0802) | 0x0100);
-		b43_phy_write(dev, 0x042B, b43_phy_read(dev, 0x042B) | 0x2000);
+		b43_radio_set(dev, 0x007A, 0x0020);
+		b43_radio_set(dev, 0x0051, 0x0004);
+		b43_phy_set(dev, 0x0802, 0x0100);
+		b43_phy_set(dev, 0x042B, 0x2000);
 		b43_phy_write(dev, 0x5B, 0);
 		b43_phy_write(dev, 0x5C, 0);
 	}
@@ -1801,8 +1675,7 @@ static void b43_phy_initb6(struct b43_wldev *dev)
 		b43_radio_write16(dev, 0x5B, 0x7B);
 		b43_radio_write16(dev, 0x5C, 0xB0);
 	}
-	b43_radio_write16(dev, 0x007A,
-			  (b43_radio_read16(dev, 0x007A) & 0x00F8) | 0x0007);
+	b43_radio_maskset(dev, 0x007A, 0x00F8, 0x0007);
 
 	b43_gphy_channel_switch(dev, old_channel, 0);
 
@@ -1814,19 +1687,16 @@ static void b43_phy_initb6(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x0038, 0x0668);
 	b43_set_txpower_g(dev, &gphy->bbatt, &gphy->rfatt, gphy->tx_control);
 	if (phy->radio_rev <= 5) {
-		b43_phy_write(dev, 0x5D, (b43_phy_read(dev, 0x5D)
-					  & 0xFF80) | 0x0003);
+		b43_phy_maskset(dev, 0x5D, 0xFF80, 0x0003);
 	}
 	if (phy->radio_rev <= 2)
 		b43_radio_write16(dev, 0x005D, 0x000D);
 
 	if (phy->analog == 4) {
 		b43_write16(dev, 0x3E4, 9);
-		b43_phy_write(dev, 0x61, b43_phy_read(dev, 0x61)
-			      & 0x0FFF);
+		b43_phy_mask(dev, 0x61, 0x0FFF);
 	} else {
-		b43_phy_write(dev, 0x0002, (b43_phy_read(dev, 0x0002) & 0xFFC0)
-			      | 0x0004);
+		b43_phy_maskset(dev, 0x0002, 0xFFC0, 0x0004);
 	}
 	if (phy->type == B43_PHYTYPE_B)
 		B43_WARN_ON(1);
@@ -1868,63 +1738,39 @@ static void b43_calc_loopback_gain(struct b43_wldev *dev)
 	backup_radio[1] = b43_radio_read16(dev, 0x43);
 	backup_radio[2] = b43_radio_read16(dev, 0x7A);
 
-	b43_phy_write(dev, B43_PHY_CRS0,
-		      b43_phy_read(dev, B43_PHY_CRS0) & 0x3FFF);
-	b43_phy_write(dev, B43_PHY_CCKBBANDCFG,
-		      b43_phy_read(dev, B43_PHY_CCKBBANDCFG) | 0x8000);
-	b43_phy_write(dev, B43_PHY_RFOVER,
-		      b43_phy_read(dev, B43_PHY_RFOVER) | 0x0002);
-	b43_phy_write(dev, B43_PHY_RFOVERVAL,
-		      b43_phy_read(dev, B43_PHY_RFOVERVAL) & 0xFFFD);
-	b43_phy_write(dev, B43_PHY_RFOVER,
-		      b43_phy_read(dev, B43_PHY_RFOVER) | 0x0001);
-	b43_phy_write(dev, B43_PHY_RFOVERVAL,
-		      b43_phy_read(dev, B43_PHY_RFOVERVAL) & 0xFFFE);
+	b43_phy_mask(dev, B43_PHY_CRS0, 0x3FFF);
+	b43_phy_set(dev, B43_PHY_CCKBBANDCFG, 0x8000);
+	b43_phy_set(dev, B43_PHY_RFOVER, 0x0002);
+	b43_phy_mask(dev, B43_PHY_RFOVERVAL, 0xFFFD);
+	b43_phy_set(dev, B43_PHY_RFOVER, 0x0001);
+	b43_phy_mask(dev, B43_PHY_RFOVERVAL, 0xFFFE);
 	if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
-		b43_phy_write(dev, B43_PHY_ANALOGOVER,
-			      b43_phy_read(dev, B43_PHY_ANALOGOVER) | 0x0001);
-		b43_phy_write(dev, B43_PHY_ANALOGOVERVAL,
-			      b43_phy_read(dev,
-					   B43_PHY_ANALOGOVERVAL) & 0xFFFE);
-		b43_phy_write(dev, B43_PHY_ANALOGOVER,
-			      b43_phy_read(dev, B43_PHY_ANALOGOVER) | 0x0002);
-		b43_phy_write(dev, B43_PHY_ANALOGOVERVAL,
-			      b43_phy_read(dev,
-					   B43_PHY_ANALOGOVERVAL) & 0xFFFD);
+		b43_phy_set(dev, B43_PHY_ANALOGOVER, 0x0001);
+		b43_phy_mask(dev, B43_PHY_ANALOGOVERVAL, 0xFFFE);
+		b43_phy_set(dev, B43_PHY_ANALOGOVER, 0x0002);
+		b43_phy_mask(dev, B43_PHY_ANALOGOVERVAL, 0xFFFD);
 	}
-	b43_phy_write(dev, B43_PHY_RFOVER,
-		      b43_phy_read(dev, B43_PHY_RFOVER) | 0x000C);
-	b43_phy_write(dev, B43_PHY_RFOVERVAL,
-		      b43_phy_read(dev, B43_PHY_RFOVERVAL) | 0x000C);
-	b43_phy_write(dev, B43_PHY_RFOVER,
-		      b43_phy_read(dev, B43_PHY_RFOVER) | 0x0030);
-	b43_phy_write(dev, B43_PHY_RFOVERVAL,
-		      (b43_phy_read(dev, B43_PHY_RFOVERVAL)
-		       & 0xFFCF) | 0x10);
+	b43_phy_set(dev, B43_PHY_RFOVER, 0x000C);
+	b43_phy_set(dev, B43_PHY_RFOVERVAL, 0x000C);
+	b43_phy_set(dev, B43_PHY_RFOVER, 0x0030);
+	b43_phy_maskset(dev, B43_PHY_RFOVERVAL, 0xFFCF, 0x10);
 
 	b43_phy_write(dev, B43_PHY_CCK(0x5A), 0x0780);
 	b43_phy_write(dev, B43_PHY_CCK(0x59), 0xC810);
 	b43_phy_write(dev, B43_PHY_CCK(0x58), 0x000D);
 
-	b43_phy_write(dev, B43_PHY_CCK(0x0A),
-		      b43_phy_read(dev, B43_PHY_CCK(0x0A)) | 0x2000);
+	b43_phy_set(dev, B43_PHY_CCK(0x0A), 0x2000);
 	if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
-		b43_phy_write(dev, B43_PHY_ANALOGOVER,
-			      b43_phy_read(dev, B43_PHY_ANALOGOVER) | 0x0004);
-		b43_phy_write(dev, B43_PHY_ANALOGOVERVAL,
-			      b43_phy_read(dev,
-					   B43_PHY_ANALOGOVERVAL) & 0xFFFB);
+		b43_phy_set(dev, B43_PHY_ANALOGOVER, 0x0004);
+		b43_phy_mask(dev, B43_PHY_ANALOGOVERVAL, 0xFFFB);
 	}
-	b43_phy_write(dev, B43_PHY_CCK(0x03),
-		      (b43_phy_read(dev, B43_PHY_CCK(0x03))
-		       & 0xFF9F) | 0x40);
+	b43_phy_maskset(dev, B43_PHY_CCK(0x03), 0xFF9F, 0x40);
 
 	if (phy->radio_rev == 8) {
 		b43_radio_write16(dev, 0x43, 0x000F);
 	} else {
 		b43_radio_write16(dev, 0x52, 0);
-		b43_radio_write16(dev, 0x43, (b43_radio_read16(dev, 0x43)
-					      & 0xFFF0) | 0x9);
+		b43_radio_maskset(dev, 0x43, 0xFFF0, 0x9);
 	}
 	b43_gphy_set_baseband_attenuation(dev, 11);
 
@@ -1934,45 +1780,28 @@ static void b43_calc_loopback_gain(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_LO_MASK, 0x8020);
 	b43_phy_write(dev, B43_PHY_LO_CTL, 0);
 
-	b43_phy_write(dev, B43_PHY_CCK(0x2B),
-		      (b43_phy_read(dev, B43_PHY_CCK(0x2B))
-		       & 0xFFC0) | 0x01);
-	b43_phy_write(dev, B43_PHY_CCK(0x2B),
-		      (b43_phy_read(dev, B43_PHY_CCK(0x2B))
-		       & 0xC0FF) | 0x800);
+	b43_phy_maskset(dev, B43_PHY_CCK(0x2B), 0xFFC0, 0x01);
+	b43_phy_maskset(dev, B43_PHY_CCK(0x2B), 0xC0FF, 0x800);
 
-	b43_phy_write(dev, B43_PHY_RFOVER,
-		      b43_phy_read(dev, B43_PHY_RFOVER) | 0x0100);
-	b43_phy_write(dev, B43_PHY_RFOVERVAL,
-		      b43_phy_read(dev, B43_PHY_RFOVERVAL) & 0xCFFF);
+	b43_phy_set(dev, B43_PHY_RFOVER, 0x0100);
+	b43_phy_mask(dev, B43_PHY_RFOVERVAL, 0xCFFF);
 
 	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_EXTLNA) {
 		if (phy->rev >= 7) {
-			b43_phy_write(dev, B43_PHY_RFOVER,
-				      b43_phy_read(dev, B43_PHY_RFOVER)
-				      | 0x0800);
-			b43_phy_write(dev, B43_PHY_RFOVERVAL,
-				      b43_phy_read(dev, B43_PHY_RFOVERVAL)
-				      | 0x8000);
+			b43_phy_set(dev, B43_PHY_RFOVER, 0x0800);
+			b43_phy_set(dev, B43_PHY_RFOVERVAL, 0x8000);
 		}
 	}
-	b43_radio_write16(dev, 0x7A, b43_radio_read16(dev, 0x7A)
-			  & 0x00F7);
+	b43_radio_mask(dev, 0x7A, 0x00F7);
 
 	j = 0;
 	loop_i_max = (phy->radio_rev == 8) ? 15 : 9;
 	for (i = 0; i < loop_i_max; i++) {
 		for (j = 0; j < 16; j++) {
 			b43_radio_write16(dev, 0x43, i);
-			b43_phy_write(dev, B43_PHY_RFOVERVAL,
-				      (b43_phy_read(dev, B43_PHY_RFOVERVAL)
-				       & 0xF0FF) | (j << 8));
-			b43_phy_write(dev, B43_PHY_PGACTL,
-				      (b43_phy_read(dev, B43_PHY_PGACTL)
-				       & 0x0FFF) | 0xA000);
-			b43_phy_write(dev, B43_PHY_PGACTL,
-				      b43_phy_read(dev, B43_PHY_PGACTL)
-				      | 0xF000);
+			b43_phy_maskset(dev, B43_PHY_RFOVERVAL, 0xF0FF, (j << 8));
+			b43_phy_maskset(dev, B43_PHY_PGACTL, 0x0FFF, 0xA000);
+			b43_phy_set(dev, B43_PHY_PGACTL, 0xF000);
 			udelay(20);
 			if (b43_phy_read(dev, B43_PHY_LO_LEAKAGE) >= 0xDFC)
 				goto exit_loop1;
@@ -1982,20 +1811,12 @@ static void b43_calc_loopback_gain(struct b43_wldev *dev)
 	loop1_outer_done = i;
 	loop1_inner_done = j;
 	if (j >= 8) {
-		b43_phy_write(dev, B43_PHY_RFOVERVAL,
-			      b43_phy_read(dev, B43_PHY_RFOVERVAL)
-			      | 0x30);
+		b43_phy_set(dev, B43_PHY_RFOVERVAL, 0x30);
 		trsw_rx = 0x1B;
 		for (j = j - 8; j < 16; j++) {
-			b43_phy_write(dev, B43_PHY_RFOVERVAL,
-				      (b43_phy_read(dev, B43_PHY_RFOVERVAL)
-				       & 0xF0FF) | (j << 8));
-			b43_phy_write(dev, B43_PHY_PGACTL,
-				      (b43_phy_read(dev, B43_PHY_PGACTL)
-				       & 0x0FFF) | 0xA000);
-			b43_phy_write(dev, B43_PHY_PGACTL,
-				      b43_phy_read(dev, B43_PHY_PGACTL)
-				      | 0xF000);
+			b43_phy_maskset(dev, B43_PHY_RFOVERVAL, 0xF0FF, (j << 8));
+			b43_phy_maskset(dev, B43_PHY_PGACTL, 0x0FFF, 0xA000);
+			b43_phy_set(dev, B43_PHY_PGACTL, 0xF000);
 			udelay(20);
 			trsw_rx -= 3;
 			if (b43_phy_read(dev, B43_PHY_LO_LEAKAGE) >= 0xDFC)
@@ -2046,34 +1867,24 @@ static void b43_hardware_pctl_early_init(struct b43_wldev *dev)
 		return;
 	}
 
-	b43_phy_write(dev, 0x0036, b43_phy_read(dev, 0x0036) & 0xFEFF);
+	b43_phy_mask(dev, 0x0036, 0xFEFF);
 	b43_phy_write(dev, 0x002F, 0x0202);
-	b43_phy_write(dev, 0x047C, b43_phy_read(dev, 0x047C) | 0x0002);
-	b43_phy_write(dev, 0x047A, b43_phy_read(dev, 0x047A) | 0xF000);
+	b43_phy_set(dev, 0x047C, 0x0002);
+	b43_phy_set(dev, 0x047A, 0xF000);
 	if (phy->radio_ver == 0x2050 && phy->radio_rev == 8) {
-		b43_phy_write(dev, 0x047A, (b43_phy_read(dev, 0x047A)
-					    & 0xFF0F) | 0x0010);
-		b43_phy_write(dev, 0x005D, b43_phy_read(dev, 0x005D)
-			      | 0x8000);
-		b43_phy_write(dev, 0x004E, (b43_phy_read(dev, 0x004E)
-					    & 0xFFC0) | 0x0010);
+		b43_phy_maskset(dev, 0x047A, 0xFF0F, 0x0010);
+		b43_phy_set(dev, 0x005D, 0x8000);
+		b43_phy_maskset(dev, 0x004E, 0xFFC0, 0x0010);
 		b43_phy_write(dev, 0x002E, 0xC07F);
-		b43_phy_write(dev, 0x0036, b43_phy_read(dev, 0x0036)
-			      | 0x0400);
+		b43_phy_set(dev, 0x0036, 0x0400);
 	} else {
-		b43_phy_write(dev, 0x0036, b43_phy_read(dev, 0x0036)
-			      | 0x0200);
-		b43_phy_write(dev, 0x0036, b43_phy_read(dev, 0x0036)
-			      | 0x0400);
-		b43_phy_write(dev, 0x005D, b43_phy_read(dev, 0x005D)
-			      & 0x7FFF);
-		b43_phy_write(dev, 0x004F, b43_phy_read(dev, 0x004F)
-			      & 0xFFFE);
-		b43_phy_write(dev, 0x004E, (b43_phy_read(dev, 0x004E)
-					    & 0xFFC0) | 0x0010);
+		b43_phy_set(dev, 0x0036, 0x0200);
+		b43_phy_set(dev, 0x0036, 0x0400);
+		b43_phy_mask(dev, 0x005D, 0x7FFF);
+		b43_phy_mask(dev, 0x004F, 0xFFFE);
+		b43_phy_maskset(dev, 0x004E, 0xFFC0, 0x0010);
 		b43_phy_write(dev, 0x002E, 0xC07F);
-		b43_phy_write(dev, 0x047A, (b43_phy_read(dev, 0x047A)
-					    & 0xFF0F) | 0x0010);
+		b43_phy_maskset(dev, 0x047A, 0xFF0F, 0x0010);
 	}
 }
 
@@ -2089,22 +1900,17 @@ static void b43_hardware_pctl_init_gphy(struct b43_wldev *dev)
 		return;
 	}
 
-	b43_phy_write(dev, 0x0036, (b43_phy_read(dev, 0x0036) & 0xFFC0)
-		      | (gphy->tgt_idle_tssi - gphy->cur_idle_tssi));
-	b43_phy_write(dev, 0x0478, (b43_phy_read(dev, 0x0478) & 0xFF00)
-		      | (gphy->tgt_idle_tssi - gphy->cur_idle_tssi));
+	b43_phy_maskset(dev, 0x0036, 0xFFC0, (gphy->tgt_idle_tssi - gphy->cur_idle_tssi));
+	b43_phy_maskset(dev, 0x0478, 0xFF00, (gphy->tgt_idle_tssi - gphy->cur_idle_tssi));
 	b43_gphy_tssi_power_lt_init(dev);
 	b43_gphy_gain_lt_init(dev);
-	b43_phy_write(dev, 0x0060, b43_phy_read(dev, 0x0060) & 0xFFBF);
+	b43_phy_mask(dev, 0x0060, 0xFFBF);
 	b43_phy_write(dev, 0x0014, 0x0000);
 
 	B43_WARN_ON(phy->rev < 6);
-	b43_phy_write(dev, 0x0478, b43_phy_read(dev, 0x0478)
-		      | 0x0800);
-	b43_phy_write(dev, 0x0478, b43_phy_read(dev, 0x0478)
-		      & 0xFEFF);
-	b43_phy_write(dev, 0x0801, b43_phy_read(dev, 0x0801)
-		      & 0xFFBF);
+	b43_phy_set(dev, 0x0478, 0x0800);
+	b43_phy_mask(dev, 0x0478, 0xFEFF);
+	b43_phy_mask(dev, 0x0801, 0xFFBF);
 
 	b43_gphy_dc_lt_init(dev, 1);
 
@@ -2139,9 +1945,7 @@ static void b43_phy_init_pctl(struct b43_wldev *dev)
 	b43_hardware_pctl_early_init(dev);
 	if (gphy->cur_idle_tssi == 0) {
 		if (phy->radio_ver == 0x2050 && phy->analog == 0) {
-			b43_radio_write16(dev, 0x0076,
-					  (b43_radio_read16(dev, 0x0076)
-					   & 0x00F7) | 0x0084);
+			b43_radio_maskset(dev, 0x0076, 0x00F7, 0x0084);
 		} else {
 			struct b43_rfatt rfatt;
 			struct b43_bbatt bbatt;
@@ -2174,9 +1978,7 @@ static void b43_phy_init_pctl(struct b43_wldev *dev)
 			}
 		}
 		if (phy->radio_ver == 0x2050 && phy->analog == 0) {
-			b43_radio_write16(dev, 0x0076,
-					  b43_radio_read16(dev, 0x0076)
-					  & 0xFF7B);
+			b43_radio_mask(dev, 0x0076, 0xFF7B);
 		} else {
 			b43_set_txpower_g(dev, &old_bbatt,
 					  &old_rfatt, old_tx_control);
@@ -2220,20 +2022,14 @@ static void b43_phy_initg(struct b43_wldev *dev)
 			b43_phy_write(dev, B43_PHY_OFDM(0xC3), 0x8006);
 		}
 		if (tmp == 5) {
-			b43_phy_write(dev, B43_PHY_OFDM(0xCC),
-				      (b43_phy_read(dev, B43_PHY_OFDM(0xCC))
-				       & 0x00FF) | 0x1F00);
+			b43_phy_maskset(dev, B43_PHY_OFDM(0xCC), 0x00FF, 0x1F00);
 		}
 	}
 	if ((phy->rev <= 2 && phy->gmode) || phy->rev >= 2)
 		b43_phy_write(dev, B43_PHY_OFDM(0x7E), 0x78);
 	if (phy->radio_rev == 8) {
-		b43_phy_write(dev, B43_PHY_EXTG(0x01),
-			      b43_phy_read(dev, B43_PHY_EXTG(0x01))
-			      | 0x80);
-		b43_phy_write(dev, B43_PHY_OFDM(0x3E),
-			      b43_phy_read(dev, B43_PHY_OFDM(0x3E))
-			      | 0x4);
+		b43_phy_set(dev, B43_PHY_EXTG(0x01), 0x80);
+		b43_phy_set(dev, B43_PHY_OFDM(0x3E), 0x4);
 	}
 	if (has_loopback_gain(phy))
 		b43_calc_loopback_gain(dev);
@@ -2251,15 +2047,10 @@ static void b43_phy_initg(struct b43_wldev *dev)
 				  | gphy->lo_control->tx_bias | gphy->
 				  lo_control->tx_magn);
 	} else {
-		b43_radio_write16(dev, 0x52,
-				  (b43_radio_read16(dev, 0x52) & 0xFFF0)
-				  | gphy->lo_control->tx_bias);
+		b43_radio_maskset(dev, 0x52, 0xFFF0, gphy->lo_control->tx_bias);
 	}
 	if (phy->rev >= 6) {
-		b43_phy_write(dev, B43_PHY_CCK(0x36),
-			      (b43_phy_read(dev, B43_PHY_CCK(0x36))
-			       & 0x0FFF) | (gphy->lo_control->
-					    tx_bias << 12));
+		b43_phy_maskset(dev, B43_PHY_CCK(0x36), 0x0FFF, (gphy->lo_control->tx_bias << 12));
 	}
 	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_PACTRL)
 		b43_phy_write(dev, B43_PHY_CCK(0x2E), 0x8075);
@@ -2298,11 +2089,8 @@ static void b43_phy_initg(struct b43_wldev *dev)
 	   but OFDM is legal everywhere */
 	if ((dev->dev->bus->chip_id == 0x4306
 	     && dev->dev->bus->chip_package == 2) || 0) {
-		b43_phy_write(dev, B43_PHY_CRS0, b43_phy_read(dev, B43_PHY_CRS0)
-			      & 0xBFFF);
-		b43_phy_write(dev, B43_PHY_OFDM(0xC3),
-			      b43_phy_read(dev, B43_PHY_OFDM(0xC3))
-			      & 0x7FFF);
+		b43_phy_mask(dev, B43_PHY_CRS0, 0xBFFF);
+		b43_phy_mask(dev, B43_PHY_OFDM(0xC3), 0x7FFF);
 	}
 }
 
@@ -2504,9 +2292,8 @@ static u8 b43_gphy_aci_scan(struct b43_wldev *dev)
 
 	b43_phy_lock(dev);
 	b43_radio_lock(dev);
-	b43_phy_write(dev, 0x0802, b43_phy_read(dev, 0x0802) & 0xFFFC);
-	b43_phy_write(dev, B43_PHY_G_CRS,
-		      b43_phy_read(dev, B43_PHY_G_CRS) & 0x7FFF);
+	b43_phy_mask(dev, 0x0802, 0xFFFC);
+	b43_phy_mask(dev, B43_PHY_G_CRS, 0x7FFF);
 	b43_set_all_gains(dev, 3, 8, 1);
 
 	start = (channel - 5 > 0) ? channel - 5 : 1;
@@ -2517,11 +2304,9 @@ static u8 b43_gphy_aci_scan(struct b43_wldev *dev)
 			ret[i - 1] = b43_gphy_aci_detect(dev, i);
 	}
 	b43_switch_channel(dev, channel);
-	b43_phy_write(dev, 0x0802,
-		      (b43_phy_read(dev, 0x0802) & 0xFFFC) | 0x0003);
-	b43_phy_write(dev, 0x0403, b43_phy_read(dev, 0x0403) & 0xFFF8);
-	b43_phy_write(dev, B43_PHY_G_CRS,
-		      b43_phy_read(dev, B43_PHY_G_CRS) | 0x8000);
+	b43_phy_maskset(dev, 0x0802, 0xFFFC, 0x0003);
+	b43_phy_mask(dev, 0x0403, 0xFFF8);
+	b43_phy_set(dev, B43_PHY_G_CRS, 0x8000);
 	b43_set_original_gains(dev);
 	for (i = 0; i < 13; i++) {
 		if (!ret[i])
@@ -2565,8 +2350,8 @@ static s8 b43_tssi2dbm_entry(s8 entry[], u8 index,
 	return 0;
 }
 
-u8 * b43_generate_dyn_tssi2dbm_tab(struct b43_wldev *dev,
-				   s16 pab0, s16 pab1, s16 pab2)
+u8 *b43_generate_dyn_tssi2dbm_tab(struct b43_wldev *dev,
+				  s16 pab0, s16 pab1, s16 pab2)
 {
 	unsigned int i;
 	u8 *tab;
@@ -3191,6 +2976,7 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 	 * Baseband attennuation. Subtract it. */
 	bbatt_delta -= 4 * rfatt_delta;
 
+#if B43_DEBUG
 	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
 		int dbm = pwr_adjust < 0 ? -pwr_adjust : pwr_adjust;
 		b43dbg(dev->wl,
@@ -3199,6 +2985,8 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 		       (pwr_adjust < 0 ? "-" : ""), Q52_ARG(dbm),
 		       bbatt_delta, rfatt_delta);
 	}
+#endif /* DEBUG */
+
 	/* So do we finally need to adjust something in hardware? */
 	if ((rfatt_delta == 0) && (bbatt_delta == 0))
 		goto no_adjustment_needed;

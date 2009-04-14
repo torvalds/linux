@@ -319,6 +319,7 @@ int task_get_unused_fd_flags(struct task_struct *tsk, int flags)
 	int fd, error;
 	struct fdtable *fdt;
 	unsigned long rlim_cur;
+	unsigned long irqs;
 
 	if (files == NULL)
 		return -ESRCH;
@@ -335,12 +336,11 @@ repeat:
 	 * N.B. For clone tasks sharing a files structure, this test
 	 * will limit the total number of files that can be opened.
 	 */
-	rcu_read_lock();
-	if (tsk->signal)
+	rlim_cur = 0;
+	if (lock_task_sighand(tsk, &irqs)) {
 		rlim_cur = tsk->signal->rlim[RLIMIT_NOFILE].rlim_cur;
-	else
-		rlim_cur = 0;
-	rcu_read_unlock();
+		unlock_task_sighand(tsk, &irqs);
+	}
 	if (fd >= rlim_cur)
 		goto out;
 
@@ -2649,14 +2649,22 @@ static void binder_vma_open(struct vm_area_struct *vma)
 {
 	struct binder_proc *proc = vma->vm_private_data;
 	if (binder_debug_mask & BINDER_DEBUG_OPEN_CLOSE)
-		printk(KERN_INFO "binder: %d open vm area %lx-%lx (%ld K) vma %lx pagep %lx\n", proc->pid, vma->vm_start, vma->vm_end, (vma->vm_end - vma->vm_start) / SZ_1K, vma->vm_flags, vma->vm_page_prot.pgprot);
+		printk(KERN_INFO
+			"binder: %d open vm area %lx-%lx (%ld K) vma %lx pagep %lx\n",
+			proc->pid, vma->vm_start, vma->vm_end,
+			(vma->vm_end - vma->vm_start) / SZ_1K, vma->vm_flags,
+			(unsigned long)pgprot_val(vma->vm_page_prot));
 	dump_stack();
 }
 static void binder_vma_close(struct vm_area_struct *vma)
 {
 	struct binder_proc *proc = vma->vm_private_data;
 	if (binder_debug_mask & BINDER_DEBUG_OPEN_CLOSE)
-		printk(KERN_INFO "binder: %d close vm area %lx-%lx (%ld K) vma %lx pagep %lx\n", proc->pid, vma->vm_start, vma->vm_end, (vma->vm_end - vma->vm_start) / SZ_1K, vma->vm_flags, vma->vm_page_prot.pgprot);
+		printk(KERN_INFO
+			"binder: %d close vm area %lx-%lx (%ld K) vma %lx pagep %lx\n",
+			proc->pid, vma->vm_start, vma->vm_end,
+			(vma->vm_end - vma->vm_start) / SZ_1K, vma->vm_flags,
+			(unsigned long)pgprot_val(vma->vm_page_prot));
 	proc->vma = NULL;
 }
 
@@ -2677,7 +2685,11 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 		vma->vm_end = vma->vm_start + SZ_4M;
 
 	if (binder_debug_mask & BINDER_DEBUG_OPEN_CLOSE)
-		printk(KERN_INFO "binder_mmap: %d %lx-%lx (%ld K) vma %lx pagep %lx\n", proc->pid, vma->vm_start, vma->vm_end, (vma->vm_end - vma->vm_start) / SZ_1K, vma->vm_flags, vma->vm_page_prot.pgprot);
+		printk(KERN_INFO
+			"binder_mmap: %d %lx-%lx (%ld K) vma %lx pagep %lx\n",
+			proc->pid, vma->vm_start, vma->vm_end,
+			(vma->vm_end - vma->vm_start) / SZ_1K, vma->vm_flags,
+			(unsigned long)pgprot_val(vma->vm_page_prot));
 
 	if (vma->vm_flags & FORBIDDEN_MMAP_FLAGS) {
 		ret = -EPERM;

@@ -3,7 +3,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <linux/version.h>
 #include <linux/hardirq.h>
 #include "extent_map.h"
 
@@ -235,7 +234,6 @@ int add_extent_mapping(struct extent_map_tree *tree,
 	rb = tree_insert(&tree->map, em->start, &em->rb_node);
 	if (rb) {
 		ret = -EEXIST;
-		free_extent_map(merge);
 		goto out;
 	}
 	atomic_inc(&em->refs);

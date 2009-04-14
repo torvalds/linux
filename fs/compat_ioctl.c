@@ -23,7 +23,7 @@
 #include <linux/if.h>
 #include <linux/if_bridge.h>
 #include <linux/slab.h>
-#include <linux/raid/md.h>
+#include <linux/raid/md_u.h>
 #include <linux/kd.h>
 #include <linux/route.h>
 #include <linux/in6.h>
@@ -522,6 +522,11 @@ static int dev_ifsioc(unsigned int fd, unsigned int cmd, unsigned long arg)
 		if (err)
 			return -EFAULT;
 		break;
+	case SIOCSHWTSTAMP:
+		if (copy_from_user(&ifr, uifr32, sizeof(*uifr32)))
+			return -EFAULT;
+		ifr.ifr_data = compat_ptr(uifr32->ifr_ifru.ifru_data);
+		break;
 	default:
 		if (copy_from_user(&ifr, uifr32, sizeof(*uifr32)))
 			return -EFAULT;
@@ -538,6 +543,7 @@ static int dev_ifsioc(unsigned int fd, unsigned int cmd, unsigned long arg)
 		 * cannot be fixed without breaking all existing apps.
 		 */
 		case TUNSETIFF:
+		case TUNGETIFF:
 		case SIOCGIFFLAGS:
 		case SIOCGIFMETRIC:
 		case SIOCGIFMTU:
@@ -784,7 +790,7 @@ static int sg_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 
 	if (copy_in_user(&sgio->status, &sgio32->status,
 			 (4 * sizeof(unsigned char)) +
-			 (2 * sizeof(unsigned (short))) +
+			 (2 * sizeof(unsigned short)) +
 			 (3 * sizeof(int))))
 		return -EFAULT;
 
@@ -1912,6 +1918,9 @@ COMPATIBLE_IOCTL(FIONREAD)  /* This is also TIOCINQ */
 /* 0x00 */
 COMPATIBLE_IOCTL(FIBMAP)
 COMPATIBLE_IOCTL(FIGETBSZ)
+/* 'X' - originally XFS but some now in the VFS */
+COMPATIBLE_IOCTL(FIFREEZE)
+COMPATIBLE_IOCTL(FITHAW)
 /* RAID */
 COMPATIBLE_IOCTL(RAID_VERSION)
 COMPATIBLE_IOCTL(GET_ARRAY_INFO)
@@ -1937,6 +1946,8 @@ ULONG_IOCTL(SET_BITMAP_FILE)
 /* Big K */
 COMPATIBLE_IOCTL(PIO_FONT)
 COMPATIBLE_IOCTL(GIO_FONT)
+COMPATIBLE_IOCTL(PIO_CMAP)
+COMPATIBLE_IOCTL(GIO_CMAP)
 ULONG_IOCTL(KDSIGACCEPT)
 COMPATIBLE_IOCTL(KDGETKEYCODE)
 COMPATIBLE_IOCTL(KDSETKEYCODE)
@@ -1982,6 +1993,13 @@ COMPATIBLE_IOCTL(TUNSETNOCSUM)
 COMPATIBLE_IOCTL(TUNSETDEBUG)
 COMPATIBLE_IOCTL(TUNSETPERSIST)
 COMPATIBLE_IOCTL(TUNSETOWNER)
+COMPATIBLE_IOCTL(TUNSETLINK)
+COMPATIBLE_IOCTL(TUNSETGROUP)
+COMPATIBLE_IOCTL(TUNGETFEATURES)
+COMPATIBLE_IOCTL(TUNSETOFFLOAD)
+COMPATIBLE_IOCTL(TUNSETTXFILTER)
+COMPATIBLE_IOCTL(TUNGETSNDBUF)
+COMPATIBLE_IOCTL(TUNSETSNDBUF)
 /* Big V */
 COMPATIBLE_IOCTL(VT_SETMODE)
 COMPATIBLE_IOCTL(VT_GETMODE)
@@ -2555,6 +2573,7 @@ HANDLE_IOCTL(SIOCSIFMAP, dev_ifsioc)
 HANDLE_IOCTL(SIOCGIFADDR, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFADDR, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFHWBROADCAST, dev_ifsioc)
+HANDLE_IOCTL(SIOCSHWTSTAMP, dev_ifsioc)
 
 /* ioctls used by appletalk ddp.c */
 HANDLE_IOCTL(SIOCATALKDIFADDR, dev_ifsioc)
@@ -2573,6 +2592,7 @@ HANDLE_IOCTL(SIOCGIFPFLAGS, dev_ifsioc)
 HANDLE_IOCTL(SIOCGIFTXQLEN, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFTXQLEN, dev_ifsioc)
 HANDLE_IOCTL(TUNSETIFF, dev_ifsioc)
+HANDLE_IOCTL(TUNGETIFF, dev_ifsioc)
 HANDLE_IOCTL(SIOCETHTOOL, ethtool_ioctl)
 HANDLE_IOCTL(SIOCBONDENSLAVE, bond_ioctl)
 HANDLE_IOCTL(SIOCBONDRELEASE, bond_ioctl)

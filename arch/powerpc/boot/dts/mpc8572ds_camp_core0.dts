@@ -6,7 +6,7 @@
  * This dts file allows core0 to have memory, l2, i2c, dma1, global-util, eth0,
  * eth1, crypto, pci0, pci1.
  *
- * Copyright 2007, 2008 Freescale Semiconductor Inc.
+ * Copyright 2007-2009 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -148,35 +148,38 @@
 			};
 		};
 
-		mdio@24520 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "fsl,gianfar-mdio";
-			reg = <0x24520 0x20>;
-
-			phy0: ethernet-phy@0 {
-				interrupt-parent = <&mpic>;
-				interrupts = <10 1>;
-				reg = <0x0>;
-			};
-			phy1: ethernet-phy@1 {
-				interrupt-parent = <&mpic>;
-				interrupts = <10 1>;
-				reg = <0x1>;
-			};
-		};
-
 		enet0: ethernet@24000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			cell-index = <0>;
 			device_type = "network";
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <0x24000 0x1000>;
+			ranges = <0x0 0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <29 2 30 2 34 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
 			phy-connection-type = "rgmii-id";
+
+			mdio@520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-mdio";
+				reg = <0x520 0x20>;
+
+				phy0: ethernet-phy@0 {
+					interrupt-parent = <&mpic>;
+					interrupts = <10 1>;
+					reg = <0x0>;
+				};
+				phy1: ethernet-phy@1 {
+					interrupt-parent = <&mpic>;
+					interrupts = <10 1>;
+					reg = <0x1>;
+				};
+			};
 		};
 
 		enet1: ethernet@25000 {
@@ -227,7 +230,7 @@
 			device_type = "open-pic";
 			protected-sources = <
 			31 32 33 37 38 39       /* enet2 enet3 */
-			76 77 78 79 27 42	/* dma2 pci2 serial*/
+			76 77 78 79 26 42	/* dma2 pci2 serial*/
 			0xe0 0xe1 0xe2 0xe3     /* msi */
 			0xe4 0xe5 0xe6 0xe7
 			>;
@@ -376,7 +379,7 @@
 
 				  0x1000000 0x0 0x0
 				  0x1000000 0x0 0x0
-				  0x0 0x100000>;
+				  0x0 0x10000>;
 			uli1575@0 {
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				#size-cells = <2>;
@@ -387,7 +390,7 @@
 
 					  0x1000000 0x0 0x0
 					  0x1000000 0x0 0x0
-					  0x0 0x100000>;
+					  0x0 0x10000>;
 				isa@1e {
 					device_type = "isa";
 					#interrupt-cells = <2>;
@@ -457,7 +460,7 @@
 			  0x1000000 0x0 0x0 0xffc10000 0x0 0x10000>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&mpic>;
-		interrupts = <26 2>;
+		interrupts = <25 2>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 			/* IDSEL 0x0 */
@@ -477,7 +480,7 @@
 
 				  0x1000000 0x0 0x0
 				  0x1000000 0x0 0x0
-				  0x0 0x100000>;
+				  0x0 0x10000>;
 		};
 	};
 };

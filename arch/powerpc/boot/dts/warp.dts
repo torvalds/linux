@@ -149,12 +149,17 @@
 					reg = <0x00000002 0x00004000 0x00000A00>;
 				};
 
-				nor_flash@0,0 {
+				nor@0,0 {
 					compatible = "amd,s29gl032a", "cfi-flash";
 					bank-width = <2>;
 					reg = <0x00000000 0x00000000 0x00400000>;
 					#address-cells = <1>;
 					#size-cells = <1>;
+
+					partition@0 {
+						label = "splash";
+						reg = <0x00000000 0x00020000>;
+					};
 					partition@300000 {
 						label = "fpga";
 						reg = <0x0300000 0x00040000>;
@@ -166,6 +171,41 @@
 					partition@380000 {
 						label = "u-boot";
 						reg = <0x0380000 0x00080000>;
+					};
+				};
+
+				ndfc@1,0 {
+					compatible = "ibm,ndfc";
+					reg = <0x00000001 0x00000000 0x00002000>;
+					ccr = <0x00001000>;
+					bank-settings = <0x80002222>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					nand {
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						partition@0 {
+							label = "kernel";
+							reg = <0x00000000 0x00200000>;
+						};
+						partition@200000 {
+							label = "root";
+							reg = <0x00200000 0x03E00000>;
+						};
+						partition@40000000 {
+							label = "persistent";
+							reg = <0x04000000 0x04000000>;
+						};
+						partition@80000000 {
+							label = "persistent1";
+							reg = <0x08000000 0x04000000>;
+						};
+						partition@C0000000 {
+							label = "persistent2";
+							reg = <0x0C000000 0x04000000>;
+						};
 					};
 				};
 			};

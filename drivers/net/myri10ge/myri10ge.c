@@ -1,7 +1,7 @@
 /*************************************************************************
  * myri10ge.c: Myricom Myri-10G Ethernet driver.
  *
- * Copyright (C) 2005 - 2007 Myricom, Inc.
+ * Copyright (C) 2005 - 2009 Myricom, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.4.4-1.398"
+#define MYRI10GE_VERSION_STR "1.4.4-1.401"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -1130,7 +1130,7 @@ myri10ge_submit_8rx(struct mcp_kreq_ether_recv __iomem * dst,
 	__be32 low;
 
 	low = src->addr_low;
-	src->addr_low = htonl(DMA_32BIT_MASK);
+	src->addr_low = htonl(DMA_BIT_MASK(32));
 	myri10ge_pio_copy(dst, src, 4 * sizeof(*src));
 	mb();
 	myri10ge_pio_copy(dst + 4, src + 4, 4 * sizeof(*src));
@@ -1324,6 +1324,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, struct myri10ge_rx_buf *rx,
 		skb_shinfo(skb)->nr_frags = 0;
 	}
 	skb->protocol = eth_type_trans(skb, dev);
+	skb_record_rx_queue(skb, ss - &mgp->ss[0]);
 
 	if (mgp->csum_flag) {
 		if ((skb->protocol == htons(ETH_P_IP)) ||
@@ -1514,7 +1515,7 @@ static int myri10ge_poll(struct napi_struct *napi, int budget)
 	work_done = myri10ge_clean_rx_done(ss, budget);
 
 	if (work_done < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		put_be32(htonl(3), ss->irq_claim);
 	}
 	return work_done;
@@ -1532,7 +1533,7 @@ static irqreturn_t myri10ge_intr(int irq, void *arg)
 	/* an interrupt on a non-zero receive-only slice is implicitly
 	 * valid  since MSI-X irqs are not shared */
 	if ((mgp->dev->real_num_tx_queues == 1) && (ss != mgp->ss)) {
-		netif_rx_schedule(&ss->napi);
+		napi_schedule(&ss->napi);
 		return (IRQ_HANDLED);
 	}
 
@@ -1543,7 +1544,7 @@ static irqreturn_t myri10ge_intr(int irq, void *arg)
 	/* low bit indicates receives are present, so schedule
 	 * napi poll handler */
 	if (stats->valid & 1)
-		netif_rx_schedule(&ss->napi);
+		napi_schedule(&ss->napi);
 
 	if (!mgp->msi_enabled && !mgp->msix_enabled) {
 		put_be32(0, mgp->irq_deassert);
@@ -3786,28 +3787,28 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (status != 0) {
 		dev_err(&pdev->dev, "Error %d writing PCI_EXP_DEVCTL\n",
 			status);
-		goto abort_with_netdev;
+		goto abort_with_enabled;
 	}
 
 	pci_set_master(pdev);
 	dac_enabled = 1;
-	status = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	status = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (status != 0) {
 		dac_enabled = 0;
 		dev_err(&pdev->dev,
 			"64-bit pci address mask was refused, "
 			"trying 32-bit\n");
-		status = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		status = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	}
 	if (status != 0) {
 		dev_err(&pdev->dev, "Error %d setting DMA mask\n", status);
-		goto abort_with_netdev;
+		goto abort_with_enabled;
 	}
-	(void)pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+	(void)pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	mgp->cmd = dma_alloc_coherent(&pdev->dev, sizeof(*mgp->cmd),
 				      &mgp->cmd_bus, GFP_KERNEL);
 	if (mgp->cmd == NULL)
-		goto abort_with_netdev;
+		goto abort_with_enabled;
 
 	mgp->board_span = pci_resource_len(pdev, 0);
 	mgp->iomem_base = pci_resource_start(pdev, 0);
@@ -3943,8 +3944,10 @@ abort_with_mtrr:
 	dma_free_coherent(&pdev->dev, sizeof(*mgp->cmd),
 			  mgp->cmd, mgp->cmd_bus);
 
-abort_with_netdev:
+abort_with_enabled:
+	pci_disable_device(pdev);
 
+abort_with_netdev:
 	free_netdev(netdev);
 	return status;
 }
@@ -3990,6 +3993,7 @@ static void myri10ge_remove(struct pci_dev *pdev)
 			  mgp->cmd, mgp->cmd_bus);
 
 	free_netdev(netdev);
+	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
 

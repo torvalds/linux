@@ -1334,6 +1334,40 @@ static void pcxhr_proc_sync(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "\n");
 }
 
+static void pcxhr_proc_gpio_read(struct snd_info_entry *entry,
+				 struct snd_info_buffer *buffer)
+{
+	struct snd_pcxhr *chip = entry->private_data;
+	struct pcxhr_mgr *mgr = chip->mgr;
+	/* commands available when embedded DSP is running */
+	if (mgr->dsp_loaded & (1 << PCXHR_FIRMWARE_DSP_MAIN_INDEX)) {
+		/* gpio ports on stereo boards only available */
+		int value = 0;
+		hr222_read_gpio(mgr, 1, &value);	/* GPI */
+		snd_iprintf(buffer, "GPI: 0x%x\n", value);
+		hr222_read_gpio(mgr, 0, &value);	/* GP0 */
+		snd_iprintf(buffer, "GPO: 0x%x\n", value);
+	} else
+		snd_iprintf(buffer, "no firmware loaded\n");
+	snd_iprintf(buffer, "\n");
+}
+static void pcxhr_proc_gpo_write(struct snd_info_entry *entry,
+				 struct snd_info_buffer *buffer)
+{
+	struct snd_pcxhr *chip = entry->private_data;
+	struct pcxhr_mgr *mgr = chip->mgr;
+	char line[64];
+	int value;
+	/* commands available when embedded DSP is running */
+	if (!(mgr->dsp_loaded & (1 << PCXHR_FIRMWARE_DSP_MAIN_INDEX)))
+		return;
+	while (!snd_info_get_line(buffer, line, sizeof(line))) {
+		if (sscanf(line, "GPO: 0x%x", &value) != 1)
+			continue;
+		hr222_write_gpo(mgr, value);	/* GP0 */
+	}
+}
+
 static void __devinit pcxhr_proc_init(struct snd_pcxhr *chip)
 {
 	struct snd_info_entry *entry;
@@ -1342,6 +1376,13 @@ static void __devinit pcxhr_proc_init(struct snd_pcxhr *chip)
 		snd_info_set_text_ops(entry, chip, pcxhr_proc_info);
 	if (! snd_card_proc_new(chip->card, "sync", &entry))
 		snd_info_set_text_ops(entry, chip, pcxhr_proc_sync);
+	/* gpio available on stereo sound cards only */
+	if (chip->mgr->is_hr_stereo &&
+	    !snd_card_proc_new(chip->card, "gpio", &entry)) {
+		snd_info_set_text_ops(entry, chip, pcxhr_proc_gpio_read);
+		entry->c.text.write = pcxhr_proc_gpo_write;
+		entry->mode |= S_IWUSR;
+	}
 }
 /* end of proc interface */
 
@@ -1408,7 +1449,7 @@ static int __devinit pcxhr_probe(struct pci_dev *pci,
 	pci_set_master(pci);
 
 	/* check if we can restrict PCI DMA transfers to 32 bits */
-	if (pci_set_dma_mask(pci, DMA_32BIT_MASK) < 0) {
+	if (pci_set_dma_mask(pci, DMA_BIT_MASK(32)) < 0) {
 		snd_printk(KERN_ERR "architecture does not support "
 			   "32bit PCI busmaster DMA\n");
 		pci_disable_device(pci);

@@ -184,6 +184,7 @@ static const struct acpi_device_id pcc_device_ids[] = {
 	{ "MAT0019", 0},
 	{ "", 0},
 };
+MODULE_DEVICE_TABLE(acpi, pcc_device_ids);
 
 static struct acpi_driver acpi_pcc_driver = {
 	.name =		ACPI_PCC_DRIVER_NAME,
@@ -366,7 +367,7 @@ static ssize_t show_numbatt(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_NUM_BATTERIES]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_NUM_BATTERIES]);
 }
 
 static ssize_t show_lcdtype(struct device *dev, struct device_attribute *attr,
@@ -378,7 +379,7 @@ static ssize_t show_lcdtype(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_LCD_TYPE]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_LCD_TYPE]);
 }
 
 static ssize_t show_mute(struct device *dev, struct device_attribute *attr,
@@ -390,7 +391,7 @@ static ssize_t show_mute(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_MUTE]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_MUTE]);
 }
 
 static ssize_t show_sticky(struct device *dev, struct device_attribute *attr,
@@ -402,7 +403,7 @@ static ssize_t show_sticky(struct device *dev, struct device_attribute *attr,
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf))
 		return -EIO;
 
-	return sprintf(buf, "%u\n", pcc->sinf[SINF_STICKY_KEY]);
+	return snprintf(buf, PAGE_SIZE, "%u\n", pcc->sinf[SINF_STICKY_KEY]);
 }
 
 static ssize_t set_sticky(struct device *dev, struct device_attribute *attr,
@@ -507,7 +508,7 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 
 	hkey_num = result & 0xf;
 
-	if (hkey_num < 0 || hkey_num > ARRAY_SIZE(pcc->keymap)) {
+	if (hkey_num < 0 || hkey_num >= ARRAY_SIZE(pcc->keymap)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "hotkey number out of range: %d\n",
 				  hkey_num));

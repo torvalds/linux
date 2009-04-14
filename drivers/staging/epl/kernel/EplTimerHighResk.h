@@ -68,42 +68,29 @@
 
 ****************************************************************************/
 
-#include "../EplTimer.h"
-
 #ifndef _EPLTIMERHIGHRESK_H_
 #define _EPLTIMERHIGHRESK_H_
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
+#include "../EplTimer.h"
 
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
+tEplKernel EplTimerHighReskInit(void);
 
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
+tEplKernel EplTimerHighReskAddInstance(void);
 
-tEplKernel PUBLIC EplTimerHighReskInit(void);
+tEplKernel EplTimerHighReskDelInstance(void);
 
-tEplKernel PUBLIC EplTimerHighReskAddInstance(void);
+tEplKernel EplTimerHighReskSetTimerNs(tEplTimerHdl *pTimerHdl_p,
+				      unsigned long long ullTimeNs_p,
+				      tEplTimerkCallback pfnCallback_p,
+				      unsigned long ulArgument_p,
+				      BOOL fContinuously_p);
 
-tEplKernel PUBLIC EplTimerHighReskDelInstance(void);
+tEplKernel EplTimerHighReskModifyTimerNs(tEplTimerHdl *pTimerHdl_p,
+					 unsigned long long ullTimeNs_p,
+					 tEplTimerkCallback pfnCallback_p,
+					 unsigned long ulArgument_p,
+					 BOOL fContinuously_p);
 
-tEplKernel PUBLIC EplTimerHighReskSetTimerNs(tEplTimerHdl * pTimerHdl_p,
-					     unsigned long long ullTimeNs_p,
-					     tEplTimerkCallback pfnCallback_p,
-					     unsigned long ulArgument_p,
-					     BOOL fContinuously_p);
-
-tEplKernel PUBLIC EplTimerHighReskModifyTimerNs(tEplTimerHdl * pTimerHdl_p,
-						unsigned long long ullTimeNs_p,
-						tEplTimerkCallback
-						pfnCallback_p,
-						unsigned long ulArgument_p,
-						BOOL fContinuously_p);
-
-tEplKernel PUBLIC EplTimerHighReskDeleteTimer(tEplTimerHdl * pTimerHdl_p);
+tEplKernel EplTimerHighReskDeleteTimer(tEplTimerHdl *pTimerHdl_p);
 
 #endif // #ifndef _EPLTIMERHIGHRESK_H_

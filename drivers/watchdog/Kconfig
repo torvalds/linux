@@ -187,10 +187,10 @@ config EP93XX_WATCHDOG
 
 config OMAP_WATCHDOG
 	tristate "OMAP Watchdog"
-	depends on ARCH_OMAP16XX || ARCH_OMAP24XX
+	depends on ARCH_OMAP16XX || ARCH_OMAP24XX || ARCH_OMAP34XX
 	help
-	  Support for TI OMAP1610/OMAP1710/OMAP2420 watchdog.  Say 'Y' here to
-	  enable the OMAP1610/OMAP1710 watchdog timer.
+	  Support for TI OMAP1610/OMAP1710/OMAP2420/OMAP3430 watchdog.  Say 'Y'
+	  here to enable the OMAP1610/OMAP1710/OMAP2420/OMAP3430 watchdog timer.
 
 config PNX4008_WATCHDOG
 	tristate "PNX4008 Watchdog"
@@ -406,7 +406,7 @@ config ITCO_WDT
 	---help---
 	  Hardware driver for the intel TCO timer based watchdog devices.
 	  These drivers are included in the Intel 82801 I/O Controller
-	  Hub family (from ICH0 up to ICH8) and in the Intel 6300ESB
+	  Hub family (from ICH0 up to ICH10) and in the Intel 63xxESB
 	  controller hub.
 
 	  The TCO (Total Cost of Ownership) timer is a watchdog timer
@@ -772,7 +772,7 @@ config TXX9_WDT
 
 config GEF_WDT
 	tristate "GE Fanuc Watchdog Timer"
-	depends on GEF_SBC610
+	depends on GEF_SBC610 || GEF_SBC310 || GEF_PPC9A
 	---help---
 	  Watchdog timer found in a number of GE Fanuc single board computers.
 
@@ -939,21 +939,6 @@ config WDT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called wdt.
-
-config WDT_501
-	bool "WDT501 features"
-	depends on WDT
-	help
-	  Saying Y here and creating a character special file /dev/temperature
-	  with major number 10 and minor number 131 ("man mknod") will give
-	  you a thermometer inside your computer: reading from
-	  /dev/temperature yields one byte, the temperature in degrees
-	  Fahrenheit. This works only if you have a WDT501P watchdog board
-	  installed.
-
-	  If you want to enable the Fan Tachometer on the WDT501P, then you
-	  can do this via the tachometer parameter. Only do this if you have a
-	  fan tachometer actually set up.
 
 #
 # PCI-based Watchdog Cards

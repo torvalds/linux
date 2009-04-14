@@ -114,7 +114,8 @@ void uwb_rsv_dump(char *text, struct uwb_rsv *rsv)
 		devaddr = rsv->target.devaddr;
 	uwb_dev_addr_print(target, sizeof(target), &devaddr);
 
-	dev_dbg(dev, "rsv %s -> %s: %s\n", owner, target, uwb_rsv_state_str(rsv->state));
+	dev_dbg(dev, "rsv %s %s -> %s: %s\n",
+		text, owner, target, uwb_rsv_state_str(rsv->state));
 }
 
 static void uwb_rsv_release(struct kref *kref)
@@ -511,8 +512,7 @@ void uwb_rsv_remove(struct uwb_rsv *rsv)
 
 	if (uwb_rsv_is_owner(rsv))
 		uwb_rsv_put_stream(rsv);
-	
-	del_timer_sync(&rsv->timer);
+
 	uwb_dev_put(rsv->owner);
 	if (rsv->target.type == UWB_RSV_TARGET_DEV)
 		uwb_dev_put(rsv->target.dev);
@@ -870,7 +870,7 @@ void uwb_rsv_queue_update(struct uwb_rc *rc)
  */
 void uwb_rsv_sched_update(struct uwb_rc *rc)
 {
-	spin_lock(&rc->rsvs_lock);
+	spin_lock_bh(&rc->rsvs_lock);
 	if (!delayed_work_pending(&rc->rsv_update_work)) {
 		if (rc->set_drp_ie_pending > 0) {
 			rc->set_drp_ie_pending++;
@@ -879,7 +879,7 @@ void uwb_rsv_sched_update(struct uwb_rc *rc)
 		uwb_rsv_queue_update(rc);
 	}
 unlock:
-	spin_unlock(&rc->rsvs_lock);
+	spin_unlock_bh(&rc->rsvs_lock);
 }
 
 /*
@@ -943,13 +943,22 @@ void uwb_rsv_remove_all(struct uwb_rc *rc)
 
 	mutex_lock(&rc->rsvs_mutex);
 	list_for_each_entry_safe(rsv, t, &rc->reservations, rc_node) {
-		uwb_rsv_remove(rsv);
+		if (rsv->state != UWB_RSV_STATE_NONE)
+			uwb_rsv_set_state(rsv, UWB_RSV_STATE_NONE);
+		del_timer_sync(&rsv->timer);
 	}
 	/* Cancel any postponed update. */
 	rc->set_drp_ie_pending = 0;
 	mutex_unlock(&rc->rsvs_mutex);
 
 	cancel_delayed_work_sync(&rc->rsv_update_work);
+	flush_workqueue(rc->rsv_workq);
+
+	mutex_lock(&rc->rsvs_mutex);
+	list_for_each_entry_safe(rsv, t, &rc->reservations, rc_node) {
+		uwb_rsv_remove(rsv);
+	}
+	mutex_unlock(&rc->rsvs_mutex);
 }
 
 void uwb_rsv_init(struct uwb_rc *rc)

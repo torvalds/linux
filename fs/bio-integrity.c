@@ -26,53 +26,9 @@
 #include <linux/workqueue.h>
 
 static struct kmem_cache *bio_integrity_slab __read_mostly;
+static mempool_t *bio_integrity_pool;
+static struct bio_set *integrity_bio_set;
 static struct workqueue_struct *kintegrityd_wq;
-
-/**
- * bio_integrity_alloc_bioset - Allocate integrity payload and attach it to bio
- * @bio:	bio to attach integrity metadata to
- * @gfp_mask:	Memory allocation mask
- * @nr_vecs:	Number of integrity metadata scatter-gather elements
- * @bs:		bio_set to allocate from
- *
- * Description: This function prepares a bio for attaching integrity
- * metadata.  nr_vecs specifies the maximum number of pages containing
- * integrity metadata that can be attached.
- */
-struct bio_integrity_payload *bio_integrity_alloc_bioset(struct bio *bio,
-							 gfp_t gfp_mask,
-							 unsigned int nr_vecs,
-							 struct bio_set *bs)
-{
-	struct bio_integrity_payload *bip;
-	struct bio_vec *iv;
-	unsigned long idx;
-
-	BUG_ON(bio == NULL);
-
-	bip = mempool_alloc(bs->bio_integrity_pool, gfp_mask);
-	if (unlikely(bip == NULL)) {
-		printk(KERN_ERR "%s: could not alloc bip\n", __func__);
-		return NULL;
-	}
-
-	memset(bip, 0, sizeof(*bip));
-
-	iv = bvec_alloc_bs(gfp_mask, nr_vecs, &idx, bs);
-	if (unlikely(iv == NULL)) {
-		printk(KERN_ERR "%s: could not alloc bip_vec\n", __func__);
-		mempool_free(bip, bs->bio_integrity_pool);
-		return NULL;
-	}
-
-	bip->bip_pool = idx;
-	bip->bip_vec = iv;
-	bip->bip_bio = bio;
-	bio->bi_integrity = bip;
-
-	return bip;
-}
-EXPORT_SYMBOL(bio_integrity_alloc_bioset);
 
 /**
  * bio_integrity_alloc - Allocate integrity payload and attach it to bio
@@ -88,19 +44,44 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 						  gfp_t gfp_mask,
 						  unsigned int nr_vecs)
 {
-	return bio_integrity_alloc_bioset(bio, gfp_mask, nr_vecs, fs_bio_set);
+	struct bio_integrity_payload *bip;
+	struct bio_vec *iv;
+	unsigned long idx;
+
+	BUG_ON(bio == NULL);
+
+	bip = mempool_alloc(bio_integrity_pool, gfp_mask);
+	if (unlikely(bip == NULL)) {
+		printk(KERN_ERR "%s: could not alloc bip\n", __func__);
+		return NULL;
+	}
+
+	memset(bip, 0, sizeof(*bip));
+
+	iv = bvec_alloc_bs(gfp_mask, nr_vecs, &idx, integrity_bio_set);
+	if (unlikely(iv == NULL)) {
+		printk(KERN_ERR "%s: could not alloc bip_vec\n", __func__);
+		mempool_free(bip, bio_integrity_pool);
+		return NULL;
+	}
+
+	bip->bip_pool = idx;
+	bip->bip_vec = iv;
+	bip->bip_bio = bio;
+	bio->bi_integrity = bip;
+
+	return bip;
 }
 EXPORT_SYMBOL(bio_integrity_alloc);
 
 /**
  * bio_integrity_free - Free bio integrity payload
  * @bio:	bio containing bip to be freed
- * @bs:		bio_set this bio was allocated from
  *
  * Description: Used to free the integrity portion of a bio. Usually
  * called from bio_free().
  */
-void bio_integrity_free(struct bio *bio, struct bio_set *bs)
+void bio_integrity_free(struct bio *bio)
 {
 	struct bio_integrity_payload *bip = bio->bi_integrity;
 
@@ -111,8 +92,8 @@ void bio_integrity_free(struct bio *bio, struct bio_set *bs)
 	    && bip->bip_buf != NULL)
 		kfree(bip->bip_buf);
 
-	bvec_free_bs(bs, bip->bip_vec, bip->bip_pool);
-	mempool_free(bip, bs->bio_integrity_pool);
+	bvec_free_bs(integrity_bio_set, bip->bip_vec, bip->bip_pool);
+	mempool_free(bip, bio_integrity_pool);
 
 	bio->bi_integrity = NULL;
 }
@@ -140,7 +121,6 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 
 	iv = bip_vec_idx(bip, bip->bip_vcnt);
 	BUG_ON(iv == NULL);
-	BUG_ON(iv->bv_page != NULL);
 
 	iv->bv_page = page;
 	iv->bv_len = len;
@@ -465,7 +445,7 @@ static int bio_integrity_verify(struct bio *bio)
 
 		if (ret) {
 			kunmap_atomic(kaddr, KM_USER0);
-			break;
+			return ret;
 		}
 
 		sectors = bv->bv_len / bi->sector_size;
@@ -493,18 +473,13 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 	struct bio_integrity_payload *bip =
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
-	int error = bip->bip_error;
+	int error;
 
-	if (bio_integrity_verify(bio)) {
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-		error = -EIO;
-	}
+	error = bio_integrity_verify(bio);
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;
-
-	if (bio->bi_end_io)
-		bio->bi_end_io(bio, error);
+	bio_endio(bio, error);
 }
 
 /**
@@ -525,7 +500,17 @@ void bio_integrity_endio(struct bio *bio, int error)
 
 	BUG_ON(bip->bip_bio != bio);
 
-	bip->bip_error = error;
+	/* In case of an I/O error there is no point in verifying the
+	 * integrity metadata.  Restore original bio end_io handler
+	 * and run it.
+	 */
+	if (error) {
+		bio->bi_end_io = bip->bip_end_io;
+		bio_endio(bio, error);
+
+		return;
+	}
+
 	INIT_WORK(&bip->bip_work, bio_integrity_verify_fn);
 	queue_work(kintegrityd_wq, &bip->bip_work);
 }
@@ -681,19 +666,18 @@ EXPORT_SYMBOL(bio_integrity_split);
  * bio_integrity_clone - Callback for cloning bios with integrity metadata
  * @bio:	New bio
  * @bio_src:	Original bio
- * @bs:		bio_set to allocate bip from
+ * @gfp_mask:	Memory allocation mask
  *
  * Description:	Called to allocate a bip when cloning a bio
  */
-int bio_integrity_clone(struct bio *bio, struct bio *bio_src,
-			struct bio_set *bs)
+int bio_integrity_clone(struct bio *bio, struct bio *bio_src, gfp_t gfp_mask)
 {
 	struct bio_integrity_payload *bip_src = bio_src->bi_integrity;
 	struct bio_integrity_payload *bip;
 
 	BUG_ON(bip_src == NULL);
 
-	bip = bio_integrity_alloc_bioset(bio, GFP_NOIO, bip_src->bip_vcnt, bs);
+	bip = bio_integrity_alloc(bio, gfp_mask, bip_src->bip_vcnt);
 
 	if (bip == NULL)
 		return -EIO;
@@ -709,37 +693,25 @@ int bio_integrity_clone(struct bio *bio, struct bio *bio_src,
 }
 EXPORT_SYMBOL(bio_integrity_clone);
 
-int bioset_integrity_create(struct bio_set *bs, int pool_size)
-{
-	bs->bio_integrity_pool = mempool_create_slab_pool(pool_size,
-							  bio_integrity_slab);
-	if (!bs->bio_integrity_pool)
-		return -1;
-
-	return 0;
-}
-EXPORT_SYMBOL(bioset_integrity_create);
-
-void bioset_integrity_free(struct bio_set *bs)
-{
-	if (bs->bio_integrity_pool)
-		mempool_destroy(bs->bio_integrity_pool);
-}
-EXPORT_SYMBOL(bioset_integrity_free);
-
-void __init bio_integrity_init_slab(void)
-{
-	bio_integrity_slab = KMEM_CACHE(bio_integrity_payload,
-					SLAB_HWCACHE_ALIGN|SLAB_PANIC);
-}
-
-static int __init integrity_init(void)
+static int __init bio_integrity_init(void)
 {
 	kintegrityd_wq = create_workqueue("kintegrityd");
 
 	if (!kintegrityd_wq)
 		panic("Failed to create kintegrityd\n");
 
+	bio_integrity_slab = KMEM_CACHE(bio_integrity_payload,
+					SLAB_HWCACHE_ALIGN|SLAB_PANIC);
+
+	bio_integrity_pool = mempool_create_slab_pool(BIO_POOL_SIZE,
+						      bio_integrity_slab);
+	if (!bio_integrity_pool)
+		panic("bio_integrity: can't allocate bip pool\n");
+
+	integrity_bio_set = bioset_create(BIO_POOL_SIZE, 0);
+	if (!integrity_bio_set)
+		panic("bio_integrity: can't allocate bio_set\n");
+
 	return 0;
 }
-subsys_initcall(integrity_init);
+subsys_initcall(bio_integrity_init);

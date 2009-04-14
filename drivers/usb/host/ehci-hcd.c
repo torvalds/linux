@@ -110,6 +110,42 @@ MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
 
 /*-------------------------------------------------------------------------*/
 
+static void
+timer_action(struct ehci_hcd *ehci, enum ehci_timer_action action)
+{
+	/* Don't override timeouts which shrink or (later) disable
+	 * the async ring; just the I/O watchdog.  Note that if a
+	 * SHRINK were pending, OFF would never be requested.
+	 */
+	if (timer_pending(&ehci->watchdog)
+			&& ((BIT(TIMER_ASYNC_SHRINK) | BIT(TIMER_ASYNC_OFF))
+				& ehci->actions))
+		return;
+
+	if (!test_and_set_bit(action, &ehci->actions)) {
+		unsigned long t;
+
+		switch (action) {
+		case TIMER_IO_WATCHDOG:
+			t = EHCI_IO_JIFFIES;
+			break;
+		case TIMER_ASYNC_OFF:
+			t = EHCI_ASYNC_JIFFIES;
+			break;
+		/* case TIMER_ASYNC_SHRINK: */
+		default:
+			/* add a jiffie since we synch against the
+			 * 8 KHz uframe counter.
+			 */
+			t = DIV_ROUND_UP(EHCI_SHRINK_FRAMES * HZ, 1000) + 1;
+			break;
+		}
+		mod_timer(&ehci->watchdog, t + jiffies);
+	}
+}
+
+/*-------------------------------------------------------------------------*/
+
 /*
  * handshake - spin reading hc until handshake completes or fails
  * @ptr: address of hc register to be read
@@ -485,6 +521,7 @@ static int ehci_init(struct usb_hcd *hcd)
 	 * periodic_size can shrink by USBCMD update if hcc_params allows.
 	 */
 	ehci->periodic_size = DEFAULT_I_TDPS;
+	INIT_LIST_HEAD(&ehci->cached_itd_list);
 	if ((retval = ehci_mem_init(ehci, GFP_KERNEL)) < 0)
 		return retval;
 
@@ -497,6 +534,7 @@ static int ehci_init(struct usb_hcd *hcd)
 
 	ehci->reclaim = NULL;
 	ehci->next_uframe = -1;
+	ehci->clock_frame = -1;
 
 	/*
 	 * dedicate a qh for the async ring head, since we couldn't unlink
@@ -584,7 +622,7 @@ static int ehci_run (struct usb_hcd *hcd)
 		ehci_writel(ehci, 0, &ehci->regs->segment);
 #if 0
 // this is deeply broken on almost all architectures
-		if (!dma_set_mask(hcd->self.controller, DMA_64BIT_MASK))
+		if (!dma_set_mask(hcd->self.controller, DMA_BIT_MASK(64)))
 			ehci_info(ehci, "enabled 64bit DMA\n");
 #endif
 	}

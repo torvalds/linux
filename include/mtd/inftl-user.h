@@ -6,6 +6,8 @@
 #ifndef __MTD_INFTL_USER_H__
 #define __MTD_INFTL_USER_H__
 
+#include <linux/types.h>
+
 #define	OSAK_VERSION	0x5120
 #define	PERCENTUSED	98
 
@@ -14,33 +16,33 @@
 /* Block Control Information */
 
 struct inftl_bci {
-	uint8_t ECCsig[6];
-	uint8_t Status;
-	uint8_t Status1;
+	__u8 ECCsig[6];
+	__u8 Status;
+	__u8 Status1;
 } __attribute__((packed));
 
 struct inftl_unithead1 {
-	uint16_t virtualUnitNo;
-	uint16_t prevUnitNo;
-	uint8_t ANAC;
-	uint8_t NACs;
-	uint8_t parityPerField;
-	uint8_t discarded;
+	__u16 virtualUnitNo;
+	__u16 prevUnitNo;
+	__u8 ANAC;
+	__u8 NACs;
+	__u8 parityPerField;
+	__u8 discarded;
 } __attribute__((packed));
 
 struct inftl_unithead2 {
-	uint8_t parityPerField;
-	uint8_t ANAC;
-	uint16_t prevUnitNo;
-	uint16_t virtualUnitNo;
-	uint8_t NACs;
-	uint8_t discarded;
+	__u8 parityPerField;
+	__u8 ANAC;
+	__u16 prevUnitNo;
+	__u16 virtualUnitNo;
+	__u8 NACs;
+	__u8 discarded;
 } __attribute__((packed));
 
 struct inftl_unittail {
-	uint8_t Reserved[4];
-	uint16_t EraseMark;
-	uint16_t EraseMark1;
+	__u8 Reserved[4];
+	__u16 EraseMark;
+	__u16 EraseMark1;
 } __attribute__((packed));
 
 union inftl_uci {

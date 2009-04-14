@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2009 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 /*
@@ -92,7 +92,9 @@ struct xpc_rsvd_page {
 	u8 pad1[3];		/* align to next u64 in 1st 64-byte cacheline */
 	union {
 		unsigned long vars_pa;	/* phys address of struct xpc_vars */
-		unsigned long activate_mq_gpa; /* gru phy addr of activate_mq */
+		unsigned long activate_gru_mq_desc_gpa; /* phys addr of */
+							/* activate mq's */
+							/* gru mq descriptor */
 	} sn;
 	unsigned long ts_jiffies; /* timestamp when rsvd pg was setup by XPC */
 	u64 pad2[10];		/* align to last u64 in 2nd 64-byte cacheline */
@@ -189,7 +191,9 @@ struct xpc_gru_mq_uv {
 	int irq;		/* irq raised when message is received in mq */
 	int mmr_blade;		/* blade where watchlist was allocated from */
 	unsigned long mmr_offset; /* offset of irq mmr located on mmr_blade */
+	unsigned long mmr_value; /* value of irq mmr located on mmr_blade */
 	int watchlist_num;	/* number of watchlist allocatd by BIOS */
+	void *gru_mq_desc;	/* opaque structure used by the GRU driver */
 };
 
 /*
@@ -197,6 +201,7 @@ struct xpc_gru_mq_uv {
  * heartbeat, partition active state, and channel state. This is UV only.
  */
 struct xpc_activate_mq_msghdr_uv {
+	unsigned int gru_msg_hdr; /* FOR GRU INTERNAL USE ONLY */
 	short partid;		/* sender's partid */
 	u8 act_state;		/* sender's act_state at time msg sent */
 	u8 type;		/* message's type */
@@ -232,7 +237,7 @@ struct xpc_activate_mq_msg_heartbeat_req_uv {
 struct xpc_activate_mq_msg_activate_req_uv {
 	struct xpc_activate_mq_msghdr_uv hdr;
 	unsigned long rp_gpa;
-	unsigned long activate_mq_gpa;
+	unsigned long activate_gru_mq_desc_gpa;
 };
 
 struct xpc_activate_mq_msg_deactivate_req_uv {
@@ -263,7 +268,7 @@ struct xpc_activate_mq_msg_chctl_openreply_uv {
 	short ch_number;
 	short remote_nentries;	/* ??? Is this needed? What is? */
 	short local_nentries;	/* ??? Is this needed? What is? */
-	unsigned long local_notify_mq_gpa;
+	unsigned long notify_gru_mq_desc_gpa;
 };
 
 /*
@@ -510,11 +515,12 @@ struct xpc_channel_sn2 {
 };
 
 struct xpc_channel_uv {
-	unsigned long remote_notify_mq_gpa;	/* gru phys address of remote */
-						/* partition's notify mq */
+	void *cached_notify_gru_mq_desc; /* remote partition's notify mq's */
+					 /* gru mq descriptor */
 
 	struct xpc_send_msg_slot_uv *send_msg_slots;
-	struct xpc_notify_mq_msg_uv *recv_msg_slots;
+	void *recv_msg_slots;	/* each slot will hold a xpc_notify_mq_msg_uv */
+				/* structure plus the user's payload */
 
 	struct xpc_fifo_head_uv msg_slot_free_list;
 	struct xpc_fifo_head_uv recv_msg_list;	/* deliverable payloads */
@@ -681,8 +687,12 @@ struct xpc_partition_sn2 {
 };
 
 struct xpc_partition_uv {
-	unsigned long remote_activate_mq_gpa;	/* gru phys address of remote */
-						/* partition's activate mq */
+	unsigned long activate_gru_mq_desc_gpa;	/* phys addr of parititon's */
+						/* activate mq's gru mq */
+						/* descriptor */
+	void *cached_activate_gru_mq_desc; /* cached copy of partition's */
+					   /* activate mq's gru mq descriptor */
+	struct mutex cached_activate_gru_mq_desc_mutex;
 	spinlock_t flags_lock;	/* protect updating of flags */
 	unsigned int flags;	/* general flags */
 	u8 remote_act_state;	/* remote partition's act_state */
@@ -693,8 +703,9 @@ struct xpc_partition_uv {
 
 /* struct xpc_partition_uv flags */
 
-#define XPC_P_HEARTBEAT_OFFLINE_UV	0x00000001
-#define XPC_P_ENGAGED_UV		0x00000002
+#define XPC_P_HEARTBEAT_OFFLINE_UV		0x00000001
+#define XPC_P_ENGAGED_UV			0x00000002
+#define XPC_P_CACHED_ACTIVATE_GRU_MQ_DESC_UV	0x00000004
 
 /* struct xpc_partition_uv act_state change requests */
 
@@ -803,6 +814,7 @@ extern void xpc_activate_kthreads(struct xpc_channel *, int);
 extern void xpc_create_kthreads(struct xpc_channel *, int, int);
 extern void xpc_disconnect_wait(int);
 extern int (*xpc_setup_partitions_sn) (void);
+extern void (*xpc_teardown_partitions_sn) (void);
 extern enum xp_retval (*xpc_get_partition_rsvd_page_pa) (void *, u64 *,
 							 unsigned long *,
 							 size_t *);
@@ -845,8 +857,8 @@ extern void (*xpc_send_chctl_openrequest) (struct xpc_channel *,
 					   unsigned long *);
 extern void (*xpc_send_chctl_openreply) (struct xpc_channel *, unsigned long *);
 
-extern void (*xpc_save_remote_msgqueue_pa) (struct xpc_channel *,
-					    unsigned long);
+extern enum xp_retval (*xpc_save_remote_msgqueue_pa) (struct xpc_channel *,
+						      unsigned long);
 
 extern enum xp_retval (*xpc_send_payload) (struct xpc_channel *, u32, void *,
 					   u16, u8, xpc_notify_func, void *);

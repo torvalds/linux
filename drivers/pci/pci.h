@@ -1,6 +1,8 @@
 #ifndef DRIVERS_PCI_H
 #define DRIVERS_PCI_H
 
+#include <linux/workqueue.h>
+
 #define PCI_CFG_SPACE_SIZE	256
 #define PCI_CFG_SPACE_EXP_SIZE	4096
 
@@ -16,21 +18,21 @@ extern int pci_mmap_fits(struct pci_dev *pdev, int resno,
 #endif
 
 /**
- * Firmware PM callbacks
+ * struct pci_platform_pm_ops - Firmware PM callbacks
  *
- * @is_manageable - returns 'true' if given device is power manageable by the
- *                  platform firmware
+ * @is_manageable: returns 'true' if given device is power manageable by the
+ *                 platform firmware
  *
- * @set_state - invokes the platform firmware to set the device's power state
+ * @set_state: invokes the platform firmware to set the device's power state
  *
- * @choose_state - returns PCI power state of given device preferred by the
- *                 platform; to be used during system-wide transitions from a
- *                 sleeping state to the working state and vice versa
+ * @choose_state: returns PCI power state of given device preferred by the
+ *                platform; to be used during system-wide transitions from a
+ *                sleeping state to the working state and vice versa
  *
- * @can_wakeup - returns 'true' if given device is capable of waking up the
- *               system from a sleeping state
+ * @can_wakeup: returns 'true' if given device is capable of waking up the
+ *              system from a sleeping state
  *
- * @sleep_wake - enables/disables the system wake up capability of given device
+ * @sleep_wake: enables/disables the system wake up capability of given device
  *
  * If given platform is generally capable of power managing PCI devices, all of
  * these callbacks are mandatory.
@@ -49,6 +51,11 @@ extern void pci_disable_enabled_device(struct pci_dev *dev);
 extern void pci_pm_init(struct pci_dev *dev);
 extern void platform_pci_wakeup_init(struct pci_dev *dev);
 extern void pci_allocate_cap_save_buffers(struct pci_dev *dev);
+
+static inline bool pci_is_bridge(struct pci_dev *pci_dev)
+{
+	return !!(pci_dev->subordinate);
+}
 
 extern int pci_user_read_config_byte(struct pci_dev *dev, int where, u8 *val);
 extern int pci_user_read_config_word(struct pci_dev *dev, int where, u16 *val);
@@ -130,6 +137,12 @@ extern int pcie_mch_quirk;
 extern struct device_attribute pci_dev_attrs[];
 extern struct device_attribute dev_attr_cpuaffinity;
 extern struct device_attribute dev_attr_cpulistaffinity;
+#ifdef CONFIG_HOTPLUG
+extern struct bus_attribute pci_bus_attrs[];
+#else
+#define pci_bus_attrs	NULL
+#endif
+
 
 /**
  * pci_match_one_device - Tell if a PCI device structure has a matching
@@ -172,6 +185,7 @@ enum pci_bar_type {
 	pci_bar_mem64,		/* A 64-bit memory BAR */
 };
 
+extern int pci_setup_device(struct pci_dev *dev);
 extern int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 				struct resource *res, unsigned int reg);
 extern int pci_resource_bar(struct pci_dev *dev, int resno,
@@ -188,5 +202,61 @@ static inline int pci_ari_enabled(struct pci_bus *bus)
 {
 	return bus->self && bus->self->ari_enabled;
 }
+
+#ifdef CONFIG_PCI_QUIRKS
+extern int pci_is_reassigndev(struct pci_dev *dev);
+resource_size_t pci_specified_resource_alignment(struct pci_dev *dev);
+extern void pci_disable_bridge_window(struct pci_dev *dev);
+#endif
+
+/* Single Root I/O Virtualization */
+struct pci_sriov {
+	int pos;		/* capability position */
+	int nres;		/* number of resources */
+	u32 cap;		/* SR-IOV Capabilities */
+	u16 ctrl;		/* SR-IOV Control */
+	u16 total;		/* total VFs associated with the PF */
+	u16 initial;		/* initial VFs associated with the PF */
+	u16 nr_virtfn;		/* number of VFs available */
+	u16 offset;		/* first VF Routing ID offset */
+	u16 stride;		/* following VF stride */
+	u32 pgsz;		/* page size for BAR alignment */
+	u8 link;		/* Function Dependency Link */
+	struct pci_dev *dev;	/* lowest numbered PF */
+	struct pci_dev *self;	/* this PF */
+	struct mutex lock;	/* lock for VF bus */
+	struct work_struct mtask; /* VF Migration task */
+	u8 __iomem *mstate;	/* VF Migration State Array */
+};
+
+#ifdef CONFIG_PCI_IOV
+extern int pci_iov_init(struct pci_dev *dev);
+extern void pci_iov_release(struct pci_dev *dev);
+extern int pci_iov_resource_bar(struct pci_dev *dev, int resno,
+				enum pci_bar_type *type);
+extern void pci_restore_iov_state(struct pci_dev *dev);
+extern int pci_iov_bus_range(struct pci_bus *bus);
+#else
+static inline int pci_iov_init(struct pci_dev *dev)
+{
+	return -ENODEV;
+}
+static inline void pci_iov_release(struct pci_dev *dev)
+
+{
+}
+static inline int pci_iov_resource_bar(struct pci_dev *dev, int resno,
+				       enum pci_bar_type *type)
+{
+	return 0;
+}
+static inline void pci_restore_iov_state(struct pci_dev *dev)
+{
+}
+static inline int pci_iov_bus_range(struct pci_bus *bus)
+{
+	return 0;
+}
+#endif /* CONFIG_PCI_IOV */
 
 #endif /* DRIVERS_PCI_H */

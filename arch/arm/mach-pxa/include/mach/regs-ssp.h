@@ -37,10 +37,12 @@
 #if defined(CONFIG_PXA25x)
 #define SSCR0_SCR	(0x0000ff00)	/* Serial Clock Rate (mask) */
 #define SSCR0_SerClkDiv(x) ((((x) - 2)/2) << 8) /* Divisor [2..512] */
-
 #elif defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define SSCR0_SCR	(0x000fff00)	/* Serial Clock Rate (mask) */
 #define SSCR0_SerClkDiv(x) (((x) - 1) << 8) /* Divisor [1..4096] */
+#endif
+
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define SSCR0_EDSS	(1 << 20)	/* Extended data size select */
 #define SSCR0_NCS	(1 << 21)	/* Network clock select */
 #define SSCR0_RIM	(1 << 22)	/* Receive FIFO overrrun interrupt mask */

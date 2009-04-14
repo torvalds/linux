@@ -287,12 +287,7 @@ static int icside_dma_end(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 
-	drive->waiting_for_dma = 0;
-
 	disable_dma(ec->dma);
-
-	/* Teardown mappings after DMA has completed. */
-	ide_destroy_dmatable(drive);
 
 	return get_dma_residue(ec->dma) != 0;
 }
@@ -307,15 +302,14 @@ static void icside_dma_start(ide_drive_t *drive)
 	enable_dma(ec->dma);
 }
 
-static int icside_dma_setup(ide_drive_t *drive)
+static int icside_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 	struct icside_state *state = ecard_get_drvdata(ec);
-	struct request *rq = hwif->rq;
 	unsigned int dma_mode;
 
-	if (rq_data_dir(rq))
+	if (cmd->tf_flags & IDE_TFLAG_WRITE)
 		dma_mode = DMA_MODE_WRITE;
 	else
 		dma_mode = DMA_MODE_READ;
@@ -324,8 +318,6 @@ static int icside_dma_setup(ide_drive_t *drive)
 	 * We can not enable DMA on both channels.
 	 */
 	BUG_ON(dma_channel_active(ec->dma));
-
-	hwif->sg_nents = ide_build_sglist(drive, rq);
 
 	/*
 	 * Ensure that we have the right interrupt routed.
@@ -346,18 +338,10 @@ static int icside_dma_setup(ide_drive_t *drive)
 	 * Tell the DMA engine about the SG table and
 	 * data direction.
 	 */
-	set_dma_sg(ec->dma, hwif->sg_table, hwif->sg_nents);
+	set_dma_sg(ec->dma, hwif->sg_table, cmd->sg_nents);
 	set_dma_mode(ec->dma, dma_mode);
 
-	drive->waiting_for_dma = 1;
-
 	return 0;
-}
-
-static void icside_dma_exec_cmd(ide_drive_t *drive, u8 cmd)
-{
-	/* issue cmd to drive */
-	ide_execute_command(drive, cmd, ide_dma_intr, 2 * WAIT_CMD, NULL);
 }
 
 static int icside_dma_test_irq(ide_drive_t *drive)
@@ -383,11 +367,9 @@ static int icside_dma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 static const struct ide_dma_ops icside_v6_dma_ops = {
 	.dma_host_set		= icside_dma_host_set,
 	.dma_setup		= icside_dma_setup,
-	.dma_exec_cmd		= icside_dma_exec_cmd,
 	.dma_start		= icside_dma_start,
 	.dma_end		= icside_dma_end,
 	.dma_test_irq		= icside_dma_test_irq,
-	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
 };
 #else
@@ -419,6 +401,10 @@ static void icside_setup_ports(hw_regs_t *hw, void __iomem *base,
 	hw->chipset = ide_acorn;
 }
 
+static const struct ide_port_info icside_v5_port_info = {
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
 static int __devinit
 icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 {
@@ -445,7 +431,7 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 
 	icside_setup_ports(&hw, base, &icside_cardinfo_v5, ec);
 
-	host = ide_host_alloc(NULL, hws);
+	host = ide_host_alloc(&icside_v5_port_info, hws);
 	if (host == NULL)
 		return -ENODEV;
 
@@ -453,7 +439,7 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 
 	ecard_set_drvdata(ec, state);
 
-	ret = ide_host_register(host, NULL, hws);
+	ret = ide_host_register(host, &icside_v5_port_info, hws);
 	if (ret)
 		goto err_free;
 
@@ -534,7 +520,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 		d.dma_ops = NULL;
 	}
 
-	ret = ide_host_register(host, NULL, hws);
+	ret = ide_host_register(host, &d, hws);
 	if (ret)
 		goto err_free;
 

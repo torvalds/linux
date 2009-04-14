@@ -30,7 +30,6 @@
 #include <asm/mach/flash.h>
 
 #include <mach/led.h>
-#include <mach/mcbsp.h>
 #include <mach/gpio.h>
 #include <mach/mux.h>
 #include <mach/usb.h>
@@ -40,10 +39,16 @@
 #include <mach/irda.h>
 #include <mach/keypad.h>
 #include <mach/common.h>
-#include <mach/omap-alsa.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+
+#define PALMTT_USBDETECT_GPIO	0
+#define PALMTT_CABLE_GPIO	1
+#define PALMTT_LED_GPIO		3
+#define PALMTT_PENIRQ_GPIO	6
+#define PALMTT_MMC_WP_GPIO	8
+#define PALMTT_HDQ_GPIO		11
 
 static int palmtt_keymap[] = {
 	KEY(0, 0, KEY_ESC),
@@ -120,44 +125,6 @@ static struct platform_device palmtt_flash_device = {
 	},
 	.num_resources	= 1,
 	.resource	= &palmtt_flash_resource,
-};
-
-#define DEFAULT_BITPERSAMPLE 16
-
-static struct omap_mcbsp_reg_cfg mcbsp_regs = {
-	.spcr2		= FREE | FRST | GRST | XRST | XINTM(3),
-	.spcr1		= RINTM(3) | RRST,
-	.rcr2		= RPHASE | RFRLEN2(OMAP_MCBSP_WORD_8) |
-				RWDLEN2(OMAP_MCBSP_WORD_16) | RDATDLY(0),
-	.rcr1		= RFRLEN1(OMAP_MCBSP_WORD_8) |
-				RWDLEN1(OMAP_MCBSP_WORD_16),
-	.xcr2		= XPHASE | XFRLEN2(OMAP_MCBSP_WORD_8) |
-				XWDLEN2(OMAP_MCBSP_WORD_16) | XDATDLY(0) | XFIG,
-	.xcr1		= XFRLEN1(OMAP_MCBSP_WORD_8) |
-				XWDLEN1(OMAP_MCBSP_WORD_16),
-	.srgr1		= FWID(DEFAULT_BITPERSAMPLE - 1),
-	.srgr2		= GSYNC | CLKSP | FSGM |
-				FPER(DEFAULT_BITPERSAMPLE * 2 - 1),
-	.pcr0		= CLKXP | CLKRP,	/* mcbsp: slave */
-};
-
-static struct omap_alsa_codec_config alsa_config = {
-	.name			= "PalmTT AIC23",
-	.mcbsp_regs_alsa	= &mcbsp_regs,
-	.codec_configure_dev	= NULL, /* aic23_configure, */
-	.codec_set_samplerate	= NULL, /* aic23_set_samplerate, */
-	.codec_clock_setup	= NULL, /* aic23_clock_setup, */
-	.codec_clock_on		= NULL, /* aic23_clock_on, */
-	.codec_clock_off	= NULL, /* aic23_clock_off, */
-	.get_default_samplerate	= NULL, /* aic23_get_default_samplerate, */
-};
-
-static struct platform_device palmtt_mcbsp1_device = {
-	.name	= "omap_alsa_mcbsp",
-	.id	= 1,
-	.dev	= {
-		.platform_data	= &alsa_config,
-	},
 };
 
 static struct resource palmtt_kp_resources[] = {
@@ -257,7 +224,6 @@ static struct platform_device palmtt_led_device = {
 
 static struct platform_device *palmtt_devices[] __initdata = {
 	&palmtt_flash_device,
-	&palmtt_mcbsp1_device,
 	&palmtt_kp_device,
 	&palmtt_lcd_device,
 	&palmtt_irda_device,
@@ -313,7 +279,6 @@ static struct omap_uart_config palmtt_uart_config __initdata = {
 };
 
 static struct omap_board_config_kernel palmtt_config[] __initdata = {
-	{ OMAP_TAG_USB,		&palmtt_usb_config	},
 	{ OMAP_TAG_LCD,		&palmtt_lcd_config	},
 	{ OMAP_TAG_UART,	&palmtt_uart_config	},
 };
@@ -338,6 +303,7 @@ static void __init omap_palmtt_init(void)
 
 	spi_register_board_info(palmtt_boardinfo,ARRAY_SIZE(palmtt_boardinfo));
 	omap_serial_init();
+	omap_usb_init(&palmtt_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 

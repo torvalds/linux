@@ -14,9 +14,10 @@
 #include <asm/clocks.h>
 #include <asm/mem_init.h>
 
+#define SDGCTL_WIDTH (1 << 31)	/* SDRAM external data path width */
 #define PLL_CTL_VAL \
 	(((CONFIG_VCO_MULT & 63) << 9) | CLKIN_HALF | \
-	 (PLL_BYPASS << 8) | (ANOMALY_05000265 ? 0x8000 : 0))
+	 (PLL_BYPASS << 8) | (ANOMALY_05000305 ? 0 : 0x8000))
 
 __attribute__((l1_text))
 static void do_sync(void)
@@ -76,7 +77,7 @@ void init_clocks(void)
 	bfin_write_PLL_DIV(CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
 #ifdef EBIU_SDGCTL
 	bfin_write_EBIU_SDRRC(mem_SDRRC);
-	bfin_write_EBIU_SDGCTL(mem_SDGCTL);
+	bfin_write_EBIU_SDGCTL((bfin_read_EBIU_SDGCTL() & SDGCTL_WIDTH) | mem_SDGCTL);
 #else
 	bfin_write_EBIU_RSTCTL(bfin_read_EBIU_RSTCTL() & ~(SRREQ));
 	do_sync();

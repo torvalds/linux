@@ -17,4 +17,3 @@ header-y += traps.h
 header-y += uctx.h
 header-y += utrap.h
 header-y += watchdog.h
-header-y += swab.h

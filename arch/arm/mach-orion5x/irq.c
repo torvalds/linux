@@ -44,7 +44,7 @@ void __init orion5x_init_irq(void)
 	 * User can use set_type() if he wants to use edge types handlers.
 	 */
 	for (i = IRQ_ORION5X_GPIO_START; i < NR_IRQS; i++) {
-		set_irq_chip(i, &orion_gpio_irq_level_chip);
+		set_irq_chip(i, &orion_gpio_irq_chip);
 		set_irq_handler(i, handle_level_irq);
 		irq_desc[i].status |= IRQ_LEVEL;
 		set_irq_flags(i, IRQF_VALID);

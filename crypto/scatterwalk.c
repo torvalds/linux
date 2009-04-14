@@ -54,7 +54,8 @@ static void scatterwalk_pagedone(struct scatter_walk *walk, int out,
 		struct page *page;
 
 		page = sg_page(walk->sg) + ((walk->offset - 1) >> PAGE_SHIFT);
-		flush_dcache_page(page);
+		if (!PageSlab(page))
+			flush_dcache_page(page);
 	}
 
 	if (more) {

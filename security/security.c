@@ -445,6 +445,7 @@ int security_inode_create(struct inode *dir, struct dentry *dentry, int mode)
 		return 0;
 	return security_ops->inode_create(dir, dentry, mode);
 }
+EXPORT_SYMBOL_GPL(security_inode_create);
 
 int security_inode_link(struct dentry *old_dentry, struct inode *dir,
 			 struct dentry *new_dentry)
@@ -475,6 +476,7 @@ int security_inode_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		return 0;
 	return security_ops->inode_mkdir(dir, dentry, mode);
 }
+EXPORT_SYMBOL_GPL(security_inode_mkdir);
 
 int security_inode_rmdir(struct inode *dir, struct dentry *dentry)
 {
@@ -1005,11 +1007,6 @@ int security_socket_listen(struct socket *sock, int backlog)
 int security_socket_accept(struct socket *sock, struct socket *newsock)
 {
 	return security_ops->socket_accept(sock, newsock);
-}
-
-void security_socket_post_accept(struct socket *sock, struct socket *newsock)
-{
-	security_ops->socket_post_accept(sock, newsock);
 }
 
 int security_socket_sendmsg(struct socket *sock, struct msghdr *msg, int size)

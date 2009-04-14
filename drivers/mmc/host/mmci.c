@@ -430,6 +430,8 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				clk = 255;
 			host->cclk = host->mclk / (2 * (clk + 1));
 		}
+		if (host->hw_designer == 0x80)
+			clk |= MCI_FCEN; /* Bug fix in ST IP block */
 		clk |= MCI_CLK_ENABLE;
 	}
 
@@ -440,15 +442,27 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_OFF:
 		break;
 	case MMC_POWER_UP:
-		pwr |= MCI_PWR_UP;
-		break;
+		/* The ST version does not have this, fall through to POWER_ON */
+		if (host->hw_designer != 0x80) {
+			pwr |= MCI_PWR_UP;
+			break;
+		}
 	case MMC_POWER_ON:
 		pwr |= MCI_PWR_ON;
 		break;
 	}
 
-	if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN)
-		pwr |= MCI_ROD;
+	if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN) {
+		if (host->hw_designer != 0x80)
+			pwr |= MCI_ROD;
+		else {
+			/*
+			 * The ST Micro variant use the ROD bit for something
+			 * else and only has OD (Open Drain).
+			 */
+			pwr |= MCI_OD;
+		}
+	}
 
 	writel(clk, host->base + MMCICLOCK);
 
@@ -476,7 +490,7 @@ static void mmci_check_status(unsigned long data)
 	mod_timer(&host->timer, jiffies + HZ);
 }
 
-static int mmci_probe(struct amba_device *dev, void *id)
+static int __devinit mmci_probe(struct amba_device *dev, void *id)
 {
 	struct mmc_platform_data *plat = dev->dev.platform_data;
 	struct mmci_host *host;
@@ -500,6 +514,12 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	}
 
 	host = mmc_priv(mmc);
+	/* Bits 12 thru 19 is the designer */
+	host->hw_designer = (dev->periphid >> 12) & 0xff;
+	/* Bits 20 thru 23 is the revison */
+	host->hw_revision = (dev->periphid >> 20) & 0xf;
+	DBG(host, "designer ID = 0x%02x\n", host->hw_designer);
+	DBG(host, "revision = 0x%01x\n", host->hw_revision);
 	host->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
@@ -613,7 +633,7 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	return ret;
 }
 
-static int mmci_remove(struct amba_device *dev)
+static int __devexit mmci_remove(struct amba_device *dev)
 {
 	struct mmc_host *mmc = amba_get_drvdata(dev);
 
@@ -693,6 +713,15 @@ static struct amba_id mmci_ids[] = {
 		.id	= 0x00041181,
 		.mask	= 0x000fffff,
 	},
+	/* ST Micro variants */
+	{
+		.id     = 0x00180180,
+		.mask   = 0x00ffffff,
+	},
+	{
+		.id     = 0x00280180,
+		.mask   = 0x00ffffff,
+	},
 	{ 0, 0 },
 };
 
@@ -701,7 +730,7 @@ static struct amba_driver mmci_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= mmci_probe,
-	.remove		= mmci_remove,
+	.remove		= __devexit_p(mmci_remove),
 	.suspend	= mmci_suspend,
 	.resume		= mmci_resume,
 	.id_table	= mmci_ids,

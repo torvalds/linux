@@ -59,10 +59,11 @@ static inline int nf_conntrack_confirm(struct sk_buff *skb)
 	struct nf_conn *ct = (struct nf_conn *)skb->nfct;
 	int ret = NF_ACCEPT;
 
-	if (ct) {
+	if (ct && ct != &nf_conntrack_untracked) {
 		if (!nf_ct_is_confirmed(ct) && !nf_ct_is_dying(ct))
 			ret = __nf_conntrack_confirm(skb);
-		nf_ct_deliver_cached_events(ct);
+		if (likely(ret == NF_ACCEPT))
+			nf_ct_deliver_cached_events(ct);
 	}
 	return ret;
 }

@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/smsc911x.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -242,7 +243,7 @@ static void __init mpr2_setup(char **cmdline_p)
 		printk(KERN_WARNING "Ethernet not ready\n");
 }
 
-static struct resource smc911x_resources[] = {
+static struct resource smsc911x_resources[] = {
 	[0] = {
 		.start		= 0xa8000000,
 		.end		= 0xabffffff,
@@ -255,11 +256,21 @@ static struct resource smc911x_resources[] = {
 	},
 };
 
-static struct platform_device smc911x_device = {
-	.name		= "smc911x",
+static struct smsc911x_platform_config smsc911x_config = {
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+	.flags		= SMSC911X_USE_32BIT,
+};
+
+static struct platform_device smsc911x_device = {
+	.name		= "smsc911x",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(smc911x_resources),
-	.resource	= smc911x_resources,
+	.num_resources	= ARRAY_SIZE(smsc911x_resources),
+	.resource	= smsc911x_resources,
+	.dev = {
+		.platform_data = &smsc911x_config,
+	},
 };
 
 static struct resource heartbeat_resources[] = {
@@ -360,7 +371,7 @@ static void __init set_mtd_partitions(void)
 
 static struct platform_device *mpr2_devices[] __initdata = {
 	&heartbeat_device,
-	&smc911x_device,
+	&smsc911x_device,
 	&flash_device,
 };
 

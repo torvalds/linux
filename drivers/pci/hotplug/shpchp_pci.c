@@ -137,7 +137,7 @@ int __ref shpchp_configure_device(struct slot *p_slot)
 							busnr))
 					break;
 			}
-			if (busnr >= end) {
+			if (busnr > end) {
 				ctrl_err(ctrl,
 					 "No free bus for hot-added bridge\n");
 				pci_dev_put(dev);

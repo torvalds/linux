@@ -56,6 +56,7 @@ ALC262
   sony-assamd	Sony ASSAMD
   toshiba-s06	Toshiba S06
   toshiba-rx1	Toshiba RX1
+  tyan		Tyan Thunder n6650W (S2915-E)
   ultra		Samsung Q1 Ultra Vista model
   lenovo-3000	Lenovo 3000 y410
   nec		NEC Versa S9100
@@ -261,6 +262,8 @@ Conexant 5051
 =============
   laptop	Basic Laptop config (default)
   hp		HP Spartan laptop
+  hp-dv6736	HP dv6736
+  lenovo-x200	Lenovo X200 laptop
 
 STAC9200
 ========
@@ -275,8 +278,10 @@ STAC9200
   dell-m25	Dell Inspiron E1505n
   dell-m26	Dell Inspiron 1501
   dell-m27	Dell Inspiron E1705/9400
-  gateway	Gateway laptops with EAPD control
+  gateway-m4	Gateway laptops with EAPD control
+  gateway-m4-2	Gateway laptops with EAPD control
   panasonic	Panasonic CF-74
+  auto		BIOS setup (default)
 
 STAC9205/9254
 =============
@@ -284,6 +289,8 @@ STAC9205/9254
   dell-m42	Dell (unknown)
   dell-m43	Dell Precision
   dell-m44	Dell Inspiron
+  eapd		Keep EAPD on (e.g. Gateway T1616)
+  auto		BIOS setup (default)
 
 STAC9220/9221
 =============
@@ -302,17 +309,24 @@ STAC9220/9221
   macbook-pro	Intel Mac Book Pro 2nd generation (eq. type 3)
   imac-intel	Intel iMac (eq. type 2)
   imac-intel-20	Intel iMac (newer version) (eq. type 3)
+  ecs202	ECS/PC chips
   dell-d81	Dell (unknown)
   dell-d82	Dell (unknown)
   dell-m81	Dell (unknown)
   dell-m82	Dell XPS M1210
+  auto		BIOS setup (default)
 
 STAC9202/9250/9251
 ==================
   ref		Reference board, base config
+  m1		Some Gateway MX series laptops (NX560XL)
+  m1-2		Some Gateway MX series laptops (MX6453)
+  m2		Some Gateway MX series laptops (M255)
   m2-2		Some Gateway MX series laptops
+  m3		Some Gateway MX series laptops
+  m5		Some Gateway MX series laptops (MP6954)
   m6		Some Gateway NX series laptops
-  pa6		Gateway NX860 series
+  auto		BIOS setup (default)
 
 STAC9227/9228/9229/927x
 =======================
@@ -322,6 +336,7 @@ STAC9227/9228/9229/927x
   5stack	D965 5stack + SPDIF
   dell-3stack	Dell Dimension E520
   dell-bios	Fixes with Dell BIOS setup
+  auto		BIOS setup (default)
 
 STAC92HD71B*
 ============
@@ -329,6 +344,10 @@ STAC92HD71B*
   dell-m4-1	Dell desktops
   dell-m4-2	Dell desktops
   dell-m4-3	Dell desktops
+  hp-m4		HP mini 1000
+  hp-dv5	HP dv series
+  hp-hdx	HP HDX series
+  auto		BIOS setup (default)
 
 STAC92HD73*
 ===========
@@ -337,12 +356,17 @@ STAC92HD73*
   dell-m6-amic	Dell desktops/laptops with analog mics
   dell-m6-dmic	Dell desktops/laptops with digital mics
   dell-m6	Dell desktops/laptops with both type of mics
+  dell-eq	Dell desktops/laptops
+  auto		BIOS setup (default)
 
 STAC92HD83*
 ===========
   ref		Reference board
+  mic-ref	Reference board with power managment for ports
+  dell-s14	Dell laptop
+  auto		BIOS setup (default)
 
 STAC9872
 ========
-  vaio		Setup for VAIO FE550G/SZ110
-  vaio-ar Setup for VAIO AR
+  vaio		VAIO laptop without SPDIF
+  auto		BIOS setup (default)

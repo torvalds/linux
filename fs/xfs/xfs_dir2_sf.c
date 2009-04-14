@@ -748,12 +748,8 @@ xfs_dir2_sf_getdents(
 	 * Put . entry unless we're starting past it.
 	 */
 	if (*offset <= dot_offset) {
-		ino = dp->i_ino;
-#if XFS_BIG_INUMS
-		ino += mp->m_inoadd;
-#endif
-		if (filldir(dirent, ".", 1, dot_offset, ino, DT_DIR)) {
-			*offset = dot_offset;
+		if (filldir(dirent, ".", 1, dot_offset & 0x7fffffff, dp->i_ino, DT_DIR)) {
+			*offset = dot_offset & 0x7fffffff;
 			return 0;
 		}
 	}
@@ -763,11 +759,8 @@ xfs_dir2_sf_getdents(
 	 */
 	if (*offset <= dotdot_offset) {
 		ino = xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent);
-#if XFS_BIG_INUMS
-		ino += mp->m_inoadd;
-#endif
-		if (filldir(dirent, "..", 2, dotdot_offset, ino, DT_DIR)) {
-			*offset = dotdot_offset;
+		if (filldir(dirent, "..", 2, dotdot_offset & 0x7fffffff, ino, DT_DIR)) {
+			*offset = dotdot_offset & 0x7fffffff;
 			return 0;
 		}
 	}
@@ -786,19 +779,16 @@ xfs_dir2_sf_getdents(
 		}
 
 		ino = xfs_dir2_sf_get_inumber(sfp, xfs_dir2_sf_inumberp(sfep));
-#if XFS_BIG_INUMS
-		ino += mp->m_inoadd;
-#endif
-
 		if (filldir(dirent, sfep->name, sfep->namelen,
-					    off, ino, DT_UNKNOWN)) {
-			*offset = off;
+			    off & 0x7fffffff, ino, DT_UNKNOWN)) {
+			*offset = off & 0x7fffffff;
 			return 0;
 		}
 		sfep = xfs_dir2_sf_nextentry(sfp, sfep);
 	}
 
-	*offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0);
+	*offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0) &
+			0x7fffffff;
 	return 0;
 }
 

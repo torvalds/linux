@@ -240,7 +240,7 @@ static void parse_ppp_data(struct seq_file *m)
 	if (rc)
 		return;
 
-	seq_printf(m, "partition_entitled_capacity=%ld\n",
+	seq_printf(m, "partition_entitled_capacity=%lld\n",
 	           ppp_data.entitlement);
 	seq_printf(m, "group=%d\n", ppp_data.group_num);
 	seq_printf(m, "system_active_processors=%d\n",
@@ -265,7 +265,7 @@ static void parse_ppp_data(struct seq_file *m)
 		   ppp_data.unallocated_weight);
 	seq_printf(m, "capacity_weight=%d\n", ppp_data.weight);
 	seq_printf(m, "capped=%d\n", ppp_data.capped);
-	seq_printf(m, "unallocated_capacity=%ld\n",
+	seq_printf(m, "unallocated_capacity=%lld\n",
 		   ppp_data.unallocated_entitlement);
 }
 
@@ -434,6 +434,21 @@ static void pseries_cmo_data(struct seq_file *m)
 	seq_printf(m, "cmo_page_size=%lu\n", cmo_get_page_size());
 }
 
+static void splpar_dispatch_data(struct seq_file *m)
+{
+	int cpu;
+	unsigned long dispatches = 0;
+	unsigned long dispatch_dispersions = 0;
+
+	for_each_possible_cpu(cpu) {
+		dispatches += lppaca[cpu].yield_count;
+		dispatch_dispersions += lppaca[cpu].dispersion_count;
+	}
+
+	seq_printf(m, "dispatches=%lu\n", dispatches);
+	seq_printf(m, "dispatch_dispersions=%lu\n", dispatch_dispersions);
+}
+
 static int pseries_lparcfg_data(struct seq_file *m, void *v)
 {
 	int partition_potential_processors;
@@ -460,6 +475,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 		parse_ppp_data(m);
 		parse_mpp_data(m);
 		pseries_cmo_data(m);
+		splpar_dispatch_data(m);
 
 		seq_printf(m, "purr=%ld\n", get_purr());
 	} else {		/* non SPLPAR case */
@@ -509,10 +525,10 @@ static ssize_t update_ppp(u64 *entitlement, u8 *weight)
 	} else
 		return -EINVAL;
 
-	pr_debug("%s: current_entitled = %lu, current_weight = %u\n",
+	pr_debug("%s: current_entitled = %llu, current_weight = %u\n",
 		 __func__, ppp_data.entitlement, ppp_data.weight);
 
-	pr_debug("%s: new_entitled = %lu, new_weight = %u\n",
+	pr_debug("%s: new_entitled = %llu, new_weight = %u\n",
 		 __func__, new_entitled, new_weight);
 
 	retval = plpar_hcall_norets(H_SET_PPP, new_entitled, new_weight);
@@ -558,7 +574,7 @@ static ssize_t update_mpp(u64 *entitlement, u8 *weight)
 	pr_debug("%s: current_entitled = %lu, current_weight = %u\n",
 	         __func__, mpp_data.entitled_mem, mpp_data.mem_weight);
 
-	pr_debug("%s: new_entitled = %lu, new_weight = %u\n",
+	pr_debug("%s: new_entitled = %llu, new_weight = %u\n",
 		 __func__, new_entitled, new_weight);
 
 	rc = plpar_hcall_norets(H_SET_MPP, new_entitled, new_weight);

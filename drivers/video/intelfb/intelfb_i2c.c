@@ -111,7 +111,6 @@ static int intelfb_setup_i2c_bus(struct intelfb_info *dinfo,
 		 "intelfb %s", name);
 	chan->adapter.class		= class;
 	chan->adapter.owner		= THIS_MODULE;
-	chan->adapter.id		= I2C_HW_B_INTELFB;
 	chan->adapter.algo_data		= &chan->algo;
 	chan->adapter.dev.parent	= &chan->dinfo->pdev->dev;
 	chan->algo.setsda		= intelfb_gpio_setsda;

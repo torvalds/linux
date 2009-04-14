@@ -90,44 +90,44 @@ MODULE_PARM_DESC(workaround_interval,
 
 
 /* various RNDIS OID defs */
-#define OID_GEN_LINK_SPEED			ccpu2(0x00010107)
-#define OID_GEN_RNDIS_CONFIG_PARAMETER		ccpu2(0x0001021b)
+#define OID_GEN_LINK_SPEED			cpu_to_le32(0x00010107)
+#define OID_GEN_RNDIS_CONFIG_PARAMETER		cpu_to_le32(0x0001021b)
 
-#define OID_GEN_XMIT_OK				ccpu2(0x00020101)
-#define OID_GEN_RCV_OK				ccpu2(0x00020102)
-#define OID_GEN_XMIT_ERROR			ccpu2(0x00020103)
-#define OID_GEN_RCV_ERROR			ccpu2(0x00020104)
-#define OID_GEN_RCV_NO_BUFFER			ccpu2(0x00020105)
+#define OID_GEN_XMIT_OK				cpu_to_le32(0x00020101)
+#define OID_GEN_RCV_OK				cpu_to_le32(0x00020102)
+#define OID_GEN_XMIT_ERROR			cpu_to_le32(0x00020103)
+#define OID_GEN_RCV_ERROR			cpu_to_le32(0x00020104)
+#define OID_GEN_RCV_NO_BUFFER			cpu_to_le32(0x00020105)
 
-#define OID_802_3_PERMANENT_ADDRESS		ccpu2(0x01010101)
-#define OID_802_3_CURRENT_ADDRESS		ccpu2(0x01010102)
-#define OID_802_3_MULTICAST_LIST		ccpu2(0x01010103)
-#define OID_802_3_MAXIMUM_LIST_SIZE		ccpu2(0x01010104)
+#define OID_802_3_PERMANENT_ADDRESS		cpu_to_le32(0x01010101)
+#define OID_802_3_CURRENT_ADDRESS		cpu_to_le32(0x01010102)
+#define OID_802_3_MULTICAST_LIST		cpu_to_le32(0x01010103)
+#define OID_802_3_MAXIMUM_LIST_SIZE		cpu_to_le32(0x01010104)
 
-#define OID_802_11_BSSID			ccpu2(0x0d010101)
-#define OID_802_11_SSID				ccpu2(0x0d010102)
-#define OID_802_11_INFRASTRUCTURE_MODE		ccpu2(0x0d010108)
-#define OID_802_11_ADD_WEP			ccpu2(0x0d010113)
-#define OID_802_11_REMOVE_WEP			ccpu2(0x0d010114)
-#define OID_802_11_DISASSOCIATE			ccpu2(0x0d010115)
-#define OID_802_11_AUTHENTICATION_MODE		ccpu2(0x0d010118)
-#define OID_802_11_PRIVACY_FILTER		ccpu2(0x0d010119)
-#define OID_802_11_BSSID_LIST_SCAN		ccpu2(0x0d01011a)
-#define OID_802_11_ENCRYPTION_STATUS		ccpu2(0x0d01011b)
-#define OID_802_11_ADD_KEY			ccpu2(0x0d01011d)
-#define OID_802_11_REMOVE_KEY			ccpu2(0x0d01011e)
-#define OID_802_11_ASSOCIATION_INFORMATION	ccpu2(0x0d01011f)
-#define OID_802_11_PMKID			ccpu2(0x0d010123)
-#define OID_802_11_NETWORK_TYPES_SUPPORTED	ccpu2(0x0d010203)
-#define OID_802_11_NETWORK_TYPE_IN_USE		ccpu2(0x0d010204)
-#define OID_802_11_TX_POWER_LEVEL		ccpu2(0x0d010205)
-#define OID_802_11_RSSI				ccpu2(0x0d010206)
-#define OID_802_11_RSSI_TRIGGER			ccpu2(0x0d010207)
-#define OID_802_11_FRAGMENTATION_THRESHOLD	ccpu2(0x0d010209)
-#define OID_802_11_RTS_THRESHOLD		ccpu2(0x0d01020a)
-#define OID_802_11_SUPPORTED_RATES		ccpu2(0x0d01020e)
-#define OID_802_11_CONFIGURATION		ccpu2(0x0d010211)
-#define OID_802_11_BSSID_LIST			ccpu2(0x0d010217)
+#define OID_802_11_BSSID			cpu_to_le32(0x0d010101)
+#define OID_802_11_SSID				cpu_to_le32(0x0d010102)
+#define OID_802_11_INFRASTRUCTURE_MODE		cpu_to_le32(0x0d010108)
+#define OID_802_11_ADD_WEP			cpu_to_le32(0x0d010113)
+#define OID_802_11_REMOVE_WEP			cpu_to_le32(0x0d010114)
+#define OID_802_11_DISASSOCIATE			cpu_to_le32(0x0d010115)
+#define OID_802_11_AUTHENTICATION_MODE		cpu_to_le32(0x0d010118)
+#define OID_802_11_PRIVACY_FILTER		cpu_to_le32(0x0d010119)
+#define OID_802_11_BSSID_LIST_SCAN		cpu_to_le32(0x0d01011a)
+#define OID_802_11_ENCRYPTION_STATUS		cpu_to_le32(0x0d01011b)
+#define OID_802_11_ADD_KEY			cpu_to_le32(0x0d01011d)
+#define OID_802_11_REMOVE_KEY			cpu_to_le32(0x0d01011e)
+#define OID_802_11_ASSOCIATION_INFORMATION	cpu_to_le32(0x0d01011f)
+#define OID_802_11_PMKID			cpu_to_le32(0x0d010123)
+#define OID_802_11_NETWORK_TYPES_SUPPORTED	cpu_to_le32(0x0d010203)
+#define OID_802_11_NETWORK_TYPE_IN_USE		cpu_to_le32(0x0d010204)
+#define OID_802_11_TX_POWER_LEVEL		cpu_to_le32(0x0d010205)
+#define OID_802_11_RSSI				cpu_to_le32(0x0d010206)
+#define OID_802_11_RSSI_TRIGGER			cpu_to_le32(0x0d010207)
+#define OID_802_11_FRAGMENTATION_THRESHOLD	cpu_to_le32(0x0d010209)
+#define OID_802_11_RTS_THRESHOLD		cpu_to_le32(0x0d01020a)
+#define OID_802_11_SUPPORTED_RATES		cpu_to_le32(0x0d01020e)
+#define OID_802_11_CONFIGURATION		cpu_to_le32(0x0d010211)
+#define OID_802_11_BSSID_LIST			cpu_to_le32(0x0d010217)
 
 
 /* Typical noise/maximum signal level values taken from ndiswrapper iw_ndis.h */
@@ -144,8 +144,8 @@ MODULE_PARM_DESC(workaround_interval,
 
 
 /* codes for "status" field of completion messages */
-#define RNDIS_STATUS_ADAPTER_NOT_READY		ccpu2(0xc0010011)
-#define RNDIS_STATUS_ADAPTER_NOT_OPEN		ccpu2(0xc0010012)
+#define RNDIS_STATUS_ADAPTER_NOT_READY		cpu_to_le32(0xc0010011)
+#define RNDIS_STATUS_ADAPTER_NOT_OPEN		cpu_to_le32(0xc0010012)
 
 
 /* NDIS data structures. Taken from wpa_supplicant driver_ndis.c
@@ -369,9 +369,6 @@ struct rndis_wext_private {
 };
 
 
-static const int freq_chan[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
-				2447, 2452, 2457, 2462, 2467, 2472, 2484 };
-
 static const int rates_80211g[8] = { 6, 9, 12, 18, 24, 36, 48, 54 };
 
 static const int bcm4320_power_output[4] = { 25, 50, 75, 100 };
@@ -445,7 +442,7 @@ static int rndis_query_oid(struct usbnet *dev, __le32 oid, void *data, int *len)
 
 	memset(u.get, 0, sizeof *u.get);
 	u.get->msg_type = RNDIS_MSG_QUERY;
-	u.get->msg_len = ccpu2(sizeof *u.get);
+	u.get->msg_len = cpu_to_le32(sizeof *u.get);
 	u.get->oid = oid;
 
 	ret = rndis_command(dev, u.header, buflen);
@@ -494,8 +491,8 @@ static int rndis_set_oid(struct usbnet *dev, __le32 oid, void *data, int len)
 	u.set->msg_len = cpu_to_le32(sizeof(*u.set) + len);
 	u.set->oid = oid;
 	u.set->len = cpu_to_le32(len);
-	u.set->offset = ccpu2(sizeof(*u.set) - 8);
-	u.set->handle = ccpu2(0);
+	u.set->offset = cpu_to_le32(sizeof(*u.set) - 8);
+	u.set->handle = cpu_to_le32(0);
 	memcpy(u.buf + sizeof(*u.set), data, len);
 
 	ret = rndis_command(dev, u.header, buflen);
@@ -640,8 +637,8 @@ static void dsconfig_to_freq(unsigned int dsconfig, struct iw_freq *freq)
 static int freq_to_dsconfig(struct iw_freq *freq, unsigned int *dsconfig)
 {
 	if (freq->m < 1000 && freq->e == 0) {
-		if (freq->m >= 1 && freq->m <= ARRAY_SIZE(freq_chan))
-			*dsconfig = freq_chan[freq->m - 1] * 1000;
+		if (freq->m >= 1 && freq->m <= 14)
+			*dsconfig = ieee80211_dsss_chan_to_freq(freq->m) * 1000;
 		else
 			return -1;
 	} else {
@@ -1178,11 +1175,11 @@ static int rndis_iw_get_range(struct net_device *dev,
 		range->throughput = 11 * 1000 * 1000 / 2;
 	}
 
-	range->num_channels = ARRAY_SIZE(freq_chan);
+	range->num_channels = 14;
 
-	for (i = 0; i < ARRAY_SIZE(freq_chan) && i < IW_MAX_FREQUENCIES; i++) {
+	for (i = 0; (i < 14) && (i < IW_MAX_FREQUENCIES); i++) {
 		range->freq[i].i = i + 1;
-		range->freq[i].m = freq_chan[i] * 100000;
+		range->freq[i].m = ieee80211_dsss_chan_to_freq(i + 1) * 100000;
 		range->freq[i].e = 1;
 	}
 	range->num_frequency = i;
@@ -1633,7 +1630,7 @@ static int rndis_iw_set_scan(struct net_device *dev,
 	devdbg(usbdev, "SIOCSIWSCAN");
 
 	if (wrqu->data.flags == 0) {
-		tmp = ccpu2(1);
+		tmp = cpu_to_le32(1);
 		ret = rndis_set_oid(usbdev, OID_802_11_BSSID_LIST_SCAN, &tmp,
 								sizeof(tmp));
 		evt.data.flags = 0;
@@ -1649,9 +1646,7 @@ static char *rndis_translate_scan(struct net_device *dev,
 				  char *end_buf,
 				  struct ndis_80211_bssid_ex *bssid)
 {
-#ifdef DEBUG
 	struct usbnet *usbdev = netdev_priv(dev);
-#endif
 	u8 *ie;
 	char *current_val;
 	int bssid_len, ie_len, i;
@@ -2433,7 +2428,7 @@ static void rndis_update_wireless_stats(struct work_struct *work)
 		/* Send scan OID. Use of both OIDs is required to get device
 		 * working.
 		 */
-		tmp = ccpu2(1);
+		tmp = cpu_to_le32(1);
 		rndis_set_oid(usbdev, OID_802_11_BSSID_LIST_SCAN, &tmp,
 								sizeof(tmp));
 
@@ -2529,6 +2524,17 @@ static int bcm4320_early_init(struct usbnet *usbdev)
 	return 0;
 }
 
+/* same as rndis_netdev_ops but with local multicast handler */
+static const struct net_device_ops rndis_wext_netdev_ops = {
+	.ndo_open		= usbnet_open,
+	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list	= rndis_wext_set_multicast_list,
+};
+
 
 static int rndis_wext_bind(struct usbnet *usbdev, struct usb_interface *intf)
 {
@@ -2564,7 +2570,8 @@ static int rndis_wext_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	 * rndis_host wants to avoid all OID as much as possible
 	 * so do promisc/multicast handling in rndis_wext.
 	 */
-	usbdev->net->set_multicast_list = rndis_wext_set_multicast_list;
+	usbdev->net->netdev_ops = &rndis_wext_netdev_ops;
+
 	tmp = RNDIS_PACKET_TYPE_DIRECTED | RNDIS_PACKET_TYPE_BROADCAST;
 	retval = rndis_set_oid(usbdev, OID_GEN_CURRENT_PACKET_FILTER, &tmp,
 								sizeof(tmp));

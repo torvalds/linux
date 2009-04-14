@@ -1088,8 +1088,8 @@ sunos_execv:
 	 ld	[%sp + STACKFRAME_SZ + PT_I0], %o0
 
 	.align	4
-	.globl	sys_pipe
-sys_pipe:
+	.globl	sys_sparc_pipe
+sys_sparc_pipe:
 	mov	%o7, %l5
 	add	%sp, STACKFRAME_SZ, %o0		! pt_regs *regs arg
 	call	sparc_pipe

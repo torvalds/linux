@@ -542,7 +542,7 @@ int elantech_detect(struct psmouse *psmouse, int set_properties)
 	    ps2_command(ps2dev,  NULL, PSMOUSE_CMD_SETSCALE11) ||
 	    ps2_command(ps2dev,  NULL, PSMOUSE_CMD_SETSCALE11) ||
 	    ps2_command(ps2dev, param, PSMOUSE_CMD_GETINFO)) {
-		pr_err("elantech.c: sending Elantech magic knock failed.\n");
+		pr_debug("elantech.c: sending Elantech magic knock failed.\n");
 		return -1;
 	}
 
@@ -551,8 +551,27 @@ int elantech_detect(struct psmouse *psmouse, int set_properties)
 	 * set of magic numbers
 	 */
 	if (param[0] != 0x3c || param[1] != 0x03 || param[2] != 0xc8) {
-		pr_info("elantech.c: unexpected magic knock result 0x%02x, 0x%02x, 0x%02x.\n",
-			param[0], param[1], param[2]);
+		pr_debug("elantech.c: "
+			 "unexpected magic knock result 0x%02x, 0x%02x, 0x%02x.\n",
+			 param[0], param[1], param[2]);
+		return -1;
+	}
+
+	/*
+	 * Query touchpad's firmware version and see if it reports known
+	 * value to avoid mis-detection. Logitech mice are known to respond
+	 * to Elantech magic knock and there might be more.
+	 */
+	if (synaptics_send_cmd(psmouse, ETP_FW_VERSION_QUERY, param)) {
+		pr_debug("elantech.c: failed to query firmware version.\n");
+		return -1;
+	}
+
+	pr_debug("elantech.c: Elantech version query result 0x%02x, 0x%02x, 0x%02x.\n",
+		 param[0], param[1], param[2]);
+
+	if (param[0] == 0 || param[1] != 0) {
+		pr_debug("elantech.c: Probably not a real Elantech touchpad. Aborting.\n");
 		return -1;
 	}
 
@@ -600,8 +619,7 @@ int elantech_init(struct psmouse *psmouse)
 	int i, error;
 	unsigned char param[3];
 
-	etd = kzalloc(sizeof(struct elantech_data), GFP_KERNEL);
-	psmouse->private = etd;
+	psmouse->private = etd = kzalloc(sizeof(struct elantech_data), GFP_KERNEL);
 	if (!etd)
 		return -1;
 
@@ -610,14 +628,12 @@ int elantech_init(struct psmouse *psmouse)
 		etd->parity[i] = etd->parity[i & (i - 1)] ^ 1;
 
 	/*
-	 * Find out what version hardware this is
+	 * Do the version query again so we can store the result
 	 */
 	if (synaptics_send_cmd(psmouse, ETP_FW_VERSION_QUERY, param)) {
 		pr_err("elantech.c: failed to query firmware version.\n");
 		goto init_fail;
 	}
-	pr_info("elantech.c: Elantech version query result 0x%02x, 0x%02x, 0x%02x.\n",
-		param[0], param[1], param[2]);
 	etd->fw_version_maj = param[0];
 	etd->fw_version_min = param[2];
 

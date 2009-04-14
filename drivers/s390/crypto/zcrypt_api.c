@@ -128,8 +128,7 @@ static void __zcrypt_increase_preference(struct zcrypt_device *zdev)
 	if (l == zdev->list.prev)
 		return;
 	/* Move zdev behind l */
-	list_del(&zdev->list);
-	list_add(&zdev->list, l);
+	list_move(&zdev->list, l);
 }
 
 /**
@@ -157,8 +156,7 @@ static void __zcrypt_decrease_preference(struct zcrypt_device *zdev)
 	if (l == zdev->list.next)
 		return;
 	/* Move zdev before l */
-	list_del(&zdev->list);
-	list_add_tail(&zdev->list, l);
+	list_move_tail(&zdev->list, l);
 }
 
 static void zcrypt_device_release(struct kref *kref)

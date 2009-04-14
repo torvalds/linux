@@ -732,7 +732,7 @@ static u64 pm_signal_group_to_ps3_lv1_signal_group(u64 group)
 	case 8:
 		return pm_translate_signal_group_number_on_island8(subgroup);
 	default:
-		dev_dbg(sbd_core(), "%s:%u: island not found: %lu\n", __func__,
+		dev_dbg(sbd_core(), "%s:%u: island not found: %llu\n", __func__,
 			__LINE__, group);
 		BUG();
 		break;
@@ -765,7 +765,7 @@ static int __ps3_set_signal(u64 lv1_signal_group, u64 bus_select,
 				 signal_select, attr1, attr2, attr3);
 	if (ret)
 		dev_err(sbd_core(),
-			"%s:%u: error:%d 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
+			"%s:%u: error:%d 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx\n",
 			__func__, __LINE__, ret, lv1_signal_group, bus_select,
 			signal_select, attr1, attr2, attr3);
 
@@ -908,7 +908,7 @@ void ps3_disable_pm(u32 cpu)
 
 	lpm_priv->tb_count = tmp;
 
-	dev_dbg(sbd_core(), "%s:%u: tb_count %lu (%lxh)\n", __func__, __LINE__,
+	dev_dbg(sbd_core(), "%s:%u: tb_count %llu (%llxh)\n", __func__, __LINE__,
 		lpm_priv->tb_count, lpm_priv->tb_count);
 }
 EXPORT_SYMBOL_GPL(ps3_disable_pm);
@@ -938,7 +938,7 @@ int ps3_lpm_copy_tb(unsigned long offset, void *buf, unsigned long count,
 	if (offset >= lpm_priv->tb_count)
 		return 0;
 
-	count = min(count, lpm_priv->tb_count - offset);
+	count = min_t(u64, count, lpm_priv->tb_count - offset);
 
 	while (*bytes_copied < count) {
 		const unsigned long request = count - *bytes_copied;
@@ -993,7 +993,7 @@ int ps3_lpm_copy_tb_to_user(unsigned long offset, void __user *buf,
 	if (offset >= lpm_priv->tb_count)
 		return 0;
 
-	count = min(count, lpm_priv->tb_count - offset);
+	count = min_t(u64, count, lpm_priv->tb_count - offset);
 
 	while (*bytes_copied < count) {
 		const unsigned long request = count - *bytes_copied;
@@ -1013,7 +1013,7 @@ int ps3_lpm_copy_tb_to_user(unsigned long offset, void __user *buf,
 		result = copy_to_user(buf, lpm_priv->tb_cache, tmp);
 
 		if (result) {
-			dev_dbg(sbd_core(), "%s:%u: 0x%lx bytes at 0x%p\n",
+			dev_dbg(sbd_core(), "%s:%u: 0x%llx bytes at 0x%p\n",
 				__func__, __LINE__, tmp, buf);
 			dev_err(sbd_core(), "%s:%u: copy_to_user failed: %d\n",
 				__func__, __LINE__, result);
@@ -1148,8 +1148,8 @@ int ps3_lpm_open(enum ps3_lpm_tb_type tb_type, void *tb_cache,
 	lpm_priv->shadow.group_control = PS3_LPM_SHADOW_REG_INIT;
 	lpm_priv->shadow.debug_bus_control = PS3_LPM_SHADOW_REG_INIT;
 
-	dev_dbg(sbd_core(), "%s:%u: lpm_id 0x%lx, outlet_id 0x%lx, "
-		"tb_size 0x%lx\n", __func__, __LINE__, lpm_priv->lpm_id,
+	dev_dbg(sbd_core(), "%s:%u: lpm_id 0x%llx, outlet_id 0x%llx, "
+		"tb_size 0x%llx\n", __func__, __LINE__, lpm_priv->lpm_id,
 		lpm_priv->outlet_id, tb_size);
 
 	return 0;

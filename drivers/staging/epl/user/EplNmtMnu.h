@@ -68,34 +68,20 @@
 
 ****************************************************************************/
 
-#include "EplNmtu.h"
-
 #ifndef _EPLNMTMNU_H_
 #define _EPLNMTMNU_H_
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
+#include "EplNmtu.h"
 
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
+typedef tEplKernel(* tEplNmtMnuCbNodeEvent) (unsigned int uiNodeId_p,
+					     tEplNmtNodeEvent NodeEvent_p,
+					     tEplNmtState NmtState_p,
+					     u16 wErrorCode_p,
+					     BOOL fMandatory_p);
 
-typedef tEplKernel(PUBLIC * tEplNmtMnuCbNodeEvent) (unsigned int uiNodeId_p,
-						    tEplNmtNodeEvent
-						    NodeEvent_p,
-						    tEplNmtState NmtState_p,
-						    WORD wErrorCode_p,
-						    BOOL fMandatory_p);
-
-typedef tEplKernel(PUBLIC *
-		   tEplNmtMnuCbBootEvent) (tEplNmtBootEvent BootEvent_p,
-					   tEplNmtState NmtState_p,
-					   WORD wErrorCode_p);
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
+typedef tEplKernel(* tEplNmtMnuCbBootEvent) (tEplNmtBootEvent BootEvent_p,
+					     tEplNmtState NmtState_p,
+					     u16 wErrorCode_p);
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
 
@@ -107,7 +93,7 @@ tEplKernel EplNmtMnuAddInstance(tEplNmtMnuCbNodeEvent pfnCbNodeEvent_p,
 
 tEplKernel EplNmtMnuDelInstance(void);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtMnuProcessEvent(tEplEvent * pEvent_p);
+tEplKernel EplNmtMnuProcessEvent(tEplEvent *pEvent_p);
 
 tEplKernel EplNmtMnuSendNmtCommand(unsigned int uiNodeId_p,
 				   tEplNmtCommand NmtCommand_p);
@@ -115,16 +101,16 @@ tEplKernel EplNmtMnuSendNmtCommand(unsigned int uiNodeId_p,
 tEplKernel EplNmtMnuTriggerStateChange(unsigned int uiNodeId_p,
 				       tEplNmtNodeCommand NodeCommand_p);
 
-tEplKernel PUBLIC EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange
+tEplKernel EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange
 					    NmtStateChange_p);
 
-tEplKernel PUBLIC EplNmtMnuCbCheckEvent(tEplNmtEvent NmtEvent_p);
+tEplKernel EplNmtMnuCbCheckEvent(tEplNmtEvent NmtEvent_p);
 
-tEplKernel PUBLIC EplNmtMnuGetDiagnosticInfo(unsigned int
+tEplKernel EplNmtMnuGetDiagnosticInfo(unsigned int
 					     *puiMandatorySlaveCount_p,
 					     unsigned int
 					     *puiSignalSlaveCount_p,
-					     WORD * pwFlags_p);
+					     u16 * pwFlags_p);
 
 #endif
 

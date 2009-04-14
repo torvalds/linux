@@ -1,5 +1,5 @@
 /*
- * C-Media CMI8788 driver for C-Media's reference design and for the X-Meridian
+ * C-Media CMI8788 driver for C-Media's reference design and similar models
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  *
@@ -26,6 +26,7 @@
  *
  * GPIO 0 -> DFS0 of AK5385
  * GPIO 1 -> DFS1 of AK5385
+ * GPIO 8 -> enable headphone amplifier on HT-Omega models
  */
 
 #include <linux/delay.h>
@@ -61,7 +62,8 @@ MODULE_PARM_DESC(enable, "enable card");
 enum {
 	MODEL_CMEDIA_REF,	/* C-Media's reference design */
 	MODEL_MERIDIAN,		/* AuzenTech X-Meridian */
-	MODEL_HALO,		/* HT-Omega Claro halo */
+	MODEL_CLARO,		/* HT-Omega Claro */
+	MODEL_CLARO_HALO,	/* HT-Omega Claro halo */
 };
 
 static struct pci_device_id oxygen_ids[] __devinitdata = {
@@ -74,8 +76,8 @@ static struct pci_device_id oxygen_ids[] __devinitdata = {
 	{ OXYGEN_PCI_SUBID(0x147a, 0xa017), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x415a, 0x5431), .driver_data = MODEL_MERIDIAN },
-	{ OXYGEN_PCI_SUBID(0x7284, 0x9761), .driver_data = MODEL_CMEDIA_REF },
-	{ OXYGEN_PCI_SUBID(0x7284, 0x9781), .driver_data = MODEL_HALO },
+	{ OXYGEN_PCI_SUBID(0x7284, 0x9761), .driver_data = MODEL_CLARO },
+	{ OXYGEN_PCI_SUBID(0x7284, 0x9781), .driver_data = MODEL_CLARO_HALO },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, oxygen_ids);
@@ -85,6 +87,8 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 #define GPIO_AK5385_DFS_NORMAL	0x0000
 #define GPIO_AK5385_DFS_DOUBLE	0x0001
 #define GPIO_AK5385_DFS_QUAD	0x0002
+
+#define GPIO_CLARO_HP		0x0100
 
 struct generic_data {
 	u8 ak4396_ctl2;
@@ -196,8 +200,44 @@ static void meridian_init(struct oxygen *chip)
 	ak5385_init(chip);
 }
 
+static void claro_enable_hp(struct oxygen *chip)
+{
+	msleep(300);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_CLARO_HP);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, GPIO_CLARO_HP);
+}
+
+static void claro_init(struct oxygen *chip)
+{
+	ak4396_init(chip);
+	wm8785_init(chip);
+	claro_enable_hp(chip);
+}
+
+static void claro_halo_init(struct oxygen *chip)
+{
+	ak4396_init(chip);
+	ak5385_init(chip);
+	claro_enable_hp(chip);
+}
+
 static void generic_cleanup(struct oxygen *chip)
 {
+}
+
+static void claro_disable_hp(struct oxygen *chip)
+{
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_CLARO_HP);
+}
+
+static void claro_cleanup(struct oxygen *chip)
+{
+	claro_disable_hp(chip);
+}
+
+static void claro_suspend(struct oxygen *chip)
+{
+	claro_disable_hp(chip);
 }
 
 static void generic_resume(struct oxygen *chip)
@@ -209,6 +249,12 @@ static void generic_resume(struct oxygen *chip)
 static void meridian_resume(struct oxygen *chip)
 {
 	ak4396_registers_init(chip);
+}
+
+static void claro_resume(struct oxygen *chip)
+{
+	ak4396_registers_init(chip);
+	claro_enable_hp(chip);
 }
 
 static void set_ak4396_params(struct oxygen *chip,
@@ -293,30 +339,10 @@ static void set_ak5385_params(struct oxygen *chip,
 
 static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
 
-static int generic_probe(struct oxygen *chip, unsigned long driver_data)
-{
-	if (driver_data == MODEL_MERIDIAN) {
-		chip->model.init = meridian_init;
-		chip->model.resume = meridian_resume;
-		chip->model.set_adc_params = set_ak5385_params;
-		chip->model.device_config = PLAYBACK_0_TO_I2S |
-					    PLAYBACK_1_TO_SPDIF |
-					    CAPTURE_0_FROM_I2S_2 |
-					    CAPTURE_1_FROM_SPDIF;
-	}
-	if (driver_data == MODEL_MERIDIAN || driver_data == MODEL_HALO) {
-		chip->model.misc_flags = OXYGEN_MISC_MIDI;
-		chip->model.device_config |= MIDI_OUTPUT | MIDI_INPUT;
-	}
-	return 0;
-}
-
 static const struct oxygen_model model_generic = {
 	.shortname = "C-Media CMI8788",
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8788",
-	.owner = THIS_MODULE,
-	.probe = generic_probe,
 	.init = generic_init,
 	.cleanup = generic_cleanup,
 	.resume = generic_resume,
@@ -341,6 +367,42 @@ static const struct oxygen_model model_generic = {
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
+static int __devinit get_oxygen_model(struct oxygen *chip,
+				      const struct pci_device_id *id)
+{
+	chip->model = model_generic;
+	switch (id->driver_data) {
+	case MODEL_MERIDIAN:
+		chip->model.init = meridian_init;
+		chip->model.resume = meridian_resume;
+		chip->model.set_adc_params = set_ak5385_params;
+		chip->model.device_config = PLAYBACK_0_TO_I2S |
+					    PLAYBACK_1_TO_SPDIF |
+					    CAPTURE_0_FROM_I2S_2 |
+					    CAPTURE_1_FROM_SPDIF;
+		break;
+	case MODEL_CLARO:
+		chip->model.init = claro_init;
+		chip->model.cleanup = claro_cleanup;
+		chip->model.suspend = claro_suspend;
+		chip->model.resume = claro_resume;
+		break;
+	case MODEL_CLARO_HALO:
+		chip->model.init = claro_halo_init;
+		chip->model.cleanup = claro_cleanup;
+		chip->model.suspend = claro_suspend;
+		chip->model.resume = claro_resume;
+		chip->model.set_adc_params = set_ak5385_params;
+		break;
+	}
+	if (id->driver_data == MODEL_MERIDIAN ||
+	    id->driver_data == MODEL_CLARO_HALO) {
+		chip->model.misc_flags = OXYGEN_MISC_MIDI;
+		chip->model.device_config |= MIDI_OUTPUT | MIDI_INPUT;
+	}
+	return 0;
+}
+
 static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 					  const struct pci_device_id *pci_id)
 {
@@ -353,8 +415,8 @@ static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	err = oxygen_pci_probe(pci, index[dev], id[dev],
-			       &model_generic, pci_id->driver_data);
+	err = oxygen_pci_probe(pci, index[dev], id[dev], THIS_MODULE,
+			       oxygen_ids, get_oxygen_model);
 	if (err >= 0)
 		++dev;
 	return err;

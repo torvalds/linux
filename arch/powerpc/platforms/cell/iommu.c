@@ -74,7 +74,7 @@
 #define IOC_IO_ExcpStat_V		0x8000000000000000ul
 #define IOC_IO_ExcpStat_SPF_Mask	0x6000000000000000ul
 #define IOC_IO_ExcpStat_SPF_S		0x6000000000000000ul
-#define IOC_IO_ExcpStat_SPF_P		0x4000000000000000ul
+#define IOC_IO_ExcpStat_SPF_P		0x2000000000000000ul
 #define IOC_IO_ExcpStat_ADDR_Mask	0x00000007fffff000ul
 #define IOC_IO_ExcpStat_RW_Mask		0x0000000000000800ul
 #define IOC_IO_ExcpStat_IOID_Mask	0x00000000000007fful
@@ -247,17 +247,18 @@ static void tce_free_cell(struct iommu_table *tbl, long index, long npages)
 
 static irqreturn_t ioc_interrupt(int irq, void *data)
 {
-	unsigned long stat;
+	unsigned long stat, spf;
 	struct cbe_iommu *iommu = data;
 
 	stat = in_be64(iommu->xlate_regs + IOC_IO_ExcpStat);
+	spf = stat & IOC_IO_ExcpStat_SPF_Mask;
 
 	/* Might want to rate limit it */
 	printk(KERN_ERR "iommu: DMA exception 0x%016lx\n", stat);
 	printk(KERN_ERR "  V=%d, SPF=[%c%c], RW=%s, IOID=0x%04x\n",
 	       !!(stat & IOC_IO_ExcpStat_V),
-	       (stat & IOC_IO_ExcpStat_SPF_S) ? 'S' : ' ',
-	       (stat & IOC_IO_ExcpStat_SPF_P) ? 'P' : ' ',
+	       (spf == IOC_IO_ExcpStat_SPF_S) ? 'S' : ' ',
+	       (spf == IOC_IO_ExcpStat_SPF_P) ? 'P' : ' ',
 	       (stat & IOC_IO_ExcpStat_RW_Mask) ? "Read" : "Write",
 	       (unsigned int)(stat & IOC_IO_ExcpStat_IOID_Mask));
 	printk(KERN_ERR "  page=0x%016lx\n",
@@ -643,7 +644,7 @@ static void dma_fixed_unmap_sg(struct device *dev, struct scatterlist *sg,
 
 static int dma_fixed_dma_supported(struct device *dev, u64 mask)
 {
-	return mask == DMA_64BIT_MASK;
+	return mask == DMA_BIT_MASK(64);
 }
 
 static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask);
@@ -855,7 +856,7 @@ static int __init cell_iommu_init_disabled(void)
 	 */
 	if (np && size < lmb_end_of_DRAM()) {
 		printk(KERN_WARNING "iommu: force-enabled, dma window"
-		       " (%ldMB) smaller than total memory (%ldMB)\n",
+		       " (%ldMB) smaller than total memory (%lldMB)\n",
 		       size >> 20, lmb_end_of_DRAM() >> 20);
 		return -ENODEV;
 	}
@@ -985,7 +986,7 @@ static void cell_dma_dev_setup_fixed(struct device *dev)
 	addr = cell_iommu_get_fixed_address(dev) + dma_iommu_fixed_base;
 	archdata->dma_data = (void *)addr;
 
-	dev_dbg(dev, "iommu: fixed addr = %lx\n", addr);
+	dev_dbg(dev, "iommu: fixed addr = %llx\n", addr);
 }
 
 static void insert_16M_pte(unsigned long addr, unsigned long *ptab,

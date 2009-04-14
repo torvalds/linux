@@ -16,11 +16,10 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/version.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-# include <linux/freezer.h>
+#include <linux/freezer.h>
 #include "async-thread.h"
 
 #define WORK_QUEUED_BIT 0
@@ -143,6 +142,7 @@ static int worker_loop(void *arg)
 	struct btrfs_work *work;
 	do {
 		spin_lock_irq(&worker->lock);
+again_locked:
 		while (!list_empty(&worker->pending)) {
 			cur = worker->pending.next;
 			work = list_entry(cur, struct btrfs_work, list);
@@ -165,14 +165,54 @@ static int worker_loop(void *arg)
 			check_idle_worker(worker);
 
 		}
-		worker->working = 0;
 		if (freezing(current)) {
+			worker->working = 0;
+			spin_unlock_irq(&worker->lock);
 			refrigerator();
 		} else {
-			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_irq(&worker->lock);
-			if (!kthread_should_stop())
-				schedule();
+			if (!kthread_should_stop()) {
+				cpu_relax();
+				/*
+				 * we've dropped the lock, did someone else
+				 * jump_in?
+				 */
+				smp_mb();
+				if (!list_empty(&worker->pending))
+					continue;
+
+				/*
+				 * this short schedule allows more work to
+				 * come in without the queue functions
+				 * needing to go through wake_up_process()
+				 *
+				 * worker->working is still 1, so nobody
+				 * is going to try and wake us up
+				 */
+				schedule_timeout(1);
+				smp_mb();
+				if (!list_empty(&worker->pending))
+					continue;
+
+				if (kthread_should_stop())
+					break;
+
+				/* still no more work?, sleep for real */
+				spin_lock_irq(&worker->lock);
+				set_current_state(TASK_INTERRUPTIBLE);
+				if (!list_empty(&worker->pending))
+					goto again_locked;
+
+				/*
+				 * this makes sure we get a wakeup when someone
+				 * adds something new to the queue
+				 */
+				worker->working = 0;
+				spin_unlock_irq(&worker->lock);
+
+				if (!kthread_should_stop())
+					schedule();
+			}
 			__set_current_state(TASK_RUNNING);
 		}
 	} while (!kthread_should_stop());
@@ -350,13 +390,14 @@ int btrfs_requeue_work(struct btrfs_work *work)
 {
 	struct btrfs_worker_thread *worker = work->worker;
 	unsigned long flags;
+	int wake = 0;
 
 	if (test_and_set_bit(WORK_QUEUED_BIT, &work->flags))
 		goto out;
 
 	spin_lock_irqsave(&worker->lock, flags);
-	atomic_inc(&worker->num_pending);
 	list_add_tail(&work->list, &worker->pending);
+	atomic_inc(&worker->num_pending);
 
 	/* by definition we're busy, take ourselves off the idle
 	 * list
@@ -368,10 +409,16 @@ int btrfs_requeue_work(struct btrfs_work *work)
 			       &worker->workers->worker_list);
 		spin_unlock_irqrestore(&worker->workers->lock, flags);
 	}
+	if (!worker->working) {
+		wake = 1;
+		worker->working = 1;
+	}
 
 	spin_unlock_irqrestore(&worker->lock, flags);
-
+	if (wake)
+		wake_up_process(worker->task);
 out:
+
 	return 0;
 }
 
@@ -398,9 +445,10 @@ int btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work)
 	}
 
 	spin_lock_irqsave(&worker->lock, flags);
+
+	list_add_tail(&work->list, &worker->pending);
 	atomic_inc(&worker->num_pending);
 	check_busy_worker(worker);
-	list_add_tail(&work->list, &worker->pending);
 
 	/*
 	 * avoid calling into wake_up_process if this thread has already

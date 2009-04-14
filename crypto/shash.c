@@ -18,14 +18,9 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 
-static const struct crypto_type crypto_shash_type;
-
-static inline struct crypto_shash *__crypto_shash_cast(struct crypto_tfm *tfm)
-{
-	return container_of(tfm, struct crypto_shash, base);
-}
-
 #include "internal.h"
+
+static const struct crypto_type crypto_shash_type;
 
 static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 				  unsigned int keylen)
@@ -81,6 +76,9 @@ static int shash_update_unaligned(struct shash_desc *desc, const u8 *data,
 				     ((unsigned long)data & alignmask);
 	u8 buf[shash_align_buffer_size(unaligned_len, alignmask)]
 		__attribute__ ((aligned));
+
+	if (unaligned_len > len)
+		unaligned_len = len;
 
 	memcpy(buf, data, unaligned_len);
 
@@ -282,8 +280,7 @@ static int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 	if (!crypto_mod_get(calg))
 		return -EAGAIN;
 
-	shash = __crypto_shash_cast(crypto_create_tfm(
-		calg, &crypto_shash_type));
+	shash = crypto_create_tfm(calg, &crypto_shash_type);
 	if (IS_ERR(shash)) {
 		crypto_mod_put(calg);
 		return PTR_ERR(shash);
@@ -388,10 +385,14 @@ static int crypto_init_shash_ops_compat(struct crypto_tfm *tfm)
 	struct shash_desc *desc = crypto_tfm_ctx(tfm);
 	struct crypto_shash *shash;
 
-	shash = __crypto_shash_cast(crypto_create_tfm(
-		calg, &crypto_shash_type));
-	if (IS_ERR(shash))
+	if (!crypto_mod_get(calg))
+		return -EAGAIN;
+
+	shash = crypto_create_tfm(calg, &crypto_shash_type);
+	if (IS_ERR(shash)) {
+		crypto_mod_put(calg);
 		return PTR_ERR(shash);
+	}
 
 	desc->tfm = shash;
 	tfm->exit = crypto_exit_shash_ops_compat;
@@ -437,8 +438,6 @@ static unsigned int crypto_shash_ctxsize(struct crypto_alg *alg, u32 type,
 static int crypto_shash_init_tfm(struct crypto_tfm *tfm,
 				 const struct crypto_type *frontend)
 {
-	if (frontend->type != CRYPTO_ALG_TYPE_SHASH)
-		return -EINVAL;
 	return 0;
 }
 
@@ -477,8 +476,7 @@ static const struct crypto_type crypto_shash_type = {
 struct crypto_shash *crypto_alloc_shash(const char *alg_name, u32 type,
 					u32 mask)
 {
-	return __crypto_shash_cast(
-		crypto_alloc_tfm(alg_name, &crypto_shash_type, type, mask));
+	return crypto_alloc_tfm(alg_name, &crypto_shash_type, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_shash);
 

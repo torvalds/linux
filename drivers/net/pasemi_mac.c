@@ -712,7 +712,7 @@ static inline void pasemi_mac_rx_error(const struct pasemi_mac *mac,
 	rcmdsta = read_dma_reg(PAS_DMA_RXINT_RCMDSTA(mac->dma_if));
 	ccmdsta = read_dma_reg(PAS_DMA_RXCHAN_CCMDSTA(chan->chno));
 
-	printk(KERN_ERR "pasemi_mac: rx error. macrx %016lx, rx status %lx\n",
+	printk(KERN_ERR "pasemi_mac: rx error. macrx %016llx, rx status %llx\n",
 		macrx, *chan->status);
 
 	printk(KERN_ERR "pasemi_mac: rcmdsta %08x ccmdsta %08x\n",
@@ -730,8 +730,8 @@ static inline void pasemi_mac_tx_error(const struct pasemi_mac *mac,
 
 	cmdsta = read_dma_reg(PAS_DMA_TXCHAN_TCMDSTA(chan->chno));
 
-	printk(KERN_ERR "pasemi_mac: tx error. mactx 0x%016lx, "\
-		"tx status 0x%016lx\n", mactx, *chan->status);
+	printk(KERN_ERR "pasemi_mac: tx error. mactx 0x%016llx, "\
+		"tx status 0x%016llx\n", mactx, *chan->status);
 
 	printk(KERN_ERR "pasemi_mac: tcmdsta 0x%08x\n", cmdsta);
 }
@@ -970,7 +970,7 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 	if (*chan->status & PAS_STATUS_ERROR)
 		reg |= PAS_IOB_DMA_RXCH_RESET_DINTC;
 
-	netif_rx_schedule(&mac->napi);
+	napi_schedule(&mac->napi);
 
 	write_iob_reg(PAS_IOB_DMA_RXCH_RESET(chan->chno), reg);
 
@@ -1010,7 +1010,7 @@ static irqreturn_t pasemi_mac_tx_intr(int irq, void *data)
 
 	mod_timer(&txring->clean_timer, jiffies + (TX_CLEAN_INTERVAL)*2);
 
-	netif_rx_schedule(&mac->napi);
+	napi_schedule(&mac->napi);
 
 	if (reg)
 		write_iob_reg(PAS_IOB_DMA_TXCH_RESET(chan->chno), reg);
@@ -1639,7 +1639,7 @@ static int pasemi_mac_poll(struct napi_struct *napi, int budget)
 	pkts = pasemi_mac_clean_rx(rx_ring(mac), budget);
 	if (pkts < budget) {
 		/* all done, no more packets present */
-		netif_rx_complete(napi);
+		napi_complete(napi);
 
 		pasemi_mac_restart_rx_intr(mac);
 		pasemi_mac_restart_tx_intr(mac);

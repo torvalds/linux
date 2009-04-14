@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -122,9 +122,6 @@ static void rt73usb_rf_write(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
-	if (!word)
-		return;
-
 	mutex_lock(&rt2x00dev->csr_mutex);
 
 	/*
@@ -185,6 +182,18 @@ static const struct rt2x00debug rt73usb_rt2x00debug = {
 	},
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+
+#ifdef CONFIG_RT2X00_LIB_RFKILL
+static int rt73usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+
+	rt2x00usb_register_read(rt2x00dev, MAC_CSR13, &reg);
+	return rt2x00_get_field32(reg, MAC_CSR13_BIT7);
+}
+#else
+#define rt73usb_rfkill_poll	NULL
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 #ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt73usb_brightness_set(struct led_classdev *led_cdev,
@@ -844,6 +853,44 @@ static void rt73usb_config_duration(struct rt2x00_dev *rt2x00dev,
 	rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 }
 
+static void rt73usb_config_ps(struct rt2x00_dev *rt2x00dev,
+				struct rt2x00lib_conf *libconf)
+{
+	enum dev_state state =
+	    (libconf->conf->flags & IEEE80211_CONF_PS) ?
+		STATE_SLEEP : STATE_AWAKE;
+	u32 reg;
+
+	if (state == STATE_SLEEP) {
+		rt2x00usb_register_read(rt2x00dev, MAC_CSR11, &reg);
+		rt2x00_set_field32(&reg, MAC_CSR11_DELAY_AFTER_TBCN,
+				   libconf->conf->beacon_int - 10);
+		rt2x00_set_field32(&reg, MAC_CSR11_TBCN_BEFORE_WAKEUP,
+				   libconf->conf->listen_interval - 1);
+		rt2x00_set_field32(&reg, MAC_CSR11_WAKEUP_LATENCY, 5);
+
+		/* We must first disable autowake before it can be enabled */
+		rt2x00_set_field32(&reg, MAC_CSR11_AUTOWAKE, 0);
+		rt2x00usb_register_write(rt2x00dev, MAC_CSR11, reg);
+
+		rt2x00_set_field32(&reg, MAC_CSR11_AUTOWAKE, 1);
+		rt2x00usb_register_write(rt2x00dev, MAC_CSR11, reg);
+
+		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
+					    USB_MODE_SLEEP, REGISTER_TIMEOUT);
+	} else {
+		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
+					    USB_MODE_WAKEUP, REGISTER_TIMEOUT);
+
+		rt2x00usb_register_read(rt2x00dev, MAC_CSR11, &reg);
+		rt2x00_set_field32(&reg, MAC_CSR11_DELAY_AFTER_TBCN, 0);
+		rt2x00_set_field32(&reg, MAC_CSR11_TBCN_BEFORE_WAKEUP, 0);
+		rt2x00_set_field32(&reg, MAC_CSR11_AUTOWAKE, 0);
+		rt2x00_set_field32(&reg, MAC_CSR11_WAKEUP_LATENCY, 0);
+		rt2x00usb_register_write(rt2x00dev, MAC_CSR11, reg);
+	}
+}
+
 static void rt73usb_config(struct rt2x00_dev *rt2x00dev,
 			   struct rt2x00lib_conf *libconf,
 			   const unsigned int flags)
@@ -861,6 +908,8 @@ static void rt73usb_config(struct rt2x00_dev *rt2x00dev,
 		rt73usb_config_retry_limit(rt2x00dev, libconf);
 	if (flags & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
 		rt73usb_config_duration(rt2x00dev, libconf);
+	if (flags & IEEE80211_CONF_CHANGE_PS)
+		rt73usb_config_ps(rt2x00dev, libconf);
 }
 
 /*
@@ -884,20 +933,27 @@ static void rt73usb_link_stats(struct rt2x00_dev *rt2x00dev,
 	qual->false_cca = rt2x00_get_field32(reg, STA_CSR1_FALSE_CCA_ERROR);
 }
 
-static void rt73usb_reset_tuner(struct rt2x00_dev *rt2x00dev)
+static inline void rt73usb_set_vgc(struct rt2x00_dev *rt2x00dev,
+				   struct link_qual *qual, u8 vgc_level)
 {
-	rt73usb_bbp_write(rt2x00dev, 17, 0x20);
-	rt2x00dev->link.vgc_level = 0x20;
+	if (qual->vgc_level != vgc_level) {
+		rt73usb_bbp_write(rt2x00dev, 17, vgc_level);
+		qual->vgc_level = vgc_level;
+		qual->vgc_level_reg = vgc_level;
+	}
 }
 
-static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
+static void rt73usb_reset_tuner(struct rt2x00_dev *rt2x00dev,
+				struct link_qual *qual)
 {
-	int rssi = rt2x00_get_link_rssi(&rt2x00dev->link);
-	u8 r17;
+	rt73usb_set_vgc(rt2x00dev, qual, 0x20);
+}
+
+static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev,
+			       struct link_qual *qual, const u32 count)
+{
 	u8 up_bound;
 	u8 low_bound;
-
-	rt73usb_bbp_read(rt2x00dev, 17, &r17);
 
 	/*
 	 * Determine r17 bounds.
@@ -911,10 +967,10 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 			up_bound += 0x10;
 		}
 	} else {
-		if (rssi > -82) {
+		if (qual->rssi > -82) {
 			low_bound = 0x1c;
 			up_bound = 0x40;
-		} else if (rssi > -84) {
+		} else if (qual->rssi > -84) {
 			low_bound = 0x1c;
 			up_bound = 0x20;
 		} else {
@@ -938,37 +994,32 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Special big-R17 for very short distance
 	 */
-	if (rssi > -35) {
-		if (r17 != 0x60)
-			rt73usb_bbp_write(rt2x00dev, 17, 0x60);
+	if (qual->rssi > -35) {
+		rt73usb_set_vgc(rt2x00dev, qual, 0x60);
 		return;
 	}
 
 	/*
 	 * Special big-R17 for short distance
 	 */
-	if (rssi >= -58) {
-		if (r17 != up_bound)
-			rt73usb_bbp_write(rt2x00dev, 17, up_bound);
+	if (qual->rssi >= -58) {
+		rt73usb_set_vgc(rt2x00dev, qual, up_bound);
 		return;
 	}
 
 	/*
 	 * Special big-R17 for middle-short distance
 	 */
-	if (rssi >= -66) {
-		low_bound += 0x10;
-		if (r17 != low_bound)
-			rt73usb_bbp_write(rt2x00dev, 17, low_bound);
+	if (qual->rssi >= -66) {
+		rt73usb_set_vgc(rt2x00dev, qual, low_bound + 0x10);
 		return;
 	}
 
 	/*
 	 * Special mid-R17 for middle distance
 	 */
-	if (rssi >= -74) {
-		if (r17 != (low_bound + 0x10))
-			rt73usb_bbp_write(rt2x00dev, 17, low_bound + 0x08);
+	if (qual->rssi >= -74) {
+		rt73usb_set_vgc(rt2x00dev, qual, low_bound + 0x08);
 		return;
 	}
 
@@ -976,12 +1027,12 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Special case: Change up_bound based on the rssi.
 	 * Lower up_bound when rssi is weaker then -74 dBm.
 	 */
-	up_bound -= 2 * (-74 - rssi);
+	up_bound -= 2 * (-74 - qual->rssi);
 	if (low_bound > up_bound)
 		up_bound = low_bound;
 
-	if (r17 > up_bound) {
-		rt73usb_bbp_write(rt2x00dev, 17, up_bound);
+	if (qual->vgc_level > up_bound) {
+		rt73usb_set_vgc(rt2x00dev, qual, up_bound);
 		return;
 	}
 
@@ -991,17 +1042,12 @@ dynamic_cca_tune:
 	 * r17 does not yet exceed upper limit, continue and base
 	 * the r17 tuning on the false CCA count.
 	 */
-	if (rt2x00dev->link.qual.false_cca > 512 && r17 < up_bound) {
-		r17 += 4;
-		if (r17 > up_bound)
-			r17 = up_bound;
-		rt73usb_bbp_write(rt2x00dev, 17, r17);
-	} else if (rt2x00dev->link.qual.false_cca < 100 && r17 > low_bound) {
-		r17 -= 4;
-		if (r17 < low_bound)
-			r17 = low_bound;
-		rt73usb_bbp_write(rt2x00dev, 17, r17);
-	}
+	if ((qual->false_cca > 512) && (qual->vgc_level < up_bound))
+		rt73usb_set_vgc(rt2x00dev, qual,
+				min_t(u8, qual->vgc_level + 4, up_bound));
+	else if ((qual->false_cca < 100) && (qual->vgc_level > low_bound))
+		rt73usb_set_vgc(rt2x00dev, qual,
+				max_t(u8, qual->vgc_level - 4, low_bound));
 }
 
 /*
@@ -1012,25 +1058,37 @@ static char *rt73usb_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 	return FIRMWARE_RT2571;
 }
 
-static u16 rt73usb_get_firmware_crc(const void *data, const size_t len)
+static int rt73usb_check_firmware(struct rt2x00_dev *rt2x00dev,
+				  const u8 *data, const size_t len)
 {
+	u16 fw_crc;
 	u16 crc;
 
 	/*
-	 * Use the crc itu-t algorithm.
+	 * Only support 2kb firmware files.
+	 */
+	if (len != 2048)
+		return FW_BAD_LENGTH;
+
+	/*
 	 * The last 2 bytes in the firmware array are the crc checksum itself,
 	 * this means that we should never pass those 2 bytes to the crc
 	 * algorithm.
+	 */
+	fw_crc = (data[len - 2] << 8 | data[len - 1]);
+
+	/*
+	 * Use the crc itu-t algorithm.
 	 */
 	crc = crc_itu_t(0, data, len - 2);
 	crc = crc_itu_t_byte(crc, 0);
 	crc = crc_itu_t_byte(crc, 0);
 
-	return crc;
+	return (fw_crc == crc) ? FW_OK : FW_BAD_CRC;
 }
 
-static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
-				 const size_t len)
+static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev,
+				 const u8 *data, const size_t len)
 {
 	unsigned int i;
 	int status;
@@ -1449,7 +1507,7 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_TIMESTAMP,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_OFDM,
-			   test_bit(ENTRY_TXD_OFDM_RATE, &txdesc->flags));
+			   (txdesc->rate_mode == RATE_MODE_OFDM));
 	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
@@ -1816,6 +1874,14 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 		__set_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags);
 
 	/*
+	 * Detect if this device has an hardware controlled radio.
+	 */
+#ifdef CONFIG_RT2X00_LIB_RFKILL
+	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
+		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
+
+	/*
 	 * Read frequency offset.
 	 */
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &eeprom);
@@ -2020,7 +2086,9 @@ static int rt73usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00dev->hw->flags =
 	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-	    IEEE80211_HW_SIGNAL_DBM;
+	    IEEE80211_HW_SIGNAL_DBM |
+	    IEEE80211_HW_SUPPORTS_PS |
+	    IEEE80211_HW_PS_NULLFUNC_STACK;
 	rt2x00dev->hw->extra_tx_headroom = TXD_DESC_SIZE;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
@@ -2121,6 +2189,7 @@ static int rt73usb_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	struct rt2x00_field32 field;
 	int retval;
 	u32 reg;
+	u32 offset;
 
 	/*
 	 * First pass the configuration through rt2x00lib, that will
@@ -2132,24 +2201,23 @@ static int rt73usb_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	if (retval)
 		return retval;
 
+	/*
+	 * We only need to perform additional register initialization
+	 * for WMM queues/
+	 */
+	if (queue_idx >= 4)
+		return 0;
+
 	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
 
 	/* Update WMM TXOP register */
-	if (queue_idx < 2) {
-		field.bit_offset = queue_idx * 16;
-		field.bit_mask = 0xffff << field.bit_offset;
+	offset = AC_TXOP_CSR0 + (sizeof(u32) * (!!(queue_idx & 2)));
+	field.bit_offset = (queue_idx & 1) * 16;
+	field.bit_mask = 0xffff << field.bit_offset;
 
-		rt2x00usb_register_read(rt2x00dev, AC_TXOP_CSR0, &reg);
-		rt2x00_set_field32(&reg, field, queue->txop);
-		rt2x00usb_register_write(rt2x00dev, AC_TXOP_CSR0, reg);
-	} else if (queue_idx < 4) {
-		field.bit_offset = (queue_idx - 2) * 16;
-		field.bit_mask = 0xffff << field.bit_offset;
-
-		rt2x00usb_register_read(rt2x00dev, AC_TXOP_CSR1, &reg);
-		rt2x00_set_field32(&reg, field, queue->txop);
-		rt2x00usb_register_write(rt2x00dev, AC_TXOP_CSR1, reg);
-	}
+	rt2x00usb_register_read(rt2x00dev, offset, &reg);
+	rt2x00_set_field32(&reg, field, queue->txop);
+	rt2x00usb_register_write(rt2x00dev, offset, reg);
 
 	/* Update WMM registers */
 	field.bit_offset = queue_idx * 4;
@@ -2170,13 +2238,6 @@ static int rt73usb_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	return 0;
 }
 
-#if 0
-/*
- * Mac80211 demands get_tsf must be atomic.
- * This is not possible for rt73usb since all register access
- * functions require sleeping. Untill mac80211 no longer needs
- * get_tsf to be atomic, this function should be disabled.
- */
 static u64 rt73usb_get_tsf(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
@@ -2190,9 +2251,6 @@ static u64 rt73usb_get_tsf(struct ieee80211_hw *hw)
 
 	return tsf;
 }
-#else
-#define rt73usb_get_tsf	NULL
-#endif
 
 static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
@@ -2214,12 +2272,13 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.probe_hw		= rt73usb_probe_hw,
 	.get_firmware_name	= rt73usb_get_firmware_name,
-	.get_firmware_crc	= rt73usb_get_firmware_crc,
+	.check_firmware		= rt73usb_check_firmware,
 	.load_firmware		= rt73usb_load_firmware,
 	.initialize		= rt2x00usb_initialize,
 	.uninitialize		= rt2x00usb_uninitialize,
 	.clear_entry		= rt2x00usb_clear_entry,
 	.set_device_state	= rt73usb_set_device_state,
+	.rfkill_poll		= rt73usb_rfkill_poll,
 	.link_stats		= rt73usb_link_stats,
 	.reset_tuner		= rt73usb_reset_tuner,
 	.link_tuner		= rt73usb_link_tuner,
@@ -2228,6 +2287,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.write_beacon		= rt73usb_write_beacon,
 	.get_tx_data_len	= rt73usb_get_tx_data_len,
 	.kick_tx_queue		= rt73usb_kick_tx_queue,
+	.kill_tx_queue		= rt2x00usb_kill_tx_queue,
 	.fill_rxdone		= rt73usb_fill_rxdone,
 	.config_shared_key	= rt73usb_config_shared_key,
 	.config_pairwise_key	= rt73usb_config_pairwise_key,
@@ -2281,7 +2341,18 @@ static const struct rt2x00_ops rt73usb_ops = {
  */
 static struct usb_device_id rt73usb_device_table[] = {
 	/* AboCom */
+	{ USB_DEVICE(0x07b8, 0xb21b), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x07b8, 0xb21c), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x07b8, 0xb21d), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x07b8, 0xb21e), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x07b8, 0xb21f), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* AL */
+	{ USB_DEVICE(0x14b2, 0x3c10), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* Amigo */
+	{ USB_DEVICE(0x148f, 0x9021), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0eb0, 0x9021), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* AMIT  */
+	{ USB_DEVICE(0x18c5, 0x0002), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Askey */
 	{ USB_DEVICE(0x1690, 0x0722), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* ASUS */
@@ -2294,7 +2365,9 @@ static struct usb_device_id rt73usb_device_table[] = {
 	{ USB_DEVICE(0x050d, 0x905c), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Billionton */
 	{ USB_DEVICE(0x1631, 0xc019), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x08dd, 0x0120), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Buffalo */
+	{ USB_DEVICE(0x0411, 0x00d8), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x0411, 0x00f4), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* CNet */
 	{ USB_DEVICE(0x1371, 0x9022), USB_DEVICE_DATA(&rt73usb_ops) },
@@ -2308,6 +2381,11 @@ static struct usb_device_id rt73usb_device_table[] = {
 	{ USB_DEVICE(0x07d1, 0x3c04), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x07d1, 0x3c06), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x07d1, 0x3c07), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* Edimax */
+	{ USB_DEVICE(0x7392, 0x7318), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x7392, 0x7618), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* EnGenius */
+	{ USB_DEVICE(0x1740, 0x3701), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Gemtek */
 	{ USB_DEVICE(0x15a9, 0x0004), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Gigabyte */
@@ -2321,28 +2399,43 @@ static struct usb_device_id rt73usb_device_table[] = {
 	/* Linksys */
 	{ USB_DEVICE(0x13b1, 0x0020), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x13b1, 0x0023), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x13b1, 0x0028), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* MSI */
 	{ USB_DEVICE(0x0db0, 0x6877), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x0db0, 0x6874), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x0db0, 0xa861), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x0db0, 0xa874), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Ralink */
+	{ USB_DEVICE(0x04bb, 0x093d), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x148f, 0x2573), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x148f, 0x2671), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Qcom */
 	{ USB_DEVICE(0x18e8, 0x6196), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x18e8, 0x6229), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x18e8, 0x6238), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* Samsung */
+	{ USB_DEVICE(0x04e8, 0x4471), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Senao */
 	{ USB_DEVICE(0x1740, 0x7100), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Sitecom */
-	{ USB_DEVICE(0x0df6, 0x9712), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0df6, 0x0024), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0df6, 0x0027), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0df6, 0x002f), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x0df6, 0x90ac), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0df6, 0x9712), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Surecom */
 	{ USB_DEVICE(0x0769, 0x31f3), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* Tilgin */
+	{ USB_DEVICE(0x6933, 0x5001), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* Philips */
+	{ USB_DEVICE(0x0471, 0x200a), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Planex */
 	{ USB_DEVICE(0x2019, 0xab01), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x2019, 0xab50), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* Zcom */
+	{ USB_DEVICE(0x0cde, 0x001c), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* ZyXEL */
+	{ USB_DEVICE(0x0586, 0x3415), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ 0, }
 };
 

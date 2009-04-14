@@ -144,31 +144,53 @@ struct bio {
  * bit 1 -- rw-ahead when set
  * bit 2 -- barrier
  *	Insert a serialization point in the IO queue, forcing previously
- *	submitted IO to be completed before this oen is issued.
- * bit 3 -- synchronous I/O hint: the block layer will unplug immediately
- *	Note that this does NOT indicate that the IO itself is sync, just
- *	that the block layer will not postpone issue of this IO by plugging.
- * bit 4 -- metadata request
+ *	submitted IO to be completed before this one is issued.
+ * bit 3 -- synchronous I/O hint.
+ * bit 4 -- Unplug the device immediately after submitting this bio.
+ * bit 5 -- metadata request
  *	Used for tracing to differentiate metadata and data IO. May also
  *	get some preferential treatment in the IO scheduler
- * bit 5 -- discard sectors
+ * bit 6 -- discard sectors
  *	Informs the lower level device that this range of sectors is no longer
  *	used by the file system and may thus be freed by the device. Used
  *	for flash based storage.
- * bit 6 -- fail fast device errors
- * bit 7 -- fail fast transport errors
- * bit 8 -- fail fast driver errors
+ * bit 7 -- fail fast device errors
+ * bit 8 -- fail fast transport errors
+ * bit 9 -- fail fast driver errors
  *	Don't want driver retries for any fast fail whatever the reason.
+ * bit 10 -- Tell the IO scheduler not to wait for more requests after this
+	one has been submitted, even if it is a SYNC request.
  */
 #define BIO_RW		0	/* Must match RW in req flags (blkdev.h) */
 #define BIO_RW_AHEAD	1	/* Must match FAILFAST in req flags */
 #define BIO_RW_BARRIER	2
-#define BIO_RW_SYNC	3
-#define BIO_RW_META	4
-#define BIO_RW_DISCARD	5
-#define BIO_RW_FAILFAST_DEV		6
-#define BIO_RW_FAILFAST_TRANSPORT	7
-#define BIO_RW_FAILFAST_DRIVER		8
+#define BIO_RW_SYNCIO	3
+#define BIO_RW_UNPLUG	4
+#define BIO_RW_META	5
+#define BIO_RW_DISCARD	6
+#define BIO_RW_FAILFAST_DEV		7
+#define BIO_RW_FAILFAST_TRANSPORT	8
+#define BIO_RW_FAILFAST_DRIVER		9
+#define BIO_RW_NOIDLE	10
+
+#define bio_rw_flagged(bio, flag)	((bio)->bi_rw & (1 << (flag)))
+
+/*
+ * Old defines, these should eventually be replaced by direct usage of
+ * bio_rw_flagged()
+ */
+#define bio_barrier(bio)	bio_rw_flagged(bio, BIO_RW_BARRIER)
+#define bio_sync(bio)		bio_rw_flagged(bio, BIO_RW_SYNCIO)
+#define bio_unplug(bio)		bio_rw_flagged(bio, BIO_RW_UNPLUG)
+#define bio_failfast_dev(bio)	bio_rw_flagged(bio, BIO_RW_FAILFAST_DEV)
+#define bio_failfast_transport(bio)	\
+		bio_rw_flagged(bio, BIO_RW_FAILFAST_TRANSPORT)
+#define bio_failfast_driver(bio) 	\
+		bio_rw_flagged(bio, BIO_RW_FAILFAST_DRIVER)
+#define bio_rw_ahead(bio)	bio_rw_flagged(bio, BIO_RW_AHEAD)
+#define bio_rw_meta(bio)	bio_rw_flagged(bio, BIO_RW_META)
+#define bio_discard(bio)	bio_rw_flagged(bio, BIO_RW_DISCARD)
+#define bio_noidle(bio)		bio_rw_flagged(bio, BIO_RW_NOIDLE)
 
 /*
  * upper 16 bits of bi_rw define the io priority of this bio
@@ -193,15 +215,6 @@ struct bio {
 #define bio_offset(bio)		bio_iovec((bio))->bv_offset
 #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
-#define bio_barrier(bio)	((bio)->bi_rw & (1 << BIO_RW_BARRIER))
-#define bio_sync(bio)		((bio)->bi_rw & (1 << BIO_RW_SYNC))
-#define bio_failfast_dev(bio)	((bio)->bi_rw &	(1 << BIO_RW_FAILFAST_DEV))
-#define bio_failfast_transport(bio)	\
-	((bio)->bi_rw & (1 << BIO_RW_FAILFAST_TRANSPORT))
-#define bio_failfast_driver(bio) ((bio)->bi_rw & (1 << BIO_RW_FAILFAST_DRIVER))
-#define bio_rw_ahead(bio)	((bio)->bi_rw & (1 << BIO_RW_AHEAD))
-#define bio_rw_meta(bio)	((bio)->bi_rw & (1 << BIO_RW_META))
-#define bio_discard(bio)	((bio)->bi_rw & (1 << BIO_RW_DISCARD))
 #define bio_empty_barrier(bio)	(bio_barrier(bio) && !bio_has_data(bio) && !bio_discard(bio))
 
 static inline unsigned int bio_cur_sectors(struct bio *bio)
@@ -312,7 +325,6 @@ struct bio_integrity_payload {
 	void			*bip_buf;	/* generated integrity data */
 	bio_end_io_t		*bip_end_io;	/* saved I/O completion fn */
 
-	int			bip_error;	/* saved I/O error */
 	unsigned int		bip_size;
 
 	unsigned short		bip_pool;	/* pool the ivec came from */
@@ -417,9 +429,6 @@ struct bio_set {
 	unsigned int front_pad;
 
 	mempool_t *bio_pool;
-#if defined(CONFIG_BLK_DEV_INTEGRITY)
-	mempool_t *bio_integrity_pool;
-#endif
 	mempool_t *bvec_pool;
 };
 
@@ -440,12 +449,13 @@ extern struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] __read_mostly;
 
 #ifdef CONFIG_HIGHMEM
 /*
- * remember to add offset! and never ever reenable interrupts between a
- * bvec_kmap_irq and bvec_kunmap_irq!!
+ * remember never ever reenable interrupts between a bvec_kmap_irq and
+ * bvec_kunmap_irq!
  *
  * This function MUST be inlined - it plays with the CPU interrupt flags.
  */
-static inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
+static __always_inline char *bvec_kmap_irq(struct bio_vec *bvec,
+		unsigned long *flags)
 {
 	unsigned long addr;
 
@@ -461,7 +471,8 @@ static inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
 	return (char *) addr + bvec->bv_offset;
 }
 
-static inline void bvec_kunmap_irq(char *buffer, unsigned long *flags)
+static __always_inline void bvec_kunmap_irq(char *buffer,
+		unsigned long *flags)
 {
 	unsigned long ptr = (unsigned long) buffer & PAGE_MASK;
 
@@ -508,9 +519,8 @@ static inline int bio_has_data(struct bio *bio)
 
 #define bio_integrity(bio) (bio->bi_integrity != NULL)
 
-extern struct bio_integrity_payload *bio_integrity_alloc_bioset(struct bio *, gfp_t, unsigned int, struct bio_set *);
 extern struct bio_integrity_payload *bio_integrity_alloc(struct bio *, gfp_t, unsigned int);
-extern void bio_integrity_free(struct bio *, struct bio_set *);
+extern void bio_integrity_free(struct bio *);
 extern int bio_integrity_add_page(struct bio *, struct page *, unsigned int, unsigned int);
 extern int bio_integrity_enabled(struct bio *bio);
 extern int bio_integrity_set_tag(struct bio *, void *, unsigned int);
@@ -520,27 +530,21 @@ extern void bio_integrity_endio(struct bio *, int);
 extern void bio_integrity_advance(struct bio *, unsigned int);
 extern void bio_integrity_trim(struct bio *, unsigned int, unsigned int);
 extern void bio_integrity_split(struct bio *, struct bio_pair *, int);
-extern int bio_integrity_clone(struct bio *, struct bio *, struct bio_set *);
-extern int bioset_integrity_create(struct bio_set *, int);
-extern void bioset_integrity_free(struct bio_set *);
-extern void bio_integrity_init_slab(void);
+extern int bio_integrity_clone(struct bio *, struct bio *, gfp_t);
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
 #define bio_integrity(a)		(0)
-#define bioset_integrity_create(a, b)	(0)
 #define bio_integrity_prep(a)		(0)
 #define bio_integrity_enabled(a)	(0)
 #define bio_integrity_clone(a, b, c)	(0)
-#define bioset_integrity_free(a)	do { } while (0)
-#define bio_integrity_free(a, b)	do { } while (0)
+#define bio_integrity_free(a)		do { } while (0)
 #define bio_integrity_endio(a, b)	do { } while (0)
 #define bio_integrity_advance(a, b)	do { } while (0)
 #define bio_integrity_trim(a, b, c)	do { } while (0)
 #define bio_integrity_split(a, b, c)	do { } while (0)
 #define bio_integrity_set_tag(a, b, c)	do { } while (0)
 #define bio_integrity_get_tag(a, b, c)	do { } while (0)
-#define bio_integrity_init_slab(a)	do { } while (0)
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 

@@ -2,6 +2,7 @@
 #define _LINUX_VIRTIO_BLK_H
 /* This header is BSD licensed so anyone can use the definitions to implement
  * compatible drivers/servers. */
+#include <linux/types.h>
 #include <linux/virtio_config.h>
 
 /* The ID for virtio_block */

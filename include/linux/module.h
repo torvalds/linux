@@ -219,11 +219,6 @@ void *__symbol_get_gpl(const char *symbol);
 
 #endif
 
-struct module_ref
-{
-	local_t count;
-} ____cacheline_aligned;
-
 enum module_state
 {
 	MODULE_STATE_LIVE,
@@ -252,6 +247,10 @@ struct module
 	const struct kernel_symbol *syms;
 	const unsigned long *crcs;
 	unsigned int num_syms;
+
+	/* Kernel parameters. */
+	struct kernel_param *kp;
+	unsigned int num_kp;
 
 	/* GPL-only exported symbols. */
 	unsigned int num_gpl_syms;
@@ -334,6 +333,11 @@ struct module
 	unsigned int num_tracepoints;
 #endif
 
+#ifdef CONFIG_TRACING
+	const char **trace_bprintk_fmt_start;
+	unsigned int num_trace_bprintk_fmt;
+#endif
+
 #ifdef CONFIG_MODULE_UNLOAD
 	/* What modules depend on me? */
 	struct list_head modules_which_use_me;
@@ -344,13 +348,18 @@ struct module
 	/* Destruction function. */
 	void (*exit)(void);
 
-	/* Reference counts */
-	struct module_ref ref[NR_CPUS];
+#ifdef CONFIG_SMP
+	char *refptr;
+#else
+	local_t ref;
+#endif
 #endif
 };
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
 #endif
+
+extern struct mutex module_mutex;
 
 /* FIXME: It'd be nice to isolate modules during init, too, so they
    aren't used before they (may) fail.  But presently too much code
@@ -360,10 +369,10 @@ static inline int module_is_live(struct module *mod)
 	return mod->state != MODULE_STATE_GOING;
 }
 
-/* Is this address in a module? (second is with no locks, for oops) */
-struct module *module_text_address(unsigned long addr);
 struct module *__module_text_address(unsigned long addr);
-int is_module_address(unsigned long addr);
+struct module *__module_address(unsigned long addr);
+bool is_module_address(unsigned long addr);
+bool is_module_text_address(unsigned long addr);
 
 static inline int within_module_core(unsigned long addr, struct module *mod)
 {
@@ -377,6 +386,31 @@ static inline int within_module_init(unsigned long addr, struct module *mod)
 	       addr < (unsigned long)mod->module_init + mod->init_size;
 }
 
+/* Search for module by name: must hold module_mutex. */
+struct module *find_module(const char *name);
+
+struct symsearch {
+	const struct kernel_symbol *start, *stop;
+	const unsigned long *crcs;
+	enum {
+		NOT_GPL_ONLY,
+		GPL_ONLY,
+		WILL_BE_GPL_ONLY,
+	} licence;
+	bool unused;
+};
+
+/* Search for an exported symbol by name. */
+const struct kernel_symbol *find_symbol(const char *name,
+					struct module **owner,
+					const unsigned long **crc,
+					bool gplok,
+					bool warn);
+
+/* Walk the exported symbol table */
+bool each_symbol(bool (*fn)(const struct symsearch *arr, struct module *owner,
+			    unsigned int symnum, void *data), void *data);
+
 /* Returns 0 and fills in value, defined and namebuf, or -ERANGE if
    symnum out of range. */
 int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
@@ -384,6 +418,10 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 
 /* Look for this name: can be of form module:name. */
 unsigned long module_kallsyms_lookup_name(const char *name);
+
+int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
+					     struct module *, unsigned long),
+				   void *data);
 
 extern void __module_put_and_exit(struct module *mod, long code)
 	__attribute__((noreturn));
@@ -395,13 +433,21 @@ void __symbol_put(const char *symbol);
 #define symbol_put(x) __symbol_put(MODULE_SYMBOL_PREFIX #x)
 void symbol_put_addr(void *addr);
 
+static inline local_t *__module_ref_addr(struct module *mod, int cpu)
+{
+#ifdef CONFIG_SMP
+	return (local_t *) (mod->refptr + per_cpu_offset(cpu));
+#else
+	return &mod->ref;
+#endif
+}
+
 /* Sometimes we know we already have a refcount, and it's easier not
    to handle the error case (which only happens with rmmod --wait). */
 static inline void __module_get(struct module *module)
 {
 	if (module) {
-		BUG_ON(module_refcount(module) == 0);
-		local_inc(&module->ref[get_cpu()].count);
+		local_inc(__module_ref_addr(module, get_cpu()));
 		put_cpu();
 	}
 }
@@ -413,7 +459,7 @@ static inline int try_module_get(struct module *module)
 	if (module) {
 		unsigned int cpu = get_cpu();
 		if (likely(module_is_live(module)))
-			local_inc(&module->ref[cpu].count);
+			local_inc(__module_ref_addr(module, cpu));
 		else
 			ret = 0;
 		put_cpu();
@@ -438,6 +484,7 @@ static inline void __module_get(struct module *module)
 #define symbol_put_addr(p) do { } while(0)
 
 #endif /* CONFIG_MODULE_UNLOAD */
+int use_module(struct module *a, struct module *b);
 
 /* This is a #define so the string doesn't get put in every .o file */
 #define module_name(mod)			\
@@ -484,21 +531,24 @@ search_module_extables(unsigned long addr)
 	return NULL;
 }
 
-/* Is this address in a module? */
-static inline struct module *module_text_address(unsigned long addr)
+static inline struct module *__module_address(unsigned long addr)
 {
 	return NULL;
 }
 
-/* Is this address in a module? (don't take a lock, we're oopsing) */
 static inline struct module *__module_text_address(unsigned long addr)
 {
 	return NULL;
 }
 
-static inline int is_module_address(unsigned long addr)
+static inline bool is_module_address(unsigned long addr)
 {
-	return 0;
+	return false;
+}
+
+static inline bool is_module_text_address(unsigned long addr)
+{
+	return false;
 }
 
 /* Get/put a kernel symbol (calls should be symmetric) */
@@ -549,6 +599,14 @@ static inline int module_get_kallsym(unsigned int symnum, unsigned long *value,
 }
 
 static inline unsigned long module_kallsyms_lookup_name(const char *name)
+{
+	return 0;
+}
+
+static inline int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
+							   struct module *,
+							   unsigned long),
+						 void *data)
 {
 	return 0;
 }

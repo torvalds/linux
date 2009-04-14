@@ -147,12 +147,11 @@ struct afs_cell *afs_cell_create(const char *name, char *vllist)
 	if (ret < 0)
 		goto error;
 
-#ifdef AFS_CACHING_SUPPORT
-	/* put it up for caching */
-	cachefs_acquire_cookie(afs_cache_netfs.primary_index,
-			       &afs_vlocation_cache_index_def,
-			       cell,
-			       &cell->cache);
+#ifdef CONFIG_AFS_FSCACHE
+	/* put it up for caching (this never returns an error) */
+	cell->cache = fscache_acquire_cookie(afs_cache_netfs.primary_index,
+					     &afs_cell_cache_index_def,
+					     cell);
 #endif
 
 	/* add to the cell lists */
@@ -362,10 +361,9 @@ static void afs_cell_destroy(struct afs_cell *cell)
 	list_del_init(&cell->proc_link);
 	up_write(&afs_proc_cells_sem);
 
-#ifdef AFS_CACHING_SUPPORT
-	cachefs_relinquish_cookie(cell->cache, 0);
+#ifdef CONFIG_AFS_FSCACHE
+	fscache_relinquish_cookie(cell->cache, 0);
 #endif
-
 	key_put(cell->anonymous_key);
 	kfree(cell);
 

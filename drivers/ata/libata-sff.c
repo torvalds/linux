@@ -52,6 +52,7 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.softreset		= ata_sff_softreset,
 	.hardreset		= sata_sff_hardreset,
 	.postreset		= ata_sff_postreset,
+	.drain_fifo		= ata_sff_drain_fifo,
 	.error_handler		= ata_sff_error_handler,
 	.post_internal_cmd	= ata_sff_post_internal_cmd,
 
@@ -63,6 +64,8 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.sff_data_xfer		= ata_sff_data_xfer,
 	.sff_irq_on		= ata_sff_irq_on,
 	.sff_irq_clear		= ata_sff_irq_clear,
+
+	.lost_interrupt		= ata_sff_lost_interrupt,
 
 	.port_start		= ata_sff_port_start,
 };
@@ -773,18 +776,32 @@ unsigned int ata_sff_data_xfer32(struct ata_device *dev, unsigned char *buf,
 	else
 		iowrite32_rep(data_addr, buf, words);
 
+	/* Transfer trailing bytes, if any */
 	if (unlikely(slop)) {
-		__le32 pad;
+		unsigned char pad[4];
+
+		/* Point buf to the tail of buffer */
+		buf += buflen - slop;
+
+		/*
+		 * Use io*_rep() accessors here as well to avoid pointlessly
+		 * swapping bytes to and fro on the big endian machines...
+		 */
 		if (rw == READ) {
-			pad = cpu_to_le32(ioread32(ap->ioaddr.data_addr));
-			memcpy(buf + buflen - slop, &pad, slop);
+			if (slop < 3)
+				ioread16_rep(data_addr, pad, 1);
+			else
+				ioread32_rep(data_addr, pad, 1);
+			memcpy(buf, pad, slop);
 		} else {
-			memcpy(&pad, buf + buflen - slop, slop);
-			iowrite32(le32_to_cpu(pad), ap->ioaddr.data_addr);
+			memcpy(pad, buf, slop);
+			if (slop < 3)
+				iowrite16_rep(data_addr, pad, 1);
+			else
+				iowrite32_rep(data_addr, pad, 1);
 		}
-		words++;
 	}
-	return words << 2;
+	return (buflen + 1) & ~1;
 }
 EXPORT_SYMBOL_GPL(ata_sff_data_xfer32);
 
@@ -1013,9 +1030,12 @@ next_sg:
 		qc->cursg_ofs = 0;
 	}
 
-	/* consumed can be larger than count only for the last transfer */
-	WARN_ON_ONCE(qc->cursg && count != consumed);
-
+	/*
+	 * There used to be a  WARN_ON_ONCE(qc->cursg && count != consumed);
+	 * Unfortunately __atapi_pio_bytes doesn't know enough to do the WARN
+	 * check correctly as it doesn't know if it is the last request being
+	 * made. Somebody should implement a proper sanity check.
+	 */
 	if (bytes)
 		goto next_sg;
 	return 0;
@@ -1319,7 +1339,7 @@ fsm_start:
 					 * condition.  Mark hint.
 					 */
 					ata_ehi_push_desc(ehi, "ST-ATA: "
-						"DRQ=1 with device error, "
+						"DRQ=0 without device error, "
 						"dev_stat 0x%X", status);
 					qc->err_mask |= AC_ERR_HSM |
 							AC_ERR_NODEV_HINT;
@@ -1354,6 +1374,16 @@ fsm_start:
 						"dev_stat 0x%X", status);
 					qc->err_mask |= AC_ERR_HSM;
 				}
+
+				/* There are oddball controllers with
+				 * status register stuck at 0x7f and
+				 * lbal/m/h at zero which makes it
+				 * pass all other presence detection
+				 * mechanisms we have.  Set NODEV_HINT
+				 * for it.  Kernel bz#7241.
+				 */
+				if (status == 0x7f)
+					qc->err_mask |= AC_ERR_NODEV_HINT;
 
 				/* ata_pio_sectors() might change the
 				 * state to HSM_ST_LAST. so, the state
@@ -1619,7 +1649,7 @@ EXPORT_SYMBOL_GPL(ata_sff_qc_fill_rtf);
  *	RETURNS:
  *	One if interrupt was handled, zero if not (shared irq).
  */
-inline unsigned int ata_sff_host_intr(struct ata_port *ap,
+unsigned int ata_sff_host_intr(struct ata_port *ap,
 				      struct ata_queued_cmd *qc)
 {
 	struct ata_eh_info *ehi = &ap->link.eh_info;
@@ -1746,6 +1776,48 @@ irqreturn_t ata_sff_interrupt(int irq, void *dev_instance)
 	return IRQ_RETVAL(handled);
 }
 EXPORT_SYMBOL_GPL(ata_sff_interrupt);
+
+/**
+ *	ata_sff_lost_interrupt	-	Check for an apparent lost interrupt
+ *	@ap: port that appears to have timed out
+ *
+ *	Called from the libata error handlers when the core code suspects
+ *	an interrupt has been lost. If it has complete anything we can and
+ *	then return. Interface must support altstatus for this faster
+ *	recovery to occur.
+ *
+ *	Locking:
+ *	Caller holds host lock
+ */
+
+void ata_sff_lost_interrupt(struct ata_port *ap)
+{
+	u8 status;
+	struct ata_queued_cmd *qc;
+
+	/* Only one outstanding command per SFF channel */
+	qc = ata_qc_from_tag(ap, ap->link.active_tag);
+	/* Check we have a live one.. */
+	if (qc == NULL ||  !(qc->flags & ATA_QCFLAG_ACTIVE))
+		return;
+	/* We cannot lose an interrupt on a polled command */
+	if (qc->tf.flags & ATA_TFLAG_POLLING)
+		return;
+	/* See if the controller thinks it is still busy - if so the command
+	   isn't a lost IRQ but is still in progress */
+	status = ata_sff_altstatus(ap);
+	if (status & ATA_BUSY)
+		return;
+
+	/* There was a command running, we are no longer busy and we have
+	   no interrupt. */
+	ata_port_printk(ap, KERN_WARNING, "lost interrupt (Status 0x%x)\n",
+								status);
+	/* Run the host interrupt logic as if the interrupt had not been
+	   lost */
+	ata_sff_host_intr(ap, qc);
+}
+EXPORT_SYMBOL_GPL(ata_sff_lost_interrupt);
 
 /**
  *	ata_sff_freeze - Freeze SFF controller port
@@ -2039,6 +2111,7 @@ static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 	iowrite8(ap->ctl | ATA_SRST, ioaddr->ctl_addr);
 	udelay(20);	/* FIXME: flush */
 	iowrite8(ap->ctl, ioaddr->ctl_addr);
+	ap->last_ctl = ap->ctl;
 
 	/* wait the port to become ready */
 	return ata_sff_wait_after_reset(&ap->link, devmask, deadline);
@@ -2163,10 +2236,45 @@ void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
 	}
 
 	/* set up device control */
-	if (ap->ioaddr.ctl_addr)
+	if (ap->ioaddr.ctl_addr) {
 		iowrite8(ap->ctl, ap->ioaddr.ctl_addr);
+		ap->last_ctl = ap->ctl;
+	}
 }
 EXPORT_SYMBOL_GPL(ata_sff_postreset);
+
+/**
+ *	ata_sff_drain_fifo - Stock FIFO drain logic for SFF controllers
+ *	@qc: command
+ *
+ *	Drain the FIFO and device of any stuck data following a command
+ *	failing to complete. In some cases this is neccessary before a
+ *	reset will recover the device.
+ *
+ */
+
+void ata_sff_drain_fifo(struct ata_queued_cmd *qc)
+{
+	int count;
+	struct ata_port *ap;
+
+	/* We only need to flush incoming data when a command was running */
+	if (qc == NULL || qc->dma_dir == DMA_TO_DEVICE)
+		return;
+
+	ap = qc->ap;
+	/* Drain up to 64K of data before we give up this recovery method */
+	for (count = 0; (ap->ops->sff_check_status(ap) & ATA_DRQ)
+						&& count < 32768; count++)
+		ioread16(ap->ioaddr.data_addr);
+
+	/* Can become DEBUG later */
+	if (count)
+		ata_port_printk(ap, KERN_DEBUG,
+			"drained %d bytes to clear DRQ.\n", count);
+
+}
+EXPORT_SYMBOL_GPL(ata_sff_drain_fifo);
 
 /**
  *	ata_sff_error_handler - Stock error handler for BMDMA controller
@@ -2209,7 +2317,8 @@ void ata_sff_error_handler(struct ata_port *ap)
 		 * really a timeout event, adjust error mask and
 		 * cancel frozen state.
 		 */
-		if (qc->err_mask == AC_ERR_TIMEOUT && (host_stat & ATA_DMA_ERR)) {
+		if (qc->err_mask == AC_ERR_TIMEOUT
+						&& (host_stat & ATA_DMA_ERR)) {
 			qc->err_mask = AC_ERR_HOST_BUS;
 			thaw = 1;
 		}
@@ -2220,6 +2329,13 @@ void ata_sff_error_handler(struct ata_port *ap)
 	ata_sff_sync(ap);		/* FIXME: We don't need this */
 	ap->ops->sff_check_status(ap);
 	ap->ops->sff_irq_clear(ap);
+	/* We *MUST* do FIFO draining before we issue a reset as several
+	 * devices helpfully clear their internal state and will lock solid
+	 * if we touch the data port post reset. Pass qc in case anyone wants
+	 *  to do different PIO/DMA recovery or has per command fixups
+	 */
+	if (ap->ops->drain_fifo)
+		ap->ops->drain_fifo(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
@@ -2507,6 +2623,7 @@ void ata_bus_reset(struct ata_port *ap)
 	if (ap->flags & (ATA_FLAG_SATA_RESET | ATA_FLAG_SRST)) {
 		/* set up device control for ATA_FLAG_SATA_RESET */
 		iowrite8(ap->ctl, ioaddr->ctl_addr);
+		ap->last_ctl = ap->ctl;
 	}
 
 	DPRINTK("EXIT\n");
@@ -2928,4 +3045,3 @@ out:
 EXPORT_SYMBOL_GPL(ata_pci_sff_init_one);
 
 #endif /* CONFIG_PCI */
-

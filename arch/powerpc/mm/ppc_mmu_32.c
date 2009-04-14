@@ -74,9 +74,6 @@ unsigned long p_mapped_by_bats(phys_addr_t pa)
 
 unsigned long __init mmu_mapin_ram(void)
 {
-#ifdef CONFIG_POWER4
-	return 0;
-#else
 	unsigned long tot, bl, done;
 	unsigned long max_size = (256<<20);
 
@@ -95,7 +92,7 @@ unsigned long __init mmu_mapin_ram(void)
 			break;
 	}
 
-	setbat(2, PAGE_OFFSET, 0, bl, _PAGE_RAM);
+	setbat(2, PAGE_OFFSET, 0, bl, PAGE_KERNEL_X);
 	done = (unsigned long)bat_addrs[2].limit - PAGE_OFFSET + 1;
 	if ((done < tot) && !bat_addrs[3].limit) {
 		/* use BAT3 to cover a bit more */
@@ -103,12 +100,11 @@ unsigned long __init mmu_mapin_ram(void)
 		for (bl = 128<<10; bl < max_size; bl <<= 1)
 			if (bl * 2 > tot)
 				break;
-		setbat(3, PAGE_OFFSET+done, done, bl, _PAGE_RAM);
+		setbat(3, PAGE_OFFSET+done, done, bl, PAGE_KERNEL_X);
 		done = (unsigned long)bat_addrs[3].limit - PAGE_OFFSET + 1;
 	}
 
 	return done;
-#endif
 }
 
 /*
@@ -123,9 +119,9 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 	int wimgxpp;
 	struct ppc_bat *bat = BATS[index];
 
-	if (((flags & _PAGE_NO_CACHE) == 0) &&
-	    cpu_has_feature(CPU_FTR_NEED_COHERENT))
-		flags |= _PAGE_COHERENT;
+	if ((flags & _PAGE_NO_CACHE) ||
+	    (cpu_has_feature(CPU_FTR_NEED_COHERENT) == 0))
+		flags &= ~_PAGE_COHERENT;
 
 	bl = (size >> 17) - 1;
 	if (PVR_VER(mfspr(SPRN_PVR)) != 1) {
@@ -136,9 +132,7 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 		wimgxpp |= (flags & _PAGE_RW)? BPP_RW: BPP_RX;
 		bat[1].batu = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
 		bat[1].batl = BAT_PHYS_ADDR(phys) | wimgxpp;
-#ifndef CONFIG_KGDB /* want user access for breakpoints */
 		if (flags & _PAGE_USER)
-#endif
 			bat[1].batu |= 1; 	/* Vp = 1 */
 		if (flags & _PAGE_GUARDED) {
 			/* G bit must be zero in IBATs */

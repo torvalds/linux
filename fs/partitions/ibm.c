@@ -21,20 +21,38 @@
  * compute the block number from a
  * cyl-cyl-head-head structure
  */
-static inline int
+static sector_t
 cchh2blk (struct vtoc_cchh *ptr, struct hd_geometry *geo) {
-        return ptr->cc * geo->heads * geo->sectors +
-	       ptr->hh * geo->sectors;
+
+	sector_t cyl;
+	__u16 head;
+
+	/*decode cylinder and heads for large volumes */
+	cyl = ptr->hh & 0xFFF0;
+	cyl <<= 12;
+	cyl |= ptr->cc;
+	head = ptr->hh & 0x000F;
+	return cyl * geo->heads * geo->sectors +
+	       head * geo->sectors;
 }
 
 /*
  * compute the block number from a
  * cyl-cyl-head-head-block structure
  */
-static inline int
+static sector_t
 cchhb2blk (struct vtoc_cchhb *ptr, struct hd_geometry *geo) {
-        return ptr->cc * geo->heads * geo->sectors +
-		ptr->hh * geo->sectors +
+
+	sector_t cyl;
+	__u16 head;
+
+	/*decode cylinder and heads for large volumes */
+	cyl = ptr->hh & 0xFFF0;
+	cyl <<= 12;
+	cyl |= ptr->cc;
+	head = ptr->hh & 0x000F;
+	return	cyl * geo->heads * geo->sectors +
+		head * geo->sectors +
 		ptr->b;
 }
 
@@ -43,14 +61,15 @@ cchhb2blk (struct vtoc_cchhb *ptr, struct hd_geometry *geo) {
 int
 ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 {
-	int blocksize, offset, size,res;
-	loff_t i_size;
+	int blocksize, res;
+	loff_t i_size, offset, size, fmt_size;
 	dasd_information2_t *info;
 	struct hd_geometry *geo;
 	char type[5] = {0,};
 	char name[7] = {0,};
 	union label_t {
-		struct vtoc_volume_label vol;
+		struct vtoc_volume_label_cdl vol;
+		struct vtoc_volume_label_ldl lnx;
 		struct vtoc_cms_label cms;
 	} *label;
 	unsigned char *data;
@@ -85,14 +104,16 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 	if (data == NULL)
 		goto out_readerr;
 
-	strncpy (type, data, 4);
-	if ((!info->FBA_layout) && (!strcmp(info->type, "ECKD")))
-		strncpy(name, data + 8, 6);
-	else
-		strncpy(name, data + 4, 6);
 	memcpy(label, data, sizeof(union label_t));
 	put_dev_sector(sect);
 
+	if ((!info->FBA_layout) && (!strcmp(info->type, "ECKD"))) {
+		strncpy(type, label->vol.vollbl, 4);
+		strncpy(name, label->vol.volid, 6);
+	} else {
+		strncpy(type, label->lnx.vollbl, 4);
+		strncpy(name, label->lnx.volid, 6);
+	}
 	EBCASC(type, 4);
 	EBCASC(name, 6);
 
@@ -110,36 +131,54 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 			/*
 			 * VM style CMS1 labeled disk
 			 */
+			blocksize = label->cms.block_size;
 			if (label->cms.disk_offset != 0) {
 				printk("CMS1/%8s(MDSK):", name);
 				/* disk is reserved minidisk */
-				blocksize = label->cms.block_size;
 				offset = label->cms.disk_offset;
 				size = (label->cms.block_count - 1)
 					* (blocksize >> 9);
 			} else {
 				printk("CMS1/%8s:", name);
 				offset = (info->label_block + 1);
-				size = i_size >> 9;
+				size = label->cms.block_count
+					* (blocksize >> 9);
 			}
-		} else {
-			/*
-			 * Old style LNX1 or unlabeled disk
-			 */
-			if (strncmp(type, "LNX1", 4) == 0)
-				printk ("LNX1/%8s:", name);
-			else
-				printk("(nonl)");
-			offset = (info->label_block + 1);
-			size = i_size >> 9;
-		}
-		put_partition(state, 1, offset*(blocksize >> 9),
+			put_partition(state, 1, offset*(blocksize >> 9),
 				      size-offset*(blocksize >> 9));
+		} else {
+			if (strncmp(type, "LNX1", 4) == 0) {
+				printk("LNX1/%8s:", name);
+				if (label->lnx.ldl_version == 0xf2) {
+					fmt_size = label->lnx.formatted_blocks
+						* (blocksize >> 9);
+				} else if (!strcmp(info->type, "ECKD")) {
+					/* formated w/o large volume support */
+					fmt_size = geo->cylinders * geo->heads
+					      * geo->sectors * (blocksize >> 9);
+				} else {
+					/* old label and no usable disk geometry
+					 * (e.g. DIAG) */
+					fmt_size = i_size >> 9;
+				}
+				size = i_size >> 9;
+				if (fmt_size < size)
+					size = fmt_size;
+				offset = (info->label_block + 1);
+			} else {
+				/* unlabeled disk */
+				printk("(nonl)");
+				size = i_size >> 9;
+				offset = (info->label_block + 1);
+			}
+			put_partition(state, 1, offset*(blocksize >> 9),
+				      size-offset*(blocksize >> 9));
+		}
 	} else if (info->format == DASD_FORMAT_CDL) {
 		/*
 		 * New style CDL formatted disk
 		 */
-		unsigned int blk;
+		sector_t blk;
 		int counter;
 
 		/*
@@ -166,7 +205,8 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 				/* skip FMT4 / FMT5 / FMT7 labels */
 				if (f1.DS1FMTID == _ascebc['4']
 				    || f1.DS1FMTID == _ascebc['5']
-				    || f1.DS1FMTID == _ascebc['7']) {
+				    || f1.DS1FMTID == _ascebc['7']
+				    || f1.DS1FMTID == _ascebc['9']) {
 					blk++;
 					data = read_dev_sector(bdev, blk *
 							       (blocksize/512),
@@ -174,8 +214,9 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 					continue;
 				}
 
-				/* only FMT1 valid at this point */
-				if (f1.DS1FMTID != _ascebc['1'])
+				/* only FMT1 and 8 labels valid at this point */
+				if (f1.DS1FMTID != _ascebc['1'] &&
+				    f1.DS1FMTID != _ascebc['8'])
 					break;
 
 				/* OK, we got valid partition data */

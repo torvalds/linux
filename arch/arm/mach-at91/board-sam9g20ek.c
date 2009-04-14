@@ -238,6 +238,10 @@ static void __init ek_board_init(void)
 	at91_add_device_i2c(NULL, 0);
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
+	/* PCK0 provides MCLK to the WM8731 */
+	at91_set_B_periph(AT91_PIN_PC1, 0);
+	/* SSC (for WM8731) */
+	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
 }
 
 MACHINE_START(AT91SAM9G20EK, "Atmel AT91SAM9G20-EK")

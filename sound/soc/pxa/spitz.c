@@ -26,8 +26,6 @@
 #include <sound/soc-dapm.h>
 
 #include <asm/mach-types.h>
-#include <mach/pxa-regs.h>
-#include <mach/hardware.h>
 #include <mach/spitz.h>
 #include "../codecs/wm8750.h"
 #include "pxa2xx-pcm.h"

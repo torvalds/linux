@@ -10,7 +10,7 @@
 #ifndef __PHANTOM_H
 #define __PHANTOM_H
 
-#include <asm/types.h>
+#include <linux/types.h>
 
 /* PHN_(G/S)ET_REG param */
 struct phm_reg {

@@ -221,29 +221,17 @@ static struct resource realview_pba8_smsc911x_resources[] = {
 	},
 };
 
-struct resource realview_pba8_cf_resources[] = {
+static struct resource realview_pba8_isp1761_resources[] = {
 	[0] = {
-		.start		= REALVIEW_PBA8_CF_BASE,
-		.end		= REALVIEW_PBA8_CF_BASE + SZ_4K - 1,
+		.start		= REALVIEW_PBA8_USB_BASE,
+		.end		= REALVIEW_PBA8_USB_BASE + SZ_128K - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= REALVIEW_PBA8_CF_MEM_BASE,
-		.end		= REALVIEW_PBA8_CF_MEM_BASE + SZ_4K - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	[2] = {
-		.start		= -1,		/* FIXME: Find correct irq */
-		.end		= -1,
+		.start		= IRQ_PBA8_USB,
+		.end		= IRQ_PBA8_USB,
 		.flags		= IORESOURCE_IRQ,
 	},
-};
-
-struct platform_device realview_pba8_cf_device = {
-	.name		= "compactflash",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(realview_pba8_cf_resources),
-	.resource	= realview_pba8_cf_resources,
 };
 
 static void __init gic_init_irq(void)
@@ -276,7 +264,8 @@ static void __init realview_pba8_init(void)
 				ARRAY_SIZE(realview_pba8_flash_resource));
 	realview_eth_register(NULL, realview_pba8_smsc911x_resources);
 	platform_device_register(&realview_i2c_device);
-	platform_device_register(&realview_pba8_cf_device);
+	platform_device_register(&realview_cf_device);
+	realview_usb_register(realview_pba8_isp1761_resources);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

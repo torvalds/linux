@@ -49,8 +49,11 @@
 #include <mach/keypad.h>
 #include <mach/dma.h>
 #include <mach/common.h>
-#include <mach/mcbsp.h>
-#include <mach/omap-alsa.h>
+
+#include "board-h3.h"
+
+/* In OMAP1710 H3 the Ethernet is directly connected to CS1 */
+#define OMAP1710_ETHR_START		0x04000300
 
 #define H3_TS_GPIO	48
 
@@ -387,41 +390,6 @@ static struct spi_board_info h3_spi_board_info[] __initdata = {
 	},
 };
 
-static struct omap_mcbsp_reg_cfg mcbsp_regs = {
-	.spcr2 = FREE | FRST | GRST | XRST | XINTM(3),
-	.spcr1 = RINTM(3) | RRST,
-	.rcr2  = RPHASE | RFRLEN2(OMAP_MCBSP_WORD_8) |
-                RWDLEN2(OMAP_MCBSP_WORD_16) | RDATDLY(1),
-	.rcr1  = RFRLEN1(OMAP_MCBSP_WORD_8) | RWDLEN1(OMAP_MCBSP_WORD_16),
-	.xcr2  = XPHASE | XFRLEN2(OMAP_MCBSP_WORD_8) |
-                XWDLEN2(OMAP_MCBSP_WORD_16) | XDATDLY(1) | XFIG,
-	.xcr1  = XFRLEN1(OMAP_MCBSP_WORD_8) | XWDLEN1(OMAP_MCBSP_WORD_16),
-	.srgr1 = FWID(15),
-	.srgr2 = GSYNC | CLKSP | FSGM | FPER(31),
-
-	.pcr0  = CLKRM | SCLKME | FSXP | FSRP | CLKXP | CLKRP,
-	/*.pcr0 = CLKXP | CLKRP,*/        /* mcbsp: slave */
-};
-
-static struct omap_alsa_codec_config alsa_config = {
-	.name                   = "H3 TSC2101",
-	.mcbsp_regs_alsa        = &mcbsp_regs,
-	.codec_configure_dev    = NULL, /* tsc2101_configure, */
-	.codec_set_samplerate   = NULL, /* tsc2101_set_samplerate, */
-	.codec_clock_setup      = NULL, /* tsc2101_clock_setup, */
-	.codec_clock_on         = NULL, /* tsc2101_clock_on, */
-	.codec_clock_off        = NULL, /* tsc2101_clock_off, */
-	.get_default_samplerate = NULL, /* tsc2101_get_default_samplerate, */
-};
-
-static struct platform_device h3_mcbsp1_device = {
-	.name	= "omap_alsa_mcbsp",
-	.id	= 1,
-	.dev = {
-		.platform_data	= &alsa_config,
-	},
-};
-
 static struct platform_device *devices[] __initdata = {
 	&nor_device,
 	&nand_device,
@@ -430,7 +398,6 @@ static struct platform_device *devices[] __initdata = {
 	&h3_irda_device,
 	&h3_kp_device,
 	&h3_lcd_device,
-	&h3_mcbsp1_device,
 };
 
 static struct omap_usb_config h3_usb_config __initdata = {
@@ -456,7 +423,6 @@ static struct omap_lcd_config h3_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel h3_config[] __initdata = {
-	{ OMAP_TAG_USB,		&h3_usb_config },
 	{ OMAP_TAG_UART,	&h3_uart_config },
 	{ OMAP_TAG_LCD,		&h3_lcd_config },
 };
@@ -469,18 +435,6 @@ static struct i2c_board_info __initdata h3_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("isp1301_omap", 0x2d),
 		.irq		= OMAP_GPIO_IRQ(14),
-	},
-};
-
-static struct omap_gpio_switch h3_gpio_switches[] __initdata = {
-	{
-		.name			= "mmc_slot",
-		.gpio                   = OMAP_MPUIO(1),
-		.type                   = OMAP_GPIO_SWITCH_TYPE_COVER,
-		.debounce_rising        = 100,
-		.debounce_falling       = 0,
-		.notify                 = h3_mmc_slot_cover_handler,
-		.notify_data            = NULL,
 	},
 };
 
@@ -522,6 +476,7 @@ static void __init h3_init(void)
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, h3_i2c_board_info,
 			      ARRAY_SIZE(h3_i2c_board_info));
+	omap_usb_init(&h3_usb_config);
 	h3_mmc_init();
 }
 

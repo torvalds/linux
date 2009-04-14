@@ -151,8 +151,6 @@ typedef struct xfs_attr_leafblock {
 /*
  * Cast typed pointers for "local" and "remote" name/value structs.
  */
-#define XFS_ATTR_LEAF_NAME_REMOTE(leafp,idx)	\
-	xfs_attr_leaf_name_remote(leafp,idx)
 static inline xfs_attr_leaf_name_remote_t *
 xfs_attr_leaf_name_remote(xfs_attr_leafblock_t *leafp, int idx)
 {
@@ -160,8 +158,6 @@ xfs_attr_leaf_name_remote(xfs_attr_leafblock_t *leafp, int idx)
 		&((char *)leafp)[be16_to_cpu(leafp->entries[idx].nameidx)];
 }
 
-#define XFS_ATTR_LEAF_NAME_LOCAL(leafp,idx)	\
-	xfs_attr_leaf_name_local(leafp,idx)
 static inline xfs_attr_leaf_name_local_t *
 xfs_attr_leaf_name_local(xfs_attr_leafblock_t *leafp, int idx)
 {
@@ -169,8 +165,6 @@ xfs_attr_leaf_name_local(xfs_attr_leafblock_t *leafp, int idx)
 		&((char *)leafp)[be16_to_cpu(leafp->entries[idx].nameidx)];
 }
 
-#define XFS_ATTR_LEAF_NAME(leafp,idx)		\
-	xfs_attr_leaf_name(leafp,idx)
 static inline char *xfs_attr_leaf_name(xfs_attr_leafblock_t *leafp, int idx)
 {
 	return &((char *)leafp)[be16_to_cpu(leafp->entries[idx].nameidx)];
@@ -181,24 +175,18 @@ static inline char *xfs_attr_leaf_name(xfs_attr_leafblock_t *leafp, int idx)
  * a "local" name/value structure, a "remote" name/value structure, and
  * a pointer which might be either.
  */
-#define XFS_ATTR_LEAF_ENTSIZE_REMOTE(nlen)	\
-	xfs_attr_leaf_entsize_remote(nlen)
 static inline int xfs_attr_leaf_entsize_remote(int nlen)
 {
 	return ((uint)sizeof(xfs_attr_leaf_name_remote_t) - 1 + (nlen) + \
 		XFS_ATTR_LEAF_NAME_ALIGN - 1) & ~(XFS_ATTR_LEAF_NAME_ALIGN - 1);
 }
 
-#define XFS_ATTR_LEAF_ENTSIZE_LOCAL(nlen,vlen)	\
-	xfs_attr_leaf_entsize_local(nlen,vlen)
 static inline int xfs_attr_leaf_entsize_local(int nlen, int vlen)
 {
 	return ((uint)sizeof(xfs_attr_leaf_name_local_t) - 1 + (nlen) + (vlen) +
 		XFS_ATTR_LEAF_NAME_ALIGN - 1) & ~(XFS_ATTR_LEAF_NAME_ALIGN - 1);
 }
 
-#define XFS_ATTR_LEAF_ENTSIZE_LOCAL_MAX(bsize)	\
-	xfs_attr_leaf_entsize_local_max(bsize)
 static inline int xfs_attr_leaf_entsize_local_max(int bsize)
 {
 	return (((bsize) >> 1) + ((bsize) >> 2));

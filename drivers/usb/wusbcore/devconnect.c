@@ -386,6 +386,7 @@ static void __wusbhc_dev_disconnect(struct wusbhc *wusbhc,
 			  | USB_PORT_STAT_LOW_SPEED | USB_PORT_STAT_HIGH_SPEED);
 	port->change |= USB_PORT_STAT_C_CONNECTION | USB_PORT_STAT_C_ENABLE;
 	if (wusb_dev) {
+		dev_dbg(wusbhc->dev, "disconnecting device from port %d\n", wusb_dev->port_idx);
 		if (!list_empty(&wusb_dev->cack_node))
 			list_del_init(&wusb_dev->cack_node);
 		/* For the one in cack_add() */
@@ -470,7 +471,7 @@ static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
  */
 static void wusbhc_keep_alive_run(struct work_struct *ws)
 {
-	struct delayed_work *dw = container_of(ws, struct delayed_work, work);
+	struct delayed_work *dw = to_delayed_work(ws);
 	struct wusbhc *wusbhc =	container_of(dw, struct wusbhc, keep_alive_timer);
 
 	mutex_lock(&wusbhc->mutex);
@@ -887,6 +888,8 @@ static void wusb_dev_add_ncb(struct usb_device *usb_dev)
 
 	if (usb_dev->wusb == 0 || usb_dev->devnum == 1)
 		return;		/* skip non wusb and wusb RHs */
+
+	usb_set_device_state(usb_dev, USB_STATE_UNAUTHENTICATED);
 
 	wusbhc = wusbhc_get_by_usb_dev(usb_dev);
 	if (wusbhc == NULL)

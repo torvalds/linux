@@ -1,7 +1,7 @@
 /*
  *      uvc_driver.c  --  USB Video Class driver
  *
- *      Copyright (C) 2005-2008
+ *      Copyright (C) 2005-2009
  *          Laurent Pinchart (laurent.pinchart@skynet.be)
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -24,7 +24,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -49,7 +48,7 @@ static unsigned int uvc_quirks_param;
 unsigned int uvc_trace_param;
 
 /* ------------------------------------------------------------------------
- * Control, formats, ...
+ * Video formats
  */
 
 static struct uvc_format_desc uvc_fmts[] = {
@@ -315,7 +314,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 		fmtdesc = uvc_format_by_guid(&buffer[5]);
 
 		if (fmtdesc != NULL) {
-			strncpy(format->name, fmtdesc->name,
+			strlcpy(format->name, fmtdesc->name,
 				sizeof format->name);
 			format->fcc = fmtdesc->fcc;
 		} else {
@@ -346,7 +345,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		strncpy(format->name, "MJPEG", sizeof format->name);
+		strlcpy(format->name, "MJPEG", sizeof format->name);
 		format->fcc = V4L2_PIX_FMT_MJPEG;
 		format->flags = UVC_FMT_FLAG_COMPRESSED;
 		format->bpp = 0;
@@ -364,13 +363,13 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		switch (buffer[8] & 0x7f) {
 		case 0:
-			strncpy(format->name, "SD-DV", sizeof format->name);
+			strlcpy(format->name, "SD-DV", sizeof format->name);
 			break;
 		case 1:
-			strncpy(format->name, "SDL-DV", sizeof format->name);
+			strlcpy(format->name, "SDL-DV", sizeof format->name);
 			break;
 		case 2:
-			strncpy(format->name, "HD-DV", sizeof format->name);
+			strlcpy(format->name, "HD-DV", sizeof format->name);
 			break;
 		default:
 			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming"
@@ -380,7 +379,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		strncat(format->name, buffer[8] & (1 << 7) ? " 60Hz" : " 50Hz",
+		strlcat(format->name, buffer[8] & (1 << 7) ? " 60Hz" : " 50Hz",
 			sizeof format->name);
 
 		format->fcc = V4L2_PIX_FMT_DV;
@@ -474,7 +473,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		/* Several UVC chipsets screw up dwMaxVideoFrameBufferSize
 		 * completely. Observed behaviours range from setting the
-		 * value to 1.1x the actual frame size of hardwiring the
+		 * value to 1.1x the actual frame size to hardwiring the
 		 * 16 low bits to 0. This results in a higher than necessary
 		 * memory usage as well as a wrong image size information. For
 		 * uncompressed formats this can be fixed by computing the
@@ -487,7 +486,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 		/* Some bogus devices report dwMinFrameInterval equal to
 		 * dwMaxFrameInterval and have dwFrameIntervalStep set to
 		 * zero. Setting all null intervals to 1 fixes the problem and
-		 * some other divisions by zero which could happen.
+		 * some other divisions by zero that could happen.
 		 */
 		for (i = 0; i < n; ++i) {
 			interval = get_unaligned_le32(&buffer[26+4*i]);
@@ -1200,13 +1199,13 @@ static void uvc_unregister_video(struct uvc_device *dev)
  * Scan the UVC descriptors to locate a chain starting at an Output Terminal
  * and containing the following units:
  *
- * - a USB Streaming Output Terminal
+ * - one Output Terminal (USB Streaming or Display)
  * - zero or one Processing Unit
  * - zero, one or mode single-input Selector Units
  * - zero or one multiple-input Selector Units, provided all inputs are
  *   connected to input terminals
  * - zero, one or mode single-input Extension Units
- * - one Camera Input Terminal, or one or more External terminals.
+ * - one or more Input Terminals (Camera, External or USB Streaming)
  *
  * A side forward scan is made on each detected entity to check for additional
  * extension units.
@@ -1527,14 +1526,10 @@ static int uvc_register_video(struct uvc_device *dev)
 	vdev->minor = -1;
 	vdev->fops = &uvc_fops;
 	vdev->release = video_device_release;
-	strncpy(vdev->name, dev->name, sizeof vdev->name);
+	strlcpy(vdev->name, dev->name, sizeof vdev->name);
 
 	/* Set the driver data before calling video_register_device, otherwise
 	 * uvc_v4l2_open might race us.
-	 *
-	 * FIXME: usb_set_intfdata hasn't been called so far. Is that a
-	 * 	  problem ? Does any function which could be called here get
-	 * 	  a pointer to the usb_interface ?
 	 */
 	dev->video.vdev = vdev;
 	video_set_drvdata(vdev, &dev->video);
@@ -1569,7 +1564,7 @@ void uvc_delete(struct kref *kref)
 	struct uvc_device *dev = container_of(kref, struct uvc_device, kref);
 	struct list_head *p, *n;
 
-	/* Unregister the video device */
+	/* Unregister the video device. */
 	uvc_unregister_video(dev);
 	usb_put_intf(dev->intf);
 	usb_put_dev(dev->udev);
@@ -1612,7 +1607,7 @@ static int uvc_probe(struct usb_interface *intf,
 		uvc_trace(UVC_TRACE_PROBE, "Probing generic UVC device %s\n",
 				udev->devpath);
 
-	/* Allocate memory for the device and initialize it */
+	/* Allocate memory for the device and initialize it. */
 	if ((dev = kzalloc(sizeof *dev, GFP_KERNEL)) == NULL)
 		return -ENOMEM;
 
@@ -1626,21 +1621,21 @@ static int uvc_probe(struct usb_interface *intf,
 	dev->quirks = id->driver_info | uvc_quirks_param;
 
 	if (udev->product != NULL)
-		strncpy(dev->name, udev->product, sizeof dev->name);
+		strlcpy(dev->name, udev->product, sizeof dev->name);
 	else
 		snprintf(dev->name, sizeof dev->name,
 			"UVC Camera (%04x:%04x)",
 			le16_to_cpu(udev->descriptor.idVendor),
 			le16_to_cpu(udev->descriptor.idProduct));
 
-	/* Parse the Video Class control descriptor */
+	/* Parse the Video Class control descriptor. */
 	if (uvc_parse_control(dev) < 0) {
 		uvc_trace(UVC_TRACE_PROBE, "Unable to parse UVC "
 			"descriptors.\n");
 		goto error;
 	}
 
-	uvc_printk(KERN_INFO, "Found UVC %u.%02u device %s (%04x:%04x)\n",
+	uvc_printk(KERN_INFO, "Found UVC %u.%02x device %s (%04x:%04x)\n",
 		dev->uvc_version >> 8, dev->uvc_version & 0xff,
 		udev->product ? udev->product : "<unnamed>",
 		le16_to_cpu(udev->descriptor.idVendor),
@@ -1653,18 +1648,18 @@ static int uvc_probe(struct usb_interface *intf,
 			"linux-uvc-devel mailing list.\n");
 	}
 
-	/* Initialize controls */
+	/* Initialize controls. */
 	if (uvc_ctrl_init_device(dev) < 0)
 		goto error;
 
-	/* Register the video devices */
+	/* Register the video devices. */
 	if (uvc_register_video(dev) < 0)
 		goto error;
 
-	/* Save our data pointer in the interface data */
+	/* Save our data pointer in the interface data. */
 	usb_set_intfdata(intf, dev);
 
-	/* Initialize the interrupt URB */
+	/* Initialize the interrupt URB. */
 	if ((ret = uvc_status_init(dev)) < 0) {
 		uvc_printk(KERN_INFO, "Unable to initialize the status "
 			"endpoint (%d), status interrupt will not be "
@@ -1838,25 +1833,43 @@ static struct usb_device_id uvc_ids[] = {
 	  .bInterfaceClass	= USB_CLASS_VENDOR_SPEC,
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0 },
+	/* Alcor Micro AU3820 (Future Boy PC USB Webcam) */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x058f,
+	  .idProduct		= 0x3820,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_PROBE_MINMAX },
 	/* Apple Built-In iSight */
-	{ .match_flags          = USB_DEVICE_ID_MATCH_DEVICE
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
 	  .idVendor		= 0x05ac,
 	  .idProduct		= 0x8501,
-	  .bInterfaceClass      = USB_CLASS_VIDEO,
-	  .bInterfaceSubClass   = 1,
-	  .bInterfaceProtocol   = 0,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
 	  .driver_info 		= UVC_QUIRK_PROBE_MINMAX
 				| UVC_QUIRK_BUILTIN_ISIGHT },
 	/* Genesys Logic USB 2.0 PC Camera */
-	{ .match_flags          = USB_DEVICE_ID_MATCH_DEVICE
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
-	  .idVendor             = 0x05e3,
-	  .idProduct            = 0x0505,
-	  .bInterfaceClass      = USB_CLASS_VIDEO,
-	  .bInterfaceSubClass   = 1,
-	  .bInterfaceProtocol   = 0,
-	  .driver_info          = UVC_QUIRK_STREAM_NO_FID },
+	  .idVendor		= 0x05e3,
+	  .idProduct		= 0x0505,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_STREAM_NO_FID },
+	/* ViMicro */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_VENDOR
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x0ac8,
+	  .idProduct		= 0x0000,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_FIX_BANDWIDTH },
 	/* MT6227 */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -1884,7 +1897,7 @@ static struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_QUIRK_STREAM_NO_FID },
-	/* Asus F9SG */
+	/* Syntek (Asus F9SG) */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
 	  .idVendor		= 0x174f,
@@ -1898,6 +1911,15 @@ static struct usb_device_id uvc_ids[] = {
 				| USB_DEVICE_ID_MATCH_INT_INFO,
 	  .idVendor		= 0x174f,
 	  .idProduct		= 0x8a33,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_STREAM_NO_FID },
+	/* Syntek (JAOtech Smart Terminal) */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x174f,
+	  .idProduct		= 0x8a34,
 	  .bInterfaceClass	= USB_CLASS_VIDEO,
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,

@@ -1,0 +1,87 @@
+This describes the interface for the ADT7475 driver:
+
+(there are 4 fans, numbered fan1 to fan4):
+
+fanX_input		Read the current speed of the fan (in RPMs)
+fanX_min		Read/write the minimum speed of the fan.  Dropping
+			below this sets an alarm.
+
+(there are three PWMs, numbered pwm1 to pwm3):
+
+pwmX			Read/write the current duty cycle of the PWM.  Writes
+			only have effect when auto mode is turned off (see
+			below).  Range is 0 - 255.
+
+pwmX_enable		Fan speed control method:
+
+			0 - No control (fan at full speed)
+			1 - Manual fan speed control (using pwm[1-*])
+			2 - Automatic fan speed control
+
+pwmX_auto_channels_temp	Select which channels affect this PWM
+
+			1 - TEMP1 controls PWM
+			2 - TEMP2 controls PWM
+			4 - TEMP3 controls PWM
+			6 - TEMP2 and TEMP3 control PWM
+			7 - All three inputs control PWM
+
+pwmX_freq		Read/write the PWM frequency in Hz. The number
+			should be one of the following:
+
+			11 Hz
+			14 Hz
+			22 Hz
+			29 Hz
+			35 Hz
+			44 Hz
+			58 Hz
+			88 Hz
+
+pwmX_auto_point1_pwm	Read/write the minimum PWM duty cycle in automatic mode
+
+pwmX_auto_point2_pwm	Read/write the maximum PWM duty cycle in automatic mode
+
+(there are three temperature settings numbered temp1 to temp3):
+
+tempX_input		Read the current temperature.  The value is in milli
+			degrees of Celsius.
+
+tempX_max		Read/write the upper temperature limit - exceeding this
+			will cause an alarm.
+
+tempX_min		Read/write the lower temperature limit - exceeding this
+			will cause an alarm.
+
+tempX_offset		Read/write the temperature adjustment offset
+
+tempX_crit		Read/write the THERM limit for remote1.
+
+tempX_crit_hyst		Set the temperature value below crit where the
+			fans will stay on - this helps drive the temperature
+			low enough so it doesn't stay near the edge and
+			cause THERM to keep tripping.
+
+tempX_auto_point1_temp	Read/write the minimum temperature where the fans will
+			turn on in automatic mode.
+
+tempX_auto_point2_temp	Read/write the maximum temperature over which the fans
+			will run in automatic mode.  tempX_auto_point1_temp
+			and tempX_auto_point2_temp together define the
+			range of automatic control.
+
+tempX_alarm		Read a 1 if the max/min alarm is set
+tempX_fault		Read a 1 if either temp1 or temp3 diode has a fault
+
+(There are two voltage settings, in1 and in2):
+
+inX_input		Read the current voltage on VCC.  Value is in
+			millivolts.
+
+inX_min			read/write the minimum voltage limit.
+			Dropping below this causes an alarm.
+
+inX_max			read/write the maximum voltage limit.
+			Exceeding this causes an alarm.
+
+inX_alarm		Read a 1 if the max/min alarm is set.

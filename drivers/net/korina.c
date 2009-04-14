@@ -84,7 +84,10 @@
 #define KORINA_NUM_RDS	64  /* number of receive descriptors */
 #define KORINA_NUM_TDS	64  /* number of transmit descriptors */
 
-#define KORINA_RBSIZE	536 /* size of one resource buffer = Ether MTU */
+/* KORINA_RBSIZE is the hardware's default maximum receive
+ * frame size in bytes. Having this hardcoded means that there
+ * is no support for MTU sizes greater than 1500. */
+#define KORINA_RBSIZE	1536 /* size of one resource buffer = Ether MTU */
 #define KORINA_RDS_MASK	(KORINA_NUM_RDS - 1)
 #define KORINA_TDS_MASK	(KORINA_NUM_TDS - 1)
 #define RD_RING_SIZE 	(KORINA_NUM_RDS * sizeof(struct dma_desc))
@@ -196,7 +199,7 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 	struct korina_private *lp = netdev_priv(dev);
 	unsigned long flags;
 	u32 length;
-	u32 chain_index;
+	u32 chain_prev, chain_next;
 	struct dma_desc *td;
 
 	spin_lock_irqsave(&lp->lock, flags);
@@ -228,8 +231,8 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 	/* Setup the transmit descriptor. */
 	dma_cache_inv((u32) td, sizeof(*td));
 	td->ca = CPHYSADDR(skb->data);
-	chain_index = (lp->tx_chain_tail - 1) &
-			KORINA_TDS_MASK;
+	chain_prev = (lp->tx_chain_tail - 1) & KORINA_TDS_MASK;
+	chain_next = (lp->tx_chain_tail + 1) & KORINA_TDS_MASK;
 
 	if (readl(&(lp->tx_dma_regs->dmandptr)) == 0) {
 		if (lp->tx_chain_status == desc_empty) {
@@ -237,7 +240,7 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 			td->control = DMA_COUNT(length) |
 					DMA_DESC_COF | DMA_DESC_IOF;
 			/* Move tail */
-			lp->tx_chain_tail = chain_index;
+			lp->tx_chain_tail = chain_next;
 			/* Write to NDPTR */
 			writel(CPHYSADDR(&lp->td_ring[lp->tx_chain_head]),
 					&lp->tx_dma_regs->dmandptr);
@@ -248,12 +251,12 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 			td->control = DMA_COUNT(length) |
 					DMA_DESC_COF | DMA_DESC_IOF;
 			/* Link to prev */
-			lp->td_ring[chain_index].control &=
+			lp->td_ring[chain_prev].control &=
 					~DMA_DESC_COF;
 			/* Link to prev */
-			lp->td_ring[chain_index].link =  CPHYSADDR(td);
+			lp->td_ring[chain_prev].link =  CPHYSADDR(td);
 			/* Move tail */
-			lp->tx_chain_tail = chain_index;
+			lp->tx_chain_tail = chain_next;
 			/* Write to NDPTR */
 			writel(CPHYSADDR(&lp->td_ring[lp->tx_chain_head]),
 					&(lp->tx_dma_regs->dmandptr));
@@ -267,17 +270,16 @@ static int korina_send_packet(struct sk_buff *skb, struct net_device *dev)
 			td->control = DMA_COUNT(length) |
 					DMA_DESC_COF | DMA_DESC_IOF;
 			/* Move tail */
-			lp->tx_chain_tail = chain_index;
+			lp->tx_chain_tail = chain_next;
 			lp->tx_chain_status = desc_filled;
-			netif_stop_queue(dev);
 		} else {
 			/* Update tail */
 			td->control = DMA_COUNT(length) |
 					DMA_DESC_COF | DMA_DESC_IOF;
-			lp->td_ring[chain_index].control &=
+			lp->td_ring[chain_prev].control &=
 					~DMA_DESC_COF;
-			lp->td_ring[chain_index].link =  CPHYSADDR(td);
-			lp->tx_chain_tail = chain_index;
+			lp->td_ring[chain_prev].link =  CPHYSADDR(td);
+			lp->tx_chain_tail = chain_next;
 		}
 	}
 	dma_cache_wback((u32) td, sizeof(*td));
@@ -327,12 +329,12 @@ static irqreturn_t korina_rx_dma_interrupt(int irq, void *dev_id)
 
 	dmas = readl(&lp->rx_dma_regs->dmas);
 	if (dmas & (DMA_STAT_DONE | DMA_STAT_HALT | DMA_STAT_ERR)) {
-		netif_rx_schedule_prep(&lp->napi);
-
 		dmasm = readl(&lp->rx_dma_regs->dmasm);
 		writel(dmasm | (DMA_STAT_DONE |
 				DMA_STAT_HALT | DMA_STAT_ERR),
 				&lp->rx_dma_regs->dmasm);
+
+		napi_schedule(&lp->napi);
 
 		if (dmas & DMA_STAT_ERR)
 			printk(KERN_ERR DRV_NAME "%s: DMA error\n", dev->name);
@@ -350,14 +352,19 @@ static int korina_rx(struct net_device *dev, int limit)
 	struct dma_desc *rd = &lp->rd_ring[lp->rx_next_done];
 	struct sk_buff *skb, *skb_new;
 	u8 *pkt_buf;
-	u32 devcs, pkt_len, dmas, rx_free_desc;
+	u32 devcs, pkt_len, dmas;
 	int count;
 
 	dma_cache_inv((u32)rd, sizeof(*rd));
 
 	for (count = 0; count < limit; count++) {
+		skb = lp->rx_skb[lp->rx_next_done];
+		skb_new = NULL;
 
 		devcs = rd->devcs;
+
+		if ((KORINA_RBSIZE - (u32)DMA_COUNT(rd->control)) == 0)
+			break;
 
 		/* Update statistics counters */
 		if (devcs & ETH_RX_CRC)
@@ -381,63 +388,58 @@ static int korina_rx(struct net_device *dev, int limit)
 			 * in Rc32434 (errata ref #077) */
 			dev->stats.rx_errors++;
 			dev->stats.rx_dropped++;
-		}
-
-		while ((rx_free_desc = KORINA_RBSIZE - (u32)DMA_COUNT(rd->control)) != 0) {
-			/* init the var. used for the later
-			 * operations within the while loop */
-			skb_new = NULL;
+		} else if ((devcs & ETH_RX_ROK)) {
 			pkt_len = RCVPKT_LENGTH(devcs);
-			skb = lp->rx_skb[lp->rx_next_done];
 
-			if ((devcs & ETH_RX_ROK)) {
-				/* must be the (first and) last
-				 * descriptor then */
-				pkt_buf = (u8 *)lp->rx_skb[lp->rx_next_done]->data;
+			/* must be the (first and) last
+			 * descriptor then */
+			pkt_buf = (u8 *)lp->rx_skb[lp->rx_next_done]->data;
 
-				/* invalidate the cache */
-				dma_cache_inv((unsigned long)pkt_buf, pkt_len - 4);
+			/* invalidate the cache */
+			dma_cache_inv((unsigned long)pkt_buf, pkt_len - 4);
 
-				/* Malloc up new buffer. */
-				skb_new = netdev_alloc_skb(dev, KORINA_RBSIZE + 2);
+			/* Malloc up new buffer. */
+			skb_new = netdev_alloc_skb(dev, KORINA_RBSIZE + 2);
 
-				if (!skb_new)
-					break;
-				/* Do not count the CRC */
-				skb_put(skb, pkt_len - 4);
-				skb->protocol = eth_type_trans(skb, dev);
+			if (!skb_new)
+				break;
+			/* Do not count the CRC */
+			skb_put(skb, pkt_len - 4);
+			skb->protocol = eth_type_trans(skb, dev);
 
-				/* Pass the packet to upper layers */
-				netif_receive_skb(skb);
-				dev->stats.rx_packets++;
-				dev->stats.rx_bytes += pkt_len;
+			/* Pass the packet to upper layers */
+			netif_receive_skb(skb);
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += pkt_len;
 
-				/* Update the mcast stats */
-				if (devcs & ETH_RX_MP)
-					dev->stats.multicast++;
+			/* Update the mcast stats */
+			if (devcs & ETH_RX_MP)
+				dev->stats.multicast++;
 
-				lp->rx_skb[lp->rx_next_done] = skb_new;
-			}
+			/* 16 bit align */
+			skb_reserve(skb_new, 2);
 
-			rd->devcs = 0;
-
-			/* Restore descriptor's curr_addr */
-			if (skb_new)
-				rd->ca = CPHYSADDR(skb_new->data);
-			else
-				rd->ca = CPHYSADDR(skb->data);
-
-			rd->control = DMA_COUNT(KORINA_RBSIZE) |
-				DMA_DESC_COD | DMA_DESC_IOD;
-			lp->rd_ring[(lp->rx_next_done - 1) &
-				KORINA_RDS_MASK].control &=
-				~DMA_DESC_COD;
-
-			lp->rx_next_done = (lp->rx_next_done + 1) & KORINA_RDS_MASK;
-			dma_cache_wback((u32)rd, sizeof(*rd));
-			rd = &lp->rd_ring[lp->rx_next_done];
-			writel(~DMA_STAT_DONE, &lp->rx_dma_regs->dmas);
+			lp->rx_skb[lp->rx_next_done] = skb_new;
 		}
+
+		rd->devcs = 0;
+
+		/* Restore descriptor's curr_addr */
+		if (skb_new)
+			rd->ca = CPHYSADDR(skb_new->data);
+		else
+			rd->ca = CPHYSADDR(skb->data);
+
+		rd->control = DMA_COUNT(KORINA_RBSIZE) |
+			DMA_DESC_COD | DMA_DESC_IOD;
+		lp->rd_ring[(lp->rx_next_done - 1) &
+			KORINA_RDS_MASK].control &=
+			~DMA_DESC_COD;
+
+		lp->rx_next_done = (lp->rx_next_done + 1) & KORINA_RDS_MASK;
+		dma_cache_wback((u32)rd, sizeof(*rd));
+		rd = &lp->rd_ring[lp->rx_next_done];
+		writel(~DMA_STAT_DONE, &lp->rx_dma_regs->dmas);
 	}
 
 	dmas = readl(&lp->rx_dma_regs->dmas);
@@ -466,7 +468,7 @@ static int korina_poll(struct napi_struct *napi, int budget)
 
 	work_done = korina_rx(dev, budget);
 	if (work_done < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 
 		writel(readl(&lp->rx_dma_regs->dmasm) &
 			~(DMA_STAT_DONE | DMA_STAT_HALT | DMA_STAT_ERR),
@@ -623,11 +625,11 @@ korina_tx_dma_interrupt(int irq, void *dev_id)
 	dmas = readl(&lp->tx_dma_regs->dmas);
 
 	if (dmas & (DMA_STAT_FINI | DMA_STAT_ERR)) {
-		korina_tx(dev);
-
 		dmasm = readl(&lp->tx_dma_regs->dmasm);
 		writel(dmasm | (DMA_STAT_FINI | DMA_STAT_ERR),
 				&lp->tx_dma_regs->dmasm);
+
+		korina_tx(dev);
 
 		if (lp->tx_chain_status == desc_filled &&
 			(readl(&(lp->tx_dma_regs->dmandptr)) == 0)) {
@@ -741,6 +743,7 @@ static struct ethtool_ops netdev_ethtool_ops = {
 static void korina_alloc_ring(struct net_device *dev)
 {
 	struct korina_private *lp = netdev_priv(dev);
+	struct sk_buff *skb;
 	int i;
 
 	/* Initialize the transmit descriptors */
@@ -756,8 +759,6 @@ static void korina_alloc_ring(struct net_device *dev)
 
 	/* Initialize the receive descriptors */
 	for (i = 0; i < KORINA_NUM_RDS; i++) {
-		struct sk_buff *skb = lp->rx_skb[i];
-
 		skb = dev_alloc_skb(KORINA_RBSIZE + 2);
 		if (!skb)
 			break;
@@ -770,11 +771,12 @@ static void korina_alloc_ring(struct net_device *dev)
 		lp->rd_ring[i].link = CPHYSADDR(&lp->rd_ring[i+1]);
 	}
 
-	/* loop back */
-	lp->rd_ring[i].link = CPHYSADDR(&lp->rd_ring[0]);
-	lp->rx_next_done  = 0;
+	/* loop back receive descriptors, so the last
+	 * descriptor points to the first one */
+	lp->rd_ring[i - 1].link = CPHYSADDR(&lp->rd_ring[0]);
+	lp->rd_ring[i - 1].control |= DMA_DESC_COD;
 
-	lp->rd_ring[i].control |= DMA_DESC_COD;
+	lp->rx_next_done  = 0;
 	lp->rx_chain_head = 0;
 	lp->rx_chain_tail = 0;
 	lp->rx_chain_status = desc_empty;
@@ -901,6 +903,8 @@ static int korina_restart(struct net_device *dev)
 
 	korina_free_ring(dev);
 
+	napi_disable(&lp->napi);
+
 	ret = korina_init(dev);
 	if (ret < 0) {
 		printk(KERN_ERR DRV_NAME "%s: cannot restart device\n",
@@ -999,14 +1003,14 @@ static int korina_open(struct net_device *dev)
 	 * that handles the Done Finished
 	 * Ovr and Und Events */
 	ret = request_irq(lp->rx_irq, &korina_rx_dma_interrupt,
-		IRQF_SHARED | IRQF_DISABLED, "Korina ethernet Rx", dev);
+			IRQF_DISABLED, "Korina ethernet Rx", dev);
 	if (ret < 0) {
 		printk(KERN_ERR DRV_NAME "%s: unable to get Rx DMA IRQ %d\n",
 		    dev->name, lp->rx_irq);
 		goto err_release;
 	}
 	ret = request_irq(lp->tx_irq, &korina_tx_dma_interrupt,
-		IRQF_SHARED | IRQF_DISABLED, "Korina ethernet Tx", dev);
+			IRQF_DISABLED, "Korina ethernet Tx", dev);
 	if (ret < 0) {
 		printk(KERN_ERR DRV_NAME "%s: unable to get Tx DMA IRQ %d\n",
 		    dev->name, lp->tx_irq);
@@ -1015,7 +1019,7 @@ static int korina_open(struct net_device *dev)
 
 	/* Install handler for overrun error. */
 	ret = request_irq(lp->ovr_irq, &korina_ovr_interrupt,
-			IRQF_SHARED | IRQF_DISABLED, "Ethernet Overflow", dev);
+			IRQF_DISABLED, "Ethernet Overflow", dev);
 	if (ret < 0) {
 		printk(KERN_ERR DRV_NAME"%s: unable to get OVR IRQ %d\n",
 		    dev->name, lp->ovr_irq);
@@ -1024,7 +1028,7 @@ static int korina_open(struct net_device *dev)
 
 	/* Install handler for underflow error. */
 	ret = request_irq(lp->und_irq, &korina_und_interrupt,
-			IRQF_SHARED | IRQF_DISABLED, "Ethernet Underflow", dev);
+			IRQF_DISABLED, "Ethernet Underflow", dev);
 	if (ret < 0) {
 		printk(KERN_ERR DRV_NAME "%s: unable to get UND IRQ %d\n",
 		    dev->name, lp->und_irq);
@@ -1067,6 +1071,8 @@ static int korina_close(struct net_device *dev)
 
 	korina_free_ring(dev);
 
+	napi_disable(&lp->napi);
+
 	free_irq(lp->rx_irq, dev);
 	free_irq(lp->tx_irq, dev);
 	free_irq(lp->ovr_irq, dev);
@@ -1089,7 +1095,6 @@ static int korina_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
-	platform_set_drvdata(pdev, dev);
 	lp = netdev_priv(dev);
 
 	bif->dev = dev;

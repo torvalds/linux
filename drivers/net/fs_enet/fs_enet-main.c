@@ -209,7 +209,7 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 
 	if (received < budget) {
 		/* done */
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		(*fep->ops->napi_enable_rx)(dev);
 	}
 	return received;
@@ -478,7 +478,7 @@ fs_enet_interrupt(int irq, void *dev_id)
 				/* NOTE: it is possible for FCCs in NAPI mode    */
 				/* to submit a spurious interrupt while in poll  */
 				if (napi_ok)
-					__netif_rx_schedule(&fep->napi);
+					__napi_schedule(&fep->napi);
 			}
 		}
 
@@ -795,6 +795,7 @@ static int fs_enet_open(struct net_device *dev)
 
 	err = fs_init_phy(dev);
 	if (err) {
+		free_irq(fep->interrupt, dev);
 		if (fep->fpi->use_napi)
 			napi_disable(&fep->napi);
 		return err;

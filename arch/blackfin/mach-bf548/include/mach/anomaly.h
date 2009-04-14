@@ -2,12 +2,12 @@
  * File: include/asm-blackfin/mach-bf548/anomaly.h
  * Bugs: Enter bugs at http://blackfin.uclinux.org/
  *
- * Copyright (C) 2004-2008 Analog Devices Inc.
+ * Copyright (C) 2004-2009 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */
 
 /* This file shoule be up to date with:
- *  - Revision G, 08/07/2008; ADSP-BF542/BF544/BF547/BF548/BF549 Blackfin Processor Anomaly List
+ *  - Revision H, 01/16/2009; ADSP-BF542/BF544/BF547/BF548/BF549 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -91,8 +91,6 @@
 #define ANOMALY_05000371 (__SILICON_REVISION__ < 2)
 /* USB DP/DM Data Pins May Lose State When Entering Hibernate */
 #define ANOMALY_05000372 (__SILICON_REVISION__ < 1)
-/* Mobile DDR Operation Not Functional */
-#define ANOMALY_05000377 (1)
 /* Security/Authentication Speedpath Causes Authentication To Fail To Initiate */
 #define ANOMALY_05000378 (__SILICON_REVISION__ < 2)
 /* 16-Bit NAND FLASH Boot Mode Is Not Functional */
@@ -157,8 +155,22 @@
 #define ANOMALY_05000429 (__SILICON_REVISION__ < 2)
 /* Software System Reset Corrupts PLL_LOCKCNT Register */
 #define ANOMALY_05000430 (__SILICON_REVISION__ >= 2)
+/* Incorrect Use of Stack in Lockbox Firmware During Authentication */
+#define ANOMALY_05000431 (__SILICON_REVISION__ < 3)
+/* OTP Write Accesses Not Supported */
+#define ANOMALY_05000442 (__SILICON_REVISION__ < 1)
 /* IFLUSH Instruction at End of Hardware Loop Causes Infinite Stall */
 #define ANOMALY_05000443 (1)
+/* CDMAPRIO and L2DMAPRIO Bits in the SYSCR Register Are Not Functional */
+#define ANOMALY_05000446 (1)
+/* UART IrDA Receiver Fails on Extended Bit Pulses */
+#define ANOMALY_05000447 (1)
+/* DDR Clock Duty Cycle Spec Violation (tCH, tCL) */
+#define ANOMALY_05000448 (__SILICON_REVISION__ == 1)
+/* Reduced Timing Margins on DDR Output Setup and Hold (tDS and tDH) */
+#define ANOMALY_05000449 (__SILICON_REVISION__ == 1)
+/* USB DMA Mode 1 Short Packet Data Corruption */
+#define ANOMALY_05000450 (1
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000125 (0)
@@ -171,10 +183,13 @@
 #define ANOMALY_05000263 (0)
 #define ANOMALY_05000266 (0)
 #define ANOMALY_05000273 (0)
+#define ANOMALY_05000278 (0)
+#define ANOMALY_05000305 (0)
 #define ANOMALY_05000307 (0)
 #define ANOMALY_05000311 (0)
 #define ANOMALY_05000323 (0)
 #define ANOMALY_05000363 (0)
+#define ANOMALY_05000380 (0)
 #define ANOMALY_05000412 (0)
 #define ANOMALY_05000432 (0)
 #define ANOMALY_05000435 (0)

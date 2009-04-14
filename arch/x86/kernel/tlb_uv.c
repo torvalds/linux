@@ -11,15 +11,14 @@
 #include <linux/kernel.h>
 
 #include <asm/mmu_context.h>
+#include <asm/uv/uv.h>
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/uv_bau.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/idle.h>
 #include <asm/tsc.h>
 #include <asm/irq_vectors.h>
-
-#include <mach_apic.h>
 
 static struct bau_control	**uv_bau_table_bases __read_mostly;
 static int			uv_bau_retry_limit __read_mostly;
@@ -200,6 +199,7 @@ static int uv_wait_completion(struct bau_desc *bau_desc,
 				destination_timeouts = 0;
 			}
 		}
+		cpu_relax();
 	}
 	return FLUSH_COMPLETE;
 }
@@ -209,14 +209,15 @@ static int uv_wait_completion(struct bau_desc *bau_desc,
  *
  * Send a broadcast and wait for a broadcast message to complete.
  *
- * The cpumaskp mask contains the cpus the broadcast was sent to.
+ * The flush_mask contains the cpus the broadcast was sent to.
  *
- * Returns 1 if all remote flushing was done. The mask is zeroed.
- * Returns 0 if some remote flushing remains to be done. The mask is left
- * unchanged.
+ * Returns NULL if all remote flushing was done. The mask is zeroed.
+ * Returns @flush_mask if some remote flushing remains to be done. The
+ * mask will have some bits still set.
  */
-int uv_flush_send_and_wait(int cpu, int this_blade, struct bau_desc *bau_desc,
-			   cpumask_t *cpumaskp)
+const struct cpumask *uv_flush_send_and_wait(int cpu, int this_blade,
+					     struct bau_desc *bau_desc,
+					     struct cpumask *flush_mask)
 {
 	int completion_status = 0;
 	int right_shift;
@@ -256,66 +257,75 @@ int uv_flush_send_and_wait(int cpu, int this_blade, struct bau_desc *bau_desc,
 		 * the cpu's, all of which are still in the mask.
 		 */
 		__get_cpu_var(ptcstats).ptc_i++;
-		return 0;
+		return flush_mask;
 	}
 
 	/*
 	 * Success, so clear the remote cpu's from the mask so we don't
 	 * use the IPI method of shootdown on them.
 	 */
-	for_each_cpu_mask(bit, *cpumaskp) {
+	for_each_cpu(bit, flush_mask) {
 		blade = uv_cpu_to_blade_id(bit);
 		if (blade == this_blade)
 			continue;
-		cpu_clear(bit, *cpumaskp);
+		cpumask_clear_cpu(bit, flush_mask);
 	}
-	if (!cpus_empty(*cpumaskp))
-		return 0;
-	return 1;
+	if (!cpumask_empty(flush_mask))
+		return flush_mask;
+	return NULL;
 }
+
+static DEFINE_PER_CPU(cpumask_var_t, uv_flush_tlb_mask);
 
 /**
  * uv_flush_tlb_others - globally purge translation cache of a virtual
  * address or all TLB's
- * @cpumaskp: mask of all cpu's in which the address is to be removed
+ * @cpumask: mask of all cpu's in which the address is to be removed
  * @mm: mm_struct containing virtual address range
  * @va: virtual address to be removed (or TLB_FLUSH_ALL for all TLB's on cpu)
+ * @cpu: the current cpu
  *
  * This is the entry point for initiating any UV global TLB shootdown.
  *
  * Purges the translation caches of all specified processors of the given
  * virtual address, or purges all TLB's on specified processors.
  *
- * The caller has derived the cpumaskp from the mm_struct and has subtracted
- * the local cpu from the mask.  This function is called only if there
- * are bits set in the mask. (e.g. flush_tlb_page())
+ * The caller has derived the cpumask from the mm_struct.  This function
+ * is called only if there are bits set in the mask. (e.g. flush_tlb_page())
  *
- * The cpumaskp is converted into a nodemask of the nodes containing
+ * The cpumask is converted into a nodemask of the nodes containing
  * the cpus.
  *
- * Returns 1 if all remote flushing was done.
- * Returns 0 if some remote flushing remains to be done.
+ * Note that this function should be called with preemption disabled.
+ *
+ * Returns NULL if all remote flushing was done.
+ * Returns pointer to cpumask if some remote flushing remains to be
+ * done.  The returned pointer is valid till preemption is re-enabled.
  */
-int uv_flush_tlb_others(cpumask_t *cpumaskp, struct mm_struct *mm,
-			unsigned long va)
+const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
+					  struct mm_struct *mm,
+					  unsigned long va, unsigned int cpu)
 {
+	struct cpumask *flush_mask = __get_cpu_var(uv_flush_tlb_mask);
 	int i;
 	int bit;
 	int blade;
-	int cpu;
+	int uv_cpu;
 	int this_blade;
 	int locals = 0;
 	struct bau_desc *bau_desc;
 
-	cpu = uv_blade_processor_id();
+	cpumask_andnot(flush_mask, cpumask, cpumask_of(cpu));
+
+	uv_cpu = uv_blade_processor_id();
 	this_blade = uv_numa_blade_id();
 	bau_desc = __get_cpu_var(bau_control).descriptor_base;
-	bau_desc += UV_ITEMS_PER_DESCRIPTOR * cpu;
+	bau_desc += UV_ITEMS_PER_DESCRIPTOR * uv_cpu;
 
 	bau_nodes_clear(&bau_desc->distribution, UV_DISTRIBUTION_SIZE);
 
 	i = 0;
-	for_each_cpu_mask(bit, *cpumaskp) {
+	for_each_cpu(bit, flush_mask) {
 		blade = uv_cpu_to_blade_id(bit);
 		BUG_ON(blade > (UV_DISTRIBUTION_SIZE - 1));
 		if (blade == this_blade) {
@@ -330,17 +340,17 @@ int uv_flush_tlb_others(cpumask_t *cpumaskp, struct mm_struct *mm,
 		 * no off_node flushing; return status for local node
 		 */
 		if (locals)
-			return 0;
+			return flush_mask;
 		else
-			return 1;
+			return NULL;
 	}
 	__get_cpu_var(ptcstats).requestor++;
 	__get_cpu_var(ptcstats).ntargeted += i;
 
 	bau_desc->payload.address = va;
-	bau_desc->payload.sending_cpu = smp_processor_id();
+	bau_desc->payload.sending_cpu = cpu;
 
-	return uv_flush_send_and_wait(cpu, this_blade, bau_desc, cpumaskp);
+	return uv_flush_send_and_wait(uv_cpu, this_blade, bau_desc, flush_mask);
 }
 
 /*
@@ -741,16 +751,21 @@ static int __init uv_bau_init(void)
 	int node;
 	int nblades;
 	int last_blade;
-	int cur_cpu = 0;
+	int cur_cpu;
 
 	if (!is_uv_system())
 		return 0;
+
+	for_each_possible_cpu(cur_cpu)
+		alloc_cpumask_var_node(&per_cpu(uv_flush_tlb_mask, cur_cpu),
+				       GFP_KERNEL, cpu_to_node(cur_cpu));
 
 	uv_bau_retry_limit = 1;
 	uv_nshift = uv_hub_info->n_val;
 	uv_mmask = (1UL << uv_hub_info->n_val) - 1;
 	nblades = 0;
 	last_blade = -1;
+	cur_cpu = 0;
 	for_each_online_node(node) {
 		blade = uv_node_to_blade_id(node);
 		if (blade == last_blade)

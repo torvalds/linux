@@ -19,8 +19,10 @@ DECLARE_PER_CPU(unsigned long, xen_mc_irq_flags);
    paired with xen_mc_issue() */
 static inline void xen_mc_batch(void)
 {
+	unsigned long flags;
 	/* need to disable interrupts until this entry is complete */
-	local_irq_save(__get_cpu_var(xen_mc_irq_flags));
+	local_irq_save(flags);
+	__get_cpu_var(xen_mc_irq_flags) = flags;
 }
 
 static inline struct multicall_space xen_mc_entry(size_t args)
@@ -39,7 +41,7 @@ static inline void xen_mc_issue(unsigned mode)
 		xen_mc_flush();
 
 	/* restore flags saved in xen_mc_batch */
-	local_irq_restore(x86_read_percpu(xen_mc_irq_flags));
+	local_irq_restore(percpu_read(xen_mc_irq_flags));
 }
 
 /* Set up a callback to be called when the current batch is flushed */

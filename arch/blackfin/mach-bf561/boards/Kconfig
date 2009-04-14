@@ -19,9 +19,4 @@ config BFIN561_BLUETECHNIX_CM
 	help
 	  CM-BF561 support for EVAL- and DEV-Board.
 
-config GENERIC_BF561_BOARD
-	bool "Generic"
-	help
-	  Generic or Custom board support.
-
 endchoice

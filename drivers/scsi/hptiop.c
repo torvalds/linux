@@ -580,8 +580,7 @@ static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
 		break;
 
 	default:
-		scp->result = ((DRIVER_INVALID|SUGGEST_ABORT)<<24) |
-					(DID_ABORT<<16);
+		scp->result = DRIVER_INVALID << 24 | DID_ABORT << 16;
 		break;
 	}
 
@@ -959,8 +958,8 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 	pci_set_master(pcidev);
 
 	/* Enable 64bit DMA if possible */
-	if (pci_set_dma_mask(pcidev, DMA_64BIT_MASK)) {
-		if (pci_set_dma_mask(pcidev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(64))) {
+		if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(32))) {
 			printk(KERN_ERR "hptiop: fail to set dma_mask\n");
 			goto disable_pci_device;
 		}
@@ -1251,6 +1250,7 @@ static struct pci_device_id hptiop_id_table[] = {
 	{ PCI_VDEVICE(TTI, 0x3530), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x3560), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x4322), (kernel_ulong_t)&hptiop_itl_ops },
+	{ PCI_VDEVICE(TTI, 0x4321), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x4210), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x4211), (kernel_ulong_t)&hptiop_itl_ops },
 	{ PCI_VDEVICE(TTI, 0x4310), (kernel_ulong_t)&hptiop_itl_ops },

@@ -36,7 +36,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/version.h>
@@ -114,7 +114,7 @@ static int me8100_di_io_reset_subdevice(struct me_subdevice *subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me8100_di_io_irq_start(me_subdevice_t * subdevice,
+static int me8100_di_io_irq_start(me_subdevice_t *subdevice,
 				  struct file *filep,
 				  int channel,
 				  int irq_source,
@@ -208,7 +208,7 @@ static int me8100_di_io_irq_start(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me8100_di_io_irq_wait(me_subdevice_t * subdevice,
+static int me8100_di_io_irq_wait(me_subdevice_t *subdevice,
 				 struct file *filep,
 				 int channel,
 				 int *irq_count,
@@ -315,7 +315,7 @@ static int me8100_di_io_irq_wait(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me8100_di_io_irq_stop(me_subdevice_t * subdevice,
+static int me8100_di_io_irq_stop(me_subdevice_t *subdevice,
 				 struct file *filep, int channel, int flags)
 {
 	me8100_di_subdevice_t *instance;
@@ -358,7 +358,7 @@ static int me8100_di_io_irq_stop(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me8100_di_io_single_config(me_subdevice_t * subdevice,
+static int me8100_di_io_single_config(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int channel,
 				      int single_config,
@@ -405,7 +405,7 @@ static int me8100_di_io_single_config(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me8100_di_io_single_read(me_subdevice_t * subdevice,
+static int me8100_di_io_single_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int channel,
 				    int *value, int time_out, int flags)
@@ -466,7 +466,7 @@ static int me8100_di_io_single_read(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me8100_di_query_number_channels(me_subdevice_t * subdevice,
+static int me8100_di_query_number_channels(me_subdevice_t *subdevice,
 					   int *number)
 {
 	PDEBUG("executed.\n");
@@ -474,7 +474,7 @@ static int me8100_di_query_number_channels(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me8100_di_query_subdevice_type(me_subdevice_t * subdevice,
+static int me8100_di_query_subdevice_type(me_subdevice_t *subdevice,
 					  int *type, int *subtype)
 {
 	PDEBUG("executed.\n");
@@ -483,7 +483,7 @@ static int me8100_di_query_subdevice_type(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me8100_di_query_subdevice_caps(me_subdevice_t * subdevice, int *caps)
+static int me8100_di_query_subdevice_caps(me_subdevice_t *subdevice, int *caps)
 {
 	PDEBUG("executed.\n");
 	*caps = ME_CAPS_DIO_BIT_PATTERN_IRQ | ME_CAPS_DIO_BIT_MASK_IRQ_EDGE_ANY;
@@ -503,11 +503,7 @@ static void me8100_di_destructor(struct me_subdevice *subdevice)
 	kfree(instance);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me8100_isr(int irq, void *dev_id)
-#else
-static irqreturn_t me8100_isr(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {
 	me8100_di_subdevice_t *instance;
 	uint32_t icsr;
@@ -598,7 +594,7 @@ me8100_di_subdevice_t *me8100_di_constructor(uint32_t me8100_reg_base,
 					     uint32_t plx_reg_base,
 					     unsigned int di_idx,
 					     int irq,
-					     spinlock_t * ctrl_reg_lock)
+					     spinlock_t *ctrl_reg_lock)
 {
 	me8100_di_subdevice_t *subdevice;
 	int err;

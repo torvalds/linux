@@ -87,29 +87,14 @@ config X86_POWERNOW_K7_ACPI
 config X86_POWERNOW_K8
 	tristate "AMD Opteron/Athlon64 PowerNow!"
 	select CPU_FREQ_TABLE
+	depends on ACPI && ACPI_PROCESSOR
 	help
-	  This adds the CPUFreq driver for mobile AMD Opteron/Athlon64 processors.
+	  This adds the CPUFreq driver for K8/K10 Opteron/Athlon64 processors.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called powernow-k8.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
-
-	  If in doubt, say N.
-
-config X86_POWERNOW_K8_ACPI
-	bool
-	prompt "ACPI Support" if X86_32
-	depends on ACPI && X86_POWERNOW_K8 && ACPI_PROCESSOR
-	depends on !(X86_POWERNOW_K8 = y && ACPI_PROCESSOR = m)
-	default y
-	help
-	  This provides access to the K8s Processor Performance States via ACPI.
-	  This driver is probably required for CPUFreq to work with multi-socket and
-	  SMP systems.  It is not required on at least some single-socket yet
-	  multi-core systems, even if SMP is enabled.
-
-	  It is safe to say Y here.
 
 config X86_GX_SUSPMOD
 	tristate "Cyrix MediaGX/NatSemi Geode Suspend Modulation"
@@ -244,17 +229,6 @@ config X86_E_POWERSAVER
 	  If in doubt, say N.
 
 comment "shared options"
-
-config X86_ACPI_CPUFREQ_PROC_INTF
-	bool "/proc/acpi/processor/../performance interface (deprecated)"
-	depends on PROC_FS
-	depends on X86_ACPI_CPUFREQ || X86_POWERNOW_K7_ACPI || X86_POWERNOW_K8_ACPI
-	help
-	  This enables the deprecated /proc/acpi/processor/../performance
-	  interface. While it is helpful for debugging, the generic,
-	  cross-architecture cpufreq interfaces should be used.
-
-	  If in doubt, say N.
 
 config X86_SPEEDSTEP_LIB
 	tristate

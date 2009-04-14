@@ -24,7 +24,7 @@ sys_call_table:
 /*25*/	.long sys_vmsplice, sys_ptrace, sys_alarm, sys_sigaltstack, sys_pause
 /*30*/	.long sys_utime, sys_lchown, sys_fchown, sys_access, sys_nice
 /*35*/	.long sys_chown, sys_sync, sys_kill, sys_newstat, sys_sendfile
-/*40*/	.long sys_newlstat, sys_dup, sys_pipe, sys_times, sys_getuid
+/*40*/	.long sys_newlstat, sys_dup, sys_sparc_pipe, sys_times, sys_getuid
 /*45*/	.long sys_umount, sys_setgid16, sys_getgid16, sys_signal, sys_geteuid16
 /*50*/	.long sys_getegid16, sys_acct, sys_nis_syscall, sys_getgid, sys_ioctl
 /*55*/	.long sys_reboot, sys_mmap2, sys_symlink, sys_readlink, sys_execve
@@ -56,7 +56,7 @@ sys_call_table:
 /*185*/	.long sys_setpgid, sys_fremovexattr, sys_tkill, sys_exit_group, sys_newuname
 /*190*/	.long sys_init_module, sys_personality, sparc_remap_file_pages, sys_epoll_create, sys_epoll_ctl
 /*195*/	.long sys_epoll_wait, sys_ioprio_set, sys_getppid, sparc_sigaction, sys_sgetmask
-/*200*/	.long sys_ssetmask, sys_sigsuspend, sys_newlstat, sys_uselib, old_readdir
+/*200*/	.long sys_ssetmask, sys_sigsuspend, sys_newlstat, sys_uselib, sys_old_readdir
 /*205*/	.long sys_readahead, sys_socketcall, sys_syslog, sys_lookup_dcookie, sys_fadvise64
 /*210*/	.long sys_fadvise64_64, sys_tgkill, sys_waitpid, sys_swapoff, sys_sysinfo
 /*215*/	.long sys_ipc, sys_sigreturn, sys_clone, sys_ioprio_get, sys_adjtimex

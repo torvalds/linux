@@ -76,7 +76,6 @@ static irqreturn_t c2_interrupt(int irq, void *dev_id);
 static void c2_tx_timeout(struct net_device *netdev);
 static int c2_change_mtu(struct net_device *netdev, int new_mtu);
 static void c2_reset(struct c2_port *c2_port);
-static struct net_device_stats *c2_get_stats(struct net_device *netdev);
 
 static struct pci_device_id c2_pci_table[] = {
 	{ PCI_DEVICE(0x18b8, 0xb001) },
@@ -349,7 +348,7 @@ static void c2_tx_clean(struct c2_port *c2_port)
 					     elem->hw_desc + C2_TXP_ADDR);
 				__raw_writew((__force u16) cpu_to_be16(TXP_HTXD_DONE),
 					     elem->hw_desc + C2_TXP_FLAGS);
-				c2_port->netstats.tx_dropped++;
+				c2_port->netdev->stats.tx_dropped++;
 				break;
 			} else {
 				__raw_writew(0,
@@ -457,7 +456,7 @@ static void c2_rx_error(struct c2_port *c2_port, struct c2_element *elem)
 		     elem->hw_desc + C2_RXP_FLAGS);
 
 	pr_debug("packet dropped\n");
-	c2_port->netstats.rx_dropped++;
+	c2_port->netdev->stats.rx_dropped++;
 }
 
 static void c2_rx_interrupt(struct net_device *netdev)
@@ -532,8 +531,8 @@ static void c2_rx_interrupt(struct net_device *netdev)
 		netif_rx(skb);
 
 		netdev->last_rx = jiffies;
-		c2_port->netstats.rx_packets++;
-		c2_port->netstats.rx_bytes += buflen;
+		netdev->stats.rx_packets++;
+		netdev->stats.rx_bytes += buflen;
 	}
 
 	/* Save where we left off */
@@ -797,8 +796,8 @@ static int c2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	__raw_writew((__force u16) cpu_to_be16(TXP_HTXD_READY),
 		     elem->hw_desc + C2_TXP_FLAGS);
 
-	c2_port->netstats.tx_packets++;
-	c2_port->netstats.tx_bytes += maplen;
+	netdev->stats.tx_packets++;
+	netdev->stats.tx_bytes += maplen;
 
 	/* Loop thru additional data fragments and queue them */
 	if (skb_shinfo(skb)->nr_frags) {
@@ -823,8 +822,8 @@ static int c2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			__raw_writew((__force u16) cpu_to_be16(TXP_HTXD_READY),
 				     elem->hw_desc + C2_TXP_FLAGS);
 
-			c2_port->netstats.tx_packets++;
-			c2_port->netstats.tx_bytes += maplen;
+			netdev->stats.tx_packets++;
+			netdev->stats.tx_bytes += maplen;
 		}
 	}
 
@@ -843,13 +842,6 @@ static int c2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	netdev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
-}
-
-static struct net_device_stats *c2_get_stats(struct net_device *netdev)
-{
-	struct c2_port *c2_port = netdev_priv(netdev);
-
-	return &c2_port->netstats;
 }
 
 static void c2_tx_timeout(struct net_device *netdev)
@@ -880,6 +872,16 @@ static int c2_change_mtu(struct net_device *netdev, int new_mtu)
 	return ret;
 }
 
+static const struct net_device_ops c2_netdev = {
+	.ndo_open 		= c2_up,
+	.ndo_stop 		= c2_down,
+	.ndo_start_xmit		= c2_xmit_frame,
+	.ndo_tx_timeout		= c2_tx_timeout,
+	.ndo_change_mtu		= c2_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /* Initialize network device */
 static struct net_device *c2_devinit(struct c2_dev *c2dev,
 				     void __iomem * mmio_addr)
@@ -894,12 +896,7 @@ static struct net_device *c2_devinit(struct c2_dev *c2dev,
 
 	SET_NETDEV_DEV(netdev, &c2dev->pcidev->dev);
 
-	netdev->open = c2_up;
-	netdev->stop = c2_down;
-	netdev->hard_start_xmit = c2_xmit_frame;
-	netdev->get_stats = c2_get_stats;
-	netdev->tx_timeout = c2_tx_timeout;
-	netdev->change_mtu = c2_change_mtu;
+	netdev->netdev_ops = &c2_netdev;
 	netdev->watchdog_timeo = C2_TX_TIMEOUT;
 	netdev->irq = c2dev->pcidev->irq;
 
@@ -992,13 +989,13 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 	}
 
 	if ((sizeof(dma_addr_t) > 4)) {
-		ret = pci_set_dma_mask(pcidev, DMA_64BIT_MASK);
+		ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(64));
 		if (ret < 0) {
 			printk(KERN_ERR PFX "64b DMA configuration failed\n");
 			goto bail2;
 		}
 	} else {
-		ret = pci_set_dma_mask(pcidev, DMA_32BIT_MASK);
+		ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
 		if (ret < 0) {
 			printk(KERN_ERR PFX "32b DMA configuration failed\n");
 			goto bail2;

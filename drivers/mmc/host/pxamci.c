@@ -30,9 +30,8 @@
 
 #include <asm/sizes.h>
 
-#include <mach/dma.h>
 #include <mach/hardware.h>
-#include <mach/pxa-regs.h>
+#include <mach/dma.h>
 #include <mach/mmc.h>
 
 #include "pxamci.h"
@@ -180,7 +179,15 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 	else
 		DALGN &= ~(1 << host->dma);
 	DDADR(host->dma) = host->sg_dma;
-	DCSR(host->dma) = DCSR_RUN;
+
+	/*
+	 * workaround for erratum #91:
+	 * only start DMA now if we are doing a read,
+	 * otherwise we wait until CMD/RESP has finished
+	 * before starting DMA.
+	 */
+	if (!cpu_is_pxa27x() || data->flags & MMC_DATA_READ)
+		DCSR(host->dma) = DCSR_RUN;
 }
 
 static void pxamci_start_cmd(struct pxamci_host *host, struct mmc_command *cmd, unsigned int cmdat)
@@ -251,23 +258,28 @@ static int pxamci_cmd_done(struct pxamci_host *host, unsigned int stat)
 	if (stat & STAT_TIME_OUT_RESPONSE) {
 		cmd->error = -ETIMEDOUT;
 	} else if (stat & STAT_RES_CRC_ERR && cmd->flags & MMC_RSP_CRC) {
-#ifdef CONFIG_PXA27x
 		/*
 		 * workaround for erratum #42:
 		 * Intel PXA27x Family Processor Specification Update Rev 001
 		 * A bogus CRC error can appear if the msb of a 136 bit
 		 * response is a one.
 		 */
-		if (cmd->flags & MMC_RSP_136 && cmd->resp[0] & 0x80000000) {
+		if (cpu_is_pxa27x() &&
+		    (cmd->flags & MMC_RSP_136 && cmd->resp[0] & 0x80000000))
 			pr_debug("ignoring CRC from command %d - *risky*\n", cmd->opcode);
-		} else
-#endif
-		cmd->error = -EILSEQ;
+		else
+			cmd->error = -EILSEQ;
 	}
 
 	pxamci_disable_irq(host, END_CMD_RES);
 	if (host->data && !cmd->error) {
 		pxamci_enable_irq(host, DATA_TRAN_DONE);
+		/*
+		 * workaround for erratum #91, if doing write
+		 * enable DMA late
+		 */
+		if (cpu_is_pxa27x() && host->data->flags & MMC_DATA_WRITE)
+			DCSR(host->dma) = DCSR_RUN;
 	} else {
 		pxamci_finish_request(host, host->mrq);
 	}

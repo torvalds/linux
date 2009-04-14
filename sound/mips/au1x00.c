@@ -679,7 +679,7 @@ au1000_init(void)
 		return err;
 	}
 
-	printk( KERN_INFO "ALSA AC97: Driver Initialized\n" );
+	printk(KERN_INFO "ALSA AC97: Driver Initialized\n");
 	au1000_card = card;
 	return 0;
 }

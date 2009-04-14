@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_SIGCONTEXT32_H
 #define _ASM_X86_SIGCONTEXT32_H
 
+#include <linux/types.h>
+
 /* signal context for 32bit programs. */
 
 #define X86_FXSR_MAGIC		0x0000

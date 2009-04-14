@@ -374,7 +374,7 @@ xfs_truncate_file(
 
 	/*
 	 * Follow the normal truncate locking protocol.  Since we
-	 * hold the inode in the transaction, we know that it's number
+	 * hold the inode in the transaction, we know that its number
 	 * of references will stay constant.
 	 */
 	xfs_ilock(ip, XFS_ILOCK_EXCL);

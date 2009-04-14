@@ -30,19 +30,20 @@
 #define all_var 0
 #endif
 
-extern const unsigned long kallsyms_addresses[];
-extern const u8 kallsyms_names[];
+/* These will be re-linked against their real values during the second link stage */
+extern const unsigned long kallsyms_addresses[] __attribute__((weak));
+extern const u8 kallsyms_names[] __attribute__((weak));
 
 /* tell the compiler that the count isn't in the small data section if the arch
  * has one (eg: FRV)
  */
 extern const unsigned long kallsyms_num_syms
-	__attribute__((__section__(".rodata")));
+__attribute__((weak, section(".rodata")));
 
-extern const u8 kallsyms_token_table[];
-extern const u16 kallsyms_token_index[];
+extern const u8 kallsyms_token_table[] __attribute__((weak));
+extern const u16 kallsyms_token_index[] __attribute__((weak));
 
-extern const unsigned long kallsyms_markers[];
+extern const unsigned long kallsyms_markers[] __attribute__((weak));
 
 static inline int is_kernel_inittext(unsigned long addr)
 {
@@ -160,12 +161,34 @@ unsigned long kallsyms_lookup_name(const char *name)
 	return module_kallsyms_lookup_name(name);
 }
 
+int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *,
+				      unsigned long),
+			    void *data)
+{
+	char namebuf[KSYM_NAME_LEN];
+	unsigned long i;
+	unsigned int off;
+	int ret;
+
+	for (i = 0, off = 0; i < kallsyms_num_syms; i++) {
+		off = kallsyms_expand_symbol(off, namebuf);
+		ret = fn(data, namebuf, NULL, kallsyms_addresses[i]);
+		if (ret != 0)
+			return ret;
+	}
+	return module_kallsyms_on_each_symbol(fn, data);
+}
+EXPORT_SYMBOL_GPL(kallsyms_on_each_symbol);
+
 static unsigned long get_symbol_pos(unsigned long addr,
 				    unsigned long *symbolsize,
 				    unsigned long *offset)
 {
 	unsigned long symbol_start = 0, symbol_end = 0;
 	unsigned long i, low, high, mid;
+
+	/* This kernel should never had been booted. */
+	BUG_ON(!kallsyms_addresses);
 
 	/* do a binary search on the sorted kallsyms_addresses array */
 	low = 0;

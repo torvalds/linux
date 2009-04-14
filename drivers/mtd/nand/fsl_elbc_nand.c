@@ -676,7 +676,7 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 
 	dev_dbg(ctrl->dev, "fsl_elbc_init: nand->numchips = %d\n",
 	        chip->numchips);
-	dev_dbg(ctrl->dev, "fsl_elbc_init: nand->chipsize = %ld\n",
+	dev_dbg(ctrl->dev, "fsl_elbc_init: nand->chipsize = %lld\n",
 	        chip->chipsize);
 	dev_dbg(ctrl->dev, "fsl_elbc_init: nand->pagemask = %8x\n",
 	        chip->pagemask);
@@ -703,7 +703,7 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 	dev_dbg(ctrl->dev, "fsl_elbc_init: nand->ecc.layout = %p\n",
 	        chip->ecc.layout);
 	dev_dbg(ctrl->dev, "fsl_elbc_init: mtd->flags = %08x\n", mtd->flags);
-	dev_dbg(ctrl->dev, "fsl_elbc_init: mtd->size = %d\n", mtd->size);
+	dev_dbg(ctrl->dev, "fsl_elbc_init: mtd->size = %lld\n", mtd->size);
 	dev_dbg(ctrl->dev, "fsl_elbc_init: mtd->erasesize = %d\n",
 	        mtd->erasesize);
 	dev_dbg(ctrl->dev, "fsl_elbc_init: mtd->writesize = %d\n",
@@ -932,8 +932,8 @@ static int __devinit fsl_elbc_chip_probe(struct fsl_elbc_ctrl *ctrl,
 #endif
 		add_mtd_device(&priv->mtd);
 
-	printk(KERN_INFO "eLBC NAND device at 0x%zx, bank %d\n",
-	       res.start, priv->bank);
+	printk(KERN_INFO "eLBC NAND device at 0x%llx, bank %d\n",
+	       (unsigned long long)res.start, priv->bank);
 	return 0;
 
 err:

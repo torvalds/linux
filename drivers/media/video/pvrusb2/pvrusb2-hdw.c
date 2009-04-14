@@ -24,17 +24,22 @@
 #include <linux/firmware.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/tuner.h>
 #include "pvrusb2.h"
 #include "pvrusb2-std.h"
 #include "pvrusb2-util.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-i2c-core.h"
-#include "pvrusb2-tuner.h"
 #include "pvrusb2-eeprom.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-encoder.h"
 #include "pvrusb2-debug.h"
 #include "pvrusb2-fx2-cmd.h"
+#include "pvrusb2-wm8775.h"
+#include "pvrusb2-video-v4l.h"
+#include "pvrusb2-cx2584x-v4l.h"
+#include "pvrusb2-cs53l32a.h"
+#include "pvrusb2-audio.h"
 
 #define TV_MIN_FREQ     55250000L
 #define TV_MAX_FREQ    850000000L
@@ -103,6 +108,39 @@ MODULE_PARM_DESC(radio_freq, "specify initial radio frequency");
 
 /* size of a firmware chunk */
 #define FIRMWARE_CHUNK_SIZE 0x2000
+
+typedef void (*pvr2_subdev_update_func)(struct pvr2_hdw *,
+					struct v4l2_subdev *);
+
+static const pvr2_subdev_update_func pvr2_module_update_functions[] = {
+	[PVR2_CLIENT_ID_WM8775] = pvr2_wm8775_subdev_update,
+	[PVR2_CLIENT_ID_SAA7115] = pvr2_saa7115_subdev_update,
+	[PVR2_CLIENT_ID_MSP3400] = pvr2_msp3400_subdev_update,
+	[PVR2_CLIENT_ID_CX25840] = pvr2_cx25840_subdev_update,
+	[PVR2_CLIENT_ID_CS53L32A] = pvr2_cs53l32a_subdev_update,
+};
+
+static const char *module_names[] = {
+	[PVR2_CLIENT_ID_MSP3400] = "msp3400",
+	[PVR2_CLIENT_ID_CX25840] = "cx25840",
+	[PVR2_CLIENT_ID_SAA7115] = "saa7115",
+	[PVR2_CLIENT_ID_TUNER] = "tuner",
+	[PVR2_CLIENT_ID_DEMOD] = "tuner",
+	[PVR2_CLIENT_ID_CS53L32A] = "cs53l32a",
+	[PVR2_CLIENT_ID_WM8775] = "wm8775",
+};
+
+
+static const unsigned char *module_i2c_addresses[] = {
+	[PVR2_CLIENT_ID_TUNER] = "\x60\x61\x62\x63",
+	[PVR2_CLIENT_ID_DEMOD] = "\x43",
+	[PVR2_CLIENT_ID_MSP3400] = "\x40",
+	[PVR2_CLIENT_ID_SAA7115] = "\x21",
+	[PVR2_CLIENT_ID_WM8775] = "\x1b",
+	[PVR2_CLIENT_ID_CX25840] = "\x44",
+	[PVR2_CLIENT_ID_CS53L32A] = "\x11",
+};
+
 
 /* Define the list of additional controls we'll dynamically construct based
    on query of the cx2341x module. */
@@ -277,7 +315,6 @@ static int pvr2_hdw_set_input(struct pvr2_hdw *hdw,int v);
 static void pvr2_hdw_state_sched(struct pvr2_hdw *);
 static int pvr2_hdw_state_eval(struct pvr2_hdw *);
 static void pvr2_hdw_set_cur_freq(struct pvr2_hdw *,unsigned long);
-static void pvr2_hdw_worker_i2c(struct work_struct *work);
 static void pvr2_hdw_worker_poll(struct work_struct *work);
 static int pvr2_hdw_wait(struct pvr2_hdw *,int state);
 static int pvr2_hdw_untrip_unlocked(struct pvr2_hdw *);
@@ -642,7 +679,7 @@ static int ctrl_freq_max_get(struct pvr2_ctrl *cptr, int *vp)
 	unsigned long fv;
 	struct pvr2_hdw *hdw = cptr->hdw;
 	if (hdw->tuner_signal_stale) {
-		pvr2_i2c_core_status_poll(hdw);
+		pvr2_hdw_status_poll(hdw);
 	}
 	fv = hdw->tuner_signal_info.rangehigh;
 	if (!fv) {
@@ -664,7 +701,7 @@ static int ctrl_freq_min_get(struct pvr2_ctrl *cptr, int *vp)
 	unsigned long fv;
 	struct pvr2_hdw *hdw = cptr->hdw;
 	if (hdw->tuner_signal_stale) {
-		pvr2_i2c_core_status_poll(hdw);
+		pvr2_hdw_status_poll(hdw);
 	}
 	fv = hdw->tuner_signal_info.rangelow;
 	if (!fv) {
@@ -858,7 +895,7 @@ static void ctrl_stdcur_clear_dirty(struct pvr2_ctrl *cptr)
 static int ctrl_signal_get(struct pvr2_ctrl *cptr,int *vp)
 {
 	struct pvr2_hdw *hdw = cptr->hdw;
-	pvr2_i2c_core_status_poll(hdw);
+	pvr2_hdw_status_poll(hdw);
 	*vp = hdw->tuner_signal_info.signal;
 	return 0;
 }
@@ -868,7 +905,7 @@ static int ctrl_audio_modes_present_get(struct pvr2_ctrl *cptr,int *vp)
 	int val = 0;
 	unsigned int subchan;
 	struct pvr2_hdw *hdw = cptr->hdw;
-	pvr2_i2c_core_status_poll(hdw);
+	pvr2_hdw_status_poll(hdw);
 	subchan = hdw->tuner_signal_info.rxsubchans;
 	if (subchan & V4L2_TUNER_SUB_MONO) {
 		val |= (1 << V4L2_TUNER_MODE_MONO);
@@ -1283,6 +1320,12 @@ const char *pvr2_hdw_get_bus_info(struct pvr2_hdw *hdw)
 }
 
 
+const char *pvr2_hdw_get_device_identifier(struct pvr2_hdw *hdw)
+{
+	return hdw->identifier;
+}
+
+
 unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *hdw)
 {
 	return hdw->freqSelector ? hdw->freqValTelevision : hdw->freqValRadio;
@@ -1634,33 +1677,27 @@ static const char *pvr2_get_state_name(unsigned int st)
 
 static int pvr2_decoder_enable(struct pvr2_hdw *hdw,int enablefl)
 {
-	if (!hdw->decoder_ctrl) {
-		if (!hdw->flag_decoder_missed) {
-			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "WARNING: No decoder present");
-			hdw->flag_decoder_missed = !0;
-			trace_stbit("flag_decoder_missed",
-				    hdw->flag_decoder_missed);
-		}
-		return -EIO;
+	/* Even though we really only care about the video decoder chip at
+	   this point, we'll broadcast stream on/off to all sub-devices
+	   anyway, just in case somebody else wants to hear the
+	   command... */
+	pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 stream=%s",
+		   (enablefl ? "on" : "off"));
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_stream, enablefl);
+	if (hdw->decoder_client_id) {
+		/* We get here if the encoder has been noticed.  Otherwise
+		   we'll issue a warning to the user (which should
+		   normally never happen). */
+		return 0;
 	}
-	hdw->decoder_ctrl->enable(hdw->decoder_ctrl->ctxt,enablefl);
-	return 0;
-}
-
-
-void pvr2_hdw_set_decoder(struct pvr2_hdw *hdw,struct pvr2_decoder_ctrl *ptr)
-{
-	if (hdw->decoder_ctrl == ptr) return;
-	hdw->decoder_ctrl = ptr;
-	if (hdw->decoder_ctrl && hdw->flag_decoder_missed) {
-		hdw->flag_decoder_missed = 0;
+	if (!hdw->flag_decoder_missed) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "WARNING: No decoder present");
+		hdw->flag_decoder_missed = !0;
 		trace_stbit("flag_decoder_missed",
 			    hdw->flag_decoder_missed);
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Decoder has appeared");
-		pvr2_hdw_state_sched(hdw);
 	}
+	return -EIO;
 }
 
 
@@ -1927,6 +1964,166 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 }
 
 
+static unsigned int pvr2_copy_i2c_addr_list(
+	unsigned short *dst, const unsigned char *src,
+	unsigned int dst_max)
+{
+	unsigned int cnt = 0;
+	if (!src) return 0;
+	while (src[cnt] && (cnt + 1) < dst_max) {
+		dst[cnt] = src[cnt];
+		cnt++;
+	}
+	dst[cnt] = I2C_CLIENT_END;
+	return cnt;
+}
+
+
+static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
+				const struct pvr2_device_client_desc *cd)
+{
+	const char *fname;
+	unsigned char mid;
+	struct v4l2_subdev *sd;
+	unsigned int i2ccnt;
+	const unsigned char *p;
+	/* Arbitrary count - max # i2c addresses we will probe */
+	unsigned short i2caddr[25];
+
+	mid = cd->module_id;
+	fname = (mid < ARRAY_SIZE(module_names)) ? module_names[mid] : NULL;
+	if (!fname) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Module ID %u for device %s has no name",
+			   mid,
+			   hdw->hdw_desc->description);
+		return -EINVAL;
+	}
+	pvr2_trace(PVR2_TRACE_INIT,
+		   "Module ID %u (%s) for device %s being loaded...",
+		   mid, fname,
+		   hdw->hdw_desc->description);
+
+	i2ccnt = pvr2_copy_i2c_addr_list(i2caddr, cd->i2c_address_list,
+					 ARRAY_SIZE(i2caddr));
+	if (!i2ccnt && ((p = (mid < ARRAY_SIZE(module_i2c_addresses)) ?
+			 module_i2c_addresses[mid] : NULL) != NULL)) {
+		/* Second chance: Try default i2c address list */
+		i2ccnt = pvr2_copy_i2c_addr_list(i2caddr, p,
+						 ARRAY_SIZE(i2caddr));
+		if (i2ccnt) {
+			pvr2_trace(PVR2_TRACE_INIT,
+				   "Module ID %u:"
+				   " Using default i2c address list",
+				   mid);
+		}
+	}
+
+	if (!i2ccnt) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Module ID %u (%s) for device %s:"
+			   " No i2c addresses",
+			   mid, fname, hdw->hdw_desc->description);
+		return -EINVAL;
+	}
+
+	/* Note how the 2nd and 3rd arguments are the same for both
+	 * v4l2_i2c_new_subdev() and v4l2_i2c_new_probed_subdev().  Why?
+	 * Well the 2nd argument is the module name to load, while the 3rd
+	 * argument is documented in the framework as being the "chipid" -
+	 * and every other place where I can find examples of this, the
+	 * "chipid" appears to just be the module name again.  So here we
+	 * just do the same thing. */
+	if (i2ccnt == 1) {
+		pvr2_trace(PVR2_TRACE_INIT,
+			   "Module ID %u:"
+			   " Setting up with specified i2c address 0x%x",
+			   mid, i2caddr[0]);
+		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
+					 fname, fname,
+					 i2caddr[0]);
+	} else {
+		pvr2_trace(PVR2_TRACE_INIT,
+			   "Module ID %u:"
+			   " Setting up with address probe list",
+			   mid);
+		sd = v4l2_i2c_new_probed_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
+						fname, fname,
+						i2caddr);
+	}
+
+	if (!sd) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Module ID %u (%s) for device %s failed to load",
+			   mid, fname, hdw->hdw_desc->description);
+		return -EIO;
+	}
+
+	/* Tag this sub-device instance with the module ID we know about.
+	   In other places we'll use that tag to determine if the instance
+	   requires special handling. */
+	sd->grp_id = mid;
+
+	pvr2_trace(PVR2_TRACE_INFO, "Attached sub-driver %s", fname);
+
+
+	/* client-specific setup... */
+	switch (mid) {
+	case PVR2_CLIENT_ID_CX25840:
+		hdw->decoder_client_id = mid;
+		{
+			/*
+			  Mike Isely <isely@pobox.com> 19-Nov-2006 - This
+			  bit of nuttiness for cx25840 causes that module
+			  to correctly set up its video scaling.  This is
+			  really a problem in the cx25840 module itself,
+			  but we work around it here.  The problem has not
+			  been seen in ivtv because there VBI is supported
+			  and set up.  We don't do VBI here (at least not
+			  yet) and thus we never attempted to even set it
+			  up.
+			*/
+			struct v4l2_format fmt;
+			pvr2_trace(PVR2_TRACE_INIT,
+				   "Module ID %u:"
+				   " Executing cx25840 VBI hack",
+				   mid);
+			memset(&fmt, 0, sizeof(fmt));
+			fmt.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+			v4l2_device_call_all(&hdw->v4l2_dev, mid,
+					     video, s_fmt, &fmt);
+		}
+		break;
+	case PVR2_CLIENT_ID_SAA7115:
+		hdw->decoder_client_id = mid;
+		break;
+	default: break;
+	}
+
+	return 0;
+}
+
+
+static void pvr2_hdw_load_modules(struct pvr2_hdw *hdw)
+{
+	unsigned int idx;
+	const struct pvr2_string_table *cm;
+	const struct pvr2_device_client_table *ct;
+	int okFl = !0;
+
+	cm = &hdw->hdw_desc->client_modules;
+	for (idx = 0; idx < cm->cnt; idx++) {
+		request_module(cm->lst[idx]);
+	}
+
+	ct = &hdw->hdw_desc->client_table;
+	for (idx = 0; idx < ct->cnt; idx++) {
+		if (pvr2_hdw_load_subdev(hdw, &ct->lst[idx]) < 0) okFl = 0;
+	}
+	if (!okFl) pvr2_hdw_render_useless(hdw);
+}
+
+
 static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 {
 	int ret;
@@ -1966,9 +2163,7 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
-	for (idx = 0; idx < hdw->hdw_desc->client_modules.cnt; idx++) {
-		request_module(hdw->hdw_desc->client_modules.lst[idx]);
-	}
+	hdw->force_dirty = !0;
 
 	if (!hdw->hdw_desc->flag_no_powerup) {
 		pvr2_hdw_cmd_powerup(hdw);
@@ -1986,6 +2181,11 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	// This step MUST happen after the earlier powerup step.
 	pvr2_i2c_core_init(hdw);
 	if (!pvr2_hdw_dev_ok(hdw)) return;
+
+	pvr2_hdw_load_modules(hdw);
+	if (!pvr2_hdw_dev_ok(hdw)) return;
+
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, load_fw);
 
 	for (idx = 0; idx < CTRLDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx;
@@ -2024,6 +2224,19 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 		hdw->std_mask_eeprom = V4L2_STD_ALL;
 	}
 
+	if (hdw->serial_number) {
+		idx = scnprintf(hdw->identifier, sizeof(hdw->identifier) - 1,
+				"sn-%lu", hdw->serial_number);
+	} else if (hdw->unit_number >= 0) {
+		idx = scnprintf(hdw->identifier, sizeof(hdw->identifier) - 1,
+				"unit-%c",
+				hdw->unit_number + 'a');
+	} else {
+		idx = scnprintf(hdw->identifier, sizeof(hdw->identifier) - 1,
+				"unit-??");
+	}
+	hdw->identifier[idx] = 0;
+
 	pvr2_hdw_setup_std(hdw);
 
 	if (!get_default_tuner_type(hdw)) {
@@ -2032,8 +2245,6 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 			   hdw->tuner_type);
 	}
 
-	pvr2_i2c_core_check_stale(hdw);
-	hdw->tuner_updated = 0;
 
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
@@ -2171,10 +2382,13 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	struct pvr2_hdw *hdw = NULL;
 	int valid_std_mask;
 	struct pvr2_ctrl *cptr;
+	struct usb_device *usb_dev;
 	const struct pvr2_device_desc *hdw_desc;
 	__u8 ifnum;
 	struct v4l2_queryctrl qctrl;
 	struct pvr2_ctl_info *ciptr;
+
+	usb_dev = interface_to_usbdev(intf);
 
 	hdw_desc = (const struct pvr2_device_desc *)(devid->driver_info);
 
@@ -2360,6 +2574,11 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->ctl_read_urb = usb_alloc_urb(0,GFP_KERNEL);
 	if (!hdw->ctl_read_urb) goto fail;
 
+	if (v4l2_device_register(&intf->dev, &hdw->v4l2_dev) != 0) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Error registering with v4l core, giving up");
+		goto fail;
+	}
 	mutex_lock(&pvr2_unit_mtx); do {
 		for (idx = 0; idx < PVR_NUM; idx++) {
 			if (unit_pointers[idx]) continue;
@@ -2382,7 +2601,6 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	hdw->workqueue = create_singlethread_workqueue(hdw->name);
 	INIT_WORK(&hdw->workpoll,pvr2_hdw_worker_poll);
-	INIT_WORK(&hdw->worki2csync,pvr2_hdw_worker_i2c);
 
 	pvr2_trace(PVR2_TRACE_INIT,"Driver unit number is %d, name is %s",
 		   hdw->unit_number,hdw->name);
@@ -2391,12 +2609,9 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->flag_ok = !0;
 
 	hdw->usb_intf = intf;
-	hdw->usb_dev = interface_to_usbdev(intf);
+	hdw->usb_dev = usb_dev;
 
-	scnprintf(hdw->bus_info,sizeof(hdw->bus_info),
-		  "usb %s address %d",
-		  dev_name(&hdw->usb_dev->dev),
-		  hdw->usb_dev->devnum);
+	usb_make_path(hdw->usb_dev, hdw->bus_info, sizeof(hdw->bus_info));
 
 	ifnum = hdw->usb_intf->cur_altsetting->desc.bInterfaceNumber;
 	usb_set_interface(hdw->usb_dev,ifnum,0);
@@ -2454,6 +2669,10 @@ static void pvr2_hdw_remove_usb_stuff(struct pvr2_hdw *hdw)
 		hdw->ctl_write_buffer = NULL;
 	}
 	hdw->flag_disconnected = !0;
+	/* If we don't do this, then there will be a dangling struct device
+	   reference to our disappearing device persisting inside the V4L
+	   core... */
+	v4l2_device_disconnect(&hdw->v4l2_dev);
 	hdw->usb_dev = NULL;
 	hdw->usb_intf = NULL;
 	pvr2_hdw_render_useless(hdw);
@@ -2481,10 +2700,8 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 		pvr2_stream_destroy(hdw->vid_stream);
 		hdw->vid_stream = NULL;
 	}
-	if (hdw->decoder_ctrl) {
-		hdw->decoder_ctrl->detach(hdw->decoder_ctrl->ctxt);
-	}
 	pvr2_i2c_core_done(hdw);
+	v4l2_device_unregister(&hdw->v4l2_dev);
 	pvr2_hdw_remove_usb_stuff(hdw);
 	mutex_lock(&pvr2_unit_mtx); do {
 		if ((hdw->unit_number >= 0) &&
@@ -2678,6 +2895,151 @@ static const char *get_ctrl_typename(enum pvr2_ctl_type tp)
 }
 
 
+static void pvr2_subdev_set_control(struct pvr2_hdw *hdw, int id,
+				    const char *name, int val)
+{
+	struct v4l2_control ctrl;
+	pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 %s=%d", name, val);
+	memset(&ctrl, 0, sizeof(ctrl));
+	ctrl.id = id;
+	ctrl.value = val;
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, s_ctrl, &ctrl);
+}
+
+#define PVR2_SUBDEV_SET_CONTROL(hdw, id, lab) \
+	if ((hdw)->lab##_dirty || (hdw)->force_dirty) {		\
+		pvr2_subdev_set_control(hdw, id, #lab, (hdw)->lab##_val); \
+	}
+
+/* Execute whatever commands are required to update the state of all the
+   sub-devices so that they match our current control values. */
+static void pvr2_subdev_update(struct pvr2_hdw *hdw)
+{
+	struct v4l2_subdev *sd;
+	unsigned int id;
+	pvr2_subdev_update_func fp;
+
+	pvr2_trace(PVR2_TRACE_CHIPS, "subdev update...");
+
+	if (hdw->tuner_updated || hdw->force_dirty) {
+		struct tuner_setup setup;
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev tuner set_type(%d)",
+			   hdw->tuner_type);
+		if (((int)(hdw->tuner_type)) >= 0) {
+			memset(&setup, 0, sizeof(setup));
+			setup.addr = ADDR_UNSET;
+			setup.type = hdw->tuner_type;
+			setup.mode_mask = T_RADIO | T_ANALOG_TV;
+			v4l2_device_call_all(&hdw->v4l2_dev, 0,
+					     tuner, s_type_addr, &setup);
+		}
+	}
+
+	if (hdw->input_dirty || hdw->std_dirty || hdw->force_dirty) {
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_standard");
+		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+			v4l2_device_call_all(&hdw->v4l2_dev, 0,
+					     tuner, s_radio);
+		} else {
+			v4l2_std_id vs;
+			vs = hdw->std_mask_cur;
+			v4l2_device_call_all(&hdw->v4l2_dev, 0,
+					     core, s_std, vs);
+		}
+		hdw->tuner_signal_stale = !0;
+		hdw->cropcap_stale = !0;
+	}
+
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_BRIGHTNESS, brightness);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_CONTRAST, contrast);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_SATURATION, saturation);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_HUE, hue);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_MUTE, mute);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_VOLUME, volume);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_BALANCE, balance);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_BASS, bass);
+	PVR2_SUBDEV_SET_CONTROL(hdw, V4L2_CID_AUDIO_TREBLE, treble);
+
+	if (hdw->input_dirty || hdw->audiomode_dirty || hdw->force_dirty) {
+		struct v4l2_tuner vt;
+		memset(&vt, 0, sizeof(vt));
+		vt.audmode = hdw->audiomode_val;
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, tuner, s_tuner, &vt);
+	}
+
+	if (hdw->freqDirty || hdw->force_dirty) {
+		unsigned long fv;
+		struct v4l2_frequency freq;
+		fv = pvr2_hdw_get_cur_freq(hdw);
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_freq(%lu)", fv);
+		if (hdw->tuner_signal_stale) pvr2_hdw_status_poll(hdw);
+		memset(&freq, 0, sizeof(freq));
+		if (hdw->tuner_signal_info.capability & V4L2_TUNER_CAP_LOW) {
+			/* ((fv * 1000) / 62500) */
+			freq.frequency = (fv * 2) / 125;
+		} else {
+			freq.frequency = fv / 62500;
+		}
+		/* tuner-core currently doesn't seem to care about this, but
+		   let's set it anyway for completeness. */
+		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+			freq.type = V4L2_TUNER_RADIO;
+		} else {
+			freq.type = V4L2_TUNER_ANALOG_TV;
+		}
+		freq.tuner = 0;
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, tuner,
+				     s_frequency, &freq);
+	}
+
+	if (hdw->res_hor_dirty || hdw->res_ver_dirty || hdw->force_dirty) {
+		struct v4l2_format fmt;
+		memset(&fmt, 0, sizeof(fmt));
+		fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		fmt.fmt.pix.width = hdw->res_hor_val;
+		fmt.fmt.pix.height = hdw->res_ver_val;
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_size(%dx%d)",
+			   fmt.fmt.pix.width, fmt.fmt.pix.height);
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_fmt, &fmt);
+	}
+
+	if (hdw->srate_dirty || hdw->force_dirty) {
+		u32 val;
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_audio %d",
+			   hdw->srate_val);
+		switch (hdw->srate_val) {
+		default:
+		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000:
+			val = 48000;
+			break;
+		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100:
+			val = 44100;
+			break;
+		case V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000:
+			val = 32000;
+			break;
+		}
+		v4l2_device_call_all(&hdw->v4l2_dev, 0,
+				     audio, s_clock_freq, val);
+	}
+
+	/* Unable to set crop parameters; there is apparently no equivalent
+	   for VIDIOC_S_CROP */
+
+	v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev) {
+		id = sd->grp_id;
+		if (id >= ARRAY_SIZE(pvr2_module_update_functions)) continue;
+		fp = pvr2_module_update_functions[id];
+		if (!fp) continue;
+		(*fp)(hdw, sd);
+	}
+
+	if (hdw->tuner_signal_stale || hdw->cropcap_stale) {
+		pvr2_hdw_status_poll(hdw);
+	}
+}
+
+
 /* Figure out if we need to commit control changes.  If so, mark internal
    state flags to indicate this fact and return true.  Otherwise do nothing
    else and return false. */
@@ -2686,7 +3048,7 @@ static int pvr2_hdw_commit_setup(struct pvr2_hdw *hdw)
 	unsigned int idx;
 	struct pvr2_ctrl *cptr;
 	int value;
-	int commit_flag = 0;
+	int commit_flag = hdw->force_dirty;
 	char buf[100];
 	unsigned int bcnt,ccnt;
 
@@ -2842,18 +3204,6 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 		cx2341x_ext_ctrls(&hdw->enc_ctl_state, 0, &cs,VIDIOC_S_EXT_CTRLS);
 	}
 
-	/* Scan i2c core at this point - before we clear all the dirty
-	   bits.  Various parts of the i2c core will notice dirty bits as
-	   appropriate and arrange to broadcast or directly send updates to
-	   the client drivers in order to keep everything in sync */
-	pvr2_i2c_core_check_stale(hdw);
-
-	for (idx = 0; idx < hdw->control_cnt; idx++) {
-		cptr = hdw->controls + idx;
-		if (!cptr->info->clear_dirty) continue;
-		cptr->info->clear_dirty(cptr);
-	}
-
 	if (hdw->active_stream_type != hdw->desired_stream_type) {
 		/* Handle any side effects of stream config here */
 		hdw->active_stream_type = hdw->desired_stream_type;
@@ -2873,8 +3223,16 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 		}
 	}
 
-	/* Now execute i2c core update */
-	pvr2_i2c_core_sync(hdw);
+	/* Check and update state for all sub-devices. */
+	pvr2_subdev_update(hdw);
+
+	hdw->tuner_updated = 0;
+	hdw->force_dirty = 0;
+	for (idx = 0; idx < hdw->control_cnt; idx++) {
+		cptr = hdw->controls + idx;
+		if (!cptr->info->clear_dirty) continue;
+		cptr->info->clear_dirty(cptr);
+	}
 
 	if ((hdw->pathway_state == PVR2_PATHWAY_ANALOG) &&
 	    hdw->state_encoder_run) {
@@ -2901,15 +3259,6 @@ int pvr2_hdw_commit_ctl(struct pvr2_hdw *hdw)
 	LOCK_GIVE(hdw->big_lock);
 	if (!fl) return 0;
 	return pvr2_hdw_wait(hdw,0);
-}
-
-
-static void pvr2_hdw_worker_i2c(struct work_struct *work)
-{
-	struct pvr2_hdw *hdw = container_of(work,struct pvr2_hdw,worki2csync);
-	LOCK_TAKE(hdw->big_lock); do {
-		pvr2_i2c_core_sync(hdw);
-	} while (0); LOCK_GIVE(hdw->big_lock);
 }
 
 
@@ -2973,7 +3322,7 @@ int pvr2_hdw_is_hsm(struct pvr2_hdw *hdw)
 void pvr2_hdw_execute_tuner_poll(struct pvr2_hdw *hdw)
 {
 	LOCK_TAKE(hdw->big_lock); do {
-		pvr2_i2c_core_status_poll(hdw);
+		pvr2_hdw_status_poll(hdw);
 	} while (0); LOCK_GIVE(hdw->big_lock);
 }
 
@@ -2983,7 +3332,7 @@ static int pvr2_hdw_check_cropcap(struct pvr2_hdw *hdw)
 	if (!hdw->cropcap_stale) {
 		return 0;
 	}
-	pvr2_i2c_core_status_poll(hdw);
+	pvr2_hdw_status_poll(hdw);
 	if (hdw->cropcap_stale) {
 		return -EIO;
 	}
@@ -3010,7 +3359,7 @@ int pvr2_hdw_get_tuner_status(struct pvr2_hdw *hdw,struct v4l2_tuner *vtp)
 {
 	LOCK_TAKE(hdw->big_lock); do {
 		if (hdw->tuner_signal_stale) {
-			pvr2_i2c_core_status_poll(hdw);
+			pvr2_hdw_status_poll(hdw);
 		}
 		memcpy(vtp,&hdw->tuner_signal_info,sizeof(struct v4l2_tuner));
 	} while (0); LOCK_GIVE(hdw->big_lock);
@@ -3029,11 +3378,8 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw)
 {
 	int nr = pvr2_hdw_get_unit_number(hdw);
 	LOCK_TAKE(hdw->big_lock); do {
-		hdw->log_requested = !0;
 		printk(KERN_INFO "pvrusb2: =================  START STATUS CARD #%d  =================\n", nr);
-		pvr2_i2c_core_check_stale(hdw);
-		hdw->log_requested = 0;
-		pvr2_i2c_core_sync(hdw);
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, core, log_status);
 		pvr2_trace(PVR2_TRACE_INFO,"cx2341x config:");
 		cx2341x_log_status(&hdw->enc_ctl_state, "pvrusb2");
 		pvr2_hdw_state_log_state(hdw);
@@ -3716,22 +4062,16 @@ int pvr2_hdw_cmd_powerdown(struct pvr2_hdw *hdw)
 
 int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 {
-	if (!hdw->decoder_ctrl) {
-		pvr2_trace(PVR2_TRACE_INIT,
-			   "Unable to reset decoder: nothing attached");
-		return -ENOTTY;
-	}
-
-	if (!hdw->decoder_ctrl->force_reset) {
-		pvr2_trace(PVR2_TRACE_INIT,
-			   "Unable to reset decoder: not implemented");
-		return -ENOTTY;
-	}
-
 	pvr2_trace(PVR2_TRACE_INIT,
 		   "Requesting decoder reset");
-	hdw->decoder_ctrl->force_reset(hdw->decoder_ctrl->ctxt);
-	return 0;
+	if (hdw->decoder_client_id) {
+		v4l2_device_call_all(&hdw->v4l2_dev, hdw->decoder_client_id,
+				     core, reset, 0);
+		return 0;
+	}
+	pvr2_trace(PVR2_TRACE_INIT,
+		   "Unable to reset decoder: nothing attached");
+	return -ENOTTY;
 }
 
 
@@ -4476,6 +4816,79 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 }
 
 
+/* Generate report containing info about attached sub-devices and attached
+   i2c clients, including an indication of which attached i2c clients are
+   actually sub-devices. */
+static unsigned int pvr2_hdw_report_clients(struct pvr2_hdw *hdw,
+					    char *buf, unsigned int acnt)
+{
+	struct v4l2_subdev *sd;
+	unsigned int tcnt = 0;
+	unsigned int ccnt;
+	struct i2c_client *client;
+	struct list_head *item;
+	void *cd;
+	const char *p;
+	unsigned int id;
+
+	ccnt = scnprintf(buf, acnt, "Associated v4l2-subdev drivers:");
+	tcnt += ccnt;
+	v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev) {
+		id = sd->grp_id;
+		p = NULL;
+		if (id < ARRAY_SIZE(module_names)) p = module_names[id];
+		if (p) {
+			ccnt = scnprintf(buf + tcnt, acnt - tcnt, " %s", p);
+			tcnt += ccnt;
+		} else {
+			ccnt = scnprintf(buf + tcnt, acnt - tcnt,
+					 " (unknown id=%u)", id);
+			tcnt += ccnt;
+		}
+	}
+	ccnt = scnprintf(buf + tcnt, acnt - tcnt, "\n");
+	tcnt += ccnt;
+
+	ccnt = scnprintf(buf + tcnt, acnt - tcnt, "I2C clients:\n");
+	tcnt += ccnt;
+
+	mutex_lock(&hdw->i2c_adap.clist_lock);
+	list_for_each(item, &hdw->i2c_adap.clients) {
+		client = list_entry(item, struct i2c_client, list);
+		ccnt = scnprintf(buf + tcnt, acnt - tcnt,
+				 "  %s: i2c=%02x", client->name, client->addr);
+		tcnt += ccnt;
+		cd = i2c_get_clientdata(client);
+		v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev) {
+			if (cd == sd) {
+				id = sd->grp_id;
+				p = NULL;
+				if (id < ARRAY_SIZE(module_names)) {
+					p = module_names[id];
+				}
+				if (p) {
+					ccnt = scnprintf(buf + tcnt,
+							 acnt - tcnt,
+							 " subdev=%s", p);
+					tcnt += ccnt;
+				} else {
+					ccnt = scnprintf(buf + tcnt,
+							 acnt - tcnt,
+							 " subdev= id %u)",
+							 id);
+					tcnt += ccnt;
+				}
+				break;
+			}
+		}
+		ccnt = scnprintf(buf + tcnt, acnt - tcnt, "\n");
+		tcnt += ccnt;
+	}
+	mutex_unlock(&hdw->i2c_adap.clist_lock);
+	return tcnt;
+}
+
+
 unsigned int pvr2_hdw_state_report(struct pvr2_hdw *hdw,
 				   char *buf,unsigned int acnt)
 {
@@ -4490,6 +4903,8 @@ unsigned int pvr2_hdw_state_report(struct pvr2_hdw *hdw,
 		buf[0] = '\n'; ccnt = 1;
 		bcnt += ccnt; acnt -= ccnt; buf += ccnt;
 	}
+	ccnt = pvr2_hdw_report_clients(hdw, buf, acnt);
+	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
 	LOCK_GIVE(hdw->big_lock);
 	return bcnt;
 }
@@ -4497,13 +4912,24 @@ unsigned int pvr2_hdw_state_report(struct pvr2_hdw *hdw,
 
 static void pvr2_hdw_state_log_state(struct pvr2_hdw *hdw)
 {
-	char buf[128];
-	unsigned int idx,ccnt;
+	char buf[256];
+	unsigned int idx, ccnt;
+	unsigned int lcnt, ucnt;
 
 	for (idx = 0; ; idx++) {
 		ccnt = pvr2_hdw_report_unlocked(hdw,idx,buf,sizeof(buf));
 		if (!ccnt) break;
 		printk(KERN_INFO "%s %.*s\n",hdw->name,ccnt,buf);
+	}
+	ccnt = pvr2_hdw_report_clients(hdw, buf, sizeof(buf));
+	ucnt = 0;
+	while (ucnt < ccnt) {
+		lcnt = 0;
+		while ((lcnt + ucnt < ccnt) && (buf[lcnt + ucnt] != '\n')) {
+			lcnt++;
+		}
+		printk(KERN_INFO "%s %.*s\n", hdw->name, lcnt, buf + ucnt);
+		ucnt += lcnt + 1;
 	}
 }
 
@@ -4641,6 +5067,30 @@ int pvr2_hdw_gpio_chg_out(struct pvr2_hdw *hdw,u32 msk,u32 val)
 }
 
 
+void pvr2_hdw_status_poll(struct pvr2_hdw *hdw)
+{
+	struct v4l2_tuner *vtp = &hdw->tuner_signal_info;
+	memset(vtp, 0, sizeof(*vtp));
+	hdw->tuner_signal_stale = 0;
+	/* Note: There apparently is no replacement for VIDIOC_CROPCAP
+	   using v4l2-subdev - therefore we can't support that AT ALL right
+	   now.  (Of course, no sub-drivers seem to implement it either.
+	   But now it's a a chicken and egg problem...) */
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, tuner, g_tuner,
+			     &hdw->tuner_signal_info);
+	pvr2_trace(PVR2_TRACE_CHIPS, "subdev status poll"
+		   " type=%u strength=%u audio=0x%x cap=0x%x"
+		   " low=%u hi=%u",
+		   vtp->type,
+		   vtp->signal, vtp->rxsubchans, vtp->capability,
+		   vtp->rangelow, vtp->rangehigh);
+
+	/* We have to do this to avoid getting into constant polling if
+	   there's nobody to answer a poll of cropcap info. */
+	hdw->cropcap_stale = 0;
+}
+
+
 unsigned int pvr2_hdw_get_input_available(struct pvr2_hdw *hdw)
 {
 	return hdw->input_avail_mask;
@@ -4736,7 +5186,6 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 			     int setFl, u64 *val_ptr)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	struct pvr2_i2c_client *cp;
 	struct v4l2_dbg_register req;
 	int stat = 0;
 	int okFl = 0;
@@ -4746,21 +5195,9 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 	req.match = *match;
 	req.reg = reg_id;
 	if (setFl) req.val = *val_ptr;
-	mutex_lock(&hdw->i2c_list_lock); do {
-		list_for_each_entry(cp, &hdw->i2c_clients, list) {
-			if (!v4l2_chip_match_i2c_client(
-				    cp->client,
-				    &req.match)) {
-				continue;
-			}
-			stat = pvr2_i2c_client_cmd(
-				cp,(setFl ? VIDIOC_DBG_S_REGISTER :
-				    VIDIOC_DBG_G_REGISTER),&req);
-			if (!setFl) *val_ptr = req.val;
-			okFl = !0;
-			break;
-		}
-	} while (0); mutex_unlock(&hdw->i2c_list_lock);
+	/* It would be nice to know if a sub-device answered the request */
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, g_register, &req);
+	if (!setFl) *val_ptr = req.val;
 	if (okFl) {
 		return stat;
 	}

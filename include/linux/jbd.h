@@ -35,7 +35,7 @@
 #define journal_oom_retry 1
 
 /*
- * Define JBD_PARANIOD_IOFAIL to cause a kernel BUG() if ext3 finds
+ * Define JBD_PARANOID_IOFAIL to cause a kernel BUG() if ext3 finds
  * certain classes of error which can occur due to failed IOs.  Under
  * normal use we want ext3 to continue after such errors, because
  * hardware _can_ fail, but for debugging purposes when running tests on
@@ -552,6 +552,11 @@ struct transaction_s
 	 */
 	int t_handle_count;
 
+	/*
+	 * This transaction is being forced and some process is
+	 * waiting for it to finish.
+	 */
+	int t_synchronous_commit:1;
 };
 
 /**
@@ -614,6 +619,8 @@ struct transaction_s
  * @j_wbufsize: maximum number of buffer_heads allowed in j_wbuf, the
  *	number that will fit in j_blocksize
  * @j_last_sync_writer: most recent pid which did a synchronous write
+ * @j_average_commit_time: the average amount of time in nanoseconds it
+ *	takes to commit a transaction to the disk.
  * @j_private: An opaque pointer to fs-private information.
  */
 

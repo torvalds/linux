@@ -1936,8 +1936,8 @@ static void fixup_memory_mappings(struct radeonfb_info *rinfo)
 	OUTREG(CRTC_GEN_CNTL, save_crtc_gen_cntl | CRTC_DISP_REQ_EN_B);
 	mdelay(100);
 
-	aper_base = INREG(CONFIG_APER_0_BASE);
-	aper_size = INREG(CONFIG_APER_SIZE);
+	aper_base = INREG(CNFG_APER_0_BASE);
+	aper_size = INREG(CNFG_APER_SIZE);
 
 #ifdef SET_MC_FB_FROM_APERTURE
 	/* Set framebuffer to be at the same address as set in PCI BAR */
@@ -2024,11 +2024,11 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
                      ~CRTC_H_CUTOFF_ACTIVE_EN);
           }
         } else {
-          tmp = INREG(CONFIG_MEMSIZE);
+          tmp = INREG(CNFG_MEMSIZE);
         }
 
 	/* mem size is bits [28:0], mask off the rest */
-	rinfo->video_ram = tmp & CONFIG_MEMSIZE_MASK;
+	rinfo->video_ram = tmp & CNFG_MEMSIZE_MASK;
 
 	/*
 	 * Hack to get around some busted production M6's
@@ -2228,7 +2228,7 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 	 */
 	rinfo->errata = 0;
 	if (rinfo->family == CHIP_FAMILY_R300 &&
-	    (INREG(CONFIG_CNTL) & CFG_ATI_REV_ID_MASK)
+	    (INREG(CNFG_CNTL) & CFG_ATI_REV_ID_MASK)
 	    == CFG_ATI_REV_A11)
 		rinfo->errata |= CHIP_ERRATA_R300_CG;
 

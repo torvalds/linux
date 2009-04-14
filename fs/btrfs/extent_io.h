@@ -22,6 +22,11 @@
 /* flags for bio submission */
 #define EXTENT_BIO_COMPRESSED 1
 
+/* these are bit numbers for test/set bit */
+#define EXTENT_BUFFER_UPTODATE 0
+#define EXTENT_BUFFER_BLOCKING 1
+#define EXTENT_BUFFER_DIRTY 2
+
 /*
  * page->private values.  Every page that is controlled by the extent
  * map has page->private set to one.
@@ -95,11 +100,19 @@ struct extent_buffer {
 	unsigned long map_start;
 	unsigned long map_len;
 	struct page *first_page;
+	unsigned long bflags;
 	atomic_t refs;
-	int flags;
 	struct list_head leak_list;
 	struct rb_node rb_node;
-	struct mutex mutex;
+
+	/* the spinlock is used to protect most operations */
+	spinlock_t lock;
+
+	/*
+	 * when we keep the lock held while blocking, waiters go onto
+	 * the wq
+	 */
+	wait_queue_head_t lock_wq;
 };
 
 struct extent_map_tree;
@@ -193,6 +206,8 @@ int extent_commit_write(struct extent_io_tree *tree,
 			unsigned from, unsigned to);
 sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 		get_extent_t *get_extent);
+int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		__u64 start, __u64 len, get_extent_t *get_extent);
 int set_range_dirty(struct extent_io_tree *tree, u64 start, u64 end);
 int set_state_private(struct extent_io_tree *tree, u64 start, u64 private);
 int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private);
@@ -239,6 +254,8 @@ int wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits);
 int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			      struct extent_buffer *eb);
 int set_extent_buffer_dirty(struct extent_io_tree *tree,
+			     struct extent_buffer *eb);
+int test_extent_buffer_dirty(struct extent_io_tree *tree,
 			     struct extent_buffer *eb);
 int set_extent_buffer_uptodate(struct extent_io_tree *tree,
 			       struct extent_buffer *eb);

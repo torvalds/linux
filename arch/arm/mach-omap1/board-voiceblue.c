@@ -22,7 +22,6 @@
 #include <linux/reboot.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
-#include <linux/irq.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -146,7 +145,6 @@ static struct omap_uart_config voiceblue_uart_config __initdata = {
 };
 
 static struct omap_board_config_kernel voiceblue_config[] = {
-	{ OMAP_TAG_USB,  &voiceblue_usb_config },
 	{ OMAP_TAG_UART, &voiceblue_uart_config },
 };
 
@@ -186,6 +184,7 @@ static void __init voiceblue_init(void)
 	omap_board_config = voiceblue_config;
 	omap_board_config_size = ARRAY_SIZE(voiceblue_config);
 	omap_serial_init();
+	omap_usb_init(&voiceblue_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);
 
 	/* There is a good chance board is going up, so enable power LED

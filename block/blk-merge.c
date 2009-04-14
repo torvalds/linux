@@ -38,72 +38,77 @@ void blk_recalc_rq_sectors(struct request *rq, int nsect)
 	}
 }
 
-void blk_recalc_rq_segments(struct request *rq)
+static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
+					     struct bio *bio)
 {
-	int nr_phys_segs;
 	unsigned int phys_size;
 	struct bio_vec *bv, *bvprv = NULL;
-	int seg_size;
-	int cluster;
-	struct req_iterator iter;
-	int high, highprv = 1;
-	struct request_queue *q = rq->q;
+	int cluster, i, high, highprv = 1;
+	unsigned int seg_size, nr_phys_segs;
+	struct bio *fbio, *bbio;
 
-	if (!rq->bio)
-		return;
+	if (!bio)
+		return 0;
 
+	fbio = bio;
 	cluster = test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
 	seg_size = 0;
 	phys_size = nr_phys_segs = 0;
-	rq_for_each_segment(bv, rq, iter) {
-		/*
-		 * the trick here is making sure that a high page is never
-		 * considered part of another segment, since that might
-		 * change with the bounce page.
-		 */
-		high = page_to_pfn(bv->bv_page) > q->bounce_pfn;
-		if (high || highprv)
-			goto new_segment;
-		if (cluster) {
-			if (seg_size + bv->bv_len > q->max_segment_size)
+	for_each_bio(bio) {
+		bio_for_each_segment(bv, bio, i) {
+			/*
+			 * the trick here is making sure that a high page is
+			 * never considered part of another segment, since that
+			 * might change with the bounce page.
+			 */
+			high = page_to_pfn(bv->bv_page) > q->bounce_pfn;
+			if (high || highprv)
 				goto new_segment;
-			if (!BIOVEC_PHYS_MERGEABLE(bvprv, bv))
-				goto new_segment;
-			if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bv))
-				goto new_segment;
+			if (cluster) {
+				if (seg_size + bv->bv_len > q->max_segment_size)
+					goto new_segment;
+				if (!BIOVEC_PHYS_MERGEABLE(bvprv, bv))
+					goto new_segment;
+				if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bv))
+					goto new_segment;
 
-			seg_size += bv->bv_len;
-			bvprv = bv;
-			continue;
-		}
+				seg_size += bv->bv_len;
+				bvprv = bv;
+				continue;
+			}
 new_segment:
-		if (nr_phys_segs == 1 && seg_size > rq->bio->bi_seg_front_size)
-			rq->bio->bi_seg_front_size = seg_size;
+			if (nr_phys_segs == 1 && seg_size >
+			    fbio->bi_seg_front_size)
+				fbio->bi_seg_front_size = seg_size;
 
-		nr_phys_segs++;
-		bvprv = bv;
-		seg_size = bv->bv_len;
-		highprv = high;
+			nr_phys_segs++;
+			bvprv = bv;
+			seg_size = bv->bv_len;
+			highprv = high;
+		}
+		bbio = bio;
 	}
 
-	if (nr_phys_segs == 1 && seg_size > rq->bio->bi_seg_front_size)
-		rq->bio->bi_seg_front_size = seg_size;
-	if (seg_size > rq->biotail->bi_seg_back_size)
-		rq->biotail->bi_seg_back_size = seg_size;
+	if (nr_phys_segs == 1 && seg_size > fbio->bi_seg_front_size)
+		fbio->bi_seg_front_size = seg_size;
+	if (seg_size > bbio->bi_seg_back_size)
+		bbio->bi_seg_back_size = seg_size;
 
-	rq->nr_phys_segments = nr_phys_segs;
+	return nr_phys_segs;
+}
+
+void blk_recalc_rq_segments(struct request *rq)
+{
+	rq->nr_phys_segments = __blk_recalc_rq_segments(rq->q, rq->bio);
 }
 
 void blk_recount_segments(struct request_queue *q, struct bio *bio)
 {
-	struct request rq;
 	struct bio *nxt = bio->bi_next;
-	rq.q = q;
-	rq.bio = rq.biotail = bio;
+
 	bio->bi_next = NULL;
-	blk_recalc_rq_segments(&rq);
+	bio->bi_phys_segments = __blk_recalc_rq_segments(q, bio);
 	bio->bi_next = nxt;
-	bio->bi_phys_segments = rq.nr_phys_segments;
 	bio->bi_flags |= (1 << BIO_SEG_VALID);
 }
 EXPORT_SYMBOL(blk_recount_segments);
@@ -333,6 +338,22 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 	return 1;
 }
 
+static void blk_account_io_merge(struct request *req)
+{
+	if (blk_do_io_stat(req)) {
+		struct hd_struct *part;
+		int cpu;
+
+		cpu = part_stat_lock();
+		part = disk_map_sector_rcu(req->rq_disk, req->sector);
+
+		part_round_stats(cpu, part);
+		part_dec_in_flight(part);
+
+		part_stat_unlock();
+	}
+}
+
 /*
  * Has to be called with the request spinlock acquired
  */
@@ -381,23 +402,14 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 
 	elv_merge_requests(q, req, next);
 
-	if (req->rq_disk) {
-		struct hd_struct *part;
-		int cpu;
-
-		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(req->rq_disk, req->sector);
-
-		part_round_stats(cpu, part);
-		part_dec_in_flight(part);
-
-		part_stat_unlock();
-	}
+	blk_account_io_merge(req);
 
 	req->ioprio = ioprio_best(req->ioprio, next->ioprio);
 	if (blk_rq_cpu_valid(next))
 		req->cpu = next->cpu;
 
+	/* owner-ship of bio passed from next to req */
+	next->bio = NULL;
 	__blk_put_request(q, next);
 	return 1;
 }

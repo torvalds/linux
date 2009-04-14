@@ -208,6 +208,7 @@ int snd_card_create(int idx, const char *xid,
 	INIT_LIST_HEAD(&card->controls);
 	INIT_LIST_HEAD(&card->ctl_files);
 	spin_lock_init(&card->files_lock);
+	INIT_LIST_HEAD(&card->files_list);
 	init_waitqueue_head(&card->shutdown_sleep);
 #ifdef CONFIG_PM
 	mutex_init(&card->power_lock);
@@ -274,6 +275,7 @@ static int snd_disconnect_release(struct inode *inode, struct file *file)
 	list_for_each_entry(_df, &shutdown_files, shutdown_list) {
 		if (_df->file == file) {
 			df = _df;
+			list_del_init(&df->shutdown_list);
 			break;
 		}
 	}
@@ -362,8 +364,7 @@ int snd_card_disconnect(struct snd_card *card)
 	/* phase 2: replace file->f_op with special dummy operations */
 	
 	spin_lock(&card->files_lock);
-	mfile = card->files;
-	while (mfile) {
+	list_for_each_entry(mfile, &card->files_list, list) {
 		file = mfile->file;
 
 		/* it's critical part, use endless loop */
@@ -376,8 +377,6 @@ int snd_card_disconnect(struct snd_card *card)
 
 		mfile->file->f_op = &snd_shutdown_f_ops;
 		fops_get(mfile->file->f_op);
-		
-		mfile = mfile->next;
 	}
 	spin_unlock(&card->files_lock);	
 
@@ -457,7 +456,7 @@ int snd_card_free_when_closed(struct snd_card *card)
 		return ret;
 
 	spin_lock(&card->files_lock);
-	if (card->files == NULL)
+	if (list_empty(&card->files_list))
 		free_now = 1;
 	else
 		card->free_on_last_close = 1;
@@ -477,7 +476,7 @@ int snd_card_free(struct snd_card *card)
 		return ret;
 
 	/* wait, until all devices are ready for the free operation */
-	wait_event(card->shutdown_sleep, card->files == NULL);
+	wait_event(card->shutdown_sleep, list_empty(&card->files_list));
 	snd_card_do_free(card);
 	return 0;
 }
@@ -824,15 +823,13 @@ int snd_card_file_add(struct snd_card *card, struct file *file)
 		return -ENOMEM;
 	mfile->file = file;
 	mfile->disconnected_f_op = NULL;
-	mfile->next = NULL;
 	spin_lock(&card->files_lock);
 	if (card->shutdown) {
 		spin_unlock(&card->files_lock);
 		kfree(mfile);
 		return -ENODEV;
 	}
-	mfile->next = card->files;
-	card->files = mfile;
+	list_add(&mfile->list, &card->files_list);
 	spin_unlock(&card->files_lock);
 	return 0;
 }
@@ -854,29 +851,20 @@ EXPORT_SYMBOL(snd_card_file_add);
  */
 int snd_card_file_remove(struct snd_card *card, struct file *file)
 {
-	struct snd_monitor_file *mfile, *pfile = NULL;
+	struct snd_monitor_file *mfile, *found = NULL;
 	int last_close = 0;
 
 	spin_lock(&card->files_lock);
-	mfile = card->files;
-	while (mfile) {
+	list_for_each_entry(mfile, &card->files_list, list) {
 		if (mfile->file == file) {
-			if (pfile)
-				pfile->next = mfile->next;
-			else
-				card->files = mfile->next;
+			list_del(&mfile->list);
+			if (mfile->disconnected_f_op)
+				fops_put(mfile->disconnected_f_op);
+			found = mfile;
 			break;
 		}
-		pfile = mfile;
-		mfile = mfile->next;
 	}
-	if (mfile && mfile->disconnected_f_op) {
-		fops_put(mfile->disconnected_f_op);
-		spin_lock(&shutdown_lock);
-		list_del(&mfile->shutdown_list);
-		spin_unlock(&shutdown_lock);
-	}
-	if (card->files == NULL)
+	if (list_empty(&card->files_list))
 		last_close = 1;
 	spin_unlock(&card->files_lock);
 	if (last_close) {
@@ -884,11 +872,11 @@ int snd_card_file_remove(struct snd_card *card, struct file *file)
 		if (card->free_on_last_close)
 			snd_card_do_free(card);
 	}
-	if (!mfile) {
+	if (!found) {
 		snd_printk(KERN_ERR "ALSA card file remove problem (%p)\n", file);
 		return -ENOENT;
 	}
-	kfree(mfile);
+	kfree(found);
 	return 0;
 }
 

@@ -622,7 +622,7 @@ static int set_ctrl_bits(void)
 }
 
 /* sets ctrl & data port bits according to current signals values */
-static void set_bits(void)
+static void panel_set_bits(void)
 {
 	set_data_bits();
 	set_ctrl_bits();
@@ -707,12 +707,12 @@ static void lcd_send_serial(int byte)
 	 */
 	for (bit = 0; bit < 8; bit++) {
 		bits.cl = BIT_CLR;	/* CLK low */
-		set_bits();
+		panel_set_bits();
 		bits.da = byte & 1;
-		set_bits();
+		panel_set_bits();
 		udelay(2);	/* maintain the data during 2 us before CLK up */
 		bits.cl = BIT_SET;	/* CLK high */
-		set_bits();
+		panel_set_bits();
 		udelay(1);	/* maintain the strobe during 1 us */
 		byte >>= 1;
 	}
@@ -727,7 +727,7 @@ static void lcd_backlight(int on)
 	/* The backlight is activated by seting the AUTOFEED line to +5V  */
 	spin_lock(&pprt_lock);
 	bits.bl = on;
-	set_bits();
+	panel_set_bits();
 	spin_unlock(&pprt_lock);
 }
 
@@ -2164,19 +2164,20 @@ static void __exit panel_cleanup_module(void)
 	if (scan_timer.function != NULL)
 		del_timer(&scan_timer);
 
-	if (keypad_enabled)
-		misc_deregister(&keypad_dev);
+	if (pprt != NULL) {
+		if (keypad_enabled)
+			misc_deregister(&keypad_dev);
 
-	if (lcd_enabled) {
-		panel_lcd_print("\x0cLCD driver " PANEL_VERSION
-				"\nunloaded.\x1b[Lc\x1b[Lb\x1b[L-");
-		misc_deregister(&lcd_dev);
+		if (lcd_enabled) {
+			panel_lcd_print("\x0cLCD driver " PANEL_VERSION
+					"\nunloaded.\x1b[Lc\x1b[Lb\x1b[L-");
+			misc_deregister(&lcd_dev);
+		}
+
+		/* TODO: free all input signals */
+		parport_release(pprt);
+		parport_unregister_device(pprt);
 	}
-
-	/* TODO: free all input signals */
-
-	parport_release(pprt);
-	parport_unregister_device(pprt);
 	parport_unregister_driver(&panel_driver);
 }
 

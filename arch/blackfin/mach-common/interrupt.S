@@ -195,7 +195,7 @@ ENDPROC(_evt_ivhw)
 /* Interrupt routine for evt2 (NMI).
  * We don't actually use this, so just return.
  * For inner circle type details, please see:
- * http://docs.blackfin.uclinux.org/doku.php?id=linux:nmi
+ * http://docs.blackfin.uclinux.org/doku.php?id=linux-kernel:nmi
  */
 ENTRY(_evt_nmi)
 .weak _evt_nmi
@@ -235,6 +235,7 @@ ENDPROC(_evt_system_call)
 
 #ifdef CONFIG_IPIPE
 ENTRY(___ipipe_call_irqtail)
+	p0 = r0;
 	r0.l = 1f;
 	r0.h = 1f;
 	reti = r0;
@@ -242,9 +243,6 @@ ENTRY(___ipipe_call_irqtail)
 1:
 	[--sp] = rets;
 	[--sp] = ( r7:4, p5:3 );
-	p0.l = ___ipipe_irq_tail_hook;
-	p0.h = ___ipipe_irq_tail_hook;
-	p0 = [p0];
 	sp += -12;
 	call (p0);
 	sp += 12;
@@ -259,7 +257,7 @@ ENTRY(___ipipe_call_irqtail)
 	p0.h = hi(EVT14);
 	[p0] = r0;
 	csync;
-	r0 = 0x401f;
+	r0 = 0x401f (z);
 	sti r0;
 	raise 14;
 	[--sp] = reti;          /* IRQs on. */
@@ -277,11 +275,7 @@ ENTRY(___ipipe_call_irqtail)
 	p0.h = _bfin_irq_flags;
 	r0 = [p0];
 	sti r0;
-#if 0 /* FIXME: this actually raises scheduling latencies */
-	/* Reenable interrupts */
-	[--sp] = reti;
-	r0 = [sp++];
-#endif
 	rts;
 ENDPROC(___ipipe_call_irqtail)
+
 #endif /* CONFIG_IPIPE */

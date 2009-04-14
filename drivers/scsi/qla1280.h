@@ -1069,6 +1069,12 @@ struct scsi_qla_host {
 
 	struct nvram nvram;
 	int nvram_valid;
+
+	/* Firmware Info */
+	unsigned short fwstart; /* start address for F/W   */
+	unsigned char fwver1;   /* F/W version first char  */
+	unsigned char fwver2;   /* F/W version second char */
+	unsigned char fwver3;   /* F/W version third char  */
 };
 
 #endif /* _QLA1280_H */

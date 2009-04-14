@@ -25,6 +25,7 @@
 
 #include <mach/clock.h>
 #include <mach/hardware.h>
+#include <mach/common.h>
 #include "crm_regs.h"
 
 static int _clk_enable(struct clk *clk)
@@ -85,33 +86,6 @@ static unsigned long _clk_parent_round_rate(struct clk *clk, unsigned long rate)
 static int _clk_parent_set_rate(struct clk *clk, unsigned long rate)
 {
 	return clk->parent->set_rate(clk->parent, rate);
-}
-
-/*
- *  get the system pll clock in Hz
- *
- *                  mfi + mfn / (mfd +1)
- *  f = 2 * f_ref * --------------------
- *                        pd + 1
- */
-static unsigned long mx1_decode_pll(unsigned int pll, u32 f_ref)
-{
-	unsigned long long ll;
-	unsigned long quot;
-
-	u32 mfi = (pll >> 10) & 0xf;
-	u32 mfn = pll & 0x3ff;
-	u32 mfd = (pll >> 16) & 0x3ff;
-	u32 pd =  (pll >> 26) & 0xf;
-
-	mfi = mfi <= 5 ? 5 : mfi;
-
-	ll = 2 * (unsigned long long)f_ref *
-		((mfi << 16) + (mfn << 16) / (mfd + 1));
-	quot = (pd + 1) * (1 << 16);
-	ll += quot / 2;
-	do_div(ll, quot);
-	return (unsigned long)ll;
 }
 
 static unsigned long clk16m_get_rate(struct clk *clk)
@@ -188,7 +162,7 @@ static struct clk prem_clk = {
 
 static unsigned long system_clk_get_rate(struct clk *clk)
 {
-	return mx1_decode_pll(__raw_readl(CCM_SPCTL0),
+	return mxc_decode_pll(__raw_readl(CCM_SPCTL0),
 			      clk_get_rate(clk->parent));
 }
 
@@ -200,7 +174,7 @@ static struct clk system_clk = {
 
 static unsigned long mcu_clk_get_rate(struct clk *clk)
 {
-	return mx1_decode_pll(__raw_readl(CCM_MPCTL0),
+	return mxc_decode_pll(__raw_readl(CCM_MPCTL0),
 			      clk_get_rate(clk->parent));
 }
 
@@ -488,7 +462,7 @@ static struct clk clko_clk = {
 };
 
 static struct clk dma_clk = {
-	.name = "dma_clk",
+	.name = "dma",
 	.parent = &hclk,
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
@@ -539,7 +513,7 @@ static struct clk gpt_clk = {
 };
 
 static struct clk uart_clk = {
-	.name = "uart_clk",
+	.name = "uart",
 	.parent = &perclk[0],
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
@@ -621,7 +595,7 @@ static struct clk *mxc_clks[] = {
 	&rtc_clk,
 };
 
-int __init mxc_clocks_init(unsigned long fref)
+int __init mx1_clocks_init(unsigned long fref)
 {
 	struct clk **clkp;
 	unsigned int reg;
@@ -651,6 +625,8 @@ int __init mxc_clocks_init(unsigned long fref)
 
 	clk_enable(&hclk);
 	clk_enable(&fclk);
+
+	mxc_timer_init(&gpt_clk);
 
 	return 0;
 }

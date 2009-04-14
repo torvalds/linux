@@ -234,20 +234,6 @@ struct dentry *debugfs_create_i2400m_reset(
 				   &fops_i2400m_reset);
 }
 
-/*
- * Debug levels control; see debug.h
- */
-struct d_level D_LEVEL[] = {
-	D_SUBMODULE_DEFINE(control),
-	D_SUBMODULE_DEFINE(driver),
-	D_SUBMODULE_DEFINE(debugfs),
-	D_SUBMODULE_DEFINE(fw),
-	D_SUBMODULE_DEFINE(netdev),
-	D_SUBMODULE_DEFINE(rfkill),
-	D_SUBMODULE_DEFINE(rx),
-	D_SUBMODULE_DEFINE(tx),
-};
-size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
 
 #define __debugfs_register(prefix, name, parent)			\
 do {									\

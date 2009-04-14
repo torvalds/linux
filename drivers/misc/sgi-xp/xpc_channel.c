@@ -49,9 +49,6 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 		if (ch->flags & (XPC_C_CONNECTED | XPC_C_DISCONNECTING))
 			return;
-
-		DBUG_ON(ch->local_msgqueue == NULL);
-		DBUG_ON(ch->remote_msgqueue == NULL);
 	}
 
 	if (!(ch->flags & XPC_C_OPENREPLY)) {
@@ -186,6 +183,7 @@ xpc_process_openclose_chctl_flags(struct xpc_partition *part, int ch_number,
 	    &part->remote_openclose_args[ch_number];
 	struct xpc_channel *ch = &part->channels[ch_number];
 	enum xp_retval reason;
+	enum xp_retval ret;
 
 	spin_lock_irqsave(&ch->lock, irq_flags);
 
@@ -402,8 +400,13 @@ again:
 		DBUG_ON(args->local_nentries == 0);
 		DBUG_ON(args->remote_nentries == 0);
 
+		ret = xpc_save_remote_msgqueue_pa(ch, args->local_msgqueue_pa);
+		if (ret != xpSuccess) {
+			XPC_DISCONNECT_CHANNEL(ch, ret, &irq_flags);
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
+			return;
+		}
 		ch->flags |= XPC_C_ROPENREPLY;
-		xpc_save_remote_msgqueue_pa(ch, args->local_msgqueue_pa);
 
 		if (args->local_nentries < ch->remote_nentries) {
 			dev_dbg(xpc_chan, "XPC_CHCTL_OPENREPLY: new "

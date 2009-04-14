@@ -26,7 +26,7 @@
 #include <net/netfilter/ipv6/nf_conntrack_icmpv6.h>
 #include <net/netfilter/nf_log.h>
 
-static unsigned long nf_ct_icmpv6_timeout __read_mostly = 30*HZ;
+static unsigned int nf_ct_icmpv6_timeout __read_mostly = 30*HZ;
 
 static bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
 				unsigned int dataoff,
@@ -49,8 +49,19 @@ static bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
 static const u_int8_t invmap[] = {
 	[ICMPV6_ECHO_REQUEST - 128]	= ICMPV6_ECHO_REPLY + 1,
 	[ICMPV6_ECHO_REPLY - 128]	= ICMPV6_ECHO_REQUEST + 1,
-	[ICMPV6_NI_QUERY - 128]		= ICMPV6_NI_QUERY + 1,
-	[ICMPV6_NI_REPLY - 128]		= ICMPV6_NI_REPLY +1
+	[ICMPV6_NI_QUERY - 128]		= ICMPV6_NI_REPLY + 1,
+	[ICMPV6_NI_REPLY - 128]		= ICMPV6_NI_QUERY +1
+};
+
+static const u_int8_t noct_valid_new[] = {
+	[ICMPV6_MGM_QUERY - 130] = 1,
+	[ICMPV6_MGM_REPORT -130] = 1,
+	[ICMPV6_MGM_REDUCTION - 130] = 1,
+	[NDISC_ROUTER_SOLICITATION - 130] = 1,
+	[NDISC_ROUTER_ADVERTISEMENT - 130] = 1,
+	[NDISC_NEIGHBOUR_SOLICITATION - 130] = 1,
+	[NDISC_NEIGHBOUR_ADVERTISEMENT - 130] = 1,
+	[ICMPV6_MLD2_REPORT - 130] = 1
 };
 
 static bool icmpv6_invert_tuple(struct nf_conntrack_tuple *tuple,
@@ -115,6 +126,10 @@ static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
 		pr_debug("icmpv6: can't create new conn with type %u\n",
 			 type + 128);
 		nf_ct_dump_tuple_ipv6(&ct->tuplehash[0].tuple);
+		if (LOG_INVALID(nf_ct_net(ct), IPPROTO_ICMPV6))
+			nf_log_packet(PF_INET6, 0, skb, NULL, NULL, NULL,
+				      "nf_ct_icmpv6: invalid new with type %d ",
+				      type + 128);
 		return false;
 	}
 	atomic_set(&ct->proto.icmp.count, 0);
@@ -178,6 +193,7 @@ icmpv6_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 {
 	const struct icmp6hdr *icmp6h;
 	struct icmp6hdr _ih;
+	int type;
 
 	icmp6h = skb_header_pointer(skb, dataoff, sizeof(_ih), &_ih);
 	if (icmp6h == NULL) {
@@ -189,9 +205,19 @@ icmpv6_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
 
 	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_ip6_checksum(skb, hooknum, dataoff, IPPROTO_ICMPV6)) {
-		nf_log_packet(PF_INET6, 0, skb, NULL, NULL, NULL,
-			      "nf_ct_icmpv6: ICMPv6 checksum failed\n");
+		if (LOG_INVALID(net, IPPROTO_ICMPV6))
+			nf_log_packet(PF_INET6, 0, skb, NULL, NULL, NULL,
+				      "nf_ct_icmpv6: ICMPv6 checksum failed ");
 		return -NF_ACCEPT;
+	}
+
+	type = icmp6h->icmp6_type - 130;
+	if (type >= 0 && type < sizeof(noct_valid_new) &&
+	    noct_valid_new[type]) {
+		skb->nfct = &nf_conntrack_untracked.ct_general;
+		skb->nfctinfo = IP_CT_NEW;
+		nf_conntrack_get(skb->nfct);
+		return NF_ACCEPT;
 	}
 
 	/* is not error message ? */
@@ -243,6 +269,11 @@ static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
 
 	return 0;
 }
+
+static int icmpv6_nlattr_tuple_size(void)
+{
+	return nla_policy_len(icmpv6_nla_policy, CTA_PROTO_MAX + 1);
+}
 #endif
 
 #ifdef CONFIG_SYSCTL
@@ -274,6 +305,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
 	.error			= icmpv6_error,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nlattr	= icmpv6_tuple_to_nlattr,
+	.nlattr_tuple_size	= icmpv6_nlattr_tuple_size,
 	.nlattr_to_tuple	= icmpv6_nlattr_to_tuple,
 	.nla_policy		= icmpv6_nla_policy,
 #endif

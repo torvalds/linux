@@ -57,7 +57,7 @@ static int amba_kmi_write(struct serio *io, unsigned char val)
 	struct amba_kmi_port *kmi = io->port_data;
 	unsigned int timeleft = 10000; /* timeout in 100ms */
 
-	while ((readb(KMISTAT) & KMISTAT_TXEMPTY) == 0 && timeleft--)
+	while ((readb(KMISTAT) & KMISTAT_TXEMPTY) == 0 && --timeleft)
 		udelay(10);
 
 	if (timeleft)
@@ -129,8 +129,8 @@ static int amba_kmi_probe(struct amba_device *dev, void *id)
 	io->write	= amba_kmi_write;
 	io->open	= amba_kmi_open;
 	io->close	= amba_kmi_close;
-	strlcpy(io->name, dev->dev.bus_id, sizeof(io->name));
-	strlcpy(io->phys, dev->dev.bus_id, sizeof(io->phys));
+	strlcpy(io->name, dev_name(&dev->dev), sizeof(io->name));
+	strlcpy(io->phys, dev_name(&dev->dev), sizeof(io->phys));
 	io->port_data	= kmi;
 	io->dev.parent	= &dev->dev;
 

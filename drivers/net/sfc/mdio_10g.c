@@ -15,6 +15,22 @@
 #include "net_driver.h"
 #include "mdio_10g.h"
 #include "boards.h"
+#include "workarounds.h"
+
+unsigned mdio_id_oui(u32 id)
+{
+	unsigned oui = 0;
+	int i;
+
+	/* The bits of the OUI are designated a..x, with a=0 and b variable.
+	 * In the id register c is the MSB but the OUI is conventionally
+	 * written as bytes h..a, p..i, x..q.  Reorder the bits accordingly. */
+	for (i = 0; i < 22; ++i)
+		if (id & (1 << (i + 10)))
+			oui |= 1 << (i ^ 7);
+
+	return oui;
+}
 
 int mdio_clause45_reset_mmd(struct efx_nic *port, int mmd,
 			    int spins, int spintime)
@@ -124,24 +140,25 @@ int mdio_clause45_wait_reset_mmds(struct efx_nic *efx,
 int mdio_clause45_check_mmds(struct efx_nic *efx,
 			     unsigned int mmd_mask, unsigned int fatal_mask)
 {
+	int mmd = 0, probe_mmd, devs0, devs1;
 	u32 devices;
-	int mmd = 0, probe_mmd;
 
 	/* Historically we have probed the PHYXS to find out what devices are
 	 * present,but that doesn't work so well if the PHYXS isn't expected
 	 * to exist, if so just find the first item in the list supplied. */
 	probe_mmd = (mmd_mask & MDIO_MMDREG_DEVS_PHYXS) ? MDIO_MMD_PHYXS :
 	    __ffs(mmd_mask);
-	devices = (mdio_clause45_read(efx, efx->mii.phy_id,
-				      probe_mmd, MDIO_MMDREG_DEVS0) |
-		   mdio_clause45_read(efx, efx->mii.phy_id,
-				      probe_mmd, MDIO_MMDREG_DEVS1) << 16);
 
 	/* Check all the expected MMDs are present */
-	if (devices < 0) {
+	devs0 = mdio_clause45_read(efx, efx->mii.phy_id,
+				   probe_mmd, MDIO_MMDREG_DEVS0);
+	devs1 = mdio_clause45_read(efx, efx->mii.phy_id,
+				   probe_mmd, MDIO_MMDREG_DEVS1);
+	if (devs0 < 0 || devs1 < 0) {
 		EFX_ERR(efx, "failed to read devices present\n");
 		return -EIO;
 	}
+	devices = devs0 | (devs1 << 16);
 	if ((devices & mmd_mask) != mmd_mask) {
 		EFX_ERR(efx, "required MMDs not present: got %x, "
 			"wanted %x\n", devices, mmd_mask);
@@ -179,23 +196,25 @@ bool mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 		return false;
 	else if (efx_phy_mode_disabled(efx->phy_mode))
 		return false;
-	else if (efx->loopback_mode == LOOPBACK_PHYXS) {
+	else if (efx->loopback_mode == LOOPBACK_PHYXS)
 		mmd_mask &= ~(MDIO_MMDREG_DEVS_PHYXS |
 			      MDIO_MMDREG_DEVS_PCS |
 			      MDIO_MMDREG_DEVS_PMAPMD |
 			      MDIO_MMDREG_DEVS_AN);
-		if (!mmd_mask) {
-			reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PHYXS,
-						 MDIO_PHYXS_STATUS2);
-			return !(reg & (1 << MDIO_PHYXS_STATUS2_RX_FAULT_LBN));
-		}
-	} else if (efx->loopback_mode == LOOPBACK_PCS)
+	else if (efx->loopback_mode == LOOPBACK_PCS)
 		mmd_mask &= ~(MDIO_MMDREG_DEVS_PCS |
 			      MDIO_MMDREG_DEVS_PMAPMD |
 			      MDIO_MMDREG_DEVS_AN);
 	else if (efx->loopback_mode == LOOPBACK_PMAPMD)
 		mmd_mask &= ~(MDIO_MMDREG_DEVS_PMAPMD |
 			      MDIO_MMDREG_DEVS_AN);
+
+	if (!mmd_mask) {
+		/* Use presence of XGMII faults in leui of link state */
+		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PHYXS,
+					 MDIO_PHYXS_STATUS2);
+		return !(reg & (1 << MDIO_PHYXS_STATUS2_RX_FAULT_LBN));
+	}
 
 	while (mmd_mask) {
 		if (mmd_mask & 1) {
@@ -263,7 +282,7 @@ void mdio_clause45_set_mmds_lpower(struct efx_nic *efx,
 	}
 }
 
-static u32 mdio_clause45_get_an(struct efx_nic *efx, u16 addr, u32 xnp)
+static u32 mdio_clause45_get_an(struct efx_nic *efx, u16 addr)
 {
 	int phy_id = efx->mii.phy_id;
 	u32 result = 0;
@@ -278,9 +297,6 @@ static u32 mdio_clause45_get_an(struct efx_nic *efx, u16 addr, u32 xnp)
 		result |= ADVERTISED_100baseT_Half;
 	if (reg & ADVERTISE_100FULL)
 		result |= ADVERTISED_100baseT_Full;
-	if (reg & LPA_RESV)
-		result |= xnp;
-
 	return result;
 }
 
@@ -310,7 +326,7 @@ void mdio_clause45_get_settings(struct efx_nic *efx,
  */
 void mdio_clause45_get_settings_ext(struct efx_nic *efx,
 				    struct ethtool_cmd *ecmd,
-				    u32 xnp, u32 xnp_lpa)
+				    u32 npage_adv, u32 npage_lpa)
 {
 	int phy_id = efx->mii.phy_id;
 	int reg;
@@ -361,8 +377,8 @@ void mdio_clause45_get_settings_ext(struct efx_nic *efx,
 			ecmd->autoneg = AUTONEG_ENABLE;
 			ecmd->advertising |=
 				ADVERTISED_Autoneg |
-				mdio_clause45_get_an(efx,
-						     MDIO_AN_ADVERTISE, xnp);
+				mdio_clause45_get_an(efx, MDIO_AN_ADVERTISE) |
+				npage_adv;
 		} else
 			ecmd->autoneg = AUTONEG_DISABLE;
 	} else
@@ -371,27 +387,30 @@ void mdio_clause45_get_settings_ext(struct efx_nic *efx,
 	if (ecmd->autoneg) {
 		/* If AN is complete, report best common mode,
 		 * otherwise report best advertised mode. */
-		u32 common = ecmd->advertising;
+		u32 modes = 0;
 		if (mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
 				       MDIO_MMDREG_STAT1) &
-		    (1 << MDIO_AN_STATUS_AN_DONE_LBN)) {
-			common &= mdio_clause45_get_an(efx, MDIO_AN_LPA,
-						       xnp_lpa);
-		}
-		if (common & ADVERTISED_10000baseT_Full) {
+		    (1 << MDIO_AN_STATUS_AN_DONE_LBN))
+			modes = (ecmd->advertising &
+				 (mdio_clause45_get_an(efx, MDIO_AN_LPA) |
+				  npage_lpa));
+		if (modes == 0)
+			modes = ecmd->advertising;
+
+		if (modes & ADVERTISED_10000baseT_Full) {
 			ecmd->speed = SPEED_10000;
 			ecmd->duplex = DUPLEX_FULL;
-		} else if (common & (ADVERTISED_1000baseT_Full |
-				     ADVERTISED_1000baseT_Half)) {
+		} else if (modes & (ADVERTISED_1000baseT_Full |
+				    ADVERTISED_1000baseT_Half)) {
 			ecmd->speed = SPEED_1000;
-			ecmd->duplex = !!(common & ADVERTISED_1000baseT_Full);
-		} else if (common & (ADVERTISED_100baseT_Full |
-				     ADVERTISED_100baseT_Half)) {
+			ecmd->duplex = !!(modes & ADVERTISED_1000baseT_Full);
+		} else if (modes & (ADVERTISED_100baseT_Full |
+				    ADVERTISED_100baseT_Half)) {
 			ecmd->speed = SPEED_100;
-			ecmd->duplex = !!(common & ADVERTISED_100baseT_Full);
+			ecmd->duplex = !!(modes & ADVERTISED_100baseT_Full);
 		} else {
 			ecmd->speed = SPEED_10;
-			ecmd->duplex = !!(common & ADVERTISED_10baseT_Full);
+			ecmd->duplex = !!(modes & ADVERTISED_10baseT_Full);
 		}
 	} else {
 		/* Report forced settings */
@@ -415,7 +434,7 @@ int mdio_clause45_set_settings(struct efx_nic *efx,
 	int phy_id = efx->mii.phy_id;
 	struct ethtool_cmd prev;
 	u32 required;
-	int ctrl1_bits, reg;
+	int reg;
 
 	efx->phy_op->get_settings(efx, &prev);
 
@@ -430,98 +449,82 @@ int mdio_clause45_set_settings(struct efx_nic *efx,
 	if (prev.port != PORT_TP || ecmd->port != PORT_TP)
 		return -EINVAL;
 
-	/* Check that PHY supports these settings and work out the
-	 * basic control bits */
-	if (ecmd->duplex) {
+	/* Check that PHY supports these settings */
+	if (ecmd->autoneg) {
+		required = SUPPORTED_Autoneg;
+	} else if (ecmd->duplex) {
 		switch (ecmd->speed) {
-		case SPEED_10:
-			ctrl1_bits = BMCR_FULLDPLX;
-			required = SUPPORTED_10baseT_Full;
-			break;
-		case SPEED_100:
-			ctrl1_bits = BMCR_SPEED100 | BMCR_FULLDPLX;
-			required = SUPPORTED_100baseT_Full;
-			break;
-		case SPEED_1000:
-			ctrl1_bits = BMCR_SPEED1000 | BMCR_FULLDPLX;
-			required = SUPPORTED_1000baseT_Full;
-			break;
-		case SPEED_10000:
-			ctrl1_bits = (BMCR_SPEED1000 | BMCR_SPEED100 |
-				      BMCR_FULLDPLX);
-			required = SUPPORTED_10000baseT_Full;
-			break;
-		default:
-			return -EINVAL;
+		case SPEED_10:  required = SUPPORTED_10baseT_Full;  break;
+		case SPEED_100: required = SUPPORTED_100baseT_Full; break;
+		default:        return -EINVAL;
 		}
 	} else {
 		switch (ecmd->speed) {
-		case SPEED_10:
-			ctrl1_bits = 0;
-			required = SUPPORTED_10baseT_Half;
-			break;
-		case SPEED_100:
-			ctrl1_bits = BMCR_SPEED100;
-			required = SUPPORTED_100baseT_Half;
-			break;
-		case SPEED_1000:
-			ctrl1_bits = BMCR_SPEED1000;
-			required = SUPPORTED_1000baseT_Half;
-			break;
-		default:
-			return -EINVAL;
+		case SPEED_10:  required = SUPPORTED_10baseT_Half;  break;
+		case SPEED_100: required = SUPPORTED_100baseT_Half; break;
+		default:        return -EINVAL;
 		}
 	}
-	if (ecmd->autoneg)
-		required |= SUPPORTED_Autoneg;
 	required |= ecmd->advertising;
 	if (required & ~prev.supported)
 		return -EINVAL;
 
-	/* Set the basic control bits */
-	reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
-				 MDIO_MMDREG_CTRL1);
-	reg &= ~(BMCR_SPEED1000 | BMCR_SPEED100 | BMCR_FULLDPLX | 0x003c);
-	reg |= ctrl1_bits;
-	mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD, MDIO_MMDREG_CTRL1,
-			    reg);
+	if (ecmd->autoneg) {
+		bool xnp = (ecmd->advertising & ADVERTISED_10000baseT_Full
+			    || EFX_WORKAROUND_13204(efx));
 
-	/* Set the AN registers */
-	if (ecmd->autoneg != prev.autoneg ||
-	    ecmd->advertising != prev.advertising) {
-		bool xnp = false;
+		/* Set up the base page */
+		reg = ADVERTISE_CSMA;
+		if (ecmd->advertising & ADVERTISED_10baseT_Half)
+			reg |= ADVERTISE_10HALF;
+		if (ecmd->advertising & ADVERTISED_10baseT_Full)
+			reg |= ADVERTISE_10FULL;
+		if (ecmd->advertising & ADVERTISED_100baseT_Half)
+			reg |= ADVERTISE_100HALF;
+		if (ecmd->advertising & ADVERTISED_100baseT_Full)
+			reg |= ADVERTISE_100FULL;
+		if (xnp)
+			reg |= ADVERTISE_RESV;
+		else if (ecmd->advertising & (ADVERTISED_1000baseT_Half |
+					      ADVERTISED_1000baseT_Full))
+			reg |= ADVERTISE_NPAGE;
+		reg |= efx_fc_advertise(efx->wanted_fc);
+		mdio_clause45_write(efx, phy_id, MDIO_MMD_AN,
+				    MDIO_AN_ADVERTISE, reg);
 
-		if (efx->phy_op->set_xnp_advertise)
-			xnp = efx->phy_op->set_xnp_advertise(efx,
-							     ecmd->advertising);
+		/* Set up the (extended) next page if necessary */
+		if (efx->phy_op->set_npage_adv)
+			efx->phy_op->set_npage_adv(efx, ecmd->advertising);
 
-		if (ecmd->autoneg) {
-			reg = 0;
-			if (ecmd->advertising & ADVERTISED_10baseT_Half)
-				reg |= ADVERTISE_10HALF;
-			if (ecmd->advertising & ADVERTISED_10baseT_Full)
-				reg |= ADVERTISE_10FULL;
-			if (ecmd->advertising & ADVERTISED_100baseT_Half)
-				reg |= ADVERTISE_100HALF;
-			if (ecmd->advertising & ADVERTISED_100baseT_Full)
-				reg |= ADVERTISE_100FULL;
-			if (xnp)
-				reg |= ADVERTISE_RESV;
-			mdio_clause45_write(efx, phy_id, MDIO_MMD_AN,
-					    MDIO_AN_ADVERTISE, reg);
-		}
-
+		/* Enable and restart AN */
 		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
 					 MDIO_MMDREG_CTRL1);
-		if (ecmd->autoneg)
-			reg |= BMCR_ANENABLE | BMCR_ANRESTART;
-		else
-			reg &= ~BMCR_ANENABLE;
+		reg |= BMCR_ANENABLE;
+		if (!(EFX_WORKAROUND_15195(efx) &&
+		      LOOPBACK_MASK(efx) & efx->phy_op->loopbacks))
+			reg |= BMCR_ANRESTART;
 		if (xnp)
 			reg |= 1 << MDIO_AN_CTRL_XNP_LBN;
 		else
 			reg &= ~(1 << MDIO_AN_CTRL_XNP_LBN);
 		mdio_clause45_write(efx, phy_id, MDIO_MMD_AN,
+				    MDIO_MMDREG_CTRL1, reg);
+	} else {
+		/* Disable AN */
+		mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_AN,
+				       MDIO_MMDREG_CTRL1,
+				       __ffs(BMCR_ANENABLE), false);
+
+		/* Set the basic control bits */
+		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
+					 MDIO_MMDREG_CTRL1);
+		reg &= ~(BMCR_SPEED1000 | BMCR_SPEED100 | BMCR_FULLDPLX |
+			 0x003c);
+		if (ecmd->speed == SPEED_100)
+			reg |= BMCR_SPEED100;
+		if (ecmd->duplex)
+			reg |= BMCR_FULLDPLX;
+		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
 				    MDIO_MMDREG_CTRL1, reg);
 	}
 

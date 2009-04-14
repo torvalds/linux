@@ -1,3 +1,22 @@
+Version 1.57
+------------
+Improve support for multiple security contexts to the same server. We
+used to use the same "vcnumber" for all connections which could cause
+the server to treat subsequent connections, especially those that
+are authenticated as guest, as reconnections, invalidating the earlier
+user's smb session.  This fix allows cifs to mount multiple times to the
+same server with different userids without risking invalidating earlier
+established security contexts.  fsync now sends SMB Flush operation
+to better ensure that we wait for server to write all of the data to
+server disk (not just write it over the network).  Add new mount
+parameter to allow user to disable sending the (slow) SMB flush on
+fsync if desired (fsync still flushes all cached write data to the server).
+Posix file open support added (turned off after one attempt if server
+fails to support it properly, as with Samba server versions prior to 3.3.2)
+Fix "redzone overwritten" bug in cifs_put_tcon (CIFSTcon may allocate too
+little memory for the "nativeFileSystem" field returned by the server
+during mount). 
+
 Version 1.56
 ------------
 Add "forcemandatorylock" mount option to allow user to use mandatory
@@ -5,7 +24,12 @@ rather than posix (advisory) byte range locks, even though server would
 support posix byte range locks.  Fix query of root inode when prefixpath
 specified and user does not have access to query information about the
 top of the share.  Fix problem in 2.6.28 resolving DFS paths to
-Samba servers (worked to Windows).
+Samba servers (worked to Windows).  Fix rmdir so that pending search
+(readdir) requests do not get invalid results which include the now
+removed directory.  Fix oops in cifs_dfs_ref.c when prefixpath is not reachable
+when using DFS.  Add better file create support to servers which support
+the CIFS POSIX protocol extensions (this adds support for new flags
+on create, and improves semantics for write of locked ranges).
 
 Version 1.55
 ------------

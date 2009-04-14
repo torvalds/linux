@@ -227,7 +227,7 @@ int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 	size = i_size_read(inode);
 
 	if (size > PAGE_CACHE_SIZE ||
-	    size > ocfs2_max_inline_data(inode->i_sb)) {
+	    size > ocfs2_max_inline_data_with_xattr(inode->i_sb, di)) {
 		ocfs2_error(inode->i_sb,
 			    "Inode %llu has with inline data has bad size: %Lu",
 			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -1555,6 +1555,7 @@ static int ocfs2_try_to_write_inline_data(struct address_space *mapping,
 	int ret, written = 0;
 	loff_t end = pos + len;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_dinode *di = NULL;
 
 	mlog(0, "Inode %llu, write of %u bytes at off %llu. features: 0x%x\n",
 	     (unsigned long long)oi->ip_blkno, len, (unsigned long long)pos,
@@ -1587,7 +1588,9 @@ static int ocfs2_try_to_write_inline_data(struct address_space *mapping,
 	/*
 	 * Check whether the write can fit.
 	 */
-	if (mmap_page || end > ocfs2_max_inline_data(inode->i_sb))
+	di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
+	if (mmap_page ||
+	    end > ocfs2_max_inline_data_with_xattr(inode->i_sb, di))
 		return 0;
 
 do_inline_write:
@@ -1953,15 +1956,16 @@ static int ocfs2_write_end(struct file *file, struct address_space *mapping,
 }
 
 const struct address_space_operations ocfs2_aops = {
-	.readpage	= ocfs2_readpage,
-	.readpages	= ocfs2_readpages,
-	.writepage	= ocfs2_writepage,
-	.write_begin	= ocfs2_write_begin,
-	.write_end	= ocfs2_write_end,
-	.bmap		= ocfs2_bmap,
-	.sync_page	= block_sync_page,
-	.direct_IO	= ocfs2_direct_IO,
-	.invalidatepage	= ocfs2_invalidatepage,
-	.releasepage	= ocfs2_releasepage,
-	.migratepage	= buffer_migrate_page,
+	.readpage		= ocfs2_readpage,
+	.readpages		= ocfs2_readpages,
+	.writepage		= ocfs2_writepage,
+	.write_begin		= ocfs2_write_begin,
+	.write_end		= ocfs2_write_end,
+	.bmap			= ocfs2_bmap,
+	.sync_page		= block_sync_page,
+	.direct_IO		= ocfs2_direct_IO,
+	.invalidatepage		= ocfs2_invalidatepage,
+	.releasepage		= ocfs2_releasepage,
+	.migratepage		= buffer_migrate_page,
+	.is_partially_uptodate	= block_is_partially_uptodate,
 };

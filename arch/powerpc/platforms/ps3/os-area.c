@@ -306,7 +306,7 @@ static void _dump_params(const struct os_area_params *p, const char *func,
 {
 	pr_debug("%s:%d: p.boot_flag:       %u\n", func, line, p->boot_flag);
 	pr_debug("%s:%d: p.num_params:      %u\n", func, line, p->num_params);
-	pr_debug("%s:%d: p.rtc_diff         %ld\n", func, line, p->rtc_diff);
+	pr_debug("%s:%d: p.rtc_diff         %lld\n", func, line, p->rtc_diff);
 	pr_debug("%s:%d: p.av_multi_out     %u\n", func, line, p->av_multi_out);
 	pr_debug("%s:%d: p.ctrl_button:     %u\n", func, line, p->ctrl_button);
 	pr_debug("%s:%d: p.static_ip_addr:  %u.%u.%u.%u\n", func, line,
@@ -808,6 +808,7 @@ u64 ps3_os_area_get_rtc_diff(void)
 {
 	return saved_params.rtc_diff;
 }
+EXPORT_SYMBOL(ps3_os_area_get_rtc_diff);
 
 /**
  * ps3_os_area_set_rtc_diff - Set the rtc diff value.
@@ -823,6 +824,7 @@ void ps3_os_area_set_rtc_diff(u64 rtc_diff)
 		os_area_queue_work();
 	}
 }
+EXPORT_SYMBOL(ps3_os_area_set_rtc_diff);
 
 /**
  * ps3_os_area_get_av_multi_out - Returns the default video mode.

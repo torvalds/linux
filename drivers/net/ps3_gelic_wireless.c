@@ -2168,7 +2168,7 @@ static void gelic_wl_connected_event(struct gelic_wl_info *wl,
 		complete(&wl->assoc_done);
 		netif_carrier_on(port_to_netdev(wl_port(wl)));
 	} else
-		pr_debug("%s: event %#lx under wpa\n",
+		pr_debug("%s: event %#llx under wpa\n",
 				 __func__, event);
 }
 
@@ -2697,6 +2697,19 @@ static int gelic_wl_stop(struct net_device *netdev)
 
 /* -- */
 
+static const struct net_device_ops gelic_wl_netdevice_ops = {
+	.ndo_open = gelic_wl_open,
+	.ndo_stop = gelic_wl_stop,
+	.ndo_start_xmit = gelic_net_xmit,
+	.ndo_set_multicast_list = gelic_net_set_multi,
+	.ndo_change_mtu = gelic_net_change_mtu,
+	.ndo_tx_timeout = gelic_net_tx_timeout,
+	.ndo_validate_addr = eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller = gelic_net_poll_controller,
+#endif
+};
+
 static struct ethtool_ops gelic_wl_ethtool_ops = {
 	.get_drvinfo	= gelic_net_get_drvinfo,
 	.get_link	= gelic_wl_get_link,
@@ -2711,21 +2724,12 @@ static void gelic_wl_setup_netdev_ops(struct net_device *netdev)
 	struct gelic_wl_info *wl;
 	wl = port_wl(netdev_priv(netdev));
 	BUG_ON(!wl);
-	netdev->open = &gelic_wl_open;
-	netdev->stop = &gelic_wl_stop;
-	netdev->hard_start_xmit = &gelic_net_xmit;
-	netdev->set_multicast_list = &gelic_net_set_multi;
-	netdev->change_mtu = &gelic_net_change_mtu;
-	netdev->wireless_data = &wl->wireless_data;
-	netdev->wireless_handlers = &gelic_wl_wext_handler_def;
-	/* tx watchdog */
-	netdev->tx_timeout = &gelic_net_tx_timeout;
 	netdev->watchdog_timeo = GELIC_NET_WATCHDOG_TIMEOUT;
 
 	netdev->ethtool_ops = &gelic_wl_ethtool_ops;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = gelic_net_poll_controller;
-#endif
+	netdev->netdev_ops = &gelic_wl_netdevice_ops;
+	netdev->wireless_data = &wl->wireless_data;
+	netdev->wireless_handlers = &gelic_wl_wext_handler_def;
 }
 
 /*

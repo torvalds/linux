@@ -1,0 +1,35 @@
+
+Options for the ipv6 module are supplied as parameters at load time.
+
+Module options may be given as command line arguments to the insmod
+or modprobe command, but are usually specified in either the
+/etc/modules.conf or /etc/modprobe.conf configuration file, or in a
+distro-specific configuration file.
+
+The available ipv6 module parameters are listed below.  If a parameter
+is not specified the default value is used.
+
+The parameters are as follows:
+
+disable
+
+	Specifies whether to load the IPv6 module, but disable all
+	its functionality.  This might be used when another module
+	has a dependency on the IPv6 module being loaded, but no
+	IPv6 addresses or operations are desired.
+
+	The possible values and their effects are:
+
+	0
+		IPv6 is enabled.
+
+		This is the default value.
+
+	1
+		IPv6 is disabled.
+
+		No IPv6 addresses will be added to interfaces, and
+		it will not be possible to open an IPv6 socket.
+
+		A reboot is required to enable IPv6.
+

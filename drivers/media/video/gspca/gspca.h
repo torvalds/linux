@@ -33,19 +33,13 @@ extern int gspca_debug;
 #endif
 #undef err
 #define err(fmt, args...) \
-	do {\
-		printk(KERN_ERR MODULE_NAME ": " fmt "\n", ## args); \
-	} while (0)
+	printk(KERN_ERR MODULE_NAME ": " fmt "\n", ## args)
 #undef info
 #define info(fmt, args...) \
-	do {\
-		printk(KERN_INFO MODULE_NAME ": " fmt "\n", ## args); \
-	} while (0)
+	printk(KERN_INFO MODULE_NAME ": " fmt "\n", ## args)
 #undef warn
 #define warn(fmt, args...) \
-	do {\
-		printk(KERN_WARNING MODULE_NAME ": " fmt "\n", ## args); \
-	} while (0)
+	printk(KERN_WARNING MODULE_NAME ": " fmt "\n", ## args)
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
 /* image transfers */
@@ -62,7 +56,7 @@ struct cam {
 				 * - cannot be > MAX_NURBS
 				 * - when 0 and bulk_size != 0 means
 				 *   1 URB and submit done by subdriver */
-	__u8 epaddr;
+	u32 input_flags;	/* value for ENUM_INPUT status flags */
 };
 
 struct gspca_dev;
@@ -174,6 +168,7 @@ struct gspca_dev {
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
 	__u8 nbalt;			/* number of USB alternate settings */
+	u8 bulk;			/* image transfer by 0:isoc / 1:bulk */
 };
 
 int gspca_dev_probe(struct usb_interface *intf,

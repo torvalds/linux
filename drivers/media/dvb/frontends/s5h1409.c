@@ -545,9 +545,6 @@ static int s5h1409_set_frontend(struct dvb_frontend *fe,
 
 	s5h1409_enable_modulation(fe, p->u.vsb.modulation);
 
-	/* Allow the demod to settle */
-	msleep(100);
-
 	if (fe->ops.tuner_ops.set_params) {
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
@@ -561,6 +558,10 @@ static int s5h1409_set_frontend(struct dvb_frontend *fe,
 		s5h1409_set_qam_amhum_mode(fe);
 		s5h1409_set_qam_interleave_mode(fe);
 	}
+
+	/* Issue a reset to the demod so it knows to resync against the
+	   newly tuned frequency */
+	s5h1409_softreset(fe);
 
 	return 0;
 }

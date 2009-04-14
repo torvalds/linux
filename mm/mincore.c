@@ -177,8 +177,8 @@ none_mapped:
  *		mapped
  *  -EAGAIN - A kernel resource was temporarily unavailable.
  */
-asmlinkage long sys_mincore(unsigned long start, size_t len,
-	unsigned char __user * vec)
+SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
+		unsigned char __user *, vec)
 {
 	long retval;
 	unsigned long pages;

@@ -64,7 +64,9 @@ SECTIONS
 		__initramfs_end = .;
 #endif
 		. = ALIGN(4096);
+		__per_cpu_load = .;
 		__per_cpu_start = .;
+			*(.data.percpu.page_aligned)
 			*(.data.percpu)
 			*(.data.percpu.shared_aligned)
 		__per_cpu_end = .;
@@ -80,6 +82,8 @@ SECTIONS
 		EXIT_TEXT
 		EXIT_DATA
 		*(.exitcall.exit)
+		*(.ARM.exidx.exit.text)
+		*(.ARM.extab.exit.text)
 #ifndef CONFIG_MMU
 		*(.fixup)
 		*(__ex_table)
@@ -109,6 +113,23 @@ SECTIONS
 	RODATA
 
 	_etext = .;			/* End of text and rodata section */
+
+#ifdef CONFIG_ARM_UNWIND
+	/*
+	 * Stack unwinding tables
+	 */
+	. = ALIGN(8);
+	.ARM.unwind_idx : {
+		__start_unwind_idx = .;
+		*(.ARM.exidx*)
+		__stop_unwind_idx = .;
+	}
+	.ARM.unwind_tab : {
+		__start_unwind_tab = .;
+		*(.ARM.extab*)
+		__stop_unwind_tab = .;
+	}
+#endif
 
 #ifdef CONFIG_XIP_KERNEL
 	__data_loc = ALIGN(4);		/* location in binary */

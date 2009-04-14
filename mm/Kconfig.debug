@@ -1,0 +1,26 @@
+config DEBUG_PAGEALLOC
+	bool "Debug page memory allocations"
+	depends on DEBUG_KERNEL && ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	depends on !HIBERNATION || !PPC && !SPARC
+	---help---
+	  Unmap pages from the kernel linear mapping after free_pages().
+	  This results in a large slowdown, but helps to find certain types
+	  of memory corruptions.
+
+config WANT_PAGE_DEBUG_FLAGS
+	bool
+
+config PAGE_POISONING
+	bool "Debug page memory allocations"
+	depends on DEBUG_KERNEL && !ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	depends on !HIBERNATION
+	select DEBUG_PAGEALLOC
+	select WANT_PAGE_DEBUG_FLAGS
+	help
+	   Fill the pages with poison patterns after free_pages() and verify
+	   the patterns before alloc_pages(). This results in a large slowdown,
+	   but helps to find certain types of memory corruptions.
+
+	   This option cannot enalbe with hibernation. Otherwise, it will get
+	   wrong messages for memory corruption because the free pages are not
+	   saved to the suspend image.

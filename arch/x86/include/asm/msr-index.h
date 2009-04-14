@@ -18,11 +18,15 @@
 #define _EFER_LME		8  /* Long mode enable */
 #define _EFER_LMA		10 /* Long mode active (read-only) */
 #define _EFER_NX		11 /* No execute enable */
+#define _EFER_SVME		12 /* Enable virtualization */
+#define _EFER_FFXSR		14 /* Enable Fast FXSAVE/FXRSTOR */
 
 #define EFER_SCE		(1<<_EFER_SCE)
 #define EFER_LME		(1<<_EFER_LME)
 #define EFER_LMA		(1<<_EFER_LMA)
 #define EFER_NX			(1<<_EFER_NX)
+#define EFER_SVME		(1<<_EFER_SVME)
+#define EFER_FFXSR		(1<<_EFER_FFXSR)
 
 /* Intel MSRs. Some also available on other CPUs */
 #define MSR_IA32_PERFCTR0		0x000000c1
@@ -76,6 +80,11 @@
 #define MSR_IA32_MC0_STATUS		0x00000401
 #define MSR_IA32_MC0_ADDR		0x00000402
 #define MSR_IA32_MC0_MISC		0x00000403
+
+/* These are consecutive and not in the normal 4er MCE bank block */
+#define MSR_IA32_MC0_CTL2		0x00000280
+#define CMCI_EN			(1ULL << 30)
+#define CMCI_THRESHOLD_MASK		0xffffULL
 
 #define MSR_P6_PERFCTR0			0x000000c1
 #define MSR_P6_PERFCTR1			0x000000c2
@@ -201,6 +210,35 @@
 #define MSR_IA32_THERM_INTERRUPT	0x0000019b
 #define MSR_IA32_THERM_STATUS		0x0000019c
 #define MSR_IA32_MISC_ENABLE		0x000001a0
+
+/* MISC_ENABLE bits: architectural */
+#define MSR_IA32_MISC_ENABLE_FAST_STRING	(1ULL << 0)
+#define MSR_IA32_MISC_ENABLE_TCC		(1ULL << 1)
+#define MSR_IA32_MISC_ENABLE_EMON		(1ULL << 7)
+#define MSR_IA32_MISC_ENABLE_BTS_UNAVAIL	(1ULL << 11)
+#define MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL	(1ULL << 12)
+#define MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP	(1ULL << 16)
+#define MSR_IA32_MISC_ENABLE_MWAIT		(1ULL << 18)
+#define MSR_IA32_MISC_ENABLE_LIMIT_CPUID	(1ULL << 22)
+#define MSR_IA32_MISC_ENABLE_XTPR_DISABLE	(1ULL << 23)
+#define MSR_IA32_MISC_ENABLE_XD_DISABLE		(1ULL << 34)
+
+/* MISC_ENABLE bits: model-specific, meaning may vary from core to core */
+#define MSR_IA32_MISC_ENABLE_X87_COMPAT		(1ULL << 2)
+#define MSR_IA32_MISC_ENABLE_TM1		(1ULL << 3)
+#define MSR_IA32_MISC_ENABLE_SPLIT_LOCK_DISABLE	(1ULL << 4)
+#define MSR_IA32_MISC_ENABLE_L3CACHE_DISABLE	(1ULL << 6)
+#define MSR_IA32_MISC_ENABLE_SUPPRESS_LOCK	(1ULL << 8)
+#define MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE	(1ULL << 9)
+#define MSR_IA32_MISC_ENABLE_FERR		(1ULL << 10)
+#define MSR_IA32_MISC_ENABLE_FERR_MULTIPLEX	(1ULL << 10)
+#define MSR_IA32_MISC_ENABLE_TM2		(1ULL << 13)
+#define MSR_IA32_MISC_ENABLE_ADJ_PREF_DISABLE	(1ULL << 19)
+#define MSR_IA32_MISC_ENABLE_SPEEDSTEP_LOCK	(1ULL << 20)
+#define MSR_IA32_MISC_ENABLE_L1D_CONTEXT	(1ULL << 24)
+#define MSR_IA32_MISC_ENABLE_DCU_PREF_DISABLE	(1ULL << 37)
+#define MSR_IA32_MISC_ENABLE_TURBO_DISABLE	(1ULL << 38)
+#define MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE	(1ULL << 39)
 
 /* Intel Model 6 */
 #define MSR_P6_EVNTSEL0			0x00000186
@@ -330,5 +368,10 @@
 #define MSR_IA32_VMX_VMCS_ENUM          0x0000048a
 #define MSR_IA32_VMX_PROCBASED_CTLS2    0x0000048b
 #define MSR_IA32_VMX_EPT_VPID_CAP       0x0000048c
+
+/* AMD-V MSRs */
+
+#define MSR_VM_CR                       0xc0010114
+#define MSR_VM_HSAVE_PA                 0xc0010117
 
 #endif /* _ASM_X86_MSR_INDEX_H */

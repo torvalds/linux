@@ -368,7 +368,7 @@
 	 * abstractions for the macros */
 	.macro		EXTR	reg1,start,length,reg2
 #ifdef CONFIG_64BIT
-	extrd,u		\reg1,32+\start,\length,\reg2
+	extrd,u		\reg1,32+(\start),\length,\reg2
 #else
 	extrw,u		\reg1,\start,\length,\reg2
 #endif
@@ -376,7 +376,7 @@
 
 	.macro		DEP	reg1,start,length,reg2
 #ifdef CONFIG_64BIT
-	depd		\reg1,32+\start,\length,\reg2
+	depd		\reg1,32+(\start),\length,\reg2
 #else
 	depw		\reg1,\start,\length,\reg2
 #endif
@@ -384,7 +384,7 @@
 
 	.macro		DEPI	val,start,length,reg
 #ifdef CONFIG_64BIT
-	depdi		\val,32+\start,\length,\reg
+	depdi		\val,32+(\start),\length,\reg
 #else
 	depwi		\val,\start,\length,\reg
 #endif
@@ -505,6 +505,18 @@
 	STREG		\pte,0(\ptep)
 	.endm
 
+	/* bitshift difference between a PFN (based on kernel's PAGE_SIZE)
+	 * to a CPU TLB 4k PFN (4k => 12 bits to shift) */
+	#define PAGE_ADD_SHIFT  (PAGE_SHIFT-12)
+
+	/* Drop prot bits and convert to page addr for iitlbt and idtlbt */
+	.macro		convert_for_tlb_insert20 pte
+	extrd,u		\pte,(63-ASM_PFN_PTE_SHIFT)+(63-58)+PAGE_ADD_SHIFT,\
+				64-PAGE_SHIFT-PAGE_ADD_SHIFT,\pte
+	depdi		_PAGE_SIZE_ENCODING_DEFAULT,63,\
+				(63-58)+PAGE_ADD_SHIFT,\pte
+	.endm
+
 	/* Convert the pte and prot to tlb insertion values.  How
 	 * this happens is quite subtle, read below */
 	.macro		make_insert_tlb	spc,pte,prot
@@ -544,8 +556,7 @@
 	depi		1,12,1,\prot
 
 	/* Drop prot bits and convert to page addr for iitlbt and idtlbt */
-	extrd,u		\pte,(63-ASM_PFN_PTE_SHIFT)+(63-58),64-PAGE_SHIFT,\pte
-	depdi		_PAGE_SIZE_ENCODING_DEFAULT,63,63-58,\pte
+	convert_for_tlb_insert20 \pte
 	.endm
 
 	/* Identical macro to make_insert_tlb above, except it
@@ -563,8 +574,8 @@
 
 	/* Get rid of prot bits and convert to page addr for iitlba */
 
-	depi		_PAGE_SIZE_ENCODING_DEFAULT,31,ASM_PFN_PTE_SHIFT,\pte
-	extru		\pte,24,25,\pte
+	depi		0,31,ASM_PFN_PTE_SHIFT,\pte
+	SHRREG		\pte,(ASM_PFN_PTE_SHIFT-(31-26)),\pte
 	.endm
 
 	/* This is for ILP32 PA2.0 only.  The TLB insertion needs
@@ -1244,10 +1255,9 @@ nadtlb_check_flush_20w:
 	depdi,z         7,7,3,prot
 	depdi           1,10,1,prot
 
-	/* Get rid of prot bits and convert to page addr for idtlbt */
+	/* Drop prot bits from pte and convert to page addr for idtlbt */
+	convert_for_tlb_insert20 pte
 
-	depdi		0,63,12,pte
-	extrd,u         pte,56,52,pte
 	idtlbt          pte,prot
 
 	rfir
@@ -1337,8 +1347,8 @@ nadtlb_check_flush_11:
 
 	/* Get rid of prot bits and convert to page addr for idtlba */
 
-	depi		0,31,12,pte
-	extru		pte,24,25,pte
+	depi		0,31,ASM_PFN_PTE_SHIFT,pte
+	SHRREG		pte,(ASM_PFN_PTE_SHIFT-(31-26)),pte
 
 	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
 	mtsp		spc,%sr1
@@ -1403,10 +1413,9 @@ nadtlb_check_flush_20:
 	depdi,z         7,7,3,prot
 	depdi           1,10,1,prot
 
-	/* Get rid of prot bits and convert to page addr for idtlbt */
+	/* Drop prot bits from pte and convert to page addr for idtlbt */
+	convert_for_tlb_insert20 pte
 
-	depdi		0,63,12,pte
-	extrd,u         pte,56,32,pte
 	idtlbt          pte,prot
 
 	rfir
@@ -2174,6 +2183,33 @@ syscall_do_resched:
 	b	syscall_check_resched	/* if resched, we start over again */
 	nop
 ENDPROC(syscall_exit)
+
+
+#ifdef CONFIG_FUNCTION_TRACER
+	.import ftrace_function_trampoline,code
+ENTRY(_mcount)
+	copy	%r3, %arg2
+	b	ftrace_function_trampoline
+	nop
+ENDPROC(_mcount)
+
+ENTRY(return_to_handler)
+	load32	return_trampoline, %rp
+	copy	%ret0, %arg0
+	copy	%ret1, %arg1
+	b	ftrace_return_to_handler
+	nop
+return_trampoline:
+	copy	%ret0, %rp
+	copy	%r23, %ret0
+	copy	%r24, %ret1
+
+.globl ftrace_stub
+ftrace_stub:
+	bv	%r0(%rp)
+	nop
+ENDPROC(return_to_handler)
+#endif	/* CONFIG_FUNCTION_TRACER */
 
 
 get_register:

@@ -38,6 +38,10 @@ struct request;
 typedef void (rq_end_io_fn)(struct request *, int);
 
 struct request_list {
+	/*
+	 * count[], starved[], and wait[] are indexed by
+	 * BLK_RW_SYNC/BLK_RW_ASYNC
+	 */
 	int count[2];
 	int starved[2];
 	int elvpriv;
@@ -64,6 +68,11 @@ enum rq_cmd_type_bits {
 	 */
 	REQ_TYPE_ATA_TASKFILE,
 	REQ_TYPE_ATA_PC,
+};
+
+enum {
+	BLK_RW_ASYNC	= 0,
+	BLK_RW_SYNC	= 1,
 };
 
 /*
@@ -103,11 +112,12 @@ enum rq_flag_bits {
 	__REQ_QUIET,		/* don't worry about errors */
 	__REQ_PREEMPT,		/* set for "ide_preempt" requests */
 	__REQ_ORDERED_COLOR,	/* is before or after barrier */
-	__REQ_RW_SYNC,		/* request is sync (O_DIRECT) */
+	__REQ_RW_SYNC,		/* request is sync (sync write or read) */
 	__REQ_ALLOCED,		/* request came from our alloc pool */
 	__REQ_RW_META,		/* metadata io request */
 	__REQ_COPY_USER,	/* contains copies of user pages */
 	__REQ_INTEGRITY,	/* integrity metadata has been remapped */
+	__REQ_NOIDLE,		/* Don't anticipate more IO after this one */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -134,6 +144,7 @@ enum rq_flag_bits {
 #define REQ_RW_META	(1 << __REQ_RW_META)
 #define REQ_COPY_USER	(1 << __REQ_COPY_USER)
 #define REQ_INTEGRITY	(1 << __REQ_INTEGRITY)
+#define REQ_NOIDLE	(1 << __REQ_NOIDLE)
 
 #define BLK_MAX_CDB	16
 
@@ -436,8 +447,8 @@ struct request_queue
 #define QUEUE_FLAG_CLUSTER	0	/* cluster several segments into 1 */
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
 #define QUEUE_FLAG_STOPPED	2	/* queue is stopped */
-#define	QUEUE_FLAG_READFULL	3	/* read queue has been filled */
-#define QUEUE_FLAG_WRITEFULL	4	/* write queue has been filled */
+#define	QUEUE_FLAG_SYNCFULL	3	/* read queue has been filled */
+#define QUEUE_FLAG_ASYNCFULL	4	/* write queue has been filled */
 #define QUEUE_FLAG_DEAD		5	/* queue being torn down */
 #define QUEUE_FLAG_REENTER	6	/* Re-entrancy avoidance */
 #define QUEUE_FLAG_PLUGGED	7	/* queue is plugged */
@@ -449,6 +460,11 @@ struct request_queue
 #define QUEUE_FLAG_STACKABLE   13	/* supports request stacking */
 #define QUEUE_FLAG_NONROT      14	/* non-rotational device (SSD) */
 #define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
+#define QUEUE_FLAG_IO_STAT     15	/* do IO stats */
+
+#define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
+				 (1 << QUEUE_FLAG_CLUSTER) |		\
+				 (1 << QUEUE_FLAG_STACKABLE))
 
 static inline int queue_is_locked(struct request_queue *q)
 {
@@ -565,6 +581,7 @@ enum {
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
 #define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
+#define blk_queue_io_stat(q)	test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
 #define blk_queue_flushing(q)	((q)->ordseq)
 #define blk_queue_stackable(q)	\
 	test_bit(QUEUE_FLAG_STACKABLE, &(q)->queue_flags)
@@ -603,32 +620,42 @@ enum {
 #define rq_data_dir(rq)		((rq)->cmd_flags & 1)
 
 /*
- * We regard a request as sync, if it's a READ or a SYNC write.
+ * We regard a request as sync, if either a read or a sync write
  */
-#define rq_is_sync(rq)		(rq_data_dir((rq)) == READ || (rq)->cmd_flags & REQ_RW_SYNC)
+static inline bool rw_is_sync(unsigned int rw_flags)
+{
+	return !(rw_flags & REQ_RW) || (rw_flags & REQ_RW_SYNC);
+}
+
+static inline bool rq_is_sync(struct request *rq)
+{
+	return rw_is_sync(rq->cmd_flags);
+}
+
 #define rq_is_meta(rq)		((rq)->cmd_flags & REQ_RW_META)
+#define rq_noidle(rq)		((rq)->cmd_flags & REQ_NOIDLE)
 
-static inline int blk_queue_full(struct request_queue *q, int rw)
+static inline int blk_queue_full(struct request_queue *q, int sync)
 {
-	if (rw == READ)
-		return test_bit(QUEUE_FLAG_READFULL, &q->queue_flags);
-	return test_bit(QUEUE_FLAG_WRITEFULL, &q->queue_flags);
+	if (sync)
+		return test_bit(QUEUE_FLAG_SYNCFULL, &q->queue_flags);
+	return test_bit(QUEUE_FLAG_ASYNCFULL, &q->queue_flags);
 }
 
-static inline void blk_set_queue_full(struct request_queue *q, int rw)
+static inline void blk_set_queue_full(struct request_queue *q, int sync)
 {
-	if (rw == READ)
-		queue_flag_set(QUEUE_FLAG_READFULL, q);
+	if (sync)
+		queue_flag_set(QUEUE_FLAG_SYNCFULL, q);
 	else
-		queue_flag_set(QUEUE_FLAG_WRITEFULL, q);
+		queue_flag_set(QUEUE_FLAG_ASYNCFULL, q);
 }
 
-static inline void blk_clear_queue_full(struct request_queue *q, int rw)
+static inline void blk_clear_queue_full(struct request_queue *q, int sync)
 {
-	if (rw == READ)
-		queue_flag_clear(QUEUE_FLAG_READFULL, q);
+	if (sync)
+		queue_flag_clear(QUEUE_FLAG_SYNCFULL, q);
 	else
-		queue_flag_clear(QUEUE_FLAG_WRITEFULL, q);
+		queue_flag_clear(QUEUE_FLAG_ASYNCFULL, q);
 }
 
 
@@ -700,6 +727,8 @@ struct req_iterator {
 };
 
 /* This should not be used directly - use rq_for_each_segment */
+#define for_each_bio(_bio)		\
+	for (; _bio; _bio = _bio->bi_next)
 #define __rq_for_each_bio(_bio, rq)	\
 	if ((rq->bio))			\
 		for (_bio = (rq)->bio; _bio; _bio = _bio->bi_next)

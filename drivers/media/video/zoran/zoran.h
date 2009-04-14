@@ -31,6 +31,8 @@
 #ifndef _BUZ_H_
 #define _BUZ_H_
 
+#include <media/v4l2-device.h>
+
 struct zoran_requestbuffers {
 	unsigned long count;	/* Number of buffers for MJPEG grabbing */
 	unsigned long size;	/* Size PER BUFFER in bytes */
@@ -141,8 +143,8 @@ Private IOCTL to set up for displaying MJPEG
 #ifdef __KERNEL__
 
 #define MAJOR_VERSION 0		/* driver major version */
-#define MINOR_VERSION 9		/* driver minor version */
-#define RELEASE_VERSION 5	/* release version */
+#define MINOR_VERSION 10	/* driver minor version */
+#define RELEASE_VERSION 0	/* release version */
 
 #define ZORAN_NAME    "ZORAN"	/* name of the device */
 
@@ -170,7 +172,7 @@ Private IOCTL to set up for displaying MJPEG
 #endif
 #define   V4L_MASK_FRAME   (V4L_MAX_FRAME - 1)
 
-#define MAX_KMALLOC_MEM (128*1024)
+#define MAX_FRAME (BUZ_MAX_FRAME > VIDEO_MAX_FRAME ? BUZ_MAX_FRAME : VIDEO_MAX_FRAME)
 
 #include "zr36057.h"
 
@@ -240,9 +242,6 @@ enum gpcs_type {
 
 struct zoran_format {
 	char *name;
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	int palette;
-#endif
 	__u32 fourcc;
 	int colorspace;
 	int depth;
@@ -283,21 +282,21 @@ struct zoran_mapping {
 	int count;
 };
 
-struct zoran_jpg_buffer {
+struct zoran_buffer {
 	struct zoran_mapping *map;
-	__le32 *frag_tab;		/* addresses of frag table */
-	u32 frag_tab_bus;	/* same value cached to save time in ISR */
-	enum zoran_buffer_state state;	/* non-zero if corresponding buffer is in use in grab queue */
-	struct zoran_sync bs;	/* DONE: info to return to application */
-};
-
-struct zoran_v4l_buffer {
-	struct zoran_mapping *map;
-	char *fbuffer;		/* virtual  address of frame buffer */
-	unsigned long fbuffer_phys;	/* physical address of frame buffer */
-	unsigned long fbuffer_bus;	/* bus      address of frame buffer */
-	enum zoran_buffer_state state;	/* state: unused/pending/done */
-	struct zoran_sync bs;	/* DONE: info to return to application */
+	enum zoran_buffer_state state;	/* state: unused/pending/dma/done */
+	struct zoran_sync bs;		/* DONE: info to return to application */
+	union {
+		struct {
+			__le32 *frag_tab;	/* addresses of frag table */
+			u32 frag_tab_bus;	/* same value cached to save time in ISR */
+		} jpg;
+		struct {
+			char *fbuffer;		/* virtual address of frame buffer */
+			unsigned long fbuffer_phys;/* physical address of frame buffer */
+			unsigned long fbuffer_bus;/* bus address of frame buffer */
+		} v4l;
+	};
 };
 
 enum zoran_lock_activity {
@@ -307,21 +306,13 @@ enum zoran_lock_activity {
 };
 
 /* buffer collections */
-struct zoran_jpg_struct {
+struct zoran_buffer_col {
 	enum zoran_lock_activity active;	/* feature currently in use? */
-	struct zoran_jpg_buffer buffer[BUZ_MAX_FRAME];	/* buffers */
-	int num_buffers, buffer_size;
+	unsigned int num_buffers, buffer_size;
+	struct zoran_buffer buffer[MAX_FRAME];	/* buffers */
 	u8 allocated;		/* Flag if buffers are allocated  */
-	u8 ready_to_be_freed;	/* hack - see zoran_driver.c */
 	u8 need_contiguous;	/* Flag if contiguous buffers are needed */
-};
-
-struct zoran_v4l_struct {
-	enum zoran_lock_activity active;	/* feature currently in use? */
-	struct zoran_v4l_buffer buffer[VIDEO_MAX_FRAME];	/* buffers */
-	int num_buffers, buffer_size;
-	u8 allocated;		/* Flag if buffers are allocated  */
-	u8 ready_to_be_freed;	/* hack - see zoran_driver.c */
+	/* only applies to jpg buffers, raw buffers are always contiguous */
 };
 
 struct zoran;
@@ -330,26 +321,29 @@ struct zoran;
 struct zoran_fh {
 	struct zoran *zr;
 
-	enum zoran_map_mode map_mode;	/* Flag which bufferset will map by next mmap() */
+	enum zoran_map_mode map_mode;		/* Flag which bufferset will map by next mmap() */
 
 	struct zoran_overlay_settings overlay_settings;
-	u32 *overlay_mask;	/* overlay mask */
-	enum zoran_lock_activity overlay_active;	/* feature currently in use? */
+	u32 *overlay_mask;			/* overlay mask */
+	enum zoran_lock_activity overlay_active;/* feature currently in use? */
+
+	struct zoran_buffer_col buffers;	/* buffers' info */
 
 	struct zoran_v4l_settings v4l_settings;	/* structure with a lot of things to play with */
-	struct zoran_v4l_struct v4l_buffers;	/* V4L buffers' info */
-
 	struct zoran_jpg_settings jpg_settings;	/* structure with a lot of things to play with */
-	struct zoran_jpg_struct jpg_buffers;	/* MJPEG buffers' info */
 };
 
 struct card_info {
 	enum card_type type;
 	char name[32];
-	u16 i2c_decoder, i2c_encoder;			/* I2C types */
+	const char *i2c_decoder;	/* i2c decoder device */
+	const char *mod_decoder;	/* i2c decoder module */
+	const unsigned short *addrs_decoder;
+	const char *i2c_encoder;	/* i2c encoder device */
+	const char *mod_encoder;	/* i2c encoder module */
+	const unsigned short *addrs_encoder;
 	u16 video_vfe, video_codec;			/* videocodec types */
 	u16 audio_chip;					/* audio type */
-	u16 vendor_id, device_id;	/* subsystem vendor/device ID */
 
 	int inputs;		/* number of video inputs */
 	struct input {
@@ -357,7 +351,7 @@ struct card_info {
 		char name[32];
 	} input[BUZ_MAX_INPUT];
 
-	int norms;
+	v4l2_std_id norms;
 	struct tvnorm *tvn[3];	/* supported TV norms */
 
 	u32 jpeg_int;		/* JPEG interrupt */
@@ -378,14 +372,15 @@ struct card_info {
 };
 
 struct zoran {
+	struct v4l2_device v4l2_dev;
 	struct video_device *video_dev;
 
 	struct i2c_adapter i2c_adapter;	/* */
 	struct i2c_algo_bit_data i2c_algo;	/* */
 	u32 i2cbr;
 
-	struct i2c_client *decoder;	/* video decoder i2c client */
-	struct i2c_client *encoder;	/* video encoder i2c client */
+	struct v4l2_subdev *decoder;	/* video decoder sub-device */
+	struct v4l2_subdev *encoder;	/* video encoder sub-device */
 
 	struct videocodec *codec;	/* video codec */
 	struct videocodec *vfe;	/* video front end */
@@ -401,15 +396,20 @@ struct zoran {
 	char name[32];		/* name of this device */
 	struct pci_dev *pci_dev;	/* PCI device */
 	unsigned char revision;	/* revision of zr36057 */
-	unsigned int zr36057_adr;	/* bus address of IO mem returned by PCI BIOS */
 	unsigned char __iomem *zr36057_mem;/* pointer to mapped IO memory */
 
 	spinlock_t spinlock;	/* Spinlock */
 
 	/* Video for Linux parameters */
-	int input, norm;	/* card's norm and input - norm=VIDEO_MODE_* */
-	int hue, saturation, contrast, brightness;	/* Current picture params */
-	struct video_buffer buffer;	/* Current buffer params */
+	int input;	/* card's norm and input - norm=VIDEO_MODE_* */
+	v4l2_std_id norm;
+
+	/* Current buffer params */
+	void    *vbuf_base;
+	int     vbuf_height, vbuf_width;
+	int     vbuf_depth;
+	int     vbuf_bytesperline;
+
 	struct zoran_overlay_settings overlay_settings;
 	u32 *overlay_mask;	/* overlay mask */
 	enum zoran_lock_activity overlay_active;	/* feature currently in use? */
@@ -429,7 +429,7 @@ struct zoran {
 	unsigned long v4l_pend_tail;
 	unsigned long v4l_sync_tail;
 	int v4l_pend[V4L_MAX_FRAME];
-	struct zoran_v4l_struct v4l_buffers;	/* V4L buffers' info */
+	struct zoran_buffer_col v4l_buffers;	/* V4L buffers' info */
 
 	/* Buz MJPEG parameters */
 	enum zoran_codec_mode codec_mode;	/* status of codec */
@@ -456,7 +456,7 @@ struct zoran {
 	int jpg_pend[BUZ_MAX_FRAME];
 
 	/* array indexed by frame number */
-	struct zoran_jpg_struct jpg_buffers;	/* MJPEG buffers' info */
+	struct zoran_buffer_col jpg_buffers;	/* MJPEG buffers' info */
 
 	/* Additional stuff for testing */
 #ifdef CONFIG_PROC_FS
@@ -490,16 +490,15 @@ struct zoran {
 	wait_queue_head_t test_q;
 };
 
-/*The following should be done in more portable way. It depends on define
-  of _ALPHA_BUZ in the Makefile.*/
+static inline struct zoran *to_zoran(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct zoran, v4l2_dev);
+}
 
-#ifdef _ALPHA_BUZ
-#define btwrite(dat,adr)    writel((dat), zr->zr36057_adr+(adr))
-#define btread(adr)         readl(zr->zr36057_adr+(adr))
-#else
+/* There was something called _ALPHA_BUZ that used the PCI address instead of
+ * the kernel iomapped address for btread/btwrite.  */
 #define btwrite(dat,adr)    writel((dat), zr->zr36057_mem+(adr))
 #define btread(adr)         readl(zr->zr36057_mem+(adr))
-#endif
 
 #define btand(dat,adr)      btwrite((dat) & btread(adr), adr)
 #define btor(dat,adr)       btwrite((dat) | btread(adr), adr)

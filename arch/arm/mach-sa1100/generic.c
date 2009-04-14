@@ -289,7 +289,7 @@ static struct platform_device sa11x0pcmcia_device = {
 };
 
 static struct platform_device sa11x0mtd_device = {
-	.name		= "flash",
+	.name		= "sa1100-mtd",
 	.id		= -1,
 };
 

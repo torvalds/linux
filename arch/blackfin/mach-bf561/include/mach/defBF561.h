@@ -1106,6 +1106,8 @@
 #define DLEN_8		     0x0	/* PPI Data Length mask for DLEN=8 */
 #define DLEN(x)	(((x-9) & 0x07) << 11)	/* PPI Data Length (only works for x=10-->x=16) */
 #define POL                  0x0000C000	/* PPI Signal Polarities       */
+#define	POLC		0x4000		/* PPI Clock Polarity */
+#define	POLS		0x8000		/* PPI Frame Sync Polarity */
 
 /* PPI_STATUS Masks */
 #define FLD	             0x00000400	/* Field Indicator   */

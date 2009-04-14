@@ -258,24 +258,7 @@ void pcibios_set_master(struct pci_dev *dev)
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
 }
 
-static void pci_unmap_page_range(struct vm_area_struct *vma)
-{
-	u64 addr = (u64)vma->vm_pgoff << PAGE_SHIFT;
-	free_memtype(addr, addr + vma->vm_end - vma->vm_start);
-}
-
-static void pci_track_mmap_page_range(struct vm_area_struct *vma)
-{
-	u64 addr = (u64)vma->vm_pgoff << PAGE_SHIFT;
-	unsigned long flags = pgprot_val(vma->vm_page_prot)
-						& _PAGE_CACHE_MASK;
-
-	reserve_memtype(addr, addr + vma->vm_end - vma->vm_start, flags, NULL);
-}
-
 static struct vm_operations_struct pci_mmap_ops = {
-	.open  = pci_track_mmap_page_range,
-	.close = pci_unmap_page_range,
 	.access = generic_access_phys,
 };
 
@@ -283,11 +266,6 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine)
 {
 	unsigned long prot;
-	u64 addr = vma->vm_pgoff << PAGE_SHIFT;
-	unsigned long len = vma->vm_end - vma->vm_start;
-	unsigned long flags;
-	unsigned long new_flags;
-	int retval;
 
 	/* I/O space cannot be accessed via normal processor loads and
 	 * stores on this platform.
@@ -307,37 +285,6 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		prot |= _PAGE_CACHE_UC_MINUS;
 
 	vma->vm_page_prot = __pgprot(prot);
-
-	flags = pgprot_val(vma->vm_page_prot) & _PAGE_CACHE_MASK;
-	retval = reserve_memtype(addr, addr + len, flags, &new_flags);
-	if (retval)
-		return retval;
-
-	if (flags != new_flags) {
-		/*
-		 * Do not fallback to certain memory types with certain
-		 * requested type:
-		 * - request is uncached, return cannot be write-back
-		 * - request is uncached, return cannot be write-combine
-		 * - request is write-combine, return cannot be write-back
-		 */
-		if ((flags == _PAGE_CACHE_UC_MINUS &&
-		     (new_flags == _PAGE_CACHE_WB)) ||
-		    (flags == _PAGE_CACHE_WC &&
-		     new_flags == _PAGE_CACHE_WB)) {
-			free_memtype(addr, addr+len);
-			return -EINVAL;
-		}
-		flags = new_flags;
-	}
-
-	if (((vma->vm_pgoff < max_low_pfn_mapped) ||
-	     (vma->vm_pgoff >= (1UL<<(32 - PAGE_SHIFT)) &&
-	      vma->vm_pgoff < max_pfn_mapped)) &&
-	    ioremap_change_attr((unsigned long)__va(addr), len, flags)) {
-		free_memtype(addr, addr + len);
-		return -EINVAL;
-	}
 
 	if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			       vma->vm_end - vma->vm_start,

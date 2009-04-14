@@ -149,7 +149,7 @@ static const struct i2c_reg_value saa7127_init_config_common[] = {
 	{ SAA7127_REG_COPYGEN_0, 			0x77 },
 	{ SAA7127_REG_COPYGEN_1, 			0x41 },
 	{ SAA7127_REG_COPYGEN_2, 			0x00 },	/* Macrovision enable/disable */
-	{ SAA7127_REG_OUTPUT_PORT_CONTROL, 		0x9e },
+	{ SAA7127_REG_OUTPUT_PORT_CONTROL, 		0xbf },
 	{ SAA7127_REG_GAIN_LUMINANCE_RGB, 		0x00 },
 	{ SAA7127_REG_GAIN_COLORDIFF_RGB, 		0x00 },
 	{ SAA7127_REG_INPUT_PORT_CONTROL_1, 		0x80 },	/* for color bars */
@@ -488,12 +488,18 @@ static int saa7127_set_output_type(struct v4l2_subdev *sd, int output)
 		break;
 
 	case SAA7127_OUTPUT_TYPE_COMPOSITE:
-		state->reg_2d = 0x08;	/* 00001000 CVBS only, RGB DAC's off (high impedance mode) */
+		if (state->ident == V4L2_IDENT_SAA7129)
+			state->reg_2d = 0x20;	/* CVBS only */
+		else
+			state->reg_2d = 0x08;	/* 00001000 CVBS only, RGB DAC's off (high impedance mode) */
 		state->reg_3a = 0x13;	/* by default switch YUV to RGB-matrix on */
 		break;
 
 	case SAA7127_OUTPUT_TYPE_SVIDEO:
-		state->reg_2d = 0xff;	/* 11111111  croma -> R, luma -> CVBS + G + B */
+		if (state->ident == V4L2_IDENT_SAA7129)
+			state->reg_2d = 0x18;	/* Y + C */
+		else
+			state->reg_2d = 0xff;   /*11111111  croma -> R, luma -> CVBS + G + B */
 		state->reg_3a = 0x13;	/* by default switch YUV to RGB-matrix on */
 		break;
 
@@ -508,7 +514,10 @@ static int saa7127_set_output_type(struct v4l2_subdev *sd, int output)
 		break;
 
 	case SAA7127_OUTPUT_TYPE_BOTH:
-		state->reg_2d = 0xbf;
+		if (state->ident == V4L2_IDENT_SAA7129)
+			state->reg_2d = 0x38;
+		else
+			state->reg_2d = 0xbf;
 		state->reg_3a = 0x13;	/* by default switch YUV to RGB-matrix on */
 		break;
 
@@ -561,15 +570,16 @@ static int saa7127_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 	return saa7127_set_std(sd, std);
 }
 
-static int saa7127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int saa7127_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
 {
 	struct saa7127_state *state = to_state(sd);
 	int rc = 0;
 
-	if (state->input_type != route->input)
-		rc = saa7127_set_input_type(sd, route->input);
-	if (rc == 0 && state->output_type != route->output)
-		rc = saa7127_set_output_type(sd, route->output);
+	if (state->input_type != input)
+		rc = saa7127_set_input_type(sd, input);
+	if (rc == 0 && state->output_type != output)
+		rc = saa7127_set_output_type(sd, output);
 	return rc;
 }
 
@@ -731,24 +741,6 @@ static int saa7127_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	/* Configure Encoder */
-
-	v4l2_dbg(1, debug, sd, "Configuring encoder\n");
-	saa7127_write_inittab(sd, saa7127_init_config_common);
-	saa7127_set_std(sd, V4L2_STD_NTSC);
-	saa7127_set_output_type(sd, SAA7127_OUTPUT_TYPE_BOTH);
-	saa7127_set_vps(sd, &vbi);
-	saa7127_set_wss(sd, &vbi);
-	saa7127_set_cc(sd, &vbi);
-	saa7127_set_xds(sd, &vbi);
-	if (test_image == 1)
-		/* The Encoder has an internal Colorbar generator */
-		/* This can be used for debugging */
-		saa7127_set_input_type(sd, SAA7127_INPUT_TYPE_TEST_IMAGE);
-	else
-		saa7127_set_input_type(sd, SAA7127_INPUT_TYPE_NORMAL);
-	saa7127_set_video_enable(sd, 1);
-
 	if (id->driver_data) {	/* Chip type is already known */
 		state->ident = id->driver_data;
 	} else {		/* Needs detection */
@@ -770,6 +762,23 @@ static int saa7127_probe(struct i2c_client *client,
 
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 			client->addr << 1, client->adapter->name);
+
+	v4l2_dbg(1, debug, sd, "Configuring encoder\n");
+	saa7127_write_inittab(sd, saa7127_init_config_common);
+	saa7127_set_std(sd, V4L2_STD_NTSC);
+	saa7127_set_output_type(sd, SAA7127_OUTPUT_TYPE_BOTH);
+	saa7127_set_vps(sd, &vbi);
+	saa7127_set_wss(sd, &vbi);
+	saa7127_set_cc(sd, &vbi);
+	saa7127_set_xds(sd, &vbi);
+	if (test_image == 1)
+		/* The Encoder has an internal Colorbar generator */
+		/* This can be used for debugging */
+		saa7127_set_input_type(sd, SAA7127_INPUT_TYPE_TEST_IMAGE);
+	else
+		saa7127_set_input_type(sd, SAA7127_INPUT_TYPE_NORMAL);
+	saa7127_set_video_enable(sd, 1);
+
 	if (state->ident == V4L2_IDENT_SAA7129)
 		saa7127_write_inittab(sd, saa7129_init_config_extra);
 	return 0;
@@ -802,7 +811,6 @@ MODULE_DEVICE_TABLE(i2c, saa7127_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa7127",
-	.driverid = I2C_DRIVERID_SAA7127,
 	.probe = saa7127_probe,
 	.remove = saa7127_remove,
 	.id_table = saa7127_id,

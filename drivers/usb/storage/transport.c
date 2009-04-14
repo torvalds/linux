@@ -220,6 +220,7 @@ int usb_stor_control_msg(struct us_data *us, unsigned int pipe,
 		status = us->current_urb->actual_length;
 	return status;
 }
+EXPORT_SYMBOL_GPL(usb_stor_control_msg);
 
 /* This is a version of usb_clear_halt() that allows early termination and
  * doesn't read the status from the device -- this is because some devices
@@ -254,6 +255,7 @@ int usb_stor_clear_halt(struct us_data *us, unsigned int pipe)
 	US_DEBUGP("%s: result = %d\n", __func__, result);
 	return result;
 }
+EXPORT_SYMBOL_GPL(usb_stor_clear_halt);
 
 
 /*
@@ -352,6 +354,7 @@ int usb_stor_ctrl_transfer(struct us_data *us, unsigned int pipe,
 	return interpret_urb_result(us, pipe, size, result,
 			us->current_urb->actual_length);
 }
+EXPORT_SYMBOL_GPL(usb_stor_ctrl_transfer);
 
 /*
  * Receive one interrupt buffer, without timeouts, but allowing early
@@ -407,6 +410,7 @@ int usb_stor_bulk_transfer_buf(struct us_data *us, unsigned int pipe,
 	return interpret_urb_result(us, pipe, length, result, 
 			us->current_urb->actual_length);
 }
+EXPORT_SYMBOL_GPL(usb_stor_bulk_transfer_buf);
 
 /*
  * Transfer a scatter-gather list via bulk transfer
@@ -474,6 +478,7 @@ int usb_stor_bulk_srb(struct us_data* us, unsigned int pipe,
 	scsi_set_resid(srb, scsi_bufflen(srb) - partial);
 	return result;
 }
+EXPORT_SYMBOL_GPL(usb_stor_bulk_srb);
 
 /*
  * Transfer an entire SCSI command's worth of data payload over the bulk
@@ -509,6 +514,7 @@ int usb_stor_bulk_transfer_sg(struct us_data* us, unsigned int pipe,
 		*residual = length_left;
 	return result;
 }
+EXPORT_SYMBOL_GPL(usb_stor_bulk_transfer_sg);
 
 /***********************************************************************
  * Transport routines
@@ -558,32 +564,10 @@ static void last_sector_hacks(struct us_data *us, struct scsi_cmnd *srb)
 
 	if (srb->result == SAM_STAT_GOOD && scsi_get_resid(srb) == 0) {
 
-		/* The command succeeded.  If the capacity is odd
-		 * (i.e., if the sector number is even) then the
-		 * "always-even" heuristic would be wrong for this
-		 * device.  Issue a WARN() so that the kerneloops.org
-		 * project will be notified and we will then know to
-		 * mark the device with a CAPACITY_OK flag.  Hopefully
-		 * this will occur for only a few devices.
-		 *
-		 * Use the sign of us->last_sector_hacks to tell whether
-		 * the warning has already been issued; we don't need
-		 * more than one warning per device.
+		/* The command succeeded.  We know this device doesn't
+		 * have the last-sector bug, so stop checking it.
 		 */
-		if (!(sector & 1) && us->use_last_sector_hacks > 0) {
-			unsigned vid = le16_to_cpu(
-					us->pusb_dev->descriptor.idVendor);
-			unsigned pid = le16_to_cpu(
-					us->pusb_dev->descriptor.idProduct);
-			unsigned rev = le16_to_cpu(
-					us->pusb_dev->descriptor.bcdDevice);
-
-			WARN(1, "%s: Successful last sector success at %u, "
-					"device %04x:%04x:%04x\n",
-					sdkp->disk->disk_name, sector,
-					vid, pid, rev);
-			us->use_last_sector_hacks = -1;
-		}
+		us->use_last_sector_hacks = 0;
 
 	} else {
 		/* The command failed.  Allow up to 3 retries in case this
@@ -599,14 +583,6 @@ static void last_sector_hacks(struct us_data *us, struct scsi_cmnd *srb)
 		srb->result = SAM_STAT_CHECK_CONDITION;
 		memcpy(srb->sense_buffer, record_not_found,
 				sizeof(record_not_found));
-
-		/* In theory we might want to issue a WARN() here if the
-		 * capacity is even, since it could indicate the device
-		 * has the READ CAPACITY bug _and_ the real capacity is
-		 * odd.  But it could also indicate that the device
-		 * simply can't access its last sector, a failure mode
-		 * which is surprisingly common.  So no warning.
-		 */
 	}
 
  done:
@@ -811,7 +787,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* Did we transfer less than the minimum amount required? */
 	if ((srb->result == SAM_STAT_GOOD || srb->sense_buffer[2] == 0) &&
 			scsi_bufflen(srb) - scsi_get_resid(srb) < srb->underflow)
-		srb->result = (DID_ERROR << 16) | (SUGGEST_RETRY << 24);
+		srb->result = DID_ERROR << 16;
 
 	last_sector_hacks(us, srb);
 	return;
@@ -970,6 +946,7 @@ int usb_stor_CB_transport(struct scsi_cmnd *srb, struct us_data *us)
 		usb_stor_clear_halt(us, pipe);
 	return USB_STOR_TRANSPORT_FAILED;
 }
+EXPORT_SYMBOL_GPL(usb_stor_CB_transport);
 
 /*
  * Bulk only transport
@@ -1186,6 +1163,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* we should never get here, but if we do, we're in trouble */
 	return USB_STOR_TRANSPORT_ERROR;
 }
+EXPORT_SYMBOL_GPL(usb_stor_Bulk_transport);
 
 /***********************************************************************
  * Reset routines
@@ -1260,6 +1238,7 @@ int usb_stor_CB_reset(struct us_data *us)
 				 USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 				 0, us->ifnum, us->iobuf, CB_RESET_CMD_SIZE);
 }
+EXPORT_SYMBOL_GPL(usb_stor_CB_reset);
 
 /* This issues a Bulk-only Reset to the device in question, including
  * clearing the subsequent endpoint halts that may occur.
@@ -1272,6 +1251,7 @@ int usb_stor_Bulk_reset(struct us_data *us)
 				 USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 				 0, us->ifnum, NULL, 0);
 }
+EXPORT_SYMBOL_GPL(usb_stor_Bulk_reset);
 
 /* Issue a USB port reset to the device.  The caller must not hold
  * us->dev_mutex.

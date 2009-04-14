@@ -168,6 +168,7 @@ struct sbp2_target {
 	int address_high;
 	unsigned int workarounds;
 	unsigned int mgt_orb_timeout;
+	unsigned int max_payload;
 
 	int dont_block;	/* counter for each logical unit */
 	int blocked;	/* ditto */
@@ -310,14 +311,16 @@ struct sbp2_command_orb {
 	dma_addr_t page_table_bus;
 };
 
+#define SBP2_ROM_VALUE_WILDCARD ~0         /* match all */
+#define SBP2_ROM_VALUE_MISSING  0xff000000 /* not present in the unit dir. */
+
 /*
  * List of devices with known bugs.
  *
  * The firmware_revision field, masked with 0xffff00, is the best
  * indicator for the type of bridge chip of a device.  It yields a few
  * false positives but this did not break correctly behaving devices
- * so far.  We use ~0 as a wildcard, since the 24 bit values we get
- * from the config rom can never match that.
+ * so far.
  */
 static const struct {
 	u32 firmware_revision;
@@ -339,33 +342,35 @@ static const struct {
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,
-		.model			= ~0,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36,
 	},
 	/* PL-3507 bridge with Prolific firmware */ {
 		.firmware_revision	= 0x012800,
-		.model			= ~0,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Symbios bridge */ {
 		.firmware_revision	= 0xa0b800,
-		.model			= ~0,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
 	},
 	/* Datafab MD2-FW2 with Symbios/LSILogic SYM13FW500 bridge */ {
 		.firmware_revision	= 0x002600,
-		.model			= ~0,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
 	},
-
 	/*
-	 * There are iPods (2nd gen, 3rd gen) with model_id == 0, but
-	 * these iPods do not feature the read_capacity bug according
-	 * to one report.  Read_capacity behaviour as well as model_id
-	 * could change due to Apple-supplied firmware updates though.
+	 * iPod 2nd generation: needs 128k max transfer size workaround
+	 * iPod 3rd generation: needs fix capacity workaround
 	 */
-
-	/* iPod 4th generation. */ {
+	{
+		.firmware_revision	= 0x0a2700,
+		.model			= 0x000000,
+		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS |
+					  SBP2_WORKAROUND_FIX_CAPACITY,
+	},
+	/* iPod 4th generation */ {
 		.firmware_revision	= 0x0a2700,
 		.model			= 0x000021,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
@@ -387,20 +392,18 @@ static const struct {
 	}
 };
 
-static void
-free_orb(struct kref *kref)
+static void free_orb(struct kref *kref)
 {
 	struct sbp2_orb *orb = container_of(kref, struct sbp2_orb, kref);
 
 	kfree(orb);
 }
 
-static void
-sbp2_status_write(struct fw_card *card, struct fw_request *request,
-		  int tcode, int destination, int source,
-		  int generation, int speed,
-		  unsigned long long offset,
-		  void *payload, size_t length, void *callback_data)
+static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
+			      int tcode, int destination, int source,
+			      int generation, int speed,
+			      unsigned long long offset,
+			      void *payload, size_t length, void *callback_data)
 {
 	struct sbp2_logical_unit *lu = callback_data;
 	struct sbp2_orb *orb;
@@ -446,9 +449,8 @@ sbp2_status_write(struct fw_card *card, struct fw_request *request,
 	fw_send_response(card, request, RCODE_COMPLETE);
 }
 
-static void
-complete_transaction(struct fw_card *card, int rcode,
-		     void *payload, size_t length, void *data)
+static void complete_transaction(struct fw_card *card, int rcode,
+				 void *payload, size_t length, void *data)
 {
 	struct sbp2_orb *orb = data;
 	unsigned long flags;
@@ -477,9 +479,8 @@ complete_transaction(struct fw_card *card, int rcode,
 	kref_put(&orb->kref, free_orb);
 }
 
-static void
-sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
-	      int node_id, int generation, u64 offset)
+static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
+			  int node_id, int generation, u64 offset)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	unsigned long flags;
@@ -526,8 +527,8 @@ static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
 	return retval;
 }
 
-static void
-complete_management_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
+static void complete_management_orb(struct sbp2_orb *base_orb,
+				    struct sbp2_status *status)
 {
 	struct sbp2_management_orb *orb =
 		container_of(base_orb, struct sbp2_management_orb, base);
@@ -537,10 +538,9 @@ complete_management_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 	complete(&orb->done);
 }
 
-static int
-sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
-			 int generation, int function, int lun_or_login_id,
-			 void *response)
+static int sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
+				    int generation, int function,
+				    int lun_or_login_id, void *response)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct sbp2_management_orb *orb;
@@ -647,9 +647,8 @@ static void sbp2_agent_reset(struct sbp2_logical_unit *lu)
 			   &d, sizeof(d));
 }
 
-static void
-complete_agent_reset_write_no_wait(struct fw_card *card, int rcode,
-				   void *payload, size_t length, void *data)
+static void complete_agent_reset_write_no_wait(struct fw_card *card,
+		int rcode, void *payload, size_t length, void *data)
 {
 	kfree(data);
 }
@@ -1092,7 +1091,7 @@ static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
 			continue;
 
 		if (sbp2_workarounds_table[i].model != model &&
-		    sbp2_workarounds_table[i].model != ~0)
+		    sbp2_workarounds_table[i].model != SBP2_ROM_VALUE_WILDCARD)
 			continue;
 
 		w |= sbp2_workarounds_table[i].workarounds;
@@ -1142,19 +1141,27 @@ static int sbp2_probe(struct device *dev)
 	fw_device_get(device);
 	fw_unit_get(unit);
 
-	/* Initialize to values that won't match anything in our table. */
-	firmware_revision = 0xff000000;
-	model = 0xff000000;
-
 	/* implicit directory ID */
 	tgt->directory_id = ((unit->directory - device->config_rom) * 4
 			     + CSR_CONFIG_ROM) & 0xffffff;
+
+	firmware_revision = SBP2_ROM_VALUE_MISSING;
+	model		  = SBP2_ROM_VALUE_MISSING;
 
 	if (sbp2_scan_unit_dir(tgt, unit->directory, &model,
 			       &firmware_revision) < 0)
 		goto fail_tgt_put;
 
 	sbp2_init_workarounds(tgt, model, firmware_revision);
+
+	/*
+	 * At S100 we can do 512 bytes per packet, at S200 1024 bytes,
+	 * and so on up to 4096 bytes.  The SBP-2 max_payload field
+	 * specifies the max payload size as 2 ^ (max_payload + 2), so
+	 * if we set this to max_speed + 7, we get the right value.
+	 */
+	tgt->max_payload = min(device->max_speed + 7, 10U);
+	tgt->max_payload = min(tgt->max_payload, device->card->max_receive - 1);
 
 	/* Do the login in a workqueue so we can easily reschedule retries. */
 	list_for_each_entry(lu, &tgt->lu_list, link)
@@ -1273,8 +1280,20 @@ static struct fw_driver sbp2_driver = {
 	.id_table = sbp2_id_table,
 };
 
-static unsigned int
-sbp2_status_to_sense_data(u8 *sbp2_status, u8 *sense_data)
+static void sbp2_unmap_scatterlist(struct device *card_device,
+				   struct sbp2_command_orb *orb)
+{
+	if (scsi_sg_count(orb->cmd))
+		dma_unmap_sg(card_device, scsi_sglist(orb->cmd),
+			     scsi_sg_count(orb->cmd),
+			     orb->cmd->sc_data_direction);
+
+	if (orb->request.misc & cpu_to_be32(COMMAND_ORB_PAGE_TABLE_PRESENT))
+		dma_unmap_single(card_device, orb->page_table_bus,
+				 sizeof(orb->page_table), DMA_TO_DEVICE);
+}
+
+static unsigned int sbp2_status_to_sense_data(u8 *sbp2_status, u8 *sense_data)
 {
 	int sam_status;
 
@@ -1311,8 +1330,8 @@ sbp2_status_to_sense_data(u8 *sbp2_status, u8 *sense_data)
 	}
 }
 
-static void
-complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
+static void complete_command_orb(struct sbp2_orb *base_orb,
+				 struct sbp2_status *status)
 {
 	struct sbp2_command_orb *orb =
 		container_of(base_orb, struct sbp2_command_orb, base);
@@ -1352,23 +1371,14 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 
 	dma_unmap_single(device->card->device, orb->base.request_bus,
 			 sizeof(orb->request), DMA_TO_DEVICE);
-
-	if (scsi_sg_count(orb->cmd) > 0)
-		dma_unmap_sg(device->card->device, scsi_sglist(orb->cmd),
-			     scsi_sg_count(orb->cmd),
-			     orb->cmd->sc_data_direction);
-
-	if (orb->page_table_bus != 0)
-		dma_unmap_single(device->card->device, orb->page_table_bus,
-				 sizeof(orb->page_table), DMA_TO_DEVICE);
+	sbp2_unmap_scatterlist(device->card->device, orb);
 
 	orb->cmd->result = result;
 	orb->done(orb->cmd);
 }
 
-static int
-sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
-		     struct sbp2_logical_unit *lu)
+static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
+		struct fw_device *device, struct sbp2_logical_unit *lu)
 {
 	struct scatterlist *sg = scsi_sglist(orb->cmd);
 	int i, n;
@@ -1434,7 +1444,6 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	struct sbp2_logical_unit *lu = cmd->device->hostdata;
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct sbp2_command_orb *orb;
-	unsigned int max_payload;
 	int generation, retval = SCSI_MLQUEUE_HOST_BUSY;
 
 	/*
@@ -1462,17 +1471,9 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	orb->done = done;
 	orb->cmd  = cmd;
 
-	orb->request.next.high   = cpu_to_be32(SBP2_ORB_NULL);
-	/*
-	 * At speed 100 we can do 512 bytes per packet, at speed 200,
-	 * 1024 bytes per packet etc.  The SBP-2 max_payload field
-	 * specifies the max payload size as 2 ^ (max_payload + 2), so
-	 * if we set this to max_speed + 7, we get the right value.
-	 */
-	max_payload = min(device->max_speed + 7,
-			  device->card->max_receive - 1);
+	orb->request.next.high = cpu_to_be32(SBP2_ORB_NULL);
 	orb->request.misc = cpu_to_be32(
-		COMMAND_ORB_MAX_PAYLOAD(max_payload) |
+		COMMAND_ORB_MAX_PAYLOAD(lu->tgt->max_payload) |
 		COMMAND_ORB_SPEED(device->max_speed) |
 		COMMAND_ORB_NOTIFY);
 
@@ -1491,8 +1492,10 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	orb->base.request_bus =
 		dma_map_single(device->card->device, &orb->request,
 			       sizeof(orb->request), DMA_TO_DEVICE);
-	if (dma_mapping_error(device->card->device, orb->base.request_bus))
+	if (dma_mapping_error(device->card->device, orb->base.request_bus)) {
+		sbp2_unmap_scatterlist(device->card->device, orb);
 		goto out;
+	}
 
 	sbp2_send_orb(&orb->base, lu, lu->tgt->node_id, generation,
 		      lu->command_block_agent_address + SBP2_ORB_POINTER);
@@ -1573,9 +1576,8 @@ static int sbp2_scsi_abort(struct scsi_cmnd *cmd)
  * This is the concatenation of target port identifier and logical unit
  * identifier as per SAM-2...SAM-4 annex A.
  */
-static ssize_t
-sbp2_sysfs_ieee1394_id_show(struct device *dev, struct device_attribute *attr,
-			    char *buf)
+static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct sbp2_logical_unit *lu;

@@ -48,6 +48,10 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	{USB_DEVICE(0x0bda, 0x8189), .driver_info = DEVICE_RTL8187B},
 	{USB_DEVICE(0x0bda, 0x8197), .driver_info = DEVICE_RTL8187B},
 	{USB_DEVICE(0x0bda, 0x8198), .driver_info = DEVICE_RTL8187B},
+	/* Surecom */
+	{USB_DEVICE(0x0769, 0x11F2), .driver_info = DEVICE_RTL8187},
+	/* Logitech */
+	{USB_DEVICE(0x0789, 0x010C), .driver_info = DEVICE_RTL8187},
 	/* Netgear */
 	{USB_DEVICE(0x0846, 0x6100), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0846, 0x6a00), .driver_info = DEVICE_RTL8187},
@@ -57,8 +61,16 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	/* Sitecom */
 	{USB_DEVICE(0x0df6, 0x000d), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0df6, 0x0028), .driver_info = DEVICE_RTL8187B},
+	/* Sphairon Access Systems GmbH */
+	{USB_DEVICE(0x114B, 0x0150), .driver_info = DEVICE_RTL8187},
+	/* Dick Smith Electronics */
+	{USB_DEVICE(0x1371, 0x9401), .driver_info = DEVICE_RTL8187},
 	/* Abocom */
 	{USB_DEVICE(0x13d1, 0xabe6), .driver_info = DEVICE_RTL8187},
+	/* Qcom */
+	{USB_DEVICE(0x18E8, 0x6232), .driver_info = DEVICE_RTL8187},
+	/* AirLive */
+	{USB_DEVICE(0x1b75, 0x8187), .driver_info = DEVICE_RTL8187},
 	{}
 };
 
@@ -177,25 +189,33 @@ static void rtl8187_tx_cb(struct urb *urb)
 					  sizeof(struct rtl8187_tx_hdr));
 	ieee80211_tx_info_clear_status(info);
 
-	if (!urb->status &&
-	    !(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
-	    priv->is_rtl8187b) {
-		skb_queue_tail(&priv->b_tx_status.queue, skb);
+	if (!(urb->status) && !(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+		if (priv->is_rtl8187b) {
+			skb_queue_tail(&priv->b_tx_status.queue, skb);
 
-		/* queue is "full", discard last items */
-		while (skb_queue_len(&priv->b_tx_status.queue) > 5) {
-			struct sk_buff *old_skb;
+			/* queue is "full", discard last items */
+			while (skb_queue_len(&priv->b_tx_status.queue) > 5) {
+				struct sk_buff *old_skb;
 
-			dev_dbg(&priv->udev->dev,
-				"transmit status queue full\n");
+				dev_dbg(&priv->udev->dev,
+					"transmit status queue full\n");
 
-			old_skb = skb_dequeue(&priv->b_tx_status.queue);
-			ieee80211_tx_status_irqsafe(hw, old_skb);
-		}
-	} else {
-		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) && !urb->status)
+				old_skb = skb_dequeue(&priv->b_tx_status.queue);
+				ieee80211_tx_status_irqsafe(hw, old_skb);
+			}
+			return;
+		} else {
 			info->flags |= IEEE80211_TX_STAT_ACK;
+		}
+	}
+	if (priv->is_rtl8187b)
 		ieee80211_tx_status_irqsafe(hw, skb);
+	else {
+		/* Retry information for the RTI8187 is only available by
+		 * reading a register in the device. We are in interrupt mode
+		 * here, thus queue the skb and finish on a work queue. */
+		skb_queue_tail(&priv->b_tx_status.queue, skb);
+		queue_delayed_work(hw->workqueue, &priv->work, 0);
 	}
 }
 
@@ -213,7 +233,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		kfree_skb(skb);
-		return -ENOMEM;
+		return NETDEV_TX_OK;
 	}
 
 	flags = skb->len;
@@ -273,6 +293,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	usb_fill_bulk_urb(urb, priv->udev, usb_sndbulkpipe(priv->udev, ep),
 			  buf, skb->len, rtl8187_tx_cb, skb);
+	urb->transfer_flags |= URB_ZERO_PACKET;
 	usb_anchor_urb(urb, &priv->anchored);
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
 	if (rc < 0) {
@@ -281,7 +302,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	}
 	usb_free_urb(urb);
 
-	return rc;
+	return NETDEV_TX_OK;
 }
 
 static void rtl8187_rx_cb(struct urb *urb)
@@ -390,7 +411,7 @@ static int rtl8187_init_urbs(struct ieee80211_hw *dev)
 	struct rtl8187_rx_info *info;
 	int ret = 0;
 
-	while (skb_queue_len(&priv->rx_queue) < 8) {
+	while (skb_queue_len(&priv->rx_queue) < 16) {
 		skb = __dev_alloc_skb(RTL8187_MAX_RX, GFP_KERNEL);
 		if (!skb) {
 			ret = -ENOMEM;
@@ -644,7 +665,7 @@ static int rtl8187_init_hw(struct ieee80211_hw *dev)
 
 	rtl818x_iowrite32(priv, &priv->map->INT_TIMEOUT, 0);
 	rtl818x_iowrite8(priv, &priv->map->WPA_CONF, 0);
-	rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, 0x81);
+	rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, 0);
 
 	// TODO: set RESP_RATE and BRSR properly
 	rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (8 << 4) | 0);
@@ -764,9 +785,6 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 	rtl818x_iowrite8(priv, &priv->map->TX_AGC_CTL, reg);
 
 	rtl818x_iowrite16_idx(priv, (__le16 *)0xFFE0, 0x0FFF, 1);
-	reg = rtl818x_ioread8(priv, &priv->map->RATE_FALLBACK);
-	reg |= RTL818X_RATE_FALLBACK_ENABLE;
-	rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, reg);
 
 	rtl818x_iowrite16(priv, &priv->map->BEACON_INTERVAL, 100);
 	rtl818x_iowrite16(priv, &priv->map->ATIM_WND, 2);
@@ -854,6 +872,34 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 	return 0;
 }
 
+static void rtl8187_work(struct work_struct *work)
+{
+	/* The RTL8187 returns the retry count through register 0xFFFA. In
+	 * addition, it appears to be a cumulative retry count, not the
+	 * value for the current TX packet. When multiple TX entries are
+	 * queued, the retry count will be valid for the last one in the queue.
+	 * The "error" should not matter for purposes of rate setting. */
+	struct rtl8187_priv *priv = container_of(work, struct rtl8187_priv,
+				    work.work);
+	struct ieee80211_tx_info *info;
+	struct ieee80211_hw *dev = priv->dev;
+	static u16 retry;
+	u16 tmp;
+
+	mutex_lock(&priv->conf_mutex);
+	tmp = rtl818x_ioread16(priv, (__le16 *)0xFFFA);
+	while (skb_queue_len(&priv->b_tx_status.queue) > 0) {
+		struct sk_buff *old_skb;
+
+		old_skb = skb_dequeue(&priv->b_tx_status.queue);
+		info = IEEE80211_SKB_CB(old_skb);
+		info->status.rates[0].count = tmp - retry + 1;
+		ieee80211_tx_status_irqsafe(dev, old_skb);
+	}
+	retry = tmp;
+	mutex_unlock(&priv->conf_mutex);
+}
+
 static int rtl8187_start(struct ieee80211_hw *dev)
 {
 	struct rtl8187_priv *priv = dev->priv;
@@ -868,6 +914,7 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 	mutex_lock(&priv->conf_mutex);
 
 	init_usb_anchor(&priv->anchored);
+	priv->dev = dev;
 
 	if (priv->is_rtl8187b) {
 		reg = RTL818X_RX_CONF_MGMT |
@@ -935,6 +982,7 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 	reg |= RTL818X_CMD_TX_ENABLE;
 	reg |= RTL818X_CMD_RX_ENABLE;
 	rtl818x_iowrite8(priv, &priv->map->CMD, reg);
+	INIT_DELAYED_WORK(&priv->work, rtl8187_work);
 	mutex_unlock(&priv->conf_mutex);
 
 	return 0;
@@ -965,6 +1013,8 @@ static void rtl8187_stop(struct ieee80211_hw *dev)
 		dev_kfree_skb_any(skb);
 
 	usb_kill_anchored_urbs(&priv->anchored);
+	if (!priv->is_rtl8187b)
+		cancel_delayed_work_sync(&priv->work);
 	mutex_unlock(&priv->conf_mutex);
 }
 
@@ -973,19 +1023,21 @@ static int rtl8187_add_interface(struct ieee80211_hw *dev,
 {
 	struct rtl8187_priv *priv = dev->priv;
 	int i;
+	int ret = -EOPNOTSUPP;
 
+	mutex_lock(&priv->conf_mutex);
 	if (priv->mode != NL80211_IFTYPE_MONITOR)
-		return -EOPNOTSUPP;
+		goto exit;
 
 	switch (conf->type) {
 	case NL80211_IFTYPE_STATION:
 		priv->mode = conf->type;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		goto exit;
 	}
 
-	mutex_lock(&priv->conf_mutex);
+	ret = 0;
 	priv->vif = conf->vif;
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
@@ -994,8 +1046,9 @@ static int rtl8187_add_interface(struct ieee80211_hw *dev,
 				 ((u8 *)conf->mac_addr)[i]);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 
+exit:
 	mutex_unlock(&priv->conf_mutex);
-	return 0;
+	return ret;
 }
 
 static void rtl8187_remove_interface(struct ieee80211_hw *dev,
@@ -1471,6 +1524,7 @@ static void __devexit rtl8187_disconnect(struct usb_interface *intf)
 	ieee80211_unregister_hw(dev);
 
 	priv = dev->priv;
+	usb_reset_device(priv->udev);
 	usb_put_dev(interface_to_usbdev(intf));
 	ieee80211_free_hw(dev);
 }

@@ -76,6 +76,7 @@ int intel_ddc_get_modes(struct intel_output *intel_output)
 		drm_mode_connector_update_edid_property(&intel_output->base,
 							edid);
 		ret = drm_add_edid_modes(&intel_output->base, edid);
+		intel_output->base.display_info.raw_edid = NULL;
 		kfree(edid);
 	}
 

@@ -310,8 +310,6 @@ static void ccw_device_remove_orphan_cb(struct work_struct *work)
 	put_device(&cdev->dev);
 }
 
-static void ccw_device_call_sch_unregister(struct work_struct *work);
-
 static void
 ccw_device_remove_disconnected(struct ccw_device *cdev)
 {
@@ -335,11 +333,10 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 		spin_unlock_irqrestore(cdev->ccwlock, flags);
 		PREPARE_WORK(&cdev->private->kick_work,
 				ccw_device_remove_orphan_cb);
+		queue_work(slow_path_wq, &cdev->private->kick_work);
 	} else
 		/* Deregister subchannel, which will kill the ccw device. */
-		PREPARE_WORK(&cdev->private->kick_work,
-				ccw_device_call_sch_unregister);
-	queue_work(slow_path_wq, &cdev->private->kick_work);
+		ccw_device_schedule_sch_unregister(cdev);
 }
 
 /**
@@ -457,12 +454,13 @@ int ccw_device_set_online(struct ccw_device *cdev)
 	return (ret == 0) ? -ENODEV : ret;
 }
 
-static void online_store_handle_offline(struct ccw_device *cdev)
+static int online_store_handle_offline(struct ccw_device *cdev)
 {
 	if (cdev->private->state == DEV_STATE_DISCONNECTED)
 		ccw_device_remove_disconnected(cdev);
-	else if (cdev->drv && cdev->drv->set_offline)
-		ccw_device_set_offline(cdev);
+	else if (cdev->online && cdev->drv && cdev->drv->set_offline)
+		return ccw_device_set_offline(cdev);
+	return 0;
 }
 
 static int online_store_recog_and_online(struct ccw_device *cdev)
@@ -470,7 +468,7 @@ static int online_store_recog_and_online(struct ccw_device *cdev)
 	int ret;
 
 	/* Do device recognition, if needed. */
-	if (cdev->id.cu_type == 0) {
+	if (cdev->private->state == DEV_STATE_BOXED) {
 		ret = ccw_device_recognition(cdev);
 		if (ret) {
 			CIO_MSG_EVENT(0, "Couldn't start recognition "
@@ -481,17 +479,21 @@ static int online_store_recog_and_online(struct ccw_device *cdev)
 		}
 		wait_event(cdev->private->wait_q,
 			   cdev->private->flags.recog_done);
+		if (cdev->private->state != DEV_STATE_OFFLINE)
+			/* recognition failed */
+			return -EAGAIN;
 	}
 	if (cdev->drv && cdev->drv->set_online)
 		ccw_device_set_online(cdev);
 	return 0;
 }
+
 static int online_store_handle_online(struct ccw_device *cdev, int force)
 {
 	int ret;
 
 	ret = online_store_recog_and_online(cdev);
-	if (ret)
+	if (ret && !force)
 		return ret;
 	if (force && cdev->private->state == DEV_STATE_BOXED) {
 		ret = ccw_device_stlck(cdev);
@@ -499,7 +501,9 @@ static int online_store_handle_online(struct ccw_device *cdev, int force)
 			return ret;
 		if (cdev->id.cu_type == 0)
 			cdev->private->state = DEV_STATE_NOT_OPER;
-		online_store_recog_and_online(cdev);
+		ret = online_store_recog_and_online(cdev);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -511,7 +515,11 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	int force, ret;
 	unsigned long i;
 
-	if (atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
+	if ((cdev->private->state != DEV_STATE_OFFLINE &&
+	     cdev->private->state != DEV_STATE_ONLINE &&
+	     cdev->private->state != DEV_STATE_BOXED &&
+	     cdev->private->state != DEV_STATE_DISCONNECTED) ||
+	    atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
 		return -EAGAIN;
 
 	if (cdev->drv && !try_module_get(cdev->drv->owner)) {
@@ -530,13 +538,10 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 		goto out;
 	switch (i) {
 	case 0:
-		online_store_handle_offline(cdev);
-		ret = count;
+		ret = online_store_handle_offline(cdev);
 		break;
 	case 1:
 		ret = online_store_handle_online(cdev, force);
-		if (!ret)
-			ret = count;
 		break;
 	default:
 		ret = -EINVAL;
@@ -545,7 +550,7 @@ out:
 	if (cdev->drv)
 		module_put(cdev->drv->owner);
 	atomic_set(&cdev->private->onoff, 0);
-	return ret;
+	return (ret < 0) ? ret : count;
 }
 
 static ssize_t
@@ -681,35 +686,22 @@ get_orphaned_ccwdev_by_dev_id(struct channel_subsystem *css,
 	return dev ? to_ccwdev(dev) : NULL;
 }
 
-static void
-ccw_device_add_changed(struct work_struct *work)
-{
-	struct ccw_device_private *priv;
-	struct ccw_device *cdev;
-
-	priv = container_of(work, struct ccw_device_private, kick_work);
-	cdev = priv->cdev;
-	if (device_add(&cdev->dev)) {
-		put_device(&cdev->dev);
-		return;
-	}
-	set_bit(1, &cdev->private->registered);
-}
-
-void ccw_device_do_unreg_rereg(struct work_struct *work)
+void ccw_device_do_unbind_bind(struct work_struct *work)
 {
 	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
 	struct subchannel *sch;
+	int ret;
 
 	priv = container_of(work, struct ccw_device_private, kick_work);
 	cdev = priv->cdev;
 	sch = to_subchannel(cdev->dev.parent);
 
-	ccw_device_unregister(cdev);
-	PREPARE_WORK(&cdev->private->kick_work,
-		     ccw_device_add_changed);
-	queue_work(ccw_device_work, &cdev->private->kick_work);
+	if (test_bit(1, &cdev->private->registered)) {
+		device_release_driver(&cdev->dev);
+		ret = device_attach(&cdev->dev);
+		WARN_ON(ret == -ENODEV);
+	}
 }
 
 static void
@@ -799,7 +791,7 @@ static void sch_attach_disconnected_device(struct subchannel *sch,
 		return;
 	other_sch = to_subchannel(cdev->dev.parent);
 	/* Note: device_move() changes cdev->dev.parent */
-	ret = device_move(&cdev->dev, &sch->dev);
+	ret = device_move(&cdev->dev, &sch->dev, DPM_ORDER_PARENT_BEFORE_DEV);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Moving disconnected device 0.%x.%04x failed "
 			      "(ret=%d)!\n", cdev->private->dev_id.ssid,
@@ -830,7 +822,7 @@ static void sch_attach_orphaned_device(struct subchannel *sch,
 	 * Try to move the ccw device to its new subchannel.
 	 * Note: device_move() changes cdev->dev.parent
 	 */
-	ret = device_move(&cdev->dev, &sch->dev);
+	ret = device_move(&cdev->dev, &sch->dev, DPM_ORDER_PARENT_BEFORE_DEV);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Moving device 0.%x.%04x from orphanage "
 			      "failed (ret=%d)!\n",
@@ -897,7 +889,8 @@ void ccw_device_move_to_orphanage(struct work_struct *work)
 	 * ccw device can take its place on the subchannel.
 	 * Note: device_move() changes cdev->dev.parent
 	 */
-	ret = device_move(&cdev->dev, &css->pseudo_subchannel->dev);
+	ret = device_move(&cdev->dev, &css->pseudo_subchannel->dev,
+		DPM_ORDER_NONE);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Moving device 0.%x.%04x to orphanage failed "
 			      "(ret=%d)!\n", cdev->private->dev_id.ssid,
@@ -981,7 +974,7 @@ io_subchannel_register(struct work_struct *work)
 	 * Now we know this subchannel will stay, we can throw
 	 * our delayed uevent.
 	 */
-	sch->dev.uevent_suppress = 0;
+	dev_set_uevent_suppress(&sch->dev, 0);
 	kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 	/* make it known to the system */
 	ret = ccw_device_register(cdev);
@@ -1028,33 +1021,35 @@ static void ccw_device_call_sch_unregister(struct work_struct *work)
 	put_device(&sch->dev);
 }
 
+void ccw_device_schedule_sch_unregister(struct ccw_device *cdev)
+{
+	PREPARE_WORK(&cdev->private->kick_work,
+		     ccw_device_call_sch_unregister);
+	queue_work(slow_path_wq, &cdev->private->kick_work);
+}
+
 /*
  * subchannel recognition done. Called from the state machine.
  */
 void
 io_subchannel_recog_done(struct ccw_device *cdev)
 {
-	struct subchannel *sch;
-
 	if (css_init_done == 0) {
 		cdev->private->flags.recog_done = 1;
 		return;
 	}
 	switch (cdev->private->state) {
+	case DEV_STATE_BOXED:
+		/* Device did not respond in time. */
 	case DEV_STATE_NOT_OPER:
 		cdev->private->flags.recog_done = 1;
 		/* Remove device found not operational. */
 		if (!get_device(&cdev->dev))
 			break;
-		sch = to_subchannel(cdev->dev.parent);
-		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_call_sch_unregister);
-		queue_work(slow_path_wq, &cdev->private->kick_work);
+		ccw_device_schedule_sch_unregister(cdev);
 		if (atomic_dec_and_test(&ccw_device_init_count))
 			wake_up(&ccw_device_init_wq);
 		break;
-	case DEV_STATE_BOXED:
-		/* Device did not respond in time. */
 	case DEV_STATE_OFFLINE:
 		/* 
 		 * We can't register the device in interrupt context so
@@ -1129,7 +1124,7 @@ static void ccw_device_move_to_sch(struct work_struct *work)
 	 * Try to move the ccw device to its new subchannel.
 	 * Note: device_move() changes cdev->dev.parent
 	 */
-	rc = device_move(&cdev->dev, &sch->dev);
+	rc = device_move(&cdev->dev, &sch->dev, DPM_ORDER_PARENT_BEFORE_DEV);
 	mutex_unlock(&sch->reg_mutex);
 	if (rc) {
 		CIO_MSG_EVENT(0, "Moving device 0.%x.%04x to subchannel "
@@ -1243,7 +1238,7 @@ static int io_subchannel_probe(struct subchannel *sch)
 		 * the ccw_device and exit. This happens for all early
 		 * devices, e.g. the console.
 		 */
-		sch->dev.uevent_suppress = 0;
+		dev_set_uevent_suppress(&sch->dev, 0);
 		kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 		cdev->dev.groups = ccwdev_attr_groups;
 		device_initialize(&cdev->dev);
@@ -1568,8 +1563,7 @@ static int purge_fn(struct device *dev, void *data)
 		goto out;
 	CIO_MSG_EVENT(3, "ccw: purging 0.%x.%04x\n", priv->dev_id.ssid,
 		      priv->dev_id.devno);
-	PREPARE_WORK(&cdev->private->kick_work, ccw_device_call_sch_unregister);
-	queue_work(slow_path_wq, &cdev->private->kick_work);
+	ccw_device_schedule_sch_unregister(cdev);
 
 out:
 	/* Abort loop in case of pending signal. */

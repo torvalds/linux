@@ -887,8 +887,7 @@ qdisc_peek_len(struct Qdisc *sch)
 
 	skb = sch->ops->peek(sch);
 	if (skb == NULL) {
-		if (net_ratelimit())
-			printk("qdisc_peek_len: non work-conserving qdisc ?\n");
+		qdisc_warn_nonwc("qdisc_peek_len", sch);
 		return 0;
 	}
 	len = qdisc_pkt_len(skb);
@@ -1140,8 +1139,11 @@ hfsc_delete_class(struct Qdisc *sch, unsigned long arg)
 	hfsc_purge_queue(sch, cl);
 	qdisc_class_hash_remove(&q->clhash, &cl->cl_common);
 
-	if (--cl->refcnt == 0)
-		hfsc_destroy_class(sch, cl);
+	BUG_ON(--cl->refcnt == 0);
+	/*
+	 * This shouldn't happen: we "hold" one cops->get() when called
+	 * from tc_ctl_tclass; the destroy method is done from cops->put().
+	 */
 
 	sch_tree_unlock(sch);
 	return 0;
@@ -1642,8 +1644,7 @@ hfsc_dequeue(struct Qdisc *sch)
 
 	skb = qdisc_dequeue_peeked(cl->qdisc);
 	if (skb == NULL) {
-		if (net_ratelimit())
-			printk("HFSC: Non-work-conserving qdisc ?\n");
+		qdisc_warn_nonwc("HFSC", cl->qdisc);
 		return NULL;
 	}
 

@@ -5,13 +5,9 @@
 
 #define EX_ST(x)		\
 98:	x;			\
-	.section .fixup;	\
-	.align 4;		\
-99:	retl;			\
-	 mov	1, %o0;		\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, 99b;		\
+	.word 98b, __retl_one;	\
 	.text;			\
 	.align 4;
 
@@ -31,7 +27,7 @@
 #define PREAMBLE					\
 	rd		%asi, %g1;			\
 	cmp		%g1, ASI_AIUS;			\
-	bne,pn		%icc, memcpy_user_stub;		\
+	bne,pn		%icc, ___copy_in_user;		\
 	 nop
 #endif
 

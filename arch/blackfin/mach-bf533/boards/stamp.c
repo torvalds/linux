@@ -441,7 +441,6 @@ static struct platform_device i2c_gpio_device = {
 };
 #endif
 
-#ifdef CONFIG_I2C_BOARDINFO
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_JOYSTICK_AD7142) || defined(CONFIG_JOYSTICK_AD7142_MODULE)
 	{
@@ -461,7 +460,6 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 	},
 #endif
 };
-#endif
 
 static const unsigned int cclk_vlev_datasheet[] =
 {
@@ -550,10 +548,8 @@ static int __init stamp_init(void)
 
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 
-#ifdef CONFIG_I2C_BOARDINFO
 	i2c_register_board_info(0, bfin_i2c_board_info,
 				ARRAY_SIZE(bfin_i2c_board_info));
-#endif
 
 	ret = platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	if (ret < 0)

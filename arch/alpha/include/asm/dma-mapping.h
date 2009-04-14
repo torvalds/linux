@@ -29,6 +29,8 @@
 
 #else	/* no PCI - no IOMMU. */
 
+#include <asm/io.h>	/* for virt_to_phys() */
+
 struct scatterlist;
 void *dma_alloc_coherent(struct device *dev, size_t size,
 			 dma_addr_t *dma_handle, gfp_t gfp);

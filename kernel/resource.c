@@ -620,6 +620,7 @@ resource_size_t resource_alignment(struct resource *res)
  * @start: resource start address
  * @n: resource region size
  * @name: reserving caller's ID string
+ * @flags: IO resource flags
  */
 struct resource * __request_region(struct resource *parent,
 				   resource_size_t start, resource_size_t n,

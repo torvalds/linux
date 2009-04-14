@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-pca-platform.h>
 #include <linux/i2c-algo-pca.h>
+#include <linux/irq.h>
 #include <asm/heartbeat.h>
 #include <mach/sh7785lcr.h>
 
@@ -228,7 +229,7 @@ static struct resource i2c_resources[] = {
 static struct i2c_pca9564_pf_platform_data i2c_platform_data = {
 	.gpio			= 0,
 	.i2c_clock_speed	= I2C_PCA_CON_330kHz,
-	.timeout		= 100,
+	.timeout		= HZ,
 };
 
 static struct platform_device i2c_device = {
@@ -274,7 +275,18 @@ void __init init_sh7785lcr_IRQ(void)
 
 static void sh7785lcr_power_off(void)
 {
-	ctrl_outb(0x01, P2SEGADDR(PLD_POFCR));
+	unsigned char *p;
+
+	p = ioremap(PLD_POFCR, PLD_POFCR + 1);
+	if (!p) {
+		printk(KERN_ERR "%s: ioremap error.\n", __func__);
+		return;
+	}
+	*p = 0x01;
+	iounmap(p);
+	set_bl_bit();
+	while (1)
+		cpu_relax();
 }
 
 /* Initialize the board */

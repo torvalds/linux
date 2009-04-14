@@ -59,7 +59,7 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 		retval = (ctx.status == -ENOENT ? -ETIMEDOUT : ctx.status);
 
 		dev_dbg(&urb->dev->dev,
-			"%s timed out on ep%d%s len=%d/%d\n",
+			"%s timed out on ep%d%s len=%u/%u\n",
 			current->comm,
 			usb_endpoint_num(&urb->ep->desc),
 			usb_urb_dir_in(urb) ? "in" : "out",
@@ -653,7 +653,7 @@ int usb_get_descriptor(struct usb_device *dev, unsigned char type,
 		if (result <= 0 && result != -ETIMEDOUT)
 			continue;
 		if (result > 1 && ((u8 *)buf)[1] != type) {
-			result = -EPROTO;
+			result = -ENODATA;
 			continue;
 		}
 		break;
@@ -696,8 +696,13 @@ static int usb_get_string(struct usb_device *dev, unsigned short langid,
 			USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
 			(USB_DT_STRING << 8) + index, langid, buf, size,
 			USB_CTRL_GET_TIMEOUT);
-		if (!(result == 0 || result == -EPIPE))
-			break;
+		if (result == 0 || result == -EPIPE)
+			continue;
+		if (result > 1 && ((u8 *) buf)[1] != USB_DT_STRING) {
+			result = -ENODATA;
+			continue;
+		}
+		break;
 	}
 	return result;
 }
@@ -799,18 +804,16 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 			dev_err(&dev->dev,
 				"string descriptor 0 read error: %d\n",
 				err);
-			goto errout;
 		} else if (err < 4) {
 			dev_err(&dev->dev, "string descriptor 0 too short\n");
-			err = -EINVAL;
-			goto errout;
 		} else {
-			dev->have_langid = 1;
 			dev->string_langid = tbuf[2] | (tbuf[3] << 8);
 			/* always use the first langid listed */
 			dev_dbg(&dev->dev, "default language 0x%04x\n",
 				dev->string_langid);
 		}
+
+		dev->have_langid = 1;
 	}
 
 	err = usb_string_sub(dev, dev->string_langid, index, tbuf);
@@ -1039,14 +1042,15 @@ static void remove_intf_ep_devs(struct usb_interface *intf)
  * @dev: the device whose endpoint is being disabled
  * @epaddr: the endpoint's address.  Endpoint number for output,
  *	endpoint number + USB_DIR_IN for input
+ * @reset_hardware: flag to erase any endpoint state stored in the
+ *	controller hardware
  *
- * Deallocates hcd/hardware state for this endpoint ... and nukes all
- * pending urbs.
- *
- * If the HCD hasn't registered a disable() function, this sets the
- * endpoint's maxpacket size to 0 to prevent further submissions.
+ * Disables the endpoint for URB submission and nukes all pending URBs.
+ * If @reset_hardware is set then also deallocates hcd/hardware state
+ * for the endpoint.
  */
-void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr)
+void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr,
+		bool reset_hardware)
 {
 	unsigned int epnum = epaddr & USB_ENDPOINT_NUMBER_MASK;
 	struct usb_host_endpoint *ep;
@@ -1056,15 +1060,18 @@ void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr)
 
 	if (usb_endpoint_out(epaddr)) {
 		ep = dev->ep_out[epnum];
-		dev->ep_out[epnum] = NULL;
+		if (reset_hardware)
+			dev->ep_out[epnum] = NULL;
 	} else {
 		ep = dev->ep_in[epnum];
-		dev->ep_in[epnum] = NULL;
+		if (reset_hardware)
+			dev->ep_in[epnum] = NULL;
 	}
 	if (ep) {
 		ep->enabled = 0;
 		usb_hcd_flush_endpoint(dev, ep);
-		usb_hcd_disable_endpoint(dev, ep);
+		if (reset_hardware)
+			usb_hcd_disable_endpoint(dev, ep);
 	}
 }
 
@@ -1072,17 +1079,21 @@ void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr)
  * usb_disable_interface -- Disable all endpoints for an interface
  * @dev: the device whose interface is being disabled
  * @intf: pointer to the interface descriptor
+ * @reset_hardware: flag to erase any endpoint state stored in the
+ *	controller hardware
  *
  * Disables all the endpoints for the interface's current altsetting.
  */
-void usb_disable_interface(struct usb_device *dev, struct usb_interface *intf)
+void usb_disable_interface(struct usb_device *dev, struct usb_interface *intf,
+		bool reset_hardware)
 {
 	struct usb_host_interface *alt = intf->cur_altsetting;
 	int i;
 
 	for (i = 0; i < alt->desc.bNumEndpoints; ++i) {
 		usb_disable_endpoint(dev,
-				alt->endpoint[i].desc.bEndpointAddress);
+				alt->endpoint[i].desc.bEndpointAddress,
+				reset_hardware);
 	}
 }
 
@@ -1103,8 +1114,8 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 	dev_dbg(&dev->dev, "%s nuking %s URBs\n", __func__,
 		skip_ep0 ? "non-ep0" : "all");
 	for (i = skip_ep0; i < 16; ++i) {
-		usb_disable_endpoint(dev, i);
-		usb_disable_endpoint(dev, i + USB_DIR_IN);
+		usb_disable_endpoint(dev, i, true);
+		usb_disable_endpoint(dev, i + USB_DIR_IN, true);
 	}
 	dev->toggle[0] = dev->toggle[1] = 0;
 
@@ -1274,7 +1285,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 		remove_intf_ep_devs(iface);
 		usb_remove_sysfs_intf_files(iface);
 	}
-	usb_disable_interface(dev, iface);
+	usb_disable_interface(dev, iface, true);
 
 	iface->cur_altsetting = alt;
 
@@ -1353,8 +1364,8 @@ int usb_reset_configuration(struct usb_device *dev)
 	 */
 
 	for (i = 1; i < 16; ++i) {
-		usb_disable_endpoint(dev, i);
-		usb_disable_endpoint(dev, i + USB_DIR_IN);
+		usb_disable_endpoint(dev, i, true);
+		usb_disable_endpoint(dev, i + USB_DIR_IN, true);
 	}
 
 	config = dev->actconfig;
@@ -1706,7 +1717,8 @@ free_interfaces:
 	}
 	kfree(new_interfaces);
 
-	if (cp->string == NULL)
+	if (cp->string == NULL &&
+			!(dev->quirks & USB_QUIRK_CONFIG_INTF_STRINGS))
 		cp->string = usb_cache_string(dev, cp->desc.iConfiguration);
 
 	/* Now that all the interfaces are set up, register them

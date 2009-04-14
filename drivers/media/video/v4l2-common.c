@@ -334,6 +334,12 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"Aperture Priority Mode",
 		NULL
 	};
+	static const char *colorfx[] = {
+		"None",
+		"Black & White",
+		"Sepia",
+		NULL
+	};
 
 	switch (id) {
 		case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
@@ -370,6 +376,8 @@ const char **v4l2_ctrl_get_menu(u32 id)
 			return camera_power_line_frequency;
 		case V4L2_CID_EXPOSURE_AUTO:
 			return camera_exposure_auto;
+		case V4L2_CID_COLORFX:
+			return colorfx;
 		default:
 			return NULL;
 	}
@@ -382,16 +390,16 @@ const char *v4l2_ctrl_get_name(u32 id)
 	switch (id) {
 	/* USER controls */
 	case V4L2_CID_USER_CLASS: 		return "User Controls";
-	case V4L2_CID_AUDIO_VOLUME: 		return "Volume";
-	case V4L2_CID_AUDIO_MUTE: 		return "Mute";
-	case V4L2_CID_AUDIO_BALANCE: 		return "Balance";
-	case V4L2_CID_AUDIO_BASS: 		return "Bass";
-	case V4L2_CID_AUDIO_TREBLE: 		return "Treble";
-	case V4L2_CID_AUDIO_LOUDNESS: 		return "Loudness";
 	case V4L2_CID_BRIGHTNESS: 		return "Brightness";
 	case V4L2_CID_CONTRAST: 		return "Contrast";
 	case V4L2_CID_SATURATION: 		return "Saturation";
 	case V4L2_CID_HUE: 			return "Hue";
+	case V4L2_CID_AUDIO_VOLUME: 		return "Volume";
+	case V4L2_CID_AUDIO_BALANCE: 		return "Balance";
+	case V4L2_CID_AUDIO_BASS: 		return "Bass";
+	case V4L2_CID_AUDIO_TREBLE: 		return "Treble";
+	case V4L2_CID_AUDIO_MUTE: 		return "Mute";
+	case V4L2_CID_AUDIO_LOUDNESS: 		return "Loudness";
 	case V4L2_CID_BLACK_LEVEL:		return "Black Level";
 	case V4L2_CID_AUTO_WHITE_BALANCE:	return "White Balance, Automatic";
 	case V4L2_CID_DO_WHITE_BALANCE:		return "Do White Balance";
@@ -412,6 +420,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_BACKLIGHT_COMPENSATION:	return "Backlight Compensation";
 	case V4L2_CID_CHROMA_AGC:		return "Chroma AGC";
 	case V4L2_CID_COLOR_KILLER:		return "Color Killer";
+	case V4L2_CID_COLORFX:			return "Color Effects";
 
 	/* MPEG controls */
 	case V4L2_CID_MPEG_CLASS: 		return "MPEG Encoder Controls";
@@ -490,15 +499,24 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_HFLIP:
 	case V4L2_CID_VFLIP:
 	case V4L2_CID_HUE_AUTO:
+	case V4L2_CID_CHROMA_AGC:
+	case V4L2_CID_COLOR_KILLER:
 	case V4L2_CID_MPEG_AUDIO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
 	case V4L2_CID_MPEG_VIDEO_PULLDOWN:
 	case V4L2_CID_EXPOSURE_AUTO_PRIORITY:
+	case V4L2_CID_FOCUS_AUTO:
 	case V4L2_CID_PRIVACY:
 		qctrl->type = V4L2_CTRL_TYPE_BOOLEAN;
 		min = 0;
 		max = step = 1;
+		break;
+	case V4L2_CID_PAN_RESET:
+	case V4L2_CID_TILT_RESET:
+		qctrl->type = V4L2_CTRL_TYPE_BUTTON;
+		qctrl->flags |= V4L2_CTRL_FLAG_WRITE_ONLY;
+		min = max = step = def = 0;
 		break;
 	case V4L2_CID_POWER_LINE_FREQUENCY:
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
@@ -517,6 +535,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_STREAM_TYPE:
 	case V4L2_CID_MPEG_STREAM_VBI_FMT:
 	case V4L2_CID_EXPOSURE_AUTO:
+	case V4L2_CID_COLORFX:
 		qctrl->type = V4L2_CTRL_TYPE_MENU;
 		step = 1;
 		break;
@@ -547,7 +566,17 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_CONTRAST:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_HUE:
+	case V4L2_CID_RED_BALANCE:
+	case V4L2_CID_BLUE_BALANCE:
+	case V4L2_CID_GAMMA:
+	case V4L2_CID_SHARPNESS:
 		qctrl->flags |= V4L2_CTRL_FLAG_SLIDER;
+		break;
+	case V4L2_CID_PAN_RELATIVE:
+	case V4L2_CID_TILT_RELATIVE:
+	case V4L2_CID_FOCUS_RELATIVE:
+	case V4L2_CID_ZOOM_RELATIVE:
+		qctrl->flags |= V4L2_CTRL_FLAG_WRITE_ONLY;
 		break;
 	}
 	qctrl->minimum = min;
@@ -555,152 +584,10 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	qctrl->step = step;
 	qctrl->default_value = def;
 	qctrl->reserved[0] = qctrl->reserved[1] = 0;
-	snprintf(qctrl->name, sizeof(qctrl->name), name);
+	strlcpy(qctrl->name, name, sizeof(qctrl->name));
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_ctrl_query_fill);
-
-/* Fill in a struct v4l2_queryctrl with standard values based on
-   the control ID. */
-int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
-{
-	switch (qctrl->id) {
-	/* USER controls */
-	case V4L2_CID_USER_CLASS:
-	case V4L2_CID_MPEG_CLASS:
-		return v4l2_ctrl_query_fill(qctrl, 0, 0, 0, 0);
-	case V4L2_CID_AUDIO_VOLUME:
-		return v4l2_ctrl_query_fill(qctrl, 0, 65535, 65535 / 100, 58880);
-	case V4L2_CID_AUDIO_MUTE:
-	case V4L2_CID_AUDIO_LOUDNESS:
-		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
-	case V4L2_CID_AUDIO_BALANCE:
-	case V4L2_CID_AUDIO_BASS:
-	case V4L2_CID_AUDIO_TREBLE:
-		return v4l2_ctrl_query_fill(qctrl, 0, 65535, 65535 / 100, 32768);
-	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(qctrl, 0, 255, 1, 128);
-	case V4L2_CID_CONTRAST:
-	case V4L2_CID_SATURATION:
-		return v4l2_ctrl_query_fill(qctrl, 0, 127, 1, 64);
-	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill(qctrl, -128, 127, 1, 0);
-
-	/* MPEG controls */
-	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100,
-				V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000, 1,
-				V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000);
-	case V4L2_CID_MPEG_AUDIO_ENCODING:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_ENCODING_LAYER_1,
-				V4L2_MPEG_AUDIO_ENCODING_AC3, 1,
-				V4L2_MPEG_AUDIO_ENCODING_LAYER_2);
-	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_L1_BITRATE_32K,
-				V4L2_MPEG_AUDIO_L1_BITRATE_448K, 1,
-				V4L2_MPEG_AUDIO_L1_BITRATE_256K);
-	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_L2_BITRATE_32K,
-				V4L2_MPEG_AUDIO_L2_BITRATE_384K, 1,
-				V4L2_MPEG_AUDIO_L2_BITRATE_224K);
-	case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_L3_BITRATE_32K,
-				V4L2_MPEG_AUDIO_L3_BITRATE_320K, 1,
-				V4L2_MPEG_AUDIO_L3_BITRATE_192K);
-	case V4L2_CID_MPEG_AUDIO_AAC_BITRATE:
-		return v4l2_ctrl_query_fill(qctrl, 0, 6400, 1, 3200000);
-	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_AC3_BITRATE_32K,
-				V4L2_MPEG_AUDIO_AC3_BITRATE_640K, 1,
-				V4L2_MPEG_AUDIO_AC3_BITRATE_384K);
-	case V4L2_CID_MPEG_AUDIO_MODE:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_MODE_STEREO,
-				V4L2_MPEG_AUDIO_MODE_MONO, 1,
-				V4L2_MPEG_AUDIO_MODE_STEREO);
-	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4,
-				V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_16, 1,
-				V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4);
-	case V4L2_CID_MPEG_AUDIO_EMPHASIS:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_EMPHASIS_NONE,
-				V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17, 1,
-				V4L2_MPEG_AUDIO_EMPHASIS_NONE);
-	case V4L2_CID_MPEG_AUDIO_CRC:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_AUDIO_CRC_NONE,
-				V4L2_MPEG_AUDIO_CRC_CRC16, 1,
-				V4L2_MPEG_AUDIO_CRC_NONE);
-	case V4L2_CID_MPEG_AUDIO_MUTE:
-		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
-	case V4L2_CID_MPEG_VIDEO_ENCODING:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_VIDEO_ENCODING_MPEG_1,
-				V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC, 1,
-				V4L2_MPEG_VIDEO_ENCODING_MPEG_2);
-	case V4L2_CID_MPEG_VIDEO_ASPECT:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_VIDEO_ASPECT_1x1,
-				V4L2_MPEG_VIDEO_ASPECT_221x100, 1,
-				V4L2_MPEG_VIDEO_ASPECT_4x3);
-	case V4L2_CID_MPEG_VIDEO_B_FRAMES:
-		return v4l2_ctrl_query_fill(qctrl, 0, 33, 1, 2);
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
-		return v4l2_ctrl_query_fill(qctrl, 1, 34, 1, 12);
-	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
-		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 1);
-	case V4L2_CID_MPEG_VIDEO_PULLDOWN:
-		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
-	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_VIDEO_BITRATE_MODE_VBR,
-				V4L2_MPEG_VIDEO_BITRATE_MODE_CBR, 1,
-				V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
-	case V4L2_CID_MPEG_VIDEO_BITRATE:
-		return v4l2_ctrl_query_fill(qctrl, 0, 27000000, 1, 6000000);
-	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
-		return v4l2_ctrl_query_fill(qctrl, 0, 27000000, 1, 8000000);
-	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION:
-		return v4l2_ctrl_query_fill(qctrl, 0, 255, 1, 0);
-	case V4L2_CID_MPEG_VIDEO_MUTE:
-		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
-	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:  /* Init YUV (really YCbCr) to black */
-		return v4l2_ctrl_query_fill(qctrl, 0, 0xffffff, 1, 0x008080);
-	case V4L2_CID_MPEG_STREAM_TYPE:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
-				V4L2_MPEG_STREAM_TYPE_MPEG2_SVCD, 1,
-				V4L2_MPEG_STREAM_TYPE_MPEG2_PS);
-	case V4L2_CID_MPEG_STREAM_PID_PMT:
-		return v4l2_ctrl_query_fill(qctrl, 0, (1 << 14) - 1, 1, 16);
-	case V4L2_CID_MPEG_STREAM_PID_AUDIO:
-		return v4l2_ctrl_query_fill(qctrl, 0, (1 << 14) - 1, 1, 260);
-	case V4L2_CID_MPEG_STREAM_PID_VIDEO:
-		return v4l2_ctrl_query_fill(qctrl, 0, (1 << 14) - 1, 1, 256);
-	case V4L2_CID_MPEG_STREAM_PID_PCR:
-		return v4l2_ctrl_query_fill(qctrl, 0, (1 << 14) - 1, 1, 259);
-	case V4L2_CID_MPEG_STREAM_PES_ID_AUDIO:
-		return v4l2_ctrl_query_fill(qctrl, 0, 255, 1, 0);
-	case V4L2_CID_MPEG_STREAM_PES_ID_VIDEO:
-		return v4l2_ctrl_query_fill(qctrl, 0, 255, 1, 0);
-	case V4L2_CID_MPEG_STREAM_VBI_FMT:
-		return v4l2_ctrl_query_fill(qctrl,
-				V4L2_MPEG_STREAM_VBI_FMT_NONE,
-				V4L2_MPEG_STREAM_VBI_FMT_IVTV, 1,
-				V4L2_MPEG_STREAM_VBI_FMT_NONE);
-	default:
-		return -EINVAL;
-	}
-}
-EXPORT_SYMBOL(v4l2_ctrl_query_fill_std);
 
 /* Fill in a struct v4l2_querymenu based on the struct v4l2_queryctrl and
    the menu. The qctrl pointer may be NULL, in which case it is ignored.
@@ -720,7 +607,7 @@ int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qc
 	for (i = 0; i < qmenu->index && menu_items[i]; i++) ;
 	if (menu_items[i] == NULL || menu_items[i][0] == '\0')
 		return -EINVAL;
-	snprintf(qmenu->name, sizeof(qmenu->name), menu_items[qmenu->index]);
+	strlcpy(qmenu->name, menu_items[qmenu->index], sizeof(qmenu->name));
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_ctrl_query_menu);
@@ -737,8 +624,8 @@ int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *id
 		return -EINVAL;
 	while (*ids != V4L2_CTRL_MENU_IDS_END) {
 		if (*ids++ == qmenu->index) {
-			snprintf(qmenu->name, sizeof(qmenu->name),
-				       menu_items[qmenu->index]);
+			strlcpy(qmenu->name, menu_items[qmenu->index],
+					sizeof(qmenu->name));
 			return 0;
 		}
 	}
@@ -749,7 +636,7 @@ EXPORT_SYMBOL(v4l2_ctrl_query_menu_valid_items);
 /* ctrl_classes points to an array of u32 pointers, the last element is
    a NULL pointer. Each u32 array is a 0-terminated array of control IDs.
    Each array must be sorted low to high and belong to the same control
-   class. The array of u32 pointer must also be sorted, from low class IDs
+   class. The array of u32 pointers must also be sorted, from low class IDs
    to high class IDs.
 
    This function returns the first ID that follows after the given ID.
@@ -852,33 +739,8 @@ EXPORT_SYMBOL(v4l2_chip_ident_i2c_client);
 
 /* ----------------------------------------------------------------- */
 
-/* Helper function for I2C legacy drivers */
+/* I2C Helper functions */
 
-int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver *driver,
-		const char *name,
-		int (*probe)(struct i2c_client *, const struct i2c_device_id *))
-{
-	struct i2c_client *client;
-	int err;
-
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (!client)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = driver;
-	strlcpy(client->name, name, sizeof(client->name));
-
-	err = probe(client, NULL);
-	if (err == 0) {
-		i2c_attach_client(client);
-	} else {
-		kfree(client);
-	}
-	return err != -ENOMEM ? 0 : err;
-}
-EXPORT_SYMBOL(v4l2_i2c_attach);
 
 void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops)
@@ -898,22 +760,20 @@ EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_init);
 
 
 
-/* Load an i2c sub-device. It assumes that i2c_get_adapdata(adapter)
-   returns the v4l2_device and that i2c_get_clientdata(client)
-   returns the v4l2_subdev. */
-struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
+/* Load an i2c sub-device. */
+struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
+		struct i2c_adapter *adapter,
 		const char *module_name, const char *client_type, u8 addr)
 {
-	struct v4l2_device *dev = i2c_get_adapdata(adapter);
 	struct v4l2_subdev *sd = NULL;
 	struct i2c_client *client;
 	struct i2c_board_info info;
 
-	BUG_ON(!dev);
-#ifdef MODULE
+	BUG_ON(!v4l2_dev);
+
 	if (module_name)
 		request_module(module_name);
-#endif
+
 	/* Setup the i2c board info with the device type and
 	   the device address. */
 	memset(&info, 0, sizeof(info));
@@ -927,41 +787,44 @@ struct v4l2_subdev *v4l2_i2c_new_subdev(struct i2c_adapter *adapter,
 	   We need better support from the kernel so that we
 	   can easily wait for the load to finish. */
 	if (client == NULL || client->driver == NULL)
-		return NULL;
+		goto error;
 
 	/* Lock the module so we can safely get the v4l2_subdev pointer */
 	if (!try_module_get(client->driver->driver.owner))
-		return NULL;
+		goto error;
 	sd = i2c_get_clientdata(client);
 
 	/* Register with the v4l2_device which increases the module's
 	   use count as well. */
-	if (v4l2_device_register_subdev(dev, sd))
+	if (v4l2_device_register_subdev(v4l2_dev, sd))
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
-	return sd;
 
+error:
+	/* If we have a client but no subdev, then something went wrong and
+	   we must unregister the client. */
+	if (client && sd == NULL)
+		i2c_unregister_device(client);
+	return sd;
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev);
 
-/* Probe and load an i2c sub-device. It assumes that i2c_get_adapdata(adapter)
-   returns the v4l2_device and that i2c_get_clientdata(client)
-   returns the v4l2_subdev. */
-struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
+/* Probe and load an i2c sub-device. */
+struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct v4l2_device *v4l2_dev,
+	struct i2c_adapter *adapter,
 	const char *module_name, const char *client_type,
 	const unsigned short *addrs)
 {
-	struct v4l2_device *dev = i2c_get_adapdata(adapter);
 	struct v4l2_subdev *sd = NULL;
 	struct i2c_client *client = NULL;
 	struct i2c_board_info info;
 
-	BUG_ON(!dev);
-#ifdef MODULE
+	BUG_ON(!v4l2_dev);
+
 	if (module_name)
 		request_module(module_name);
-#endif
+
 	/* Setup the i2c board info with the device type and
 	   the device address. */
 	memset(&info, 0, sizeof(info));
@@ -974,21 +837,83 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
 	   We need better support from the kernel so that we
 	   can easily wait for the load to finish. */
 	if (client == NULL || client->driver == NULL)
-		return NULL;
+		goto error;
 
 	/* Lock the module so we can safely get the v4l2_subdev pointer */
 	if (!try_module_get(client->driver->driver.owner))
-		return NULL;
+		goto error;
 	sd = i2c_get_clientdata(client);
 
 	/* Register with the v4l2_device which increases the module's
 	   use count as well. */
-	if (v4l2_device_register_subdev(dev, sd))
+	if (v4l2_device_register_subdev(v4l2_dev, sd))
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
+
+error:
+	/* If we have a client but no subdev, then something went wrong and
+	   we must unregister the client. */
+	if (client && sd == NULL)
+		i2c_unregister_device(client);
 	return sd;
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev);
+
+struct v4l2_subdev *v4l2_i2c_new_probed_subdev_addr(struct v4l2_device *v4l2_dev,
+		struct i2c_adapter *adapter,
+		const char *module_name, const char *client_type, u8 addr)
+{
+	unsigned short addrs[2] = { addr, I2C_CLIENT_END };
+
+	return v4l2_i2c_new_probed_subdev(v4l2_dev, adapter,
+			module_name, client_type, addrs);
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev_addr);
+
+/* Return i2c client address of v4l2_subdev. */
+unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return client ? client->addr : I2C_CLIENT_END;
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_addr);
+
+/* Return a list of I2C tuner addresses to probe. Use only if the tuner
+   addresses are unknown. */
+const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
+{
+	static const unsigned short radio_addrs[] = {
+#if defined(CONFIG_MEDIA_TUNER_TEA5761) || defined(CONFIG_MEDIA_TUNER_TEA5761_MODULE)
+		0x10,
+#endif
+		0x60,
+		I2C_CLIENT_END
+	};
+	static const unsigned short demod_addrs[] = {
+		0x42, 0x43, 0x4a, 0x4b,
+		I2C_CLIENT_END
+	};
+	static const unsigned short tv_addrs[] = {
+		0x42, 0x43, 0x4a, 0x4b,		/* tda8290 */
+		0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
+		0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
+		I2C_CLIENT_END
+	};
+
+	switch (type) {
+	case ADDRS_RADIO:
+		return radio_addrs;
+	case ADDRS_DEMOD:
+		return demod_addrs;
+	case ADDRS_TV:
+		return tv_addrs;
+	case ADDRS_TV_WITH_DEMOD:
+		return tv_addrs + 4;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_tuner_addrs);
 
 #endif

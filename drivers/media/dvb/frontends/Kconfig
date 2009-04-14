@@ -1,16 +1,20 @@
-menu "Customise DVB Frontends"
-	depends on DVB_CORE
-
 config DVB_FE_CUSTOMISE
 	bool "Customise the frontend modules to build"
+	depends on DVB_CORE
 	default N
 	help
-	  This allows the user to deselect frontend drivers unnecessary
-	  for their hardware from the build. Use this option with care
-	  as deselecting frontends which are in fact necessary will result
-	  in DVB devices which cannot be tuned due to lack of driver support.
+	  This allows the user to select/deselect frontend drivers for their
+	  hardware from the build.
+
+	  Use this option with care as deselecting frontends which are in fact
+	  necessary will result in DVB devices which cannot be tuned due to lack
+	  of driver support.
 
 	  If unsure say N.
+
+if DVB_FE_CUSTOMISE
+
+menu "Customise DVB Frontends"
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE
@@ -55,6 +59,13 @@ config DVB_MT312
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_ZL10036
+	tristate "Zarlink ZL10036 silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
 config DVB_S5H1420
 	tristate "Samsung S5H1420 based"
 	depends on DVB_CORE && I2C
@@ -82,6 +93,20 @@ config DVB_STV0299
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_STV6110
+	tristate "ST STV6110 silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	  help
+	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
+
+config DVB_STV0900
+	tristate "ST STV0900 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S/S2 demodulator. Say Y when you want to support this frontend.
 
 config DVB_TDA8083
 	tristate "Philips TDA8083 based"
@@ -288,6 +313,13 @@ config DVB_TDA10048
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
+config DVB_AF9013
+	tristate "Afatech AF9013 demodulator"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 
@@ -387,6 +419,14 @@ config DVB_LGDT3304
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
+config DVB_LGDT3305
+	tristate "LG Electronics LGDT3305 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
+	  to support this frontend.
+
 config DVB_S5H1409
 	tristate "Samsung S5H1409 based"
 	depends on DVB_CORE && I2C
@@ -397,7 +437,7 @@ config DVB_S5H1409
 
 config DVB_AU8522
 	tristate "Auvitek AU8522 based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && VIDEO_V4L2
 	default m if DVB_FE_CUSTOMISE
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
@@ -439,18 +479,18 @@ config DVB_TUNER_DIB0070
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A driver for the silicon baseband tuner DiB0070 from DiBcom.
-	  This device is only used inside a SiP called togther with a
+	  This device is only used inside a SiP called together with a
 	  demodulator for now.
 
 comment "SEC control devices for DVB-S"
 	depends on DVB_CORE
 
 config DVB_LNBP21
-	tristate "LNBP21 SEC controller"
+	tristate "LNBP21/LNBH24 SEC controllers"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
-	  An SEC control chip.
+	  An SEC control chips.
 
 config DVB_ISL6405
 	tristate "ISL6405 SEC controller"
@@ -473,16 +513,18 @@ config DVB_LGS8GL5
 	help
 	  A DMB-TH tuner module. Say Y when you want to support this frontend.
 
+config DVB_LGS8GXX
+	tristate "Legend Silicon LGS8913/LGS8GL5/LGS8GXX DMB-TH demodulator"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DMB-TH tuner module. Say Y when you want to support this frontend.
+
 comment "Tools to develop new frontends"
 
 config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
 	default n
-
-config DVB_AF9013
-	tristate "Afatech AF9013 demodulator"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  Say Y when you want to support this frontend.
 endmenu
+
+endif

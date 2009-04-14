@@ -31,7 +31,7 @@ static void percpu_depopulate(void *__pdata, int cpu)
  * @__pdata: per-cpu data to depopulate
  * @mask: depopulate per-cpu data for cpu's selected through mask bits
  */
-static void __percpu_depopulate_mask(void *__pdata, cpumask_t *mask)
+static void __percpu_depopulate_mask(void *__pdata, const cpumask_t *mask)
 {
 	int cpu;
 	for_each_cpu_mask_nr(cpu, *mask)
@@ -99,45 +99,51 @@ static int __percpu_populate_mask(void *__pdata, size_t size, gfp_t gfp,
 	__percpu_populate_mask((__pdata), (size), (gfp), &(mask))
 
 /**
- * percpu_alloc_mask - initial setup of per-cpu data
+ * alloc_percpu - initial setup of per-cpu data
  * @size: size of per-cpu object
- * @gfp: may sleep or not etc.
- * @mask: populate per-data for cpu's selected through mask bits
+ * @align: alignment
  *
- * Populating per-cpu data for all online cpu's would be a typical use case,
- * which is simplified by the percpu_alloc() wrapper.
- * Per-cpu objects are populated with zeroed buffers.
+ * Allocate dynamic percpu area.  Percpu objects are populated with
+ * zeroed buffers.
  */
-void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask)
+void *__alloc_percpu(size_t size, size_t align)
 {
 	/*
 	 * We allocate whole cache lines to avoid false sharing
 	 */
 	size_t sz = roundup(nr_cpu_ids * sizeof(void *), cache_line_size());
-	void *pdata = kzalloc(sz, gfp);
+	void *pdata = kzalloc(sz, GFP_KERNEL);
 	void *__pdata = __percpu_disguise(pdata);
+
+	/*
+	 * Can't easily make larger alignment work with kmalloc.  WARN
+	 * on it.  Larger alignment should only be used for module
+	 * percpu sections on SMP for which this path isn't used.
+	 */
+	WARN_ON_ONCE(align > SMP_CACHE_BYTES);
 
 	if (unlikely(!pdata))
 		return NULL;
-	if (likely(!__percpu_populate_mask(__pdata, size, gfp, mask)))
+	if (likely(!__percpu_populate_mask(__pdata, size, GFP_KERNEL,
+					   &cpu_possible_map)))
 		return __pdata;
 	kfree(pdata);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(__percpu_alloc_mask);
+EXPORT_SYMBOL_GPL(__alloc_percpu);
 
 /**
- * percpu_free - final cleanup of per-cpu data
+ * free_percpu - final cleanup of per-cpu data
  * @__pdata: object to clean up
  *
  * We simply clean up any per-cpu object left. No need for the client to
  * track and specify through a bis mask which per-cpu objects are to free.
  */
-void percpu_free(void *__pdata)
+void free_percpu(void *__pdata)
 {
 	if (unlikely(!__pdata))
 		return;
-	__percpu_depopulate_mask(__pdata, &cpu_possible_map);
+	__percpu_depopulate_mask(__pdata, cpu_possible_mask);
 	kfree(__percpu_disguise(__pdata));
 }
-EXPORT_SYMBOL_GPL(percpu_free);
+EXPORT_SYMBOL_GPL(free_percpu);

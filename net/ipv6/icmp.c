@@ -443,10 +443,10 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	if (xfrm_decode_session_reverse(skb, &fl2, AF_INET6))
 		goto relookup_failed;
 
-	if (ip6_dst_lookup(sk, &dst2, &fl))
+	if (ip6_dst_lookup(sk, &dst2, &fl2))
 		goto relookup_failed;
 
-	err = xfrm_lookup(net, &dst2, &fl, sk, XFRM_LOOKUP_ICMP);
+	err = xfrm_lookup(net, &dst2, &fl2, sk, XFRM_LOOKUP_ICMP);
 	switch (err) {
 	case 0:
 		dst_release(dst);

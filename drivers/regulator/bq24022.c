@@ -105,7 +105,8 @@ static int __init bq24022_probe(struct platform_device *pdev)
 	ret = gpio_direction_output(pdata->gpio_iset2, 0);
 	ret = gpio_direction_output(pdata->gpio_nce, 1);
 
-	bq24022 = regulator_register(&bq24022_desc, &pdev->dev, pdata);
+	bq24022 = regulator_register(&bq24022_desc, &pdev->dev,
+				     pdata->init_data, pdata);
 	if (IS_ERR(bq24022)) {
 		dev_dbg(&pdev->dev, "couldn't register regulator\n");
 		ret = PTR_ERR(bq24022);
@@ -152,11 +153,7 @@ static void __exit bq24022_exit(void)
 	platform_driver_unregister(&bq24022_driver);
 }
 
-/*
- * make sure this is probed before gpio_vbus and pda_power,
- * but after asic3 or other GPIO expander drivers.
- */
-subsys_initcall(bq24022_init);
+module_init(bq24022_init);
 module_exit(bq24022_exit);
 
 MODULE_AUTHOR("Philipp Zabel");

@@ -725,7 +725,7 @@ static int tc_mii_probe(struct net_device *dev)
 	}
 
 	/* attach the mac to the phy */
-	phydev = phy_connect(dev, phydev->dev.bus_id,
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
 			     &tc_handle_link_change, 0,
 			     lp->chiptype == TC35815_TX4939 ?
 			     PHY_INTERFACE_MODE_RMII : PHY_INTERFACE_MODE_MII);
@@ -735,7 +735,7 @@ static int tc_mii_probe(struct net_device *dev)
 	}
 	printk(KERN_INFO "%s: attached PHY driver [%s] "
 		"(mii_bus:phy_addr=%s, id=%x)\n",
-		dev->name, phydev->drv->name, phydev->dev.bus_id,
+		dev->name, phydev->drv->name, dev_name(&phydev->dev),
 		phydev->phy_id);
 
 	/* mask with MAC supported features */
@@ -1609,8 +1609,8 @@ static irqreturn_t tc35815_interrupt(int irq, void *dev_id)
 	if (!(dmactl & DMA_IntMask)) {
 		/* disable interrupts */
 		tc_writel(dmactl | DMA_IntMask, &tr->DMA_Ctl);
-		if (netif_rx_schedule_prep(&lp->napi))
-			__netif_rx_schedule(&lp->napi);
+		if (napi_schedule_prep(&lp->napi))
+			__napi_schedule(&lp->napi);
 		else {
 			printk(KERN_ERR "%s: interrupt taken in poll\n",
 			       dev->name);
@@ -1908,7 +1908,7 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 	do {
 		tc_writel(status, &tr->Int_Src);	/* write to clear */
 
-		handled = tc35815_do_interrupt(dev, status, limit);
+		handled = tc35815_do_interrupt(dev, status, budget - received);
 		if (handled >= 0) {
 			received += handled;
 			if (received >= budget)
@@ -1919,7 +1919,7 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 	spin_unlock(&lp->lock);
 
 	if (received < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		/* enable interrupts */
 		tc_writel(tc_readl(&tr->DMA_Ctl) & ~DMA_IntMask, &tr->DMA_Ctl);
 	}

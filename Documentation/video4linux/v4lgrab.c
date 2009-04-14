@@ -4,12 +4,21 @@
  *
  *	Compile with:
  *		gcc -s -Wall -Wstrict-prototypes v4lgrab.c -o v4lgrab
- *      Use as:
- *              v4lgrab >image.ppm
+ *	Use as:
+ *		v4lgrab >image.ppm
  *
  *	Copyright (C) 1998-05-03, Phil Blundell <philb@gnu.org>
- *      Copied from http://www.tazenda.demon.co.uk/phil/vgrabber.c
- *      with minor modifications (Dave Forrest, drf5n@virginia.edu).
+ *	Copied from http://www.tazenda.demon.co.uk/phil/vgrabber.c
+ *	with minor modifications (Dave Forrest, drf5n@virginia.edu).
+ *
+ *
+ *	For some cameras you may need to pre-load libv4l to perform
+ *	the necessary decompression, e.g.:
+ *
+ *	export LD_PRELOAD=/usr/lib/libv4l/v4l1compat.so
+ *	./v4lgrab >image.ppm
+ *
+ *	see http://hansdegoede.livejournal.com/3636.html for details.
  *
  */
 
@@ -24,7 +33,7 @@
 #include <linux/types.h>
 #include <linux/videodev.h>
 
-#define FILE "/dev/video0"
+#define VIDEO_DEV "/dev/video0"
 
 /* Stole this from tvset.c */
 
@@ -90,23 +99,23 @@ int get_brightness_adj(unsigned char *image, long size, int *brightness) {
 
 int main(int argc, char ** argv)
 {
-  int fd = open(FILE, O_RDONLY), f;
+  int fd = open(VIDEO_DEV, O_RDONLY), f;
   struct video_capability cap;
   struct video_window win;
   struct video_picture vpic;
 
   unsigned char *buffer, *src;
-  int bpp = 24, r, g, b;
-  unsigned int i, src_depth;
+  int bpp = 24, r = 0, g = 0, b = 0;
+  unsigned int i, src_depth = 16;
 
   if (fd < 0) {
-    perror(FILE);
+    perror(VIDEO_DEV);
     exit(1);
   }
 
   if (ioctl(fd, VIDIOCGCAP, &cap) < 0) {
     perror("VIDIOGCAP");
-    fprintf(stderr, "(" FILE " not a video4linux device?)\n");
+    fprintf(stderr, "(" VIDEO_DEV " not a video4linux device?)\n");
     close(fd);
     exit(1);
   }

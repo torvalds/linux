@@ -24,6 +24,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/serial_8250.h>
 
 #include <asm/bootinfo.h>
 
@@ -38,6 +39,29 @@
 
 #define ETH0_RX_DMA_ADDR  (DMA0_BASE_ADDR + 0 * DMA_CHAN_OFFSET)
 #define ETH0_TX_DMA_ADDR  (DMA0_BASE_ADDR + 1 * DMA_CHAN_OFFSET)
+
+extern unsigned int idt_cpu_freq;
+
+static struct mpmc_device dev3;
+
+void set_latch_u5(unsigned char or_mask, unsigned char nand_mask)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev3.lock, flags);
+
+	dev3.state = (dev3.state | or_mask) & ~nand_mask;
+	writeb(dev3.state, dev3.base);
+
+	spin_unlock_irqrestore(&dev3.lock, flags);
+}
+EXPORT_SYMBOL(set_latch_u5);
+
+unsigned char get_latch_u5(void)
+{
+	return dev3.state;
+}
+EXPORT_SYMBOL(get_latch_u5);
 
 static struct resource korina_dev0_res[] = {
 	{
@@ -86,7 +110,7 @@ static struct korina_device korina_dev0_data = {
 static struct platform_device korina_dev0 = {
 	.id = -1,
 	.name = "korina",
-	.dev.platform_data = &korina_dev0_data,
+	.dev.driver_data = &korina_dev0_data,
 	.resource = korina_dev0_res,
 	.num_resources = ARRAY_SIZE(korina_dev0_res),
 };
@@ -214,12 +238,32 @@ static struct platform_device rb532_wdt = {
 	.num_resources	= ARRAY_SIZE(rb532_wdt_res),
 };
 
+static struct plat_serial8250_port rb532_uart_res[] = {
+	{
+		.membase	= (char *)KSEG1ADDR(REGBASE + UART0BASE),
+		.irq		= UART0_IRQ,
+		.regshift	= 2,
+		.iotype		= UPIO_MEM,
+		.flags		= UPF_BOOT_AUTOCONF,
+	},
+	{
+		.flags		= 0,
+	}
+};
+
+static struct platform_device rb532_uart = {
+	.name              = "serial8250",
+	.id                = PLAT8250_DEV_PLATFORM,
+	.dev.platform_data = &rb532_uart_res,
+};
+
 static struct platform_device *rb532_devs[] = {
 	&korina_dev0,
 	&nand_slot0,
 	&cf_slot0,
 	&rb532_led,
 	&rb532_button,
+	&rb532_uart,
 	&rb532_wdt
 };
 
@@ -291,8 +335,19 @@ static int __init plat_setup_devices(void)
 	nand_slot0_res[0].start = readl(IDT434_REG_BASE + DEV2BASE);
 	nand_slot0_res[0].end = nand_slot0_res[0].start + 0x1000;
 
+	/* Read and map device controller 3 */
+	dev3.base = ioremap_nocache(readl(IDT434_REG_BASE + DEV3BASE), 1);
+
+	if (!dev3.base) {
+		printk(KERN_ERR "rb532: cannot remap device controller 3\n");
+		return -ENXIO;
+	}
+
 	/* Initialise the NAND device */
 	rb532_nand_setup();
+
+	/* set the uart clock to the current cpu frequency */
+	rb532_uart_res[0].uartclk = idt_cpu_freq;
 
 	return platform_add_devices(rb532_devs, ARRAY_SIZE(rb532_devs));
 }

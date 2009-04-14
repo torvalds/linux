@@ -346,7 +346,8 @@ static int __init palm_bk3710_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct resource *mem, *irq;
-	unsigned long base, rate;
+	void __iomem *base;
+	unsigned long rate, mem_size;
 	int i, rc;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
@@ -373,20 +374,27 @@ static int __init palm_bk3710_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (request_mem_region(mem->start, mem->end - mem->start + 1,
-			       "palm_bk3710") == NULL) {
+	mem_size = mem->end - mem->start + 1;
+	if (request_mem_region(mem->start, mem_size, "palm_bk3710") == NULL) {
 		printk(KERN_ERR "failed to request memory region\n");
 		return -EBUSY;
 	}
 
-	base = IO_ADDRESS(mem->start);
+	base = ioremap(mem->start, mem_size);
+	if (!base) {
+		printk(KERN_ERR "failed to map IO memory\n");
+		release_mem_region(mem->start, mem_size);
+		return -ENOMEM;
+	}
 
 	/* Configure the Palm Chip controller */
-	palm_bk3710_chipinit((void __iomem *)base);
+	palm_bk3710_chipinit(base);
 
 	for (i = 0; i < IDE_NR_PORTS - 2; i++)
-		hw.io_ports_array[i] = base + IDE_PALM_ATA_PRI_REG_OFFSET + i;
-	hw.io_ports.ctl_addr = base + IDE_PALM_ATA_PRI_CTL_OFFSET;
+		hw.io_ports_array[i] = (unsigned long)
+				(base + IDE_PALM_ATA_PRI_REG_OFFSET + i);
+	hw.io_ports.ctl_addr = (unsigned long)
+			(base + IDE_PALM_ATA_PRI_CTL_OFFSET);
 	hw.irq = irq->start;
 	hw.dev = &pdev->dev;
 	hw.chipset = ide_palm3710;

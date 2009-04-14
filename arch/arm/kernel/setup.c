@@ -40,6 +40,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/traps.h>
+#include <asm/unwind.h>
 
 #include "compat.h"
 #include "atags.h"
@@ -233,12 +234,13 @@ static void __init cacheid_init(void)
 	unsigned int cachetype = read_cpuid_cachetype();
 	unsigned int arch = cpu_architecture();
 
-	if (arch >= CPU_ARCH_ARMv7) {
-		cacheid = CACHEID_VIPT_NONALIASING;
-		if ((cachetype & (3 << 14)) == 1 << 14)
-			cacheid |= CACHEID_ASID_TAGGED;
-	} else if (arch >= CPU_ARCH_ARMv6) {
-		if (cachetype & (1 << 23))
+	if (arch >= CPU_ARCH_ARMv6) {
+		if ((cachetype & (7 << 29)) == 4 << 29) {
+			/* ARMv7 register format */
+			cacheid = CACHEID_VIPT_NONALIASING;
+			if ((cachetype & (3 << 14)) == 1 << 14)
+				cacheid |= CACHEID_ASID_TAGGED;
+		} else if (cachetype & (1 << 23))
 			cacheid = CACHEID_VIPT_ALIASING;
 		else
 			cacheid = CACHEID_VIPT_NONALIASING;
@@ -684,6 +686,8 @@ void __init setup_arch(char **cmdline_p)
 	struct machine_desc *mdesc;
 	char *from = default_command_line;
 
+	unwind_init();
+
 	setup_processor();
 	mdesc = setup_machine(machine_arch_type);
 	machine_name = mdesc->name;
@@ -779,6 +783,8 @@ static const char *hwcap_str[] = {
 	"crunch",
 	"thumbee",
 	"neon",
+	"vfpv3",
+	"vfpv3d16",
 	NULL
 };
 
