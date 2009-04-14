@@ -134,6 +134,8 @@ void vtime_start_cpu(void)
 	/* Account time spent with enabled wait psw loaded as idle time. */
 	idle_time = S390_lowcore.int_clock - idle->idle_enter;
 	account_idle_time(idle_time);
+	S390_lowcore.steal_timer +=
+		idle->idle_enter - S390_lowcore.last_update_clock;
 	S390_lowcore.last_update_clock = S390_lowcore.int_clock;
 
 	/* Account system time spent going idle. */
