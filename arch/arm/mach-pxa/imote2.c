@@ -456,25 +456,12 @@ static struct pxa2xx_spi_master pxa_ssp_master_2_info = {
 	.num_chipselect = 1,
 };
 
-/* Patch posted by Eric Miao <eric.miao@marvell.com> will remove
- * the need for these functions.
- */
-static void spi1control(u32 command)
-{
-	gpio_set_value(24, command & PXA2XX_CS_ASSERT ? 0 : 1);
-};
-
-static void spi3control(u32 command)
-{
-	gpio_set_value(39, command & PXA2XX_CS_ASSERT ? 0 : 1);
-};
-
 static struct pxa2xx_spi_chip staccel_chip_info = {
 	.tx_threshold = 8,
 	.rx_threshold = 8,
 	.dma_burst_size = 8,
 	.timeout = 235,
-	.cs_control = spi1control,
+	.gpio_cs = 24,
 };
 
 static struct pxa2xx_spi_chip cc2420_info = {
@@ -482,7 +469,7 @@ static struct pxa2xx_spi_chip cc2420_info = {
 	.rx_threshold = 8,
 	.dma_burst_size = 8,
 	.timeout = 235,
-	.cs_control = spi3control,
+	.gpio_cs = 39,
 };
 
 static struct spi_board_info spi_board_info[] __initdata = {
@@ -538,8 +525,6 @@ static void __init imote2_init(void)
 	/* SPI chip select directions - all other directions should
 	 * be handled by drivers.*/
 	gpio_direction_output(37, 0);
-	gpio_direction_output(24, 0);
-	gpio_direction_output(39, 0);
 
 	platform_add_devices(imote2_devices, ARRAY_SIZE(imote2_devices));
 

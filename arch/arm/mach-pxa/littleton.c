@@ -179,15 +179,10 @@ static struct pxa2xx_spi_master littleton_spi_info = {
 	.num_chipselect		= 1,
 };
 
-static void littleton_tdo24m_cs(u32 cmd)
-{
-	gpio_set_value(LITTLETON_GPIO_LCD_CS, !(cmd == PXA2XX_CS_ASSERT));
-}
-
 static struct pxa2xx_spi_chip littleton_tdo24m_chip = {
 	.rx_threshold	= 1,
 	.tx_threshold	= 1,
-	.cs_control	= littleton_tdo24m_cs,
+	.gpio_cs	= LITTLETON_GPIO_LCD_CS,
 };
 
 static struct spi_board_info littleton_spi_devices[] __initdata = {
@@ -202,16 +197,6 @@ static struct spi_board_info littleton_spi_devices[] __initdata = {
 
 static void __init littleton_init_spi(void)
 {
-	int err;
-
-	err = gpio_request(LITTLETON_GPIO_LCD_CS, "LCD_CS");
-	if (err) {
-		pr_warning("failed to request GPIO for LCS CS\n");
-		return;
-	}
-
-	gpio_direction_output(LITTLETON_GPIO_LCD_CS, 1);
-
 	pxa2xx_set_spi_info(2, &littleton_spi_info);
 	spi_register_board_info(ARRAY_AND_SIZE(littleton_spi_devices));
 }

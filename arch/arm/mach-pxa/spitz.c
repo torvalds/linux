@@ -317,13 +317,8 @@ static struct ads7846_platform_data spitz_ads7846_info = {
 	.wait_for_sync		= spitz_wait_for_hsync,
 };
 
-static void spitz_ads7846_cs(u32 command)
-{
-	gpio_set_value(SPITZ_GPIO_ADS7846_CS, !(command == PXA2XX_CS_ASSERT));
-}
-
 static struct pxa2xx_spi_chip spitz_ads7846_chip = {
-	.cs_control		= spitz_ads7846_cs,
+	.gpio_cs		= SPITZ_GPIO_ADS7846_CS,
 };
 
 static void spitz_bl_kick_battery(void)
@@ -347,22 +342,12 @@ static struct corgi_lcd_platform_data spitz_lcdcon_info = {
 	.kick_battery		= spitz_bl_kick_battery,
 };
 
-static void spitz_lcdcon_cs(u32 command)
-{
-	gpio_set_value(SPITZ_GPIO_LCDCON_CS, !(command == PXA2XX_CS_ASSERT));
-}
-
 static struct pxa2xx_spi_chip spitz_lcdcon_chip = {
-	.cs_control	= spitz_lcdcon_cs,
+	.gpio_cs	= SPITZ_GPIO_LCDCON_CS,
 };
 
-static void spitz_max1111_cs(u32 command)
-{
-	gpio_set_value(SPITZ_GPIO_MAX1111_CS, !(command == PXA2XX_CS_ASSERT));
-}
-
 static struct pxa2xx_spi_chip spitz_max1111_chip = {
-	.cs_control	= spitz_max1111_cs,
+	.gpio_cs	= SPITZ_GPIO_MAX1111_CS,
 };
 
 static struct spi_board_info spitz_spi_devices[] = {
@@ -392,30 +377,6 @@ static struct spi_board_info spitz_spi_devices[] = {
 
 static void __init spitz_init_spi(void)
 {
-	int err;
-
-	err = gpio_request(SPITZ_GPIO_ADS7846_CS, "ADS7846_CS");
-	if (err)
-		return;
-
-	err = gpio_request(SPITZ_GPIO_LCDCON_CS, "LCDCON_CS");
-	if (err)
-		goto err_free_1;
-
-	err = gpio_request(SPITZ_GPIO_MAX1111_CS, "MAX1111_CS");
-	if (err)
-		goto err_free_2;
-
-	err = gpio_direction_output(SPITZ_GPIO_ADS7846_CS, 1);
-	if (err)
-		goto err_free_3;
-	err = gpio_direction_output(SPITZ_GPIO_LCDCON_CS, 1);
-	if (err)
-		goto err_free_3;
-	err = gpio_direction_output(SPITZ_GPIO_MAX1111_CS, 1);
-	if (err)
-		goto err_free_3;
-
 	if (machine_is_akita()) {
 		spitz_lcdcon_info.gpio_backlight_cont = AKITA_GPIO_BACKLIGHT_CONT;
 		spitz_lcdcon_info.gpio_backlight_on = AKITA_GPIO_BACKLIGHT_ON;
@@ -423,14 +384,6 @@ static void __init spitz_init_spi(void)
 
 	pxa2xx_set_spi_info(2, &spitz_spi_info);
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
-	return;
-
-err_free_3:
-	gpio_free(SPITZ_GPIO_MAX1111_CS);
-err_free_2:
-	gpio_free(SPITZ_GPIO_LCDCON_CS);
-err_free_1:
-	gpio_free(SPITZ_GPIO_ADS7846_CS);
 }
 #else
 static inline void spitz_init_spi(void) {}
