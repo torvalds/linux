@@ -2001,8 +2001,8 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	if (regulator_desc->name == NULL || regulator_desc->ops == NULL)
 		return ERR_PTR(-EINVAL);
 
-	if (!regulator_desc->type == REGULATOR_VOLTAGE &&
-	    !regulator_desc->type == REGULATOR_CURRENT)
+	if (regulator_desc->type != REGULATOR_VOLTAGE &&
+	    regulator_desc->type != REGULATOR_CURRENT)
 		return ERR_PTR(-EINVAL);
 
 	if (!init_data)
