@@ -240,18 +240,18 @@ void __init native_init_IRQ(void)
 	/* Execute any quirks before the call gates are initialised: */
 	x86_quirk_pre_intr_init();
 
+	apic_intr_init();
+
 	/*
 	 * Cover the whole vector space, no vector can escape
 	 * us. (some of these will be overridden and become
 	 * 'special' SMP interrupts)
 	 */
 	for (i = FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
-		/* IA32_SYSCALL_VECTOR was reserved in trap_init. */
-		if (i != IA32_SYSCALL_VECTOR)
+		/* IA32_SYSCALL_VECTOR could be used in trap_init already. */
+		if (!test_bit(i, used_vectors))
 			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
 	}
-
-	apic_intr_init();
 
 	if (!acpi_ioapic)
 		setup_irq(2, &irq2);
