@@ -598,13 +598,14 @@ fec_enet_rx(struct net_device *dev)
 		 * include that when passing upstream as it messes up
 		 * bridging applications.
 		 */
-		skb = dev_alloc_skb(pkt_len - 4);
+		skb = dev_alloc_skb(pkt_len - 4 + NET_IP_ALIGN);
 
-		if (skb == NULL) {
+		if (unlikely(!skb)) {
 			printk("%s: Memory squeeze, dropping packet.\n",
 					dev->name);
 			dev->stats.rx_dropped++;
 		} else {
+			skb_reserve(skb, NET_IP_ALIGN);
 			skb_put(skb, pkt_len - 4);	/* Make room */
 			skb_copy_to_linear_data(skb, data, pkt_len - 4);
 			skb->protocol = eth_type_trans(skb, dev);
