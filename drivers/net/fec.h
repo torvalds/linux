@@ -77,17 +77,17 @@
  *	Define the buffer descriptor structure.
  */
 #ifdef CONFIG_ARCH_MXC
-typedef struct bufdesc {
+struct bufdesc {
 	unsigned short cbd_datlen;	/* Data length */
 	unsigned short cbd_sc;	/* Control and status info */
 	unsigned long cbd_bufaddr;	/* Buffer address */
-} cbd_t;
+};
 #else
-typedef struct bufdesc {
+struct bufdesc {
 	unsigned short	cbd_sc;			/* Control and status info */
 	unsigned short	cbd_datlen;		/* Data length */
 	unsigned long	cbd_bufaddr;		/* Buffer address */
-} cbd_t;
+};
 #endif
 
 /*

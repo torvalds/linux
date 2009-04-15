@@ -180,10 +180,14 @@ struct fec_enet_private {
 	/* CPM dual port RAM relative addresses.
 	*/
 	dma_addr_t	bd_dma;
-	cbd_t	*rx_bd_base;		/* Address of Rx and Tx buffers. */
-	cbd_t	*tx_bd_base;
-	cbd_t	*cur_rx, *cur_tx;		/* The next free ring entry */
-	cbd_t	*dirty_tx;	/* The ring entries to be free()ed. */
+	/* Address of Rx and Tx buffers. */
+	struct bufdesc	*rx_bd_base;
+	struct bufdesc	*tx_bd_base;
+	/* The next free ring entry */
+	struct bufdesc	*cur_rx, *cur_tx; 
+	/* The ring entries to be free()ed. */
+	struct bufdesc	*dirty_tx;
+
 	uint	tx_full;
 	/* hold while accessing the HW like ringbuffer for tx/rx but not MAC */
 	spinlock_t hw_lock;
@@ -289,7 +293,7 @@ static int
 fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
-	volatile cbd_t	*bdp;
+	struct bufdesc *bdp;
 	unsigned short	status;
 	unsigned long flags;
 
@@ -374,7 +378,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 
-	fep->cur_tx = (cbd_t *)bdp;
+	fep->cur_tx = bdp;
 
 	spin_unlock_irqrestore(&fep->hw_lock, flags);
 
@@ -391,7 +395,7 @@ fec_timeout(struct net_device *dev)
 #ifndef final_version
 	{
 	int	i;
-	cbd_t	*bdp;
+	struct bufdesc *bdp;
 
 	printk("Ring data dump: cur_tx %lx%s, dirty_tx %lx cur_rx: %lx\n",
 	       (unsigned long)fep->cur_tx, fep->tx_full ? " (full)" : "",
@@ -471,7 +475,7 @@ static void
 fec_enet_tx(struct net_device *dev)
 {
 	struct	fec_enet_private *fep;
-	volatile cbd_t	*bdp;
+	struct bufdesc *bdp;
 	unsigned short status;
 	struct	sk_buff	*skb;
 
@@ -534,7 +538,7 @@ fec_enet_tx(struct net_device *dev)
 				netif_wake_queue(dev);
 		}
 	}
-	fep->dirty_tx = (cbd_t *)bdp;
+	fep->dirty_tx = bdp;
 	spin_unlock_irq(&fep->hw_lock);
 }
 
@@ -548,7 +552,7 @@ static void
 fec_enet_rx(struct net_device *dev)
 {
 	struct	fec_enet_private *fep = netdev_priv(dev);
-	volatile cbd_t *bdp;
+	struct bufdesc *bdp;
 	unsigned short status;
 	struct	sk_buff	*skb;
 	ushort	pkt_len;
@@ -656,7 +660,7 @@ while (!((status = bdp->cbd_sc) & BD_ENET_RX_EMPTY)) {
 	writel(0, fep->hwp + FEC_R_DES_ACTIVE);
 #endif
    } /* while (!((status = bdp->cbd_sc) & BD_ENET_RX_EMPTY)) */
-	fep->cur_rx = (cbd_t *)bdp;
+	fep->cur_rx = bdp;
 
 #if 0
 	/* Doing this here will allow us to process all frames in the
@@ -1653,8 +1657,7 @@ int __init fec_enet_init(struct net_device *dev, int index)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	unsigned long	mem_addr;
-	volatile cbd_t	*bdp;
-	cbd_t		*cbd_base;
+	struct bufdesc *bdp, *cbd_base;
 	int 		i, j;
 
 	/* Allocate memory for buffer descriptors.
@@ -1695,7 +1698,7 @@ int __init fec_enet_init(struct net_device *dev, int index)
 	}
 #endif
 
-	cbd_base = (cbd_t *)mem_addr;
+	cbd_base = (struct bufdesc *)mem_addr;
 
 	/* Set receive and transmit descriptor base.
 	*/
@@ -1760,7 +1763,7 @@ int __init fec_enet_init(struct net_device *dev, int index)
 	/* Set receive and transmit descriptor base.
 	*/
 	writel(fep->bd_dma, fep->hwp + FEC_R_DES_START);
-	writel((unsigned long)fep->bd_dma + sizeof(cbd_t) * RX_RING_SIZE,
+	writel((unsigned long)fep->bd_dma + sizeof(struct bufdesc) * RX_RING_SIZE,
 			fep->hwp + FEC_X_DES_START);
 
 #ifdef HAVE_mii_link_interrupt
@@ -1824,7 +1827,7 @@ static void
 fec_restart(struct net_device *dev, int duplex)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
-	volatile cbd_t *bdp;
+	struct bufdesc *bdp;
 	int i;
 
 	/* Whack a reset.  We should wait for this. */
@@ -1846,7 +1849,7 @@ fec_restart(struct net_device *dev, int duplex)
 
 	/* Set receive and transmit descriptor base. */
 	writel(fep->bd_dma, fep->hwp + FEC_R_DES_START);
-	writel((unsigned long)fep->bd_dma + sizeof(cbd_t) * RX_RING_SIZE,
+	writel((unsigned long)fep->bd_dma + sizeof(struct bufdesc) * RX_RING_SIZE,
 			fep->hwp + FEC_X_DES_START);
 
 	fep->dirty_tx = fep->cur_tx = fep->tx_bd_base;
