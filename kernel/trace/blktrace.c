@@ -1211,7 +1211,6 @@ static void blk_tracer_print_header(struct seq_file *m)
 static void blk_tracer_start(struct trace_array *tr)
 {
 	blk_tracer_enabled = true;
-	trace_flags &= ~TRACE_ITER_CONTEXT_INFO;
 }
 
 static int blk_tracer_init(struct trace_array *tr)
@@ -1224,7 +1223,6 @@ static int blk_tracer_init(struct trace_array *tr)
 static void blk_tracer_stop(struct trace_array *tr)
 {
 	blk_tracer_enabled = false;
-	trace_flags |= TRACE_ITER_CONTEXT_INFO;
 }
 
 static void blk_tracer_reset(struct trace_array *tr)
@@ -1289,9 +1287,6 @@ out:
 static enum print_line_t blk_trace_event_print(struct trace_iterator *iter,
 					       int flags)
 {
-	if (!trace_print_context(iter))
-		return TRACE_TYPE_PARTIAL_LINE;
-
 	return print_one_line(iter, false);
 }
 
@@ -1326,6 +1321,18 @@ static enum print_line_t blk_tracer_print_line(struct trace_iterator *iter)
 	return print_one_line(iter, true);
 }
 
+static int blk_tracer_set_flag(u32 old_flags, u32 bit, int set)
+{
+	/* don't output context-info for blk_classic output */
+	if (bit == TRACE_BLK_OPT_CLASSIC) {
+		if (set)
+			trace_flags &= ~TRACE_ITER_CONTEXT_INFO;
+		else
+			trace_flags |= TRACE_ITER_CONTEXT_INFO;
+	}
+	return 0;
+}
+
 static struct tracer blk_tracer __read_mostly = {
 	.name		= "blk",
 	.init		= blk_tracer_init,
@@ -1335,6 +1342,7 @@ static struct tracer blk_tracer __read_mostly = {
 	.print_header	= blk_tracer_print_header,
 	.print_line	= blk_tracer_print_line,
 	.flags		= &blk_tracer_flags,
+	.set_flag	= blk_tracer_set_flag,
 };
 
 static struct trace_event trace_blk_event = {
