@@ -1419,3 +1419,4 @@ static void __exit ibmphp_exit(void)
 }
 
 module_init(ibmphp_init);
+module_exit(ibmphp_exit);
