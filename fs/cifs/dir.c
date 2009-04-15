@@ -661,7 +661,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 			if (!((nd->intent.open.flags & O_CREAT) &&
 					(nd->intent.open.flags & O_EXCL))) {
 				mode = nd->intent.open.create_mode &
-						~current->fs->umask;
+						~current_umask();
 				rc = cifs_posix_open(full_path, &newInode,
 					parent_dir_inode->i_sb, mode,
 					nd->intent.open.flags, &oplock,
