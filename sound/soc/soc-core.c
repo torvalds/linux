@@ -2100,7 +2100,7 @@ EXPORT_SYMBOL_GPL(snd_soc_put_volsw_s8);
 int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	unsigned int freq, int dir)
 {
-	if (dai->ops->set_sysclk)
+	if (dai->ops && dai->ops->set_sysclk)
 		return dai->ops->set_sysclk(dai, clk_id, freq, dir);
 	else
 		return -EINVAL;
@@ -2120,7 +2120,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_sysclk);
 int snd_soc_dai_set_clkdiv(struct snd_soc_dai *dai,
 	int div_id, int div)
 {
-	if (dai->ops->set_clkdiv)
+	if (dai->ops && dai->ops->set_clkdiv)
 		return dai->ops->set_clkdiv(dai, div_id, div);
 	else
 		return -EINVAL;
@@ -2139,7 +2139,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_clkdiv);
 int snd_soc_dai_set_pll(struct snd_soc_dai *dai,
 	int pll_id, unsigned int freq_in, unsigned int freq_out)
 {
-	if (dai->ops->set_pll)
+	if (dai->ops && dai->ops->set_pll)
 		return dai->ops->set_pll(dai, pll_id, freq_in, freq_out);
 	else
 		return -EINVAL;
@@ -2155,7 +2155,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_pll);
  */
 int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	if (dai->ops->set_fmt)
+	if (dai->ops && dai->ops->set_fmt)
 		return dai->ops->set_fmt(dai, fmt);
 	else
 		return -EINVAL;
@@ -2174,7 +2174,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_fmt);
 int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int mask, int slots)
 {
-	if (dai->ops->set_sysclk)
+	if (dai->ops && dai->ops->set_tdm_slot)
 		return dai->ops->set_tdm_slot(dai, mask, slots);
 	else
 		return -EINVAL;
@@ -2190,7 +2190,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_tdm_slot);
  */
 int snd_soc_dai_set_tristate(struct snd_soc_dai *dai, int tristate)
 {
-	if (dai->ops->set_sysclk)
+	if (dai->ops && dai->ops->set_tristate)
 		return dai->ops->set_tristate(dai, tristate);
 	else
 		return -EINVAL;
@@ -2206,7 +2206,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_tristate);
  */
 int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute)
 {
-	if (dai->ops->digital_mute)
+	if (dai->ops && dai->ops->digital_mute)
 		return dai->ops->digital_mute(dai, mute);
 	else
 		return -EINVAL;
