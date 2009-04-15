@@ -204,7 +204,13 @@ static void drv_read(struct drv_cmd *cmd)
 
 static void drv_write(struct drv_cmd *cmd)
 {
+	int this_cpu;
+
+	this_cpu = get_cpu();
+	if (cpumask_test_cpu(this_cpu, cmd->mask))
+		do_drv_write(cmd);
 	smp_call_function_many(cmd->mask, do_drv_write, cmd, 1);
+	put_cpu();
 }
 
 static u32 get_cur_val(const struct cpumask *mask)
