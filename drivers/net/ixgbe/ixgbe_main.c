@@ -2723,17 +2723,21 @@ static inline bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
  **/
 static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 {
-	/* Start with base case */
-	adapter->num_rx_queues = 1;
-	adapter->num_tx_queues = 1;
-
 #ifdef CONFIG_IXGBE_DCB
 	if (ixgbe_set_dcb_queues(adapter))
-		return;
+		goto done;
 
 #endif
 	if (ixgbe_set_rss_queues(adapter))
-		return;
+		goto done;
+
+	/* fallback to base case */
+	adapter->num_rx_queues = 1;
+	adapter->num_tx_queues = 1;
+
+done:
+	/* Notify the stack of the (possibly) reduced Tx Queue count. */
+	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
 }
 
 static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
@@ -2992,9 +2996,6 @@ try_msi:
 	}
 
 out:
-	/* Notify the stack of the (possibly) reduced Tx Queue count. */
-	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
-
 	return err;
 }
 
