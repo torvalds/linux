@@ -301,15 +301,12 @@ smp_flush_tlb_mm (struct mm_struct *mm)
 		return;
 	}
 
+	smp_call_function_mask(mm->cpu_vm_mask,
+		(void (*)(void *))local_finish_flush_tlb_mm, mm, 1);
+	local_irq_disable();
+	local_finish_flush_tlb_mm(mm);
+	local_irq_enable();
 	preempt_enable();
-	/*
-	 * We could optimize this further by using mm->cpu_vm_mask to track which CPUs
-	 * have been running in the address space.  It's not clear that this is worth the
-	 * trouble though: to avoid races, we have to raise the IPI on the target CPU
-	 * anyhow, and once a CPU is interrupted, the cost of local_flush_tlb_all() is
-	 * rather trivial.
-	 */
-	on_each_cpu((void (*)(void *))local_finish_flush_tlb_mm, mm, 1);
 }
 
 void arch_send_call_function_single_ipi(int cpu)
