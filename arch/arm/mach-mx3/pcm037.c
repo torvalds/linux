@@ -40,7 +40,9 @@
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+#include <mach/ipu.h>
 #include <mach/board-pcm037.h>
+#include <mach/mx3fb.h>
 #include <mach/mxc_nand.h>
 #include <mach/mmc.h>
 #ifdef CONFIG_I2C_IMX
@@ -266,6 +268,54 @@ static struct platform_device *devices[] __initdata = {
 	&pcm037_sram_device,
 };
 
+static struct ipu_platform_data mx3_ipu_data = {
+	.irq_base = MXC_IPU_IRQ_START,
+};
+
+static const struct fb_videomode fb_modedb[] = {
+	{
+		/* 240x320 @ 60 Hz Sharp */
+		.name		= "Sharp-LQ035Q7DH06-QVGA",
+		.refresh	= 60,
+		.xres		= 240,
+		.yres		= 320,
+		.pixclock	= 185925,
+		.left_margin	= 9,
+		.right_margin	= 16,
+		.upper_margin	= 7,
+		.lower_margin	= 9,
+		.hsync_len	= 1,
+		.vsync_len	= 1,
+		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_SHARP_MODE |
+				  FB_SYNC_CLK_INVERT | FB_SYNC_CLK_IDLE_EN,
+		.vmode		= FB_VMODE_NONINTERLACED,
+		.flag		= 0,
+	}, {
+		/* 240x320 @ 60 Hz */
+		.name		= "TX090",
+		.refresh	= 60,
+		.xres		= 240,
+		.yres		= 320,
+		.pixclock	= 38255,
+		.left_margin	= 144,
+		.right_margin	= 0,
+		.upper_margin	= 7,
+		.lower_margin	= 40,
+		.hsync_len	= 96,
+		.vsync_len	= 1,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_OE_ACT_HIGH,
+		.vmode		= FB_VMODE_NONINTERLACED,
+		.flag		= 0,
+	},
+};
+
+static struct mx3fb_platform_data mx3fb_pdata = {
+	.dma_dev	= &mx3_ipu.dev,
+	.name		= "Sharp-LQ035Q7DH06-QVGA",
+	.mode		= fb_modedb,
+	.num_modes	= ARRAY_SIZE(fb_modedb),
+};
+
 /*
  * Board specific initialization.
  */
@@ -293,6 +343,8 @@ static void __init mxc_board_init(void)
 #endif
 	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
 	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);
+	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
+	mxc_register_device(&mx3_fb, &mx3fb_pdata);
 }
 
 static void __init pcm037_timer_init(void)
