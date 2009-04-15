@@ -15,7 +15,8 @@
 		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
-		ldr \base, =IO_ADDRESS(DAVINCI_ARM_INTC_BASE)
+		ldr \base, =davinci_intc_base
+		ldr \base, [\base]
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2

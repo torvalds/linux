@@ -390,6 +390,74 @@ MUX_CFG(DM644X, LFLDEN,		0,   25,    1,	  1,	 false)
 #endif
 };
 
+/* FIQ are pri 0-1; otherwise 2-7, with 7 lowest priority */
+static u8 dm644x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
+	[IRQ_VDINT0]		= 2,
+	[IRQ_VDINT1]		= 6,
+	[IRQ_VDINT2]		= 6,
+	[IRQ_HISTINT]		= 6,
+	[IRQ_H3AINT]		= 6,
+	[IRQ_PRVUINT]		= 6,
+	[IRQ_RSZINT]		= 6,
+	[7]			= 7,
+	[IRQ_VENCINT]		= 6,
+	[IRQ_ASQINT]		= 6,
+	[IRQ_IMXINT]		= 6,
+	[IRQ_VLCDINT]		= 6,
+	[IRQ_USBINT]		= 4,
+	[IRQ_EMACINT]		= 4,
+	[14]			= 7,
+	[15]			= 7,
+	[IRQ_CCINT0]		= 5,	/* dma */
+	[IRQ_CCERRINT]		= 5,	/* dma */
+	[IRQ_TCERRINT0]		= 5,	/* dma */
+	[IRQ_TCERRINT]		= 5,	/* dma */
+	[IRQ_PSCIN]		= 7,
+	[21]			= 7,
+	[IRQ_IDE]		= 4,
+	[23]			= 7,
+	[IRQ_MBXINT]		= 7,
+	[IRQ_MBRINT]		= 7,
+	[IRQ_MMCINT]		= 7,
+	[IRQ_SDIOINT]		= 7,
+	[28]			= 7,
+	[IRQ_DDRINT]		= 7,
+	[IRQ_AEMIFINT]		= 7,
+	[IRQ_VLQINT]		= 4,
+	[IRQ_TINT0_TINT12]	= 2,	/* clockevent */
+	[IRQ_TINT0_TINT34]	= 2,	/* clocksource */
+	[IRQ_TINT1_TINT12]	= 7,	/* DSP timer */
+	[IRQ_TINT1_TINT34]	= 7,	/* system tick */
+	[IRQ_PWMINT0]		= 7,
+	[IRQ_PWMINT1]		= 7,
+	[IRQ_PWMINT2]		= 7,
+	[IRQ_I2C]		= 3,
+	[IRQ_UARTINT0]		= 3,
+	[IRQ_UARTINT1]		= 3,
+	[IRQ_UARTINT2]		= 3,
+	[IRQ_SPINT0]		= 3,
+	[IRQ_SPINT1]		= 3,
+	[45]			= 7,
+	[IRQ_DSP2ARM0]		= 4,
+	[IRQ_DSP2ARM1]		= 4,
+	[IRQ_GPIO0]		= 7,
+	[IRQ_GPIO1]		= 7,
+	[IRQ_GPIO2]		= 7,
+	[IRQ_GPIO3]		= 7,
+	[IRQ_GPIO4]		= 7,
+	[IRQ_GPIO5]		= 7,
+	[IRQ_GPIO6]		= 7,
+	[IRQ_GPIO7]		= 7,
+	[IRQ_GPIOBNK0]		= 7,
+	[IRQ_GPIOBNK1]		= 7,
+	[IRQ_GPIOBNK2]		= 7,
+	[IRQ_GPIOBNK3]		= 7,
+	[IRQ_GPIOBNK4]		= 7,
+	[IRQ_COMMTX]		= 7,
+	[IRQ_COMMRX]		= 7,
+	[IRQ_EMUINT]		= 7,
+};
+
 /*----------------------------------------------------------------------*/
 
 static const s8 dma_chan_dm644x_no_event[] = {
@@ -503,6 +571,10 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.pinmux_base		= IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE),
 	.pinmux_pins		= dm644x_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(dm644x_pins),
+	.intc_base		= IO_ADDRESS(DAVINCI_ARM_INTC_BASE),
+	.intc_type		= DAVINCI_INTC_TYPE_AINTC,
+	.intc_irq_prios 	= dm644x_default_priorities,
+	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 };
 
 void __init dm644x_init(void)

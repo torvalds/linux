@@ -470,6 +470,71 @@ EVT_CFG(DM355,  EVT26_MMC0_RX,	      2,    1,    0,     false)
 #endif
 };
 
+static u8 dm355_default_priorities[DAVINCI_N_AINTC_IRQ] = {
+	[IRQ_DM355_CCDC_VDINT0]		= 2,
+	[IRQ_DM355_CCDC_VDINT1]		= 6,
+	[IRQ_DM355_CCDC_VDINT2]		= 6,
+	[IRQ_DM355_IPIPE_HST]		= 6,
+	[IRQ_DM355_H3AINT]		= 6,
+	[IRQ_DM355_IPIPE_SDR]		= 6,
+	[IRQ_DM355_IPIPEIFINT]		= 6,
+	[IRQ_DM355_OSDINT]		= 7,
+	[IRQ_DM355_VENCINT]		= 6,
+	[IRQ_ASQINT]			= 6,
+	[IRQ_IMXINT]			= 6,
+	[IRQ_USBINT]			= 4,
+	[IRQ_DM355_RTOINT]		= 4,
+	[IRQ_DM355_UARTINT2]		= 7,
+	[IRQ_DM355_TINT6]		= 7,
+	[IRQ_CCINT0]			= 5,	/* dma */
+	[IRQ_CCERRINT]			= 5,	/* dma */
+	[IRQ_TCERRINT0]			= 5,	/* dma */
+	[IRQ_TCERRINT]			= 5,	/* dma */
+	[IRQ_DM355_SPINT2_1]		= 7,
+	[IRQ_DM355_TINT7]		= 4,
+	[IRQ_DM355_SDIOINT0]		= 7,
+	[IRQ_MBXINT]			= 7,
+	[IRQ_MBRINT]			= 7,
+	[IRQ_MMCINT]			= 7,
+	[IRQ_DM355_MMCINT1]		= 7,
+	[IRQ_DM355_PWMINT3]		= 7,
+	[IRQ_DDRINT]			= 7,
+	[IRQ_AEMIFINT]			= 7,
+	[IRQ_DM355_SDIOINT1]		= 4,
+	[IRQ_TINT0_TINT12]		= 2,	/* clockevent */
+	[IRQ_TINT0_TINT34]		= 2,	/* clocksource */
+	[IRQ_TINT1_TINT12]		= 7,	/* DSP timer */
+	[IRQ_TINT1_TINT34]		= 7,	/* system tick */
+	[IRQ_PWMINT0]			= 7,
+	[IRQ_PWMINT1]			= 7,
+	[IRQ_PWMINT2]			= 7,
+	[IRQ_I2C]			= 3,
+	[IRQ_UARTINT0]			= 3,
+	[IRQ_UARTINT1]			= 3,
+	[IRQ_DM355_SPINT0_0]		= 3,
+	[IRQ_DM355_SPINT0_1]		= 3,
+	[IRQ_DM355_GPIO0]		= 3,
+	[IRQ_DM355_GPIO1]		= 7,
+	[IRQ_DM355_GPIO2]		= 4,
+	[IRQ_DM355_GPIO3]		= 4,
+	[IRQ_DM355_GPIO4]		= 7,
+	[IRQ_DM355_GPIO5]		= 7,
+	[IRQ_DM355_GPIO6]		= 7,
+	[IRQ_DM355_GPIO7]		= 7,
+	[IRQ_DM355_GPIO8]		= 7,
+	[IRQ_DM355_GPIO9]		= 7,
+	[IRQ_DM355_GPIOBNK0]		= 7,
+	[IRQ_DM355_GPIOBNK1]		= 7,
+	[IRQ_DM355_GPIOBNK2]		= 7,
+	[IRQ_DM355_GPIOBNK3]		= 7,
+	[IRQ_DM355_GPIOBNK4]		= 7,
+	[IRQ_DM355_GPIOBNK5]		= 7,
+	[IRQ_DM355_GPIOBNK6]		= 7,
+	[IRQ_COMMTX]			= 7,
+	[IRQ_COMMRX]			= 7,
+	[IRQ_EMUINT]			= 7,
+};
+
 /*----------------------------------------------------------------------*/
 
 static const s8 dma_chan_dm355_no_event[] = {
@@ -563,6 +628,10 @@ static struct davinci_soc_info davinci_soc_info_dm355 = {
 	.pinmux_base		= IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE),
 	.pinmux_pins		= dm355_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(dm355_pins),
+	.intc_base		= IO_ADDRESS(DAVINCI_ARM_INTC_BASE),
+	.intc_type		= DAVINCI_INTC_TYPE_AINTC,
+	.intc_irq_prios		= dm355_default_priorities,
+	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 };
 
 void __init dm355_init(void)

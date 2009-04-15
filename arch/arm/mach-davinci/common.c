@@ -22,6 +22,8 @@
 struct davinci_soc_info davinci_soc_info;
 EXPORT_SYMBOL(davinci_soc_info);
 
+void __iomem *davinci_intc_base;
+
 static struct davinci_id * __init davinci_get_id(u32 jtag_id)
 {
 	int i;
@@ -84,6 +86,7 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 			goto err;
 	}
 
+	davinci_intc_base = davinci_soc_info.intc_base;
 	return;
 
 err:

@@ -358,6 +358,73 @@ MUX_CFG(DM646X, PTSIMUX_SERIAL,		0,   16,    3,    3,	 true)
 #endif
 };
 
+static u8 dm646x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
+	[IRQ_DM646X_VP_VERTINT0]        = 7,
+	[IRQ_DM646X_VP_VERTINT1]        = 7,
+	[IRQ_DM646X_VP_VERTINT2]        = 7,
+	[IRQ_DM646X_VP_VERTINT3]        = 7,
+	[IRQ_DM646X_VP_ERRINT]          = 7,
+	[IRQ_DM646X_RESERVED_1]         = 7,
+	[IRQ_DM646X_RESERVED_2]         = 7,
+	[IRQ_DM646X_WDINT]              = 7,
+	[IRQ_DM646X_CRGENINT0]          = 7,
+	[IRQ_DM646X_CRGENINT1]          = 7,
+	[IRQ_DM646X_TSIFINT0]           = 7,
+	[IRQ_DM646X_TSIFINT1]           = 7,
+	[IRQ_DM646X_VDCEINT]            = 7,
+	[IRQ_DM646X_USBINT]             = 7,
+	[IRQ_DM646X_USBDMAINT]          = 7,
+	[IRQ_DM646X_PCIINT]             = 7,
+	[IRQ_CCINT0]                    = 7,    /* dma */
+	[IRQ_CCERRINT]                  = 7,    /* dma */
+	[IRQ_TCERRINT0]                 = 7,    /* dma */
+	[IRQ_TCERRINT]                  = 7,    /* dma */
+	[IRQ_DM646X_TCERRINT2]          = 7,
+	[IRQ_DM646X_TCERRINT3]          = 7,
+	[IRQ_DM646X_IDE]                = 7,
+	[IRQ_DM646X_HPIINT]             = 7,
+	[IRQ_DM646X_EMACRXTHINT]        = 7,
+	[IRQ_DM646X_EMACRXINT]          = 7,
+	[IRQ_DM646X_EMACTXINT]          = 7,
+	[IRQ_DM646X_EMACMISCINT]        = 7,
+	[IRQ_DM646X_MCASP0TXINT]        = 7,
+	[IRQ_DM646X_MCASP0RXINT]        = 7,
+	[IRQ_AEMIFINT]                  = 7,
+	[IRQ_DM646X_RESERVED_3]         = 7,
+	[IRQ_DM646X_MCASP1TXINT]        = 7,    /* clockevent */
+	[IRQ_TINT0_TINT34]              = 7,    /* clocksource */
+	[IRQ_TINT1_TINT12]              = 7,    /* DSP timer */
+	[IRQ_TINT1_TINT34]              = 7,    /* system tick */
+	[IRQ_PWMINT0]                   = 7,
+	[IRQ_PWMINT1]                   = 7,
+	[IRQ_DM646X_VLQINT]             = 7,
+	[IRQ_I2C]                       = 7,
+	[IRQ_UARTINT0]                  = 7,
+	[IRQ_UARTINT1]                  = 7,
+	[IRQ_DM646X_UARTINT2]           = 7,
+	[IRQ_DM646X_SPINT0]             = 7,
+	[IRQ_DM646X_SPINT1]             = 7,
+	[IRQ_DM646X_DSP2ARMINT]         = 7,
+	[IRQ_DM646X_RESERVED_4]         = 7,
+	[IRQ_DM646X_PSCINT]             = 7,
+	[IRQ_DM646X_GPIO0]              = 7,
+	[IRQ_DM646X_GPIO1]              = 7,
+	[IRQ_DM646X_GPIO2]              = 7,
+	[IRQ_DM646X_GPIO3]              = 7,
+	[IRQ_DM646X_GPIO4]              = 7,
+	[IRQ_DM646X_GPIO5]              = 7,
+	[IRQ_DM646X_GPIO6]              = 7,
+	[IRQ_DM646X_GPIO7]              = 7,
+	[IRQ_DM646X_GPIOBNK0]           = 7,
+	[IRQ_DM646X_GPIOBNK1]           = 7,
+	[IRQ_DM646X_GPIOBNK2]           = 7,
+	[IRQ_DM646X_DDRINT]             = 7,
+	[IRQ_DM646X_AEMIFINT]           = 7,
+	[IRQ_COMMTX]                    = 7,
+	[IRQ_COMMRX]                    = 7,
+	[IRQ_EMUINT]                    = 7,
+};
+
 /*----------------------------------------------------------------------*/
 
 static const s8 dma_chan_dm646x_no_event[] = {
@@ -483,6 +550,10 @@ static struct davinci_soc_info davinci_soc_info_dm646x = {
 	.pinmux_base		= IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE),
 	.pinmux_pins		= dm646x_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(dm646x_pins),
+	.intc_base		= IO_ADDRESS(DAVINCI_ARM_INTC_BASE),
+	.intc_type		= DAVINCI_INTC_TYPE_AINTC,
+	.intc_irq_prios		= dm646x_default_priorities,
+	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 };
 
 void __init dm646x_init(void)
