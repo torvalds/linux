@@ -36,6 +36,9 @@ struct davinci_soc_info {
 	struct davinci_clk		*cpu_clks;
 	void __iomem			**psc_bases;
 	unsigned long			psc_bases_num;
+	void __iomem			*pinmux_base;
+	const struct mux_config		*pinmux_pins;
+	unsigned long			pinmux_pins_num;
 };
 
 extern struct davinci_soc_info davinci_soc_info;

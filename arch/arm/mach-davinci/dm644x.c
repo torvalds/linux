@@ -346,6 +346,7 @@ static struct platform_device dm644x_emac_device = {
  *				reg  offset mask  mode
  */
 static const struct mux_config dm644x_pins[] = {
+#ifdef CONFIG_DAVINCI_MUX
 MUX_CFG(DM644X, HDIREN,		0,   16,    1,	  1,	 true)
 MUX_CFG(DM644X, ATAEN,		0,   17,    1,	  1,	 true)
 MUX_CFG(DM644X, ATAEN_DISABLE,	0,   17,    1,	  0,	 true)
@@ -386,6 +387,7 @@ MUX_CFG(DM644X, RGB666,		0,   22,    1,	  1,	 true)
 
 MUX_CFG(DM644X, LOEEN,		0,   24,    1,	  1,	 true)
 MUX_CFG(DM644X, LFLDEN,		0,   25,    1,	  1,	 false)
+#endif
 };
 
 /*----------------------------------------------------------------------*/
@@ -498,12 +500,14 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.cpu_clks		= dm644x_clks,
 	.psc_bases		= dm644x_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(dm644x_psc_bases),
+	.pinmux_base		= IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE),
+	.pinmux_pins		= dm644x_pins,
+	.pinmux_pins_num	= ARRAY_SIZE(dm644x_pins),
 };
 
 void __init dm644x_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm644x);
-	davinci_mux_register(dm644x_pins, ARRAY_SIZE(dm644x_pins));
 }
 
 static int __init dm644x_init_devices(void)

@@ -168,15 +168,9 @@ enum davinci_dm355_index {
 
 #ifdef CONFIG_DAVINCI_MUX
 /* setup pin muxing */
-extern void davinci_mux_init(void);
-extern int davinci_mux_register(const struct mux_config *pins,
-				unsigned long size);
 extern int davinci_cfg_reg(unsigned long reg_cfg);
 #else
 /* boot loader does it all (no warnings from CONFIG_DAVINCI_MUX_WARNINGS) */
-static inline void davinci_mux_init(void) {}
-static inline int davinci_mux_register(const struct mux_config *pins,
-				       unsigned long size) { return 0; }
 static inline int davinci_cfg_reg(unsigned long reg_cfg) { return 0; }
 #endif
 

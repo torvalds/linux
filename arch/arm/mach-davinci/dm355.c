@@ -436,6 +436,7 @@ void __init dm355_init_spi0(unsigned chipselect_mask,
  *				reg  offset mask  mode
  */
 static const struct mux_config dm355_pins[] = {
+#ifdef CONFIG_DAVINCI_MUX
 MUX_CFG(DM355,	MMCSD0,		4,   2,     1,	  0,	 false)
 
 MUX_CFG(DM355,	SD1_CLK,	3,   6,     1,	  1,	 false)
@@ -466,6 +467,7 @@ INT_CFG(DM355,  INT_EDMA_TC1_ERR,     4,    1,    1,     false)
 EVT_CFG(DM355,  EVT8_ASP1_TX,	      0,    1,    0,     false)
 EVT_CFG(DM355,  EVT9_ASP1_RX,	      1,    1,    0,     false)
 EVT_CFG(DM355,  EVT26_MMC0_RX,	      2,    1,    0,     false)
+#endif
 };
 
 /*----------------------------------------------------------------------*/
@@ -558,12 +560,14 @@ static struct davinci_soc_info davinci_soc_info_dm355 = {
 	.cpu_clks		= dm355_clks,
 	.psc_bases		= dm355_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(dm355_psc_bases),
+	.pinmux_base		= IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE),
+	.pinmux_pins		= dm355_pins,
+	.pinmux_pins_num	= ARRAY_SIZE(dm355_pins),
 };
 
 void __init dm355_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm355);
-	davinci_mux_register(dm355_pins, ARRAY_SIZE(dm355_pins));;
 }
 
 static int __init dm355_init_devices(void)
