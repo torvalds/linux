@@ -260,7 +260,7 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 	INIT_LIST_HEAD(&qh->node);
 
 	if (udev) {		/* Normal QH */
-		qh->type = hep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+		qh->type = usb_endpoint_type(&hep->desc);
 		if (qh->type != USB_ENDPOINT_XFER_ISOC) {
 			qh->dummy_td = uhci_alloc_td(uhci);
 			if (!qh->dummy_td) {
