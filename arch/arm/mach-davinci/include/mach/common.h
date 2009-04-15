@@ -25,6 +25,18 @@ extern void setup_usb(unsigned mA, unsigned potpgt_msec);
 /* parameters describe VBUS sourcing for host mode */
 extern void setup_usb(unsigned mA, unsigned potpgt_msec);
 
+struct davinci_timer_instance {
+	void __iomem	*base;
+	u32		bottom_irq;
+	u32		top_irq;
+};
+
+struct davinci_timer_info {
+	struct davinci_timer_instance	*timers;
+	unsigned int			clockevent_id;
+	unsigned int			clocksource_id;
+};
+
 /* SoC specific init support */
 struct davinci_soc_info {
 	struct map_desc			*io_desc;
@@ -44,6 +56,7 @@ struct davinci_soc_info {
 	int				intc_type;
 	u8				*intc_irq_prios;
 	unsigned long			intc_irq_num;
+	struct davinci_timer_info	*timer_info;
 };
 
 extern struct davinci_soc_info davinci_soc_info;

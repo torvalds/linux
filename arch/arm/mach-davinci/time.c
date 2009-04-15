@@ -29,42 +29,23 @@
 #include <asm/errno.h>
 #include <mach/io.h>
 #include <mach/cputype.h>
+#include <mach/time.h>
 #include "clock.h"
 
 static struct clock_event_device clockevent_davinci;
 static unsigned int davinci_clock_tick_rate;
 
-#define DAVINCI_TIMER0_BASE (IO_PHYS + 0x21400)
-#define DAVINCI_TIMER1_BASE (IO_PHYS + 0x21800)
 #define DAVINCI_WDOG_BASE   (IO_PHYS + 0x21C00)
-
-enum {
-	T0_BOT = 0, T0_TOP, T1_BOT, T1_TOP, NUM_TIMERS,
-};
-
-#define IS_TIMER1(id)    (id & 0x2)
-#define IS_TIMER0(id)    (!IS_TIMER1(id))
-#define IS_TIMER_TOP(id) ((id & 0x1))
-#define IS_TIMER_BOT(id) (!IS_TIMER_TOP(id))
-
-static int timer_irqs[NUM_TIMERS] = {
-	IRQ_TINT0_TINT12,
-	IRQ_TINT0_TINT34,
-	IRQ_TINT1_TINT12,
-	IRQ_TINT1_TINT34,
-};
 
 /*
  * This driver configures the 2 64-bit count-up timers as 4 independent
  * 32-bit count-up timers used as follows:
- *
- * T0_BOT: Timer 0, bottom:  clockevent source for hrtimers
- * T0_TOP: Timer 0, top   :  clocksource for generic timekeeping
- * T1_BOT: Timer 1, bottom:  (used by DSP in TI DSPLink code)
- * T1_TOP: Timer 1, top   :  <unused>
  */
-#define TID_CLOCKEVENT  T0_BOT
-#define TID_CLOCKSOURCE T0_TOP
+
+enum {
+	TID_CLOCKEVENT,
+	TID_CLOCKSOURCE,
+};
 
 /* Timer register offsets */
 #define PID12                        0x0
@@ -118,6 +99,13 @@ static struct timer_s timers[];
 #define TIMER_OPTS_DISABLED   0x00
 #define TIMER_OPTS_ONESHOT    0x01
 #define TIMER_OPTS_PERIODIC   0x02
+
+static char *id_to_name[] = {
+	[T0_BOT]	= "timer0_0",
+	[T0_TOP]	= "timer0_1",
+	[T1_BOT]	= "timer1_0",
+	[T1_TOP]	= "timer1_1",
+};
 
 static int timer32_config(struct timer_s *t)
 {
@@ -183,13 +171,14 @@ static struct timer_s timers[] = {
 
 static void __init timer_init(void)
 {
-	u32 phys_bases[] = {DAVINCI_TIMER0_BASE, DAVINCI_TIMER1_BASE};
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
+	struct davinci_timer_instance *dtip = soc_info->timer_info->timers;
 	int i;
 
 	/* Global init of each 64-bit timer as a whole */
 	for(i=0; i<2; i++) {
 		u32 tgcr;
-		void __iomem *base = IO_ADDRESS(phys_bases[i]);
+		void __iomem *base = dtip[i].base;
 
 		/* Disabled, Internal clock source */
 		__raw_writel(0, base + TCR);
@@ -215,33 +204,30 @@ static void __init timer_init(void)
 	/* Init of each timer as a 32-bit timer */
 	for (i=0; i< ARRAY_SIZE(timers); i++) {
 		struct timer_s *t = &timers[i];
-		u32 phys_base;
+		int timer = ID_TO_TIMER(t->id);
+		u32 irq;
 
-		if (t->name) {
-			t->id = i;
-			phys_base = (IS_TIMER1(t->id) ?
-			       DAVINCI_TIMER1_BASE : DAVINCI_TIMER0_BASE);
-			t->base = IO_ADDRESS(phys_base);
+		t->base = dtip[timer].base;
 
-			if (IS_TIMER_BOT(t->id)) {
-				t->enamode_shift = 6;
-				t->tim_off = TIM12;
-				t->prd_off = PRD12;
-			} else {
-				t->enamode_shift = 22;
-				t->tim_off = TIM34;
-				t->prd_off = PRD34;
-			}
-
-			/* Register interrupt */
-			t->irqaction.name = t->name;
-			t->irqaction.dev_id = (void *)t;
-			if (t->irqaction.handler != NULL) {
-				setup_irq(timer_irqs[t->id], &t->irqaction);
-			}
-
-			timer32_config(&timers[i]);
+		if (IS_TIMER_BOT(t->id)) {
+			t->enamode_shift = 6;
+			t->tim_off = TIM12;
+			t->prd_off = PRD12;
+			irq = dtip[timer].bottom_irq;
+		} else {
+			t->enamode_shift = 22;
+			t->tim_off = TIM34;
+			t->prd_off = PRD34;
+			irq = dtip[timer].top_irq;
 		}
+
+		/* Register interrupt */
+		t->irqaction.name = t->name;
+		t->irqaction.dev_id = (void *)t;
+		if (t->irqaction.handler != NULL)
+			setup_irq(irq, &t->irqaction);
+
+		timer32_config(&timers[i]);
 	}
 }
 
@@ -256,7 +242,6 @@ static cycle_t read_cycles(struct clocksource *cs)
 }
 
 static struct clocksource clocksource_davinci = {
-	.name		= "timer0_1",
 	.rating		= 300,
 	.read		= read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
@@ -301,7 +286,6 @@ static void davinci_set_mode(enum clock_event_mode mode,
 }
 
 static struct clock_event_device clockevent_davinci = {
-	.name		= "timer0_0",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.set_next_event	= davinci_set_next_event,
@@ -312,9 +296,13 @@ static struct clock_event_device clockevent_davinci = {
 static void __init davinci_timer_init(void)
 {
 	struct clk *timer_clk;
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	static char err[] __initdata = KERN_ERR
 		"%s: can't register clocksource!\n";
+
+	timers[TID_CLOCKEVENT].id = soc_info->timer_info->clockevent_id;
+	timers[TID_CLOCKSOURCE].id = soc_info->timer_info->clocksource_id;
 
 	/* init timer hw */
 	timer_init();
@@ -326,6 +314,7 @@ static void __init davinci_timer_init(void)
 	davinci_clock_tick_rate = clk_get_rate(timer_clk);
 
 	/* setup clocksource */
+	clocksource_davinci.name = id_to_name[timers[TID_CLOCKSOURCE].id];
 	clocksource_davinci.mult =
 		clocksource_khz2mult(davinci_clock_tick_rate/1000,
 				     clocksource_davinci.shift);
@@ -333,6 +322,7 @@ static void __init davinci_timer_init(void)
 		printk(err, clocksource_davinci.name);
 
 	/* setup clockevent */
+	clockevent_davinci.name = id_to_name[timers[TID_CLOCKEVENT].id];
 	clockevent_davinci.mult = div_sc(davinci_clock_tick_rate, NSEC_PER_SEC,
 					 clockevent_davinci.shift);
 	clockevent_davinci.max_delta_ns =

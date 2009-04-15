@@ -22,6 +22,7 @@
 #include <mach/irqs.h>
 #include <mach/psc.h>
 #include <mach/mux.h>
+#include <mach/time.h>
 #include <mach/common.h>
 
 #include "clock.h"
@@ -559,6 +560,18 @@ static void __iomem *dm644x_psc_bases[] = {
 	IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE),
 };
 
+/*
+ * T0_BOT: Timer 0, bottom:  clockevent source for hrtimers
+ * T0_TOP: Timer 0, top   :  clocksource for generic timekeeping
+ * T1_BOT: Timer 1, bottom:  (used by DSP in TI DSPLink code)
+ * T1_TOP: Timer 1, top   :  <unused>
+ */
+struct davinci_timer_info dm644x_timer_info = {
+	.timers		= davinci_timer_instance,
+	.clockevent_id	= T0_BOT,
+	.clocksource_id	= T0_TOP,
+};
+
 static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.io_desc		= dm644x_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm644x_io_desc),
@@ -575,6 +588,7 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.intc_type		= DAVINCI_INTC_TYPE_AINTC,
 	.intc_irq_prios 	= dm644x_default_priorities,
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
+	.timer_info		= &dm644x_timer_info,
 };
 
 void __init dm644x_init(void)
