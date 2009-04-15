@@ -280,7 +280,7 @@ static void trace_packet(struct sk_buff *skb,
 	char *hookname, *chainname, *comment;
 	unsigned int rulenum = 0;
 
-	table_base = (void *)private->entries[smp_processor_id()];
+	table_base = private->entries[smp_processor_id()];
 	root = get_entry(table_base, private->hook_entry[hook]);
 
 	hookname = chainname = (char *)hooknames[hook];
