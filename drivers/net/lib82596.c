@@ -1036,6 +1036,19 @@ static void print_eth(unsigned char *add, char *str)
 	printk(KERN_DEBUG "i596 0x%p, %pM --> %pM %02X%02X, %s\n",
 	       add, add + 6, add, add[12], add[13], str);
 }
+static const struct net_device_ops i596_netdev_ops = {
+	.ndo_open		= i596_open,
+	.ndo_stop		= i596_close,
+	.ndo_start_xmit		= i596_start_xmit,
+	.ndo_set_multicast_list	= set_multicast_list,
+	.ndo_tx_timeout		= i596_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= i596_poll_controller,
+#endif
+};
 
 static int __devinit i82596_probe(struct net_device *dev)
 {
@@ -1062,16 +1075,8 @@ static int __devinit i82596_probe(struct net_device *dev)
 		return -ENOMEM;
 	}
 
-	/* The 82596-specific entries in the device structure. */
-	dev->open = i596_open;
-	dev->stop = i596_close;
-	dev->hard_start_xmit = i596_start_xmit;
-	dev->set_multicast_list = set_multicast_list;
-	dev->tx_timeout = i596_tx_timeout;
+	dev->netdev_ops = &i596_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = i596_poll_controller;
-#endif
 
 	memset(dma, 0, sizeof(struct i596_dma));
 	lp->dma = dma;
