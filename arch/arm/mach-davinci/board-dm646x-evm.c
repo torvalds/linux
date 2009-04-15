@@ -222,22 +222,6 @@ static struct at24_platform_data eeprom_info = {
 	.setup          = at24_setup,
 };
 
-int dm646xevm_eeprom_read(void *buf, off_t off, size_t count)
-{
-	if (at24_mem_acc)
-		return at24_mem_acc->read(at24_mem_acc, buf, off, count);
-	return -ENODEV;
-}
-EXPORT_SYMBOL(dm646xevm_eeprom_read);
-
-int dm646xevm_eeprom_write(void *buf, off_t off, size_t count)
-{
-	if (at24_mem_acc)
-		return at24_mem_acc->write(at24_mem_acc, buf, off, count);
-	return -ENODEV;
-}
-EXPORT_SYMBOL(dm646xevm_eeprom_write);
-
 static struct i2c_board_info __initdata i2c_info[] =  {
 	{
 		I2C_BOARD_INFO("24c256", 0x50),
