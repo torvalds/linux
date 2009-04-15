@@ -1547,7 +1547,7 @@ static irqreturn_t ic_sof_irq(int irq, void *dev_id)
 	struct idmac_channel *ichan = dev_id;
 	printk(KERN_DEBUG "Got SOF IRQ %d on Channel %d\n",
 	       irq, ichan->dma_chan.chan_id);
-	disable_irq(irq);
+	disable_irq_nosync(irq);
 	return IRQ_HANDLED;
 }
 
@@ -1556,7 +1556,7 @@ static irqreturn_t ic_eof_irq(int irq, void *dev_id)
 	struct idmac_channel *ichan = dev_id;
 	printk(KERN_DEBUG "Got EOF IRQ %d on Channel %d\n",
 	       irq, ichan->dma_chan.chan_id);
-	disable_irq(irq);
+	disable_irq_nosync(irq);
 	return IRQ_HANDLED;
 }
 
