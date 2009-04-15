@@ -57,6 +57,7 @@ struct davinci_soc_info {
 	u8				*intc_irq_prios;
 	unsigned long			intc_irq_num;
 	struct davinci_timer_info	*timer_info;
+	void __iomem			*wdt_base;
 };
 
 extern struct davinci_soc_info davinci_soc_info;

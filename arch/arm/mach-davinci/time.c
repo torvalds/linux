@@ -35,8 +35,6 @@
 static struct clock_event_device clockevent_davinci;
 static unsigned int davinci_clock_tick_rate;
 
-#define DAVINCI_WDOG_BASE   (IO_PHYS + 0x21C00)
-
 /*
  * This driver configures the 2 64-bit count-up timers as 4 independent
  * 32-bit count-up timers used as follows:
@@ -343,7 +341,8 @@ struct sys_timer davinci_timer = {
 void davinci_watchdog_reset(void)
 {
 	u32 tgcr, wdtcr;
-	void __iomem *base = IO_ADDRESS(DAVINCI_WDOG_BASE);
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
+	void __iomem *base = soc_info->wdt_base;
 	struct clk *wd_clk;
 
 	wd_clk = clk_get(&davinci_wdt_device.dev, NULL);

@@ -568,6 +568,7 @@ static struct davinci_soc_info davinci_soc_info_dm646x = {
 	.intc_irq_prios		= dm646x_default_priorities,
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm646x_timer_info,
+	.wdt_base		= IO_ADDRESS(DAVINCI_WDOG_BASE),
 };
 
 void __init dm646x_init(void)
