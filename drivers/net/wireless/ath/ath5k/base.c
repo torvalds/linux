@@ -1618,9 +1618,8 @@ ath5k_rx_start(struct ath5k_softc *sc)
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "cachelsz %u rxbufsize %u\n",
 		sc->cachelsz, sc->rxbufsize);
 
-	sc->rxlink = NULL;
-
 	spin_lock_bh(&sc->rxbuflock);
+	sc->rxlink = NULL;
 	list_for_each_entry(bf, &sc->rxbuf, list) {
 		ret = ath5k_rxbuf_setup(sc, bf);
 		if (ret != 0) {
@@ -1629,9 +1628,9 @@ ath5k_rx_start(struct ath5k_softc *sc)
 		}
 	}
 	bf = list_first_entry(&sc->rxbuf, struct ath5k_buf, list);
+	ath5k_hw_set_rxdp(ah, bf->daddr);
 	spin_unlock_bh(&sc->rxbuflock);
 
-	ath5k_hw_set_rxdp(ah, bf->daddr);
 	ath5k_hw_start_rx_dma(ah);	/* enable recv descriptors */
 	ath5k_mode_setup(sc);		/* set filters, etc. */
 	ath5k_hw_start_rx_pcu(ah);	/* re-enable PCU/DMA engine */
