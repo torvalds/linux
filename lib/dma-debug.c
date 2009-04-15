@@ -85,6 +85,7 @@ static u32 show_num_errors = 1;
 
 static u32 num_free_entries;
 static u32 min_free_entries;
+static u32 nr_total_entries;
 
 /* number of preallocated entries requested by kernel cmdline */
 static u32 req_entries;
@@ -257,6 +258,21 @@ static void add_dma_entry(struct dma_debug_entry *entry)
 	put_hash_bucket(bucket, &flags);
 }
 
+static struct dma_debug_entry *__dma_entry_alloc(void)
+{
+	struct dma_debug_entry *entry;
+
+	entry = list_entry(free_entries.next, struct dma_debug_entry, list);
+	list_del(&entry->list);
+	memset(entry, 0, sizeof(*entry));
+
+	num_free_entries -= 1;
+	if (num_free_entries < min_free_entries)
+		min_free_entries = num_free_entries;
+
+	return entry;
+}
+
 /* struct dma_entry allocator
  *
  * The next two functions implement the allocator for
@@ -276,9 +292,7 @@ static struct dma_debug_entry *dma_entry_alloc(void)
 		goto out;
 	}
 
-	entry = list_entry(free_entries.next, struct dma_debug_entry, list);
-	list_del(&entry->list);
-	memset(entry, 0, sizeof(*entry));
+	entry = __dma_entry_alloc();
 
 #ifdef CONFIG_STACKTRACE
 	entry->stacktrace.max_entries = DMA_DEBUG_STACKTRACE_ENTRIES;
@@ -286,9 +300,6 @@ static struct dma_debug_entry *dma_entry_alloc(void)
 	entry->stacktrace.skip = 2;
 	save_stack_trace(&entry->stacktrace);
 #endif
-	num_free_entries -= 1;
-	if (num_free_entries < min_free_entries)
-		min_free_entries = num_free_entries;
 
 out:
 	spin_unlock_irqrestore(&free_entries_lock, flags);
@@ -309,6 +320,53 @@ static void dma_entry_free(struct dma_debug_entry *entry)
 	num_free_entries += 1;
 	spin_unlock_irqrestore(&free_entries_lock, flags);
 }
+
+int dma_debug_resize_entries(u32 num_entries)
+{
+	int i, delta, ret = 0;
+	unsigned long flags;
+	struct dma_debug_entry *entry;
+	LIST_HEAD(tmp);
+
+	spin_lock_irqsave(&free_entries_lock, flags);
+
+	if (nr_total_entries < num_entries) {
+		delta = num_entries - nr_total_entries;
+
+		spin_unlock_irqrestore(&free_entries_lock, flags);
+
+		for (i = 0; i < delta; i++) {
+			entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+			if (!entry)
+				break;
+
+			list_add_tail(&entry->list, &tmp);
+		}
+
+		spin_lock_irqsave(&free_entries_lock, flags);
+
+		list_splice(&tmp, &free_entries);
+		nr_total_entries += i;
+		num_free_entries += i;
+	} else {
+		delta = nr_total_entries - num_entries;
+
+		for (i = 0; i < delta && !list_empty(&free_entries); i++) {
+			entry = __dma_entry_alloc();
+			kfree(entry);
+		}
+
+		nr_total_entries -= i;
+	}
+
+	if (nr_total_entries != num_entries)
+		ret = 1;
+
+	spin_unlock_irqrestore(&free_entries_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(dma_debug_resize_entries);
 
 /*
  * DMA-API debugging init code
@@ -489,6 +547,8 @@ void dma_debug_init(u32 num_entries)
 
 		return;
 	}
+
+	nr_total_entries = num_free_entries;
 
 	printk(KERN_INFO "DMA-API: debugging enabled by kernel config\n");
 }
