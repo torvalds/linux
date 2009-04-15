@@ -428,6 +428,15 @@ static const struct ethtool_ops rionet_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 };
 
+static const struct net_device_ops rionet_netdev_ops = {
+	.ndo_open		= rionet_open,
+	.ndo_stop		= rionet_close,
+	.ndo_start_xmit		= rionet_start_xmit,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
 static int rionet_setup_netdev(struct rio_mport *mport)
 {
 	int rc = 0;
@@ -466,10 +475,7 @@ static int rionet_setup_netdev(struct rio_mport *mport)
 	ndev->dev_addr[4] = device_id >> 8;
 	ndev->dev_addr[5] = device_id & 0xff;
 
-	/* Fill in the driver function table */
-	ndev->open = &rionet_open;
-	ndev->hard_start_xmit = &rionet_start_xmit;
-	ndev->stop = &rionet_close;
+	ndev->netdev_ops = &rionet_netdev_ops;
 	ndev->mtu = RIO_MAX_MSG_SIZE - 14;
 	ndev->features = NETIF_F_LLTX;
 	SET_ETHTOOL_OPS(ndev, &rionet_ethtool_ops);
