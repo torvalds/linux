@@ -297,6 +297,12 @@ static void trace_packet(struct sk_buff *skb,
 }
 #endif
 
+static inline __pure
+struct ipt_entry *ipt_next_entry(const struct ipt_entry *entry)
+{
+	return (void *)entry + entry->next_offset;
+}
+
 /* Returns one of the generic firewall policies, like NF_ACCEPT. */
 unsigned int
 ipt_do_table(struct sk_buff *skb,
@@ -385,11 +391,11 @@ ipt_do_table(struct sk_buff *skb,
 							 back->comefrom);
 					continue;
 				}
-				if (table_base + v != (void *)e + e->next_offset
+				if (table_base + v != ipt_next_entry(e)
 				    && !(e->ip.flags & IPT_F_GOTO)) {
 					/* Save old back ptr in next entry */
 					struct ipt_entry *next
-						= (void *)e + e->next_offset;
+						= ipt_next_entry(e);
 					next->comefrom
 						= (void *)back - table_base;
 					/* set back pointer to next entry */
@@ -424,7 +430,7 @@ ipt_do_table(struct sk_buff *skb,
 				datalen = skb->len - ip->ihl * 4;
 
 				if (verdict == IPT_CONTINUE)
-					e = (void *)e + e->next_offset;
+					e = ipt_next_entry(e);
 				else
 					/* Verdict */
 					break;
@@ -432,7 +438,7 @@ ipt_do_table(struct sk_buff *skb,
 		} else {
 
 		no_match:
-			e = (void *)e + e->next_offset;
+			e = ipt_next_entry(e);
 		}
 	} while (!hotdrop);
 	xt_info_rdunlock_bh();

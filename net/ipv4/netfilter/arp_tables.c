@@ -231,6 +231,12 @@ static inline struct arpt_entry *get_entry(void *base, unsigned int offset)
 	return (struct arpt_entry *)(base + offset);
 }
 
+static inline __pure
+struct arpt_entry *arpt_next_entry(const struct arpt_entry *entry)
+{
+	return (void *)entry + entry->next_offset;
+}
+
 unsigned int arpt_do_table(struct sk_buff *skb,
 			   unsigned int hook,
 			   const struct net_device *in,
@@ -295,10 +301,10 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 					continue;
 				}
 				if (table_base + v
-				    != (void *)e + e->next_offset) {
+				    != arpt_next_entry(e)) {
 					/* Save old back ptr in next entry */
 					struct arpt_entry *next
-						= (void *)e + e->next_offset;
+						= arpt_next_entry(e);
 					next->comefrom =
 						(void *)back - table_base;
 
@@ -320,13 +326,13 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 				arp = arp_hdr(skb);
 
 				if (verdict == ARPT_CONTINUE)
-					e = (void *)e + e->next_offset;
+					e = arpt_next_entry(e);
 				else
 					/* Verdict */
 					break;
 			}
 		} else {
-			e = (void *)e + e->next_offset;
+			e = arpt_next_entry(e);
 		}
 	} while (!hotdrop);
 	xt_info_rdunlock_bh();

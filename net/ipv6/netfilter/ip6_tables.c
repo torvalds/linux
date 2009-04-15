@@ -329,6 +329,12 @@ static void trace_packet(struct sk_buff *skb,
 }
 #endif
 
+static inline __pure struct ip6t_entry *
+ip6t_next_entry(const struct ip6t_entry *entry)
+{
+	return (void *)entry + entry->next_offset;
+}
+
 /* Returns one of the generic firewall policies, like NF_ACCEPT. */
 unsigned int
 ip6t_do_table(struct sk_buff *skb,
@@ -414,11 +420,11 @@ ip6t_do_table(struct sk_buff *skb,
 							 back->comefrom);
 					continue;
 				}
-				if (table_base + v != (void *)e + e->next_offset
+				if (table_base + v != ip6t_next_entry(e)
 				    && !(e->ipv6.flags & IP6T_F_GOTO)) {
 					/* Save old back ptr in next entry */
 					struct ip6t_entry *next
-						= (void *)e + e->next_offset;
+						= ip6t_next_entry(e);
 					next->comefrom
 						= (void *)back - table_base;
 					/* set back pointer to next entry */
@@ -451,7 +457,7 @@ ip6t_do_table(struct sk_buff *skb,
 					= 0x57acc001;
 #endif
 				if (verdict == IP6T_CONTINUE)
-					e = (void *)e + e->next_offset;
+					e = ip6t_next_entry(e);
 				else
 					/* Verdict */
 					break;
@@ -459,7 +465,7 @@ ip6t_do_table(struct sk_buff *skb,
 		} else {
 
 		no_match:
-			e = (void *)e + e->next_offset;
+			e = ip6t_next_entry(e);
 		}
 	} while (!hotdrop);
 
