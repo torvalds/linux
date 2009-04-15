@@ -198,28 +198,13 @@ static struct pcf857x_platform_data pcf_data = {
  *  - 0x7f00, 6 bytes Ethernet Address
  *  - ... newer boards may have more
  */
-static struct memory_accessor *at24_mem_acc;
-
-static void at24_setup(struct memory_accessor *mem_acc, void *context)
-{
-	char mac_addr[ETH_ALEN];
-	struct davinci_soc_info *soc_info = &davinci_soc_info;
-
-	at24_mem_acc = mem_acc;
-
-	/* Read MAC addr from EEPROM */
-	if (at24_mem_acc->read(at24_mem_acc, mac_addr, 0x7f00, ETH_ALEN) ==
-	    ETH_ALEN) {
-		pr_info("Read MAC addr from EEPROM: %pM\n", mac_addr);
-		memcpy(soc_info->emac_pdata->mac_addr, mac_addr, ETH_ALEN);
-	}
-}
 
 static struct at24_platform_data eeprom_info = {
 	.byte_len       = (256*1024) / 8,
 	.page_size      = 64,
 	.flags          = AT24_FLAG_ADDR16,
-	.setup          = at24_setup,
+	.setup          = davinci_get_mac_addr,
+	.context	= (void *)0x7f00,
 };
 
 static struct i2c_board_info __initdata i2c_info[] =  {
@@ -258,7 +243,6 @@ static __init void evm_init(void)
 
 	soc_info->emac_pdata->phy_mask = DM646X_EVM_PHY_MASK;
 	soc_info->emac_pdata->mdio_max_freq = DM646X_EVM_MDIO_FREQUENCY;
-	dm646x_init_emac(soc_info->emac_pdata);
 }
 
 static __init void davinci_dm646x_evm_irq_init(void)

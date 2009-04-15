@@ -254,32 +254,6 @@ struct davinci_timer_instance davinci_timer_instance[2] = {
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_TI_DAVINCI_EMAC) || defined(CONFIG_TI_DAVINCI_EMAC_MODULE)
-
-void davinci_init_emac(struct emac_platform_data *pdata)
-{
-	DECLARE_MAC_BUF(buf);
-
-	/* if valid MAC exists, don't re-register */
-	if (is_valid_ether_addr(pdata->mac_addr))
-		return;
-	else {
-		/* Use random MAC if none passed */
-		random_ether_addr(pdata->mac_addr);
-
-		printk(KERN_WARNING "%s: using random MAC addr: %s\n",
-		       __func__, print_mac(buf, pdata->mac_addr));
-	}
-}
-
-#else
-
-void davinci_init_emac(struct emac_platform_data *unused) {}
-
-#endif
-
-/*-------------------------------------------------------------------------*/
-
 static int __init davinci_init_devices(void)
 {
 	/* please keep these calls, and their implementations above,
