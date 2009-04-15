@@ -359,14 +359,11 @@ ipt_do_table(struct sk_buff *skb,
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
 		if (!ip_packet_match(ip, indev, outdev,
-		    &e->ip, mtpar.fragoff)) {
- no_match:
+		    &e->ip, mtpar.fragoff) ||
+		    IPT_MATCH_ITERATE(e, do_match, skb, &mtpar) != 0) {
 			e = ipt_next_entry(e);
 			continue;
 		}
-
-		if (IPT_MATCH_ITERATE(e, do_match, skb, &mtpar) != 0)
-			goto no_match;
 
 		ADD_COUNTER(e->counters, ntohs(ip->tot_len), 1);
 

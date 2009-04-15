@@ -386,14 +386,11 @@ ip6t_do_table(struct sk_buff *skb,
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
 		if (!ip6_packet_match(skb, indev, outdev, &e->ipv6,
-		    &mtpar.thoff, &mtpar.fragoff, &hotdrop)) {
- no_match:
+		    &mtpar.thoff, &mtpar.fragoff, &hotdrop) ||
+		    IP6T_MATCH_ITERATE(e, do_match, skb, &mtpar) != 0) {
 			e = ip6t_next_entry(e);
 			continue;
 		}
-
-		if (IP6T_MATCH_ITERATE(e, do_match, skb, &mtpar) != 0)
-			goto no_match;
 
 		ADD_COUNTER(e->counters,
 			    ntohs(ipv6_hdr(skb)->payload_len) +
