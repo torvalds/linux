@@ -550,12 +550,12 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	DBG(DBG_HW, "%s: EPT_SIZE = %lu (maxpacket = %lu)\n",
 			ep->ep.name, ept_cfg, maxpacket);
 
-	if ((desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) {
+	if (usb_endpoint_dir_in(desc)) {
 		ep->is_in = 1;
 		ept_cfg |= USBA_EPT_DIR_IN;
 	}
 
-	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		ept_cfg |= USBA_BF(EPT_TYPE, USBA_EPT_TYPE_CONTROL);
 		ept_cfg |= USBA_BF(BK_NUMBER, USBA_BK_NUMBER_ONE);
