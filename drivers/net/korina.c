@@ -1081,6 +1081,21 @@ static int korina_close(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops korina_netdev_ops = {
+	.ndo_open		= korina_open,
+	.ndo_stop		= korina_close,
+	.ndo_start_xmit		= korina_send_packet,
+	.ndo_set_multicast_list	= korina_multicast_list,
+	.ndo_tx_timeout		= korina_tx_timeout,
+	.ndo_do_ioctl		= korina_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= korina_poll_controller,
+#endif
+};
+
 static int korina_probe(struct platform_device *pdev)
 {
 	struct korina_device *bif = platform_get_drvdata(pdev);
@@ -1149,17 +1164,9 @@ static int korina_probe(struct platform_device *pdev)
 	dev->irq = lp->rx_irq;
 	lp->dev = dev;
 
-	dev->open = korina_open;
-	dev->stop = korina_close;
-	dev->hard_start_xmit = korina_send_packet;
-	dev->set_multicast_list = &korina_multicast_list;
+	dev->netdev_ops = &korina_netdev_ops;
 	dev->ethtool_ops = &netdev_ethtool_ops;
-	dev->tx_timeout = korina_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	dev->do_ioctl = &korina_ioctl;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = korina_poll_controller;
-#endif
 	netif_napi_add(dev, &lp->napi, korina_poll, 64);
 
 	lp->phy_addr = (((lp->rx_irq == 0x2c? 1:0) << 8) | 0x05);
