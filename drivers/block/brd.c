@@ -275,8 +275,10 @@ static int brd_do_bvec(struct brd_device *brd, struct page *page,
 	if (rw == READ) {
 		copy_from_brd(mem + off, brd, sector, len);
 		flush_dcache_page(page);
-	} else
+	} else {
+		flush_dcache_page(page);
 		copy_to_brd(brd, mem + off, sector, len);
+	}
 	kunmap_atomic(mem, KM_USER0);
 
 out:
