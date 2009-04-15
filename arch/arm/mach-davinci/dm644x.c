@@ -491,12 +491,12 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.jtag_id_base		= IO_ADDRESS(0x01c40028),
 	.ids			= dm644x_ids,
 	.ids_num		= ARRAY_SIZE(dm644x_ids),
+	.cpu_clks		= dm644x_clks,
 };
 
 void __init dm644x_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm644x);
-	davinci_clk_init(dm644x_clks);
 	davinci_mux_register(dm644x_pins, ARRAY_SIZE(dm644x_pins));
 }
 

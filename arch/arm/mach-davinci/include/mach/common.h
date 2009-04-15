@@ -33,6 +33,7 @@ struct davinci_soc_info {
 	void __iomem			*jtag_id_base;
 	struct davinci_id		*ids;
 	unsigned long			ids_num;
+	struct davinci_clk		*cpu_clks;
 };
 
 extern struct davinci_soc_info davinci_soc_info;
