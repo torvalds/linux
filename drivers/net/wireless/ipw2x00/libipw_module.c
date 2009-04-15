@@ -154,10 +154,6 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 		goto failed;
 	}
 	ieee = netdev_priv(dev);
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	dev->hard_start_xmit = ieee80211_xmit;
-	dev->change_mtu = ieee80211_change_mtu;
-#endif
 
 	ieee->dev = dev;
 
