@@ -172,6 +172,7 @@ struct fec_enet_private {
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
 	unsigned char *tx_bounce[TX_RING_SIZE];
 	struct	sk_buff* tx_skbuff[TX_RING_SIZE];
+	struct	sk_buff* rx_skbuff[RX_RING_SIZE];
 	ushort	skb_cur;
 	ushort	skb_dirty;
 
@@ -335,8 +336,8 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Push the data cache so the CPM does not get stale memory
 	 * data.
 	 */
-	dma_sync_single(NULL, bdp->cbd_bufaddr,
-			bdp->cbd_datlen, DMA_TO_DEVICE);
+	bdp->cbd_bufaddr = dma_map_single(&dev->dev, skb->data,
+			FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
 
 	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
 	 * it's the last BD of the frame, and to put the CRC on the end.
@@ -429,7 +430,11 @@ fec_enet_tx(struct net_device *dev)
 	bdp = fep->dirty_tx;
 
 	while (((status = bdp->cbd_sc) & BD_ENET_TX_READY) == 0) {
-		if (bdp == fep->cur_tx && fep->tx_full == 0) break;
+		if (bdp == fep->cur_tx && fep->tx_full == 0)
+			break;
+
+		dma_unmap_single(&dev->dev, bdp->cbd_bufaddr, FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
+		bdp->cbd_bufaddr = 0;
 
 		skb = fep->tx_skbuff[fep->skb_dirty];
 		/* Check for errors. */
@@ -553,8 +558,8 @@ fec_enet_rx(struct net_device *dev)
 		dev->stats.rx_bytes += pkt_len;
 		data = (__u8*)__va(bdp->cbd_bufaddr);
 
-		dma_sync_single(NULL, (unsigned long)__pa(data),
-			pkt_len - 4, DMA_FROM_DEVICE);
+	        dma_unmap_single(NULL, bdp->cbd_bufaddr, bdp->cbd_datlen,
+        			DMA_FROM_DEVICE);
 
 		/* This does 16 byte alignment, exactly what we need.
 		 * The packet length includes FCS, but we don't want to
@@ -574,6 +579,9 @@ fec_enet_rx(struct net_device *dev)
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
 		}
+
+        	bdp->cbd_bufaddr = dma_map_single(NULL, data, bdp->cbd_datlen,
+			DMA_FROM_DEVICE);
 rx_processing_done:
 		/* Clear the status flags for this buffer */
 		status &= ~BD_ENET_RX_STATS;
@@ -1398,14 +1406,85 @@ mii_link_interrupt(int irq, void * dev_id)
 }
 #endif
 
+static void fec_enet_free_buffers(struct net_device *dev)
+{
+	struct fec_enet_private *fep = netdev_priv(dev);
+	int i;
+	struct sk_buff *skb;
+	struct bufdesc	*bdp;
+
+	bdp = fep->rx_bd_base;
+	for (i = 0; i < RX_RING_SIZE; i++) {
+		skb = fep->rx_skbuff[i];
+
+		if (bdp->cbd_bufaddr)
+			dma_unmap_single(&dev->dev, bdp->cbd_bufaddr,
+					FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
+		if (skb)
+			dev_kfree_skb(skb);
+		bdp++;
+	}
+
+	bdp = fep->tx_bd_base;
+	for (i = 0; i < TX_RING_SIZE; i++)
+		kfree(fep->tx_bounce[i]);
+}
+
+static int fec_enet_alloc_buffers(struct net_device *dev)
+{
+	struct fec_enet_private *fep = netdev_priv(dev);
+	int i;
+	struct sk_buff *skb;
+	struct bufdesc	*bdp;
+
+	bdp = fep->rx_bd_base;
+	for (i = 0; i < RX_RING_SIZE; i++) {
+		skb = dev_alloc_skb(FEC_ENET_RX_FRSIZE);
+		if (!skb) {
+			fec_enet_free_buffers(dev);
+			return -ENOMEM;
+		}
+		fep->rx_skbuff[i] = skb;
+
+		bdp->cbd_bufaddr = dma_map_single(&dev->dev, skb->data,
+				FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
+		bdp->cbd_sc = BD_ENET_RX_EMPTY;
+		bdp++;
+	}
+
+	/* Set the last buffer to wrap. */
+	bdp--;
+	bdp->cbd_sc |= BD_SC_WRAP;
+
+	bdp = fep->tx_bd_base;
+	for (i = 0; i < TX_RING_SIZE; i++) {
+		fep->tx_bounce[i] = kmalloc(FEC_ENET_TX_FRSIZE, GFP_KERNEL);
+
+		bdp->cbd_sc = 0;
+		bdp->cbd_bufaddr = 0;
+		bdp++;
+	}
+
+	/* Set the last buffer to wrap. */
+	bdp--;
+	bdp->cbd_sc |= BD_SC_WRAP;
+
+	return 0;
+}
+
 static int
 fec_enet_open(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
+	int ret;
 
 	/* I should reset the ring buffers here, but I don't yet know
 	 * a simple way to do that.
 	 */
+
+	ret = fec_enet_alloc_buffers(dev);
+	if (ret)
+		return ret;
 
 	fep->sequence_done = 0;
 	fep->link = 0;
@@ -1452,6 +1531,8 @@ fec_enet_close(struct net_device *dev)
 	fep->opened = 0;
 	netif_stop_queue(dev);
 	fec_stop(dev);
+
+        fec_enet_free_buffers(dev);
 
 	return 0;
 }
@@ -1575,9 +1656,8 @@ static const struct net_device_ops fec_netdev_ops = {
 int __init fec_enet_init(struct net_device *dev, int index)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
-	unsigned long	mem_addr;
-	struct bufdesc *bdp, *cbd_base;
-	int 		i, j;
+	struct bufdesc *cbd_base;
+	int i;
 
 	/* Allocate memory for buffer descriptors. */
 	cbd_base = dma_alloc_coherent(NULL, PAGE_SIZE, &fep->bd_dma,
@@ -1614,49 +1694,6 @@ int __init fec_enet_init(struct net_device *dev, int index)
 	/* Set receive and transmit descriptor base. */
 	fep->rx_bd_base = cbd_base;
 	fep->tx_bd_base = cbd_base + RX_RING_SIZE;
-
-	/* Initialize the receive buffer descriptors. */
-	bdp = fep->rx_bd_base;
-	for (i=0; i<FEC_ENET_RX_PAGES; i++) {
-
-		/* Allocate a page */
-		mem_addr = __get_free_page(GFP_KERNEL);
-		/* XXX: missing check for allocation failure */
-
-		/* Initialize the BD for every fragment in the page */
-		for (j=0; j<FEC_ENET_RX_FRPPG; j++) {
-			bdp->cbd_sc = BD_ENET_RX_EMPTY;
-			bdp->cbd_bufaddr = __pa(mem_addr);
-			mem_addr += FEC_ENET_RX_FRSIZE;
-			bdp++;
-		}
-	}
-
-	/* Set the last buffer to wrap */
-	bdp--;
-	bdp->cbd_sc |= BD_SC_WRAP;
-
-	/* ...and the same for transmit */
-	bdp = fep->tx_bd_base;
-	for (i=0, j=FEC_ENET_TX_FRPPG; i<TX_RING_SIZE; i++) {
-		if (j >= FEC_ENET_TX_FRPPG) {
-			mem_addr = __get_free_page(GFP_KERNEL);
-			j = 1;
-		} else {
-			mem_addr += FEC_ENET_TX_FRSIZE;
-			j++;
-		}
-		fep->tx_bounce[i] = (unsigned char *) mem_addr;
-
-		/* Initialize the BD for every fragment in the page */
-		bdp->cbd_sc = 0;
-		bdp->cbd_bufaddr = 0;
-		bdp++;
-	}
-
-	/* Set the last buffer to wrap */
-	bdp--;
-	bdp->cbd_sc |= BD_SC_WRAP;
 
 #ifdef HAVE_mii_link_interrupt
 	fec_request_mii_intr(dev);
