@@ -238,8 +238,8 @@ static struct nf_loginfo trace_loginfo = {
 /* Mildly perf critical (only if packet tracing is on) */
 static inline int
 get_chainname_rulenum(struct ipt_entry *s, struct ipt_entry *e,
-		      char *hookname, char **chainname,
-		      char **comment, unsigned int *rulenum)
+		      const char *hookname, const char **chainname,
+		      const char **comment, unsigned int *rulenum)
 {
 	struct ipt_standard_target *t = (void *)ipt_get_target(s);
 
@@ -257,8 +257,8 @@ get_chainname_rulenum(struct ipt_entry *s, struct ipt_entry *e,
 		   && unconditional(&s->ip)) {
 			/* Tail of chains: STANDARD target (return/policy) */
 			*comment = *chainname == hookname
-				? (char *)comments[NF_IP_TRACE_COMMENT_POLICY]
-				: (char *)comments[NF_IP_TRACE_COMMENT_RETURN];
+				? comments[NF_IP_TRACE_COMMENT_POLICY]
+				: comments[NF_IP_TRACE_COMMENT_RETURN];
 		}
 		return 1;
 	} else
@@ -277,14 +277,14 @@ static void trace_packet(struct sk_buff *skb,
 {
 	void *table_base;
 	const struct ipt_entry *root;
-	char *hookname, *chainname, *comment;
+	const char *hookname, *chainname, *comment;
 	unsigned int rulenum = 0;
 
 	table_base = private->entries[smp_processor_id()];
 	root = get_entry(table_base, private->hook_entry[hook]);
 
-	hookname = chainname = (char *)hooknames[hook];
-	comment = (char *)comments[NF_IP_TRACE_COMMENT_RULE];
+	hookname = chainname = hooknames[hook];
+	comment = comments[NF_IP_TRACE_COMMENT_RULE];
 
 	IPT_ENTRY_ITERATE(root,
 			  private->size - private->hook_entry[hook],
