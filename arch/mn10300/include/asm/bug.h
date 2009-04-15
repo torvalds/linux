@@ -11,10 +11,12 @@
 #ifndef _ASM_BUG_H
 #define _ASM_BUG_H
 
+#ifdef CONFIG_BUG
+
 /*
  * Tell the user there is some problem.
  */
-#define _debug_bug_trap()					\
+#define BUG()							\
 do {								\
 	asm volatile(						\
 		"	syscall 15			\n"	\
@@ -25,11 +27,11 @@ do {								\
 		:						\
 		: "i"(__FILE__), "i"(__LINE__)			\
 		);						\
-} while (0)
-
-#define BUG() _debug_bug_trap()
+} while (1)
 
 #define HAVE_ARCH_BUG
+#endif /* CONFIG_BUG */
+
 #include <asm-generic/bug.h>
 
 #endif /* _ASM_BUG_H */
