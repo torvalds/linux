@@ -19,27 +19,20 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/usb.h>
-#include <linux/input.h>
-#include <linux/spinlock.h>
-#include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/core.h>
 #include <sound/pcm.h>
-#include <sound/rawmidi.h>
-#include <sound/control.h>
 
-#include "caiaq-device.h"
-#include "caiaq-audio.h"
-#include "caiaq-midi.h"
-#include "caiaq-control.h"
-
-#ifdef CONFIG_SND_USB_CAIAQ_INPUT
-#include "caiaq-input.h"
-#endif
+#include "device.h"
+#include "audio.h"
+#include "midi.h"
+#include "control.h"
+#include "input.h"
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("caiaq USB audio, version 1.3.13");
