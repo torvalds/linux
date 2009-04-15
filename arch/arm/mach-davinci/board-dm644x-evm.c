@@ -16,11 +16,12 @@
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/memory.h>
+#include <linux/etherdevice.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/i2c/at24.h>
-#include <linux/etherdevice.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -113,20 +114,49 @@ static struct platform_device davinci_evm_norflash_device = {
 	.resource	= &davinci_evm_norflash_resource,
 };
 
+/* DM644x EVM includes a 64 MByte small-page NAND flash (16K blocks).
+ * It may used instead of the (default) NOR chip to boot, using TI's
+ * tools to install the secondary boot loader (UBL) and U-Boot.
+ */
 struct mtd_partition davinci_evm_nandflash_partition[] = {
-	/* 5 MB space at the beginning for bootloader and kernel */
+	/* Bootloader layout depends on whose u-boot is installed, but we
+	 * can hide all the details.
+	 *  - block 0 for u-boot environment ... in mainline u-boot
+	 *  - block 1 for UBL (plus up to four backup copies in blocks 2..5)
+	 *  - blocks 6...? for u-boot
+	 *  - blocks 16..23 for u-boot environment ... in TI's u-boot
+	 */
 	{
-		.name		= "NAND filesystem",
-		.offset		= 5 * SZ_1M,
+		.name		= "bootloader",
+		.offset		= 0,
+		.size		= SZ_256K + SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
+	},
+	/* Kernel */
+	{
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_4M,
+		.mask_flags	= 0,
+	},
+	/* File system (older GIT kernels started this on the 5MB mark) */
+	{
+		.name		= "filesystem",
+		.offset		= MTDPART_OFS_APPEND,
 		.size		= MTDPART_SIZ_FULL,
 		.mask_flags	= 0,
 	}
+	/* A few blocks at end hold a flash BBT ... created by TI's CCS
+	 * using flashwriter_nand.out, but ignored by TI's versions of
+	 * Linux and u-boot.  We boot faster by using them.
+	 */
 };
 
 static struct davinci_nand_pdata davinci_evm_nandflash_data = {
 	.parts		= davinci_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
+	.options	= NAND_USE_FLASH_BBT,
 };
 
 static struct resource davinci_evm_nandflash_resource[] = {
@@ -151,14 +181,14 @@ static struct platform_device davinci_evm_nandflash_device = {
 	.resource	= davinci_evm_nandflash_resource,
 };
 
-static u64 davinci_fb_dma_mask = DMA_32BIT_MASK;
+static u64 davinci_fb_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device davinci_fb_device = {
 	.name		= "davincifb",
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &davinci_fb_dma_mask,
-		.coherent_dma_mask      = DMA_32BIT_MASK,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
 	},
 	.num_resources = 0,
 };
