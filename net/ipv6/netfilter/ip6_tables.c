@@ -381,91 +381,87 @@ ip6t_do_table(struct sk_buff *skb,
 	back = get_entry(table_base, private->underflow[hook]);
 
 	do {
+		struct ip6t_entry_target *t;
+
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
-		if (ip6_packet_match(skb, indev, outdev, &e->ipv6,
-			&mtpar.thoff, &mtpar.fragoff, &hotdrop)) {
-			struct ip6t_entry_target *t;
+		if (!ip6_packet_match(skb, indev, outdev, &e->ipv6,
+		    &mtpar.thoff, &mtpar.fragoff, &hotdrop)) {
+ no_match:
+			e = ip6t_next_entry(e);
+			continue;
+		}
 
-			if (IP6T_MATCH_ITERATE(e, do_match, skb, &mtpar) != 0)
-				goto no_match;
+		if (IP6T_MATCH_ITERATE(e, do_match, skb, &mtpar) != 0)
+			goto no_match;
 
-			ADD_COUNTER(e->counters,
-				    ntohs(ipv6_hdr(skb)->payload_len) +
-				    sizeof(struct ipv6hdr), 1);
+		ADD_COUNTER(e->counters,
+			    ntohs(ipv6_hdr(skb)->payload_len) +
+			    sizeof(struct ipv6hdr), 1);
 
-			t = ip6t_get_target(e);
-			IP_NF_ASSERT(t->u.kernel.target);
+		t = ip6t_get_target(e);
+		IP_NF_ASSERT(t->u.kernel.target);
 
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
     defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
-			/* The packet is traced: log it */
-			if (unlikely(skb->nf_trace))
-				trace_packet(skb, hook, in, out,
-					     table->name, private, e);
+		/* The packet is traced: log it */
+		if (unlikely(skb->nf_trace))
+			trace_packet(skb, hook, in, out,
+				     table->name, private, e);
 #endif
-			/* Standard target? */
-			if (!t->u.kernel.target->target) {
-				int v;
+		/* Standard target? */
+		if (!t->u.kernel.target->target) {
+			int v;
 
-				v = ((struct ip6t_standard_target *)t)->verdict;
-				if (v < 0) {
-					/* Pop from stack? */
-					if (v != IP6T_RETURN) {
-						verdict = (unsigned)(-v) - 1;
-						break;
-					}
-					e = back;
-					back = get_entry(table_base,
-							 back->comefrom);
-					continue;
-				}
-				if (table_base + v != ip6t_next_entry(e)
-				    && !(e->ipv6.flags & IP6T_F_GOTO)) {
-					/* Save old back ptr in next entry */
-					struct ip6t_entry *next
-						= ip6t_next_entry(e);
-					next->comefrom
-						= (void *)back - table_base;
-					/* set back pointer to next entry */
-					back = next;
-				}
-
-				e = get_entry(table_base, v);
-			} else {
-				/* Targets which reenter must return
-				   abs. verdicts */
-				tgpar.target   = t->u.kernel.target;
-				tgpar.targinfo = t->data;
-
-#ifdef CONFIG_NETFILTER_DEBUG
-				((struct ip6t_entry *)table_base)->comefrom
-					= 0xeeeeeeec;
-#endif
-				verdict = t->u.kernel.target->target(skb,
-								     &tgpar);
-
-#ifdef CONFIG_NETFILTER_DEBUG
-				if (((struct ip6t_entry *)table_base)->comefrom
-				    != 0xeeeeeeec
-				    && verdict == IP6T_CONTINUE) {
-					printk("Target %s reentered!\n",
-					       t->u.kernel.target->name);
-					verdict = NF_DROP;
-				}
-				((struct ip6t_entry *)table_base)->comefrom
-					= 0x57acc001;
-#endif
-				if (verdict == IP6T_CONTINUE)
-					e = ip6t_next_entry(e);
-				else
-					/* Verdict */
+			v = ((struct ip6t_standard_target *)t)->verdict;
+			if (v < 0) {
+				/* Pop from stack? */
+				if (v != IP6T_RETURN) {
+					verdict = (unsigned)(-v) - 1;
 					break;
+				}
+				e = back;
+				back = get_entry(table_base, back->comefrom);
+				continue;
 			}
-		} else {
+			if (table_base + v != ip6t_next_entry(e)
+			    && !(e->ipv6.flags & IP6T_F_GOTO)) {
+				/* Save old back ptr in next entry */
+				struct ip6t_entry *next = ip6t_next_entry(e);
+				next->comefrom = (void *)back - table_base;
+				/* set back pointer to next entry */
+				back = next;
+			}
 
-		no_match:
-			e = ip6t_next_entry(e);
+			e = get_entry(table_base, v);
+		} else {
+			/* Targets which reenter must return
+			   abs. verdicts */
+			tgpar.target   = t->u.kernel.target;
+			tgpar.targinfo = t->data;
+
+#ifdef CONFIG_NETFILTER_DEBUG
+			((struct ip6t_entry *)table_base)->comefrom
+				= 0xeeeeeeec;
+#endif
+			verdict = t->u.kernel.target->target(skb, &tgpar);
+
+#ifdef CONFIG_NETFILTER_DEBUG
+			if (((struct ip6t_entry *)table_base)->comefrom
+			    != 0xeeeeeeec
+			    && verdict == IP6T_CONTINUE) {
+				printk("Target %s reentered!\n",
+				       t->u.kernel.target->name);
+				verdict = NF_DROP;
+			}
+			((struct ip6t_entry *)table_base)->comefrom
+				= 0x57acc001;
+#endif
+			if (verdict == IP6T_CONTINUE)
+				e = ip6t_next_entry(e);
+			else
+				/* Verdict */
+				break;
 		}
 	} while (!hotdrop);
 

@@ -354,91 +354,87 @@ ipt_do_table(struct sk_buff *skb,
 	back = get_entry(table_base, private->underflow[hook]);
 
 	do {
+		struct ipt_entry_target *t;
+
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
-		if (ip_packet_match(ip, indev, outdev,
+		if (!ip_packet_match(ip, indev, outdev,
 		    &e->ip, mtpar.fragoff)) {
-			struct ipt_entry_target *t;
+ no_match:
+			e = ipt_next_entry(e);
+			continue;
+		}
 
-			if (IPT_MATCH_ITERATE(e, do_match, skb, &mtpar) != 0)
-				goto no_match;
+		if (IPT_MATCH_ITERATE(e, do_match, skb, &mtpar) != 0)
+			goto no_match;
 
-			ADD_COUNTER(e->counters, ntohs(ip->tot_len), 1);
+		ADD_COUNTER(e->counters, ntohs(ip->tot_len), 1);
 
-			t = ipt_get_target(e);
-			IP_NF_ASSERT(t->u.kernel.target);
+		t = ipt_get_target(e);
+		IP_NF_ASSERT(t->u.kernel.target);
 
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
     defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
-			/* The packet is traced: log it */
-			if (unlikely(skb->nf_trace))
-				trace_packet(skb, hook, in, out,
-					     table->name, private, e);
+		/* The packet is traced: log it */
+		if (unlikely(skb->nf_trace))
+			trace_packet(skb, hook, in, out,
+				     table->name, private, e);
 #endif
-			/* Standard target? */
-			if (!t->u.kernel.target->target) {
-				int v;
+		/* Standard target? */
+		if (!t->u.kernel.target->target) {
+			int v;
 
-				v = ((struct ipt_standard_target *)t)->verdict;
-				if (v < 0) {
-					/* Pop from stack? */
-					if (v != IPT_RETURN) {
-						verdict = (unsigned)(-v) - 1;
-						break;
-					}
-					e = back;
-					back = get_entry(table_base,
-							 back->comefrom);
-					continue;
-				}
-				if (table_base + v != ipt_next_entry(e)
-				    && !(e->ip.flags & IPT_F_GOTO)) {
-					/* Save old back ptr in next entry */
-					struct ipt_entry *next
-						= ipt_next_entry(e);
-					next->comefrom
-						= (void *)back - table_base;
-					/* set back pointer to next entry */
-					back = next;
-				}
-
-				e = get_entry(table_base, v);
-			} else {
-				/* Targets which reenter must return
-				   abs. verdicts */
-				tgpar.target   = t->u.kernel.target;
-				tgpar.targinfo = t->data;
-#ifdef CONFIG_NETFILTER_DEBUG
-				((struct ipt_entry *)table_base)->comefrom
-					= 0xeeeeeeec;
-#endif
-				verdict = t->u.kernel.target->target(skb,
-								     &tgpar);
-#ifdef CONFIG_NETFILTER_DEBUG
-				if (((struct ipt_entry *)table_base)->comefrom
-				    != 0xeeeeeeec
-				    && verdict == IPT_CONTINUE) {
-					printk("Target %s reentered!\n",
-					       t->u.kernel.target->name);
-					verdict = NF_DROP;
-				}
-				((struct ipt_entry *)table_base)->comefrom
-					= 0x57acc001;
-#endif
-				/* Target might have changed stuff. */
-				ip = ip_hdr(skb);
-				datalen = skb->len - ip->ihl * 4;
-
-				if (verdict == IPT_CONTINUE)
-					e = ipt_next_entry(e);
-				else
-					/* Verdict */
+			v = ((struct ipt_standard_target *)t)->verdict;
+			if (v < 0) {
+				/* Pop from stack? */
+				if (v != IPT_RETURN) {
+					verdict = (unsigned)(-v) - 1;
 					break;
+				}
+				e = back;
+				back = get_entry(table_base, back->comefrom);
+				continue;
 			}
-		} else {
+			if (table_base + v != ipt_next_entry(e)
+			    && !(e->ip.flags & IPT_F_GOTO)) {
+				/* Save old back ptr in next entry */
+				struct ipt_entry *next = ipt_next_entry(e);
+				next->comefrom = (void *)back - table_base;
+				/* set back pointer to next entry */
+				back = next;
+			}
 
-		no_match:
-			e = ipt_next_entry(e);
+			e = get_entry(table_base, v);
+		} else {
+			/* Targets which reenter must return
+			   abs. verdicts */
+			tgpar.target   = t->u.kernel.target;
+			tgpar.targinfo = t->data;
+#ifdef CONFIG_NETFILTER_DEBUG
+			((struct ipt_entry *)table_base)->comefrom
+				= 0xeeeeeeec;
+#endif
+			verdict = t->u.kernel.target->target(skb, &tgpar);
+#ifdef CONFIG_NETFILTER_DEBUG
+			if (((struct ipt_entry *)table_base)->comefrom
+			    != 0xeeeeeeec
+			    && verdict == IPT_CONTINUE) {
+				printk("Target %s reentered!\n",
+				       t->u.kernel.target->name);
+				verdict = NF_DROP;
+			}
+			((struct ipt_entry *)table_base)->comefrom
+				= 0x57acc001;
+#endif
+			/* Target might have changed stuff. */
+			ip = ip_hdr(skb);
+			datalen = skb->len - ip->ihl * 4;
+
+			if (verdict == IPT_CONTINUE)
+				e = ipt_next_entry(e);
+			else
+				/* Verdict */
+				break;
 		}
 	} while (!hotdrop);
 	xt_info_rdunlock_bh();
