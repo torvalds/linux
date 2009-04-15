@@ -101,21 +101,23 @@ void gfs2_dinode_print(const struct gfs2_inode *ip);
 extern const struct inode_operations gfs2_file_iops;
 extern const struct inode_operations gfs2_dir_iops;
 extern const struct inode_operations gfs2_symlink_iops;
-extern const struct file_operations *gfs2_file_fops_nolock;
-extern const struct file_operations *gfs2_dir_fops_nolock;
+extern const struct file_operations gfs2_file_fops_nolock;
+extern const struct file_operations gfs2_dir_fops_nolock;
 
 extern void gfs2_set_inode_flags(struct inode *inode);
  
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
-extern const struct file_operations *gfs2_file_fops;
-extern const struct file_operations *gfs2_dir_fops;
+extern const struct file_operations gfs2_file_fops;
+extern const struct file_operations gfs2_dir_fops;
+
 static inline int gfs2_localflocks(const struct gfs2_sbd *sdp)
 {
 	return sdp->sd_args.ar_localflocks;
 }
 #else /* Single node only */
-#define gfs2_file_fops NULL
-#define gfs2_dir_fops NULL
+#define gfs2_file_fops gfs2_file_fops_nolock
+#define gfs2_dir_fops gfs2_dir_fops_nolock
+
 static inline int gfs2_localflocks(const struct gfs2_sbd *sdp)
 {
 	return 1;
