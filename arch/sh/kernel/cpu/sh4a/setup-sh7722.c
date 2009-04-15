@@ -270,6 +270,16 @@ static int __init sh7722_devices_setup(void)
 }
 __initcall(sh7722_devices_setup);
 
+static struct platform_device *sh7722_early_devices[] __initdata = {
+	&cmt_device,
+};
+
+void __init plat_early_device_setup(void)
+{
+	early_platform_add_devices(sh7722_early_devices,
+				   ARRAY_SIZE(sh7722_early_devices));
+}
+
 enum {
 	UNUSED=0,
 
