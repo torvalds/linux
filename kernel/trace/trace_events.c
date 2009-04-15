@@ -8,10 +8,14 @@
  *
  */
 
+#include <linux/workqueue.h>
+#include <linux/spinlock.h>
+#include <linux/kthread.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
 
 #include "trace_output.h"
 
@@ -920,3 +924,177 @@ static __init int event_trace_init(void)
 	return 0;
 }
 fs_initcall(event_trace_init);
+
+#ifdef CONFIG_FTRACE_STARTUP_TEST
+
+static DEFINE_SPINLOCK(test_spinlock);
+static DEFINE_SPINLOCK(test_spinlock_irq);
+static DEFINE_MUTEX(test_mutex);
+
+static __init void test_work(struct work_struct *dummy)
+{
+	spin_lock(&test_spinlock);
+	spin_lock_irq(&test_spinlock_irq);
+	udelay(1);
+	spin_unlock_irq(&test_spinlock_irq);
+	spin_unlock(&test_spinlock);
+
+	mutex_lock(&test_mutex);
+	msleep(1);
+	mutex_unlock(&test_mutex);
+}
+
+static __init int event_test_thread(void *unused)
+{
+	void *test_malloc;
+
+	test_malloc = kmalloc(1234, GFP_KERNEL);
+	if (!test_malloc)
+		pr_info("failed to kmalloc\n");
+
+	schedule_on_each_cpu(test_work);
+
+	kfree(test_malloc);
+
+	set_current_state(TASK_INTERRUPTIBLE);
+	while (!kthread_should_stop())
+		schedule();
+
+	return 0;
+}
+
+/*
+ * Do various things that may trigger events.
+ */
+static __init void event_test_stuff(void)
+{
+	struct task_struct *test_thread;
+
+	test_thread = kthread_run(event_test_thread, NULL, "test-events");
+	msleep(1);
+	kthread_stop(test_thread);
+}
+
+/*
+ * For every trace event defined, we will test each trace point separately,
+ * and then by groups, and finally all trace points.
+ */
+static __init int event_trace_self_tests(void)
+{
+	struct ftrace_event_call *call;
+	struct event_subsystem *system;
+	char *sysname;
+	int ret;
+
+	pr_info("Running tests on trace events:\n");
+
+	list_for_each_entry(call, &ftrace_events, list) {
+
+		/* Only test those that have a regfunc */
+		if (!call->regfunc)
+			continue;
+
+		pr_info("Testing event %s: ", call->name);
+
+		/*
+		 * If an event is already enabled, someone is using
+		 * it and the self test should not be on.
+		 */
+		if (call->enabled) {
+			pr_warning("Enabled event during self test!\n");
+			WARN_ON_ONCE(1);
+			continue;
+		}
+
+		call->enabled = 1;
+		call->regfunc();
+
+		event_test_stuff();
+
+		call->unregfunc();
+		call->enabled = 0;
+
+		pr_cont("OK\n");
+	}
+
+	/* Now test at the sub system level */
+
+	pr_info("Running tests on trace event systems:\n");
+
+	list_for_each_entry(system, &event_subsystems, list) {
+
+		/* the ftrace system is special, skip it */
+		if (strcmp(system->name, "ftrace") == 0)
+			continue;
+
+		pr_info("Testing event system %s: ", system->name);
+
+		/* ftrace_set_clr_event can modify the name passed in. */
+		sysname = kstrdup(system->name, GFP_KERNEL);
+		if (WARN_ON(!sysname)) {
+			pr_warning("Can't allocate memory, giving up!\n");
+			return 0;
+		}
+		ret = ftrace_set_clr_event(sysname, 1);
+		kfree(sysname);
+		if (WARN_ON_ONCE(ret)) {
+			pr_warning("error enabling system %s\n",
+				   system->name);
+			continue;
+		}
+
+		event_test_stuff();
+
+		sysname = kstrdup(system->name, GFP_KERNEL);
+		if (WARN_ON(!sysname)) {
+			pr_warning("Can't allocate memory, giving up!\n");
+			return 0;
+		}
+		ret = ftrace_set_clr_event(sysname, 0);
+		kfree(sysname);
+
+		if (WARN_ON_ONCE(ret))
+			pr_warning("error disabling system %s\n",
+				   system->name);
+
+		pr_cont("OK\n");
+	}
+
+	/* Test with all events enabled */
+
+	pr_info("Running tests on all trace events:\n");
+	pr_info("Testing all events: ");
+
+	sysname = kmalloc(4, GFP_KERNEL);
+	if (WARN_ON(!sysname)) {
+		pr_warning("Can't allocate memory, giving up!\n");
+		return 0;
+	}
+	memcpy(sysname, "*:*", 4);
+	ret = ftrace_set_clr_event(sysname, 1);
+	if (WARN_ON_ONCE(ret)) {
+		kfree(sysname);
+		pr_warning("error enabling all events\n");
+		return 0;
+	}
+
+	event_test_stuff();
+
+	/* reset sysname */
+	memcpy(sysname, "*:*", 4);
+	ret = ftrace_set_clr_event(sysname, 0);
+	kfree(sysname);
+
+	if (WARN_ON_ONCE(ret)) {
+		pr_warning("error disabling all events\n");
+		return 0;
+	}
+
+	pr_cont("OK\n");
+
+	return 0;
+}
+
+late_initcall(event_trace_self_tests);
+
+#endif
