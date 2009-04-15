@@ -575,12 +575,15 @@ static char *string(char *buf, char *end, char *s, struct printf_spec spec)
 }
 
 static char *symbol_string(char *buf, char *end, void *ptr,
-				struct printf_spec spec)
+				struct printf_spec spec, char ext)
 {
 	unsigned long value = (unsigned long) ptr;
 #ifdef CONFIG_KALLSYMS
 	char sym[KSYM_SYMBOL_LEN];
-	sprint_symbol(sym, value);
+	if (ext != 'f')
+		sprint_symbol(sym, value);
+	else
+		kallsyms_lookup(value, NULL, NULL, NULL, sym);
 	return string(buf, end, sym, spec);
 #else
 	spec.field_width = 2*sizeof(void *);
@@ -692,7 +695,8 @@ static char *ip4_addr_string(char *buf, char *end, u8 *addr,
  *
  * Right now we handle:
  *
- * - 'F' For symbolic function descriptor pointers
+ * - 'F' For symbolic function descriptor pointers with offset
+ * - 'f' For simple symbolic function names without offset
  * - 'S' For symbolic direct pointers
  * - 'R' For a struct resource pointer, it prints the range of
  *       addresses (not the name nor the flags)
@@ -715,10 +719,11 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 
 	switch (*fmt) {
 	case 'F':
+	case 'f':
 		ptr = dereference_function_descriptor(ptr);
 		/* Fallthrough */
 	case 'S':
-		return symbol_string(buf, end, ptr, spec);
+		return symbol_string(buf, end, ptr, spec, *fmt);
 	case 'R':
 		return resource_string(buf, end, ptr, spec);
 	case 'm':
@@ -954,7 +959,8 @@ qualifier:
  *
  * This function follows C99 vsnprintf, but has some extensions:
  * %pS output the name of a text symbol
- * %pF output the name of a function pointer
+ * %pF output the name of a function pointer with its offset
+ * %pf output the name of a function pointer without its offset
  * %pR output the address range in a struct resource
  *
  * The return value is the number of characters which would
@@ -1412,7 +1418,8 @@ EXPORT_SYMBOL_GPL(vbin_printf);
  *
  * The format follows C99 vsnprintf, but has some extensions:
  * %pS output the name of a text symbol
- * %pF output the name of a function pointer
+ * %pF output the name of a function pointer with its offset
+ * %pf output the name of a function pointer without its offset
  * %pR output the address range in a struct resource
  * %n is ignored
  *
