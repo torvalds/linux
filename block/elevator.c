@@ -590,7 +590,7 @@ void elv_drain_elevator(struct request_queue *q)
 /*
  * Call with queue lock held, interrupts disabled
  */
-void elv_quisce_start(struct request_queue *q)
+void elv_quiesce_start(struct request_queue *q)
 {
 	queue_flag_set(QUEUE_FLAG_ELVSWITCH, q);
 
@@ -607,7 +607,7 @@ void elv_quisce_start(struct request_queue *q)
 	}
 }
 
-void elv_quisce_end(struct request_queue *q)
+void elv_quiesce_end(struct request_queue *q)
 {
 	queue_flag_clear(QUEUE_FLAG_ELVSWITCH, q);
 }
@@ -1126,7 +1126,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	 * Turn on BYPASS and drain all requests w/ elevator private data
 	 */
 	spin_lock_irq(q->queue_lock);
-	elv_quisce_start(q);
+	elv_quiesce_start(q);
 
 	/*
 	 * Remember old elevator.
@@ -1150,7 +1150,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	 */
 	elevator_exit(old_elevator);
 	spin_lock_irq(q->queue_lock);
-	elv_quisce_end(q);
+	elv_quiesce_end(q);
 	spin_unlock_irq(q->queue_lock);
 
 	blk_add_trace_msg(q, "elv switch: %s", e->elevator_type->elevator_name);
