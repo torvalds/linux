@@ -450,10 +450,19 @@ static struct amba_device uart3_device = {
 };
 
 
+static struct resource ep93xx_rtc_resource[] = {
+	{
+		.start		= EP93XX_RTC_PHYS_BASE,
+		.end		= EP93XX_RTC_PHYS_BASE + 0x10c - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
 static struct platform_device ep93xx_rtc_device = {
-       .name           = "ep93xx-rtc",
-       .id             = -1,
-       .num_resources  = 0,
+	.name		= "ep93xx-rtc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ep93xx_rtc_resource),
+	.resource	= ep93xx_rtc_resource,
 };
 
 
