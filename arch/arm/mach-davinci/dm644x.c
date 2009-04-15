@@ -485,6 +485,10 @@ static struct davinci_id dm644x_ids[] = {
 	},
 };
 
+static void __iomem *dm644x_psc_bases[] = {
+	IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE),
+};
+
 static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.io_desc		= dm644x_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm644x_io_desc),
@@ -492,6 +496,8 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.ids			= dm644x_ids,
 	.ids_num		= ARRAY_SIZE(dm644x_ids),
 	.cpu_clks		= dm644x_clks,
+	.psc_bases		= dm644x_psc_bases,
+	.psc_bases_num		= ARRAY_SIZE(dm644x_psc_bases),
 };
 
 void __init dm644x_init(void)

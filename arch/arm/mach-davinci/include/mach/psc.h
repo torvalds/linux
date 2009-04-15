@@ -27,6 +27,8 @@
 #ifndef __ASM_ARCH_PSC_H
 #define __ASM_ARCH_PSC_H
 
+#define	DAVINCI_PWR_SLEEP_CNTRL_BASE	0x01C41000
+
 /* Power and Sleep Controller (PSC) Domains */
 #define DAVINCI_GPSC_ARMDOMAIN      0
 #define DAVINCI_GPSC_DSPDOMAIN      1
@@ -116,8 +118,8 @@
 #define DM646X_LPSC_TIMER1         35
 #define DM646X_LPSC_ARM_INTC       45
 
-extern int davinci_psc_is_clk_active(unsigned int id);
-extern void davinci_psc_config(unsigned int domain, unsigned int id,
-			       char enable);
+extern int davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id);
+extern void davinci_psc_config(unsigned int domain, unsigned int ctlr,
+		unsigned int id, char enable);
 
 #endif /* __ASM_ARCH_PSC_H */

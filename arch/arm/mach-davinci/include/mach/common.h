@@ -34,6 +34,8 @@ struct davinci_soc_info {
 	struct davinci_id		*ids;
 	unsigned long			ids_num;
 	struct davinci_clk		*cpu_clks;
+	void __iomem			**psc_bases;
+	unsigned long			psc_bases_num;
 };
 
 extern struct davinci_soc_info davinci_soc_info;
