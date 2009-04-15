@@ -936,7 +936,7 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 		sl = min(sl, msecs_to_jiffies(CFQ_MIN_TT));
 
 	mod_timer(&cfqd->idle_slice_timer, jiffies + sl);
-	cfq_log(cfqd, "arm_idle: %lu", sl);
+	cfq_log_cfqq(cfqd, cfqq, "arm_idle: %lu", sl);
 }
 
 /*
