@@ -388,7 +388,6 @@ MUX_CFG(DM644X, LOEEN,		0,   24,    1,	  1,	 true)
 MUX_CFG(DM644X, LFLDEN,		0,   25,    1,	  1,	 false)
 };
 
-
 /*----------------------------------------------------------------------*/
 
 static const s8 dma_chan_dm644x_no_event[] = {
@@ -475,9 +474,23 @@ static struct map_desc dm644x_io_desc[] = {
 	},
 };
 
+/* Contents of JTAG ID register used to identify exact cpu type */
+static struct davinci_id dm644x_ids[] = {
+	{
+		.variant	= 0x0,
+		.part_no	= 0xb700,
+		.manufacturer	= 0x017,
+		.cpu_id		= DAVINCI_CPU_ID_DM6446,
+		.name		= "dm6446",
+	},
+};
+
 static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.io_desc		= dm644x_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm644x_io_desc),
+	.jtag_id_base		= IO_ADDRESS(0x01c40028),
+	.ids			= dm644x_ids,
+	.ids_num		= ARRAY_SIZE(dm644x_ids),
 };
 
 void __init dm644x_init(void)

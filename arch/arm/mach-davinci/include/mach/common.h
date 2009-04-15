@@ -28,11 +28,15 @@ extern void setup_usb(unsigned mA, unsigned potpgt_msec);
 struct davinci_soc_info {
 	struct map_desc			*io_desc;
 	unsigned long			io_desc_num;
+	u32				cpu_id;
+	u32				jtag_id;
+	void __iomem			*jtag_id_base;
+	struct davinci_id		*ids;
+	unsigned long			ids_num;
 };
 
 extern struct davinci_soc_info davinci_soc_info;
 
 extern void davinci_common_init(struct davinci_soc_info *soc_info);
-extern void davinci_check_revision(void);
 
 #endif /* __ARCH_ARM_MACH_DAVINCI_COMMON_H */

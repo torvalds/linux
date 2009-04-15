@@ -454,9 +454,23 @@ static struct map_desc dm646x_io_desc[] = {
 	},
 };
 
+/* Contents of JTAG ID register used to identify exact cpu type */
+static struct davinci_id dm646x_ids[] = {
+	{
+		.variant	= 0x0,
+		.part_no	= 0xb770,
+		.manufacturer	= 0x017,
+		.cpu_id		= DAVINCI_CPU_ID_DM6467,
+		.name		= "dm6467",
+	},
+};
+
 static struct davinci_soc_info davinci_soc_info_dm646x = {
 	.io_desc		= dm646x_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm646x_io_desc),
+	.jtag_id_base		= IO_ADDRESS(0x01c40028),
+	.ids			= dm646x_ids,
+	.ids_num		= ARRAY_SIZE(dm646x_ids),
 };
 
 void __init dm646x_init(void)
