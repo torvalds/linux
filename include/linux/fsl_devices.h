@@ -43,10 +43,6 @@
  *
  */
 
-/* Flags related to I2C device features */
-#define FSL_I2C_DEV_SEPARATE_DFSRR	0x00000001
-#define FSL_I2C_DEV_CLOCK_5200		0x00000002
-
 enum fsl_usb2_operating_modes {
 	FSL_USB2_MPH_HOST,
 	FSL_USB2_DR_HOST,
