@@ -27,8 +27,6 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/hardware.h>
 #include <mach/magician.h>
 #include <asm/mach-types.h>
 #include "../codecs/uda1380.h"
