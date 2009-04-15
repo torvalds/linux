@@ -2271,6 +2271,21 @@ static int sb1250_change_mtu(struct net_device *_dev, int new_mtu)
 	return 0;
 }
 
+static const struct net_device_ops sbmac_netdev_ops = {
+	.ndo_open		= sbmac_open,
+	.ndo_stop		= sbmac_close,
+	.ndo_start_xmit		= sbmac_start_tx,
+	.ndo_set_multicast_list	= sbmac_set_rx_mode,
+	.ndo_tx_timeout		= sbmac_tx_timeout,
+	.ndo_do_ioctl		= sbmac_mii_ioctl,
+	.ndo_change_mtu		= sb1250_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= sbmac_netpoll,
+#endif
+};
+
 /**********************************************************************
  *  SBMAC_INIT(dev)
  *
@@ -2327,20 +2342,10 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 
 	spin_lock_init(&(sc->sbm_lock));
 
-	dev->open               = sbmac_open;
-	dev->hard_start_xmit    = sbmac_start_tx;
-	dev->stop               = sbmac_close;
-	dev->set_multicast_list = sbmac_set_rx_mode;
-	dev->do_ioctl           = sbmac_mii_ioctl;
-	dev->tx_timeout         = sbmac_tx_timeout;
-	dev->watchdog_timeo     = TX_TIMEOUT;
+	dev->netdev_ops = &sbmac_netdev_ops;
+	dev->watchdog_timeo = TX_TIMEOUT;
 
 	netif_napi_add(dev, &sc->napi, sbmac_poll, 16);
-
-	dev->change_mtu         = sb1250_change_mtu;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = sbmac_netpoll;
-#endif
 
 	dev->irq		= UNIT_INT(idx);
 
