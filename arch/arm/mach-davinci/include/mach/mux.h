@@ -19,16 +19,6 @@
 #ifndef __INC_MACH_MUX_H
 #define __INC_MACH_MUX_H
 
-/* System module registers */
-#define PINMUX0			0x00
-#define PINMUX1			0x04
-/* dm355 only */
-#define PINMUX2			0x08
-#define PINMUX3			0x0c
-#define PINMUX4			0x10
-#define INTMUX			0x18
-#define EVTMUX			0x1c
-
 struct mux_config {
 	const char *name;
 	const char *mux_reg_name;

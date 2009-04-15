@@ -123,7 +123,7 @@ static char *id_to_name[] = {
 static int timer32_config(struct timer_s *t)
 {
 	u32 tcr;
-	struct davinci_soc_info *soc_info = davinci_get_soc_info();
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	if (USING_COMPARE(t)) {
 		struct davinci_timer_instance *dtip =
