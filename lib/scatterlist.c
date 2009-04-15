@@ -347,9 +347,12 @@ bool sg_miter_next(struct sg_mapping_iter *miter)
 	sg_miter_stop(miter);
 
 	/* get to the next sg if necessary.  __offset is adjusted by stop */
-	if (miter->__offset == miter->__sg->length && --miter->__nents) {
-		miter->__sg = sg_next(miter->__sg);
-		miter->__offset = 0;
+	while (miter->__offset == miter->__sg->length) {
+		if (--miter->__nents) {
+			miter->__sg = sg_next(miter->__sg);
+			miter->__offset = 0;
+		} else
+			return false;
 	}
 
 	/* map the next page */
