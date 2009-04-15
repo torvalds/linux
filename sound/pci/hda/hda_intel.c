@@ -312,7 +312,6 @@ struct azx_dev {
 	unsigned int period_bytes; /* size of the period in bytes */
 	unsigned int frags;	/* number for period in the play buffer */
 	unsigned int fifo_size;	/* FIFO size */
-	unsigned int start_flag: 1;	/* stream full start flag */
 	unsigned long start_jiffies;	/* start + minimum jiffies */
 	unsigned long min_jiffies;	/* minimum jiffies before position is valid */
 
@@ -333,6 +332,7 @@ struct azx_dev {
 	unsigned int opened :1;
 	unsigned int running :1;
 	unsigned int irq_pending :1;
+	unsigned int start_flag: 1;	/* stream full start flag */
 	/*
 	 * For VIA:
 	 *  A flag to ensure DMA position is 0
