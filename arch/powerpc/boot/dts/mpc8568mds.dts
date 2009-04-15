@@ -459,7 +459,6 @@
 	};
 
 	pci0: pci@e0008000 {
-		cell-index = <0>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 			/* IDSEL 0x12 AD18 */
@@ -490,7 +489,6 @@
 
 	/* PCI Express */
 	pci1: pcie@e000a000 {
-		cell-index = <2>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 

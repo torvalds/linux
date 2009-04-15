@@ -316,7 +316,6 @@
 	};
 
 	pci0: pci@e0008000 {
-		cell-index = <0>;
 		compatible = "fsl,mpc8610-pci";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -346,7 +345,6 @@
 	};
 
 	pci1: pcie@e000a000 {
-		cell-index = <1>;
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;

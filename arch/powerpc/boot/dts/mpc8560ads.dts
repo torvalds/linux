@@ -291,7 +291,6 @@
 	};
 
 	pci0: pci@e0008000 {
-		cell-index = <0>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;

@@ -272,7 +272,6 @@
 	};
 
 	pci0: pci@e0008000 {
-		cell-index = <0>;
 		interrupt-map-mask = <0x1f800 0x0 0x0 0x7>;
 		interrupt-map = <
 
@@ -344,7 +343,6 @@
 	};
 
 	pci1: pci@e0009000 {
-		cell-index = <1>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 

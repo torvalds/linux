@@ -371,7 +371,6 @@
 	};
 
 	pci0: pcie@f8008000 {
-		cell-index = <0>;
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -410,7 +409,6 @@
 	};
 
 	pci1: pcie@f8009000 {
-		cell-index = <1>;
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;

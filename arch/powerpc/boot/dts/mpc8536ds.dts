@@ -321,7 +321,6 @@
 	};
 
 	pci0: pci@ffe08000 {
-		cell-index = <0>;
 		compatible = "fsl,mpc8540-pci";
 		device_type = "pci";
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
@@ -346,7 +345,6 @@
 	};
 
 	pci1: pcie@ffe09000 {
-		cell-index = <1>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -383,7 +381,6 @@
 	};
 
 	pci2: pcie@ffe0a000 {
-		cell-index = <2>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -420,7 +417,6 @@
 	};
 
 	pci3: pcie@ffe0b000 {
-		cell-index = <3>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;

@@ -419,7 +419,6 @@
 	};
 
 	pci0: pci@a0008000 {
-		cell-index = <0>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
@@ -441,7 +440,6 @@
 	};
 
 	pci1: pcie@a000a000 {
-		cell-index = <2>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 			/* IDSEL 0x0 (PEX) */
