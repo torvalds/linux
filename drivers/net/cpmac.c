@@ -1093,6 +1093,19 @@ static int cpmac_stop(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops cpmac_netdev_ops = {
+	.ndo_open		= cpmac_open,
+	.ndo_stop		= cpmac_stop,
+	.ndo_start_xmit		= cpmac_start_xmit,
+	.ndo_tx_timeout		= cpmac_tx_timeout,
+	.ndo_set_multicast_list	= cpmac_set_multicast_list,
+	.ndo_so_ioctl		= cpmac_ioctl,
+	.ndo_set_config		= cpmac_config,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
 static int external_switch;
 
 static int __devinit cpmac_probe(struct platform_device *pdev)
@@ -1143,14 +1156,8 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 
 	dev->irq = platform_get_irq_byname(pdev, "irq");
 
-	dev->open               = cpmac_open;
-	dev->stop               = cpmac_stop;
-	dev->set_config         = cpmac_config;
-	dev->hard_start_xmit    = cpmac_start_xmit;
-	dev->do_ioctl           = cpmac_ioctl;
-	dev->set_multicast_list = cpmac_set_multicast_list;
-	dev->tx_timeout         = cpmac_tx_timeout;
-	dev->ethtool_ops        = &cpmac_ethtool_ops;
+	dev->netdev_ops = &cpmac_netdev_ops;
+	dev->ethtool_ops = &cpmac_ethtool_ops;
 
 	netif_napi_add(dev, &priv->napi, cpmac_poll, 64);
 
