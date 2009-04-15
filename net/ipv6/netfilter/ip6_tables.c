@@ -431,35 +431,33 @@ ip6t_do_table(struct sk_buff *skb,
 			}
 
 			e = get_entry(table_base, v);
-		} else {
-			/* Targets which reenter must return
-			   abs. verdicts */
-			tgpar.target   = t->u.kernel.target;
-			tgpar.targinfo = t->data;
-
-#ifdef CONFIG_NETFILTER_DEBUG
-			((struct ip6t_entry *)table_base)->comefrom
-				= 0xeeeeeeec;
-#endif
-			verdict = t->u.kernel.target->target(skb, &tgpar);
-
-#ifdef CONFIG_NETFILTER_DEBUG
-			if (((struct ip6t_entry *)table_base)->comefrom
-			    != 0xeeeeeeec
-			    && verdict == IP6T_CONTINUE) {
-				printk("Target %s reentered!\n",
-				       t->u.kernel.target->name);
-				verdict = NF_DROP;
-			}
-			((struct ip6t_entry *)table_base)->comefrom
-				= 0x57acc001;
-#endif
-			if (verdict == IP6T_CONTINUE)
-				e = ip6t_next_entry(e);
-			else
-				/* Verdict */
-				break;
+			continue;
 		}
+
+		/* Targets which reenter must return
+		   abs. verdicts */
+		tgpar.target   = t->u.kernel.target;
+		tgpar.targinfo = t->data;
+
+#ifdef CONFIG_NETFILTER_DEBUG
+		((struct ip6t_entry *)table_base)->comefrom = 0xeeeeeeec;
+#endif
+		verdict = t->u.kernel.target->target(skb, &tgpar);
+
+#ifdef CONFIG_NETFILTER_DEBUG
+		if (((struct ip6t_entry *)table_base)->comefrom != 0xeeeeeeec &&
+		    verdict == IP6T_CONTINUE) {
+			printk("Target %s reentered!\n",
+			       t->u.kernel.target->name);
+			verdict = NF_DROP;
+		}
+		((struct ip6t_entry *)table_base)->comefrom = 0x57acc001;
+#endif
+		if (verdict == IP6T_CONTINUE)
+			e = ip6t_next_entry(e);
+		else
+			/* Verdict */
+			break;
 	} while (!hotdrop);
 
 #ifdef CONFIG_NETFILTER_DEBUG

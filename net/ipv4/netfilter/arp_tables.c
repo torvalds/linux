@@ -313,23 +313,24 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 			}
 
 			e = get_entry(table_base, v);
-		} else {
-			/* Targets which reenter must return
-			 * abs. verdicts
-			 */
-			tgpar.target   = t->u.kernel.target;
-			tgpar.targinfo = t->data;
-			verdict = t->u.kernel.target->target(skb, &tgpar);
-
-			/* Target might have changed stuff. */
-			arp = arp_hdr(skb);
-
-			if (verdict == ARPT_CONTINUE)
-				e = arpt_next_entry(e);
-			else
-				/* Verdict */
-				break;
+			continue;
 		}
+
+		/* Targets which reenter must return
+		 * abs. verdicts
+		 */
+		tgpar.target   = t->u.kernel.target;
+		tgpar.targinfo = t->data;
+		verdict = t->u.kernel.target->target(skb, &tgpar);
+
+		/* Target might have changed stuff. */
+		arp = arp_hdr(skb);
+
+		if (verdict == ARPT_CONTINUE)
+			e = arpt_next_entry(e);
+		else
+			/* Verdict */
+			break;
 	} while (!hotdrop);
 	xt_info_rdunlock_bh();
 

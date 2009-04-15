@@ -402,37 +402,35 @@ ipt_do_table(struct sk_buff *skb,
 			}
 
 			e = get_entry(table_base, v);
-		} else {
-			/* Targets which reenter must return
-			   abs. verdicts */
-			tgpar.target   = t->u.kernel.target;
-			tgpar.targinfo = t->data;
-#ifdef CONFIG_NETFILTER_DEBUG
-			((struct ipt_entry *)table_base)->comefrom
-				= 0xeeeeeeec;
-#endif
-			verdict = t->u.kernel.target->target(skb, &tgpar);
-#ifdef CONFIG_NETFILTER_DEBUG
-			if (((struct ipt_entry *)table_base)->comefrom
-			    != 0xeeeeeeec
-			    && verdict == IPT_CONTINUE) {
-				printk("Target %s reentered!\n",
-				       t->u.kernel.target->name);
-				verdict = NF_DROP;
-			}
-			((struct ipt_entry *)table_base)->comefrom
-				= 0x57acc001;
-#endif
-			/* Target might have changed stuff. */
-			ip = ip_hdr(skb);
-			datalen = skb->len - ip->ihl * 4;
-
-			if (verdict == IPT_CONTINUE)
-				e = ipt_next_entry(e);
-			else
-				/* Verdict */
-				break;
+			continue;
 		}
+
+		/* Targets which reenter must return
+		   abs. verdicts */
+		tgpar.target   = t->u.kernel.target;
+		tgpar.targinfo = t->data;
+#ifdef CONFIG_NETFILTER_DEBUG
+		((struct ipt_entry *)table_base)->comefrom = 0xeeeeeeec;
+#endif
+		verdict = t->u.kernel.target->target(skb, &tgpar);
+#ifdef CONFIG_NETFILTER_DEBUG
+		if (((struct ipt_entry *)table_base)->comefrom != 0xeeeeeeec &&
+		    verdict == IPT_CONTINUE) {
+			printk("Target %s reentered!\n",
+			       t->u.kernel.target->name);
+			verdict = NF_DROP;
+		}
+		((struct ipt_entry *)table_base)->comefrom = 0x57acc001;
+#endif
+		/* Target might have changed stuff. */
+		ip = ip_hdr(skb);
+		datalen = skb->len - ip->ihl * 4;
+
+		if (verdict == IPT_CONTINUE)
+			e = ipt_next_entry(e);
+		else
+			/* Verdict */
+			break;
 	} while (!hotdrop);
 	xt_info_rdunlock_bh();
 
