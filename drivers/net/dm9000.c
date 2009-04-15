@@ -1170,6 +1170,21 @@ dm9000_stop(struct net_device *ndev)
 	return 0;
 }
 
+static const struct net_device_ops dm9000_netdev_ops = {
+	.ndo_open		= dm9000_open,
+	.ndo_stop		= dm9000_stop,
+	.ndo_start_xmit		= dm9000_start_xmit,
+	.ndo_tx_timeout		= dm9000_timeout,
+	.ndo_set_multicast_list	= dm9000_hash_table,
+	.ndo_do_ioctl		= dm9000_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= dm9000_poll_controller,
+#endif
+};
+
 #define res_size(_r) (((_r)->end - (_r)->start) + 1)
 
 /*
@@ -1339,18 +1354,9 @@ dm9000_probe(struct platform_device *pdev)
 	/* driver system function */
 	ether_setup(ndev);
 
-	ndev->open		 = &dm9000_open;
-	ndev->hard_start_xmit    = &dm9000_start_xmit;
-	ndev->tx_timeout         = &dm9000_timeout;
-	ndev->watchdog_timeo = msecs_to_jiffies(watchdog);
-	ndev->stop		 = &dm9000_stop;
-	ndev->set_multicast_list = &dm9000_hash_table;
-	ndev->ethtool_ops	 = &dm9000_ethtool_ops;
-	ndev->do_ioctl		 = &dm9000_ioctl;
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	ndev->poll_controller	 = &dm9000_poll_controller;
-#endif
+	ndev->netdev_ops	= &dm9000_netdev_ops;
+	ndev->watchdog_timeo	= msecs_to_jiffies(watchdog);
+	ndev->ethtool_ops	= &dm9000_ethtool_ops;
 
 	db->msg_enable       = NETIF_MSG_LINK;
 	db->mii.phy_id_mask  = 0x1f;
