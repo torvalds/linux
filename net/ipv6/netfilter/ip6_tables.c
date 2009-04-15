@@ -343,6 +343,8 @@ ip6t_do_table(struct sk_buff *skb,
 	      const struct net_device *out,
 	      struct xt_table *table)
 {
+#define tb_comefrom ((struct ip6t_entry *)table_base)->comefrom
+
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	bool hotdrop = false;
 	/* Initializing verdict to NF_DROP keeps gcc happy. */
@@ -440,18 +442,17 @@ ip6t_do_table(struct sk_buff *skb,
 		tgpar.targinfo = t->data;
 
 #ifdef CONFIG_NETFILTER_DEBUG
-		((struct ip6t_entry *)table_base)->comefrom = 0xeeeeeeec;
+		tb_comefrom = 0xeeeeeeec;
 #endif
 		verdict = t->u.kernel.target->target(skb, &tgpar);
 
 #ifdef CONFIG_NETFILTER_DEBUG
-		if (((struct ip6t_entry *)table_base)->comefrom != 0xeeeeeeec &&
-		    verdict == IP6T_CONTINUE) {
+		if (tb_comefrom != 0xeeeeeeec && verdict == IP6T_CONTINUE) {
 			printk("Target %s reentered!\n",
 			       t->u.kernel.target->name);
 			verdict = NF_DROP;
 		}
-		((struct ip6t_entry *)table_base)->comefrom = 0x57acc001;
+		tb_comefrom = 0x57acc001;
 #endif
 		if (verdict == IP6T_CONTINUE)
 			e = ip6t_next_entry(e);
@@ -461,7 +462,7 @@ ip6t_do_table(struct sk_buff *skb,
 	} while (!hotdrop);
 
 #ifdef CONFIG_NETFILTER_DEBUG
-	((struct ip6t_entry *)table_base)->comefrom = NETFILTER_LINK_POISON;
+	tb_comefrom = NETFILTER_LINK_POISON;
 #endif
 	xt_info_rdunlock_bh();
 
@@ -472,6 +473,8 @@ ip6t_do_table(struct sk_buff *skb,
 		return NF_DROP;
 	else return verdict;
 #endif
+
+#undef tb_comefrom
 }
 
 /* Figures out from what hook each rule can be called: returns 0 if

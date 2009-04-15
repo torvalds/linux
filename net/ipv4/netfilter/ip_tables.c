@@ -311,6 +311,8 @@ ipt_do_table(struct sk_buff *skb,
 	     const struct net_device *out,
 	     struct xt_table *table)
 {
+#define tb_comefrom ((struct ipt_entry *)table_base)->comefrom
+
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	const struct iphdr *ip;
 	u_int16_t datalen;
@@ -409,18 +411,19 @@ ipt_do_table(struct sk_buff *skb,
 		   abs. verdicts */
 		tgpar.target   = t->u.kernel.target;
 		tgpar.targinfo = t->data;
+
+
 #ifdef CONFIG_NETFILTER_DEBUG
-		((struct ipt_entry *)table_base)->comefrom = 0xeeeeeeec;
+		tb_comefrom = 0xeeeeeeec;
 #endif
 		verdict = t->u.kernel.target->target(skb, &tgpar);
 #ifdef CONFIG_NETFILTER_DEBUG
-		if (((struct ipt_entry *)table_base)->comefrom != 0xeeeeeeec &&
-		    verdict == IPT_CONTINUE) {
+		if (comefrom != 0xeeeeeeec && verdict == IPT_CONTINUE) {
 			printk("Target %s reentered!\n",
 			       t->u.kernel.target->name);
 			verdict = NF_DROP;
 		}
-		((struct ipt_entry *)table_base)->comefrom = 0x57acc001;
+		tb_comefrom = 0x57acc001;
 #endif
 		/* Target might have changed stuff. */
 		ip = ip_hdr(skb);
@@ -441,6 +444,8 @@ ipt_do_table(struct sk_buff *skb,
 		return NF_DROP;
 	else return verdict;
 #endif
+
+#undef tb_comefrom
 }
 
 /* Figures out from what hook each rule can be called: returns 0 if
