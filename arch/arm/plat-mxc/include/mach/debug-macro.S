@@ -25,6 +25,9 @@
 #ifdef CONFIG_MACH_MX27ADS
 #include <mach/board-mx27ads.h>
 #endif
+#ifdef CONFIG_MACH_MX21ADS
+#include <mach/board-mx21ads.h>
+#endif
 #ifdef CONFIG_MACH_PCM038
 #include <mach/board-pcm038.h>
 #endif
