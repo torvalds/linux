@@ -51,6 +51,7 @@
  * - Gadget API (majority of optional features)
  * - Suspend & Remote Wakeup
  */
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
