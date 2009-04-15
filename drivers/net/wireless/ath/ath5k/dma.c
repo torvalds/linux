@@ -80,8 +80,6 @@ int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah)
  * ath5k_hw_get_rxdp - Get RX Descriptor's address
  *
  * @ah: The &struct ath5k_hw
- *
- * XXX: Is RXDP read and clear ?
  */
 u32 ath5k_hw_get_rxdp(struct ath5k_hw *ah)
 {

@@ -1780,7 +1780,7 @@ ath5k_tasklet_rx(unsigned long data)
 	struct sk_buff *skb, *next_skb;
 	dma_addr_t next_skb_addr;
 	struct ath5k_softc *sc = (void *)data;
-	struct ath5k_buf *bf, *bf_last;
+	struct ath5k_buf *bf;
 	struct ath5k_desc *ds;
 	int ret;
 	int hdrlen;
@@ -1791,7 +1791,6 @@ ath5k_tasklet_rx(unsigned long data)
 		ATH5K_WARN(sc, "empty rx buf pool\n");
 		goto unlock;
 	}
-	bf_last = list_entry(sc->rxbuf.prev, struct ath5k_buf, list);
 	do {
 		rxs.flag = 0;
 
@@ -1800,24 +1799,9 @@ ath5k_tasklet_rx(unsigned long data)
 		skb = bf->skb;
 		ds = bf->desc;
 
-		/*
-		 * last buffer must not be freed to ensure proper hardware
-		 * function. When the hardware finishes also a packet next to
-		 * it, we are sure, it doesn't use it anymore and we can go on.
-		 */
-		if (bf_last == bf)
-			bf->flags |= 1;
-		if (bf->flags) {
-			struct ath5k_buf *bf_next = list_entry(bf->list.next,
-					struct ath5k_buf, list);
-			ret = sc->ah->ah_proc_rx_desc(sc->ah, bf_next->desc,
-					&rs);
-			if (ret)
-				break;
-			bf->flags &= ~1;
-			/* skip the overwritten one (even status is martian) */
-			goto next;
-		}
+		/* bail if HW is still using self-linked descriptor */
+		if (ath5k_hw_get_rxdp(sc->ah) == bf->daddr)
+			break;
 
 		ret = sc->ah->ah_proc_rx_desc(sc->ah, ds, &rs);
 		if (unlikely(ret == -EINPROGRESS))
