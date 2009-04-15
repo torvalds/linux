@@ -377,41 +377,8 @@ fec_timeout(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 
-	printk("%s: transmit timed out.\n", dev->name);
 	dev->stats.tx_errors++;
-#ifndef final_version
-	{
-	int	i;
-	struct bufdesc *bdp;
 
-	printk("Ring data dump: cur_tx %lx%s, dirty_tx %lx cur_rx: %lx\n",
-	       (unsigned long)fep->cur_tx, fep->tx_full ? " (full)" : "",
-	       (unsigned long)fep->dirty_tx,
-	       (unsigned long)fep->cur_rx);
-
-	bdp = fep->tx_bd_base;
-	printk(" tx: %u buffers\n",  TX_RING_SIZE);
-	for (i = 0 ; i < TX_RING_SIZE; i++) {
-		printk("  %08x: %04x %04x %08x\n",
-		       (uint) bdp,
-		       bdp->cbd_sc,
-		       bdp->cbd_datlen,
-		       (int) bdp->cbd_bufaddr);
-		bdp++;
-	}
-
-	bdp = fep->rx_bd_base;
-	printk(" rx: %lu buffers\n",  (unsigned long) RX_RING_SIZE);
-	for (i = 0 ; i < RX_RING_SIZE; i++) {
-		printk("  %08x: %04x %04x %08x\n",
-		       (uint) bdp,
-		       bdp->cbd_sc,
-		       bdp->cbd_datlen,
-		       (int) bdp->cbd_bufaddr);
-		bdp++;
-	}
-	}
-#endif
 	fec_restart(dev, fep->full_duplex);
 	netif_wake_queue(dev);
 }
