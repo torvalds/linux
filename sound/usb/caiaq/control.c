@@ -18,17 +18,13 @@
  */
 
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/usb.h>
-#include <sound/core.h>
-#include <sound/initval.h>
-#include <sound/pcm.h>
-#include <sound/rawmidi.h>
 #include <sound/control.h>
-#include <linux/input.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
 
-#include "caiaq-device.h"
-#include "caiaq-control.h"
+#include "device.h"
+#include "control.h"
 
 #define CNT_INTVAL 0x10000
 
