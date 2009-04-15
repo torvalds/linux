@@ -226,13 +226,22 @@ static struct regulator_init_data wm8350_dcdc4_data = {
 };
 
 /* ARM core */
+static struct regulator_consumer_supply dcdc6_consumers[] = {
+	{
+		.supply = "vddarm",
+	}
+};
+
 static struct regulator_init_data wm8350_dcdc6_data = {
 	.constraints = {
 		.name = "PVDD_ARM",
 		.min_uV = 1000000,
 		.max_uV = 1300000,
 		.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
 	},
+	.num_consumer_supplies = ARRAY_SIZE(dcdc6_consumers),
+	.consumer_supplies = dcdc6_consumers,
 };
 
 /* Alive */
