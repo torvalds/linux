@@ -1905,10 +1905,13 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 * of tiny requests, because we disrupt the normal plugging
 		 * and merging. If the request is already larger than a single
 		 * page, let it rip immediately. For that case we assume that
-		 * merging is already done.
+		 * merging is already done. Ditto for a busy system that
+		 * has other work pending, don't risk delaying until the
+		 * idle timer unplug to continue working.
 		 */
 		if (cfq_cfqq_wait_request(cfqq)) {
-			if (blk_rq_bytes(rq) > PAGE_CACHE_SIZE) {
+			if (blk_rq_bytes(rq) > PAGE_CACHE_SIZE ||
+			    cfqd->busy_queues > 1) {
 				del_timer(&cfqd->idle_slice_timer);
 				blk_start_queueing(cfqd->queue);
 			}
