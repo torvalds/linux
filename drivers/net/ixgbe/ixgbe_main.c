@@ -4342,7 +4342,7 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	int count = 0;
 	unsigned int f;
 
-	r_idx = (adapter->num_tx_queues - 1) & skb->queue_mapping;
+	r_idx = skb->queue_mapping;
 	tx_ring = &adapter->tx_ring[r_idx];
 
 	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
