@@ -2496,7 +2496,7 @@ ath5k_intr(int irq, void *dev_id)
 			tasklet_schedule(&sc->restq);
 		} else {
 			if (status & AR5K_INT_SWBA) {
-				tasklet_schedule(&sc->beacontq);
+				tasklet_hi_schedule(&sc->beacontq);
 			}
 			if (status & AR5K_INT_RXEOL) {
 				/*
