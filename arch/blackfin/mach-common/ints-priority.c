@@ -1116,6 +1116,9 @@ int __init init_arch_irq(void)
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
+	/* This implicitly covers ANOMALY_05000171
+	 * Boot-ROM code modifies SICA_IWRx wakeup registers
+	 */
 #ifdef SIC_IWR0
 	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
 # ifdef SIC_IWR1
