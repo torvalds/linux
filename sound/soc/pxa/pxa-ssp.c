@@ -806,6 +806,7 @@ static int pxa_ssp_probe(struct platform_device *pdev,
 		goto err_priv;
 	}
 
+	priv->dai_fmt = (unsigned int) -1;
 	dai->private_data = priv;
 
 	return 0;
