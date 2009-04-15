@@ -2157,11 +2157,10 @@ static void cfq_kick_queue(struct work_struct *work)
 	struct cfq_data *cfqd =
 		container_of(work, struct cfq_data, unplug_work);
 	struct request_queue *q = cfqd->queue;
-	unsigned long flags;
 
-	spin_lock_irqsave(q->queue_lock, flags);
+	spin_lock_irq(q->queue_lock);
 	blk_start_queueing(q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	spin_unlock_irq(q->queue_lock);
 }
 
 /*
