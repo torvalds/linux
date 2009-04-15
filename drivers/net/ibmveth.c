@@ -1203,6 +1203,20 @@ static unsigned long ibmveth_get_desired_dma(struct vio_dev *vdev)
 	return ret;
 }
 
+static const struct net_device_ops ibmveth_netdev_ops = {
+	.ndo_open		= ibmveth_open,
+	.ndo_stop		= ibmveth_close,
+	.ndo_start_xmit		= ibmveth_start_xmit,
+	.ndo_set_multicast_list	= ibmveth_set_multicast_list,
+	.ndo_do_ioctl		= ibmveth_ioctl,
+	.ndo_change_mtu		= ibmveth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ibmveth_poll_controller,
+#endif
+};
+
 static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
 	int rc, i;
@@ -1265,17 +1279,9 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	memcpy(&adapter->mac_addr, mac_addr_p, 6);
 
 	netdev->irq = dev->irq;
-	netdev->open               = ibmveth_open;
-	netdev->stop               = ibmveth_close;
-	netdev->hard_start_xmit    = ibmveth_start_xmit;
-	netdev->set_multicast_list = ibmveth_set_multicast_list;
-	netdev->do_ioctl           = ibmveth_ioctl;
-	netdev->ethtool_ops           = &netdev_ethtool_ops;
-	netdev->change_mtu         = ibmveth_change_mtu;
+	netdev->netdev_ops = &ibmveth_netdev_ops;
+	netdev->ethtool_ops = &netdev_ethtool_ops;
 	SET_NETDEV_DEV(netdev, &dev->dev);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = ibmveth_poll_controller;
-#endif
  	netdev->features |= NETIF_F_LLTX;
 	spin_lock_init(&adapter->stats_lock);
 
