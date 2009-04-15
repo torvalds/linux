@@ -1,5 +1,8 @@
 if ARCH_DAVINCI
 
+config AINTC
+	bool
+
 config CP_INTC
 	bool
 
@@ -9,12 +12,15 @@ comment "DaVinci Core Type"
 
 config ARCH_DAVINCI_DM644x
 	bool "DaVinci 644x based system"
+	select AINTC
 
 config ARCH_DAVINCI_DM355
         bool "DaVinci 355 based system"
+	select AINTC
 
 config ARCH_DAVINCI_DM646x
         bool "DaVinci 646x based system"
+	select AINTC
 
 comment "DaVinci Board Type"
 

@@ -18,6 +18,7 @@ extern struct sys_timer davinci_timer;
 
 extern void davinci_irq_init(void);
 extern void __iomem *davinci_intc_base;
+extern int davinci_intc_type;
 
 /* parameters describe VBUS sourcing for host mode */
 extern void setup_usb(unsigned mA, unsigned potpgt_msec);
