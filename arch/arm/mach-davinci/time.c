@@ -46,14 +46,24 @@ enum {
 };
 
 /* Timer register offsets */
-#define PID12                        0x0
-#define TIM12                        0x10
-#define TIM34                        0x14
-#define PRD12                        0x18
-#define PRD34                        0x1c
-#define TCR                          0x20
-#define TGCR                         0x24
-#define WDTCR                        0x28
+#define PID12			0x0
+#define TIM12			0x10
+#define TIM34			0x14
+#define PRD12			0x18
+#define PRD34			0x1c
+#define TCR			0x20
+#define TGCR			0x24
+#define WDTCR			0x28
+
+/* Offsets of the 8 compare registers */
+#define	CMP12_0			0x60
+#define	CMP12_1			0x64
+#define	CMP12_2			0x68
+#define	CMP12_3			0x6c
+#define	CMP12_4			0x70
+#define	CMP12_5			0x74
+#define	CMP12_6			0x78
+#define	CMP12_7			0x7c
 
 /* Timer register bitfields */
 #define TCR_ENAMODE_DISABLE          0x0
@@ -85,6 +95,7 @@ struct timer_s {
 	unsigned int id;
 	unsigned long period;
 	unsigned long opts;
+	unsigned long flags;
 	void __iomem *base;
 	unsigned long tim_off;
 	unsigned long prd_off;
@@ -94,9 +105,13 @@ struct timer_s {
 static struct timer_s timers[];
 
 /* values for 'opts' field of struct timer_s */
-#define TIMER_OPTS_DISABLED   0x00
-#define TIMER_OPTS_ONESHOT    0x01
-#define TIMER_OPTS_PERIODIC   0x02
+#define TIMER_OPTS_DISABLED		0x01
+#define TIMER_OPTS_ONESHOT		0x02
+#define TIMER_OPTS_PERIODIC		0x04
+#define TIMER_OPTS_STATE_MASK		0x07
+
+#define TIMER_OPTS_USE_COMPARE		0x80000000
+#define USING_COMPARE(t)		((t)->opts & TIMER_OPTS_USE_COMPARE)
 
 static char *id_to_name[] = {
 	[T0_BOT]	= "timer0_0",
@@ -107,24 +122,41 @@ static char *id_to_name[] = {
 
 static int timer32_config(struct timer_s *t)
 {
-	u32 tcr = __raw_readl(t->base + TCR);
+	u32 tcr;
+	struct davinci_soc_info *soc_info = davinci_get_soc_info();
 
-	/* disable timer */
-	tcr &= ~(TCR_ENAMODE_MASK << t->enamode_shift);
-	__raw_writel(tcr, t->base + TCR);
+	if (USING_COMPARE(t)) {
+		struct davinci_timer_instance *dtip =
+				soc_info->timer_info->timers;
+		int event_timer = ID_TO_TIMER(timers[TID_CLOCKEVENT].id);
 
-	/* reset counter to zero, set new period */
-	__raw_writel(0, t->base + t->tim_off);
-	__raw_writel(t->period, t->base + t->prd_off);
+		/*
+		 * Next interrupt should be the current time reg value plus
+		 * the new period (using 32-bit unsigned addition/wrapping
+		 * to 0 on overflow).  This assumes that the clocksource
+		 * is setup to count to 2^32-1 before wrapping around to 0.
+		 */
+		__raw_writel(__raw_readl(t->base + t->tim_off) + t->period,
+			t->base + dtip[event_timer].cmp_off);
+	} else {
+		tcr = __raw_readl(t->base + TCR);
 
-	/* Set enable mode */
-	if (t->opts & TIMER_OPTS_ONESHOT) {
-		tcr |= TCR_ENAMODE_ONESHOT << t->enamode_shift;
-	} else if (t->opts & TIMER_OPTS_PERIODIC) {
-		tcr |= TCR_ENAMODE_PERIODIC << t->enamode_shift;
+		/* disable timer */
+		tcr &= ~(TCR_ENAMODE_MASK << t->enamode_shift);
+		__raw_writel(tcr, t->base + TCR);
+
+		/* reset counter to zero, set new period */
+		__raw_writel(0, t->base + t->tim_off);
+		__raw_writel(t->period, t->base + t->prd_off);
+
+		/* Set enable mode */
+		if (t->opts & TIMER_OPTS_ONESHOT)
+			tcr |= TCR_ENAMODE_ONESHOT << t->enamode_shift;
+		else if (t->opts & TIMER_OPTS_PERIODIC)
+			tcr |= TCR_ENAMODE_PERIODIC << t->enamode_shift;
+
+		__raw_writel(tcr, t->base + TCR);
 	}
-
-	__raw_writel(tcr, t->base + TCR);
 	return 0;
 }
 
@@ -222,8 +254,11 @@ static void __init timer_init(void)
 		/* Register interrupt */
 		t->irqaction.name = t->name;
 		t->irqaction.dev_id = (void *)t;
-		if (t->irqaction.handler != NULL)
+
+		if (t->irqaction.handler != NULL) {
+			irq = USING_COMPARE(t) ? dtip[i].cmp_irq : irq;
 			setup_irq(irq, &t->irqaction);
+		}
 
 		timer32_config(&timers[i]);
 	}
@@ -268,15 +303,18 @@ static void davinci_set_mode(enum clock_event_mode mode,
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		t->period = davinci_clock_tick_rate / (HZ);
-		t->opts = TIMER_OPTS_PERIODIC;
+		t->opts &= ~TIMER_OPTS_STATE_MASK;
+		t->opts |= TIMER_OPTS_PERIODIC;
 		timer32_config(t);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
-		t->opts = TIMER_OPTS_ONESHOT;
+		t->opts &= ~TIMER_OPTS_STATE_MASK;
+		t->opts |= TIMER_OPTS_ONESHOT;
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		t->opts = TIMER_OPTS_DISABLED;
+		t->opts &= ~TIMER_OPTS_STATE_MASK;
+		t->opts |= TIMER_OPTS_DISABLED;
 		break;
 	case CLOCK_EVT_MODE_RESUME:
 		break;
@@ -295,12 +333,40 @@ static void __init davinci_timer_init(void)
 {
 	struct clk *timer_clk;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
-
+	unsigned int clockevent_id;
+	unsigned int clocksource_id;
 	static char err[] __initdata = KERN_ERR
 		"%s: can't register clocksource!\n";
 
-	timers[TID_CLOCKEVENT].id = soc_info->timer_info->clockevent_id;
-	timers[TID_CLOCKSOURCE].id = soc_info->timer_info->clocksource_id;
+	clockevent_id = soc_info->timer_info->clockevent_id;
+	clocksource_id = soc_info->timer_info->clocksource_id;
+
+	timers[TID_CLOCKEVENT].id = clockevent_id;
+	timers[TID_CLOCKSOURCE].id = clocksource_id;
+
+	/*
+	 * If using same timer for both clock events & clocksource,
+	 * a compare register must be used to generate an event interrupt.
+	 * This is equivalent to a oneshot timer only (not periodic).
+	 */
+	if (clockevent_id == clocksource_id) {
+		struct davinci_timer_instance *dtip =
+				soc_info->timer_info->timers;
+		int event_timer = ID_TO_TIMER(clockevent_id);
+
+		/* Only bottom timers can use compare regs */
+		if (IS_TIMER_TOP(clockevent_id))
+			pr_warning("davinci_timer_init: Invalid use"
+				" of system timers.  Results unpredictable.\n");
+		else if ((dtip[event_timer].cmp_off == 0)
+				|| (dtip[event_timer].cmp_irq == 0))
+			pr_warning("davinci_timer_init:  Invalid timer instance"
+				" setup.  Results unpredictable.\n");
+		else {
+			timers[TID_CLOCKEVENT].opts |= TIMER_OPTS_USE_COMPARE;
+			clockevent_davinci.features = CLOCK_EVT_FEAT_ONESHOT;
+		}
+	}
 
 	/* init timer hw */
 	timer_init();
@@ -312,7 +378,7 @@ static void __init davinci_timer_init(void)
 	davinci_clock_tick_rate = clk_get_rate(timer_clk);
 
 	/* setup clocksource */
-	clocksource_davinci.name = id_to_name[timers[TID_CLOCKSOURCE].id];
+	clocksource_davinci.name = id_to_name[clocksource_id];
 	clocksource_davinci.mult =
 		clocksource_khz2mult(davinci_clock_tick_rate/1000,
 				     clocksource_davinci.shift);
@@ -325,8 +391,7 @@ static void __init davinci_timer_init(void)
 					 clockevent_davinci.shift);
 	clockevent_davinci.max_delta_ns =
 		clockevent_delta2ns(0xfffffffe, &clockevent_davinci);
-	clockevent_davinci.min_delta_ns =
-		clockevent_delta2ns(1, &clockevent_davinci);
+	clockevent_davinci.min_delta_ns = 50000; /* 50 usec */
 
 	clockevent_davinci.cpumask = cpumask_of(0);
 	clockevents_register_device(&clockevent_davinci);
