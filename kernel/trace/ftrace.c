@@ -916,30 +916,6 @@ static void ftrace_free_rec(struct dyn_ftrace *rec)
 	rec->flags |= FTRACE_FL_FREE;
 }
 
-void ftrace_release(void *start, unsigned long size)
-{
-	struct dyn_ftrace *rec;
-	struct ftrace_page *pg;
-	unsigned long s = (unsigned long)start;
-	unsigned long e = s + size;
-
-	if (ftrace_disabled || !start)
-		return;
-
-	mutex_lock(&ftrace_lock);
-	do_for_each_ftrace_rec(pg, rec) {
-		if ((rec->ip >= s) && (rec->ip < e)) {
-			/*
-			 * rec->ip is changed in ftrace_free_rec()
-			 * It should not between s and e if record was freed.
-			 */
-			FTRACE_WARN_ON(rec->flags & FTRACE_FL_FREE);
-			ftrace_free_rec(rec);
-		}
-	} while_for_each_ftrace_rec();
-	mutex_unlock(&ftrace_lock);
-}
-
 static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
 {
 	struct dyn_ftrace *rec;
@@ -2752,13 +2728,71 @@ static int ftrace_convert_nops(struct module *mod,
 	return 0;
 }
 
-void ftrace_init_module(struct module *mod,
-			unsigned long *start, unsigned long *end)
+#ifdef CONFIG_MODULES
+void ftrace_release(void *start, void *end)
+{
+	struct dyn_ftrace *rec;
+	struct ftrace_page *pg;
+	unsigned long s = (unsigned long)start;
+	unsigned long e = (unsigned long)end;
+
+	if (ftrace_disabled || !start || start == end)
+		return;
+
+	mutex_lock(&ftrace_lock);
+	do_for_each_ftrace_rec(pg, rec) {
+		if ((rec->ip >= s) && (rec->ip < e)) {
+			/*
+			 * rec->ip is changed in ftrace_free_rec()
+			 * It should not between s and e if record was freed.
+			 */
+			FTRACE_WARN_ON(rec->flags & FTRACE_FL_FREE);
+			ftrace_free_rec(rec);
+		}
+	} while_for_each_ftrace_rec();
+	mutex_unlock(&ftrace_lock);
+}
+
+static void ftrace_init_module(struct module *mod,
+			       unsigned long *start, unsigned long *end)
 {
 	if (ftrace_disabled || start == end)
 		return;
 	ftrace_convert_nops(mod, start, end);
 }
+
+static int ftrace_module_notify(struct notifier_block *self,
+				unsigned long val, void *data)
+{
+	struct module *mod = data;
+
+	switch (val) {
+	case MODULE_STATE_COMING:
+		ftrace_init_module(mod, mod->ftrace_callsites,
+				   mod->ftrace_callsites +
+				   mod->num_ftrace_callsites);
+		break;
+	case MODULE_STATE_GOING:
+		ftrace_release(mod->ftrace_callsites,
+			       mod->ftrace_callsites +
+			       mod->num_ftrace_callsites);
+		break;
+	}
+
+	return 0;
+}
+#else
+static int ftrace_module_notify(struct notifier_block *self,
+				unsigned long val, void *data)
+{
+	return 0;
+}
+#endif /* CONFIG_MODULES */
+
+struct notifier_block ftrace_module_nb = {
+	.notifier_call = ftrace_module_notify,
+	.priority = 0,
+};
 
 extern unsigned long __start_mcount_loc[];
 extern unsigned long __stop_mcount_loc[];
@@ -2790,6 +2824,10 @@ void __init ftrace_init(void)
 	ret = ftrace_convert_nops(NULL,
 				  __start_mcount_loc,
 				  __stop_mcount_loc);
+
+	ret = register_module_notifier(&ftrace_module_nb);
+	if (!ret)
+		pr_warning("Failed to register trace ftrace module notifier\n");
 
 	return;
  failed:

@@ -341,6 +341,10 @@ struct module
 	struct ftrace_event_call *trace_events;
 	unsigned int num_trace_events;
 #endif
+#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+	unsigned long *ftrace_callsites;
+	unsigned int num_ftrace_callsites;
+#endif
 
 #ifdef CONFIG_MODULE_UNLOAD
 	/* What modules depend on me? */
