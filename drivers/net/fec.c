@@ -210,17 +210,13 @@ struct fec_enet_private {
 	int	full_duplex;
 };
 
-static int fec_enet_open(struct net_device *dev);
-static int fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void fec_enet_mii(struct net_device *dev);
 static irqreturn_t fec_enet_interrupt(int irq, void * dev_id);
 static void fec_enet_tx(struct net_device *dev);
 static void fec_enet_rx(struct net_device *dev);
 static int fec_enet_close(struct net_device *dev);
-static void set_multicast_list(struct net_device *dev);
 static void fec_restart(struct net_device *dev, int duplex);
 static void fec_stop(struct net_device *dev);
-static void fec_set_mac_address(struct net_device *dev);
 
 
 /* MII processing.  We keep this as simple as possible.  Requests are
@@ -1410,7 +1406,6 @@ fec_enet_open(struct net_device *dev)
 	/* I should reset the ring buffers here, but I don't yet know
 	 * a simple way to do that.
 	 */
-	fec_set_mac_address(dev);
 
 	fep->sequence_done = 0;
 	fep->link = 0;
@@ -1543,18 +1538,34 @@ static void set_multicast_list(struct net_device *dev)
 }
 
 /* Set a MAC change in hardware. */
-static void
-fec_set_mac_address(struct net_device *dev)
+static int
+fec_set_mac_address(struct net_device *dev, void *p)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
+	struct sockaddr *addr = p;
 
-	/* Set station address. */
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+
 	writel(dev->dev_addr[3] | (dev->dev_addr[2] << 8) |
 		(dev->dev_addr[1] << 16) | (dev->dev_addr[0] << 24),
 		fep->hwp + FEC_ADDR_LOW);
 	writel((dev->dev_addr[5] << 16) | (dev->dev_addr[4] << 24),
 		fep + FEC_ADDR_HIGH);
+	return 0;
 }
+
+static const struct net_device_ops fec_netdev_ops = {
+	.ndo_open		= fec_enet_open,
+	.ndo_stop		= fec_enet_close,
+	.ndo_start_xmit		= fec_enet_start_xmit,
+	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_tx_timeout		= fec_timeout,
+	.ndo_set_mac_address	= fec_set_mac_address,
+};
 
  /*
   * XXX:  We need to clean up on failure exits here.
@@ -1651,12 +1662,8 @@ int __init fec_enet_init(struct net_device *dev, int index)
 	fec_request_mii_intr(dev);
 #endif
 	/* The FEC Ethernet specific entries in the device structure */
-	dev->open = fec_enet_open;
-	dev->hard_start_xmit = fec_enet_start_xmit;
-	dev->tx_timeout = fec_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	dev->stop = fec_enet_close;
-	dev->set_multicast_list = set_multicast_list;
+	dev->netdev_ops = &fec_netdev_ops;
 
 	for (i=0; i<NMII-1; i++)
 		mii_cmds[i].mii_next = &mii_cmds[i+1];
@@ -1694,9 +1701,6 @@ fec_restart(struct net_device *dev, int duplex)
 
 	/* Clear any outstanding interrupt. */
 	writel(0xffc00000, fep->hwp + FEC_IEVENT);
-
-	/* Set station address.	*/
-	fec_set_mac_address(dev);
 
 	/* Reset all multicast.	*/
 	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
