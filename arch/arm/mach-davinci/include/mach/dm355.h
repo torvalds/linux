@@ -13,10 +13,9 @@
 
 #include <mach/hardware.h>
 
-void __init dm355_init(void);
-
 struct spi_board_info;
 
+void __init dm355_init(void);
 void dm355_init_spi0(unsigned chipselect_mask,
 		struct spi_board_info *info, unsigned len);
 

@@ -45,6 +45,7 @@
 #include <mach/psc.h>
 #include <mach/nand.h>
 #include <mach/mmc.h>
+#include <mach/common.h>
 
 #define DM644X_EVM_PHY_MASK		(0x2)
 #define DM644X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
@@ -609,7 +610,6 @@ static struct davinci_uart_config uart_config __initdata = {
 static void __init
 davinci_evm_map_io(void)
 {
-	davinci_map_common_io();
 	dm644x_init();
 }
 

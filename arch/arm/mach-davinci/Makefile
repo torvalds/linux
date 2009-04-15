@@ -5,7 +5,7 @@
 
 # Common objects
 obj-y 			:= time.o irq.o clock.o serial.o io.o id.o psc.o \
-			   gpio.o devices.o dma.o usb.o
+			   gpio.o devices.o dma.o usb.o common.o
 
 obj-$(CONFIG_DAVINCI_MUX)		+= mux.o
 obj-$(CONFIG_CP_INTC)			+= cp_intc.o

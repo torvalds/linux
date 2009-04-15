@@ -13,6 +13,8 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 
+#include <asm/mach/map.h>
+
 #include <mach/dm644x.h>
 #include <mach/clock.h>
 #include <mach/cputype.h>
@@ -20,6 +22,7 @@
 #include <mach/irqs.h>
 #include <mach/psc.h>
 #include <mach/mux.h>
+#include <mach/common.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -463,8 +466,23 @@ void dm644x_init_emac(struct emac_platform_data *unused) {}
 
 #endif
 
+static struct map_desc dm644x_io_desc[] = {
+	{
+		.virtual	= IO_VIRT,
+		.pfn		= __phys_to_pfn(IO_PHYS),
+		.length		= IO_SIZE,
+		.type		= MT_DEVICE
+	},
+};
+
+static struct davinci_soc_info davinci_soc_info_dm644x = {
+	.io_desc		= dm644x_io_desc,
+	.io_desc_num		= ARRAY_SIZE(dm644x_io_desc),
+};
+
 void __init dm644x_init(void)
 {
+	davinci_common_init(&davinci_soc_info_dm644x);
 	davinci_clk_init(dm644x_clks);
 	davinci_mux_register(dm644x_pins, ARRAY_SIZE(dm644x_pins));
 }

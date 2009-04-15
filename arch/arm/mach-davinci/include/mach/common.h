@@ -17,12 +17,22 @@ struct sys_timer;
 extern struct sys_timer davinci_timer;
 
 extern void davinci_irq_init(void);
-extern void davinci_map_common_io(void);
 
 /* parameters describe VBUS sourcing for host mode */
 extern void setup_usb(unsigned mA, unsigned potpgt_msec);
 
 /* parameters describe VBUS sourcing for host mode */
 extern void setup_usb(unsigned mA, unsigned potpgt_msec);
+
+/* SoC specific init support */
+struct davinci_soc_info {
+	struct map_desc			*io_desc;
+	unsigned long			io_desc_num;
+};
+
+extern struct davinci_soc_info davinci_soc_info;
+
+extern void davinci_common_init(struct davinci_soc_info *soc_info);
+extern void davinci_check_revision(void);
 
 #endif /* __ARCH_ARM_MACH_DAVINCI_COMMON_H */
