@@ -2250,7 +2250,11 @@ int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 	err = bus->ops.command(bus, res);
 	if (!err) {
 		struct hda_cache_head *c;
-		u32 key = build_cmd_cache_key(nid, verb);
+		u32 key;
+		/* parm may contain the verb stuff for get/set amp */
+		verb = verb | (parm >> 8);
+		parm &= 0xff;
+		key = build_cmd_cache_key(nid, verb);
 		c = get_alloc_hash(&codec->cmd_cache, key);
 		if (c)
 			c->val = parm;
