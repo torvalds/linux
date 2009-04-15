@@ -2113,12 +2113,13 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local,
 			     dynamic_ps_enable_work);
+	/* XXX: using scan_sdata is completely broken! */
 	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
 
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
 
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK && sdata)
 		ieee80211_send_nullfunc(local, sdata, 1);
 
 	local->hw.conf.flags |= IEEE80211_CONF_PS;
