@@ -610,6 +610,30 @@ subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	return cnt;
 }
 
+static ssize_t
+show_header(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
+{
+	int (*func)(struct trace_seq *s) = filp->private_data;
+	struct trace_seq *s;
+	int r;
+
+	if (*ppos)
+		return 0;
+
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	trace_seq_init(s);
+
+	func(s);
+	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, s->len);
+
+	kfree(s);
+
+	return r;
+}
+
 static const struct seq_operations show_event_seq_ops = {
 	.start = t_start,
 	.next = t_next,
@@ -665,6 +689,11 @@ static const struct file_operations ftrace_subsystem_filter_fops = {
 	.open = tracing_open_generic,
 	.read = subsystem_filter_read,
 	.write = subsystem_filter_write,
+};
+
+static const struct file_operations ftrace_show_header_fops = {
+	.open = tracing_open_generic,
+	.read = show_header,
 };
 
 static struct dentry *event_trace_events_dir(void)
@@ -908,6 +937,15 @@ static __init int event_trace_init(void)
 	d_events = event_trace_events_dir();
 	if (!d_events)
 		return 0;
+
+	/* ring buffer internal formats */
+	trace_create_file("header_page", 0444, d_events,
+			  ring_buffer_print_page_header,
+			  &ftrace_show_header_fops);
+
+	trace_create_file("header_event", 0444, d_events,
+			  ring_buffer_print_entry_header,
+			  &ftrace_show_header_fops);
 
 	for_each_event(call, __start_ftrace_events, __stop_ftrace_events) {
 		/* The linker may leave blanks */

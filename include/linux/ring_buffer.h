@@ -166,6 +166,11 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data);
 int ring_buffer_read_page(struct ring_buffer *buffer, void **data_page,
 			  size_t len, int cpu, int full);
 
+struct trace_seq;
+
+int ring_buffer_print_entry_header(struct trace_seq *s);
+int ring_buffer_print_page_header(struct trace_seq *s);
+
 enum ring_buffer_flags {
 	RB_FL_OVERWRITE		= 1 << 0,
 };

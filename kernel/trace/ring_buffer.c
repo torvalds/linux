@@ -22,6 +22,28 @@
 #include "trace.h"
 
 /*
+ * The ring buffer header is special. We must manually up keep it.
+ */
+int ring_buffer_print_entry_header(struct trace_seq *s)
+{
+	int ret;
+
+	ret = trace_seq_printf(s, "\ttype        :    2 bits\n");
+	ret = trace_seq_printf(s, "\tlen         :    3 bits\n");
+	ret = trace_seq_printf(s, "\ttime_delta  :   27 bits\n");
+	ret = trace_seq_printf(s, "\tarray       :   32 bits\n");
+	ret = trace_seq_printf(s, "\n");
+	ret = trace_seq_printf(s, "\tpadding     : type == %d\n",
+			       RINGBUF_TYPE_PADDING);
+	ret = trace_seq_printf(s, "\ttime_extend : type == %d\n",
+			       RINGBUF_TYPE_TIME_EXTEND);
+	ret = trace_seq_printf(s, "\tdata        : type == %d\n",
+			       RINGBUF_TYPE_DATA);
+
+	return ret;
+}
+
+/*
  * The ring buffer is made up of a list of pages. A separate list of pages is
  * allocated for each CPU. A writer may only write to a buffer that is
  * associated with the CPU it is currently executing on.  A reader may read
@@ -339,6 +361,28 @@ static inline int test_time_stamp(u64 delta)
 }
 
 #define BUF_PAGE_SIZE (PAGE_SIZE - BUF_PAGE_HDR_SIZE)
+
+int ring_buffer_print_page_header(struct trace_seq *s)
+{
+	struct buffer_data_page field;
+	int ret;
+
+	ret = trace_seq_printf(s, "\tfield: u64 timestamp;\t"
+			       "offset:0;\tsize:%u;\n",
+			       (unsigned int)sizeof(field.time_stamp));
+
+	ret = trace_seq_printf(s, "\tfield: local_t commit;\t"
+			       "offset:%u;\tsize:%u;\n",
+			       (unsigned int)offsetof(typeof(field), commit),
+			       (unsigned int)sizeof(field.commit));
+
+	ret = trace_seq_printf(s, "\tfield: char data;\t"
+			       "offset:%u;\tsize:%u;\n",
+			       (unsigned int)offsetof(typeof(field), data),
+			       (unsigned int)BUF_PAGE_SIZE);
+
+	return ret;
+}
 
 /*
  * head_page == tail_page && head == tail then buffer is empty.
