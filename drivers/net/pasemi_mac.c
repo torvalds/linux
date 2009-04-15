@@ -1735,6 +1735,19 @@ out:
 	return ret;
 }
 
+static const struct net_device_ops pasemi_netdev_ops = {
+	.ndo_open		= pasemi_mac_open,
+	.ndo_stop		= pasemi_mac_close,
+	.ndo_start_xmit		= pasemi_mac_start_tx,
+	.ndo_set_multicast_list	= pasemi_mac_set_rx_mode,
+	.ndo_set_mac_address	= pasemi_mac_set_mac_addr,
+	.ndo_change_mtu		= pasemi_mac_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= pasemi_mac_netpoll,
+#endif
+};
+
 static int __devinit
 pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -1817,19 +1830,11 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out;
 	}
 
-	dev->open = pasemi_mac_open;
-	dev->stop = pasemi_mac_close;
-	dev->hard_start_xmit = pasemi_mac_start_tx;
-	dev->set_multicast_list = pasemi_mac_set_rx_mode;
-	dev->set_mac_address = pasemi_mac_set_mac_addr;
+	dev->netdev_ops = &pasemi_netdev_ops;
 	dev->mtu = PE_DEF_MTU;
 	/* 1500 MTU + ETH_HLEN + VLAN_HLEN + 2 64B cachelines */
 	mac->bufsz = dev->mtu + ETH_HLEN + ETH_FCS_LEN + LOCAL_SKB_ALIGN + 128;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = pasemi_mac_netpoll;
-#endif
 
-	dev->change_mtu = pasemi_mac_change_mtu;
 	dev->ethtool_ops = &pasemi_mac_ethtool_ops;
 
 	if (err)
