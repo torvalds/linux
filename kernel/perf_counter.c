@@ -2590,6 +2590,7 @@ void perf_tpcounter_event(int event_id)
 
 	__perf_swcounter_event(PERF_TYPE_TRACEPOINT, event_id, 1, 1, regs, 0);
 }
+EXPORT_SYMBOL_GPL(perf_tpcounter_event);
 
 extern int ftrace_profile_enable(int);
 extern void ftrace_profile_disable(int);
