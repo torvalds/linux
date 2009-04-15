@@ -124,6 +124,8 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	cx18_queue_init(&s->q_busy);
 	spin_lock_init(&s->q_full.lock);
 	cx18_queue_init(&s->q_full);
+
+	INIT_WORK(&s->out_work_order, cx18_out_work_handler);
 }
 
 static int cx18_prep_dev(struct cx18 *cx, int type)
@@ -477,86 +479,12 @@ void _cx18_stream_load_fw_queue(struct cx18_stream *s)
 		 && q == &s->q_busy);
 }
 
-static inline
-void free_out_work_order(struct cx18_out_work_order *order)
-{
-	atomic_set(&order->pending, 0);
-}
-
 void cx18_out_work_handler(struct work_struct *work)
 {
-	struct cx18_out_work_order *order =
-			container_of(work, struct cx18_out_work_order, work);
-	struct cx18_stream *s = order->s;
-	struct cx18_buffer *buf = order->buf;
+	struct cx18_stream *s =
+			 container_of(work, struct cx18_stream, out_work_order);
 
-	free_out_work_order(order);
-
-	if (buf == NULL)
-		_cx18_stream_load_fw_queue(s);
-	else
-		_cx18_stream_put_buf_fw(s, buf);
-}
-
-static
-struct cx18_out_work_order *alloc_out_work_order(struct cx18 *cx)
-{
-	int i;
-	struct cx18_out_work_order *order = NULL;
-
-	for (i = 0; i < CX18_MAX_OUT_WORK_ORDERS; i++) {
-		/*
-		 * We need "pending" to be atomic to inspect & set its contents
-		 * 1. "pending" is only set to 1 here, but needs multiple access
-		 * protection
-		 * 2. work handler threads only clear "pending" and only
-		 * on one, particular work order at a time, per handler thread.
-		 */
-		if (atomic_add_unless(&cx->out_work_order[i].pending, 1, 1)) {
-			order = &cx->out_work_order[i];
-			break;
-		}
-	}
-	return order;
-}
-
-struct cx18_queue *cx18_stream_put_buf_fw(struct cx18_stream *s,
-					  struct cx18_buffer *buf)
-{
-	struct cx18 *cx = s->cx;
-	struct cx18_out_work_order *order;
-
-	order = alloc_out_work_order(cx);
-	if (order == NULL) {
-		CX18_DEBUG_WARN("No blank, outgoing-mailbox, deferred-work, "
-				"order forms available; sending buffer %u back "
-				"to the firmware immediately for stream %s\n",
-				buf->id, s->name);
-		return _cx18_stream_put_buf_fw(s, buf);
-	}
-	order->s = s;
-	order->buf = buf;
-	queue_work(cx->out_work_queue, &order->work);
-	return NULL;
-}
-
-void cx18_stream_load_fw_queue(struct cx18_stream *s)
-{
-	struct cx18 *cx = s->cx;
-	struct cx18_out_work_order *order;
-
-	order = alloc_out_work_order(cx);
-	if (order == NULL) {
-		CX18_DEBUG_WARN("No blank, outgoing-mailbox, deferred-work, "
-				"order forms available; filling the firmware "
-				"buffer queue immediately for stream %s\n",
-				s->name);
-		_cx18_stream_load_fw_queue(s);
-		return;
-	}
-	order->s = s;
-	order->buf = NULL; /* Indicates to load the fw queue */
-	queue_work(cx->out_work_queue, &order->work);
+	_cx18_stream_load_fw_queue(s);
 }
 
 int cx18_start_v4l2_encode_stream(struct cx18_stream *s)

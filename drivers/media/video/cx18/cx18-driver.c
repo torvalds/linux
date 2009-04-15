@@ -30,6 +30,7 @@
 #include "cx18-irq.h"
 #include "cx18-gpio.h"
 #include "cx18-firmware.h"
+#include "cx18-queue.h"
 #include "cx18-streams.h"
 #include "cx18-av-core.h"
 #include "cx18-scb.h"
@@ -580,13 +581,6 @@ static void __devinit cx18_init_in_work_orders(struct cx18 *cx)
 	}
 }
 
-static void __devinit cx18_init_out_work_orders(struct cx18 *cx)
-{
-	int i;
-	for (i = 0; i < CX18_MAX_OUT_WORK_ORDERS; i++)
-		INIT_WORK(&cx->out_work_order[i].work, cx18_out_work_handler);
-}
-
 /* Precondition: the cx18 structure has been memset to 0. Only
    the dev and instance fields have been filled in.
    No assumptions on the card type may be made here (see cx18_init_struct2
@@ -613,7 +607,6 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 		return ret;
 	}
 
-	cx18_init_out_work_orders(cx);
 	cx18_init_in_work_orders(cx);
 
 	/* start counting open_id at 1 */
@@ -1103,6 +1096,14 @@ static void cx18_cancel_in_work_orders(struct cx18 *cx)
 		cancel_work_sync(&cx->in_work_order[i].work);
 }
 
+static void cx18_cancel_out_work_orders(struct cx18 *cx)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_STREAMS; i++)
+		if (&cx->streams[i].video_dev != NULL)
+			cancel_work_sync(&cx->streams[i].out_work_order);
+}
+
 static void cx18_remove(struct pci_dev *pci_dev)
 {
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
@@ -1121,13 +1122,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	/* Incoming work can cause outgoing work, so clean up incoming first */
 	cx18_cancel_in_work_orders(cx);
-
-	/*
-	 * An outgoing work order can have the only pointer to a dynamically
-	 * allocated buffer, so we need to flush outgoing work and not just
-	 * cancel it, so we don't lose the pointer and leak memory.
-	 */
-	flush_workqueue(cx->out_work_queue);
+	cx18_cancel_out_work_orders(cx);
 
 	/* Stop ack interrupts that may have been needed for work to finish */
 	cx18_sw2_irq_disable(cx, IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);

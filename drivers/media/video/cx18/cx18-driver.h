@@ -326,33 +326,6 @@ struct cx18_in_work_order {
 	char *str;
 };
 
-/*
- * There are 2 types of deferrable tasks that send messages out to the firmware:
- * 1. Sending individual buffers back to the firmware
- * 2. Sending as many free buffers for a stream from q_free as we can to the fw
- *
- * The worst case scenario for multiple simultaneous streams is
- * TS, YUV, PCM, VBI, MPEG, and IDX all going at once.
- *
- * We try to load the firmware queue with as many free buffers as possible,
- * whenever we get a buffer back for a stream.  For the TS we return the single
- * buffer to the firmware at that time as well.  For all other streams, we
- * return single buffers to the firmware as the application drains them.
- *
- * 6 streams * 2 sets of orders * (1 single buf + 1 load fw from q_free)
- * = 24 work orders should cover our needs, provided the applications read
- * at a fairly steady rate.  If apps don't, we fall back to non-deferred
- * operation, when no cx18_out_work_orders are available for use.
- */
-#define CX18_MAX_OUT_WORK_ORDERS (24)
-
-struct cx18_out_work_order {
-	struct work_struct work;
-	atomic_t pending;
-	struct cx18_stream *s;
-	struct cx18_buffer *buf; /* buf == NULL, means load fw from q_free */
-};
-
 #define CX18_INVALID_TASK_HANDLE 0xffffffff
 
 struct cx18_stream {
@@ -380,6 +353,8 @@ struct cx18_stream {
 	struct cx18_queue q_free;	/* free buffers */
 	struct cx18_queue q_busy;	/* busy buffers - in use by firmware */
 	struct cx18_queue q_full;	/* full buffers - data for user apps */
+
+	struct work_struct out_work_order;
 
 	/* DVB / Digital Transport */
 	struct cx18_dvb dvb;
@@ -603,7 +578,6 @@ struct cx18 {
 
 	struct workqueue_struct *out_work_queue;
 	char out_workq_name[12]; /* "cx18-NN-out" */
-	struct cx18_out_work_order out_work_order[CX18_MAX_OUT_WORK_ORDERS];
 
 	/* i2c */
 	struct i2c_adapter i2c_adap[2];

@@ -23,8 +23,8 @@
  */
 
 #include "cx18-driver.h"
-#include "cx18-streams.h"
 #include "cx18-queue.h"
+#include "cx18-streams.h"
 #include "cx18-scb.h"
 
 void cx18_buf_swap(struct cx18_buffer *buf)

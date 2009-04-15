@@ -23,6 +23,7 @@
 #include "cx18-version.h"
 #include "cx18-dvb.h"
 #include "cx18-io.h"
+#include "cx18-queue.h"
 #include "cx18-streams.h"
 #include "cx18-cards.h"
 #include "s5h1409.h"
