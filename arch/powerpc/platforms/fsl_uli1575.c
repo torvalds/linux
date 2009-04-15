@@ -55,6 +55,7 @@ static inline bool is_quirk_valid(void)
 {
 	return (machine_is(mpc86xx_hpcn) ||
 		machine_is(mpc8544_ds) ||
+		machine_is(p2020_ds) ||
 		machine_is(mpc8572_ds));
 }
 
