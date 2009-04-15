@@ -875,6 +875,16 @@ static int sa1100_irda_init_iobuf(iobuff_t *io, int size)
 	return io->head ? 0 : -ENOMEM;
 }
 
+static const struct net_device_ops sa1100_irda_netdev_ops = {
+	.ndo_open		= sa1100_irda_start,
+	.ndo_stop		= sa1100_irda_stop,
+	.ndo_start_xmit		= sa1100_irda_hard_xmit,
+	.ndo_do_ioctl		= sa1100_irda_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
 static int sa1100_irda_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
@@ -913,11 +923,8 @@ static int sa1100_irda_probe(struct platform_device *pdev)
 	if (err)
 		goto err_mem_5;
 
-	dev->hard_start_xmit	= sa1100_irda_hard_xmit;
-	dev->open		= sa1100_irda_start;
-	dev->stop		= sa1100_irda_stop;
-	dev->do_ioctl		= sa1100_irda_ioctl;
-	dev->irq		= IRQ_Ser2ICP;
+	dev->netdev_ops	= &sa1100_irda_netdev_ops;
+	dev->ir		= IRQ_Ser2ICP;
 
 	irda_init_max_qos_capabilies(&si->qos);
 
