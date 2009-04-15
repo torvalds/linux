@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/map.h>
 
@@ -569,6 +570,9 @@ static struct davinci_soc_info davinci_soc_info_dm646x = {
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm646x_timer_info,
 	.wdt_base		= IO_ADDRESS(DAVINCI_WDOG_BASE),
+	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
+	.gpio_num		= 43, /* Only 33 usable */
+	.gpio_irq		= IRQ_DM646X_GPIOBNK0,
 };
 
 void __init dm646x_init(void)

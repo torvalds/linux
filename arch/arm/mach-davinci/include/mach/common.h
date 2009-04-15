@@ -58,6 +58,9 @@ struct davinci_soc_info {
 	unsigned long			intc_irq_num;
 	struct davinci_timer_info	*timer_info;
 	void __iomem			*wdt_base;
+	void __iomem			*gpio_base;
+	unsigned			gpio_num;
+	unsigned			gpio_irq;
 };
 
 extern struct davinci_soc_info davinci_soc_info;

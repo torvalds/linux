@@ -13,6 +13,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/gpio.h>
 
 #include <linux/spi/spi.h>
 
@@ -647,6 +648,9 @@ static struct davinci_soc_info davinci_soc_info_dm355 = {
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm355_timer_info,
 	.wdt_base		= IO_ADDRESS(DAVINCI_WDOG_BASE),
+	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
+	.gpio_num		= 104,
+	.gpio_irq		= IRQ_DM355_GPIOBNK0,
 };
 
 void __init dm355_init(void)
