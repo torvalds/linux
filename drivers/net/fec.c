@@ -1517,56 +1517,59 @@ static void set_multicast_list(struct net_device *dev)
 		tmp = readl(fep->hwp + FEC_R_CNTRL);
 		tmp |= 0x8;
 		writel(tmp, fep->hwp + FEC_R_CNTRL);
-	} else {
-		tmp = readl(fep->hwp + FEC_R_CNTRL);
-		tmp &= ~0x8;
-		writel(tmp, fep->hwp + FEC_R_CNTRL);
+		return;
+	}
 
-		if (dev->flags & IFF_ALLMULTI) {
-			/* Catch all multicast addresses, so set the
-			 * filter to all 1's
-			 */
-			writel(0xffffffff, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
-			writel(0xffffffff, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
-		} else {
-			/* Clear filter and add the addresses in hash register
-			 */
-			writel(0, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
-			writel(0, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
+	tmp = readl(fep->hwp + FEC_R_CNTRL);
+	tmp &= ~0x8;
+	writel(tmp, fep->hwp + FEC_R_CNTRL);
 
-			dmi = dev->mc_list;
+	if (dev->flags & IFF_ALLMULTI) {
+		/* Catch all multicast addresses, so set the
+		 * filter to all 1's
+		 */
+		writel(0xffffffff, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
+		writel(0xffffffff, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
 
-			for (j = 0; j < dev->mc_count; j++, dmi = dmi->next) {
-				/* Only support group multicast for now */
-				if (!(dmi->dmi_addr[0] & 1))
-					continue;
+		return;
+	}
 
-				/* calculate crc32 value of mac address */
-				crc = 0xffffffff;
+	/* Clear filter and add the addresses in hash register
+	 */
+	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
+	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
 
-				for (i = 0; i < dmi->dmi_addrlen; i++) {
-					data = dmi->dmi_addr[i];
-					for (bit = 0; bit < 8; bit++, data >>= 1) {
-						crc = (crc >> 1) ^
-						(((crc ^ data) & 1) ? CRC32_POLY : 0);
-					}
-				}
+	dmi = dev->mc_list;
 
-				/* only upper 6 bits (HASH_BITS) are used
-				 * which point to specific bit in he hash registers
-				 */
-				hash = (crc >> (32 - HASH_BITS)) & 0x3f;
+	for (j = 0; j < dev->mc_count; j++, dmi = dmi->next) {
+		/* Only support group multicast for now */
+		if (!(dmi->dmi_addr[0] & 1))
+			continue;
 
-				if (hash > 31) {
-					tmp = readl(fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
-					tmp |= 1 << (hash - 32);
-					writel(tmp, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
-				} else {
-					tmp = readl(fep->hwp + FEC_GRP_HASH_TABLE_LOW);
-					tmp |= 1 << hash;
-					writel(tmp, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
-				}
+		/* calculate crc32 value of mac address */
+		crc = 0xffffffff;
+
+		for (i = 0; i < dmi->dmi_addrlen; i++) {
+			data = dmi->dmi_addr[i];
+			for (bit = 0; bit < 8; bit++, data >>= 1) {
+				crc = (crc >> 1) ^
+				(((crc ^ data) & 1) ? CRC32_POLY : 0);
 			}
+		}
+
+		/* only upper 6 bits (HASH_BITS) are used
+		 * which point to specific bit in he hash registers
+		 */
+		hash = (crc >> (32 - HASH_BITS)) & 0x3f;
+
+		if (hash > 31) {
+			tmp = readl(fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
+			tmp |= 1 << (hash - 32);
+			writel(tmp, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
+		} else {
+			tmp = readl(fep->hwp + FEC_GRP_HASH_TABLE_LOW);
+			tmp |= 1 << hash;
+			writel(tmp, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
 		}
 	}
 }
