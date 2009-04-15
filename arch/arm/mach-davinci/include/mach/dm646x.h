@@ -22,6 +22,5 @@
 #define DM646X_EMAC_CNTRL_RAM_SIZE	(0x2000)
 
 void __init dm646x_init(void);
-void dm646x_init_emac(struct emac_platform_data *pdata);
 
 #endif /* __ASM_ARCH_DM646X_H */

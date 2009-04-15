@@ -62,6 +62,7 @@ struct davinci_soc_info {
 	unsigned			gpio_num;
 	unsigned			gpio_irq;
 	struct platform_device		*serial_dev;
+	struct emac_platform_data	*emac_pdata;
 };
 
 extern struct davinci_soc_info davinci_soc_info;

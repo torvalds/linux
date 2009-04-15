@@ -260,11 +260,6 @@ void davinci_init_emac(struct emac_platform_data *pdata)
 {
 	DECLARE_MAC_BUF(buf);
 
-	if (cpu_is_davinci_dm644x())
-		dm644x_init_emac(pdata);
-	else if (cpu_is_davinci_dm646x())
-		dm646x_init_emac(pdata);
-
 	/* if valid MAC exists, don't re-register */
 	if (is_valid_ether_addr(pdata->mac_addr))
 		return;

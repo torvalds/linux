@@ -48,7 +48,6 @@
 
 #include <mach/dm644x.h>
 #include <mach/common.h>
-#include <mach/emac.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/psc.h>
@@ -158,11 +157,14 @@ static void __init davinci_sffsdr_map_io(void)
 
 static __init void davinci_sffsdr_init(void)
 {
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
+
 	platform_add_devices(davinci_sffsdr_devices,
 			     ARRAY_SIZE(davinci_sffsdr_devices));
 	sffsdr_init_i2c();
 	davinci_serial_init(&uart_config);
-	dm644x_init_emac(&sffsdr_emac_pdata);
+	soc_info->emac_pdata->phy_mask = SFFSDR_PHY_MASK;
+	soc_info->emac_pdata->mdio_max_freq = SFFSDR_MDIO_FREQUENCY;
 	setup_usb(0, 0); /* We support only peripheral mode. */
 
 	/* mux VLYNQ pins */

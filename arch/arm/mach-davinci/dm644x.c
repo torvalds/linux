@@ -319,7 +319,14 @@ struct davinci_clk dm644x_clks[] = {
 	CLK(NULL, NULL, NULL),
 };
 
-#if defined(CONFIG_TI_DAVINCI_EMAC) || defined(CONFIG_TI_DAVINCI_EMAC_MODULE)
+static struct emac_platform_data dm644x_emac_pdata = {
+	.ctrl_reg_offset	= DM644X_EMAC_CNTRL_OFFSET,
+	.ctrl_mod_reg_offset	= DM644X_EMAC_CNTRL_MOD_OFFSET,
+	.ctrl_ram_offset	= DM644X_EMAC_CNTRL_RAM_OFFSET,
+	.mdio_reg_offset	= DM644X_EMAC_MDIO_OFFSET,
+	.ctrl_ram_size		= DM644X_EMAC_CNTRL_RAM_SIZE,
+	.version		= EMAC_VERSION_1,
+};
 
 static struct resource dm644x_emac_resources[] = {
 	{
@@ -337,11 +344,12 @@ static struct resource dm644x_emac_resources[] = {
 static struct platform_device dm644x_emac_device = {
        .name		= "davinci_emac",
        .id		= 1,
+       .dev = {
+	       .platform_data	= &dm644x_emac_pdata,
+       },
        .num_resources	= ARRAY_SIZE(dm644x_emac_resources),
        .resource	= dm644x_emac_resources,
 };
-
-#endif
 
 /*
  * Device specific mux setup
@@ -520,24 +528,6 @@ static struct platform_device dm644x_edma_device = {
 };
 
 /*----------------------------------------------------------------------*/
-#if defined(CONFIG_TI_DAVINCI_EMAC) || defined(CONFIG_TI_DAVINCI_EMAC_MODULE)
-
-void dm644x_init_emac(struct emac_platform_data *pdata)
-{
-	pdata->ctrl_reg_offset		= DM644X_EMAC_CNTRL_OFFSET;
-	pdata->ctrl_mod_reg_offset	= DM644X_EMAC_CNTRL_MOD_OFFSET;
-	pdata->ctrl_ram_offset		= DM644X_EMAC_CNTRL_RAM_OFFSET;
-	pdata->mdio_reg_offset		= DM644X_EMAC_MDIO_OFFSET;
-	pdata->ctrl_ram_size		= DM644X_EMAC_CNTRL_RAM_SIZE;
-	pdata->version			= EMAC_VERSION_1;
-	dm644x_emac_device.dev.platform_data = pdata;
-	platform_device_register(&dm644x_emac_device);
-}
-#else
-
-void dm644x_init_emac(struct emac_platform_data *unused) {}
-
-#endif
 
 static struct map_desc dm644x_io_desc[] = {
 	{
@@ -635,6 +625,7 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.gpio_num		= 71,
 	.gpio_irq		= IRQ_GPIOBNK0,
 	.serial_dev		= &dm644x_serial_device,
+	.emac_pdata		= &dm644x_emac_pdata,
 };
 
 void __init dm644x_init(void)
@@ -648,6 +639,7 @@ static int __init dm644x_init_devices(void)
 		return 0;
 
 	platform_device_register(&dm644x_edma_device);
+	platform_device_register(&dm644x_emac_device);
 	return 0;
 }
 postcore_initcall(dm644x_init_devices);
