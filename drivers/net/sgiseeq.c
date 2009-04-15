@@ -709,6 +709,17 @@ static inline void setup_rx_ring(struct net_device *dev,
 	dma_sync_desc_dev(dev, &buf[i]);
 }
 
+static const struct net_device_ops sgiseeq_netdev_ops = {
+	.ndo_open		= sgiseeq_open,
+	.ndo_stop		= sgiseeq_close,
+	.ndo_start_xmit		= sgiseeq_start_xmit,
+	.ndo_tx_timeout		= timeout,
+	.ndo_set_multicast_list	= sgiseeq_set_multicast,
+	.ndo_set_mac_address	= sgiseeq_set_mac_address,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __init sgiseeq_probe(struct platform_device *pdev)
 {
 	struct sgiseeq_platform_data *pd = pdev->dev.platform_data;
@@ -775,13 +786,8 @@ static int __init sgiseeq_probe(struct platform_device *pdev)
 			      SEEQ_CTRL_SFLAG | SEEQ_CTRL_ESHORT |
 			      SEEQ_CTRL_ENCARR;
 
-	dev->open		= sgiseeq_open;
-	dev->stop		= sgiseeq_close;
-	dev->hard_start_xmit	= sgiseeq_start_xmit;
-	dev->tx_timeout		= timeout;
+	dev->netdev_ops		= &sgiseeq_netdev_ops;
 	dev->watchdog_timeo	= (200 * HZ) / 1000;
-	dev->set_multicast_list	= sgiseeq_set_multicast;
-	dev->set_mac_address	= sgiseeq_set_mac_address;
 	dev->irq		= irq;
 
 	if (register_netdev(dev)) {
