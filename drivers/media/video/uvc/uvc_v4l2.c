@@ -648,7 +648,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_S_INPUT:
 	{
-		u8 input = *(u32 *)arg + 1;
+		u32 input = *(u32 *)arg + 1;
 
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
@@ -660,7 +660,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			break;
 		}
 
-		if (input > video->selector->selector.bNrInPins)
+		if (input == 0 || input > video->selector->selector.bNrInPins)
 			return -EINVAL;
 
 		return uvc_query_ctrl(video->dev, SET_CUR, video->selector->id,
