@@ -1660,11 +1660,10 @@ int __init fec_enet_init(struct net_device *dev, int index)
 	struct bufdesc *bdp, *cbd_base;
 	int 		i, j;
 
-	/* Allocate memory for buffer descriptors.
-	*/
-	mem_addr = (unsigned long)dma_alloc_coherent(NULL, PAGE_SIZE,
-			&fep->bd_dma, GFP_KERNEL);
-	if (mem_addr == 0) {
+	/* Allocate memory for buffer descriptors. */
+	cbd_base = dma_alloc_coherent(NULL, PAGE_SIZE, &fep->bd_dma,
+			GFP_KERNEL);
+	if (!cbd_base) {
 		printk("FEC: allocate descriptor memory failed?\n");
 		return -ENOMEM;
 	}
@@ -1698,10 +1697,7 @@ int __init fec_enet_init(struct net_device *dev, int index)
 	}
 #endif
 
-	cbd_base = (struct bufdesc *)mem_addr;
-
-	/* Set receive and transmit descriptor base.
-	*/
+	/* Set receive and transmit descriptor base. */
 	fep->rx_bd_base = cbd_base;
 	fep->tx_bd_base = cbd_base + RX_RING_SIZE;
 
