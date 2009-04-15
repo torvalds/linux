@@ -79,14 +79,8 @@ EXPORT_SYMBOL(eip_netdev_ops);
 struct net_device *__alloc_eip_netdev(int size)
 {
 	struct net_device *dev = ____alloc_ei_netdev(size);
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	if (dev) {
-		dev->hard_start_xmit = eip_start_xmit;
-		dev->get_stats	= eip_get_stats;
-		dev->set_multicast_list = eip_set_multicast_list;
-		dev->tx_timeout = eip_tx_timeout;
-	}
-#endif
+	if (dev)
+		dev->netdev_ops = &eip_netdev_ops;
 	return dev;
 }
 EXPORT_SYMBOL(__alloc_eip_netdev);
