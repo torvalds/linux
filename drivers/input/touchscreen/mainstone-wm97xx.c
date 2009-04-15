@@ -111,13 +111,12 @@ static void wm97xx_acc_pen_up(struct wm97xx *wm)
 #else
 static void wm97xx_acc_pen_up(struct wm97xx *wm)
 {
-	int count = 16;
+	unsigned int count;
+
 	schedule_timeout_uninterruptible(1);
 
-	while (count < 16) {
+	for (count = 0; count < 16; count++)
 		MODR;
-		count--;
-	}
 }
 #endif
 
