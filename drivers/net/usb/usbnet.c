@@ -1185,12 +1185,6 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 #endif
 
 	net->netdev_ops = &usbnet_netdev_ops;
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	net->hard_start_xmit = usbnet_start_xmit;
-	net->open = usbnet_open;
-	net->stop = usbnet_stop;
-	net->tx_timeout = usbnet_tx_timeout;
-#endif
 	net->watchdog_timeo = TX_TIMEOUT_JIFFIES;
 	net->ethtool_ops = &usbnet_ethtool_ops;
 
