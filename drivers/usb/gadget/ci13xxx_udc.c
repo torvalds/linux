@@ -142,7 +142,7 @@ static struct {
 #define CAP_DEVICEADDR      (0x014UL)
 #define CAP_ENDPTLISTADDR   (0x018UL)
 #define CAP_PORTSC          (0x044UL)
-#define CAP_DEVLC           (0x0B4UL)
+#define CAP_DEVLC           (0x084UL)
 #define CAP_USBMODE         (hw_bank.lpm ? 0x0C8UL : 0x068UL)
 #define CAP_ENDPTSETUPSTAT  (hw_bank.lpm ? 0x0D8UL : 0x06CUL)
 #define CAP_ENDPTPRIME      (hw_bank.lpm ? 0x0DCUL : 0x070UL)
@@ -1985,6 +1985,8 @@ static int ep_enable(struct usb_ep *ep,
 	direction = mEp->dir;
 	do {
 		dbg_event(_usb_addr(mEp), "ENABLE", 0);
+
+		mEp->qh[mEp->dir].ptr->cap = 0;
 
 		if (mEp->type == USB_ENDPOINT_XFER_CONTROL)
 			mEp->qh[mEp->dir].ptr->cap |=  QH_IOS;
