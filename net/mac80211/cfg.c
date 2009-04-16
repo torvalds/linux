@@ -1167,7 +1167,8 @@ static int ieee80211_scan(struct wiphy *wiphy,
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
 	    sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT)
+	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
+	    (sdata->vif.type != NL80211_IFTYPE_AP || sdata->u.ap.beacon))
 		return -EOPNOTSUPP;
 
 	return ieee80211_request_scan(sdata, req);
