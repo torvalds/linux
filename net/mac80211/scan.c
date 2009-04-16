@@ -253,7 +253,7 @@ static void ieee80211_scan_ps_disable(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 
-	if (!local->powersave)
+	if (!local->ps_sdata)
 		ieee80211_send_nullfunc(local, sdata, 0);
 	else {
 		/*

@@ -295,6 +295,8 @@ struct ieee80211_if_managed {
 	int auth_tries; /* retries for auth req */
 	int assoc_tries; /* retries for assoc req */
 
+	bool powersave; /* powersave requested for this iface */
+
 	unsigned long request;
 
 	unsigned long last_probe;
@@ -739,8 +741,12 @@ struct ieee80211_local {
 	int wifi_wme_noack_test;
 	unsigned int wmm_acm; /* bit field of ACM bits (BIT(802.1D tag)) */
 
-	bool powersave;
 	bool pspolling;
+	/*
+	 * PS can only be enabled when we have exactly one managed
+	 * interface (and monitors) in PS, this then points there.
+	 */
+	struct ieee80211_sub_if_data *ps_sdata;
 	struct work_struct dynamic_ps_enable_work;
 	struct work_struct dynamic_ps_disable_work;
 	struct timer_list dynamic_ps_timer;
@@ -932,6 +938,7 @@ int ieee80211_sta_deauthenticate(struct ieee80211_sub_if_data *sdata, u16 reason
 int ieee80211_sta_disassociate(struct ieee80211_sub_if_data *sdata, u16 reason);
 void ieee80211_send_pspoll(struct ieee80211_local *local,
 			   struct ieee80211_sub_if_data *sdata);
+void ieee80211_recalc_ps(struct ieee80211_local *local);
 
 /* IBSS code */
 int ieee80211_ibss_commit(struct ieee80211_sub_if_data *sdata);

@@ -317,6 +317,8 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_set_wmm_default(sdata);
 	}
 
+	ieee80211_recalc_ps(local);
+
 	/*
 	 * ieee80211_sta_work is disabled while network interface
 	 * is down. Therefore, some configuration changes may not
@@ -571,6 +573,8 @@ static int ieee80211_stop(struct net_device *dev)
 		/* no reconfiguring after stop! */
 		hw_reconf_flags = 0;
 	}
+
+	ieee80211_recalc_ps(local);
 
 	/* do after stop to avoid reconfiguring when we stop anyway */
 	if (hw_reconf_flags)

@@ -747,7 +747,7 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_conf *conf = &local->hw.conf;
-	int ret = 0, timeout = 0;
+	int timeout = 0;
 	bool ps;
 
 	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
@@ -779,42 +779,19 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 		timeout = wrq->value / 1000;
 
  set:
-	if (ps == local->powersave && timeout == conf->dynamic_ps_timeout)
-		return ret;
+	if (ps == sdata->u.mgd.powersave && timeout == conf->dynamic_ps_timeout)
+		return 0;
 
-	local->powersave = ps;
+	sdata->u.mgd.powersave = ps;
 	conf->dynamic_ps_timeout = timeout;
 
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
-		ret = ieee80211_hw_config(local,
-					  IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT);
+		ieee80211_hw_config(local,
+				    IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT);
 
-	if (!(sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED))
-		return ret;
+	ieee80211_recalc_ps(local);
 
-	if (conf->dynamic_ps_timeout > 0 &&
-	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)) {
-		mod_timer(&local->dynamic_ps_timer, jiffies +
-			  msecs_to_jiffies(conf->dynamic_ps_timeout));
-	} else {
-		if (local->powersave) {
-			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-				ieee80211_send_nullfunc(local, sdata, 1);
-			conf->flags |= IEEE80211_CONF_PS;
-			ret = ieee80211_hw_config(local,
-					IEEE80211_CONF_CHANGE_PS);
-		} else {
-			conf->flags &= ~IEEE80211_CONF_PS;
-			ret = ieee80211_hw_config(local,
-					IEEE80211_CONF_CHANGE_PS);
-			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-				ieee80211_send_nullfunc(local, sdata, 0);
-			del_timer_sync(&local->dynamic_ps_timer);
-			cancel_work_sync(&local->dynamic_ps_enable_work);
-		}
-	}
-
-	return ret;
+	return 0;
 }
 
 static int ieee80211_ioctl_giwpower(struct net_device *dev,
@@ -822,9 +799,9 @@ static int ieee80211_ioctl_giwpower(struct net_device *dev,
 				    union iwreq_data *wrqu,
 				    char *extra)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	wrqu->power.disabled = !local->powersave;
+	wrqu->power.disabled = !sdata->u.mgd.powersave;
 
 	return 0;
 }

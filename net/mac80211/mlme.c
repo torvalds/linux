@@ -446,6 +446,145 @@ void ieee80211_send_pspoll(struct ieee80211_local *local,
 	ieee80211_tx_skb(sdata, skb, 0);
 }
 
+void ieee80211_send_nullfunc(struct ieee80211_local *local,
+			     struct ieee80211_sub_if_data *sdata,
+			     int powersave)
+{
+	struct sk_buff *skb;
+	struct ieee80211_hdr *nullfunc;
+	__le16 fc;
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
+		return;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 24);
+	if (!skb) {
+		printk(KERN_DEBUG "%s: failed to allocate buffer for nullfunc "
+		       "frame\n", sdata->dev->name);
+		return;
+	}
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	nullfunc = (struct ieee80211_hdr *) skb_put(skb, 24);
+	memset(nullfunc, 0, 24);
+	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC |
+			 IEEE80211_FCTL_TODS);
+	if (powersave)
+		fc |= cpu_to_le16(IEEE80211_FCTL_PM);
+	nullfunc->frame_control = fc;
+	memcpy(nullfunc->addr1, sdata->u.mgd.bssid, ETH_ALEN);
+	memcpy(nullfunc->addr2, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(nullfunc->addr3, sdata->u.mgd.bssid, ETH_ALEN);
+
+	ieee80211_tx_skb(sdata, skb, 0);
+}
+
+/* powersave */
+static void ieee80211_enable_ps(struct ieee80211_local *local,
+				struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_conf *conf = &local->hw.conf;
+
+	if (conf->dynamic_ps_timeout > 0 &&
+	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)) {
+		mod_timer(&local->dynamic_ps_timer, jiffies +
+			  msecs_to_jiffies(conf->dynamic_ps_timeout));
+	} else {
+		if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+			ieee80211_send_nullfunc(local, sdata, 1);
+		conf->flags |= IEEE80211_CONF_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	}
+}
+
+static void ieee80211_change_ps(struct ieee80211_local *local)
+{
+	struct ieee80211_conf *conf = &local->hw.conf;
+
+	if (local->ps_sdata) {
+		if (!(local->ps_sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED))
+			return;
+
+		ieee80211_enable_ps(local, local->ps_sdata);
+	} else if (conf->flags & IEEE80211_CONF_PS) {
+		conf->flags &= ~IEEE80211_CONF_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+		del_timer_sync(&local->dynamic_ps_timer);
+		cancel_work_sync(&local->dynamic_ps_enable_work);
+	}
+}
+
+/* need to hold RTNL or interface lock */
+void ieee80211_recalc_ps(struct ieee80211_local *local)
+{
+	struct ieee80211_sub_if_data *sdata, *found = NULL;
+	int count = 0;
+
+	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS)) {
+		local->ps_sdata = NULL;
+		return;
+	}
+
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
+		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+			continue;
+		found = sdata;
+		count++;
+	}
+
+	if (count == 1 && found->u.mgd.powersave)
+		local->ps_sdata = found;
+	else
+		local->ps_sdata = NULL;
+
+	ieee80211_change_ps(local);
+}
+
+void ieee80211_dynamic_ps_disable_work(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local,
+			     dynamic_ps_disable_work);
+
+	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
+		local->hw.conf.flags &= ~IEEE80211_CONF_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	}
+
+	ieee80211_wake_queues_by_reason(&local->hw,
+					IEEE80211_QUEUE_STOP_REASON_PS);
+}
+
+void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local,
+			     dynamic_ps_enable_work);
+	struct ieee80211_sub_if_data *sdata = local->ps_sdata;
+
+	/* can only happen when PS was just disabled anyway */
+	if (!sdata)
+		return;
+
+	if (local->hw.conf.flags & IEEE80211_CONF_PS)
+		return;
+
+	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+		ieee80211_send_nullfunc(local, sdata, 1);
+
+	local->hw.conf.flags |= IEEE80211_CONF_PS;
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+}
+
+void ieee80211_dynamic_ps_timer(unsigned long data)
+{
+	struct ieee80211_local *local = (void *) data;
+
+	queue_work(local->hw.workqueue, &local->dynamic_ps_enable_work);
+}
+
 /* MLME */
 static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 				     struct ieee80211_if_managed *ifmgd,
@@ -721,19 +860,9 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	bss_info_changed |= BSS_CHANGED_BASIC_RATES;
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
-	if (local->powersave) {
-		if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS) &&
-		    local->hw.conf.dynamic_ps_timeout > 0) {
-			mod_timer(&local->dynamic_ps_timer, jiffies +
-				  msecs_to_jiffies(
-					local->hw.conf.dynamic_ps_timeout));
-		} else {
-			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-				ieee80211_send_nullfunc(local, sdata, 1);
-			conf->flags |= IEEE80211_CONF_PS;
-			ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
-		}
-	}
+	/* will be same as sdata */
+	if (local->ps_sdata)
+		ieee80211_enable_ps(local, sdata);
 
 	netif_tx_start_all_queues(sdata->dev);
 	netif_carrier_on(sdata->dev);
@@ -2194,77 +2323,4 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 	list_for_each_entry_rcu(sdata, &local->interfaces, list)
 		ieee80211_restart_sta_timer(sdata);
 	rcu_read_unlock();
-}
-
-void ieee80211_dynamic_ps_disable_work(struct work_struct *work)
-{
-	struct ieee80211_local *local =
-		container_of(work, struct ieee80211_local,
-			     dynamic_ps_disable_work);
-
-	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
-		local->hw.conf.flags &= ~IEEE80211_CONF_PS;
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
-	}
-
-	ieee80211_wake_queues_by_reason(&local->hw,
-					IEEE80211_QUEUE_STOP_REASON_PS);
-}
-
-void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
-{
-	struct ieee80211_local *local =
-		container_of(work, struct ieee80211_local,
-			     dynamic_ps_enable_work);
-	/* XXX: using scan_sdata is completely broken! */
-	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
-
-	if (local->hw.conf.flags & IEEE80211_CONF_PS)
-		return;
-
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK && sdata)
-		ieee80211_send_nullfunc(local, sdata, 1);
-
-	local->hw.conf.flags |= IEEE80211_CONF_PS;
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
-}
-
-void ieee80211_dynamic_ps_timer(unsigned long data)
-{
-	struct ieee80211_local *local = (void *) data;
-
-	queue_work(local->hw.workqueue, &local->dynamic_ps_enable_work);
-}
-
-void ieee80211_send_nullfunc(struct ieee80211_local *local,
-			     struct ieee80211_sub_if_data *sdata,
-			     int powersave)
-{
-	struct sk_buff *skb;
-	struct ieee80211_hdr *nullfunc;
-	__le16 fc;
-
-	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
-		return;
-
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 24);
-	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for nullfunc "
-		       "frame\n", sdata->dev->name);
-		return;
-	}
-	skb_reserve(skb, local->hw.extra_tx_headroom);
-
-	nullfunc = (struct ieee80211_hdr *) skb_put(skb, 24);
-	memset(nullfunc, 0, 24);
-	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC |
-			 IEEE80211_FCTL_TODS);
-	if (powersave)
-		fc |= cpu_to_le16(IEEE80211_FCTL_PM);
-	nullfunc->frame_control = fc;
-	memcpy(nullfunc->addr1, sdata->u.mgd.bssid, ETH_ALEN);
-	memcpy(nullfunc->addr2, sdata->dev->dev_addr, ETH_ALEN);
-	memcpy(nullfunc->addr3, sdata->u.mgd.bssid, ETH_ALEN);
-
-	ieee80211_tx_skb(sdata, skb, 0);
 }
