@@ -83,6 +83,10 @@ struct fsl_spi_platform_data {
 	u16	max_chipselect;
 	void	(*cs_control)(struct spi_device *spi, bool on);
 	u32	sysclk;
+
+	/* Legacy hooks, used by mpc52xx_psc_spi driver. */
+	void	(*activate_cs)(u8 cs, u8 polarity);
+	void	(*deactivate_cs)(u8 cs, u8 polarity);
 };
 
 struct mpc8xx_pcmcia_ops {
