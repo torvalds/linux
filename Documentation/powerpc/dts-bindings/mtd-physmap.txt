@@ -5,7 +5,9 @@ file systems on embedded devices.
 
  - compatible : should contain the specific model of flash chip(s)
    used, if known, followed by either "cfi-flash" or "jedec-flash"
- - reg : Address range of the flash chip
+ - reg : Address range(s) of the flash chip(s)
+   It's possible to (optionally) define multiple "reg" tuples so that
+   non-identical NOR chips can be described in one flash node.
  - bank-width : Width (in bytes) of the flash bank.  Equal to the
    device width times the number of interleaved chips.
  - device-width : (optional) Width of a single flash chip.  If
@@ -59,5 +61,20 @@ Example:
 			label ="firmware";
 			reg = <f80000 80000>;
 			read-only;
+		};
+	};
+
+Here an example with multiple "reg" tuples:
+
+	flash@f0000000,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "intel,PC48F4400P0VB", "cfi-flash";
+		reg = <0 0x00000000 0x02000000
+		       0 0x02000000 0x02000000>;
+		bank-width = <2>;
+		partition@0 {
+			label = "test-part1";
+			reg = <0 0x04000000>;
 		};
 	};
