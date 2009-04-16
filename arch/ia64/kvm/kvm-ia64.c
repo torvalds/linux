@@ -1100,10 +1100,6 @@ static void kvm_free_vmm_area(void)
 	}
 }
 
-static void vti_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
-{
-}
-
 static int vti_init_vpd(struct kvm_vcpu *vcpu)
 {
 	int i;
@@ -1348,7 +1344,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	vcpu->kvm = kvm;
 
 	cpu = get_cpu();
-	vti_vcpu_load(vcpu, cpu);
 	r = vti_vcpu_setup(vcpu, id);
 	put_cpu();
 
