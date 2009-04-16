@@ -2545,9 +2545,9 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 	}
 
 	BUG_ON(info->nr_frags > MAX_SKB_FRAGS);
-	frag = &info->frags[info->nr_frags - 1];
+	frag = info->frags;
 
-	for (i = skb_shinfo(skb)->nr_frags; i < info->nr_frags; i++) {
+	for (i = 0; i < info->nr_frags; i++) {
 		skb_fill_page_desc(skb, i, frag->page, frag->page_offset,
 				   frag->size);
 		frag++;
