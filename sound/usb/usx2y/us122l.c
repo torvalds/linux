@@ -349,14 +349,10 @@ static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	if (cmd != SNDRV_USB_STREAM_IOCTL_SET_PARAMS)
 		return -ENOTTY;
 
-	cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
-	if (!cfg)
-		return -ENOMEM;
+	cfg = memdup_user((void *)arg, sizeof(*cfg));
+	if (IS_ERR(cfg))
+		return PTR_ERR(cfg);
 
-	if (copy_from_user(cfg, (void *)arg, sizeof(*cfg))) {
-		err = -EFAULT;
-		goto free;
-	}
 	if (cfg->version != USB_STREAM_INTERFACE_VERSION) {
 		err = -ENXIO;
 		goto free;

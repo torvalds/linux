@@ -16,20 +16,13 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/interrupt.h>
 #include <linux/usb.h>
-#include <linux/input.h>
-#include <linux/spinlock.h>
-#include <sound/core.h>
 #include <sound/rawmidi.h>
+#include <sound/core.h>
 #include <sound/pcm.h>
 
-#include "caiaq-device.h"
-#include "caiaq-midi.h"
-
+#include "device.h"
+#include "midi.h"
 
 static int snd_usb_caiaq_midi_input_open(struct snd_rawmidi_substream *substream)
 {

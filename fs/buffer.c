@@ -547,7 +547,7 @@ repeat:
 	return err;
 }
 
-void do_thaw_all(unsigned long unused)
+void do_thaw_all(struct work_struct *work)
 {
 	struct super_block *sb;
 	char b[BDEVNAME_SIZE];
@@ -567,6 +567,7 @@ restart:
 			goto restart;
 	}
 	spin_unlock(&sb_lock);
+	kfree(work);
 	printk(KERN_WARNING "Emergency Thaw complete\n");
 }
 
@@ -577,7 +578,13 @@ restart:
  */
 void emergency_thaw_all(void)
 {
-	pdflush_operation(do_thaw_all, 0);
+	struct work_struct *work;
+
+	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	if (work) {
+		INIT_WORK(work, do_thaw_all);
+		schedule_work(work);
+	}
 }
 
 /**

@@ -50,23 +50,27 @@
 #define IIM_PROD_REV_SH		3
 #define IIM_PROD_REV_LEN	5
 
-#ifdef CONFIG_MXC_IRQ_PRIOR
-void imx_irq_set_priority(unsigned char irq, unsigned char prio)
+int imx_irq_set_priority(unsigned char irq, unsigned char prio)
 {
+#ifdef CONFIG_MXC_IRQ_PRIOR
 	unsigned int temp;
 	unsigned int mask = 0x0F << irq % 8 * 4;
 
-	if (irq > 63)
-		return;
+	if (irq >= MXC_INTERNAL_IRQS)
+		return -EINVAL;;
 
 	temp = __raw_readl(AVIC_NIPRIORITY(irq / 8));
 	temp &= ~mask;
 	temp |= prio & mask;
 
 	__raw_writel(temp, AVIC_NIPRIORITY(irq / 8));
+
+	return 0;
+#else
+	return -ENOSYS;
+#endif
 }
 EXPORT_SYMBOL(imx_irq_set_priority);
-#endif
 
 #ifdef CONFIG_FIQ
 int mxc_set_irq_fiq(unsigned int irq, unsigned int type)

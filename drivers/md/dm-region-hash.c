@@ -14,7 +14,6 @@
 #include <linux/vmalloc.h>
 
 #include "dm.h"
-#include "dm-bio-list.h"
 
 #define	DM_MSG_PREFIX	"region hash"
 

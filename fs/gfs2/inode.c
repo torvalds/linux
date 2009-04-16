@@ -137,15 +137,15 @@ void gfs2_set_iop(struct inode *inode)
 	if (S_ISREG(mode)) {
 		inode->i_op = &gfs2_file_iops;
 		if (gfs2_localflocks(sdp))
-			inode->i_fop = gfs2_file_fops_nolock;
+			inode->i_fop = &gfs2_file_fops_nolock;
 		else
-			inode->i_fop = gfs2_file_fops;
+			inode->i_fop = &gfs2_file_fops;
 	} else if (S_ISDIR(mode)) {
 		inode->i_op = &gfs2_dir_iops;
 		if (gfs2_localflocks(sdp))
-			inode->i_fop = gfs2_dir_fops_nolock;
+			inode->i_fop = &gfs2_dir_fops_nolock;
 		else
-			inode->i_fop = gfs2_dir_fops;
+			inode->i_fop = &gfs2_dir_fops;
 	} else if (S_ISLNK(mode)) {
 		inode->i_op = &gfs2_symlink_iops;
 	} else {
