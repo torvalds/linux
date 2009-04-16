@@ -101,7 +101,8 @@ static int netfs_trans_send_pages(struct netfs_trans *t, struct netfs_state *st)
 			goto err_out;
 		}
 
-		msg.msg_flags = MSG_WAITALL|(attached_pages == 1)?0:MSG_MORE;
+		msg.msg_flags = MSG_WAITALL | (attached_pages == 1 ? 0 :
+				MSG_MORE);
 
 		err = kernel_sendpage(st->socket, page, 0, size, msg.msg_flags);
 		if (err <= 0) {

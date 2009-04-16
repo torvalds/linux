@@ -482,7 +482,7 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
 		err++;
 
-	if (!cmd->convert_src & (TRIG_EXT | TRIG_TIMER))
+	if (!(cmd->convert_src & (TRIG_EXT | TRIG_TIMER)))
 		err++;
 
 	tmp = cmd->scan_end_src;

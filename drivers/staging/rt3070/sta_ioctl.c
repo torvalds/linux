@@ -1725,10 +1725,8 @@ int rt_ioctl_siwencode(struct net_device *dev,
             }
         else
 			/* Don't complain if only change the mode */
-		if(!erq->flags & IW_ENCODE_MODE)
-		{
+		if (!(erq->flags & IW_ENCODE_MODE))
 				return -EINVAL;
-		}
 	}
 
 done:
