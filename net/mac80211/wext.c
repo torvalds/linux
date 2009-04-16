@@ -789,7 +789,7 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 		ieee80211_hw_config(local,
 				    IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT);
 
-	ieee80211_recalc_ps(local);
+	ieee80211_recalc_ps(local, -1);
 
 	return 0;
 }

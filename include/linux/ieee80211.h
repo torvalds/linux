@@ -1383,4 +1383,13 @@ static inline int ieee80211_freq_to_ofdm_chan(int s_freq, int freq)
 		return -1;
 }
 
+/**
+ * ieee80211_tu_to_usec - convert time units (TU) to microseconds
+ * @tu: the TUs
+ */
+static inline unsigned long ieee80211_tu_to_usec(unsigned long tu)
+{
+	return 1024 * tu;
+}
+
 #endif /* LINUX_IEEE80211_H */

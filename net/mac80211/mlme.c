@@ -17,6 +17,7 @@
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/pm_qos_params.h>
 #include <net/mac80211.h>
 #include <asm/unaligned.h>
 
@@ -515,7 +516,7 @@ static void ieee80211_change_ps(struct ieee80211_local *local)
 }
 
 /* need to hold RTNL or interface lock */
-void ieee80211_recalc_ps(struct ieee80211_local *local)
+void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 {
 	struct ieee80211_sub_if_data *sdata, *found = NULL;
 	int count = 0;
@@ -534,10 +535,22 @@ void ieee80211_recalc_ps(struct ieee80211_local *local)
 		count++;
 	}
 
-	if (count == 1 && found->u.mgd.powersave)
-		local->ps_sdata = found;
-	else
+	if (count == 1 && found->u.mgd.powersave) {
+		s32 beaconint_us;
+
+		if (latency < 0)
+			latency = pm_qos_requirement(PM_QOS_NETWORK_LATENCY);
+
+		beaconint_us = ieee80211_tu_to_usec(
+					found->vif.bss_conf.beacon_int);
+
+		if (beaconint_us > latency)
+			local->ps_sdata = NULL;
+		else
+			local->ps_sdata = found;
+	} else {
 		local->ps_sdata = NULL;
+	}
 
 	ieee80211_change_ps(local);
 }
@@ -2323,4 +2336,19 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 	list_for_each_entry_rcu(sdata, &local->interfaces, list)
 		ieee80211_restart_sta_timer(sdata);
 	rcu_read_unlock();
+}
+
+int ieee80211_max_network_latency(struct notifier_block *nb,
+				  unsigned long data, void *dummy)
+{
+	s32 latency_usec = (s32) data;
+	struct ieee80211_local *local =
+		container_of(nb, struct ieee80211_local,
+			     network_latency_notifier);
+
+	mutex_lock(&local->iflist_mtx);
+	ieee80211_recalc_ps(local, latency_usec);
+	mutex_unlock(&local->iflist_mtx);
+
+	return 0;
 }
