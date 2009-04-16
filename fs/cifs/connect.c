@@ -3765,7 +3765,6 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 					cFYI(1, ("nativeFileSystem=%s",
 						tcon->nativeFileSystem));
 				}
-				bcc_ptr += (2 * length) + 2;
 			}
 			/* else do not bother copying these information fields*/
 		} else {
