@@ -640,8 +640,9 @@ static int
 ecryptfs_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
 {
 	char *lower_buf;
+	size_t lower_bufsiz;
 	struct dentry *lower_dentry;
-	struct ecryptfs_crypt_stat *crypt_stat;
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	char *plaintext_name;
 	size_t plaintext_name_size;
 	mm_segment_t old_fs;
@@ -652,12 +653,21 @@ ecryptfs_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
 		rc = -EINVAL;
 		goto out;
 	}
-	crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
+	mount_crypt_stat = &ecryptfs_superblock_to_private(
+						dentry->d_sb)->mount_crypt_stat;
+	/*
+	 * If the lower filename is encrypted, it will result in a significantly
+	 * longer name.  If needed, truncate the name after decode and decrypt.
+	 */
+	if (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)
+		lower_bufsiz = PATH_MAX;
+	else
+		lower_bufsiz = bufsiz;
 	/* Released in this function */
-	lower_buf = kmalloc(bufsiz, GFP_KERNEL);
+	lower_buf = kmalloc(lower_bufsiz, GFP_KERNEL);
 	if (lower_buf == NULL) {
 		printk(KERN_ERR "%s: Out of memory whilst attempting to "
-		       "kmalloc [%d] bytes\n", __func__, bufsiz);
+		       "kmalloc [%d] bytes\n", __func__, lower_bufsiz);
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -665,7 +675,7 @@ ecryptfs_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
 	set_fs(get_ds());
 	rc = lower_dentry->d_inode->i_op->readlink(lower_dentry,
 						   (char __user *)lower_buf,
-						   bufsiz);
+						   lower_bufsiz);
 	set_fs(old_fs);
 	if (rc >= 0) {
 		rc = ecryptfs_decode_and_decrypt_filename(&plaintext_name,
@@ -678,7 +688,9 @@ ecryptfs_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
 				rc);
 			goto out_free_lower_buf;
 		}
-		rc = copy_to_user(buf, plaintext_name, plaintext_name_size);
+		/* Check for bufsiz <= 0 done in sys_readlinkat() */
+		rc = copy_to_user(buf, plaintext_name,
+				  min((unsigned) bufsiz, plaintext_name_size));
 		if (rc)
 			rc = -EFAULT;
 		else
