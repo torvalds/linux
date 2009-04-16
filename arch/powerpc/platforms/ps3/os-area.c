@@ -578,7 +578,7 @@ static void os_area_db_init(struct os_area_db *db)
  *
  */
 
-static void update_flash_db(void)
+static void __maybe_unused update_flash_db(void)
 {
 	int result;
 	int file;
