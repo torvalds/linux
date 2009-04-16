@@ -632,34 +632,22 @@ static int kvm_vcpu_pre_transition(struct kvm_vcpu *vcpu)
 	vti_set_rr6(vcpu->arch.vmm_rr);
 	return kvm_insert_vmm_mapping(vcpu);
 }
+
 static void kvm_vcpu_post_transition(struct kvm_vcpu *vcpu)
 {
 	kvm_purge_vmm_mapping(vcpu);
 	vti_set_rr6(vcpu->arch.host_rr6);
 }
 
-static int  vti_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	union context *host_ctx, *guest_ctx;
 	int r;
 
-	/*Get host and guest context with guest address space.*/
-	host_ctx = kvm_get_host_context(vcpu);
-	guest_ctx = kvm_get_guest_context(vcpu);
-
-	r = kvm_vcpu_pre_transition(vcpu);
-	if (r < 0)
-		goto out;
-	kvm_vmm_info->tramp_entry(host_ctx, guest_ctx);
-	kvm_vcpu_post_transition(vcpu);
-	r = 0;
-out:
-	return r;
-}
-
-static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
-{
-	int r;
+	/*
+	 * down_read() may sleep and return with interrupts enabled
+	 */
+	down_read(&vcpu->kvm->slots_lock);
 
 again:
 	if (signal_pending(current)) {
@@ -668,23 +656,28 @@ again:
 		goto out;
 	}
 
-	/*
-	 * down_read() may sleep and return with interrupts enabled
-	 */
-	down_read(&vcpu->kvm->slots_lock);
-
 	preempt_disable();
 	local_irq_disable();
 
+	/*Get host and guest context with guest address space.*/
+	host_ctx = kvm_get_host_context(vcpu);
+	guest_ctx = kvm_get_guest_context(vcpu);
+
 	vcpu->guest_mode = 1;
+
+	r = kvm_vcpu_pre_transition(vcpu);
+	if (r < 0)
+		goto vcpu_run_fail;
+
+	up_read(&vcpu->kvm->slots_lock);
 	kvm_guest_enter();
-	r = vti_vcpu_run(vcpu, kvm_run);
-	if (r < 0) {
-		local_irq_enable();
-		preempt_enable();
-		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
-		goto out;
-	}
+
+	/*
+	 * Transition to the guest
+	 */
+	kvm_vmm_info->tramp_entry(host_ctx, guest_ctx);
+
+	kvm_vcpu_post_transition(vcpu);
 
 	vcpu->arch.launched = 1;
 	vcpu->guest_mode = 0;
@@ -698,8 +691,9 @@ again:
 	 */
 	barrier();
 	kvm_guest_exit();
-	up_read(&vcpu->kvm->slots_lock);
 	preempt_enable();
+
+	down_read(&vcpu->kvm->slots_lock);
 
 	r = kvm_handle_exit(kvm_run, vcpu);
 
@@ -709,12 +703,20 @@ again:
 	}
 
 out:
+	up_read(&vcpu->kvm->slots_lock);
 	if (r > 0) {
 		kvm_resched(vcpu);
+		down_read(&vcpu->kvm->slots_lock);
 		goto again;
 	}
 
 	return r;
+
+vcpu_run_fail:
+	local_irq_enable();
+	preempt_enable();
+	kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+	goto out;
 }
 
 static void kvm_set_mmio_data(struct kvm_vcpu *vcpu)
