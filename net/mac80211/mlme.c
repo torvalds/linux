@@ -441,6 +441,9 @@ static bool ieee80211_check_tim(struct ieee802_11_elems *elems, u16 aid)
 	u8 index, indexn1, indexn2;
 	struct ieee80211_tim_ie *tim = (struct ieee80211_tim_ie *) elems->tim;
 
+	if (unlikely(!tim || elems->tim_len < 4))
+		return false;
+
 	aid &= 0x3fff;
 	index = aid / 8;
 	mask  = 1 << (aid & 7);
