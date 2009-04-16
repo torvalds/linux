@@ -18,7 +18,7 @@
 
 void show_regs(struct pt_regs *regs)
 {
-	printk(KERN_INFO " Registers dump: mode=%X\r\n", regs->kernel_mode);
+	printk(KERN_INFO " Registers dump: mode=%X\r\n", regs->pt_mode);
 	printk(KERN_INFO " r1=%08lX, r2=%08lX, r3=%08lX, r4=%08lX\n",
 				regs->r1, regs->r2, regs->r3, regs->r4);
 	printk(KERN_INFO " r5=%08lX, r6=%08lX, r7=%08lX, r8=%08lX\n",
@@ -169,7 +169,7 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.r6 = (unsigned long)arg;
 	local_save_flags(regs.msr);
 	regs.pc = (unsigned long)kernel_thread_helper;
-	regs.kernel_mode = 1;
+	regs.pt_mode = 1;
 
 	ret = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
 			&regs, 0, NULL, NULL);

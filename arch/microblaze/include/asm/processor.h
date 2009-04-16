@@ -62,7 +62,7 @@ static inline void start_thread(struct pt_regs *regs,
 {
 	regs->pc = pc;
 	regs->r1 = usp;
-	regs->kernel_mode = 0;
+	regs->pt_mode = 0;
 }
 
 /* Free all resources held by a thread. */

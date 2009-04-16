@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
 	DEFINE(PT_R29, offsetof(struct pt_regs, r29));
 	DEFINE(PT_R30, offsetof(struct pt_regs, r30));
 	DEFINE(PT_R31, offsetof(struct pt_regs, r31));
-	DEFINE(PT_MODE, offsetof(struct pt_regs, kernel_mode));
+	DEFINE(PT_MODE, offsetof(struct pt_regs, pt_mode));
 	BLANK();
 
 	/* Magic offsets for PTRACE PEEK/POKE etc */
