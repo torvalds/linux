@@ -1017,7 +1017,7 @@ static __init void event_test_stuff(void)
  * For every trace event defined, we will test each trace point separately,
  * and then by groups, and finally all trace points.
  */
-static __init int event_trace_self_tests(void)
+static __init void event_trace_self_tests(void)
 {
 	struct ftrace_event_call *call;
 	struct event_subsystem *system;
@@ -1071,7 +1071,7 @@ static __init int event_trace_self_tests(void)
 		sysname = kstrdup(system->name, GFP_KERNEL);
 		if (WARN_ON(!sysname)) {
 			pr_warning("Can't allocate memory, giving up!\n");
-			return 0;
+			return;
 		}
 		ret = ftrace_set_clr_event(sysname, 1);
 		kfree(sysname);
@@ -1086,7 +1086,7 @@ static __init int event_trace_self_tests(void)
 		sysname = kstrdup(system->name, GFP_KERNEL);
 		if (WARN_ON(!sysname)) {
 			pr_warning("Can't allocate memory, giving up!\n");
-			return 0;
+			return;
 		}
 		ret = ftrace_set_clr_event(sysname, 0);
 		kfree(sysname);
@@ -1106,14 +1106,14 @@ static __init int event_trace_self_tests(void)
 	sysname = kmalloc(4, GFP_KERNEL);
 	if (WARN_ON(!sysname)) {
 		pr_warning("Can't allocate memory, giving up!\n");
-		return 0;
+		return;
 	}
 	memcpy(sysname, "*:*", 4);
 	ret = ftrace_set_clr_event(sysname, 1);
 	if (WARN_ON_ONCE(ret)) {
 		kfree(sysname);
 		pr_warning("error enabling all events\n");
-		return 0;
+		return;
 	}
 
 	event_test_stuff();
@@ -1125,10 +1125,76 @@ static __init int event_trace_self_tests(void)
 
 	if (WARN_ON_ONCE(ret)) {
 		pr_warning("error disabling all events\n");
-		return 0;
+		return;
 	}
 
 	pr_cont("OK\n");
+}
+
+#ifdef CONFIG_FUNCTION_TRACER
+
+static DEFINE_PER_CPU(atomic_t, test_event_disable);
+
+static void
+function_test_events_call(unsigned long ip, unsigned long parent_ip)
+{
+	struct ring_buffer_event *event;
+	struct ftrace_entry *entry;
+	unsigned long flags;
+	long disabled;
+	int resched;
+	int cpu;
+	int pc;
+
+	pc = preempt_count();
+	resched = ftrace_preempt_disable();
+	cpu = raw_smp_processor_id();
+	disabled = atomic_inc_return(&per_cpu(test_event_disable, cpu));
+
+	if (disabled != 1)
+		goto out;
+
+	local_save_flags(flags);
+
+	event = trace_current_buffer_lock_reserve(TRACE_FN, sizeof(*entry),
+						  flags, pc);
+	if (!event)
+		goto out;
+	entry	= ring_buffer_event_data(event);
+	entry->ip			= ip;
+	entry->parent_ip		= parent_ip;
+
+	trace_current_buffer_unlock_commit(event, flags, pc);
+
+ out:
+	atomic_dec(&per_cpu(test_event_disable, cpu));
+	ftrace_preempt_enable(resched);
+}
+
+static struct ftrace_ops trace_ops __initdata  =
+{
+	.func = function_test_events_call,
+};
+
+static __init void event_trace_self_test_with_function(void)
+{
+	register_ftrace_function(&trace_ops);
+	pr_info("Running tests again, along with the function tracer\n");
+	event_trace_self_tests();
+	unregister_ftrace_function(&trace_ops);
+}
+#else
+static __init void event_trace_self_test_with_function(void)
+{
+}
+#endif
+
+static __init int event_trace_self_tests_init(void)
+{
+
+	event_trace_self_tests();
+
+	event_trace_self_test_with_function();
 
 	return 0;
 }
