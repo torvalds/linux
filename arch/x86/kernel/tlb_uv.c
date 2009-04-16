@@ -717,7 +717,7 @@ uv_activation_descriptor_init(int node, int pnode)
 	adp = (struct bau_desc *)kmalloc_node(16384, GFP_KERNEL, node);
 	BUG_ON(!adp);
 
-	pa = __pa((unsigned long)adp);
+	pa = uv_gpa(adp); /* need the real nasid*/
 	n = pa >> uv_nshift;
 	m = pa & uv_mmask;
 
@@ -754,6 +754,8 @@ static struct bau_payload_queue_entry * __init
 uv_payload_queue_init(int node, int pnode, struct bau_control *bau_tablesp)
 {
 	struct bau_payload_queue_entry *pqp;
+	unsigned long pa;
+	int pn;
 	char *cp;
 
 	pqp = (struct bau_payload_queue_entry *) kmalloc_node(
@@ -764,10 +766,14 @@ uv_payload_queue_init(int node, int pnode, struct bau_control *bau_tablesp)
 	cp = (char *)pqp + 31;
 	pqp = (struct bau_payload_queue_entry *)(((unsigned long)cp >> 5) << 5);
 	bau_tablesp->va_queue_first = pqp;
+	/*
+	 * need the pnode of where the memory was really allocated
+	 */
+	pa = uv_gpa(pqp);
+	pn = pa >> uv_nshift;
 	uv_write_global_mmr64(pnode,
 			      UVH_LB_BAU_INTD_PAYLOAD_QUEUE_FIRST,
-			      ((unsigned long)pnode <<
-			       UV_PAYLOADQ_PNODE_SHIFT) |
+			      ((unsigned long)pn << UV_PAYLOADQ_PNODE_SHIFT) |
 			      uv_physnodeaddr(pqp));
 	uv_write_global_mmr64(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_TAIL,
 			      uv_physnodeaddr(pqp));
