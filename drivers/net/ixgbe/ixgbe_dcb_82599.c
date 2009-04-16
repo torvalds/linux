@@ -290,7 +290,7 @@ s32 ixgbe_dcb_config_tx_data_arbiter_82599(struct ixgbe_hw *hw,
 s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw,
                                struct ixgbe_dcb_config *dcb_config)
 {
-	u32 i, reg;
+	u32 i, reg, rx_pba_size;
 
 	/* If PFC is disabled globally then fall back to LFC. */
 	if (!dcb_config->pfc_mode_enable) {
@@ -301,17 +301,23 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw,
 
 	/* Configure PFC Tx thresholds per TC */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
-		/* Config and remember Tx */
+		if (dcb_config->rx_pba_cfg == pba_equal)
+			rx_pba_size = IXGBE_RXPBSIZE_64KB;
+		else
+			rx_pba_size = (i < 4) ? IXGBE_RXPBSIZE_80KB
+			                      : IXGBE_RXPBSIZE_48KB;
+
+		reg = ((rx_pba_size >> 5) & 0xFFE0);
 		if (dcb_config->tc_config[i].dcb_pfc == pfc_enabled_full ||
-		    dcb_config->tc_config[i].dcb_pfc == pfc_enabled_tx) {
-			reg = hw->fc.high_water | IXGBE_FCRTH_FCEN;
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), reg);
-			reg = hw->fc.low_water | IXGBE_FCRTL_XONE;
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), reg);
-		} else {
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), 0);
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), 0);
-		}
+		    dcb_config->tc_config[i].dcb_pfc == pfc_enabled_tx)
+			reg |= IXGBE_FCRTL_XONE;
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), reg);
+
+		reg = ((rx_pba_size >> 2) & 0xFFE0);
+		if (dcb_config->tc_config[i].dcb_pfc == pfc_enabled_full ||
+		    dcb_config->tc_config[i].dcb_pfc == pfc_enabled_tx)
+			reg |= IXGBE_FCRTH_FCEN;
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), reg);
 	}
 
 	/* Configure pause time (2 TCs per register) */
