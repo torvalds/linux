@@ -1021,15 +1021,6 @@ int bfin_gpio_irq_request(unsigned gpio, const char *label)
 
 	local_irq_save_hw(flags);
 
-	if (unlikely(reserved_gpio_irq_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
-		if (system_state == SYSTEM_BOOTING)
-			dump_stack();
-		printk(KERN_ERR
-		       "bfin-gpio: GPIO %d is already reserved as gpio-irq !\n",
-		       gpio);
-		local_irq_restore_hw(flags);
-		return -EBUSY;
-	}
 	if (unlikely(reserved_peri_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
 		if (system_state == SYSTEM_BOOTING)
 			dump_stack();
