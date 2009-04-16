@@ -3756,16 +3756,13 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 			    BCC(smb_buffer_response)) {
 				kfree(tcon->nativeFileSystem);
 				tcon->nativeFileSystem =
-				    kzalloc(2*(length + 1), GFP_KERNEL);
+				    kzalloc((4 * length) + 2, GFP_KERNEL);
 				if (tcon->nativeFileSystem)
 					cifs_strfromUCS_le(
 						tcon->nativeFileSystem,
 						(__le16 *) bcc_ptr,
 						length, nls_codepage);
-				bcc_ptr += 2 * length;
-				bcc_ptr[0] = 0;	/* null terminate the string */
-				bcc_ptr[1] = 0;
-				bcc_ptr += 2;
+				bcc_ptr += (2 * length) + 2;
 			}
 			/* else do not bother copying these information fields*/
 		} else {
