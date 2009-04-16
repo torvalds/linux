@@ -807,9 +807,24 @@ err:
 	return -1;
 }
 
-static u32 stv090x_car_width(u32 srate, u32 rolloff)
+static u32 stv090x_car_width(u32 srate, enum stv090x_rolloff rolloff)
 {
-	return srate + (srate * rolloff) / 100;
+	u32 ro;
+
+	switch (rolloff) {
+	case STV090x_RO_20:
+		ro = 20;
+		break;
+	case STV090x_RO_25:
+		ro = 25;
+		break;
+	case STV090x_RO_35:
+	default:
+		ro = 35;
+		break;
+	}
+
+	return srate + (srate * ro) / 100;
 }
 
 static int stv090x_set_vit_thacq(struct stv090x_state *state)
@@ -1148,12 +1163,12 @@ static int stv090x_delivery_search(struct stv090x_state *state)
 		if (STV090x_WRITE_DEMOD(state, DMDCFGMD, reg) < 0)
 			goto err;
 
-		if (stv090x_vitclk_ctl(state, 1) < 0)
+		if (stv090x_vitclk_ctl(state, 0) < 0)
 			goto err;
 
 		if (STV090x_WRITE_DEMOD(state, ACLC, 0x1a) < 0)
 			goto err;
-		if (STV090x_WRITE_DEMOD(state, ACLC, 0x09) < 0)
+		if (STV090x_WRITE_DEMOD(state, BCLC, 0x09) < 0)
 			goto err;
 		if (STV090x_WRITE_DEMOD(state, CAR2CFG, 0x26) < 0)
 			goto err;
@@ -2904,7 +2919,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	enum stv090x_signal_state signal_state = STV090x_NOCARRIER;
 	u32 reg;
 	s32 timeout_dmd = 500, timeout_fec = 50;
-	int lock = 0, low_sr, no_signal = 0;
+	int lock = 0, low_sr = 0, no_signal = 0;
 
 	reg = STV090x_READ_DEMOD(state, TSCFGH);
 	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 1); /* Stop path 1 stream merger */
@@ -2948,7 +2963,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 			if (STV090x_WRITE_DEMOD(state, KREFTMG, 0x5a) < 0)
 				goto err;
 			if (state->algo == STV090x_COLD_SEARCH)
-				state->tuner_bw = (15 * (stv090x_car_width(state->srate, state->rolloff) + 1000000)) / 10;
+				state->tuner_bw = (15 * (stv090x_car_width(state->srate, state->rolloff) + 10000000)) / 10;
 			else if (state->algo == STV090x_WARM_SEARCH)
 				state->tuner_bw = stv090x_car_width(state->srate, state->rolloff) + 10000000;
 		} else {
@@ -2963,6 +2978,8 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 		stv090x_set_min_srate(state, state->mclk, state->srate);
 
 		if (state->srate >= 10000000)
+			low_sr = 0;
+		else
 			low_sr = 1;
 	}
 
@@ -3000,7 +3017,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	if (STV090x_WRITE_DEMOD(state, DEMOD, reg) < 0)
 		goto err;
 	stv090x_delivery_search(state);
-	if (state->algo == STV090x_BLIND_SEARCH)
+	if (state->algo != STV090x_BLIND_SEARCH)
 		stv090x_start_search(state);
 
 	if (state->dev_ver == 0x12) {
@@ -3117,6 +3134,10 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe, struct dvb_fron
 	state->delsys = props->delivery_system;
 	state->frequency = p->frequency;
 	state->srate = p->u.qpsk.symbol_rate;
+	state->search_mode = STV090x_SEARCH_AUTO;
+	state->algo = STV090x_COLD_SEARCH;
+	state->fec = STV090x_PRERR;
+	state->search_range = 2000000;
 
 	if (!stv090x_algo(state)) {
 		dprintk(FE_DEBUG, 1, "Search success!");
@@ -4008,7 +4029,7 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 	state->demod				= demod;
 	state->demod_mode 			= config->demod_mode; /* Single or Dual mode */
 	state->device				= config->device;
-	state->rolloff				= 35; /* default */
+	state->rolloff				= STV090x_RO_35; /* default */
 
 	if (state->demod == STV090x_DEMODULATOR_0)
 		mutex_init(&demod_lock);
