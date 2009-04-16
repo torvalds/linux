@@ -3962,6 +3962,13 @@ F:	net/wireless/
 F:	include/net/ieee80211*
 F:	include/net/wireless.h
 
+NETWORKING DRIVERS
+L:	netdev@vger.kernel.org
+W:	http://www.linuxfoundation.org/en/Net
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
+S:	Odd Fixes
+F:	drivers/net/
+
 NETXEN (1/10) GbE SUPPORT
 P:	Dhananjay Phadke
 M:	dhananjay@netxen.com
