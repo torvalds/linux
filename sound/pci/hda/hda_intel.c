@@ -1830,7 +1830,7 @@ azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 			  &pcm);
 	if (err < 0)
 		return err;
-	strcpy(pcm->name, cpcm->name);
+	strlcpy(pcm->name, cpcm->name, sizeof(pcm->name));
 	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
 	if (apcm == NULL)
 		return -ENOMEM;
@@ -2358,9 +2358,11 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	}
 
 	strcpy(card->driver, "HDA-Intel");
-	strcpy(card->shortname, driver_short_names[chip->driver_type]);
-	sprintf(card->longname, "%s at 0x%lx irq %i",
-		card->shortname, chip->addr, chip->irq);
+	strlcpy(card->shortname, driver_short_names[chip->driver_type],
+		sizeof(card->shortname));
+	snprintf(card->longname, sizeof(card->longname),
+		 "%s at 0x%lx irq %i",
+		 card->shortname, chip->addr, chip->irq);
 
 	*rchip = chip;
 	return 0;

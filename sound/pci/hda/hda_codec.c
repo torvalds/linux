@@ -1431,6 +1431,8 @@ _snd_hda_find_mixer_ctl(struct hda_codec *codec,
 	memset(&id, 0, sizeof(id));
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	id.index = idx;
+	if (snd_BUG_ON(strlen(name) >= sizeof(id.name)))
+		return NULL;
 	strcpy(id.name, name);
 	return snd_ctl_find_id(codec->bus->card, &id);
 }
