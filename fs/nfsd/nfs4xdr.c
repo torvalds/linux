@@ -1490,13 +1490,41 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	memcpy(p, ptr, nbytes);					\
 	p += XDR_QUADLEN(nbytes);				\
 }} while (0)
-#define WRITECINFO(c)		do {				\
-	*p++ = htonl(c.atomic);					\
-	*p++ = htonl(c.before_ctime_sec);				\
-	*p++ = htonl(c.before_ctime_nsec);				\
-	*p++ = htonl(c.after_ctime_sec);				\
-	*p++ = htonl(c.after_ctime_nsec);				\
-} while (0)
+
+static void write32(__be32 **p, u32 n)
+{
+	*(*p)++ = n;
+}
+
+static void write64(__be32 **p, u64 n)
+{
+	write32(p, (u32)(n >> 32));
+	write32(p, (u32)n);
+}
+
+static void write_change(__be32 **p, struct kstat *stat, struct inode *inode)
+{
+	if (IS_I_VERSION(inode)) {
+		write64(p, inode->i_version);
+	} else {
+		write32(p, stat->ctime.tv_sec);
+		write32(p, stat->ctime.tv_nsec);
+	}
+}
+
+static void write_cinfo(__be32 **p, struct nfsd4_change_info *c)
+{
+	write32(p, c->atomic);
+	if (c->change_supported) {
+		write64(p, c->before_change);
+		write64(p, c->after_change);
+	} else {
+		write32(p, c->before_ctime_sec);
+		write32(p, c->before_ctime_nsec);
+		write32(p, c->after_ctime_sec);
+		write32(p, c->after_ctime_nsec);
+	}
+}
 
 #define RESERVE_SPACE(nbytes)	do {				\
 	p = resp->p;						\
@@ -1849,16 +1877,9 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 			WRITE32(NFS4_FH_PERSISTENT|NFS4_FH_VOL_RENAME);
 	}
 	if (bmval0 & FATTR4_WORD0_CHANGE) {
-		/*
-		 * Note: This _must_ be consistent with the scheme for writing
-		 * change_info, so any changes made here must be reflected there
-		 * as well.  (See xdr4.h:set_change_info() and the WRITECINFO()
-		 * macro above.)
-		 */
 		if ((buflen -= 8) < 0)
 			goto out_resource;
-		WRITE32(stat.ctime.tv_sec);
-		WRITE32(stat.ctime.tv_nsec);
+		write_change(&p, &stat, dentry->d_inode);
 	}
 	if (bmval0 & FATTR4_WORD0_SIZE) {
 		if ((buflen -= 8) < 0)
@@ -2364,7 +2385,7 @@ nfsd4_encode_create(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 
 	if (!nfserr) {
 		RESERVE_SPACE(32);
-		WRITECINFO(create->cr_cinfo);
+		write_cinfo(&p, &create->cr_cinfo);
 		WRITE32(2);
 		WRITE32(create->cr_bmval[0]);
 		WRITE32(create->cr_bmval[1]);
@@ -2475,7 +2496,7 @@ nfsd4_encode_link(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_li
 
 	if (!nfserr) {
 		RESERVE_SPACE(20);
-		WRITECINFO(link->li_cinfo);
+		write_cinfo(&p, &link->li_cinfo);
 		ADJUST_ARGS();
 	}
 	return nfserr;
@@ -2493,7 +2514,7 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_op
 
 	nfsd4_encode_stateid(resp, &open->op_stateid);
 	RESERVE_SPACE(40);
-	WRITECINFO(open->op_cinfo);
+	write_cinfo(&p, &open->op_cinfo);
 	WRITE32(open->op_rflags);
 	WRITE32(2);
 	WRITE32(open->op_bmval[0]);
@@ -2771,7 +2792,7 @@ nfsd4_encode_remove(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 
 	if (!nfserr) {
 		RESERVE_SPACE(20);
-		WRITECINFO(remove->rm_cinfo);
+		write_cinfo(&p, &remove->rm_cinfo);
 		ADJUST_ARGS();
 	}
 	return nfserr;
@@ -2784,8 +2805,8 @@ nfsd4_encode_rename(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 
 	if (!nfserr) {
 		RESERVE_SPACE(40);
-		WRITECINFO(rename->rn_sinfo);
-		WRITECINFO(rename->rn_tinfo);
+		write_cinfo(&p, &rename->rn_sinfo);
+		write_cinfo(&p, &rename->rn_tinfo);
 		ADJUST_ARGS();
 	}
 	return nfserr;

@@ -151,9 +151,15 @@ typedef struct svc_fh {
 	__u64			fh_pre_size;	/* size before operation */
 	struct timespec		fh_pre_mtime;	/* mtime before oper */
 	struct timespec		fh_pre_ctime;	/* ctime before oper */
+	/*
+	 * pre-op nfsv4 change attr: note must check IS_I_VERSION(inode)
+	 *  to find out if it is valid.
+	 */
+	u64			fh_pre_change;
 
 	/* Post-op attributes saved in fh_unlock */
 	struct kstat		fh_post_attr;	/* full attrs after operation */
+	u64			fh_post_change; /* nfsv4 change; see above */
 #endif /* CONFIG_NFSD_V3 */
 
 } svc_fh;
@@ -298,6 +304,7 @@ fill_pre_wcc(struct svc_fh *fhp)
 		fhp->fh_pre_mtime = inode->i_mtime;
 		fhp->fh_pre_ctime = inode->i_ctime;
 		fhp->fh_pre_size  = inode->i_size;
+		fhp->fh_pre_change = inode->i_version;
 		fhp->fh_pre_saved = 1;
 	}
 }
