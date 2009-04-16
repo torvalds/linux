@@ -66,8 +66,6 @@ static struct sh4_pci_address_map sh7751_pci_map = {
 		.base	= SH7751_CS2_BASE_ADDR,
 		.size	= SH7751_MEM_REGION_SIZE*2,
 	},
-
-	.flags	= SH4_PCIC_NO_RESET,
 };
 
 int __init pcibios_init_platform(void)

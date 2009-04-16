@@ -99,21 +99,6 @@ int __init sh7751_pcic_init(struct pci_channel *chan,
 	word = SH4_PCIPINT_D3 | SH4_PCIPINT_D0;
 	pci_write_reg(chan, word, SH4_PCIPINT);
 
-	/*
-	 * This code is unused for some boards as it is done in the
-	 * bootloader and doing it here means the MAC addresses loaded
-	 * by the bootloader get lost.
-	 */
-	if (!(map->flags & SH4_PCIC_NO_RESET)) {
-		/* toggle PCI reset pin */
-		word = SH4_PCICR_PREFIX | SH4_PCICR_PRST;
-		pci_write_reg(chan, word, SH4_PCICR);
-		/* Wait for a long time... not 1 sec. but long enough */
-		mdelay(100);
-		word = SH4_PCICR_PREFIX;
-		pci_write_reg(chan, word, SH4_PCICR);
-	}
-
 	/* set the command/status bits to:
 	 * Wait Cycle Control + Parity Enable + Bus Master +
 	 * Mem space enable

@@ -149,9 +149,6 @@
   #define SH4_PCIPDTR_PB0	  0x000000001	/* Port 0 Enable */
 #define SH4_PCIPDR		0x220		/* Port IO Data Register */
 
-/* Flags */
-#define SH4_PCIC_NO_RESET	0x0001
-
 /* arch/sh/kernel/drivers/pci/ops-sh4.c */
 extern struct pci_ops sh4_pci_ops;
 int sh4_pci_check_direct(struct pci_channel *chan);
@@ -165,7 +162,6 @@ struct sh4_pci_address_space {
 struct sh4_pci_address_map {
 	struct sh4_pci_address_space window0;
 	struct sh4_pci_address_space window1;
-	unsigned long flags;
 };
 
 static inline void pci_write_reg(struct pci_channel *chan,

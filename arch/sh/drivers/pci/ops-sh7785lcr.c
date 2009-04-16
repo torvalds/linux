@@ -55,8 +55,6 @@ static struct sh4_pci_address_map sh7785_pci_map = {
 		.size	= 0x20000000,
 #endif
 	},
-
-	.flags	= SH4_PCIC_NO_RESET,
 };
 
 int __init pcibios_init_platform(void)
