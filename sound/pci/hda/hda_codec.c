@@ -48,6 +48,7 @@ static struct hda_vendor_id hda_vendor_ids[] = {
 	{ 0x1095, "Silicon Image" },
 	{ 0x10de, "Nvidia" },
 	{ 0x10ec, "Realtek" },
+	{ 0x1102, "Creative" },
 	{ 0x1106, "VIA" },
 	{ 0x111d, "IDT" },
 	{ 0x11c1, "LSI" },

@@ -139,6 +139,19 @@ config SND_HDA_CODEC_CONEXANT
 	  snd-hda-codec-conexant.
 	  This module is automatically loaded at probing.
 
+config SND_HDA_CODEC_CA0110
+	bool "Build Creative CA0110-IBG codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include Creative CA0110-IBG codec support in
+	  snd-hda-intel driver, found on some Creative X-Fi cards.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-ca0110.
+	  This module is automatically loaded at probing.
+
 config SND_HDA_CODEC_CMEDIA
 	bool "Build C-Media HD-audio codec support"
 	default y
