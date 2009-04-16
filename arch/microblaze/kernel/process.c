@@ -37,8 +37,6 @@ void show_regs(struct pt_regs *regs)
 				regs->r29, regs->r30, regs->r31, regs->pc);
 	printk(KERN_INFO " msr=%08lX, ear=%08lX, esr=%08lX, fsr=%08lX\n",
 				regs->msr, regs->ear, regs->esr, regs->fsr);
-	while (1)
-		;
 }
 
 void (*pm_idle)(void);
