@@ -30,7 +30,7 @@
    basic V4L2 device-level support.
  */
 
-#define V4L2_DEVICE_NAME_SIZE (BUS_ID_SIZE + 16)
+#define V4L2_DEVICE_NAME_SIZE (20 + 16)
 
 struct v4l2_device {
 	/* dev->driver_data points to this struct.
