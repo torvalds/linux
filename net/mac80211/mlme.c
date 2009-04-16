@@ -18,6 +18,7 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/pm_qos_params.h>
+#include <linux/crc32.h>
 #include <net/mac80211.h>
 #include <asm/unaligned.h>
 
@@ -1752,46 +1753,73 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 		ifmgd->flags &= ~IEEE80211_STA_PROBEREQ_POLL;
 }
 
+/*
+ * This is the canonical list of information elements we care about,
+ * the filter code also gives us all changes to the Microsoft OUI
+ * (00:50:F2) vendor IE which is used for WMM which we need to track.
+ *
+ * We implement beacon filtering in software since that means we can
+ * avoid processing the frame here and in cfg80211, and userspace
+ * will not be able to tell whether the hardware supports it or not.
+ *
+ * XXX: This list needs to be dynamic -- userspace needs to be able to
+ *	add items it requires. It also needs to be able to tell us to
+ *	look out for other vendor IEs.
+ */
+static const u64 care_about_ies =
+	BIT(WLAN_EID_COUNTRY) |
+	BIT(WLAN_EID_ERP_INFO) |
+	BIT(WLAN_EID_CHANNEL_SWITCH) |
+	BIT(WLAN_EID_PWR_CONSTRAINT) |
+	BIT(WLAN_EID_HT_CAPABILITY) |
+	BIT(WLAN_EID_HT_INFORMATION);
+
 static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_mgmt *mgmt,
 				     size_t len,
 				     struct ieee80211_rx_status *rx_status)
 {
-	struct ieee80211_if_managed *ifmgd;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	size_t baselen;
 	struct ieee802_11_elems elems;
 	struct ieee80211_local *local = sdata->local;
 	u32 changed = 0;
-	bool erp_valid, directed_tim;
+	bool erp_valid, directed_tim = false;
 	u8 erp_value = 0;
+	u32 ncrc;
 
 	/* Process beacon from the current BSS */
 	baselen = (u8 *) mgmt->u.beacon.variable - (u8 *) mgmt;
 	if (baselen > len)
 		return;
 
-	ieee802_11_parse_elems(mgmt->u.beacon.variable, len - baselen, &elems);
-
-	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems, true);
-
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+	if (rx_status->freq != local->hw.conf.channel->center_freq)
 		return;
-
-	ifmgd = &sdata->u.mgd;
 
 	if (!(ifmgd->flags & IEEE80211_STA_ASSOCIATED) ||
 	    memcmp(ifmgd->bssid, mgmt->bssid, ETH_ALEN) != 0)
 		return;
 
-	if (rx_status->freq != local->hw.conf.channel->center_freq)
+	ncrc = crc32_be(0, (void *)&mgmt->u.beacon.beacon_int, 4);
+	ncrc = ieee802_11_parse_elems_crc(mgmt->u.beacon.variable,
+					  len - baselen, &elems,
+					  care_about_ies, ncrc);
+
+	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+		directed_tim = ieee80211_check_tim(&elems, ifmgd->aid);
+
+	ncrc = crc32_be(ncrc, (void *)&directed_tim, sizeof(directed_tim));
+
+	if (ncrc == ifmgd->beacon_crc)
 		return;
+	ifmgd->beacon_crc = ncrc;
+
+	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems, true);
 
 	ieee80211_sta_wmm_params(local, ifmgd, elems.wmm_param,
 				 elems.wmm_param_len);
 
 	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) {
-		directed_tim = ieee80211_check_tim(&elems, ifmgd->aid);
-
 		if (directed_tim) {
 			if (local->hw.conf.dynamic_ps_timeout > 0) {
 				local->hw.conf.flags &= ~IEEE80211_CONF_PS;

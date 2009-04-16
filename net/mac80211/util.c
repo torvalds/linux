@@ -20,6 +20,7 @@
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <linux/bitmap.h>
+#include <linux/crc32.h>
 #include <net/net_namespace.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
@@ -537,8 +538,16 @@ EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces_atomic);
 void ieee802_11_parse_elems(u8 *start, size_t len,
 			    struct ieee802_11_elems *elems)
 {
+	ieee802_11_parse_elems_crc(start, len, elems, 0, 0);
+}
+
+u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
+			       struct ieee802_11_elems *elems,
+			       u64 filter, u32 crc)
+{
 	size_t left = len;
 	u8 *pos = start;
+	bool calc_crc = filter != 0;
 
 	memset(elems, 0, sizeof(*elems));
 	elems->ie_start = start;
@@ -552,7 +561,10 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 		left -= 2;
 
 		if (elen > left)
-			return;
+			break;
+
+		if (calc_crc && id < 64 && (filter & BIT(id)))
+			crc = crc32_be(crc, pos - 2, elen + 2);
 
 		switch (id) {
 		case WLAN_EID_SSID:
@@ -587,15 +599,20 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 			elems->challenge = pos;
 			elems->challenge_len = elen;
 			break;
-		case WLAN_EID_WPA:
+		case WLAN_EID_VENDOR_SPECIFIC:
 			if (elen >= 4 && pos[0] == 0x00 && pos[1] == 0x50 &&
 			    pos[2] == 0xf2) {
 				/* Microsoft OUI (00:50:F2) */
+
+				if (calc_crc)
+					crc = crc32_be(crc, pos - 2, elen + 2);
+
 				if (pos[3] == 1) {
 					/* OUI Type 1 - WPA IE */
 					elems->wpa = pos;
 					elems->wpa_len = elen;
 				} else if (elen >= 5 && pos[3] == 2) {
+					/* OUI Type 2 - WMM IE */
 					if (pos[4] == 0) {
 						elems->wmm_info = pos;
 						elems->wmm_info_len = elen;
@@ -680,6 +697,8 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 		left -= elen;
 		pos += elen;
 	}
+
+	return crc;
 }
 
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
