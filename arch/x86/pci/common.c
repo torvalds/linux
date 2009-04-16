@@ -142,15 +142,20 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 	}
 }
 
+void __attribute__((weak)) set_pci_bus_resources_arch_default(struct pci_bus *b)
+{
+}
+
 /*
  *  Called after each bus is probed, but before its children
  *  are examined.
  */
 
-void __devinit  pcibios_fixup_bus(struct pci_bus *b)
+void __devinit pcibios_fixup_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
 
+	set_pci_bus_resources_arch_default(b);
 	pci_read_bridge_bases(b);
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
