@@ -385,7 +385,6 @@ void usb_driver_release_interface(struct usb_driver *driver,
 					struct usb_interface *iface)
 {
 	struct device *dev = &iface->dev;
-	struct usb_device *udev = interface_to_usbdev(iface);
 
 	/* this should never happen, don't release something that's not ours */
 	if (!dev->driver || dev->driver != &driver->drvwrap.driver)
@@ -394,23 +393,19 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	/* don't release from within disconnect() */
 	if (iface->condition != USB_INTERFACE_BOUND)
 		return;
+	iface->condition = USB_INTERFACE_UNBINDING;
 
-	/* don't release if the interface hasn't been added yet */
+	/* Release via the driver core only if the interface
+	 * has already been registered
+	 */
 	if (device_is_registered(dev)) {
-		iface->condition = USB_INTERFACE_UNBINDING;
 		device_release_driver(dev);
 	} else {
-		iface->condition = USB_INTERFACE_UNBOUND;
-		usb_cancel_queued_reset(iface);
+		down(&dev->sem);
+		usb_unbind_interface(dev);
+		dev->driver = NULL;
+		up(&dev->sem);
 	}
-	dev->driver = NULL;
-	usb_set_intfdata(iface, NULL);
-
-	usb_pm_lock(udev);
-	iface->condition = USB_INTERFACE_UNBOUND;
-	mark_quiesced(iface);
-	iface->needs_remote_wakeup = 0;
-	usb_pm_unlock(udev);
 }
 EXPORT_SYMBOL_GPL(usb_driver_release_interface);
 
