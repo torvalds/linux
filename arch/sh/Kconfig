@@ -351,6 +351,7 @@ config CPU_SUBTYPE_SH7724
 	bool "Support SH7724 processor"
 	select CPU_SH4A
 	select CPU_SHX2
+	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_CMT
 	help
