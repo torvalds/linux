@@ -1549,7 +1549,6 @@ int input_register_handle(struct input_handle *handle)
 		return error;
 	list_add_tail_rcu(&handle->d_node, &dev->h_list);
 	mutex_unlock(&dev->mutex);
-	synchronize_rcu();
 
 	/*
 	 * Since we are supposed to be called from ->connect()

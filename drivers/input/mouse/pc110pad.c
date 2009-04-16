@@ -108,7 +108,6 @@ static int pc110pad_open(struct input_dev *dev)
  */
 static int __init pc110pad_init(void)
 {
-	struct pci_dev *dev;
 	int err;
 
 	if (!no_pci_devices())

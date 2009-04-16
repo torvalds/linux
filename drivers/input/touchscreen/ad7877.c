@@ -736,8 +736,8 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 
 	/* Request AD7877 /DAV GPIO interrupt */
 
-	err = request_irq(spi->irq, ad7877_irq, IRQF_TRIGGER_FALLING |
-			IRQF_SAMPLE_RANDOM, spi->dev.driver->name, ts);
+	err = request_irq(spi->irq, ad7877_irq, IRQF_TRIGGER_FALLING,
+			spi->dev.driver->name, ts);
 	if (err) {
 		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
 		goto err_free_mem;
