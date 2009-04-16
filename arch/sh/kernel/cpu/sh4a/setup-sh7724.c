@@ -99,9 +99,55 @@ static struct platform_device rtc_device = {
 	.resource	= rtc_resources,
 };
 
+/* I2C0 */
+static struct resource iic0_resources[] = {
+	[0] = {
+		.name	= "IIC0",
+		.start  = 0x04470000,
+		.end    = 0x04470018 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 96,
+		.end    = 99,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device iic0_device = {
+	.name           = "i2c-sh_mobile",
+	.id             = 0, /* "i2c0" clock */
+	.num_resources  = ARRAY_SIZE(iic0_resources),
+	.resource       = iic0_resources,
+};
+
+/* I2C1 */
+static struct resource iic1_resources[] = {
+	[0] = {
+		.name	= "IIC1",
+		.start  = 0x04750000,
+		.end    = 0x04750018 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 92,
+		.end    = 95,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device iic1_device = {
+	.name           = "i2c-sh_mobile",
+	.id             = 1, /* "i2c1" clock */
+	.num_resources  = ARRAY_SIZE(iic1_resources),
+	.resource       = iic1_resources,
+};
+
 static struct platform_device *sh7724_devices[] __initdata = {
 	&sci_device,
 	&rtc_device,
+	&iic0_device,
+	&iic1_device,
 };
 
 static int __init sh7724_devices_setup(void)
