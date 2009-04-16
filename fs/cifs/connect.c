@@ -3757,11 +3757,14 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 				kfree(tcon->nativeFileSystem);
 				tcon->nativeFileSystem =
 				    kzalloc((4 * length) + 2, GFP_KERNEL);
-				if (tcon->nativeFileSystem)
+				if (tcon->nativeFileSystem) {
 					cifs_strfromUCS_le(
 						tcon->nativeFileSystem,
 						(__le16 *) bcc_ptr,
 						length, nls_codepage);
+					cFYI(1, ("nativeFileSystem=%s",
+						tcon->nativeFileSystem));
+				}
 				bcc_ptr += (2 * length) + 2;
 			}
 			/* else do not bother copying these information fields*/

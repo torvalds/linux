@@ -311,8 +311,10 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 	kfree(ses->serverOS);
 	/* UTF-8 string will not grow more than four times as big as UCS-16 */
 	ses->serverOS = kzalloc((4 * len) + 2 /* trailing null */, GFP_KERNEL);
-	if (ses->serverOS != NULL)
+	if (ses->serverOS != NULL) {
 		cifs_strfromUCS_le(ses->serverOS, (__le16 *)data, len, nls_cp);
+		cFYI(1, ("serverOS=%s", ses->serverOS));
+	}
 	data += 2 * (len + 1);
 	words_left -= len + 1;
 
@@ -327,6 +329,7 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 	if (ses->serverNOS != NULL) {
 		cifs_strfromUCS_le(ses->serverNOS, (__le16 *)data, len,
 				   nls_cp);
+		cFYI(1, ("serverNOS=%s", ses->serverNOS));
 		if (strncmp(ses->serverNOS, "NT LAN Manager 4", 16) == 0) {
 			cFYI(1, ("NT4 server"));
 			ses->flags |= CIFS_SES_NT4;
@@ -343,9 +346,11 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 
 	kfree(ses->serverDomain);
 	ses->serverDomain = kzalloc((4 * len) + 2, GFP_KERNEL);
-	if (ses->serverDomain != NULL)
+	if (ses->serverDomain != NULL) {
 		cifs_strfromUCS_le(ses->serverDomain, (__le16 *)data, len,
 				   nls_cp);
+		cFYI(1, ("serverDomain=%s", ses->serverDomain));
+	}
 	data += 2 * (len + 1);
 	words_left -= len + 1;
 
