@@ -450,17 +450,27 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 
 	/* Pass the skb/page into the LRO engine */
 	if (rx_buf->page) {
-		struct napi_gro_fraginfo info;
+		struct sk_buff *skb = napi_get_frags(napi);
 
-		info.frags[0].page = rx_buf->page;
-		info.frags[0].page_offset = efx_rx_buf_offset(rx_buf);
-		info.frags[0].size = rx_buf->len;
-		info.nr_frags = 1;
-		info.ip_summed = CHECKSUM_UNNECESSARY;
-		info.len = rx_buf->len;
+		if (!skb) {
+			put_page(rx_buf->page);
+			goto out;
+		}
 
-		napi_gro_frags(napi, &info);
+		skb_shinfo(skb)->frags[0].page = rx_buf->page;
+		skb_shinfo(skb)->frags[0].page_offset =
+			efx_rx_buf_offset(rx_buf);
+		skb_shinfo(skb)->frags[0].size = rx_buf->len;
+		skb_shinfo(skb)->nr_frags = 1;
 
+		skb->len = rx_buf->len;
+		skb->data_len = rx_buf->len;
+		skb->truesize += rx_buf->len;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+		napi_gro_frags(napi);
+
+out:
 		EFX_BUG_ON_PARANOID(rx_buf->skb);
 		rx_buf->page = NULL;
 	} else {

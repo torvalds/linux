@@ -195,7 +195,7 @@ struct sge_qset {		/* an SGE queue set */
 	struct sge_rspq rspq;
 	struct sge_fl fl[SGE_RXQ_PER_SET];
 	struct sge_txq txq[SGE_TXQ_PER_SET];
-	struct napi_gro_fraginfo lro_frag_tbl;
+	int nomem;
 	int lro_enabled;
 	void *lro_va;
 	struct net_device *netdev;

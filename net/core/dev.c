@@ -2519,16 +2519,10 @@ void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(napi_reuse_skb);
 
-struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
-				  struct napi_gro_fraginfo *info)
+struct sk_buff *napi_get_frags(struct napi_struct *napi)
 {
 	struct net_device *dev = napi->dev;
 	struct sk_buff *skb = napi->skb;
-	struct ethhdr *eth;
-	skb_frag_t *frag;
-	int i;
-
-	napi->skb = NULL;
 
 	if (!skb) {
 		skb = netdev_alloc_skb(dev, GRO_MAX_HEAD + NET_IP_ALIGN);
@@ -2536,47 +2530,14 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 			goto out;
 
 		skb_reserve(skb, NET_IP_ALIGN);
+
+		napi->skb = skb;
 	}
-
-	BUG_ON(info->nr_frags > MAX_SKB_FRAGS);
-	frag = &info->frags[info->nr_frags - 1];
-
-	for (i = skb_shinfo(skb)->nr_frags; i < info->nr_frags; i++) {
-		skb_fill_page_desc(skb, i, frag->page, frag->page_offset,
-				   frag->size);
-		frag++;
-	}
-	skb_shinfo(skb)->nr_frags = info->nr_frags;
-
-	skb->data_len = info->len;
-	skb->len += info->len;
-	skb->truesize += info->len;
-
-	skb_reset_mac_header(skb);
-	skb_gro_reset_offset(skb);
-
-	eth = skb_gro_header(skb, sizeof(*eth));
-	if (!eth) {
-		napi_reuse_skb(napi, skb);
-		skb = NULL;
-		goto out;
-	}
-
-	skb_gro_pull(skb, sizeof(*eth));
-
-	/*
-	 * This works because the only protocols we care about don't require
-	 * special handling.  We'll fix it up properly at the end.
-	 */
-	skb->protocol = eth->h_proto;
-
-	skb->ip_summed = info->ip_summed;
-	skb->csum = info->csum;
 
 out:
 	return skb;
 }
-EXPORT_SYMBOL(napi_fraginfo_skb);
+EXPORT_SYMBOL(napi_get_frags);
 
 int napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb, int ret)
 {
@@ -2606,9 +2567,39 @@ int napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb, int ret)
 }
 EXPORT_SYMBOL(napi_frags_finish);
 
-int napi_gro_frags(struct napi_struct *napi, struct napi_gro_fraginfo *info)
+struct sk_buff *napi_frags_skb(struct napi_struct *napi)
 {
-	struct sk_buff *skb = napi_fraginfo_skb(napi, info);
+	struct sk_buff *skb = napi->skb;
+	struct ethhdr *eth;
+
+	napi->skb = NULL;
+
+	skb_reset_mac_header(skb);
+	skb_gro_reset_offset(skb);
+
+	eth = skb_gro_header(skb, sizeof(*eth));
+	if (!eth) {
+		napi_reuse_skb(napi, skb);
+		skb = NULL;
+		goto out;
+	}
+
+	skb_gro_pull(skb, sizeof(*eth));
+
+	/*
+	 * This works because the only protocols we care about don't require
+	 * special handling.  We'll fix it up properly at the end.
+	 */
+	skb->protocol = eth->h_proto;
+
+out:
+	return skb;
+}
+EXPORT_SYMBOL(napi_frags_skb);
+
+int napi_gro_frags(struct napi_struct *napi)
+{
+	struct sk_buff *skb = napi_frags_skb(napi);
 
 	if (!skb)
 		return NET_RX_DROP;
@@ -2712,7 +2703,7 @@ void netif_napi_del(struct napi_struct *napi)
 	struct sk_buff *skb, *next;
 
 	list_del_init(&napi->dev_list);
-	kfree_skb(napi->skb);
+	napi_free_frags(napi);
 
 	for (skb = napi->gro_list; skb; skb = next) {
 		next = skb->next;

@@ -654,7 +654,8 @@ static void t3_reset_qset(struct sge_qset *q)
 	q->txq_stopped = 0;
 	q->tx_reclaim_timer.function = NULL; /* for t3_stop_sge_timers() */
 	q->rx_reclaim_timer.function = NULL;
-	q->lro_frag_tbl.nr_frags = q->lro_frag_tbl.len = 0;
+	q->nomem = 0;
+	napi_free_frags(&q->napi);
 }
 
 
@@ -2074,20 +2075,19 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 			 struct sge_fl *fl, int len, int complete)
 {
 	struct rx_sw_desc *sd = &fl->sdesc[fl->cidx];
+	struct sk_buff *skb = NULL;
 	struct cpl_rx_pkt *cpl;
-	struct skb_frag_struct *rx_frag = qs->lro_frag_tbl.frags;
-	int nr_frags = qs->lro_frag_tbl.nr_frags;
-	int frag_len = qs->lro_frag_tbl.len;
+	struct skb_frag_struct *rx_frag;
+	int nr_frags;
 	int offset = 0;
 
-	if (!nr_frags) {
-		offset = 2 + sizeof(struct cpl_rx_pkt);
-		qs->lro_va = cpl = sd->pg_chunk.va + 2;
+	if (!qs->nomem) {
+		skb = napi_get_frags(&qs->napi);
+		qs->nomem = !skb;
 	}
 
 	fl->credits--;
 
-	len -= offset;
 	pci_dma_sync_single_for_cpu(adap->pdev,
 				    pci_unmap_addr(sd, dma_addr),
 				    fl->buf_size - SGE_PG_RSVD,
@@ -2100,21 +2100,38 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 			       fl->alloc_size,
 			       PCI_DMA_FROMDEVICE);
 
+	if (!skb) {
+		put_page(sd->pg_chunk.page);
+		if (complete)
+			qs->nomem = 0;
+		return;
+	}
+
+	rx_frag = skb_shinfo(skb)->frags;
+	nr_frags = skb_shinfo(skb)->nr_frags;
+
+	if (!nr_frags) {
+		offset = 2 + sizeof(struct cpl_rx_pkt);
+		qs->lro_va = sd->pg_chunk.va + 2;
+	}
+	len -= offset;
+
 	prefetch(qs->lro_va);
 
 	rx_frag += nr_frags;
 	rx_frag->page = sd->pg_chunk.page;
 	rx_frag->page_offset = sd->pg_chunk.offset + offset;
 	rx_frag->size = len;
-	frag_len += len;
-	qs->lro_frag_tbl.nr_frags++;
-	qs->lro_frag_tbl.len = frag_len;
 
+	skb->len += len;
+	skb->data_len += len;
+	skb->truesize += len;
+	skb_shinfo(skb)->nr_frags++;
 
 	if (!complete)
 		return;
 
-	qs->lro_frag_tbl.ip_summed = CHECKSUM_UNNECESSARY;
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	cpl = qs->lro_va;
 
 	if (unlikely(cpl->vlan_valid)) {
@@ -2123,15 +2140,11 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 		struct vlan_group *grp = pi->vlan_grp;
 
 		if (likely(grp != NULL)) {
-			vlan_gro_frags(&qs->napi, grp, ntohs(cpl->vlan),
-				       &qs->lro_frag_tbl);
-			goto out;
+			vlan_gro_frags(&qs->napi, grp, ntohs(cpl->vlan));
+			return;
 		}
 	}
-	napi_gro_frags(&qs->napi, &qs->lro_frag_tbl);
-
-out:
-	qs->lro_frag_tbl.nr_frags = qs->lro_frag_tbl.len = 0;
+	napi_gro_frags(&qs->napi);
 }
 
 /**
@@ -2299,8 +2312,6 @@ no_mem:
 			fl = (len & F_RSPD_FLQ) ? &qs->fl[1] : &qs->fl[0];
 			if (fl->use_pages) {
 				void *addr = fl->sdesc[fl->cidx].pg_chunk.va;
-
-				prefetch(&qs->lro_frag_tbl);
 
 				prefetch(addr);
 #if L1_CACHE_BYTES < 128

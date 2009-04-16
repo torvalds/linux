@@ -1047,14 +1047,6 @@ struct packet_type {
 	struct list_head	list;
 };
 
-struct napi_gro_fraginfo {
-	skb_frag_t frags[MAX_SKB_FRAGS];
-	unsigned int nr_frags;
-	unsigned int ip_summed;
-	unsigned int len;
-	__wsum csum;
-};
-
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 
@@ -1442,12 +1434,18 @@ extern int		napi_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb);
 extern void		napi_reuse_skb(struct napi_struct *napi,
 				       struct sk_buff *skb);
-extern struct sk_buff *	napi_fraginfo_skb(struct napi_struct *napi,
-					  struct napi_gro_fraginfo *info);
+extern struct sk_buff *	napi_get_frags(struct napi_struct *napi);
 extern int		napi_frags_finish(struct napi_struct *napi,
 					  struct sk_buff *skb, int ret);
-extern int		napi_gro_frags(struct napi_struct *napi,
-				       struct napi_gro_fraginfo *info);
+extern struct sk_buff *	napi_frags_skb(struct napi_struct *napi);
+extern int		napi_gro_frags(struct napi_struct *napi);
+
+static inline void napi_free_frags(struct napi_struct *napi)
+{
+	kfree_skb(napi->skb);
+	napi->skb = NULL;
+}
+
 extern void		netif_nit_deliver(struct sk_buff *skb);
 extern int		dev_valid_name(const char *name);
 extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);
