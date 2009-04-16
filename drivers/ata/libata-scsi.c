@@ -647,23 +647,45 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	return rc;
 }
 
+static int ata_ioc32(struct ata_port *ap)
+{
+	if (ap->flags & ATA_FLAG_PIO_DMA)
+		return 1;
+	if (ap->pflags & ATA_PFLAG_PIO32)
+		return 1;
+	return 0;
+}
+
 int ata_sas_scsi_ioctl(struct ata_port *ap, struct scsi_device *scsidev,
 		     int cmd, void __user *arg)
 {
 	int val = -EINVAL, rc = -EINVAL;
+	unsigned long flags;
 
 	switch (cmd) {
 	case ATA_IOC_GET_IO32:
-		val = 0;
+		spin_lock_irqsave(ap->lock, flags);
+		val = ata_ioc32(ap);
+		spin_unlock_irqrestore(ap->lock, flags);
 		if (copy_to_user(arg, &val, 1))
 			return -EFAULT;
 		return 0;
 
 	case ATA_IOC_SET_IO32:
 		val = (unsigned long) arg;
-		if (val != 0)
-			return -EINVAL;
-		return 0;
+		rc = 0;
+		spin_lock_irqsave(ap->lock, flags);
+		if (ap->pflags & ATA_PFLAG_PIO32CHANGE) {
+			if (val)
+				ap->pflags |= ATA_PFLAG_PIO32;
+			else
+				ap->pflags &= ~ATA_PFLAG_PIO32;
+		} else {
+			if (val != ata_ioc32(ap))
+				rc = -EINVAL;
+		}
+		spin_unlock_irqrestore(ap->lock, flags);
+		return rc;
 
 	case HDIO_GET_IDENTITY:
 		return ata_get_identity(ap, scsidev, arg);

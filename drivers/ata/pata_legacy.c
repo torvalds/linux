@@ -108,6 +108,7 @@ struct legacy_controller {
 	struct ata_port_operations *ops;
 	unsigned int pio_mask;
 	unsigned int flags;
+	unsigned int pflags;
 	int (*setup)(struct platform_device *, struct legacy_probe *probe,
 		struct legacy_data *data);
 };
@@ -285,7 +286,8 @@ static unsigned int pdc_data_xfer_vlb(struct ata_device *dev,
 {
 	int slop = buflen & 3;
 	/* 32bit I/O capable *and* we need to write a whole number of dwords */
-	if (ata_id_has_dword_io(dev->id) && (slop == 0 || slop == 3)) {
+	if (ata_id_has_dword_io(dev->id) && (slop == 0 || slop == 3)
+					&& (ap->pflags & ATA_PFLAG_PIO32)) {
 		struct ata_port *ap = dev->link->ap;
 		unsigned long flags;
 
@@ -736,7 +738,8 @@ static unsigned int vlb32_data_xfer(struct ata_device *adev, unsigned char *buf,
 	struct ata_port *ap = adev->link->ap;
 	int slop = buflen & 3;
 
-	if (ata_id_has_dword_io(adev->id) && (slop == 0 || slop == 3)) {
+	if (ata_id_has_dword_io(adev->id) && (slop == 0 || slop == 3)
+					&& (ap->pflags & ATA_PFLAG_PIO32)) {
 		if (rw == WRITE)
 			iowrite32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 		else
@@ -858,27 +861,30 @@ static struct ata_port_operations winbond_port_ops = {
 
 static struct legacy_controller controllers[] = {
 	{"BIOS",	&legacy_port_ops, 	0x1F,
-						ATA_FLAG_NO_IORDY,	NULL },
+			ATA_FLAG_NO_IORDY,	0,			NULL },
 	{"Snooping", 	&simple_port_ops, 	0x1F,
-						0	       ,	NULL },
+			0,			0,			NULL },
 	{"PDC20230",	&pdc20230_port_ops,	0x7,
-						ATA_FLAG_NO_IORDY,	NULL },
+			ATA_FLAG_NO_IORDY,
+			ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32_CHANGE,	NULL },
 	{"HT6560A",	&ht6560a_port_ops,	0x07,
-						ATA_FLAG_NO_IORDY,	NULL },
+			ATA_FLAG_NO_IORDY,	0,			NULL },
 	{"HT6560B",	&ht6560b_port_ops,	0x1F,
-						ATA_FLAG_NO_IORDY,	NULL },
+			ATA_FLAG_NO_IORDY,	0,			NULL },
 	{"OPTI82C611A",	&opti82c611a_port_ops,	0x0F,
-						0	       ,	NULL },
+			0,			0,			NULL },
 	{"OPTI82C46X",	&opti82c46x_port_ops,	0x0F,
-						0	       ,	NULL },
+			0,			0,			NULL },
 	{"QDI6500",	&qdi6500_port_ops,	0x07,
-					ATA_FLAG_NO_IORDY,	qdi_port },
+			ATA_FLAG_NO_IORDY,
+			ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32_CHANGE,    qdi_port },
 	{"QDI6580",	&qdi6580_port_ops,	0x1F,
-					0	       ,	qdi_port },
+			0, ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32_CHANGE, qdi_port },
 	{"QDI6580DP",	&qdi6580dp_port_ops,	0x1F,
-					0	       ,	qdi_port },
+			0, ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32_CHANGE, qdi_port },
 	{"W83759A",	&winbond_port_ops,	0x1F,
-					0	       ,	winbond_port }
+			0, ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32_CHANGE,
+								winbond_port }
 };
 
 /**
@@ -1008,6 +1014,7 @@ static __init int legacy_init_one(struct legacy_probe *probe)
 	ap->ops = ops;
 	ap->pio_mask = pio_modes;
 	ap->flags |= ATA_FLAG_SLAVE_POSS | iordy;
+	ap->pflags |= controller->pflags;
 	ap->ioaddr.cmd_addr = io_addr;
 	ap->ioaddr.altstatus_addr = ctrl_addr;
 	ap->ioaddr.ctl_addr = ctrl_addr;
@@ -1032,6 +1039,7 @@ static __init int legacy_init_one(struct legacy_probe *probe)
 			return 0;
 		}
 	}
+	ata_host_detach(host);
 fail:
 	platform_device_unregister(pdev);
 	return ret;
