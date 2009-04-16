@@ -347,6 +347,15 @@ config CPU_SUBTYPE_SH7723
 	help
 	  Select SH7723 if you have an SH-MobileR2 CPU.
 
+config CPU_SUBTYPE_SH7724
+	bool "Support SH7724 processor"
+	select CPU_SH4A
+	select CPU_SHX2
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_CMT
+	help
+	  Select SH7724 if you have an SH-MobileR2R CPU.
+
 config CPU_SUBTYPE_SH7763
 	bool "Support SH7763 processor"
 	select CPU_SH4A
@@ -495,6 +504,7 @@ config SH_PCLK_FREQ
 			      CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7206 || \
 			      CPU_SUBTYPE_SH7263 || CPU_SUBTYPE_MXG    || \
 			      CPU_SUBTYPE_SH7786
+	default "41666666" if CPU_SUBTYPE_SH7724
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
