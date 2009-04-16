@@ -1523,6 +1523,7 @@ struct snd_soc_dai wm8903_dai = {
 		 .formats = WM8903_FORMATS,
 	 },
 	.ops = &wm8903_dai_ops,
+	.symmetric_rates = 1,
 };
 EXPORT_SYMBOL_GPL(wm8903_dai);
 
