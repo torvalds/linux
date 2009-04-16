@@ -140,6 +140,8 @@ struct mxcmci_host {
 	struct work_struct	datawork;
 };
 
+static void mxcmci_set_clk_rate(struct mxcmci_host *host, unsigned int clk_ios);
+
 static inline int mxcmci_use_dma(struct mxcmci_host *host)
 {
 	return host->do_dma;
@@ -345,8 +347,11 @@ static int mxcmci_poll_status(struct mxcmci_host *host, u32 mask)
 		stat = readl(host->base + MMC_REG_STATUS);
 		if (stat & STATUS_ERR_MASK)
 			return stat;
-		if (time_after(jiffies, timeout))
+		if (time_after(jiffies, timeout)) {
+			mxcmci_softreset(host);
+			mxcmci_set_clk_rate(host, host->clock);
 			return STATUS_TIME_OUT_READ;
+		}
 		if (stat & mask)
 			return 0;
 		cpu_relax();
