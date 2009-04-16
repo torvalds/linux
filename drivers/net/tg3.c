@@ -12443,8 +12443,13 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 		/* Next, try NVRAM. */
 		if (!tg3_nvram_read_be32(tp, mac_offset + 0, &hi) &&
 		    !tg3_nvram_read_be32(tp, mac_offset + 4, &lo)) {
-			memcpy(&dev->dev_addr[0], ((char *)&hi) + 2, 2);
-			memcpy(&dev->dev_addr[2], (char *)&lo, sizeof(lo));
+			dev->dev_addr[0] = ((hi >> 16) & 0xff);
+			dev->dev_addr[1] = ((hi >> 24) & 0xff);
+			dev->dev_addr[2] = ((lo >>  0) & 0xff);
+			dev->dev_addr[3] = ((lo >>  8) & 0xff);
+			dev->dev_addr[4] = ((lo >> 16) & 0xff);
+			dev->dev_addr[5] = ((lo >> 24) & 0xff);
+
 		}
 		/* Finally just fetch it out of the MAC control regs. */
 		else {

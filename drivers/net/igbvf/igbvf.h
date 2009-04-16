@@ -321,14 +321,11 @@ extern void igbvf_set_ethtool_ops(struct net_device *);
 extern int igbvf_up(struct igbvf_adapter *);
 extern void igbvf_down(struct igbvf_adapter *);
 extern void igbvf_reinit_locked(struct igbvf_adapter *);
-extern void igbvf_reset(struct igbvf_adapter *);
 extern int igbvf_setup_rx_resources(struct igbvf_adapter *, struct igbvf_ring *);
 extern int igbvf_setup_tx_resources(struct igbvf_adapter *, struct igbvf_ring *);
 extern void igbvf_free_rx_resources(struct igbvf_ring *);
 extern void igbvf_free_tx_resources(struct igbvf_ring *);
 extern void igbvf_update_stats(struct igbvf_adapter *);
-extern void igbvf_set_interrupt_capability(struct igbvf_adapter *);
-extern void igbvf_reset_interrupt_capability(struct igbvf_adapter *);
 
 extern unsigned int copybreak;
 

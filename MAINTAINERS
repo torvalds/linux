@@ -3917,19 +3917,12 @@ F:	Documentation/blockdev/nbd.txt
 F:	drivers/block/nbd.c
 F:	include/linux/nbd.h
 
-NETWORK DEVICE DRIVERS
-P:	Jeff Garzik
-M:	jgarzik@pobox.com
-L:	netdev@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jgarzik/netdev-2.6.git
-S:	Maintained
-F:	drivers/net/
-
 NETWORKING [GENERAL]
-P:	Networking Team
-M:	netdev@vger.kernel.org
+P:	David S. Miller
+M:	davem@davemloft.net
 L:	netdev@vger.kernel.org
 W:	http://linux-net.osdl.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 F:	net/
 F:	include/net/

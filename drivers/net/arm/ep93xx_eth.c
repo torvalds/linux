@@ -770,7 +770,18 @@ static struct ethtool_ops ep93xx_ethtool_ops = {
 	.get_link		= ep93xx_get_link,
 };
 
-struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
+static const struct net_device_ops ep93xx_netdev_ops = {
+	.ndo_open		= ep93xx_open,
+	.ndo_stop		= ep93xx_close,
+	.ndo_start_xmit		= ep93xx_xmit,
+	.ndo_get_stats		= ep93xx_get_stats,
+	.ndo_do_ioctl		= ep93xx_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
+static struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
 {
 	struct net_device *dev;
 
@@ -780,12 +791,8 @@ struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
 
 	memcpy(dev->dev_addr, data->dev_addr, ETH_ALEN);
 
-	dev->get_stats = ep93xx_get_stats;
 	dev->ethtool_ops = &ep93xx_ethtool_ops;
-	dev->hard_start_xmit = ep93xx_xmit;
-	dev->open = ep93xx_open;
-	dev->stop = ep93xx_close;
-	dev->do_ioctl = ep93xx_ioctl;
+	dev->netdev_ops = &ep93xx_netdev_ops;
 
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 
