@@ -53,4 +53,10 @@ config MACH_PCM970_BASEBOARD
 
 endchoice
 
+config MACH_MX27_3DS
+	bool "MX27PDK platform"
+	depends on MACH_MX27
+	help
+	  Include support for MX27PDK platform. This includes specific
+	  configurations for the board and its peripherals.
 endif

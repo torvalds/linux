@@ -40,6 +40,9 @@
 #ifdef CONFIG_MACH_PCM043
 #include <mach/board-pcm043.h>
 #endif
+#ifdef CONFIG_MACH_MX27_3DS
+#include <mach/board-mx27pdk.h>
+#endif
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
