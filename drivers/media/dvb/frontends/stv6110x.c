@@ -53,6 +53,7 @@ static int stv6110x_read_reg(struct stv6110x_state *stv6110x, u8 reg, u8 *data)
 		dprintk(FE_ERROR, 1, "I/O Error");
 		return -EREMOTEIO;
 	}
+	*data = b1[0];
 
 	return 0;
 }
