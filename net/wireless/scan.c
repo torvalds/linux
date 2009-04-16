@@ -364,6 +364,8 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		list_replace(&found->list, &res->list);
 		rb_replace_node(&found->rbn, &res->rbn,
 				&dev->bss_tree);
+		/* XXX: workaround */
+		res->hold = found->hold;
 		kref_put(&found->ref, bss_release);
 		found = res;
 	} else if (found) {
