@@ -3920,8 +3920,8 @@ NETWORKING [GENERAL]
 P:	David S. Miller
 M:	davem@davemloft.net
 L:	netdev@vger.kernel.org
-W:	http://linux-net.osdl.org/
-T:	git kernel.org:/pub/scm/linux/kernel/git/davem/net-2.6.git
+W:	http://www.linuxfoundation.org/en/Net
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 F:	net/
 F:	include/net/
