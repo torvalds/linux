@@ -255,6 +255,7 @@ struct myri10ge_priv {
 	u32 read_write_dma;
 	u32 link_changes;
 	u32 msg_enable;
+	unsigned int board_number;
 };
 
 static char *myri10ge_fw_unaligned = "myri10ge_ethp_z8e.dat";
@@ -265,6 +266,13 @@ static char *myri10ge_fw_rss_aligned = "myri10ge_rss_eth_z8e.dat";
 static char *myri10ge_fw_name = NULL;
 module_param(myri10ge_fw_name, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_fw_name, "Firmware image name");
+
+#define MYRI10GE_MAX_BOARDS 8
+static char *myri10ge_fw_names[MYRI10GE_MAX_BOARDS] =
+    {[0...(MYRI10GE_MAX_BOARDS - 1)] = NULL };
+module_param_array_named(myri10ge_fw_names, myri10ge_fw_names, charp, NULL,
+			 0444);
+MODULE_PARM_DESC(myri10ge_fw_name, "Firmware image names per board");
 
 static int myri10ge_ecrc_enable = 1;
 module_param(myri10ge_ecrc_enable, int, S_IRUGO);
@@ -3259,6 +3267,8 @@ abort:
 
 static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 {
+	int overridden = 0;
+
 	if (myri10ge_force_firmware == 0) {
 		int link_width, exp_cap;
 		u16 lnk;
@@ -3292,10 +3302,18 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 		}
 	}
 	if (myri10ge_fw_name != NULL) {
-		dev_info(&mgp->pdev->dev, "overriding firmware to %s\n",
-			 myri10ge_fw_name);
+		overridden = 1;
 		mgp->fw_name = myri10ge_fw_name;
 	}
+	if (mgp->board_number < MYRI10GE_MAX_BOARDS &&
+	    myri10ge_fw_names[mgp->board_number] != NULL &&
+	    strlen(myri10ge_fw_names[mgp->board_number])) {
+		mgp->fw_name = myri10ge_fw_names[mgp->board_number];
+		overridden = 1;
+	}
+	if (overridden)
+		dev_info(&mgp->pdev->dev, "overriding firmware to %s\n",
+			 mgp->fw_name);
 }
 
 #ifdef CONFIG_PM
@@ -3760,6 +3778,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int status = -ENXIO;
 	int dac_enabled;
 	unsigned hdr_offset, ss_offset;
+	static int board_number;
 
 	netdev = alloc_etherdev_mq(sizeof(*mgp), MYRI10GE_MAX_SLICES);
 	if (netdev == NULL) {
@@ -3776,6 +3795,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mgp->pause = myri10ge_flow_control;
 	mgp->intr_coal_delay = myri10ge_intr_coal_delay;
 	mgp->msg_enable = netif_msg_init(myri10ge_debug, MYRI10GE_MSG_DEFAULT);
+	mgp->board_number = board_number;
 	init_waitqueue_head(&mgp->down_wq);
 
 	if (pci_enable_device(pdev)) {
@@ -3926,6 +3946,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 netdev->irq, mgp->tx_boundary, mgp->fw_name,
 			 (mgp->wc_enabled ? "Enabled" : "Disabled"));
 
+	board_number++;
 	return 0;
 
 abort_with_state:
