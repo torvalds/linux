@@ -94,7 +94,8 @@ int option_ms_init(struct us_data *us)
 	 */
 	if (udev->descriptor.bDeviceClass != 0 ||
 	    udev->descriptor.bDeviceSubClass != 0 ||
-	    udev->descriptor.bDeviceProtocol != 0)
+	    udev->descriptor.bDeviceProtocol != 0 ||
+	    udev->actconfig->desc.bNumInterfaces == 3)
 		return USB_STOR_TRANSPORT_GOOD;
 
 	US_DEBUGP("Option MS: option_ms_init called\n");
