@@ -39,6 +39,63 @@
 
 #include "devices.h"
 
+static int pcm038_pins[] = {
+	/* UART1 */
+	PE12_PF_UART1_TXD,
+	PE13_PF_UART1_RXD,
+	PE14_PF_UART1_CTS,
+	PE15_PF_UART1_RTS,
+	/* UART2 */
+	PE3_PF_UART2_CTS,
+	PE4_PF_UART2_RTS,
+	PE6_PF_UART2_TXD,
+	PE7_PF_UART2_RXD,
+	/* UART3 */
+	PE8_PF_UART3_TXD,
+	PE9_PF_UART3_RXD,
+	PE10_PF_UART3_CTS,
+	PE11_PF_UART3_RTS,
+	/* FEC */
+	PD0_AIN_FEC_TXD0,
+	PD1_AIN_FEC_TXD1,
+	PD2_AIN_FEC_TXD2,
+	PD3_AIN_FEC_TXD3,
+	PD4_AOUT_FEC_RX_ER,
+	PD5_AOUT_FEC_RXD1,
+	PD6_AOUT_FEC_RXD2,
+	PD7_AOUT_FEC_RXD3,
+	PD8_AF_FEC_MDIO,
+	PD9_AIN_FEC_MDC,
+	PD10_AOUT_FEC_CRS,
+	PD11_AOUT_FEC_TX_CLK,
+	PD12_AOUT_FEC_RXD0,
+	PD13_AOUT_FEC_RX_DV,
+	PD14_AOUT_FEC_RX_CLK,
+	PD15_AOUT_FEC_COL,
+	PD16_AIN_FEC_TX_ER,
+	PF23_AIN_FEC_TX_EN,
+	/* I2C2 */
+	PC5_PF_I2C2_SDA,
+	PC6_PF_I2C2_SCL,
+	/* SPI1 */
+	PD25_PF_CSPI1_RDY,
+	PD27_PF_CSPI1_SS1,
+	PD28_PF_CSPI1_SS0,
+	PD29_PF_CSPI1_SCLK,
+	PD30_PF_CSPI1_MISO,
+	PD31_PF_CSPI1_MOSI,
+	/* SSI1 */
+	PC20_PF_SSI1_FS,
+	PC21_PF_SSI1_RXD,
+	PC22_PF_SSI1_TXD,
+	PC23_PF_SSI1_CLK,
+	/* SSI4 */
+	PC16_PF_SSI4_FS,
+	PC17_PF_SSI4_RXD,
+	PC18_PF_SSI4_TXD,
+	PC19_PF_SSI4_CLK,
+};
+
 /*
  * Phytec's PCM038 comes with 2MiB battery buffered SRAM,
  * 16 bit width
@@ -88,103 +145,15 @@ static struct platform_device pcm038_nor_mtd_device = {
 	.resource = &pcm038_flash_resource,
 };
 
-static int mxc_uart0_pins[] = {
-	PE12_PF_UART1_TXD,
-	PE13_PF_UART1_RXD,
-	PE14_PF_UART1_CTS,
-	PE15_PF_UART1_RTS
-};
-
-static int uart_mxc_port0_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart0_pins,
-			ARRAY_SIZE(mxc_uart0_pins), "UART0");
-}
-
-static void uart_mxc_port0_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart0_pins,
-			ARRAY_SIZE(mxc_uart0_pins));
-}
-
-static int mxc_uart1_pins[] = {
-	PE3_PF_UART2_CTS,
-	PE4_PF_UART2_RTS,
-	PE6_PF_UART2_TXD,
-	PE7_PF_UART2_RXD
-};
-
-static int uart_mxc_port1_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart1_pins,
-			ARRAY_SIZE(mxc_uart1_pins), "UART1");
-}
-
-static void uart_mxc_port1_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart1_pins,
-			ARRAY_SIZE(mxc_uart1_pins));
-}
-
-static int mxc_uart2_pins[] = { PE8_PF_UART3_TXD,
-				PE9_PF_UART3_RXD,
-				PE10_PF_UART3_CTS,
-				PE11_PF_UART3_RTS };
-
-static int uart_mxc_port2_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart2_pins,
-			ARRAY_SIZE(mxc_uart2_pins), "UART2");
-}
-
-static void uart_mxc_port2_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart2_pins,
-			ARRAY_SIZE(mxc_uart2_pins));
-}
-
 static struct imxuart_platform_data uart_pdata[] = {
 	{
-		.init = uart_mxc_port0_init,
-		.exit = uart_mxc_port0_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port1_init,
-		.exit = uart_mxc_port1_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port2_init,
-		.exit = uart_mxc_port2_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	},
 };
-
-static int mxc_fec_pins[] = {
-	PD0_AIN_FEC_TXD0,
-	PD1_AIN_FEC_TXD1,
-	PD2_AIN_FEC_TXD2,
-	PD3_AIN_FEC_TXD3,
-	PD4_AOUT_FEC_RX_ER,
-	PD5_AOUT_FEC_RXD1,
-	PD6_AOUT_FEC_RXD2,
-	PD7_AOUT_FEC_RXD3,
-	PD8_AF_FEC_MDIO,
-	PD9_AIN_FEC_MDC,
-	PD10_AOUT_FEC_CRS,
-	PD11_AOUT_FEC_TX_CLK,
-	PD12_AOUT_FEC_RXD0,
-	PD13_AOUT_FEC_RX_DV,
-	PD14_AOUT_FEC_RX_CLK,
-	PD15_AOUT_FEC_COL,
-	PD16_AIN_FEC_TX_ER,
-	PF23_AIN_FEC_TX_EN
-};
-
-static void gpio_fec_active(void)
-{
-	mxc_gpio_setup_multiple_pins(mxc_fec_pins,
-			ARRAY_SIZE(mxc_fec_pins), "FEC");
-}
 
 static struct mxc_nand_platform_data pcm038_nand_board_info = {
 	.width = 1,
@@ -208,26 +177,8 @@ static void __init pcm038_init_sram(void)
 }
 
 #ifdef CONFIG_I2C_IMX
-static int mxc_i2c1_pins[] = {
-	PC5_PF_I2C2_SDA,
-	PC6_PF_I2C2_SCL
-};
-
-static int pcm038_i2c_1_init(struct device *dev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_i2c1_pins, ARRAY_SIZE(mxc_i2c1_pins),
-			"I2C1");
-}
-
-static void pcm038_i2c_1_exit(struct device *dev)
-{
-	mxc_gpio_release_multiple_pins(mxc_i2c1_pins, ARRAY_SIZE(mxc_i2c1_pins));
-}
-
 static struct imxi2c_platform_data pcm038_i2c_1_data = {
 	.bitrate = 100000,
-	.init = pcm038_i2c_1_init,
-	.exit = pcm038_i2c_1_exit,
 };
 
 static struct at24_platform_data board_eeprom = {
@@ -254,7 +205,9 @@ static struct i2c_board_info pcm038_i2c_devices[] = {
 
 static void __init pcm038_init(void)
 {
-	gpio_fec_active();
+	mxc_gpio_setup_multiple_pins(pcm038_pins, ARRAY_SIZE(pcm038_pins),
+			"PCM038");
+
 	pcm038_init_sram();
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
