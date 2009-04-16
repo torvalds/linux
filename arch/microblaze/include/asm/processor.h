@@ -26,6 +26,9 @@ extern const struct seq_operations cpuinfo_op;
 
 # endif /* __ASSEMBLY__ */
 
+#define task_pt_regs(tsk) \
+		(((struct pt_regs *)(THREAD_SIZE + task_stack_page(tsk))) - 1)
+
 /*
  * User space process size: memory size
  *
@@ -83,9 +86,6 @@ extern unsigned long get_wchan(struct task_struct *p);
  * create a kernel thread without removing it from tasklists
  */
 extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-
-# define task_pt_regs(tsk) \
-		(((struct pt_regs *)(THREAD_SIZE + task_stack_page(tsk))) - 1)
 
 # define KSTK_EIP(tsk)	(0)
 # define KSTK_ESP(tsk)	(0)
