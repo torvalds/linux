@@ -5187,7 +5187,12 @@ M:	perex@perex.cz
 P:	Takashi Iwai
 M:	tiwai@suse.de
 L:	alsa-devel@alsa-project.org (subscribers-only)
+W:	http://www.alsa-project.org/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound-2.6.git
+T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
+F:	Documentation/sound/
+F:	include/sound/
 F:	sound/
 
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
