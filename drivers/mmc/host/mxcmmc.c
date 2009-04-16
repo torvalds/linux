@@ -162,7 +162,7 @@ static void mxcmci_softreset(struct mxcmci_host *host)
 	writew(0xff, host->base + MMC_REG_RES_TO);
 }
 
-static void mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
+static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 {
 	unsigned int nob = data->blocks;
 	unsigned int blksz = data->blksz;
@@ -170,6 +170,7 @@ static void mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 #ifdef HAS_DMA
 	struct scatterlist *sg;
 	int i;
+	int ret;
 #endif
 	if (data->flags & MMC_DATA_STREAM)
 		nob = 0xffff;
@@ -185,7 +186,7 @@ static void mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	for_each_sg(data->sg, sg, data->sg_len, i) {
 		if (sg->offset & 3 || sg->length & 3) {
 			host->do_dma = 0;
-			return;
+			return 0;
 		}
 	}
 
@@ -194,23 +195,30 @@ static void mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 		host->dma_nents = dma_map_sg(mmc_dev(host->mmc), data->sg,
 					     data->sg_len,  host->dma_dir);
 
-		imx_dma_setup_sg(host->dma, data->sg, host->dma_nents, datasize,
-				 host->res->start + MMC_REG_BUFFER_ACCESS,
-				 DMA_MODE_READ);
+		ret = imx_dma_setup_sg(host->dma, data->sg, host->dma_nents,
+				datasize,
+				host->res->start + MMC_REG_BUFFER_ACCESS,
+				DMA_MODE_READ);
 	} else {
 		host->dma_dir = DMA_TO_DEVICE;
 		host->dma_nents = dma_map_sg(mmc_dev(host->mmc), data->sg,
 					     data->sg_len,  host->dma_dir);
 
-		imx_dma_setup_sg(host->dma, data->sg, host->dma_nents, datasize,
-				 host->res->start + MMC_REG_BUFFER_ACCESS,
-				 DMA_MODE_WRITE);
+		ret = imx_dma_setup_sg(host->dma, data->sg, host->dma_nents,
+				datasize,
+				host->res->start + MMC_REG_BUFFER_ACCESS,
+				DMA_MODE_WRITE);
 	}
 
+	if (ret) {
+		dev_err(mmc_dev(host->mmc), "failed to setup DMA : %d\n", ret);
+		return ret;
+	}
 	wmb();
 
 	imx_dma_enable(host->dma);
 #endif /* HAS_DMA */
+	return 0;
 }
 
 static int mxcmci_start_cmd(struct mxcmci_host *host, struct mmc_command *cmd,
@@ -536,6 +544,7 @@ static void mxcmci_request(struct mmc_host *mmc, struct mmc_request *req)
 {
 	struct mxcmci_host *host = mmc_priv(mmc);
 	unsigned int cmdat = host->cmdat;
+	int error;
 
 	WARN_ON(host->req != NULL);
 
@@ -545,7 +554,12 @@ static void mxcmci_request(struct mmc_host *mmc, struct mmc_request *req)
 	host->do_dma = 1;
 #endif
 	if (req->data) {
-		mxcmci_setup_data(host, req->data);
+		error = mxcmci_setup_data(host, req->data);
+		if (error) {
+			req->cmd->error = error;
+			goto out;
+		}
+
 
 		cmdat |= CMD_DAT_CONT_DATA_ENABLE;
 
@@ -553,7 +567,9 @@ static void mxcmci_request(struct mmc_host *mmc, struct mmc_request *req)
 			cmdat |= CMD_DAT_CONT_WRITE;
 	}
 
-	if (mxcmci_start_cmd(host, req->cmd, cmdat))
+	error = mxcmci_start_cmd(host, req->cmd, cmdat);
+out:
+	if (error)
 		mxcmci_finish_request(host, req);
 }
 
