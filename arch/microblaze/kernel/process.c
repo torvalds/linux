@@ -161,7 +161,6 @@ static void kernel_thread_helper(int (*fn)(void *), void *arg)
 int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 {
 	struct pt_regs regs;
-	int ret;
 
 	memset(&regs, 0, sizeof(regs));
 	/* store them in non-volatile registers */
@@ -171,10 +170,8 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.pc = (unsigned long)kernel_thread_helper;
 	regs.pt_mode = 1;
 
-	ret = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
+	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
 			&regs, 0, NULL, NULL);
-
-	return ret;
 }
 
 unsigned long get_wchan(struct task_struct *p)
