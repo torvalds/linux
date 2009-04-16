@@ -29,6 +29,9 @@ extern const struct seq_operations cpuinfo_op;
 #define task_pt_regs(tsk) \
 		(((struct pt_regs *)(THREAD_SIZE + task_stack_page(tsk))) - 1)
 
+/* Do necessary setup to start up a newly executed thread. */
+void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp);
+
 /*
  * User space process size: memory size
  *
@@ -57,16 +60,6 @@ struct task_struct;
 /* thread_struct is gone. use thread_info instead. */
 struct thread_struct { };
 # define INIT_THREAD	{ }
-
-/* Do necessary setup to start up a newly executed thread. */
-static inline void start_thread(struct pt_regs *regs,
-				unsigned long pc,
-				unsigned long usp)
-{
-	regs->pc = pc;
-	regs->r1 = usp;
-	regs->pt_mode = 0;
-}
 
 /* Free all resources held by a thread. */
 static inline void release_thread(struct task_struct *dead_task)
