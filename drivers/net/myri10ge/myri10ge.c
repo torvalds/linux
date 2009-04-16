@@ -361,6 +361,8 @@ static inline void put_be32(__be32 val, __be32 __iomem * p)
 	__raw_writel((__force __u32) val, (__force void __iomem *)p);
 }
 
+static struct net_device_stats *myri10ge_get_stats(struct net_device *dev);
+
 static int
 myri10ge_send_cmd(struct myri10ge_priv *mgp, u32 cmd,
 		  struct myri10ge_cmd *data, int atomic)
@@ -1803,6 +1805,8 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	int slice;
 	int i;
 
+	/* force stats update */
+	(void)myri10ge_get_stats(netdev);
 	for (i = 0; i < MYRI10GE_NET_STATS_LEN; i++)
 		data[i] = ((unsigned long *)&mgp->stats)[i];
 
@@ -2969,6 +2973,7 @@ static struct net_device_stats *myri10ge_get_stats(struct net_device *dev)
 	struct net_device_stats *stats = &mgp->stats;
 	int i;
 
+	spin_lock(&mgp->stats_lock);
 	memset(stats, 0, sizeof(*stats));
 	for (i = 0; i < mgp->num_slices; i++) {
 		slice_stats = &mgp->ss[i].stats;
@@ -2979,6 +2984,7 @@ static struct net_device_stats *myri10ge_get_stats(struct net_device *dev)
 		stats->rx_dropped += slice_stats->rx_dropped;
 		stats->tx_dropped += slice_stats->tx_dropped;
 	}
+	spin_unlock(&mgp->stats_lock);
 	return stats;
 }
 
@@ -3902,6 +3908,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	setup_timer(&mgp->watchdog_timer, myri10ge_watchdog_timer,
 		    (unsigned long)mgp);
 
+	spin_lock_init(&mgp->stats_lock);
 	SET_ETHTOOL_OPS(netdev, &myri10ge_ethtool_ops);
 	INIT_WORK(&mgp->watchdog_work, myri10ge_watchdog);
 	status = register_netdev(netdev);
