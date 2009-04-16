@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.4.4-1.401"
+#define MYRI10GE_VERSION_STR "1.4.4-1.412"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -4035,6 +4035,8 @@ static struct pci_device_id myri10ge_pci_tbl[] = {
 	 (PCI_VENDOR_ID_MYRICOM, PCI_DEVICE_ID_MYRICOM_MYRI10GE_Z8E_9)},
 	{0},
 };
+
+MODULE_DEVICE_TABLE(pci, myri10ge_pci_tbl);
 
 static struct pci_driver myri10ge_driver = {
 	.name = "myri10ge",
