@@ -75,6 +75,19 @@ config VT_CONSOLE_SLEEP
 	def_bool y
 	depends on VT_CONSOLE && PM_SLEEP
 
+config NR_TTY_DEVICES
+        int "Maximum tty device number"
+        depends on VT
+        range 12 63
+        default 63
+        ---help---
+          This option is used to change the number of tty devices in /dev.
+          The default value is 63. The lowest number you can set is 12,
+          63 is also the upper limit so we don't overrun the serial
+          consoles.
+
+          If unsure, say 63.
+
 config HW_CONSOLE
 	bool
 	depends on VT && !UML
