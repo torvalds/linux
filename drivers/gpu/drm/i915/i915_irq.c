@@ -406,7 +406,7 @@ int i915_irq_emit(struct drm_device *dev, void *data,
 	drm_i915_irq_emit_t *emit = data;
 	int result;
 
-	if (!dev_priv) {
+	if (!dev_priv || !dev_priv->ring.virtual_start) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
