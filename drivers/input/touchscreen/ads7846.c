@@ -754,7 +754,7 @@ static irqreturn_t ads7846_irq(int irq, void *handle)
 			 * that here.  (The "generic irq" framework may help...)
 			 */
 			ts->irq_disabled = 1;
-			disable_irq(ts->spi->irq);
+			disable_irq_nosync(ts->spi->irq);
 			ts->pending = 1;
 			hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_DELAY),
 					HRTIMER_MODE_REL);
