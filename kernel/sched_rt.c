@@ -948,20 +948,15 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 
 static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
 {
-	cpumask_var_t mask;
-
 	if (rq->curr->rt.nr_cpus_allowed == 1)
 		return;
 
-	if (!alloc_cpumask_var(&mask, GFP_ATOMIC))
+	if (p->rt.nr_cpus_allowed != 1
+	    && cpupri_find(&rq->rd->cpupri, p, NULL))
 		return;
 
-	if (p->rt.nr_cpus_allowed != 1
-	    && cpupri_find(&rq->rd->cpupri, p, mask))
-		goto free;
-
-	if (!cpupri_find(&rq->rd->cpupri, rq->curr, mask))
-		goto free;
+	if (!cpupri_find(&rq->rd->cpupri, rq->curr, NULL))
+		return;
 
 	/*
 	 * There appears to be other cpus that can accept
@@ -970,8 +965,6 @@ static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
 	 */
 	requeue_task_rt(rq, p, 1);
 	resched_task(rq->curr);
-free:
-	free_cpumask_var(mask);
 }
 
 #endif /* CONFIG_SMP */

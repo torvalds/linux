@@ -52,8 +52,6 @@ struct dm_table {
 	sector_t *highs;
 	struct dm_target *targets;
 
-	unsigned barriers_supported:1;
-
 	/*
 	 * Indicates the rw permissions for the new logical
 	 * device.  This should be a combination of FMODE_READ
@@ -243,7 +241,6 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 
 	INIT_LIST_HEAD(&t->devices);
 	atomic_set(&t->holders, 0);
-	t->barriers_supported = 1;
 
 	if (!num_targets)
 		num_targets = KEYS_PER_NODE;
@@ -751,10 +748,6 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	/* FIXME: the plan is to combine high here and then have
 	 * the merge fn apply the target level restrictions. */
 	combine_restrictions_low(&t->limits, &tgt->limits);
-
-	if (!(tgt->type->features & DM_TARGET_SUPPORTS_BARRIERS))
-		t->barriers_supported = 0;
-
 	return 0;
 
  bad:
@@ -798,12 +791,6 @@ int dm_table_complete(struct dm_table *t)
 	unsigned int leaf_nodes;
 
 	check_for_valid_limits(&t->limits);
-
-	/*
-	 * We only support barriers if there is exactly one underlying device.
-	 */
-	if (!list_is_singular(&t->devices))
-		t->barriers_supported = 0;
 
 	/* how many indexes will the btree have ? */
 	leaf_nodes = dm_div_up(t->num_targets, KEYS_PER_NODE);
@@ -879,6 +866,45 @@ struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector)
 	return &t->targets[(KEYS_PER_NODE * n) + k];
 }
 
+/*
+ * Set the integrity profile for this device if all devices used have
+ * matching profiles.
+ */
+static void dm_table_set_integrity(struct dm_table *t)
+{
+	struct list_head *devices = dm_table_get_devices(t);
+	struct dm_dev_internal *prev = NULL, *dd = NULL;
+
+	if (!blk_get_integrity(dm_disk(t->md)))
+		return;
+
+	list_for_each_entry(dd, devices, list) {
+		if (prev &&
+		    blk_integrity_compare(prev->dm_dev.bdev->bd_disk,
+					  dd->dm_dev.bdev->bd_disk) < 0) {
+			DMWARN("%s: integrity not set: %s and %s mismatch",
+			       dm_device_name(t->md),
+			       prev->dm_dev.bdev->bd_disk->disk_name,
+			       dd->dm_dev.bdev->bd_disk->disk_name);
+			goto no_integrity;
+		}
+		prev = dd;
+	}
+
+	if (!prev || !bdev_get_integrity(prev->dm_dev.bdev))
+		goto no_integrity;
+
+	blk_integrity_register(dm_disk(t->md),
+			       bdev_get_integrity(prev->dm_dev.bdev));
+
+	return;
+
+no_integrity:
+	blk_integrity_register(dm_disk(t->md), NULL);
+
+	return;
+}
+
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q)
 {
 	/*
@@ -899,6 +925,7 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q)
 	else
 		queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, q);
 
+	dm_table_set_integrity(t);
 }
 
 unsigned int dm_table_get_num_targets(struct dm_table *t)
@@ -1018,12 +1045,6 @@ struct mapped_device *dm_table_get_md(struct dm_table *t)
 
 	return t->md;
 }
-
-int dm_table_barrier_ok(struct dm_table *t)
-{
-	return t->barriers_supported;
-}
-EXPORT_SYMBOL(dm_table_barrier_ok);
 
 EXPORT_SYMBOL(dm_vcalloc);
 EXPORT_SYMBOL(dm_get_device);

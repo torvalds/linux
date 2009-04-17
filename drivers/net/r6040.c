@@ -160,6 +160,7 @@ MODULE_AUTHOR("Sten Wang <sten.wang@rdc.com.tw>,"
 	"Florian Fainelli <florian@openwrt.org>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RDC R6040 NAPI PCI FastEthernet driver");
+MODULE_VERSION(DRV_VERSION " " DRV_RELDATE);
 
 /* RX and TX interrupts that we handle */
 #define RX_INTS			(RX_FIFO_FULL | RX_NO_DESC | RX_FINISH)

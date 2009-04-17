@@ -70,8 +70,8 @@ void blk_queue_congestion_threshold(struct request_queue *q);
 
 int blk_dev_init(void);
 
-void elv_quisce_start(struct request_queue *q);
-void elv_quisce_end(struct request_queue *q);
+void elv_quiesce_start(struct request_queue *q);
+void elv_quiesce_end(struct request_queue *q);
 
 
 /*

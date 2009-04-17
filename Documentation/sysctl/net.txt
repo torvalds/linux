@@ -95,7 +95,7 @@ of struct cmsghdr structures with appended data.
 
 There is only one file in this directory.
 unix_dgram_qlen limits the max number of datagrams queued in Unix domain
-socket's buffer. It will not take effect unless PF_UNIX flag is spicified.
+socket's buffer. It will not take effect unless PF_UNIX flag is specified.
 
 
 3. /proc/sys/net/ipv4 - IPV4 settings

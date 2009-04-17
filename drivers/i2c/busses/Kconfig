@@ -604,12 +604,14 @@ comment "Graphics adapter I2C/DDC channel drivers"
 	depends on PCI
 
 config I2C_VOODOO3
-	tristate "Voodoo 3"
+	tristate "Voodoo 3 (DEPRECATED)"
 	depends on PCI
 	select I2C_ALGOBIT
 	help
 	  If you say yes to this option, support will be included for the
-	  Voodoo 3 I2C interface.
+	  Voodoo 3 I2C interface. This driver is deprecated and you should
+	  use the tdfxfb driver instead, which additionally provides
+	  framebuffer support.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-voodoo3.

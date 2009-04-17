@@ -22,6 +22,7 @@
 #define MIN_MSGSIZEMAX	128		/* min value for msgsize_max */
 #define MAX_MSGSIZEMAX	(8192*128)	/* max value for msgsize_max */
 
+#ifdef CONFIG_PROC_SYSCTL
 static void *get_mq(ctl_table *table)
 {
 	char *which = table->data;
@@ -30,7 +31,6 @@ static void *get_mq(ctl_table *table)
 	return which;
 }
 
-#ifdef CONFIG_PROC_SYSCTL
 static int proc_mq_dointvec(ctl_table *table, int write, struct file *filp,
 	void __user *buffer, size_t *lenp, loff_t *ppos)
 {

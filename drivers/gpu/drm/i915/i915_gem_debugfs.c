@@ -234,6 +234,96 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static void i915_dump_pages(struct seq_file *m, struct page **pages, int page_count)
+{
+	int page, i;
+	uint32_t *mem;
+
+	for (page = 0; page < page_count; page++) {
+		mem = kmap(pages[page]);
+		for (i = 0; i < PAGE_SIZE; i += 4)
+			seq_printf(m, "%08x :  %08x\n", i, mem[i / 4]);
+		kunmap(pages[page]);
+	}
+}
+
+static int i915_batchbuffer_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj_priv;
+	int ret;
+
+	spin_lock(&dev_priv->mm.active_list_lock);
+
+	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
+		obj = obj_priv->obj;
+		if (obj->read_domains & I915_GEM_DOMAIN_COMMAND) {
+		    ret = i915_gem_object_get_pages(obj);
+		    if (ret) {
+			    DRM_ERROR("Failed to get pages: %d\n", ret);
+			    spin_unlock(&dev_priv->mm.active_list_lock);
+			    return ret;
+		    }
+
+		    seq_printf(m, "--- gtt_offset = 0x%08x\n", obj_priv->gtt_offset);
+		    i915_dump_pages(m, obj_priv->pages, obj->size / PAGE_SIZE);
+
+		    i915_gem_object_put_pages(obj);
+		}
+	}
+
+	spin_unlock(&dev_priv->mm.active_list_lock);
+
+	return 0;
+}
+
+static int i915_ringbuffer_data(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u8 *virt;
+	uint32_t *ptr, off;
+
+	if (!dev_priv->ring.ring_obj) {
+		seq_printf(m, "No ringbuffer setup\n");
+		return 0;
+	}
+
+	virt = dev_priv->ring.virtual_start;
+
+	for (off = 0; off < dev_priv->ring.Size; off += 4) {
+		ptr = (uint32_t *)(virt + off);
+		seq_printf(m, "%08x :  %08x\n", off, *ptr);
+	}
+
+	return 0;
+}
+
+static int i915_ringbuffer_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned int head, tail, mask;
+
+	head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
+	tail = I915_READ(PRB0_TAIL) & TAIL_ADDR;
+	mask = dev_priv->ring.tail_mask;
+
+	seq_printf(m, "RingHead :  %08x\n", head);
+	seq_printf(m, "RingTail :  %08x\n", tail);
+	seq_printf(m, "RingMask :  %08x\n", mask);
+	seq_printf(m, "RingSize :  %08lx\n", dev_priv->ring.Size);
+	seq_printf(m, "Acthd :  %08x\n", I915_READ(IS_I965G(dev) ? ACTHD_I965 : ACTHD));
+
+	return 0;
+}
+
+
 static struct drm_info_list i915_gem_debugfs_list[] = {
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
@@ -243,6 +333,9 @@ static struct drm_info_list i915_gem_debugfs_list[] = {
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
 	{"i915_gem_hws", i915_hws_info, 0},
+	{"i915_ringbuffer_data", i915_ringbuffer_data, 0},
+	{"i915_ringbuffer_info", i915_ringbuffer_info, 0},
+	{"i915_batchbuffers", i915_batchbuffer_info, 0},
 };
 #define I915_GEM_DEBUGFS_ENTRIES ARRAY_SIZE(i915_gem_debugfs_list)
 

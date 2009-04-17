@@ -312,6 +312,9 @@ struct azx_dev {
 	unsigned int period_bytes; /* size of the period in bytes */
 	unsigned int frags;	/* number for period in the play buffer */
 	unsigned int fifo_size;	/* FIFO size */
+	unsigned int start_flag: 1;	/* stream full start flag */
+	unsigned long start_jiffies;	/* start + minimum jiffies */
+	unsigned long min_jiffies;	/* minimum jiffies before position is valid */
 
 	void __iomem *sd_addr;	/* stream descriptor pointer */
 
@@ -330,7 +333,6 @@ struct azx_dev {
 	unsigned int opened :1;
 	unsigned int running :1;
 	unsigned int irq_pending :1;
-	unsigned int irq_ignore :1;
 	/*
 	 * For VIA:
 	 *  A flag to ensure DMA position is 0
@@ -975,7 +977,7 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	struct azx *chip = dev_id;
 	struct azx_dev *azx_dev;
 	u32 status;
-	int i;
+	int i, ok;
 
 	spin_lock(&chip->reg_lock);
 
@@ -991,18 +993,14 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 			azx_sd_writeb(azx_dev, SD_STS, SD_INT_MASK);
 			if (!azx_dev->substream || !azx_dev->running)
 				continue;
-			/* ignore the first dummy IRQ (due to pos_adj) */
-			if (azx_dev->irq_ignore) {
-				azx_dev->irq_ignore = 0;
-				continue;
-			}
 			/* check whether this IRQ is really acceptable */
-			if (azx_position_ok(chip, azx_dev)) {
+			ok = azx_position_ok(chip, azx_dev);
+			if (ok == 1) {
 				azx_dev->irq_pending = 0;
 				spin_unlock(&chip->reg_lock);
 				snd_pcm_period_elapsed(azx_dev->substream);
 				spin_lock(&chip->reg_lock);
-			} else if (chip->bus && chip->bus->workq) {
+			} else if (ok == 0 && chip->bus && chip->bus->workq) {
 				/* bogus IRQ, process it later */
 				azx_dev->irq_pending = 1;
 				queue_work(chip->bus->workq,
@@ -1088,7 +1086,6 @@ static int azx_setup_periods(struct azx *chip,
 	bdl = (u32 *)azx_dev->bdl.area;
 	ofs = 0;
 	azx_dev->frags = 0;
-	azx_dev->irq_ignore = 0;
 	pos_adj = bdl_pos_adj[chip->dev_index];
 	if (pos_adj > 0) {
 		struct snd_pcm_runtime *runtime = substream->runtime;
@@ -1109,7 +1106,6 @@ static int azx_setup_periods(struct azx *chip,
 					 &bdl, ofs, pos_adj, 1);
 			if (ofs < 0)
 				goto error;
-			azx_dev->irq_ignore = 1;
 		}
 	} else
 		pos_adj = 0;
@@ -1155,6 +1151,9 @@ static void azx_stream_reset(struct azx *chip, struct azx_dev *azx_dev)
 	while (((val = azx_sd_readb(azx_dev, SD_CTL)) & SD_CTL_STREAM_RESET) &&
 	       --timeout)
 		;
+
+	/* reset first position - may not be synced with hw at this time */
+	*azx_dev->posbuf = 0;
 }
 
 /*
@@ -1409,7 +1408,6 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 	mutex_unlock(&chip->open_mutex);
 
-	azx_stream_reset(chip, azx_dev);
 	return 0;
 }
 
@@ -1474,6 +1472,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	unsigned int bufsize, period_bytes, format_val;
 	int err;
 
+	azx_stream_reset(chip, azx_dev);
 	format_val = snd_hda_calc_stream_format(runtime->rate,
 						runtime->channels,
 						runtime->format,
@@ -1502,6 +1501,8 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 			return err;
 	}
 
+	azx_dev->min_jiffies = (runtime->period_size * HZ) /
+						(runtime->rate * 2);
 	azx_setup_controller(chip, azx_dev);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		azx_dev->fifo_size = azx_sd_readw(azx_dev, SD_FIFOSIZE) + 1;
@@ -1518,13 +1519,14 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev;
 	struct snd_pcm_substream *s;
-	int start, nsync = 0, sbits = 0;
+	int rstart = 0, start, nsync = 0, sbits = 0;
 	int nwait, timeout;
 
 	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		rstart = 1;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_START:
 		start = 1;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -1554,6 +1556,10 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		if (s->pcm->card != substream->pcm->card)
 			continue;
 		azx_dev = get_azx_dev(s);
+		if (rstart) {
+			azx_dev->start_flag = 1;
+			azx_dev->start_jiffies = jiffies + azx_dev->min_jiffies;
+		}
 		if (start)
 			azx_stream_start(chip, azx_dev);
 		else
@@ -1702,6 +1708,11 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 {
 	unsigned int pos;
+
+	if (azx_dev->start_flag &&
+	    time_before_eq(jiffies, azx_dev->start_jiffies))
+		return -1;	/* bogus (too early) interrupt */
+	azx_dev->start_flag = 0;
 
 	pos = azx_get_position(chip, azx_dev);
 	if (chip->position_fix == POS_FIX_AUTO) {
@@ -2260,11 +2271,11 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 		gcap &= ~0x01;
 
 	/* allow 64bit DMA address if supported by H/W */
-	if ((gcap & 0x01) && !pci_set_dma_mask(pci, DMA_64BIT_MASK))
-		pci_set_consistent_dma_mask(pci, DMA_64BIT_MASK);
+	if ((gcap & 0x01) && !pci_set_dma_mask(pci, DMA_BIT_MASK(64)))
+		pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(64));
 	else {
-		pci_set_dma_mask(pci, DMA_32BIT_MASK);
-		pci_set_consistent_dma_mask(pci, DMA_32BIT_MASK);
+		pci_set_dma_mask(pci, DMA_BIT_MASK(32));
+		pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(32));
 	}
 
 	/* read number of streams from GCAP register instead of using

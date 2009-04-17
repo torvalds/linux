@@ -85,9 +85,9 @@
 			interrupt-parent = <&mpic>;
 			dfsrr;
 
-			dtt@50 {
+			dtt@48 {
 				compatible = "national,lm75";
-				reg = <0x50>;
+				reg = <0x48>;
 			};
 
 			rtc@68 {
@@ -247,7 +247,7 @@
 			interrupts = <31 2 32 2 33 2>;
 			interrupt-parent = <&mpic>;
 			tbi-handle = <&tbi2>;
-			phy-handle = <&phy3>;
+			phy-handle = <&phy4>;
 
 			mdio@520 {
 				#address-cells = <1>;
@@ -275,7 +275,7 @@
 			interrupts = <37 2 38 2 39 2>;
 			interrupt-parent = <&mpic>;
 			tbi-handle = <&tbi3>;
-			phy-handle = <&phy4>;
+			phy-handle = <&phy5>;
 
 			mdio@520 {
 				#address-cells = <1>;

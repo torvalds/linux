@@ -33,7 +33,6 @@
 #include <linux/timex.h>
 #include <linux/io.h>
 #include <linux/acpi.h>
-#include <linux/kernel.h>
 
 #include <asm/msr.h>
 #include <acpi/processor.h>

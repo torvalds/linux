@@ -1188,6 +1188,19 @@ out:
 	return ret;
 }
 
+static const struct net_device_ops sh_eth_netdev_ops = {
+	.ndo_open		= sh_eth_open,
+	.ndo_stop		= sh_eth_close,
+	.ndo_start_xmit		= sh_eth_start_xmit,
+	.ndo_get_stats		= sh_eth_get_stats,
+	.ndo_set_multicast_list	= sh_eth_set_multicast_list,
+	.ndo_tx_timeout		= sh_eth_tx_timeout,
+	.ndo_do_ioctl		= sh_eth_do_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
 static int sh_eth_drv_probe(struct platform_device *pdev)
 {
 	int ret, i, devno = 0;
@@ -1240,13 +1253,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->edmac_endian = pd->edmac_endian;
 
 	/* set function */
-	ndev->open = sh_eth_open;
-	ndev->hard_start_xmit = sh_eth_start_xmit;
-	ndev->stop = sh_eth_close;
-	ndev->get_stats = sh_eth_get_stats;
-	ndev->set_multicast_list = sh_eth_set_multicast_list;
-	ndev->do_ioctl = sh_eth_do_ioctl;
-	ndev->tx_timeout = sh_eth_tx_timeout;
+	ndev->netdev_ops = &sh_eth_netdev_ops;
 	ndev->watchdog_timeo = TX_TIMEOUT;
 
 	mdp->post_rx = POST_RX >> (devno << 1);

@@ -115,6 +115,7 @@ void put_nilfs(struct the_nilfs *nilfs)
 static int nilfs_load_super_root(struct the_nilfs *nilfs,
 				 struct nilfs_sb_info *sbi, sector_t sr_block)
 {
+	static struct lock_class_key dat_lock_key;
 	struct buffer_head *bh_sr;
 	struct nilfs_super_root *raw_sr;
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
@@ -162,6 +163,9 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 	err = nilfs_palloc_init_blockgroup(nilfs->ns_gc_dat, dat_entry_size);
 	if (unlikely(err))
 		goto failed_sufile;
+
+	lockdep_set_class(&NILFS_MDT(nilfs->ns_dat)->mi_sem, &dat_lock_key);
+	lockdep_set_class(&NILFS_MDT(nilfs->ns_gc_dat)->mi_sem, &dat_lock_key);
 
 	nilfs_mdt_set_shadow(nilfs->ns_dat, nilfs->ns_gc_dat);
 	nilfs_mdt_set_entry_size(nilfs->ns_cpfile, checkpoint_size,

@@ -35,6 +35,9 @@ static int snd_jack_dev_free(struct snd_device *device)
 {
 	struct snd_jack *jack = device->device_data;
 
+	if (jack->private_free)
+		jack->private_free(jack);
+
 	/* If the input device is registered with the input subsystem
 	 * then we need to use a different deallocator. */
 	if (jack->registered)

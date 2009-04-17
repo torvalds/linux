@@ -31,6 +31,8 @@ struct pda_power_pdata {
 	unsigned int wait_for_status; /* msecs, default is 500 */
 	unsigned int wait_for_charger; /* msecs, default is 500 */
 	unsigned int polling_interval; /* msecs, default is 2000 */
+
+	unsigned long ac_max_uA; /* current to draw when on AC */
 };
 
 #endif /* __PDA_POWER_H__ */

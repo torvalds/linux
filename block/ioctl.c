@@ -146,8 +146,6 @@ static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
 		struct bio *bio;
 
 		bio = bio_alloc(GFP_KERNEL, 0);
-		if (!bio)
-			return -ENOMEM;
 
 		bio->bi_end_io = blk_ioc_discard_endio;
 		bio->bi_bdev = bdev;

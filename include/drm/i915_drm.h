@@ -594,6 +594,9 @@ struct drm_i915_gem_busy {
 #define I915_BIT_6_SWIZZLE_9_10_11	4
 /* Not seen by userland */
 #define I915_BIT_6_SWIZZLE_UNKNOWN	5
+/* Seen by userland. */
+#define I915_BIT_6_SWIZZLE_9_17		6
+#define I915_BIT_6_SWIZZLE_9_10_17	7
 
 struct drm_i915_gem_set_tiling {
 	/** Handle of the buffer to have its tiling state updated */

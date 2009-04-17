@@ -1215,20 +1215,22 @@ static void ti_bulk_in_callback(struct urb *urb)
 	}
 
 	tty = tty_port_tty_get(&port->port);
-	if (tty && urb->actual_length) {
-		usb_serial_debug_data(debug, dev, __func__,
-			urb->actual_length, urb->transfer_buffer);
+	if (tty) {
+		if (urb->actual_length) {
+			usb_serial_debug_data(debug, dev, __func__,
+				urb->actual_length, urb->transfer_buffer);
 
-		if (!tport->tp_is_open)
-			dbg("%s - port closed, dropping data", __func__);
-		else
-			ti_recv(&urb->dev->dev, tty,
+			if (!tport->tp_is_open)
+				dbg("%s - port closed, dropping data",
+					__func__);
+			else
+				ti_recv(&urb->dev->dev, tty,
 						urb->transfer_buffer,
 						urb->actual_length);
-
-		spin_lock(&tport->tp_lock);
-		tport->tp_icount.rx += urb->actual_length;
-		spin_unlock(&tport->tp_lock);
+			spin_lock(&tport->tp_lock);
+			tport->tp_icount.rx += urb->actual_length;
+			spin_unlock(&tport->tp_lock);
+		}
 		tty_kref_put(tty);
 	}
 

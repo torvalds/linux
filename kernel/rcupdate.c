@@ -58,6 +58,10 @@ static DEFINE_MUTEX(rcu_barrier_mutex);
 static struct completion rcu_barrier_completion;
 int rcu_scheduler_active __read_mostly;
 
+static atomic_t rcu_migrate_type_count = ATOMIC_INIT(0);
+static struct rcu_head rcu_migrate_head[3];
+static DECLARE_WAIT_QUEUE_HEAD(rcu_migrate_wq);
+
 /*
  * Awaken the corresponding synchronize_rcu() instance now that a
  * grace period has elapsed.
@@ -122,7 +126,10 @@ static void rcu_barrier_func(void *type)
 	}
 }
 
-static inline void wait_migrated_callbacks(void);
+static inline void wait_migrated_callbacks(void)
+{
+	wait_event(rcu_migrate_wq, !atomic_read(&rcu_migrate_type_count));
+}
 
 /*
  * Orchestrate the specified type of RCU barrier, waiting for all
@@ -179,19 +186,10 @@ void rcu_barrier_sched(void)
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_sched);
 
-static atomic_t rcu_migrate_type_count = ATOMIC_INIT(0);
-static struct rcu_head rcu_migrate_head[3];
-static DECLARE_WAIT_QUEUE_HEAD(rcu_migrate_wq);
-
 static void rcu_migrate_callback(struct rcu_head *notused)
 {
 	if (atomic_dec_and_test(&rcu_migrate_type_count))
 		wake_up(&rcu_migrate_wq);
-}
-
-static inline void wait_migrated_callbacks(void)
-{
-	wait_event(rcu_migrate_wq, !atomic_read(&rcu_migrate_type_count));
 }
 
 static int __cpuinit rcu_barrier_cpu_hotplug(struct notifier_block *self,

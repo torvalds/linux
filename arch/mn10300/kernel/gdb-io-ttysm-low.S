@@ -18,7 +18,7 @@
 #include <asm/cpu-regs.h>
 #include <asm/frame.inc>
 #include <asm/intctl-regs.h>
-#include <asm/unit/serial.h>
+#include <unit/serial.h>
 #include "mn10300-serial.h"
 
 	.text

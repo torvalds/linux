@@ -34,14 +34,6 @@
 
 #define WAIT_IDLE	0xff
 
-#ifdef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
-#include "yss225.c"
-static const struct firmware yss225_registers_firmware = {
-	.data = (u8 *)yss225_registers,
-	.size = sizeof yss225_registers
-};
-#endif
-
 static int
 wavefront_fx_idle (snd_wavefront_t *dev)
 
@@ -210,15 +202,11 @@ snd_wavefront_fx_ioctl (struct snd_hwdep *sdev, struct file *file,
 					    "> 512 bytes to FX\n");
 				return -EIO;
 			}
-			page_data = kmalloc(r.data[2] * sizeof(short), GFP_KERNEL);
-			if (!page_data)
-				return -ENOMEM;
-			if (copy_from_user (page_data,
-					    (unsigned char __user *) r.data[3],
-					    r.data[2] * sizeof(short))) {
-				kfree(page_data);
-				return -EFAULT;
-			}
+			page_data = memdup_user((unsigned char __user *)
+						r.data[3],
+						r.data[2] * sizeof(short));
+			if (IS_ERR(page_data))
+				return PTR_ERR(page_data);
 			pd = page_data;
 		}
 
@@ -260,16 +248,12 @@ snd_wavefront_fx_start (snd_wavefront_t *dev)
 	if (dev->fx_initialized)
 		return 0;
 
-#ifdef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
-	firmware = &yss225_registers_firmware;
-#else
 	err = request_firmware(&firmware, "yamaha/yss225_registers.bin",
 			       dev->card->dev);
 	if (err < 0) {
 		err = -1;
 		goto out;
 	}
-#endif
 
 	for (i = 0; i + 1 < firmware->size; i += 2) {
 		if (firmware->data[i] >= 8 && firmware->data[i] < 16) {
@@ -292,12 +276,8 @@ snd_wavefront_fx_start (snd_wavefront_t *dev)
 	err = 0;
 
 out:
-#ifndef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 	release_firmware(firmware);
-#endif
 	return err;
 }
 
-#ifndef CONFIG_SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 MODULE_FIRMWARE("yamaha/yss225_registers.bin");
-#endif

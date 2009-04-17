@@ -15,6 +15,7 @@
 #define ASM_KVM_HOST_H
 #include <linux/kvm_host.h>
 #include <asm/debug.h>
+#include <asm/cpuid.h>
 
 #define KVM_MAX_VCPUS 64
 #define KVM_MEMORY_SLOTS 32

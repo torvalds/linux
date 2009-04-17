@@ -111,7 +111,7 @@ void igb_clear_vfta(struct e1000_hw *hw)
  *  Writes value at the given offset in the register array which stores
  *  the VLAN filter table.
  **/
-void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
+static void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 {
 	array_wr32(E1000_VFTA, offset, value);
 	wrfl();

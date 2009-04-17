@@ -1394,7 +1394,7 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 		 */
 		cmd->sense_buffer[8] = 0;     /* Information */
 		cmd->sense_buffer[9] = 0xa;   /* Add. length */
-		do_div(bghm, cmd->device->sector_size);
+		bghm /= cmd->device->sector_size;
 
 		failing_sector = scsi_get_lba(cmd);
 		failing_sector += bghm;

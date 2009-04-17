@@ -272,11 +272,6 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
 	lock_page(page);
 
 	bio = bio_alloc(GFP_NOFS, 1);
-	if (unlikely(!bio)) {
-		__free_page(page);
-		return -ENOBUFS;
-	}
-
 	bio->bi_sector = sector * (sb->s_blocksize >> 9);
 	bio->bi_bdev = sb->s_bdev;
 	bio_add_page(bio, page, PAGE_SIZE, 0);

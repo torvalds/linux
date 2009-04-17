@@ -29,6 +29,51 @@ config TOUCHSCREEN_ADS7846
 	  To compile this driver as a module, choose M here: the
 	  module will be called ads7846.
 
+config TOUCHSCREEN_AD7877
+	tristate "AD7877 based touchscreens"
+	depends on SPI_MASTER
+	help
+	  Say Y here if you have a touchscreen interface using the
+	  AD7877 controller, and your board-specific initialization
+	  code includes that in its table of SPI devices.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7877.
+
+config TOUCHSCREEN_AD7879_I2C
+	tristate "AD7879 based touchscreens: AD7879-1 I2C Interface"
+	depends on I2C
+	select TOUCHSCREEN_AD7879
+	help
+	  Say Y here if you have a touchscreen interface using the
+	  AD7879-1 controller, and your board-specific initialization
+	  code includes that in its table of I2C devices.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7879.
+
+config TOUCHSCREEN_AD7879_SPI
+	tristate "AD7879 based touchscreens: AD7879 SPI Interface"
+	depends on SPI_MASTER && TOUCHSCREEN_AD7879_I2C = n
+	select TOUCHSCREEN_AD7879
+	help
+	  Say Y here if you have a touchscreen interface using the
+	  AD7879 controller, and your board-specific initialization
+	  code includes that in its table of SPI devices.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7879.
+
+config TOUCHSCREEN_AD7879
+	tristate
+	default n
+
 config TOUCHSCREEN_BITSY
 	tristate "Compaq iPAQ H3600 (Bitsy) touchscreen"
 	depends on SA1100_BITSY
@@ -307,6 +352,19 @@ config TOUCHSCREEN_WM97XX_MAINSTONE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mainstone-wm97xx.
+
+config TOUCHSCREEN_WM97XX_ZYLONITE
+	tristate "Zylonite accelerated touch"
+	depends on TOUCHSCREEN_WM97XX && MACH_ZYLONITE
+	select TOUCHSCREEN_WM9713
+	help
+	  Say Y here for support for streaming mode with the touchscreen
+	  on Zylonite systems.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zylonite-wm97xx.
 
 config TOUCHSCREEN_USB_COMPOSITE
 	tristate "USB Touchscreen Driver"
