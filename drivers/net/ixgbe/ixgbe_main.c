@@ -3459,6 +3459,8 @@ static int ixgbe_open(struct net_device *netdev)
 	if (test_bit(__IXGBE_TESTING, &adapter->state))
 		return -EBUSY;
 
+	netif_carrier_off(netdev);
+
 	/* allocate transmit descriptors */
 	err = ixgbe_setup_all_tx_resources(adapter);
 	if (err)
@@ -4772,12 +4774,13 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	/* reset the hardware with the new settings */
 	hw->mac.ops.start_hw(hw);
 
-	netif_carrier_off(netdev);
-
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;
+
+	/* carrier off reporting is important to ethtool even BEFORE open */
+	netif_carrier_off(netdev);
 
 #ifdef CONFIG_IXGBE_DCA
 	if (dca_add_requester(&pdev->dev) == 0) {
