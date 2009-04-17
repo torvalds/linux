@@ -645,30 +645,30 @@ static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 	}
 }
 
-static int zfcp_fsf_req_sbal_get(struct zfcp_adapter *adapter)
-	__releases(&adapter->req_q_lock)
-	__acquires(&adapter->req_q_lock)
+static int zfcp_fsf_sbal_check(struct zfcp_adapter *adapter)
 {
 	struct zfcp_qdio_queue *req_q = &adapter->req_q;
+
+	spin_lock_bh(&adapter->req_q_lock);
+	if (atomic_read(&req_q->count))
+		return 1;
+	spin_unlock_bh(&adapter->req_q_lock);
+	return 0;
+}
+
+static int zfcp_fsf_req_sbal_get(struct zfcp_adapter *adapter)
+{
 	long ret;
 
-	if (atomic_read(&req_q->count) <= -REQUEST_LIST_SIZE)
-		return -EIO;
-	if (atomic_read(&req_q->count) > 0)
-		return 0;
-
-	atomic_dec(&req_q->count);
 	spin_unlock_bh(&adapter->req_q_lock);
 	ret = wait_event_interruptible_timeout(adapter->request_wq,
-					atomic_read(&req_q->count) >= 0,
-					5 * HZ);
-	spin_lock_bh(&adapter->req_q_lock);
-	atomic_inc(&req_q->count);
-
+			       zfcp_fsf_sbal_check(adapter), 5 * HZ);
 	if (ret > 0)
 		return 0;
 	if (!ret)
 		atomic_inc(&adapter->qdio_outb_full);
+
+	spin_lock_bh(&adapter->req_q_lock);
 	return -EIO;
 }
 
