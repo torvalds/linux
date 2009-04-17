@@ -64,6 +64,7 @@ static unsigned long palmt5_pin_config[] __initdata = {
 	GPIO29_AC97_SDATA_IN_0,
 	GPIO30_AC97_SDATA_OUT,
 	GPIO31_AC97_SYNC,
+	GPIO95_AC97_nRESET,
 
 	/* IrDA */
 	GPIO40_GPIO,	/* ir disable */
@@ -72,7 +73,7 @@ static unsigned long palmt5_pin_config[] __initdata = {
 
 	/* USB */
 	GPIO15_GPIO,	/* usb detect */
-	GPIO95_GPIO,	/* usb power */
+	GPIO93_GPIO,	/* usb power */
 
 	/* MATRIX KEYPAD */
 	GPIO100_KP_MKIN_0 | WAKEUP_ON_LEVEL_HIGH,
@@ -344,7 +345,7 @@ static struct pxaficp_platform_data palmt5_ficp_platform_data = {
 static struct pxa2xx_udc_mach_info palmt5_udc_info __initdata = {
 	.gpio_vbus		= GPIO_NR_PALMT5_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,
-	.gpio_pullup		= GPIO_NR_PALMT5_USB_POWER,
+	.gpio_pullup		= GPIO_NR_PALMT5_USB_PULLUP,
 	.gpio_pullup_inverted	= 0,
 };
 
@@ -490,9 +491,9 @@ static struct platform_device *devices[] __initdata = {
 /* setup udc GPIOs initial state */
 static void __init palmt5_udc_init(void)
 {
-	if (!gpio_request(GPIO_NR_PALMT5_USB_POWER, "UDC Vbus")) {
-		gpio_direction_output(GPIO_NR_PALMT5_USB_POWER, 1);
-		gpio_free(GPIO_NR_PALMT5_USB_POWER);
+	if (!gpio_request(GPIO_NR_PALMT5_USB_PULLUP, "UDC Vbus")) {
+		gpio_direction_output(GPIO_NR_PALMT5_USB_PULLUP, 1);
+		gpio_free(GPIO_NR_PALMT5_USB_PULLUP);
 	}
 }
 

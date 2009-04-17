@@ -100,7 +100,7 @@ static void s3c_adc_dbgshow(struct adc_device *adc)
 		readl(adc->regs + S3C2410_ADCDLY));
 }
 
-void s3c_adc_try(struct adc_device *adc)
+static void s3c_adc_try(struct adc_device *adc)
 {
 	struct s3c_adc_client *next = adc->ts_pend;
 
@@ -190,6 +190,23 @@ EXPORT_SYMBOL_GPL(s3c_adc_register);
 void s3c_adc_release(struct s3c_adc_client *client)
 {
 	/* We should really check that nothing is in progress. */
+	if (adc_dev->cur == client)
+		adc_dev->cur = NULL;
+	if (adc_dev->ts_pend == client)
+		adc_dev->ts_pend = NULL;
+	else {
+		struct list_head *p, *n;
+		struct s3c_adc_client *tmp;
+
+		list_for_each_safe(p, n, &adc_pending) {
+			tmp = list_entry(p, struct s3c_adc_client, pend);
+			if (tmp == client)
+				list_del(&tmp->pend);
+		}
+	}
+
+	if (adc_dev->cur == NULL)
+		s3c_adc_try(adc_dev);
 	kfree(client);
 }
 EXPORT_SYMBOL_GPL(s3c_adc_release);

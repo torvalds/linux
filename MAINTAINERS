@@ -543,6 +543,14 @@ S:	Maintained
 F:	arch/arm/lib/floppydma.S
 F:	arch/arm/include/asm/floppy.h
 
+ARM PORT
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.arm.linux.org.uk/
+S:	Maintained
+F:	arch/arm/
+
 ARM PRIMECELL MMCI PL180/1 DRIVER
 S:	Orphan
 F:	drivers/mmc/host/mmci.*
@@ -592,6 +600,13 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/CLKDEV SUPPORT
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+F:	arch/arm/common/clkdev.c
+F:	arch/arm/include/asm/clkdev.h
+
 ARM/COMPULAB CM-X270/EM-X270 and CM-X300 MACHINE SUPPORT
 P:	Mike Rapoport
 M:	mike@compulab.co.il
@@ -610,6 +625,15 @@ L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 T:	git git://gitorious.org/linux-gemini/mainline.git
 S:	Maintained
 
+ARM/EBSA110 MACHINE SUPPORT
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.arm.linux.org.uk/
+S:	Maintained
+F:	arch/arm/mach-ebsa110/
+F:	drivers/net/arm/am79c961a.*
+
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
 P:	Daniel Ribeiro
 M:	drwyrm@gmail.com
@@ -626,6 +650,15 @@ P:	Paulius Zaleckas
 M:	paulius.zaleckas@teltonika.lt
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
+
+ARM/FOOTBRIDGE ARCHITECTURE
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.arm.linux.org.uk/
+S:	Maintained
+F:	arch/arm/include/asm/hardware/dec21285.h
+F:	arch/arm/mach-footbridge/
 
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
 P:	Sascha Hauer
@@ -767,17 +800,25 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/RISCPC ARCHITECTURE
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.arm.linux.org.uk/
+S:	Maintained
+F:	arch/arm/common/time-acorn.c
+F:	arch/arm/include/asm/hardware/entry-macro-iomd.S
+F:	arch/arm/include/asm/hardware/ioc.h
+F:	arch/arm/include/asm/hardware/iomd.h
+F:	arch/arm/include/asm/hardware/memc.h
+F:	arch/arm/mach-rpc/
+F:	drivers/net/arm/ether*
+F:	drivers/scsi/arm/
+
 ARM/SHARK MACHINE SUPPORT
 P:	Alexander Schulz
 M:	alex@shark-linux.de
 W:	http://www.shark-linux.de/shark.html
-S:	Maintained
-
-ARM/STRONGARM110 PORT
-P:	Russell King
-M:	rmk@arm.linux.org.uk
-L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
-W:	http://www.arm.linux.org.uk/
 S:	Maintained
 
 ARM/S3C2410 ARM ARCHITECTURE
@@ -812,6 +853,14 @@ M:	mcuos.com@gmail.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 W:	http://www.mcuos.com
 S:	Maintained
+
+ARM/VFP SUPPORT
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.arm.linux.org.uk/
+S:	Maintained
+F:	arch/arm/vfp/
 
 ARPD SUPPORT
 P:	Jonathan Layes
@@ -1372,6 +1421,11 @@ S:	Maintained
 F:	Documentation/input/cs461x.txt
 F:	sound/pci/cs46xx/
 
+CLK API
+P:	Russell King
+M:	linux@arm.linux.org.uk
+F:	include/linux/clk.h
+
 CODA FILE SYSTEM
 P:	Jan Harkes
 M:	jaharkes@cs.cmu.edu
@@ -1576,7 +1630,8 @@ F:	drivers/infiniband/hw/cxgb3/
 
 CYBERPRO FB DRIVER
 P:	Russell King
-M:	rmk@arm.linux.org.uk
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	drivers/video/cyber2000fb.*

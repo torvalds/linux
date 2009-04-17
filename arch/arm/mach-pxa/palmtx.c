@@ -64,6 +64,7 @@ static unsigned long palmtx_pin_config[] __initdata = {
 	GPIO29_AC97_SDATA_IN_0,
 	GPIO30_AC97_SDATA_OUT,
 	GPIO31_AC97_SYNC,
+	GPIO95_AC97_nRESET,
 
 	/* IrDA */
 	GPIO40_GPIO,	/* ir disable */
@@ -75,7 +76,7 @@ static unsigned long palmtx_pin_config[] __initdata = {
 
 	/* USB */
 	GPIO13_GPIO,	/* usb detect */
-	GPIO95_GPIO,	/* usb power */
+	GPIO93_GPIO,	/* usb power */
 
 	/* PCMCIA */
 	GPIO48_nPOE,
@@ -359,7 +360,7 @@ static struct pxaficp_platform_data palmtx_ficp_platform_data = {
 static struct pxa2xx_udc_mach_info palmtx_udc_info __initdata = {
 	.gpio_vbus		= GPIO_NR_PALMTX_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,
-	.gpio_pullup		= GPIO_NR_PALMTX_USB_POWER,
+	.gpio_pullup		= GPIO_NR_PALMTX_USB_PULLUP,
 	.gpio_pullup_inverted	= 0,
 };
 
@@ -514,9 +515,9 @@ static void __init palmtx_map_io(void)
 /* setup udc GPIOs initial state */
 static void __init palmtx_udc_init(void)
 {
-	if (!gpio_request(GPIO_NR_PALMTX_USB_POWER, "UDC Vbus")) {
-		gpio_direction_output(GPIO_NR_PALMTX_USB_POWER, 1);
-		gpio_free(GPIO_NR_PALMTX_USB_POWER);
+	if (!gpio_request(GPIO_NR_PALMTX_USB_PULLUP, "UDC Vbus")) {
+		gpio_direction_output(GPIO_NR_PALMTX_USB_PULLUP, 1);
+		gpio_free(GPIO_NR_PALMTX_USB_PULLUP);
 	}
 }
 

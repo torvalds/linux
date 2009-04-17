@@ -153,7 +153,7 @@ struct ep93xx_descs
 struct ep93xx_priv
 {
 	struct resource		*res;
-	void			*base_addr;
+	void __iomem		*base_addr;
 	int			irq;
 
 	struct ep93xx_descs	*descs;
