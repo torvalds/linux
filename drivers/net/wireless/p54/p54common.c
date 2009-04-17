@@ -2642,8 +2642,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	skb_queue_head_init(&priv->tx_queue);
 	dev->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_DBM |
-		     IEEE80211_HW_NOISE_DBM |
-		     IEEE80211_HW_BEACON_FILTER;
+		     IEEE80211_HW_NOISE_DBM;
 
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				      BIT(NL80211_IFTYPE_ADHOC) |
