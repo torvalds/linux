@@ -373,7 +373,8 @@ static void zfcp_fc_adisc_handler(unsigned long data)
 
 	if (adisc->els.status) {
 		/* request rejected or timed out */
-		zfcp_erp_port_forced_reopen(port, 0, "fcadh_1", NULL);
+		zfcp_erp_port_forced_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
+					    "fcadh_1", NULL);
 		goto out;
 	}
 
