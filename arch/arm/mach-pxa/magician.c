@@ -745,6 +745,14 @@ static struct platform_device strataflash = {
 };
 
 /*
+ * I2C
+ */
+
+static struct i2c_pxa_platform_data i2c_info = {
+	.fast_mode = 1,
+};
+
+/*
  * Platform devices
  */
 
@@ -779,7 +787,7 @@ static void __init magician_init(void)
 		pxa_set_ficp_info(&magician_ficp_info);
 	}
 	pxa27x_set_i2c_power_info(NULL);
-	pxa_set_i2c_info(NULL);
+	pxa_set_i2c_info(&i2c_info);
 	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
 
