@@ -160,8 +160,8 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 static int								\
 ftrace_format_##call(struct trace_seq *s)				\
 {									\
-	struct ftrace_raw_##call field;					\
-	int ret;							\
+	struct ftrace_raw_##call field __attribute__((unused));		\
+	int ret = 0;							\
 									\
 	tstruct;							\
 									\
