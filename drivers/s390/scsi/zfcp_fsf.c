@@ -1254,13 +1254,13 @@ int zfcp_fsf_exchange_config_data_sync(struct zfcp_adapter *adapter,
 
 	spin_lock_bh(&adapter->req_q_lock);
 	if (zfcp_fsf_req_sbal_get(adapter))
-		goto out;
+		goto out_unlock;
 
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_CONFIG_DATA,
 				  0, NULL);
 	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
-		goto out;
+		goto out_unlock;
 	}
 
 	sbale = zfcp_qdio_sbale_req(req);
@@ -1279,14 +1279,16 @@ int zfcp_fsf_exchange_config_data_sync(struct zfcp_adapter *adapter,
 
 	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 	retval = zfcp_fsf_req_send(req);
-out:
 	spin_unlock_bh(&adapter->req_q_lock);
 	if (!retval)
 		wait_event(req->completion_wq,
 			   req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
 
 	zfcp_fsf_req_free(req);
+	return retval;
 
+out_unlock:
+	spin_unlock_bh(&adapter->req_q_lock);
 	return retval;
 }
 
@@ -1353,13 +1355,13 @@ int zfcp_fsf_exchange_port_data_sync(struct zfcp_adapter *adapter,
 
 	spin_lock_bh(&adapter->req_q_lock);
 	if (zfcp_fsf_req_sbal_get(adapter))
-		goto out;
+		goto out_unlock;
 
 	req = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_PORT_DATA, 0,
 				  NULL);
 	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
-		goto out;
+		goto out_unlock;
 	}
 
 	if (data)
@@ -1372,13 +1374,17 @@ int zfcp_fsf_exchange_port_data_sync(struct zfcp_adapter *adapter,
 	req->handler = zfcp_fsf_exchange_port_data_handler;
 	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 	retval = zfcp_fsf_req_send(req);
-out:
 	spin_unlock_bh(&adapter->req_q_lock);
+
 	if (!retval)
 		wait_event(req->completion_wq,
 			   req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
 	zfcp_fsf_req_free(req);
 
+	return retval;
+
+out_unlock:
+	spin_unlock_bh(&adapter->req_q_lock);
 	return retval;
 }
 
