@@ -1259,6 +1259,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	struct trace_array_cpu *data;
 	struct bprint_entry *entry;
 	unsigned long flags;
+	int disable;
 	int resched;
 	int cpu, len = 0, size, pc;
 
@@ -1273,7 +1274,8 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 
-	if (unlikely(atomic_read(&data->disabled)))
+	disable = atomic_inc_return(&data->disabled);
+	if (unlikely(disable != 1))
 		goto out;
 
 	/* Lockdep uses trace_printk for lock tracing */
@@ -1301,6 +1303,7 @@ out_unlock:
 	local_irq_restore(flags);
 
 out:
+	atomic_dec_return(&data->disabled);
 	ftrace_preempt_enable(resched);
 	unpause_graph_tracing();
 
@@ -1320,6 +1323,7 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	int cpu, len = 0, size, pc;
 	struct print_entry *entry;
 	unsigned long irq_flags;
+	int disable;
 
 	if (tracing_disabled || tracing_selftest_running)
 		return 0;
@@ -1329,7 +1333,8 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 
-	if (unlikely(atomic_read(&data->disabled)))
+	disable = atomic_inc_return(&data->disabled);
+	if (unlikely(disable != 1))
 		goto out;
 
 	pause_graph_tracing();
@@ -1357,6 +1362,7 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	raw_local_irq_restore(irq_flags);
 	unpause_graph_tracing();
  out:
+	atomic_dec_return(&data->disabled);
 	preempt_enable_notrace();
 
 	return len;
