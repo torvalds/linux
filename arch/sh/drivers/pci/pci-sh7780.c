@@ -90,7 +90,19 @@ struct pci_channel board_pci_channels[] = {
 	{ NULL, NULL, NULL, 0, 0 },
 };
 
-int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
+static struct sh4_pci_address_map sh7780_pci_map = {
+	.window0	= {
+#if defined(CONFIG_32BIT)
+		.base	= SH7780_32BIT_DDR_BASE_ADDR,
+		.size	= 0x40000000,
+#else
+		.base	= SH7780_CS0_BASE_ADDR,
+		.size	= 0x20000000,
+#endif
+	},
+};
+
+int __init pcibios_init_platform(void)
 {
 	struct pci_channel *chan = &board_pci_channels[0];
 	u32 word;
@@ -114,14 +126,10 @@ int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
 	/* Set IO and Mem windows to local address
 	 * Make PCI and local address the same for easy 1 to 1 mapping
 	 */
-	pci_write_reg(chan, map->window0.size - 0xfffff, SH4_PCILSR0);
-	pci_write_reg(chan, map->window1.size - 0xfffff, SH4_PCILSR1);
+	pci_write_reg(chan, sh7780_pci_map.window0.size - 0xfffff, SH4_PCILSR0);
 	/* Set the values on window 0 PCI config registers */
-	pci_write_reg(chan, map->window0.base, SH4_PCILAR0);
-	pci_write_reg(chan, map->window0.base, SH7780_PCIMBAR0);
-	/* Set the values on window 1 PCI config registers */
-	pci_write_reg(chan, map->window1.base, SH4_PCILAR1);
-	pci_write_reg(chan, map->window1.base, SH7780_PCIMBAR1);
+	pci_write_reg(chan, sh7780_pci_map.window0.base, SH4_PCILAR0);
+	pci_write_reg(chan, sh7780_pci_map.window0.base, SH7780_PCIMBAR0);
 
 	/* Apply any last-minute PCIC fixups */
 	pci_fixup_pcic(chan);

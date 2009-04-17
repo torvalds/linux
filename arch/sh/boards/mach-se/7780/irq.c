@@ -49,4 +49,21 @@ void __init init_se7780_IRQ(void)
 
 	/* ICR1: detect low level(for 2ndcut) */
 	ctrl_outl(0xAAAA0000, INTC_ICR1);
+
+	/*
+	 * FPGA PCISEL register initialize
+	 *
+	 *  CPU  || SLOT1 | SLOT2 | S-ATA | USB
+	 *  -------------------------------------
+	 *  INTA || INTA  | INTD  |  --   | INTB
+	 *  -------------------------------------
+	 *  INTB || INTB  | INTA  |  --   | INTC
+	 *  -------------------------------------
+	 *  INTC || INTC  | INTB  | INTA  |  --
+	 *  -------------------------------------
+	 *  INTD || INTD  | INTC  |  --   | INTA
+	 *  -------------------------------------
+	 */
+	ctrl_outw(0x0013, FPGA_PCI_INTSEL1);
+	ctrl_outw(0xE402, FPGA_PCI_INTSEL2);
 }

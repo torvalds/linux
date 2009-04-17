@@ -40,34 +40,3 @@ int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
        return se7780_irq_tab[pin-1][slot];
 }
-
-static struct sh4_pci_address_map se7780_pci_map = {
-	.window0	= {
-		.base	= SH7780_CS2_BASE_ADDR,
-		.size	= 0x04000000,
-	},
-};
-
-int __init pcibios_init_platform(void)
-{
-	printk("SH7780 PCI: Finished initialization of the PCI controller\n");
-
-	/*
-	 * FPGA PCISEL register initialize
-	 *
-	 *  CPU  || SLOT1 | SLOT2 | S-ATA | USB
-	 *  -------------------------------------
-	 *  INTA || INTA  | INTD  |  --   | INTB
-	 *  -------------------------------------
-	 *  INTB || INTB  | INTA  |  --   | INTC
-	 *  -------------------------------------
-	 *  INTC || INTC  | INTB  | INTA  |  --
-	 *  -------------------------------------
-	 *  INTD || INTD  | INTC  |  --   | INTA
-	 *  -------------------------------------
-	 */
-	ctrl_outw(0x0013, FPGA_PCI_INTSEL1);
-	ctrl_outw(0xE402, FPGA_PCI_INTSEL2);
-
-	return sh7780_pcic_init(&se7780_pci_map);
-}

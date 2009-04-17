@@ -104,9 +104,4 @@
 
 #define SH7780_32BIT_DDR_BASE_ADDR	0x40000000
 
-struct sh4_pci_address_map;
-
-/* arch/sh/drivers/pci/pci-sh7780.c */
-int sh7780_pcic_init(struct sh4_pci_address_map *map);
-
 #endif /* _PCI_SH7780_H_ */

@@ -33,20 +33,3 @@ int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
        return sdk7780_irq_tab[pin-1][slot];
 }
-
-static struct sh4_pci_address_map sdk7780_pci_map = {
-	.window0	= {
-		.base	= SH7780_CS2_BASE_ADDR,
-		.size	= 0x04000000,
-	},
-	.window1	= {
-		.base	= SH7780_CS3_BASE_ADDR,
-		.size	= 0x04000000,
-	},
-};
-
-int __init pcibios_init_platform(void)
-{
-	printk(KERN_INFO "SH7780 PCI: Finished initializing PCI controller\n");
-	return sh7780_pcic_init(&sdk7780_pci_map);
-}

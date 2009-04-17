@@ -25,20 +25,3 @@ int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
 	return irq_tab[slot];
 }
-
-static struct sh4_pci_address_map sh7785_pci_map = {
-	.window0	= {
-#if defined(CONFIG_32BIT)
-		.base	= SH7780_32BIT_DDR_BASE_ADDR,
-		.size	= 0x40000000,
-#else
-		.base	= SH7780_CS0_BASE_ADDR,
-		.size	= 0x20000000,
-#endif
-	},
-};
-
-int __init pcibios_init_platform(void)
-{
-	return sh7780_pcic_init(&sh7785_pci_map);
-}
