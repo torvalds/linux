@@ -6347,7 +6347,8 @@ void md_do_sync(mddev_t *mddev)
 		if ((mddev->curr_resync > mddev->curr_resync_completed &&
 		     (mddev->curr_resync - mddev->curr_resync_completed)
 		    > (max_sectors >> 4)) ||
-		    j >= mddev->resync_max
+		    (j - mddev->curr_resync_completed)*2
+		    >= mddev->resync_max - mddev->curr_resync_completed
 			) {
 			/* time to update curr_resync_completed */
 			blk_unplug(mddev->queue);
