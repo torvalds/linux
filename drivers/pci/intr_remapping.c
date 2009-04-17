@@ -15,6 +15,14 @@ static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static int ir_ioapic_num;
 int intr_remapping_enabled;
 
+static int disable_intremap;
+static __init int setup_nointremap(char *str)
+{
+	disable_intremap = 1;
+	return 0;
+}
+early_param("nointremap", setup_nointremap);
+
 struct irq_2_iommu {
 	struct intel_iommu *iommu;
 	u16 irte_index;
@@ -505,6 +513,9 @@ end:
 int __init intr_remapping_supported(void)
 {
 	struct dmar_drhd_unit *drhd;
+
+	if (disable_intremap)
+		return 0;
 
 	for_each_drhd_unit(drhd) {
 		struct intel_iommu *iommu = drhd->iommu;
