@@ -6,7 +6,7 @@
  */
 
 
-#include <trace/workqueue.h>
+#include <trace/events/workqueue.h>
 #include <linux/list.h>
 #include <linux/percpu.h>
 #include "trace_stat.h"
