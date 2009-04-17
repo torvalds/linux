@@ -328,7 +328,7 @@ static int __init kobject_uevent_init(void)
 		       "kobject_uevent: unable to create netlink socket!\n");
 		return -ENODEV;
 	}
-
+	netlink_set_nonroot(NETLINK_KOBJECT_UEVENT, NL_NONROOT_RECV);
 	return 0;
 }
 
