@@ -566,8 +566,6 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 
 	pr_debug("rx'd ioctl, cmd=%d, len=%d\n", cmd, req->len);
 
-	mutex_lock(&wlandev->ioctl_lock);
-
 #ifdef SIOCETHTOOL
 	if (cmd == SIOCETHTOOL) {
 		result =
@@ -608,8 +606,6 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 		result = -ENOMEM;
 	}
 bail:
-	mutex_unlock(&wlandev->ioctl_lock);
-
 	return result;		/* If allocate,copyfrom or copyto fails, return errno */
 }
 
@@ -770,11 +766,6 @@ int wlan_setup(wlandevice_t *wlandev)
 		wlandev->netdev = dev;
 		dev->ml_priv = wlandev;
 		dev->netdev_ops = &p80211_netdev_ops;
-
-		mutex_init(&wlandev->ioctl_lock);
-		/* block ioctls until fully initialised. Don't forget to call
-		   allow_ioctls at some point!*/
-		mutex_lock(&wlandev->ioctl_lock);
 
 #if (WIRELESS_EXT < 21)
 		dev->get_wireless_stats = p80211wext_get_wireless_stats;
@@ -1115,9 +1106,4 @@ static void p80211knetdev_tx_timeout(netdevice_t *netdev)
 		       wlandev->nsdname);
 		netif_wake_queue(wlandev->netdev);
 	}
-}
-
-void p80211_allow_ioctls(wlandevice_t *wlandev)
-{
-	mutex_unlock(&wlandev->ioctl_lock);
 }

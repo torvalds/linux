@@ -64,6 +64,7 @@
 #define		HFA384x_PORTID_MAX		((u16)7)
 #define		HFA384x_NUMPORTS_MAX		((u16)(HFA384x_PORTID_MAX+1))
 #define		HFA384x_PDR_LEN_MAX		((u16)512) /* in bytes, from EK */
+#define		HFA384x_PDA_RECS_MAX		((u16)200) /* a guess */
 #define		HFA384x_PDA_LEN_MAX		((u16)1024) /* in bytes, from EK */
 #define		HFA384x_SCANRESULT_MAX		((u16)31)
 #define		HFA384x_HSCANRESULT_MAX		((u16)31)
@@ -881,6 +882,249 @@ typedef union hfa384x_usbin {
 	hfa384x_usb_error_t usberror;
 	u8 boguspad[3000];
 } __attribute__ ((packed)) hfa384x_usbin_t;
+
+/*--------------------------------------------------------------------
+PD record structures.
+--------------------------------------------------------------------*/
+
+typedef struct hfa384x_pdr_pcb_partnum
+{
+	u8	num[8];
+} __attribute__ ((packed)) hfa384x_pdr_pcb_partnum_t;
+
+typedef struct hfa384x_pdr_pcb_tracenum
+{
+	u8	num[8];
+} __attribute__ ((packed)) hfa384x_pdr_pcb_tracenum_t;
+
+typedef struct hfa384x_pdr_nic_serial
+{
+	u8	num[12];
+} __attribute__ ((packed)) hfa384x_pdr_nic_serial_t;
+
+typedef struct hfa384x_pdr_mkk_measurements
+{
+	double	carrier_freq;
+	double	occupied_band;
+	double	power_density;
+	double	tx_spur_f1;
+	double	tx_spur_f2;
+	double	tx_spur_f3;
+	double	tx_spur_f4;
+	double	tx_spur_l1;
+	double	tx_spur_l2;
+	double	tx_spur_l3;
+	double	tx_spur_l4;
+	double	rx_spur_f1;
+	double	rx_spur_f2;
+	double	rx_spur_l1;
+	double	rx_spur_l2;
+} __attribute__ ((packed)) hfa384x_pdr_mkk_measurements_t;
+
+typedef struct hfa384x_pdr_nic_ramsize
+{
+	u8	size[12]; /* units of KB */
+} __attribute__ ((packed)) hfa384x_pdr_nic_ramsize_t;
+
+typedef struct hfa384x_pdr_mfisuprange
+{
+	u16	id;
+	u16	variant;
+	u16	bottom;
+	u16	top;
+} __attribute__ ((packed)) hfa384x_pdr_mfisuprange_t;
+
+typedef struct hfa384x_pdr_cfisuprange
+{
+	u16	id;
+	u16	variant;
+	u16	bottom;
+	u16	top;
+} __attribute__ ((packed)) hfa384x_pdr_cfisuprange_t;
+
+typedef struct hfa384x_pdr_nicid
+{
+	u16	id;
+	u16	variant;
+	u16	major;
+	u16	minor;
+} __attribute__ ((packed)) hfa384x_pdr_nicid_t;
+
+
+typedef struct hfa384x_pdr_refdac_measurements
+{
+	u16	value[0];
+} __attribute__ ((packed)) hfa384x_pdr_refdac_measurements_t;
+
+typedef struct hfa384x_pdr_vgdac_measurements
+{
+	u16	value[0];
+} __attribute__ ((packed)) hfa384x_pdr_vgdac_measurements_t;
+
+typedef struct hfa384x_pdr_level_comp_measurements
+{
+	u16	value[0];
+} __attribute__ ((packed)) hfa384x_pdr_level_compc_measurements_t;
+
+typedef struct hfa384x_pdr_mac_address
+{
+	u8	addr[6];
+} __attribute__ ((packed)) hfa384x_pdr_mac_address_t;
+
+typedef struct hfa384x_pdr_mkk_callname
+{
+	u8	callname[8];
+} __attribute__ ((packed)) hfa384x_pdr_mkk_callname_t;
+
+typedef struct hfa384x_pdr_regdomain
+{
+	u16	numdomains;
+	u16	domain[5];
+} __attribute__ ((packed)) hfa384x_pdr_regdomain_t;
+
+typedef struct hfa384x_pdr_allowed_channel
+{
+	u16	ch_bitmap;
+} __attribute__ ((packed)) hfa384x_pdr_allowed_channel_t;
+
+typedef struct hfa384x_pdr_default_channel
+{
+	u16	channel;
+} __attribute__ ((packed)) hfa384x_pdr_default_channel_t;
+
+typedef struct hfa384x_pdr_privacy_option
+{
+	u16	available;
+} __attribute__ ((packed)) hfa384x_pdr_privacy_option_t;
+
+typedef struct hfa384x_pdr_temptype
+{
+	u16	type;
+} __attribute__ ((packed)) hfa384x_pdr_temptype_t;
+
+typedef struct hfa384x_pdr_refdac_setup
+{
+	u16	ch_value[14];
+} __attribute__ ((packed)) hfa384x_pdr_refdac_setup_t;
+
+typedef struct hfa384x_pdr_vgdac_setup
+{
+	u16	ch_value[14];
+} __attribute__ ((packed)) hfa384x_pdr_vgdac_setup_t;
+
+typedef struct hfa384x_pdr_level_comp_setup
+{
+	u16	ch_value[14];
+} __attribute__ ((packed)) hfa384x_pdr_level_comp_setup_t;
+
+typedef struct hfa384x_pdr_trimdac_setup
+{
+	u16	trimidac;
+	u16	trimqdac;
+} __attribute__ ((packed)) hfa384x_pdr_trimdac_setup_t;
+
+typedef struct hfa384x_pdr_ifr_setting
+{
+	u16	value[3];
+} __attribute__ ((packed)) hfa384x_pdr_ifr_setting_t;
+
+typedef struct hfa384x_pdr_rfr_setting
+{
+	u16	value[3];
+} __attribute__ ((packed)) hfa384x_pdr_rfr_setting_t;
+
+typedef struct hfa384x_pdr_hfa3861_baseline
+{
+	u16	value[50];
+} __attribute__ ((packed)) hfa384x_pdr_hfa3861_baseline_t;
+
+typedef struct hfa384x_pdr_hfa3861_shadow
+{
+	u32	value[32];
+} __attribute__ ((packed)) hfa384x_pdr_hfa3861_shadow_t;
+
+typedef struct hfa384x_pdr_hfa3861_ifrf
+{
+	u32	value[20];
+} __attribute__ ((packed)) hfa384x_pdr_hfa3861_ifrf_t;
+
+typedef struct hfa384x_pdr_hfa3861_chcalsp
+{
+	u16	value[14];
+} __attribute__ ((packed)) hfa384x_pdr_hfa3861_chcalsp_t;
+
+typedef struct hfa384x_pdr_hfa3861_chcali
+{
+	u16	value[17];
+} __attribute__ ((packed)) hfa384x_pdr_hfa3861_chcali_t;
+
+typedef struct hfa384x_pdr_hfa3861_nic_config
+{
+	u16	config_bitmap;
+} __attribute__ ((packed)) hfa384x_pdr_nic_config_t;
+
+typedef struct hfa384x_pdr_hfo_delay
+{
+	u8   hfo_delay;
+} __attribute__ ((packed)) hfa384x_hfo_delay_t;
+
+typedef struct hfa384x_pdr_hfa3861_manf_testsp
+{
+	u16	value[30];
+} __attribute__ ((packed)) hfa384x_pdr_hfa3861_manf_testsp_t;
+
+typedef struct hfa384x_pdr_hfa3861_manf_testi
+{
+	u16	value[30];
+} __attribute__ ((packed)) hfa384x_pdr_hfa3861_manf_testi_t;
+
+typedef struct hfa384x_end_of_pda
+{
+	u16	crc;
+} __attribute__ ((packed)) hfa384x_pdr_end_of_pda_t;
+
+typedef struct hfa384x_pdrec
+{
+	u16	len; /* in words */
+	u16	code;
+	union pdr {
+	hfa384x_pdr_pcb_partnum_t	pcb_partnum;
+	hfa384x_pdr_pcb_tracenum_t	pcb_tracenum;
+	hfa384x_pdr_nic_serial_t	nic_serial;
+	hfa384x_pdr_mkk_measurements_t	mkk_measurements;
+	hfa384x_pdr_nic_ramsize_t	nic_ramsize;
+	hfa384x_pdr_mfisuprange_t	mfisuprange;
+	hfa384x_pdr_cfisuprange_t	cfisuprange;
+	hfa384x_pdr_nicid_t		nicid;
+	hfa384x_pdr_refdac_measurements_t	refdac_measurements;
+	hfa384x_pdr_vgdac_measurements_t	vgdac_measurements;
+	hfa384x_pdr_level_compc_measurements_t	level_compc_measurements;
+	hfa384x_pdr_mac_address_t	mac_address;
+	hfa384x_pdr_mkk_callname_t	mkk_callname;
+	hfa384x_pdr_regdomain_t		regdomain;
+	hfa384x_pdr_allowed_channel_t	allowed_channel;
+	hfa384x_pdr_default_channel_t	default_channel;
+	hfa384x_pdr_privacy_option_t	privacy_option;
+	hfa384x_pdr_temptype_t		temptype;
+	hfa384x_pdr_refdac_setup_t	refdac_setup;
+	hfa384x_pdr_vgdac_setup_t	vgdac_setup;
+	hfa384x_pdr_level_comp_setup_t	level_comp_setup;
+	hfa384x_pdr_trimdac_setup_t	trimdac_setup;
+	hfa384x_pdr_ifr_setting_t	ifr_setting;
+	hfa384x_pdr_rfr_setting_t	rfr_setting;
+	hfa384x_pdr_hfa3861_baseline_t	hfa3861_baseline;
+	hfa384x_pdr_hfa3861_shadow_t	hfa3861_shadow;
+	hfa384x_pdr_hfa3861_ifrf_t	hfa3861_ifrf;
+	hfa384x_pdr_hfa3861_chcalsp_t	hfa3861_chcalsp;
+	hfa384x_pdr_hfa3861_chcali_t	hfa3861_chcali;
+	hfa384x_pdr_nic_config_t	nic_config;
+	hfa384x_hfo_delay_t             hfo_delay;
+	hfa384x_pdr_hfa3861_manf_testsp_t	hfa3861_manf_testsp;
+	hfa384x_pdr_hfa3861_manf_testi_t	hfa3861_manf_testi;
+	hfa384x_pdr_end_of_pda_t	end_of_pda;
+
+	} data;
+} __attribute__ ((packed)) hfa384x_pdrec_t;
 
 #ifdef __KERNEL__
 /*--------------------------------------------------------------------

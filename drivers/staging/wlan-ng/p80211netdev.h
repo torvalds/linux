@@ -227,8 +227,6 @@ typedef struct wlandevice {
 	u8 spy_number;
 	char spy_address[IW_MAX_SPY][ETH_ALEN];
 	struct iw_quality spy_stat[IW_MAX_SPY];
-
-	struct mutex ioctl_lock;
 } wlandevice_t;
 
 /* WEP stuff */
@@ -244,5 +242,4 @@ int register_wlandev(wlandevice_t *wlandev);
 int unregister_wlandev(wlandevice_t *wlandev);
 void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb);
 void p80211netdev_hwremoved(wlandevice_t *wlandev);
-void p80211_allow_ioctls(wlandevice_t *wlandev);
 #endif
