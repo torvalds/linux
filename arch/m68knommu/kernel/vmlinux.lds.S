@@ -147,6 +147,8 @@ SECTIONS {
 		. = ALIGN(4);
 		_sdata = . ;
 		DATA_DATA
+		. = ALIGN(32);
+		*(.data.cacheline_aligned)
 		. = ALIGN(8192) ;
 		*(.data.init_task)
 		_edata = . ;
