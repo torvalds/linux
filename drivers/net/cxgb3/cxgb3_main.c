@@ -1235,6 +1235,10 @@ static int cxgb_close(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
+	
+	if (!adapter->open_device_map)
+		return 0;
+
 	/* Stop link fault interrupts */
 	t3_xgm_intr_disable(adapter, pi->port_id);
 	t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
@@ -2822,6 +2826,9 @@ static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 	int ret;
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
 
 	ret = t3_adapter_error(adapter, 0);
 
