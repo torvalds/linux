@@ -1453,7 +1453,8 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 		     checking the UniqueId via FILE_INTERNAL_INFO */
 
 unlink_target:
-	if ((rc == -EACCES) || (rc == -EEXIST)) {
+	/* Try unlinking the target dentry if it's not negative */
+	if (target_dentry->d_inode && (rc == -EACCES || rc == -EEXIST)) {
 		tmprc = cifs_unlink(target_dir, target_dentry);
 		if (tmprc)
 			goto cifs_rename_exit;
