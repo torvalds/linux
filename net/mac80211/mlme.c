@@ -441,6 +441,9 @@ static bool ieee80211_check_tim(struct ieee802_11_elems *elems, u16 aid)
 	u8 index, indexn1, indexn2;
 	struct ieee80211_tim_ie *tim = (struct ieee80211_tim_ie *) elems->tim;
 
+	if (unlikely(!tim || elems->tim_len < 4))
+		return false;
+
 	aid &= 0x3fff;
 	index = aid / 8;
 	mask  = 1 << (aid & 7);
@@ -945,9 +948,13 @@ void ieee80211_beacon_loss_work(struct work_struct *work)
 			     u.mgd.beacon_loss_work);
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	printk(KERN_DEBUG "%s: driver reports beacon loss from AP %pM "
-	       "- sending probe request\n", sdata->dev->name,
-	       sdata->u.mgd.bssid);
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	if (net_ratelimit()) {
+		printk(KERN_DEBUG "%s: driver reports beacon loss from AP %pM "
+		       "- sending probe request\n", sdata->dev->name,
+		       sdata->u.mgd.bssid);
+	}
+#endif
 
 	ifmgd->flags |= IEEE80211_STA_PROBEREQ_POLL;
 	ieee80211_send_probe_req(sdata, ifmgd->bssid, ifmgd->ssid,
@@ -1007,9 +1014,13 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata)
 	      (local->hw.conf.flags & IEEE80211_CONF_PS)) &&
 	    time_after(jiffies,
 		       ifmgd->last_beacon + IEEE80211_MONITORING_INTERVAL)) {
-		printk(KERN_DEBUG "%s: beacon loss from AP %pM "
-		       "- sending probe request\n",
-		       sdata->dev->name, ifmgd->bssid);
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: beacon loss from AP %pM "
+			       "- sending probe request\n",
+			       sdata->dev->name, ifmgd->bssid);
+		}
+#endif
 		ifmgd->flags |= IEEE80211_STA_PROBEREQ_POLL;
 		ieee80211_send_probe_req(sdata, ifmgd->bssid, ifmgd->ssid,
 					 ifmgd->ssid_len, NULL, 0);
@@ -2105,12 +2116,13 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local,
 			     dynamic_ps_enable_work);
+	/* XXX: using scan_sdata is completely broken! */
 	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
 
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
 
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK && sdata)
 		ieee80211_send_nullfunc(local, sdata, 1);
 
 	local->hw.conf.flags |= IEEE80211_CONF_PS;

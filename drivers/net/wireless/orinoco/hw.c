@@ -372,15 +372,13 @@ int __orinoco_hw_set_tkip_key(hermes_t *hw, int key_idx, int set_tx,
 	}
 
 	/* Wait upto 100ms for tx queue to empty */
-	k = 100;
-	do {
-		k--;
+	for (k = 100; k > 0; k--) {
 		udelay(1000);
 		ret = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_TXQUEUEEMPTY,
 					  &xmitting);
-		if (ret)
+		if (ret || !xmitting)
 			break;
-	} while ((k > 0) && xmitting);
+	}
 
 	if (k == 0)
 		ret = -ETIMEDOUT;
