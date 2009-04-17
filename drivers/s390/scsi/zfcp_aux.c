@@ -671,8 +671,7 @@ void zfcp_port_dequeue(struct zfcp_port *port)
 	list_del(&port->list);
 	write_unlock_irq(&zfcp_data.config_lock);
 	if (port->rport)
-		fc_remote_port_delete(port->rport);
-	port->rport = NULL;
+		port->rport->dd_data = NULL;
 	zfcp_adapter_put(port->adapter);
 	sysfs_remove_group(&port->sysfs_device.kobj, &zfcp_sysfs_port_attrs);
 	device_unregister(&port->sysfs_device);

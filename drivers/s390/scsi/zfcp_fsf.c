@@ -172,12 +172,16 @@ static void zfcp_fsf_link_down_info_eval(struct zfcp_fsf_req *req, char *id,
 					 struct fsf_link_down_info *link_down)
 {
 	struct zfcp_adapter *adapter = req->adapter;
+	unsigned long flags;
 
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED)
 		return;
 
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED, &adapter->status);
+
+	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	zfcp_scsi_schedule_rports_block(adapter);
+	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 
 	if (!link_down)
 		goto out;
