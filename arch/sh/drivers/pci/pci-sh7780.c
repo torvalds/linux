@@ -22,15 +22,6 @@
 #include <linux/delay.h>
 #include "pci-sh4.h"
 
-/*
- * Initialization. Try all known PCI access methods. Note that we support
- * using both PCI BIOS and direct access: in such cases, we use I/O ports
- * to access config space.
- *
- * Note that the platform specific initialization (BSC registers, and memory
- * space mapping) will be called via the platform defined function
- * pcibios_init_platform().
- */
 int __init sh7780_pci_init(struct pci_channel *chan)
 {
 	unsigned int id;
@@ -70,18 +61,30 @@ int __init sh7780_pci_init(struct pci_channel *chan)
 	if ((ret = sh4_pci_check_direct(chan)) != 0)
 		return ret;
 
+	/*
+	 * Platform specific initialization (BSC registers, and memory space
+	 * mapping) will be called via the platform defined function
+	 * pcibios_init_platform().
+	 */
 	return pcibios_init_platform();
 }
+
+extern u8 pci_cache_line_size;
 
 int __init sh7780_pcic_init(struct pci_channel *chan,
 			    struct sh4_pci_address_map *map)
 {
 	u32 word;
 
+	/*
+	 * Set the class and sub-class codes.
+	 */
 	__raw_writeb(PCI_CLASS_BRIDGE_HOST >> 8,
 		     chan->reg_base + SH7780_PCIBCC);
 	__raw_writeb(PCI_CLASS_BRIDGE_HOST & 0xff,
 		     chan->reg_base + SH7780_PCISUB);
+
+	pci_cache_line_size = pci_read_reg(chan, SH7780_PCICLS) / 4;
 
 	/* set the command/status bits to:
 	 * Wait Cycle Control + Parity Enable + Bus Master +
