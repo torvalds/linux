@@ -1117,8 +1117,8 @@ static void cxgb_down(struct adapter *adapter)
 	spin_unlock_irq(&adapter->work_lock);
 
 	free_irq_resources(adapter);
-	flush_workqueue(cxgb3_wq);	/* wait for external IRQ handler */
 	quiesce_rx(adapter);
+	flush_workqueue(cxgb3_wq);	/* wait for external IRQ handler */
 }
 
 static void schedule_chk_task(struct adapter *adap)
@@ -1187,6 +1187,9 @@ static int offload_close(struct t3cdev *tdev)
 
 	sysfs_remove_group(&tdev->lldev->dev.kobj, &offload_attr_group);
 
+	/* Flush work scheduled while releasing TIDs */
+	flush_scheduled_work();
+
 	tdev->lldev = NULL;
 	cxgb3_set_dummy_ops(tdev);
 	t3_tp_set_offload_mode(adapter, 0);
@@ -1247,8 +1250,7 @@ static int cxgb_close(struct net_device *dev)
 	spin_unlock_irq(&adapter->work_lock);
 
 	if (!(adapter->open_device_map & PORT_MASK))
-		cancel_rearming_delayed_workqueue(cxgb3_wq,
-						  &adapter->adap_check_task);
+		cancel_delayed_work_sync(&adapter->adap_check_task);
 
 	if (!adapter->open_device_map)
 		cxgb_down(adapter);
