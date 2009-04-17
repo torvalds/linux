@@ -809,32 +809,56 @@ static int usbduxsub_upload(struct usbduxsub *usbduxsub,
 	return 0;
 }
 
-static int firmwareUpload(struct usbduxsub *usbduxsub, uint8_t *firmwareBinary,
+#define FIRMWARE_MAX_LEN 0x2000
+
+static int firmwareUpload(struct usbduxsub *usbduxsub,
+			  const u8 *firmwareBinary,
 			  int sizeFirmware)
 {
 	int ret;
+	uint8_t *fwBuf;
 
 	if (!firmwareBinary)
 		return 0;
+
+	if (sizeFirmware>FIRMWARE_MAX_LEN) {
+		dev_err(&usbduxsub->interface->dev,
+			"comedi_: usbdux firmware binary it too large for FX2.\n");
+		return -ENOMEM;
+	}
+
+	/* we generate a local buffer for the firmware */
+	fwBuf = kzalloc(sizeFirmware, GFP_KERNEL);
+	if (!fwBuf) {
+		dev_err(&usbduxsub->interface->dev,
+			"comedi_: mem alloc for firmware failed\n");
+		return -ENOMEM;
+	}
+	memcpy(fwBuf,firmwareBinary,sizeFirmware);
 
 	ret = usbduxsub_stop(usbduxsub);
 	if (ret < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: can not stop firmware\n");
+		kfree(fwBuf);
 		return ret;
 	}
-	ret = usbduxsub_upload(usbduxsub, firmwareBinary, 0, sizeFirmware);
+
+	ret = usbduxsub_upload(usbduxsub, fwBuf, 0, sizeFirmware);
 	if (ret < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: firmware upload failed\n");
+		kfree(fwBuf);
 		return ret;
 	}
 	ret = usbduxsub_start(usbduxsub);
 	if (ret < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: can not start firmware\n");
+		kfree(fwBuf);
 		return ret;
 	}
+	kfree(fwBuf);
 	return 0;
 }
 
@@ -2260,134 +2284,6 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 	usbduxsub_tmp->pwm_cmd_running = 0;
 }
 
-static unsigned hex2unsigned(char *h)
-{
-	unsigned hi, lo;
-
-	if (h[0] > '9')
-		hi = h[0] - 'A' + 0x0a;
-	else
-		hi = h[0] - '0';
-
-	if (h[1] > '9')
-		lo = h[1] - 'A' + 0x0a;
-	else
-		lo = h[1] - '0';
-
-	return hi * 0x10 + lo;
-}
-
-/* for FX2 */
-#define FIRMWARE_MAX_LEN 0x2000
-
-/* taken from David Brownell's fxload and adjusted for this driver */
-static int read_firmware(struct usbduxsub *usbduxsub, const void *firmwarePtr,
-			 long size)
-{
-	struct device *dev = &usbduxsub->interface->dev;
-	int i = 0;
-	unsigned char *fp = (char *)firmwarePtr;
-	unsigned char *firmwareBinary;
-	int res = 0;
-	int maxAddr = 0;
-
-	firmwareBinary = kzalloc(FIRMWARE_MAX_LEN, GFP_KERNEL);
-	if (!firmwareBinary) {
-		dev_err(dev, "comedi_: mem alloc for firmware failed\n");
-		return -ENOMEM;
-	}
-
-	for (;;) {
-		char buf[256], *cp;
-		char type;
-		int len;
-		int idx, off;
-		int j = 0;
-
-		/* get one line */
-		while ((i < size) && (fp[i] != 13) && (fp[i] != 10)) {
-			buf[j] = fp[i];
-			i++;
-			j++;
-			if (j >= sizeof(buf)) {
-				dev_err(dev, "comedi_: bogus firmware file!\n");
-				kfree(firmwareBinary);
-				return -1;
-			}
-		}
-		/* get rid of LF/CR/... */
-		while ((i < size) && ((fp[i] == 13) || (fp[i] == 10)
-				|| (fp[i] == 0))) {
-			i++;
-		}
-
-		buf[j] = 0;
-		/* dev_dbg(dev, "comedi_: buf=%s\n", buf); */
-
-		/*
-		 * EXTENSION:
-		 * "# comment-till-end-of-line", for copyrights etc
-		 */
-		if (buf[0] == '#')
-			continue;
-
-		if (buf[0] != ':') {
-			dev_err(dev, "comedi_: upload: not an ihex record: %s",
-				buf);
-			kfree(firmwareBinary);
-			return -EFAULT;
-		}
-
-		/* Read the length field (up to 16 bytes) */
-		len = hex2unsigned(buf + 1);
-
-		/* Read the target offset */
-		off = (hex2unsigned(buf + 3) * 0x0100) + hex2unsigned(buf + 5);
-
-		if ((off + len) > maxAddr)
-			maxAddr = off + len;
-
-
-		if (maxAddr >= FIRMWARE_MAX_LEN) {
-			dev_err(dev, "comedi_: firmware upload goes "
-				"beyond FX2 RAM boundaries.\n");
-			kfree(firmwareBinary);
-			return -EFAULT;
-		}
-		/* dev_dbg(dev, "comedi_: off=%x, len=%x:\n", off, len); */
-
-		/* Read the record type */
-		type = hex2unsigned(buf + 7);
-
-		/* If this is an EOF record, then make it so. */
-		if (type == 1)
-			break;
-
-
-		if (type != 0) {
-			dev_err(dev, "comedi_: unsupported record type: %u\n",
-				type);
-			kfree(firmwareBinary);
-			return -EFAULT;
-		}
-
-		for (idx = 0, cp = buf + 9; idx < len; idx += 1, cp += 2) {
-			firmwareBinary[idx + off] = hex2unsigned(cp);
-			/*printk("%02x ",firmwareBinary[idx+off]); */
-		}
-		/*printk("\n"); */
-
-		if (i >= size) {
-			dev_err(dev, "comedi_: unexpected end of hex file\n");
-			break;
-		}
-
-	}
-	res = firmwareUpload(usbduxsub, firmwareBinary, maxAddr + 1);
-	kfree(firmwareBinary);
-	return res;
-}
-
 static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 						     void *context)
 {
@@ -2405,7 +2301,7 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 	 * we need to upload the firmware here because fw will be
 	 * freed once we've left this function
 	 */
-	ret = read_firmware(usbduxsub_tmp, fw->data, fw->size);
+	ret = firmwareUpload(usbduxsub_tmp, fw->data, fw->size);
 
 	if (ret) {
 		dev_err(&usbdev->dev,
@@ -2662,10 +2558,12 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 
 	ret = request_firmware_nowait(THIS_MODULE,
 				      FW_ACTION_HOTPLUG,
-				      "usbdux_firmware.hex",
+				      "usbdux_firmware.bin",
 				      &udev->dev,
 				      usbduxsub + index,
 				      usbdux_firmware_request_complete_handler);
+
+
 
 	if (ret) {
 		dev_err(dev, "Could not load firmware (err=%d)\n", ret);
@@ -2739,8 +2637,8 @@ static int usbdux_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* trying to upload the firmware into the chip */
 	if (comedi_aux_data(it->options, 0) &&
 		it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
-		read_firmware(udev, comedi_aux_data(it->options, 0),
-			      it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
+		firmwareUpload(udev, comedi_aux_data(it->options, 0),
+			       it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
 	}
 
 	dev->board_name = BOARDNAME;
