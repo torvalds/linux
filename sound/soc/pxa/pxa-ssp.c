@@ -280,12 +280,33 @@ static int pxa_ssp_resume(struct snd_soc_dai *cpu_dai)
  * ssp_set_clkdiv - set SSP clock divider
  * @div: serial clock rate divider
  */
-static void ssp_set_scr(struct ssp_dev *dev, u32 div)
+static void ssp_set_scr(struct ssp_device *ssp, u32 div)
 {
-	struct ssp_device *ssp = dev->ssp;
-	u32 sscr0 = ssp_read_reg(dev->ssp, SSCR0) & ~SSCR0_SCR;
+	u32 sscr0 = ssp_read_reg(ssp, SSCR0);
 
-	ssp_write_reg(ssp, SSCR0, (sscr0 | SSCR0_SerClkDiv(div)));
+	if (cpu_is_pxa25x() && ssp->type == PXA25x_SSP) {
+		sscr0 &= ~0x0000ff00;
+		sscr0 |= ((div - 2)/2) << 8; /* 2..512 */
+	} else {
+		sscr0 &= ~0x000fff00;
+		sscr0 |= (div - 1) << 8;     /* 1..4096 */
+	}
+	ssp_write_reg(ssp, SSCR0, sscr0);
+}
+
+/**
+ * ssp_get_clkdiv - get SSP clock divider
+ */
+static u32 ssp_get_scr(struct ssp_device *ssp)
+{
+	u32 sscr0 = ssp_read_reg(ssp, SSCR0);
+	u32 div;
+
+	if (cpu_is_pxa25x() && ssp->type == PXA25x_SSP)
+		div = ((sscr0 >> 8) & 0xff) * 2 + 2;
+	else
+		div = ((sscr0 >> 8) & 0xfff) + 1;
+	return div;
 }
 
 /*
@@ -326,7 +347,7 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		break;
 	case PXA_SSP_CLK_AUDIO:
 		priv->sysclk = 0;
-		ssp_set_scr(&priv->dev, 1);
+		ssp_set_scr(ssp, 1);
 		sscr0 |= SSCR0_ACS;
 		break;
 	default:
@@ -387,7 +408,7 @@ static int pxa_ssp_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 		ssp_write_reg(ssp, SSACD, val);
 		break;
 	case PXA_SSP_DIV_SCR:
-		ssp_set_scr(&priv->dev, div);
+		ssp_set_scr(ssp, div);
 		break;
 	default:
 		return -ENODEV;
@@ -674,8 +695,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	case SND_SOC_DAIFMT_I2S:
 	       sspsp = ssp_read_reg(ssp, SSPSP);
 
-		if (((sscr0 & SSCR0_SCR) == SSCR0_SerClkDiv(4)) &&
-		     (width == 16)) {
+		if ((ssp_get_scr(ssp) == 4) && (width == 16)) {
 			/* This is a special case where the bitclk is 64fs
 			* and we're not dealing with 2*32 bits of audio
 			* samples.
