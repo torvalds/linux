@@ -4002,7 +4002,7 @@ static __init int tracer_init_debugfs(void)
 	trace_create_file("available_tracers", 0444, d_tracer,
 			&global_trace, &show_traces_fops);
 
-	trace_create_file("current_tracer", 0444, d_tracer,
+	trace_create_file("current_tracer", 0644, d_tracer,
 			&global_trace, &set_tracer_fops);
 
 	trace_create_file("tracing_max_latency", 0644, d_tracer,
@@ -4011,7 +4011,7 @@ static __init int tracer_init_debugfs(void)
 	trace_create_file("tracing_thresh", 0644, d_tracer,
 			&tracing_thresh, &tracing_max_lat_fops);
 
-	trace_create_file("README", 0644, d_tracer,
+	trace_create_file("README", 0444, d_tracer,
 			NULL, &tracing_readme_fops);
 
 	trace_create_file("trace_pipe", 0444, d_tracer,
