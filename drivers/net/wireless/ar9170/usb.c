@@ -69,6 +69,8 @@ static struct usb_device_id ar9170_usb_ids[] = {
 	{ USB_DEVICE(0x0846, 0x9001) },
 	/* Zydas ZD1221 */
 	{ USB_DEVICE(0x0ace, 0x1221) },
+	/* ZyXEL NWD271N */
+	{ USB_DEVICE(0x0586, 0x3417) },
 	/* Z-Com UB81 BG */
 	{ USB_DEVICE(0x0cde, 0x0023) },
 	/* Z-Com UB82 ABG */
