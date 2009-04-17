@@ -1481,6 +1481,40 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	return event;
 }
 
+static int trace_irq_level(void)
+{
+	return hardirq_count() + softirq_count() + in_nmi();
+}
+
+static int trace_recursive_lock(void)
+{
+	int level;
+
+	level = trace_irq_level();
+
+	if (unlikely(current->trace_recursion & (1 << level))) {
+		/* Disable all tracing before we do anything else */
+		tracing_off_permanent();
+		WARN_ON_ONCE(1);
+		return -1;
+	}
+
+	current->trace_recursion |= 1 << level;
+
+	return 0;
+}
+
+static void trace_recursive_unlock(void)
+{
+	int level;
+
+	level = trace_irq_level();
+
+	WARN_ON_ONCE(!current->trace_recursion & (1 << level));
+
+	current->trace_recursion &= ~(1 << level);
+}
+
 static DEFINE_PER_CPU(int, rb_need_resched);
 
 /**
@@ -1514,6 +1548,9 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	/* If we are tracing schedule, we don't want to recurse */
 	resched = ftrace_preempt_disable();
 
+	if (trace_recursive_lock())
+		goto out_nocheck;
+
 	cpu = raw_smp_processor_id();
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
@@ -1543,6 +1580,9 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	return event;
 
  out:
+	trace_recursive_unlock();
+
+ out_nocheck:
 	ftrace_preempt_enable(resched);
 	return NULL;
 }
@@ -1580,6 +1620,8 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 	cpu_buffer = buffer->buffers[cpu];
 
 	rb_commit(cpu_buffer, event);
+
+	trace_recursive_unlock();
 
 	/*
 	 * Only the last preempt count needs to restore preemption.

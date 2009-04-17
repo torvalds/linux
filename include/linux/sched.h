@@ -1428,7 +1428,9 @@ struct task_struct {
 #ifdef CONFIG_TRACING
 	/* state flags for use by tracers */
 	unsigned long trace;
-#endif
+	/* bitmask of trace recursion */
+	unsigned long trace_recursion;
+#endif /* CONFIG_TRACING */
 };
 
 /* Future-safe accessor for struct task_struct's cpus_allowed. */
