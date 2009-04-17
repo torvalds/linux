@@ -432,11 +432,6 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 		container_of(work, struct zfcp_port, test_link_work);
 	int retval;
 
-	if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_UNBLOCKED)) {
-		zfcp_port_put(port);
-		return; /* port erp is running and will update rport status */
-	}
-
 	zfcp_port_get(port);
 	port->rport_task = RPORT_DEL;
 	zfcp_scsi_rport_work(&port->rport_work);
