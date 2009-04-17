@@ -512,7 +512,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 
 	skb = ctnetlink_alloc_skb(tuple(ct, IP_CT_DIR_ORIGINAL), GFP_ATOMIC);
 	if (!skb)
-		return NOTIFY_DONE;
+		goto errout;
 
 	b = skb->tail;
 
@@ -591,8 +591,9 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 nla_put_failure:
 	rcu_read_unlock();
 nlmsg_failure:
-	nfnetlink_set_err(0, group, -ENOBUFS);
 	kfree_skb(skb);
+errout:
+	nfnetlink_set_err(0, group, -ENOBUFS);
 	return NOTIFY_DONE;
 }
 #endif /* CONFIG_NF_CONNTRACK_EVENTS */
@@ -1564,7 +1565,7 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_ATOMIC);
 	if (!skb)
-		return NOTIFY_DONE;
+		goto errout;
 
 	b = skb->tail;
 
@@ -1589,8 +1590,9 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 nla_put_failure:
 	rcu_read_unlock();
 nlmsg_failure:
-	nfnetlink_set_err(0, 0, -ENOBUFS);
 	kfree_skb(skb);
+errout:
+	nfnetlink_set_err(0, 0, -ENOBUFS);
 	return NOTIFY_DONE;
 }
 #endif
