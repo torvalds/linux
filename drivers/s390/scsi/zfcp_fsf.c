@@ -2479,8 +2479,6 @@ out:
 
 static void zfcp_fsf_control_file_handler(struct zfcp_fsf_req *req)
 {
-	if (req->qtcb->header.fsf_status != FSF_GOOD)
-		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 }
 
 /**
