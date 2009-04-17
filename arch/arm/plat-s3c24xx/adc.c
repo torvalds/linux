@@ -100,7 +100,7 @@ static void s3c_adc_dbgshow(struct adc_device *adc)
 		readl(adc->regs + S3C2410_ADCDLY));
 }
 
-void s3c_adc_try(struct adc_device *adc)
+static void s3c_adc_try(struct adc_device *adc)
 {
 	struct s3c_adc_client *next = adc->ts_pend;
 
