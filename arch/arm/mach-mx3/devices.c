@@ -366,8 +366,8 @@ struct platform_device mx3_camera = {
 
 static struct resource otg_resources[] = {
 	{
-		.start	= OTG_BASE_ADDR,
-		.end	= OTG_BASE_ADDR + 0x1ff,
+		.start	= MX31_OTG_BASE_ADDR,
+		.end	= MX31_OTG_BASE_ADDR + 0x1ff,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= MXC_INT_USB3,
@@ -408,8 +408,8 @@ static u64 usbh1_dmamask = ~(u32)0;
 
 static struct resource mxc_usbh1_resources[] = {
 	{
-		.start = OTG_BASE_ADDR + 0x200,
-		.end = OTG_BASE_ADDR + 0x3ff,
+		.start = MX31_OTG_BASE_ADDR + 0x200,
+		.end = MX31_OTG_BASE_ADDR + 0x3ff,
 		.flags = IORESOURCE_MEM,
 	}, {
 		.start = MXC_INT_USB1,
@@ -434,8 +434,8 @@ static u64 usbh2_dmamask = ~(u32)0;
 
 static struct resource mxc_usbh2_resources[] = {
 	{
-		.start = OTG_BASE_ADDR + 0x400,
-		.end = OTG_BASE_ADDR + 0x5ff,
+		.start = MX31_OTG_BASE_ADDR + 0x400,
+		.end = MX31_OTG_BASE_ADDR + 0x5ff,
 		.flags = IORESOURCE_MEM,
 	}, {
 		.start = MXC_INT_USB2,
@@ -547,6 +547,14 @@ static int mx3_devices_init(void)
 	if (cpu_is_mx35()) {
 		mxc_nand_resources[0].start = MX35_NFC_BASE_ADDR;
 		mxc_nand_resources[0].end = MX35_NFC_BASE_ADDR + 0xfff;
+		otg_resources[0].start = MX35_OTG_BASE_ADDR;
+		otg_resources[0].end = MX35_OTG_BASE_ADDR + 0x1ff;
+		otg_resources[1].start = MXC_INT_USBOTG;
+		otg_resources[1].end = MXC_INT_USBOTG;
+		mxc_usbh1_resources[0].start = MX35_OTG_BASE_ADDR + 0x400;
+		mxc_usbh1_resources[0].end = MX35_OTG_BASE_ADDR + 0x5ff;
+		mxc_usbh1_resources[1].start = MXC_INT_USBHS;
+		mxc_usbh1_resources[1].end = MXC_INT_USBHS;
 	}
 
 	return 0;
