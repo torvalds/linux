@@ -65,11 +65,6 @@
 #define SH7780_PCIPMCSR_BSE	0x046
 #define SH7780_PCICDD		0x047
 
-#define SH7780_PCICR		0x100		/* PCI Control Register */
-#define SH7780_PCILSR		0x104		/* PCI Local Space Register0 */
-#define SH7780_PCILSR1		0x108		/* PCI Local Space Register1 */
-#define SH7780_PCILAR0		0x10C		/* PCI Local Address Register1 */
-#define SH7780_PCILAR1		0x110		/* PCI Local Address Register1 */
 #define SH7780_PCIIR		0x114		/* PCI Interrupt Register */
 #define SH7780_PCIIMR		0x118		/* PCI Interrupt Mask Register */
 #define SH7780_PCIAIR		0x11C		/* Error Address Register */

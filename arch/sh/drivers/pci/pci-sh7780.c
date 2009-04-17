@@ -1,19 +1,12 @@
 /*
- *	Low-Level PCI Support for the SH7780
+ * Low-Level PCI Support for the SH7780
  *
- *  Dustin McIntire (dustin@sensoria.com)
- *	Derived from arch/i386/kernel/pci-*.c which bore the message:
- *	(c) 1999--2000 Martin Mares <mj@ucw.cz>
+ *  Copyright (C) 2005 - 2009  Paul Mundt
  *
- *  Ported to the new API by Paul Mundt <lethal@linux-sh.org>
- *  With cleanup by Paul van Gool <pvangool@mimotech.com>
- *
- *  May be copied or modified under the terms of the GNU General Public
- *  License.  See linux/COPYING for more information.
- *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-#undef DEBUG
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -117,13 +110,8 @@ int __init pcibios_init_platform(void)
 
 	pci_cache_line_size = pci_read_reg(chan, SH7780_PCICLS) / 4;
 
-	/* set the command/status bits to:
-	 * Wait Cycle Control + Parity Enable + Bus Master +
-	 * Mem space enable
-	 */
-	pci_write_reg(chan, 0x00000046, SH7780_PCICMD);
-
-	/* Set IO and Mem windows to local address
+	/*
+	 * Set IO and Mem windows to local address
 	 * Make PCI and local address the same for easy 1 to 1 mapping
 	 */
 	pci_write_reg(chan, sh7780_pci_map.window0.size - 0xfffff, SH4_PCILSR0);
@@ -131,8 +119,32 @@ int __init pcibios_init_platform(void)
 	pci_write_reg(chan, sh7780_pci_map.window0.base, SH4_PCILAR0);
 	pci_write_reg(chan, sh7780_pci_map.window0.base, SH7780_PCIMBAR0);
 
+	pci_write_reg(chan, 0x0000380f, SH4_PCIAINTM);
+
+	/* Set up standard PCI config registers */
+	__raw_writew(0xFB00, chan->reg_base + SH7780_PCISTATUS);
+	__raw_writew(0x0047, chan->reg_base + SH7780_PCICMD);
+	__raw_writew(0x1912, chan->reg_base + SH7780_PCISVID);
+	__raw_writew(0x0001, chan->reg_base + SH7780_PCISID);
+
+	__raw_writeb(0x00, chan->reg_base + SH7780_PCIPIF);
+
 	/* Apply any last-minute PCIC fixups */
 	pci_fixup_pcic(chan);
+
+	pci_write_reg(chan, 0xfd000000, SH7780_PCIMBR0);
+	pci_write_reg(chan, 0x00fc0000, SH7780_PCIMBMR0);
+
+#ifdef CONFIG_32BIT
+	pci_write_reg(chan, 0xc0000000, SH7780_PCIMBR2);
+	pci_write_reg(chan, 0x20000000 - SH7780_PCI_IO_SIZE, SH7780_PCIMBMR2);
+#endif
+
+	/* Set IOBR for windows containing area specified in pci.h */
+	pci_write_reg(chan, chan->io_resource->start & ~(SH7780_PCI_IO_SIZE-1),
+		      SH7780_PCIIOBR);
+	pci_write_reg(chan, ((SH7780_PCI_IO_SIZE-1) & (7<<18)),
+		      SH7780_PCIIOBMR);
 
 	/* SH7780 init done, set central function init complete */
 	/* use round robin mode to stop a device starving/overruning */
