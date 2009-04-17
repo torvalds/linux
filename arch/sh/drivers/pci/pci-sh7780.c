@@ -22,20 +22,6 @@
 #include <linux/delay.h>
 #include "pci-sh4.h"
 
-#define INTC_BASE	0xffd00000
-#define INTC_ICR0	(INTC_BASE+0x0)
-#define INTC_ICR1	(INTC_BASE+0x1c)
-#define INTC_INTPRI	(INTC_BASE+0x10)
-#define INTC_INTREQ	(INTC_BASE+0x24)
-#define INTC_INTMSK0	(INTC_BASE+0x44)
-#define INTC_INTMSK1	(INTC_BASE+0x48)
-#define INTC_INTMSK2	(INTC_BASE+0x40080)
-#define INTC_INTMSKCLR0	(INTC_BASE+0x64)
-#define INTC_INTMSKCLR1	(INTC_BASE+0x68)
-#define INTC_INTMSKCLR2	(INTC_BASE+0x40084)
-#define INTC_INT2MSKR	(INTC_BASE+0x40038)
-#define INTC_INT2MSKCR	(INTC_BASE+0x4003c)
-
 /*
  * Initialization. Try all known PCI access methods. Note that we support
  * using both PCI BIOS and direct access: in such cases, we use I/O ports
@@ -73,16 +59,6 @@ int __init sh7780_pci_init(struct pci_channel *chan)
 	if (unlikely(!match)) {
 		printk(KERN_ERR "PCI: This is not an SH7780 (%x)\n", id);
 		return -ENODEV;
-	}
-
-	/* Setup the INTC */
-	if (mach_is_7780se()) {
-		/* ICR0: IRL=use separately */
-		ctrl_outl(0x00C00020, INTC_ICR0);
-		/* ICR1: detect low level(for 2ndcut) */
-		ctrl_outl(0xAAAA0000, INTC_ICR1);
-		/* INTPRI: priority=3(all) */
-		ctrl_outl(0x33333333, INTC_INTPRI);
 	}
 
 	if ((ret = sh4_pci_check_direct(chan)) != 0)

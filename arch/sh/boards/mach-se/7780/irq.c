@@ -12,9 +12,12 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <asm/irq.h>
-#include <asm/io.h>
+#include <linux/irq.h>
+#include <linux/io.h>
 #include <mach-se/mach/se7780.h>
+
+#define INTC_BASE	0xffd00000
+#define INTC_ICR1	(INTC_BASE+0x1c)
 
 /*
  * Initialize IRQ setting
@@ -43,4 +46,7 @@ void __init init_se7780_IRQ(void)
 	ctrl_outw((IRQPIN_PCCPW << IRQPOS_PCCPW), FPGA_INTSEL3);
 
 	plat_irq_setup_pins(IRQ_MODE_IRQ); /* install handlers for IRQ0-7 */
+
+	/* ICR1: detect low level(for 2ndcut) */
+	ctrl_outl(0xAAAA0000, INTC_ICR1);
 }
