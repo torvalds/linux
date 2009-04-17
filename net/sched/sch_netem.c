@@ -280,6 +280,14 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 			if (unlikely(!skb))
 				return NULL;
 
+#ifdef CONFIG_NET_CLS_ACT
+			/*
+			 * If it's at ingress let's pretend the delay is
+			 * from the network (tstamp will be updated).
+			 */
+			if (G_TC_FROM(skb->tc_verd) & AT_INGRESS)
+				skb->tstamp.tv64 = 0;
+#endif
 			pr_debug("netem_dequeue: return skb=%p\n", skb);
 			sch->q.qlen--;
 			return skb;
