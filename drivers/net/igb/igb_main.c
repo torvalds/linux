@@ -1442,14 +1442,13 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	 * driver. */
 	igb_get_hw_control(adapter);
 
-	/* tell the stack to leave us alone until igb_open() is called */
-	netif_carrier_off(netdev);
-	netif_tx_stop_all_queues(netdev);
-
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;
+
+	/* carrier off reporting is important to ethtool even BEFORE open */
+	netif_carrier_off(netdev);
 
 #ifdef CONFIG_IGB_DCA
 	if (dca_add_requester(&pdev->dev) == 0) {
@@ -1698,6 +1697,8 @@ static int igb_open(struct net_device *netdev)
 	/* disallow open during test */
 	if (test_bit(__IGB_TESTING, &adapter->state))
 		return -EBUSY;
+
+	netif_carrier_off(netdev);
 
 	/* allocate transmit descriptors */
 	err = igb_setup_all_tx_resources(adapter);
