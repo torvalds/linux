@@ -368,7 +368,7 @@ again:
 	 * inode has not been flagged as nocompress.  This flag can
 	 * change at any time if we discover bad compression ratios.
 	 */
-	if (!btrfs_test_flag(inode, NOCOMPRESS) &&
+	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS) &&
 	    btrfs_test_opt(root, COMPRESS)) {
 		WARN_ON(pages);
 		pages = kzalloc(sizeof(struct page *) * nr_pages, GFP_NOFS);
@@ -469,7 +469,7 @@ again:
 		nr_pages_ret = 0;
 
 		/* flag the file so we don't compress in the future */
-		btrfs_set_flag(inode, NOCOMPRESS);
+		BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
 	}
 	if (will_compress) {
 		*num_added += 1;
@@ -862,7 +862,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 		async_cow->locked_page = locked_page;
 		async_cow->start = start;
 
-		if (btrfs_test_flag(inode, NOCOMPRESS))
+		if (BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS)
 			cur_end = end;
 		else
 			cur_end = min(end, start + 512 * 1024 - 1);
@@ -1133,10 +1133,10 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 	int ret;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 
-	if (btrfs_test_flag(inode, NODATACOW))
+	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW)
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
 					 page_started, 1, nr_written);
-	else if (btrfs_test_flag(inode, PREALLOC))
+	else if (BTRFS_I(inode)->flags & BTRFS_INODE_PREALLOC)
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
 					 page_started, 0, nr_written);
 	else if (!btrfs_test_opt(root, COMPRESS))
@@ -1290,7 +1290,7 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	int ret = 0;
 	int skip_sum;
 
-	skip_sum = btrfs_test_flag(inode, NODATASUM);
+	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
 	BUG_ON(ret);
@@ -1790,7 +1790,8 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		ClearPageChecked(page);
 		goto good;
 	}
-	if (btrfs_test_flag(inode, NODATASUM))
+
+	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)
 		return 0;
 
 	if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID &&
@@ -2156,6 +2157,8 @@ static void btrfs_read_locked_inode(struct inode *inode)
 		init_special_inode(inode, inode->i_mode, rdev);
 		break;
 	}
+
+	btrfs_update_iflags(inode);
 	return;
 
 make_bad:
@@ -3586,9 +3589,9 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 			btrfs_find_block_group(root, 0, alloc_hint, owner);
 	if ((mode & S_IFREG)) {
 		if (btrfs_test_opt(root, NODATASUM))
-			btrfs_set_flag(inode, NODATASUM);
+			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
 		if (btrfs_test_opt(root, NODATACOW))
-			btrfs_set_flag(inode, NODATACOW);
+			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW;
 	}
 
 	key[0].objectid = objectid;
@@ -3641,6 +3644,8 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	location->objectid = objectid;
 	location->offset = 0;
 	btrfs_set_key_type(location, BTRFS_INODE_ITEM_KEY);
+
+	btrfs_inherit_iflags(inode, dir);
 
 	insert_inode_hash(inode);
 	inode_tree_add(inode);
@@ -5075,7 +5080,7 @@ static int prealloc_file_range(struct btrfs_trans_handle *trans,
 out:
 	if (cur_offset > start) {
 		inode->i_ctime = CURRENT_TIME;
-		btrfs_set_flag(inode, PREALLOC);
+		BTRFS_I(inode)->flags |= BTRFS_INODE_PREALLOC;
 		if (!(mode & FALLOC_FL_KEEP_SIZE) &&
 		    cur_offset > i_size_read(inode))
 			btrfs_i_size_write(inode, cur_offset);
@@ -5196,7 +5201,7 @@ static int btrfs_set_page_dirty(struct page *page)
 
 static int btrfs_permission(struct inode *inode, int mask)
 {
-	if (btrfs_test_flag(inode, READONLY) && (mask & MAY_WRITE))
+	if ((BTRFS_I(inode)->flags & BTRFS_INODE_READONLY) && (mask & MAY_WRITE))
 		return -EACCES;
 	return generic_permission(inode, mask, btrfs_check_acl);
 }

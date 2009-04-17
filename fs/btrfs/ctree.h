@@ -1115,12 +1115,14 @@ struct btrfs_root {
 #define BTRFS_INODE_READONLY		(1 << 2)
 #define BTRFS_INODE_NOCOMPRESS		(1 << 3)
 #define BTRFS_INODE_PREALLOC		(1 << 4)
-#define btrfs_clear_flag(inode, flag)	(BTRFS_I(inode)->flags &= \
-					 ~BTRFS_INODE_##flag)
-#define btrfs_set_flag(inode, flag)	(BTRFS_I(inode)->flags |= \
-					 BTRFS_INODE_##flag)
-#define btrfs_test_flag(inode, flag)	(BTRFS_I(inode)->flags & \
-					 BTRFS_INODE_##flag)
+#define BTRFS_INODE_SYNC		(1 << 5)
+#define BTRFS_INODE_IMMUTABLE		(1 << 6)
+#define BTRFS_INODE_APPEND		(1 << 7)
+#define BTRFS_INODE_NODUMP		(1 << 8)
+#define BTRFS_INODE_NOATIME		(1 << 9)
+#define BTRFS_INODE_DIRSYNC		(1 << 10)
+
+
 /* some macros to generate set/get funcs for the struct fields.  This
  * assumes there is a lefoo_to_cpu for every type, so lets make a simple
  * one for u8:
@@ -2260,6 +2262,8 @@ int btrfs_cont_expand(struct inode *inode, loff_t size);
 
 /* ioctl.c */
 long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+void btrfs_update_iflags(struct inode *inode);
+void btrfs_inherit_iflags(struct inode *inode, struct inode *dir);
 
 /* file.c */
 int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync);
