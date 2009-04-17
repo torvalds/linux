@@ -1,22 +1,22 @@
 /*
  * Generic SH-4 / SH-4A PCIC operations (SH7751, SH7780).
  *
- * Copyright (C) 2002 - 2006  Paul Mundt
+ * Copyright (C) 2002 - 2009  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License v2. See the file "COPYING" in the main directory of this archive
  * for more details.
  */
 #include <linux/pci.h>
+#include <linux/io.h>
 #include <asm/addrspace.h>
-#include <asm/io.h>
 #include "pci-sh4.h"
 
 /*
  * Direct access to PCI hardware...
  */
 #define CONFIG_CMD(bus, devfn, where) \
-	P1SEGADDR((bus->number << 16) | (devfn << 8) | (where & ~3))
+	(P1SEG | (bus->number << 16) | (devfn << 8) | (where & ~3))
 
 static DEFINE_SPINLOCK(sh4_pci_lock);
 
