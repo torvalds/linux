@@ -637,7 +637,8 @@ int zfcp_scan_ports(struct zfcp_adapter *adapter)
 	max_entries = chain ? ZFCP_GPN_FT_MAX_ENTRIES : ZFCP_GPN_FT_ENTRIES;
 	max_bytes = chain ? ZFCP_GPN_FT_MAX_SIZE : ZFCP_CT_SIZE_ONE_PAGE;
 
-	if (fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPORT)
+	if (fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPORT &&
+	    fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPIV)
 		return 0;
 
 	ret = zfcp_wka_port_get(&adapter->nsp);
