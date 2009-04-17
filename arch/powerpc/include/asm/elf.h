@@ -260,6 +260,7 @@ do {								\
 #else 
 # define SET_PERSONALITY(ex) \
   set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
+# define elf_read_implies_exec(ex, exec_stk) (exec_stk != EXSTACK_DISABLE_X)
 #endif /* __powerpc64__ */
 
 extern int dcache_bsize;
