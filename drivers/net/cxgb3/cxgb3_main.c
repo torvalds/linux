@@ -2493,6 +2493,7 @@ static void check_link_status(struct adapter *adapter)
 
 		spin_lock_irq(&adapter->work_lock);
 		if (p->link_fault) {
+			t3_link_fault(adapter, i);
 			spin_unlock_irq(&adapter->work_lock);
 			continue;
 		}
@@ -2554,9 +2555,7 @@ static void t3_adap_check_task(struct work_struct *work)
 
 	adapter->check_task_cnt++;
 
-	/* Check link status for PHYs without interrupts */
-	if (p->linkpoll_period)
-		check_link_status(adapter);
+	check_link_status(adapter);
 
 	/* Accumulate MAC stats if needed */
 	if (!p->linkpoll_period ||
@@ -2680,21 +2679,6 @@ void t3_os_ext_intr_handler(struct adapter *adapter)
 	spin_unlock(&adapter->work_lock);
 }
 
-static void link_fault_task(struct work_struct *work)
-{
-	struct adapter *adapter = container_of(work, struct adapter,
-					       link_fault_handler_task);
-	int i;
-
-	for_each_port(adapter, i) {
-		struct net_device *netdev = adapter->port[i];
-		struct port_info *pi = netdev_priv(netdev);
-
-		if (pi->link_fault)
-			t3_link_fault(adapter, i);
-	}
-}
-
 void t3_os_link_fault_handler(struct adapter *adapter, int port_id)
 {
 	struct net_device *netdev = adapter->port[port_id];
@@ -2702,7 +2686,6 @@ void t3_os_link_fault_handler(struct adapter *adapter, int port_id)
 
 	spin_lock(&adapter->work_lock);
 	pi->link_fault = 1;
-	queue_work(cxgb3_wq, &adapter->link_fault_handler_task);
 	spin_unlock(&adapter->work_lock);
 }
 
@@ -3082,7 +3065,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	INIT_LIST_HEAD(&adapter->adapter_list);
 	INIT_WORK(&adapter->ext_intr_handler_task, ext_intr_task);
-	INIT_WORK(&adapter->link_fault_handler_task, link_fault_task);
 	INIT_WORK(&adapter->fatal_error_handler_task, fatal_error_task);
 	INIT_DELAYED_WORK(&adapter->adap_check_task, t3_adap_check_task);
 
