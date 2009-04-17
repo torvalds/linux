@@ -97,9 +97,7 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	ccw_device_set_online(adapter->ccw_device);
 
 	zfcp_erp_wait(adapter);
-	wait_event(adapter->erp_done_wqh,
-		   !(atomic_read(&unit->status) &
-				ZFCP_STATUS_UNIT_SCSI_WORK_PENDING));
+	flush_work(&unit->scsi_work);
 
 	down(&zfcp_data.config_sema);
 	zfcp_unit_put(unit);
@@ -279,6 +277,7 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 
 	atomic_set(&unit->refcount, 0);
 	init_waitqueue_head(&unit->remove_wq);
+	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan);
 
 	unit->port = port;
 	unit->fcp_lun = fcp_lun;
