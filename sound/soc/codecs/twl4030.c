@@ -125,6 +125,11 @@ struct twl4030_priv {
 
 	struct snd_pcm_substream *master_substream;
 	struct snd_pcm_substream *slave_substream;
+
+	unsigned int configured;
+	unsigned int rate;
+	unsigned int sample_bits;
+	unsigned int channels;
 };
 
 /*
@@ -1220,6 +1225,36 @@ static int twl4030_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+static void twl4030_constraints(struct twl4030_priv *twl4030,
+				struct snd_pcm_substream *mst_substream)
+{
+	struct snd_pcm_substream *slv_substream;
+
+	/* Pick the stream, which need to be constrained */
+	if (mst_substream == twl4030->master_substream)
+		slv_substream = twl4030->slave_substream;
+	else if (mst_substream == twl4030->slave_substream)
+		slv_substream = twl4030->master_substream;
+	else /* This should not happen.. */
+		return;
+
+	/* Set the constraints according to the already configured stream */
+	snd_pcm_hw_constraint_minmax(slv_substream->runtime,
+				SNDRV_PCM_HW_PARAM_RATE,
+				twl4030->rate,
+				twl4030->rate);
+
+	snd_pcm_hw_constraint_minmax(slv_substream->runtime,
+				SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+				twl4030->sample_bits,
+				twl4030->sample_bits);
+
+	snd_pcm_hw_constraint_minmax(slv_substream->runtime,
+				SNDRV_PCM_HW_PARAM_CHANNELS,
+				twl4030->channels,
+				twl4030->channels);
+}
+
 static int twl4030_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
@@ -1228,26 +1263,16 @@ static int twl4030_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct twl4030_priv *twl4030 = codec->private_data;
 
-	/* If we already have a playback or capture going then constrain
-	 * this substream to match it.
-	 */
 	if (twl4030->master_substream) {
-		struct snd_pcm_runtime *master_runtime;
-		master_runtime = twl4030->master_substream->runtime;
-
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_RATE,
-					     master_runtime->rate,
-					     master_runtime->rate);
-
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-					     master_runtime->sample_bits,
-					     master_runtime->sample_bits);
-
 		twl4030->slave_substream = substream;
-	} else
+		/* The DAI has one configuration for playback and capture, so
+		 * if the DAI has been already configured then constrain this
+		 * substream to match it. */
+		if (twl4030->configured)
+			twl4030_constraints(twl4030, twl4030->master_substream);
+	} else {
 		twl4030->master_substream = substream;
+	}
 
 	return 0;
 }
@@ -1264,6 +1289,13 @@ static void twl4030_shutdown(struct snd_pcm_substream *substream,
 		twl4030->master_substream = twl4030->slave_substream;
 
 	twl4030->slave_substream = NULL;
+
+	/* If all streams are closed, or the remaining stream has not yet
+	 * been configured than set the DAI as not configured. */
+	if (!twl4030->master_substream)
+		twl4030->configured = 0;
+	 else if (!twl4030->master_substream->runtime->channels)
+		twl4030->configured = 0;
 }
 
 static int twl4030_hw_params(struct snd_pcm_substream *substream,
@@ -1276,8 +1308,8 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 	struct twl4030_priv *twl4030 = codec->private_data;
 	u8 mode, old_mode, format, old_format;
 
-	if (substream == twl4030->slave_substream)
-		/* Ignoring hw_params for slave substream */
+	if (twl4030->configured)
+		/* Ignoring hw_params for already configured DAI */
 		return 0;
 
 	/* bit rate */
@@ -1357,6 +1389,21 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 		/* set CODECPDZ afterwards */
 		twl4030_codec_enable(codec, 1);
 	}
+
+	/* Store the important parameters for the DAI configuration and set
+	 * the DAI as configured */
+	twl4030->configured = 1;
+	twl4030->rate = params_rate(params);
+	twl4030->sample_bits = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_SAMPLE_BITS)->min;
+	twl4030->channels = params_channels(params);
+
+	/* If both playback and capture streams are open, and one of them
+	 * is setting the hw parameters right now (since we are here), set
+	 * constraints to the other stream to match the current one. */
+	if (twl4030->slave_substream)
+		twl4030_constraints(twl4030, substream);
+
 	return 0;
 }
 
