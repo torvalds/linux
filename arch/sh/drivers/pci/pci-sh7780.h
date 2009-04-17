@@ -20,9 +20,8 @@
 #define SH7785_DEVICE_ID	0x0007
 
 /* SH7780 Control Registers */
-#define	SH7780_PCI_VCR0		0xFE000000
-#define	SH7780_PCI_VCR1		0xFE000004
-#define	SH7780_PCI_VCR2		0xFE000008
+#define	PCIECR			0xFE000008
+#define PCIECR_ENBL		0x01
 
 /* SH7780 Specific Values */
 #define SH7780_PCI_CONFIG_BASE	0xFD000000	/* Config space base addr */

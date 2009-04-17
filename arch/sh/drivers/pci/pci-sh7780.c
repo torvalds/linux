@@ -34,32 +34,38 @@
 int __init sh7780_pci_init(struct pci_channel *chan)
 {
 	unsigned int id;
-	int ret, match = 0;
+	const char *type = NULL;
+	int ret;
 
-	pr_debug("PCI: Starting intialization.\n");
+	printk(KERN_NOTICE "PCI: Starting intialization.\n");
 
 	chan->reg_base = 0xfe040000;
 	chan->io_base = 0xfe200000;
 
-	ctrl_outl(0x00000001, SH7780_PCI_VCR2); /* Enable PCIC */
+	/* Enable CPU access to the PCIC registers. */
+	__raw_writel(PCIECR_ENBL, PCIECR);
 
-	/* check for SH7780/SH7780R hardware */
-	id = pci_read_reg(chan, SH7780_PCIVID);
-	if ((id & 0xffff) == SH7780_VENDOR_ID) {
-		switch ((id >> 16) & 0xffff) {
-		case SH7763_DEVICE_ID:
-		case SH7780_DEVICE_ID:
-		case SH7781_DEVICE_ID:
-		case SH7785_DEVICE_ID:
-			match = 1;
-			break;
-		}
-	}
-
-	if (unlikely(!match)) {
-		printk(KERN_ERR "PCI: This is not an SH7780 (%x)\n", id);
+	id = __raw_readw(chan->reg_base + SH7780_PCIVID);
+	if (id != SH7780_VENDOR_ID) {
+		printk(KERN_ERR "PCI: Unknown vendor ID 0x%04x.\n", id);
 		return -ENODEV;
 	}
+
+	id = __raw_readw(chan->reg_base + SH7780_PCIDID);
+	type = (id == SH7763_DEVICE_ID)	? "SH7763" :
+	       (id == SH7780_DEVICE_ID) ? "SH7780" :
+	       (id == SH7781_DEVICE_ID) ? "SH7781" :
+	       (id == SH7785_DEVICE_ID) ? "SH7785" :
+					  NULL;
+	if (unlikely(!type)) {
+		printk(KERN_ERR "PCI: Found an unsupported Renesas host "
+		       "controller, device id 0x%04x.\n", id);
+		return -EINVAL;
+	}
+
+	printk(KERN_NOTICE "PCI: Found a Renesas %s host "
+	       "controller, revision %d.\n", type,
+	       __raw_readb(chan->reg_base + SH7780_PCIRID));
 
 	if ((ret = sh4_pci_check_direct(chan)) != 0)
 		return ret;
