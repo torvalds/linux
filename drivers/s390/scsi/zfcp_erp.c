@@ -1311,6 +1311,11 @@ static int zfcp_erp_thread(void *data)
 
 	while (!(atomic_read(&adapter->status) &
 		 ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL)) {
+
+		zfcp_rec_dbf_event_thread_lock("erthrd1", adapter);
+		ignore = down_interruptible(&adapter->erp_ready_sem);
+		zfcp_rec_dbf_event_thread_lock("erthrd2", adapter);
+
 		write_lock_irqsave(&adapter->erp_lock, flags);
 		next = adapter->erp_ready_head.next;
 		write_unlock_irqrestore(&adapter->erp_lock, flags);
@@ -1322,10 +1327,6 @@ static int zfcp_erp_thread(void *data)
 			if (zfcp_erp_strategy(act) != ZFCP_ERP_DISMISSED)
 				zfcp_erp_wakeup(adapter);
 		}
-
-		zfcp_rec_dbf_event_thread_lock("erthrd1", adapter);
-		ignore = down_interruptible(&adapter->erp_ready_sem);
-		zfcp_rec_dbf_event_thread_lock("erthrd2", adapter);
 	}
 
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);
