@@ -11,9 +11,17 @@
  * for more details.
  */
 #include <linux/pci.h>
+#include <linux/io.h>
 #include "pci-sh4.h"
-#include <asm/io.h>
 
+static char irq_tab[] __initdata = {
+	65, 66, 67, 68,
+};
+
+int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
+{
+	return irq_tab[slot];
+}
 int pci_fixup_pcic(struct pci_channel *chan)
 {
 	pci_write_reg(chan, 0x000043ff, SH4_PCIINTM);
