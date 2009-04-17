@@ -1765,7 +1765,7 @@ static int do_i2c_smbus_ioctl(unsigned int fd, unsigned int cmd, unsigned long a
 
 /* Since old style bridge ioctl's endup using SIOCDEVPRIVATE
  * for some operations; this forces use of the newer bridge-utils that
- * use compatiable ioctls
+ * use compatible ioctls
  */
 static int old_bridge_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
