@@ -433,6 +433,13 @@ config RTL8187
 
 	  Thanks to Realtek for their support!
 
+# If possible, automatically enable LEDs for RTL8187.
+
+config RTL8187_LEDS
+	bool
+	depends on RTL8187 && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = RTL8187)
+	default y
+
 config ADM8211
 	tristate "ADMtek ADM8211 support"
 	depends on MAC80211 && PCI && WLAN_80211 && EXPERIMENTAL

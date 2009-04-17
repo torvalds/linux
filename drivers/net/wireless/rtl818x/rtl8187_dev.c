@@ -29,6 +29,9 @@
 
 #include "rtl8187.h"
 #include "rtl8187_rtl8225.h"
+#ifdef CONFIG_RTL8187_LEDS
+#include "rtl8187_leds.h"
+#endif
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
@@ -734,10 +737,10 @@ static const u8 rtl8187b_reg_table[][3] = {
 	{0x85, 0x24, 0}, {0x88, 0x54, 0}, {0x8B, 0xB8, 0}, {0x8C, 0x07, 0},
 	{0x8D, 0x00, 0}, {0x94, 0x1B, 0}, {0x95, 0x12, 0}, {0x96, 0x00, 0},
 	{0x97, 0x06, 0}, {0x9D, 0x1A, 0}, {0x9F, 0x10, 0}, {0xB4, 0x22, 0},
-	{0xBE, 0x80, 0}, {0xDB, 0x00, 0}, {0xEE, 0x00, 0}, {0x91, 0x03, 0},
+	{0xBE, 0x80, 0}, {0xDB, 0x00, 0}, {0xEE, 0x00, 0}, {0x4C, 0x00, 2},
 
-	{0x4C, 0x00, 2}, {0x9F, 0x00, 3}, {0x8C, 0x01, 0}, {0x8D, 0x10, 0},
-	{0x8E, 0x08, 0}, {0x8F, 0x00, 0}
+	{0x9F, 0x00, 3}, {0x8C, 0x01, 0}, {0x8D, 0x10, 0}, {0x8E, 0x08, 0},
+	{0x8F, 0x00, 0}
 };
 
 static int rtl8187b_init_hw(struct ieee80211_hw *dev)
@@ -1501,6 +1504,12 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,
 	       chip_name, priv->asic_rev, priv->rf->name);
 
+#ifdef CONFIG_RTL8187_LEDS
+	eeprom_93cx6_read(&eeprom, 0x3F, &reg);
+	reg &= 0xFF;
+	rtl8187_leds_init(dev, reg);
+#endif
+
 	return 0;
 
  err_free_dev:
@@ -1518,6 +1527,9 @@ static void __devexit rtl8187_disconnect(struct usb_interface *intf)
 	if (!dev)
 		return;
 
+#ifdef CONFIG_RTL8187_LEDS
+	rtl8187_leds_exit(dev);
+#endif
 	ieee80211_unregister_hw(dev);
 
 	priv = dev->priv;
