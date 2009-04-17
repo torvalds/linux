@@ -123,7 +123,7 @@ config PMAC_APM_EMU
 
 config PMAC_MEDIABAY
 	bool "Support PowerBook hotswap media bay"
-	depends on PPC_PMAC && PPC32
+	depends on PPC_PMAC && PPC32 && BLOCK
 	help
 	  This option adds support for older PowerBook's hotswap media bay
 	  that can contains batteries, floppy drives, or IDE devices. PCI
