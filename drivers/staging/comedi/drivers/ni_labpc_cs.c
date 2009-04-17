@@ -60,7 +60,7 @@ NI manuals:
 */
 
 #undef LABPC_DEBUG
-/* #define LABPC_DEBUG   /*  enable debugging messages */ */
+/* #define LABPC_DEBUG */   /*  enable debugging messages */
 
 #include "../comedidev.h"
 

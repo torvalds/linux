@@ -37,7 +37,7 @@ This is just a wrapper around the 8255.o driver to properly handle
 the PCMCIA interface.
 */
 
-/* #define LABPC_DEBUG   /*  enable debugging messages */ */
+/* #define LABPC_DEBUG */   /*  enable debugging messages */
 #undef LABPC_DEBUG
 
 #include "../comedidev.h"

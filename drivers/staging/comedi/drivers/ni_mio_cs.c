@@ -66,7 +66,7 @@ See the notes in the ni_atmio.o driver.
 
 #define MAX_N_CALDACS 32
 
-static const ni_board ni_boards[] = {
+static const struct ni_board_struct ni_boards[] = {
       {device_id:0x010d,
 	      name:	"DAQCard-ai-16xe-50",
 	      n_adchan:16,
