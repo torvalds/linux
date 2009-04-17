@@ -766,8 +766,9 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_adapter *adapter,
 static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
-	unsigned long flags;
-	int idx;
+	unsigned long	     flags;
+	int		     idx;
+	int		     with_qtcb = (req->qtcb != NULL);
 
 	/* put allocated FSF request into hash table */
 	spin_lock_irqsave(&adapter->req_list_lock, flags);
@@ -789,7 +790,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 	}
 
 	/* Don't increase for unsolicited status */
-	if (req->qtcb)
+	if (with_qtcb)
 		adapter->fsf_req_seq_no++;
 	adapter->req_no++;
 
