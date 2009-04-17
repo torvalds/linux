@@ -78,8 +78,10 @@ int __init sh7780_pcic_init(struct pci_channel *chan,
 {
 	u32 word;
 
-	pci_write_reg(chan, PCI_CLASS_BRIDGE_HOST >> 8, SH7780_PCIBCC);
-	pci_write_reg(chan, PCI_CLASS_BRIDGE_HOST & 0xff, SH7780_PCISUB);
+	__raw_writeb(PCI_CLASS_BRIDGE_HOST >> 8,
+		     chan->reg_base + SH7780_PCIBCC);
+	__raw_writeb(PCI_CLASS_BRIDGE_HOST & 0xff,
+		     chan->reg_base + SH7780_PCISUB);
 
 	/* set the command/status bits to:
 	 * Wait Cycle Control + Parity Enable + Bus Master +
