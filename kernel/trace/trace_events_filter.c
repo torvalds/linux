@@ -22,9 +22,12 @@
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
+#include <linux/mutex.h>
 
 #include "trace.h"
 #include "trace_output.h"
+
+static DEFINE_MUTEX(filter_mutex);
 
 static int filter_pred_64(struct filter_pred *pred, void *event)
 {
@@ -112,8 +115,8 @@ int filter_match_preds(struct ftrace_event_call *call, void *rec)
 }
 EXPORT_SYMBOL_GPL(filter_match_preds);
 
-void filter_print_preds(struct filter_pred **preds, int n_preds,
-			struct trace_seq *s)
+static void __filter_print_preds(struct filter_pred **preds, int n_preds,
+				 struct trace_seq *s)
 {
 	char *field_name;
 	struct filter_pred *pred;
@@ -136,6 +139,21 @@ void filter_print_preds(struct filter_pred **preds, int n_preds,
 		else
 			trace_seq_printf(s, "%llu\n", pred->val);
 	}
+}
+
+void filter_print_preds(struct ftrace_event_call *call, struct trace_seq *s)
+{
+	mutex_lock(&filter_mutex);
+	__filter_print_preds(call->preds, call->n_preds, s);
+	mutex_unlock(&filter_mutex);
+}
+
+void filter_print_subsystem_preds(struct event_subsystem *system,
+				  struct trace_seq *s)
+{
+	mutex_lock(&filter_mutex);
+	__filter_print_preds(system->preds, system->n_preds, s);
+	mutex_unlock(&filter_mutex);
 }
 
 static struct ftrace_event_field *
@@ -180,7 +198,7 @@ static int filter_set_pred(struct filter_pred *dest,
 	return 0;
 }
 
-void filter_disable_preds(struct ftrace_event_call *call)
+static void __filter_disable_preds(struct ftrace_event_call *call)
 {
 	int i;
 
@@ -188,6 +206,13 @@ void filter_disable_preds(struct ftrace_event_call *call)
 
 	for (i = 0; i < MAX_FILTER_PRED; i++)
 		call->preds[i]->fn = filter_pred_none;
+}
+
+void filter_disable_preds(struct ftrace_event_call *call)
+{
+	mutex_lock(&filter_mutex);
+	__filter_disable_preds(call);
+	mutex_unlock(&filter_mutex);
 }
 
 int init_preds(struct ftrace_event_call *call)
@@ -223,7 +248,7 @@ oom:
 }
 EXPORT_SYMBOL_GPL(init_preds);
 
-void filter_free_subsystem_preds(struct event_subsystem *system)
+static void __filter_free_subsystem_preds(struct event_subsystem *system)
 {
 	struct ftrace_event_call *call;
 	int i;
@@ -241,18 +266,25 @@ void filter_free_subsystem_preds(struct event_subsystem *system)
 			continue;
 
 		if (!strcmp(call->system, system->name))
-			filter_disable_preds(call);
+			__filter_disable_preds(call);
 	}
 }
 
-static int __filter_add_pred(struct ftrace_event_call *call,
-			     struct filter_pred *pred,
-			     filter_pred_fn_t fn)
+void filter_free_subsystem_preds(struct event_subsystem *system)
+{
+	mutex_lock(&filter_mutex);
+	__filter_free_subsystem_preds(system);
+	mutex_unlock(&filter_mutex);
+}
+
+static int filter_add_pred_fn(struct ftrace_event_call *call,
+			      struct filter_pred *pred,
+			      filter_pred_fn_t fn)
 {
 	int idx, err;
 
 	if (call->n_preds && !pred->compound)
-		filter_disable_preds(call);
+		__filter_disable_preds(call);
 
 	if (call->n_preds == MAX_FILTER_PRED)
 		return -ENOSPC;
@@ -276,7 +308,8 @@ static int is_string_field(const char *type)
 	return 0;
 }
 
-int filter_add_pred(struct ftrace_event_call *call, struct filter_pred *pred)
+static int __filter_add_pred(struct ftrace_event_call *call,
+			     struct filter_pred *pred)
 {
 	struct ftrace_event_field *field;
 	filter_pred_fn_t fn;
@@ -293,7 +326,7 @@ int filter_add_pred(struct ftrace_event_call *call, struct filter_pred *pred)
 			return -EINVAL;
 		fn = filter_pred_string;
 		pred->str_len = field->size;
-		return __filter_add_pred(call, pred, fn);
+		return filter_add_pred_fn(call, pred, fn);
 	} else {
 		if (pred->str_len)
 			return -EINVAL;
@@ -316,7 +349,18 @@ int filter_add_pred(struct ftrace_event_call *call, struct filter_pred *pred)
 		return -EINVAL;
 	}
 
-	return __filter_add_pred(call, pred, fn);
+	return filter_add_pred_fn(call, pred, fn);
+}
+
+int filter_add_pred(struct ftrace_event_call *call, struct filter_pred *pred)
+{
+	int err;
+
+	mutex_lock(&filter_mutex);
+	err = __filter_add_pred(call, pred);
+	mutex_unlock(&filter_mutex);
+
+	return err;
 }
 
 int filter_add_subsystem_pred(struct event_subsystem *system,
@@ -324,20 +368,27 @@ int filter_add_subsystem_pred(struct event_subsystem *system,
 {
 	struct ftrace_event_call *call;
 
+	mutex_lock(&filter_mutex);
+
 	if (system->n_preds && !pred->compound)
-		filter_free_subsystem_preds(system);
+		__filter_free_subsystem_preds(system);
 
 	if (!system->n_preds) {
 		system->preds = kzalloc(MAX_FILTER_PRED * sizeof(pred),
 					GFP_KERNEL);
-		if (!system->preds)
+		if (!system->preds) {
+			mutex_unlock(&filter_mutex);
 			return -ENOMEM;
+		}
 	}
 
-	if (system->n_preds == MAX_FILTER_PRED)
+	if (system->n_preds == MAX_FILTER_PRED) {
+		mutex_unlock(&filter_mutex);
 		return -ENOSPC;
+	}
 
 	system->preds[system->n_preds] = pred;
+	system->n_preds++;
 
 	list_for_each_entry(call, &ftrace_events, list) {
 		int err;
@@ -348,17 +399,16 @@ int filter_add_subsystem_pred(struct event_subsystem *system,
 		if (strcmp(call->system, system->name))
 			continue;
 
-		if (!find_event_field(call, pred->field_name))
-			continue;
-
-		err = filter_add_pred(call, pred);
+		err = __filter_add_pred(call, pred);
 		if (err == -ENOMEM) {
 			system->preds[system->n_preds] = NULL;
+			system->n_preds--;
+			mutex_unlock(&filter_mutex);
 			return err;
 		}
 	}
 
-	system->n_preds++;
+	mutex_unlock(&filter_mutex);
 
 	return 0;
 }

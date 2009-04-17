@@ -757,13 +757,15 @@ struct filter_pred {
 };
 
 extern void filter_free_pred(struct filter_pred *pred);
-extern void filter_print_preds(struct filter_pred **preds, int n_preds,
+extern void filter_print_preds(struct ftrace_event_call *call,
 			       struct trace_seq *s);
 extern int filter_parse(char **pbuf, struct filter_pred *pred);
 extern int filter_add_pred(struct ftrace_event_call *call,
 			   struct filter_pred *pred);
 extern void filter_disable_preds(struct ftrace_event_call *call);
 extern void filter_free_subsystem_preds(struct event_subsystem *system);
+extern void filter_print_subsystem_preds(struct event_subsystem *system,
+					 struct trace_seq *s);
 extern int filter_add_subsystem_pred(struct event_subsystem *system,
 				     struct filter_pred *pred);
 
