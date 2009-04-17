@@ -118,18 +118,6 @@ int __init sh7780_pcic_init(struct pci_channel *chan,
 	pci_write_reg(chan, map->window1.base, SH4_PCILAR1);
 	pci_write_reg(chan, map->window1.base, SH7780_PCIMBAR1);
 
-	/* Map IO space into PCI IO window:
-	 * IO addresses will be translated to the PCI IO window base address
-	 */
-	pr_debug("PCI: Mapping IO address 0x%x - 0x%x to base 0x%lx\n",
-		 chan->io_resource->start, chan->io_resource->end,
-		 chan->io_base + chan->io_resource->start);
-
-	/* NOTE: I'm ignoring the PCI error IRQs for now..
-	 * TODO: add support for the internal error interrupts and
-	 * DMA interrupts...
-	 */
-
 	/* Apply any last-minute PCIC fixups */
 	pci_fixup_pcic(chan);
 
