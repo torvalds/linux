@@ -2917,8 +2917,13 @@ static int __devinit cxgb_enable_msix(struct adapter *adap)
 	while ((err = pci_enable_msix(adap->pdev, entries, vectors)) > 0)
 		vectors = err;
 
-	if (!err && vectors < (adap->params.nports + 1))
+	if (err < 0)
+		pci_disable_msix(adap->pdev);
+
+	if (!err && vectors < (adap->params.nports + 1)) {
+		pci_disable_msix(adap->pdev);
 		err = -1;
+	}
 
 	if (!err) {
 		for (i = 0; i < vectors; ++i)
