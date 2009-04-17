@@ -471,10 +471,8 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_register;
 
-	/* we're going to reset, so assume we have no link for now */
-
+	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
 	DPRINTK(PROBE, INFO, "Intel(R) PRO/10GbE Network Connection\n");
 	ixgb_check_options(adapter);
@@ -592,6 +590,8 @@ ixgb_open(struct net_device *netdev)
 	if (err)
 		goto err_setup_tx;
 
+	netif_carrier_off(netdev);
+
 	/* allocate receive descriptors */
 
 	err = ixgb_setup_rx_resources(adapter);
@@ -601,6 +601,8 @@ ixgb_open(struct net_device *netdev)
 	err = ixgb_up(adapter);
 	if (err)
 		goto err_up;
+
+	netif_start_queue(netdev);
 
 	return 0;
 
