@@ -72,15 +72,14 @@ int __init sh7780_pcic_init(struct pci_channel *chan,
 {
 	u32 word;
 
+	pci_write_reg(chan, PCI_CLASS_BRIDGE_HOST >> 8, SH7780_PCIBCC);
+	pci_write_reg(chan, PCI_CLASS_BRIDGE_HOST & 0xff, SH7780_PCISUB);
+
 	/* set the command/status bits to:
 	 * Wait Cycle Control + Parity Enable + Bus Master +
 	 * Mem space enable
 	 */
 	pci_write_reg(chan, 0x00000046, SH7780_PCICMD);
-
-	/* define this host as the host bridge */
-	word = PCI_BASE_CLASS_BRIDGE << 24;
-	pci_write_reg(chan, word, SH7780_PCIRID);
 
 	/* Set IO and Mem windows to local address
 	 * Make PCI and local address the same for easy 1 to 1 mapping

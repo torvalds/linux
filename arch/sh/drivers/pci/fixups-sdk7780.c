@@ -16,8 +16,6 @@
 
 int pci_fixup_pcic(struct pci_channel *chan)
 {
-	ctrl_outl(0x00000001, SH7780_PCI_VCR2);
-
 	/* Enable all interrupts, so we know what to fix */
 	pci_write_reg(chan, 0x0000C3FF, SH7780_PCIIMR);
 	pci_write_reg(chan, 0x0000380F, SH7780_PCIAINTM);
@@ -26,8 +24,6 @@ int pci_fixup_pcic(struct pci_channel *chan)
 	pci_write_reg(chan, 0xFB00, SH7780_PCISTATUS);
 	pci_write_reg(chan, 0x0047, SH7780_PCICMD);
 	pci_write_reg(chan, 0x00, SH7780_PCIPIF);
-	pci_write_reg(chan, 0x00, SH7780_PCISUB);
-	pci_write_reg(chan, 0x06, SH7780_PCIBCC);
 	pci_write_reg(chan, 0x1912, SH7780_PCISVID);
 	pci_write_reg(chan, 0x0001, SH7780_PCISID);
 
