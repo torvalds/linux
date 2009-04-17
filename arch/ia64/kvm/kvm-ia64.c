@@ -2001,6 +2001,7 @@ static int vcpu_reset(struct kvm_vcpu *vcpu)
 	long psr;
 	local_irq_save(psr);
 	r = kvm_insert_vmm_mapping(vcpu);
+	local_irq_restore(psr);
 	if (r)
 		goto fail;
 
@@ -2013,7 +2014,6 @@ static int vcpu_reset(struct kvm_vcpu *vcpu)
 	kvm_purge_vmm_mapping(vcpu);
 	r = 0;
 fail:
-	local_irq_restore(psr);
 	return r;
 }
 
