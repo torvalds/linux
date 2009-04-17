@@ -56,7 +56,7 @@
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#ifdef CONFIG_EVENT_TRACER
+#ifdef CONFIG_EVENT_TRACING
 #include <trace/ftrace.h>
 #endif
 
