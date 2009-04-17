@@ -894,18 +894,20 @@ void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
 {
 	__trace_buffer_unlock_commit(&global_trace, event, flags, pc, 1);
 }
+EXPORT_SYMBOL(trace_current_buffer_unlock_commit);
 
 void trace_nowake_buffer_unlock_commit(struct ring_buffer_event *event,
 					unsigned long flags, int pc)
 {
 	__trace_buffer_unlock_commit(&global_trace, event, flags, pc, 0);
 }
+EXPORT_SYMBOL(trace_nowake_buffer_unlock_commit);
 
 void trace_current_buffer_discard_commit(struct ring_buffer_event *event)
 {
 	ring_buffer_discard_commit(global_trace.buffer, event);
 }
-EXPORT_SYMBOL_GPL(trace_nowake_buffer_unlock_commit);
+EXPORT_SYMBOL_GPL(trace_current_buffer_discard_commit);
 
 void
 trace_function(struct trace_array *tr,
