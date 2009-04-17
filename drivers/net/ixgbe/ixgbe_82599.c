@@ -68,8 +68,6 @@ s32 ixgbe_clear_vmdq_82599(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
 s32 ixgbe_set_vfta_82599(struct ixgbe_hw *hw, u32 vlan,
                          u32 vind, bool vlan_on);
 s32 ixgbe_clear_vfta_82599(struct ixgbe_hw *hw);
-s32 ixgbe_blink_led_stop_82599(struct ixgbe_hw *hw, u32 index);
-s32 ixgbe_blink_led_start_82599(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_init_uta_tables_82599(struct ixgbe_hw *hw);
 s32 ixgbe_read_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 *val);
 s32 ixgbe_write_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 val);
@@ -1039,40 +1037,6 @@ s32 ixgbe_clear_vfta_82599(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_blink_led_start_82599 - Blink LED based on index.
- *  @hw: pointer to hardware structure
- *  @index: led number to blink
- **/
-s32 ixgbe_blink_led_start_82599(struct ixgbe_hw *hw, u32 index)
-{
-	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
-
-	led_reg &= ~IXGBE_LED_MODE_MASK(index);
-	led_reg |= IXGBE_LED_BLINK(index);
-	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
-	IXGBE_WRITE_FLUSH(hw);
-
-	return 0;
-}
-
-/**
- *  ixgbe_blink_led_stop_82599 - Stop blinking LED based on index.
- *  @hw: pointer to hardware structure
- *  @index: led number to stop blinking
- **/
-s32 ixgbe_blink_led_stop_82599(struct ixgbe_hw *hw, u32 index)
-{
-	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
-
-	led_reg &= ~IXGBE_LED_MODE_MASK(index);
-	led_reg &= ~IXGBE_LED_BLINK(index);
-	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
-	IXGBE_WRITE_FLUSH(hw);
-
-	return 0;
-}
-
-/**
  *  ixgbe_init_uta_tables_82599 - Initialize the Unicast Table Array
  *  @hw: pointer to hardware structure
  **/
@@ -1353,8 +1317,8 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.get_link_capabilities  = &ixgbe_get_link_capabilities_82599,
 	.led_on                 = &ixgbe_led_on_generic,
 	.led_off                = &ixgbe_led_off_generic,
-	.blink_led_start        = &ixgbe_blink_led_start_82599,
-	.blink_led_stop         = &ixgbe_blink_led_stop_82599,
+	.blink_led_start        = &ixgbe_blink_led_start_generic,
+	.blink_led_stop         = &ixgbe_blink_led_stop_generic,
 	.set_rar                = &ixgbe_set_rar_generic,
 	.clear_rar              = &ixgbe_clear_rar_generic,
 	.set_vmdq               = &ixgbe_set_vmdq_82599,

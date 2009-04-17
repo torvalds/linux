@@ -30,7 +30,7 @@
 #include <asm/setup.h>
 #include <asm/io.h>
 #include <asm/smp.h>
-#include <asm/proc/proc.h>
+#include <proc/proc.h>
 #include <asm/busctl-regs.h>
 #include <asm/fpu.h>
 #include <asm/sections.h>

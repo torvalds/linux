@@ -20,7 +20,7 @@
 #include <asm/system.h>
 #include <asm/gdb-stub.h>
 #include <asm/exceptions.h>
-#include <asm/unit/clock.h>
+#include <unit/clock.h>
 #include "mn10300-serial.h"
 
 #if defined(CONFIG_GDBSTUB_ON_TTYSM0)

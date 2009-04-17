@@ -52,7 +52,6 @@ int dm_table_any_congested(struct dm_table *t, int bdi_bits);
  * To check the return value from dm_table_find_target().
  */
 #define dm_target_is_valid(t) ((t)->table)
-int dm_table_barrier_ok(struct dm_table *t);
 
 /*-----------------------------------------------------------------
  * A registry of target types.

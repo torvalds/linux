@@ -25,8 +25,10 @@
 #include <linux/regulator/machine.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/tdo24m.h>
+#include <linux/spi/libertas_spi.h>
 #include <linux/power_supply.h>
 #include <linux/apm-emulation.h>
+#include <linux/delay.h>
 
 #include <media/soc_camera.h>
 
@@ -62,6 +64,8 @@
 #define GPIO93_CAM_RESET	(93)
 #define GPIO41_ETHIRQ		(41)
 #define EM_X270_ETHIRQ		IRQ_GPIO(GPIO41_ETHIRQ)
+#define GPIO115_WLAN_PWEN	(115)
+#define GPIO19_WLAN_STRAP	(19)
 
 static int mmc_cd;
 static int nand_rb;
@@ -159,8 +163,8 @@ static unsigned long common_pin_config[] = {
 	GPIO57_SSP1_TXD,
 
 	/* SSP2 */
-	GPIO19_SSP2_SCLK,
-	GPIO14_SSP2_SFRM,
+	GPIO19_GPIO,	/* SSP2 clock is used as GPIO for Libertas pin-strap */
+	GPIO14_GPIO,
 	GPIO89_SSP2_TXD,
 	GPIO88_SSP2_RXD,
 
@@ -648,20 +652,86 @@ static struct tdo24m_platform_data em_x270_tdo24m_pdata = {
 	.model = TDO35S,
 };
 
+static struct pxa2xx_spi_master em_x270_spi_2_info = {
+	.num_chipselect	= 1,
+	.enable_dma	= 1,
+};
+
+static struct pxa2xx_spi_chip em_x270_libertas_chip = {
+	.rx_threshold	= 1,
+	.tx_threshold	= 1,
+	.timeout	= 1000,
+};
+
+static unsigned long em_x270_libertas_pin_config[] = {
+	/* SSP2 */
+	GPIO19_SSP2_SCLK,
+	GPIO14_GPIO,
+	GPIO89_SSP2_TXD,
+	GPIO88_SSP2_RXD,
+};
+
+static int em_x270_libertas_setup(struct spi_device *spi)
+{
+	int err = gpio_request(GPIO115_WLAN_PWEN, "WLAN PWEN");
+	if (err)
+		return err;
+
+	gpio_direction_output(GPIO19_WLAN_STRAP, 1);
+	mdelay(100);
+
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(em_x270_libertas_pin_config));
+
+	gpio_direction_output(GPIO115_WLAN_PWEN, 0);
+	mdelay(100);
+	gpio_set_value(GPIO115_WLAN_PWEN, 1);
+	mdelay(100);
+
+	spi->bits_per_word = 16;
+	spi_setup(spi);
+
+	return 0;
+}
+
+static int em_x270_libertas_teardown(struct spi_device *spi)
+{
+	gpio_set_value(GPIO115_WLAN_PWEN, 0);
+	gpio_free(GPIO115_WLAN_PWEN);
+
+	return 0;
+}
+
+struct libertas_spi_platform_data em_x270_libertas_pdata = {
+	.use_dummy_writes	= 1,
+	.gpio_cs		= 14,
+	.setup			= em_x270_libertas_setup,
+	.teardown		= em_x270_libertas_teardown,
+};
+
 static struct spi_board_info em_x270_spi_devices[] __initdata = {
 	{
-		.modalias = "tdo24m",
-		.max_speed_hz = 1000000,
-		.bus_num = 1,
-		.chip_select = 0,
-		.controller_data = &em_x270_tdo24m_chip,
-		.platform_data = &em_x270_tdo24m_pdata,
+		.modalias		= "tdo24m",
+		.max_speed_hz		= 1000000,
+		.bus_num		= 1,
+		.chip_select		= 0,
+		.controller_data	= &em_x270_tdo24m_chip,
+		.platform_data		= &em_x270_tdo24m_pdata,
+	},
+	{
+		.modalias		= "libertas_spi",
+		.max_speed_hz		= 13000000,
+		.bus_num		= 2,
+		.irq			= IRQ_GPIO(116),
+		.chip_select		= 0,
+		.controller_data	= &em_x270_libertas_chip,
+		.platform_data		= &em_x270_libertas_pdata,
 	},
 };
 
 static void __init em_x270_init_spi(void)
 {
 	pxa2xx_set_spi_info(1, &em_x270_spi_info);
+	pxa2xx_set_spi_info(2, &em_x270_spi_2_info);
 	spi_register_board_info(ARRAY_AND_SIZE(em_x270_spi_devices));
 }
 #else

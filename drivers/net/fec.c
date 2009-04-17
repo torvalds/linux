@@ -1155,6 +1155,7 @@ static void __inline__ fec_phy_ack_intr(void)
 	icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
 	*icrp = 0x0d000000;
 }
+#endif
 
 #ifdef CONFIG_M5272
 static void __inline__ fec_get_mac(struct net_device *dev)
