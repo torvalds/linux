@@ -169,7 +169,6 @@ static inline u64 native_x2apic_icr_read(void)
 extern int x2apic, x2apic_phys;
 extern void check_x2apic(void);
 extern void enable_x2apic(void);
-extern void enable_IR_x2apic(void);
 extern void x2apic_icr_write(u32 low, u32 id);
 static inline int x2apic_enabled(void)
 {
@@ -190,17 +189,17 @@ static inline void check_x2apic(void)
 static inline void enable_x2apic(void)
 {
 }
-static inline void enable_IR_x2apic(void)
-{
-}
 static inline int x2apic_enabled(void)
 {
 	return 0;
 }
 
 #define	x2apic	0
+#define	x2apic_preenabled 0
 
 #endif
+
+extern void enable_IR_x2apic(void);
 
 extern int get_physical_broadcast(void);
 

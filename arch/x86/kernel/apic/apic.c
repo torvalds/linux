@@ -141,6 +141,8 @@ static int x2apic_preenabled;
 static int disable_x2apic;
 static __init int setup_nox2apic(char *str)
 {
+	if (x2apic_enabled())
+		panic("Bios already enabled x2apic, can't enforce nox2apic");
 	disable_x2apic = 1;
 	setup_clear_cpu_cap(X86_FEATURE_X2APIC);
 	return 0;
@@ -1345,6 +1347,7 @@ void enable_x2apic(void)
 		wrmsr(MSR_IA32_APICBASE, msr | X2APIC_ENABLE, 0);
 	}
 }
+#endif /* CONFIG_X86_X2APIC */
 
 void __init enable_IR_x2apic(void)
 {
@@ -1353,32 +1356,21 @@ void __init enable_IR_x2apic(void)
 	unsigned long flags;
 	struct IO_APIC_route_entry **ioapic_entries = NULL;
 
-	if (!cpu_has_x2apic)
-		return;
-
-	if (!x2apic_preenabled && disable_x2apic) {
-		pr_info("Skipped enabling x2apic and Interrupt-remapping "
-			"because of nox2apic\n");
-		return;
-	}
-
-	if (x2apic_preenabled && disable_x2apic)
-		panic("Bios already enabled x2apic, can't enforce nox2apic");
-
-	if (!x2apic_preenabled && skip_ioapic_setup) {
-		pr_info("Skipped enabling x2apic and Interrupt-remapping "
-			"because of skipping io-apic setup\n");
-		return;
-	}
-
 	ret = dmar_table_init();
 	if (ret) {
-		pr_info("dmar_table_init() failed with %d:\n", ret);
+		pr_debug("dmar_table_init() failed with %d:\n", ret);
+		goto ir_failed;
+	}
 
-		if (x2apic_preenabled)
-			panic("x2apic enabled by bios. But IR enabling failed");
-		else
-			pr_info("Not enabling x2apic,Intr-remapping\n");
+	if (!intr_remapping_supported()) {
+		pr_debug("intr-remapping not supported\n");
+		goto ir_failed;
+	}
+
+
+	if (!x2apic_preenabled && skip_ioapic_setup) {
+		pr_info("Skipped enabling intr-remap because of skipping "
+			"io-apic setup\n");
 		return;
 	}
 
@@ -1398,20 +1390,25 @@ void __init enable_IR_x2apic(void)
 	mask_IO_APIC_setup(ioapic_entries);
 	mask_8259A();
 
-	ret = enable_intr_remapping(EIM_32BIT_APIC_ID);
-
-	if (ret && x2apic_preenabled) {
-		local_irq_restore(flags);
-		panic("x2apic enabled by bios. But IR enabling failed");
-	}
+#ifdef CONFIG_X86_X2APIC
+	if (cpu_has_x2apic)
+		ret = enable_intr_remapping(EIM_32BIT_APIC_ID);
+	else
+#endif
+		ret = enable_intr_remapping(EIM_8BIT_APIC_ID);
 
 	if (ret)
 		goto end_restore;
 
-	if (!x2apic) {
+	pr_info("Enabled Interrupt-remapping\n");
+
+#ifdef CONFIG_X86_X2APIC
+	if (cpu_has_x2apic && !x2apic) {
 		x2apic = 1;
 		enable_x2apic();
+		pr_info("Enabled x2apic\n");
 	}
+#endif
 
 end_restore:
 	if (ret)
@@ -1426,30 +1423,29 @@ end_restore:
 	local_irq_restore(flags);
 
 end:
-	if (!ret) {
-		if (!x2apic_preenabled)
-			pr_info("Enabled x2apic and interrupt-remapping\n");
-		else
-			pr_info("Enabled Interrupt-remapping\n");
-	} else
-		pr_err("Failed to enable Interrupt-remapping and x2apic\n");
 	if (ioapic_entries)
 		free_ioapic_entries(ioapic_entries);
+
+	if (!ret)
+		return;
+
+ir_failed:
+	if (x2apic_preenabled)
+		panic("x2apic enabled by bios. But IR enabling failed");
+	else if (cpu_has_x2apic)
+		pr_info("Not enabling x2apic,Intr-remapping\n");
 #else
 	if (!cpu_has_x2apic)
 		return;
 
 	if (x2apic_preenabled)
 		panic("x2apic enabled prior OS handover,"
-		      " enable CONFIG_INTR_REMAP");
-
-	pr_info("Enable CONFIG_INTR_REMAP for enabling intr-remapping "
-		" and x2apic\n");
+		      " enable CONFIG_X86_X2APIC, CONFIG_INTR_REMAP");
 #endif
 
 	return;
 }
-#endif /* CONFIG_X86_X2APIC */
+
 
 #ifdef CONFIG_X86_64
 /*
