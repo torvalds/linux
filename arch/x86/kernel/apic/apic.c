@@ -2032,7 +2032,7 @@ static int lapic_resume(struct sys_device *dev)
 		return 0;
 
 	local_irq_save(flags);
-	if (x2apic) {
+	if (intr_remapping_enabled) {
 		ioapic_entries = alloc_ioapic_entries();
 		if (!ioapic_entries) {
 			WARN(1, "Alloc ioapic_entries in lapic resume failed.");
@@ -2048,8 +2048,10 @@ static int lapic_resume(struct sys_device *dev)
 
 		mask_IO_APIC_setup(ioapic_entries);
 		mask_8259A();
-		enable_x2apic();
 	}
+
+	if (x2apic)
+		enable_x2apic();
 #else
 	if (!apic_pm_state.active)
 		return 0;
@@ -2097,10 +2099,12 @@ static int lapic_resume(struct sys_device *dev)
 	apic_read(APIC_ESR);
 
 #ifdef CONFIG_INTR_REMAP
-	if (intr_remapping_enabled)
-		reenable_intr_remapping(EIM_32BIT_APIC_ID);
+	if (intr_remapping_enabled) {
+		if (x2apic)
+			reenable_intr_remapping(EIM_32BIT_APIC_ID);
+		else
+			reenable_intr_remapping(EIM_8BIT_APIC_ID);
 
-	if (x2apic) {
 		unmask_8259A();
 		restore_IO_APIC_setup(ioapic_entries);
 		free_ioapic_entries(ioapic_entries);
@@ -2108,7 +2112,6 @@ static int lapic_resume(struct sys_device *dev)
 #endif
 
 	local_irq_restore(flags);
-
 
 	return 0;
 }
