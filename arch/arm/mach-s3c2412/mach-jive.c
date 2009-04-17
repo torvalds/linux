@@ -277,7 +277,7 @@ __setup("mtdset=", jive_mtdset);
 #define LCD_HTOT (LCD_HSYNC + LCD_LEFT_MARGIN + LCD_XRES + LCD_RIGHT_MARGIN)
 #define LCD_VTOT (LCD_VSYNC + LCD_LOWER_MARGIN + LCD_YRES + LCD_UPPER_MARGIN)
 
-struct s3c2410fb_display jive_vgg2432a4_display[] = {
+static struct s3c2410fb_display jive_vgg2432a4_display[] = {
 	[0] = {
 		.width		= LCD_XRES,
 		.height		= LCD_YRES,
@@ -310,7 +310,7 @@ struct s3c2410fb_display jive_vgg2432a4_display[] = {
 #define S3C2410_GPCCON_MASK(x)	(3 << ((x) * 2))
 #define S3C2410_GPDCON_MASK(x)	(3 << ((x) * 2))
 
-struct s3c2410fb_mach_info jive_lcd_config = {
+static struct s3c2410fb_mach_info jive_lcd_config = {
 	.displays	 = jive_vgg2432a4_display,
 	.num_displays	 = ARRAY_SIZE(jive_vgg2432a4_display),
 	.default_display = 0,
