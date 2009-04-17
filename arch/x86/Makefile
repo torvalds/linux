@@ -153,7 +153,7 @@ endif
 
 boot := arch/x86/boot
 
-BOOT_TARGETS = bzlilo bzdisk fdimage fdimage144 fdimage288 isoimage install
+BOOT_TARGETS = bzlilo bzdisk fdimage fdimage144 fdimage288 isoimage
 
 PHONY += bzImage $(BOOT_TARGETS)
 
@@ -169,6 +169,10 @@ bzImage: vmlinux
 	$(Q)ln -fsn ../../x86/boot/bzImage $(objtree)/arch/$(UTS_MACHINE)/boot/$@
 
 $(BOOT_TARGETS): vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $@
+
+PHONY += install
+install:
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 PHONY += vdso_install
