@@ -269,7 +269,7 @@ MODULE_PARM_DESC(myri10ge_fw_name, "Firmware image name");
 
 #define MYRI10GE_MAX_BOARDS 8
 static char *myri10ge_fw_names[MYRI10GE_MAX_BOARDS] =
-    {[0...(MYRI10GE_MAX_BOARDS - 1)] = NULL };
+    {[0 ... (MYRI10GE_MAX_BOARDS - 1)] = NULL };
 module_param_array_named(myri10ge_fw_names, myri10ge_fw_names, charp, NULL,
 			 0444);
 MODULE_PARM_DESC(myri10ge_fw_name, "Firmware image names per board");
