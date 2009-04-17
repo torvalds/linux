@@ -22,7 +22,7 @@
 #include <linux/delay.h>
 #include "pci-sh4.h"
 
-int __init sh7780_pci_init(struct pci_channel *chan)
+static int __init sh7780_pci_init(struct pci_channel *chan)
 {
 	unsigned int id;
 	const char *type = NULL;
@@ -71,9 +71,28 @@ int __init sh7780_pci_init(struct pci_channel *chan)
 
 extern u8 pci_cache_line_size;
 
-int __init sh7780_pcic_init(struct pci_channel *chan,
-			    struct sh4_pci_address_map *map)
+static struct resource sh7785_io_resource = {
+	.name	= "SH7785_IO",
+	.start	= SH7780_PCI_IO_BASE,
+	.end	= SH7780_PCI_IO_BASE + SH7780_PCI_IO_SIZE - 1,
+	.flags	= IORESOURCE_IO
+};
+
+static struct resource sh7785_mem_resource = {
+	.name	= "SH7785_mem",
+	.start	= SH7780_PCI_MEMORY_BASE,
+	.end	= SH7780_PCI_MEMORY_BASE + SH7780_PCI_MEM_SIZE - 1,
+	.flags	= IORESOURCE_MEM
+};
+
+struct pci_channel board_pci_channels[] = {
+	{ sh7780_pci_init, &sh4_pci_ops, &sh7785_io_resource, &sh7785_mem_resource, 0, 0xff },
+	{ NULL, NULL, NULL, 0, 0 },
+};
+
+int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
 {
+	struct pci_channel *chan = &board_pci_channels[0];
 	u32 word;
 
 	/*

@@ -26,25 +26,6 @@ int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 	return irq_tab[slot];
 }
 
-static struct resource sh7785_io_resource = {
-	.name	= "SH7785_IO",
-	.start	= SH7780_PCI_IO_BASE,
-	.end	= SH7780_PCI_IO_BASE + SH7780_PCI_IO_SIZE - 1,
-	.flags	= IORESOURCE_IO
-};
-
-static struct resource sh7785_mem_resource = {
-	.name	= "SH7785_mem",
-	.start	= SH7780_PCI_MEMORY_BASE,
-	.end	= SH7780_PCI_MEMORY_BASE + SH7780_PCI_MEM_SIZE - 1,
-	.flags	= IORESOURCE_MEM
-};
-
-struct pci_channel board_pci_channels[] = {
-	{ sh7780_pci_init, &sh4_pci_ops, &sh7785_io_resource, &sh7785_mem_resource, 0, 0xff },
-	{ NULL, NULL, NULL, 0, 0 },
-};
-
 static struct sh4_pci_address_map sh7785_pci_map = {
 	.window0	= {
 #if defined(CONFIG_32BIT)
@@ -59,5 +40,5 @@ static struct sh4_pci_address_map sh7785_pci_map = {
 
 int __init pcibios_init_platform(void)
 {
-	return sh7780_pcic_init(&board_pci_channels[0], &sh7785_pci_map);
+	return sh7780_pcic_init(&sh7785_pci_map);
 }
