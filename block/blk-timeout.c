@@ -211,6 +211,12 @@ void blk_abort_queue(struct request_queue *q)
 	struct request *rq, *tmp;
 	LIST_HEAD(list);
 
+	/*
+	 * Not a request based block device, nothing to abort
+	 */
+	if (!q->request_fn)
+		return;
+
 	spin_lock_irqsave(q->queue_lock, flags);
 
 	elv_abort_queue(q);
