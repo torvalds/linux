@@ -171,7 +171,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
 		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, NULL,
 					  old_req_id);
-		return SUCCESS;
+		return FAILED; /* completion could be in progress */
 	}
 	old_req->data = NULL;
 
