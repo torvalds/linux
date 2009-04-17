@@ -340,7 +340,7 @@ static unsigned int get_measured_perf(struct cpufreq_policy *policy,
 
 #endif
 
-	retval = per_cpu(drv_data, policy->cpu)->max_freq * perf_percent / 100;
+	retval = (per_cpu(drv_data, policy->cpu)->max_freq * perf_percent) / 100;
 
 	return retval;
 }
