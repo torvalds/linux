@@ -511,11 +511,7 @@ out:
  */
 static void loop_add_bio(struct loop_device *lo, struct bio *bio)
 {
-	if (lo->lo_biotail) {
-		lo->lo_biotail->bi_next = bio;
-		lo->lo_biotail = bio;
-	} else
-		lo->lo_bio = lo->lo_biotail = bio;
+	bio_list_add(&lo->lo_bio_list, bio);
 }
 
 /*
@@ -523,16 +519,7 @@ static void loop_add_bio(struct loop_device *lo, struct bio *bio)
  */
 static struct bio *loop_get_bio(struct loop_device *lo)
 {
-	struct bio *bio;
-
-	if ((bio = lo->lo_bio)) {
-		if (bio == lo->lo_biotail)
-			lo->lo_biotail = NULL;
-		lo->lo_bio = bio->bi_next;
-		bio->bi_next = NULL;
-	}
-
-	return bio;
+	return bio_list_pop(&lo->lo_bio_list);
 }
 
 static int loop_make_request(struct request_queue *q, struct bio *old_bio)
@@ -609,12 +596,13 @@ static int loop_thread(void *data)
 
 	set_user_nice(current, -20);
 
-	while (!kthread_should_stop() || lo->lo_bio) {
+	while (!kthread_should_stop() || !bio_list_empty(&lo->lo_bio_list)) {
 
 		wait_event_interruptible(lo->lo_event,
-				lo->lo_bio || kthread_should_stop());
+				!bio_list_empty(&lo->lo_bio_list) ||
+				kthread_should_stop());
 
-		if (!lo->lo_bio)
+		if (bio_list_empty(&lo->lo_bio_list))
 			continue;
 		spin_lock_irq(&lo->lo_lock);
 		bio = loop_get_bio(lo);
@@ -841,7 +829,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	lo->old_gfp_mask = mapping_gfp_mask(mapping);
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
 
-	lo->lo_bio = lo->lo_biotail = NULL;
+	bio_list_init(&lo->lo_bio_list);
 
 	/*
 	 * set queue make_request_fn, and add limits based on lower level

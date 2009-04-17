@@ -506,7 +506,7 @@ static inline int bio_has_data(struct bio *bio)
 }
 
 /*
- * BIO list managment for use by remapping drivers (e.g. DM or MD).
+ * BIO list management for use by remapping drivers (e.g. DM or MD) and loop.
  *
  * A bio_list anchors a singly-linked list of bios chained through the bi_next
  * member of the bio.  The bio_list also caches the last list member to allow
