@@ -16,6 +16,7 @@ config MMU
 
 config NO_DMA
 	bool
+	depends on !COLDFIRE
 	default y
 
 config FPU
