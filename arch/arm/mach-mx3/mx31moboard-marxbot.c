@@ -16,13 +16,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/types.h>
 #include <linux/init.h>
-
 #include <linux/platform_device.h>
+#include <linux/types.h>
 
-#include <mach/hardware.h>
 #include <mach/common.h>
+#include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 

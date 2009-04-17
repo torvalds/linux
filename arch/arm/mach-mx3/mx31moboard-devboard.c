@@ -16,25 +16,25 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/types.h>
 #include <linux/init.h>
-
 #include <linux/platform_device.h>
+#include <linux/types.h>
 
-#include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+#include <mach/hardware.h>
 
 #include "devices.h"
 
-static struct imxuart_platform_data uart_pdata = {
-	.flags = IMXUART_HAVE_RTSCTS,
-};
-
-static int mxc_uart1_pins[] = {
+static unsigned int devboard_pins[] = {
+	/* UART1 */
 	MX31_PIN_CTS2__CTS2, MX31_PIN_RTS2__RTS2,
 	MX31_PIN_TXD2__TXD2, MX31_PIN_RXD2__RXD2,
+};
+
+static struct imxuart_platform_data uart_pdata = {
+	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 /*
@@ -43,6 +43,9 @@ static int mxc_uart1_pins[] = {
 void __init mx31moboard_devboard_init(void)
 {
 	printk(KERN_INFO "Initializing mx31devboard peripherals\n");
-	mxc_iomux_setup_multiple_pins(mxc_uart1_pins, ARRAY_SIZE(mxc_uart1_pins), "uart1");
+
+	mxc_iomux_setup_multiple_pins(devboard_pins, ARRAY_SIZE(devboard_pins),
+		"devboard");
+
 	mxc_register_device(&mxc_uart_device1, &uart_pdata);
 }

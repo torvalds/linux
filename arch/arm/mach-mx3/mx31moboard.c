@@ -16,25 +16,33 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/types.h>
 #include <linux/init.h>
-
-#include <linux/platform_device.h>
+#include <linux/memory.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
-#include <linux/memory.h>
+#include <linux/platform_device.h>
+#include <linux/types.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
+#include <mach/board-mx31moboard.h>
 #include <mach/common.h>
+#include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
-#include <mach/board-mx31moboard.h>
 
 #include "devices.h"
+
+static unsigned int moboard_pins[] = {
+	/* UART0 */
+	MX31_PIN_CTS1__CTS1, MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1, MX31_PIN_RXD1__RXD1,
+	/* UART4 */
+	MX31_PIN_PC_RST__CTS5, MX31_PIN_PC_VS2__RTS5,
+	MX31_PIN_PC_BVD2__TXD5, MX31_PIN_PC_BVD1__RXD5,
+};
 
 static struct physmap_flash_data mx31moboard_flash_data = {
 	.width  	= 2,
@@ -64,15 +72,6 @@ static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 };
 
-static int mxc_uart0_pins[] = {
-	MX31_PIN_CTS1__CTS1, MX31_PIN_RTS1__RTS1,
-	MX31_PIN_TXD1__TXD1, MX31_PIN_RXD1__RXD1,
-};
-static int mxc_uart4_pins[] = {
-	MX31_PIN_PC_RST__CTS5, MX31_PIN_PC_VS2__RTS5,
-	MX31_PIN_PC_BVD2__TXD5, MX31_PIN_PC_BVD1__RXD5,
-};
-
 static int mx31moboard_baseboard;
 core_param(mx31moboard_baseboard, mx31moboard_baseboard, int, 0444);
 
@@ -81,12 +80,12 @@ core_param(mx31moboard_baseboard, mx31moboard_baseboard, int, 0444);
  */
 static void __init mxc_board_init(void)
 {
+	mxc_iomux_setup_multiple_pins(moboard_pins, ARRAY_SIZE(moboard_pins),
+		"moboard");
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_iomux_setup_multiple_pins(mxc_uart0_pins, ARRAY_SIZE(mxc_uart0_pins), "uart0");
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-
-	mxc_iomux_setup_multiple_pins(mxc_uart4_pins, ARRAY_SIZE(mxc_uart4_pins), "uart4");
 	mxc_register_device(&mxc_uart_device4, &uart_pdata);
 
 	switch (mx31moboard_baseboard) {
@@ -99,7 +98,8 @@ static void __init mxc_board_init(void)
 		mx31moboard_marxbot_init();
 		break;
 	default:
-		printk(KERN_ERR "Illegal mx31moboard_baseboard type %d\n", mx31moboard_baseboard);
+		printk(KERN_ERR "Illegal mx31moboard_baseboard type %d\n",
+			mx31moboard_baseboard);
 	}
 }
 
