@@ -112,5 +112,7 @@ int __init sh7780_pcic_init(struct pci_channel *chan,
 	word = SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_FTO;
 	pci_write_reg(chan, word, SH4_PCICR);
 
+	__set_io_port_base(SH7780_PCI_IO_BASE);
+
 	return 0;
 }
