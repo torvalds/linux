@@ -98,13 +98,6 @@ static void zfcp_wka_port_offline(struct work_struct *work)
 	struct zfcp_wka_port *wka_port =
 			container_of(dw, struct zfcp_wka_port, work);
 
-	/* Don't wait forvever. If the wka_port is too busy take it offline
-	   through a new call later */
-	if (!wait_event_timeout(wka_port->completion_wq,
-				atomic_read(&wka_port->refcount) == 0,
-				HZ >> 1))
-		return;
-
 	mutex_lock(&wka_port->mutex);
 	if ((atomic_read(&wka_port->refcount) != 0) ||
 	    (wka_port->status != ZFCP_WKA_PORT_ONLINE))
@@ -140,6 +133,14 @@ void zfcp_fc_nameserver_init(struct zfcp_adapter *adapter)
 	atomic_set(&wka_port->refcount, 0);
 	mutex_init(&wka_port->mutex);
 	INIT_DELAYED_WORK(&wka_port->work, zfcp_wka_port_offline);
+}
+
+void zfcp_fc_wka_port_force_offline(struct zfcp_wka_port *wka)
+{
+	cancel_delayed_work_sync(&wka->work);
+	mutex_lock(&wka->mutex);
+	wka->status = ZFCP_WKA_PORT_OFFLINE;
+	mutex_unlock(&wka->mutex);
 }
 
 static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
