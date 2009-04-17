@@ -539,6 +539,9 @@ static void zfcp_validate_port(struct zfcp_port *port)
 {
 	struct zfcp_adapter *adapter = port->adapter;
 
+	if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_NOESC))
+		return;
+
 	atomic_clear_mask(ZFCP_STATUS_COMMON_NOESC, &port->status);
 
 	if ((port->supported_classes != 0) ||
@@ -599,10 +602,8 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 		if (acc->wwpn == fc_host_port_name(adapter->scsi_host))
 			continue;
 		port = zfcp_get_port_by_wwpn(adapter, acc->wwpn);
-		if (port) {
-			zfcp_port_get(port);
+		if (port)
 			continue;
-		}
 
 		port = zfcp_port_enqueue(adapter, acc->wwpn,
 					 ZFCP_STATUS_COMMON_NOESC, d_id);
