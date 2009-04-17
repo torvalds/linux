@@ -171,6 +171,13 @@ config INPUT_ADBHID
 
 	  If unsure, say Y.
 
+config ADB_TRACKPAD_ABSOLUTE
+	bool "Enable absolute mode for adb trackpads"
+	depends on INPUT_ADBHID
+	help
+	  Enable absolute mode in adb-base trackpads. This feature adds
+	  compatibility with synaptics Xorg / Xfree drivers.
+
 config MAC_EMUMOUSEBTN
 	tristate "Support for mouse button 2+3 emulation"
 	depends on SYSCTL && INPUT
