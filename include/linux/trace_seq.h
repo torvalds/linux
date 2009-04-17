@@ -42,7 +42,6 @@ extern int trace_seq_path(struct trace_seq *s, struct path *path);
 
 #else /* CONFIG_TRACING */
 static inline int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)))
 {
 	return 0;
 }
