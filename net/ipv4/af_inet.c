@@ -1003,8 +1003,6 @@ void inet_register_protosw(struct inet_protosw *p)
 out:
 	spin_unlock_bh(&inetsw_lock);
 
-	synchronize_net();
-
 	return;
 
 out_permanent:
