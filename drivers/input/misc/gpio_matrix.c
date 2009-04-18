@@ -220,7 +220,7 @@ static irqreturn_t gpio_keypad_irq_handler(int irq_in, void *dev_id)
 		return IRQ_HANDLED;
 
 	for (i = 0; i < mi->ninputs; i++)
-		disable_irq(gpio_to_irq(mi->input_gpios[i]));
+		disable_irq_nosync(gpio_to_irq(mi->input_gpios[i]));
 	for (i = 0; i < mi->noutputs; i++) {
 		if (gpio_keypad_flags & GPIOKPF_DRIVE_INACTIVE)
 			gpio_set_value(mi->output_gpios[i],
