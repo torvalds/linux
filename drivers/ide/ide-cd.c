@@ -232,8 +232,8 @@ static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 	rq->cmd_type = REQ_TYPE_SENSE;
 	rq->cmd_flags |= REQ_PREEMPT;
 
-	/* NOTE! Save the failed command in "rq->buffer" */
-	rq->buffer = (void *) failed_command;
+	/* NOTE! Save the failed command in "rq->special" */
+	rq->special = (void *)failed_command;
 
 	if (failed_command)
 		ide_debug_log(IDE_DBG_SENSE, "failed_cmd: 0x%x",
@@ -247,10 +247,10 @@ static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 static void ide_cd_complete_failed_rq(ide_drive_t *drive, struct request *rq)
 {
 	/*
-	 * For REQ_TYPE_SENSE, "rq->buffer" points to the original
+	 * For REQ_TYPE_SENSE, "rq->special" points to the original
 	 * failed request
 	 */
-	struct request *failed = (struct request *)rq->buffer;
+	struct request *failed = (struct request *)rq->special;
 	struct cdrom_info *info = drive->driver_data;
 	void *sense = &info->sense_data;
 
