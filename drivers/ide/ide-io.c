@@ -248,10 +248,7 @@ void ide_map_sg(ide_drive_t *drive, struct ide_cmd *cmd)
 	struct scatterlist *sg = hwif->sg_table;
 	struct request *rq = cmd->rq;
 
-	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		sg_init_one(sg, rq->buffer, rq->nr_sectors * SECTOR_SIZE);
-		cmd->sg_nents = 1;
-	} else if (!rq->bio) {
+	if (!rq->bio) {
 		sg_init_one(sg, rq->data, rq->data_len);
 		cmd->sg_nents = 1;
 	} else
