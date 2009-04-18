@@ -167,5 +167,6 @@ module_exit(fm801_gp_exit);
 
 MODULE_DEVICE_TABLE(pci, fm801_gp_id_table);
 
+MODULE_DESCRIPTION("FM801 gameport driver");
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_LICENSE("GPL");
