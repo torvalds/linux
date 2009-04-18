@@ -702,7 +702,7 @@ static int __follow_mount(struct path *path)
 {
 	int res = 0;
 	while (d_mountpoint(path->dentry)) {
-		struct vfsmount *mounted = lookup_mnt(path->mnt, path->dentry);
+		struct vfsmount *mounted = lookup_mnt(path);
 		if (!mounted)
 			break;
 		dput(path->dentry);
@@ -718,7 +718,7 @@ static int __follow_mount(struct path *path)
 static void follow_mount(struct path *path)
 {
 	while (d_mountpoint(path->dentry)) {
-		struct vfsmount *mounted = lookup_mnt(path->mnt, path->dentry);
+		struct vfsmount *mounted = lookup_mnt(path);
 		if (!mounted)
 			break;
 		dput(path->dentry);
@@ -735,7 +735,7 @@ int follow_down(struct path *path)
 {
 	struct vfsmount *mounted;
 
-	mounted = lookup_mnt(path->mnt, path->dentry);
+	mounted = lookup_mnt(path);
 	if (mounted) {
 		dput(path->dentry);
 		mntput(path->mnt);
