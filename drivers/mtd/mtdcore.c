@@ -132,6 +132,17 @@ static ssize_t mtd_writesize_show(struct device *dev,
 }
 static DEVICE_ATTR(writesize, S_IRUGO, mtd_writesize_show, NULL);
 
+static ssize_t mtd_subpagesize_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+	unsigned int subpagesize = mtd->writesize >> mtd->subpage_sft;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", subpagesize);
+
+}
+static DEVICE_ATTR(subpagesize, S_IRUGO, mtd_subpagesize_show, NULL);
+
 static ssize_t mtd_oobsize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -169,6 +180,7 @@ static struct attribute *mtd_attrs[] = {
 	&dev_attr_size.attr,
 	&dev_attr_erasesize.attr,
 	&dev_attr_writesize.attr,
+	&dev_attr_subpagesize.attr,
 	&dev_attr_oobsize.attr,
 	&dev_attr_numeraseregions.attr,
 	&dev_attr_name.attr,
