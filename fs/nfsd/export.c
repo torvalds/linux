@@ -1240,18 +1240,15 @@ __be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp)
  * use exp_get_by_name() or exp_find().
  */
 struct svc_export *
-rqst_exp_get_by_name(struct svc_rqst *rqstp, struct vfsmount *mnt,
-		struct dentry *dentry)
+rqst_exp_get_by_name(struct svc_rqst *rqstp, struct path *path)
 {
 	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
-	struct path path = {.mnt = mnt, .dentry = dentry};
 
 	if (rqstp->rq_client == NULL)
 		goto gss;
 
 	/* First try the auth_unix client: */
-	exp = exp_get_by_name(rqstp->rq_client, &path,
-						&rqstp->rq_chandle);
+	exp = exp_get_by_name(rqstp->rq_client, path, &rqstp->rq_chandle);
 	if (PTR_ERR(exp) == -ENOENT)
 		goto gss;
 	if (IS_ERR(exp))
@@ -1263,8 +1260,7 @@ gss:
 	/* Otherwise, try falling back on gss client */
 	if (rqstp->rq_gssclient == NULL)
 		return exp;
-	gssexp = exp_get_by_name(rqstp->rq_gssclient, &path,
-						&rqstp->rq_chandle);
+	gssexp = exp_get_by_name(rqstp->rq_gssclient, path, &rqstp->rq_chandle);
 	if (PTR_ERR(gssexp) == -ENOENT)
 		return exp;
 	if (!IS_ERR(exp))
@@ -1307,9 +1303,10 @@ rqst_exp_parent(struct svc_rqst *rqstp, struct vfsmount *mnt,
 		struct dentry *dentry)
 {
 	struct svc_export *exp;
+	struct path path = {.mnt = mnt, .dentry = dentry};
 
 	dget(dentry);
-	exp = rqst_exp_get_by_name(rqstp, mnt, dentry);
+	exp = rqst_exp_get_by_name(rqstp, &path);
 
 	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(dentry)) {
 		struct dentry *parent;
@@ -1317,7 +1314,7 @@ rqst_exp_parent(struct svc_rqst *rqstp, struct vfsmount *mnt,
 		parent = dget_parent(dentry);
 		dput(dentry);
 		dentry = parent;
-		exp = rqst_exp_get_by_name(rqstp, mnt, dentry);
+		exp = rqst_exp_get_by_name(rqstp, &path);
 	}
 	dput(dentry);
 	return exp;

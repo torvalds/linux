@@ -101,36 +101,36 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 {
 	struct svc_export *exp = *expp, *exp2 = NULL;
 	struct dentry *dentry = *dpp;
-	struct vfsmount *mnt = mntget(exp->ex_path.mnt);
-	struct dentry *mounts = dget(dentry);
+	struct path path = {.mnt = mntget(exp->ex_path.mnt),
+			    .dentry = dget(dentry)};
 	int err = 0;
 
-	while (follow_down(&mnt,&mounts)&&d_mountpoint(mounts));
+	while (follow_down(&path.mnt, &path.dentry) &&
+	       d_mountpoint(path.dentry))
+		;
 
-	exp2 = rqst_exp_get_by_name(rqstp, mnt, mounts);
+	exp2 = rqst_exp_get_by_name(rqstp, &path);
 	if (IS_ERR(exp2)) {
 		if (PTR_ERR(exp2) != -ENOENT)
 			err = PTR_ERR(exp2);
-		dput(mounts);
-		mntput(mnt);
+		path_put(&path);
 		goto out;
 	}
 	if ((exp->ex_flags & NFSEXP_CROSSMOUNT) || EX_NOHIDE(exp2)) {
 		/* successfully crossed mount point */
 		/*
-		 * This is subtle: dentry is *not* under mnt at this point.
-		 * The only reason we are safe is that original mnt is pinned
-		 * down by exp, so we should dput before putting exp.
+		 * This is subtle: path.dentry is *not* on path.mnt
+		 * at this point.  The only reason we are safe is that
+		 * original mnt is pinned down by exp, so we should
+		 * put path *before* putting exp
 		 */
-		dput(dentry);
-		*dpp = mounts;
-		exp_put(exp);
+		*dpp = path.dentry;
+		path.dentry = dentry;
 		*expp = exp2;
-	} else {
-		exp_put(exp2);
-		dput(mounts);
+		exp2 = exp;
 	}
-	mntput(mnt);
+	path_put(&path);
+	exp_put(exp2);
 out:
 	return err;
 }
