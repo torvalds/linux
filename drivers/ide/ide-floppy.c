@@ -263,7 +263,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		}
 		pc = &floppy->queued_pc;
 		idefloppy_create_rw_cmd(drive, pc, rq, (unsigned long)block);
-	} else if (blk_special_request(rq)) {
+	} else if (blk_special_request(rq) || blk_sense_request(rq)) {
 		pc = (struct ide_atapi_pc *)rq->special;
 	} else if (blk_pc_request(rq)) {
 		pc = &floppy->queued_pc;
@@ -272,6 +272,8 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		blk_dump_rq_flags(rq, PFX "unsupported command in queue");
 		goto out_end;
 	}
+
+	ide_prep_sense(drive, rq);
 
 	memset(&cmd, 0, sizeof(cmd));
 
