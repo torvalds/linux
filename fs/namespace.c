@@ -1253,11 +1253,11 @@ Enomem:
 	return NULL;
 }
 
-struct vfsmount *collect_mounts(struct vfsmount *mnt, struct dentry *dentry)
+struct vfsmount *collect_mounts(struct path *path)
 {
 	struct vfsmount *tree;
 	down_write(&namespace_sem);
-	tree = copy_tree(mnt, dentry, CL_COPY_ALL | CL_PRIVATE);
+	tree = copy_tree(path->mnt, path->dentry, CL_COPY_ALL | CL_PRIVATE);
 	up_write(&namespace_sem);
 	return tree;
 }
