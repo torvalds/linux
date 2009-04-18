@@ -256,7 +256,7 @@ static irqreturn_t ucb1400_hard_irq(int irqnr, void *devid)
 	struct ucb1400_ts *ucb = devid;
 
 	if (irqnr == ucb->irq) {
-		disable_irq(ucb->irq);
+		disable_irq_nosync(ucb->irq);
 		ucb->irq_pending = 1;
 		wake_up(&ucb->ts_wait);
 		return IRQ_HANDLED;
