@@ -715,16 +715,16 @@ static int __follow_mount(struct path *path)
 	return res;
 }
 
-static void follow_mount(struct vfsmount **mnt, struct dentry **dentry)
+static void follow_mount(struct path *path)
 {
-	while (d_mountpoint(*dentry)) {
-		struct vfsmount *mounted = lookup_mnt(*mnt, *dentry);
+	while (d_mountpoint(path->dentry)) {
+		struct vfsmount *mounted = lookup_mnt(path->mnt, path->dentry);
 		if (!mounted)
 			break;
-		dput(*dentry);
-		mntput(*mnt);
-		*mnt = mounted;
-		*dentry = dget(mounted->mnt_root);
+		dput(path->dentry);
+		mntput(path->mnt);
+		path->mnt = mounted;
+		path->dentry = dget(mounted->mnt_root);
 	}
 }
 
@@ -779,7 +779,7 @@ static __always_inline void follow_dotdot(struct nameidata *nd)
 		mntput(nd->path.mnt);
 		nd->path.mnt = parent;
 	}
-	follow_mount(&nd->path.mnt, &nd->path.dentry);
+	follow_mount(&nd->path);
 }
 
 /*
