@@ -169,28 +169,29 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			/* checking mountpoint crossing is very different when stepping up */
 			struct svc_export *exp2 = NULL;
 			struct dentry *dp;
-			struct vfsmount *mnt = mntget(exp->ex_path.mnt);
-			dentry = dget(dparent);
-			while(dentry == mnt->mnt_root && follow_up(&mnt, &dentry))
-				;
-			dp = dget_parent(dentry);
-			dput(dentry);
-			dentry = dp;
+			struct path path = {.mnt = mntget(exp->ex_path.mnt),
+					    .dentry = dget(dparent)};
 
-			exp2 = rqst_exp_parent(rqstp, mnt, dentry);
+			while (path.dentry == path.mnt->mnt_root &&
+			       follow_up(&path.mnt, &path.dentry))
+				;
+			dp = dget_parent(path.dentry);
+			dput(path.dentry);
+			path.dentry = dp;
+
+			exp2 = rqst_exp_parent(rqstp, &path);
 			if (PTR_ERR(exp2) == -ENOENT) {
-				dput(dentry);
 				dentry = dget(dparent);
 			} else if (IS_ERR(exp2)) {
 				host_err = PTR_ERR(exp2);
-				dput(dentry);
-				mntput(mnt);
+				path_put(&path);
 				goto out_nfserr;
 			} else {
+				dentry = dget(path.dentry);
 				exp_put(exp);
 				exp = exp2;
 			}
-			mntput(mnt);
+			path_put(&path);
 		}
 	} else {
 		fh_lock(fhp);

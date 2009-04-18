@@ -1299,24 +1299,19 @@ gss:
 }
 
 struct svc_export *
-rqst_exp_parent(struct svc_rqst *rqstp, struct vfsmount *mnt,
-		struct dentry *dentry)
+rqst_exp_parent(struct svc_rqst *rqstp, struct path *path)
 {
-	struct svc_export *exp;
-	struct path path = {.mnt = mnt, .dentry = dentry};
+	struct dentry *saved = dget(path->dentry);
+	struct svc_export *exp = rqst_exp_get_by_name(rqstp, path);
 
-	dget(dentry);
-	exp = rqst_exp_get_by_name(rqstp, &path);
-
-	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(dentry)) {
-		struct dentry *parent;
-
-		parent = dget_parent(dentry);
-		dput(dentry);
-		dentry = parent;
-		exp = rqst_exp_get_by_name(rqstp, &path);
+	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(path->dentry)) {
+		struct dentry *parent = dget_parent(path->dentry);
+		dput(path->dentry);
+		path->dentry = parent;
+		exp = rqst_exp_get_by_name(rqstp, path);
 	}
-	dput(dentry);
+	dput(path->dentry);
+	path->dentry = saved;
 	return exp;
 }
 
