@@ -90,7 +90,7 @@ static void ide_queue_pc_head(ide_drive_t *drive, struct gendisk *disk,
 	blk_rq_init(NULL, rq);
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd_flags |= REQ_PREEMPT;
-	rq->buffer = (char *)pc;
+	rq->special = (char *)pc;
 	rq->rq_disk = disk;
 
 	if (pc->req_xfer) {
@@ -119,7 +119,7 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
 	rq->cmd_type = REQ_TYPE_SPECIAL;
-	rq->buffer = (char *)pc;
+	rq->special = (char *)pc;
 
 	if (pc->req_xfer) {
 		rq->data = pc->buf;
