@@ -481,6 +481,9 @@ void do_ide_request(struct request_queue *q)
 
 	spin_unlock_irq(q->queue_lock);
 
+	/* HLD do_request() callback might sleep, make sure it's okay */
+	might_sleep();
+
 	if (ide_lock_host(host, hwif))
 		goto plug_device_2;
 

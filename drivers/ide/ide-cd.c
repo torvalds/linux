@@ -210,10 +210,12 @@ static void ide_cd_complete_failed_rq(ide_drive_t *drive, struct request *rq)
 {
 	/*
 	 * For REQ_TYPE_SENSE, "rq->special" points to the original
-	 * failed request
+	 * failed request.  Also, the sense data should be read
+	 * directly from rq which might be different from the original
+	 * sense buffer if it got copied during mapping.
 	 */
 	struct request *failed = (struct request *)rq->special;
-	struct request_sense *sense = &drive->sense_data;
+	void *sense = bio_data(rq->bio);
 
 	if (failed) {
 		if (failed->sense) {
@@ -398,7 +400,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 
 	/* if we got a CHECK_CONDITION status, queue a request sense command */
 	if (stat & ATA_ERR)
-		ide_queue_sense_rq(drive, NULL);
+		return ide_queue_sense_rq(drive, NULL) ? 2 : 1;
 	return 1;
 
 end_request:
@@ -412,8 +414,7 @@ end_request:
 
 		hwif->rq = NULL;
 
-		ide_queue_sense_rq(drive, rq);
-		return 1;
+		return ide_queue_sense_rq(drive, rq) ? 2 : 1;
 	} else
 		return 2;
 }
@@ -507,8 +508,12 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 		rq->cmd_flags |= cmd_flags;
 		rq->timeout = timeout;
 		if (buffer) {
-			rq->data = buffer;
-			rq->data_len = *bufflen;
+			error = blk_rq_map_kern(drive->queue, rq, buffer,
+						*bufflen, GFP_NOIO);
+			if (error) {
+				blk_put_request(rq);
+				return error;
+			}
 		}
 
 		error = blk_execute_rq(drive->queue, info->disk, rq, 0);
@@ -802,15 +807,10 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 	drive->dma = 0;
 
 	/* sg request */
-	if (rq->bio || ((rq->cmd_type == REQ_TYPE_ATA_PC) && rq->data_len)) {
+	if (rq->bio) {
 		struct request_queue *q = drive->queue;
+		char *buf = bio_data(rq->bio);
 		unsigned int alignment;
-		char *buf;
-
-		if (rq->bio)
-			buf = bio_data(rq->bio);
-		else
-			buf = rq->data;
 
 		drive->dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 

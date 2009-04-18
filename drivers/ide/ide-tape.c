@@ -850,6 +850,9 @@ out:
 
 	cmd.rq = rq;
 
+	ide_init_sg_cmd(&cmd, pc->req_xfer);
+	ide_map_sg(drive, &cmd);
+
 	return ide_tape_issue_pc(drive, &cmd, pc);
 }
 
