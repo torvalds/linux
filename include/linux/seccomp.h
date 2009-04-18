@@ -21,6 +21,8 @@ extern long prctl_set_seccomp(unsigned long);
 
 #else /* CONFIG_SECCOMP */
 
+#include <linux/errno.h>
+
 typedef struct { } seccomp_t;
 
 #define secure_computing(x) do { } while (0)
