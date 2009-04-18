@@ -643,6 +643,7 @@ static ide_startstop_t ide_tape_issue_pc(ide_drive_t *drive,
 		}
 		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
+		ide_complete_rq(drive, -EIO, blk_rq_bytes(drive->hwif->rq));
 		return ide_stopped;
 	}
 	debug_log(DBG_SENSE, "Retry #%d, cmd = %02X\n", pc->retries, pc->c[0]);
