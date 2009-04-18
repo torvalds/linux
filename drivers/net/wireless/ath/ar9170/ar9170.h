@@ -104,10 +104,16 @@ enum ar9170_device_state {
 	AR9170_ASSOCIATED,
 };
 
+struct ar9170_rxstream_mpdu_merge {
+	struct ar9170_rx_head plcp;
+	bool has_plcp;
+};
+
 struct ar9170 {
 	struct ieee80211_hw *hw;
 	struct mutex mutex;
 	enum ar9170_device_state state;
+	unsigned long bad_hw_nagger;
 
 	int (*open)(struct ar9170 *);
 	void (*stop)(struct ar9170 *);
@@ -135,6 +141,7 @@ struct ar9170 {
 	u64 cur_mc_hash, want_mc_hash;
 	u32 cur_filter, want_filter;
 	unsigned int filter_changed;
+	unsigned int filter_state;
 	bool sniffer_enabled;
 
 	/* PHY */
@@ -174,6 +181,11 @@ struct ar9170 {
 	struct sk_buff_head global_tx_status;
 	struct sk_buff_head global_tx_status_waste;
 	struct delayed_work tx_status_janitor;
+
+	/* rxstream mpdu merge */
+	struct ar9170_rxstream_mpdu_merge rx_mpdu;
+	struct sk_buff *rx_failover;
+	int rx_failover_missing;
 };
 
 struct ar9170_sta_info {

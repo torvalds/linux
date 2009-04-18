@@ -312,7 +312,7 @@ struct ar9170_rx_head {
 	u8 plcp[12];
 } __packed;
 
-struct ar9170_rx_tail {
+struct ar9170_rx_phystatus {
 	union {
 		struct {
 			u8 rssi_ant0, rssi_ant1, rssi_ant2,
@@ -324,6 +324,9 @@ struct ar9170_rx_tail {
 
 	u8 evm_stream0[6], evm_stream1[6];
 	u8 phy_err;
+} __packed;
+
+struct ar9170_rx_macstatus {
 	u8 SAidx, DAidx;
 	u8 error;
 	u8 status;
@@ -339,7 +342,7 @@ struct ar9170_rx_tail {
 
 #define AR9170_RX_ENC_SOFTWARE			0x8
 
-static inline u8 ar9170_get_decrypt_type(struct ar9170_rx_tail *t)
+static inline u8 ar9170_get_decrypt_type(struct ar9170_rx_macstatus *t)
 {
 	return (t->SAidx & 0xc0) >> 4 |
 	       (t->DAidx & 0xc0) >> 6;
@@ -357,10 +360,9 @@ static inline u8 ar9170_get_decrypt_type(struct ar9170_rx_tail *t)
 
 #define AR9170_RX_STATUS_MPDU_MASK		0x30
 #define AR9170_RX_STATUS_MPDU_SINGLE		0x00
-#define AR9170_RX_STATUS_MPDU_FIRST		0x10
-#define AR9170_RX_STATUS_MPDU_MIDDLE		0x20
-#define AR9170_RX_STATUS_MPDU_LAST		0x30
-
+#define AR9170_RX_STATUS_MPDU_FIRST		0x20
+#define AR9170_RX_STATUS_MPDU_MIDDLE		0x30
+#define AR9170_RX_STATUS_MPDU_LAST		0x10
 
 #define AR9170_RX_ERROR_RXTO			0x01
 #define AR9170_RX_ERROR_OVERRUN			0x02
@@ -369,6 +371,7 @@ static inline u8 ar9170_get_decrypt_type(struct ar9170_rx_tail *t)
 #define AR9170_RX_ERROR_WRONG_RA		0x10
 #define AR9170_RX_ERROR_PLCP			0x20
 #define AR9170_RX_ERROR_MMIC			0x40
+#define AR9170_RX_ERROR_FATAL			0x80
 
 struct ar9170_cmd_tx_status {
 	__le16 unkn;
