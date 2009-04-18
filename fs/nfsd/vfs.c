@@ -105,8 +105,7 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 			    .dentry = dget(dentry)};
 	int err = 0;
 
-	while (follow_down(&path.mnt, &path.dentry) &&
-	       d_mountpoint(path.dentry))
+	while (d_mountpoint(path.dentry) && follow_down(&path))
 		;
 
 	exp2 = rqst_exp_get_by_name(rqstp, &path);

@@ -562,7 +562,7 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 		err = have_submounts(path.dentry);
 
 		if (path.mnt->mnt_mountpoint != path.mnt->mnt_root) {
-			if (follow_down(&path.mnt, &path.dentry))
+			if (follow_down(&path))
 				magic = path.mnt->mnt_sb->s_magic;
 		}
 	}

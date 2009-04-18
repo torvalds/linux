@@ -731,16 +731,16 @@ static void follow_mount(struct vfsmount **mnt, struct dentry **dentry)
 /* no need for dcache_lock, as serialization is taken care in
  * namespace.c
  */
-int follow_down(struct vfsmount **mnt, struct dentry **dentry)
+int follow_down(struct path *path)
 {
 	struct vfsmount *mounted;
 
-	mounted = lookup_mnt(*mnt, *dentry);
+	mounted = lookup_mnt(path->mnt, path->dentry);
 	if (mounted) {
-		dput(*dentry);
-		mntput(*mnt);
-		*mnt = mounted;
-		*dentry = dget(mounted->mnt_root);
+		dput(path->dentry);
+		mntput(path->mnt);
+		path->mnt = mounted;
+		path->dentry = dget(mounted->mnt_root);
 		return 1;
 	}
 	return 0;
