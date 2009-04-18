@@ -1183,7 +1183,7 @@ void ide_create_request_sense_cmd(ide_drive_t *, struct ide_atapi_pc *);
 void ide_retry_pc(ide_drive_t *drive);
 
 void ide_prep_sense(ide_drive_t *drive, struct request *rq);
-void ide_queue_sense_rq(ide_drive_t *drive, void *special);
+int ide_queue_sense_rq(ide_drive_t *drive, void *special);
 
 int ide_cd_expiry(ide_drive_t *);
 

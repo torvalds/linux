@@ -94,16 +94,18 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 	rq->special = (char *)pc;
 
 	if (pc->req_xfer) {
-		rq->data = pc->buf;
-		rq->data_len = pc->req_xfer;
+		error = blk_rq_map_kern(drive->queue, rq, pc->buf, pc->req_xfer,
+					GFP_NOIO);
+		if (error)
+			goto put_req;
 	}
 
 	memcpy(rq->cmd, pc->c, 12);
 	if (drive->media == ide_tape)
 		rq->cmd[13] = REQ_IDETAPE_PC1;
 	error = blk_execute_rq(drive->queue, disk, rq, 0);
+put_req:
 	blk_put_request(rq);
-
 	return error;
 }
 EXPORT_SYMBOL_GPL(ide_queue_pc_tail);
@@ -168,6 +170,7 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	struct request_sense *sense = &drive->sense_data;
 	struct request *sense_rq = &drive->sense_rq;
 	unsigned int cmd_len, sense_len;
+	int err;
 
 	debug_log("%s: enter\n", __func__);
 
@@ -193,13 +196,19 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	memset(sense, 0, sizeof(*sense));
 
 	blk_rq_init(rq->q, sense_rq);
-	sense_rq->rq_disk = rq->rq_disk;
 
-	sense_rq->data = sense;
+	err = blk_rq_map_kern(drive->queue, sense_rq, sense, sense_len,
+			      GFP_NOIO);
+	if (unlikely(err)) {
+		if (printk_ratelimit())
+			printk(KERN_WARNING "%s: failed to map sense buffer\n",
+			       drive->name);
+		return;
+	}
+
+	sense_rq->rq_disk = rq->rq_disk;
 	sense_rq->cmd[0] = GPCMD_REQUEST_SENSE;
 	sense_rq->cmd[4] = cmd_len;
-	sense_rq->data_len = sense_len;
-
 	sense_rq->cmd_type = REQ_TYPE_SENSE;
 	sense_rq->cmd_flags |= REQ_PREEMPT;
 
@@ -210,9 +219,14 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 }
 EXPORT_SYMBOL_GPL(ide_prep_sense);
 
-void ide_queue_sense_rq(ide_drive_t *drive, void *special)
+int ide_queue_sense_rq(ide_drive_t *drive, void *special)
 {
-	BUG_ON(!drive->sense_rq_armed);
+	/* deferred failure from ide_prep_sense() */
+	if (!drive->sense_rq_armed) {
+		printk(KERN_WARNING "%s: failed queue sense request\n",
+		       drive->name);
+		return -ENOMEM;
+	}
 
 	drive->sense_rq.special = special;
 	drive->sense_rq_armed = false;
@@ -221,6 +235,7 @@ void ide_queue_sense_rq(ide_drive_t *drive, void *special)
 
 	elv_add_request(drive->queue, &drive->sense_rq,
 			ELEVATOR_INSERT_FRONT, 0);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_queue_sense_rq);
 
@@ -239,13 +254,14 @@ void ide_retry_pc(ide_drive_t *drive)
 	/* init pc from sense_rq */
 	ide_init_pc(pc);
 	memcpy(pc->c, sense_rq->cmd, 12);
-	pc->buf = sense_rq->data;
+	pc->buf = bio_data(sense_rq->bio);	/* pointer to mapped address */
 	pc->req_xfer = sense_rq->data_len;
 
 	if (drive->media == ide_tape)
 		set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
 
-	ide_queue_sense_rq(drive, pc);
+	if (ide_queue_sense_rq(drive, pc))
+		ide_complete_rq(drive, -EIO, blk_rq_bytes(drive->hwif->rq));
 }
 EXPORT_SYMBOL_GPL(ide_retry_pc);
 
@@ -317,7 +333,6 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	struct ide_cmd *cmd = &hwif->cmd;
 	struct request *rq = hwif->rq;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
-	xfer_func_t *xferfunc;
 	unsigned int timeout, done;
 	u16 bcount;
 	u8 stat, ireason, dsc = 0;
@@ -411,7 +426,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 					rq->errors = -EIO;
 			}
 
-			if (drive->media == ide_tape)
+			if (drive->media == ide_tape && !rq->bio)
 				done = ide_rq_bytes(rq); /* FIXME */
 			else
 				done = blk_rq_bytes(rq);
@@ -448,16 +463,11 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		return ide_do_reset(drive);
 	}
 
-	xferfunc = write ? tp_ops->output_data : tp_ops->input_data;
-
-	if (drive->media == ide_floppy && pc->buf == NULL) {
+	if (drive->media == ide_tape && pc->bh)
+		done = drive->pc_io_buffers(drive, pc, bcount, write);
+	else {
 		done = min_t(unsigned int, bcount, cmd->nleft);
 		ide_pio_bytes(drive, cmd, write, done);
-	} else if (drive->media == ide_tape && pc->bh) {
-		done = drive->pc_io_buffers(drive, pc, bcount, write);
-	} else {
-		done = min_t(unsigned int, bcount, pc->req_xfer - pc->xferred);
-		xferfunc(drive, NULL, pc->cur_pos, done);
 	}
 
 	/* Update the current position */
