@@ -173,7 +173,7 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 					    .dentry = dget(dparent)};
 
 			while (path.dentry == path.mnt->mnt_root &&
-			       follow_up(&path.mnt, &path.dentry))
+			       follow_up(&path))
 				;
 			dp = dget_parent(path.dentry);
 			dput(path.dentry);

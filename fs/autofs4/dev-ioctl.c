@@ -212,7 +212,7 @@ static int find_autofs_mount(const char *pathname,
 				err = 0;
 			}
 		}
-		if (!follow_up(&path.mnt, &path.dentry))
+		if (!follow_up(&path))
 			break;
 	}
 	path_put(&path);

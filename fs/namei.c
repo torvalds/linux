@@ -675,23 +675,23 @@ loop:
 	return err;
 }
 
-int follow_up(struct vfsmount **mnt, struct dentry **dentry)
+int follow_up(struct path *path)
 {
 	struct vfsmount *parent;
 	struct dentry *mountpoint;
 	spin_lock(&vfsmount_lock);
-	parent=(*mnt)->mnt_parent;
-	if (parent == *mnt) {
+	parent = path->mnt->mnt_parent;
+	if (parent == path->mnt) {
 		spin_unlock(&vfsmount_lock);
 		return 0;
 	}
 	mntget(parent);
-	mountpoint=dget((*mnt)->mnt_mountpoint);
+	mountpoint = dget(path->mnt->mnt_mountpoint);
 	spin_unlock(&vfsmount_lock);
-	dput(*dentry);
-	*dentry = mountpoint;
-	mntput(*mnt);
-	*mnt = parent;
+	dput(path->dentry);
+	path->dentry = mountpoint;
+	mntput(path->mnt);
+	path->mnt = parent;
 	return 1;
 }
 
