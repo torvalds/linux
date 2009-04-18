@@ -4087,8 +4087,10 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	dev_priv->mm.suspended = 0;
 
 	ret = i915_gem_init_ringbuffer(dev);
-	if (ret != 0)
+	if (ret != 0) {
+		mutex_unlock(&dev->struct_mutex);
 		return ret;
+	}
 
 	spin_lock(&dev_priv->mm.active_list_lock);
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
