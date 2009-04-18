@@ -362,11 +362,7 @@ struct ide_atapi_pc {
 
 	/* data buffer */
 	u8 *buf;
-	/* current buffer position */
-	u8 *cur_pos;
 	int buf_size;
-	/* missing/available data on the current buffer */
-	int b_count;
 
 	/* the corresponding request */
 	struct request *rq;
@@ -378,10 +374,6 @@ struct ide_atapi_pc {
 	 * to change/removal later.
 	 */
 	u8 pc_buf[IDE_PC_BUFFER_SIZE];
-
-	/* idetape only */
-	struct idetape_bh *bh;
-	char *b_data;
 
 	unsigned long timeout;
 };
@@ -594,10 +586,6 @@ struct ide_drive_s {
 
 	/* callback for packet commands */
 	int  (*pc_callback)(struct ide_drive_s *, int);
-
-	void (*pc_update_buffers)(struct ide_drive_s *, struct ide_atapi_pc *);
-	int  (*pc_io_buffers)(struct ide_drive_s *, struct ide_atapi_pc *,
-			      unsigned int, int);
 
 	ide_startstop_t (*irq_handler)(struct ide_drive_s *);
 

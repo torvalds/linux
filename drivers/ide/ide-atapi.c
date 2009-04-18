@@ -359,11 +359,8 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 					drive->name, rq_data_dir(pc->rq)
 						     ? "write" : "read");
 			pc->flags |= PC_FLAG_DMA_ERROR;
-		} else {
+		} else
 			pc->xferred = pc->req_xfer;
-			if (drive->pc_update_buffers)
-				drive->pc_update_buffers(drive, pc);
-		}
 		debug_log("%s: DMA finished\n", drive->name);
 	}
 
@@ -463,16 +460,11 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		return ide_do_reset(drive);
 	}
 
-	if (drive->media == ide_tape && pc->bh)
-		done = drive->pc_io_buffers(drive, pc, bcount, write);
-	else {
-		done = min_t(unsigned int, bcount, cmd->nleft);
-		ide_pio_bytes(drive, cmd, write, done);
-	}
+	done = min_t(unsigned int, bcount, cmd->nleft);
+	ide_pio_bytes(drive, cmd, write, done);
 
-	/* Update the current position */
+	/* Update transferred byte count */
 	pc->xferred += done;
-	pc->cur_pos += done;
 
 	bcount -= done;
 
@@ -650,7 +642,6 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 
 		/* We haven't transferred any data yet */
 		pc->xferred = 0;
-		pc->cur_pos = pc->buf;
 
 		valid_tf = IDE_VALID_DEVICE;
 		bcount = ((drive->media == ide_tape) ?
