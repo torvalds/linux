@@ -77,7 +77,7 @@ static irqreturn_t ps2_txint(int irq, void *dev_id)
 	spin_lock(&ps2if->lock);
 	status = sa1111_readl(ps2if->base + SA1111_PS2STAT);
 	if (ps2if->head == ps2if->tail) {
-		disable_irq(irq);
+		disable_irq_nosync(irq);
 		/* done */
 	} else if (status & PS2STAT_TXE) {
 		sa1111_writel(ps2if->buf[ps2if->tail], ps2if->base + SA1111_PS2DATA);
