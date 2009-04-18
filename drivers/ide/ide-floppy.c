@@ -141,6 +141,7 @@ static ide_startstop_t ide_floppy_issue_pc(ide_drive_t *drive,
 
 		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
+		ide_complete_rq(drive, -EIO, blk_rq_bytes(drive->hwif->rq));
 		return ide_stopped;
 	}
 
