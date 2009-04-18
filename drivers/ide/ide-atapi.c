@@ -191,6 +191,67 @@ void ide_create_request_sense_cmd(ide_drive_t *drive, struct ide_atapi_pc *pc)
 }
 EXPORT_SYMBOL_GPL(ide_create_request_sense_cmd);
 
+void ide_prep_sense(ide_drive_t *drive, struct request *rq)
+{
+	struct request_sense *sense = &drive->sense_data;
+	struct request *sense_rq = &drive->sense_rq;
+	unsigned int cmd_len, sense_len;
+
+	debug_log("%s: enter\n", __func__);
+
+	switch (drive->media) {
+	case ide_floppy:
+		cmd_len = 255;
+		sense_len = 18;
+		break;
+	case ide_tape:
+		cmd_len = 20;
+		sense_len = 20;
+		break;
+	default:
+		cmd_len = 18;
+		sense_len = 18;
+	}
+
+	BUG_ON(sense_len > sizeof(*sense));
+
+	if (blk_sense_request(rq) || drive->sense_rq_armed)
+		return;
+
+	memset(sense, 0, sizeof(*sense));
+
+	blk_rq_init(rq->q, sense_rq);
+	sense_rq->rq_disk = rq->rq_disk;
+
+	sense_rq->data = sense;
+	sense_rq->cmd[0] = GPCMD_REQUEST_SENSE;
+	sense_rq->cmd[4] = cmd_len;
+	sense_rq->data_len = sense_len;
+
+	sense_rq->cmd_type = REQ_TYPE_SENSE;
+	sense_rq->cmd_flags |= REQ_PREEMPT;
+
+	if (drive->media == ide_tape)
+		sense_rq->cmd[13] = REQ_IDETAPE_PC1;
+
+	drive->sense_rq_armed = true;
+}
+EXPORT_SYMBOL_GPL(ide_prep_sense);
+
+void ide_queue_sense_rq(ide_drive_t *drive, void *special)
+{
+	BUG_ON(!drive->sense_rq_armed);
+
+	drive->sense_rq.special = special;
+	drive->sense_rq_armed = false;
+
+	drive->hwif->rq = NULL;
+
+	elv_add_request(drive->queue, &drive->sense_rq,
+			ELEVATOR_INSERT_FRONT, 0);
+}
+EXPORT_SYMBOL_GPL(ide_queue_sense_rq);
+
 /*
  * Called when an error was detected during the last packet command.
  * We queue a request sense packet command in the head of the request list.
