@@ -413,11 +413,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		 * ->pc_callback() might change rq->data_len for
 		 * residual count, cache total length.
 		 */
-		if (!blk_special_request(rq) &&
-		    (drive->media == ide_tape && !rq->bio))
-			done = ide_rq_bytes(rq);        /* FIXME */
-		else
-			done = blk_rq_bytes(rq);
+		done = blk_rq_bytes(rq);
 
 		/* Command finished - Call the callback function */
 		uptodate = drive->pc_callback(drive, dsc);
