@@ -134,14 +134,17 @@ static ide_startstop_t ide_floppy_issue_pc(ide_drive_t *drive,
 	drive->pc = pc;
 
 	if (pc->retries > IDEFLOPPY_MAX_PC_RETRIES) {
+		unsigned int done = blk_rq_bytes(drive->hwif->rq);
+
 		if (!(pc->flags & PC_FLAG_SUPPRESS_ERROR))
 			ide_floppy_report_error(floppy, pc);
+
 		/* Giving up */
 		pc->error = IDE_DRV_ERROR_GENERAL;
 
 		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
-		ide_complete_rq(drive, -EIO, blk_rq_bytes(drive->hwif->rq));
+		ide_complete_rq(drive, -EIO, done);
 		return ide_stopped;
 	}
 

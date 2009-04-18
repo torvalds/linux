@@ -622,6 +622,8 @@ static ide_startstop_t ide_tape_issue_pc(ide_drive_t *drive,
 
 	if (pc->retries > IDETAPE_MAX_PC_RETRIES ||
 		(pc->flags & PC_FLAG_ABORT)) {
+		unsigned int done = blk_rq_bytes(drive->hwif->rq);
+
 		/*
 		 * We will "abort" retrying a packet command in case legitimate
 		 * error code was received (crossing a filemark, or end of the
@@ -641,9 +643,10 @@ static ide_startstop_t ide_tape_issue_pc(ide_drive_t *drive,
 			/* Giving up */
 			pc->error = IDE_DRV_ERROR_GENERAL;
 		}
+
 		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
-		ide_complete_rq(drive, -EIO, blk_rq_bytes(drive->hwif->rq));
+		ide_complete_rq(drive, -EIO, done);
 		return ide_stopped;
 	}
 	debug_log(DBG_SENSE, "Retry #%d, cmd = %02X\n", pc->retries, pc->c[0]);
