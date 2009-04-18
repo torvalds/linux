@@ -953,14 +953,6 @@ static void idetape_create_space_cmd(struct ide_atapi_pc *pc, int count, u8 cmd)
 	pc->flags |= PC_FLAG_WAIT_FOR_DSC;
 }
 
-/* Queue up a character device originated write request. */
-static int idetape_add_chrdev_write_request(ide_drive_t *drive, int size)
-{
-	debug_log(DBG_CHRDEV, "Enter %s\n", __func__);
-
-	return idetape_queue_rw_tail(drive, REQ_IDETAPE_WRITE, size);
-}
-
 static void ide_tape_flush_merge_buffer(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
@@ -974,7 +966,7 @@ static void ide_tape_flush_merge_buffer(ide_drive_t *drive)
 		size_t aligned = roundup(tape->valid, tape->blk_size);
 
 		memset(tape->cur, 0, aligned - tape->valid);
-		idetape_add_chrdev_write_request(drive, aligned);
+		idetape_queue_rw_tail(drive, REQ_IDETAPE_WRITE, aligned);
 		kfree(tape->buf);
 		tape->buf = NULL;
 	}
@@ -1029,20 +1021,6 @@ static int idetape_init_rw(ide_drive_t *drive, int dir)
 	}
 
 	return 0;
-}
-
-/* called from idetape_chrdev_read() to service a chrdev read request. */
-static int idetape_add_chrdev_read_request(ide_drive_t *drive, int size)
-{
-	debug_log(DBG_PROCS, "Enter %s, %d bytes\n", __func__, size);
-
-	/* If we are at a filemark, return a read length of 0 */
-	if (test_bit(IDE_AFLAG_FILEMARK, &drive->atapi_flags))
-		return 0;
-
-	idetape_init_rw(drive, IDETAPE_DIR_READ);
-
-	return idetape_queue_rw_tail(drive, REQ_IDETAPE_READ, size);
 }
 
 static void idetape_pad_zeros(ide_drive_t *drive, int bcount)
@@ -1184,8 +1162,9 @@ static ssize_t idetape_chrdev_read(struct file *file, char __user *buf,
 {
 	struct ide_tape_obj *tape = file->private_data;
 	ide_drive_t *drive = tape->drive;
-	ssize_t bytes_read, temp, actually_read = 0, rc;
+	size_t done = 0;
 	ssize_t ret = 0;
+	int rc;
 
 	debug_log(DBG_CHRDEV, "Enter %s, count %Zd\n", __func__, count);
 
@@ -1195,52 +1174,43 @@ static ssize_t idetape_chrdev_read(struct file *file, char __user *buf,
 			    (count % tape->blk_size) == 0)
 				tape->user_bs_factor = count / tape->blk_size;
 	}
+
 	rc = idetape_init_rw(drive, IDETAPE_DIR_READ);
 	if (rc < 0)
 		return rc;
-	if (count == 0)
-		return (0);
-	if (tape->valid) {
-		actually_read = min_t(unsigned int, tape->valid, count);
-		if (copy_to_user(buf, tape->cur, actually_read))
+
+	while (done < count) {
+		size_t todo;
+
+		/* refill if staging buffer is empty */
+		if (!tape->valid) {
+			/* If we are at a filemark, nothing more to read */
+			if (test_bit(IDE_AFLAG_FILEMARK, &drive->atapi_flags))
+				break;
+			/* read */
+			if (idetape_queue_rw_tail(drive, REQ_IDETAPE_READ,
+						  tape->buffer_size) <= 0)
+				break;
+		}
+
+		/* copy out */
+		todo = min_t(size_t, count - done, tape->valid);
+		if (copy_to_user(buf + done, tape->cur, todo))
 			ret = -EFAULT;
-		buf += actually_read;
-		count -= actually_read;
-		tape->cur += actually_read;
-		tape->valid -= actually_read;
+
+		tape->cur += todo;
+		tape->valid -= todo;
+		done += todo;
 	}
-	while (count >= tape->buffer_size) {
-		bytes_read = idetape_add_chrdev_read_request(drive,
-							     tape->buffer_size);
-		if (bytes_read <= 0)
-			goto finish;
-		if (copy_to_user(buf, tape->cur, bytes_read))
-			ret = -EFAULT;
-		buf += bytes_read;
-		count -= bytes_read;
-		actually_read += bytes_read;
-	}
-	if (count) {
-		bytes_read = idetape_add_chrdev_read_request(drive,
-							     tape->buffer_size);
-		if (bytes_read <= 0)
-			goto finish;
-		temp = min((unsigned long)count, (unsigned long)bytes_read);
-		if (copy_to_user(buf, tape->cur, temp))
-			ret = -EFAULT;
-		actually_read += temp;
-		tape->cur += temp;
-		tape->valid -= temp;
-	}
-finish:
-	if (!actually_read && test_bit(IDE_AFLAG_FILEMARK, &drive->atapi_flags)) {
+
+	if (!done && test_bit(IDE_AFLAG_FILEMARK, &drive->atapi_flags)) {
 		debug_log(DBG_SENSE, "%s: spacing over filemark\n", tape->name);
 
 		idetape_space_over_filemarks(drive, MTFSF, 1);
 		return 0;
 	}
 
-	return ret ? ret : actually_read;
+	return ret ? ret : done;
 }
 
 static ssize_t idetape_chrdev_write(struct file *file, const char __user *buf,
@@ -1248,7 +1218,7 @@ static ssize_t idetape_chrdev_write(struct file *file, const char __user *buf,
 {
 	struct ide_tape_obj *tape = file->private_data;
 	ide_drive_t *drive = tape->drive;
-	ssize_t actually_written = 0;
+	size_t done = 0;
 	ssize_t ret = 0;
 	int rc;
 
@@ -1262,47 +1232,28 @@ static ssize_t idetape_chrdev_write(struct file *file, const char __user *buf,
 	rc = idetape_init_rw(drive, IDETAPE_DIR_WRITE);
 	if (rc < 0)
 		return rc;
-	if (count == 0)
-		return (0);
-	if (tape->valid < tape->buffer_size) {
-		actually_written = min_t(unsigned int,
-					 tape->buffer_size - tape->valid,
-					 count);
-		if (copy_from_user(tape->cur, buf, actually_written))
-			ret = -EFAULT;
-		buf += actually_written;
-		count -= actually_written;
-		tape->cur += actually_written;
-		tape->valid += actually_written;
 
-		if (tape->valid == tape->buffer_size) {
-			ssize_t retval;
-			retval = idetape_add_chrdev_write_request(drive,
-							tape->buffer_size);
-			if (retval <= 0)
-				return (retval);
-		}
-	}
-	while (count >= tape->buffer_size) {
-		ssize_t retval;
-		if (copy_from_user(tape->cur, buf, tape->buffer_size))
+	while (done < count) {
+		size_t todo;
+
+		/* flush if staging buffer is full */
+		if (tape->valid == tape->buffer_size &&
+		    idetape_queue_rw_tail(drive, REQ_IDETAPE_WRITE,
+					  tape->buffer_size) <= 0)
+			return rc;
+
+		/* copy in */
+		todo = min_t(size_t, count - done,
+			     tape->buffer_size - tape->valid);
+		if (copy_from_user(tape->cur, buf + done, todo))
 			ret = -EFAULT;
-		buf += tape->buffer_size;
-		count -= tape->buffer_size;
-		retval = idetape_add_chrdev_write_request(drive,
-							  tape->buffer_size);
-		actually_written += tape->buffer_size;
-		if (retval <= 0)
-			return (retval);
+
+		tape->cur += todo;
+		tape->valid += todo;
+		done += todo;
 	}
-	if (count) {
-		actually_written += count;
-		if (copy_from_user(tape->cur, buf, count))
-			ret = -EFAULT;
-		tape->cur += count;
-		tape->valid += count;
-	}
-	return ret ? ret : actually_written;
+
+	return ret ? ret : done;
 }
 
 static int idetape_write_filemark(ide_drive_t *drive)
