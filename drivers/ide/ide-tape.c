@@ -987,42 +987,50 @@ static void ide_tape_flush_merge_buffer(ide_drive_t *drive)
 	tape->chrdev_dir = IDETAPE_DIR_NONE;
 }
 
-static int idetape_init_read(ide_drive_t *drive)
+static int idetape_init_rw(ide_drive_t *drive, int dir)
 {
 	idetape_tape_t *tape = drive->driver_data;
-	int bytes_read;
+	int rc;
 
-	/* Initialize read operation */
-	if (tape->chrdev_dir != IDETAPE_DIR_READ) {
-		if (tape->chrdev_dir == IDETAPE_DIR_WRITE) {
-			ide_tape_flush_merge_buffer(drive);
-			idetape_flush_tape_buffers(drive);
-		}
-		if (tape->buf || tape->valid) {
-			printk(KERN_ERR "ide-tape: valid should be 0 now\n");
-			tape->valid = 0;
-		}
-		tape->buf = kmalloc(tape->buffer_size, GFP_KERNEL);
-		if (!tape->buf)
-			return -ENOMEM;
-		tape->chrdev_dir = IDETAPE_DIR_READ;
-		tape->cur = tape->buf;
+	BUG_ON(dir != IDETAPE_DIR_READ && dir != IDETAPE_DIR_WRITE);
 
-		/*
-		 * Issue a read 0 command to ensure that DSC handshake is
-		 * switched from completion mode to buffer available mode.
-		 * No point in issuing this if DSC overlap isn't supported, some
-		 * drives (Seagate STT3401A) will return an error.
-		 */
-		if (drive->dev_flags & IDE_DFLAG_DSC_OVERLAP) {
-			bytes_read = idetape_queue_rw_tail(drive,
-							REQ_IDETAPE_READ, 0);
-			if (bytes_read < 0) {
-				kfree(tape->buf);
-				tape->buf = NULL;
-				tape->chrdev_dir = IDETAPE_DIR_NONE;
-				return bytes_read;
-			}
+	if (tape->chrdev_dir == dir)
+		return 0;
+
+	if (tape->chrdev_dir == IDETAPE_DIR_READ)
+		ide_tape_discard_merge_buffer(drive, 1);
+	else if (tape->chrdev_dir == IDETAPE_DIR_WRITE) {
+		ide_tape_flush_merge_buffer(drive);
+		idetape_flush_tape_buffers(drive);
+	}
+
+	if (tape->buf || tape->valid) {
+		printk(KERN_ERR "ide-tape: valid should be 0 now\n");
+		tape->valid = 0;
+	}
+
+	tape->buf = kmalloc(tape->buffer_size, GFP_KERNEL);
+	if (!tape->buf)
+		return -ENOMEM;
+	tape->chrdev_dir = dir;
+	tape->cur = tape->buf;
+
+	/*
+	 * Issue a 0 rw command to ensure that DSC handshake is
+	 * switched from completion mode to buffer available mode.  No
+	 * point in issuing this if DSC overlap isn't supported, some
+	 * drives (Seagate STT3401A) will return an error.
+	 */
+	if (drive->dev_flags & IDE_DFLAG_DSC_OVERLAP) {
+		int cmd = dir == IDETAPE_DIR_READ ? REQ_IDETAPE_READ
+						  : REQ_IDETAPE_WRITE;
+
+		rc = idetape_queue_rw_tail(drive, cmd, 0);
+		if (rc < 0) {
+			kfree(tape->buf);
+			tape->buf = NULL;
+			tape->chrdev_dir = IDETAPE_DIR_NONE;
+			return rc;
 		}
 	}
 
@@ -1038,7 +1046,7 @@ static int idetape_add_chrdev_read_request(ide_drive_t *drive, int blocks)
 	if (test_bit(IDE_AFLAG_FILEMARK, &drive->atapi_flags))
 		return 0;
 
-	idetape_init_read(drive);
+	idetape_init_rw(drive, IDETAPE_DIR_READ);
 
 	return idetape_queue_rw_tail(drive, REQ_IDETAPE_READ, blocks);
 }
@@ -1195,7 +1203,7 @@ static ssize_t idetape_chrdev_read(struct file *file, char __user *buf,
 			    (count % tape->blk_size) == 0)
 				tape->user_bs_factor = count / tape->blk_size;
 	}
-	rc = idetape_init_read(drive);
+	rc = idetape_init_rw(drive, IDETAPE_DIR_READ);
 	if (rc < 0)
 		return rc;
 	if (count == 0)
@@ -1249,6 +1257,7 @@ static ssize_t idetape_chrdev_write(struct file *file, const char __user *buf,
 	ssize_t actually_written = 0;
 	ssize_t ret = 0;
 	u16 ctl = *(u16 *)&tape->caps[12];
+	int rc;
 
 	/* The drive is write protected. */
 	if (tape->write_prot)
@@ -1257,36 +1266,9 @@ static ssize_t idetape_chrdev_write(struct file *file, const char __user *buf,
 	debug_log(DBG_CHRDEV, "Enter %s, count %Zd\n", __func__, count);
 
 	/* Initialize write operation */
-	if (tape->chrdev_dir != IDETAPE_DIR_WRITE) {
-		if (tape->chrdev_dir == IDETAPE_DIR_READ)
-			ide_tape_discard_merge_buffer(drive, 1);
-		if (tape->buf || tape->valid) {
-			printk(KERN_ERR "ide-tape: valid should be 0 now\n");
-			tape->valid = 0;
-		}
-		tape->buf = kmalloc(tape->buffer_size, GFP_KERNEL);
-		if (!tape->buf)
-			return -ENOMEM;
-		tape->chrdev_dir = IDETAPE_DIR_WRITE;
-		tape->cur = tape->buf;
-
-		/*
-		 * Issue a write 0 command to ensure that DSC handshake is
-		 * switched from completion mode to buffer available mode. No
-		 * point in issuing this if DSC overlap isn't supported, some
-		 * drives (Seagate STT3401A) will return an error.
-		 */
-		if (drive->dev_flags & IDE_DFLAG_DSC_OVERLAP) {
-			ssize_t retval = idetape_queue_rw_tail(drive,
-							REQ_IDETAPE_WRITE, 0);
-			if (retval < 0) {
-				kfree(tape->buf);
-				tape->buf = NULL;
-				tape->chrdev_dir = IDETAPE_DIR_NONE;
-				return retval;
-			}
-		}
-	}
+	rc = idetape_init_rw(drive, IDETAPE_DIR_WRITE);
+	if (rc < 0)
+		return rc;
 	if (count == 0)
 		return (0);
 	if (tape->valid < tape->buffer_size) {
