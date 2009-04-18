@@ -675,30 +675,6 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	}
 }
 
-static bool ieee80211_check_tim(struct ieee802_11_elems *elems, u16 aid)
-{
-	u8 mask;
-	u8 index, indexn1, indexn2;
-	struct ieee80211_tim_ie *tim = (struct ieee80211_tim_ie *) elems->tim;
-
-	if (unlikely(!tim || elems->tim_len < 4))
-		return false;
-
-	aid &= 0x3fff;
-	index = aid / 8;
-	mask  = 1 << (aid & 7);
-
-	indexn1 = tim->bitmap_ctrl & 0xfe;
-	indexn2 = elems->tim_len + indexn1 - 4;
-
-	if (index < indexn1 || index > indexn2)
-		return false;
-
-	index -= indexn1;
-
-	return !!(tim->virtual_map[index] & mask);
-}
-
 static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 					   u16 capab, bool erp_valid, u8 erp)
 {
@@ -1806,7 +1782,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					  care_about_ies, ncrc);
 
 	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-		directed_tim = ieee80211_check_tim(&elems, ifmgd->aid);
+		directed_tim = ieee80211_check_tim(elems.tim, elems.tim_len,
+						   ifmgd->aid);
 
 	ncrc = crc32_be(ncrc, (void *)&directed_tim, sizeof(directed_tim));
 

@@ -540,7 +540,7 @@ struct ieee80211_tim_ie {
 	u8 dtim_period;
 	u8 bitmap_ctrl;
 	/* variable size: 1 - 251 bytes */
-	u8 virtual_map[0];
+	u8 virtual_map[1];
 } __attribute__ ((packed));
 
 #define WLAN_SA_QUERY_TR_ID_LEN 16
@@ -1390,6 +1390,36 @@ static inline int ieee80211_freq_to_ofdm_chan(int s_freq, int freq)
 static inline unsigned long ieee80211_tu_to_usec(unsigned long tu)
 {
 	return 1024 * tu;
+}
+
+/**
+ * ieee80211_check_tim - check if AID bit is set in TIM
+ * @tim: the TIM IE
+ * @tim_len: length of the TIM IE
+ * @aid: the AID to look for
+ */
+static inline bool ieee80211_check_tim(struct ieee80211_tim_ie *tim,
+				       u8 tim_len, u16 aid)
+{
+	u8 mask;
+	u8 index, indexn1, indexn2;
+
+	if (unlikely(!tim || tim_len < sizeof(*tim)))
+		return false;
+
+	aid &= 0x3fff;
+	index = aid / 8;
+	mask  = 1 << (aid & 7);
+
+	indexn1 = tim->bitmap_ctrl & 0xfe;
+	indexn2 = tim_len + indexn1 - 4;
+
+	if (index < indexn1 || index > indexn2)
+		return false;
+
+	index -= indexn1;
+
+	return !!(tim->virtual_map[index] & mask);
 }
 
 #endif /* LINUX_IEEE80211_H */

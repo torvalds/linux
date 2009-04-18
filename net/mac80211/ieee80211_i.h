@@ -832,7 +832,7 @@ struct ieee802_11_elems {
 	u8 *fh_params;
 	u8 *ds_params;
 	u8 *cf_params;
-	u8 *tim;
+	struct ieee80211_tim_ie *tim;
 	u8 *ibss_params;
 	u8 *challenge;
 	u8 *wpa;
