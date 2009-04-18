@@ -695,7 +695,7 @@ static ide_startstop_t idetape_media_access_finished(ide_drive_t *drive)
 				printk(KERN_ERR "ide-tape: %s: I/O error, ",
 						tape->name);
 			/* Retry operation */
-			ide_retry_pc(drive, tape->disk);
+			ide_retry_pc(drive);
 			return ide_stopped;
 		}
 		pc->error = 0;
@@ -752,7 +752,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 			(unsigned long long)rq->sector, rq->nr_sectors,
 			rq->current_nr_sectors);
 
-	if (!blk_special_request(rq)) {
+	if (!(blk_special_request(rq) || blk_sense_request(rq))) {
 		/* We do not support buffer cache originated requests. */
 		printk(KERN_NOTICE "ide-tape: %s: Unsupported request in "
 			"request queue (%d)\n", drive->name, rq->cmd_type);
@@ -840,6 +840,9 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	BUG();
 
 out:
+	/* prepare sense request for this command */
+	ide_prep_sense(drive, rq);
+
 	memset(&cmd, 0, sizeof(cmd));
 
 	if (rq_data_dir(rq))

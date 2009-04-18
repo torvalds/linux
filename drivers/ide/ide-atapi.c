@@ -80,34 +80,6 @@ void ide_init_pc(struct ide_atapi_pc *pc)
 EXPORT_SYMBOL_GPL(ide_init_pc);
 
 /*
- * Generate a new packet command request in front of the request queue, before
- * the current request, so that it will be processed immediately, on the next
- * pass through the driver.
- */
-static void ide_queue_pc_head(ide_drive_t *drive, struct gendisk *disk,
-			      struct ide_atapi_pc *pc, struct request *rq)
-{
-	blk_rq_init(NULL, rq);
-	rq->cmd_type = REQ_TYPE_SPECIAL;
-	rq->cmd_flags |= REQ_PREEMPT;
-	rq->special = (char *)pc;
-	rq->rq_disk = disk;
-
-	if (pc->req_xfer) {
-		rq->data = pc->buf;
-		rq->data_len = pc->req_xfer;
-	}
-
-	memcpy(rq->cmd, pc->c, 12);
-	if (drive->media == ide_tape)
-		rq->cmd[13] = REQ_IDETAPE_PC1;
-
-	drive->hwif->rq = NULL;
-
-	elv_add_request(drive->queue, rq, ELEVATOR_INSERT_FRONT, 0);
-}
-
-/*
  * Add a special packet command request to the tail of the request queue,
  * and wait for it to be serviced.
  */
@@ -254,18 +226,26 @@ EXPORT_SYMBOL_GPL(ide_queue_sense_rq);
 
 /*
  * Called when an error was detected during the last packet command.
- * We queue a request sense packet command in the head of the request list.
+ * We queue a request sense packet command at the head of the request
+ * queue.
  */
-void ide_retry_pc(ide_drive_t *drive, struct gendisk *disk)
+void ide_retry_pc(ide_drive_t *drive)
 {
-	struct request *rq = &drive->request_sense_rq;
+	struct request *sense_rq = &drive->sense_rq;
 	struct ide_atapi_pc *pc = &drive->request_sense_pc;
 
 	(void)ide_read_error(drive);
-	ide_create_request_sense_cmd(drive, pc);
+
+	/* init pc from sense_rq */
+	ide_init_pc(pc);
+	memcpy(pc->c, sense_rq->cmd, 12);
+	pc->buf = sense_rq->data;
+	pc->req_xfer = sense_rq->data_len;
+
 	if (drive->media == ide_tape)
 		set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
-	ide_queue_pc_head(drive, disk, pc, rq);
+
+	ide_queue_sense_rq(drive, pc);
 }
 EXPORT_SYMBOL_GPL(ide_retry_pc);
 
@@ -404,7 +384,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			debug_log("[cmd %x]: check condition\n", rq->cmd[0]);
 
 			/* Retry operation */
-			ide_retry_pc(drive, rq->rq_disk);
+			ide_retry_pc(drive);
 
 			/* queued, but not started */
 			return ide_stopped;
