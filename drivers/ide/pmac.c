@@ -1682,7 +1682,7 @@ static int __devinit pmac_ide_init_dma(ide_hwif_t *hwif,
 	 * The +2 is +1 for the stop command and +1 to allow for
 	 * aligning the start address to a multiple of 16 bytes.
 	 */
-	pmif->dma_table_cpu = (struct dbdma_cmd*)pci_alloc_consistent(
+	pmif->dma_table_cpu = pci_alloc_consistent(
 		dev,
 		(MAX_DCMDS + 2) * sizeof(struct dbdma_cmd),
 		&hwif->dmatable_dma);
