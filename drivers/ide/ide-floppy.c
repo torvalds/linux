@@ -216,15 +216,13 @@ static void idefloppy_blockpc_cmd(struct ide_disk_obj *floppy,
 	ide_init_pc(pc);
 	memcpy(pc->c, rq->cmd, sizeof(pc->c));
 	pc->rq = rq;
-	if (rq->data_len && rq_data_dir(rq) == WRITE)
-		pc->flags |= PC_FLAG_WRITING;
-	pc->buf = rq->data;
-	if (rq->bio)
+	if (rq->data_len) {
 		pc->flags |= PC_FLAG_DMA_OK;
-	/*
-	 * possibly problematic, doesn't look like ide-floppy correctly
-	 * handled scattered requests if dma fails...
-	 */
+		if (rq_data_dir(rq) == WRITE)
+			pc->flags |= PC_FLAG_WRITING;
+	}
+	/* pio will be performed by ide_pio_bytes() which handles sg fine */
+	pc->buf = NULL;
 	pc->req_xfer = pc->buf_size = rq->data_len;
 }
 
