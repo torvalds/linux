@@ -2149,7 +2149,6 @@ int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 	int result;
 	unsigned long seq;
 
-	/* FIXME: This is old behavior, needed? Please check callers. */
 	if (new_dentry == old_dentry)
 		return 1;
 
