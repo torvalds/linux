@@ -445,7 +445,6 @@ paravirt_set_rr0_to_rr4(unsigned long val0, unsigned long val1,
 		register unsigned long ia64_intri_res asm ("r8");	\
 		register unsigned long __reg asm ("r8") = (reg);	\
 									\
-		BUILD_BUG_ON(!__builtin_constant_p(reg));		\
 		asm volatile (paravirt_alt_bundle(__PARAVIRT_BR,	\
 						  PARAVIRT_TYPE(GETREG) \
 						  + (reg))		\
@@ -464,7 +463,6 @@ paravirt_set_rr0_to_rr4(unsigned long val0, unsigned long val1,
 		register unsigned long ia64_clobber1 asm ("r8");	\
 		register unsigned long ia64_clobber2 asm ("r9");	\
 									\
-		BUILD_BUG_ON(!__builtin_constant_p(reg));		\
 		asm volatile (paravirt_alt_bundle(__PARAVIRT_BR,	\
 						  PARAVIRT_TYPE(SETREG) \
 						  + (reg))		\
