@@ -116,10 +116,15 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 	}
 	if ((exp->ex_flags & NFSEXP_CROSSMOUNT) || EX_NOHIDE(exp2)) {
 		/* successfully crossed mount point */
-		exp_put(exp);
-		*expp = exp2;
+		/*
+		 * This is subtle: dentry is *not* under mnt at this point.
+		 * The only reason we are safe is that original mnt is pinned
+		 * down by exp, so we should dput before putting exp.
+		 */
 		dput(dentry);
 		*dpp = mounts;
+		exp_put(exp);
+		*expp = exp2;
 	} else {
 		exp_put(exp2);
 		dput(mounts);
