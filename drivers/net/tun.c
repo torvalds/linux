@@ -156,6 +156,7 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 	tfile->tun = tun;
 	tun->tfile = tfile;
 	dev_hold(tun->dev);
+	sock_hold(tun->sk);
 	atomic_inc(&tfile->count);
 
 out:
@@ -165,11 +166,8 @@ out:
 
 static void __tun_detach(struct tun_struct *tun)
 {
-	struct tun_file *tfile = tun->tfile;
-
 	/* Detach from net device */
 	netif_tx_lock_bh(tun->dev);
-	tfile->tun = NULL;
 	tun->tfile = NULL;
 	netif_tx_unlock_bh(tun->dev);
 
@@ -337,6 +335,13 @@ static void tun_net_uninit(struct net_device *dev)
 		if (atomic_dec_and_test(&tfile->count))
 			__tun_detach(tun);
 	}
+}
+
+static void tun_free_netdev(struct net_device *dev)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+
+	sock_put(tun->sk);
 }
 
 /* Net device open. */
@@ -811,7 +816,7 @@ static void tun_setup(struct net_device *dev)
 	tun->group = -1;
 
 	dev->ethtool_ops = &tun_ethtool_ops;
-	dev->destructor = free_netdev;
+	dev->destructor = tun_free_netdev;
 }
 
 /* Trivial set of netlink ops to allow deleting tun or tap
@@ -848,7 +853,7 @@ static void tun_sock_write_space(struct sock *sk)
 
 static void tun_sock_destruct(struct sock *sk)
 {
-	dev_put(container_of(sk, struct tun_sock, sk)->tun->dev);
+	free_netdev(container_of(sk, struct tun_sock, sk)->tun->dev);
 }
 
 static struct proto tun_proto = {
@@ -920,11 +925,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		if (!sk)
 			goto err_free_dev;
 
-		/* This ref count is for tun->sk. */
-		dev_hold(dev);
 		sock_init_data(&tun->socket, sk);
 		sk->sk_write_space = tun_sock_write_space;
-		sk->sk_destruct = tun_sock_destruct;
 		sk->sk_sndbuf = INT_MAX;
 		sk->sk_sleep = &tfile->read_wait;
 
@@ -942,11 +944,13 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		err = -EINVAL;
 		err = register_netdevice(tun->dev);
 		if (err < 0)
-			goto err_free_dev;
+			goto err_free_sk;
+
+		sk->sk_destruct = tun_sock_destruct;
 
 		err = tun_attach(tun, file);
 		if (err < 0)
-			goto err_free_dev;
+			goto failed;
 	}
 
 	DBG(KERN_INFO "%s: tun_set_iff\n", tun->dev->name);
@@ -1284,13 +1288,15 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 		__tun_detach(tun);
 
 		/* If desireable, unregister the netdevice. */
-		if (!(tun->flags & TUN_PERSIST)) {
-			sock_put(tun->sk);
+		if (!(tun->flags & TUN_PERSIST))
 			unregister_netdevice(tun->dev);
-		}
 
 		rtnl_unlock();
 	}
+
+	tun = tfile->tun;
+	if (tun)
+		sock_put(tun->sk);
 
 	put_net(tfile->net);
 	kfree(tfile);
