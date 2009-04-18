@@ -1473,7 +1473,8 @@ static int p54_tx_fill(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 		if (info->control.sta)
 			*aid = info->control.sta->aid;
-		else
+
+		if (info->flags & IEEE80211_TX_CTL_CLEAR_PS_FILT)
 			*flags |= P54_HDR_FLAG_DATA_OUT_NOCANCEL;
 		break;
 	}
