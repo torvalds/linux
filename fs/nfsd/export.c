@@ -871,23 +871,19 @@ static svc_export *exp_get_by_name(svc_client *clp, const struct path *path,
 /*
  * Find the export entry for a given dentry.
  */
-static struct svc_export *exp_parent(svc_client *clp, struct vfsmount *mnt,
-				     struct dentry *dentry,
-				     struct cache_req *reqp)
+static struct svc_export *exp_parent(svc_client *clp, struct path *path)
 {
-	struct path path = {.mnt = mnt, .dentry = dentry};
-	svc_export *exp;
+	struct dentry *saved = dget(path->dentry);
+	svc_export *exp = exp_get_by_name(clp, path, NULL);
 
-	dget(path.dentry);
-	exp = exp_get_by_name(clp, &path, reqp);
-
-	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(path.dentry)) {
-		struct dentry *parent = dget_parent(path.dentry);
-		dput(path.dentry);
-		path.dentry = parent;
-		exp = exp_get_by_name(clp, &path, reqp);
+	while (PTR_ERR(exp) == -ENOENT && !IS_ROOT(path->dentry)) {
+		struct dentry *parent = dget_parent(path->dentry);
+		dput(path->dentry);
+		path->dentry = parent;
+		exp = exp_get_by_name(clp, path, NULL);
 	}
-	dput(path.dentry);
+	dput(path->dentry);
+	path->dentry = saved;
 	return exp;
 }
 
@@ -1174,7 +1170,7 @@ exp_rootfh(svc_client *clp, char *name, struct knfsd_fh *f, int maxsize)
 	dprintk("nfsd: exp_rootfh(%s [%p] %s:%s/%ld)\n",
 		 name, path.dentry, clp->name,
 		 inode->i_sb->s_id, inode->i_ino);
-	exp = exp_parent(clp, path.mnt, path.dentry, NULL);
+	exp = exp_parent(clp, &path);
 	if (IS_ERR(exp)) {
 		err = PTR_ERR(exp);
 		goto out;
