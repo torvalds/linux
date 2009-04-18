@@ -2088,13 +2088,13 @@ static void shrink_all_zones(unsigned long nr_pages, int prio,
 				nr_reclaimed += shrink_list(l, nr_to_scan, zone,
 								sc, prio);
 				if (nr_reclaimed >= nr_pages) {
-					sc->nr_reclaimed = nr_reclaimed;
+					sc->nr_reclaimed += nr_reclaimed;
 					return;
 				}
 			}
 		}
 	}
-	sc->nr_reclaimed = nr_reclaimed;
+	sc->nr_reclaimed += nr_reclaimed;
 }
 
 /*
@@ -2115,6 +2115,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 		.may_unmap = 0,
 		.may_writepage = 1,
 		.isolate_pages = isolate_pages_global,
+		.nr_reclaimed = 0,
 	};
 
 	current->reclaim_state = &reclaim_state;
