@@ -824,6 +824,11 @@ static int write_ts_to_decoder(struct av7110 *av7110, int type, const u8 *buf, s
 {
 	struct ipack *ipack = &av7110->ipack[type];
 
+	if (buf[1] & TRANS_ERROR) {
+		av7110_ipack_reset(ipack);
+		return -1;
+	}
+
 	if (!(buf[3] & PAYLOAD))
 		return -1;
 
