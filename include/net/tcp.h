@@ -265,6 +265,19 @@ static inline int tcp_too_many_orphans(struct sock *sk, int num)
 		 atomic_read(&tcp_memory_allocated) > sysctl_tcp_mem[2]);
 }
 
+/* syncookies: remember time of last synqueue overflow */
+static inline void tcp_synq_overflow(struct sock *sk)
+{
+	tcp_sk(sk)->rx_opt.ts_recent_stamp = jiffies;
+}
+
+/* syncookies: no recent synqueue overflow on this listening socket? */
+static inline int tcp_synq_no_recent_overflow(const struct sock *sk)
+{
+	unsigned long last_overflow = tcp_sk(sk)->rx_opt.ts_recent_stamp;
+	return time_after(jiffies, last_overflow + TCP_TIMEOUT_INIT);
+}
+
 extern struct proto tcp_prot;
 
 #define TCP_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.tcp_statistics, field)
