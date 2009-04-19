@@ -83,6 +83,7 @@
 #include <linux/net.h>
 #include <linux/ipc.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 struct oldabi_stat64 {
 	unsigned long long st_dev;

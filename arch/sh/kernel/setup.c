@@ -29,6 +29,7 @@
 #include <linux/mmzone.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -328,6 +329,10 @@ static int __init parse_elfcorehdr(char *arg)
 early_param("elfcorehdr", parse_elfcorehdr);
 #endif
 
+void __init __attribute__ ((weak)) plat_early_device_setup(void)
+{
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	enable_mmu();
@@ -380,6 +385,8 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = command_line;
 
 	parse_early_param();
+
+	plat_early_device_setup();
 
 	sh_mv_setup();
 
@@ -435,7 +442,8 @@ static const char *cpu_name[] = {
 	[CPU_SH7722]	= "SH7722",	[CPU_SHX3]	= "SH-X3",
 	[CPU_SH5_101]	= "SH5-101",	[CPU_SH5_103]	= "SH5-103",
 	[CPU_MXG]	= "MX-G",	[CPU_SH7723]	= "SH7723",
-	[CPU_SH7366]	= "SH7366",	[CPU_SH_NONE]	= "Unknown"
+	[CPU_SH7366]	= "SH7366",	[CPU_SH7724]	= "SH7724",
+	[CPU_SH_NONE]	= "Unknown"
 };
 
 const char *get_cpu_subtype(struct sh_cpuinfo *c)

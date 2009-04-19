@@ -380,8 +380,6 @@ static int mc_sysdev_add(struct sys_device *sys_dev)
 		return err;
 
 	err = microcode_init_cpu(cpu);
-	if (err)
-		sysfs_remove_group(&sys_dev->kobj, &mc_attr_group);
 
 	return err;
 }

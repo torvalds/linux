@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/clockchips.h>
 #include <linux/mc146818rtc.h>	/* for rtc_lock */
+#include <linux/platform_device.h>
 #include <linux/smp.h>
 #include <asm/clock.h>
 #include <asm/rtc.h>
@@ -227,6 +228,14 @@ void __init time_init(void)
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 	local_timer_setup(smp_processor_id());
 #endif
+
+	/*
+	 * Make sure all compiled-in early timers register themselves.
+	 * Run probe() for one "earlytimer" device.
+	 */
+	early_platform_driver_register_all("earlytimer");
+	if (early_platform_driver_probe("earlytimer", 1, 0))
+		return;
 
 	/*
 	 * Find the timer to use as the system timer, it will be

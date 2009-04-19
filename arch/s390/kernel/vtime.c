@@ -134,6 +134,8 @@ void vtime_start_cpu(void)
 	/* Account time spent with enabled wait psw loaded as idle time. */
 	idle_time = S390_lowcore.int_clock - idle->idle_enter;
 	account_idle_time(idle_time);
+	S390_lowcore.steal_timer +=
+		idle->idle_enter - S390_lowcore.last_update_clock;
 	S390_lowcore.last_update_clock = S390_lowcore.int_clock;
 
 	/* Account system time spent going idle. */
@@ -425,17 +427,7 @@ void add_virt_timer_periodic(void *new)
 }
 EXPORT_SYMBOL(add_virt_timer_periodic);
 
-/*
- * If we change a pending timer the function must be called on the CPU
- * where the timer is running on, e.g. by smp_call_function_single()
- *
- * The original mod_timer adds the timer if it is not pending. For
- * compatibility we do the same. The timer will be added on the current
- * CPU as a oneshot timer.
- *
- * returns whether it has modified a pending timer (1) or not (0)
- */
-int mod_virt_timer(struct vtimer_list *timer, __u64 expires)
+int __mod_vtimer(struct vtimer_list *timer, __u64 expires, int periodic)
 {
 	struct vtimer_queue *vq;
 	unsigned long flags;
@@ -444,19 +436,11 @@ int mod_virt_timer(struct vtimer_list *timer, __u64 expires)
 	BUG_ON(!timer->function);
 	BUG_ON(!expires || expires > VTIMER_MAX_SLICE);
 
-	/*
-	 * This is a common optimization triggered by the
-	 * networking code - if the timer is re-modified
-	 * to be the same thing then just return:
-	 */
 	if (timer->expires == expires && vtimer_pending(timer))
 		return 1;
 
 	cpu = get_cpu();
 	vq = &per_cpu(virt_cpu_timer, cpu);
-
-	/* check if we run on the right CPU */
-	BUG_ON(timer->cpu != cpu);
 
 	/* disable interrupts before test if timer is pending */
 	spin_lock_irqsave(&vq->lock, flags);
@@ -464,19 +448,23 @@ int mod_virt_timer(struct vtimer_list *timer, __u64 expires)
 	/* if timer isn't pending add it on the current CPU */
 	if (!vtimer_pending(timer)) {
 		spin_unlock_irqrestore(&vq->lock, flags);
-		/* we do not activate an interval timer with mod_virt_timer */
-		timer->interval = 0;
+
+		if (periodic)
+			timer->interval = expires;
+		else
+			timer->interval = 0;
 		timer->expires = expires;
 		timer->cpu = cpu;
 		internal_add_vtimer(timer);
 		return 0;
 	}
 
+	/* check if we run on the right CPU */
+	BUG_ON(timer->cpu != cpu);
+
 	list_del_init(&timer->entry);
 	timer->expires = expires;
-
-	/* also change the interval if we have an interval timer */
-	if (timer->interval)
+	if (periodic)
 		timer->interval = expires;
 
 	/* the timer can't expire anymore so we can release the lock */
@@ -484,7 +472,30 @@ int mod_virt_timer(struct vtimer_list *timer, __u64 expires)
 	internal_add_vtimer(timer);
 	return 1;
 }
+
+/*
+ * If we change a pending timer the function must be called on the CPU
+ * where the timer is running on.
+ *
+ * returns whether it has modified a pending timer (1) or not (0)
+ */
+int mod_virt_timer(struct vtimer_list *timer, __u64 expires)
+{
+	return __mod_vtimer(timer, expires, 0);
+}
 EXPORT_SYMBOL(mod_virt_timer);
+
+/*
+ * If we change a pending timer the function must be called on the CPU
+ * where the timer is running on.
+ *
+ * returns whether it has modified a pending timer (1) or not (0)
+ */
+int mod_virt_timer_periodic(struct vtimer_list *timer, __u64 expires)
+{
+	return __mod_vtimer(timer, expires, 1);
+}
+EXPORT_SYMBOL(mod_virt_timer_periodic);
 
 /*
  * delete a virtual timer
@@ -516,15 +527,7 @@ EXPORT_SYMBOL(del_virt_timer);
  */
 void init_cpu_vtimer(void)
 {
-	struct thread_info *ti = current_thread_info();
 	struct vtimer_queue *vq;
-
-	S390_lowcore.user_timer = ti->user_timer;
-	S390_lowcore.system_timer = ti->system_timer;
-
-	/* kick the virtual timer */
-	asm volatile ("STCK %0" : "=m" (S390_lowcore.last_update_clock));
-	asm volatile ("STPT %0" : "=m" (S390_lowcore.last_update_timer));
 
 	/* initialize per cpu vtimer structure */
 	vq = &__get_cpu_var(virt_cpu_timer);

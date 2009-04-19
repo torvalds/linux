@@ -566,9 +566,19 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 static int __devinit sh_cmt_probe(struct platform_device *pdev)
 {
 	struct sh_cmt_priv *p = platform_get_drvdata(pdev);
+	struct sh_cmt_config *cfg = pdev->dev.platform_data;
 	int ret;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	if (p) {
+		pr_info("sh_cmt: %s kept as earlytimer\n", cfg->name);
+		return 0;
+	}
+
+	if (is_early_platform_device(pdev))
+		p = alloc_bootmem(sizeof(*p));
+	else
+		p = kmalloc(sizeof(*p), GFP_KERNEL);
+
 	if (p == NULL) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
 		return -ENOMEM;
@@ -576,7 +586,10 @@ static int __devinit sh_cmt_probe(struct platform_device *pdev)
 
 	ret = sh_cmt_setup(p, pdev);
 	if (ret) {
-		kfree(p);
+		if (is_early_platform_device(pdev))
+			free_bootmem(__pa(p), sizeof(*p));
+		else
+			kfree(p);
 
 		platform_set_drvdata(pdev, NULL);
 	}
@@ -606,6 +619,7 @@ static void __exit sh_cmt_exit(void)
 	platform_driver_unregister(&sh_cmt_device_driver);
 }
 
+early_platform_init("earlytimer", &sh_cmt_device_driver);
 module_init(sh_cmt_init);
 module_exit(sh_cmt_exit);
 

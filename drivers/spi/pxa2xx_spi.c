@@ -195,7 +195,7 @@ static void cs_deassert(struct driver_data *drv_data)
 	struct chip_data *chip = drv_data->cur_chip;
 
 	if (chip->cs_control) {
-		chip->cs_control(PXA2XX_CS_ASSERT);
+		chip->cs_control(PXA2XX_CS_DEASSERT);
 		return;
 	}
 

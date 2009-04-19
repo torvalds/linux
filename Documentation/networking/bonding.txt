@@ -1242,7 +1242,7 @@ monitoring is enabled, and vice-versa.
 To add ARP targets:
 # echo +192.168.0.100 > /sys/class/net/bond0/bonding/arp_ip_target
 # echo +192.168.0.101 > /sys/class/net/bond0/bonding/arp_ip_target
-	NOTE:  up to 10 target addresses may be specified.
+	NOTE:  up to 16 target addresses may be specified.
 
 To remove an ARP target:
 # echo -192.168.0.100 > /sys/class/net/bond0/bonding/arp_ip_target

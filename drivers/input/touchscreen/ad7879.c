@@ -448,8 +448,7 @@ static int __devinit ad7879_construct(bus_device *bus, struct ad7879 *ts)
 	ad7879_setup(ts);
 
 	err = request_irq(bus->irq, ad7879_irq,
-			  IRQF_TRIGGER_FALLING | IRQF_SAMPLE_RANDOM,
-			  bus->dev.driver->name, ts);
+			  IRQF_TRIGGER_FALLING, bus->dev.driver->name, ts);
 
 	if (err) {
 		dev_err(&bus->dev, "irq %d busy?\n", bus->irq);

@@ -88,7 +88,7 @@ extern void warn_slowpath(const char *file, const int line,
 
 #else /* !CONFIG_BUG */
 #ifndef HAVE_ARCH_BUG
-#define BUG()
+#define BUG() do {} while(0)
 #endif
 
 #ifndef HAVE_ARCH_BUG_ON

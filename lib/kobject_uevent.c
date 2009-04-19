@@ -258,7 +258,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			goto exit;
 
 		retval = call_usermodehelper(argv[0], argv,
-					     env->envp, UMH_NO_WAIT);
+					     env->envp, UMH_WAIT_EXEC);
 	}
 
 exit:
@@ -328,7 +328,7 @@ static int __init kobject_uevent_init(void)
 		       "kobject_uevent: unable to create netlink socket!\n");
 		return -ENODEV;
 	}
-
+	netlink_set_nonroot(NETLINK_KOBJECT_UEVENT, NL_NONROOT_RECV);
 	return 0;
 }
 

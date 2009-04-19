@@ -161,9 +161,8 @@ struct rcu_data {
 	unsigned long offline_fqs;	/* Kicked due to being offline. */
 	unsigned long resched_ipi;	/* Sent a resched IPI. */
 
-	/* 5) state to allow this CPU to force_quiescent_state on others */
+	/* 5) For future __rcu_pending statistics. */
 	long n_rcu_pending;		/* rcu_pending() calls since boot. */
-	long n_rcu_pending_force_qs;	/* when to force quiescent states. */
 
 	int cpu;
 };

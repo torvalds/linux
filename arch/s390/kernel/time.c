@@ -52,9 +52,6 @@
 #define USECS_PER_JIFFY     ((unsigned long) 1000000/HZ)
 #define CLK_TICKS_PER_JIFFY ((unsigned long) USECS_PER_JIFFY << 12)
 
-/* The value of the TOD clock for 1.1.1970. */
-#define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
-
 /*
  * Create a small time difference between the timer interrupts
  * on the different cpus to avoid lock contention.
@@ -63,9 +60,10 @@
 
 #define TICK_SIZE tick
 
+u64 sched_clock_base_cc = -1;	/* Force to data section. */
+
 static ext_int_info_t ext_int_info_cc;
 static ext_int_info_t ext_int_etr_cc;
-static u64 sched_clock_base_cc;
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
@@ -195,22 +193,12 @@ static void timing_alert_interrupt(__u16 code)
 static void etr_reset(void);
 static void stp_reset(void);
 
-/*
- * Get the TOD clock running.
- */
-static u64 __init reset_tod_clock(void)
+unsigned long read_persistent_clock(void)
 {
-	u64 time;
+	struct timespec ts;
 
-	etr_reset();
-	stp_reset();
-	if (store_clock(&time) == 0)
-		return time;
-	/* TOD clock not running. Set the clock to Unix Epoch. */
-	if (set_clock(TOD_UNIX_EPOCH) != 0 || store_clock(&time) != 0)
-		panic("TOD clock not operational.");
-
-	return TOD_UNIX_EPOCH;
+	tod_to_timeval(get_clock() - TOD_UNIX_EPOCH, &ts);
+	return ts.tv_sec;
 }
 
 static cycle_t read_tod_clock(void)
@@ -265,12 +253,13 @@ void update_vsyscall_tz(void)
  */
 void __init time_init(void)
 {
-	sched_clock_base_cc = reset_tod_clock();
+	struct timespec ts;
+	unsigned long flags;
+	cycle_t now;
 
-	/* set xtime */
-	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, &xtime);
-        set_normalized_timespec(&wall_to_monotonic,
-                                -xtime.tv_sec, -xtime.tv_nsec);
+	/* Reset time synchronization interfaces. */
+	etr_reset();
+	stp_reset();
 
 	/* request the clock comparator external interrupt */
 	if (register_early_external_interrupt(0x1004,
@@ -278,17 +267,38 @@ void __init time_init(void)
 					      &ext_int_info_cc) != 0)
                 panic("Couldn't request external interrupt 0x1004");
 
-	if (clocksource_register(&clocksource_tod) != 0)
-		panic("Could not register TOD clock source");
-
 	/* request the timing alert external interrupt */
 	if (register_early_external_interrupt(0x1406,
 					      timing_alert_interrupt,
 					      &ext_int_etr_cc) != 0)
 		panic("Couldn't request external interrupt 0x1406");
 
+	if (clocksource_register(&clocksource_tod) != 0)
+		panic("Could not register TOD clock source");
+
+	/*
+	 * The TOD clock is an accurate clock. The xtime should be
+	 * initialized in a way that the difference between TOD and
+	 * xtime is reasonably small. Too bad that timekeeping_init
+	 * sets xtime.tv_nsec to zero. In addition the clock source
+	 * change from the jiffies clock source to the TOD clock
+	 * source add another error of up to 1/HZ second. The same
+	 * function sets wall_to_monotonic to a value that is too
+	 * small for /proc/uptime to be accurate.
+	 * Reset xtime and wall_to_monotonic to sane values.
+	 */
+	write_seqlock_irqsave(&xtime_lock, flags);
+	now = get_clock();
+	tod_to_timeval(now - TOD_UNIX_EPOCH, &xtime);
+	clocksource_tod.cycle_last = now;
+	clocksource_tod.raw_time = xtime;
+	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, &ts);
+	set_normalized_timespec(&wall_to_monotonic, -ts.tv_sec, -ts.tv_nsec);
+	write_sequnlock_irqrestore(&xtime_lock, flags);
+
 	/* Enable TOD clock interrupts on the boot cpu. */
 	init_cpu_timer();
+
 	/* Enable cpu timer interrupts on the boot cpu. */
 	vtime_init();
 }
@@ -1423,6 +1433,7 @@ static void *stp_page;
 static void stp_work_fn(struct work_struct *work);
 static DEFINE_MUTEX(stp_work_mutex);
 static DECLARE_WORK(stp_work, stp_work_fn);
+static struct timer_list stp_timer;
 
 static int __init early_parse_stp(char *p)
 {
@@ -1454,10 +1465,16 @@ static void __init stp_reset(void)
 	}
 }
 
+static void stp_timeout(unsigned long dummy)
+{
+	queue_work(time_sync_wq, &stp_work);
+}
+
 static int __init stp_init(void)
 {
 	if (!test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
 		return 0;
+	setup_timer(&stp_timer, stp_timeout, 0UL);
 	time_init_wq();
 	if (!stp_online)
 		return 0;
@@ -1565,6 +1582,7 @@ static void stp_work_fn(struct work_struct *work)
 
 	if (!stp_online) {
 		chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000);
+		del_timer_sync(&stp_timer);
 		goto out_unlock;
 	}
 
@@ -1585,6 +1603,13 @@ static void stp_work_fn(struct work_struct *work)
 	atomic_set(&stp_sync.cpus, num_online_cpus() - 1);
 	stop_machine(stp_sync_clock, &stp_sync, &cpu_online_map);
 	put_online_cpus();
+
+	if (!check_sync_clock())
+		/*
+		 * There is a usable clock but the synchonization failed.
+		 * Retry after a second.
+		 */
+		mod_timer(&stp_timer, jiffies + HZ);
 
 out_unlock:
 	mutex_unlock(&stp_work_mutex);
