@@ -647,7 +647,7 @@ static inline int __init unprotect_pm_master(void)
 	return e;
 }
 
-static void __init clocks_init(struct device *dev)
+static void clocks_init(struct device *dev)
 {
 	int e = 0;
 	struct clk *osc;
