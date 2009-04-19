@@ -93,7 +93,6 @@ struct tun_file {
 	atomic_t count;
 	struct tun_struct *tun;
 	struct net *net;
-	wait_queue_head_t	read_wait;
 };
 
 struct tun_sock;
@@ -331,7 +330,7 @@ static void tun_net_uninit(struct net_device *dev)
 	/* Inform the methods they need to stop using the dev.
 	 */
 	if (tfile) {
-		wake_up_all(&tfile->read_wait);
+		wake_up_all(&tun->socket.wait);
 		if (atomic_dec_and_test(&tfile->count))
 			__tun_detach(tun);
 	}
@@ -398,7 +397,7 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Notify and wake up reader process */
 	if (tun->flags & TUN_FASYNC)
 		kill_fasync(&tun->fasync, SIGIO, POLL_IN);
-	wake_up_interruptible(&tun->tfile->read_wait);
+	wake_up_interruptible(&tun->socket.wait);
 	return 0;
 
 drop:
@@ -495,7 +494,7 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 
 	DBG(KERN_INFO "%s: tun_chr_poll\n", tun->dev->name);
 
-	poll_wait(file, &tfile->read_wait, wait);
+	poll_wait(file, &tun->socket.wait, wait);
 
 	if (!skb_queue_empty(&tun->readq))
 		mask |= POLLIN | POLLRDNORM;
@@ -768,7 +767,7 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 		goto out;
 	}
 
-	add_wait_queue(&tfile->read_wait, &wait);
+	add_wait_queue(&tun->socket.wait, &wait);
 	while (len) {
 		current->state = TASK_INTERRUPTIBLE;
 
@@ -799,7 +798,7 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 	}
 
 	current->state = TASK_RUNNING;
-	remove_wait_queue(&tfile->read_wait, &wait);
+	remove_wait_queue(&tun->socket.wait, &wait);
 
 out:
 	tun_put(tun);
@@ -867,7 +866,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	struct sock *sk;
 	struct tun_struct *tun;
 	struct net_device *dev;
-	struct tun_file *tfile = file->private_data;
 	int err;
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
@@ -925,10 +923,10 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		if (!sk)
 			goto err_free_dev;
 
+		init_waitqueue_head(&tun->socket.wait);
 		sock_init_data(&tun->socket, sk);
 		sk->sk_write_space = tun_sock_write_space;
 		sk->sk_sndbuf = INT_MAX;
-		sk->sk_sleep = &tfile->read_wait;
 
 		tun->sk = sk;
 		container_of(sk, struct tun_sock, sk)->tun = tun;
@@ -1270,7 +1268,6 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	atomic_set(&tfile->count, 0);
 	tfile->tun = NULL;
 	tfile->net = get_net(current->nsproxy->net_ns);
-	init_waitqueue_head(&tfile->read_wait);
 	file->private_data = tfile;
 	return 0;
 }
