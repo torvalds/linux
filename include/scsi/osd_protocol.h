@@ -24,18 +24,17 @@ enum {
 	OSDv1_ADDITIONAL_CDB_LENGTH = 192,
 	OSDv1_TOTAL_CDB_LEN = OSDv1_ADDITIONAL_CDB_LENGTH + 8,
 	OSDv1_CAP_LEN = 80,
+
 	/* Latest supported version */
-/* 	OSD_ADDITIONAL_CDB_LENGTH = 216,*/
+	OSDv2_ADDITIONAL_CDB_LENGTH = 228,
 	OSD_ADDITIONAL_CDB_LENGTH =
-		OSDv1_ADDITIONAL_CDB_LENGTH, /* FIXME: Pete rev-001 sup */
+		OSDv2_ADDITIONAL_CDB_LENGTH,
 	OSD_TOTAL_CDB_LEN = OSD_ADDITIONAL_CDB_LENGTH + 8,
-/* 	OSD_CAP_LEN = 104,*/
-	OSD_CAP_LEN = OSDv1_CAP_LEN,/* FIXME: Pete rev-001 sup */
+	OSD_CAP_LEN = 104,
 
 	OSD_SYSTEMID_LEN = 20,
 	OSDv1_CRYPTO_KEYID_SIZE = 20,
-	/*FIXME: OSDv2_CRYPTO_KEYID_SIZE = 32,*/
-	OSDv2_CRYPTO_KEYID_SIZE = 20,
+	OSDv2_CRYPTO_KEYID_SIZE = 32,
 	OSD_CRYPTO_KEYID_SIZE = OSDv2_CRYPTO_KEYID_SIZE,
 	OSD_CRYPTO_SEED_SIZE = 4,
 	OSD_CRYPTO_NONCE_SIZE = 12,
@@ -166,7 +165,11 @@ struct osd_cdb_head {
 			/* called allocation_length in some commands */
 /*32*/			__be64	length;
 /*40*/			__be64	start_address;
-/*48*/			__be32 list_identifier;/* Rarely used */
+			union {
+/*48*/				__be32 list_identifier;/* Rarely used */
+				/* OSD2r05 5.2.5 CDB continuation length */
+/*48*/				__be32 cdb_continuation_length;
+			};
 		} __packed v2;
 	};
 /*52*/	union { /* selected attributes mode Page/List/Single */
@@ -331,6 +334,7 @@ struct osdv1_attributes_list_element {
 struct osdv2_attributes_list_element {
 	__be32 attr_page;
 	__be32 attr_id;
+	u8 reserved[6];
 	__be16 attr_bytes; /* valid bytes at attr_val without padding */
 	u8 attr_val[0];
 } __packed;
@@ -520,7 +524,7 @@ enum osd_capability_bit_masks {
 
 	OSD_SEC_CAP_NONE1	= BIT(8),
 	OSD_SEC_CAP_NONE2	= BIT(9),
-	OSD_SEC_CAP_NONE3	= BIT(10),
+	OSD_SEC_GBL_REM 	= BIT(10), /*v2 only*/
 	OSD_SEC_CAP_QUERY	= BIT(11), /*v2 only*/
 	OSD_SEC_CAP_M_OBJECT	= BIT(12), /*v2 only*/
 	OSD_SEC_CAP_POL_SEC	= BIT(13),
@@ -595,8 +599,7 @@ struct osdv1_capability {
 
 struct osd_capability {
 	struct osd_capability_head h;
-/* 	struct osd_cap_object_descriptor od;*/
-	struct osdv1_cap_object_descriptor od; /* FIXME: Pete rev-001 sup */
+	struct osd_cap_object_descriptor od;
 } __packed;
 
 /**

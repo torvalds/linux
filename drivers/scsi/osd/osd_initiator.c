@@ -263,7 +263,12 @@ static int _osd_req_alist_elem_decode(struct osd_request *or,
 		oa->attr_page = be32_to_cpu(attr->attr_page);
 		oa->attr_id = be32_to_cpu(attr->attr_id);
 
-		oa->val_ptr = attr->attr_val;
+		/* OSD2: For convenience, on empty attributes, we return 8 bytes
+		 * of zeros here. This keeps the same behaviour with OSD2r04,
+		 * and is nice with null terminating ASCII fields.
+		 * oa->val_ptr == NULL marks the end-of-list, or error.
+		 */
+		oa->val_ptr = likely(oa->len) ? attr->attr_val : attr->reserved;
 	}
 	return inc;
 }
