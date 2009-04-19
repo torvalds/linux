@@ -1642,6 +1642,14 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 }
 EXPORT_SYMBOL_GPL(ring_buffer_unlock_commit);
 
+static inline void rb_event_discard(struct ring_buffer_event *event)
+{
+	event->type = RINGBUF_TYPE_PADDING;
+	/* time delta must be non zero */
+	if (!event->time_delta)
+		event->time_delta = 1;
+}
+
 /**
  * ring_buffer_event_discard - discard any event in the ring buffer
  * @event: the event to discard
@@ -1656,10 +1664,8 @@ EXPORT_SYMBOL_GPL(ring_buffer_unlock_commit);
  */
 void ring_buffer_event_discard(struct ring_buffer_event *event)
 {
-	event->type = RINGBUF_TYPE_PADDING;
-	/* time delta must be non zero */
-	if (!event->time_delta)
-		event->time_delta = 1;
+	rb_event_discard(event);
+	trace_recursive_unlock();
 }
 EXPORT_SYMBOL_GPL(ring_buffer_event_discard);
 
@@ -1690,7 +1696,7 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	int cpu;
 
 	/* The event is discarded regardless */
-	ring_buffer_event_discard(event);
+	rb_event_discard(event);
 
 	/*
 	 * This must only be called if the event has not been
@@ -1734,6 +1740,8 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	 */
 	if (rb_is_commit(cpu_buffer, event))
 		rb_set_commit_to_write(cpu_buffer);
+
+	trace_recursive_unlock();
 
 	/*
 	 * Only the last preempt count needs to restore preemption.
