@@ -1913,9 +1913,17 @@ static void ieee80211_sta_work(struct work_struct *work)
 
 static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 {
-	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+		/*
+		 * Need to update last_beacon to avoid beacon loss
+		 * test to trigger.
+		 */
+		sdata->u.mgd.last_beacon = jiffies;
+
+
 		queue_work(sdata->local->hw.workqueue,
 			   &sdata->u.mgd.work);
+	}
 }
 
 /* interface setup */
