@@ -26,8 +26,8 @@
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/crc32c.h>
 #include "compat.h"
-#include "crc32c.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -171,7 +171,7 @@ out:
 
 u32 btrfs_csum_data(struct btrfs_root *root, char *data, u32 seed, size_t len)
 {
-	return btrfs_crc32c(seed, data, len);
+	return crc32c(seed, data, len);
 }
 
 void btrfs_csum_final(u32 crc, char *result)
