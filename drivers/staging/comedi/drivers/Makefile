@@ -125,6 +125,8 @@ obj-$(CONFIG_COMEDI_PCMCIA_DRIVERS)	+= ni_mio_cs.o
 obj-$(CONFIG_COMEDI_PCMCIA_DRIVERS)	+= quatech_daqp_cs.o
 
 # Comedi USB drivers
+obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= dt9812.o
 obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= usbdux.o
 obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= usbduxfast.o
-obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= dt9812.o
+obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= vmk80xx.o
+
