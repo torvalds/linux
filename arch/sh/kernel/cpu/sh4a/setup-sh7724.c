@@ -275,7 +275,6 @@ static struct platform_device *sh7724_devices[] __initdata = {
 
 static int __init sh7724_devices_setup(void)
 {
-	clk_always_enable("rtc0");   /* RTC */
 	clk_always_enable("vpu0");   /* VPU */
 	clk_always_enable("veu1");   /* VEU3F1 */
 	clk_always_enable("veu0");   /* VEU3F0 */
