@@ -1495,6 +1495,13 @@ static int trace_recursive_lock(void)
 	if (unlikely(current->trace_recursion & (1 << level))) {
 		/* Disable all tracing before we do anything else */
 		tracing_off_permanent();
+
+		printk_once(KERN_WARNING "Tracing recursion: "
+			    "HC[%lu]:SC[%lu]:NMI[%lu]\n",
+			    hardirq_count() >> HARDIRQ_SHIFT,
+			    softirq_count() >> SOFTIRQ_SHIFT,
+			    in_nmi());
+
 		WARN_ON_ONCE(1);
 		return -1;
 	}
