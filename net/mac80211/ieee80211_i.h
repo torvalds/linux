@@ -323,14 +323,6 @@ struct ieee80211_if_managed {
 	size_t sme_auth_ie_len;
 };
 
-enum ieee80211_ibss_flags {
-	IEEE80211_IBSS_AUTO_CHANNEL_SEL		= BIT(0),
-	IEEE80211_IBSS_AUTO_BSSID_SEL		= BIT(1),
-	IEEE80211_IBSS_BSSID_SET		= BIT(2),
-	IEEE80211_IBSS_PREV_BSSID_SET		= BIT(3),
-	IEEE80211_IBSS_SSID_SET			= BIT(4),
-};
-
 enum ieee80211_ibss_request {
 	IEEE80211_IBSS_REQ_RUN	= 0,
 };
@@ -341,17 +333,20 @@ struct ieee80211_if_ibss {
 
 	struct sk_buff_head skb_queue;
 
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	u8 ssid_len;
-
-	u32 flags;
+	unsigned long request;
+	unsigned long last_scan_completed;
+	bool fixed_bssid;
+	bool fixed_channel;
 
 	u8 bssid[ETH_ALEN];
-
-	unsigned long request;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 ssid_len, ie_len;
+	u8 *ie;
+	struct ieee80211_channel *channel;
 
 	unsigned long ibss_join_req;
-	struct sk_buff *probe_resp; /* ProbeResp template for IBSS */
+	/* probe response/beacon for IBSS */
+	struct sk_buff *presp, *skb;
 
 	enum {
 		IEEE80211_IBSS_MLME_SEARCH,
@@ -630,8 +625,6 @@ struct ieee80211_local {
 	spinlock_t sta_lock;
 	unsigned long num_sta;
 	struct list_head sta_list;
-	struct list_head sta_flush_list;
-	struct work_struct sta_flush_work;
 	struct sta_info *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
 
@@ -681,7 +674,6 @@ struct ieee80211_local {
 	int scan_ies_len;
 
 	enum { SCAN_SET_CHANNEL, SCAN_SEND_PROBE } scan_state;
-	unsigned long last_scan_completed;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data *scan_sdata;
 	enum nl80211_channel_type oper_channel_type;
@@ -946,10 +938,6 @@ int ieee80211_max_network_latency(struct notifier_block *nb,
 				  unsigned long data, void *dummy);
 
 /* IBSS code */
-int ieee80211_ibss_commit(struct ieee80211_sub_if_data *sdata);
-int ieee80211_ibss_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len);
-int ieee80211_ibss_get_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t *len);
-int ieee80211_ibss_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid);
 void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local);
 void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata);
 ieee80211_rx_result
@@ -957,6 +945,9 @@ ieee80211_ibss_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 		       struct ieee80211_rx_status *rx_status);
 struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 					u8 *bssid, u8 *addr, u32 supp_rates);
+int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
+			struct cfg80211_ibss_params *params);
+int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata);
 
 /* scan/BSS handling */
 void ieee80211_scan_work(struct work_struct *work);

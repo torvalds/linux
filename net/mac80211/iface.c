@@ -235,11 +235,7 @@ static int ieee80211_open(struct net_device *dev)
 		netif_addr_unlock_bh(local->mdev);
 		break;
 	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_ADHOC:
-		if (sdata->vif.type == NL80211_IFTYPE_STATION)
-			sdata->u.mgd.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
-		else
-			sdata->u.ibss.flags &= ~IEEE80211_IBSS_PREV_BSSID_SET;
+		sdata->u.mgd.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
 		/* fall through */
 	default:
 		conf.vif = &sdata->vif;
@@ -327,8 +323,6 @@ static int ieee80211_open(struct net_device *dev)
 	 */
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		queue_work(local->hw.workqueue, &sdata->u.mgd.work);
-	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		queue_work(local->hw.workqueue, &sdata->u.ibss.work);
 
 	netif_tx_start_all_queues(dev);
 
@@ -499,7 +493,6 @@ static int ieee80211_stop(struct net_device *dev)
 		/* fall through */
 	case NL80211_IFTYPE_ADHOC:
 		if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-			memset(sdata->u.ibss.bssid, 0, ETH_ALEN);
 			del_timer_sync(&sdata->u.ibss.timer);
 			cancel_work_sync(&sdata->u.ibss.work);
 			synchronize_rcu();
@@ -653,7 +646,8 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 			mesh_rmc_free(sdata);
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		kfree_skb(sdata->u.ibss.probe_resp);
+		if (WARN_ON(sdata->u.ibss.presp))
+			kfree_skb(sdata->u.ibss.presp);
 		break;
 	case NL80211_IFTYPE_STATION:
 		kfree(sdata->u.mgd.extra_ie);

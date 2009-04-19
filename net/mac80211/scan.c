@@ -295,8 +295,6 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 		cfg80211_scan_done(local->scan_req, aborted);
 	local->scan_req = NULL;
 
-	local->last_scan_completed = jiffies;
-
 	if (local->hw_scanning) {
 		local->hw_scanning = false;
 		/*

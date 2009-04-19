@@ -2102,18 +2102,18 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 		struct ieee80211_hdr *hdr;
+		struct sk_buff *presp = rcu_dereference(ifibss->presp);
 
-		if (!ifibss->probe_resp)
+		if (!presp)
 			goto out;
 
-		skb = skb_copy(ifibss->probe_resp, GFP_ATOMIC);
+		skb = skb_copy(presp, GFP_ATOMIC);
 		if (!skb)
 			goto out;
 
 		hdr = (struct ieee80211_hdr *) skb->data;
 		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						 IEEE80211_STYPE_BEACON);
-
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_mgmt *mgmt;
 		u8 *pos;

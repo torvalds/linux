@@ -1283,6 +1283,21 @@ static int ieee80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
 	return ieee80211_sta_disassociate(sdata, req->reason_code);
 }
 
+static int ieee80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
+			       struct cfg80211_ibss_params *params)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	return ieee80211_ibss_join(sdata, params);
+}
+
+static int ieee80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	return ieee80211_ibss_leave(sdata);
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1319,4 +1334,6 @@ struct cfg80211_ops mac80211_config_ops = {
 	.assoc = ieee80211_assoc,
 	.deauth = ieee80211_deauth,
 	.disassoc = ieee80211_disassoc,
+	.join_ibss = ieee80211_join_ibss,
+	.leave_ibss = ieee80211_leave_ibss,
 };

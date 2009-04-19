@@ -149,17 +149,14 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		sdata->u.ibss.flags &= ~IEEE80211_IBSS_AUTO_CHANNEL_SEL;
+		return cfg80211_ibss_wext_siwfreq(dev, info, freq, extra);
 	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_CHANNEL_SEL;
 
 	/* freq->e == 0: freq->m = channel; otherwise freq = m * 10^e */
 	if (freq->e == 0) {
 		if (freq->m < 0) {
-			if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-				sdata->u.ibss.flags |=
-					IEEE80211_IBSS_AUTO_CHANNEL_SEL;
-			else if (sdata->vif.type == NL80211_IFTYPE_STATION)
+			if (sdata->vif.type == NL80211_IFTYPE_STATION)
 				sdata->u.mgd.flags |=
 					IEEE80211_STA_AUTO_CHANNEL_SEL;
 			return 0;
@@ -183,6 +180,10 @@ static int ieee80211_ioctl_giwfreq(struct net_device *dev,
 				   struct iw_freq *freq, char *extra)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return cfg80211_ibss_wext_giwfreq(dev, info, freq, extra);
 
 	freq->m = local->hw.conf.channel->center_freq;
 	freq->e = 6;
@@ -195,15 +196,17 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 				    struct iw_request_info *info,
 				    struct iw_point *data, char *ssid)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	size_t len = data->length;
 	int ret;
+
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return cfg80211_ibss_wext_siwessid(dev, info, data, ssid);
 
 	/* iwconfig uses nul termination in SSID.. */
 	if (len > 0 && ssid[len - 1] == '\0')
 		len--;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		if (data->flags)
 			sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
@@ -217,8 +220,7 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
 		ieee80211_sta_req_auth(sdata);
 		return 0;
-	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		return ieee80211_ibss_set_ssid(sdata, ssid, len);
+	}
 
 	return -EOPNOTSUPP;
 }
@@ -229,19 +231,15 @@ static int ieee80211_ioctl_giwessid(struct net_device *dev,
 				    struct iw_point *data, char *ssid)
 {
 	size_t len;
-
 	struct ieee80211_sub_if_data *sdata;
+
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return cfg80211_ibss_wext_giwessid(dev, info, data, ssid);
+
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		int res = ieee80211_sta_get_ssid(sdata, ssid, &len);
-		if (res == 0) {
-			data->length = len;
-			data->flags = 1;
-		} else
-			data->flags = 0;
-		return res;
-	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		int res = ieee80211_ibss_get_ssid(sdata, ssid, &len);
 		if (res == 0) {
 			data->length = len;
 			data->flags = 1;
@@ -258,9 +256,11 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct sockaddr *ap_addr, char *extra)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return cfg80211_ibss_wext_siwap(dev, info, ap_addr, extra);
+
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		int ret;
 
@@ -277,16 +277,6 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
 		ieee80211_sta_req_auth(sdata);
 		return 0;
-	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		if (is_zero_ether_addr((u8 *) &ap_addr->sa_data))
-			sdata->u.ibss.flags |= IEEE80211_IBSS_AUTO_BSSID_SEL |
-					       IEEE80211_IBSS_AUTO_CHANNEL_SEL;
-		else if (is_broadcast_ether_addr((u8 *) &ap_addr->sa_data))
-			sdata->u.ibss.flags |= IEEE80211_IBSS_AUTO_BSSID_SEL;
-		else
-			sdata->u.ibss.flags &= ~IEEE80211_IBSS_AUTO_BSSID_SEL;
-
-		return ieee80211_ibss_set_bssid(sdata, (u8 *) &ap_addr->sa_data);
 	} else if (sdata->vif.type == NL80211_IFTYPE_WDS) {
 		/*
 		 * If it is necessary to update the WDS peer address
@@ -312,20 +302,15 @@ static int ieee80211_ioctl_giwap(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct sockaddr *ap_addr, char *extra)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return cfg80211_ibss_wext_giwap(dev, info, ap_addr, extra);
+
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		if (sdata->u.mgd.state == IEEE80211_STA_MLME_ASSOCIATED) {
 			ap_addr->sa_family = ARPHRD_ETHER;
 			memcpy(&ap_addr->sa_data, sdata->u.mgd.bssid, ETH_ALEN);
-		} else
-			memset(&ap_addr->sa_data, 0, ETH_ALEN);
-		return 0;
-	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		if (sdata->u.ibss.state == IEEE80211_IBSS_MLME_JOINED) {
-			ap_addr->sa_family = ARPHRD_ETHER;
-			memcpy(&ap_addr->sa_data, sdata->u.ibss.bssid, ETH_ALEN);
 		} else
 			memset(&ap_addr->sa_data, 0, ETH_ALEN);
 		return 0;

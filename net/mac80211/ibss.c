@@ -59,74 +59,59 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 				    sdata->u.ibss.bssid, 0);
 }
 
-static int __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
-				     const u8 *bssid, const int beacon_int,
-				     const int freq,
-				     const size_t supp_rates_len,
-				     const u8 *supp_rates,
-				     const u16 capability, u64 tsf)
+static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
+				      const u8 *bssid, const int beacon_int,
+				      struct ieee80211_channel *chan,
+				      const size_t supp_rates_len,
+				      const u8 *supp_rates,
+				      const u16 capability, u64 tsf)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
-	int res = 0, rates, i, j;
+	int rates, i, j;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos;
 	struct ieee80211_supported_band *sband;
-	union iwreq_data wrqu;
 
 	if (local->ops->reset_tsf) {
 		/* Reset own TSF to allow time synchronization work. */
 		local->ops->reset_tsf(local_to_hw(local));
 	}
 
-	if ((ifibss->flags & IEEE80211_IBSS_PREV_BSSID_SET) &&
-	   memcmp(ifibss->bssid, bssid, ETH_ALEN) == 0)
-		return res;
+	skb = ifibss->skb;
+	rcu_assign_pointer(ifibss->presp, NULL);
+	synchronize_rcu();
+	skb->data = skb->head;
+	skb->len = 0;
+	skb_reset_tail_pointer(skb);
+	skb_reserve(skb, sdata->local->hw.extra_tx_headroom);
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
-	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
-		       "response\n", sdata->dev->name);
-		return -ENOMEM;
-	}
-
-	if (!(ifibss->flags & IEEE80211_IBSS_PREV_BSSID_SET)) {
-		/* Remove possible STA entries from other IBSS networks. */
-		sta_info_flush_delayed(sdata);
-	}
+	if (memcmp(ifibss->bssid, bssid, ETH_ALEN))
+		sta_info_flush(sdata->local, sdata);
 
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
-	res = ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID);
-	if (res)
-		return res;
 
 	local->hw.conf.beacon_int = beacon_int >= 10 ? beacon_int : 10;
 
-	sdata->drop_unencrypted = capability &
-		WLAN_CAPABILITY_PRIVACY ? 1 : 0;
+	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
-	res = ieee80211_set_freq(sdata, freq);
+	ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID);
 
-	if (res)
-		return res;
-
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	local->oper_channel = chan;
+	local->oper_channel_type = NL80211_CHAN_NO_HT;
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	sband = local->hw.wiphy->bands[chan->band];
 
 	/* Build IBSS probe response */
-
-	skb_reserve(skb, local->hw.extra_tx_headroom);
-
-	mgmt = (struct ieee80211_mgmt *)
-		skb_put(skb, 24 + sizeof(mgmt->u.beacon));
+	mgmt = (void *) skb_put(skb, 24 + sizeof(mgmt->u.beacon));
 	memset(mgmt, 0, 24 + sizeof(mgmt->u.beacon));
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_PROBE_RESP);
 	memset(mgmt->da, 0xff, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(mgmt->bssid, ifibss->bssid, ETH_ALEN);
-	mgmt->u.beacon.beacon_int =
-		cpu_to_le16(local->hw.conf.beacon_int);
+	mgmt->u.beacon.beacon_int = cpu_to_le16(local->hw.conf.beacon_int);
 	mgmt->u.beacon.timestamp = cpu_to_le64(tsf);
 	mgmt->u.beacon.capab_info = cpu_to_le16(capability);
 
@@ -147,7 +132,7 @@ static int __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		pos = skb_put(skb, 2 + 1);
 		*pos++ = WLAN_EID_DS_PARAMS;
 		*pos++ = 1;
-		*pos++ = ieee80211_frequency_to_channel(freq);
+		*pos++ = ieee80211_frequency_to_channel(chan->center_freq);
 	}
 
 	pos = skb_put(skb, 2 + 2);
@@ -165,11 +150,14 @@ static int __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		memcpy(pos, &supp_rates[8], rates);
 	}
 
-	ifibss->probe_resp = skb;
+	if (ifibss->ie_len)
+		memcpy(skb_put(skb, ifibss->ie_len),
+		       ifibss->ie, ifibss->ie_len);
+
+	rcu_assign_pointer(ifibss->presp, skb);
 
 	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON |
 				   IEEE80211_IFCC_BEACON_ENABLED);
-
 
 	rates = 0;
 	for (i = 0; i < supp_rates_len; i++) {
@@ -181,27 +169,24 @@ static int __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_sta_def_wmm_params(sdata, supp_rates_len, supp_rates);
 
-	ifibss->flags |= IEEE80211_IBSS_PREV_BSSID_SET;
 	ifibss->state = IEEE80211_IBSS_MLME_JOINED;
-	mod_timer(&ifibss->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
+	mod_timer(&ifibss->timer,
+		  round_jiffies(jiffies + IEEE80211_IBSS_MERGE_INTERVAL));
 
-	memset(&wrqu, 0, sizeof(wrqu));
-	memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
-	wireless_send_event(sdata->dev, SIOCGIWAP, &wrqu, NULL);
-
-	return res;
+	cfg80211_inform_bss_frame(local->hw.wiphy, local->hw.conf.channel,
+				  mgmt, skb->len, 0, GFP_KERNEL);
+	cfg80211_ibss_joined(sdata->dev, ifibss->bssid, GFP_KERNEL);
 }
 
-static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
-				   struct ieee80211_bss *bss)
+static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
+				    struct ieee80211_bss *bss)
 {
-	return __ieee80211_sta_join_ibss(sdata,
-					 bss->cbss.bssid,
-					 bss->cbss.beacon_interval,
-					 bss->cbss.channel->center_freq,
-					 bss->supp_rates_len, bss->supp_rates,
-					 bss->cbss.capability,
-					 bss->cbss.tsf);
+	__ieee80211_sta_join_ibss(sdata, bss->cbss.bssid,
+				  bss->cbss.beacon_interval,
+				  bss->cbss.channel,
+				  bss->supp_rates_len, bss->supp_rates,
+				  bss->cbss.capability,
+				  bss->cbss.tsf);
 }
 
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
@@ -277,7 +262,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		goto put_bss;
 
 	/* we use a fixed BSSID */
-	if (sdata->u.ibss.flags & IEEE80211_IBSS_BSSID_SET)
+	if (sdata->u.ibss.bssid)
 		goto put_bss;
 
 	/* not an IBSS */
@@ -369,13 +354,14 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 	int band = local->hw.conf.channel->band;
 
-	/* TODO: Could consider removing the least recently used entry and
-	 * allow new one to be added. */
+	/*
+	 * XXX: Consider removing the least recently used entry and
+	 * 	allow new one to be added.
+	 */
 	if (local->num_sta >= IEEE80211_IBSS_MAX_STA_ENTRIES) {
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: No room for a new IBSS STA "
-			       "entry %pM\n", sdata->dev->name, addr);
-		}
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: No room for a new IBSS STA entry %pM\n",
+			       sdata->dev->name, addr);
 		return NULL;
 	}
 
@@ -432,14 +418,15 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 
-	mod_timer(&ifibss->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
+	mod_timer(&ifibss->timer,
+		  round_jiffies(jiffies + IEEE80211_IBSS_MERGE_INTERVAL));
 
 	ieee80211_sta_expire(sdata, IEEE80211_IBSS_INACTIVITY_LIMIT);
+
 	if (ieee80211_sta_active_ibss(sdata))
 		return;
 
-	if ((ifibss->flags & IEEE80211_IBSS_BSSID_SET) &&
-	    (!(ifibss->flags & IEEE80211_IBSS_AUTO_CHANNEL_SEL)))
+	if (ifibss->fixed_channel)
 		return;
 
 	printk(KERN_DEBUG "%s: No active IBSS STAs - trying to scan for other "
@@ -455,7 +442,7 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 	ieee80211_request_scan(sdata, &sdata->local->int_scan_req);
 }
 
-static int ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
+static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
@@ -466,7 +453,7 @@ static int ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 	u16 capability;
 	int i;
 
-	if (ifibss->flags & IEEE80211_IBSS_BSSID_SET) {
+	if (ifibss->fixed_bssid) {
 		memcpy(bssid, ifibss->bssid, ETH_ALEN);
 	} else {
 		/* Generate random, not broadcast, locally administered BSSID. Mix in
@@ -482,7 +469,7 @@ static int ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 	printk(KERN_DEBUG "%s: Creating new IBSS network, BSSID %pM\n",
 	       sdata->dev->name, bssid);
 
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	sband = local->hw.wiphy->bands[ifibss->channel->band];
 
 	if (local->hw.conf.beacon_int == 0)
 		local->hw.conf.beacon_int = 100;
@@ -500,23 +487,19 @@ static int ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 		*pos++ = (u8) (rate / 5);
 	}
 
-	return __ieee80211_sta_join_ibss(sdata,
-					 bssid, local->hw.conf.beacon_int,
-					 local->hw.conf.channel->center_freq,
-					 sband->n_bitrates, supp_rates,
-					 capability, 0);
+	__ieee80211_sta_join_ibss(sdata, bssid, local->hw.conf.beacon_int,
+				  ifibss->channel, sband->n_bitrates,
+				  supp_rates, capability, 0);
 }
 
-static int ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
+static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_bss *bss;
+	struct ieee80211_channel *chan = NULL;
 	const u8 *bssid = NULL;
 	int active_ibss;
-
-	if (ifibss->ssid_len == 0)
-		return -EINVAL;
 
 	active_ibss = ieee80211_sta_active_ibss(sdata);
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
@@ -525,11 +508,15 @@ static int ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 
 	if (active_ibss)
-		return 0;
+		return;
 
-	if (ifibss->flags & IEEE80211_IBSS_BSSID_SET)
+	if (ifibss->fixed_bssid)
 		bssid = ifibss->bssid;
-	bss = (void *)cfg80211_get_bss(local->hw.wiphy, NULL, bssid,
+	if (ifibss->fixed_channel)
+		chan = ifibss->channel;
+	if (!is_zero_ether_addr(ifibss->bssid))
+		bssid = ifibss->bssid;
+	bss = (void *)cfg80211_get_bss(local->hw.wiphy, chan, bssid,
 				       ifibss->ssid, ifibss->ssid_len,
 				       WLAN_CAPABILITY_IBSS,
 				       WLAN_CAPABILITY_IBSS);
@@ -540,18 +527,14 @@ static int ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		       "%pM\n", bss->cbss.bssid, ifibss->bssid);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 
-	if (bss &&
-	    (!(ifibss->flags & IEEE80211_IBSS_PREV_BSSID_SET) ||
-	     memcmp(ifibss->bssid, bss->cbss.bssid, ETH_ALEN))) {
-		int ret;
-
+	if (bss && memcmp(ifibss->bssid, bss->cbss.bssid, ETH_ALEN)) {
 		printk(KERN_DEBUG "%s: Selected IBSS BSSID %pM"
 		       " based on configured SSID\n",
 		       sdata->dev->name, bss->cbss.bssid);
 
-		ret = ieee80211_sta_join_ibss(sdata, bss);
+		ieee80211_sta_join_ibss(sdata, bss);
 		ieee80211_rx_bss_put(local, bss);
-		return ret;
+		return;
 	} else if (bss)
 		ieee80211_rx_bss_put(local, bss);
 
@@ -562,29 +545,31 @@ static int ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 	/* Selected IBSS not found in current scan results - try to scan */
 	if (ifibss->state == IEEE80211_IBSS_MLME_JOINED &&
 	    !ieee80211_sta_active_ibss(sdata)) {
-		mod_timer(&ifibss->timer, jiffies +
-					  IEEE80211_IBSS_MERGE_INTERVAL);
-	} else if (time_after(jiffies, local->last_scan_completed +
+		mod_timer(&ifibss->timer,
+			  round_jiffies(jiffies + IEEE80211_IBSS_MERGE_INTERVAL));
+	} else if (time_after(jiffies, ifibss->last_scan_completed +
 					IEEE80211_SCAN_INTERVAL)) {
 		printk(KERN_DEBUG "%s: Trigger new scan to find an IBSS to "
 		       "join\n", sdata->dev->name);
 
 		/* XXX maybe racy? */
 		if (local->scan_req)
-			return -EBUSY;
+			return;
 
 		memcpy(local->int_scan_req.ssids[0].ssid,
 		       ifibss->ssid, IEEE80211_MAX_SSID_LEN);
-		local->int_scan_req.ssids[0].ssid_len = ifibss->ssid_len;
-		return ieee80211_request_scan(sdata, &local->int_scan_req);
+		local->int_scan_req.ssids[0].ssid_len =
+			ifibss->ssid_len;
+		ieee80211_request_scan(sdata, &local->int_scan_req);
 	} else if (ifibss->state != IEEE80211_IBSS_MLME_JOINED) {
 		int interval = IEEE80211_SCAN_INTERVAL;
 
 		if (time_after(jiffies, ifibss->ibss_join_req +
 			       IEEE80211_IBSS_JOIN_TIMEOUT)) {
-			if (!(local->oper_channel->flags &
-						IEEE80211_CHAN_NO_IBSS))
-				return ieee80211_sta_create_ibss(sdata);
+			if (!(local->oper_channel->flags & IEEE80211_CHAN_NO_IBSS)) {
+				ieee80211_sta_create_ibss(sdata);
+				return;
+			}
 			printk(KERN_DEBUG "%s: IBSS not allowed on"
 			       " %d MHz\n", sdata->dev->name,
 			       local->hw.conf.channel->center_freq);
@@ -595,11 +580,9 @@ static int ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		}
 
 		ifibss->state = IEEE80211_IBSS_MLME_SEARCH;
-		mod_timer(&ifibss->timer, jiffies + interval);
-		return 0;
+		mod_timer(&ifibss->timer,
+			  round_jiffies(jiffies + interval));
 	}
-
-	return 0;
 }
 
 static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
@@ -614,7 +597,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	u8 *pos, *end;
 
 	if (ifibss->state != IEEE80211_IBSS_MLME_JOINED ||
-	    len < 24 + 2 || !ifibss->probe_resp)
+	    len < 24 + 2 || !ifibss->presp)
 		return;
 
 	if (local->ops->tx_last_beacon)
@@ -649,13 +632,13 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	}
 	if (pos[1] != 0 &&
 	    (pos[1] != ifibss->ssid_len ||
-	     memcmp(pos + 2, ifibss->ssid, ifibss->ssid_len) != 0)) {
+	     !memcmp(pos + 2, ifibss->ssid, ifibss->ssid_len))) {
 		/* Ignore ProbeReq for foreign SSID */
 		return;
 	}
 
 	/* Reply with ProbeResp */
-	skb = skb_copy(ifibss->probe_resp, GFP_KERNEL);
+	skb = skb_copy(ifibss->presp, GFP_KERNEL);
 	if (!skb)
 		return;
 
@@ -794,89 +777,21 @@ void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	setup_timer(&ifibss->timer, ieee80211_ibss_timer,
 		    (unsigned long) sdata);
 	skb_queue_head_init(&ifibss->skb_queue);
-
-	ifibss->flags |= IEEE80211_IBSS_AUTO_BSSID_SEL |
-			IEEE80211_IBSS_AUTO_CHANNEL_SEL;
-}
-
-int ieee80211_ibss_commit(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
-
-	ifibss->flags &= ~IEEE80211_IBSS_PREV_BSSID_SET;
-
-	if (ifibss->ssid_len)
-		ifibss->flags |= IEEE80211_IBSS_SSID_SET;
-	else
-		ifibss->flags &= ~IEEE80211_IBSS_SSID_SET;
-
-	ifibss->ibss_join_req = jiffies;
-	ifibss->state = IEEE80211_IBSS_MLME_SEARCH;
-	set_bit(IEEE80211_IBSS_REQ_RUN, &ifibss->request);
-
-	return 0;
-}
-
-int ieee80211_ibss_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len)
-{
-	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
-
-	if (len > IEEE80211_MAX_SSID_LEN)
-		return -EINVAL;
-
-	if (ifibss->ssid_len != len || memcmp(ifibss->ssid, ssid, len) != 0) {
-		memset(ifibss->ssid, 0, sizeof(ifibss->ssid));
-		memcpy(ifibss->ssid, ssid, len);
-		ifibss->ssid_len = len;
-	}
-
-	return ieee80211_ibss_commit(sdata);
-}
-
-int ieee80211_ibss_get_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t *len)
-{
-	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
-
-	memcpy(ssid, ifibss->ssid, ifibss->ssid_len);
-	*len = ifibss->ssid_len;
-
-	return 0;
-}
-
-int ieee80211_ibss_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid)
-{
-	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
-
-	if (is_valid_ether_addr(bssid)) {
-		memcpy(ifibss->bssid, bssid, ETH_ALEN);
-		ifibss->flags |= IEEE80211_IBSS_BSSID_SET;
-	} else {
-		memset(ifibss->bssid, 0, ETH_ALEN);
-		ifibss->flags &= ~IEEE80211_IBSS_BSSID_SET;
-	}
-
-	if (netif_running(sdata->dev)) {
-		if (ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID)) {
-			printk(KERN_DEBUG "%s: Failed to config new BSSID to "
-			       "the low-level driver\n", sdata->dev->name);
-		}
-	}
-
-	return ieee80211_ibss_commit(sdata);
 }
 
 /* scan finished notification */
 void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 {
-	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
-	struct ieee80211_if_ibss *ifibss;
+	struct ieee80211_sub_if_data *sdata;
 
-	if (sdata && sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		ifibss = &sdata->u.ibss;
-		if ((!(ifibss->flags & IEEE80211_IBSS_PREV_BSSID_SET)) ||
-		    !ieee80211_sta_active_ibss(sdata))
-			ieee80211_sta_find_ibss(sdata);
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
+			continue;
+		sdata->u.ibss.last_scan_completed = jiffies;
+		ieee80211_sta_find_ibss(sdata);
 	}
+	rcu_read_unlock();
 }
 
 ieee80211_rx_result
@@ -905,4 +820,72 @@ ieee80211_ibss_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 	}
 
 	return RX_DROP_MONITOR;
+}
+
+int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
+			struct cfg80211_ibss_params *params)
+{
+	struct sk_buff *skb;
+
+	memcpy(sdata->u.ibss.ssid, params->ssid, IEEE80211_MAX_SSID_LEN);
+	sdata->u.ibss.ssid_len = params->ssid_len;
+
+	if (params->bssid) {
+		memcpy(sdata->u.ibss.bssid, params->bssid, ETH_ALEN);
+		sdata->u.ibss.fixed_bssid = true;
+	} else
+		sdata->u.ibss.fixed_bssid = false;
+
+	sdata->u.ibss.channel = params->channel;
+	sdata->u.ibss.fixed_channel = params->channel_fixed;
+
+	if (params->ie) {
+		sdata->u.ibss.ie = kmemdup(params->ie, params->ie_len,
+					   GFP_KERNEL);
+		if (sdata->u.ibss.ie)
+			sdata->u.ibss.ie_len = params->ie_len;
+	}
+
+	skb = dev_alloc_skb(sdata->local->hw.extra_tx_headroom +
+			    36 /* bitrates */ +
+			    34 /* SSID */ +
+			    3  /* DS params */ +
+			    4  /* IBSS params */ +
+			    params->ie_len);
+	if (!skb)
+		return -ENOMEM;
+
+	sdata->u.ibss.skb = skb;
+	sdata->u.ibss.state = IEEE80211_IBSS_MLME_SEARCH;
+	sdata->u.ibss.ibss_join_req = jiffies;
+
+	set_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
+	queue_work(sdata->local->hw.workqueue, &sdata->u.ibss.work);
+
+	return 0;
+}
+
+int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
+{
+	struct sk_buff *skb;
+
+	del_timer_sync(&sdata->u.ibss.timer);
+	clear_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
+	cancel_work_sync(&sdata->u.ibss.work);
+	clear_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
+
+	sta_info_flush(sdata->local, sdata);
+
+	/* remove beacon */
+	kfree(sdata->u.ibss.ie);
+	skb = sdata->u.ibss.presp;
+	rcu_assign_pointer(sdata->u.ibss.presp, NULL);
+	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON_ENABLED);
+	synchronize_rcu();
+	kfree_skb(skb);
+
+	skb_queue_purge(&sdata->u.ibss.skb_queue);
+	memset(sdata->u.ibss.bssid, 0, ETH_ALEN);
+
+	return 0;
 }
