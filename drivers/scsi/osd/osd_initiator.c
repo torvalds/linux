@@ -612,9 +612,9 @@ static int _osd_req_list_objects(struct osd_request *or,
 
 	WARN_ON(or->in.bio);
 	bio = bio_map_kern(q, list, len, or->alloc_flags);
-	if (!bio) {
+	if (IS_ERR(bio)) {
 		OSD_ERR("!!! Failed to allocate list_objects BIO\n");
-		return -ENOMEM;
+		return PTR_ERR(bio);
 	}
 
 	bio->bi_rw &= ~(1 << BIO_RW);
