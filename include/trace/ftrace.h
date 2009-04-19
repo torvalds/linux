@@ -27,6 +27,9 @@
 #undef __field
 #define __field(type, item)		type	item;
 
+#undef __string
+#define __string(item, src)		int	__str_loc_##item;
+
 #undef TP_STRUCT__entry
 #define TP_STRUCT__entry(args...) args
 
@@ -35,13 +38,52 @@
 	struct ftrace_raw_##name {				\
 		struct trace_entry	ent;			\
 		tstruct						\
+		char			__str_data[0];		\
 	};							\
 	static struct ftrace_event_call event_##name
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
+
 /*
  * Stage 2 of the trace events.
+ *
+ * Include the following:
+ *
+ * struct ftrace_str_offsets_<call> {
+ *	int				<str1>;
+ *	int				<str2>;
+ *	[...]
+ * };
+ *
+ * The __string() macro will create each int <str>, this is to
+ * keep the offset of each string from the beggining of the event
+ * once we perform the strlen() of the src strings.
+ *
+ */
+
+#undef TRACE_FORMAT
+#define TRACE_FORMAT(call, proto, args, fmt)
+
+#undef __array
+#define __array(type, item, len)
+
+#undef __field
+#define __field(type, item);
+
+#undef __string
+#define __string(item, src)	int item;
+
+#undef TRACE_EVENT
+#define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
+	struct ftrace_str_offsets_##call {				\
+		tstruct;						\
+	};
+
+#include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
+
+/*
+ * Stage 3 of the trace events.
  *
  * Override the macros in <trace/trace_events.h> to include the following:
  *
@@ -79,6 +121,9 @@
 
 #undef TP_printk
 #define TP_printk(fmt, args...) fmt "\n", args
+
+#undef __get_str
+#define __get_str(field)	(char *)__entry + __entry->__str_loc_##field
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
@@ -146,6 +191,16 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 	if (!ret)							\
 		return 0;
 
+#undef __string
+#define __string(item, src)						       \
+	ret = trace_seq_printf(s, "\tfield: __str_loc " #item ";\t"	       \
+			       "offset:%u;tsize:%u;\n",			       \
+			       (unsigned int)offsetof(typeof(field),	       \
+					__str_loc_##item),		       \
+			       (unsigned int)sizeof(field.__str_loc_##item));  \
+	if (!ret)							       \
+		return 0;
+
 #undef __entry
 #define __entry REC
 
@@ -189,6 +244,12 @@ ftrace_format_##call(struct trace_seq *s)				\
 	if (ret)							\
 		return ret;
 
+#undef __string
+#define __string(item, src)						       \
+	ret = trace_define_field(event_call, "__str_loc", #item,	       \
+				offsetof(typeof(field), __str_loc_##item),     \
+				sizeof(field.__str_loc_##item));
+
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
 int									\
@@ -212,7 +273,7 @@ ftrace_define_fields_##call(void)					\
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
 /*
- * Stage 3 of the trace events.
+ * Stage 4 of the trace events.
  *
  * Override the macros in <trace/trace_events.h> to include the following:
  *
@@ -409,6 +470,23 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 #undef __entry
 #define __entry entry
 
+#undef __field
+#define __field(type, item)
+
+#undef __array
+#define __array(type, item, len)
+
+#undef __string
+#define __string(item, src)						       \
+	__str_offsets.item = __str_size +				       \
+			     offsetof(typeof(*entry), __str_data);	       \
+	__str_size += strlen(src) + 1;
+
+#undef __assign_str
+#define __assign_str(dst, src)						\
+	__entry->__str_loc_##dst = __str_offsets.dst;			\
+	strcpy(__get_str(dst), src);
+
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
 _TRACE_PROFILE(call, PARAMS(proto), PARAMS(args))			\
@@ -417,18 +495,22 @@ static struct ftrace_event_call event_##call;				\
 									\
 static void ftrace_raw_event_##call(proto)				\
 {									\
+	struct ftrace_str_offsets_##call __maybe_unused __str_offsets;  \
 	struct ftrace_event_call *call = &event_##call;			\
 	struct ring_buffer_event *event;				\
 	struct ftrace_raw_##call *entry;				\
 	unsigned long irq_flags;					\
+	int __str_size = 0;						\
 	int pc;								\
 									\
 	local_save_flags(irq_flags);					\
 	pc = preempt_count();						\
 									\
+	tstruct;							\
+									\
 	event = trace_current_buffer_lock_reserve(event_##call.id,	\
-				  sizeof(struct ftrace_raw_##call),	\
-				  irq_flags, pc);			\
+				 sizeof(struct ftrace_raw_##call) + __str_size,\
+				 irq_flags, pc);			\
 	if (!event)							\
 		return;							\
 	entry	= ring_buffer_event_data(event);			\
