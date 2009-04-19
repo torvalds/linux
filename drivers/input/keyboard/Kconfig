@@ -332,4 +332,14 @@ config KEYBOARD_SH_KEYSC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sh_keysc.
++
+config KEYBOARD_EP93XX
+	tristate "EP93xx Matrix Keypad support"
+	depends on ARCH_EP93XX
+	help
+	  Say Y here to enable the matrix keypad on the Cirrus EP93XX.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ep93xx_keypad.
+
 endif
