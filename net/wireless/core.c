@@ -450,6 +450,22 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		dev->ieee80211_ptr->netdev = dev;
 		mutex_unlock(&rdev->devlist_mtx);
 		break;
+	case NETDEV_GOING_DOWN:
+		if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC)
+			break;
+		if (!dev->ieee80211_ptr->ssid_len)
+			break;
+		cfg80211_leave_ibss(rdev, dev);
+		break;
+	case NETDEV_UP:
+#ifdef CONFIG_WIRELESS_EXT
+		if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC)
+			break;
+		if (!dev->ieee80211_ptr->wext.ssid_len)
+			break;
+		cfg80211_join_ibss(rdev, dev, &dev->ieee80211_ptr->wext);
+		break;
+#endif
 	case NETDEV_UNREGISTER:
 		mutex_lock(&rdev->devlist_mtx);
 		if (!list_empty(&dev->ieee80211_ptr->list)) {

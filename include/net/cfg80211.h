@@ -658,6 +658,31 @@ struct cfg80211_disassoc_request {
 };
 
 /**
+ * struct cfg80211_ibss_params - IBSS parameters
+ *
+ * This structure defines the IBSS parameters for the join_ibss()
+ * method.
+ *
+ * @ssid: The SSID, will always be non-null.
+ * @ssid_len: The length of the SSID, will always be non-zero.
+ * @bssid: Fixed BSSID requested, maybe be %NULL, if set do not
+ *	search for IBSSs with a different BSSID.
+ * @channel: The channel to use if no IBSS can be found to join.
+ * @channel_fixed: The channel should be fixed -- do not search for
+ *	IBSSs to join on other channels.
+ * @ie: information element(s) to include in the beacon
+ * @ie_len: length of that
+ */
+struct cfg80211_ibss_params {
+	u8 *ssid;
+	u8 *bssid;
+	struct ieee80211_channel *channel;
+	u8 *ie;
+	u8 ssid_len, ie_len;
+	bool channel_fixed;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -732,6 +757,11 @@ struct cfg80211_disassoc_request {
  * @assoc: Request to (re)associate with the specified peer
  * @deauth: Request to deauthenticate from the specified peer
  * @disassoc: Request to disassociate from the specified peer
+ *
+ * @join_ibss: Join the specified IBSS (or create if necessary). Once done, call
+ *	cfg80211_ibss_joined(), also call that function when changing BSSID due
+ *	to a merge.
+ * @leave_ibss: Leave the IBSS.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -817,6 +847,10 @@ struct cfg80211_ops {
 			  struct cfg80211_deauth_request *req);
 	int	(*disassoc)(struct wiphy *wiphy, struct net_device *dev,
 			    struct cfg80211_disassoc_request *req);
+
+	int	(*join_ibss)(struct wiphy *wiphy, struct net_device *dev,
+			     struct cfg80211_ibss_params *params);
+	int	(*leave_ibss)(struct wiphy *wiphy, struct net_device *dev);
 };
 
 /* temporary wext handlers */
@@ -839,6 +873,28 @@ int cfg80211_wext_siwmlme(struct net_device *dev,
 int cfg80211_wext_giwrange(struct net_device *dev,
 			   struct iw_request_info *info,
 			   struct iw_point *data, char *extra);
+int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
+			       struct iw_request_info *info,
+			       struct iw_freq *freq, char *extra);
+int cfg80211_ibss_wext_giwfreq(struct net_device *dev,
+			       struct iw_request_info *info,
+			       struct iw_freq *freq, char *extra);
+int cfg80211_ibss_wext_siwessid(struct net_device *dev,
+				struct iw_request_info *info,
+				struct iw_point *data, char *ssid);
+int cfg80211_ibss_wext_giwessid(struct net_device *dev,
+				struct iw_request_info *info,
+				struct iw_point *data, char *ssid);
+int cfg80211_ibss_wext_siwap(struct net_device *dev,
+			     struct iw_request_info *info,
+			     struct sockaddr *ap_addr, char *extra);
+int cfg80211_ibss_wext_giwap(struct net_device *dev,
+			     struct iw_request_info *info,
+			     struct sockaddr *ap_addr, char *extra);
+
+/* wext helper for now (to be removed) */
+struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
+					     struct iw_freq *freq);
 
 /**
  * cfg80211_scan_done - notify that scan finished
@@ -983,5 +1039,21 @@ void cfg80211_unhold_bss(struct cfg80211_bss *bss);
 void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
 				  enum nl80211_key_type key_type, int key_id,
 				  const u8 *tsc);
+
+/**
+ * cfg80211_ibss_joined - notify cfg80211 that device joined an IBSS
+ *
+ * @dev: network device
+ * @bssid: the BSSID of the IBSS joined
+ * @gfp: allocation flags
+ *
+ * This function notifies cfg80211 that the device joined an IBSS or
+ * switched to a different BSSID. Before this function can be called,
+ * either a beacon has to have been received from the IBSS, or one of
+ * the cfg80211_inform_bss{,_frame} functions must have been called
+ * with the locally generated beacon -- this guarantees that there is
+ * always a scan result for this IBSS. cfg80211 will handle the rest.
+ */
+void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp);
 
 #endif /* __NET_CFG80211_H */

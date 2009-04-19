@@ -116,6 +116,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 				.len = IEEE80211_MAX_SSID_LEN },
 	[NL80211_ATTR_AUTH_TYPE] = { .type = NLA_U32 },
 	[NL80211_ATTR_REASON_CODE] = { .type = NLA_U16 },
+	[NL80211_ATTR_FREQ_FIXED] = { .type = NLA_FLAG },
 };
 
 /* IE validation */
@@ -322,6 +323,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	CMD(assoc, ASSOCIATE);
 	CMD(deauth, DEAUTHENTICATE);
 	CMD(disassoc, DISASSOCIATE);
+	CMD(join_ibss, JOIN_IBSS);
 
 #undef CMD
 	nla_nest_end(msg, nl_cmds);
@@ -668,7 +670,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *drv;
 	struct vif_params params;
 	int err, ifindex;
-	enum nl80211_iftype type;
+	enum nl80211_iftype otype, ntype;
 	struct net_device *dev;
 	u32 _flags, *flags = NULL;
 	bool change = false;
@@ -682,30 +684,27 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		goto unlock_rtnl;
 
 	ifindex = dev->ifindex;
-	type = dev->ieee80211_ptr->iftype;
+	otype = ntype = dev->ieee80211_ptr->iftype;
 	dev_put(dev);
 
 	if (info->attrs[NL80211_ATTR_IFTYPE]) {
-		enum nl80211_iftype ntype;
-
 		ntype = nla_get_u32(info->attrs[NL80211_ATTR_IFTYPE]);
-		if (type != ntype)
+		if (otype != ntype)
 			change = true;
-		type = ntype;
-		if (type > NL80211_IFTYPE_MAX) {
+		if (ntype > NL80211_IFTYPE_MAX) {
 			err = -EINVAL;
 			goto unlock;
 		}
 	}
 
 	if (!drv->ops->change_virtual_intf ||
-	    !(drv->wiphy.interface_modes & (1 << type))) {
+	    !(drv->wiphy.interface_modes & (1 << ntype))) {
 		err = -EOPNOTSUPP;
 		goto unlock;
 	}
 
 	if (info->attrs[NL80211_ATTR_MESH_ID]) {
-		if (type != NL80211_IFTYPE_MESH_POINT) {
+		if (ntype != NL80211_IFTYPE_MESH_POINT) {
 			err = -EINVAL;
 			goto unlock;
 		}
@@ -715,7 +714,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_MNTR_FLAGS]) {
-		if (type != NL80211_IFTYPE_MONITOR) {
+		if (ntype != NL80211_IFTYPE_MONITOR) {
 			err = -EINVAL;
 			goto unlock;
 		}
@@ -730,12 +729,17 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 
 	if (change)
 		err = drv->ops->change_virtual_intf(&drv->wiphy, ifindex,
-						    type, flags, &params);
+						    ntype, flags, &params);
 	else
 		err = 0;
 
 	dev = __dev_get_by_index(&init_net, ifindex);
-	WARN_ON(!dev || (!err && dev->ieee80211_ptr->iftype != type));
+	WARN_ON(!dev || (!err && dev->ieee80211_ptr->iftype != ntype));
+
+	if (dev && !err && (ntype != otype)) {
+		if (otype == NL80211_IFTYPE_ADHOC)
+			cfg80211_clear_ibss(dev);
+	}
 
  unlock:
 	cfg80211_put_dev(drv);
@@ -3052,6 +3056,114 @@ unlock_rtnl:
 	return err;
 }
 
+static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	struct net_device *dev;
+	struct cfg80211_ibss_params ibss;
+	struct wiphy *wiphy;
+	int err;
+
+	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
+		return -EINVAL;
+
+	if (!info->attrs[NL80211_ATTR_WIPHY_FREQ] ||
+	    !info->attrs[NL80211_ATTR_SSID] ||
+	    !nla_len(info->attrs[NL80211_ATTR_SSID]))
+		return -EINVAL;
+
+	rtnl_lock();
+
+	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	if (err)
+		goto unlock_rtnl;
+
+	if (!drv->ops->join_ibss) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
+		goto out;
+	}
+
+	wiphy = &drv->wiphy;
+	memset(&ibss, 0, sizeof(ibss));
+
+	if (info->attrs[NL80211_ATTR_MAC])
+		ibss.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	ibss.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
+	ibss.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
+
+	if (info->attrs[NL80211_ATTR_IE]) {
+		ibss.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
+		ibss.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+	}
+
+	ibss.channel = ieee80211_get_channel(wiphy,
+		nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]));
+	if (!ibss.channel ||
+	    ibss.channel->flags & IEEE80211_CHAN_NO_IBSS ||
+	    ibss.channel->flags & IEEE80211_CHAN_DISABLED) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	ibss.channel_fixed = !!info->attrs[NL80211_ATTR_FREQ_FIXED];
+
+	err = cfg80211_join_ibss(drv, dev, &ibss);
+
+out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+unlock_rtnl:
+	rtnl_unlock();
+	return err;
+}
+
+static int nl80211_leave_ibss(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	struct net_device *dev;
+	int err;
+
+	rtnl_lock();
+
+	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	if (err)
+		goto unlock_rtnl;
+
+	if (!drv->ops->leave_ibss) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
+		goto out;
+	}
+
+	err = cfg80211_leave_ibss(drv, dev);
+
+out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+unlock_rtnl:
+	rtnl_unlock();
+	return err;
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -3250,6 +3362,18 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_DISASSOCIATE,
 		.doit = nl80211_disassociate,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_JOIN_IBSS,
+		.doit = nl80211_join_ibss,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_LEAVE_IBSS,
+		.doit = nl80211_leave_ibss,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
@@ -3464,6 +3588,40 @@ void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 {
 	nl80211_send_mlme_event(rdev, netdev, buf, len,
 				NL80211_CMD_DISASSOCIATE);
+}
+
+void nl80211_send_ibss_bssid(struct cfg80211_registered_device *rdev,
+			     struct net_device *netdev, const u8 *bssid,
+			     gfp_t gfp)
+{
+	struct sk_buff *msg;
+	void *hdr;
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_JOIN_IBSS);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex);
+	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, bssid);
+
+	if (genlmsg_end(msg, hdr) < 0) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast(msg, 0, nl80211_mlme_mcgrp.id, gfp);
+	return;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
 }
 
 void nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,

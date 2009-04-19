@@ -34,4 +34,8 @@ nl80211_send_beacon_hint_event(struct wiphy *wiphy,
 			       struct ieee80211_channel *channel_before,
 			       struct ieee80211_channel *channel_after);
 
+void nl80211_send_ibss_bssid(struct cfg80211_registered_device *rdev,
+			     struct net_device *netdev, const u8 *bssid,
+			     gfp_t gfp);
+
 #endif /* __NET_WIRELESS_NL80211_H */

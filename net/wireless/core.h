@@ -144,4 +144,12 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *dev);
 void cfg80211_bss_age(struct cfg80211_registered_device *dev,
                       unsigned long age_secs);
 
+/* IBSS */
+int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
+		       struct net_device *dev,
+		       struct cfg80211_ibss_params *params);
+void cfg80211_clear_ibss(struct net_device *dev);
+int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
+			struct net_device *dev);
+
 #endif /* __NET_WIRELESS_CORE_H */

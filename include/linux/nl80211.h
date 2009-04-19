@@ -223,6 +223,15 @@
  *	%NL80211_ATTR_KEY_SEQ to indicate the TSC value of the frame; this
  *	event matches with MLME-MICHAELMICFAILURE.indication() primitive
  *
+ * @NL80211_CMD_JOIN_IBSS: Join a new IBSS -- given at least an SSID and a
+ *	FREQ attribute (for the initial frequency if no peer can be found)
+ *	and optionally a MAC (as BSSID) and FREQ_FIXED attribute if those
+ *	should be fixed rather than automatically determined. Can only be
+ *	executed on a network interface that is UP, and fixed BSSID/FREQ
+ *	may be rejected.
+ * @NL80211_CMD_LEAVE_IBSS: Leave the IBSS -- no special arguments, the IBSS is
+ *	determined by the network interface.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -287,6 +296,9 @@ enum nl80211_commands {
 	NL80211_CMD_MICHAEL_MIC_FAILURE,
 
 	NL80211_CMD_REG_BEACON_HINT,
+
+	NL80211_CMD_JOIN_IBSS,
+	NL80211_CMD_LEAVE_IBSS,
 
 	/* add new commands above here */
 
@@ -456,6 +468,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_CIPHER_SUITES: a set of u32 values indicating the supported
  *	cipher suites
  *
+ * @NL80211_ATTR_FREQ_FIXED: a flag indicating the IBSS should not try to look
+ *	for other networks on different channels
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -547,6 +562,9 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_FREQ_BEFORE,
 	NL80211_ATTR_FREQ_AFTER,
+
+	NL80211_ATTR_FREQ_FIXED,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,

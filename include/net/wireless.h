@@ -265,6 +265,8 @@ struct wiphy {
  *
  * @wiphy: pointer to hardware description
  * @iftype: interface type
+ * @list: (private)
+ * @netdev (private)
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -273,6 +275,18 @@ struct wireless_dev {
 	/* private to the generic wireless code */
 	struct list_head list;
 	struct net_device *netdev;
+
+	/* currently used for IBSS - might be rearranged in the future */
+	struct cfg80211_bss *current_bss;
+	u8 bssid[ETH_ALEN];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 ssid_len;
+
+#ifdef CONFIG_WIRELESS_EXT
+	/* wext data */
+	struct cfg80211_ibss_params wext;
+	u8 wext_bssid[ETH_ALEN];
+#endif
 };
 
 /**
