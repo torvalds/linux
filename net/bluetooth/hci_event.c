@@ -1646,20 +1646,28 @@ static inline void hci_sync_conn_complete_evt(struct hci_dev *hdev, struct sk_bu
 		conn->type = SCO_LINK;
 	}
 
-	if (conn->out && ev->status == 0x1c && conn->attempt < 2) {
-		conn->pkt_type = (hdev->esco_type & SCO_ESCO_MASK) |
-					(hdev->esco_type & EDR_ESCO_MASK);
-		hci_setup_sync(conn, conn->link->handle);
-		goto unlock;
-	}
-
-	if (!ev->status) {
+	switch (ev->status) {
+	case 0x00:
 		conn->handle = __le16_to_cpu(ev->handle);
 		conn->state  = BT_CONNECTED;
 
 		hci_conn_add_sysfs(conn);
-	} else
+		break;
+
+	case 0x1c:	/* SCO interval rejected */
+	case 0x1f:	/* Unspecified error */
+		if (conn->out && conn->attempt < 2) {
+			conn->pkt_type = (hdev->esco_type & SCO_ESCO_MASK) |
+					(hdev->esco_type & EDR_ESCO_MASK);
+			hci_setup_sync(conn, conn->link->handle);
+			goto unlock;
+		}
+		/* fall through */
+
+	default:
 		conn->state = BT_CLOSED;
+		break;
+	}
 
 	hci_proto_connect_cfm(conn, ev->status);
 	if (ev->status)
