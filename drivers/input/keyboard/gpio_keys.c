@@ -142,8 +142,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 		}
 
 		error = request_irq(irq, gpio_keys_isr,
-				    IRQF_SAMPLE_RANDOM | IRQF_TRIGGER_RISING |
-					IRQF_TRIGGER_FALLING,
+				    IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				    button->desc ? button->desc : "gpio_keys",
 				    bdata);
 		if (error) {
