@@ -38,16 +38,16 @@ TRACE_EVENT(lock_acquired,
 	TP_ARGS(lock, ip, waittime),
 
 	TP_STRUCT__entry(
-		__field(const char *, name)
+		__string(name, lock->name)
 		__field(unsigned long, wait_usec)
 		__field(unsigned long, wait_nsec_rem)
 	),
 	TP_fast_assign(
-		__entry->name = lock->name;
+		__assign_str(name, lock->name);
 		__entry->wait_nsec_rem = do_div(waittime, NSEC_PER_USEC);
 		__entry->wait_usec = (unsigned long) waittime;
 	),
-	TP_printk("%s (%lu.%03lu us)", __entry->name, __entry->wait_usec,
+	TP_printk("%s (%lu.%03lu us)", __get_str(name), __entry->wait_usec,
 				       __entry->wait_nsec_rem)
 );
 
