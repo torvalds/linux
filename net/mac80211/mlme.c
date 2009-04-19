@@ -2338,9 +2338,6 @@ int ieee80211_sta_deauthenticate(struct ieee80211_sub_if_data *sdata, u16 reason
 	printk(KERN_DEBUG "%s: deauthenticating by local choice (reason=%d)\n",
 	       sdata->dev->name, reason);
 
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
-		return -EINVAL;
-
 	ieee80211_set_disassoc(sdata, true, true, reason);
 	return 0;
 }
@@ -2351,9 +2348,6 @@ int ieee80211_sta_disassociate(struct ieee80211_sub_if_data *sdata, u16 reason)
 
 	printk(KERN_DEBUG "%s: disassociating by local choice (reason=%d)\n",
 	       sdata->dev->name, reason);
-
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
-		return -EINVAL;
 
 	if (!(ifmgd->flags & IEEE80211_STA_ASSOCIATED))
 		return -ENOLINK;

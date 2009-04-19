@@ -10,6 +10,7 @@
 
 #include <linux/wireless.h>
 #include <linux/nl80211.h>
+#include <linux/if_arp.h>
 #include <net/iw_handler.h>
 #include <net/wireless.h>
 #include <net/cfg80211.h>
@@ -206,7 +207,6 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
 			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
 
-
 	for (band = 0; band < IEEE80211_NUM_BANDS; band ++) {
 		int i;
 		struct ieee80211_supported_band *sband;
@@ -241,3 +241,47 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL(cfg80211_wext_giwrange);
+
+int cfg80211_wext_siwmlme(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_point *data, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct iw_mlme *mlme = (struct iw_mlme *)extra;
+	struct cfg80211_registered_device *rdev;
+	union {
+		struct cfg80211_disassoc_request disassoc;
+		struct cfg80211_deauth_request deauth;
+	} cmd;
+
+	if (!wdev)
+		return -EOPNOTSUPP;
+
+	rdev = wiphy_to_dev(wdev->wiphy);
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION)
+		return -EINVAL;
+
+	if (mlme->addr.sa_family != ARPHRD_ETHER)
+		return -EINVAL;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	switch (mlme->cmd) {
+	case IW_MLME_DEAUTH:
+		if (!rdev->ops->deauth)
+			return -EOPNOTSUPP;
+		cmd.deauth.peer_addr = mlme->addr.sa_data;
+		cmd.deauth.reason_code = mlme->reason_code;
+		return rdev->ops->deauth(wdev->wiphy, dev, &cmd.deauth);
+	case IW_MLME_DISASSOC:
+		if (!rdev->ops->disassoc)
+			return -EOPNOTSUPP;
+		cmd.disassoc.peer_addr = mlme->addr.sa_data;
+		cmd.disassoc.reason_code = mlme->reason_code;
+		return rdev->ops->disassoc(wdev->wiphy, dev, &cmd.disassoc);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL(cfg80211_wext_siwmlme);

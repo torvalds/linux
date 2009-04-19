@@ -612,29 +612,6 @@ static int ieee80211_ioctl_giwretry(struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_ioctl_siwmlme(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_point *data, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata;
-	struct iw_mlme *mlme = (struct iw_mlme *) extra;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (!(sdata->vif.type == NL80211_IFTYPE_STATION))
-		return -EINVAL;
-
-	switch (mlme->cmd) {
-	case IW_MLME_DEAUTH:
-		/* TODO: mlme->addr.sa_data */
-		return ieee80211_sta_deauthenticate(sdata, mlme->reason_code);
-	case IW_MLME_DISASSOC:
-		/* TODO: mlme->addr.sa_data */
-		return ieee80211_sta_disassociate(sdata, mlme->reason_code);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 
 static int ieee80211_ioctl_siwencode(struct net_device *dev,
 				     struct iw_request_info *info,
@@ -1076,7 +1053,7 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* SIOCGIWTHRSPY */
 	(iw_handler) ieee80211_ioctl_siwap,		/* SIOCSIWAP */
 	(iw_handler) ieee80211_ioctl_giwap,		/* SIOCGIWAP */
-	(iw_handler) ieee80211_ioctl_siwmlme,		/* SIOCSIWMLME */
+	(iw_handler) cfg80211_wext_siwmlme,		/* SIOCSIWMLME */
 	(iw_handler) NULL,				/* SIOCGIWAPLIST */
 	(iw_handler) cfg80211_wext_siwscan,		/* SIOCSIWSCAN */
 	(iw_handler) cfg80211_wext_giwscan,		/* SIOCGIWSCAN */
