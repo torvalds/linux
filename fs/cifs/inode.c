@@ -143,6 +143,7 @@ static void cifs_unix_info_to_inode(struct inode *inode,
 
 	inode->i_nlink = le64_to_cpu(info->Nlinks);
 
+	cifsInfo->server_eof = end_of_file;
 	spin_lock(&inode->i_lock);
 	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/*
@@ -276,7 +277,8 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 	/* get new inode */
 	if (*pinode == NULL) {
-		*pinode = cifs_new_inode(sb, &find_data.UniqueId);
+		__u64 unique_id = le64_to_cpu(find_data.UniqueId);
+		*pinode = cifs_new_inode(sb, &unique_id);
 		if (*pinode == NULL) {
 			rc = -ENOMEM;
 			goto cgiiu_exit;
@@ -605,12 +607,12 @@ int cifs_get_inode_info(struct inode **pinode,
 			inode->i_mode |= S_IFREG;
 	}
 
+	cifsInfo->server_eof = le64_to_cpu(pfindData->EndOfFile);
 	spin_lock(&inode->i_lock);
-	if (is_size_safe_to_change(cifsInfo,
-				   le64_to_cpu(pfindData->EndOfFile))) {
+	if (is_size_safe_to_change(cifsInfo, cifsInfo->server_eof)) {
 		/* can not safely shrink the file size here if the
 		   client is writing to it due to potential races */
-		i_size_write(inode, le64_to_cpu(pfindData->EndOfFile));
+		i_size_write(inode, cifsInfo->server_eof);
 
 		/* 512 bytes (2**9) is the fake blocksize that must be
 		   used for this calculation */
@@ -1138,6 +1140,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			cFYI(1, ("posix mkdir returned 0x%x", rc));
 			d_drop(direntry);
 		} else {
+			__u64 unique_id;
 			if (pInfo->Type == cpu_to_le32(-1)) {
 				/* no return info, go query for it */
 				kfree(pInfo);
@@ -1151,8 +1154,8 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			else
 				direntry->d_op = &cifs_dentry_ops;
 
-			newinode = cifs_new_inode(inode->i_sb,
-						  &pInfo->UniqueId);
+			unique_id = le64_to_cpu(pInfo->UniqueId);
+			newinode = cifs_new_inode(inode->i_sb, &unique_id);
 			if (newinode == NULL) {
 				kfree(pInfo);
 				goto mkdir_get_info;
@@ -1450,7 +1453,8 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 		     checking the UniqueId via FILE_INTERNAL_INFO */
 
 unlink_target:
-	if ((rc == -EACCES) || (rc == -EEXIST)) {
+	/* Try unlinking the target dentry if it's not negative */
+	if (target_dentry->d_inode && (rc == -EACCES || rc == -EEXIST)) {
 		tmprc = cifs_unlink(target_dir, target_dentry);
 		if (tmprc)
 			goto cifs_rename_exit;
@@ -1753,6 +1757,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	}
 
 	if (rc == 0) {
+		cifsInode->server_eof = attrs->ia_size;
 		rc = cifs_vmtruncate(inode, attrs->ia_size);
 		cifs_truncate_page(inode->i_mapping, inode->i_size);
 	}
@@ -1792,20 +1797,21 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		goto out;
 	}
 
-	if ((attrs->ia_valid & ATTR_MTIME) || (attrs->ia_valid & ATTR_SIZE)) {
-		/*
-		   Flush data before changing file size or changing the last
-		   write time of the file on the server. If the
-		   flush returns error, store it to report later and continue.
-		   BB: This should be smarter. Why bother flushing pages that
-		   will be truncated anyway? Also, should we error out here if
-		   the flush returns error?
-		 */
-		rc = filemap_write_and_wait(inode->i_mapping);
-		if (rc != 0) {
-			cifsInode->write_behind_rc = rc;
-			rc = 0;
-		}
+	/*
+	 * Attempt to flush data before changing attributes. We need to do
+	 * this for ATTR_SIZE and ATTR_MTIME for sure, and if we change the
+	 * ownership or mode then we may also need to do this. Here, we take
+	 * the safe way out and just do the flush on all setattr requests. If
+	 * the flush returns error, store it to report later and continue.
+	 *
+	 * BB: This should be smarter. Why bother flushing pages that
+	 * will be truncated anyway? Also, should we error out here if
+	 * the flush returns error?
+	 */
+	rc = filemap_write_and_wait(inode->i_mapping);
+	if (rc != 0) {
+		cifsInode->write_behind_rc = rc;
+		rc = 0;
 	}
 
 	if (attrs->ia_valid & ATTR_SIZE) {
@@ -1903,20 +1909,21 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 		return -ENOMEM;
 	}
 
-	if ((attrs->ia_valid & ATTR_MTIME) || (attrs->ia_valid & ATTR_SIZE)) {
-		/*
-		   Flush data before changing file size or changing the last
-		   write time of the file on the server. If the
-		   flush returns error, store it to report later and continue.
-		   BB: This should be smarter. Why bother flushing pages that
-		   will be truncated anyway? Also, should we error out here if
-		   the flush returns error?
-		 */
-		rc = filemap_write_and_wait(inode->i_mapping);
-		if (rc != 0) {
-			cifsInode->write_behind_rc = rc;
-			rc = 0;
-		}
+	/*
+	 * Attempt to flush data before changing attributes. We need to do
+	 * this for ATTR_SIZE and ATTR_MTIME for sure, and if we change the
+	 * ownership or mode then we may also need to do this. Here, we take
+	 * the safe way out and just do the flush on all setattr requests. If
+	 * the flush returns error, store it to report later and continue.
+	 *
+	 * BB: This should be smarter. Why bother flushing pages that
+	 * will be truncated anyway? Also, should we error out here if
+	 * the flush returns error?
+	 */
+	rc = filemap_write_and_wait(inode->i_mapping);
+	if (rc != 0) {
+		cifsInode->write_behind_rc = rc;
+		rc = 0;
 	}
 
 	if (attrs->ia_valid & ATTR_SIZE) {
