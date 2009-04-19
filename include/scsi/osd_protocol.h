@@ -301,14 +301,24 @@ struct osd_attributes_list_attrid {
 } __packed;
 
 /*
- * osd2r03: 7.1.3.3 List entry format for retrieved attributes and
- *                  for setting attributes
- * NOTE: v2 is 8-bytes aligned, v1 is not aligned.
+ * NOTE: v1: is not aligned.
  */
-struct osd_attributes_list_element {
+struct osdv1_attributes_list_element {
 	__be32 attr_page;
 	__be32 attr_id;
-	__be16 attr_bytes;
+	__be16 attr_bytes; /* valid bytes at attr_val without padding */
+	u8 attr_val[0];
+} __packed;
+
+/*
+ * osd2r03: 7.1.3.3 List entry format for retrieved attributes and
+ *                  for setting attributes
+ * NOTE: v2 is 8-bytes aligned
+ */
+struct osdv2_attributes_list_element {
+	__be32 attr_page;
+	__be32 attr_id;
+	__be16 attr_bytes; /* valid bytes at attr_val without padding */
 	u8 attr_val[0];
 } __packed;
 
@@ -324,13 +334,13 @@ enum {
 
 static inline unsigned osdv1_attr_list_elem_size(unsigned len)
 {
-	return ALIGN(len + sizeof(struct osd_attributes_list_element),
+	return ALIGN(len + sizeof(struct osdv1_attributes_list_element),
 		     OSDv1_ATTRIBUTES_ELEM_ALIGN);
 }
 
 static inline unsigned osdv2_attr_list_elem_size(unsigned len)
 {
-	return ALIGN(len + sizeof(struct osd_attributes_list_element),
+	return ALIGN(len + sizeof(struct osdv2_attributes_list_element),
 		     OSD_ATTRIBUTES_ELEM_ALIGN);
 }
 

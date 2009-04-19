@@ -205,6 +205,69 @@ static unsigned _osd_req_alist_elem_size(struct osd_request *or, unsigned len)
 		osdv2_attr_list_elem_size(len);
 }
 
+static void _osd_req_alist_elem_encode(struct osd_request *or,
+	void *attr_last, const struct osd_attr *oa)
+{
+	if (osd_req_is_ver1(or)) {
+		struct osdv1_attributes_list_element *attr = attr_last;
+
+		attr->attr_page = cpu_to_be32(oa->attr_page);
+		attr->attr_id = cpu_to_be32(oa->attr_id);
+		attr->attr_bytes = cpu_to_be16(oa->len);
+		memcpy(attr->attr_val, oa->val_ptr, oa->len);
+	} else {
+		struct osdv2_attributes_list_element *attr = attr_last;
+
+		attr->attr_page = cpu_to_be32(oa->attr_page);
+		attr->attr_id = cpu_to_be32(oa->attr_id);
+		attr->attr_bytes = cpu_to_be16(oa->len);
+		memcpy(attr->attr_val, oa->val_ptr, oa->len);
+	}
+}
+
+static int _osd_req_alist_elem_decode(struct osd_request *or,
+	void *cur_p, struct osd_attr *oa, unsigned max_bytes)
+{
+	unsigned inc;
+	if (osd_req_is_ver1(or)) {
+		struct osdv1_attributes_list_element *attr = cur_p;
+
+		if (max_bytes < sizeof(*attr))
+			return -1;
+
+		oa->len = be16_to_cpu(attr->attr_bytes);
+		inc = _osd_req_alist_elem_size(or, oa->len);
+		if (inc > max_bytes)
+			return -1;
+
+		oa->attr_page = be32_to_cpu(attr->attr_page);
+		oa->attr_id = be32_to_cpu(attr->attr_id);
+
+		/* OSD1: On empty attributes we return a pointer to 2 bytes
+		 * of zeros. This keeps similar behaviour with OSD2.
+		 * (See below)
+		 */
+		oa->val_ptr = likely(oa->len) ? attr->attr_val :
+						(u8 *)&attr->attr_bytes;
+	} else {
+		struct osdv2_attributes_list_element *attr = cur_p;
+
+		if (max_bytes < sizeof(*attr))
+			return -1;
+
+		oa->len = be16_to_cpu(attr->attr_bytes);
+		inc = _osd_req_alist_elem_size(or, oa->len);
+		if (inc > max_bytes)
+			return -1;
+
+		oa->attr_page = be32_to_cpu(attr->attr_page);
+		oa->attr_id = be32_to_cpu(attr->attr_id);
+
+		oa->val_ptr = attr->attr_val;
+	}
+	return inc;
+}
+
 static unsigned _osd_req_alist_size(struct osd_request *or, void *list_head)
 {
 	return osd_req_is_ver1(or) ?
@@ -798,7 +861,6 @@ int osd_req_add_set_attr_list(struct osd_request *or,
 	attr_last = or->set_attr.buff + total_bytes;
 
 	for (; nelem; --nelem) {
-		struct osd_attributes_list_element *attr;
 		unsigned elem_size = _osd_req_alist_elem_size(or, oa->len);
 
 		total_bytes += elem_size;
@@ -811,11 +873,7 @@ int osd_req_add_set_attr_list(struct osd_request *or,
 				or->set_attr.buff + or->set_attr.total_bytes;
 		}
 
-		attr = attr_last;
-		attr->attr_page = cpu_to_be32(oa->attr_page);
-		attr->attr_id = cpu_to_be32(oa->attr_id);
-		attr->attr_bytes = cpu_to_be16(oa->len);
-		memcpy(attr->attr_val, oa->val_ptr, oa->len);
+		_osd_req_alist_elem_encode(or, attr_last, oa);
 
 		attr_last += elem_size;
 		++oa;
@@ -1070,15 +1128,10 @@ int osd_req_decode_get_attr_list(struct osd_request *or,
 	}
 
 	for (n = 0; (n < *nelem) && (cur_bytes < returned_bytes); ++n) {
-		struct osd_attributes_list_element *attr = cur_p;
-		unsigned inc;
+		int inc = _osd_req_alist_elem_decode(or, cur_p, oa,
+						 returned_bytes - cur_bytes);
 
-		oa->len = be16_to_cpu(attr->attr_bytes);
-		inc = _osd_req_alist_elem_size(or, oa->len);
-		OSD_DEBUG("oa->len=%d inc=%d cur_bytes=%d\n",
-			  oa->len, inc, cur_bytes);
-		cur_bytes += inc;
-		if (cur_bytes > returned_bytes) {
+		if (inc < 0) {
 			OSD_ERR("BAD FOOD from target. list not valid!"
 				"c=%d r=%d n=%d\n",
 				cur_bytes, returned_bytes, n);
@@ -1086,10 +1139,7 @@ int osd_req_decode_get_attr_list(struct osd_request *or,
 			break;
 		}
 
-		oa->attr_page = be32_to_cpu(attr->attr_page);
-		oa->attr_id = be32_to_cpu(attr->attr_id);
-		oa->val_ptr = attr->attr_val;
-
+		cur_bytes += inc;
 		cur_p += inc;
 		++oa;
 	}
