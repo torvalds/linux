@@ -375,9 +375,14 @@ static int elantech_set_absolute_mode(struct psmouse *psmouse)
 			rc = -1;
 			break;
 		}
+	}
+
+	if (rc == 0) {
 		/*
-		 * Read back reg 0x10. The touchpad is probably initalising
-		 * and not ready until we read back the value we just wrote.
+		 * Read back reg 0x10. For hardware version 1 we must make
+		 * sure the absolute mode bit is set. For hardware version 2
+		 * the touchpad is probably initalising and not ready until
+		 * we read back the value we just wrote.
 		 */
 		do {
 			rc = elantech_read_reg(psmouse, 0x10, &val);
@@ -385,12 +390,18 @@ static int elantech_set_absolute_mode(struct psmouse *psmouse)
 				break;
 			tries--;
 			elantech_debug("elantech.c: retrying read (%d).\n",
-				tries);
+					tries);
 			msleep(ETP_READ_BACK_DELAY);
 		} while (tries > 0);
-		if (rc)
+
+		if (rc) {
 			pr_err("elantech.c: failed to read back register 0x10.\n");
-		break;
+		} else if (etd->hw_version == 1 &&
+			   !(val & ETP_R10_ABSOLUTE_MODE)) {
+			pr_err("elantech.c: touchpad refuses "
+				"to switch to absolute mode.\n");
+			rc = -1;
+		}
 	}
 
 	if (rc)
