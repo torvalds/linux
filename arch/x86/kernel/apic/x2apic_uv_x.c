@@ -91,7 +91,7 @@ static void uv_vector_allocation_domain(int cpu, struct cpumask *retmask)
 	cpumask_set_cpu(cpu, retmask);
 }
 
-static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
+static int __cpuinit uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 {
 #ifdef CONFIG_SMP
 	unsigned long val;
