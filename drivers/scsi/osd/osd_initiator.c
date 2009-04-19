@@ -345,9 +345,9 @@ _osd_req_sec_params(struct osd_request *or)
 	struct osd_cdb *ocdb = &or->cdb;
 
 	if (osd_req_is_ver1(or))
-		return &ocdb->v1.sec_params;
+		return (struct osd_security_parameters *)&ocdb->v1.sec_params;
 	else
-		return &ocdb->v2.sec_params;
+		return (struct osd_security_parameters *)&ocdb->v2.sec_params;
 }
 
 void osd_dev_init(struct osd_dev *osdd, struct scsi_device *scsi_device)
@@ -1209,6 +1209,24 @@ static int _osd_req_finalize_attr_page(struct osd_request *or)
 	return ret;
 }
 
+static inline void osd_sec_parms_set_out_offset(bool is_v1,
+	struct osd_security_parameters *sec_parms, osd_cdb_offset offset)
+{
+	if (is_v1)
+		sec_parms->v1.data_out_integrity_check_offset = offset;
+	else
+		sec_parms->v2.data_out_integrity_check_offset = offset;
+}
+
+static inline void osd_sec_parms_set_in_offset(bool is_v1,
+	struct osd_security_parameters *sec_parms, osd_cdb_offset offset)
+{
+	if (is_v1)
+		sec_parms->v1.data_in_integrity_check_offset = offset;
+	else
+		sec_parms->v2.data_in_integrity_check_offset = offset;
+}
+
 static int _osd_req_finalize_data_integrity(struct osd_request *or,
 	bool has_in, bool has_out, const u8 *cap_key)
 {
@@ -1232,8 +1250,8 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
 		or->out_data_integ.get_attributes_bytes = cpu_to_be64(
 			or->enc_get_attr.total_bytes);
 
-		sec_parms->data_out_integrity_check_offset =
-			osd_req_encode_offset(or, or->out.total_bytes, &pad);
+		osd_sec_parms_set_out_offset(osd_req_is_ver1(or), sec_parms,
+			osd_req_encode_offset(or, or->out.total_bytes, &pad));
 
 		ret = _req_append_segment(or, pad, &seg, or->out.last_seg,
 					  &or->out);
@@ -1253,8 +1271,8 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
 		};
 		unsigned pad;
 
-		sec_parms->data_in_integrity_check_offset =
-			osd_req_encode_offset(or, or->in.total_bytes, &pad);
+		osd_sec_parms_set_in_offset(osd_req_is_ver1(or), sec_parms,
+			osd_req_encode_offset(or, or->in.total_bytes, &pad));
 
 		ret = _req_append_segment(or, pad, &seg, or->in.last_seg,
 					  &or->in);
