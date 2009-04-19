@@ -8,7 +8,7 @@
 #####
 # 1) Generate bounds.h
 
-bounds-file := include/linux/bounds.h
+bounds-file := include/generated/bounds.h
 
 always  := $(bounds-file)
 targets := $(bounds-file) kernel/bounds.s
