@@ -594,6 +594,34 @@ static int dapm_generic_check_power(struct snd_soc_dapm_widget *w)
 	return out != 0 && in != 0;
 }
 
+/* Check to see if an ADC has power */
+static int dapm_adc_check_power(struct snd_soc_dapm_widget *w)
+{
+	int in;
+
+	if (w->active) {
+		in = is_connected_input_ep(w);
+		dapm_clear_walk(w->codec);
+		return in != 0;
+	} else {
+		return dapm_generic_check_power(w);
+	}
+}
+
+/* Check to see if a DAC has power */
+static int dapm_dac_check_power(struct snd_soc_dapm_widget *w)
+{
+	int out;
+
+	if (w->active) {
+		out = is_connected_output_ep(w);
+		dapm_clear_walk(w->codec);
+		return out != 0;
+	} else {
+		return dapm_generic_check_power(w);
+	}
+}
+
 /*
  * Scan a single DAPM widget for a complete audio path and update the
  * power status appropriately.
@@ -601,36 +629,23 @@ static int dapm_generic_check_power(struct snd_soc_dapm_widget *w)
 static int dapm_power_widget(struct snd_soc_codec *codec, int event,
 			     struct snd_soc_dapm_widget *w)
 {
-	int in, out, power_change, power, ret;
+	int power, ret;
 
-	/* vmid - no action */
-	if (w->id == snd_soc_dapm_vmid)
+	/* Work out the new power state */
+	switch (w->id) {
+	case snd_soc_dapm_vmid:
+		/* No action required */
 		return 0;
 
-	/* active ADC */
-	if (w->id == snd_soc_dapm_adc && w->active) {
-		in = is_connected_input_ep(w);
-		dapm_clear_walk(w->codec);
-		power = (in != 0) ? 1 : 0;
-		if (power == w->power)
-			return 0;
-		w->power = power;
-		return dapm_generic_apply_power(w);
-	}
+	case snd_soc_dapm_adc:
+		power = dapm_adc_check_power(w);
+		break;
 
-	/* active DAC */
-	if (w->id == snd_soc_dapm_dac && w->active) {
-		out = is_connected_output_ep(w);
-		dapm_clear_walk(w->codec);
-		power = (out != 0) ? 1 : 0;
-		if (power == w->power)
-			return 0;
-		w->power = power;
-		return dapm_generic_apply_power(w);
-	}
+	case snd_soc_dapm_dac:
+		power = dapm_dac_check_power(w);
+		break;
 
-	/* pre and post event widgets */
-	if (w->id == snd_soc_dapm_pre) {
+	case snd_soc_dapm_pre:
 		if (!w->event)
 			return 0;
 
@@ -646,8 +661,8 @@ static int dapm_power_widget(struct snd_soc_codec *codec, int event,
 				return ret;
 		}
 		return 0;
-	}
-	if (w->id == snd_soc_dapm_post) {
+
+	case snd_soc_dapm_post:
 		if (!w->event)
 			return 0;
 
@@ -663,15 +678,15 @@ static int dapm_power_widget(struct snd_soc_codec *codec, int event,
 				return ret;
 		}
 		return 0;
+
+	default:
+		power = dapm_generic_check_power(w);
+		break;
 	}
 
-	/* all other widgets */
-	power = dapm_generic_check_power(w);
-	power_change = (w->power == power) ? 0 : 1;
-	w->power = power;
-
-	if (!power_change)
+	if (w->power == power)
 		return 0;
+	w->power = power;
 
 	return dapm_generic_apply_power(w);
 }
