@@ -52,7 +52,7 @@
 /* max allowed rate miss before sync LQ cmd */
 #define IWL_MISSED_RATE_MAX		15
 /* max time to accum history 2 seconds */
-#define IWL_RATE_SCALE_FLUSH_INTVL   (2*HZ)
+#define IWL_RATE_SCALE_FLUSH_INTVL   (3*HZ)
 
 static u8 rs_ht_to_legacy[] = {
 	IWL_RATE_6M_INDEX, IWL_RATE_6M_INDEX,
@@ -135,7 +135,7 @@ struct iwl_lq_sta {
 	u32 table_count;
 	u32 total_failed;	/* total failed frames, any/all rates */
 	u32 total_success;	/* total successful frames, any/all rates */
-	u32 flush_timer;	/* time staying in mode before new search */
+	u64 flush_timer;	/* time staying in mode before new search */
 
 	u8 action_counter;	/* # mode-switch actions tried */
 	u8 is_green;
@@ -1025,6 +1025,7 @@ static void rs_set_stay_in_table(struct iwl_priv *priv, u8 is_legacy,
 	lq_sta->table_count = 0;
 	lq_sta->total_failed = 0;
 	lq_sta->total_success = 0;
+	lq_sta->flush_timer = jiffies;
 }
 
 /*
@@ -1914,8 +1915,8 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta)
 		/* Elapsed time using current modulation mode */
 		if (lq_sta->flush_timer)
 			flush_interval_passed =
-			    time_after(jiffies,
-				       (unsigned long)(lq_sta->flush_timer +
+			time_after(jiffies,
+					(unsigned long)(lq_sta->flush_timer +
 					IWL_RATE_SCALE_FLUSH_INTVL));
 
 		/*
@@ -2249,6 +2250,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 			update_lq = 1;
 			index = low;
 		}
+
 		break;
 	case 1:
 		/* Increase starting rate, update uCode's rate table */
@@ -2314,8 +2316,11 @@ lq_update:
 				     tbl->current_rate, index);
 			rs_fill_link_cmd(priv, lq_sta, tbl->current_rate);
 			iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
-		}
+		} else
+			done_search = 1;
+	}
 
+	if (done_search && !lq_sta->stay_in_tbl) {
 		/* If the "active" (non-search) mode was legacy,
 		 * and we've tried switching antennas,
 		 * but we haven't been able to try HT modes (not available),
@@ -2350,17 +2355,6 @@ lq_update:
 			lq_sta->action_counter = 0;
 			rs_set_stay_in_table(priv, 0, lq_sta);
 		}
-
-	/*
-	 * Else, don't search for a new modulation mode.
-	 * Put new timestamp in stay-in-modulation-mode flush timer if:
-	 * 1)  Not changing rates right now
-	 * 2)  Not just finishing up a search
-	 * 3)  flush timer is empty
-	 */
-	} else {
-		if ((!update_lq) && (!done_search) && (!lq_sta->flush_timer))
-			lq_sta->flush_timer = jiffies;
 	}
 
 out:
