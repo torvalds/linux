@@ -408,8 +408,7 @@ static void parse_line_outs(struct hda_codec *codec)
 	n = 0;
 	for (i = 0; i < cfg->line_outs; i++) {
 		nid = cfg->line_out_pins[i];
-		def_conf = snd_hda_codec_read(codec, nid, 0,
-					      AC_VERB_GET_CONFIG_DEFAULT, 0);
+		def_conf = snd_hda_codec_get_pincfg(codec, nid);
 		if (!def_conf)
 			continue; /* invalid pin */
 		if (snd_hda_get_connections(codec, nid, &spec->dacs[i], 1) != 1)
@@ -432,8 +431,7 @@ static void parse_hp_out(struct hda_codec *codec)
 	if (!cfg->hp_outs)
 		return;
 	nid = cfg->hp_pins[0];
-	def_conf = snd_hda_codec_read(codec, nid, 0,
-				      AC_VERB_GET_CONFIG_DEFAULT, 0);
+	def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	if (!def_conf) {
 		cfg->hp_outs = 0;
 		return;
