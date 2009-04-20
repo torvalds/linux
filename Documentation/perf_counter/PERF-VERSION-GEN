@@ -1,0 +1,42 @@
+#!/bin/sh
+
+GVF=PERF-VERSION-FILE
+DEF_VER=v0.0.1.PERF
+
+LF='
+'
+
+# First see if there is a version file (included in release tarballs),
+# then try git-describe, then default.
+if test -f version
+then
+	VN=$(cat version) || VN="$DEF_VER"
+elif test -d .git -o -f .git &&
+	VN=$(git describe --abbrev=4 HEAD 2>/dev/null) &&
+	case "$VN" in
+	*$LF*) (exit 1) ;;
+	v[0-9]*)
+		git update-index -q --refresh
+		test -z "$(git diff-index --name-only HEAD --)" ||
+		VN="$VN-dirty" ;;
+	esac
+then
+	VN=$(echo "$VN" | sed -e 's/-/./g');
+else
+	VN="$DEF_VER"
+fi
+
+VN=$(expr "$VN" : v*'\(.*\)')
+
+if test -r $GVF
+then
+	VC=$(sed -e 's/^PERF_VERSION = //' <$GVF)
+else
+	VC=unset
+fi
+test "$VN" = "$VC" || {
+	echo >&2 "PERF_VERSION = $VN"
+	echo "PERF_VERSION = $VN" >$GVF
+}
+
+

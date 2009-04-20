@@ -1,0 +1,4 @@
+SHELL_PATH='/bin/sh'
+TAR='tar'
+NO_CURL=''
+NO_PERL=''

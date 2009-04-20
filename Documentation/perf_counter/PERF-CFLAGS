@@ -1,0 +1,1 @@
+-g -O2 -Wall  -DSHA1_HEADER='<openssl/sha.h>' : /home/mingo/bin:libexec/perf-core:share/perf-core/templates:/home/mingo
