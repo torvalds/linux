@@ -82,7 +82,7 @@ MODULE_DESCRIPTION("tas codec driver for snd-aoa");
 
 struct tas {
 	struct aoa_codec	codec;
-	struct i2c_client	i2c;
+	struct i2c_client	*i2c;
 	u32			mute_l:1, mute_r:1 ,
 				controls_created:1 ,
 				drc_enabled:1,
@@ -108,9 +108,9 @@ static struct tas *codec_to_tas(struct aoa_codec *codec)
 static inline int tas_write_reg(struct tas *tas, u8 reg, u8 len, u8 *data)
 {
 	if (len == 1)
-		return i2c_smbus_write_byte_data(&tas->i2c, reg, *data);
+		return i2c_smbus_write_byte_data(tas->i2c, reg, *data);
 	else
-		return i2c_smbus_write_i2c_block_data(&tas->i2c, reg, len, data);
+		return i2c_smbus_write_i2c_block_data(tas->i2c, reg, len, data);
 }
 
 static void tas3004_set_drc(struct tas *tas)
@@ -882,12 +882,34 @@ static void tas_exit_codec(struct aoa_codec *codec)
 }
 
 
-static struct i2c_driver tas_driver;
-
 static int tas_create(struct i2c_adapter *adapter,
 		       struct device_node *node,
 		       int addr)
 {
+	struct i2c_board_info info;
+	struct i2c_client *client;
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "aoa_codec_tas", I2C_NAME_SIZE);
+	info.addr = addr;
+	info.platform_data = node;
+
+	client = i2c_new_device(adapter, &info);
+	if (!client)
+		return -ENODEV;
+
+	/*
+	 * Let i2c-core delete that device on driver removal.
+	 * This is safe because i2c-core holds the core_lock mutex for us.
+	 */
+	list_add_tail(&client->detected, &client->driver->clients);
+	return 0;
+}
+
+static int tas_i2c_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct device_node *node = client->dev.platform_data;
 	struct tas *tas;
 
 	tas = kzalloc(sizeof(struct tas), GFP_KERNEL);
@@ -896,17 +918,11 @@ static int tas_create(struct i2c_adapter *adapter,
 		return -ENOMEM;
 
 	mutex_init(&tas->mtx);
-	tas->i2c.driver = &tas_driver;
-	tas->i2c.adapter = adapter;
-	tas->i2c.addr = addr;
+	tas->i2c = client;
+	i2c_set_clientdata(client, tas);
+
 	/* seems that half is a saner default */
 	tas->drc_range = TAS3004_DRC_MAX / 2;
-	strlcpy(tas->i2c.name, "tas audio codec", I2C_NAME_SIZE);
-
-	if (i2c_attach_client(&tas->i2c)) {
-		printk(KERN_ERR PFX "failed to attach to i2c\n");
-		goto fail;
-	}
 
 	strlcpy(tas->codec.name, "tas", MAX_CODEC_NAME_LEN);
 	tas->codec.owner = THIS_MODULE;
@@ -915,14 +931,12 @@ static int tas_create(struct i2c_adapter *adapter,
 	tas->codec.node = of_node_get(node);
 
 	if (aoa_codec_register(&tas->codec)) {
-		goto detach;
+		goto fail;
 	}
 	printk(KERN_DEBUG
 	       "snd-aoa-codec-tas: tas found, addr 0x%02x on %s\n",
-	       addr, node->full_name);
+	       (unsigned int)client->addr, node->full_name);
 	return 0;
- detach:
-	i2c_detach_client(&tas->i2c);
  fail:
 	mutex_destroy(&tas->mtx);
 	kfree(tas);
@@ -970,14 +984,11 @@ static int tas_i2c_attach(struct i2c_adapter *adapter)
 	return -ENODEV;
 }
 
-static int tas_i2c_detach(struct i2c_client *client)
+static int tas_i2c_remove(struct i2c_client *client)
 {
-	struct tas *tas = container_of(client, struct tas, i2c);
-	int err;
+	struct tas *tas = i2c_get_clientdata(client);
 	u8 tmp = TAS_ACR_ANALOG_PDOWN;
 
-	if ((err = i2c_detach_client(client)))
-		return err;
 	aoa_codec_unregister(&tas->codec);
 	of_node_put(tas->codec.node);
 
@@ -989,13 +1000,20 @@ static int tas_i2c_detach(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id tas_i2c_id[] = {
+	{ "aoa_codec_tas", 0 },
+	{ }
+};
+
 static struct i2c_driver tas_driver = {
 	.driver = {
 		.name = "aoa_codec_tas",
 		.owner = THIS_MODULE,
 	},
 	.attach_adapter = tas_i2c_attach,
-	.detach_client = tas_i2c_detach,
+	.probe = tas_i2c_probe,
+	.remove = tas_i2c_remove,
+	.id_table = tas_i2c_id,
 };
 
 static int __init tas_init(void)
