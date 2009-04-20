@@ -441,7 +441,6 @@ struct kvm_vcpu_stat {
 	u32 halt_exits;
 	u32 halt_wakeup;
 	u32 request_irq_exits;
-	u32 request_nmi_exits;
 	u32 irq_exits;
 	u32 host_state_reload;
 	u32 efer_reload;

@@ -91,7 +91,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "hypercalls", VCPU_STAT(hypercalls) },
 	{ "request_irq", VCPU_STAT(request_irq_exits) },
-	{ "request_nmi", VCPU_STAT(request_nmi_exits) },
 	{ "irq_exits", VCPU_STAT(irq_exits) },
 	{ "host_state_reload", VCPU_STAT(host_state_reload) },
 	{ "efer_reload", VCPU_STAT(efer_reload) },
