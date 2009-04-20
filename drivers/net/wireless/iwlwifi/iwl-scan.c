@@ -747,7 +747,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 
 	scan->tx_cmd.len = cpu_to_le16(cmd_len);
 
-	if (priv->iw_mode == NL80211_IFTYPE_MONITOR)
+	if (iwl_is_monitor_mode(priv))
 		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
 
 	scan->filter_flags |= (RXON_FILTER_ACCEPT_GRP_MSK |

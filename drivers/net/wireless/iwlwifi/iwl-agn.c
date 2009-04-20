@@ -2001,8 +2001,6 @@ static int iwl_mac_start(struct ieee80211_hw *hw)
 
 out:
 	priv->is_open = 1;
-	/* default to MONITOR mode */
-	priv->iw_mode = NL80211_IFTYPE_MONITOR;
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	return 0;
 }

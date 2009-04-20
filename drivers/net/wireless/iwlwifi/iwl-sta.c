@@ -1078,11 +1078,6 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 		iwl_print_hex_dump(priv, IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
 		return priv->hw_params.bcast_sta_id;
 
-	/* If we are in monitor mode, use BCAST. This is required for
-	 * packet injection. */
-	case NL80211_IFTYPE_MONITOR:
-		return priv->hw_params.bcast_sta_id;
-
 	default:
 		IWL_WARN(priv, "Unknown mode of operation: %d\n",
 			priv->iw_mode);
