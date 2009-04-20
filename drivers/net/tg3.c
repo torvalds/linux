@@ -6717,6 +6717,13 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tw32(TG3_CPMU_HST_ACC, val);
 	}
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780) {
+		val = tr32(PCIE_PWR_MGMT_THRESH) & ~PCIE_PWR_MGMT_L1_THRESH_MSK;
+		val |= PCIE_PWR_MGMT_EXT_ASPM_TMR_EN |
+		       PCIE_PWR_MGMT_L1_THRESH_4MS;
+		tw32(PCIE_PWR_MGMT_THRESH, val);
+	}
+
 	/* This works around an issue with Athlon chipsets on
 	 * B3 tigon3 silicon.  This bit has no effect on any
 	 * other revision.  But do not set this on PCI Express
