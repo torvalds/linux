@@ -255,9 +255,9 @@ EXTRA_PROGRAMS =
 PROGRAMS += $(EXTRA_PROGRAMS)
 
 #
-# None right now:
+# Single 'perf' binary right now:
 #
-# PROGRAMS += perf-fast-import$X
+PROGRAMS += perf
 
 # List built-in command $C whose implementation cmd_$C() is not in
 # builtin-$C.o but is linked in as part of some other command.
@@ -762,24 +762,9 @@ install: all
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
 	$(INSTALL) $(ALL_PROGRAMS) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
-	$(INSTALL) perf$X perf-upload-pack$X perf-receive-pack$X perf-upload-archive$X perf-shell$X perf-cvsserver '$(DESTDIR_SQ)$(bindir_SQ)'
-	$(MAKE) -C templates DESTDIR='$(DESTDIR_SQ)' install
-	$(MAKE) -C perl prefix='$(prefix_SQ)' DESTDIR='$(DESTDIR_SQ)' install
 ifneq (,$X)
 	$(foreach p,$(patsubst %$X,%,$(filter %$X,$(ALL_PROGRAMS) $(BUILT_INS) perf$X)), $(RM) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/$p';)
 endif
-	bindir=$$(cd '$(DESTDIR_SQ)$(bindir_SQ)' && pwd) && \
-	execdir=$$(cd '$(DESTDIR_SQ)$(perfexec_instdir_SQ)' && pwd) && \
-	{ $(RM) "$$execdir/perf-add$X" && \
-		ln "$$bindir/perf$X" "$$execdir/perf-add$X" 2>/dev/null || \
-		cp "$$bindir/perf$X" "$$execdir/perf-add$X"; } && \
-	{ for p in $(filter-out perf-add$X,$(BUILT_INS)); do \
-		$(RM) "$$execdir/$$p" && \
-		ln "$$execdir/perf-add$X" "$$execdir/$$p" 2>/dev/null || \
-		ln -s "perf-add$X" "$$execdir/$$p" 2>/dev/null || \
-		cp "$$execdir/perf-add$X" "$$execdir/$$p" || exit; \
-	  done } && \
-	./check_bindir "z$$bindir" "z$$execdir" "$$bindir/perf-add$X"
 
 ### Maintainer's dist rules
 
