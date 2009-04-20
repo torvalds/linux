@@ -784,14 +784,14 @@ void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
 			continue;
 		sdata->u.ibss.last_scan_completed = jiffies;
 		ieee80211_sta_find_ibss(sdata);
 	}
-	rcu_read_unlock();
+	mutex_unlock(&local->iflist_mtx);
 }
 
 ieee80211_rx_result
