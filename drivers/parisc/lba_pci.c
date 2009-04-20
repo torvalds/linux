@@ -1509,10 +1509,6 @@ lba_driver_probe(struct parisc_device *dev)
 	lba_bus = lba_dev->hba.hba_bus =
 		pci_scan_bus_parented(&dev->dev, lba_dev->hba.bus_num.start,
 				cfg_ops, NULL);
-	if (lba_bus) {
-		lba_next_bus = lba_bus->subordinate + 1;
-		pci_bus_add_devices(lba_bus);
-	}
 
 	/* This is in lieu of calling pci_assign_unassigned_resources() */
 	if (is_pdc_pat()) {
@@ -1533,7 +1529,6 @@ lba_driver_probe(struct parisc_device *dev)
 	}
 	pci_enable_bridges(lba_bus);
 
-
 	/*
 	** Once PCI register ops has walked the bus, access to config
 	** space is restricted. Avoids master aborts on config cycles.
@@ -1541,6 +1536,11 @@ lba_driver_probe(struct parisc_device *dev)
 	*/
 	if (cfg_ops == &elroy_cfg_ops) {
 		lba_dev->flags |= LBA_FLAG_SKIP_PROBE;
+	}
+
+	if (lba_bus) {
+		lba_next_bus = lba_bus->subordinate + 1;
+		pci_bus_add_devices(lba_bus);
 	}
 
 	/* Whew! Finally done! Tell services we got this one covered. */
