@@ -183,13 +183,17 @@ config CONTEXT_SWITCH_TRACER
 	  This tracer gets called from the context switch and records
 	  all switching of tasks.
 
-config EVENT_TRACER
+config ENABLE_EVENT_TRACING
 	bool "Trace various events in the kernel"
 	select TRACING
 	help
 	  This tracer hooks to various trace points in the kernel
 	  allowing the user to pick and choose which trace point they
 	  want to trace.
+
+	  Note, all tracers enable event tracing. This option is
+	  only a convenience to enable event tracing when no other
+	  tracers are selected.
 
 config FTRACE_SYSCALLS
 	bool "Trace syscalls"
