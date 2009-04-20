@@ -4550,29 +4550,6 @@ EXPORT_PER_CPU_SYMBOL(kstat);
  * Return any ns on the sched_clock that have not yet been banked in
  * @p in case that task is currently running.
  */
-unsigned long long __task_delta_exec(struct task_struct *p, int update)
-{
-	s64 delta_exec;
-	struct rq *rq;
-
-	rq = task_rq(p);
-	WARN_ON_ONCE(!runqueue_is_locked());
-	WARN_ON_ONCE(!task_current(rq, p));
-
-	if (update)
-		update_rq_clock(rq);
-
-	delta_exec = rq->clock - p->se.exec_start;
-
-	WARN_ON_ONCE(delta_exec < 0);
-
-	return delta_exec;
-}
-
-/*
- * Return any ns on the sched_clock that have not yet been banked in
- * @p in case that task is currently running.
- */
 unsigned long long task_delta_exec(struct task_struct *p)
 {
 	unsigned long flags;
