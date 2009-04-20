@@ -106,6 +106,12 @@ struct l2cap_conn_rsp {
 	__le16     status;
 } __attribute__ ((packed));
 
+/* channel indentifier */
+#define L2CAP_CID_SIGNALING	0x0001
+#define L2CAP_CID_CONN_LESS	0x0002
+#define L2CAP_CID_DYN_START	0x0040
+#define L2CAP_CID_DYN_END	0xffff
+
 /* connect result */
 #define L2CAP_CR_SUCCESS    0x0000
 #define L2CAP_CR_PEND       0x0001
