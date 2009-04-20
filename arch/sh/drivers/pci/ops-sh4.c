@@ -130,28 +130,6 @@ int __init sh4_pci_check_direct(struct pci_channel *chan)
 	return -EINVAL;
 }
 
-/* Handle generic fixups */
-static void __init pci_fixup_ide_bases(struct pci_dev *d)
-{
-	int i;
-
-	/*
-	 * PCI IDE controllers use non-standard I/O port decoding, respect it.
-	 */
-	if ((d->class >> 8) != PCI_CLASS_STORAGE_IDE)
-		return;
-	pr_debug("PCI: IDE base address fixup for %s\n", pci_name(d));
-	for(i = 0; i < 4; i++) {
-		struct resource *r = &d->resource[i];
-
-		if ((r->start & ~0x80) == 0x374) {
-			r->start |= 2;
-			r->end = r->start;
-		}
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
-
 int __attribute__((weak)) pci_fixup_pcic(struct pci_channel *chan)
 {
 	/* Nothing to do. */
