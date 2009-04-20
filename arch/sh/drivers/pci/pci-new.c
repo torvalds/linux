@@ -147,37 +147,6 @@ void __devinit __weak pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
-void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			 struct resource *res)
-{
-	struct pci_channel *hose = dev->sysdata;
-	unsigned long offset = 0;
-
-	if (res->flags & IORESOURCE_IO)
-		offset = hose->io_offset;
-	else if (res->flags & IORESOURCE_MEM)
-		offset = hose->mem_offset;
-
-	region->start = res->start - offset;
-	region->end = res->end - offset;
-}
-
-void __devinit
-pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			struct pci_bus_region *region)
-{
-	struct pci_channel *hose = dev->sysdata;
-	unsigned long offset = 0;
-
-	if (res->flags & IORESOURCE_IO)
-		offset = hose->io_offset;
-	else if (res->flags & IORESOURCE_MEM)
-		offset = hose->mem_offset;
-
-	res->start = region->start + offset;
-	res->end = region->end + offset;
-}
-
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
 	u16 cmd, old_cmd;
