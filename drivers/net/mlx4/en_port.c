@@ -151,6 +151,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	struct mlx4_cmd_mailbox *mailbox;
 	u64 in_mod = reset << 8 | port;
 	int err;
+	int i;
 
 	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
 	if (IS_ERR(mailbox))
@@ -165,38 +166,18 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 
 	spin_lock_bh(&priv->stats_lock);
 
-	stats->rx_packets = be32_to_cpu(mlx4_en_stats->RTOTFRMS) -
-			    be32_to_cpu(mlx4_en_stats->RDROP);
-	stats->tx_packets = be64_to_cpu(mlx4_en_stats->TTOT_prio_0) +
-			    be64_to_cpu(mlx4_en_stats->TTOT_prio_1) +
-			    be64_to_cpu(mlx4_en_stats->TTOT_prio_2) +
-			    be64_to_cpu(mlx4_en_stats->TTOT_prio_3) +
-			    be64_to_cpu(mlx4_en_stats->TTOT_prio_4) +
-			    be64_to_cpu(mlx4_en_stats->TTOT_prio_5) +
-			    be64_to_cpu(mlx4_en_stats->TTOT_prio_6) +
-			    be64_to_cpu(mlx4_en_stats->TTOT_prio_7) +
-			    be64_to_cpu(mlx4_en_stats->TTOT_novlan) +
-			    be64_to_cpu(mlx4_en_stats->TTOT_loopbk);
-	stats->rx_bytes = be64_to_cpu(mlx4_en_stats->ROCT_prio_0) +
-			  be64_to_cpu(mlx4_en_stats->ROCT_prio_1) +
-			  be64_to_cpu(mlx4_en_stats->ROCT_prio_2) +
-			  be64_to_cpu(mlx4_en_stats->ROCT_prio_3) +
-			  be64_to_cpu(mlx4_en_stats->ROCT_prio_4) +
-			  be64_to_cpu(mlx4_en_stats->ROCT_prio_5) +
-			  be64_to_cpu(mlx4_en_stats->ROCT_prio_6) +
-			  be64_to_cpu(mlx4_en_stats->ROCT_prio_7) +
-			  be64_to_cpu(mlx4_en_stats->ROCT_novlan);
-
-	stats->tx_bytes = be64_to_cpu(mlx4_en_stats->TTTLOCT_prio_0) +
-			  be64_to_cpu(mlx4_en_stats->TTTLOCT_prio_1) +
-			  be64_to_cpu(mlx4_en_stats->TTTLOCT_prio_2) +
-			  be64_to_cpu(mlx4_en_stats->TTTLOCT_prio_3) +
-			  be64_to_cpu(mlx4_en_stats->TTTLOCT_prio_4) +
-			  be64_to_cpu(mlx4_en_stats->TTTLOCT_prio_5) +
-			  be64_to_cpu(mlx4_en_stats->TTTLOCT_prio_6) +
-			  be64_to_cpu(mlx4_en_stats->TTTLOCT_prio_7) +
-			  be64_to_cpu(mlx4_en_stats->TTTLOCT_novlan) +
-			  be64_to_cpu(mlx4_en_stats->TTTLOCT_loopbk);
+	stats->rx_packets = 0;
+	stats->rx_bytes = 0;
+	for (i = 0; i < priv->rx_ring_num; i++) {
+		stats->rx_packets += priv->rx_ring[i].packets;
+		stats->rx_bytes += priv->rx_ring[i].bytes;
+	}
+	stats->tx_packets = 0;
+	stats->tx_bytes = 0;
+	for (i = 0; i <= priv->tx_ring_num; i++) {
+		stats->tx_packets += priv->tx_ring[i].packets;
+		stats->tx_bytes += priv->tx_ring[i].bytes;
+	}
 
 	stats->rx_errors = be64_to_cpu(mlx4_en_stats->PCS) +
 			   be32_to_cpu(mlx4_en_stats->RdropLength) +
