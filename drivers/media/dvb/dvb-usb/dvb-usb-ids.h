@@ -253,5 +253,6 @@
 #define USB_PID_MSI_DIGI_VOX_MINI_III                   0x8807
 #define USB_PID_SONY_PLAYTV				0x0003
 #define USB_PID_ELGATO_EYETV_DTT			0x0021
+#define USB_PID_ELGATO_EYETV_DTT_Dlx			0x0020
 
 #endif
