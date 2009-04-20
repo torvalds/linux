@@ -14,14 +14,14 @@ obj-$(CONFIG_CPU_SH5)			+= pci-sh5.o ops-sh5.o
 
 obj-$(CONFIG_SH_DREAMCAST)		+= ops-dreamcast.o fixups-dreamcast.o \
 					   pci-dreamcast.o
-obj-$(CONFIG_SH_SECUREEDGE5410)		+= ops-snapgear.o
+obj-$(CONFIG_SH_SECUREEDGE5410)		+= fixups-snapgear.o
 obj-$(CONFIG_SH_RTS7751R2D)		+= ops-rts7751r2d.o fixups-rts7751r2d.o
 obj-$(CONFIG_SH_SH03)			+= fixups-sh03.o
 obj-$(CONFIG_SH_HIGHLANDER)		+= fixups-r7780rp.o
 obj-$(CONFIG_SH_SH7785LCR)		+= fixups-r7780rp.o
 obj-$(CONFIG_SH_SDK7780)		+= fixups-sdk7780.o
 obj-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= fixups-sdk7780.o
-obj-$(CONFIG_SH_TITAN)			+= ops-titan.o
-obj-$(CONFIG_SH_LANDISK)		+= ops-landisk.o
-obj-$(CONFIG_SH_LBOX_RE2)		+= ops-lboxre2.o fixups-rts7751r2d.o
+obj-$(CONFIG_SH_TITAN)			+= fixups-titan.o
+obj-$(CONFIG_SH_LANDISK)		+= fixups-landisk.o
+obj-$(CONFIG_SH_LBOX_RE2)		+= fixups-lboxre2.o fixups-rts7751r2d.o
 obj-$(CONFIG_SH_CAYMAN)			+= fixups-cayman.o
