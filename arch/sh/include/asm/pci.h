@@ -19,8 +19,6 @@
 struct pci_channel {
 	struct pci_channel	*next;
 
-	int			(*init)(struct pci_channel *chan);
-
 	struct pci_ops		*pci_ops;
 	struct resource		*io_resource;
 	struct resource		*mem_resource;
@@ -28,19 +26,10 @@ struct pci_channel {
 	unsigned long		io_offset;
 	unsigned long		mem_offset;
 
-	int			first_devfn;
-	int			last_devfn;
-	int			enabled;
-
 	unsigned long		reg_base;
 
 	unsigned long		io_map_base;
 };
-
-/*
- * Each board initializes this array and terminates it with a NULL entry.
- */
-extern struct pci_channel board_pci_channels[];
 
 extern void register_pci_controller(struct pci_channel *hose);
 
@@ -122,12 +111,7 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 #endif
 
 /* Board-specific fixup routines. */
-int pcibios_init_platform(void);
 int pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin);
-
-#ifdef CONFIG_PCI_AUTO
-int pciauto_assign_resources(int busno, struct pci_channel *hose);
-#endif
 
 extern void pcibios_resource_to_bus(struct pci_dev *dev,
 	struct pci_bus_region *region, struct resource *res);
