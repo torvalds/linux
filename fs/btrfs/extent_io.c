@@ -2104,6 +2104,16 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	return ret;
 }
 
+static noinline void update_nr_written(struct page *page,
+				      struct writeback_control *wbc,
+				      unsigned long nr_written)
+{
+	wbc->nr_to_write -= nr_written;
+	if (wbc->range_cyclic || (wbc->nr_to_write > 0 &&
+	    wbc->range_start == 0 && wbc->range_end == LLONG_MAX))
+		page->mapping->writeback_index = page->index + nr_written;
+}
+
 /*
  * the writepage semantics are similar to regular writepage.  extent
  * records are inserted to lock ranges in the tree, and as dirty areas
@@ -2173,6 +2183,12 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	delalloc_end = 0;
 	page_started = 0;
 	if (!epd->extent_locked) {
+		/*
+		 * make sure the wbc mapping index is at least updated
+		 * to this page.
+		 */
+		update_nr_written(page, wbc, 0);
+
 		while (delalloc_end < page_end) {
 			nr_delalloc = find_lock_delalloc_range(inode, tree,
 						       page,
@@ -2194,7 +2210,13 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		 */
 		if (page_started) {
 			ret = 0;
-			goto update_nr_written;
+			/*
+			 * we've unlocked the page, so we can't update
+			 * the mapping's writeback index, just update
+			 * nr_to_write.
+			 */
+			wbc->nr_to_write -= nr_written;
+			goto done_unlocked;
 		}
 	}
 	lock_extent(tree, start, page_end, GFP_NOFS);
@@ -2207,13 +2229,18 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		if (ret == -EAGAIN) {
 			unlock_extent(tree, start, page_end, GFP_NOFS);
 			redirty_page_for_writepage(wbc, page);
+			update_nr_written(page, wbc, nr_written);
 			unlock_page(page);
 			ret = 0;
-			goto update_nr_written;
+			goto done_unlocked;
 		}
 	}
 
-	nr_written++;
+	/*
+	 * we don't want to touch the inode after unlocking the page,
+	 * so we update the mapping writeback index now
+	 */
+	update_nr_written(page, wbc, nr_written + 1);
 
 	end = page_end;
 	if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0))
@@ -2345,11 +2372,8 @@ done:
 		unlock_extent(tree, unlock_start, page_end, GFP_NOFS);
 	unlock_page(page);
 
-update_nr_written:
-	wbc->nr_to_write -= nr_written;
-	if (wbc->range_cyclic || (wbc->nr_to_write > 0 &&
-	    wbc->range_start == 0 && wbc->range_end == LLONG_MAX))
-		page->mapping->writeback_index = page->index + nr_written;
+done_unlocked:
+
 	return 0;
 }
 
