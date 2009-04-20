@@ -50,7 +50,10 @@ struct extent_page_data {
 	/* tells writepage not to lock the state bits for this range
 	 * it still does the unlocking
 	 */
-	int extent_locked;
+	unsigned int extent_locked:1;
+
+	/* tells the submit_bio code to use a WRITE_SYNC */
+	unsigned int sync_io:1;
 };
 
 int __init extent_io_init(void)
@@ -2136,7 +2139,13 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	u64 delalloc_end;
 	int page_started;
 	int compressed;
+	int write_flags;
 	unsigned long nr_written = 0;
+
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		write_flags = WRITE_SYNC_PLUG;
+	else
+		write_flags = WRITE;
 
 	WARN_ON(!PageLocked(page));
 	pg_offset = i_size & (PAGE_CACHE_SIZE - 1);
@@ -2314,9 +2323,9 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 				       (unsigned long long)end);
 			}
 
-			ret = submit_extent_page(WRITE, tree, page, sector,
-						 iosize, pg_offset, bdev,
-						 &epd->bio, max_nr,
+			ret = submit_extent_page(write_flags, tree, page,
+						 sector, iosize, pg_offset,
+						 bdev, &epd->bio, max_nr,
 						 end_bio_extent_writepage,
 						 0, 0, 0);
 			if (ret)
@@ -2460,13 +2469,21 @@ retry:
 	return ret;
 }
 
+static void flush_epd_write_bio(struct extent_page_data *epd)
+{
+	if (epd->bio) {
+		if (epd->sync_io)
+			submit_one_bio(WRITE_SYNC, epd->bio, 0, 0);
+		else
+			submit_one_bio(WRITE, epd->bio, 0, 0);
+		epd->bio = NULL;
+	}
+}
+
 static noinline void flush_write_bio(void *data)
 {
 	struct extent_page_data *epd = data;
-	if (epd->bio) {
-		submit_one_bio(WRITE, epd->bio, 0, 0);
-		epd->bio = NULL;
-	}
+	flush_epd_write_bio(epd);
 }
 
 int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
@@ -2480,6 +2497,7 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 		.tree = tree,
 		.get_extent = get_extent,
 		.extent_locked = 0,
+		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};
 	struct writeback_control wbc_writepages = {
 		.bdi		= wbc->bdi,
@@ -2490,13 +2508,11 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 		.range_end	= (loff_t)-1,
 	};
 
-
 	ret = __extent_writepage(page, wbc, &epd);
 
 	extent_write_cache_pages(tree, mapping, &wbc_writepages,
 				 __extent_writepage, &epd, flush_write_bio);
-	if (epd.bio)
-		submit_one_bio(WRITE, epd.bio, 0, 0);
+	flush_epd_write_bio(&epd);
 	return ret;
 }
 
@@ -2515,6 +2531,7 @@ int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
 		.tree = tree,
 		.get_extent = get_extent,
 		.extent_locked = 1,
+		.sync_io = mode == WB_SYNC_ALL,
 	};
 	struct writeback_control wbc_writepages = {
 		.bdi		= inode->i_mapping->backing_dev_info,
@@ -2540,8 +2557,7 @@ int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
 		start += PAGE_CACHE_SIZE;
 	}
 
-	if (epd.bio)
-		submit_one_bio(WRITE, epd.bio, 0, 0);
+	flush_epd_write_bio(&epd);
 	return ret;
 }
 
@@ -2556,13 +2572,13 @@ int extent_writepages(struct extent_io_tree *tree,
 		.tree = tree,
 		.get_extent = get_extent,
 		.extent_locked = 0,
+		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};
 
 	ret = extent_write_cache_pages(tree, mapping, wbc,
 				       __extent_writepage, &epd,
 				       flush_write_bio);
-	if (epd.bio)
-		submit_one_bio(WRITE, epd.bio, 0, 0);
+	flush_epd_write_bio(&epd);
 	return ret;
 }
 

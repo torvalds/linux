@@ -2095,10 +2095,10 @@ static int write_dev_supers(struct btrfs_device *device,
 				device->barriers = 0;
 				get_bh(bh);
 				lock_buffer(bh);
-				ret = submit_bh(WRITE, bh);
+				ret = submit_bh(WRITE_SYNC, bh);
 			}
 		} else {
-			ret = submit_bh(WRITE, bh);
+			ret = submit_bh(WRITE_SYNC, bh);
 		}
 
 		if (!ret && wait) {
