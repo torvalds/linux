@@ -833,20 +833,6 @@ int restore_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries)
 	return 0;
 }
 
-void reinit_intr_remapped_IO_APIC(int intr_remapping,
-	struct IO_APIC_route_entry **ioapic_entries)
-
-{
-	/*
-	 * for now plain restore of previous settings.
-	 * TBD: In the case of OS enabling interrupt-remapping,
-	 * IO-APIC RTE's need to be setup to point to interrupt-remapping
-	 * table entries. for now, do a plain restore, and wait for
-	 * the setup_IO_APIC_irqs() to do proper initialization.
-	 */
-	restore_IO_APIC_setup(ioapic_entries);
-}
-
 void free_ioapic_entries(struct IO_APIC_route_entry **ioapic_entries)
 {
 	int apic;

@@ -1412,8 +1412,6 @@ end_restore:
 		 * IR enabling failed
 		 */
 		restore_IO_APIC_setup(ioapic_entries);
-	else
-		reinit_intr_remapped_IO_APIC(x2apic_preenabled, ioapic_entries);
 
 	unmask_8259A();
 	local_irq_restore(flags);
