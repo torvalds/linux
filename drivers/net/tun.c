@@ -683,7 +683,7 @@ static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 /* Put packet to the user space buffer */
 static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 				       struct sk_buff *skb,
-				       struct iovec *iv, int len)
+				       const struct iovec *iv, int len)
 {
 	struct tun_pi pi = { 0, skb->protocol };
 	ssize_t total = 0;
@@ -697,7 +697,7 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 			pi.flags |= TUN_PKT_STRIP;
 		}
 
-		if (memcpy_toiovec(iv, (void *) &pi, sizeof(pi)))
+		if (memcpy_toiovecend(iv, (void *) &pi, 0, sizeof(pi)))
 			return -EFAULT;
 		total += sizeof(pi);
 	}
@@ -730,14 +730,15 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 			gso.csum_offset = skb->csum_offset;
 		} /* else everything is zero */
 
-		if (unlikely(memcpy_toiovec(iv, (void *)&gso, sizeof(gso))))
+		if (unlikely(memcpy_toiovecend(iv, (void *)&gso, total,
+					       sizeof(gso))))
 			return -EFAULT;
 		total += sizeof(gso);
 	}
 
 	len = min_t(int, skb->len, len);
 
-	skb_copy_datagram_iovec(skb, 0, iv, len);
+	skb_copy_datagram_const_iovec(skb, 0, iv, total, len);
 	total += len;
 
 	tun->dev->stats.tx_packets++;
@@ -792,7 +793,7 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 		}
 		netif_wake_queue(tun->dev);
 
-		ret = tun_put_user(tun, skb, (struct iovec *) iv, len);
+		ret = tun_put_user(tun, skb, iv, len);
 		kfree_skb(skb);
 		break;
 	}
