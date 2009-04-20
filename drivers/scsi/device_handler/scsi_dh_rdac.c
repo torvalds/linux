@@ -561,6 +561,12 @@ static int rdac_check_sense(struct scsi_device *sdev,
 	struct rdac_dh_data *h = get_rdac_data(sdev);
 	switch (sense_hdr->sense_key) {
 	case NOT_READY:
+		if (sense_hdr->asc == 0x04 && sense_hdr->ascq == 0x01)
+			/* LUN Not Ready - Logical Unit Not Ready and is in
+			* the process of becoming ready
+			* Just retry.
+			*/
+			return ADD_TO_MLQUEUE;
 		if (sense_hdr->asc == 0x04 && sense_hdr->ascq == 0x81)
 			/* LUN Not Ready - Storage firmware incompatible
 			 * Manual code synchonisation required.
