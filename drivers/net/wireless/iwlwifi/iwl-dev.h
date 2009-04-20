@@ -889,9 +889,7 @@ struct iwl_priv {
 	unsigned long scan_start_tsf;
 	void *scan;
 	int scan_bands;
-	int one_direct_scan;
-	u8 direct_ssid_len;
-	u8 direct_ssid[IW_ESSID_MAX_SIZE];
+	struct cfg80211_scan_request *scan_request;
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
 	u8 mgmt_tx_ant;
 

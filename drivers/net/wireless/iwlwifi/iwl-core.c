@@ -1309,8 +1309,10 @@ int iwl_setup_mac(struct iwl_priv *priv)
 		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->custom_regulatory = true;
-	hw->wiphy->max_scan_ssids = 1;
-	hw->wiphy->max_scan_ie_len = 0; /* XXX for now */
+
+	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
+	/* we create the 802.11 header and a zero-length SSID element */
+	hw->wiphy->max_scan_ie_len = IWL_MAX_PROBE_REQUEST - 24 - 2;
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;

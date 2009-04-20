@@ -2942,9 +2942,9 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	int rc = 0;
 	struct iwl3945_scan_cmd *scan;
 	struct ieee80211_conf *conf = NULL;
-	u8 n_probes = 2;
+	u8 n_probes = 0;
 	enum ieee80211_band band;
-	DECLARE_SSID_BUF(ssid);
+	bool is_active = false;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -3043,18 +3043,25 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 			       scan_suspend_time, interval);
 	}
 
-	/* We should add the ability for user to lock to PASSIVE ONLY */
-	if (priv->one_direct_scan) {
-		IWL_DEBUG_SCAN(priv, "Kicking off one direct scan for '%s'\n",
-				print_ssid(ssid, priv->direct_ssid,
-				priv->direct_ssid_len));
-		scan->direct_scan[0].id = WLAN_EID_SSID;
-		scan->direct_scan[0].len = priv->direct_ssid_len;
-		memcpy(scan->direct_scan[0].ssid,
-		       priv->direct_ssid, priv->direct_ssid_len);
-		n_probes++;
+	if (priv->scan_request->n_ssids) {
+		int i, p = 0;
+		IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
+		for (i = 0; i < priv->scan_request->n_ssids; i++) {
+			/* always does wildcard anyway */
+			if (!priv->scan_request->ssids[i].ssid_len)
+				continue;
+			scan->direct_scan[p].id = WLAN_EID_SSID;
+			scan->direct_scan[p].len =
+				priv->scan_request->ssids[i].ssid_len;
+			memcpy(scan->direct_scan[p].ssid,
+			       priv->scan_request->ssids[i].ssid,
+			       priv->scan_request->ssids[i].ssid_len);
+			n_probes++;
+			p++;
+		}
+		is_active = true;
 	} else
-		IWL_DEBUG_SCAN(priv, "Kicking off one indirect scan.\n");
+		IWL_DEBUG_SCAN(priv, "Kicking off passive scan.\n");
 
 	/* We don't build a direct scan probe request; the uCode will do
 	 * that based on the direct_mask added to each channel entry */
@@ -3079,9 +3086,11 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	}
 
 	scan->tx_cmd.len = cpu_to_le16(
-		iwl_fill_probe_req(priv, band,
-				   (struct ieee80211_mgmt *)scan->data,
-				   IWL_MAX_SCAN_SIZE - sizeof(*scan)));
+			iwl_fill_probe_req(priv,
+				(struct ieee80211_mgmt *)scan->data,
+				priv->scan_request->ie,
+				priv->scan_request->ie_len,
+				IWL_MAX_SCAN_SIZE - sizeof(*scan)));
 
 	/* select Rx antennas */
 	scan->flags |= iwl3945_get_antenna_flags(priv);
@@ -3090,8 +3099,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
 
 	scan->channel_count =
-		iwl3945_get_channels_for_scan(priv, band, 1, /* active */
-					      n_probes,
+		iwl3945_get_channels_for_scan(priv, band, is_active, n_probes,
 			(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
 
 	if (scan->channel_count == 0) {
@@ -4119,7 +4127,9 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 
 	hw->wiphy->custom_regulatory = true;
 
-	hw->wiphy->max_scan_ssids = 1; /* WILL FIX */
+	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX_3945;
+	/* we create the 802.11 header and a zero-length SSID element */
+	hw->wiphy->max_scan_ie_len = IWL_MAX_PROBE_REQUEST - 24 - 2;
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
