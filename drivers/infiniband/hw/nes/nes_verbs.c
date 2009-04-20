@@ -2122,6 +2122,7 @@ static struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 	struct nes_root_vpbl root_vpbl;
 	u32 stag;
 	u32 i;
+	unsigned long mask;
 	u32 stag_index = 0;
 	u32 next_stag_index = 0;
 	u32 driver_key = 0;
@@ -2149,6 +2150,9 @@ static struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 	if (num_phys_buf > (1024*512)) {
 		return ERR_PTR(-E2BIG);
 	}
+
+	if ((buffer_list[0].addr ^ *iova_start) & ~PAGE_MASK)
+		return ERR_PTR(-EINVAL);
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_mrs, nesadapter->max_mr,
 			&stag_index, &next_stag_index);
@@ -2215,19 +2219,16 @@ static struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 			root_pbl_index++;
 			cur_pbl_index = 0;
 		}
-		if (buffer_list[i].addr & ~PAGE_MASK) {
-			/* TODO: Unwind allocated buffers */
-			nes_free_resource(nesadapter, nesadapter->allocated_mrs, stag_index);
-			nes_debug(NES_DBG_MR, "Unaligned Memory Buffer: 0x%x\n",
-					(unsigned int) buffer_list[i].addr);
-			ibmr = ERR_PTR(-EINVAL);
-			kfree(nesmr);
-			goto reg_phys_err;
-		}
 
-		if (!buffer_list[i].size) {
+		mask = !buffer_list[i].size;
+		if (i != 0)
+			mask |= buffer_list[i].addr;
+		if (i != num_phys_buf - 1)
+			mask |= buffer_list[i].addr + buffer_list[i].size;
+
+		if (mask & ~PAGE_MASK) {
 			nes_free_resource(nesadapter, nesadapter->allocated_mrs, stag_index);
-			nes_debug(NES_DBG_MR, "Invalid Buffer Size\n");
+			nes_debug(NES_DBG_MR, "Invalid buffer addr or size\n");
 			ibmr = ERR_PTR(-EINVAL);
 			kfree(nesmr);
 			goto reg_phys_err;
@@ -2238,7 +2239,7 @@ static struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 			if ((buffer_list[i-1].addr+PAGE_SIZE) != buffer_list[i].addr)
 				single_page = 0;
 		}
-		vpbl.pbl_vbase[cur_pbl_index].pa_low = cpu_to_le32((u32)buffer_list[i].addr);
+		vpbl.pbl_vbase[cur_pbl_index].pa_low = cpu_to_le32((u32)buffer_list[i].addr & PAGE_MASK);
 		vpbl.pbl_vbase[cur_pbl_index++].pa_high =
 				cpu_to_le32((u32)((((u64)buffer_list[i].addr) >> 32)));
 	}
@@ -2250,8 +2251,6 @@ static struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 	nes_debug(NES_DBG_MR, "Registering STag 0x%08X, VA = 0x%016lX,"
 			" length = 0x%016lX, index = 0x%08X\n",
 			stag, (unsigned long)*iova_start, (unsigned long)region_length, stag_index);
-
-	region_length -= (*iova_start)&PAGE_MASK;
 
 	/* Make the leaf PBL the root if only one PBL */
 	if (root_pbl_index == 1) {
