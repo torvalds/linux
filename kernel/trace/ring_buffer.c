@@ -1667,7 +1667,6 @@ static inline void rb_event_discard(struct ring_buffer_event *event)
 void ring_buffer_event_discard(struct ring_buffer_event *event)
 {
 	rb_event_discard(event);
-	trace_recursive_unlock();
 }
 EXPORT_SYMBOL_GPL(ring_buffer_event_discard);
 
