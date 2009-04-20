@@ -1952,7 +1952,7 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 	int ret;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	uint pg_cnt = 0;
-	u16 pbl_count_256;
+	u16 pbl_count_256 = 0;
 	u16 pbl_count = 0;
 	u8  use_256_pbls = 0;
 	u8  use_4k_pbls = 0;
