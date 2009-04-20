@@ -76,7 +76,7 @@ int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
-void cfg80211_clear_ibss(struct net_device *dev)
+void cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
@@ -88,10 +88,14 @@ void cfg80211_clear_ibss(struct net_device *dev)
 	wdev->current_bss = NULL;
 	wdev->ssid_len = 0;
 	memset(wdev->bssid, 0, ETH_ALEN);
+#ifdef CONFIG_WIRELESS_EXT
+	if (!nowext)
+		wdev->wext.ssid_len = 0;
+#endif
 }
 
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
-			struct net_device *dev)
+			struct net_device *dev, bool nowext)
 {
 	int err;
 
@@ -100,7 +104,7 @@ int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 	if (err)
 		return err;
 
-	cfg80211_clear_ibss(dev);
+	cfg80211_clear_ibss(dev, nowext);
 
 	return 0;
 }
@@ -179,7 +183,8 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 		return 0;
 
 	if (wdev->ssid_len) {
-		err = cfg80211_leave_ibss(wiphy_to_dev(wdev->wiphy), dev);
+		err = cfg80211_leave_ibss(wiphy_to_dev(wdev->wiphy),
+					  dev, true);
 		if (err)
 			return err;
 	}
@@ -241,7 +246,8 @@ int cfg80211_ibss_wext_siwessid(struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	if (wdev->ssid_len) {
-		err = cfg80211_leave_ibss(wiphy_to_dev(wdev->wiphy), dev);
+		err = cfg80211_leave_ibss(wiphy_to_dev(wdev->wiphy),
+					  dev, true);
 		if (err)
 			return err;
 	}
@@ -275,7 +281,7 @@ int cfg80211_ibss_wext_giwessid(struct net_device *dev,
 		data->flags = 1;
 		data->length = wdev->ssid_len;
 		memcpy(ssid, wdev->ssid, data->length);
-	} else if (wdev->wext.ssid) {
+	} else if (wdev->wext.ssid && wdev->wext.ssid_len) {
 		data->flags = 1;
 		data->length = wdev->wext.ssid_len;
 		memcpy(ssid, wdev->wext.ssid, data->length);
@@ -318,7 +324,8 @@ int cfg80211_ibss_wext_siwap(struct net_device *dev,
 		return 0;
 
 	if (wdev->ssid_len) {
-		err = cfg80211_leave_ibss(wiphy_to_dev(wdev->wiphy), dev);
+		err = cfg80211_leave_ibss(wiphy_to_dev(wdev->wiphy),
+					  dev, true);
 		if (err)
 			return err;
 	}

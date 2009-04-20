@@ -833,7 +833,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 
 	if (dev && !err && (ntype != otype)) {
 		if (otype == NL80211_IFTYPE_ADHOC)
-			cfg80211_clear_ibss(dev);
+			cfg80211_clear_ibss(dev, false);
 	}
 
  unlock:
@@ -3249,7 +3249,7 @@ static int nl80211_leave_ibss(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = cfg80211_leave_ibss(drv, dev);
+	err = cfg80211_leave_ibss(drv, dev, false);
 
 out:
 	cfg80211_put_dev(drv);

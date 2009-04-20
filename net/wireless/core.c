@@ -464,7 +464,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			break;
 		if (!dev->ieee80211_ptr->ssid_len)
 			break;
-		cfg80211_leave_ibss(rdev, dev);
+		cfg80211_leave_ibss(rdev, dev, true);
 		break;
 	case NETDEV_UP:
 #ifdef CONFIG_WIRELESS_EXT
