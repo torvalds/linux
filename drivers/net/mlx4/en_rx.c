@@ -928,12 +928,6 @@ void mlx4_en_set_default_rss_map(struct mlx4_en_priv *priv,
 	}
 }
 
-static void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event)
-{
-    return;
-}
-
-
 static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv,
 				 int qpn, int srqn, int cqn,
 				 enum mlx4_qp_state *state,

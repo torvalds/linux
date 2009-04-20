@@ -112,6 +112,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 		mlx4_err(mdev, "Failed allocating qp %d\n", ring->qpn);
 		goto err_reserve;
 	}
+	ring->qp.event = mlx4_en_sqp_event;
 
 	return 0;
 

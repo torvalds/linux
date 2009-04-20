@@ -94,3 +94,9 @@ void mlx4_en_unmap_buffer(struct mlx4_buf *buf)
 
 	vunmap(buf->direct.buf);
 }
+
+void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event)
+{
+    return;
+}
+
