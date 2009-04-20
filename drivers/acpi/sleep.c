@@ -300,9 +300,9 @@ static int acpi_suspend_state_valid(suspend_state_t pm_state)
 static struct platform_suspend_ops acpi_suspend_ops = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin,
-	.prepare = acpi_pm_prepare,
+	.prepare_late = acpi_pm_prepare,
 	.enter = acpi_suspend_enter,
-	.finish = acpi_pm_finish,
+	.wake = acpi_pm_finish,
 	.end = acpi_pm_end,
 };
 
@@ -328,9 +328,9 @@ static int acpi_suspend_begin_old(suspend_state_t pm_state)
 static struct platform_suspend_ops acpi_suspend_ops_old = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin_old,
-	.prepare = acpi_pm_disable_gpes,
+	.prepare_late = acpi_pm_disable_gpes,
 	.enter = acpi_suspend_enter,
-	.finish = acpi_pm_finish,
+	.wake = acpi_pm_finish,
 	.end = acpi_pm_end,
 	.recover = acpi_pm_finish,
 };

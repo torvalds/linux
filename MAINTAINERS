@@ -1287,6 +1287,14 @@ S:	Maintained
 F:	Documentation/video4linux/bttv/
 F:	drivers/media/video/bt8xx/bttv*
 
+CACHEFILES: FS-CACHE BACKEND FOR CACHING ON MOUNTED FILESYSTEMS
+P:	David Howells
+M:	dhowells@redhat.com
+L:	linux-cachefs@redhat.com
+S:	Supported
+F:	Documentation/filesystems/caching/cachefiles.txt
+F:	fs/cachefiles/
+
 CAFE CMOS INTEGRATED CAMERA CONTROLLER DRIVER
 P:	Jonathan Corbet
 M:	corbet@lwn.net
@@ -2324,6 +2332,15 @@ S:	Supported
 F:	Documentation/power/freezing-of-tasks.txt
 F:	include/linux/freezer.h
 F:	kernel/freezer.c
+
+FS-CACHE: LOCAL CACHING FOR NETWORK FILESYSTEMS
+P:	David Howells
+M:	dhowells@redhat.com
+L:	linux-cachefs@redhat.com
+S:	Supported
+F:	Documentation/filesystems/caching/
+F:	fs/fscache/
+F:	include/linux/fscache*.h
 
 FTRACE
 P:	Steven Rostedt
@@ -5235,7 +5252,12 @@ M:	perex@perex.cz
 P:	Takashi Iwai
 M:	tiwai@suse.de
 L:	alsa-devel@alsa-project.org (subscribers-only)
+W:	http://www.alsa-project.org/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound-2.6.git
+T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
+F:	Documentation/sound/
+F:	include/sound/
 F:	sound/
 
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)

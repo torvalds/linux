@@ -218,6 +218,9 @@ int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 	const char *old_name = kobj->name;
 	char *s;
 
+	if (kobj->name && !fmt)
+		return 0;
+
 	kobj->name = kvasprintf(GFP_KERNEL, fmt, vargs);
 	if (!kobj->name)
 		return -ENOMEM;
