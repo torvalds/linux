@@ -90,7 +90,6 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
 #define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
 #endif
 
-#ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
 					unsigned long *strategy_parameter)
@@ -99,24 +98,18 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 	*strategy_parameter = ~0UL;
 }
 
-static inline int __is_pci_memory(unsigned long phys_addr, unsigned long size)
-{
-	struct pci_channel *p;
-	struct resource *res;
+#ifdef CONFIG_SUPERH32
+/*
+ * If we're on an SH7751 or SH7780 PCI controller, PCI memory is mapped
+ * at the end of the address space in a special non-translatable area.
+ */
+#define PCI_MEM_FIXED_START	0xfd000000
+#define PCI_MEM_FIXED_END	(PCI_MEM_FIXED_START + 0x01000000)
 
-	for (p = board_pci_channels; p->init; p++) {
-		res = p->mem_resource;
-		if (p->enabled && (phys_addr >= res->start) &&
-		    (phys_addr + size) <= (res->end + 1))
-			return 1;
-	}
-	return 0;
-}
+#define is_pci_memory_fixed_range(s, e)	\
+	((s) >= PCI_MEM_FIXED_START && (e) < PCI_MEM_FIXED_END)
 #else
-static inline int __is_pci_memory(unsigned long phys_addr, unsigned long size)
-{
-	return 0;
-}
+#define is_pci_memory_fixed_range(s, e)	(0)
 #endif
 
 /* Board-specific fixup routines. */
