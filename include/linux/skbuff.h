@@ -1715,7 +1715,8 @@ extern int	       skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 							struct iovec *iov);
 extern int	       skb_copy_datagram_from_iovec(struct sk_buff *skb,
 						    int offset,
-						    struct iovec *from,
+						    const struct iovec *from,
+						    int from_offset,
 						    int len);
 extern int	       skb_copy_datagram_const_iovec(const struct sk_buff *from,
 						     int offset,

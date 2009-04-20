@@ -540,31 +540,34 @@ static inline struct sk_buff *tun_alloc_skb(struct tun_struct *tun,
 
 /* Get packet from user space buffer */
 static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
-				       struct iovec *iv, size_t count,
+				       const struct iovec *iv, size_t count,
 				       int noblock)
 {
 	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
 	size_t len = count, align = 0;
 	struct virtio_net_hdr gso = { 0 };
+	int offset = 0;
 
 	if (!(tun->flags & TUN_NO_PI)) {
 		if ((len -= sizeof(pi)) > count)
 			return -EINVAL;
 
-		if(memcpy_fromiovec((void *)&pi, iv, sizeof(pi)))
+		if (memcpy_fromiovecend((void *)&pi, iv, 0, sizeof(pi)))
 			return -EFAULT;
+		offset += sizeof(pi);
 	}
 
 	if (tun->flags & TUN_VNET_HDR) {
 		if ((len -= sizeof(gso)) > count)
 			return -EINVAL;
 
-		if (memcpy_fromiovec((void *)&gso, iv, sizeof(gso)))
+		if (memcpy_fromiovecend((void *)&gso, iv, offset, sizeof(gso)))
 			return -EFAULT;
 
 		if (gso.hdr_len > len)
 			return -EINVAL;
+		offset += sizeof(pi);
 	}
 
 	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV) {
@@ -581,7 +584,7 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 		return PTR_ERR(skb);
 	}
 
-	if (skb_copy_datagram_from_iovec(skb, 0, iv, len)) {
+	if (skb_copy_datagram_from_iovec(skb, 0, iv, offset, len)) {
 		tun->dev->stats.rx_dropped++;
 		kfree_skb(skb);
 		return -EFAULT;
@@ -673,7 +676,7 @@ static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 
 	DBG(KERN_INFO "%s: tun_chr_write %ld\n", tun->dev->name, count);
 
-	result = tun_get_user(tun, (struct iovec *)iv, iov_length(iv, count),
+	result = tun_get_user(tun, iv, iov_length(iv, count),
 			      file->f_flags & O_NONBLOCK);
 
 	tun_put(tun);

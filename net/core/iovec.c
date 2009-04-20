@@ -147,10 +147,11 @@ int memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len)
 }
 
 /*
- *	For use with ip_build_xmit
+ *	Copy iovec from kernel. Returns -EFAULT on error.
  */
-int memcpy_fromiovecend(unsigned char *kdata, struct iovec *iov, int offset,
-			int len)
+
+int memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,
+			int offset, int len)
 {
 	/* Skip over the finished iovecs */
 	while (offset >= iov->iov_len) {

@@ -435,13 +435,15 @@ EXPORT_SYMBOL(skb_copy_datagram_const_iovec);
  *	@skb: buffer to copy
  *	@offset: offset in the buffer to start copying to
  *	@from: io vector to copy to
+ *	@from_offset: offset in the io vector to start copying from
  *	@len: amount of data to copy to buffer from iovec
  *
  *	Returns 0 or -EFAULT.
- *	Note: the iovec is modified during the copy.
+ *	Note: the iovec is not modified during the copy.
  */
 int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
-				 struct iovec *from, int len)
+				 const struct iovec *from, int from_offset,
+				 int len)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
@@ -450,11 +452,12 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		if (memcpy_fromiovec(skb->data + offset, from, copy))
+		if (memcpy_fromiovecend(skb->data + offset, from, 0, copy))
 			goto fault;
 		if ((len -= copy) == 0)
 			return 0;
 		offset += copy;
+		from_offset += copy;
 	}
 
 	/* Copy paged appendix. Hmm... why does this look so complicated? */
@@ -473,8 +476,9 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 			if (copy > len)
 				copy = len;
 			vaddr = kmap(page);
-			err = memcpy_fromiovec(vaddr + frag->page_offset +
-					       offset - start, from, copy);
+			err = memcpy_fromiovecend(vaddr + frag->page_offset +
+						  offset - start,
+						  from, from_offset, copy);
 			kunmap(page);
 			if (err)
 				goto fault;
@@ -482,6 +486,7 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 			if (!(len -= copy))
 				return 0;
 			offset += copy;
+			from_offset += copy;
 		}
 		start = end;
 	}
@@ -500,11 +505,14 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 					copy = len;
 				if (skb_copy_datagram_from_iovec(list,
 								 offset - start,
-								 from, copy))
+								 from,
+								 from_offset,
+								 copy))
 					goto fault;
 				if ((len -= copy) == 0)
 					return 0;
 				offset += copy;
+				from_offset += copy;
 			}
 			start = end;
 		}
