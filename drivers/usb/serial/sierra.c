@@ -598,9 +598,6 @@ static int sierra_open(struct tty_struct *tty,
 		}
 	}
 
-	if (tty)
-		tty->low_latency = 1;
-
 	sierra_send_setup(tty, port);
 
 	/* start up the interrupt endpoint if we have one */
