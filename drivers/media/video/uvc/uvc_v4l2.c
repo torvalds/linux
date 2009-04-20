@@ -46,6 +46,8 @@ static int uvc_v4l2_query_menu(struct uvc_video_device *video,
 	struct uvc_menu_info *menu_info;
 	struct uvc_control_mapping *mapping;
 	struct uvc_control *ctrl;
+	u32 index = query_menu->index;
+	u32 id = query_menu->id;
 
 	ctrl = uvc_find_control(video, query_menu->id, &mapping);
 	if (ctrl == NULL || mapping->v4l2_type != V4L2_CTRL_TYPE_MENU)
@@ -53,6 +55,10 @@ static int uvc_v4l2_query_menu(struct uvc_video_device *video,
 
 	if (query_menu->index >= mapping->menu_count)
 		return -EINVAL;
+
+	memset(query_menu, 0, sizeof(*query_menu));
+	query_menu->id = id;
+	query_menu->index = index;
 
 	menu_info = &mapping->menu_info[query_menu->index];
 	strlcpy(query_menu->name, menu_info->name, sizeof query_menu->name);
