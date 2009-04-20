@@ -2636,6 +2636,7 @@ struct tg3 {
 #define TG3_FLG3_CLKREQ_BUG		0x00000800
 #define TG3_FLG3_PHY_ENABLE_APD		0x00001000
 #define TG3_FLG3_5755_PLUS		0x00002000
+#define TG3_FLG3_NO_NVRAM		0x00004000
 
 	struct timer_list		timer;
 	u16				timer_counter;
