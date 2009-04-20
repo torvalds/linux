@@ -372,9 +372,6 @@ struct rndis_wext_private {
 	struct iw_statistics iwstats;
 	struct iw_statistics privstats;
 
-	int  nick_len;
-	char nick[32];
-
 	int caps;
 	int multicast_size;
 
@@ -1798,39 +1795,6 @@ static int rndis_iw_get_frag(struct net_device *dev,
 }
 
 
-static int rndis_iw_set_nick(struct net_device *dev,
-    struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
-{
-	struct usbnet *usbdev = netdev_priv(dev);
-	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
-
-	devdbg(usbdev, "SIOCSIWNICK");
-
-	priv->nick_len = wrqu->data.length;
-	if (priv->nick_len > 32)
-		priv->nick_len = 32;
-
-	memcpy(priv->nick, extra, priv->nick_len);
-	return 0;
-}
-
-
-static int rndis_iw_get_nick(struct net_device *dev,
-    struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
-{
-	struct usbnet *usbdev = netdev_priv(dev);
-	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
-
-	wrqu->data.flags = 1;
-	wrqu->data.length = priv->nick_len;
-	memcpy(extra, priv->nick, priv->nick_len);
-
-	devdbg(usbdev, "SIOCGIWNICK: '%s'", priv->nick);
-
-	return 0;
-}
-
-
 static int rndis_iw_set_freq(struct net_device *dev,
     struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
 {
@@ -2039,8 +2003,6 @@ static const iw_handler rndis_iw_handler[] =
 	IW_IOCTL(SIOCGIWSCAN)      = (iw_handler) cfg80211_wext_giwscan,
 	IW_IOCTL(SIOCSIWESSID)     = rndis_iw_set_essid,
 	IW_IOCTL(SIOCGIWESSID)     = rndis_iw_get_essid,
-	IW_IOCTL(SIOCSIWNICKN)     = rndis_iw_set_nick,
-	IW_IOCTL(SIOCGIWNICKN)     = rndis_iw_get_nick,
 	IW_IOCTL(SIOCGIWRATE)      = rndis_iw_get_rate,
 	IW_IOCTL(SIOCSIWRTS)       = rndis_iw_set_rts,
 	IW_IOCTL(SIOCGIWRTS)       = rndis_iw_get_rts,
