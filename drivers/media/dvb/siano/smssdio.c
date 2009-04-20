@@ -96,8 +96,6 @@ static int smssdio_sendrequest(void *context, void *buffer, size_t size)
 	if (size) {
 		ret = sdio_write_bytes(smsdev->func, SMSSDIO_DATA,
 				       buffer, size);
-		if (ret)
-			goto out;
 	}
 
 out:
