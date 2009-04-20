@@ -381,7 +381,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	entry->msi_attrib.default_irq = dev->irq;	/* Save IOAPIC IRQ */
 	entry->msi_attrib.pos = pos;
 
-	entry->mask_pos = msi_mask_bits_reg(pos, entry->msi_attrib.is_64);
+	entry->mask_pos = msi_mask_reg(pos, entry->msi_attrib.is_64);
 	/* All MSIs are unmasked by default, Mask them all */
 	if (entry->msi_attrib.maskbit)
 		pci_read_config_dword(dev, entry->mask_pos, &entry->masked);
