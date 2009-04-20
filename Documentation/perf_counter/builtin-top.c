@@ -28,25 +28,6 @@
                8.54 - ffffffff805001a3 : ip_queue_xmit
  */
 
-/*
- * perfstat:  /usr/bin/time -alike performance counter statistics utility
-
-          It summarizes the counter events of all tasks (and child tasks),
-          covering all CPUs that the command (or workload) executes on.
-          It only counts the per-task events of the workload started,
-          independent of how many other tasks run on those CPUs.
-
-   Sample output:
-
-   $ ./perfstat -e 1 -e 3 -e 5 ls -lR /usr/include/ >/dev/null
-
-   Performance counter stats for 'ls':
-
-           163516953 instructions
-                2295 cache-misses
-             2855182 branch-misses
- */
-
  /*
   * Copyright (C) 2008, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
   *
@@ -149,7 +130,6 @@ asmlinkage int sys_perf_counter_open(
 
 #define EID(type, id) (((__u64)(type) << PERF_COUNTER_TYPE_SHIFT) | (id))
 
-static int			run_perfstat			=  0;
 static int			system_wide			=  0;
 
 static int			nr_counters			=  0;
@@ -203,7 +183,7 @@ struct source_line {
 static struct source_line	*lines;
 static struct source_line	**lines_tail;
 
-const unsigned int default_count[] = {
+static const unsigned int default_count[] = {
 	1000000,
 	1000000,
 	  10000,
@@ -291,26 +271,8 @@ static void display_events_help(void)
 	"                           rNNN: raw PMU events (eventsel+umask)\n\n");
 }
 
-static void display_perfstat_help(void)
-{
-	printf(
-	"Usage: perfstat [<events...>] <cmd...>\n\n"
-	"PerfStat Options (up to %d event types can be specified):\n\n",
-		 MAX_COUNTERS);
-
-	display_events_help();
-
-	printf(
-	" -l                           # scale counter values\n"
-	" -a                           # system-wide collection\n");
-	exit(0);
-}
-
 static void display_help(void)
 {
-	if (run_perfstat)
-		return display_perfstat_help();
-
 	printf(
 	"Usage: kerneltop [<options>]\n"
 	"   Or: kerneltop -S [<options>] COMMAND [ARGS]\n\n"
@@ -320,8 +282,6 @@ static void display_help(void)
 	display_events_help();
 
 	printf(
-	" -S        --stat             # perfstat COMMAND\n"
-	" -a                           # system-wide collection (for perfstat)\n\n"
 	" -c CNT    --count=CNT        # event period to sample\n\n"
 	" -C CPU    --cpu=CPU          # CPU (-1 for all)                 [default: -1]\n"
 	" -p PID    --pid=PID          # PID of sampled task (-1 for all) [default: -1]\n\n"
@@ -416,151 +376,6 @@ again:
 		str++;
 		goto again;
 	}
-
-	return 0;
-}
-
-
-/*
- * perfstat
- */
-
-char fault_here[1000000];
-
-static void create_perfstat_counter(int counter)
-{
-	struct perf_counter_hw_event hw_event;
-
-	memset(&hw_event, 0, sizeof(hw_event));
-	hw_event.config		= event_id[counter];
-	hw_event.record_type	= 0;
-	hw_event.nmi		= 0;
-	if (scale)
-		hw_event.read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
-					  PERF_FORMAT_TOTAL_TIME_RUNNING;
-
-	if (system_wide) {
-		int cpu;
-		for (cpu = 0; cpu < nr_cpus; cpu ++) {
-			fd[cpu][counter] = sys_perf_counter_open(&hw_event, -1, cpu, -1, 0);
-			if (fd[cpu][counter] < 0) {
-				printf("perfstat error: syscall returned with %d (%s)\n",
-						fd[cpu][counter], strerror(errno));
-				exit(-1);
-			}
-		}
-	} else {
-		hw_event.inherit	= 1;
-		hw_event.disabled	= 1;
-
-		fd[0][counter] = sys_perf_counter_open(&hw_event, 0, -1, -1, 0);
-		if (fd[0][counter] < 0) {
-			printf("perfstat error: syscall returned with %d (%s)\n",
-					fd[0][counter], strerror(errno));
-			exit(-1);
-		}
-	}
-}
-
-int do_perfstat(int argc, char *argv[])
-{
-	unsigned long long t0, t1;
-	int counter;
-	ssize_t res;
-	int status;
-	int pid;
-
-	if (!system_wide)
-		nr_cpus = 1;
-
-	for (counter = 0; counter < nr_counters; counter++)
-		create_perfstat_counter(counter);
-
-	argc -= optind;
-	argv += optind;
-
-	if (!argc)
-		display_help();
-
-	/*
-	 * Enable counters and exec the command:
-	 */
-	t0 = rdclock();
-	prctl(PR_TASK_PERF_COUNTERS_ENABLE);
-
-	if ((pid = fork()) < 0)
-		perror("failed to fork");
-	if (!pid) {
-		if (execvp(argv[0], argv)) {
-			perror(argv[0]);
-			exit(-1);
-		}
-	}
-	while (wait(&status) >= 0)
-		;
-	prctl(PR_TASK_PERF_COUNTERS_DISABLE);
-	t1 = rdclock();
-
-	fflush(stdout);
-
-	fprintf(stderr, "\n");
-	fprintf(stderr, " Performance counter stats for \'%s\':\n",
-		argv[0]);
-	fprintf(stderr, "\n");
-
-	for (counter = 0; counter < nr_counters; counter++) {
-		int cpu, nv;
-		__u64 count[3], single_count[3];
-		int scaled;
-
-		count[0] = count[1] = count[2] = 0;
-		nv = scale ? 3 : 1;
-		for (cpu = 0; cpu < nr_cpus; cpu ++) {
-			res = read(fd[cpu][counter],
-				   single_count, nv * sizeof(__u64));
-			assert(res == nv * sizeof(__u64));
-
-			count[0] += single_count[0];
-			if (scale) {
-				count[1] += single_count[1];
-				count[2] += single_count[2];
-			}
-		}
-
-		scaled = 0;
-		if (scale) {
-			if (count[2] == 0) {
-				fprintf(stderr, " %14s  %-20s\n",
-					"<not counted>", event_name(counter));
-				continue;
-			}
-			if (count[2] < count[1]) {
-				scaled = 1;
-				count[0] = (unsigned long long)
-					((double)count[0] * count[1] / count[2] + 0.5);
-			}
-		}
-
-		if (event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_CLOCK) ||
-		    event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK)) {
-
-			double msecs = (double)count[0] / 1000000;
-
-			fprintf(stderr, " %14.6f  %-20s (msecs)",
-				msecs, event_name(counter));
-		} else {
-			fprintf(stderr, " %14Ld  %-20s (events)",
-				count[0], event_name(counter));
-		}
-		if (scaled)
-			fprintf(stderr, "  (scaled from %.2f%%)",
-				(double) count[2] / count[1] * 100);
-		fprintf(stderr, "\n");
-	}
-	fprintf(stderr, "\n");
-	fprintf(stderr, " Wall-clock time elapsed: %12.6f msecs\n",
-			(double)(t1-t0)/1e6);
-	fprintf(stderr, "\n");
 
 	return 0;
 }
@@ -805,7 +620,7 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	return 0;
 }
 
-int compare_addr(const void *__sym1, const void *__sym2)
+static int compare_addr(const void *__sym1, const void *__sym2)
 {
 	const struct sym_entry *sym1 = __sym1, *sym2 = __sym2;
 
@@ -1070,9 +885,6 @@ static void process_options(int argc, char **argv)
 {
 	int error = 0, counter;
 
-	if (strstr(argv[0], "perfstat"))
-		run_perfstat = 1;
-
 	for (;;) {
 		int option_index = 0;
 		/** Options for getopt */
@@ -1134,7 +946,6 @@ static void process_options(int argc, char **argv)
 			tid				=   atoi(optarg); break;
 		case 'r': realtime_prio			=   atoi(optarg); break;
 		case 's': sym_filter			= strdup(optarg); break;
-		case 'S': run_perfstat			=	       1; break;
 		case 'x': vmlinux			= strdup(optarg); break;
 		case 'z': zero				=              1; break;
 		case 'm': mmap_pages			=   atoi(optarg); break;
@@ -1147,12 +958,8 @@ static void process_options(int argc, char **argv)
 		display_help();
 
 	if (!nr_counters) {
-		if (run_perfstat)
-			nr_counters = 8;
-		else {
-			nr_counters = 1;
-			event_id[0] = 0;
-		}
+		nr_counters = 1;
+		event_id[0] = 0;
 	}
 
 	for (counter = 0; counter < nr_counters; counter++) {
@@ -1307,9 +1114,6 @@ int cmd_top(int argc, char **argv, const char *prefix)
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	assert(nr_cpus <= MAX_NR_CPUS);
 	assert(nr_cpus >= 0);
-
-	if (run_perfstat)
-		return do_perfstat(argc, argv);
 
 	if (tid != -1 || profile_cpu != -1)
 		nr_cpus = 1;

@@ -1,4 +1,5 @@
 # List of known perf commands.
 # command name				category [deprecated] [common]
 perf-top                                mainporcelain common
+perf-stat                               mainporcelain common
 
