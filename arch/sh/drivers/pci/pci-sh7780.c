@@ -15,11 +15,47 @@
 #include <linux/delay.h>
 #include "pci-sh4.h"
 
-static int __init sh7780_pci_init(struct pci_channel *chan)
+extern u8 pci_cache_line_size;
+
+static struct resource sh7785_io_resource = {
+	.name	= "SH7785_IO",
+	.start	= SH7780_PCI_IO_BASE,
+	.end	= SH7780_PCI_IO_BASE + SH7780_PCI_IO_SIZE - 1,
+	.flags	= IORESOURCE_IO
+};
+
+static struct resource sh7785_mem_resource = {
+	.name	= "SH7785_mem",
+	.start	= SH7780_PCI_MEMORY_BASE,
+	.end	= SH7780_PCI_MEMORY_BASE + SH7780_PCI_MEM_SIZE - 1,
+	.flags	= IORESOURCE_MEM
+};
+
+static struct pci_channel sh7780_pci_controller = {
+	.pci_ops	= &sh4_pci_ops,
+	.mem_resource	= &sh7785_mem_resource,
+	.io_resource	= &sh7785_io_resource,
+};
+
+static struct sh4_pci_address_map sh7780_pci_map = {
+	.window0	= {
+#if defined(CONFIG_32BIT)
+		.base	= SH7780_32BIT_DDR_BASE_ADDR,
+		.size	= 0x40000000,
+#else
+		.base	= SH7780_CS0_BASE_ADDR,
+		.size	= 0x20000000,
+#endif
+	},
+};
+
+static int __init sh7780_pci_init(void)
 {
+	struct pci_channel *chan = &sh7780_pci_controller;
 	unsigned int id;
 	const char *type = NULL;
 	int ret;
+	u32 word;
 
 	printk(KERN_NOTICE "PCI: Starting intialization.\n");
 
@@ -53,52 +89,6 @@ static int __init sh7780_pci_init(struct pci_channel *chan)
 
 	if ((ret = sh4_pci_check_direct(chan)) != 0)
 		return ret;
-
-	/*
-	 * Platform specific initialization (BSC registers, and memory space
-	 * mapping) will be called via the platform defined function
-	 * pcibios_init_platform().
-	 */
-	return pcibios_init_platform();
-}
-
-extern u8 pci_cache_line_size;
-
-static struct resource sh7785_io_resource = {
-	.name	= "SH7785_IO",
-	.start	= SH7780_PCI_IO_BASE,
-	.end	= SH7780_PCI_IO_BASE + SH7780_PCI_IO_SIZE - 1,
-	.flags	= IORESOURCE_IO
-};
-
-static struct resource sh7785_mem_resource = {
-	.name	= "SH7785_mem",
-	.start	= SH7780_PCI_MEMORY_BASE,
-	.end	= SH7780_PCI_MEMORY_BASE + SH7780_PCI_MEM_SIZE - 1,
-	.flags	= IORESOURCE_MEM
-};
-
-struct pci_channel board_pci_channels[] = {
-	{ sh7780_pci_init, &sh4_pci_ops, &sh7785_io_resource, &sh7785_mem_resource, 0, 0xff },
-	{ NULL, NULL, NULL, 0, 0 },
-};
-
-static struct sh4_pci_address_map sh7780_pci_map = {
-	.window0	= {
-#if defined(CONFIG_32BIT)
-		.base	= SH7780_32BIT_DDR_BASE_ADDR,
-		.size	= 0x40000000,
-#else
-		.base	= SH7780_CS0_BASE_ADDR,
-		.size	= 0x20000000,
-#endif
-	},
-};
-
-int __init pcibios_init_platform(void)
-{
-	struct pci_channel *chan = &board_pci_channels[0];
-	u32 word;
 
 	/*
 	 * Set the class and sub-class codes.
@@ -153,5 +143,8 @@ int __init pcibios_init_platform(void)
 
 	__set_io_port_base(SH7780_PCI_IO_BASE);
 
+	register_pci_controller(chan);
+
 	return 0;
 }
+arch_initcall(sh7780_pci_init);

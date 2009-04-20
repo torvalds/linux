@@ -13,39 +13,89 @@
 #include <linux/init.h>
 #include <linux/dma-debug.h>
 #include <linux/io.h>
+#include <linux/mutex.h>
+
+/*
+ * The PCI controller list.
+ */
+static struct pci_channel *hose_head, **hose_tail = &hose_head;
+
+static int pci_initialized;
+
+static void __devinit pcibios_scanbus(struct pci_channel *hose)
+{
+	static int next_busno;
+	struct pci_bus *bus;
+
+	/* Catch botched conversion attempts */
+	BUG_ON(hose->init);
+
+	bus = pci_scan_bus(next_busno, hose->pci_ops, hose);
+	if (bus) {
+		next_busno = bus->subordinate + 1;
+		/* Don't allow 8-bit bus number overflow inside the hose -
+		   reserve some space for bridges. */
+		if (next_busno > 224)
+			next_busno = 0;
+
+		pci_bus_size_bridges(bus);
+		pci_bus_assign_resources(bus);
+		pci_enable_bridges(bus);
+	}
+}
+
+static DEFINE_MUTEX(pci_scan_mutex);
+
+void __devinit register_pci_controller(struct pci_channel *hose)
+{
+	if (request_resource(&iomem_resource, hose->mem_resource) < 0)
+		goto out;
+	if (request_resource(&ioport_resource, hose->io_resource) < 0) {
+		release_resource(hose->mem_resource);
+		goto out;
+	}
+
+	*hose_tail = hose;
+	hose_tail = &hose->next;
+
+	/*
+	 * Do not panic here but later - this might hapen before console init.
+	 */
+	if (!hose->io_map_base) {
+		printk(KERN_WARNING
+		       "registering PCI controller with io_map_base unset\n");
+	}
+
+	/*
+	 * Scan the bus if it is register after the PCI subsystem
+	 * initialization.
+	 */
+	if (pci_initialized) {
+		mutex_lock(&pci_scan_mutex);
+		pcibios_scanbus(hose);
+		mutex_unlock(&pci_scan_mutex);
+	}
+
+	return;
+
+out:
+	printk(KERN_WARNING
+	       "Skipping PCI bus scan due to resource conflict\n");
+}
 
 static int __init pcibios_init(void)
 {
-	struct pci_channel *p;
-	struct pci_bus *bus;
-	int busno;
+	struct pci_channel *hose;
 
-	/* init channels */
-	busno = 0;
-	for (p = board_pci_channels; p->init; p++) {
-		if (p->init(p) == 0)
-			p->enabled = 1;
-		else
-			pr_err("Unable to init pci channel %d\n", busno);
-		busno++;
-	}
-
-	/* scan the buses */
-	busno = 0;
-	for (p = board_pci_channels; p->init; p++) {
-		if (p->enabled) {
-			bus = pci_scan_bus(busno, p->pci_ops, p);
-			busno = bus->subordinate + 1;
-
-			pci_bus_size_bridges(bus);
-			pci_bus_assign_resources(bus);
-			pci_enable_bridges(bus);
-		}
-	}
+	/* Scan all of the recorded PCI controllers.  */
+	for (hose = hose_head; hose; hose = hose->next)
+		pcibios_scanbus(hose);
 
 	pci_fixup_irqs(pci_common_swizzle, pcibios_map_platform_irq);
 
 	dma_debug_add_bus(&pci_bus_type);
+
+	pci_initialized = 1;
 
 	return 0;
 }
@@ -73,7 +123,6 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev,
 		dev->resource[i].end += offset;
 	}
 }
-
 
 /*
  *  Called after each bus is probed, but before its children
@@ -186,5 +235,3 @@ void __init pcibios_update_irq(struct pci_dev *dev, int irq)
 {
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
-
-EXPORT_SYMBOL(board_pci_channels);

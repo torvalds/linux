@@ -17,23 +17,30 @@
  * external) PCI controllers.
  */
 struct pci_channel {
-	int (*init)(struct pci_channel *chan);
-	struct pci_ops *pci_ops;
-	struct resource *io_resource;
-	struct resource *mem_resource;
-	int first_devfn;
-	int last_devfn;
-	int enabled;
-	unsigned long reg_base;
-	unsigned long io_base;
+	struct pci_channel	*next;
 
-	unsigned long io_map_base;
+	int			(*init)(struct pci_channel *chan);
+
+	struct pci_ops		*pci_ops;
+	struct resource		*io_resource;
+	struct resource		*mem_resource;
+
+	int			first_devfn;
+	int			last_devfn;
+	int			enabled;
+
+	unsigned long		reg_base;
+	unsigned long		io_base;
+
+	unsigned long		io_map_base;
 };
 
 /*
  * Each board initializes this array and terminates it with a NULL entry.
  */
 extern struct pci_channel board_pci_channels[];
+
+extern void register_pci_controller(struct pci_channel *hose);
 
 extern unsigned long PCIBIOS_MIN_IO, PCIBIOS_MIN_MEM;
 
