@@ -666,13 +666,7 @@ static int vlan_ethtool_get_settings(struct net_device *dev,
 				     struct ethtool_cmd *cmd)
 {
 	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
-	struct net_device *real_dev = vlan->real_dev;
-
-	if (!real_dev->ethtool_ops ||
-	    !real_dev->ethtool_ops->get_settings)
-		return -EOPNOTSUPP;
-
-	return real_dev->ethtool_ops->get_settings(real_dev, cmd);
+	return dev_ethtool_get_settings(vlan->real_dev, cmd);
 }
 
 static void vlan_ethtool_get_drvinfo(struct net_device *dev,
@@ -686,24 +680,13 @@ static void vlan_ethtool_get_drvinfo(struct net_device *dev,
 static u32 vlan_ethtool_get_rx_csum(struct net_device *dev)
 {
 	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
-	struct net_device *real_dev = vlan->real_dev;
-
-	if (real_dev->ethtool_ops == NULL ||
-	    real_dev->ethtool_ops->get_rx_csum == NULL)
-		return 0;
-	return real_dev->ethtool_ops->get_rx_csum(real_dev);
+	return dev_ethtool_get_rx_csum(vlan->real_dev);
 }
 
 static u32 vlan_ethtool_get_flags(struct net_device *dev)
 {
 	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
-	struct net_device *real_dev = vlan->real_dev;
-
-	if (!(real_dev->features & NETIF_F_HW_VLAN_RX) ||
-	    real_dev->ethtool_ops == NULL ||
-	    real_dev->ethtool_ops->get_flags == NULL)
-		return 0;
-	return real_dev->ethtool_ops->get_flags(real_dev);
+	return dev_ethtool_get_flags(vlan->real_dev);
 }
 
 static const struct ethtool_ops vlan_ethtool_ops = {

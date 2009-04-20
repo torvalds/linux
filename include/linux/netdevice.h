@@ -42,6 +42,7 @@
 #include <linux/dmaengine.h>
 #include <linux/workqueue.h>
 
+#include <linux/ethtool.h>
 #include <net/net_namespace.h>
 #include <net/dsa.h>
 #ifdef CONFIG_DCB
@@ -49,7 +50,6 @@
 #endif
 
 struct vlan_group;
-struct ethtool_ops;
 struct netpoll_info;
 /* 802.11 specific */
 struct wireless_dev;
@@ -1906,6 +1906,28 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 }
 
 extern struct pernet_operations __net_initdata loopback_net_ops;
+
+static inline int dev_ethtool_get_settings(struct net_device *dev,
+					   struct ethtool_cmd *cmd)
+{
+	if (!dev->ethtool_ops || !dev->ethtool_ops->get_settings)
+		return -EOPNOTSUPP;
+	return dev->ethtool_ops->get_settings(dev, cmd);
+}
+
+static inline u32 dev_ethtool_get_rx_csum(struct net_device *dev)
+{
+	if (!dev->ethtool_ops || !dev->ethtool_ops->get_rx_csum)
+		return 0;
+	return dev->ethtool_ops->get_rx_csum(dev);
+}
+
+static inline u32 dev_ethtool_get_flags(struct net_device *dev)
+{
+	if (!dev->ethtool_ops || !dev->ethtool_ops->get_flags)
+		return 0;
+	return dev->ethtool_ops->get_flags(dev);
+}
 #endif /* __KERNEL__ */
 
 #endif	/* _LINUX_DEV_H */
