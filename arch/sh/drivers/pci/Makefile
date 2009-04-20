@@ -15,6 +15,7 @@ obj-$(CONFIG_CPU_SH5)			+= pci-sh5.o ops-sh5.o
 obj-$(CONFIG_SH_DREAMCAST)		+= ops-dreamcast.o fixups-dreamcast.o \
 					   pci-dreamcast.o
 obj-$(CONFIG_SH_SECUREEDGE5410)		+= fixups-snapgear.o
+obj-$(CONFIG_SH_7751_SOLUTION_ENGINE)	+= fixups-se7751.o
 obj-$(CONFIG_SH_RTS7751R2D)		+= fixups-rts7751r2d.o
 obj-$(CONFIG_SH_SH03)			+= fixups-sh03.o
 obj-$(CONFIG_SH_HIGHLANDER)		+= fixups-r7780rp.o
