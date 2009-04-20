@@ -23,7 +23,8 @@ config PCI_NEW
 	bool
 	depends on PCI
 	default y if CPU_SUBTYPE_SH7763 || CPU_SUBTYPE_SH7780 || \
-		     CPU_SUBTYPE_SH7785 || CPU_SH5
+		     CPU_SUBTYPE_SH7785 || CPU_SH5 || \
+		     CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 
 # This is also board-specific
 config PCI_AUTO

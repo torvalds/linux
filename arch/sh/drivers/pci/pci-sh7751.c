@@ -1,43 +1,86 @@
 /*
- *	Low-Level PCI Support for the SH7751
+ * Low-Level PCI Support for the SH7751
  *
- *  Dustin McIntire (dustin@sensoria.com)
- *	Derived from arch/i386/kernel/pci-*.c which bore the message:
- *	(c) 1999--2000 Martin Mares <mj@ucw.cz>
+ *  Copyright (C) 2003 - 2009  Paul Mundt
+ *  Copyright (C) 2001  Dustin McIntire
  *
- *  Ported to the new API by Paul Mundt <lethal@linux-sh.org>
- *  With cleanup by Paul van Gool <pvangool@mimotech.com>
+ *  With cleanup by Paul van Gool <pvangool@mimotech.com>, 2003.
  *
- *  May be copied or modified under the terms of the GNU General Public
- *  License.  See linux/COPYING for more information.
- *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-#undef DEBUG
-
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/delay.h>
+#include <linux/io.h>
 #include "pci-sh4.h"
 #include <asm/addrspace.h>
-#include <asm/io.h>
 
-/*
- * Initialization. Try all known PCI access methods. Note that we support
- * using both PCI BIOS and direct access: in such cases, we use I/O ports
- * to access config space.
- *
- * Note that the platform specific initialization (BSC registers, and memory
- * space mapping) will be called via the platform defined function
- * pcibios_init_platform().
- */
-int __init sh7751_pci_init(struct pci_channel *chan)
+static int __init __area_sdram_check(struct pci_channel *chan,
+				     unsigned int area)
 {
+	unsigned long word;
+
+	word = __raw_readl(SH7751_BCR1);
+	/* check BCR for SDRAM in area */
+	if (((word >> area) & 1) == 0) {
+		printk("PCI: Area %d is not configured for SDRAM. BCR1=0x%lx\n",
+		       area, word);
+		return 0;
+	}
+	pci_write_reg(chan, word, SH4_PCIBCR1);
+
+	word = __raw_readw(SH7751_BCR2);
+	/* check BCR2 for 32bit SDRAM interface*/
+	if (((word >> (area << 1)) & 0x3) != 0x3) {
+		printk("PCI: Area %d is not 32 bit SDRAM. BCR2=0x%lx\n",
+		       area, word);
+		return 0;
+	}
+	pci_write_reg(chan, word, SH4_PCIBCR2);
+
+	return 1;
+}
+
+static struct resource sh7751_io_resource = {
+	.name	= "SH7751_IO",
+	.start	= SH7751_PCI_IO_BASE,
+	.end	= SH7751_PCI_IO_BASE + SH7751_PCI_IO_SIZE - 1,
+	.flags	= IORESOURCE_IO
+};
+
+static struct resource sh7751_mem_resource = {
+	.name	= "SH7785_mem",
+	.start	= SH7751_PCI_MEMORY_BASE,
+	.end	= SH7751_PCI_MEMORY_BASE + SH7751_PCI_MEM_SIZE - 1,
+	.flags	= IORESOURCE_MEM
+};
+
+static struct pci_channel sh7751_pci_controller = {
+	.pci_ops	= &sh4_pci_ops,
+	.mem_resource	= &sh7751_mem_resource,
+	.mem_offset	= 0x00000000,
+	.io_resource	= &sh7751_io_resource,
+	.io_offset	= 0x00000000,
+};
+
+static struct sh4_pci_address_map sh7751_pci_map = {
+	.window0	= {
+		.base	= SH7751_CS3_BASE_ADDR,
+		.size	= 0x04000000,
+	},
+};
+
+static int __init sh7751_pci_init(void)
+{
+	struct pci_channel *chan = &sh7751_pci_controller;
 	unsigned int id;
+	u32 word, reg;
 	int ret;
 
-	pr_debug("PCI: Starting intialization.\n");
+	printk(KERN_NOTICE "PCI: Starting intialization.\n");
 
 	chan->reg_base = 0xfe200000;
 
@@ -51,41 +94,6 @@ int __init sh7751_pci_init(struct pci_channel *chan)
 
 	if ((ret = sh4_pci_check_direct(chan)) != 0)
 		return ret;
-
-	return pcibios_init_platform();
-}
-
-static int __init __area_sdram_check(struct pci_channel *chan,
-				     unsigned int area)
-{
-	u32 word;
-
-	word = ctrl_inl(SH7751_BCR1);
-	/* check BCR for SDRAM in area */
-	if (((word >> area) & 1) == 0) {
-		printk("PCI: Area %d is not configured for SDRAM. BCR1=0x%x\n",
-		       area, word);
-		return 0;
-	}
-	pci_write_reg(chan, word, SH4_PCIBCR1);
-
-	word = (u16)ctrl_inw(SH7751_BCR2);
-	/* check BCR2 for 32bit SDRAM interface*/
-	if (((word >> (area << 1)) & 0x3) != 0x3) {
-		printk("PCI: Area %d is not 32 bit SDRAM. BCR2=0x%x\n",
-		       area, word);
-		return 0;
-	}
-	pci_write_reg(chan, word, SH4_PCIBCR2);
-
-	return 1;
-}
-
-int __init sh7751_pcic_init(struct pci_channel *chan,
-			    struct sh4_pci_address_map *map)
-{
-	u32 reg;
-	u32 word;
 
 	/* Set the BCR's to enable PCI access */
 	reg = ctrl_inl(SH7751_BCR1);
@@ -112,21 +120,13 @@ int __init sh7751_pcic_init(struct pci_channel *chan,
 
 	/* Set IO and Mem windows to local address
 	 * Make PCI and local address the same for easy 1 to 1 mapping
-	 * Window0 = map->window0.size @ non-cached area base = SDRAM
-	 * Window1 = map->window1.size @ cached area base = SDRAM
 	 */
-	word = map->window0.size - 1;
+	word = sh7751_pci_map.window0.size - 1;
 	pci_write_reg(chan, word, SH4_PCILSR0);
-	word = map->window1.size - 1;
-	pci_write_reg(chan, word, SH4_PCILSR1);
 	/* Set the values on window 0 PCI config registers */
-	word = P2SEGADDR(map->window0.base);
+	word = P2SEGADDR(sh7751_pci_map.window0.base);
 	pci_write_reg(chan, word, SH4_PCILAR0);
 	pci_write_reg(chan, word, SH7751_PCICONF5);
-	/* Set the values on window 1 PCI config registers */
-	word =  PHYSADDR(map->window1.base);
-	pci_write_reg(chan, word, SH4_PCILAR1);
-	pci_write_reg(chan, word, SH7751_PCICONF6);
 
 	/* Set the local 16MB PCI memory space window to
 	 * the lowest PCI mapped address
@@ -144,7 +144,7 @@ int __init sh7751_pcic_init(struct pci_channel *chan,
 	/* Set PCI WCRx, BCRx's, copy from BSC locations */
 
 	/* check BCR for SDRAM in specified area */
-	switch (map->window0.base) {
+	switch (sh7751_pci_map.window0.base) {
 	case SH7751_CS0_BASE_ADDR: word = __area_sdram_check(chan, 0); break;
 	case SH7751_CS1_BASE_ADDR: word = __area_sdram_check(chan, 1); break;
 	case SH7751_CS2_BASE_ADDR: word = __area_sdram_check(chan, 2); break;
@@ -179,5 +179,10 @@ int __init sh7751_pcic_init(struct pci_channel *chan,
 	word = SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_ARBM;
 	pci_write_reg(chan, word, SH4_PCICR);
 
+	__set_io_port_base(SH7751_PCI_IO_BASE);
+
+	register_pci_controller(chan);
+
 	return 0;
 }
+arch_initcall(sh7751_pci_init);

@@ -18,55 +18,6 @@
 #include <linux/pci.h>
 #include "pci-sh4.h"
 
-#define SNAPGEAR_PCI_IO		0x4000
-#define SNAPGEAR_PCI_MEM	0xfd000000
-
-/* PCI: default LOCAL memory window sizes (seen from PCI bus) */
-#define SNAPGEAR_LSR0_SIZE    (64*(1<<20)) //64MB
-#define SNAPGEAR_LSR1_SIZE    (64*(1<<20)) //64MB
-
-static struct resource sh7751_io_resource = {
-	.name		= "SH7751 IO",
-	.start		= SNAPGEAR_PCI_IO,
-	.end		= SNAPGEAR_PCI_IO + (64*1024) - 1, /* 64KiB I/O */
-	.flags		= IORESOURCE_IO,
-};
-
-static struct resource sh7751_mem_resource = {
-	.name		= "SH7751 mem",
-	.start		= SNAPGEAR_PCI_MEM,
-	.end		= SNAPGEAR_PCI_MEM + (64*1024*1024) - 1, /* 64MiB mem */
-	.flags		= IORESOURCE_MEM,
-};
-
-struct pci_channel board_pci_channels[] = {
-	{ sh7751_pci_init, &sh4_pci_ops, &sh7751_io_resource, &sh7751_mem_resource, 0, 0xff },
-	{ 0, }
-};
-
-static struct sh4_pci_address_map sh7751_pci_map = {
-	.window0	= {
-		.base	= SH7751_CS2_BASE_ADDR,
-		.size	= SNAPGEAR_LSR0_SIZE,
-	},
-
-	.window1	= {
-		.base	= SH7751_CS2_BASE_ADDR,
-		.size	= SNAPGEAR_LSR1_SIZE,
-	},
-};
-
-/*
- * Initialize the SnapGear PCI interface
- * Setup hardware to be Central Funtion
- * Copy the BSR regs to the PCI interface
- * Setup PCI windows into local RAM
- */
-int __init pcibios_init_platform(void)
-{
-	return sh7751_pcic_init(&board_pci_channels[0], &sh7751_pci_map);
-}
-
 int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
 	int irq = -1;
