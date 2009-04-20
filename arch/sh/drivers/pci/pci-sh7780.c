@@ -62,7 +62,6 @@ static int __init sh7780_pci_init(void)
 	printk(KERN_NOTICE "PCI: Starting intialization.\n");
 
 	chan->reg_base = 0xfe040000;
-	chan->io_base = 0xfe200000;
 
 	/* Enable CPU access to the PCIC registers. */
 	__raw_writel(PCIECR_ENBL, PCIECR);

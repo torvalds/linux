@@ -33,7 +33,6 @@ struct pci_channel {
 	int			enabled;
 
 	unsigned long		reg_base;
-	unsigned long		io_base;
 
 	unsigned long		io_map_base;
 };
