@@ -1074,7 +1074,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		with the rare long characters alloc more to account for
 		such multibyte target UTF-8 characters. cifs_unicode.c,
 		which actually does the conversion, has the same limit */
-		tmp_buf = kmalloc((2 * NAME_MAX) + 4, GFP_KERNEL);
+		tmp_buf = kmalloc((4 * NAME_MAX) + 2, GFP_KERNEL);
 		for (i = 0; (i < num_to_fill) && (rc == 0); i++) {
 			if (current_entry == NULL) {
 				/* evaluate whether this case is an error */
