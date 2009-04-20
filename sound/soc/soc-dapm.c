@@ -581,6 +581,19 @@ static int dapm_generic_apply_power(struct snd_soc_dapm_widget *w)
 	return 0;
 }
 
+/* Generic check to see if a widget should be powered.
+ */
+static int dapm_generic_check_power(struct snd_soc_dapm_widget *w)
+{
+	int in, out;
+
+	in = is_connected_input_ep(w);
+	dapm_clear_walk(w->codec);
+	out = is_connected_output_ep(w);
+	dapm_clear_walk(w->codec);
+	return out != 0 && in != 0;
+}
+
 /*
  * Scan a single DAPM widget for a complete audio path and update the
  * power status appropriately.
@@ -653,11 +666,7 @@ static int dapm_power_widget(struct snd_soc_codec *codec, int event,
 	}
 
 	/* all other widgets */
-	in = is_connected_input_ep(w);
-	dapm_clear_walk(w->codec);
-	out = is_connected_output_ep(w);
-	dapm_clear_walk(w->codec);
-	power = (out != 0 && in != 0) ? 1 : 0;
+	power = dapm_generic_check_power(w);
 	power_change = (w->power == power) ? 0 : 1;
 	w->power = power;
 
