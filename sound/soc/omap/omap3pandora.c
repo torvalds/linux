@@ -228,14 +228,14 @@ static struct snd_soc_dai_link omap3pandora_dai[] = {
 		.name = "PCM1773",
 		.stream_name = "HiFi Out",
 		.cpu_dai = &omap_mcbsp_dai[0],
-		.codec_dai = &twl4030_dai,
+		.codec_dai = &twl4030_dai[TWL4030_DAI_HIFI],
 		.ops = &omap3pandora_out_ops,
 		.init = omap3pandora_out_init,
 	}, {
 		.name = "TWL4030",
 		.stream_name = "Line/Mic In",
 		.cpu_dai = &omap_mcbsp_dai[1],
-		.codec_dai = &twl4030_dai,
+		.codec_dai = &twl4030_dai[TWL4030_DAI_HIFI],
 		.ops = &omap3pandora_in_ops,
 		.init = omap3pandora_in_init,
 	}
