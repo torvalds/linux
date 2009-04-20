@@ -34,7 +34,9 @@ static struct resource sh7785_mem_resource = {
 static struct pci_channel sh7780_pci_controller = {
 	.pci_ops	= &sh4_pci_ops,
 	.mem_resource	= &sh7785_mem_resource,
+	.mem_offset	= 0x00000000,
 	.io_resource	= &sh7785_io_resource,
+	.io_offset	= 0x00000000,
 };
 
 static struct sh4_pci_address_map sh7780_pci_map = {

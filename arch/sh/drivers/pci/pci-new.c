@@ -105,7 +105,7 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev,
 	struct pci_bus *bus)
 {
 	/* Update device resources.  */
-	struct pci_channel *chan = bus->sysdata;
+	struct pci_channel *hose = bus->sysdata;
 	unsigned long offset = 0;
 	int i;
 
@@ -115,9 +115,9 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev,
 		if (dev->resource[i].flags & IORESOURCE_PCI_FIXED)
 			continue;
 		if (dev->resource[i].flags & IORESOURCE_IO)
-			offset = chan->io_base;
+			offset = hose->io_offset;
 		else if (dev->resource[i].flags & IORESOURCE_MEM)
-			offset = 0;
+			offset = hose->mem_offset;
 
 		dev->resource[i].start += offset;
 		dev->resource[i].end += offset;
@@ -150,13 +150,13 @@ void __devinit __weak pcibios_fixup_bus(struct pci_bus *bus)
 void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 			 struct resource *res)
 {
-	struct pci_channel *chan = dev->sysdata;
+	struct pci_channel *hose = dev->sysdata;
 	unsigned long offset = 0;
 
 	if (res->flags & IORESOURCE_IO)
-		offset = chan->io_base;
+		offset = hose->io_offset;
 	else if (res->flags & IORESOURCE_MEM)
-		offset = 0;
+		offset = hose->mem_offset;
 
 	region->start = res->start - offset;
 	region->end = res->end - offset;
@@ -166,13 +166,13 @@ void __devinit
 pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 			struct pci_bus_region *region)
 {
-	struct pci_channel *chan = dev->sysdata;
+	struct pci_channel *hose = dev->sysdata;
 	unsigned long offset = 0;
 
 	if (res->flags & IORESOURCE_IO)
-		offset = chan->io_base;
+		offset = hose->io_offset;
 	else if (res->flags & IORESOURCE_MEM)
-		offset = 0;
+		offset = hose->mem_offset;
 
 	res->start = region->start + offset;
 	res->end = region->end + offset;

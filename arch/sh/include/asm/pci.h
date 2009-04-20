@@ -25,6 +25,9 @@ struct pci_channel {
 	struct resource		*io_resource;
 	struct resource		*mem_resource;
 
+	unsigned long		io_offset;
+	unsigned long		mem_offset;
+
 	int			first_devfn;
 	int			last_devfn;
 	int			enabled;
