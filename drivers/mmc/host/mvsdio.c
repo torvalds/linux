@@ -825,24 +825,23 @@ static int __exit mvsd_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int mvsd_suspend(struct platform_device *dev, pm_message_t state,
-			   u32 level)
+static int mvsd_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret = 0;
 
-	if (mmc && level == SUSPEND_DISABLE)
+	if (mmc)
 		ret = mmc_suspend_host(mmc, state);
 
 	return ret;
 }
 
-static int mvsd_resume(struct platform_device *dev, u32 level)
+static int mvsd_resume(struct platform_device *dev)
 {
-	struct mmc_host *mmc = platform_dev_get_drvdata(dev);
+	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret = 0;
 
-	if (mmc && level == RESUME_ENABLE)
+	if (mmc)
 		ret = mmc_resume_host(mmc);
 
 	return ret;
