@@ -1479,6 +1479,7 @@ void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector)
 		s += blocks;
 	}
 	bitmap->last_end_sync = jiffies;
+	sysfs_notify(&bitmap->mddev->kobj, NULL, "sync_completed");
 }
 
 static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset, int needed)
@@ -1589,7 +1590,7 @@ void bitmap_destroy(mddev_t *mddev)
 int bitmap_create(mddev_t *mddev)
 {
 	struct bitmap *bitmap;
-	unsigned long blocks = mddev->resync_max_sectors;
+	sector_t blocks = mddev->resync_max_sectors;
 	unsigned long chunks;
 	unsigned long pages;
 	struct file *file = mddev->bitmap_file;
@@ -1631,8 +1632,8 @@ int bitmap_create(mddev_t *mddev)
 	bitmap->chunkshift = ffz(~bitmap->chunksize);
 
 	/* now that chunksize and chunkshift are set, we can use these macros */
- 	chunks = (blocks + CHUNK_BLOCK_RATIO(bitmap) - 1) /
-			CHUNK_BLOCK_RATIO(bitmap);
+ 	chunks = (blocks + CHUNK_BLOCK_RATIO(bitmap) - 1) >>
+			CHUNK_BLOCK_SHIFT(bitmap);
  	pages = (chunks + PAGE_COUNTER_RATIO - 1) / PAGE_COUNTER_RATIO;
 
 	BUG_ON(!pages);
