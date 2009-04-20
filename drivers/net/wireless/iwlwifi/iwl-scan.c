@@ -712,7 +712,12 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	} else if (priv->scan_bands & BIT(IEEE80211_BAND_5GHZ)) {
 		band = IEEE80211_BAND_5GHZ;
 		rate = IWL_RATE_6M_PLCP;
-		scan->good_CRC_th = IWL_GOOD_CRC_TH;
+		/*
+		 * If active scaning is requested but a certain channel
+		 * is marked passive, we can do active scanning if we
+		 * detect transmissions.
+		 */
+		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH : 0;
 
 		/* Force use of chains B and C (0x6) for scan Rx for 4965
 		 * Avoid A (0x1) because of its off-channel reception on A-band.
