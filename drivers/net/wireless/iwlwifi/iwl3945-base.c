@@ -4309,20 +4309,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	IWL_INFO(priv, "Detected Intel Wireless WiFi Link %s\n",
 		priv->cfg->name);
 
-	/***********************************
-	 * 7. Initialize Module Parameters
-	 * **********************************/
-
-	/* Initialize module parameter values here */
-	/* Disable radio (SW RF KILL) via parameter when loading driver */
-	if (iwl3945_mod_params.disable) {
-		set_bit(STATUS_RF_KILL_SW, &priv->status);
-		IWL_DEBUG_INFO(priv, "Radio disabled.\n");
-	}
-
-
 	/***********************
-	 * 8. Setup Services
+	 * 7. Setup Services
 	 * ********************/
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -4350,7 +4338,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	iwl3945_setup_rx_handlers(priv);
 
 	/*********************************
-	 * 9. Setup and Register mac80211
+	 * 8. Setup and Register mac80211
 	 * *******************************/
 
 	iwl_enable_interrupts(priv);
@@ -4528,8 +4516,6 @@ MODULE_FIRMWARE(IWL3945_MODULE_FIRMWARE(IWL3945_UCODE_API_MAX));
 
 module_param_named(antenna, iwl3945_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
-module_param_named(disable, iwl3945_mod_params.disable, int, 0444);
-MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
 module_param_named(swcrypto, iwl3945_mod_params.sw_crypto, int, 0444);
 MODULE_PARM_DESC(swcrypto,
 		 "using software crypto (default 1 [software])\n");
