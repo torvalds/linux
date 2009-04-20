@@ -1481,47 +1481,34 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	return event;
 }
 
-static int trace_irq_level(void)
-{
-	return (hardirq_count() >> HARDIRQ_SHIFT) +
-		(softirq_count() >> + SOFTIRQ_SHIFT) +
-		!!in_nmi();
-}
+#define TRACE_RECURSIVE_DEPTH 16
 
 static int trace_recursive_lock(void)
 {
-	int level;
+	current->trace_recursion++;
 
-	level = trace_irq_level();
+	if (likely(current->trace_recursion < TRACE_RECURSIVE_DEPTH))
+		return 0;
 
-	if (unlikely(current->trace_recursion & (1 << level))) {
-		/* Disable all tracing before we do anything else */
-		tracing_off_permanent();
+	/* Disable all tracing before we do anything else */
+	tracing_off_permanent();
 
-		printk_once(KERN_WARNING "Tracing recursion: "
-			    "HC[%lu]:SC[%lu]:NMI[%lu]\n",
-			    hardirq_count() >> HARDIRQ_SHIFT,
-			    softirq_count() >> SOFTIRQ_SHIFT,
-			    in_nmi());
+	printk_once(KERN_WARNING "Tracing recursion: depth[%d]:"
+		    "HC[%lu]:SC[%lu]:NMI[%lu]\n",
+		    current->trace_recursion,
+		    hardirq_count() >> HARDIRQ_SHIFT,
+		    softirq_count() >> SOFTIRQ_SHIFT,
+		    in_nmi());
 
-		WARN_ON_ONCE(1);
-		return -1;
-	}
-
-	current->trace_recursion |= 1 << level;
-
-	return 0;
+	WARN_ON_ONCE(1);
+	return -1;
 }
 
 static void trace_recursive_unlock(void)
 {
-	int level;
+	WARN_ON_ONCE(!current->trace_recursion);
 
-	level = trace_irq_level();
-
-	WARN_ON_ONCE(!current->trace_recursion & (1 << level));
-
-	current->trace_recursion &= ~(1 << level);
+	current->trace_recursion--;
 }
 
 static DEFINE_PER_CPU(int, rb_need_resched);
