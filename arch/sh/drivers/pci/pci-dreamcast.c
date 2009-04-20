@@ -21,7 +21,6 @@
 #include <linux/irq.h>
 #include <linux/pci.h>
 #include <linux/module.h>
-
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <mach/pci.h>
@@ -40,11 +39,19 @@ static struct resource gapspci_mem_resource = {
 	.flags	= IORESOURCE_MEM,
 };
 
+static struct pci_channel dreamcast_pci_controller = {
+	.pci_ops	= &gapspci_pci_ops,
+	.io_resource	= &gapspci_io_resource,
+	.io_offset	= 0x00000000,
+	.mem_resource	= &gapspci_mem_resource,
+	.mem_offset	= 0x00000000,
+};
+
 /*
  * gapspci init
  */
 
-static int __init gapspci_init(struct pci_channel *chan)
+static int __init gapspci_init(void)
 {
 	char idbuf[16];
 	int i;
@@ -88,18 +95,8 @@ static int __init gapspci_init(struct pci_channel *chan)
 	outl(0x00002001, GAPSPCI_BBA_CONFIG+0x10);
 	outl(0x01000000, GAPSPCI_BBA_CONFIG+0x14);
 
+	register_pci_controller(&dreamcast_pci_controller);
+
 	return 0;
 }
-
-struct pci_channel board_pci_channels[] = {
-	{
-		.init		= gapspci_init,
-		.pci_ops	= &gapspci_pci_ops,
-		.io_resource	= &gapspci_io_resource,
-		.mem_resource	= &gapspci_mem_resource,
-		.first_devfn	= 0,
-		.last_devfn	= 1,
-	}, {
-		.init		= NULL,
-	}
-};
+arch_initcall(gapspci_init);

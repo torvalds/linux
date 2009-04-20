@@ -30,7 +30,7 @@
 
 static void __init gapspci_fixup_resources(struct pci_dev *dev)
 {
-	struct pci_channel *p = board_pci_channels;
+	struct pci_channel *p = dev->sysdata;
 
 	printk(KERN_NOTICE "PCI: Fixing up device %s\n", pci_name(dev));
 
