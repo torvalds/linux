@@ -2190,7 +2190,14 @@ static int tg3_nvram_read_using_eeprom(struct tg3 *tp,
 	if (!(tmp & EEPROM_ADDR_COMPLETE))
 		return -EBUSY;
 
-	*val = tr32(GRC_EEPROM_DATA);
+	tmp = tr32(GRC_EEPROM_DATA);
+
+	/*
+	 * The data will always be opposite the native endian
+	 * format.  Perform a blind byteswap to compensate.
+	 */
+	*val = swab32(tmp);
+
 	return 0;
 }
 
@@ -10663,7 +10670,13 @@ static int tg3_nvram_write_block_using_eeprom(struct tg3 *tp,
 
 		memcpy(&data, buf + i, 4);
 
-		tw32(GRC_EEPROM_DATA, be32_to_cpu(data));
+		/*
+		 * The SEEPROM interface expects the data to always be opposite
+		 * the native endian format.  We accomplish this by reversing
+		 * all the operations that would have been performed on the
+		 * data from a call to tg3_nvram_read_be32().
+		 */
+		tw32(GRC_EEPROM_DATA, swab32(be32_to_cpu(data)));
 
 		val = tr32(GRC_EEPROM_ADDR);
 		tw32(GRC_EEPROM_ADDR, val | EEPROM_ADDR_COMPLETE);
@@ -12443,13 +12456,8 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 		/* Next, try NVRAM. */
 		if (!tg3_nvram_read_be32(tp, mac_offset + 0, &hi) &&
 		    !tg3_nvram_read_be32(tp, mac_offset + 4, &lo)) {
-			dev->dev_addr[0] = ((hi >> 16) & 0xff);
-			dev->dev_addr[1] = ((hi >> 24) & 0xff);
-			dev->dev_addr[2] = ((lo >>  0) & 0xff);
-			dev->dev_addr[3] = ((lo >>  8) & 0xff);
-			dev->dev_addr[4] = ((lo >> 16) & 0xff);
-			dev->dev_addr[5] = ((lo >> 24) & 0xff);
-
+			memcpy(&dev->dev_addr[0], ((char *)&hi) + 2, 2);
+			memcpy(&dev->dev_addr[2], (char *)&lo, sizeof(lo));
 		}
 		/* Finally just fetch it out of the MAC control regs. */
 		else {
