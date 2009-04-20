@@ -42,11 +42,6 @@ static void __init pci_fixup_ide_bases(struct pci_dev *d)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
 
-char * __devinit pcibios_setup(char *str)
-{
-	return str;
-}
-
 static int sh5pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 			int size, u32 *val)
 {

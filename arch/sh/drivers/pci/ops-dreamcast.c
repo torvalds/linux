@@ -154,12 +154,6 @@ static int __init gapspci_init(struct pci_channel *chan)
 	return 0;
 }
 
-/* Haven't done anything here as yet */
-char * __devinit pcibios_setup(char *str)
-{
-	return str;
-}
-
 struct pci_channel board_pci_channels[] = {
 	{ gapspci_init, &gapspci_pci_ops, &gapspci_io_resource,
 	  &gapspci_mem_resource, 0, 1 },
