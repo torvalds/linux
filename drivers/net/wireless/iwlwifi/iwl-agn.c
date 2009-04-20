@@ -2829,7 +2829,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = iwl_dbgfs_register(priv, DRV_NAME);
 	if (err)
-		IWL_ERR(priv, "failed to create debugfs files\n");
+		IWL_ERR(priv, "failed to create debugfs files. Ignoring error: %d\n", err);
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (iwl_read32(priv, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
