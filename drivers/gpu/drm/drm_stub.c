@@ -159,6 +159,9 @@ void drm_master_put(struct drm_master **master)
 int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
+	if (file_priv->is_master)
+		return 0;
+
 	if (file_priv->minor->master && file_priv->minor->master != file_priv->master)
 		return -EINVAL;
 
@@ -169,6 +172,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	    file_priv->minor->master != file_priv->master) {
 		mutex_lock(&dev->struct_mutex);
 		file_priv->minor->master = drm_master_get(file_priv->master);
+		file_priv->is_master = 1;
 		mutex_unlock(&dev->struct_mutex);
 	}
 
@@ -178,10 +182,15 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	if (!file_priv->master)
+	if (!file_priv->is_master)
 		return -EINVAL;
+
+	if (!file_priv->minor->master)
+		return -EINVAL;
+
 	mutex_lock(&dev->struct_mutex);
 	drm_master_put(&file_priv->minor->master);
+	file_priv->is_master = 0;
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
