@@ -2456,8 +2456,6 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 		}
 	}
 
-	__tg3_set_mac_addr(tp, 0);
-
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 		u32 val;
 
@@ -6356,6 +6354,8 @@ static int tg3_halt(struct tg3 *tp, int kind, int silent)
 
 	tg3_abort_hw(tp, silent);
 	err = tg3_chip_reset(tp);
+
+	__tg3_set_mac_addr(tp, 0);
 
 	tg3_write_sig_legacy(tp, kind);
 	tg3_write_sig_post_reset(tp, kind);
