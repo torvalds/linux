@@ -142,11 +142,36 @@ static struct ieee80211_channel ar9170_5ghz_chantable[] = {
 };
 #undef CHAN
 
+#define AR9170_HT_CAP							\
+{									\
+	.ht_supported	= true,						\
+	.cap		= IEEE80211_HT_CAP_MAX_AMSDU |			\
+			  IEEE80211_HT_CAP_SM_PS |			\
+			  IEEE80211_HT_CAP_SUP_WIDTH_20_40 |		\
+			  IEEE80211_HT_CAP_SGI_40 |			\
+			  IEEE80211_HT_CAP_DSSSCCK40 |			\
+			  IEEE80211_HT_CAP_SM_PS,			\
+	.ampdu_factor	= 3, /* ?? */					\
+	.ampdu_density	= 7, /* ?? */					\
+	.mcs		= {						\
+		.rx_mask = { 0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, },	\
+	},								\
+}
+
 static struct ieee80211_supported_band ar9170_band_2GHz = {
 	.channels	= ar9170_2ghz_chantable,
 	.n_channels	= ARRAY_SIZE(ar9170_2ghz_chantable),
 	.bitrates	= ar9170_g_ratetable,
 	.n_bitrates	= ar9170_g_ratetable_size,
+	.ht_cap		= AR9170_HT_CAP,
+};
+
+static struct ieee80211_supported_band ar9170_band_5GHz = {
+	.channels	= ar9170_5ghz_chantable,
+	.n_channels	= ARRAY_SIZE(ar9170_5ghz_chantable),
+	.bitrates	= ar9170_a_ratetable,
+	.n_bitrates	= ar9170_a_ratetable_size,
+	.ht_cap		= AR9170_HT_CAP,
 };
 
 #ifdef AR9170_QUEUE_DEBUG
@@ -189,13 +214,6 @@ static void ar9170_dump_station_tx_status_queue(struct ar9170 *ar,
 	printk(KERN_DEBUG "---[ end ]---\n");
 }
 #endif /* AR9170_QUEUE_DEBUG */
-
-static struct ieee80211_supported_band ar9170_band_5GHz = {
-	.channels	= ar9170_5ghz_chantable,
-	.n_channels	= ARRAY_SIZE(ar9170_5ghz_chantable),
-	.bitrates	= ar9170_a_ratetable,
-	.n_bitrates	= ar9170_a_ratetable_size,
-};
 
 void ar9170_handle_tx_status(struct ar9170 *ar, struct sk_buff *skb,
 			     bool valid_status, u16 tx_status)
@@ -1077,7 +1095,8 @@ static int ar9170_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		err = ar9170_set_channel(ar, hw->conf.channel,
-					 AR9170_RFI_NONE, AR9170_BW_20);
+				AR9170_RFI_NONE,
+				nl80211_to_ar9170(hw->conf.channel_type));
 		if (err)
 			goto out;
 		/* adjust slot time for 5 GHz */
@@ -1499,6 +1518,24 @@ static int ar9170_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	return ret;
 }
 
+static int ar9170_ampdu_action(struct ieee80211_hw *hw,
+			       enum ieee80211_ampdu_mlme_action action,
+			       struct ieee80211_sta *sta, u16 tid, u16 *ssn)
+{
+	switch (action) {
+	case IEEE80211_AMPDU_RX_START:
+	case IEEE80211_AMPDU_RX_STOP:
+		/*
+		 * Something goes wrong -- RX locks up
+		 * after a while of receiving aggregated
+		 * frames -- not enabling for now.
+		 */
+		return -EOPNOTSUPP;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ieee80211_ops ar9170_ops = {
 	.start			= ar9170_op_start,
 	.stop			= ar9170_op_stop,
@@ -1515,6 +1552,7 @@ static const struct ieee80211_ops ar9170_ops = {
 	.sta_notify		= ar9170_sta_notify,
 	.get_stats		= ar9170_get_stats,
 	.get_tx_stats		= ar9170_get_tx_stats,
+	.ampdu_action		= ar9170_ampdu_action,
 };
 
 void *ar9170_alloc(size_t priv_size)

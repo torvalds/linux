@@ -60,6 +60,21 @@ enum ar9170_bw {
 	__AR9170_NUM_BW,
 };
 
+static inline enum ar9170_bw nl80211_to_ar9170(enum nl80211_channel_type type)
+{
+	switch (type) {
+	case NL80211_CHAN_NO_HT:
+	case NL80211_CHAN_HT20:
+		return AR9170_BW_20;
+	case NL80211_CHAN_HT40MINUS:
+		return AR9170_BW_40_BELOW;
+	case NL80211_CHAN_HT40PLUS:
+		return AR9170_BW_40_ABOVE;
+	default:
+		BUG();
+	}
+}
+
 enum ar9170_rf_init_mode {
 	AR9170_RFI_NONE,
 	AR9170_RFI_WARM,
