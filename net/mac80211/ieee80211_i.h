@@ -24,7 +24,6 @@
 #include <linux/spinlock.h>
 #include <linux/etherdevice.h>
 #include <net/cfg80211.h>
-#include <net/wireless.h>
 #include <net/iw_handler.h>
 #include <net/mac80211.h>
 #include "key.h"

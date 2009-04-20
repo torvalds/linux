@@ -17,7 +17,7 @@
 #ifndef EEPROM_H
 #define EEPROM_H
 
-#include <net/wireless.h>
+#include <net/cfg80211.h>
 
 #define AH_USE_EEPROM   0x1
 

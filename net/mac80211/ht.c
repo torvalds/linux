@@ -14,7 +14,6 @@
  */
 
 #include <linux/ieee80211.h>
-#include <net/wireless.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "rate.h"

@@ -14,7 +14,6 @@
 #include <linux/device.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
-#include <net/wireless.h>
 #include "nl80211.h"
 #include "core.h"
 #include "sysfs.h"

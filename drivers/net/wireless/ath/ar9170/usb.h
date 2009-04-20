@@ -43,7 +43,7 @@
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <linux/leds.h>
-#include <net/wireless.h>
+#include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include <linux/firmware.h>
 #include "eeprom.h"

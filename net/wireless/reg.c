@@ -37,7 +37,6 @@
 #include <linux/random.h>
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
-#include <net/wireless.h>
 #include <net/cfg80211.h>
 #include "core.h"
 #include "reg.h"

@@ -20,7 +20,6 @@
 #include <linux/nl80211.h>
 
 #include <net/cfg80211.h>
-#include <net/wireless.h>
 
 #define NO_CTL 0xff
 #define SD_NO_CTL               0xE0

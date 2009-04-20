@@ -11,7 +11,6 @@
 #include <linux/kref.h>
 #include <linux/rbtree.h>
 #include <net/genetlink.h>
-#include <net/wireless.h>
 #include <net/cfg80211.h>
 #include "reg.h"
 

@@ -40,7 +40,7 @@
 
 #include <linux/completion.h>
 #include <linux/spinlock.h>
-#include <net/wireless.h>
+#include <net/cfg80211.h>
 #include <net/mac80211.h>
 #ifdef CONFIG_AR9170_LEDS
 #include <linux/leds.h>

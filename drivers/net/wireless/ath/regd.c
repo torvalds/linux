@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
-#include <net/wireless.h>
 #include "regd.h"
 #include "regd_common.h"
 

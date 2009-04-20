@@ -19,7 +19,6 @@
 #include <linux/wireless.h>
 #include <linux/device.h>
 #include <linux/ieee80211.h>
-#include <net/wireless.h>
 #include <net/cfg80211.h>
 
 /**
