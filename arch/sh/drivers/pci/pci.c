@@ -86,29 +86,6 @@ void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 	res->end = region->end;
 }
 
-void pcibios_align_resource(void *data, struct resource *res,
-			    resource_size_t size, resource_size_t align)
-			    __attribute__ ((weak));
-
-/*
- * We need to avoid collisions with `mirrored' VGA ports
- * and other strange ISA hardware, so we always want the
- * addresses to be allocated in the 0x000-0x0ff region
- * modulo 0x400.
- */
-void pcibios_align_resource(void *data, struct resource *res,
-			    resource_size_t size, resource_size_t align)
-{
-	if (res->flags & IORESOURCE_IO) {
-		resource_size_t start = res->start;
-
-		if (start & 0x300) {
-			start = (start + 0x3ff) & ~0x3ff;
-			res->start = start;
-		}
-	}
-}
-
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
 	u16 cmd, old_cmd;

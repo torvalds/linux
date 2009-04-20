@@ -30,6 +30,9 @@
 #define PCIC_WRITE(x,v) writel((v), PCI_REG(x))
 #define PCIC_READ(x) readl(PCI_REG(x))
 
+#define xPCIBIOS_MIN_IO		board_pci_channels->io_resource->start
+#define xPCIBIOS_MIN_MEM	board_pci_channels->mem_resource->start
+
 /*
  * Description:  This function sets up and initializes the pcic, sets
  * up the BARS, maps the DRAM into the address space etc, etc.
@@ -97,12 +100,12 @@ int __init pcibios_init_platform(void)
     * meaning all calls go straight through... use BUG_ON to
     * catch erroneous assumption.
     */
-   BUG_ON(PCIBIOS_MIN_MEM != SH7751_PCI_MEMORY_BASE);
+   BUG_ON(xPCIBIOS_MIN_MEM != SH7751_PCI_MEMORY_BASE);
 
-   PCIC_WRITE(SH7751_PCIMBR, PCIBIOS_MIN_MEM);
+   PCIC_WRITE(SH7751_PCIMBR, xPCIBIOS_MIN_MEM);
 
    /* Set IOBR for window containing area specified in pci.h */
-   PCIC_WRITE(SH7751_PCIIOBR, (PCIBIOS_MIN_IO & SH7751_PCIIOBR_MASK));
+   PCIC_WRITE(SH7751_PCIIOBR, (xPCIBIOS_MIN_IO & SH7751_PCIIOBR_MASK));
 
    /* All done, may as well say so... */
    printk("SH7751 PCI: Finished initialization of the PCI controller\n");
