@@ -26,6 +26,8 @@ struct pci_channel {
 	int enabled;
 	unsigned long reg_base;
 	unsigned long io_base;
+
+	unsigned long io_map_base;
 };
 
 /*
@@ -110,30 +112,10 @@ static inline int __is_pci_memory(unsigned long phys_addr, unsigned long size)
 	}
 	return 0;
 }
-
-static inline void __iomem *__get_pci_io_base(unsigned long port,
-					      unsigned long size)
-{
-	struct pci_channel *p;
-	struct resource *res;
-
-	for (p = board_pci_channels; p->init; p++) {
-		res = p->io_resource;
-		if (p->enabled && (port >= res->start) &&
-		    (port + size) <= (res->end + 1))
-			return (void __iomem *)(p->io_base + port);
-	}
-	return NULL;
-}
 #else
 static inline int __is_pci_memory(unsigned long phys_addr, unsigned long size)
 {
 	return 0;
-}
-static inline void __iomem *__get_pci_io_base(unsigned long port,
-					      unsigned long size)
-{
-	return NULL;
 }
 #endif
 

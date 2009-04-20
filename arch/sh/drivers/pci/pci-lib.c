@@ -60,6 +60,57 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			       vma->vm_page_prot);
 }
 
+static void __iomem *ioport_map_pci(struct pci_dev *dev,
+				    unsigned long port, unsigned int nr)
+{
+	struct pci_channel *chan = dev->sysdata;
+
+	if (!chan->io_map_base)
+		chan->io_map_base = generic_io_base;
+
+	return (void __iomem *)(chan->io_map_base + port);
+}
+
+void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
+{
+	resource_size_t start = pci_resource_start(dev, bar);
+	resource_size_t len = pci_resource_len(dev, bar);
+	unsigned long flags = pci_resource_flags(dev, bar);
+
+	if (unlikely(!len || !start))
+		return NULL;
+	if (maxlen && len > maxlen)
+		len = maxlen;
+
+	if (flags & IORESOURCE_IO)
+		return ioport_map_pci(dev, start, len);
+
+	/*
+	 * Presently the IORESOURCE_MEM case is a bit special, most
+	 * SH7751 style PCI controllers have PCI memory at a fixed
+	 * location in the address space where no remapping is desired.
+	 * With the IORESOURCE_MEM case more care has to be taken
+	 * to inhibit page table mapping for legacy cores, but this is
+	 * punted off to __ioremap().
+	 *					-- PFM.
+	 */
+	if (flags & IORESOURCE_MEM) {
+		if (flags & IORESOURCE_CACHEABLE)
+			return ioremap(start, len);
+
+		return ioremap_nocache(start, len);
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(pci_iomap);
+
+void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
+{
+	iounmap(addr);
+}
+EXPORT_SYMBOL(pci_iounmap);
+
 #ifdef CONFIG_HOTPLUG
 EXPORT_SYMBOL(pcibios_resource_to_bus);
 EXPORT_SYMBOL(pcibios_bus_to_resource);

@@ -70,10 +70,6 @@ void __iomem *ioport_map(unsigned long port, unsigned int nr)
 	if (ret)
 		return ret;
 
-	ret = __get_pci_io_base(port, nr);
-	if (ret)
-		return ret;
-
 	return __ioport_map(port, nr);
 }
 EXPORT_SYMBOL(ioport_map);
