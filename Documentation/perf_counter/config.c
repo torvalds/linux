@@ -15,7 +15,6 @@ static FILE *config_file;
 static const char *config_file_name;
 static int config_linenr;
 static int config_file_eof;
-static int zlib_compression_seen;
 
 const char *config_exclusive_filename = NULL;
 
@@ -533,14 +532,6 @@ static int store_aux(const char* key, const char* value, void *cb)
 	return 0;
 }
 
-static int write_error(const char *filename)
-{
-	error("failed to write new configuration file %s", filename);
-
-	/* Same error code as "failed to rename". */
-	return 4;
-}
-
 static int store_write_section(int fd, const char* key)
 {
 	const char *dot;
@@ -673,7 +664,7 @@ int perf_config_set_multivar(const char* key, const char* value,
 {
 	int i, dot;
 	int fd = -1, in_fd;
-	int ret;
+	int ret = 0;
 	char* config_filename;
 	const char* last_dot = strrchr(key, '.');
 
@@ -870,90 +861,6 @@ out_free:
 write_err_out:
 	goto out_free;
 
-}
-
-static int section_name_match (const char *buf, const char *name)
-{
-	int i = 0, j = 0, dot = 0;
-	for (; buf[i] && buf[i] != ']'; i++) {
-		if (!dot && isspace(buf[i])) {
-			dot = 1;
-			if (name[j++] != '.')
-				break;
-			for (i++; isspace(buf[i]); i++)
-				; /* do nothing */
-			if (buf[i] != '"')
-				break;
-			continue;
-		}
-		if (buf[i] == '\\' && dot)
-			i++;
-		else if (buf[i] == '"' && dot) {
-			for (i++; isspace(buf[i]); i++)
-				; /* do_nothing */
-			break;
-		}
-		if (buf[i] != name[j++])
-			break;
-	}
-	return (buf[i] == ']' && name[j] == 0);
-}
-
-/* if new_name == NULL, the section is removed instead */
-int perf_config_rename_section(const char *old_name, const char *new_name)
-{
-	int ret = 0, remove = 0;
-	char *config_filename;
-	int out_fd;
-	char buf[1024];
-
-	if (config_exclusive_filename)
-		config_filename = strdup(config_exclusive_filename);
-	else
-		config_filename = perf_pathdup("config");
-	if (out_fd < 0) {
-		ret = error("could not lock config file %s", config_filename);
-		goto out;
-	}
-
-	if (!(config_file = fopen(config_filename, "rb"))) {
-		/* no config file means nothing to rename, no error */
-		goto unlock_and_out;
-	}
-
-	while (fgets(buf, sizeof(buf), config_file)) {
-		int i;
-		int length;
-		for (i = 0; buf[i] && isspace(buf[i]); i++)
-			; /* do nothing */
-		if (buf[i] == '[') {
-			/* it's a section */
-			if (section_name_match (&buf[i+1], old_name)) {
-				ret++;
-				if (new_name == NULL) {
-					remove = 1;
-					continue;
-				}
-				store.baselen = strlen(new_name);
-				if (!store_write_section(out_fd, new_name)) {
-					goto out;
-				}
-				continue;
-			}
-			remove = 0;
-		}
-		if (remove)
-			continue;
-		length = strlen(buf);
-		if (write_in_full(out_fd, buf, length) != length) {
-			goto out;
-		}
-	}
-	fclose(config_file);
- unlock_and_out:
- out:
-	free(config_filename);
-	return ret;
 }
 
 /*

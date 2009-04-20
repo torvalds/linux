@@ -94,4 +94,24 @@ static inline int is_absolute_path(const char *path)
 {
 	return path[0] == '/';
 }
+
+const char *make_absolute_path(const char *path);
+const char *make_nonrelative_path(const char *path);
+const char *make_relative_path(const char *abs, const char *base);
+int normalize_path_copy(char *dst, const char *src);
+int longest_ancestor_length(const char *path, const char *prefix_list);
+char *strip_path_suffix(const char *path, const char *suffix);
+
+extern char *mkpath(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
+extern char *perf_path(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
+
+extern char *mksnpath(char *buf, size_t n, const char *fmt, ...)
+	__attribute__((format (printf, 3, 4)));
+extern char *perf_snpath(char *buf, size_t n, const char *fmt, ...)
+	__attribute__((format (printf, 3, 4)));
+extern char *perf_pathdup(const char *fmt, ...)
+	__attribute__((format (printf, 1, 2)));
+
+extern size_t strlcpy(char *dest, const char *src, size_t size);
+
 #endif /* CACHE_H */

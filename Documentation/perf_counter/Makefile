@@ -138,16 +138,6 @@ all::
 #
 # Define NO_PERL if you do not want Perl scripts or libraries at all.
 #
-# Define NO_TCLTK if you do not want Tcl/Tk GUI.
-#
-# The TCL_PATH variable governs the location of the Tcl interpreter
-# used to optimize perf-gui for your system.  Only used if NO_TCLTK
-# is not set.  Defaults to the bare 'tclsh'.
-#
-# The TCLTK_PATH variable governs the location of the Tcl/Tk interpreter.
-# If not set it defaults to the bare 'wish'. If it is set to the empty
-# string then NO_TCLTK will be forced (this is used by configure script).
-#
 # Define INTERNAL_QSORT to use Git's implementation of qsort(), which
 # is a simplified version of the merge sort used in glibc. This is
 # recommended if Git triggers O(n^2) behavior in your platform's qsort().
@@ -215,11 +205,7 @@ TAR = tar
 FIND = find
 INSTALL = install
 RPMBUILD = rpmbuild
-TCL_PATH = tclsh
-TCLTK_PATH = wish
 PTHREAD_LIBS = -lpthread
-
-export TCL_PATH TCLTK_PATH
 
 # sparse is architecture-neutral, which means that we need to tell it
 # explicitly what architecture to check for. Fix this up for yours..
@@ -529,10 +515,6 @@ ifdef NO_EXTERNAL_GREP
 	BASIC_CFLAGS += -DNO_EXTERNAL_GREP
 endif
 
-ifeq ($(TCLTK_PATH),)
-NO_TCLTK=NoThanks
-endif
-
 ifeq ($(PERL_PATH),)
 NO_PERL=NoThanks
 endif
@@ -583,7 +565,6 @@ prefix_SQ = $(subst ','\'',$(prefix))
 
 SHELL_PATH_SQ = $(subst ','\'',$(SHELL_PATH))
 PERL_PATH_SQ = $(subst ','\'',$(PERL_PATH))
-TCLTK_PATH_SQ = $(subst ','\'',$(TCLTK_PATH))
 
 LIBS = $(PERFLIBS) $(EXTLIBS)
 
@@ -607,14 +588,6 @@ ifneq (,$X)
 endif
 
 all::
-ifndef NO_TCLTK
-	$(QUIET_SUBDIR0)perf-gui $(QUIET_SUBDIR1) perfexecdir='$(perfexec_instdir_SQ)' all
-	$(QUIET_SUBDIR0)perfk-perf $(QUIET_SUBDIR1) all
-endif
-ifndef NO_PERL
-	$(QUIET_SUBDIR0)perl $(QUIET_SUBDIR1) PERL_PATH='$(PERL_PATH_SQ)' prefix='$(prefix_SQ)' all
-endif
-	$(QUIET_SUBDIR0)templates $(QUIET_SUBDIR1)
 
 please_set_SHELL_PATH_to_a_more_modern_shell:
 	@$$(:)
@@ -704,21 +677,6 @@ builtin-revert.o wt-status.o: wt-status.h
 $(LIB_FILE): $(LIB_OBJS)
 	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(LIB_OBJS)
 
-doc:
-	$(MAKE) -C Documentation all
-
-man:
-	$(MAKE) -C Documentation man
-
-html:
-	$(MAKE) -C Documentation html
-
-info:
-	$(MAKE) -C Documentation info
-
-pdf:
-	$(MAKE) -C Documentation pdf
-
 TAGS:
 	$(RM) TAGS
 	$(FIND) . -name '*.[hcS]' -print | xargs etags -a
@@ -751,33 +709,12 @@ PERF-BUILD-OPTIONS: .FORCE-PERF-BUILD-OPTIONS
 	@echo NO_CURL=\''$(subst ','\'',$(subst ','\'',$(NO_CURL)))'\' >>$@
 	@echo NO_PERL=\''$(subst ','\'',$(subst ','\'',$(NO_PERL)))'\' >>$@
 
-### Detect Tck/Tk interpreter path changes
-ifndef NO_TCLTK
-TRACK_VARS = $(subst ','\'',-DTCLTK_PATH='$(TCLTK_PATH_SQ)')
-
-PERF-GUI-VARS: .FORCE-PERF-GUI-VARS
-	@VARS='$(TRACK_VARS)'; \
-	    if test x"$$VARS" != x"`cat $@ 2>/dev/null`" ; then \
-		echo 1>&2 "    * new Tcl/Tk interpreter location"; \
-		echo "$$VARS" >$@; \
-            fi
-
-.PHONY: .FORCE-PERF-GUI-VARS
-endif
-
 ### Testing rules
 
-TEST_PROGRAMS += test-chmtime$X
-TEST_PROGRAMS += test-ctype$X
-TEST_PROGRAMS += test-date$X
-TEST_PROGRAMS += test-delta$X
-TEST_PROGRAMS += test-dump-cache-tree$X
-TEST_PROGRAMS += test-genrandom$X
-TEST_PROGRAMS += test-match-trees$X
-TEST_PROGRAMS += test-parse-options$X
-TEST_PROGRAMS += test-path-utils$X
-TEST_PROGRAMS += test-sha1$X
-TEST_PROGRAMS += test-sigchain$X
+#
+# None right now:
+#
+# TEST_PROGRAMS += test-something$X
 
 all:: $(TEST_PROGRAMS)
 
@@ -786,25 +723,6 @@ all:: $(TEST_PROGRAMS)
 # with that.
 
 export NO_SVN_TESTS
-
-test: all
-	$(MAKE) -C t/ all
-
-test-ctype$X: ctype.o
-
-test-date$X: date.o ctype.o
-
-test-delta$X: diff-delta.o patch-delta.o
-
-test-parse-options$X: parse-options.o
-
-.PRECIOUS: $(patsubst test-%$X,test-%.o,$(TEST_PROGRAMS))
-
-test-%$X: test-%.o $(PERFLIBS)
-	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(ALL_LDFLAGS) $(filter %.o,$^) $(LIBS)
-
-check-sha1:: test-sha1$X
-	./test-sha1.sh
 
 check: common-cmds.h
 	if sparse; \
@@ -845,10 +763,6 @@ install: all
 	$(INSTALL) perf$X perf-upload-pack$X perf-receive-pack$X perf-upload-archive$X perf-shell$X perf-cvsserver '$(DESTDIR_SQ)$(bindir_SQ)'
 	$(MAKE) -C templates DESTDIR='$(DESTDIR_SQ)' install
 	$(MAKE) -C perl prefix='$(prefix_SQ)' DESTDIR='$(DESTDIR_SQ)' install
-ifndef NO_TCLTK
-	$(MAKE) -C perfk-perf install
-	$(MAKE) -C perf-gui perfexecdir='$(perfexec_instdir_SQ)' install
-endif
 ifneq (,$X)
 	$(foreach p,$(patsubst %$X,%,$(filter %$X,$(ALL_PROGRAMS) $(BUILT_INS) perf$X)), $(RM) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/$p';)
 endif
@@ -865,32 +779,6 @@ endif
 	  done } && \
 	./check_bindir "z$$bindir" "z$$execdir" "$$bindir/perf-add$X"
 
-install-doc:
-	$(MAKE) -C Documentation install
-
-install-man:
-	$(MAKE) -C Documentation install-man
-
-install-html:
-	$(MAKE) -C Documentation install-html
-
-install-info:
-	$(MAKE) -C Documentation install-info
-
-install-pdf:
-	$(MAKE) -C Documentation install-pdf
-
-quick-install-doc:
-	$(MAKE) -C Documentation quick-install
-
-quick-install-man:
-	$(MAKE) -C Documentation quick-install-man
-
-quick-install-html:
-	$(MAKE) -C Documentation quick-install-html
-
-
-
 ### Maintainer's dist rules
 
 perf.spec: perf.spec.in
@@ -904,37 +792,15 @@ dist: perf.spec perf-archive$(X) configure
 	@mkdir -p $(PERF_TARNAME)
 	@cp perf.spec configure $(PERF_TARNAME)
 	@echo $(PERF_VERSION) > $(PERF_TARNAME)/version
-	@$(MAKE) -C perf-gui TARDIR=../$(PERF_TARNAME)/perf-gui dist-version
 	$(TAR) rf $(PERF_TARNAME).tar \
 		$(PERF_TARNAME)/perf.spec \
 		$(PERF_TARNAME)/configure \
-		$(PERF_TARNAME)/version \
-		$(PERF_TARNAME)/perf-gui/version
+		$(PERF_TARNAME)/version
 	@$(RM) -r $(PERF_TARNAME)
 	gzip -f -9 $(PERF_TARNAME).tar
 
 rpm: dist
 	$(RPMBUILD) -ta $(PERF_TARNAME).tar.gz
-
-htmldocs = perf-htmldocs-$(PERF_VERSION)
-manpages = perf-manpages-$(PERF_VERSION)
-dist-doc:
-	$(RM) -r .doc-tmp-dir
-	mkdir .doc-tmp-dir
-	$(MAKE) -C Documentation WEBDOC_DEST=../.doc-tmp-dir install-webdoc
-	cd .doc-tmp-dir && $(TAR) cf ../$(htmldocs).tar .
-	gzip -n -9 -f $(htmldocs).tar
-	:
-	$(RM) -r .doc-tmp-dir
-	mkdir -p .doc-tmp-dir/man1 .doc-tmp-dir/man5 .doc-tmp-dir/man7
-	$(MAKE) -C Documentation DESTDIR=./ \
-		man1dir=../.doc-tmp-dir/man1 \
-		man5dir=../.doc-tmp-dir/man5 \
-		man7dir=../.doc-tmp-dir/man7 \
-		install
-	cd .doc-tmp-dir && $(TAR) cf ../$(manpages).tar .
-	gzip -n -9 -f $(manpages).tar
-	$(RM) -r .doc-tmp-dir
 
 ### Cleaning rules
 
@@ -951,73 +817,12 @@ clean:
 	$(RM) -r $(PERF_TARNAME) .doc-tmp-dir
 	$(RM) $(PERF_TARNAME).tar.gz perf-core_$(PERF_VERSION)-*.tar.gz
 	$(RM) $(htmldocs).tar.gz $(manpages).tar.gz
-	$(MAKE) -C Documentation/ clean
-	$(MAKE) -C templates/ clean
-	$(MAKE) -C t/ clean
-ifndef NO_TCLTK
-	$(MAKE) -C perfk-perf clean
-	$(MAKE) -C perf-gui clean
-endif
-	$(RM) PERF-VERSION-FILE PERF-CFLAGS PERF-GUI-VARS PERF-BUILD-OPTIONS
+	$(RM) PERF-VERSION-FILE PERF-CFLAGS PERF-BUILD-OPTIONS
 
 .PHONY: all install clean strip
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
 .PHONY: .FORCE-PERF-VERSION-FILE TAGS tags cscope .FORCE-PERF-CFLAGS
 .PHONY: .FORCE-PERF-BUILD-OPTIONS
-
-### Check documentation
-#
-check-docs::
-	@(for v in $(ALL_PROGRAMS) $(BUILT_INS) perf perfk; \
-	do \
-		case "$$v" in \
-		perf-merge-octopus | perf-merge-ours | perf-merge-recursive | \
-		perf-merge-resolve | perf-merge-subtree | \
-		perf-fsck-objects | perf-init-db | \
-		perf-?*--?* ) continue ;; \
-		esac ; \
-		test -f "Documentation/$$v.txt" || \
-		echo "no doc: $$v"; \
-		sed -e '/^#/d' command-list.txt | \
-		grep -q "^$$v[ 	]" || \
-		case "$$v" in \
-		perf) ;; \
-		*) echo "no link: $$v";; \
-		esac ; \
-	done; \
-	( \
-		sed -e '/^#/d' \
-		    -e 's/[ 	].*//' \
-		    -e 's/^/listed /' command-list.txt; \
-		ls -1 Documentation/perf*txt | \
-		sed -e 's|Documentation/|documented |' \
-		    -e 's/\.txt//'; \
-	) | while read how cmd; \
-	do \
-		case "$$how,$$cmd" in \
-		*,perf-citool | \
-		*,perf-gui | \
-		*,perf-help | \
-		documented,perfattributes | \
-		documented,perfignore | \
-		documented,perfmodules | \
-		documented,perfcli | \
-		documented,perf-tools | \
-		documented,perfcore-tutorial | \
-		documented,perfcvs-migration | \
-		documented,perfdiffcore | \
-		documented,perfglossary | \
-		documented,perfhooks | \
-		documented,perfrepository-layout | \
-		documented,perftutorial | \
-		documented,perftutorial-2 | \
-		sentinel,not,matching,is,ok ) continue ;; \
-		esac; \
-		case " $(ALL_PROGRAMS) $(BUILT_INS) perf perfk " in \
-		*" $$cmd "*)	;; \
-		*) echo "removed but $$how: $$cmd" ;; \
-		esac; \
-	done ) | sort
 
 ### Make sure built-ins do not have dups and listed in perf.c
 #

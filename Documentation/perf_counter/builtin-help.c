@@ -417,11 +417,9 @@ static void show_html_page(const char *perf_cmd)
 
 int cmd_help(int argc, const char **argv, const char *prefix)
 {
-	int nonperf;
 	const char *alias;
 	load_command_list("perf-", &main_cmds, &other_cmds);
 
-	/* setup_perf_directory_gently(&nonperf); */
 	perf_config(perf_help_config, NULL);
 
 	argc = parse_options(argc, argv, builtin_help_options,

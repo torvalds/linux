@@ -1,7 +1,7 @@
 #include "builtin.h"
 #include "exec_cmd.h"
 #include "cache.h"
-//#include "quote.h"
+#include "quote.h"
 #include "run-command.h"
 
 const char perf_usage_string[] =
@@ -132,7 +132,6 @@ static int handle_alias(int *argcp, const char ***argv)
 	const char** new_argv;
 	const char *alias_command;
 	char *alias_string;
-	int unused_nonperf;
 
 	alias_command = (*argv)[0];
 	alias_string = alias_lookup(alias_command);

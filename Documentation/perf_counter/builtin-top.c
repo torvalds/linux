@@ -63,15 +63,6 @@
 
 #include "util.h"
 
-#define _GNU_SOURCE
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
 #include <getopt.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -102,8 +93,6 @@
  */
 #define PR_TASK_PERF_COUNTERS_DISABLE   31
 #define PR_TASK_PERF_COUNTERS_ENABLE    32
-
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 #define rdclock()                                       \
 ({                                                      \
@@ -1077,7 +1066,7 @@ static void process_event(uint64_t ip, int counter)
 	record_ip(ip, counter);
 }
 
-static void process_options(int argc, char *argv[])
+static void process_options(int argc, char **argv)
 {
 	int error = 0, counter;
 
@@ -1255,7 +1244,7 @@ static void mmap_read(struct mmap_data *md)
 
 		event_t event_copy;
 
-		unsigned int size = event->header.size;
+		size_t size = event->header.size;
 
 		/*
 		 * Event straddles the mmap boundary -- header should always
@@ -1301,7 +1290,7 @@ static void mmap_read(struct mmap_data *md)
 	md->prev = old;
 }
 
-int cmd_top(int argc, const char **argv, const char *prefix)
+int cmd_top(int argc, char **argv, const char *prefix)
 {
 	struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
 	struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
