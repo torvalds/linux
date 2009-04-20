@@ -146,13 +146,34 @@ int pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin);
 int pciauto_assign_resources(int busno, struct pci_channel *hose);
 #endif
 
-#endif /* __KERNEL__ */
+extern void pcibios_resource_to_bus(struct pci_dev *dev,
+	struct pci_bus_region *region, struct resource *res);
 
-/* generic pci stuff */
-#include <asm-generic/pci.h>
+extern void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+				    struct pci_bus_region *region);
+
+static inline struct resource *
+pcibios_select_root(struct pci_dev *pdev, struct resource *res)
+{
+	struct resource *root = NULL;
+
+	if (res->flags & IORESOURCE_IO)
+		root = &ioport_resource;
+	if (res->flags & IORESOURCE_MEM)
+		root = &iomem_resource;
+
+	return root;
+}
+
+/* Chances are this interrupt is wired PC-style ...  */
+static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
+{
+	return channel ? 15 : 14;
+}
 
 /* generic DMA-mapping stuff */
 #include <asm-generic/pci-dma-compat.h>
 
+#endif /* __KERNEL__ */
 #endif /* __ASM_SH_PCI_H */
 
