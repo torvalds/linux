@@ -1,7 +1,7 @@
 #
 # Makefile for the PCI specific kernel interface routines under Linux.
 #
-obj-$(CONFIG_PCI_NEW)			+= pci-new.o
+obj-y					+= pci.o
 
 obj-$(CONFIG_CPU_SUBTYPE_SH7751)	+= pci-sh7751.o ops-sh4.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7751R)	+= pci-sh7751.o ops-sh4.o

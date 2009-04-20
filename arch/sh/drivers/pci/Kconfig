@@ -17,7 +17,3 @@ config SH_PCIDMA_NONCOHERENT
 	  code will not have to flush the CPU's caches. If you have a PCI host
 	  bridge integrated with your SH CPU, refer carefully to the chip specs
 	  to see if you can say 'N' here. Otherwise, leave it as 'Y'.
-
-config PCI_NEW
-	def_bool y
-	depends on PCI
