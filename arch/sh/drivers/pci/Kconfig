@@ -18,10 +18,17 @@ config SH_PCIDMA_NONCOHERENT
 	  bridge integrated with your SH CPU, refer carefully to the chip specs
 	  to see if you can say 'N' here. Otherwise, leave it as 'Y'.
 
+# Temporary config option for transitioning off of PCI_AUTO
+config PCI_NEW
+	bool
+	depends on PCI
+	default y if CPU_SUBTYPE_SH7763 || CPU_SUBTYPE_SH7780 || \
+		     CPU_SUBTYPE_SH7785
+
 # This is also board-specific
 config PCI_AUTO
 	bool
-	depends on PCI
+	depends on PCI && !PCI_NEW
 	default y
 
 config PCI_AUTO_UPDATE_RESOURCES
@@ -34,4 +41,3 @@ config PCI_AUTO_UPDATE_RESOURCES
 	  for some reason, you have a board that simply refuses to work
 	  with its resources updated beyond what they are when the device
 	  is powered up, set this to N. Everyone else will want this as Y.
-
