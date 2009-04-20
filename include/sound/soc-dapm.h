@@ -367,6 +367,8 @@ struct snd_soc_dapm_widget {
 	unsigned char suspend:1;		/* was active before suspend */
 	unsigned char pmdown:1;			/* waiting for timeout */
 
+	int (*power_check)(struct snd_soc_dapm_widget *w);
+
 	/* external events */
 	unsigned short event_flags;		/* flags to specify event types */
 	int (*event)(struct snd_soc_dapm_widget*, struct snd_kcontrol *, int);

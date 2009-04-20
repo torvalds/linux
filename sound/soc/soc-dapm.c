@@ -631,20 +631,7 @@ static int dapm_power_widget(struct snd_soc_codec *codec, int event,
 {
 	int power, ret;
 
-	/* Work out the new power state */
 	switch (w->id) {
-	case snd_soc_dapm_vmid:
-		/* No action required */
-		return 0;
-
-	case snd_soc_dapm_adc:
-		power = dapm_adc_check_power(w);
-		break;
-
-	case snd_soc_dapm_dac:
-		power = dapm_dac_check_power(w);
-		break;
-
 	case snd_soc_dapm_pre:
 		if (!w->event)
 			return 0;
@@ -680,10 +667,13 @@ static int dapm_power_widget(struct snd_soc_codec *codec, int event,
 		return 0;
 
 	default:
-		power = dapm_generic_check_power(w);
 		break;
 	}
 
+	if (!w->power_check)
+		return 0;
+
+	power = w->power_check(w);
 	if (w->power == power)
 		return 0;
 	w->power = power;
@@ -1147,15 +1137,22 @@ int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec)
 		case snd_soc_dapm_switch:
 		case snd_soc_dapm_mixer:
 		case snd_soc_dapm_mixer_named_ctl:
+			w->power_check = dapm_generic_check_power;
 			dapm_new_mixer(codec, w);
 			break;
 		case snd_soc_dapm_mux:
 		case snd_soc_dapm_value_mux:
+			w->power_check = dapm_generic_check_power;
 			dapm_new_mux(codec, w);
 			break;
 		case snd_soc_dapm_adc:
+			w->power_check = dapm_adc_check_power;
+			break;
 		case snd_soc_dapm_dac:
+			w->power_check = dapm_dac_check_power;
+			break;
 		case snd_soc_dapm_pga:
+			w->power_check = dapm_generic_check_power;
 			dapm_new_pga(codec, w);
 			break;
 		case snd_soc_dapm_input:
@@ -1165,6 +1162,8 @@ int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec)
 		case snd_soc_dapm_hp:
 		case snd_soc_dapm_mic:
 		case snd_soc_dapm_line:
+			w->power_check = dapm_generic_check_power;
+			break;
 		case snd_soc_dapm_vmid:
 		case snd_soc_dapm_pre:
 		case snd_soc_dapm_post:
